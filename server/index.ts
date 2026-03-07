@@ -6,6 +6,7 @@ import analysisRoutes from './routes/analysis'
 import memberRoutes from './routes/members'
 import messageRoutes from './routes/messages'
 import { sessionNlpRouter, globalNlpRouter } from './routes/nlp'
+import llmRoutes from './routes/llm'
 
 export function createApp() {
   const app = express()
@@ -30,6 +31,8 @@ export function createApp() {
   // NLP routes: /api/sessions/:id/nlp/* and /api/nlp/*
   app.use('/api/sessions', sessionNlpRouter)
   app.use('/api/nlp', globalNlpRouter)
+  // LLM config routes: /api/llm/*
+  app.use('/api/llm', llmRoutes)
 
   return app
 }
