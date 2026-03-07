@@ -25,7 +25,7 @@
     "type-check:server": "tsc --noEmit -p tsconfig.server.json",
     "type-check:all": "npm run type-check:web && npm run type-check:server",
     "type-check": "vue-tsc --noEmit -p tsconfig.web.json",
-    "test": "tsx --test server/*.test.ts server/**/*.test.ts",
+    "test": "tsx --test server/*.test.ts server/**/*.test.ts src/**/*.test.ts",
     "start": "tsx server/index.ts"
   },
   "dependencies": {
