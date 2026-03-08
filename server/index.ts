@@ -1,3 +1,6 @@
+import { resolve, dirname } from 'path'
+import { fileURLToPath } from 'url'
+import { existsSync } from 'fs'
 import express from 'express'
 import cors from 'cors'
 import chatRoutes from './routes/chat'
@@ -57,6 +60,21 @@ export function createApp() {
   app.use('/api/merge', mergeRoutes)
   // Migration routes: /api/migration/*
   app.use('/api/migration', migrationRoutes)
+
+  // In production, serve the Vite-built client files
+  const __dirname = dirname(fileURLToPath(import.meta.url))
+  const clientDir = resolve(__dirname, '../dist/client')
+  if (existsSync(clientDir)) {
+    app.use(express.static(clientDir))
+    // SPA fallback: serve index.html for all non-API routes
+    app.use((req, res, next) => {
+      // Skip API routes
+      if (req.path.startsWith('/api/')) return next()
+      res.sendFile('index.html', { root: clientDir }, (err) => {
+        if (err) next(err)
+      })
+    })
+  }
 
   return app
 }
