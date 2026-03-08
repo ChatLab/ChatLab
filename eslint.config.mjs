@@ -18,7 +18,7 @@ export default defineConfigWithVueTs(
   // Vue + TypeScript 推荐规则
   vueTsConfigs.recommended,
 
-  // 全局环境变量（替代 @electron-toolkit 基础配置中的 env 设置）
+  // 全局环境变量
   {
     languageOptions: {
       ecmaVersion: 2021,
@@ -51,7 +51,7 @@ export default defineConfigWithVueTs(
       '@typescript-eslint/no-unused-vars': 'off',
       '@typescript-eslint/no-explicit-any': 'off',
 
-      // 来自 @electron-toolkit/eslint-config-ts/eslint-recommended
+      // TypeScript 额外规则
       '@typescript-eslint/ban-ts-comment': ['error', { 'ts-ignore': 'allow-with-description' }],
       '@typescript-eslint/explicit-function-return-type': 'off',
       '@typescript-eslint/explicit-module-boundary-types': 'off',
