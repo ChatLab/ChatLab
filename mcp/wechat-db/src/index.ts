@@ -36,6 +36,9 @@ import {
   queryContacts,
   queryMessagesFromShard,
   queryMessagesAllShards,
+  queryGroupMembers,
+  buildMemberNameMap,
+  enrichMessagesWithNames,
   executeCustomSQL,
   getDatabaseSchema,
   type CipherConfig,
@@ -82,6 +85,21 @@ const QueryMessagesSchema = z.object({
     .number()
     .optional()
     .describe('指定消息分片序号（0-9），不传则查询所有分片'),
+})
+
+const GetGroupMembersSchema = z.object({
+  wxid_or_path: z.string().describe('账户 wxid 或完整路径'),
+  chatroom_id: z.string().describe('群 ID，以 @chatroom 结尾，如 "xxxxxxxx@chatroom"'),
+})
+
+const DailyGroupSummarySchema = z.object({
+  wxid_or_path: z.string().describe('账户 wxid 或完整路径'),
+  chatroom_id: z.string().describe('群 ID，以 @chatroom 结尾'),
+  date: z
+    .string()
+    .describe('日期，格式 YYYY-MM-DD，如 "2024-01-15"。不传则默认今天'),
+  self_name: z.string().optional().describe('你自己在群里的显示名，用于标注自己发的消息，默认"我"'),
+  limit: z.number().optional().default(2000).describe('最大消息数量，默认 2000'),
 })
 
 const GetDatabaseSchemaSchema = z.object({
@@ -336,6 +354,48 @@ server.setRequestHandler(ListToolsRequestSchema, async () => {
           required: ['wxid_or_path', 'db_type', 'sql'],
         },
       },
+      {
+        name: 'wechat_get_group_members',
+        description:
+          '获取指定群的成员列表，包含群昵称（群内设置的名字）、微信昵称和你设置的备注。' +
+          '结果中 resolvedName 是最终显示名（优先级：备注 > 群昵称 > 微信昵称 > wxid）。' +
+          '可结合 wechat_daily_group_summary 使用，将发言人 wxid 映射到可读名字。',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            wxid_or_path: { type: 'string', description: '账户 wxid 或完整路径' },
+            chatroom_id: {
+              type: 'string',
+              description: '群 ID，以 @chatroom 结尾，如 "xxxxxxxx@chatroom"',
+            },
+          },
+          required: ['wxid_or_path', 'chatroom_id'],
+        },
+      },
+      {
+        name: 'wechat_daily_group_summary',
+        description:
+          '获取某个群指定日期的全部消息，并自动关联群昵称（将 wxid 替换为可读名字）。' +
+          '返回按时间正序排列的消息列表，每条消息包含：时间、发言人显示名、消息内容。' +
+          '适合让 Claude 整理一天的群讨论要点、决策记录、待办事项等。',
+        inputSchema: {
+          type: 'object',
+          properties: {
+            wxid_or_path: { type: 'string', description: '账户 wxid 或完整路径' },
+            chatroom_id: { type: 'string', description: '群 ID，以 @chatroom 结尾' },
+            date: {
+              type: 'string',
+              description: '日期，格式 YYYY-MM-DD，如 "2024-01-15"。不传则默认今天',
+            },
+            self_name: {
+              type: 'string',
+              description: '你自己在群里的显示名，用于标注自己发的消息，默认"我"',
+            },
+            limit: { type: 'number', description: '最大消息数量，默认 2000' },
+          },
+          required: ['wxid_or_path', 'chatroom_id'],
+        },
+      },
     ],
   }
 })
@@ -578,6 +638,111 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
                 columns: result.columns,
                 rows: result.rows,
                 rowCount: result.rowCount,
+              }),
+            },
+          ],
+        }
+      }
+
+      case 'wechat_get_group_members': {
+        const params = GetGroupMembersSchema.parse(args)
+        const paths = getAccountPaths(params.wxid_or_path)
+
+        if (!existsSync(paths.contactDb)) {
+          throw new Error(`联系人数据库不存在: ${paths.contactDb}`)
+        }
+
+        const members = withDb(paths.contactDb, (db) =>
+          queryGroupMembers(db, params.chatroom_id)
+        )
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                chatRoomId: params.chatroom_id,
+                members,
+                total: members.length,
+                note:
+                  members.length === 0
+                    ? '未找到群成员信息。可能是群成员表名不同或该群未缓存，请用 wechat_get_db_schema 查看联系人库表结构。'
+                    : 'resolvedName 为最终显示名（优先级：备注 > 群昵称 > 微信昵称 > wxid）',
+              }),
+            },
+          ],
+        }
+      }
+
+      case 'wechat_daily_group_summary': {
+        const params = DailyGroupSummarySchema.parse(args)
+        const paths = getAccountPaths(params.wxid_or_path)
+        const config = getCipherConfig()
+
+        // 计算时间范围（本地时间某天 00:00:00 ~ 23:59:59）
+        const dateStr = params.date ?? new Date().toISOString().slice(0, 10)
+        const dayStart = new Date(`${dateStr}T00:00:00`)
+        const dayEnd = new Date(`${dateStr}T23:59:59`)
+
+        if (isNaN(dayStart.getTime())) {
+          throw new Error(`日期格式错误：${params.date}，请使用 YYYY-MM-DD 格式`)
+        }
+
+        const startTime = Math.floor(dayStart.getTime() / 1000)
+        const endTime = Math.floor(dayEnd.getTime() / 1000)
+
+        // 1. 获取群成员昵称映射
+        let nameMap = new Map<string, string>()
+        if (existsSync(paths.contactDb)) {
+          try {
+            const members = withDb(paths.contactDb, (db) =>
+              queryGroupMembers(db, params.chatroom_id)
+            )
+            nameMap = buildMemberNameMap(members)
+          } catch {
+            // 群成员查询失败不影响消息查询
+          }
+        }
+
+        // 2. 查询当天消息（跨所有分片）
+        const rawMessages = queryMessagesAllShards(paths.messageShards, config, {
+          talker: params.chatroom_id,
+          startTime,
+          endTime,
+          limit: params.limit ?? 2000,
+        })
+
+        // 3. 按时间正序排列（allShards 返回的是倒序）
+        rawMessages.sort((a, b) => a.createTime - b.createTime)
+
+        // 4. 填充发言人显示名
+        const messages = enrichMessagesWithNames(rawMessages, nameMap, params.self_name ?? '我')
+
+        // 5. 构建适合阅读的消息列表
+        const formattedMessages = messages
+          .filter((m) => m.type !== 10000) // 过滤系统消息（可选）
+          .map((m) => ({
+            time: m.createTimeISO.replace('T', ' ').slice(0, 19),
+            sender: m.senderDisplayName ?? m.senderWxid ?? (m.isSender === 1 ? (params.self_name ?? '我') : '未知'),
+            type: m.typeName,
+            content: m.actualContent ?? m.content,
+          }))
+
+        return {
+          content: [
+            {
+              type: 'text',
+              text: JSON.stringify({
+                date: dateStr,
+                chatRoomId: params.chatroom_id,
+                messageCount: formattedMessages.length,
+                membersResolved: nameMap.size,
+                messages: formattedMessages,
+                tip:
+                  formattedMessages.length === 0
+                    ? `${dateStr} 当天该群没有消息记录`
+                    : `已加载 ${formattedMessages.length} 条消息，${nameMap.size} 位成员昵称已关联。` +
+                      `可让 Claude 对以上内容进行要点整理、待办提取、决策记录等分析。`,
               }),
             },
           ],

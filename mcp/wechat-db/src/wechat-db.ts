@@ -60,10 +60,30 @@ export interface WeChatMessage {
   subType: number
   isSender: number
   talker: string
+  /** 原始 content（群消息可能包含 "wxid:\n实际内容" 前缀） */
   content: string | null
   createTime: number
   createTimeISO: string
   dbFile: string
+  /** 发言人 wxid（群消息解析 content 前缀或独立字段，私聊为空）*/
+  senderWxid?: string
+  /** 去掉发言人前缀后的实际消息内容（群消息专用）*/
+  actualContent?: string | null
+  /** 发言人在群内的显示名（群昵称，如已加载群成员则填充）*/
+  senderDisplayName?: string | null
+}
+
+export interface WeChatGroupMember {
+  chatRoomName: string
+  memberWxid: string
+  /** 群昵称（该成员在该群内设置的名字，可为空）*/
+  displayName: string | null
+  /** 微信昵称（全局）*/
+  nickName: string | null
+  /** 你给该成员设置的备注 */
+  remarkName: string | null
+  /** 最终显示名：优先顺序 remarkName > displayName > nickName > memberWxid */
+  resolvedName: string
 }
 
 export interface WeChatContact {
@@ -318,21 +338,84 @@ export function queryContacts(
 // 查询：消息
 // ============================
 
+// ============================
+// 群消息发言人解析
+// ============================
+
+/**
+ * 从群消息中解析发言人 wxid 和实际内容。
+ *
+ * 微信群消息 content 格式（旧版/部分 4.x）：
+ *   "wxid_xxx:\n<实际内容>"
+ *
+ * 微信 4.x WCDB 也可能有独立的 senderUserName 列，优先使用。
+ */
+export function parseGroupSender(
+  row: Record<string, unknown>,
+  isSender: number,
+  talker: string
+): { senderWxid: string; actualContent: string | null } {
+  // 自己发送的消息：senderWxid 为账户本身（用特殊标记）
+  if (isSender === 1) {
+    return { senderWxid: '__self__', actualContent: row.content != null ? String(row.content) : null }
+  }
+
+  // 优先读取独立的发言人字段（WCDB 4.x 部分版本）
+  const senderField =
+    row.senderUserName ?? row.fromUser ?? row.FromUser ?? row.sender ?? null
+  if (senderField != null && String(senderField).trim() !== '') {
+    return {
+      senderWxid: String(senderField).trim(),
+      actualContent: row.content != null ? String(row.content) : null,
+    }
+  }
+
+  // 非群消息（私聊）：发言人就是 talker
+  if (!talker.endsWith('@chatroom')) {
+    return { senderWxid: talker, actualContent: row.content != null ? String(row.content) : null }
+  }
+
+  // 群消息：从 content 前缀解析 "wxid_xxx:\n实际内容"
+  const content = row.content != null ? String(row.content) : null
+  if (content) {
+    const newlineIdx = content.indexOf('\n')
+    if (newlineIdx > 0) {
+      const prefix = content.slice(0, newlineIdx)
+      // wxid 前缀：不含空格、不含 XML 标签特征、长度合理（3~64）
+      if (prefix.length >= 3 && prefix.length <= 64 && !prefix.includes(' ') && !prefix.includes('<')) {
+        const senderWxid = prefix.endsWith(':') ? prefix.slice(0, -1) : prefix
+        return { senderWxid, actualContent: content.slice(newlineIdx + 1) }
+      }
+    }
+  }
+
+  return { senderWxid: '', actualContent: content }
+}
+
 function formatMessage(row: Record<string, unknown>, dbFile: string): WeChatMessage {
   const createTime = Number(row.createTime ?? row.CreateTime ?? 0)
   const type = Number(row.type ?? row.Type ?? 0)
+  const isSender = Number(row.isSender ?? row.IsSend ?? 0)
+  const talker = String(row.talker ?? row.StrTalker ?? '')
+
+  const isGroupMsg = talker.endsWith('@chatroom')
+  const { senderWxid, actualContent } = isGroupMsg
+    ? parseGroupSender(row, isSender, talker)
+    : { senderWxid: undefined, actualContent: undefined }
+
   return {
     localId: Number(row.localId ?? row.MesLocalID ?? 0),
     msgSvrId: row.msgSvrId != null ? Number(row.msgSvrId) : undefined,
     type,
     typeName: MESSAGE_TYPE_MAP[type] ?? `未知(${type})`,
     subType: Number(row.subType ?? row.SubType ?? 0),
-    isSender: Number(row.isSender ?? row.IsSend ?? 0),
-    talker: String(row.talker ?? row.StrTalker ?? ''),
+    isSender,
+    talker,
     content: row.content != null ? String(row.content) : null,
     createTime,
     createTimeISO: new Date(createTime * 1000).toISOString(),
     dbFile,
+    ...(isGroupMsg && { senderWxid, actualContent }),
   }
 }
 
@@ -509,6 +592,196 @@ export function executeCustomSQL(db: Database.Database, sql: string): SqlQueryRe
     rowCount: rows.length,
   }
 }
+
+// ============================
+// 查询：群成员与群昵称
+// ============================
+
+/**
+ * 查询某个群的成员列表及其群昵称
+ *
+ * 微信数据库中群成员信息来源：
+ * 1. 联系人库的 WCDBChatRoomMember 表（WCDB 4.x）
+ * 2. 群成员信息与联系人的 join 查询（获取微信昵称/备注）
+ */
+export function queryGroupMembers(
+  contactDb: Database.Database,
+  chatRoomId: string
+): WeChatGroupMember[] {
+  const tables = (
+    contactDb
+      .prepare(`SELECT name FROM sqlite_master WHERE type='table'`)
+      .all() as { name: string }[]
+  ).map((r) => r.name)
+
+  // 可能的群成员表名
+  const memberTableName = [
+    'WCDBChatRoomMember',
+    'ChatRoomMember',
+    'GroupMember',
+  ].find((t) => tables.includes(t))
+
+  if (!memberTableName) {
+    // 尝试从 WCDBFriend/Friend 表里捞群成员（部分版本把群成员作为特殊联系人存储）
+    const contactTable = ['WCDBFriend', 'Friend', 'WCContact'].find((t) => tables.includes(t))
+    if (!contactTable) return []
+
+    const contactCols = (
+      contactDb.prepare(`PRAGMA table_info(${contactTable})`).all() as { name: string }[]
+    ).map((c) => c.name)
+
+    if (!contactCols.includes('chatRoomMembers') && !contactCols.includes('memberList')) {
+      return []
+    }
+    return []
+  }
+
+  // 获取群成员表的列
+  const memberCols = (
+    contactDb.prepare(`PRAGMA table_info(${memberTableName})`).all() as { name: string }[]
+  ).map((c) => c.name)
+
+  const hasMemberCol = (col: string) => memberCols.includes(col)
+
+  // 群 ID 字段可能叫 chatRoomName 或 chatroomId 等
+  const roomIdCol =
+    hasMemberCol('chatRoomName') ? 'chatRoomName' :
+    hasMemberCol('chatroomId') ? 'chatroomId' :
+    hasMemberCol('roomId') ? 'roomId' : null
+
+  // 成员 wxid 字段
+  const memberWxidCol =
+    hasMemberCol('memberName') ? 'memberName' :
+    hasMemberCol('wxid') ? 'wxid' :
+    hasMemberCol('userName') ? 'userName' : null
+
+  // 群昵称字段
+  const displayNameCol =
+    hasMemberCol('displayName') ? 'displayName' :
+    hasMemberCol('nickName') ? 'nickName' : null
+
+  if (!roomIdCol || !memberWxidCol) {
+    // 表结构不认识，返回原始数据
+    const rows = contactDb
+      .prepare(`SELECT * FROM ${memberTableName} LIMIT 500`)
+      .all() as Record<string, unknown>[]
+    return rows.map((r) => ({
+      chatRoomName: chatRoomId,
+      memberWxid: String(r[memberWxidCol ?? Object.keys(r)[0]] ?? ''),
+      displayName: null,
+      nickName: null,
+      remarkName: null,
+      resolvedName: String(r[memberWxidCol ?? Object.keys(r)[0]] ?? ''),
+    }))
+  }
+
+  // 查询群成员
+  const members = contactDb
+    .prepare(
+      `SELECT ${memberWxidCol} as memberWxid,
+              ${displayNameCol ? displayNameCol : 'NULL'} as displayName
+       FROM ${memberTableName}
+       WHERE ${roomIdCol} = ?`
+    )
+    .all(chatRoomId) as { memberWxid: string; displayName: string | null }[]
+
+  if (members.length === 0) return []
+
+  // 尝试 join 联系人表获取微信昵称和备注
+  const contactTable = ['WCDBFriend', 'Friend', 'WCContact'].find((t) => tables.includes(t))
+
+  if (!contactTable) {
+    return members.map((m) => ({
+      chatRoomName: chatRoomId,
+      memberWxid: m.memberWxid,
+      displayName: m.displayName,
+      nickName: null,
+      remarkName: null,
+      resolvedName: m.displayName || m.memberWxid,
+    }))
+  }
+
+  const contactCols = (
+    contactDb.prepare(`PRAGMA table_info(${contactTable})`).all() as { name: string }[]
+  ).map((c) => c.name)
+
+  const hasCC = (col: string) => contactCols.includes(col)
+  const userNameCol = hasCC('userName') ? 'userName' : null
+  const nickNameCol = hasCC('nickName') ? 'nickName' : null
+  const remarkCol = hasCC('remarkName') ? 'remarkName' : hasCC('remark') ? 'remark' : null
+
+  if (!userNameCol) {
+    return members.map((m) => ({
+      chatRoomName: chatRoomId,
+      memberWxid: m.memberWxid,
+      displayName: m.displayName,
+      nickName: null,
+      remarkName: null,
+      resolvedName: m.displayName || m.memberWxid,
+    }))
+  }
+
+  // 批量查联系人信息
+  const wxids = members.map((m) => m.memberWxid)
+  const placeholders = wxids.map(() => '?').join(',')
+  const contacts = contactDb
+    .prepare(
+      `SELECT ${userNameCol} as userName,
+              ${nickNameCol ? nickNameCol : 'NULL'} as nickName,
+              ${remarkCol ? remarkCol : 'NULL'} as remarkName
+       FROM ${contactTable}
+       WHERE ${userNameCol} IN (${placeholders})`
+    )
+    .all(...wxids) as { userName: string; nickName: string | null; remarkName: string | null }[]
+
+  const contactMap = new Map(contacts.map((c) => [c.userName, c]))
+
+  return members.map((m) => {
+    const contact = contactMap.get(m.memberWxid)
+    const remarkName = contact?.remarkName || null
+    const nickName = contact?.nickName || null
+    const displayName = m.displayName || null
+    const resolvedName = remarkName || displayName || nickName || m.memberWxid
+    return {
+      chatRoomName: chatRoomId,
+      memberWxid: m.memberWxid,
+      displayName,
+      nickName,
+      remarkName,
+      resolvedName,
+    }
+  })
+}
+
+/**
+ * 将群成员列表转换为 wxid → resolvedName 的快查 Map
+ */
+export function buildMemberNameMap(members: WeChatGroupMember[]): Map<string, string> {
+  return new Map(members.map((m) => [m.memberWxid, m.resolvedName]))
+}
+
+/**
+ * 给消息列表批量填充发言人显示名
+ */
+export function enrichMessagesWithNames(
+  messages: WeChatMessage[],
+  nameMap: Map<string, string>,
+  selfName: string = '我'
+): WeChatMessage[] {
+  return messages.map((msg) => {
+    if (msg.senderWxid === '__self__') {
+      return { ...msg, senderDisplayName: selfName }
+    }
+    if (msg.senderWxid) {
+      return { ...msg, senderDisplayName: nameMap.get(msg.senderWxid) ?? msg.senderWxid }
+    }
+    return msg
+  })
+}
+
+// ============================
+// 查询：数据库表结构
+// ============================
 
 /**
  * 获取数据库表结构信息
