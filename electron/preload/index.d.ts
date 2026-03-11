@@ -724,7 +724,9 @@ interface AssistantApi {
   getAll: () => Promise<AssistantSummary[]>
   getConfig: (id: string) => Promise<AssistantConfigFull | null>
   update: (id: string, updates: Partial<AssistantConfigFull>) => Promise<{ success: boolean; error?: string }>
-  create: (config: Omit<AssistantConfigFull, 'id' | 'version'>) => Promise<{ success: boolean; id?: string; error?: string }>
+  create: (
+    config: Omit<AssistantConfigFull, 'id' | 'version'>
+  ) => Promise<{ success: boolean; id?: string; error?: string }>
   delete: (id: string) => Promise<{ success: boolean; error?: string }>
   reset: (id: string) => Promise<{ success: boolean; error?: string }>
   getBuiltinCatalog: () => Promise<BuiltinAssistantInfo[]>

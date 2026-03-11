@@ -78,11 +78,7 @@ export function createSqlTool(def: CustomSqlToolDef, context: ToolContext): Agen
     description: def.description,
     parameters: schema,
     execute: async (_toolCallId: string, params: Record<string, unknown>) => {
-      const rows = await workerManager.pluginQuery(
-        context.sessionId,
-        def.execution.query,
-        params
-      )
+      const rows = await workerManager.pluginQuery(context.sessionId, def.execution.query, params)
 
       const fallback = resolveTemplate(def.name, 'fallback', def.execution.fallback)
 
@@ -98,9 +94,7 @@ export function createSqlTool(def: CustomSqlToolDef, context: ToolContext): Agen
       const lines: string[] = []
 
       if (summaryTemplate) {
-        lines.push(
-          summaryTemplate.replace(/\{rowCount\}/g, String(rows.length))
-        )
+        lines.push(summaryTemplate.replace(/\{rowCount\}/g, String(rows.length)))
         lines.push('')
       }
 

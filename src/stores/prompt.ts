@@ -35,9 +35,7 @@ export const usePromptStore = defineStore(
     const { locale } = storeToRefs(settingsStore)
 
     const customPromptPresets = ref<PromptPreset[]>([])
-    const builtinPresetOverrides = ref<
-      Record<string, { name?: string; systemPrompt?: string; updatedAt?: number }>
-    >({})
+    const builtinPresetOverrides = ref<Record<string, { name?: string; systemPrompt?: string; updatedAt?: number }>>({})
     const aiPromptSettings = ref<AIPromptSettings>({
       activePresetId: DEFAULT_PRESET_ID,
     })

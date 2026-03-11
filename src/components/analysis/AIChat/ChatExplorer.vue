@@ -400,120 +400,119 @@ watch(
                 <span>{{ assistantStore.selectedAssistant?.name || t('ai.assistant.fallbackName') }}</span>
               </button>
             </div>
-        <!-- 消息列表 -->
-        <div ref="messagesContainer" class="min-h-0 flex-1 overflow-y-auto p-4">
-          <div ref="conversationContentRef" class="mx-auto max-w-3xl space-y-4">
-            <!-- 助手欢迎卡片（仅在无消息时展示，点击可编辑配置） -->
-            <div
-              v-if="showWelcomeCard && welcomeInfo.name"
-              class="cursor-pointer rounded-lg border border-gray-200 px-4 py-3 transition-colors hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-gray-600 dark:hover:bg-gray-800/50"
-              @click="handleConfigureAssistant(assistantStore.selectedAssistant!.id)"
-            >
-              <h4 class="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ welcomeInfo.name }}
-              </h4>
-              <p class="line-clamp-2 text-xs leading-relaxed text-gray-400 dark:text-gray-500">
-                {{ welcomeInfo.preview }}
-              </p>
-            </div>
+            <!-- 消息列表 -->
+            <div ref="messagesContainer" class="min-h-0 flex-1 overflow-y-auto p-4">
+              <div ref="conversationContentRef" class="mx-auto max-w-3xl space-y-4">
+                <!-- 助手欢迎卡片（仅在无消息时展示，点击可编辑配置） -->
+                <div
+                  v-if="showWelcomeCard && welcomeInfo.name"
+                  class="cursor-pointer rounded-lg border border-gray-200 px-4 py-3 transition-colors hover:border-gray-300 hover:bg-gray-50 dark:border-gray-700 dark:hover:border-gray-600 dark:hover:bg-gray-800/50"
+                  @click="handleConfigureAssistant(assistantStore.selectedAssistant!.id)"
+                >
+                  <h4 class="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                    {{ welcomeInfo.name }}
+                  </h4>
+                  <p class="line-clamp-2 text-xs leading-relaxed text-gray-400 dark:text-gray-500">
+                    {{ welcomeInfo.preview }}
+                  </p>
+                </div>
 
-            <!-- 对话截屏按钮 -->
-            <div v-if="qaPairs.length > 0 && !isAIThinking" class="flex justify-end">
-              <CaptureButton
-                :label="t('ai.chat.capture')"
-                size="xs"
-                type="element"
-                :target-element="conversationContentRef"
-              />
-            </div>
+                <!-- 对话截屏按钮 -->
+                <div v-if="qaPairs.length > 0 && !isAIThinking" class="flex justify-end">
+                  <CaptureButton
+                    :label="t('ai.chat.capture')"
+                    size="xs"
+                    type="element"
+                    :target-element="conversationContentRef"
+                  />
+                </div>
 
-            <!-- QA 对渲染 -->
-            <template v-for="pair in qaPairs" :key="pair.id">
-              <div class="qa-pair space-y-4">
-                <!-- 用户问题 -->
-                <ChatMessage
-                  v-if="pair.user && (pair.user.role === 'user' || pair.user.content)"
-                  :role="pair.user.role"
-                  :content="pair.user.content"
-                  :timestamp="pair.user.timestamp"
-                  :is-streaming="pair.user.isStreaming"
-                  :content-blocks="pair.user.contentBlocks"
-                />
-                <!-- AI 回复 -->
-                <ChatMessage
+                <!-- QA 对渲染 -->
+                <template v-for="pair in qaPairs" :key="pair.id">
+                  <div class="qa-pair space-y-4">
+                    <!-- 用户问题 -->
+                    <ChatMessage
+                      v-if="pair.user && (pair.user.role === 'user' || pair.user.content)"
+                      :role="pair.user.role"
+                      :content="pair.user.content"
+                      :timestamp="pair.user.timestamp"
+                      :is-streaming="pair.user.isStreaming"
+                      :content-blocks="pair.user.contentBlocks"
+                    />
+                    <!-- AI 回复 -->
+                    <ChatMessage
+                      v-if="
+                        pair.assistant &&
+                        (pair.assistant.content ||
+                          (pair.assistant.contentBlocks && pair.assistant.contentBlocks.length > 0))
+                      "
+                      :role="pair.assistant.role"
+                      :content="pair.assistant.content"
+                      :timestamp="pair.assistant.timestamp"
+                      :is-streaming="pair.assistant.isStreaming"
+                      :content-blocks="pair.assistant.contentBlocks"
+                      :show-capture-button="!pair.assistant.isStreaming"
+                    />
+                  </div>
+                </template>
+
+                <!-- AI 思考中指示器（仅在没有任何内容块时显示） -->
+                <AIThinkingIndicator
                   v-if="
-                    pair.assistant &&
-                    (pair.assistant.content ||
-                      (pair.assistant.contentBlocks && pair.assistant.contentBlocks.length > 0))
+                    isAIThinking &&
+                    !messages[messages.length - 1]?.content &&
+                    !(messages[messages.length - 1]?.contentBlocks?.length ?? 0)
                   "
-                  :role="pair.assistant.role"
-                  :content="pair.assistant.content"
-                  :timestamp="pair.assistant.timestamp"
-                  :is-streaming="pair.assistant.isStreaming"
-                  :content-blocks="pair.assistant.contentBlocks"
-                  :show-capture-button="!pair.assistant.isStreaming"
+                  :current-tool-status="currentToolStatus"
+                  :tools-used="toolsUsedInCurrentRound"
                 />
               </div>
-            </template>
+            </div>
 
-            <!-- AI 思考中指示器（仅在没有任何内容块时显示） -->
-            <AIThinkingIndicator
-              v-if="
-                isAIThinking &&
-                !messages[messages.length - 1]?.content &&
-                !(messages[messages.length - 1]?.contentBlocks?.length ?? 0)
-              "
-              :current-tool-status="currentToolStatus"
-              :tools-used="toolsUsedInCurrentRound"
-            />
+            <!-- 返回底部浮动按钮（固定在输入框上方） -->
+            <Transition name="fade-up">
+              <button
+                v-if="showScrollToBottom"
+                class="absolute bottom-20 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-gray-800/90 px-3 py-1.5 text-xs text-white shadow-lg backdrop-blur-sm transition-all hover:bg-gray-700 dark:bg-gray-700/90 dark:hover:bg-gray-600"
+                @click="handleScrollToBottom"
+              >
+                <UIcon name="i-heroicons-arrow-down" class="h-3.5 w-3.5" />
+                <span>{{ t('ai.chat.scrollToBottom') }}</span>
+              </button>
+            </Transition>
+
+            <!-- 预设问题气泡（仅在对话为空时显示） -->
+            <div v-if="messages.length === 0 && !isAIThinking" class="px-4 pb-2">
+              <div class="mx-auto max-w-3xl">
+                <PresetQuestions :questions="currentPresetQuestions" @select="handlePresetQuestion" />
+              </div>
+            </div>
+
+            <!-- 输入框区域 -->
+            <div class="px-4 pb-2">
+              <div class="mx-auto max-w-3xl">
+                <ChatInput
+                  :disabled="isAIThinking"
+                  :status="isAIThinking ? 'streaming' : 'ready'"
+                  @send="handleSend"
+                  @stop="handleStop"
+                />
+
+                <!-- 底部状态栏 -->
+                <ChatStatusBar
+                  :chat-type="currentChatType"
+                  :session-token-usage="sessionTokenUsage"
+                  :agent-status="agentStatus"
+                  :has-l-l-m-config="hasLLMConfig"
+                  :is-checking-config="isCheckingConfig"
+                  :current-conversation-id="currentConversationId"
+                />
+              </div>
+            </div>
           </div>
+          <!-- closes relative flex min-w-[480px] -->
         </div>
-
-        <!-- 返回底部浮动按钮（固定在输入框上方） -->
-        <Transition name="fade-up">
-          <button
-            v-if="showScrollToBottom"
-            class="absolute bottom-20 left-1/2 z-10 flex -translate-x-1/2 items-center gap-1.5 rounded-full bg-gray-800/90 px-3 py-1.5 text-xs text-white shadow-lg backdrop-blur-sm transition-all hover:bg-gray-700 dark:bg-gray-700/90 dark:hover:bg-gray-600"
-            @click="handleScrollToBottom"
-          >
-            <UIcon name="i-heroicons-arrow-down" class="h-3.5 w-3.5" />
-            <span>{{ t('ai.chat.scrollToBottom') }}</span>
-          </button>
-        </Transition>
-
-        <!-- 预设问题气泡（仅在对话为空时显示） -->
-        <div v-if="messages.length === 0 && !isAIThinking" class="px-4 pb-2">
-          <div class="mx-auto max-w-3xl">
-            <PresetQuestions
-              :questions="currentPresetQuestions"
-              @select="handlePresetQuestion"
-            />
-          </div>
-        </div>
-
-        <!-- 输入框区域 -->
-        <div class="px-4 pb-2">
-          <div class="mx-auto max-w-3xl">
-            <ChatInput
-              :disabled="isAIThinking"
-              :status="isAIThinking ? 'streaming' : 'ready'"
-              @send="handleSend"
-              @stop="handleStop"
-            />
-
-            <!-- 底部状态栏 -->
-            <ChatStatusBar
-              :chat-type="currentChatType"
-              :session-token-usage="sessionTokenUsage"
-              :agent-status="agentStatus"
-              :has-l-l-m-config="hasLLMConfig"
-              :is-checking-config="isCheckingConfig"
-              :current-conversation-id="currentConversationId"
-            />
-          </div>
-        </div>
-          </div> <!-- closes relative flex min-w-[480px] -->
-        </div> <!-- closes flex h-full flex-1 -->
+        <!-- closes flex h-full flex-1 -->
 
         <!-- 右侧：数据源面板 -->
         <Transition name="slide-fade">

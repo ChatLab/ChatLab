@@ -534,9 +534,7 @@ export function useAIChat(
           }
         },
         chatType,
-        currentAssistantId
-          ? undefined
-          : { systemPrompt: currentPromptConfig.value.systemPrompt },
+        currentAssistantId ? undefined : { systemPrompt: currentPromptConfig.value.systemPrompt },
         locale,
         maxHistoryRounds,
         currentAssistantId

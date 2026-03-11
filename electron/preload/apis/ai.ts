@@ -714,10 +714,7 @@ export const assistantApi = {
     return ipcRenderer.invoke('assistant:getConfig', id)
   },
 
-  update: (
-    id: string,
-    updates: Partial<AssistantConfigFull>
-  ): Promise<{ success: boolean; error?: string }> => {
+  update: (id: string, updates: Partial<AssistantConfigFull>): Promise<{ success: boolean; error?: string }> => {
     return ipcRenderer.invoke('assistant:update', id, updates)
   },
 

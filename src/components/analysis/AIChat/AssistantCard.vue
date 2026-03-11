@@ -39,6 +39,5 @@ const emit = defineEmits<{
     <p class="line-clamp-2 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
       {{ assistant.systemPrompt }}
     </p>
-
   </div>
 </template>

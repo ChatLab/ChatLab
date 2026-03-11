@@ -75,11 +75,9 @@ export const useAssistantStore = defineStore('assistant', () => {
   /** 根据聊天类型和语言过滤后的助手列表（导入的 = 全部可用的） */
   const filteredAssistants = computed(() => {
     return assistants.value.filter((a) => {
-      const typeMatch =
-        !a.applicableChatTypes?.length || a.applicableChatTypes.includes(currentChatType.value)
+      const typeMatch = !a.applicableChatTypes?.length || a.applicableChatTypes.includes(currentChatType.value)
       const localeMatch =
-        !a.supportedLocales?.length ||
-        a.supportedLocales.some((l) => currentLocale.value.startsWith(l))
+        !a.supportedLocales?.length || a.supportedLocales.some((l) => currentLocale.value.startsWith(l))
       return typeMatch && localeMatch
     })
   })

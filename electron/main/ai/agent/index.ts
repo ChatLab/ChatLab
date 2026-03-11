@@ -304,7 +304,16 @@ export async function runAgent(
   const activeConfig = getActiveConfig()
   if (!activeConfig) throw new Error('LLM service not configured')
   const piModel = buildPiModel(activeConfig)
-  const agent = new Agent(context, piModel, activeConfig.apiKey, config, chatType, promptConfig, locale, assistantConfig)
+  const agent = new Agent(
+    context,
+    piModel,
+    activeConfig.apiKey,
+    config,
+    chatType,
+    promptConfig,
+    locale,
+    assistantConfig
+  )
   return agent.execute(userMessage)
 }
 
@@ -324,6 +333,15 @@ export async function runAgentStream(
   const activeConfig = getActiveConfig()
   if (!activeConfig) throw new Error('LLM service not configured')
   const piModel = buildPiModel(activeConfig)
-  const agent = new Agent(context, piModel, activeConfig.apiKey, config, chatType, promptConfig, locale, assistantConfig)
+  const agent = new Agent(
+    context,
+    piModel,
+    activeConfig.apiKey,
+    config,
+    chatType,
+    promptConfig,
+    locale,
+    assistantConfig
+  )
   return agent.executeStream(userMessage, onChunk)
 }

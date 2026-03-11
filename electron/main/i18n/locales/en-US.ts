@@ -205,7 +205,7 @@ Returned summaries are brief descriptions of each session, helping quickly locat
         fallback: 'No messages found in this time range',
       },
       peak_chat_hours_by_member: {
-        desc: 'Analyze a specific member\'s hourly message distribution over the last N days to find their most active hours. Requires member_id from get_members.',
+        desc: "Analyze a specific member's hourly message distribution over the last N days to find their most active hours. Requires member_id from get_members.",
         params: {
           member_id: 'Member ID (from get_members)',
           days: 'Number of recent days to analyze',
@@ -215,7 +215,7 @@ Returned summaries are brief descriptions of each session, helping quickly locat
         fallback: 'This member has no messages in the specified time range',
       },
       member_activity_trend: {
-        desc: 'View a specific member\'s daily message count trend over the last N days. Useful for observing whether someone is becoming more or less active. Requires member_id from get_members.',
+        desc: "View a specific member's daily message count trend over the last N days. Useful for observing whether someone is becoming more or less active. Requires member_id from get_members.",
         params: {
           member_id: 'Member ID (from get_members)',
           days: 'Number of recent days to view',

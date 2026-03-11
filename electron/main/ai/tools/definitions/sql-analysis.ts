@@ -15,7 +15,8 @@ const SQL_TOOL_DEFS: CustomSqlToolDef[] = [
   // ==================== 通用分析 ====================
   {
     name: 'daily_message_type_breakdown',
-    description: '按消息类型统计近 N 天的消息分布（文本、图片、语音、表情等各有多少条）。适用于了解群聊的沟通方式偏好。',
+    description:
+      '按消息类型统计近 N 天的消息分布（文本、图片、语音、表情等各有多少条）。适用于了解群聊的沟通方式偏好。',
     parameters: {
       type: 'object',
       properties: {
@@ -140,8 +141,7 @@ const SQL_TOOL_DEFS: CustomSqlToolDef[] = [
   },
   {
     name: 'member_message_length_stats',
-    description:
-      '统计各成员的平均消息长度（仅文本消息），长消息通常意味着更用心的交流。适用于发现深度交流者。',
+    description: '统计各成员的平均消息长度（仅文本消息），长消息通常意味着更用心的交流。适用于发现深度交流者。',
     parameters: {
       type: 'object',
       properties: {
@@ -208,7 +208,9 @@ const SQL_TOOL_DEFS: CustomSqlToolDef[] = [
  * SQL 分析工具工厂函数数组（与 TS 工具 createTool 模式一致）
  */
 export const sqlToolFactories = SQL_TOOL_DEFS.map(
-  (def) => (context: ToolContext): AgentTool<any> => createSqlTool(def, context)
+  (def) =>
+    (context: ToolContext): AgentTool<any> =>
+      createSqlTool(def, context)
 )
 
 /**

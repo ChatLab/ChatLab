@@ -90,7 +90,9 @@ function handleViewConfig(builtinId: string) {
 
 function getChatTypeLabel(types?: ('group' | 'private')[]): string | null {
   if (!types?.length) return null
-  const labels = types.map((ct) => (ct === 'group' ? t('ai.assistant.config.chatTypeGroup') : t('ai.assistant.config.chatTypePrivate')))
+  const labels = types.map((ct) =>
+    ct === 'group' ? t('ai.assistant.config.chatTypeGroup') : t('ai.assistant.config.chatTypePrivate')
+  )
   return labels.join(' / ')
 }
 </script>
@@ -114,9 +116,11 @@ function getChatTypeLabel(types?: ('group' | 'private')[]): string | null {
         <div class="mb-4 flex gap-1 rounded-lg bg-gray-100 p-1 dark:bg-gray-800">
           <button
             class="flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
-            :class="activeTab === 'local'
-              ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
-              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'"
+            :class="
+              activeTab === 'local'
+                ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+            "
             @click="activeTab = 'local'"
           >
             {{ t('ai.assistant.market.tabs.local') }}
@@ -129,9 +133,11 @@ function getChatTypeLabel(types?: ('group' | 'private')[]): string | null {
           </button>
           <button
             class="flex-1 rounded-md px-3 py-1.5 text-xs font-medium transition-colors"
-            :class="activeTab === 'market'
-              ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
-              : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'"
+            :class="
+              activeTab === 'market'
+                ? 'bg-white text-gray-900 shadow-sm dark:bg-gray-700 dark:text-white'
+                : 'text-gray-500 hover:text-gray-700 dark:text-gray-400'
+            "
             @click="activeTab = 'market'"
           >
             {{ t('ai.assistant.market.tabs.market') }}

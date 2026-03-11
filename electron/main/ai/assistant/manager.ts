@@ -37,7 +37,7 @@ const BUILTIN_CONFIGS: AssistantConfig[] = [
 
 const ASSISTANTS_DIR_NAME = 'assistants'
 
-let cachedAssistants: Map<string, AssistantConfig> = new Map()
+const cachedAssistants: Map<string, AssistantConfig> = new Map()
 let initialized = false
 
 function getAssistantsDir(): string {
@@ -113,10 +113,7 @@ function loadAllAssistants(): void {
 /**
  * 迁移旧数据：将 responseRules 合并到 systemPrompt，删除旧字段并持久化
  */
-function migrateResponseRules(
-  raw: AssistantConfig & { responseRules?: string },
-  filePath: string
-): AssistantConfig {
+function migrateResponseRules(raw: AssistantConfig & { responseRules?: string }, filePath: string): AssistantConfig {
   if (!raw.responseRules) return raw as AssistantConfig
 
   const merged: AssistantConfig = {
@@ -274,7 +271,9 @@ export function updateAssistant(id: string, updates: Partial<AssistantConfig>): 
 /**
  * 创建自定义助手
  */
-export function createAssistant(config: Omit<AssistantConfig, 'id' | 'version'>): AssistantSaveResult & { id?: string } {
+export function createAssistant(
+  config: Omit<AssistantConfig, 'id' | 'version'>
+): AssistantSaveResult & { id?: string } {
   ensureInitialized()
 
   const id = `custom_${randomUUID().replace(/-/g, '').slice(0, 12)}`

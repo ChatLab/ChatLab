@@ -598,17 +598,14 @@ export function registerAIHandlers({ win }: IpcContext): void {
     }
   })
 
-  ipcMain.handle(
-    'assistant:create',
-    async (_, config: Omit<AssistantConfig, 'id' | 'version'>) => {
-      try {
-        return assistantManager.createAssistant(config)
-      } catch (error) {
-        console.error('Failed to create assistant:', error)
-        return { success: false, error: String(error) }
-      }
+  ipcMain.handle('assistant:create', async (_, config: Omit<AssistantConfig, 'id' | 'version'>) => {
+    try {
+      return assistantManager.createAssistant(config)
+    } catch (error) {
+      console.error('Failed to create assistant:', error)
+      return { success: false, error: String(error) }
     }
-  )
+  })
 
   ipcMain.handle('assistant:delete', async (_, id: string) => {
     try {
