@@ -1,4 +1,4 @@
 interface:
   display_name: '同步版本日志'
-  short_description: '生成英文 changelog 并在双仓库创建提交（不推送）'
-  default_prompt: 'Use $sync-changelog to translate the latest Chinese changelog entry into natural English, commit release notes in this repo, and sync both changelog files to ../chatlab.fun with a docs commit.'
+  short_description: '生成英/繁中/日文 changelog 并在双仓库创建提交（不推送）'
+  default_prompt: 'Use $sync-changelog to turn the latest Chinese changelog entry into natural English, Traditional Chinese, and Japanese release notes, commit all localized changelog files in this repo, and sync them to ../chatlab.fun with a docs commit.'

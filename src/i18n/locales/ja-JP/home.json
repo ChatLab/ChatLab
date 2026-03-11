@@ -1,0 +1,124 @@
+{
+  "title": "ChatLab",
+  "subtitle": "チャット履歴分析ラボ",
+  "features": {
+    "privacy": {
+      "title": "プライバシー最優先",
+      "description": "チャット履歴はローカルに保存・分析され、外部へ送信されません。"
+    },
+    "analysis": {
+      "title": "多角的分析",
+      "description": "ランキングから名言集まで、多角的にグループチャットを分析し、埋もれた面白さを見つけます。"
+    },
+    "ai": {
+      "title": "AI Agent",
+      "description": "内蔵 AI Agent がグループチャットに関する質問に答え、データの裏にある流れや面白い話題を掘り起こします。"
+    }
+  },
+  "import": {
+    "dropHint": "マウスを離してファイルをインポート",
+    "clickHint": "クリックして選択、またはチャット記録をドラッグ＆ドロップでインポート",
+    "multipleHint": "複数ファイルの同時選択・ドラッグに対応しています",
+    "selectFiles": "チャット記録ファイルを選択",
+    "chatRecords": "チャット記録",
+    "allFiles": "すべてのファイル",
+    "progress": {
+      "detecting": "フォーマットを検出中...",
+      "reading": "ファイルを読み込み中...",
+      "parsing": "メッセージを解析中...",
+      "saving": "データベースに書き込み中...",
+      "done": "インポート完了",
+      "error": "インポート中断"
+    },
+    "processed": "{count} 件のメッセージを処理しました",
+    "tutorial": "こちらでチャット記録のインポート方法を確認",
+    "viewLog": "インポートログを表示",
+    "cannotReadPath": "ファイルパスを読み取れません",
+    "preparing": "インポートを準備中...",
+    "errors": {
+      "no_file_selected": "ファイルが選択されていません",
+      "import_failed": "インポートに失敗しました",
+      "unrecognized_format": "認識できないファイル形式です",
+      "no_messages": "メッセージを検出できませんでした。ファイル形式が正しいか確認してください"
+    },
+    "diagnostics": {
+      "format": "検出フォーマット：",
+      "received": "受信メッセージ：",
+      "written": " / 書き込み：",
+      "skipped": " / スキップ："
+    },
+    "batch": {
+      "importing": "一括インポート中",
+      "progressCount": "{current} / {total} 件目",
+      "cancel": "インポートをキャンセル",
+      "waiting": "待機中",
+      "skipped": "スキップ済み",
+      "success": "インポート成功",
+      "completed": "一括インポート完了",
+      "summary": "成功 {success} 件、失敗 {failed} 件、スキップ {cancelled} 件",
+      "view": "表示"
+    },
+    "options": {
+      "title": "その他のオプション",
+      "mergeImport": "結合インポート",
+      "mergeImportHint": "チェックすると、複数ファイルが1つのチャット記録に結合されます"
+    },
+    "merge": {
+      "importing": "結合中",
+      "parsing": "ファイルを解析中...",
+      "parsingFile": "解析中: {name}",
+      "merging": "メッセージを結合中...",
+      "completed": "結合完了",
+      "completedHint": "{count} 件のファイルを結合しました",
+      "messageCount": "{count} 件のメッセージ",
+      "failed": "結合に失敗しました",
+      "cancel": "結合をキャンセル"
+    }
+  },
+  "migration": {
+    "title": "データベースのアップグレードが必要です",
+    "description": "新機能をサポートするため、{count} 件のデータベースをアップグレードする必要があります。",
+    "note": "アップグレードは通常数秒で完了し、データは失われません。",
+    "upgradeContent": "今回のアップグレード内容：",
+    "upgradeNow": "今すぐアップグレード",
+    "upgrading": "アップグレード中...",
+    "failed": "移行に失敗しました",
+    "partialFailed": "一部のデータベースのアップグレードに失敗しました",
+    "errorHint": "これは通常、データベースファイルの破損が原因です。サイドバーで失敗したセッションを削除し、再度インポートすることをお勧めします。",
+    "close": "閉じる",
+    "retry": "リトライ"
+  },
+  "chatSelector": {
+    "title": "インポートするチャットを選択",
+    "scanning": "チャットリストをスキャン中...",
+    "scanFailed": "スキャンに失敗しました",
+    "retry": "リトライ",
+    "selectAll": "すべて選択",
+    "chatCount": "全 {count} 件のチャット",
+    "selected": "{count} 件を選択中",
+    "messageCount": "{count} 件のメッセージ",
+    "import": "インポート ({count})",
+    "noChats": "チャットが見つかりません"
+  },
+  "footer": {
+    "website": "公式サイト",
+    "terms": "利用規約"
+  },
+  "changelog": {
+    "title": "バージョン履歴",
+    "subtitle": "すべてのバージョン更新内容を確認",
+    "viewChangelog": "バージョン履歴",
+    "latest": "最新バージョン",
+    "current": "現在のバージョン",
+    "total": "全 {count} バージョン",
+    "close": "閉じる",
+    "loadError": "バージョン履歴の読み込みに失敗しました",
+    "retry": "リトライ",
+    "types": {
+      "feat": "新機能",
+      "fix": "バグ修正",
+      "chore": "その他の改善",
+      "style": "スタイル改善"
+    }
+  }
+}

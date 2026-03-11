@@ -236,11 +236,27 @@ function segmentEnglish(text: string): string[] {
 
     return [...segments].filter((segment) => segment.isWordLike).map((segment) => segment.segment.toLowerCase())
   } catch {
-    // 降级：简单按空格分词
     return cleaned
       .toLowerCase()
       .split(/\s+/)
       .filter((word) => word.length > 0)
+  }
+}
+
+/**
+ * 日语分词（使用 Intl.Segmenter）
+ */
+function segmentJapanese(text: string): string[] {
+  const cleaned = cleanText(text)
+  if (!cleaned) return []
+
+  try {
+    const segmenter = new Intl.Segmenter('ja', { granularity: 'word' })
+    const segments = segmenter.segment(cleaned)
+
+    return [...segments].filter((segment) => segment.isWordLike).map((segment) => segment.segment)
+  } catch {
+    return cleaned.split('').filter((ch) => ch.trim().length > 0)
   }
 }
 
@@ -267,18 +283,21 @@ export interface SegmentOptions {
  */
 export function segment(text: string, locale: SupportedLocale, options: SegmentOptions = {}): string[] {
   const { minLength, posFilterMode = 'meaningful', customPosTags, enableStopwords = true } = options
-  const defaultMinLength = locale === 'zh-CN' ? 2 : 3
+  const isChinese = locale.startsWith('zh')
+  const isJapanese = locale === 'ja-JP'
+  const defaultMinLength = isChinese || isJapanese ? 2 : 3
   const effectiveMinLength = minLength ?? defaultMinLength
 
   let words: string[]
 
-  if (locale === 'zh-CN') {
+  if (isChinese) {
     words = segmentChinese(text, { posFilterMode, customPosTags })
+  } else if (isJapanese) {
+    words = segmentJapanese(text)
   } else {
     words = segmentEnglish(text)
   }
 
-  // 过滤无效词
   return words.filter((word) => isValidWord(word, locale, effectiveMinLength, enableStopwords))
 }
 

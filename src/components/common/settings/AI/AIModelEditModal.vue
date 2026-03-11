@@ -109,7 +109,7 @@ const presetProviders = computed(() => {
     // 排除 openai-compatible（通过另一个配置类型访问）
     if (p.id === 'openai-compatible') return false
     // 非中文环境下，排除中国市场特定提供商
-    if (settingsStore.locale !== 'zh-CN' && CHINA_MARKET_PROVIDERS.includes(p.id)) {
+    if (!settingsStore.locale.startsWith('zh') && CHINA_MARKET_PROVIDERS.includes(p.id)) {
       return false
     }
     return true

@@ -1,0 +1,157 @@
+{
+  "groupChat": {
+    "title": "グループ分析",
+    "loading": "分析データを読み込み中...",
+    "loadError": "セッションデータを読み込めません",
+    "description": "{dateRange}、{memberCount} 人のメンバーが合計 {messageCount} 件のメッセージをやり取りしました"
+  },
+  "privateChat": {
+    "title": "個人チャット分析",
+    "loading": "分析データを読み込み中...",
+    "loadError": "セッションデータを読み込めません",
+    "description": "{dateRange}、合計 {messageCount} 件のメッセージ"
+  },
+  "tabs": {
+    "overview": "概要",
+    "view": "閲覧",
+    "ranking": "ランキング",
+    "groupQuotes": "名言集",
+    "quotes": "名言集",
+    "members": "メンバー",
+    "member": "メンバー",
+    "ai": "AIラボ"
+  },
+  "yearFilter": {
+    "allTime": "全期間",
+    "year": "{year}年"
+  },
+  "tooltip": {
+    "chatViewer": "チャット記録ビューア",
+    "sessionIndex": "セッション索引",
+    "incrementalImport": "追加インポート"
+  },
+  "incremental": {
+    "title": "チャット記録を追加",
+    "description": "「{name}」に追加するチャット履歴ファイルを選択してください。重複は自動で除外されます。",
+    "selectFile": "チャット記録ファイルを選択",
+    "dropHint": "クリックして選択、またはファイルをここにドラッグ",
+    "analyzing": "ファイルを分析中...",
+    "totalInFile": "ファイル内のメッセージ数",
+    "newMessages": "新規メッセージ",
+    "duplicates": "重複メッセージ",
+    "noNewMessages": "新しいメッセージはありません。すべて取り込み済みです",
+    "importing": "インポート中...",
+    "import": "{count} 件を取り込む",
+    "success": "インポート成功",
+    "successDetail": "{count} 件の新しいメッセージを追加しました",
+    "failed": "インポートに失敗しました"
+  },
+  "subTabs": {
+    "view": {
+      "message": "メッセージ",
+      "interaction": "インタラクション分析",
+      "ranking": "ランキング"
+    },
+    "quotes": {
+      "wordcloud": "ワードクラウド",
+      "hotRepeat": "盛り上がった復唱",
+      "catchphrase": "口癖",
+      "keywordAnalysis": "キーワード分析"
+    },
+    "member": {
+      "memberList": "メンバー一覧",
+      "relationships": "関係性",
+      "cluster": "やり取り頻度",
+      "nicknameHistory": "ニックネーム変更履歴"
+    }
+  },
+  "overview": {
+    "messageTypeDistribution": "メッセージタイプ分布",
+    "memberDistribution": "メンバー別発言割合",
+    "others": "その他",
+    "messageRatio": "メッセージ割合",
+    "messageUnit": "件",
+    "memberComparison": "双方のメッセージ割合",
+    "statCards": {
+      "dailyAvgMessages": "1日あたりのメッセージ",
+      "messagesCount": "{count} 件",
+      "daysCount": "合計 {count} 日間",
+      "imageMessages": "画像メッセージ",
+      "imagesCount": "{count} 枚",
+      "peakHour": "最も活発な時間帯:",
+      "mostActiveWeekday": "最も活発な曜日",
+      "messagesOnDay": "{count} 件のメッセージ",
+      "weekendActivity": "週末の活発度",
+      "weekendRatio": "週末メッセージの割合",
+      "mostActiveDate": "最も活発な日",
+      "activeDays": "アクティブ日数",
+      "slashDays": "/ {count} 日",
+      "consecutiveStreak": "連続日数",
+      "daysStreak": "{count} 日間",
+      "longestStreak": "最長連続アクティブ",
+      "activityRate": "アクティブ率",
+      "activeDaysRatio": "メッセージのある日の割合"
+    },
+    "dailyTrend": {
+      "title": "日別メッセージトレンド"
+    },
+    "identity": {
+      "privateChat": "プライベートチャット",
+      "groupChat": "グループチャット",
+      "analysisReport": "分析レポート",
+      "totalMessages": "メッセージ総数",
+      "durationDays": "期間日数",
+      "dailyAvgMessages": "日平均メッセージ"
+    },
+    "tools": "よく使うツール"
+  },
+  "messageExport": {
+    "title": "チャット記録をエクスポート"
+  },
+  "filter": {
+    "title": "詳細フィルター",
+    "conditionMode": "条件フィルター",
+    "sessionMode": "セッションフィルター",
+    "history": "履歴",
+    "execute": "絞り込む",
+    "export": "フィルター結果をエクスポート",
+    "keywords": "キーワード",
+    "keywordsHint": "複数のキーワードに対応、OR条件でマッチします",
+    "keywordPlaceholder": "キーワードを入力してEnterで追加",
+    "timeRange": "期間",
+    "allTime": "すべて",
+    "today": "今日",
+    "lastWeek": "過去7日間",
+    "lastMonth": "過去1ヶ月",
+    "last3Months": "過去3ヶ月",
+    "lastYear": "過去1年",
+    "customTime": "カスタム",
+    "senders": "送信者",
+    "sendersHint": "任意。空欄の場合は制限なし",
+    "searchMember": "メンバーを検索...",
+    "noMembers": "メンバーがいません",
+    "selectedCount": "{count} 人を選択済み",
+    "contextSize": "前後表示",
+    "messages": "件のメッセージ",
+    "searchSession": "日付を検索...",
+    "selectedSessions": "{count} 個のセッションを選択中",
+    "noSessions": "セッション索引がありません",
+    "filtering": "フィルター中...",
+    "emptyHint": "フィルター条件を設定してから実行してください",
+    "noResults": "一致するメッセージが見つかりません",
+    "blockTitle": "会話ブロック {index}",
+    "stats": {
+      "blocks": "会話ブロック",
+      "messages": "メッセージ数",
+      "hits": "ヒット数",
+      "chars": "文字数"
+    },
+    "historyTitle": "フィルター履歴",
+    "noHistory": "履歴がありません",
+    "loadMore": "もっと読み込む",
+    "allLoaded": "すべて読み込み済み",
+    "exportSuccess": "エクスポートに成功しました",
+    "exportFailed": "エクスポートに失敗しました",
+    "exportPreparing": "エクスポート準備中..."
+  }
+}

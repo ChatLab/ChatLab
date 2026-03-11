@@ -3,7 +3,7 @@
  */
 
 export function isChineseLocale(locale?: string): boolean {
-  return locale === 'zh-CN'
+  return locale?.startsWith('zh') ?? false
 }
 
 export const i18nTexts = {

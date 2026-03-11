@@ -304,7 +304,7 @@ function splitIntoSegments(
  * 生成摘要的 Prompt
  */
 function buildSummaryPrompt(content: string, lengthLimit: number, locale: string): string {
-  if (locale === 'zh-CN') {
+  if (locale.startsWith('zh')) {
     return `请用简洁的语言（${lengthLimit}字以内）总结以下对话的主要内容或话题。只输出摘要内容，不要添加任何前缀、解释或引号。
 
 ${content}`
@@ -318,7 +318,7 @@ ${content}`
  * 生成子摘要的 Prompt
  */
 function buildSubSummaryPrompt(content: string, locale: string): string {
-  if (locale === 'zh-CN') {
+  if (locale.startsWith('zh')) {
     return `请用一句话（不超过50字）概括以下对话片段的主要内容。只输出摘要内容，不要添加任何前缀、解释或引号。
 
 ${content}`
@@ -333,7 +333,7 @@ ${content}`
  */
 function buildMergePrompt(subSummaries: string[], lengthLimit: number, locale: string): string {
   const summaryList = subSummaries.map((s, i) => `${i + 1}. ${s}`).join('\n')
-  if (locale === 'zh-CN') {
+  if (locale.startsWith('zh')) {
     return `以下是一段对话的多个片段摘要，请将它们合并成一个完整的总结（${lengthLimit}字以内）。只输出摘要内容，不要添加任何前缀、解释或引号。
 
 ${summaryList}`

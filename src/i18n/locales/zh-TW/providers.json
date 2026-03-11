@@ -1,0 +1,75 @@
+{
+  "deepseek": {
+    "name": "DeepSeek",
+    "description": "DeepSeek 大型語言模型",
+    "models": {
+      "deepseek-chat": "通用對話模型",
+      "deepseek-coder": "程式碼生成模型"
+    }
+  },
+  "qwen": {
+    "name": "通義千問",
+    "description": "阿里雲通義千問大型語言模型",
+    "models": {
+      "qwen-turbo": "通義千問高速模型",
+      "qwen-plus": "通義千問高效能模型",
+      "qwen-max": "通義千問旗艦模型"
+    }
+  },
+  "gemini": {
+    "name": "Gemini",
+    "description": "Google Gemini 大型語言模型",
+    "models": {
+      "gemini-3-flash-preview": "高速預覽版",
+      "gemini-3-pro-preview": "進階預覽版"
+    }
+  },
+  "minimax": {
+    "name": "MiniMax",
+    "description": "MiniMax 大型語言模型，支援多模態與長上下文",
+    "models": {
+      "MiniMax-M2": "旗艦模型",
+      "MiniMax-M2-Stable": "穩定版本"
+    }
+  },
+  "glm": {
+    "name": "GLM",
+    "description": "智譜 AI 大型語言模型，ChatGLM 系列",
+    "models": {
+      "glm-4-plus": "旗艦模型，整體表現最佳",
+      "glm-4-flash": "高速模型，性價比高",
+      "glm-4": "標準模型",
+      "glm-4v-plus": "多模態視覺模型",
+      "glm-4.6v-flash": "4.6V 免費模型",
+      "glm-4.5-flash": "4.5 免費模型"
+    }
+  },
+  "kimi": {
+    "name": "Kimi",
+    "description": "Moonshot AI 大型語言模型，支援超長上下文",
+    "models": {
+      "moonshot-v1-8k": "8K 上下文",
+      "moonshot-v1-32k": "32K 上下文",
+      "moonshot-v1-128k": "128K 超長上下文"
+    }
+  },
+  "doubao": {
+    "name": "豆包",
+    "description": "字節跳動豆包 AI 大型語言模型",
+    "models": {
+      "doubao-seed-1-6-lite-251015": "豆包 1.6 輕量模型，性價比高",
+      "doubao-seed-1-6-251015": "豆包 1.6 強化模型",
+      "doubao-seed-1-6-flash-250828": "豆包 1.6 高速模型",
+      "doubao-1-5-lite-32k-250115": "豆包 1.5 Pro 模型"
+    }
+  },
+  "openai-compatible": {
+    "name": "OpenAI 相容",
+    "description": "支援任何相容 OpenAI API 的服務（如 Ollama、LocalAI、vLLM 等）",
+    "models": {
+      "llama3.2": "Meta Llama 3.2 模型",
+      "qwen2.5": "通義千問 2.5 模型",
+      "deepseek-r1": "DeepSeek R1 推理模型"
+    }
+  }
+}

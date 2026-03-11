@@ -333,7 +333,8 @@ async function handleGoToSession(sessionId: string) {
 // 教程链接：根据语言动态生成
 const tutorialUrl = computed(() => {
   const { locale } = useI18n()
-  const langPath = locale.value === 'zh-CN' ? '/cn' : ''
+  const pathMap: Record<string, string> = { 'zh-CN': '/cn', 'zh-TW': '/tw', 'ja-JP': '/ja' }
+  const langPath = pathMap[locale.value] ?? ''
   return `https://chatlab.fun${langPath}/usage/how-to-export.html?utm_source=app`
 })
 

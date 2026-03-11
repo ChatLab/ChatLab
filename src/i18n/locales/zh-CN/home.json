@@ -100,6 +100,10 @@
     "import": "导入 ({count})",
     "noChats": "未发现任何聊天"
   },
+  "footer": {
+    "website": "官网",
+    "terms": "使用条款"
+  },
   "changelog": {
     "title": "版本日志",
     "subtitle": "查看所有版本更新内容",

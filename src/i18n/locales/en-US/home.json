@@ -100,6 +100,10 @@
     "import": "Import ({count})",
     "noChats": "No chats found"
   },
+  "footer": {
+    "website": "Website",
+    "terms": "Terms of Use"
+  },
   "changelog": {
     "title": "Changelog",
     "subtitle": "View all version updates",

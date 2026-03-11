@@ -5,9 +5,10 @@ import { useI18n } from 'vue-i18n'
 import MarkdownIt from 'markdown-it'
 import { useSettingsStore } from '@/stores/settings'
 import { availableLocales, type LocaleType } from '@/i18n'
-// 导入中英文协议文档
 import agreementZh from '@/assets/docs/agreement_zh.md?raw'
 import agreementEn from '@/assets/docs/agreement_en.md?raw'
+import agreementZhTw from '@/assets/docs/agreement_zh_tw.md?raw'
+import agreementJa from '@/assets/docs/agreement_ja.md?raw'
 
 const { t } = useI18n()
 const settingsStore = useSettingsStore()
@@ -64,9 +65,15 @@ md.renderer.rules.link_open = (tokens, idx, options, _env, self) => {
   return self.renderToken(tokens, idx, options)
 }
 
-// 根据当前语言选择协议文本
+const agreementMap: Record<string, string> = {
+  'zh-CN': agreementZh,
+  'zh-TW': agreementZhTw,
+  'en-US': agreementEn,
+  'ja-JP': agreementJa,
+}
+
 const agreementText = computed(() => {
-  return locale.value === 'zh-CN' ? agreementZh : agreementEn
+  return agreementMap[locale.value] ?? agreementEn
 })
 
 // 渲染后的 HTML

@@ -1,7 +1,9 @@
 import { createI18n } from 'vue-i18n'
 import zhCN from './locales/zh-CN'
 import enUS from './locales/en-US'
-import { detectSystemLocale, type LocaleType } from './types'
+import zhTW from './locales/zh-TW'
+import jaJP from './locales/ja-JP'
+import { detectSystemLocale, isValidLocale, type LocaleType } from './types'
 
 // 导出类型
 export type { LocaleType } from './types'
@@ -11,6 +13,9 @@ export {
   detectSystemLocale,
   isFeatureSupported,
   featureLocaleRestrictions,
+  isChineseLike,
+  getDayjsLocale,
+  isValidLocale,
 } from './types'
 
 // 用于标记用户是否明确设置过语言的 key
@@ -26,12 +31,11 @@ function getInitialLocale(): LocaleType {
   const hasUserSetLocale = localStorage.getItem(LOCALE_SET_KEY)
 
   if (hasUserSetLocale) {
-    // 用户已设置过，尝试从 Pinia persist 恢复
     try {
       const piniaSettings = localStorage.getItem(PINIA_SETTINGS_KEY)
       if (piniaSettings) {
         const parsed = JSON.parse(piniaSettings)
-        if (parsed.locale === 'zh-CN' || parsed.locale === 'en-US') {
+        if (isValidLocale(parsed.locale)) {
           return parsed.locale
         }
       }
@@ -40,7 +44,6 @@ function getInitialLocale(): LocaleType {
     }
   }
 
-  // 首次启动或无法恢复，检测系统语言
   return detectSystemLocale()
 }
 
@@ -48,12 +51,14 @@ function getInitialLocale(): LocaleType {
  * 创建 i18n 实例
  */
 export const i18n = createI18n({
-  legacy: false, // 使用 Composition API 模式
-  locale: getInitialLocale(), // 首次启动检测系统语言
-  fallbackLocale: 'en-US', // 回退语言
+  legacy: false,
+  locale: getInitialLocale(),
+  fallbackLocale: 'en-US',
   messages: {
     'zh-CN': zhCN,
     'en-US': enUS,
+    'zh-TW': zhTW,
+    'ja-JP': jaJP,
   },
 })
 

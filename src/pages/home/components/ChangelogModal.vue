@@ -82,9 +82,14 @@ interface ChangelogItem {
 // Changelog 数据
 const changelogs = ref<ChangelogItem[]>([])
 
-// 获取 changelog URL
 function getChangelogUrl(lang: string) {
-  const langPath = lang === 'zh-CN' ? 'cn' : 'en'
+  const langPathMap: Record<string, string> = {
+    'zh-CN': 'cn',
+    'zh-TW': 'tw',
+    'en-US': 'en',
+    'ja-JP': 'ja',
+  }
+  const langPath = langPathMap[lang] ?? 'en'
   return `https://chatlab.fun/${langPath}/changelogs.json`
 }
 

@@ -11,8 +11,15 @@ const { t, locale } = useI18n()
 
 // 配置 URL 根据语言动态获取
 const CONFIG_BASE_URL = 'https://chatlab.fun'
+const langPathMap: Record<string, string> = {
+  'zh-CN': 'cn',
+  'zh-TW': 'tw',
+  'en-US': 'en',
+  'ja-JP': 'ja',
+}
+
 const configUrl = computed(() => {
-  const langPath = locale.value === 'zh-CN' ? 'cn' : 'en'
+  const langPath = langPathMap[locale.value] ?? 'en'
   return `${CONFIG_BASE_URL}/${langPath}/config.json`
 })
 
@@ -25,18 +32,17 @@ interface FooterLink {
   icon: string
   title: string
   url?: string
-  action?: 'changelog'
+  action?: 'changelog' | 'terms'
 }
 
 // 默认链接配置（根据语言返回）
 function getDefaultLinks(): FooterLink[] {
-  const isChinese = locale.value === 'zh-CN'
   return [
     {
       id: 'website',
       icon: 'i-heroicons-globe-alt',
-      title: isChinese ? '官网' : 'Website',
-      url: isChinese ? 'https://chatlab.fun/cn/' : 'https://chatlab.fun/en/',
+      title: t('home.footer.website'),
+      url: `https://chatlab.fun/${langPathMap[locale.value] ?? 'en'}/`,
     },
     {
       id: 'github',
@@ -47,7 +53,7 @@ function getDefaultLinks(): FooterLink[] {
     {
       id: 'terms',
       icon: 'i-heroicons-document-text',
-      title: isChinese ? '使用条款' : 'Terms of Use',
+      title: t('home.footer.terms'),
       action: 'terms',
     },
     {
@@ -71,7 +77,7 @@ const socialConfig = ref<SocialConfig>({})
 
 // 根据语言获取社交链接
 const socialLink = computed(() => {
-  const isChinese = locale.value === 'zh-CN'
+  const isChinese = locale.value.startsWith('zh')
 
   if (isChinese && socialConfig.value.xiaohongshu?.show) {
     return {

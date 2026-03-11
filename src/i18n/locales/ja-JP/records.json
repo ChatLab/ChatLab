@@ -1,0 +1,87 @@
+{
+  "drawer": {
+    "title": "チャット履歴ビューア",
+    "loadedCount": "{count} 件のメッセージを読み込みました"
+  },
+  "messageList": {
+    "loading": "読み込み中...",
+    "noMessages": "メッセージがありません",
+    "tryAdjustFilter": "フィルター条件を調整してみてください",
+    "loadingMore": "さらに読み込み中...",
+    "scrollUpForMore": "↑ 上にスクロールしてさらに読み込む",
+    "scrollDownForMore": "↓ 下にスクロールしてさらに読み込む"
+  },
+  "filter": {
+    "messageId": "メッセージ ID",
+    "memberNotSupported": "メンバー（未対応）",
+    "keywordsPlaceholder": "キーワード（複数はカンマ区切り、Enter で検索）",
+    "startDate": "開始日",
+    "endDate": "終了日",
+    "reset": "リセット",
+    "filter": "フィルター"
+  },
+  "timeline": {
+    "timeline": "セッション",
+    "noSessions": "セッションがありません",
+    "generateSummary": "要約を作成",
+    "tooFewMessages": "メッセージが少なすぎます"
+  },
+  "batchSummary": {
+    "title": "要約をまとめて作成",
+    "byRange": "範囲で選択",
+    "byTime": "時間で選択",
+    "selectRange": "範囲を選択",
+    "rangeStart": "最古",
+    "rangeInfo": "約",
+    "sessionsUnit": "セッション",
+    "rangeEnd": "最新",
+    "timeRange": "時間範囲を選択",
+    "today": "今日",
+    "yesterday": "昨日",
+    "week": "直近7日間",
+    "month": "直近30日間",
+    "custom": "カスタム",
+    "found": "見つかった",
+    "hasSummary": "件は要約済み",
+    "tooFewMessages": "件はメッセージ不足",
+    "pending": "未生成:",
+    "unit": "件",
+    "noPending": "生成可能なセッションがありません",
+    "noSessions": "この時間範囲にセッションがありません",
+    "checking": "確認中...",
+    "loading": "読み込み中...",
+    "progress": "進捗",
+    "session": "セッション",
+    "statusSuccess": "成功",
+    "statusSkipped": "スキップ",
+    "statusFailed": "失敗",
+    "success": "成功:",
+    "failed": "失敗:",
+    "skipped": "スキップ:",
+    "start": "生成開始",
+    "stop": "停止"
+  },
+  "messageItem": {
+    "viewContext": "コンテキストを表示",
+    "contextTitle": "メッセージコンテキスト（前後各10件）",
+    "noContext": "コンテキストがありません",
+    "replyTo": "返信"
+  },
+  "sessionIndex": {
+    "title": "セッションインデックス",
+    "subtitle": "チャット履歴をタイムラインでたどれます",
+    "notGenerated": "セッションインデックスが未生成です",
+    "notGeneratedHint": "セッションインデックスを生成すると、チャット履歴ビューアーのタイムラインから各セッションにすばやくジャンプできます。",
+    "whatIsIt": "セッションインデックスの役割：",
+    "benefit1": "メッセージの時間間隔に基づいてセッション境界を自動識別",
+    "benefit2": "チャット履歴ビューアーにタイムラインナビゲーションを提供",
+    "benefit3": "AI が会話の文脈を理解しやすくなる",
+    "generated": "セッションインデックス生成済み",
+    "sessionCount": "全 {count} セッションを識別しました",
+    "regenerateHint": "セッション間隔のしきい値を調整した場合は、インデックスを再生成できます。",
+    "generate": "インデックスを生成",
+    "regenerate": "再生成",
+    "generating": "生成中...",
+    "cancel": "キャンセル"
+  }
+}

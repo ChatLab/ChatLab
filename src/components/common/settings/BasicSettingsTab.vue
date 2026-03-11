@@ -7,6 +7,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { useColorMode } from '@vueuse/core'
 import { availableLocales, type LocaleType } from '@/i18n'
 import NetworkSettingsSection from './NetworkSettingsSection.vue'
+import UITabs from '@/components/UI/Tabs.vue'
 
 const { t } = useI18n()
 
@@ -70,8 +71,8 @@ watch(
               {{ t('settings.basic.language.description') }}
             </p>
           </div>
-          <div class="w-48">
-            <UTabs v-model="currentLocale" size="sm" class="gap-0" :items="languageOptions"></UTabs>
+          <div class="w-72">
+            <UITabs v-model="currentLocale" size="sm" class="gap-0" :items="languageOptions"></UITabs>
           </div>
         </div>
       </div>

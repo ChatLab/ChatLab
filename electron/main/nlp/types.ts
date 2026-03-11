@@ -3,7 +3,7 @@
  */
 
 /** 支持的语言 */
-export type SupportedLocale = 'zh-CN' | 'en-US'
+export type SupportedLocale = 'zh-CN' | 'en-US' | 'zh-TW' | 'ja-JP'
 
 /** 分词结果 */
 export interface SegmentResult {

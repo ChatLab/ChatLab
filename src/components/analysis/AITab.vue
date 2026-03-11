@@ -10,7 +10,7 @@ const { t, locale } = useI18n()
 
 // 关注链接配置
 const followLink = computed(() => {
-  if (locale.value === 'zh-CN') {
+  if (locale.value.startsWith('zh')) {
     return {
       url: 'https://www.xiaohongshu.com/user/profile/6841741e000000001d0091b4',
       name: '@地瓜',

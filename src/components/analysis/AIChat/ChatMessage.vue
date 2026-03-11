@@ -98,7 +98,7 @@ function formatTimeParams(params: Record<string, unknown>): string {
 
   // 使用 year/month/day/hour 组合
   if (params.year) {
-    if (locale.value === 'zh-CN') {
+    if (locale.value.startsWith('zh')) {
       let result = `${params.year}年`
       if (params.month) {
         result += `${params.month}月`

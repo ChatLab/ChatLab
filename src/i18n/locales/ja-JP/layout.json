@@ -1,0 +1,34 @@
+{
+  "brand": "ChatLab",
+  "newAnalysis": "新しいチャットを分析",
+  "tools": "ツール",
+  "chatHistory": "チャット履歴",
+  "noRecords": "記録がありません",
+  "searchPlaceholder": "チャット名を検索",
+  "noSearchResult": "一致するチャット記録が見つかりません",
+  "contextMenu": {
+    "rename": "名前変更",
+    "pin": "ピン留め",
+    "unpin": "ピン留め解除",
+    "delete": "削除"
+  },
+  "renameModal": {
+    "title": "名前変更",
+    "placeholder": "新しい名前を入力してください"
+  },
+  "deleteModal": {
+    "title": "削除の確認",
+    "message": "チャット記録「{name}」を削除しますか？この操作は取り消せません。"
+  },
+  "tooltip": {
+    "expand": "サイドバーを展開",
+    "collapse": "サイドバーを折りたたむ",
+    "hint": "右クリックでチャット記録の削除や名前変更ができます",
+    "search": "チャット記録を検索"
+  },
+  "sessionInfo": "{count} 件のメッセージ · {time}",
+  "footer": {
+    "helpAndFeedback": "フィードバックとヘルプ",
+    "settings": "設定"
+  }
+}

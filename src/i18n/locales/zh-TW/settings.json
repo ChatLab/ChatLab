@@ -1,0 +1,379 @@
+{
+  "title": "設定",
+  "tabs": {
+    "basic": "基本設定",
+    "ai": "AI 設定",
+    "aiConfig": "對話模型",
+    "aiRAG": "向量模型",
+    "aiPrompt": "聊天設定",
+    "aiPreset": "提示詞設定",
+    "aiPreprocess": "前處理",
+    "storage": "資料與儲存",
+    "storageManage": "儲存管理",
+    "sessionManage": "會話管理",
+    "about": "關於 ChatLab"
+  },
+  "basic": {
+    "language": {
+      "title": "語言",
+      "description": "選擇軟體顯示語言"
+    },
+    "appearance": {
+      "title": "外觀設定",
+      "themeMode": "主題模式",
+      "auto": "依系統設定",
+      "light": "淺色模式",
+      "dark": "深色模式"
+    },
+    "screenshot": {
+      "title": "截圖設定",
+      "mobileAdapt": "行動畫面適配",
+      "mobileAdaptDesc": "截圖時會自動縮放寬度，方便在行動裝置上查看"
+    },
+    "network": {
+      "title": "網路設定",
+      "proxyMode": "代理模式",
+      "proxyModeDesc": "存取網路時使用的代理方式",
+      "modeOff": "關閉",
+      "modeSystem": "跟隨系統",
+      "modeManual": "手動設定",
+      "proxyAddress": "代理地址",
+      "proxyPlaceholder": "http://127.0.0.1:7890",
+      "proxyHelp": "支援 HTTP/HTTPS 代理，格式如：http://127.0.0.1:7890",
+      "testConnection": "測試連線",
+      "testing": "測試中...",
+      "connectionSuccess": "代理連線成功！",
+      "connectionFailed": "連線失敗",
+      "enterProxyFirst": "請先輸入代理地址",
+      "invalidProxyUrl": "請輸入有效的代理地址，格式如 http://127.0.0.1:7890",
+      "onlyHttpSupported": "僅支援 http:// 或 https:// 協定",
+      "saveFailed": "儲存失敗"
+    }
+  },
+  "aiConfig": {
+    "title": "聊天模型",
+    "loading": "載入中...",
+    "inUse": "使用中",
+    "defaultModel": "預設模型",
+    "localService": "本機服務",
+    "customEndpoint": "自訂端點",
+    "edit": "編輯",
+    "delete": "刪除",
+    "empty": {
+      "title": "尚未設定 AI 服務",
+      "description": "新增一組設定後即可開始使用 AI 功能"
+    },
+    "addConfig": "新增設定",
+    "maxConfigs": "已達設定上限（最多 10 組）",
+    "modal": {
+      "addConfig": "新增設定",
+      "editConfig": "編輯設定",
+      "officialApi": "官方API",
+      "officialApiDesc": "DeepSeek、Gemini 等",
+      "localService": "本機服務",
+      "localServiceDesc": "Ollama 等",
+      "openaiCompatible": "OpenAI 相容",
+      "openaiCompatibleDesc": "自訂端點",
+      "configName": "設定名稱",
+      "optional": "（選填）",
+      "configNamePlaceholderPreset": "留空則使用服務商名稱",
+      "configNamePlaceholderCustom": "留空則使用 API 端點網址",
+      "aiProvider": "AI 服務商",
+      "apiKeyPlaceholder": "輸入你的 API Key",
+      "apiKeyPlaceholderEdit": "輸入新的 API Key（留空保持原有）",
+      "apiKeyPlaceholderLocal": "本機服務通常不需要",
+      "apiKeyHintLocal": "如果服務設定了認證，在此輸入",
+      "validate": "驗證",
+      "validationSuccess": "連線驗證成功",
+      "validationFailed": "連線驗證失敗",
+      "validationError": "驗證失敗：",
+      "model": "模型",
+      "modelName": "模型名稱",
+      "modelNamePlaceholder": "如 gpt-4、claude-3",
+      "modelNamePlaceholderLocal": "如 qwen3、deepseek-r1",
+      "modelNameHint": "輸入 API 支援的模型名稱",
+      "modelNameHintLocal": "輸入本機部署的模型名稱",
+      "apiEndpoint": "API 端點",
+      "apiEndpointHint": "相容 OpenAI 格式的 API 端點",
+      "disableThinking": "關閉思考模式",
+      "disableThinkingDesc": "針對 Qwen3、DeepSeek-R1 等模型，停用後使用標準工具呼叫格式",
+      "isReasoningModel": "推理模型",
+      "isReasoningModelDesc": "啟用後將提取思考過程並停用工具呼叫（如 DeepSeek-R1、QwQ 等）",
+      "advancedOptions": "進階設定",
+      "customService": "自訂服務",
+      "unnamedConfig": "未命名設定"
+    }
+  },
+  "storage": {
+    "title": "本機儲存管理",
+    "description": "管理 ChatLab 在本機儲存的資料檔案",
+    "dataLocation": {
+      "title": "資料目錄位置",
+      "description": "自訂本機資料與快取的存放位置",
+      "choose": "選擇位置",
+      "reset": "還原預設",
+      "open": "開啟",
+      "restartTip": "切換目錄後請重新啟動應用程式，舊目錄下快取會跟隨遷移",
+      "confirmTitle": "確認切換資料目錄",
+      "confirmMessage": "您即將切換資料儲存位置，現有資料將被遷移到新目錄。",
+      "newPath": "新目錄路徑",
+      "defaultPath": "預設位置",
+      "confirmWarning": "重新啟動應用程式後，舊資料目錄將被自動刪除。請確保新目錄路徑正確。",
+      "cancel": "取消",
+      "confirm": "確認切換",
+      "migrationSuccessTitle": "資料遷移完成",
+      "migrationSuccessMessage": "應用程式需要重新啟動以使變更生效。",
+      "relaunchNow": "立即重新啟動"
+    },
+    "totalUsage": "總佔用：",
+    "loading": "載入中...",
+    "files": "檔案",
+    "notExist": "不存在",
+    "clear": "清理",
+    "open": "開啟",
+    "notes": {
+      "title": "注意事項",
+      "logSafe": "日誌檔主要用於除錯，可安心清理",
+      "noRecover": "所有檔案清理後無法恢復，請謹慎操作"
+    },
+    "cache": {
+      "databases": {
+        "name": "聊天紀錄資料庫",
+        "description": "匯入的聊天紀錄分析資料"
+      },
+      "ai": {
+        "name": "AI 對話資料庫",
+        "description": "AI 對話歷史與設定檔"
+      },
+      "downloads": {
+        "name": "下載目錄",
+        "description": "包含截圖檔案、分析結果等"
+      },
+      "logs": {
+        "name": "日誌檔案",
+        "description": "軟體的執行日誌，包含匯入、AI、錯誤等日誌"
+      }
+    },
+    "session": {
+      "title": "會話索引設定",
+      "description": "會話索引會依時間間隔自動將聊天紀錄切分成對話段落，方便 AI 分析與瀏覽",
+      "defaultThreshold": "預設分割間隔",
+      "thresholdUnit": "分鐘",
+      "thresholdHelp": "超過該時間間隔的訊息將被分到新的會話段落",
+      "notGenerated": "尚未產生會話索引",
+      "generateHint": "產生索引後，可讓 AI 更精準地理解對話上下文",
+      "generate": "產生索引",
+      "regenerate": "重新產生",
+      "generating": "產生中",
+      "sessionCount": "{count} 個會話",
+      "generated": "已產生會話索引",
+      "generateSuccess": "會話索引已成功產生，共 {count} 個會話",
+      "generateError": "產生失敗",
+      "batchTitle": "批次產生索引",
+      "totalSessions": "共 {count} 個聊天",
+      "generatedCount": "已產生 {count} 個",
+      "notGeneratedCount": "未產生 {count} 個",
+      "loadingStatus": "載入中...",
+      "batchGenerate": "產生未索引項目",
+      "batchRegenerate": "全部重新產生"
+    }
+  },
+  "aiPrompt": {
+    "chatSettings": {
+      "title": "聊天設定"
+    },
+    "exportSettings": {
+      "title": "匯出設定"
+    },
+    "maxMessages": {
+      "title": "傳送條數限制",
+      "description": "每次提交給 AI 的最大訊息數，數值越大 Token 消耗越多，分析也更準確（新手建議2000）"
+    },
+    "maxHistory": {
+      "title": "AI 上下文限制",
+      "description": "每次對話只保留最近幾輪內容（1 輪 = 使用者提問 + AI 回覆），避免上下文過長而消耗過多 Token"
+    },
+    "exportFormat": {
+      "title": "對話匯出格式",
+      "description": "匯出 AI 對話時使用的檔案格式",
+      "txtLabel": "TXT"
+    },
+    "sqlExportFormat": {
+      "title": "SQL Lab 匯出格式",
+      "description": "匯出 SQL 查詢結果時使用的檔案格式"
+    },
+    "presets": {
+      "title": "系統提示詞",
+      "add": "新增預設",
+      "import": "匯入預設",
+      "description": "提示詞同時用於群聊和私聊分析，系統會自動根據分析類型調整相關內容"
+    },
+    "preset": {
+      "builtIn": "內建",
+      "groupOnly": "僅群聊",
+      "privateOnly": "僅私聊",
+      "view": "檢視",
+      "edit": "編輯",
+      "copy": "複製",
+      "delete": "刪除"
+    },
+    "modal": {
+      "editBuiltin": "編輯系統提示詞",
+      "editCustom": "編輯自訂提示詞",
+      "addCustom": "新增自訂提示詞",
+      "presetName": "預設名稱",
+      "presetNamePlaceholder": "為預設取個名字",
+      "applicableTo": "適用場景",
+      "applicableToHint": "（勾選後可在對應分析類型中使用）",
+      "groupChat": "群聊分析",
+      "privateChat": "私聊分析",
+      "systemPrompt": "系統提示詞",
+      "systemPromptPlaceholder": "定義 AI 助手的角色、任務和回答要求...",
+      "preview": "完整提示詞預覽",
+      "previewHint": "（預覽為群聊模式，實際會根據分析類型自動調整）",
+      "resetToDefault": "還原為預設",
+      "saveChanges": "儲存修改",
+      "addPreset": "新增預設"
+    },
+    "importPreset": {
+      "title": "匯入預設",
+      "description": "從遠端取得推薦的系統提示詞預設",
+      "loading": "正在載入遠端預設...",
+      "loadError": "載入遠端預設失敗",
+      "noPresets": "暫無可用的遠端預設",
+      "commonPresets": "通用預設",
+      "groupPresets": "群聊專用預設",
+      "privatePresets": "私聊專用預設",
+      "add": "新增",
+      "added": "已新增",
+      "preview": "預覽",
+      "systemPrompt": "系統提示詞",
+      "noDescription": "暫無描述",
+      "fetchingContent": "正在載入內容...",
+      "fetchError": "載入內容失敗"
+    }
+  },
+  "about": {
+    "title": "關於 ChatLab",
+    "description": "在本機運作的聊天紀錄分析工具，透過 SQL 和 AI Agent 幫你回顧社交記憶。",
+    "version": "版本",
+    "checkUpdate": "檢查更新",
+    "checking": "檢查中...",
+    "unknown": "未知",
+    "privacy": {
+      "title": "隱私設定",
+      "analytics": "匿名使用統計",
+      "analyticsDesc": "開啟後，軟體會收集版本號、作業系統版本等非敏感資料，用於幫助最佳化產品"
+    },
+    "developer": {
+      "title": "開發者選項",
+      "debugMode": "DEBUG 模式",
+      "debugModeDesc": "開啟後，AI 日誌中將紀錄完整的原始訊息內容，不截斷。日誌檔案可能會顯著增大"
+    }
+  },
+  "embedding": {
+    "title": "向量模型",
+    "description": "透過 Embedding 向量相似度理解問題含義，啟用後 AI 可進行語義搜尋",
+    "configList": "Embedding 設定",
+    "addConfig": "新增設定",
+    "editConfig": "編輯設定",
+    "noConfigs": "尚無設定，點擊上方按鈕即可新增",
+    "active": "使用中",
+    "setActive": "設為使用",
+    "deleteConfirm": "確定刪除設定「{name}」嗎？",
+    "configName": "設定名稱",
+    "configNamePlaceholder": "如：Ollama Embedding",
+    "apiSource": "API 來源",
+    "apiSourceHint": "「複用對話模型」將使用目前啟用的對話模型的端點和金鑰",
+    "reuseLLM": "複用對話模型",
+    "customAPI": "自訂 API",
+    "model": "模型名稱",
+    "modelPlaceholder": "如 nomic-embed-text",
+    "modelHint": "Ollama 常用：nomic-embed-text、mxbai-embed-large",
+    "baseUrl": "API 端點",
+    "baseUrlPlaceholder": "如 http://localhost:11434/v1",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "輸入 API Key",
+    "optional": "（可選）",
+    "validate": "測試連線",
+    "validateSuccess": "連線成功！",
+    "validateFailed": "連線失敗",
+    "saveFailed": "儲存失敗",
+    "vectorStore": "向量快取",
+    "vectorStoreDesc": "快取已計算的向量，避免重複計算提高速度",
+    "cached": "已快取",
+    "size": "佔用",
+    "clear": "清空",
+    "clearVectorStoreConfirm": "確定清空所有向量快取嗎？這將導致下次搜尋時重新計算。"
+  },
+  "aiPreprocess": {
+    "title": "聊天紀錄預處理",
+    "description": "在聊天紀錄傳送給 AI 前進行預處理，節省 Token 並過濾雜訊。原始資料不會被修改。",
+    "dataCleaning": "資料清洗",
+    "dataCleaningDesc": "自動清理 XML 卡片訊息（如分享連結、小程式等），提取有效內容，大幅節省 Token。建議保持開啟。",
+    "mergeConsecutive": "合併連續發言",
+    "mergeConsecutiveDesc": "同一人在短時間內的連續訊息合併為一條",
+    "mergeWindow": "合併時間視窗（秒）",
+    "denoise": "智慧去雜訊",
+    "denoiseDesc": "過濾純語氣詞、純表情、系統佔位符（如 [圖片]）等無意義訊息",
+    "desensitize": "資料脫敏",
+    "desensitizeDesc": "根據規則將敏感資訊（手機號、電子郵件、證件號等）替換為佔位符",
+    "desensitizeRules": "脫敏規則",
+    "desensitizeRulesDesc": "勾選需要啟用的脫敏規則，按清單順序優先匹配",
+    "desensitizeBuiltin": "預置規則",
+    "desensitizeCustom": "自訂規則",
+    "desensitizeAddCustom": "新增自訂規則",
+    "desensitizeRuleName": "規則名稱",
+    "desensitizeRulePattern": "正規表達式",
+    "desensitizeRuleReplacement": "替換文字",
+    "desensitizeRuleAdd": "新增",
+    "desensitizeRuleInvalidRegex": "正規表達式語法錯誤",
+    "desensitizeRuleNamePlaceholder": "例如：員工工號",
+    "desensitizeRulePatternPlaceholder": "例如：EMP-\\d+",
+    "desensitizeRuleReplacementPlaceholder": "替換文字，如 [工號]",
+    "anonymizeNames": "暱稱匿名化",
+    "anonymizeNamesDesc": "用編號（U1、U2…）替代真實暱稱傳送給 AI，減少幻覺並節省 Token",
+    "blacklist": "黑名單關鍵詞",
+    "blacklistDesc": "包含以下任一關鍵詞的訊息將被整條過濾",
+    "blacklistPlaceholder": "輸入關鍵詞後按 Enter 新增",
+    "blacklistAdd": "新增"
+  },
+  "desensitize": {
+    "rules": {
+      "cn_phone": "中國手機號",
+      "cn_phone_desc": "1xx xxxx xxxx 格式的 11 位號碼",
+      "cn_id_card": "中國身份證號",
+      "cn_id_card_desc": "18 位，末位可含 X",
+      "cn_bank_card": "中國銀行卡號",
+      "cn_bank_card_desc": "16-19 位連續數字",
+      "cn_landline": "中國市話號碼",
+      "cn_landline_desc": "區號-號碼，如 010-12345678",
+      "us_ssn": "美國社會安全號 (SSN)",
+      "us_ssn_desc": "XXX-XX-XXXX 格式",
+      "us_phone": "美國電話號碼",
+      "us_phone_desc": "+1 (XXX) XXX-XXXX 格式",
+      "us_drivers_license": "美國駕照號",
+      "us_drivers_license_desc": "字母開頭 + 7-8 位數字",
+      "jp_phone": "日本電話號碼",
+      "jp_phone_desc": "0x0-XXXX-XXXX 格式",
+      "jp_my_number": "日本個人編號",
+      "jp_my_number_desc": "12 位數字（マイナンバー）",
+      "kr_phone": "韓國電話號碼",
+      "kr_phone_desc": "01X-XXXX-XXXX 格式",
+      "kr_rrn": "韓國身份證號",
+      "kr_rrn_desc": "XXXXXX-XXXXXXX 格式（주민번호）",
+      "api_key_prefix": "API Key / Token（已知前綴）",
+      "api_key_prefix_desc": "sk-、ghp_、AKIA 等開頭的長字串",
+      "bearer_token": "Bearer Token",
+      "bearer_token_desc": "Bearer 後的授權權杖值",
+      "email": "電子郵件地址",
+      "email_desc": "user{'@'}domain.com 標準格式",
+      "credit_card": "信用卡號",
+      "credit_card_desc": "Visa / MasterCard / AmEx 等卡號",
+      "ipv4": "IPv4 地址",
+      "ipv4_desc": "如 192.168.1.1",
+      "url": "URL 連結",
+      "url_desc": "http:// 或 https:// 開頭的連結"
+    }
+  }
+}

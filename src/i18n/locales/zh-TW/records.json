@@ -1,0 +1,87 @@
+{
+  "drawer": {
+    "title": "聊天紀錄檢視器",
+    "loadedCount": "已載入 {count} 條訊息"
+  },
+  "messageList": {
+    "loading": "載入中...",
+    "noMessages": "暫無訊息",
+    "tryAdjustFilter": "嘗試調整篩選條件",
+    "loadingMore": "載入更多...",
+    "scrollUpForMore": "↑ 向上捲動載入更多",
+    "scrollDownForMore": "↓ 向下捲動載入更多"
+  },
+  "filter": {
+    "messageId": "訊息 ID",
+    "memberNotSupported": "成員（暫不支援）",
+    "keywordsPlaceholder": "關鍵字（多個請用逗號分隔，按 Enter 搜尋）",
+    "startDate": "起始日期",
+    "endDate": "結束日期",
+    "reset": "重置",
+    "filter": "篩選"
+  },
+  "timeline": {
+    "timeline": "會話",
+    "noSessions": "暫無會話",
+    "generateSummary": "產生摘要",
+    "tooFewMessages": "訊息太少"
+  },
+  "batchSummary": {
+    "title": "批次產生摘要",
+    "byRange": "依範圍",
+    "byTime": "依時間",
+    "selectRange": "選擇範圍",
+    "rangeStart": "最早",
+    "rangeInfo": "約",
+    "sessionsUnit": "個會話",
+    "rangeEnd": "最近",
+    "timeRange": "選擇時間範圍",
+    "today": "今天",
+    "yesterday": "昨天",
+    "week": "最近7天",
+    "month": "最近30天",
+    "custom": "自訂",
+    "found": "找到",
+    "hasSummary": "個已有摘要",
+    "tooFewMessages": "個訊息太少",
+    "pending": "待產生:",
+    "unit": "個",
+    "noPending": "沒有可產生摘要的會話",
+    "noSessions": "該時間範圍內沒有會話",
+    "checking": "檢查中...",
+    "loading": "載入中...",
+    "progress": "進度",
+    "session": "會話",
+    "statusSuccess": "成功",
+    "statusSkipped": "跳過",
+    "statusFailed": "失敗",
+    "success": "成功:",
+    "failed": "失敗:",
+    "skipped": "跳過:",
+    "start": "開始產生",
+    "stop": "停止"
+  },
+  "messageItem": {
+    "viewContext": "檢視上下文",
+    "contextTitle": "訊息上下文（前後各10條）",
+    "noContext": "暫無上下文",
+    "replyTo": "回覆"
+  },
+  "sessionIndex": {
+    "title": "會話索引",
+    "subtitle": "用於聊天紀錄的時間軸導覽",
+    "notGenerated": "尚未產生會話索引",
+    "notGeneratedHint": "產生會話索引後，您可以在聊天紀錄檢視器中透過時間軸快速切換到不同會話。",
+    "whatIsIt": "會話索引的作用：",
+    "benefit1": "根據訊息時間間隔自動識別會話邊界",
+    "benefit2": "在聊天紀錄檢視器中提供時間軸導覽",
+    "benefit3": "協助 AI 更理解對話上下文",
+    "generated": "會話索引已產生",
+    "sessionCount": "共識別出 {count} 個會話",
+    "regenerateHint": "如果您調整了會話間隔門檻，可重新產生索引。",
+    "generate": "產生索引",
+    "regenerate": "重新產生",
+    "generating": "產生中...",
+    "cancel": "取消"
+  }
+}

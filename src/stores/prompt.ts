@@ -243,7 +243,7 @@ export const usePromptStore = defineStore(
     function duplicatePromptPreset(presetId: string) {
       const source = allPromptPresets.value.find((p) => p.id === presetId)
       if (source) {
-        const copySuffix = locale.value === 'zh-CN' ? '(副本)' : '(Copy)'
+        const copySuffix = locale.value.startsWith('zh') ? '(副本)' : '(Copy)'
         return addPromptPreset({
           name: `${source.name} ${copySuffix}`,
           systemPrompt: source.systemPrompt,
@@ -285,7 +285,8 @@ export const usePromptStore = defineStore(
      * @returns 远程预设索引列表，获取失败返回空数组
      */
     async function fetchRemotePresets(locale: string): Promise<RemotePresetData[]> {
-      const langPath = locale === 'zh-CN' ? 'cn' : 'en'
+      const langPathMap: Record<string, string> = { 'zh-CN': 'cn', 'zh-TW': 'tw', 'en-US': 'en', 'ja-JP': 'ja' }
+      const langPath = langPathMap[locale] ?? 'en'
       const indexUrl = `${REMOTE_PRESET_BASE_URL}/${langPath}/system-prompt.json`
 
       try {

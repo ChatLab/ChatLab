@@ -2,8 +2,10 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import dayjs from 'dayjs'
 import 'dayjs/locale/zh-cn'
+import 'dayjs/locale/zh-tw'
 import 'dayjs/locale/en'
-import { type LocaleType, setLocale as setI18nLocale, getLocale } from '@/i18n'
+import 'dayjs/locale/ja'
+import { type LocaleType, setLocale as setI18nLocale, getLocale, getDayjsLocale } from '@/i18n'
 import type { PreprocessConfig } from '@electron/preload/index'
 
 const LOCALE_SET_KEY = 'chatlab_locale_set_by_user'
@@ -50,7 +52,7 @@ export const useSettingsStore = defineStore(
 
       setI18nLocale(newLocale)
 
-      dayjs.locale(newLocale === 'zh-CN' ? 'zh-cn' : 'en')
+      dayjs.locale(getDayjsLocale(newLocale))
 
       window.electron?.ipcRenderer.send('locale:change', newLocale)
 
@@ -74,7 +76,7 @@ export const useSettingsStore = defineStore(
         }
       }
 
-      dayjs.locale(locale.value === 'zh-CN' ? 'zh-cn' : 'en')
+      dayjs.locale(getDayjsLocale(locale.value))
 
       await ensureDesensitizeRules()
 

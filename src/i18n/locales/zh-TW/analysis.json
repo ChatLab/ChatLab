@@ -1,0 +1,157 @@
+{
+  "groupChat": {
+    "title": "群聊分析",
+    "loading": "載入分析資料...",
+    "loadError": "無法載入聊天資料",
+    "description": "{dateRange}，{memberCount} 位成員共聊了 {messageCount} 條訊息"
+  },
+  "privateChat": {
+    "title": "私聊分析",
+    "loading": "載入分析資料...",
+    "loadError": "無法載入聊天資料",
+    "description": "{dateRange}，共 {messageCount} 條訊息"
+  },
+  "tabs": {
+    "overview": "總覽",
+    "view": "檢視",
+    "ranking": "榜單",
+    "groupQuotes": "金句",
+    "quotes": "金句",
+    "members": "成員",
+    "member": "成員",
+    "ai": "AI 實驗室"
+  },
+  "yearFilter": {
+    "allTime": "全部時間",
+    "year": "{year}年"
+  },
+  "tooltip": {
+    "chatViewer": "聊天紀錄檢視器",
+    "sessionIndex": "會話索引",
+    "incrementalImport": "追加匯入"
+  },
+  "incremental": {
+    "title": "新增聊天紀錄",
+    "description": "選擇要加入「{name}」的聊天紀錄檔案，系統會自動排除重複內容。",
+    "selectFile": "選擇聊天紀錄檔案",
+    "dropHint": "點擊選擇或拖曳檔案到此處",
+    "analyzing": "正在分析檔案...",
+    "totalInFile": "檔案訊息數",
+    "newMessages": "新增訊息",
+    "duplicates": "重複訊息",
+    "noNewMessages": "檔案中沒有新訊息，所有訊息都已存在",
+    "importing": "正在匯入...",
+    "import": "匯入 {count} 則訊息",
+    "success": "匯入成功",
+    "successDetail": "已新增 {count} 則新訊息",
+    "failed": "匯入失敗"
+  },
+  "subTabs": {
+    "view": {
+      "message": "訊息",
+      "interaction": "互動分析",
+      "ranking": "榜單"
+    },
+    "quotes": {
+      "wordcloud": "詞雲",
+      "hotRepeat": "熱門複讀",
+      "catchphrase": "口頭禪",
+      "keywordAnalysis": "關鍵字分析"
+    },
+    "member": {
+      "memberList": "成員列表",
+      "relationships": "互動關係",
+      "cluster": "互動頻率",
+      "nicknameHistory": "暱稱變更"
+    }
+  },
+  "overview": {
+    "messageTypeDistribution": "訊息類型分佈",
+    "memberDistribution": "成員發言分布",
+    "others": "其他人",
+    "messageRatio": "訊息佔比",
+    "messageUnit": "條",
+    "memberComparison": "雙方訊息佔比",
+    "statCards": {
+      "dailyAvgMessages": "日均訊息",
+      "messagesCount": "{count} 條",
+      "daysCount": "共 {count} 天",
+      "imageMessages": "圖片訊息",
+      "imagesCount": "{count} 張",
+      "peakHour": "最活躍時段：",
+      "mostActiveWeekday": "最活躍星期",
+      "messagesOnDay": "{count} 條訊息",
+      "weekendActivity": "週末活躍度",
+      "weekendRatio": "週末訊息佔比",
+      "mostActiveDate": "最活躍日期",
+      "activeDays": "活躍天數",
+      "slashDays": "/ {count} 天",
+      "consecutiveStreak": "連續活躍",
+      "daysStreak": "{count} 天",
+      "longestStreak": "最長連續活躍",
+      "activityRate": "活躍率",
+      "activeDaysRatio": "有訊息的天數佔比"
+    },
+    "dailyTrend": {
+      "title": "每日訊息趨勢"
+    },
+    "identity": {
+      "privateChat": "私聊",
+      "groupChat": "群聊",
+      "analysisReport": "資料分析報告",
+      "totalMessages": "訊息總數",
+      "durationDays": "跨度天數",
+      "dailyAvgMessages": "日均訊息"
+    },
+    "tools": "常用工具"
+  },
+  "messageExport": {
+    "title": "匯出聊天紀錄"
+  },
+  "filter": {
+    "title": "自訂篩選",
+    "conditionMode": "條件篩選",
+    "sessionMode": "會話篩選",
+    "history": "歷史紀錄",
+    "execute": "開始篩選",
+    "export": "匯出篩選結果",
+    "keywords": "關鍵字",
+    "keywordsHint": "支援多個關鍵字，並以 OR 邏輯比對",
+    "keywordPlaceholder": "輸入關鍵字，按 Enter 新增",
+    "timeRange": "時間範圍",
+    "allTime": "全部",
+    "today": "今天",
+    "lastWeek": "近7天",
+    "lastMonth": "近1個月",
+    "last3Months": "近3個月",
+    "lastYear": "近1年",
+    "customTime": "自訂",
+    "senders": "傳送者",
+    "sendersHint": "可選，留空表示不限",
+    "searchMember": "搜尋成員...",
+    "noMembers": "暫無成員",
+    "selectedCount": "已選 {count} 位",
+    "contextSize": "上下文延伸",
+    "messages": "條訊息",
+    "searchSession": "搜尋日期...",
+    "selectedSessions": "已選擇 {count} 個會話",
+    "noSessions": "暫無會話索引",
+    "filtering": "正在篩選...",
+    "emptyHint": "設定篩選條件後再按下開始篩選",
+    "noResults": "未找到匹配的訊息",
+    "blockTitle": "對話區塊 {index}",
+    "stats": {
+      "blocks": "對話區塊",
+      "messages": "訊息數",
+      "hits": "命中數",
+      "chars": "字元數"
+    },
+    "historyTitle": "篩選歷史",
+    "noHistory": "暫無歷史紀錄",
+    "loadMore": "載入更多",
+    "allLoaded": "已載入全部",
+    "exportSuccess": "匯出成功",
+    "exportFailed": "匯出失敗",
+    "exportPreparing": "正在準備匯出..."
+  }
+}

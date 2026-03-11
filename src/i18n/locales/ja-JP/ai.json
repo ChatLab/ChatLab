@@ -1,0 +1,301 @@
+{
+  "tab": {
+    "chatExplorer": "対話で探索",
+    "sqlLab": "SQL ラボ",
+    "featureInDev": "{name}機能は開発中です",
+    "comingSoon": "近日公開...",
+    "followNotice": "新機能のお知らせは公式 Xiaohongshu で発信しています"
+  },
+  "chat": {
+    "welcome": {
+      "configReady": "✅ AI サービスの設定が完了しました。すぐにチャットを始められます。",
+      "configNeeded": "**ご注意**：ご利用前にサイドバー下部の「設定」から AI サービスを設定してください ⚙️"
+    },
+    "capture": "会話を画像保存",
+    "scrollToBottom": "下へ移動",
+    "input": {
+      "placeholder": "質問を入力..."
+    },
+    "message": {
+      "userAvatar": "ユーザーアバター",
+      "calling": "実行中",
+      "tools": {
+        "search_messages": "チャット履歴を検索",
+        "get_recent_messages": "最近のメッセージを取得",
+        "get_member_stats": "メンバー統計を取得",
+        "get_time_stats": "時間分布を取得",
+        "get_members": "メンバー一覧を取得",
+        "get_member_name_history": "ニックネーム履歴を取得",
+        "get_conversation_between": "やり取り履歴を取得",
+        "get_message_context": "コンテキストを取得",
+        "semantic_search_messages": "🔍 セマンティック検索"
+      },
+      "generating": "回答を作成中...",
+      "think": {
+        "labels": {
+          "think": "思考",
+          "analysis": "分析",
+          "reasoning": "推論",
+          "reflection": "振り返り",
+          "other": "思考（{tag}）"
+        },
+        "loading": "思考中...",
+        "duration": "{seconds}秒"
+      },
+      "toolParams": {
+        "keywords": "キーワード",
+        "time": "時間",
+        "getMessages": "{count} 件のメッセージを取得",
+        "limit": "{count} 件に制限",
+        "contextWithMessages": "{msgCount} 件のメッセージの前後各 {contextSize} 件のコンテキスト",
+        "context": "前後各 {size} 件のコンテキスト",
+        "topMembers": "上位 {count} 名のメンバー",
+        "search": "検索",
+        "getMemberList": "メンバー一覧を取得",
+        "memberId": "メンバーID",
+        "timeStats": {
+          "hourly": "時間別",
+          "weekday": "曜日別",
+          "daily": "日別"
+        }
+      }
+    },
+    "thinking": {
+      "processingResult": "結果を整理中",
+      "called": "実行したツール:",
+      "analyzing": "問題を分析中..."
+    },
+    "statusBar": {
+      "preset": {
+        "default": "既定",
+        "groupTitle": "グループチャット用プロンプト",
+        "privateTitle": "個人チャット用プロンプト",
+        "manage": "プロンプト管理"
+      },
+      "model": {
+        "title": "AI モデル設定",
+        "notConfigured": "AI 未設定",
+        "empty": "設定がありません",
+        "manage": "設定を管理",
+        "switchFailed": "モデルの切り替えに失敗しました"
+      },
+      "messageLimit": {
+        "label": "メッセージ上限：",
+        "title": "1回の送信で含む最大メッセージ数。クリックして設定"
+      },
+      "agent": {
+        "label": "Agent",
+        "contextTokens": "コンテキスト",
+        "stats": "セグメント {segment} ・タグ {tags}",
+        "phase": {
+          "preparing": "準備中",
+          "thinking": "思考中",
+          "tool_running": "ツール実行中",
+          "responding": "応答中",
+          "completed": "完了",
+          "aborted": "停止",
+          "error": "エラー"
+        },
+        "phaseShort": {
+          "preparing": "準備",
+          "thinking": "思考",
+          "tool_running": "ツール",
+          "responding": "生成",
+          "completed": "完了",
+          "aborted": "停止",
+          "error": "エラー"
+        }
+      },
+      "tokenUsageTitle": "この会話で使用した Token 合計",
+      "export": {
+        "label": "エクスポート",
+        "title": "現在のチャットをエクスポート"
+      },
+      "log": {
+        "label": "ログ",
+        "title": "現在の AI ログファイルを開く",
+        "openFailed": "ログを開けませんでした",
+        "openFailedDesc": "しばらくしてから再度お試しください"
+      },
+      "status": {
+        "connected": "AI 接続中",
+        "notConfigured": "グローバル設定で AI サービスを設定してください"
+      }
+    },
+    "conversation": {
+      "title": "AI チャット履歴",
+      "newChat": "新規チャット",
+      "empty": "履歴はありません",
+      "startNew": "新しいチャットを始める",
+      "titlePlaceholder": "タイトルを入力...",
+      "export": {
+        "createdAt": "作成日時",
+        "user": "ユーザー",
+        "assistant": "AI アシスタント",
+        "noMessages": "会話にメッセージがありません"
+      }
+    },
+    "dataSource": {
+      "title": "データソース",
+      "keywords": "キーワード:",
+      "empty": "データがありません",
+      "emptyHint": "質問を送信すると、関連する記録がここに表示されます",
+      "totalRecords": "全 {count} 件の記録",
+      "loadMore": "さらに読み込む"
+    }
+  },
+  "sqlLab": {
+    "editor": {
+      "errorEmptySQL": "SQL 文を入力してください",
+      "placeholder": "SQL クエリを入力...",
+      "tip": "ヒント：左側の列名をダブルクリックすると SQL に挿入できます",
+      "history": "履歴",
+      "aiGenerate": "AI 生成",
+      "shortcut": "Ctrl/⌘ + Enter で実行",
+      "run": "実行"
+    },
+    "schema": {
+      "tables": "テーブル",
+      "doubleClickToInsert": "ダブルクリックで SQL に挿入",
+      "primaryKey": "主キー"
+    },
+    "result": {
+      "queryError": "クエリエラー",
+      "rows": "{count} 行",
+      "readableTime": "タイムスタンプを日付に変換",
+      "viewChat": "チャット履歴を見る",
+      "summarize": "要約する",
+      "pageSize": "表示件数",
+      "pageInfo": "{current} / {total} ページ",
+      "emptyResult": "クエリ結果が空です",
+      "initialState": "SQL 文を入力して実行すると結果が表示されます",
+      "initialHint": "SELECT のみ対応しています。速度向上のため LIMIT の指定をおすすめします",
+      "summaryTitle": "AI 結果サマリー",
+      "analyzing": "AI が結果を分析中...",
+      "errorSummary": "要約に失敗しました"
+    },
+    "generate": {
+      "title": "AI で SQL 生成",
+      "description": "自然言語でクエリ内容を説明すると、AI が対応する SQL 文を自動生成します。",
+      "placeholder": "例：発言数が最も多い上位10名のメンバーを検索、1日あたりのメッセージ数を集計、「旅行」というキーワードを含むメッセージを検索...",
+      "errorEmptyPrompt": "クエリ要件を入力してください",
+      "errorGenerate": "AI 生成に失敗しました",
+      "aiOutput": "AI 出力",
+      "waitingAI": "AI の応答待ち...",
+      "sqlStatement": "SQL 文",
+      "explanation": "説明",
+      "generateSQL": "SQL を生成",
+      "useSQL": "SQL を使用",
+      "run": "実行"
+    },
+    "history": {
+      "title": "AI 生成履歴",
+      "execute": "実行",
+      "empty": "履歴はありません",
+      "justNow": "たった今",
+      "minutesAgo": "{count} 分前",
+      "hoursAgo": "{count} 時間前",
+      "today": "今日"
+    }
+  },
+  "assistant": {
+    "selector": {
+      "title": "アシスタントを選んでチャットを始めましょう",
+      "subtitle": "各アシスタントは得意分野が異なります。目的に合うものを選んでください",
+      "noAssistants": "現在のシーンで利用可能なアシスタントはありません",
+      "manage": "アシスタント管理",
+      "addNew": "アシスタントを追加"
+    },
+    "config": {
+      "viewTitle": "設定を確認",
+      "createTitle": "アシスタントを作成",
+      "editTitle": "アシスタント設定",
+      "betaWarning": "現在はベータ版のため、設定仕様が今後変わる可能性があります。プロンプトや関連設定は控えを残してください。",
+      "tabs": {
+        "basic": "基本設定",
+        "tools": "ツール管理"
+      },
+      "name": "名前",
+      "systemPrompt": "システムプロンプト",
+      "chatType": "対応チャットタイプ",
+      "chatTypeAll": "すべて",
+      "chatTypeGroup": "グループチャット",
+      "chatTypePrivate": "個人チャット",
+      "locale": "対応言語",
+      "localeHint": "未選択なら全言語が対象です",
+      "presetQuestions": "プリセット質問",
+      "addQuestion": "質問を追加...",
+      "builtinTools": "標準ツール",
+      "selectAll": "すべて選択",
+      "deselectAll": "すべて解除",
+      "builtinToolsHint": "何も選ばなければ全ツールを使います。選択した場合は、そのツールだけが有効になります。",
+      "toolGroupQuery": "データ検索ツール",
+      "toolGroupSql": "SQL 分析ツール",
+      "customSqlTools": "カスタム SQL ツール",
+      "customSqlToolsHint": "宣言型 SQL ツールは AI の Function Calling として自動登録され、パラメータ付き SQL を実行して結果を整形します。",
+      "toolUntitled": "ツール {index}（無名）",
+      "toolName": "ツール名",
+      "toolNamePlaceholder": "例: top_active_members",
+      "toolDesc": "ツールの説明",
+      "toolDescPlaceholder": "最もアクティブなメンバーのランキングを検索",
+      "toolParams": "パラメータ定義（JSON Schema）",
+      "toolQuery": "SQL クエリ（@paramName でパラメータを参照）",
+      "toolQueryPlaceholder": "SELECT sender_name, COUNT(*) as cnt FROM message ...",
+      "toolRowTemplate": "行テンプレート（{columnName} プレースホルダー）",
+      "toolRowTemplatePlaceholder": "{sender_name}: {cnt} 件のメッセージ",
+      "toolFallback": "結果なし時のメッセージ",
+      "toolFallbackPlaceholder": "関連データが見つかりませんでした",
+      "toolFallbackDefault": "関連データが見つかりませんでした",
+      "toolSummary": "サマリーテンプレート（任意、{rowCount} は行数）",
+      "toolSummaryPlaceholder": "全 {rowCount} 件のレコード：",
+      "addCustomTool": "カスタム SQL ツールを追加",
+      "resetDefault": "デフォルトに戻す",
+      "create": "作成"
+    },
+    "market": {
+      "title": "アシスタント管理",
+      "tabs": {
+        "local": "ローカルアシスタント",
+        "market": "アシスタントマーケット"
+      },
+      "localHint": "インポート済みのアシスタントを管理。設定変更や削除が可能です",
+      "marketHint": "内蔵アシスタントテンプレートを閲覧。インポート後すぐに使用・編集できます",
+      "default": "デフォルト",
+      "updateAvailable": "更新あり",
+      "reimport": "再インポート",
+      "imported": "インポート済み",
+      "import": "インポート",
+      "viewConfig": "設定を表示",
+      "duplicate": "複製",
+      "addAssistant": "アシスタントを追加",
+      "noLocal": "インポート済みのアシスタントはありません",
+      "noCatalog": "利用可能なアシスタントテンプレートはありません"
+    },
+    "fallbackName": "アシスタント",
+    "duplicateSuffix": "（コピー）",
+    "toast": {
+      "loadFailed": "読み込みに失敗しました",
+      "createSuccess": "作成しました",
+      "createFailed": "作成に失敗しました",
+      "saveSuccess": "保存しました",
+      "saveFailed": "保存に失敗しました",
+      "resetSuccess": "デフォルトに戻しました",
+      "resetFailed": "リセットに失敗しました",
+      "unknownError": "不明なエラー"
+    },
+    "builtinToolDesc": {
+      "search_messages": "チャットメッセージを検索",
+      "get_recent_messages": "最近のメッセージを取得",
+      "get_message_context": "メッセージのコンテキストを取得",
+      "get_conversation_between": "2人のやり取りを取得",
+      "get_members": "グループメンバー一覧を取得",
+      "get_member_stats": "メンバー統計を取得",
+      "get_member_name_history": "メンバーの名前変更履歴を取得",
+      "get_time_stats": "時間統計を取得",
+      "search_sessions": "セッションを検索",
+      "get_session_messages": "セッションメッセージを取得",
+      "get_session_summaries": "セッション要約を取得",
+      "semantic_search_messages": "セマンティック検索"
+    }
+  }
+}

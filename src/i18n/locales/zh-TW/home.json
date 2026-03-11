@@ -1,0 +1,124 @@
+{
+  "title": "ChatLab",
+  "subtitle": "聊天紀錄分析工作台",
+  "features": {
+    "privacy": {
+      "title": "隱私至上",
+      "description": "聊天紀錄只在本機儲存與分析，資料不外傳。"
+    },
+    "analysis": {
+      "title": "多維度分析",
+      "description": "從排行榜到金句，多角度解析群聊資料，挖出隱藏的趣味。"
+    },
+    "ai": {
+      "title": "AI Agent",
+      "description": "內建 AI Agent，能回答各種群聊問題，幫你找出資料背後的脈絡與趣事。"
+    }
+  },
+  "import": {
+    "dropHint": "鬆開滑鼠匯入檔案",
+    "clickHint": "點一下選擇，或直接拖曳聊天紀錄匯入",
+    "multipleHint": "支援同時選擇或拖曳多個檔案",
+    "selectFiles": "選擇聊天紀錄檔案",
+    "chatRecords": "聊天紀錄",
+    "allFiles": "所有檔案",
+    "progress": {
+      "detecting": "正在偵測格式...",
+      "reading": "正在讀取檔案...",
+      "parsing": "正在解析訊息...",
+      "saving": "正在寫入資料庫...",
+      "done": "匯入完成",
+      "error": "匯入中斷"
+    },
+    "processed": "已處理 {count} 則訊息",
+    "tutorial": "查看聊天紀錄匯入教學",
+    "viewLog": "檢視匯入日誌",
+    "cannotReadPath": "無法讀取檔案路徑",
+    "preparing": "準備匯入...",
+    "errors": {
+      "no_file_selected": "未選擇檔案",
+      "import_failed": "匯入失敗",
+      "unrecognized_format": "無法識別的檔案格式",
+      "no_messages": "未解析到任何訊息，請檢查檔案格式是否正確"
+    },
+    "diagnostics": {
+      "format": "偵測格式：",
+      "received": "收到訊息：",
+      "written": " / 寫入：",
+      "skipped": " / 跳過："
+    },
+    "batch": {
+      "importing": "批次匯入中",
+      "progressCount": "第 {current} / {total} 個",
+      "cancel": "取消匯入",
+      "waiting": "等待中",
+      "skipped": "已跳過",
+      "success": "匯入成功",
+      "completed": "批次匯入完成",
+      "summary": "成功 {success} 個，失敗 {failed} 個，跳過 {cancelled} 個",
+      "view": "檢視"
+    },
+    "options": {
+      "title": "更多選項",
+      "mergeImport": "合併匯入",
+      "mergeImportHint": "勾選後，多個檔案會合併成同一份聊天紀錄"
+    },
+    "merge": {
+      "importing": "正在合併",
+      "parsing": "正在解析檔案...",
+      "parsingFile": "正在解析：{name}",
+      "merging": "正在合併訊息...",
+      "completed": "合併完成",
+      "completedHint": "{count} 個檔案已合併",
+      "messageCount": "{count} 條訊息",
+      "failed": "合併失敗",
+      "cancel": "取消合併"
+    }
+  },
+  "migration": {
+    "title": "資料庫需要更新",
+    "description": "偵測到 {count} 個資料庫需要升級以支援新功能。",
+    "note": "更新通常只需幾秒鐘，不會遺失任何資料。",
+    "upgradeContent": "本次升級內容：",
+    "upgradeNow": "立即升級",
+    "upgrading": "正在升級...",
+    "failed": "遷移失敗",
+    "partialFailed": "部分資料庫升級失敗",
+    "errorHint": "這通常是因為資料庫檔案損壞。建議在側邊欄中刪除失敗的會話，然後重新匯入。",
+    "close": "關閉",
+    "retry": "重試"
+  },
+  "chatSelector": {
+    "title": "選擇要匯入的聊天",
+    "scanning": "正在掃描聊天列表...",
+    "scanFailed": "掃描失敗",
+    "retry": "重試",
+    "selectAll": "全選",
+    "chatCount": "共 {count} 個聊天",
+    "selected": "已選 {count} 個",
+    "messageCount": "{count} 條訊息",
+    "import": "匯入 ({count})",
+    "noChats": "未發現任何聊天"
+  },
+  "footer": {
+    "website": "官網",
+    "terms": "使用條款"
+  },
+  "changelog": {
+    "title": "更新紀錄",
+    "subtitle": "查看所有版本更新內容",
+    "viewChangelog": "更新紀錄",
+    "latest": "最新版本",
+    "current": "目前版本",
+    "total": "共 {count} 個版本",
+    "close": "關閉",
+    "loadError": "載入更新紀錄失敗",
+    "retry": "重試",
+    "types": {
+      "feat": "新功能",
+      "fix": "問題修復",
+      "chore": "其他優化",
+      "style": "樣式優化"
+    }
+  }
+}

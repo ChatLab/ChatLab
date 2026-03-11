@@ -1,0 +1,128 @@
+{
+  "wordcloud": {
+    "loading": "単語頻度を分析中...",
+    "sidebar": {
+      "filter": "フィルター設定",
+      "style": "スタイル設定"
+    },
+    "stats": {
+      "messagesLabel": "メッセージ数",
+      "wordsLabel": "総単語数",
+      "uniqueLabel": "ユニーク単語"
+    },
+    "config": {
+      "maxWords": "表示単語数",
+      "sizeScale": "フォントサイズ",
+      "userFilter": "ユーザーフィルター",
+      "posFilter": "品詞フィルター",
+      "enableStopwords": "ストップワードを除外"
+    },
+    "size": {
+      "small": "小",
+      "medium": "中",
+      "large": "大",
+      "xlarge": "特大"
+    },
+    "posFilter": {
+      "all": "すべての品詞",
+      "meaningful": "主要品詞",
+      "custom": "カスタム",
+      "customHint": "品詞を指定",
+      "selectMeaningful": "主要品詞",
+      "selectAll": "すべて選択",
+      "clearAll": "クリア"
+    },
+    "empty": {
+      "title": "ワードクラウドデータがありません",
+      "description": "現在の絞り込み条件では、ワードクラウドを作れるほどテキストメッセージがありません"
+    }
+  },
+  "keywords": {
+    "title": "🔍 キーワードランキング",
+    "description": "グループチャットのキーワード使用ランキングを分析します。カスタムランキングも作成できます",
+    "countTemplate": "全 {count} 名のメンバー",
+    "templateLabel": "テンプレート:",
+    "newTemplate": "+ 新規作成",
+    "searchPlaceholder": "入力して検索",
+    "clear": "クリア",
+    "templateHint": "* テンプレートを右クリックで編集・削除できます",
+    "keyword": "キーワード",
+    "ranking": "ランキング",
+    "multiColorMode": "マルチカラーモード",
+    "times": "{count}回",
+    "timesWithPercent": "回 ({percent}%)",
+    "loading": "データを分析中...",
+    "empty": "データがありません。キーワードを追加するかテンプレートを切り替えてください",
+    "contextMenu": {
+      "edit": "編集",
+      "delete": "削除"
+    },
+    "modal": {
+      "createTitle": "テンプレートを作成",
+      "editTitle": "テンプレートを編集",
+      "templateName": "テンプレート名",
+      "templateNamePlaceholder": "例：ポジティブ",
+      "keywords": "キーワード",
+      "keywordPlaceholder": "入力して Enter で追加",
+      "cancel": "キャンセル",
+      "save": "保存",
+      "update": "更新"
+    },
+    "templates": {
+      "laugh": {
+        "name": "笑い度",
+        "keywords": "笑,ウケる,草,www,lol,ワロタ,233",
+        "description": "グループ内の笑い指数を集計"
+      },
+      "sad": {
+        "name": "落ち込み度",
+        "keywords": "辛い,しんどい,泣いた,無理,きつい,疲れた",
+        "description": "グループ内のネガティブ感情を集計"
+      },
+      "praise": {
+        "name": "褒め上手",
+        "keywords": "すごい,さすが,天才,神,やばい,尊い,最高",
+        "description": "グループで最も褒め上手なメンバーを集計"
+      },
+      "slacker": {
+        "name": "サボり",
+        "keywords": "サボり,帰りたい,お腹空いた,眠い,仕事したくない,定時",
+        "description": "グループで最も退勤を待ち望んでいるメンバーを集計"
+      },
+      "gossip": {
+        "name": "ゴシップ好き",
+        "keywords": "マジで,詳しく,本当に,えぇ,やばい,ありえない",
+        "description": "グループで最もゴシップ好きなメンバーを集計"
+      },
+      "polite": {
+        "name": "礼儀正しさ",
+        "keywords": "ありがとう,すみません,了解,お疲れ様,よろしく,恐れ入ります",
+        "description": "グループで最も礼儀正しいメンバーを集計"
+      },
+      "curious": {
+        "name": "質問好き",
+        "keywords": "なぜ,なんで,どうやって,わからない,教えて",
+        "description": "グループで最も質問が多いメンバーを集計"
+      }
+    }
+  },
+  "hotRepeat": {
+    "title": "🔥 盛り上がった復唱",
+    "loading": "リピートデータを読み込み中...",
+    "description": "1 回の復唱で最も多くの人が参加したフレーズ",
+    "countTemplate": "全 {count} 件の復唱",
+    "people": "{count}人",
+    "times": "{count} 回",
+    "colon": "：",
+    "viewChat": "チャット履歴を見る",
+    "empty": "リピートデータがありません"
+  },
+  "catchphrase": {
+    "title": "💬 口癖分析",
+    "loading": "口癖データを分析中...",
+    "description": "{count} 名の高頻度フレーズを分析しました",
+    "countTemplate": "全 {count} 名のメンバー",
+    "times": "{count}回",
+    "empty": "口癖データがありません"
+  }
+}

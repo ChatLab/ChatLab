@@ -36,7 +36,11 @@ const emit = defineEmits<{
 const popoverOpen = ref(false)
 
 // 日历组件的 locale
-const calendarLocale = computed(() => (locale.value === 'zh-CN' ? 'zh-CN' : 'en-US'))
+const calendarLocale = computed(() => {
+  if (locale.value.startsWith('zh')) return 'zh-CN'
+  if (locale.value === 'ja-JP') return 'ja-JP'
+  return 'en-US'
+})
 
 // 辅助函数：将字符串日期转换为 CalendarDate
 function stringToCalendarDate(dateStr: string): CalendarDate | undefined {

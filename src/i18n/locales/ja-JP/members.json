@@ -1,0 +1,84 @@
+{
+  "ownerSelector": {
+    "title": "あなたを選択してください",
+    "unset": "未設定",
+    "selectMember": "メンバーを選択",
+    "currentOwner": "現在：{name}",
+    "hint": "1. チャット履歴ビューアの右側に表示されます 2. AI との会話ではあなた本人として扱われます"
+  },
+  "list": {
+    "title": "メンバー管理",
+    "description": "全 {count} 名のメンバー。別名の追加やメンバーの削除ができます",
+    "searchPlaceholder": "グループニックネーム、アカウント名、ID、または別名で検索",
+    "noMatch": "一致するメンバーが見つかりません",
+    "empty": "メンバーデータがありません",
+    "table": {
+      "accountName": "アカウント名",
+      "groupNickname": "グループニックネーム",
+      "messageCount": "メッセージ数",
+      "customAlias": "カスタム別名",
+      "actions": "操作"
+    },
+    "aliasPlaceholder": "入力して Enter で追加",
+    "delete": "削除",
+    "pagination": "{start} - {end} 件表示、全 {total} 名のメンバー",
+    "tip": "ヒント：別名を追加すると、チャット履歴の相手をより正確に識別できます。別名は検索や AI 分析で使用されます。",
+    "modal": {
+      "title": "メンバーを削除しますか？",
+      "content": "メンバー {name} とその {count} 件のメッセージを削除します。この操作は元に戻せません。",
+      "cancel": "キャンセル",
+      "confirm": "削除を確認"
+    }
+  },
+  "nicknameHistory": {
+    "note": "備考：QQ の旧バージョンクライアントはチャット履歴を txt 形式でエクスポートできます。この形式では最も正確なニックネーム変更履歴が取得できます",
+    "title": "ニックネーム変更履歴",
+    "loading": "読み込み中...",
+    "hasChanges": "{count} 名のメンバーがニックネームを変更しました",
+    "noChanges": "ニックネームを変更したメンバーはいません",
+    "current": "現在",
+    "empty": "このグループのすべてのメンバーはニックネームを変更していません",
+    "loadingText": "ニックネーム変更履歴を読み込み中..."
+  },
+  "relationships": {
+    "loading": "{'@'} インタラクションデータを分析中...",
+    "topMentioners": "📢 最も {'@'} する人",
+    "totalMentions": "全 {count} 回の {'@'}",
+    "topMentioned": "🎯 最も {'@'} される人",
+    "popularMember": "グループの人気者",
+    "times": "回",
+    "oneWay": {
+      "title": "🐕 片思い検出",
+      "description": "{count} 組の片思い関係を発見（一方の {'@'} が80%以上を占める）",
+      "neverRespond": "返信なし",
+      "reverse": "逆方向 {count} 回",
+      "ratio": "{value}% 片方向"
+    },
+    "twoWay": {
+      "title": "💕 両思い検出",
+      "description": "{count} 組の頻繁な相互やり取りを発見（互いに {'@'} かつバランス度 ≥30%）",
+      "interactions": "回のやり取り",
+      "balance": "{value}% バランス"
+    },
+    "emptyTitle": "📱 {'@'} インタラクション分析",
+    "empty": "{'@'} インタラクションデータがありません",
+    "modal": {
+      "title": "{name} の {'@'} 関係",
+      "topMentioned": "最も {'@'} する相手",
+      "topMentioners": "最も {'@'} してくる相手",
+      "timesCount": "{count} 回",
+      "close": "閉じる"
+    }
+  },
+  "private": {
+    "title": "会話メンバー",
+    "description": "全 {count} 名のメンバー。検索や AI 分析に使用する別名を追加できます",
+    "messageCount": "メッセージ数",
+    "percentage": "割合 {value}%",
+    "customAlias": "カスタム別名",
+    "aliasPlaceholder": "入力して Enter で別名を追加",
+    "empty": "メンバーデータがありません",
+    "tipTitle": "ヒント",
+    "tipContent": "別名を追加すると、チャット履歴の相手をより正確に識別できます。別名は検索や AI 分析で使用されます。"
+  }
+}

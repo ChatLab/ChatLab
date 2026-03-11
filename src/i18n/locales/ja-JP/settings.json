@@ -1,0 +1,379 @@
+{
+  "title": "設定",
+  "tabs": {
+    "basic": "基本設定",
+    "ai": "AI 設定",
+    "aiConfig": "チャットモデル",
+    "aiRAG": "埋め込みモデル",
+    "aiPrompt": "チャット設定",
+    "aiPreset": "プロンプト設定",
+    "aiPreprocess": "前処理",
+    "storage": "データとストレージ",
+    "storageManage": "ストレージ管理",
+    "sessionManage": "セッション管理",
+    "about": "ChatLabについて"
+  },
+  "basic": {
+    "language": {
+      "title": "言語",
+      "description": "アプリの表示言語を選択します"
+    },
+    "appearance": {
+      "title": "外観設定",
+      "themeMode": "テーマモード",
+      "auto": "システムに従う",
+      "light": "ライトモード",
+      "dark": "ダークモード"
+    },
+    "screenshot": {
+      "title": "スクリーンショット設定",
+      "mobileAdapt": "モバイル対応",
+      "mobileAdaptDesc": "スクリーンショット時に幅を自動調整し、モバイル端末での閲覧に最適化します"
+    },
+    "network": {
+      "title": "ネットワーク設定",
+      "proxyMode": "プロキシモード",
+      "proxyModeDesc": "ネットワークアクセス時に使用するプロキシ方式",
+      "modeOff": "オフ",
+      "modeSystem": "システムに従う",
+      "modeManual": "手動設定",
+      "proxyAddress": "プロキシアドレス",
+      "proxyPlaceholder": "http://127.0.0.1:7890",
+      "proxyHelp": "HTTP/HTTPS プロキシに対応。形式例：http://127.0.0.1:7890",
+      "testConnection": "接続テスト",
+      "testing": "テスト中...",
+      "connectionSuccess": "プロキシ接続に成功しました！",
+      "connectionFailed": "接続に失敗しました",
+      "enterProxyFirst": "先にプロキシアドレスを入力してください",
+      "invalidProxyUrl": "有効なプロキシアドレスを入力してください。形式例：http://127.0.0.1:7890",
+      "onlyHttpSupported": "http:// または https:// プロトコルのみ対応",
+      "saveFailed": "保存に失敗しました"
+    }
+  },
+  "aiConfig": {
+    "title": "チャットモデル",
+    "loading": "読み込み中...",
+    "inUse": "使用中",
+    "defaultModel": "デフォルトモデル",
+    "localService": "ローカルサービス",
+    "customEndpoint": "カスタムエンドポイント",
+    "edit": "編集",
+    "delete": "削除",
+    "empty": {
+      "title": "AI サービスが未設定です",
+      "description": "設定を追加して AI を使い始めましょう"
+    },
+    "addConfig": "設定を追加",
+    "maxConfigs": "設定は最大 10 件までです",
+    "modal": {
+      "addConfig": "設定を追加",
+      "editConfig": "設定を編集",
+      "officialApi": "公式 API",
+      "officialApiDesc": "DeepSeek や Gemini など",
+      "localService": "ローカルサービス",
+      "localServiceDesc": "Ollama など",
+      "openaiCompatible": "OpenAI 互換",
+      "openaiCompatibleDesc": "カスタムエンドポイント",
+      "configName": "設定名",
+      "optional": "（任意）",
+      "configNamePlaceholderPreset": "空欄の場合、サービス名が使用されます",
+      "configNamePlaceholderCustom": "空欄の場合、API エンドポイントが使用されます",
+      "aiProvider": "AI プロバイダー",
+      "apiKeyPlaceholder": "API Key を入力",
+      "apiKeyPlaceholderEdit": "新しい API Key を入力（空欄で現在の値を維持）",
+      "apiKeyPlaceholderLocal": "ローカルサービスでは通常不要です",
+      "apiKeyHintLocal": "サービスに認証が設定されている場合はこちらに入力",
+      "validate": "接続確認",
+      "validationSuccess": "接続を確認しました",
+      "validationFailed": "接続の確認に失敗しました",
+      "validationError": "検証に失敗：",
+      "model": "モデル",
+      "modelName": "モデル名",
+      "modelNamePlaceholder": "例: gpt-4、claude-3",
+      "modelNamePlaceholderLocal": "例: qwen3、deepseek-r1",
+      "modelNameHint": "API がサポートするモデル名を入力",
+      "modelNameHintLocal": "ローカルにデプロイしたモデル名を入力",
+      "apiEndpoint": "API エンドポイント",
+      "apiEndpointHint": "OpenAI 互換形式の API エンドポイント",
+      "disableThinking": "思考モードをオフ",
+      "disableThinkingDesc": "Qwen3 や DeepSeek-R1 などのモデル向け。オフにすると標準のツール実行形式を使います",
+      "isReasoningModel": "推論モデル",
+      "isReasoningModelDesc": "有効にすると推論過程を抽出し、ツール実行を無効にします（DeepSeek-R1、QwQ など）",
+      "advancedOptions": "詳細設定",
+      "customService": "カスタムサービス",
+      "unnamedConfig": "名称未設定"
+    }
+  },
+  "storage": {
+    "title": "ローカルストレージ管理",
+    "description": "ChatLab がローカルに保存したデータファイルを管理します",
+    "dataLocation": {
+      "title": "データディレクトリの場所",
+      "description": "ローカルデータとキャッシュの保存先をカスタマイズ",
+      "choose": "場所を選択",
+      "reset": "デフォルトに戻す",
+      "open": "開く",
+      "restartTip": "ディレクトリ変更後はアプリを再起動してください。旧ディレクトリのキャッシュは自動で移行されます",
+      "confirmTitle": "データディレクトリの切り替えを確認",
+      "confirmMessage": "データの保存先を切り替えます。既存データは新しいディレクトリに移行されます。",
+      "newPath": "新しいディレクトリパス",
+      "defaultPath": "デフォルトの場所",
+      "confirmWarning": "アプリ再起動後、旧データディレクトリは自動的に削除されます。新しいディレクトリパスが正しいことを確認してください。",
+      "cancel": "キャンセル",
+      "confirm": "切り替えを確認",
+      "migrationSuccessTitle": "データ移行が完了しました",
+      "migrationSuccessMessage": "変更を反映するにはアプリの再起動が必要です。",
+      "relaunchNow": "今すぐ再起動"
+    },
+    "totalUsage": "合計使用量：",
+    "loading": "読み込み中...",
+    "files": "ファイル",
+    "notExist": "存在しません",
+    "clear": "クリア",
+    "open": "開く",
+    "notes": {
+      "title": "注意事項",
+      "logSafe": "ログファイルは主にバグ調査用です。安全にクリアできます",
+      "noRecover": "クリアしたファイルは復元できません。慎重に操作してください"
+    },
+    "cache": {
+      "databases": {
+        "name": "チャット履歴データベース",
+        "description": "インポートしたチャット履歴の分析データ"
+      },
+      "ai": {
+        "name": "AI 会話データベース",
+        "description": "AI チャット履歴と設定ファイル"
+      },
+      "downloads": {
+        "name": "ダウンロードディレクトリ",
+        "description": "スクリーンショットや分析結果などを含む"
+      },
+      "logs": {
+        "name": "ログファイル",
+        "description": "アプリの実行ログ（インポート、AI、エラーなどのログを含む）"
+      }
+    },
+    "session": {
+      "title": "セッションインデックス設定",
+      "description": "セッションインデックスは時間間隔に応じてチャット履歴を自動で区切り、AI 分析や閲覧をしやすくします",
+      "defaultThreshold": "デフォルト分割間隔",
+      "thresholdUnit": "分",
+      "thresholdHelp": "この時間を超える間隔があるメッセージは新しいセッションに分割されます",
+      "notGenerated": "セッションインデックスが未生成です",
+      "generateHint": "生成すると、AI が会話の流れをより正確に把握できます",
+      "generate": "インデックスを生成",
+      "regenerate": "再生成",
+      "generating": "作成中",
+      "sessionCount": "{count} セッション",
+      "generated": "セッションインデックス生成済み",
+      "generateSuccess": "セッションインデックスの生成に成功しました。全 {count} セッション",
+      "generateError": "生成に失敗しました",
+      "batchTitle": "インデックスを一括生成",
+      "totalSessions": "全 {count} チャット",
+      "generatedCount": "生成済み {count} 件",
+      "notGeneratedCount": "未生成 {count} 件",
+      "loadingStatus": "読み込み中...",
+      "batchGenerate": "未生成分を作成",
+      "batchRegenerate": "すべて再生成"
+    }
+  },
+  "aiPrompt": {
+    "chatSettings": {
+      "title": "チャット設定"
+    },
+    "exportSettings": {
+      "title": "エクスポート設定"
+    },
+    "maxMessages": {
+      "title": "送信メッセージ数の上限",
+      "description": "1 回のリクエストで AI に送る最大メッセージ数です。増やすほど Token 消費は増えますが、分析精度も上がります（初めてなら 2000 推奨）"
+    },
+    "maxHistory": {
+      "title": "AI コンテキスト制限",
+      "description": "会話ごとに保持する直近のやり取り数です（1 往復 = ユーザーの質問 + AI の回答）。文脈が長くなりすぎて Token を消費するのを防ぎます"
+    },
+    "exportFormat": {
+      "title": "会話エクスポート形式",
+      "description": "AI チャットをエクスポートする際のファイル形式",
+      "txtLabel": "TXT"
+    },
+    "sqlExportFormat": {
+      "title": "SQL Lab エクスポート形式",
+      "description": "SQL クエリ結果をエクスポートする際のファイル形式"
+    },
+    "presets": {
+      "title": "システムプロンプト",
+      "add": "プリセットを追加",
+      "import": "プリセットをインポート",
+      "description": "プロンプトはグループチャットと個人チャットの両方の分析に使用されます。分析タイプに応じて内容が自動的に調整されます"
+    },
+    "preset": {
+      "builtIn": "内蔵",
+      "groupOnly": "グループチャットのみ",
+      "privateOnly": "個人チャットのみ",
+      "view": "表示",
+      "edit": "編集",
+      "copy": "コピー",
+      "delete": "削除"
+    },
+    "modal": {
+      "editBuiltin": "システムプロンプトを編集",
+      "editCustom": "カスタムプロンプトを編集",
+      "addCustom": "カスタムプロンプトを追加",
+      "presetName": "プリセット名",
+      "presetNamePlaceholder": "プリセットの名前を入力",
+      "applicableTo": "適用シーン",
+      "applicableToHint": "（チェックすると対応する分析タイプで使用可能になります）",
+      "groupChat": "グループチャット分析",
+      "privateChat": "個人チャット分析",
+      "systemPrompt": "システムプロンプト",
+      "systemPromptPlaceholder": "AI アシスタントの役割、タスク、回答要件を定義...",
+      "preview": "完全プロンプトプレビュー",
+      "previewHint": "（プレビューはグループチャットモードです。実際は分析タイプに応じて自動調整されます）",
+      "resetToDefault": "デフォルトに戻す",
+      "saveChanges": "変更を保存",
+      "addPreset": "プリセットを追加"
+    },
+    "importPreset": {
+      "title": "プリセットをインポート",
+      "description": "リモートから推奨のシステムプロンプトプリセットを取得します",
+      "loading": "リモートプリセットを読み込み中...",
+      "loadError": "リモートプリセットの読み込みに失敗しました",
+      "noPresets": "利用可能なリモートプリセットがありません",
+      "commonPresets": "共通プリセット",
+      "groupPresets": "グループチャット専用プリセット",
+      "privatePresets": "個人チャット専用プリセット",
+      "add": "追加",
+      "added": "追加済み",
+      "preview": "プレビュー",
+      "systemPrompt": "システムプロンプト",
+      "noDescription": "説明がありません",
+      "fetchingContent": "コンテンツを読み込み中...",
+      "fetchError": "コンテンツの読み込みに失敗しました"
+    }
+  },
+  "about": {
+    "title": "ChatLabについて",
+    "description": "ローカルで動くチャット履歴分析ツール。SQL と AI Agent で会話を振り返れます。",
+    "version": "バージョン",
+    "checkUpdate": "アップデートを確認",
+    "checking": "確認中...",
+    "unknown": "不明",
+    "privacy": {
+      "title": "プライバシー設定",
+      "analytics": "匿名利用統計",
+      "analyticsDesc": "有効にすると、バージョン番号やOS情報などの非機密データを収集し、製品の改善に役立てます"
+    },
+    "developer": {
+      "title": "開発者オプション",
+      "debugMode": "DEBUG モード",
+      "debugModeDesc": "有効にすると、AI ログに完全な生メッセージ内容が切り詰められずに記録されます。ログファイルが大幅に増大する可能性があります"
+    }
+  },
+  "embedding": {
+    "title": "埋め込みモデル",
+    "description": "Embedding ベクトル類似度で質問の意味を理解します。有効にすると AI がセマンティック検索を行えます",
+    "configList": "埋め込み設定",
+    "addConfig": "設定を追加",
+    "editConfig": "設定を編集",
+    "noConfigs": "設定がありません。上のボタンをクリックして追加してください",
+    "active": "使用中",
+    "setActive": "使用する",
+    "deleteConfirm": "設定「{name}」を削除してもよろしいですか？",
+    "configName": "設定名",
+    "configNamePlaceholder": "例：Ollama Embedding",
+    "apiSource": "API ソース",
+    "apiSourceHint": "「チャットモデルを流用」を選ぶと、現在有効なチャットモデルのエンドポイントとキーをそのまま使います",
+    "reuseLLM": "チャットモデルを流用",
+    "customAPI": "カスタム API",
+    "model": "モデル名",
+    "modelPlaceholder": "例: nomic-embed-text",
+    "modelHint": "Ollama でよく使用：nomic-embed-text、mxbai-embed-large",
+    "baseUrl": "API エンドポイント",
+    "baseUrlPlaceholder": "例: http://localhost:11434/v1",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "API Key を入力",
+    "optional": "（任意）",
+    "validate": "接続テスト",
+    "validateSuccess": "接続に成功しました！",
+    "validateFailed": "接続に失敗しました",
+    "saveFailed": "保存に失敗しました",
+    "vectorStore": "ベクトルキャッシュ",
+    "vectorStoreDesc": "計算済みのベクトルをキャッシュし、再計算を避けて速度を向上させます",
+    "cached": "キャッシュ済み",
+    "size": "使用量",
+    "clear": "クリア",
+    "clearVectorStoreConfirm": "すべてのベクトルキャッシュをクリアしてもよろしいですか？次回検索時に再計算が必要になります。"
+  },
+  "aiPreprocess": {
+    "title": "チャット履歴の前処理",
+    "description": "チャット履歴を AI に送信する前に前処理を行い、Token を節約しノイズを除去します。元のデータは変更されません。",
+    "dataCleaning": "データクリーニング",
+    "dataCleaningDesc": "XML カードメッセージ（共有リンク、ミニアプリなど）を自動クリーニングし、有効な内容を抽出します。Token を大幅に節約できます。オンのままにすることを推奨します。",
+    "mergeConsecutive": "連続発言の結合",
+    "mergeConsecutiveDesc": "同一人物の短時間内の連続メッセージを1つに結合します",
+    "mergeWindow": "結合タイムウィンドウ（秒）",
+    "denoise": "スマートノイズ除去",
+    "denoiseDesc": "感動詞のみ、絵文字のみ、システムプレースホルダー（[画像] など）といった無意味なメッセージを除去します",
+    "desensitize": "データマスキング",
+    "desensitizeDesc": "ルールに基づいて機密情報（電話番号、メールアドレス、身分証番号など）をプレースホルダーに置換します",
+    "desensitizeRules": "マスキングルール",
+    "desensitizeRulesDesc": "有効にするマスキングルールにチェックを入れてください。リスト順に優先マッチングされます",
+    "desensitizeBuiltin": "プリセットルール",
+    "desensitizeCustom": "カスタムルール",
+    "desensitizeAddCustom": "カスタムルールを追加",
+    "desensitizeRuleName": "ルール名",
+    "desensitizeRulePattern": "正規表現",
+    "desensitizeRuleReplacement": "置換テキスト",
+    "desensitizeRuleAdd": "追加",
+    "desensitizeRuleInvalidRegex": "正規表現の構文エラー",
+    "desensitizeRuleNamePlaceholder": "例：社員番号",
+    "desensitizeRulePatternPlaceholder": "例：EMP-\\d+",
+    "desensitizeRuleReplacementPlaceholder": "置換テキスト。例：[社員番号]",
+    "anonymizeNames": "ニックネーム匿名化",
+    "anonymizeNamesDesc": "実際のニックネームの代わりに番号（U1、U2…）を AI に送信し、幻覚を減らして Token を節約します",
+    "blacklist": "ブラックリストキーワード",
+    "blacklistDesc": "以下のキーワードのいずれかを含むメッセージは丸ごと除外されます",
+    "blacklistPlaceholder": "キーワードを入力して Enter で追加",
+    "blacklistAdd": "追加"
+  },
+  "desensitize": {
+    "rules": {
+      "cn_phone": "中国の携帯電話番号",
+      "cn_phone_desc": "1xx xxxx xxxx 形式の11桁の番号",
+      "cn_id_card": "中国の身分証番号",
+      "cn_id_card_desc": "18桁、末尾に X を含む場合あり",
+      "cn_bank_card": "中国の銀行カード番号",
+      "cn_bank_card_desc": "16-19桁の連続数字",
+      "cn_landline": "中国の固定電話番号",
+      "cn_landline_desc": "市外局番-番号（例：010-12345678）",
+      "us_ssn": "米国社会保障番号（SSN）",
+      "us_ssn_desc": "XXX-XX-XXXX 形式",
+      "us_phone": "米国電話番号",
+      "us_phone_desc": "+1 (XXX) XXX-XXXX 形式",
+      "us_drivers_license": "米国運転免許証番号",
+      "us_drivers_license_desc": "アルファベット + 7-8桁の数字",
+      "jp_phone": "日本の電話番号",
+      "jp_phone_desc": "0x0-XXXX-XXXX 形式",
+      "jp_my_number": "マイナンバー",
+      "jp_my_number_desc": "12桁の数字（マイナンバー）",
+      "kr_phone": "韓国の電話番号",
+      "kr_phone_desc": "01X-XXXX-XXXX 形式",
+      "kr_rrn": "韓国の住民登録番号",
+      "kr_rrn_desc": "XXXXXX-XXXXXXX 形式（주민번호）",
+      "api_key_prefix": "API Key / Token（既知プレフィックス）",
+      "api_key_prefix_desc": "sk-、ghp_、AKIA などで始まる長い文字列",
+      "bearer_token": "Bearer Token",
+      "bearer_token_desc": "Bearer に続く認証トークン値",
+      "email": "メールアドレス",
+      "email_desc": "user{'@'}domain.com の標準形式",
+      "credit_card": "クレジットカード番号",
+      "credit_card_desc": "Visa / MasterCard / AmEx などのカード番号",
+      "ipv4": "IPv4 アドレス",
+      "ipv4_desc": "例：192.168.1.1",
+      "url": "URL リンク",
+      "url_desc": "http:// または https:// で始まるリンク"
+    }
+  }
+}

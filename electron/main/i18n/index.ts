@@ -13,6 +13,8 @@ import * as path from 'path'
 import { getSettingsDir, ensureDir } from '../paths'
 import zhCN from './locales/zh-CN'
 import enUS from './locales/en-US'
+import zhTW from './locales/zh-TW'
+import jaJP from './locales/ja-JP'
 
 const LOCALE_FILE = 'locale.json'
 
@@ -36,24 +38,32 @@ function saveLocale(lng: string): void {
 }
 
 /**
+ * 从系统 locale 探测应用 locale
+ */
+function detectSystemLocale(): string {
+  const sysLocale = app.getLocale()
+  if (sysLocale === 'zh-TW' || sysLocale === 'zh-Hant') return 'zh-TW'
+  if (sysLocale.startsWith('zh')) return 'zh-CN'
+  if (sysLocale.startsWith('ja')) return 'ja-JP'
+  return 'en-US'
+}
+
+/**
  * 初始化主进程国际化
  *
  * 优先级：settings/locale.json > app.getLocale() 系统检测 > en-US 默认
  * 同时注册 IPC 监听器接收渲染进程的语言切换请求
  */
 export async function initLocale(): Promise<void> {
-  let lng = 'en-US' // 默认回退
+  let lng = 'en-US'
 
   try {
     const filePath = getLocaleFilePath()
     if (fs.existsSync(filePath)) {
-      // 读取用户保存的语言偏好
       const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'))
       if (data.locale) lng = data.locale
     } else {
-      // 无配置文件，探测系统语言
-      const sysLocale = app.getLocale()
-      lng = sysLocale.startsWith('zh') ? 'zh-CN' : 'en-US'
+      lng = detectSystemLocale()
     }
   } catch (e) {
     console.error('[i18n] Error loading locale config:', e)
@@ -65,13 +75,14 @@ export async function initLocale(): Promise<void> {
     resources: {
       'zh-CN': { translation: zhCN },
       'en-US': { translation: enUS },
+      'zh-TW': { translation: zhTW },
+      'ja-JP': { translation: jaJP },
     },
-    interpolation: { escapeValue: false }, // Node 环境不需要防 XSS
+    interpolation: { escapeValue: false },
   })
 
   console.log(`[i18n] Initialized with locale: ${lng}`)
 
-  // 监听渲染进程的语言切换请求（补全半完成的 IPC 机制）
   ipcMain.on('locale:change', async (_event, newLocale: string) => {
     if (newLocale !== i18next.language) {
       await i18next.changeLanguage(newLocale)

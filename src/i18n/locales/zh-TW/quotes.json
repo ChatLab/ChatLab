@@ -1,0 +1,128 @@
+{
+  "wordcloud": {
+    "loading": "正在分析詞頻...",
+    "sidebar": {
+      "filter": "篩選條件",
+      "style": "樣式設定"
+    },
+    "stats": {
+      "messagesLabel": "訊息數",
+      "wordsLabel": "總詞數",
+      "uniqueLabel": "不重複詞數"
+    },
+    "config": {
+      "maxWords": "顯示詞數",
+      "sizeScale": "字體大小",
+      "userFilter": "使用者篩選",
+      "posFilter": "詞性過濾",
+      "enableStopwords": "過濾停用詞"
+    },
+    "size": {
+      "small": "小",
+      "medium": "中",
+      "large": "大",
+      "xlarge": "特大"
+    },
+    "posFilter": {
+      "all": "全部詞性",
+      "meaningful": "常用詞性",
+      "custom": "自訂",
+      "customHint": "自選詞性",
+      "selectMeaningful": "常用詞性",
+      "selectAll": "全選",
+      "clearAll": "清空"
+    },
+    "empty": {
+      "title": "暫無詞雲資料",
+      "description": "目前篩選條件下的文字訊息不足，無法產生詞雲"
+    }
+  },
+  "keywords": {
+    "title": "🔍 關鍵字排行榜",
+    "description": "分析群聊中的關鍵字使用情況，也能自訂不同榜單",
+    "countTemplate": "共 {count} 位成員",
+    "templateLabel": "範本：",
+    "newTemplate": "+ 新增範本",
+    "searchPlaceholder": "輸入後搜尋",
+    "clear": "清空",
+    "templateHint": "* 右鍵範本可編輯或刪除",
+    "keyword": "關鍵字",
+    "ranking": "排行榜",
+    "multiColorMode": "多色模式",
+    "times": "{count} 次",
+    "timesWithPercent": "次 ({percent}%)",
+    "loading": "正在分析資料...",
+    "empty": "暫無資料，請嘗試新增關鍵字或切換範本",
+    "contextMenu": {
+      "edit": "編輯",
+      "delete": "刪除"
+    },
+    "modal": {
+      "createTitle": "建立範本",
+      "editTitle": "編輯範本",
+      "templateName": "範本名稱",
+      "templateNamePlaceholder": "如：正能量",
+      "keywords": "關鍵字",
+      "keywordPlaceholder": "輸入後按 Enter 新增",
+      "cancel": "取消",
+      "save": "儲存",
+      "update": "更新"
+    },
+    "templates": {
+      "laugh": {
+        "name": "歡樂值",
+        "keywords": "哈哈,xswl,lol,笑死,233",
+        "description": "統計群內的快樂指數"
+      },
+      "sad": {
+        "name": "沮喪量",
+        "keywords": "想死,難受,哭了,崩潰,裂開,無語,累了",
+        "description": "統計群內的負面情緒"
+      },
+      "praise": {
+        "name": "捧哏",
+        "keywords": "牛逼,666,厲害,強,nb,大佬,羨慕,好強",
+        "description": "統計群內最會誇人的成員"
+      },
+      "slacker": {
+        "name": "摸魚",
+        "keywords": "摸魚,下班,餓了,困了,不想上班,什麼時候下班",
+        "description": "統計群內最想下班的打工人"
+      },
+      "gossip": {
+        "name": "吃瓜",
+        "keywords": "吃瓜,細說,真的假的,展開說說,尊嘟假嘟,臥槽,離譜",
+        "description": "統計群內最愛吃瓜的成員"
+      },
+      "polite": {
+        "name": "禮貌",
+        "keywords": "謝謝,麻煩,收到,好的,辛苦,打擾,請教",
+        "description": "統計群內最客氣的成員"
+      },
+      "curious": {
+        "name": "疑問",
+        "keywords": "為什麼,啥,怎麼,不懂,求教",
+        "description": "統計群內問題最多的成員"
+      }
+    }
+  },
+  "hotRepeat": {
+    "title": "🔥 熱門複讀",
+    "loading": "正在載入複讀資料...",
+    "description": "單次複讀參與人數最多的內容",
+    "countTemplate": "共 {count} 筆熱門複讀",
+    "people": "{count}人",
+    "times": "{count} 次",
+    "colon": "：",
+    "viewChat": "檢視聊天紀錄",
+    "empty": "暫無複讀資料"
+  },
+  "catchphrase": {
+    "title": "💬 口頭禪分析",
+    "loading": "正在分析口頭禪資料...",
+    "description": "已分析 {count} 位成員的高頻發言",
+    "countTemplate": "共 {count} 位成員",
+    "times": "{count} 次",
+    "empty": "暫無口頭禪資料"
+  }
+}

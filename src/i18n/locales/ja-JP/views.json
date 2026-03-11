@@ -1,0 +1,82 @@
+{
+  "cluster": {
+    "title": "やり取り頻度",
+    "rankingView": "ランキング表示",
+    "memberView": "メンバー表示",
+    "matrixView": "マトリクス表示",
+    "modelSettings": "モデル設定",
+    "lookAhead": "隣接数",
+    "lookAheadDesc": "各メッセージの後ろ側で何人分の発言を対象にするか",
+    "decaySeconds": "時間減衰（秒）",
+    "decaySecondsDesc": "値が大きいほど遠いメッセージの重みが高くなる",
+    "applySettings": "設定を適用",
+    "noData": "データがありません",
+    "selectMember": "メンバーを選択",
+    "selectMemberHint": "左側からメンバーを選択してください",
+    "msgCount": "発言数",
+    "relationCount": "関係数",
+    "relationsByIntimacy": "発言近接度ランキング",
+    "noRelations": "関係データがありません",
+    "intimacy": "近接度",
+    "interactionRanking": "やり取りランキング",
+    "score": "近接度",
+    "coOccurrence": "共起",
+    "times": "回",
+    "totalMembers": "グループメンバー",
+    "totalMessages": "メッセージ総数",
+    "involvedMembers": "参加メンバー",
+    "edgeCount": "関係数"
+  },
+  "message": {
+    "typeDistribution": "メッセージタイプ分布",
+    "hourlyDistribution": "時間帯別分布",
+    "weekdayDistribution": "曜日別分布",
+    "monthlyDistribution": "月別分布",
+    "yearlyDistribution": "年別分布",
+    "timeHeatmap": "時間ヒートマップ",
+    "heatmapHint": "チャット時間帯の傾向を表示",
+    "calendarHeatmap": "メッセージカレンダー",
+    "calendarHint": "日別メッセージ分布",
+    "calendarTooltipMessages": "メッセージ",
+    "lengthDetailTitle": "短文メッセージ分布（1-25文字）",
+    "lengthDetailHint": "文字ごとの統計",
+    "lengthGroupedTitle": "文字数区間分布",
+    "lengthGroupedHint": "5文字ごとにグループ化",
+    "noTextMessages": "テキストメッセージがありません",
+    "noData": "データがありません"
+  },
+  "interaction": {
+    "mentionGraph": "メンション関係図",
+    "layout": "レイアウト",
+    "circular": "サークル",
+    "force": "フォースレイアウト",
+    "directed": "有向",
+    "reset": "リセット",
+    "graphHint": "全 {nodes} 名のメンバー、{links} 件のインタラクション",
+    "noInteraction": "メンションデータがありません"
+  },
+  "timeline": {
+    "title": "タイムライン表示",
+    "description": "メッセージの時間分布や活動周期の変化を可視化します"
+  },
+  "charts": {
+    "rankListPro": {
+      "fullRanking": "全順位を表示",
+      "memberCount": "全 {count} 名のメンバー"
+    },
+    "rankList": {
+      "unit": "件"
+    },
+    "nicknameHistory": {
+      "periodToNow": "{start} 〜 現在",
+      "periodRange": "{start} 〜 {end}",
+      "current": "現在",
+      "empty": "ニックネーム履歴がありません"
+    },
+    "listPro": {
+      "countTemplate": "全 {count} 件",
+      "fullRanking": "全順位を表示",
+      "empty": "データがありません"
+    }
+  }
+}

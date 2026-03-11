@@ -13,7 +13,7 @@ import type { PromptPreset } from '@/types/ai'
 
 // ==================== 类型定义 ====================
 
-export type LocaleType = 'zh-CN' | 'en-US'
+export type LocaleType = 'zh-CN' | 'en-US' | 'zh-TW' | 'ja-JP'
 
 // ==================== 国际化内容配置 ====================
 
@@ -201,10 +201,11 @@ export function getLockedPromptSectionPreview(
   ownerInfo?: OwnerInfoPreview,
   locale: LocaleType = 'zh-CN'
 ): string {
-  const content = i18nContent[locale] || i18nContent['zh-CN']
+  const contentKey = locale.startsWith('zh') ? 'zh-CN' : 'en-US'
+  const content = i18nContent[contentKey] || i18nContent['zh-CN']
   const now = new Date()
 
-  const dateLocale = locale === 'zh-CN' ? 'zh-CN' : 'en-US'
+  const dateLocale = locale.startsWith('zh') ? 'zh-CN' : locale === 'ja-JP' ? 'ja-JP' : 'en-US'
   const currentDate = now.toLocaleDateString(dateLocale, {
     year: 'numeric',
     month: 'long',

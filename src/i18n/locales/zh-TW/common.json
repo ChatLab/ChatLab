@@ -1,0 +1,129 @@
+{
+  "confirm": "確定",
+  "cancel": "取消",
+  "delete": "刪除",
+  "save": "儲存",
+  "edit": "編輯",
+  "add": "新增",
+  "rename": "重新命名",
+  "capture": "截圖",
+  "close": "關閉",
+  "back": "返回上一頁",
+  "done": "完成",
+  "retry": "重試",
+  "loading": "載入中...",
+  "initializing": "初始化中...",
+  "noData": "暫無資料",
+  "export": "匯出",
+  "exportSuccess": "匯出成功",
+  "exportFailed": "匯出失敗",
+  "generating": "產生中...",
+  "regenerate": "重新產生",
+  "openFolder": "開啟資料夾",
+  "errorNoAIConfig": "請先在設定中設定 AI 服務",
+  "reset": "重設",
+  "error": {
+    "general": "操作失敗，請重試",
+    "network": "網路錯誤",
+    "unknown": "未知錯誤"
+  },
+  "attachment": {
+    "image": "圖片",
+    "video": "影片",
+    "audio": "音訊",
+    "file": "檔案",
+    "sticker": "貼圖",
+    "link": "連結"
+  },
+  "unit": {
+    "messages": "條訊息",
+    "members": "位成員",
+    "days": "天"
+  },
+  "messageType": {
+    "text": "文字",
+    "image": "圖片",
+    "voice": "語音",
+    "video": "影片",
+    "file": "檔案",
+    "emoji": "表情",
+    "link": "連結",
+    "location": "位置",
+    "redPacket": "紅包",
+    "transfer": "轉帳",
+    "poke": "拍一拍",
+    "call": "通話",
+    "share": "分享",
+    "reply": "回覆",
+    "forward": "轉發",
+    "contact": "名片",
+    "system": "系統",
+    "recall": "收回",
+    "other": "其他",
+    "unknown": "未知"
+  },
+  "weekday": {
+    "mon": "週一",
+    "tue": "週二",
+    "wed": "週三",
+    "thu": "週四",
+    "fri": "週五",
+    "sat": "週六",
+    "sun": "週日"
+  },
+  "month": {
+    "jan": "1月",
+    "feb": "2月",
+    "mar": "3月",
+    "apr": "4月",
+    "may": "5月",
+    "jun": "6月",
+    "jul": "7月",
+    "aug": "8月",
+    "sep": "9月",
+    "oct": "10月",
+    "nov": "11月",
+    "dec": "12月"
+  },
+  "agreement": {
+    "title": "隱私權政策與使用條款",
+    "subtitle": "使用前請先詳閱",
+    "disagree": "我不同意",
+    "agree": "我已閱讀並同意上述內容",
+    "updateNotice": "條款內容已更新，請重新閱讀並確認"
+  },
+  "datePicker": {
+    "selectDate": "選擇日期",
+    "clearDate": "清除日期"
+  },
+  "timeSelect": {
+    "mode": {
+      "recent": "最近",
+      "quarter": "按季",
+      "year": "按年",
+      "custom": "自訂"
+    },
+    "recent": {
+      "halfYear": "近半年",
+      "oneYear": "近一年",
+      "twoYears": "近兩年",
+      "fiveYears": "近五年",
+      "all": "全部"
+    },
+    "display": {
+      "recent180": "最近半年",
+      "recent365": "最近一年",
+      "recent730": "最近兩年",
+      "recent1825": "最近五年"
+    },
+    "quarter": {
+      "label": "{year}年 第{quarter}季"
+    },
+    "year": {
+      "label": "{year}年"
+    }
+  },
+  "userSelect": {
+    "allMembers": "全部成員"
+  }
+}

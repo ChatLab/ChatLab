@@ -1,6 +1,6 @@
 ---
 name: sync-changelog
-description: 将 docs/changelogs_cn.json 的当前版本日志生成适合英文母语者阅读的英文版本，更新 docs/changelogs_en.json，并在当前项目创建 release 提交（包含 package.json 与中英文 changelog）；随后同步中英文 changelog 到同级仓库 ../chatlab.fun 并创建文档提交。用于用户提出“同步版本日志”“生成并同步 changelog”“发布前同步中英文日志”等请求。仅创建 commit，不执行 push。
+description: 将 docs/changelogs_cn.json 的当前版本日志同步为多语言版本：生成适合英文母语者阅读的英文版、适合繁体中文用户阅读的繁中版、适合日语母语者阅读的日文版，分别更新 docs/changelogs_en.json、docs/changelogs_tw.json、docs/changelogs_ja.json，并在当前项目创建 release 提交（包含 package.json 与四种语言 changelog）；随后同步四种语言 changelog 到同级仓库 ../chatlab.fun 并创建文档提交。用于用户提出“同步版本日志”“生成并同步 changelog”“发布前同步多语言日志”等请求。仅创建 commit，不执行 push。
 ---
 
 # sync-changelog
@@ -32,19 +32,30 @@ scripts/preflight_main_clean.sh . "package.json,docs/changelogs_cn.json"
 
 1. 从 `docs/changelogs_cn.json` 读取第一个对象作为当前版本。
 2. 读取版本号 `version`（例如 `0.9.6`）。
-3. 检查 `docs/changelogs_en.json` 是否存在：
-   - 不存在则立即退出，不允许自动创建。
+3. 检查以下文件是否存在：
+   - `docs/changelogs_en.json`
+   - `docs/changelogs_tw.json`
+   - `docs/changelogs_ja.json`
+4. 任一目标文件不存在都立即退出，不允许自动创建。
 
-## 3. 生成英文 changelog（AI 翻译）
+## 3. 生成多语言 changelog（AI 翻译）
 
-1. 将当前版本中文内容转写为英文，要求：
+1. 将当前版本中文内容分别转写为英文、繁体中文、日文，统一要求：
    - 不做逐字直译。
-   - 使用自然、简洁、适合英文母语用户的 release notes 语气。
    - 保持原始结构：`version/date/summary/changes(type/items)`。
-2. 更新 `docs/changelogs_en.json`：
+   - 不改动 `version`、`date`、`changes.type`。
+2. 语言要求：
+   - 英文：使用自然、简洁、适合英文母语用户的 release notes 语气。
+   - 繁体中文：以台湾常见产品文案口吻重写，避免简体直转。
+   - 日文：使用自然、简洁、适合日本用户阅读的产品更新说明语气，避免中文式表达。
+3. 分别更新：
+   - `docs/changelogs_en.json`
+   - `docs/changelogs_tw.json`
+   - `docs/changelogs_ja.json`
+4. 每个目标文件都遵循相同规则：
    - 若已存在该版本，替换该版本对象。
    - 若不存在，插入到数组首位。
-3. 写入后执行格式化（若项目有 Prettier，优先使用 Prettier）。
+5. 写入后执行格式化（若项目有 Prettier，优先使用 Prettier）。
 
 ## 4. 在当前仓库创建发布提交
 
@@ -52,6 +63,8 @@ scripts/preflight_main_clean.sh . "package.json,docs/changelogs_cn.json"
    - `package.json`
    - `docs/changelogs_cn.json`
    - `docs/changelogs_en.json`
+   - `docs/changelogs_tw.json`
+   - `docs/changelogs_ja.json`
 2. commit message：`release: v<version>`（示例：`release: v0.9.6`）。
 3. 仅创建 commit，不 push。
 
@@ -62,9 +75,11 @@ scripts/preflight_main_clean.sh . "package.json,docs/changelogs_cn.json"
 1. 从当前仓库复制：
    - `docs/changelogs_cn.json` -> `../chatlab.fun/docs/public/cn/changelogs.json`
    - `docs/changelogs_en.json` -> `../chatlab.fun/docs/public/en/changelogs.json`
+   - `docs/changelogs_tw.json` -> `../chatlab.fun/docs/public/tw/changelogs.json`
+   - `docs/changelogs_ja.json` -> `../chatlab.fun/docs/public/ja/changelogs.json`
 2. 目标路径必须存在；不存在则报错退出，不自动创建目录。
 3. 在 `../chatlab.fun` 提交：
-   - 仅提交上述两个文件。
+   - 仅提交上述四个文件。
    - commit message：`docs: changelogs update`
 4. 仅创建 commit，不 push。
 
@@ -82,6 +97,8 @@ scripts/preflight_main_clean.sh . "package.json,docs/changelogs_cn.json"
 ## 参考
 
 - `references/english-release-style.md`
+- `references/traditional-chinese-release-style.md`
+- `references/japanese-release-style.md`
 - `scripts/preflight_main_clean.sh`
 - `scripts/commit_release_changelogs.sh`
 - `scripts/sync_to_chatlab_fun.sh`
