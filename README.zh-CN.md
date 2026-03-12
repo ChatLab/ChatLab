@@ -2,17 +2,17 @@
 
 <img src="./public/images/chatlab.svg" alt="ChatLab" title="ChatLab" width="300" />
 
-本地化的聊天记录分析工具，通过 SQL 和 AI Agent 回顾你的社交记忆
+本地化的聊天记录分析工具，通过 AI Agent 回顾你的社交记忆
 
-[English](README.md) | 简体中文
+[English](./README.md) | 简体中文 | [繁體中文](./README.zh-TW.md) | [日本語](./README.ja-JP.md)
 
 [官网](https://chatlab.fun/cn/) · [下载指南](https://chatlab.fun/cn/?type=download) · [项目文档](https://chatlab.fun/cn/usage/) · [路线图](https://chatlabfun.featurebase.app/roadmap) · [问题提交](https://github.com/hellodigua/ChatLab/issues)
 
 </div>
 
-ChatLab 是一个专注于社交记录分析的本地化应用。通过 AI 智能体和灵活的 SQL 引擎，你可以自由地拆解、查询甚至重构你的聊天记录数据。
+ChatLab 是一个专注于社交记录分析的本地化应用。通过 AI Agent和灵活的 SQL 引擎，你可以自由地拆解、查询甚至重构你的聊天记录数据。
 
-目前已支持： WhatsApp、LINE、微信、QQ、Discord、Instagram、Telegram的聊天记录分析，即将支持： iMessage、Messenger、Kakao Talk。
+目前已支持： WhatsApp、LINE、QQ、Discord、Instagram、Telegram的聊天记录分析，即将支持： iMessage、Messenger、Kakao Talk。
 
 ## 核心特性
 

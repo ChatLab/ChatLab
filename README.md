@@ -2,9 +2,9 @@
 
 <img src="./public/images/chatlab.svg" alt="ChatLab" title="ChatLab" width="300" />
 
-Turn messy chat exports into clear, local-first insights.
+Rediscover your social memories with private, AI-powered analysis.
 
-English | [简体中文](./README.zh-CN.md)
+English | [简体中文](./README.zh-CN.md) | [繁體中文](./README.zh-TW.md) | [日本語](./README.ja-JP.md)
 
 [Official Website](https://chatlab.fun/) · [Download](https://chatlab.fun/?type=download) · [Documentation](https://chatlab.fun/usage/) · [Roadmap](https://chatlabfun.featurebase.app/roadmap) · [Issue Submission](https://github.com/hellodigua/ChatLab/issues)
 
@@ -82,22 +82,6 @@ pnpm install
 
 # run electron app in dev mode
 pnpm dev
-```
-
-### Common Scripts
-
-```bash
-# type checks (web + node)
-pnpm type-check:all
-
-# lint and auto-fix
-pnpm lint
-
-# format files
-pnpm format
-
-# build app
-pnpm build
 ```
 
 If Electron encounters exceptions during startup, you can try using `electron-fix`:
