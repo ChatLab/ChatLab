@@ -3,14 +3,15 @@ import { ref, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@nuxt/ui/runtime/composables/useToast.js'
+import { useRouter } from 'vue-router'
 import { usePromptStore } from '@/stores/prompt'
-import { useLayoutStore } from '@/stores/layout'
 import { useLLMStore } from '@/stores/llm'
 import { exportConversation, type ExportFormat } from '@/utils/conversationExport'
 import type { AgentRuntimeStatus } from '@electron/shared/types'
 
 const { t, locale } = useI18n()
 const toast = useToast()
+const router = useRouter()
 
 // Props
 const props = defineProps<{
@@ -24,7 +25,6 @@ const props = defineProps<{
 
 // Store
 const promptStore = usePromptStore()
-const layoutStore = useLayoutStore()
 const llmStore = useLLMStore()
 const { aiPromptSettings, activePreset, aiGlobalSettings } = storeToRefs(promptStore)
 const { configs, activeConfig, isLoading: isLoadingLLM } = storeToRefs(llmStore)
@@ -112,15 +112,13 @@ function setActivePreset(presetId: string) {
   isPresetPopoverOpen.value = false
 }
 
-// 打开设置弹窗并跳转到预设配置
 function openPresetSettings() {
   isPresetPopoverOpen.value = false
-  layoutStore.openSettingAt('ai', 'preset')
+  router.push({ name: 'settings', query: { tab: 'ai', subTab: 'preset' } })
 }
 
-// 打开设置弹窗并跳转到对话配置（消息条数限制）
 function openChatSettings() {
-  layoutStore.openSettingAt('ai', 'chat')
+  router.push({ name: 'settings', query: { tab: 'ai', subTab: 'chat' } })
 }
 
 // 切换 AI 模型配置
@@ -138,10 +136,9 @@ async function switchModelConfig(configId: string) {
   }
 }
 
-// 打开设置弹窗并跳转到模型配置
 function openModelSettings() {
   isModelPopoverOpen.value = false
-  layoutStore.openSettingAt('ai', 'model')
+  router.push({ name: 'settings', query: { tab: 'ai', subTab: 'model' } })
 }
 
 // 导出当前对话

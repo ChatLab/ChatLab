@@ -8,7 +8,8 @@
     "aiPrompt": "对话配置",
     "aiPreset": "提示词配置",
     "aiPreprocess": "预处理",
-    "storage": "数据和存储",
+    "dataManage": "数据管理",
+    "storage": "存储管理",
     "storageManage": "存储管理",
     "sessionManage": "会话管理",
     "about": "关于"

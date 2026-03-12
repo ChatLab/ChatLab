@@ -8,7 +8,8 @@
     "aiPrompt": "チャット設定",
     "aiPreset": "プロンプト設定",
     "aiPreprocess": "前処理",
-    "storage": "データとストレージ",
+    "dataManage": "データ管理",
+    "storage": "ストレージ管理",
     "storageManage": "ストレージ管理",
     "sessionManage": "セッション管理",
     "about": "ChatLabについて"

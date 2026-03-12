@@ -5,12 +5,10 @@ import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import TitleBar from '@/components/common/TitleBar.vue'
 import Sidebar from '@/components/common/Sidebar.vue'
-import SettingModal from '@/components/common/SettingModal.vue'
 import ScreenCaptureModal from '@/components/common/ScreenCaptureModal.vue'
 import { ChatRecordDrawer } from '@/components/common/ChatRecord'
 import { useSessionStore } from '@/stores/session'
 import { useLayoutStore } from '@/stores/layout'
-import { usePromptStore } from '@/stores/prompt'
 import { useSettingsStore } from '@/stores/settings'
 import { useLLMStore } from '@/stores/llm'
 
@@ -18,7 +16,6 @@ const { t } = useI18n()
 
 const sessionStore = useSessionStore()
 const layoutStore = useLayoutStore()
-const promptStore = usePromptStore()
 const settingsStore = useSettingsStore()
 const llmStore = useLLMStore()
 const { isInitialized } = storeToRefs(sessionStore)
@@ -72,7 +69,6 @@ onMounted(async () => {
         </main>
       </template>
     </div>
-    <SettingModal v-model:open="layoutStore.showSettingModal" @ai-config-saved="promptStore.notifyAIConfigChanged" />
     <ScreenCaptureModal
       :open="layoutStore.showScreenCaptureModal"
       :image-data="layoutStore.screenCaptureImage"

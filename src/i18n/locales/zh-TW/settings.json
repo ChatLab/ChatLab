@@ -8,7 +8,8 @@
     "aiPrompt": "聊天設定",
     "aiPreset": "提示詞設定",
     "aiPreprocess": "前處理",
-    "storage": "資料與儲存",
+    "dataManage": "資料管理",
+    "storage": "儲存管理",
     "storageManage": "儲存管理",
     "sessionManage": "會話管理",
     "about": "關於 ChatLab"
