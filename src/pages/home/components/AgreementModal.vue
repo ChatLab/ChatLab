@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import MarkdownIt from 'markdown-it'
 import { useSettingsStore } from '@/stores/settings'
+import UITabs from '@/components/UI/Tabs.vue'
 import { availableLocales, type LocaleType } from '@/i18n'
 import agreementZh from '@/assets/docs/agreement_zh.md?raw'
 import agreementEn from '@/assets/docs/agreement_en.md?raw'
@@ -129,7 +130,7 @@ defineExpose({ open })
           </div>
           <!-- 语言切换 -->
           <div class="w-36 shrink-0">
-            <UTabs v-model="currentLocale" size="sm" class="gap-0" :items="languageOptions" />
+            <UITabs v-model="currentLocale" size="sm" class="gap-0" :items="languageOptions" />
           </div>
         </div>
 
