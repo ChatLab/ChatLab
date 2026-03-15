@@ -6,7 +6,7 @@
     "aiConfig": "チャットモデル",
     "aiRAG": "埋め込みモデル",
     "aiPrompt": "チャット設定",
-    "aiPreset": "プロンプト設定",
+    "aiPreset": "旧版プロンプト",
     "aiPreprocess": "前処理",
     "dataManage": "データ管理",
     "storage": "ストレージ管理",
@@ -257,6 +257,27 @@
       "noDescription": "説明がありません",
       "fetchingContent": "コンテンツを読み込み中...",
       "fetchError": "コンテンツの読み込みに失敗しました"
+    },
+    "legacyPrompt": {
+      "title": "旧版プロンプト",
+      "description": "旧プロンプトシステムはすでに AI 会話の実行には使われません。移行期間中に旧設定を確認・コピーするためだけの入口です。",
+      "copyJson": "JSON をコピー",
+      "emptyTitle": "旧版プロンプトデータが見つかりません",
+      "emptyDescription": "この端末には確認できる旧版プロンプト設定がありません。",
+      "activePreset": "以前の有効プリセット",
+      "notConfigured": "記録なし",
+      "customPresetCount": "カスタムプリセット数",
+      "remotePresetCount": "リモート導入数",
+      "parseError": "旧版プロンプトデータの解析に失敗しましたが、先に生の JSON をコピーできます。",
+      "customPresetList": "カスタムプリセット",
+      "noPromptContent": "プロンプト内容の記録がありません",
+      "rawJsonTitle": "元の設定 JSON",
+      "rawJsonHint": "閲覧とコピー専用",
+      "copySuccess": "JSON をクリップボードにコピーしました",
+      "copyFailed": "コピーに失敗しました",
+      "groupOnly": "グループのみ",
+      "privateOnly": "個人のみ",
+      "common": "共通"
     }
   },
   "about": {

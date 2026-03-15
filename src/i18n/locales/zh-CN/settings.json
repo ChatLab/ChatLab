@@ -6,7 +6,7 @@
     "aiConfig": "对话模型",
     "aiRAG": "向量模型",
     "aiPrompt": "对话配置",
-    "aiPreset": "提示词配置",
+    "aiPreset": "旧版提示词",
     "aiPreprocess": "预处理",
     "dataManage": "数据管理",
     "storage": "存储管理",
@@ -257,6 +257,27 @@
       "noDescription": "暂无描述",
       "fetchingContent": "正在加载内容...",
       "fetchError": "加载内容失败"
+    },
+    "legacyPrompt": {
+      "title": "旧版提示词",
+      "description": "提示词系统已不再参与 AI 对话运行。这里仅保留旧配置的查看与复制入口，方便你在过渡期手动迁移。",
+      "copyJson": "复制 JSON",
+      "emptyTitle": "未发现旧版提示词数据",
+      "emptyDescription": "当前设备上没有可查看的旧版提示词配置。",
+      "activePreset": "历史激活预设",
+      "notConfigured": "未记录",
+      "customPresetCount": "自定义预设数",
+      "remotePresetCount": "远程导入数",
+      "parseError": "旧版提示词数据解析失败，但你仍然可以先复制原始 JSON。",
+      "customPresetList": "自定义预设",
+      "noPromptContent": "未记录提示词内容",
+      "rawJsonTitle": "原始配置 JSON",
+      "rawJsonHint": "仅供查看与复制",
+      "copySuccess": "JSON 已复制到剪贴板",
+      "copyFailed": "复制失败",
+      "groupOnly": "仅群聊",
+      "privateOnly": "仅私聊",
+      "common": "通用"
     }
   },
   "about": {

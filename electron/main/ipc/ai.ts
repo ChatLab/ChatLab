@@ -7,7 +7,7 @@ import * as llm from '../ai/llm'
 import * as rag from '../ai/rag'
 import { aiLogger, setDebugMode } from '../ai/logger'
 import { getLogsDir } from '../paths'
-import { Agent, type AgentStreamChunk, type PromptConfig, type SkillContext } from '../ai/agent'
+import { Agent, type AgentStreamChunk, type SkillContext } from '../ai/agent'
 import { getActiveConfig, buildPiModel } from '../ai/llm'
 import * as assistantManager from '../ai/assistant'
 import type { AssistantConfig } from '../ai/assistant/types'
@@ -679,21 +679,6 @@ export function registerAIHandlers({ win }: IpcContext): void {
     }
   })
 
-  ipcMain.handle(
-    'assistant:backupOldPresets',
-    async (
-      _,
-      data: { customPresets?: unknown[]; builtinOverrides?: Record<string, unknown>; remotePresetIds?: string[] }
-    ) => {
-      try {
-        return assistantManager.backupOldPromptPresets(data)
-      } catch (error) {
-        console.error('Failed to backup old presets:', error)
-        return { success: false, error: String(error) }
-      }
-    }
-  )
-
   // ==================== 技能管理 API ====================
 
   ipcMain.handle('skill:getAll', async () => {
@@ -775,7 +760,6 @@ export function registerAIHandlers({ win }: IpcContext): void {
    * Agent 会自动调用工具并返回最终结果
    * Agent 通过 context.conversationId 从 SQLite 读取对话历史（数据流倒置）
    * @param chatType 聊天类型（'group' | 'private'）
-   * @param promptConfig 用户自定义提示词配置（可选）
    * @param locale 语言设置（可选，默认 'zh-CN'）
    * @param maxHistoryRounds 前端用户配置的最大历史轮数（可选，每轮 = user + assistant = 2 条）
    * @param assistantId 助手 ID（可选，传入时从 AssistantManager 获取配置）
@@ -788,7 +772,6 @@ export function registerAIHandlers({ win }: IpcContext): void {
       userMessage: string,
       context: ToolContext,
       chatType?: 'group' | 'private',
-      promptConfig?: PromptConfig,
       locale?: string,
       maxHistoryRounds?: number,
       assistantId?: string,
@@ -800,7 +783,6 @@ export function registerAIHandlers({ win }: IpcContext): void {
         sessionId: context.sessionId,
         conversationId: context.conversationId,
         chatType: chatType ?? 'group',
-        hasPromptConfig: !!promptConfig,
         assistantId: assistantId ?? '(none)',
         skillId: skillId ?? '(none)',
         enableAutoSkill: enableAutoSkill ?? false,
@@ -826,7 +808,6 @@ export function registerAIHandlers({ win }: IpcContext): void {
           maxHistoryRounds: maxHistoryRounds ?? '(default)',
           maxMessagesLimit: context.maxMessagesLimit,
           hasTimeFilter: !!context.timeFilter,
-          hasCustomPrompt: !!promptConfig,
           mentionedMembersCount: context.mentionedMembers?.length ?? 0,
           preprocess: pp
             ? {
@@ -839,13 +820,15 @@ export function registerAIHandlers({ win }: IpcContext): void {
             : '(disabled)',
         })
 
-        // 如果指定了 assistantId，从 AssistantManager 加载助手配置
-        let assistantConfig: AssistantConfig | undefined
-        if (assistantId) {
-          assistantConfig = assistantManager.getAssistantConfig(assistantId) ?? undefined
-          if (!assistantConfig) {
-            aiLogger.warn('IPC', `Assistant not found: ${assistantId}, falling back to default`)
-          }
+        // 提示词系统已退场，主流程统一从助手配置获取 systemPrompt。
+        // 若前端没有显式传 assistantId，则退回 general 助手兜底。
+        let resolvedAssistantId = assistantId || 'general'
+        let assistantConfig: AssistantConfig | undefined =
+          assistantManager.getAssistantConfig(resolvedAssistantId) ?? undefined
+        if (!assistantConfig && resolvedAssistantId !== 'general') {
+          aiLogger.warn('IPC', `Assistant not found: ${resolvedAssistantId}, falling back to general`)
+          resolvedAssistantId = 'general'
+          assistantConfig = assistantManager.getAssistantConfig('general') ?? undefined
         }
 
         // 构建技能上下文
@@ -872,7 +855,6 @@ export function registerAIHandlers({ win }: IpcContext): void {
           activeAIConfig.apiKey,
           { abortSignal: abortController.signal, contextHistoryLimit },
           chatType ?? 'group',
-          promptConfig,
           locale ?? 'zh-CN',
           assistantConfig,
           skillCtx

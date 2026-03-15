@@ -17,7 +17,7 @@ import {
   type Usage as PiUsage,
 } from '@mariozechner/pi-ai'
 
-import type { AgentConfig, AgentStreamChunk, AgentResult, PromptConfig, TokenUsage, SkillContext } from './types'
+import type { AgentConfig, AgentStreamChunk, AgentResult, TokenUsage, SkillContext } from './types'
 import type { AssistantConfig } from '../assistant/types'
 import { buildSystemPrompt } from './prompt-builder'
 import { extractThinkingContent, stripToolCallTags } from './content-parser'
@@ -26,7 +26,7 @@ import { AgentEventHandler } from './event-handler'
 type SimpleHistoryMessage = { role: 'user' | 'assistant'; content: string }
 
 // Re-export types for external consumers
-export type { AgentConfig, AgentStreamChunk, AgentResult, PromptConfig, TokenUsage, AgentRuntimeStatus } from './types'
+export type { AgentConfig, AgentStreamChunk, AgentResult, TokenUsage, AgentRuntimeStatus } from './types'
 
 /**
  * Agent 执行器类
@@ -39,7 +39,6 @@ export class Agent {
   private apiKey: string
   private abortSignal?: AbortSignal
   private chatType: 'group' | 'private' = 'group'
-  private promptConfig?: PromptConfig
   private assistantConfig?: AssistantConfig
   private skillCtx?: SkillContext
   private locale: string = 'zh-CN'
@@ -50,7 +49,6 @@ export class Agent {
     apiKey: string,
     config: AgentConfig = {},
     chatType: 'group' | 'private' = 'group',
-    promptConfig?: PromptConfig,
     locale: string = 'zh-CN',
     assistantConfig?: AssistantConfig,
     skillCtx?: SkillContext
@@ -60,7 +58,6 @@ export class Agent {
     this.apiKey = apiKey
     this.abortSignal = config.abortSignal
     this.chatType = chatType
-    this.promptConfig = promptConfig
     this.assistantConfig = assistantConfig
     this.skillCtx = skillCtx
     this.locale = locale
@@ -83,13 +80,9 @@ export class Agent {
 
     const maxToolRounds = Math.max(0, this.config.maxToolRounds ?? 0)
 
-    const effectivePromptConfig: PromptConfig | undefined = this.assistantConfig
-      ? { systemPrompt: this.assistantConfig.systemPrompt }
-      : this.promptConfig
-
     const systemPrompt = buildSystemPrompt(
       this.chatType,
-      effectivePromptConfig,
+      this.assistantConfig?.systemPrompt,
       this.context.ownerInfo,
       this.locale,
       this.skillCtx,
@@ -312,7 +305,6 @@ export async function runAgent(
   context: ToolContext,
   config?: AgentConfig,
   chatType?: 'group' | 'private',
-  promptConfig?: PromptConfig,
   locale?: string,
   assistantConfig?: AssistantConfig,
   skillCtx?: SkillContext
@@ -320,17 +312,7 @@ export async function runAgent(
   const activeConfig = getActiveConfig()
   if (!activeConfig) throw new Error('LLM service not configured')
   const piModel = buildPiModel(activeConfig)
-  const agent = new Agent(
-    context,
-    piModel,
-    activeConfig.apiKey,
-    config,
-    chatType,
-    promptConfig,
-    locale,
-    assistantConfig,
-    skillCtx
-  )
+  const agent = new Agent(context, piModel, activeConfig.apiKey, config, chatType, locale, assistantConfig, skillCtx)
   return agent.execute(userMessage)
 }
 
@@ -343,7 +325,6 @@ export async function runAgentStream(
   onChunk: (chunk: AgentStreamChunk) => void,
   config?: AgentConfig,
   chatType?: 'group' | 'private',
-  promptConfig?: PromptConfig,
   locale?: string,
   assistantConfig?: AssistantConfig,
   skillCtx?: SkillContext
@@ -351,16 +332,6 @@ export async function runAgentStream(
   const activeConfig = getActiveConfig()
   if (!activeConfig) throw new Error('LLM service not configured')
   const piModel = buildPiModel(activeConfig)
-  const agent = new Agent(
-    context,
-    piModel,
-    activeConfig.apiKey,
-    config,
-    chatType,
-    promptConfig,
-    locale,
-    assistantConfig,
-    skillCtx
-  )
+  const agent = new Agent(context, piModel, activeConfig.apiKey, config, chatType, locale, assistantConfig, skillCtx)
   return agent.executeStream(userMessage, onChunk)
 }

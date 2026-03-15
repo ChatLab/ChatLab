@@ -6,7 +6,7 @@
     "aiConfig": "Chat Model",
     "aiRAG": "Vector Model",
     "aiPrompt": "Chat Config",
-    "aiPreset": "Prompts",
+    "aiPreset": "Legacy Prompts",
     "aiPreprocess": "Preprocess",
     "dataManage": "Data Management",
     "storage": "Storage",
@@ -257,6 +257,27 @@
       "noDescription": "No description",
       "fetchingContent": "Loading content...",
       "fetchError": "Failed to load content"
+    },
+    "legacyPrompt": {
+      "title": "Legacy Prompts",
+      "description": "The old prompt system no longer affects AI conversations. This section is kept only for viewing and copying legacy configs during the transition.",
+      "copyJson": "Copy JSON",
+      "emptyTitle": "No legacy prompt data found",
+      "emptyDescription": "There is no legacy prompt config available to view on this device.",
+      "activePreset": "Previously Active Preset",
+      "notConfigured": "Not recorded",
+      "customPresetCount": "Custom Presets",
+      "remotePresetCount": "Imported Remote Presets",
+      "parseError": "Failed to parse legacy prompt data, but you can still copy the raw JSON first.",
+      "customPresetList": "Custom Presets",
+      "noPromptContent": "No prompt content recorded",
+      "rawJsonTitle": "Raw Config JSON",
+      "rawJsonHint": "View and copy only",
+      "copySuccess": "JSON copied to clipboard",
+      "copyFailed": "Copy failed",
+      "groupOnly": "Group Only",
+      "privateOnly": "Private Only",
+      "common": "Common"
     }
   },
   "about": {

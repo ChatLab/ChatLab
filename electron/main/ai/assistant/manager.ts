@@ -341,39 +341,6 @@ export function resetAssistant(id: string): AssistantSaveResult {
   return saveAssistantToDisk(resetConfig)
 }
 
-// ==================== 提示词预设迁移 ====================
-
-/**
- * 备份旧的提示词预设数据到 data/backup 目录
- */
-export function backupOldPromptPresets(data: {
-  customPresets?: unknown[]
-  builtinOverrides?: Record<string, unknown>
-  remotePresetIds?: string[]
-}): { success: boolean; filePath?: string; error?: string } {
-  try {
-    const backupDir = path.join(getAiDataDir(), '..', 'backup')
-    ensureDir(backupDir)
-
-    const timestamp = new Date().toISOString().replace(/[:.]/g, '-').slice(0, 19)
-    const filePath = path.join(backupDir, `prompt-presets-${timestamp}.json`)
-
-    const backupContent = {
-      backupTime: new Date().toISOString(),
-      description: 'ChatLab 旧提示词预设系统备份（已被多助手系统替代）',
-      ...data,
-    }
-
-    writeJsonFile(filePath, backupContent)
-    aiLogger.info('AssistantManager', 'Old prompt presets backed up', { filePath })
-
-    return { success: true, filePath }
-  } catch (error) {
-    aiLogger.error('AssistantManager', 'Failed to backup prompt presets', { error: String(error) })
-    return { success: false, error: String(error) }
-  }
-}
-
 // ==================== 内部工具函数 ====================
 
 function ensureInitialized(): void {

@@ -61,14 +61,6 @@ export interface AgentResult {
 }
 
 /**
- * 用户自定义提示词配置
- */
-export interface PromptConfig {
-  /** 系统提示词（角色定义 + 回答要求，统一为单一字段） */
-  systemPrompt: string
-}
-
-/**
  * 技能上下文（传递给 prompt-builder）
  * 手动选择和 AI 自选两种模式互斥
  */

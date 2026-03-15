@@ -33,7 +33,6 @@ onMounted(async () => {
   if (!isLoaded.value) {
     await assistantStore.loadAssistants()
   }
-  assistantStore.migrateOldPromptPresets()
 })
 
 function handleSelect(id: string) {

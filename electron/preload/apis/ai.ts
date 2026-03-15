@@ -182,11 +182,6 @@ export interface EmbeddingServiceConfigDisplay {
   updatedAt: number
 }
 
-// 用户自定义提示词配置
-export interface PromptConfig {
-  systemPrompt: string
-}
-
 // ==================== AI API ====================
 
 export const aiApi = {
@@ -759,14 +754,6 @@ export const assistantApi = {
   reimportAssistant: (id: string): Promise<{ success: boolean; error?: string }> => {
     return ipcRenderer.invoke('assistant:reimport', id)
   },
-
-  backupOldPresets: (data: {
-    customPresets?: unknown[]
-    builtinOverrides?: Record<string, unknown>
-    remotePresetIds?: string[]
-  }): Promise<{ success: boolean; filePath?: string; error?: string }> => {
-    return ipcRenderer.invoke('assistant:backupOldPresets', data)
-  },
 }
 
 // ==================== Skill API ====================
@@ -838,7 +825,6 @@ export const agentApi = {
    * 执行 Agent 对话（流式）
    * Agent 通过 context.conversationId 从后端 SQLite 读取对话历史
    * @param chatType 聊天类型（'group' | 'private'）
-   * @param promptConfig 用户自定义提示词配置（可选）
    * @param locale 语言设置（可选，默认 'zh-CN'）
    * @param maxHistoryRounds 最大历史轮数（可选，每轮 = user + assistant = 2 条）
    * @returns 返回 { requestId, promise }，requestId 可用于中止请求
@@ -848,7 +834,6 @@ export const agentApi = {
     context: ToolContext,
     onChunk?: (chunk: AgentStreamChunk) => void,
     chatType?: 'group' | 'private',
-    promptConfig?: PromptConfig,
     locale?: string,
     maxHistoryRounds?: number,
     assistantId?: string,
@@ -893,9 +878,7 @@ export const agentApi = {
       'conversationId:',
       sanitizedContext.conversationId ?? 'none',
       'chatType:',
-      chatType ?? 'group',
-      'hasPromptConfig:',
-      !!promptConfig
+      chatType ?? 'group'
     )
 
     const promise = new Promise<{ success: boolean; result?: AgentResult; error?: string }>((resolve) => {
@@ -939,7 +922,6 @@ export const agentApi = {
           userMessage,
           sanitizedContext,
           chatType,
-          promptConfig,
           locale,
           maxHistoryRounds,
           assistantId,

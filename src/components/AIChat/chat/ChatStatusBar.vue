@@ -9,40 +9,24 @@ import { useLLMStore } from '@/stores/llm'
 import { exportConversation, type ExportFormat } from '@/utils/conversationExport'
 import type { AgentRuntimeStatus } from '@electron/shared/types'
 
-const { t, locale } = useI18n()
+const { t } = useI18n()
 const toast = useToast()
 const router = useRouter()
 
 // Props
 const props = defineProps<{
-  chatType: 'group' | 'private'
   sessionTokenUsage: { totalTokens: number }
   agentStatus?: AgentRuntimeStatus | null
-  hasLLMConfig: boolean
-  isCheckingConfig: boolean
   currentConversationId?: string | null
 }>()
 
 // Store
 const promptStore = usePromptStore()
 const llmStore = useLLMStore()
-const { aiPromptSettings, activePreset, aiGlobalSettings } = storeToRefs(promptStore)
+const { aiGlobalSettings } = storeToRefs(promptStore)
 const { configs, activeConfig, isLoading: isLoadingLLM } = storeToRefs(llmStore)
 
-// 当前类型对应的预设列表（根据 applicableTo 过滤）
-const currentPresets = computed(() => promptStore.getPresetsForChatType(props.chatType))
-
-// 当前激活的预设 ID
-const currentActivePresetId = computed(() => aiPromptSettings.value.activePresetId)
-
-// 当前激活的预设（如果当前激活的预设不适用于当前类型，使用第一个可用预设）
-const currentActivePreset = computed(() => {
-  const activeInList = currentPresets.value.find((p) => p.id === currentActivePresetId.value)
-  return activeInList || activePreset.value
-})
-
 // 下拉菜单状态
-const isPresetPopoverOpen = ref(false)
 const isModelPopoverOpen = ref(false)
 const isOpeningLog = ref(false)
 
@@ -82,11 +66,6 @@ function formatNumber(value: number): string {
   return new Intl.NumberFormat().format(Math.max(0, Math.round(value)))
 }
 
-const contextTokensText = computed(() => {
-  if (!props.agentStatus) return '--'
-  return formatCompactNumber(props.agentStatus.contextTokens)
-})
-
 function formatCompactNumber(value: number): string {
   const num = Math.max(0, Math.round(value))
   if (num >= 1_000_000) return `${(num / 1_000_000).toFixed(1).replace(/\.0$/, '')}M`
@@ -105,17 +84,6 @@ const agentCompactTitle = computed(() => {
     `${t('ai.chat.statusBar.tokenUsageTitle')}: ${totalTokenUsageText.value}`,
   ].join('\n')
 })
-
-// 设置激活预设
-function setActivePreset(presetId: string) {
-  promptStore.setActivePreset(presetId)
-  isPresetPopoverOpen.value = false
-}
-
-function openPresetSettings() {
-  isPresetPopoverOpen.value = false
-  router.push({ name: 'settings', query: { tab: 'ai', subTab: 'preset' } })
-}
 
 function openChatSettings() {
   router.push({ name: 'settings', query: { tab: 'ai', subTab: 'chat' } })
@@ -250,66 +218,11 @@ async function openAiLogFile() {
 </script>
 
 <template>
-  <div class="flex items-center justify-between">
-    <!-- 左侧：预设选择器 + 模型切换器 -->
+  <!-- 抬高状态栏与模型下拉层级，避免被输入框上方的快捷提示遮住。 -->
+  <div class="relative z-20 flex items-center justify-between">
+    <!-- 左侧：模型切换器 -->
     <div class="flex items-center gap-1">
-      <UPopover v-model:open="isPresetPopoverOpen" :ui="{ content: 'p-0' }">
-        <button
-          class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-300"
-        >
-          <UIcon name="i-heroicons-chat-bubble-bottom-center-text" class="h-3.5 w-3.5" />
-          <span class="max-w-[120px] truncate">
-            {{ currentActivePreset?.name || t('ai.chat.statusBar.preset.default') }}
-          </span>
-          <UIcon name="i-heroicons-chevron-down" class="h-3 w-3" />
-        </button>
-        <template #content>
-          <div class="w-48 py-1">
-            <div class="px-3 py-1.5 text-xs font-medium text-gray-400 dark:text-gray-500">
-              {{
-                chatType === 'group'
-                  ? t('ai.chat.statusBar.preset.groupTitle')
-                  : t('ai.chat.statusBar.preset.privateTitle')
-              }}
-            </div>
-            <button
-              v-for="preset in currentPresets"
-              :key="preset.id"
-              class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-              :class="[
-                preset.id === currentActivePresetId
-                  ? 'text-pink-600 dark:text-pink-400'
-                  : 'text-gray-700 dark:text-gray-300',
-              ]"
-              @click="setActivePreset(preset.id)"
-            >
-              <UIcon
-                :name="
-                  preset.id === currentActivePresetId ? 'i-heroicons-check-circle-solid' : 'i-heroicons-document-text'
-                "
-                class="h-4 w-4 shrink-0"
-                :class="[preset.id === currentActivePresetId ? 'text-pink-500' : 'text-gray-400']"
-              />
-              <span class="truncate">{{ preset.name }}</span>
-            </button>
-
-            <!-- 分隔线 -->
-            <div class="my-1 border-t border-gray-200 dark:border-gray-700" />
-
-            <!-- 管理预设按钮 -->
-            <button
-              class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-300"
-              @click="openPresetSettings"
-            >
-              <UIcon name="i-heroicons-cog-6-tooth" class="h-4 w-4 shrink-0" />
-              <span>{{ t('ai.chat.statusBar.preset.manage') }}</span>
-            </button>
-          </div>
-        </template>
-      </UPopover>
-
-      <!-- 模型切换器 -->
-      <UPopover v-model:open="isModelPopoverOpen" :ui="{ content: 'p-0' }">
+      <UPopover v-model:open="isModelPopoverOpen" :ui="{ content: 'z-[80] p-0' }">
         <button
           class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-300"
           :disabled="isLoadingLLM"
@@ -373,14 +286,13 @@ async function openAiLogFile() {
     <div class="flex items-center gap-1">
       <div
         v-if="agentStatus"
-        class="hidden shrink-0 items-center gap-1 rounded-md border border-gray-200 bg-white px-1.5 py-1 text-xs dark:border-gray-700 dark:bg-gray-900 lg:flex"
+        class="hidden shrink-0 items-center gap-1 rounded-lg bg-gray-50/90 px-1.5 py-1 text-xs shadow-[inset_0_0_0_1px_rgba(255,255,255,0.35)] dark:bg-gray-800/70 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] lg:flex"
         :title="agentCompactTitle"
       >
+        <!-- 主栏只展示阶段，context token 放进 tooltip，避免和累计 token 混淆。 -->
         <span class="rounded px-1 py-0.5 text-[10px] font-medium" :class="agentPhaseClass">
           {{ agentPhaseShortText }}
         </span>
-        <UIcon name="i-heroicons-document-text" class="h-3 w-3 text-gray-400 dark:text-gray-500" />
-        <span class="text-[10px] text-gray-500 dark:text-gray-400">{{ contextTokensText }}</span>
       </div>
 
       <div

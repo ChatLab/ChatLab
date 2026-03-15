@@ -246,48 +246,6 @@ export const useAssistantStore = defineStore('assistant', () => {
     }
   }
 
-  const promptMigrationDone = ref(false)
-
-  async function migrateOldPromptPresets(): Promise<void> {
-    if (promptMigrationDone.value) return
-
-    try {
-      const raw = localStorage.getItem('prompt')
-      if (!raw) {
-        promptMigrationDone.value = true
-        return
-      }
-
-      const data = JSON.parse(raw)
-      const hasCustomPresets = Array.isArray(data.customPromptPresets) && data.customPromptPresets.length > 0
-      const hasOverrides = data.builtinPresetOverrides && Object.keys(data.builtinPresetOverrides).length > 0
-      const hasRemoteIds = Array.isArray(data.fetchedRemotePresetIds) && data.fetchedRemotePresetIds.length > 0
-
-      if (!hasCustomPresets && !hasOverrides && !hasRemoteIds) {
-        promptMigrationDone.value = true
-        return
-      }
-
-      console.log('[AssistantStore] Backing up old prompt presets...')
-      const result = await window.assistantApi.backupOldPresets({
-        customPresets: data.customPromptPresets,
-        builtinOverrides: data.builtinPresetOverrides,
-        remotePresetIds: data.fetchedRemotePresetIds,
-      })
-
-      if (result.success) {
-        console.log('[AssistantStore] Backup saved to:', result.filePath)
-      } else {
-        console.warn('[AssistantStore] Backup failed:', result.error)
-      }
-
-      promptMigrationDone.value = true
-    } catch (error) {
-      console.error('[AssistantStore] Migration check failed:', error)
-      promptMigrationDone.value = true
-    }
-  }
-
   return {
     assistants,
     selectedAssistantId,
@@ -302,7 +260,6 @@ export const useAssistantStore = defineStore('assistant', () => {
     defaultAssistants,
     moreAssistants,
     hasMoreAssistants,
-    promptMigrationDone,
     loadAssistants,
     loadBuiltinCatalog,
     loadBuiltinSqlTools,
@@ -318,6 +275,5 @@ export const useAssistantStore = defineStore('assistant', () => {
     importAssistant,
     reimportAssistant,
     deleteAssistant,
-    migrateOldPromptPresets,
   }
 })

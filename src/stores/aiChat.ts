@@ -221,7 +221,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
   const settingsStore = useSettingsStore()
   const assistantStore = useAssistantStore()
   const skillStore = useSkillStore()
-  const { activePreset, aiGlobalSettings } = storeToRefs(promptStore)
+  const { aiGlobalSettings } = storeToRefs(promptStore)
 
   function generateId(prefix: string): string {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -759,7 +759,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         preprocessConfig: serializablePreprocessConfig,
       }
 
-      const currentPromptConfig = { systemPrompt: activePreset.value.systemPrompt }
       const { requestId: agentReqId, promise: agentPromise } = window.agentApi.runStream(
         content,
         context,
@@ -846,7 +845,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           }
         },
         state.chatType,
-        currentAssistantId ? undefined : { systemPrompt: currentPromptConfig.systemPrompt },
         state.locale,
         maxHistoryRounds,
         currentAssistantId,

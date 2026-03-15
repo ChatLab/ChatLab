@@ -95,9 +95,9 @@ void aiModelConfigRef.value
         <!-- 分隔线 -->
         <div class="border-t border-gray-200 dark:border-gray-700" />
 
-        <!-- 提示词配置 -->
+        <!-- 旧版提示词查看 -->
         <div :ref="(el) => setSectionRef('preset', el as HTMLElement)">
-          <AIPromptPresetTab @config-changed="handleAIConfigChanged" />
+          <AIPromptPresetTab />
         </div>
       </div>
     </div>

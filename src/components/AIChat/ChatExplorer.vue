@@ -601,11 +601,8 @@ watch(
 
                 <!-- 底部状态栏 -->
                 <ChatStatusBar
-                  :chat-type="currentChatType"
                   :session-token-usage="sessionTokenUsage"
                   :agent-status="agentStatus"
-                  :has-l-l-m-config="hasLLMConfig"
-                  :is-checking-config="isCheckingConfig"
                   :current-conversation-id="currentConversationId"
                 />
               </div>

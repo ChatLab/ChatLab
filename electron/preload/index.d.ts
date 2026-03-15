@@ -666,18 +666,12 @@ interface ToolContext {
   preprocessConfig?: PreprocessConfig
 }
 
-// 用户自定义提示词配置
-interface PromptConfig {
-  systemPrompt: string
-}
-
 interface AgentApi {
   runStream: (
     userMessage: string,
     context: ToolContext,
     onChunk?: (chunk: AgentStreamChunk) => void,
     chatType?: 'group' | 'private',
-    promptConfig?: PromptConfig,
     locale?: string,
     maxHistoryRounds?: number,
     assistantId?: string,
@@ -745,11 +739,6 @@ interface AssistantApi {
   getBuiltinTsToolNames: () => Promise<string[]>
   importAssistant: (builtinId: string) => Promise<{ success: boolean; error?: string }>
   reimportAssistant: (id: string) => Promise<{ success: boolean; error?: string }>
-  backupOldPresets: (data: {
-    customPresets?: unknown[]
-    builtinOverrides?: Record<string, unknown>
-    remotePresetIds?: string[]
-  }) => Promise<{ success: boolean; filePath?: string; error?: string }>
 }
 
 // ==================== 技能管理 ====================
@@ -1029,7 +1018,6 @@ export {
   ToolContext,
   DesensitizeRule,
   PreprocessConfig,
-  PromptConfig,
   TokenUsage,
   CacheDirectoryInfo,
   CacheInfo,

@@ -4,7 +4,7 @@
 
 import { t as i18nT } from '../../i18n'
 import type { OwnerInfo } from '../tools/types'
-import type { PromptConfig, SkillContext } from './types'
+import type { SkillContext } from './types'
 import type { ToolContext } from '../tools/types'
 
 function agentT(key: string, locale: string, options?: Record<string, unknown>): string {
@@ -80,20 +80,19 @@ function getFallbackRoleDefinition(chatType: 'group' | 'private', locale: string
 /**
  * 构建完整的系统提示词
  *
- * 提示词配置主要来自前端 src/config/prompts.ts，通过 promptConfig 参数传递。
- * Fallback 仅在前端未传递配置时使用。
+ * 系统提示词优先使用当前助手配置；若助手不存在，再退回内置默认角色定义。
  *
- * 最终格式：{用户系统提示词}\n\n{系统锁定段(日期/owner/时间参数/通用指引)}
+ * 最终格式：{助手系统提示词}\n\n{系统锁定段(日期/owner/时间参数/通用指引)}
  */
 export function buildSystemPrompt(
   chatType: 'group' | 'private' = 'group',
-  promptConfig?: PromptConfig,
+  assistantSystemPrompt?: string,
   ownerInfo?: OwnerInfo,
   locale: string = 'zh-CN',
   skillCtx?: SkillContext,
   mentionedMembers?: ToolContext['mentionedMembers']
 ): string {
-  const systemPrompt = promptConfig?.systemPrompt || getFallbackRoleDefinition(chatType, locale)
+  const systemPrompt = assistantSystemPrompt || getFallbackRoleDefinition(chatType, locale)
   const lockedSection = getLockedPromptSection(chatType, ownerInfo, locale, mentionedMembers)
 
   let skillSection = ''
