@@ -43,6 +43,7 @@
     "echarts": "^6.0.0",
     "echarts-wordcloud": "^2.1.0",
     "electron-updater": "^6.6.2",
+    "gray-matter": "^4.0.3",
     "i18next": "^25.8.5",
     "markdown-it": "^14.1.0",
     "node-machine-id": "^1.1.12",

@@ -6,7 +6,6 @@ import { usePromptStore } from '@/stores/prompt'
 
 const { t } = useI18n()
 
-// Store
 const promptStore = usePromptStore()
 const { aiGlobalSettings } = storeToRefs(promptStore)
 
@@ -64,6 +63,14 @@ const sqlExportFormat = computed({
     emit('config-changed')
   },
 })
+
+const enableAutoSkill = computed({
+  get: () => aiGlobalSettings.value.enableAutoSkill ?? true,
+  set: (val: boolean) => {
+    promptStore.updateAIGlobalSettings({ enableAutoSkill: val })
+    emit('config-changed')
+  },
+})
 </script>
 
 <template>
@@ -99,6 +106,27 @@ const sqlExportFormat = computed({
             </p>
           </div>
           <UInputNumber v-model="globalMaxHistoryRounds" :min="1" :max="50" class="w-30" />
+        </div>
+      </div>
+    </div>
+
+    <!-- 技能设置 -->
+    <div>
+      <h4 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+        <UIcon name="i-heroicons-bolt" class="h-4 w-4 text-amber-500" />
+        {{ t('settings.aiPrompt.skillSettings.title') }}
+      </h4>
+      <div class="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+        <div class="flex items-center justify-between">
+          <div class="flex-1 pr-4">
+            <p class="text-sm font-medium text-gray-900 dark:text-white">
+              {{ t('settings.aiPrompt.skillSettings.enableAutoSkill') }}
+            </p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              {{ t('settings.aiPrompt.skillSettings.enableAutoSkillDesc') }}
+            </p>
+          </div>
+          <USwitch v-model="enableAutoSkill" />
         </div>
       </div>
     </div>

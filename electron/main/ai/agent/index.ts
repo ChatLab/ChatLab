@@ -4,7 +4,7 @@
  */
 
 import { getActiveConfig, buildPiModel } from '../llm'
-import { getAllTools } from '../tools'
+import { getAllTools, createActivateSkillTool } from '../tools'
 import type { ToolContext, OwnerInfo } from '../tools/types'
 import { createSqlTools } from '../assistant/sqlToolRunner'
 import { getHistoryForAgent } from '../conversations'
@@ -17,7 +17,7 @@ import {
   type Usage as PiUsage,
 } from '@mariozechner/pi-ai'
 
-import type { AgentConfig, AgentStreamChunk, AgentResult, PromptConfig, TokenUsage } from './types'
+import type { AgentConfig, AgentStreamChunk, AgentResult, PromptConfig, TokenUsage, SkillContext } from './types'
 import type { AssistantConfig } from '../assistant/types'
 import { buildSystemPrompt } from './prompt-builder'
 import { extractThinkingContent, stripToolCallTags } from './content-parser'
@@ -41,6 +41,7 @@ export class Agent {
   private chatType: 'group' | 'private' = 'group'
   private promptConfig?: PromptConfig
   private assistantConfig?: AssistantConfig
+  private skillCtx?: SkillContext
   private locale: string = 'zh-CN'
 
   constructor(
@@ -51,7 +52,8 @@ export class Agent {
     chatType: 'group' | 'private' = 'group',
     promptConfig?: PromptConfig,
     locale: string = 'zh-CN',
-    assistantConfig?: AssistantConfig
+    assistantConfig?: AssistantConfig,
+    skillCtx?: SkillContext
   ) {
     this.context = context
     this.piModel = piModel
@@ -60,6 +62,7 @@ export class Agent {
     this.chatType = chatType
     this.promptConfig = promptConfig
     this.assistantConfig = assistantConfig
+    this.skillCtx = skillCtx
     this.locale = locale
     this.config = {
       maxToolRounds: config.maxToolRounds ?? 5,
@@ -84,7 +87,7 @@ export class Agent {
       ? { systemPrompt: this.assistantConfig.systemPrompt }
       : this.promptConfig
 
-    const systemPrompt = buildSystemPrompt(this.chatType, effectivePromptConfig, this.context.ownerInfo, this.locale)
+    const systemPrompt = buildSystemPrompt(this.chatType, effectivePromptConfig, this.context.ownerInfo, this.locale, this.skillCtx)
     const answerWithoutToolsPrompt = i18nT('ai.agent.answerWithoutTools', { lng: this.locale })
 
     const handler = new AgentEventHandler({
@@ -154,6 +157,11 @@ export class Agent {
     // 用户自定义 SQL 工具（内置 SQL 工具已由 getAllTools 统一管控）
     if (this.assistantConfig?.customSqlTools?.length) {
       piTools.push(...createSqlTools(this.assistantConfig.customSqlTools, toolContext))
+    }
+
+    // AI 自选模式：注册 activate_skill 元工具（手动选择时不注册，避免冲突）
+    if (this.skillCtx?.skillMenu && !this.skillCtx?.skillDef) {
+      piTools.push(createActivateSkillTool(this.chatType, allowedTools, this.locale))
     }
 
     coreAgent.setTools(maxToolRounds > 0 ? piTools : [])
@@ -299,7 +307,8 @@ export async function runAgent(
   chatType?: 'group' | 'private',
   promptConfig?: PromptConfig,
   locale?: string,
-  assistantConfig?: AssistantConfig
+  assistantConfig?: AssistantConfig,
+  skillCtx?: SkillContext
 ): Promise<AgentResult> {
   const activeConfig = getActiveConfig()
   if (!activeConfig) throw new Error('LLM service not configured')
@@ -312,7 +321,8 @@ export async function runAgent(
     chatType,
     promptConfig,
     locale,
-    assistantConfig
+    assistantConfig,
+    skillCtx
   )
   return agent.execute(userMessage)
 }
@@ -328,7 +338,8 @@ export async function runAgentStream(
   chatType?: 'group' | 'private',
   promptConfig?: PromptConfig,
   locale?: string,
-  assistantConfig?: AssistantConfig
+  assistantConfig?: AssistantConfig,
+  skillCtx?: SkillContext
 ): Promise<AgentResult> {
   const activeConfig = getActiveConfig()
   if (!activeConfig) throw new Error('LLM service not configured')
@@ -341,7 +352,8 @@ export async function runAgentStream(
     chatType,
     promptConfig,
     locale,
-    assistantConfig
+    assistantConfig,
+    skillCtx
   )
   return agent.executeStream(userMessage, onChunk)
 }

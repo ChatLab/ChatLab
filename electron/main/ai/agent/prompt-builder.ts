@@ -4,7 +4,7 @@
 
 import { t as i18nT } from '../../i18n'
 import type { OwnerInfo } from '../tools/types'
-import type { PromptConfig } from './types'
+import type { PromptConfig, SkillContext } from './types'
 
 function agentT(key: string, locale: string, options?: Record<string, unknown>): string {
   return i18nT(key, { lng: locale, ...options })
@@ -76,12 +76,23 @@ export function buildSystemPrompt(
   chatType: 'group' | 'private' = 'group',
   promptConfig?: PromptConfig,
   ownerInfo?: OwnerInfo,
-  locale: string = 'zh-CN'
+  locale: string = 'zh-CN',
+  skillCtx?: SkillContext
 ): string {
   const systemPrompt = promptConfig?.systemPrompt || getFallbackRoleDefinition(chatType, locale)
   const lockedSection = getLockedPromptSection(chatType, ownerInfo, locale)
 
-  return `${systemPrompt}
+  let skillSection = ''
+  if (skillCtx?.skillDef) {
+    skillSection =
+      `\n## ${agentT('ai.agent.currentTask', locale)}：${skillCtx.skillDef.name}\n` +
+      `${agentT('ai.agent.skillPriorityNote', locale)}\n` +
+      skillCtx.skillDef.prompt
+  } else if (skillCtx?.skillMenu) {
+    skillSection = `\n${skillCtx.skillMenu}`
+  }
+
+  return `${systemPrompt}${skillSection}
 
 ${lockedSection}`
 }

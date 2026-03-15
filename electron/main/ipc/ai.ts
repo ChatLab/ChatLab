@@ -7,10 +7,11 @@ import * as llm from '../ai/llm'
 import * as rag from '../ai/rag'
 import { aiLogger, setDebugMode } from '../ai/logger'
 import { getLogsDir } from '../paths'
-import { Agent, type AgentStreamChunk, type PromptConfig } from '../ai/agent'
+import { Agent, type AgentStreamChunk, type PromptConfig, type SkillContext } from '../ai/agent'
 import { getActiveConfig, buildPiModel } from '../ai/llm'
 import * as assistantManager from '../ai/assistant'
 import type { AssistantConfig } from '../ai/assistant/types'
+import * as skillManager from '../ai/skills'
 import { completeSimple, streamSimple, type TextContent as PiTextContent } from '@mariozechner/pi-ai'
 import { t } from '../i18n'
 import type { ToolContext } from '../ai/tools/types'
@@ -122,6 +123,14 @@ export function registerAIHandlers({ win }: IpcContext): void {
     console.log('[IPC] Assistant manager initialized')
   } catch (error) {
     console.error('[IPC] Failed to initialize assistant manager:', error)
+  }
+
+  // 初始化技能管理器（扫描用户技能文件）
+  try {
+    skillManager.initSkillManager()
+    console.log('[IPC] Skill manager initialized')
+  } catch (error) {
+    console.error('[IPC] Failed to initialize skill manager:', error)
   }
 
   // ==================== Debug 模式 ====================
@@ -685,6 +694,80 @@ export function registerAIHandlers({ win }: IpcContext): void {
     }
   )
 
+  // ==================== 技能管理 API ====================
+
+  ipcMain.handle('skill:getAll', async () => {
+    try {
+      return skillManager.getAllSkills()
+    } catch (error) {
+      console.error('Failed to get skills:', error)
+      return []
+    }
+  })
+
+  ipcMain.handle('skill:getConfig', async (_, id: string) => {
+    try {
+      return skillManager.getSkillConfig(id)
+    } catch (error) {
+      console.error('Failed to get skill config:', error)
+      return null
+    }
+  })
+
+  ipcMain.handle('skill:update', async (_, id: string, rawMd: string) => {
+    try {
+      return skillManager.updateSkill(id, rawMd)
+    } catch (error) {
+      console.error('Failed to update skill:', error)
+      return { success: false, error: String(error) }
+    }
+  })
+
+  ipcMain.handle('skill:create', async (_, rawMd: string) => {
+    try {
+      return skillManager.createSkill(rawMd)
+    } catch (error) {
+      console.error('Failed to create skill:', error)
+      return { success: false, error: String(error) }
+    }
+  })
+
+  ipcMain.handle('skill:delete', async (_, id: string) => {
+    try {
+      return skillManager.deleteSkill(id)
+    } catch (error) {
+      console.error('Failed to delete skill:', error)
+      return { success: false, error: String(error) }
+    }
+  })
+
+  ipcMain.handle('skill:getBuiltinCatalog', async () => {
+    try {
+      return skillManager.getBuiltinCatalog()
+    } catch (error) {
+      console.error('Failed to get builtin catalog:', error)
+      return []
+    }
+  })
+
+  ipcMain.handle('skill:import', async (_, builtinId: string) => {
+    try {
+      return skillManager.importSkill(builtinId)
+    } catch (error) {
+      console.error('Failed to import skill:', error)
+      return { success: false, error: String(error) }
+    }
+  })
+
+  ipcMain.handle('skill:reimport', async (_, id: string) => {
+    try {
+      return skillManager.reimportSkill(id)
+    } catch (error) {
+      console.error('Failed to reimport skill:', error)
+      return { success: false, error: String(error) }
+    }
+  })
+
   // ==================== AI Agent API ====================
 
   /**
@@ -708,7 +791,9 @@ export function registerAIHandlers({ win }: IpcContext): void {
       promptConfig?: PromptConfig,
       locale?: string,
       maxHistoryRounds?: number,
-      assistantId?: string
+      assistantId?: string,
+      skillId?: string | null,
+      enableAutoSkill?: boolean
     ) => {
       aiLogger.info('IPC', `Agent stream request received: ${requestId}`, {
         userMessage: userMessage.slice(0, 100),
@@ -717,6 +802,8 @@ export function registerAIHandlers({ win }: IpcContext): void {
         chatType: chatType ?? 'group',
         hasPromptConfig: !!promptConfig,
         assistantId: assistantId ?? '(none)',
+        skillId: skillId ?? '(none)',
+        enableAutoSkill: enableAutoSkill ?? false,
       })
 
       try {
@@ -760,6 +847,24 @@ export function registerAIHandlers({ win }: IpcContext): void {
           }
         }
 
+        // 构建技能上下文
+        let skillCtx: SkillContext | undefined
+        if (skillId) {
+          const skillDef = skillManager.getSkillConfig(skillId) ?? undefined
+          if (skillDef) {
+            skillCtx = { skillDef }
+          } else {
+            aiLogger.warn('IPC', `Skill not found: ${skillId}`)
+          }
+        } else if (enableAutoSkill) {
+          const effectiveChatType = chatType ?? 'group'
+          const allowedTools = assistantConfig?.allowedBuiltinTools
+          const menu = skillManager.getSkillMenu(effectiveChatType, allowedTools)
+          if (menu) {
+            skillCtx = { skillMenu: menu }
+          }
+        }
+
         const agent = new Agent(
           context,
           piModel,
@@ -768,7 +873,8 @@ export function registerAIHandlers({ win }: IpcContext): void {
           chatType ?? 'group',
           promptConfig,
           locale ?? 'zh-CN',
-          assistantConfig
+          assistantConfig,
+          skillCtx
         )
 
         // 异步执行，通过事件发送流式数据

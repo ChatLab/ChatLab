@@ -14,7 +14,24 @@
     "capture": "Capture Chat",
     "scrollToBottom": "Back to Bottom",
     "input": {
-      "placeholder": "Enter your question..."
+      "placeholder": "Enter your question...",
+      "placeholderWithSlash": "Enter your question, or type / to pick a skill...",
+      "placeholderWithActiveSkill": "/{name} selected. Enter your specific question...",
+      "removeSkill": "Remove active skill",
+      "slashHint": "Type / to pick a skill",
+      "useSkill": "Choose Skill",
+      "slashEmpty": "No matching skills",
+      "slashEmptyHint": "Open Skill Manager to import built-in skills or create a custom one",
+      "manageSkills": "Manage Skills",
+      "previewTitle": "Skill Prompt",
+      "previewTagsLabel": "Tags",
+      "previewToolsLabel": "Tools",
+      "previewUnavailable": "No skill prompt available for preview",
+      "presetMore": "More",
+      "presetCollapse": "Collapse",
+      "send": "Send",
+      "needMoreThanSkill": "Selecting a skill alone is not enough. Enter a specific question.",
+      "needQuestion": "Enter a question before sending"
     },
     "message": {
       "userAvatar": "User Avatar",
@@ -296,6 +313,66 @@
       "get_session_messages": "Get session messages",
       "get_session_summaries": "Get session summaries",
       "semantic_search_messages": "Semantic search messages"
+    }
+  },
+  "skill": {
+    "selector": {
+      "title": "Select Skill",
+      "freeChat": "Free Chat",
+      "freeChatDesc": "No preset skill, AI responds freely",
+      "manage": "Manage Skills",
+      "incompatible": "Incompatible with current assistant",
+      "noSkills": "No skills available",
+      "noSkillsHint": "Import built-in skills or create custom skills via Skill Manager",
+      "autoSkill": "AI auto-select skill",
+      "autoSkillHint": "When enabled, AI can automatically choose the best skill for your question"
+    },
+    "config": {
+      "createTitle": "New Skill",
+      "editTitle": "Skill Config",
+      "name": "Name",
+      "description": "Description",
+      "tags": "Tags",
+      "chatScope": "Scope",
+      "chatScopeAll": "All",
+      "chatScopeGroup": "Group",
+      "chatScopePrivate": "Private",
+      "prompt": "Skill Prompt",
+      "tools": "Required Tools",
+      "rawEditor": "Markdown Editor",
+      "rawEditorHint": "Edit the full skill Markdown file (with YAML frontmatter)",
+      "create": "Create",
+      "save": "Save"
+    },
+    "market": {
+      "title": "Skill Manager",
+      "tabs": {
+        "local": "Local Skills",
+        "market": "Skill Market"
+      },
+      "localHint": "Manage imported skills, configure or delete",
+      "marketHint": "Browse built-in skill templates, import to use and customize",
+      "updateAvailable": "Update available",
+      "reimport": "Re-import",
+      "imported": "Imported",
+      "import": "Import",
+      "noLocal": "No imported skills",
+      "noCatalog": "No skill templates available",
+      "addSkill": "Create custom skill"
+    },
+    "block": {
+      "label": "Skill: {name}"
+    },
+    "active": {
+      "label": "Manually Invoked Skill: {name}"
+    },
+    "toast": {
+      "createSuccess": "Skill created successfully",
+      "createFailed": "Failed to create skill",
+      "saveSuccess": "Skill saved successfully",
+      "saveFailed": "Failed to save skill",
+      "deleteSuccess": "Skill deleted",
+      "deleteFailed": "Failed to delete"
     }
   }
 }

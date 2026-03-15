@@ -250,7 +250,7 @@ async function openAiLogFile() {
 </script>
 
 <template>
-  <div class="flex items-center justify-between px-1">
+  <div class="flex items-center justify-between">
     <!-- 左侧：预设选择器 + 模型切换器 -->
     <div class="flex items-center gap-1">
       <UPopover v-model:open="isPresetPopoverOpen" :ui="{ content: 'p-0' }">

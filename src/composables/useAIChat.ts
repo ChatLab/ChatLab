@@ -9,6 +9,7 @@ import { usePromptStore } from '@/stores/prompt'
 import { useSessionStore } from '@/stores/session'
 import { useSettingsStore } from '@/stores/settings'
 import { useAssistantStore } from '@/stores/assistant'
+import { useSkillStore } from '@/stores/skill'
 import type { TokenUsage, AgentRuntimeStatus } from '@electron/shared/types'
 
 // 工具调用记录
@@ -31,11 +32,12 @@ export interface ToolBlockContent {
 // 内容块类型（用于 AI 消息的流式混合渲染）
 export type ContentBlock =
   | { type: 'text'; text: string }
-  | { type: 'think'; tag: string; text: string; durationMs?: number } // 思考内容块
+  | { type: 'think'; tag: string; text: string; durationMs?: number }
   | {
       type: 'tool'
       tool: ToolBlockContent
     }
+  | { type: 'skill'; skillId: string; skillName: string }
 
 // 消息类型
 export interface ChatMessage {
@@ -95,6 +97,7 @@ export function useAIChat(
   const sessionStore = useSessionStore()
   const settingsStore = useSettingsStore()
   const assistantStore = useAssistantStore()
+  const skillStore = useSkillStore()
   const { activePreset, aiGlobalSettings } = storeToRefs(promptStore)
 
   const currentPromptConfig = computed(() => {
@@ -204,6 +207,11 @@ export function useAIChat(
       return
     }
 
+    // 在任何异步操作前固定本轮技能上下文，避免发送后 UI 立刻清空技能导致本轮请求丢失技能。
+    const currentSkillId = skillStore.activeSkillId
+    const currentSkillName = skillStore.activeSkill?.name
+    const autoSkillEnabled = aiGlobalSettings.value.enableAutoSkill ?? true
+
     // 检查是否已配置 LLM
     console.log('[AI] 检查 LLM 配置...')
     const hasConfig = await window.llmApi.hasConfig()
@@ -253,6 +261,14 @@ export function useAIChat(
       isStreaming: true,
       contentBlocks: [], // 初始化内容块数组
     }
+    if (currentSkillId && currentSkillName) {
+      aiMessage.contentBlocks!.push({
+        type: 'skill',
+        skillId: currentSkillId,
+        skillName: currentSkillName,
+      })
+    }
+
     messages.value.push(aiMessage)
     const aiMessageIndex = messages.value.length - 1
     let hasStreamError = false
@@ -360,7 +376,6 @@ export function useAIChat(
     }
 
     try {
-      // 当前选中的助手 ID（如果有）
       const currentAssistantId = assistantStore.selectedAssistantId ?? undefined
 
       // 确保对话 ID 存在（数据流倒置：Agent 从 SQLite 读取历史，需要有效的 conversationId）
@@ -537,7 +552,9 @@ export function useAIChat(
         currentAssistantId ? undefined : { systemPrompt: currentPromptConfig.value.systemPrompt },
         locale,
         maxHistoryRounds,
-        currentAssistantId
+        currentAssistantId,
+        currentSkillId,
+        !currentSkillId ? autoSkillEnabled : undefined
       )
 
       // 存储 Agent 请求 ID（用于中止）

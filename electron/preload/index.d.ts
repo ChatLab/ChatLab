@@ -298,6 +298,7 @@ type AIContentBlock =
         params?: Record<string, unknown>
       }
     }
+  | { type: 'skill'; skillId: string; skillName: string }
 
 interface AIMessage {
   id: string
@@ -671,7 +672,9 @@ interface AgentApi {
     promptConfig?: PromptConfig,
     locale?: string,
     maxHistoryRounds?: number,
-    assistantId?: string
+    assistantId?: string,
+    skillId?: string | null,
+    enableAutoSkill?: boolean
   ) => { requestId: string; promise: Promise<{ success: boolean; result?: AgentResult; error?: string }> }
   abort: (requestId: string) => Promise<{ success: boolean; error?: string }>
 }
@@ -739,6 +742,45 @@ interface AssistantApi {
     builtinOverrides?: Record<string, unknown>
     remotePresetIds?: string[]
   }) => Promise<{ success: boolean; filePath?: string; error?: string }>
+}
+
+// ==================== 技能管理 ====================
+
+interface SkillSummary {
+  id: string
+  name: string
+  description: string
+  tags: string[]
+  chatScope: 'all' | 'group' | 'private'
+  tools: string[]
+  builtinId?: string
+}
+
+interface SkillConfigFull {
+  id: string
+  name: string
+  description: string
+  tags: string[]
+  chatScope: 'all' | 'group' | 'private'
+  prompt: string
+  tools: string[]
+  builtinId?: string
+}
+
+interface BuiltinSkillInfo extends SkillSummary {
+  imported: boolean
+  hasUpdate: boolean
+}
+
+interface SkillApi {
+  getAll: () => Promise<SkillSummary[]>
+  getConfig: (id: string) => Promise<SkillConfigFull | null>
+  update: (id: string, rawMd: string) => Promise<{ success: boolean; error?: string }>
+  create: (rawMd: string) => Promise<{ success: boolean; id?: string; error?: string }>
+  delete: (id: string) => Promise<{ success: boolean; error?: string }>
+  getBuiltinCatalog: () => Promise<BuiltinSkillInfo[]>
+  importSkill: (builtinId: string) => Promise<{ success: boolean; id?: string; error?: string }>
+  reimportSkill: (id: string) => Promise<{ success: boolean; error?: string }>
 }
 
 // Cache API 类型
@@ -934,6 +976,7 @@ declare global {
     embeddingApi: EmbeddingApi
     agentApi: AgentApi
     assistantApi: AssistantApi
+    skillApi: SkillApi
     cacheApi: CacheApi
     networkApi: NetworkApi
     sessionApi: SessionApi
@@ -956,6 +999,10 @@ export {
   AssistantConfigFull,
   BuiltinAssistantInfo,
   BuiltinSqlToolInfo,
+  SkillApi,
+  SkillSummary,
+  SkillConfigFull,
+  BuiltinSkillInfo,
   CacheApi,
   NetworkApi,
   NlpApi,

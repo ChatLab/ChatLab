@@ -14,7 +14,24 @@
     "capture": "会話を画像保存",
     "scrollToBottom": "下へ移動",
     "input": {
-      "placeholder": "質問を入力..."
+      "placeholder": "質問を入力...",
+      "placeholderWithSlash": "質問を入力、または / でスキルを選択...",
+      "placeholderWithActiveSkill": "/{name} を選択済みです。具体的な質問を入力してください...",
+      "removeSkill": "現在のスキルを解除",
+      "slashHint": "/ でスキルを選択",
+      "useSkill": "スキルを選ぶ",
+      "slashEmpty": "一致するスキルがありません",
+      "slashEmptyHint": "スキル管理を開いて内蔵スキルを読み込むか、カスタムスキルを作成してください",
+      "manageSkills": "スキルを管理",
+      "previewTitle": "スキルプロンプト",
+      "previewTagsLabel": "タグ",
+      "previewToolsLabel": "ツール",
+      "previewUnavailable": "プレビューできるスキルプロンプトがありません",
+      "presetMore": "もっと見る",
+      "presetCollapse": "折りたたむ",
+      "send": "送信",
+      "needMoreThanSkill": "スキルを選んだだけでは送信できません。具体的な質問を入力してください。",
+      "needQuestion": "質問を入力してから送信してください"
     },
     "message": {
       "userAvatar": "ユーザーアバター",
@@ -296,6 +313,14 @@
       "get_session_messages": "セッションメッセージを取得",
       "get_session_summaries": "セッション要約を取得",
       "semantic_search_messages": "セマンティック検索"
+    }
+  },
+  "skill": {
+    "block": {
+      "label": "スキル：{name}"
+    },
+    "active": {
+      "label": "手動呼び出しスキル：{name}"
     }
   }
 }

@@ -186,6 +186,11 @@
     "exportSettings": {
       "title": "エクスポート設定"
     },
+    "skillSettings": {
+      "title": "スキル設定",
+      "enableAutoSkill": "AI 自動スキル選択",
+      "enableAutoSkillDesc": "有効にすると、AI がユーザーの質問に基づいて適切な分析スキルを自動的にマッチして有効化します。無効にすると、手動で選択した場合のみスキルが適用されます"
+    },
     "maxMessages": {
       "title": "送信メッセージ数の上限",
       "description": "1 回のリクエストで AI に送る最大メッセージ数です。増やすほど Token 消費は増えますが、分析精度も上がります（初めてなら 2000 推奨）"

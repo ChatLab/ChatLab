@@ -67,3 +67,14 @@ export interface PromptConfig {
   /** 系统提示词（角色定义 + 回答要求，统一为单一字段） */
   systemPrompt: string
 }
+
+/**
+ * 技能上下文（传递给 prompt-builder）
+ * 手动选择和 AI 自选两种模式互斥
+ */
+export interface SkillContext {
+  /** 手动选择时传入完整 SkillDef，AI 自选时为 undefined */
+  skillDef?: import('../skills/types').SkillDef
+  /** AI 自选时传入技能菜单文本，手动选择时为 undefined */
+  skillMenu?: string
+}

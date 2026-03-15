@@ -186,6 +186,11 @@
     "exportSettings": {
       "title": "匯出設定"
     },
+    "skillSettings": {
+      "title": "技能設定",
+      "enableAutoSkill": "AI 自主選擇技能",
+      "enableAutoSkillDesc": "啟用後，AI 會根據使用者的問題自動匹配並啟用合適的分析技能；關閉後僅在手動選擇技能時生效"
+    },
     "maxMessages": {
       "title": "傳送條數限制",
       "description": "每次提交給 AI 的最大訊息數，數值越大 Token 消耗越多，分析也更準確（新手建議2000）"

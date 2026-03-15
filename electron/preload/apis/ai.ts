@@ -39,6 +39,7 @@ export type ContentBlock =
         params?: Record<string, unknown>
       }
     }
+  | { type: 'skill'; skillId: string; skillName: string }
 
 export interface AIMessage {
   id: string
@@ -761,6 +762,68 @@ export const assistantApi = {
   },
 }
 
+// ==================== Skill API ====================
+
+export interface SkillSummary {
+  id: string
+  name: string
+  description: string
+  tags: string[]
+  chatScope: 'all' | 'group' | 'private'
+  tools: string[]
+  builtinId?: string
+}
+
+export interface SkillConfigFull {
+  id: string
+  name: string
+  description: string
+  tags: string[]
+  chatScope: 'all' | 'group' | 'private'
+  prompt: string
+  tools: string[]
+  builtinId?: string
+}
+
+export interface BuiltinSkillInfo extends SkillSummary {
+  imported: boolean
+  hasUpdate: boolean
+}
+
+export const skillApi = {
+  getAll: (): Promise<SkillSummary[]> => {
+    return ipcRenderer.invoke('skill:getAll')
+  },
+
+  getConfig: (id: string): Promise<SkillConfigFull | null> => {
+    return ipcRenderer.invoke('skill:getConfig', id)
+  },
+
+  update: (id: string, rawMd: string): Promise<{ success: boolean; error?: string }> => {
+    return ipcRenderer.invoke('skill:update', id, rawMd)
+  },
+
+  create: (rawMd: string): Promise<{ success: boolean; id?: string; error?: string }> => {
+    return ipcRenderer.invoke('skill:create', rawMd)
+  },
+
+  delete: (id: string): Promise<{ success: boolean; error?: string }> => {
+    return ipcRenderer.invoke('skill:delete', id)
+  },
+
+  getBuiltinCatalog: (): Promise<BuiltinSkillInfo[]> => {
+    return ipcRenderer.invoke('skill:getBuiltinCatalog')
+  },
+
+  importSkill: (builtinId: string): Promise<{ success: boolean; id?: string; error?: string }> => {
+    return ipcRenderer.invoke('skill:import', builtinId)
+  },
+
+  reimportSkill: (id: string): Promise<{ success: boolean; error?: string }> => {
+    return ipcRenderer.invoke('skill:reimport', id)
+  },
+}
+
 // ==================== Agent API ====================
 
 export const agentApi = {
@@ -781,7 +844,9 @@ export const agentApi = {
     promptConfig?: PromptConfig,
     locale?: string,
     maxHistoryRounds?: number,
-    assistantId?: string
+    assistantId?: string,
+    skillId?: string | null,
+    enableAutoSkill?: boolean
   ): { requestId: string; promise: Promise<{ success: boolean; result?: AgentResult; error?: string }> } => {
     // 防御性处理：确保传给 IPC 的 context 是“可结构化克隆”的纯对象
     // 避免调用方误传入响应式 Proxy（例如 Pinia/Vue state）导致 invoke 失败
@@ -861,7 +926,9 @@ export const agentApi = {
           promptConfig,
           locale,
           maxHistoryRounds,
-          assistantId
+          assistantId,
+          skillId,
+          enableAutoSkill
         )
         .then((result) => {
           console.log('[preload] Agent invoke 返回:', result)

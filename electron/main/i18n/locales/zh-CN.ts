@@ -300,6 +300,8 @@ export default {
       timeParamExample2: '"10月1号" → year: {{year}}, month: 10, day: 1',
       timeParamExample3: '"10月1号下午3点" → year: {{year}}, month: 10, day: 1, hour: 15',
       defaultYearNote: '未指定年份默认{{year}}年，若该月份未到则用{{prevYear}}年',
+      currentTask: '当前任务',
+      skillPriorityNote: '注意：在执行此任务时，请优先遵循以下任务的输出格式要求，这可以覆盖你的常规回复习惯。',
       responseInstruction: '根据用户的问题，选择合适的工具获取数据，然后基于数据给出回答。',
       fallbackRoleDefinition: {
         group: `你是一个专业但风格轻松的群聊记录分析助手。

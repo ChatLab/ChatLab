@@ -186,6 +186,11 @@
     "exportSettings": {
       "title": "Export Settings"
     },
+    "skillSettings": {
+      "title": "Skill Settings",
+      "enableAutoSkill": "AI Auto-Select Skills",
+      "enableAutoSkillDesc": "When enabled, AI will automatically match and activate suitable analysis skills based on user queries; when disabled, skills only take effect when manually selected"
+    },
     "maxMessages": {
       "title": "Max Messages per Request",
       "description": "Max number of messages sent to AI per request. Higher values consume more tokens but provide more accurate context (recommended: 2000)."

@@ -42,9 +42,10 @@ export const usePromptStore = defineStore(
     const aiConfigVersion = ref(0)
     const aiGlobalSettings = ref({
       maxMessagesPerRequest: 1000,
-      maxHistoryRounds: 5, // AI上下文会话轮数限制
-      exportFormat: 'markdown' as 'markdown' | 'txt', // 对话导出格式
-      sqlExportFormat: 'csv' as 'csv' | 'json', // SQL Lab 导出格式
+      maxHistoryRounds: 5,
+      exportFormat: 'markdown' as 'markdown' | 'txt',
+      sqlExportFormat: 'csv' as 'csv' | 'json',
+      enableAutoSkill: true,
     })
     const customKeywordTemplates = ref<KeywordTemplate[]>([])
     const deletedPresetTemplateIds = ref<string[]>([])
@@ -103,6 +104,7 @@ export const usePromptStore = defineStore(
         maxHistoryRounds: number
         exportFormat: 'markdown' | 'txt'
         sqlExportFormat: 'csv' | 'json'
+        enableAutoSkill: boolean
       }>
     ) {
       aiGlobalSettings.value = { ...aiGlobalSettings.value, ...settings }

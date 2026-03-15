@@ -288,6 +288,15 @@ function formatToolParams(tool: ToolBlockContent): string {
               </div>
             </details>
 
+            <!-- 技能块 -->
+            <div
+              v-else-if="block.type === 'skill'"
+              class="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-medium text-green-700 dark:border-green-800/50 dark:bg-green-900/20 dark:text-green-400"
+            >
+              <UIcon name="i-heroicons-bolt" class="h-3.5 w-3.5" />
+              <span>{{ t('ai.skill.active.label', { name: block.skillName }) }}</span>
+            </div>
+
             <!-- 工具块 -->
             <div
               v-else-if="block.type === 'tool'"

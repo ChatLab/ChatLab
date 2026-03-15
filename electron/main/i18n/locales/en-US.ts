@@ -310,6 +310,8 @@ Returned summaries are brief descriptions of each session, helping quickly locat
       timeParamExample3: '"October 1st 3 PM" → year: {{year}}, month: 10, day: 1, hour: 15',
       defaultYearNote:
         'If year is not specified, defaults to {{year}}. If the month has not yet occurred, {{prevYear}} is used.',
+      currentTask: 'Current Task',
+      skillPriorityNote: 'Note: When executing this task, prioritize the output format requirements below. This can override your usual response style.',
       responseInstruction:
         "Based on the user's question, select appropriate tools to retrieve data, then provide an answer based on the data.",
       fallbackRoleDefinition: {

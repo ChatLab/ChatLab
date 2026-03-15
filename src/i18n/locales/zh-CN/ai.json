@@ -14,7 +14,24 @@
     "capture": "截屏对话",
     "scrollToBottom": "返回底部",
     "input": {
-      "placeholder": "输入你的问题..."
+      "placeholder": "输入你的问题...",
+      "placeholderWithSlash": "输入你的问题，或输入 / 选择技能...",
+      "placeholderWithActiveSkill": "已选择 /{name}，请输入具体问题...",
+      "removeSkill": "移除当前技能",
+      "slashHint": "输入 / 选择技能",
+      "useSkill": "选择技能",
+      "slashEmpty": "没有匹配的技能",
+      "slashEmptyHint": "打开技能管理导入内置技能，或创建一个自定义技能",
+      "manageSkills": "管理技能",
+      "previewTitle": "技能提示词",
+      "previewTagsLabel": "标签",
+      "previewToolsLabel": "工具",
+      "previewUnavailable": "暂无可预览的技能提示词",
+      "presetMore": "更多",
+      "presetCollapse": "收起",
+      "send": "发送",
+      "needMoreThanSkill": "仅选择技能还不能发送，请继续输入具体问题",
+      "needQuestion": "请输入问题后再发送"
     },
     "message": {
       "userAvatar": "用户头像",
@@ -296,6 +313,66 @@
       "get_session_messages": "获取会话消息",
       "get_session_summaries": "获取会话摘要",
       "semantic_search_messages": "语义搜索消息"
+    }
+  },
+  "skill": {
+    "selector": {
+      "title": "选择技能",
+      "freeChat": "自由对话",
+      "freeChatDesc": "不使用预设技能，由 AI 自主回答",
+      "manage": "技能管理",
+      "incompatible": "与当前助手不兼容",
+      "noSkills": "暂无可用技能",
+      "noSkillsHint": "通过技能管理导入内置技能或创建自定义技能",
+      "autoSkill": "AI 自主选择技能",
+      "autoSkillHint": "开启后 AI 可根据问题自动选择合适的技能"
+    },
+    "config": {
+      "createTitle": "新建技能",
+      "editTitle": "技能配置",
+      "name": "名称",
+      "description": "描述",
+      "tags": "标签",
+      "chatScope": "适用范围",
+      "chatScopeAll": "全部",
+      "chatScopeGroup": "群聊",
+      "chatScopePrivate": "私聊",
+      "prompt": "技能提示词",
+      "tools": "所需工具",
+      "rawEditor": "Markdown 编辑器",
+      "rawEditorHint": "直接编辑完整的技能 Markdown 文件（含 YAML frontmatter）",
+      "create": "创建",
+      "save": "保存"
+    },
+    "market": {
+      "title": "技能管理",
+      "tabs": {
+        "local": "本地技能",
+        "market": "技能市场"
+      },
+      "localHint": "管理已导入的技能，可配置或删除",
+      "marketHint": "浏览内置技能模板，导入后即可使用和自由编辑",
+      "updateAvailable": "更新可用",
+      "reimport": "重新导入",
+      "imported": "已导入",
+      "import": "导入",
+      "noLocal": "暂无已导入的技能",
+      "noCatalog": "暂无可用技能模板",
+      "addSkill": "新建自定义技能"
+    },
+    "block": {
+      "label": "技能：{name}"
+    },
+    "active": {
+      "label": "主动调用技能：{name}"
+    },
+    "toast": {
+      "createSuccess": "技能创建成功",
+      "createFailed": "技能创建失败",
+      "saveSuccess": "技能保存成功",
+      "saveFailed": "技能保存失败",
+      "deleteSuccess": "技能已删除",
+      "deleteFailed": "删除失败"
     }
   }
 }

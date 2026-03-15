@@ -14,7 +14,24 @@
     "capture": "截圖對話",
     "scrollToBottom": "回到底部",
     "input": {
-      "placeholder": "輸入你的問題..."
+      "placeholder": "輸入你的問題...",
+      "placeholderWithSlash": "輸入你的問題，或輸入 / 選擇技能...",
+      "placeholderWithActiveSkill": "已選擇 /{name}，請輸入具體問題...",
+      "removeSkill": "移除目前技能",
+      "slashHint": "輸入 / 選擇技能",
+      "useSkill": "選擇技能",
+      "slashEmpty": "沒有符合的技能",
+      "slashEmptyHint": "開啟技能管理匯入內建技能，或建立自訂技能",
+      "manageSkills": "管理技能",
+      "previewTitle": "技能提示詞",
+      "previewTagsLabel": "標籤",
+      "previewToolsLabel": "工具",
+      "previewUnavailable": "暫無可預覽的技能提示詞",
+      "presetMore": "更多",
+      "presetCollapse": "收起",
+      "send": "送出",
+      "needMoreThanSkill": "只選擇技能還不能送出，請繼續輸入具體問題",
+      "needQuestion": "請輸入問題後再送出"
     },
     "message": {
       "userAvatar": "使用者頭像",
@@ -296,6 +313,14 @@
       "get_session_messages": "取得會話訊息",
       "get_session_summaries": "取得會話摘要",
       "semantic_search_messages": "語意搜尋訊息"
+    }
+  },
+  "skill": {
+    "block": {
+      "label": "技能：{name}"
+    },
+    "active": {
+      "label": "主動呼叫技能：{name}"
     }
   }
 }

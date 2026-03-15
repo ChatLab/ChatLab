@@ -4,7 +4,7 @@ import { useI18n } from 'vue-i18n'
 import ConversationList from './ConversationList.vue'
 import DataSourcePanel from './DataSourcePanel.vue'
 import ChatMessage from './ChatMessage.vue'
-import ChatInput from './ChatInput.vue'
+import AIChatInput from './AIChatInput.vue'
 import AIThinkingIndicator from './AIThinkingIndicator.vue'
 import ChatStatusBar from './ChatStatusBar.vue'
 import { useAIChat } from '@/composables/useAIChat'
@@ -12,14 +12,18 @@ import CaptureButton from '@/components/common/CaptureButton.vue'
 import AssistantSelector from './AssistantSelector.vue'
 import AssistantConfigModal from './AssistantConfigModal.vue'
 import AssistantMarketModal from './AssistantMarketModal.vue'
+import SkillMarketModal from './SkillMarketModal.vue'
+import SkillConfigModal from './SkillConfigModal.vue'
 import PresetQuestions from './PresetQuestions.vue'
 import { usePromptStore } from '@/stores/prompt'
 import { useSettingsStore } from '@/stores/settings'
 import { useAssistantStore } from '@/stores/assistant'
+import { useSkillStore } from '@/stores/skill'
 
 const { t } = useI18n()
 const settingsStore = useSettingsStore()
 const assistantStore = useAssistantStore()
+const skillStore = useSkillStore()
 
 // Props
 const props = defineProps<{
@@ -59,6 +63,11 @@ const configModalAssistantId = ref<string | null>(null)
 const configModalReadonly = ref(false)
 const marketModalVisible = ref(false)
 
+// 技能相关状态
+const skillMarketModalVisible = ref(false)
+const skillConfigModalVisible = ref(false)
+const skillConfigModalSkillId = ref<string | null>(null)
+
 // 当前选中助手的预设问题
 const currentPresetQuestions = computed(() => {
   return assistantStore.selectedAssistant?.presetQuestions ?? []
@@ -73,6 +82,10 @@ const hasLLMConfig = ref(false)
 const isCheckingConfig = ref(true)
 const messagesContainer = ref<HTMLElement | null>(null)
 const conversationListRef = ref<InstanceType<typeof ConversationList> | null>(null)
+const chatInputRef = ref<{
+  fillInput: (content: string) => void
+  openSkillSelector: () => void
+} | null>(null)
 
 // 智能滚动状态
 const isStickToBottom = ref(true) // 是否粘在底部（自动滚动）
@@ -203,7 +216,31 @@ async function handleAssistantCreated(_id: string) {
 // 返回助手选择
 function handleBackToSelector() {
   assistantStore.clearSelection()
+  skillStore.activateSkill(null)
   showAssistantSelector.value = true
+}
+
+function handleOpenSkillMarket() {
+  skillMarketModalVisible.value = true
+}
+
+function handleSkillMarketConfigure(id: string) {
+  skillConfigModalSkillId.value = id
+  skillConfigModalVisible.value = true
+}
+
+function handleCreateSkill() {
+  skillConfigModalSkillId.value = null
+  skillConfigModalVisible.value = true
+}
+
+async function handleSkillConfigSaved() {
+  await skillStore.loadSkills()
+}
+
+async function handleSkillCreated(_id: string) {
+  await skillStore.loadSkills()
+  await skillStore.loadBuiltinCatalog()
 }
 
 // 助手配置保存后刷新列表
@@ -211,9 +248,18 @@ async function handleAssistantConfigSaved() {
   await assistantStore.loadAssistants()
 }
 
-// 发送消息（包括从预设问题点击发送）
+// 预设问题只回填到输入框，方便用户继续编辑后再发送。
 function handlePresetQuestion(question: string) {
-  handleSend(question)
+  chatInputRef.value?.fillInput(question)
+}
+
+function handleUseSkillEntry() {
+  chatInputRef.value?.openSkillSelector()
+}
+
+// slash 技能选择在输入框内完成，这里保留事件钩子便于后续扩展联动。
+function handleSkillActivated() {
+  scrollToBottom(true)
 }
 
 // 发送消息
@@ -400,6 +446,7 @@ watch(
                 <span>{{ assistantStore.selectedAssistant?.name || t('ai.assistant.fallbackName') }}</span>
               </button>
             </div>
+
             <!-- 消息列表 -->
             <div ref="messagesContainer" class="min-h-0 flex-1 overflow-y-auto p-4">
               <div ref="conversationContentRef" class="mx-auto max-w-3xl space-y-4">
@@ -484,18 +531,27 @@ watch(
             <!-- 预设问题气泡（仅在对话为空时显示） -->
             <div v-if="messages.length === 0 && !isAIThinking" class="px-4 pb-2">
               <div class="mx-auto max-w-3xl">
-                <PresetQuestions :questions="currentPresetQuestions" @select="handlePresetQuestion" />
+                <PresetQuestions
+                  :questions="currentPresetQuestions"
+                  :leading-action-label="t('ai.chat.input.useSkill')"
+                  @select="handlePresetQuestion"
+                  @leading-action="handleUseSkillEntry"
+                />
               </div>
             </div>
 
             <!-- 输入框区域 -->
             <div class="px-4 pb-2">
               <div class="mx-auto max-w-3xl">
-                <ChatInput
+                <AIChatInput
+                  ref="chatInputRef"
                   :disabled="isAIThinking"
                   :status="isAIThinking ? 'streaming' : 'ready'"
+                  :chat-type="currentChatType"
                   @send="handleSend"
                   @stop="handleStop"
+                  @manage-skills="handleOpenSkillMarket"
+                  @skill-activated="handleSkillActivated"
                 />
 
                 <!-- 底部状态栏 -->
@@ -551,6 +607,23 @@ watch(
       @configure="handleMarketConfigure"
       @view-config="handleMarketViewConfig"
       @create="handleCreateAssistant"
+    />
+
+    <!-- 技能管理弹窗 -->
+    <SkillMarketModal
+      :open="skillMarketModalVisible"
+      @update:open="skillMarketModalVisible = $event"
+      @configure="handleSkillMarketConfigure"
+      @create="handleCreateSkill"
+    />
+
+    <!-- 技能配置弹窗 -->
+    <SkillConfigModal
+      :open="skillConfigModalVisible"
+      :skill-id="skillConfigModalSkillId"
+      @update:open="skillConfigModalVisible = $event"
+      @saved="handleSkillConfigSaved"
+      @created="handleSkillCreated"
     />
   </div>
 </template>
