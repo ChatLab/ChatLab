@@ -2,7 +2,7 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SubTabs } from '@/components/UI'
-import ChatExplorer from './AIChat/ChatExplorer.vue'
+import { ChatExplorer } from '../AIChat'
 import SQLLabTab from './SQLLabTab.vue'
 
 const { t } = useI18n()
