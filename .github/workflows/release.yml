@@ -147,8 +147,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0 # 获取完整历史用于生成 changelog
 
       - name: Download macOS artifacts (x64)
         uses: actions/download-artifact@v4
@@ -184,43 +182,27 @@ jobs:
 
           echo "Current version: $CURRENT_VERSION"
 
-          # 获取上一个 tag
-          PREVIOUS_TAG=$(git tag --sort=-creatordate | grep -v "^${CURRENT_VERSION}$" | head -n 1)
+          # 从 changelog JSON 中提取最新版本的 summary
+          EN_SUMMARY=$(jq -r '.[0].summary' docs/changelogs_en.json)
+          CN_SUMMARY=$(jq -r '.[0].summary' docs/changelogs_cn.json)
 
-          if [ -z "$PREVIOUS_TAG" ]; then
-            echo "No previous tag found, using first commit"
-            COMMIT_RANGE="HEAD"
-          else
-            echo "Previous tag: $PREVIOUS_TAG"
-            COMMIT_RANGE="${PREVIOUS_TAG}..HEAD"
-          fi
+          echo "EN summary: $EN_SUMMARY"
+          echo "CN summary: $CN_SUMMARY"
 
           # 生成 release notes
           {
+            echo "## What's New"
             echo ""
-
-            # 提取 feat commits
-            FEATS=$(git log $COMMIT_RANGE --pretty=format:"%s" --grep="^feat" 2>/dev/null | sed 's/^feat[:(]//' | sed 's/^[^)]*): //' | sed 's/^/- /')
-            if [ -n "$FEATS" ]; then
-              echo "### 新功能"
-              echo "$FEATS"
-              echo ""
-            fi
-
-            # 提取 fix commits
-            FIXES=$(git log $COMMIT_RANGE --pretty=format:"%s" --grep="^fix" 2>/dev/null | sed 's/^fix[:(]//' | sed 's/^[^)]*): //' | sed 's/^/- 🐛 /')
-            if [ -n "$FIXES" ]; then
-              echo "### 修复"
-              echo "$FIXES"
-              echo ""
-            fi
-
-            # 如果没有 feat 和 fix，显示提示
-            if [ -z "$FEATS" ] && [ -z "$FIXES" ]; then
-              echo "- 常规更新和优化"
-              echo ""
-            fi
-
+            echo "$EN_SUMMARY"
+            echo ""
+            echo "## 更新内容"
+            echo ""
+            echo "$CN_SUMMARY"
+            echo ""
+            echo "---"
+            echo ""
+            echo "Full Changelog: [English](https://github.com/hellodigua/ChatLab/blob/main/docs/changelogs_en.json) | [中文](https://github.com/hellodigua/ChatLab/blob/main/docs/changelogs_cn.json)"
+            echo ""
             echo "---"
             echo ""
             echo "## Download"
