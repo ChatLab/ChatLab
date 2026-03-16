@@ -93,6 +93,10 @@ export function registerWindowHandlers(ctx: IpcContext): void {
       const response = await fetch(url)
       const contentType = response.headers.get('content-type') || ''
 
+      if (!response.ok) {
+        return { success: false, error: `HTTP ${response.status}: ${response.statusText}` }
+      }
+
       // 根据 Content-Type 或 URL 后缀决定解析方式
       const isJson = contentType.includes('application/json') || url.endsWith('.json')
 

@@ -223,6 +223,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
   const skillStore = useSkillStore()
   const { aiGlobalSettings } = storeToRefs(promptStore)
 
+  let pendingFocusReturn = false
+
   function generateId(prefix: string): string {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   }
@@ -471,7 +473,22 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
   function focusActiveTaskConversation(): boolean {
     if (!activeTask.value) return false
+    pendingFocusReturn = true
     return focusConversation(activeTask.value.chatKey, activeTask.value.conversationId)
+  }
+
+  /**
+   * 每次 ChatExplorer 挂载时调用，将界面重置到助手选择页。
+   * 如果是从浮动任务条返回（pendingFocusReturn），则跳过重置以保留对话状态。
+   */
+  function resetToSelectorOnEnter(chatKey: string): void {
+    if (pendingFocusReturn) {
+      pendingFocusReturn = false
+      return
+    }
+    const state = getSessionState(chatKey)
+    if (!state || state.isAIThinking) return
+    clearAssistantForSession(chatKey)
   }
 
   function startNewConversation(chatKey: string, welcomeMessage?: string): boolean {
@@ -993,6 +1010,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     loadConversation,
     focusConversation,
     focusActiveTaskConversation,
+    resetToSelectorOnEnter,
     startNewConversation,
     loadMoreSourceMessages,
     updateMaxMessages,

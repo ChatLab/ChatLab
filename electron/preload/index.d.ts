@@ -688,7 +688,6 @@ interface AssistantSummary {
   name: string
   systemPrompt: string
   presetQuestions: string[]
-  order?: number
   builtinId?: string
   applicableChatTypes?: ('group' | 'private')[]
   supportedLocales?: string[]
@@ -700,10 +699,7 @@ interface AssistantConfigFull {
   systemPrompt: string
   presetQuestions: string[]
   allowedBuiltinTools?: string[]
-  customSqlTools?: unknown[]
-  version: number
   builtinId?: string
-  order?: number
   applicableChatTypes?: ('group' | 'private')[]
   supportedLocales?: string[]
 }
@@ -712,33 +708,23 @@ interface BuiltinAssistantInfo {
   id: string
   name: string
   systemPrompt: string
-  version: number
-  order?: number
   applicableChatTypes?: ('group' | 'private')[]
   supportedLocales?: string[]
   imported: boolean
-  hasUpdate: boolean
-}
-
-interface BuiltinSqlToolInfo {
-  name: string
-  description: string
 }
 
 interface AssistantApi {
   getAll: () => Promise<AssistantSummary[]>
   getConfig: (id: string) => Promise<AssistantConfigFull | null>
   update: (id: string, updates: Partial<AssistantConfigFull>) => Promise<{ success: boolean; error?: string }>
-  create: (
-    config: Omit<AssistantConfigFull, 'id' | 'version'>
-  ) => Promise<{ success: boolean; id?: string; error?: string }>
+  create: (config: Omit<AssistantConfigFull, 'id'>) => Promise<{ success: boolean; id?: string; error?: string }>
   delete: (id: string) => Promise<{ success: boolean; error?: string }>
   reset: (id: string) => Promise<{ success: boolean; error?: string }>
   getBuiltinCatalog: () => Promise<BuiltinAssistantInfo[]>
-  getBuiltinSqlTools: () => Promise<BuiltinSqlToolInfo[]>
   getBuiltinTsToolNames: () => Promise<string[]>
   importAssistant: (builtinId: string) => Promise<{ success: boolean; error?: string }>
   reimportAssistant: (id: string) => Promise<{ success: boolean; error?: string }>
+  importFromMd: (rawMd: string) => Promise<{ success: boolean; id?: string; error?: string }>
 }
 
 // ==================== 技能管理 ====================
@@ -778,6 +764,7 @@ interface SkillApi {
   getBuiltinCatalog: () => Promise<BuiltinSkillInfo[]>
   importSkill: (builtinId: string) => Promise<{ success: boolean; id?: string; error?: string }>
   reimportSkill: (id: string) => Promise<{ success: boolean; error?: string }>
+  importFromMd: (rawMd: string) => Promise<{ success: boolean; id?: string; error?: string }>
 }
 
 // Cache API 类型
@@ -995,7 +982,6 @@ export {
   AssistantSummary,
   AssistantConfigFull,
   BuiltinAssistantInfo,
-  BuiltinSqlToolInfo,
   SkillApi,
   SkillSummary,
   SkillConfigFull,

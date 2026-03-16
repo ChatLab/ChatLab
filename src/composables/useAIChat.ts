@@ -46,6 +46,9 @@ export function useAIChat(
     locale,
   })
 
+  // 每次进入 AI Tab 时重置到助手选择页（从浮动任务条返回时除外）
+  aiChatStore.resetToSelectorOnEnter(chatKey)
+
   // 当前可见的 AI 页应恢复自己的助手上下文，避免不同会话之间串助手选择。
   aiChatStore.applySessionAssistantSelection(chatKey)
 

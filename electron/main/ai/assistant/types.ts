@@ -1,16 +1,18 @@
 /**
  * 助手系统类型定义
- * 定义助手配置、声明式 SQL 工具等核心类型
+ * 定义助手配置（Markdown 格式）和声明式 SQL 工具等核心类型
  */
 
 // ==================== 助手配置 ====================
 
 /**
- * 助手配置（JSON 配置文件的完整结构）
+ * 助手配置（Markdown 文件解析后的完整结构）
  *
- * 每个助手对应一个 JSON 文件，存储在 {userData}/data/ai/assistants/ 目录下。
- * 内置助手作为模板目录打包在 electron/main/ai/assistant/builtins/ 中，
- * 用户通过"助手市场"导入后才会复制到 userData。general 助手自动导入。
+ * 每个助手对应一个 .md 文件（YAML frontmatter + Markdown body）。
+ * - 内置助手模板打包在 electron/main/ai/assistant/builtins/*.md
+ * - 用户助手存储在 {userData}/data/ai/assistants/*.md
+ * - YAML frontmatter → 结构化元数据字段
+ * - Markdown body → systemPrompt
  */
 export interface AssistantConfig {
   /** 助手唯一标识 */
@@ -18,7 +20,7 @@ export interface AssistantConfig {
   /** 助手显示名称 */
   name: string
 
-  /** 系统提示词（角色定义 + 回答要求，统一为单一字段） */
+  /** 系统提示词（角色定义 + 回答要求，来自 Markdown body） */
   systemPrompt: string
 
   /** 预设问题列表（前端展示，用户可点击直接发送） */
@@ -31,18 +33,11 @@ export interface AssistantConfig {
    */
   allowedBuiltinTools?: string[]
 
-  /** 用户自定义声明式 SQL 工具 */
-  customSqlTools?: CustomSqlToolDef[]
-
-  /** 配置版本号，用于内置助手的版本比对 */
-  version: number
   /**
    * 内置助手来源标识
    * 非空 = 该配置由某个内置助手导入而来（值为内置助手的 id）
    */
   builtinId?: string
-  /** 助手排序权重（越小越靠前，默认 100） */
-  order?: number
 
   /**
    * 适用的聊天类型
@@ -69,7 +64,6 @@ export interface AssistantSummary {
   name: string
   systemPrompt: string
   presetQuestions: string[]
-  order?: number
   builtinId?: string
   applicableChatTypes?: ('group' | 'private')[]
   supportedLocales?: string[]
@@ -82,14 +76,10 @@ export interface BuiltinAssistantInfo {
   id: string
   name: string
   systemPrompt: string
-  version: number
-  order?: number
   applicableChatTypes?: ('group' | 'private')[]
   supportedLocales?: string[]
   /** 用户是否已导入该助手 */
   imported: boolean
-  /** 已导入的助手是否有新版本可用 */
-  hasUpdate: boolean
 }
 
 // ==================== 声明式 SQL 工具 ====================
@@ -200,12 +190,3 @@ export interface AssistantSaveResult {
   error?: string
 }
 
-/**
- * 内置 SQL 工具的精简信息（供前端展示勾选列表）
- */
-export interface BuiltinSqlToolInfo {
-  /** 工具名称（唯一标识，同 CustomSqlToolDef.name） */
-  name: string
-  /** 工具中文描述 */
-  description: string
-}

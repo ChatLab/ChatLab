@@ -1,10 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
-import { useAssistantStore, type BuiltinAssistantInfo } from '@/stores/assistant'
+import { useAssistantStore, type CloudAssistantItem } from '@/stores/assistant'
+import { useToast } from '@nuxt/ui/runtime/composables/useToast.js'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
+const toast = useToast()
 
 const props = defineProps<{
   open: boolean
@@ -18,31 +20,37 @@ const emit = defineEmits<{
 }>()
 
 const assistantStore = useAssistantStore()
-const { assistants, builtinCatalog } = storeToRefs(assistantStore)
+const { assistants, cloudCatalogWithStatus, cloudLoading, cloudError } = storeToRefs(assistantStore)
 
 const activeTab = ref<'local' | 'market'>('local')
 
 const sortedAssistants = computed(() => {
-  return [...assistants.value].sort((a, b) => {
-    const orderDiff = (a.order ?? 100) - (b.order ?? 100)
-    if (orderDiff !== 0) return orderDiff
-    return a.name.localeCompare(b.name)
-  })
+  const loc = locale.value
+  return [...assistants.value]
+    .filter((a) => !a.supportedLocales?.length || a.supportedLocales.some((l) => loc.startsWith(l)))
+    .sort((a, b) => a.name.localeCompare(b.name))
 })
 
 const sortedCatalog = computed(() => {
-  return [...builtinCatalog.value].sort((a, b) => {
-    const orderDiff = (a.order ?? 100) - (b.order ?? 100)
-    if (orderDiff !== 0) return orderDiff
-    return a.name.localeCompare(b.name)
-  })
+  return [...cloudCatalogWithStatus.value].sort((a, b) => a.name.localeCompare(b.name))
 })
 
-const importing = new Set<string>()
+const importingIds = ref(new Set<string>())
 
 onMounted(() => {
-  assistantStore.loadBuiltinCatalog()
+  assistantStore.setFilterContext('group', locale.value)
 })
+
+watch(
+  () => [props.open, activeTab.value] as const,
+  ([open, tab]) => {
+    if (open && tab === 'market') {
+      assistantStore.setFilterContext('group', locale.value)
+      assistantStore.fetchCloudCatalog()
+    }
+  },
+  { immediate: true }
+)
 
 function isGeneral(id: string): boolean {
   return id === 'general'
@@ -65,27 +73,51 @@ function handleCreate() {
   emit('create')
 }
 
-async function handleImport(builtinId: string) {
-  if (importing.has(builtinId)) return
-  importing.add(builtinId)
+async function handleImportCloud(item: CloudAssistantItem) {
+  if (importingIds.value.has(item.id)) return
+  importingIds.value = new Set([...importingIds.value, item.id])
   try {
-    await assistantStore.importAssistant(builtinId)
+    const result = await assistantStore.importFromCloud(item)
+    if (result.success) {
+      toast.add({ title: t('ai.assistant.market.importSuccess'), color: 'success' })
+    } else {
+      toast.add({ title: t('ai.assistant.market.importFailed'), description: result.error, color: 'error' })
+    }
   } finally {
-    importing.delete(builtinId)
+    const next = new Set(importingIds.value)
+    next.delete(item.id)
+    importingIds.value = next
   }
 }
 
-async function handleReimport(item: BuiltinAssistantInfo) {
-  const userAssistant = assistantStore.assistants.find((a) => a.builtinId === item.id)
-  if (!userAssistant) return
-  await assistantStore.reimportAssistant(userAssistant.id)
+async function handleReimportCloud(item: CloudAssistantItem) {
+  if (importingIds.value.has(item.id)) return
+  importingIds.value = new Set([...importingIds.value, item.id])
+  try {
+    const deleteResult = await assistantStore.deleteAssistant(item.id)
+    if (!deleteResult.success) {
+      toast.add({ title: t('ai.assistant.market.importFailed'), description: deleteResult.error, color: 'error' })
+      return
+    }
+    const importResult = await assistantStore.importFromCloud(item)
+    if (importResult.success) {
+      toast.add({ title: t('ai.assistant.market.importSuccess'), color: 'success' })
+    } else {
+      toast.add({ title: t('ai.assistant.market.importFailed'), description: importResult.error, color: 'error' })
+    }
+  } finally {
+    const next = new Set(importingIds.value)
+    next.delete(item.id)
+    importingIds.value = next
+  }
 }
 
-function handleViewConfig(builtinId: string) {
-  const userAssistant = assistantStore.assistants.find((a) => a.builtinId === builtinId)
-  if (userAssistant) {
-    emit('view-config', userAssistant.id)
-  }
+function handleViewConfig(itemId: string) {
+  emit('view-config', itemId)
+}
+
+function handleRetry() {
+  assistantStore.fetchCloudCatalog()
 }
 
 function getChatTypeLabel(types?: ('group' | 'private')[]): string | null {
@@ -125,10 +157,10 @@ function getChatTypeLabel(types?: ('group' | 'private')[]): string | null {
           >
             {{ t('ai.assistant.market.tabs.local') }}
             <span
-              v-if="assistants.length"
+              v-if="sortedAssistants.length"
               class="ml-1 inline-flex h-4 min-w-4 items-center justify-center rounded-full bg-primary-100 px-1 text-[10px] text-primary-600 dark:bg-primary-900/30 dark:text-primary-400"
             >
-              {{ assistants.length }}
+              {{ sortedAssistants.length }}
             </span>
           </button>
           <button
@@ -221,7 +253,23 @@ function getChatTypeLabel(types?: ('group' | 'private')[]): string | null {
         <!-- 助手市场 Tab -->
         <div v-show="activeTab === 'market'">
           <p class="mb-3 text-xs text-gray-500 dark:text-gray-400">{{ t('ai.assistant.market.marketHint') }}</p>
-          <div class="max-h-[400px] space-y-3 overflow-y-auto pr-1">
+
+          <div v-if="cloudLoading" class="py-12 text-center text-sm text-gray-400">
+            {{ t('ai.assistant.market.loading') }}
+          </div>
+
+          <div v-else-if="cloudError" class="py-12 text-center">
+            <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('ai.assistant.market.loadFailed') }}</p>
+            <button
+              type="button"
+              class="mt-3 rounded-lg bg-primary-500 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-primary-600"
+              @click="handleRetry"
+            >
+              {{ t('ai.assistant.market.retry') }}
+            </button>
+          </div>
+
+          <div v-else class="max-h-[400px] space-y-3 overflow-y-auto pr-1">
             <div
               v-for="item in sortedCatalog"
               :key="item.id"
@@ -244,41 +292,36 @@ function getChatTypeLabel(types?: ('group' | 'private')[]): string | null {
                   >
                     {{ t('ai.assistant.market.default') }}
                   </span>
-                  <span
-                    v-if="item.imported && item.hasUpdate"
-                    class="inline-flex shrink-0 items-center rounded-full bg-orange-100 px-2 py-0.5 text-[10px] font-medium text-orange-700 dark:bg-orange-900/30 dark:text-orange-400"
-                  >
-                    {{ t('ai.assistant.market.updateAvailable') }}
-                  </span>
                 </div>
                 <p class="mt-1 line-clamp-1 text-xs text-gray-500 dark:text-gray-400">
-                  {{ item.systemPrompt }}
+                  {{ item.description }}
                 </p>
               </div>
 
               <div class="flex shrink-0 items-center gap-2">
                 <button
-                  v-if="item.imported && item.hasUpdate"
-                  class="rounded-lg bg-orange-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-orange-600"
-                  @click="handleReimport(item)"
+                  v-if="!item.imported"
+                  class="rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary-600 disabled:opacity-50"
+                  :disabled="importingIds.has(item.id)"
+                  @click="handleImportCloud(item)"
                 >
-                  {{ t('ai.assistant.market.reimport') }}
+                  {{ importingIds.has(item.id) ? t('ai.assistant.market.importing') : t('ai.assistant.market.import') }}
                 </button>
 
-                <span
-                  v-else-if="item.imported"
-                  class="px-3 py-1.5 text-xs font-medium text-gray-400 dark:text-gray-500"
-                >
-                  {{ t('ai.assistant.market.imported') }}
-                </span>
-
-                <button
-                  v-else
-                  class="rounded-lg bg-primary-500 px-3 py-1.5 text-xs font-medium text-white transition-colors hover:bg-primary-600"
-                  @click="handleImport(item.id)"
-                >
-                  {{ t('ai.assistant.market.import') }}
-                </button>
+                <template v-else>
+                  <span
+                    class="px-3 py-1.5 text-xs font-medium text-gray-400 dark:text-gray-500"
+                  >
+                    {{ t('ai.assistant.market.imported') }}
+                  </span>
+                  <button
+                    class="rounded-lg px-3 py-1.5 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-700 dark:hover:text-gray-300 disabled:opacity-50"
+                    :disabled="importingIds.has(item.id)"
+                    @click="handleReimportCloud(item)"
+                  >
+                    {{ importingIds.has(item.id) ? t('ai.assistant.market.importing') : t('ai.assistant.market.reimport') }}
+                  </button>
+                </template>
 
                 <button
                   v-if="item.imported"
@@ -292,7 +335,7 @@ function getChatTypeLabel(types?: ('group' | 'private')[]): string | null {
             </div>
           </div>
 
-          <div v-if="sortedCatalog.length === 0" class="py-12 text-center text-sm text-gray-400">
+          <div v-if="!cloudLoading && !cloudError && sortedCatalog.length === 0" class="py-12 text-center text-sm text-gray-400">
             {{ t('ai.assistant.market.noCatalog') }}
           </div>
         </div>

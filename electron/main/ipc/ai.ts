@@ -634,15 +634,6 @@ export function registerAIHandlers({ win }: IpcContext): void {
     }
   })
 
-  ipcMain.handle('assistant:getBuiltinSqlTools', async () => {
-    try {
-      return assistantManager.getBuiltinSqlToolCatalog()
-    } catch (error) {
-      console.error('Failed to get builtin sql tools:', error)
-      return []
-    }
-  })
-
   ipcMain.handle('assistant:getBuiltinTsToolNames', async () => {
     try {
       return assistantManager.getBuiltinTsToolNames()
@@ -675,6 +666,15 @@ export function registerAIHandlers({ win }: IpcContext): void {
       return assistantManager.reimportAssistant(id)
     } catch (error) {
       console.error('Failed to reimport assistant:', error)
+      return { success: false, error: String(error) }
+    }
+  })
+
+  ipcMain.handle('assistant:importFromMd', async (_, rawMd: string) => {
+    try {
+      return assistantManager.importAssistantFromMd(rawMd)
+    } catch (error) {
+      console.error('Failed to import assistant from markdown:', error)
       return { success: false, error: String(error) }
     }
   })
@@ -749,6 +749,15 @@ export function registerAIHandlers({ win }: IpcContext): void {
       return skillManager.reimportSkill(id)
     } catch (error) {
       console.error('Failed to reimport skill:', error)
+      return { success: false, error: String(error) }
+    }
+  })
+
+  ipcMain.handle('skill:importFromMd', async (_, rawMd: string) => {
+    try {
+      return skillManager.importSkillFromMd(rawMd)
+    } catch (error) {
+      console.error('Failed to import skill from markdown:', error)
       return { success: false, error: String(error) }
     }
   })

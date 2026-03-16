@@ -21,6 +21,7 @@ export {
   createSkill,
   deleteSkill,
   getSkillMenu,
+  importSkillFromMd,
 } from './manager'
 
 export { parseSkillFile } from './parser'

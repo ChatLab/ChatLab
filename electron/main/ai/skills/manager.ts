@@ -24,20 +24,10 @@ import type {
   BuiltinSkillInfo,
 } from './types'
 
-// ==================== 内置技能模板（通过 ?raw import 在编译时内联） ====================
-// 与助手系统使用 JSON import 的策略一致，利用 Vite 构建能力将 .md 内容嵌入 bundle
+// ==================== 内置技能模板 ====================
+// 云端市场上线后，本地不再内置技能模板，全部从云端获取
 
-import builtinWeeklyReport from './builtin/weekly_report.md?raw'
-import builtinMemberProfile from './builtin/member_profile.md?raw'
-import builtinTopicTracking from './builtin/topic_tracking.md?raw'
-import builtinRelationshipMap from './builtin/relationship_map.md?raw'
-
-const BUILTIN_SKILL_RAW: { id: string; content: string }[] = [
-  { id: 'weekly_report', content: builtinWeeklyReport },
-  { id: 'member_profile', content: builtinMemberProfile },
-  { id: 'topic_tracking', content: builtinTopicTracking },
-  { id: 'relationship_map', content: builtinRelationshipMap },
-]
+const BUILTIN_SKILL_RAW: { id: string; content: string }[] = []
 
 // Parsed cache of builtin templates
 const builtinSkillDefs: Map<string, SkillDef> = new Map()
@@ -249,6 +239,28 @@ export function deleteSkill(id: string): SkillSaveResult {
   } catch (error) {
     return { success: false, error: String(error) }
   }
+}
+
+// ==================== 云端导入 ====================
+
+/**
+ * 从原始 Markdown 导入技能（云端市场用）
+ * 与 createSkill 类似，但 id 冲突时拒绝而非重命名
+ */
+export function importSkillFromMd(rawMd: string): SkillSaveResult & { id?: string } {
+  ensureInitialized()
+
+  const def = parseSkillFile(rawMd, 'cloud_import.md')
+  if (!def) {
+    return { success: false, error: 'Failed to parse skill markdown' }
+  }
+
+  if (cachedSkills.has(def.id)) {
+    return { success: false, error: `Skill already exists: ${def.id}` }
+  }
+
+  const result = saveSkillToDisk(def.id, rawMd, def)
+  return { ...result, id: result.success ? def.id : undefined }
 }
 
 // ==================== AI 自选菜单 ====================

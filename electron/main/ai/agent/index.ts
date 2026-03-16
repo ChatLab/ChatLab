@@ -6,7 +6,6 @@
 import { getActiveConfig, buildPiModel } from '../llm'
 import { getAllTools, createActivateSkillTool } from '../tools'
 import type { ToolContext, OwnerInfo } from '../tools/types'
-import { createSqlTools } from '../assistant/sqlToolRunner'
 import { getHistoryForAgent } from '../conversations'
 import { aiLogger, isDebugMode } from '../logger'
 import { t as i18nT } from '../../i18n'
@@ -153,11 +152,6 @@ export class Agent {
     const allowedTools = this.assistantConfig?.allowedBuiltinTools
     const toolContext = { ...this.context, locale: this.locale }
     const piTools = getAllTools(toolContext, allowedTools)
-
-    // 用户自定义 SQL 工具（内置 SQL 工具已由 getAllTools 统一管控）
-    if (this.assistantConfig?.customSqlTools?.length) {
-      piTools.push(...createSqlTools(this.assistantConfig.customSqlTools, toolContext))
-    }
 
     // AI 自选模式：注册 activate_skill 元工具（手动选择时不注册，避免冲突）
     if (this.skillCtx?.skillMenu && !this.skillCtx?.skillDef) {

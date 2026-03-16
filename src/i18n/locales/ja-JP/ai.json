@@ -257,46 +257,33 @@
       "deselectAll": "すべて解除",
       "builtinToolsHint": "何も選ばなければ全ツールを使います。選択した場合は、そのツールだけが有効になります。",
       "toolGroupQuery": "データ検索ツール",
-      "toolGroupSql": "SQL 分析ツール",
-      "customSqlTools": "カスタム SQL ツール",
-      "customSqlToolsHint": "宣言型 SQL ツールは AI の Function Calling として自動登録され、パラメータ付き SQL を実行して結果を整形します。",
-      "toolUntitled": "ツール {index}（無名）",
-      "toolName": "ツール名",
-      "toolNamePlaceholder": "例: top_active_members",
-      "toolDesc": "ツールの説明",
-      "toolDescPlaceholder": "最もアクティブなメンバーのランキングを検索",
-      "toolParams": "パラメータ定義（JSON Schema）",
-      "toolQuery": "SQL クエリ（{'@'}paramName でパラメータを参照）",
-      "toolQueryPlaceholder": "SELECT sender_name, COUNT(*) as cnt FROM message ...",
-      "toolRowTemplate": "行テンプレート（{columnName} プレースホルダー）",
-      "toolRowTemplatePlaceholder": "{sender_name}: {cnt} 件のメッセージ",
-      "toolFallback": "結果なし時のメッセージ",
-      "toolFallbackPlaceholder": "関連データが見つかりませんでした",
-      "toolFallbackDefault": "関連データが見つかりませんでした",
-      "toolSummary": "サマリーテンプレート（任意、{rowCount} は行数）",
-      "toolSummaryPlaceholder": "全 {rowCount} 件のレコード：",
-      "addCustomTool": "カスタム SQL ツールを追加",
       "resetDefault": "デフォルトに戻す",
       "create": "作成"
     },
     "market": {
       "title": "アシスタント管理",
       "tabs": {
-        "local": "ローカルアシスタント",
-        "market": "アシスタントマーケット"
+        "local": "ローカル",
+        "market": "マーケット"
       },
-      "localHint": "インポート済みのアシスタントを管理。設定変更や削除が可能です",
-      "marketHint": "内蔵アシスタントテンプレートを閲覧。インポート後すぐに使用・編集できます",
+      "localHint": "インポート済みのアシスタントを管理・設定・削除",
+      "marketHint": "アシスタントマーケットを閲覧し、インポートして使用・カスタマイズ",
       "default": "デフォルト",
       "updateAvailable": "更新あり",
       "reimport": "再インポート",
       "imported": "インポート済み",
       "import": "インポート",
-      "viewConfig": "設定を表示",
+      "importing": "インポート中...",
+      "importSuccess": "インポート成功",
+      "importFailed": "インポート失敗",
+      "viewConfig": "設定を見る",
       "duplicate": "複製",
       "addAssistant": "アシスタントを追加",
       "noLocal": "インポート済みのアシスタントはありません",
-      "noCatalog": "利用可能なアシスタントテンプレートはありません"
+      "noCatalog": "利用可能なアシスタントがありません。ネットワーク接続を確認してください",
+      "loading": "読み込み中...",
+      "loadFailed": "読み込みに失敗しました。ネットワーク接続を確認してください",
+      "retry": "再試行"
     },
     "fallbackName": "アシスタント",
     "duplicateSuffix": "（コピー）",
@@ -326,6 +313,28 @@
     }
   },
   "skill": {
+    "market": {
+      "title": "スキル管理",
+      "tabs": {
+        "local": "ローカル",
+        "market": "マーケット"
+      },
+      "localHint": "インポート済みのスキルを管理・設定・削除",
+      "marketHint": "スキルマーケットを閲覧し、インポートして使用・カスタマイズ",
+      "updateAvailable": "更新あり",
+      "reimport": "再インポート",
+      "imported": "インポート済み",
+      "import": "インポート",
+      "importing": "インポート中...",
+      "importSuccess": "インポート成功",
+      "importFailed": "インポート失敗",
+      "noLocal": "インポート済みのスキルはありません",
+      "noCatalog": "利用可能なスキルがありません。ネットワーク接続を確認してください",
+      "addSkill": "カスタムスキルを作成",
+      "loading": "読み込み中...",
+      "loadFailed": "読み込みに失敗しました。ネットワーク接続を確認してください",
+      "retry": "再試行"
+    },
     "block": {
       "label": "スキル：{name}"
     },

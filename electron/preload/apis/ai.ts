@@ -671,7 +671,6 @@ export interface AssistantSummary {
   name: string
   systemPrompt: string
   presetQuestions: string[]
-  order?: number
   builtinId?: string
   applicableChatTypes?: ('group' | 'private')[]
   supportedLocales?: string[]
@@ -683,10 +682,7 @@ export interface AssistantConfigFull {
   systemPrompt: string
   presetQuestions: string[]
   allowedBuiltinTools?: string[]
-  customSqlTools?: unknown[]
-  version: number
   builtinId?: string
-  order?: number
   applicableChatTypes?: ('group' | 'private')[]
   supportedLocales?: string[]
 }
@@ -695,17 +691,9 @@ export interface BuiltinAssistantInfo {
   id: string
   name: string
   systemPrompt: string
-  version: number
-  order?: number
   applicableChatTypes?: ('group' | 'private')[]
   supportedLocales?: string[]
   imported: boolean
-  hasUpdate: boolean
-}
-
-export interface BuiltinSqlToolInfo {
-  name: string
-  description: string
 }
 
 export const assistantApi = {
@@ -722,7 +710,7 @@ export const assistantApi = {
   },
 
   create: (
-    config: Omit<AssistantConfigFull, 'id' | 'version'>
+    config: Omit<AssistantConfigFull, 'id'>
   ): Promise<{ success: boolean; id?: string; error?: string }> => {
     return ipcRenderer.invoke('assistant:create', config)
   },
@@ -739,10 +727,6 @@ export const assistantApi = {
     return ipcRenderer.invoke('assistant:getBuiltinCatalog')
   },
 
-  getBuiltinSqlTools: (): Promise<BuiltinSqlToolInfo[]> => {
-    return ipcRenderer.invoke('assistant:getBuiltinSqlTools')
-  },
-
   getBuiltinTsToolNames: (): Promise<string[]> => {
     return ipcRenderer.invoke('assistant:getBuiltinTsToolNames')
   },
@@ -753,6 +737,10 @@ export const assistantApi = {
 
   reimportAssistant: (id: string): Promise<{ success: boolean; error?: string }> => {
     return ipcRenderer.invoke('assistant:reimport', id)
+  },
+
+  importFromMd: (rawMd: string): Promise<{ success: boolean; id?: string; error?: string }> => {
+    return ipcRenderer.invoke('assistant:importFromMd', rawMd)
   },
 }
 
@@ -815,6 +803,10 @@ export const skillApi = {
 
   reimportSkill: (id: string): Promise<{ success: boolean; error?: string }> => {
     return ipcRenderer.invoke('skill:reimport', id)
+  },
+
+  importFromMd: (rawMd: string): Promise<{ success: boolean; id?: string; error?: string }> => {
+    return ipcRenderer.invoke('skill:importFromMd', rawMd)
   },
 }
 
