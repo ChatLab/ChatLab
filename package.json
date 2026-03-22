@@ -27,8 +27,6 @@
     "type-check:all": "npm run type-check:web && npm run type-check:node",
     "type-check": "vue-tsc --noEmit -p tsconfig.web.json",
     "test:agent-context": "node --experimental-strip-types --test electron/main/ai/context/sessionLog.test.mjs",
-    "test:minimax": "node --test electron/main/ai/llm/llm-minimax.test.mjs",
-    "test:minimax:integration": "node --test electron/main/ai/llm/llm-minimax-integration.test.mjs",
     "postinstall": "electron-rebuild"
   },
   "dependencies": {
