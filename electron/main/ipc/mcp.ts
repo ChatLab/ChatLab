@@ -3,7 +3,7 @@
  * 管理 MCP Server 子进程的启动、停止和状态查询
  */
 
-import { ipcMain } from 'electron'
+import { ipcMain, app } from 'electron'
 import { fork, type ChildProcess } from 'child_process'
 import * as path from 'path'
 import * as fs from 'fs'
@@ -49,13 +49,13 @@ let lastConfig: McpServerConfig = { ...DEFAULT_CONFIG }
  * 获取 MCP Server 可执行文件路径
  */
 function getMcpServerEntry(): string {
-  // 在开发和生产环境下都查找 packages/mcp-server/dist/index.js
+  // app.getAppPath() returns the project root in dev, or app.asar in production
+  const appRoot = app.getAppPath()
   const candidates = [
-    // 开发环境：从项目根目录
-    path.join(__dirname, '..', '..', '..', 'packages', 'mcp-server', 'dist', 'index.js'),
-    // 生产环境：从 app.asar
+    // 开发环境：项目根目录下的 packages/mcp-server/dist/index.js
+    path.join(appRoot, 'packages', 'mcp-server', 'dist', 'index.js'),
+    // 生产环境：extraResources 目录
     path.join(process.resourcesPath || '', 'packages', 'mcp-server', 'dist', 'index.js'),
-    // 生产环境备选：extraResources
     path.join(process.resourcesPath || '', 'mcp-server', 'dist', 'index.js'),
   ]
 
