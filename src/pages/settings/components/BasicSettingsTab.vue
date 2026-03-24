@@ -7,6 +7,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { useColorMode } from '@vueuse/core'
 import { availableLocales, type LocaleType } from '@/i18n'
 import NetworkSettingsSection from './NetworkSettingsSection.vue'
+import McpServerSection from './McpServerSection.vue'
 import UITabs from '@/components/UI/Tabs.vue'
 
 const { t } = useI18n()
@@ -119,5 +120,8 @@ watch(
 
     <!-- 网络设置 -->
     <NetworkSettingsSection />
+
+    <!-- MCP Server -->
+    <McpServerSection />
   </div>
 </template>

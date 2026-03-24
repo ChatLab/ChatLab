@@ -49,6 +49,26 @@
       "invalidProxyUrl": "请输入有效的代理地址，格式如 http://127.0.0.1:7890",
       "onlyHttpSupported": "仅支持 http:// 或 https:// 协议",
       "saveFailed": "保存失败"
+    },
+    "mcp": {
+      "title": "MCP Server",
+      "enable": "启用 MCP Server",
+      "enableDesc": "启动 MCP 服务，允许 Claude Code、Cursor 等外部 AI 工具访问聊天记录分析能力",
+      "statusRunning": "运行中",
+      "statusStopped": "已停止",
+      "start": "启动",
+      "stop": "停止",
+      "transport": "传输模式",
+      "transportDesc": "HTTP 模式提供 REST API 和 SSE 端点；Stdio 模式用于直接管道通信",
+      "port": "HTTP 端口",
+      "invalidPort": "端口号需为 1-65535 之间的整数",
+      "autoStart": "随应用启动",
+      "autoStartDesc": "开启后，MCP Server 会在 ChatLab 启动时自动运行",
+      "externalConfig": "外部工具配置信息",
+      "externalConfigDesc": "使用以下信息在 Claude Code、Cursor 等工具中配置 MCP Server（Stdio 模式）",
+      "serverEntry": "服务入口",
+      "dbDirectory": "数据库目录",
+      "stdioCommand": "Stdio 启动命令"
     }
   },
   "aiConfig": {

@@ -49,6 +49,26 @@
       "invalidProxyUrl": "有効なプロキシアドレスを入力してください。形式例：http://127.0.0.1:7890",
       "onlyHttpSupported": "http:// または https:// プロトコルのみ対応",
       "saveFailed": "保存に失敗しました"
+    },
+    "mcp": {
+      "title": "MCP Server",
+      "enable": "MCP Server を有効にする",
+      "enableDesc": "MCP サーバーを起動し、Claude Code や Cursor などの外部 AI ツールからチャット分析機能にアクセスできるようにします",
+      "statusRunning": "実行中",
+      "statusStopped": "停止中",
+      "start": "起動",
+      "stop": "停止",
+      "transport": "トランスポート",
+      "transportDesc": "HTTP モードは REST API と SSE エンドポイントを提供。Stdio モードはパイプ通信用",
+      "port": "HTTP ポート",
+      "invalidPort": "ポート番号は 1〜65535 の整数で入力してください",
+      "autoStart": "アプリ起動時に開始",
+      "autoStartDesc": "有効にすると、ChatLab 起動時に MCP Server が自動的に開始されます",
+      "externalConfig": "外部ツール設定情報",
+      "externalConfigDesc": "以下の情報を使って Claude Code や Cursor などで MCP Server を設定してください（Stdio モード）",
+      "serverEntry": "サーバーエントリ",
+      "dbDirectory": "データベースディレクトリ",
+      "stdioCommand": "Stdio 起動コマンド"
     }
   },
   "aiConfig": {

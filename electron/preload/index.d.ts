@@ -949,6 +949,32 @@ interface SessionApi {
   >
 }
 
+// MCP Server API 类型
+interface McpServerConfig {
+  enabled: boolean
+  transport: 'stdio' | 'http'
+  port: number
+  autoStart: boolean
+}
+
+interface McpServerStatus {
+  running: boolean
+  pid?: number
+  transport?: 'stdio' | 'http'
+  port?: number
+  uptime?: number
+  error?: string
+}
+
+interface McpApi {
+  getConfig: () => Promise<McpServerConfig>
+  saveConfig: (config: McpServerConfig) => Promise<{ success: boolean; error?: string }>
+  start: () => Promise<{ success: boolean; error?: string }>
+  stop: () => Promise<{ success: boolean; error?: string }>
+  getStatus: () => Promise<McpServerStatus>
+  getServerPath: () => Promise<{ path: string; dbDir: string } | null>
+}
+
 declare global {
   interface Window {
     electron: ElectronAPI
@@ -965,6 +991,7 @@ declare global {
     networkApi: NetworkApi
     sessionApi: SessionApi
     nlpApi: NlpApi
+    mcpApi: McpApi
   }
 }
 
@@ -1020,4 +1047,7 @@ export {
   SupportedLocale,
   PosFilterMode,
   PosTagInfo,
+  McpApi,
+  McpServerConfig,
+  McpServerStatus,
 }

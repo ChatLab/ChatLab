@@ -49,6 +49,26 @@
       "invalidProxyUrl": "Please enter a valid proxy address, e.g. http://127.0.0.1:7890",
       "onlyHttpSupported": "Only http:// or https:// protocols are supported",
       "saveFailed": "Save failed"
+    },
+    "mcp": {
+      "title": "MCP Server",
+      "enable": "Enable MCP Server",
+      "enableDesc": "Start MCP server to allow external AI tools like Claude Code, Cursor to access chat analysis capabilities",
+      "statusRunning": "Running",
+      "statusStopped": "Stopped",
+      "start": "Start",
+      "stop": "Stop",
+      "transport": "Transport",
+      "transportDesc": "HTTP mode provides REST API and SSE endpoint; Stdio mode is for direct pipe communication",
+      "port": "HTTP Port",
+      "invalidPort": "Port must be an integer between 1-65535",
+      "autoStart": "Start with App",
+      "autoStartDesc": "When enabled, MCP Server will start automatically when ChatLab launches",
+      "externalConfig": "External Tool Configuration",
+      "externalConfigDesc": "Use the following info to configure MCP Server in Claude Code, Cursor, etc. (Stdio mode)",
+      "serverEntry": "Server Entry",
+      "dbDirectory": "Database Directory",
+      "stdioCommand": "Stdio Command"
     }
   },
   "aiConfig": {

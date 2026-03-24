@@ -9,7 +9,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 import { extendedApi } from './apis/core'
 import { chatApi, mergeApi } from './apis/chat'
 import { aiApi, llmApi, agentApi, embeddingApi, assistantApi, skillApi } from './apis/ai'
-import { nlpApi, networkApi, cacheApi, sessionApi } from './apis/utils'
+import { nlpApi, networkApi, cacheApi, sessionApi, mcpApi } from './apis/utils'
 
 // Use `contextBridge` APIs to expose Electron APIs to
 // renderer only if context isolation is enabled, otherwise
@@ -30,6 +30,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('networkApi', networkApi)
     contextBridge.exposeInMainWorld('sessionApi', sessionApi)
     contextBridge.exposeInMainWorld('nlpApi', nlpApi)
+    contextBridge.exposeInMainWorld('mcpApi', mcpApi)
   } catch (error) {
     console.error(error)
   }
@@ -62,4 +63,6 @@ if (process.contextIsolated) {
   window.sessionApi = sessionApi
   // @ts-ignore (define in dts)
   window.nlpApi = nlpApi
+  // @ts-ignore (define in dts)
+  window.mcpApi = mcpApi
 }
