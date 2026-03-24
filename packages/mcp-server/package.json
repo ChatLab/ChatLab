@@ -1,0 +1,25 @@
+{
+  "name": "@chatlab/mcp-server",
+  "version": "0.1.0",
+  "description": "ChatLab MCP Server - Expose chat analysis capabilities via MCP protocol and REST API",
+  "type": "module",
+  "bin": {
+    "chatlab-mcp": "./dist/index.js"
+  },
+  "main": "./dist/index.js",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.25.2",
+    "better-sqlite3": "^12.4.6",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/better-sqlite3": "^7.6.13",
+    "@types/express": "^5.0.0",
+    "typescript": "^5.8.0"
+  },
+  "license": "AGPL-3.0"
+}
