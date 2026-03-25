@@ -15,6 +15,7 @@ import { registerCacheHandlers } from './ipc/cache'
 import { registerNetworkHandlers } from './ipc/network'
 import { registerNlpHandlers } from './ipc/nlp'
 import { registerAnalyticsHandlers } from './analytics'
+import { registerMcpHandlers, cleanupMcpServer } from './ipc/mcp'
 // 导入 Worker 模块（用于异步分析查询和流式导入）
 import * as worker from './worker/workerManager'
 
@@ -48,6 +49,7 @@ const mainIpcMain = (win: BrowserWindow) => {
   registerNetworkHandlers(context)
   registerNlpHandlers(context)
   registerAnalyticsHandlers()
+  registerMcpHandlers(context)
 
   console.log('[IpcMain] All IPC handlers registered successfully')
 }
@@ -57,6 +59,8 @@ export const cleanup = () => {
   try {
     // 关闭 Worker
     worker.closeWorker()
+    // 停止 MCP Server
+    cleanupMcpServer()
     // 清理临时数据库
     cleanupTempDbs()
   } catch (error) {

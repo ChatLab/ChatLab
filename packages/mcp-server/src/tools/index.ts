@@ -8,6 +8,7 @@ import { registerMemberTools } from './members.js'
 import { registerMessageTools } from './messages.js'
 import { registerStatsTools } from './stats.js'
 import { registerSqlTools } from './sql.js'
+import { registerNlpTools } from './nlp.js'
 
 /**
  * Register all MCP tools on the server
@@ -18,4 +19,5 @@ export function registerAllTools(server: McpServer): void {
   registerMessageTools(server)
   registerStatsTools(server)
   registerSqlTools(server)
+  registerNlpTools(server)
 }

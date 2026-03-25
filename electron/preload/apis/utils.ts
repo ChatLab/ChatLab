@@ -214,6 +214,51 @@ export const cacheApi = {
   },
 }
 
+// ==================== MCP Server API ====================
+
+export interface McpServerConfig {
+  enabled: boolean
+  transport: 'stdio' | 'http'
+  port: number
+  autoStart: boolean
+  apiKey: string
+}
+
+export interface McpServerStatus {
+  running: boolean
+  pid?: number
+  transport?: 'stdio' | 'http'
+  port?: number
+  uptime?: number
+  error?: string
+}
+
+export const mcpApi = {
+  getConfig: (): Promise<McpServerConfig> => {
+    return ipcRenderer.invoke('mcp:getConfig')
+  },
+
+  saveConfig: (config: McpServerConfig): Promise<{ success: boolean; error?: string }> => {
+    return ipcRenderer.invoke('mcp:saveConfig', config)
+  },
+
+  start: (): Promise<{ success: boolean; error?: string }> => {
+    return ipcRenderer.invoke('mcp:start')
+  },
+
+  stop: (): Promise<{ success: boolean; error?: string }> => {
+    return ipcRenderer.invoke('mcp:stop')
+  },
+
+  getStatus: (): Promise<McpServerStatus> => {
+    return ipcRenderer.invoke('mcp:getStatus')
+  },
+
+  getServerPath: (): Promise<{ path: string; dbDir: string } | null> => {
+    return ipcRenderer.invoke('mcp:getServerPath')
+  },
+}
+
 // ==================== Session API ====================
 
 export const sessionApi = {

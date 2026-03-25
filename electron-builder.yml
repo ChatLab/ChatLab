@@ -19,6 +19,13 @@ files:
   - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+# 将 MCP Server 发布包含在应用资源目录中
+extraResources:
+  - from: packages/mcp-server/dist
+    to: mcp-server/dist
+  - from: packages/mcp-server/node_modules
+    to: mcp-server/node_modules
+
 # 哪些文件将不会被压缩，而是解压到构建目录
 asarUnpack:
   - resources/**

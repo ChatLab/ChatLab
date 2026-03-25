@@ -21,6 +21,7 @@ ChatLab 是一个专注于社交记录分析的本地化应用。通过 AI Agent
 - 🤖 **智能 AI Agent**：集成 10+ Function Calling 工具，支持动态调度，深度挖掘聊天记录中的更多有趣。
 - 📊 **多维数据可视化**：提供活跃度趋势、时间规律分布、成员排行等多个维度的直观分析图表。
 - 🧩 **格式标准化**：通过强大的数据抽象层，抹平不同聊天软件的格式差异，即使是再小众的聊天软件，也能分析。
+- 🔌 **MCP Server**：通过 Model Context Protocol 将聊天分析能力开放给 Claude Code、Cursor 等外部 AI 工具，支持 HTTP 和 Stdio 两种接入方式。
 
 ## 使用指南
 
@@ -34,6 +35,45 @@ ChatLab 是一个专注于社交记录分析的本地化应用。通过 AI Agent
 预览更多请前往官网 [chatlab.fun](https://chatlab.fun/cn/)
 
 ![预览界面](/public/images/intro_zh.png)
+
+## MCP Server
+
+ChatLab 内置了一个 MCP（Model Context Protocol）服务，可以让 Claude Code、Cursor 等外部 AI 工具直接调用聊天记录的分析能力。
+
+**可用工具（共 17 个）：** `list_sessions`、`get_session_overview`、`get_members`、`get_member_stats`、`get_member_profile`、`get_member_name_history`、`get_interaction_frequency`、`search_messages`、`get_recent_messages`、`get_date_range_messages`、`get_message_context`、`get_conversation_between`、`export_messages`、`get_time_stats`、`get_word_frequency`、`execute_sql`、`get_schema`
+
+### HTTP 模式
+
+在 **设置 → MCP Server** 中启动服务，然后用 SSE 端点接入客户端：
+
+```json
+{
+  "mcpServers": {
+    "chatlab": {
+      "url": "http://127.0.0.1:3000/sse"
+    }
+  }
+}
+```
+
+同时提供 REST API：`http://127.0.0.1:{port}/api/v1/`
+
+### Stdio 模式
+
+无需在 ChatLab 中手动启动。在 **设置 → MCP Server → 外部工具配置信息** 中复制配置片段，粘贴到客户端配置文件（如 `claude_desktop_config.json`）：
+
+```json
+{
+  "mcpServers": {
+    "chatlab": {
+      "command": "node",
+      "args": ["/path/to/mcp-server/dist/index.js", "--db-dir", "/path/to/databases"]
+    }
+  }
+}
+```
+
+客户端会自动管理进程的生命周期。
 
 ## 系统架构
 

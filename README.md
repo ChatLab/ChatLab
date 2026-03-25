@@ -21,6 +21,7 @@ Currently supported: **WhatsApp, LINE, WeChat, QQ, Discord, Instagram, and Teleg
 - 🤖 **AI that can actually operate on data**: Agent + Function Calling workflows can search, summarize, and analyze chat records with context.
 - 📊 **Insight-rich visual views**: See trends, time patterns, interaction frequency, rankings, and more in one place.
 - 🧩 **Cross-platform normalization**: Different export formats are mapped into a unified model so you can analyze them consistently.
+- 🔌 **MCP Server**: Expose chat analysis capabilities to Claude Code, Cursor, and other external AI tools via the Model Context Protocol — over HTTP/SSE or stdio.
 
 ## Usage Guides
 
@@ -34,6 +35,45 @@ Currently supported: **WhatsApp, LINE, WeChat, QQ, Discord, Instagram, and Teleg
 For more previews, please visit the official website: [chatlab.fun](https://chatlab.fun/)
 
 ![Preview Interface](/public/images/intro_en.png)
+
+## MCP Server
+
+ChatLab includes a built-in MCP (Model Context Protocol) server that lets external AI tools like Claude Code and Cursor directly query your chat data.
+
+**Available tools (17 total):** `list_sessions`, `get_session_overview`, `get_members`, `get_member_stats`, `get_member_profile`, `get_member_name_history`, `get_interaction_frequency`, `search_messages`, `get_recent_messages`, `get_date_range_messages`, `get_message_context`, `get_conversation_between`, `export_messages`, `get_time_stats`, `get_word_frequency`, `execute_sql`, `get_schema`
+
+### HTTP Mode
+
+Start the server from **Settings → MCP Server**, then connect your client using the SSE endpoint:
+
+```json
+{
+  "mcpServers": {
+    "chatlab": {
+      "url": "http://127.0.0.1:3000/sse"
+    }
+  }
+}
+```
+
+A REST API is also available at `http://127.0.0.1:{port}/api/v1/`.
+
+### Stdio Mode
+
+No need to start anything in ChatLab. Copy the config snippet from **Settings → MCP Server → External Tool Configuration** and paste it into your client (e.g. `claude_desktop_config.json`):
+
+```json
+{
+  "mcpServers": {
+    "chatlab": {
+      "command": "node",
+      "args": ["/path/to/mcp-server/dist/index.js", "--db-dir", "/path/to/databases"]
+    }
+  }
+}
+```
+
+The client manages the process lifecycle automatically.
 
 ## System Architecture
 

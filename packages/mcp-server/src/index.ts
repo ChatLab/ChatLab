@@ -4,15 +4,17 @@
  * ChatLab MCP Server entry point
  *
  * Usage:
- *   chatlab-mcp [--db-dir <path>] [--http] [--port <number>]
+ *   chatlab-mcp [--db-dir <path>] [--http] [--port <number>] [--api-key <key>]
  *
  * Options:
- *   --db-dir   Path to the ChatLab databases directory
- *   --http     Start HTTP/SSE server instead of stdio
- *   --port     HTTP server port (default: 3000)
+ *   --db-dir    Path to the ChatLab databases directory
+ *   --http      Start HTTP/SSE server instead of stdio
+ *   --port      HTTP server port (default: 3000)
+ *   --api-key   API key for HTTP endpoint authentication
  *
  * Environment variables:
- *   CHATLAB_DB_DIR   Alternative way to specify the database directory
+ *   CHATLAB_DB_DIR    Alternative way to specify the database directory
+ *   CHATLAB_API_KEY   Alternative way to specify the API key
  */
 
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
@@ -21,11 +23,12 @@ import { createServer } from './server.js'
 import { startHttpServer } from './http.js'
 
 // Parse command line arguments
-function parseArgs(): { dbDir: string; http: boolean; port: number } {
+function parseArgs(): { dbDir: string; http: boolean; port: number; apiKey: string } {
   const args = process.argv.slice(2)
   let dbDir = ''
   let http = false
   let port = 3000
+  let apiKey = ''
 
   for (let i = 0; i < args.length; i++) {
     switch (args[i]) {
@@ -38,12 +41,18 @@ function parseArgs(): { dbDir: string; http: boolean; port: number } {
       case '--port':
         port = parseInt(args[++i] || '3000', 10)
         break
+      case '--api-key':
+        apiKey = args[++i] || ''
+        break
     }
   }
 
-  // Fallback to environment variable
+  // Fallback to environment variables
   if (!dbDir) {
     dbDir = process.env.CHATLAB_DB_DIR || ''
+  }
+  if (!apiKey) {
+    apiKey = process.env.CHATLAB_API_KEY || ''
   }
 
   // Fallback to default platform path
@@ -51,11 +60,11 @@ function parseArgs(): { dbDir: string; http: boolean; port: number } {
     dbDir = getDefaultDbDir()
   }
 
-  return { dbDir, http, port }
+  return { dbDir, http, port, apiKey }
 }
 
 async function main(): Promise<void> {
-  const { dbDir, http, port } = parseArgs()
+  const { dbDir, http, port, apiKey } = parseArgs()
 
   // Initialize database directory
   initDbDir(dbDir)
@@ -66,7 +75,7 @@ async function main(): Promise<void> {
 
   if (http) {
     // HTTP/SSE mode
-    await startHttpServer(server, port)
+    await startHttpServer(server, port, apiKey)
   } else {
     // Stdio mode (default)
     const transport = new StdioServerTransport()

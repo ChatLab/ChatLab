@@ -6,16 +6,10 @@ import { z } from 'zod'
 import type { McpServer } from '@modelcontextprotocol/sdk/server/mcp.js'
 import { openDatabase } from '../db.js'
 import * as queries from '../queries.js'
-import { formatTimestamp } from '../utils/format.js'
+import { formatMessagesAsText, formatMessagesAsMarkdown } from '../utils/format.js'
 
 function formatMessages(messages: queries.MessageResult[]): string {
-  return messages
-    .map((m) => {
-      const time = formatTimestamp(m.timestamp)
-      const content = m.content || '[non-text message]'
-      return `[${time}] ${m.senderName}: ${content}`
-    })
-    .join('\n')
+  return formatMessagesAsText(messages)
 }
 
 export function registerMessageTools(server: McpServer): void {
@@ -133,6 +127,80 @@ export function registerMessageTools(server: McpServer): void {
       ].join('\n')
 
       return { content: [{ type: 'text', text }] }
+    }
+  )
+
+  server.tool(
+    'get_date_range_messages',
+    'Get messages within a specific date range (YYYY-MM-DD). Useful for analyzing what was discussed during a particular period.',
+    {
+      session_id: z.string().describe('The session ID (from list_sessions)'),
+      start_date: z.string().describe('Start date in YYYY-MM-DD format (inclusive)'),
+      end_date: z.string().describe('End date in YYYY-MM-DD format (inclusive)'),
+      sender_id: z.number().optional().describe('Optional: filter by sender member ID'),
+      limit: z.number().optional().default(200).describe('Max messages to return (default: 200)'),
+    },
+    async ({ session_id, start_date, end_date, sender_id, limit }) => {
+      const db = openDatabase(session_id)
+      if (!db) {
+        return { content: [{ type: 'text', text: `Session "${session_id}" not found.` }] }
+      }
+
+      const result = queries.getDateRangeMessages(db, start_date, end_date, { senderId: sender_id, limit })
+
+      if (result.messages.length === 0) {
+        return { content: [{ type: 'text', text: `No messages found between ${start_date} and ${end_date}.` }] }
+      }
+
+      const text = [
+        `Messages from ${start_date} to ${end_date} (${result.messages.length} of ${result.total} total):`,
+        '',
+        formatMessages(result.messages),
+      ].join('\n')
+
+      return { content: [{ type: 'text', text }] }
+    }
+  )
+
+  server.tool(
+    'export_messages',
+    'Export chat messages matching filters as formatted text. Useful for creating reports or sharing conversation excerpts.',
+    {
+      session_id: z.string().describe('The session ID (from list_sessions)'),
+      keywords: z.array(z.string()).optional().describe('Keywords to filter (OR logic)'),
+      sender_id: z.number().optional().describe('Filter by sender member ID'),
+      limit: z.number().optional().default(200).describe('Max messages to export (default: 200)'),
+      format: z.enum(['text', 'markdown', 'json']).optional().default('text').describe('Output format'),
+    },
+    async ({ session_id, keywords, sender_id, limit, format }) => {
+      const db = openDatabase(session_id)
+      if (!db) {
+        return { content: [{ type: 'text', text: `Session "${session_id}" not found.` }] }
+      }
+
+      const result = keywords && keywords.length > 0
+        ? queries.searchMessages(db, keywords, { senderId: sender_id, limit })
+        : queries.getRecentMessages(db, { limit })
+
+      if (result.messages.length === 0) {
+        return { content: [{ type: 'text', text: 'No messages found matching the criteria.' }] }
+      }
+
+      let output: string
+      switch (format) {
+        case 'json':
+          output = JSON.stringify(result.messages, null, 2)
+          break
+        case 'markdown':
+          output = formatMessagesAsMarkdown(result.messages)
+          break
+        default:
+          output = formatMessagesAsText(result.messages)
+      }
+
+      return {
+        content: [{ type: 'text', text: `Exported ${result.messages.length} messages (${format} format):\n\n${output}` }],
+      }
     }
   )
 }

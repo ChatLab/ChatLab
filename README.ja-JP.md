@@ -21,6 +21,7 @@ ChatLab は、チャット履歴を深く理解するためのローカル完結
 - 🤖 **実データを扱える AI Agent**：10 以上の Function Calling ツールを備え、文脈に応じて動的に呼び分けながら履歴を掘り下げます。
 - 📊 **多面的な可視化**：アクティブ度の推移、時間帯の傾向、メンバーランキングなどを分かりやすく確認できます。
 - 🧩 **形式差分を吸収する標準化**：異なるチャットアプリのエクスポート形式を統一モデルに変換し、同じ視点で比較・分析できます。
+- 🔌 **MCP Server**：Model Context Protocol を通じて、Claude Code や Cursor などの外部 AI ツールからチャット分析機能を直接呼び出せます。HTTP と Stdio の 2 つの接続方式をサポートします。
 
 ## ガイド
 
@@ -34,6 +35,45 @@ ChatLab は、チャット履歴を深く理解するためのローカル完結
 その他の画面は公式サイト [chatlab.fun](https://chatlab.fun/ja/) を参照してください。
 
 ![Preview Interface](/public/images/intro_en.png)
+
+## MCP Server
+
+ChatLab には MCP（Model Context Protocol）サーバーが内蔵されており、Claude Code や Cursor などの外部 AI ツールからチャット履歴の分析機能を直接呼び出せます。
+
+**利用可能なツール（計 17 個）：** `list_sessions`、`get_session_overview`、`get_members`、`get_member_stats`、`get_member_profile`、`get_member_name_history`、`get_interaction_frequency`、`search_messages`、`get_recent_messages`、`get_date_range_messages`、`get_message_context`、`get_conversation_between`、`export_messages`、`get_time_stats`、`get_word_frequency`、`execute_sql`、`get_schema`
+
+### HTTP モード
+
+**設定 → MCP Server** からサーバーを起動し、SSE エンドポイントでクライアントを接続します：
+
+```json
+{
+  "mcpServers": {
+    "chatlab": {
+      "url": "http://127.0.0.1:3000/sse"
+    }
+  }
+}
+```
+
+REST API も利用できます：`http://127.0.0.1:{port}/api/v1/`
+
+### Stdio モード
+
+ChatLab 側での起動操作は不要です。**設定 → MCP Server → 外部ツール設定情報** から設定スニペットをコピーし、クライアントの設定ファイル（例：`claude_desktop_config.json`）に貼り付けます：
+
+```json
+{
+  "mcpServers": {
+    "chatlab": {
+      "command": "node",
+      "args": ["/path/to/mcp-server/dist/index.js", "--db-dir", "/path/to/databases"]
+    }
+  }
+}
+```
+
+プロセスのライフサイクルはクライアントが自動管理します。
 
 ## システムアーキテクチャ
 
