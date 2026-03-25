@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { onMounted, watch } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useAssistantStore } from '@/stores/assistant'
@@ -20,6 +20,21 @@ const emit = defineEmits<{
 
 const assistantStore = useAssistantStore()
 const { filteredAssistants, isLoaded } = storeToRefs(assistantStore)
+
+function getLocaleGeneralId(locale: string): string {
+  if (locale.startsWith('ja')) return 'general_ja'
+  if (locale.startsWith('en')) return 'general_en'
+  return 'general_cn'
+}
+
+const sortedVisibleAssistants = computed(() => {
+  const preferredGeneralId = getLocaleGeneralId(props.locale)
+  return [...filteredAssistants.value].sort((a, b) => {
+    if (a.id === preferredGeneralId) return -1
+    if (b.id === preferredGeneralId) return 1
+    return 0
+  })
+})
 
 watch(
   () => [props.chatType, props.locale],
@@ -54,7 +69,7 @@ function handleConfigure(id: string) {
       </div>
 
       <!-- 无可用助手提示 -->
-      <div v-if="filteredAssistants.length === 0" class="py-8 text-center text-sm text-gray-400">
+      <div v-if="sortedVisibleAssistants.length === 0" class="py-8 text-center text-sm text-gray-400">
         {{ t('ai.assistant.selector.noAssistants') }}
       </div>
 
@@ -62,7 +77,7 @@ function handleConfigure(id: string) {
       <div class="max-h-[40vh] overflow-y-auto pr-1">
         <div class="assistant-grid">
           <AssistantCard
-            v-for="assistant in filteredAssistants"
+            v-for="assistant in sortedVisibleAssistants"
             :key="assistant.id"
             class="assistant-grid-item"
             :assistant="assistant"
@@ -71,11 +86,13 @@ function handleConfigure(id: string) {
           />
           <!-- 新增助手按钮 -->
           <div
-            class="flex aspect-square w-[100px] cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed border-gray-300 transition-all duration-200 hover:border-primary-400 hover:bg-primary-50/50 dark:border-gray-600 dark:hover:border-primary-500 dark:hover:bg-primary-950/20"
+            class="assistant-grid-item flex h-[46px] cursor-pointer items-center justify-center gap-1.5 rounded-lg border border-dashed border-gray-300 px-3.5 transition-all duration-200 hover:border-primary-400 hover:bg-primary-50/50 dark:border-gray-600 dark:hover:border-primary-500 dark:hover:bg-primary-950/20"
             @click="emit('market')"
           >
-            <UIcon name="i-heroicons-plus" class="mb-1 h-5 w-5 text-gray-400 dark:text-gray-500" />
-            <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('ai.assistant.selector.addNew') }}</span>
+            <UIcon name="i-heroicons-plus" class="h-4 w-4 text-gray-400 dark:text-gray-500" />
+            <span class="text-sm text-gray-500 dark:text-gray-400">
+              {{ t('ai.assistant.selector.addNew') }}
+            </span>
           </div>
         </div>
       </div>
@@ -103,9 +120,9 @@ function handleConfigure(id: string) {
   justify-content: center;
 }
 
-/* 单卡宽度在 170~220px 之间收缩，最小窗口下可稳定维持约 3 列 */
+/* 交给内容决定卡片宽度，形成更自然的标签式布局。 */
 .assistant-grid-item {
-  min-width: 170px;
-  flex: 0 1 220px;
+  flex: 0 0 auto;
+  max-width: 100%;
 }
 </style>

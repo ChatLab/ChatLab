@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, onMounted, watch, computed } from 'vue'
+import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useAssistantStore, type CloudAssistantItem } from '@/stores/assistant'
@@ -37,16 +37,11 @@ const sortedCatalog = computed(() => {
 
 const importingIds = ref(new Set<string>())
 
-onMounted(() => {
-  assistantStore.setFilterContext('group', locale.value)
-})
-
 watch(
   () => [props.open, activeTab.value] as const,
   ([open, tab]) => {
     if (open && tab === 'market') {
-      assistantStore.setFilterContext('group', locale.value)
-      assistantStore.fetchCloudCatalog()
+      assistantStore.fetchCloudCatalog(locale.value)
     }
   },
   { immediate: true }
@@ -117,7 +112,7 @@ function handleViewConfig(itemId: string) {
 }
 
 function handleRetry() {
-  assistantStore.fetchCloudCatalog()
+  assistantStore.fetchCloudCatalog(locale.value)
 }
 
 function getChatTypeLabel(types?: ('group' | 'private')[]): string | null {

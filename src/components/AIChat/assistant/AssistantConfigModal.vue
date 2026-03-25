@@ -36,6 +36,7 @@ const chatTypeOptions = computed(() => [
 const localeOptions = [
   { value: 'zh', label: '简体中文' },
   { value: 'en', label: 'English' },
+  { value: 'ja', label: '日本語' },
 ]
 
 const BUILTIN_TS_TOOLS = computed(() =>

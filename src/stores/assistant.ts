@@ -132,8 +132,9 @@ export const useAssistantStore = defineStore('assistant', () => {
 
   // ==================== 云端市场 ====================
 
-  async function fetchCloudCatalog(): Promise<void> {
-    const langPath = LOCALE_PATH_MAP[currentLocale.value] ?? 'en'
+  async function fetchCloudCatalog(localeOverride?: string): Promise<void> {
+    // 助手市场请求只依赖 locale，不应该反向修改选择页的筛选上下文。
+    const langPath = LOCALE_PATH_MAP[localeOverride || currentLocale.value] ?? 'en'
     const url = `${CLOUD_MARKET_BASE_URL}/${langPath}/assistant.json`
 
     cloudLoading.value = true
