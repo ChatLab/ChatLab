@@ -12,7 +12,8 @@
     "storage": "儲存管理",
     "storageManage": "儲存管理",
     "sessionManage": "會話管理",
-    "about": "關於 ChatLab"
+    "about": "關於 ChatLab",
+    "api": "ChatLab API"
   },
   "basic": {
     "language": {
@@ -401,6 +402,41 @@
       "ipv4_desc": "如 192.168.1.1",
       "url": "URL 連結",
       "url_desc": "http:// 或 https:// 開頭的連結"
+    }
+  },
+  "api": {
+    "service": {
+      "title": "API 服務",
+      "enable": "啟用 ChatLab API",
+      "enableDesc": "開啟後，外部工具可透過 HTTP API 查詢聊天數據。僅本機可存取 (127.0.0.1)",
+      "portInUseHint": "連接埠被佔用，請在下方修改連接埠或關閉佔用該連接埠的程式後重試"
+    },
+    "status": {
+      "running": "執行中",
+      "stopped": "已停止",
+      "starting": "啟動中...",
+      "portInUse": "連接埠被佔用",
+      "error": "啟動失敗"
+    },
+    "port": {
+      "title": "連接埠配置",
+      "label": "監聽連接埠",
+      "desc": "API 服務監聽的本機連接埠號（1024-65535）",
+      "edit": "修改",
+      "save": "儲存",
+      "cancel": "取消"
+    },
+    "token": {
+      "title": "存取權杖",
+      "label": "Bearer Token",
+      "desc": "所有 API 請求需要在 Authorization 標頭中攜帶此 Token",
+      "noToken": "尚未產生 Token，請先啟用服務",
+      "regenerate": "重新產生"
+    },
+    "usage": {
+      "title": "使用說明",
+      "desc": "啟用服務後，可使用以下端點查詢數據。所有請求需攜帶 Bearer Token 認證。",
+      "authHint": "請求標頭範例："
     }
   }
 }

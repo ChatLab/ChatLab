@@ -12,7 +12,8 @@
     "storage": "ストレージ管理",
     "storageManage": "ストレージ管理",
     "sessionManage": "セッション管理",
-    "about": "ChatLabについて"
+    "about": "ChatLabについて",
+    "api": "ChatLab API"
   },
   "basic": {
     "language": {
@@ -401,6 +402,41 @@
       "ipv4_desc": "例：192.168.1.1",
       "url": "URL リンク",
       "url_desc": "http:// または https:// で始まるリンク"
+    }
+  },
+  "api": {
+    "service": {
+      "title": "API サービス",
+      "enable": "ChatLab API を有効化",
+      "enableDesc": "有効にすると、外部ツールが HTTP API 経由でチャットデータを照会できます。ローカルホストのみ (127.0.0.1)",
+      "portInUseHint": "ポートが使用中です。下のポートを変更するか、このポートを使用しているプログラムを終了してから再試行してください"
+    },
+    "status": {
+      "running": "実行中",
+      "stopped": "停止中",
+      "starting": "起動中...",
+      "portInUse": "ポート使用中",
+      "error": "起動失敗"
+    },
+    "port": {
+      "title": "ポート設定",
+      "label": "リッスンポート",
+      "desc": "API サービスのローカルポート番号（1024-65535）",
+      "edit": "編集",
+      "save": "保存",
+      "cancel": "キャンセル"
+    },
+    "token": {
+      "title": "アクセストークン",
+      "label": "Bearer Token",
+      "desc": "すべての API リクエストは Authorization ヘッダーにこのトークンを含める必要があります",
+      "noToken": "トークンが未生成です。まずサービスを有効にしてください",
+      "regenerate": "再生成"
+    },
+    "usage": {
+      "title": "使用ガイド",
+      "desc": "サービスを有効にした後、以下のエンドポイントでデータを照会できます。すべてのリクエストに Bearer Token 認証が必要です。",
+      "authHint": "ヘッダー例："
     }
   }
 }

@@ -12,7 +12,8 @@
     "storage": "Storage",
     "storageManage": "Storage",
     "sessionManage": "Sessions",
-    "about": "About"
+    "about": "About",
+    "api": "ChatLab API"
   },
   "basic": {
     "language": {
@@ -401,6 +402,41 @@
       "ipv4_desc": "e.g. 192.168.1.1",
       "url": "URL Link",
       "url_desc": "Links starting with http:// or https://"
+    }
+  },
+  "api": {
+    "service": {
+      "title": "API Service",
+      "enable": "Enable ChatLab API",
+      "enableDesc": "When enabled, external tools can query chat data via HTTP API. Localhost only (127.0.0.1)",
+      "portInUseHint": "Port is in use. Please change the port below or close the program using this port"
+    },
+    "status": {
+      "running": "Running",
+      "stopped": "Stopped",
+      "starting": "Starting...",
+      "portInUse": "Port in use",
+      "error": "Failed to start"
+    },
+    "port": {
+      "title": "Port Configuration",
+      "label": "Listen Port",
+      "desc": "Local port for the API service (1024-65535)",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "token": {
+      "title": "Access Token",
+      "label": "Bearer Token",
+      "desc": "All API requests must include this token in the Authorization header",
+      "noToken": "No token generated yet. Please enable the service first",
+      "regenerate": "Regenerate"
+    },
+    "usage": {
+      "title": "Usage Guide",
+      "desc": "After enabling the service, use the following endpoints to query data. All requests require Bearer Token authentication.",
+      "authHint": "Header example:"
     }
   }
 }

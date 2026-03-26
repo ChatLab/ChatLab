@@ -12,7 +12,8 @@
     "storage": "存储管理",
     "storageManage": "存储管理",
     "sessionManage": "会话管理",
-    "about": "关于"
+    "about": "关于",
+    "api": "ChatLab API"
   },
   "basic": {
     "language": {
@@ -401,6 +402,41 @@
       "ipv4_desc": "如 192.168.1.1",
       "url": "URL 链接",
       "url_desc": "http:// 或 https:// 开头的链接"
+    }
+  },
+  "api": {
+    "service": {
+      "title": "API 服务",
+      "enable": "启用 ChatLab API",
+      "enableDesc": "开启后，外部工具可通过 HTTP API 查询聊天数据。仅本机可访问 (127.0.0.1)",
+      "portInUseHint": "端口被占用，请在下方修改端口或关闭占用该端口的程序后重试"
+    },
+    "status": {
+      "running": "运行中",
+      "stopped": "已停止",
+      "starting": "启动中...",
+      "portInUse": "端口被占用",
+      "error": "启动失败"
+    },
+    "port": {
+      "title": "端口配置",
+      "label": "监听端口",
+      "desc": "API 服务监听的本地端口号（1024-65535）",
+      "edit": "修改",
+      "save": "保存",
+      "cancel": "取消"
+    },
+    "token": {
+      "title": "访问令牌",
+      "label": "Bearer Token",
+      "desc": "所有 API 请求需要在 Authorization 头中携带此 Token",
+      "noToken": "尚未生成 Token，请先启用服务",
+      "regenerate": "重新生成"
+    },
+    "usage": {
+      "title": "使用说明",
+      "desc": "启用服务后，可使用以下端点查询数据。所有请求需携带 Bearer Token 认证。",
+      "authHint": "请求头示例："
     }
   }
 }

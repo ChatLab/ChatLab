@@ -878,6 +878,30 @@ interface NlpApi {
   getPosTags: () => Promise<PosTagInfo[]>
 }
 
+// ChatLab API 服务类型
+interface ApiServerConfig {
+  enabled: boolean
+  port: number
+  token: string
+  createdAt: number
+}
+
+interface ApiServerStatus {
+  running: boolean
+  port: number | null
+  startedAt: number | null
+  error: string | null
+}
+
+interface ApiServerApi {
+  getConfig: () => Promise<ApiServerConfig>
+  getStatus: () => Promise<ApiServerStatus>
+  setEnabled: (enabled: boolean) => Promise<ApiServerStatus>
+  setPort: (port: number) => Promise<ApiServerStatus>
+  regenerateToken: () => Promise<ApiServerConfig>
+  onStartupError: (callback: (data: { error: string }) => void) => () => void
+}
+
 // Session Index API 类型 - 会话索引功能
 interface SessionStats {
   sessionCount: number
@@ -965,6 +989,7 @@ declare global {
     networkApi: NetworkApi
     sessionApi: SessionApi
     nlpApi: NlpApi
+    apiServerApi: ApiServerApi
   }
 }
 
@@ -1020,4 +1045,7 @@ export {
   SupportedLocale,
   PosFilterMode,
   PosTagInfo,
+  ApiServerApi,
+  ApiServerConfig,
+  ApiServerStatus,
 }
