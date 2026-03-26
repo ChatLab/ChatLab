@@ -433,6 +433,27 @@
       "noToken": "トークンが未生成です。まずサービスを有効にしてください",
       "regenerate": "再生成"
     },
+    "dataSources": {
+      "title": "データソース",
+      "desc": "外部データソースの URL を設定すると、ChatLab が指定間隔で自動的にチャットデータを取得・インポートします。",
+      "empty": "データソースなし",
+      "disabled": "一時停止中",
+      "every": "",
+      "minutes": "分ごと",
+      "lastSync": "最終同期",
+      "addBtn": "データソースを追加",
+      "form": {
+        "name": "名前",
+        "namePlaceholder": "例：マイチャットサーバー",
+        "url": "データソース URL",
+        "token": "アクセストークン（任意）",
+        "tokenPlaceholder": "リモート API の Bearer Token",
+        "interval": "取得間隔（分）",
+        "targetSession": "ターゲットセッション ID（任意）",
+        "targetSessionPlaceholder": "空欄の場合、毎回新規セッションを作成",
+        "add": "追加"
+      }
+    },
     "usage": {
       "title": "使用ガイド",
       "desc": "サービスを有効にした後、以下のエンドポイントでデータを照会できます。すべてのリクエストに Bearer Token 認証が必要です。",

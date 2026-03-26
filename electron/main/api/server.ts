@@ -1,5 +1,5 @@
 /**
- * ChatLab API — fastify 服务器实例
+ * ChatLab API — Fastify server instance
  */
 
 import Fastify, { type FastifyInstance, type FastifyError } from 'fastify'
@@ -23,7 +23,7 @@ export function createServer(): FastifyInstance {
     }
 
     if (error.statusCode === 413) {
-      const bodyErr = new ApiError(ApiErrorCode.BODY_TOO_LARGE, '请求体超过 50MB 上限')
+      const bodyErr = new ApiError(ApiErrorCode.BODY_TOO_LARGE, 'Request body exceeds 50MB limit')
       reply.code(413).send(errorResponse(bodyErr))
       return
     }

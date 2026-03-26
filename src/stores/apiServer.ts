@@ -19,6 +19,21 @@ export interface ApiServerStatus {
   error: string | null
 }
 
+export interface DataSource {
+  id: string
+  name: string
+  url: string
+  token: string
+  intervalMinutes: number
+  enabled: boolean
+  targetSessionId: string
+  lastPullAt: number
+  lastStatus: 'idle' | 'success' | 'error'
+  lastError: string
+  lastNewMessages: number
+  createdAt: number
+}
+
 export const useApiServerStore = defineStore('apiServer', () => {
   const config = ref<ApiServerConfig>({
     enabled: false,
@@ -35,6 +50,8 @@ export const useApiServerStore = defineStore('apiServer', () => {
   })
 
   const loading = ref(false)
+  const dataSources = ref<DataSource[]>([])
+  const pullingId = ref<string | null>(null)
 
   const isRunning = computed(() => status.value.running)
   const hasError = computed(() => !!status.value.error)
@@ -57,7 +74,7 @@ export const useApiServerStore = defineStore('apiServer', () => {
   }
 
   async function refresh() {
-    await Promise.all([fetchConfig(), fetchStatus()])
+    await Promise.all([fetchConfig(), fetchStatus(), fetchDataSources()])
   }
 
   async function setEnabled(enabled: boolean) {
@@ -99,10 +116,80 @@ export const useApiServerStore = defineStore('apiServer', () => {
     })
   }
 
+  // ==================== 数据源管理 ====================
+
+  async function fetchDataSources() {
+    try {
+      dataSources.value = await window.apiServerApi.getDataSources()
+    } catch (err) {
+      console.error('[ApiServerStore] Failed to fetch data sources:', err)
+    }
+  }
+
+  async function addDataSource(partial: Omit<DataSource, 'id' | 'createdAt' | 'lastPullAt' | 'lastStatus' | 'lastError' | 'lastNewMessages'>) {
+    try {
+      const ds = await window.apiServerApi.addDataSource(partial)
+      dataSources.value.push(ds)
+      return ds
+    } catch (err) {
+      console.error('[ApiServerStore] Failed to add data source:', err)
+      return null
+    }
+  }
+
+  async function updateDataSource(id: string, updates: Partial<DataSource>) {
+    try {
+      const ds = await window.apiServerApi.updateDataSource(id, updates)
+      if (ds) {
+        const idx = dataSources.value.findIndex((s) => s.id === id)
+        if (idx !== -1) dataSources.value[idx] = ds
+      }
+      return ds
+    } catch (err) {
+      console.error('[ApiServerStore] Failed to update data source:', err)
+      return null
+    }
+  }
+
+  async function deleteDataSource(id: string) {
+    try {
+      const ok = await window.apiServerApi.deleteDataSource(id)
+      if (ok) {
+        dataSources.value = dataSources.value.filter((s) => s.id !== id)
+      }
+      return ok
+    } catch (err) {
+      console.error('[ApiServerStore] Failed to delete data source:', err)
+      return false
+    }
+  }
+
+  async function triggerPull(id: string) {
+    pullingId.value = id
+    try {
+      const result = await window.apiServerApi.triggerPull(id)
+      await fetchDataSources()
+      return result
+    } catch (err) {
+      console.error('[ApiServerStore] Failed to trigger pull:', err)
+      return { success: false, error: String(err) }
+    } finally {
+      pullingId.value = null
+    }
+  }
+
+  function listenPullResult() {
+    return window.apiServerApi.onPullResult(() => {
+      fetchDataSources()
+    })
+  }
+
   return {
     config,
     status,
     loading,
+    dataSources,
+    pullingId,
     isRunning,
     hasError,
     isPortInUse,
@@ -113,5 +200,11 @@ export const useApiServerStore = defineStore('apiServer', () => {
     setPort,
     regenerateToken,
     listenStartupError,
+    fetchDataSources,
+    addDataSource,
+    updateDataSource,
+    deleteDataSource,
+    triggerPull,
+    listenPullResult,
   }
 })

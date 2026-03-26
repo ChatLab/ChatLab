@@ -1,5 +1,5 @@
 /**
- * ChatLab API 错误码与错误工厂
+ * ChatLab API — Error codes and factory functions
  */
 
 export enum ApiErrorCode {
@@ -40,12 +40,12 @@ export class ApiError extends Error {
   }
 }
 
-export function unauthorized(message = 'Token 无效或缺失'): ApiError {
+export function unauthorized(message = 'Invalid or missing token'): ApiError {
   return new ApiError(ApiErrorCode.UNAUTHORIZED, message)
 }
 
 export function sessionNotFound(id: string): ApiError {
-  return new ApiError(ApiErrorCode.SESSION_NOT_FOUND, `会话不存在: ${id}`)
+  return new ApiError(ApiErrorCode.SESSION_NOT_FOUND, `Session not found: ${id}`)
 }
 
 export function invalidFormat(message: string): ApiError {
@@ -53,7 +53,7 @@ export function invalidFormat(message: string): ApiError {
 }
 
 export function sqlReadonlyViolation(): ApiError {
-  return new ApiError(ApiErrorCode.SQL_READONLY_VIOLATION, '仅允许 SELECT 查询')
+  return new ApiError(ApiErrorCode.SQL_READONLY_VIOLATION, 'Only SELECT queries are allowed')
 }
 
 export function sqlExecutionError(message: string): ApiError {
@@ -63,23 +63,22 @@ export function sqlExecutionError(message: string): ApiError {
 export function exportTooLarge(count: number, limit: number): ApiError {
   return new ApiError(
     ApiErrorCode.EXPORT_TOO_LARGE,
-    `消息数 ${count} 超过导出上限 ${limit}，请使用分页 /messages API`
+    `Message count ${count} exceeds export limit ${limit}. Use paginated /messages API instead.`
   )
 }
 
 export function importInProgress(): ApiError {
-  return new ApiError(ApiErrorCode.IMPORT_IN_PROGRESS, '当前有导入任务正在执行')
+  return new ApiError(ApiErrorCode.IMPORT_IN_PROGRESS, 'An import operation is already in progress')
 }
 
 export function importFailed(message: string): ApiError {
   return new ApiError(ApiErrorCode.IMPORT_FAILED, message)
 }
 
-export function serverError(message = '服务内部错误'): ApiError {
+export function serverError(message = 'Internal server error'): ApiError {
   return new ApiError(ApiErrorCode.SERVER_ERROR, message)
 }
 
-/** 构建统一的成功响应 */
 export function successResponse<T>(data: T, meta?: Record<string, unknown>) {
   return {
     success: true as const,
@@ -92,7 +91,6 @@ export function successResponse<T>(data: T, meta?: Record<string, unknown>) {
   }
 }
 
-/** 构建统一的错误响应 */
 export function errorResponse(error: ApiError) {
   return {
     success: false as const,

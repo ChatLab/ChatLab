@@ -1,5 +1,5 @@
 /**
- * ChatLab API — 会话与导出路由
+ * ChatLab API — Session and export routes
  */
 
 import type { FastifyInstance } from 'fastify'
@@ -15,19 +15,19 @@ async function ensureSession(sessionId: string) {
 }
 
 export function registerSessionRoutes(server: FastifyInstance): void {
-  // GET /api/v1/sessions — 会话列表
+  // GET /api/v1/sessions — List all sessions
   server.get('/api/v1/sessions', async () => {
     const sessions = await worker.getAllSessions()
     return successResponse(sessions)
   })
 
-  // GET /api/v1/sessions/:id — 单个会话详情
+  // GET /api/v1/sessions/:id — Single session detail
   server.get<{ Params: { id: string } }>('/api/v1/sessions/:id', async (request) => {
     const session = await ensureSession(request.params.id)
     return successResponse(session)
   })
 
-  // GET /api/v1/sessions/:id/messages — 查询消息（分页）
+  // GET /api/v1/sessions/:id/messages — Query messages (paginated)
   server.get<{
     Params: { id: string }
     Querystring: {
@@ -77,14 +77,14 @@ export function registerSessionRoutes(server: FastifyInstance): void {
     )
   })
 
-  // GET /api/v1/sessions/:id/members — 成员列表
+  // GET /api/v1/sessions/:id/members — Member list
   server.get<{ Params: { id: string } }>('/api/v1/sessions/:id/members', async (request) => {
     await ensureSession(request.params.id)
     const members = await worker.getMembers(request.params.id)
     return successResponse(members)
   })
 
-  // GET /api/v1/sessions/:id/stats/overview — 概览统计
+  // GET /api/v1/sessions/:id/stats/overview — Overview statistics
   server.get<{ Params: { id: string } }>('/api/v1/sessions/:id/stats/overview', async (request) => {
     const { id } = request.params
     const session = await ensureSession(id)
@@ -116,7 +116,7 @@ export function registerSessionRoutes(server: FastifyInstance): void {
     })
   })
 
-  // POST /api/v1/sessions/:id/sql — 执行 SQL（只读）
+  // POST /api/v1/sessions/:id/sql — Execute SQL (read-only)
   server.post<{ Params: { id: string }; Body: { sql: string } }>(
     '/api/v1/sessions/:id/sql',
     async (request, reply) => {
@@ -125,7 +125,7 @@ export function registerSessionRoutes(server: FastifyInstance): void {
 
       const { sql } = request.body || {}
       if (!sql || typeof sql !== 'string') {
-        const err = sqlExecutionError('缺少 sql 参数')
+        const err = sqlExecutionError('Missing sql parameter')
         return reply.code(err.statusCode).send(errorResponse(err))
       }
 
@@ -133,7 +133,7 @@ export function registerSessionRoutes(server: FastifyInstance): void {
         const result = await worker.executeRawSQL(id, sql)
         return successResponse(result)
       } catch (err: any) {
-        const message = err.message || 'SQL 执行错误'
+        const message = err.message || 'SQL execution error'
         if (message.includes('SELECT') || message.includes('只读') || message.includes('readonly')) {
           const apiErr = new ApiError('SQL_READONLY_VIOLATION' as any, message)
           apiErr.statusCode = 400
@@ -145,7 +145,7 @@ export function registerSessionRoutes(server: FastifyInstance): void {
     }
   )
 
-  // GET /api/v1/sessions/:id/export — 导出 ChatLab Format JSON
+  // GET /api/v1/sessions/:id/export — Export ChatLab Format JSON
   server.get<{ Params: { id: string } }>('/api/v1/sessions/:id/export', async (request, reply) => {
     const { id } = request.params
     const session = await ensureSession(id)

@@ -893,6 +893,21 @@ interface ApiServerStatus {
   error: string | null
 }
 
+interface DataSource {
+  id: string
+  name: string
+  url: string
+  token: string
+  intervalMinutes: number
+  enabled: boolean
+  targetSessionId: string
+  lastPullAt: number
+  lastStatus: 'idle' | 'success' | 'error'
+  lastError: string
+  lastNewMessages: number
+  createdAt: number
+}
+
 interface ApiServerApi {
   getConfig: () => Promise<ApiServerConfig>
   getStatus: () => Promise<ApiServerStatus>
@@ -900,6 +915,13 @@ interface ApiServerApi {
   setPort: (port: number) => Promise<ApiServerStatus>
   regenerateToken: () => Promise<ApiServerConfig>
   onStartupError: (callback: (data: { error: string }) => void) => () => void
+  getDataSources: () => Promise<DataSource[]>
+  addDataSource: (partial: Omit<DataSource, 'id' | 'createdAt' | 'lastPullAt' | 'lastStatus' | 'lastError' | 'lastNewMessages'>) => Promise<DataSource>
+  updateDataSource: (id: string, updates: Partial<DataSource>) => Promise<DataSource | null>
+  deleteDataSource: (id: string) => Promise<boolean>
+  triggerPull: (id: string) => Promise<{ success: boolean; error?: string }>
+  onPullResult: (callback: (data: { dsId: string; status: string; detail: string }) => void) => () => void
+  onImportCompleted: (callback: () => void) => () => void
 }
 
 // Session Index API 类型 - 会话索引功能
@@ -1048,4 +1070,5 @@ export {
   ApiServerApi,
   ApiServerConfig,
   ApiServerStatus,
+  DataSource,
 }

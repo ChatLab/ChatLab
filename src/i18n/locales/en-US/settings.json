@@ -433,6 +433,27 @@
       "noToken": "No token generated yet. Please enable the service first",
       "regenerate": "Regenerate"
     },
+    "dataSources": {
+      "title": "Data Sources",
+      "desc": "Configure external data source URLs. ChatLab will automatically pull and import chat data at the specified interval.",
+      "empty": "No data sources",
+      "disabled": "Paused",
+      "every": "Every",
+      "minutes": "min",
+      "lastSync": "Last sync",
+      "addBtn": "Add Data Source",
+      "form": {
+        "name": "Name",
+        "namePlaceholder": "e.g., My Chat Server",
+        "url": "Data Source URL",
+        "token": "Access Token (optional)",
+        "tokenPlaceholder": "Bearer Token for the remote API",
+        "interval": "Pull Interval (minutes)",
+        "targetSession": "Target Session ID (optional)",
+        "targetSessionPlaceholder": "Leave empty to create new session each time",
+        "add": "Add"
+      }
+    },
     "usage": {
       "title": "Usage Guide",
       "desc": "After enabling the service, use the following endpoints to query data. All requests require Bearer Token authentication.",

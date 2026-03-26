@@ -1,6 +1,6 @@
 /**
- * ChatLab API — 服务管理器
- * 负责 fastify 服务生命周期管理
+ * ChatLab API — Server manager
+ * Manages fastify server lifecycle
  */
 
 import type { FastifyInstance } from 'fastify'
@@ -8,6 +8,7 @@ import { createServer } from './server'
 import { loadConfig, saveConfig, ensureToken, type ApiServerConfig } from './config'
 import { registerSystemRoutes } from './routes/system'
 import { registerSessionRoutes } from './routes/sessions'
+import { registerImportRoutes } from './routes/import'
 
 let server: FastifyInstance | null = null
 let startedAt: number | null = null
@@ -43,6 +44,7 @@ export async function start(): Promise<void> {
     server = createServer()
     registerSystemRoutes(server)
     registerSessionRoutes(server)
+    registerImportRoutes(server)
 
     await server.listen({ port: config.port, host: '127.0.0.1' })
     startedAt = Math.floor(Date.now() / 1000)
@@ -83,8 +85,8 @@ export async function restart(): Promise<void> {
 }
 
 /**
- * 应用启动时自动恢复：若配置为 enabled 则尝试启动
- * 失败则静默记录（不影响应用正常使用）
+ * Auto-restore on app startup: attempt to start if config.enabled is true.
+ * Failures are silently recorded (does not affect normal app usage).
  */
 export async function autoStart(): Promise<void> {
   const config = loadConfig()
@@ -93,12 +95,12 @@ export async function autoStart(): Promise<void> {
   try {
     await start()
   } catch {
-    // 静默失败，lastError 已记录
+    // silent failure, lastError already recorded
   }
 }
 
 /**
- * 设置启用状态（持久化）
+ * Set enabled state (persisted)
  */
 export async function setEnabled(enabled: boolean): Promise<ApiServerStatus> {
   const config = loadConfig()
@@ -110,7 +112,7 @@ export async function setEnabled(enabled: boolean): Promise<ApiServerStatus> {
     try {
       await start()
     } catch {
-      // lastError 已记录
+      // lastError already recorded
     }
   } else {
     await stop()
@@ -120,7 +122,7 @@ export async function setEnabled(enabled: boolean): Promise<ApiServerStatus> {
 }
 
 /**
- * 设置端口（持久化，需要重启服务）
+ * Set port (persisted, requires server restart)
  */
 export async function setPort(port: number): Promise<ApiServerStatus> {
   const config = loadConfig()
@@ -134,7 +136,7 @@ export async function setPort(port: number): Promise<ApiServerStatus> {
     try {
       await start()
     } catch {
-      // lastError 已记录
+      // lastError already recorded
     }
   }
 

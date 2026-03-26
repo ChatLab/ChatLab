@@ -1,5 +1,5 @@
 /**
- * ChatLab API Bearer Token 认证中间件
+ * ChatLab API — Bearer Token authentication hook
  */
 
 import type { FastifyRequest, FastifyReply } from 'fastify'

@@ -433,6 +433,27 @@
       "noToken": "尚未產生 Token，請先啟用服務",
       "regenerate": "重新產生"
     },
+    "dataSources": {
+      "title": "資料來源",
+      "desc": "設定外部資料來源 URL，ChatLab 將按設定間隔自動拉取並匯入聊天資料。",
+      "empty": "暫無資料來源",
+      "disabled": "已暫停",
+      "every": "每",
+      "minutes": "分鐘",
+      "lastSync": "上次同步",
+      "addBtn": "新增資料來源",
+      "form": {
+        "name": "名稱",
+        "namePlaceholder": "例如：我的聊天伺服器",
+        "url": "資料來源 URL",
+        "token": "存取權杖（可選）",
+        "tokenPlaceholder": "遠端 API 的 Bearer Token",
+        "interval": "拉取間隔（分鐘）",
+        "targetSession": "目標會話 ID（可選）",
+        "targetSessionPlaceholder": "留空則每次新建會話",
+        "add": "新增"
+      }
+    },
     "usage": {
       "title": "使用說明",
       "desc": "啟用服務後，可使用以下端點查詢數據。所有請求需攜帶 Bearer Token 認證。",

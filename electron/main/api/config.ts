@@ -1,6 +1,6 @@
 /**
- * ChatLab API 配置管理
- * 持久化存储在 userData/settings/api-server.json
+ * ChatLab API — Configuration management
+ * Persisted to userData/settings/api-server.json
  */
 
 import * as fs from 'fs'
@@ -63,7 +63,7 @@ export function updateConfig(partial: Partial<ApiServerConfig>): ApiServerConfig
 }
 
 /**
- * 确保 Token 存在（首次启用时自动生成）
+ * Ensure token exists (auto-generated on first enable)
  */
 export function ensureToken(config: ApiServerConfig): ApiServerConfig {
   if (!config.token) {

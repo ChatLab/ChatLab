@@ -1,6 +1,6 @@
 /**
- * ChatLab API — 系统路由
- * GET /api/v1/status   服务状态
+ * ChatLab API — System routes
+ * GET /api/v1/status   Service status
  * GET /api/v1/schema   ChatLab Format JSON Schema
  */
 
@@ -16,7 +16,7 @@ export function registerSystemRoutes(server: FastifyInstance): void {
       const sessions = await worker.getAllSessions()
       sessionCount = sessions.length
     } catch {
-      // Worker 未就绪时忽略
+      // ignore when worker not ready
     }
 
     return successResponse({
