@@ -11,6 +11,7 @@ import { useOverviewStatistics } from '@/composables/analysis/useOverviewStatist
 import { useDailyTrend } from '@/composables/analysis/useDailyTrend'
 import OverviewStatCards from '@/components/analysis/Overview/OverviewStatCards.vue'
 import OverviewIdentityCard from '@/components/analysis/Overview/OverviewIdentityCard.vue'
+import OverviewActionTools from '@/components/analysis/Overview/OverviewActionTools.vue'
 import DailyTrendCard from '@/components/analysis/Overview/DailyTrendCard.vue'
 
 const { t } = useI18n()
@@ -124,41 +125,21 @@ watch(
 </script>
 
 <template>
-  <div class="main-content space-y-6 p-6">
+  <div class="main-content mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
     <!-- 私聊身份卡 -->
     <OverviewIdentityCard
       :session="session"
+      :daily-activity="dailyActivity"
       :total-duration-days="totalDurationDays"
       :total-daily-avg-messages="totalDailyAvgMessages"
       :time-range="timeRange"
     >
       <template #tools>
-        <div class="flex flex-col gap-2">
-          <span class="mb-0.5 text-xs font-semibold tracking-wide text-white/60 dark:text-gray-500">
-            {{ t('analysis.overview.tools') }}
-          </span>
-          <button
-            class="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/20 dark:bg-gray-700 dark:hover:bg-gray-600"
-            @click="emit('openIncrementalImport')"
-          >
-            <UIcon name="i-heroicons-plus-circle" class="h-4 w-4 shrink-0" />
-            {{ t('analysis.tooltip.incrementalImport') }}
-          </button>
-          <button
-            class="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/20 dark:bg-gray-700 dark:hover:bg-gray-600"
-            @click="emit('openSessionIndex')"
-          >
-            <UIcon name="i-heroicons-clock" class="h-4 w-4 shrink-0" />
-            {{ t('analysis.tooltip.sessionIndex') }}
-          </button>
-          <button
-            class="flex items-center gap-2 rounded-xl bg-white/10 px-4 py-2.5 text-sm font-medium text-white transition-colors hover:bg-white/20 dark:bg-gray-700 dark:hover:bg-gray-600"
-            @click="emit('openMessageExport')"
-          >
-            <UIcon name="i-heroicons-document-arrow-down" class="h-4 w-4 shrink-0" />
-            {{ t('analysis.messageExport.title') }}
-          </button>
-        </div>
+        <OverviewActionTools
+          @open-incremental-import="emit('openIncrementalImport')"
+          @open-session-index="emit('openSessionIndex')"
+          @open-message-export="emit('openMessageExport')"
+        />
       </template>
     </OverviewIdentityCard>
 
