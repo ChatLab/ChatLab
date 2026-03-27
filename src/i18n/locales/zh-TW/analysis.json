@@ -70,7 +70,7 @@
   },
   "overview": {
     "messageTypeDistribution": "訊息類型分佈",
-    "memberDistribution": "成員發言分布",
+    "memberDistribution": "成員訊息占比",
     "others": "其他人",
     "messageRatio": "訊息佔比",
     "messageUnit": "條",

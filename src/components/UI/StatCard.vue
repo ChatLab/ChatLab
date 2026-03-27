@@ -39,35 +39,33 @@ const iconBgMap: Record<string, string> = {
 </script>
 
 <template>
-  <div class="rounded-xl border border-gray-200 bg-white p-4 shadow-sm dark:border-white/5 dark:bg-card-dark">
-    <!-- 带图标的布局 -->
-    <template v-if="icon">
-      <div class="flex items-center gap-3">
-        <div
-          class="flex h-12 w-12 items-center justify-center rounded-xl text-2xl"
-          :class="iconBgMap[iconBg || 'gray']"
+  <div
+    class="relative overflow-hidden rounded-[20px] border border-gray-200/60 bg-white p-5 shadow-sm transition-all hover:shadow-md dark:border-white/5 dark:bg-card-dark"
+  >
+    <div class="flex items-start justify-between">
+      <div class="min-w-0 flex-1">
+        <p class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ label }}</p>
+        <p
+          class="mt-2 truncate text-2xl font-bold tracking-tight"
+          :class="valueColor ? valueColorMap[valueColor] : 'text-gray-900 dark:text-white'"
         >
-          {{ icon }}
-        </div>
-        <div>
-          <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ label }}</p>
-          <p class="text-lg font-bold text-gray-900 dark:text-white">{{ value }}</p>
-        </div>
+          {{ value }}
+        </p>
       </div>
-      <div v-if="subtext || $slots.subtext" class="mt-3 flex items-baseline gap-1">
-        <slot name="subtext">
-          <span class="text-sm text-gray-500">{{ subtext }}</span>
-        </slot>
+      <div
+        v-if="icon"
+        class="ml-4 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
+        :class="iconBgMap[iconBg || 'gray']"
+      >
+        <UIcon v-if="icon.startsWith('i-')" :name="icon" class="h-5 w-5" />
+        <span v-else class="text-xl">{{ icon }}</span>
       </div>
-    </template>
+    </div>
 
-    <!-- 简单布局 -->
-    <template v-else>
-      <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ label }}</p>
-      <p class="mt-1 text-2xl font-bold" :class="valueColorMap[valueColor || 'pink']">{{ value }}</p>
-      <p v-if="subtext || $slots.subtext" class="mt-1 text-xs text-gray-400">
-        <slot name="subtext">{{ subtext }}</slot>
-      </p>
-    </template>
+    <div v-if="subtext || $slots.subtext" class="mt-4 flex items-center text-sm">
+      <slot name="subtext">
+        <span class="text-gray-500 dark:text-gray-400">{{ subtext }}</span>
+      </slot>
+    </div>
   </div>
 </template>

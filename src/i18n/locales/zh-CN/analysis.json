@@ -70,7 +70,7 @@
   },
   "overview": {
     "messageTypeDistribution": "消息类型分布",
-    "memberDistribution": "成员水群分布",
+    "memberDistribution": "成员消息占比",
     "others": "其他人",
     "messageRatio": "消息占比",
     "messageUnit": "条",

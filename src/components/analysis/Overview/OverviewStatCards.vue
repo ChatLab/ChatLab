@@ -28,7 +28,7 @@ defineProps<{
     <StatCard
       :label="t('analysis.overview.statCards.dailyAvgMessages')"
       :value="t('analysis.overview.statCards.messagesCount', { count: dailyAvgMessages })"
-      icon="📊"
+      icon="i-heroicons-chat-bubble-left-right"
       icon-bg="blue"
     >
       <template #subtext>
@@ -42,12 +42,12 @@ defineProps<{
     <StatCard
       :label="t('analysis.overview.statCards.imageMessages')"
       :value="t('analysis.overview.statCards.imagesCount', { count: imageCount })"
-      icon="📸"
+      icon="i-heroicons-photo"
       icon-bg="pink"
     >
       <template #subtext>
         <span class="text-sm text-gray-500">{{ t('analysis.overview.statCards.peakHour') }}</span>
-        <span class="font-semibold text-pink-500">{{ peakHour?.hour || 0 }}:00</span>
+        <span class="ml-1 font-semibold text-pink-500">{{ peakHour?.hour || 0 }}:00</span>
       </template>
     </StatCard>
 
@@ -55,7 +55,7 @@ defineProps<{
     <StatCard
       :label="t('analysis.overview.statCards.mostActiveWeekday')"
       :value="peakWeekday ? weekdayNames[peakWeekday.weekday - 1] : '-'"
-      icon="📅"
+      icon="i-heroicons-calendar-days"
       icon-bg="amber"
     >
       <template #subtext>
@@ -69,7 +69,7 @@ defineProps<{
     <StatCard
       :label="t('analysis.overview.statCards.weekendActivity')"
       :value="`${weekdayVsWeekend.weekend}%`"
-      icon="🏖️"
+      icon="i-heroicons-sun"
       icon-bg="green"
     >
       <template #subtext>
@@ -81,7 +81,7 @@ defineProps<{
     <StatCard
       :label="t('analysis.overview.statCards.mostActiveDate')"
       :value="peakDay ? dayjs(peakDay.date).format('MM/DD') : '-'"
-      icon="🔥"
+      icon="i-heroicons-fire"
       icon-bg="red"
     >
       <template #subtext>
@@ -92,7 +92,12 @@ defineProps<{
     </StatCard>
 
     <!-- 活跃天数 -->
-    <StatCard :label="t('analysis.overview.statCards.activeDays')" :value="`${activeDays}`" icon="📆" icon-bg="blue">
+    <StatCard
+      :label="t('analysis.overview.statCards.activeDays')"
+      :value="`${activeDays}`"
+      icon="i-heroicons-calendar"
+      icon-bg="blue"
+    >
       <template #subtext>
         <span class="text-sm text-gray-500">
           {{ t('analysis.overview.statCards.slashDays', { count: totalDays }) }}
@@ -104,7 +109,7 @@ defineProps<{
     <StatCard
       :label="t('analysis.overview.statCards.consecutiveStreak')"
       :value="t('analysis.overview.statCards.daysStreak', { count: maxConsecutiveDays })"
-      icon="⚡"
+      icon="i-heroicons-bolt"
       icon-bg="amber"
     >
       <template #subtext>
@@ -113,7 +118,12 @@ defineProps<{
     </StatCard>
 
     <!-- 活跃率 -->
-    <StatCard :label="t('analysis.overview.statCards.activityRate')" :value="`${activeRate}%`" icon="📈" icon-bg="gray">
+    <StatCard
+      :label="t('analysis.overview.statCards.activityRate')"
+      :value="`${activeRate}%`"
+      icon="i-heroicons-chart-bar"
+      icon-bg="gray"
+    >
       <template #subtext>
         <span class="text-sm text-gray-500">{{ t('analysis.overview.statCards.activeDaysRatio') }}</span>
       </template>

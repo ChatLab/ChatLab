@@ -411,6 +411,7 @@
     }
   },
   "api": {
+    "betaWarning": "The current API version is in Beta, and endpoints may change at any time.",
     "service": {
       "title": "API Service",
       "enable": "Enable API Service",

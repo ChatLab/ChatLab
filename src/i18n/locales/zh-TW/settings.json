@@ -411,6 +411,7 @@
     }
   },
   "api": {
+    "betaWarning": "當前 API 版本僅為測試版（Beta），介面可能會發生調整",
     "service": {
       "title": "API 服務",
       "enable": "啟用 API 服務",

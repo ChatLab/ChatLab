@@ -411,6 +411,7 @@
     }
   },
   "api": {
+    "betaWarning": "当前 API 版本仅为测试版（Beta），接口可能会发生调整",
     "service": {
       "title": "API 服务",
       "enable": "启用 API 服务",

@@ -209,36 +209,26 @@ onUnmounted(() => {
       <!-- 左侧：身份信息 + 日历 -->
       <div class="min-w-0 flex-1 flex flex-col">
         <!-- 上方：身份信息 + 统计数据 -->
-        <div class="flex flex-wrap items-center justify-between gap-8 pb-4">
-          <!-- 身份信息 -->
-          <div>
-            <div class="flex flex-wrap items-center gap-3">
-              <h2 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-                {{ session.name }}
-              </h2>
-              <div
-                class="flex items-center gap-1.5 rounded-full bg-pink-50 px-2.5 py-1 text-xs font-semibold text-pink-600 ring-1 ring-inset ring-pink-500/20 dark:bg-pink-500/10 dark:text-pink-400 dark:ring-pink-500/20"
-              >
-                <span class="h-1.5 w-1.5 rounded-full bg-pink-500"></span>
-                <span>{{ session.platform.toUpperCase() }}</span>
-              </div>
-            </div>
+        <div class="pb-2">
+          <h2 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+            {{ session.name }}
+          </h2>
 
-            <div class="mt-4 flex flex-col gap-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+          <div class="mt-4 flex items-start gap-24">
+            <div class="min-w-0 flex flex-col gap-2 text-sm font-medium text-gray-500 dark:text-gray-400">
               <div class="flex items-center gap-2">
-                <div
-                  class="flex h-6 w-6 shrink-0 items-center justify-center rounded bg-gray-100 text-gray-500 dark:bg-white/5 dark:text-gray-400"
-                >
-                  <UIcon v-if="session.type === 'group'" name="i-heroicons-user-group" class="h-3.5 w-3.5" />
-                  <UIcon v-else name="i-heroicons-user" class="h-3.5 w-3.5" />
+                <div class="flex h-6 w-6 shrink-0 items-center justify-center">
+                  <UIcon v-if="session.type === 'group'" name="i-heroicons-user-group" class="h-4 w-4 opacity-70" />
+                  <UIcon v-else name="i-heroicons-user" class="h-4 w-4 opacity-70" />
                 </div>
                 <span class="truncate">
+                  {{ session.platform.toUpperCase() }}
+                  ·
                   {{
                     session.type === 'private'
                       ? t('analysis.overview.identity.privateChat')
                       : t('analysis.overview.identity.groupChat')
                   }}
-                  · {{ t('analysis.overview.identity.analysisReport') }}
                 </span>
               </div>
 
@@ -249,41 +239,41 @@ onUnmounted(() => {
                 <span class="truncate font-mono text-xs opacity-90">{{ fullTimeRangeText }}</span>
               </div>
             </div>
-          </div>
 
-          <!-- 紧凑统计数据 (贴靠右侧) -->
-          <div class="flex shrink-0 gap-6">
-            <div class="flex flex-col gap-1 text-center">
-              <span class="text-2xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
-                {{ session.messageCount.toLocaleString() }}
-              </span>
-              <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                {{ t('analysis.overview.identity.totalMessages') }}
-              </span>
-            </div>
+            <!-- 紧凑统计数据 -->
+            <div class="flex shrink-0 gap-6">
+              <div class="flex flex-col gap-1 text-center">
+                <span class="text-2xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
+                  {{ session.messageCount.toLocaleString() }}
+                </span>
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  {{ t('analysis.overview.identity.totalMessages') }}
+                </span>
+              </div>
 
-            <div class="flex flex-col gap-1 text-center">
-              <span class="text-2xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
-                {{ totalDurationDays.toLocaleString() }}
-              </span>
-              <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                {{ t('analysis.overview.identity.durationDays') }}
-              </span>
-            </div>
+              <div class="flex flex-col gap-1 text-center">
+                <span class="text-2xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
+                  {{ totalDurationDays.toLocaleString() }}
+                </span>
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  {{ t('analysis.overview.identity.durationDays') }}
+                </span>
+              </div>
 
-            <div class="flex flex-col gap-1 text-center">
-              <span class="text-2xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
-                {{ totalDailyAvgMessages.toLocaleString() }}
-              </span>
-              <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                {{ t('analysis.overview.identity.dailyAvgMessages') }}
-              </span>
+              <div class="flex flex-col gap-1 text-center">
+                <span class="text-2xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
+                  {{ totalDailyAvgMessages.toLocaleString() }}
+                </span>
+                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                  {{ t('analysis.overview.identity.dailyAvgMessages') }}
+                </span>
+              </div>
             </div>
           </div>
         </div>
 
         <!-- 热力图区域 -->
-        <div class="mt-8 pt-2">
+        <div class="pt-2">
           <div class="flex items-center justify-between mb-2">
             <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
               Activity Heatmap
