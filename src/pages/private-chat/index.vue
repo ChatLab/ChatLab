@@ -20,6 +20,7 @@ const MessageExportModal = defineAsyncComponent(() => import('@/components/Messa
 import LoadingState from '@/components/UI/LoadingState.vue'
 import { useSessionStore } from '@/stores/session'
 import { useLayoutStore } from '@/stores/layout'
+import { useSettingsStore } from '@/stores/settings'
 import { useTimeSelect } from '@/composables'
 
 const { t } = useI18n()
@@ -28,6 +29,7 @@ const route = useRoute()
 const router = useRouter()
 const sessionStore = useSessionStore()
 const layoutStore = useLayoutStore()
+const settingsStore = useSettingsStore()
 const { currentSessionId } = storeToRefs(sessionStore)
 
 // 会话索引弹窗状态
@@ -65,7 +67,8 @@ const tabs = [
 
 function resolveActiveTabFromRoute(): string {
   const routeTab = route.query.tab as string | undefined
-  return tabs.some((tab) => tab.id === routeTab) ? routeTab! : 'overview'
+  if (routeTab && tabs.some((tab) => tab.id === routeTab)) return routeTab
+  return settingsStore.defaultSessionTab
 }
 
 const activeTab = ref(resolveActiveTabFromRoute())

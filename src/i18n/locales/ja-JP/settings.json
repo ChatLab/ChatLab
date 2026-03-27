@@ -27,6 +27,12 @@
       "light": "ライトモード",
       "dark": "ダークモード"
     },
+    "defaultTab": {
+      "title": "デフォルトタブ",
+      "description": "セッションに入った時に表示するページ",
+      "overview": "概要",
+      "aiChat": "AI チャット"
+    },
     "screenshot": {
       "title": "スクリーンショット設定",
       "mobileAdapt": "モバイル対応",

@@ -27,6 +27,12 @@
       "light": "浅色模式",
       "dark": "深色模式"
     },
+    "defaultTab": {
+      "title": "默认标签页",
+      "description": "进入会话后默认显示的页面",
+      "overview": "总览",
+      "aiChat": "AI 对话"
+    },
     "screenshot": {
       "title": "截图设置",
       "mobileAdapt": "移动端适配",

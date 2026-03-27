@@ -27,6 +27,12 @@
       "light": "Light",
       "dark": "Dark"
     },
+    "defaultTab": {
+      "title": "Default Tab",
+      "description": "Default page when entering a session",
+      "overview": "Overview",
+      "aiChat": "AI Chat"
+    },
     "screenshot": {
       "title": "Screenshot",
       "mobileAdapt": "Mobile Adaptation",

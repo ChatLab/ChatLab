@@ -27,6 +27,12 @@
       "light": "淺色模式",
       "dark": "深色模式"
     },
+    "defaultTab": {
+      "title": "預設標籤頁",
+      "description": "進入會話後預設顯示的頁面",
+      "overview": "總覽",
+      "aiChat": "AI 對話"
+    },
     "screenshot": {
       "title": "截圖設定",
       "mobileAdapt": "行動畫面適配",

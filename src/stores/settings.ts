@@ -15,6 +15,8 @@ export const useSettingsStore = defineStore(
   () => {
     const locale = ref<LocaleType>(getLocale())
 
+    const defaultSessionTab = ref<'overview' | 'ai-chat'>('overview')
+
     const debugMode = ref(false)
 
     function setDebugMode(enabled: boolean) {
@@ -87,6 +89,7 @@ export const useSettingsStore = defineStore(
       locale,
       setLocale,
       initLocale,
+      defaultSessionTab,
       debugMode,
       setDebugMode,
       aiPreprocessConfig,
