@@ -238,15 +238,23 @@ function getSessionAvatar(session: AnalysisSession): string | null {
               <UIcon name="i-heroicons-question-mark-circle" class="size-3.5 text-gray-400" />
             </div>
           </UTooltip>
-          <UTooltip :text="t('layout.tooltip.search')" :popper="{ placement: 'right' }">
-            <UButton
-              :icon="showSearch ? 'i-heroicons-x-mark' : 'i-heroicons-magnifying-glass'"
-              color="neutral"
-              variant="ghost"
-              size="xs"
-              @click="toggleSearch"
-            />
-          </UTooltip>
+          <div class="flex items-center gap-2">
+            <button
+              class="text-xs font-medium text-gray-400 hover:text-gray-900 transition-colors dark:hover:text-white"
+              @click="router.push({ name: 'settings', query: { tab: 'data' } })"
+            >
+              {{ t('layout.manage') }}
+            </button>
+            <UTooltip :text="t('layout.tooltip.search')" :popper="{ placement: 'right' }">
+              <UButton
+                :icon="showSearch ? 'i-heroicons-x-mark' : 'i-heroicons-magnifying-glass'"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                @click="toggleSearch"
+              />
+            </UTooltip>
+          </div>
         </div>
         <!-- 搜索框 -->
         <div v-if="showSearch" class="mt-2">

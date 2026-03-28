@@ -214,14 +214,14 @@ onUnmounted(() => {
             {{ session.name }}
           </h2>
 
-          <div class="mt-4 flex items-start gap-24">
+          <div class="mt-4 flex items-start gap-6 sm:gap-24">
             <div class="min-w-0 flex flex-col gap-2 text-sm font-medium text-gray-500 dark:text-gray-400">
               <div class="flex items-center gap-2">
                 <div class="flex h-6 w-6 shrink-0 items-center justify-center">
                   <UIcon v-if="session.type === 'group'" name="i-heroicons-user-group" class="h-4 w-4 opacity-70" />
                   <UIcon v-else name="i-heroicons-user" class="h-4 w-4 opacity-70" />
                 </div>
-                <span class="truncate">
+                <span class="whitespace-nowrap">
                   {{ session.platform.toUpperCase() }}
                   ·
                   {{
@@ -236,7 +236,7 @@ onUnmounted(() => {
                 <div class="flex h-6 w-6 shrink-0 items-center justify-center">
                   <UIcon name="i-heroicons-calendar" class="h-4 w-4 opacity-70" />
                 </div>
-                <span class="truncate font-mono text-xs opacity-90">{{ fullTimeRangeText }}</span>
+                <span class="font-mono text-xs opacity-90 whitespace-nowrap">{{ fullTimeRangeText }}</span>
               </div>
             </div>
 

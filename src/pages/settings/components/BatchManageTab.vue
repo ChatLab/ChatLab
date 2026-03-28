@@ -520,7 +520,7 @@ onMounted(() => {
           {{ session.messageCount.toLocaleString() }}
         </div>
 
-        <!-- 摘要数 -->
+        <!-- AI 摘要数 -->
         <div class="w-16 text-right text-sm text-gray-600 dark:text-gray-300">
           {{ session.summaryCount || 0 }}
         </div>
