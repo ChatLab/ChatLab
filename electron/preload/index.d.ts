@@ -721,7 +721,7 @@ interface AssistantApi {
   delete: (id: string) => Promise<{ success: boolean; error?: string }>
   reset: (id: string) => Promise<{ success: boolean; error?: string }>
   getBuiltinCatalog: () => Promise<BuiltinAssistantInfo[]>
-  getBuiltinTsToolNames: () => Promise<string[]>
+  getBuiltinToolCatalog: () => Promise<Array<{ name: string; category: 'core' | 'analysis' }>>
   importAssistant: (builtinId: string) => Promise<{ success: boolean; error?: string }>
   reimportAssistant: (id: string) => Promise<{ success: boolean; error?: string }>
   importFromMd: (rawMd: string) => Promise<{ success: boolean; id?: string; error?: string }>

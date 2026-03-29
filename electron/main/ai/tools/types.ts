@@ -2,7 +2,18 @@
  * AI Tools 类型定义
  */
 
+import type { AgentTool } from '@mariozechner/pi-agent-core'
 import type { PreprocessConfig } from '../preprocessor'
+
+export type ToolCategory = 'core' | 'analysis'
+
+export type ToolFactory = (context: ToolContext) => AgentTool<any>
+
+export interface ToolRegistryEntry {
+  name: string
+  factory: ToolFactory
+  category: ToolCategory
+}
 
 /** Owner 信息（当前用户在对话中的身份） */
 export interface OwnerInfo {

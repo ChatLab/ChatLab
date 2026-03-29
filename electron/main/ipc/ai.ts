@@ -673,11 +673,11 @@ export function registerAIHandlers({ win }: IpcContext): void {
     }
   })
 
-  ipcMain.handle('assistant:getBuiltinTsToolNames', async () => {
+  ipcMain.handle('assistant:getBuiltinToolCatalog', async () => {
     try {
-      return assistantManager.getBuiltinTsToolNames()
+      return assistantManager.getBuiltinToolCatalog()
     } catch (error) {
-      console.error('Failed to get builtin ts tool names:', error)
+      console.error('Failed to get builtin tool catalog:', error)
       return []
     }
   })

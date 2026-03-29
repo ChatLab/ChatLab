@@ -19,4 +19,4 @@ export {
   isGeneralAssistant,
 } from './manager'
 export { parseAssistantFile, serializeAssistant } from './parser'
-export { getBuiltinTsToolNames, getAllBuiltinToolNames, getAllBuiltinToolCatalog } from './builtinTools'
+export { getBuiltinToolCatalog, type BuiltinToolCatalogEntry } from './builtinTools'

@@ -56,8 +56,8 @@ export const useAssistantStore = defineStore('assistant', () => {
   /** @deprecated 本地内置目录已清空，保留兼容 */
   const builtinCatalog = ref<BuiltinAssistantInfo[]>([])
 
-  /** 内置 TS 工具名称列表 */
-  const builtinTsToolNames = ref<string[]>([])
+  /** 内置工具目录（含分类） */
+  const builtinToolCatalog = ref<Array<{ name: string; category: 'core' | 'analysis' }>>([])
 
   /** 云端市场目录 */
   const cloudCatalog = ref<CloudAssistantItem[]>([])
@@ -122,11 +122,11 @@ export const useAssistantStore = defineStore('assistant', () => {
     }
   }
 
-  async function loadBuiltinTsToolNames(): Promise<void> {
+  async function loadBuiltinToolCatalog(): Promise<void> {
     try {
-      builtinTsToolNames.value = await window.assistantApi.getBuiltinTsToolNames()
+      builtinToolCatalog.value = await window.assistantApi.getBuiltinToolCatalog()
     } catch (error) {
-      console.error('[AssistantStore] Failed to load builtin ts tool names:', error)
+      console.error('[AssistantStore] Failed to load builtin tool catalog:', error)
     }
   }
 
@@ -311,7 +311,7 @@ export const useAssistantStore = defineStore('assistant', () => {
     selectedAssistant,
     isLoaded,
     builtinCatalog,
-    builtinTsToolNames,
+    builtinToolCatalog,
     cloudCatalog,
     cloudLoading,
     cloudError,
@@ -324,7 +324,7 @@ export const useAssistantStore = defineStore('assistant', () => {
     hasMoreAssistants,
     loadAssistants,
     loadBuiltinCatalog,
-    loadBuiltinTsToolNames,
+    loadBuiltinToolCatalog,
     fetchCloudCatalog,
     importFromCloud,
     isCloudItemImported,

@@ -49,8 +49,8 @@ description: Use when 用户希望根据一句自然语言需求创建新的 Cha
   - `applicableChatTypes`
   - `supportedLocales`
 - 生成普通 assistant 文件时，不要写 `builtinId`
-- 如果角色是通用且无需限制工具，优先省略 `allowedBuiltinTools` 字段，而不是硬塞一长串“全量工具”
-- `allowedBuiltinTools` 只能使用当前真实存在的工具名，不得臆造、不得引用旧名字
+- 如果角色无需分析工具，优先省略 `allowedBuiltinTools`（默认仅核心工具可用）
+- `allowedBuiltinTools` 仅填写分析工具名（核心工具始终可用，无需列出），不得臆造、不得引用旧名字
 - 最终写入路径固定为 `assistant/<locale>/<assistant-id>.md`
 - 目标语言固定为 `zh`、`en`、`ja`
 - 三个语言版本保持同一角色定位，但允许按语言做自然的本地化调整，不做机械直译
@@ -120,24 +120,22 @@ description: Use when 用户希望根据一句自然语言需求创建新的 Cha
 
 ## 工具选择规则
 
-- 默认原则：尽量放宽，除非明显不适合该角色
-- 先看角色是否真的需要工具白名单
-- 若角色边界宽泛，可省略 `allowedBuiltinTools`
-- 若角色边界明确，再按真实工具集合选择白名单
-- 选择时优先保留完成该角色所必需的基础检索工具，例如：
-  - 消息搜索
-  - 最近消息
-  - 上下文查看
-  - session 检索
-- 仅在角色明显聚焦时再额外限制，例如：
-  - 强运营分析：保留群分析、排行、趋势工具
-  - 强情感洞察：保留互动关系、对话回顾、上下文工具
-  - 强客服分析：保留对话、上下文、未回复问题、消息类型工具
+工具分为两类：
+- **核心工具（core）**：始终启用，无需在 `allowedBuiltinTools` 中列出。包括：get_chat_overview, search_messages, get_recent_messages, get_message_context, search_sessions, get_session_messages, get_members
+- **分析工具（analysis）**：需在 `allowedBuiltinTools` 中显式列出才会启用
+
+`allowedBuiltinTools` 仅用于控制分析工具，核心工具始终可用：
+- 若角色不需要分析工具，可省略 `allowedBuiltinTools`（默认仅核心工具可用）
+- 若角色需要特定分析能力，列出所需的分析工具名称
+- 仅在角色明显聚焦时选择对应的分析工具，例如：
+  - 强运营分析：get_member_stats, get_time_stats, member_activity_trend, silent_members
+  - 强情感洞察：mutual_interaction_pairs, reply_interaction_ranking, get_conversation_between
+  - 强客服分析：unanswered_messages, message_type_breakdown, get_conversation_between
 
 生成前做一次自检：
 
 - 是否引用了不存在的工具名
-- 是否遗漏了完成该角色所需的基础工具
+- `allowedBuiltinTools` 中是否误放了核心工具（核心工具无需列出）
 - 是否包含明显与场景冲突的工具
 
 ## 输出模板
@@ -153,8 +151,8 @@ applicableChatTypes:
 supportedLocales:
   - zh
 allowedBuiltinTools:
-  - search_messages
-  - get_recent_messages
+  - get_member_stats
+  - get_time_stats
 presetQuestions:
   - 示例问题 1
   - 示例问题 2
@@ -182,7 +180,7 @@ presetQuestions:
 - `name`：允许本地化，不必逐字对应
 - `applicableChatTypes`：仅在能明确判断时写入；通用角色可省略
 - `supportedLocales`：按文件所属语言写单元素数组
-- `allowedBuiltinTools`：仅在需要限制工具范围时写入
+- `allowedBuiltinTools`：仅填写需要的分析工具名（核心工具无需列出，始终可用）
 - `presetQuestions`：建议 3 到 5 条，贴近该语言用户的自然表达
 
 ## 正文写法规则
@@ -220,6 +218,6 @@ presetQuestions:
 - 把 assistant 产物写到 `skill/` 或 `skills/`，而不是 `assistant/`
 - 机械照抄 `.docs/ai/assistantSystem.md` 的旧字段
 - 在未确认中文预览前就直接落盘
-- 把所有工具名都塞进 `allowedBuiltinTools`
+- 把核心工具名塞进 `allowedBuiltinTools`（核心工具始终可用，不需要列出）
 - 多语言版本仅做逐字翻译，导致预设问题和语气不自然
 - 发现同名文件已存在，却直接覆盖

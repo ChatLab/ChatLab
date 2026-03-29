@@ -39,11 +39,16 @@ const localeOptions = [
   { value: 'ja', label: '日本語' },
 ]
 
-const BUILTIN_TS_TOOLS = computed(() =>
-  assistantStore.builtinTsToolNames.map((name) => ({
-    name,
-    description: t(`ai.assistant.builtinToolDesc.${name}`),
-  }))
+const coreTools = computed(() =>
+  assistantStore.builtinToolCatalog
+    .filter((e) => e.category === 'core')
+    .map((e) => ({ name: e.name, description: t(`ai.assistant.builtinToolDesc.${e.name}`) }))
+)
+
+const analysisTools = computed(() =>
+  assistantStore.builtinToolCatalog
+    .filter((e) => e.category === 'analysis')
+    .map((e) => ({ name: e.name, description: t(`ai.assistant.builtinToolDesc.${e.name}`) }))
 )
 
 const form = ref({
@@ -60,8 +65,8 @@ const newQuestion = ref('')
 const toolBadgeCount = computed(() => form.value.allowedBuiltinTools.length)
 
 onMounted(async () => {
-  if (assistantStore.builtinTsToolNames.length === 0) {
-    await assistantStore.loadBuiltinTsToolNames()
+  if (assistantStore.builtinToolCatalog.length === 0) {
+    await assistantStore.loadBuiltinToolCatalog()
   }
 })
 
@@ -219,16 +224,15 @@ function toggleBuiltinTool(toolName: string) {
   }
 }
 
-function isToolChecked(toolName: string): boolean {
-  if (form.value.allowedBuiltinTools.length === 0) return true
+function isAnalysisToolChecked(toolName: string): boolean {
   return form.value.allowedBuiltinTools.includes(toolName)
 }
 
-function selectAllTools() {
-  form.value.allowedBuiltinTools = BUILTIN_TS_TOOLS.value.map((t) => t.name)
+function selectAllAnalysisTools() {
+  form.value.allowedBuiltinTools = analysisTools.value.map((t) => t.name)
 }
 
-function clearAllTools() {
+function clearAllAnalysisTools() {
   form.value.allowedBuiltinTools = []
 }
 
@@ -427,40 +431,74 @@ function closeModal() {
             </div>
 
             <!-- 工具管理 Tab -->
-            <div v-show="activeTab === 'tools'" class="space-y-6">
-              <!-- 内置工具勾选区 -->
+            <div v-show="activeTab === 'tools'" class="space-y-5">
+              <!-- 核心工具区（始终启用） -->
               <div>
-                <div class="mb-2 flex items-center justify-between">
+                <h3 class="mb-1 text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('ai.assistant.config.coreTools') }}
+                </h3>
+                <p class="mb-2.5 text-[10px] text-gray-400">
+                  {{ t('ai.assistant.config.coreToolsHint') }}
+                </p>
+                <div class="grid grid-cols-2 gap-1.5">
+                  <label
+                    v-for="tool in coreTools"
+                    :key="tool.name"
+                    class="flex items-start gap-2 rounded-md border border-gray-200 bg-gray-50/50 px-2.5 py-2 opacity-70 dark:border-gray-700 dark:bg-gray-800/30"
+                  >
+                    <input
+                      type="checkbox"
+                      checked
+                      disabled
+                      class="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-gray-300 text-gray-400"
+                    />
+                    <div class="min-w-0">
+                      <div class="truncate text-xs font-medium text-gray-600 dark:text-gray-400">{{ tool.name }}</div>
+                      <div class="truncate text-[10px] text-gray-400 dark:text-gray-500">{{ tool.description }}</div>
+                    </div>
+                  </label>
+                </div>
+              </div>
+
+              <!-- 分析工具区（按需开启） -->
+              <div>
+                <div class="mb-1 flex items-center justify-between">
                   <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {{ t('ai.assistant.config.builtinTools') }}
+                    {{ t('ai.assistant.config.analysisTools') }}
                   </h3>
                   <div v-if="!readonly" class="flex gap-2">
-                    <button class="text-[10px] text-primary-500 hover:text-primary-600" @click="selectAllTools">
+                    <button
+                      class="text-[10px] text-primary-500 hover:text-primary-600"
+                      @click="selectAllAnalysisTools"
+                    >
                       {{ t('ai.assistant.config.selectAll') }}
                     </button>
                     <span class="text-[10px] text-gray-300 dark:text-gray-600">|</span>
-                    <button class="text-[10px] text-primary-500 hover:text-primary-600" @click="clearAllTools">
+                    <button
+                      class="text-[10px] text-primary-500 hover:text-primary-600"
+                      @click="clearAllAnalysisTools"
+                    >
                       {{ t('ai.assistant.config.deselectAll') }}
                     </button>
                   </div>
                 </div>
-                <p class="mb-3 text-[10px] text-gray-400">
-                  {{ t('ai.assistant.config.builtinToolsHint') }}
+                <p class="mb-2.5 text-[10px] text-gray-400">
+                  {{ t('ai.assistant.config.analysisToolsHint') }}
                 </p>
                 <div class="grid grid-cols-2 gap-1.5">
                   <label
-                    v-for="tool in BUILTIN_TS_TOOLS"
+                    v-for="tool in analysisTools"
                     :key="tool.name"
                     class="flex cursor-pointer items-start gap-2 rounded-md border px-2.5 py-2 transition-colors"
                     :class="
-                      isToolChecked(tool.name)
+                      isAnalysisToolChecked(tool.name)
                         ? 'border-primary-200 bg-primary-50/50 dark:border-primary-800 dark:bg-primary-950/20'
                         : 'border-gray-200 dark:border-gray-700'
                     "
                   >
                     <input
                       type="checkbox"
-                      :checked="form.allowedBuiltinTools.includes(tool.name)"
+                      :checked="isAnalysisToolChecked(tool.name)"
                       :disabled="readonly"
                       class="mt-0.5 h-3.5 w-3.5 shrink-0 rounded border-gray-300 text-primary-600 focus:ring-primary-500"
                       @change="toggleBuiltinTool(tool.name)"

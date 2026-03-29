@@ -7,21 +7,9 @@
 
 import type { AgentTool } from '@mariozechner/pi-agent-core'
 import type { ToolContext } from './types'
-import {
-  createSearchMessages,
-  createGetRecentMessages,
-  createGetMemberStats,
-  createGetTimeStats,
-  createGetMembers,
-  createGetMemberNameHistory,
-  createGetConversationBetween,
-  createGetMessageContext,
-  createSearchSessions,
-  createGetSessionMessages,
-  createGetSessionSummaries,
-  createGetChatOverview,
-  sqlToolFactories,
-} from './definitions'
+import { TOOL_REGISTRY } from './definitions'
+
+const CORE_TOOL_NAMES = new Set(TOOL_REGISTRY.filter((e) => e.category === 'core').map((e) => e.name))
 import { t as i18nT } from '../../i18n'
 import { preprocessMessages, type PreprocessableMessage } from '../preprocessor'
 import { formatMessageCompact } from './utils/format'
@@ -30,24 +18,6 @@ import type { SkillDef } from '../skills/types'
 
 // 导出类型
 export * from './types'
-
-type ToolFactory = (context: ToolContext) => AgentTool<any>
-
-const coreFactories: ToolFactory[] = [
-  createGetChatOverview,
-  createSearchMessages,
-  createGetRecentMessages,
-  createGetMemberStats,
-  createGetTimeStats,
-  createGetMembers,
-  createGetMemberNameHistory,
-  createGetConversationBetween,
-  createGetMessageContext,
-  createSearchSessions,
-  createGetSessionMessages,
-  createGetSessionSummaries,
-  ...sqlToolFactories,
-]
 
 /**
  * 将工具返回的结构化数据格式化为 LLM 友好的纯文本
@@ -208,21 +178,23 @@ function anonymizeMessageNames(messages: PreprocessableMessage[], ownerPlatformI
 /**
  * 获取所有可用的 AgentTool
  *
- * 根据配置动态过滤工具（如：语义搜索工具仅在启用 Embedding 时可用）
- * 根据当前 locale 动态翻译工具描述
- * 统一包装预处理层
+ * - Core 工具始终加载，不受 allowedTools 白名单影响
+ * - Analysis 工具仅在 allowedTools 中显式列出时才加载（opt-in）
  *
  * @param context 工具上下文
- * @param allowedTools 工具名称白名单（为空或 undefined 时返回全部工具）
+ * @param allowedTools analysis 工具白名单（仅控制 analysis 工具）
  */
 export function getAllTools(context: ToolContext, allowedTools?: string[]): AgentTool<any>[] {
-  let tools: AgentTool<any>[] = coreFactories.map((f) => f(context))
+  const coreTools = TOOL_REGISTRY.filter((e) => e.category === 'core').map((e) => e.factory(context))
 
+  let analysisTools: AgentTool<any>[] = []
   if (allowedTools && allowedTools.length > 0) {
-    tools = tools.filter((t) => allowedTools.includes(t.name))
+    analysisTools = TOOL_REGISTRY.filter((e) => e.category === 'analysis' && allowedTools.includes(e.name)).map((e) =>
+      e.factory(context)
+    )
   }
 
-  return tools.map(translateTool).map((t) => wrapWithPreprocessing(t, context))
+  return [...coreTools, ...analysisTools].map(translateTool).map((t) => wrapWithPreprocessing(t, context))
 }
 
 /**
@@ -272,7 +244,7 @@ export function createActivateSkillTool(
       }
 
       if (skill.tools.length > 0 && allowedTools && allowedTools.length > 0) {
-        const missing = skill.tools.filter((t) => !allowedTools.includes(t))
+        const missing = skill.tools.filter((t) => !CORE_TOOL_NAMES.has(t) && !allowedTools.includes(t))
         if (missing.length > 0) {
           const msg = isZh
             ? `当前助手缺少该技能所需的工具：${missing.join(', ')}`

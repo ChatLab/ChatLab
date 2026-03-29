@@ -725,8 +725,8 @@ export const assistantApi = {
     return ipcRenderer.invoke('assistant:getBuiltinCatalog')
   },
 
-  getBuiltinTsToolNames: (): Promise<string[]> => {
-    return ipcRenderer.invoke('assistant:getBuiltinTsToolNames')
+  getBuiltinToolCatalog: (): Promise<Array<{ name: string; category: 'core' | 'analysis' }>> => {
+    return ipcRenderer.invoke('assistant:getBuiltinToolCatalog')
   },
 
   importAssistant: (builtinId: string): Promise<{ success: boolean; error?: string }> => {

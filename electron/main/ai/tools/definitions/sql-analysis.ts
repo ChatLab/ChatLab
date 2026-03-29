@@ -6,7 +6,7 @@
  */
 
 import type { AgentTool } from '@mariozechner/pi-agent-core'
-import type { ToolContext } from '../types'
+import type { ToolContext, ToolRegistryEntry } from '../types'
 import type { CustomSqlToolDef } from '../../assistant/types'
 import { createSqlTool } from '../../assistant/sqlToolRunner'
 import { t as i18nT } from '../../../i18n'
@@ -192,6 +192,15 @@ export const sqlToolFactories = SQL_TOOL_DEFS.map(
     (context: ToolContext): AgentTool<any> =>
       createSqlTool(def, context)
 )
+
+/**
+ * SQL 工具注册表条目（全部为 analysis 类别）
+ */
+export const sqlToolEntries: ToolRegistryEntry[] = SQL_TOOL_DEFS.map((def) => ({
+  name: def.name,
+  factory: (context: ToolContext): AgentTool<any> => createSqlTool(def, context),
+  category: 'analysis' as const,
+}))
 
 /**
  * 所有内置 SQL 工具的名称集合（用于前端分组展示）
