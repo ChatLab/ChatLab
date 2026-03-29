@@ -255,6 +255,44 @@ export default {
         summaryTemplate: '全 {rowCount} 件の返信されていない可能性のあるメッセージ：',
         fallback: 'この期間のすべてのメッセージに返信がありました。対応品質は良好です！',
       },
+      daily_active_members: {
+        desc: '日ごとのユニーク発言者数（DAU）とメッセージ数を集計し、グループの活性度の推移を観察する。「最近グループはどのくらい活発か」「何人が発言しているか」に適している。',
+        params: { days: '直近何日間のデータを集計するか' },
+        rowTemplate: '{day}：{active_members} 人アクティブ、{msg_count} 件メッセージ',
+        summaryTemplate: '直近 {rowCount} 日間の日別アクティブ人数推移：',
+        fallback: 'この期間にメッセージの記録がありません',
+      },
+      conversation_initiator_stats: {
+        desc: '各メンバーが会話を開始した回数（セッションの最初の発言者）を集計し、誰が最も話題を切り出すかを発見する。セッションインデックスの生成が必要。',
+        params: {
+          days: '直近何日間のデータを集計するか',
+          limit: '上位何名を返却するか',
+        },
+        rowTemplate: '{name}：{initiated_count} 回話題を開始',
+        summaryTemplate: '話題開始者 Top {rowCount}：',
+        fallback: 'この期間にセッション記録がありません。先にセッションインデックスを生成する必要があるかもしれません',
+      },
+      activity_heatmap: {
+        desc: '曜日×時間帯のメッセージ数マトリックスを返却する。活性度ヒートマップの生成に適している。weekday: 0=日曜, 1=月曜, ..., 6=土曜。',
+        params: { days: '直近何日間のデータを集計するか' },
+        rowTemplate: '曜日{weekday} {hour}:00 — {msg_count} 件',
+        summaryTemplate: '活性度ヒートマップデータ（全 {rowCount} 時間帯にメッセージあり）：',
+        fallback: 'この期間にメッセージの記録がありません',
+      },
+      response_time_analysis: {
+        desc: 'メッセージ間の応答時間を分析し、メンバーごとの中央値と平均返信速度を集計する。「みんなどのくらいで返信するか」「誰が最も速く返信するか」に適している。',
+        params: {
+          days: '直近何日間のデータを集計するか',
+          top_n: '上位何名を返却するか',
+        },
+      },
+      keyword_frequency: {
+        desc: '指定期間のテキストメッセージを分詞し、高頻度キーワードをランキングする。中国語・英語・日本語の分詞に対応。「みんなが最もよく話す話題は何か」「高頻度キーワードは何か」に適している。',
+        params: {
+          days: '直近何日間のデータを集計するか',
+          top_n: '上位何個のキーワードを返却するか',
+        },
+      },
     },
 
     // ===== AI Agent システムプロンプト =====

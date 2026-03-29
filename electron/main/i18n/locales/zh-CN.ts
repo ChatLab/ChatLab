@@ -245,6 +245,44 @@ export default {
         summaryTemplate: '共发现 {rowCount} 条可能未被回复的消息：',
         fallback: '该时间范围内所有消息都已得到回复，服务质量很好！',
       },
+      daily_active_members: {
+        desc: '统计每日独立发言人数（DAU）和消息量，用于观察群活力变化趋势。适用于"群活跃度趋势怎么样"、"最近有多少人在说话"。',
+        params: { days: '统计最近多少天的数据' },
+        rowTemplate: '{day}：{active_members} 人活跃，{msg_count} 条消息',
+        summaryTemplate: '近 {rowCount} 天的每日活跃人数趋势：',
+        fallback: '该时间范围内没有消息记录',
+      },
+      conversation_initiator_stats: {
+        desc: '统计每个成员发起会话（作为会话首条消息的发送者）的次数，找出谁最常开启话题。需要已生成会话索引。',
+        params: {
+          days: '统计最近多少天的数据',
+          limit: '返回前多少名',
+        },
+        rowTemplate: '{name}：发起 {initiated_count} 次话题',
+        summaryTemplate: '话题发起者 Top {rowCount}：',
+        fallback: '该时间范围内没有会话记录，可能需要先生成会话索引',
+      },
+      activity_heatmap: {
+        desc: '返回 星期×小时 的消息数矩阵，适合生成活跃度热力图。weekday: 0=周日, 1=周一, ..., 6=周六。',
+        params: { days: '统计最近多少天的数据' },
+        rowTemplate: '星期{weekday} {hour}:00 — {msg_count} 条',
+        summaryTemplate: '活跃度热力图数据（共 {rowCount} 个时段有消息）：',
+        fallback: '该时间范围内没有消息记录',
+      },
+      response_time_analysis: {
+        desc: '分析消息之间的响应时间，按成员维度统计中位数和平均回复速度。适用于"大家平均多久回复消息"、"谁回复最快"。',
+        params: {
+          days: '统计最近多少天的数据',
+          top_n: '返回前多少名',
+        },
+      },
+      keyword_frequency: {
+        desc: '对指定时间段的文本消息进行分词，统计高频关键词排行。支持中英日文分词。适用于"大家最常说什么"、"高频关键词是什么"。',
+        params: {
+          days: '统计最近多少天的数据',
+          top_n: '返回前多少个关键词',
+        },
+      },
     },
 
     // ===== AI Agent 系统提示词 =====

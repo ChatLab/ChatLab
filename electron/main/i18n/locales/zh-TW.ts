@@ -245,6 +245,44 @@ export default {
         summaryTemplate: '共發現 {rowCount} 條可能未被回覆的訊息：',
         fallback: '該時間範圍內所有訊息都已得到回覆，服務品質很好！',
       },
+      daily_active_members: {
+        desc: '統計每日獨立發言人數（DAU）和訊息量，用於觀察群活力變化趨勢。適用於「群活躍度趨勢怎麼樣」、「最近有多少人在說話」。',
+        params: { days: '統計最近多少天的資料' },
+        rowTemplate: '{day}：{active_members} 人活躍，{msg_count} 條訊息',
+        summaryTemplate: '近 {rowCount} 天的每日活躍人數趨勢：',
+        fallback: '該時間範圍內沒有訊息紀錄',
+      },
+      conversation_initiator_stats: {
+        desc: '統計每個成員發起會話（作為會話首條訊息的發送者）的次數，找出誰最常開啟話題。需要已產生會話索引。',
+        params: {
+          days: '統計最近多少天的資料',
+          limit: '回傳前多少名',
+        },
+        rowTemplate: '{name}：發起 {initiated_count} 次話題',
+        summaryTemplate: '話題發起者 Top {rowCount}：',
+        fallback: '該時間範圍內沒有會話紀錄，可能需要先產生會話索引',
+      },
+      activity_heatmap: {
+        desc: '回傳 星期×小時 的訊息數矩陣，適合產生活躍度熱力圖。weekday: 0=週日, 1=週一, ..., 6=週六。',
+        params: { days: '統計最近多少天的資料' },
+        rowTemplate: '星期{weekday} {hour}:00 — {msg_count} 條',
+        summaryTemplate: '活躍度熱力圖資料（共 {rowCount} 個時段有訊息）：',
+        fallback: '該時間範圍內沒有訊息紀錄',
+      },
+      response_time_analysis: {
+        desc: '分析訊息之間的回應時間，按成員維度統計中位數和平均回覆速度。適用於「大家平均多久回覆訊息」、「誰回覆最快」。',
+        params: {
+          days: '統計最近多少天的資料',
+          top_n: '回傳前多少名',
+        },
+      },
+      keyword_frequency: {
+        desc: '對指定時間段的文字訊息進行分詞，統計高頻關鍵詞排行。支援中英日文分詞。適用於「大家最常說什麼」、「高頻關鍵詞是什麼」。',
+        params: {
+          days: '統計最近多少天的資料',
+          top_n: '回傳前多少個關鍵詞',
+        },
+      },
     },
 
     // ===== AI Agent 系統提示詞 =====

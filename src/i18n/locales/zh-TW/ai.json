@@ -321,7 +321,12 @@
       "reply_interaction_ranking": "回覆互動排行",
       "mutual_interaction_pairs": "互動好友配對",
       "member_message_length_stats": "訊息長度統計",
-      "unanswered_messages": "未回覆訊息"
+      "unanswered_messages": "未回覆訊息",
+      "daily_active_members": "每日活躍人數趨勢",
+      "conversation_initiator_stats": "話題發起者統計",
+      "activity_heatmap": "活躍度熱力圖",
+      "response_time_analysis": "回應時間分析",
+      "keyword_frequency": "高頻詞統計"
     }
   },
   "skill": {

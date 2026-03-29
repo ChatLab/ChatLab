@@ -160,6 +160,69 @@ const SQL_TOOL_DEFS: CustomSqlToolDef[] = [
     },
   },
 
+  // ==================== 活跃度趋势 ====================
+  {
+    name: 'daily_active_members',
+    description:
+      '统计每日独立发言人数（DAU）和消息量，用于观察群活力变化趋势。适用于"群活跃度趋势怎么样"、"最近有多少人在说话"。',
+    parameters: {
+      type: 'object',
+      properties: {
+        days: { type: 'number', description: '统计最近多少天的数据', default: 30 },
+      },
+      required: ['days'],
+    },
+    execution: {
+      type: 'sqlite',
+      query:
+        "SELECT date(ts, 'unixepoch', 'localtime') AS day, COUNT(DISTINCT sender_id) AS active_members, COUNT(*) AS msg_count FROM message WHERE ts > unixepoch('now', '-' || @days || ' days') GROUP BY day ORDER BY day",
+      rowTemplate: '{day}：{active_members} 人活跃，{msg_count} 条消息',
+      summaryTemplate: '近 {rowCount} 天的每日活跃人数趋势：',
+      fallback: '该时间范围内没有消息记录',
+    },
+  },
+  {
+    name: 'conversation_initiator_stats',
+    description:
+      '统计每个成员发起会话（作为会话首条消息的发送者）的次数，找出谁最常开启话题。需要已生成会话索引。',
+    parameters: {
+      type: 'object',
+      properties: {
+        days: { type: 'number', description: '统计最近多少天的数据', default: 30 },
+        limit: { type: 'number', description: '返回前多少名', default: 10 },
+      },
+      required: ['days'],
+    },
+    execution: {
+      type: 'sqlite',
+      query:
+        "SELECT COALESCE(m.group_nickname, m.account_name) AS name, COUNT(*) AS initiated_count FROM chat_session cs JOIN message_context mc ON mc.session_id = cs.id JOIN message msg ON msg.id = mc.message_id JOIN member m ON msg.sender_id = m.id WHERE msg.ts = cs.start_ts AND cs.start_ts > unixepoch('now', '-' || @days || ' days') GROUP BY msg.sender_id ORDER BY initiated_count DESC LIMIT @limit",
+      rowTemplate: '{name}：发起 {initiated_count} 次话题',
+      summaryTemplate: '话题发起者 Top {rowCount}：',
+      fallback: '该时间范围内没有会话记录，可能需要先生成会话索引',
+    },
+  },
+  {
+    name: 'activity_heatmap',
+    description:
+      '返回 星期×小时 的消息数矩阵，适合生成活跃度热力图。weekday: 0=周日, 1=周一, ..., 6=周六。',
+    parameters: {
+      type: 'object',
+      properties: {
+        days: { type: 'number', description: '统计最近多少天的数据', default: 30 },
+      },
+      required: ['days'],
+    },
+    execution: {
+      type: 'sqlite',
+      query:
+        "SELECT CAST(strftime('%w', ts, 'unixepoch', 'localtime') AS INTEGER) AS weekday, CAST(strftime('%H', ts, 'unixepoch', 'localtime') AS INTEGER) AS hour, COUNT(*) AS msg_count FROM message WHERE ts > unixepoch('now', '-' || @days || ' days') GROUP BY weekday, hour ORDER BY weekday, hour",
+      rowTemplate: '星期{weekday} {hour}:00 — {msg_count} 条',
+      summaryTemplate: '活跃度热力图数据（共 {rowCount} 个时段有消息）：',
+      fallback: '该时间范围内没有消息记录',
+    },
+  },
+
   // ==================== 客服分析 ====================
   {
     name: 'unanswered_messages',

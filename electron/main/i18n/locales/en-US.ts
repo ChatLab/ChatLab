@@ -254,6 +254,44 @@ Returned summaries are brief descriptions of each session, helping quickly locat
         summaryTemplate: 'Found {rowCount} potentially unanswered messages:',
         fallback: 'All messages have been replied to in this time range. Great service quality!',
       },
+      daily_active_members: {
+        desc: 'Count daily unique active members (DAU) and message volume to observe community vitality trends. Useful for "how is the group activity trending" or "how many people are chatting recently".',
+        params: { days: 'Number of recent days to analyze' },
+        rowTemplate: '{day}: {active_members} active, {msg_count} messages',
+        summaryTemplate: 'Daily active members trend for {rowCount} days:',
+        fallback: 'No messages in this time range',
+      },
+      conversation_initiator_stats: {
+        desc: 'Count how many times each member initiated a conversation (was the first sender in a session). Requires session index to be generated.',
+        params: {
+          days: 'Number of recent days to analyze',
+          limit: 'Number of top members to return',
+        },
+        rowTemplate: '{name}: initiated {initiated_count} topics',
+        summaryTemplate: 'Topic initiator Top {rowCount}:',
+        fallback: 'No session records in this time range. Session index may need to be generated first.',
+      },
+      activity_heatmap: {
+        desc: 'Return a weekday × hour message count matrix for generating activity heatmaps. weekday: 0=Sun, 1=Mon, ..., 6=Sat.',
+        params: { days: 'Number of recent days to analyze' },
+        rowTemplate: 'Weekday {weekday} {hour}:00 — {msg_count} messages',
+        summaryTemplate: 'Activity heatmap data ({rowCount} time slots with messages):',
+        fallback: 'No messages in this time range',
+      },
+      response_time_analysis: {
+        desc: 'Analyze response times between messages, showing median and average reply speed per member. Useful for "how quickly do people reply" or "who replies the fastest".',
+        params: {
+          days: 'Number of recent days to analyze',
+          top_n: 'Number of top members to return',
+        },
+      },
+      keyword_frequency: {
+        desc: 'Segment text messages and rank high-frequency keywords. Supports Chinese, English, and Japanese. Useful for "what do people talk about most" or "what are the hot keywords".',
+        params: {
+          days: 'Number of recent days to analyze',
+          top_n: 'Number of top keywords to return',
+        },
+      },
     },
 
     // ===== AI Agent system prompts =====

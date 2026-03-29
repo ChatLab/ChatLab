@@ -321,7 +321,12 @@
       "reply_interaction_ranking": "Reply interaction ranking",
       "mutual_interaction_pairs": "Mutual interaction pairs",
       "member_message_length_stats": "Message length stats",
-      "unanswered_messages": "Unanswered messages"
+      "unanswered_messages": "Unanswered messages",
+      "daily_active_members": "Daily active members",
+      "conversation_initiator_stats": "Conversation initiators",
+      "activity_heatmap": "Activity heatmap",
+      "response_time_analysis": "Response time analysis",
+      "keyword_frequency": "Keyword frequency"
     }
   },
   "skill": {

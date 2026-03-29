@@ -19,6 +19,8 @@ import { createTool as createGetTimeStats } from './get-time-stats'
 import { createTool as createGetMemberNameHistory } from './get-member-name-history'
 import { createTool as createGetConversationBetween } from './get-conversation-between'
 import { createTool as createGetSessionSummaries } from './get-session-summaries'
+import { createTool as createResponseTimeAnalysis } from './response-time-analysis'
+import { createTool as createKeywordFrequency } from './keyword-frequency'
 
 import { sqlToolEntries } from './sql-analysis'
 
@@ -40,6 +42,8 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   { name: 'get_member_name_history', factory: createGetMemberNameHistory, category: 'analysis' },
   { name: 'get_conversation_between', factory: createGetConversationBetween, category: 'analysis' },
   { name: 'get_session_summaries', factory: createGetSessionSummaries, category: 'analysis' },
+  { name: 'response_time_analysis', factory: createResponseTimeAnalysis, category: 'analysis' },
+  { name: 'keyword_frequency', factory: createKeywordFrequency, category: 'analysis' },
 
   // SQL 分析工具
   ...sqlToolEntries,
