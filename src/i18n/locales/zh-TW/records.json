@@ -26,6 +26,8 @@
     "generateSummary": "產生摘要",
     "tooFewMessages": "訊息太少"
   },
+  "summaryFailed": "摘要產生失敗",
+  "summaryUnknownError": "未知錯誤",
   "batchSummary": {
     "title": "批次產生摘要",
     "byRange": "依範圍",

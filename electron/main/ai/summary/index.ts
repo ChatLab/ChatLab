@@ -41,6 +41,10 @@ async function llmComplete(
     }
   )
 
+  if (result.stopReason === 'error' || result.stopReason === 'aborted') {
+    throw new Error(result.errorMessage || t('llm.callFailed'))
+  }
+
   return result.content
     .filter((item): item is PiTextContent => item.type === 'text')
     .map((item) => item.text)

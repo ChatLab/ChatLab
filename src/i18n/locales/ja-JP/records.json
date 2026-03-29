@@ -26,6 +26,8 @@
     "generateSummary": "要約を作成",
     "tooFewMessages": "メッセージが少なすぎます"
   },
+  "summaryFailed": "要約の生成に失敗しました",
+  "summaryUnknownError": "不明なエラー",
   "batchSummary": {
     "title": "要約をまとめて作成",
     "byRange": "範囲で選択",

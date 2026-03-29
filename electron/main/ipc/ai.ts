@@ -557,6 +557,7 @@ export function registerAIHandlers({ win }: IpcContext): void {
 
         // 异步消费流，通过事件发送 chunks
         ;(async () => {
+          let hasTerminalChunk = false
           try {
             for await (const event of eventStream) {
               if (event.type === 'text_delta') {
@@ -564,19 +565,47 @@ export function registerAIHandlers({ win }: IpcContext): void {
                   requestId,
                   chunk: { content: event.delta, isFinished: false },
                 })
+                continue
+              }
+
+              if (event.type === 'done') {
+                hasTerminalChunk = true
+                win.webContents.send('llm:streamChunk', {
+                  requestId,
+                  chunk: { content: '', isFinished: true, finishReason: event.reason === 'length' ? 'length' : 'stop' },
+                })
+                return
+              }
+
+              if (event.type === 'error') {
+                hasTerminalChunk = true
+                const errorMsg = event.error?.errorMessage || formatAIError(event.error) || 'Unknown LLM error'
+                aiLogger.error('IPC', 'llm:chatStream LLM error', { requestId, error: errorMsg })
+                win.webContents.send('llm:streamChunk', {
+                  requestId,
+                  error: errorMsg,
+                  chunk: { content: '', isFinished: true, finishReason: 'error' },
+                })
+                return
               }
             }
-            win.webContents.send('llm:streamChunk', {
-              requestId,
-              chunk: { content: '', isFinished: true, finishReason: 'stop' },
-            })
+
+            if (!hasTerminalChunk) {
+              win.webContents.send('llm:streamChunk', {
+                requestId,
+                chunk: { content: '', isFinished: true, finishReason: 'stop' },
+              })
+            }
           } catch (error) {
-            aiLogger.error('IPC', 'llm:chatStream stream error', { requestId, error: String(error) })
-            win.webContents.send('llm:streamChunk', {
-              requestId,
-              error: String(error),
-              chunk: { content: '', isFinished: true, finishReason: 'error' },
-            })
+            if (!hasTerminalChunk) {
+              const friendlyError = formatAIError(error)
+              aiLogger.error('IPC', 'llm:chatStream stream error', { requestId, error: String(error) })
+              win.webContents.send('llm:streamChunk', {
+                requestId,
+                error: friendlyError,
+                chunk: { content: '', isFinished: true, finishReason: 'error' },
+              })
+            }
           }
         })()
 

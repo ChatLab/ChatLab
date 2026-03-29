@@ -313,6 +313,7 @@ export default {
     maxConfigs: '設定は最大 {{count}} 個まで追加できます',
     configNotFound: '設定が存在しません',
     noActiveConfig: 'アクティブな設定がありません',
+    callFailed: 'LLM 呼び出しに失敗しました。モデル設定を確認してください。',
   },
 
   // ===== P4: 要約生成 =====

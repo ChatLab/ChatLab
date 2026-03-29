@@ -312,6 +312,7 @@ Your task is to help users understand and analyze their private chat data.
     maxConfigs: 'Maximum of {{count}} configurations allowed',
     configNotFound: 'Configuration not found',
     noActiveConfig: 'No active configuration',
+    callFailed: 'LLM call failed. Please check your model configuration.',
   },
 
   // ===== P4: Summary generation =====

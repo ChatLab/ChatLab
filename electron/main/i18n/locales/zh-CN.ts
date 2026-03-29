@@ -303,6 +303,7 @@ export default {
     maxConfigs: '最多只能添加 {{count}} 个配置',
     configNotFound: '配置不存在',
     noActiveConfig: '没有激活的配置',
+    callFailed: 'LLM 调用失败，请检查模型配置是否正确',
   },
 
   // ===== P4: 摘要生成 =====

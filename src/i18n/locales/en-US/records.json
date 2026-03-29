@@ -26,6 +26,8 @@
     "generateSummary": "Summarize",
     "tooFewMessages": "Too few"
   },
+  "summaryFailed": "Summary generation failed",
+  "summaryUnknownError": "Unknown error",
   "batchSummary": {
     "title": "Batch Generate Summaries",
     "byRange": "By Range",

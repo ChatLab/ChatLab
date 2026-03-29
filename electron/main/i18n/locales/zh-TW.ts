@@ -301,6 +301,7 @@ export default {
     maxConfigs: '最多只能新增 {{count}} 組設定',
     configNotFound: '找不到設定',
     noActiveConfig: '沒有啟用中的設定',
+    callFailed: 'LLM 呼叫失敗，請檢查模型設定是否正確',
   },
 
   // ===== P4: 摘要生成 =====
