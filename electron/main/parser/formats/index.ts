@@ -19,6 +19,7 @@ import whatsappNativeTxt from './whatsapp-native-txt'
 import qqNativeTxt from './qq-native-txt'
 import instagramNative from './instagram-native'
 import lineNativeTxt from './line-native-txt'
+import customTxt from './custom-txt'
 
 /**
  * 所有支持的格式模块（按优先级排序）
@@ -36,6 +37,7 @@ export const formats: FormatModule[] = [
   whatsappNativeTxt, // 优先级 26 - WhatsApp 官方导出 TXT
   qqNativeTxt, // 优先级 30 - QQ 官方导出 TXT
   lineNativeTxt, // 优先级 35 - LINE 官方导出 TXT
+  customTxt, // 优先级 40 - 自定义 TXT 格式
   chatlab, // 优先级 50 - ChatLab JSON
   chatlabJsonl, // 优先级 51 - ChatLab JSONL（流式格式，支持超大文件）
 ]
@@ -55,4 +57,5 @@ export {
   whatsappNativeTxt,
   qqNativeTxt,
   lineNativeTxt,
+  customTxt,
 }
