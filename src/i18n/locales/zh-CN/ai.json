@@ -1,0 +1,381 @@
+{
+  "tab": {
+    "chatExplorer": "对话式探索",
+    "sqlLab": "SQL实验室",
+    "featureInDev": "{name}功能开发中",
+    "comingSoon": "敬请期待...",
+    "followNotice": "功能上线通知，欢迎关注我的小红书"
+  },
+  "chat": {
+    "welcome": {
+      "configReady": "✅ AI 服务已配置，可以开始对话了！",
+      "configNeeded": "**注意**：使用前请先在侧边栏底部的「设置」中配置 AI 服务 ⚙️"
+    },
+    "capture": "截屏对话",
+    "scrollToBottom": "返回底部",
+    "input": {
+      "placeholder": "输入你的问题...",
+      "placeholderWithSlash": "输入你的问题，或输入 / 选择技能、输入 {'@'} 选择成员...",
+      "placeholderWithActiveSkill": "已选择 /{name}，请输入具体问题...",
+      "removeSkill": "移除当前技能",
+      "slashHint": "输入 / 选择技能",
+      "useSkill": "选择技能",
+      "mentionHint": "输入 {'@'} 选择成员",
+      "mentionEmpty": "没有匹配的成员",
+      "mentionEmptyHint": "可按昵称、别名或账号搜索",
+      "slashEmpty": "没有匹配的技能",
+      "slashEmptyHint": "打开技能管理导入内置技能，或创建一个自定义技能",
+      "manageSkills": "管理技能",
+      "previewTitle": "技能提示词",
+      "previewTagsLabel": "标签",
+      "previewToolsLabel": "工具",
+      "previewUnavailable": "暂无可预览的技能提示词",
+      "presetMore": "更多",
+      "presetCollapse": "收起",
+      "send": "发送",
+      "needMoreThanSkill": "仅选择技能还不能发送，请继续输入具体问题",
+      "needQuestion": "请输入问题后再发送"
+    },
+    "backgroundTask": {
+      "runningShort": "进行中",
+      "runningTitle": "AI 正在后台推理",
+      "runningDescription": "上一条问题仍在推理，请等待完成或先停止。",
+      "blockedAction": "当前回答仍在生成中，请先等待完成或手动停止。",
+      "return": "返回查看"
+    },
+    "message": {
+      "userAvatar": "用户头像",
+      "calling": "调用",
+      "tools": {
+        "search_messages": "搜索聊天记录",
+        "get_recent_messages": "获取最近消息",
+        "get_member_stats": "获取成员统计",
+        "get_time_stats": "获取时间分布",
+        "get_members": "获取成员列表",
+        "get_member_name_history": "获取昵称历史",
+        "get_conversation_between": "获取对话记录",
+        "get_message_context": "获取上下文",
+        "semantic_search_messages": "🔍 语义搜索"
+      },
+      "generating": "正在生成回复...",
+      "think": {
+        "labels": {
+          "think": "已思考",
+          "analysis": "分析",
+          "reasoning": "推理",
+          "reflection": "反思",
+          "other": "思考（{tag}）"
+        },
+        "loading": "思考中",
+        "duration": "耗时 {seconds}s"
+      },
+      "toolParams": {
+        "keywords": "关键词",
+        "time": "时间",
+        "getMessages": "获取 {count} 条消息",
+        "limit": "限制 {count} 条",
+        "contextWithMessages": "{msgCount} 条消息的前后各 {contextSize} 条上下文",
+        "context": "前后各 {size} 条上下文",
+        "topMembers": "前 {count} 名成员",
+        "search": "搜索",
+        "getMemberList": "获取成员列表",
+        "memberId": "成员ID",
+        "timeStats": {
+          "hourly": "按小时",
+          "weekday": "按星期",
+          "daily": "按日期"
+        }
+      }
+    },
+    "thinking": {
+      "processingResult": "处理结果中",
+      "called": "已调用:",
+      "analyzing": "正在分析问题..."
+    },
+    "statusBar": {
+      "preset": {
+        "default": "默认预设",
+        "groupTitle": "群聊提示词预设",
+        "privateTitle": "私聊提示词预设",
+        "manage": "管理提示词"
+      },
+      "model": {
+        "title": "AI 模型配置",
+        "notConfigured": "AI 未配置",
+        "empty": "暂无配置",
+        "manage": "管理配置",
+        "switchFailed": "切换模型失败"
+      },
+      "messageLimit": {
+        "label": "消息上限：",
+        "title": "每次发送的最大消息条数，点击配置"
+      },
+      "agent": {
+        "label": "Agent",
+        "contextTokens": "上下文",
+        "stats": "段 {segment} · 标签 {tags}",
+        "phase": {
+          "preparing": "准备中",
+          "thinking": "思考中",
+          "tool_running": "调用工具",
+          "responding": "生成中",
+          "completed": "已完成",
+          "aborted": "已停止",
+          "error": "错误"
+        },
+        "phaseShort": {
+          "preparing": "准备",
+          "thinking": "思考",
+          "tool_running": "工具",
+          "responding": "生成",
+          "completed": "完成",
+          "aborted": "停止",
+          "error": "错误"
+        }
+      },
+      "tokenUsageTitle": "本次会话累计 Token 使用量",
+      "export": {
+        "label": "导出",
+        "title": "导出当前对话"
+      },
+      "log": {
+        "label": "日志",
+        "title": "打开当前 AI 日志文件",
+        "openFailed": "打开日志失败",
+        "openFailedDesc": "请稍后重试"
+      },
+      "status": {
+        "connected": "AI 已连接",
+        "notConfigured": "请在全局设置中配置 AI 服务"
+      }
+    },
+    "conversation": {
+      "title": "AI对话记录",
+      "newChat": "新对话",
+      "empty": "暂无历史记录",
+      "startNew": "开始新对话",
+      "titlePlaceholder": "输入标题...",
+      "export": {
+        "createdAt": "创建时间",
+        "user": "用户",
+        "assistant": "AI 助手",
+        "noMessages": "对话没有消息"
+      }
+    },
+    "dataSource": {
+      "title": "数据源",
+      "keywords": "关键词:",
+      "empty": "暂无数据",
+      "emptyHint": "发送问题后，相关记录会显示在这里",
+      "totalRecords": "共 {count} 条记录",
+      "loadMore": "加载更多"
+    }
+  },
+  "sqlLab": {
+    "editor": {
+      "errorEmptySQL": "请输入 SQL 语句",
+      "placeholder": "输入 SQL 查询语句...",
+      "tip": "提示：双击左侧列名可插入到 SQL",
+      "history": "历史",
+      "aiGenerate": "AI 生成",
+      "shortcut": "Ctrl/⌘ + Enter 执行",
+      "run": "运行"
+    },
+    "schema": {
+      "tables": "数据表",
+      "doubleClickToInsert": "双击插入到 SQL",
+      "primaryKey": "主键"
+    },
+    "result": {
+      "queryError": "查询错误",
+      "rows": "{count} 行",
+      "readableTime": "时间戳转日期",
+      "viewChat": "查看聊天记录",
+      "summarize": "总结一下",
+      "pageSize": "每页",
+      "pageInfo": "第 {current} / {total} 页",
+      "emptyResult": "查询结果为空",
+      "initialState": "输入 SQL 语句并运行查看结果",
+      "initialHint": "仅支持 SELECT 查询，建议添加 LIMIT 以提升性能",
+      "summaryTitle": "AI 结果总结",
+      "analyzing": "AI 正在分析结果...",
+      "errorSummary": "总结失败"
+    },
+    "generate": {
+      "title": "AI 生成 SQL",
+      "description": "用自然语言描述你想查询的内容，AI 将自动生成对应的 SQL 语句。",
+      "placeholder": "例如：查找发言最多的前 10 个成员、统计每天的消息数量、找出包含「买房」关键词的消息...",
+      "errorEmptyPrompt": "请输入查询需求",
+      "errorGenerate": "AI 生成失败",
+      "aiOutput": "AI 输出",
+      "waitingAI": "等待 AI 响应...",
+      "sqlStatement": "SQL 语句",
+      "explanation": "说明",
+      "generateSQL": "生成 SQL",
+      "useSQL": "使用 SQL",
+      "run": "运行"
+    },
+    "history": {
+      "title": "AI 生成历史",
+      "execute": "执行",
+      "empty": "暂无历史记录",
+      "justNow": "刚刚",
+      "minutesAgo": "{count} 分钟前",
+      "hoursAgo": "{count} 小时前",
+      "today": "今天"
+    }
+  },
+  "assistant": {
+    "selector": {
+      "title": "选择一个助手开始对话",
+      "subtitle": "每个助手擅长不同类型的分析任务，选择最适合你需求的助手",
+      "noAssistants": "当前场景暂无可用助手",
+      "manage": "管理助手",
+      "addNew": "新增助手"
+    },
+    "config": {
+      "viewTitle": "查看配置",
+      "createTitle": "新建助手",
+      "editTitle": "助手配置",
+      "betaWarning": "当前处于测试阶段，配置逻辑后续可能调整，请备份好提示词和相关配置。",
+      "tabs": {
+        "basic": "基础配置",
+        "tools": "工具管理"
+      },
+      "name": "名称",
+      "systemPrompt": "系统提示词",
+      "chatType": "适用聊天类型",
+      "chatTypeAll": "全部",
+      "chatTypeGroup": "群聊",
+      "chatTypePrivate": "私聊",
+      "locale": "适用语言",
+      "localeHint": "不选 = 全语言",
+      "presetQuestions": "预设问题",
+      "addQuestion": "添加新问题...",
+      "builtinTools": "内置工具",
+      "selectAll": "全选",
+      "deselectAll": "全不选",
+      "builtinToolsHint": "不勾选任何工具 = 全部工具可用。勾选后仅开放已选工具。",
+      "toolGroupQuery": "数据查询工具",
+      "resetDefault": "恢复默认",
+      "create": "创建"
+    },
+    "market": {
+      "title": "助手管理",
+      "tabs": {
+        "local": "本地助手",
+        "market": "助手市场"
+      },
+      "localHint": "管理已导入的助手，可配置或删除",
+      "marketHint": "浏览助手市场，导入后即可使用和自由编辑",
+      "default": "默认",
+      "updateAvailable": "更新可用",
+      "reimport": "重新导入",
+      "imported": "已导入",
+      "import": "导入",
+      "importing": "导入中...",
+      "importSuccess": "导入成功",
+      "importFailed": "导入失败",
+      "viewConfig": "查看配置",
+      "duplicate": "复制",
+      "addAssistant": "新增助手",
+      "noLocal": "暂无已导入的助手",
+      "noCatalog": "暂无可用助手，请检查网络连接",
+      "loading": "加载中...",
+      "loadFailed": "加载失败，请检查网络连接",
+      "retry": "重试"
+    },
+    "fallbackName": "助手",
+    "duplicateSuffix": "（副本）",
+    "toast": {
+      "loadFailed": "加载失败",
+      "createSuccess": "创建成功",
+      "createFailed": "创建失败",
+      "saveSuccess": "保存成功",
+      "saveFailed": "保存失败",
+      "resetSuccess": "已恢复默认",
+      "resetFailed": "恢复失败",
+      "unknownError": "未知错误"
+    },
+    "builtinToolDesc": {
+      "search_messages": "搜索聊天消息",
+      "get_recent_messages": "获取最近消息",
+      "get_message_context": "获取消息上下文",
+      "get_conversation_between": "获取两人对话",
+      "get_members": "获取群成员列表",
+      "get_member_stats": "获取成员统计",
+      "get_member_name_history": "获取成员改名历史",
+      "get_time_stats": "获取时间统计",
+      "search_sessions": "搜索会话",
+      "get_session_messages": "获取会话消息",
+      "get_session_summaries": "获取会话摘要",
+      "semantic_search_messages": "语义搜索消息"
+    }
+  },
+  "skill": {
+    "selector": {
+      "title": "选择技能",
+      "freeChat": "自由对话",
+      "freeChatDesc": "不使用预设技能，由 AI 自主回答",
+      "manage": "技能管理",
+      "incompatible": "与当前助手不兼容",
+      "noSkills": "暂无可用技能",
+      "noSkillsHint": "通过技能管理导入内置技能或创建自定义技能",
+      "autoSkill": "AI 自主选择技能",
+      "autoSkillHint": "开启后 AI 可根据问题自动选择合适的技能"
+    },
+    "config": {
+      "createTitle": "新建技能",
+      "editTitle": "技能配置",
+      "name": "名称",
+      "description": "描述",
+      "tags": "标签",
+      "chatScope": "适用范围",
+      "chatScopeAll": "全部",
+      "chatScopeGroup": "群聊",
+      "chatScopePrivate": "私聊",
+      "prompt": "技能提示词",
+      "tools": "所需工具",
+      "rawEditor": "Markdown 编辑器",
+      "rawEditorHint": "直接编辑完整的技能 Markdown 文件（含 YAML frontmatter）",
+      "create": "创建",
+      "save": "保存"
+    },
+    "market": {
+      "title": "技能管理",
+      "tabs": {
+        "local": "本地技能",
+        "market": "技能市场"
+      },
+      "localHint": "管理已导入的技能，可配置或删除",
+      "marketHint": "浏览技能市场，导入后即可使用和自由编辑",
+      "updateAvailable": "更新可用",
+      "reimport": "重新导入",
+      "imported": "已导入",
+      "import": "导入",
+      "importing": "导入中...",
+      "importSuccess": "导入成功",
+      "importFailed": "导入失败",
+      "noLocal": "暂无已导入的技能",
+      "noCatalog": "暂无可用技能，请检查网络连接",
+      "addSkill": "新建自定义技能",
+      "loading": "加载中...",
+      "loadFailed": "加载失败，请检查网络连接",
+      "retry": "重试"
+    },
+    "block": {
+      "label": "技能：{name}"
+    },
+    "active": {
+      "label": "主动调用技能：{name}"
+    },
+    "toast": {
+      "createSuccess": "技能创建成功",
+      "createFailed": "技能创建失败",
+      "saveSuccess": "技能保存成功",
+      "saveFailed": "技能保存失败",
+      "deleteSuccess": "技能已删除",
+      "deleteFailed": "删除失败"
+    }
+  }
+}

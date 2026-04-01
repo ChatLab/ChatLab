@@ -1,0 +1,160 @@
+{
+  "groupChat": {
+    "title": "Group Chat Analysis",
+    "loading": "Loading analysis data...",
+    "loadError": "Unable to load session data",
+    "description": "{dateRange}, {memberCount} members chatted {messageCount} messages"
+  },
+  "privateChat": {
+    "title": "Private Chat Analysis",
+    "loading": "Loading analysis data...",
+    "loadError": "Unable to load session data",
+    "description": "{dateRange}, {messageCount} messages in total"
+  },
+  "tabs": {
+    "overview": "Overview",
+    "view": "View",
+    "ranking": "Rankings",
+    "groupQuotes": "Quotes",
+    "quotes": "Quotes",
+    "members": "Members",
+    "member": "Members",
+    "ai": "AI Lab",
+    "aiChat": "AI Chat",
+    "lab": "Lab",
+    "sqlLab": "SQL Lab"
+  },
+  "yearFilter": {
+    "allTime": "All Time",
+    "year": "{year}"
+  },
+  "tooltip": {
+    "chatViewer": "Chat Record Viewer",
+    "sessionIndex": "Session Index",
+    "incrementalImport": "Import More"
+  },
+  "incremental": {
+    "title": "Append Chat Records",
+    "description": "Select chat record file to append to \"{name}\". Duplicates will be automatically removed.",
+    "selectFile": "Select chat record file",
+    "dropHint": "Click to select or drop file here",
+    "analyzing": "Analyzing file...",
+    "totalInFile": "Total in file",
+    "newMessages": "New messages",
+    "duplicates": "Duplicates",
+    "noNewMessages": "No new messages found, all messages already exist",
+    "importing": "Importing...",
+    "import": "Import {count} messages",
+    "success": "Import successful",
+    "successDetail": "Successfully appended {count} new messages",
+    "failed": "Import failed"
+  },
+  "subTabs": {
+    "view": {
+      "message": "Messages",
+      "interaction": "Interactions",
+      "ranking": "Rankings"
+    },
+    "quotes": {
+      "wordcloud": "Word Cloud",
+      "hotRepeat": "Hot Repeats",
+      "catchphrase": "Catchphrases",
+      "keywordAnalysis": "Keyword Analysis"
+    },
+    "member": {
+      "memberList": "Member List",
+      "relationships": "Relationships",
+      "cluster": "Interaction",
+      "nicknameHistory": "Nickname History"
+    }
+  },
+  "overview": {
+    "messageTypeDistribution": "Message Type Distribution",
+    "memberDistribution": "Member Activity Distribution",
+    "others": "Others",
+    "messageRatio": "Message Ratio",
+    "messageUnit": "messages",
+    "memberComparison": "Member Comparison",
+    "statCards": {
+      "dailyAvgMessages": "Daily Avg Messages",
+      "messagesCount": "{count} msgs",
+      "daysCount": "{count} days total",
+      "imageMessages": "Image Messages",
+      "imagesCount": "{count} images",
+      "peakHour": "Peak hour:",
+      "mostActiveWeekday": "Most Active Day",
+      "messagesOnDay": "{count} messages",
+      "weekendActivity": "Weekend Activity",
+      "weekendRatio": "Weekend message ratio",
+      "mostActiveDate": "Most Active Date",
+      "activeDays": "Active Days",
+      "slashDays": "/ {count} days",
+      "consecutiveStreak": "Streak",
+      "daysStreak": "{count} days",
+      "longestStreak": "Longest active streak",
+      "activityRate": "Activity Rate",
+      "activeDaysRatio": "Days with messages"
+    },
+    "dailyTrend": {
+      "title": "Daily Message Trend"
+    },
+    "identity": {
+      "privateChat": "Private",
+      "groupChat": "Group",
+      "analysisReport": "Analysis Report",
+      "totalMessages": "Total Messages",
+      "durationDays": "Duration Days",
+      "dailyAvgMessages": "Daily Avg"
+    },
+    "tools": "Quick Tools"
+  },
+  "messageExport": {
+    "title": "Export Chat Records"
+  },
+  "filter": {
+    "title": "Filter Analysis",
+    "conditionMode": "Condition Filter",
+    "sessionMode": "Session Filter",
+    "history": "History",
+    "execute": "Execute Filter",
+    "export": "Export Feed Pack",
+    "keywords": "Keywords",
+    "keywordsHint": "Multiple keywords supported, OR logic",
+    "keywordPlaceholder": "Enter keyword, press Enter to add",
+    "timeRange": "Time Range",
+    "allTime": "All Time",
+    "today": "Today",
+    "lastWeek": "Last 7 Days",
+    "lastMonth": "Last Month",
+    "last3Months": "Last 3 Months",
+    "lastYear": "Last Year",
+    "customTime": "Custom",
+    "senders": "Senders",
+    "sendersHint": "Optional, leave empty for all",
+    "searchMember": "Search member...",
+    "noMembers": "No members",
+    "selectedCount": "{count} selected",
+    "contextSize": "Context Expansion",
+    "messages": "messages",
+    "searchSession": "Search date...",
+    "selectedSessions": "{count} sessions selected",
+    "noSessions": "No session index",
+    "filtering": "Filtering...",
+    "emptyHint": "Set filter conditions and click execute",
+    "noResults": "No matching messages found",
+    "blockTitle": "Context Block {index}",
+    "stats": {
+      "blocks": "Blocks",
+      "messages": "Messages",
+      "hits": "Hits",
+      "chars": "Characters"
+    },
+    "historyTitle": "Filter History",
+    "noHistory": "No history records",
+    "loadMore": "Load More",
+    "allLoaded": "All loaded",
+    "exportSuccess": "Export successful",
+    "exportFailed": "Export failed",
+    "exportPreparing": "Preparing export..."
+  }
+}

@@ -1,0 +1,84 @@
+{
+  "ownerSelector": {
+    "title": "選擇你是誰",
+    "unset": "未設定",
+    "selectMember": "選擇成員",
+    "currentOwner": "目前：{name}",
+    "hint": "1. 會顯示在聊天紀錄檢視器右側 2. AI 對話中也會標示你的身分"
+  },
+  "list": {
+    "title": "成員管理",
+    "description": "共 {count} 位成員，可為成員新增別名備註或移除成員",
+    "searchPlaceholder": "搜尋群暱稱、帳號名稱、ID 或別名",
+    "noMatch": "沒有找到符合的成員",
+    "empty": "暫無成員資料",
+    "table": {
+      "accountName": "帳號名稱",
+      "groupNickname": "群暱稱",
+      "messageCount": "訊息數",
+      "customAlias": "自訂別名",
+      "actions": "操作"
+    },
+    "aliasPlaceholder": "輸入後按 Enter 新增",
+    "delete": "刪除",
+    "pagination": "顯示第 {start} - {end} 筆，共 {total} 位成員",
+    "tip": "提示：新增別名後，搜尋與 AI 分析時會更容易辨識聊天對象。",
+    "modal": {
+      "title": "確認刪除成員？",
+      "content": "即將刪除成員 {name} 及其 {count} 則訊息，此操作不可復原。",
+      "cancel": "取消",
+      "confirm": "確認刪除"
+    }
+  },
+  "nicknameHistory": {
+    "note": "備註：QQ 舊版客戶端支援匯出 txt 聊天紀錄，該版本能取得較完整的暱稱變更紀錄",
+    "title": "暱稱變更紀錄",
+    "loading": "載入中...",
+    "hasChanges": "{count} 位成員曾修改過暱稱",
+    "noChanges": "暫無成員修改暱稱",
+    "current": "當前",
+    "empty": "該群組所有成員均未修改過暱稱",
+    "loadingText": "正在載入暱稱變更紀錄..."
+  },
+  "relationships": {
+    "loading": "正在分析 {'@'} 互動資料...",
+    "topMentioners": "📢 誰最喜歡 {'@'} 別人",
+    "totalMentions": "共 {count} 次 {'@'}",
+    "topMentioned": "🎯 誰最常被 {'@'}",
+    "popularMember": "群裡的人氣王",
+    "times": "次",
+    "oneWay": {
+      "title": "🐕 單向關注偵測",
+      "description": "發現 {count} 對單向關注關係（一方 {'@'} 另一方佔比 ≥80%）",
+      "neverRespond": "從不回應",
+      "reverse": "反向 {count} 次",
+      "ratio": "{value}% 單向"
+    },
+    "twoWay": {
+      "title": "💕 雙向奔赴偵測",
+      "description": "發現 {count} 對互動頻繁的 CP（互相 {'@'} 且平衡度 ≥30%）",
+      "interactions": "次互動",
+      "balance": "{value}% 平衡"
+    },
+    "emptyTitle": "📱 {'@'} 互動分析",
+    "empty": "暫無 {'@'} 互動資料",
+    "modal": {
+      "title": "{name} 的 {'@'} 關係",
+      "topMentioned": "最常 {'@'} 的人",
+      "topMentioners": "最常 {'@'} TA 的人",
+      "timesCount": "{count} 次",
+      "close": "關閉"
+    }
+  },
+  "private": {
+    "title": "對話成員",
+    "description": "共 {count} 位成員，可為成員新增別名備註用於搜尋和 AI 分析",
+    "messageCount": "訊息數",
+    "percentage": "佔比 {value}%",
+    "customAlias": "自訂別名",
+    "aliasPlaceholder": "輸入後按 Enter 新增別名",
+    "empty": "暫無成員資料",
+    "tipTitle": "提示",
+    "tipContent": "新增別名可以更好地識別聊天紀錄中的對話對象，別名將用於搜尋和 AI 分析中。"
+  }
+}

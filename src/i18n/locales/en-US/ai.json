@@ -1,0 +1,381 @@
+{
+  "tab": {
+    "chatExplorer": "Chat Explorer",
+    "sqlLab": "SQL Lab",
+    "featureInDev": "{name} is in development",
+    "comingSoon": "Coming soon...",
+    "followNotice": "Follow me on X for updates"
+  },
+  "chat": {
+    "welcome": {
+      "configReady": "✅ AI service is configured and ready!",
+      "configNeeded": "**Note**: Please configure AI service in Settings (sidebar bottom) before using ⚙️"
+    },
+    "capture": "Capture Chat",
+    "scrollToBottom": "Back to Bottom",
+    "input": {
+      "placeholder": "Enter your question...",
+      "placeholderWithSlash": "Enter your question, or type / for skills and {'@'} for members...",
+      "placeholderWithActiveSkill": "/{name} selected. Enter your specific question...",
+      "removeSkill": "Remove active skill",
+      "slashHint": "Type / to pick a skill",
+      "useSkill": "Choose Skill",
+      "mentionHint": "Type {'@'} to pick a member",
+      "mentionEmpty": "No matching members",
+      "mentionEmptyHint": "Search by nickname, alias, or account",
+      "slashEmpty": "No matching skills",
+      "slashEmptyHint": "Open Skill Manager to import built-in skills or create a custom one",
+      "manageSkills": "Manage Skills",
+      "previewTitle": "Skill Prompt",
+      "previewTagsLabel": "Tags",
+      "previewToolsLabel": "Tools",
+      "previewUnavailable": "No skill prompt available for preview",
+      "presetMore": "More",
+      "presetCollapse": "Collapse",
+      "send": "Send",
+      "needMoreThanSkill": "Selecting a skill alone is not enough. Enter a specific question.",
+      "needQuestion": "Enter a question before sending"
+    },
+    "backgroundTask": {
+      "runningShort": "Running",
+      "runningTitle": "AI is still thinking",
+      "runningDescription": "The previous question is still running. Please wait for it to finish or stop it first.",
+      "blockedAction": "The current answer is still being generated. Wait for it to finish or stop it first.",
+      "return": "Return"
+    },
+    "message": {
+      "userAvatar": "User Avatar",
+      "calling": "Calling",
+      "tools": {
+        "search_messages": "Search Messages",
+        "get_recent_messages": "Get Recent Messages",
+        "get_member_stats": "Get Member Stats",
+        "get_time_stats": "Get Time Stats",
+        "get_members": "Get Members",
+        "get_member_name_history": "Get Nickname History",
+        "get_conversation_between": "Get Conversation",
+        "get_message_context": "Get Message Context",
+        "semantic_search_messages": "🔍 Semantic Search"
+      },
+      "generating": "Generating response...",
+      "think": {
+        "labels": {
+          "think": "Thinking",
+          "analysis": "Analysis",
+          "reasoning": "Reasoning",
+          "reflection": "Reflection",
+          "other": "Thinking ({tag})"
+        },
+        "loading": "Thinking",
+        "duration": "Took {seconds}s"
+      },
+      "toolParams": {
+        "keywords": "Keywords",
+        "time": "Time",
+        "getMessages": "Get {count} messages",
+        "limit": "Limit {count}",
+        "contextWithMessages": "Context of {contextSize} messages around {msgCount} messages",
+        "context": "{size} messages context",
+        "topMembers": "Top {count} members",
+        "search": "Search",
+        "getMemberList": "Get member list",
+        "memberId": "Member ID",
+        "timeStats": {
+          "hourly": "Hourly",
+          "weekday": "By Weekday",
+          "daily": "Daily"
+        }
+      }
+    },
+    "thinking": {
+      "processingResult": "Processing result",
+      "called": "Called:",
+      "analyzing": "Analyzing question..."
+    },
+    "statusBar": {
+      "preset": {
+        "default": "Default Preset",
+        "groupTitle": "Group Chat Presets",
+        "privateTitle": "Private Chat Presets",
+        "manage": "Manage Presets"
+      },
+      "model": {
+        "title": "AI Model Configs",
+        "notConfigured": "AI Not Configured",
+        "empty": "No configs",
+        "manage": "Manage Configs",
+        "switchFailed": "Failed to switch model"
+      },
+      "messageLimit": {
+        "label": "Limit: ",
+        "title": "Max messages per request, click to configure"
+      },
+      "agent": {
+        "label": "Agent",
+        "contextTokens": "Context",
+        "stats": "seg {segment} · tags {tags}",
+        "phase": {
+          "preparing": "Preparing",
+          "thinking": "Thinking",
+          "tool_running": "Running tool",
+          "responding": "Responding",
+          "completed": "Completed",
+          "aborted": "Stopped",
+          "error": "Error"
+        },
+        "phaseShort": {
+          "preparing": "Prep",
+          "thinking": "Think",
+          "tool_running": "Tool",
+          "responding": "Reply",
+          "completed": "Done",
+          "aborted": "Stop",
+          "error": "Err"
+        }
+      },
+      "tokenUsageTitle": "Total token usage in this session",
+      "export": {
+        "label": "Export",
+        "title": "Export current conversation"
+      },
+      "log": {
+        "label": "Logs",
+        "title": "Open current AI log file",
+        "openFailed": "Failed to open log",
+        "openFailedDesc": "Please try again later"
+      },
+      "status": {
+        "connected": "AI Connected",
+        "notConfigured": "Please configure AI service in Settings"
+      }
+    },
+    "conversation": {
+      "title": "AI Conversations",
+      "newChat": "New Chat",
+      "empty": "No history yet",
+      "startNew": "Start New Chat",
+      "titlePlaceholder": "Enter title...",
+      "export": {
+        "createdAt": "Created",
+        "user": "User",
+        "assistant": "AI Assistant",
+        "noMessages": "No messages to export"
+      }
+    },
+    "dataSource": {
+      "title": "Data Source",
+      "keywords": "Keywords:",
+      "empty": "No data",
+      "emptyHint": "Related records will appear here after asking questions",
+      "totalRecords": "{count} records",
+      "loadMore": "Load More"
+    }
+  },
+  "sqlLab": {
+    "editor": {
+      "errorEmptySQL": "Please enter an SQL statement",
+      "placeholder": "Enter SQL query...",
+      "tip": "Tip: Double-click column names to insert into SQL",
+      "history": "History",
+      "aiGenerate": "AI Generate",
+      "shortcut": "Ctrl/⌘ + Enter to run",
+      "run": "Run"
+    },
+    "schema": {
+      "tables": "Tables",
+      "doubleClickToInsert": "Double-click to insert into SQL",
+      "primaryKey": "Primary Key"
+    },
+    "result": {
+      "queryError": "Query Error",
+      "rows": "{count} rows",
+      "readableTime": "Readable time",
+      "viewChat": "View chat history",
+      "summarize": "Summarize",
+      "pageSize": "Per page",
+      "pageInfo": "Page {current} / {total}",
+      "emptyResult": "Query returned no results",
+      "initialState": "Enter SQL and run to see results",
+      "initialHint": "Only SELECT queries supported, add LIMIT for better performance",
+      "summaryTitle": "AI Result Summary",
+      "analyzing": "AI is analyzing results...",
+      "errorSummary": "Summary failed"
+    },
+    "generate": {
+      "title": "AI Generate SQL",
+      "description": "Describe what you want to query in natural language, and AI will generate the corresponding SQL.",
+      "placeholder": "E.g.: Find top 10 members by message count, count daily messages, find messages containing 'keyword'...",
+      "errorEmptyPrompt": "Please enter your query requirement",
+      "errorGenerate": "AI generation failed",
+      "aiOutput": "AI Output",
+      "waitingAI": "Waiting for AI response...",
+      "sqlStatement": "SQL Statement",
+      "explanation": "Explanation",
+      "generateSQL": "Generate SQL",
+      "useSQL": "Use SQL",
+      "run": "Run"
+    },
+    "history": {
+      "title": "AI Generation History",
+      "execute": "Execute",
+      "empty": "No history records",
+      "justNow": "Just now",
+      "minutesAgo": "{count} min ago",
+      "hoursAgo": "{count} hr ago",
+      "today": "Today"
+    }
+  },
+  "assistant": {
+    "selector": {
+      "title": "Choose an assistant to start",
+      "subtitle": "Each assistant specializes in different types of analysis tasks. Pick the one that best fits your needs.",
+      "noAssistants": "No assistants available for this context",
+      "manage": "Manage Assistants",
+      "addNew": "New Assistant"
+    },
+    "config": {
+      "viewTitle": "View Config",
+      "createTitle": "New Assistant",
+      "editTitle": "Assistant Config",
+      "betaWarning": "This feature is in beta. Configuration logic may change, so please back up your prompts.",
+      "tabs": {
+        "basic": "Basic",
+        "tools": "Tools"
+      },
+      "name": "Name",
+      "systemPrompt": "System Prompt",
+      "chatType": "Chat Type",
+      "chatTypeAll": "All",
+      "chatTypeGroup": "Group",
+      "chatTypePrivate": "Private",
+      "locale": "Language",
+      "localeHint": "None selected = all languages",
+      "presetQuestions": "Preset Questions",
+      "addQuestion": "Add a question...",
+      "builtinTools": "Built-in Tools",
+      "selectAll": "Select All",
+      "deselectAll": "Deselect All",
+      "builtinToolsHint": "No selection = all tools available. Only checked tools will be enabled.",
+      "toolGroupQuery": "Data Query Tools",
+      "resetDefault": "Reset to Default",
+      "create": "Create"
+    },
+    "market": {
+      "title": "Assistant Manager",
+      "tabs": {
+        "local": "Local",
+        "market": "Market"
+      },
+      "localHint": "Manage imported assistants, configure or delete",
+      "marketHint": "Browse the assistant market, import to use and customize",
+      "default": "Default",
+      "updateAvailable": "Update Available",
+      "reimport": "Re-import",
+      "imported": "Imported",
+      "import": "Import",
+      "importing": "Importing...",
+      "importSuccess": "Import successful",
+      "importFailed": "Import failed",
+      "viewConfig": "View Config",
+      "duplicate": "Duplicate",
+      "addAssistant": "Add Assistant",
+      "noLocal": "No imported assistants yet",
+      "noCatalog": "No assistants available, please check your network",
+      "loading": "Loading...",
+      "loadFailed": "Failed to load, please check your network",
+      "retry": "Retry"
+    },
+    "fallbackName": "Assistant",
+    "duplicateSuffix": " (Copy)",
+    "toast": {
+      "loadFailed": "Failed to load",
+      "createSuccess": "Created successfully",
+      "createFailed": "Failed to create",
+      "saveSuccess": "Saved successfully",
+      "saveFailed": "Failed to save",
+      "resetSuccess": "Reset to default",
+      "resetFailed": "Failed to reset",
+      "unknownError": "Unknown error"
+    },
+    "builtinToolDesc": {
+      "search_messages": "Search chat messages",
+      "get_recent_messages": "Get recent messages",
+      "get_message_context": "Get message context",
+      "get_conversation_between": "Get conversation between two members",
+      "get_members": "Get group members",
+      "get_member_stats": "Get member statistics",
+      "get_member_name_history": "Get member name history",
+      "get_time_stats": "Get time statistics",
+      "search_sessions": "Search sessions",
+      "get_session_messages": "Get session messages",
+      "get_session_summaries": "Get session summaries",
+      "semantic_search_messages": "Semantic search messages"
+    }
+  },
+  "skill": {
+    "selector": {
+      "title": "Select Skill",
+      "freeChat": "Free Chat",
+      "freeChatDesc": "No preset skill, AI responds freely",
+      "manage": "Manage Skills",
+      "incompatible": "Incompatible with current assistant",
+      "noSkills": "No skills available",
+      "noSkillsHint": "Import built-in skills or create custom skills via Skill Manager",
+      "autoSkill": "AI auto-select skill",
+      "autoSkillHint": "When enabled, AI can automatically choose the best skill for your question"
+    },
+    "config": {
+      "createTitle": "New Skill",
+      "editTitle": "Skill Config",
+      "name": "Name",
+      "description": "Description",
+      "tags": "Tags",
+      "chatScope": "Scope",
+      "chatScopeAll": "All",
+      "chatScopeGroup": "Group",
+      "chatScopePrivate": "Private",
+      "prompt": "Skill Prompt",
+      "tools": "Required Tools",
+      "rawEditor": "Markdown Editor",
+      "rawEditorHint": "Edit the full skill Markdown file (with YAML frontmatter)",
+      "create": "Create",
+      "save": "Save"
+    },
+    "market": {
+      "title": "Skill Manager",
+      "tabs": {
+        "local": "Local",
+        "market": "Market"
+      },
+      "localHint": "Manage imported skills, configure or delete",
+      "marketHint": "Browse the skill market, import to use and customize",
+      "updateAvailable": "Update Available",
+      "reimport": "Re-import",
+      "imported": "Imported",
+      "import": "Import",
+      "importing": "Importing...",
+      "importSuccess": "Import successful",
+      "importFailed": "Import failed",
+      "noLocal": "No imported skills yet",
+      "noCatalog": "No skills available, please check your network",
+      "addSkill": "Create Custom Skill",
+      "loading": "Loading...",
+      "loadFailed": "Failed to load, please check your network",
+      "retry": "Retry"
+    },
+    "block": {
+      "label": "Skill: {name}"
+    },
+    "active": {
+      "label": "Manually Invoked Skill: {name}"
+    },
+    "toast": {
+      "createSuccess": "Skill created successfully",
+      "createFailed": "Failed to create skill",
+      "saveSuccess": "Skill saved successfully",
+      "saveFailed": "Failed to save skill",
+      "deleteSuccess": "Skill deleted",
+      "deleteFailed": "Failed to delete"
+    }
+  }
+}

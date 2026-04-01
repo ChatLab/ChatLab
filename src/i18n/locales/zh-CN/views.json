@@ -1,0 +1,82 @@
+{
+  "cluster": {
+    "title": "互动频率",
+    "rankingView": "排行视图",
+    "memberView": "成员视图",
+    "matrixView": "矩阵视图",
+    "modelSettings": "模型参数",
+    "lookAhead": "邻居数量",
+    "lookAheadDesc": "每条消息向后看几个发言者",
+    "decaySeconds": "时间衰减（秒）",
+    "decaySecondsDesc": "值越大，远距离消息权重越高",
+    "applySettings": "应用设置",
+    "noData": "暂无数据",
+    "selectMember": "选择成员",
+    "selectMemberHint": "请从左侧选择一个成员",
+    "msgCount": "发言数",
+    "relationCount": "关系数",
+    "relationsByIntimacy": "发言临近度排行",
+    "noRelations": "暂无关系数据",
+    "intimacy": "临近度",
+    "interactionRanking": "互动排行",
+    "score": "临近度",
+    "coOccurrence": "共现",
+    "times": "次",
+    "totalMembers": "群成员",
+    "totalMessages": "消息总数",
+    "involvedMembers": "参与成员",
+    "edgeCount": "关系数"
+  },
+  "message": {
+    "typeDistribution": "消息类型分布",
+    "hourlyDistribution": "小时分布",
+    "weekdayDistribution": "星期分布",
+    "monthlyDistribution": "月份分布",
+    "yearlyDistribution": "年份分布",
+    "timeHeatmap": "时间热力图",
+    "heatmapHint": "展示聊天时间规律",
+    "calendarHeatmap": "消息日历",
+    "calendarHint": "每日消息分布",
+    "calendarTooltipMessages": "消息",
+    "lengthDetailTitle": "短消息分布 (1-25字)",
+    "lengthDetailHint": "逐字统计",
+    "lengthGroupedTitle": "长度区间分布",
+    "lengthGroupedHint": "每5字一组",
+    "noTextMessages": "暂无文字消息",
+    "noData": "暂无数据"
+  },
+  "interaction": {
+    "mentionGraph": "艾特互动关系图",
+    "layout": "布局",
+    "circular": "环形",
+    "force": "力导向",
+    "directed": "有向",
+    "reset": "重置",
+    "graphHint": "共 {nodes} 位成员，{links} 条互动关系",
+    "noInteraction": "暂无艾特互动数据"
+  },
+  "timeline": {
+    "title": "时间线视图",
+    "description": "消息时间分布、活跃周期变化趋势等可视化内容"
+  },
+  "charts": {
+    "rankListPro": {
+      "fullRanking": "完整排行",
+      "memberCount": "共 {count} 位成员"
+    },
+    "rankList": {
+      "unit": "条"
+    },
+    "nicknameHistory": {
+      "periodToNow": "{start} ~ 至今",
+      "periodRange": "{start} ~ {end}",
+      "current": "当前",
+      "empty": "暂无昵称记录"
+    },
+    "listPro": {
+      "countTemplate": "共 {count} 项",
+      "fullRanking": "完整排行",
+      "empty": "暂无数据"
+    }
+  }
+}

@@ -1,0 +1,4 @@
+interface:
+  display_name: '生成 Assistant 配置'
+  short_description: '根据自然语言需求动态追问，先给中文预览，再生成 zh/en/ja assistant Markdown'
+  default_prompt: 'Use $generate-assistant-config to turn a natural-language assistant idea into a ChatLab assistant Markdown. Ask dynamic follow-up questions, preview the Chinese version first, and only after approval generate localized zh/en/ja files under assistant/<locale>/<assistant-id>.md without overwriting existing files.'

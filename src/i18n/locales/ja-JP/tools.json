@@ -1,0 +1,49 @@
+{
+  "title": "管理",
+  "description": "チャット履歴を管理",
+  "tabs": {
+    "batchManage": "一括管理"
+  },
+  "batchManage": {
+    "title": "一括削除",
+    "description": "削除するチャット履歴を選択してください",
+    "searchPlaceholder": "チャット名を検索",
+    "searchResult": "{count} / {total} 件を検出",
+    "noSearchResult": "一致するチャット履歴が見つかりません",
+    "selectAll": "すべて選択",
+    "shiftClickHint": "Shiftキーを押しながらクリックで範囲選択できます",
+    "selected": "{count} 件を選択中",
+    "empty": "チャット履歴がありません",
+    "delete": "選択した項目を削除",
+    "confirmTitle": "削除の確認",
+    "confirmMessage": "選択した {count} 件のチャット履歴を削除しますか？この操作は取り消せません。",
+    "deleting": "削除中...",
+    "success": "{count} 件のチャット履歴を削除しました",
+    "error": "削除に失敗しました：{error}",
+    "messageCount": "{count} 件のメッセージ",
+    "importedAt": "{time} にインポート",
+    "columns": {
+      "name": "名前",
+      "platform": "プラットフォーム",
+      "messages": "メッセージ数",
+      "summaries": "要約",
+      "aiChats": "AI チャット",
+      "importedAt": "インポート日時"
+    },
+    "clickToEdit": "クリックして名前を編集",
+    "merge": "選択項目を結合",
+    "mergeHint": "結合するには同じプラットフォームのチャット履歴を 2 件以上選択してください",
+    "mergeConfirmTitle": "チャット履歴を結合",
+    "mergeConfirmMessage": "選択した {count} 件のチャット履歴を結合します。元の履歴は削除され、新しい統合履歴が作成されます。",
+    "mergeSteps": {
+      "exporting": "チャット履歴をエクスポート中...",
+      "parsing": "ファイルを解析中...",
+      "checking": "競合を検出中...",
+      "merging": "データを結合中...",
+      "cleaning": "一時ファイルを削除中..."
+    },
+    "mergeSuccess": "{count} 件のチャット履歴を結合しました",
+    "mergeError": "結合に失敗しました：{error}",
+    "mergedSuffix": "結合"
+  }
+}

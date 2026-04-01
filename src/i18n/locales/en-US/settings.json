@@ -1,0 +1,471 @@
+{
+  "title": "Settings",
+  "tabs": {
+    "basic": "General",
+    "ai": "AI Settings",
+    "aiConfig": "Chat Model",
+    "aiRAG": "Vector Model",
+    "aiPrompt": "Chat Config",
+    "aiPreset": "Legacy Prompts",
+    "aiPreprocess": "Preprocess",
+    "dataManage": "Data Management",
+    "storage": "Storage",
+    "storageManage": "Storage",
+    "sessionManage": "Sessions",
+    "about": "About",
+    "api": "API Service"
+  },
+  "basic": {
+    "language": {
+      "title": "Language",
+      "description": "Choose language"
+    },
+    "appearance": {
+      "title": "Appearance",
+      "themeMode": "Theme Mode",
+      "auto": "System",
+      "light": "Light",
+      "dark": "Dark"
+    },
+    "defaultTab": {
+      "title": "Default Tab",
+      "description": "Default page when entering a session",
+      "overview": "Overview",
+      "aiChat": "AI Chat"
+    },
+    "screenshot": {
+      "title": "Screenshot",
+      "mobileAdapt": "Mobile Adaptation",
+      "mobileAdaptDesc": "Auto-scale width when taking screenshots for mobile viewing"
+    },
+    "network": {
+      "title": "Network",
+      "proxyMode": "Proxy Mode",
+      "proxyModeDesc": "How to connect when accessing external services",
+      "modeOff": "Off",
+      "modeSystem": "System",
+      "modeManual": "Manual",
+      "proxyAddress": "Proxy Address",
+      "proxyPlaceholder": "http://127.0.0.1:7890",
+      "proxyHelp": "Supports HTTP/HTTPS proxy, e.g.: http://127.0.0.1:7890",
+      "testConnection": "Test Connection",
+      "testing": "Testing...",
+      "connectionSuccess": "Proxy connection successful!",
+      "connectionFailed": "Connection failed",
+      "enterProxyFirst": "Please enter proxy address first",
+      "invalidProxyUrl": "Please enter a valid proxy address, e.g. http://127.0.0.1:7890",
+      "onlyHttpSupported": "Only http:// or https:// protocols are supported",
+      "saveFailed": "Save failed"
+    }
+  },
+  "aiConfig": {
+    "title": "Chat Model",
+    "loading": "Loading...",
+    "inUse": "Active",
+    "defaultModel": "Default Model",
+    "localService": "Local Service",
+    "customEndpoint": "Custom Endpoint",
+    "edit": "Edit",
+    "delete": "Delete",
+    "empty": {
+      "title": "No AI service configured",
+      "description": "Add a configuration to start using AI features"
+    },
+    "addConfig": "Add Configuration",
+    "maxConfigs": "Maximum configurations reached (10)",
+    "modal": {
+      "addConfig": "Add New Configuration",
+      "editConfig": "Edit Configuration",
+      "officialApi": "Official API",
+      "officialApiDesc": "DeepSeek, Gemini, etc.",
+      "localService": "Local Service",
+      "localServiceDesc": "Ollama, etc.",
+      "openaiCompatible": "OpenAI Compatible",
+      "openaiCompatibleDesc": "Custom endpoint",
+      "configName": "Configuration Name",
+      "optional": " (Optional)",
+      "configNamePlaceholderPreset": "Leave empty to use provider name",
+      "configNamePlaceholderCustom": "Leave empty to use API endpoint",
+      "aiProvider": "AI Provider",
+      "apiKeyPlaceholder": "Enter your API Key",
+      "apiKeyPlaceholderEdit": "Enter new API Key (leave empty to keep current)",
+      "apiKeyPlaceholderLocal": "Usually not required for local services",
+      "apiKeyHintLocal": "Enter if the service requires authentication",
+      "validate": "Validate",
+      "validationSuccess": "Connection validated successfully",
+      "validationFailed": "Connection validation failed",
+      "validationError": "Validation failed: ",
+      "model": "Model",
+      "modelName": "Model Name",
+      "modelNamePlaceholder": "e.g. gpt-4, claude-3",
+      "modelNamePlaceholderLocal": "e.g. qwen3, deepseek-r1",
+      "modelNameHint": "Enter the model name supported by the API",
+      "modelNameHintLocal": "Enter the locally deployed model name",
+      "apiEndpoint": "API Endpoint",
+      "apiEndpointHint": "OpenAI-compatible API endpoint",
+      "disableThinking": "Disable Thinking Mode",
+      "disableThinkingDesc": "For models like Qwen3, DeepSeek-R1. Uses standard tool calling format when disabled.",
+      "isReasoningModel": "Reasoning Model",
+      "isReasoningModelDesc": "Extracts thinking process and disables tool calling (e.g. DeepSeek-R1, QwQ)",
+      "advancedOptions": "Advanced Options",
+      "customService": "Custom Service",
+      "unnamedConfig": "Unnamed Configuration"
+    }
+  },
+  "storage": {
+    "title": "Local Storage Management",
+    "description": "Manage data files stored locally by ChatLab",
+    "dataLocation": {
+      "title": "Data Directory",
+      "description": "Customize where local data and cache are stored",
+      "choose": "Choose",
+      "reset": "Reset",
+      "open": "Open",
+      "restartTip": "Please restart the app after switching. Data will be migrated from the old directory.",
+      "confirmTitle": "Confirm Directory Change",
+      "confirmMessage": "You are about to change the data storage location. Existing data will be migrated to the new directory.",
+      "newPath": "New directory path",
+      "defaultPath": "Default location",
+      "confirmWarning": "After restarting, the old data directory will be automatically deleted. Please ensure the new path is correct.",
+      "cancel": "Cancel",
+      "confirm": "Confirm",
+      "migrationSuccessTitle": "Migration Complete",
+      "migrationSuccessMessage": "The app needs to restart for changes to take effect.",
+      "relaunchNow": "Restart Now"
+    },
+    "totalUsage": "Total: ",
+    "loading": "Loading...",
+    "files": "files",
+    "notExist": "Not exist",
+    "clear": "Clear",
+    "open": "Open",
+    "notes": {
+      "title": "Notes",
+      "logSafe": "Log files are mainly for debugging and can be safely cleared",
+      "noRecover": "All cleared files cannot be recovered, please proceed with caution"
+    },
+    "cache": {
+      "databases": {
+        "name": "Chat Databases",
+        "description": "Imported chat analysis data"
+      },
+      "ai": {
+        "name": "AI Chat Databases",
+        "description": "AI chat history and config files"
+      },
+      "downloads": {
+        "name": "Downloads",
+        "description": "Screenshots, analysis results, etc."
+      },
+      "logs": {
+        "name": "Log Files",
+        "description": "App logs including import, AI, error logs"
+      }
+    },
+    "session": {
+      "title": "Session Index Settings",
+      "description": "Session index splits chat history into conversation segments by time gaps for better AI analysis",
+      "defaultThreshold": "Default Gap Threshold",
+      "thresholdUnit": "minutes",
+      "thresholdHelp": "Messages exceeding this time gap will be split into a new session",
+      "notGenerated": "Session index not generated",
+      "generateHint": "Generate index to help AI better understand conversation context",
+      "generate": "Generate Index",
+      "regenerate": "Regenerate",
+      "generating": "Generating",
+      "sessionCount": "{count} sessions",
+      "generated": "Session index generated",
+      "generateSuccess": "Session index generated successfully, {count} sessions created",
+      "generateError": "Generation failed",
+      "batchTitle": "Batch Generate Index",
+      "totalSessions": "{count} chats total",
+      "generatedCount": "{count} generated",
+      "notGeneratedCount": "{count} not generated",
+      "loadingStatus": "Loading...",
+      "batchGenerate": "Generate Missing",
+      "batchRegenerate": "Regenerate All"
+    }
+  },
+  "aiPrompt": {
+    "chatSettings": {
+      "title": "Chat Settings"
+    },
+    "exportSettings": {
+      "title": "Export Settings"
+    },
+    "skillSettings": {
+      "title": "Skill Settings",
+      "enableAutoSkill": "AI Auto-Select Skills",
+      "enableAutoSkillDesc": "When enabled, AI will automatically match and activate suitable analysis skills based on user queries; when disabled, skills only take effect when manually selected"
+    },
+    "maxMessages": {
+      "title": "Max Messages per Request",
+      "description": "Max number of messages sent to AI per request. Higher values consume more tokens but provide more accurate context (recommended: 2000)."
+    },
+    "maxHistory": {
+      "title": "Context Limit",
+      "description": "Number of recent conversation rounds to keep (1 round = User + AI). Prevents excessive token usage."
+    },
+    "exportFormat": {
+      "title": "Export Format",
+      "description": "File format for exporting AI conversations",
+      "txtLabel": "TXT"
+    },
+    "sqlExportFormat": {
+      "title": "SQL Lab Export Format",
+      "description": "File format for exporting SQL query results"
+    },
+    "presets": {
+      "title": "System Prompts",
+      "add": "Add Preset",
+      "import": "Import Presets",
+      "description": "Prompts are used for both group and private chat analysis, system adjusts content based on analysis type"
+    },
+    "preset": {
+      "builtIn": "Built-in",
+      "groupOnly": "Group Only",
+      "privateOnly": "Private Only",
+      "view": "View",
+      "edit": "Edit",
+      "copy": "Copy",
+      "delete": "Delete"
+    },
+    "modal": {
+      "editBuiltin": "Edit System Prompt",
+      "editCustom": "Edit Custom Prompt",
+      "addCustom": "Add Custom Prompt",
+      "presetName": "Preset Name",
+      "presetNamePlaceholder": "Give your preset a name",
+      "applicableTo": "Applicable To",
+      "applicableToHint": " (Check to enable for corresponding analysis type)",
+      "groupChat": "Group Chat",
+      "privateChat": "Private Chat",
+      "systemPrompt": "System Prompt",
+      "systemPromptPlaceholder": "Define the AI assistant's role, tasks and response requirements...",
+      "preview": "Full Prompt Preview",
+      "previewHint": " (Preview shows group chat mode, actual will adjust based on analysis type)",
+      "resetToDefault": "Reset to Default",
+      "saveChanges": "Save Changes",
+      "addPreset": "Add Preset"
+    },
+    "importPreset": {
+      "title": "Import Presets",
+      "description": "Get recommended system prompt presets from remote",
+      "loading": "Loading remote presets...",
+      "loadError": "Failed to load remote presets",
+      "noPresets": "No remote presets available",
+      "commonPresets": "Universal Presets",
+      "groupPresets": "Group Chat Only",
+      "privatePresets": "Private Chat Only",
+      "add": "Add",
+      "added": "Added",
+      "preview": "Preview",
+      "systemPrompt": "System Prompt",
+      "noDescription": "No description",
+      "fetchingContent": "Loading content...",
+      "fetchError": "Failed to load content"
+    },
+    "legacyPrompt": {
+      "title": "Legacy Prompts",
+      "description": "The old prompt system no longer affects AI conversations. This section is kept only for viewing and copying legacy configs during the transition.",
+      "copyJson": "Copy JSON",
+      "emptyTitle": "No legacy prompt data found",
+      "emptyDescription": "There is no legacy prompt config available to view on this device.",
+      "activePreset": "Previously Active Preset",
+      "notConfigured": "Not recorded",
+      "customPresetCount": "Custom Presets",
+      "remotePresetCount": "Imported Remote Presets",
+      "parseError": "Failed to parse legacy prompt data, but you can still copy the raw JSON first.",
+      "customPresetList": "Custom Presets",
+      "noPromptContent": "No prompt content recorded",
+      "rawJsonTitle": "Raw Config JSON",
+      "rawJsonHint": "View and copy only",
+      "copySuccess": "JSON copied to clipboard",
+      "copyFailed": "Copy failed",
+      "groupOnly": "Group Only",
+      "privateOnly": "Private Only",
+      "common": "Common"
+    }
+  },
+  "about": {
+    "title": "About ChatLab",
+    "description": "Chat records analysis tool",
+    "version": "Version",
+    "checkUpdate": "Check for Updates",
+    "checking": "Checking...",
+    "unknown": "Unknown",
+    "privacy": {
+      "title": "Privacy Settings",
+      "analytics": "Anonymous Usage Statistics",
+      "analyticsDesc": "When enabled, the app collects non-sensitive data like version number and OS version to help improve the product"
+    },
+    "developer": {
+      "title": "Developer Options",
+      "debugMode": "DEBUG Mode",
+      "debugModeDesc": "When enabled, AI logs will include full raw message content without truncation. Log files may grow significantly"
+    }
+  },
+  "embedding": {
+    "title": "Vector Model",
+    "description": "Uses embedding vectors to understand question meaning, enables AI to perform semantic search",
+    "configList": "Embedding Configs",
+    "addConfig": "Add Config",
+    "editConfig": "Edit Config",
+    "noConfigs": "No configs yet, click the button above to add",
+    "active": "Active",
+    "setActive": "Set Active",
+    "deleteConfirm": "Delete config \"{name}\"?",
+    "configName": "Config Name",
+    "configNamePlaceholder": "e.g. Ollama Embedding",
+    "apiSource": "API Source",
+    "apiSourceHint": "\"Reuse Chat Model\" will use the endpoint and key from the active chat model",
+    "reuseLLM": "Reuse Chat Model",
+    "customAPI": "Custom API",
+    "model": "Model Name",
+    "modelPlaceholder": "e.g. nomic-embed-text",
+    "modelHint": "Ollama common: nomic-embed-text, mxbai-embed-large",
+    "baseUrl": "API Endpoint",
+    "baseUrlPlaceholder": "e.g. http://localhost:11434/v1",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "Enter API Key",
+    "optional": "(Optional)",
+    "validate": "Test Connection",
+    "validateSuccess": "Connection successful!",
+    "validateFailed": "Connection failed",
+    "saveFailed": "Save failed",
+    "vectorStore": "Vector Cache",
+    "vectorStoreDesc": "Cache computed vectors to avoid recalculation and improve speed",
+    "cached": "Cached",
+    "size": "Size",
+    "clear": "Clear",
+    "clearVectorStoreConfirm": "Clear all vector cache? This will cause recalculation on next search."
+  },
+  "aiPreprocess": {
+    "title": "Chat Preprocessing",
+    "description": "Preprocess chat records before sending to AI to save tokens and filter noise. Original data is not modified.",
+    "dataCleaning": "Data Cleaning",
+    "dataCleaningDesc": "Automatically clean XML card messages (shared links, mini-programs, etc.), extracting useful content and significantly saving tokens. Recommended to keep enabled.",
+    "mergeConsecutive": "Merge Consecutive",
+    "mergeConsecutiveDesc": "Merge consecutive messages from the same sender within a short time window",
+    "mergeWindow": "Merge window (seconds)",
+    "denoise": "Smart Denoise",
+    "denoiseDesc": "Filter out meaningless messages like interjections, emojis, and system placeholders (e.g. [Image])",
+    "desensitize": "Data Masking",
+    "desensitizeDesc": "Replace sensitive information (phone numbers, emails, ID numbers, etc.) based on rules",
+    "desensitizeRules": "Masking Rules",
+    "desensitizeRulesDesc": "Check the rules to enable. Rules are matched in list order",
+    "desensitizeBuiltin": "Built-in Rules",
+    "desensitizeCustom": "Custom Rules",
+    "desensitizeAddCustom": "Add Custom Rule",
+    "desensitizeRuleName": "Rule Name",
+    "desensitizeRulePattern": "Regex Pattern",
+    "desensitizeRuleReplacement": "Replacement Text",
+    "desensitizeRuleAdd": "Add",
+    "desensitizeRuleInvalidRegex": "Invalid regex syntax",
+    "desensitizeRuleNamePlaceholder": "e.g. Employee ID",
+    "desensitizeRulePatternPlaceholder": "e.g. EMP-\\d+",
+    "desensitizeRuleReplacementPlaceholder": "Replacement, e.g. [EmpID]",
+    "anonymizeNames": "Anonymize Nicknames",
+    "anonymizeNamesDesc": "Replace real nicknames with IDs (U1, U2…) when sending to AI, reducing hallucinations and saving tokens",
+    "blacklist": "Blacklist Keywords",
+    "blacklistDesc": "Messages containing any of these keywords will be filtered out entirely",
+    "blacklistPlaceholder": "Type a keyword and press Enter to add",
+    "blacklistAdd": "Add"
+  },
+  "desensitize": {
+    "rules": {
+      "cn_phone": "China Mobile Number",
+      "cn_phone_desc": "11-digit starting with 1xx",
+      "cn_id_card": "China ID Card Number",
+      "cn_id_card_desc": "18-digit, may end with X",
+      "cn_bank_card": "China Bank Card Number",
+      "cn_bank_card_desc": "16-19 consecutive digits",
+      "cn_landline": "China Landline Number",
+      "cn_landline_desc": "Area code + number, e.g. 010-12345678",
+      "us_ssn": "US Social Security Number (SSN)",
+      "us_ssn_desc": "XXX-XX-XXXX format",
+      "us_phone": "US Phone Number",
+      "us_phone_desc": "+1 (XXX) XXX-XXXX format",
+      "us_drivers_license": "US Driver's License",
+      "us_drivers_license_desc": "Letter + 7-8 digits",
+      "jp_phone": "Japan Phone Number",
+      "jp_phone_desc": "0x0-XXXX-XXXX format",
+      "jp_my_number": "Japan My Number",
+      "jp_my_number_desc": "12-digit number (マイナンバー)",
+      "kr_phone": "Korea Phone Number",
+      "kr_phone_desc": "01X-XXXX-XXXX format",
+      "kr_rrn": "Korea Resident Registration Number",
+      "kr_rrn_desc": "XXXXXX-XXXXXXX format (주민번호)",
+      "api_key_prefix": "API Key / Token (Known Prefixes)",
+      "api_key_prefix_desc": "Strings starting with sk-, ghp_, AKIA, etc.",
+      "bearer_token": "Bearer Token",
+      "bearer_token_desc": "Authorization token after Bearer",
+      "email": "Email Address",
+      "email_desc": "Standard user{'@'}domain.com format",
+      "credit_card": "Credit Card Number",
+      "credit_card_desc": "Visa / MasterCard / AmEx card numbers",
+      "ipv4": "IPv4 Address",
+      "ipv4_desc": "e.g. 192.168.1.1",
+      "url": "URL Link",
+      "url_desc": "Links starting with http:// or https://"
+    }
+  },
+  "api": {
+    "betaWarning": "The current API version is in Beta, and endpoints may change at any time.",
+    "service": {
+      "title": "API Service",
+      "enable": "Enable API Service",
+      "enableDesc": "When enabled, external tools can query, export, and import chat data via HTTP API. Localhost only (127.0.0.1)",
+      "portInUseHint": "Port is in use. Please change the port below or close the program using this port"
+    },
+    "status": {
+      "running": "Running",
+      "stopped": "Stopped",
+      "starting": "Starting...",
+      "portInUse": "Port in use",
+      "error": "Failed to start"
+    },
+    "port": {
+      "title": "Port Configuration",
+      "label": "Listen Port",
+      "desc": "Local port for the API service (1024-65535)",
+      "edit": "Edit",
+      "save": "Save",
+      "cancel": "Cancel"
+    },
+    "token": {
+      "title": "Access Token",
+      "label": "Bearer Token",
+      "desc": "All API requests must include this token in the Authorization header",
+      "noToken": "No token generated yet. Please enable the service first",
+      "regenerate": "Regenerate"
+    },
+    "dataSources": {
+      "title": "Data Sources",
+      "desc": "Configure external data source URLs. ChatLab will automatically pull and import chat data at the specified interval.",
+      "empty": "No data sources",
+      "disabled": "Paused",
+      "every": "Every",
+      "minutes": "min",
+      "lastSync": "Last sync",
+      "addBtn": "Add Data Source",
+      "form": {
+        "modalTitle": "Add Data Source",
+        "name": "Name",
+        "namePlaceholder": "e.g., My Chat Server",
+        "url": "Data Source URL",
+        "token": "Access Token (optional)",
+        "tokenPlaceholder": "Bearer Token for the remote API",
+        "interval": "Pull Interval (minutes)",
+        "targetSession": "Target Session ID (optional)",
+        "targetSessionPlaceholder": "Leave empty to create new session each time",
+        "add": "Add"
+      }
+    },
+    "usage": {
+      "title": "Usage Guide",
+      "desc": "After enabling the service, use the following endpoints to query data. All requests require Bearer Token authentication.",
+      "authHint": "Header example:"
+    }
+  }
+}

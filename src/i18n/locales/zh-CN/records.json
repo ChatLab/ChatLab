@@ -1,0 +1,87 @@
+{
+  "drawer": {
+    "title": "聊天记录查看器",
+    "loadedCount": "已加载 {count} 条消息"
+  },
+  "messageList": {
+    "loading": "加载中...",
+    "noMessages": "暂无消息",
+    "tryAdjustFilter": "尝试调整筛选条件",
+    "loadingMore": "加载更多...",
+    "scrollUpForMore": "↑ 向上滚动加载更多",
+    "scrollDownForMore": "↓ 向下滚动加载更多"
+  },
+  "filter": {
+    "messageId": "消息 ID",
+    "memberNotSupported": "成员（暂不支持）",
+    "keywordsPlaceholder": "关键词，多个用逗号分隔，回车搜索",
+    "startDate": "起始日期",
+    "endDate": "结束日期",
+    "reset": "重置",
+    "filter": "筛选"
+  },
+  "timeline": {
+    "timeline": "会话",
+    "noSessions": "暂无会话",
+    "generateSummary": "生成摘要",
+    "tooFewMessages": "消息太少"
+  },
+  "batchSummary": {
+    "title": "批量生成摘要",
+    "byRange": "按范围",
+    "byTime": "按时间",
+    "selectRange": "选择范围",
+    "rangeStart": "最早",
+    "rangeInfo": "约",
+    "sessionsUnit": "个会话",
+    "rangeEnd": "最近",
+    "timeRange": "选择时间范围",
+    "today": "今天",
+    "yesterday": "昨天",
+    "week": "最近7天",
+    "month": "最近30天",
+    "custom": "自定义",
+    "found": "找到",
+    "hasSummary": "个已有摘要",
+    "tooFewMessages": "个消息太少",
+    "pending": "待生成:",
+    "unit": "个",
+    "noPending": "没有可生成的会话",
+    "noSessions": "该时间范围内没有会话",
+    "checking": "检查中...",
+    "loading": "加载中...",
+    "progress": "进度",
+    "session": "会话",
+    "statusSuccess": "成功",
+    "statusSkipped": "跳过",
+    "statusFailed": "失败",
+    "success": "成功:",
+    "failed": "失败:",
+    "skipped": "跳过:",
+    "start": "开始生成",
+    "stop": "停止"
+  },
+  "messageItem": {
+    "viewContext": "查看上下文",
+    "contextTitle": "消息上下文（前后各10条）",
+    "noContext": "暂无上下文",
+    "replyTo": "回复"
+  },
+  "sessionIndex": {
+    "title": "会话索引",
+    "subtitle": "用于聊天记录的时间线导航",
+    "notGenerated": "尚未生成会话索引",
+    "notGeneratedHint": "生成会话索引后，您可以在聊天记录查看器中使用时间线快速导航到不同的会话。",
+    "whatIsIt": "会话索引的作用：",
+    "benefit1": "根据消息时间间隔自动识别会话边界",
+    "benefit2": "在聊天记录查看器中提供时间线导航",
+    "benefit3": "为 AI 分析提供对话上下文理解能力",
+    "generated": "会话索引已生成",
+    "sessionCount": "共识别出 {count} 个会话",
+    "regenerateHint": "如果您调整了会话间隔阈值，可以重新生成索引。",
+    "generate": "生成索引",
+    "regenerate": "重新生成",
+    "generating": "生成中...",
+    "cancel": "取消"
+  }
+}

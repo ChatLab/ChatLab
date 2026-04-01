@@ -1,0 +1,75 @@
+{
+  "deepseek": {
+    "name": "DeepSeek",
+    "description": "DeepSeek AI large language model",
+    "models": {
+      "deepseek-chat": "General chat model",
+      "deepseek-coder": "Code generation model"
+    }
+  },
+  "qwen": {
+    "name": "Qwen",
+    "description": "Alibaba Cloud Qwen large language model",
+    "models": {
+      "qwen-turbo": "Large-scale model, fast speed",
+      "qwen-plus": "Large-scale model, better quality",
+      "qwen-max": "Massive-scale model"
+    }
+  },
+  "gemini": {
+    "name": "Gemini",
+    "description": "Google Gemini large language model",
+    "models": {
+      "gemini-3-flash-preview": "Fast preview version",
+      "gemini-3-pro-preview": "Professional preview version"
+    }
+  },
+  "minimax": {
+    "name": "MiniMax",
+    "description": "MiniMax LLM with multimodal and long context support",
+    "models": {
+      "MiniMax-M2": "Flagship model",
+      "MiniMax-M2-Stable": "Stable version"
+    }
+  },
+  "glm": {
+    "name": "GLM",
+    "description": "Zhipu AI ChatGLM series",
+    "models": {
+      "glm-4-plus": "Flagship model, best performance",
+      "glm-4-flash": "Fast model, cost-effective",
+      "glm-4": "Standard model",
+      "glm-4v-plus": "Multimodal vision model",
+      "glm-4.6v-flash": "4.6V free version",
+      "glm-4.5-flash": "4.5 free version"
+    }
+  },
+  "kimi": {
+    "name": "Kimi",
+    "description": "Moonshot AI LLM with ultra-long context",
+    "models": {
+      "moonshot-v1-8k": "8K context",
+      "moonshot-v1-32k": "32K context",
+      "moonshot-v1-128k": "128K ultra-long context"
+    }
+  },
+  "doubao": {
+    "name": "Doubao",
+    "description": "ByteDance Doubao AI large language model",
+    "models": {
+      "doubao-seed-1-6-lite-251015": "Doubao 1.6 model, cost-effective",
+      "doubao-seed-1-6-251015": "Enhanced Doubao 1.6 model",
+      "doubao-seed-1-6-flash-250828": "Faster Doubao 1.6 model",
+      "doubao-1-5-lite-32k-250115": "Doubao 1.5 Pro model"
+    }
+  },
+  "openai-compatible": {
+    "name": "OpenAI Compatible",
+    "description": "Any OpenAI API compatible service (Ollama, LocalAI, vLLM, etc.)",
+    "models": {
+      "llama3.2": "Meta Llama 3.2 model",
+      "qwen2.5": "Qwen 2.5 model",
+      "deepseek-r1": "DeepSeek R1 reasoning model"
+    }
+  }
+}

@@ -1,0 +1,308 @@
+name: Build and Release
+
+on:
+  # 手动触发
+  workflow_dispatch:
+    inputs:
+      version:
+        description: '版本号 (如 0.1.0)'
+        required: true
+        type: string
+  # 推送 tag 时自动触发
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  # macOS 构建需要分架构
+  # better-sqlite3 等原生模块会通过 prebuild 下载对应架构的预编译二进制
+  build-mac:
+    strategy:
+      matrix:
+        include:
+          - os: macos-14 # 使用 ARM runner 交叉编译 x64
+            arch: x64
+          - os: macos-14 # Apple Silicon (arm64) 原生构建
+            arch: arm64
+    runs-on: ${{ matrix.os }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-${{ matrix.arch }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-${{ matrix.arch }}-pnpm-store-
+
+      - name: Install dependencies
+        run: |
+          echo "node-linker=hoisted" >> .npmrc
+          pnpm install
+
+      # macOS 签名和公证需要的 API Key 文件
+      - name: Create Apple API Key File
+        run: |
+          mkdir -p ~/private_keys
+          echo "${{ secrets.APPLE_API_KEY }}" > ~/private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
+
+      - name: Build Electron app for macOS (${{ matrix.arch }})
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          # 代码签名
+          CSC_LINK: ${{ secrets.CSC_LINK }}
+          CSC_KEY_PASSWORD: ${{ secrets.CSC_KEY_PASSWORD }}
+          # 公证
+          APPLE_API_KEY: ~/private_keys/AuthKey_${{ secrets.APPLE_API_KEY_ID }}.p8
+          APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
+          APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
+          # 分析服务
+          APTABASE_APP_KEY: ${{ secrets.APTABASE_APP_KEY }}
+        run: pnpm build && pnpm exec electron-builder --mac --${{ matrix.arch }} --config electron-builder.yml -p never
+
+      - name: Upload macOS artifacts (${{ matrix.arch }})
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChatLab-mac-${{ matrix.arch }}
+          path: |
+            dist/*.dmg
+            dist/*.zip
+            dist/*.yml
+            dist/*.json
+            dist/*.blockmap
+          if-no-files-found: warn
+          retention-days: 1 # 只保留1天，Release后会上传到GitHub Releases
+
+  build-win:
+    runs-on: windows-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: |
+          echo "node-linker=hoisted" >> .npmrc
+          pnpm install
+
+      - name: Build Electron app for Windows
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          # 分析服务
+          APTABASE_APP_KEY: ${{ secrets.APTABASE_APP_KEY }}
+        run: pnpm build:win
+
+      - name: Upload Windows artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChatLab-win
+          path: |
+            dist/*.exe
+            dist/*.yml
+            dist/*.json
+            dist/*.blockmap
+          if-no-files-found: warn
+          retention-days: 1 # 只保留1天，Release后会上传到GitHub Releases
+
+  release:
+    needs: [build-mac, build-win]
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download macOS artifacts (x64)
+        uses: actions/download-artifact@v4
+        with:
+          name: ChatLab-mac-x64
+          path: dist
+
+      - name: Download macOS artifacts (arm64)
+        uses: actions/download-artifact@v4
+        with:
+          name: ChatLab-mac-arm64
+          path: dist
+
+      - name: Download Windows artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ChatLab-win
+          path: dist
+
+      - name: List files
+        run: ls -la dist/
+
+      - name: Generate Release Notes
+        id: release_notes
+        run: |
+          # 获取当前版本号
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            CURRENT_VERSION="v${{ inputs.version }}"
+          else
+            CURRENT_VERSION="${{ github.ref_name }}"
+          fi
+          VERSION_NUMBER="${CURRENT_VERSION#v}"
+
+          echo "Current version: $CURRENT_VERSION"
+
+          # 从 changelog JSON 中提取最新版本的 summary
+          EN_SUMMARY=$(jq -r '.[0].summary' docs/changelogs_en.json)
+          CN_SUMMARY=$(jq -r '.[0].summary' docs/changelogs_cn.json)
+
+          echo "EN summary: $EN_SUMMARY"
+          echo "CN summary: $CN_SUMMARY"
+
+          # 生成 release notes
+          {
+            echo "## What's New"
+            echo ""
+            echo "$EN_SUMMARY"
+            echo ""
+            echo "## 更新内容"
+            echo ""
+            echo "$CN_SUMMARY"
+            echo ""
+            echo "---"
+            echo ""
+            echo "Full Changelog: [English](https://github.com/hellodigua/ChatLab/blob/main/docs/changelogs_en.json) | [中文](https://github.com/hellodigua/ChatLab/blob/main/docs/changelogs_cn.json) | [日本語](https://github.com/hellodigua/ChatLab/blob/main/docs/changelogs_ja.json)"
+            echo ""
+            echo "---"
+            echo ""
+            echo "## Download"
+            echo ""
+            echo "| Platform | File |"
+            echo "|-----------------|-------------|"
+            echo "| Mac (Apple Silicon) | [ChatLab-${VERSION_NUMBER}-arm64.dmg](https://github.com/hellodigua/ChatLab/releases/download/v${VERSION_NUMBER}/ChatLab-${VERSION_NUMBER}-arm64.dmg) |"
+            echo "| Mac (Intel) | [ChatLab-${VERSION_NUMBER}-x64.dmg](https://github.com/hellodigua/ChatLab/releases/download/v${VERSION_NUMBER}/ChatLab-${VERSION_NUMBER}-x64.dmg) |"
+            echo "| Windows | [ChatLab-${VERSION_NUMBER}-setup.exe](https://github.com/hellodigua/ChatLab/releases/download/v${VERSION_NUMBER}/ChatLab-${VERSION_NUMBER}-setup.exe) |"
+          } > release_notes.md
+
+          echo "Generated release notes:"
+          cat release_notes.md
+
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.event_name == 'workflow_dispatch' && format('v{0}', inputs.version) || github.ref_name }}
+          name: ChatLab ${{ github.event_name == 'workflow_dispatch' && inputs.version || github.ref_name }}
+          body_path: release_notes.md
+          files: |
+            dist/*.exe
+            dist/*.dmg
+            dist/*.zip
+            dist/*.yml
+            dist/*.blockmap
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      # 同步到 Cloudflare R2（国内镜像）
+      # 注意：beta/alpha/rc 等预发布版本不上传到 R2
+      - name: Get version for R2 upload
+        id: version
+        run: |
+          if [ "${{ github.event_name }}" == "workflow_dispatch" ]; then
+            VERSION_TAG="v${{ inputs.version }}"
+          else
+            VERSION_TAG="${{ github.ref_name }}"
+          fi
+          echo "tag=$VERSION_TAG" >> $GITHUB_OUTPUT
+
+          # 检查是否为预发布版本（包含 -beta、-alpha、-rc 等）
+          if [[ "$VERSION_TAG" =~ -(beta|alpha|rc)\. ]]; then
+            echo "is_prerelease=true" >> $GITHUB_OUTPUT
+            echo "Detected prerelease version: $VERSION_TAG, will skip R2 upload"
+          else
+            echo "is_prerelease=false" >> $GITHUB_OUTPUT
+            echo "Detected stable version: $VERSION_TAG, will upload to R2"
+          fi
+
+      # 上传所有文件到版本目录
+      - name: Upload to Cloudflare R2 (version directory)
+        if: steps.version.outputs.is_prerelease == 'false'
+        uses: ryand56/r2-upload-action@latest
+        with:
+          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          r2-bucket: ${{ secrets.R2_BUCKET_NAME }}
+          source-dir: dist
+          destination-dir: releases/download/${{ steps.version.outputs.tag }}
+
+      # 准备 yml 文件用于根目录上传
+      # 需要修改 yml 中的 path/url 为包含版本号的完整路径
+      - name: Prepare yml files for root upload
+        if: steps.version.outputs.is_prerelease == 'false'
+        run: |
+          mkdir -p dist-yml
+          VERSION_TAG="${{ steps.version.outputs.tag }}"
+
+          # 处理所有 yml 文件
+          for yml_file in dist/*.yml; do
+            filename=$(basename "$yml_file")
+            echo "Processing $filename..."
+
+            # 使用 sed 修改 path 和 url 字段，添加版本目录前缀
+            # path: ChatLab-x.x.x-arm64.dmg → path: vx.x.x/ChatLab-x.x.x-arm64.dmg
+            # url: ChatLab-x.x.x-arm64.dmg → url: vx.x.x/ChatLab-x.x.x-arm64.dmg
+            sed -E "s|^(path: )(.+)|\1${VERSION_TAG}/\2|g; s|^(  - url: )(.+)|\1${VERSION_TAG}/\2|g" "$yml_file" > "dist-yml/$filename"
+
+            echo "Original:"
+            cat "$yml_file"
+            echo ""
+            echo "Modified:"
+            cat "dist-yml/$filename"
+            echo "---"
+          done
+
+      # 上传 yml 文件到根目录（覆盖旧版本，electron-updater 从这里检测更新）
+      - name: Upload yml files to Cloudflare R2 (root directory)
+        if: steps.version.outputs.is_prerelease == 'false'
+        uses: ryand56/r2-upload-action@latest
+        with:
+          r2-account-id: ${{ secrets.R2_ACCOUNT_ID }}
+          r2-access-key-id: ${{ secrets.R2_ACCESS_KEY_ID }}
+          r2-secret-access-key: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+          r2-bucket: ${{ secrets.R2_BUCKET_NAME }}
+          source-dir: dist-yml
+          destination-dir: releases/download

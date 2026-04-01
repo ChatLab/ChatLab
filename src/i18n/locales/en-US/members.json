@@ -1,0 +1,84 @@
+{
+  "ownerSelector": {
+    "title": "Select Your Identity",
+    "unset": "Not Set",
+    "selectMember": "Select Member",
+    "currentOwner": "Current: {name}",
+    "hint": "1. Shown on the right side of chat viewer 2. Identifies you in AI conversations"
+  },
+  "list": {
+    "title": "Group Member Management",
+    "description": "{count} members. Add aliases or remove members",
+    "searchPlaceholder": "Search nickname, account name, ID or alias",
+    "noMatch": "No matching members found",
+    "empty": "No member data available",
+    "table": {
+      "accountName": "Account Name",
+      "groupNickname": "Group Nickname",
+      "messageCount": "Messages",
+      "customAlias": "Custom Aliases",
+      "actions": "Actions"
+    },
+    "aliasPlaceholder": "Press Enter to add",
+    "delete": "Delete",
+    "pagination": "Showing {start} - {end} of {total} members",
+    "tip": "Tip: Adding aliases helps identify chat participants and improves search and AI analysis accuracy.",
+    "modal": {
+      "title": "Delete Member?",
+      "content": "This will delete member {name} and their {count} messages. This action cannot be undone.",
+      "cancel": "Cancel",
+      "confirm": "Confirm Delete"
+    }
+  },
+  "nicknameHistory": {
+    "note": "Note: QQ's legacy client can export chat history as txt format, which provides the most accurate nickname history",
+    "title": "Nickname History",
+    "loading": "Loading...",
+    "hasChanges": "{count} members have changed nicknames",
+    "noChanges": "No nickname changes",
+    "current": "Current",
+    "empty": "No members have changed their nicknames",
+    "loadingText": "Loading nickname history..."
+  },
+  "relationships": {
+    "loading": "Analyzing {'@'} interaction data...",
+    "topMentioners": "📢 Top {'@'} Initiators",
+    "totalMentions": "{count} total {'@'}s",
+    "topMentioned": "🎯 Most {'@'} Mentioned",
+    "popularMember": "Most popular in the group",
+    "times": "times",
+    "oneWay": {
+      "title": "🐕 One-way Detection",
+      "description": "Found {count} one-way relationships (one party {'@'} another ≥80%)",
+      "neverRespond": "Never responds",
+      "reverse": "{count}x reverse",
+      "ratio": "{value}% one-way"
+    },
+    "twoWay": {
+      "title": "💕 Mutual Detection",
+      "description": "Found {count} frequent CP pairs (mutual {'@'} with ≥30% balance)",
+      "interactions": "interactions",
+      "balance": "{value}% balanced"
+    },
+    "emptyTitle": "📱 {'@'} Interaction Analysis",
+    "empty": "No {'@'} interaction data available",
+    "modal": {
+      "title": "{name}'s {'@'} Relationships",
+      "topMentioned": "Most frequently {'@'}s",
+      "topMentioners": "Most frequently {'@'}d by",
+      "timesCount": "{count}x",
+      "close": "Close"
+    }
+  },
+  "private": {
+    "title": "Chat Members",
+    "description": "{count} members. Add aliases for search and AI analysis",
+    "messageCount": "Messages",
+    "percentage": "{value}% of total",
+    "customAlias": "Custom Aliases",
+    "aliasPlaceholder": "Press Enter to add alias",
+    "empty": "No member data available",
+    "tipTitle": "Tip",
+    "tipContent": "Adding aliases helps identify chat participants and improves search and AI analysis accuracy."
+  }
+}

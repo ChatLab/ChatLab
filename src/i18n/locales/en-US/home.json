@@ -1,0 +1,124 @@
+{
+  "title": "ChatLab",
+  "subtitle": "Chat History Analysis Lab",
+  "features": {
+    "privacy": {
+      "title": "Privacy First",
+      "description": "Chat records stored and analyzed locally, protecting your privacy."
+    },
+    "analysis": {
+      "title": "Multi-dimensional Analysis",
+      "description": "From rankings to quotes, comprehensive insights into chat data."
+    },
+    "ai": {
+      "title": "AI Insights",
+      "description": "Built-in AI Agent to answer all questions about your chats and discover hidden stories."
+    }
+  },
+  "import": {
+    "dropHint": "Drop to import files",
+    "clickHint": "Click to select or drag chat records to import",
+    "multipleHint": "Multiple files can be selected or dragged at once",
+    "selectFiles": "Select chat record files",
+    "chatRecords": "Chat Records",
+    "allFiles": "All Files",
+    "progress": {
+      "detecting": "Detecting format...",
+      "reading": "Reading file...",
+      "parsing": "Parsing messages...",
+      "saving": "Saving to database...",
+      "done": "Import complete",
+      "error": "Import interrupted"
+    },
+    "processed": "{count} messages processed",
+    "tutorial": "View import tutorial",
+    "viewLog": "View import log",
+    "cannotReadPath": "Cannot read file path",
+    "preparing": "Preparing import...",
+    "errors": {
+      "no_file_selected": "No file selected",
+      "import_failed": "Import failed",
+      "unrecognized_format": "Unrecognized file format",
+      "no_messages": "No messages parsed. Please check if the file format is correct."
+    },
+    "diagnostics": {
+      "format": "Format: ",
+      "received": "Received: ",
+      "written": " / Written: ",
+      "skipped": " / Skipped: "
+    },
+    "batch": {
+      "importing": "Batch importing",
+      "progressCount": "{current} of {total}",
+      "cancel": "Cancel import",
+      "waiting": "Waiting",
+      "skipped": "Skipped",
+      "success": "Import successful",
+      "completed": "Batch import completed",
+      "summary": "{success} succeeded, {failed} failed, {cancelled} skipped",
+      "view": "View"
+    },
+    "options": {
+      "title": "More Options",
+      "mergeImport": "Merge Import",
+      "mergeImportHint": "Multiple files will be merged into one chat record"
+    },
+    "merge": {
+      "importing": "Merging",
+      "parsing": "Parsing files...",
+      "parsingFile": "Parsing: {name}",
+      "merging": "Merging messages...",
+      "completed": "Merge completed",
+      "completedHint": "{count} files merged",
+      "messageCount": "{count} messages",
+      "failed": "Merge failed",
+      "cancel": "Cancel merge"
+    }
+  },
+  "migration": {
+    "title": "Database upgrade required",
+    "description": "{count} database(s) need to be upgraded for new features.",
+    "note": "The upgrade usually takes only a few seconds and won't lose any data.",
+    "upgradeContent": "Upgrade content:",
+    "upgradeNow": "Upgrade Now",
+    "upgrading": "Upgrading...",
+    "failed": "Migration failed",
+    "partialFailed": "Some databases failed to upgrade",
+    "errorHint": "This is usually caused by corrupted database files. Please delete the failed sessions from the sidebar and re-import them.",
+    "close": "Close",
+    "retry": "Retry"
+  },
+  "chatSelector": {
+    "title": "Select chats to import",
+    "scanning": "Scanning chat list...",
+    "scanFailed": "Scan failed",
+    "retry": "Retry",
+    "selectAll": "Select all",
+    "chatCount": "{count} chats",
+    "selected": "{count} selected",
+    "messageCount": "{count} messages",
+    "import": "Import ({count})",
+    "noChats": "No chats found"
+  },
+  "footer": {
+    "website": "Website",
+    "terms": "Terms of Use"
+  },
+  "changelog": {
+    "title": "Changelog",
+    "subtitle": "View all version updates",
+    "viewChangelog": "Changelog",
+    "latest": "Latest",
+    "current": "Current",
+    "total": "{count} versions in total",
+    "close": "Close",
+    "loadError": "Failed to load changelog",
+    "retry": "Retry",
+    "types": {
+      "feat": "Features",
+      "fix": "Bug Fixes",
+      "chore": "Other",
+      "style": "Style"
+    }
+  }
+}

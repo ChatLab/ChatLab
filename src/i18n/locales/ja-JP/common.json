@@ -1,0 +1,129 @@
+{
+  "confirm": "確認",
+  "cancel": "キャンセル",
+  "delete": "削除",
+  "save": "保存",
+  "edit": "編集",
+  "add": "追加",
+  "rename": "名前変更",
+  "capture": "スクリーンショット",
+  "close": "閉じる",
+  "back": "戻る",
+  "done": "完了",
+  "retry": "リトライ",
+  "loading": "読み込み中...",
+  "initializing": "初期化中...",
+  "noData": "データがありません",
+  "export": "エクスポート",
+  "exportSuccess": "エクスポートに成功しました",
+  "exportFailed": "エクスポートに失敗しました",
+  "generating": "生成中...",
+  "regenerate": "再生成",
+  "openFolder": "フォルダーを開く",
+  "errorNoAIConfig": "先に設定でAIサービスを構成してください",
+  "reset": "リセット",
+  "error": {
+    "general": "操作に失敗しました。再試行してください",
+    "network": "ネットワークエラー",
+    "unknown": "不明なエラー"
+  },
+  "attachment": {
+    "image": "画像",
+    "video": "動画",
+    "audio": "音声",
+    "file": "ファイル",
+    "sticker": "スタンプ",
+    "link": "リンク"
+  },
+  "unit": {
+    "messages": "件のメッセージ",
+    "members": "人",
+    "days": "日"
+  },
+  "messageType": {
+    "text": "テキスト",
+    "image": "画像",
+    "voice": "音声",
+    "video": "動画",
+    "file": "ファイル",
+    "emoji": "絵文字",
+    "link": "リンク",
+    "location": "位置情報",
+    "redPacket": "お年玉",
+    "transfer": "送金",
+    "poke": "ツンツン",
+    "call": "通話",
+    "share": "共有",
+    "reply": "返信",
+    "forward": "転送",
+    "contact": "連絡先カード",
+    "system": "システム",
+    "recall": "取り消し",
+    "other": "その他",
+    "unknown": "不明"
+  },
+  "weekday": {
+    "mon": "月曜",
+    "tue": "火曜",
+    "wed": "水曜",
+    "thu": "木曜",
+    "fri": "金曜",
+    "sat": "土曜",
+    "sun": "日曜"
+  },
+  "month": {
+    "jan": "1月",
+    "feb": "2月",
+    "mar": "3月",
+    "apr": "4月",
+    "may": "5月",
+    "jun": "6月",
+    "jul": "7月",
+    "aug": "8月",
+    "sep": "9月",
+    "oct": "10月",
+    "nov": "11月",
+    "dec": "12月"
+  },
+  "agreement": {
+    "title": "プライバシーポリシーと利用規約",
+    "subtitle": "利用前に必ずお読みください",
+    "disagree": "同意しない",
+    "agree": "内容を確認して同意する",
+    "updateNotice": "規約内容が更新されました。再度お読みいただき、ご確認ください"
+  },
+  "datePicker": {
+    "selectDate": "日付を選択",
+    "clearDate": "日付をクリア"
+  },
+  "timeSelect": {
+    "mode": {
+      "recent": "最近",
+      "quarter": "四半期別",
+      "year": "年別",
+      "custom": "カスタム"
+    },
+    "recent": {
+      "halfYear": "半年間",
+      "oneYear": "1年間",
+      "twoYears": "2年間",
+      "fiveYears": "5年間",
+      "all": "すべて"
+    },
+    "display": {
+      "recent180": "最近半年間",
+      "recent365": "最近1年間",
+      "recent730": "最近2年間",
+      "recent1825": "最近5年間"
+    },
+    "quarter": {
+      "label": "{year}年 第{quarter}四半期"
+    },
+    "year": {
+      "label": "{year}年"
+    }
+  },
+  "userSelect": {
+    "allMembers": "すべてのメンバー"
+  }
+}

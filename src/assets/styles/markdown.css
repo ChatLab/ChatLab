@@ -1,0 +1,220 @@
+/**
+ * Markdown 渲染通用样式
+ * 用于 AI 消息、总结等需要渲染 Markdown 的地方
+ * 使用方式：在组件的 <style> 中 @import 此文件，或在全局样式中引入
+ */
+
+/* 段落（全局样式不使用 :deep） */
+.prose p {
+  margin: 0.5em 0;
+  line-height: 1.6;
+}
+
+.prose p:first-child {
+  margin-top: 0;
+}
+
+.prose p:last-child {
+  margin-bottom: 0;
+}
+
+/* 标题 */
+.prose h1 {
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 1em 0 0.5em;
+  line-height: 1.3;
+}
+
+.prose h2 {
+  font-size: 1.125rem;
+  font-weight: 600;
+  margin: 0.875em 0 0.5em;
+  line-height: 1.4;
+}
+
+.prose h3 {
+  font-size: 1rem;
+  font-weight: 600;
+  margin: 0.75em 0 0.375em;
+  line-height: 1.4;
+}
+
+.prose h1:first-child,
+.prose h2:first-child,
+.prose h3:first-child {
+  margin-top: 0;
+}
+
+/* 列表 */
+.prose ul,
+.prose ol {
+  margin: 0.5em 0;
+  padding-left: 1.5em;
+}
+
+.prose ul {
+  list-style-type: disc;
+}
+
+.prose ol {
+  list-style-type: decimal;
+}
+
+.prose li {
+  margin: 0.25em 0;
+  line-height: 1.5;
+}
+
+.prose li > p {
+  margin: 0.25em 0;
+}
+
+/* 嵌套列表 */
+.prose ul ul,
+.prose ol ol,
+.prose ul ol,
+.prose ol ul {
+  margin: 0.25em 0;
+}
+
+/* 代码 */
+.prose code {
+  font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Monaco, Consolas, monospace;
+  font-size: 0.875em;
+  padding: 0.15em 0.4em;
+  border-radius: 0.25rem;
+  background-color: rgba(0, 0, 0, 0.08);
+}
+
+.dark .prose code {
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+/* 代码块 */
+.prose pre {
+  margin: 0.75em 0;
+  padding: 0.875em 1em;
+  border-radius: 0.5rem;
+  background-color: #f3f4f6;
+  color: #111827;
+  overflow-x: auto;
+  /* 处理长行代码不换行导致的水平溢出 */
+  white-space: pre-wrap;
+  word-break: break-word;
+  overflow-wrap: anywhere;
+}
+
+/* 暗色模式下的代码块样式 */
+.dark .prose pre {
+  background-color: #1e293b;
+  color: #e2e8f0;
+}
+
+.prose pre code {
+  padding: 0;
+  background: none;
+  color: inherit;
+  font-size: 0.8125rem;
+  line-height: 1.6;
+}
+
+/* 引用块 - 使用项目主题粉色 */
+.prose blockquote {
+  margin: 0.75em 0;
+  padding: 0.5em 0 0.5em 1em;
+  border-left: 3px solid var(--color-pink-500, #ee4567);
+  background-color: color-mix(in srgb, var(--color-pink-500, #ee4567) 5%, transparent);
+  border-radius: 0 0.25rem 0.25rem 0;
+}
+
+.prose blockquote p {
+  margin: 0;
+  color: #6b7280;
+}
+
+.dark .prose blockquote p {
+  color: #9ca3af;
+}
+
+/* 链接 - 使用项目主题粉色 */
+.prose a {
+  color: var(--color-pink-500, #ee4567);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+.prose a:hover {
+  color: var(--color-pink-600, #de335e);
+}
+
+/* 分割线 */
+.prose hr {
+  margin: 1em 0;
+  border: none;
+  border-top: 1px solid #e5e7eb;
+}
+
+.dark .prose hr {
+  border-top-color: #374151;
+}
+
+/* 加粗和斜体 */
+.prose strong {
+  font-weight: 600;
+}
+
+.prose em {
+  font-style: italic;
+}
+
+/* 表格 */
+.prose table {
+  width: 100%;
+  margin: 0.75em 0;
+  border-collapse: collapse;
+  font-size: 0.875em;
+}
+
+.prose th,
+.prose td {
+  padding: 0.5em 0.75em;
+  border: 1px solid #e5e7eb;
+  text-align: left;
+}
+
+.dark .prose th,
+.dark .prose td {
+  border-color: #374151;
+}
+
+.prose th {
+  background-color: #f9fafb;
+  font-weight: 600;
+}
+
+.dark .prose th {
+  background-color: #1f2937;
+}
+
+/* 用户消息中的样式调整（白色文字背景） */
+.prose-invert code {
+  background-color: rgba(255, 255, 255, 0.2);
+}
+
+.prose-invert a {
+  color: var(--color-pink-300, #faa7b4);
+}
+
+.prose-invert a:hover {
+  color: var(--color-pink-200, #fccfd5);
+}
+
+.prose-invert blockquote {
+  border-left-color: rgba(255, 255, 255, 0.5);
+  background-color: rgba(255, 255, 255, 0.1);
+}
+
+.prose-invert blockquote p {
+  color: rgba(255, 255, 255, 0.8);
+}

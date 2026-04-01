@@ -1,0 +1,129 @@
+{
+  "confirm": "OK",
+  "cancel": "Cancel",
+  "delete": "Delete",
+  "save": "Save",
+  "edit": "Edit",
+  "add": "Add",
+  "rename": "Rename",
+  "capture": "Capture",
+  "close": "Close",
+  "back": "Back",
+  "done": "Done",
+  "retry": "Retry",
+  "loading": "Loading...",
+  "initializing": "Initializing...",
+  "noData": "No data",
+  "export": "Export",
+  "exportSuccess": "Export successful",
+  "exportFailed": "Export failed",
+  "generating": "Generating...",
+  "regenerate": "Regenerate",
+  "openFolder": "Open Folder",
+  "errorNoAIConfig": "Please configure AI service in Settings first",
+  "reset": "Reset",
+  "error": {
+    "general": "Operation failed, please try again",
+    "network": "Network error",
+    "unknown": "Unknown error"
+  },
+  "attachment": {
+    "image": "Image",
+    "video": "Video",
+    "audio": "Audio",
+    "file": "File",
+    "sticker": "Sticker",
+    "link": "Link"
+  },
+  "unit": {
+    "messages": "messages",
+    "members": "members",
+    "days": "days"
+  },
+  "messageType": {
+    "text": "Text",
+    "image": "Image",
+    "voice": "Voice",
+    "video": "Video",
+    "file": "File",
+    "emoji": "Emoji",
+    "link": "Link",
+    "location": "Location",
+    "redPacket": "Red Packet",
+    "transfer": "Transfer",
+    "poke": "Poke",
+    "call": "Call",
+    "share": "Share",
+    "reply": "Reply",
+    "forward": "Forward",
+    "contact": "Contact",
+    "system": "System",
+    "recall": "Recalled",
+    "other": "Other",
+    "unknown": "Unknown"
+  },
+  "weekday": {
+    "mon": "Mon",
+    "tue": "Tue",
+    "wed": "Wed",
+    "thu": "Thu",
+    "fri": "Fri",
+    "sat": "Sat",
+    "sun": "Sun"
+  },
+  "month": {
+    "jan": "Jan",
+    "feb": "Feb",
+    "mar": "Mar",
+    "apr": "Apr",
+    "may": "May",
+    "jun": "Jun",
+    "jul": "Jul",
+    "aug": "Aug",
+    "sep": "Sep",
+    "oct": "Oct",
+    "nov": "Nov",
+    "dec": "Dec"
+  },
+  "agreement": {
+    "title": "Privacy Policy & User Agreement",
+    "subtitle": "Please read carefully before use",
+    "disagree": "I Disagree",
+    "agree": "I Have Read and Agree",
+    "updateNotice": "The agreement has important updates. Please read and confirm again."
+  },
+  "datePicker": {
+    "selectDate": "Select Date",
+    "clearDate": "Clear"
+  },
+  "timeSelect": {
+    "mode": {
+      "recent": "Recent",
+      "quarter": "Quarter",
+      "year": "Year",
+      "custom": "Custom"
+    },
+    "recent": {
+      "halfYear": "Last 6M",
+      "oneYear": "Last 1Y",
+      "twoYears": "Last 2Y",
+      "fiveYears": "Last 5Y",
+      "all": "All"
+    },
+    "display": {
+      "recent180": "Last 6 months",
+      "recent365": "Last 1 year",
+      "recent730": "Last 2 years",
+      "recent1825": "Last 5 years"
+    },
+    "quarter": {
+      "label": "{year} Q{quarter}"
+    },
+    "year": {
+      "label": "{year}"
+    }
+  },
+  "userSelect": {
+    "allMembers": "All Members"
+  }
+}

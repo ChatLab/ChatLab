@@ -1,0 +1,49 @@
+{
+  "title": "管理",
+  "description": "聊天记录管理",
+  "tabs": {
+    "batchManage": "批量管理"
+  },
+  "batchManage": {
+    "title": "批量删除",
+    "description": "选择要删除的聊天记录",
+    "searchPlaceholder": "搜索对话名称",
+    "searchResult": "找到 {count} / {total} 个",
+    "noSearchResult": "未找到匹配的聊天记录",
+    "selectAll": "全选",
+    "shiftClickHint": "按住 Shift 点击可范围多选",
+    "selected": "已选 {count} 个",
+    "empty": "暂无聊天记录",
+    "delete": "删除选中",
+    "confirmTitle": "确认删除",
+    "confirmMessage": "确定要删除选中的 {count} 个聊天记录吗？此操作不可撤销。",
+    "deleting": "正在删除...",
+    "success": "成功删除 {count} 个聊天记录",
+    "error": "删除失败：{error}",
+    "messageCount": "{count} 条消息",
+    "importedAt": "导入于 {time}",
+    "columns": {
+      "name": "名称",
+      "platform": "平台",
+      "messages": "消息数",
+      "summaries": "摘要",
+      "aiChats": "AI 对话",
+      "importedAt": "导入时间"
+    },
+    "clickToEdit": "点击编辑名称",
+    "merge": "合并选中",
+    "mergeHint": "选择 2 个以上同平台的聊天记录才能合并",
+    "mergeConfirmTitle": "合并聊天记录",
+    "mergeConfirmMessage": "将合并选中的 {count} 个聊天记录。合并后原记录将被删除，生成一条新的合并记录。",
+    "mergeSteps": {
+      "exporting": "正在导出聊天记录...",
+      "parsing": "正在解析文件...",
+      "checking": "正在检测冲突...",
+      "merging": "正在合并数据...",
+      "cleaning": "正在清理临时文件..."
+    },
+    "mergeSuccess": "成功合并 {count} 个聊天记录",
+    "mergeError": "合并失败：{error}",
+    "mergedSuffix": "合并"
+  }
+}

@@ -1,0 +1,625 @@
+[
+  {
+    "version": "0.14.0",
+    "date": "2026-03-28",
+    "summary": "Add API import/export and preset prompts, improve Overview and settings flows, and fix message deduplication, AI conversation flow, and daily trend display.",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Add API import",
+          "Add API export",
+          "Let preset questions send immediately when selected",
+          "Add a Settings option for the default tab when opening a chat session",
+          "Improve the Overview page styling",
+          "Refine the overall UI and the API service settings screen",
+          "Improve identity cards and assistant selection interactions"
+        ]
+      },
+      {
+        "type": "fix",
+        "items": [
+          "Fix false positives in message deduplication and unify empty-string deduplication behavior",
+          "Fix AI conversation flow issues and frontend type-check errors",
+          "Add a fallback default assistant for edge cases",
+          "Fix daily message trends not rendering"
+        ]
+      },
+      {
+        "type": "refactor",
+        "items": ["Clean up legacy typing issues across the parser, worker, RAG, and merger modules"]
+      },
+      {
+        "type": "chore",
+        "items": ["Add a skill for generating assistant configurations"]
+      }
+    ]
+  },
+  {
+    "version": "0.13.0",
+    "date": "2026-03-16",
+    "summary": "Assistant Mode is here with skills in chat, quick input actions, improved chat and settings UI, Traditional Chinese and Japanese support, UI refinements, and multiple stability fixes.",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Shipped the first Assistant Mode release with improved assistant logic and analysis tools",
+          "Launched the Assistant and Skill marketplaces; chats can now use skills",
+          "Added @-mention member selection for collaboration",
+          "Added Traditional Chinese and Japanese localization",
+          "Refactored Settings and refined UI details",
+          "Improved Overview styling and chat experience",
+          "Moved the export chat history entry point",
+          "Removed the legacy prompt system and custom AI filtering",
+          "Model calls no longer stop when switching pages"
+        ]
+      },
+      {
+        "type": "fix",
+        "items": ["Fixed Gemini API configuration issues", "Fixed an error caused by stopword processing order in NLP"]
+      },
+      {
+        "type": "refactor",
+        "items": ["Refactored AIChat organization", "Restructured directory and project layout"]
+      },
+      {
+        "type": "docs",
+        "items": ["Updated the user agreement and project docs"]
+      },
+      {
+        "type": "chore",
+        "items": ["Improved the changelog build pipeline"]
+      },
+      {
+        "type": "style",
+        "items": ["Standardized code formatting and lint output"]
+      }
+    ]
+  },
+  {
+    "version": "0.12.1",
+    "date": "2026-02-27",
+    "summary": "Add chat-history preprocessing and AI debugging, refactor the Agent/LLM architecture, and fix i18n and Windows theme consistency issues.",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Add a chat-history preprocessing pipeline.",
+          "Add preprocessing settings UI and configuration management.",
+          "Add session-based context timelines and runtime status for the Agent.",
+          "Add an AI debug mode with improved log observability."
+        ]
+      },
+      {
+        "type": "fix",
+        "items": [
+          "Fix partial UI text not being localized under English settings.",
+          "Fix overlay color updates not matching the active theme on Windows."
+        ]
+      },
+      {
+        "type": "refactor",
+        "items": [
+          "Split the monolithic Agent implementation into a modular architecture.",
+          "Refactor the tool system to AgentTool + TypeBox and complete i18n support.",
+          "Unify the LLM access layer under the pi-ai implementation.",
+          "Refactor data-flow direction and IPC contracts, with corresponding frontend adaptation.",
+          "Introduce shared types and improve ChatStatusBar i18n.",
+          "Refactor parts of the chart stack into a plugin-based architecture."
+        ]
+      },
+      {
+        "type": "chore",
+        "items": [
+          "Remove the over-engineered sessionLog module.",
+          "Remove @ai-sdk dependencies and legacy LLM service implementations.",
+          "Temporarily hide the vector model configuration entry.",
+          "Update project description copy."
+        ]
+      },
+      {
+        "type": "style",
+        "items": ["Run ESLint auto-fix to unify code style."]
+      }
+    ]
+  },
+  {
+    "version": "0.11.2",
+    "date": "2026-02-15",
+    "summary": "Improve chat import workflows and management tools, while enhancing cross-platform parser compatibility.",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Improve parser compatibility for LINE and WhatsApp formats.",
+          "Improve the chat sniffing layer with polling detection and a fallback strategy.",
+          "Support Shift multi-select in the Manage page.",
+          "Show chat summary count and AI conversation count in the Manage page.",
+          "Optimize the main-page layout to provide more usable space.",
+          "Improve top-right window controls styling on Windows."
+        ]
+      },
+      {
+        "type": "docs",
+        "items": ["Update project documentation."]
+      }
+    ]
+  },
+  {
+    "version": "0.11.0",
+    "date": "2026-02-13",
+    "summary": "Add Telegram import, improve incremental import UX, strengthen i18n coverage, and fix indexing and page flicker issues.",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Expand i18n support across AI calls, logs, and main-process configuration.",
+          "Add support for importing Telegram chat history.",
+          "Improve the incremental import flow and related copy.",
+          "Improve the interaction flow when opening protocol links."
+        ]
+      },
+      {
+        "type": "fix",
+        "items": [
+          "Fix index invalidation after incremental imports (resolve #81).",
+          "Fix WhatsApp iPhone-exported chats not being recognized (resolve #82).",
+          "Fix a double-flicker issue when switching to the chat page."
+        ]
+      },
+      {
+        "type": "chore",
+        "items": [
+          "Optimize TypeScript configuration.",
+          "Adjust i18n build configuration.",
+          "Improve skill-related project configuration."
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.10.0",
+    "date": "2026-02-11",
+    "summary": "Add interaction frequency analysis, improve the session query pipeline, and fix issues in incremental indexing and database scanning.",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Add an interaction frequency analysis view to make member interaction trends easier to understand.",
+          "Improve session query logic and processing flow."
+        ]
+      },
+      {
+        "type": "fix",
+        "items": [
+          "Fix inaccurate session index generation scope after incremental updates (fix #79).",
+          "Fix non-chat SQLite files being incorrectly processed during migration and session scanning."
+        ]
+      },
+      {
+        "type": "refactor",
+        "items": ["Refactor the session query module to improve maintainability."]
+      },
+      {
+        "type": "chore",
+        "items": ["Remove transformers-related dependencies and update project configuration."]
+      }
+    ]
+  },
+  {
+    "version": "0.9.4",
+    "date": "2026-02-08",
+    "summary": "Improved time filtering and AI configuration UX, added local API key encryption, and fixed LINE chat log parsing.",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Add more flexible time-filtering options.",
+          "Store API keys with local encryption.",
+          "Hide release notes for first-time users.",
+          "Improve the configuration status display in the AI chat footer.",
+          "Allow the app to restart immediately after data directory migration."
+        ]
+      },
+      {
+        "type": "fix",
+        "items": ["Fix parsing issues for LINE chat logs."]
+      },
+      {
+        "type": "docs",
+        "items": ["Update project documentation."]
+      }
+    ]
+  },
+  {
+    "version": "0.9.3",
+    "date": "2026-02-03",
+    "summary": "Support custom data directories and fix many known issues.",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Add a data directory location setting",
+          "Optimize data directory migration logic",
+          "Add a confirmation dialog for directory switching",
+          "Improve parser logic (WeFlow / Echotrace)"
+        ]
+      },
+      {
+        "type": "fix",
+        "items": [
+          "Fix crashes on Windows when custom filtering processes large message volumes",
+          "Fix conversations ending early when third-party relay APIs call tool_call",
+          "Fix some WhatsApp chat logs not being detected correctly",
+          "Fix manage page header stacking above settings"
+        ]
+      },
+      {
+        "type": "refactor",
+        "items": ["Refactor session query module", "Improve migration logging"]
+      }
+    ]
+  },
+  {
+    "version": "0.9.2",
+    "date": "2026-02-02",
+    "summary": "Rankings are now displayed as charts; word cloud generation and the local AI inference model are optimized; chat record filtering and the date picker are improved; and key routes are preloaded after launch.",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Refactor rankings to chart-based views",
+          "Optimize word cloud output",
+          "Optimize inference models",
+          "Improve linked search + filter in chat records",
+          "Enhance date picker interactions",
+          "Preload key routes after app launch"
+        ]
+      },
+      {
+        "type": "chore",
+        "items": ["Modularize preload APIs", "Optimize analytics logic", "Upgrade ESLint and format code"]
+      }
+    ]
+  },
+  {
+    "version": "0.9.1",
+    "date": "2026-01-30",
+    "summary": "Add LINE chat import, batch management, and chat search, plus fixes for known issues.",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Add batch management with batch delete and merge",
+          "Support chat conversation search",
+          "Support LINE chat import",
+          "Compatible with WeFlow exported JSON format",
+          "Member list uses backend pagination",
+          "Improve some copy"
+        ]
+      },
+      {
+        "type": "fix",
+        "items": ["Fix Windows app not closing during updates due to Worker occupation"]
+      }
+    ]
+  },
+  {
+    "version": "0.9.0",
+    "date": "2026-01-28",
+    "summary": "Add NLP capabilities with a word cloud page under the Quotes tab; add a Views tab for more charts; support following system proxy settings; and refine some pages and styles.",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Optimize user selector performance with virtualized loading",
+          "Move rankings to the Views tab",
+          "Introduce tokenization and add a word cloud sub-tab",
+          "Improve group chat tab copy",
+          "Network proxy follows system proxy settings",
+          "Optimize release notes display logic"
+        ]
+      },
+      {
+        "type": "style",
+        "items": ["Improve Markdown rendering styles"]
+      }
+    ]
+  },
+  {
+    "version": "0.8.0",
+    "date": "2026-01-26",
+    "summary": "This update adds session summaries and vector retrieval; shows release notes after each update; improves parts of the UI; and fixes some known issues.",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Remove Help & Feedback from the sidebar",
+          "Add a footer on the home page with common links",
+          "Automatically open release notes after updating to a new version",
+          "Optimize batch session summary generation",
+          "Add session summaries in chat",
+          "Support vector model configuration and retrieval",
+          "Log more detailed errors when chat import fails"
+        ]
+      },
+      {
+        "type": "fix",
+        "items": ["Fix shuakami-jsonl parsing error (fix #50)"]
+      }
+    ]
+  },
+  {
+    "version": "0.7.0",
+    "date": "2026-01-23",
+    "summary": "Improve the AI chat experience, and refine update logic and charting.",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Improve update logic",
+          "Improve AI chat error logs",
+          "Quick model selection at the bottom of chat",
+          "Improve default prompts with a touch of humor",
+          "Replace chart.js with ECharts",
+          "Remove registration agreement logic"
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.6.0",
+    "date": "2026-01-21",
+    "summary": "Integrate AI SDK to improve AI chat stability; add a thinking content block; and refine some styles",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Add a log locator feature",
+          "Integrate AI SDK",
+          "Add a thinking content block",
+          "Fix global modals being covered by the home page drag area",
+          "Improve top-right close button style on Windows"
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.5.2",
+    "date": "2026-01-20",
+    "summary": "Support merged imports; fix several issues",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Support merged imports",
+          "Show chat log start/end time on the main panel",
+          "Improve the drag-and-drop area"
+        ]
+      },
+      {
+        "type": "fix",
+        "items": [
+          "Improve build config to fix macOS x64 compilation",
+          "Fix close button style in the message viewer on Windows",
+          "Require building on the target architecture for macOS packaging (fixes #36)"
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.5.1",
+    "date": "2026-01-16",
+    "summary": "Fix several issues",
+    "changes": [
+      {
+        "type": "feat",
+        "items": ["Improve copy"]
+      },
+      {
+        "type": "fix",
+        "items": ["Fix app process not exiting on Windows when closing (#33)", "Fix number input bug (resolve #34)"]
+      }
+    ]
+  },
+  {
+    "version": "0.5.0",
+    "date": "2026-01-14",
+    "summary": "Support Instagram chat import; add batch and incremental import",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Support Instagram chat import",
+          "Logic improvements",
+          "Improve system prompt presets",
+          "Support incremental import",
+          "Support batch import",
+          "Style improvements",
+          "Support native window controls and theme sync on Windows (#31)"
+        ]
+      },
+      {
+        "type": "chore",
+        "items": ["Remove componenst.d.ts"]
+      }
+    ]
+  },
+  {
+    "version": "0.4.1",
+    "date": "2026-01-13",
+    "summary": "This release focuses on style and interaction improvements, with no major new features",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Prompt preview support",
+          "Improve AI chat status bar",
+          "Improve table migration logic",
+          "Show avatars in the sidebar",
+          "Style improvements",
+          "Replace native window controls bar",
+          "Improve global background color",
+          "Clean up Worker on app exit"
+        ]
+      },
+      {
+        "type": "fix",
+        "items": ["Fix theme-follow-system setting not working", "Fix update modal layout issues"]
+      }
+    ]
+  },
+  {
+    "version": "0.4.0",
+    "date": "2026-01-12",
+    "summary": "Import now supports shuakami-jsonl; AI chat is optimized to save tokens; imports can generate session indexes and the viewer can jump by index; updates now support acceleration mirrors",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Compatibility with shuakami-jsonl",
+          "Improve loading state",
+          "Add custom filters",
+          "Refactor preset system with shared presets",
+          "Trim system prompts to save tokens",
+          "Add session-related function calling",
+          "Handle message jumps with context",
+          "Message viewer supports session index and quick jump",
+          "Refactor settings modal and add session index settings",
+          "Generate session index when importing chats",
+          "Refactor settings modal",
+          "Improve base component interactions",
+          "Improve home page styling",
+          "Improve update acceleration logic",
+          "Add acceleration mirrors"
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.3.1",
+    "date": "2026-01-09",
+    "summary": "Add Discord import support; parsers now import reply messages; storage moves to a more standard location; role import is supported; import errors provide more detailed diagnostics; and various improvements",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Move table upgrades to the main process",
+          "Ignore beta versions during auto-update checks",
+          "Move data storage to userData",
+          "Parsers re-enable reply message import",
+          "Support platform message IDs and reply IDs with table migration",
+          "Support Tyrrrz/DiscordChatExporter import format",
+          "Support roles in the member table",
+          "Enhance ChatLab format detection",
+          "Align click import and drag import behaviors",
+          "Provide more detailed format diagnostics"
+        ]
+      },
+      {
+        "type": "fix",
+        "items": ["Fix some users having empty platformId"]
+      }
+    ]
+  },
+  {
+    "version": "0.3.0",
+    "date": "2026-01-08",
+    "summary": "Add English support and various improvements",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "SQL Lab supports export",
+          "AI chat supports export",
+          "Finalize localization",
+          "Show explicit errors for AI model failures",
+          "SQL results can jump to the message viewer",
+          "Improve system prompts and support a prompt marketplace"
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.2.0",
+    "date": "2025-12-29",
+    "summary": "Support proxy configuration; show error logs on import; improve some UI interactions; and add feature updates",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Message manager shows system messages",
+          "Improve import flow and show logs on errors",
+          "WhatsApp supports English-format message import",
+          "Support proxy configuration (resolve #7)",
+          "Improve AI model UI interactions",
+          "Add API tutorial for user configuration",
+          "Add two free GLM models; add Doubao provider and latest models",
+          "AI replies no longer output think content"
+        ]
+      }
+    ]
+  },
+  {
+    "version": "0.1.3",
+    "date": "2025-12-25",
+    "summary": "Fix several issues",
+    "changes": [
+      {
+        "type": "fix",
+        "items": ["Fix Echotrace parser errors"]
+      }
+    ]
+  },
+  {
+    "version": "0.1.2",
+    "date": "2025-12-25",
+    "summary": "Add dark mode and allow passing user identity in system prompts during AI chats",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Allow passing user identity in system prompts during AI chats",
+          "Show Owner on the right in the message viewer",
+          "Support database upgrades",
+          "Allow Owner view in the Members tab",
+          "Support dark mode"
+        ]
+      },
+      {
+        "type": "fix",
+        "items": ["Fix private chats misidentified as group chats"]
+      }
+    ]
+  },
+  {
+    "version": "0.1.1",
+    "date": "2025-12-24",
+    "summary": "Support WhatsApp and legacy QQ chat analysis",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Show token usage at the bottom of chat sessions",
+          "Support native WhatsApp message format",
+          "Support legacy QQ txt group format"
+        ]
+      },
+      {
+        "type": "fix",
+        "items": ["Fix message manager z-index being too low"]
+      }
+    ]
+  },
+  {
+    "version": "0.1.0",
+    "date": "2025-12-23",
+    "summary": "Project launch",
+    "changes": [
+      {
+        "type": "feat",
+        "items": ["Initial release"]
+      }
+    ]
+  }
+]

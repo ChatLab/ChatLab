@@ -1,0 +1,128 @@
+{
+  "wordcloud": {
+    "loading": "Analyzing word frequency...",
+    "sidebar": {
+      "filter": "Filters",
+      "style": "Style"
+    },
+    "stats": {
+      "messagesLabel": "Messages",
+      "wordsLabel": "Total words",
+      "uniqueLabel": "Unique"
+    },
+    "config": {
+      "maxWords": "Max words",
+      "sizeScale": "Font size",
+      "userFilter": "User filter",
+      "posFilter": "POS filter",
+      "enableStopwords": "Filter stopwords"
+    },
+    "size": {
+      "small": "S",
+      "medium": "M",
+      "large": "L",
+      "xlarge": "XL"
+    },
+    "posFilter": {
+      "all": "All",
+      "meaningful": "Meaningful",
+      "custom": "Custom",
+      "customHint": "Custom POS",
+      "selectMeaningful": "Meaningful",
+      "selectAll": "All",
+      "clearAll": "Clear"
+    },
+    "empty": {
+      "title": "No word cloud data",
+      "description": "Not enough text messages to generate a word cloud with current filters"
+    }
+  },
+  "keywords": {
+    "title": "🔍 Keyword Ranking",
+    "description": "Analyze keyword usage rankings in chats, customize your own lists",
+    "countTemplate": "{count} members",
+    "templateLabel": "Templates:",
+    "newTemplate": "+ New",
+    "searchPlaceholder": "Type to search",
+    "clear": "Clear",
+    "templateHint": "* Right-click template to edit or delete",
+    "keyword": "Keyword",
+    "ranking": " Ranking",
+    "multiColorMode": "Multi-color",
+    "times": "{count}x",
+    "timesWithPercent": "x ({percent}%)",
+    "loading": "Analyzing data...",
+    "empty": "No data available. Try adding keywords or switching templates.",
+    "contextMenu": {
+      "edit": "Edit",
+      "delete": "Delete"
+    },
+    "modal": {
+      "createTitle": "Create Template",
+      "editTitle": "Edit Template",
+      "templateName": "Template Name",
+      "templateNamePlaceholder": "e.g. Positive",
+      "keywords": "Keywords",
+      "keywordPlaceholder": "Press Enter to add",
+      "cancel": "Cancel",
+      "save": "Save",
+      "update": "Update"
+    },
+    "templates": {
+      "laugh": {
+        "name": "Laughter",
+        "keywords": "lol,lmao,haha,rofl,dying,hilarious",
+        "description": "Track happiness index in the group"
+      },
+      "sad": {
+        "name": "Sadness",
+        "keywords": "sad,depressed,tired,exhausted,ugh,sucks,hate",
+        "description": "Track negative emotions in the group"
+      },
+      "praise": {
+        "name": "Praise",
+        "keywords": "awesome,amazing,great,nice,cool,impressive,wow,goat",
+        "description": "Find members who give the most compliments"
+      },
+      "slacker": {
+        "name": "Slacking",
+        "keywords": "bored,slacking,hungry,sleepy,friday yet,done for today,hate mondays",
+        "description": "Find members who want to leave work most"
+      },
+      "gossip": {
+        "name": "Gossip",
+        "keywords": "omg,no way,really,spill,tea,wtf,insane,crazy",
+        "description": "Find members who love gossip the most"
+      },
+      "polite": {
+        "name": "Polite",
+        "keywords": "thanks,please,sorry,appreciate,welcome,excuse me,thank you",
+        "description": "Find the most polite members"
+      },
+      "curious": {
+        "name": "Questions",
+        "keywords": "why,how,what,confused,help,anyone know",
+        "description": "Find members who ask the most questions"
+      }
+    }
+  },
+  "hotRepeat": {
+    "title": "🔥 Hot Repeats",
+    "loading": "Loading repeat data...",
+    "description": "Content with most participants in single repeat chain",
+    "countTemplate": "{count} hot repeats",
+    "people": "{count} ppl",
+    "times": "{count}x",
+    "colon": ": ",
+    "viewChat": "View chat history",
+    "empty": "No repeat data available"
+  },
+  "catchphrase": {
+    "title": "💬 Catchphrase Analysis",
+    "loading": "Analyzing catchphrases...",
+    "description": "Analyzed frequent phrases from {count} members",
+    "countTemplate": "{count} members",
+    "times": "{count}x",
+    "empty": "No catchphrase data available"
+  }
+}

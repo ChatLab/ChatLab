@@ -1,0 +1,4 @@
+interface:
+  display_name: '生成版本日志'
+  short_description: '按版本区间提取提交并自动生成项目中文 changelog 文件'
+  default_prompt: 'Use $generate-changelog to read package.json version, collect commits since the previous version, and update docs/changelogs_cn.json.'

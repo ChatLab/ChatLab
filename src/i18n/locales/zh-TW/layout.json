@@ -1,0 +1,34 @@
+{
+  "brand": "ChatLab",
+  "newAnalysis": "分析新聊天",
+  "tools": "實用工具",
+  "chatHistory": "聊天紀錄",
+  "noRecords": "暫無紀錄",
+  "searchPlaceholder": "搜尋聊天名稱",
+  "noSearchResult": "未找到匹配的聊天紀錄",
+  "contextMenu": {
+    "rename": "重新命名",
+    "pin": "置頂",
+    "unpin": "取消置頂",
+    "delete": "刪除"
+  },
+  "renameModal": {
+    "title": "重新命名",
+    "placeholder": "請輸入新名稱"
+  },
+  "deleteModal": {
+    "title": "確認刪除",
+    "message": "確定要刪除聊天紀錄「{name}」嗎？此操作無法復原。"
+  },
+  "tooltip": {
+    "expand": "展開側邊欄",
+    "collapse": "收起側邊欄",
+    "hint": "右鍵可刪除或重新命名聊天紀錄",
+    "search": "搜尋聊天紀錄"
+  },
+  "sessionInfo": "{count} 條訊息 · {time}",
+  "footer": {
+    "helpAndFeedback": "回饋與協助",
+    "settings": "設定"
+  }
+}

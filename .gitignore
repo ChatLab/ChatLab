@@ -1,0 +1,37 @@
+# OSX
+.DS_Store
+
+# Node.js
+node_modules
+
+# local env files
+.env.local
+.env.*.local
+
+# Log files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+*.log
+error-log-*.txt
+
+# Project
+dist/
+.history/
+out
+.obskey
+release-config.json
+src/auto-imports.d.ts
+src/components.d.ts
+*.tsbuildinfo
+
+# 使用npm作为包管理器
+yarn.lock
+
+# AI
+.cursor
+.vscode/*
+!.vscode/settings.json
+!.vscode/snippets.code-snippets
+.docs
+

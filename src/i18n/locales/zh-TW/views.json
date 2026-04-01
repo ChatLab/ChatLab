@@ -1,0 +1,82 @@
+{
+  "cluster": {
+    "title": "互動頻率",
+    "rankingView": "排行榜檢視",
+    "memberView": "成員檢視",
+    "matrixView": "矩陣檢視",
+    "modelSettings": "模型參數",
+    "lookAhead": "鄰近人數",
+    "lookAheadDesc": "每則訊息往後納入幾位發言者",
+    "decaySeconds": "時間衰減（秒）",
+    "decaySecondsDesc": "值越大，遠距離訊息權重越高",
+    "applySettings": "套用設定",
+    "noData": "暫無資料",
+    "selectMember": "選擇成員",
+    "selectMemberHint": "請從左側選擇一個成員",
+    "msgCount": "發言數",
+    "relationCount": "關係數",
+    "relationsByIntimacy": "發言鄰近度排行",
+    "noRelations": "暫無關係資料",
+    "intimacy": "鄰近度",
+    "interactionRanking": "互動排行榜",
+    "score": "鄰近度",
+    "coOccurrence": "共現",
+    "times": "次",
+    "totalMembers": "群成員",
+    "totalMessages": "訊息總數",
+    "involvedMembers": "參與成員",
+    "edgeCount": "關係數"
+  },
+  "message": {
+    "typeDistribution": "訊息類型分佈",
+    "hourlyDistribution": "小時分佈",
+    "weekdayDistribution": "星期分佈",
+    "monthlyDistribution": "月份分佈",
+    "yearlyDistribution": "年份分佈",
+    "timeHeatmap": "時間熱力圖",
+    "heatmapHint": "顯示聊天時間分布規律",
+    "calendarHeatmap": "訊息日曆",
+    "calendarHint": "每日訊息分佈",
+    "calendarTooltipMessages": "訊息",
+    "lengthDetailTitle": "短訊息分佈 (1-25字)",
+    "lengthDetailHint": "逐字統計",
+    "lengthGroupedTitle": "長度區間分佈",
+    "lengthGroupedHint": "每5字一組",
+    "noTextMessages": "暫無文字訊息",
+    "noData": "暫無資料"
+  },
+  "interaction": {
+    "mentionGraph": "艾特互動關係圖",
+    "layout": "佈局",
+    "circular": "環形",
+    "force": "力導向",
+    "directed": "有向",
+    "reset": "重置",
+    "graphHint": "共 {nodes} 位成員，{links} 條互動關係",
+    "noInteraction": "暫無艾特互動資料"
+  },
+  "timeline": {
+    "title": "時間軸檢視",
+    "description": "以視覺化方式呈現訊息時間分布與活躍週期變化"
+  },
+  "charts": {
+    "rankListPro": {
+      "fullRanking": "完整排行榜",
+      "memberCount": "共 {count} 位成員"
+    },
+    "rankList": {
+      "unit": "條"
+    },
+    "nicknameHistory": {
+      "periodToNow": "{start} ~ 至今",
+      "periodRange": "{start} ~ {end}",
+      "current": "目前",
+      "empty": "暫無暱稱紀錄"
+    },
+    "listPro": {
+      "countTemplate": "共 {count} 項",
+      "fullRanking": "完整排行榜",
+      "empty": "暫無資料"
+    }
+  }
+}

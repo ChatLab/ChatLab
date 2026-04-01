@@ -1,0 +1,124 @@
+{
+  "title": "ChatLab",
+  "subtitle": "重构你的社交记忆",
+  "features": {
+    "privacy": {
+      "title": "隐私至上",
+      "description": "聊天记录本地存储本地分析，保护你的隐私。"
+    },
+    "analysis": {
+      "title": "多维度分析",
+      "description": "从榜单到语录，全方位解读群聊数据，发现隐藏的趣味。"
+    },
+    "ai": {
+      "title": "智能 Agent",
+      "description": "内置 AI Agent，智能回答关于群聊的一切疑问，挖掘数据背后的趣事。"
+    }
+  },
+  "import": {
+    "dropHint": "松开鼠标导入文件",
+    "clickHint": "点击选择或拖拽聊天记录导入",
+    "multipleHint": "支持同时选择或拖拽多个文件",
+    "selectFiles": "选择聊天记录文件",
+    "chatRecords": "聊天记录",
+    "allFiles": "所有文件",
+    "progress": {
+      "detecting": "正在检测格式...",
+      "reading": "正在读取文件...",
+      "parsing": "正在解析消息...",
+      "saving": "正在写入数据库...",
+      "done": "导入完成",
+      "error": "导入中断"
+    },
+    "processed": "已处理 {count} 条消息",
+    "tutorial": "点此查看聊天记录导入教程",
+    "viewLog": "查看导入日志",
+    "cannotReadPath": "无法读取文件路径",
+    "preparing": "准备导入...",
+    "errors": {
+      "no_file_selected": "未选择文件",
+      "import_failed": "导入失败",
+      "unrecognized_format": "无法识别的文件格式",
+      "no_messages": "未解析到任何消息，请检查文件格式是否正确"
+    },
+    "diagnostics": {
+      "format": "检测格式：",
+      "received": "收到消息：",
+      "written": " / 写入：",
+      "skipped": " / 跳过："
+    },
+    "batch": {
+      "importing": "正在批量导入",
+      "progressCount": "第 {current} 个 / 共 {total} 个",
+      "cancel": "取消导入",
+      "waiting": "等待中",
+      "skipped": "已跳过",
+      "success": "导入成功",
+      "completed": "批量导入完成",
+      "summary": "成功 {success} 个，失败 {failed} 个，跳过 {cancelled} 个",
+      "view": "查看"
+    },
+    "options": {
+      "title": "更多选项",
+      "mergeImport": "合并导入",
+      "mergeImportHint": "勾选后，多个文件将合并为一个聊天记录"
+    },
+    "merge": {
+      "importing": "正在合并",
+      "parsing": "正在解析文件...",
+      "parsingFile": "正在解析: {name}",
+      "merging": "正在合并消息...",
+      "completed": "合并完成",
+      "completedHint": "{count} 个文件已合并",
+      "messageCount": "{count} 条消息",
+      "failed": "合并失败",
+      "cancel": "取消合并"
+    }
+  },
+  "migration": {
+    "title": "数据库需要升级",
+    "description": "检测到 {count} 个数据库需要升级以支持新功能。",
+    "note": "升级过程通常只需几秒钟，不会丢失任何数据。",
+    "upgradeContent": "本次升级内容：",
+    "upgradeNow": "立即升级",
+    "upgrading": "正在升级...",
+    "failed": "迁移失败",
+    "partialFailed": "部分数据库升级失败",
+    "errorHint": "这通常是因为数据库文件损坏。建议在侧边栏中删除失败的会话，然后重新导入。",
+    "close": "关闭",
+    "retry": "重试"
+  },
+  "chatSelector": {
+    "title": "选择要导入的聊天",
+    "scanning": "正在扫描聊天列表...",
+    "scanFailed": "扫描失败",
+    "retry": "重试",
+    "selectAll": "全选",
+    "chatCount": "共 {count} 个聊天",
+    "selected": "已选 {count} 个",
+    "messageCount": "{count} 条消息",
+    "import": "导入 ({count})",
+    "noChats": "未发现任何聊天"
+  },
+  "footer": {
+    "website": "官网",
+    "terms": "使用条款"
+  },
+  "changelog": {
+    "title": "版本日志",
+    "subtitle": "查看所有版本更新内容",
+    "viewChangelog": "版本日志",
+    "latest": "最新版本",
+    "current": "当前版本",
+    "total": "共 {count} 个版本",
+    "close": "关闭",
+    "loadError": "加载版本日志失败",
+    "retry": "重试",
+    "types": {
+      "feat": "新功能",
+      "fix": "问题修复",
+      "chore": "其他优化",
+      "style": "样式优化"
+    }
+  }
+}

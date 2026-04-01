@@ -1,0 +1,82 @@
+# 应用程序的唯一标识符
+appId: com.chatlab.fun
+# 应用程序的产品名称
+productName: ChatLab
+# 发布配置
+publish:
+  provider: github
+  owner: hellodigua
+  repo: ChatLab
+# 构建资源所在的目录
+directories:
+  buildResources: build
+# 包含在最终应用程序构建中的文件列表
+files:
+  - out/**/*
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!electron.vite.config.{js,ts,mjs,cjs}'
+  - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,CHANGELOG.md,README.md}'
+  - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
+  - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+# 哪些文件将不会被压缩，而是解压到构建目录
+asarUnpack:
+  - resources/**
+
+# Windows 平台配置
+win:
+  executableName: ChatLab
+  target: nsis
+
+# NSIS 安装器配置
+nsis:
+  oneClick: false
+  artifactName: ChatLab-${version}-setup.${ext}
+  shortcutName: ${productName}
+  uninstallDisplayName: ${productName}
+  createDesktopShortcut: always
+  allowElevation: true
+  allowToChangeInstallationDirectory: true
+  installerIcon: build/icon.ico
+  uninstallerIcon: build/icon.ico
+  include: installer-dpi.nsh
+  differentialPackage: false
+
+# macOS 平台配置
+mac:
+  entitlementsInherit: build/entitlements.mac.plist
+  entitlements: build/entitlements.mac.plist
+  # 代码签名 - Hardened Runtime 是公证的必要条件
+  hardenedRuntime: true
+  gatekeeperAssess: false
+  # 公证配置 - v26 自动检测环境变量进行公证，无需额外配置
+  extendInfo:
+    - NSDocumentsFolderUsageDescription: Application requests access to the user's Documents folder.
+    - NSDownloadsFolderUsageDescription: Application requests access to the user's Downloads folder.
+  target:
+    # 架构由 CI 通过 --x64/--arm64 指定，避免在单个 job 里同时打双架构
+    - target: dmg
+    - target: zip
+  artifactName: ChatLab-${version}-${arch}.${ext}
+
+# macOS 平台的 DMG 配置
+dmg:
+  artifactName: ChatLab-${version}-${arch}.${ext}
+
+# Linux 平台配置
+linux:
+  executableName: chatlab
+  icon: build/icon.png
+  target:
+    - AppImage
+    - deb
+    - rpm
+    - tar.gz
+  category: Utility
+
+# AppImage 配置
+appImage:
+  artifactName: ChatLab-${version}.${ext}
+
+# 是否在构建之前重新编译原生模块
+npmRebuild: true

@@ -1,0 +1,73 @@
+@import 'tailwindcss';
+@source "../../packages";
+@import '@nuxt/ui';
+@import './markdown.css';
+
+/* 自定义主题颜色 - 使用 @theme static 定义色板 */
+@theme static {
+  --color-pink-50: #fff1f2;
+  --color-pink-100: #fee5e8;
+  --color-pink-200: #fccfd5;
+  --color-pink-300: #faa7b4;
+  --color-pink-400: #f7758c;
+  --color-pink-500: #ee4567;
+  --color-pink-600: #de335e;
+  --color-pink-700: #b81844;
+  --color-pink-800: #a01d42;
+  --color-pink-900: #84173b;
+  --color-pink-950: #4a071c;
+
+  /* 分析页面使用的更深背景 - 统一使用 zinc-900 */
+  --color-page-dark: #18181b;
+  
+  /* 模块暗色模式半透明背景色 */
+  --color-card-dark: rgba(255, 255, 255, 0.03);
+}
+
+/* 全局滚动条样式 */
+::-webkit-scrollbar {
+  width: 3px;
+  height: 3px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 3px;
+}
+
+:hover::-webkit-scrollbar-thumb {
+  background-color: var(--color-gray-300);
+}
+
+.dark :hover::-webkit-scrollbar-thumb {
+  background-color: var(--color-gray-700);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-gray-400);
+}
+
+.dark ::-webkit-scrollbar-thumb:hover {
+  background-color: var(--color-gray-600);
+}
+
+/* 标题栏安全区域高度 - 页面顶部 padding 需要避开此区域
+ * macOS: 红绿灯在左侧由 Sidebar 处理，右侧内容区无遮挡，使用较小值
+ * Windows/Linux: 窗口控制按钮在右上角占据 32px 高度，需要完整避开 */
+:root {
+  --titlebar-area-height: 1rem; /* 16px - macOS */
+}
+
+.platform-windows,
+.platform-linux {
+  --titlebar-area-height: 2rem; /* 32px - 匹配 titleBarOverlay height */
+}
+
+/* 禁用窗口拖拽区域 - 用于弹窗等需要正常交互的元素 */
+.app-region-no-drag {
+  -webkit-app-region: no-drag;
+}

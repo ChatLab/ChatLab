@@ -1,0 +1,87 @@
+{
+  "drawer": {
+    "title": "Chat Record Viewer",
+    "loadedCount": "{count} messages loaded"
+  },
+  "messageList": {
+    "loading": "Loading...",
+    "noMessages": "No messages",
+    "tryAdjustFilter": "Try adjusting the filter",
+    "loadingMore": "Loading more...",
+    "scrollUpForMore": "↑ Scroll up to load more",
+    "scrollDownForMore": "↓ Scroll down to load more"
+  },
+  "filter": {
+    "messageId": "Message ID",
+    "memberNotSupported": "Member (not supported)",
+    "keywordsPlaceholder": "Keywords, comma separated, Enter to search",
+    "startDate": "Start Date",
+    "endDate": "End Date",
+    "reset": "Reset",
+    "filter": "Filter"
+  },
+  "timeline": {
+    "timeline": "Sessions",
+    "noSessions": "No sessions",
+    "generateSummary": "Summarize",
+    "tooFewMessages": "Too few"
+  },
+  "batchSummary": {
+    "title": "Batch Generate Summaries",
+    "byRange": "By Range",
+    "byTime": "By Time",
+    "selectRange": "Select Range",
+    "rangeStart": "Earliest",
+    "rangeInfo": "About",
+    "sessionsUnit": "sessions",
+    "rangeEnd": "Latest",
+    "timeRange": "Select Time Range",
+    "today": "Today",
+    "yesterday": "Yesterday",
+    "week": "Last 7 days",
+    "month": "Last 30 days",
+    "custom": "Custom",
+    "found": "Found",
+    "hasSummary": "already summarized",
+    "tooFewMessages": "too few messages",
+    "pending": "Pending:",
+    "unit": "",
+    "noPending": "No sessions to generate",
+    "noSessions": "No sessions in this time range",
+    "checking": "Checking...",
+    "loading": "Loading...",
+    "progress": "Progress",
+    "session": "Session",
+    "statusSuccess": "Success",
+    "statusSkipped": "Skipped",
+    "statusFailed": "Failed",
+    "success": "Success:",
+    "failed": "Failed:",
+    "skipped": "Skipped:",
+    "start": "Start",
+    "stop": "Stop"
+  },
+  "messageItem": {
+    "viewContext": "View Context",
+    "contextTitle": "Message Context (10 before and after)",
+    "noContext": "No context available",
+    "replyTo": "Reply to"
+  },
+  "sessionIndex": {
+    "title": "Session Index",
+    "subtitle": "For timeline navigation in chat records",
+    "notGenerated": "Session index not generated",
+    "notGeneratedHint": "After generating session index, you can use timeline navigation in the chat record viewer to quickly jump to different sessions.",
+    "whatIsIt": "What session index does:",
+    "benefit1": "Identify conversation boundaries based on message time gaps",
+    "benefit2": "Provide timeline navigation in chat record viewer",
+    "benefit3": "Enable AI analysis to understand conversation context",
+    "generated": "Session index generated",
+    "sessionCount": "{count} sessions identified",
+    "regenerateHint": "You can regenerate the index if you've adjusted the session gap threshold.",
+    "generate": "Generate Index",
+    "regenerate": "Regenerate",
+    "generating": "Generating...",
+    "cancel": "Cancel"
+  }
+}

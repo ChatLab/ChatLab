@@ -1,0 +1,82 @@
+{
+  "cluster": {
+    "title": "Interaction Frequency",
+    "rankingView": "Ranking",
+    "memberView": "Member View",
+    "matrixView": "Matrix View",
+    "modelSettings": "Model Settings",
+    "lookAhead": "Look Ahead",
+    "lookAheadDesc": "Messages to look ahead per sender",
+    "decaySeconds": "Time Decay (sec)",
+    "decaySecondsDesc": "Higher = distant messages matter more",
+    "applySettings": "Apply",
+    "noData": "No data",
+    "selectMember": "Select Member",
+    "selectMemberHint": "Select a member from the left",
+    "msgCount": "Messages",
+    "relationCount": "Relations",
+    "relationsByIntimacy": "Proximity Ranking",
+    "noRelations": "No relations",
+    "intimacy": "Proximity",
+    "interactionRanking": "Interaction Ranking",
+    "score": "Proximity",
+    "coOccurrence": "Co-occur",
+    "times": " times",
+    "totalMembers": "Total Members",
+    "totalMessages": "Total Messages",
+    "involvedMembers": "Involved",
+    "edgeCount": "Relations"
+  },
+  "message": {
+    "typeDistribution": "Message Type Distribution",
+    "hourlyDistribution": "Hourly Distribution",
+    "weekdayDistribution": "Weekday Distribution",
+    "monthlyDistribution": "Monthly Distribution",
+    "yearlyDistribution": "Yearly Distribution",
+    "timeHeatmap": "Time Heatmap",
+    "heatmapHint": "Shows chat time patterns",
+    "calendarHeatmap": "Message Calendar",
+    "calendarHint": "Daily message distribution",
+    "calendarTooltipMessages": "Messages",
+    "lengthDetailTitle": "Short Messages (1-25 chars)",
+    "lengthDetailHint": "Per character",
+    "lengthGroupedTitle": "Length Range Distribution",
+    "lengthGroupedHint": "Grouped by 5",
+    "noTextMessages": "No text messages",
+    "noData": "No data"
+  },
+  "interaction": {
+    "mentionGraph": "Mention Interaction Graph",
+    "layout": "Layout",
+    "circular": "Circular",
+    "force": "Force",
+    "directed": "Directed",
+    "reset": "Reset",
+    "graphHint": "{nodes} members, {links} interactions",
+    "noInteraction": "No mention interaction data"
+  },
+  "timeline": {
+    "title": "Timeline View",
+    "description": "Message time distribution, active period trends and other visualizations"
+  },
+  "charts": {
+    "rankListPro": {
+      "fullRanking": "Full Ranking",
+      "memberCount": "{count} members"
+    },
+    "rankList": {
+      "unit": ""
+    },
+    "nicknameHistory": {
+      "periodToNow": "{start} ~ Now",
+      "periodRange": "{start} ~ {end}",
+      "current": "Current",
+      "empty": "No nickname history"
+    },
+    "listPro": {
+      "countTemplate": "{count} items",
+      "fullRanking": "Full Ranking",
+      "empty": "No data"
+    }
+  }
+}
