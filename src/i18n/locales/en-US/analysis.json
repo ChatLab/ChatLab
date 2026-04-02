@@ -31,7 +31,8 @@
   "tooltip": {
     "chatViewer": "Chat Record Viewer",
     "sessionIndex": "Session Index",
-    "incrementalImport": "Import More"
+    "incrementalImport": "Import More",
+    "memberManagement": "Member Management"
   },
   "incremental": {
     "title": "Append Chat Records",

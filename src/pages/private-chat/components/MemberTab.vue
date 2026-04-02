@@ -7,9 +7,15 @@ import OwnerSelector from '@/components/analysis/member/OwnerSelector.vue'
 const { t } = useI18n()
 
 // Props
-const props = defineProps<{
-  sessionId: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    sessionId: string
+    showHeader?: boolean
+  }>(),
+  {
+    showHeader: true,
+  }
+)
 
 // 成员列表
 const members = ref<MemberWithStats[]>([])
@@ -97,7 +103,7 @@ onMounted(() => {
 <template>
   <div class="main-content max-w-4xl p-6">
     <!-- 页面标题 -->
-    <div class="mb-6">
+    <div v-if="props.showHeader" class="mb-6">
       <div class="flex items-center gap-3">
         <div>
           <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ t('members.private.title') }}</h2>

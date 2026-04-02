@@ -31,7 +31,8 @@
   "tooltip": {
     "chatViewer": "聊天紀錄檢視器",
     "sessionIndex": "會話索引",
-    "incrementalImport": "追加匯入"
+    "incrementalImport": "追加匯入",
+    "memberManagement": "成員管理"
   },
   "incremental": {
     "title": "新增聊天紀錄",

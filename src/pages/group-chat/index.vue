@@ -13,6 +13,7 @@ import OverviewTab from './components/OverviewTab.vue'
 import ViewTab from './components/ViewTab.vue'
 import QuotesTab from './components/QuotesTab.vue'
 import MemberTab from './components/MemberTab.vue'
+import MemberList from '@/components/common/member/MemberList.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import SessionIndexModal from '@/components/analysis/SessionIndexModal.vue'
 import IncrementalImportModal from '@/components/analysis/IncrementalImportModal.vue'
@@ -40,6 +41,9 @@ const showIncrementalImportModal = ref(false)
 
 // 导出聊天记录弹窗状态
 const showMessageExportModal = ref(false)
+
+// 成员管理弹窗状态
+const showMemberManagementModal = ref(false)
 
 // 打开聊天记录查看器
 function openChatRecordViewer() {
@@ -279,6 +283,7 @@ onMounted(() => {
               :time-filter="timeFilter"
               @open-session-index="showSessionIndexModal = true"
               @open-incremental-import="showIncrementalImportModal = true"
+              @open-member-management="showMemberManagementModal = true"
               @open-message-export="showMessageExportModal = true"
             />
             <ViewTab
@@ -298,7 +303,6 @@ onMounted(() => {
               :key="'members-' + currentSessionId"
               :session-id="currentSessionId!"
               :time-filter="timeFilter"
-              @data-changed="loadData"
             />
             <ChatExplorer
               v-else-if="activeTab === 'ai-chat'"
@@ -339,6 +343,30 @@ onMounted(() => {
 
     <!-- 导出聊天记录弹窗 -->
     <MessageExportModal v-if="currentSessionId" v-model="showMessageExportModal" />
+
+    <!-- 成员管理弹窗 -->
+    <UModal v-if="currentSessionId" v-model:open="showMemberManagementModal" :ui="{ content: 'max-w-6xl h-[85vh]' }">
+      <template #content>
+        <div class="flex h-full flex-col overflow-hidden bg-white dark:bg-gray-900">
+          <div
+            class="flex flex-none items-center justify-between border-b border-gray-200 px-5 py-3 dark:border-gray-700"
+          >
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ t('analysis.tooltip.memberManagement') }}
+              </h2>
+              <p class="text-sm text-gray-500 dark:text-gray-400">
+                {{ t('members.list.description', { count: session?.memberCount ?? 0 }) }}
+              </p>
+            </div>
+            <UButton variant="ghost" icon="i-heroicons-x-mark" size="sm" @click="showMemberManagementModal = false" />
+          </div>
+          <div class="flex-1 overflow-hidden">
+            <MemberList :session-id="currentSessionId" :show-header="false" @data-changed="loadData" />
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 

@@ -12,7 +12,7 @@ import { ChatExplorer } from '@/components/AIChat'
 import OverviewTab from './components/OverviewTab.vue'
 import ViewTab from './components/ViewTab.vue'
 import QuotesTab from './components/QuotesTab.vue'
-import MemberTab from './components/MemberTab.vue'
+import MemberManagementPanel from './components/MemberTab.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import SessionIndexModal from '@/components/analysis/SessionIndexModal.vue'
 import IncrementalImportModal from '@/components/analysis/IncrementalImportModal.vue'
@@ -41,6 +41,9 @@ const showIncrementalImportModal = ref(false)
 // 导出聊天记录弹窗状态
 const showMessageExportModal = ref(false)
 
+// 成员管理弹窗状态
+const showMemberManagementModal = ref(false)
+
 // 打开聊天记录查看器
 function openChatRecordViewer() {
   layoutStore.openChatRecordDrawer({})
@@ -55,12 +58,11 @@ const dailyActivity = ref<DailyActivity[]>([])
 const messageTypes = ref<Array<{ type: MessageType; count: number }>>([])
 const isInitialLoad = ref(true)
 
-// Tab 配置 - 私聊包含总览、视图、语录、成员、AI 对话和实验室
+// Tab 配置 - 私聊包含总览、视图、语录、AI 对话和实验室
 const tabs = [
   { id: 'overview', labelKey: 'analysis.tabs.overview', icon: 'i-heroicons-chart-pie' },
   { id: 'view', labelKey: 'analysis.tabs.view', icon: 'i-heroicons-presentation-chart-bar' },
   { id: 'quotes', labelKey: 'analysis.tabs.quotes', icon: 'i-heroicons-chat-bubble-left-right' },
-  { id: 'member', labelKey: 'analysis.tabs.member', icon: 'i-heroicons-user-group' },
   { id: 'ai-chat', labelKey: 'analysis.tabs.aiChat', icon: 'i-heroicons-chat-bubble-left-ellipsis' },
   { id: 'lab', labelKey: 'analysis.tabs.lab', icon: 'i-heroicons-beaker' },
 ]
@@ -259,11 +261,11 @@ onMounted(() => {
               <span class="whitespace-nowrap">{{ t(tab.labelKey) }}</span>
             </button>
           </div>
-          <!-- AI 对话、实验室和成员页都不使用这里的时间范围筛选，因此在这些一级 Tab 下隐藏。 -->
+          <!-- AI 对话和实验室都不使用这里的时间范围筛选，因此在这些一级 Tab 下隐藏。 -->
           <TimeSelect
             v-model="timeRangeValue"
             :session-id="currentSessionId ?? undefined"
-            :visible="activeTab !== 'ai-chat' && activeTab !== 'lab' && activeTab !== 'member'"
+            :visible="activeTab !== 'ai-chat' && activeTab !== 'lab'"
             :initial-state="initialTimeState"
             @update:full-range="fullTimeRange = $event"
           />
@@ -292,6 +294,7 @@ onMounted(() => {
               :time-filter="timeFilter"
               @open-session-index="showSessionIndexModal = true"
               @open-incremental-import="showIncrementalImportModal = true"
+              @open-member-management="showMemberManagementModal = true"
               @open-message-export="showMessageExportModal = true"
             />
             <ViewTab
@@ -305,11 +308,6 @@ onMounted(() => {
               :key="'quotes-' + currentSessionId"
               :session-id="currentSessionId!"
               :time-filter="timeFilter"
-            />
-            <MemberTab
-              v-else-if="activeTab === 'member'"
-              :key="'member-' + currentSessionId"
-              :session-id="currentSessionId!"
             />
             <ChatExplorer
               v-else-if="activeTab === 'ai-chat'"
@@ -350,6 +348,31 @@ onMounted(() => {
 
     <!-- 导出聊天记录弹窗 -->
     <MessageExportModal v-if="currentSessionId" v-model="showMessageExportModal" />
+
+    <!-- 成员管理弹窗 -->
+    <UModal v-if="currentSessionId" v-model:open="showMemberManagementModal" :ui="{ content: 'max-w-6xl h-[85vh]' }">
+      <template #content>
+        <div class="flex h-full flex-col overflow-hidden bg-white dark:bg-gray-900">
+          <div class="flex flex-none items-center justify-between border-b border-gray-200 px-5 py-3 dark:border-gray-700">
+            <div>
+              <h2 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('analysis.tooltip.memberManagement') }}</h2>
+              <p class="text-sm text-gray-500 dark:text-gray-400">
+                {{ t('members.private.description', { count: session?.memberCount ?? 0 }) }}
+              </p>
+            </div>
+            <UButton
+              variant="ghost"
+              icon="i-heroicons-x-mark"
+              size="sm"
+              @click="showMemberManagementModal = false"
+            />
+          </div>
+          <div class="flex-1 overflow-auto">
+            <MemberManagementPanel :session-id="currentSessionId" :show-header="false" />
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
 

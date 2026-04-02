@@ -19,6 +19,7 @@ const { t } = useI18n()
 const emit = defineEmits<{
   (e: 'openSessionIndex'): void
   (e: 'openIncrementalImport'): void
+  (e: 'openMemberManagement'): void
   (e: 'openMessageExport'): void
 }>()
 
@@ -122,6 +123,7 @@ watch(
         <OverviewActionTools
           @open-incremental-import="emit('openIncrementalImport')"
           @open-session-index="emit('openSessionIndex')"
+          @open-member-management="emit('openMemberManagement')"
           @open-message-export="emit('openMessageExport')"
         />
       </template>

@@ -31,7 +31,8 @@
   "tooltip": {
     "chatViewer": "チャット記録ビューア",
     "sessionIndex": "セッション索引",
-    "incrementalImport": "追加インポート"
+    "incrementalImport": "追加インポート",
+    "memberManagement": "メンバー管理"
   },
   "incremental": {
     "title": "チャット記録を追加",

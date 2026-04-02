@@ -7,9 +7,15 @@ import OwnerSelector from '@/components/analysis/member/OwnerSelector.vue'
 const { t } = useI18n()
 
 // Props
-const props = defineProps<{
-  sessionId: string
-}>()
+const props = withDefaults(
+  defineProps<{
+    sessionId: string
+    showHeader?: boolean
+  }>(),
+  {
+    showHeader: true,
+  }
+)
 
 // Emits
 const emit = defineEmits<{
@@ -188,9 +194,9 @@ onMounted(() => {
 </script>
 
 <template>
-  <div class="main-content max-w-5xl p-6">
+  <div class="main-content" :class="props.showHeader ? 'max-w-5xl p-6' : 'flex h-full max-w-none flex-col overflow-hidden p-4'">
     <!-- 页面标题 -->
-    <div class="mb-6">
+    <div v-if="props.showHeader" class="mb-6">
       <div class="flex items-center gap-3">
         <div>
           <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ t('members.list.title') }}</h2>
@@ -225,7 +231,10 @@ onMounted(() => {
     </div>
 
     <!-- 成员列表 -->
-    <div class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900">
+    <div
+      class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"
+      :class="props.showHeader ? '' : 'flex min-h-0 flex-1 flex-col'"
+    >
       <!-- 加载状态 -->
       <div v-if="isLoading" class="flex h-60 items-center justify-center">
         <UIcon name="i-heroicons-arrow-path" class="h-8 w-8 animate-spin text-pink-500" />
@@ -240,8 +249,8 @@ onMounted(() => {
       </div>
 
       <!-- 成员表格 -->
-      <div v-else>
-        <div class="max-h-[500px] overflow-y-auto">
+      <div v-else class="flex min-h-0 flex-1 flex-col">
+        <div class="max-h-[500px] overflow-y-auto" :class="props.showHeader ? '' : 'max-h-none min-h-0 flex-1'">
           <table class="w-full">
             <thead class="sticky top-0 bg-gray-50 dark:bg-gray-800">
               <tr class="text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
@@ -259,7 +268,14 @@ onMounted(() => {
                     />
                   </button>
                 </th>
-                <th class="px-4 py-4 w-64">{{ t('members.list.table.customAlias') }}</th>
+                <th class="w-64 px-4 py-4">
+                  <div class="inline-flex items-center gap-1.5">
+                    <span>{{ t('members.list.table.customAlias') }}</span>
+                    <UTooltip :text="t('members.list.tip')" :popper="{ placement: 'top' }">
+                      <UIcon name="i-heroicons-question-mark-circle" class="h-4 w-4 text-gray-400 dark:text-gray-500" />
+                    </UTooltip>
+                  </div>
+                </th>
                 <th class="px-4 py-4 text-right">{{ t('members.list.table.actions') }}</th>
               </tr>
             </thead>
@@ -364,16 +380,6 @@ onMounted(() => {
             />
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- 提示信息 -->
-    <div class="mt-4 flex items-start gap-3 rounded-xl bg-amber-50 p-4 dark:bg-amber-900/20">
-      <UIcon name="i-heroicons-exclamation-triangle" class="mt-0.5 h-5 w-5 shrink-0 text-amber-500" />
-      <div>
-        <p class="text-sm font-medium text-amber-800 dark:text-amber-200">
-          {{ t('members.list.tip') }}
-        </p>
       </div>
     </div>
 
