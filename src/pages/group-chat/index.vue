@@ -12,8 +12,8 @@ import { ChatExplorer } from '@/components/AIChat'
 import OverviewTab from './components/OverviewTab.vue'
 import ViewTab from './components/ViewTab.vue'
 import QuotesTab from './components/QuotesTab.vue'
-import MemberTab from './components/MemberTab.vue'
 import MemberList from '@/components/common/member/MemberList.vue'
+import NicknameHistoryEntry from './components/member/NicknameHistoryEntry.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import SessionIndexModal from '@/components/analysis/SessionIndexModal.vue'
 import IncrementalImportModal from '@/components/analysis/IncrementalImportModal.vue'
@@ -64,7 +64,6 @@ const allTabs = [
   { id: 'overview', labelKey: 'analysis.tabs.overview', icon: 'i-heroicons-chart-pie' },
   { id: 'view', labelKey: 'analysis.tabs.view', icon: 'i-heroicons-presentation-chart-bar' },
   { id: 'quotes', labelKey: 'analysis.tabs.groupQuotes', icon: 'i-heroicons-chat-bubble-bottom-center-text' },
-  { id: 'members', labelKey: 'analysis.tabs.members', icon: 'i-heroicons-user-group' },
   { id: 'ai-chat', labelKey: 'analysis.tabs.aiChat', icon: 'i-heroicons-chat-bubble-left-ellipsis' },
   { id: 'lab', labelKey: 'analysis.tabs.lab', icon: 'i-heroicons-beaker' },
 ]
@@ -247,11 +246,11 @@ onMounted(() => {
               <span class="whitespace-nowrap">{{ t(tab.labelKey) }}</span>
             </button>
           </div>
-          <!-- AI 对话、实验室和成员页都不使用这里的时间范围筛选，因此在这些一级 Tab 下隐藏。 -->
+          <!-- AI 对话和实验室都不使用这里的时间范围筛选，因此在这些一级 Tab 下隐藏。 -->
           <TimeSelect
             v-model="timeRangeValue"
             :session-id="currentSessionId ?? undefined"
-            :visible="activeTab !== 'ai-chat' && activeTab !== 'lab' && activeTab !== 'members'"
+            :visible="activeTab !== 'ai-chat' && activeTab !== 'lab'"
             :initial-state="initialTimeState"
             @update:full-range="fullTimeRange = $event"
             @update:available-years="availableYears = $event"
@@ -295,12 +294,6 @@ onMounted(() => {
             <QuotesTab
               v-else-if="activeTab === 'quotes'"
               :key="'quotes-' + currentSessionId"
-              :session-id="currentSessionId!"
-              :time-filter="timeFilter"
-            />
-            <MemberTab
-              v-else-if="activeTab === 'members'"
-              :key="'members-' + currentSessionId"
               :session-id="currentSessionId!"
               :time-filter="timeFilter"
             />
@@ -359,7 +352,10 @@ onMounted(() => {
                 {{ t('members.list.description', { count: session?.memberCount ?? 0 }) }}
               </p>
             </div>
-            <UButton variant="ghost" icon="i-heroicons-x-mark" size="sm" @click="showMemberManagementModal = false" />
+            <div class="flex items-center gap-2">
+              <NicknameHistoryEntry :session-id="currentSessionId" />
+              <UButton variant="ghost" icon="i-heroicons-x-mark" size="sm" @click="showMemberManagementModal = false" />
+            </div>
           </div>
           <div class="flex-1 overflow-hidden">
             <MemberList :session-id="currentSessionId" :show-header="false" @data-changed="loadData" />

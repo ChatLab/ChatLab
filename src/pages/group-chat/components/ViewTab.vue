@@ -6,6 +6,8 @@ import UserSelect from '@/components/common/UserSelect.vue'
 import MessageView from '@openchatlab/chart-message/MessageView.vue'
 import InteractionView from '@openchatlab/chart-interaction/InteractionView.vue'
 import RankingView from '@openchatlab/chart-ranking/RankingView.vue'
+import Relationships from './view/Relationships.vue'
+import ClusterView from '@openchatlab/chart-cluster/ClusterView.vue'
 import { isFeatureSupported, type LocaleType } from '@/i18n'
 
 const { t, locale } = useI18n()
@@ -25,10 +27,12 @@ const subTabs = computed(() => {
   const tabs = [
     { id: 'message', label: t('analysis.subTabs.view.message'), icon: 'i-heroicons-chat-bubble-left-right' },
     { id: 'interaction', label: t('analysis.subTabs.view.interaction'), icon: 'i-heroicons-arrows-right-left' },
+    { id: 'relationships', label: t('analysis.subTabs.member.relationships'), icon: 'i-heroicons-heart' },
+    { id: 'cluster', label: t('analysis.subTabs.member.cluster'), icon: 'i-heroicons-user-group' },
   ]
   // 榜单仅在中文下显示
   if (isFeatureSupported('groupRanking', locale.value as LocaleType)) {
-    tabs.push({ id: 'ranking', label: t('analysis.subTabs.view.ranking'), icon: 'i-heroicons-trophy' })
+    tabs.splice(1, 0, { id: 'ranking', label: t('analysis.subTabs.view.ranking'), icon: 'i-heroicons-trophy' })
   }
   return tabs
 })
@@ -63,6 +67,12 @@ const viewTimeFilter = computed(() => ({
           :session-id="props.sessionId"
           :time-filter="viewTimeFilter"
         />
+        <Relationships
+          v-else-if="activeSubTab === 'relationships'"
+          :session-id="props.sessionId"
+          :time-filter="viewTimeFilter"
+        />
+        <ClusterView v-else-if="activeSubTab === 'cluster'" :session-id="props.sessionId" :time-filter="viewTimeFilter" />
         <RankingView
           v-else-if="activeSubTab === 'ranking'"
           :session-id="props.sessionId"
