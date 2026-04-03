@@ -1,0 +1,338 @@
+- generic [ref=e2]:
+  - region
+  - generic [ref=e3]:
+    - link "Skip to content" [ref=e4] [cursor=pointer]:
+      - /url: "#start-of-content"
+    - banner [ref=e6]:
+      - heading "Navigation Menu" [level=2] [ref=e7]
+      - generic [ref=e8]:
+        - link "Homepage" [ref=e10] [cursor=pointer]:
+          - /url: /
+          - img [ref=e11]
+        - generic [ref=e13]:
+          - navigation "Global" [ref=e16]:
+            - list [ref=e17]:
+              - listitem [ref=e18]:
+                - button "Platform" [ref=e20] [cursor=pointer]:
+                  - text: Platform
+                  - img [ref=e21]
+              - listitem [ref=e23]:
+                - button "Solutions" [ref=e25] [cursor=pointer]:
+                  - text: Solutions
+                  - img [ref=e26]
+              - listitem [ref=e28]:
+                - button "Resources" [ref=e30] [cursor=pointer]:
+                  - text: Resources
+                  - img [ref=e31]
+              - listitem [ref=e33]:
+                - button "Open Source" [ref=e35] [cursor=pointer]:
+                  - text: Open Source
+                  - img [ref=e36]
+              - listitem [ref=e38]:
+                - button "Enterprise" [ref=e40] [cursor=pointer]:
+                  - text: Enterprise
+                  - img [ref=e41]
+              - listitem [ref=e43]:
+                - link "Pricing" [ref=e44] [cursor=pointer]:
+                  - /url: https://github.com/pricing
+                  - generic [ref=e45]: Pricing
+          - generic [ref=e46]:
+            - button "Search or jump to…" [ref=e49] [cursor=pointer]:
+              - img [ref=e51]
+            - link "Sign in" [ref=e54] [cursor=pointer]:
+              - /url: /login?return_to=https%3A%2F%2Fgithub.com%2Fl17728%2FChatLab%2Fbranches
+            - link "Sign up" [ref=e55] [cursor=pointer]:
+              - /url: /signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E%2Fbranches%2Findex&source=header-repo&source_repo=l17728%2FChatLab
+            - button "Appearance settings" [disabled] [ref=e58]:
+              - img
+  - main [ref=e62]:
+    - generic [ref=e63]:
+      - generic [ref=e64]:
+        - generic [ref=e65]:
+          - generic [ref=e66]:
+            - img [ref=e67]
+            - link "l17728" [ref=e70] [cursor=pointer]:
+              - /url: /l17728
+            - generic [ref=e71]: /
+            - strong [ref=e72]:
+              - link "ChatLab" [ref=e73] [cursor=pointer]:
+                - /url: /l17728/ChatLab
+            - generic [ref=e74]: Public
+          - generic [ref=e75]:
+            - text: forked from
+            - link "hellodigua/ChatLab" [ref=e76] [cursor=pointer]:
+              - /url: /hellodigua/ChatLab
+        - generic [ref=e77]:
+          - list:
+            - listitem [ref=e78]:
+              - link "You must be signed in to change notification settings" [ref=e79] [cursor=pointer]:
+                - /url: /login?return_to=%2Fl17728%2FChatLab
+                - img [ref=e80]
+                - text: Notifications
+            - listitem [ref=e82]:
+              - link "Fork 0" [ref=e83] [cursor=pointer]:
+                - /url: /login?return_to=%2Fl17728%2FChatLab
+                - img [ref=e84]
+                - text: Fork
+                - generic "0" [ref=e86]
+            - listitem [ref=e87]:
+              - link "You must be signed in to star a repository" [ref=e89] [cursor=pointer]:
+                - /url: /login?return_to=%2Fl17728%2FChatLab
+                - img [ref=e90]
+                - text: Star
+                - generic "0 users starred this repository" [ref=e92]: "0"
+      - navigation "Repository" [ref=e93]:
+        - list [ref=e94]:
+          - listitem [ref=e95]:
+            - link "Code" [ref=e96] [cursor=pointer]:
+              - /url: /l17728/ChatLab
+              - img [ref=e97]
+              - generic [ref=e99]: Code
+          - listitem [ref=e100]:
+            - link "Pull requests" [ref=e101] [cursor=pointer]:
+              - /url: /l17728/ChatLab/pulls
+              - img [ref=e102]
+              - generic [ref=e104]: Pull requests
+          - listitem [ref=e105]:
+            - link "Actions" [ref=e106] [cursor=pointer]:
+              - /url: /l17728/ChatLab/actions
+              - img [ref=e107]
+              - generic [ref=e109]: Actions
+          - listitem [ref=e110]:
+            - link "Projects" [ref=e111] [cursor=pointer]:
+              - /url: /l17728/ChatLab/projects
+              - img [ref=e112]
+              - generic [ref=e114]: Projects
+          - listitem [ref=e115]:
+            - link "Security and quality" [ref=e116] [cursor=pointer]:
+              - /url: /l17728/ChatLab/security
+              - img [ref=e117]
+              - generic [ref=e119]: Security and quality
+          - listitem [ref=e120]:
+            - link "Insights" [ref=e121] [cursor=pointer]:
+              - /url: /l17728/ChatLab/pulse
+              - img [ref=e122]
+              - generic [ref=e124]: Insights
+    - generic [ref=e130]:
+      - heading "Branches" [level=1] [ref=e134]
+      - generic [ref=e138]:
+        - navigation [ref=e140]:
+          - tablist [ref=e141]:
+            - tab "Overview" [selected] [ref=e142] [cursor=pointer]
+            - tab "Active" [ref=e143] [cursor=pointer]
+            - tab "Stale" [ref=e144] [cursor=pointer]
+            - tab "All" [ref=e145] [cursor=pointer]
+        - generic [ref=e146]:
+          - generic [ref=e147] [cursor=pointer]: Search
+          - generic [ref=e148]:
+            - img [ref=e150]
+            - textbox "Search" [ref=e152]:
+              - /placeholder: Search branches...
+        - generic [ref=e153]:
+          - generic [ref=e155]:
+            - heading "Default" [level=2] [ref=e156]
+            - table "Default" [ref=e158]:
+              - rowgroup [ref=e159]:
+                - row "Branch Updated Check status Behind Ahead Pull request Action menu" [ref=e160]:
+                  - columnheader "Branch" [ref=e161]
+                  - columnheader "Updated" [ref=e162]
+                  - columnheader "Check status" [ref=e163]
+                  - columnheader "Behind Ahead" [ref=e164]:
+                    - generic [ref=e165]:
+                      - generic [ref=e166]: Behind
+                      - generic [ref=e167]: Ahead
+                  - columnheader "Pull request" [ref=e168]
+                  - columnheader "Action menu" [ref=e169]:
+                    - generic [ref=e170]: Action menu
+              - rowgroup [ref=e171]:
+                - row "main Copy branch name to clipboard Mar 31, 2026Mar 31, 2026 Delete branch Branch menu" [ref=e172]:
+                  - cell "main Copy branch name to clipboard" [ref=e173]:
+                    - generic [ref=e174]:
+                      - link "main" [ref=e175] [cursor=pointer]:
+                        - /url: /l17728/ChatLab
+                        - generic "main" [ref=e176]
+                      - button "Copy branch name to clipboard" [ref=e178] [cursor=pointer]:
+                        - img [ref=e179]
+                  - cell "Mar 31, 2026Mar 31, 2026" [ref=e182]:
+                    - generic [ref=e186]: Mar 31, 2026Mar 31, 2026
+                  - cell [ref=e187]
+                  - cell [ref=e188]
+                  - cell [ref=e191]
+                  - cell "Delete branch Branch menu" [ref=e192]:
+                    - generic [ref=e194]:
+                      - button "Delete branch" [ref=e195] [cursor=pointer]:
+                        - img [ref=e196]
+                      - button "Branch menu" [ref=e198] [cursor=pointer]:
+                        - img [ref=e199]
+          - generic [ref=e201]:
+            - generic [ref=e202]:
+              - heading "Active branches" [level=2] [ref=e203]
+              - table "Active branches" [ref=e205]:
+                - rowgroup [ref=e206]:
+                  - row "Branch Updated Check status Behind Ahead Pull request Action menu" [ref=e207]:
+                    - columnheader "Branch" [ref=e208]
+                    - columnheader "Updated" [ref=e209]
+                    - columnheader "Check status" [ref=e210]
+                    - columnheader "Behind Ahead" [ref=e211]:
+                      - generic [ref=e212]:
+                        - generic [ref=e213]: Behind
+                        - generic [ref=e214]: Ahead
+                    - columnheader "Pull request" [ref=e215]
+                    - columnheader "Action menu" [ref=e216]:
+                      - generic [ref=e217]: Action menu
+                - rowgroup [ref=e218]:
+                  - row "fix/whatsapp-native-txt-whitespace Copy branch name to clipboard l17728 Apr 2, 2026Apr 2, 2026 Delete branch Branch menu" [ref=e219]:
+                    - cell "fix/whatsapp-native-txt-whitespace Copy branch name to clipboard" [ref=e220]:
+                      - generic [ref=e221]:
+                        - link "fix/whatsapp-native-txt-whitespace" [ref=e222] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/tree/fix/whatsapp-native-txt-whitespace
+                          - generic "fix/whatsapp-native-txt-whitespace" [ref=e223]
+                        - button "Copy branch name to clipboard" [ref=e225] [cursor=pointer]:
+                          - img [ref=e226]
+                    - cell "l17728 Apr 2, 2026Apr 2, 2026" [ref=e229]:
+                      - generic [ref=e231]:
+                        - link "l17728" [ref=e232] [cursor=pointer]:
+                          - /url: /l17728
+                          - img "l17728" [ref=e233]
+                        - generic [ref=e234]: Apr 2, 2026Apr 2, 2026
+                    - cell [ref=e235]
+                    - cell [ref=e236]
+                    - cell [ref=e239]
+                    - cell "Delete branch Branch menu" [ref=e240]:
+                      - generic [ref=e242]:
+                        - button "Delete branch" [ref=e243] [cursor=pointer]:
+                          - img [ref=e244]
+                        - button "Branch menu" [ref=e246] [cursor=pointer]:
+                          - img [ref=e247]
+                  - row "fix/qq-native-txt-whitespace Copy branch name to clipboard l17728 Apr 2, 2026Apr 2, 2026 Delete branch Branch menu" [ref=e249]:
+                    - cell "fix/qq-native-txt-whitespace Copy branch name to clipboard" [ref=e250]:
+                      - generic [ref=e251]:
+                        - link "fix/qq-native-txt-whitespace" [ref=e252] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/tree/fix/qq-native-txt-whitespace
+                          - generic "fix/qq-native-txt-whitespace" [ref=e253]
+                        - button "Copy branch name to clipboard" [ref=e255] [cursor=pointer]:
+                          - img [ref=e256]
+                    - cell "l17728 Apr 2, 2026Apr 2, 2026" [ref=e259]:
+                      - generic [ref=e261]:
+                        - link "l17728" [ref=e262] [cursor=pointer]:
+                          - /url: /l17728
+                          - img "l17728" [ref=e263]
+                        - generic [ref=e264]: Apr 2, 2026Apr 2, 2026
+                    - cell [ref=e265]
+                    - cell [ref=e266]
+                    - cell [ref=e269]
+                    - cell "Delete branch Branch menu" [ref=e270]:
+                      - generic [ref=e272]:
+                        - button "Delete branch" [ref=e273] [cursor=pointer]:
+                          - img [ref=e274]
+                        - button "Branch menu" [ref=e276] [cursor=pointer]:
+                          - img [ref=e277]
+                  - row "feat/e2e-test-cases Copy branch name to clipboard l17728 Apr 2, 2026Apr 2, 2026 Delete branch Branch menu" [ref=e279]:
+                    - cell "feat/e2e-test-cases Copy branch name to clipboard" [ref=e280]:
+                      - generic [ref=e281]:
+                        - link "feat/e2e-test-cases" [ref=e282] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/tree/feat/e2e-test-cases
+                          - generic "feat/e2e-test-cases" [ref=e283]
+                        - button "Copy branch name to clipboard" [ref=e285] [cursor=pointer]:
+                          - img [ref=e286]
+                    - cell "l17728 Apr 2, 2026Apr 2, 2026" [ref=e289]:
+                      - generic [ref=e291]:
+                        - link "l17728" [ref=e292] [cursor=pointer]:
+                          - /url: /l17728
+                          - img "l17728" [ref=e293]
+                        - generic [ref=e294]: Apr 2, 2026Apr 2, 2026
+                    - cell [ref=e295]
+                    - cell [ref=e296]
+                    - cell [ref=e299]
+                    - cell "Delete branch Branch menu" [ref=e300]:
+                      - generic [ref=e302]:
+                        - button "Delete branch" [ref=e303] [cursor=pointer]:
+                          - img [ref=e304]
+                        - button "Branch menu" [ref=e306] [cursor=pointer]:
+                          - img [ref=e307]
+                  - row "feat/e2e-test-framework Copy branch name to clipboard l17728 Apr 2, 2026Apr 2, 2026 Delete branch Branch menu" [ref=e309]:
+                    - cell "feat/e2e-test-framework Copy branch name to clipboard" [ref=e310]:
+                      - generic [ref=e311]:
+                        - link "feat/e2e-test-framework" [ref=e312] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/tree/feat/e2e-test-framework
+                          - generic "feat/e2e-test-framework" [ref=e313]
+                        - button "Copy branch name to clipboard" [ref=e315] [cursor=pointer]:
+                          - img [ref=e316]
+                    - cell "l17728 Apr 2, 2026Apr 2, 2026" [ref=e319]:
+                      - generic [ref=e321]:
+                        - link "l17728" [ref=e322] [cursor=pointer]:
+                          - /url: /l17728
+                          - img "l17728" [ref=e323]
+                        - generic [ref=e324]: Apr 2, 2026Apr 2, 2026
+                    - cell [ref=e325]
+                    - cell [ref=e326]
+                    - cell [ref=e329]
+                    - cell "Delete branch Branch menu" [ref=e330]:
+                      - generic [ref=e332]:
+                        - button "Delete branch" [ref=e333] [cursor=pointer]:
+                          - img [ref=e334]
+                        - button "Branch menu" [ref=e336] [cursor=pointer]:
+                          - img [ref=e337]
+                  - row "feature/welink-txt-parser Copy branch name to clipboard l17728 Apr 2, 2026Apr 2, 2026 Delete branch Branch menu" [ref=e339]:
+                    - cell "feature/welink-txt-parser Copy branch name to clipboard" [ref=e340]:
+                      - generic [ref=e341]:
+                        - link "feature/welink-txt-parser" [ref=e342] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/tree/feature/welink-txt-parser
+                          - generic "feature/welink-txt-parser" [ref=e343]
+                        - button "Copy branch name to clipboard" [ref=e345] [cursor=pointer]:
+                          - img [ref=e346]
+                    - cell "l17728 Apr 2, 2026Apr 2, 2026" [ref=e349]:
+                      - generic [ref=e351]:
+                        - link "l17728" [ref=e352] [cursor=pointer]:
+                          - /url: /l17728
+                          - img "l17728" [ref=e353]
+                        - generic [ref=e354]: Apr 2, 2026Apr 2, 2026
+                    - cell [ref=e355]
+                    - cell [ref=e356]
+                    - cell [ref=e359]
+                    - cell "Delete branch Branch menu" [ref=e360]:
+                      - generic [ref=e362]:
+                        - button "Delete branch" [ref=e363] [cursor=pointer]:
+                          - img [ref=e364]
+                        - button "Branch menu" [ref=e366] [cursor=pointer]:
+                          - img [ref=e367]
+            - link "View more branches" [ref=e371] [cursor=pointer]:
+              - /url: /l17728/ChatLab/branches/active
+              - text: View more branches
+              - img [ref=e372]
+  - contentinfo [ref=e374]:
+    - heading "Footer" [level=2] [ref=e375]
+    - generic [ref=e376]:
+      - generic [ref=e377]:
+        - link "GitHub Homepage" [ref=e378] [cursor=pointer]:
+          - /url: https://github.com
+          - img [ref=e379]
+        - generic [ref=e381]: © 2026 GitHub, Inc.
+      - navigation "Footer" [ref=e382]:
+        - heading "Footer navigation" [level=3] [ref=e383]
+        - list "Footer navigation" [ref=e384]:
+          - listitem [ref=e385]:
+            - link "Terms" [ref=e386] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/github-terms/github-terms-of-service
+          - listitem [ref=e387]:
+            - link "Privacy" [ref=e388] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement
+          - listitem [ref=e389]:
+            - link "Security" [ref=e390] [cursor=pointer]:
+              - /url: https://github.com/security
+          - listitem [ref=e391]:
+            - link "Status" [ref=e392] [cursor=pointer]:
+              - /url: https://www.githubstatus.com/
+          - listitem [ref=e393]:
+            - link "Community" [ref=e394] [cursor=pointer]:
+              - /url: https://github.community/
+          - listitem [ref=e395]:
+            - link "Docs" [ref=e396] [cursor=pointer]:
+              - /url: https://docs.github.com/
+          - listitem [ref=e397]:
+            - link "Contact" [ref=e398] [cursor=pointer]:
+              - /url: https://support.github.com?tags=dotcom-footer
+          - listitem [ref=e399]:
+            - button "Manage cookies" [ref=e401] [cursor=pointer]
+          - listitem [ref=e402]:
+            - button "Do not share my personal information" [ref=e404] [cursor=pointer]

@@ -2,12 +2,13 @@
  * ChatLab Web UI Routes
  * Handles authentication, conversation management, and AI messaging
  * Comprehensive logging for all operations
+ * Updated to use database-backed user management
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
 import * as worker from '../../worker/workerManager'
 import { successResponse, errorResponse, ApiError, conversationNotFound, sessionNotFound, invalidFormat, serverError } from '../errors'
-import { handleLogin, handleLogout, jwtAuthMiddleware, verifyAuthToken } from '../auth-jwt'
+import { handleLogin, handleLogout, handleRegister, jwtAuthMiddleware, handleChangePassword, verifyToken } from '../auth-db'
 
 // ==================== Types ====================
 
@@ -73,27 +74,31 @@ function logOperation(
 /**
  * Verify request authentication
  */
-async function verifyRequest(request: FastifyRequest, reply: FastifyReply): Promise<boolean> {
+async function verifyRequest(request: FastifyRequest, reply: FastifyReply): Promise<{ valid: boolean; userId?: string; username?: string }> {
   const authHeader = request.headers.authorization
   if (!authHeader) {
     console.warn('[WebUI API] Missing authorization header')
-    return false
+    return { valid: false }
   }
 
   if (!authHeader.startsWith('Bearer ')) {
     console.warn('[WebUI API] Invalid authorization header format')
-    return false
+    return { valid: false }
   }
 
   const token = authHeader.slice(7)
-  const verification = verifyAuthToken(token)
+  const verification = verifyToken(token)
 
   if (!verification.valid) {
     console.warn('[WebUI API] Token verification failed')
-    return false
+    return { valid: false }
   }
 
-  return true
+  return {
+    valid: true,
+    userId: verification.userId,
+    username: verification.username,
+  }
 }
 
 // ==================== Route Handlers ====================
@@ -117,15 +122,18 @@ async function handleAuthLogin(
       return reply.code(err.statusCode).send(errorResponse(err))
     }
 
-    const result = await handleLogin({ username, password })
+    const result = await handleLogin(username, password)
 
     if (result.success) {
       logOperation('LOGIN_SUCCESS', `User: ${username}`, {
+        userId: result.userId,
         token: result.token?.slice(0, 20) + '...',
         expiresAt: new Date(result.expiresAt || 0).toISOString(),
       })
       return successResponse({
         token: result.token,
+        userId: result.userId,
+        username: result.username,
         expiresAt: result.expiresAt,
       })
     } else {
@@ -141,6 +149,47 @@ async function handleAuthLogin(
 }
 
 /**
+ * POST /api/webui/auth/register
+ * User registration endpoint
+ */
+async function handleAuthRegister(
+  request: FastifyRequest<{ Body: { username: string; password: string } }>,
+  reply: FastifyReply
+): Promise<any> {
+  try {
+    const { username, password } = request.body
+
+    logOperation('REGISTER_ATTEMPT', `User: ${username}`)
+
+    if (!username || !password) {
+      logOperation('REGISTER_FAILED', 'Missing credentials', { username })
+      const err = invalidFormat('Username and password are required')
+      return reply.code(err.statusCode).send(errorResponse(err))
+    }
+
+    const result = await handleRegister(username, password)
+
+    if (result.success) {
+      logOperation('REGISTER_SUCCESS', `User: ${username}`, {
+        userId: result.userId,
+      })
+      return successResponse({
+        userId: result.userId,
+        username: username,
+      })
+    } else {
+      logOperation('REGISTER_FAILED', `User: ${username}`, { error: result.error })
+      const err = new ApiError('INVALID_FORMAT', result.error || 'Registration failed')
+      return reply.code(400).send(errorResponse(err))
+    }
+  } catch (error) {
+    console.error('[WebUI API] Registration error:', error)
+    const err = serverError(`Registration error: ${error instanceof Error ? error.message : String(error)}`)
+    return reply.code(err.statusCode).send(errorResponse(err))
+  }
+}
+
+/**
  * POST /api/webui/auth/logout
  * User logout endpoint
  */
@@ -149,19 +198,63 @@ async function handleAuthLogout(
   reply: FastifyReply
 ): Promise<any> {
   try {
-    const isAuthed = await verifyRequest(request, reply)
-    if (!isAuthed) {
+    const verification = await verifyRequest(request, reply)
+    if (!verification.valid) {
       const err = new ApiError('UNAUTHORIZED', 'Invalid or missing token')
       return reply.code(401).send(errorResponse(err))
     }
 
-    logOperation('LOGOUT', 'User logged out')
-    const result = await handleLogout()
+    const authHeader = request.headers.authorization
+    const token = authHeader!.slice(7)
+    handleLogout(token)
 
-    return successResponse(result)
+    logOperation('LOGOUT', `User: ${verification.username}`)
+
+    return successResponse({ success: true })
   } catch (error) {
     console.error('[WebUI API] Logout error:', error)
     const err = serverError(`Logout error: ${error instanceof Error ? error.message : String(error)}`)
+    return reply.code(err.statusCode).send(errorResponse(err))
+  }
+}
+
+/**
+ * POST /api/webui/auth/change-password
+ * Change user password
+ */
+async function handleChangePasswordEndpoint(
+  request: FastifyRequest<{ Body: { oldPassword: string; newPassword: string } }>,
+  reply: FastifyReply
+): Promise<any> {
+  try {
+    const verification = await verifyRequest(request, reply)
+    if (!verification.valid) {
+      const err = new ApiError('UNAUTHORIZED', 'Invalid or missing token')
+      return reply.code(401).send(errorResponse(err))
+    }
+
+    const { oldPassword, newPassword } = request.body
+
+    logOperation('CHANGE_PASSWORD', `User: ${verification.username}`)
+
+    if (!oldPassword || !newPassword) {
+      const err = invalidFormat('Old password and new password are required')
+      return reply.code(err.statusCode).send(errorResponse(err))
+    }
+
+    const result = handleChangePassword(verification.username!, oldPassword, newPassword)
+
+    if (result.success) {
+      logOperation('CHANGE_PASSWORD_SUCCESS', `User: ${verification.username}`)
+      return successResponse({ success: true })
+    } else {
+      logOperation('CHANGE_PASSWORD_FAILED', `User: ${verification.username}`, { error: result.error })
+      const err = new ApiError('INVALID_FORMAT', result.error || 'Password change failed')
+      return reply.code(400).send(errorResponse(err))
+    }
+  } catch (error) {
+    console.error('[WebUI API] Password change error:', error)
+    const err = serverError(`Password change error: ${error instanceof Error ? error.message : String(error)}`)
     return reply.code(err.statusCode).send(errorResponse(err))
   }
 }
@@ -175,8 +268,8 @@ async function listSessionsHandler(
   reply: FastifyReply
 ): Promise<any> {
   try {
-    const isAuthed = await verifyRequest(request, reply)
-    if (!isAuthed) {
+    const verification = await verifyRequest(request, reply)
+    if (!verification.valid) {
       const err = new ApiError('UNAUTHORIZED', 'Invalid or missing token')
       return reply.code(401).send(errorResponse(err))
     }
@@ -206,8 +299,8 @@ async function getSessionHandler(
   reply: FastifyReply
 ): Promise<any> {
   try {
-    const isAuthed = await verifyRequest(request, reply)
-    if (!isAuthed) {
+    const verification = await verifyRequest(request, reply)
+    if (!verification.valid) {
       const err = new ApiError('UNAUTHORIZED', 'Invalid or missing token')
       return reply.code(401).send(errorResponse(err))
     }
@@ -245,8 +338,8 @@ async function createConversationHandler(
   reply: FastifyReply
 ): Promise<any> {
   try {
-    const isAuthed = await verifyRequest(request, reply)
-    if (!isAuthed) {
+    const verification = await verifyRequest(request, reply)
+    if (!verification.valid) {
       const err = new ApiError('UNAUTHORIZED', 'Invalid or missing token')
       return reply.code(401).send(errorResponse(err))
     }
@@ -299,8 +392,8 @@ async function listConversationsHandler(
   reply: FastifyReply
 ): Promise<any> {
   try {
-    const isAuthed = await verifyRequest(request, reply)
-    if (!isAuthed) {
+    const verification = await verifyRequest(request, reply)
+    if (!verification.valid) {
       const err = new ApiError('UNAUTHORIZED', 'Invalid or missing token')
       return reply.code(401).send(errorResponse(err))
     }
@@ -342,8 +435,8 @@ async function deleteConversationHandler(
   reply: FastifyReply
 ): Promise<any> {
   try {
-    const isAuthed = await verifyRequest(request, reply)
-    if (!isAuthed) {
+    const verification = await verifyRequest(request, reply)
+    if (!verification.valid) {
       const err = new ApiError('UNAUTHORIZED', 'Invalid or missing token')
       return reply.code(401).send(errorResponse(err))
     }
@@ -383,8 +476,8 @@ async function sendMessageHandler(
   reply: FastifyReply
 ): Promise<any> {
   try {
-    const isAuthed = await verifyRequest(request, reply)
-    if (!isAuthed) {
+    const verification = await verifyRequest(request, reply)
+    if (!verification.valid) {
       const err = new ApiError('UNAUTHORIZED', 'Invalid or missing token')
       return reply.code(401).send(errorResponse(err))
     }
@@ -452,8 +545,8 @@ async function getMessagesHandler(
   reply: FastifyReply
 ): Promise<any> {
   try {
-    const isAuthed = await verifyRequest(request, reply)
-    if (!isAuthed) {
+    const verification = await verifyRequest(request, reply)
+    if (!verification.valid) {
       const err = new ApiError('UNAUTHORIZED', 'Invalid or missing token')
       return reply.code(401).send(errorResponse(err))
     }
@@ -507,7 +600,19 @@ export function registerWebUIRoutes(server: FastifyInstance): void {
     handleAuthLogin
   )
 
+  server.post<{ Body: { username: string; password: string } }>(
+    '/api/webui/auth/register',
+    { logLevel: 'warn' },
+    handleAuthRegister
+  )
+
   server.post('/api/webui/auth/logout', { logLevel: 'warn' }, handleAuthLogout)
+
+  server.post<{ Body: { oldPassword: string; newPassword: string } }>(
+    '/api/webui/auth/change-password',
+    { logLevel: 'warn' },
+    handleChangePasswordEndpoint
+  )
 
   // ==================== Session Routes ====================
 

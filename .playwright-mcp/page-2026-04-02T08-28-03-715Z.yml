@@ -1,0 +1,945 @@
+- generic [ref=e2]:
+  - region
+  - generic [ref=e3]:
+    - link "Skip to content" [ref=e4] [cursor=pointer]:
+      - /url: "#start-of-content"
+    - banner [ref=e6]:
+      - heading "Navigation Menu" [level=2] [ref=e7]
+      - generic [ref=e8]:
+        - link "Homepage" [ref=e10] [cursor=pointer]:
+          - /url: /
+          - img [ref=e11]
+        - generic [ref=e13]:
+          - navigation "Global" [ref=e16]:
+            - list [ref=e17]:
+              - listitem [ref=e18]:
+                - button "Platform" [ref=e20] [cursor=pointer]:
+                  - text: Platform
+                  - img [ref=e21]
+              - listitem [ref=e23]:
+                - button "Solutions" [ref=e25] [cursor=pointer]:
+                  - text: Solutions
+                  - img [ref=e26]
+              - listitem [ref=e28]:
+                - button "Resources" [ref=e30] [cursor=pointer]:
+                  - text: Resources
+                  - img [ref=e31]
+              - listitem [ref=e33]:
+                - button "Open Source" [ref=e35] [cursor=pointer]:
+                  - text: Open Source
+                  - img [ref=e36]
+              - listitem [ref=e38]:
+                - button "Enterprise" [ref=e40] [cursor=pointer]:
+                  - text: Enterprise
+                  - img [ref=e41]
+              - listitem [ref=e43]:
+                - link "Pricing" [ref=e44] [cursor=pointer]:
+                  - /url: https://github.com/pricing
+                  - generic [ref=e45]: Pricing
+          - generic [ref=e46]:
+            - button "Search or jump to…" [ref=e49] [cursor=pointer]:
+              - img [ref=e51]
+            - link "Sign in" [ref=e54] [cursor=pointer]:
+              - /url: /login?return_to=https%3A%2F%2Fgithub.com%2Fl17728%2FChatLab
+            - link "Sign up" [ref=e55] [cursor=pointer]:
+              - /url: /signup?ref_cta=Sign+up&ref_loc=header+logged+out&ref_page=%2F%3Cuser-name%3E%2F%3Crepo-name%3E&source=header-repo&source_repo=l17728%2FChatLab
+            - button "Appearance settings" [ref=e58] [cursor=pointer]:
+              - img
+  - main [ref=e62]:
+    - generic [ref=e63]:
+      - generic [ref=e64]:
+        - generic [ref=e65]:
+          - generic [ref=e66]:
+            - img [ref=e67]
+            - link "l17728" [ref=e70] [cursor=pointer]:
+              - /url: /l17728
+            - generic [ref=e71]: /
+            - strong [ref=e72]:
+              - link "ChatLab" [ref=e73] [cursor=pointer]:
+                - /url: /l17728/ChatLab
+            - generic [ref=e74]: Public
+          - generic [ref=e75]:
+            - text: forked from
+            - link "hellodigua/ChatLab" [ref=e76] [cursor=pointer]:
+              - /url: /hellodigua/ChatLab
+        - generic [ref=e77]:
+          - list:
+            - listitem [ref=e78]:
+              - link "You must be signed in to change notification settings" [ref=e79] [cursor=pointer]:
+                - /url: /login?return_to=%2Fl17728%2FChatLab
+                - img [ref=e80]
+                - text: Notifications
+            - listitem [ref=e82]:
+              - link "Fork 0" [ref=e83] [cursor=pointer]:
+                - /url: /login?return_to=%2Fl17728%2FChatLab
+                - img [ref=e84]
+                - text: Fork
+                - generic "0" [ref=e86]
+            - listitem [ref=e87]:
+              - link "You must be signed in to star a repository" [ref=e89] [cursor=pointer]:
+                - /url: /login?return_to=%2Fl17728%2FChatLab
+                - img [ref=e90]
+                - text: Star
+                - generic "0 users starred this repository" [ref=e92]: "0"
+      - navigation "Repository" [ref=e93]:
+        - list [ref=e94]:
+          - listitem [ref=e95]:
+            - link "Code" [ref=e96] [cursor=pointer]:
+              - /url: /l17728/ChatLab
+              - img [ref=e97]
+              - generic [ref=e99]: Code
+          - listitem [ref=e100]:
+            - link "Pull requests" [ref=e101] [cursor=pointer]:
+              - /url: /l17728/ChatLab/pulls
+              - img [ref=e102]
+              - generic [ref=e104]: Pull requests
+          - listitem [ref=e105]:
+            - link "Actions" [ref=e106] [cursor=pointer]:
+              - /url: /l17728/ChatLab/actions
+              - img [ref=e107]
+              - generic [ref=e109]: Actions
+          - listitem [ref=e110]:
+            - link "Projects" [ref=e111] [cursor=pointer]:
+              - /url: /l17728/ChatLab/projects
+              - img [ref=e112]
+              - generic [ref=e114]: Projects
+          - listitem [ref=e115]:
+            - link "Security and quality" [ref=e116] [cursor=pointer]:
+              - /url: /l17728/ChatLab/security
+              - img [ref=e117]
+              - generic [ref=e119]: Security and quality
+          - listitem [ref=e120]:
+            - link "Insights" [ref=e121] [cursor=pointer]:
+              - /url: /l17728/ChatLab/pulse
+              - img [ref=e122]
+              - generic [ref=e124]: Insights
+    - generic [ref=e137]:
+      - heading "l17728/ChatLab" [level=1] [ref=e139]
+      - generic [ref=e140]:
+        - generic [ref=e143]:
+          - generic [ref=e144]:
+            - generic [ref=e145]:
+              - button "main branch" [ref=e147] [cursor=pointer]:
+                - generic [ref=e148]:
+                  - generic [ref=e150]:
+                    - img [ref=e152]
+                    - generic [ref=e155]: main
+                  - generic:
+                    - img
+              - generic [ref=e156]:
+                - link "Go to Branches page" [ref=e157] [cursor=pointer]:
+                  - /url: /l17728/ChatLab/branches
+                  - img [ref=e158]
+                - link "Go to Tags page" [ref=e160] [cursor=pointer]:
+                  - /url: /l17728/ChatLab/tags
+                  - img [ref=e161]
+            - generic [ref=e163]:
+              - generic [ref=e167]:
+                - img [ref=e169]
+                - combobox "Go to file" [ref=e171]
+              - button "Code" [ref=e172] [cursor=pointer]:
+                - generic [ref=e173]:
+                  - generic:
+                    - img
+                  - generic [ref=e174]: Code
+                  - generic:
+                    - img
+          - generic [ref=e176]:
+            - text: This branch is up to date with
+            - generic [ref=e177]: hellodigua/ChatLab:main
+            - text: .
+          - generic [ref=e178]:
+            - generic [ref=e179]:
+              - heading "Folders and files" [level=2] [ref=e180]
+              - table "Folders and files" [ref=e181]:
+                - rowgroup:
+                  - row "Name Last commit message Last commit date":
+                    - columnheader "Name"
+                    - columnheader "Last commit message":
+                      - generic "Last commit message"
+                    - columnheader "Last commit date":
+                      - generic "Last commit date"
+                - rowgroup [ref=e182]:
+                  - 'row "Latest commit hellodigua commits by hellodigua release: v0.14.0 Commit 48c88aa · Mar 28, 2026last week History 411 Commits" [ref=e183]':
+                    - 'cell "Latest commit hellodigua commits by hellodigua release: v0.14.0 Commit 48c88aa · Mar 28, 2026last week History 411 Commits" [ref=e184]':
+                      - generic [ref=e185]:
+                        - heading "Latest commit" [level=2] [ref=e186]
+                        - generic [ref=e187]:
+                          - generic [ref=e189]:
+                            - link "hellodigua" [ref=e190] [cursor=pointer]:
+                              - /url: /hellodigua
+                              - img "hellodigua" [ref=e191]
+                            - link "commits by hellodigua" [ref=e192] [cursor=pointer]:
+                              - /url: /l17728/ChatLab/commits?author=hellodigua
+                              - text: hellodigua
+                          - 'link "release: v0.14.0" [ref=e196] [cursor=pointer]':
+                            - /url: /l17728/ChatLab/commit/48c88aa6d58f1d0433eac22e46636cbd3a7066f2
+                        - generic [ref=e197]:
+                          - generic [ref=e199]:
+                            - link "Commit 48c88aa" [ref=e200] [cursor=pointer]:
+                              - /url: /l17728/ChatLab/commit/48c88aa6d58f1d0433eac22e46636cbd3a7066f2
+                              - text: 48c88aa
+                            - text: ·
+                            - generic "Mar 28, 2026, 12:18 AM GMT+8" [ref=e201]: Mar 28, 2026last week
+                          - generic [ref=e202]:
+                            - heading "History" [level=2] [ref=e203]
+                            - link "411 Commits" [ref=e204] [cursor=pointer]:
+                              - /url: /l17728/ChatLab/commits/main/
+                              - generic [ref=e205]:
+                                - generic:
+                                  - img
+                                - generic [ref=e206]: 411 Commits
+                  - 'row ".github/workflows, (Directory) release: v0.13.0 Mar 17, 20262 weeks ago" [ref=e207]':
+                    - cell ".github/workflows, (Directory)" [ref=e208]:
+                      - generic [ref=e209]:
+                        - img [ref=e210]
+                        - link ".github/workflows, (Directory)" [ref=e215] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/tree/main/.github/workflows
+                          - text: .github/workflows
+                    - 'cell "release: v0.13.0" [ref=e216]':
+                      - 'link "release: v0.13.0" [ref=e219] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/9247a295b98e4025ef9049ee8f5886389e24daf0
+                    - cell "Mar 17, 20262 weeks ago" [ref=e220]:
+                      - generic [ref=e221]: Mar 17, 20262 weeks ago
+                  - 'row ".vscode, (Directory) chore: i18n构建配置 Feb 13, 20262 months ago" [ref=e222]':
+                    - cell ".vscode, (Directory)" [ref=e223]:
+                      - generic [ref=e224]:
+                        - img [ref=e225]
+                        - link ".vscode, (Directory)" [ref=e230] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/tree/main/.vscode
+                          - text: .vscode
+                    - 'cell "chore: i18n构建配置" [ref=e231]':
+                      - 'link "chore: i18n构建配置" [ref=e234] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/d4f5c58f90d2a1949d546fd0f4690bd7091cbf34
+                    - cell "Feb 13, 20262 months ago" [ref=e235]:
+                      - generic [ref=e236]: Feb 13, 20262 months ago
+                  - 'row "build, (Directory) feat: Windows 安装界面自适应DPI Dec 29, 20254 months ago" [ref=e237]':
+                    - cell "build, (Directory)" [ref=e238]:
+                      - generic [ref=e239]:
+                        - img [ref=e240]
+                        - link "build, (Directory)" [ref=e245] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/tree/main/build
+                          - text: build
+                    - 'cell "feat: Windows 安装界面自适应DPI" [ref=e246]':
+                      - 'link "feat: Windows 安装界面自适应DPI" [ref=e249] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/5bd1d303b04a5fe81377cca02ede7ed2093f4f69
+                    - cell "Dec 29, 20254 months ago" [ref=e250]:
+                      - generic [ref=e251]: Dec 29, 20254 months ago
+                  - 'row "docs, (Directory) release: v0.14.0 Mar 28, 2026last week" [ref=e252]':
+                    - cell "docs, (Directory)" [ref=e253]:
+                      - generic [ref=e254]:
+                        - img [ref=e255]
+                        - link "docs, (Directory)" [ref=e260] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/tree/main/docs
+                          - text: docs
+                    - 'cell "release: v0.14.0" [ref=e261]':
+                      - 'link "release: v0.14.0" [ref=e264] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/48c88aa6d58f1d0433eac22e46636cbd3a7066f2
+                    - cell "Mar 28, 2026last week" [ref=e265]:
+                      - generic [ref=e266]: Mar 28, 2026last week
+                  - 'row "electron, (Directory) feat: API服务 UI优化 Mar 28, 2026last week" [ref=e267]':
+                    - cell "electron, (Directory)" [ref=e268]:
+                      - generic [ref=e269]:
+                        - img [ref=e270]
+                        - link "electron, (Directory)" [ref=e275] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/tree/main/electron
+                          - text: electron
+                    - 'cell "feat: API服务 UI优化" [ref=e276]':
+                      - 'link "feat: API服务 UI优化" [ref=e279] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/792cb0e1ee70d1983b9ce7f3ed94916bd7a5cf76
+                    - cell "Mar 28, 2026last week" [ref=e280]:
+                      - generic [ref=e281]: Mar 28, 2026last week
+                  - 'row "packages, (Directory) fix: 修复 AI 会话链路与前端 type-check 错误 Mar 25, 2026last week" [ref=e282]':
+                    - cell "packages, (Directory)" [ref=e283]:
+                      - generic [ref=e284]:
+                        - img [ref=e285]
+                        - link "packages, (Directory)" [ref=e290] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/tree/main/packages
+                          - text: packages
+                    - 'cell "fix: 修复 AI 会话链路与前端 type-check 错误" [ref=e291]':
+                      - 'link "fix: 修复 AI 会话链路与前端 type-check 错误" [ref=e294] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/b6fdc3887effeb54ef85fb9b88ce65b27d1538db
+                    - cell "Mar 25, 2026last week" [ref=e295]:
+                      - generic [ref=e296]: Mar 25, 2026last week
+                  - 'row "public/images, (Directory) docs: update Jan 29, 20263 months ago" [ref=e297]':
+                    - cell "public/images, (Directory)" [ref=e298]:
+                      - generic [ref=e299]:
+                        - img [ref=e300]
+                        - link "public/images, (Directory)" [ref=e305] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/tree/main/public/images
+                          - text: public/images
+                    - 'cell "docs: update" [ref=e306]':
+                      - 'link "docs: update" [ref=e309] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/b3bd7b120a4442ae886a7512d59eb4aa9ea9b22d
+                    - cell "Jan 29, 20263 months ago" [ref=e310]:
+                      - generic [ref=e311]: Jan 29, 20263 months ago
+                  - 'row "skills, (Directory) chore: 新增 创建assistant技能 Mar 19, 20262 weeks ago" [ref=e312]':
+                    - cell "skills, (Directory)" [ref=e313]:
+                      - generic [ref=e314]:
+                        - img [ref=e315]
+                        - link "skills, (Directory)" [ref=e320] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/tree/main/skills
+                          - text: skills
+                    - 'cell "chore: 新增 创建assistant技能" [ref=e321]':
+                      - 'link "chore: 新增 创建assistant技能" [ref=e324] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/64c23efde9b52be31af4d47a7986367d83795bac
+                    - cell "Mar 19, 20262 weeks ago" [ref=e325]:
+                      - generic [ref=e326]: Mar 19, 20262 weeks ago
+                  - 'row "src, (Directory) feat: 总览样式优化 Mar 28, 2026last week" [ref=e327]':
+                    - cell "src, (Directory)" [ref=e328]:
+                      - generic [ref=e329]:
+                        - img [ref=e330]
+                        - link "src, (Directory)" [ref=e335] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/tree/main/src
+                          - text: src
+                    - 'cell "feat: 总览样式优化" [ref=e336]':
+                      - 'link "feat: 总览样式优化" [ref=e339] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/c688d682825d86dc9dcb2877f301181fcce29b8d
+                    - cell "Mar 28, 2026last week" [ref=e340]:
+                      - generic [ref=e341]: Mar 28, 2026last week
+                  - 'row ".editorconfig, (File) chore: update Feb 9, 20262 months ago" [ref=e342]':
+                    - cell ".editorconfig, (File)" [ref=e343]:
+                      - generic [ref=e344]:
+                        - img [ref=e345]
+                        - link ".editorconfig, (File)" [ref=e350] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/.editorconfig
+                          - text: .editorconfig
+                    - 'cell "chore: update" [ref=e351]':
+                      - 'link "chore: update" [ref=e354] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/717f8d9ef4f2556d64876d990eb05dbb5fd6460e
+                    - cell "Feb 9, 20262 months ago" [ref=e355]:
+                      - generic [ref=e356]: Feb 9, 20262 months ago
+                  - 'row ".env, (File) feat: 重构目录位置 Mar 16, 20262 weeks ago" [ref=e357]':
+                    - cell ".env, (File)" [ref=e358]:
+                      - generic [ref=e359]:
+                        - img [ref=e360]
+                        - link ".env, (File)" [ref=e365] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/.env
+                          - text: .env
+                    - 'cell "feat: 重构目录位置" [ref=e366]':
+                      - 'link "feat: 重构目录位置" [ref=e369] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/cf7a7fccbbdf8e910266513449976e3a8116a145
+                    - cell "Mar 16, 20262 weeks ago" [ref=e370]:
+                      - generic [ref=e371]: Mar 16, 20262 weeks ago
+                  - 'row ".gitignore, (File) chore: i18n构建配置 Feb 13, 20262 months ago" [ref=e372]':
+                    - cell ".gitignore, (File)" [ref=e373]:
+                      - generic [ref=e374]:
+                        - img [ref=e375]
+                        - link ".gitignore, (File)" [ref=e380] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/.gitignore
+                          - text: .gitignore
+                    - 'cell "chore: i18n构建配置" [ref=e381]':
+                      - 'link "chore: i18n构建配置" [ref=e384] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/d4f5c58f90d2a1949d546fd0f4690bd7091cbf34
+                    - cell "Feb 13, 20262 months ago" [ref=e385]:
+                      - generic [ref=e386]: Feb 13, 20262 months ago
+                  - 'row ".npmrc, (File) chore: update Feb 9, 20262 months ago" [ref=e387]':
+                    - cell ".npmrc, (File)" [ref=e388]:
+                      - generic [ref=e389]:
+                        - img [ref=e390]
+                        - link ".npmrc, (File)" [ref=e395] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/.npmrc
+                          - text: .npmrc
+                    - 'cell "chore: update" [ref=e396]':
+                      - 'link "chore: update" [ref=e399] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/717f8d9ef4f2556d64876d990eb05dbb5fd6460e
+                    - cell "Feb 9, 20262 months ago" [ref=e400]:
+                      - generic [ref=e401]: Feb 9, 20262 months ago
+                  - 'row ".prettierignore, (File) chore: update Feb 9, 20262 months ago" [ref=e402]':
+                    - cell ".prettierignore, (File)" [ref=e403]:
+                      - generic [ref=e404]:
+                        - img [ref=e405]
+                        - link ".prettierignore, (File)" [ref=e410] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/.prettierignore
+                          - text: .prettierignore
+                    - 'cell "chore: update" [ref=e411]':
+                      - 'link "chore: update" [ref=e414] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/717f8d9ef4f2556d64876d990eb05dbb5fd6460e
+                    - cell "Feb 9, 20262 months ago" [ref=e415]:
+                      - generic [ref=e416]: Feb 9, 20262 months ago
+                  - 'row ".prettierrc.yaml, (File) chore: update Feb 9, 20262 months ago" [ref=e417]':
+                    - cell ".prettierrc.yaml, (File)" [ref=e418]:
+                      - generic [ref=e419]:
+                        - img [ref=e420]
+                        - link ".prettierrc.yaml, (File)" [ref=e425] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/.prettierrc.yaml
+                          - text: .prettierrc.yaml
+                    - 'cell "chore: update" [ref=e426]':
+                      - 'link "chore: update" [ref=e429] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/717f8d9ef4f2556d64876d990eb05dbb5fd6460e
+                    - cell "Feb 9, 20262 months ago" [ref=e430]:
+                      - generic [ref=e431]: Feb 9, 20262 months ago
+                  - 'row "AGENTS.md, (File) docs: 新增AGENTS.md Mar 28, 2026last week" [ref=e432]':
+                    - cell "AGENTS.md, (File)" [ref=e433]:
+                      - generic [ref=e434]:
+                        - img [ref=e435]
+                        - link "AGENTS.md, (File)" [ref=e440] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/AGENTS.md
+                          - text: AGENTS.md
+                    - 'cell "docs: 新增AGENTS.md" [ref=e441]':
+                      - 'link "docs: 新增AGENTS.md" [ref=e444] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/4355344e35ac54769ef32a41d34d5c3326579c55
+                    - cell "Mar 28, 2026last week" [ref=e445]:
+                      - generic [ref=e446]: Mar 28, 2026last week
+                  - 'row "LICENSE, (File) feat: 添加用户协议和版权协议 Dec 22, 20254 months ago" [ref=e447]':
+                    - cell "LICENSE, (File)" [ref=e448]:
+                      - generic [ref=e449]:
+                        - img [ref=e450]
+                        - link "LICENSE, (File)" [ref=e455] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/LICENSE
+                          - text: LICENSE
+                    - 'cell "feat: 添加用户协议和版权协议" [ref=e456]':
+                      - 'link "feat: 添加用户协议和版权协议" [ref=e459] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/5b0a7b7ab7aeb5a74d2b19ad2d50770c7878142f
+                    - cell "Dec 22, 20254 months ago" [ref=e460]:
+                      - generic [ref=e461]: Dec 22, 20254 months ago
+                  - 'row "README.ja-JP.md, (File) docs: update Mar 16, 20263 weeks ago" [ref=e462]':
+                    - cell "README.ja-JP.md, (File)" [ref=e463]:
+                      - generic [ref=e464]:
+                        - img [ref=e465]
+                        - link "README.ja-JP.md, (File)" [ref=e470] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/README.ja-JP.md
+                          - text: README.ja-JP.md
+                    - 'cell "docs: update" [ref=e471]':
+                      - 'link "docs: update" [ref=e474] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/4df938a152444ce14cb87d43b51dcfeef83bc7f7
+                    - cell "Mar 16, 20263 weeks ago" [ref=e475]:
+                      - generic [ref=e476]: Mar 16, 20263 weeks ago
+                  - 'row "README.md, (File) docs: update Mar 16, 20263 weeks ago" [ref=e477]':
+                    - cell "README.md, (File)" [ref=e478]:
+                      - generic [ref=e479]:
+                        - img [ref=e480]
+                        - link "README.md, (File)" [ref=e485] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/README.md
+                          - text: README.md
+                    - 'cell "docs: update" [ref=e486]':
+                      - 'link "docs: update" [ref=e489] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/4df938a152444ce14cb87d43b51dcfeef83bc7f7
+                    - cell "Mar 16, 20263 weeks ago" [ref=e490]:
+                      - generic [ref=e491]: Mar 16, 20263 weeks ago
+                  - 'row "README.zh-CN.md, (File) docs: update Mar 16, 20263 weeks ago" [ref=e492]':
+                    - cell "README.zh-CN.md, (File)" [ref=e493]:
+                      - generic [ref=e494]:
+                        - img [ref=e495]
+                        - link "README.zh-CN.md, (File)" [ref=e500] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/README.zh-CN.md
+                          - text: README.zh-CN.md
+                    - 'cell "docs: update" [ref=e501]':
+                      - 'link "docs: update" [ref=e504] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/4df938a152444ce14cb87d43b51dcfeef83bc7f7
+                    - cell "Mar 16, 20263 weeks ago" [ref=e505]:
+                      - generic [ref=e506]: Mar 16, 20263 weeks ago
+                  - 'row "README.zh-TW.md, (File) docs: update Mar 16, 20263 weeks ago" [ref=e507]':
+                    - cell "README.zh-TW.md, (File)" [ref=e508]:
+                      - generic [ref=e509]:
+                        - img [ref=e510]
+                        - link "README.zh-TW.md, (File)" [ref=e515] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/README.zh-TW.md
+                          - text: README.zh-TW.md
+                    - 'cell "docs: update" [ref=e516]':
+                      - 'link "docs: update" [ref=e519] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/4df938a152444ce14cb87d43b51dcfeef83bc7f7
+                    - cell "Mar 16, 20263 weeks ago" [ref=e520]:
+                      - generic [ref=e521]: Mar 16, 20263 weeks ago
+                  - 'row "electron-builder.yml, (File) release: v0.6.0 Jan 21, 20263 months ago" [ref=e522]':
+                    - cell "electron-builder.yml, (File)" [ref=e523]:
+                      - generic [ref=e524]:
+                        - img [ref=e525]
+                        - link "electron-builder.yml, (File)" [ref=e530] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/electron-builder.yml
+                          - text: electron-builder.yml
+                    - 'cell "release: v0.6.0" [ref=e531]':
+                      - 'link "release: v0.6.0" [ref=e534] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/61ae991b1c38e8614d8aef8001d81fc9c9a6c5a2
+                    - cell "Jan 21, 20263 months ago" [ref=e535]:
+                      - generic [ref=e536]: Jan 21, 20263 months ago
+                  - 'row "electron.vite.config.ts, (File) chore: 优化构建分包策略 Mar 17, 20262 weeks ago" [ref=e537]':
+                    - cell "electron.vite.config.ts, (File)" [ref=e538]:
+                      - generic [ref=e539]:
+                        - img [ref=e540]
+                        - link "electron.vite.config.ts, (File)" [ref=e545] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/electron.vite.config.ts
+                          - text: electron.vite.config.ts
+                    - 'cell "chore: 优化构建分包策略" [ref=e546]':
+                      - 'link "chore: 优化构建分包策略" [ref=e549] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/f646415c37be82d7c74b3d9a4d720b49458c51c9
+                    - cell "Mar 17, 20262 weeks ago" [ref=e550]:
+                      - generic [ref=e551]: Mar 17, 20262 weeks ago
+                  - 'row "eslint.config.mjs, (File) refactor: 重构部分图表为插件形式 Feb 19, 20262 months ago" [ref=e552]':
+                    - cell "eslint.config.mjs, (File)" [ref=e553]:
+                      - generic [ref=e554]:
+                        - img [ref=e555]
+                        - link "eslint.config.mjs, (File)" [ref=e560] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/eslint.config.mjs
+                          - text: eslint.config.mjs
+                    - 'cell "refactor: 重构部分图表为插件形式" [ref=e561]':
+                      - 'link "refactor: 重构部分图表为插件形式" [ref=e564] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/8a12aa5c1b70eebe42cacb6a6dcadfdf75090e91
+                    - cell "Feb 19, 20262 months ago" [ref=e565]:
+                      - generic [ref=e566]: Feb 19, 20262 months ago
+                  - 'row "package.json, (File) release: v0.14.0 Mar 28, 2026last week" [ref=e567]':
+                    - cell "package.json, (File)" [ref=e568]:
+                      - generic [ref=e569]:
+                        - img [ref=e570]
+                        - link "package.json, (File)" [ref=e575] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/package.json
+                          - text: package.json
+                    - 'cell "release: v0.14.0" [ref=e576]':
+                      - 'link "release: v0.14.0" [ref=e579] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/48c88aa6d58f1d0433eac22e46636cbd3a7066f2
+                    - cell "Mar 28, 2026last week" [ref=e580]:
+                      - generic [ref=e581]: Mar 28, 2026last week
+                  - 'row "pnpm-lock.yaml, (File) feat: 支持API导出 Mar 28, 2026last week" [ref=e582]':
+                    - cell "pnpm-lock.yaml, (File)" [ref=e583]:
+                      - generic [ref=e584]:
+                        - img [ref=e585]
+                        - link "pnpm-lock.yaml, (File)" [ref=e590] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/pnpm-lock.yaml
+                          - text: pnpm-lock.yaml
+                    - 'cell "feat: 支持API导出" [ref=e591]':
+                      - 'link "feat: 支持API导出" [ref=e594] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/6d5e6f6e7ae4f3fb89b27ff1fa279649a9a28c5c
+                    - cell "Mar 28, 2026last week" [ref=e595]:
+                      - generic [ref=e596]: Mar 28, 2026last week
+                  - 'row "tsconfig.json, (File) refactor: 重构部分图表为插件形式 Feb 19, 20262 months ago" [ref=e597]':
+                    - cell "tsconfig.json, (File)" [ref=e598]:
+                      - generic [ref=e599]:
+                        - img [ref=e600]
+                        - link "tsconfig.json, (File)" [ref=e605] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/tsconfig.json
+                          - text: tsconfig.json
+                    - 'cell "refactor: 重构部分图表为插件形式" [ref=e606]':
+                      - 'link "refactor: 重构部分图表为插件形式" [ref=e609] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/8a12aa5c1b70eebe42cacb6a6dcadfdf75090e91
+                    - cell "Feb 19, 20262 months ago" [ref=e610]:
+                      - generic [ref=e611]: Feb 19, 20262 months ago
+                  - 'row "tsconfig.node.json, (File) refactor: 清理 parser worker rag merger 的历史类型问题 Mar 25, 2026last week" [ref=e612]':
+                    - cell "tsconfig.node.json, (File)" [ref=e613]:
+                      - generic [ref=e614]:
+                        - img [ref=e615]
+                        - link "tsconfig.node.json, (File)" [ref=e620] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/tsconfig.node.json
+                          - text: tsconfig.node.json
+                    - 'cell "refactor: 清理 parser worker rag merger 的历史类型问题" [ref=e621]':
+                      - 'link "refactor: 清理 parser worker rag merger 的历史类型问题" [ref=e624] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/7eaba396ece56be03c908ac2b6542cc57e4648ce
+                    - cell "Mar 25, 2026last week" [ref=e625]:
+                      - generic [ref=e626]: Mar 25, 2026last week
+                  - 'row "tsconfig.web.json, (File) refactor: 重构部分图表为插件形式 Feb 19, 20262 months ago" [ref=e627]':
+                    - cell "tsconfig.web.json, (File)" [ref=e628]:
+                      - generic [ref=e629]:
+                        - img [ref=e630]
+                        - link "tsconfig.web.json, (File)" [ref=e635] [cursor=pointer]:
+                          - /url: /l17728/ChatLab/blob/main/tsconfig.web.json
+                          - text: tsconfig.web.json
+                    - 'cell "refactor: 重构部分图表为插件形式" [ref=e636]':
+                      - 'link "refactor: 重构部分图表为插件形式" [ref=e639] [cursor=pointer]':
+                        - /url: /l17728/ChatLab/commit/8a12aa5c1b70eebe42cacb6a6dcadfdf75090e91
+                    - cell "Feb 19, 20262 months ago" [ref=e640]:
+                      - generic [ref=e641]: Feb 19, 20262 months ago
+            - generic [ref=e643]:
+              - generic [ref=e644]:
+                - heading "Repository files navigation" [level=2] [ref=e645]
+                - navigation "Repository files" [ref=e646]:
+                  - list [ref=e647]:
+                    - listitem [ref=e648]:
+                      - link "README" [ref=e649] [cursor=pointer]:
+                        - /url: "#"
+                        - img [ref=e651]
+                        - generic [ref=e653]: README
+                    - listitem [ref=e654]:
+                      - link "License" [ref=e655] [cursor=pointer]:
+                        - /url: "#"
+                        - img [ref=e657]
+                        - generic [ref=e659]: License
+                - button "Outline" [ref=e660] [cursor=pointer]:
+                  - img [ref=e661]
+              - article [ref=e664]:
+                - generic [ref=e665]:
+                  - link "ChatLab" [ref=e666] [cursor=pointer]:
+                    - /url: /l17728/ChatLab/blob/main/public/images/chatlab.svg
+                    - img "ChatLab" [ref=e667]
+                  - paragraph [ref=e668]: Rediscover your social memories with private, AI-powered analysis.
+                  - paragraph [ref=e669]:
+                    - text: English |
+                    - link "简体中文" [ref=e670] [cursor=pointer]:
+                      - /url: /l17728/ChatLab/blob/main/README.zh-CN.md
+                    - text: "|"
+                    - link "繁體中文" [ref=e671] [cursor=pointer]:
+                      - /url: /l17728/ChatLab/blob/main/README.zh-TW.md
+                    - text: "|"
+                    - link "日本語" [ref=e672] [cursor=pointer]:
+                      - /url: /l17728/ChatLab/blob/main/README.ja-JP.md
+                  - paragraph [ref=e673]:
+                    - link "Official Website" [ref=e674] [cursor=pointer]:
+                      - /url: https://chatlab.fun/
+                    - text: ·
+                    - link "Download" [ref=e675] [cursor=pointer]:
+                      - /url: https://chatlab.fun/?type=download
+                    - text: ·
+                    - link "Documentation" [ref=e676] [cursor=pointer]:
+                      - /url: https://chatlab.fun/usage/
+                    - text: ·
+                    - link "Roadmap" [ref=e677] [cursor=pointer]:
+                      - /url: https://chatlabfun.featurebase.app/roadmap
+                    - text: ·
+                    - link "Issue Submission" [ref=e678] [cursor=pointer]:
+                      - /url: https://github.com/hellodigua/ChatLab/issues
+                - paragraph [ref=e679]: ChatLab is an open-source desktop app for understanding your social conversations. It combines a flexible SQL engine with AI agents so you can explore patterns, ask better questions, and extract insights from chat data, all on your own machine.
+                - paragraph [ref=e680]:
+                  - text: "Currently supported:"
+                  - strong [ref=e681]: WhatsApp, LINE, WeChat, QQ, Discord, Instagram, and Telegram
+                  - text: ". Coming next:"
+                  - strong [ref=e682]: iMessage, Messenger, and KakaoTalk
+                  - text: .
+                - generic [ref=e683]:
+                  - heading "Core Features" [level=2] [ref=e684]
+                  - 'link "Permalink: Core Features" [ref=e685] [cursor=pointer]':
+                    - /url: "#core-features"
+                    - img [ref=e686]
+                - list [ref=e688]:
+                  - listitem [ref=e689]:
+                    - text: 🚀
+                    - strong [ref=e690]: Built for large histories
+                    - text: ": Stream parsing and multi-worker processing keep imports and analysis responsive, even at million-message scale."
+                  - listitem [ref=e691]:
+                    - text: 🔒
+                    - strong [ref=e692]: Private by default
+                    - text: ": Your chat data and settings stay local. No mandatory cloud upload of raw conversations."
+                  - listitem [ref=e693]:
+                    - text: 🤖
+                    - strong [ref=e694]: AI that can actually operate on data
+                    - text: ": Agent + Function Calling workflows can search, summarize, and analyze chat records with context."
+                  - listitem [ref=e695]:
+                    - text: 📊
+                    - strong [ref=e696]: Insight-rich visual views
+                    - text: ": See trends, time patterns, interaction frequency, rankings, and more in one place."
+                  - listitem [ref=e697]:
+                    - text: 🧩
+                    - strong [ref=e698]: Cross-platform normalization
+                    - text: ": Different export formats are mapped into a unified model so you can analyze them consistently."
+                - generic [ref=e699]:
+                  - heading "Usage Guides" [level=2] [ref=e700]
+                  - 'link "Permalink: Usage Guides" [ref=e701] [cursor=pointer]':
+                    - /url: "#usage-guides"
+                    - img [ref=e702]
+                - list [ref=e704]:
+                  - listitem [ref=e705]:
+                    - link "Download Guide" [ref=e706] [cursor=pointer]:
+                      - /url: https://chatlab.fun/?type=download
+                  - listitem [ref=e707]:
+                    - link "Chat Record Export Guide" [ref=e708] [cursor=pointer]:
+                      - /url: https://chatlab.fun/usage/how-to-export.html
+                  - listitem [ref=e709]:
+                    - link "Standardized Format Specification" [ref=e710] [cursor=pointer]:
+                      - /url: https://chatlab.fun/standard/chatlab-format.html
+                  - listitem [ref=e711]:
+                    - link "Troubleshooting Guide" [ref=e712] [cursor=pointer]:
+                      - /url: https://chatlab.fun/usage/troubleshooting.html
+                - generic [ref=e713]:
+                  - heading "Preview" [level=2] [ref=e714]
+                  - 'link "Permalink: Preview" [ref=e715] [cursor=pointer]':
+                    - /url: "#preview"
+                    - img [ref=e716]
+                - paragraph [ref=e718]:
+                  - text: "For more previews, please visit the official website:"
+                  - link "chatlab.fun" [ref=e719] [cursor=pointer]:
+                    - /url: https://chatlab.fun/
+                - paragraph [ref=e720]:
+                  - link "Preview Interface" [ref=e721] [cursor=pointer]:
+                    - /url: /l17728/ChatLab/blob/main/public/images/intro_en.png
+                    - img "Preview Interface" [ref=e722]
+                - generic [ref=e723]:
+                  - heading "System Architecture" [level=2] [ref=e724]
+                  - 'link "Permalink: System Architecture" [ref=e725] [cursor=pointer]':
+                    - /url: "#system-architecture"
+                    - img [ref=e726]
+                - generic [ref=e728]:
+                  - heading "Architecture Principles" [level=3] [ref=e729]
+                  - 'link "Permalink: Architecture Principles" [ref=e730] [cursor=pointer]':
+                    - /url: "#architecture-principles"
+                    - img [ref=e731]
+                - list [ref=e733]:
+                  - listitem [ref=e734]:
+                    - strong [ref=e735]: Local-first by default
+                    - text: ": Raw chat data, indexes, and settings remain on-device unless you explicitly choose otherwise."
+                  - listitem [ref=e736]:
+                    - strong [ref=e737]: Streaming over buffering
+                    - text: ": Stream-first parsing and incremental processing keep large imports stable and memory-efficient."
+                  - listitem [ref=e738]:
+                    - strong [ref=e739]: Composable intelligence
+                    - text: ": AI features are assembled through Agent + Tool Calling, not hard-coded into one model path."
+                  - listitem [ref=e740]:
+                    - strong [ref=e741]: Schema-first evolution
+                    - text: ": Import, query, analysis, and visualization share a consistent data model that scales with new features."
+                - generic [ref=e742]:
+                  - heading "Runtime Architecture" [level=3] [ref=e743]
+                  - 'link "Permalink: Runtime Architecture" [ref=e744] [cursor=pointer]':
+                    - /url: "#runtime-architecture"
+                    - img [ref=e745]
+                - list [ref=e747]:
+                  - listitem [ref=e748]:
+                    - strong [ref=e749]: Main Process (control plane)
+                    - text: ":"
+                    - code [ref=e750]: electron/main/index.ts
+                    - text: handles lifecycle and windows.
+                    - code [ref=e751]: electron/main/ipc/
+                    - text: defines domain-scoped IPC, while
+                    - code [ref=e752]: electron/main/ai/
+                    - text: and
+                    - code [ref=e753]: electron/main/i18n/
+                    - text: provide shared AI and localization services.
+                  - listitem [ref=e754]:
+                    - strong [ref=e755]: Worker Layer (compute plane)
+                    - text: ":"
+                    - code [ref=e756]: electron/main/worker/
+                    - text: runs import, indexing, and query tasks via
+                    - code [ref=e757]: workerManager
+                    - text: ", keeping CPU-heavy work off the UI thread."
+                  - listitem [ref=e758]:
+                    - strong [ref=e759]: Renderer Layer (interaction plane)
+                    - text: ": Vue 3 + Nuxt UI + Tailwind CSS drive management, private chat, group chat, and analysis interfaces."
+                    - code [ref=e760]: electron/preload/index.ts
+                    - text: exposes tightly scoped APIs for secure process boundaries.
+                - generic [ref=e761]:
+                  - heading "Data Pipeline" [level=3] [ref=e762]
+                  - 'link "Permalink: Data Pipeline" [ref=e763] [cursor=pointer]':
+                    - /url: "#data-pipeline"
+                    - img [ref=e764]
+                - list [ref=e766]:
+                  - listitem [ref=e767]:
+                    - strong [ref=e768]: Ingestion
+                    - text: ":"
+                    - code [ref=e769]: parser/
+                    - text: detects file format and dispatches to the matching parser module.
+                  - listitem [ref=e770]:
+                    - strong [ref=e771]: Persistence
+                    - text: ": Stream-based writes populate core local entities: sessions, members, and messages."
+                  - listitem [ref=e772]:
+                    - strong [ref=e773]: Indexing
+                    - text: ": Session- and time-oriented indexes are built for timeline navigation and retrieval."
+                  - listitem [ref=e774]:
+                    - strong [ref=e775]: Query & Analysis
+                    - text: ":"
+                    - code [ref=e776]: worker/query/*
+                    - text: powers activity metrics, interaction analysis, SQL Lab, and AI-assisted exploration.
+                  - listitem [ref=e777]:
+                    - strong [ref=e778]: Presentation
+                    - text: ": The renderer turns query output into charts, rankings, timelines, and conversational analysis flows."
+                - generic [ref=e779]:
+                  - heading "Extensibility & Reliability" [level=3] [ref=e780]
+                  - 'link "Permalink: Extensibility & Reliability" [ref=e781] [cursor=pointer]':
+                    - /url: "#extensibility--reliability"
+                    - img [ref=e782]
+                - list [ref=e784]:
+                  - listitem [ref=e785]:
+                    - strong [ref=e786]: Pluggable parser architecture
+                    - text: ": Adding a new import source is mostly an extension in"
+                    - code [ref=e787]: parser/formats/*
+                    - text: ", without reworking downstream query logic."
+                  - listitem [ref=e788]:
+                    - strong [ref=e789]: Full + incremental import paths
+                    - text: ":"
+                    - code [ref=e790]: streamImport.ts
+                    - text: and
+                    - code [ref=e791]: incrementalImport.ts
+                    - text: support both first-time onboarding and ongoing updates.
+                  - listitem [ref=e792]:
+                    - strong [ref=e793]: Modular IPC boundaries
+                    - text: ": Domain-based IPC segmentation reduces cross-layer coupling and limits permission spread."
+                  - listitem [ref=e794]:
+                    - strong [ref=e795]: Unified i18n evolution
+                    - text: ": Main and renderer processes share an i18n system that can evolve with product scope."
+                - separator [ref=e796]
+                - generic [ref=e797]:
+                  - heading "Local Development" [level=2] [ref=e798]
+                  - 'link "Permalink: Local Development" [ref=e799] [cursor=pointer]':
+                    - /url: "#local-development"
+                    - img [ref=e800]
+                - generic [ref=e802]:
+                  - heading "Requirements" [level=3] [ref=e803]
+                  - 'link "Permalink: Requirements" [ref=e804] [cursor=pointer]':
+                    - /url: "#requirements"
+                    - img [ref=e805]
+                - list [ref=e807]:
+                  - listitem [ref=e808]: Node.js >= 20
+                  - listitem [ref=e809]: pnpm
+                - generic [ref=e810]:
+                  - heading "Setup" [level=3] [ref=e811]
+                  - 'link "Permalink: Setup" [ref=e812] [cursor=pointer]':
+                    - /url: "#setup"
+                    - img [ref=e813]
+                - generic [ref=e815]:
+                  - generic [ref=e816]:
+                    - generic [ref=e817]: "# install dependencies"
+                    - text: pnpm install
+                    - generic [ref=e818]: "# run electron app in dev mode"
+                    - text: pnpm dev
+                  - button "Copy" [ref=e820] [cursor=pointer]:
+                    - img [ref=e821]
+                - paragraph [ref=e824]:
+                  - text: If Electron encounters exceptions during startup, you can try using
+                  - code [ref=e825]: electron-fix
+                  - text: ":"
+                - generic [ref=e826]:
+                  - generic [ref=e827]: npm install electron-fix -g electron-fix start
+                  - button "Copy" [ref=e829] [cursor=pointer]:
+                    - img [ref=e830]
+                - generic [ref=e833]:
+                  - heading "Contributing" [level=2] [ref=e834]
+                  - 'link "Permalink: Contributing" [ref=e835] [cursor=pointer]':
+                    - /url: "#contributing"
+                    - img [ref=e836]
+                - paragraph [ref=e838]: "Please follow these principles before submitting a Pull Request:"
+                - list [ref=e839]:
+                  - listitem [ref=e840]: Obvious bug fixes can be submitted directly.
+                  - listitem [ref=e841]:
+                    - text: For new features, please submit an Issue for discussion first;
+                    - strong [ref=e842]: PRs submitted without prior discussion will be closed
+                    - text: .
+                  - listitem [ref=e843]: Keep one PR focused on one task; if changes are extensive, consider splitting them into multiple independent PRs.
+                - generic [ref=e844]:
+                  - heading "Privacy Policy & User Agreement" [level=2] [ref=e845]
+                  - 'link "Permalink: Privacy Policy & User Agreement" [ref=e846] [cursor=pointer]':
+                    - /url: "#privacy-policy--user-agreement"
+                    - img [ref=e847]
+                - paragraph [ref=e849]:
+                  - text: Before using this software, please read the
+                  - link "Privacy Policy & User Agreement" [ref=e850] [cursor=pointer]:
+                    - /url: /l17728/ChatLab/blob/main/src/assets/docs/agreement_en.md
+                  - text: .
+                - generic [ref=e851]:
+                  - heading "License" [level=2] [ref=e852]
+                  - 'link "Permalink: License" [ref=e853] [cursor=pointer]':
+                    - /url: "#license"
+                    - img [ref=e854]
+                - paragraph [ref=e856]: AGPL-3.0 License
+        - generic [ref=e860]:
+          - generic [ref=e863]:
+            - heading "About" [level=2] [ref=e864]
+            - paragraph [ref=e865]: Rediscover your social memories with local, AI-powered analysis. 本地化的聊天记录分析工具，通过 AI Agent 回顾你的社交记忆。
+            - generic [ref=e866]:
+              - img [ref=e867]
+              - link "chatlab.fun" [ref=e870] [cursor=pointer]:
+                - /url: https://chatlab.fun
+            - heading "Resources" [level=3] [ref=e871]
+            - link "Readme" [ref=e873] [cursor=pointer]:
+              - /url: "#readme-ov-file"
+              - img [ref=e874]
+              - text: Readme
+            - heading "License" [level=3] [ref=e876]
+            - link "AGPL-3.0 license" [ref=e878] [cursor=pointer]:
+              - /url: "#AGPL-3.0-1-ov-file"
+              - img [ref=e879]
+              - text: AGPL-3.0 license
+            - link "Activity" [ref=e882] [cursor=pointer]:
+              - /url: /l17728/ChatLab/activity
+              - img [ref=e883]
+              - text: Activity
+            - heading "Stars" [level=3] [ref=e885]
+            - link "0 stars" [ref=e887] [cursor=pointer]:
+              - /url: /l17728/ChatLab/stargazers
+              - img [ref=e888]
+              - strong [ref=e890]: "0"
+              - text: stars
+            - heading "Watchers" [level=3] [ref=e891]
+            - link "0 watching" [ref=e893] [cursor=pointer]:
+              - /url: /l17728/ChatLab/watchers
+              - img [ref=e894]
+              - strong [ref=e896]: "0"
+              - text: watching
+            - heading "Forks" [level=3] [ref=e897]
+            - link "0 forks" [ref=e899] [cursor=pointer]:
+              - /url: /l17728/ChatLab/forks
+              - img [ref=e900]
+              - strong [ref=e902]: "0"
+              - text: forks
+            - link "Report repository" [ref=e904] [cursor=pointer]:
+              - /url: /contact/report-content?content_url=https%3A%2F%2Fgithub.com%2Fl17728%2FChatLab&report=l17728+%28user%29
+          - generic [ref=e906]:
+            - heading "Releases" [level=2] [ref=e907]:
+              - link "Releases" [ref=e908] [cursor=pointer]:
+                - /url: /l17728/ChatLab/releases
+            - link "25 tags" [ref=e909] [cursor=pointer]:
+              - /url: /l17728/ChatLab/tags
+              - img [ref=e910]
+              - text: 25 tags
+          - generic [ref=e913]:
+            - heading "Packages" [level=2] [ref=e914]:
+              - link "Packages" [ref=e915] [cursor=pointer]:
+                - /url: /users/l17728/packages?repo_name=ChatLab
+            - generic [ref=e916]: No packages published
+          - generic [ref=e918]:
+            - heading "Contributors" [level=2] [ref=e919]:
+              - link "Contributors" [ref=e920] [cursor=pointer]:
+                - /url: /l17728/ChatLab/graphs/contributors
+            - generic [ref=e921]: No contributors
+          - generic [ref=e923]:
+            - heading "Languages" [level=2] [ref=e924]
+            - list [ref=e932]:
+              - listitem [ref=e933]:
+                - generic [ref=e934]:
+                  - img [ref=e935]
+                  - generic [ref=e937]: TypeScript
+                  - generic [ref=e938]: 58.7%
+              - listitem [ref=e939]:
+                - generic [ref=e940]:
+                  - img [ref=e941]
+                  - generic [ref=e943]: Vue
+                  - generic [ref=e944]: 40.7%
+              - listitem [ref=e945]:
+                - generic [ref=e946]:
+                  - img [ref=e947]
+                  - generic [ref=e949]: Shell
+                  - generic [ref=e950]: 0.3%
+              - listitem [ref=e951]:
+                - generic [ref=e952]:
+                  - img [ref=e953]
+                  - generic [ref=e955]: CSS
+                  - generic [ref=e956]: 0.2%
+              - listitem [ref=e957]:
+                - generic [ref=e958]:
+                  - img [ref=e959]
+                  - generic [ref=e961]: JavaScript
+                  - generic [ref=e962]: 0.1%
+              - listitem [ref=e963]:
+                - generic [ref=e964]:
+                  - img [ref=e965]
+                  - generic [ref=e967]: HTML
+                  - generic [ref=e968]: 0.0%
+  - contentinfo [ref=e970]:
+    - heading "Footer" [level=2] [ref=e971]
+    - generic [ref=e972]:
+      - generic [ref=e973]:
+        - link "GitHub Homepage" [ref=e974] [cursor=pointer]:
+          - /url: https://github.com
+          - img [ref=e975]
+        - generic [ref=e977]: © 2026 GitHub, Inc.
+      - navigation "Footer" [ref=e978]:
+        - heading "Footer navigation" [level=3] [ref=e979]
+        - list "Footer navigation" [ref=e980]:
+          - listitem [ref=e981]:
+            - link "Terms" [ref=e982] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/github-terms/github-terms-of-service
+          - listitem [ref=e983]:
+            - link "Privacy" [ref=e984] [cursor=pointer]:
+              - /url: https://docs.github.com/site-policy/privacy-policies/github-privacy-statement
+          - listitem [ref=e985]:
+            - link "Security" [ref=e986] [cursor=pointer]:
+              - /url: https://github.com/security
+          - listitem [ref=e987]:
+            - link "Status" [ref=e988] [cursor=pointer]:
+              - /url: https://www.githubstatus.com/
+          - listitem [ref=e989]:
+            - link "Community" [ref=e990] [cursor=pointer]:
+              - /url: https://github.community/
+          - listitem [ref=e991]:
+            - link "Docs" [ref=e992] [cursor=pointer]:
+              - /url: https://docs.github.com/
+          - listitem [ref=e993]:
+            - link "Contact" [ref=e994] [cursor=pointer]:
+              - /url: https://support.github.com?tags=dotcom-footer
+          - listitem [ref=e995]:
+            - button "Manage cookies" [ref=e997] [cursor=pointer]
+          - listitem [ref=e998]:
+            - button "Do not share my personal information" [ref=e1000] [cursor=pointer]
