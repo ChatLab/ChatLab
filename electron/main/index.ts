@@ -15,9 +15,20 @@ const appWithQuitFlag = app as AppWithQuitFlag
 
 class MainProcess {
   mainWindow: BrowserWindow | null
+  isTestMode: boolean
   constructor() {
     // 主窗口
     this.mainWindow = null
+
+    // E2E 测试模式检查：跳过遗留数据迁移和其他测试无关的初始化
+    this.isTestMode = process.env.TEST_MODE === 'true'
+
+    // E2E 测试隔离：为并行测试实例设置独立的用户数据目录
+    // 这防止了并发进程的状态泄漏、死锁和数据库冲突
+    const e2eUserDataDir = process.env.CHATLAB_E2E_USER_DATA_DIR
+    if (e2eUserDataDir) {
+      app.setPath('userData', e2eUserDataDir)
+    }
 
     // 设置应用程序名称
     if (process.platform === 'win32') app.setAppUserModelId(app.getName())
@@ -31,6 +42,12 @@ class MainProcess {
 
   // 单例锁
   async checkApp() {
+    // E2E 测试模式：绕过单实例锁以支持并行实例
+    const isTestMode = process.env.TEST_MODE === 'true'
+    if (isTestMode) {
+      return true
+    }
+
     if (!app.requestSingleInstanceLock()) {
       app.quit()
       // 未获得锁
@@ -54,11 +71,15 @@ class MainProcess {
   async init() {
     initAnalytics()
 
-    // 清理上次切换目录后的旧数据目录
-    cleanupPendingDeleteDir()
+    // E2E 测试模式：跳过遗留数据迁移
+    // 遗留迁移会删除 Documents/ChatLab，在本地测试时可能破坏用户数据
+    if (!this.isTestMode) {
+      // 清理上次切换目录后的旧数据目录
+      cleanupPendingDeleteDir()
 
-    // 执行数据目录迁移（从 Documents/ChatLab 迁移到 userData）
-    this.migrateDataIfNeeded()
+      // 执行数据目录迁移（从 Documents/ChatLab 迁移到 userData）
+      this.migrateDataIfNeeded()
+    }
 
     // 确保应用目录存在
     ensureAppDirs()
