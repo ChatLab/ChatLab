@@ -9,6 +9,7 @@ import type { ToolRegistryEntry } from '../types'
 
 import { createTool as createGetChatOverview } from './get-chat-overview'
 import { createTool as createSearchMessages } from './search-messages'
+import { createTool as createDeepSearchMessages } from './deep-search-messages'
 import { createTool as createGetRecentMessages } from './get-recent-messages'
 import { createTool as createGetMessageContext } from './get-message-context'
 import { createTool as createSearchSessions } from './search-sessions'
@@ -30,6 +31,7 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   // ==================== Core 工具（始终加载） ====================
   { name: 'get_chat_overview', factory: createGetChatOverview, category: 'core' },
   { name: 'search_messages', factory: createSearchMessages, category: 'core' },
+  { name: 'deep_search_messages', factory: createDeepSearchMessages, category: 'core' },
   { name: 'get_recent_messages', factory: createGetRecentMessages, category: 'core' },
   { name: 'get_message_context', factory: createGetMessageContext, category: 'core' },
   { name: 'search_sessions', factory: createSearchSessions, category: 'core' },

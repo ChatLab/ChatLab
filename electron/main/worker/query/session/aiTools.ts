@@ -5,6 +5,8 @@
 
 import { openReadonlyDatabase } from './core'
 import type { SessionSearchResultItem, SessionMessagesResult } from './types'
+import { hasFtsIndex } from '../fts'
+import { tokenizeQueryForFts } from '../../../nlp/ftsTokenizer'
 
 /**
  * 搜索会话（用于 AI 工具）
@@ -50,17 +52,31 @@ export function searchSessions(
 
     // 关键词过滤：只返回包含关键词的会话
     if (keywords && keywords.length > 0) {
-      const keywordConditions = keywords.map(() => `m.content LIKE ?`).join(' OR ')
-      sessionSql += `
-        AND cs.id IN (
-          SELECT DISTINCT mc.session_id
-          FROM message_context mc
-          JOIN message m ON m.id = mc.message_id
-          WHERE (${keywordConditions})
-        )
-      `
-      for (const kw of keywords) {
-        params.push(`%${kw}%`)
+      const useFts = hasFtsIndex(sessionId)
+      const matchQuery = useFts ? tokenizeQueryForFts(keywords) : ''
+
+      if (useFts && matchQuery) {
+        sessionSql += `
+          AND cs.id IN (
+            SELECT DISTINCT mc.session_id
+            FROM message_context mc
+            WHERE mc.message_id IN (SELECT rowid FROM message_fts WHERE content MATCH ?)
+          )
+        `
+        params.push(matchQuery)
+      } else {
+        const keywordConditions = keywords.map(() => `m.content LIKE ?`).join(' OR ')
+        sessionSql += `
+          AND cs.id IN (
+            SELECT DISTINCT mc.session_id
+            FROM message_context mc
+            JOIN message m ON m.id = mc.message_id
+            WHERE (${keywordConditions})
+          )
+        `
+        for (const kw of keywords) {
+          params.push(`%${kw}%`)
+        }
       }
     }
 

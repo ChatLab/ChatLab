@@ -243,6 +243,16 @@ export async function incrementalImport(
     // 更新 imported_at 时间
     db.prepare('UPDATE meta SET imported_at = ?').run(Math.floor(Date.now() / 1000))
 
+    // 重建 FTS5 索引（增量导入后需要重建以包含新消息）
+    if (newMessageCount > 0) {
+      try {
+        const { rebuildFtsIndex } = await import('../query/fts')
+        rebuildFtsIndex(sessionId)
+      } catch {
+        // FTS 重建失败不影响导入流程
+      }
+    }
+
     // 写入概览统计缓存文件
     try {
       const { computeAndSetOverviewCache } = await import('../../database/sessionCache')

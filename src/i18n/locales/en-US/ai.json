@@ -49,6 +49,7 @@
       "tools": {
         "get_chat_overview": "Get Chat Overview",
         "search_messages": "Search Messages",
+        "deep_search_messages": "Deep Search Messages",
         "get_recent_messages": "Get Recent Messages",
         "get_member_stats": "Get Member Stats",
         "get_time_stats": "Get Time Stats",
@@ -310,6 +311,7 @@
     "builtinToolDesc": {
       "get_chat_overview": "Get chat overview information",
       "search_messages": "Search chat messages",
+      "deep_search_messages": "Deep search chat messages",
       "get_recent_messages": "Get recent messages",
       "get_message_context": "Get message context",
       "get_conversation_between": "Get conversation between two members",

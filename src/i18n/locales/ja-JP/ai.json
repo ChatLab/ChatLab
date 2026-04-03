@@ -49,6 +49,7 @@
       "tools": {
         "get_chat_overview": "チャット概要を取得",
         "search_messages": "チャット履歴を検索",
+        "deep_search_messages": "チャット履歴を深層検索",
         "get_recent_messages": "最近のメッセージを取得",
         "get_member_stats": "メンバー統計を取得",
         "get_time_stats": "時間分布を取得",
@@ -310,6 +311,7 @@
     "builtinToolDesc": {
       "get_chat_overview": "チャット概要情報を取得",
       "search_messages": "チャットメッセージを検索",
+      "deep_search_messages": "チャットメッセージを深層検索",
       "get_recent_messages": "最近のメッセージを取得",
       "get_message_context": "メッセージのコンテキストを取得",
       "get_conversation_between": "2人のやり取りを取得",

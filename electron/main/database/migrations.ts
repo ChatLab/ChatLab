@@ -12,6 +12,7 @@
 
 import type Database from 'better-sqlite3'
 import { t } from '../i18n'
+import { tokenizeForFts } from '../nlp/ftsTokenizer'
 
 /** 迁移脚本接口 */
 interface Migration {
@@ -35,7 +36,7 @@ export interface MigrationInfo {
 }
 
 /** 当前 schema 版本（最新迁移的版本号） */
-export const CURRENT_SCHEMA_VERSION = 3
+export const CURRENT_SCHEMA_VERSION = 4
 
 /**
  * 迁移脚本列表
@@ -135,6 +136,56 @@ const migrations: Migration[] = [
       const hasGapThresholdColumn = tableInfo.some((col) => col.name === 'session_gap_threshold')
       if (!hasGapThresholdColumn) {
         db.exec('ALTER TABLE meta ADD COLUMN session_gap_threshold INTEGER')
+      }
+    },
+  },
+  {
+    version: 4,
+    descriptionKey: 'database.migrationV4Desc',
+    userMessageKey: 'database.migrationV4Message',
+    up: (db) => {
+      const hasTable = db
+        .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='message_fts'")
+        .get()
+      if (hasTable) return
+
+      db.exec(`
+        CREATE VIRTUAL TABLE IF NOT EXISTS message_fts USING fts5(
+          content,
+          content='',
+          content_rowid=id
+        )
+      `)
+
+      const BATCH_SIZE = 5000
+      const insertFts = db.prepare('INSERT INTO message_fts(rowid, content) VALUES (?, ?)')
+
+      const countRow = db
+        .prepare(
+          "SELECT COUNT(*) as total FROM message WHERE type = 0 AND content IS NOT NULL AND content != ''"
+        )
+        .get() as { total: number }
+
+      let offset = 0
+      while (offset < countRow.total) {
+        const rows = db
+          .prepare(
+            `SELECT id, content FROM message
+             WHERE type = 0 AND content IS NOT NULL AND content != ''
+             ORDER BY id ASC LIMIT ? OFFSET ?`
+          )
+          .all(BATCH_SIZE, offset) as Array<{ id: number; content: string }>
+
+        if (rows.length === 0) break
+
+        for (const row of rows) {
+          const tokens = tokenizeForFts(row.content)
+          if (tokens) {
+            insertFts.run(row.id, tokens)
+          }
+        }
+
+        offset += BATCH_SIZE
       }
     },
   },

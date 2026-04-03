@@ -41,6 +41,8 @@ export default {
     migrationV2Message: 'Support member roles, message reply relationships and reply preview',
     migrationV3Desc: 'Add session index tables (chat_session, message_context) and session_gap_threshold field',
     migrationV3Message: 'Support session timeline browsing and AI-enhanced analysis',
+    migrationV4Desc: 'Create FTS5 full-text search index (message_fts) and build index data',
+    migrationV4Message: 'Enable full-text search for significantly faster keyword search',
     integrityError:
       'Database structure is incomplete: missing meta table. Please delete this database file and re-import.',
     checkFailed: 'Database check failed: {{error}}',
@@ -70,6 +72,20 @@ export default {
             'Start time, format "YYYY-MM-DD HH:mm", e.g. "2024-03-15 14:00". Overrides year/month/day/hour when specified',
           end_time:
             'End time, format "YYYY-MM-DD HH:mm", e.g. "2024-03-15 18:30". Overrides year/month/day/hour when specified',
+        },
+      },
+      deep_search_messages: {
+        desc: 'Exact substring match search for chat records. Slower but never misses any message containing the keyword. Use when regular search (search_messages) results are insufficient, or when searching for partial words or single characters.',
+        params: {
+          keywords: 'List of search keywords, using substring match (LIKE). Returns messages matching any keyword',
+          sender_id: 'Sender member ID for filtering messages from a specific member',
+          limit: 'Message count limit, default 1000, max 50000',
+          year: 'Filter messages by year, e.g. 2024',
+          month: 'Filter messages by month (1-12), use with year',
+          day: 'Filter messages by day (1-31), use with year and month',
+          hour: 'Filter messages by hour (0-23), use with year, month, and day',
+          start_time: 'Start time, format "YYYY-MM-DD HH:mm". Overrides year/month/day/hour when specified',
+          end_time: 'End time, format "YYYY-MM-DD HH:mm". Overrides year/month/day/hour when specified',
         },
       },
       get_recent_messages: {

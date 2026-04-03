@@ -6,6 +6,8 @@
 
 import { openDatabase, buildTimeFilter, type TimeFilter } from '../core'
 import { ensureAvatarColumn } from './basic'
+import { hasFtsIndex } from './fts'
+import { tokenizeQueryForFts } from '../../nlp/ftsTokenizer'
 
 // ==================== 类型定义 ====================
 
@@ -275,22 +277,110 @@ export function searchMessages(
   const db = openDatabase(sessionId)
   if (!db) return { messages: [], total: 0 }
 
-  // 构建关键词条件（OR 逻辑）
-  let keywordCondition = '1=1' // 默认条件（始终为真）
+  const useFts = keywords.length > 0 && hasFtsIndex(sessionId)
+  let matchQuery = ''
+  if (useFts) {
+    matchQuery = tokenizeQueryForFts(keywords)
+  }
+
+  // FTS5 路径：使用倒排索引加速搜索
+  if (useFts && matchQuery) {
+    return searchMessagesWithFts(db, sessionId, matchQuery, filter, limit, offset, senderId)
+  }
+
+  // LIKE 路径（fallback）：旧数据库无 FTS 索引或无关键词
+  return searchMessagesWithLike(db, keywords, filter, limit, offset, senderId)
+}
+
+/**
+ * FTS5 搜索路径
+ */
+function searchMessagesWithFts(
+  db: ReturnType<typeof openDatabase> & object,
+  _sessionId: string,
+  matchQuery: string,
+  filter?: TimeFilter,
+  limit: number = 20,
+  offset: number = 0,
+  senderId?: number
+): MessagesWithTotal {
+  const { clause: timeClause, params: timeParams } = buildTimeFilter(filter, 'msg')
+  const timeCondition = timeClause ? timeClause.replace('WHERE', 'AND') : ''
+  const { condition: senderCondition, params: senderParams } = buildSenderCondition(senderId)
+
+  try {
+    const countSql = `
+      SELECT COUNT(*) as total
+      FROM message msg
+      JOIN member m ON msg.sender_id = m.id
+      WHERE msg.id IN (SELECT rowid FROM message_fts WHERE content MATCH ?)
+      ${timeCondition}
+      ${senderCondition}
+    `
+    const totalRow = db.prepare(countSql).get(matchQuery, ...timeParams, ...senderParams) as { total: number }
+    const total = totalRow?.total || 0
+
+    const sql = `
+      SELECT
+        msg.id,
+        m.id as senderId,
+        COALESCE(m.group_nickname, m.account_name, m.platform_id) as senderName,
+        m.platform_id as senderPlatformId,
+        m.aliases,
+        m.avatar,
+        msg.content,
+        msg.ts as timestamp,
+        msg.type,
+        msg.reply_to_message_id,
+        reply_msg.content as replyToContent,
+        COALESCE(reply_m.group_nickname, reply_m.account_name, reply_m.platform_id) as replyToSenderName
+      FROM message msg
+      JOIN member m ON msg.sender_id = m.id
+      LEFT JOIN message reply_msg ON msg.reply_to_message_id = reply_msg.platform_message_id
+      LEFT JOIN member reply_m ON reply_msg.sender_id = reply_m.id
+      WHERE msg.id IN (SELECT rowid FROM message_fts WHERE content MATCH ?)
+      ${timeCondition}
+      ${senderCondition}
+      ORDER BY msg.ts DESC
+      LIMIT ? OFFSET ?
+    `
+
+    const rows = db
+      .prepare(sql)
+      .all(matchQuery, ...timeParams, ...senderParams, limit, offset) as DbMessageRow[]
+
+    return {
+      messages: rows.map(sanitizeMessageRow),
+      total,
+    }
+  } catch (error) {
+    console.error('[FTS] searchMessages FTS path failed, falling back to LIKE:', error)
+    return searchMessagesWithLike(db, [], filter, limit, offset, senderId)
+  }
+}
+
+/**
+ * LIKE 搜索路径（fallback 或 deep_search 使用）
+ */
+export function searchMessagesWithLike(
+  db: ReturnType<typeof openDatabase> & object,
+  keywords: string[],
+  filter?: TimeFilter,
+  limit: number = 20,
+  offset: number = 0,
+  senderId?: number
+): MessagesWithTotal {
+  let keywordCondition = '1=1'
   const keywordParams: string[] = []
   if (keywords.length > 0) {
     keywordCondition = `(${keywords.map(() => `msg.content LIKE ?`).join(' OR ')})`
     keywordParams.push(...keywords.map((k) => `%${k}%`))
   }
 
-  // 构建时间过滤条件（使用 'msg' 表别名避免多表 JOIN 时的列名歧义）
   const { clause: timeClause, params: timeParams } = buildTimeFilter(filter, 'msg')
   const timeCondition = timeClause ? timeClause.replace('WHERE', 'AND') : ''
-
-  // 构建发送者筛选条件
   const { condition: senderCondition, params: senderParams } = buildSenderCondition(senderId)
 
-  // 查询总数
   const countSql = `
     SELECT COUNT(*) as total
     FROM message msg
@@ -302,7 +392,6 @@ export function searchMessages(
   const totalRow = db.prepare(countSql).get(...keywordParams, ...timeParams, ...senderParams) as { total: number }
   const total = totalRow?.total || 0
 
-  // 查询消息
   const sql = `
     SELECT
       msg.id,
@@ -334,6 +423,24 @@ export function searchMessages(
     messages: rows.map(sanitizeMessageRow),
     total,
   }
+}
+
+/**
+ * 深度搜索消息（LIKE 子串匹配，速度较慢但不会遗漏）
+ * 始终使用 LIKE 路径，不经过 FTS5。
+ */
+export function deepSearchMessages(
+  sessionId: string,
+  keywords: string[],
+  filter?: TimeFilter,
+  limit: number = 20,
+  offset: number = 0,
+  senderId?: number
+): MessagesWithTotal {
+  ensureAvatarColumn(sessionId)
+  const db = openDatabase(sessionId)
+  if (!db) return { messages: [], total: 0 }
+  return searchMessagesWithLike(db, keywords, filter, limit, offset, senderId)
 }
 
 /**

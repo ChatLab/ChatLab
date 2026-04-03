@@ -49,6 +49,7 @@
       "tools": {
         "get_chat_overview": "取得聊天概覽",
         "search_messages": "搜尋聊天紀錄",
+        "deep_search_messages": "深度搜尋聊天紀錄",
         "get_recent_messages": "取得最近訊息",
         "get_member_stats": "取得成員統計",
         "get_time_stats": "取得時間分佈",
@@ -310,6 +311,7 @@
     "builtinToolDesc": {
       "get_chat_overview": "取得聊天概覽資訊",
       "search_messages": "搜尋聊天訊息",
+      "deep_search_messages": "深度搜尋聊天訊息",
       "get_recent_messages": "取得最近訊息",
       "get_message_context": "取得訊息上下文",
       "get_conversation_between": "取得兩人對話",

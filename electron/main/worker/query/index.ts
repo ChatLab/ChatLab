@@ -44,6 +44,7 @@ export type { ClusterGraphData, ClusterGraphNode, ClusterGraphLink, ClusterGraph
 // 聊天记录查询
 export {
   searchMessages,
+  deepSearchMessages,
   getMessageContext,
   getRecentMessages,
   getAllRecentMessages,
@@ -94,3 +95,6 @@ export type {
 
 // NLP 查询
 export { getWordFrequency, segmentText, getPosTags } from './nlp'
+
+// FTS 索引管理
+export { hasFtsIndex, buildFtsIndex, rebuildFtsIndex } from './fts'

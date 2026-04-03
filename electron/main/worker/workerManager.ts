@@ -469,6 +469,20 @@ export async function searchMessages(
 }
 
 /**
+ * 深度搜索消息（LIKE 子串匹配，速度较慢但不会遗漏）
+ */
+export async function deepSearchMessages(
+  sessionId: string,
+  keywords: string[],
+  filter?: any,
+  limit?: number,
+  offset?: number,
+  senderId?: number
+): Promise<{ messages: SearchMessageResult[]; total: number }> {
+  return sendToWorker('deepSearchMessages', { sessionId, keywords, filter, limit, offset, senderId })
+}
+
+/**
  * 获取消息上下文
  * 支持单个或批量消息 ID，返回合并去重后的上下文消息
  */

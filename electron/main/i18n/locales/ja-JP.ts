@@ -42,6 +42,8 @@ export default {
     migrationV3Desc:
       'セッションインデックス関連テーブル（chat_session、message_context）と session_gap_threshold フィールドを追加',
     migrationV3Message: 'セッションのタイムライン表示と AI 拡張分析に対応',
+    migrationV4Desc: 'FTS5 全文検索インデックス（message_fts）を作成しインデックスデータを構築',
+    migrationV4Message: '全文検索に対応し、キーワード検索速度が大幅に向上',
     integrityError:
       'データベース構造が不完全です：meta テーブルがありません。このデータベースファイルを削除して再インポートすることをお勧めします。',
     checkFailed: 'データベースチェックに失敗しました: {{error}}',
@@ -71,6 +73,20 @@ export default {
             '開始時刻。形式 "YYYY-MM-DD HH:mm"（例："2024-03-15 14:00"）。指定すると year/month/day/hour パラメータを上書きする',
           end_time:
             '終了時刻。形式 "YYYY-MM-DD HH:mm"（例："2024-03-15 18:30"）。指定すると year/month/day/hour パラメータを上書きする',
+        },
+      },
+      deep_search_messages: {
+        desc: '完全部分文字列マッチでチャット履歴を検索する。速度は遅いが、キーワードを含むメッセージを漏らさない。通常の検索（search_messages）の結果が不十分な場合や、部分的な単語・単一文字を検索する場合に使用する。',
+        params: {
+          keywords: '検索キーワードリスト。部分文字列マッチ（LIKE）を使用し、いずれかのキーワードにマッチしたメッセージを返す',
+          sender_id: '送信者のメンバー ID。特定メンバーの送信メッセージをフィルタリングする',
+          limit: '返却メッセージ数の上限。デフォルト 1000、最大 50000',
+          year: '指定年のメッセージをフィルタリング（例：2024）',
+          month: '指定月のメッセージをフィルタリング（1-12）。year と併用する必要がある',
+          day: '指定日のメッセージをフィルタリング（1-31）。year と month と併用する必要がある',
+          hour: '指定時間のメッセージをフィルタリング（0-23）。year、month、day と併用する必要がある',
+          start_time: '開始時刻。形式 "YYYY-MM-DD HH:mm"。指定すると year/month/day/hour パラメータを上書きする',
+          end_time: '終了時刻。形式 "YYYY-MM-DD HH:mm"。指定すると year/month/day/hour パラメータを上書きする',
         },
       },
       get_recent_messages: {

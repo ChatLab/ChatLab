@@ -32,6 +32,7 @@ import {
   getLaughAnalysis,
   getClusterGraph,
   searchMessages,
+  deepSearchMessages,
   getMessageContext,
   getRecentMessages,
   getAllRecentMessages,
@@ -160,6 +161,9 @@ const syncHandlers: Record<string, (payload: any) => any> = {
   getWordFrequency: (p) => getWordFrequency(p),
   segmentText: (p) => segmentText(p.text, p.locale, p.minLength),
   getPosTags: () => getPosTags(),
+
+  // 深度搜索（LIKE 子串匹配）
+  deepSearchMessages: (p) => deepSearchMessages(p.sessionId, p.keywords, p.filter, p.limit, p.offset, p.senderId),
 }
 
 // 异步消息处理器（流式操作）

@@ -120,6 +120,14 @@ function createDatabase(sessionId: string): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_context_session ON message_context(session_id);
   `)
 
+  db.exec(`
+    CREATE VIRTUAL TABLE IF NOT EXISTS message_fts USING fts5(
+      content,
+      content='',
+      content_rowid=id
+    )
+  `)
+
   return db
 }
 

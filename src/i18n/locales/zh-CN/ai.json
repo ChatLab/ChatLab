@@ -49,6 +49,7 @@
       "tools": {
         "get_chat_overview": "获取聊天概览",
         "search_messages": "搜索聊天记录",
+        "deep_search_messages": "深度搜索聊天记录",
         "get_recent_messages": "获取最近消息",
         "get_member_stats": "获取成员统计",
         "get_time_stats": "获取时间分布",
@@ -310,6 +311,7 @@
     "builtinToolDesc": {
       "get_chat_overview": "获取聊天概览信息",
       "search_messages": "搜索聊天消息",
+      "deep_search_messages": "深度搜索聊天消息",
       "get_recent_messages": "获取最近消息",
       "get_message_context": "获取消息上下文",
       "get_conversation_between": "获取两人对话",

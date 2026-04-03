@@ -703,6 +703,44 @@ async function streamImportSingle(
     createIndexes(db)
     logPerf('Indexes created', totalMessageCount)
 
+    // 构建 FTS5 全文搜索索引
+    try {
+      const { createFtsTable } = await import('../query/fts')
+      const { tokenizeForFts } = await import('../../nlp/ftsTokenizer')
+
+      createFtsTable(db)
+
+      const FTS_BATCH = 5000
+      const insertFts = db.prepare('INSERT INTO message_fts(rowid, content) VALUES (?, ?)')
+      let ftsOffset = 0
+
+      while (true) {
+        const rows = db
+          .prepare(
+            `SELECT id, content FROM message
+             WHERE type = 0 AND content IS NOT NULL AND content != ''
+             ORDER BY id ASC LIMIT ? OFFSET ?`
+          )
+          .all(FTS_BATCH, ftsOffset) as Array<{ id: number; content: string }>
+
+        if (rows.length === 0) break
+
+        const batch = db.transaction(() => {
+          for (const row of rows) {
+            const tokens = tokenizeForFts(row.content)
+            if (tokens) insertFts.run(row.id, tokens)
+          }
+        })
+        batch()
+
+        ftsOffset += FTS_BATCH
+      }
+
+      logPerf('FTS index built', totalMessageCount)
+    } catch (ftsError) {
+      logError('FTS index build failed (non-fatal)', ftsError instanceof Error ? ftsError : undefined)
+    }
+
     // 最终 WAL checkpoint
     sendProgress(requestId, {
       stage: 'importing',

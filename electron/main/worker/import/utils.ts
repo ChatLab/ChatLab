@@ -64,7 +64,7 @@ export function createDatabaseWithoutIndexes(sessionId: string): Database.Databa
       group_id TEXT,
       group_avatar TEXT,
       owner_id TEXT,
-      schema_version INTEGER DEFAULT 3,
+      schema_version INTEGER DEFAULT 4,
       session_gap_threshold INTEGER
     );
 
