@@ -5,7 +5,10 @@
 export enum ApiErrorCode {
   UNAUTHORIZED = 'UNAUTHORIZED',
   SESSION_NOT_FOUND = 'SESSION_NOT_FOUND',
+  CONVERSATION_NOT_FOUND = 'CONVERSATION_NOT_FOUND',
   INVALID_FORMAT = 'INVALID_FORMAT',
+  INVALID_CREDENTIALS = 'INVALID_CREDENTIALS',
+  LOGIN_FAILED = 'LOGIN_FAILED',
   SQL_READONLY_VIOLATION = 'SQL_READONLY_VIOLATION',
   SQL_EXECUTION_ERROR = 'SQL_EXECUTION_ERROR',
   EXPORT_TOO_LARGE = 'EXPORT_TOO_LARGE',
@@ -18,7 +21,10 @@ export enum ApiErrorCode {
 const HTTP_STATUS: Record<ApiErrorCode, number> = {
   [ApiErrorCode.UNAUTHORIZED]: 401,
   [ApiErrorCode.SESSION_NOT_FOUND]: 404,
+  [ApiErrorCode.CONVERSATION_NOT_FOUND]: 404,
   [ApiErrorCode.INVALID_FORMAT]: 400,
+  [ApiErrorCode.INVALID_CREDENTIALS]: 400,
+  [ApiErrorCode.LOGIN_FAILED]: 401,
   [ApiErrorCode.SQL_READONLY_VIOLATION]: 400,
   [ApiErrorCode.SQL_EXECUTION_ERROR]: 400,
   [ApiErrorCode.EXPORT_TOO_LARGE]: 400,
@@ -46,6 +52,18 @@ export function unauthorized(message = 'Invalid or missing token'): ApiError {
 
 export function sessionNotFound(id: string): ApiError {
   return new ApiError(ApiErrorCode.SESSION_NOT_FOUND, `Session not found: ${id}`)
+}
+
+export function conversationNotFound(id: string): ApiError {
+  return new ApiError(ApiErrorCode.CONVERSATION_NOT_FOUND, `Conversation not found: ${id}`)
+}
+
+export function invalidCredentials(): ApiError {
+  return new ApiError(ApiErrorCode.INVALID_CREDENTIALS, 'Invalid username or password')
+}
+
+export function loginFailed(message: string): ApiError {
+  return new ApiError(ApiErrorCode.LOGIN_FAILED, `Login failed: ${message}`)
 }
 
 export function invalidFormat(message: string): ApiError {

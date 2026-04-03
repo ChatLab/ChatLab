@@ -9,6 +9,7 @@ import { loadConfig, saveConfig, ensureToken, type ApiServerConfig } from './con
 import { registerSystemRoutes } from './routes/system'
 import { registerSessionRoutes } from './routes/sessions'
 import { registerImportRoutes } from './routes/import'
+import { registerWebUIRoutes } from './routes/webui'
 
 let server: FastifyInstance | null = null
 let startedAt: number | null = null
@@ -45,6 +46,7 @@ export async function start(): Promise<void> {
     registerSystemRoutes(server)
     registerSessionRoutes(server)
     registerImportRoutes(server)
+    registerWebUIRoutes(server)
 
     await server.listen({ port: config.port, host: '127.0.0.1' })
     startedAt = Math.floor(Date.now() / 1000)
