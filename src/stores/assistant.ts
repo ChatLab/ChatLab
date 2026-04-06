@@ -48,9 +48,18 @@ export interface CloudAssistantItem {
   path: string
 }
 
+interface RememberedAssistantState {
+  assistantId: string
+  expiresAt: number
+}
+
+const REMEMBER_ASSISTANT_DAYS = 7
+const REMEMBER_ASSISTANT_MS = REMEMBER_ASSISTANT_DAYS * 24 * 60 * 60 * 1000
+
 export const useAssistantStore = defineStore('assistant', () => {
   const assistants = ref<AssistantSummary[]>([])
   const selectedAssistantId = ref<string | null>(null)
+  const rememberedAssistant = ref<RememberedAssistantState | null>(null)
   const isLoaded = ref(false)
 
   /** @deprecated 本地内置目录已清空，保留兼容 */
@@ -99,6 +108,26 @@ export const useAssistantStore = defineStore('assistant', () => {
     }))
   })
 
+  function getValidRememberedAssistantId(): string | null {
+    const remembered = rememberedAssistant.value
+    if (!remembered) return null
+    if (!remembered.assistantId || typeof remembered.expiresAt !== 'number') {
+      rememberedAssistant.value = null
+      return null
+    }
+    if (remembered.expiresAt <= Date.now()) {
+      rememberedAssistant.value = null
+      return null
+    }
+    return remembered.assistantId
+  }
+
+  function isAssistantAvailableForContext(assistant: AssistantSummary, chatType: 'group' | 'private', locale: string): boolean {
+    const typeMatch = !assistant.applicableChatTypes?.length || assistant.applicableChatTypes.includes(chatType)
+    const localeMatch = !assistant.supportedLocales?.length || assistant.supportedLocales.some((l) => locale.startsWith(l))
+    return typeMatch && localeMatch
+  }
+
   function setFilterContext(chatType: 'group' | 'private', locale: string): void {
     currentChatType.value = chatType
     currentLocale.value = locale
@@ -107,6 +136,10 @@ export const useAssistantStore = defineStore('assistant', () => {
   async function loadAssistants(): Promise<void> {
     try {
       assistants.value = await window.assistantApi.getAll()
+      const rememberedAssistantId = getValidRememberedAssistantId()
+      if (rememberedAssistantId && !assistants.value.some((assistant) => assistant.id === rememberedAssistantId)) {
+        rememberedAssistant.value = null
+      }
       isLoaded.value = true
     } catch (error) {
       console.error('[AssistantStore] Failed to load assistants:', error)
@@ -195,6 +228,25 @@ export const useAssistantStore = defineStore('assistant', () => {
 
   function clearSelection(): void {
     selectedAssistantId.value = null
+  }
+
+  function rememberAssistantForDays(id: string | null, days = REMEMBER_ASSISTANT_DAYS): void {
+    if (!id) {
+      rememberedAssistant.value = null
+      return
+    }
+    rememberedAssistant.value = {
+      assistantId: id,
+      expiresAt: Date.now() + days * 24 * 60 * 60 * 1000,
+    }
+  }
+
+  function getRememberedAssistantIdForContext(chatType: 'group' | 'private', locale: string): string | null {
+    const rememberedAssistantId = getValidRememberedAssistantId()
+    if (!rememberedAssistantId) return null
+    const remembered = assistants.value.find((assistant) => assistant.id === rememberedAssistantId)
+    if (!remembered) return null
+    return isAssistantAvailableForContext(remembered, chatType, locale) ? remembered.id : null
   }
 
   async function getAssistantConfig(id: string): Promise<AssistantConfigFull | null> {
@@ -308,6 +360,7 @@ export const useAssistantStore = defineStore('assistant', () => {
   return {
     assistants,
     selectedAssistantId,
+    rememberedAssistant,
     selectedAssistant,
     isLoaded,
     builtinCatalog,
@@ -330,6 +383,8 @@ export const useAssistantStore = defineStore('assistant', () => {
     isCloudItemImported,
     selectAssistant,
     clearSelection,
+    rememberAssistantForDays,
+    getRememberedAssistantIdForContext,
     setFilterContext,
     getAssistantConfig,
     updateAssistant,
@@ -340,4 +395,11 @@ export const useAssistantStore = defineStore('assistant', () => {
     reimportAssistant,
     deleteAssistant,
   }
+}, {
+  persist: [
+    {
+      pick: ['rememberedAssistant'],
+      storage: localStorage,
+    },
+  ],
 })

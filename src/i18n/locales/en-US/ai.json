@@ -243,7 +243,8 @@
       "subtitle": "Each assistant specializes in different types of analysis tasks. Pick the one that best fits your needs.",
       "noAssistants": "No assistants available for this context",
       "manage": "Manage Assistants",
-      "addNew": "New Assistant"
+      "addNew": "New Assistant",
+      "rememberSelection": "Remember this choice for 7 days"
     },
     "config": {
       "viewTitle": "View Config",

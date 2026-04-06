@@ -498,16 +498,28 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
   }
 
   /**
-   * 每次 ChatExplorer 挂载时调用，将界面重置到助手选择页。
-   * 如果是从浮动任务条返回（pendingFocusReturn），则跳过重置以保留对话状态。
+   * 每次 ChatExplorer 挂载时调用。
+   * 如果存在有效的记忆助手则直接进入对应助手，否则回到助手选择页。
+   * 从浮动任务条返回（pendingFocusReturn）时跳过重置以保留对话状态。
    */
-  function resetToSelectorOnEnter(chatKey: string): void {
+  async function resetToSelectorOnEnter(chatKey: string): Promise<void> {
     if (pendingFocusReturn) {
       pendingFocusReturn = false
       return
     }
     const state = getSessionState(chatKey)
     if (!state || state.isAIThinking) return
+
+    if (!assistantStore.isLoaded) {
+      await assistantStore.loadAssistants()
+    }
+
+    const rememberedAssistantId = assistantStore.getRememberedAssistantIdForContext(state.chatType, state.locale)
+    if (rememberedAssistantId && selectAssistantForSession(chatKey, rememberedAssistantId)) {
+      startNewConversation(chatKey)
+      return
+    }
+
     clearAssistantForSession(chatKey)
   }
 

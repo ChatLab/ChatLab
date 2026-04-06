@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useAssistantStore } from '@/stores/assistant'
@@ -13,13 +13,14 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
-  select: [id: string]
+  select: [payload: { id: string; remember: boolean }]
   configure: [id: string]
   market: []
 }>()
 
 const assistantStore = useAssistantStore()
 const { filteredAssistants, isLoaded } = storeToRefs(assistantStore)
+const rememberSelection = ref(true)
 
 function getLocaleGeneralId(locale: string): string {
   if (locale.startsWith('ja')) return 'general_ja'
@@ -51,7 +52,10 @@ onMounted(async () => {
 })
 
 function handleSelect(id: string) {
-  emit('select', id)
+  emit('select', {
+    id,
+    remember: rememberSelection.value,
+  })
 }
 
 function handleConfigure(id: string) {
@@ -97,15 +101,23 @@ function handleConfigure(id: string) {
         </div>
       </div>
 
+      <div class="mt-4 shrink-0 text-center">
+        <div class="inline-flex">
+          <UCheckbox v-model="rememberSelection" :label="t('ai.assistant.selector.rememberSelection')" />
+        </div>
+      </div>
+
       <!-- 管理助手入口 -->
       <div class="mt-6 shrink-0 text-center">
-        <button
-          class="inline-flex items-center gap-1.5 text-sm text-gray-400 transition-colors hover:text-primary-500 dark:text-gray-500 dark:hover:text-primary-400"
+        <UButton
+          color="primary"
+          variant="soft"
+          size="sm"
+          icon="i-heroicons-cog-6-tooth"
           @click="emit('market')"
         >
-          <UIcon name="i-heroicons-cog-6-tooth" class="h-4 w-4" />
-          <span>{{ t('ai.assistant.selector.manage') }}</span>
-        </button>
+          {{ t('ai.assistant.selector.manage') }}
+        </UButton>
       </div>
     </div>
   </div>

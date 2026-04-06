@@ -243,7 +243,8 @@
       "subtitle": "每位助手都擅長不同分析任務，請選擇最符合需求的一位",
       "noAssistants": "當前場景暫無可用助手",
       "manage": "管理助手",
-      "addNew": "新增助手"
+      "addNew": "新增助手",
+      "rememberSelection": "7天內記住此選擇"
     },
     "config": {
       "viewTitle": "檢視設定",

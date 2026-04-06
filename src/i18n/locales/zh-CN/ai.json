@@ -243,7 +243,8 @@
       "subtitle": "每个助手擅长不同类型的分析任务，选择最适合你需求的助手",
       "noAssistants": "当前场景暂无可用助手",
       "manage": "管理助手",
-      "addNew": "新增助手"
+      "addNew": "新增助手",
+      "rememberSelection": "7天内记住此选择"
     },
     "config": {
       "viewTitle": "查看配置",

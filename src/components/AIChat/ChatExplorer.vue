@@ -172,10 +172,13 @@ function showLockedActionToast() {
 }
 
 // 选择助手
-function handleSelectAssistant(id: string) {
-  if (!selectAssistantForSession(id)) {
+function handleSelectAssistant(payload: { id: string; remember: boolean }) {
+  if (!selectAssistantForSession(payload.id)) {
     showLockedActionToast()
     return
+  }
+  if (payload.remember) {
+    assistantStore.rememberAssistantForDays(payload.id, 7)
   }
   startNewConversation()
 }
@@ -239,7 +242,17 @@ function handleCreateConversation() {
     showLockedActionToast()
     return
   }
-  if (!selectedAssistantId.value) return
+  if (!selectedAssistantId.value) {
+    const rememberedAssistantId = assistantStore.getRememberedAssistantIdForContext(
+      currentChatType.value,
+      settingsStore.locale
+    )
+    if (!rememberedAssistantId) return
+    if (!selectAssistantForSession(rememberedAssistantId)) {
+      showLockedActionToast()
+      return
+    }
+  }
   startNewConversation()
 }
 
