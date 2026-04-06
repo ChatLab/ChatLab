@@ -214,7 +214,20 @@ function formatToolParams(tool: ToolBlockContent): string {
     return `${t('ai.chat.message.toolParams.memberId')}: ${params.member_id}`
   }
 
-  return ''
+  // 通用兜底方案：展示最多3个非空参数
+  const genericParts: string[] = []
+  for (const [key, value] of Object.entries(params)) {
+    if (value === undefined || value === null || value === '') continue
+    const strVal = typeof value === 'object' ? JSON.stringify(value) : String(value)
+    const displayVal = strVal.length > 30 ? strVal.substring(0, 30) + '...' : strVal
+    genericParts.push(`${key}: ${displayVal}`)
+    if (genericParts.length >= 3) {
+      genericParts.push('...')
+      break
+    }
+  }
+
+  return genericParts.join(' | ')
 }
 </script>
 
@@ -231,7 +244,7 @@ function formatToolParams(tool: ToolBlockContent): string {
 
       <!-- AI 消息：混合内容块布局 -->
       <template v-else-if="useBlocksRendering">
-        <div class="space-y-3">
+        <div class="space-y-2">
           <template v-for="(block, idx) in visibleBlocks" :key="idx">
             <!-- 文本块 -->
             <div v-if="block.type === 'text'" class="py-1 text-gray-900 dark:text-gray-100">
@@ -287,12 +300,12 @@ function formatToolParams(tool: ToolBlockContent): string {
             <!-- 工具块 -->
             <div
               v-else-if="block.type === 'tool'"
-              class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
+              class="flex w-fit items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs transition-colors"
               :class="[
                 block.tool.status === 'running'
-                  ? 'bg-gray-50 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400'
+                  ? 'bg-gray-100 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400'
                   : block.tool.status === 'done'
-                    ? 'bg-gray-50 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400'
+                    ? 'bg-gray-50 text-gray-500 dark:bg-gray-800/30 dark:text-gray-400/80'
                     : 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400',
               ]"
             >
@@ -302,31 +315,32 @@ function formatToolParams(tool: ToolBlockContent): string {
                   block.tool.status === 'running'
                     ? 'i-heroicons-arrow-path'
                     : block.tool.status === 'done'
-                      ? 'i-heroicons-check-circle'
-                      : 'i-heroicons-x-circle'
+                      ? 'i-heroicons-wrench-screwdriver'
+                      : 'i-heroicons-exclamation-circle'
                 "
-                class="h-4 w-4 shrink-0"
-                :class="[
-                  block.tool.status === 'running'
-                    ? 'animate-spin text-gray-500 dark:text-gray-400'
-                    : block.tool.status === 'done'
-                      ? 'text-gray-400 dark:text-gray-500'
-                      : 'text-red-500',
-                ]"
+                class="h-3.5 w-3.5 shrink-0"
+                :class="[block.tool.status === 'running' ? 'animate-spin' : '']"
               />
               <!-- 工具信息 -->
-              <div class="min-w-0 flex-1">
-                <!-- 调用前缀 -->
-                <span class="text-xs text-gray-400 dark:text-gray-500 mr-1">{{ t('ai.chat.message.calling') }}</span>
-                <span class="font-medium text-gray-700 dark:text-gray-300">
+              <div class="flex min-w-0 items-baseline gap-1.5 font-medium">
+                <span>
                   {{
                     te(`ai.chat.message.tools.${block.tool.name}`)
                       ? t(`ai.chat.message.tools.${block.tool.name}`)
                       : block.tool.displayName
                   }}
                 </span>
-                <span v-if="formatToolParams(block.tool)" class="ml-2 text-xs text-gray-500 dark:text-gray-400">
+                <span
+                  v-if="formatToolParams(block.tool)"
+                  class="truncate font-normal text-[11px] opacity-75 max-w-[200px] sm:max-w-[300px]"
+                >
                   {{ formatToolParams(block.tool) }}
+                </span>
+                <span
+                  v-if="block.tool.status === 'done' && block.tool.durationMs"
+                  class="shrink-0 font-normal text-[11px] opacity-75"
+                >
+                  · {{ formatThinkDuration(block.tool.durationMs) }}
                 </span>
               </div>
             </div>
