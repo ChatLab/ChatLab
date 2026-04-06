@@ -3,7 +3,6 @@ import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import dayjs from 'dayjs'
 import MarkdownIt from 'markdown-it'
-import userAvatar from '@/assets/images/momo.png'
 import type { ContentBlock, ToolBlockContent } from '@/composables/useAIChat'
 import CaptureButton from '@/components/common/CaptureButton.vue'
 
@@ -221,23 +220,12 @@ function formatToolParams(tool: ToolBlockContent): string {
 
 <template>
   <div class="flex items-start gap-3" :class="[isUser ? 'flex-row-reverse' : '']">
-    <!-- 头像 -->
-    <div v-if="isUser" class="h-8 w-8 shrink-0 overflow-hidden rounded-full">
-      <img :src="userAvatar" :alt="t('ai.chat.message.userAvatar')" class="h-full w-full object-cover" />
-    </div>
-    <div
-      v-else
-      class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-pink-500 to-pink-600"
-    >
-      <UIcon name="i-heroicons-sparkles" class="h-4 w-4 text-white" />
-    </div>
-
     <!-- 消息内容 -->
-    <div class="max-w-[80%] min-w-0">
+    <div class="max-w-[85%] min-w-0">
       <!-- 用户消息：简单气泡 -->
       <template v-if="isUser">
-        <div class="rounded-2xl rounded-tr-sm bg-blue-500 px-4 py-3 text-white">
-          <div class="prose prose-sm prose-invert max-w-none leading-relaxed" v-html="renderedContent" />
+        <div class="rounded-3xl bg-primary-50 px-5 py-3 text-gray-900 dark:bg-primary-500/50 dark:text-gray-100">
+          <div class="prose prose-sm dark:prose-invert max-w-none leading-relaxed" v-html="renderedContent" />
         </div>
       </template>
 
@@ -246,10 +234,7 @@ function formatToolParams(tool: ToolBlockContent): string {
         <div class="space-y-3">
           <template v-for="(block, idx) in visibleBlocks" :key="idx">
             <!-- 文本块 -->
-            <div
-              v-if="block.type === 'text'"
-              class="rounded-2xl rounded-tl-sm bg-gray-100 px-4 py-3 text-gray-900 dark:bg-gray-800 dark:text-gray-100"
-            >
+            <div v-if="block.type === 'text'" class="py-1 text-gray-900 dark:text-gray-100">
               <div
                 class="prose prose-sm dark:prose-invert max-w-none leading-relaxed"
                 v-html="renderMarkdown(block.text)"
@@ -257,16 +242,18 @@ function formatToolParams(tool: ToolBlockContent): string {
               <!-- 流式输出光标（只在最后一个文本块显示） -->
               <span
                 v-if="isStreaming && idx === visibleBlocks.length - 1"
-                class="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-pink-500"
+                class="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-gray-800 dark:bg-gray-200"
               />
             </div>
 
             <!-- 思考块（默认折叠） -->
             <details
               v-else-if="block.type === 'think'"
-              class="rounded-2xl px-2 py-1 text-xs text-gray-600 dark:text-gray-400"
+              class="mb-2 border-l-2 border-gray-200 pl-4 py-1 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400"
             >
-              <summary class="cursor-pointer select-none text-xs font-medium text-gray-500 dark:text-gray-400">
+              <summary
+                class="cursor-pointer select-none text-xs font-medium transition-colors hover:text-gray-700 dark:hover:text-gray-300"
+              >
                 {{ getThinkLabel(block.tag) }}
                 <span v-if="block.durationMs" class="ml-2 text-xs text-gray-400 dark:text-gray-500">
                   {{ formatThinkDuration(block.durationMs) }}
@@ -291,7 +278,7 @@ function formatToolParams(tool: ToolBlockContent): string {
             <!-- 技能块 -->
             <div
               v-else-if="block.type === 'skill'"
-              class="inline-flex items-center gap-1.5 rounded-full border border-green-200 bg-green-50 px-3 py-1 text-xs font-medium text-green-700 dark:border-green-800/50 dark:bg-green-900/20 dark:text-green-400"
+              class="inline-flex items-center gap-1.5 rounded-lg bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600 dark:bg-gray-800/50 dark:text-gray-400"
             >
               <UIcon name="i-heroicons-bolt" class="h-3.5 w-3.5" />
               <span>{{ t('ai.skill.active.label', { name: block.skillName }) }}</span>
@@ -300,13 +287,13 @@ function formatToolParams(tool: ToolBlockContent): string {
             <!-- 工具块 -->
             <div
               v-else-if="block.type === 'tool'"
-              class="flex items-center gap-2 rounded-lg border px-3 py-2 text-sm"
+              class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm"
               :class="[
                 block.tool.status === 'running'
-                  ? 'border-pink-200 bg-pink-50 dark:border-pink-800/50 dark:bg-pink-900/20'
+                  ? 'bg-gray-50 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400'
                   : block.tool.status === 'done'
-                    ? 'border-green-200 bg-green-50 dark:border-green-800/50 dark:bg-green-900/20'
-                    : 'border-red-200 bg-red-50 dark:border-red-800/50 dark:bg-red-900/20',
+                    ? 'bg-gray-50 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400'
+                    : 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400',
               ]"
             >
               <!-- 状态图标 -->
@@ -321,9 +308,9 @@ function formatToolParams(tool: ToolBlockContent): string {
                 class="h-4 w-4 shrink-0"
                 :class="[
                   block.tool.status === 'running'
-                    ? 'animate-spin text-pink-500'
+                    ? 'animate-spin text-gray-500 dark:text-gray-400'
                     : block.tool.status === 'done'
-                      ? 'text-green-500'
+                      ? 'text-gray-400 dark:text-gray-500'
                       : 'text-red-500',
                 ]"
               />
@@ -348,12 +335,12 @@ function formatToolParams(tool: ToolBlockContent): string {
           <!-- 流式处理中指示器（当最后一个块是已完成的工具块时显示） -->
           <div
             v-if="isStreaming && visibleBlocks.length > 0 && visibleBlocks[visibleBlocks.length - 1].type === 'tool'"
-            class="flex items-center gap-2 rounded-lg bg-gray-100 px-3 py-2 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-400"
+            class="flex items-center gap-2 px-1 py-2 text-sm text-gray-500 dark:text-gray-400"
           >
             <span class="flex gap-1">
-              <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-pink-500 [animation-delay:0ms]" />
-              <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-pink-500 [animation-delay:150ms]" />
-              <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-pink-500 [animation-delay:300ms]" />
+              <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400 [animation-delay:0ms]" />
+              <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400 [animation-delay:150ms]" />
+              <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-gray-400 [animation-delay:300ms]" />
             </span>
             <span>{{ t('ai.chat.message.generating') }}</span>
           </div>
@@ -362,9 +349,12 @@ function formatToolParams(tool: ToolBlockContent): string {
 
       <!-- AI 消息：传统纯文本渲染（向后兼容） -->
       <template v-else>
-        <div class="rounded-2xl rounded-tl-sm bg-gray-100 px-4 py-3 text-gray-900 dark:bg-gray-800 dark:text-gray-100">
+        <div class="py-1 text-gray-900 dark:text-gray-100">
           <div class="prose prose-sm dark:prose-invert max-w-none leading-relaxed" v-html="renderedContent" />
-          <span v-if="isStreaming" class="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-pink-500" />
+          <span
+            v-if="isStreaming"
+            class="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-gray-800 dark:bg-gray-200"
+          />
         </div>
       </template>
 

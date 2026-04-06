@@ -326,7 +326,7 @@ watch(
 
             <!-- 消息列表 -->
             <div ref="messagesContainer" class="min-h-0 flex-1 overflow-y-auto p-4">
-              <div ref="conversationContentRef" class="mx-auto max-w-3xl space-y-4">
+              <div ref="conversationContentRef" class="mx-auto max-w-3xl space-y-6">
                 <!-- 助手欢迎卡片（仅在无消息时展示，点击可编辑配置） -->
                 <div
                   v-if="showWelcomeCard && welcomeInfo.name"
@@ -353,7 +353,7 @@ watch(
 
                 <!-- QA 对渲染 -->
                 <template v-for="pair in qaPairs" :key="pair.id">
-                  <div class="qa-pair space-y-4">
+                  <div class="qa-pair space-y-6 pb-4">
                     <!-- 用户问题 -->
                     <ChatMessage
                       v-if="pair.user && (pair.user.role === 'user' || pair.user.content)"
