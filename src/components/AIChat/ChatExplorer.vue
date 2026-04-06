@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onBeforeUnmount, watch } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@nuxt/ui/runtime/composables/useToast.js'
 import ConversationList from './chat/ConversationList.vue'
@@ -20,6 +20,9 @@ import { usePromptStore } from '@/stores/prompt'
 import { useSettingsStore } from '@/stores/settings'
 import { useAssistantStore } from '@/stores/assistant'
 import { useSkillStore } from '@/stores/skill'
+import { useChatScroll } from './composables/useChatScroll'
+import { useChatModals } from './composables/useChatModals'
+import { groupMessagesToQAPairs } from './utils/chatMessages'
 import type { MentionedMemberContext } from '@/composables/useAIChat'
 
 const { t } = useI18n()
@@ -60,18 +63,37 @@ const {
   clearAssistantForSession,
 } = useAIChat(props.sessionId, props.sessionName, props.timeFilter, props.chatType ?? 'group', settingsStore.locale)
 
+// 智能滚动
+const { messagesContainer, showScrollToBottom, scrollToBottom, handleScrollToBottom } = useChatScroll(
+  messages,
+  isAIThinking
+)
+
+// 弹窗管理
+const {
+  configModalVisible,
+  configModalAssistantId,
+  configModalReadonly,
+  marketModalVisible,
+  skillMarketModalVisible,
+  skillConfigModalVisible,
+  skillConfigModalSkillId,
+  handleConfigureAssistant,
+  handleOpenMarket,
+  handleMarketConfigure,
+  handleMarketViewConfig,
+  handleCreateAssistant,
+  handleAssistantCreated,
+  handleAssistantConfigSaved,
+  handleOpenSkillMarket,
+  handleSkillMarketConfigure,
+  handleCreateSkill,
+  handleSkillConfigSaved,
+  handleSkillCreated,
+} = useChatModals()
+
 // Store
 const promptStore = usePromptStore()
-
-const configModalVisible = ref(false)
-const configModalAssistantId = ref<string | null>(null)
-const configModalReadonly = ref(false)
-const marketModalVisible = ref(false)
-
-// 技能相关状态
-const skillMarketModalVisible = ref(false)
-const skillConfigModalVisible = ref(false)
-const skillConfigModalSkillId = ref<string | null>(null)
 
 // 当前选中助手的预设问题
 const currentPresetQuestions = computed(() => {
@@ -85,50 +107,17 @@ const currentChatType = computed(() => props.chatType ?? 'group')
 const isSourcePanelCollapsed = ref(false)
 const hasLLMConfig = ref(false)
 const isCheckingConfig = ref(true)
-const messagesContainer = ref<HTMLElement | null>(null)
 const conversationListRef = ref<InstanceType<typeof ConversationList> | null>(null)
 const chatInputRef = ref<{
   fillInput: (content: string) => void
   openSkillSelector: () => void
 } | null>(null)
 
-// 智能滚动状态
-const isStickToBottom = ref(true) // 是否粘在底部（自动滚动）
-const showScrollToBottom = ref(false) // 是否显示"返回底部"按钮
-const RESTICK_THRESHOLD = 30 // 距离底部此距离内时重新粘住
+// QA 对
+const qaPairs = computed(() => groupMessagesToQAPairs(messages.value))
 
 // 截屏功能
 const conversationContentRef = ref<HTMLElement | null>(null)
-
-// 将消息分组为 QA 对（用户问题 + AI 回复）
-const qaPairs = computed(() => {
-  const pairs: Array<{
-    user: (typeof messages.value)[0] | null
-    assistant: (typeof messages.value)[0] | null
-    id: string
-  }> = []
-  let currentUser: (typeof messages.value)[0] | null = null
-
-  for (const msg of messages.value) {
-    if (msg.role === 'user') {
-      // 如果已有用户消息但没有对应的 AI 回复，先保存
-      if (currentUser) {
-        pairs.push({ user: currentUser, assistant: null, id: currentUser.id })
-      }
-      currentUser = msg
-    } else if (msg.role === 'assistant') {
-      pairs.push({ user: currentUser, assistant: msg, id: currentUser?.id || msg.id })
-      currentUser = null
-    }
-  }
-
-  // 处理最后一个未配对的用户消息
-  if (currentUser) {
-    pairs.push({ user: currentUser, assistant: null, id: currentUser.id })
-  }
-
-  return pairs
-})
 
 // 检查 LLM 配置
 async function checkLLMConfig() {
@@ -198,45 +187,6 @@ function handleSelectAssistant(id: string) {
   startNewConversation()
 }
 
-// 打开助手配置弹窗（可编辑）
-function handleConfigureAssistant(id: string) {
-  configModalAssistantId.value = id
-  configModalReadonly.value = false
-  configModalVisible.value = true
-}
-
-// 打开助手市场
-function handleOpenMarket() {
-  marketModalVisible.value = true
-}
-
-// 从市场中打开配置弹窗（可编辑）
-function handleMarketConfigure(id: string) {
-  configModalAssistantId.value = id
-  configModalReadonly.value = false
-  configModalVisible.value = true
-}
-
-// 从市场中查看配置（只读）
-function handleMarketViewConfig(id: string) {
-  configModalAssistantId.value = id
-  configModalReadonly.value = true
-  configModalVisible.value = true
-}
-
-// 新建助手（从管理弹窗触发）
-function handleCreateAssistant() {
-  configModalAssistantId.value = null
-  configModalReadonly.value = false
-  configModalVisible.value = true
-}
-
-// 助手创建完成后刷新列表
-async function handleAssistantCreated(_id: string) {
-  await assistantStore.loadAssistants()
-  await assistantStore.loadBuiltinCatalog()
-}
-
 // 返回助手选择
 function handleBackToSelector() {
   if (!clearAssistantForSession()) {
@@ -244,34 +194,6 @@ function handleBackToSelector() {
     return
   }
   skillStore.activateSkill(null)
-}
-
-function handleOpenSkillMarket() {
-  skillMarketModalVisible.value = true
-}
-
-function handleSkillMarketConfigure(id: string) {
-  skillConfigModalSkillId.value = id
-  skillConfigModalVisible.value = true
-}
-
-function handleCreateSkill() {
-  skillConfigModalSkillId.value = null
-  skillConfigModalVisible.value = true
-}
-
-async function handleSkillConfigSaved() {
-  await skillStore.loadSkills()
-}
-
-async function handleSkillCreated(_id: string) {
-  await skillStore.loadSkills()
-  await skillStore.loadBuiltinCatalog()
-}
-
-// 助手配置保存后刷新列表
-async function handleAssistantConfigSaved() {
-  await assistantStore.loadAssistants()
 }
 
 async function handlePresetQuestion(question: string) {
@@ -285,7 +207,6 @@ function handleUseSkillEntry() {
   chatInputRef.value?.openSkillSelector()
 }
 
-// slash 技能选择在输入框内完成，这里保留事件钩子便于后续扩展联动。
 function handleSkillActivated() {
   scrollToBottom(true)
 }
@@ -299,53 +220,8 @@ async function handleSend(payload: { content: string; mentionedMembers: Mentione
     }
     return
   }
-  // 强制滚动到底部（用户发送消息后应该看到响应）
   scrollToBottom(true)
-  // 刷新对话列表
   conversationListRef.value?.refresh()
-}
-
-// 滚动到底部（强制滚动，用于发送消息等场景）
-function scrollToBottom(force = false) {
-  setTimeout(() => {
-    if (messagesContainer.value) {
-      // 如果强制滚动，或者处于粘性模式，才执行滚动
-      if (force || isStickToBottom.value) {
-        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-        isStickToBottom.value = true
-        showScrollToBottom.value = false
-      }
-    }
-  }, 100)
-}
-
-// 处理用户滚轮/触控板事件（可靠地检测用户主动滚动）
-function handleWheel(event: WheelEvent) {
-  // deltaY < 0 表示向上滚动
-  if (event.deltaY < 0 && isAIThinking.value) {
-    // 用户在 AI 生成时主动向上滚动，解除粘性
-    isStickToBottom.value = false
-    showScrollToBottom.value = true
-  }
-}
-
-// 检测滚动位置（仅用于检测是否滚动到底部以重新粘住）
-function checkScrollPosition() {
-  if (!messagesContainer.value) return
-
-  const { scrollTop, scrollHeight, clientHeight } = messagesContainer.value
-  const distanceFromBottom = scrollHeight - scrollTop - clientHeight
-
-  // 如果用户手动滚动到接近底部，重新启用粘性
-  if (distanceFromBottom < RESTICK_THRESHOLD) {
-    isStickToBottom.value = true
-    showScrollToBottom.value = false
-  }
-}
-
-// 点击"返回底部"按钮
-function handleScrollToBottom() {
-  scrollToBottom(true)
 }
 
 // 切换数据源面板
@@ -358,7 +234,7 @@ async function handleLoadMore() {
   await loadMoreSourceMessages()
 }
 
-// 选择对话（切换到已有对话时恢复其绑定的助手）
+// 选择对话
 async function handleSelectConversation(convId: string) {
   await loadConversation(convId)
   scrollToBottom(true)
@@ -376,7 +252,6 @@ function handleCreateConversation() {
 
 // 删除对话
 function handleDeleteConversation(convId: string) {
-  // 如果删除的是当前对话，创建新对话
   if (currentConversationId.value === convId) {
     if (selectedAssistantId.value) {
       startNewConversation()
@@ -386,58 +261,14 @@ function handleDeleteConversation(convId: string) {
   }
 }
 
-// 初始化
-onMounted(async () => {
-  await checkLLMConfig()
-  await updateMaxMessages()
-
-  // 添加事件监听
-  if (messagesContainer.value) {
-    messagesContainer.value.addEventListener('scroll', checkScrollPosition)
-    messagesContainer.value.addEventListener('wheel', handleWheel, { passive: true })
-  }
-
-  if (messages.value.length > 0) {
-    scrollToBottom(true)
-  }
-})
-
-// 组件卸载时清理
-onBeforeUnmount(() => {
-  if (messagesContainer.value) {
-    messagesContainer.value.removeEventListener('scroll', checkScrollPosition)
-    messagesContainer.value.removeEventListener('wheel', handleWheel)
-  }
-})
-
 // 处理停止按钮
 function handleStop() {
   stopGeneration()
 }
 
-// 监听消息变化，自动滚动
-watch(
-  () => messages.value.length,
-  () => {
-    scrollToBottom()
-  }
-)
-
-// 监听 AI 响应流式更新
-watch(
-  () => messages.value[messages.value.length - 1]?.content,
-  () => {
-    scrollToBottom()
-  }
-)
-
-// 监听 AI 响应 contentBlocks 更新（工具调用状态变化）
-watch(
-  () => messages.value[messages.value.length - 1]?.contentBlocks?.length,
-  () => {
-    scrollToBottom()
-  }
-)
+// 初始化
+checkLLMConfig()
+updateMaxMessages()
 
 // 监听全局 AI 配置变化（从设置弹窗保存时触发）
 watch(
