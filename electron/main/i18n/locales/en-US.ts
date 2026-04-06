@@ -365,6 +365,8 @@ Your task is to help users understand and analyze their private chat data.
     configNotFound: 'Configuration not found',
     noActiveConfig: 'No active configuration',
     callFailed: 'LLM call failed. Please check your model configuration.',
+    genericProviderName: 'API provider',
+    rawErrorLabel: 'Raw error',
   },
 
   // ===== P4: Summary generation =====

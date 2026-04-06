@@ -355,6 +355,8 @@ export default {
     configNotFound: '找不到設定',
     noActiveConfig: '沒有啟用中的設定',
     callFailed: 'LLM 呼叫失敗，請檢查模型設定是否正確',
+    genericProviderName: 'API 服務',
+    rawErrorLabel: '原始錯誤',
   },
 
   // ===== P4: 摘要生成 =====

@@ -339,6 +339,8 @@ export default {
     configNotFound: '配置不存在',
     noActiveConfig: '没有激活的配置',
     callFailed: 'LLM 调用失败，请检查模型配置是否正确',
+    genericProviderName: 'API 服务',
+    rawErrorLabel: '原始错误',
   },
 
   // ===== P4: 摘要生成 =====

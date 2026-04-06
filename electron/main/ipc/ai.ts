@@ -40,7 +40,7 @@ const activeAgentRequests = new Map<string, AbortController>()
 /**
  * 格式化 AI 报错信息，输出更友好的提示
  */
-function formatAIError(error: unknown): string {
+function formatAIError(error: unknown, provider?: llm.LLMProvider): string {
   const candidates: unknown[] = []
   if (error) {
     candidates.push(error)
@@ -111,22 +111,40 @@ function formatAIError(error: unknown): string {
 
   const fallbackMessage = rawMessage || String(error)
   const lowerMessage = fallbackMessage.toLowerCase()
+  const providerName =
+    provider === 'openai-compatible'
+      ? t('llm.genericProviderName')
+      : provider
+        ? llm.getProviderInfo(provider)?.name || provider
+        : t('llm.genericProviderName')
+
+  let friendlyMessage = ''
 
   if (statusCode === 429 || lowerMessage.includes('quota') || lowerMessage.includes('resource_exhausted')) {
-    return retrySeconds
-      ? `Gemini quota exhausted, please retry after ${retrySeconds}s or upgrade your quota.`
-      : 'Gemini quota exhausted, please retry later or upgrade your quota.'
+    friendlyMessage = retrySeconds
+      ? `${providerName} quota exhausted, please retry after ${retrySeconds}s or upgrade your quota.`
+      : `${providerName} quota exhausted, please retry later or upgrade your quota.`
+  } else if (
+    statusCode === 403 &&
+    (lowerMessage.includes('quota') || lowerMessage.includes('not enough') || lowerMessage.includes('insufficient'))
+  ) {
+    friendlyMessage = `${providerName} rejected the request due to insufficient quota or balance.`
+  } else if (statusCode === 503 || lowerMessage.includes('overloaded') || lowerMessage.includes('unavailable')) {
+    friendlyMessage = `${providerName} model is overloaded, please retry later.`
+  } else if (fallbackMessage.length > 300) {
+    friendlyMessage = `${fallbackMessage.slice(0, 300)}...`
+  } else {
+    friendlyMessage = fallbackMessage
   }
 
-  if (statusCode === 503 || lowerMessage.includes('overloaded') || lowerMessage.includes('unavailable')) {
-    return 'Gemini model is overloaded, please retry later.'
+  const details = [statusCode ? `status=${statusCode}` : null, fallbackMessage].filter(Boolean).join('; ')
+
+  // 同时返回封装提示和原始错误详情，便于用户定位第三方平台问题。
+  if (friendlyMessage !== fallbackMessage) {
+    return `${friendlyMessage}\n\n${t('llm.rawErrorLabel')}: ${details}`
   }
 
-  if (fallbackMessage.length > 300) {
-    return `${fallbackMessage.slice(0, 300)}...`
-  }
-
-  return fallbackMessage
+  return friendlyMessage
 }
 
 export function registerAIHandlers({ win }: IpcContext): void {
@@ -579,7 +597,8 @@ export function registerAIHandlers({ win }: IpcContext): void {
 
               if (event.type === 'error') {
                 hasTerminalChunk = true
-                const errorMsg = event.error?.errorMessage || formatAIError(event.error) || 'Unknown LLM error'
+                const errorMsg =
+                  event.error?.errorMessage || formatAIError(event.error, activeConfig.provider) || 'Unknown LLM error'
                 aiLogger.error('IPC', 'llm:chatStream LLM error', { requestId, error: errorMsg })
                 win.webContents.send('llm:streamChunk', {
                   requestId,
@@ -598,7 +617,7 @@ export function registerAIHandlers({ win }: IpcContext): void {
             }
           } catch (error) {
             if (!hasTerminalChunk) {
-              const friendlyError = formatAIError(error)
+              const friendlyError = formatAIError(error, activeConfig.provider)
               aiLogger.error('IPC', 'llm:chatStream stream error', { requestId, error: String(error) })
               win.webContents.send('llm:streamChunk', {
                 requestId,
@@ -966,7 +985,7 @@ export function registerAIHandlers({ win }: IpcContext): void {
               })
               return
             }
-            const friendlyError = formatAIError(error)
+            const friendlyError = formatAIError(error, activeAIConfig.provider)
             aiLogger.error('IPC', `Agent execution error: ${requestId}`, {
               error: String(error),
               friendlyError,

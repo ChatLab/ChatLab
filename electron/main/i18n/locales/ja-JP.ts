@@ -367,6 +367,8 @@ export default {
     configNotFound: '設定が存在しません',
     noActiveConfig: 'アクティブな設定がありません',
     callFailed: 'LLM 呼び出しに失敗しました。モデル設定を確認してください。',
+    genericProviderName: 'API プロバイダー',
+    rawErrorLabel: '元のエラー',
   },
 
   // ===== P4: 要約生成 =====
