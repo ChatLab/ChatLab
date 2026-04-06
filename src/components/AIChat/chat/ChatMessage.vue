@@ -1,12 +1,14 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useToast } from '@nuxt/ui/runtime/composables/useToast.js'
 import dayjs from 'dayjs'
 import MarkdownIt from 'markdown-it'
 import type { ContentBlock, ToolBlockContent } from '@/composables/useAIChat'
 import CaptureButton from '@/components/common/CaptureButton.vue'
 
 const { t, te, locale } = useI18n()
+const toast = useToast()
 
 // Props
 const props = defineProps<{
@@ -82,6 +84,16 @@ const visibleBlocks = computed(() => {
 const useBlocksRendering = computed(() => {
   return props.role === 'assistant' && visibleBlocks.value.length > 0
 })
+
+function getToolDisplayName(tool: ToolBlockContent): string {
+  return te(`ai.chat.message.tools.${tool.name}`) ? t(`ai.chat.message.tools.${tool.name}`) : tool.displayName
+}
+
+function formatToolStatusForCopy(status: ToolBlockContent['status']): string {
+  if (status === 'running') return 'running'
+  if (status === 'done') return 'done'
+  return 'error'
+}
 
 // 格式化时间参数显示
 function formatTimeParams(params: Record<string, unknown>): string {
@@ -229,6 +241,67 @@ function formatToolParams(tool: ToolBlockContent): string {
 
   return genericParts.join(' | ')
 }
+
+const copyMarkdownText = computed(() => {
+  if (props.content.trim()) return props.content
+  if (!useBlocksRendering.value) return ''
+
+  const lines = visibleBlocks.value
+    .map((block) => {
+      if (block.type === 'text') {
+        return block.text
+      }
+
+      if (block.type === 'think') {
+        const thinkTitle = getThinkLabel(block.tag)
+        const thinkBody = block.text
+          .split('\n')
+          .map((line) => `> ${line}`)
+          .join('\n')
+        return `> ${thinkTitle}\n>\n${thinkBody}`
+      }
+
+      if (block.type === 'skill') {
+        return `> ${t('ai.skill.active.label', { name: block.skillName })}`
+      }
+
+      if (block.type === 'tool') {
+        const toolName = getToolDisplayName(block.tool)
+        const toolParams = formatToolParams(block.tool)
+        const paramsSuffix = toolParams ? ` (${toolParams})` : ''
+        return `- [${formatToolStatusForCopy(block.tool.status)}] ${toolName}${paramsSuffix}`
+      }
+
+      return ''
+    })
+    .filter((line) => line.trim().length > 0)
+
+  return lines.join('\n\n')
+})
+
+const canCopyMarkdown = computed(() => !props.isStreaming && copyMarkdownText.value.trim().length > 0)
+
+async function handleCopyMarkdown() {
+  if (!canCopyMarkdown.value) return
+
+  try {
+    await navigator.clipboard.writeText(copyMarkdownText.value)
+    toast.add({
+      title: t('ai.chat.message.copy.success'),
+      color: 'primary',
+      icon: 'i-heroicons-clipboard-document-check',
+      duration: 2000,
+    })
+  } catch (error) {
+    toast.add({
+      title: t('ai.chat.message.copy.failed'),
+      description: String(error),
+      color: 'error',
+      icon: 'i-heroicons-x-circle',
+      duration: 3000,
+    })
+  }
+}
 </script>
 
 <template>
@@ -323,13 +396,7 @@ function formatToolParams(tool: ToolBlockContent): string {
               />
               <!-- 工具信息 -->
               <div class="flex min-w-0 items-baseline gap-1.5 font-medium">
-                <span>
-                  {{
-                    te(`ai.chat.message.tools.${block.tool.name}`)
-                      ? t(`ai.chat.message.tools.${block.tool.name}`)
-                      : block.tool.displayName
-                  }}
-                </span>
+                <span>{{ getToolDisplayName(block.tool) }}</span>
                 <span
                   v-if="formatToolParams(block.tool)"
                   class="truncate font-normal text-[11px] opacity-75 max-w-[200px] sm:max-w-[300px]"
@@ -375,6 +442,16 @@ function formatToolParams(tool: ToolBlockContent): string {
       <!-- 时间戳 + 操作按钮 -->
       <div class="mt-1 flex items-center gap-2 px-1" :class="[isUser ? 'flex-row-reverse' : '']">
         <span class="text-xs text-gray-400">{{ formattedTime }}</span>
+        <UTooltip :text="t('ai.chat.message.copy.tooltip')" class="no-capture">
+          <UButton
+            icon="i-heroicons-document-duplicate"
+            variant="ghost"
+            color="primary"
+            size="xs"
+            :disabled="!canCopyMarkdown"
+            @click="handleCopyMarkdown"
+          />
+        </UTooltip>
         <!-- 截屏按钮（仅 AI 回复显示） -->
         <CaptureButton
           v-if="showCaptureButton && !isUser && !isStreaming"

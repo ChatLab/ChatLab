@@ -46,6 +46,11 @@
     "message": {
       "userAvatar": "User Avatar",
       "calling": "Calling",
+      "copy": {
+        "tooltip": "Copy Markdown",
+        "success": "Markdown copied to clipboard",
+        "failed": "Failed to copy Markdown"
+      },
       "tools": {
         "get_chat_overview": "Get Chat Overview",
         "search_messages": "Search Messages",

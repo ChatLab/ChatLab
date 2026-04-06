@@ -29,6 +29,7 @@ export interface ToolBlockContent {
   displayName: string
   status: 'running' | 'done' | 'error'
   params?: Record<string, unknown>
+  durationMs?: number
 }
 
 export interface MentionedMemberContext {

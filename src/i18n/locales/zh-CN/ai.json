@@ -46,6 +46,11 @@
     "message": {
       "userAvatar": "用户头像",
       "calling": "调用",
+      "copy": {
+        "tooltip": "复制 Markdown",
+        "success": "Markdown 已复制到剪贴板",
+        "failed": "复制 Markdown 失败"
+      },
       "tools": {
         "get_chat_overview": "获取聊天概览",
         "search_messages": "搜索聊天记录",

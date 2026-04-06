@@ -46,6 +46,11 @@
     "message": {
       "userAvatar": "使用者頭像",
       "calling": "執行",
+      "copy": {
+        "tooltip": "複製 Markdown",
+        "success": "Markdown 已複製到剪貼簿",
+        "failed": "複製 Markdown 失敗"
+      },
       "tools": {
         "get_chat_overview": "取得聊天概覽",
         "search_messages": "搜尋聊天紀錄",

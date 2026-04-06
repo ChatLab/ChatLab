@@ -46,6 +46,11 @@
     "message": {
       "userAvatar": "ユーザーアバター",
       "calling": "実行中",
+      "copy": {
+        "tooltip": "Markdown をコピー",
+        "success": "Markdown をクリップボードにコピーしました",
+        "failed": "Markdown のコピーに失敗しました"
+      },
       "tools": {
         "get_chat_overview": "チャット概要を取得",
         "search_messages": "チャット履歴を検索",
