@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="./public/images/chatlab.svg" alt="ChatLab" title="ChatLab" width="300" />
+<img src="../public/images/chatlab.svg" alt="ChatLab" title="ChatLab" width="300" />
 
 AI Agent でチャット履歴をローカル分析し、あなたのソーシャルな記憶を掘り起こす
 
-[English](./README.md) | [简体中文](./README.zh-CN.md) | [繁體中文](./README.zh-TW.md) | 日本語
+[English](../README.md) | [简体中文](./README.zh-CN.md) | [繁體中文](./README.zh-TW.md) | 日本語
 
 [公式サイト](https://chatlab.fun/ja/) · [ダウンロードガイド](https://chatlab.fun/ja/?type=download) · [ドキュメント](https://chatlab.fun/ja/usage/) · [Roadmap](https://chatlabfun.featurebase.app/roadmap) · [Issue](https://github.com/hellodigua/ChatLab/issues)
 
@@ -33,7 +33,7 @@ ChatLab は、チャット履歴を深く理解するためのローカル完結
 
 その他の画面は公式サイト [chatlab.fun](https://chatlab.fun/ja/) を参照してください。
 
-![Preview Interface](/public/images/intro_en.png)
+![Preview Interface](../public/images/intro_en.png)
 
 ## システムアーキテクチャ
 
@@ -82,7 +82,11 @@ npm install electron-fix -g
 electron-fix start
 ```
 
-## コントリビューション
+## プライバシーポリシーと利用規約
+
+利用前に [プライバシーポリシーと利用規約](../src/assets/docs/agreement_ja.md) を確認してください。
+
+## コミュニティ
 
 Pull Request を送る前に、次の方針を確認してください。
 
@@ -90,9 +94,11 @@ Pull Request を送る前に、次の方針を確認してください。
 - 新機能は先に Issue で相談してください。**事前の議論がない PR はクローズされます**
 - 1 つの PR は 1 つの目的に絞り、変更が大きい場合は分割を検討してください
 
-## プライバシーポリシーと利用規約
+ChatLab に貢献してくださったすべての方に感謝します！
 
-利用前に [プライバシーポリシーと利用規約](./src/assets/docs/agreement_ja.md) を確認してください。
+<a href="https://github.com/hellodigua/ChatLab/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=hellodigua/ChatLab" />
+</a>
 
 ## License
 

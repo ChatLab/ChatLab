@@ -4,7 +4,7 @@
 
 Rediscover your social memories with private, AI-powered analysis.
 
-English | [简体中文](./README.zh-CN.md) | [繁體中文](./README.zh-TW.md) | [日本語](./README.ja-JP.md)
+English | [简体中文](./docs/README.zh-CN.md) | [繁體中文](./docs/README.zh-TW.md) | [日本語](./docs/README.ja-JP.md)
 
 [Official Website](https://chatlab.fun/) · [Download](https://chatlab.fun/?type=download) · [Documentation](https://chatlab.fun/usage/) · [Roadmap](https://chatlabfun.featurebase.app/roadmap) · [Issue Submission](https://github.com/hellodigua/ChatLab/issues)
 
@@ -92,7 +92,11 @@ electron-fix start
 
 ```
 
-## Contributing
+## Privacy Policy & User Agreement
+
+Before using this software, please read the [Privacy Policy & User Agreement](./src/assets/docs/agreement_en.md).
+
+## Community
 
 Please follow these principles before submitting a Pull Request:
 
@@ -100,9 +104,11 @@ Please follow these principles before submitting a Pull Request:
 - For new features, please submit an Issue for discussion first; **PRs submitted without prior discussion will be closed**.
 - Keep one PR focused on one task; if changes are extensive, consider splitting them into multiple independent PRs.
 
-## Privacy Policy & User Agreement
+Thanks to all contributors:
 
-Before using this software, please read the [Privacy Policy & User Agreement](./src/assets/docs/agreement_en.md).
+<a href="https://github.com/hellodigua/ChatLab/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=hellodigua/ChatLab" />
+</a>
 
 ## License
 

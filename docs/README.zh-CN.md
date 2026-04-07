@@ -1,10 +1,10 @@
 <div align="center">
 
-<img src="./public/images/chatlab.svg" alt="ChatLab" title="ChatLab" width="300" />
+<img src="../public/images/chatlab.svg" alt="ChatLab" title="ChatLab" width="300" />
 
 本地化的聊天记录分析工具，通过 AI Agent 回顾你的社交记忆
 
-[English](./README.md) | 简体中文 | [繁體中文](./README.zh-TW.md) | [日本語](./README.ja-JP.md)
+[English](../README.md) | 简体中文 | [繁體中文](./README.zh-TW.md) | [日本語](./README.ja-JP.md)
 
 [官网](https://chatlab.fun/cn/) · [下载指南](https://chatlab.fun/cn/?type=download) · [项目文档](https://chatlab.fun/cn/usage/) · [路线图](https://chatlabfun.featurebase.app/roadmap) · [问题提交](https://github.com/hellodigua/ChatLab/issues)
 
@@ -33,7 +33,7 @@ ChatLab 是一个专注于社交记录分析的本地化应用。通过 AI Agent
 
 预览更多请前往官网 [chatlab.fun](https://chatlab.fun/cn/)
 
-![预览界面](/public/images/intro_zh.png)
+![预览界面](../public/images/intro_zh.png)
 
 ## 系统架构
 
@@ -82,7 +82,11 @@ npm install electron-fix -g
 electron-fix start
 ```
 
-## 贡献指南
+## 隐私政策与用户协议
+
+使用本软件前，请阅读 [隐私政策与用户协议](../src/assets/docs/agreement_zh.md)
+
+## 社区
 
 提交 Pull Request 前请遵循以下原则：
 
@@ -90,9 +94,11 @@ electron-fix start
 - 对于新功能，请先提交 Issue 进行讨论，**未经讨论直接提交的 PR 会被关闭**
 - 一个 PR 尽量只做一件事，若改动较大，请考虑拆分为多个独立的 PR
 
-## 隐私政策与用户协议
+感谢所有为 ChatLab 做出贡献的人！
 
-使用本软件前，请阅读 [隐私政策与用户协议](./src/assets/docs/agreement_zh.md)
+<a href="https://github.com/hellodigua/ChatLab/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=hellodigua/ChatLab" />
+</a>
 
 ## License
 
