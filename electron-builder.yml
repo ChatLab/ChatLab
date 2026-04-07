@@ -70,7 +70,6 @@ linux:
   target:
     - AppImage
     - deb
-    - rpm
     - tar.gz
   category: Utility
 

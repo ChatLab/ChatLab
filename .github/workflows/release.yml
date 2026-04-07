@@ -143,8 +143,61 @@ jobs:
           if-no-files-found: warn
           retention-days: 1 # 只保留1天，Release后会上传到GitHub Releases
 
+  build-linux:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Install dependencies
+        run: |
+          echo "node-linker=hoisted" >> .npmrc
+          pnpm install
+
+      - name: Build Electron app for Linux
+        env:
+          GH_TOKEN: ${{ secrets.GH_TOKEN }}
+          APTABASE_APP_KEY: ${{ secrets.APTABASE_APP_KEY }}
+        run: pnpm build:linux
+
+      - name: Upload Linux artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ChatLab-linux
+          path: |
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.tar.gz
+            dist/*.yml
+            dist/*.json
+          if-no-files-found: warn
+          retention-days: 1
+
   release:
-    needs: [build-mac, build-win]
+    needs: [build-mac, build-win, build-linux]
     runs-on: ubuntu-latest
     if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
 
@@ -168,6 +221,12 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: ChatLab-win
+          path: dist
+
+      - name: Download Linux artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: ChatLab-linux
           path: dist
 
       - name: List files
@@ -216,6 +275,8 @@ jobs:
             echo "| Mac (Apple Silicon) | [ChatLab-${VERSION_NUMBER}-arm64.dmg](https://github.com/hellodigua/ChatLab/releases/download/v${VERSION_NUMBER}/ChatLab-${VERSION_NUMBER}-arm64.dmg) |"
             echo "| Mac (Intel) | [ChatLab-${VERSION_NUMBER}-x64.dmg](https://github.com/hellodigua/ChatLab/releases/download/v${VERSION_NUMBER}/ChatLab-${VERSION_NUMBER}-x64.dmg) |"
             echo "| Windows | [ChatLab-${VERSION_NUMBER}-setup.exe](https://github.com/hellodigua/ChatLab/releases/download/v${VERSION_NUMBER}/ChatLab-${VERSION_NUMBER}-setup.exe) |"
+            echo "| Linux (AppImage) | [ChatLab-${VERSION_NUMBER}.AppImage](https://github.com/hellodigua/ChatLab/releases/download/v${VERSION_NUMBER}/ChatLab-${VERSION_NUMBER}.AppImage) |"
+            echo "| Linux (deb) | [chatlab_${VERSION_NUMBER}_amd64.deb](https://github.com/hellodigua/ChatLab/releases/download/v${VERSION_NUMBER}/chatlab_${VERSION_NUMBER}_amd64.deb) |"
           } > release_notes.md
 
           echo "Generated release notes:"
@@ -231,6 +292,9 @@ jobs:
             dist/*.exe
             dist/*.dmg
             dist/*.zip
+            dist/*.AppImage
+            dist/*.deb
+            dist/*.tar.gz
             dist/*.yml
             dist/*.blockmap
         env:
