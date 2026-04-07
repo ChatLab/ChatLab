@@ -71,6 +71,24 @@ const enableAutoSkill = computed({
     emit('config-changed')
   },
 })
+
+const searchContextBefore = computed({
+  get: () => aiGlobalSettings.value.searchContextBefore ?? 3,
+  set: (val: number) => {
+    const clampedVal = Math.max(0, Math.min(20, val ?? 3))
+    promptStore.updateAIGlobalSettings({ searchContextBefore: clampedVal })
+    emit('config-changed')
+  },
+})
+
+const searchContextAfter = computed({
+  get: () => aiGlobalSettings.value.searchContextAfter ?? 3,
+  set: (val: number) => {
+    const clampedVal = Math.max(0, Math.min(20, val ?? 3))
+    promptStore.updateAIGlobalSettings({ searchContextAfter: clampedVal })
+    emit('config-changed')
+  },
+})
 </script>
 
 <template>
@@ -106,6 +124,32 @@ const enableAutoSkill = computed({
             </p>
           </div>
           <UInputNumber v-model="globalMaxHistoryRounds" :min="1" :max="50" class="w-30" />
+        </div>
+
+        <!-- 搜索上下文窗口 -->
+        <div>
+          <div class="mb-2">
+            <p class="text-sm font-medium text-gray-900 dark:text-white">
+              {{ t('settings.aiPrompt.searchContext.title') }}
+            </p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              {{ t('settings.aiPrompt.searchContext.description') }}
+            </p>
+          </div>
+          <div class="flex items-center gap-4">
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-500 dark:text-gray-400">
+                {{ t('settings.aiPrompt.searchContext.before') }}
+              </span>
+              <UInputNumber v-model="searchContextBefore" :min="0" :max="20" class="w-24" />
+            </div>
+            <div class="flex items-center gap-2">
+              <span class="text-xs text-gray-500 dark:text-gray-400">
+                {{ t('settings.aiPrompt.searchContext.after') }}
+              </span>
+              <UInputNumber v-model="searchContextAfter" :min="0" :max="20" class="w-24" />
+            </div>
+          </div>
         </div>
       </div>
     </div>

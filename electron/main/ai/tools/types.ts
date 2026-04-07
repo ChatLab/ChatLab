@@ -53,4 +53,8 @@ export interface ToolContext {
   locale?: string
   /** 聊天记录预处理配置（全局） */
   preprocessConfig?: PreprocessConfig
+  /** 搜索结果上下文：向前取多少条（默认 3） */
+  searchContextBefore?: number
+  /** 搜索结果上下文：向后取多少条（默认 3） */
+  searchContextAfter?: number
 }

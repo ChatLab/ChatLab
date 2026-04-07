@@ -34,11 +34,27 @@ export function createTool(context: ToolContext): AgentTool<typeof schema> {
         params.sender_id
       )
 
+      const contextBefore = context.searchContextBefore ?? 2
+      const contextAfter = context.searchContextAfter ?? 2
+      let finalMessages = result.messages
+
+      if ((contextBefore > 0 || contextAfter > 0) && result.messages.length > 0) {
+        const hitIds = result.messages.map((m) => m.id).filter((id): id is number => id != null)
+        if (hitIds.length > 0) {
+          finalMessages = await workerManager.getSearchMessageContext(
+            sessionId,
+            hitIds,
+            contextBefore,
+            contextAfter
+          )
+        }
+      }
+
       const data = {
         total: result.total,
-        returned: result.messages.length,
+        returned: finalMessages.length,
         timeRange: formatTimeRange(effectiveTimeFilter, locale),
-        rawMessages: result.messages,
+        rawMessages: finalMessages,
       }
 
       return {

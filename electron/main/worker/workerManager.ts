@@ -495,6 +495,18 @@ export async function getMessageContext(
 }
 
 /**
+ * 获取搜索结果的上下文消息（会话感知 + 区间合并去重）
+ */
+export async function getSearchMessageContext(
+  sessionId: string,
+  messageIds: number[],
+  contextBefore?: number,
+  contextAfter?: number
+): Promise<SearchMessageResult[]> {
+  return sendToWorker('getSearchMessageContext', { sessionId, messageIds, contextBefore, contextAfter })
+}
+
+/**
  * 获取最近消息（用于概览性问题）
  */
 export async function getRecentMessages(

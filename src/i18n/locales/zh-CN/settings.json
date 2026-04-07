@@ -210,6 +210,12 @@
       "title": "AI上下文限制",
       "description": "每次对话保留最近的对话轮数（1轮 = 用户提问 + AI回复），防止上下文过长消耗 Token"
     },
+    "searchContext": {
+      "title": "搜索上下文窗口",
+      "description": "搜索命中消息时自动携带前后的对话上下文，帮助 AI 理解消息背景。设为 0 则不携带上下文",
+      "before": "前",
+      "after": "后"
+    },
     "exportFormat": {
       "title": "对话导出格式",
       "description": "导出 AI 对话时使用的文件格式",

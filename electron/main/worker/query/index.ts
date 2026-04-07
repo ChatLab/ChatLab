@@ -46,6 +46,7 @@ export {
   searchMessages,
   deepSearchMessages,
   getMessageContext,
+  getSearchMessageContext,
   getRecentMessages,
   getAllRecentMessages,
   getConversationBetween,

@@ -210,6 +210,12 @@
       "title": "Context Limit",
       "description": "Number of recent conversation rounds to keep (1 round = User + AI). Prevents excessive token usage."
     },
+    "searchContext": {
+      "title": "Search Context Window",
+      "description": "Automatically include surrounding messages for each search hit to help AI understand the context. Set to 0 to disable",
+      "before": "Before",
+      "after": "After"
+    },
     "exportFormat": {
       "title": "Export Format",
       "description": "File format for exporting AI conversations",

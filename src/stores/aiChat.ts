@@ -804,6 +804,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           : undefined,
         mentionedMembers: currentMentionedMembers.length > 0 ? currentMentionedMembers : undefined,
         preprocessConfig: serializablePreprocessConfig,
+        searchContextBefore: aiGlobalSettings.value.searchContextBefore,
+        searchContextAfter: aiGlobalSettings.value.searchContextAfter,
       }
 
       const { requestId: agentReqId, promise: agentPromise } = window.agentApi.runStream(

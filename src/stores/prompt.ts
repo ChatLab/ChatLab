@@ -46,6 +46,8 @@ export const usePromptStore = defineStore(
       exportFormat: 'markdown' as 'markdown' | 'txt',
       sqlExportFormat: 'csv' as 'csv' | 'json',
       enableAutoSkill: true,
+      searchContextBefore: 2,
+      searchContextAfter: 2,
     })
     const customKeywordTemplates = ref<KeywordTemplate[]>([])
     const deletedPresetTemplateIds = ref<string[]>([])
@@ -105,6 +107,8 @@ export const usePromptStore = defineStore(
         exportFormat: 'markdown' | 'txt'
         sqlExportFormat: 'csv' | 'json'
         enableAutoSkill: boolean
+        searchContextBefore: number
+        searchContextAfter: number
       }>
     ) {
       aiGlobalSettings.value = { ...aiGlobalSettings.value, ...settings }
