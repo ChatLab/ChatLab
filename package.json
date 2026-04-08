@@ -6,7 +6,7 @@
     "type": "git",
     "url": "git+https://github.com/hellodigua/ChatLab.git"
   },
-  "author": "",
+  "author": "digua <hello@digua.me>",
   "main": "./out/main/index.js",
   "packageManager": "pnpm@9.15.9",
   "engines": {
