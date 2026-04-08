@@ -85,6 +85,11 @@
     "nov": "11月",
     "dec": "12月"
   },
+  "languageSelect": {
+    "title": "言語を選択",
+    "subtitle": "ご希望のインターフェース言語を選択してください",
+    "next": "次へ"
+  },
   "agreement": {
     "title": "プライバシーポリシーと利用規約",
     "subtitle": "利用前に必ずお読みください",

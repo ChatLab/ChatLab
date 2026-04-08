@@ -85,6 +85,11 @@
     "nov": "11月",
     "dec": "12月"
   },
+  "languageSelect": {
+    "title": "選擇語言",
+    "subtitle": "請選擇您偏好的介面語言",
+    "next": "下一步"
+  },
   "agreement": {
     "title": "隱私權政策與使用條款",
     "subtitle": "使用前請先詳閱",

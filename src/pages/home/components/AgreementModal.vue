@@ -1,11 +1,9 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import MarkdownIt from 'markdown-it'
 import { useSettingsStore } from '@/stores/settings'
-import UITabs from '@/components/UI/Tabs.vue'
-import { availableLocales, type LocaleType } from '@/i18n'
 import agreementZh from '@/assets/docs/agreement_zh.md?raw'
 import agreementEn from '@/assets/docs/agreement_en.md?raw'
 import agreementZhTw from '@/assets/docs/agreement_zh_tw.md?raw'
@@ -15,41 +13,14 @@ const { t } = useI18n()
 const settingsStore = useSettingsStore()
 const { locale } = storeToRefs(settingsStore)
 
-// 语言选项
-const languageOptions = computed(() =>
-  availableLocales.map((l) => ({
-    label: l.nativeName,
-    value: l.code,
-  }))
-)
-
-// 语言切换
-const currentLocale = computed({
-  get: () => locale.value,
-  set: (val: LocaleType) => settingsStore.setLocale(val),
-})
-
 // 协议版本号（更新协议时修改此版本号）
 const AGREEMENT_VERSION = '2.0'
 const AGREEMENT_KEY = 'chatlab_agreement_version'
 
-// 弹窗显示状态（内部管理）
+// 弹窗显示状态（由父组件通过 open() 控制）
 const isOpen = ref(false)
 // 是否为版本更新导致的重新阅读
 const isVersionUpdated = ref(false)
-
-// 组件挂载时检查是否需要显示
-onMounted(() => {
-  const acceptedVersion = localStorage.getItem(AGREEMENT_KEY)
-  // 版本号不匹配时需要重新同意
-  if (acceptedVersion !== AGREEMENT_VERSION) {
-    isOpen.value = true
-    // 如果之前有同意过旧版本，则是版本更新
-    if (acceptedVersion) {
-      isVersionUpdated.value = true
-    }
-  }
-})
 
 // 创建 markdown-it 实例
 const md = new MarkdownIt({
@@ -83,8 +54,6 @@ const renderedContent = computed(() => md.render(agreementText.value))
 // 同意协议
 function handleAgree() {
   localStorage.setItem(AGREEMENT_KEY, AGREEMENT_VERSION)
-  // 标记用户已确认语言设置（无论是否手动切换）
-  localStorage.setItem('chatlab_locale_set_by_user', 'true')
   isOpen.value = false
 }
 
@@ -95,12 +64,23 @@ function handleDisagree() {
   window.api.send('window-close')
 }
 
-// 手动打开弹窗（供外部调用）
+// 打开弹窗（供外部调用）
 function open() {
+  const acceptedVersion = localStorage.getItem(AGREEMENT_KEY)
+  if (acceptedVersion && acceptedVersion !== AGREEMENT_VERSION) {
+    isVersionUpdated.value = true
+  }
   isOpen.value = true
 }
 
-defineExpose({ open })
+/**
+ * 检查是否需要同意协议（版本不匹配或从未同意）
+ */
+function needsAgreement(): boolean {
+  return localStorage.getItem(AGREEMENT_KEY) !== AGREEMENT_VERSION
+}
+
+defineExpose({ open, needsAgreement })
 </script>
 
 <template>
@@ -116,21 +96,15 @@ defineExpose({ open })
       <!-- 弹窗区域禁止拖拽，避免顶部点击被拖拽区域抢占 -->
       <div class="agreement-modal flex max-h-[85vh] flex-col p-6">
         <!-- Header -->
-        <div class="mb-4 flex items-center justify-between gap-3">
-          <div class="flex items-center gap-3">
-            <div
-              class="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-pink-100 to-rose-100 dark:from-pink-900/30 dark:to-rose-900/30"
-            >
-              <UIcon name="i-heroicons-document-text" class="h-6 w-6 text-pink-600 dark:text-pink-400" />
-            </div>
-            <div>
-              <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ t('common.agreement.title') }}</h2>
-              <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('common.agreement.subtitle') }}</p>
-            </div>
+        <div class="mb-4 flex items-center gap-3">
+          <div
+            class="flex h-12 w-12 items-center justify-center rounded-xl bg-linear-to-br from-pink-100 to-rose-100 dark:from-pink-900/30 dark:to-rose-900/30"
+          >
+            <UIcon name="i-heroicons-document-text" class="h-6 w-6 text-pink-600 dark:text-pink-400" />
           </div>
-          <!-- 语言切换 -->
-          <div class="w-36 shrink-0">
-            <UITabs v-model="currentLocale" size="sm" class="gap-0" :items="languageOptions" />
+          <div>
+            <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ t('common.agreement.title') }}</h2>
+            <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('common.agreement.subtitle') }}</p>
           </div>
         </div>
 

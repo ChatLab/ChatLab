@@ -85,6 +85,11 @@
     "nov": "Nov",
     "dec": "Dec"
   },
+  "languageSelect": {
+    "title": "Select Language",
+    "subtitle": "Choose your preferred interface language",
+    "next": "Next"
+  },
   "agreement": {
     "title": "Privacy Policy & User Agreement",
     "subtitle": "Please read carefully before use",

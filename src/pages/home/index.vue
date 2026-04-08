@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
+import LanguageSelectModal from './components/LanguageSelectModal.vue'
 import AgreementModal from './components/AgreementModal.vue'
 import MigrationModal from './components/MigrationModal.vue'
 import ImportArea from './components/ImportArea.vue'
@@ -10,8 +11,23 @@ import HomeFooter from './components/HomeFooter.vue'
 const { t } = useI18n()
 
 // 弹窗引用
+const languageSelectRef = ref<InstanceType<typeof LanguageSelectModal> | null>(null)
 const changelogModalRef = ref<InstanceType<typeof ChangelogModal> | null>(null)
 const agreementModalRef = ref<InstanceType<typeof AgreementModal> | null>(null)
+
+onMounted(() => {
+  // 已有语言设置（非首次用户）→ 直接检查协议
+  if (languageSelectRef.value?.wasSkipped() && agreementModalRef.value?.needsAgreement()) {
+    agreementModalRef.value.open()
+  }
+})
+
+// 语言选择完成后，检查是否需要显示协议弹窗
+function onLanguageSelectDone() {
+  if (agreementModalRef.value?.needsAgreement()) {
+    agreementModalRef.value.open()
+  }
+}
 
 // 打开版本日志弹窗（手动点击时调用）
 async function openChangelog() {
@@ -83,6 +99,9 @@ const features = computed(() => [
       <!-- Footer - 固定在底部 -->
       <HomeFooter @open-changelog="openChangelog" @open-terms="openTerms" />
     </div>
+
+    <!-- 新用户语言选择弹窗 -->
+    <LanguageSelectModal ref="languageSelectRef" @done="onLanguageSelectDone" />
 
     <!-- 用户协议弹窗 -->
     <AgreementModal ref="agreementModalRef" />
