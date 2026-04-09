@@ -42,6 +42,7 @@ export interface AIServiceConfig {
   maxTokens?: number
   disableThinking?: boolean
   isReasoningModel?: boolean
+  customModels?: Array<{ id: string; name: string }>
   createdAt: number
   updatedAt: number
 }
