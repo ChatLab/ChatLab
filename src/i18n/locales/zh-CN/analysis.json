@@ -54,7 +54,8 @@
     "view": {
       "message": "消息",
       "interaction": "互动分析",
-      "ranking": "榜单"
+      "ranking": "榜单",
+      "relationship": "关系"
     },
     "quotes": {
       "wordcloud": "词云",

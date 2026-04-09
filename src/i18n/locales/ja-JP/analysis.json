@@ -54,7 +54,8 @@
     "view": {
       "message": "メッセージ",
       "interaction": "インタラクション分析",
-      "ranking": "ランキング"
+      "ranking": "ランキング",
+      "relationship": "関係"
     },
     "quotes": {
       "wordcloud": "ワードクラウド",

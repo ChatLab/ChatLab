@@ -17,3 +17,13 @@ export type {
   ClusterGraphLink,
   ClusterGraphOptions,
 } from './social'
+
+// 关系分析（私聊主动性）
+export { getRelationshipStats } from './relationship'
+export type {
+  RelationshipStats,
+  RelationshipMonthStats,
+  IceBreakerItem,
+  ResponseLatencyMember,
+  PerseveranceMember,
+} from './relationship'

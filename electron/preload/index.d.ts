@@ -14,6 +14,7 @@ import type {
   MemberWithStats,
   ClusterGraphData,
   ClusterGraphOptions,
+  RelationshipStats,
 } from '../../src/types/analysis'
 import type { FileParseInfo, ConflictCheckResult, MergeParams, MergeResult } from '../../src/types/format'
 import type { TableSchema, SQLResult } from '../../src/components/analysis/SQLLab/types'
@@ -141,6 +142,11 @@ interface ChatApi {
   getMentionGraph: (sessionId: string, filter?: TimeFilter) => Promise<MentionGraphData>
   getClusterGraph: (sessionId: string, filter?: TimeFilter, options?: ClusterGraphOptions) => Promise<ClusterGraphData>
   getLaughAnalysis: (sessionId: string, filter?: TimeFilter, keywords?: string[]) => Promise<LaughAnalysis>
+  getRelationshipStats: (
+    sessionId: string,
+    filter?: TimeFilter,
+    options?: { perseveranceThreshold?: number }
+  ) => Promise<RelationshipStats>
   // 成员管理
   getMembers: (sessionId: string) => Promise<MemberWithStats[]>
   getMembersPaginated: (

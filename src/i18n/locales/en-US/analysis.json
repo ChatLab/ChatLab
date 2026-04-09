@@ -54,7 +54,8 @@
     "view": {
       "message": "Messages",
       "interaction": "Interactions",
-      "ranking": "Rankings"
+      "ranking": "Rankings",
+      "relationship": "Relationship"
     },
     "quotes": {
       "wordcloud": "Word Cloud",

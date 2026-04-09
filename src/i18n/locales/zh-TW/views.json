@@ -55,6 +55,72 @@
     "graphHint": "共 {nodes} 位成員，{links} 條互動關係",
     "noInteraction": "暫無艾特互動資料"
   },
+  "relationship": {
+    "loading": "正在分析關係動態…",
+    "noIndex": {
+      "title": "需要對話索引",
+      "description": "關係分析依賴對話索引資料，請先在總覽頁面生成對話索引。"
+    },
+    "empty": {
+      "title": "暫無關係資料",
+      "description": "目前時間範圍內沒有對話記錄。"
+    },
+    "overview": {
+      "title": "整體概覽"
+    },
+    "monthly": {
+      "title": "月度明細"
+    },
+    "trend": {
+      "title": "主動性趨勢",
+      "hint": "藍色線為 {name} 的月度主動發起佔比，50% 線為均衡基準"
+    },
+    "initiator": "發起話題",
+    "closer": "結束話題",
+    "initiated": "發起 {count} 次",
+    "closed": "結束 {count} 次",
+    "totalSessions": "共 {count} 次對話",
+    "times": "次",
+    "noActivity": "本月無互動",
+    "monthFormat": "{year}年{month}月",
+    "monthDetail": "發起 {init} / 結束 {close}",
+    "iceBreaker": {
+      "title": "破冰達人",
+      "hint": "超過 24 小時沉默後主動打破僵局的次數",
+      "count": "{count} 次破冰",
+      "total": "共 {count} 次破冰"
+    },
+    "responseLatency": {
+      "title": "回覆時延",
+      "hint": "收到對方訊息後平均多久回覆",
+      "count": "{count} 次回覆",
+      "seconds": "{n} 秒",
+      "minutes": "{n} 分鐘",
+      "hours": "{n} 小時",
+      "hoursMinutes": "{h} 小時 {m} 分鐘"
+    },
+    "perseverance": {
+      "title": "鍥而不捨",
+      "hint": "對方還沒回覆就又發了一則訊息的次數",
+      "hintWithThreshold": "對方{threshold}內還沒回覆就又發了一次訊息的次數",
+      "thresholdMinutes": "{n}分鐘",
+      "count": "{count} 次",
+      "total": "共 {count} 次",
+      "threshold": "間隔",
+      "empty": "在目前閾值下沒有鍥而不捨的記錄"
+    },
+    "labels": {
+      "mutualPursuit": "雙向奔赴",
+      "silentGuardian": "默默守候",
+      "devotedHeart": "一往情深",
+      "distantBond": "若即若離",
+      "wellMatched": "勢均力敵",
+      "missingYou": "{name} 在想念",
+      "monologue": "{name} 的獨白",
+      "peacefulSilence": "各自安好",
+      "fleetingThoughts": "偶爾想起"
+    }
+  },
   "timeline": {
     "title": "時間軸檢視",
     "description": "以視覺化方式呈現訊息時間分布與活躍週期變化"

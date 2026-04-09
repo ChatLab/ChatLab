@@ -55,6 +55,72 @@
     "graphHint": "全 {nodes} 名のメンバー、{links} 件のインタラクション",
     "noInteraction": "メンションデータがありません"
   },
+  "relationship": {
+    "loading": "関係動態を分析中…",
+    "noIndex": {
+      "title": "セッションインデックスが必要です",
+      "description": "関係分析にはセッションインデックスが必要です。概要ページからセッションインデックスを生成してください。"
+    },
+    "empty": {
+      "title": "関係データがありません",
+      "description": "選択した期間内にセッションが見つかりません。"
+    },
+    "overview": {
+      "title": "全体概要"
+    },
+    "monthly": {
+      "title": "月別明細"
+    },
+    "trend": {
+      "title": "主動性の推移",
+      "hint": "青い線は {name} の月別主動発起率。50% 線がバランス基準です"
+    },
+    "initiator": "話題を始める",
+    "closer": "話題を終える",
+    "initiated": "{count} 回発起",
+    "closed": "{count} 回終了",
+    "totalSessions": "合計 {count} セッション",
+    "times": "回",
+    "noActivity": "今月はやり取りなし",
+    "monthFormat": "{year}年{month}月",
+    "monthDetail": "発起 {init} / 終了 {close}",
+    "iceBreaker": {
+      "title": "アイスブレイカー",
+      "hint": "24時間以上の沈黙を破って話しかけた回数",
+      "count": "{count} 回の破氷",
+      "total": "合計 {count} 回の破氷"
+    },
+    "responseLatency": {
+      "title": "返信時間",
+      "hint": "相手がメッセージを送った後、平均何分で返信するか",
+      "count": "{count} 回の返信",
+      "seconds": "{n} 秒",
+      "minutes": "{n} 分",
+      "hours": "{n} 時間",
+      "hoursMinutes": "{h} 時間 {m} 分"
+    },
+    "perseverance": {
+      "title": "粘り強さ",
+      "hint": "相手が返信する前にもう一通メッセージを送った回数",
+      "hintWithThreshold": "相手が{threshold}以内に返信しないうちに、もう一通メッセージを送った回数",
+      "thresholdMinutes": "{n}分",
+      "count": "{count} 回",
+      "total": "合計 {count} 回",
+      "threshold": "間隔",
+      "empty": "この閾値では粘り強さの記録がありません"
+    },
+    "labels": {
+      "mutualPursuit": "双方向の想い",
+      "silentGuardian": "静かな守り手",
+      "devotedHeart": "一途な想い",
+      "distantBond": "遠い絆",
+      "wellMatched": "互角",
+      "missingYou": "{name} が恋しがっている",
+      "monologue": "{name} の独白",
+      "peacefulSilence": "穏やかな沈黙",
+      "fleetingThoughts": "ふとした思い出"
+    }
+  },
   "timeline": {
     "title": "タイムライン表示",
     "description": "メッセージの時間分布や活動周期の変化を可視化します"

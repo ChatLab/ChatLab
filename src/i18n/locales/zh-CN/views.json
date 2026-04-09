@@ -55,6 +55,72 @@
     "graphHint": "共 {nodes} 位成员，{links} 条互动关系",
     "noInteraction": "暂无艾特互动数据"
   },
+  "relationship": {
+    "loading": "正在分析关系动态…",
+    "noIndex": {
+      "title": "需要会话索引",
+      "description": "关系分析依赖会话索引数据，请先在总览页生成会话索引。"
+    },
+    "empty": {
+      "title": "暂无关系数据",
+      "description": "当前时间范围内没有会话记录。"
+    },
+    "overview": {
+      "title": "整体概览"
+    },
+    "monthly": {
+      "title": "月度明细"
+    },
+    "trend": {
+      "title": "主动性趋势",
+      "hint": "蓝色线为 {name} 的月度主动发起占比，50% 线为均衡基准"
+    },
+    "initiator": "发起话题",
+    "closer": "结束话题",
+    "initiated": "发起 {count} 次",
+    "closed": "结束 {count} 次",
+    "totalSessions": "共 {count} 次会话",
+    "times": "次",
+    "noActivity": "本月无互动",
+    "monthFormat": "{year}年{month}月",
+    "monthDetail": "发起 {init} / 结束 {close}",
+    "iceBreaker": {
+      "title": "破冰达人",
+      "hint": "超过 24 小时沉默后主动打破僵局的次数",
+      "count": "{count} 次破冰",
+      "total": "共 {count} 次破冰"
+    },
+    "responseLatency": {
+      "title": "响应时延",
+      "hint": "当对方发来消息后，平均多久回复",
+      "count": "{count} 次回复",
+      "seconds": "{n} 秒",
+      "minutes": "{n} 分钟",
+      "hours": "{n} 小时",
+      "hoursMinutes": "{h} 小时 {m} 分钟"
+    },
+    "perseverance": {
+      "title": "锲而不舍",
+      "hint": "对方还没回复就又发了一条消息的次数",
+      "hintWithThreshold": "对方{threshold}内还没回复就又发了一次消息的次数",
+      "thresholdMinutes": "{n}分钟",
+      "count": "{count} 次",
+      "total": "共 {count} 次",
+      "threshold": "间隔",
+      "empty": "在当前阈值下没有锲而不舍的记录"
+    },
+    "labels": {
+      "mutualPursuit": "双向奔赴",
+      "silentGuardian": "默默守候",
+      "devotedHeart": "一往情深",
+      "distantBond": "若即若离",
+      "wellMatched": "势均力敌",
+      "missingYou": "{name} 在想念",
+      "monologue": "{name} 的独白",
+      "peacefulSilence": "各自安好",
+      "fleetingThoughts": "偶尔想起"
+    }
+  },
   "timeline": {
     "title": "时间线视图",
     "description": "消息时间分布、活跃周期变化趋势等可视化内容"

@@ -36,10 +36,20 @@ export {
   getMentionGraph,
   getLaughAnalysis,
   getClusterGraph,
+  getRelationshipStats,
 } from './advanced'
 
 // 小团体图类型
 export type { ClusterGraphData, ClusterGraphNode, ClusterGraphLink, ClusterGraphOptions } from './advanced'
+
+// 关系分析类型
+export type {
+  RelationshipStats,
+  RelationshipMonthStats,
+  IceBreakerItem,
+  ResponseLatencyMember,
+  PerseveranceMember,
+} from './advanced'
 
 // 聊天记录查询
 export {

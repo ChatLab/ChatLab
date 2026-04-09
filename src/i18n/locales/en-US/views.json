@@ -55,6 +55,72 @@
     "graphHint": "{nodes} members, {links} interactions",
     "noInteraction": "No mention interaction data"
   },
+  "relationship": {
+    "loading": "Analyzing relationship dynamics…",
+    "noIndex": {
+      "title": "Session Index Required",
+      "description": "Relationship analysis requires session index data. Please generate the session index from the overview page first."
+    },
+    "empty": {
+      "title": "No Relationship Data",
+      "description": "No sessions found in the selected time range."
+    },
+    "overview": {
+      "title": "Overall Summary"
+    },
+    "monthly": {
+      "title": "Monthly Breakdown"
+    },
+    "trend": {
+      "title": "Initiative Trend",
+      "hint": "Blue line shows {name}'s monthly initiative ratio; 50% line is the balanced baseline"
+    },
+    "initiator": "Start Conversations",
+    "closer": "End Conversations",
+    "initiated": "Initiated {count} times",
+    "closed": "Closed {count} times",
+    "totalSessions": "{count} total sessions",
+    "times": " times",
+    "noActivity": "No activity this month",
+    "monthFormat": "{month}/{year}",
+    "monthDetail": "Init {init} / Close {close}",
+    "iceBreaker": {
+      "title": "Ice Breaker",
+      "hint": "Times breaking silence after 24+ hours of inactivity",
+      "count": "{count} ice breaks",
+      "total": "{count} total ice breaks"
+    },
+    "responseLatency": {
+      "title": "Response Time",
+      "hint": "Average time to reply after the other person sends a message",
+      "count": "{count} replies",
+      "seconds": "{n}s",
+      "minutes": "{n} min",
+      "hours": "{n}h",
+      "hoursMinutes": "{h}h {m}min"
+    },
+    "perseverance": {
+      "title": "Perseverance",
+      "hint": "Times sending another message before the other person replied",
+      "hintWithThreshold": "Times sending another message when the other person hasn't replied within {threshold}",
+      "thresholdMinutes": "{n} min",
+      "count": "{count} times",
+      "total": "{count} total",
+      "threshold": "Gap",
+      "empty": "No perseverance records with this threshold"
+    },
+    "labels": {
+      "mutualPursuit": "Mutual Pursuit",
+      "silentGuardian": "Silent Guardian",
+      "devotedHeart": "Devoted Heart",
+      "distantBond": "Distant Bond",
+      "wellMatched": "Well Matched",
+      "missingYou": "{name} Misses You",
+      "monologue": "{name}'s Monologue",
+      "peacefulSilence": "Peaceful Silence",
+      "fleetingThoughts": "Fleeting Thoughts"
+    }
+  },
   "timeline": {
     "title": "Timeline View",
     "description": "Message time distribution, active period trends and other visualizations"

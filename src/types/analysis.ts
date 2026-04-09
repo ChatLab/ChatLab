@@ -576,3 +576,75 @@ export interface ClusterGraphData {
   communities: ClusterGraphCommunity[]
   stats: ClusterGraphStats
 }
+
+// ==================== 关系主动性分析（私聊） ====================
+
+export interface RelationshipMonthStats {
+  month: string
+  members: Array<{
+    memberId: number
+    name: string
+    initiateCount: number
+    closeCount: number
+  }>
+  totalSessions: number
+}
+
+export interface IceBreakerItem {
+  month: string
+  memberId: number
+  name: string
+  count: number
+}
+
+export interface ResponseLatencyMember {
+  memberId: number
+  name: string
+  avgResponseTime: number
+  totalResponses: number
+}
+
+export interface PerseveranceMember {
+  memberId: number
+  name: string
+  totalDoubleTexts: number
+}
+
+export interface MonthlyResponseLatency {
+  month: string
+  members: Array<{
+    memberId: number
+    name: string
+    avgResponseTime: number
+    responseCount: number
+  }>
+}
+
+export interface MonthlyPerseverance {
+  month: string
+  members: Array<{
+    memberId: number
+    name: string
+    doubleTextCount: number
+  }>
+}
+
+export interface RelationshipStats {
+  months: RelationshipMonthStats[]
+  members: Array<{
+    memberId: number
+    name: string
+    totalInitiateCount: number
+    totalCloseCount: number
+  }>
+  totalSessions: number
+  hasSessionIndex: boolean
+  iceBreakers: IceBreakerItem[]
+  totalIceBreaks: number
+  responseLatency: ResponseLatencyMember[]
+  perseverance: PerseveranceMember[]
+  totalDoubleTexts: number
+  monthlyResponseLatency: MonthlyResponseLatency[]
+  monthlyPerseverance: MonthlyPerseverance[]
+  perseveranceThreshold: number
+}

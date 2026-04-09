@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { SubTabs } from '@/components/UI'
 import UserSelect from '@/components/common/UserSelect.vue'
 import MessageView from '@openchatlab/chart-message/MessageView.vue'
+import RelationshipView from './view/RelationshipView.vue'
 
 const { t } = useI18n()
 
@@ -17,14 +18,14 @@ const props = defineProps<{
   timeFilter?: TimeFilter
 }>()
 
-// 子 Tab 配置（私聊只有消息视图）
 const subTabs = computed(() => [
   { id: 'message', label: t('analysis.subTabs.view.message'), icon: 'i-heroicons-chat-bubble-left-right' },
+  { id: 'relationship', label: t('analysis.subTabs.view.relationship'), icon: 'i-heroicons-heart' },
 ])
 
 const activeSubTab = ref('message')
 
-// 成员筛选
+// 成员筛选（仅用于消息视图）
 const selectedMemberId = ref<number | null>(null)
 
 // 构建 timeFilter（含 memberId）
@@ -39,7 +40,7 @@ const viewTimeFilter = computed(() => ({
     <!-- 子 Tab 导航（右侧插槽放成员筛选） -->
     <SubTabs v-model="activeSubTab" :items="subTabs" persist-key="privateViewTab">
       <template #right>
-        <UserSelect v-model="selectedMemberId" :session-id="props.sessionId" />
+        <UserSelect v-if="activeSubTab === 'message'" v-model="selectedMemberId" :session-id="props.sessionId" />
       </template>
     </SubTabs>
 
@@ -47,6 +48,11 @@ const viewTimeFilter = computed(() => ({
     <div class="flex-1 min-h-0 overflow-auto">
       <Transition name="fade" mode="out-in">
         <MessageView v-if="activeSubTab === 'message'" :session-id="props.sessionId" :time-filter="viewTimeFilter" />
+        <RelationshipView
+          v-else-if="activeSubTab === 'relationship'"
+          :session-id="props.sessionId"
+          :time-filter="props.timeFilter"
+        />
       </Transition>
     </div>
   </div>

@@ -598,6 +598,26 @@ export function registerChatHandlers(ctx: IpcContext): void {
     }
   )
 
+  /**
+   * 获取关系主动性分析数据（私聊专属）
+   */
+  ipcMain.handle(
+    'chat:getRelationshipStats',
+    async (
+      _,
+      sessionId: string,
+      filter?: { startTs?: number; endTs?: number },
+      options?: { perseveranceThreshold?: number }
+    ) => {
+      try {
+        return await worker.getRelationshipStats(sessionId, filter, options)
+      } catch (error) {
+        console.error('Failed to get relationship stats:', error)
+        return { months: [], members: [], totalSessions: 0, hasSessionIndex: false }
+      }
+    }
+  )
+
   // ==================== 成员管理 ====================
 
   /**

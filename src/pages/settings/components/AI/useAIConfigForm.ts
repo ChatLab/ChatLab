@@ -392,9 +392,10 @@ export function useAIConfigForm(props: {
       const finalName = generateName()
 
       const isReasoning = formData.value.isReasoningModel
-      const persistCustomModels = isCompatMode.value && compatModels.value.length > 0
-        ? compatModels.value.map((m) => ({ id: m.id, name: m.name }))
-        : undefined
+      const persistCustomModels =
+        isCompatMode.value && compatModels.value.length > 0
+          ? compatModels.value.map((m) => ({ id: m.id, name: m.name }))
+          : undefined
       if (props.mode.value === 'add') {
         const result = await window.llmApi.addConfig({
           name: finalName,

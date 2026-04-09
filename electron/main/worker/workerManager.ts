@@ -329,6 +329,10 @@ export async function getClusterGraph(sessionId: string, filter?: any, options?:
   return sendToWorker('getClusterGraph', { sessionId, filter, options })
 }
 
+export async function getRelationshipStats(sessionId: string, filter?: any, options?: any): Promise<any> {
+  return sendToWorker('getRelationshipStats', { sessionId, filter, options })
+}
+
 export async function getAllSessions(): Promise<any[]> {
   return sendToWorker('getAllSessions', {})
 }

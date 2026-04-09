@@ -16,6 +16,7 @@ import type {
   MemberWithStats,
   ClusterGraphData,
   ClusterGraphOptions,
+  RelationshipStats,
 } from '../../../src/types/analysis'
 import type { FileParseInfo, ConflictCheckResult, MergeParams, MergeResult } from '../../../src/types/format'
 
@@ -293,6 +294,17 @@ export const chatApi = {
     keywords?: string[]
   ): Promise<LaughAnalysis> => {
     return ipcRenderer.invoke('chat:getLaughAnalysis', sessionId, filter, keywords)
+  },
+
+  /**
+   * 获取关系主动性分析数据（私聊专属）
+   */
+  getRelationshipStats: (
+    sessionId: string,
+    filter?: { startTs?: number; endTs?: number },
+    options?: { perseveranceThreshold?: number }
+  ): Promise<RelationshipStats> => {
+    return ipcRenderer.invoke('chat:getRelationshipStats', sessionId, filter, options)
   },
 
   // ==================== 成员管理 ====================

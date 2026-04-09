@@ -33,6 +33,7 @@ import {
   getMentionGraph,
   getLaughAnalysis,
   getClusterGraph,
+  getRelationshipStats,
   searchMessages,
   deepSearchMessages,
   getMessageContext,
@@ -174,6 +175,7 @@ const syncHandlers: Record<string, (payload: any) => any> = {
   getMentionGraph: (p) => getMentionGraph(p.sessionId, p.filter),
   getLaughAnalysis: (p) => getLaughAnalysis(p.sessionId, p.filter, p.keywords),
   getClusterGraph: (p) => getClusterGraph(p.sessionId, p.filter, p.options),
+  getRelationshipStats: (p) => getRelationshipStats(p.sessionId, p.filter, p.options),
 
   // AI 查询
   searchMessages: (p) => searchMessages(p.sessionId, p.keywords, p.filter, p.limit, p.offset, p.senderId),
