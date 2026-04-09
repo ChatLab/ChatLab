@@ -67,7 +67,7 @@ export function getCatchphraseAnalysis(sessionId: string, filter?: TimeFilter): 
     }
 
     const member = memberMap.get(row.memberId)!
-    if (member.catchphrases.length < 10) {
+    if (member.catchphrases.length < 100) {
       member.catchphrases.push({
         content: row.content,
         count: row.count,

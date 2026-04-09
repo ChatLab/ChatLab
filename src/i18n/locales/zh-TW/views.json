@@ -77,6 +77,7 @@
     },
     "initiator": "發起話題",
     "closer": "結束話題",
+    "closerHint": "統計話題結束時最後發言的人。",
     "initiated": "發起 {count} 次",
     "closed": "結束 {count} 次",
     "totalSessions": "共 {count} 次對話",

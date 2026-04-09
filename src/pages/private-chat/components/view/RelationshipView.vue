@@ -431,7 +431,7 @@ function formatDuration(seconds: number): string {
               :right-name="memberB?.name"
               :right-value="memberB?.totalCloseCount ?? 0"
               value-class="text-lg text-blue-600 dark:text-blue-400"
-              description="统计结束话题的次数。"
+              :description="t('views.relationship.closerHint')"
             />
 
             <RelationshipMetricCard

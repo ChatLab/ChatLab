@@ -77,6 +77,7 @@
     },
     "initiator": "Start Conversations",
     "closer": "End Conversations",
+    "closerHint": "Shows who sends the last message when a topic ends.",
     "initiated": "Initiated {count} times",
     "closed": "Closed {count} times",
     "totalSessions": "{count} total sessions",

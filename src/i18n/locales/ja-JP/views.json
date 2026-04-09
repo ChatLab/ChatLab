@@ -77,6 +77,7 @@
     },
     "initiator": "話題を始める",
     "closer": "話題を終える",
+    "closerHint": "話題が終わるときに最後に発言した人を集計します。",
     "initiated": "{count} 回発起",
     "closed": "{count} 回終了",
     "totalSessions": "合計 {count} セッション",

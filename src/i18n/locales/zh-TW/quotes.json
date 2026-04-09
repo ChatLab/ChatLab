@@ -8,7 +8,8 @@
     "stats": {
       "messagesLabel": "訊息數",
       "wordsLabel": "總詞數",
-      "uniqueLabel": "不重複詞數"
+      "uniqueLabel": "不重複詞數",
+      "clickHint": "提示：點擊詞雲可查看相關訊息"
     },
     "config": {
       "maxWords": "顯示詞數",
@@ -123,6 +124,20 @@
     "description": "已分析 {count} 位成員的高頻發言",
     "countTemplate": "共 {count} 位成員",
     "times": "{count} 次",
-    "empty": "暫無口頭禪資料"
+    "empty": {
+      "title": "暫無口頭禪資料",
+      "description": "目前篩選條件下沒有足夠的重複發言用於產生詞雲"
+    },
+    "stats": {
+      "phrasesLabel": "高頻短語",
+      "totalLabel": "總使用次數",
+      "clickHint": "提示：點擊可查看相關訊息"
+    },
+    "viewMode": {
+      "list": "列表",
+      "wordcloud": "詞雲"
+    },
+    "phraseCount": "{count} 條口頭禪",
+    "topN": "顯示數量"
   }
 }

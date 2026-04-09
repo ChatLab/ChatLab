@@ -281,6 +281,9 @@ onMounted(() => {
             </div>
           </div>
         </div>
+        <p class="text-center text-xs text-gray-500 dark:text-gray-400">
+          {{ t('quotes.wordcloud.stats.clickHint') }}
+        </p>
       </div>
 
       <!-- 右侧：筛选与配置面板 -->
