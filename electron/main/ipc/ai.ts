@@ -497,13 +497,18 @@ export function registerAIHandlers({ win }: IpcContext): void {
   ipcMain.handle(
     'llm:validateApiKey',
     async (_, provider: llm.LLMProvider, apiKey: string, baseUrl?: string, model?: string) => {
-      console.log('[LLM:validateApiKey] Validating:', { provider, baseUrl, model, apiKeyLength: apiKey?.length })
+      aiLogger.info('IPC', 'llm:validateApiKey validating', {
+        provider,
+        baseUrl,
+        model,
+        apiKeyLength: apiKey?.length,
+      })
       try {
         const result = await llm.validateApiKey(provider, apiKey, baseUrl, model)
-        console.log('[LLM:validateApiKey] Result:', result)
+        aiLogger.info('IPC', 'llm:validateApiKey result', result)
         return result
       } catch (error) {
-        console.error('[LLM:validateApiKey] Validation failed:', error)
+        aiLogger.error('IPC', 'llm:validateApiKey failed', { error: String(error), provider, baseUrl, model })
         const errorMessage = error instanceof Error ? error.message : String(error)
         return { success: false, error: errorMessage }
       }
