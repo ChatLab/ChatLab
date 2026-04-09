@@ -8,7 +8,8 @@
     "stats": {
       "messagesLabel": "Messages",
       "wordsLabel": "Total words",
-      "uniqueLabel": "Unique"
+      "uniqueLabel": "Unique",
+      "clickHint": "Note: Click a word in the cloud to view related messages"
     },
     "config": {
       "maxWords": "Max words",
@@ -123,6 +124,20 @@
     "description": "Analyzed frequent phrases from {count} members",
     "countTemplate": "{count} members",
     "times": "{count}x",
-    "empty": "No catchphrase data available"
+    "empty": {
+      "title": "No catchphrase data",
+      "description": "Not enough repeated phrases to generate a word cloud with current filters"
+    },
+    "stats": {
+      "phrasesLabel": "Top phrases",
+      "totalLabel": "Total uses",
+      "clickHint": "Tip: Click a phrase to view related messages"
+    },
+    "viewMode": {
+      "list": "List",
+      "wordcloud": "Word Cloud"
+    },
+    "phraseCount": "{count} catchphrases",
+    "topN": "Show count"
   }
 }

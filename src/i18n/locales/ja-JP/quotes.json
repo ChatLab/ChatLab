@@ -8,7 +8,8 @@
     "stats": {
       "messagesLabel": "メッセージ数",
       "wordsLabel": "総単語数",
-      "uniqueLabel": "ユニーク単語"
+      "uniqueLabel": "ユニーク単語",
+      "clickHint": "ヒント：ワードクラウドをクリックすると関連メッセージを表示できます"
     },
     "config": {
       "maxWords": "表示単語数",
@@ -123,6 +124,20 @@
     "description": "{count} 名の高頻度フレーズを分析しました",
     "countTemplate": "全 {count} 名のメンバー",
     "times": "{count}回",
-    "empty": "口癖データがありません"
+    "empty": {
+      "title": "口癖データがありません",
+      "description": "現在の絞り込み条件では、ワードクラウドを生成できるほど繰り返しフレーズがありません"
+    },
+    "stats": {
+      "phrasesLabel": "高頻度フレーズ",
+      "totalLabel": "合計使用回数",
+      "clickHint": "ヒント：クリックすると関連メッセージを表示できます"
+    },
+    "viewMode": {
+      "list": "リスト",
+      "wordcloud": "ワードクラウド"
+    },
+    "phraseCount": "{count} 件の口癖",
+    "topN": "表示数"
   }
 }

@@ -8,7 +8,8 @@
     "stats": {
       "messagesLabel": "消息数",
       "wordsLabel": "总词数",
-      "uniqueLabel": "独立词"
+      "uniqueLabel": "独立词",
+      "clickHint": "提示：点击词云可查看相关消息"
     },
     "config": {
       "maxWords": "显示词数",
@@ -123,6 +124,20 @@
     "description": "分析了 {count} 位成员的高频发言",
     "countTemplate": "共 {count} 位成员",
     "times": "{count}次",
-    "empty": "暂无口头禅数据"
+    "empty": {
+      "title": "暂无口头禅数据",
+      "description": "当前筛选条件下没有足够的重复发言用于生成词云"
+    },
+    "stats": {
+      "phrasesLabel": "高频短语",
+      "totalLabel": "总使用次数",
+      "clickHint": "提示：点击可查看相关消息"
+    },
+    "viewMode": {
+      "list": "列表",
+      "wordcloud": "词云"
+    },
+    "phraseCount": "{count} 条口头禅",
+    "topN": "显示数量"
   }
 }
