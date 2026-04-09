@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { getChatlabSiteLocalePath } from '@/utils/chatlabSiteLocale'
 
 const emit = defineEmits<{
   openChangelog: []
@@ -11,16 +12,10 @@ const { t, locale } = useI18n()
 
 // 配置 URL 根据语言动态获取
 const CONFIG_BASE_URL = 'https://chatlab.fun'
-const langPathMap: Record<string, string> = {
-  'zh-CN': 'cn',
-  'zh-TW': 'tw',
-  'en-US': 'en',
-  'ja-JP': 'ja',
-}
-
 const configUrl = computed(() => {
-  const langPath = langPathMap[locale.value] ?? 'en'
-  return `${CONFIG_BASE_URL}/${langPath}/config.json`
+  const localePath = getChatlabSiteLocalePath(locale.value)
+  const langPath = localePath ? `/${localePath}` : ''
+  return `${CONFIG_BASE_URL}${langPath}/config.json`
 })
 
 // 存储 key 也根据语言区分
@@ -42,7 +37,7 @@ function getDefaultLinks(): FooterLink[] {
       id: 'website',
       icon: 'i-heroicons-globe-alt',
       title: t('home.footer.website'),
-      url: `https://chatlab.fun/${langPathMap[locale.value] ?? 'en'}/`,
+      url: `https://chatlab.fun${getChatlabSiteLocalePath(locale.value) ? `/${getChatlabSiteLocalePath(locale.value)}` : ''}/`,
     },
     {
       id: 'github',

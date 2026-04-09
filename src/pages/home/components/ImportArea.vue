@@ -6,6 +6,7 @@ import { storeToRefs } from 'pinia'
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { getChatlabSiteLocalePath } from '@/utils/chatlabSiteLocale'
 import { useSessionStore, type BatchFileInfo, type MergeFileInfo } from '@/stores/session'
 
 const { t } = useI18n()
@@ -333,8 +334,8 @@ async function handleGoToSession(sessionId: string) {
 // 教程链接：根据语言动态生成
 const tutorialUrl = computed(() => {
   const { locale } = useI18n()
-  const pathMap: Record<string, string> = { 'zh-CN': '/cn', 'zh-TW': '/tw', 'ja-JP': '/ja' }
-  const langPath = pathMap[locale.value] ?? ''
+  const localePath = getChatlabSiteLocalePath(locale.value)
+  const langPath = localePath ? `/${localePath}` : ''
   return `https://chatlab.fun${langPath}/usage/how-to-export.html?utm_source=app`
 })
 
