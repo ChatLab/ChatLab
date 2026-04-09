@@ -172,6 +172,7 @@ export interface AIServiceConfigDisplay {
   maxTokens?: number
   disableThinking?: boolean
   isReasoningModel?: boolean
+  customModels?: Array<{ id: string; name: string }>
   createdAt: number
   updatedAt: number
 }
@@ -608,6 +609,7 @@ export const llmApi = {
     maxTokens?: number
     disableThinking?: boolean
     isReasoningModel?: boolean
+    customModels?: Array<{ id: string; name: string }>
   }): Promise<{ success: boolean; config?: AIServiceConfigDisplay; error?: string }> => {
     return ipcRenderer.invoke('llm:addConfig', config)
   },
@@ -626,6 +628,7 @@ export const llmApi = {
       maxTokens?: number
       disableThinking?: boolean
       isReasoningModel?: boolean
+      customModels?: Array<{ id: string; name: string }>
     }
   ): Promise<{ success: boolean; error?: string }> => {
     return ipcRenderer.invoke('llm:updateConfig', id, updates)

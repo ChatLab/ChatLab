@@ -15,6 +15,7 @@ export interface AIServiceConfig {
   baseUrl?: string
   disableThinking?: boolean
   isReasoningModel?: boolean
+  customModels?: Array<{ id: string; name: string }>
   createdAt: number
   updatedAt: number
 }
@@ -188,7 +189,11 @@ export function useAIConfigForm(props: {
     if (isCompat) {
       const looksLocal = !config.apiKeySet || (config.baseUrl?.includes('localhost') ?? false)
       connectionMode.value = looksLocal ? 'local' : 'openai-compat'
-      compatModels.value = config.model ? [{ id: config.model, name: config.model }] : []
+      if (config.customModels && config.customModels.length > 0) {
+        compatModels.value = [...config.customModels]
+      } else {
+        compatModels.value = config.model ? [{ id: config.model, name: config.model }] : []
+      }
     } else {
       connectionMode.value = 'preset'
       compatModels.value = []
@@ -387,6 +392,9 @@ export function useAIConfigForm(props: {
       const finalName = generateName()
 
       const isReasoning = formData.value.isReasoningModel
+      const persistCustomModels = isCompatMode.value && compatModels.value.length > 0
+        ? compatModels.value.map((m) => ({ id: m.id, name: m.name }))
+        : undefined
       if (props.mode.value === 'add') {
         const result = await window.llmApi.addConfig({
           name: finalName,
@@ -396,6 +404,7 @@ export function useAIConfigForm(props: {
           baseUrl: formData.value.baseUrl.trim() || undefined,
           disableThinking: isReasoning ? formData.value.disableThinking : undefined,
           isReasoningModel: isReasoning || undefined,
+          customModels: persistCustomModels,
         })
 
         if (result.success) {
@@ -412,6 +421,7 @@ export function useAIConfigForm(props: {
           baseUrl: formData.value.baseUrl.trim() || undefined,
           disableThinking: isReasoning ? formData.value.disableThinking : undefined,
           isReasoningModel: isReasoning || undefined,
+          customModels: persistCustomModels,
         }
 
         if (formData.value.apiKey.trim()) {
