@@ -93,8 +93,10 @@ const MESSAGE_LINE_REGEX_V1 = /^(\d{4}\/\d{1,2}\/\d{1,2} \d{1,2}:\d{2}) - (.+)$/
 // - [6/7/25 22:44:26] 或 [10/12/25, 12:50:16]（2 位年份，M/D/YY）
 // - [2024/10/31 15:50:46]（4 位年份在前，YYYY/MM/DD，中文地区）
 // - [31/10/2024, 15:50:46]（4 位年份在后，DD/MM/YYYY，英文地区）
+// - [14/10/2021, 3:34:09 PM]（12 小时制，英文地区）
 // 日期和时间之间可能有逗号（英文）或没有（中文）
-const MESSAGE_LINE_REGEX_V2 = /^\[(\d{1,4}\/\d{1,2}\/\d{2,4},?[ \u2009]\d{1,2}:\d{2}:\d{2})\] (.+)$/
+// 注意：部分导出文件在时间和 AM/PM 之间包含 \u202F (NNBSP) 字符
+const MESSAGE_LINE_REGEX_V2 = /^\[(\d{1,4}\/\d{1,2}\/\d{2,4},?\s*\d{1,2}:\d{2}:\d{2}(?:\s*(?:AM|PM))?)\] (.+)$/
 
 // 从消息内容中分离昵称和实际内容
 // 格式：昵称: 内容（冒号后可能是空格、U+200E LTR Mark 或两者组合）
@@ -173,15 +175,18 @@ function detectMessageType(content: string): MessageType {
  *   - 6/7/25 22:44:26（M/D/YY HH:MM:SS，2 位年份）
  *   - 2024/10/31 15:50:46（YYYY/MM/DD HH:MM:SS，4 位年份在前，中文地区）
  *   - 31/10/2024, 15:50:46（DD/MM/YYYY, HH:MM:SS，4 位年份在后，英文地区）
+ *   - 14/10/2021, 3:34:09 PM（12 小时制，英文地区）
  */
 function parseWhatsAppTime(timeStr: string, isV2Format: boolean = false): number {
   if (isV2Format) {
-    // 方括号格式：规范化特殊空格（Thin Space U+2009）和逗号
-    const normalizedStr = timeStr.replace(/\u2009/g, ' ').replace(',', '')
-    const match = normalizedStr.match(/^(\d{1,4})\/(\d{1,2})\/(\d{2,4}) (\d{1,2}):(\d{2}):(\d{2})$/)
+    // 方括号格式：规范化特殊空格（Thin Space U+2009, NNBSP U+202F）和逗号
+    const normalizedStr = timeStr.replace(/[\u2009\u202F]/g, ' ').replace(',', '')
+    // 检测 12 小时制（AM/PM）
+    const is12HourFormat = /\s\d{1,2}:\d{2}:\d{2}\s+(?:AM|PM)$/i.test(normalizedStr)
+    const match = normalizedStr.match(/^(\d{1,4})\/(\d{1,2})\/(\d{2,4}) (\d{1,2}):(\d{2}):(\d{2})(?:\s+(AM|PM))?$/i)
     if (match) {
-      const [, part1, part2, part3, hour, minute, second] = match
-      let year: number, month: number, day: number
+      const [, part1, part2, part3, hour, minute, second, ampm] = match
+      let year: number, month: number, day: number, hourNum: number
 
       if (part1.length === 4) {
         // YYYY/MM/DD 格式（中文地区，4 位年份在前）
@@ -200,7 +205,16 @@ function parseWhatsAppTime(timeStr: string, isV2Format: boolean = false): number
         year = 2000 + parseInt(part3, 10)
       }
 
-      const date = new Date(year, month - 1, day, parseInt(hour, 10), parseInt(minute, 10), parseInt(second, 10))
+      hourNum = parseInt(hour, 10)
+      if (is12HourFormat && ampm) {
+        if (ampm.toUpperCase() === 'PM' && hourNum !== 12) {
+          hourNum += 12
+        } else if (ampm.toUpperCase() === 'AM' && hourNum === 12) {
+          hourNum = 0
+        }
+      }
+
+      const date = new Date(year, month - 1, day, hourNum, parseInt(minute, 10), parseInt(second, 10))
       return Math.floor(date.getTime() / 1000)
     }
   }
