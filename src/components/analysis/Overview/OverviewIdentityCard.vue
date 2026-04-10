@@ -203,85 +203,82 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <ThemeCard variant="elevated" decorative class="p-8">
-    <div class="relative">
-      <div class="flex flex-col">
-        <!-- 上方：身份信息 + 统计数据 -->
-        <div class="pb-2">
-          <h2 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
-            {{ session.name }}
-          </h2>
+  <ThemeCard variant="elevated" decorative class="flex flex-col">
+    <!-- 身份信息 + 基础统计 -->
+    <div class="relative z-10 px-6 pt-8 pb-4 sm:px-8">
+      <h2 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+        {{ session.name }}
+      </h2>
 
-          <div class="mt-4 flex items-start gap-6 sm:gap-24">
-            <div class="min-w-0 flex flex-col gap-2 text-sm font-medium text-gray-500 dark:text-gray-400">
-              <div class="flex items-center gap-2">
-                <div class="flex h-6 w-6 shrink-0 items-center justify-center">
-                  <UIcon v-if="session.type === 'group'" name="i-heroicons-user-group" class="h-4 w-4 opacity-70" />
-                  <UIcon v-else name="i-heroicons-user" class="h-4 w-4 opacity-70" />
-                </div>
-                <span class="whitespace-nowrap">
-                  {{ session.platform.toUpperCase() }}
-                  ·
-                  {{
-                    session.type === 'private'
-                      ? t('analysis.overview.identity.privateChat')
-                      : t('analysis.overview.identity.groupChat')
-                  }}
-                </span>
-              </div>
-
-              <div v-if="fullTimeRangeText" class="flex items-center gap-2">
-                <div class="flex h-6 w-6 shrink-0 items-center justify-center">
-                  <UIcon name="i-heroicons-calendar" class="h-4 w-4 opacity-70" />
-                </div>
-                <span class="font-mono text-xs opacity-90 whitespace-nowrap">{{ fullTimeRangeText }}</span>
-              </div>
+      <div class="mt-4 flex items-start gap-6 sm:gap-24">
+        <div class="min-w-0 flex flex-col gap-2 text-sm font-medium text-gray-500 dark:text-gray-400">
+          <div class="flex items-center gap-2">
+            <div class="flex h-6 w-6 shrink-0 items-center justify-center">
+              <UIcon v-if="session.type === 'group'" name="i-heroicons-user-group" class="h-4 w-4 opacity-70" />
+              <UIcon v-else name="i-heroicons-user" class="h-4 w-4 opacity-70" />
             </div>
+            <span class="whitespace-nowrap">
+              {{ session.platform.toUpperCase() }}
+              ·
+              {{
+                session.type === 'private'
+                  ? t('analysis.overview.identity.privateChat')
+                  : t('analysis.overview.identity.groupChat')
+              }}
+            </span>
+          </div>
 
-            <!-- 紧凑统计数据 -->
-            <div class="flex shrink-0 gap-6">
-              <div class="flex flex-col gap-1 text-center">
-                <span class="text-2xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
-                  {{ session.messageCount.toLocaleString() }}
-                </span>
-                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t('analysis.overview.identity.totalMessages') }}
-                </span>
-              </div>
-
-              <div class="flex flex-col gap-1 text-center">
-                <span class="text-2xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
-                  {{ totalDurationDays.toLocaleString() }}
-                </span>
-                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t('analysis.overview.identity.durationDays') }}
-                </span>
-              </div>
-
-              <div class="flex flex-col gap-1 text-center">
-                <span class="text-2xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
-                  {{ totalDailyAvgMessages.toLocaleString() }}
-                </span>
-                <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                  {{ t('analysis.overview.identity.dailyAvgMessages') }}
-                </span>
-              </div>
+          <div v-if="fullTimeRangeText" class="flex items-center gap-2">
+            <div class="flex h-6 w-6 shrink-0 items-center justify-center">
+              <UIcon name="i-heroicons-calendar" class="h-4 w-4 opacity-70" />
             </div>
+            <span class="font-mono text-xs opacity-90 whitespace-nowrap">{{ fullTimeRangeText }}</span>
           </div>
         </div>
 
-        <!-- 热力图区域 -->
-        <div class="pt-2">
-          <div class="flex items-center justify-between mb-2">
-            <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-              Activity Heatmap
+        <div class="flex shrink-0 gap-6">
+          <div class="flex flex-col gap-1 text-center">
+            <span class="text-2xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
+              {{ session.messageCount.toLocaleString() }}
+            </span>
+            <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+              {{ t('analysis.overview.identity.totalMessages') }}
             </span>
           </div>
-          <div class="overflow-x-auto overflow-y-hidden scrollbar-hide py-1">
-            <div ref="chartRef" class="h-[140px] min-w-[700px] lg:w-full" />
+
+          <div class="flex flex-col gap-1 text-center">
+            <span class="text-2xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
+              {{ totalDurationDays.toLocaleString() }}
+            </span>
+            <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+              {{ t('analysis.overview.identity.durationDays') }}
+            </span>
+          </div>
+
+          <div class="flex flex-col gap-1 text-center">
+            <span class="text-2xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
+              {{ totalDailyAvgMessages.toLocaleString() }}
+            </span>
+            <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+              {{ t('analysis.overview.identity.dailyAvgMessages') }}
+            </span>
           </div>
         </div>
       </div>
     </div>
+
+    <!-- 热力图区域 -->
+    <div class="relative z-10 px-6 pb-2 sm:px-8">
+      <div class="mb-2 flex items-center justify-between">
+        <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
+          Activity Heatmap
+        </span>
+      </div>
+      <div class="overflow-x-auto overflow-y-hidden scrollbar-hide py-1">
+        <div ref="chartRef" class="h-[140px] min-w-[700px] lg:w-full" />
+      </div>
+    </div>
+
+    <slot />
   </ThemeCard>
 </template>

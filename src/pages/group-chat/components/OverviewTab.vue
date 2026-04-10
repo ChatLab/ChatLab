@@ -103,30 +103,30 @@ watch(
 
 <template>
   <div class="main-content mx-auto max-w-[920px] space-y-6 p-6">
-    <!-- 群聊身份卡 -->
+    <!-- 群聊身份卡 + 关键指标 -->
     <OverviewIdentityCard
       :session="session"
       :daily-activity="dailyActivity"
       :total-duration-days="totalDurationDays"
       :total-daily-avg-messages="totalDailyAvgMessages"
       :time-range="timeRange"
-    />
-
-    <!-- 关键指标卡片 -->
-    <OverviewStatCards
-      :daily-avg-messages="dailyAvgMessages"
-      :duration-days="durationDays"
-      :image-count="imageCount"
-      :peak-hour="peakHour"
-      :peak-weekday="peakWeekday"
-      :weekday-names="weekdayNames"
-      :weekday-vs-weekend="weekdayVsWeekend"
-      :peak-day="peakDay"
-      :active-days="activeDays"
-      :total-days="totalDays"
-      :active-rate="activeRate"
-      :max-consecutive-days="maxConsecutiveDays"
-    />
+    >
+      <OverviewStatCards
+        flat
+        :daily-avg-messages="dailyAvgMessages"
+        :duration-days="durationDays"
+        :image-count="imageCount"
+        :peak-hour="peakHour"
+        :peak-weekday="peakWeekday"
+        :weekday-names="weekdayNames"
+        :weekday-vs-weekend="weekdayVsWeekend"
+        :peak-day="peakDay"
+        :active-days="activeDays"
+        :total-days="totalDays"
+        :active-rate="activeRate"
+        :max-consecutive-days="maxConsecutiveDays"
+      />
+    </OverviewIdentityCard>
 
     <!-- 图表区域：消息类型 & 成员分布 -->
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">

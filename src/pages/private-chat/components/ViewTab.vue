@@ -19,11 +19,11 @@ const props = defineProps<{
 }>()
 
 const subTabs = computed(() => [
-  { id: 'message', label: t('analysis.subTabs.view.message'), icon: 'i-heroicons-chat-bubble-left-right' },
   { id: 'relationship', label: t('analysis.subTabs.view.relationship'), icon: 'i-heroicons-heart' },
+  { id: 'message', label: t('analysis.subTabs.view.message'), icon: 'i-heroicons-chat-bubble-left-right' },
 ])
 
-const activeSubTab = ref('message')
+const activeSubTab = ref('relationship')
 
 // 成员筛选（仅用于消息视图）
 const selectedMemberId = ref<number | null>(null)
