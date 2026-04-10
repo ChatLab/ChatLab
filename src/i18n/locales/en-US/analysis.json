@@ -110,6 +110,12 @@
     },
     "tools": "Quick Tools"
   },
+  "toolsPanel": {
+    "expand": "Expand tools panel",
+    "collapse": "Collapse tools panel",
+    "lock": "Lock panel",
+    "unlock": "Unlock panel"
+  },
   "messageExport": {
     "title": "Export Records"
   },

@@ -15,6 +15,7 @@ import PageHeader from '@/components/layout/PageHeader.vue'
 import SessionIndexModal from '@/components/analysis/SessionIndexModal.vue'
 import IncrementalImportModal from '@/components/analysis/IncrementalImportModal.vue'
 const MessageExportModal = defineAsyncComponent(() => import('@/components/MessageExport/MessageExportModal.vue'))
+import ActionToolsPanel from '@/components/layout/ActionToolsPanel.vue'
 import LoadingState from '@/components/UI/LoadingState.vue'
 import { useSessionStore } from '@/stores/session'
 import { useLayoutStore } from '@/stores/layout'
@@ -198,10 +199,6 @@ const otherMemberAvatar = computed(() => {
               :filtered-message-count="filteredMessageCount"
               :filtered-member-count="filteredMemberCount"
               :time-filter="timeFilter"
-              @open-session-index="showSessionIndexModal = true"
-              @open-incremental-import="showIncrementalImportModal = true"
-              @open-member-management="showMemberManagementModal = true"
-              @open-message-export="showMessageExportModal = true"
             />
             <ViewTab
               v-else-if="activeTab === 'view'"
@@ -233,6 +230,14 @@ const otherMemberAvatar = computed(() => {
           </Transition>
         </div>
       </div>
+
+      <!-- 右侧工具面板（fixed 定位，不占用页面空间） -->
+      <ActionToolsPanel
+        @open-incremental-import="showIncrementalImportModal = true"
+        @open-session-index="showSessionIndexModal = true"
+        @open-member-management="showMemberManagementModal = true"
+        @open-message-export="showMessageExportModal = true"
+      />
     </template>
 
     <!-- Empty State -->

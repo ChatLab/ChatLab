@@ -205,9 +205,8 @@ onUnmounted(() => {
   <div
     class="relative overflow-hidden rounded-[24px] border border-gray-200/60 bg-white p-8 shadow-sm dark:border-white/5 dark:bg-card-dark"
   >
-    <div class="relative flex gap-8">
-      <!-- 左侧：身份信息 + 日历 -->
-      <div class="min-w-0 flex-1 flex flex-col">
+    <div class="relative">
+      <div class="flex flex-col">
         <!-- 上方：身份信息 + 统计数据 -->
         <div class="pb-2">
           <h2 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
@@ -283,14 +282,6 @@ onUnmounted(() => {
             <div ref="chartRef" class="h-[140px] min-w-[700px] lg:w-full" />
           </div>
         </div>
-      </div>
-
-      <!-- 右侧工具区插槽 -->
-      <div
-        v-if="$slots.tools"
-        class="flex flex-none flex-col justify-end w-56 border-l border-gray-100 pl-8 dark:border-white/5"
-      >
-        <slot name="tools" />
       </div>
     </div>
   </div>

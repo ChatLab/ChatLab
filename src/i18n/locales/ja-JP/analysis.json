@@ -110,6 +110,12 @@
     },
     "tools": "よく使うツール"
   },
+  "toolsPanel": {
+    "expand": "ツールパネルを展開",
+    "collapse": "ツールパネルを折りたたむ",
+    "lock": "パネルを固定",
+    "unlock": "パネルの固定を解除"
+  },
   "messageExport": {
     "title": "チャット記録をエクスポート"
   },

@@ -110,6 +110,12 @@
     },
     "tools": "常用工具"
   },
+  "toolsPanel": {
+    "expand": "展開工具面板",
+    "collapse": "收起工具面板",
+    "lock": "鎖定面板",
+    "unlock": "解鎖面板"
+  },
   "messageExport": {
     "title": "匯出聊天紀錄"
   },

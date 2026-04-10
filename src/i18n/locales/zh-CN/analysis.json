@@ -110,6 +110,12 @@
     },
     "tools": "常用工具"
   },
+  "toolsPanel": {
+    "expand": "展开工具面板",
+    "collapse": "收起工具面板",
+    "lock": "锁定面板",
+    "unlock": "解锁面板"
+  },
   "messageExport": {
     "title": "导出聊天记录"
   },

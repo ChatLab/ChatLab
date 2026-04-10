@@ -11,17 +11,9 @@ import { useOverviewStatistics } from '@/composables/analysis/useOverviewStatist
 import { useDailyTrend } from '@/composables/analysis/useDailyTrend'
 import OverviewStatCards from '@/components/analysis/Overview/OverviewStatCards.vue'
 import OverviewIdentityCard from '@/components/analysis/Overview/OverviewIdentityCard.vue'
-import OverviewActionTools from '@/components/analysis/Overview/OverviewActionTools.vue'
 import DailyTrendCard from '@/components/analysis/Overview/DailyTrendCard.vue'
 
 const { t } = useI18n()
-
-const emit = defineEmits<{
-  (e: 'openSessionIndex'): void
-  (e: 'openIncrementalImport'): void
-  (e: 'openMemberManagement'): void
-  (e: 'openMessageExport'): void
-}>()
 
 const props = defineProps<{
   session: AnalysisSession
@@ -134,16 +126,7 @@ watch(
       :total-duration-days="totalDurationDays"
       :total-daily-avg-messages="totalDailyAvgMessages"
       :time-range="timeRange"
-    >
-      <template #tools>
-        <OverviewActionTools
-          @open-incremental-import="emit('openIncrementalImport')"
-          @open-session-index="emit('openSessionIndex')"
-          @open-member-management="emit('openMemberManagement')"
-          @open-message-export="emit('openMessageExport')"
-        />
-      </template>
-    </OverviewIdentityCard>
+    />
 
     <!-- 关键指标卡片 -->
     <OverviewStatCards
