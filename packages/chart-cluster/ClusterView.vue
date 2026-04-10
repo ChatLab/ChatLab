@@ -284,7 +284,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div class="p-4 h-full">
+  <div class="mx-auto max-w-[920px] p-4 h-full">
     <div
       class="flex h-full flex-col rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-sm overflow-hidden"
     >

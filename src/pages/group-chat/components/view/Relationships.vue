@@ -75,7 +75,7 @@ watch(
 </script>
 
 <template>
-  <div class="main-content space-y-6 p-6">
+  <div class="main-content mx-auto max-w-[920px] space-y-6 p-6">
     <!-- @ 互动分析模块 -->
     <LoadingState v-if="isLoadingMention" :text="t('members.relationships.loading')" />
 

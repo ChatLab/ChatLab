@@ -102,7 +102,7 @@ watch(
 </script>
 
 <template>
-  <div class="main-content mx-auto max-w-7xl space-y-6 p-4 sm:p-6">
+  <div class="main-content mx-auto max-w-[920px] space-y-6 p-6">
     <!-- 群聊身份卡 -->
     <OverviewIdentityCard
       :session="session"

@@ -259,7 +259,7 @@ watch(
 </script>
 
 <template>
-  <div class="main-content space-y-6 p-6">
+  <div class="main-content mx-auto max-w-[920px] space-y-6 p-6">
     <!-- 加载状态 -->
     <div v-if="isLoading" class="flex h-64 items-center justify-center">
       <UIcon name="i-heroicons-arrow-path" class="h-8 w-8 animate-spin text-gray-400" />
