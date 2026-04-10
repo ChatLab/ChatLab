@@ -15,7 +15,7 @@ export const useLayoutStore = defineStore(
     const chatRecordQuery = ref<ChatRecordQuery | null>(null)
 
     // 截图设置
-    const screenshotMobileAdapt = ref(true) // 截图时开启移动端适配，默认开启
+    const screenshotMobileAdapt = ref(false) // 截图时开启移动端适配，默认关闭
 
     /**
      * 切换侧边栏展开/折叠状态
