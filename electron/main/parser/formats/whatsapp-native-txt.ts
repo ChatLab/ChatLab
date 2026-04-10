@@ -38,11 +38,12 @@ import { getFileSize, createProgress } from '../utils'
  */
 function extractNameFromFilePath(filePath: string): string {
   const basename = path.basename(filePath)
-  // 匹配：与xxx的 WhatsApp 聊天.txt
-  const match = basename.match(/^与(.+?)的\s*WhatsApp\s*聊天\.txt$/i)
-  if (match) {
-    return match[1].trim()
-  }
+  // 简体中文：与xxx的 WhatsApp 聊天.txt
+  const matchZhCn = basename.match(/^与(.+?)的\s*WhatsApp\s*聊天\.txt$/i)
+  if (matchZhCn) return matchZhCn[1].trim()
+  // 繁体中文：與xxx的WhatsApp對話.txt
+  const matchZhTw = basename.match(/^與(.+?)的\s*WhatsApp\s*對話\.txt$/i)
+  if (matchZhTw) return matchZhTw[1].trim()
   // 兜底：移除扩展名
   return basename.replace(/\.txt$/i, '') || '未知聊天'
 }
@@ -59,14 +60,15 @@ export const feature: FormatFeature = {
     // WhatsApp 导出文件的特征（中文/英文）
     // 注意：仅保留 WhatsApp 独有的特征，避免误匹配其他 TXT 格式（如 LINE）
     head: [
-      /消息和通话已进行端到端加密/, // 中文加密提示（WhatsApp 独有）
+      /消息和通话已进行端到端加密/, // 简体中文加密提示（WhatsApp 独有）
+      /訊息與通話已受端對端加密保護/, // 繁体中文加密提示（WhatsApp 独有）
       /Messages and calls are end-to-end encrypted/i, // 英文加密提示（WhatsApp 独有）
-      /你发送给自己的消息已进行端到端加密/, // 中文自己对话提示（WhatsApp 独有）
+      /你发送给自己的消息已进行端到端加密/, // 简体中文自己对话提示（WhatsApp 独有）
       /\d{4}\/\d{1,2}\/\d{1,2} \d{1,2}:\d{2} - /, // 消息行格式特征（无方括号，含 " - " 分隔符，WhatsApp 独有）
-      /\[\d{1,4}\/\d{1,2}\/\d{2,4},? \d{1,2}:\d{2}:\d{2}\] /, // 消息行格式特征（方括号 + 秒级时间戳，WhatsApp 独有）
+      /\[\d{1,4}\/\d{1,2}\/\d{2,4},?[ \u2009]\d{1,2}:\d{2}:\d{2}\] /, // 消息行格式特征（方括号 + 秒级时间戳，支持 Thin Space）
     ],
     // 文件名特征：与xxx的 WhatsApp 聊天.txt
-    filename: [/^与.+的\s*WhatsApp\s*聊天\.txt$/i, /WhatsApp/i],
+    filename: [/^与.+的\s*WhatsApp\s*聊天\.txt$/i, /^與.+的\s*WhatsApp\s*對話\.txt$/i, /WhatsApp/i],
   },
 }
 
@@ -92,7 +94,7 @@ const MESSAGE_LINE_REGEX_V1 = /^(\d{4}\/\d{1,2}\/\d{1,2} \d{1,2}:\d{2}) - (.+)$/
 // - [2024/10/31 15:50:46]（4 位年份在前，YYYY/MM/DD，中文地区）
 // - [31/10/2024, 15:50:46]（4 位年份在后，DD/MM/YYYY，英文地区）
 // 日期和时间之间可能有逗号（英文）或没有（中文）
-const MESSAGE_LINE_REGEX_V2 = /^\[(\d{1,4}\/\d{1,2}\/\d{2,4},? \d{1,2}:\d{2}:\d{2})\] (.+)$/
+const MESSAGE_LINE_REGEX_V2 = /^\[(\d{1,4}\/\d{1,2}\/\d{2,4},?[ \u2009]\d{1,2}:\d{2}:\d{2})\] (.+)$/
 
 // 从消息内容中分离昵称和实际内容
 // 格式：昵称: 内容（冒号后可能是空格、U+200E LTR Mark 或两者组合）
@@ -101,7 +103,7 @@ const SENDER_CONTENT_REGEX = /^(.+?):[\s\u200E]+(.*)$/
 // ==================== 系统消息识别 ====================
 
 const SYSTEM_MESSAGE_PATTERNS = [
-  // 中文系统消息
+  // 简体中文系统消息
   /消息和通话已进行端到端加密/,
   /创建了此群组/,
   /加入群组/,
@@ -113,6 +115,16 @@ const SYSTEM_MESSAGE_PATTERNS = [
   /这条消息已删除/,
   /限时消息功能/,
   /正在等待此消息/,
+  // 繁体中文系统消息
+  /訊息與通話已受端對端加密保護/,
+  /建立了此群組/,
+  /加入了群組/,
+  /已新增/,
+  /已離開群組/,
+  /已移除/,
+  /已變更本群組/,
+  /此訊息已刪除/,
+  /限時訊息/,
   // 英文系统消息
   /Messages and calls are end-to-end encrypted/i,
   /created this group/i,
@@ -134,12 +146,16 @@ function isSystemMessage(content: string): boolean {
 function detectMessageType(content: string): MessageType {
   const trimmed = content.trim()
 
-  // 媒体消息
-  if (trimmed === '<省略影音内容>') return MessageType.IMAGE // 统一归类为图片
-  if (trimmed.includes('<已附加:') || trimmed.includes('<附件:')) return MessageType.FILE
+  // 媒体消息（简体/繁体）
+  if (trimmed === '<省略影音内容>' || trimmed === '<已省略多媒體檔案>') return MessageType.IMAGE
+  if (trimmed.includes('<已附加:') || trimmed.includes('<附件:') || trimmed.includes('<已附加：'))
+    return MessageType.FILE
 
-  // 删除消息
-  if (trimmed === '这条消息已删除') return MessageType.RECALL
+  // 贴图/贴纸（繁体中文导出标记）
+  if (trimmed === '貼圖已忽略') return MessageType.EMOJI
+
+  // 删除消息（简体/繁体）
+  if (trimmed === '这条消息已删除' || trimmed.startsWith('此訊息已刪除')) return MessageType.RECALL
 
   // 系统消息
   if (isSystemMessage(trimmed)) return MessageType.SYSTEM
@@ -160,8 +176,8 @@ function detectMessageType(content: string): MessageType {
  */
 function parseWhatsAppTime(timeStr: string, isV2Format: boolean = false): number {
   if (isV2Format) {
-    // 方括号格式：先移除可能的逗号
-    const normalizedStr = timeStr.replace(',', '')
+    // 方括号格式：规范化特殊空格（Thin Space U+2009）和逗号
+    const normalizedStr = timeStr.replace(/\u2009/g, ' ').replace(',', '')
     const match = normalizedStr.match(/^(\d{1,4})\/(\d{1,2})\/(\d{2,4}) (\d{1,2}):(\d{2}):(\d{2})$/)
     if (match) {
       const [, part1, part2, part3, hour, minute, second] = match
