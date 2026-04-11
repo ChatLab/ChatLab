@@ -57,18 +57,24 @@ export function useTimeSelect(route: RouteLocationNormalizedLoaded, router: Rout
     return new Date(v.startTs * 1000).getFullYear()
   })
 
-  /** 从 URL query 构建 TimeSelect 初始状态 */
+  /** 从 URL query 构建 TimeSelect 初始状态；总览 Tab 默认「全部」，其余 Tab 默认「最近一年」 */
   const initialTimeState = computed<Partial<TimeSelectState>>(() => {
     const q = route.query
     const m = q.timeMode as TimeSelectMode | undefined
+    if (m) {
+      return {
+        mode: m,
+        recentDays: q.timeDays ? Number(q.timeDays) : undefined,
+        year: q.timeYear ? Number(q.timeYear) : undefined,
+        quarterYear: q.timeYear ? Number(q.timeYear) : undefined,
+        quarter: q.timeQuarter ? Number(q.timeQuarter) : undefined,
+        customStart: (q.timeStart as string) || undefined,
+        customEnd: (q.timeEnd as string) || undefined,
+      }
+    }
     return {
-      mode: m ?? undefined,
-      recentDays: q.timeDays ? Number(q.timeDays) : undefined,
-      year: q.timeYear ? Number(q.timeYear) : undefined,
-      quarterYear: q.timeYear ? Number(q.timeYear) : undefined,
-      quarter: q.timeQuarter ? Number(q.timeQuarter) : undefined,
-      customStart: (q.timeStart as string) || undefined,
-      customEnd: (q.timeEnd as string) || undefined,
+      mode: 'recent',
+      recentDays: activeTab.value === 'overview' ? 0 : 365,
     }
   })
 

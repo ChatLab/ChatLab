@@ -95,7 +95,9 @@
       "daysStreak": "{count} 天",
       "longestStreak": "最長連續活躍",
       "activityRate": "活躍率",
-      "activeDaysRatio": "有訊息的天數佔比"
+      "activeDaysRatio": "有訊息的天數佔比",
+      "lateNightChat": "深夜聊天",
+      "lateNightRatio": "佔總訊息 {ratio}%"
     },
     "dailyTrend": {
       "title": "每日訊息趨勢"
@@ -106,6 +108,7 @@
       "analysisReport": "資料分析報告",
       "totalMessages": "訊息總數",
       "durationDays": "跨度天數",
+      "activeDays": "活躍天數",
       "dailyAvgMessages": "日均訊息"
     },
     "tools": "常用工具"

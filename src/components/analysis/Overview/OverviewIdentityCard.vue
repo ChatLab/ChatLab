@@ -7,10 +7,12 @@ import { HeatmapChart } from 'echarts/charts'
 import { CalendarComponent, TooltipComponent, VisualMapComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { EChartsOption } from 'echarts'
-import type { AnalysisSession } from '@/types/base'
-import type { DailyActivity } from '@/types/analysis'
+import type { AnalysisSession, MessageType } from '@/types/base'
+import type { DailyActivity, HourlyActivity, WeekdayActivity } from '@/types/analysis'
 import { formatDateRange } from '@/utils'
 import { ThemeCard } from '@/components/UI'
+import { useOverviewStatistics } from '@/composables/analysis/useOverviewStatistics'
+import OverviewStatCards from './OverviewStatCards.vue'
 
 echarts.use([HeatmapChart, CalendarComponent, TooltipComponent, VisualMapComponent, CanvasRenderer])
 
@@ -20,10 +22,51 @@ const isDark = useDark()
 const props = defineProps<{
   session: AnalysisSession
   dailyActivity: DailyActivity[]
-  totalDurationDays: number
-  totalDailyAvgMessages: number
+  messageTypes: Array<{ type: MessageType; count: number }>
+  hourlyActivity: HourlyActivity[]
   timeRange: { start: number; end: number } | null
+  selectedYear: number | null
+  filteredMessageCount: number
+  timeFilter?: { startTs?: number; endTs?: number }
 }>()
+
+// ==================== 统计数据 ====================
+
+const weekdayActivity = ref<WeekdayActivity[]>([])
+
+async function loadWeekdayActivity() {
+  if (!props.session.id) return
+  try {
+    weekdayActivity.value = await window.chatApi.getWeekdayActivity(props.session.id, props.timeFilter)
+  } catch (error) {
+    console.error('加载星期活跃度失败:', error)
+  }
+}
+
+watch(
+  () => [props.session.id, props.timeFilter],
+  () => loadWeekdayActivity(),
+  { immediate: true, deep: true }
+)
+
+const {
+  durationDays,
+  displayMessageCount,
+  dailyAvgMessages,
+  imageCount,
+  peakHour,
+  peakWeekday,
+  weekdayNames,
+  weekdayVsWeekend,
+  peakDay,
+  activeDays,
+  totalDays,
+  activeRate,
+  lateNightChat,
+  maxConsecutiveDays,
+} = useOverviewStatistics(props, weekdayActivity)
+
+// ==================== 热力图 ====================
 
 const chartRef = ref<HTMLElement | null>(null)
 let chartInstance: echarts.ECharts | null = null
@@ -33,7 +76,6 @@ const fullTimeRangeText = computed(() => {
   return formatDateRange(props.timeRange.start, props.timeRange.end, 'YYYY/MM/DD')
 })
 
-// 滚动 12 个月日期范围（与 GitHub 贡献图一致）
 const calendarRange = computed(() => {
   const today = new Date()
   const yearAgo = new Date(today)
@@ -43,7 +85,6 @@ const calendarRange = computed(() => {
   return [fmt(yearAgo), fmt(today)]
 })
 
-// 转换 DailyActivity 为 ECharts 日历数据
 const chartData = computed(() => {
   const [startStr, endStr] = calendarRange.value
   const startDate = new Date(startStr + 'T00:00:00Z')
@@ -78,8 +119,7 @@ const themeColors = {
   dark: ['#3d1f24', '#6b2f3a', '#a34557', '#ee4567'],
 }
 
-// GitHub 风格：标准的空白格底色
-const emptyColor = computed(() => (isDark.value ? 'rgba(255, 255, 255, 0.03)' : '#ebedf0'))
+const emptyColor = computed(() => (isDark.value ? 'rgba(255, 255, 255, 0.08)' : '#ebedf0'))
 
 const chartOption = computed<EChartsOption>(() => ({
   tooltip: {
@@ -163,7 +203,7 @@ const chartOption = computed<EChartsOption>(() => ({
       itemStyle: {
         borderRadius: 3,
         borderWidth: 2,
-        borderColor: isDark.value ? 'transparent' : '#ffffff',
+        borderColor: isDark.value ? 'rgba(0, 0, 0, 0.01)' : '#ffffff',
       },
     },
   ],
@@ -239,7 +279,7 @@ onUnmounted(() => {
         <div class="flex shrink-0 gap-6">
           <div class="flex flex-col gap-1 text-center">
             <span class="text-2xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
-              {{ session.messageCount.toLocaleString() }}
+              {{ displayMessageCount.toLocaleString() }}
             </span>
             <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
               {{ t('analysis.overview.identity.totalMessages') }}
@@ -248,7 +288,7 @@ onUnmounted(() => {
 
           <div class="flex flex-col gap-1 text-center">
             <span class="text-2xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
-              {{ totalDurationDays.toLocaleString() }}
+              {{ durationDays.toLocaleString() }}
             </span>
             <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
               {{ t('analysis.overview.identity.durationDays') }}
@@ -257,7 +297,16 @@ onUnmounted(() => {
 
           <div class="flex flex-col gap-1 text-center">
             <span class="text-2xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
-              {{ totalDailyAvgMessages.toLocaleString() }}
+              {{ activeDays.toLocaleString() }}
+            </span>
+            <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+              {{ t('analysis.overview.identity.activeDays') }}
+            </span>
+          </div>
+
+          <div class="flex flex-col gap-1 text-center">
+            <span class="text-2xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
+              {{ dailyAvgMessages.toLocaleString() }}
             </span>
             <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
               {{ t('analysis.overview.identity.dailyAvgMessages') }}
@@ -279,6 +328,23 @@ onUnmounted(() => {
       </div>
     </div>
 
-    <slot />
+    <!-- 关键指标卡片 -->
+    <OverviewStatCards
+      flat
+      :daily-avg-messages="dailyAvgMessages"
+      :duration-days="durationDays"
+      :image-count="imageCount"
+      :peak-hour="peakHour"
+      :peak-weekday="peakWeekday"
+      :weekday-names="weekdayNames"
+      :weekday-vs-weekend="weekdayVsWeekend"
+      :peak-day="peakDay"
+      :active-days="activeDays"
+      :total-days="totalDays"
+      :active-rate="activeRate"
+      :late-night-count="lateNightChat.count"
+      :late-night-ratio="lateNightChat.ratio"
+      :max-consecutive-days="maxConsecutiveDays"
+    />
   </ThemeCard>
 </template>

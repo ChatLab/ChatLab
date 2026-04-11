@@ -95,7 +95,9 @@
       "daysStreak": "{count} 日間",
       "longestStreak": "最長連続アクティブ",
       "activityRate": "アクティブ率",
-      "activeDaysRatio": "メッセージのある日の割合"
+      "activeDaysRatio": "メッセージのある日の割合",
+      "lateNightChat": "深夜チャット",
+      "lateNightRatio": "全メッセージの {ratio}%"
     },
     "dailyTrend": {
       "title": "日別メッセージトレンド"
@@ -106,6 +108,7 @@
       "analysisReport": "分析レポート",
       "totalMessages": "メッセージ総数",
       "durationDays": "期間日数",
+      "activeDays": "アクティブ日数",
       "dailyAvgMessages": "日平均メッセージ"
     },
     "tools": "よく使うツール"

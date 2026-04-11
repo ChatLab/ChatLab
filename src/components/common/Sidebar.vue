@@ -364,7 +364,7 @@ function getSessionAvatar(session: AnalysisSession): string | null {
     </div>
 
     <!-- Rename Modal -->
-    <UModal v-model:open="showRenameModal">
+    <UModal v-model:open="showRenameModal" :ui="{ content: 'z-50' }">
       <template #content>
         <div class="p-4">
           <h3 class="mb-3 font-semibold text-gray-900 dark:text-white">{{ t('layout.renameModal.title') }}</h3>

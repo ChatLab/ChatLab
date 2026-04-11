@@ -95,7 +95,9 @@
       "daysStreak": "{count} days",
       "longestStreak": "Longest active streak",
       "activityRate": "Activity Rate",
-      "activeDaysRatio": "Days with messages"
+      "activeDaysRatio": "Days with messages",
+      "lateNightChat": "Late Night Chat",
+      "lateNightRatio": "{ratio}% of all messages"
     },
     "dailyTrend": {
       "title": "Daily Message Trend"
@@ -106,6 +108,7 @@
       "analysisReport": "Analysis Report",
       "totalMessages": "Total Messages",
       "durationDays": "Duration Days",
+      "activeDays": "Active Days",
       "dailyAvgMessages": "Daily Avg"
     },
     "tools": "Quick Tools"
