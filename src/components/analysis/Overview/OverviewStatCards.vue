@@ -20,6 +20,8 @@ const props = withDefaults(
     activeDays: number
     totalDays: number
     activeRate: number
+    lateNightCount: number
+    lateNightRatio: number
     maxConsecutiveDays: number
     /** 扁平模式：无边框/阴影，适合嵌入在父级 ThemeCard 内 */
     flat?: boolean
@@ -72,11 +74,11 @@ const flatItems = computed<FlatStatItem[]>(() => [
     colorClass: 'text-red-600 dark:text-red-400',
   },
   {
-    icon: 'i-heroicons-calendar',
-    label: t('analysis.overview.statCards.activeDays'),
-    value: `${props.activeDays}`,
-    subtext: t('analysis.overview.statCards.slashDays', { count: props.totalDays }),
-    colorClass: 'text-blue-600 dark:text-blue-400',
+    icon: 'i-heroicons-moon',
+    label: t('analysis.overview.statCards.lateNightChat'),
+    value: t('analysis.overview.statCards.messagesCount', { count: props.lateNightCount }),
+    subtext: t('analysis.overview.statCards.lateNightRatio', { ratio: props.lateNightRatio }),
+    colorClass: 'text-indigo-600 dark:text-indigo-400',
   },
   {
     icon: 'i-heroicons-bolt',
@@ -99,9 +101,7 @@ const flatItems = computed<FlatStatItem[]>(() => [
   <!-- flat 模式：嵌入父级 ThemeCard 内的紧凑子卡片 -->
   <div v-if="flat" class="relative z-10 px-6 pb-6 pt-2 sm:px-8">
     <div class="mb-3 flex items-center justify-between">
-      <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-        Key Metrics
-      </span>
+      <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Key Metrics</span>
     </div>
     <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
       <div
@@ -190,14 +190,14 @@ const flatItems = computed<FlatStatItem[]>(() => [
     </StatCard>
 
     <StatCard
-      :label="t('analysis.overview.statCards.activeDays')"
-      :value="`${activeDays}`"
-      icon="i-heroicons-calendar"
+      :label="t('analysis.overview.statCards.lateNightChat')"
+      :value="t('analysis.overview.statCards.messagesCount', { count: lateNightCount })"
+      icon="i-heroicons-moon"
       icon-bg="blue"
     >
       <template #subtext>
         <span class="text-sm text-gray-500">
-          {{ t('analysis.overview.statCards.slashDays', { count: totalDays }) }}
+          {{ t('analysis.overview.statCards.lateNightRatio', { ratio: lateNightRatio }) }}
         </span>
       </template>
     </StatCard>

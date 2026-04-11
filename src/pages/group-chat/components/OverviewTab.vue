@@ -1,15 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AnalysisSession, MessageType } from '@/types/base'
 import { getMessageTypeName } from '@/types/base'
-import type { MemberActivity, HourlyActivity, DailyActivity, WeekdayActivity } from '@/types/analysis'
+import type { MemberActivity, HourlyActivity, DailyActivity } from '@/types/analysis'
 import { EChartPie } from '@/components/charts'
 import type { EChartPieData } from '@/components/charts'
 import { SectionCard } from '@/components/UI'
-import { useOverviewStatistics } from '@/composables/analysis/useOverviewStatistics'
 import { useDailyTrend } from '@/composables/analysis/useDailyTrend'
-import OverviewStatCards from '@/components/analysis/Overview/OverviewStatCards.vue'
 import OverviewIdentityCard from '@/components/analysis/Overview/OverviewIdentityCard.vue'
 import DailyTrendCard from '@/components/analysis/Overview/DailyTrendCard.vue'
 
@@ -29,27 +27,6 @@ const props = defineProps<{
   filteredMemberCount: number
   timeFilter?: { startTs?: number; endTs?: number }
 }>()
-
-// 星期活跃度数据（用于统计信息计算）
-const weekdayActivity = ref<WeekdayActivity[]>([])
-
-// 使用 Composables
-const {
-  durationDays,
-  dailyAvgMessages,
-  totalDurationDays,
-  totalDailyAvgMessages,
-  imageCount,
-  peakHour,
-  peakWeekday,
-  weekdayNames,
-  weekdayVsWeekend,
-  peakDay,
-  activeDays,
-  totalDays,
-  activeRate,
-  maxConsecutiveDays,
-} = useOverviewStatistics(props, weekdayActivity)
 
 const { dailyChartData } = useDailyTrend(() => props.dailyActivity)
 
@@ -80,25 +57,6 @@ const memberChartData = computed<EChartPieData>(() => {
     values,
   }
 })
-
-// 加载星期活跃度数据（用于统计信息计算）
-async function loadWeekdayActivity() {
-  if (!props.session.id) return
-  try {
-    weekdayActivity.value = await window.chatApi.getWeekdayActivity(props.session.id, props.timeFilter)
-  } catch (error) {
-    console.error('加载星期活跃度失败:', error)
-  }
-}
-
-// 监听 session.id 和 timeFilter 变化
-watch(
-  () => [props.session.id, props.timeFilter],
-  () => {
-    loadWeekdayActivity()
-  },
-  { immediate: true, deep: true }
-)
 </script>
 
 <template>
@@ -107,26 +65,13 @@ watch(
     <OverviewIdentityCard
       :session="session"
       :daily-activity="dailyActivity"
-      :total-duration-days="totalDurationDays"
-      :total-daily-avg-messages="totalDailyAvgMessages"
+      :message-types="messageTypes"
+      :hourly-activity="hourlyActivity"
       :time-range="timeRange"
-    >
-      <OverviewStatCards
-        flat
-        :daily-avg-messages="dailyAvgMessages"
-        :duration-days="durationDays"
-        :image-count="imageCount"
-        :peak-hour="peakHour"
-        :peak-weekday="peakWeekday"
-        :weekday-names="weekdayNames"
-        :weekday-vs-weekend="weekdayVsWeekend"
-        :peak-day="peakDay"
-        :active-days="activeDays"
-        :total-days="totalDays"
-        :active-rate="activeRate"
-        :max-consecutive-days="maxConsecutiveDays"
-      />
-    </OverviewIdentityCard>
+      :selected-year="selectedYear"
+      :filtered-message-count="filteredMessageCount"
+      :time-filter="timeFilter"
+    />
 
     <!-- 图表区域：消息类型 & 成员分布 -->
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">

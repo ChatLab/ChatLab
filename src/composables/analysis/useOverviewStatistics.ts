@@ -4,7 +4,7 @@ import type { AnalysisSession, MessageType } from '@/types/base'
 import type { HourlyActivity, DailyActivity, WeekdayActivity } from '@/types/analysis'
 import dayjs from 'dayjs'
 
-interface UseOverviewStatisticsProps {
+export interface UseOverviewStatisticsProps {
   session: AnalysisSession
   messageTypes: Array<{ type: MessageType; count: number }>
   hourlyActivity: HourlyActivity[]
@@ -12,7 +12,7 @@ interface UseOverviewStatisticsProps {
   timeRange: { start: number; end: number } | null
   selectedYear: number | null
   filteredMessageCount: number
-  filteredMemberCount: number
+  filteredMemberCount?: number
 }
 
 export function useOverviewStatistics(props: UseOverviewStatisticsProps, weekdayActivity: Ref<WeekdayActivity[]>) {
@@ -36,7 +36,7 @@ export function useOverviewStatistics(props: UseOverviewStatisticsProps, weekday
 
   // 显示的成员数
   const displayMemberCount = computed(() => {
-    return props.selectedYear ? props.filteredMemberCount : props.session.memberCount
+    return props.selectedYear ? (props.filteredMemberCount ?? props.session.memberCount) : props.session.memberCount
   })
 
   // 全量时间跨度 (不随筛选变化)
@@ -132,6 +132,19 @@ export function useOverviewStatistics(props: UseOverviewStatisticsProps, weekday
     return totalDays.value > 0 ? Math.round((activeDays.value / totalDays.value) * 100) : 0
   })
 
+  // 深夜聊天（0:00-4:59）
+  const lateNightChat = computed(() => {
+    if (!props.hourlyActivity.length) return { count: 0, ratio: 0 }
+    const total = props.hourlyActivity.reduce((s, h) => s + h.messageCount, 0)
+    const count = props.hourlyActivity
+      .filter((h) => h.hour >= 0 && h.hour <= 4)
+      .reduce((s, h) => s + h.messageCount, 0)
+    return {
+      count,
+      ratio: total > 0 ? Math.round((count / total) * 100) : 0,
+    }
+  })
+
   // 最长连续打卡天数
   const maxConsecutiveDays = computed(() => {
     if (!props.dailyActivity.length) return 0
@@ -185,6 +198,7 @@ export function useOverviewStatistics(props: UseOverviewStatisticsProps, weekday
     activeDays,
     totalDays,
     activeRate,
+    lateNightChat,
     maxConsecutiveDays,
   }
 }
