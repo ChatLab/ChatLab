@@ -65,7 +65,7 @@ export const feature: FormatFeature = {
       /訊息與通話已受端對端加密保護/, // 繁体中文加密提示（WhatsApp 独有）
       /Messages and calls are end-to-end encrypted/i, // 英文加密提示（WhatsApp 独有）
       /你发送给自己的消息已进行端到端加密/, // 简体中文自己对话提示（WhatsApp 独有）
-      /\d{4}\/\d{1,2}\/\d{1,2} \d{1,2}:\d{2} - /, // 消息行格式特征（无方括号，含 " - " 分隔符，WhatsApp 独有）
+      /\d{1,4}\/\d{1,2}\/\d{2,4},?\s+\d{1,2}:\d{2} - /, // 消息行格式特征（无方括号，含 " - " 分隔符，WhatsApp 独有）
       /\[\d{1,4}\/\d{1,2}\/\d{2,4}[\s,].*\d{1,2}:\d{2}:\d{2}.*\] /, // 消息行格式特征（方括号 + 含日期和时间的时间戳，兼容各地区变体）
     ],
     // 文件名特征：与xxx的 WhatsApp 聊天.txt
@@ -86,9 +86,9 @@ function cleanLine(line: string): string {
 
 // ==================== 消息头正则 ====================
 
-// 格式1：2025/12/22 12:35 或 2025/2/2 9:35 - 地瓜: 内容（部分地区导出格式）
-// 支持月份、日期、小时为 1-2 位数字
-const MESSAGE_LINE_REGEX_V1 = /^(\d{4}\/\d{1,2}\/\d{1,2} \d{1,2}:\d{2}) - (.+)$/
+// 格式1（无方括号）：日期/日期/日期[,] 时:分 - 内容
+// 兼容各地区变体：YYYY/MM/DD HH:MM | DD/MM/YYYY, HH:MM | M/D/YY, HH:MM
+const MESSAGE_LINE_REGEX_V1 = /^(\d{1,4}\/\d{1,2}\/\d{2,4},?\s+\d{1,2}:\d{2}) - (.+)$/
 
 // 格式2（方括号格式）：宽松捕获 [时间戳] 后的内容
 // 时间戳的地区变体由 parseFlexibleV2Timestamp() 弹性解析器处理
@@ -253,27 +253,40 @@ function parseFlexibleV2Timestamp(raw: string): number | null {
 }
 
 /**
- * 解析 V1（无方括号）时间格式：YYYY/M/D H:MM
+ * 解析 V1（无方括号）时间格式
+ * 支持：YYYY/M/D H:MM | DD/MM/YYYY, HH:MM | M/D/YY, HH:MM
  */
 function parseV1Timestamp(timeStr: string): number {
-  const match = timeStr.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2}) (\d{1,2}):(\d{2})$/)
-  if (match) {
-    const [, year, month, day, hour, minute] = match
-    const date = new Date(
-      parseInt(year, 10),
-      parseInt(month, 10) - 1,
-      parseInt(day, 10),
-      parseInt(hour, 10),
-      parseInt(minute, 10),
-      0
-    )
-    return Math.floor(date.getTime() / 1000)
+  // 移除逗号，规范化空格
+  const str = timeStr.replace(/,/g, '').replace(/\s+/g, ' ').trim()
+  const match = str.match(/^(\d{1,4})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2})$/)
+  if (!match) {
+    const normalized = timeStr.replace(/,/g, '').replace(/\//g, '-').replace(/\s+/, 'T') + ':00'
+    return Math.floor(new Date(normalized).getTime() / 1000)
   }
 
-  // 兜底
-  const normalized = timeStr.replace(/\//g, '-').replace(' ', 'T') + ':00'
-  const date = new Date(normalized)
-  return Math.floor(date.getTime() / 1000)
+  const parts = [parseInt(match[1], 10), parseInt(match[2], 10), parseInt(match[3], 10)]
+  const hour = parseInt(match[4], 10)
+  const minute = parseInt(match[5], 10)
+
+  let year: number, month: number, day: number
+  if (parts[0] > 31) {
+    year = parts[0]
+    month = parts[1]
+    day = parts[2]
+  } else if (parts[2] > 31) {
+    day = parts[0]
+    month = parts[1]
+    year = parts[2]
+  } else {
+    month = parts[0]
+    day = parts[1]
+    year = 2000 + parts[2]
+  }
+
+  const date = new Date(year, month - 1, day, hour, minute, 0)
+  const ts = Math.floor(date.getTime() / 1000)
+  return isNaN(ts) ? 0 : ts
 }
 
 // ==================== 成员信息 ====================
