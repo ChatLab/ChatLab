@@ -16,7 +16,8 @@
       "sizeScale": "フォントサイズ",
       "userFilter": "ユーザーフィルター",
       "posFilter": "品詞フィルター",
-      "enableStopwords": "ストップワードを除外"
+      "enableStopwords": "ストップワードを除外",
+      "dict": "辞書"
     },
     "size": {
       "small": "小",
@@ -36,6 +37,21 @@
     "empty": {
       "title": "ワードクラウドデータがありません",
       "description": "現在の絞り込み条件では、ワードクラウドを作れるほどテキストメッセージがありません"
+    },
+    "dict": {
+      "zhCN": "簡体字中国語",
+      "zhTW": "繁体字中国語",
+      "download": "辞書をダウンロード",
+      "download_zh-CN": "簡体字辞書をダウンロード",
+      "download_zh-TW": "繁体字辞書をダウンロード",
+      "needDownload": "ワードクラウドを使用するには辞書のダウンロードが必要です",
+      "downloadHint": "~8MB",
+      "downloadSuccess": "辞書のダウンロードが完了しました",
+      "downloadFailed": "辞書のダウンロードに失敗しました",
+      "promptTitle": "繁体字中国語辞書",
+      "promptDescription": "繁体字中国語をご使用中です。ワードクラウドの精度を上げるため、繁体字辞書のダウンロードをお勧めします。今すぐダウンロードしますか？（約8MB）",
+      "promptDownload": "今すぐダウンロード",
+      "promptLater": "後で"
     }
   },
   "keywords": {

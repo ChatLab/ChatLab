@@ -16,7 +16,8 @@
       "sizeScale": "字体大小",
       "userFilter": "用户筛选",
       "posFilter": "词性过滤",
-      "enableStopwords": "过滤停用词"
+      "enableStopwords": "过滤停用词",
+      "dict": "分词词库"
     },
     "size": {
       "small": "小",
@@ -36,6 +37,21 @@
     "empty": {
       "title": "暂无词云数据",
       "description": "当前筛选条件下没有足够的文本消息用于生成词云"
+    },
+    "dict": {
+      "zhCN": "简体中文",
+      "zhTW": "繁体中文",
+      "download": "下载词库",
+      "download_zh-CN": "下载简体词库",
+      "download_zh-TW": "下载繁体词库",
+      "needDownload": "使用词云分析需要先下载分词词库",
+      "downloadHint": "~8MB",
+      "downloadSuccess": "词库下载成功",
+      "downloadFailed": "词库下载失败",
+      "promptTitle": "繁体中文词库",
+      "promptDescription": "检测到您使用繁体中文，词云分析需要繁体词库才能获得最佳效果。是否立即下载？（约 8MB）",
+      "promptDownload": "立即下载",
+      "promptLater": "稍后再说"
     }
   },
   "keywords": {

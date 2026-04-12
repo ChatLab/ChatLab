@@ -923,6 +923,16 @@ interface WordFrequencyResult {
   posTagStats?: PosTagStat[]
 }
 
+type DictType = 'default' | 'zh-CN' | 'zh-TW'
+
+interface DictInfo {
+  id: string
+  label: string
+  locale: string
+  downloaded: boolean
+  fileSize?: number
+}
+
 interface WordFrequencyParams {
   sessionId: string
   locale: SupportedLocale
@@ -937,6 +947,8 @@ interface WordFrequencyParams {
   customPosTags?: string[]
   /** 是否启用停用词过滤，默认 true */
   enableStopwords?: boolean
+  /** 词库类型：default=内置简体中文, zh-TW=繁体中文 */
+  dictType?: DictType
 }
 
 /** 词性标签信息 */
@@ -951,6 +963,10 @@ interface NlpApi {
   getWordFrequency: (params: WordFrequencyParams) => Promise<WordFrequencyResult>
   segmentText: (text: string, locale: SupportedLocale, minLength?: number) => Promise<string[]>
   getPosTags: () => Promise<PosTagInfo[]>
+  getDictList: () => Promise<DictInfo[]>
+  isDictDownloaded: (dictId: string) => Promise<boolean>
+  downloadDict: (dictId: string) => Promise<{ success: boolean; error?: string }>
+  deleteDict: (dictId: string) => Promise<{ success: boolean; error?: string }>
 }
 
 // ChatLab API 服务类型

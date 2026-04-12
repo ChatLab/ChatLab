@@ -16,7 +16,8 @@
       "sizeScale": "Font size",
       "userFilter": "User filter",
       "posFilter": "POS filter",
-      "enableStopwords": "Filter stopwords"
+      "enableStopwords": "Filter stopwords",
+      "dict": "Dictionary"
     },
     "size": {
       "small": "S",
@@ -36,6 +37,21 @@
     "empty": {
       "title": "No word cloud data",
       "description": "Not enough text messages to generate a word cloud with current filters"
+    },
+    "dict": {
+      "zhCN": "Simplified Chinese",
+      "zhTW": "Traditional Chinese",
+      "download": "Download dictionary",
+      "download_zh-CN": "Download Simplified Chinese dict",
+      "download_zh-TW": "Download Traditional Chinese dict",
+      "needDownload": "Please download a dictionary to use word cloud analysis",
+      "downloadHint": "~8MB",
+      "downloadSuccess": "Dictionary downloaded successfully",
+      "downloadFailed": "Dictionary download failed",
+      "promptTitle": "Traditional Chinese Dictionary",
+      "promptDescription": "We detected you're using Traditional Chinese. For best word cloud results, a Traditional Chinese dictionary is recommended. Download now? (~8MB)",
+      "promptDownload": "Download now",
+      "promptLater": "Maybe later"
     }
   },
   "keywords": {

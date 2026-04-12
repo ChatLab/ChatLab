@@ -19,6 +19,11 @@ files:
   - '!{.eslintignore,.eslintrc.cjs,.prettierignore,.prettierrc.yaml,CHANGELOG.md,README.md}'
   - '!{.env,.env.*,.npmrc,pnpm-lock.yaml}'
   - '!{tsconfig.json,tsconfig.node.json,tsconfig.web.json}'
+  # jieba 词库文件已改为启动时远程下载，无需打包内置
+  - '!node_modules/@node-rs/jieba/dict.txt'
+  - '!node_modules/@node-rs/jieba/idf.txt'
+  - '!node_modules/@node-rs/jieba/dict.js'
+  - '!node_modules/@node-rs/jieba/dict.d.ts'
 # 哪些文件将不会被压缩，而是解压到构建目录
 asarUnpack:
   - resources/**

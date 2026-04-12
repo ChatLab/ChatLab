@@ -1,12 +1,13 @@
 /**
  * NLP 功能 IPC 处理器
- * 提供词频统计、分词等 NLP 功能
+ * 提供词频统计、分词等 NLP 功能，以及词库管理
  */
 
 import { ipcMain } from 'electron'
 import * as worker from '../worker/workerManager'
 import type { IpcContext } from './types'
 import type { WordFrequencyParams, WordFrequencyResult, SupportedLocale, PosTagInfo } from '../nlp'
+import { getDictList, downloadDict, deleteDict, isDictDownloaded, type DictInfo } from '../nlp/dictManager'
 
 /**
  * 注册 NLP 相关 IPC 处理器
@@ -59,5 +60,26 @@ export function registerNlpHandlers(_ctx: IpcContext): void {
       console.error('[NLP] Failed to get POS tags:', error)
       return []
     }
+  })
+
+  // ==================== 词库管理 ====================
+
+  ipcMain.handle('nlp:getDictList', async (): Promise<DictInfo[]> => {
+    return getDictList()
+  })
+
+  ipcMain.handle('nlp:isDictDownloaded', async (_event, dictId: string): Promise<boolean> => {
+    return isDictDownloaded(dictId)
+  })
+
+  ipcMain.handle(
+    'nlp:downloadDict',
+    async (_event, dictId: string): Promise<{ success: boolean; error?: string }> => {
+      return downloadDict(dictId)
+    }
+  )
+
+  ipcMain.handle('nlp:deleteDict', async (_event, dictId: string): Promise<{ success: boolean; error?: string }> => {
+    return deleteDict(dictId)
   })
 }

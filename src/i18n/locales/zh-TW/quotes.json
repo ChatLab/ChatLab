@@ -16,7 +16,8 @@
       "sizeScale": "字體大小",
       "userFilter": "使用者篩選",
       "posFilter": "詞性過濾",
-      "enableStopwords": "過濾停用詞"
+      "enableStopwords": "過濾停用詞",
+      "dict": "分詞詞庫"
     },
     "size": {
       "small": "小",
@@ -36,6 +37,21 @@
     "empty": {
       "title": "暫無詞雲資料",
       "description": "目前篩選條件下的文字訊息不足，無法產生詞雲"
+    },
+    "dict": {
+      "zhCN": "簡體中文",
+      "zhTW": "繁體中文",
+      "download": "下載詞庫",
+      "download_zh-CN": "下載簡體詞庫",
+      "download_zh-TW": "下載繁體詞庫",
+      "needDownload": "使用詞雲分析需要先下載分詞詞庫",
+      "downloadHint": "~8MB",
+      "downloadSuccess": "詞庫下載成功",
+      "downloadFailed": "詞庫下載失敗",
+      "promptTitle": "繁體中文詞庫",
+      "promptDescription": "偵測到您使用繁體中文，詞雲分析需要繁體詞庫才能取得最佳效果。是否立即下載？（約 8MB）",
+      "promptDownload": "立即下載",
+      "promptLater": "稍後再說"
     }
   },
   "keywords": {

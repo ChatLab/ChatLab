@@ -6,29 +6,11 @@
  *
  * 使用 jieba 处理中文（天然兼容中英混合文本），
  * Intl.Segmenter 处理纯英文/日文。
+ *
+ * 复用 segmenter 模块的 jieba 实例池，默认使用 zh-CN 词库。
  */
 
-interface JiebaInstance {
-  cut: (text: string, hmm?: boolean) => string[]
-}
-
-let jiebaInstance: JiebaInstance | null = null
-
-function getJieba(): JiebaInstance {
-  if (!jiebaInstance) {
-    try {
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { Jieba } = require('@node-rs/jieba')
-      // eslint-disable-next-line @typescript-eslint/no-require-imports
-      const { dict } = require('@node-rs/jieba/dict')
-      jiebaInstance = Jieba.withDict(dict)
-    } catch (error) {
-      console.error('[FTS] Failed to load jieba module:', error)
-      throw new Error('jieba 模块加载失败')
-    }
-  }
-  return jiebaInstance!
-}
+import { getJieba } from './segmenter'
 
 /**
  * 对文本进行 FTS 分词，返回空格分隔的 token 字符串。

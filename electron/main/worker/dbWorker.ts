@@ -72,9 +72,15 @@ import {
   getPosTags,
 } from './query'
 import { streamImport, streamParseFileInfo, analyzeIncrementalImport, incrementalImport } from './import'
+import { initNlpDir } from '../nlp/segmenter'
 
 // 初始化数据库目录
 initDbDir(workerData.dbDir, workerData.cacheDir)
+
+// 初始化 NLP 词库目录
+if (workerData.nlpDir) {
+  initNlpDir(workerData.nlpDir)
+}
 
 // ==================== 分析结果缓存 ====================
 
@@ -124,6 +130,7 @@ function buildAnalysisCacheKey(type: string, payload: any): string {
   if (payload.topN) parts.push(`n${payload.topN}`)
   if (payload.minLength) parts.push(`ml${payload.minLength}`)
   if (payload.posTags) parts.push(`pt${JSON.stringify(payload.posTags)}`)
+  if (payload.dictType && payload.dictType !== 'default') parts.push(`dt${payload.dictType}`)
   return parts.join(':')
 }
 

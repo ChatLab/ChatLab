@@ -7,10 +7,12 @@ import { LoadingState, EmptyState, UITabs } from '@/components/UI'
 import UserSelect from '@/components/common/UserSelect.vue'
 import { useSettingsStore } from '@/stores/settings'
 import { useLayoutStore } from '@/stores/layout'
+import { useToast } from '@/composables/useToast'
 
 const { t } = useI18n()
 const settingsStore = useSettingsStore()
 const layoutStore = useLayoutStore()
+const toast = useToast()
 
 interface TimeFilter {
   startTs?: number
@@ -25,6 +27,7 @@ interface PosTagInfo {
 }
 
 type PosFilterMode = 'all' | 'meaningful' | 'custom'
+type DictType = 'default' | 'zh-CN' | 'zh-TW'
 
 const props = defineProps<{
   sessionId: string
@@ -32,7 +35,6 @@ const props = defineProps<{
   memberId?: number | null
 }>()
 
-// 状态
 const isLoading = ref(false)
 const wordcloudData = ref<EChartWordcloudData>({ words: [] })
 const stats = ref({
@@ -69,7 +71,90 @@ const posTagStats = ref<Map<string, number>>(new Map())
 const selectedMemberId = ref<number | null>(null)
 
 // 获取当前语言设置
+// ==================== 词库切换 ====================
+const selectedDictType = ref<DictType>('default')
+const dictList = ref<Array<{ id: string; label: string; locale: string; downloaded: boolean; fileSize?: number }>>([])
+const isDictDownloading = ref(false)
+const downloadingDictId = ref<string | null>(null)
+const showDictPromptModal = ref(false)
+const DICT_PROMPT_DISMISSED_KEY = 'chatlab_zhTW_dict_prompt_dismissed'
+
 const locale = computed(() => settingsStore.locale as 'zh-CN' | 'en-US')
+const isTraditionalChinese = computed(() => settingsStore.locale === 'zh-TW')
+
+const dictOptions = computed(() => {
+  return dictList.value
+    .filter((d) => d.downloaded)
+    .map((d) => ({
+      label: t(`quotes.wordcloud.dict.${d.id === 'zh-CN' ? 'zhCN' : d.id === 'zh-TW' ? 'zhTW' : d.id}`),
+      value: d.id as DictType,
+    }))
+})
+
+const hasAnyDict = computed(() => {
+  return dictList.value.some((d) => d.downloaded)
+})
+
+const undownloadedDicts = computed(() => {
+  return dictList.value.filter((d) => !d.downloaded)
+})
+
+async function refreshDictList() {
+  try {
+    dictList.value = await window.nlpApi.getDictList()
+    // 繁体中文用户自动切换到 zh-TW（如已下载）
+    if (isTraditionalChinese.value && selectedDictType.value === 'default') {
+      const zhTW = dictList.value.find((d) => d.id === 'zh-TW')
+      if (zhTW?.downloaded) {
+        selectedDictType.value = 'zh-TW'
+      }
+    }
+    // 如果 zh-CN 已下载，default 应该用 zh-CN
+    const zhCN = dictList.value.find((d) => d.id === 'zh-CN')
+    if (zhCN?.downloaded && selectedDictType.value === 'default') {
+      selectedDictType.value = 'zh-CN'
+    }
+  } catch (error) {
+    console.error('Failed to get dict list:', error)
+  }
+}
+
+async function handleDownloadDict(dictId: string) {
+  isDictDownloading.value = true
+  downloadingDictId.value = dictId
+  try {
+    const result = await window.nlpApi.downloadDict(dictId)
+    if (result.success) {
+      await refreshDictList()
+      selectedDictType.value = dictId as DictType
+      toast.success(t('quotes.wordcloud.dict.downloadSuccess'))
+    } else {
+      toast.fail(t('quotes.wordcloud.dict.downloadFailed'), { description: result.error })
+    }
+  } catch (error) {
+    toast.fail(t('quotes.wordcloud.dict.downloadFailed'))
+  } finally {
+    isDictDownloading.value = false
+    downloadingDictId.value = null
+    showDictPromptModal.value = false
+  }
+}
+
+function dismissDictPrompt() {
+  showDictPromptModal.value = false
+  localStorage.setItem(DICT_PROMPT_DISMISSED_KEY, 'true')
+}
+
+function maybeShowDictPrompt() {
+  const zhTW = dictList.value.find((d) => d.id === 'zh-TW')
+  if (
+    isTraditionalChinese.value &&
+    zhTW && !zhTW.downloaded &&
+    !localStorage.getItem(DICT_PROMPT_DISMISSED_KEY)
+  ) {
+    showDictPromptModal.value = true
+  }
+}
 
 // 词性过滤模式选项
 const posFilterModeOptions = computed(() => [
@@ -120,7 +205,7 @@ async function loadPosTagDefinitions() {
 
 // 加载词频数据
 async function loadWordFrequency() {
-  if (!props.sessionId) return
+  if (!props.sessionId || !hasAnyDict.value) return
 
   isLoading.value = true
   try {
@@ -134,6 +219,7 @@ async function loadWordFrequency() {
       posFilterMode: posFilterMode.value,
       customPosTags: posFilterMode.value === 'custom' ? [...customPosTags.value] : undefined,
       enableStopwords: enableStopwords.value,
+      dictType: selectedDictType.value,
     })
 
     wordcloudData.value = {
@@ -175,6 +261,7 @@ watch(
     maxWords.value,
     posFilterMode.value,
     enableStopwords.value,
+    selectedDictType.value,
   ],
   () => {
     loadWordFrequency()
@@ -205,9 +292,10 @@ function handleWordClick(word: string) {
   })
 }
 
-// 初始化
-onMounted(() => {
+onMounted(async () => {
   loadPosTagDefinitions()
+  await refreshDictList()
+  maybeShowDictPrompt()
 })
 </script>
 
@@ -218,9 +306,34 @@ onMounted(() => {
       <div class="flex-1 min-w-0 space-y-4">
         <!-- 词云区域（固定 16:9 长宽比） -->
         <div class="relative w-full" style="aspect-ratio: 16 / 9">
+          <!-- 需要下载词库 -->
+          <div
+            v-if="!hasAnyDict"
+            class="flex h-full flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-gray-300 dark:border-gray-600"
+          >
+            <UIcon name="i-heroicons-arrow-down-tray" class="text-4xl text-gray-400" />
+            <p class="text-sm text-gray-500 dark:text-gray-400">
+              {{ t('quotes.wordcloud.dict.needDownload') }}
+            </p>
+            <div class="flex gap-2">
+              <UButton
+                v-for="dict in dictList"
+                :key="dict.id"
+                size="sm"
+                color="primary"
+                :loading="isDictDownloading && downloadingDictId === dict.id"
+                :disabled="isDictDownloading && downloadingDictId !== dict.id"
+                icon="i-heroicons-arrow-down-tray"
+                @click="handleDownloadDict(dict.id)"
+              >
+                {{ t(`quotes.wordcloud.dict.download_${dict.id}`, dict.label) }}
+              </UButton>
+            </div>
+          </div>
+
           <!-- 加载状态 -->
           <LoadingState
-            v-if="isLoading"
+            v-else-if="isLoading"
             :text="t('quotes.wordcloud.loading')"
             class="absolute inset-0 z-10 rounded-lg bg-white/80 dark:bg-gray-900/80"
           />
@@ -312,6 +425,32 @@ onMounted(() => {
           <UserSelect v-model="selectedMemberId" :session-id="props.sessionId" class="w-full" />
         </div>
 
+        <!-- 词库选择 -->
+        <div>
+          <h4 class="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
+            {{ t('quotes.wordcloud.config.dict') }}
+          </h4>
+          <div class="space-y-2">
+            <UITabs v-if="dictOptions.length > 1" v-model="selectedDictType" size="xs" :items="dictOptions" />
+            <div v-for="dict in undownloadedDicts" :key="dict.id" class="flex items-center gap-2">
+              <UButton
+                size="xs"
+                variant="soft"
+                color="primary"
+                :loading="isDictDownloading && downloadingDictId === dict.id"
+                :disabled="isDictDownloading && downloadingDictId !== dict.id"
+                icon="i-heroicons-arrow-down-tray"
+                @click="handleDownloadDict(dict.id)"
+              >
+                {{ t(`quotes.wordcloud.dict.download_${dict.id}`, t('quotes.wordcloud.dict.download')) }}
+              </UButton>
+              <span class="text-xs text-gray-400 dark:text-gray-500">
+                {{ t('quotes.wordcloud.dict.downloadHint') }}
+              </span>
+            </div>
+          </div>
+        </div>
+
         <!-- 词性过滤 -->
         <div>
           <h4 class="mb-2 text-xs font-medium text-gray-600 dark:text-gray-400">
@@ -331,7 +470,6 @@ onMounted(() => {
             <h4 class="text-xs font-medium text-gray-600 dark:text-gray-400">
               {{ t('quotes.wordcloud.posFilter.customHint') }}
             </h4>
-            <!-- 快捷操作 -->
             <div class="flex gap-1">
               <UButton
                 size="xs"
@@ -354,7 +492,6 @@ onMounted(() => {
               </UButton>
             </div>
           </div>
-          <!-- 词性标签（带滚动） -->
           <div class="flex flex-wrap gap-1.5 max-h-[360px] overflow-y-auto">
             <UBadge
               v-for="tag in posTagOptions"
@@ -379,5 +516,24 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- 繁体中文词库下载提示弹窗 -->
+    <UModal v-model:open="showDictPromptModal" :title="t('quotes.wordcloud.dict.promptTitle')">
+      <template #body>
+        <div class="space-y-4">
+          <p class="text-sm text-gray-600 dark:text-gray-300">
+            {{ t('quotes.wordcloud.dict.promptDescription') }}
+          </p>
+          <div class="flex justify-end gap-2">
+            <UButton variant="ghost" color="neutral" @click="dismissDictPrompt">
+              {{ t('quotes.wordcloud.dict.promptLater') }}
+            </UButton>
+            <UButton color="primary" :loading="isDictDownloading" @click="handleDownloadDict('zh-TW')">
+              {{ t('quotes.wordcloud.dict.promptDownload') }}
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

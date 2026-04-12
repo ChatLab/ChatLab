@@ -10,6 +10,7 @@ import type { ParseProgress } from '../parser'
 import type { StreamImportResult } from './import'
 import { openDatabase } from '../database/core'
 import { getDatabaseDir, getCacheDir, ensureDir } from '../paths'
+import { getNlpDir } from '../nlp/dictManager'
 
 // Worker 实例
 let worker: Worker | null = null
@@ -70,6 +71,7 @@ export function initWorker(): void {
       workerData: {
         dbDir: getDbDir(),
         cacheDir: getCacheDir(),
+        nlpDir: getNlpDir(),
       },
     })
 
