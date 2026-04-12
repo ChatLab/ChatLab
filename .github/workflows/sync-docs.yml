@@ -1,0 +1,50 @@
+name: Sync docs to chatlab.fun
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'docs/**'
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout ChatLab
+        uses: actions/checkout@v4
+        with:
+          sparse-checkout: docs
+
+      - name: Checkout chatlab.fun
+        uses: actions/checkout@v4
+        with:
+          repository: hellodigua/chatlab.fun
+          token: ${{ secrets.CHATLAB_FUN_TOKEN }}
+          path: chatlab-fun
+
+      - name: Sync docs
+        run: |
+          rsync -av --delete \
+            --exclude='.vitepress' \
+            --exclude='public' \
+            docs/ chatlab-fun/docs/
+
+      - name: Commit and push
+        id: push
+        working-directory: chatlab-fun
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add docs/
+          if git diff --cached --quiet; then
+            echo "No changes to commit"
+            echo "pushed=false" >> $GITHUB_OUTPUT
+          else
+            git commit -m "sync: update docs from ChatLab@${GITHUB_SHA::7}"
+            git push
+            echo "pushed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Trigger EdgeOne deploy
+        if: steps.push.outputs.pushed == 'true'
+        run: curl -s -X POST "${{ secrets.WEBSITE_DEPLOY_HOOK_URL }}"
