@@ -294,12 +294,12 @@ function formatDuration(seconds: number): string {
 </script>
 
 <template>
-  <div class="main-content mx-auto max-w-[920px] space-y-6 p-6">
-    <LoadingState v-if="isLoading" :text="t('views.relationship.loading')" />
-
-    <!-- 无会话索引 -->
-    <EmptyState
-      v-else-if="stats && !stats.hasSessionIndex"
+  <div :class="isLoading ? 'h-full' : ''">
+    <LoadingState v-if="isLoading" variant="page" :text="t('common.loading')" />
+    <div v-else class="main-content mx-auto max-w-[920px] space-y-6 p-6">
+      <!-- 无会话索引 -->
+      <EmptyState
+        v-if="stats && !stats.hasSessionIndex"
       icon="i-heroicons-clock"
       :title="t('views.relationship.noIndex.title')"
       :description="t('views.relationship.noIndex.description')"
@@ -742,5 +742,6 @@ function formatDuration(seconds: number): string {
         </div>
       </SectionCard>
     </template>
+    </div>
   </div>
 </template>

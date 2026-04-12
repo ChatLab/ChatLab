@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { EChartPie, EChartBar, EChartHeatmap, EChartCalendar } from '@/components/charts'
 import type { EChartPieData, EChartBarData, EChartHeatmapData, EChartCalendarData } from '@/components/charts'
-import { SectionCard } from '@/components/UI'
+import { SectionCard, LoadingState } from '@/components/UI'
 import {
   queryMessageTypes,
   queryHourlyActivity,
@@ -266,15 +266,13 @@ watch(
 </script>
 
 <template>
-  <div class="main-content mx-auto max-w-[920px] space-y-6 p-6">
+  <div :class="isLoading ? 'h-full' : ''">
     <!-- 加载状态 -->
-    <div v-if="isLoading" class="flex h-64 items-center justify-center">
-      <UIcon name="i-heroicons-arrow-path" class="h-8 w-8 animate-spin text-gray-400" />
-    </div>
+    <LoadingState v-if="isLoading" variant="page" :text="t('common.loading')" />
 
-    <template v-else>
+    <div v-else class="main-content mx-auto max-w-[920px] space-y-6 p-6">
       <!-- 消息画像卡 -->
-      <MessageProfileCard
+    <MessageProfileCard
         v-if="messageTypes.length > 0"
         :session-id="sessionId"
         :session-name="sessionName || ''"
@@ -426,6 +424,6 @@ watch(
           </div>
         </div>
       </SectionCard>
-    </template>
+    </div>
   </div>
 </template>

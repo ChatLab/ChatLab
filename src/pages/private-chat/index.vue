@@ -183,7 +183,7 @@ const otherMemberAvatar = computed(() => {
       <!-- Tab Content -->
       <div class="relative flex-1 overflow-y-auto">
         <!-- Loading Overlay -->
-        <LoadingState v-if="isLoading" variant="overlay" />
+        <LoadingState v-if="isLoading" variant="overlay" :text="t('common.loading')" />
 
         <div class="h-full">
           <Transition name="tab-slide" mode="out-in">
