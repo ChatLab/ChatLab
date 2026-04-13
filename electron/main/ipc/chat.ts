@@ -637,6 +637,21 @@ export function registerChatHandlers(ctx: IpcContext): void {
   })
 
   /**
+   * 合并成员（保留消息数更多的一方）
+   */
+  ipcMain.handle('chat:mergeMembers', async (_, sessionId: string, memberId1: number, memberId2: number) => {
+    try {
+      await worker.closeDatabase(sessionId)
+      const result = await worker.mergeMembers(sessionId, memberId1, memberId2)
+      if (result) worker.invalidateAnalysisCache(sessionId).catch(() => {})
+      return result
+    } catch (error) {
+      console.error('Failed to merge members:', error)
+      return false
+    }
+  })
+
+  /**
    * 删除成员及其所有消息
    */
   ipcMain.handle('chat:deleteMember', async (_, sessionId: string, memberId: number) => {

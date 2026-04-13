@@ -47,6 +47,7 @@ import {
   getMembers,
   getMembersPaginated,
   updateMemberAliases,
+  mergeMembers,
   deleteMember,
   // SQL 实验室
   executeRawSQL,
@@ -178,6 +179,7 @@ const syncHandlers: Record<string, (payload: any) => any> = {
   getMembers: (p) => getMembers(p.sessionId),
   getMembersPaginated: (p) => getMembersPaginated(p.sessionId, p.params),
   updateMemberAliases: (p) => updateMemberAliases(p.sessionId, p.memberId, p.aliases),
+  mergeMembers: (p) => mergeMembers(p.sessionId, p.memberId1, p.memberId2),
   deleteMember: (p) => deleteMember(p.sessionId, p.memberId),
 
   // 高级分析

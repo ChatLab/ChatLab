@@ -21,8 +21,17 @@
     },
     "aliasPlaceholder": "输入后回车添加",
     "delete": "删除",
+    "mergeSelected": "合并选中",
+    "mergeSelectedCount": "已选 {count} 位成员",
     "pagination": "显示 {start} - {end} 条，共 {total} 位成员",
     "tip": "提示：添加别名可以更好地识别聊天记录中的对话对象，别名将用于搜索和 AI 分析中。",
+    "mergeModal": {
+      "title": "确认合并成员？",
+      "content": "将成员 {source}（{sourceCount} 条消息）合并到 {target}（{targetCount} 条消息）下。默认保留消息更多一方的名称。",
+      "hint": "合并后不可恢复，被合并成员的消息将全部归属到保留成员。",
+      "cancel": "取消",
+      "confirm": "确认合并"
+    },
     "modal": {
       "title": "确认删除成员？",
       "content": "即将删除成员 {name} 及其 {count} 条消息，此操作不可恢复。",

@@ -704,6 +704,113 @@ export function updateMemberAliases(sessionId: string, memberId: number, aliases
   }
 }
 
+type MemberMergeRow = {
+  id: number
+  platformId: string
+  accountName: string | null
+  groupNickname: string | null
+  aliases: string | null
+  avatar: string | null
+  messageCount: number
+}
+
+function parseAliases(raw: string | null): string[] {
+  if (!raw) return []
+  try {
+    const parsed = JSON.parse(raw)
+    if (!Array.isArray(parsed)) return []
+    return parsed.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+  } catch {
+    return []
+  }
+}
+
+/**
+ * 合并两个成员（保留消息数更多的一方）
+ */
+export function mergeMembers(sessionId: string, memberId1: number, memberId2: number): boolean {
+  const dbPath = getDbPath(sessionId)
+  if (!fs.existsSync(dbPath) || memberId1 === memberId2) {
+    return false
+  }
+
+  try {
+    const db = new Database(dbPath)
+    db.pragma('journal_mode = WAL')
+
+    const rows = db
+      .prepare(
+        `
+        SELECT
+          m.id,
+          m.platform_id as platformId,
+          m.account_name as accountName,
+          m.group_nickname as groupNickname,
+          m.aliases,
+          m.avatar,
+          COUNT(msg.id) as messageCount
+        FROM member m
+        LEFT JOIN message msg ON m.id = msg.sender_id
+        WHERE m.id IN (?, ?)
+        GROUP BY m.id
+      `
+      )
+      .all(memberId1, memberId2) as MemberMergeRow[]
+
+    if (rows.length !== 2) {
+      db.close()
+      return false
+    }
+
+    const [memberA, memberB] = rows
+    let primary = memberA
+    let secondary = memberB
+
+    if (
+      memberB.messageCount > memberA.messageCount ||
+      (memberB.messageCount === memberA.messageCount && memberB.id < memberA.id)
+    ) {
+      primary = memberB
+      secondary = memberA
+    }
+
+    const mergedAliases = Array.from(new Set([...parseAliases(primary.aliases), ...parseAliases(secondary.aliases)]))
+    const mergedAccountName = primary.accountName || secondary.accountName
+    const mergedGroupNickname = primary.groupNickname || secondary.groupNickname
+    const mergedAvatar = primary.avatar || secondary.avatar
+
+    const mergeTransaction = db.transaction(() => {
+      // 1. 归并消息归属到主成员
+      db.prepare('UPDATE message SET sender_id = ? WHERE sender_id = ?').run(primary.id, secondary.id)
+
+      // 2. 归并昵称历史
+      db.prepare('UPDATE member_name_history SET member_id = ? WHERE member_id = ?').run(primary.id, secondary.id)
+
+      // 3. owner_id 若指向被合并成员，切换到主成员 platformId
+      db.prepare('UPDATE meta SET owner_id = ? WHERE owner_id = ?').run(primary.platformId, secondary.platformId)
+
+      // 4. 更新主成员资料（默认以消息更多一方为主，补齐缺失字段）
+      db.prepare(
+        `
+          UPDATE member
+          SET account_name = ?, group_nickname = ?, avatar = ?, aliases = ?
+          WHERE id = ?
+        `
+      ).run(mergedAccountName, mergedGroupNickname, mergedAvatar, JSON.stringify(mergedAliases), primary.id)
+
+      // 5. 删除被合并成员
+      db.prepare('DELETE FROM member WHERE id = ?').run(secondary.id)
+    })
+
+    mergeTransaction()
+    db.close()
+    return true
+  } catch (error) {
+    console.error('[Worker] Failed to merge members:', error)
+    return false
+  }
+}
+
 /**
  * 删除成员及其所有消息
  */

@@ -471,6 +471,13 @@ export async function updateMemberAliases(sessionId: string, memberId: number, a
 }
 
 /**
+ * 合并两个成员（保留消息数更多的一方）
+ */
+export async function mergeMembers(sessionId: string, memberId1: number, memberId2: number): Promise<boolean> {
+  return sendToWorker('mergeMembers', { sessionId, memberId1, memberId2 })
+}
+
+/**
  * 删除成员及其所有消息
  */
 export async function deleteMember(sessionId: string, memberId: number): Promise<boolean> {

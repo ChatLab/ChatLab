@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { MemberWithStats } from '@/types/analysis'
 import OwnerSelector from '@/components/analysis/member/OwnerSelector.vue'
@@ -32,6 +32,11 @@ const searchQuery = ref('')
 const deletingMember = ref<MemberWithStats | null>(null)
 const isDeleting = ref(false)
 
+// 合并确认状态
+const selectedMergeIds = ref<Set<number>>(new Set())
+const showMergeModal = ref(false)
+const isMerging = ref(false)
+
 // 分页配置
 const pageSize = 20
 const currentPage = ref(1)
@@ -57,6 +62,21 @@ function getFirstChar(member: MemberWithStats): string {
   const name = getDisplayName(member)
   return name.slice(0, 1)
 }
+
+const selectedMergeMembers = computed(() => allMembers.value.filter((member) => selectedMergeIds.value.has(member.id)))
+const canMergeSelected = computed(() => selectedMergeMembers.value.length === 2)
+
+const mergePlan = computed(() => {
+  if (selectedMergeMembers.value.length !== 2) return null
+  const [memberA, memberB] = selectedMergeMembers.value
+  if (
+    memberB.messageCount > memberA.messageCount ||
+    (memberB.messageCount === memberA.messageCount && memberB.id < memberA.id)
+  ) {
+    return { primary: memberB, secondary: memberA }
+  }
+  return { primary: memberA, secondary: memberB }
+})
 
 // 切换排序
 function toggleSort() {
@@ -158,6 +178,48 @@ async function confirmDelete() {
   }
 }
 
+function toggleMergeSelection(memberId: number) {
+  const next = new Set(selectedMergeIds.value)
+  if (next.has(memberId)) {
+    next.delete(memberId)
+  } else {
+    next.add(memberId)
+  }
+  selectedMergeIds.value = next
+}
+
+function openMergeModal() {
+  if (!canMergeSelected.value) return
+  showMergeModal.value = true
+}
+
+function clearMergeSelection() {
+  selectedMergeIds.value = new Set()
+}
+
+async function confirmMerge() {
+  if (!mergePlan.value) return
+  isMerging.value = true
+  try {
+    const success = await window.chatApi.mergeMembers(
+      props.sessionId,
+      mergePlan.value.primary.id,
+      mergePlan.value.secondary.id
+    )
+    if (success) {
+      showMergeModal.value = false
+      clearMergeSelection()
+      await loadMembers()
+      await loadAllMembers()
+      emit('data-changed')
+    }
+  } catch (error) {
+    console.error('合并成员失败:', error)
+  } finally {
+    isMerging.value = false
+  }
+}
+
 // 搜索时重置页码并防抖加载
 watch(searchQuery, () => {
   currentPage.value = 1
@@ -181,6 +243,7 @@ watch(
   () => {
     searchQuery.value = ''
     currentPage.value = 1
+    clearMergeSelection()
     loadMembers()
     loadAllMembers()
   },
@@ -220,17 +283,31 @@ onMounted(() => {
     />
 
     <!-- 搜索框 -->
-    <div class="mb-4">
+    <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
       <UInput
         v-model="searchQuery"
         :placeholder="t('members.list.searchPlaceholder')"
         icon="i-heroicons-magnifying-glass"
-        class="w-100"
+        class="w-full md:w-100"
       >
         <template v-if="searchQuery" #trailing>
           <UButton icon="i-heroicons-x-mark" variant="link" color="neutral" size="xs" @click="searchQuery = ''" />
         </template>
       </UInput>
+      <div class="flex items-center gap-2">
+        <span class="text-xs text-gray-500 dark:text-gray-400">
+          {{ t('members.list.mergeSelectedCount', { count: selectedMergeIds.size }) }}
+        </span>
+        <UButton
+          icon="i-heroicons-link"
+          size="sm"
+          color="primary"
+          :disabled="!canMergeSelected"
+          @click="openMergeModal"
+        >
+          {{ t('members.list.mergeSelected') }}
+        </UButton>
+      </div>
     </div>
 
     <!-- 成员列表 -->
@@ -257,6 +334,7 @@ onMounted(() => {
           <table class="w-full">
             <thead class="sticky top-0 bg-gray-50 dark:bg-gray-800">
               <tr class="text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
+                <th class="w-12 px-4 py-4" />
                 <th class="px-4 py-4">{{ t('members.list.table.accountName') }}</th>
                 <th class="px-4 py-4">{{ t('members.list.table.groupNickname') }}</th>
                 <th class="px-4 py-4">
@@ -284,6 +362,14 @@ onMounted(() => {
             </thead>
             <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
               <tr v-for="member in members" :key="member.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
+                <!-- 选择 -->
+                <td class="px-4 py-4">
+                  <UCheckbox
+                    :model-value="selectedMergeIds.has(member.id)"
+                    @click.stop="toggleMergeSelection(member.id)"
+                  />
+                </td>
+
                 <!-- 账号名称 (ID) -->
                 <td class="px-4 py-4">
                   <div class="flex items-center gap-2">
@@ -408,6 +494,41 @@ onMounted(() => {
             <UButton variant="outline" @click="cancelDelete">{{ t('members.list.modal.cancel') }}</UButton>
             <UButton color="error" :loading="isDeleting" @click="confirmDelete">
               {{ t('members.list.modal.confirm') }}
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- 合并确认弹窗 -->
+    <UModal :open="showMergeModal" :ui="{ content: 'max-w-md' }" @update:open="showMergeModal = $event">
+      <template #content>
+        <div class="p-6">
+          <div class="mb-4 flex items-center gap-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+              <UIcon name="i-heroicons-link" class="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('members.list.mergeModal.title') }}
+            </h3>
+          </div>
+          <p class="mb-2 text-sm text-gray-600 dark:text-gray-400">
+            {{
+              t('members.list.mergeModal.content', {
+                source: mergePlan ? getDisplayName(mergePlan.secondary) : '',
+                sourceCount: mergePlan ? mergePlan.secondary.messageCount.toLocaleString() : '0',
+                target: mergePlan ? getDisplayName(mergePlan.primary) : '',
+                targetCount: mergePlan ? mergePlan.primary.messageCount.toLocaleString() : '0',
+              })
+            }}
+          </p>
+          <p class="mb-6 text-xs text-amber-700 dark:text-amber-300">{{ t('members.list.mergeModal.hint') }}</p>
+          <div class="flex justify-end gap-2">
+            <UButton variant="outline" :disabled="isMerging" @click="showMergeModal = false">
+              {{ t('members.list.mergeModal.cancel') }}
+            </UButton>
+            <UButton color="primary" :loading="isMerging" @click="confirmMerge">
+              {{ t('members.list.mergeModal.confirm') }}
             </UButton>
           </div>
         </div>

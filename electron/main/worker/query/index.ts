@@ -20,6 +20,7 @@ export {
   getMembers,
   getMembersPaginated,
   updateMemberAliases,
+  mergeMembers,
   deleteMember,
 } from './basic'
 

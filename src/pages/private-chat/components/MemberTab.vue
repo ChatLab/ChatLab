@@ -24,6 +24,11 @@ const isLoading = ref(false)
 // 正在保存别名的成员ID
 const savingAliasesId = ref<number | null>(null)
 
+// 合并成员状态
+const selectedMergeIds = ref<Set<number>>(new Set())
+const showMergeModal = ref(false)
+const isMerging = ref(false)
+
 // 获取成员显示名称
 function getDisplayName(member: MemberWithStats): string {
   return member.groupNickname || member.accountName || member.platformId
@@ -34,6 +39,21 @@ function getFirstChar(member: MemberWithStats): string {
   const name = getDisplayName(member)
   return name.slice(0, 1)
 }
+
+const selectedMergeMembers = computed(() => members.value.filter((member) => selectedMergeIds.value.has(member.id)))
+const canMergeSelected = computed(() => selectedMergeMembers.value.length === 2)
+
+const mergePlan = computed(() => {
+  if (selectedMergeMembers.value.length !== 2) return null
+  const [memberA, memberB] = selectedMergeMembers.value
+  if (
+    memberB.messageCount > memberA.messageCount ||
+    (memberB.messageCount === memberA.messageCount && memberB.id < memberA.id)
+  ) {
+    return { primary: memberB, secondary: memberA }
+  }
+  return { primary: memberA, secondary: memberB }
+})
 
 // 计算消息总数
 const totalMessageCount = computed(() => {
@@ -86,10 +106,51 @@ async function updateAliases(member: MemberWithStats, newAliases: string[]) {
   }
 }
 
+function toggleMergeSelection(memberId: number) {
+  const next = new Set(selectedMergeIds.value)
+  if (next.has(memberId)) {
+    next.delete(memberId)
+  } else {
+    next.add(memberId)
+  }
+  selectedMergeIds.value = next
+}
+
+function openMergeModal() {
+  if (!canMergeSelected.value) return
+  showMergeModal.value = true
+}
+
+function clearMergeSelection() {
+  selectedMergeIds.value = new Set()
+}
+
+async function confirmMerge() {
+  if (!mergePlan.value) return
+  isMerging.value = true
+  try {
+    const success = await window.chatApi.mergeMembers(
+      props.sessionId,
+      mergePlan.value.primary.id,
+      mergePlan.value.secondary.id
+    )
+    if (success) {
+      showMergeModal.value = false
+      clearMergeSelection()
+      await loadMembers()
+    }
+  } catch (error) {
+    console.error('合并成员失败:', error)
+  } finally {
+    isMerging.value = false
+  }
+}
+
 // 监听 sessionId 变化
 watch(
   () => props.sessionId,
   () => {
+    clearMergeSelection()
     loadMembers()
   },
   { immediate: true }
@@ -128,13 +189,26 @@ onMounted(() => {
       <UIcon name="i-heroicons-arrow-path" class="h-8 w-8 animate-spin text-pink-500" />
     </div>
 
+    <div v-if="!isLoading && members.length > 1" class="mb-4 flex items-center justify-end gap-2">
+      <span class="text-xs text-gray-500 dark:text-gray-400">
+        {{ t('members.list.mergeSelectedCount', { count: selectedMergeIds.size }) }}
+      </span>
+      <UButton icon="i-heroicons-link" size="sm" color="primary" :disabled="!canMergeSelected" @click="openMergeModal">
+        {{ t('members.list.mergeSelected') }}
+      </UButton>
+    </div>
+
     <!-- 成员卡片列表 -->
-    <div v-else class="grid gap-4 md:grid-cols-2">
+    <div v-if="!isLoading" class="grid gap-4 md:grid-cols-2">
       <div
         v-for="member in members"
         :key="member.id"
-        class="rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900"
+        class="relative rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900"
       >
+        <div class="absolute right-4 top-4">
+          <UCheckbox :model-value="selectedMergeIds.has(member.id)" @click.stop="toggleMergeSelection(member.id)" />
+        </div>
+
         <!-- 成员头部信息 -->
         <div class="flex items-start gap-4">
           <!-- 头像：优先显示真实头像，否则显示首字母 -->
@@ -146,7 +220,7 @@ onMounted(() => {
           />
           <div
             v-else
-            class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-400 to-pink-600 text-lg font-medium text-white"
+            class="flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-pink-400 to-pink-600 text-lg font-medium text-white"
           >
             {{ getFirstChar(member) }}
           </div>
@@ -172,7 +246,7 @@ onMounted(() => {
             <!-- 进度条 -->
             <div class="mt-2 h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
               <div
-                class="h-full rounded-full bg-gradient-to-r from-pink-400 to-pink-600 transition-all duration-500"
+                class="h-full rounded-full bg-linear-to-r from-pink-400 to-pink-600 transition-all duration-500"
                 :style="{ width: `${getPercentage(member.messageCount)}%` }"
               />
             </div>
@@ -219,5 +293,40 @@ onMounted(() => {
         </p>
       </div>
     </div>
+
+    <!-- 合并确认弹窗 -->
+    <UModal :open="showMergeModal" :ui="{ content: 'max-w-md' }" @update:open="showMergeModal = $event">
+      <template #content>
+        <div class="p-6">
+          <div class="mb-4 flex items-center gap-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+              <UIcon name="i-heroicons-link" class="h-5 w-5 text-amber-600 dark:text-amber-400" />
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('members.list.mergeModal.title') }}
+            </h3>
+          </div>
+          <p class="mb-2 text-sm text-gray-600 dark:text-gray-400">
+            {{
+              t('members.list.mergeModal.content', {
+                source: mergePlan ? getDisplayName(mergePlan.secondary) : '',
+                sourceCount: mergePlan ? mergePlan.secondary.messageCount.toLocaleString() : '0',
+                target: mergePlan ? getDisplayName(mergePlan.primary) : '',
+                targetCount: mergePlan ? mergePlan.primary.messageCount.toLocaleString() : '0',
+              })
+            }}
+          </p>
+          <p class="mb-6 text-xs text-amber-700 dark:text-amber-300">{{ t('members.list.mergeModal.hint') }}</p>
+          <div class="flex justify-end gap-2">
+            <UButton variant="outline" :disabled="isMerging" @click="showMergeModal = false">
+              {{ t('members.list.mergeModal.cancel') }}
+            </UButton>
+            <UButton color="primary" :loading="isMerging" @click="confirmMerge">
+              {{ t('members.list.mergeModal.confirm') }}
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>

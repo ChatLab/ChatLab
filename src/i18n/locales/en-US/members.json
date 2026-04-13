@@ -21,8 +21,17 @@
     },
     "aliasPlaceholder": "Press Enter to add",
     "delete": "Delete",
+    "mergeSelected": "Merge Selected",
+    "mergeSelectedCount": "{count} members selected",
     "pagination": "Showing {start} - {end} of {total} members",
     "tip": "Tip: Adding aliases helps identify chat participants and improves search and AI analysis accuracy.",
+    "mergeModal": {
+      "title": "Merge Members?",
+      "content": "Merge {source} ({sourceCount} messages) into {target} ({targetCount} messages). By default, the merged name keeps the member with more messages.",
+      "hint": "This action cannot be undone. All messages from the merged member will be reassigned to the kept member.",
+      "cancel": "Cancel",
+      "confirm": "Confirm Merge"
+    },
     "modal": {
       "title": "Delete Member?",
       "content": "This will delete member {name} and their {count} messages. This action cannot be undone.",

@@ -340,6 +340,13 @@ export const chatApi = {
   },
 
   /**
+   * 合并成员（保留消息数更多的一方）
+   */
+  mergeMembers: (sessionId: string, memberId1: number, memberId2: number): Promise<boolean> => {
+    return ipcRenderer.invoke('chat:mergeMembers', sessionId, memberId1, memberId2)
+  },
+
+  /**
    * 删除成员及其所有消息
    */
   deleteMember: (sessionId: string, memberId: number): Promise<boolean> => {

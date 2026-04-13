@@ -21,8 +21,17 @@
     },
     "aliasPlaceholder": "輸入後按 Enter 新增",
     "delete": "刪除",
+    "mergeSelected": "合併所選",
+    "mergeSelectedCount": "已選 {count} 位成員",
     "pagination": "顯示第 {start} - {end} 筆，共 {total} 位成員",
     "tip": "提示：新增別名後，搜尋與 AI 分析時會更容易辨識聊天對象。",
+    "mergeModal": {
+      "title": "確認合併成員？",
+      "content": "將成員 {source}（{sourceCount} 則訊息）合併至 {target}（{targetCount} 則訊息）下。預設保留訊息較多一方的名稱。",
+      "hint": "合併後無法復原，被合併成員的訊息將全部歸屬至保留成員。",
+      "cancel": "取消",
+      "confirm": "確認合併"
+    },
     "modal": {
       "title": "確認刪除成員？",
       "content": "即將刪除成員 {name} 及其 {count} 則訊息，此操作不可復原。",
