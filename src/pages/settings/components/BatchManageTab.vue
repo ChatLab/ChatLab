@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useToast } from '@/composables/useToast'
@@ -28,6 +28,157 @@ const filteredSessions = computed(() => {
   return sessions.value.filter((s) => s.name.toLowerCase().includes(query) || s.platform.toLowerCase().includes(query))
 })
 
+type SortField = 'name' | 'platform' | 'messageCount' | 'importedAt'
+type SortDirection = 'asc' | 'desc'
+type HeaderAlign = 'left' | 'center' | 'right'
+type HeaderColumn =
+  | {
+      key: string
+      type: 'spacer'
+      class: string
+    }
+  | {
+      key: string
+      type: 'static'
+      labelKey: string
+      class: string
+      align: HeaderAlign
+    }
+  | {
+      key: string
+      type: 'sortable'
+      field: SortField
+      labelKey: string
+      class: string
+      align: HeaderAlign
+    }
+
+const headerColumns: HeaderColumn[] = [
+  { key: 'spacer-select', type: 'spacer', class: 'w-6' },
+  { key: 'spacer-avatar', type: 'spacer', class: 'w-8' },
+  {
+    key: 'name',
+    type: 'sortable',
+    field: 'name',
+    labelKey: 'tools.batchManage.columns.name',
+    class: 'min-w-0 flex-1',
+    align: 'left',
+  },
+  {
+    key: 'platform',
+    type: 'sortable',
+    field: 'platform',
+    labelKey: 'tools.batchManage.columns.platform',
+    class: 'w-20',
+    align: 'center',
+  },
+  {
+    key: 'messages',
+    type: 'sortable',
+    field: 'messageCount',
+    labelKey: 'tools.batchManage.columns.messages',
+    class: 'w-24',
+    align: 'right',
+  },
+  {
+    key: 'summaries',
+    type: 'static',
+    labelKey: 'tools.batchManage.columns.summaries',
+    class: 'w-16',
+    align: 'right',
+  },
+  {
+    key: 'aiChats',
+    type: 'static',
+    labelKey: 'tools.batchManage.columns.aiChats',
+    class: 'w-16',
+    align: 'right',
+  },
+  {
+    key: 'importedAt',
+    type: 'sortable',
+    field: 'importedAt',
+    labelKey: 'tools.batchManage.columns.importedAt',
+    class: 'w-28',
+    align: 'right',
+  },
+]
+
+const sortState = ref<{ field: SortField | null; direction: SortDirection | null }>({
+  field: null,
+  direction: null,
+})
+
+function getDefaultDirection(_field: SortField): SortDirection {
+  return 'asc'
+}
+
+function toggleSort(field: SortField) {
+  if (sortState.value.field === field) {
+    if (sortState.value.direction === 'asc') {
+      sortState.value.direction = 'desc'
+    } else if (sortState.value.direction === 'desc') {
+      sortState.value = { field: null, direction: null }
+    } else {
+      sortState.value.direction = 'asc'
+    }
+    return
+  }
+  sortState.value = {
+    field,
+    direction: getDefaultDirection(field),
+  }
+}
+
+function getSortDirection(field: SortField): SortDirection | null {
+  if (sortState.value.field !== field) return null
+  return sortState.value.direction
+}
+
+function getSortIconClass(field: SortField, direction: SortDirection): string {
+  return getSortDirection(field) === direction
+    ? 'text-primary-500 dark:text-primary-400'
+    : 'text-gray-300 dark:text-gray-600'
+}
+
+function getAlignClass(align: HeaderAlign): string {
+  if (align === 'left') return 'justify-start text-left'
+  if (align === 'center') return 'justify-center text-center'
+  return 'justify-end text-right'
+}
+
+function getStaticHeaderClass(column: Extract<HeaderColumn, { type: 'static' }>): string {
+  return `${column.class} ${getAlignClass(column.align)}`
+}
+
+function getSortableHeaderClass(column: Extract<HeaderColumn, { type: 'sortable' }>): string {
+  return `${column.class} flex items-center gap-1 transition-colors hover:text-gray-700 dark:hover:text-gray-200 ${getAlignClass(
+    column.align
+  )}`
+}
+
+const sortedSessions = computed(() => {
+  const items = [...filteredSessions.value]
+  const { field, direction } = sortState.value
+  if (!field || !direction) return items
+  const multiplier = direction === 'asc' ? 1 : -1
+
+  items.sort((a, b) => {
+    if (field === 'name') {
+      return a.name.localeCompare(b.name, locale.value) * multiplier
+    }
+    if (field === 'platform') {
+      return getPlatformLabel(a.platform).localeCompare(getPlatformLabel(b.platform), locale.value) * multiplier
+    }
+    if (field === 'messageCount') {
+      return (a.messageCount - b.messageCount) * multiplier
+    }
+    return (a.importedAt - b.importedAt) * multiplier
+  })
+
+  return items
+})
+
 // 选中的会话 ID 集合
 const selectedIds = ref<Set<string>>(new Set())
 
@@ -53,33 +204,37 @@ const canMerge = computed(() => {
 
 // 全选状态（基于过滤后的列表）
 const isAllSelected = computed(() => {
-  return filteredSessions.value.length > 0 && filteredSessions.value.every((s) => selectedIds.value.has(s.id))
+  return sortedSessions.value.length > 0 && sortedSessions.value.every((s) => selectedIds.value.has(s.id))
 })
 
 // 部分选中状态（用于 indeterminate）
 const isPartialSelected = computed(() => {
-  const selectedInFiltered = filteredSessions.value.filter((s) => selectedIds.value.has(s.id)).length
-  return selectedInFiltered > 0 && selectedInFiltered < filteredSessions.value.length
+  const selectedInFiltered = sortedSessions.value.filter((s) => selectedIds.value.has(s.id)).length
+  return selectedInFiltered > 0 && selectedInFiltered < sortedSessions.value.length
 })
 
 // 切换全选（只影响过滤后的列表）
 function toggleSelectAll() {
   if (isAllSelected.value) {
     // 取消选中过滤列表中的所有项
-    const filteredIds = new Set(filteredSessions.value.map((s) => s.id))
+    const filteredIds = new Set(sortedSessions.value.map((s) => s.id))
     selectedIds.value = new Set([...selectedIds.value].filter((id) => !filteredIds.has(id)))
   } else {
     // 选中过滤列表中的所有项
     const newSet = new Set(selectedIds.value)
-    for (const s of filteredSessions.value) {
+    for (const s of sortedSessions.value) {
       newSet.add(s.id)
     }
     selectedIds.value = newSet
   }
 }
 
-// 上次点击的索引（基于 filteredSessions），用于 Shift+Click 范围选择
+// 上次点击的索引（基于排序后的列表），用于 Shift+Click 范围选择
 const lastClickedIndex = ref<number | null>(null)
+
+watch(sortedSessions, () => {
+  lastClickedIndex.value = null
+})
 
 // 切换单个选择
 function toggleSelect(id: string) {
@@ -100,7 +255,7 @@ function handleRowClick(index: number, id: string, event: MouseEvent) {
     const end = Math.max(lastClickedIndex.value, index)
     const newSet = new Set(selectedIds.value)
     for (let i = start; i <= end; i++) {
-      const session = filteredSessions.value[i]
+      const session = sortedSessions.value[i]
       if (session) {
         newSet.add(session.id)
       }
@@ -421,26 +576,35 @@ onMounted(() => {
     <div v-else class="flex-1 overflow-y-auto rounded-lg border border-gray-200/50 dark:border-gray-700/50">
       <!-- 表头 -->
       <div
-        class="sticky top-0 z-[1] flex items-center gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-500 dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-400"
+        class="sticky top-0 z-1 flex items-center gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-500 dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-400"
       >
-        <div class="w-6" />
-        <div class="w-8" />
-        <div class="min-w-0 flex-1">{{ t('tools.batchManage.columns.name') }}</div>
-        <div class="w-20 text-center">{{ t('tools.batchManage.columns.platform') }}</div>
-        <div class="w-24 text-right">{{ t('tools.batchManage.columns.messages') }}</div>
-        <div class="w-16 text-right">{{ t('tools.batchManage.columns.summaries') }}</div>
-        <div class="w-16 text-right">{{ t('tools.batchManage.columns.aiChats') }}</div>
-        <div class="w-28 text-right">{{ t('tools.batchManage.columns.importedAt') }}</div>
+        <template v-for="column in headerColumns" :key="column.key">
+          <div v-if="column.type === 'spacer'" :class="column.class" />
+          <div v-else-if="column.type === 'static'" :class="getStaticHeaderClass(column)">
+            {{ t(column.labelKey) }}
+          </div>
+          <button v-else :class="getSortableHeaderClass(column)" @click="toggleSort(column.field)">
+            <span>{{ t(column.labelKey) }}</span>
+            <span class="flex shrink-0 flex-col leading-none">
+              <UIcon name="i-heroicons-chevron-up" class="h-2.5 w-2.5" :class="getSortIconClass(column.field, 'asc')" />
+              <UIcon
+                name="i-heroicons-chevron-down"
+                class="-mt-0.5 h-2.5 w-2.5"
+                :class="getSortIconClass(column.field, 'desc')"
+              />
+            </span>
+          </button>
+        </template>
       </div>
 
       <!-- 列表内容 -->
       <div
-        v-for="(session, index) in filteredSessions"
+        v-for="(session, index) in sortedSessions"
         :key="session.id"
         class="flex cursor-pointer items-center gap-3 px-3 py-2 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
         :class="[
           isSelected(session.id) ? 'bg-pink-50 dark:bg-pink-900/20' : '',
-          index !== filteredSessions.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : '',
+          index !== sortedSessions.length - 1 ? 'border-b border-gray-100 dark:border-gray-800' : '',
         ]"
         @click="handleRowClick(index, session.id, $event)"
       >
