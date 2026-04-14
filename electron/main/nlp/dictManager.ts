@@ -6,11 +6,20 @@
 
 import * as fs from 'fs'
 import * as path from 'path'
+import { createHash } from 'crypto'
 import { app } from 'electron'
 import axios from 'axios'
 
 const NLP_DIR_NAME = 'nlp'
 const DICT_DOWNLOAD_URL_BASE = 'https://chatlab.fun/assets/nlp'
+const DICT_SHA256: Record<string, string> = {
+  'zh-CN': '139519822fe8ab9e10d9d07e68ea0451045380aedaf54ecc51e2a28c6b42a13f',
+  'zh-TW': 'a63ec7e388f16f1b486dcd948a9f1a3b492be5d9b6bdab786a95e59966786dfd',
+}
+
+function sha256Hex(buffer: Buffer): string {
+  return createHash('sha256').update(buffer).digest('hex')
+}
 
 export interface DictInfo {
   id: string
@@ -120,6 +129,25 @@ export async function downloadDict(
       return {
         success: false,
         error: 'Downloaded file is HTML, not a dictionary file. The URL may not be deployed yet.',
+      }
+    }
+
+    const expectedSha256 = DICT_SHA256[dictId]
+    if (!expectedSha256) {
+      return {
+        success: false,
+        error: `Missing SHA256 checksum for dict: ${dictId}`,
+      }
+    }
+
+    const actualSha256 = sha256Hex(buffer)
+    if (actualSha256 !== expectedSha256) {
+      console.error(
+        `[NLP DictManager] SHA256 mismatch for ${dictId}, expected=${expectedSha256}, actual=${actualSha256}`
+      )
+      return {
+        success: false,
+        error: 'Dictionary integrity check failed (SHA256 mismatch).',
       }
     }
 
