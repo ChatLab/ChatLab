@@ -11,6 +11,7 @@ import type { LLMProvider, ProviderInfo, AIServiceConfig, AIConfigStore } from '
 import { MAX_CONFIG_COUNT } from './types'
 import { aiLogger } from '../logger'
 import { encryptApiKey, decryptApiKey, isEncrypted } from './crypto'
+import { buildChatLabUserAgentHeaders } from '../../utils/httpHeaders'
 import { t } from '../../i18n'
 import { completeSimple, type Model as PiModel } from '@mariozechner/pi-ai'
 
@@ -452,6 +453,7 @@ export function buildPiModel(config: AIServiceConfig): PiModel<'openai-completio
     api: 'openai-completions',
     provider: config.provider,
     baseUrl,
+    headers: config.provider === 'openai-compatible' ? buildChatLabUserAgentHeaders() : undefined,
     reasoning: config.isReasoningModel ?? false,
     input: ['text'],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
