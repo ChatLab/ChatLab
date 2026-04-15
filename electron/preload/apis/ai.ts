@@ -170,6 +170,7 @@ export interface AIServiceConfigDisplay {
   model?: string
   baseUrl?: string
   maxTokens?: number
+  apiFormat?: string
   disableThinking?: boolean
   isReasoningModel?: boolean
   customModels?: Array<{ id: string; name: string }>
@@ -607,6 +608,7 @@ export const llmApi = {
     model?: string
     baseUrl?: string
     maxTokens?: number
+    apiFormat?: string
     disableThinking?: boolean
     isReasoningModel?: boolean
     customModels?: Array<{ id: string; name: string }>
@@ -626,6 +628,7 @@ export const llmApi = {
       model?: string
       baseUrl?: string
       maxTokens?: number
+      apiFormat?: string
       disableThinking?: boolean
       isReasoningModel?: boolean
       customModels?: Array<{ id: string; name: string }>

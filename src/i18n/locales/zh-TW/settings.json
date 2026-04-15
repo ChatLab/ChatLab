@@ -64,7 +64,6 @@
     "inUse": "使用中",
     "defaultModel": "預設模型",
     "localService": "本機服務",
-    "customEndpoint": "自訂端點",
     "edit": "編輯",
     "delete": "刪除",
     "empty": {
@@ -127,12 +126,16 @@
       "customModelDisplayName": "顯示名稱",
       "customModelDisplayNamePlaceholder": "自訂顯示名稱",
       "modelRequired": "至少新增一個模型才能儲存",
-      "modelCapabilities": "模型能力標註"
+      "modelCapabilities": "模型能力標註",
+      "apiFormat": "API 介面類型",
+      "apiFormatOpenAI": "OpenAI Completions",
+      "apiFormatAnthropic": "Anthropic",
+      "apiFormatGemini": "Gemini",
+      "apiFormatOpenAIResponses": "OpenAI Responses"
     },
     "providerKind": {
       "official": "官方",
       "aggregator": "聚合",
-      "compatible": "相容",
       "custom": "自訂"
     },
     "capabilities": {

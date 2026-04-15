@@ -44,6 +44,7 @@ const {
   modelTabItems,
   selectedModelIsCustom,
   canSave,
+  apiFormatItems,
   modalTitle,
   selectProvider,
   onConnectionModeChange,
@@ -340,6 +341,14 @@ function closeModal() {
                 </div>
               </div>
             </template>
+
+            <!-- ===== 第三方 / 本地：API 接口类型 ===== -->
+            <div v-if="!isPresetMode">
+              <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                {{ t('settings.aiConfig.modal.apiFormat') }}
+              </label>
+              <UITabs v-model="formData.apiFormat" :items="apiFormatItems" size="xs" />
+            </div>
 
             <!-- ===== 通用：自定义配置名称 ===== -->
             <template v-if="formData.provider || !isPresetMode">

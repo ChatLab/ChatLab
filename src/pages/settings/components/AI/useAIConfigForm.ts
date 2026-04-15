@@ -13,12 +13,22 @@ export interface AIServiceConfig {
   apiKeySet: boolean
   model?: string
   baseUrl?: string
+  apiFormat?: string
   disableThinking?: boolean
   isReasoningModel?: boolean
   customModels?: Array<{ id: string; name: string }>
   createdAt: number
   updatedAt: number
 }
+
+export const API_FORMAT_DEFAULT = 'openai-completions'
+
+export const API_FORMAT_OPTIONS: Array<{ value: string; labelKey: string }> = [
+  { value: 'openai-completions', labelKey: 'settings.aiConfig.modal.apiFormatOpenAI' },
+  { value: 'anthropic-messages', labelKey: 'settings.aiConfig.modal.apiFormatAnthropic' },
+  { value: 'google-generative-ai', labelKey: 'settings.aiConfig.modal.apiFormatGemini' },
+  { value: 'openai-responses', labelKey: 'settings.aiConfig.modal.apiFormatOpenAIResponses' },
+]
 
 export interface Provider {
   id: string
@@ -84,6 +94,7 @@ export function useAIConfigForm(props: {
     apiKey: '',
     model: '',
     baseUrl: '',
+    apiFormat: API_FORMAT_DEFAULT,
     customName: '',
     disableThinking: true,
     isReasoningModel: false,
@@ -157,6 +168,13 @@ export function useAIConfigForm(props: {
     return apiKey.trim()
   })
 
+  const apiFormatItems = computed(() =>
+    API_FORMAT_OPTIONS.map((opt) => ({
+      label: t(opt.labelKey),
+      value: opt.value,
+    }))
+  )
+
   const modalTitle = computed(() =>
     props.mode.value === 'add' ? t('settings.aiConfig.modal.addConfig') : t('settings.aiConfig.modal.editConfig')
   )
@@ -175,6 +193,7 @@ export function useAIConfigForm(props: {
       apiKey: '',
       model: defaultChat?.id || defaultModels[0]?.id || '',
       baseUrl: defaultProviderDef?.defaultBaseUrl || '',
+      apiFormat: API_FORMAT_DEFAULT,
       customName: '',
       disableThinking: true,
       isReasoningModel: false,
@@ -206,6 +225,7 @@ export function useAIConfigForm(props: {
       apiKey: config.apiKey || '',
       model: isCompat ? config.model || '' : hasModelInCatalog ? config.model || '' : '',
       baseUrl: config.baseUrl || providerDef?.defaultBaseUrl || '',
+      apiFormat: config.apiFormat || API_FORMAT_DEFAULT,
       customName: config.name || '',
       disableThinking: config.disableThinking ?? true,
       isReasoningModel: config.isReasoningModel ?? false,
@@ -362,19 +382,25 @@ export function useAIConfigForm(props: {
   // ============ 保存 ============
 
   function generateName(): string {
-    const def = currentProviderDef.value
-    const providerName = def
-      ? getLocalizedProviderName(def.id) || def.name
-      : (() => {
-          const legacy = props.providers.value.find((p) => p.id === formData.value.provider)
-          if (legacy) return legacy.name
-          try {
-            return new URL(formData.value.baseUrl).hostname
-          } catch {
-            /* ignore */
-          }
-          return formData.value.baseUrl || t('settings.aiConfig.modal.customService')
-        })()
+    let providerName: string
+
+    if (isCompatMode.value && formData.value.baseUrl) {
+      try {
+        const url = new URL(formData.value.baseUrl)
+        providerName = url.hostname
+      } catch {
+        providerName = t('settings.aiConfig.modal.customService')
+      }
+    } else {
+      const def = currentProviderDef.value
+      providerName = def
+        ? getLocalizedProviderName(def.id) || def.name
+        : (() => {
+            const legacy = props.providers.value.find((p) => p.id === formData.value.provider)
+            if (legacy) return legacy.name
+            return formData.value.baseUrl || t('settings.aiConfig.modal.customService')
+          })()
+    }
 
     const modelId = formData.value.model.trim()
     if (!modelId) return providerName
@@ -400,12 +426,14 @@ export function useAIConfigForm(props: {
           ? compatModels.value.map((m) => ({ id: m.id, name: m.name }))
           : undefined
       if (props.mode.value === 'add') {
+        const savedApiFormat = isCompatMode.value ? formData.value.apiFormat || undefined : undefined
         const result = await window.llmApi.addConfig({
           name: finalName,
           provider: finalProvider,
           apiKey: finalApiKey,
           model: formData.value.model.trim() || undefined,
           baseUrl: formData.value.baseUrl.trim() || undefined,
+          apiFormat: savedApiFormat,
           disableThinking: isReasoning ? formData.value.disableThinking : undefined,
           isReasoningModel: isReasoning || undefined,
           customModels: persistCustomModels,
@@ -418,11 +446,13 @@ export function useAIConfigForm(props: {
           console.error('添加配置失败：', result.error)
         }
       } else {
+        const savedApiFormat = isCompatMode.value ? formData.value.apiFormat || undefined : undefined
         const updates: Record<string, unknown> = {
           name: finalName,
           provider: finalProvider,
           model: formData.value.model.trim() || undefined,
           baseUrl: formData.value.baseUrl.trim() || undefined,
+          apiFormat: savedApiFormat,
           disableThinking: isReasoning ? formData.value.disableThinking : undefined,
           isReasoningModel: isReasoning || undefined,
           customModels: persistCustomModels,
@@ -543,6 +573,7 @@ export function useAIConfigForm(props: {
     modelTabItems,
     selectedModelIsCustom,
     canSave,
+    apiFormatItems,
     modalTitle,
 
     // 方法

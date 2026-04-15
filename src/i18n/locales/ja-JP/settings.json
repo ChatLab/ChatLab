@@ -64,7 +64,6 @@
     "inUse": "使用中",
     "defaultModel": "デフォルトモデル",
     "localService": "ローカルサービス",
-    "customEndpoint": "カスタムエンドポイント",
     "edit": "編集",
     "delete": "削除",
     "empty": {
@@ -127,12 +126,16 @@
       "customModelDisplayName": "表示名",
       "customModelDisplayNamePlaceholder": "カスタム表示名",
       "modelRequired": "少なくとも 1 つのモデルを追加してから保存してください",
-      "modelCapabilities": "モデル能力ラベル"
+      "modelCapabilities": "モデル能力ラベル",
+      "apiFormat": "API インターフェース",
+      "apiFormatOpenAI": "OpenAI Completions",
+      "apiFormatAnthropic": "Anthropic",
+      "apiFormatGemini": "Gemini",
+      "apiFormatOpenAIResponses": "OpenAI Responses"
     },
     "providerKind": {
       "official": "公式",
       "aggregator": "アグリゲータ",
-      "compatible": "互換",
       "custom": "カスタム"
     },
     "capabilities": {

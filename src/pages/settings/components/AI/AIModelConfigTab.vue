@@ -82,9 +82,8 @@ function getProviderName(providerId: string): string {
 
 function getProviderKindLabel(providerId: string): string | null {
   const def = providerRegistry.value.find((p: ProviderDefinition) => p.id === providerId)
-  if (!def || def.kind === 'official') return null
+  if (!def || def.kind === 'official' || def.kind === 'openai-compatible') return null
   if (def.kind === 'aggregator') return t('settings.aiConfig.providerKind.aggregator')
-  if (def.kind === 'openai-compatible') return t('settings.aiConfig.providerKind.compatible')
   if (!def.builtin) return t('settings.aiConfig.providerKind.custom')
   return null
 }
@@ -169,10 +168,6 @@ onMounted(() => {
               </UBadge>
               <span>·</span>
               <span>{{ getModelDisplayName(config.provider, config.model) }}</span>
-              <span v-if="config.baseUrl">·</span>
-              <span v-if="config.baseUrl" class="text-violet-500">
-                {{ t('settings.aiConfig.customEndpoint') }}
-              </span>
             </div>
           </div>
         </div>

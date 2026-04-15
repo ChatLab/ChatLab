@@ -64,7 +64,6 @@
     "inUse": "使用中",
     "defaultModel": "默认模型",
     "localService": "本地服务",
-    "customEndpoint": "自定义端点",
     "edit": "编辑",
     "delete": "删除",
     "empty": {
@@ -127,12 +126,16 @@
       "customModelDisplayName": "显示名称",
       "customModelDisplayNamePlaceholder": "自定义显示名",
       "modelCapabilities": "模型能力标注",
-      "modelRequired": "至少添加一个模型才能保存"
+      "modelRequired": "至少添加一个模型才能保存",
+      "apiFormat": "API 接口类型",
+      "apiFormatOpenAI": "OpenAI Completions",
+      "apiFormatAnthropic": "Anthropic",
+      "apiFormatGemini": "Gemini",
+      "apiFormatOpenAIResponses": "OpenAI Responses"
     },
     "providerKind": {
       "official": "官方",
       "aggregator": "聚合",
-      "compatible": "兼容",
       "custom": "自定义"
     },
     "capabilities": {

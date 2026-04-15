@@ -403,6 +403,7 @@ export function registerAIHandlers({ win }: IpcContext): void {
         model?: string
         baseUrl?: string
         maxTokens?: number
+        apiFormat?: string
         customModels?: Array<{ id: string; name: string }>
       }
     ) => {
@@ -440,6 +441,7 @@ export function registerAIHandlers({ win }: IpcContext): void {
         model?: string
         baseUrl?: string
         maxTokens?: number
+        apiFormat?: string
         customModels?: Array<{ id: string; name: string }>
       }
     ) => {

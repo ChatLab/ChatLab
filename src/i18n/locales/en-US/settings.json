@@ -64,7 +64,6 @@
     "inUse": "Active",
     "defaultModel": "Default Model",
     "localService": "Local Service",
-    "customEndpoint": "Custom Endpoint",
     "edit": "Edit",
     "delete": "Delete",
     "empty": {
@@ -127,12 +126,16 @@
       "customModelDisplayName": "Display Name",
       "customModelDisplayNamePlaceholder": "Custom display name",
       "modelRequired": "Add at least one model to save",
-      "modelCapabilities": "Model Capabilities"
+      "modelCapabilities": "Model Capabilities",
+      "apiFormat": "API Format",
+      "apiFormatOpenAI": "OpenAI Completions",
+      "apiFormatAnthropic": "Anthropic",
+      "apiFormatGemini": "Gemini",
+      "apiFormatOpenAIResponses": "OpenAI Responses"
     },
     "providerKind": {
       "official": "Official",
       "aggregator": "Aggregator",
-      "compatible": "Compatible",
       "custom": "Custom"
     },
     "capabilities": {

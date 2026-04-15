@@ -440,7 +440,14 @@ export function buildPiModel(config: AIServiceConfig): PiModel<PiApi> {
 
   validateProviderBaseUrl(config.provider, baseUrl)
 
-  if (config.provider === 'gemini') {
+  const BUILTIN_PROVIDER_API: Record<string, PiApi> = {
+    gemini: 'google-generative-ai',
+    anthropic: 'anthropic-messages',
+  }
+
+  const apiFormat: PiApi = (config.apiFormat as PiApi) || BUILTIN_PROVIDER_API[config.provider] || 'openai-completions'
+
+  if (apiFormat === 'google-generative-ai') {
     return {
       id: modelId,
       name: modelId,
@@ -455,7 +462,7 @@ export function buildPiModel(config: AIServiceConfig): PiModel<PiApi> {
     }
   }
 
-  if (config.provider === 'anthropic') {
+  if (apiFormat === 'anthropic-messages') {
     return {
       id: modelId,
       name: modelId,
@@ -473,7 +480,7 @@ export function buildPiModel(config: AIServiceConfig): PiModel<PiApi> {
   return {
     id: modelId,
     name: modelId,
-    api: 'openai-completions',
+    api: apiFormat,
     provider: config.provider,
     baseUrl,
     headers: config.provider === 'openai-compatible' ? buildChatLabUserAgentHeaders() : undefined,

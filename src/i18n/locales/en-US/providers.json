@@ -69,6 +69,6 @@
     "name": "xAI"
   },
   "openai-compatible": {
-    "name": "OpenAI Compatible"
+    "name": "Third-party"
   }
 }

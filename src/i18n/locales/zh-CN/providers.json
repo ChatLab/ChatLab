@@ -69,6 +69,6 @@
     "name": "xAI"
   },
   "openai-compatible": {
-    "name": "OpenAI 兼容"
+    "name": "第三方服务"
   }
 }
