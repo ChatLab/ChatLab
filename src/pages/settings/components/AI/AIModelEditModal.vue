@@ -233,6 +233,10 @@ function closeModal() {
                 </label>
 
                 <UITabs v-if="modelTabItems.length > 0" v-model="formData.model" :items="modelTabItems" size="xs" />
+                <p v-else class="flex items-center gap-1 text-xs text-amber-500 dark:text-amber-400">
+                  <UIcon name="i-heroicons-exclamation-triangle" class="h-3.5 w-3.5 shrink-0" />
+                  {{ t('settings.aiConfig.modal.modelRequired') }}
+                </p>
                 <p v-if="formData.model" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
                   {{ t('settings.aiConfig.modal.customModelId') }}: {{ formData.model }}
                 </p>
@@ -310,6 +314,10 @@ function closeModal() {
                 </label>
 
                 <UITabs v-if="modelTabItems.length > 0" v-model="formData.model" :items="modelTabItems" size="xs" />
+                <p v-else class="flex items-center gap-1 text-xs text-amber-500 dark:text-amber-400">
+                  <UIcon name="i-heroicons-exclamation-triangle" class="h-3.5 w-3.5 shrink-0" />
+                  {{ t('settings.aiConfig.modal.modelRequired') }}
+                </p>
                 <p v-if="formData.model" class="mt-2 text-xs text-gray-500 dark:text-gray-400">
                   {{ t('settings.aiConfig.modal.customModelId') }}: {{ formData.model }}
                 </p>
@@ -330,6 +338,25 @@ function closeModal() {
                     {{ t('settings.aiConfig.modal.deleteCustomModel') }}
                   </button>
                 </div>
+              </div>
+            </template>
+
+            <!-- ===== 通用：自定义配置名称 ===== -->
+            <template v-if="formData.provider || !isPresetMode">
+              <div>
+                <label class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">
+                  {{ t('settings.aiConfig.modal.configName') }}
+                  <span class="font-normal text-gray-400">{{ t('settings.aiConfig.modal.optional') }}</span>
+                </label>
+                <UInput
+                  v-model="formData.customName"
+                  class="w-full"
+                  :placeholder="
+                    isPresetMode
+                      ? t('settings.aiConfig.modal.configNamePlaceholderPreset')
+                      : t('settings.aiConfig.modal.configNamePlaceholderCustom')
+                  "
+                />
               </div>
             </template>
 

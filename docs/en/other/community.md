@@ -8,7 +8,7 @@ Reach out via community channels or email to get updates and share feedback.
 
 ## Twitter (X)
 
-[https://x.com/chatlabfun](https://x.com/chatlabfun)
+[https://x.com/openchatlab](https://x.com/openchatlab)
 
 ## Contact Developer
 

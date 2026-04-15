@@ -126,6 +126,7 @@
       "customModelIdHint": "The model identifier used in API calls",
       "customModelDisplayName": "Display Name",
       "customModelDisplayNamePlaceholder": "Custom display name",
+      "modelRequired": "Add at least one model to save",
       "modelCapabilities": "Model Capabilities"
     },
     "providerKind": {

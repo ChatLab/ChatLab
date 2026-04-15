@@ -126,6 +126,7 @@
       "customModelIdHint": "API 呼叫時使用的模型識別碼",
       "customModelDisplayName": "顯示名稱",
       "customModelDisplayNamePlaceholder": "自訂顯示名稱",
+      "modelRequired": "至少新增一個模型才能儲存",
       "modelCapabilities": "模型能力標註"
     },
     "providerKind": {

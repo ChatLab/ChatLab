@@ -126,6 +126,7 @@
       "customModelIdHint": "API呼び出しで使用されるモデル識別子",
       "customModelDisplayName": "表示名",
       "customModelDisplayNamePlaceholder": "カスタム表示名",
+      "modelRequired": "少なくとも 1 つのモデルを追加してから保存してください",
       "modelCapabilities": "モデル能力ラベル"
     },
     "providerKind": {

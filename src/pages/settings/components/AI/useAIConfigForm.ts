@@ -84,6 +84,7 @@ export function useAIConfigForm(props: {
     apiKey: '',
     model: '',
     baseUrl: '',
+    customName: '',
     disableThinking: true,
     isReasoningModel: false,
   })
@@ -174,6 +175,7 @@ export function useAIConfigForm(props: {
       apiKey: '',
       model: defaultChat?.id || defaultModels[0]?.id || '',
       baseUrl: defaultProviderDef?.defaultBaseUrl || '',
+      customName: '',
       disableThinking: true,
       isReasoningModel: false,
     }
@@ -204,6 +206,7 @@ export function useAIConfigForm(props: {
       apiKey: config.apiKey || '',
       model: isCompat ? config.model || '' : hasModelInCatalog ? config.model || '' : '',
       baseUrl: config.baseUrl || providerDef?.defaultBaseUrl || '',
+      customName: config.name || '',
       disableThinking: config.disableThinking ?? true,
       isReasoningModel: config.isReasoningModel ?? false,
     }
@@ -389,7 +392,7 @@ export function useAIConfigForm(props: {
       if (!finalApiKey && isLocalMode.value) {
         finalApiKey = 'sk-no-key-required'
       }
-      const finalName = generateName()
+      const finalName = formData.value.customName.trim() || generateName()
 
       const isReasoning = formData.value.isReasoningModel
       const persistCustomModels =

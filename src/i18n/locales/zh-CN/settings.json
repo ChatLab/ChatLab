@@ -126,7 +126,8 @@
       "customModelIdHint": "API 调用时使用的模型标识符",
       "customModelDisplayName": "显示名称",
       "customModelDisplayNamePlaceholder": "自定义显示名",
-      "modelCapabilities": "模型能力标注"
+      "modelCapabilities": "模型能力标注",
+      "modelRequired": "至少添加一个模型才能保存"
     },
     "providerKind": {
       "official": "官方",
