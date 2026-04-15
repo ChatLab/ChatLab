@@ -7,7 +7,7 @@ import { EChart } from '@/components/charts'
 import RelationshipMetricCard from './RelationshipMetricCard.vue'
 import type { EChartsOption } from 'echarts'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 
 interface TimeFilter {
   startTs?: number
@@ -107,6 +107,8 @@ const timeRangeString = computed(() => {
   return `${first} – ${last}`
 })
 
+const heroTextMaxWidthClass = computed(() => (locale.value.startsWith('en') ? 'max-w-[420px]' : 'max-w-[320px]'))
+
 function getOverallLabel(): string {
   if (!stats.value || stats.value.totalSessions <= 3) {
     return t('views.relationship.labels.distantBond')
@@ -116,14 +118,6 @@ function getOverallLabel(): string {
   if (ratio >= 80 || ratio <= 20) return t('views.relationship.labels.devotedHeart')
   return t('views.relationship.labels.silentGuardian')
 }
-
-// ==================== 收尾者 ====================
-const overallCloseRatio = computed(() => {
-  if (!memberA.value || !stats.value) return 50
-  const totalClose = (memberA.value.totalCloseCount ?? 0) + (memberB.value?.totalCloseCount ?? 0)
-  if (totalClose === 0) return 50
-  return Math.round((memberA.value.totalCloseCount / totalClose) * 100)
-})
 
 // 确保进度条视觉上可区分（至少 5% 最小宽度）
 function clampBarWidth(ratio: number): number {
@@ -297,17 +291,9 @@ function formatDuration(seconds: number): string {
   <div :class="isLoading ? 'h-full' : ''">
     <LoadingState v-if="isLoading" variant="page" :text="t('common.loading')" />
     <div v-else class="main-content mx-auto max-w-[920px] space-y-6 p-6">
-      <!-- 无会话索引 -->
-      <EmptyState
-        v-if="stats && !stats.hasSessionIndex"
-        icon="i-heroicons-clock"
-        :title="t('views.relationship.noIndex.title')"
-        :description="t('views.relationship.noIndex.description')"
-      />
-
       <!-- 无数据 -->
       <EmptyState
-        v-else-if="stats && !hasData"
+        v-if="stats && !hasData"
         icon="i-heroicons-heart"
         :title="t('views.relationship.empty.title')"
         :description="t('views.relationship.empty.description')"
@@ -316,21 +302,21 @@ function formatDuration(seconds: number): string {
       <!-- 有数据 -->
       <template v-else-if="stats && hasData">
         <div class="space-y-6">
-          <!-- 关系大满贯 (Single Page Shareable Poster) -->
+          <!-- 关系卡片 -->
           <ThemeCard id="shareable-poster" variant="elevated" decorative class="flex flex-col">
             <!-- 1. 主视觉区域 (Primary Module) -->
             <div
-              class="relative z-10 flex flex-col items-center justify-center gap-10 px-6 pt-10 pb-6 sm:px-8 lg:flex-row lg:gap-16 xl:gap-24"
+              class="relative z-10 flex flex-col items-center justify-center gap-10 px-6 pt-10 pb-6 sm:px-8 lg:flex-row lg:items-start lg:justify-between lg:gap-8 xl:gap-12"
             >
               <!-- 左侧：文字描述与基础数据 -->
-              <div class="flex shrink-0 flex-col items-center justify-center">
-                <div class="flex w-fit flex-col items-start text-left">
+              <div class="flex min-w-0 max-w-full flex-1 flex-col items-center justify-center lg:items-start">
+                <div class="flex w-fit min-w-0 flex-col items-start text-left" :class="heroTextMaxWidthClass">
                   <div class="flex flex-col text-[15px] leading-relaxed text-gray-600 dark:text-gray-300">
                     <p class="mb-2 text-sm font-medium tracking-wide text-gray-500 dark:text-gray-400">
                       {{ timeRangeString }}
                     </p>
 
-                    <div class="mb-4 flex items-baseline gap-2">
+                    <div class="mb-4 flex min-w-0 flex-wrap items-baseline gap-2">
                       <span class="text-xl font-medium text-gray-700 dark:text-gray-300">
                         {{ t('views.relationship.hero.totalSessionsPrefix') }}
                       </span>
@@ -342,7 +328,7 @@ function formatDuration(seconds: number): string {
                       </span>
                     </div>
 
-                    <div class="flex items-baseline flex-wrap gap-x-1.5 gap-y-1">
+                    <div class="flex min-w-0 max-w-full flex-wrap items-baseline gap-x-1.5 gap-y-1">
                       <span class="text-base font-medium text-gray-600 dark:text-gray-300">
                         {{ t('views.relationship.hero.initiativePrefix') }}
                       </span>
@@ -352,7 +338,7 @@ function formatDuration(seconds: number): string {
                       <span class="text-base font-medium text-gray-600 dark:text-gray-300">
                         {{ t('views.relationship.hero.initiativeByPrefix') }}
                       </span>
-                      <span class="font-bold text-xl text-gray-900 dark:text-white">
+                      <span class="max-w-full break-all text-xl font-bold leading-snug text-gray-900 dark:text-white">
                         {{ overallInitiateRatio >= 50 ? memberA?.name : memberB?.name }}
                       </span>
                       <span class="text-base font-medium text-gray-600 dark:text-gray-300">
@@ -403,7 +389,10 @@ function formatDuration(seconds: number): string {
               </div>
 
               <!-- 右侧：主动性趋势图 -->
-              <div v-if="stats.months.length >= 2" class="flex w-full max-w-[400px] shrink-0 flex-col justify-center">
+              <div
+                v-if="stats.months.length >= 2"
+                class="flex min-w-0 w-full max-w-[400px] flex-1 flex-col justify-center lg:max-w-[460px]"
+              >
                 <div class="mb-2 flex items-center justify-between px-1">
                   <span class="text-sm font-bold text-gray-900 dark:text-white">
                     {{ t('views.relationship.trend.title') }}

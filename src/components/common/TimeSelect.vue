@@ -13,7 +13,7 @@ export type TimeSelectMode = 'recent' | 'quarter' | 'year' | 'custom'
 /** 组件内部状态快照，用于父组件 URL 序列化 */
 export interface TimeSelectState {
   mode: TimeSelectMode
-  recentDays?: number // 最近模式：天数 (180/365/730/1825/0=全部)
+  recentDays?: number // 最近模式：天数 (365/730/1825/0=全部)
   year?: number // 按年模式：年份
   quarterYear?: number // 按季模式：年份
   quarter?: number // 按季模式：季度 (1-4)
@@ -116,7 +116,6 @@ const modeOptions = computed(() => [
 ])
 
 const recentOptions = computed(() => [
-  { label: t('common.timeSelect.recent.halfYear'), value: 180 },
   { label: t('common.timeSelect.recent.oneYear'), value: 365 },
   { label: t('common.timeSelect.recent.twoYears'), value: 730 },
   { label: t('common.timeSelect.recent.fiveYears'), value: 1825 },
@@ -181,12 +180,15 @@ const yearDisplayLabel = computed(() => {
 /** 最近模式 displayLabel 映射 */
 function getRecentDisplayLabel(days: number): string {
   const map: Record<number, string> = {
-    180: t('common.timeSelect.display.recent180'),
     365: t('common.timeSelect.display.recent365'),
     730: t('common.timeSelect.display.recent730'),
     1825: t('common.timeSelect.display.recent1825'),
   }
   return map[days] || ''
+}
+
+function normalizeRecentDays(days: number): number {
+  return [365, 730, 1825, 0].includes(days) ? days : 365
 }
 
 function buildValue(): TimeRangeValue | null {
@@ -300,9 +302,7 @@ function initModeDefaults(newMode: TimeSelectMode) {
   if (!fullTimeRange.value) return
   switch (newMode) {
     case 'recent':
-      if (![180, 365, 730, 1825, 0].includes(recentPeriod.value)) {
-        recentPeriod.value = 365
-      }
+      recentPeriod.value = normalizeRecentDays(recentPeriod.value)
       break
     case 'quarter': {
       const { year, quarter } = getQuarterFromTs(fullTimeRange.value.end)
@@ -395,7 +395,7 @@ async function loadData() {
     isInitializing.value = true
     switch (initMode) {
       case 'recent':
-        recentPeriod.value = init?.recentDays ?? 365
+        recentPeriod.value = normalizeRecentDays(init?.recentDays ?? 365)
         break
       case 'quarter': {
         if (init?.quarterYear && init?.quarter) {
