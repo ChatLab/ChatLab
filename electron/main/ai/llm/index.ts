@@ -13,7 +13,7 @@ import { aiLogger } from '../logger'
 import { encryptApiKey, decryptApiKey, isEncrypted } from './crypto'
 import { buildChatLabUserAgentHeaders } from '../../utils/httpHeaders'
 import { t } from '../../i18n'
-import { completeSimple, type Model as PiModel } from '@mariozechner/pi-ai'
+import { completeSimple, type Model as PiModel, type Api as PiApi } from '@mariozechner/pi-ai'
 
 // 新模型系统导出
 export { BUILTIN_PROVIDERS, getBuiltinProviderById } from './provider-registry'
@@ -424,7 +424,15 @@ export function getProviderInfo(provider: LLMProvider): ProviderInfo | null {
 
 // ==================== pi-ai Model 构建 ====================
 
-export function buildPiModel(config: AIServiceConfig): PiModel<'openai-completions'> | PiModel<'google-generative-ai'> {
+/**
+ * 规范化 Anthropic baseUrl：Anthropic SDK 内部会拼接 /v1/messages，
+ * 因此 baseUrl 不应包含 /v1 后缀，否则会导致 /v1/v1/messages 双重路径。
+ */
+function normalizeAnthropicBaseUrl(url: string): string {
+  return url.replace(/\/v1\/?$/, '')
+}
+
+export function buildPiModel(config: AIServiceConfig): PiModel<PiApi> {
   const providerDef = getBuiltinProviderById(config.provider)
   const providerInfo = getProviderInfo(config.provider)
   const baseUrl = config.baseUrl || providerDef?.defaultBaseUrl || providerInfo?.defaultBaseUrl || ''
@@ -443,6 +451,21 @@ export function buildPiModel(config: AIServiceConfig): PiModel<'openai-completio
       input: ['text'],
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       contextWindow: 1048576,
+      maxTokens: config.maxTokens ?? 8192,
+    }
+  }
+
+  if (config.provider === 'anthropic') {
+    return {
+      id: modelId,
+      name: modelId,
+      api: 'anthropic-messages',
+      provider: 'anthropic',
+      baseUrl: normalizeAnthropicBaseUrl(baseUrl),
+      reasoning: false,
+      input: ['text'],
+      cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+      contextWindow: 200000,
       maxTokens: config.maxTokens ?? 8192,
     }
   }

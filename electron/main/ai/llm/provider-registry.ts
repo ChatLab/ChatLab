@@ -43,7 +43,7 @@ const ANTHROPIC: ProviderDefinition = {
   kind: 'official',
   website: 'https://www.anthropic.com',
   consoleUrl: 'https://console.anthropic.com/settings/keys',
-  defaultBaseUrl: 'https://api.anthropic.com/v1',
+  defaultBaseUrl: 'https://api.anthropic.com',
   authMode: 'api-key',
   supportsCustomModels: true,
   builtin: true,
