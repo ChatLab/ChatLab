@@ -21,13 +21,24 @@
     "title": "Confirm Delete",
     "message": "Are you sure you want to delete \"{name}\"? This action cannot be undone."
   },
+  "filter": {
+    "all": "All",
+    "private": "Private",
+    "group": "Group"
+  },
+  "sort": {
+    "importedAt": "Import Time",
+    "lastMessageTs": "Last Message",
+    "messageCount": "Message Count"
+  },
   "tooltip": {
     "expand": "Expand sidebar",
     "collapse": "Collapse sidebar",
     "hint": "Right-click to rename or delete",
-    "search": "Search chat records"
+    "search": "Search chat records",
+    "sort": "Sort"
   },
-  "sessionInfo": "{count} messages · {time}",
+  "sessionInfo": "{count} messages",
   "footer": {
     "helpAndFeedback": "Help & Feedback",
     "settings": "Settings"

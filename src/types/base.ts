@@ -239,6 +239,7 @@ export interface AnalysisSession {
   groupAvatar: string | null // 群头像（base64 Data URL）
   ownerId: string | null // 所有者/导出者的 platformId
   memberAvatar: string | null // 私聊对方头像（base64 Data URL）
+  lastMessageTs: number | null // 最后一条消息时间戳（秒）
   summaryCount: number // 已生成摘要的会话片段数
   aiConversationCount: number // AI 对话数
 }

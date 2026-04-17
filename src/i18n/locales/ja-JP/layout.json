@@ -21,13 +21,24 @@
     "title": "削除の確認",
     "message": "チャット記録「{name}」を削除しますか？この操作は取り消せません。"
   },
+  "filter": {
+    "all": "すべて",
+    "private": "個人",
+    "group": "グループ"
+  },
+  "sort": {
+    "importedAt": "インポート日時",
+    "lastMessageTs": "最新メッセージ",
+    "messageCount": "メッセージ数"
+  },
   "tooltip": {
     "expand": "サイドバーを展開",
     "collapse": "サイドバーを折りたたむ",
     "hint": "右クリックでチャット記録の削除や名前変更ができます",
-    "search": "チャット記録を検索"
+    "search": "チャット記録を検索",
+    "sort": "並べ替え"
   },
-  "sessionInfo": "{count} 件のメッセージ · {time}",
+  "sessionInfo": "{count} 件のメッセージ",
   "footer": {
     "helpAndFeedback": "フィードバックとヘルプ",
     "settings": "設定"

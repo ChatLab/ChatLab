@@ -174,6 +174,7 @@ export function getAllSessions(): any[] {
           groupAvatar: meta.group_avatar || null,
           ownerId: meta.owner_id || null,
           memberAvatar, // 私聊对方头像
+          lastMessageTs: overview?.lastMessageTs ?? null,
           summaryCount,
           aiConversationCount: 0, // 将在 IPC 层由主进程填充
         })

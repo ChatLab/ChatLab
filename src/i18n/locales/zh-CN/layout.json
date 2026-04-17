@@ -21,13 +21,24 @@
     "title": "确认删除",
     "message": "确定要删除聊天记录 \"{name}\" 吗？此操作无法撤销。"
   },
+  "filter": {
+    "all": "全部",
+    "private": "私聊",
+    "group": "群聊"
+  },
+  "sort": {
+    "importedAt": "导入时间",
+    "lastMessageTs": "最近对话",
+    "messageCount": "消息数量"
+  },
   "tooltip": {
     "expand": "展开侧边栏",
     "collapse": "收起侧边栏",
     "hint": "右键可删除或重命名聊天记录",
-    "search": "搜索聊天记录"
+    "search": "搜索聊天记录",
+    "sort": "排序"
   },
-  "sessionInfo": "{count} 条消息 · {time}",
+  "sessionInfo": "{count} 条消息",
   "footer": {
     "helpAndFeedback": "反馈和帮助",
     "settings": "设置"

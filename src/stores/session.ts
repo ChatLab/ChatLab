@@ -1,6 +1,15 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
-import type { AnalysisSession, ImportProgress } from '@/types/base'
+import type { AnalysisSession, ImportProgress, ChatType } from '@/types/base'
+
+/** 侧边栏筛选类型 */
+export type SessionFilterType = 'all' | ChatType
+
+/** 侧边栏排序字段 */
+export type SessionSortField = 'importedAt' | 'lastMessageTs' | 'messageCount'
+
+/** 排序方向 */
+export type SessionSortOrder = 'asc' | 'desc'
 
 /** 迁移信息 */
 export interface MigrationInfo {
@@ -696,12 +705,24 @@ export const useSessionStore = defineStore(
     // 置顶会话 ID 列表
     const pinnedSessionIds = ref<string[]>([])
 
-    // 排序后的会话列表
-    const sortedSessions = computed(() => {
-      // 建立索引映射，index 越大表示越晚置顶
-      const pinIndexMap = new Map(pinnedSessionIds.value.map((id, index) => [id, index]))
+    // 侧边栏筛选/排序状态
+    const filterType = ref<SessionFilterType>('all')
+    const sortField = ref<SessionSortField>('importedAt')
+    const sortOrder = ref<SessionSortOrder>('desc')
 
-      return [...sessions.value].sort((a, b) => {
+    // 排序后的会话列表（含筛选 + 排序 + 置顶）
+    const sortedSessions = computed(() => {
+      // 1. 筛选
+      let filtered = sessions.value
+      if (filterType.value !== 'all') {
+        filtered = filtered.filter((s) => s.type === filterType.value)
+      }
+
+      // 2. 建立置顶索引映射
+      const pinIndexMap = new Map(pinnedSessionIds.value.map((id, index) => [id, index]))
+      const dir = sortOrder.value === 'desc' ? -1 : 1
+
+      return [...filtered].sort((a, b) => {
         const aPinIndex = pinIndexMap.get(a.id)
         const bPinIndex = pinIndexMap.get(b.id)
         const aPinned = aPinIndex !== undefined
@@ -715,7 +736,11 @@ export const useSessionStore = defineStore(
         if (aPinned && !bPinned) return -1
         if (!aPinned && bPinned) return 1
 
-        // 都不置顶：保持原顺序（通常是按时间倒序）
+        // 都不置顶：按用户选择的字段排序
+        const field = sortField.value
+        const aVal = a[field] ?? 0
+        const bVal = b[field] ?? 0
+        if (aVal !== bVal) return (aVal - bVal) * dir
         return 0
       })
     })
@@ -743,6 +768,9 @@ export const useSessionStore = defineStore(
       sessions,
       sortedSessions,
       pinnedSessionIds,
+      filterType,
+      sortField,
+      sortOrder,
       currentSessionId,
       isImporting,
       importProgress,
@@ -791,7 +819,7 @@ export const useSessionStore = defineStore(
         storage: sessionStorage,
       },
       {
-        pick: ['pinnedSessionIds'],
+        pick: ['pinnedSessionIds', 'filterType', 'sortField', 'sortOrder'],
         storage: localStorage,
       },
     ],

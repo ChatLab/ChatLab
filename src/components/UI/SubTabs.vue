@@ -21,6 +21,10 @@ interface Props {
   persistKey?: string
   /** 方向：horizontal（水平）或 vertical（垂直） */
   orientation?: 'horizontal' | 'vertical'
+  /** 尺寸：sm 适用于侧边栏等紧凑场景 */
+  size?: 'sm' | 'md'
+  /** 是否显示底部边框线 */
+  bordered?: boolean
 }
 
 interface Emits {
@@ -30,6 +34,7 @@ interface Emits {
 
 const props = withDefaults(defineProps<Props>(), {
   orientation: 'horizontal',
+  size: 'md',
 })
 const emit = defineEmits<Emits>()
 
@@ -143,8 +148,12 @@ watch(
   <div
     :class="[
       isVertical
-        ? 'h-full border-r border-gray-200/50 dark:border-gray-700/50'
-        : 'flex items-center justify-between border-b border-gray-200/50 px-6 dark:border-gray-800/50',
+        ? ['h-full', bordered !== false ? 'border-r border-gray-200/50 dark:border-gray-700/50' : '']
+        : [
+            'flex items-center justify-between',
+            bordered !== false ? 'border-b border-gray-200/50 dark:border-gray-800/50' : '',
+            size === 'sm' ? 'px-3' : 'px-6',
+          ],
     ]"
   >
     <div ref="containerRef" class="relative" :class="[isVertical ? 'flex flex-col gap-1' : 'flex gap-1']">
@@ -152,16 +161,20 @@ watch(
         v-for="tab in items"
         :key="tab.id"
         :ref="(el) => setTabRef(tab.id, el as HTMLElement)"
-        class="flex items-center gap-2 text-sm font-medium transition-colors"
+        class="flex items-center font-medium transition-colors"
         :class="[
-          isVertical ? 'justify-start px-3 py-2' : 'px-4 py-3',
+          isVertical
+            ? 'justify-start gap-2 px-3 py-2 text-sm'
+            : size === 'sm'
+              ? 'gap-1.5 px-2 py-1.5 text-xs'
+              : 'gap-2 px-4 py-3 text-sm',
           activeTab === tab.id
             ? 'text-primary-600 dark:text-primary-400'
             : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
         ]"
         @click="handleTabClick(tab.id)"
       >
-        <UIcon v-if="tab.icon" :name="tab.icon" class="h-4 w-4" />
+        <UIcon v-if="tab.icon" :name="tab.icon" :class="size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4'" />
         {{ tab.label }}
       </button>
       <!-- 滑动指示器 -->
