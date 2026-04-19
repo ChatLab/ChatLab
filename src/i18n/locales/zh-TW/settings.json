@@ -12,7 +12,11 @@
     "storageManage": "儲存管理",
     "sessionManage": "會話管理",
     "about": "關於 ChatLab",
-    "api": "API 服務"
+    "api": "自動化",
+    "apiSubTabs": {
+      "autoSync": "自動同步",
+      "apiService": "API 服務"
+    }
   },
   "basic": {
     "language": {
@@ -484,12 +488,40 @@
         "targetSession": "目標會話 ID（可選）",
         "targetSessionPlaceholder": "留空則每次新建會話",
         "add": "新增"
+      },
+      "discovery": {
+        "directMode": "直接 URL",
+        "remoteMode": "遠端伺服器",
+        "baseUrl": "伺服器地址",
+        "browse": "瀏覽遠端會話",
+        "found": "發現 {count} 個會話",
+        "selectAll": "全選",
+        "deselectAll": "取消全選",
+        "subscribe": "訂閱 {count} 個會話",
+        "messages": "則訊息",
+        "error": "連線遠端伺服器失敗"
+      },
+      "noSessions": "暫無匯入會話，點擊上方「管理訂閱」新增",
+      "edit": {
+        "title": "修改配置",
+        "save": "儲存",
+        "cancel": "取消",
+        "editSource": "修改配置",
+        "manageSessions": "管理訂閱",
+        "manageSessionsDesc": "重新選擇要同步的遠端會話",
+        "syncAll": "一鍵同步",
+        "subscribed": "已訂閱"
+      },
+      "deleteConfirm": {
+        "title": "刪除資料來源",
+        "message": "確認刪除資料來源「{name}」？該資料來源下的所有匯入配置將被移除。已匯入的本機對話不會被刪除。"
       }
     },
     "usage": {
       "title": "使用說明",
-      "desc": "啟用服務後，可使用以下端點查詢數據。所有請求需攜帶 Bearer Token 認證。",
-      "authHint": "請求標頭範例："
+      "desc": "啟用服務後，外部工具可透過 API 查詢和匯入資料。所有請求需攜帶 Bearer Token 認證。",
+      "authHint": "請求標頭範例：",
+      "docLink": "查看完整 API 文件"
     }
   }
 }

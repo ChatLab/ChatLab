@@ -1,13 +1,22 @@
 /**
- * ChatLab API — IPC handlers for renderer process
+ * ChatLab API — IPC handlers for renderer process (hierarchical data source model)
  */
 
 import { ipcMain } from 'electron'
 import type { IpcContext } from './types'
 import * as apiServer from '../api'
 import { loadConfig, regenerateToken, updateConfig } from '../api/config'
-import { loadDataSources, addDataSource, updateDataSource, deleteDataSource, type DataSource } from '../api/dataSource'
-import { initScheduler, stopAllTimers, reloadTimer, triggerPull } from '../api/pullScheduler'
+import {
+  loadDataSources,
+  addDataSource,
+  updateDataSource,
+  deleteDataSource,
+  addImportSessions,
+  removeImportSession,
+  type DataSource,
+} from '../api/dataSource'
+import { initScheduler, stopAllTimers, stopTimer, reloadTimer, triggerPull, triggerPullAll } from '../api/pullScheduler'
+import { fetchRemoteSessions } from '../api/pullDiscovery'
 
 export function registerApiHandlers(_ctx: IpcContext): void {
   // ==================== API Server Management ====================
@@ -50,33 +59,63 @@ export function registerApiHandlers(_ctx: IpcContext): void {
 
   ipcMain.handle(
     'api:addDataSource',
-    (
-      _event,
-      partial: Omit<DataSource, 'id' | 'createdAt' | 'lastPullAt' | 'lastStatus' | 'lastError' | 'lastNewMessages'>
-    ) => {
+    (_event, partial: { name?: string; baseUrl: string; token: string; intervalMinutes: number }) => {
       const ds = addDataSource(partial)
-      if (ds.enabled) {
+      return ds
+    }
+  )
+
+  ipcMain.handle(
+    'api:updateDataSource',
+    (_event, id: string, updates: Partial<Pick<DataSource, 'name' | 'baseUrl' | 'token' | 'intervalMinutes' | 'enabled'>>) => {
+      const ds = updateDataSource(id, updates)
+      if (ds) {
         reloadTimer(ds.id)
       }
       return ds
     }
   )
 
-  ipcMain.handle('api:updateDataSource', (_event, id: string, updates: Partial<DataSource>) => {
-    const ds = updateDataSource(id, updates)
-    if (ds) {
-      reloadTimer(ds.id)
-    }
-    return ds
-  })
-
   ipcMain.handle('api:deleteDataSource', (_event, id: string) => {
-    reloadTimer(id) // stops timer
+    stopTimer(id)
     return deleteDataSource(id)
   })
 
-  ipcMain.handle('api:triggerPull', async (_event, id: string) => {
-    return triggerPull(id)
+  // ==================== Import Session Management ====================
+
+  ipcMain.handle(
+    'api:addImportSessions',
+    (_event, sourceId: string, sessions: Array<{ name: string; remoteSessionId: string }>) => {
+      const added = addImportSessions(sourceId, sessions)
+      reloadTimer(sourceId)
+      return added
+    }
+  )
+
+  ipcMain.handle('api:removeImportSession', (_event, sourceId: string, sessionId: string) => {
+    const result = removeImportSession(sourceId, sessionId)
+    reloadTimer(sourceId)
+    return result
+  })
+
+  // ==================== Sync ====================
+
+  ipcMain.handle('api:triggerPull', async (_event, sourceId: string, sessionId?: string) => {
+    return triggerPull(sourceId, sessionId)
+  })
+
+  ipcMain.handle('api:triggerPullAll', async (_event, sourceId: string) => {
+    return triggerPullAll(sourceId)
+  })
+
+  // ==================== Remote Discovery ====================
+
+  ipcMain.handle('api:fetchRemoteSessions', async (_event, baseUrl: string, token: string) => {
+    try {
+      return await fetchRemoteSessions(baseUrl, token || undefined)
+    } catch (err: any) {
+      throw new Error(err.message || 'Failed to fetch remote sessions')
+    }
   })
 }
 
@@ -95,7 +134,6 @@ export async function initApiServer(ctx: IpcContext): Promise<void> {
     })
   }
 
-  // Initialize Pull scheduler (independent of API server, pulls even if API is not running)
   initScheduler()
 }
 

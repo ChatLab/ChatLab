@@ -9,6 +9,12 @@ import { streamParseFile, detectFormat } from '../../parser'
 import { sendProgress, getDbPath } from './utils'
 import { generateMessageKey } from './tempDb'
 
+/** 导入选项（控制 meta/members 更新行为） */
+export interface ImportOptions {
+  metaUpdateMode?: 'patch' | 'none'
+  memberUpdateMode?: 'upsert' | 'none'
+}
+
 /** 增量导入分析结果 */
 export interface IncrementalAnalyzeResult {
   newMessageCount: number
@@ -18,10 +24,88 @@ export interface IncrementalAnalyzeResult {
 }
 
 /** 增量导入结果 */
+interface ErrorSample {
+  index: number
+  reason: string
+  detail: string
+}
+
 export interface IncrementalImportResult {
   success: boolean
   newMessageCount: number
   error?: string
+  batch?: {
+    receivedCount: number
+    writtenCount: number
+    duplicateCount: number
+    errorCount: number
+    errorReasonCounts: Record<string, number>
+    errorSample: ErrorSample[]
+  }
+  session?: {
+    totalCount: number
+    memberCount: number
+    firstTimestamp: number
+    lastTimestamp: number
+  }
+  updates?: {
+    metaUpdated: boolean
+    membersAdded: number
+    membersUpdated: number
+  }
+}
+
+/**
+ * 加载现有消息的去重集合（双路径：platformMessageId 优先 + 内容哈希兜底）
+ */
+function loadExistingDedup(db: Database.Database): {
+  existingPlatformMsgIds: Set<string>
+  existingKeys: Set<string>
+} {
+  const existingPlatformMsgIds = new Set<string>()
+  const existingKeys = new Set<string>()
+
+  // 加载已有的 platformMessageId 集合
+  const pmidRows = db
+    .prepare('SELECT platform_message_id FROM message WHERE platform_message_id IS NOT NULL')
+    .all() as Array<{ platform_message_id: string }>
+  for (const row of pmidRows) {
+    existingPlatformMsgIds.add(row.platform_message_id)
+  }
+
+  // 加载内容哈希集合（用于无 platformMessageId 的消息）
+  const hashRows = db
+    .prepare(
+      `SELECT ts, m.platform_id as sender_platform_id, content
+       FROM message msg
+       JOIN member m ON msg.sender_id = m.id`
+    )
+    .all() as Array<{ ts: number; sender_platform_id: string; content: string | null }>
+  for (const row of hashRows) {
+    existingKeys.add(generateMessageKey(row.ts, row.sender_platform_id, row.content))
+  }
+
+  return { existingPlatformMsgIds, existingKeys }
+}
+
+/**
+ * 双路径去重判断：platformMessageId 优先，内容哈希兜底
+ * @returns true 表示是重复消息，应跳过
+ */
+function isDuplicate(
+  msg: { platformMessageId?: string; timestamp: number; senderPlatformId: string; content: string | null },
+  existingPlatformMsgIds: Set<string>,
+  existingKeys: Set<string>
+): boolean {
+  if (msg.platformMessageId) {
+    if (existingPlatformMsgIds.has(msg.platformMessageId)) return true
+    existingPlatformMsgIds.add(msg.platformMessageId)
+    return false
+  }
+  const key = generateMessageKey(msg.timestamp, msg.senderPlatformId, msg.content)
+  if (existingKeys.has(key)) return true
+  existingKeys.add(key)
+  return false
 }
 
 /**
@@ -32,13 +116,11 @@ export async function analyzeIncrementalImport(
   filePath: string,
   requestId: string
 ): Promise<IncrementalAnalyzeResult> {
-  // 检测文件格式
   const formatFeature = detectFormat(filePath)
   if (!formatFeature) {
     return { error: 'error.unrecognized_format', newMessageCount: 0, duplicateCount: 0, totalInFile: 0 }
   }
 
-  // 打开目标数据库获取现有消息的 key 集合
   const dbPath = getDbPath(sessionId)
   if (!fs.existsSync(dbPath)) {
     return { error: 'error.session_not_found', newMessageCount: 0, duplicateCount: 0, totalInFile: 0 }
@@ -47,25 +129,9 @@ export async function analyzeIncrementalImport(
   const db = new Database(dbPath, { readonly: true })
   db.pragma('journal_mode = WAL')
 
-  // 获取现有消息的 key 集合
-  const existingKeys = new Set<string>()
-  const rows = db
-    .prepare(
-      `
-    SELECT ts, m.platform_id as sender_platform_id, content
-    FROM message msg
-    JOIN member m ON msg.sender_id = m.id
-  `
-    )
-    .all() as Array<{ ts: number; sender_platform_id: string; content: string | null }>
-
-  for (const row of rows) {
-    existingKeys.add(generateMessageKey(row.ts, row.sender_platform_id, row.content))
-  }
-
+  const { existingPlatformMsgIds, existingKeys } = loadExistingDedup(db)
   db.close()
 
-  // 解析新文件，统计新消息数
   let totalInFile = 0
   let newMessageCount = 0
   let duplicateCount = 0
@@ -79,8 +145,7 @@ export async function analyzeIncrementalImport(
     onMessageBatch: (batch) => {
       for (const msg of batch) {
         totalInFile++
-        const key = generateMessageKey(msg.timestamp, msg.senderPlatformId, msg.content)
-        if (existingKeys.has(key)) {
+        if (isDuplicate(msg, existingPlatformMsgIds, existingKeys)) {
           duplicateCount++
         } else {
           newMessageCount++
@@ -102,40 +167,28 @@ export async function analyzeIncrementalImport(
 export async function incrementalImport(
   sessionId: string,
   filePath: string,
-  requestId: string
+  requestId: string,
+  options?: ImportOptions
 ): Promise<IncrementalImportResult> {
-  // 检测文件格式
   const formatFeature = detectFormat(filePath)
   if (!formatFeature) {
     return { success: false, newMessageCount: 0, error: 'error.unrecognized_format' }
   }
 
-  // 打开目标数据库
   const dbPath = getDbPath(sessionId)
   if (!fs.existsSync(dbPath)) {
     return { success: false, newMessageCount: 0, error: 'error.session_not_found' }
   }
+
+  const metaUpdateMode = options?.metaUpdateMode ?? 'patch'
+  const memberUpdateMode = options?.memberUpdateMode ?? 'upsert'
 
   const db = new Database(dbPath)
   db.pragma('journal_mode = WAL')
   db.pragma('synchronous = NORMAL')
 
   try {
-    // 获取现有消息的 key 集合
-    const existingKeys = new Set<string>()
-    const rows = db
-      .prepare(
-        `
-      SELECT ts, m.platform_id as sender_platform_id, content
-      FROM message msg
-      JOIN member m ON msg.sender_id = m.id
-    `
-      )
-      .all() as Array<{ ts: number; sender_platform_id: string; content: string | null }>
-
-    for (const row of rows) {
-      existingKeys.add(generateMessageKey(row.ts, row.sender_platform_id, row.content))
-    }
+    const { existingPlatformMsgIds, existingKeys } = loadExistingDedup(db)
 
     // 获取现有成员映射
     const memberIdMap = new Map<string, number>()
@@ -143,42 +196,98 @@ export async function incrementalImport(
       id: number
       platform_id: string
     }>
+    const initialMemberCount = existingMembers.length
     for (const m of existingMembers) {
       memberIdMap.set(m.platform_id, m.id)
     }
 
-    // 准备插入语句
-    const insertMember = db.prepare(`
-      INSERT INTO member (platform_id, account_name, group_nickname, avatar)
+    // members upsert：新增+更新（含 roles 列）
+    const upsertMember = db.prepare(`
+      INSERT INTO member (platform_id, account_name, group_nickname, avatar, roles)
+      VALUES (?, ?, ?, ?, ?)
+      ON CONFLICT(platform_id) DO UPDATE SET
+        account_name = COALESCE(NULLIF(excluded.account_name, ''), account_name),
+        group_nickname = COALESCE(NULLIF(excluded.group_nickname, ''), group_nickname),
+        avatar = COALESCE(NULLIF(excluded.avatar, ''), avatar),
+        roles = CASE WHEN excluded.roles != '[]' THEN excluded.roles ELSE roles END
+    `)
+
+    // 仅新增的 member 插入（用于消息中发现的未知 sender，无 roles 信息）
+    const insertMemberMinimal = db.prepare(`
+      INSERT OR IGNORE INTO member (platform_id, account_name, group_nickname, avatar)
       VALUES (?, ?, ?, ?)
     `)
 
+    const getMemberId = db.prepare('SELECT id FROM member WHERE platform_id = ?')
+
     const insertMessage = db.prepare(`
-      INSERT INTO message (sender_id, sender_account_name, sender_group_nickname, ts, type, content)
-      VALUES (?, ?, ?, ?, ?, ?)
+      INSERT INTO message (sender_id, sender_account_name, sender_group_nickname, ts, type, content, reply_to_message_id, platform_message_id)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     `)
 
-    // 开始事务
+    // meta 非空字段覆盖更新
+    const updateMeta = db.prepare(`
+      UPDATE meta SET
+        name = COALESCE(NULLIF(?, ''), name),
+        group_id = COALESCE(NULLIF(?, ''), group_id),
+        group_avatar = COALESCE(NULLIF(?, ''), group_avatar),
+        owner_id = COALESCE(NULLIF(?, ''), owner_id),
+        imported_at = ?
+    `)
+
     db.exec('BEGIN TRANSACTION')
 
     let newMessageCount = 0
+    let duplicateCount = 0
     let processedCount = 0
+    let metaUpdated = false
+    let membersAdded = 0
+    let membersUpdated = 0
+    let errorCount = 0
+    const errorReasonCounts: Record<string, number> = {}
+    const errorSamples: ErrorSample[] = []
+    const MAX_ERROR_SAMPLES = 5
     const BATCH_SIZE = 5000
 
-    // 解析新文件并写入
+    function trackError(index: number, reason: string, detail: string) {
+      errorCount++
+      errorReasonCounts[reason] = (errorReasonCounts[reason] || 0) + 1
+      if (errorSamples.length < MAX_ERROR_SAMPLES) {
+        errorSamples.push({ index, reason, detail })
+      }
+    }
+
+    const newFtsEntries: Array<{ id: number; content: string | null }> = []
+
     await streamParseFile(filePath, {
-      onMeta: () => {},
+      onMeta: (meta) => {
+        if (metaUpdateMode === 'none') return
+        updateMeta.run(
+          meta.name || '',
+          meta.groupId || '',
+          meta.groupAvatar || '',
+          meta.ownerId || '',
+          Math.floor(Date.now() / 1000)
+        )
+        metaUpdated = true
+      },
       onMembers: (members) => {
-        // 添加新成员
+        if (memberUpdateMode === 'none') return
         for (const m of members) {
-          if (!memberIdMap.has(m.platformId)) {
-            const result = insertMember.run(
-              m.platformId,
-              m.accountName || null,
-              m.groupNickname || null,
-              m.avatar || null
-            )
-            memberIdMap.set(m.platformId, result.lastInsertRowid as number)
+          const existed = memberIdMap.has(m.platformId)
+          upsertMember.run(
+            m.platformId,
+            m.accountName || null,
+            m.groupNickname || null,
+            m.avatar || null,
+            m.roles ? JSON.stringify(m.roles) : '[]'
+          )
+          if (!existed) {
+            const row = getMemberId.get(m.platformId) as { id: number } | undefined
+            if (row) memberIdMap.set(m.platformId, row.id)
+            membersAdded++
+          } else {
+            membersUpdated++
           }
         }
       },
@@ -188,70 +297,102 @@ export async function incrementalImport(
       onMessageBatch: (batch) => {
         for (const msg of batch) {
           processedCount++
-          const key = generateMessageKey(msg.timestamp, msg.senderPlatformId, msg.content)
 
-          // 跳过重复消息
-          if (existingKeys.has(key)) {
+          // Message validation
+          if (!msg.senderPlatformId) {
+            trackError(processedCount, 'MISSING_SENDER', 'sender field is empty')
+            continue
+          }
+          if (msg.timestamp === undefined || msg.timestamp === null) {
+            trackError(processedCount, 'MISSING_TIMESTAMP', 'timestamp field is missing')
+            continue
+          }
+          if (typeof msg.timestamp !== 'number' || msg.timestamp <= 0 || !isFinite(msg.timestamp)) {
+            trackError(processedCount, 'INVALID_TIMESTAMP', `timestamp value: ${msg.timestamp}`)
             continue
           }
 
-          // 确保成员存在
+          if (isDuplicate(msg, existingPlatformMsgIds, existingKeys)) {
+            duplicateCount++
+            continue
+          }
+
           let memberId = memberIdMap.get(msg.senderPlatformId)
           if (!memberId) {
-            const result = insertMember.run(
+            insertMemberMinimal.run(
               msg.senderPlatformId,
               msg.senderAccountName || null,
               msg.senderGroupNickname || null,
               null
             )
-            memberId = result.lastInsertRowid as number
-            memberIdMap.set(msg.senderPlatformId, memberId)
+            const row = getMemberId.get(msg.senderPlatformId) as { id: number } | undefined
+            if (row) {
+              memberId = row.id
+              memberIdMap.set(msg.senderPlatformId, memberId)
+              membersAdded++
+            }
           }
+          if (!memberId) continue
 
-          // 插入消息
-          insertMessage.run(
+          const msgResult = insertMessage.run(
             memberId,
             msg.senderAccountName || null,
             msg.senderGroupNickname || null,
             msg.timestamp,
             msg.type,
-            msg.content || null
+            msg.content || null,
+            msg.replyToMessageId || null,
+            msg.platformMessageId || null
           )
 
-          // 添加到已有 key 集合（防止文件内重复）
-          existingKeys.add(key)
+          newFtsEntries.push({
+            id: Number(msgResult.lastInsertRowid),
+            content: msg.content || null,
+          })
           newMessageCount++
         }
 
-        // 定期发送进度
         if (processedCount % BATCH_SIZE === 0) {
           sendProgress(requestId, {
             stage: 'saving',
             bytesRead: 0,
             totalBytes: 0,
             messagesProcessed: processedCount,
-            percentage: 50, // 实际进度难以计算，使用固定值
+            percentage: 50,
             message: `已处理 ${processedCount} 条，新增 ${newMessageCount} 条`,
           })
         }
       },
     })
 
-    // 提交事务
     db.exec('COMMIT')
 
-    // 更新 imported_at 时间
-    db.prepare('UPDATE meta SET imported_at = ?').run(Math.floor(Date.now() / 1000))
+    // 若 onMeta 未触发但有新消息，仍需更新 imported_at
+    if (!metaUpdated) {
+      db.prepare('UPDATE meta SET imported_at = ?').run(Math.floor(Date.now() / 1000))
+    }
 
-    // 重建 FTS5 索引（增量导入后需要重建以包含新消息）
-    if (newMessageCount > 0) {
+    // 增量 FTS 更新
+    if (newFtsEntries.length > 0) {
       try {
-        const { rebuildFtsIndex } = await import('../query/fts')
-        rebuildFtsIndex(sessionId)
+        const { insertFtsEntries } = await import('../query/fts')
+        insertFtsEntries(sessionId, newFtsEntries)
       } catch {
-        // FTS 重建失败不影响导入流程
+        // FTS 更新失败不影响导入流程
       }
     }
+
+    // 查询 session 统计信息（用于 v1 响应）
+    const sessionStats = db
+      .prepare(
+        `SELECT
+           COUNT(*) as totalCount,
+           MIN(ts) as firstTimestamp,
+           MAX(ts) as lastTimestamp
+         FROM message`
+      )
+      .get() as { totalCount: number; firstTimestamp: number; lastTimestamp: number }
+    const memberCountRow = db.prepare('SELECT COUNT(*) as count FROM member').get() as { count: number }
 
     // 写入概览统计缓存文件
     try {
@@ -273,13 +414,34 @@ export async function incrementalImport(
       message: `导入完成，新增 ${newMessageCount} 条消息`,
     })
 
-    return { success: true, newMessageCount }
+    return {
+      success: true,
+      newMessageCount,
+      batch: {
+        receivedCount: processedCount,
+        writtenCount: newMessageCount,
+        duplicateCount,
+        errorCount,
+        errorReasonCounts,
+        errorSample: errorSamples,
+      },
+      session: {
+        totalCount: sessionStats.totalCount,
+        memberCount: memberCountRow.count,
+        firstTimestamp: sessionStats.firstTimestamp,
+        lastTimestamp: sessionStats.lastTimestamp,
+      },
+      updates: {
+        metaUpdated,
+        membersAdded,
+        membersUpdated,
+      },
+    }
   } catch (error) {
-    // 回滚事务
     try {
       db.exec('ROLLBACK')
     } catch {
-      // 忽略回滚错误
+      // ignore rollback error
     }
     db.close()
 

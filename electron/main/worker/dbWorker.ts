@@ -73,7 +73,13 @@ import {
   segmentText,
   getPosTags,
 } from './query'
-import { streamImport, streamParseFileInfo, analyzeIncrementalImport, incrementalImport } from './import'
+import {
+  streamImport,
+  streamParseFileInfo,
+  analyzeIncrementalImport,
+  incrementalImport,
+  analyzeNewImport,
+} from './import'
 import { initNlpDir } from '../nlp/segmenter'
 
 // 初始化数据库目录
@@ -251,12 +257,14 @@ const syncHandlers: Record<string, (payload: any) => any> = {
 // 异步消息处理器（流式操作）
 const asyncHandlers: Record<string, (payload: any, requestId: string) => Promise<any>> = {
   // 流式导入
-  streamImport: (p, id) => streamImport(p.filePath, id, p.formatOptions),
+  streamImport: (p, id) => streamImport(p.filePath, id, p.formatOptions, p.externalSessionId),
   // 流式解析文件信息（用于合并预览）
   streamParseFileInfo: (p, id) => streamParseFileInfo(p.filePath, id),
   // 增量导入
   analyzeIncrementalImport: (p, id) => analyzeIncrementalImport(p.sessionId, p.filePath, id),
-  incrementalImport: (p, id) => incrementalImport(p.sessionId, p.filePath, id),
+  incrementalImport: (p, id) => incrementalImport(p.sessionId, p.filePath, id, p.options),
+  // Dry-run 分析（新会话）
+  analyzeNewImport: (p, id) => analyzeNewImport(p.filePath, id),
   // 导出筛选结果到文件（支持进度报告）
   exportFilterResultToFile: async (p, id) => exportFilterResultToFile(p, id),
 }

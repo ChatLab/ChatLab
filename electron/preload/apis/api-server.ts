@@ -1,5 +1,5 @@
 /**
- * ChatLab API 服务 Preload API
+ * ChatLab API 服务 Preload API (hierarchical data source model)
  */
 
 import { ipcRenderer } from 'electron'
@@ -18,19 +18,36 @@ export interface ApiServerStatus {
   error: string | null
 }
 
-export interface DataSource {
+export interface ImportSession {
   id: string
   name: string
-  url: string
-  token: string
-  intervalMinutes: number
-  enabled: boolean
+  remoteSessionId: string
   targetSessionId: string
   lastPullAt: number
   lastStatus: 'idle' | 'success' | 'error'
   lastError: string
   lastNewMessages: number
+}
+
+export interface DataSource {
+  id: string
+  name: string
+  baseUrl: string
+  token: string
+  intervalMinutes: number
+  enabled: boolean
   createdAt: number
+  sessions: ImportSession[]
+}
+
+export interface RemoteSession {
+  id: string
+  name: string
+  platform: string
+  type: string
+  messageCount?: number
+  memberCount?: number
+  lastMessageAt?: number
 }
 
 export const apiServerApi = {
@@ -68,13 +85,14 @@ export const apiServerApi = {
     return ipcRenderer.invoke('api:getDataSources')
   },
 
-  addDataSource: (
-    partial: Omit<DataSource, 'id' | 'createdAt' | 'lastPullAt' | 'lastStatus' | 'lastError' | 'lastNewMessages'>
-  ): Promise<DataSource> => {
+  addDataSource: (partial: { name?: string; baseUrl: string; token: string; intervalMinutes: number }): Promise<DataSource> => {
     return ipcRenderer.invoke('api:addDataSource', partial)
   },
 
-  updateDataSource: (id: string, updates: Partial<DataSource>): Promise<DataSource | null> => {
+  updateDataSource: (
+    id: string,
+    updates: Partial<Pick<DataSource, 'name' | 'baseUrl' | 'token' | 'intervalMinutes' | 'enabled'>>
+  ): Promise<DataSource | null> => {
     return ipcRenderer.invoke('api:updateDataSource', id, updates)
   },
 
@@ -82,12 +100,40 @@ export const apiServerApi = {
     return ipcRenderer.invoke('api:deleteDataSource', id)
   },
 
-  triggerPull: (id: string): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke('api:triggerPull', id)
+  // ==================== 导入会话管理 ====================
+
+  addImportSessions: (
+    sourceId: string,
+    sessions: Array<{ name: string; remoteSessionId: string }>
+  ): Promise<ImportSession[]> => {
+    return ipcRenderer.invoke('api:addImportSessions', sourceId, sessions)
   },
 
-  onPullResult: (callback: (data: { dsId: string; status: string; detail: string }) => void): (() => void) => {
-    const handler = (_event: any, data: { dsId: string; status: string; detail: string }) => callback(data)
+  removeImportSession: (sourceId: string, sessionId: string): Promise<boolean> => {
+    return ipcRenderer.invoke('api:removeImportSession', sourceId, sessionId)
+  },
+
+  // ==================== 同步 ====================
+
+  triggerPull: (sourceId: string, sessionId?: string): Promise<{ success: boolean; error?: string }> => {
+    return ipcRenderer.invoke('api:triggerPull', sourceId, sessionId)
+  },
+
+  triggerPullAll: (sourceId: string): Promise<{ success: boolean; error?: string }> => {
+    return ipcRenderer.invoke('api:triggerPullAll', sourceId)
+  },
+
+  fetchRemoteSessions: (baseUrl: string, token?: string): Promise<RemoteSession[]> => {
+    return ipcRenderer.invoke('api:fetchRemoteSessions', baseUrl, token || '')
+  },
+
+  onPullResult: (
+    callback: (data: { sourceId: string; sessionId?: string; status: string; detail: string }) => void
+  ): (() => void) => {
+    const handler = (
+      _event: any,
+      data: { sourceId: string; sessionId?: string; status: string; detail: string }
+    ) => callback(data)
     ipcRenderer.on('api:pullResult', handler)
     return () => ipcRenderer.removeListener('api:pullResult', handler)
   },

@@ -6,11 +6,13 @@ export enum ApiErrorCode {
   UNAUTHORIZED = 'UNAUTHORIZED',
   SESSION_NOT_FOUND = 'SESSION_NOT_FOUND',
   INVALID_FORMAT = 'INVALID_FORMAT',
+  INVALID_PAYLOAD = 'INVALID_PAYLOAD',
   SQL_READONLY_VIOLATION = 'SQL_READONLY_VIOLATION',
   SQL_EXECUTION_ERROR = 'SQL_EXECUTION_ERROR',
   EXPORT_TOO_LARGE = 'EXPORT_TOO_LARGE',
   BODY_TOO_LARGE = 'BODY_TOO_LARGE',
   IMPORT_IN_PROGRESS = 'IMPORT_IN_PROGRESS',
+  IDEMPOTENCY_CONFLICT = 'IDEMPOTENCY_CONFLICT',
   IMPORT_FAILED = 'IMPORT_FAILED',
   SERVER_ERROR = 'SERVER_ERROR',
 }
@@ -19,11 +21,13 @@ const HTTP_STATUS: Record<ApiErrorCode, number> = {
   [ApiErrorCode.UNAUTHORIZED]: 401,
   [ApiErrorCode.SESSION_NOT_FOUND]: 404,
   [ApiErrorCode.INVALID_FORMAT]: 400,
+  [ApiErrorCode.INVALID_PAYLOAD]: 400,
   [ApiErrorCode.SQL_READONLY_VIOLATION]: 400,
   [ApiErrorCode.SQL_EXECUTION_ERROR]: 400,
   [ApiErrorCode.EXPORT_TOO_LARGE]: 400,
   [ApiErrorCode.BODY_TOO_LARGE]: 413,
   [ApiErrorCode.IMPORT_IN_PROGRESS]: 409,
+  [ApiErrorCode.IDEMPOTENCY_CONFLICT]: 409,
   [ApiErrorCode.IMPORT_FAILED]: 500,
   [ApiErrorCode.SERVER_ERROR]: 500,
 }
@@ -50,6 +54,14 @@ export function sessionNotFound(id: string): ApiError {
 
 export function invalidFormat(message: string): ApiError {
   return new ApiError(ApiErrorCode.INVALID_FORMAT, message)
+}
+
+export function invalidPayload(message: string): ApiError {
+  return new ApiError(ApiErrorCode.INVALID_PAYLOAD, message)
+}
+
+export function idempotencyConflict(): ApiError {
+  return new ApiError(ApiErrorCode.IDEMPOTENCY_CONFLICT, 'Same Idempotency-Key with different request body hash')
 }
 
 export function sqlReadonlyViolation(): ApiError {

@@ -12,7 +12,11 @@
     "storageManage": "存储管理",
     "sessionManage": "会话管理",
     "about": "关于",
-    "api": "API 服务"
+    "api": "自动化",
+    "apiSubTabs": {
+      "autoSync": "自动同步",
+      "apiService": "API 服务"
+    }
   },
   "basic": {
     "language": {
@@ -468,6 +472,7 @@
       "title": "数据源",
       "desc": "配置外部数据源 URL，ChatLab 将按设定间隔自动拉取并导入聊天数据。",
       "empty": "暂无数据源",
+      "noSessions": "暂无导入会话，点击上方「管理导入会话」添加",
       "disabled": "已暂停",
       "every": "每",
       "minutes": "分钟",
@@ -484,12 +489,39 @@
         "targetSession": "目标会话 ID（可选）",
         "targetSessionPlaceholder": "留空则每次新建会话",
         "add": "添加"
+      },
+      "discovery": {
+        "directMode": "直接 URL",
+        "remoteMode": "远程服务器",
+        "baseUrl": "服务器地址",
+        "browse": "浏览远程会话",
+        "found": "发现 {count} 个会话",
+        "selectAll": "全选",
+        "deselectAll": "取消全选",
+        "subscribe": "订阅 {count} 个会话",
+        "messages": "条消息",
+        "error": "连接远程服务器失败"
+      },
+      "edit": {
+        "title": "修改配置",
+        "save": "保存",
+        "cancel": "取消",
+        "editSource": "修改配置",
+        "manageSessions": "管理订阅",
+        "manageSessionsDesc": "重新选择要同步的远程会话",
+        "syncAll": "一键同步",
+        "subscribed": "已订阅"
+      },
+      "deleteConfirm": {
+        "title": "删除数据源",
+        "message": "确认删除数据源「{name}」？该数据源下的所有导入配置将被移除。已导入的本地对话不会被删除。"
       }
     },
     "usage": {
       "title": "使用说明",
-      "desc": "启用服务后，可使用以下端点查询数据。所有请求需携带 Bearer Token 认证。",
-      "authHint": "请求头示例："
+      "desc": "启用服务后，外部工具可通过 API 查询和导入数据。所有请求需携带 Bearer Token 认证。",
+      "authHint": "请求头示例：",
+      "docLink": "查看完整 API 文档"
     }
   }
 }

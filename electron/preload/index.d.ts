@@ -1000,19 +1000,36 @@ interface ApiServerStatus {
   error: string | null
 }
 
-interface DataSource {
+interface ImportSession {
   id: string
   name: string
-  url: string
-  token: string
-  intervalMinutes: number
-  enabled: boolean
+  remoteSessionId: string
   targetSessionId: string
   lastPullAt: number
   lastStatus: 'idle' | 'success' | 'error'
   lastError: string
   lastNewMessages: number
+}
+
+interface DataSource {
+  id: string
+  name: string
+  baseUrl: string
+  token: string
+  intervalMinutes: number
+  enabled: boolean
   createdAt: number
+  sessions: ImportSession[]
+}
+
+interface RemoteSession {
+  id: string
+  name: string
+  platform: string
+  type: string
+  messageCount?: number
+  memberCount?: number
+  lastMessageAt?: number
 }
 
 interface ApiServerApi {
@@ -1023,13 +1040,23 @@ interface ApiServerApi {
   regenerateToken: () => Promise<ApiServerConfig>
   onStartupError: (callback: (data: { error: string }) => void) => () => void
   getDataSources: () => Promise<DataSource[]>
-  addDataSource: (
-    partial: Omit<DataSource, 'id' | 'createdAt' | 'lastPullAt' | 'lastStatus' | 'lastError' | 'lastNewMessages'>
-  ) => Promise<DataSource>
-  updateDataSource: (id: string, updates: Partial<DataSource>) => Promise<DataSource | null>
+  addDataSource: (partial: { name?: string; baseUrl: string; token: string; intervalMinutes: number }) => Promise<DataSource>
+  updateDataSource: (
+    id: string,
+    updates: Partial<Pick<DataSource, 'name' | 'baseUrl' | 'token' | 'intervalMinutes' | 'enabled'>>
+  ) => Promise<DataSource | null>
   deleteDataSource: (id: string) => Promise<boolean>
-  triggerPull: (id: string) => Promise<{ success: boolean; error?: string }>
-  onPullResult: (callback: (data: { dsId: string; status: string; detail: string }) => void) => () => void
+  addImportSessions: (
+    sourceId: string,
+    sessions: Array<{ name: string; remoteSessionId: string }>
+  ) => Promise<ImportSession[]>
+  removeImportSession: (sourceId: string, sessionId: string) => Promise<boolean>
+  triggerPull: (sourceId: string, sessionId?: string) => Promise<{ success: boolean; error?: string }>
+  triggerPullAll: (sourceId: string) => Promise<{ success: boolean; error?: string }>
+  fetchRemoteSessions: (baseUrl: string, token?: string) => Promise<RemoteSession[]>
+  onPullResult: (
+    callback: (data: { sourceId: string; sessionId?: string; status: string; detail: string }) => void
+  ) => () => void
   onImportCompleted: (callback: () => void) => () => void
 }
 
@@ -1188,4 +1215,5 @@ export {
   ApiServerConfig,
   ApiServerStatus,
   DataSource,
+  ImportSession,
 }

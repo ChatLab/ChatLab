@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { ref, computed, onMounted, nextTick } from 'vue'
+import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import type { AnalysisSession } from '@/types/base'
@@ -65,7 +65,8 @@ function toggleSearch() {
   }
 }
 
-// 加载会话列表和版本号
+let unlistenImportCompleted: (() => void) | null = null
+
 onMounted(async () => {
   sessionStore.loadSessions()
   try {
@@ -73,6 +74,14 @@ onMounted(async () => {
   } catch (e) {
     console.error('Failed to get version', e)
   }
+
+  unlistenImportCompleted = window.apiServerApi.onImportCompleted(() => {
+    sessionStore.loadSessions()
+  })
+})
+
+onUnmounted(() => {
+  unlistenImportCompleted?.()
 })
 
 function handleImport() {

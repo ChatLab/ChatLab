@@ -7,14 +7,17 @@
 export {
   streamImport,
   streamParseFileInfo,
+  analyzeNewImport,
   type StreamImportResult,
   type StreamParseFileInfoResult,
+  type AnalyzeNewImportResult,
 } from './streamImport'
 
 // 增量导入
 export {
   analyzeIncrementalImport,
   incrementalImport,
+  type ImportOptions,
   type IncrementalAnalyzeResult,
   type IncrementalImportResult,
 } from './incrementalImport'

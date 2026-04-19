@@ -12,7 +12,11 @@
     "storageManage": "ストレージ管理",
     "sessionManage": "セッション管理",
     "about": "ChatLabについて",
-    "api": "API サービス"
+    "api": "オートメーション",
+    "apiSubTabs": {
+      "autoSync": "自動同期",
+      "apiService": "API サービス"
+    }
   },
   "basic": {
     "language": {
@@ -484,12 +488,40 @@
         "targetSession": "ターゲットセッション ID（任意）",
         "targetSessionPlaceholder": "空欄の場合、毎回新規セッションを作成",
         "add": "追加"
+      },
+      "discovery": {
+        "directMode": "直接 URL",
+        "remoteMode": "リモートサーバー",
+        "baseUrl": "サーバーアドレス",
+        "browse": "セッションを参照",
+        "found": "{count} 件のセッションが見つかりました",
+        "selectAll": "すべて選択",
+        "deselectAll": "選択解除",
+        "subscribe": "{count} 件を購読",
+        "messages": "件のメッセージ",
+        "error": "リモートサーバーへの接続に失敗しました"
+      },
+      "noSessions": "インポートセッションがありません。上の「サブスクリプション管理」から追加してください",
+      "edit": {
+        "title": "設定を変更",
+        "save": "保存",
+        "cancel": "キャンセル",
+        "editSource": "設定を変更",
+        "manageSessions": "サブスクリプション管理",
+        "manageSessionsDesc": "同期するリモートセッションを再選択",
+        "syncAll": "一括同期",
+        "subscribed": "購読中"
+      },
+      "deleteConfirm": {
+        "title": "データソースを削除",
+        "message": "データソース「{name}」を削除してもよろしいですか？このデータソース下のすべてのインポート設定が削除されます。既にインポート済みのローカル会話は削除されません。"
       }
     },
     "usage": {
       "title": "使用ガイド",
-      "desc": "サービスを有効にした後、以下のエンドポイントでデータを照会できます。すべてのリクエストに Bearer Token 認証が必要です。",
-      "authHint": "ヘッダー例："
+      "desc": "サービスを有効にすると、外部ツールが API 経由でデータの照会やインポートを行えます。すべてのリクエストに Bearer Token 認証が必要です。",
+      "authHint": "ヘッダー例：",
+      "docLink": "API ドキュメントを見る"
     }
   }
 }

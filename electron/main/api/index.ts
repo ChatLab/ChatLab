@@ -9,6 +9,7 @@ import { loadConfig, saveConfig, ensureToken, type ApiServerConfig } from './con
 import { registerSystemRoutes } from './routes/system'
 import { registerSessionRoutes } from './routes/sessions'
 import { registerImportRoutes } from './routes/import'
+import { apiLogger } from './logger'
 
 let server: FastifyInstance | null = null
 let startedAt: number | null = null
@@ -32,7 +33,7 @@ export function getStatus(): ApiServerStatus {
 
 export async function start(): Promise<void> {
   if (server) {
-    console.log('[ChatLab API] Server already running')
+    apiLogger.info('Server already running')
     return
   }
 
@@ -48,17 +49,17 @@ export async function start(): Promise<void> {
 
     await server.listen({ port: config.port, host: '127.0.0.1' })
     startedAt = Math.floor(Date.now() / 1000)
-    console.log(`[ChatLab API] Server started on http://127.0.0.1:${config.port}`)
+    apiLogger.info(`Server started on http://127.0.0.1:${config.port}`)
   } catch (err: any) {
     server = null
     startedAt = null
 
     if (err.code === 'EADDRINUSE') {
       lastError = `PORT_IN_USE:${config.port}`
-      console.warn(`[ChatLab API] Port ${config.port} is already in use`)
+      apiLogger.warn(`Port ${config.port} is already in use`)
     } else {
       lastError = err.message || 'Unknown error'
-      console.error('[ChatLab API] Failed to start:', err)
+      apiLogger.error('Failed to start', err)
     }
     throw err
   }
@@ -70,12 +71,12 @@ export async function stop(): Promise<void> {
   try {
     await server.close()
   } catch (err) {
-    console.error('[ChatLab API] Error closing server:', err)
+    apiLogger.error('Error closing server', err)
   } finally {
     server = null
     startedAt = null
     lastError = null
-    console.log('[ChatLab API] Server stopped')
+    apiLogger.info('Server stopped')
   }
 }
 

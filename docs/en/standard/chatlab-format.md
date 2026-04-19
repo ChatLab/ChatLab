@@ -8,7 +8,9 @@ ChatLab defines a standard chat record data exchange format to support unified i
 
 As long as you convert your chat records to this format, ChatLab can parse and analyze them.
 
-::: warning Notice This format specification is still in its early development stage. Some fields and structures may be adjusted in future versions. :::
+::: warning Notice
+This format specification is still in its early development stage. Some fields and structures may be adjusted in future versions.
+:::
 
 ## Overview
 
@@ -111,7 +113,9 @@ Here's a **minimal** ChatLab format example with only required fields:
 
 ## Message Type Reference
 
-::: warning Tip If you have other special types in your chat records that need support, please submit an issue explaining your situation. We'll evaluate whether to add them to the standard message types. :::
+::: warning Tip
+If you have other special types in your chat records that need support, please submit an issue explaining your situation. We'll evaluate whether to add them to the standard message types.
+:::
 
 ### Basic Message Types (0-19)
 
@@ -162,7 +166,9 @@ Supported image formats:
 - `image/gif` - GIF format
 - `image/webp` - WebP format
 
-::: tip Suggestion When exporting, we recommend compressing avatars to 100×100 pixels or less to reduce file size. :::
+::: tip Suggestion
+When exporting, we recommend compressing avatars to 100×100 pixels or less to reduce file size.
+:::
 
 ## Complete Examples
 

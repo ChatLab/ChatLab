@@ -12,7 +12,11 @@
     "storageManage": "Storage",
     "sessionManage": "Sessions",
     "about": "About",
-    "api": "API Service"
+    "api": "Automation",
+    "apiSubTabs": {
+      "autoSync": "Auto Sync",
+      "apiService": "API Service"
+    }
   },
   "basic": {
     "language": {
@@ -468,6 +472,7 @@
       "title": "Data Sources",
       "desc": "Configure external data source URLs. ChatLab will automatically pull and import chat data at the specified interval.",
       "empty": "No data sources",
+      "noSessions": "No import sessions. Click \"Manage Sessions\" above to add.",
       "disabled": "Paused",
       "every": "Every",
       "minutes": "min",
@@ -484,12 +489,39 @@
         "targetSession": "Target Session ID (optional)",
         "targetSessionPlaceholder": "Leave empty to create new session each time",
         "add": "Add"
+      },
+      "discovery": {
+        "directMode": "Direct URL",
+        "remoteMode": "Remote Server",
+        "baseUrl": "Server URL",
+        "browse": "Browse Sessions",
+        "found": "Found {count} sessions",
+        "selectAll": "Select All",
+        "deselectAll": "Deselect All",
+        "subscribe": "Subscribe {count} sessions",
+        "messages": "messages",
+        "error": "Failed to connect to remote server"
+      },
+      "edit": {
+        "title": "Edit Data Source",
+        "save": "Save",
+        "cancel": "Cancel",
+        "editSource": "Edit Config",
+        "manageSessions": "Manage Subscriptions",
+        "manageSessionsDesc": "Re-select remote sessions to sync",
+        "syncAll": "Sync All",
+        "subscribed": "Subscribed"
+      },
+      "deleteConfirm": {
+        "title": "Delete Data Source",
+        "message": "Are you sure you want to delete \"{name}\"? All import configurations under this data source will be removed. Already imported local conversations will not be deleted."
       }
     },
     "usage": {
       "title": "Usage Guide",
-      "desc": "After enabling the service, use the following endpoints to query data. All requests require Bearer Token authentication.",
-      "authHint": "Header example:"
+      "desc": "After enabling the service, external tools can query and import data via API. All requests require Bearer Token authentication.",
+      "authHint": "Header example:",
+      "docLink": "View full API documentation"
     }
   }
 }

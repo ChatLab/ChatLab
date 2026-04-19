@@ -7,6 +7,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as crypto from 'crypto'
 import { getSettingsDir, ensureDir } from '../paths'
+import { apiLogger } from './logger'
 
 const CONFIG_FILE = 'api-server.json'
 
@@ -41,7 +42,7 @@ export function loadConfig(): ApiServerConfig {
       return { ...DEFAULT_CONFIG, ...parsed }
     }
   } catch (err) {
-    console.error('[ApiConfig] Failed to load config:', err)
+    apiLogger.error('[Config] Failed to load config', err)
   }
   return { ...DEFAULT_CONFIG }
 }
@@ -51,7 +52,7 @@ export function saveConfig(config: ApiServerConfig): void {
     ensureDir(getSettingsDir())
     fs.writeFileSync(getConfigPath(), JSON.stringify(config, null, 2), 'utf-8')
   } catch (err) {
-    console.error('[ApiConfig] Failed to save config:', err)
+    apiLogger.error('[Config] Failed to save config', err)
   }
 }
 

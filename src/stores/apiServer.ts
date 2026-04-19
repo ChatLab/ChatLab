@@ -1,5 +1,5 @@
 /**
- * ChatLab API 服务状态 Store
+ * ChatLab API 服务状态 Store (hierarchical data source model)
  */
 
 import { ref, computed } from 'vue'
@@ -19,19 +19,36 @@ export interface ApiServerStatus {
   error: string | null
 }
 
-export interface DataSource {
+export interface ImportSession {
   id: string
   name: string
-  url: string
-  token: string
-  intervalMinutes: number
-  enabled: boolean
+  remoteSessionId: string
   targetSessionId: string
   lastPullAt: number
   lastStatus: 'idle' | 'success' | 'error'
   lastError: string
   lastNewMessages: number
+}
+
+export interface DataSource {
+  id: string
+  name: string
+  baseUrl: string
+  token: string
+  intervalMinutes: number
+  enabled: boolean
   createdAt: number
+  sessions: ImportSession[]
+}
+
+export interface RemoteSession {
+  id: string
+  name: string
+  platform: string
+  type: string
+  messageCount?: number
+  memberCount?: number
+  lastMessageAt?: number
 }
 
 export const useApiServerStore = defineStore('apiServer', () => {
@@ -126,9 +143,7 @@ export const useApiServerStore = defineStore('apiServer', () => {
     }
   }
 
-  async function addDataSource(
-    partial: Omit<DataSource, 'id' | 'createdAt' | 'lastPullAt' | 'lastStatus' | 'lastError' | 'lastNewMessages'>
-  ) {
+  async function addDataSource(partial: { name?: string; baseUrl: string; token: string; intervalMinutes: number }) {
     try {
       const ds = await window.apiServerApi.addDataSource(partial)
       dataSources.value.push(ds)
@@ -139,7 +154,10 @@ export const useApiServerStore = defineStore('apiServer', () => {
     }
   }
 
-  async function updateDataSource(id: string, updates: Partial<DataSource>) {
+  async function updateDataSource(
+    id: string,
+    updates: Partial<Pick<DataSource, 'name' | 'baseUrl' | 'token' | 'intervalMinutes' | 'enabled'>>
+  ) {
     try {
       const ds = await window.apiServerApi.updateDataSource(id, updates)
       if (ds) {
@@ -166,10 +184,39 @@ export const useApiServerStore = defineStore('apiServer', () => {
     }
   }
 
-  async function triggerPull(id: string) {
-    pullingId.value = id
+  // ==================== 导入会话管理 ====================
+
+  async function addImportSessions(
+    sourceId: string,
+    sessions: Array<{ name: string; remoteSessionId: string }>
+  ) {
     try {
-      const result = await window.apiServerApi.triggerPull(id)
+      const added = await window.apiServerApi.addImportSessions(sourceId, sessions)
+      await fetchDataSources()
+      return added
+    } catch (err) {
+      console.error('[ApiServerStore] Failed to add import sessions:', err)
+      return []
+    }
+  }
+
+  async function removeImportSession(sourceId: string, sessionId: string) {
+    try {
+      const ok = await window.apiServerApi.removeImportSession(sourceId, sessionId)
+      if (ok) await fetchDataSources()
+      return ok
+    } catch (err) {
+      console.error('[ApiServerStore] Failed to remove import session:', err)
+      return false
+    }
+  }
+
+  // ==================== 同步 ====================
+
+  async function triggerPull(sourceId: string, sessionId?: string) {
+    pullingId.value = sessionId || sourceId
+    try {
+      const result = await window.apiServerApi.triggerPull(sourceId, sessionId)
       await fetchDataSources()
       return result
     } catch (err) {
@@ -180,10 +227,28 @@ export const useApiServerStore = defineStore('apiServer', () => {
     }
   }
 
+  async function triggerPullAll(sourceId: string) {
+    pullingId.value = sourceId
+    try {
+      const result = await window.apiServerApi.triggerPullAll(sourceId)
+      await fetchDataSources()
+      return result
+    } catch (err) {
+      console.error('[ApiServerStore] Failed to trigger pull all:', err)
+      return { success: false, error: String(err) }
+    } finally {
+      pullingId.value = null
+    }
+  }
+
   function listenPullResult() {
     return window.apiServerApi.onPullResult(() => {
       fetchDataSources()
     })
+  }
+
+  async function fetchRemoteSessions(baseUrl: string, token?: string): Promise<RemoteSession[]> {
+    return window.apiServerApi.fetchRemoteSessions(baseUrl, token)
   }
 
   return {
@@ -206,7 +271,11 @@ export const useApiServerStore = defineStore('apiServer', () => {
     addDataSource,
     updateDataSource,
     deleteDataSource,
+    addImportSessions,
+    removeImportSession,
     triggerPull,
+    triggerPullAll,
     listenPullResult,
+    fetchRemoteSessions,
   }
 })

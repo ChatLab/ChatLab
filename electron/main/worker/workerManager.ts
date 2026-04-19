@@ -521,9 +521,10 @@ export async function streamParseFileInfo(
 export async function streamImport(
   filePath: string,
   onProgress?: (progress: ParseProgress) => void,
-  formatOptions?: Record<string, unknown>
+  formatOptions?: Record<string, unknown>,
+  externalSessionId?: string
 ): Promise<StreamImportResult> {
-  return sendToWorkerWithProgress('streamImport', { filePath, formatOptions }, onProgress)
+  return sendToWorkerWithProgress('streamImport', { filePath, formatOptions, externalSessionId }, onProgress)
 }
 
 /**
@@ -1067,12 +1068,39 @@ export async function analyzeIncrementalImport(sessionId: string, filePath: stri
 }
 
 /**
+ * 导入选项（控制 meta/members 更新行为）
+ */
+export interface ImportOptions {
+  metaUpdateMode?: 'patch' | 'none'
+  memberUpdateMode?: 'upsert' | 'none'
+}
+
+/**
  * 增量导入结果
  */
 export interface IncrementalImportResult {
   success: boolean
   newMessageCount: number
   error?: string
+  batch?: {
+    receivedCount: number
+    writtenCount: number
+    duplicateCount: number
+    errorCount: number
+    errorReasonCounts: Record<string, number>
+    errorSample: Array<{ index: number; reason: string; detail: string }>
+  }
+  session?: {
+    totalCount: number
+    memberCount: number
+    firstTimestamp: number
+    lastTimestamp: number
+  }
+  updates?: {
+    metaUpdated: boolean
+    membersAdded: number
+    membersUpdated: number
+  }
 }
 
 /**
@@ -1081,7 +1109,25 @@ export interface IncrementalImportResult {
 export async function incrementalImport(
   sessionId: string,
   filePath: string,
-  onProgress?: (progress: ParseProgress) => void
+  onProgress?: (progress: ParseProgress) => void,
+  options?: ImportOptions
 ): Promise<IncrementalImportResult> {
-  return sendToWorkerWithProgress('incrementalImport', { sessionId, filePath }, onProgress)
+  return sendToWorkerWithProgress('incrementalImport', { sessionId, filePath, options }, onProgress)
+}
+
+/**
+ * Dry-run analysis result for new sessions
+ */
+export interface AnalyzeNewImportResult {
+  totalMessages: number
+  totalMembers: number
+  meta: { name: string; platform: string; type: string } | null
+  error?: string
+}
+
+/**
+ * Analyze a new import file without writing to DB (dry-run)
+ */
+export async function analyzeNewImport(filePath: string): Promise<AnalyzeNewImportResult> {
+  return sendToWorker('analyzeNewImport', { filePath })
 }

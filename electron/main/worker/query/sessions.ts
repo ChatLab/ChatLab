@@ -226,6 +226,19 @@ export function getSession(sessionId: string): any | null {
         .get() as { count: number }
     ).count
 
+  // 时间范围（优先从 cache 获取）
+  const firstTimestamp =
+    overview?.firstMessageTs ??
+    (db.prepare('SELECT MIN(ts) as v FROM message').get() as { v: number | null })?.v ??
+    null
+  const lastTimestamp =
+    overview?.lastMessageTs ?? (db.prepare('SELECT MAX(ts) as v FROM message').get() as { v: number | null })?.v ?? null
+
+  // 最新的 platform_message_id（用于增量边界参考）
+  const lastPmidRow = db
+    .prepare('SELECT platform_message_id FROM message WHERE platform_message_id IS NOT NULL ORDER BY ts DESC LIMIT 1')
+    .get() as { platform_message_id: string } | undefined
+
   return {
     id: sessionId,
     name: meta.name,
@@ -238,6 +251,9 @@ export function getSession(sessionId: string): any | null {
     groupId: meta.group_id || null,
     groupAvatar: meta.group_avatar || null,
     ownerId: meta.owner_id || null,
+    firstTimestamp,
+    lastTimestamp,
+    lastPlatformMessageId: lastPmidRow?.platform_message_id ?? null,
   }
 }
 

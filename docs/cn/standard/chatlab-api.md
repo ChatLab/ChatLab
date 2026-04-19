@@ -1,6 +1,21 @@
-# ChatLab API 文档
+---
+outline: deep
+---
 
-ChatLab 提供本地 RESTful API 服务，允许外部工具、脚本和 MCP 等通过 HTTP 接口查询聊天记录、执行 SQL 查询、导入聊天数据。
+# ChatLab API
+
+> v1
+
+ChatLab 提供本地 RESTful API 服务，允许外部工具、脚本和 MCP 等通过 HTTP 接口查询聊天记录、执行 SQL 查询、导出聊天数据。
+
+::: tip 数据导入
+
+如需通过 API 导入聊天数据，请参阅：
+
+- **[Push 导入协议](./chatlab-import.md)** — 外部系统主动将数据推送到 ChatLab
+- **[Pull 远程数据源协议](./chatlab-pull.md)** — 第三方暴露标准端点，ChatLab 主动拉取数据
+
+:::
 
 ## 快速开始
 
@@ -93,7 +108,7 @@ Token 可在 设置 → ChatLab API 页面查看和重新生成。
 | GET  | `/api/v1/status` | 服务状态                   |
 | GET  | `/api/v1/schema` | ChatLab Format JSON Schema |
 
-### 数据查询（导出）
+### 数据查询与导出
 
 | 方法 | 路径                                  | 说明                     |
 | ---- | ------------------------------------- | ------------------------ |
@@ -107,10 +122,9 @@ Token 可在 设置 → ChatLab API 页面查看和重新生成。
 
 ### 数据导入
 
-| 方法 | 路径                          | 说明                     |
-| ---- | ----------------------------- | ------------------------ |
-| POST | `/api/v1/import`              | 导入聊天记录（新建会话） |
-| POST | `/api/v1/sessions/:id/import` | 增量导入到指定会话       |
+| 方法 | 路径                                 | 说明                                                     | 文档                             |
+| ---- | ------------------------------------ | -------------------------------------------------------- | -------------------------------- |
+| POST | `/api/v1/imports/:sessionId`         | 导入消息到指定会话（首次自动创建，后续追加）             | [Push 导入协议](./chatlab-import.md) |
 
 ---
 
@@ -153,7 +167,8 @@ Token 可在 设置 → ChatLab API 页面查看和重新生成。
       "platform": "qq",
       "type": "group",
       "messageCount": 58000,
-      "memberCount": 120
+      "memberCount": 120,
+      "lastTimestamp": 1711468800
     }
   ]
 }
@@ -171,6 +186,36 @@ Token 可在 设置 → ChatLab API 页面查看和重新生成。
 | ---- | ------ | ------- |
 | `id` | string | 会话 ID |
 
+**响应示例：**
+
+```json
+{
+  "success": true,
+  "data": {
+    "id": "wechat_xxx@chatroom",
+    "name": "产品讨论群",
+    "platform": "wechat",
+    "type": "group",
+    "messageCount": 58000,
+    "memberCount": 86,
+    "firstTimestamp": 1609459200,
+    "lastTimestamp": 1711468800,
+    "lastPlatformMessageId": "msg_900000",
+    "groupId": "xxx@chatroom",
+    "importedAt": 1711469900
+  }
+}
+```
+
+| 字段                    | 类型         | 说明                                                   |
+| ----------------------- | ------------ | ------------------------------------------------------ |
+| `messageCount`          | number       | 会话内消息总数                                         |
+| `memberCount`           | number       | 成员总数                                               |
+| `firstTimestamp`        | number\|null | 最早消息时间戳（秒级 Unix）                            |
+| `lastTimestamp`         | number\|null | 最新消息时间戳（秒级 Unix）                            |
+| `lastPlatformMessageId` | string\|null | 最新一条有 platformMessageId 的消息 ID（用于增量边界） |
+| `importedAt`            | number       | 最后一次导入时间                                       |
+
 ---
 
 ### GET /api/v1/sessions/:id/messages
@@ -186,8 +231,7 @@ Token 可在 设置 → ChatLab API 页面查看和重新生成。
 | `startTime` | number | -      | 起始时间戳（秒级 Unix）  |
 | `endTime`   | number | -      | 结束时间戳（秒级 Unix）  |
 | `keyword`   | string | -      | 关键词搜索               |
-| `senderId`  | string | -      | 按发送者 platformId 筛选 |
-| `type`      | number | -      | 按消息类型筛选           |
+| `senderId`  | string | -      | 按发送者 ID 筛选         |
 
 **请求示例：**
 
@@ -279,7 +323,7 @@ curl "http://127.0.0.1:5200/api/v1/sessions/abc123/messages?page=1&limit=50&keyw
 
 ```json
 {
-  "sql": "SELECT sender, COUNT(*) as count FROM messages GROUP BY sender ORDER BY count DESC LIMIT 10"
+  "sql": "SELECT sender_id, COUNT(*) as count FROM message GROUP BY sender_id ORDER BY count DESC LIMIT 10"
 }
 ```
 
@@ -289,16 +333,18 @@ curl "http://127.0.0.1:5200/api/v1/sessions/abc123/messages?page=1&limit=50&keyw
 {
   "success": true,
   "data": {
-    "columns": ["sender", "count"],
+    "columns": ["sender_id", "count"],
     "rows": [
-      ["123456", 5800],
-      ["789012", 3200]
+      [1, 5800],
+      [2, 3200]
     ]
   }
 }
 ```
 
-> 关于数据库表结构，请参考 ChatLab 内部文档或使用 `SELECT * FROM sqlite_master WHERE type='table'` 查询。
+::: tip 提示
+使用 `SELECT * FROM sqlite_master WHERE type='table'` 查询可用的数据库表结构。
+:::
 
 ---
 
@@ -332,104 +378,6 @@ curl "http://127.0.0.1:5200/api/v1/sessions/abc123/messages?page=1&limit=50&keyw
 
 ---
 
-### POST /api/v1/import
-
-将聊天记录导入 ChatLab，**创建新会话**。
-
-#### 支持的 Content-Type
-
-| Content-Type           | 格式                | 适用场景                       | Body 限制  |
-| ---------------------- | ------------------- | ------------------------------ | ---------- |
-| `application/json`     | ChatLab Format JSON | 中小数据（快速测试、脚本集成） | **50MB**   |
-| `application/x-ndjson` | ChatLab JSONL 格式  | 大规模数据（生产级集成）       | **无限制** |
-
-#### JSON 模式示例
-
-```bash
-curl -X POST http://127.0.0.1:5200/api/v1/import \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "Content-Type: application/json" \
-  -d '{
-    "chatlab": {
-      "version": "0.0.2",
-      "exportedAt": 1711468800
-    },
-    "meta": {
-      "name": "导入测试",
-      "platform": "qq",
-      "type": "group"
-    },
-    "members": [
-      { "platformId": "123", "accountName": "测试用户" }
-    ],
-    "messages": [
-      {
-        "sender": "123",
-        "accountName": "测试用户",
-        "timestamp": 1711468800,
-        "type": 0,
-        "content": "Hello World"
-      }
-    ]
-  }'
-```
-
-#### JSONL 模式示例
-
-```bash
-cat data.jsonl | curl -X POST http://127.0.0.1:5200/api/v1/import \
-  -H "Authorization: Bearer YOUR_TOKEN" \
-  -H "Content-Type: application/x-ndjson" \
-  --data-binary @-
-```
-
-**响应：**
-
-```json
-{
-  "success": true,
-  "data": {
-    "mode": "new",
-    "sessionId": "session_xyz789"
-  }
-}
-```
-
-> 关于 ChatLab Format 的详细规范，请参考 [ChatLab 标准化格式规范](./chatlab-format.md)。
-
----
-
-### POST /api/v1/sessions/:id/import
-
-将聊天记录**增量导入**到已存在的会话。支持去重，相同消息不会重复插入。
-
-**去重规则：**
-
-消息唯一键为 `timestamp + senderPlatformId + contentLength`。如果一条消息的时间戳、发送者和内容长度与已有消息完全相同，则视为重复并跳过。
-
-**路径参数：**
-
-| 参数 | 类型   | 说明        |
-| ---- | ------ | ----------- |
-| `id` | string | 目标会话 ID |
-
-Content-Type 和请求体格式与 `POST /api/v1/import` 相同。
-
-**响应：**
-
-```json
-{
-  "success": true,
-  "data": {
-    "mode": "incremental",
-    "sessionId": "session_abc123",
-    "newMessageCount": 150
-  }
-}
-```
-
----
-
 ## 并发与限制
 
 | 限制项           | 值      | 说明                            |
@@ -444,18 +392,20 @@ Content-Type 和请求体格式与 `POST /api/v1/import` 相同。
 
 ## 错误码
 
-| 错误码                   | HTTP 状态码 | 说明                            |
-| ------------------------ | ----------- | ------------------------------- |
-| `UNAUTHORIZED`           | 401         | Token 无效或缺失                |
-| `SESSION_NOT_FOUND`      | 404         | 会话不存在                      |
-| `INVALID_FORMAT`         | 400         | 请求体不符合 ChatLab Format     |
-| `SQL_READONLY_VIOLATION` | 400         | SQL 不是 SELECT 语句            |
-| `SQL_EXECUTION_ERROR`    | 400         | SQL 执行出错                    |
-| `EXPORT_TOO_LARGE`       | 400         | 消息数超过导出上限（10 万条）   |
-| `BODY_TOO_LARGE`         | 413         | 请求体超过 50MB（仅 JSON 模式） |
-| `IMPORT_IN_PROGRESS`     | 409         | 有其他导入正在进行              |
-| `IMPORT_FAILED`          | 500         | 导入失败                        |
-| `SERVER_ERROR`           | 500         | 服务内部错误                    |
+| 错误码                   | HTTP 状态码 | 说明                                |
+| ------------------------ | ----------- | ----------------------------------- |
+| `UNAUTHORIZED`           | 401         | Token 无效或缺失                    |
+| `SESSION_NOT_FOUND`      | 404         | 会话不存在                          |
+| `INVALID_FORMAT`         | 400         | Content-Type 不支持或请求体格式错误 |
+| `INVALID_PAYLOAD`        | 400         | 必填字段缺失、类型错误或校验失败   |
+| `SQL_READONLY_VIOLATION` | 400         | SQL 不是 SELECT 语句                |
+| `SQL_EXECUTION_ERROR`    | 400         | SQL 执行出错                        |
+| `EXPORT_TOO_LARGE`       | 400         | 消息数超过导出上限（10 万条）       |
+| `BODY_TOO_LARGE`         | 413         | 请求体超过 50MB（仅 JSON 模式）     |
+| `IMPORT_IN_PROGRESS`     | 409         | 有其他导入正在进行                  |
+| `IDEMPOTENCY_CONFLICT`   | 409         | 相同幂等键但请求体不一致           |
+| `IMPORT_FAILED`          | 500         | 导入失败                            |
+| `SERVER_ERROR`           | 500         | 服务内部错误                        |
 
 ---
 
@@ -474,9 +424,9 @@ Content-Type 和请求体格式与 `POST /api/v1/import` 相同。
 
 将 ChatLab API 接入 Claude Desktop 等 AI 工具，实现 AI 对聊天记录的直接查询和分析。
 
-### 2. 自动化脚本
+### 2. 自动化导入
 
-编写脚本定期从其他平台导出聊天记录，转换为 ChatLab Format 后通过 Push API 自动导入。
+编写脚本定期从其他平台导出聊天记录，转换为 ChatLab Format 后通过 [Push 导入协议](./chatlab-import.md) 自动导入。
 
 ### 3. 数据分析
 
@@ -486,9 +436,9 @@ Content-Type 和请求体格式与 `POST /api/v1/import` 相同。
 
 通过 `/export` 端点定期导出重要会话数据作为 JSON 备份。
 
-### 5. 定时拉取
+### 5. 远程数据源
 
-在设置页配置外部数据源 URL，ChatLab 会按设定间隔自动拉取并导入新数据。
+在设置页配置外部数据源 URL，ChatLab 按 [Pull 远程数据源协议](./chatlab-pull.md) 自动拉取并导入新数据。
 
 ---
 
@@ -496,4 +446,12 @@ Content-Type 和请求体格式与 `POST /api/v1/import` 相同。
 
 | 版本 | 说明                                                                           |
 | ---- | ------------------------------------------------------------------------------ |
-| v1   | 初始版本，支持会话查询、消息搜索、SQL、导出、导入（JSON + JSONL）、Pull 调度器 |
+| v1   | 支持会话查询、消息搜索、SQL、导出、Push 导入（JSON + JSONL）、Pull 远程数据源 |
+
+---
+
+## 相关文档
+
+- [ChatLab 标准化格式规范](./chatlab-format.md) — 数据交换格式定义
+- [Push 导入协议](./chatlab-import.md) — 外部系统主动推送数据到 ChatLab
+- [Pull 远程数据源协议](./chatlab-pull.md) — 第三方暴露标准端点，ChatLab 主动拉取

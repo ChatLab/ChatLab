@@ -139,11 +139,13 @@ function createTempDatabase(dbPath: string): Database.Database {
  * @param filePath 文件路径
  * @param requestId 请求ID（用于进度回调）
  * @param formatOptions 格式特定选项（如 Telegram 的 chatIndex）
+ * @param externalSessionId 外部指定的 sessionId（API 导入场景），省略时自动生成
  */
 export async function streamImport(
   filePath: string,
   requestId: string,
-  formatOptions?: Record<string, unknown>
+  formatOptions?: Record<string, unknown>,
+  externalSessionId?: string
 ): Promise<StreamImportResult> {
   // 用户手动指定格式时，跳过自动检测直接使用指定的 Parser
   if (formatOptions?.formatId) {
@@ -152,7 +154,7 @@ export async function streamImport(
     if (!feature) {
       return { success: false, error: 'error.unknown_format_id' }
     }
-    return streamImportSingle(filePath, requestId, feature, formatOptions)
+    return streamImportSingle(filePath, requestId, feature, formatOptions, externalSessionId)
   }
 
   // 检测所有匹配的格式（按优先级排序）
@@ -163,12 +165,12 @@ export async function streamImport(
 
   // 如果有多个候选格式，使用 fallback 机制逐个尝试
   if (candidates.length > 1) {
-    return streamImportWithFallback(filePath, requestId, candidates, formatOptions)
+    return streamImportWithFallback(filePath, requestId, candidates, formatOptions, externalSessionId)
   }
 
   // 单个候选格式，走常规逻辑（无额外开销）
   const formatFeature = candidates[0]
-  return streamImportSingle(filePath, requestId, formatFeature, formatOptions)
+  return streamImportSingle(filePath, requestId, formatFeature, formatOptions, externalSessionId)
 }
 
 /**
@@ -179,7 +181,8 @@ async function streamImportWithFallback(
   filePath: string,
   requestId: string,
   candidates: FormatFeature[],
-  formatOptions?: Record<string, unknown>
+  formatOptions?: Record<string, unknown>,
+  externalSessionId?: string
 ): Promise<StreamImportResult> {
   for (let i = 0; i < candidates.length; i++) {
     const candidate = candidates[i]
@@ -187,7 +190,7 @@ async function streamImportWithFallback(
 
     console.log(`[StreamImport] Trying format ${i + 1}/${candidates.length}: ${candidate.name} (${candidate.id})`)
 
-    const result = await streamImportSingle(filePath, requestId, candidate, formatOptions)
+    const result = await streamImportSingle(filePath, requestId, candidate, formatOptions, externalSessionId)
 
     if (result.success) {
       if (i > 0) {
@@ -218,11 +221,12 @@ async function streamImportSingle(
   filePath: string,
   requestId: string,
   formatFeature: FormatFeature,
-  formatOptions?: Record<string, unknown>
+  formatOptions?: Record<string, unknown>,
+  externalSessionId?: string
 ): Promise<StreamImportResult> {
   // 初始化性能日志（实时写入文件）
   resetPerfLog()
-  const sessionId = generateSessionId()
+  const sessionId = externalSessionId || generateSessionId()
   initPerfLog(sessionId)
 
   // 记录导入开始信息
@@ -1028,4 +1032,48 @@ export async function streamParseFileInfo(filePath: string, requestId: string): 
 
     throw error
   }
+}
+
+// ==================== Dry-run analysis for new sessions ====================
+
+/** analyzeNewImport result — parse-only, no DB writes */
+export interface AnalyzeNewImportResult {
+  totalMessages: number
+  totalMembers: number
+  meta: { name: string; platform: string; type: string } | null
+  error?: string
+}
+
+/**
+ * Parse file without writing to DB (dry-run for new sessions).
+ */
+export async function analyzeNewImport(filePath: string, requestId: string): Promise<AnalyzeNewImportResult> {
+  const formatFeature = detectFormat(filePath)
+  if (!formatFeature) {
+    return { totalMessages: 0, totalMembers: 0, meta: null, error: 'error.unrecognized_format' }
+  }
+
+  let meta: { name: string; platform: string; type: string } | null = null
+  const memberSet = new Set<string>()
+  let totalMessages = 0
+
+  await streamParseFile(filePath, {
+    onMeta: (parsedMeta) => {
+      meta = { name: parsedMeta.name, platform: parsedMeta.platform, type: parsedMeta.type }
+    },
+    onMembers: (members) => {
+      for (const m of members) memberSet.add(m.platformId)
+    },
+    onProgress: (progress) => {
+      sendProgress(requestId, progress)
+    },
+    onMessageBatch: (batch) => {
+      for (const msg of batch) {
+        totalMessages++
+        if (!memberSet.has(msg.senderPlatformId)) memberSet.add(msg.senderPlatformId)
+      }
+    },
+  })
+
+  return { totalMessages, totalMembers: memberSet.size, meta }
 }

@@ -5,6 +5,7 @@
 import Fastify, { type FastifyInstance, type FastifyError } from 'fastify'
 import { authHook } from './auth'
 import { ApiError, ApiErrorCode, errorResponse, serverError } from './errors'
+import { apiLogger } from './logger'
 
 const JSON_BODY_LIMIT = 50 * 1024 * 1024 // 50MB
 
@@ -28,7 +29,7 @@ export function createServer(): FastifyInstance {
       return
     }
 
-    console.error('[ChatLab API] Unhandled error:', error)
+    apiLogger.error('Unhandled error', error)
     const err = serverError(error.message)
     reply.code(err.statusCode).send(errorResponse(err))
   })
