@@ -54,7 +54,6 @@
     "gray-matter": "^4.0.3",
     "i18next": "^25.8.5",
     "markdown-it": "^14.1.0",
-    "node-machine-id": "^1.1.12",
     "stream-json": "^1.9.1",
     "vue-i18n": "^11.2.8"
   },
