@@ -654,7 +654,12 @@ export const llmApi = {
   /**
    * 验证 API Key（支持自定义 baseUrl 和 model）
    */
-  validateApiKey: (provider: string, apiKey: string, baseUrl?: string, model?: string): Promise<boolean> => {
+  validateApiKey: (
+    provider: string,
+    apiKey: string,
+    baseUrl?: string,
+    model?: string
+  ): Promise<{ success: boolean; error?: string }> => {
     return ipcRenderer.invoke('llm:validateApiKey', provider, apiKey, baseUrl, model)
   },
 

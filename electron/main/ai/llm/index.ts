@@ -517,7 +517,7 @@ export async function validateApiKey(
     const timeout = setTimeout(() => abortController.abort(), 15000)
 
     try {
-      await completeSimple(
+      const result = await completeSimple(
         piModel,
         {
           messages: [{ role: 'user', content: 'Hi', timestamp: Date.now() }],
@@ -528,6 +528,9 @@ export async function validateApiKey(
           signal: abortController.signal,
         }
       )
+      if (result.stopReason === 'error' || result.stopReason === 'aborted') {
+        return { success: false, error: result.errorMessage || 'Connection failed' }
+      }
       return { success: true }
     } finally {
       clearTimeout(timeout)
