@@ -3,7 +3,7 @@ import { ref, watch, computed, onMounted, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 const EChartWordcloud = defineAsyncComponent(() => import('@/components/charts/EChartWordcloud.vue'))
 import type { EChartWordcloudData } from '@/components/charts'
-import { LoadingState, EmptyState, UITabs, SectionCard } from '@/components/UI'
+import { LoadingState, UITabs, SectionCard } from '@/components/UI'
 import TopicProfileCard from './TopicProfileCard.vue'
 import SharedTopicsCard from './SharedTopicsCard.vue'
 import type { WordFrequencyItem, PosTagStat } from './topicProfileTypes'
@@ -418,18 +418,9 @@ onMounted(async () => {
     </div>
 
     <template v-else>
-      <!-- 加载状态 -->
-      <LoadingState v-if="isLoading && topWords.length === 0" :text="t('quotes.wordcloud.loading')" class="py-20" />
+      <div class="space-y-6">
+        <LoadingState v-if="isLoading && topWords.length === 0" :text="t('quotes.wordcloud.loading')" class="py-8" />
 
-      <!-- 空状态 -->
-      <EmptyState
-        v-else-if="!isLoading && topWords.length === 0"
-        icon="i-heroicons-chat-bubble-bottom-center-text"
-        :title="t('quotes.wordcloud.empty.title')"
-        :description="t('quotes.wordcloud.empty.description')"
-      />
-
-      <template v-else>
         <!-- 1. 话题画像卡（主角） -->
         <TopicProfileCard
           :total-messages="stats.totalMessages"
@@ -463,6 +454,14 @@ onMounted(async () => {
                   :text="t('quotes.wordcloud.loading')"
                   class="absolute inset-0 z-10 rounded-lg bg-white/80 dark:bg-gray-900/80"
                 />
+                <div
+                  v-else-if="topWords.length === 0"
+                  class="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lg border border-dashed border-gray-200 bg-gray-50/40 text-gray-500 dark:border-gray-700 dark:bg-gray-800/30 dark:text-gray-400"
+                >
+                  <UIcon name="i-heroicons-chat-bubble-bottom-center-text" class="text-2xl" />
+                  <p class="text-xs font-medium">{{ t('quotes.wordcloud.empty.title') }}</p>
+                  <p class="px-4 text-center text-[11px]">{{ t('quotes.wordcloud.empty.description') }}</p>
+                </div>
                 <EChartWordcloud
                   v-else
                   :data="wordcloudData"
@@ -618,7 +617,7 @@ onMounted(async () => {
             </div>
           </div>
         </SectionCard>
-      </template>
+      </div>
     </template>
 
     <!-- 繁体中文词库下载提示弹窗 -->
