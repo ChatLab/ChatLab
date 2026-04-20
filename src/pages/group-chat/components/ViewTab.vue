@@ -8,7 +8,7 @@ import InteractionView from '@openchatlab/chart-interaction/InteractionView.vue'
 import RankingView from '@openchatlab/chart-ranking/RankingView.vue'
 import Relationships from './view/Relationships.vue'
 import ClusterView from '@openchatlab/chart-cluster/ClusterView.vue'
-import { WordcloudTab } from '@/components/analysis/quotes'
+import { WordcloudTab, CatchphraseTab, HotRepeatTab } from '@/components/analysis/quotes'
 import { isFeatureSupported, type LocaleType } from '@/i18n'
 
 const { t, locale } = useI18n()
@@ -32,6 +32,12 @@ const subTabs = computed(() => {
     { id: 'interaction', label: t('analysis.subTabs.view.interaction'), icon: 'i-heroicons-arrows-right-left' },
     { id: 'relationships', label: t('analysis.subTabs.member.relationships'), icon: 'i-heroicons-heart' },
     { id: 'cluster', label: t('analysis.subTabs.member.cluster'), icon: 'i-heroicons-user-group' },
+    { id: 'hot-repeat', label: t('analysis.subTabs.quotes.hotRepeat'), icon: 'i-heroicons-fire' },
+    {
+      id: 'catchphrase',
+      label: t('analysis.subTabs.quotes.catchphrase'),
+      icon: 'i-heroicons-chat-bubble-bottom-center-text',
+    },
   ]
   // 榜单仅在中文下显示
   if (isFeatureSupported('groupRanking', locale.value as LocaleType)) {
@@ -94,6 +100,16 @@ const viewTimeFilter = computed(() => ({
           v-else-if="activeSubTab === 'ranking'"
           :session-id="props.sessionId"
           :time-filter="viewTimeFilter"
+        />
+        <HotRepeatTab
+          v-else-if="activeSubTab === 'hot-repeat'"
+          :session-id="props.sessionId"
+          :time-filter="props.timeFilter"
+        />
+        <CatchphraseTab
+          v-else-if="activeSubTab === 'catchphrase'"
+          :session-id="props.sessionId"
+          :time-filter="props.timeFilter"
         />
       </Transition>
     </div>

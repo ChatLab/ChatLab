@@ -9,7 +9,6 @@ import AITab from '@/components/analysis/AITab.vue'
 import { ChatExplorer } from '@/components/AIChat'
 import OverviewTab from './components/OverviewTab.vue'
 import ViewTab from './components/ViewTab.vue'
-import QuotesTab from './components/QuotesTab.vue'
 import MemberList from '@/components/common/member/MemberList.vue'
 import NicknameHistoryEntry from './components/member/NicknameHistoryEntry.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
@@ -54,7 +53,6 @@ function openChatRecordViewer() {
 const allTabs = [
   { id: 'overview', labelKey: 'analysis.tabs.overview', icon: 'i-heroicons-chart-pie' },
   { id: 'view', labelKey: 'analysis.tabs.view', icon: 'i-heroicons-presentation-chart-bar' },
-  { id: 'quotes', labelKey: 'analysis.tabs.groupQuotes', icon: 'i-heroicons-chat-bubble-bottom-center-text' },
   { id: 'ai-chat', labelKey: 'analysis.tabs.aiChat', icon: 'i-heroicons-chat-bubble-left-ellipsis' },
   { id: 'lab', labelKey: 'analysis.tabs.lab', icon: 'i-heroicons-beaker' },
 ]
@@ -197,12 +195,6 @@ const { headerDescription } = useSessionHeaderDescription({
               :key="'view-' + currentSessionId"
               :session-id="currentSessionId!"
               :session-name="session.name"
-              :time-filter="timeFilter"
-            />
-            <QuotesTab
-              v-else-if="activeTab === 'quotes'"
-              :key="'quotes-' + currentSessionId"
-              :session-id="currentSessionId!"
               :time-filter="timeFilter"
             />
             <ChatExplorer
