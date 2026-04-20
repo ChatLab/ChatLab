@@ -56,8 +56,9 @@ export function loadDataSources(): DataSource[] {
       const parsed = JSON.parse(raw)
 
       if (!isValidDataSourceArray(parsed)) {
-        apiLogger.warn('[DataSource] Incompatible config format detected (likely pre-0.17.4). Resetting to [].')
-        saveDataSources([])
+        apiLogger.warn(
+          '[DataSource] Incompatible config format detected (likely pre-0.17.4), returning empty in memory.'
+        )
         return []
       }
 
