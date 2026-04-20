@@ -99,6 +99,11 @@ export function useTimeSelect(route: RouteLocationNormalizedLoaded, router: Rout
     const query: Record<string, string | number | undefined> = {
       tab: newTab as string,
       timeMode: state.mode,
+      timeDays: undefined,
+      timeYear: undefined,
+      timeQuarter: undefined,
+      timeStart: undefined,
+      timeEnd: undefined,
     }
     if (state.mode === 'recent') query.timeDays = state.recentDays
     if (state.mode === 'year') query.timeYear = state.year
@@ -111,7 +116,7 @@ export function useTimeSelect(route: RouteLocationNormalizedLoaded, router: Rout
       query.timeEnd = state.customEnd
     }
 
-    router.replace({ query })
+    router.replace({ query: { ...route.query, ...query } })
   })
 
   // ==================== timeRangeValue 变化监听 ====================
