@@ -138,11 +138,12 @@
       "total": "合計 {count} 回の破氷"
     },
     "responseLatency": {
-      "title": "返信時間",
+      "title": "返信速度",
       "hint": "相手がメッセージを送った後、平均何分で返信するか",
       "count": "{count} 回の返信",
       "seconds": "{n} 秒",
       "minutes": "{n} 分",
+      "minutesSeconds": "{m}分{s}秒",
       "hours": "{n} 時間",
       "hoursMinutes": "{h} 時間 {m} 分"
     },

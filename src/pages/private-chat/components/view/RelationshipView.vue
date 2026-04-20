@@ -278,10 +278,15 @@ function getMemberPerseveranceText(month: string, memberId?: number): string {
 }
 
 function formatDuration(seconds: number): string {
-  if (seconds < 60) return t('views.relationship.responseLatency.seconds', { n: seconds })
-  if (seconds < 3600) return t('views.relationship.responseLatency.minutes', { n: Math.round(seconds / 60) })
-  const hours = Math.floor(seconds / 3600)
-  const mins = Math.round((seconds % 3600) / 60)
+  const totalSeconds = Math.max(0, Math.round(seconds))
+  if (totalSeconds < 60) return t('views.relationship.responseLatency.seconds', { n: totalSeconds })
+  if (totalSeconds < 3600) {
+    const mins = Math.floor(totalSeconds / 60)
+    const secs = totalSeconds % 60
+    return t('views.relationship.responseLatency.minutesSeconds', { m: mins, s: secs })
+  }
+  const hours = Math.floor(totalSeconds / 3600)
+  const mins = Math.floor((totalSeconds % 3600) / 60)
   if (mins === 0) return t('views.relationship.responseLatency.hours', { n: hours })
   return t('views.relationship.responseLatency.hoursMinutes', { h: hours, m: mins })
 }
@@ -446,7 +451,7 @@ function formatDuration(seconds: number): string {
                 :left-value="formatResponseByMember(memberA?.memberId)"
                 :right-name="memberB?.name"
                 :right-value="formatResponseByMember(memberB?.memberId)"
-                value-class="text-sm text-amber-600 dark:text-amber-400"
+                value-class="text-lg text-amber-600 dark:text-amber-400"
                 :description="t('views.relationship.responseLatency.hint')"
               />
 

@@ -138,11 +138,12 @@
       "total": "共 {count} 次破冰"
     },
     "responseLatency": {
-      "title": "响应时延",
+      "title": "回复速度",
       "hint": "当对方发来消息后，平均多久回复",
       "count": "{count} 次回复",
       "seconds": "{n} 秒",
       "minutes": "{n} 分钟",
+      "minutesSeconds": "{m}分{s}秒",
       "hours": "{n} 小时",
       "hoursMinutes": "{h} 小时 {m} 分钟"
     },

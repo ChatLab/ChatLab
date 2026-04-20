@@ -55,7 +55,7 @@ const hasHeaderExtra = computed(() => Boolean(slots['header-extra']))
           >
             {{ leftName }}
           </div>
-          <div class="mt-1 font-black font-mono leading-none tabular-nums" :class="valueClass">
+          <div class="mt-2 font-black font-mono leading-none tabular-nums" :class="valueClass">
             {{ leftValue }}
           </div>
         </div>
@@ -66,7 +66,7 @@ const hasHeaderExtra = computed(() => Boolean(slots['header-extra']))
           >
             {{ rightName }}
           </div>
-          <div class="mt-1 font-black font-mono leading-none tabular-nums" :class="valueClass">
+          <div class="mt-2 font-black font-mono leading-none tabular-nums" :class="valueClass">
             {{ rightValue }}
           </div>
         </div>

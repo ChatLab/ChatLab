@@ -524,7 +524,7 @@ onMounted(() => {
         :placeholder="t('tools.batchManage.searchPlaceholder')"
         icon="i-heroicons-magnifying-glass"
         size="md"
-        class="max-w-md"
+        class="w-80"
       />
     </div>
 

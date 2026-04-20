@@ -138,11 +138,12 @@
       "total": "{count} total ice breaks"
     },
     "responseLatency": {
-      "title": "Response Time",
+      "title": "Reply Speed",
       "hint": "Average time to reply after the other person sends a message",
       "count": "{count} replies",
       "seconds": "{n}s",
       "minutes": "{n} min",
+      "minutesSeconds": "{m}m {s}s",
       "hours": "{n}h",
       "hoursMinutes": "{h}h {m}min"
     },
