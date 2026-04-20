@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { ref, useAttrs, computed } from 'vue'
+import { ref, computed } from 'vue'
 
-withDefaults(
+const props = withDefaults(
   defineProps<{
     modelValue: string
     placeholder?: string
@@ -22,7 +22,7 @@ withDefaults(
     hint: '',
     validateLoading: false,
     validateDisabled: false,
-    validateText: 'Validate',
+    validateText: '',
     validationResult: 'idle',
     validationMessage: '',
   }
@@ -33,10 +33,7 @@ const emit = defineEmits<{
   validate: []
 }>()
 
-const attrs = useAttrs()
-
-// 通过检测是否监听了 @validate 事件来决定是否显示验证按钮
-const showValidateButton = computed(() => 'onValidate' in attrs)
+const showValidateButton = computed(() => !!props.validateText)
 
 // 控制明文/密文显示
 const showPassword = ref(false)
