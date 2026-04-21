@@ -130,7 +130,9 @@
     "expand": "Expand tools panel",
     "collapse": "Collapse tools panel",
     "lock": "Lock panel",
-    "unlock": "Unlock panel"
+    "unlock": "Unlock panel",
+    "miniMode": "Mini mode",
+    "exitMini": "Exit mini mode"
   },
   "messageExport": {
     "title": "Export Records"

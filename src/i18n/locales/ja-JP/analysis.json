@@ -130,7 +130,9 @@
     "expand": "ツールパネルを展開",
     "collapse": "ツールパネルを折りたたむ",
     "lock": "パネルを固定",
-    "unlock": "パネルの固定を解除"
+    "unlock": "パネルの固定を解除",
+    "miniMode": "ミニモード",
+    "exitMini": "ミニモードを終了"
   },
   "messageExport": {
     "title": "チャット記録をエクスポート"

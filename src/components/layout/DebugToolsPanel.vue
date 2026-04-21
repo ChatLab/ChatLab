@@ -40,7 +40,7 @@ const localeItems = availableLocales.map((l) => ({
 </script>
 
 <template>
-  <div class="fixed right-0 top-[55%] z-40" @mouseenter="onMouseEnter" @mouseleave="onMouseLeave">
+  <div class="fixed right-0 top-[70%] z-40" @mouseenter="onMouseEnter" @mouseleave="onMouseLeave">
     <!-- Trigger -->
     <div
       class="h-10 w-6 cursor-pointer items-center justify-center rounded-l-lg border border-r-0 border-amber-300/50 bg-amber-50 text-amber-500 shadow-sm transition-opacity duration-200 hover:bg-amber-100 dark:border-amber-500/30 dark:bg-amber-950 dark:text-amber-400 dark:hover:bg-amber-900"

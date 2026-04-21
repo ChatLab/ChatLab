@@ -15,6 +15,7 @@ export const useLayoutStore = defineStore(
     const chatRecordQuery = ref<ChatRecordQuery | null>(null)
 
     const isToolsPanelLocked = ref(false)
+    const isToolsPanelMini = ref(false)
 
     // 截图设置
     const screenshotMobileAdapt = ref(false) // 截图时开启移动端适配，默认关闭
@@ -66,9 +67,17 @@ export const useLayoutStore = defineStore(
       isToolsPanelLocked.value = !isToolsPanelLocked.value
     }
 
+    function toggleToolsPanelMini() {
+      isToolsPanelMini.value = !isToolsPanelMini.value
+      if (isToolsPanelMini.value) {
+        isToolsPanelLocked.value = false
+      }
+    }
+
     return {
       isSidebarCollapsed,
       isToolsPanelLocked,
+      isToolsPanelMini,
       showScreenCaptureModal,
       screenCaptureImage,
       showChatRecordDrawer,
@@ -76,6 +85,7 @@ export const useLayoutStore = defineStore(
       screenshotMobileAdapt,
       toggleSidebar,
       toggleToolsPanelLock,
+      toggleToolsPanelMini,
       openScreenCaptureModal,
       closeScreenCaptureModal,
       openChatRecordDrawer,
@@ -89,7 +99,7 @@ export const useLayoutStore = defineStore(
         storage: sessionStorage,
       },
       {
-        pick: ['screenshotMobileAdapt', 'isToolsPanelLocked'],
+        pick: ['screenshotMobileAdapt', 'isToolsPanelLocked', 'isToolsPanelMini'],
         storage: localStorage,
       },
     ],

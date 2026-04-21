@@ -130,7 +130,9 @@
     "expand": "展開工具面板",
     "collapse": "收起工具面板",
     "lock": "鎖定面板",
-    "unlock": "解鎖面板"
+    "unlock": "解鎖面板",
+    "miniMode": "迷你模式",
+    "exitMini": "退出迷你模式"
   },
   "messageExport": {
     "title": "匯出聊天紀錄"
