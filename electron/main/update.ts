@@ -209,7 +209,7 @@ const checkUpdate = (win) => {
 
           setTimeout(() => {
             setImmediate(() => {
-              autoUpdater.quitAndInstall()
+              autoUpdater.quitAndInstall(true, true)
             })
           }, 100)
         }
