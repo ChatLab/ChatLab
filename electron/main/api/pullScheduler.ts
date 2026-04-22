@@ -234,6 +234,7 @@ async function importTempFile(baseUrl: string, sess: ImportSession, tempFile: st
 
 const MAX_PAGES_PER_PULL = 50
 const DEFAULT_PULL_LIMIT = 1000
+const PULL_OVERLAP_SECONDS = 60
 
 interface PullSessionResult {
   success: boolean
@@ -337,7 +338,7 @@ async function executePullSession(sourceId: string, ds: DataSource, sess: Import
     }
 
     updateImportSession(sourceId, sess.id, {
-      lastPullAt: Math.floor(Date.now() / 1000),
+      lastPullAt: Math.floor(Date.now() / 1000) - PULL_OVERLAP_SECONDS,
       lastStatus: 'success',
       lastNewMessages: totalNewMessages,
       lastError: '',
