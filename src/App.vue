@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { onMounted } from 'vue'
+import { onMounted, onUnmounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import TitleBar from '@/components/common/TitleBar.vue'
 import Sidebar from '@/components/common/Sidebar.vue'
 import ScreenCaptureModal from '@/components/common/ScreenCaptureModal.vue'
+import SettingsModal from '@/components/common/SettingsModal.vue'
 import { ChatRecordDrawer } from '@/components/common/ChatRecord'
 import GlobalTaskBar from '@/components/AIChat/GlobalTaskBar.vue'
 import { useSessionStore } from '@/stores/session'
@@ -32,8 +33,21 @@ const toaster = {
   duration: 2000,
 }
 
+// Cmd+, (macOS) / Ctrl+, (Windows/Linux) 打开设置
+function handleGlobalKeydown(e: KeyboardEvent) {
+  const isMeta = navigator.platform.toLowerCase().includes('mac') ? e.metaKey : e.ctrlKey
+  if (isMeta && e.key === ',') {
+    e.preventDefault()
+    e.stopPropagation()
+    if (!layoutStore.showSettings) {
+      layoutStore.openSettings()
+    }
+  }
+}
+
 // 应用启动时初始化
 onMounted(async () => {
+  window.addEventListener('keydown', handleGlobalKeydown)
   // 平台检测 - 设置 CSS 类名以驱动平台差异化样式（如标题栏安全区域高度）
   const platform = navigator.platform.toLowerCase()
   if (platform.includes('win')) {
@@ -48,6 +62,10 @@ onMounted(async () => {
   llmStore.init()
   // 从数据库加载会话列表
   await sessionStore.loadSessions()
+})
+
+onUnmounted(() => {
+  window.removeEventListener('keydown', handleGlobalKeydown)
 })
 </script>
 
@@ -81,6 +99,8 @@ onMounted(async () => {
       :image-data="layoutStore.screenCaptureImage"
       @update:open="(v) => (v ? null : layoutStore.closeScreenCaptureModal())"
     />
+    <!-- 全局设置弹窗 -->
+    <SettingsModal />
     <!-- 全局聊天记录查看器 -->
     <ChatRecordDrawer />
     <!-- 全局 AI 后台任务条：允许用户离开当前页面后仍然快速返回进行中的对话。 -->

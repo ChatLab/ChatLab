@@ -468,7 +468,7 @@ function subscribedRemoteIds(ds: DataSource): Set<string> {
     />
 
     <!-- Delete confirmation modal -->
-    <UModal v-model:open="showDeleteModal">
+    <UModal v-model:open="showDeleteModal" :ui="{ content: 'z-[101]', overlay: 'z-[100]' }">
       <template #content>
         <div class="p-4">
           <h3 class="mb-3 font-semibold text-gray-900 dark:text-white">

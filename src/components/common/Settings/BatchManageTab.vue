@@ -710,7 +710,7 @@ onMounted(() => {
     </div>
 
     <!-- 合并确认弹窗 -->
-    <UModal v-model:open="showMergeModal" :ui="{ content: 'z-100' }">
+    <UModal v-model:open="showMergeModal" :ui="{ content: 'z-[101]', overlay: 'z-[100]' }">
       <template #content>
         <div class="p-4">
           <div class="mb-4 flex items-center gap-3">
@@ -781,7 +781,7 @@ onMounted(() => {
     </UModal>
 
     <!-- 删除确认弹窗 -->
-    <UModal v-model:open="showDeleteModal">
+    <UModal v-model:open="showDeleteModal" :ui="{ content: 'z-[101]', overlay: 'z-[100]' }">
       <template #content>
         <div class="p-4">
           <div class="mb-4 flex items-center gap-3">

@@ -3,15 +3,15 @@ import { ref, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
-import { useRouter } from 'vue-router'
 import { usePromptStore } from '@/stores/prompt'
+import { useLayoutStore } from '@/stores/layout'
 import { useLLMStore } from '@/stores/llm'
 import { exportConversation, type ExportFormat } from '@/utils/conversationExport'
 import type { AgentRuntimeStatus } from '@electron/shared/types'
 
 const { t } = useI18n()
 const toast = useToast()
-const router = useRouter()
+const layoutStore = useLayoutStore()
 
 // Props
 const props = defineProps<{
@@ -86,7 +86,7 @@ const agentCompactTitle = computed(() => {
 })
 
 function openChatSettings() {
-  router.push({ name: 'settings', query: { tab: 'ai', subTab: 'chat' } })
+  layoutStore.openSettings('ai', 'chat')
 }
 
 // 切换 AI 模型配置
@@ -101,7 +101,7 @@ async function switchModelConfig(configId: string) {
 
 function openModelSettings() {
   isModelPopoverOpen.value = false
-  router.push({ name: 'settings', query: { tab: 'ai', subTab: 'model' } })
+  layoutStore.openSettings('ai', 'model')
 }
 
 // 导出当前对话

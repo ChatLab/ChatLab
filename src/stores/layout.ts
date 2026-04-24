@@ -20,6 +20,11 @@ export const useLayoutStore = defineStore(
     // 截图设置
     const screenshotMobileAdapt = ref(false) // 截图时开启移动端适配，默认关闭
 
+    // 设置弹窗
+    const showSettings = ref(false)
+    const settingsTab = ref<string>('settings')
+    const settingsSubTab = ref<string | null>(null)
+
     /**
      * 切换侧边栏展开/折叠状态
      */
@@ -67,6 +72,19 @@ export const useLayoutStore = defineStore(
       isToolsPanelLocked.value = !isToolsPanelLocked.value
     }
 
+    /**
+     * 打开设置弹窗，可选指定 Tab 和 SubTab
+     */
+    function openSettings(tab?: string, subTab?: string) {
+      settingsTab.value = tab || 'settings'
+      settingsSubTab.value = subTab || null
+      showSettings.value = true
+    }
+
+    function closeSettings() {
+      showSettings.value = false
+    }
+
     function toggleToolsPanelMini() {
       isToolsPanelMini.value = !isToolsPanelMini.value
       if (isToolsPanelMini.value) {
@@ -83,6 +101,9 @@ export const useLayoutStore = defineStore(
       showChatRecordDrawer,
       chatRecordQuery,
       screenshotMobileAdapt,
+      showSettings,
+      settingsTab,
+      settingsSubTab,
       toggleSidebar,
       toggleToolsPanelLock,
       toggleToolsPanelMini,
@@ -90,6 +111,8 @@ export const useLayoutStore = defineStore(
       closeScreenCaptureModal,
       openChatRecordDrawer,
       closeChatRecordDrawer,
+      openSettings,
+      closeSettings,
     }
   },
   {

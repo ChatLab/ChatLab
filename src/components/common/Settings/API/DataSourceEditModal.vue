@@ -48,7 +48,7 @@ function save() {
 </script>
 
 <template>
-  <UModal :open="open" @update:open="emit('update:open', $event)">
+  <UModal :open="open" :ui="{ content: 'z-[101]', overlay: 'z-[100]' }" @update:open="emit('update:open', $event)">
     <template #content>
       <div class="p-6" style="min-width: 420px">
         <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">
