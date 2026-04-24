@@ -301,7 +301,7 @@ async function openAiLogFile() {
         :disabled="isOpeningLog"
         @click="openAiLogFile"
       >
-        <UIcon name="i-heroicons-folder-open" class="h-3.5 w-3.5" />
+        <UIcon name="i-heroicons-document-text" class="h-3.5 w-3.5" />
         <span class="hidden xl:inline">{{ t('ai.chat.statusBar.log.label') }}</span>
       </button>
     </div>

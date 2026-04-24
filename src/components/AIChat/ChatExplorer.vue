@@ -347,15 +347,23 @@ watch(
                 </h2>
 
                 <!-- 系统提示词文本 -->
-                <p
-                  v-if="showWelcomeCard && welcomeInfo.name"
-                  class="mb-8 max-w-lg cursor-pointer text-center text-sm leading-relaxed text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 line-clamp-2"
-                  @click="handleConfigureAssistant(assistantStore.selectedAssistant!.id)"
-                >
-                  <UTooltip :text="t('ai.assistant.systemPrompt', '系统设定')" :popper="{ placement: 'top' }">
-                    {{ welcomeInfo.preview }}
-                  </UTooltip>
-                </p>
+                <div v-if="showWelcomeCard && welcomeInfo.name" class="relative mb-8 w-full max-w-lg">
+                  <p
+                    class="cursor-pointer pr-7 text-center text-sm leading-relaxed text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 line-clamp-2"
+                    @click="handleConfigureAssistant(assistantStore.selectedAssistant!.id)"
+                  >
+                    <UTooltip :text="t('ai.assistant.systemPrompt', '系统设定')" :popper="{ placement: 'top' }">
+                      {{ welcomeInfo.preview }}
+                    </UTooltip>
+                  </p>
+                  <button
+                    type="button"
+                    class="absolute bottom-0 right-0 rounded-md p-0.5 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+                    @click.stop="handleConfigureAssistant(assistantStore.selectedAssistant!.id)"
+                  >
+                    <UIcon name="i-heroicons-pencil-square" class="h-4 w-4" />
+                  </button>
+                </div>
 
                 <!-- 助手选择器 -->
                 <div class="flex w-full justify-center">

@@ -136,6 +136,7 @@ const otherMemberAvatar = computed(() => {
         :title="session.name"
         :description="headerDescription"
         :avatar="otherMemberAvatar"
+        size="compact"
         icon="i-heroicons-user"
         icon-class="bg-pink-600 text-white dark:bg-pink-500 dark:text-white"
       >
@@ -143,7 +144,7 @@ const otherMemberAvatar = computed(() => {
           <CaptureButton />
         </template>
         <!-- Tabs -->
-        <div class="mt-4 flex items-center justify-between gap-3">
+        <div class="mt-3 flex items-center justify-between gap-3">
           <div class="flex shrink-0 items-center gap-0.5 overflow-x-auto scrollbar-hide">
             <button
               v-for="tab in tabs"

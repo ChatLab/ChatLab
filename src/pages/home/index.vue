@@ -57,13 +57,13 @@ const features = computed(() => [
 
 <template>
   <div class="relative flex h-full w-full overflow-hidden pt-4">
+    <!-- 顶部窗口拖拽区域，固定 50px，覆盖应用最上方 -->
+    <div class="absolute left-0 right-0 top-0 z-10 h-[50px]" style="-webkit-app-region: drag" />
     <!-- Content Container -->
     <div class="relative h-full w-full overflow-y-auto">
       <div class="flex min-h-full w-full flex-col items-center justify-center px-4 py-12">
         <!-- Hero Section -->
         <div class="relative xl:mb-6 mb-4 w-full text-center">
-          <!-- 标题上方可拖拽区域，向上扩展覆盖空隙 -->
-          <div class="absolute -top-32 left-0 right-0 h-32" style="-webkit-app-region: drag" />
           <!-- Title -->
           <h1 class="mb-4 select-none text-5xl sm:text-5xl lg:text-6xl font-black tracking-tight text-pink-500">
             {{ t('home.title') }}
