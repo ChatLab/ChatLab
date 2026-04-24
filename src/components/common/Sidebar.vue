@@ -259,7 +259,7 @@ function getSessionAvatar(session: AnalysisSession): string | null {
                   color="neutral"
                   variant="ghost"
                   size="xs"
-                  @click="router.push({ name: 'settings', query: { tab: 'data' } })"
+                  @click="layoutStore.openSettings('data')"
                 />
               </UTooltip>
             </div>

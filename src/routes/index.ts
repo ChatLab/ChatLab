@@ -17,11 +17,6 @@ export const router = createRouter({
       name: 'private-chat',
       component: () => import('@/pages/private-chat/index.vue'),
     },
-    {
-      path: '/settings',
-      name: 'settings',
-      component: () => import('@/pages/settings/index.vue'),
-    },
   ],
   history: createWebHashHistory(),
 })

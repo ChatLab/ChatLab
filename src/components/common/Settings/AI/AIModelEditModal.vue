@@ -67,7 +67,11 @@ function closeModal() {
 </script>
 
 <template>
-  <UModal :open="open" :ui="{ content: 'max-w-2xl' }" @update:open="emit('update:open', $event)">
+  <UModal
+    :open="open"
+    :ui="{ content: 'max-w-2xl z-[101]', overlay: 'z-[100]' }"
+    @update:open="emit('update:open', $event)"
+  >
     <template #content>
       <div class="flex min-h-[min(640px,80vh)] max-h-[80vh] flex-col p-6">
         <h3 class="mb-4 text-lg font-semibold text-gray-900 dark:text-white">{{ modalTitle }}</h3>
@@ -419,7 +423,11 @@ function closeModal() {
   </UModal>
 
   <!-- 验证失败确认弹窗 -->
-  <UModal :open="showValidationFailConfirm" @update:open="showValidationFailConfirm = $event">
+  <UModal
+    :open="showValidationFailConfirm"
+    :ui="{ content: 'z-[102]', overlay: 'z-[101]' }"
+    @update:open="showValidationFailConfirm = $event"
+  >
     <template #content>
       <div class="p-6">
         <div class="mb-4 flex items-start gap-3">
@@ -445,7 +453,11 @@ function closeModal() {
   </UModal>
 
   <!-- 添加自定义模型小弹窗 -->
-  <UModal :open="showAddModelDialog" @update:open="showAddModelDialog = $event">
+  <UModal
+    :open="showAddModelDialog"
+    :ui="{ content: 'z-[102]', overlay: 'z-[101]' }"
+    @update:open="showAddModelDialog = $event"
+  >
     <template #content>
       <div class="p-5">
         <h4 class="mb-4 text-base font-semibold text-gray-900 dark:text-white">
