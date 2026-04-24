@@ -32,6 +32,8 @@
       "previewUnavailable": "暫無可預覽的技能提示詞",
       "presetMore": "更多",
       "presetCollapse": "收起",
+      "quickAsk": "快速提問",
+      "editQuickAsk": "編輯快速提問",
       "send": "送出",
       "needMoreThanSkill": "只選擇技能還不能送出，請繼續輸入具體問題",
       "needQuestion": "請輸入問題後再送出"

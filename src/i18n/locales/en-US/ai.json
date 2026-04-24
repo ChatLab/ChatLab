@@ -32,6 +32,8 @@
       "previewUnavailable": "No skill prompt available for preview",
       "presetMore": "More",
       "presetCollapse": "Collapse",
+      "quickAsk": "Quick Ask",
+      "editQuickAsk": "Edit Quick Ask",
       "send": "Send",
       "needMoreThanSkill": "Selecting a skill alone is not enough. Enter a specific question.",
       "needQuestion": "Enter a question before sending"

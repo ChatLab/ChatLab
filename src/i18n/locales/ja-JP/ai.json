@@ -32,6 +32,8 @@
       "previewUnavailable": "プレビューできるスキルプロンプトがありません",
       "presetMore": "もっと見る",
       "presetCollapse": "折りたたむ",
+      "quickAsk": "クイック質問",
+      "editQuickAsk": "クイック質問を編集",
       "send": "送信",
       "needMoreThanSkill": "スキルを選んだだけでは送信できません。具体的な質問を入力してください。",
       "needQuestion": "質問を入力してから送信してください"

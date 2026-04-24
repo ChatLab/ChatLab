@@ -32,6 +32,8 @@
       "previewUnavailable": "暂无可预览的技能提示词",
       "presetMore": "更多",
       "presetCollapse": "收起",
+      "quickAsk": "快速提问",
+      "editQuickAsk": "编辑快速提问",
       "send": "发送",
       "needMoreThanSkill": "仅选择技能还不能发送，请继续输入具体问题",
       "needQuestion": "请输入问题后再发送"

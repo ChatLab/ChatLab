@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed, onMounted } from 'vue'
+import { ref, watch, computed, onMounted, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
 import { useAssistantStore, type AssistantConfigFull } from '@/stores/assistant'
@@ -10,6 +10,7 @@ const props = defineProps<{
   open: boolean
   assistantId: string | null
   readonly?: boolean
+  scrollToSection?: string
 }>()
 
 const emit = defineEmits<{
@@ -61,6 +62,7 @@ const form = ref({
 })
 
 const newQuestion = ref('')
+const presetQuestionsRef = ref<HTMLElement | null>(null)
 
 const toolBadgeCount = computed(() => form.value.allowedBuiltinTools.length)
 
@@ -81,6 +83,12 @@ watch(
     } else if (!props.readonly) {
       isCreateMode.value = true
       initEmptyForm()
+    }
+    if (props.scrollToSection === 'presetQuestions') {
+      await nextTick()
+      setTimeout(() => {
+        presetQuestionsRef.value?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+      }, 100)
     }
   },
   { immediate: true }
@@ -381,7 +389,7 @@ function closeModal() {
                 <p class="mt-1 text-[10px] text-gray-400">{{ t('ai.assistant.config.localeHint') }}</p>
               </div>
 
-              <div>
+              <div ref="presetQuestionsRef">
                 <label class="mb-1.5 block text-sm font-medium text-gray-700 dark:text-gray-300">
                   {{ t('ai.assistant.config.presetQuestions') }}
                 </label>

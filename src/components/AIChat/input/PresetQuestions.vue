@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { ref, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const { t } = useI18n()
@@ -13,212 +13,99 @@ const props = defineProps<{
 const emit = defineEmits<{
   select: [question: string]
   leadingAction: []
+  editQuestions: []
 }>()
 
-type PresetItem =
-  | {
-      key: string
-      label: string
-      type: 'leadingAction'
-    }
-  | {
-      key: string
-      label: string
-      type: 'question'
-      question: string
-    }
-
-const hasItems = computed(() => props.questions.length > 0 || Boolean(props.leadingActionLabel))
-const containerRef = ref<HTMLElement | null>(null)
-const measureRef = ref<HTMLElement | null>(null)
-const showMoreMenu = ref(false)
-const visibleCount = ref(0)
-let resizeObserver: ResizeObserver | null = null
+const showPanel = ref(false)
+let hideTimer: ReturnType<typeof setTimeout> | null = null
 
 const chipClass =
   'rounded-full ring-1 ring-inset ring-gray-200/80 bg-white/60 shadow-[0_2px_8px_-2px_rgba(0,0,0,0.05)] backdrop-blur-md px-3 py-1.5 text-xs text-gray-600 transition-all duration-300 hover:-translate-y-[1px] hover:ring-primary-300 hover:bg-white/90 hover:text-primary-600 hover:shadow-[0_4px_12px_-2px_rgba(0,0,0,0.08)] disabled:cursor-not-allowed disabled:opacity-50 dark:ring-gray-700/60 dark:bg-gray-800/60 dark:text-gray-300 dark:hover:ring-primary-500/50 dark:hover:bg-gray-800/90 dark:hover:text-primary-400'
 
-const items = computed<PresetItem[]>(() => {
-  const result: PresetItem[] = []
-
-  if (props.leadingActionLabel) {
-    result.push({
-      key: 'leading-action',
-      label: props.leadingActionLabel,
-      type: 'leadingAction',
-    })
-  }
-
-  props.questions.forEach((question, index) => {
-    result.push({
-      key: `question-${index}`,
-      label: question,
-      type: 'question',
-      question,
-    })
-  })
-
-  return result
-})
-
-const hiddenCount = computed(() => Math.max(items.value.length - visibleCount.value, 0))
-const visibleItems = computed(() => items.value.slice(0, visibleCount.value))
-const hiddenItems = computed(() => items.value.slice(visibleCount.value))
-const measureMoreLabel = computed(() => `${t('ai.chat.input.presetMore')}...`)
-const toggleLabel = computed(() => `${t('ai.chat.input.presetMore')}...`)
-
-function handleItemClick(item: PresetItem) {
-  showMoreMenu.value = false
-
-  if (item.type === 'leadingAction') {
-    emit('leadingAction')
-    return
-  }
-
-  emit('select', item.question)
+function handleSelectQuestion(question: string) {
+  showPanel.value = false
+  emit('select', question)
 }
 
-function toggleMoreMenu() {
-  if (props.disabled || hiddenCount.value === 0) return
-  showMoreMenu.value = !showMoreMenu.value
+function openPanel() {
+  if (props.disabled || props.questions.length === 0) return
+  if (hideTimer) {
+    clearTimeout(hideTimer)
+    hideTimer = null
+  }
+  showPanel.value = true
 }
 
-function handleDocumentMouseDown(event: MouseEvent) {
-  if (!showMoreMenu.value || !containerRef.value) return
-
-  const target = event.target
-  if (target instanceof Node && !containerRef.value.contains(target)) {
-    showMoreMenu.value = false
-  }
+function scheduleClose() {
+  hideTimer = setTimeout(() => {
+    showPanel.value = false
+  }, 150)
 }
 
-function measureVisibleItems() {
-  if (!containerRef.value) return
-
-  const chips = Array.from(measureRef.value?.querySelectorAll<HTMLElement>('[data-measure-chip]') ?? [])
-  if (chips.length === 0) {
-    visibleCount.value = 0
-    return
-  }
-
-  const availableWidth = containerRef.value.clientWidth
-  if (!availableWidth) {
-    visibleCount.value = chips.length
-    return
-  }
-
-  const moreButton = measureRef.value?.querySelector<HTMLElement>('[data-measure-more]')
-  const chipWidths = chips.map((chip) => chip.offsetWidth)
-  const moreWidth = moreButton?.offsetWidth ?? 0
-  const gap = 8
-
-  let usedWidth = 0
-  let nextVisibleCount = 0
-
-  for (let index = 0; index < chipWidths.length; index += 1) {
-    const width = chipWidths[index]
-    const nextWidth = nextVisibleCount === 0 ? width : usedWidth + gap + width
-    const hasRemaining = index < chipWidths.length - 1
-    const reserveWidth = hasRemaining ? gap + moreWidth : 0
-
-    if (nextWidth + reserveWidth > availableWidth) {
-      break
-    }
-
-    usedWidth = nextWidth
-    nextVisibleCount += 1
-  }
-
-  // 至少展示一个标签，避免窄窗口下直接只剩“更多”。
-  visibleCount.value = Math.max(1, nextVisibleCount)
+function handleEditQuestions() {
+  showPanel.value = false
+  emit('editQuestions')
 }
-
-async function syncCollapsedLayout() {
-  if (!hasItems.value) return
-
-  await nextTick()
-  measureVisibleItems()
-}
-
-watch(
-  items,
-  async () => {
-    showMoreMenu.value = false
-    await syncCollapsedLayout()
-  },
-  { deep: true, immediate: true }
-)
-
-watch(hiddenCount, (count) => {
-  if (count === 0) {
-    showMoreMenu.value = false
-  }
-})
-
-onMounted(async () => {
-  await syncCollapsedLayout()
-  document.addEventListener('mousedown', handleDocumentMouseDown)
-
-  if (typeof ResizeObserver === 'undefined' || !containerRef.value) return
-
-  resizeObserver = new ResizeObserver(() => {
-    showMoreMenu.value = false
-    measureVisibleItems()
-  })
-  resizeObserver.observe(containerRef.value)
-})
 
 onBeforeUnmount(() => {
-  resizeObserver?.disconnect()
-  document.removeEventListener('mousedown', handleDocumentMouseDown)
+  if (hideTimer) clearTimeout(hideTimer)
 })
 </script>
 
 <template>
-  <div v-if="hasItems" ref="containerRef" class="relative">
-    <div class="pointer-events-none absolute left-0 top-0 -z-10 h-0 overflow-hidden opacity-0" aria-hidden="true">
-      <div ref="measureRef" class="flex whitespace-nowrap gap-2">
-        <span v-for="item in items" :key="item.key" :class="chipClass" data-measure-chip>
-          {{ item.label }}
-        </span>
-        <span :class="chipClass" data-measure-more>
-          {{ measureMoreLabel }}
-        </span>
-      </div>
-    </div>
-
-    <!-- 主行保持单行展示，但不裁掉“更多”的上浮面板。 -->
+  <div v-if="leadingActionLabel || questions.length > 0" class="relative">
     <div class="relative z-10 flex flex-nowrap gap-2">
-      <button
-        v-for="item in visibleItems"
-        :key="item.key"
-        :class="chipClass"
-        :disabled="props.disabled"
-        @click="handleItemClick(item)"
-      >
-        {{ item.label }}
+      <button v-if="leadingActionLabel" :class="chipClass" :disabled="props.disabled" @click="emit('leadingAction')">
+        {{ leadingActionLabel }}
       </button>
 
-      <div v-if="hiddenCount > 0" class="relative shrink-0">
-        <button :class="chipClass" :disabled="props.disabled" @click="toggleMoreMenu">
-          {{ toggleLabel }}
+      <div v-if="questions.length > 0" class="relative shrink-0" @mouseenter="openPanel" @mouseleave="scheduleClose">
+        <button
+          :class="[
+            chipClass,
+            showPanel
+              ? 'ring-primary-300 bg-white/90 text-primary-600 dark:ring-primary-500/50 dark:bg-gray-800/90 dark:text-primary-400'
+              : '',
+          ]"
+          :disabled="props.disabled"
+        >
+          <span class="inline-flex items-center gap-1">
+            <UIcon name="i-heroicons-chat-bubble-left-ellipsis" class="h-3.5 w-3.5" />
+            {{ t('ai.chat.input.quickAsk') }}
+          </span>
         </button>
 
-        <!-- 隐藏标签直接向上展开，并与主行保持同一套胶囊样式。 -->
-        <div
-          v-if="showMoreMenu"
-          class="absolute right-0 bottom-full z-20 mb-2 flex w-[320px] max-w-[calc(100vw-3rem)] flex-wrap justify-end gap-2"
+        <Transition
+          enter-active-class="transition duration-200 ease-out"
+          enter-from-class="opacity-0 translate-y-2"
+          enter-to-class="opacity-100 translate-y-0"
+          leave-active-class="transition duration-150 ease-in"
+          leave-from-class="opacity-100 translate-y-0"
+          leave-to-class="opacity-0 translate-y-2"
         >
-          <button
-            v-for="item in hiddenItems"
-            :key="item.key"
-            :class="chipClass"
-            :disabled="props.disabled"
-            @click="handleItemClick(item)"
-          >
-            {{ item.label }}
-          </button>
-        </div>
+          <div v-if="showPanel" class="absolute left-0 bottom-full z-20 mb-2 w-[320px] max-w-[calc(100vw-3rem)]">
+            <div class="mb-1.5 flex justify-start">
+              <button
+                class="inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-[10px] text-gray-400 transition-colors hover:text-primary-500 dark:text-gray-500 dark:hover:text-primary-400"
+                @click="handleEditQuestions"
+              >
+                <UIcon name="i-heroicons-pencil-square" class="h-3 w-3" />
+                {{ t('ai.chat.input.editQuickAsk') }}
+              </button>
+            </div>
+            <div class="flex flex-wrap gap-2">
+              <button
+                v-for="(question, index) in questions"
+                :key="index"
+                :class="chipClass"
+                :disabled="props.disabled"
+                @click="handleSelectQuestion(question)"
+              >
+                {{ question }}
+              </button>
+            </div>
+          </div>
+        </Transition>
       </div>
     </div>
   </div>

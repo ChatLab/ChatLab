@@ -103,6 +103,7 @@ const currentChatType = computed(() => props.chatType ?? 'group')
 const isSourcePanelCollapsed = ref(false)
 const hasLLMConfig = ref(false)
 const isCheckingConfig = ref(true)
+const configModalScrollToSection = ref<string | undefined>(undefined)
 const conversationListRef = ref<InstanceType<typeof ConversationList> | null>(null)
 const chatInputRef = ref<{
   fillInput: (content: string) => void
@@ -182,6 +183,20 @@ async function handlePresetQuestion(question: string) {
   const result = await sendMessage(question)
   if (!result.success && result.reason === 'busy') {
     showRunningTaskToast()
+  }
+}
+
+function handleEditPresetQuestions() {
+  const id = assistantStore.selectedAssistant?.id
+  if (!id) return
+  configModalScrollToSection.value = 'presetQuestions'
+  handleConfigureAssistant(id)
+}
+
+function handleConfigModalOpenUpdate(value: boolean) {
+  configModalVisible.value = value
+  if (!value) {
+    configModalScrollToSection.value = undefined
   }
 }
 
@@ -426,6 +441,7 @@ watch(
                 :leading-action-label="t('ai.chat.input.useSkill')"
                 @select="handlePresetQuestion"
                 @leading-action="handleUseSkillEntry"
+                @edit-questions="handleEditPresetQuestions"
               />
             </div>
           </div>
@@ -480,7 +496,8 @@ watch(
       :open="configModalVisible"
       :assistant-id="configModalAssistantId"
       :readonly="configModalReadonly"
-      @update:open="configModalVisible = $event"
+      :scroll-to-section="configModalScrollToSection"
+      @update:open="handleConfigModalOpenUpdate"
       @saved="handleAssistantConfigSaved"
       @created="handleAssistantCreated"
     />
