@@ -213,6 +213,8 @@ interface Api {
     getAnalyticsEnabled: () => Promise<boolean>
     setAnalyticsEnabled: (enabled: boolean) => Promise<{ success: boolean }>
     relaunch: () => Promise<void>
+    getOpenAtLogin: () => Promise<boolean>
+    setOpenAtLogin: (enabled: boolean) => Promise<{ success: boolean; error?: string }>
   }
 }
 

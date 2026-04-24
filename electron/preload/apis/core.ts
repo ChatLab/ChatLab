@@ -102,5 +102,17 @@ export const extendedApi = {
     relaunch: (): Promise<void> => {
       return ipcRenderer.invoke('app:relaunch')
     },
+    /**
+     * 获取开机自启动状态
+     */
+    getOpenAtLogin: (): Promise<boolean> => {
+      return ipcRenderer.invoke('app:getOpenAtLogin')
+    },
+    /**
+     * 设置开机自启动
+     */
+    setOpenAtLogin: (enabled: boolean): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke('app:setOpenAtLogin', enabled)
+    },
   },
 }

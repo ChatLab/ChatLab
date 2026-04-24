@@ -19,6 +19,12 @@
     }
   },
   "basic": {
+    "general": {
+      "title": "一般"
+    },
+    "preferences": {
+      "title": "環境設定"
+    },
     "language": {
       "title": "言語",
       "description": "アプリの表示言語を選択します"
@@ -32,9 +38,15 @@
     },
     "defaultTab": {
       "title": "デフォルトタブ",
-      "description": "セッションに入った時に表示するページ",
+      "description": "チャットに入った時に表示するページ",
       "overview": "概要",
       "aiChat": "AI チャット"
+    },
+    "autoLaunch": {
+      "title": "起動設定",
+      "openAtLogin": "ログイン時に自動起動",
+      "openAtLoginDesc": "システム起動時に ChatLab を自動的に実行します",
+      "devModeHint": "開発モードでは利用できません"
     },
     "screenshot": {
       "title": "スクリーンショット設定",

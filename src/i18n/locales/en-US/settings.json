@@ -19,6 +19,12 @@
     }
   },
   "basic": {
+    "general": {
+      "title": "General"
+    },
+    "preferences": {
+      "title": "Preferences"
+    },
     "language": {
       "title": "Language",
       "description": "Choose language"
@@ -32,9 +38,15 @@
     },
     "defaultTab": {
       "title": "Default Tab",
-      "description": "Default page when entering a session",
+      "description": "Default page when entering a chat conversation",
       "overview": "Overview",
       "aiChat": "AI Chat"
+    },
+    "autoLaunch": {
+      "title": "Startup",
+      "openAtLogin": "Launch at Login",
+      "openAtLoginDesc": "Automatically start ChatLab when the system boots",
+      "devModeHint": "Not available in dev mode"
     },
     "screenshot": {
       "title": "Screenshot",

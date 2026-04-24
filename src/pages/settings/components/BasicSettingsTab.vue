@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
-import { computed } from 'vue'
+import { computed, ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useLayoutStore } from '@/stores/layout'
 import { useSettingsStore } from '@/stores/settings'
@@ -16,6 +16,27 @@ const layoutStore = useLayoutStore()
 const settingsStore = useSettingsStore()
 const { screenshotMobileAdapt } = storeToRefs(layoutStore)
 const { locale, defaultSessionTab } = storeToRefs(settingsStore)
+
+// Auto Launch
+const openAtLogin = ref(false)
+const isPackaged = ref(true)
+
+onMounted(async () => {
+  try {
+    const enabled = await window.api.app.getOpenAtLogin()
+    openAtLogin.value = enabled
+  } catch {
+    isPackaged.value = false
+  }
+})
+
+async function handleAutoLaunchChange(enabled: boolean) {
+  const { success } = await window.api.app.setOpenAtLogin(enabled)
+  if (!success) {
+    openAtLogin.value = !enabled
+    isPackaged.value = false
+  }
+}
 
 // Color Mode
 const colorMode = useColorMode({
@@ -63,15 +84,15 @@ watch(
 </script>
 
 <template>
-  <div class="space-y-6">
-    <!-- 语言设置 -->
+  <div class="space-y-6 pb-6">
+    <!-- 常规：语言 + 开机自启动 -->
     <div>
       <h3 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
-        <UIcon name="i-heroicons-language" class="h-4 w-4 text-green-500" />
-        {{ t('settings.basic.language.title') }}
+        <UIcon name="i-heroicons-cog-6-tooth" class="h-4 w-4 text-gray-500" />
+        {{ t('settings.basic.general.title') }}
       </h3>
-      <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-        <div class="flex items-center justify-between">
+      <div class="rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
+        <div class="flex items-center justify-between p-4">
           <div class="flex-1 pr-4">
             <p class="text-sm font-medium text-gray-900 dark:text-white">
               {{ t('settings.basic.language.description') }}
@@ -80,6 +101,20 @@ watch(
           <div class="w-72">
             <UITabs v-model="currentLocale" size="sm" class="gap-0" :items="languageOptions"></UITabs>
           </div>
+        </div>
+        <div class="border-t border-gray-200 dark:border-gray-700"></div>
+        <div class="flex items-center justify-between p-4">
+          <div class="flex-1 pr-4">
+            <p class="text-sm font-medium text-gray-900 dark:text-white">
+              {{ t('settings.basic.autoLaunch.openAtLogin') }}
+            </p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              {{
+                isPackaged ? t('settings.basic.autoLaunch.openAtLoginDesc') : t('settings.basic.autoLaunch.devModeHint')
+              }}
+            </p>
+          </div>
+          <USwitch v-model="openAtLogin" :disabled="!isPackaged" @update:model-value="handleAutoLaunchChange" />
         </div>
       </div>
     </div>
@@ -104,14 +139,14 @@ watch(
       </div>
     </div>
 
-    <!-- 默认标签页 -->
+    <!-- 偏好设置：默认标签页 + 截图 -->
     <div>
       <h3 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
-        <UIcon name="i-heroicons-rectangle-stack" class="h-4 w-4 text-purple-500" />
-        {{ t('settings.basic.defaultTab.title') }}
+        <UIcon name="i-heroicons-adjustments-horizontal" class="h-4 w-4 text-purple-500" />
+        {{ t('settings.basic.preferences.title') }}
       </h3>
-      <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-        <div class="flex items-center justify-between">
+      <div class="rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
+        <div class="flex items-center justify-between p-4">
           <div class="flex-1 pr-4">
             <p class="text-sm font-medium text-gray-900 dark:text-white">
               {{ t('settings.basic.defaultTab.description') }}
@@ -121,17 +156,8 @@ watch(
             <UTabs v-model="defaultSessionTab" size="sm" class="gap-0" :items="defaultTabOptions"></UTabs>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- 截图设置 -->
-    <div>
-      <h3 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
-        <UIcon name="i-heroicons-camera" class="h-4 w-4 text-blue-500" />
-        {{ t('settings.basic.screenshot.title') }}
-      </h3>
-      <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-        <div class="flex items-center justify-between">
+        <div class="border-t border-gray-200 dark:border-gray-700"></div>
+        <div class="flex items-center justify-between p-4">
           <div class="flex-1 pr-4">
             <p class="text-sm font-medium text-gray-900 dark:text-white">
               {{ t('settings.basic.screenshot.mobileAdapt') }}

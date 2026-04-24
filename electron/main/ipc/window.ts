@@ -199,6 +199,23 @@ export function registerWindowHandlers(ctx: IpcContext): void {
     }
   })
 
+  // ==================== 开机自启动 ====================
+  ipcMain.handle('app:getOpenAtLogin', () => {
+    if (!app.isPackaged) return false
+    const { openAtLogin } = app.getLoginItemSettings()
+    return openAtLogin
+  })
+
+  ipcMain.handle('app:setOpenAtLogin', (_, enabled: boolean) => {
+    if (!app.isPackaged) return { success: false, error: 'Not available in dev mode' }
+    try {
+      app.setLoginItemSettings({ openAtLogin: enabled })
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: String(error) }
+    }
+  })
+
   // ==================== 更新检查 ====================
   ipcMain.on('check-update', () => {
     // 手动检查更新（即使是预发布版本也会提示）
