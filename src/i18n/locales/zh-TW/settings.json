@@ -510,6 +510,11 @@
         "found": "發現 {count} 個會話",
         "selectAll": "全選",
         "deselectAll": "取消全選",
+        "selectByType": "會話類型",
+        "typeAll": "全部",
+        "typePrivate": "私訊",
+        "typeGroup": "群組",
+        "typeOther": "其他",
         "subscribe": "訂閱 {count} 個會話",
         "messages": "則訊息",
         "error": "連線遠端伺服器失敗"
