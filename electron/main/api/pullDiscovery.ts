@@ -22,7 +22,7 @@ export interface RemoteSession {
  */
 export function fetchRemoteSessions(baseUrl: string, token?: string): Promise<RemoteSession[]> {
   return new Promise<RemoteSession[]>((resolve, reject) => {
-    const url = normalizeBaseUrl(baseUrl) + '/sessions?format=chatlab'
+    const url = normalizeBaseUrl(baseUrl) + '/sessions?format=chatlab&limit=10000'
 
     const request = net.request(url)
     if (token) {

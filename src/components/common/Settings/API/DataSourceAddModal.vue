@@ -32,6 +32,11 @@ const selectedSessionIds = ref<Set<string>>(new Set())
 const discovering = ref(false)
 const discoveryError = ref('')
 
+type SessionTypeSelection = 'private' | 'group' | 'other'
+type SessionTypeFilter = 'all' | SessionTypeSelection
+
+const activeSessionTypeFilter = ref<SessionTypeFilter>('all')
+
 watch(
   () => props.open,
   async (val) => {
@@ -49,6 +54,7 @@ watch(
       remoteSessions.value = []
       selectedSessionIds.value = new Set()
       discoveryError.value = ''
+      activeSessionTypeFilter.value = 'all'
       if (isManageMode.value) {
         await discoverSessions()
       }
@@ -57,17 +63,71 @@ watch(
   { immediate: true }
 )
 
-const availableSessions = computed(() => remoteSessions.value.filter((s) => !props.subscribedRemoteIds?.has(s.id)))
+const visibleRemoteSessions = computed(() => {
+  if (activeSessionTypeFilter.value === 'all') return remoteSessions.value
+  return remoteSessions.value.filter((session) => getSessionTypeSelection(session) === activeSessionTypeFilter.value)
+})
 
-const allSelected = computed(
-  () => availableSessions.value.length > 0 && selectedSessionIds.value.size === availableSessions.value.length
+const visibleAvailableSessions = computed(() =>
+  visibleRemoteSessions.value.filter((s) => !props.subscribedRemoteIds?.has(s.id))
 )
 
+const allSelected = computed(
+  () =>
+    visibleAvailableSessions.value.length > 0 &&
+    visibleAvailableSessions.value.every((session) => selectedSessionIds.value.has(session.id))
+)
+
+const sessionTypeSelectionOptions = computed(() =>
+  (
+    [
+      { value: 'all', label: t('settings.api.dataSources.discovery.typeAll') },
+      { value: 'private', label: t('settings.api.dataSources.discovery.typePrivate') },
+      { value: 'group', label: t('settings.api.dataSources.discovery.typeGroup') },
+      { value: 'other', label: t('settings.api.dataSources.discovery.typeOther') },
+    ] as Array<{ value: SessionTypeFilter; label: string }>
+  ).map((option) => ({
+    ...option,
+    count:
+      option.value === 'all'
+        ? remoteSessions.value.length
+        : remoteSessions.value.filter((session) => getSessionTypeSelection(session) === option.value).length,
+  }))
+)
+
+function getSessionTypeSelection(session: RemoteSession): SessionTypeSelection {
+  const rawType = String(session.type || '')
+    .trim()
+    .toLowerCase()
+  const id = String(session.id || '')
+    .trim()
+    .toLowerCase()
+  if (rawType === 'group' || id.endsWith('@chatroom')) return 'group'
+  if (
+    rawType === 'channel' ||
+    rawType === 'official' ||
+    rawType === 'other' ||
+    id.startsWith('gh_') ||
+    id.includes('@openim') ||
+    (id.startsWith('weixin') && id !== 'weixin')
+  ) {
+    return 'other'
+  }
+  return 'private'
+}
+
+function setSessionTypeFilter(type: SessionTypeFilter) {
+  activeSessionTypeFilter.value = type
+}
+
 function toggleSelectAll() {
+  const visibleIds = visibleAvailableSessions.value.map((s) => s.id)
   if (allSelected.value) {
-    selectedSessionIds.value = new Set()
+    const next = new Set(selectedSessionIds.value)
+    for (const id of visibleIds) next.delete(id)
+    selectedSessionIds.value = next
   } else {
-    selectedSessionIds.value = new Set(availableSessions.value.map((s) => s.id))
+    selectedSessionIds.value = new Set([...selectedSessionIds.value, ...visibleIds])
   }
 }
 
@@ -89,6 +149,7 @@ async function discoverSessions() {
   discoveryError.value = ''
   remoteSessions.value = []
   selectedSessionIds.value = new Set()
+  activeSessionTypeFilter.value = 'all'
   try {
     remoteSessions.value = await store.fetchRemoteSessions(formData.value.baseUrl, formData.value.token)
   } catch (err: any) {
@@ -226,9 +287,31 @@ function formatMessageCount(count?: number): string {
                 }}
               </button>
             </div>
+            <div class="mb-2 flex flex-wrap items-center gap-2">
+              <span class="text-xs text-gray-500 dark:text-gray-400">
+                {{ t('settings.api.dataSources.discovery.selectByType') }}
+              </span>
+              <div class="inline-flex rounded-lg bg-gray-100 p-0.5 dark:bg-gray-800">
+                <button
+                  v-for="option in sessionTypeSelectionOptions"
+                  :key="option.value"
+                  type="button"
+                  class="rounded-md px-2.5 py-1 text-xs transition-colors"
+                  :class="
+                    activeSessionTypeFilter === option.value
+                      ? 'bg-white text-blue-600 shadow-sm dark:bg-gray-700 dark:text-blue-300'
+                      : 'text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-200'
+                  "
+                  :disabled="option.count === 0"
+                  @click="setSessionTypeFilter(option.value)"
+                >
+                  {{ option.label }} ({{ option.count }})
+                </button>
+              </div>
+            </div>
             <div class="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600">
               <div
-                v-for="session in remoteSessions"
+                v-for="session in visibleRemoteSessions"
                 :key="session.id"
                 class="flex items-center gap-3 border-b border-gray-100 px-3 py-2 last:border-0"
                 :class="

@@ -511,6 +511,11 @@
         "found": "Found {count} sessions",
         "selectAll": "Select All",
         "deselectAll": "Deselect All",
+        "selectByType": "Session type",
+        "typeAll": "All",
+        "typePrivate": "Private",
+        "typeGroup": "Group",
+        "typeOther": "Other",
         "subscribe": "Subscribe {count} sessions",
         "messages": "messages",
         "error": "Failed to connect to remote server"

@@ -510,6 +510,11 @@
         "found": "{count} 件のセッションが見つかりました",
         "selectAll": "すべて選択",
         "deselectAll": "選択解除",
+        "selectByType": "セッションタイプ",
+        "typeAll": "すべて",
+        "typePrivate": "個人チャット",
+        "typeGroup": "グループチャット",
+        "typeOther": "その他",
         "subscribe": "{count} 件を購読",
         "messages": "件のメッセージ",
         "error": "リモートサーバーへの接続に失敗しました"
