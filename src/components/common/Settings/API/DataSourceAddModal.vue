@@ -2,6 +2,7 @@
 import { ref, watch, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApiServerStore, type DataSource, type RemoteSession } from '@/stores/apiServer'
+import { getSessionTypeSelection, type SessionTypeSelection } from './sessionDiscovery'
 
 const props = defineProps<{
   open: boolean
@@ -30,12 +31,17 @@ const formData = ref({
 const remoteSessions = ref<RemoteSession[]>([])
 const selectedSessionIds = ref<Set<string>>(new Set())
 const discovering = ref(false)
+const loadingMore = ref(false)
 const discoveryError = ref('')
+const discoveryKeyword = ref('')
+const discoveryNextCursor = ref<string | undefined>()
+const discoveryHasMore = ref(false)
+const hasDiscoveryRun = ref(false)
 
-type SessionTypeSelection = 'private' | 'group' | 'other'
 type SessionTypeFilter = 'all' | SessionTypeSelection
 
 const activeSessionTypeFilter = ref<SessionTypeFilter>('all')
+const discoveryPageSize = 100
 
 watch(
   () => props.open,
@@ -54,6 +60,10 @@ watch(
       remoteSessions.value = []
       selectedSessionIds.value = new Set()
       discoveryError.value = ''
+      discoveryKeyword.value = ''
+      discoveryNextCursor.value = undefined
+      discoveryHasMore.value = false
+      hasDiscoveryRun.value = false
       activeSessionTypeFilter.value = 'all'
       if (isManageMode.value) {
         await discoverSessions()
@@ -95,27 +105,6 @@ const sessionTypeSelectionOptions = computed(() =>
   }))
 )
 
-function getSessionTypeSelection(session: RemoteSession): SessionTypeSelection {
-  const rawType = String(session.type || '')
-    .trim()
-    .toLowerCase()
-  const id = String(session.id || '')
-    .trim()
-    .toLowerCase()
-  if (rawType === 'group' || id.endsWith('@chatroom')) return 'group'
-  if (
-    rawType === 'channel' ||
-    rawType === 'official' ||
-    rawType === 'other' ||
-    id.startsWith('gh_') ||
-    id.includes('@openim') ||
-    (id.startsWith('weixin') && id !== 'weixin')
-  ) {
-    return 'other'
-  }
-  return 'private'
-}
-
 function setSessionTypeFilter(type: SessionTypeFilter) {
   activeSessionTypeFilter.value = type
 }
@@ -144,18 +133,61 @@ function closeModal() {
 }
 
 async function discoverSessions() {
+  await fetchDiscoveryPage({ append: false, resetSelection: true })
+}
+
+async function searchSessions() {
+  await fetchDiscoveryPage({ append: false, resetSelection: true })
+}
+
+async function loadMoreSessions() {
+  if (!discoveryHasMore.value || !discoveryNextCursor.value) return
+  await fetchDiscoveryPage({ append: true, resetSelection: false })
+}
+
+function mergeRemoteSessions(current: RemoteSession[], next: RemoteSession[]): RemoteSession[] {
+  const merged = new Map(current.map((session) => [session.id, session]))
+  for (const session of next) {
+    merged.set(session.id, session)
+  }
+  return [...merged.values()]
+}
+
+// 发现请求支持分页；首次查询重置列表，后续由“加载更多”追加。
+async function fetchDiscoveryPage(options: { append: boolean; resetSelection: boolean }) {
   if (!formData.value.baseUrl) return
-  discovering.value = true
+
+  if (options.append) loadingMore.value = true
+  else discovering.value = true
+
+  hasDiscoveryRun.value = true
   discoveryError.value = ''
-  remoteSessions.value = []
-  selectedSessionIds.value = new Set()
-  activeSessionTypeFilter.value = 'all'
+
+  if (!options.append) {
+    remoteSessions.value = []
+    discoveryNextCursor.value = undefined
+    discoveryHasMore.value = false
+    activeSessionTypeFilter.value = 'all'
+    if (options.resetSelection) {
+      selectedSessionIds.value = new Set()
+    }
+  }
+
   try {
-    remoteSessions.value = await store.fetchRemoteSessions(formData.value.baseUrl, formData.value.token)
+    const result = await store.fetchRemoteSessions(formData.value.baseUrl, formData.value.token, {
+      keyword: discoveryKeyword.value.trim() || undefined,
+      limit: discoveryPageSize,
+      cursor: options.append ? discoveryNextCursor.value : undefined,
+    })
+
+    remoteSessions.value = options.append ? mergeRemoteSessions(remoteSessions.value, result.sessions) : result.sessions
+    discoveryHasMore.value = Boolean(result.page?.hasMore)
+    discoveryNextCursor.value = result.page?.nextCursor
   } catch (err: any) {
     discoveryError.value = err.message || t('settings.api.dataSources.discovery.error')
   } finally {
     discovering.value = false
+    loadingMore.value = false
   }
 }
 
@@ -271,7 +303,7 @@ function formatMessageCount(count?: number): string {
           </div>
 
           <!-- Session list -->
-          <div v-if="remoteSessions.length > 0">
+          <div v-if="hasDiscoveryRun">
             <div class="mb-2 flex items-center justify-between">
               <span class="text-xs font-medium text-gray-700 dark:text-gray-300">
                 {{ t('settings.api.dataSources.discovery.found', { count: remoteSessions.length }) }}
@@ -286,6 +318,17 @@ function formatMessageCount(count?: number): string {
                     : t('settings.api.dataSources.discovery.selectAll')
                 }}
               </button>
+            </div>
+            <div class="mb-3 flex items-center gap-2">
+              <UInput
+                v-model="discoveryKeyword"
+                class="flex-1"
+                :placeholder="t('settings.api.dataSources.discovery.searchPlaceholder')"
+                @keydown.enter.prevent="searchSessions"
+              />
+              <UButton color="primary" variant="soft" :loading="discovering" @click="searchSessions">
+                {{ t('settings.api.dataSources.discovery.search') }}
+              </UButton>
             </div>
             <div class="mb-2 flex flex-wrap items-center gap-2">
               <span class="text-xs text-gray-500 dark:text-gray-400">
@@ -309,7 +352,10 @@ function formatMessageCount(count?: number): string {
                 </button>
               </div>
             </div>
-            <div class="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600">
+            <div
+              v-if="remoteSessions.length > 0"
+              class="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600"
+            >
               <div
                 v-for="session in visibleRemoteSessions"
                 :key="session.id"
@@ -347,6 +393,17 @@ function formatMessageCount(count?: number): string {
                   </div>
                 </div>
               </div>
+            </div>
+            <div
+              v-else
+              class="rounded-lg border border-dashed border-gray-200 px-3 py-6 text-center text-xs text-gray-500 dark:border-gray-700 dark:text-gray-400"
+            >
+              {{ t('settings.api.dataSources.discovery.found', { count: 0 }) }}
+            </div>
+            <div v-if="discoveryHasMore" class="mt-3 flex justify-center">
+              <UButton color="neutral" variant="soft" :loading="loadingMore" @click="loadMoreSessions">
+                {{ t('settings.api.dataSources.discovery.loadMore') }}
+              </UButton>
             </div>
           </div>
 

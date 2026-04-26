@@ -58,10 +58,11 @@ Accept: application/json
 
 **可选参数：**
 
-| 参数      | 类型   | 说明                     |
-| --------- | ------ | ------------------------ |
-| `keyword` | string | 按对话名称模糊搜索       |
-| `limit`   | number | 返回条数限制（默认全部） |
+| 参数      | 类型   | 说明                                                                       |
+| --------- | ------ | -------------------------------------------------------------------------- |
+| `keyword` | string | 按对话名称模糊搜索。搜索语义由服务端定义，推荐按 `name` 模糊匹配，可选扩展到 `id` |
+| `limit`   | number | 返回条数限制。未传时默认返回全部；若服务端实现分页，建议设置合理上限                   |
+| `cursor`  | string | 分页游标。仅在服务端支持分页发现时使用；`keyword` 变化后必须重新从第一页开始               |
 
 **响应：**
 
@@ -86,7 +87,11 @@ Accept: application/json
       "memberCount": 2,
       "lastMessageAt": 1711465200
     }
-  ]
+  ],
+  "page": {
+    "hasMore": true,
+    "nextCursor": "eyJsYXN0TWVzc2FnZUF0IjoxNzExNDY1MjAwLCJpZCI6Ind4aWRfZnJpZW5kX2EifQ=="
+  }
 }
 ```
 
@@ -99,6 +104,26 @@ Accept: application/json
 | `messageCount`  | number | 否   | 消息总数（用于 ChatLab 展示预估量） |
 | `memberCount`   | number | 否   | 成员数                              |
 | `lastMessageAt` | number | 否   | 最新消息时间戳                      |
+
+`page` 为**可选增强字段**：
+
+| 字段         | 类型    | 必填 | 说明                                                               |
+| ------------ | ------- | ---- | ------------------------------------------------------------------ |
+| `hasMore`    | boolean | 否   | 是否还有下一页。仅在服务端支持分页发现时返回                            |
+| `nextCursor` | string  | 否   | 下一页游标。`hasMore=true` 时应返回；客户端原样透传给下次请求              |
+
+**兼容规则：**
+
+- 旧版服务端可以继续只返回 `{ "sessions": [...] }`，不带 `page`
+- ChatLab 客户端在响应中**未发现** `page` 字段时，应按“单次全量结果”处理
+- 若响应中包含 `page`，客户端可根据产品交互选择手动“加载更多”或自动续拉
+- ChatLab 当前推荐在 UI 中使用手动“加载更多”，按 `hasMore / nextCursor` 拉取后续页面
+
+**分页一致性建议：**
+
+- 服务端应保证分页顺序稳定，推荐使用固定排序（例如 `lastMessageAt desc, id asc`）
+- `cursor` 必须与当前查询条件绑定；只要 `keyword` 变化，旧 `cursor` 就应视为失效
+- 不建议在 `/sessions` 发现接口中使用 `offset` 分页，避免在列表变化时出现重复或漏项
 
 ChatLab 在 UI 中展示该列表，用户选择需要导入的对话。
 

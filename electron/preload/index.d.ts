@@ -1034,6 +1034,16 @@ interface RemoteSession {
   lastMessageAt?: number
 }
 
+interface RemoteSessionDiscoveryPage {
+  hasMore: boolean
+  nextCursor?: string
+}
+
+interface RemoteSessionDiscoveryResult {
+  sessions: RemoteSession[]
+  page?: RemoteSessionDiscoveryPage
+}
+
 interface ApiServerApi {
   getConfig: () => Promise<ApiServerConfig>
   getStatus: () => Promise<ApiServerStatus>
@@ -1060,7 +1070,11 @@ interface ApiServerApi {
   removeImportSession: (sourceId: string, sessionId: string) => Promise<boolean>
   triggerPull: (sourceId: string, sessionId?: string) => Promise<{ success: boolean; error?: string }>
   triggerPullAll: (sourceId: string) => Promise<{ success: boolean; error?: string }>
-  fetchRemoteSessions: (baseUrl: string, token?: string) => Promise<RemoteSession[]>
+  fetchRemoteSessions: (
+    baseUrl: string,
+    token?: string,
+    query?: { keyword?: string; limit?: number; cursor?: string }
+  ) => Promise<RemoteSessionDiscoveryResult>
   onPullResult: (
     callback: (data: { sourceId: string; sessionId?: string; status: string; detail: string }) => void
   ) => () => void

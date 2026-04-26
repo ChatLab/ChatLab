@@ -114,13 +114,16 @@ export function registerApiHandlers(_ctx: IpcContext): void {
 
   // ==================== Remote Discovery ====================
 
-  ipcMain.handle('api:fetchRemoteSessions', async (_event, baseUrl: string, token: string) => {
-    try {
-      return await fetchRemoteSessions(baseUrl, token || undefined)
-    } catch (err: any) {
-      throw new Error(err.message || 'Failed to fetch remote sessions')
+  ipcMain.handle(
+    'api:fetchRemoteSessions',
+    async (_event, baseUrl: string, token: string, query?: { keyword?: string; limit?: number; cursor?: string }) => {
+      try {
+        return await fetchRemoteSessions(baseUrl, token || undefined, query)
+      } catch (err: any) {
+        throw new Error(err.message || 'Failed to fetch remote sessions')
+      }
     }
-  })
+  )
 }
 
 /**

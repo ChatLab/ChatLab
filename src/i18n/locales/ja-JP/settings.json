@@ -508,6 +508,8 @@
         "baseUrlPlaceholder": "例：http://127.0.0.1:2333/api/v1",
         "browse": "セッションを参照",
         "found": "{count} 件のセッションが見つかりました",
+        "search": "検索",
+        "searchPlaceholder": "セッション名で検索",
         "selectAll": "すべて選択",
         "deselectAll": "選択解除",
         "selectByType": "セッションタイプ",
@@ -515,6 +517,7 @@
         "typePrivate": "個人チャット",
         "typeGroup": "グループチャット",
         "typeOther": "その他",
+        "loadMore": "さらに読み込む",
         "subscribe": "{count} 件を購読",
         "messages": "件のメッセージ",
         "error": "リモートサーバーへの接続に失敗しました"

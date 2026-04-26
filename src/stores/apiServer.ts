@@ -51,6 +51,16 @@ export interface RemoteSession {
   lastMessageAt?: number
 }
 
+export interface RemoteSessionDiscoveryPage {
+  hasMore: boolean
+  nextCursor?: string
+}
+
+export interface RemoteSessionDiscoveryResult {
+  sessions: RemoteSession[]
+  page?: RemoteSessionDiscoveryPage
+}
+
 export const useApiServerStore = defineStore('apiServer', () => {
   const config = ref<ApiServerConfig>({
     enabled: false,
@@ -244,8 +254,12 @@ export const useApiServerStore = defineStore('apiServer', () => {
     })
   }
 
-  async function fetchRemoteSessions(baseUrl: string, token?: string): Promise<RemoteSession[]> {
-    return window.apiServerApi.fetchRemoteSessions(baseUrl, token)
+  async function fetchRemoteSessions(
+    baseUrl: string,
+    token?: string,
+    query?: { keyword?: string; limit?: number; cursor?: string }
+  ): Promise<RemoteSessionDiscoveryResult> {
+    return window.apiServerApi.fetchRemoteSessions(baseUrl, token, query)
   }
 
   return {

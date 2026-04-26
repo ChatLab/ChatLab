@@ -50,6 +50,16 @@ export interface RemoteSession {
   lastMessageAt?: number
 }
 
+export interface RemoteSessionDiscoveryPage {
+  hasMore: boolean
+  nextCursor?: string
+}
+
+export interface RemoteSessionDiscoveryResult {
+  sessions: RemoteSession[]
+  page?: RemoteSessionDiscoveryPage
+}
+
 export const apiServerApi = {
   // ==================== API 服务管理 ====================
 
@@ -128,8 +138,12 @@ export const apiServerApi = {
     return ipcRenderer.invoke('api:triggerPullAll', sourceId)
   },
 
-  fetchRemoteSessions: (baseUrl: string, token?: string): Promise<RemoteSession[]> => {
-    return ipcRenderer.invoke('api:fetchRemoteSessions', baseUrl, token || '')
+  fetchRemoteSessions: (
+    baseUrl: string,
+    token?: string,
+    query?: { keyword?: string; limit?: number; cursor?: string }
+  ): Promise<RemoteSessionDiscoveryResult> => {
+    return ipcRenderer.invoke('api:fetchRemoteSessions', baseUrl, token || '', query)
   },
 
   onPullResult: (

@@ -509,6 +509,8 @@
         "baseUrlPlaceholder": "示例：http://127.0.0.1:2333/api/v1",
         "browse": "浏览远程会话",
         "found": "发现 {count} 个会话",
+        "search": "搜索",
+        "searchPlaceholder": "按会话名称搜索",
         "selectAll": "全选",
         "deselectAll": "取消全选",
         "selectByType": "会话类型",
@@ -516,6 +518,7 @@
         "typePrivate": "私聊",
         "typeGroup": "群聊",
         "typeOther": "其他",
+        "loadMore": "加载更多",
         "subscribe": "订阅 {count} 个会话",
         "messages": "条消息",
         "error": "连接远程服务器失败"

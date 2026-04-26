@@ -509,6 +509,8 @@
         "baseUrlPlaceholder": "e.g. http://127.0.0.1:2333/api/v1",
         "browse": "Browse Sessions",
         "found": "Found {count} sessions",
+        "search": "Search",
+        "searchPlaceholder": "Search by session name",
         "selectAll": "Select All",
         "deselectAll": "Deselect All",
         "selectByType": "Session type",
@@ -516,6 +518,7 @@
         "typePrivate": "Private",
         "typeGroup": "Group",
         "typeOther": "Other",
+        "loadMore": "Load More",
         "subscribe": "Subscribe {count} sessions",
         "messages": "messages",
         "error": "Failed to connect to remote server"

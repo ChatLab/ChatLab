@@ -5,24 +5,26 @@
 
 import { net } from 'electron'
 import { normalizeBaseUrl } from './dataSource'
+import {
+  buildRemoteSessionsUrl,
+  parseRemoteSessionsResponse,
+  type RemoteSessionDiscoveryQuery,
+  type RemoteSessionDiscoveryResult,
+} from './pullDiscovery.shared'
 
-export interface RemoteSession {
-  id: string
-  name: string
-  platform: string
-  type: string
-  messageCount?: number
-  memberCount?: number
-  lastMessageAt?: number
-}
+export type { RemoteSession, RemoteSessionDiscoveryQuery, RemoteSessionDiscoveryResult } from './pullDiscovery.shared'
 
 /**
  * Fetch available sessions from a remote data source.
  * Calls GET {baseUrl}/sessions according to the Pull protocol.
  */
-export function fetchRemoteSessions(baseUrl: string, token?: string): Promise<RemoteSession[]> {
-  return new Promise<RemoteSession[]>((resolve, reject) => {
-    const url = normalizeBaseUrl(baseUrl) + '/sessions?format=chatlab&limit=10000'
+export function fetchRemoteSessions(
+  baseUrl: string,
+  token?: string,
+  query: RemoteSessionDiscoveryQuery = {}
+): Promise<RemoteSessionDiscoveryResult> {
+  return new Promise<RemoteSessionDiscoveryResult>((resolve, reject) => {
+    const url = buildRemoteSessionsUrl(normalizeBaseUrl(baseUrl), query)
 
     const request = net.request(url)
     if (token) {
@@ -44,11 +46,7 @@ export function fetchRemoteSessions(baseUrl: string, token?: string): Promise<Re
 
       response.on('end', () => {
         try {
-          const parsed = JSON.parse(body)
-          const sessions: RemoteSession[] = Array.isArray(parsed)
-            ? parsed
-            : (parsed.data?.sessions ?? parsed.sessions ?? [])
-          resolve(sessions)
+          resolve(parseRemoteSessionsResponse(body))
         } catch (err) {
           reject(new Error('Failed to parse remote sessions response'))
         }

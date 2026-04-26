@@ -508,6 +508,8 @@
         "baseUrlPlaceholder": "示例：http://127.0.0.1:2333/api/v1",
         "browse": "瀏覽遠端會話",
         "found": "發現 {count} 個會話",
+        "search": "搜尋",
+        "searchPlaceholder": "依會話名稱搜尋",
         "selectAll": "全選",
         "deselectAll": "取消全選",
         "selectByType": "會話類型",
@@ -515,6 +517,7 @@
         "typePrivate": "私訊",
         "typeGroup": "群組",
         "typeOther": "其他",
+        "loadMore": "載入更多",
         "subscribe": "訂閱 {count} 個會話",
         "messages": "則訊息",
         "error": "連線遠端伺服器失敗"
