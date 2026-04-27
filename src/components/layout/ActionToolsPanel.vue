@@ -1,32 +1,50 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useLayoutStore } from '@/stores/layout'
 
 const { t } = useI18n()
 const layoutStore = useLayoutStore()
-const { isToolsPanelLocked, isToolsPanelMini } = storeToRefs(layoutStore)
+const { isToolsPanelLocked, isToolsPanelMini, toolsPanelPosition, isToolsPanelOpen } = storeToRefs(layoutStore)
+
+const isHeaderMode = computed(() => toolsPanelPosition.value === 'header')
 
 const isHovered = ref(false)
 let hideTimer: ReturnType<typeof setTimeout> | null = null
 
-const isVisible = computed(() => isToolsPanelLocked.value || isHovered.value)
+const isVisible = computed(() => {
+  if (isHeaderMode.value) return isToolsPanelOpen.value
+  return isToolsPanelLocked.value || isHovered.value
+})
 
 function onMouseEnter() {
   if (hideTimer) {
     clearTimeout(hideTimer)
     hideTimer = null
   }
-  isHovered.value = true
+  if (!isHeaderMode.value) {
+    isHovered.value = true
+  }
 }
 
 function onMouseLeave() {
+  if (isHeaderMode.value) {
+    hideTimer = setTimeout(() => {
+      isToolsPanelOpen.value = false
+    }, 200)
+    return
+  }
   if (isToolsPanelLocked.value) return
   hideTimer = setTimeout(() => {
     isHovered.value = false
   }, 200)
 }
+
+watch(toolsPanelPosition, () => {
+  isToolsPanelOpen.value = false
+  isHovered.value = false
+})
 
 type ToolEvent =
   | 'openIncrementalImport'
@@ -41,7 +59,9 @@ const emit = defineEmits<{
 
 function handleToolClick(event: ToolEvent) {
   emit(event)
-  if (!isToolsPanelLocked.value) {
+  if (isHeaderMode.value) {
+    isToolsPanelOpen.value = false
+  } else if (!isToolsPanelLocked.value) {
     isHovered.value = false
   }
 }
@@ -86,8 +106,8 @@ const tools = [
 </script>
 
 <template>
-  <!-- Mini 模式：常驻竖条，只有图标 -->
-  <div v-if="isToolsPanelMini" class="fixed right-0 top-1/3">
+  <!-- Mini 模式：常驻竖条，只有图标（仅 side 模式） -->
+  <div v-if="!isHeaderMode && isToolsPanelMini" class="fixed right-0 top-1/3">
     <div
       class="no-capture flex flex-col items-center gap-0.5 rounded-l-lg border border-r-0 border-gray-200/60 bg-white py-1.5 shadow-sm dark:border-white/5 dark:bg-gray-900"
     >
@@ -116,17 +136,24 @@ const tools = [
     </div>
   </div>
 
-  <!-- 普通模式：hover 展开面板 -->
-  <div v-else class="fixed right-0 top-1/3 z-40" @mouseenter="onMouseEnter" @mouseleave="onMouseLeave">
-    <!-- Trigger 标签（面板隐藏时可见，面板展开时淡出） -->
+  <!-- 普通/header 模式：面板从右侧滑入 -->
+  <div
+    v-else
+    class="fixed right-0 z-40"
+    :class="isHeaderMode ? 'top-14' : 'top-1/3'"
+    @mouseenter="onMouseEnter"
+    @mouseleave="onMouseLeave"
+  >
+    <!-- Trigger 标签（仅 side 模式） -->
     <div
+      v-if="!isHeaderMode"
       class="h-10 w-6 cursor-pointer items-center justify-center rounded-l-lg border border-r-0 border-primary-200 bg-primary-50 text-primary-500 shadow-sm transition-opacity duration-200 hover:bg-primary-100 hover:text-primary-600 dark:border-primary-800 dark:bg-primary-950 dark:text-primary-400 dark:hover:bg-primary-900 dark:hover:text-primary-300"
       :class="isVisible ? 'pointer-events-none flex opacity-0' : 'flex opacity-100'"
     >
       <UIcon name="i-heroicons-wrench-screwdriver" class="h-3.5 w-3.5" />
     </div>
 
-    <!-- 面板（覆盖在 trigger 上方，从右侧滑入） -->
+    <!-- 面板（从右侧滑入） -->
     <div
       class="absolute right-0 top-0 transition-all duration-250 ease-in-out"
       :class="isVisible ? 'translate-x-0 opacity-100' : 'pointer-events-none translate-x-full opacity-0'"
@@ -138,7 +165,7 @@ const tools = [
           <span class="px-0.5 text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
             {{ t('analysis.overview.tools') }}
           </span>
-          <div class="flex items-center gap-0.5">
+          <div v-if="!isHeaderMode" class="flex items-center gap-0.5">
             <!-- Mini 模式按钮 -->
             <UTooltip :text="t('analysis.toolsPanel.miniMode')" :popper="{ placement: 'left' }">
               <button

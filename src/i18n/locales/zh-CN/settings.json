@@ -48,6 +48,12 @@
       "openAtLoginDesc": "系统启动时自动运行 ChatLab",
       "devModeHint": "开发模式下不可用"
     },
+    "toolsPanel": {
+      "positionLabel": "快捷工具入口位置",
+      "positionDesc": "选择快捷工具面板的显示位置",
+      "positionSide": "右侧",
+      "positionHeader": "顶部"
+    },
     "screenshot": {
       "title": "截图设置",
       "mobileAdapt": "移动端适配",

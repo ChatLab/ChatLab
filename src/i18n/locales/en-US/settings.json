@@ -48,6 +48,12 @@
       "openAtLoginDesc": "Automatically start ChatLab when the system boots",
       "devModeHint": "Not available in dev mode"
     },
+    "toolsPanel": {
+      "positionLabel": "Tools Panel Position",
+      "positionDesc": "Choose where the quick tools panel appears",
+      "positionSide": "Side",
+      "positionHeader": "Header"
+    },
     "screenshot": {
       "title": "Screenshot",
       "mobileAdapt": "Mobile Adaptation",

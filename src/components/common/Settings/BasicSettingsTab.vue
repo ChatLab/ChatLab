@@ -14,7 +14,7 @@ const { t } = useI18n()
 // Store
 const layoutStore = useLayoutStore()
 const settingsStore = useSettingsStore()
-const { screenshotMobileAdapt } = storeToRefs(layoutStore)
+const { screenshotMobileAdapt, toolsPanelPosition } = storeToRefs(layoutStore)
 const { locale, defaultSessionTab } = storeToRefs(settingsStore)
 
 // Auto Launch
@@ -69,6 +69,12 @@ const currentLocale = computed({
 const defaultTabOptions = computed(() => [
   { label: t('settings.basic.defaultTab.overview'), value: 'overview' },
   { label: t('settings.basic.defaultTab.aiChat'), value: 'ai-chat' },
+])
+
+// Tools panel position options
+const toolsPanelPositionOptions = computed(() => [
+  { label: t('settings.basic.toolsPanel.positionHeader'), value: 'header' },
+  { label: t('settings.basic.toolsPanel.positionSide'), value: 'side' },
 ])
 
 // Sync theme with main process
@@ -154,6 +160,20 @@ watch(
           </div>
           <div class="w-64">
             <UTabs v-model="defaultSessionTab" size="sm" class="gap-0" :items="defaultTabOptions"></UTabs>
+          </div>
+        </div>
+        <div class="border-t border-gray-200 dark:border-gray-700"></div>
+        <div class="flex items-center justify-between p-4">
+          <div class="flex-1 pr-4">
+            <p class="text-sm font-medium text-gray-900 dark:text-white">
+              {{ t('settings.basic.toolsPanel.positionLabel') }}
+            </p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              {{ t('settings.basic.toolsPanel.positionDesc') }}
+            </p>
+          </div>
+          <div class="w-64">
+            <UTabs v-model="toolsPanelPosition" size="sm" class="gap-0" :items="toolsPanelPositionOptions"></UTabs>
           </div>
         </div>
         <div class="border-t border-gray-200 dark:border-gray-700"></div>

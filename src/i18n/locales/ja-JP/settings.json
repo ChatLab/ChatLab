@@ -48,6 +48,12 @@
       "openAtLoginDesc": "システム起動時に ChatLab を自動的に実行します",
       "devModeHint": "開発モードでは利用できません"
     },
+    "toolsPanel": {
+      "positionLabel": "ツールパネルの位置",
+      "positionDesc": "クイックツールパネルの表示位置を選択します",
+      "positionSide": "サイド",
+      "positionHeader": "ヘッダー"
+    },
     "screenshot": {
       "title": "スクリーンショット設定",
       "mobileAdapt": "モバイル対応",

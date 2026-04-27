@@ -16,6 +16,8 @@ export const useLayoutStore = defineStore(
 
     const isToolsPanelLocked = ref(false)
     const isToolsPanelMini = ref(false)
+    const toolsPanelPosition = ref<'side' | 'header'>('header')
+    const isToolsPanelOpen = ref(false)
 
     // 截图设置
     const screenshotMobileAdapt = ref(false) // 截图时开启移动端适配，默认关闭
@@ -72,6 +74,10 @@ export const useLayoutStore = defineStore(
       isToolsPanelLocked.value = !isToolsPanelLocked.value
     }
 
+    function toggleToolsPanelOpen() {
+      isToolsPanelOpen.value = !isToolsPanelOpen.value
+    }
+
     /**
      * 打开设置弹窗，可选指定 Tab 和 SubTab
      */
@@ -96,6 +102,8 @@ export const useLayoutStore = defineStore(
       isSidebarCollapsed,
       isToolsPanelLocked,
       isToolsPanelMini,
+      toolsPanelPosition,
+      isToolsPanelOpen,
       showScreenCaptureModal,
       screenCaptureImage,
       showChatRecordDrawer,
@@ -106,6 +114,7 @@ export const useLayoutStore = defineStore(
       settingsSubTab,
       toggleSidebar,
       toggleToolsPanelLock,
+      toggleToolsPanelOpen,
       toggleToolsPanelMini,
       openScreenCaptureModal,
       closeScreenCaptureModal,
@@ -122,7 +131,7 @@ export const useLayoutStore = defineStore(
         storage: sessionStorage,
       },
       {
-        pick: ['screenshotMobileAdapt', 'isToolsPanelLocked', 'isToolsPanelMini'],
+        pick: ['screenshotMobileAdapt', 'isToolsPanelLocked', 'isToolsPanelMini', 'toolsPanelPosition'],
         storage: localStorage,
       },
     ],

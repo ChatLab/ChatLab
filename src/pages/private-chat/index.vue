@@ -141,6 +141,15 @@ const otherMemberAvatar = computed(() => {
         icon-class="bg-pink-600 text-white dark:bg-pink-500 dark:text-white"
       >
         <template #actions>
+          <UTooltip v-if="layoutStore.toolsPanelPosition === 'header'" :text="t('analysis.overview.tools')">
+            <UButton
+              icon="i-heroicons-wrench-screwdriver"
+              variant="ghost"
+              color="primary"
+              size="sm"
+              @click="layoutStore.toggleToolsPanelOpen()"
+            />
+          </UTooltip>
           <CaptureButton />
         </template>
         <!-- Tabs -->
