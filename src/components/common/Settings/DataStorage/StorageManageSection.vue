@@ -346,7 +346,7 @@ defineExpose({
     </div>
 
     <!-- 切换数据目录确认弹窗 -->
-    <UModal v-model:open="showConfirmModal">
+    <UModal v-model:open="showConfirmModal" :ui="{ content: 'z-[101]', overlay: 'z-[100]' }">
       <template #content>
         <div class="p-5">
           <div class="mb-4 flex items-center gap-3">
@@ -390,7 +390,7 @@ defineExpose({
     </UModal>
 
     <!-- 迁移成功后强制重启弹窗 -->
-    <UModal v-model:open="showRelaunchModal" :dismissible="false">
+    <UModal v-model:open="showRelaunchModal" :dismissible="false" :ui="{ content: 'z-[101]', overlay: 'z-[100]' }">
       <template #content>
         <div class="p-5">
           <div class="mb-4 flex items-center gap-3">

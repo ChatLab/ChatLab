@@ -168,7 +168,7 @@ async function saveConfig() {
 </script>
 
 <template>
-  <UModal v-model:open="isOpen">
+  <UModal v-model:open="isOpen" :ui="{ content: 'z-[101]', overlay: 'z-[100]' }">
     <template #content>
       <UCard>
         <template #header>
