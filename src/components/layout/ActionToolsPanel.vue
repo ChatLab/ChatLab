@@ -120,7 +120,7 @@ const tools = [
   <div v-else class="fixed right-0 top-1/3 z-40" @mouseenter="onMouseEnter" @mouseleave="onMouseLeave">
     <!-- Trigger 标签（面板隐藏时可见，面板展开时淡出） -->
     <div
-      class="h-10 w-6 cursor-pointer items-center justify-center rounded-l-lg border border-r-0 border-gray-200 bg-white text-gray-400 shadow-sm transition-opacity duration-200 hover:bg-gray-50 hover:text-gray-600 dark:border-white/10 dark:bg-gray-800 dark:text-gray-500 dark:hover:bg-gray-700 dark:hover:text-gray-300"
+      class="h-10 w-6 cursor-pointer items-center justify-center rounded-l-lg border border-r-0 border-primary-200 bg-primary-50 text-primary-500 shadow-sm transition-opacity duration-200 hover:bg-primary-100 hover:text-primary-600 dark:border-primary-800 dark:bg-primary-950 dark:text-primary-400 dark:hover:bg-primary-900 dark:hover:text-primary-300"
       :class="isVisible ? 'pointer-events-none flex opacity-0' : 'flex opacity-100'"
     >
       <UIcon name="i-heroicons-wrench-screwdriver" class="h-3.5 w-3.5" />

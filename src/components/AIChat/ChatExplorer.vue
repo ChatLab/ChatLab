@@ -310,22 +310,9 @@ watch(
             class="relative min-h-0 flex-1 overflow-x-hidden overflow-y-auto p-4"
             :class="{ 'p-0!': messages.length === 0 && !isAIThinking }"
           >
-            <!-- 空状态全局背景光 -->
-            <div
-              v-if="messages.length === 0 && !isAIThinking"
-              class="pointer-events-none absolute left-1/2 top-0 -z-10 h-full w-full max-w-[800px] -translate-x-1/2 overflow-hidden opacity-50"
-            >
-              <div
-                class="absolute -top-10 left-1/4 h-80 w-80 rounded-full bg-blue-400/20 blur-[80px] dark:bg-blue-500/20"
-              ></div>
-              <div
-                class="absolute -top-10 right-1/4 h-80 w-80 rounded-full bg-pink-400/20 blur-[80px] dark:bg-pink-500/20"
-              ></div>
-            </div>
-
             <div
               ref="conversationContentRef"
-              class="relative z-10 mx-auto max-w-3xl space-y-6"
+              class="mx-auto max-w-3xl space-y-6"
               :class="{
                 'flex min-h-full flex-col justify-center px-4 pb-32 pt-4 space-y-0!':
                   messages.length === 0 && !isAIThinking,
