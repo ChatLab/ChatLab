@@ -562,6 +562,16 @@ interface LlmApi {
     baseUrl?: string,
     model?: string
   ) => Promise<{ success: boolean; error?: string }>
+  fetchRemoteModels: (
+    provider: string,
+    apiKey: string,
+    baseUrl?: string,
+    apiFormat?: string
+  ) => Promise<{
+    success: boolean
+    models?: Array<{ id: string; name: string; ownedBy?: string }>
+    error?: string
+  }>
   hasConfig: () => Promise<boolean>
 
   // 聊天功能

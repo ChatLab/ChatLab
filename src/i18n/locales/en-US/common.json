@@ -14,6 +14,7 @@
   "loading": "Loading...",
   "initializing": "Initializing...",
   "noData": "No data",
+  "noResults": "No results found",
   "export": "Export",
   "exportSuccess": "Export successful",
   "exportFailed": "Export failed",

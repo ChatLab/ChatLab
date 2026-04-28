@@ -14,6 +14,7 @@
   "loading": "読み込み中...",
   "initializing": "初期化中...",
   "noData": "データがありません",
+  "noResults": "結果が見つかりません",
   "export": "エクスポート",
   "exportSuccess": "エクスポートに成功しました",
   "exportFailed": "エクスポートに失敗しました",

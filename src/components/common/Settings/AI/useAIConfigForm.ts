@@ -317,6 +317,97 @@ export function useAIConfigForm(props: {
     }
   }
 
+  // ============ 远程模型获取 ============
+
+  const isFetchingModels = ref(false)
+  const remoteModels = ref<Array<{ id: string; name: string; ownedBy?: string }>>([])
+  const remoteModelsError = ref('')
+  const showRemoteModelBrowser = ref(false)
+
+  const addedModelIds = computed(() => {
+    if (isCompatMode.value) {
+      return new Set(compatModels.value.map((m) => m.id))
+    }
+    return new Set(catalogModels.value.map((m) => m.id))
+  })
+
+  const effectiveApiFormat = computed(() => {
+    if (isPresetMode.value) {
+      return BUILTIN_PROVIDER_API[formData.value.provider] || API_FORMAT_DEFAULT
+    }
+    return formData.value.apiFormat || API_FORMAT_DEFAULT
+  })
+
+  const canFetchModels = computed(() => {
+    if (effectiveApiFormat.value === 'anthropic-messages') return false
+    const baseUrl = formData.value.baseUrl || currentProviderDef.value?.defaultBaseUrl || ''
+    const apiKey = formData.value.apiKey || (isLocalMode.value ? 'sk-no-key-required' : '')
+    return !!(baseUrl.trim() && apiKey.trim())
+  })
+
+  async function fetchRemoteModels() {
+    const baseUrl = formData.value.baseUrl || currentProviderDef.value?.defaultBaseUrl || ''
+    const apiKey = formData.value.apiKey || (isLocalMode.value ? 'sk-no-key-required' : '')
+    if (!baseUrl || !apiKey) return
+
+    isFetchingModels.value = true
+    remoteModelsError.value = ''
+    showRemoteModelBrowser.value = true
+
+    try {
+      const result = await window.llmApi.fetchRemoteModels(
+        formData.value.provider || 'openai-compatible',
+        apiKey,
+        baseUrl,
+        effectiveApiFormat.value
+      )
+      if (result.success && result.models) {
+        remoteModels.value = result.models
+      } else {
+        remoteModelsError.value = result.error || t('settings.aiConfig.modal.fetchModelsError')
+      }
+    } catch (error) {
+      remoteModelsError.value = String(error)
+    } finally {
+      isFetchingModels.value = false
+    }
+  }
+
+  async function addRemoteModel(model: { id: string; name: string }) {
+    if (isCompatMode.value) {
+      if (!compatModels.value.some((m) => m.id === model.id)) {
+        compatModels.value.push({ id: model.id, name: model.name })
+      }
+    } else {
+      const providerId = formData.value.provider || 'openai-compatible'
+      if (!catalogModels.value.some((m) => m.id === model.id)) {
+        try {
+          await window.llmApi.addCustomModel({
+            id: model.id,
+            providerId,
+            name: model.name,
+            capabilities: ['chat'],
+            recommendedFor: [],
+            description: '',
+            status: 'stable',
+          })
+          await llmStore.refreshConfigs()
+        } catch {
+          // already exists
+        }
+      }
+    }
+    if (!formData.value.model) {
+      formData.value.model = model.id
+    }
+  }
+
+  async function addAllRemoteModels(models: Array<{ id: string; name: string }>) {
+    for (const model of models) {
+      await addRemoteModel(model)
+    }
+  }
+
   // ============ 自定义模型 CRUD ============
 
   function openAddModelDialog() {
@@ -621,6 +712,14 @@ export function useAIConfigForm(props: {
     modalTitle,
     resolvedApiUrl,
 
+    // 远程模型
+    isFetchingModels,
+    remoteModels,
+    remoteModelsError,
+    showRemoteModelBrowser,
+    addedModelIds,
+    canFetchModels,
+
     // 方法
     selectProvider,
     onConnectionModeChange,
@@ -631,5 +730,8 @@ export function useAIConfigForm(props: {
     saveConfig,
     confirmSaveAnyway,
     cancelSave,
+    fetchRemoteModels,
+    addRemoteModel,
+    addAllRemoteModels,
   }
 }

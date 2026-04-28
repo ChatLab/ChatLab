@@ -14,6 +14,7 @@
   "loading": "加载中...",
   "initializing": "初始化中...",
   "noData": "暂无数据",
+  "noResults": "无匹配结果",
   "export": "导出",
   "exportSuccess": "导出成功",
   "exportFailed": "导出失败",

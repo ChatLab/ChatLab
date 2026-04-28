@@ -667,6 +667,18 @@ export const llmApi = {
   },
 
   /**
+   * 获取远程模型列表
+   */
+  fetchRemoteModels: (
+    provider: string,
+    apiKey: string,
+    baseUrl?: string,
+    apiFormat?: string
+  ): Promise<{ success: boolean; models?: Array<{ id: string; name: string; ownedBy?: string }>; error?: string }> => {
+    return ipcRenderer.invoke('llm:fetchRemoteModels', provider, apiKey, baseUrl, apiFormat)
+  },
+
+  /**
    * 检查是否已配置 LLM（是否有激活的配置）
    */
   hasConfig: (): Promise<boolean> => {

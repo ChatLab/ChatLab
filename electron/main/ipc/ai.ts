@@ -519,6 +519,22 @@ export function registerAIHandlers({ win }: IpcContext): void {
   )
 
   /**
+   * 获取远程模型列表
+   */
+  ipcMain.handle(
+    'llm:fetchRemoteModels',
+    async (_, provider: string, apiKey: string, baseUrl?: string, apiFormat?: string) => {
+      aiLogger.info('IPC', 'llm:fetchRemoteModels', { provider, baseUrl, apiFormat })
+      try {
+        return await llm.fetchRemoteModels(provider, apiKey, baseUrl, apiFormat)
+      } catch (error) {
+        aiLogger.error('IPC', 'llm:fetchRemoteModels failed', { error: String(error) })
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    }
+  )
+
+  /**
    * 检查是否已配置 LLM（是否有激活的配置）
    */
   ipcMain.handle('llm:hasConfig', async () => {

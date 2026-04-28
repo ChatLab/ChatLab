@@ -4,6 +4,7 @@ import { toRefs } from 'vue'
 import UITabs from '@/components/UI/Tabs.vue'
 import AlertTips from './AlertTips.vue'
 import ApiKeyInput from './ApiKeyInput.vue'
+import RemoteModelBrowser from './RemoteModelBrowser.vue'
 import { useAIConfigForm, type AIServiceConfig, type Provider } from './useAIConfigForm'
 
 const { t } = useI18n()
@@ -47,6 +48,12 @@ const {
   apiFormatItems,
   modalTitle,
   resolvedApiUrl,
+  isFetchingModels,
+  remoteModels,
+  remoteModelsError,
+  showRemoteModelBrowser,
+  addedModelIds,
+  canFetchModels,
   selectProvider,
   onConnectionModeChange,
   openAddModelDialog,
@@ -56,6 +63,9 @@ const {
   saveConfig,
   confirmSaveAnyway,
   cancelSave,
+  fetchRemoteModels,
+  addRemoteModel,
+  addAllRemoteModels,
 } = useAIConfigForm({
   ...toRefs(props),
   onClose: () => emit('update:open', false),
@@ -204,6 +214,14 @@ function closeModal() {
 
                 <div class="mt-2 flex items-center gap-2">
                   <button
+                    v-if="canFetchModels"
+                    class="flex items-center gap-1 rounded-md border border-dashed border-primary-300 px-2 py-1 text-xs text-primary-500 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-primary-700 dark:text-primary-400 dark:hover:border-primary-500"
+                    @click="fetchRemoteModels"
+                  >
+                    <UIcon name="i-heroicons-cloud-arrow-down" class="h-3.5 w-3.5" />
+                    {{ t('settings.aiConfig.modal.fetchModels') }}
+                  </button>
+                  <button
                     v-if="currentProviderDef?.supportsCustomModels"
                     class="flex items-center gap-1 rounded-md border border-dashed border-gray-300 px-2 py-1 text-xs text-gray-500 transition-colors hover:border-primary-400 hover:text-primary-500 dark:border-gray-600 dark:text-gray-400 dark:hover:border-primary-500 dark:hover:text-primary-400"
                     @click="openAddModelDialog"
@@ -274,6 +292,14 @@ function closeModal() {
                 </p>
 
                 <div class="mt-2 flex items-center gap-2">
+                  <button
+                    v-if="canFetchModels"
+                    class="flex items-center gap-1 rounded-md border border-dashed border-primary-300 px-2 py-1 text-xs text-primary-500 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-primary-700 dark:text-primary-400 dark:hover:border-primary-500"
+                    @click="fetchRemoteModels"
+                  >
+                    <UIcon name="i-heroicons-cloud-arrow-down" class="h-3.5 w-3.5" />
+                    {{ t('settings.aiConfig.modal.fetchModels') }}
+                  </button>
                   <button
                     v-if="currentProviderDef?.supportsCustomModels"
                     class="flex items-center gap-1 rounded-md border border-dashed border-gray-300 px-2 py-1 text-xs text-gray-500 transition-colors hover:border-primary-400 hover:text-primary-500 dark:border-gray-600 dark:text-gray-400 dark:hover:border-primary-500 dark:hover:text-primary-400"
@@ -369,6 +395,14 @@ function closeModal() {
                 </p>
 
                 <div class="mt-2 flex items-center gap-2">
+                  <button
+                    v-if="canFetchModels"
+                    class="flex items-center gap-1 rounded-md border border-dashed border-primary-300 px-2 py-1 text-xs text-primary-500 transition-colors hover:border-primary-400 hover:text-primary-600 dark:border-primary-700 dark:text-primary-400 dark:hover:border-primary-500"
+                    @click="fetchRemoteModels"
+                  >
+                    <UIcon name="i-heroicons-cloud-arrow-down" class="h-3.5 w-3.5" />
+                    {{ t('settings.aiConfig.modal.fetchModels') }}
+                  </button>
                   <button
                     v-if="currentProviderDef?.supportsCustomModels"
                     class="flex items-center gap-1 rounded-md border border-dashed border-gray-300 px-2 py-1 text-xs text-gray-500 transition-colors hover:border-primary-400 hover:text-primary-500 dark:border-gray-600 dark:text-gray-400 dark:hover:border-primary-500 dark:hover:text-primary-400"
@@ -488,6 +522,18 @@ function closeModal() {
       </div>
     </template>
   </UModal>
+
+  <!-- 远程模型浏览弹窗 -->
+  <RemoteModelBrowser
+    v-model:open="showRemoteModelBrowser"
+    :models="remoteModels"
+    :loading="isFetchingModels"
+    :error="remoteModelsError"
+    :added-model-ids="addedModelIds"
+    @add="addRemoteModel"
+    @add-all="addAllRemoteModels"
+    @refresh="fetchRemoteModels"
+  />
 
   <!-- 添加自定义模型小弹窗 -->
   <UModal

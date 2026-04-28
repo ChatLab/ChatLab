@@ -521,6 +521,112 @@ export function buildPiModel(config: AIServiceConfig): PiModel<PiApi> {
   }
 }
 
+// ==================== 远程模型列表获取 ====================
+
+export interface RemoteModel {
+  id: string
+  name: string
+  ownedBy?: string
+}
+
+export interface FetchRemoteModelsResult {
+  success: boolean
+  models?: RemoteModel[]
+  error?: string
+}
+
+/**
+ * 根据 API 格式决定 baseUrl 到 /models 端点的映射：
+ * - openai-completions / openai-responses → {resolvedBaseUrl}/models
+ * - google-generative-ai → {baseUrl}/v1beta/models?key={apiKey}
+ * - anthropic-messages → 不支持
+ */
+export async function fetchRemoteModels(
+  provider: string,
+  apiKey: string,
+  baseUrl?: string,
+  apiFormat?: string
+): Promise<FetchRemoteModelsResult> {
+  const effectiveApiFormat = apiFormat || 'openai-completions'
+
+  if (effectiveApiFormat === 'anthropic-messages') {
+    return { success: false, error: 'Anthropic does not support model listing via API' }
+  }
+
+  const rawBaseUrl = baseUrl || getBuiltinProviderById(provider)?.defaultBaseUrl || ''
+  if (!rawBaseUrl) {
+    return { success: false, error: 'No base URL provided' }
+  }
+
+  const abortController = new AbortController()
+  const timeout = setTimeout(() => abortController.abort(), 15000)
+
+  try {
+    let url: string
+    const headers: Record<string, string> = {
+      ...buildChatLabUserAgentHeaders(),
+    }
+
+    if (effectiveApiFormat === 'google-generative-ai') {
+      const trimmed = rawBaseUrl.replace(/\/+$/, '').replace(/\/v1(beta)?$/, '')
+      url = `${trimmed}/v1beta/models?key=${apiKey}`
+    } else {
+      // openai-completions / openai-responses: resolve /v1 auto
+      let resolved = rawBaseUrl.replace(/\/+$/, '')
+      try {
+        const parsed = new URL(resolved)
+        if (!resolved.endsWith('/v1') && (parsed.pathname === '/' || parsed.pathname === '')) {
+          resolved = resolved + '/v1'
+        }
+      } catch {
+        // ignore
+      }
+      url = `${resolved}/models`
+      headers['Authorization'] = `Bearer ${apiKey}`
+    }
+
+    aiLogger.info('LLM', 'Fetching remote models', { url: url.replace(/key=[^&]+/, 'key=***'), provider })
+
+    const response = await fetch(url, {
+      method: 'GET',
+      headers,
+      signal: abortController.signal,
+    })
+
+    if (!response.ok) {
+      const body = await response.text().catch(() => '')
+      return { success: false, error: `HTTP ${response.status}: ${body.slice(0, 200)}` }
+    }
+
+    const json = await response.json()
+
+    let models: RemoteModel[]
+
+    if (effectiveApiFormat === 'google-generative-ai') {
+      const geminiModels = (json.models || []) as Array<{ name?: string; displayName?: string }>
+      models = geminiModels.map((m) => {
+        const id = (m.name || '').replace(/^models\//, '')
+        return { id, name: m.displayName || id, ownedBy: 'google' }
+      })
+    } else {
+      // OpenAI-standard format: { data: [{ id, owned_by }] }
+      const data = (json.data || []) as Array<{ id?: string; owned_by?: string }>
+      models = data.filter((m) => m.id).map((m) => ({ id: m.id!, name: m.id!, ownedBy: m.owned_by }))
+    }
+
+    aiLogger.info('LLM', `Fetched ${models.length} remote models`, { provider })
+    return { success: true, models }
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error)
+    if (message.includes('aborted') || message.includes('AbortError')) {
+      return { success: false, error: 'Request timed out (15s)' }
+    }
+    return { success: false, error: message }
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
 export async function validateApiKey(
   provider: LLMProvider,
   apiKey: string,
