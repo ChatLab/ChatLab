@@ -564,6 +564,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     const initialBufferKey = getDisplayedBufferKey(state)
     let resolvedConversationId = initialBufferKey === DRAFT_CONVERSATION_KEY ? null : initialBufferKey
     const targetBuffer = getOrCreateBuffer(state, initialBufferKey, state.selectedAssistantId)
+    // 在 try 外部声明，以便 catch 块能正确引用当前轮次的用户消息
+    let currentUserMessage: ChatMessage | undefined
 
     targetBuffer.assistantId = state.selectedAssistantId
     targetBuffer.loaded = true
@@ -622,6 +624,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         timestamp: Date.now(),
         toolCalls: [],
       }
+      currentUserMessage = userMessage
       targetBuffer.messages.push(userMessage)
 
       const aiMessage: ChatMessage = {
@@ -945,7 +948,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         lastMessage.contentBlocks = [...blocks]
         lastMessage.isStreaming = false
 
-        const userMsg = targetBuffer.messages.find((m) => m.role === 'user')
+        // 优先使用当前轮次的用户消息，避免多轮对话取到第一条历史消息
+        const userMsg = currentUserMessage || targetBuffer.messages.findLast((m) => m.role === 'user')
         if (userMsg) {
           await saveConversation(resolvedConversationId, userMsg, lastMessage)
         }

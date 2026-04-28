@@ -499,9 +499,9 @@ export function buildPiModel(config: AIServiceConfig): PiModel<PiApi> {
     }
   }
 
-  // openai-compatible + openai-completions：自动补全 /v1（用户经常忘记）
+  // openai-compatible + openai-completions/openai-responses：自动补全 /v1（用户经常忘记）
   const resolvedBaseUrl =
-    config.provider === 'openai-compatible' && apiFormat === 'openai-completions'
+    config.provider === 'openai-compatible' && (apiFormat === 'openai-completions' || apiFormat === 'openai-responses')
       ? normalizeOpenAICompatibleBaseUrl(baseUrl)
       : baseUrl
 
