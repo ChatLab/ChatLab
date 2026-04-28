@@ -14,6 +14,7 @@ import {
   type AssistantMessage as PiAssistantMessage,
   type Message as PiMessage,
   type Usage as PiUsage,
+  streamSimple,
 } from '@mariozechner/pi-ai'
 
 import type { AgentConfig, AgentStreamChunk, AgentResult, SkillContext } from './types'
@@ -104,6 +105,18 @@ export class Agent {
     let debugLastLoggedCount = 0
     let debugLlmRound = 1
 
+    // 捕获最后一次 LLM 调用的请求体（用于错误诊断）
+    let lastRequestPayload: unknown = null
+    const errorCapturingStreamFn: typeof streamSimple = (model, context, options) => {
+      return streamSimple(model, context, {
+        ...options,
+        onPayload: (payload) => {
+          lastRequestPayload = payload
+          options?.onPayload?.(payload)
+        },
+      })
+    }
+
     // 初始化 PiAgentCore
     const coreAgent = new PiAgentCore({
       initialState: {
@@ -111,6 +124,7 @@ export class Agent {
         thinkingLevel: this.piModel.reasoning ? 'medium' : 'off',
       },
       getApiKey: () => this.apiKey,
+      streamFn: errorCapturingStreamFn,
       convertToLlm: (messages) => {
         const filtered = messages.filter(
           (msg): msg is PiMessage => msg.role === 'user' || msg.role === 'assistant' || msg.role === 'toolResult'
@@ -199,7 +213,45 @@ export class Agent {
       }
 
       if (coreAgent.state.error) {
-        throw new Error(coreAgent.state.error)
+        const agentError = new Error(coreAgent.state.error) as Error & {
+          agentContext?: {
+            provider?: string
+            model?: string
+            api?: string
+            url?: string
+            requestBody?: string
+          }
+        }
+        const lastMsg = [...coreAgent.state.messages].reverse().find((m) => m.role === 'assistant') as
+          | (PiAssistantMessage & { provider?: string; model?: string; api?: string })
+          | undefined
+        const ctx: NonNullable<typeof agentError.agentContext> = {}
+        if (lastMsg) {
+          ctx.provider = lastMsg.provider
+          ctx.model = lastMsg.model
+          ctx.api = lastMsg.api
+        }
+        // 从 model.baseUrl 和 api 类型构造完整请求 URL
+        const baseUrl = (this.piModel as Record<string, unknown>).baseUrl as string | undefined
+        if (baseUrl) {
+          const apiType = lastMsg?.api || (this.piModel as Record<string, unknown>).api
+          const pathMap: Record<string, string> = {
+            'openai-completions': '/chat/completions',
+            'openai-responses': '/responses',
+            'anthropic-messages': '/messages',
+          }
+          const apiPath = typeof apiType === 'string' ? pathMap[apiType] : undefined
+          ctx.url = apiPath ? baseUrl.replace(/\/+$/, '') + apiPath : baseUrl
+        }
+        if (lastRequestPayload) {
+          try {
+            ctx.requestBody = JSON.stringify(lastRequestPayload, null, 2)
+          } catch {
+            // ignore
+          }
+        }
+        agentError.agentContext = ctx
+        throw agentError
       }
 
       // 提取最终回复

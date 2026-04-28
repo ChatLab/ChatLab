@@ -5,6 +5,7 @@ import dayjs from 'dayjs'
 import MarkdownIt from 'markdown-it'
 import type { ContentBlock, ToolBlockContent } from '@/composables/useAIChat'
 import CaptureButton from '@/components/common/CaptureButton.vue'
+import ErrorBlock from './ErrorBlock.vue'
 import { useToast } from '@/composables/useToast'
 
 const { t, te, locale } = useI18n()
@@ -406,6 +407,9 @@ async function handleCopyMarkdown() {
                 </span>
               </div>
             </div>
+
+            <!-- 错误块 -->
+            <ErrorBlock v-else-if="block.type === 'error'" :error="block.error" />
           </template>
 
           <!-- 流式处理中指示器（当最后一个块是已完成的工具块时显示） -->

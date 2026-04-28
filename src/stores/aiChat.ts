@@ -12,7 +12,7 @@ import { useSessionStore } from '@/stores/session'
 import { useSettingsStore } from '@/stores/settings'
 import { useAssistantStore } from '@/stores/assistant'
 import { useSkillStore } from '@/stores/skill'
-import type { TokenUsage, AgentRuntimeStatus } from '@electron/shared/types'
+import type { TokenUsage, AgentRuntimeStatus, SerializedErrorInfo } from '@electron/shared/types'
 
 // 工具调用记录
 export interface ToolCallRecord {
@@ -49,6 +49,7 @@ export type ContentBlock =
       tool: ToolBlockContent
     }
   | { type: 'skill'; skillId: string; skillName: string }
+  | { type: 'error'; error: SerializedErrorInfo }
 
 // 消息类型
 export interface ChatMessage {
@@ -867,8 +868,12 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               }
               if (!hasStreamError) {
                 hasStreamError = true
-                appendTextToBlocks(`\n\n❌ 处理失败：${chunk.error || '未知错误'}`)
-                updateAIMessage({ isStreaming: false })
+                const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
+                blocks.push({
+                  type: 'error',
+                  error: chunk.error || { name: null, message: '未知错误', stack: null },
+                })
+                updateAIMessage({ contentBlocks: [...blocks], isStreaming: false })
               }
               setAgentPhase(state, 'error')
               break
@@ -908,11 +913,19 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
         await saveConversation(resolvedConversationId, userMessage, targetBuffer.messages[aiMessageIndex])
       } else if (!hasStreamError) {
-        appendTextToBlocks(`\n\n❌ 处理失败：${result.error || '未知错误'}`)
+        const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
+        blocks.push({
+          type: 'error',
+          error: result.error || { name: null, message: '未知错误', stack: null },
+        })
         targetBuffer.messages[aiMessageIndex] = {
           ...targetBuffer.messages[aiMessageIndex],
+          contentBlocks: [...blocks],
           isStreaming: false,
         }
+        await saveConversation(resolvedConversationId, userMessage, targetBuffer.messages[aiMessageIndex])
+      } else {
+        await saveConversation(resolvedConversationId, userMessage, targetBuffer.messages[aiMessageIndex])
       }
 
       return { success: true }
@@ -922,13 +935,20 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
       const lastMessage = targetBuffer.messages[targetBuffer.messages.length - 1]
       if (lastMessage && lastMessage.role === 'assistant') {
-        lastMessage.content = `❌ 处理失败：${error instanceof Error ? error.message : '未知错误'}
-
-请检查：
-- 网络连接是否正常
-- API Key 是否有效
-- 配置是否正确`
+        const errInfo: SerializedErrorInfo = {
+          name: error instanceof Error ? error.name : null,
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? (error.stack ?? null) : null,
+        }
+        const blocks = lastMessage.contentBlocks || []
+        blocks.push({ type: 'error', error: errInfo })
+        lastMessage.contentBlocks = [...blocks]
         lastMessage.isStreaming = false
+
+        const userMsg = targetBuffer.messages.find((m) => m.role === 'user')
+        if (userMsg) {
+          await saveConversation(resolvedConversationId, userMsg, lastMessage)
+        }
       }
 
       return { success: false, reason: 'error' }

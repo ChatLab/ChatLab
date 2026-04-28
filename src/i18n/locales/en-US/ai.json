@@ -193,6 +193,24 @@
         "noMessages": "No messages to export"
       }
     },
+    "error": {
+      "title": "Processing Failed",
+      "detail": "Error Details",
+      "viewDetail": "View Details",
+      "requestUrl": "Request URL",
+      "statusCode": "Status Code",
+      "responseBody": "Response Body",
+      "responseHeaders": "Response Headers",
+      "requestBody": "Request Body",
+      "name": "Error Name",
+      "message": "Error Message",
+      "stack": "Stack Trace",
+      "cause": "Error Cause",
+      "provider": "Provider",
+      "copyAll": "Copy All",
+      "copied": "Copied to clipboard",
+      "unknown": "Unknown error"
+    },
     "dataSource": {
       "title": "Data Source",
       "keywords": "Keywords:",

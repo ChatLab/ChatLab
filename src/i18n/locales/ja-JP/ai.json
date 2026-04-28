@@ -193,6 +193,24 @@
         "noMessages": "会話にメッセージがありません"
       }
     },
+    "error": {
+      "title": "処理に失敗しました",
+      "detail": "エラー詳細",
+      "viewDetail": "詳細を表示",
+      "requestUrl": "リクエストURL",
+      "statusCode": "ステータスコード",
+      "responseBody": "レスポンスボディ",
+      "responseHeaders": "レスポンスヘッダー",
+      "requestBody": "リクエストボディ",
+      "name": "エラー名",
+      "message": "エラーメッセージ",
+      "stack": "スタックトレース",
+      "cause": "エラー原因",
+      "provider": "プロバイダー",
+      "copyAll": "すべてコピー",
+      "copied": "クリップボードにコピーしました",
+      "unknown": "不明なエラー"
+    },
     "dataSource": {
       "title": "データソース",
       "keywords": "キーワード:",

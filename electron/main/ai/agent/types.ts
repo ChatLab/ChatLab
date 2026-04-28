@@ -2,9 +2,9 @@
  * Agent 模块类型定义
  */
 
-import type { TokenUsage, AgentRuntimeStatus } from '../../../shared/types'
+import type { TokenUsage, AgentRuntimeStatus, SerializedErrorInfo } from '../../../shared/types'
 
-export type { TokenUsage, AgentRuntimeStatus } from '../../../shared/types'
+export type { TokenUsage, AgentRuntimeStatus, SerializedErrorInfo } from '../../../shared/types'
 
 /**
  * Agent 配置
@@ -36,8 +36,8 @@ export interface AgentStreamChunk {
   toolParams?: Record<string, unknown>
   /** 工具执行结果（type=tool_result 时） */
   toolResult?: unknown
-  /** 错误信息（type=error 时） */
-  error?: string
+  /** 结构化错误信息（type=error 时） */
+  error?: SerializedErrorInfo
   /** 是否完成 */
   isFinished?: boolean
   /** Token 使用量（type=done 时返回累计值） */
@@ -58,6 +58,8 @@ export interface AgentResult {
   toolRounds: number
   /** 总 Token 使用量（累计所有 LLM 调用） */
   totalUsage?: TokenUsage
+  /** 结构化错误信息（请求失败时） */
+  error?: SerializedErrorInfo
 }
 
 /**

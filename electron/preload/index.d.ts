@@ -1,6 +1,6 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 import type { AnalysisSession, MessageType, ImportProgress, ExportProgress } from '../../src/types/base'
-import type { TokenUsage, AgentRuntimeStatus } from '../shared/types'
+import type { TokenUsage, AgentRuntimeStatus, SerializedErrorInfo } from '../shared/types'
 import type {
   MemberActivity,
   MemberNameHistory,
@@ -672,7 +672,7 @@ interface AgentStreamChunk {
   toolParams?: Record<string, unknown>
   toolResult?: unknown
   status?: AgentRuntimeStatus
-  error?: string
+  error?: SerializedErrorInfo
   isFinished?: boolean
   /** Token 使用量（type=done 时返回累计值） */
   usage?: TokenUsage
@@ -684,6 +684,7 @@ interface AgentResult {
   toolRounds: number
   /** 总 Token 使用量（累计所有 LLM 调用） */
   totalUsage?: TokenUsage
+  error?: SerializedErrorInfo
 }
 
 /** Owner 信息（当前用户在对话中的身份） */
@@ -768,7 +769,7 @@ interface AgentApi {
     assistantId?: string,
     skillId?: string | null,
     enableAutoSkill?: boolean
-  ) => { requestId: string; promise: Promise<{ success: boolean; result?: AgentResult; error?: string }> }
+  ) => { requestId: string; promise: Promise<{ success: boolean; result?: AgentResult; error?: SerializedErrorInfo }> }
   abort: (requestId: string) => Promise<{ success: boolean; error?: string }>
 }
 
@@ -1213,6 +1214,7 @@ export {
   AgentStreamChunk,
   AgentRuntimeStatus,
   AgentResult,
+  SerializedErrorInfo,
   ToolContext,
   DesensitizeRule,
   PreprocessConfig,

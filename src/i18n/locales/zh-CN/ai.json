@@ -193,6 +193,24 @@
         "noMessages": "对话没有消息"
       }
     },
+    "error": {
+      "title": "处理失败",
+      "detail": "错误详情",
+      "viewDetail": "查看详情",
+      "requestUrl": "请求路径",
+      "statusCode": "状态码",
+      "responseBody": "响应内容",
+      "responseHeaders": "响应头",
+      "requestBody": "请求体",
+      "name": "错误名称",
+      "message": "错误信息",
+      "stack": "堆栈信息",
+      "cause": "错误原因",
+      "provider": "服务商",
+      "copyAll": "复制全部",
+      "copied": "已复制到剪贴板",
+      "unknown": "未知错误"
+    },
     "dataSource": {
       "title": "数据源",
       "keywords": "关键词:",

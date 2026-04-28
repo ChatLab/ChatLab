@@ -193,6 +193,24 @@
         "noMessages": "對話沒有訊息"
       }
     },
+    "error": {
+      "title": "處理失敗",
+      "detail": "錯誤詳情",
+      "viewDetail": "查看詳情",
+      "requestUrl": "請求路徑",
+      "statusCode": "狀態碼",
+      "responseBody": "回應內容",
+      "responseHeaders": "回應標頭",
+      "requestBody": "請求主體",
+      "name": "錯誤名稱",
+      "message": "錯誤訊息",
+      "stack": "堆疊資訊",
+      "cause": "錯誤原因",
+      "provider": "服務商",
+      "copyAll": "複製全部",
+      "copied": "已複製到剪貼簿",
+      "unknown": "未知錯誤"
+    },
     "dataSource": {
       "title": "資料來源",
       "keywords": "關鍵字:",
