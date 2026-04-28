@@ -78,14 +78,14 @@ const memberChartData = computed<EChartPieData>(() => {
       <!-- 消息类型分布 -->
       <SectionCard :title="t('analysis.overview.messageTypeDistribution')" :show-divider="false">
         <div class="p-5">
-          <EChartPie :data="typeChartData" :height="256" />
+          <EChartPie :data="typeChartData" :height="280" />
         </div>
       </SectionCard>
 
       <!-- 成员水群分布 -->
       <SectionCard :title="t('analysis.overview.memberDistribution')" :show-divider="false">
         <div class="p-5">
-          <EChartPie :data="memberChartData" :height="256" />
+          <EChartPie :data="memberChartData" :height="280" />
         </div>
       </SectionCard>
     </div>

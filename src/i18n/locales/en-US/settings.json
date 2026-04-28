@@ -207,11 +207,6 @@
     "notExist": "Not exist",
     "clear": "Clear",
     "open": "Open",
-    "notes": {
-      "title": "Notes",
-      "logSafe": "Log files are mainly for debugging and can be safely cleared",
-      "noRecover": "All cleared files cannot be recovered, please proceed with caution"
-    },
     "cache": {
       "databases": {
         "name": "Chat Databases",

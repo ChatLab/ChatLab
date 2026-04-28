@@ -207,11 +207,6 @@
     "notExist": "不存在",
     "clear": "清理",
     "open": "打开",
-    "notes": {
-      "title": "注意事项",
-      "logSafe": "日志文件主要用于排查BUG，可以安全清理",
-      "noRecover": "所有文件清理后无法恢复，请谨慎操作"
-    },
     "cache": {
       "databases": {
         "name": "聊天记录数据库",

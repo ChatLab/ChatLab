@@ -336,20 +336,6 @@ defineExpose({
       </p>
     </div>
 
-    <!-- 提示信息 -->
-    <div class="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800/50 dark:bg-amber-900/20">
-      <div class="flex items-start gap-2">
-        <UIcon name="i-heroicons-exclamation-triangle" class="h-4 w-4 shrink-0 text-amber-500" />
-        <div class="text-xs text-amber-700 dark:text-amber-400">
-          <p class="font-medium">{{ t('settings.storage.notes.title') }}</p>
-          <ul class="mt-1 list-inside list-disc space-y-0.5 text-amber-600 dark:text-amber-500">
-            <li>{{ t('settings.storage.notes.logSafe') }}</li>
-            <li>{{ t('settings.storage.notes.noRecover') }}</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-
     <!-- 切换数据目录确认弹窗 -->
     <UModal v-model:open="showConfirmModal" :ui="{ content: 'z-[101]', overlay: 'z-[100]' }">
       <template #content>
