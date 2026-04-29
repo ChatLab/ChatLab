@@ -87,6 +87,7 @@ export function useAIConfigForm(props: {
   const showAddModelDialog = ref(false)
   const newModelName = ref('')
   const newModelId = ref('')
+  const newModelContextWindow = ref<number | undefined>(undefined)
   const compatModels = ref<Array<{ id: string; name: string }>>([])
 
   const formData = ref({
@@ -151,6 +152,13 @@ export function useAIConfigForm(props: {
     }
     const model = catalogModels.value.find((m) => m.id === formData.value.model)
     return model ? !model.builtin : false
+  })
+
+  const selectedModelContextWindow = computed(() => {
+    if (!formData.value.model) return undefined
+    const providerId = formData.value.provider || 'openai-compatible'
+    const model = llmStore.getModelById(providerId, formData.value.model)
+    return model?.contextWindow
   })
 
   const canSave = computed(() => {
@@ -320,7 +328,7 @@ export function useAIConfigForm(props: {
   // ============ 远程模型获取 ============
 
   const isFetchingModels = ref(false)
-  const remoteModels = ref<Array<{ id: string; name: string; ownedBy?: string }>>([])
+  const remoteModels = ref<Array<{ id: string; name: string; ownedBy?: string; contextWindow?: number }>>([])
   const remoteModelsError = ref('')
   const showRemoteModelBrowser = ref(false)
 
@@ -362,7 +370,12 @@ export function useAIConfigForm(props: {
         effectiveApiFormat.value
       )
       if (result.success && result.models) {
-        remoteModels.value = result.models
+        const providerId = formData.value.provider || 'openai-compatible'
+        remoteModels.value = result.models.map((m) => {
+          if (m.contextWindow) return m
+          const catalogModel = llmStore.getModelById(providerId, m.id)
+          return catalogModel?.contextWindow ? { ...m, contextWindow: catalogModel.contextWindow } : m
+        })
       } else {
         remoteModelsError.value = result.error || t('settings.aiConfig.modal.fetchModelsError')
       }
@@ -373,7 +386,7 @@ export function useAIConfigForm(props: {
     }
   }
 
-  async function addRemoteModel(model: { id: string; name: string }) {
+  async function addRemoteModel(model: { id: string; name: string; contextWindow?: number }) {
     if (isCompatMode.value) {
       if (!compatModels.value.some((m) => m.id === model.id)) {
         compatModels.value.push({ id: model.id, name: model.name })
@@ -386,6 +399,7 @@ export function useAIConfigForm(props: {
             id: model.id,
             providerId,
             name: model.name,
+            contextWindow: model.contextWindow || undefined,
             capabilities: ['chat'],
             recommendedFor: [],
             description: '',
@@ -413,6 +427,7 @@ export function useAIConfigForm(props: {
   function openAddModelDialog() {
     newModelName.value = ''
     newModelId.value = ''
+    newModelContextWindow.value = undefined
     showAddModelDialog.value = true
   }
 
@@ -437,6 +452,7 @@ export function useAIConfigForm(props: {
         id: modelId,
         providerId,
         name: modelName,
+        contextWindow: newModelContextWindow.value || undefined,
         capabilities: ['chat'],
         recommendedFor: [],
         description: '',
@@ -448,6 +464,33 @@ export function useAIConfigForm(props: {
     } catch (error) {
       console.error('添加自定义模型失败：', error)
     }
+  }
+
+  const showEditModelDialog = ref(false)
+  const editModelContextWindow = ref<number | undefined>(undefined)
+
+  function openEditModelDialog() {
+    const modelId = formData.value.model
+    if (!modelId) return
+    const providerId = formData.value.provider || 'openai-compatible'
+    const model = llmStore.getModelById(providerId, modelId)
+    editModelContextWindow.value = model?.contextWindow ?? undefined
+    showEditModelDialog.value = true
+  }
+
+  async function confirmEditModel() {
+    const modelId = formData.value.model
+    if (!modelId) return
+    const providerId = formData.value.provider || 'openai-compatible'
+    try {
+      await window.llmApi.updateCustomModel(providerId, modelId, {
+        contextWindow: editModelContextWindow.value || undefined,
+      })
+      await llmStore.refreshConfigs()
+    } catch (error) {
+      console.error('编辑模型失败：', error)
+    }
+    showEditModelDialog.value = false
   }
 
   async function deleteCustomModel(modelId: string) {
@@ -693,6 +736,7 @@ export function useAIConfigForm(props: {
     showAddModelDialog,
     newModelName,
     newModelId,
+    newModelContextWindow,
     formData,
     validationResult,
     validationMessage,
@@ -707,6 +751,7 @@ export function useAIConfigForm(props: {
     isCompatMode,
     modelTabItems,
     selectedModelIsCustom,
+    selectedModelContextWindow,
     canSave,
     apiFormatItems,
     modalTitle,
@@ -720,11 +765,17 @@ export function useAIConfigForm(props: {
     addedModelIds,
     canFetchModels,
 
+    // 编辑模型
+    showEditModelDialog,
+    editModelContextWindow,
+
     // 方法
     selectProvider,
     onConnectionModeChange,
     openAddModelDialog,
     confirmAddModel,
+    openEditModelDialog,
+    confirmEditModel,
     deleteCustomModel,
     validateKey,
     saveConfig,

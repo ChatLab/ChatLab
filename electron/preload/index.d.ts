@@ -569,7 +569,7 @@ interface LlmApi {
     apiFormat?: string
   ) => Promise<{
     success: boolean
-    models?: Array<{ id: string; name: string; ownedBy?: string }>
+    models?: Array<{ id: string; name: string; ownedBy?: string; contextWindow?: number }>
     error?: string
   }>
   hasConfig: () => Promise<boolean>

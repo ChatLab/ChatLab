@@ -674,7 +674,11 @@ export const llmApi = {
     apiKey: string,
     baseUrl?: string,
     apiFormat?: string
-  ): Promise<{ success: boolean; models?: Array<{ id: string; name: string; ownedBy?: string }>; error?: string }> => {
+  ): Promise<{
+    success: boolean
+    models?: Array<{ id: string; name: string; ownedBy?: string; contextWindow?: number }>
+    error?: string
+  }> => {
     return ipcRenderer.invoke('llm:fetchRemoteModels', provider, apiKey, baseUrl, apiFormat)
   },
 

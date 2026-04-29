@@ -58,6 +58,15 @@ export function getProviderDefinitionById(id: string): ProviderDefinition | null
   return getBuiltinProviderById(id) || loadCustomProviders().find((p) => p.id === id) || null
 }
 
+/** 按 providerId + modelId 查找模型定义（内置优先，再查自定义） */
+export function findModelDefinition(providerId: string, modelId: string): ModelDefinition | null {
+  return (
+    getBuiltinModelById(providerId, modelId) ||
+    loadCustomModels().find((m) => m.providerId === providerId && m.id === modelId) ||
+    null
+  )
+}
+
 function providerDefinitionToInfo(def: ProviderDefinition): ProviderInfo {
   const models = getBuiltinModelsByProvider(def.id)
   return {
@@ -454,6 +463,8 @@ function normalizeOpenAICompatibleBaseUrl(url: string): string {
   return trimmed
 }
 
+const DEFAULT_CONTEXT_WINDOW = 128000
+
 export function buildPiModel(config: AIServiceConfig): PiModel<PiApi> {
   const providerDef = getBuiltinProviderById(config.provider)
   const providerInfo = getProviderInfo(config.provider)
@@ -461,6 +472,9 @@ export function buildPiModel(config: AIServiceConfig): PiModel<PiApi> {
   const modelId = config.model || providerInfo?.models?.[0]?.id || ''
 
   validateProviderBaseUrl(config.provider, baseUrl)
+
+  const modelDef = findModelDefinition(config.provider, modelId)
+  const contextWindow = modelDef?.contextWindow ?? DEFAULT_CONTEXT_WINDOW
 
   const BUILTIN_PROVIDER_API: Record<string, PiApi> = {
     gemini: 'google-generative-ai',
@@ -479,7 +493,7 @@ export function buildPiModel(config: AIServiceConfig): PiModel<PiApi> {
       reasoning: false,
       input: ['text'],
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      contextWindow: 1048576,
+      contextWindow,
       maxTokens: config.maxTokens ?? 8192,
     }
   }
@@ -494,7 +508,7 @@ export function buildPiModel(config: AIServiceConfig): PiModel<PiApi> {
       reasoning: false,
       input: ['text'],
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-      contextWindow: 200000,
+      contextWindow,
       maxTokens: config.maxTokens ?? 8192,
     }
   }
@@ -515,7 +529,7 @@ export function buildPiModel(config: AIServiceConfig): PiModel<PiApi> {
     reasoning: config.isReasoningModel ?? false,
     input: ['text'],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
-    contextWindow: 128000,
+    contextWindow,
     maxTokens: config.maxTokens ?? 4096,
     compat: config.disableThinking ? { thinkingFormat: 'qwen' } : undefined,
   }
@@ -527,6 +541,7 @@ export interface RemoteModel {
   id: string
   name: string
   ownedBy?: string
+  contextWindow?: number
 }
 
 export interface FetchRemoteModelsResult {
@@ -603,15 +618,35 @@ export async function fetchRemoteModels(
     let models: RemoteModel[]
 
     if (effectiveApiFormat === 'google-generative-ai') {
-      const geminiModels = (json.models || []) as Array<{ name?: string; displayName?: string }>
+      const geminiModels = (json.models || []) as Array<{
+        name?: string
+        displayName?: string
+        inputTokenLimit?: number
+      }>
       models = geminiModels.map((m) => {
         const id = (m.name || '').replace(/^models\//, '')
-        return { id, name: m.displayName || id, ownedBy: 'google' }
+        return {
+          id,
+          name: m.displayName || id,
+          ownedBy: 'google',
+          contextWindow: m.inputTokenLimit || undefined,
+        }
       })
     } else {
-      // OpenAI-standard format: { data: [{ id, owned_by }] }
-      const data = (json.data || []) as Array<{ id?: string; owned_by?: string }>
-      models = data.filter((m) => m.id).map((m) => ({ id: m.id!, name: m.id!, ownedBy: m.owned_by }))
+      // OpenAI-standard format: { data: [{ id, owned_by, context_length? }] }
+      const data = (json.data || []) as Array<{
+        id?: string
+        owned_by?: string
+        context_length?: number
+      }>
+      models = data
+        .filter((m) => m.id)
+        .map((m) => ({
+          id: m.id!,
+          name: m.id!,
+          ownedBy: m.owned_by,
+          contextWindow: m.context_length || undefined,
+        }))
     }
 
     aiLogger.info('LLM', `Fetched ${models.length} remote models`, { provider })

@@ -34,6 +34,7 @@ export interface ModelDefinition {
   providerId: string
   name: string
   description?: string
+  contextWindow?: number
   capabilities: ModelCapability[]
   recommendedFor: ModelRecommendedFor[]
   status: ModelStatus
