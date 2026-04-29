@@ -53,6 +53,7 @@
     "fastify": "^5.8.4",
     "gray-matter": "^4.0.3",
     "i18next": "^25.8.5",
+    "js-tiktoken": "^1.0.21",
     "markdown-it": "^14.1.0",
     "stream-json": "^1.9.1",
     "vue-i18n": "^11.2.8"

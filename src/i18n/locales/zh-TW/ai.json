@@ -82,6 +82,12 @@
         "unanswered_messages": "未回覆訊息"
       },
       "generating": "正在產生回覆...",
+      "summary": {
+        "label": "上下文摘要",
+        "expand": "展開摘要",
+        "collapse": "收起摘要",
+        "info": "以上對話已被壓縮為摘要以節省上下文空間"
+      },
       "think": {
         "labels": {
           "think": "已思考",
@@ -157,7 +163,7 @@
           "error": "錯誤"
         }
       },
-      "tokenUsageTitle": "本次對話累計 Token 用量",
+      "tokenUsageTitle": "累計 Token 用量",
       "export": {
         "label": "匯出",
         "title": "匯出當前對話"
@@ -167,6 +173,16 @@
         "title": "開啟當前 AI 日誌檔案",
         "openFailed": "開啟日誌失敗",
         "openFailedDesc": "請稍後重試"
+      },
+      "compress": {
+        "label": "壓縮",
+        "title": "手動壓縮上下文",
+        "compressing": "正在壓縮...",
+        "success": "上下文已壓縮",
+        "successDesc": "{before} → {after} tokens",
+        "skipped": "跳過壓縮",
+        "skippedDesc": "訊息不足，無需壓縮",
+        "failed": "壓縮失敗"
       },
       "status": {
         "connected": "AI 已連線",

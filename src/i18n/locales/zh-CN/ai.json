@@ -82,6 +82,12 @@
         "unanswered_messages": "未回复消息"
       },
       "generating": "正在生成回复...",
+      "summary": {
+        "label": "上下文摘要",
+        "expand": "展开摘要",
+        "collapse": "收起摘要",
+        "info": "以上对话已被压缩为摘要以节省上下文空间"
+      },
       "think": {
         "labels": {
           "think": "已思考",
@@ -157,7 +163,7 @@
           "error": "错误"
         }
       },
-      "tokenUsageTitle": "本次会话累计 Token 使用量",
+      "tokenUsageTitle": "累计 Token 使用量",
       "export": {
         "label": "导出",
         "title": "导出当前对话"
@@ -167,6 +173,16 @@
         "title": "打开当前 AI 日志文件",
         "openFailed": "打开日志失败",
         "openFailedDesc": "请稍后重试"
+      },
+      "compress": {
+        "label": "压缩",
+        "title": "手动压缩上下文",
+        "compressing": "正在压缩...",
+        "success": "上下文已压缩",
+        "successDesc": "{before} → {after} tokens",
+        "skipped": "跳过压缩",
+        "skippedDesc": "消息不足，无需压缩",
+        "failed": "压缩失败"
       },
       "status": {
         "connected": "AI 已连接",

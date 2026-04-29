@@ -6,15 +6,20 @@
  */
 
 import type { AgentTool } from '@mariozechner/pi-agent-core'
-import type { ToolContext } from './types'
+import type { ToolContext, TruncationStrategy } from './types'
 import { TOOL_REGISTRY } from './definitions'
 
 const CORE_TOOL_NAMES = new Set(TOOL_REGISTRY.filter((e) => e.category === 'core').map((e) => e.name))
 import { t as i18nT } from '../../i18n'
 import { preprocessMessages, type PreprocessableMessage } from '../preprocessor'
 import { formatMessageCompact } from './utils/format'
+import { countTokens } from '../tokenizer'
 import { getSkillConfig } from '../skills'
 import type { SkillDef } from '../skills/types'
+
+const TRUNCATION_STRATEGY_MAP = new Map<string, TruncationStrategy>(
+  TOOL_REGISTRY.filter((e) => e.truncationStrategy).map((e) => [e.name, e.truncationStrategy!])
+)
 
 // 导出类型
 export * from './types'
@@ -128,12 +133,35 @@ function wrapWithPreprocessing(tool: AgentTool<any>, context: ToolContext): Agen
         nameMapLine = anonymizeMessageNames(processed, context.ownerInfo?.platformId)
       }
 
-      const formatted = processed.map((m) => formatMessageCompact(m, context.locale))
+      let formatted = processed.map((m) => formatMessageCompact(m, context.locale))
+
+      // Token-aware 截断：超出预算时按策略裁剪消息列表
+      let wasTruncated = false
+      const originalCount = formatted.length
+      if (context.maxToolResultTokens && context.maxToolResultTokens > 0) {
+        const truncResult = truncateFormattedMessages(
+          formatted,
+          context.maxToolResultTokens,
+          TRUNCATION_STRATEGY_MAP.get(tool.name) ?? 'keep_last'
+        )
+        if (truncResult.wasTruncated) {
+          formatted = truncResult.messages
+          wasTruncated = true
+        }
+      }
 
       const { rawMessages: _rawMessages, ...restDetails } = details
-      const finalDetails = { ...restDetails, messages: formatted, returned: processed.length }
+      const finalDetails = { ...restDetails, messages: formatted, returned: formatted.length }
 
       let textContent = formatToolResultAsText(finalDetails)
+
+      if (wasTruncated) {
+        const strategy = TRUNCATION_STRATEGY_MAP.get(tool.name) ?? 'keep_last'
+        const strategyDesc = strategy === 'keep_first' ? 'most relevant' : 'most recent'
+        const notice = `⚠️ Results truncated: ${originalCount} messages found, showing ${formatted.length} ${strategyDesc} due to context limit. Use a narrower time range or more specific keywords for more precise results.`
+        textContent = notice + '\n' + textContent
+      }
+
       if (nameMapLine) {
         textContent = nameMapLine + '\n' + textContent
       }
@@ -143,6 +171,51 @@ function wrapWithPreprocessing(tool: AgentTool<any>, context: ToolContext): Agen
         details: finalDetails,
       }
     },
+  }
+}
+
+/**
+ * Token-aware 截断：在 token 预算内保留尽可能多的消息
+ */
+function truncateFormattedMessages(
+  formatted: string[],
+  maxTokens: number,
+  strategy: TruncationStrategy
+): { messages: string[]; wasTruncated: boolean } {
+  // 预留 token 给元数据头部和截断提示
+  const budget = maxTokens - 200
+
+  // 先快速估算总 token，如果未超预算则直接返回
+  let totalTokens = 0
+  for (const line of formatted) {
+    totalTokens += countTokens(line) + 1
+  }
+  if (totalTokens <= budget) {
+    return { messages: formatted, wasTruncated: false }
+  }
+
+  if (strategy === 'keep_first') {
+    let tokens = 0
+    let cutIndex = formatted.length
+    for (let i = 0; i < formatted.length; i++) {
+      tokens += countTokens(formatted[i]) + 1
+      if (tokens > budget) {
+        cutIndex = i
+        break
+      }
+    }
+    return { messages: formatted.slice(0, cutIndex), wasTruncated: cutIndex < formatted.length }
+  } else {
+    let tokens = 0
+    let cutIndex = 0
+    for (let i = formatted.length - 1; i >= 0; i--) {
+      tokens += countTokens(formatted[i]) + 1
+      if (tokens > budget) {
+        cutIndex = i + 1
+        break
+      }
+    }
+    return { messages: formatted.slice(cutIndex), wasTruncated: cutIndex > 0 }
   }
 }
 

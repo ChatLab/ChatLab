@@ -82,6 +82,12 @@
         "unanswered_messages": "Unanswered Messages"
       },
       "generating": "Generating response...",
+      "summary": {
+        "label": "Context Summary",
+        "expand": "Expand summary",
+        "collapse": "Collapse summary",
+        "info": "Previous conversation has been compressed into a summary to save context space"
+      },
       "think": {
         "labels": {
           "think": "Thinking",
@@ -157,7 +163,7 @@
           "error": "Err"
         }
       },
-      "tokenUsageTitle": "Total token usage in this session",
+      "tokenUsageTitle": "Total token usage",
       "export": {
         "label": "Export",
         "title": "Export current conversation"
@@ -167,6 +173,16 @@
         "title": "Open current AI log file",
         "openFailed": "Failed to open log",
         "openFailedDesc": "Please try again later"
+      },
+      "compress": {
+        "label": "Compress",
+        "title": "Manually compress context",
+        "compressing": "Compressing...",
+        "success": "Context compressed",
+        "successDesc": "{before} → {after} tokens",
+        "skipped": "Compression skipped",
+        "skippedDesc": "Not enough messages to compress",
+        "failed": "Compression failed"
       },
       "status": {
         "connected": "AI Connected",

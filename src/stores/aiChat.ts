@@ -54,7 +54,7 @@ export type ContentBlock =
 // 消息类型
 export interface ChatMessage {
   id: string
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'summary'
   content: string
   timestamp: number
   dataSource?: {
@@ -97,6 +97,7 @@ interface ConversationBuffer {
   currentKeywords: string[]
   assistantId: string | null
   loaded: boolean
+  sessionTokenUsage?: TokenUsage
 }
 
 export interface AIChatSessionState {
@@ -284,12 +285,21 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
    * 这里只切换显示，不会影响后台正在推理的 buffer。
    */
   function bindDisplayedBuffer(state: AIChatSessionState, bufferKey: string): void {
+    // 保存当前对话的 token 使用量
+    const currentKey = state.currentConversationId ?? DRAFT_CONVERSATION_KEY
+    const currentBuffer = state.conversationBuffers[currentKey]
+    if (currentBuffer) {
+      currentBuffer.sessionTokenUsage = { ...state.sessionTokenUsage }
+    }
+
     const buffer = getOrCreateBuffer(state, bufferKey)
     state.currentConversationId = bufferKey === DRAFT_CONVERSATION_KEY ? null : bufferKey
     state.messages = buffer.messages
     state.sourceMessages = buffer.sourceMessages
     state.currentKeywords = buffer.currentKeywords
     state.selectedAssistantId = buffer.assistantId
+    state.sessionTokenUsage = buffer.sessionTokenUsage ? { ...buffer.sessionTokenUsage } : createEmptyTokenUsage()
+    state.agentStatus = null
   }
 
   function renameBufferKey(state: AIChatSessionState, fromKey: string, toKey: string): ConversationBuffer {
@@ -435,7 +445,10 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       const buffer = getOrCreateBuffer(state, conversationId, conversation?.assistantId ?? null)
 
       if (!buffer.loaded) {
-        const history = await window.aiApi.getMessages(conversationId)
+        const [history, tokenUsage] = await Promise.all([
+          window.aiApi.getMessages(conversationId),
+          window.aiApi.getConversationTokenUsage(conversationId),
+        ])
         buffer.messages.splice(
           0,
           buffer.messages.length,
@@ -449,6 +462,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         )
         buffer.sourceMessages.splice(0, buffer.sourceMessages.length)
         buffer.currentKeywords.splice(0, buffer.currentKeywords.length)
+        buffer.sessionTokenUsage = tokenUsage
         buffer.loaded = true
       }
 
@@ -566,6 +580,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     const targetBuffer = getOrCreateBuffer(state, initialBufferKey, state.selectedAssistantId)
     // 在 try 外部声明，以便 catch 块能正确引用当前轮次的用户消息
     let currentUserMessage: ChatMessage | undefined
+    let lastDoneUsage: TokenUsage | undefined
 
     targetBuffer.assistantId = state.selectedAssistantId
     targetBuffer.loaded = true
@@ -753,7 +768,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         updateActiveTaskConversationId(chatKey, conversation.id)
       }
 
-      const maxHistoryRounds = aiGlobalSettings.value.maxHistoryRounds ?? 5
       const preprocessConfig = settingsStore.aiPreprocessConfig
       const hasPreprocess =
         preprocessConfig.dataCleaning ||
@@ -852,6 +866,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
             case 'done':
               state.currentToolStatus = null
               if (chunk.usage) {
+                lastDoneUsage = { ...chunk.usage }
                 state.sessionTokenUsage = {
                   promptTokens: state.sessionTokenUsage.promptTokens + chunk.usage.promptTokens,
                   completionTokens: state.sessionTokenUsage.completionTokens + chunk.usage.completionTokens,
@@ -884,10 +899,16 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         },
         state.chatType,
         state.locale,
-        maxHistoryRounds,
         currentAssistantId,
         currentSkillId,
-        !currentSkillId ? autoSkillEnabled : undefined
+        !currentSkillId ? autoSkillEnabled : undefined,
+        {
+          enabled: aiGlobalSettings.value.contextCompression?.enabled ?? false,
+          tokenThresholdPercent: aiGlobalSettings.value.contextCompression?.tokenThresholdPercent ?? 75,
+          bufferSizePercent: aiGlobalSettings.value.contextCompression?.bufferSizePercent ?? 20,
+          compressionModelConfigId: aiGlobalSettings.value.contextCompression?.compressionModelConfigId,
+          maxToolResultPercent: aiGlobalSettings.value.contextCompression?.maxToolResultPercent ?? 50,
+        }
       )
 
       state.currentAgentRequestId = agentReqId
@@ -914,7 +935,12 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           isStreaming: false,
         }
 
-        await saveConversation(resolvedConversationId, userMessage, targetBuffer.messages[aiMessageIndex])
+        await saveConversation(
+          resolvedConversationId,
+          userMessage,
+          targetBuffer.messages[aiMessageIndex],
+          lastDoneUsage
+        )
       } else if (!hasStreamError) {
         const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
         blocks.push({
@@ -926,9 +952,19 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           contentBlocks: [...blocks],
           isStreaming: false,
         }
-        await saveConversation(resolvedConversationId, userMessage, targetBuffer.messages[aiMessageIndex])
+        await saveConversation(
+          resolvedConversationId,
+          userMessage,
+          targetBuffer.messages[aiMessageIndex],
+          lastDoneUsage
+        )
       } else {
-        await saveConversation(resolvedConversationId, userMessage, targetBuffer.messages[aiMessageIndex])
+        await saveConversation(
+          resolvedConversationId,
+          userMessage,
+          targetBuffer.messages[aiMessageIndex],
+          lastDoneUsage
+        )
       }
 
       return { success: true }
@@ -951,7 +987,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         // 优先使用当前轮次的用户消息，避免多轮对话取到第一条历史消息
         const userMsg = currentUserMessage || targetBuffer.messages.findLast((m) => m.role === 'user')
         if (userMsg) {
-          await saveConversation(resolvedConversationId, userMsg, lastMessage)
+          await saveConversation(resolvedConversationId, userMsg, lastMessage, lastDoneUsage)
         }
       }
 
@@ -970,7 +1006,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
   async function saveConversation(
     conversationId: string | null,
     userMsg: ChatMessage,
-    aiMsg: ChatMessage
+    aiMsg: ChatMessage,
+    tokenUsage?: TokenUsage
   ): Promise<void> {
     try {
       if (!conversationId) {
@@ -987,7 +1024,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         aiMsg.content,
         undefined,
         undefined,
-        serializableContentBlocks
+        serializableContentBlocks,
+        tokenUsage
       )
     } catch (error) {
       console.error('[AI] 保存对话失败：', error)

@@ -12,8 +12,6 @@ export type { TokenUsage, AgentRuntimeStatus, SerializedErrorInfo } from '../../
 export interface AgentConfig {
   /** 最大工具调用轮数（防止无限循环） */
   maxToolRounds?: number
-  /** 注入模型的历史消息上限（user+assistant） */
-  contextHistoryLimit?: number
   /** 中止信号，用于取消执行 */
   abortSignal?: AbortSignal
 }

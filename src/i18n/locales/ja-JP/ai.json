@@ -82,6 +82,12 @@
         "unanswered_messages": "未返信メッセージ"
       },
       "generating": "回答を作成中...",
+      "summary": {
+        "label": "コンテキスト要約",
+        "expand": "要約を展開",
+        "collapse": "要約を折りたたむ",
+        "info": "以前の会話がコンテキスト節約のため要約に圧縮されました"
+      },
       "think": {
         "labels": {
           "think": "思考",
@@ -157,7 +163,7 @@
           "error": "エラー"
         }
       },
-      "tokenUsageTitle": "この会話で使用した Token 合計",
+      "tokenUsageTitle": "累計 Token 使用量",
       "export": {
         "label": "エクスポート",
         "title": "現在のチャットをエクスポート"
@@ -167,6 +173,16 @@
         "title": "現在の AI ログファイルを開く",
         "openFailed": "ログを開けませんでした",
         "openFailedDesc": "しばらくしてから再度お試しください"
+      },
+      "compress": {
+        "label": "圧縮",
+        "title": "手動でコンテキストを圧縮",
+        "compressing": "圧縮中...",
+        "success": "コンテキストが圧縮されました",
+        "successDesc": "{before} → {after} トークン",
+        "skipped": "圧縮をスキップ",
+        "skippedDesc": "圧縮に十分なメッセージがありません",
+        "failed": "圧縮に失敗しました"
       },
       "status": {
         "connected": "AI 接続中",

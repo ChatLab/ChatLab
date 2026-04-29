@@ -11,6 +11,8 @@ import { getLogsDir } from '../paths'
 import { Agent, type AgentStreamChunk, type SkillContext } from '../ai/agent'
 import { getDefaultGeneralAssistantId } from '../ai/assistant/defaultGeneral'
 import { getActiveConfig, buildPiModel } from '../ai/llm'
+import { checkAndCompress, manualCompress, type CompressionConfig } from '../ai/compression'
+import { countMessagesTokens } from '../ai/tokenizer'
 import * as assistantManager from '../ai/assistant'
 import type { AssistantConfig } from '../ai/assistant/types'
 import * as skillManager from '../ai/skills'
@@ -312,14 +314,23 @@ export function registerAIHandlers({ win }: IpcContext): void {
     async (
       _,
       conversationId: string,
-      role: 'user' | 'assistant',
+      role: aiConversations.AIMessageRole,
       content: string,
       dataKeywords?: string[],
       dataMessageCount?: number,
-      contentBlocks?: aiConversations.ContentBlock[]
+      contentBlocks?: aiConversations.ContentBlock[],
+      tokenUsage?: aiConversations.TokenUsageData
     ) => {
       try {
-        return aiConversations.addMessage(conversationId, role, content, dataKeywords, dataMessageCount, contentBlocks)
+        return aiConversations.addMessage(
+          conversationId,
+          role,
+          content,
+          dataKeywords,
+          dataMessageCount,
+          contentBlocks,
+          tokenUsage
+        )
       } catch (error) {
         console.error('Failed to add AI message:', error)
         throw error
@@ -336,6 +347,18 @@ export function registerAIHandlers({ win }: IpcContext): void {
     } catch (error) {
       console.error('Failed to get AI messages:', error)
       return []
+    }
+  })
+
+  /**
+   * 获取对话的累计 token 使用量
+   */
+  ipcMain.handle('ai:getConversationTokenUsage', async (_, conversationId: string) => {
+    try {
+      return aiConversations.getConversationTokenUsage(conversationId)
+    } catch (error) {
+      console.error('Failed to get conversation token usage:', error)
+      return { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
     }
   })
 
@@ -1026,7 +1049,6 @@ export function registerAIHandlers({ win }: IpcContext): void {
    * Agent 通过 context.conversationId 从 SQLite 读取对话历史（数据流倒置）
    * @param chatType 聊天类型（'group' | 'private'）
    * @param locale 语言设置（可选，默认 'zh-CN'）
-   * @param maxHistoryRounds 前端用户配置的最大历史轮数（可选，每轮 = user + assistant = 2 条）
    * @param assistantId 助手 ID（可选，传入时从 AssistantManager 获取配置）
    */
   ipcMain.handle(
@@ -1038,10 +1060,10 @@ export function registerAIHandlers({ win }: IpcContext): void {
       context: ToolContext,
       chatType?: 'group' | 'private',
       locale?: string,
-      maxHistoryRounds?: number,
       assistantId?: string,
       skillId?: string | null,
-      enableAutoSkill?: boolean
+      enableAutoSkill?: boolean,
+      compressionConfig?: CompressionConfig
     ) => {
       aiLogger.info('IPC', `Agent stream request received: ${requestId}`, {
         userMessage: userMessage.slice(0, 100),
@@ -1063,14 +1085,61 @@ export function registerAIHandlers({ win }: IpcContext): void {
         }
         const piModel = buildPiModel(activeAIConfig)
 
-        const contextHistoryLimit = maxHistoryRounds ? maxHistoryRounds * 2 : undefined
+        // 上下文压缩前置步骤（在 Agent 创建之前执行）
+        if (compressionConfig?.enabled && context.conversationId) {
+          try {
+            win.webContents.send('agent:streamChunk', {
+              requestId,
+              chunk: {
+                type: 'status',
+                status: {
+                  phase: 'preparing',
+                  round: 0,
+                  toolsUsed: 0,
+                  contextTokens: 0,
+                  totalUsage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+                  updatedAt: Date.now(),
+                } satisfies import('@electron/shared/types').AgentRuntimeStatus,
+              },
+            })
+
+            // 获取助手 systemPrompt 用于 token 计算
+            const tempAssistantConfig = assistantId
+              ? (assistantManager.getAssistantConfig(assistantId) ?? undefined)
+              : undefined
+            const systemPromptForCompression = tempAssistantConfig?.systemPrompt || ''
+
+            const compressionResult = await checkAndCompress(
+              context.conversationId,
+              compressionConfig,
+              systemPromptForCompression,
+              activeAIConfig
+            )
+
+            aiLogger.info('IPC', `Compression result for ${requestId}`, compressionResult)
+
+            if (compressionResult.compressed) {
+              win.webContents.send('agent:streamChunk', {
+                requestId,
+                chunk: {
+                  type: 'status',
+                  status: 'compressed',
+                  content: `Context compressed: ${compressionResult.tokensBefore} → ${compressionResult.tokensAfter} tokens`,
+                },
+              })
+            }
+          } catch (error) {
+            aiLogger.error('IPC', `Compression failed for ${requestId}, continuing without compression`, {
+              error: String(error),
+            })
+          }
+        }
 
         const pp = context.preprocessConfig
         aiLogger.info('IPC', `Agent context: ${requestId}`, {
           model: activeAIConfig.model,
           provider: activeAIConfig.provider,
           baseUrl: activeAIConfig.baseUrl || '(default)',
-          maxHistoryRounds: maxHistoryRounds ?? '(default)',
           maxMessagesLimit: context.maxMessagesLimit,
           hasTimeFilter: !!context.timeFilter,
           mentionedMembersCount: context.mentionedMembers?.length ?? 0,
@@ -1117,11 +1186,18 @@ export function registerAIHandlers({ win }: IpcContext): void {
           }
         }
 
+        // 工具结果 token 预算注入：基于 context window 百分比计算
+        const maxToolResultPercent = compressionConfig?.maxToolResultPercent ?? 50
+        const modelDef = llm.findModelDefinition(activeAIConfig.provider, activeAIConfig.model || '')
+        const resolvedContextWindow = modelDef?.contextWindow || 128000
+        const maxToolResultTokens = Math.floor(resolvedContextWindow * (maxToolResultPercent / 100))
+        const enrichedContext: ToolContext = { ...context, maxToolResultTokens }
+
         const agent = new Agent(
-          context,
+          enrichedContext,
           piModel,
           activeAIConfig.apiKey,
-          { abortSignal: abortController.signal, contextHistoryLimit },
+          { abortSignal: abortController.signal },
           chatType ?? 'group',
           locale ?? 'zh-CN',
           assistantConfig,
@@ -1234,6 +1310,36 @@ export function registerAIHandlers({ win }: IpcContext): void {
     } else {
       aiLogger.warn('IPC', `Agent request not found: ${requestId}`)
       return { success: false, error: 'Request not found' }
+    }
+  })
+
+  // ==================== 上下文压缩 ====================
+
+  ipcMain.handle(
+    'ai:compressContext',
+    async (_, conversationId: string, compressionConfig: CompressionConfig, systemPrompt: string) => {
+      try {
+        const activeAIConfig = getActiveConfig()
+        if (!activeAIConfig) {
+          return { success: false, error: t('llm.notConfigured') }
+        }
+
+        const result = await manualCompress(conversationId, compressionConfig, systemPrompt, activeAIConfig)
+        return { success: true, result }
+      } catch (error) {
+        aiLogger.error('IPC', 'Manual compression failed', { error: String(error) })
+        return { success: false, error: String(error) }
+      }
+    }
+  )
+
+  ipcMain.handle('ai:estimateContextTokens', async (_, conversationId: string) => {
+    try {
+      const history = aiConversations.getHistoryForAgent(conversationId)
+      const tokens = countMessagesTokens(history.map((m) => ({ role: m.role, content: m.content })))
+      return { success: true, tokens, messageCount: history.length }
+    } catch (error) {
+      return { success: false, tokens: 0, error: String(error) }
     }
   })
 

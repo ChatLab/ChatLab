@@ -13,7 +13,7 @@ const toast = useToast()
 
 // Props
 const props = defineProps<{
-  role: 'user' | 'assistant'
+  role: 'user' | 'assistant' | 'summary'
   content: string
   timestamp: number
   isStreaming?: boolean
@@ -30,6 +30,7 @@ const formattedTime = computed(() => {
 
 // 是否是用户消息
 const isUser = computed(() => props.role === 'user')
+const isSummary = computed(() => props.role === 'summary')
 
 // 创建 markdown-it 实例
 const md = new MarkdownIt({
@@ -301,11 +302,37 @@ async function handleCopyMarkdown() {
 </script>
 
 <template>
-  <div class="flex items-start gap-3" :class="[isUser ? 'flex-row-reverse' : '']">
+  <div class="flex items-start gap-3" :class="[isUser ? 'flex-row-reverse' : '', isSummary ? 'justify-center' : '']">
     <!-- 消息内容 -->
-    <div class="max-w-[85%] min-w-0">
+    <div :class="[isSummary ? 'w-full min-w-0' : 'max-w-[85%] min-w-0']">
+      <!-- Summary 消息：可折叠的上下文摘要 -->
+      <template v-if="isSummary">
+        <details
+          class="w-full rounded-xl border border-purple-200 bg-purple-50/50 dark:border-purple-800/50 dark:bg-purple-900/20"
+        >
+          <summary
+            class="flex cursor-pointer select-none items-center gap-2 px-4 py-2.5 text-sm font-medium text-purple-700 transition-colors hover:text-purple-900 dark:text-purple-300 dark:hover:text-purple-100"
+          >
+            <UIcon name="i-heroicons-archive-box-arrow-down" class="h-4 w-4 shrink-0" />
+            <span>{{ t('ai.chat.message.summary.label') }}</span>
+            <span class="ml-auto text-xs font-normal text-purple-400 dark:text-purple-500">
+              {{ t('ai.chat.message.summary.expand') }}
+            </span>
+          </summary>
+          <div class="border-t border-purple-200/50 px-4 py-3 dark:border-purple-800/30">
+            <div
+              class="prose prose-sm dark:prose-invert max-w-none text-sm leading-relaxed text-gray-700 dark:text-gray-300"
+              v-html="renderedContent"
+            />
+            <p class="mt-3 text-xs italic text-purple-400 dark:text-purple-500">
+              {{ t('ai.chat.message.summary.info') }}
+            </p>
+          </div>
+        </details>
+      </template>
+
       <!-- 用户消息：简单气泡 -->
-      <template v-if="isUser">
+      <template v-else-if="isUser">
         <div class="rounded-3xl bg-primary-50 px-5 py-3 text-gray-900 dark:bg-primary-500/50 dark:text-gray-100">
           <div class="prose prose-sm dark:prose-invert max-w-none leading-relaxed" v-html="renderedContent" />
         </div>
@@ -438,8 +465,12 @@ async function handleCopyMarkdown() {
         </div>
       </template>
 
-      <!-- 时间戳 + 操作按钮 -->
-      <div class="mt-1 flex items-center gap-2 px-1" :class="[isUser ? 'flex-row-reverse' : '']">
+      <!-- 时间戳 + 操作按钮（summary 消息和流式输出中不显示） -->
+      <div
+        v-if="!isSummary && !isStreaming"
+        class="mt-1 flex items-center gap-2 px-1"
+        :class="[isUser ? 'flex-row-reverse' : '']"
+      >
         <span class="text-xs text-gray-400">{{ formattedTime }}</span>
         <UTooltip :text="t('ai.chat.message.copy.tooltip')" class="no-capture">
           <UButton

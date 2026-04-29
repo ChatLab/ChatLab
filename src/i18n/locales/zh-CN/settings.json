@@ -273,10 +273,6 @@
       "title": "发送条数限制",
       "description": "每次提交给 AI 的最大消息数，数值越大 Token 消耗越多，分析也更准确（新手建议2000）"
     },
-    "maxHistory": {
-      "title": "AI上下文限制",
-      "description": "每次对话保留最近的对话轮数（1轮 = 用户提问 + AI回复），防止上下文过长消耗 Token"
-    },
     "searchContext": {
       "title": "搜索上下文窗口",
       "description": "搜索命中消息时自动携带前后的对话上下文，帮助 AI 理解消息背景。设为 0 则不携带上下文",
@@ -291,6 +287,17 @@
     "sqlExportFormat": {
       "title": "SQL Lab 导出格式",
       "description": "导出 SQL 查询结果时使用的文件格式"
+    },
+    "compression": {
+      "title": "上下文压缩",
+      "enable": "自动压缩上下文",
+      "enableDesc": "对话过长时自动压缩历史为摘要，保留关键信息的同时降低 Token 消耗",
+      "threshold": "压缩阈值",
+      "thresholdDesc": "上下文 Token 达到模型窗口的百分比时触发压缩",
+      "buffer": "缓冲区大小",
+      "bufferDesc": "保留最近消息原文的比例，不参与压缩",
+      "maxToolResultPercent": "工具结果上限",
+      "maxToolResultPercentDesc": "单次工具返回给 AI 的最大数据量占比（基于模型上下文窗口计算），超出部分会被智能截断"
     },
     "presets": {
       "title": "系统提示词",

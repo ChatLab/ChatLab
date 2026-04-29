@@ -210,6 +210,7 @@ export class AgentEventHandler {
   private estimateContextTokens(systemPrompt: string, messages: PiMessage[], pendingUserMessage?: string): number {
     let tokens = this.estimateTokensFromText(systemPrompt)
     for (const message of messages) {
+      if (message.role === 'toolResult') continue
       tokens += this.estimateTokensFromText(this.extractMessageText(message))
     }
     if (pendingUserMessage) {

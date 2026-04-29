@@ -91,6 +91,28 @@ const {
 // Store
 const promptStore = usePromptStore()
 
+// 使用后端 tokenizer 精确计算的 context tokens
+const estimatedContextTokens = ref(0)
+
+watch(
+  () => currentConversationId.value,
+  async (convId) => {
+    if (!convId) {
+      estimatedContextTokens.value = 0
+      return
+    }
+    try {
+      const result = await window.aiApi.estimateContextTokens(convId)
+      if (result.success) {
+        estimatedContextTokens.value = result.tokens
+      }
+    } catch {
+      estimatedContextTokens.value = 0
+    }
+  },
+  { immediate: true }
+)
+
 // 当前选中助手的预设问题
 const currentPresetQuestions = computed(() => {
   return assistantStore.selectedAssistant?.presetQuestions ?? []
@@ -461,6 +483,7 @@ watch(
                 :session-token-usage="sessionTokenUsage"
                 :agent-status="agentStatus"
                 :current-conversation-id="currentConversationId"
+                :estimated-context-tokens="estimatedContextTokens"
               />
             </div>
           </div>

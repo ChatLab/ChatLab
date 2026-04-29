@@ -30,19 +30,34 @@ export { sqlToolEntries } from './sql-analysis'
 export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   // ==================== Core 工具（始终加载） ====================
   { name: 'get_chat_overview', factory: createGetChatOverview, category: 'core' },
-  { name: 'search_messages', factory: createSearchMessages, category: 'core' },
-  { name: 'deep_search_messages', factory: createDeepSearchMessages, category: 'core' },
-  { name: 'get_recent_messages', factory: createGetRecentMessages, category: 'core' },
-  { name: 'get_message_context', factory: createGetMessageContext, category: 'core' },
+  { name: 'search_messages', factory: createSearchMessages, category: 'core', truncationStrategy: 'keep_first' },
+  {
+    name: 'deep_search_messages',
+    factory: createDeepSearchMessages,
+    category: 'core',
+    truncationStrategy: 'keep_first',
+  },
+  { name: 'get_recent_messages', factory: createGetRecentMessages, category: 'core', truncationStrategy: 'keep_last' },
+  { name: 'get_message_context', factory: createGetMessageContext, category: 'core', truncationStrategy: 'keep_last' },
   { name: 'search_sessions', factory: createSearchSessions, category: 'core' },
-  { name: 'get_session_messages', factory: createGetSessionMessages, category: 'core' },
+  {
+    name: 'get_session_messages',
+    factory: createGetSessionMessages,
+    category: 'core',
+    truncationStrategy: 'keep_last',
+  },
   { name: 'get_members', factory: createGetMembers, category: 'core' },
 
   // ==================== Analysis 工具（按需加载） ====================
   { name: 'get_member_stats', factory: createGetMemberStats, category: 'analysis' },
   { name: 'get_time_stats', factory: createGetTimeStats, category: 'analysis' },
   { name: 'get_member_name_history', factory: createGetMemberNameHistory, category: 'analysis' },
-  { name: 'get_conversation_between', factory: createGetConversationBetween, category: 'analysis' },
+  {
+    name: 'get_conversation_between',
+    factory: createGetConversationBetween,
+    category: 'analysis',
+    truncationStrategy: 'keep_last',
+  },
   { name: 'get_session_summaries', factory: createGetSessionSummaries, category: 'analysis' },
   { name: 'response_time_analysis', factory: createResponseTimeAnalysis, category: 'analysis' },
   { name: 'keyword_frequency', factory: createKeywordFrequency, category: 'analysis' },

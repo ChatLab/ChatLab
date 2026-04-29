@@ -305,15 +305,24 @@ type AIContentBlock =
     }
   | { type: 'skill'; skillId: string; skillName: string }
 
+type AIMessageRole = 'user' | 'assistant' | 'summary'
+
+interface AITokenUsageData {
+  promptTokens: number
+  completionTokens: number
+  totalTokens: number
+}
+
 interface AIMessage {
   id: string
   conversationId: string
-  role: 'user' | 'assistant'
+  role: AIMessageRole
   content: string
   timestamp: number
   dataKeywords?: string[]
   dataMessageCount?: number
   contentBlocks?: AIContentBlock[]
+  tokenUsage?: AITokenUsageData
 }
 
 interface AiApi {
@@ -374,10 +383,12 @@ interface AiApi {
     content: string,
     dataKeywords?: string[],
     dataMessageCount?: number,
-    contentBlocks?: AIContentBlock[]
+    contentBlocks?: AIContentBlock[],
+    tokenUsage?: AITokenUsageData
   ) => Promise<AIMessage>
   getMessages: (conversationId: string) => Promise<AIMessage[]>
   getMessages: (conversationId: string) => Promise<AIMessage[]>
+  getConversationTokenUsage: (conversationId: string) => Promise<AITokenUsageData>
   deleteMessage: (messageId: string) => Promise<boolean>
   showAiLogFile: () => Promise<{ success: boolean; path?: string; error?: string }>
   getDefaultDesensitizeRules: (locale: string) => Promise<DesensitizeRule[]>
@@ -390,6 +401,30 @@ interface AiApi {
     sessionId: string
   ) => Promise<ToolExecuteResult>
   cancelToolTest: (testId: string) => Promise<{ success: boolean }>
+  estimateContextTokens: (
+    conversationId: string
+  ) => Promise<{ success: boolean; tokens: number; messageCount?: number; error?: string }>
+  compressContext: (
+    conversationId: string,
+    compressionConfig: {
+      enabled: boolean
+      tokenThresholdPercent: number
+      bufferSizePercent: number
+      compressionModelConfigId?: string
+      maxToolResultPercent?: number
+    },
+    systemPrompt: string
+  ) => Promise<{
+    success: boolean
+    result?: {
+      compressed: boolean
+      reason: string
+      tokensBefore?: number
+      tokensAfter?: number
+      error?: string
+    }
+    error?: string
+  }>
   // 自定义筛选（支持分页）
   filterMessagesWithContext: (
     sessionId: string,
@@ -775,10 +810,16 @@ interface AgentApi {
     onChunk?: (chunk: AgentStreamChunk) => void,
     chatType?: 'group' | 'private',
     locale?: string,
-    maxHistoryRounds?: number,
     assistantId?: string,
     skillId?: string | null,
-    enableAutoSkill?: boolean
+    enableAutoSkill?: boolean,
+    compressionConfig?: {
+      enabled: boolean
+      tokenThresholdPercent: number
+      bufferSizePercent: number
+      compressionModelConfigId?: string
+      maxToolResultPercent?: number
+    }
   ) => { requestId: string; promise: Promise<{ success: boolean; result?: AgentResult; error?: SerializedErrorInfo }> }
   abort: (requestId: string) => Promise<{ success: boolean; error?: string }>
 }

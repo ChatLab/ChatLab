@@ -41,15 +41,24 @@ export type ContentBlock =
     }
   | { type: 'skill'; skillId: string; skillName: string }
 
+export type AIMessageRole = 'user' | 'assistant' | 'summary'
+
+export interface TokenUsageData {
+  promptTokens: number
+  completionTokens: number
+  totalTokens: number
+}
+
 export interface AIMessage {
   id: string
   conversationId: string
-  role: 'user' | 'assistant'
+  role: AIMessageRole
   content: string
   timestamp: number
   dataKeywords?: string[]
   dataMessageCount?: number
   contentBlocks?: ContentBlock[]
+  tokenUsage?: TokenUsageData
 }
 
 // LLM API 类型
@@ -479,11 +488,12 @@ export const aiApi = {
    */
   addMessage: (
     conversationId: string,
-    role: 'user' | 'assistant',
+    role: AIMessageRole,
     content: string,
     dataKeywords?: string[],
     dataMessageCount?: number,
-    contentBlocks?: ContentBlock[]
+    contentBlocks?: ContentBlock[],
+    tokenUsage?: TokenUsageData
   ): Promise<AIMessage> => {
     return ipcRenderer.invoke(
       'ai:addMessage',
@@ -492,7 +502,8 @@ export const aiApi = {
       content,
       dataKeywords,
       dataMessageCount,
-      contentBlocks
+      contentBlocks,
+      tokenUsage
     )
   },
 
@@ -501,6 +512,13 @@ export const aiApi = {
    */
   getMessages: (conversationId: string): Promise<AIMessage[]> => {
     return ipcRenderer.invoke('ai:getMessages', conversationId)
+  },
+
+  /**
+   * 获取对话的累计 token 使用量
+   */
+  getConversationTokenUsage: (conversationId: string): Promise<TokenUsageData> => {
+    return ipcRenderer.invoke('ai:getConversationTokenUsage', conversationId)
   },
 
   /**
@@ -540,6 +558,36 @@ export const aiApi = {
 
   cancelToolTest: (testId: string): Promise<{ success: boolean }> => {
     return ipcRenderer.invoke('ai:cancelToolTest', testId)
+  },
+
+  estimateContextTokens: (
+    conversationId: string
+  ): Promise<{ success: boolean; tokens: number; messageCount?: number; error?: string }> => {
+    return ipcRenderer.invoke('ai:estimateContextTokens', conversationId)
+  },
+
+  compressContext: (
+    conversationId: string,
+    compressionConfig: {
+      enabled: boolean
+      tokenThresholdPercent: number
+      bufferSizePercent: number
+      compressionModelConfigId?: string
+      maxToolResultPercent?: number
+    },
+    systemPrompt: string
+  ): Promise<{
+    success: boolean
+    result?: {
+      compressed: boolean
+      reason: string
+      tokensBefore?: number
+      tokensAfter?: number
+      error?: string
+    }
+    error?: string
+  }> => {
+    return ipcRenderer.invoke('ai:compressContext', conversationId, compressionConfig, systemPrompt)
   },
 }
 
@@ -913,7 +961,6 @@ export const agentApi = {
    * Agent 通过 context.conversationId 从后端 SQLite 读取对话历史
    * @param chatType 聊天类型（'group' | 'private'）
    * @param locale 语言设置（可选，默认 'zh-CN'）
-   * @param maxHistoryRounds 最大历史轮数（可选，每轮 = user + assistant = 2 条）
    * @returns 返回 { requestId, promise }，requestId 可用于中止请求
    */
   runStream: (
@@ -922,10 +969,16 @@ export const agentApi = {
     onChunk?: (chunk: AgentStreamChunk) => void,
     chatType?: 'group' | 'private',
     locale?: string,
-    maxHistoryRounds?: number,
     assistantId?: string,
     skillId?: string | null,
-    enableAutoSkill?: boolean
+    enableAutoSkill?: boolean,
+    compressionConfig?: {
+      enabled: boolean
+      tokenThresholdPercent: number
+      bufferSizePercent: number
+      compressionModelConfigId?: string
+      maxToolResultPercent?: number
+    }
   ): {
     requestId: string
     promise: Promise<{ success: boolean; result?: AgentResult; error?: SerializedErrorInfo }>
@@ -1013,10 +1066,10 @@ export const agentApi = {
           sanitizedContext,
           chatType,
           locale,
-          maxHistoryRounds,
           assistantId,
           skillId,
-          enableAutoSkill
+          enableAutoSkill,
+          compressionConfig
         )
         .then((result) => {
           console.log('[preload] Agent invoke 返回:', result)

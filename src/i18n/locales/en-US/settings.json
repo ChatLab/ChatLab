@@ -273,10 +273,6 @@
       "title": "Max Messages per Request",
       "description": "Max number of messages sent to AI per request. Higher values consume more tokens but provide more accurate context (recommended: 2000)."
     },
-    "maxHistory": {
-      "title": "Context Limit",
-      "description": "Number of recent conversation rounds to keep (1 round = User + AI). Prevents excessive token usage."
-    },
     "searchContext": {
       "title": "Search Context Window",
       "description": "Automatically include surrounding messages for each search hit to help AI understand the context. Set to 0 to disable",
@@ -291,6 +287,17 @@
     "sqlExportFormat": {
       "title": "SQL Lab Export Format",
       "description": "File format for exporting SQL query results"
+    },
+    "compression": {
+      "title": "Context Compression",
+      "enable": "Auto-compress context",
+      "enableDesc": "Automatically compress long conversation history into summaries to reduce token usage",
+      "threshold": "Compression threshold",
+      "thresholdDesc": "Trigger compression when context tokens reach this percentage of the model's context window",
+      "buffer": "Buffer size",
+      "bufferDesc": "Percentage of recent messages to keep uncompressed",
+      "maxToolResultPercent": "Tool result limit",
+      "maxToolResultPercentDesc": "Maximum data percentage per tool call sent to AI (based on model context window). Excess results are intelligently truncated"
     },
     "presets": {
       "title": "System Prompts",

@@ -23,7 +23,7 @@ import { buildSystemPrompt } from './prompt-builder'
 import { extractThinkingContent, stripToolCallTags } from './content-parser'
 import { AgentEventHandler } from './event-handler'
 
-type SimpleHistoryMessage = { role: 'user' | 'assistant'; content: string }
+type SimpleHistoryMessage = { role: 'user' | 'assistant' | 'summary'; content: string }
 
 // Re-export types for external consumers
 export type { AgentConfig, AgentStreamChunk, AgentResult, TokenUsage, AgentRuntimeStatus, SkillContext } from './types'
@@ -63,7 +63,6 @@ export class Agent {
     this.locale = locale
     this.config = {
       maxToolRounds: config.maxToolRounds ?? 5,
-      contextHistoryLimit: config.contextHistoryLimit ?? 48,
     }
   }
 
@@ -175,8 +174,7 @@ export class Agent {
 
     coreAgent.setTools(maxToolRounds > 0 ? piTools : [])
 
-    const limit = this.config.contextHistoryLimit ?? 48
-    const historyMessages = this.loadHistory(limit)
+    const historyMessages = this.loadHistory()
     coreAgent.replaceMessages(this.toPiHistoryMessages(historyMessages))
 
     handler.emitStatus('preparing', coreAgent.state.messages, {
@@ -296,13 +294,13 @@ export class Agent {
    * 从 SQLite 加载对话历史
    * 当 context.conversationId 存在时从 DB 读取，否则返回空数组
    */
-  private loadHistory(limit: number): SimpleHistoryMessage[] {
+  private loadHistory(): SimpleHistoryMessage[] {
     const { conversationId } = this.context
     if (!conversationId) {
       return []
     }
     try {
-      return getHistoryForAgent(conversationId, limit > 0 ? limit : undefined)
+      return getHistoryForAgent(conversationId)
     } catch (error) {
       aiLogger.warn('Agent', 'Failed to load history from DB, using empty history', { conversationId, error })
       return []
@@ -330,6 +328,7 @@ export class Agent {
         }
       }
 
+      // summary 作为 assistant 消息传给 LLM（它是压缩后的上下文摘要）
       return {
         role: 'assistant',
         content: [{ type: 'text', text: msg.content || '' }],
