@@ -7,6 +7,7 @@ import CaptureButton from '@/components/common/CaptureButton.vue'
 import TimeSelect from '@/components/common/TimeSelect.vue'
 import AITab from '@/components/analysis/AITab.vue'
 import MemoryTab from '@/components/analysis/MemoryTab.vue'
+import { DebugTab } from '@/components/DebugTab'
 import { ChatExplorer } from '@/components/AIChat'
 import OverviewTab from './components/OverviewTab.vue'
 import ViewTab from './components/ViewTab.vue'
@@ -50,13 +51,21 @@ function openChatRecordViewer() {
 }
 
 // Tab 配置 - 私聊包含总览、视图、AI 对话和实验室（关键词分析已移至实验室）
-const tabs = [
+const baseTabs = [
   { id: 'overview', labelKey: 'analysis.tabs.overview', icon: 'i-heroicons-chart-pie' },
   { id: 'view', labelKey: 'analysis.tabs.view', icon: 'i-heroicons-presentation-chart-bar' },
   { id: 'ai-chat', labelKey: 'analysis.tabs.aiChat', icon: 'i-heroicons-chat-bubble-left-ellipsis' },
   // { id: 'memory', labelKey: 'analysis.tabs.memory', icon: 'i-heroicons-light-bulb' },
   { id: 'lab', labelKey: 'analysis.tabs.lab', icon: 'i-heroicons-beaker' },
 ]
+
+// Tab 列表（Debug tab 仅在 debugMode 开启时显示）
+const tabs = computed(() => {
+  if (settingsStore.debugMode) {
+    return [...baseTabs, { id: 'debug', labelKey: 'analysis.tabs.debug', icon: 'i-heroicons-bug-ant' }]
+  }
+  return baseTabs
+})
 
 const {
   activeTab,
@@ -79,7 +88,7 @@ const {
   currentSessionId,
   selectSession: sessionStore.selectSession,
   defaultTab: settingsStore.defaultSessionTab,
-  validTabIds: tabs.map((tab) => tab.id),
+  validTabIds: tabs.value.map((tab) => tab.id),
 })
 
 // 当前筛选后的消息总数
@@ -174,7 +183,7 @@ const otherMemberAvatar = computed(() => {
           <TimeSelect
             v-model="timeRangeValue"
             :session-id="currentSessionId ?? undefined"
-            :visible="activeTab !== 'ai-chat' && activeTab !== 'memory' && activeTab !== 'lab'"
+            :visible="activeTab !== 'ai-chat' && activeTab !== 'memory' && activeTab !== 'lab' && activeTab !== 'debug'"
             :initial-state="initialTimeState"
             @update:full-range="fullTimeRange = $event"
           />
@@ -230,6 +239,11 @@ const otherMemberAvatar = computed(() => {
               :time-filter="timeFilter"
               chat-type="private"
               mode="sql-only"
+            />
+            <DebugTab
+              v-else-if="activeTab === 'debug'"
+              :key="'debug-' + currentSessionId"
+              :session-id="currentSessionId!"
             />
           </Transition>
         </div>

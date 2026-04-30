@@ -7,6 +7,7 @@ import CaptureButton from '@/components/common/CaptureButton.vue'
 import TimeSelect from '@/components/common/TimeSelect.vue'
 import AITab from '@/components/analysis/AITab.vue'
 import MemoryTab from '@/components/analysis/MemoryTab.vue'
+import { DebugTab } from '@/components/DebugTab'
 import { ChatExplorer } from '@/components/AIChat'
 import OverviewTab from './components/OverviewTab.vue'
 import ViewTab from './components/ViewTab.vue'
@@ -51,7 +52,7 @@ function openChatRecordViewer() {
 }
 
 // Tab 配置
-const allTabs = [
+const baseTabs = [
   { id: 'overview', labelKey: 'analysis.tabs.overview', icon: 'i-heroicons-chart-pie' },
   { id: 'view', labelKey: 'analysis.tabs.view', icon: 'i-heroicons-presentation-chart-bar' },
   { id: 'ai-chat', labelKey: 'analysis.tabs.aiChat', icon: 'i-heroicons-chat-bubble-left-ellipsis' },
@@ -59,8 +60,15 @@ const allTabs = [
   { id: 'lab', labelKey: 'analysis.tabs.lab', icon: 'i-heroicons-beaker' },
 ]
 
-// Tab 列表
-const tabs = computed(() => allTabs)
+// Tab 列表（Debug tab 仅在 debugMode 开启时显示）
+const tabs = computed(() => {
+  if (settingsStore.debugMode) {
+    return [...baseTabs, { id: 'debug', labelKey: 'analysis.tabs.debug', icon: 'i-heroicons-bug-ant' }]
+  }
+  return baseTabs
+})
+
+const allTabIds = computed(() => tabs.value.map((tab) => tab.id))
 
 const {
   activeTab,
@@ -84,7 +92,7 @@ const {
   currentSessionId,
   selectSession: sessionStore.selectSession,
   defaultTab: settingsStore.defaultSessionTab,
-  validTabIds: allTabs.map((tab) => tab.id),
+  validTabIds: allTabIds.value,
 })
 
 // 计算属性
@@ -161,7 +169,7 @@ const { headerDescription } = useSessionHeaderDescription({
           <TimeSelect
             v-model="timeRangeValue"
             :session-id="currentSessionId ?? undefined"
-            :visible="activeTab !== 'ai-chat' && activeTab !== 'memory' && activeTab !== 'lab'"
+            :visible="activeTab !== 'ai-chat' && activeTab !== 'memory' && activeTab !== 'lab' && activeTab !== 'debug'"
             :initial-state="initialTimeState"
             @update:full-range="fullTimeRange = $event"
             @update:available-years="availableYears = $event"
@@ -220,6 +228,11 @@ const { headerDescription } = useSessionHeaderDescription({
               :time-filter="timeFilter"
               chat-type="group"
               mode="sql-only"
+            />
+            <DebugTab
+              v-else-if="activeTab === 'debug'"
+              :key="'debug-' + currentSessionId"
+              :session-id="currentSessionId!"
             />
           </Transition>
         </div>

@@ -1485,6 +1485,30 @@ export function registerAIHandlers({ win }: IpcContext): void {
   // ==================== 向量存储管理 ====================
 
   /**
+   * [Debug] 获取 AI 数据库 Schema
+   */
+  ipcMain.handle('ai:getAiSchema', async () => {
+    try {
+      return aiConversations.getAiSchema()
+    } catch (error) {
+      console.error('Failed to get AI schema:', error)
+      return []
+    }
+  })
+
+  /**
+   * [Debug] 在 AI 数据库上执行原始 SQL
+   */
+  ipcMain.handle('ai:executeAiSQL', async (_, sql: string) => {
+    try {
+      return aiConversations.executeAiSQL(sql)
+    } catch (error: any) {
+      console.error('Failed to execute AI SQL:', error)
+      throw error
+    }
+  })
+
+  /**
    * 获取向量存储统计信息
    */
   ipcMain.handle('rag:getVectorStoreStats', async () => {

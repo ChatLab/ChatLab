@@ -23,7 +23,35 @@
     "aiChat": "AI Chat",
     "memory": "Memory",
     "lab": "Lab",
-    "sqlLab": "SQL Lab"
+    "sqlLab": "SQL Lab",
+    "debug": "Debug"
+  },
+  "debug": {
+    "sqlTables": "SQL Tables",
+    "basicTools": "Basic Tools",
+    "tableBrowser": {
+      "chatDb": "Chat DB",
+      "aiDb": "AI Chat DB",
+      "selectTable": "Select Table",
+      "rowCount": "{count} rows",
+      "page": "Page {current} / {total}",
+      "prevPage": "Previous",
+      "nextPage": "Next",
+      "refresh": "Refresh",
+      "noData": "No data",
+      "editRow": "Edit Row",
+      "deleteRow": "Delete Row",
+      "save": "Save",
+      "cancel": "Cancel",
+      "confirmDelete": "Are you sure you want to delete this row?",
+      "deleteSuccess": "Deleted successfully",
+      "saveSuccess": "Saved successfully",
+      "operationFailed": "Operation failed",
+      "allConversations": "All Conversations",
+      "copyCell": "Copy Selected",
+      "editRow": "Edit",
+      "copyRow": "Copy Row (JSON)"
+    }
   },
   "memory": {
     "comingSoon": "Memory feature coming soon, stay tuned"

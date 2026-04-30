@@ -23,7 +23,35 @@
     "aiChat": "AI 對話",
     "memory": "記憶",
     "lab": "實驗室",
-    "sqlLab": "SQL 實驗室"
+    "sqlLab": "SQL 實驗室",
+    "debug": "Debug"
+  },
+  "debug": {
+    "sqlTables": "SQL 表格",
+    "basicTools": "基礎工具",
+    "tableBrowser": {
+      "chatDb": "聊天記錄 DB",
+      "aiDb": "AI 對話 DB",
+      "selectTable": "選擇表",
+      "rowCount": "共 {count} 行",
+      "page": "第 {current} / {total} 頁",
+      "prevPage": "上一頁",
+      "nextPage": "下一頁",
+      "refresh": "重新整理",
+      "noData": "暫無資料",
+      "editRow": "編輯行",
+      "deleteRow": "刪除行",
+      "save": "儲存",
+      "cancel": "取消",
+      "confirmDelete": "確認刪除這行資料？",
+      "deleteSuccess": "刪除成功",
+      "saveSuccess": "儲存成功",
+      "operationFailed": "操作失敗",
+      "allConversations": "全部對話",
+      "copyCell": "複製選取項",
+      "editRow": "編輯",
+      "copyRow": "複製整行 (JSON)"
+    }
   },
   "memory": {
     "comingSoon": "記憶功能即將上線，敬請期待"

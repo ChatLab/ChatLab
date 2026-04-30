@@ -455,6 +455,17 @@ interface AiApi {
   }) => Promise<{ success: boolean; filePath?: string; error?: string }>
   // 监听导出进度
   onExportProgress: (callback: (progress: ExportProgress) => void) => () => void
+  // [Debug] AI 数据库直接访问
+  getAiSchema: () => Promise<
+    Array<{ name: string; columns: Array<{ name: string; type: string; notnull: boolean; pk: boolean }> }>
+  >
+  executeAiSQL: (sql: string) => Promise<{
+    columns: string[]
+    rows: any[][]
+    rowCount: number
+    duration: number
+    limited: boolean
+  }>
 }
 
 // ==================== 新模型系统类型 ====================

@@ -5,13 +5,10 @@ import { useRoute } from 'vue-router'
 import { SubTabs } from '@/components/UI'
 import { ChatExplorer } from '../AIChat'
 import SQLLabTab from './SQLLabTab.vue'
-import ToolTestTab from './ToolTestTab.vue'
 import { KeywordAnalysis } from './quotes'
-import { useSettingsStore } from '@/stores/settings'
 
 const { t } = useI18n()
 const route = useRoute()
-const settingsStore = useSettingsStore()
 
 // Props
 const props = defineProps<{
@@ -24,14 +21,10 @@ const props = defineProps<{
 
 const subTabs = computed(() => {
   if (props.mode === 'sql-only') {
-    const tabs = [
+    return [
       { id: 'sql-lab', label: t('ai.tab.sqlLab'), icon: 'i-heroicons-command-line' },
       { id: 'keyword', label: t('analysis.subTabs.quotes.keywordAnalysis'), icon: 'i-heroicons-magnifying-glass' },
     ]
-    if (settingsStore.debugMode) {
-      tabs.push({ id: 'tool-test', label: t('ai.lab.basicTools'), icon: 'i-heroicons-wrench-screwdriver' })
-    }
-    return tabs
   }
 
   return [
@@ -46,7 +39,7 @@ watch(
   () => route.query.aiSubTab,
   (nextTab) => {
     if (props.mode === 'sql-only') {
-      if (nextTab === 'keyword' || nextTab === 'sql-lab' || (nextTab === 'tool-test' && settingsStore.debugMode)) {
+      if (nextTab === 'keyword' || nextTab === 'sql-lab') {
         activeSubTab.value = nextTab
       }
       return
@@ -54,15 +47,6 @@ watch(
 
     if (nextTab === 'chat-explorer' || nextTab === 'sql-lab') {
       activeSubTab.value = nextTab
-    }
-  }
-)
-
-watch(
-  () => settingsStore.debugMode,
-  (enabled) => {
-    if (!enabled && activeSubTab.value === 'tool-test') {
-      activeSubTab.value = 'sql-lab'
     }
   }
 )
@@ -105,8 +89,6 @@ defineExpose({
             <KeywordAnalysis :session-id="props.sessionId" :time-filter="props.timeFilter" />
           </div>
         </div>
-        <!-- 基础工具测试 -->
-        <ToolTestTab v-else-if="activeSubTab === 'tool-test'" class="h-full" :session-id="props.sessionId" />
         <!-- SQL 实验室 -->
         <SQLLabTab v-else class="h-full" :session-id="props.sessionId" :chat-type="props.chatType" />
       </Transition>

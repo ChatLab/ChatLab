@@ -589,6 +589,24 @@ export const aiApi = {
   }> => {
     return ipcRenderer.invoke('ai:compressContext', conversationId, compressionConfig, systemPrompt)
   },
+
+  /**
+   * [Debug] 获取 AI 数据库 Schema
+   */
+  getAiSchema: (): Promise<
+    Array<{ name: string; columns: Array<{ name: string; type: string; notnull: boolean; pk: boolean }> }>
+  > => {
+    return ipcRenderer.invoke('ai:getAiSchema')
+  },
+
+  /**
+   * [Debug] 在 AI 数据库上执行原始 SQL
+   */
+  executeAiSQL: (
+    sql: string
+  ): Promise<{ columns: string[]; rows: any[][]; rowCount: number; duration: number; limited: boolean }> => {
+    return ipcRenderer.invoke('ai:executeAiSQL', sql)
+  },
 }
 
 // ==================== LLM API ====================

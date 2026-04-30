@@ -23,7 +23,35 @@
     "aiChat": "AIチャット",
     "memory": "メモリー",
     "lab": "ラボ",
-    "sqlLab": "SQLラボ"
+    "sqlLab": "SQLラボ",
+    "debug": "Debug"
+  },
+  "debug": {
+    "sqlTables": "SQLテーブル",
+    "basicTools": "基本ツール",
+    "tableBrowser": {
+      "chatDb": "チャット DB",
+      "aiDb": "AI会話 DB",
+      "selectTable": "テーブルを選択",
+      "rowCount": "{count} 行",
+      "page": "{current} / {total} ページ",
+      "prevPage": "前へ",
+      "nextPage": "次へ",
+      "refresh": "更新",
+      "noData": "データなし",
+      "editRow": "行を編集",
+      "deleteRow": "行を削除",
+      "save": "保存",
+      "cancel": "キャンセル",
+      "confirmDelete": "この行を削除してもよろしいですか？",
+      "deleteSuccess": "削除しました",
+      "saveSuccess": "保存しました",
+      "operationFailed": "操作に失敗しました",
+      "allConversations": "すべての会話",
+      "copyCell": "選択項目をコピー",
+      "editRow": "編集",
+      "copyRow": "行をコピー (JSON)"
+    }
   },
   "memory": {
     "comingSoon": "メモリー機能は近日公開予定です。お楽しみに"

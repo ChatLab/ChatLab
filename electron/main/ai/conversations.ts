@@ -118,6 +118,79 @@ export function closeAiDatabase(): void {
   }
 }
 
+// ==================== Debug: AI DB 直接访问 ====================
+
+/**
+ * 获取 AI 数据库的 schema（供 Debug 表格浏览器使用）
+ */
+export function getAiSchema(): Array<{
+  name: string
+  columns: Array<{ name: string; type: string; notnull: boolean; pk: boolean }>
+}> {
+  const db = getAiDb()
+  const tables = db
+    .prepare("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+    .all() as Array<{ name: string }>
+
+  return tables.map((t) => {
+    const columns = db.pragma(`table_info("${t.name}")`) as Array<{
+      name: string
+      type: string
+      notnull: number
+      pk: number
+    }>
+    return {
+      name: t.name,
+      columns: columns.map((c) => ({
+        name: c.name,
+        type: c.type,
+        notnull: !!c.notnull,
+        pk: !!c.pk,
+      })),
+    }
+  })
+}
+
+/**
+ * 在 AI 数据库上执行原始 SQL（供 Debug 使用）
+ */
+export function executeAiSQL(sql: string): {
+  columns: string[]
+  rows: any[][]
+  rowCount: number
+  duration: number
+  limited: boolean
+} {
+  const db = getAiDb()
+  const start = Date.now()
+  const trimmed = sql.trim()
+  const isSelect = /^SELECT/i.test(trimmed)
+
+  if (isSelect) {
+    const stmt = db.prepare(trimmed)
+    const rows = stmt.all() as Record<string, any>[]
+    const duration = Date.now() - start
+    const columns = rows.length > 0 ? Object.keys(rows[0]) : []
+    return {
+      columns,
+      rows: rows.map((r) => columns.map((c) => r[c])),
+      rowCount: rows.length,
+      duration,
+      limited: false,
+    }
+  } else {
+    const result = db.prepare(trimmed).run()
+    const duration = Date.now() - start
+    return {
+      columns: ['changes', 'lastInsertRowid'],
+      rows: [[result.changes, Number(result.lastInsertRowid)]],
+      rowCount: 1,
+      duration,
+      limited: false,
+    }
+  }
+}
+
 // ==================== 类型定义 ====================
 
 /**
