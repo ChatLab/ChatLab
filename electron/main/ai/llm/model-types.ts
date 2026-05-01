@@ -83,8 +83,14 @@ export interface ModelCatalogStore {
   models: ModelDefinition[]
 }
 
+export interface ModelSlot {
+  configId: string
+  modelId: string
+}
+
 export interface LLMConnectionStore {
   configs: LLMConnectionConfigCompat[]
-  activeConfigId: string | null
+  defaultAssistant: ModelSlot | null
+  fastModel: ModelSlot | null
   schemaVersion: number
 }

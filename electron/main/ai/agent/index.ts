@@ -3,7 +3,7 @@
  * 编排 PiAgentCore 的对话流程（工具调用、流式输出、中止控制）
  */
 
-import { getActiveConfig, buildPiModel } from '../llm'
+import { getDefaultAssistantConfig, buildPiModel } from '../llm'
 import { getAllTools, createActivateSkillTool } from '../tools'
 import type { ToolContext } from '../tools/types'
 import { getHistoryForAgent } from '../conversations'
@@ -355,7 +355,7 @@ export async function runAgent(
   assistantConfig?: AssistantConfig,
   skillCtx?: SkillContext
 ): Promise<AgentResult> {
-  const activeConfig = getActiveConfig()
+  const activeConfig = getDefaultAssistantConfig()
   if (!activeConfig) throw new Error('LLM service not configured')
   const piModel = buildPiModel(activeConfig)
   const agent = new Agent(context, piModel, activeConfig.apiKey, config, chatType, locale, assistantConfig, skillCtx)
@@ -375,7 +375,7 @@ export async function runAgentStream(
   assistantConfig?: AssistantConfig,
   skillCtx?: SkillContext
 ): Promise<AgentResult> {
-  const activeConfig = getActiveConfig()
+  const activeConfig = getDefaultAssistantConfig()
   if (!activeConfig) throw new Error('LLM service not configured')
   const piModel = buildPiModel(activeConfig)
   const agent = new Agent(context, piModel, activeConfig.apiKey, config, chatType, locale, assistantConfig, skillCtx)

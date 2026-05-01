@@ -24,7 +24,7 @@ const aiTips = computed(() => {
 // ============ Store ============
 
 const llmStore = useLLMStore()
-const { configs, providers, providerRegistry, activeConfigId, isLoading, isMaxConfigs } = storeToRefs(llmStore)
+const { configs, providers, providerRegistry, isLoading, isMaxConfigs } = storeToRefs(llmStore)
 
 // 弹窗状态
 const showEditModal = ref(false)
@@ -61,13 +61,6 @@ async function deleteConfig(id: string) {
     }
   } catch (error) {
     console.error('删除配置失败：', error)
-  }
-}
-
-async function setActive(id: string) {
-  const success = await llmStore.setActiveConfig(id)
-  if (success) {
-    emit('config-changed')
   }
 }
 
@@ -119,85 +112,77 @@ onMounted(() => {
   </div>
 
   <!-- 配置列表视图 -->
-  <div v-else class="space-y-4">
-    <!-- 标题 -->
-    <h4 class="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
-      <UIcon name="i-heroicons-sparkles" class="h-4 w-4 text-violet-500" />
-      {{ t('settings.aiConfig.title') }}
-    </h4>
-    <AlertTips v-if="configs.length === 0 && aiTips.configTab?.show" :content="aiTips.configTab?.content" />
-    <!-- 配置列表 -->
-    <div v-if="configs.length > 0" class="overflow-hidden rounded-lg border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-800">
-      <div
-        v-for="config in configs"
-        :key="config.id"
-        class="group flex cursor-pointer items-center justify-between px-3 py-2 transition-colors"
-        :class="[
-          config.id === activeConfigId
-            ? 'bg-primary-50/60 dark:bg-primary-900/20'
-            : 'bg-card-bg hover:bg-gray-50 dark:bg-card-dark dark:hover:bg-gray-800/50',
-        ]"
-        @click="setActive(config.id)"
-      >
-        <!-- 配置信息 -->
-        <div class="flex items-center gap-3">
+  <div v-else class="space-y-6">
+    <div>
+      <h4 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+        <UIcon name="i-heroicons-sparkles" class="h-4 w-4 text-violet-500" />
+        {{ t('settings.aiConfig.title') }}
+      </h4>
+      <AlertTips v-if="configs.length === 0 && aiTips.configTab?.show" :content="aiTips.configTab?.content" />
+      <div class="rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
+        <!-- 配置列表 -->
+        <div v-if="configs.length > 0" class="divide-y divide-gray-200 dark:divide-gray-700">
           <div
-            class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full"
-            :class="[
-              config.id === activeConfigId
-                ? 'bg-primary-500 text-white'
-                : 'bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400',
-            ]"
+            v-for="config in configs"
+            :key="config.id"
+            class="group flex items-center justify-between px-4 py-2.5 transition-colors hover:bg-gray-100/50 dark:hover:bg-gray-700/30"
           >
-            <UIcon
-              :name="config.id === activeConfigId ? 'i-heroicons-check' : 'i-heroicons-sparkles'"
-              class="h-3.5 w-3.5"
-            />
-          </div>
-          <div class="flex min-w-0 items-center gap-2">
-            <span class="w-28 shrink-0 truncate font-medium text-sm text-gray-900 dark:text-white">{{ config.name }}</span>
-            <span class="h-3.5 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
-            <span class="flex min-w-0 items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
-              <span class="truncate">{{ getProviderName(config.provider) }}</span>
-              <UBadge v-if="getProviderKindLabel(config.provider)" color="neutral" variant="subtle" size="xs">
-                {{ getProviderKindLabel(config.provider) }}
-              </UBadge>
-              <span class="shrink-0">·</span>
-              <span class="truncate">{{ getModelDisplayName(config.provider, config.model) }}</span>
-            </span>
+            <div class="flex items-center gap-3">
+              <div
+                class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
+              >
+                <UIcon name="i-heroicons-sparkles" class="h-3.5 w-3.5" />
+              </div>
+              <div class="flex min-w-0 items-center gap-2">
+                <span class="w-28 shrink-0 truncate text-sm font-medium text-gray-900 dark:text-white">
+                  {{ config.name }}
+                </span>
+                <span class="h-3.5 w-px shrink-0 bg-gray-200 dark:bg-gray-700" />
+                <span class="flex min-w-0 items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                  <span class="truncate">{{ getProviderName(config.provider) }}</span>
+                  <UBadge v-if="getProviderKindLabel(config.provider)" color="neutral" variant="subtle" size="xs">
+                    {{ getProviderKindLabel(config.provider) }}
+                  </UBadge>
+                  <span class="shrink-0">·</span>
+                  <span class="truncate">{{ getModelDisplayName(config.provider, config.model) }}</span>
+                </span>
+              </div>
+            </div>
+
+            <div class="flex items-center gap-1">
+              <UButton
+                size="xs"
+                color="neutral"
+                variant="ghost"
+                icon="i-heroicons-pencil-square"
+                @click="openEditModal(config)"
+              />
+              <UButton
+                size="xs"
+                color="error"
+                variant="ghost"
+                icon="i-heroicons-trash"
+                @click="deleteConfig(config.id)"
+              />
+            </div>
           </div>
         </div>
 
-        <!-- 操作按钮 -->
-        <div class="flex items-center gap-1 opacity-0 transition-opacity group-hover:opacity-100" @click.stop>
-          <UButton
-            size="xs"
-            color="neutral"
-            variant="ghost"
-            icon="i-heroicons-pencil-square"
-            @click="openEditModal(config)"
-          />
-          <UButton size="xs" color="error" variant="ghost" icon="i-heroicons-trash" @click="deleteConfig(config.id)" />
+        <!-- 空状态 -->
+        <div v-else class="flex flex-col items-center justify-center py-8">
+          <UIcon name="i-heroicons-sparkles" class="h-8 w-8 text-gray-300 dark:text-gray-600" />
+          <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">{{ t('settings.aiConfig.empty.title') }}</p>
+          <p class="text-xs text-gray-400 dark:text-gray-500">{{ t('settings.aiConfig.empty.description') }}</p>
+        </div>
+
+        <!-- 添加按钮 -->
+        <div class="border-t border-gray-200 px-4 py-3 dark:border-gray-700">
+          <UButton variant="soft" :disabled="isMaxConfigs" size="sm" @click="openAddModal">
+            <UIcon name="i-heroicons-plus" class="mr-1.5 h-3.5 w-3.5" />
+            {{ isMaxConfigs ? t('settings.aiConfig.maxConfigs') : t('settings.aiConfig.addConfig') }}
+          </UButton>
         </div>
       </div>
-    </div>
-
-    <!-- 空状态 -->
-    <div
-      v-else
-      class="flex flex-col items-center justify-center rounded-lg border-2 border-dashed border-gray-200 py-8 dark:border-gray-700"
-    >
-      <UIcon name="i-heroicons-sparkles" class="h-10 w-10 text-gray-300 dark:text-gray-600" />
-      <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">{{ t('settings.aiConfig.empty.title') }}</p>
-      <p class="text-xs text-gray-400 dark:text-gray-500">{{ t('settings.aiConfig.empty.description') }}</p>
-    </div>
-
-    <!-- 添加按钮 -->
-    <div class="flex justify-center">
-      <UButton variant="soft" :disabled="isMaxConfigs" size="sm" @click="openAddModal">
-        <UIcon name="i-heroicons-plus" class="mr-2 h-4 w-4" />
-        {{ isMaxConfigs ? t('settings.aiConfig.maxConfigs') : t('settings.aiConfig.addConfig') }}
-      </UButton>
     </div>
   </div>
 

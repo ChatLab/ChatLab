@@ -9,7 +9,7 @@
 
 import Database from 'better-sqlite3'
 import { completeSimple, type TextContent as PiTextContent } from '@mariozechner/pi-ai'
-import { getActiveConfig, buildPiModel } from '../llm'
+import { getFastModelConfig, buildPiModel } from '../llm'
 import { getDbPath, openDatabase } from '../../database/core'
 import { aiLogger } from '../logger'
 import { t } from '../../i18n'
@@ -20,12 +20,12 @@ async function llmComplete(
   userPrompt: string,
   options?: { temperature?: number; maxTokens?: number }
 ): Promise<string> {
-  const activeConfig = getActiveConfig()
-  if (!activeConfig) {
+  const fastConfig = getFastModelConfig()
+  if (!fastConfig) {
     throw new Error(t('llm.notConfigured'))
   }
 
-  const piModel = buildPiModel(activeConfig)
+  const piModel = buildPiModel(fastConfig)
   const now = Date.now()
 
   const result = await completeSimple(
@@ -35,7 +35,7 @@ async function llmComplete(
       messages: [{ role: 'user', content: userPrompt, timestamp: now }],
     },
     {
-      apiKey: activeConfig.apiKey,
+      apiKey: fastConfig.apiKey,
       temperature: options?.temperature,
       maxTokens: options?.maxTokens,
     }

@@ -25,7 +25,7 @@ const props = defineProps<{
 const promptStore = usePromptStore()
 const llmStore = useLLMStore()
 const { aiGlobalSettings } = storeToRefs(promptStore)
-const { configs, activeConfig, isLoading: isLoadingLLM } = storeToRefs(llmStore)
+const { configs, defaultAssistantConfig, isLoading: isLoadingLLM } = storeToRefs(llmStore)
 
 // 下拉菜单状态
 const isModelPopoverOpen = ref(false)
@@ -86,10 +86,10 @@ const contextTokens = computed(() => {
 })
 
 const modelContextWindow = computed(() => {
-  if (!activeConfig.value) return 128000
+  if (!defaultAssistantConfig.value) return 128000
   const model =
-    llmStore.getModelById(activeConfig.value.provider, activeConfig.value.model) ||
-    llmStore.findModelAcrossProviders(activeConfig.value.model)
+    llmStore.getModelById(defaultAssistantConfig.value.provider, defaultAssistantConfig.value.model) ||
+    llmStore.findModelAcrossProviders(defaultAssistantConfig.value.model)
   return model?.contextWindow ?? 128000
 })
 
@@ -129,7 +129,8 @@ function openChatSettings() {
 
 // 切换 AI 模型配置
 async function switchModelConfig(configId: string) {
-  const success = await llmStore.setActiveConfig(configId)
+  const config = llmStore.configs.find((c) => c.id === configId)
+  const success = await llmStore.setDefaultAssistantModel(configId, config?.model || '')
   if (success) {
     isModelPopoverOpen.value = false
   } else {
@@ -233,7 +234,7 @@ async function openAiLogFile() {
         >
           <UIcon name="i-heroicons-cpu-chip" class="h-3.5 w-3.5" />
           <span class="max-w-[120px] truncate">
-            {{ activeConfig?.name || t('ai.chat.statusBar.model.notConfigured') }}
+            {{ defaultAssistantConfig?.name || t('ai.chat.statusBar.model.notConfigured') }}
           </span>
           <UIcon name="i-heroicons-chevron-down" class="h-3 w-3" />
         </button>
@@ -250,16 +251,18 @@ async function openAiLogFile() {
                 :key="config.id"
                 class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
                 :class="[
-                  config.id === activeConfig?.id
+                  config.id === defaultAssistantConfig?.id
                     ? 'text-pink-600 dark:text-pink-400'
                     : 'text-gray-700 dark:text-gray-300',
                 ]"
                 @click="switchModelConfig(config.id)"
               >
                 <UIcon
-                  :name="config.id === activeConfig?.id ? 'i-heroicons-check-circle-solid' : 'i-heroicons-cpu-chip'"
+                  :name="
+                    config.id === defaultAssistantConfig?.id ? 'i-heroicons-check-circle-solid' : 'i-heroicons-cpu-chip'
+                  "
                   class="h-4 w-4 shrink-0"
-                  :class="[config.id === activeConfig?.id ? 'text-pink-500' : 'text-gray-400']"
+                  :class="[config.id === defaultAssistantConfig?.id ? 'text-pink-500' : 'text-gray-400']"
                 />
                 <div class="flex flex-col truncate">
                   <span class="truncate">{{ config.name }}</span>

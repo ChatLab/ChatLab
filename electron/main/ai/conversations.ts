@@ -6,6 +6,7 @@
 import Database from 'better-sqlite3'
 import * as path from 'path'
 import { getAiDataDir, ensureDir } from '../paths'
+import { aiLogger } from './logger'
 
 const DEFAULT_GENERAL_ID = 'general_cn'
 
@@ -210,7 +211,7 @@ export interface AIConversation {
  */
 export type ContentBlock =
   | { type: 'text'; text: string }
-  | { type: 'think'; tag: string; text: string; durationMs?: number } // 思考内容块
+  | { type: 'think'; tag: string; text: string; durationMs?: number }
   | {
       type: 'tool'
       tool: {
@@ -219,6 +220,11 @@ export type ContentBlock =
         status: 'running' | 'done' | 'error'
         params?: Record<string, unknown>
       }
+    }
+  | {
+      type: 'summary_meta'
+      bufferBoundaryTimestamp: number
+      compressedMessageCount: number
     }
 
 /**
@@ -505,11 +511,11 @@ export function getConversationTokenUsage(conversationId: string): TokenUsageDat
  * 为 Agent 提供对话历史
  *
  * 返回简化的 {role, content} 格式，按时间升序排列。
- * 当存在 summary 消息时，返回最新 summary + summary 之后的 user/assistant 消息，
- * 以避免重复加载已被压缩的旧消息。
+ * 当存在 summary 消息时，返回：[summary] + [buffer 消息] + [新消息]。
+ * Buffer 边界从 summary 的 content_blocks 中的 summary_meta block 获取。
  *
  * @param conversationId 对话 ID
- * @param maxMessages 最大返回条数（取最近 N 条，仅对 system 摘要之后的消息生效）
+ * @param maxMessages 最大返回条数（取最近 N 条，仅对 buffer+新消息生效）
  */
 export function getHistoryForAgent(
   conversationId: string,
@@ -520,19 +526,40 @@ export function getHistoryForAgent(
     (m) => (m.role === 'user' || m.role === 'assistant' || m.role === 'system') && m.content?.trim()
   )
 
-  // 查找最新的 system 消息位置（压缩摘要）
-  let systemIndex = -1
+  // 查找最新的 system (summary) 消息
+  let systemMsg: AIMessage | undefined
   for (let i = validMessages.length - 1; i >= 0; i--) {
     if (validMessages[i].role === 'system') {
-      systemIndex = i
+      systemMsg = validMessages[i]
       break
     }
   }
 
   let result: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>
 
-  if (systemIndex >= 0) {
-    result = validMessages.slice(systemIndex).map((m) => ({ role: m.role, content: m.content }))
+  if (systemMsg) {
+    // 从 content_blocks 中解析 summary_meta 获取 buffer 边界
+    const metaBlock = systemMsg.contentBlocks?.find(
+      (b): b is Extract<ContentBlock, { type: 'summary_meta' }> => b.type === 'summary_meta'
+    )
+    const bufferBoundary = metaBlock?.bufferBoundaryTimestamp
+
+    if (!metaBlock) {
+      aiLogger.warn('Conversations', 'system message missing summary_meta; agent context will be summary-only', {
+        conversationId,
+        messageId: systemMsg.id,
+      })
+    }
+
+    // 取 timestamp >= boundary 的 user/assistant 消息（buffer + 新消息）
+    const contextMessages = bufferBoundary
+      ? validMessages.filter((m) => m.role !== 'system' && m.timestamp >= bufferBoundary)
+      : []
+
+    result = [
+      { role: 'system' as const, content: systemMsg.content },
+      ...contextMessages.map((m) => ({ role: m.role, content: m.content })),
+    ]
   } else {
     result = validMessages.map((m) => ({ role: m.role, content: m.content }))
   }
@@ -552,13 +579,28 @@ export function getHistoryForAgent(
 
 /**
  * 添加 system 消息并替换旧的 system（每个对话只保留一条最新压缩摘要）
+ *
+ * Summary 时间戳 = NOW（UI 中显示在触发压缩的位置）。
+ * Buffer 边界信息存入 content_blocks 的 summary_meta block 中，供 getHistoryForAgent 使用。
  */
-export function addSummaryMessage(conversationId: string, content: string): AIMessage {
+export function addSummaryMessage(
+  conversationId: string,
+  content: string,
+  meta: { bufferBoundaryTimestamp: number; compressedMessageCount: number }
+): AIMessage {
   const db = getAiDb()
 
   db.prepare("DELETE FROM ai_message WHERE conversation_id = ? AND role = 'system'").run(conversationId)
 
-  return addMessage(conversationId, 'system', content)
+  const contentBlocks: ContentBlock[] = [
+    {
+      type: 'summary_meta',
+      bufferBoundaryTimestamp: meta.bufferBoundaryTimestamp,
+      compressedMessageCount: meta.compressedMessageCount,
+    },
+  ]
+
+  return addMessage(conversationId, 'system', content, undefined, undefined, contentBlocks)
 }
 
 /**
@@ -666,11 +708,18 @@ export function getMessageCountAfterSummary(conversationId: string): number {
       .get(conversationId) as { count: number }
     return row.count
   }
+
+  // 从 summary_meta 获取 buffer 边界，统计 >= boundary 的消息数
+  const metaBlock = summary.contentBlocks?.find(
+    (b): b is Extract<ContentBlock, { type: 'summary_meta' }> => b.type === 'summary_meta'
+  )
+  const boundary = metaBlock?.bufferBoundaryTimestamp ?? summary.timestamp
+
   const db = getAiDb()
   const row = db
     .prepare(
-      "SELECT COUNT(*) as count FROM ai_message WHERE conversation_id = ? AND timestamp > ? AND role IN ('user', 'assistant')"
+      "SELECT COUNT(*) as count FROM ai_message WHERE conversation_id = ? AND timestamp >= ? AND role IN ('user', 'assistant')"
     )
-    .get(conversationId, summary.timestamp) as { count: number }
+    .get(conversationId, boundary) as { count: number }
   return row.count
 }

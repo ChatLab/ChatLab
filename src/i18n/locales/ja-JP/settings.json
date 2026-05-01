@@ -4,6 +4,7 @@
     "basic": "基本設定",
     "ai": "AI 設定",
     "aiConfig": "モデルサービス",
+    "aiDefaultModel": "デフォルトモデル",
     "aiRAG": "埋め込みモデル",
     "aiPrompt": "チャット設定",
     "aiPreprocess": "前処理",
@@ -77,6 +78,21 @@
       "invalidProxyUrl": "有効なプロキシアドレスを入力してください。形式例：http://127.0.0.1:7890",
       "onlyHttpSupported": "http:// または https:// プロトコルのみ対応",
       "saveFailed": "保存に失敗しました"
+    }
+  },
+  "defaultModel": {
+    "title": "デフォルトモデル",
+    "noConfigs": "先に「モデルサービス」でモデル設定を追加してください",
+    "selectProvider": "プロバイダーを選択",
+    "selectModel": "モデルを選択",
+    "assistantModel": {
+      "label": "デフォルトアシスタントモデル",
+      "description": "AIチャット、ツール呼び出し、SQLアシスタント、コンテキスト圧縮に使用"
+    },
+    "fastModel": {
+      "label": "高速モデル",
+      "description": "セッション要約生成に使用。未設定の場合はデフォルトアシスタントモデルを使用",
+      "followAssistant": "デフォルトアシスタントモデルに従う"
     }
   },
   "aiConfig": {

@@ -81,10 +81,6 @@ function providerDefinitionToInfo(def: ProviderDefinition): ProviderInfo {
   }
 }
 
-/**
- * 所有 provider 信息（兼容旧格式）
- * @deprecated 使用 BUILTIN_PROVIDERS 代替
- */
 export const PROVIDERS: ProviderInfo[] = BUILTIN_PROVIDERS.map(providerDefinitionToInfo)
 
 // 配置文件路径
@@ -127,7 +123,8 @@ function migrateLegacyConfig(legacy: LegacyStoredConfig): AIConfigStore {
 
   return {
     configs: [newConfig],
-    activeConfigId: newConfig.id,
+    defaultAssistant: { configId: newConfig.id, modelId: newConfig.model || '' },
+    fastModel: null,
   }
 }
 
@@ -137,7 +134,7 @@ import { addCustomProvider as _addCustomProviderDirect } from './custom-provider
 import { addCustomModel as _addCustomModelDirect } from './custom-model-store'
 import { getBuiltinModelById } from './model-catalog'
 
-const CURRENT_SCHEMA_VERSION = 2
+const CURRENT_SCHEMA_VERSION = 3
 
 /**
  * MiniMax 等旧 provider 的兼容映射表
@@ -208,6 +205,34 @@ function migrateToSchemaV2(store: AIConfigStore): AIConfigStore {
   }
 }
 
+/**
+ * Schema v2 → v3：activeConfigId → defaultAssistant { configId, modelId }
+ */
+function migrateToSchemaV3(store: AIConfigStore & { activeConfigId?: string | null }): AIConfigStore {
+  aiLogger.info('LLM', 'Migrating config store to schema v3 (dual-slot model selection)')
+  const legacyActiveId = store.activeConfigId ?? null
+  const resolvedConfig =
+    legacyActiveId && store.configs.find((c) => c.id === legacyActiveId)
+      ? store.configs.find((c) => c.id === legacyActiveId)!
+      : (store.configs[0] ?? null)
+
+  return {
+    configs: store.configs,
+    defaultAssistant: resolvedConfig ? { configId: resolvedConfig.id, modelId: resolvedConfig.model || '' } : null,
+    fastModel: null,
+  }
+}
+
+/** 解析 ModelSlot：如果 configId 无效，回退到 configs[0] */
+function resolveSlot(
+  slot: import('./model-types').ModelSlot | null | undefined,
+  configs: AIServiceConfig[]
+): import('./model-types').ModelSlot | null {
+  if (slot && configs.some((c) => c.id === slot.configId)) return slot
+  const fallback = configs[0]
+  return fallback ? { configId: fallback.id, modelId: fallback.model || '' } : null
+}
+
 // ==================== 多配置管理 ====================
 
 /**
@@ -217,7 +242,7 @@ export function loadConfigStore(): AIConfigStore {
   const configPath = getConfigPath()
 
   if (!fs.existsSync(configPath)) {
-    return { configs: [], activeConfigId: null }
+    return { configs: [], defaultAssistant: null, fastModel: null }
   }
 
   try {
@@ -231,12 +256,19 @@ export function loadConfigStore(): AIConfigStore {
       return loadConfigStore()
     }
 
-    let store = data as AIConfigStore & { schemaVersion?: number }
+    let store = data as AIConfigStore & { schemaVersion?: number; activeConfigId?: string | null }
+    let needsSchemaSave = false
 
     // Schema v1 → v2 迁移
-    if (!store.schemaVersion || store.schemaVersion < CURRENT_SCHEMA_VERSION) {
-      store = { ...migrateToSchemaV2(store), schemaVersion: CURRENT_SCHEMA_VERSION } as typeof store
-      // 先解密再保存（migrateToSchemaV2 不改 apiKey 格式）
+    if (!store.schemaVersion || store.schemaVersion < 2) {
+      store = { ...migrateToSchemaV2(store), schemaVersion: 2 } as typeof store
+      needsSchemaSave = true
+    }
+
+    // Schema v2 → v3 迁移
+    if (store.schemaVersion < 3) {
+      store = { ...migrateToSchemaV3(store), schemaVersion: CURRENT_SCHEMA_VERSION } as typeof store
+      needsSchemaSave = true
     }
 
     let needsEncryptionMigration = false
@@ -251,7 +283,7 @@ export function loadConfigStore(): AIConfigStore {
       }
     })
 
-    if (needsEncryptionMigration || (!data.schemaVersion && store.schemaVersion)) {
+    if (needsEncryptionMigration || needsSchemaSave) {
       aiLogger.info('LLM', 'Saving migrated config store')
       saveConfigStoreRaw({
         ...store,
@@ -268,7 +300,7 @@ export function loadConfigStore(): AIConfigStore {
     }
   } catch (error) {
     aiLogger.error('LLM', 'Failed to load configs', error)
-    return { configs: [], activeConfigId: null }
+    return { configs: [], defaultAssistant: null, fastModel: null }
   }
 }
 
@@ -301,10 +333,37 @@ export function getAllConfigs(): AIServiceConfig[] {
   return loadConfigStore().configs
 }
 
-export function getActiveConfig(): AIServiceConfig | null {
+/** 获取默认助手 slot（含 configId + modelId） */
+export function getDefaultAssistantSlot(): import('./model-types').ModelSlot | null {
   const store = loadConfigStore()
-  if (!store.activeConfigId) return null
-  return store.configs.find((c) => c.id === store.activeConfigId) || null
+  return resolveSlot(store.defaultAssistant, store.configs)
+}
+
+/** 获取默认助手模型配置（AI 对话、工具调用、SQL 助手、上下文压缩）。自动覆盖 config.model 为 slot.modelId */
+export function getDefaultAssistantConfig(): AIServiceConfig | null {
+  const store = loadConfigStore()
+  const slot = resolveSlot(store.defaultAssistant, store.configs)
+  if (!slot) return null
+  const config = store.configs.find((c) => c.id === slot.configId)
+  if (!config) return null
+  return { ...config, model: slot.modelId || config.model }
+}
+
+/** 获取快速模型 slot */
+export function getFastModelSlot(): import('./model-types').ModelSlot | null {
+  const store = loadConfigStore()
+  return resolveSlot(store.fastModel, store.configs)
+}
+
+/** 获取快速模型配置（会话摘要），未配置时回退到默认助手 */
+export function getFastModelConfig(): AIServiceConfig | null {
+  const store = loadConfigStore()
+  const slot = resolveSlot(store.fastModel, store.configs)
+  if (slot) {
+    const config = store.configs.find((c) => c.id === slot.configId)
+    if (config) return { ...config, model: slot.modelId || config.model }
+  }
+  return getDefaultAssistantConfig()
 }
 
 export function getConfigById(id: string): AIServiceConfig | null {
@@ -334,7 +393,7 @@ export function addConfig(config: Omit<AIServiceConfig, 'id' | 'createdAt' | 'up
   store.configs.push(newConfig)
 
   if (store.configs.length === 1) {
-    store.activeConfigId = newConfig.id
+    store.defaultAssistant = { configId: newConfig.id, modelId: newConfig.model || '' }
   }
 
   saveConfigStore(store)
@@ -372,30 +431,50 @@ export function deleteConfig(id: string): { success: boolean; error?: string } {
 
   store.configs.splice(index, 1)
 
-  if (store.activeConfigId === id) {
-    store.activeConfigId = store.configs.length > 0 ? store.configs[0].id : null
+  const fallback = store.configs[0]
+  if (store.defaultAssistant?.configId === id) {
+    store.defaultAssistant = fallback ? { configId: fallback.id, modelId: fallback.model || '' } : null
+  }
+  if (store.fastModel?.configId === id) {
+    store.fastModel = fallback ? { configId: fallback.id, modelId: fallback.model || '' } : null
   }
 
   saveConfigStore(store)
   return { success: true }
 }
 
-export function setActiveConfig(id: string): { success: boolean; error?: string } {
+/** 设置默认助手模型（configId + modelId） */
+export function setDefaultAssistantModel(configId: string, modelId: string): { success: boolean; error?: string } {
   const store = loadConfigStore()
-  const config = store.configs.find((c) => c.id === id)
+  const config = store.configs.find((c) => c.id === configId)
 
   if (!config) {
     return { success: false, error: t('llm.configNotFound') }
   }
 
-  store.activeConfigId = id
+  store.defaultAssistant = { configId, modelId }
+  saveConfigStore(store)
+  return { success: true }
+}
+
+/** 设置快速模型（configId + modelId），传 null 表示跟随默认助手 */
+export function setFastModel(slot: import('./model-types').ModelSlot | null): { success: boolean; error?: string } {
+  const store = loadConfigStore()
+
+  if (slot !== null) {
+    const config = store.configs.find((c) => c.id === slot.configId)
+    if (!config) {
+      return { success: false, error: t('llm.configNotFound') }
+    }
+  }
+
+  store.fastModel = slot
   saveConfigStore(store)
   return { success: true }
 }
 
 export function hasActiveConfig(): boolean {
-  const config = getActiveConfig()
-  return config !== null
+  return getDefaultAssistantConfig() !== null
 }
 
 function validateProviderBaseUrl(provider: LLMProvider, baseUrl?: string): void {
@@ -425,10 +504,6 @@ function validateProviderBaseUrl(provider: LLMProvider, baseUrl?: string): void 
   }
 }
 
-/**
- * 获取提供商信息（兼容旧调用）
- * @deprecated 使用 getBuiltinProviderById 代替
- */
 export function getProviderInfo(provider: LLMProvider): ProviderInfo | null {
   return PROVIDERS.find((p) => p.id === provider) || null
 }

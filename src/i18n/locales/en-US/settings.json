@@ -4,6 +4,7 @@
     "basic": "General",
     "ai": "AI Settings",
     "aiConfig": "Model Service",
+    "aiDefaultModel": "Default Model",
     "aiRAG": "Vector Model",
     "aiPrompt": "Chat Config",
     "aiPreprocess": "Preprocess",
@@ -77,6 +78,21 @@
       "invalidProxyUrl": "Please enter a valid proxy address, e.g. http://127.0.0.1:7890",
       "onlyHttpSupported": "Only http:// or https:// protocols are supported",
       "saveFailed": "Save failed"
+    }
+  },
+  "defaultModel": {
+    "title": "Default Model",
+    "noConfigs": "Please add a model configuration in \"Model Service\" first",
+    "selectProvider": "Select provider",
+    "selectModel": "Select model",
+    "assistantModel": {
+      "label": "Default Assistant Model",
+      "description": "Used for AI chat, tool calls, SQL assistant, and context compression"
+    },
+    "fastModel": {
+      "label": "Fast Model",
+      "description": "Used for session summary generation. Falls back to the default assistant model if not set",
+      "followAssistant": "Follow default assistant model"
     }
   },
   "aiConfig": {

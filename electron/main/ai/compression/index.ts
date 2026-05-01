@@ -17,11 +17,13 @@ import {
   getAllUserAssistantMessages,
   addSummaryMessage,
   getMessageCountAfterSummary,
+  type ContentBlock,
+  type AIMessageRole,
 } from '../conversations'
-import { buildPiModel, getActiveConfig, findModelDefinition } from '../llm'
+import { buildPiModel, findModelDefinition } from '../llm'
 import type { AIServiceConfig } from '../llm/types'
 import { completeSimple, type TextContent as PiTextContent } from '@mariozechner/pi-ai'
-import { aiLogger } from '../logger'
+import { aiLogger, isDebugMode } from '../logger'
 
 // ==================== 类型定义 ====================
 
@@ -31,8 +33,6 @@ export interface CompressionConfig {
   tokenThresholdPercent: number
   /** 保留最近消息的缓冲区大小（相对于 context window 的百分比），默认 20 */
   bufferSizePercent: number
-  /** 独立压缩模型配置（为空则使用当前对话模型） */
-  compressionModelConfigId?: string
   /** 单次工具返回的最大上下文占比（相对于 context window 的百分比），默认 35 */
   maxToolResultPercent?: number
 }
@@ -53,17 +53,39 @@ export interface CompressionResult {
   error?: string
 }
 
-const DEFAULT_COMPRESSION_PROMPT = `You are a context compression assistant. Compress the conversation below into a structured summary.
+const INITIAL_COMPRESSION_PROMPT = `You are a context compression assistant. Compress the conversation below into a structured summary.
 
 STRICT RULES:
 - Output ONLY the summary content. No greetings, no preamble, no meta-commentary, no word/token counts.
 - Use the same language as the conversation.
 - Maximum output length: {maxTokens} tokens. Be concise.
-- Organize by topic/thread when possible.
-- Preserve: key facts, decisions, user preferences, data, names, timestamps, action items.
-- Omit: pleasantries, filler, redundant back-and-forth.
+- NEVER reproduce any single message verbatim. Always paraphrase and compress.
+- Cover ALL topics discussed — no single topic should exceed 30% of the summary.
+- Organize by topic/thread, using brief headers (e.g. "## Topic").
+- Preserve: key facts, conclusions, user preferences, data points, names, important timestamps, action items.
+- Omit: pleasantries, filler, redundant back-and-forth, detailed tables (summarize their conclusions instead).
 
 CONVERSATION:
+{messages}`
+
+const PROGRESSIVE_COMPRESSION_PROMPT = `You are a context compression assistant performing an INCREMENTAL summary update.
+
+You will receive:
+1. A [PREVIOUS SUMMARY] — this represents the compressed history of earlier conversation. Its content MUST be preserved in your output.
+2. [NEW MESSAGES] — recent messages that need to be merged into the summary.
+
+STRICT RULES:
+- Output ONLY the updated summary. No greetings, no preamble, no meta-commentary.
+- Use the same language as the conversation.
+- Maximum output length: {maxTokens} tokens. Be concise.
+- CRITICAL: You MUST retain ALL key points from the previous summary. Do not discard prior context.
+- NEVER reproduce any single message verbatim. Always paraphrase and compress.
+- Merge new information into appropriate existing topic sections, or add new sections.
+- Cover ALL topics — no single topic should exceed 30% of the summary.
+- Organize by topic/thread, using brief headers (e.g. "## Topic").
+- Preserve: key facts, conclusions, user preferences, data points, names, important timestamps, action items.
+- Omit: pleasantries, filler, redundant back-and-forth, detailed tables (summarize their conclusions instead).
+
 {messages}`
 
 const DEFAULT_CONTEXT_WINDOW = 128000
@@ -89,9 +111,18 @@ export async function checkAndCompress(
 
     // 收集当前上下文消息
     const summary = getLatestSummary(conversationId)
-    const messages = summary
-      ? getMessagesAfterSummary(conversationId, summary.timestamp)
-      : getAllUserAssistantMessages(conversationId)
+
+    let messages: Array<{ role: AIMessageRole; content: string; timestamp: number }>
+    if (summary) {
+      // 从 summary_meta 获取 buffer 边界，取 >= boundary 的消息（buffer + 新消息）
+      const metaBlock = summary.contentBlocks?.find(
+        (b): b is Extract<ContentBlock, { type: 'summary_meta' }> => b.type === 'summary_meta'
+      )
+      const boundary = metaBlock?.bufferBoundaryTimestamp ?? summary.timestamp
+      messages = getMessagesAfterSummary(conversationId, boundary - 1)
+    } else {
+      messages = getAllUserAssistantMessages(conversationId)
+    }
 
     // 构建 token 计算的消息列表
     const historyForTokenCount: Array<{ role: string; content: string }> = []
@@ -116,43 +147,107 @@ export async function checkAndCompress(
 
     // 确定缓冲区（保留最近 N% 的消息）
     const bufferTokenBudget = Math.floor(contextWindow * (config.bufferSizePercent / 100))
-    const { bufferMessages, messagesToCompress } = splitMessagesForCompression(messages, summary, bufferTokenBudget)
+    const { bufferMessages, messagesToCompress } = splitMessagesForCompression(messages, bufferTokenBudget)
 
-    if (messagesToCompress.length === 0) {
+    aiLogger.info('Compression', `Split result`, {
+      totalMessages: messages.length,
+      messagesToCompress: messagesToCompress.length,
+      bufferMessages: bufferMessages.length,
+      bufferTokenBudget,
+      hasPreviousSummary: !!summary,
+    })
+
+    // 待压缩消息数过少时跳过，避免生成低质量摘要（仅保留 1-2 条消息时 LLM 倾向于原文照搬）
+    const MIN_MESSAGES_TO_COMPRESS = 3
+    if (messagesToCompress.length < MIN_MESSAGES_TO_COMPRESS) {
+      aiLogger.info(
+        'Compression',
+        `Skipping: only ${messagesToCompress.length} messages to compress (min: ${MIN_MESSAGES_TO_COMPRESS})`
+      )
       return { compressed: false, reason: 'skipped_below_threshold', tokensBefore: currentTokens }
     }
 
     // 构建压缩输入文本
+    const isProgressive = !!summary
     const compressInput = buildCompressionInput(messagesToCompress, summary)
     const targetTokens = Math.min(Math.floor(contextWindow * 0.1), 16384)
 
-    // 三级降级：独立模型 → 当前模型 → 强制截断
+    aiLogger.info('Compression', `Compression params`, {
+      mode: isProgressive ? 'progressive' : 'initial',
+      targetTokens,
+      inputLength: compressInput.length,
+      inputTokensEstimate: countTokens(compressInput),
+    })
+
+    // DEBUG 模式下输出原始消息列表和完整压缩输入
+    if (isDebugMode()) {
+      aiLogger.debug('Compression', 'Messages to compress (raw)', {
+        messages: messagesToCompress.map((m, i) => ({
+          index: i,
+          role: m.role,
+          contentLength: m.content.length,
+          contentPreview: m.content.slice(0, 200),
+        })),
+      })
+      aiLogger.debug('Compression', 'Buffer messages (kept as-is)', {
+        messages: bufferMessages.map((m, i) => ({
+          index: i,
+          role: m.role,
+          contentLength: m.content.length,
+          contentPreview: m.content.slice(0, 200),
+        })),
+      })
+      aiLogger.debug('Compression', 'Full compression input sent to LLM', compressInput)
+      if (summary) {
+        aiLogger.debug('Compression', 'Previous summary content', summary.content)
+      }
+    }
+
+    // 使用默认助手模型压缩，失败则强制截断
     let summaryText: string | null = null
 
-    // 尝试用配置的压缩模型
-    if (config.compressionModelConfigId) {
-      summaryText = await tryCompress(config.compressionModelConfigId, compressInput, targetTokens)
-    }
+    summaryText = await tryCompressWithConfig(activeAIConfig, compressInput, targetTokens, isProgressive)
 
-    // 降级到当前模型
-    if (!summaryText) {
-      summaryText = await tryCompressWithConfig(activeAIConfig, compressInput, targetTokens)
-    }
-
-    // 最终降级：强制截断
     if (!summaryText) {
       aiLogger.warn('Compression', 'LLM compression failed, falling back to truncation')
       summaryText = forceTruncate(compressInput, targetTokens)
+      aiLogger.info('Compression', 'Truncation fallback applied', {
+        outputLength: summaryText.length,
+      })
+    } else {
+      aiLogger.info('Compression', 'LLM compression succeeded', {
+        outputLength: summaryText.length,
+        outputTokensEstimate: countTokens(summaryText),
+      })
+      if (isDebugMode()) {
+        aiLogger.debug('Compression', 'Generated summary content', summaryText)
+      }
     }
 
-    // 写入 summary
-    addSummaryMessage(conversationId, summaryText)
+    // 写入 summary：时间戳 = NOW（UI 中显示在触发压缩的位置）
+    // buffer 边界 + 压缩消息数存入 content_blocks 的 summary_meta block
+    const bufferBoundary =
+      bufferMessages.length > 0
+        ? bufferMessages[0].timestamp
+        : messagesToCompress[messagesToCompress.length - 1]!.timestamp + 1
 
-    // Thrashing 检查：压缩后重新计算 token
-    const afterMessages = getMessagesAfterSummary(conversationId, Date.now() / 1000 - 1)
+    const summaryMeta = {
+      bufferBoundaryTimestamp: bufferBoundary,
+      compressedMessageCount: messagesToCompress.length,
+    }
+
+    aiLogger.info('Compression', 'Writing summary', {
+      bufferBoundary,
+      compressedCount: messagesToCompress.length,
+      bufferCount: bufferMessages.length,
+    })
+
+    addSummaryMessage(conversationId, summaryText, summaryMeta)
+
+    // Thrashing 检查：压缩后重新计算 token（summary + buffer 消息）
     const afterTokenCount: Array<{ role: string; content: string }> = [
       { role: 'assistant', content: summaryText },
-      ...afterMessages.map((m) => ({ role: m.role, content: m.content })),
+      ...bufferMessages.map((m) => ({ role: m.role, content: m.content })),
     ]
     const tokensAfter = countMessagesTokens(afterTokenCount, systemPrompt)
 
@@ -217,7 +312,6 @@ interface SplitResult {
 
 function splitMessagesForCompression(
   messages: Array<{ role: string; content: string; timestamp: number }>,
-  summary: { content: string } | null,
   bufferTokenBudget: number
 ): SplitResult {
   let bufferTokens = 0
@@ -249,7 +343,8 @@ function buildCompressionInput(
   const parts: string[] = []
 
   if (existingSummary) {
-    parts.push(`[Previous Summary]\n${existingSummary.content}\n`)
+    parts.push(`[PREVIOUS SUMMARY — MUST PRESERVE]\n${existingSummary.content}\n`)
+    parts.push(`[NEW MESSAGES — SUMMARIZE AND MERGE]`)
   }
 
   for (const msg of messagesToCompress) {
@@ -260,28 +355,16 @@ function buildCompressionInput(
   return parts.join('\n\n')
 }
 
-async function tryCompress(configId: string, input: string, targetTokens: number): Promise<string | null> {
-  try {
-    const { getAllConfigs } = await import('../llm')
-    const allConfigs = getAllConfigs()
-    const config = allConfigs.find((c) => c.id === configId)
-    if (!config) return null
-
-    return await tryCompressWithConfig(config, input, targetTokens)
-  } catch (error) {
-    aiLogger.warn('Compression', `Compression with config ${configId} failed`, { error: String(error) })
-    return null
-  }
-}
-
 async function tryCompressWithConfig(
   aiConfig: AIServiceConfig,
   input: string,
-  targetTokens: number
+  targetTokens: number,
+  isProgressive: boolean
 ): Promise<string | null> {
   try {
     const piModel = buildPiModel(aiConfig)
-    const prompt = DEFAULT_COMPRESSION_PROMPT.replace('{maxTokens}', String(targetTokens)).replace('{messages}', input)
+    const template = isProgressive ? PROGRESSIVE_COMPRESSION_PROMPT : INITIAL_COMPRESSION_PROMPT
+    const prompt = template.replace('{maxTokens}', String(targetTokens)).replace('{messages}', input)
 
     const result = await completeSimple(
       piModel,

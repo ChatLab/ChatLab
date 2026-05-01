@@ -50,6 +50,11 @@ export type ContentBlock =
     }
   | { type: 'skill'; skillId: string; skillName: string }
   | { type: 'error'; error: SerializedErrorInfo }
+  | {
+      type: 'summary_meta'
+      bufferBoundaryTimestamp: number
+      compressedMessageCount: number
+    }
 
 // 消息类型
 export interface ChatMessage {
@@ -920,7 +925,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           enabled: aiGlobalSettings.value.contextCompression?.enabled ?? false,
           tokenThresholdPercent: aiGlobalSettings.value.contextCompression?.tokenThresholdPercent ?? 75,
           bufferSizePercent: aiGlobalSettings.value.contextCompression?.bufferSizePercent ?? 20,
-          compressionModelConfigId: aiGlobalSettings.value.contextCompression?.compressionModelConfigId,
           maxToolResultPercent: aiGlobalSettings.value.contextCompression?.maxToolResultPercent ?? 50,
         }
       )

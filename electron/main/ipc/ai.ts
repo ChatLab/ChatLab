@@ -10,7 +10,7 @@ import { serializeError } from '../ai/serialize-error'
 import { getLogsDir } from '../paths'
 import { Agent, type AgentStreamChunk, type SkillContext } from '../ai/agent'
 import { getDefaultGeneralAssistantId } from '../ai/assistant/defaultGeneral'
-import { getActiveConfig, buildPiModel } from '../ai/llm'
+import { getDefaultAssistantConfig, buildPiModel } from '../ai/llm'
 import { checkAndCompress, manualCompress, type CompressionConfig } from '../ai/compression'
 import { countMessagesTokens } from '../ai/tokenizer'
 import * as assistantManager from '../ai/assistant'
@@ -406,11 +406,17 @@ export function registerAIHandlers({ win }: IpcContext): void {
   })
 
   /**
-   * 获取当前激活的配置 ID
+   * 获取默认助手 slot
    */
-  ipcMain.handle('llm:getActiveConfigId', async () => {
-    const config = llm.getActiveConfig()
-    return config?.id || null
+  ipcMain.handle('llm:getDefaultAssistantSlot', async () => {
+    return llm.getDefaultAssistantSlot()
+  })
+
+  /**
+   * 获取快速模型 slot
+   */
+  ipcMain.handle('llm:getFastModelSlot', async () => {
+    return llm.getFastModelSlot()
   })
 
   /**
@@ -489,11 +495,10 @@ export function registerAIHandlers({ win }: IpcContext): void {
    */
   ipcMain.handle('llm:deleteConfig', async (_, id?: string) => {
     try {
-      // 如果没有传 id，删除当前激活的配置
       if (!id) {
-        const activeConfig = llm.getActiveConfig()
-        if (activeConfig) {
-          return llm.deleteConfig(activeConfig.id)
+        const defaultConfig = llm.getDefaultAssistantConfig()
+        if (defaultConfig) {
+          return llm.deleteConfig(defaultConfig.id)
         }
         return { success: false, error: t('llm.noActiveConfig') }
       }
@@ -505,13 +510,25 @@ export function registerAIHandlers({ win }: IpcContext): void {
   })
 
   /**
-   * 设置激活的配置
+   * 设置默认助手模型（configId + modelId）
    */
-  ipcMain.handle('llm:setActiveConfig', async (_, id: string) => {
+  ipcMain.handle('llm:setDefaultAssistantModel', async (_, configId: string, modelId: string) => {
     try {
-      return llm.setActiveConfig(id)
+      return llm.setDefaultAssistantModel(configId, modelId)
     } catch (error) {
-      console.error('Failed to set active config:', error)
+      console.error('Failed to set default assistant model:', error)
+      return { success: false, error: String(error) }
+    }
+  })
+
+  /**
+   * 设置快速模型
+   */
+  ipcMain.handle('llm:setFastModel', async (_, slot: { configId: string; modelId: string } | null) => {
+    try {
+      return llm.setFastModel(slot)
+    } catch (error) {
+      console.error('Failed to set fast model:', error)
       return { success: false, error: String(error) }
     }
   })
@@ -637,7 +654,7 @@ export function registerAIHandlers({ win }: IpcContext): void {
       options?: { temperature?: number; maxTokens?: number }
     ) => {
       try {
-        const activeConfig = getActiveConfig()
+        const activeConfig = getDefaultAssistantConfig()
         if (!activeConfig) {
           return { success: false, error: t('llm.notConfigured') }
         }
@@ -684,7 +701,7 @@ export function registerAIHandlers({ win }: IpcContext): void {
       options?: { temperature?: number; maxTokens?: number }
     ) => {
       try {
-        const activeConfig = getActiveConfig()
+        const activeConfig = getDefaultAssistantConfig()
         if (!activeConfig) {
           return { success: false, error: t('llm.notConfigured') }
         }
@@ -1079,7 +1096,7 @@ export function registerAIHandlers({ win }: IpcContext): void {
         const abortController = new AbortController()
         activeAgentRequests.set(requestId, abortController)
 
-        const activeAIConfig = getActiveConfig()
+        const activeAIConfig = getDefaultAssistantConfig()
         if (!activeAIConfig) {
           return { success: false, error: t('llm.notConfigured') }
         }
@@ -1323,7 +1340,7 @@ export function registerAIHandlers({ win }: IpcContext): void {
     'ai:compressContext',
     async (_, conversationId: string, compressionConfig: CompressionConfig, systemPrompt: string) => {
       try {
-        const activeAIConfig = getActiveConfig()
+        const activeAIConfig = getDefaultAssistantConfig()
         if (!activeAIConfig) {
           return { success: false, error: t('llm.notConfigured') }
         }

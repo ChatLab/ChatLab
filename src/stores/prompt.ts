@@ -20,7 +20,6 @@ export const usePromptStore = defineStore(
         enabled: true,
         tokenThresholdPercent: 75,
         bufferSizePercent: 20,
-        compressionModelConfigId: undefined as string | undefined,
         maxToolResultPercent: 50,
       },
     })
@@ -49,7 +48,6 @@ export const usePromptStore = defineStore(
           enabled: boolean
           tokenThresholdPercent: number
           bufferSizePercent: number
-          compressionModelConfigId?: string
           maxToolResultPercent?: number
         }
       }>

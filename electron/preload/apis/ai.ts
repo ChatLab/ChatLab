@@ -578,7 +578,6 @@ export const aiApi = {
       enabled: boolean
       tokenThresholdPercent: number
       bufferSizePercent: number
-      compressionModelConfigId?: string
       maxToolResultPercent?: number
     },
     systemPrompt: string
@@ -667,10 +666,17 @@ export const llmApi = {
   },
 
   /**
-   * 获取当前激活的配置 ID
+   * 获取默认助手 slot（configId + modelId）
    */
-  getActiveConfigId: (): Promise<string | null> => {
-    return ipcRenderer.invoke('llm:getActiveConfigId')
+  getDefaultAssistantSlot: (): Promise<{ configId: string; modelId: string } | null> => {
+    return ipcRenderer.invoke('llm:getDefaultAssistantSlot')
+  },
+
+  /**
+   * 获取快速模型 slot
+   */
+  getFastModelSlot: (): Promise<{ configId: string; modelId: string } | null> => {
+    return ipcRenderer.invoke('llm:getFastModelSlot')
   },
 
   /**
@@ -720,10 +726,17 @@ export const llmApi = {
   },
 
   /**
-   * 设置激活的配置
+   * 设置默认助手模型（configId + modelId）
    */
-  setActiveConfig: (id: string): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke('llm:setActiveConfig', id)
+  setDefaultAssistantModel: (configId: string, modelId: string): Promise<{ success: boolean; error?: string }> => {
+    return ipcRenderer.invoke('llm:setDefaultAssistantModel', configId, modelId)
+  },
+
+  /**
+   * 设置快速模型
+   */
+  setFastModel: (slot: { configId: string; modelId: string } | null): Promise<{ success: boolean; error?: string }> => {
+    return ipcRenderer.invoke('llm:setFastModel', slot)
   },
 
   /**
@@ -1000,7 +1013,6 @@ export const agentApi = {
       enabled: boolean
       tokenThresholdPercent: number
       bufferSizePercent: number
-      compressionModelConfigId?: string
       maxToolResultPercent?: number
     }
   ): {

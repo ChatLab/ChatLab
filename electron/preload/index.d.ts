@@ -304,6 +304,11 @@ type AIContentBlock =
       }
     }
   | { type: 'skill'; skillId: string; skillName: string }
+  | {
+      type: 'summary_meta'
+      bufferBoundaryTimestamp: number
+      compressedMessageCount: number
+    }
 
 type AIMessageRole = 'user' | 'assistant' | 'system'
 
@@ -410,7 +415,6 @@ interface AiApi {
       enabled: boolean
       tokenThresholdPercent: number
       bufferSizePercent: number
-      compressionModelConfigId?: string
       maxToolResultPercent?: number
     },
     systemPrompt: string
@@ -565,12 +569,12 @@ interface LlmApi {
   ) => Promise<{ success: boolean; error?: string }>
   deleteCustomModel: (providerId: string, modelId: string) => Promise<{ success: boolean; error?: string }>
 
-  /** @deprecated 使用 getProviderRegistry 代替 */
   getProviders: () => Promise<LLMProviderInfo[]>
 
   // 多配置管理 API
   getAllConfigs: () => Promise<AIServiceConfigDisplay[]>
-  getActiveConfigId: () => Promise<string | null>
+  getDefaultAssistantSlot: () => Promise<{ configId: string; modelId: string } | null>
+  getFastModelSlot: () => Promise<{ configId: string; modelId: string } | null>
   addConfig: (config: {
     name: string
     provider: string
@@ -599,7 +603,8 @@ interface LlmApi {
     }
   ) => Promise<{ success: boolean; error?: string }>
   deleteConfig: (id?: string) => Promise<{ success: boolean; error?: string }>
-  setActiveConfig: (id: string) => Promise<{ success: boolean; error?: string }>
+  setDefaultAssistantModel: (configId: string, modelId: string) => Promise<{ success: boolean; error?: string }>
+  setFastModel: (slot: { configId: string; modelId: string } | null) => Promise<{ success: boolean; error?: string }>
 
   // 验证和检查
   validateApiKey: (
@@ -834,7 +839,6 @@ interface AgentApi {
       enabled: boolean
       tokenThresholdPercent: number
       bufferSizePercent: number
-      compressionModelConfigId?: string
       maxToolResultPercent?: number
     }
   ) => { requestId: string; promise: Promise<{ success: boolean; result?: AgentResult; error?: SerializedErrorInfo }> }

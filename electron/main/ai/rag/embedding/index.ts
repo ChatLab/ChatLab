@@ -69,7 +69,7 @@ function resolveApiConfig(config: EmbeddingServiceConfig): {
 } {
   if (config.apiSource === 'reuse_llm') {
     // 复用当前 LLM 配置
-    const llmConfig = llm.getActiveConfig()
+    const llmConfig = llm.getDefaultAssistantConfig()
 
     if (!llmConfig) {
       throw new Error('未找到激活的 LLM 配置，请先在「模型配置」中添加 AI 服务')

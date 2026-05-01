@@ -4,6 +4,7 @@
     "basic": "基础设置",
     "ai": "AI 设置",
     "aiConfig": "模型服务",
+    "aiDefaultModel": "默认模型",
     "aiRAG": "向量模型",
     "aiPrompt": "对话配置",
     "aiPreprocess": "预处理",
@@ -77,6 +78,21 @@
       "invalidProxyUrl": "请输入有效的代理地址，格式如 http://127.0.0.1:7890",
       "onlyHttpSupported": "仅支持 http:// 或 https:// 协议",
       "saveFailed": "保存失败"
+    }
+  },
+  "defaultModel": {
+    "title": "默认模型",
+    "noConfigs": "请先在「模型服务」中添加模型配置",
+    "selectProvider": "选择提供商",
+    "selectModel": "选择模型",
+    "assistantModel": {
+      "label": "默认助手模型",
+      "description": "用于 AI 对话、工具调用、SQL 助手、上下文压缩"
+    },
+    "fastModel": {
+      "label": "快速模型",
+      "description": "用于会话摘要生成，未配置时使用默认助手模型",
+      "followAssistant": "跟随默认助手模型"
     }
   },
   "aiConfig": {

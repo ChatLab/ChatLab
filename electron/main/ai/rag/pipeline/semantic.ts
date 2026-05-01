@@ -11,7 +11,7 @@ import { getVectorStore } from '../store'
 import { getSessionChunks } from '../chunking'
 import { loadRAGConfig } from '../config'
 import { completeSimple, type TextContent as PiTextContent } from '@mariozechner/pi-ai'
-import { getActiveConfig, buildPiModel } from '../../llm'
+import { getDefaultAssistantConfig, buildPiModel } from '../../llm'
 import { aiLogger as logger } from '../../logger'
 
 /**
@@ -34,7 +34,7 @@ const QUERY_REWRITE_PROMPT = `你是一个查询优化专家。请将用户的�
  */
 async function rewriteQuery(query: string, abortSignal?: AbortSignal): Promise<string> {
   try {
-    const activeConfig = getActiveConfig()
+    const activeConfig = getDefaultAssistantConfig()
     if (!activeConfig) return query
 
     const piModel = buildPiModel(activeConfig)
