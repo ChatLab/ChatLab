@@ -59,7 +59,7 @@ export type ContentBlock =
 // 消息类型
 export interface ChatMessage {
   id: string
-  role: 'user' | 'assistant' | 'system'
+  role: 'user' | 'assistant' | 'summary'
   content: string
   timestamp: number
   dataSource?: {
@@ -870,14 +870,14 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
             case 'compression_done':
               if (chunk.compressionResult) {
-                const systemMsg: ChatMessage = {
-                  id: `system-${Date.now()}`,
-                  role: 'system',
+                const summaryMsg: ChatMessage = {
+                  id: `summary-${Date.now()}`,
+                  role: 'summary',
                   content: chunk.compressionResult.summaryContent,
                   timestamp: chunk.compressionResult.timestamp,
                 }
                 const insertIdx = Math.max(0, targetBuffer.messages.length - 1)
-                targetBuffer.messages.splice(insertIdx, 0, systemMsg)
+                targetBuffer.messages.splice(insertIdx, 0, summaryMsg)
                 aiMessageIndex++
               }
               break

@@ -50,7 +50,9 @@
       "allConversations": "全部对话",
       "copyCell": "复制选中项",
       "editRow": "编辑",
-      "copyRow": "复制整行 (JSON)"
+      "copyRow": "复制整行 (JSON)",
+      "clearDebugContext": "清除 Debug 上下文",
+      "confirmClearDebug": "确认清除所有消息的 debug_context 数据？此操作不可撤销。"
     }
   },
   "memory": {

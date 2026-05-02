@@ -6,7 +6,7 @@
  *   1. 计算当前上下文总 token → 未超阈值则跳过
  *   2. 确定缓冲区：最近 bufferSizePercent% context window 的消息原文
  *   3. 缓冲区之前的消息（含旧 system 摘要）→ LLM 压缩为新摘要
- *   4. 写入 ai_message(role='system')，替换旧摘要
+ *   4. 写入 ai_message(role='summary')，替换旧摘要
  *   5. Thrashing 检查
  */
 
@@ -17,6 +17,7 @@ import {
   getAllUserAssistantMessages,
   addSummaryMessage,
   getMessageCountAfterSummary,
+  setDebugContext,
   type ContentBlock,
   type AIMessageRole,
 } from '../conversations'
@@ -179,30 +180,6 @@ export async function checkAndCompress(
       inputTokensEstimate: countTokens(compressInput),
     })
 
-    // DEBUG 模式下输出原始消息列表和完整压缩输入
-    if (isDebugMode()) {
-      aiLogger.debug('Compression', 'Messages to compress (raw)', {
-        messages: messagesToCompress.map((m, i) => ({
-          index: i,
-          role: m.role,
-          contentLength: m.content.length,
-          contentPreview: m.content.slice(0, 200),
-        })),
-      })
-      aiLogger.debug('Compression', 'Buffer messages (kept as-is)', {
-        messages: bufferMessages.map((m, i) => ({
-          index: i,
-          role: m.role,
-          contentLength: m.content.length,
-          contentPreview: m.content.slice(0, 200),
-        })),
-      })
-      aiLogger.debug('Compression', 'Full compression input sent to LLM', compressInput)
-      if (summary) {
-        aiLogger.debug('Compression', 'Previous summary content', summary.content)
-      }
-    }
-
     // 使用默认助手模型压缩，失败则强制截断
     let summaryText: string | null = null
 
@@ -219,9 +196,6 @@ export async function checkAndCompress(
         outputLength: summaryText.length,
         outputTokensEstimate: countTokens(summaryText),
       })
-      if (isDebugMode()) {
-        aiLogger.debug('Compression', 'Generated summary content', summaryText)
-      }
     }
 
     // 写入 summary：时间戳 = NOW（UI 中显示在触发压缩的位置）
@@ -242,7 +216,19 @@ export async function checkAndCompress(
       bufferCount: bufferMessages.length,
     })
 
-    addSummaryMessage(conversationId, summaryText, summaryMeta)
+    const summaryMsg = addSummaryMessage(conversationId, summaryText, summaryMeta)
+
+    // DEBUG 模式：记录发给压缩 LLM 的完整上下文（与 assistant 的 debug_context 格式一致）
+    if (isDebugMode()) {
+      try {
+        const template = isProgressive ? PROGRESSIVE_COMPRESSION_PROMPT : INITIAL_COMPRESSION_PROMPT
+        const fullPrompt = template.replace('{maxTokens}', String(targetTokens)).replace('{messages}', compressInput)
+        const debugMessages = [{ role: 'user', content: fullPrompt }]
+        setDebugContext(summaryMsg.id, JSON.stringify(debugMessages, null, 2))
+      } catch {
+        // 静默失败，不影响主流程
+      }
+    }
 
     // Thrashing 检查：压缩后重新计算 token（summary + buffer 消息）
     const afterTokenCount: Array<{ role: string; content: string }> = [

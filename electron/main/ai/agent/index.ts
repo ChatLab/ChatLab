@@ -6,7 +6,7 @@
 import { getDefaultAssistantConfig, buildPiModel } from '../llm'
 import { getAllTools, createActivateSkillTool } from '../tools'
 import type { ToolContext } from '../tools/types'
-import { getHistoryForAgent } from '../conversations'
+import { getHistoryForAgent, setPendingDebugContext } from '../conversations'
 import { aiLogger, isDebugMode } from '../logger'
 import { t as i18nT } from '../../i18n'
 import { Agent as PiAgentCore } from '@mariozechner/pi-agent-core'
@@ -23,7 +23,7 @@ import { buildSystemPrompt } from './prompt-builder'
 import { extractThinkingContent, stripToolCallTags } from './content-parser'
 import { AgentEventHandler } from './event-handler'
 
-type SimpleHistoryMessage = { role: 'user' | 'assistant' | 'system'; content: string }
+type SimpleHistoryMessage = { role: 'user' | 'assistant' | 'summary'; content: string }
 
 // Re-export types for external consumers
 export type { AgentConfig, AgentStreamChunk, AgentResult, TokenUsage, AgentRuntimeStatus, SkillContext } from './types'
@@ -194,7 +194,22 @@ export class Agent {
 
     try {
       if (isDebugMode()) {
-        aiLogger.debug('Agent', `[DEBUG] System prompt`, systemPrompt)
+        // 捕获发给 LLM 的完整上下文（system prompt + history + user message），写入 DB
+        if (this.context.conversationId) {
+          try {
+            const debugMessages = [
+              { role: 'system', content: systemPrompt },
+              ...historyMessages.map((m) => ({
+                role: m.role === 'summary' ? 'assistant' : m.role,
+                content: m.content,
+              })),
+              { role: 'user', content: userMessage },
+            ]
+            setPendingDebugContext(this.context.conversationId, JSON.stringify(debugMessages, null, 2))
+          } catch {
+            // 静默失败，不影响主流程
+          }
+        }
       }
 
       await coreAgent.prompt(userMessage)

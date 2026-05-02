@@ -13,7 +13,7 @@ const toast = useToast()
 
 // Props
 const props = defineProps<{
-  role: 'user' | 'assistant' | 'system'
+  role: 'user' | 'assistant' | 'summary'
   content: string
   timestamp: number
   isStreaming?: boolean
@@ -30,7 +30,7 @@ const formattedTime = computed(() => {
 
 // 是否是用户消息
 const isUser = computed(() => props.role === 'user')
-const isSystem = computed(() => props.role === 'system')
+const isSummary = computed(() => props.role === 'summary')
 
 // 创建 markdown-it 实例
 const md = new MarkdownIt({
@@ -302,11 +302,11 @@ async function handleCopyMarkdown() {
 </script>
 
 <template>
-  <div class="flex items-start gap-3" :class="[isUser ? 'flex-row-reverse' : '', isSystem ? 'justify-center' : '']">
+  <div class="flex items-start gap-3" :class="[isUser ? 'flex-row-reverse' : '', isSummary ? 'justify-center' : '']">
     <!-- 消息内容 -->
-    <div :class="[isSystem ? 'w-full min-w-0' : 'max-w-[85%] min-w-0']">
+    <div :class="[isSummary ? 'w-full min-w-0' : 'max-w-[85%] min-w-0']">
       <!-- System 消息：可折叠的上下文总结 -->
-      <template v-if="isSystem">
+      <template v-if="isSummary">
         <details
           class="w-full rounded-lg border border-gray-200 bg-gray-50/80 dark:border-gray-700/50 dark:bg-gray-800/40"
         >
@@ -465,7 +465,7 @@ async function handleCopyMarkdown() {
 
       <!-- 时间戳 + 操作按钮（summary 消息和流式输出中不显示） -->
       <div
-        v-if="!isSystem && !isStreaming"
+        v-if="!isSummary && !isStreaming"
         class="mt-1 flex items-center gap-2 px-1"
         :class="[isUser ? 'flex-row-reverse' : '']"
       >

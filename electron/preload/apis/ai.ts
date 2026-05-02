@@ -41,7 +41,7 @@ export type ContentBlock =
     }
   | { type: 'skill'; skillId: string; skillName: string }
 
-export type AIMessageRole = 'user' | 'assistant' | 'system'
+export type AIMessageRole = 'user' | 'assistant' | 'summary'
 
 export interface TokenUsageData {
   promptTokens: number
@@ -539,6 +539,13 @@ export const aiApi = {
    */
   showAiLogFile: (): Promise<{ success: boolean; path?: string; error?: string }> => {
     return ipcRenderer.invoke('ai:showLogFile')
+  },
+
+  /**
+   * 一键清除所有消息的 debug_context 数据
+   */
+  clearDebugContext: (): Promise<{ success: boolean; cleared: number }> => {
+    return ipcRenderer.invoke('ai:clearDebugContext')
   },
 
   getDefaultDesensitizeRules: (locale: string): Promise<DesensitizeRule[]> => {

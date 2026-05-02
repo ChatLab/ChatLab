@@ -13,6 +13,9 @@ const DEFAULT_GENERAL_ID = 'general_cn'
 // AI 数据库实例
 let AI_DB: Database.Database | null = null
 
+// DEBUG 模式：暂存待写入的 debug context（key = conversationId）
+const pendingDebugContextMap = new Map<string, string>()
+
 /**
  * 获取 AI 数据库目录
  */
@@ -92,6 +95,12 @@ function migrateAiDatabase(db: Database.Database): void {
     if (!messageColumns.includes('token_usage')) {
       db.exec('ALTER TABLE ai_message ADD COLUMN token_usage TEXT')
       console.log('[AI DB Migration] Adding token_usage column to ai_message')
+    }
+
+    // 检查并添加 debug_context 列（仅 DEBUG 模式下写入，存储发给 LLM 的完整上下文）
+    if (!messageColumns.includes('debug_context')) {
+      db.exec('ALTER TABLE ai_message ADD COLUMN debug_context TEXT')
+      console.log('[AI DB Migration] Adding debug_context column to ai_message')
     }
 
     // 获取 ai_conversation 表的列信息
@@ -230,7 +239,7 @@ export type ContentBlock =
 /**
  * AI 消息类型
  */
-export type AIMessageRole = 'user' | 'assistant' | 'system'
+export type AIMessageRole = 'user' | 'assistant' | 'summary'
 
 export interface TokenUsageData {
   promptTokens: number
@@ -389,10 +398,16 @@ export function addMessage(
   const now = Math.floor(Date.now() / 1000)
   const id = `msg_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
 
+  // 检查是否有暂存的 debug context 需要写入（仅 assistant 消息）
+  const pendingDebug = role === 'assistant' ? pendingDebugContextMap.get(conversationId) : undefined
+  if (pendingDebug) {
+    pendingDebugContextMap.delete(conversationId)
+  }
+
   db.prepare(
     `
-    INSERT INTO ai_message (id, conversation_id, role, content, timestamp, data_keywords, data_message_count, content_blocks, token_usage)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+    INSERT INTO ai_message (id, conversation_id, role, content, timestamp, data_keywords, data_message_count, content_blocks, token_usage, debug_context)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `
   ).run(
     id,
@@ -403,7 +418,8 @@ export function addMessage(
     dataKeywords ? JSON.stringify(dataKeywords) : null,
     dataMessageCount ?? null,
     contentBlocks ? JSON.stringify(contentBlocks) : null,
-    tokenUsage ? JSON.stringify(tokenUsage) : null
+    tokenUsage ? JSON.stringify(tokenUsage) : null,
+    pendingDebug ?? null
   )
 
   // 更新对话的 updated_at
@@ -481,6 +497,30 @@ export function deleteMessage(messageId: string): boolean {
 }
 
 /**
+ * 暂存 debug context，等待下一次 addMessage(assistant) 时自动写入
+ */
+export function setPendingDebugContext(conversationId: string, debugContext: string): void {
+  pendingDebugContextMap.set(conversationId, debugContext)
+}
+
+/**
+ * 更新消息的 debug_context 字段（仅 DEBUG 模式下调用）
+ */
+export function setDebugContext(messageId: string, debugContext: string): void {
+  const db = getAiDb()
+  db.prepare('UPDATE ai_message SET debug_context = ? WHERE id = ?').run(debugContext, messageId)
+}
+
+/**
+ * 一键清除所有消息的 debug_context 数据
+ */
+export function clearAllDebugContext(): number {
+  const db = getAiDb()
+  const result = db.prepare('UPDATE ai_message SET debug_context = NULL WHERE debug_context IS NOT NULL').run()
+  return result.changes
+}
+
+/**
  * 获取对话的累计 token 使用量（聚合所有 assistant 消息的 token_usage）
  */
 export function getConversationTokenUsage(conversationId: string): TokenUsageData {
@@ -520,44 +560,44 @@ export function getConversationTokenUsage(conversationId: string): TokenUsageDat
 export function getHistoryForAgent(
   conversationId: string,
   maxMessages?: number
-): Array<{ role: 'user' | 'assistant' | 'system'; content: string }> {
+): Array<{ role: 'user' | 'assistant' | 'summary'; content: string }> {
   const messages = getMessages(conversationId)
   const validMessages = messages.filter(
-    (m) => (m.role === 'user' || m.role === 'assistant' || m.role === 'system') && m.content?.trim()
+    (m) => (m.role === 'user' || m.role === 'assistant' || m.role === 'summary') && m.content?.trim()
   )
 
-  // 查找最新的 system (summary) 消息
-  let systemMsg: AIMessage | undefined
+  // 查找最新的 summary 消息
+  let summaryMsg: AIMessage | undefined
   for (let i = validMessages.length - 1; i >= 0; i--) {
-    if (validMessages[i].role === 'system') {
-      systemMsg = validMessages[i]
+    if (validMessages[i].role === 'summary') {
+      summaryMsg = validMessages[i]
       break
     }
   }
 
-  let result: Array<{ role: 'user' | 'assistant' | 'system'; content: string }>
+  let result: Array<{ role: 'user' | 'assistant' | 'summary'; content: string }>
 
-  if (systemMsg) {
+  if (summaryMsg) {
     // 从 content_blocks 中解析 summary_meta 获取 buffer 边界
-    const metaBlock = systemMsg.contentBlocks?.find(
+    const metaBlock = summaryMsg.contentBlocks?.find(
       (b): b is Extract<ContentBlock, { type: 'summary_meta' }> => b.type === 'summary_meta'
     )
     const bufferBoundary = metaBlock?.bufferBoundaryTimestamp
 
     if (!metaBlock) {
-      aiLogger.warn('Conversations', 'system message missing summary_meta; agent context will be summary-only', {
+      aiLogger.warn('Conversations', 'summary message missing summary_meta; agent context will be summary-only', {
         conversationId,
-        messageId: systemMsg.id,
+        messageId: summaryMsg.id,
       })
     }
 
     // 取 timestamp >= boundary 的 user/assistant 消息（buffer + 新消息）
     const contextMessages = bufferBoundary
-      ? validMessages.filter((m) => m.role !== 'system' && m.timestamp >= bufferBoundary)
+      ? validMessages.filter((m) => m.role !== 'summary' && m.timestamp >= bufferBoundary)
       : []
 
     result = [
-      { role: 'system' as const, content: systemMsg.content },
+      { role: 'summary' as const, content: summaryMsg.content },
       ...contextMessages.map((m) => ({ role: m.role, content: m.content })),
     ]
   } else {
@@ -565,7 +605,7 @@ export function getHistoryForAgent(
   }
 
   if (maxMessages && result.length > maxMessages) {
-    if (result.length > 0 && result[0].role === 'system') {
+    if (result.length > 0 && result[0].role === 'summary') {
       const rest = result.slice(1)
       const truncated = rest.slice(-(maxMessages - 1))
       return [result[0], ...truncated]
@@ -578,7 +618,7 @@ export function getHistoryForAgent(
 // ==================== Summary / 压缩专用 ====================
 
 /**
- * 添加 system 消息并替换旧的 system（每个对话只保留一条最新压缩摘要）
+ * 添加 summary 消息并替换旧的 summary（每个对话只保留一条最新压缩摘要）
  *
  * Summary 时间戳 = NOW（UI 中显示在触发压缩的位置）。
  * Buffer 边界信息存入 content_blocks 的 summary_meta block 中，供 getHistoryForAgent 使用。
@@ -590,7 +630,7 @@ export function addSummaryMessage(
 ): AIMessage {
   const db = getAiDb()
 
-  db.prepare("DELETE FROM ai_message WHERE conversation_id = ? AND role = 'system'").run(conversationId)
+  db.prepare("DELETE FROM ai_message WHERE conversation_id = ? AND role = 'summary'").run(conversationId)
 
   const contentBlocks: ContentBlock[] = [
     {
@@ -600,7 +640,7 @@ export function addSummaryMessage(
     },
   ]
 
-  return addMessage(conversationId, 'system', content, undefined, undefined, contentBlocks)
+  return addMessage(conversationId, 'summary', content, undefined, undefined, contentBlocks)
 }
 
 /**
@@ -614,7 +654,7 @@ export function getLatestSummary(conversationId: string): AIMessage | null {
     SELECT id, conversation_id as conversationId, role, content, timestamp,
            data_keywords as dataKeywords, data_message_count as dataMessageCount, content_blocks as contentBlocks
     FROM ai_message
-    WHERE conversation_id = ? AND role = 'system'
+    WHERE conversation_id = ? AND role = 'summary'
     ORDER BY timestamp DESC
     LIMIT 1
   `

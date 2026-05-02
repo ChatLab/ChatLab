@@ -310,7 +310,7 @@ type AIContentBlock =
       compressedMessageCount: number
     }
 
-type AIMessageRole = 'user' | 'assistant' | 'system'
+type AIMessageRole = 'user' | 'assistant' | 'summary'
 
 interface AITokenUsageData {
   promptTokens: number
@@ -396,6 +396,7 @@ interface AiApi {
   getConversationTokenUsage: (conversationId: string) => Promise<AITokenUsageData>
   deleteMessage: (messageId: string) => Promise<boolean>
   showAiLogFile: () => Promise<{ success: boolean; path?: string; error?: string }>
+  clearDebugContext: () => Promise<{ success: boolean; cleared: number }>
   getDefaultDesensitizeRules: (locale: string) => Promise<DesensitizeRule[]>
   mergeDesensitizeRules: (existingRules: DesensitizeRule[], locale: string) => Promise<DesensitizeRule[]>
   getToolCatalog: () => Promise<ToolCatalogEntry[]>

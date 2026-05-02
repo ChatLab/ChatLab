@@ -200,6 +200,17 @@ export function registerAIHandlers({ win }: IpcContext): void {
     aiLogger.info('Config', `Debug mode ${enabled ? 'enabled' : 'disabled'}`)
   })
 
+  ipcMain.handle('ai:clearDebugContext', async () => {
+    try {
+      const cleared = aiConversations.clearAllDebugContext()
+      aiLogger.info('Debug', `Cleared debug_context for ${cleared} messages`)
+      return { success: true, cleared }
+    } catch (error) {
+      console.error('Failed to clear debug context:', error)
+      throw error
+    }
+  })
+
   // ==================== AI 对话管理 ====================
 
   /**

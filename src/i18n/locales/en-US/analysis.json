@@ -50,7 +50,9 @@
       "allConversations": "All Conversations",
       "copyCell": "Copy Selected",
       "editRow": "Edit",
-      "copyRow": "Copy Row (JSON)"
+      "copyRow": "Copy Row (JSON)",
+      "clearDebugContext": "Clear Debug Context",
+      "confirmClearDebug": "Clear debug_context for all messages? This cannot be undone."
     }
   },
   "memory": {

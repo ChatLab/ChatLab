@@ -31,6 +31,7 @@ const totalPages = computed(() => Math.max(1, Math.ceil(totalRows.value / pageSi
 
 const editingRowIndex = ref<number | null>(null)
 const editingValues = ref<Record<string, string>>({})
+const isClearingDebug = ref(false)
 
 const isAiDb = computed(() => dbSource.value === 'ai')
 
@@ -240,6 +241,21 @@ function confirmDelete(rowIndex: number) {
   }
 }
 
+async function handleClearDebugContext() {
+  if (!confirm(t('analysis.debug.tableBrowser.confirmClearDebug'))) return
+  isClearingDebug.value = true
+  try {
+    const res = await window.aiApi.clearDebugContext()
+    if (res.success) {
+      await loadTableData()
+    }
+  } catch (e: any) {
+    error.value = e.message || String(e)
+  } finally {
+    isClearingDebug.value = false
+  }
+}
+
 function copyToClipboard(text: string) {
   navigator.clipboard.writeText(text)
 }
@@ -341,6 +357,18 @@ onMounted(async () => {
       />
 
       <div class="flex-1" />
+
+      <UButton
+        v-if="isAiDb && selectedTable === 'ai_message'"
+        variant="ghost"
+        size="xs"
+        color="error"
+        icon="i-heroicons-trash"
+        :loading="isClearingDebug"
+        @click="handleClearDebugContext"
+      >
+        {{ t('analysis.debug.tableBrowser.clearDebugContext') }}
+      </UButton>
 
       <UButton variant="ghost" size="xs" icon="i-heroicons-arrow-path" :loading="isLoading" @click="loadTableData">
         {{ t('analysis.debug.tableBrowser.refresh') }}
