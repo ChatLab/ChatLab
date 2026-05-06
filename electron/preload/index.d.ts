@@ -192,6 +192,17 @@ interface ChatApi {
     success: boolean
     error?: string
   }>
+
+  importDemo: (locale: string) => Promise<{
+    success: boolean
+    groupSessionId?: string
+    privateSessionId?: string
+    error?: string
+  }>
+
+  onDemoProgress: (
+    callback: (progress: { stage: string; current: number; total: number; message?: string }) => void
+  ) => () => void
 }
 
 interface Api {

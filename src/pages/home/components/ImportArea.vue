@@ -9,6 +9,7 @@ import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { getChatlabSiteLocalePath } from '@/utils/chatlabSiteLocale'
 import { useSessionStore, type BatchFileInfo, type MergeFileInfo } from '@/stores/session'
+import DemoImportButton from './DemoImportButton.vue'
 
 const { t } = useI18n()
 const sessionStore = useSessionStore()
@@ -61,6 +62,9 @@ const router = useRouter()
 
 // 合并导入开关
 const mergeImportEnabled = ref(false)
+
+// 是否展示 Demo 按钮（仅无任何会话时）
+const showDemoButton = computed(() => sessionStore.sessions.length !== 0)
 
 // 计算是否正在导入（单文件、批量或合并）
 const isAnyImporting = computed(() => isImporting.value || isBatchImporting.value || isMergeImporting.value)
@@ -791,9 +795,12 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
       </div>
     </div>
 
-    <UButton :to="tutorialUrl" target="_blank" trailing-icon="i-heroicons-chevron-right-20-solid">
-      {{ t('home.import.tutorial') }}
-    </UButton>
+    <div class="flex items-center gap-3">
+      <DemoImportButton v-if="showDemoButton" />
+      <UButton :to="tutorialUrl" target="_blank" trailing-icon="i-heroicons-chevron-right-20-solid">
+        {{ t('home.import.tutorial') }}
+      </UButton>
+    </div>
 
     <!-- 聊天选择器（多聊天格式通用） -->
     <ChatSelector v-model:open="showChatSelector" :file-path="chatSelectorFilePath" @select="handleChatSelect" />

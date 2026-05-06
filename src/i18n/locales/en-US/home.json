@@ -76,6 +76,12 @@
       "cancel": "Cancel merge"
     }
   },
+  "demo": {
+    "viewExample": "Try a Demo",
+    "downloading": "Downloading demo data...",
+    "importing": "Importing demo data...",
+    "failed": "Failed to load demo data. Please check your network and try again."
+  },
   "migration": {
     "title": "Database upgrade required",
     "description": "{count} database(s) need to be upgraded for new features.",

@@ -483,6 +483,40 @@ export const chatApi = {
   }> => {
     return ipcRenderer.invoke('chat:cleanupTempExportFiles', filePaths)
   },
+
+  // ==================== Demo 示例数据 ====================
+
+  /**
+   * 下载并导入 Demo 示例数据
+   */
+  importDemo: (
+    locale: string
+  ): Promise<{
+    success: boolean
+    groupSessionId?: string
+    privateSessionId?: string
+    error?: string
+  }> => {
+    return ipcRenderer.invoke('demo:downloadAndImport', locale)
+  },
+
+  /**
+   * 监听 Demo 导入进度
+   */
+  onDemoProgress: (
+    callback: (progress: { stage: string; current: number; total: number; message?: string }) => void
+  ) => {
+    const handler = (
+      _event: Electron.IpcRendererEvent,
+      progress: { stage: string; current: number; total: number; message?: string }
+    ) => {
+      callback(progress)
+    }
+    ipcRenderer.on('demo:progress', handler)
+    return () => {
+      ipcRenderer.removeListener('demo:progress', handler)
+    }
+  },
 }
 
 // Merge API - 合并功能

@@ -76,6 +76,12 @@
       "cancel": "取消合併"
     }
   },
+  "demo": {
+    "viewExample": "查看示例 Demo",
+    "downloading": "正在下載示例資料...",
+    "importing": "正在匯入示例資料...",
+    "failed": "示例資料載入失敗，請確認網路連線後重試"
+  },
   "migration": {
     "title": "資料庫需要更新",
     "description": "偵測到 {count} 個資料庫需要升級以支援新功能。",

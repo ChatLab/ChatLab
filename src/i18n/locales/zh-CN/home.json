@@ -76,6 +76,12 @@
       "cancel": "取消合并"
     }
   },
+  "demo": {
+    "viewExample": "查看示例 Demo",
+    "downloading": "正在下载示例数据...",
+    "importing": "正在导入示例数据...",
+    "failed": "示例数据加载失败，请检查网络连接后重试"
+  },
   "migration": {
     "title": "数据库需要升级",
     "description": "检测到 {count} 个数据库需要升级以支持新功能。",
