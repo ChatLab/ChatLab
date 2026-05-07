@@ -326,9 +326,7 @@ jobs:
             echo "| Mac (Apple Silicon) | [ChatLab-${VERSION_NUMBER}-arm64.dmg](https://github.com/ChatLab/ChatLab/releases/download/v${VERSION_NUMBER}/ChatLab-${VERSION_NUMBER}-arm64.dmg) |"
             echo "| Mac (Intel) | [ChatLab-${VERSION_NUMBER}-x64.dmg](https://github.com/ChatLab/ChatLab/releases/download/v${VERSION_NUMBER}/ChatLab-${VERSION_NUMBER}-x64.dmg) |"
             echo "| Windows | [ChatLab-${VERSION_NUMBER}-setup.exe](https://github.com/ChatLab/ChatLab/releases/download/v${VERSION_NUMBER}/ChatLab-${VERSION_NUMBER}-setup.exe) |"
-            echo "| Linux (AppImage) | [ChatLab-${VERSION_NUMBER}.AppImage](https://github.com/ChatLab/ChatLab/releases/download/v${VERSION_NUMBER}/ChatLab-${VERSION_NUMBER}.AppImage) |"
-            echo "| Linux (deb, x86_64) | [chatlab_${VERSION_NUMBER}_amd64.deb](https://github.com/ChatLab/ChatLab/releases/download/v${VERSION_NUMBER}/chatlab_${VERSION_NUMBER}_amd64.deb) |"
-            echo "| Linux (deb, ARM64) | [chatlab_${VERSION_NUMBER}_arm64.deb](https://github.com/ChatLab/ChatLab/releases/download/v${VERSION_NUMBER}/chatlab_${VERSION_NUMBER}_arm64.deb) |"
+            echo "| Linux | [ChatLab-${VERSION_NUMBER}.AppImage](https://github.com/ChatLab/ChatLab/releases/download/v${VERSION_NUMBER}/ChatLab-${VERSION_NUMBER}.AppImage) |"
           } > release_notes.md
 
           echo "Generated release notes:"
