@@ -81,7 +81,7 @@ const apiBaseUrl = computed(() => {
 
 const apiDocUrl = computed(() => {
   const isChinese = locale.value === 'zh-CN' || locale.value === 'zh-TW'
-  return isChinese ? 'https://chatlab.fun/cn/standard/chatlab-api.html' : 'https://chatlab.fun/en/chatlab-api.html'
+  return isChinese ? 'https://chatlab.fun/cn/standard/chatlab-api' : 'https://chatlab.fun/en/chatlab-api'
 })
 
 async function toggleEnabled() {

@@ -1,12 +1,14 @@
 <div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="./public/images/banner-light.png">
+    <img src="./public/images/banner.png" alt="ChatLab" title="ChatLab" width="500" />
+  </picture>
 
-<img src="./public/images/chatlab.svg" alt="ChatLab" title="ChatLab" width="300" />
+Your chat history, finally yours.
 
-Rediscover your social memories with private, AI-powered analysis.
+English | [简体中文](./docs/README.zh-CN.md)
 
-English | [简体中文](./docs/README.zh-CN.md) | [繁體中文](./docs/README.zh-TW.md) | [日本語](./docs/README.ja-JP.md)
-
-[Official Website](https://chatlab.fun/) · [Download](https://chatlab.fun/?type=download) · [Documentation](https://chatlab.fun/usage/) · [Roadmap](https://chatlabfun.featurebase.app/roadmap) · [Issue Submission](https://github.com/ChatLab/ChatLab/issues)
+[Official Website](https://chatlab.fun/) · [Documentation](https://chatlab.fun/usage/) · [Roadmap](https://chatlab.fun/cn/roadmap/tasks)
 
 </div>
 
@@ -25,9 +27,9 @@ Currently supported: **WhatsApp, LINE, WeChat, QQ, Discord, Instagram, and Teleg
 ## Usage Guides
 
 - [Download Guide](https://chatlab.fun/?type=download)
-- [Chat Record Export Guide](https://chatlab.fun/usage/how-to-export.html)
-- [Standardized Format Specification](https://chatlab.fun/standard/chatlab-format.html)
-- [Troubleshooting Guide](https://chatlab.fun/usage/troubleshooting.html)
+- [Chat Record Export Guide](https://chatlab.fun/usage/how-to-export)
+- [Standardized Format Specification](https://chatlab.fun/standard/chatlab-format)
+- [Troubleshooting Guide](https://chatlab.fun/usage/troubleshooting)
 
 ## Preview
 

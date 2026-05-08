@@ -1,12 +1,14 @@
 <div align="center">
+  <picture>
+    <source media="(prefers-color-scheme: light)" srcset="./public/images/banner-light.png">
+    <img src="./public/images/banner.png" alt="ChatLab" title="ChatLab" width="500" />
+  </picture>
 
-<img src="../public/images/chatlab.svg" alt="ChatLab" title="ChatLab" width="300" />
+聊天记忆驱动的 AI Agent
 
-本地化的聊天记录分析工具，通过 AI Agent 回顾你的社交记忆
+[English](../README.md) | 简体中文
 
-[English](../README.md) | 简体中文 | [繁體中文](./README.zh-TW.md) | [日本語](./README.ja-JP.md)
-
-[官网](https://chatlab.fun/cn/) · [下载指南](https://chatlab.fun/cn/?type=download) · [项目文档](https://chatlab.fun/cn/usage/) · [路线图](https://chatlabfun.featurebase.app/roadmap) · [问题提交](https://github.com/ChatLab/ChatLab/issues)
+[官网](https://chatlab.fun/cn/) · [项目文档](https://chatlab.fun/cn/usage/) · [路线图](https://chatlab.fun/cn/roadmap/tasks)
 
 </div>
 
@@ -25,9 +27,9 @@ ChatLab 是一个专注于社交记录分析的本地化应用。通过 AI Agent
 ## 使用指南
 
 - [下载 ChatLab 指南](https://chatlab.fun/cn/?type=download)
-- [导出聊天记录指南](https://chatlab.fun/cn/usage/how-to-export.html)
-- [标准化格式规范](https://chatlab.fun/cn/standard/chatlab-format.html)
-- [故障排查指南](https://chatlab.fun/cn/usage/troubleshooting.html)
+- [导出聊天记录指南](https://chatlab.fun/cn/usage/how-to-export)
+- [标准化格式规范](https://chatlab.fun/cn/standard/chatlab-format)
+- [故障排查指南](https://chatlab.fun/cn/usage/troubleshooting)
 
 ## 预览界面
 

@@ -385,7 +385,7 @@ const tutorialUrl = computed(() => {
   const { locale } = useI18n()
   const localePath = getChatlabSiteLocalePath(locale.value)
   const langPath = localePath ? `/${localePath}` : ''
-  return `https://chatlab.fun${langPath}/usage/how-to-export.html?utm_source=app`
+  return `https://chatlab.fun${langPath}/usage/how-to-export?utm_source=app`
 })
 
 // 打开最新的导入日志文件
