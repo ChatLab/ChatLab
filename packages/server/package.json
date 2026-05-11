@@ -9,7 +9,8 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "cli": "tsx src/cli.ts"
+    "cli": "tsx src/cli.ts",
+    "rebuild-sqlite": "npm rebuild better-sqlite3"
   },
   "dependencies": {
     "@openchatlab/core": "workspace:*",
