@@ -202,59 +202,73 @@ program
 // chatlab import <file> - 导入聊天记录
 program
   .command('import <file>')
-  .description('导入聊天记录文件（支持 ChatLab JSON / JSONL 格式）')
-  .option('--session-id <id>', '指定会话 ID（不指定则自动生成，已存在则增量导入）')
-  .option('--dry-run', '试运行，不实际写入', false)
+  .description('导入聊天记录文件（支持 14+ 格式：QQ/WeChat/Telegram/WhatsApp/LINE/Discord/Instagram 等）')
+  .option('--session-id <id>', '指定会话 ID（不指定则自动生成）')
+  .option('--format <id>', '指定格式 ID（跳过自动检测）')
   .action(async (file, options) => {
     if (!fs.existsSync(file)) {
       console.error(`文件不存在: ${file}`)
       process.exit(1)
     }
 
-    const { parseFile, importData } = await import('./import')
+    const { streamImport, detectFormat } = await import('./import')
     const { dbManager } = initRuntime()
+    const nativeBinding = resolveNativeBinding()
 
-    console.log(`解析文件: ${file}`)
+    const format = detectFormat(file)
+    if (!format && !options.format) {
+      console.error(`无法识别文件格式: ${file}`)
+      console.error('使用 --format <id> 手动指定格式，或使用 chatlab formats 查看支持的格式列表')
+      process.exit(1)
+    }
+
+    console.log(`导入文件: ${file}`)
+    if (format) console.log(`  格式: ${format.name} (${format.platform})`)
+
     try {
-      const data = await parseFile(file, (processed, total) => {
-        const pct = total > 0 ? Math.round((processed / total) * 100) : 0
-        process.stdout.write(`\r  解析进度: ${pct}%`)
-      })
-      console.log(`\n  解析完成: ${data.messages.length} 条消息, ${data.members.length} 个成员`)
-
-      if (options.dryRun) {
-        console.log(`\n[试运行] 将${options.sessionId ? '增量导入到 ' + options.sessionId : '创建新会话'}`)
-        console.log(`  消息数: ${data.messages.length}`)
-        console.log(`  成员数: ${data.members.length}`)
-        dbManager.closeAll()
-        return
-      }
-
-      const nativeBinding = resolveNativeBinding()
-      const result = await importData(dbManager, data, {
-        sessionId: options.sessionId,
+      const result = await streamImport(dbManager, file, {
+        formatId: options.format,
         nativeBinding,
-        onProgress: (msg) => console.log(`  ${msg}`),
+        onProgress: (p) => {
+          const labels: Record<string, string> = {
+            detecting: '检测格式',
+            parsing: '解析中',
+            saving: '写入数据库',
+            indexing: '建立索引',
+            done: '完成',
+            error: '错误',
+          }
+          process.stdout.write(`\r  ${labels[p.stage] || p.stage}: ${p.progress}%`)
+        },
       })
 
       if (result.success) {
-        console.log(`\n导入成功!`)
+        console.log(`\n\n导入成功!`)
         console.log(`  会话 ID: ${result.sessionId}`)
-        console.log(`  ${result.created ? '新建' : '增量'}导入`)
         console.log(`  写入消息: ${result.messageCount}`)
         console.log(`  成员数: ${result.memberCount}`)
-        if (result.duplicateCount > 0) {
-          console.log(`  重复跳过: ${result.duplicateCount}`)
-        }
       } else {
-        console.error(`\n导入失败: ${result.error}`)
+        console.error(`\n\n导入失败: ${result.error}`)
         process.exit(1)
       }
     } catch (err) {
-      console.error(`\n导入错误: ${err instanceof Error ? err.message : err}`)
+      console.error(`\n\n导入错误: ${err instanceof Error ? err.message : err}`)
       process.exit(1)
     } finally {
       dbManager.closeAll()
+    }
+  })
+
+// chatlab formats - 列出支持的格式
+program
+  .command('formats')
+  .description('列出所有支持的聊天记录格式')
+  .action(async () => {
+    const { getSupportedFormats } = await import('./import')
+    const formats = getSupportedFormats()
+    console.log(`支持 ${formats.length} 种格式:\n`)
+    for (const f of formats) {
+      console.log(`  ${f.id.padEnd(30)} ${f.name} (${f.platform}) [${f.extensions.join(', ')}]`)
     }
   })
 

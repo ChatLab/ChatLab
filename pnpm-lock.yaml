@@ -182,6 +182,9 @@ importers:
       '@openchatlab/node-runtime':
         specifier: workspace:*
         version: link:../node-runtime
+      '@openchatlab/parser':
+        specifier: workspace:*
+        version: link:../parser
       '@openchatlab/shared-types':
         specifier: workspace:*
         version: link:../shared-types

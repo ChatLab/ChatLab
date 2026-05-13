@@ -18,6 +18,7 @@
     "@modelcontextprotocol/sdk": "^1.12.1",
     "@openchatlab/config": "workspace:*",
     "@openchatlab/core": "workspace:*",
+    "@openchatlab/parser": "workspace:*",
     "@openchatlab/node-runtime": "workspace:*",
     "@openchatlab/shared-types": "workspace:*",
     "@openchatlab/tools": "workspace:*",
