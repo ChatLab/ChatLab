@@ -36,6 +36,11 @@ export { parseAssistantFile, serializeAssistant, parseSkillFile, extractSkillId 
 export { AIConversationManager } from './ai'
 export { countTokens, countMessagesTokens } from './ai'
 
+// SkillManager
+export { SkillManager } from './ai'
+export type { SkillManagerLogger, ActivateSkillToolOptions, ActivateSkillTool, ActivateSkillToolResult } from './ai'
+export { createActivateSkillTool } from './ai'
+
 // Preprocessor
 export type {
   PreprocessConfig,

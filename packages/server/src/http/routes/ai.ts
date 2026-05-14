@@ -13,7 +13,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import type { FastifyInstance } from 'fastify'
 import type { DatabaseManager, AIConversationManager } from '@openchatlab/node-runtime'
-import { parseAssistantFile, parseSkillFile } from '@openchatlab/node-runtime'
+import { parseAssistantFile, parseSkillFile, SkillManager, createActivateSkillTool } from '@openchatlab/node-runtime'
 import { BUILTIN_TOOL_CATALOG, BUILTIN_PROVIDERS, BUILTIN_MODELS, getBuiltinModelsByProvider } from '@openchatlab/core'
 import type { AssistantSummary, SkillSummary } from '@openchatlab/node-runtime'
 import { TOOL_REGISTRY } from '@openchatlab/tools'
@@ -360,6 +360,21 @@ export function registerAiRoutes(
         }))
       : []
 
+    const skillManager = new SkillManager(aiDataDir)
+    skillManager.init()
+    const toolNames = agentTools.map((t: { name: string }) => t.name)
+    const skillMenu = skillManager.getSkillMenu(chatType ?? 'group', toolNames)
+
+    if (skillMenu) {
+      const activateSkillTool = createActivateSkillTool({
+        chatType: chatType ?? 'group',
+        allowedTools: toolNames,
+        locale,
+        getSkillConfig: (id) => skillManager.getSkillConfig(id),
+      })
+      agentTools.push(activateSkillTool as any)
+    }
+
     const onEvent = (event: AgentStreamEvent) => {
       sendSSE(event.type, event)
       if (event.type === 'done') {
@@ -382,6 +397,7 @@ export function registerAiRoutes(
         chatType,
         locale,
         assistantSystemPrompt,
+        skillMenu,
         tools: agentTools,
         aiDataDir,
         convManager,

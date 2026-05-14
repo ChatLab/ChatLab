@@ -37,6 +37,7 @@ export interface RunAgentOptions {
   chatType?: 'group' | 'private'
   locale?: string
   assistantSystemPrompt?: string
+  skillMenu?: string | null
   tools?: import('@mariozechner/pi-agent-core').AgentTool[]
   aiDataDir: string
   convManager: AIConversationManager
@@ -49,7 +50,8 @@ type SimpleHistoryMessage = { role: 'user' | 'assistant' | 'summary'; content: s
 function buildSystemPrompt(
   _chatType: 'group' | 'private',
   assistantSystemPrompt?: string,
-  locale: string = 'zh-CN'
+  locale: string = 'zh-CN',
+  skillMenu?: string | null
 ): string {
   const now = new Date()
   const dateLocale = locale.startsWith('zh') ? 'zh-CN' : 'en-US'
@@ -72,11 +74,17 @@ function buildSystemPrompt(
     ? '请直接回答用户的问题，不要使用工具除非确实需要。'
     : "Answer the user's question directly. Only use tools when truly necessary."
 
-  return `${role}
+  let prompt = `${role}
 
 ${datePrefix} ${currentDate}。
 
 ${responseNote}`
+
+  if (skillMenu) {
+    prompt += `\n\n${skillMenu}`
+  }
+
+  return prompt
 }
 
 function createEmptyPiUsage(): PiUsage {
@@ -119,6 +127,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
     chatType = 'group',
     locale = 'zh-CN',
     assistantSystemPrompt,
+    skillMenu,
     tools = [],
     aiDataDir,
     convManager,
@@ -136,7 +145,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
   const piModel = buildPiModel(llmConfig)
   const maxToolRounds = 5
 
-  const systemPrompt = buildSystemPrompt(chatType, assistantSystemPrompt, locale)
+  const systemPrompt = buildSystemPrompt(chatType, assistantSystemPrompt, locale, skillMenu)
   const totalUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
   const toolsUsed: string[] = []
   let toolRounds = 0

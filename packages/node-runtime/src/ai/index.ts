@@ -20,6 +20,12 @@ export type {
 // Tokenizer
 export { countTokens, countMessagesTokens } from './tokenizer'
 
+// SkillManager
+export { SkillManager } from './skill-manager'
+export type { SkillManagerLogger } from './skill-manager'
+export { createActivateSkillTool } from './activate-skill-tool'
+export type { ActivateSkillToolOptions, ActivateSkillTool, ActivateSkillToolResult } from './activate-skill-tool'
+
 // Preprocessor
 export type {
   PreprocessConfig,
