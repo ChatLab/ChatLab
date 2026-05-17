@@ -202,7 +202,7 @@ export {
 } from './ai'
 
 // Import utilities
-export { generateMessageKey } from './import'
+export { generateMessageKey, buildMemberIdMap } from './import'
 
 // Schema 与迁移
 export {

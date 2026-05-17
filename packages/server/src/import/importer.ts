@@ -8,7 +8,7 @@
 import * as fs from 'fs'
 import * as crypto from 'crypto'
 import type { DatabaseAdapter } from '@openchatlab/core'
-import { CHAT_DB_SCHEMA, FTS_TABLE_SCHEMA, generateMessageKey } from '@openchatlab/core'
+import { CHAT_DB_SCHEMA, FTS_TABLE_SCHEMA, generateMessageKey, buildMemberIdMap } from '@openchatlab/core'
 import type { DatabaseManager } from '@openchatlab/node-runtime'
 import { openBetterSqliteDatabase } from '@openchatlab/node-runtime'
 import type { ParsedData, ImportMessage } from './chatlab-reader'
@@ -251,15 +251,6 @@ function isDuplicate(msg: ImportMessage, existingKeys: Set<string>): boolean {
   }
   const key = generateMessageKey(msg.timestamp, msg.senderPlatformId, msg.content)
   return existingKeys.has(`hash:${key}`)
-}
-
-function buildMemberIdMap(db: DatabaseAdapter): Map<string, number> {
-  const rows = db.prepare('SELECT id, platform_id FROM member').all() as Array<{ id: number; platform_id: string }>
-  const map = new Map<string, number>()
-  for (const row of rows) {
-    map.set(row.platform_id, row.id)
-  }
-  return map
 }
 
 function buildFts(db: DatabaseAdapter, onProgress?: (msg: string) => void): void {

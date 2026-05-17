@@ -7,8 +7,7 @@
 
 import type { DatabaseManager } from '@openchatlab/node-runtime'
 import { openBetterSqliteDatabase } from '@openchatlab/node-runtime'
-import type { DatabaseAdapter } from '@openchatlab/core'
-import { CHAT_DB_SCHEMA, FTS_TABLE_SCHEMA } from '@openchatlab/core'
+import { CHAT_DB_SCHEMA, FTS_TABLE_SCHEMA, buildMemberIdMap } from '@openchatlab/core'
 import {
   streamParseFile,
   detectFormat as parserDetectFormat,
@@ -255,15 +254,6 @@ export async function streamImport(
     onProgress?.({ stage: 'error', progress: 0, message: msg })
     return { success: false, error: msg }
   }
-}
-
-function buildMemberIdMap(db: DatabaseAdapter): Map<string, number> {
-  const rows = db.prepare('SELECT id, platform_id FROM member').all() as Array<{ id: number; platform_id: string }>
-  const map = new Map<string, number>()
-  for (const row of rows) {
-    map.set(row.platform_id, row.id)
-  }
-  return map
 }
 
 export {
