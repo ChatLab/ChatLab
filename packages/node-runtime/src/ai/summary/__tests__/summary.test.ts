@@ -66,7 +66,7 @@ describe('filterValidMessages', () => {
 
 describe('splitIntoSegments', () => {
   it('splits messages by character limit', () => {
-    const messages = Array.from({ length: 10 }, (_, i) => ({
+    const messages = Array.from({ length: 10 }, () => ({
       senderName: 'User',
       content: 'A'.repeat(100),
     }))
@@ -85,16 +85,20 @@ describe('splitIntoSegments', () => {
 })
 
 describe('generateSessionSummary', () => {
-  function mockDeps(messages: SummaryMessage[] | null, existingSummary?: string): SummaryDeps {
-    let savedSummary = ''
+  function mockDeps(
+    messages: SummaryMessage[] | null,
+    existingSummary?: string
+  ): SummaryDeps & { getSavedSummary: () => string } {
+    const state = { saved: '' }
     return {
       loadMessages: () => messages,
       saveSummary: (_id, s) => {
-        savedSummary = s
+        state.saved = s
       },
       getSummary: () => existingSummary ?? null,
       llmComplete: async (_sys, _usr) => 'Mock summary result',
       t: (key) => `[${key}]`,
+      getSavedSummary: () => state.saved,
     }
   }
 

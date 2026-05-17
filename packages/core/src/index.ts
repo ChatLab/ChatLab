@@ -219,6 +219,24 @@ export {
 // Import utilities
 export { generateMessageKey, buildMemberIdMap } from './import'
 
+// Merger algorithms
+export {
+  getCollidingPlatformIds,
+  getCollidingPlatformIdsFromMessages,
+  normalizePlatformId,
+  detectConflictsInMessages,
+  mergeMembers as mergeMergerMembers,
+  deduplicateAndSortMessages,
+} from './merger'
+export type {
+  MergerMember,
+  MergerMessage,
+  MergeConflict,
+  ConflictCheckResult,
+  MergedMember,
+  MergedMessage,
+} from './merger'
+
 // Schema 与迁移
 export {
   CURRENT_SCHEMA_VERSION,
