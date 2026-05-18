@@ -30,7 +30,7 @@
     "build:linux": "pnpm run build && electron-builder --linux --config electron-builder.yml -p never",
     "dev:app": "vite --config vite.web.config.mts",
     "ensure:server-native": "pnpm --filter chatlab run ensure-native",
-    "dev:serve": "pnpm run ensure:server-native && tsx watch packages/server/src/cli.ts serve",
+    "dev:serve": "bash scripts/dev-serve.sh",
     "dev:web": "pnpm run ensure:server-native && CHATLAB_AUTO_SERVE=1 vite --config vite.web.config.mts",
     "build:web": "vite build --config vite.web.config.mts",
     "type-check:web": "vue-tsc --noEmit -p tsconfig.web.json",

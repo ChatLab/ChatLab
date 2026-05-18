@@ -50,11 +50,28 @@ function chatlabServePlugin(): Plugin {
       }
 
       const serverDir = resolve(__dirname, 'packages/server')
-      serverProcess = spawn('npx', ['tsx', 'watch', 'src/cli.ts', 'serve', '--port', String(BACKEND_PORT)], {
-        cwd: serverDir,
-        stdio: ['ignore', 'pipe', 'pipe'],
-        env: { ...process.env },
-      })
+      const coreDir = resolve(__dirname, 'packages/core/src')
+      const runtimeDir = resolve(__dirname, 'packages/node-runtime/src')
+      serverProcess = spawn(
+        'npx',
+        [
+          'tsx',
+          'watch',
+          '--include',
+          `${coreDir}/**`,
+          '--include',
+          `${runtimeDir}/**`,
+          'src/cli.ts',
+          'serve',
+          '--port',
+          String(BACKEND_PORT),
+        ],
+        {
+          cwd: serverDir,
+          stdio: ['ignore', 'pipe', 'pipe'],
+          env: { ...process.env },
+        }
+      )
 
       serverProcess.stdout?.on('data', (data: Buffer) => {
         const line = data.toString().trim()
