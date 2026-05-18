@@ -85,7 +85,8 @@ export class Agent {
       this.context.ownerInfo,
       this.locale,
       this.skillCtx,
-      this.context.mentionedMembers
+      this.context.mentionedMembers,
+      this.context.dataSnapshot
     )
     const answerWithoutToolsPrompt = i18nT('ai.agent.answerWithoutTools', { lng: this.locale })
 

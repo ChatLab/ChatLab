@@ -21,7 +21,8 @@ function getLockedPromptSection(
   chatType: 'group' | 'private',
   ownerInfo?: OwnerInfo,
   locale: string = 'zh-CN',
-  mentionedMembers?: ToolContext['mentionedMembers']
+  mentionedMembers?: ToolContext['mentionedMembers'],
+  dataSnapshot?: ToolContext['dataSnapshot']
 ): string {
   const now = new Date()
   const dateLocale = locale.startsWith('zh') ? 'zh-CN' : 'en-US'
@@ -58,19 +59,47 @@ function getLockedPromptSection(
       : ''
 
   const year = now.getFullYear()
+  const dataSnapshotNote = dataSnapshot
+    ? `${agentT('ai.agent.dataSnapshotNote', locale, {
+        name: dataSnapshot.name,
+        platform: dataSnapshot.platform,
+        totalMessages: dataSnapshot.totalMessages,
+        totalMembers: dataSnapshot.totalMembers,
+        firstMessageDate: formatTimestamp(dataSnapshot.firstMessageTs, locale),
+        lastMessageDate: formatTimestamp(dataSnapshot.lastMessageTs, locale),
+      })}\n`
+    : ''
 
   return `${agentT('ai.agent.currentDateIs', locale)} ${currentDate}。
 ${ownerNote}
 ${mentionedMembersNote}
+${dataSnapshotNote}
 ${memberNote}
 ${agentT('ai.agent.timeParamsIntro', locale)}
 ${agentT('ai.agent.defaultYearNote', locale, { year })}
+${agentT('ai.agent.evidencePolicy', locale)}
 
 ${agentT('ai.agent.responseInstruction', locale)}`
 }
 
 function getFallbackRoleDefinition(chatType: 'group' | 'private', locale: string = 'zh-CN'): string {
   return agentT(`ai.agent.fallbackRoleDefinition.${chatType}`, locale)
+}
+
+function formatTimestamp(timestamp: number | null | undefined, locale: string): string {
+  if (!timestamp) return locale.startsWith('zh') ? '未知' : 'unknown'
+
+  const date = new Date(timestamp * 1000)
+  if (Number.isNaN(date.getTime())) return locale.startsWith('zh') ? '未知' : 'unknown'
+
+  const dateLocale = locale.startsWith('zh') ? 'zh-CN' : locale
+  return date.toLocaleString(dateLocale, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 /**
@@ -86,10 +115,11 @@ export function buildSystemPrompt(
   ownerInfo?: OwnerInfo,
   locale: string = 'zh-CN',
   skillCtx?: SkillContext,
-  mentionedMembers?: ToolContext['mentionedMembers']
+  mentionedMembers?: ToolContext['mentionedMembers'],
+  dataSnapshot?: ToolContext['dataSnapshot']
 ): string {
   const systemPrompt = assistantSystemPrompt || getFallbackRoleDefinition(chatType, locale)
-  const lockedSection = getLockedPromptSection(chatType, ownerInfo, locale, mentionedMembers)
+  const lockedSection = getLockedPromptSection(chatType, ownerInfo, locale, mentionedMembers, dataSnapshot)
 
   let skillSection = ''
   if (skillCtx?.skillDef) {
