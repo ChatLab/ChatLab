@@ -115,7 +115,7 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
   registerSessionRoutes(server, dbManager)
   registerNlpRoutes(server, dbManager)
   registerAiRoutes(server, dbManager, convManager)
-  registerWebRoutes(server, dbManager)
+  registerWebRoutes(server, dbManager, { pathProvider, nativeBinding })
 
   initSync(server, dbManager, pathProvider, { port, host, token })
 
