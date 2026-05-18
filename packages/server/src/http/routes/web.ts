@@ -37,8 +37,24 @@ import {
   generateSessionIndex,
   clearSessionIndex,
 } from '@openchatlab/core'
-import { createJiebaNlpProvider } from '@openchatlab/node-runtime'
+import {
+  createJiebaNlpProvider,
+  hasFtsTable,
+  searchByFts,
+  rebuildFtsIndex,
+  completeSimple,
+  type PiTextContent,
+  generateSessionSummary,
+  type SummaryDeps,
+} from '@openchatlab/node-runtime'
+import {
+  getChatSessionSummary,
+  saveChatSessionSummary,
+  getChatSessionList,
+  getSessionMessages,
+} from '@openchatlab/core'
 import { streamImport, detectFormat, detectAllFormats, getSupportedFormats, scanMultiChatFile } from '../../import'
+import { getDefaultAssistantConfig, buildPiModel } from '../../ai/llm-config'
 
 function resolveNativeBinding(): string | undefined {
   if (process.versions.electron) return undefined
@@ -72,6 +88,50 @@ function parseTimeFilter(query: Record<string, string | undefined>): TimeFilter 
   if (endTs) filter.endTs = parseInt(endTs, 10)
   if (memberId) filter.memberId = parseInt(memberId, 10)
   return filter
+}
+
+function getAiDataDir(dbManager: DatabaseManager): string {
+  const pathProvider = (dbManager as any)['pathProvider']
+  if (!pathProvider) {
+    throw Object.assign(new Error('PathProvider not available'), { statusCode: 500 })
+  }
+  return pathProvider.getAiDataDir()
+}
+
+function buildSummaryDeps(
+  db: ReturnType<DatabaseManager['open']>,
+  llmConfig: ReturnType<typeof getDefaultAssistantConfig> & object,
+  _aiDataDir: string
+): SummaryDeps {
+  const piModel = buildPiModel(llmConfig)
+  return {
+    loadMessages(chatSessionId, limit = 500) {
+      const data = getSessionMessages(db!, chatSessionId, limit)
+      if (!data) return null
+      return data.messages.map((m) => ({ senderName: m.senderName, content: m.content }))
+    },
+    saveSummary(chatSessionId, summary) {
+      saveChatSessionSummary(db!, chatSessionId, summary)
+    },
+    getSummary(chatSessionId) {
+      return getChatSessionSummary(db!, chatSessionId)
+    },
+    async llmComplete(systemPrompt, userPrompt, options) {
+      const result = await completeSimple(
+        piModel,
+        {
+          systemPrompt,
+          messages: [{ role: 'user', content: [{ type: 'text', text: userPrompt }], timestamp: Date.now() }] as any,
+        },
+        { apiKey: llmConfig.apiKey, maxTokens: options?.maxTokens, temperature: options?.temperature }
+      )
+      return result.content
+        .filter((item): item is PiTextContent => item.type === 'text')
+        .map((item) => item.text)
+        .join('')
+    },
+    t: (key: string) => key,
+  }
 }
 
 export function registerWebRoutes(server: FastifyInstance, dbManager: DatabaseManager): void {
@@ -468,6 +528,85 @@ export function registerWebRoutes(server: FastifyInstance, dbManager: DatabaseMa
     const db = ensureWritableDb(dbManager, request.params.id)
     clearSessionIndex(db)
     return { success: true }
+  })
+
+  // ==================== FTS Search & Rebuild ====================
+
+  server.get<{
+    Params: { id: string }
+    Querystring: { keywords: string; limit?: string; offset?: string }
+  }>('/_web/sessions/:id/search/fts', async (request, reply) => {
+    const db = ensureDb(dbManager, request.params.id)
+    if (!hasFtsTable(db)) {
+      return reply.code(400).send({ error: 'FTS index not built for this session' })
+    }
+    const keywords = request.query.keywords.split(/\s+/).filter(Boolean)
+    if (keywords.length === 0) return { rowids: [], total: 0 }
+    const limit = parseInt(request.query.limit || '100', 10)
+    const offset = parseInt(request.query.offset || '0', 10)
+    return searchByFts(db, keywords, limit, offset)
+  })
+
+  server.get<{ Params: { id: string } }>('/_web/sessions/:id/fts/status', async (request) => {
+    const db = ensureDb(dbManager, request.params.id)
+    return { hasFtsIndex: hasFtsTable(db) }
+  })
+
+  server.post<{ Params: { id: string } }>('/_web/sessions/:id/fts/rebuild', async (request) => {
+    const db = ensureWritableDb(dbManager, request.params.id)
+    const result = rebuildFtsIndex(db)
+    return { success: true, indexed: result.indexed }
+  })
+
+  // ==================== Session Summary (LLM-generated) ====================
+
+  server.post<{
+    Params: { id: string }
+    Body: { chatSessionId: number; locale?: string; forceRegenerate?: boolean }
+  }>('/_web/sessions/:id/summaries/generate', async (request, reply) => {
+    const sessionId = request.params.id
+    const { chatSessionId, locale, forceRegenerate } = request.body
+
+    const aiDataDir = getAiDataDir(dbManager)
+    const llmConfig = getDefaultAssistantConfig(aiDataDir)
+    if (!llmConfig) {
+      return reply.code(400).send({ error: 'No LLM configuration available' })
+    }
+
+    const db = ensureWritableDb(dbManager, sessionId)
+    const deps = buildSummaryDeps(db, llmConfig, aiDataDir)
+
+    const result = await generateSessionSummary(deps, chatSessionId, { locale, forceRegenerate })
+    return result
+  })
+
+  server.post<{
+    Params: { id: string }
+    Body: { locale?: string; forceRegenerate?: boolean }
+  }>('/_web/sessions/:id/summaries/generate-all', async (request, reply) => {
+    const sessionId = request.params.id
+    const { locale, forceRegenerate } = request.body
+
+    const aiDataDir = getAiDataDir(dbManager)
+    const llmConfig = getDefaultAssistantConfig(aiDataDir)
+    if (!llmConfig) {
+      return reply.code(400).send({ error: 'No LLM configuration available' })
+    }
+
+    const db = ensureWritableDb(dbManager, sessionId)
+    const chatSessions = getChatSessionList(db)
+    const deps = buildSummaryDeps(db, llmConfig, aiDataDir)
+
+    let success = 0
+    let failed = 0
+
+    for (const cs of chatSessions) {
+      const result = await generateSessionSummary(deps, cs.id, { locale, forceRegenerate })
+      if (result.success) success++
+      else failed++
+    }
+
+    return { success, failed, total: chatSessions.length }
   })
 
   // ==================== Demo 示例数据 ====================

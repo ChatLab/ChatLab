@@ -13,12 +13,13 @@ import * as fs from 'fs'
 import * as path from 'path'
 import type { FastifyInstance } from 'fastify'
 import type { DatabaseManager, AIConversationManager } from '@openchatlab/node-runtime'
-import { parseAssistantFile, parseSkillFile, SkillManager, createActivateSkillTool } from '@openchatlab/node-runtime'
+import { SkillManager, createActivateSkillTool } from '@openchatlab/node-runtime'
+import type { AssistantConfig } from '@openchatlab/node-runtime'
 import { BUILTIN_TOOL_CATALOG, BUILTIN_PROVIDERS, BUILTIN_MODELS, getBuiltinModelsByProvider } from '@openchatlab/core'
-import type { AssistantSummary, SkillSummary } from '@openchatlab/node-runtime'
 import { AGENT_TOOL_REGISTRY } from '@openchatlab/tools'
 import { adaptToolsForAgent } from '../../ai/tool-adapter'
 import { loadAssistantConfig } from '../../ai/assistant-loader'
+import { getAssistantManager, getSkillManagerCore } from '../../ai/manager-factory'
 import { runServerAgent, type AgentStreamEvent } from '../../ai/agent'
 import {
   addLlmConfig,
@@ -45,107 +46,105 @@ function getAiDir(dbManager: DatabaseManager): string {
   return pathProvider.getAiDataDir()
 }
 
-function scanMdFiles(dir: string): string[] {
-  if (!fs.existsSync(dir)) return []
-  return fs
-    .readdirSync(dir)
-    .filter((f) => f.endsWith('.md'))
-    .map((f) => path.join(dir, f))
-}
-
 export function registerAiRoutes(
   server: FastifyInstance,
   dbManager: DatabaseManager,
   convManager?: AIConversationManager
 ): void {
-  // ==================== Assistants ====================
+  // ==================== Assistants (via shared AssistantManager) ====================
 
   server.get('/_web/ai/assistants', async () => {
-    const dir = path.join(getAiDir(dbManager), 'assistants')
-    const files = scanMdFiles(dir)
-    const results: AssistantSummary[] = []
-    for (const filePath of files) {
-      try {
-        const content = fs.readFileSync(filePath, 'utf-8')
-        const parsed = parseAssistantFile(content, filePath)
-        if (parsed) {
-          results.push({
-            id: parsed.id,
-            name: parsed.name,
-            systemPrompt: parsed.systemPrompt,
-            presetQuestions: parsed.presetQuestions,
-            builtinId: parsed.builtinId,
-            applicableChatTypes: parsed.applicableChatTypes,
-            supportedLocales: parsed.supportedLocales,
-          })
-        }
-      } catch {
-        // skip unparseable files
-      }
-    }
-    return results
+    const mgr = getAssistantManager(getAiDir(dbManager))
+    return mgr.getAllAssistants()
   })
 
   server.get<{ Params: { id: string } }>('/_web/ai/assistants/:id', async (request, reply) => {
-    const { id } = request.params
-    const dir = path.join(getAiDir(dbManager), 'assistants')
-    const filePath = path.join(dir, `${id}.md`)
-
-    if (!fs.existsSync(filePath)) {
-      return reply.code(404).send({ error: 'Not found' })
-    }
-
-    const content = fs.readFileSync(filePath, 'utf-8')
-    const parsed = parseAssistantFile(content, filePath)
-    if (!parsed) {
-      return reply.code(404).send({ error: 'Parse failed' })
-    }
-    return parsed
+    const mgr = getAssistantManager(getAiDir(dbManager))
+    const config = mgr.getAssistantConfig(request.params.id)
+    if (!config) return reply.code(404).send({ error: 'Not found' })
+    return config
   })
 
-  // ==================== Skills ====================
+  server.post<{
+    Body: Omit<AssistantConfig, 'id'>
+  }>('/_web/ai/assistants', async (request) => {
+    const mgr = getAssistantManager(getAiDir(dbManager))
+    return mgr.createAssistant(request.body)
+  })
+
+  server.put<{
+    Params: { id: string }
+    Body: Partial<AssistantConfig>
+  }>('/_web/ai/assistants/:id', async (request, reply) => {
+    const mgr = getAssistantManager(getAiDir(dbManager))
+    const result = mgr.updateAssistant(request.params.id, request.body)
+    if (!result.success) return reply.code(404).send(result)
+    return result
+  })
+
+  server.delete<{ Params: { id: string } }>('/_web/ai/assistants/:id', async (request, reply) => {
+    const mgr = getAssistantManager(getAiDir(dbManager))
+    const result = mgr.deleteAssistant(request.params.id)
+    if (!result.success) return reply.code(400).send(result)
+    return result
+  })
+
+  server.post<{ Params: { id: string } }>('/_web/ai/assistants/:id/reset', async (request, reply) => {
+    const mgr = getAssistantManager(getAiDir(dbManager))
+    const result = mgr.resetAssistant(request.params.id)
+    if (!result.success) return reply.code(400).send(result)
+    return result
+  })
+
+  server.post<{ Body: { rawMd: string } }>('/_web/ai/assistants/import', async (request) => {
+    const mgr = getAssistantManager(getAiDir(dbManager))
+    return mgr.importAssistantFromMd(request.body.rawMd)
+  })
+
+  // ==================== Skills (via shared SkillManagerCore) ====================
 
   server.get('/_web/ai/skills', async () => {
-    const dir = path.join(getAiDir(dbManager), 'skills')
-    const files = scanMdFiles(dir)
-    const results: SkillSummary[] = []
-    for (const filePath of files) {
-      try {
-        const content = fs.readFileSync(filePath, 'utf-8')
-        const parsed = parseSkillFile(content, filePath)
-        if (parsed) {
-          results.push({
-            id: parsed.id,
-            name: parsed.name,
-            description: parsed.description,
-            tags: parsed.tags,
-            chatScope: parsed.chatScope,
-            tools: parsed.tools,
-            builtinId: parsed.builtinId,
-          })
-        }
-      } catch {
-        // skip unparseable files
-      }
-    }
-    return results
+    const mgr = getSkillManagerCore(getAiDir(dbManager))
+    return mgr.getAllSkills()
   })
 
   server.get<{ Params: { id: string } }>('/_web/ai/skills/:id', async (request, reply) => {
-    const { id } = request.params
-    const dir = path.join(getAiDir(dbManager), 'skills')
-    const filePath = path.join(dir, `${id}.md`)
+    const mgr = getSkillManagerCore(getAiDir(dbManager))
+    const config = mgr.getSkillConfig(request.params.id)
+    if (!config) return reply.code(404).send({ error: 'Not found' })
+    return config
+  })
 
-    if (!fs.existsSync(filePath)) {
-      return reply.code(404).send({ error: 'Not found' })
-    }
+  server.post<{ Body: { rawMd: string } }>('/_web/ai/skills', async (request) => {
+    const mgr = getSkillManagerCore(getAiDir(dbManager))
+    return mgr.createSkill(request.body.rawMd)
+  })
 
-    const content = fs.readFileSync(filePath, 'utf-8')
-    const parsed = parseSkillFile(content, filePath)
-    if (!parsed) {
-      return reply.code(404).send({ error: 'Parse failed' })
-    }
-    return parsed
+  server.put<{
+    Params: { id: string }
+    Body: { rawMd: string }
+  }>('/_web/ai/skills/:id', async (request, reply) => {
+    const mgr = getSkillManagerCore(getAiDir(dbManager))
+    const result = mgr.updateSkill(request.params.id, request.body.rawMd)
+    if (!result.success) return reply.code(404).send(result)
+    return result
+  })
+
+  server.delete<{ Params: { id: string } }>('/_web/ai/skills/:id', async (request, reply) => {
+    const mgr = getSkillManagerCore(getAiDir(dbManager))
+    const result = mgr.deleteSkill(request.params.id)
+    if (!result.success) return reply.code(400).send(result)
+    return result
+  })
+
+  server.post<{ Body: { rawMd: string } }>('/_web/ai/skills/import', async (request) => {
+    const mgr = getSkillManagerCore(getAiDir(dbManager))
+    return mgr.importSkillFromMd(request.body.rawMd)
+  })
+
+  server.get('/_web/ai/skills/builtin-catalog', async () => {
+    const mgr = getSkillManagerCore(getAiDir(dbManager))
+    return mgr.getBuiltinCatalog()
   })
 
   // ==================== LLM Config ====================
