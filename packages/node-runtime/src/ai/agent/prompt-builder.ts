@@ -23,6 +23,17 @@ export interface SkillContext {
   skillMenu?: string
 }
 
+export interface DataSnapshot {
+  name: string
+  platform: string
+  type: string
+  totalMessages: number
+  totalMembers: number
+  firstMessageTs: number | null
+  lastMessageTs: number | null
+  capturedAt: number
+}
+
 export type TranslateFn = (key: string, options?: Record<string, unknown>) => string
 
 export interface BuildSystemPromptOptions {
@@ -33,6 +44,7 @@ export interface BuildSystemPromptOptions {
   locale?: string
   skillCtx?: SkillContext
   mentionedMembers?: MentionedMember[]
+  dataSnapshot?: DataSnapshot
 }
 
 function agentT(t: TranslateFn, key: string, locale: string, options?: Record<string, unknown>): string {
@@ -44,7 +56,8 @@ function getLockedPromptSection(
   chatType: 'group' | 'private',
   ownerInfo: OwnerInfo | undefined,
   locale: string,
-  mentionedMembers: MentionedMember[] | undefined
+  mentionedMembers: MentionedMember[] | undefined,
+  dataSnapshot: DataSnapshot | undefined
 ): string {
   const now = new Date()
   const dateLocale = locale.startsWith('zh') ? 'zh-CN' : 'en-US'
@@ -81,19 +94,47 @@ function getLockedPromptSection(
       : ''
 
   const year = now.getFullYear()
+  const dataSnapshotNote = dataSnapshot
+    ? `${agentT(t, 'ai.agent.dataSnapshotNote', locale, {
+        name: dataSnapshot.name,
+        platform: dataSnapshot.platform,
+        totalMessages: dataSnapshot.totalMessages,
+        totalMembers: dataSnapshot.totalMembers,
+        firstMessageDate: formatTimestamp(dataSnapshot.firstMessageTs, locale),
+        lastMessageDate: formatTimestamp(dataSnapshot.lastMessageTs, locale),
+      })}\n`
+    : ''
 
   return `${agentT(t, 'ai.agent.currentDateIs', locale)} ${currentDate}。
 ${ownerNote}
 ${mentionedMembersNote}
+${dataSnapshotNote}
 ${memberNote}
 ${agentT(t, 'ai.agent.timeParamsIntro', locale)}
 ${agentT(t, 'ai.agent.defaultYearNote', locale, { year })}
+${agentT(t, 'ai.agent.evidencePolicy', locale)}
 
 ${agentT(t, 'ai.agent.responseInstruction', locale)}`
 }
 
 function getFallbackRoleDefinition(t: TranslateFn, chatType: 'group' | 'private', locale: string): string {
   return agentT(t, `ai.agent.fallbackRoleDefinition.${chatType}`, locale)
+}
+
+function formatTimestamp(timestamp: number | null | undefined, locale: string): string {
+  if (!timestamp) return locale.startsWith('zh') ? '未知' : 'unknown'
+
+  const date = new Date(timestamp * 1000)
+  if (Number.isNaN(date.getTime())) return locale.startsWith('zh') ? '未知' : 'unknown'
+
+  const dateLocale = locale.startsWith('zh') ? 'zh-CN' : locale
+  return date.toLocaleString(dateLocale, {
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
 
 export function buildSystemPrompt(options: BuildSystemPromptOptions): string {
@@ -105,10 +146,11 @@ export function buildSystemPrompt(options: BuildSystemPromptOptions): string {
     locale = 'zh-CN',
     skillCtx,
     mentionedMembers,
+    dataSnapshot,
   } = options
 
   const systemPrompt = assistantSystemPrompt || getFallbackRoleDefinition(t, chatType, locale)
-  const lockedSection = getLockedPromptSection(t, chatType, ownerInfo, locale, mentionedMembers)
+  const lockedSection = getLockedPromptSection(t, chatType, ownerInfo, locale, mentionedMembers, dataSnapshot)
 
   let skillSection = ''
   if (skillCtx?.skillDef) {

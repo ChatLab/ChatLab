@@ -129,7 +129,14 @@ export type { TokenUsage, AgentRuntimeStatus, AgentStreamChunk, EventHandlerConf
 
 // Agent Prompt Builder
 export { buildSystemPrompt } from './ai'
-export type { BuildSystemPromptOptions, OwnerInfo, MentionedMember, SkillContext, TranslateFn } from './ai'
+export type {
+  BuildSystemPromptOptions,
+  DataSnapshot,
+  OwnerInfo,
+  MentionedMember,
+  SkillContext,
+  TranslateFn,
+} from './ai'
 
 // LLM Model Builder
 export { buildPiModel, normalizeAnthropicBaseUrl, normalizeOpenAICompatibleBaseUrl } from './ai'

@@ -7,6 +7,7 @@ import * as llm from '../ai/llm'
 import { aiLogger, setDebugMode } from '../ai/logger'
 import { serializeError } from '../ai/serialize-error'
 import { getLogsDir } from '../paths'
+import * as workerManager from '../worker/workerManager'
 import { Agent, type AgentStreamChunk, type SkillContext } from '../ai/agent'
 import { getDefaultGeneralAssistantId } from '../ai/assistant/defaultGeneral'
 import { getDefaultAssistantConfig, buildPiModel, findModelDefinition } from '../ai/llm'
@@ -1271,7 +1272,25 @@ export function registerAIHandlers({ win }: IpcContext): void {
         const modelDef = llm.findModelDefinition(activeAIConfig.provider, activeAIConfig.model || '')
         const resolvedContextWindow = modelDef?.contextWindow || 128000
         const maxToolResultTokens = Math.floor(resolvedContextWindow * (maxToolResultPercent / 100))
-        const enrichedContext: ToolContext = { ...context, maxToolResultTokens }
+        let dataSnapshot: ToolContext['dataSnapshot'] | undefined = context.dataSnapshot
+        try {
+          const overview = await workerManager.getChatOverview(context.sessionId, 5)
+          if (overview) {
+            dataSnapshot = {
+              name: overview.name,
+              platform: overview.platform,
+              type: overview.type,
+              totalMessages: overview.totalMessages,
+              totalMembers: overview.totalMembers,
+              firstMessageTs: overview.firstMessageTs,
+              lastMessageTs: overview.lastMessageTs,
+              capturedAt: Math.floor(Date.now() / 1000),
+            }
+          }
+        } catch (error) {
+          aiLogger.warn('IPC', `Failed to load agent data snapshot: ${requestId}`, { error: String(error) })
+        }
+        const enrichedContext: ToolContext = { ...context, maxToolResultTokens, dataSnapshot }
 
         const agent = new Agent(
           enrichedContext,

@@ -17,6 +17,11 @@ const mockT: TranslateFn = (key, options) => {
   if (key === 'ai.agent.memberNotePrivate') return '[member-private]'
   if (key === 'ai.agent.timeParamsIntro') return '[time-params]'
   if (key === 'ai.agent.defaultYearNote') return `[year:${(options as Record<string, unknown>)?.year}]`
+  if (key === 'ai.agent.dataSnapshotNote') {
+    const opts = options as Record<string, unknown>
+    return `[snapshot:${opts.name}:${opts.totalMessages}:${opts.lastMessageDate}]`
+  }
+  if (key === 'ai.agent.evidencePolicy') return '[evidence-policy]'
   if (key === 'ai.agent.responseInstruction') return '[response-instruction]'
   if (key === 'ai.agent.mentionedMembersNote') return 'Mentioned members:'
   if (key === 'ai.agent.currentTask') return 'Current task'
@@ -80,5 +85,30 @@ describe('buildSystemPrompt', () => {
     const result = buildSystemPrompt({ t: mockT })
     assert.ok(result.includes('Current date is'))
     assert.ok(result.includes('[response-instruction]'))
+  })
+
+  it('includes evidence policy in locked section', () => {
+    const result = buildSystemPrompt({ t: mockT })
+    assert.ok(result.includes('[evidence-policy]'))
+    assert.ok(result.indexOf('[evidence-policy]') < result.indexOf('[response-instruction]'))
+  })
+
+  it('includes current data snapshot when provided', () => {
+    const result = buildSystemPrompt({
+      t: mockT,
+      dataSnapshot: {
+        name: 'Team Chat',
+        platform: 'wechat',
+        type: 'group',
+        totalMessages: 1234,
+        totalMembers: 56,
+        firstMessageTs: 1700000000,
+        lastMessageTs: 1700003600,
+        capturedAt: 1700007200,
+      },
+    })
+
+    assert.ok(result.includes('[snapshot:Team Chat:1234:'))
+    assert.ok(result.includes('[evidence-policy]'))
   })
 })

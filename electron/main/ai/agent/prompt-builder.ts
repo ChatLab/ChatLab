@@ -5,9 +5,9 @@
 
 import { t as i18nT } from '../../i18n'
 import { buildSystemPrompt as buildSystemPromptCore } from '@openchatlab/node-runtime'
-import type { OwnerInfo, SkillContext, MentionedMember } from '@openchatlab/node-runtime'
+import type { OwnerInfo, SkillContext, MentionedMember, DataSnapshot } from '@openchatlab/node-runtime'
 
-export type { OwnerInfo, SkillContext, MentionedMember }
+export type { OwnerInfo, SkillContext, MentionedMember, DataSnapshot }
 
 export function buildSystemPrompt(
   chatType: 'group' | 'private' = 'group',
@@ -15,7 +15,8 @@ export function buildSystemPrompt(
   ownerInfo?: OwnerInfo,
   locale: string = 'zh-CN',
   skillCtx?: SkillContext,
-  mentionedMembers?: MentionedMember[]
+  mentionedMembers?: MentionedMember[],
+  dataSnapshot?: DataSnapshot
 ): string {
   return buildSystemPromptCore({
     t: i18nT,
@@ -25,5 +26,6 @@ export function buildSystemPrompt(
     locale,
     skillCtx,
     mentionedMembers,
+    dataSnapshot,
   })
 }

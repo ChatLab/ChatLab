@@ -57,7 +57,7 @@ export default {
   ai: {
     tools: {
       search_messages: {
-        desc: 'Search group chat records by keywords. Suitable for finding specific topics or keyword-related chat content. Can specify time range and sender to filter messages. Supports minute-level time queries.',
+        desc: 'Search chat records by keywords. This is the primary evidence tool for factual questions about keywords, member messages, or whether a topic appeared. Can specify time range and sender to filter messages. Supports minute-level time queries.',
         params: {
           keywords:
             'List of search keywords, using OR logic to match messages containing any keyword. Pass an empty array [] to filter by sender only',
@@ -75,7 +75,7 @@ export default {
         },
       },
       deep_search_messages: {
-        desc: 'Exact substring match search for chat records. Slower but never misses any message containing the keyword. Use when regular search (search_messages) results are insufficient, or when searching for partial words or single characters.',
+        desc: 'Exact substring match search for chat records. Slower but never misses any message containing the keyword. Use when search_messages results are insufficient, when verifying whether a phrase really exists, or when searching partial words or single characters.',
         params: {
           keywords: 'List of search keywords, using substring match (LIKE). Returns messages matching any keyword',
           sender_id: 'Sender member ID for filtering messages from a specific member',
@@ -89,7 +89,7 @@ export default {
         },
       },
       get_recent_messages: {
-        desc: 'Get chat messages within a specified time period. Suitable for overview questions like "what has everyone been chatting about recently" or "what was discussed in month X". Supports minute-level time queries.',
+        desc: 'Get chat messages within a specified time period. This is the preferred evidence tool for overview questions like "what has everyone been chatting about recently", "what was discussed in month X", and latest content after new records were appended. Supports minute-level time queries.',
         params: {
           limit: 'Message count limit, default 100 (saves tokens, can be increased as needed)',
           year: 'Filter messages by year, e.g. 2024',
@@ -103,7 +103,7 @@ export default {
         },
       },
       get_chat_overview: {
-        desc: 'Get basic overview of the chat: name, platform, type, total messages, total members, time range, and top active members. Use this first to understand the data before deeper analysis.',
+        desc: 'Get basic overview of the chat: name, platform, type, total messages, total members, time range, and top active members. Use this before analysis or after appended records to confirm the current database range.',
         params: {
           top_n: 'Return top N active members, default 10',
         },
@@ -146,7 +146,7 @@ export default {
         },
       },
       get_message_context: {
-        desc: 'Get surrounding context messages for a given message ID. Suitable for viewing what was discussed before and after a specific message. Supports single or batch message IDs.',
+        desc: 'Get surrounding context messages for a given message ID. Use it to verify facts around specific quoted messages, such as what was discussed before and after a message or whether a phrase has context. Supports single or batch message IDs.',
         params: {
           message_ids:
             'List of message IDs to query context for. Can be single or multiple IDs. Message IDs can be obtained from search_messages and other tool results',
@@ -334,6 +334,13 @@ Returned summaries are brief descriptions of each session, helping quickly locat
         'Members explicitly @-selected by the user in this round (member_id can be used directly without another search):',
       timeParamsIntro: 'Time parameters: use start_time/end_time to specify the range, format "YYYY-MM-DD HH:mm"',
       defaultYearNote: 'When no time range is specified, queries default to all data. Current year is {{year}}.',
+      dataSnapshotNote:
+        'Current chat database snapshot: {{name}} ({{platform}}), {{totalMessages}} total messages, {{totalMembers}} members, time range {{firstMessageDate}} ~ {{lastMessageDate}}. This snapshot only helps judge data coverage; concrete chat facts still require tool retrieval from the current database.',
+      evidencePolicy: `Evidence policy:
+- AI conversation history, prior AI replies, and compressed summaries are only for understanding the user's intent; they are not evidence for chat-record facts.
+- Whenever the user asks about chat content, recent topics, what someone said, rankings/statistics, whether a topic appeared, or asks for exact quotes, first call an appropriate data tool to retrieve the current database.
+- If new chat records were appended, the current database may differ from old window history; prefer get_chat_overview or get_recent_messages/search_messages to get fresh evidence.
+- Only messages, statistics, or database overviews returned by tools may be used as factual basis. If tools do not return enough evidence, say the data is insufficient and do not fabricate nonexistent chat records.`,
       currentTask: 'Current Task',
       skillPriorityNote:
         'Note: When executing this task, prioritize the output format requirements below. This can override your usual response style.',

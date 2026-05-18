@@ -4,6 +4,7 @@
 
 import type { AgentTool } from '@openchatlab/node-runtime'
 import type { PreprocessConfig } from '@openchatlab/node-runtime'
+import type { DataSnapshot } from '@openchatlab/node-runtime'
 
 export type ToolCategory = 'core' | 'analysis'
 
@@ -36,6 +37,8 @@ export interface ToolContext {
   sessionId: string
   /** 当前 AI 对话 ID（用于上下文管理隔离） */
   conversationId?: string
+  /** 当前聊天数据库快照（仅用于提示模型当前数据范围，不能替代工具检索结果） */
+  dataSnapshot?: DataSnapshot
   /** 时间过滤器 */
   timeFilter?: {
     startTs: number

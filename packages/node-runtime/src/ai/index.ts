@@ -96,6 +96,7 @@ export type {
 export { buildSystemPrompt } from './agent/prompt-builder'
 export type {
   BuildSystemPromptOptions,
+  DataSnapshot,
   OwnerInfo,
   MentionedMember,
   SkillContext,
