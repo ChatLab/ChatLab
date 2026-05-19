@@ -52,7 +52,7 @@ export { hasFtsTable, createFtsTable, buildFtsIndex, rebuildFtsIndex, insertFtsE
 // AI Logger & Error formatting
 export { AiLogger, extractErrorInfo, extractErrorStack, formatAIError } from './ai'
 export type { FormatAIErrorOptions } from './ai'
-export { NodePathProvider } from './node-path-provider'
+export { NodePathProvider, hasPendingElectronDataWarning } from './node-path-provider'
 export { DatabaseManager } from './database-manager'
 export { createJiebaNlpProvider } from './jieba-nlp-provider'
 
@@ -218,6 +218,10 @@ export type { OverviewCache, MembersCache, MemberStat } from './cache'
 // Chat DB migrations
 export { getChatDbMigrations } from './migrations'
 export type { MigrationDeps } from './migrations'
+
+// Electron data migration (CLI first-run) + data path verification
+export { migrateFromElectronIfNeeded, verifyCliDataPath, wasElectronUsed } from './migrations'
+export type { ElectronMigrationResult } from './migrations'
 
 // Merger orchestration
 export { checkConflictsFromSources, buildMergedOutput, serializeChatLabToJsonl } from './merger'

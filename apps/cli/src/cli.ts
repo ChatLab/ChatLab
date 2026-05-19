@@ -9,7 +9,12 @@ import * as path from 'path'
 import { execSync } from 'child_process'
 import { Command } from 'commander'
 import { loadConfig, getConfigPath } from '@openchatlab/config'
-import { NodePathProvider, DatabaseManager } from '@openchatlab/node-runtime'
+import {
+  NodePathProvider,
+  DatabaseManager,
+  hasPendingElectronDataWarning,
+  verifyCliDataPath,
+} from '@openchatlab/node-runtime'
 import {
   getSessionMeta,
   getSessionOverview,
@@ -428,9 +433,37 @@ function initRuntime() {
   const userDataDir = config.data.user_data_dir || undefined
   const pathProvider = new NodePathProvider(userDataDir)
   pathProvider.ensureAllDirs()
+
+  if (hasPendingElectronDataWarning() || !verifyCliDataPath(pathProvider.getDatabaseDir())) {
+    printElectronDataError()
+    process.exit(1)
+  }
+
   const nativeBinding = resolveNativeBinding()
   const dbManager = new DatabaseManager(pathProvider, { nativeBinding })
   return { config, pathProvider, dbManager }
+}
+
+function printElectronDataError(): void {
+  console.error('\n' + '='.repeat(68))
+  console.error('  ChatLab: Electron desktop data not found')
+  console.error('='.repeat(68))
+  console.error('')
+  console.error('  Detected that ChatLab desktop app was installed on this machine,')
+  console.error('  but could not locate your chat databases.')
+  console.error('')
+  console.error('  This usually means you changed the data directory in desktop settings.')
+  console.error('')
+  console.error('  To fix this, choose one of:')
+  console.error('')
+  console.error('  1. Open ChatLab desktop app — it will auto-migrate your data')
+  console.error('  2. Set the data directory manually:')
+  console.error('     export CHATLAB_DATA_DIR="/path/to/your/data"')
+  console.error('  3. Edit ~/.chatlab/config.toml:')
+  console.error('     [data]')
+  console.error('     user_data_dir = "/path/to/your/data"')
+  console.error('')
+  console.error('='.repeat(68) + '\n')
 }
 
 function formatTimeRange(first: number | null, last: number | null): string {

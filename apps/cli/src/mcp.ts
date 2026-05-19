@@ -10,7 +10,12 @@ import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mc
 import { StdioServerTransport } from '@modelcontextprotocol/sdk/server/stdio.js'
 import { z } from 'zod'
 import { loadConfig } from '@openchatlab/config'
-import { NodePathProvider, DatabaseManager } from '@openchatlab/node-runtime'
+import {
+  NodePathProvider,
+  DatabaseManager,
+  hasPendingElectronDataWarning,
+  verifyCliDataPath,
+} from '@openchatlab/node-runtime'
 import { getSessionMeta, getSessionOverview, getDatabaseSchema } from '@openchatlab/core'
 import { MCP_TOOL_REGISTRY, CoreDataProvider } from '@openchatlab/tools'
 import type { SessionListContext } from '@openchatlab/tools/src/definitions/sessions'
@@ -25,6 +30,13 @@ function initMcpRuntime() {
   const userDataDir = config.data.user_data_dir || undefined
   const pathProvider = new NodePathProvider(userDataDir)
   pathProvider.ensureAllDirs()
+
+  if (hasPendingElectronDataWarning() || !verifyCliDataPath(pathProvider.getDatabaseDir())) {
+    console.error('[MCP] Electron desktop data detected but databases not found.')
+    console.error('[MCP] Set CHATLAB_DATA_DIR or edit ~/.chatlab/config.toml to point to your data directory.')
+    process.exit(1)
+  }
+
   dbManager = new DatabaseManager(pathProvider)
   return { config, dbManager }
 }

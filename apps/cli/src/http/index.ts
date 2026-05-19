@@ -11,7 +11,13 @@ import * as crypto from 'crypto'
 import type { FastifyInstance } from 'fastify'
 import { loadConfig, writeConfigField, MigrationRunner, ALL_MIGRATIONS } from '@openchatlab/config'
 import type { ChatLabConfig } from '@openchatlab/config'
-import { NodePathProvider, DatabaseManager, AIConversationManager } from '@openchatlab/node-runtime'
+import {
+  NodePathProvider,
+  DatabaseManager,
+  AIConversationManager,
+  hasPendingElectronDataWarning,
+  verifyCliDataPath,
+} from '@openchatlab/node-runtime'
 import { createServer } from './server'
 import { setAuthToken, setWebMode } from './auth'
 import { registerSystemRoutes } from './routes/system'
@@ -73,6 +79,29 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
   const userDataDir = config.data.user_data_dir || undefined
   const pathProvider = new NodePathProvider(userDataDir)
   pathProvider.ensureAllDirs()
+
+  if (hasPendingElectronDataWarning() || !verifyCliDataPath(pathProvider.getDatabaseDir())) {
+    throw new Error(
+      '\n' +
+        '='.repeat(68) +
+        '\n' +
+        '  ChatLab: Electron desktop data not found\n' +
+        '='.repeat(68) +
+        '\n\n' +
+        '  Detected that ChatLab desktop app was installed on this machine,\n' +
+        '  but could not locate your chat databases.\n\n' +
+        '  This usually means you changed the data directory in desktop settings.\n\n' +
+        '  To fix this, choose one of:\n\n' +
+        '  1. Open ChatLab desktop app — it will auto-migrate your data\n' +
+        '  2. Set the data directory manually:\n' +
+        '     export CHATLAB_DATA_DIR="/path/to/your/data"\n' +
+        '  3. Edit ~/.chatlab/config.toml:\n' +
+        '     [data]\n' +
+        '     user_data_dir = "/path/to/your/data"\n\n' +
+        '='.repeat(68) +
+        '\n'
+    )
+  }
 
   const migrationRunner = new MigrationRunner(ALL_MIGRATIONS, {
     dataDir: pathProvider.getSystemDir(),

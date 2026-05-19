@@ -19,8 +19,19 @@ import * as os from 'os'
 import * as path from 'path'
 import type { PathProvider } from '@openchatlab/core'
 import { writeConfigField, loadConfig } from '@openchatlab/config'
+import { migrateFromElectronIfNeeded } from './migrations/electron-data-migration'
 
 const SYSTEM_DIR = path.join(os.homedir(), '.chatlab')
+
+/**
+ * Set after resolveUserDataDir() detects Electron installation but cannot find databases.
+ * CLI should check this and block execution with instructions.
+ */
+let _pendingElectronDataWarning = false
+
+export function hasPendingElectronDataWarning(): boolean {
+  return _pendingElectronDataWarning
+}
 
 export class NodePathProvider implements PathProvider {
   private systemDir: string
@@ -100,7 +111,21 @@ function resolveUserDataDir(): string {
     return expandHome(config.data.user_data_dir)
   }
 
+  // First run: check for existing Electron desktop data before using default
+  const result = migrateFromElectronIfNeeded(SYSTEM_DIR)
+  if (result.migrated && result.userDataDir) {
+    return result.userDataDir
+  }
+
   const defaultDir = getDefaultUserDataDir()
+
+  if (result.electronDetected) {
+    // Electron was used but we couldn't find databases — likely a custom data directory.
+    // Don't persist default to config.toml so migration retries on next startup.
+    _pendingElectronDataWarning = true
+    return defaultDir
+  }
+
   writeConfigField('data', 'user_data_dir', defaultDir)
   return defaultDir
 }
