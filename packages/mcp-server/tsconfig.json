@@ -2,13 +2,17 @@
   "extends": "../../tsconfig.node.json",
   "compilerOptions": {
     "composite": true,
-    "rootDir": "./src",
-    "outDir": "./dist"
+    "noEmit": true
   },
   "include": [
     "src/**/*.ts",
     "../../packages/shared-types/**/*",
-    "../../packages/core/**/*",
-    "../../packages/tools/**/*"
+    "../../packages/core/src/**/*.ts",
+    "../../packages/tools/src/**/*.ts"
+  ],
+  "exclude": [
+    "**/__tests__/**",
+    "**/*.test.ts",
+    "**/*.spec.ts"
   ]
 }
