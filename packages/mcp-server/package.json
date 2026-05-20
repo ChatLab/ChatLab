@@ -4,9 +4,10 @@
   "description": "ChatLab MCP Server — shared core for CLI and Desktop, also usable standalone via npx",
   "main": "./dist/index.mjs",
   "bin": {
-    "chatlab-mcp": "./dist/bin.mjs"
+    "chatlab-mcp": "bin/chatlab-mcp.js"
   },
   "files": [
+    "bin/",
     "dist/"
   ],
   "engines": {
@@ -15,7 +16,7 @@
   "publishConfig": {
     "access": "public"
   },
-  "license": "MIT",
+  "license": "AGPL-3.0",
   "repository": {
     "type": "git",
     "url": "git+https://github.com/ChatLab/ChatLab.git",
@@ -38,6 +39,9 @@
     "better-sqlite3": "^12.4.6",
     "smol-toml": "^1.3.1",
     "zod": "^3.24.4"
+  },
+  "optionalDependencies": {
+    "@node-rs/jieba": "^2.0.1"
   },
   "devDependencies": {
     "@openchatlab/config": "workspace:*",

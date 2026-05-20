@@ -422,7 +422,7 @@ curl "http://127.0.0.1:5200/api/v1/sessions/abc123/messages?page=1&limit=50&keyw
 
 ### 1. MCP 集成
 
-将 ChatLab API 接入 Claude Desktop 等 AI 工具，实现 AI 对聊天记录的直接查询和分析。
+将 ChatLab API 接入 ClaudeCode 等 AI 工具，实现 AI 对聊天记录的直接查询和分析。
 
 ### 2. 自动化导入
 

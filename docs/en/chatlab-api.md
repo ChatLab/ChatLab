@@ -472,7 +472,7 @@ Content-Type and request body format are the same as `POST /api/v1/import`.
 
 ### 1. MCP Integration
 
-Connect the ChatLab API to AI tools like Claude Desktop, enabling AI to directly query and analyze chat records.
+Connect the ChatLab API to AI tools like ClaudeCode, enabling AI to directly query and analyze chat records.
 
 ### 2. Automation Scripts
 

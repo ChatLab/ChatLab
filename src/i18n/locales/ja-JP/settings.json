@@ -568,7 +568,7 @@
       "clientLabel": "MCP クライアント",
       "copy": "コピー",
       "copied": "コピー済み",
-      "claudeHint": "Claude Desktop の claude_desktop_config.json ファイルにこの設定を追加してください。",
+      "claudeHint": "この設定を ClaudeCode の MCP 設定に追加してください。",
       "codexHint": "この TOML 設定を ~/.codex/config.toml ファイルに追加してください。",
       "openclawHint": "この設定をプロジェクトの openclaw.json ファイルに追加してください。",
       "otherHint": "この JSON 設定を MCP クライアントの設定ファイルに追加してください。"

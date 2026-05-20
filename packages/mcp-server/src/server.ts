@@ -2,7 +2,7 @@
  * ChatLab MCP Server core
  *
  * Registers @openchatlab/tools as MCP tools and exposes session data as MCP resources.
- * Communicates with AI agents (Claude Desktop, Cursor, etc.) via stdio transport.
+ * Communicates with AI agents (ClaudeCode, Cursor, etc.) via stdio transport.
  */
 
 import { McpServer, ResourceTemplate } from '@modelcontextprotocol/sdk/server/mcp.js'

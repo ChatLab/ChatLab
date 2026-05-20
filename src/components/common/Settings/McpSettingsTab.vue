@@ -11,7 +11,7 @@ type McpClient = 'claude' | 'codex' | 'openclaw' | 'other'
 const selectedClient = ref<McpClient>('claude')
 
 const clientOptions = computed(() => [
-  { label: 'Claude', value: 'claude' },
+  { label: 'ClaudeCode', value: 'claude' },
   { label: 'Codex', value: 'codex' },
   { label: 'OpenClaw', value: 'openclaw' },
   { label: t('settings.mcp.clients.other'), value: 'other' },

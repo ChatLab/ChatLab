@@ -267,7 +267,7 @@ program
 
 program
   .command('mcp')
-  .description('Start MCP Server (stdio transport, for Claude Desktop / Cursor / AI agents)')
+  .description('Start MCP Server (stdio transport, for ClaudeCode / Cursor / AI agents)')
   .action(async () => {
     const { startCliMcpServer } = await import('./mcp')
     await startCliMcpServer()

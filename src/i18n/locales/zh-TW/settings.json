@@ -568,7 +568,7 @@
       "clientLabel": "MCP 用戶端",
       "copy": "複製",
       "copied": "已複製",
-      "claudeHint": "將此設定新增至 Claude Desktop 的 claude_desktop_config.json 檔案中。",
+      "claudeHint": "將此設定新增至 ClaudeCode 的 MCP 設定中。",
       "codexHint": "將此 TOML 設定新增至 ~/.codex/config.toml 檔案中。",
       "openclawHint": "將此設定新增至專案的 openclaw.json 檔案中。",
       "otherHint": "將此 JSON 設定新增到你的 MCP 用戶端設定檔中。"

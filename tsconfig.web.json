@@ -1,6 +1,7 @@
 {
   "extends": "@electron-toolkit/tsconfig/tsconfig.web.json",
   "include": ["src/env.d.ts", "src/**/*", "apps/desktop/preload/**/*.d.ts", "packages/**/*"],
+  "exclude": ["**/dist/**", "packages/*/bin/**"],
   "compilerOptions": {
     "baseUrl": ".",
     "target": "ESNext",
