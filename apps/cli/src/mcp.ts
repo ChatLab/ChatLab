@@ -4,6 +4,8 @@
  * Thin wrapper: initializes Node.js runtime, then delegates to chatlab-mcp.
  */
 
+import fs from 'fs'
+import path from 'path'
 import { loadConfig } from '@openchatlab/config'
 import {
   NodePathProvider,
@@ -13,6 +15,13 @@ import {
 } from '@openchatlab/node-runtime'
 import { startMcpServer } from 'chatlab-mcp'
 import { getVersion } from './version'
+
+function resolveNativeBinding(): string | undefined {
+  if (process.versions.electron) return undefined
+  const nativePath = path.resolve(__dirname, '../native/better_sqlite3.node')
+  if (fs.existsSync(nativePath)) return nativePath
+  return undefined
+}
 
 function initMcpRuntime(): DatabaseManager {
   const config = loadConfig()
@@ -26,7 +35,8 @@ function initMcpRuntime(): DatabaseManager {
     process.exit(1)
   }
 
-  return new DatabaseManager(pathProvider)
+  const nativeBinding = resolveNativeBinding()
+  return new DatabaseManager(pathProvider, { nativeBinding })
 }
 
 export async function startCliMcpServer(): Promise<void> {
