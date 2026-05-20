@@ -7,7 +7,7 @@ import { getConversationCountsBySession } from '../ai/conversations'
 import * as databaseCore from '../database/core'
 import * as worker from '../worker/workerManager'
 import * as parser from '../parser'
-import { detectFormat, scanMultiChatFile, type ParseProgress } from '../parser'
+import { detectFormat, findEntryFileInDirectory, scanMultiChatFile, type ParseProgress } from '../parser'
 import type { IpcContext } from './types'
 import { CURRENT_SCHEMA_VERSION, getPendingMigrationInfos } from '../database/migrations'
 import { exportSessionToTempFile, cleanupTempExportFiles } from '../merger'
@@ -139,6 +139,45 @@ export function registerChatHandlers(ctx: IpcContext): void {
         message: String(error),
       })
 
+      return { success: false, error: String(error) }
+    }
+  })
+
+  /**
+   * Import from a directory path: scan for entry file and import
+   */
+  ipcMain.handle('chat:importDirectory', async (_, dirPath: string) => {
+    try {
+      const entryPath = findEntryFileInDirectory(dirPath)
+      if (!entryPath) {
+        return { success: false, error: 'No recognizable import format found in directory' }
+      }
+
+      win.webContents.send('chat:importProgress', {
+        stage: 'detecting',
+        progress: 5,
+        message: '',
+      })
+
+      const result = await worker.streamImport(entryPath, (progress: ParseProgress) => {
+        win.webContents.send('chat:importProgress', {
+          stage: progress.stage,
+          progress: progress.percentage,
+          message: progress.message,
+          bytesRead: progress.bytesRead,
+          totalBytes: progress.totalBytes,
+          messagesProcessed: progress.messagesProcessed,
+        })
+      })
+
+      if (result.success) {
+        return { success: true, sessionId: result.sessionId, diagnostics: result.diagnostics }
+      } else {
+        win.webContents.send('chat:importProgress', { stage: 'error', progress: 0, message: result.error })
+        return { success: false, error: result.error, diagnostics: result.diagnostics }
+      }
+    } catch (error) {
+      win.webContents.send('chat:importProgress', { stage: 'error', progress: 0, message: String(error) })
       return { success: false, error: String(error) }
     }
   })

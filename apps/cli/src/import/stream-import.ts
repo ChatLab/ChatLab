@@ -34,6 +34,7 @@ import {
   getFormatFeatureById,
   getSupportedFormats as parserGetSupportedFormats,
   scanMultiChatFile as parserScanMultiChatFile,
+  findEntryFileInDirectory,
   type FormatFeature,
   type MultiChatInfo,
   type ParseProgress,
@@ -216,6 +217,7 @@ export {
   getFormatFeatureById,
   parserGetSupportedFormats as getSupportedFormats,
   parserScanMultiChatFile as scanMultiChatFile,
+  findEntryFileInDirectory,
 }
 export type { FormatFeature, MultiChatInfo, ParseProgress }
 export type {

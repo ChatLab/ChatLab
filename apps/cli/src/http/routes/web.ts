@@ -70,6 +70,7 @@ import {
   detectAllFormats,
   getSupportedFormats,
   scanMultiChatFile,
+  findEntryFileInDirectory,
 } from '../../import'
 import { getDefaultAssistantConfig, buildPiModel } from '../../ai/llm-config'
 
@@ -877,6 +878,92 @@ export function registerWebRoutes(
       } catch {
         /* ignore */
       }
+    }
+  })
+
+  // ==================== Directory Import ====================
+
+  server.post('/_web/import-directory', async (request, reply) => {
+    const parts = (request as any).parts()
+    if (!parts) return reply.code(400).send({ error: 'No files uploaded' })
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-dir-import-'))
+
+    // Interleaved fields: relativePaths (field) and files (file) come in order
+    const relativePaths: string[] = []
+    const fileBuffers: { data: Buffer; filename: string }[] = []
+
+    try {
+      for await (const part of parts) {
+        if (part.type === 'field' && part.fieldname === 'relativePaths') {
+          relativePaths.push(String(part.value))
+        } else if (part.type === 'file') {
+          const chunks: Buffer[] = []
+          for await (const chunk of part.file) {
+            chunks.push(chunk)
+          }
+          fileBuffers.push({ data: Buffer.concat(chunks), filename: part.filename || '' })
+        }
+      }
+
+      // Write files preserving directory structure
+      for (let i = 0; i < fileBuffers.length; i++) {
+        let relPath = relativePaths[i] || fileBuffers[i].filename || `file_${i}`
+
+        // Strip top-level directory from webkitRelativePath (e.g. "export_dir/chunks/..." → "chunks/...")
+        const segments = relPath.split('/')
+        if (segments.length > 1) {
+          relPath = segments.slice(1).join('/')
+        }
+
+        const targetPath = path.join(tmpDir, relPath)
+        fs.mkdirSync(path.dirname(targetPath), { recursive: true })
+        fs.writeFileSync(targetPath, fileBuffers[i].data)
+      }
+
+      const entryPath = findEntryFileInDirectory(tmpDir)
+      if (!entryPath) {
+        return reply.code(400).send({ error: 'No recognizable import format found in directory' })
+      }
+
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      })
+
+      function sendEvent(event: string, eventData: unknown) {
+        reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(eventData)}\n\n`)
+      }
+
+      const nativeBinding = resolveNativeBinding()
+      const result = await streamImport(dbManager, entryPath, {
+        nativeBinding,
+        onProgress: (p) => {
+          sendEvent('progress', p)
+        },
+      })
+
+      if (result.success) {
+        sendEvent('done', {
+          success: true,
+          sessionId: result.sessionId,
+          messageCount: result.diagnostics?.messagesWritten ?? 0,
+          memberCount: 0,
+        })
+      } else {
+        sendEvent('error', { success: false, error: result.error })
+      }
+    } catch (err) {
+      if (!reply.raw.headersSent) {
+        return reply.code(500).send({ error: err instanceof Error ? err.message : String(err) })
+      }
+      reply.raw.write(
+        `event: error\ndata: ${JSON.stringify({ success: false, error: err instanceof Error ? err.message : String(err) })}\n\n`
+      )
+    } finally {
+      reply.raw.end()
+      fs.rmSync(tmpDir, { recursive: true, force: true })
     }
   })
 

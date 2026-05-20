@@ -15,6 +15,7 @@ export {
   getFormatFeatureById,
   getSupportedFormats,
   scanMultiChatFile,
+  findEntryFileInDirectory,
 } from './stream-import'
 export type {
   StreamImportProgress,

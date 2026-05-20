@@ -125,4 +125,43 @@ export class ElectronImportAdapter implements ImportAdapter {
       unlisten()
     }
   }
+
+  async importDirectory(
+    source: File[] | string,
+    _options?: ImportOptions,
+    onProgress?: (p: ImportProgress) => void
+  ): Promise<ImportResult> {
+    if (typeof source !== 'string') {
+      return { success: false, error: 'Expected directory path in Electron mode' }
+    }
+
+    return new Promise((resolve) => {
+      const unlisten = window.chatApi.onImportProgress((progress: any) => {
+        onProgress?.({
+          stage: progress.stage || 'parsing',
+          progress: progress.percentage || progress.progress || 0,
+          message: progress.message || '',
+          bytesRead: progress.bytesRead,
+          totalBytes: progress.totalBytes,
+          messagesProcessed: progress.messagesProcessed,
+        })
+      })
+
+      window.chatApi
+        .importDirectory(source)
+        .then((result: any) => {
+          unlisten()
+          resolve({
+            success: result.success,
+            sessionId: result.sessionId,
+            error: result.error,
+            diagnostics: result.diagnostics,
+          })
+        })
+        .catch((err: Error) => {
+          unlisten()
+          resolve({ success: false, error: err.message })
+        })
+    })
+  }
 }

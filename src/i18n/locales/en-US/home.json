@@ -20,6 +20,8 @@
     "clickHint": "Click to select or drag chat records to import",
     "multipleHint": "Multiple files can be selected or dragged at once",
     "selectFiles": "Select chat record files",
+    "selectFolder": "Select export folder",
+    "importFolder": "Import Folder",
     "chatRecords": "Chat Records",
     "allFiles": "All Files",
     "progress": {

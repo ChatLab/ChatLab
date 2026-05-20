@@ -3,6 +3,8 @@
  * 三层架构：标准层、嗅探层、解析层
  */
 
+import * as fs from 'fs'
+import * as path from 'path'
 import { FormatSniffer, createSniffer } from './sniffer'
 import { formats } from './formats'
 import { getFileSize } from './utils'
@@ -238,8 +240,6 @@ export async function parseFileInfo(
     }
   }
 
-  // 获取文件大小
-  const fs = await import('fs')
   const fileSize = fs.statSync(filePath).size
 
   return {
@@ -250,6 +250,41 @@ export async function parseFileInfo(
     memberCount,
     fileSize,
   }
+}
+
+/**
+ * Scan a directory for a recognizable entry file (e.g. manifest.json for chunked formats).
+ * Uses existing format detection; no format-specific filenames are hardcoded here.
+ * @param dirPath directory path to scan
+ * @param maxDepth max depth to scan (default 1, only top-level files)
+ * @returns path to the entry file, or null if none found
+ */
+export function findEntryFileInDirectory(dirPath: string, maxDepth = 1): string | null {
+  function walk(current: string, depth: number): string | null {
+    if (depth > maxDepth) return null
+    let entries: fs.Dirent[]
+    try {
+      entries = fs.readdirSync(current, { withFileTypes: true })
+    } catch {
+      return null
+    }
+    for (const entry of entries) {
+      const full = path.join(current, entry.name)
+      if (entry.isFile() && entry.name.endsWith('.json')) {
+        const format = detectFormat(full)
+        if (format) return full
+      }
+    }
+    for (const entry of entries) {
+      if (entry.isDirectory()) {
+        const found = walk(path.join(current, entry.name), depth + 1)
+        if (found) return found
+      }
+    }
+    return null
+  }
+
+  return walk(dirPath, 0)
 }
 
 // ==================== 导出类型 ====================

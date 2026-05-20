@@ -20,6 +20,41 @@ import { get } from '../utils/http'
 
 const BASE = '/_web'
 
+async function consumeSseStream<T>(res: Response, fallback: T, onProgress?: (p: ImportProgress) => void): Promise<T> {
+  const reader = res.body?.getReader()
+  if (!reader) return fallback
+
+  const decoder = new TextDecoder()
+  let buffer = ''
+  let result: T = fallback
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const lines = buffer.split('\n')
+    buffer = lines.pop() || ''
+
+    let eventType = ''
+    for (const line of lines) {
+      if (line.startsWith('event: ')) {
+        eventType = line.slice(7).trim()
+      } else if (line.startsWith('data: ')) {
+        const data = JSON.parse(line.slice(6))
+        if (eventType === 'progress') {
+          onProgress?.(data as ImportProgress)
+        } else if (eventType === 'done' || eventType === 'error') {
+          result = data as T
+        }
+        eventType = ''
+      }
+    }
+  }
+
+  return result
+}
+
 export class FetchImportAdapter implements ImportAdapter {
   async importFile(
     file: File | string,
@@ -42,40 +77,7 @@ export class FetchImportAdapter implements ImportAdapter {
       return { success: false, error: `HTTP ${res.status}: ${text}` }
     }
 
-    const reader = res.body?.getReader()
-    if (!reader) return { success: false, error: 'No response body' }
-
-    const decoder = new TextDecoder()
-    let buffer = ''
-    let result: ImportResult = { success: false, error: 'Unknown error' }
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-
-      let eventType = ''
-      for (const line of lines) {
-        if (line.startsWith('event: ')) {
-          eventType = line.slice(7).trim()
-        } else if (line.startsWith('data: ')) {
-          const data = JSON.parse(line.slice(6))
-          if (eventType === 'progress') {
-            onProgress?.(data as ImportProgress)
-          } else if (eventType === 'done') {
-            result = data as ImportResult
-          } else if (eventType === 'error') {
-            result = data as ImportResult
-          }
-          eventType = ''
-        }
-      }
-    }
-
-    return result
+    return consumeSseStream<ImportResult>(res, { success: false, error: 'Unknown error' }, onProgress)
   }
 
   async detectFormat(file: File | string): Promise<FormatInfo | null> {
@@ -194,39 +196,39 @@ export class FetchImportAdapter implements ImportAdapter {
       return { success: false, newMessageCount: 0, error: `HTTP ${res.status}: ${text}` }
     }
 
-    const reader = res.body?.getReader()
-    if (!reader) return { success: false, newMessageCount: 0, error: 'No response body' }
+    return consumeSseStream<IncrementalImportResult>(
+      res,
+      { success: false, newMessageCount: 0, error: 'Unknown error' },
+      onProgress
+    )
+  }
 
-    const decoder = new TextDecoder()
-    let buffer = ''
-    let result: IncrementalImportResult = { success: false, newMessageCount: 0, error: 'Unknown error' }
-
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-
-      buffer += decoder.decode(value, { stream: true })
-      const lines = buffer.split('\n')
-      buffer = lines.pop() || ''
-
-      let eventType = ''
-      for (const line of lines) {
-        if (line.startsWith('event: ')) {
-          eventType = line.slice(7).trim()
-        } else if (line.startsWith('data: ')) {
-          const data = JSON.parse(line.slice(6))
-          if (eventType === 'progress') {
-            onProgress?.(data as ImportProgress)
-          } else if (eventType === 'done') {
-            result = data as IncrementalImportResult
-          } else if (eventType === 'error') {
-            result = data as IncrementalImportResult
-          }
-          eventType = ''
-        }
-      }
+  async importDirectory(
+    source: File[] | string,
+    _options?: ImportOptions,
+    onProgress?: (p: ImportProgress) => void
+  ): Promise<ImportResult> {
+    if (typeof source === 'string') {
+      return { success: false, error: 'Directory path import is not supported in Web mode' }
     }
 
-    return result
+    if (source.length === 0) {
+      return { success: false, error: 'No files in directory' }
+    }
+
+    const form = new FormData()
+    for (const file of source) {
+      form.append('files', file)
+      form.append('relativePaths', file.webkitRelativePath || file.name)
+    }
+
+    const res = await fetch(`${BASE}/import-directory`, { method: 'POST', body: form })
+
+    if (!res.ok) {
+      const text = await res.text()
+      return { success: false, error: `HTTP ${res.status}: ${text}` }
+    }
+
+    return consumeSseStream<ImportResult>(res, { success: false, error: 'Unknown error' }, onProgress)
   }
 }

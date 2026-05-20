@@ -20,6 +20,8 @@
     "clickHint": "クリックして選択、またはチャット記録をドラッグ＆ドロップでインポート",
     "multipleHint": "複数ファイルの同時選択・ドラッグに対応しています",
     "selectFiles": "チャット記録ファイルを選択",
+    "selectFolder": "エクスポートフォルダを選択",
+    "importFolder": "フォルダをインポート",
     "chatRecords": "チャット記録",
     "allFiles": "すべてのファイル",
     "progress": {

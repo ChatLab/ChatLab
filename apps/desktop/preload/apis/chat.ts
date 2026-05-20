@@ -61,6 +61,13 @@ export const chatApi = {
   },
 
   /**
+   * Import from a directory path (scans for entry file)
+   */
+  importDirectory: (dirPath: string): Promise<{ success: boolean; sessionId?: string; error?: string }> => {
+    return ipcRenderer.invoke('chat:importDirectory', dirPath)
+  },
+
+  /**
    * 检测文件格式（轻量级）
    */
   detectFormat: (

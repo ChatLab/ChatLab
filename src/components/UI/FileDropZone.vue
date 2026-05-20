@@ -13,17 +13,22 @@ interface Props {
   disabled?: boolean
   /** 接受的文件扩展名，如 ['.json', '.txt'] */
   accept?: string[]
+  /** 是否为目录选择模式（webkitdirectory） */
+  directory?: boolean
 }
 
 const props = withDefaults(defineProps<Props>(), {
   multiple: false,
   disabled: false,
   accept: () => ['*'],
+  directory: false,
 })
 
 const emit = defineEmits<{
   /** 选择文件后触发，返回文件列表和路径列表 */
   files: [payload: { files: File[]; paths: string[] }]
+  /** 拖入文件夹时触发 (Electron: dirPath, Web: File[]) */
+  'directory-drop': [payload: { files: File[]; dirPath: string | null }]
 }>()
 
 // 拖拽状态
@@ -79,7 +84,7 @@ function handleDragLeave(e: DragEvent) {
 }
 
 // 处理拖拽放下
-function handleDrop(e: DragEvent) {
+async function handleDrop(e: DragEvent) {
   e.preventDefault()
   e.stopPropagation()
   isDragOver.value = false
@@ -87,16 +92,26 @@ function handleDrop(e: DragEvent) {
   if (props.disabled) return
 
   const dataTransfer = e.dataTransfer
-  if (!dataTransfer?.files || dataTransfer.files.length === 0) return
+  if (!dataTransfer) return
+
+  // Check if a directory was dropped (via DataTransferItem API)
+  const items = dataTransfer.items
+  if (items?.length === 1) {
+    const entry = items[0].webkitGetAsEntry?.()
+    if (entry?.isDirectory) {
+      await handleDirectoryDrop(entry as FileSystemDirectoryEntry, dataTransfer.files)
+      return
+    }
+  }
+
+  if (dataTransfer.files.length === 0) return
 
   let files = Array.from(dataTransfer.files)
 
-  // 如果不支持多选，只取第一个
   if (!props.multiple) {
     files = [files[0]]
   }
 
-  // 过滤文件类型
   if (!props.accept.includes('*')) {
     files = files.filter((file) => {
       const ext = '.' + file.name.split('.').pop()?.toLowerCase()
@@ -107,6 +122,59 @@ function handleDrop(e: DragEvent) {
   if (files.length > 0) {
     processFiles(files)
   }
+}
+
+async function handleDirectoryDrop(dirEntry: FileSystemDirectoryEntry, fileList: FileList) {
+  // Electron: try to get directory path
+  if (fileList.length > 0) {
+    try {
+      // @ts-expect-error Electron webUtils
+      const dirPath = window.electron?.webUtils?.getPathForFile?.(fileList[0])
+      if (dirPath) {
+        emit('directory-drop', { files: [], dirPath })
+        return
+      }
+    } catch {
+      // Not Electron
+    }
+  }
+
+  // Web: recursively read directory entries into File objects
+  const files = await readDirectoryEntries(dirEntry, dirEntry.name)
+  if (files.length > 0) {
+    emit('directory-drop', { files, dirPath: null })
+  }
+}
+
+async function readDirectoryEntries(dirEntry: FileSystemDirectoryEntry, basePath: string): Promise<File[]> {
+  const reader = dirEntry.createReader()
+  const files: File[] = []
+
+  const readBatch = (): Promise<FileSystemEntry[]> =>
+    new Promise((resolve, reject) => reader.readEntries(resolve, reject))
+
+  let entries: FileSystemEntry[]
+  do {
+    entries = await readBatch()
+    for (const entry of entries) {
+      if (entry.isFile) {
+        const file = await new Promise<File>((resolve, reject) => {
+          ;(entry as FileSystemFileEntry).file(resolve, reject)
+        })
+        // Attach webkitRelativePath-like info via property
+        Object.defineProperty(file, 'webkitRelativePath', {
+          value: `${basePath}/${entry.name}`,
+          writable: false,
+        })
+        files.push(file)
+      } else if (entry.isDirectory) {
+        const subFiles = await readDirectoryEntries(entry as FileSystemDirectoryEntry, `${basePath}/${entry.name}`)
+        files.push(...subFiles)
+      }
+    }
+  } while (entries.length > 0)
+
+  return files
 }
 
 // 处理文件并发送事件
@@ -142,8 +210,9 @@ defineExpose({
       ref="fileInputRef"
       type="file"
       :multiple="multiple"
-      :accept="acceptAttr"
+      :accept="directory ? undefined : acceptAttr"
       class="hidden"
+      v-bind="directory ? { webkitdirectory: '', directory: '' } : {}"
       @change="handleFileSelect"
     />
 

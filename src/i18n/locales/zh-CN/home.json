@@ -20,6 +20,8 @@
     "clickHint": "点击选择或拖拽聊天记录导入",
     "multipleHint": "支持同时选择或拖拽多个文件",
     "selectFiles": "选择聊天记录文件",
+    "selectFolder": "选择导出文件夹",
+    "importFolder": "导入文件夹",
     "chatRecords": "聊天记录",
     "allFiles": "所有文件",
     "progress": {

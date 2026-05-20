@@ -16,6 +16,7 @@ export {
   parseFileSync,
   parseFileInfo,
   streamParseFile,
+  findEntryFileInDirectory,
   FormatSniffer,
   createSniffer,
   getFileSize,

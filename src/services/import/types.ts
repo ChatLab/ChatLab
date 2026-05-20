@@ -118,6 +118,13 @@ export interface ImportAdapter {
     file: File | string,
     onProgress?: (p: ImportProgress) => void
   ): Promise<IncrementalImportResult>
+
+  /** 导入目录（多文件格式如 chunked-jsonl）。Electron 传目录路径，Web 传 File[]（含 webkitRelativePath） */
+  importDirectory(
+    source: File[] | string,
+    options?: ImportOptions,
+    onProgress?: (p: ImportProgress) => void
+  ): Promise<ImportResult>
 }
 
 export type { ImportProgress }

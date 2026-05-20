@@ -119,11 +119,19 @@ async function checkImportLog() {
 
 const dropZoneRef = ref<InstanceType<typeof FileDropZone> | null>(null)
 
-// 处理文件选择（点击选择）- 支持多选
+// 文件夹导入模式
+const folderImportEnabled = ref(false)
+
+// 处理文件选择（点击选择）
 async function handleClickImport() {
   importError.value = null
   hasImportLog.value = false
   importDiagnostics.value = null
+
+  if (folderImportEnabled.value) {
+    handleClickImportDirectory()
+    return
+  }
 
   if (IS_ELECTRON) {
     const result = await usePlatformService().showOpenDialog({
@@ -202,6 +210,73 @@ async function importSingleWebFile(file: File, options?: { formatId?: string; ch
 
   try {
     const result = await useImportService().importFile(file, options, (p) => {
+      if (p.stage === 'done') return
+      importProgress.value = p
+    })
+
+    if (importProgress.value) {
+      importProgress.value.progress = 100
+    }
+    await new Promise((resolve) => setTimeout(resolve, 300))
+
+    if (result.success && result.sessionId) {
+      await sessionStore.loadSessions()
+      sessionStore.selectSession(result.sessionId)
+      await navigateToSession(result.sessionId)
+    } else {
+      importError.value = translateError(result.error || 'error.import_failed')
+    }
+  } catch (error) {
+    importError.value = String(error)
+  } finally {
+    isImporting.value = false
+    setTimeout(() => {
+      importProgress.value = null
+    }, 500)
+  }
+}
+
+// 目录导入 ref
+const dirDropZoneRef = ref<InstanceType<typeof FileDropZone> | null>(null)
+
+async function handleClickImportDirectory() {
+  importError.value = null
+  if (IS_ELECTRON) {
+    const result = await usePlatformService().showOpenDialog({
+      title: t('home.import.selectFolder'),
+      properties: ['openDirectory'],
+    })
+    if (result.canceled || result.filePaths.length === 0) return
+    await importDirectory(result.filePaths[0])
+  } else {
+    dirDropZoneRef.value?.openFileDialog()
+  }
+}
+
+async function handleDirectoryDrop({ files }: { files: File[]; paths: string[] }) {
+  if (files.length === 0) return
+  importError.value = null
+  await importDirectory(files)
+}
+
+async function handleDirectoryDropEvent({ files, dirPath }: { files: File[]; dirPath: string | null }) {
+  importError.value = null
+  hasImportLog.value = false
+  importDiagnostics.value = null
+
+  if (dirPath) {
+    await importDirectory(dirPath)
+  } else if (files.length > 0) {
+    await importDirectory(files)
+  }
+}
+
+async function importDirectory(source: File[] | string) {
+  isImporting.value = true
+  importProgress.value = { stage: 'detecting', progress: 0, message: '' }
+
+  try {
+    const result = await useImportService().importDirectory(source, undefined, (p) => {
       if (p.stage === 'done') return
       importProgress.value = p
     })
@@ -769,6 +844,7 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
       :multiple="true"
       class="w-full max-w-4xl"
       @files="handleFileDrop"
+      @directory-drop="handleDirectoryDropEvent"
     >
       <template #default="{ isDragOver }">
         <div
@@ -819,8 +895,21 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
       </template>
     </FileDropZone>
 
-    <!-- 合并导入选项 -->
-    <div v-if="!isAnyImporting && !batchImportResult" class="flex items-center justify-center">
+    <!-- 隐藏的目录选择 input -->
+    <FileDropZone ref="dirDropZoneRef" :directory="true" class="hidden" @files="handleDirectoryDrop" />
+
+    <!-- 导入选项 -->
+    <div v-if="!isAnyImporting && !batchImportResult" class="flex flex-wrap items-center justify-center gap-4">
+      <!-- 导入文件夹模式 -->
+      <UCheckbox
+        v-model="folderImportEnabled"
+        :label="t('home.import.importFolder')"
+        input-class="h-4 w-4"
+        size="sm"
+        label-class="text-sm font-medium text-gray-600 dark:text-gray-300"
+      />
+
+      <!-- 合并导入 -->
       <div class="flex items-center gap-2">
         <UCheckbox
           v-model="mergeImportEnabled"
