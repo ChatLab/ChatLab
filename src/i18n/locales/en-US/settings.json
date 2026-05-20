@@ -15,7 +15,8 @@
     "api": "Automation",
     "apiSubTabs": {
       "autoSync": "Auto Sync",
-      "apiService": "API Service"
+      "apiService": "API Service",
+      "mcp": "MCP"
     }
   },
   "basic": {
@@ -549,6 +550,44 @@
       "desc": "After enabling the service, external tools can query and import data via API. All requests require Bearer Token authentication.",
       "authHint": "Header example:",
       "docLink": "View full API documentation"
+    }
+  },
+  "mcp": {
+    "overview": {
+      "title": "MCP Overview",
+      "description": "MCP (Model Context Protocol) allows AI assistants like Cursor and Claude Desktop to directly query your chat records. Supports session discovery, keyword search, member stats, time distribution, and more.",
+      "toolCount": "{count} tools",
+      "resourceCount": "{count} resources"
+    },
+    "mode": {
+      "title": "Run Mode",
+      "label": "Select mode",
+      "npxDesc": "No installation needed — auto-downloads via npx (recommended)",
+      "cliDesc": "Requires chatlab-cli to be installed globally",
+      "desktopDesc": "Built into the desktop app, no extra setup needed",
+      "desktopComingSoon": "Desktop built-in mode is under development. Please use npx or CLI mode for now."
+    },
+    "modes": {
+      "desktop": "Desktop"
+    },
+    "clients": {
+      "other": "Other"
+    },
+    "config": {
+      "title": "Client Configuration",
+      "clientLabel": "MCP Client",
+      "copy": "Copy",
+      "copied": "Copied",
+      "cursorHint": "Add this configuration in Cursor Settings → MCP.",
+      "claudeHint": "Add this to the claude_desktop_config.json file in Claude Desktop.",
+      "otherHint": "Add this JSON config to your MCP client configuration file."
+    },
+    "tips": {
+      "title": "Tips",
+      "dataDir": "The MCP server reads chat data from ~/.chatlab/, sharing the same data as the desktop app.",
+      "readOnly": "All operations are read-only and will not modify your chat records.",
+      "nodeRequired": "npx and CLI modes require Node.js 20 or higher.",
+      "docs": "For detailed documentation, visit chatlab.fun."
     }
   }
 }

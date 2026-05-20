@@ -1,8 +1,11 @@
 {
   "name": "chatlab-mcp",
   "version": "0.1.0",
-  "description": "ChatLab MCP Server — shared core for CLI and Desktop",
+  "description": "ChatLab MCP Server — shared core for CLI and Desktop, also usable standalone via npx",
   "main": "./dist/index.mjs",
+  "bin": {
+    "chatlab-mcp": "./dist/bin.mjs"
+  },
   "files": [
     "dist/"
   ],
@@ -32,10 +35,14 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.12.1",
+    "better-sqlite3": "^12.4.6",
+    "smol-toml": "^1.3.1",
     "zod": "^3.24.4"
   },
   "devDependencies": {
+    "@openchatlab/config": "workspace:*",
     "@openchatlab/core": "workspace:*",
+    "@openchatlab/node-runtime": "workspace:*",
     "@openchatlab/tools": "workspace:*",
     "tsup": "^8.5.0"
   }

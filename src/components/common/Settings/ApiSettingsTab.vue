@@ -6,6 +6,7 @@ import { storeToRefs } from 'pinia'
 import { SubTabs } from '@/components/UI'
 import DataSourceAddModal from './API/DataSourceAddModal.vue'
 import DataSourceEditModal from './API/DataSourceEditModal.vue'
+import McpSettingsTab from './McpSettingsTab.vue'
 
 const { t, locale } = useI18n()
 const store = useApiServerStore()
@@ -24,6 +25,11 @@ const subTabs = computed(() => [
     id: 'api',
     label: t('settings.tabs.apiSubTabs.apiService'),
     icon: 'i-heroicons-server-stack',
+  },
+  {
+    id: 'mcp',
+    label: t('settings.tabs.apiSubTabs.mcp'),
+    icon: 'i-heroicons-command-line',
   },
 ])
 
@@ -500,6 +506,11 @@ function subscribedRemoteIds(ds: DataSource): Set<string> {
               </a>
             </div>
           </div>
+        </template>
+
+        <!-- ==================== MCP Sub-Tab ==================== -->
+        <template v-if="activeSubTab === 'mcp'">
+          <McpSettingsTab />
         </template>
       </div>
     </div>

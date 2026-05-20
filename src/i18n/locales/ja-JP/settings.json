@@ -15,7 +15,8 @@
     "api": "オートメーション",
     "apiSubTabs": {
       "autoSync": "自動同期",
-      "apiService": "API サービス"
+      "apiService": "API サービス",
+      "mcp": "MCP"
     }
   },
   "basic": {
@@ -549,6 +550,44 @@
       "desc": "サービスを有効にすると、外部ツールが API 経由でデータの照会やインポートを行えます。すべてのリクエストに Bearer Token 認証が必要です。",
       "authHint": "ヘッダー例：",
       "docLink": "API ドキュメントを見る"
+    }
+  },
+  "mcp": {
+    "overview": {
+      "title": "MCP 概要",
+      "description": "MCP（Model Context Protocol）により、Cursor や Claude Desktop などの AI アシスタントがチャット記録を直接クエリできます。セッション検出、キーワード検索、メンバー統計、時間分布などをサポートしています。",
+      "toolCount": "{count} 個のツール",
+      "resourceCount": "{count} 個のリソース"
+    },
+    "mode": {
+      "title": "実行方法",
+      "label": "方法を選択",
+      "npxDesc": "インストール不要 — npx で自動ダウンロード実行（推奨）",
+      "cliDesc": "chatlab-cli のグローバルインストールが必要",
+      "desktopDesc": "デスクトップアプリに内蔵、追加設定不要",
+      "desktopComingSoon": "デスクトップ内蔵モードは開発中です。現在は npx または CLI をご利用ください。"
+    },
+    "modes": {
+      "desktop": "デスクトップ"
+    },
+    "clients": {
+      "other": "その他"
+    },
+    "config": {
+      "title": "クライアント設定",
+      "clientLabel": "MCP クライアント",
+      "copy": "コピー",
+      "copied": "コピー済み",
+      "cursorHint": "Cursor の設定 → MCP でこの設定を追加してください。",
+      "claudeHint": "Claude Desktop の claude_desktop_config.json ファイルにこの設定を追加してください。",
+      "otherHint": "この JSON 設定を MCP クライアントの設定ファイルに追加してください。"
+    },
+    "tips": {
+      "title": "ヒント",
+      "dataDir": "MCP サーバーは ~/.chatlab/ ディレクトリのチャットデータを読み取り、デスクトップアプリと同じデータを共有します。",
+      "readOnly": "すべての操作は読み取り専用で、チャット記録は変更されません。",
+      "nodeRequired": "npx および CLI モードには Node.js 20 以上が必要です。",
+      "docs": "詳細なドキュメントは chatlab.fun をご覧ください。"
     }
   }
 }
