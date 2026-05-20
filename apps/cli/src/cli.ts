@@ -8,7 +8,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { execSync } from 'child_process'
 import { Command } from 'commander'
-import { loadConfig, getConfigPath } from '@openchatlab/config'
+import { DEFAULT_API_PORT, loadConfig, getConfigPath } from '@openchatlab/config'
 import {
   NodePathProvider,
   DatabaseManager,
@@ -276,7 +276,7 @@ program
 program
   .command('serve')
   .description('Start the HTTP API server')
-  .option('--port <port>', 'Server port', '3110')
+  .option('--port <port>', 'Server port', String(DEFAULT_API_PORT))
   .option('--host <host>', 'Listen address', '127.0.0.1')
   .option('--token <token>', 'Custom Bearer Token (reads from config or auto-generates if omitted)')
   .option('--web [dir]', 'Serve Web frontend static assets (defaults to dist-web/)')
@@ -335,7 +335,7 @@ program
 program
   .command('web')
   .description('Launch Web UI with one click (HTTP API + browser auto-open)')
-  .option('--port <port>', 'Server port', '3110')
+  .option('--port <port>', 'Server port', String(DEFAULT_API_PORT))
   .option('--host <host>', 'Listen address', '127.0.0.1')
   .option('--no-open', 'Do not auto-open browser')
   .action(async (options) => {

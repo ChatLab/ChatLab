@@ -17,8 +17,10 @@ import * as net from 'net'
 import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import ui from '@nuxt/ui/vite'
+import { DEFAULT_API_PORT } from './packages/config/src/schema'
+import { createChatlabServeCommand } from './scripts/dev-server-command.mjs'
 
-const BACKEND_PORT = 3110
+const BACKEND_PORT = DEFAULT_API_PORT
 
 function isPortInUse(port: number): Promise<boolean> {
   return new Promise((resolve) => {
@@ -51,28 +53,11 @@ function chatlabServePlugin(): Plugin {
       }
 
       const serverDir = resolve(__dirname, 'apps/cli')
-      const coreDir = resolve(__dirname, 'packages/core/src')
-      const runtimeDir = resolve(__dirname, 'packages/node-runtime/src')
-      serverProcess = spawn(
-        'pnpm',
-        [
-          'tsx',
-          'watch',
-          '--include',
-          `${coreDir}/**`,
-          '--include',
-          `${runtimeDir}/**`,
-          'src/cli.ts',
-          'serve',
-          '--port',
-          String(BACKEND_PORT),
-        ],
-        {
-          cwd: serverDir,
-          stdio: ['ignore', 'pipe', 'pipe'],
-          env: { ...process.env },
-        }
-      )
+      const serveCommand = createChatlabServeCommand({
+        serverDir,
+        backendPort: BACKEND_PORT,
+      })
+      serverProcess = spawn(serveCommand.command, serveCommand.args, serveCommand.options)
 
       serverProcess.stdout?.on('data', (data: Buffer) => {
         const line = data.toString().trim()
