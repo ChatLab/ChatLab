@@ -1,0 +1,14 @@
+{
+  "extends": "../../tsconfig.node.json",
+  "compilerOptions": {
+    "composite": true,
+    "rootDir": "./src",
+    "outDir": "./dist"
+  },
+  "include": [
+    "src/**/*.ts",
+    "../../packages/shared-types/**/*",
+    "../../packages/core/**/*",
+    "../../packages/tools/**/*"
+  ]
+}

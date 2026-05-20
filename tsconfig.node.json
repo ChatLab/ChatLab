@@ -5,7 +5,8 @@
     "moduleResolution": "bundler",
     "baseUrl": ".",
     "paths": {
-      "@openchatlab/*": ["packages/*"]
+      "@openchatlab/*": ["packages/*"],
+      "chatlab-mcp": ["packages/mcp-server/src"]
     }
   }
 }

@@ -74,6 +74,7 @@
     "@openchatlab/sync": "workspace:*",
     "@openchatlab/tools": "workspace:*",
     "@types/better-sqlite3": "^7.6.13",
+    "chatlab-mcp": "workspace:*",
     "tsup": "^8.5.0",
     "tsx": "^4.21.0"
   }

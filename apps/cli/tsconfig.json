@@ -12,6 +12,7 @@
     "../../packages/config/**/*",
     "../../packages/parser/**/*",
     "../../packages/tools/**/*",
-    "../../packages/sync/**/*"
+    "../../packages/sync/**/*",
+    "../../packages/mcp-server/**/*"
   ]
 }

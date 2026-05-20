@@ -4,6 +4,7 @@
     "electron.vite.config.*",
     "main/**/*",
     "preload/**/*",
+    "helper/**/*",
     "shared/**/*",
     "../../src/types/**/*",
     "../../packages/shared-types/**/*",
@@ -13,7 +14,8 @@
     "../../packages/parser/**/*",
     "../../apps/cli/**/*",
     "../../packages/tools/**/*",
-    "../../packages/sync/**/*"
+    "../../packages/sync/**/*",
+    "../../packages/mcp-server/**/*"
   ],
   "compilerOptions": {
     "composite": true,
@@ -23,7 +25,8 @@
     "paths": {
       "@/*": ["../../src/*"],
       "@electron/*": ["./*"],
-      "@openchatlab/*": ["../../packages/*"]
+      "@openchatlab/*": ["../../packages/*"],
+      "chatlab-mcp": ["../../packages/mcp-server/src"]
     }
   }
 }

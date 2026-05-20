@@ -13,7 +13,7 @@ export default defineConfig({
   clean: true,
   target: 'node20',
   platform: 'node',
-  noExternal: [/^@openchatlab\//, 'stream-json'],
+  noExternal: [/^@openchatlab\//, 'chatlab-mcp', 'stream-json'],
   external: ['better-sqlite3', '@node-rs/jieba'],
   banner: {
     js: [
