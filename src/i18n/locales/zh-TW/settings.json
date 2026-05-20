@@ -547,7 +547,7 @@
     },
     "usage": {
       "title": "使用說明",
-      "desc": "啟用服務後，外部工具可透過 API 查詢和匯入資料。所有請求需攜帶 Bearer Token 認證。",
+      "desc": "啟用服務後，外部工具可透過 API 查詢資料，或向 ChatLab 推送聊天記錄。所有請求需攜帶 Bearer Token 認證。",
       "authHint": "請求標頭範例：",
       "docLink": "查看完整 API 文件"
     }
@@ -555,20 +555,10 @@
   "mcp": {
     "overview": {
       "title": "MCP 概述",
-      "description": "MCP (Model Context Protocol) 讓 AI 助手（如 Cursor、Claude Desktop）直接查詢你的聊天記錄。支援會話發現、關鍵字搜尋、成員統計、時間分佈等操作。",
+      "description": "MCP 讓 AI 助手直接查詢你的聊天記錄。支援會話發現、關鍵字搜尋、成員統計、時間分佈等操作。",
       "toolCount": "{count} 個工具",
-      "resourceCount": "{count} 個資源"
-    },
-    "mode": {
-      "title": "運行方式",
-      "label": "選擇方式",
-      "npxDesc": "無需安裝，透過 npx 自動下載執行（推薦）",
-      "cliDesc": "需先全域安裝 chatlab-cli",
-      "desktopDesc": "由桌面應用程式內建提供，無需額外設定",
-      "desktopComingSoon": "桌面端內建模式正在開發中，目前請使用 npx 或 CLI 方式。"
-    },
-    "modes": {
-      "desktop": "桌面端"
+      "resourceCount": "{count} 個資源",
+      "installHint": "安裝 chatlab-cli 後，在 AI 用戶端中新增以下設定即可使用："
     },
     "clients": {
       "other": "通用"
@@ -578,8 +568,9 @@
       "clientLabel": "MCP 用戶端",
       "copy": "複製",
       "copied": "已複製",
-      "cursorHint": "在 Cursor 設定 → MCP 中新增此設定。",
       "claudeHint": "將此設定新增至 Claude Desktop 的 claude_desktop_config.json 檔案中。",
+      "codexHint": "將此 TOML 設定新增至 ~/.codex/config.toml 檔案中。",
+      "openclawHint": "將此設定新增至專案的 openclaw.json 檔案中。",
       "otherHint": "將此 JSON 設定新增到你的 MCP 用戶端設定檔中。"
     },
     "tips": {

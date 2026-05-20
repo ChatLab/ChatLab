@@ -11,8 +11,7 @@
     "preview": "electron-vite preview",
     "build": "electron-vite build",
     "build:mac": "pnpm run build && electron-builder --mac --config electron-builder.yml -p never",
-    "build:win": "pnpm run build && electron-builder --win --config electron-builder.yml -p never",
-    "mcp": "tsx helper/mcp.ts"
+    "build:win": "pnpm run build && electron-builder --win --config electron-builder.yml -p never"
   },
   "dependencies": {
     "@aptabase/electron": "^0.3.1",
@@ -27,10 +26,8 @@
     "@electron-toolkit/tsconfig": "^1.0.1",
     "@electron/rebuild": "^4.0.4",
     "@types/better-sqlite3": "^7.6.13",
-    "chatlab-mcp": "workspace:*",
     "electron": "35.7.5",
     "electron-builder": "^26.0.12",
-    "electron-vite": "^5.0.0",
-    "tsx": "^4.21.0"
+    "electron-vite": "^5.0.0"
   }
 }
