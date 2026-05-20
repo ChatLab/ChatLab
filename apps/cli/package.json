@@ -3,7 +3,7 @@
   "version": "0.1.0",
   "description": "ChatLab CLI & Service - Chat history analysis tool",
   "bin": {
-    "chatlab": "./bin/chatlab.mjs"
+    "chatlab": "bin/chatlab.mjs"
   },
   "main": "./dist/index.mjs",
   "files": [
@@ -45,6 +45,8 @@
     "ensure-native": "node scripts/ensure-native.mjs",
     "rebuild-native": "bash scripts/rebuild-native.sh",
     "rebuild-sqlite": "npm rebuild better-sqlite3",
+    "prepack": "node scripts/sync-release-docs.mjs",
+    "postpack": "node scripts/clean-release-docs.mjs",
     "prepublishOnly": "pnpm run build"
   },
   "dependencies": {
