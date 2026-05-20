@@ -7,8 +7,9 @@
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { FileDropZone } from '@/components/UI'
-import { useImportService, usePlatformService } from '@/services'
+import { useImportService } from '@/services'
 import type { ImportProgress } from '@/types/base'
+import { IS_ELECTRON } from '@/utils/platform'
 
 const props = defineProps<{
   modelValue: boolean
@@ -28,8 +29,11 @@ const { t } = useI18n()
 type Stage = 'select' | 'analyzing' | 'preview' | 'importing' | 'done' | 'error'
 const stage = ref<Stage>('select')
 
-// 文件信息
-const selectedFile = ref<{ path: string; name: string } | null>(null)
+// 文件信息：Electron 用 path，Web 用 File 对象
+const selectedFile = ref<{ source: File | string; name: string } | null>(null)
+
+// FileDropZone 引用（Web 模式用它触发文件对话框）
+const dropZoneRef = ref<InstanceType<typeof FileDropZone> | null>(null)
 
 // 分析结果
 const analyzeResult = ref<{
@@ -71,41 +75,26 @@ function resetState() {
 }
 
 // 处理文件拖拽/选择
-async function handleFileDrop({ paths }: { files: File[]; paths: string[] }) {
-  if (paths.length === 0) {
+async function handleFileDrop({ files, paths }: { files: File[]; paths: string[] }) {
+  if (IS_ELECTRON && paths.length > 0) {
+    const p = paths[0]
+    selectedFile.value = {
+      source: p,
+      name: p.split('/').pop() || p.split('\\').pop() || p,
+    }
+  } else if (files.length > 0) {
+    selectedFile.value = { source: files[0], name: files[0].name }
+  } else {
     errorMessage.value = t('home.import.cannotReadPath')
     return
-  }
-
-  selectedFile.value = {
-    path: paths[0],
-    name: paths[0].split('/').pop() || paths[0].split('\\').pop() || paths[0],
   }
 
   await analyzeFile()
 }
 
-// 点击选择文件
-async function handleSelectFile() {
-  const result = await usePlatformService().showOpenDialog({
-    title: t('analysis.incremental.selectFile'),
-    properties: ['openFile'],
-    filters: [
-      { name: t('home.import.chatRecords'), extensions: ['json', 'jsonl', 'txt'] },
-      { name: t('home.import.allFiles'), extensions: ['*'] },
-    ],
-  })
-
-  if (result.canceled || result.filePaths.length === 0) {
-    return
-  }
-
-  selectedFile.value = {
-    path: result.filePaths[0],
-    name: result.filePaths[0].split('/').pop() || result.filePaths[0].split('\\').pop() || result.filePaths[0],
-  }
-
-  await analyzeFile()
+// 点击选择文件：Web 模式使用 FileDropZone 内置 input，Electron 使用同一行为
+function handleSelectFile() {
+  dropZoneRef.value?.openFileDialog()
 }
 
 // 分析文件（检测去重后能新增多少消息）
@@ -116,7 +105,7 @@ async function analyzeFile() {
   errorMessage.value = null
 
   try {
-    const result = await useImportService().analyzeIncrementalImport(props.sessionId, selectedFile.value.path)
+    const result = await useImportService().analyzeIncrementalImport(props.sessionId, selectedFile.value.source)
 
     if (result.error) {
       stage.value = 'error'
@@ -149,9 +138,13 @@ async function executeImport() {
   }
 
   try {
-    const result = await useImportService().incrementalImport(props.sessionId, selectedFile.value.path, (progress) => {
-      importProgress.value = progress
-    })
+    const result = await useImportService().incrementalImport(
+      props.sessionId,
+      selectedFile.value.source,
+      (progress) => {
+        importProgress.value = progress
+      }
+    )
 
     if (result.success) {
       importResult.value = { newMessageCount: result.newMessageCount }
@@ -203,7 +196,7 @@ function translateError(error: string): string {
             {{ t('analysis.incremental.description', { name: sessionName }) }}
           </p>
 
-          <FileDropZone :accept="['.json', '.jsonl', '.txt']" class="w-full" @files="handleFileDrop">
+          <FileDropZone ref="dropZoneRef" :accept="['.json', '.jsonl', '.txt']" class="w-full" @files="handleFileDrop">
             <template #default="{ isDragOver }">
               <div
                 class="flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed px-6 py-10 transition-colors"
@@ -212,7 +205,7 @@ function translateError(error: string): string {
                     ? 'border-pink-500 bg-pink-50/50 dark:border-pink-400 dark:bg-pink-500/10'
                     : 'border-gray-300 hover:border-pink-400 dark:border-gray-600 dark:hover:border-pink-500'
                 "
-                @click="handleSelectFile"
+                @click.stop="handleSelectFile"
               >
                 <UIcon name="i-heroicons-arrow-up-tray" class="mb-3 h-10 w-10 text-gray-400" />
                 <p class="text-sm text-gray-600 dark:text-gray-400">
