@@ -24,4 +24,8 @@ export { BUILTIN_PROVIDERS, getBuiltinProviderById } from './provider-registry'
 export { BUILTIN_MODELS, getBuiltinModelsByProvider, getBuiltinModelById } from './model-catalog'
 
 // Content parsing (thinking-tag extraction, tool-call stripping, avatar sanitization)
-export { extractThinkingContent, stripToolCallTags, stripAvatarFields } from './content-parser'
+export { THINK_TAGS, extractThinkingContent, stripToolCallTags, stripAvatarFields } from './content-parser'
+
+// Streaming think-tag parser (for models that embed <think> in content)
+export { StreamingThinkTagParser, needsStreamingThinkParsing } from './streaming-think-parser'
+export type { StreamParserEvent } from './streaming-think-parser'

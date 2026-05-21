@@ -12,6 +12,7 @@ import {
   type Usage as PiUsage,
   streamSimple as defaultStreamSimple,
 } from '@mariozechner/pi-ai'
+import { StreamingThinkTagParser, needsStreamingThinkParsing } from '@openchatlab/core'
 
 import type { AgentCoreOptions, AgentCoreResult, AgentTokenUsage, SimpleHistoryMessage } from './types'
 
@@ -104,11 +105,42 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
   let hasReachedToolRoundLimit = false
   const thinkingStartTime = new Map<number, number>()
 
+  // For providers that embed <think> tags in content (e.g. MiniMax),
+  // use a streaming parser to split thinking from content.
+  const useThinkParser = needsStreamingThinkParsing(piModel.provider, piModel.id)
+  let thinkParserStartTime: number | undefined
+  const thinkParser = useThinkParser
+    ? new StreamingThinkTagParser((ev) => {
+        switch (ev.type) {
+          case 'content':
+            onEvent({ type: 'content', content: ev.content })
+            break
+          case 'thinking_start':
+            thinkParserStartTime = Date.now()
+            onEvent({ type: 'thinking_start' })
+            break
+          case 'thinking_delta':
+            onEvent({ type: 'thinking_delta', content: ev.content })
+            break
+          case 'thinking_end': {
+            const durationMs = thinkParserStartTime ? Date.now() - thinkParserStartTime : undefined
+            thinkParserStartTime = undefined
+            onEvent({ type: 'thinking_end', durationMs })
+            break
+          }
+        }
+      })
+    : null
+
   const unsubscribe = coreAgent.subscribe((event: PiAgentEvent) => {
     if (event.type === 'message_update') {
       const update = event.assistantMessageEvent
       if (update.type === 'text_delta') {
-        onEvent({ type: 'content', content: update.delta })
+        if (thinkParser) {
+          thinkParser.feed(update.delta)
+        } else {
+          onEvent({ type: 'content', content: update.delta })
+        }
       } else if (update.type === 'thinking_start') {
         thinkingStartTime.set(update.contentIndex, Date.now())
         onEvent({ type: 'thinking_start' })
@@ -146,6 +178,7 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
       onEvent({ type: 'turn_end', round: toolRounds, hadToolCalls })
     } else if (event.type === 'message_end') {
       if (event.message.role === 'assistant') {
+        thinkParser?.flush()
         addPiUsage(event.message.usage)
         onEvent({ type: 'usage_update', usage: { ...totalUsage } })
       }

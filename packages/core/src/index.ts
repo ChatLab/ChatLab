@@ -225,10 +225,14 @@ export {
   BUILTIN_MODELS,
   getBuiltinModelsByProvider,
   getBuiltinModelById,
+  THINK_TAGS,
   extractThinkingContent,
   stripToolCallTags,
   stripAvatarFields,
+  StreamingThinkTagParser,
+  needsStreamingThinkParsing,
 } from './ai'
+export type { StreamParserEvent } from './ai'
 
 // Import utilities
 export { generateMessageKey, buildMemberIdMap } from './import'

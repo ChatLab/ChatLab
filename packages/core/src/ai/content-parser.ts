@@ -3,7 +3,7 @@
  * Extracts thinking tags and strips tool-call markup from LLM output.
  */
 
-const THINK_TAGS = ['think', 'analysis', 'reasoning', 'reflection', 'thought', 'thinking']
+export const THINK_TAGS = ['think', 'analysis', 'reasoning', 'reflection', 'thought', 'thinking']
 
 export function extractThinkingContent(content: string): { thinking: string; cleanContent: string } {
   if (!content) {
