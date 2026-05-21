@@ -1,0 +1,365 @@
+import * as fs from 'fs'
+import * as os from 'os'
+import * as path from 'path'
+import type { FastifyInstance } from 'fastify'
+import type { DatabaseManager } from '@openchatlab/node-runtime'
+import {
+  streamImport,
+  incrementalImport,
+  analyzeIncrementalImport,
+  analyzeNewImport,
+  detectFormat,
+  detectAllFormats,
+  getSupportedFormats,
+  scanMultiChatFile,
+  findEntryFileInDirectory,
+} from '../../../import'
+import { resolveNativeBinding } from './helpers'
+
+const DEMO_BASE_URL = 'https://chatlab.fun/assets/demo'
+
+function cleanupTemp(...paths: string[]) {
+  for (const p of paths) {
+    try {
+      const stat = fs.statSync(p)
+      if (stat.isDirectory()) {
+        fs.rmSync(p, { recursive: true, force: true })
+      } else {
+        fs.unlinkSync(p)
+      }
+    } catch {
+      /* ignore */
+    }
+  }
+}
+
+export function registerImportRoutes(server: FastifyInstance, dbManager: DatabaseManager): void {
+  server.get('/_web/supported-formats', async () => {
+    return getSupportedFormats()
+  })
+
+  server.post('/_web/detect-format', async (request, reply) => {
+    const data = await (request as any).file()
+    if (!data) return reply.code(400).send({ error: 'No file uploaded' })
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-detect-'))
+    const tmpPath = path.join(tmpDir, data.filename || 'upload')
+
+    try {
+      const chunks: Buffer[] = []
+      for await (const chunk of data.file) {
+        chunks.push(chunk)
+      }
+      fs.writeFileSync(tmpPath, Buffer.concat(chunks))
+
+      const format = detectFormat(tmpPath)
+      const allFormats = detectAllFormats(tmpPath)
+      return { format, allFormats }
+    } finally {
+      cleanupTemp(tmpPath, tmpDir)
+    }
+  })
+
+  server.post('/_web/scan-multi-chat', async (request, reply) => {
+    const data = await (request as any).file()
+    if (!data) return reply.code(400).send({ error: 'No file uploaded' })
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-scan-'))
+    const tmpPath = path.join(tmpDir, data.filename || 'upload')
+
+    try {
+      const chunks: Buffer[] = []
+      for await (const chunk of data.file) {
+        chunks.push(chunk)
+      }
+      fs.writeFileSync(tmpPath, Buffer.concat(chunks))
+
+      const chats = await scanMultiChatFile(tmpPath)
+      return { chats }
+    } finally {
+      cleanupTemp(tmpPath, tmpDir)
+    }
+  })
+
+  server.post('/_web/import', async (request, reply) => {
+    const data = await (request as any).file()
+    if (!data) return reply.code(400).send({ error: 'No file uploaded' })
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-import-'))
+    const tmpPath = path.join(tmpDir, data.filename || 'upload')
+
+    const chunks: Buffer[] = []
+    for await (const chunk of data.file) {
+      chunks.push(chunk)
+    }
+    fs.writeFileSync(tmpPath, Buffer.concat(chunks))
+
+    const formatId = (data.fields?.formatId as any)?.value as string | undefined
+    const chatIndexStr = (data.fields?.chatIndex as any)?.value as string | undefined
+    const chatIndex = chatIndexStr !== undefined ? parseInt(chatIndexStr, 10) : undefined
+
+    reply.raw.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    })
+
+    function sendEvent(event: string, eventData: unknown) {
+      reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(eventData)}\n\n`)
+    }
+
+    try {
+      const nativeBinding = resolveNativeBinding()
+      const result = await streamImport(dbManager, tmpPath, {
+        formatId,
+        chatIndex,
+        nativeBinding,
+        onProgress: (p) => sendEvent('progress', p),
+      })
+
+      if (result.success) {
+        sendEvent('done', {
+          success: true,
+          sessionId: result.sessionId,
+          messageCount: result.diagnostics?.messagesWritten ?? 0,
+          memberCount: 0,
+        })
+      } else {
+        sendEvent('error', { success: false, error: result.error })
+      }
+    } catch (err) {
+      sendEvent('error', { success: false, error: err instanceof Error ? err.message : String(err) })
+    } finally {
+      reply.raw.end()
+      cleanupTemp(tmpPath, tmpDir)
+    }
+  })
+
+  // ==================== Directory Import ====================
+
+  server.post('/_web/import-directory', async (request, reply) => {
+    const parts = (request as any).parts()
+    if (!parts) return reply.code(400).send({ error: 'No files uploaded' })
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-dir-import-'))
+    const relativePaths: string[] = []
+    const fileBuffers: { data: Buffer; filename: string }[] = []
+
+    try {
+      for await (const part of parts) {
+        if (part.type === 'field' && part.fieldname === 'relativePaths') {
+          relativePaths.push(String(part.value))
+        } else if (part.type === 'file') {
+          const chunks: Buffer[] = []
+          for await (const chunk of part.file) {
+            chunks.push(chunk)
+          }
+          fileBuffers.push({ data: Buffer.concat(chunks), filename: part.filename || '' })
+        }
+      }
+
+      for (let i = 0; i < fileBuffers.length; i++) {
+        let relPath = relativePaths[i] || fileBuffers[i].filename || `file_${i}`
+        const segments = relPath.split('/')
+        if (segments.length > 1) {
+          relPath = segments.slice(1).join('/')
+        }
+        const targetPath = path.join(tmpDir, relPath)
+        fs.mkdirSync(path.dirname(targetPath), { recursive: true })
+        fs.writeFileSync(targetPath, fileBuffers[i].data)
+      }
+
+      const entryPath = findEntryFileInDirectory(tmpDir)
+      if (!entryPath) {
+        return reply.code(400).send({ error: 'No recognizable import format found in directory' })
+      }
+
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      })
+
+      function sendEvent(event: string, eventData: unknown) {
+        reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(eventData)}\n\n`)
+      }
+
+      const nativeBinding = resolveNativeBinding()
+      const result = await streamImport(dbManager, entryPath, {
+        nativeBinding,
+        onProgress: (p) => sendEvent('progress', p),
+      })
+
+      if (result.success) {
+        sendEvent('done', {
+          success: true,
+          sessionId: result.sessionId,
+          messageCount: result.diagnostics?.messagesWritten ?? 0,
+          memberCount: 0,
+        })
+      } else {
+        sendEvent('error', { success: false, error: result.error })
+      }
+    } catch (err) {
+      if (!reply.raw.headersSent) {
+        return reply.code(500).send({ error: err instanceof Error ? err.message : String(err) })
+      }
+      reply.raw.write(
+        `event: error\ndata: ${JSON.stringify({ success: false, error: err instanceof Error ? err.message : String(err) })}\n\n`
+      )
+    } finally {
+      reply.raw.end()
+      cleanupTemp(tmpDir)
+    }
+  })
+
+  // ==================== Incremental Import ====================
+
+  server.post<{ Params: { id: string } }>('/_web/sessions/:id/import/incremental', async (request, reply) => {
+    const sessionId = request.params.id
+    const data = await (request as any).file()
+    if (!data) return reply.code(400).send({ error: 'No file uploaded' })
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-inc-'))
+    const tmpPath = path.join(tmpDir, data.filename || 'upload')
+
+    const chunks: Buffer[] = []
+    for await (const chunk of data.file) {
+      chunks.push(chunk)
+    }
+    fs.writeFileSync(tmpPath, Buffer.concat(chunks))
+
+    reply.raw.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    })
+
+    function sendEvent(event: string, eventData: unknown) {
+      reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(eventData)}\n\n`)
+    }
+
+    try {
+      const result = await incrementalImport(dbManager, sessionId, tmpPath, {
+        onProgress: (p) => sendEvent('progress', p),
+      })
+
+      if (result.success) {
+        sendEvent('done', result)
+      } else {
+        sendEvent('error', { success: false, error: result.error })
+      }
+    } catch (err) {
+      sendEvent('error', { success: false, error: err instanceof Error ? err.message : String(err) })
+    } finally {
+      reply.raw.end()
+      cleanupTemp(tmpPath, tmpDir)
+    }
+  })
+
+  server.post<{ Params: { id: string } }>('/_web/sessions/:id/import/incremental/analyze', async (request, reply) => {
+    const sessionId = request.params.id
+    const data = await (request as any).file()
+    if (!data) return reply.code(400).send({ error: 'No file uploaded' })
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-analyze-'))
+    const tmpPath = path.join(tmpDir, data.filename || 'upload')
+
+    const chunks: Buffer[] = []
+    for await (const chunk of data.file) {
+      chunks.push(chunk)
+    }
+    fs.writeFileSync(tmpPath, Buffer.concat(chunks))
+
+    try {
+      return await analyzeIncrementalImport(dbManager, sessionId, tmpPath)
+    } catch (err) {
+      return reply.code(500).send({ error: err instanceof Error ? err.message : String(err) })
+    } finally {
+      cleanupTemp(tmpPath, tmpDir)
+    }
+  })
+
+  // ==================== Analyze New Import (dry-run) ====================
+
+  server.post('/_web/import/analyze', async (request, reply) => {
+    const data = await (request as any).file()
+    if (!data) return reply.code(400).send({ error: 'No file uploaded' })
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-analyze-'))
+    const tmpPath = path.join(tmpDir, data.filename || 'upload')
+
+    const chunks: Buffer[] = []
+    for await (const chunk of data.file) {
+      chunks.push(chunk)
+    }
+    fs.writeFileSync(tmpPath, Buffer.concat(chunks))
+
+    try {
+      return await analyzeNewImport(tmpPath)
+    } catch (err) {
+      return reply.code(500).send({ error: err instanceof Error ? err.message : String(err) })
+    } finally {
+      cleanupTemp(tmpPath, tmpDir)
+    }
+  })
+
+  // ==================== Demo Import ====================
+
+  server.post<{ Body: { locale?: string } }>('/_web/demo/import', async (request, reply) => {
+    const locale = (request.body as any)?.locale || 'en'
+    const nativeBinding = resolveNativeBinding()
+
+    reply.raw.writeHead(200, {
+      'Content-Type': 'text/event-stream',
+      'Cache-Control': 'no-cache',
+      Connection: 'keep-alive',
+    })
+
+    function sendEvent(event: string, eventData: unknown) {
+      reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(eventData)}\n\n`)
+    }
+
+    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-demo-'))
+    const groupPath = path.join(tmpDir, 'demo-group.json')
+    const privatePath = path.join(tmpDir, 'demo-private.json')
+
+    try {
+      sendEvent('progress', { stage: 'downloading', current: 1, total: 2 })
+      const groupResp = await fetch(`${DEMO_BASE_URL}/${locale}/demo-group.json`, {
+        signal: AbortSignal.timeout(60_000),
+      })
+      if (!groupResp.ok) throw new Error(`Download group demo failed: ${groupResp.status}`)
+      fs.writeFileSync(groupPath, Buffer.from(await groupResp.arrayBuffer()))
+
+      sendEvent('progress', { stage: 'downloading', current: 2, total: 2 })
+      const privateResp = await fetch(`${DEMO_BASE_URL}/${locale}/demo-private.json`, {
+        signal: AbortSignal.timeout(60_000),
+      })
+      if (!privateResp.ok) throw new Error(`Download private demo failed: ${privateResp.status}`)
+      fs.writeFileSync(privatePath, Buffer.from(await privateResp.arrayBuffer()))
+
+      sendEvent('progress', { stage: 'importing', current: 1, total: 2 })
+      const groupResult = await streamImport(dbManager, groupPath, { nativeBinding })
+      if (!groupResult.success) throw new Error(groupResult.error || 'Failed to import group demo')
+
+      sendEvent('progress', { stage: 'importing', current: 2, total: 2 })
+      const privateResult = await streamImport(dbManager, privatePath, { nativeBinding })
+      if (!privateResult.success) throw new Error(privateResult.error || 'Failed to import private demo')
+
+      sendEvent('progress', { stage: 'done', current: 2, total: 2 })
+      sendEvent('result', {
+        success: true,
+        groupSessionId: groupResult.sessionId,
+        privateSessionId: privateResult.sessionId,
+      })
+    } catch (err) {
+      const message = err instanceof Error ? err.message : String(err)
+      sendEvent('progress', { stage: 'error', current: 0, total: 2, message })
+      sendEvent('result', { success: false, error: message })
+    } finally {
+      reply.raw.end()
+      cleanupTemp(tmpDir)
+    }
+  })
+}

@@ -322,3 +322,19 @@ export type {
   SessionMessage,
   SessionInfo,
 } from './ai'
+
+// Shared application services (session / member / index / summary / export)
+export * as sessionService from './services/session-service'
+export * as memberService from './services/member-service'
+export * as sessionIndexService from './services/session-index-service'
+export * as summaryService from './services/summary-service'
+export * as exportService from './services/export-service'
+export { createDatabaseManagerAdapter } from './services'
+export type {
+  SessionRuntimeAdapter,
+  AnalysisSessionDTO,
+  ListSessionsOptions,
+  MembersPaginatedDTO,
+  LlmConfig,
+  SummaryServiceDeps,
+} from './services'
