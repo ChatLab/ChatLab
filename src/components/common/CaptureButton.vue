@@ -16,6 +16,8 @@ const props = withDefaults(
   defineProps<{
     /** 按钮显示文字（不传则只显示图标） */
     label?: string
+    /** 悬浮提示文字 */
+    tooltip?: string
     /** 按钮尺寸 */
     size?: 'xs' | 'sm' | 'md'
     /** 截屏类型：page=整页, element=指定元素 */
@@ -69,7 +71,7 @@ async function handleCapture(event: Event) {
 </script>
 
 <template>
-  <UTooltip :text="t('common.capture')" class="no-capture">
+  <UTooltip :text="tooltip || t('common.capture')" class="no-capture">
     <UButton
       :id="buttonId"
       icon="i-heroicons-camera"

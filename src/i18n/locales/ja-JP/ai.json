@@ -53,6 +53,7 @@
         "success": "Markdown をクリップボードにコピーしました",
         "failed": "Markdown のコピーに失敗しました"
       },
+      "captureAnswer": "回答を画像保存",
       "tools": {
         "get_chat_overview": "チャット概要を取得",
         "search_messages": "チャット履歴を検索",

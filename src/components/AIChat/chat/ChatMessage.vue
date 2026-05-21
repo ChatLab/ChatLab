@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
+import type { ComponentPublicInstance } from 'vue'
 import { useI18n } from 'vue-i18n'
 import dayjs from 'dayjs'
 import MarkdownIt from 'markdown-it'
@@ -92,6 +93,25 @@ const visibleBlocks = computed(() => {
 const useBlocksRendering = computed(() => {
   return props.role === 'assistant' && visibleBlocks.value.length > 0
 })
+
+const answerCaptureElement = ref<HTMLElement | null>(null)
+
+const answerCaptureBlockIndex = computed(() => {
+  for (let i = visibleBlocks.value.length - 1; i >= 0; i--) {
+    if (visibleBlocks.value[i].type === 'text') return i
+  }
+  return -1
+})
+
+const canCaptureAnswer = computed(() => {
+  if (props.isStreaming || props.role !== 'assistant' || !props.showCaptureButton) return false
+  if (useBlocksRendering.value) return answerCaptureBlockIndex.value >= 0
+  return props.content.trim().length > 0
+})
+
+function setAnswerCaptureElement(el: Element | ComponentPublicInstance | null) {
+  answerCaptureElement.value = el instanceof HTMLElement ? el : null
+}
 
 function getToolDisplayName(tool: ToolBlockContent): string {
   return te(`ai.chat.message.tools.${tool.name}`) ? t(`ai.chat.message.tools.${tool.name}`) : tool.displayName
@@ -341,7 +361,11 @@ async function handleCopyMarkdown() {
         <div class="space-y-2">
           <template v-for="(block, idx) in visibleBlocks" :key="idx">
             <!-- 文本块 -->
-            <div v-if="block.type === 'text'" class="py-1 text-gray-900 dark:text-gray-100">
+            <div
+              v-if="block.type === 'text'"
+              :ref="idx === answerCaptureBlockIndex ? setAnswerCaptureElement : undefined"
+              class="py-1 text-gray-900 dark:text-gray-100"
+            >
               <div
                 class="prose prose-sm dark:prose-invert max-w-none leading-relaxed"
                 v-html="renderMarkdown(block.text)"
@@ -454,7 +478,7 @@ async function handleCopyMarkdown() {
 
       <!-- AI 消息：传统纯文本渲染（向后兼容） -->
       <template v-else>
-        <div class="py-1 text-gray-900 dark:text-gray-100">
+        <div :ref="setAnswerCaptureElement" class="py-1 text-gray-900 dark:text-gray-100">
           <div class="prose prose-sm dark:prose-invert max-w-none leading-relaxed" v-html="renderedContent" />
           <span
             v-if="isStreaming"
@@ -482,10 +506,11 @@ async function handleCopyMarkdown() {
         </UTooltip>
         <!-- 截屏按钮（仅 AI 回复显示） -->
         <CaptureButton
-          v-if="showCaptureButton && !isUser && !isStreaming"
+          v-if="canCaptureAnswer"
           size="xs"
           type="element"
-          target-selector=".qa-pair"
+          :target-element="answerCaptureElement"
+          :tooltip="t('ai.chat.message.captureAnswer')"
         />
       </div>
     </div>

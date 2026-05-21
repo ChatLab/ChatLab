@@ -53,6 +53,7 @@
         "success": "Markdown 已複製到剪貼簿",
         "failed": "複製 Markdown 失敗"
       },
+      "captureAnswer": "截圖回答",
       "tools": {
         "get_chat_overview": "取得聊天概覽",
         "search_messages": "搜尋聊天紀錄",
