@@ -77,6 +77,9 @@ export function registerAutomationRoutes(server: FastifyInstance, ctx: SyncRoute
       return reply.code(404).send({ error: 'Data source not found' })
     }
     reloadTimer(request.params.id, true)
+    for (const sess of added) {
+      pullEngine.triggerPull(request.params.id, sess.id).catch(() => {})
+    }
     return added
   })
 

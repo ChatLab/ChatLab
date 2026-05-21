@@ -528,7 +528,8 @@
         "loadMore": "Load More",
         "subscribe": "Subscribe {count} sessions",
         "messages": "messages",
-        "error": "Failed to connect to remote server"
+        "error": "Failed to connect to remote server",
+        "connectionCheckFailed": "Cannot connect to the remote server. Please check the URL and token."
       },
       "edit": {
         "title": "Edit Data Source",

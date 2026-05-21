@@ -527,7 +527,8 @@
         "loadMore": "載入更多",
         "subscribe": "訂閱 {count} 個會話",
         "messages": "則訊息",
-        "error": "連線遠端伺服器失敗"
+        "error": "連線遠端伺服器失敗",
+        "connectionCheckFailed": "無法連線到遠端伺服器，請檢查地址和權杖是否正確"
       },
       "noSessions": "暫無匯入會話，點擊上方「管理訂閱」新增",
       "edit": {

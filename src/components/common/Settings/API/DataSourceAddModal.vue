@@ -33,6 +33,7 @@ const remoteSessions = ref<RemoteSession[]>([])
 const selectedSessionIds = ref<Set<string>>(new Set())
 const discovering = ref(false)
 const loadingMore = ref(false)
+const submitting = ref(false)
 const discoveryError = ref('')
 const discoveryKeyword = ref('')
 const discoveryNextCursor = ref<string | undefined>()
@@ -75,9 +76,13 @@ watch(
   { immediate: true }
 )
 
+const nonOtherSessions = computed(() =>
+  remoteSessions.value.filter((session) => getSessionTypeSelection(session) !== 'other')
+)
+
 const visibleRemoteSessions = computed(() => {
-  if (activeSessionTypeFilter.value === 'all') return remoteSessions.value
-  return remoteSessions.value.filter((session) => getSessionTypeSelection(session) === activeSessionTypeFilter.value)
+  if (activeSessionTypeFilter.value === 'all') return nonOtherSessions.value
+  return nonOtherSessions.value.filter((session) => getSessionTypeSelection(session) === activeSessionTypeFilter.value)
 })
 
 const visibleAvailableSessions = computed(() =>
@@ -96,14 +101,13 @@ const sessionTypeSelectionOptions = computed(() =>
       { value: 'all', label: t('settings.api.dataSources.discovery.typeAll') },
       { value: 'private', label: t('settings.api.dataSources.discovery.typePrivate') },
       { value: 'group', label: t('settings.api.dataSources.discovery.typeGroup') },
-      { value: 'other', label: t('settings.api.dataSources.discovery.typeOther') },
     ] as Array<{ value: SessionTypeFilter; label: string }>
   ).map((option) => ({
     ...option,
     count:
       option.value === 'all'
-        ? remoteSessions.value.length
-        : remoteSessions.value.filter((session) => getSessionTypeSelection(session) === option.value).length,
+        ? nonOtherSessions.value.length
+        : nonOtherSessions.value.filter((session) => getSessionTypeSelection(session) === option.value).length,
   }))
 )
 
@@ -201,22 +205,33 @@ async function handleSubmit() {
       .map((s) => ({ name: s.name, remoteSessionId: s.id }))
     emit('sessionsAdded', props.manageSource.id, sessions)
     closeModal()
-  } else {
-    const ds = await store.addDataSource({
+    return
+  }
+
+  submitting.value = true
+  discoveryError.value = ''
+  try {
+    await store.fetchRemoteSessions(formData.value.baseUrl, formData.value.token, { limit: 1 })
+  } catch (err: any) {
+    discoveryError.value = err.message || t('settings.api.dataSources.discovery.connectionCheckFailed')
+    return
+  } finally {
+    submitting.value = false
+  }
+
+  submitting.value = true
+  try {
+    await store.addDataSource({
       name: formData.value.name || undefined,
       baseUrl: formData.value.baseUrl,
       token: formData.value.token,
       intervalMinutes: formData.value.intervalMinutes,
       pullLimit: formData.value.pullLimit || undefined,
     })
-    if (ds && selectedSessionIds.value.size > 0) {
-      const sessions = remoteSessions.value
-        .filter((s) => selectedSessionIds.value.has(s.id))
-        .map((s) => ({ name: s.name, remoteSessionId: s.id }))
-      await store.addImportSessions(ds.id, sessions)
-    }
     emit('sourceAdded')
     closeModal()
+  } finally {
+    submitting.value = false
   }
 }
 
@@ -297,19 +312,6 @@ function formatMessageCount(count?: number): string {
                 />
               </div>
             </div>
-
-            <div class="flex items-center gap-2">
-              <UButton
-                color="primary"
-                variant="soft"
-                :loading="discovering"
-                :disabled="!formData.baseUrl"
-                @click="discoverSessions"
-              >
-                <UIcon name="i-heroicons-magnifying-glass" class="mr-1 h-4 w-4" />
-                {{ t('settings.api.dataSources.discovery.browse') }}
-              </UButton>
-            </div>
           </template>
 
           <!-- Error -->
@@ -320,11 +322,11 @@ function formatMessageCount(count?: number): string {
             {{ discoveryError }}
           </div>
 
-          <!-- Session list -->
-          <div v-if="hasDiscoveryRun">
+          <!-- Session list (manage mode only) -->
+          <div v-if="isManageMode && hasDiscoveryRun">
             <div class="mb-2 flex items-center justify-between">
               <span class="text-xs font-medium text-gray-700 dark:text-gray-300">
-                {{ t('settings.api.dataSources.discovery.found', { count: remoteSessions.length }) }}
+                {{ t('settings.api.dataSources.discovery.found', { count: nonOtherSessions.length }) }}
               </span>
               <button
                 class="text-xs text-blue-500 hover:text-blue-700 dark:hover:text-blue-400"
@@ -371,7 +373,7 @@ function formatMessageCount(count?: number): string {
               </div>
             </div>
             <div
-              v-if="remoteSessions.length > 0"
+              v-if="nonOtherSessions.length > 0"
               class="max-h-64 overflow-y-auto rounded-lg border border-gray-200 dark:border-gray-600"
             >
               <div
@@ -435,7 +437,7 @@ function formatMessageCount(count?: number): string {
             >
               {{ t('settings.api.dataSources.discovery.subscribe', { count: selectedSessionIds.size }) }}
             </UButton>
-            <UButton v-else color="primary" :disabled="!formData.baseUrl" @click="handleSubmit">
+            <UButton v-else color="primary" :disabled="!formData.baseUrl" :loading="submitting" @click="handleSubmit">
               {{ t('settings.api.dataSources.addBtn') }}
             </UButton>
           </div>

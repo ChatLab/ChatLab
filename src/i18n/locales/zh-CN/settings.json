@@ -528,7 +528,8 @@
         "loadMore": "加载更多",
         "subscribe": "订阅 {count} 个会话",
         "messages": "条消息",
-        "error": "连接远程服务器失败"
+        "error": "连接远程服务器失败",
+        "connectionCheckFailed": "无法连接到远程服务器，请检查地址和令牌是否正确"
       },
       "edit": {
         "title": "修改配置",

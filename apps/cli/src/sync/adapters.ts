@@ -77,6 +77,11 @@ export class DirectImporter implements DataImporter {
       return this.incrementalImportFile(targetSessionId, tempFile)
     }
 
+    if (targetSessionId) {
+      this.logger.info(`[DirectImporter] Session ${targetSessionId} not found locally, need full resync`)
+      return { success: false, newMessageCount: 0, needFullResync: true }
+    }
+
     return this.fullImportFile(tempFile, externalId)
   }
 

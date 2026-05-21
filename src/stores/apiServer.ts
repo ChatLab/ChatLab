@@ -131,6 +131,10 @@ function createWebTransport(): ApiTransport {
 
   async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
     const resp = await fetch(url, options)
+    if (!resp.ok) {
+      const body = await resp.json().catch(() => ({}))
+      throw new Error((body as any)?.error || `HTTP ${resp.status}`)
+    }
     return resp.json()
   }
 
@@ -379,16 +383,28 @@ export const useApiServerStore = defineStore('apiServer', () => {
   async function addImportSessions(sourceId: string, sessions: Array<{ name: string; remoteSessionId: string }>) {
     try {
       const added = await transport.addImportSessions(sourceId, sessions)
+      await fetchDataSources()
       if (added.length > 0) {
-        await triggerPullAll(sourceId)
-      } else {
-        await fetchDataSources()
+        pollDataSourceUpdates(sourceId)
       }
       return added
     } catch (err) {
       console.error('[ApiServerStore] Failed to add import sessions:', err)
       return []
     }
+  }
+
+  function pollDataSourceUpdates(sourceId: string, maxAttempts = 10, intervalMs = 3000) {
+    let attempt = 0
+    const timer = setInterval(async () => {
+      attempt++
+      await fetchDataSources()
+      const ds = dataSources.value.find((s) => s.id === sourceId)
+      const allDone = ds?.sessions.every((s) => s.lastStatus !== 'idle')
+      if (allDone || attempt >= maxAttempts) {
+        clearInterval(timer)
+      }
+    }, intervalMs)
   }
 
   async function removeImportSession(sourceId: string, sessionId: string) {

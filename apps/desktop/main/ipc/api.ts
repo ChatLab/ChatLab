@@ -178,6 +178,9 @@ export function registerApiHandlers(_ctx: IpcContext): void {
     (_event, sourceId: string, sessions: Array<{ name: string; remoteSessionId: string }>) => {
       const added = dsManager.addSessions(sourceId, sessions)
       reloadTimer(sourceId, true)
+      for (const sess of added) {
+        pullEngine.triggerPull(sourceId, sess.id).catch(() => {})
+      }
       return added
     }
   )

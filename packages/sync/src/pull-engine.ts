@@ -104,6 +104,7 @@ export class PullEngine {
   private dsManager: DataSourceManager
   private logger: SyncLogger
   private isImporting: () => boolean
+  private pullingSourceIds = new Set<string>()
 
   constructor(options: PullEngineOptions) {
     this.fetcher = options.fetcher
@@ -256,8 +257,17 @@ export class PullEngine {
   }
 
   async pullAllSessions(ds: DataSource): Promise<void> {
-    for (const sess of ds.sessions) {
-      await this.executePullSession(ds.id, ds, sess)
+    if (this.pullingSourceIds.has(ds.id)) {
+      this.logger.info(`[Pull] Skipping pullAllSessions for "${ds.baseUrl}": pull already in progress`)
+      return
+    }
+    this.pullingSourceIds.add(ds.id)
+    try {
+      for (const sess of ds.sessions) {
+        await this.executePullSession(ds.id, ds, sess)
+      }
+    } finally {
+      this.pullingSourceIds.delete(ds.id)
     }
   }
 
@@ -272,15 +282,24 @@ export class PullEngine {
       return { success: result.success, error: result.error }
     }
 
-    const errors: string[] = []
-    for (const sess of ds.sessions) {
-      const result = await this.executePullSession(sourceId, ds, sess)
-      if (!result.success && result.error) errors.push(`${sess.name}: ${result.error}`)
+    if (this.pullingSourceIds.has(sourceId)) {
+      this.logger.info(`[Pull] Skipping triggerPull for source ${sourceId}: pull already in progress`)
+      return { success: true }
     }
-    if (errors.length > 0) {
-      return { success: false, error: errors.join('; ') }
+    this.pullingSourceIds.add(sourceId)
+    try {
+      const errors: string[] = []
+      for (const sess of ds.sessions) {
+        const result = await this.executePullSession(sourceId, ds, sess)
+        if (!result.success && result.error) errors.push(`${sess.name}: ${result.error}`)
+      }
+      if (errors.length > 0) {
+        return { success: false, error: errors.join('; ') }
+      }
+      return { success: true }
+    } finally {
+      this.pullingSourceIds.delete(sourceId)
     }
-    return { success: true }
   }
 
   async triggerPullAll(sourceId: string): Promise<{ success: boolean; error?: string }> {
