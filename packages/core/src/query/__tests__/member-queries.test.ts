@@ -11,7 +11,7 @@
 
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { getMembersWithAliases, getMembersPaginated } from '../message-queries'
+import { getMemberNameHistory, getMembersWithAliases, getMembersPaginated } from '../message-queries'
 import type { DatabaseAdapter, PreparedStatement } from '../../interfaces'
 
 // ==================== Mock helpers ====================
@@ -157,6 +157,39 @@ function createMockDb(opts: { hasAliases?: boolean; hasAvatar?: boolean } = {}):
   }
 }
 
+function createNameHistoryDb(opts: {
+  hasHistoryTable: boolean
+  historyRows?: Record<string, unknown>[]
+}): DatabaseAdapter {
+  return {
+    prepare(sql: string): PreparedStatement {
+      return {
+        get(...params: unknown[]) {
+          if (sql.includes('sqlite_master') && params.includes('member_name_history')) {
+            return { cnt: opts.hasHistoryTable ? 1 : 0 }
+          }
+          return undefined
+        },
+        all() {
+          if (sql.includes('FROM member_name_history')) {
+            return opts.historyRows ?? []
+          }
+          if (sql.includes('FROM message')) {
+            return [
+              { accountName: 'Alice', groupNickname: 'A', startTs: 1000, endTs: 1500 },
+              { accountName: 'Alice Chen', groupNickname: null, startTs: 2000, endTs: 2500 },
+            ]
+          }
+          return []
+        },
+        run() {
+          return { changes: 0, lastInsertRowid: 0 }
+        },
+      }
+    },
+  } as unknown as DatabaseAdapter
+}
+
 // ==================== getMembersWithAliases ====================
 
 describe('getMembersWithAliases', () => {
@@ -195,6 +228,30 @@ describe('getMembersWithAliases', () => {
     for (let i = 1; i < result.length; i++) {
       assert.ok(result[i - 1].messageCount >= result[i].messageCount)
     }
+  })
+})
+
+// ==================== getMemberNameHistory ====================
+
+describe('getMemberNameHistory', () => {
+  it('derives history from message rows when member_name_history table is absent', () => {
+    const result = getMemberNameHistory(createNameHistoryDb({ hasHistoryTable: false }), 1)
+
+    assert.deepEqual(result, [
+      { nameType: 'account_name', name: 'Alice', startTs: 1000, endTs: 1500 },
+      { nameType: 'group_nickname', name: 'A', startTs: 1000, endTs: 1500 },
+      { nameType: 'account_name', name: 'Alice Chen', startTs: 2000, endTs: 2500 },
+    ])
+  })
+
+  it('derives history from message rows when member_name_history table is empty', () => {
+    const result = getMemberNameHistory(createNameHistoryDb({ hasHistoryTable: true, historyRows: [] }), 1)
+
+    assert.deepEqual(result, [
+      { nameType: 'account_name', name: 'Alice', startTs: 1000, endTs: 1500 },
+      { nameType: 'group_nickname', name: 'A', startTs: 1000, endTs: 1500 },
+      { nameType: 'account_name', name: 'Alice Chen', startTs: 2000, endTs: 2500 },
+    ])
   })
 })
 

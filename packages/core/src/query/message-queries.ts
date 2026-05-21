@@ -453,6 +453,38 @@ export interface MemberNameHistoryEntry {
   endTs: number | null
 }
 
+function getMemberNameHistoryFromMessages(db: DatabaseAdapter, memberId: number): MemberNameHistoryEntry[] {
+  const rows = db
+    .prepare(
+      `SELECT
+        sender_account_name as accountName,
+        sender_group_nickname as groupNickname,
+        MIN(ts) as startTs,
+        MAX(ts) as endTs
+      FROM message
+      WHERE sender_id = ?
+      GROUP BY sender_account_name, sender_group_nickname
+      ORDER BY startTs`
+    )
+    .all(memberId) as unknown as Array<{
+    accountName: string | null
+    groupNickname: string | null
+    startTs: number
+    endTs: number | null
+  }>
+
+  const history: MemberNameHistoryEntry[] = []
+  for (const row of rows) {
+    if (row.accountName) {
+      history.push({ nameType: 'account_name', name: row.accountName, startTs: row.startTs, endTs: row.endTs })
+    }
+    if (row.groupNickname) {
+      history.push({ nameType: 'group_nickname', name: row.groupNickname, startTs: row.startTs, endTs: row.endTs })
+    }
+  }
+  return history
+}
+
 export interface MemberWithAliases {
   id: number
   platformId: string
@@ -646,14 +678,16 @@ export function getConversationBetween(
  * Get name change history for a member
  */
 export function getMemberNameHistory(db: DatabaseAdapter, memberId: number): MemberNameHistoryEntry[] {
-  if (!hasTable(db, 'member_name_history')) return []
+  if (!hasTable(db, 'member_name_history')) return getMemberNameHistoryFromMessages(db, memberId)
 
-  return db
+  const history = db
     .prepare(
       `SELECT name_type as nameType, name, start_ts as startTs, end_ts as endTs
        FROM member_name_history WHERE member_id = ? ORDER BY start_ts DESC`
     )
     .all(memberId) as unknown as MemberNameHistoryEntry[]
+
+  return history.length > 0 ? history : getMemberNameHistoryFromMessages(db, memberId)
 }
 
 /**

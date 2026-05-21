@@ -7,7 +7,11 @@ export function registerSessionRoutes(server: FastifyInstance, adapter: SessionR
   })
 
   server.get<{ Params: { id: string } }>('/_web/sessions/:id', async (request) => {
-    return sessionService.getAnalysisSession(adapter, request.params.id)
+    const session = sessionService.getAnalysisSession(adapter, request.params.id)
+    if (!session) {
+      throw Object.assign(new Error(`Session not found: ${request.params.id}`), { statusCode: 404 })
+    }
+    return session
   })
 
   server.delete<{ Params: { id: string } }>('/_web/sessions/:id', async (request, reply) => {

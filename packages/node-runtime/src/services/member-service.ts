@@ -96,8 +96,8 @@ export function deleteMember(adapter: SessionRuntimeAdapter, sessionId: string, 
 }
 
 /**
- * Get member name change history from the member_name_history table.
- * Uses core's getMemberNameHistory (not the web.ts message-derived version).
+ * Get member name change history.
+ * Core prefers member_name_history and falls back to message-derived names for legacy sessions.
  */
 export function getMemberNameHistory(adapter: SessionRuntimeAdapter, sessionId: string, memberId: number) {
   const db = adapter.ensureReadonly(sessionId)
