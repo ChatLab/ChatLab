@@ -38,6 +38,11 @@ export const CHANGELOG_TYPE_CONFIG: Record<string, ChangeTypeConfigItem> = {
     color: 'text-blue-500',
     bgColor: 'bg-blue-100 dark:bg-blue-900/30',
   },
+  ci: {
+    icon: 'i-heroicons-command-line',
+    color: 'text-teal-500',
+    bgColor: 'bg-teal-100 dark:bg-teal-900/30',
+  },
 }
 
 export function getChangeTypeConfig(type: string): ChangeTypeConfigItem | undefined {

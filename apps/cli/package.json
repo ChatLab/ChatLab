@@ -29,12 +29,6 @@
     "chatlab",
     "chat",
     "analysis",
-    "wechat",
-    "qq",
-    "telegram",
-    "whatsapp",
-    "discord",
-    "mcp",
     "cli"
   ],
   "scripts": {
