@@ -22,7 +22,7 @@ import type {
 } from './types'
 import type { DataSourceManager } from './data-source-manager'
 
-const MAX_PAGES_PER_PULL = 50
+const MAX_PAGES_PER_PULL = 5000
 const PULL_OVERLAP_SECONDS = 60
 
 // ==================== Helpers ====================
