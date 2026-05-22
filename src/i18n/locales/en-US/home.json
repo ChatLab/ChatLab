@@ -135,7 +135,8 @@
       "refactor": "Refactors",
       "docs": "Docs",
       "chore": "Other",
-      "style": "Style"
+      "style": "Style",
+      "ci": "CI"
     }
   }
 }

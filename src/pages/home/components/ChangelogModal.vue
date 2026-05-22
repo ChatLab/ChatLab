@@ -136,6 +136,7 @@ function getChangeTypeLabel(type: string) {
     docs: t('home.changelog.types.docs'),
     chore: t('home.changelog.types.chore'),
     style: t('home.changelog.types.style'),
+    ci: t('home.changelog.types.ci'),
   }
   return labels[type] || type
 }
