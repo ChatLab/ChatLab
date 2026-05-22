@@ -138,7 +138,7 @@ ChatLab 在 UI 中展示该列表，用户选择需要导入的对话。
 ```
 GET {baseUrl}/sessions/{sessionId}/messages?format=chatlab&since={timestamp}
 Authorization: Bearer {token}
-Accept: application/json, application/x-ndjson
+Accept: application/json
 ```
 
 | 参数        | 必填 | 说明                                                                |
@@ -146,15 +146,21 @@ Accept: application/json, application/x-ndjson
 | `sessionId` | 是   | 来自阶段一返回的对话 `id`                                           |
 | `format`    | 是   | 固定为 `chatlab`，要求数据源返回 ChatLab 标准格式                   |
 | `since`     | 否   | Unix 时间戳（秒级）。省略或为 `0` 时为全量拉取，大于 0 时为增量拉取 |
-| `end`       | 否   | Unix 时间戳（秒级）。指定时间范围上界，用于历史回填等分段拉取       |
 | `limit`     | 否   | 单次返回的最大消息数，用于分页                                      |
-| `offset`    | 否   | 分页偏移量，配合 `limit` 使用                                       |
+
+::: tip 未来演进
+后续版本可能支持 `Accept: application/x-ndjson` 以启用 NDJSON 流式响应，当前版本仅使用 JSON。
+:::
 
 ### 数据携带规则
 
 - **首次全量**（`since` 为空或 0）：**必须**包含 `chatlab` + `meta` + `members` + `messages`
 - **增量同步**（`since > 0`）：**必须**包含 `messages`。`meta` / `members` **仅在发生实际变更时携带**，未变更时不得携带，以避免历史快照覆盖当前状态
 - 无新数据时返回空 `messages` 数组
+
+::: tip 数据准备
+数据源在首次收到某个会话的 `since=0` 请求时，如需时间准备数据（如从磁盘加载、索引构建等），可先返回空 `messages` + `hasMore: false`。ChatLab 会自动重试（最多 3 次，间隔递增），等待数据源就绪后正常返回数据。
+:::
 
 ### 响应格式
 
@@ -168,46 +174,60 @@ Accept: application/json, application/x-ndjson
   "messages": [ ... ],
   "sync": {
     "hasMore": true,
-    "nextSince": 1711468800,
-    "nextOffset": 5000,
-    "watermark": 1711470000
+    "nextSince": 1711468800
   }
 }
 ```
 
 ### sync 同步元信息
 
-| 字段         | 类型    | 说明                                                                                       |
-| ------------ | ------- | ------------------------------------------------------------------------------------------ |
-| `hasMore`    | boolean | 是否还有更多数据。为 `true` 时 ChatLab 自动续拉                                            |
-| `nextSince`  | number  | 下一次请求建议使用的 `since` 值                                                            |
-| `nextOffset` | number  | 下一次请求建议使用的 `offset` 值，用于分页续拉                                             |
-| `watermark`  | number  | 本次拉取的快照上界时间戳，防止分页期间新数据写入导致的窗口漂移                             |
+| 字段         | 类型    | 必填   | 说明                                                                                       |
+| ------------ | ------- | ------ | ------------------------------------------------------------------------------------------ |
+| `hasMore`    | boolean | **是** | 是否还有更多数据。为 `true` 时 ChatLab 自动续拉                                            |
+| `nextSince`  | number  | **是** | 下一次请求建议使用的 `since` 值（通常为本批最后一条消息的时间戳）                           |
+
+ChatLab 的分页续拉完全基于 `hasMore` + `nextSince` 时间戳链。数据源返回一批消息后，将 `nextSince` 设为本批最后一条消息的时间戳，ChatLab 下次请求时传入该值即可获取后续数据。ChatLab 内置的去重机制会正确处理时间戳边界的消息重叠。
+
+::: details 协议预留字段（当前版本不使用）
+以下字段在协议中保留，ChatLab 当前版本不主动使用，未来版本可能启用：
+
+| 字段         | 类型    | 说明                                                           |
+| ------------ | ------- | -------------------------------------------------------------- |
+| `nextOffset` | number  | 分页偏移量，配合 `offset` 参数使用                             |
+| `watermark`  | number  | 快照上界时间戳，用于保证分页期间数据一致性                     |
+
+数据源可以不实现这些字段。ChatLab 的去重机制（基于 `platformMessageId` 或内容哈希）已能保证数据完整性。
+:::
 
 **sync 块的必要性规则：**
 
 | 数据源返回方式             | sync 块要求 | 说明                                                             |
 | -------------------------- | ----------- | ---------------------------------------------------------------- |
 | 单次返回全部数据（不分页） | 可选        | ChatLab 视 `messages` 为完整结果                                 |
-| 支持 `limit`/`offset` 分页 | **必须**    | 至少包含 `hasMore`；若无法保证快照一致性，还必须包含 `watermark` |
+| 支持 `limit` 分页          | **必须**    | 至少包含 `hasMore` + `nextSince`                                 |
 
 ::: warning 注意
-若数据源支持分页但未返回 `sync` 块，ChatLab 不保证自动续拉和分页一致性——仅处理首次返回的数据。
+若数据源支持分页但未返回 `sync` 块，ChatLab 不保证自动续拉——仅处理首次返回的数据。
 :::
-
-### 快照一致性要求
-
-- 同一次分页拉取（通过 `limit`/`offset` 遍历）**应当**基于同一数据快照视图
-- 若数据源无法保证快照一致性，**必须**返回 `sync.watermark`，供 ChatLab 固定拉取窗口上界
 
 ### 分批拉取策略
 
-对于大量历史数据（如数万条消息），推荐两种分批方式：
+对于大量历史数据（如数万条消息），推荐的分批方式：
 
-1. **时间窗口分批**：通过 `since` + `end` 指定时间段，逐段拉取
-2. **分页分批**：通过 `limit` + `offset` 做数据库级分页，结合 `sync` 块自动续拉
+**时间戳链分批**（推荐）：通过 `since` + `limit` 分批拉取，数据源通过 `sync.nextSince` 返回下次请求的起始时间戳，ChatLab 自动续拉直到 `hasMore=false`。
 
-ChatLab 会自动处理分批场景，通过去重机制保证不重复写入。
+```
+第 1 页：GET /sessions/:id/messages?format=chatlab&since=0&limit=1000
+  → 返回 1000 条，sync: { hasMore: true, nextSince: 1711400000 }
+
+第 2 页：GET /sessions/:id/messages?format=chatlab&since=1711400000&limit=1000
+  → 返回 1000 条，sync: { hasMore: true, nextSince: 1711440000 }
+
+第 N 页：...
+  → 返回 500 条，sync: { hasMore: false, nextSince: 1711468800 }
+```
+
+ChatLab 内置去重机制保证不重复写入，即使 `nextSince` 边界上有消息重叠也不会产生重复数据。
 
 ---
 
@@ -282,12 +302,10 @@ ChatLab 接收到 SSE 事件后，**触发一次该 session 的增量拉取**（
 
 ### 增强实现
 
-| 能力                       | 说明                                                         |
-| -------------------------- | ------------------------------------------------------------ |
-| `GET /push/messages`       | SSE 实时通知（仅唤醒拉取，不传输完整数据）                   |
-| 支持 `limit`/`offset` 分页 | 大量历史数据的分页拉取                                       |
-| 支持 `end` 参数            | 时间窗口分段拉取                                             |
-| 响应包含 `sync` 块         | 提供 `hasMore`/`nextSince`/`nextOffset`/`watermark` 续拉信息 |
+| 能力                            | 说明                                                         |
+| ------------------------------- | ------------------------------------------------------------ |
+| `GET /push/messages`            | SSE 实时通知（仅唤醒拉取，不传输完整数据）                   |
+| 支持 `limit` + `sync` 分页     | 大量历史数据的分批拉取，通过 `hasMore` + `nextSince` 续拉    |
 
 ### 数据格式
 
