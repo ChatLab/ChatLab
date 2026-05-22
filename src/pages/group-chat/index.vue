@@ -255,7 +255,12 @@ const { headerDescription } = useSessionHeaderDescription({
     </div>
 
     <!-- 会话索引弹窗（内部自动检测并弹出） -->
-    <SessionIndexModal v-if="currentSessionId" v-model="showSessionIndexModal" :session-id="currentSessionId" />
+    <SessionIndexModal
+      v-if="currentSessionId && session && session.messageCount > 0"
+      v-model="showSessionIndexModal"
+      :session-id="currentSessionId"
+      :message-count="session.messageCount"
+    />
 
     <!-- 增量导入弹窗 -->
     <IncrementalImportModal

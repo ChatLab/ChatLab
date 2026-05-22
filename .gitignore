@@ -37,3 +37,4 @@ yarn.lock
 !.vscode/snippets.code-snippets
 .docs
 
+.playwright-mcp/

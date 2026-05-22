@@ -13,6 +13,8 @@ const props = defineProps<{
   sessionId: string
   /** 弹窗打开状态（v-model） */
   modelValue?: boolean
+  /** 会话消息总数，为 0 时不自动弹出 */
+  messageCount?: number
 }>()
 
 const emit = defineEmits<{
@@ -47,6 +49,8 @@ const canClose = computed(() => {
 // 检查会话索引状态并自动弹出
 async function checkAndAutoOpen() {
   if (!props.sessionId) return
+  // 没有消息的会话无需索引，跳过自动弹出
+  if (props.messageCount === 0) return
 
   isLoading.value = true
   try {
@@ -93,14 +97,12 @@ async function generateSessionIndex() {
     hasIndex.value = true
     sessionCount.value = count
     emit('generated', count)
-
-    // 生成完成后自动关闭
-    forceMode.value = false
-    isOpen.value = false
   } catch (error) {
     console.error('生成会话索引失败:', error)
   } finally {
     isGenerating.value = false
+    forceMode.value = false
+    isOpen.value = false
   }
 }
 
