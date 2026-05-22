@@ -43,7 +43,8 @@ const hasDiscoveryRun = ref(false)
 type SessionTypeFilter = 'all' | SessionTypeSelection
 
 const activeSessionTypeFilter = ref<SessionTypeFilter>('all')
-const discoveryPageSize = 100
+const DISCOVERY_PAGE_SIZE = 200
+const DISCOVERY_MAX_NO_PAGE = 5000
 
 watch(
   () => props.open,
@@ -182,13 +183,27 @@ async function fetchDiscoveryPage(options: { append: boolean; resetSelection: bo
   try {
     const result = await store.fetchRemoteSessions(formData.value.baseUrl, formData.value.token, {
       keyword: discoveryKeyword.value.trim() || undefined,
-      limit: discoveryPageSize,
+      limit: DISCOVERY_PAGE_SIZE,
       cursor: options.append ? discoveryNextCursor.value : undefined,
     })
 
-    remoteSessions.value = options.append ? mergeRemoteSessions(remoteSessions.value, result.sessions) : result.sessions
-    discoveryHasMore.value = Boolean(result.page?.hasMore)
-    discoveryNextCursor.value = result.page?.nextCursor
+    // Server doesn't support pagination and returned exactly `limit` items — likely truncated.
+    // Re-fetch with a much larger limit to get all sessions at once.
+    if (!options.append && !result.page && result.sessions.length >= DISCOVERY_PAGE_SIZE) {
+      const fullResult = await store.fetchRemoteSessions(formData.value.baseUrl, formData.value.token, {
+        keyword: discoveryKeyword.value.trim() || undefined,
+        limit: DISCOVERY_MAX_NO_PAGE,
+      })
+      remoteSessions.value = fullResult.sessions
+      discoveryHasMore.value = false
+      discoveryNextCursor.value = undefined
+    } else {
+      remoteSessions.value = options.append
+        ? mergeRemoteSessions(remoteSessions.value, result.sessions)
+        : result.sessions
+      discoveryHasMore.value = Boolean(result.page?.hasMore)
+      discoveryNextCursor.value = result.page?.nextCursor
+    }
   } catch (err: any) {
     discoveryError.value = err.message || t('settings.api.dataSources.discovery.error')
   } finally {
