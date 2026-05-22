@@ -9,6 +9,7 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { IS_ELECTRON } from '@/utils/platform'
+import { useSessionStore } from './session'
 
 export interface ApiServerConfig {
   enabled: boolean
@@ -440,7 +441,10 @@ export const useApiServerStore = defineStore('apiServer', () => {
   async function removeImportSession(sourceId: string, sessionId: string, deleteData?: boolean) {
     try {
       const ok = await transport.removeImportSession(sourceId, sessionId, deleteData)
-      if (ok) await fetchDataSources()
+      if (ok) {
+        await fetchDataSources()
+        if (deleteData) useSessionStore().loadSessions()
+      }
       return ok
     } catch (err) {
       console.error('[ApiServerStore] Failed to remove import session:', err)
@@ -458,6 +462,7 @@ export const useApiServerStore = defineStore('apiServer', () => {
     try {
       const result = await transport.triggerPull(sourceId, sessionId)
       await fetchDataSources()
+      useSessionStore().loadSessions()
       return result
     } catch (err) {
       console.error('[ApiServerStore] Failed to trigger pull:', err)
@@ -480,6 +485,7 @@ export const useApiServerStore = defineStore('apiServer', () => {
     try {
       const result = await transport.triggerPullAll(sourceId)
       await fetchDataSources()
+      useSessionStore().loadSessions()
       return result
     } catch (err) {
       console.error('[ApiServerStore] Failed to trigger pull all:', err)
@@ -502,6 +508,7 @@ export const useApiServerStore = defineStore('apiServer', () => {
   function listenPullResult() {
     return transport.onPullResult(() => {
       fetchDataSources()
+      useSessionStore().loadSessions()
     })
   }
 
