@@ -24,7 +24,14 @@ export {
 export type { MembersPaginatedDTO } from './member-service'
 
 // Session index service
-export { generateIndex, clearIndex, getFtsStatus, searchFts, rebuildFts } from './session-index-service'
+export {
+  generateIndex,
+  generateIncrementalIndex,
+  clearIndex,
+  getFtsStatus,
+  searchFts,
+  rebuildFts,
+} from './session-index-service'
 
 // Summary service
 export { generateSummary, generateAllSummaries } from './summary-service'

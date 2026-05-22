@@ -33,6 +33,17 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
     return result.sessionCount
   }
 
+  async generateIncremental(sessionId: string, gapThreshold: number = 1800): Promise<number> {
+    const resp = await fetch(`/_web/sessions/${sessionId}/generate-incremental-index`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ gapThreshold }),
+    })
+    if (!resp.ok) throw new Error(`Failed to generate incremental session index: ${resp.status}`)
+    const result = (await resp.json()) as { sessionCount: number }
+    return result.sessionCount
+  }
+
   async hasIndex(sessionId: string): Promise<boolean> {
     const stats = await this.getStats(sessionId)
     return stats.hasIndex

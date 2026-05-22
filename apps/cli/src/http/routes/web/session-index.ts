@@ -11,6 +11,15 @@ export function registerSessionIndexRoutes(server: FastifyInstance, adapter: Ses
     return { sessionCount }
   })
 
+  server.post<{
+    Params: { id: string }
+    Body: { gapThreshold?: number }
+  }>('/_web/sessions/:id/generate-incremental-index', async (request) => {
+    const gapThreshold = (request.body as any)?.gapThreshold ?? 1800
+    const sessionCount = sessionIndexService.generateIncrementalIndex(adapter, request.params.id, gapThreshold)
+    return { sessionCount }
+  })
+
   server.post<{ Params: { id: string } }>('/_web/sessions/:id/clear-index', async (request) => {
     sessionIndexService.clearIndex(adapter, request.params.id)
     return { success: true }

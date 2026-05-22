@@ -803,6 +803,15 @@ export function registerChatHandlers(ctx: IpcContext): void {
     }
   })
 
+  ipcMain.handle('session:generateIncremental', async (_, sessionId: string, gapThreshold?: number) => {
+    try {
+      return await worker.generateIncrementalSessions(sessionId, gapThreshold)
+    } catch (error) {
+      console.error('Failed to generate incremental session index:', error)
+      throw error
+    }
+  })
+
   /**
    * 检查是否已生成会话索引
    */

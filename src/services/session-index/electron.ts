@@ -16,6 +16,10 @@ export class ElectronSessionIndexAdapter implements SessionIndexAdapter {
     return window.sessionApi.generate(sessionId, gapThreshold)
   }
 
+  generateIncremental(sessionId: string, gapThreshold?: number): Promise<number> {
+    return window.sessionApi.generateIncremental(sessionId, gapThreshold)
+  }
+
   hasIndex(sessionId: string): Promise<boolean> {
     return window.sessionApi.hasIndex(sessionId)
   }

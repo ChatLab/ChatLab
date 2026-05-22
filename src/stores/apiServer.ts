@@ -526,7 +526,7 @@ export const useApiServerStore = defineStore('apiServer', () => {
     const indexService = useSessionIndexService()
     const threshold = getSessionGapThreshold()
     for (const sess of targets) {
-      indexService.generate(sess.targetSessionId, threshold).catch(() => {})
+      indexService.generateIncremental(sess.targetSessionId, threshold).catch(() => {})
     }
   }
 
@@ -536,7 +536,7 @@ export const useApiServerStore = defineStore('apiServer', () => {
     for (const ds of dataSources.value) {
       for (const sess of ds.sessions) {
         if (sess.targetSessionId) {
-          indexService.generate(sess.targetSessionId, threshold).catch(() => {})
+          indexService.generateIncremental(sess.targetSessionId, threshold).catch(() => {})
         }
       }
     }

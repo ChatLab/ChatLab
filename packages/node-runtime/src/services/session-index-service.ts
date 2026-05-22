@@ -6,6 +6,7 @@
 
 import {
   generateSessionIndex as coreGenerateSessionIndex,
+  generateIncrementalSessionIndex as coreGenerateIncrementalSessionIndex,
   clearSessionIndex as coreClearSessionIndex,
 } from '@openchatlab/core'
 import { hasFtsTable, searchByFts, rebuildFtsIndex } from '../fts'
@@ -14,6 +15,15 @@ import type { SessionRuntimeAdapter } from './adapters'
 export function generateIndex(adapter: SessionRuntimeAdapter, sessionId: string, gapThreshold: number = 1800): number {
   const db = adapter.ensureWritable(sessionId)
   return coreGenerateSessionIndex(db, gapThreshold)
+}
+
+export function generateIncrementalIndex(
+  adapter: SessionRuntimeAdapter,
+  sessionId: string,
+  gapThreshold: number = 1800
+): number {
+  const db = adapter.ensureWritable(sessionId)
+  return coreGenerateIncrementalSessionIndex(db, gapThreshold)
 }
 
 export function clearIndex(adapter: SessionRuntimeAdapter, sessionId: string): void {

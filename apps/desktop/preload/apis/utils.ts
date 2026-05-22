@@ -240,9 +240,10 @@ export const sessionApi = {
     return ipcRenderer.invoke('session:generate', sessionId, gapThreshold)
   },
 
-  /**
-   * 检查是否已生成会话索引
-   */
+  generateIncremental: (sessionId: string, gapThreshold?: number): Promise<number> => {
+    return ipcRenderer.invoke('session:generateIncremental', sessionId, gapThreshold)
+  },
+
   hasIndex: (sessionId: string): Promise<boolean> => {
     return ipcRenderer.invoke('session:hasIndex', sessionId)
   },

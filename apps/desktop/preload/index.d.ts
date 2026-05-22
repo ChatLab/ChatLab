@@ -1107,6 +1107,7 @@ interface ChatSessionItem {
 
 interface SessionApi {
   generate: (sessionId: string, gapThreshold?: number) => Promise<number>
+  generateIncremental: (sessionId: string, gapThreshold?: number) => Promise<number>
   hasIndex: (sessionId: string) => Promise<boolean>
   getStats: (sessionId: string) => Promise<SessionStats>
   clear: (sessionId: string) => Promise<boolean>
