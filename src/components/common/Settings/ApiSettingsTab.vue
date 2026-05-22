@@ -10,7 +10,7 @@ import McpSettingsTab from './McpSettingsTab.vue'
 
 const { t, locale } = useI18n()
 const store = useApiServerStore()
-const { config, status, loading, isRunning, hasError, isPortInUse, dataSources, pullingId, isWebMode } =
+const { config, status, loading, isRunning, hasError, isPortInUse, dataSources, pullingIds, syncProgress, isWebMode } =
   storeToRefs(store)
 
 const activeSubTab = ref('sync')
@@ -45,6 +45,8 @@ const showManageModal = ref(false)
 const managingDataSource = ref<DataSource | null>(null)
 const showDeleteModal = ref(false)
 const deletingDataSource = ref<DataSource | null>(null)
+const showDeleteSessionModal = ref(false)
+const deletingSession = ref<{ ds: DataSource; sess: ImportSession } | null>(null)
 
 let unlistenStartupError: (() => void) | null = null
 let unlistenPullResult: (() => void) | null = null
@@ -175,8 +177,25 @@ async function removeSource() {
   deletingDataSource.value = null
 }
 
-async function removeSession(ds: DataSource, sess: ImportSession) {
-  await store.removeImportSession(ds.id, sess.id)
+function confirmRemoveSession(ds: DataSource, sess: ImportSession) {
+  deletingSession.value = { ds, sess }
+  showDeleteSessionModal.value = true
+}
+
+async function removeSessionKeepData() {
+  if (!deletingSession.value) return
+  const { ds, sess } = deletingSession.value
+  await store.removeImportSession(ds.id, sess.id, false)
+  showDeleteSessionModal.value = false
+  deletingSession.value = null
+}
+
+async function removeSessionDeleteData() {
+  if (!deletingSession.value) return
+  const { ds, sess } = deletingSession.value
+  await store.removeImportSession(ds.id, sess.id, true)
+  showDeleteSessionModal.value = false
+  deletingSession.value = null
 }
 
 async function syncAllInSource(ds: DataSource) {
@@ -248,10 +267,22 @@ function subscribedRemoteIds(ds: DataSource): Set<string> {
                       <UButton size="xs" variant="ghost" @click="toggleSourceEnabled(ds)">
                         <UIcon :name="ds.enabled ? 'i-heroicons-pause' : 'i-heroicons-play'" class="h-3.5 w-3.5" />
                       </UButton>
-                      <UButton size="xs" variant="ghost" @click="syncAllInSource(ds)">
+                      <UButton
+                        size="xs"
+                        variant="ghost"
+                        :loading="pullingIds.has(ds.id)"
+                        :disabled="pullingIds.has(ds.id)"
+                        @click="syncAllInSource(ds)"
+                      >
                         <UIcon name="i-heroicons-arrow-path" class="h-3.5 w-3.5" />
                       </UButton>
-                      <UButton size="xs" variant="ghost" color="error" @click="confirmDeleteSource(ds)">
+                      <UButton
+                        size="xs"
+                        variant="ghost"
+                        color="error"
+                        :disabled="ds.sessions.some((s) => pullingIds.has(s.id))"
+                        @click="confirmDeleteSource(ds)"
+                      >
                         <UIcon name="i-heroicons-trash" class="h-3.5 w-3.5" />
                       </UButton>
                     </div>
@@ -269,11 +300,13 @@ function subscribedRemoteIds(ds: DataSource): Set<string> {
                           <span
                             class="inline-block h-2 w-2 rounded-full"
                             :class="
-                              sess.lastStatus === 'success'
-                                ? 'bg-green-500'
-                                : sess.lastStatus === 'error'
-                                  ? 'bg-red-500'
-                                  : 'bg-gray-400'
+                              pullingIds.has(sess.id)
+                                ? 'animate-pulse bg-blue-500'
+                                : sess.lastStatus === 'success'
+                                  ? 'bg-green-500'
+                                  : sess.lastStatus === 'error'
+                                    ? 'bg-red-500'
+                                    : 'bg-gray-400'
                             "
                           ></span>
                           <span class="text-sm font-medium text-gray-900 dark:text-white">{{ sess.name }}</span>
@@ -282,22 +315,41 @@ function subscribedRemoteIds(ds: DataSource): Set<string> {
                           <UButton
                             size="xs"
                             variant="ghost"
-                            :loading="pullingId === sess.id"
+                            :loading="pullingIds.has(sess.id)"
+                            :disabled="pullingIds.has(sess.id)"
                             @click="syncSession(ds, sess)"
                           >
                             <UIcon name="i-heroicons-arrow-path" class="h-3.5 w-3.5" />
                           </UButton>
-                          <UButton size="xs" variant="ghost" color="error" @click="removeSession(ds, sess)">
+                          <UButton
+                            size="xs"
+                            variant="ghost"
+                            color="error"
+                            :disabled="pullingIds.has(sess.id)"
+                            @click="confirmRemoveSession(ds, sess)"
+                          >
                             <UIcon name="i-heroicons-trash" class="h-3.5 w-3.5" />
                           </UButton>
                         </div>
                       </div>
                       <div class="mt-1 flex items-center gap-2 text-xs text-gray-500 dark:text-gray-400">
-                        <span>
-                          {{ t('settings.api.dataSources.every') }} {{ ds.intervalMinutes }}
-                          {{ t('settings.api.dataSources.minutes') }}
-                        </span>
-                        <template v-if="sess.lastPullAt">
+                        <template v-if="syncProgress.get(sess.id)">
+                          <span class="text-blue-500">
+                            {{ t('settings.api.dataSources.syncing') }}...
+                            {{ syncProgress.get(sess.id)!.current }}
+                            {{ t('settings.api.dataSources.messages') }}
+                          </span>
+                        </template>
+                        <template v-else-if="pullingIds.has(sess.id) && !syncProgress.get(sess.id)">
+                          <span class="text-blue-500">{{ t('settings.api.dataSources.syncing') }}...</span>
+                        </template>
+                        <template v-else>
+                          <span>
+                            {{ t('settings.api.dataSources.every') }} {{ ds.intervalMinutes }}
+                            {{ t('settings.api.dataSources.minutes') }}
+                          </span>
+                        </template>
+                        <template v-if="!pullingIds.has(sess.id) && sess.lastPullAt">
                           <span class="text-gray-300 dark:text-gray-600">·</span>
                           <span class="text-gray-400">
                             {{ t('settings.api.dataSources.lastSync') }}: {{ formatTime(sess.lastPullAt) }}
@@ -530,7 +582,7 @@ function subscribedRemoteIds(ds: DataSource): Set<string> {
       @sessions-added="handleSessionsAdded"
     />
 
-    <!-- Delete confirmation modal -->
+    <!-- Delete data source confirmation modal -->
     <UModal v-model:open="showDeleteModal" :ui="{ content: 'z-[101]', overlay: 'z-[100]' }">
       <template #content>
         <div class="p-4">
@@ -543,6 +595,29 @@ function subscribedRemoteIds(ds: DataSource): Set<string> {
           <div class="flex justify-end gap-2">
             <UButton variant="soft" @click="showDeleteModal = false">{{ t('common.cancel') }}</UButton>
             <UButton color="error" @click="removeSource">{{ t('common.delete') }}</UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Delete session confirmation modal -->
+    <UModal v-model:open="showDeleteSessionModal" :ui="{ content: 'z-[101]', overlay: 'z-[100]' }">
+      <template #content>
+        <div class="p-4">
+          <h3 class="mb-3 font-semibold text-gray-900 dark:text-white">
+            {{ t('settings.api.dataSources.deleteSessionConfirm.title') }}
+          </h3>
+          <p class="mb-4 text-sm text-gray-600 dark:text-gray-400">
+            {{ t('settings.api.dataSources.deleteSessionConfirm.message', { name: deletingSession?.sess.name }) }}
+          </p>
+          <div class="flex justify-end gap-2">
+            <UButton variant="soft" @click="showDeleteSessionModal = false">{{ t('common.cancel') }}</UButton>
+            <UButton variant="soft" @click="removeSessionKeepData">
+              {{ t('settings.api.dataSources.deleteSessionConfirm.keepData') }}
+            </UButton>
+            <UButton color="error" @click="removeSessionDeleteData">
+              {{ t('settings.api.dataSources.deleteSessionConfirm.deleteData') }}
+            </UButton>
           </div>
         </div>
       </template>

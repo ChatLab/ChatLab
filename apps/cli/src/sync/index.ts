@@ -15,6 +15,7 @@ import { registerAutomationRoutes } from './routes'
 export interface SyncRouteContext {
   dsManager: DataSourceManager
   pullEngine: PullEngine
+  dbManager: DatabaseManager
   serverInfo: { port: number; host: string; token: string }
 }
 
@@ -49,7 +50,7 @@ export function initSync(
     logger: syncLogger,
   })
 
-  registerAutomationRoutes(server, { dsManager, pullEngine, serverInfo })
+  registerAutomationRoutes(server, { dsManager, pullEngine, dbManager, serverInfo })
 
   initScheduler({
     dsManager,

@@ -494,6 +494,8 @@
       "every": "Every",
       "minutes": "min",
       "lastSync": "Last sync",
+      "syncing": "Syncing",
+      "messages": "messages",
       "addBtn": "Add Data Source",
       "form": {
         "modalTitle": "Add Data Source",
@@ -544,6 +546,12 @@
       "deleteConfirm": {
         "title": "Delete Data Source",
         "message": "Are you sure you want to delete \"{name}\"? All import configurations under this data source will be removed. Already imported local conversations will not be deleted."
+      },
+      "deleteSessionConfirm": {
+        "title": "Delete Subscription",
+        "message": "Are you sure you want to delete \"{name}\"?",
+        "keepData": "Remove subscription only",
+        "deleteData": "Also delete imported chats"
       }
     },
     "usage": {

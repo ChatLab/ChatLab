@@ -11,6 +11,7 @@ import { setConfigManager } from '../api'
 import { getSettingsDir } from '../paths'
 import { apiLogger } from '../api/logger'
 import { getImportingStatus } from '../api/routes/import'
+import { deleteSession as deleteSessionFile } from '../database/core'
 import { ElectronFetcher, WorkerImporter, BrowserWindowNotifier } from '../api/adapters'
 import {
   ConfigManager,
@@ -185,10 +186,14 @@ export function registerApiHandlers(_ctx: IpcContext): void {
     }
   )
 
-  ipcMain.handle('api:removeImportSession', (_event, sourceId: string, sessionId: string) => {
-    const result = dsManager.removeSession(sourceId, sessionId)
+  ipcMain.handle('api:removeImportSession', (_event, sourceId: string, sessionId: string, deleteData?: boolean) => {
+    const removed = dsManager.removeSession(sourceId, sessionId)
+    if (!removed) return false
     reloadTimer(sourceId)
-    return result
+    if (deleteData && removed.targetSessionId) {
+      deleteSessionFile(removed.targetSessionId)
+    }
+    return true
   })
 
   // ==================== Sync ====================

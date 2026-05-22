@@ -1074,7 +1074,7 @@ interface ApiServerApi {
     sourceId: string,
     sessions: Array<{ name: string; remoteSessionId: string }>
   ) => Promise<ImportSession[]>
-  removeImportSession: (sourceId: string, sessionId: string) => Promise<boolean>
+  removeImportSession: (sourceId: string, sessionId: string, deleteData?: boolean) => Promise<boolean>
   triggerPull: (sourceId: string, sessionId?: string) => Promise<{ success: boolean; error?: string }>
   triggerPullAll: (sourceId: string) => Promise<{ success: boolean; error?: string }>
   fetchRemoteSessions: (

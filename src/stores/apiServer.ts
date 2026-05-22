@@ -93,7 +93,7 @@ interface ApiTransport {
     sourceId: string,
     sessions: Array<{ name: string; remoteSessionId: string }>
   ): Promise<ImportSession[]>
-  removeImportSession(sourceId: string, sessionId: string): Promise<boolean>
+  removeImportSession(sourceId: string, sessionId: string, deleteData?: boolean): Promise<boolean>
   triggerPull(sourceId: string, sessionId?: string): Promise<{ success: boolean; error?: string }>
   triggerPullAll(sourceId: string): Promise<{ success: boolean; error?: string }>
   onPullResult(cb: () => void): () => void
@@ -118,7 +118,7 @@ function createElectronTransport(): ApiTransport {
     updateDataSource: (id, updates) => api.updateDataSource(id, updates),
     deleteDataSource: (id) => api.deleteDataSource(id),
     addImportSessions: (sourceId, sessions) => api.addImportSessions(sourceId, sessions),
-    removeImportSession: (sourceId, sessionId) => api.removeImportSession(sourceId, sessionId),
+    removeImportSession: (sourceId, sessionId, deleteData?) => api.removeImportSession(sourceId, sessionId, deleteData),
     triggerPull: (sourceId, sessionId?) => api.triggerPull(sourceId, sessionId),
     triggerPullAll: (sourceId) => api.triggerPullAll(sourceId),
     onPullResult: (cb) => api.onPullResult(cb),
@@ -196,9 +196,10 @@ function createWebTransport(): ApiTransport {
         body: JSON.stringify({ sessions }),
       }),
 
-    removeImportSession: async (sourceId, sessionId) => {
+    removeImportSession: async (sourceId, sessionId, deleteData?) => {
+      const qs = deleteData ? '?deleteData=true' : ''
       const result = await fetchJson<{ success: boolean }>(
-        `/_web/automation/data-sources/${sourceId}/sessions/${sessionId}`,
+        `/_web/automation/data-sources/${sourceId}/sessions/${sessionId}${qs}`,
         { method: 'DELETE' }
       )
       return result.success
@@ -254,7 +255,8 @@ export const useApiServerStore = defineStore('apiServer', () => {
 
   const loading = ref(false)
   const dataSources = ref<DataSource[]>([])
-  const pullingId = ref<string | null>(null)
+  const pullingIds = ref(new Set<string>())
+  const syncProgress = ref<Map<string, { current: number; pages: number }>>(new Map())
   const available = computed(() => true)
 
   const isRunning = computed(() => status.value.running)
@@ -385,7 +387,12 @@ export const useApiServerStore = defineStore('apiServer', () => {
       const added = await transport.addImportSessions(sourceId, sessions)
       await fetchDataSources()
       if (added.length > 0) {
-        pollDataSourceUpdates(sourceId)
+        for (const s of added) pullingIds.value.add(s.id)
+        pullingIds.value = new Set(pullingIds.value)
+        pollDataSourceUpdates(
+          sourceId,
+          added.map((s) => s.id)
+        )
       }
       return added
     } catch (err) {
@@ -394,22 +401,45 @@ export const useApiServerStore = defineStore('apiServer', () => {
     }
   }
 
-  function pollDataSourceUpdates(sourceId: string, maxAttempts = 10, intervalMs = 3000) {
+  function pollDataSourceUpdates(sourceId: string, sessionIds: string[], maxAttempts = 24, intervalMs = 5000) {
     let attempt = 0
     const timer = setInterval(async () => {
       attempt++
-      await fetchDataSources()
+      await Promise.all([fetchDataSources(), fetchSyncProgress()])
       const ds = dataSources.value.find((s) => s.id === sourceId)
-      const allDone = ds?.sessions.every((s) => s.lastStatus !== 'idle')
-      if (allDone || attempt >= maxAttempts) {
+      const pending = sessionIds.filter((id) => {
+        const sess = ds?.sessions.find((s) => s.id === id)
+        return sess && sess.lastStatus === 'idle'
+      })
+      if (pending.length === 0 || attempt >= maxAttempts) {
+        for (const id of sessionIds) {
+          pullingIds.value.delete(id)
+          syncProgress.value.delete(id)
+        }
+        pullingIds.value = new Set(pullingIds.value)
+        syncProgress.value = new Map(syncProgress.value)
         clearInterval(timer)
       }
     }, intervalMs)
   }
 
-  async function removeImportSession(sourceId: string, sessionId: string) {
+  async function fetchSyncProgress() {
+    if (!isWebMode.value) return
     try {
-      const ok = await transport.removeImportSession(sourceId, sessionId)
+      const list = await fetch('/_web/automation/sync-progress').then((r) => r.json())
+      const map = new Map<string, { current: number; pages: number }>()
+      for (const item of list as Array<{ sessionId: string; current: number; pages: number; done: boolean }>) {
+        if (!item.done) map.set(item.sessionId, { current: item.current, pages: item.pages })
+      }
+      syncProgress.value = map
+    } catch {
+      /* ignore */
+    }
+  }
+
+  async function removeImportSession(sourceId: string, sessionId: string, deleteData?: boolean) {
+    try {
+      const ok = await transport.removeImportSession(sourceId, sessionId, deleteData)
       if (ok) await fetchDataSources()
       return ok
     } catch (err) {
@@ -421,7 +451,10 @@ export const useApiServerStore = defineStore('apiServer', () => {
   // ==================== 同步 ====================
 
   async function triggerPull(sourceId: string, sessionId?: string) {
-    pullingId.value = sessionId || sourceId
+    const trackId = sessionId || sourceId
+    pullingIds.value.add(trackId)
+    pullingIds.value = new Set(pullingIds.value)
+    const progressTimer = startProgressPolling()
     try {
       const result = await transport.triggerPull(sourceId, sessionId)
       await fetchDataSources()
@@ -430,12 +463,20 @@ export const useApiServerStore = defineStore('apiServer', () => {
       console.error('[ApiServerStore] Failed to trigger pull:', err)
       return { success: false, error: String(err) }
     } finally {
-      pullingId.value = null
+      clearInterval(progressTimer)
+      pullingIds.value.delete(trackId)
+      pullingIds.value = new Set(pullingIds.value)
+      syncProgress.value.delete(trackId)
+      syncProgress.value = new Map(syncProgress.value)
     }
   }
 
   async function triggerPullAll(sourceId: string) {
-    pullingId.value = sourceId
+    const ds = dataSources.value.find((s) => s.id === sourceId)
+    const ids = [sourceId, ...(ds?.sessions.map((s) => s.id) ?? [])]
+    for (const id of ids) pullingIds.value.add(id)
+    pullingIds.value = new Set(pullingIds.value)
+    const progressTimer = startProgressPolling()
     try {
       const result = await transport.triggerPullAll(sourceId)
       await fetchDataSources()
@@ -444,8 +485,18 @@ export const useApiServerStore = defineStore('apiServer', () => {
       console.error('[ApiServerStore] Failed to trigger pull all:', err)
       return { success: false, error: String(err) }
     } finally {
-      pullingId.value = null
+      clearInterval(progressTimer)
+      for (const id of ids) {
+        pullingIds.value.delete(id)
+        syncProgress.value.delete(id)
+      }
+      pullingIds.value = new Set(pullingIds.value)
+      syncProgress.value = new Map(syncProgress.value)
     }
+  }
+
+  function startProgressPolling(): ReturnType<typeof setInterval> {
+    return setInterval(fetchSyncProgress, 3000)
   }
 
   function listenPullResult() {
@@ -467,7 +518,8 @@ export const useApiServerStore = defineStore('apiServer', () => {
     status,
     loading,
     dataSources,
-    pullingId,
+    pullingIds,
+    syncProgress,
     available,
     isRunning,
     hasError,

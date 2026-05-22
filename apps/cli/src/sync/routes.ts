@@ -15,7 +15,7 @@ import {
 import type { SyncRouteContext } from './index'
 
 export function registerAutomationRoutes(server: FastifyInstance, ctx: SyncRouteContext): void {
-  const { dsManager, pullEngine, serverInfo } = ctx
+  const { dsManager, pullEngine, dbManager, serverInfo } = ctx
 
   // ==================== Config (read-only in CLI mode) ====================
 
@@ -85,10 +85,17 @@ export function registerAutomationRoutes(server: FastifyInstance, ctx: SyncRoute
 
   server.delete<{
     Params: { id: string; sessId: string }
+    Querystring: { deleteData?: string }
   }>('/_web/automation/data-sources/:id/sessions/:sessId', async (request, reply) => {
-    const ok = dsManager.removeSession(request.params.id, request.params.sessId)
-    if (!ok) return reply.code(404).send({ error: 'Session not found' })
+    const removed = dsManager.removeSession(request.params.id, request.params.sessId)
+    if (!removed) return reply.code(404).send({ error: 'Session not found' })
     reloadTimer(request.params.id)
+    if (request.query.deleteData === 'true' && removed.targetSessionId) {
+      dbManager.close(removed.targetSessionId)
+      const dbPath = dbManager.getDbPath(removed.targetSessionId)
+      const fs = await import('node:fs')
+      if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath)
+    }
     return { success: true }
   })
 
@@ -103,6 +110,12 @@ export function registerAutomationRoutes(server: FastifyInstance, ctx: SyncRoute
 
   server.post<{ Params: { id: string } }>('/_web/automation/data-sources/:id/pull-all', async (request) => {
     return pullEngine.triggerPullAll(request.params.id)
+  })
+
+  // ==================== Sync Progress ====================
+
+  server.get('/_web/automation/sync-progress', async () => {
+    return pullEngine.getProgress()
   })
 
   // ==================== Remote Session Discovery ====================

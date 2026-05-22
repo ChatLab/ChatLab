@@ -166,15 +166,15 @@ export class DataSourceManager {
     return added
   }
 
-  removeSession(sourceId: string, sessionId: string): boolean {
+  removeSession(sourceId: string, sessionId: string): ImportSession | null {
     const sources = this.loadAll()
     const ds = sources.find((s) => s.id === sourceId)
-    if (!ds) return false
-    const before = ds.sessions.length
+    if (!ds) return null
+    const removed = ds.sessions.find((s) => s.id === sessionId)
+    if (!removed) return null
     ds.sessions = ds.sessions.filter((s) => s.id !== sessionId)
-    if (ds.sessions.length === before) return false
     this.saveAll(sources)
-    return true
+    return removed
   }
 
   updateSession(sourceId: string, sessionId: string, updates: Partial<ImportSession>): ImportSession | null {

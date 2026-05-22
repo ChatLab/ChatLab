@@ -493,6 +493,8 @@
       "every": "",
       "minutes": "分ごと",
       "lastSync": "最終同期",
+      "syncing": "同期中",
+      "messages": "件",
       "addBtn": "データソースを追加",
       "form": {
         "modalTitle": "データソースを追加",
@@ -544,6 +546,12 @@
       "deleteConfirm": {
         "title": "データソースを削除",
         "message": "データソース「{name}」を削除してもよろしいですか？このデータソース下のすべてのインポート設定が削除されます。既にインポート済みのローカル会話は削除されません。"
+      },
+      "deleteSessionConfirm": {
+        "title": "サブスクリプションを削除",
+        "message": "「{name}」を削除してもよろしいですか？",
+        "keepData": "サブスクリプションのみ削除",
+        "deleteData": "インポートしたチャットも削除"
       }
     },
     "usage": {

@@ -494,6 +494,8 @@
       "every": "每",
       "minutes": "分钟",
       "lastSync": "上次同步",
+      "syncing": "同步中",
+      "messages": "条消息",
       "addBtn": "添加数据源",
       "form": {
         "modalTitle": "添加数据源",
@@ -544,6 +546,12 @@
       "deleteConfirm": {
         "title": "删除数据源",
         "message": "确认删除数据源「{name}」？该数据源下的所有导入配置将被移除。已导入的本地对话不会被删除。"
+      },
+      "deleteSessionConfirm": {
+        "title": "删除订阅",
+        "message": "确认删除订阅「{name}」？",
+        "keepData": "仅删除订阅",
+        "deleteData": "同时删除导入的聊天"
       }
     },
     "usage": {

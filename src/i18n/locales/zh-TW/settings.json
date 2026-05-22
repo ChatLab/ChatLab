@@ -493,6 +493,8 @@
       "every": "每",
       "minutes": "分鐘",
       "lastSync": "上次同步",
+      "syncing": "同步中",
+      "messages": "則訊息",
       "addBtn": "新增資料來源",
       "form": {
         "modalTitle": "新增資料來源",
@@ -544,6 +546,12 @@
       "deleteConfirm": {
         "title": "刪除資料來源",
         "message": "確認刪除資料來源「{name}」？該資料來源下的所有匯入配置將被移除。已匯入的本機對話不會被刪除。"
+      },
+      "deleteSessionConfirm": {
+        "title": "刪除訂閱",
+        "message": "確認刪除訂閱「{name}」？",
+        "keepData": "僅刪除訂閱",
+        "deleteData": "同時刪除匯入的聊天"
       }
     },
     "usage": {

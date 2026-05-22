@@ -126,8 +126,8 @@ export const apiServerApi = {
     return ipcRenderer.invoke('api:addImportSessions', sourceId, sessions)
   },
 
-  removeImportSession: (sourceId: string, sessionId: string): Promise<boolean> => {
-    return ipcRenderer.invoke('api:removeImportSession', sourceId, sessionId)
+  removeImportSession: (sourceId: string, sessionId: string, deleteData?: boolean): Promise<boolean> => {
+    return ipcRenderer.invoke('api:removeImportSession', sourceId, sessionId, deleteData)
   },
 
   // ==================== 同步 ====================
