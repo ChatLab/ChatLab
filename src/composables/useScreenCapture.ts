@@ -27,6 +27,8 @@ export interface ScreenCaptureOptions {
    * - 传入 false 或不传：不进行移动端适配
    */
   mobileWidth?: number | boolean
+  /** 是否应用 Markdown 列表渲染兼容修复（仅截取 Markdown 内容时需要，默认 false） */
+  markdownFix?: boolean
 }
 
 /**
@@ -324,8 +326,7 @@ export function useScreenCapture() {
     })
 
     // 修复 Markdown 列表元素在 @zumer/snapdom 中的渲染问题
-    // BUG: @zumer/snapdom 在处理 <ol>/<ul> 的 list-style 时会产生额外的黑色边框和位置偏移
-    // 解决方案：临时移除 list-style，手动添加数字/圆点作为文本前缀
+    // 仅在显式启用 markdownFix 时应用，避免影响自定义列表样式（如 Changelog 圆点）
     const listElements: {
       el: HTMLElement
       originalStyles: {
@@ -338,45 +339,47 @@ export function useScreenCapture() {
       }
       addedPrefixes: HTMLSpanElement[]
     }[] = []
-    const lists = element.querySelectorAll('ol, ul')
-    lists.forEach((list) => {
-      const htmlEl = list as HTMLElement
-      const isOrdered = htmlEl.tagName.toLowerCase() === 'ol'
-      const addedPrefixes: HTMLSpanElement[] = []
+    if (options?.markdownFix) {
+      const lists = element.querySelectorAll('ol, ul')
+      lists.forEach((list) => {
+        const htmlEl = list as HTMLElement
+        const isOrdered = htmlEl.tagName.toLowerCase() === 'ol'
+        const addedPrefixes: HTMLSpanElement[] = []
 
-      listElements.push({
-        el: htmlEl,
-        originalStyles: {
-          listStyleType: htmlEl.style.listStyleType,
-          paddingLeft: htmlEl.style.paddingLeft,
-          marginLeft: htmlEl.style.marginLeft,
-          border: htmlEl.style.border,
-          outline: htmlEl.style.outline,
-          boxShadow: htmlEl.style.boxShadow,
-        },
-        addedPrefixes,
+        listElements.push({
+          el: htmlEl,
+          originalStyles: {
+            listStyleType: htmlEl.style.listStyleType,
+            paddingLeft: htmlEl.style.paddingLeft,
+            marginLeft: htmlEl.style.marginLeft,
+            border: htmlEl.style.border,
+            outline: htmlEl.style.outline,
+            boxShadow: htmlEl.style.boxShadow,
+          },
+          addedPrefixes,
+        })
+
+        // 移除列表样式以避免 @zumer/snapdom 渲染问题
+        htmlEl.style.listStyleType = 'none'
+        htmlEl.style.paddingLeft = '0'
+        htmlEl.style.marginLeft = '0'
+        // 移除边框以修复 @zumer/snapdom 的黑色边框 bug
+        htmlEl.style.border = 'none'
+        htmlEl.style.outline = 'none'
+        htmlEl.style.boxShadow = 'none'
+
+        // 为每个 li 添加手动前缀
+        const lis = htmlEl.querySelectorAll(':scope > li')
+        lis.forEach((li, index) => {
+          const prefix = document.createElement('span')
+          prefix.className = '__screen-capture-list-prefix__'
+          prefix.style.cssText = 'display: inline-block; min-width: 1.5em; margin-right: 0.25em; text-align: right;'
+          prefix.textContent = isOrdered ? `${index + 1}.` : '•'
+          li.insertBefore(prefix, li.firstChild)
+          addedPrefixes.push(prefix)
+        })
       })
-
-      // 移除列表样式以避免 @zumer/snapdom 渲染问题
-      htmlEl.style.listStyleType = 'none'
-      htmlEl.style.paddingLeft = '0'
-      htmlEl.style.marginLeft = '0'
-      // 移除边框以修复 @zumer/snapdom 的黑色边框 bug
-      htmlEl.style.border = 'none'
-      htmlEl.style.outline = 'none'
-      htmlEl.style.boxShadow = 'none'
-
-      // 为每个 li 添加手动前缀
-      const lis = htmlEl.querySelectorAll(':scope > li')
-      lis.forEach((li, index) => {
-        const prefix = document.createElement('span')
-        prefix.className = '__screen-capture-list-prefix__'
-        prefix.style.cssText = 'display: inline-block; min-width: 1.5em; margin-right: 0.25em; text-align: right;'
-        prefix.textContent = isOrdered ? `${index + 1}.` : '•'
-        li.insertBefore(prefix, li.firstChild)
-        addedPrefixes.push(prefix)
-      })
-    })
+    }
 
     // 清理可能导致 URI malformed 错误的特殊字符（孤立的 Unicode 代理对）
     const textNodesBackup: { node: Text; originalText: string }[] = []

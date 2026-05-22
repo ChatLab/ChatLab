@@ -24,6 +24,8 @@ const props = withDefaults(
     targetElement?: HTMLElement | null
     /** 当 type='element' 时，从按钮向上查找目标元素的选择器 */
     targetSelector?: string
+    /** 是否应用 Markdown 列表渲染兼容修复（仅截取 Markdown 内容时传 true） */
+    markdownFix?: boolean
   }>(),
   {
     size: 'sm',
@@ -48,6 +50,7 @@ async function handleCapture(event: Event) {
   const defaultOptions = {
     hideSelectors: [`#${buttonId.value}`],
     mobileWidth: screenshotMobileAdapt.value ? true : undefined,
+    markdownFix: props.markdownFix || undefined,
   }
 
   if (props.type === 'page') {

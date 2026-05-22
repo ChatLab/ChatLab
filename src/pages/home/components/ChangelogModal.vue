@@ -8,6 +8,7 @@ import { sanitizeSummary } from '@/utils/sanitizeSummary'
 import { getChangeTypeConfig } from './changelogTypeConfig'
 import { IS_ELECTRON } from '@/utils/platform'
 import { usePlatformService } from '@/services'
+import CaptureButton from '@/components/common/CaptureButton.vue'
 
 const { t } = useI18n()
 const settingsStore = useSettingsStore()
@@ -23,6 +24,7 @@ const loadError = ref<string | null>(null)
 // 展开的版本
 // 使用 Map 来跟踪每个版本的展开状态，undefined 表示使用默认状态
 const expandedState = ref<Map<string, boolean>>(new Map())
+const hoveredVersion = ref<string | null>(null)
 
 // 当前软件版本（用于高亮显示和默认展开）
 const currentAppVersion = ref<string | null>(null)
@@ -306,7 +308,14 @@ defineExpose({ open, openWithData, close, fetchChangelogs, getLatestVersion })
 
           <!-- Changelog List -->
           <div v-else class="space-y-6">
-            <div v-for="(log, index) in changelogs" :key="log.version" class="relative">
+            <div
+              v-for="(log, index) in changelogs"
+              :key="log.version"
+              class="relative group"
+              data-changelog-entry
+              @mouseenter="hoveredVersion = log.version"
+              @mouseleave="hoveredVersion = null"
+            >
               <!-- Timeline line -->
               <div
                 v-if="index < changelogs.length - 1"
@@ -400,6 +409,14 @@ defineExpose({ open, openWithData, close, fetchChangelogs, getLatestVersion })
                   </div>
                 </div>
               </div>
+              <!-- 截屏按钮（展开 + hover 时显示） -->
+              <CaptureButton
+                v-if="isExpanded(log.version, index) && hoveredVersion === log.version"
+                class="absolute right-0 top-0 z-20"
+                size="xs"
+                type="element"
+                target-selector="[data-changelog-entry]"
+              />
             </div>
           </div>
         </div>

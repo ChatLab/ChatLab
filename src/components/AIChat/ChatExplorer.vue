@@ -394,6 +394,7 @@ watch(
                   size="xs"
                   type="element"
                   :target-element="conversationContentRef"
+                  markdown-fix
                 />
               </div>
 

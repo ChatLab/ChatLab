@@ -486,6 +486,7 @@ async function handleCopyMarkdown() {
           size="xs"
           type="element"
           target-selector=".qa-pair"
+          markdown-fix
         />
       </div>
     </div>
