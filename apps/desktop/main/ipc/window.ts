@@ -98,7 +98,8 @@ export function registerWindowHandlers(ctx: IpcContext): void {
 
   // ==================== 应用信息 ====================
   ipcMain.handle('app:getVersion', () => {
-    return app.getVersion()
+    const v = app.getVersion()
+    return v && v !== '0.0.0' ? v : typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : v
   })
 
   // 重启应用
