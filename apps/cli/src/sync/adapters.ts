@@ -29,7 +29,7 @@ export class NodeFetcher implements HttpFetcher {
   async fetchToTempFile(baseUrl: string, remoteSessionId: string, token: string, params: FetchParams): Promise<string> {
     const url = buildPullUrl(baseUrl, remoteSessionId, params)
     const headers: Record<string, string> = {
-      Accept: 'application/json, application/x-ndjson',
+      Accept: 'application/json',
     }
     if (token) headers['Authorization'] = `Bearer ${token}`
 

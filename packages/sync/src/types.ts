@@ -101,6 +101,14 @@ export interface PullSessionResult {
   error?: string
 }
 
+export interface PullProgress {
+  sessionId: string
+  sessionName: string
+  current: number
+  pages: number
+  done: boolean
+}
+
 /**
  * Downloads remote data to a temporary file.
  * Platform implementations: Electron uses `net.request`, Node.js uses `fetch`.

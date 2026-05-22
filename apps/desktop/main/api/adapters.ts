@@ -30,7 +30,7 @@ export class ElectronFetcher implements HttpFetcher {
       const request = net.request(url)
 
       if (token) request.setHeader('Authorization', `Bearer ${token}`)
-      request.setHeader('Accept', 'application/json, application/x-ndjson')
+      request.setHeader('Accept', 'application/json')
 
       let tempFile = ''
       let writeStream: fs.WriteStream | null = null

@@ -21,6 +21,7 @@ export type {
   SyncMeta,
   ImportResult,
   PullSessionResult,
+  PullProgress,
   HttpFetcher,
   DataImporter,
   SyncNotifier,

@@ -18,6 +18,7 @@ import type {
   FetchParams,
   SyncMeta,
   PullSessionResult,
+  PullProgress,
 } from './types'
 import type { DataSourceManager } from './data-source-manager'
 
@@ -31,7 +32,6 @@ export function buildPullUrl(baseUrl: string, remoteSessionId: string, params: F
   const qs: string[] = ['format=chatlab']
   if (params.since !== undefined && params.since > 0) qs.push(`since=${params.since}`)
   if (params.offset !== undefined && params.offset > 0) qs.push(`offset=${params.offset}`)
-  if (params.end !== undefined && params.end > 0) qs.push(`end=${params.end}`)
   if (params.limit !== undefined && params.limit > 0) qs.push(`limit=${params.limit}`)
   return base + '?' + qs.join('&')
 }
@@ -105,6 +105,7 @@ export class PullEngine {
   private logger: SyncLogger
   private isImporting: () => boolean
   private pullingSourceIds = new Set<string>()
+  private progressMap = new Map<string, PullProgress>()
 
   constructor(options: PullEngineOptions) {
     this.fetcher = options.fetcher
@@ -113,6 +114,10 @@ export class PullEngine {
     this.dsManager = options.dsManager
     this.logger = options.logger ?? NOOP_LOGGER
     this.isImporting = options.isImporting ?? (() => false)
+  }
+
+  getProgress(): PullProgress[] {
+    return Array.from(this.progressMap.values())
   }
 
   private async importTempFile(
@@ -140,6 +145,12 @@ export class PullEngine {
   }
 
   async executePullSession(sourceId: string, ds: DataSource, sess: ImportSession): Promise<PullSessionResult> {
+    const currentDs = this.dsManager.get(sourceId)
+    if (!currentDs || !currentDs.sessions.some((s) => s.id === sess.id)) {
+      this.logger.info(`[Pull] Skipping "${sess.name}": session no longer exists`)
+      return { success: true, newMessageCount: 0 }
+    }
+
     if (this.isImporting()) {
       this.logger.info(`[Pull] Skipping "${sess.name}": import in progress`)
       return { success: false, newMessageCount: 0, error: 'Import in progress' }
@@ -149,24 +160,70 @@ export class PullEngine {
 
     let totalNewMessages = 0
     let since = sess.lastPullAt
-    let offset = 0
-    let end: number | undefined
     let pageCount = 0
     let resyncAttempted = false
+
+    this.progressMap.set(sess.id, { sessionId: sess.id, sessionName: sess.name, current: 0, pages: 0, done: false })
 
     try {
       while (pageCount < MAX_PAGES_PER_PULL) {
         pageCount++
         const tempFile = await this.fetcher.fetchToTempFile(ds.baseUrl, sess.remoteSessionId, ds.token, {
           since,
-          offset,
-          end,
           limit: ds.pullLimit,
         })
 
         try {
           const stat = fs.statSync(tempFile)
           this.logger.info(`[Pull] "${sess.name}" page ${pageCount}: fetched ${stat.size} bytes`)
+
+          if (stat.size < 1024) {
+            const sync0 = parseSyncFromFile(tempFile)
+            if (!sync0?.hasMore) {
+              cleanupTempFile(tempFile)
+              const retryDelays = [2000, 3000, 5000]
+              let retrySuccess = false
+              for (let ri = 0; ri < retryDelays.length; ri++) {
+                this.logger.info(
+                  `[Pull] "${sess.name}" page ${pageCount} got empty response, retry ${ri + 1}/${retryDelays.length} after ${retryDelays[ri]}ms`
+                )
+                await new Promise((r) => setTimeout(r, retryDelays[ri]))
+                const retryFile = await this.fetcher.fetchToTempFile(ds.baseUrl, sess.remoteSessionId, ds.token, {
+                  since,
+                  limit: ds.pullLimit,
+                })
+                const retryStat = fs.statSync(retryFile)
+                this.logger.info(`[Pull] "${sess.name}" retry ${ri + 1}: fetched ${retryStat.size} bytes`)
+                if (retryStat.size < 1024) {
+                  cleanupTempFile(retryFile)
+                  continue
+                }
+                const retrySync = parseSyncFromFile(retryFile)
+                const retryResult = await this.importTempFile(ds.baseUrl, sess, retryFile)
+                cleanupTempFile(retryFile)
+                if (retryResult.success && retryResult.sessionId && !sess.targetSessionId) {
+                  sess.targetSessionId = retryResult.sessionId
+                  this.dsManager.updateSession(sourceId, sess.id, { targetSessionId: retryResult.sessionId })
+                }
+                totalNewMessages += retryResult.newMessageCount
+                this.progressMap.set(sess.id, {
+                  sessionId: sess.id,
+                  sessionName: sess.name,
+                  current: totalNewMessages,
+                  pages: pageCount,
+                  done: false,
+                })
+                if (retrySync?.hasMore && retrySync.nextSince !== undefined) {
+                  since = retrySync.nextSince
+                }
+                retrySuccess = true
+                break
+              }
+              if (!retrySuccess) break
+              continue
+            }
+          }
+
           if (stat.size === 0) {
             cleanupTempFile(tempFile)
             break
@@ -180,7 +237,6 @@ export class PullEngine {
             resyncAttempted = true
             this.logger.info(`[Pull] Resetting since=0 for "${sess.name}" full resync`)
             since = 0
-            offset = 0
             pageCount = 0
             sess.targetSessionId = ''
             sess.lastPullAt = 0
@@ -197,6 +253,7 @@ export class PullEngine {
               lastError: errMsg,
             })
             this.notifier.onPullResult(sourceId, sess.id, 'error', errMsg)
+            this.markProgressDone(sess.id)
             return { success: false, newMessageCount: 0, error: errMsg }
           }
 
@@ -208,6 +265,7 @@ export class PullEngine {
               lastError: errMsg,
             })
             this.notifier.onPullResult(sourceId, sess.id, 'error', errMsg)
+            this.markProgressDone(sess.id)
             return { success: false, newMessageCount: 0, error: errMsg }
           }
 
@@ -217,13 +275,17 @@ export class PullEngine {
           }
 
           totalNewMessages += result.newMessageCount
+          this.progressMap.set(sess.id, {
+            sessionId: sess.id,
+            sessionName: sess.name,
+            current: totalNewMessages,
+            pages: pageCount,
+            done: false,
+          })
 
           if (!sync || !sync.hasMore) break
 
           if (sync.nextSince !== undefined) since = sync.nextSince
-          if (sync.nextOffset !== undefined) offset = sync.nextOffset
-          else offset = 0
-          if (sync.watermark !== undefined && !end) end = sync.watermark
         } catch (importErr) {
           cleanupTempFile(tempFile)
           throw importErr
@@ -242,6 +304,7 @@ export class PullEngine {
       })
       if (totalNewMessages > 0) this.notifier.onSessionListChanged()
       this.notifier.onPullResult(sourceId, sess.id, 'success', `+${totalNewMessages} messages`)
+      this.markProgressDone(sess.id)
       return { success: true, newMessageCount: totalNewMessages }
     } catch (error: any) {
       const errMsg = error.message || 'Pull failed'
@@ -252,7 +315,16 @@ export class PullEngine {
         lastError: errMsg,
       })
       this.notifier.onPullResult(sourceId, sess.id, 'error', errMsg)
+      this.markProgressDone(sess.id)
       return { success: false, newMessageCount: 0, error: errMsg }
+    }
+  }
+
+  private markProgressDone(sessionId: string): void {
+    const p = this.progressMap.get(sessionId)
+    if (p) {
+      p.done = true
+      setTimeout(() => this.progressMap.delete(sessionId), 5000)
     }
   }
 
