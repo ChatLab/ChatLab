@@ -10,6 +10,8 @@ import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { IS_ELECTRON } from '@/utils/platform'
 import { useSessionStore } from './session'
+import { useSessionIndexService } from '@/services/session-index/service'
+import { getSessionGapThreshold } from '@/composables/useUiConfig'
 
 export interface ApiServerConfig {
   enabled: boolean
@@ -462,7 +464,8 @@ export const useApiServerStore = defineStore('apiServer', () => {
     try {
       const result = await transport.triggerPull(sourceId, sessionId)
       await fetchDataSources()
-      useSessionStore().loadSessions()
+      await useSessionStore().loadSessions()
+      generateIndexForSource(sourceId, sessionId)
       return result
     } catch (err) {
       console.error('[ApiServerStore] Failed to trigger pull:', err)
@@ -485,7 +488,8 @@ export const useApiServerStore = defineStore('apiServer', () => {
     try {
       const result = await transport.triggerPullAll(sourceId)
       await fetchDataSources()
-      useSessionStore().loadSessions()
+      await useSessionStore().loadSessions()
+      generateIndexForSource(sourceId)
       return result
     } catch (err) {
       console.error('[ApiServerStore] Failed to trigger pull all:', err)
@@ -506,10 +510,36 @@ export const useApiServerStore = defineStore('apiServer', () => {
   }
 
   function listenPullResult() {
-    return transport.onPullResult(() => {
-      fetchDataSources()
-      useSessionStore().loadSessions()
+    return transport.onPullResult(async () => {
+      await fetchDataSources()
+      await useSessionStore().loadSessions()
+      generateIndexForAllSources()
     })
+  }
+
+  function generateIndexForSource(sourceId: string, sessionId?: string) {
+    const ds = dataSources.value.find((s) => s.id === sourceId)
+    if (!ds) return
+    const targets = sessionId
+      ? ds.sessions.filter((s) => s.id === sessionId && s.targetSessionId)
+      : ds.sessions.filter((s) => s.targetSessionId)
+    const indexService = useSessionIndexService()
+    const threshold = getSessionGapThreshold()
+    for (const sess of targets) {
+      indexService.generate(sess.targetSessionId, threshold).catch(() => {})
+    }
+  }
+
+  function generateIndexForAllSources() {
+    const indexService = useSessionIndexService()
+    const threshold = getSessionGapThreshold()
+    for (const ds of dataSources.value) {
+      for (const sess of ds.sessions) {
+        if (sess.targetSessionId) {
+          indexService.generate(sess.targetSessionId, threshold).catch(() => {})
+        }
+      }
+    }
   }
 
   async function fetchRemoteSessions(
