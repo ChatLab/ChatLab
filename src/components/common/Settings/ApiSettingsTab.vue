@@ -270,11 +270,16 @@ function subscribedRemoteIds(ds: DataSource): Set<string> {
                       <UButton
                         size="xs"
                         variant="ghost"
-                        :loading="pullingIds.has(ds.id)"
-                        :disabled="pullingIds.has(ds.id)"
+                        :disabled="pullingIds.has(ds.id) || ds.sessions.some((s) => pullingIds.has(s.id))"
                         @click="syncAllInSource(ds)"
                       >
-                        <UIcon name="i-heroicons-arrow-path" class="h-3.5 w-3.5" />
+                        <UIcon
+                          name="i-heroicons-arrow-path"
+                          class="h-3.5 w-3.5"
+                          :class="{
+                            'animate-spin': pullingIds.has(ds.id) || ds.sessions.some((s) => pullingIds.has(s.id)),
+                          }"
+                        />
                       </UButton>
                       <UButton
                         size="xs"
@@ -315,11 +320,14 @@ function subscribedRemoteIds(ds: DataSource): Set<string> {
                           <UButton
                             size="xs"
                             variant="ghost"
-                            :loading="pullingIds.has(sess.id)"
                             :disabled="pullingIds.has(sess.id)"
                             @click="syncSession(ds, sess)"
                           >
-                            <UIcon name="i-heroicons-arrow-path" class="h-3.5 w-3.5" />
+                            <UIcon
+                              name="i-heroicons-arrow-path"
+                              class="h-3.5 w-3.5"
+                              :class="{ 'animate-spin': pullingIds.has(sess.id) }"
+                            />
                           </UButton>
                           <UButton
                             size="xs"
