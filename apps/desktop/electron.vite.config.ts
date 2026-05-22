@@ -1,9 +1,12 @@
 import { resolve } from 'path'
+import { readFileSync } from 'fs'
 import { defineConfig } from 'electron-vite'
 import vue from '@vitejs/plugin-vue'
 import ui from '@nuxt/ui/vite'
 
 const rootDir = resolve(__dirname, '../..')
+const rootPkg = JSON.parse(readFileSync(resolve(rootDir, 'package.json'), 'utf-8'))
+const appVersion: string = rootPkg.version
 
 export default defineConfig({
   main: {
@@ -13,6 +16,7 @@ export default defineConfig({
       },
     },
     define: {
+      __APP_VERSION__: JSON.stringify(appVersion),
       'process.env.APTABASE_APP_KEY': JSON.stringify(process.env.APTABASE_APP_KEY || ''),
       // ws 的原生加速依赖是可选项；主进程打包时禁用它们，避免 Vite 将缺失的可选依赖改写为启动即抛错。
       'process.env.WS_NO_BUFFER_UTIL': JSON.stringify('true'),
