@@ -14,6 +14,7 @@ import type { HttpFetcher, DataImporter, SyncNotifier, ImportResult, FetchParams
 import { NOOP_LOGGER } from '@openchatlab/sync'
 import { buildPullUrl } from '@openchatlab/sync'
 import type { DatabaseManager } from '@openchatlab/node-runtime'
+import { openBetterSqliteDatabase } from '@openchatlab/node-runtime'
 import { parseFile } from '../import/chatlab-reader'
 import { importData } from '../import/importer'
 
@@ -69,7 +70,32 @@ export class DirectImporter implements DataImporter {
 
   sessionExists(sessionId: string): boolean {
     const dbPath = this.dbManager.getDbPath(sessionId)
-    return fs.existsSync(dbPath)
+    if (!fs.existsSync(dbPath)) return false
+    try {
+      const db = openBetterSqliteDatabase(dbPath, { readonly: true, nativeBinding: this.nativeBinding })
+      const row = db
+        .prepare("SELECT COUNT(*) as cnt FROM sqlite_master WHERE type='table' AND name='message'")
+        .get() as { cnt: number }
+      db.close()
+      if (row.cnt === 0) {
+        this.logger.warn(`[DirectImporter] DB file exists but has no message table: ${sessionId}, removing`)
+        try {
+          fs.unlinkSync(dbPath)
+        } catch {
+          /* ignore */
+        }
+        return false
+      }
+      return true
+    } catch {
+      this.logger.warn(`[DirectImporter] Cannot validate DB file: ${sessionId}, removing`)
+      try {
+        fs.unlinkSync(dbPath)
+      } catch {
+        /* ignore */
+      }
+      return false
+    }
   }
 
   async importFile(tempFile: string, targetSessionId: string | undefined, externalId: string): Promise<ImportResult> {
@@ -106,7 +132,11 @@ export class DirectImporter implements DataImporter {
         }
       }
 
-      if (result.error?.includes('not found') || result.error?.includes('session_not_found')) {
+      if (
+        result.error?.includes('not found') ||
+        result.error?.includes('session_not_found') ||
+        result.error?.includes('no such table')
+      ) {
         return { success: false, newMessageCount: 0, sessionId, needFullResync: true }
       }
 

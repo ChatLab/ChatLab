@@ -9,6 +9,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import * as crypto from 'crypto'
+import Database from 'better-sqlite3'
 import { net, BrowserWindow } from 'electron'
 import { getTempDir } from '../paths'
 import * as worker from '../worker/workerManager'
@@ -84,7 +85,32 @@ export class WorkerImporter implements DataImporter {
 
   sessionExists(sessionId: string): boolean {
     const dbPath = path.join(worker.getDbDirectory(), `${sessionId}.db`)
-    return fs.existsSync(dbPath)
+    if (!fs.existsSync(dbPath)) return false
+    try {
+      const db = new Database(dbPath, { readonly: true })
+      const row = db
+        .prepare("SELECT COUNT(*) as cnt FROM sqlite_master WHERE type='table' AND name='message'")
+        .get() as { cnt: number }
+      db.close()
+      if (row.cnt === 0) {
+        this.logger.warn(`[Pull] DB file exists but has no message table: ${sessionId}, removing`)
+        try {
+          fs.unlinkSync(dbPath)
+        } catch {
+          /* ignore */
+        }
+        return false
+      }
+      return true
+    } catch {
+      this.logger.warn(`[Pull] Cannot validate DB file: ${sessionId}, removing`)
+      try {
+        fs.unlinkSync(dbPath)
+      } catch {
+        /* ignore */
+      }
+      return false
+    }
   }
 
   async importFile(tempFile: string, targetSessionId: string | undefined, externalId: string): Promise<ImportResult> {
@@ -106,8 +132,8 @@ export class WorkerImporter implements DataImporter {
       }
       return { success: true, newMessageCount: result.newMessageCount, sessionId }
     }
-    if (result.error === 'error.session_not_found') {
-      this.logger.warn(`[Pull] Session ${sessionId} not found locally, need full resync`)
+    if (result.error === 'error.session_not_found' || result.error?.includes('no such table')) {
+      this.logger.warn(`[Pull] Session ${sessionId} not found or schema invalid, need full resync`)
       return { success: false, newMessageCount: 0, sessionId, needFullResync: true }
     }
     this.logger.error(`[Pull] Incremental import failed: ${result.error}`)
