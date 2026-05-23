@@ -77,6 +77,31 @@ export function parseSyncFromFile(filePath: string): SyncMeta | null {
   }
 }
 
+function fileContainsMessages(filePath: string): boolean {
+  try {
+    if (filePath.endsWith('.jsonl')) {
+      const content = fs.readFileSync(filePath, 'utf-8')
+      for (const line of content.split('\n')) {
+        const trimmed = line.trim()
+        if (!trimmed) continue
+        try {
+          const obj = JSON.parse(trimmed)
+          if (obj._type === 'message') return true
+        } catch {
+          continue
+        }
+      }
+      return false
+    }
+
+    const raw = fs.readFileSync(filePath, 'utf-8')
+    const parsed = JSON.parse(raw)
+    return Array.isArray(parsed.messages) && parsed.messages.length > 0
+  } catch {
+    return false
+  }
+}
+
 function cleanupTempFile(filePath: string): void {
   try {
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
@@ -177,12 +202,13 @@ export class PullEngine {
           const stat = fs.statSync(tempFile)
           this.logger.info(`[Pull] "${sess.name}" page ${pageCount}: fetched ${stat.size} bytes`)
 
+          const sync0 = parseSyncFromFile(tempFile)
           if (stat.size < 1024) {
-            const sync0 = parseSyncFromFile(tempFile)
-            if (!sync0?.hasMore) {
+            if (!fileContainsMessages(tempFile) && sync0?.hasMore === false) {
               cleanupTempFile(tempFile)
               const retryDelays = [2000, 3000, 5000]
               let retrySuccess = false
+              let retryHasMore = false
               for (let ri = 0; ri < retryDelays.length; ri++) {
                 this.logger.info(
                   `[Pull] "${sess.name}" page ${pageCount} got empty response, retry ${ri + 1}/${retryDelays.length} after ${retryDelays[ri]}ms`
@@ -194,13 +220,52 @@ export class PullEngine {
                 })
                 const retryStat = fs.statSync(retryFile)
                 this.logger.info(`[Pull] "${sess.name}" retry ${ri + 1}: fetched ${retryStat.size} bytes`)
-                if (retryStat.size < 1024) {
+                const retrySync = parseSyncFromFile(retryFile)
+                if (retryStat.size < 1024 && !fileContainsMessages(retryFile) && retrySync?.hasMore === false) {
                   cleanupTempFile(retryFile)
                   continue
                 }
-                const retrySync = parseSyncFromFile(retryFile)
                 const retryResult = await this.importTempFile(ds.baseUrl, sess, retryFile)
                 cleanupTempFile(retryFile)
+
+                if (retryResult.needFullResync && !resyncAttempted) {
+                  resyncAttempted = true
+                  this.logger.info(`[Pull] Resetting since=0 for "${sess.name}" full resync`)
+                  since = 0
+                  pageCount = 0
+                  sess.targetSessionId = ''
+                  sess.lastPullAt = 0
+                  this.dsManager.updateSession(sourceId, sess.id, { targetSessionId: '', lastPullAt: 0 })
+                  retrySuccess = true
+                  retryHasMore = true
+                  break
+                }
+
+                if (retryResult.needFullResync) {
+                  const errMsg = 'Full resync failed'
+                  this.logger.error(`[Pull] Full resync already attempted for "${sess.name}", aborting`)
+                  this.dsManager.updateSession(sourceId, sess.id, {
+                    lastPullAt: Math.floor(Date.now() / 1000),
+                    lastStatus: 'error',
+                    lastError: errMsg,
+                  })
+                  this.notifier.onPullResult(sourceId, sess.id, 'error', errMsg)
+                  this.markProgressDone(sess.id)
+                  return { success: false, newMessageCount: 0, error: errMsg }
+                }
+
+                if (!retryResult.success) {
+                  const errMsg = retryResult.error || 'Import failed'
+                  this.dsManager.updateSession(sourceId, sess.id, {
+                    lastPullAt: Math.floor(Date.now() / 1000),
+                    lastStatus: 'error',
+                    lastError: errMsg,
+                  })
+                  this.notifier.onPullResult(sourceId, sess.id, 'error', errMsg)
+                  this.markProgressDone(sess.id)
+                  return { success: false, newMessageCount: 0, error: errMsg }
+                }
+
                 if (retryResult.success && retryResult.sessionId && !sess.targetSessionId) {
                   sess.targetSessionId = retryResult.sessionId
                   this.dsManager.updateSession(sourceId, sess.id, { targetSessionId: retryResult.sessionId })
@@ -216,10 +281,12 @@ export class PullEngine {
                 if (retrySync?.hasMore && retrySync.nextSince !== undefined) {
                   since = retrySync.nextSince
                 }
+                retryHasMore = !!retrySync?.hasMore
                 retrySuccess = true
                 break
               }
               if (!retrySuccess) break
+              if (!retryHasMore) break
               continue
             }
           }
@@ -229,7 +296,7 @@ export class PullEngine {
             break
           }
 
-          const sync = parseSyncFromFile(tempFile)
+          const sync = sync0
           const result = await this.importTempFile(ds.baseUrl, sess, tempFile)
           cleanupTempFile(tempFile)
 
