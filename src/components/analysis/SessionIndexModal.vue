@@ -97,12 +97,12 @@ async function generateSessionIndex() {
     hasIndex.value = true
     sessionCount.value = count
     emit('generated', count)
+    forceMode.value = false
+    isOpen.value = false
   } catch (error) {
     console.error('生成会话索引失败:', error)
   } finally {
     isGenerating.value = false
-    forceMode.value = false
-    isOpen.value = false
   }
 }
 
