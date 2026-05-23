@@ -8,6 +8,7 @@ This directory contains the source for the public documentation site.
 - Traditional Chinese docs source: `docs/tw/`
 - VitePress config: `docs/.vitepress/`
 - Static assets used by documentation pages: `docs/public/`
+- Package manifest: `docs/package.json`
 
 ## Content Boundaries
 
@@ -19,6 +20,7 @@ This directory contains the source for the public documentation site.
 ## Maintenance Notes
 
 - The VitePress public entry pages are `en/index.md`, `cn/index.md`, and `tw/index.md`.
+- Documentation site dependencies live in `docs/package.json`; root `pnpm docs:*` scripts delegate to this workspace package.
 - `README.md` and `README.zh-CN.md` are source-maintenance entry points and are excluded from the VitePress build.
 - When adding or moving public docs, update the sidebar in `docs/.vitepress/config.mts`.
 - When adding images or attachments referenced by docs pages, place only the required assets under `docs/public/`.
