@@ -6,7 +6,7 @@ outline: deep
 
 ChatLab focuses on analyzing exported data - we don't provide data extraction features. You'll need to first use official features or third-party tools from the open-source community to export your chat records, then import them into ChatLab for analysis.
 
-Tips: Welcome to join the [ChatLab Community](../other/community.md) to discuss issues and share feedback.
+Tips: Welcome to join the [ChatLab Community](https://chatlab.fun/other/community) to discuss issues and share feedback.
 
 ## WhatsApp
 

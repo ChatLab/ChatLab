@@ -56,10 +56,6 @@ const cnSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'Pull 远程数据源协议', link: '/cn/standard/chatlab-pull' },
     ],
   },
-  {
-    text: '关于',
-    items: [{ text: '设计理念', link: '/cn/about/design-philosophy' }],
-  },
 ]
 
 const twSidebar: DefaultTheme.SidebarItem[] = [
@@ -88,10 +84,6 @@ const twSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'ChatLab API', link: '/tw/standard/chatlab-api' },
     ],
   },
-  {
-    text: '關於',
-    items: [{ text: '設計理念', link: '/tw/about/design-philosophy' }],
-  },
 ]
 
 export default defineConfig({
@@ -108,6 +100,7 @@ export default defineConfig({
   },
   themeConfig: {
     logo: '/assets/logo.svg',
+    logoLink: 'https://chatlab.fun',
     socialLinks: [{ icon: 'github', link: 'https://github.com/ChatLab/ChatLab' }],
   },
   locales: {
@@ -123,7 +116,7 @@ export default defineConfig({
             target: '_self',
             noIcon: true,
           },
-          { text: 'Docs', link: '/', activeMatch: '^/' },
+          { text: 'Docs', link: '/intro', activeMatch: '^/' },
           {
             text: 'Roadmap',
             link: 'https://chatlab.fun/roadmap/tasks',
@@ -161,7 +154,7 @@ export default defineConfig({
             target: '_self',
             noIcon: true,
           },
-          { text: '文档', link: '/cn/', activeMatch: '^/cn/' },
+          { text: '文档', link: '/cn/intro', activeMatch: '^/cn/' },
           {
             text: '路线图',
             link: 'https://chatlab.fun/cn/roadmap/tasks',
@@ -179,7 +172,6 @@ export default defineConfig({
           '/cn/': cnSidebar,
           '/cn/usage/': cnSidebar,
           '/cn/standard/': cnSidebar,
-          '/cn/about/': cnSidebar,
         },
         outline: {
           label: '目录',
@@ -203,7 +195,7 @@ export default defineConfig({
             target: '_self',
             noIcon: true,
           },
-          { text: '文件', link: '/tw/', activeMatch: '^/tw/' },
+          { text: '文件', link: '/tw/intro', activeMatch: '^/tw/' },
           {
             text: '路線圖',
             link: 'https://chatlab.fun/tw/roadmap/tasks',
@@ -221,7 +213,6 @@ export default defineConfig({
           '/tw/': twSidebar,
           '/tw/usage/': twSidebar,
           '/tw/standard/': twSidebar,
-          '/tw/about/': twSidebar,
         },
         outline: {
           label: '目錄',

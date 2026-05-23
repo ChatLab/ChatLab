@@ -29,4 +29,4 @@ If your exported format isn't supported yet, see the [AI Conversion Guide](./sta
 
 If you're a developer who supports exporting from other chat apps, you're welcome to align with the [Chat Data Exchange Standard](./standard/chatlab-format.md).
 
-For any other questions, join the community: [Community](./other/community.md)
+For any other questions, join the community: [Community](https://chatlab.fun/other/community)

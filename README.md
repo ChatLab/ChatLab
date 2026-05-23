@@ -6,7 +6,7 @@
 
 Your chat history, finally yours.
 
-English | [简体中文](./docs/README.zh-CN.md)
+English | [简体中文](./README.zh-CN.md)
 
 [Official Website](https://chatlab.fun/) · [Documentation](https://chatlab.fun/usage/) · [Roadmap](https://chatlab.fun/cn/roadmap/tasks)
 

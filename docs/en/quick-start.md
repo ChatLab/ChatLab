@@ -26,4 +26,4 @@ This page tells you what the docs can help with and gives the shortest reading p
 
 - [Standard Format Specification](./standard/chatlab-format.md)
 - [AI Conversion Guide](./standard/ai-converter.md)
-- [Community](./other/community.md)
+- [Community](https://chatlab.fun/other/community)
