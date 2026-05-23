@@ -1,16 +1,16 @@
 ---
 name: generate-changelog
-description: 根据当前项目 package.json 版本与 Git 提交记录生成中文版本日志。用于用户提出"生成版本日志""生成 changelog""发布新版本并生成更新记录"等请求时，自动读取当前版本号、定位上一版本、汇总版本区间 commit，并更新 docs/public/changelogs/cn.json（新增版本、生成中文 summary、按类型归类变更）。
+description: 根据当前项目 package.json 版本与 Git 提交记录生成中文版本日志。用于用户提出"生成版本日志""生成 changelog""发布新版本并生成更新记录"等请求时，自动读取当前版本号、定位上一版本、汇总版本区间 commit，并更新 changelogs/cn.json（新增版本、生成中文 summary、按类型归类变更）。
 ---
 
 # generate-changelog
 
-按以下流程更新 `docs/public/changelogs/cn.json`。
+按以下流程更新 `changelogs/cn.json`。
 
 ## 1. 读取版本与日志现状
 
 1. 读取 `package.json` 中的 `version` 作为 `currentVersion`。
-2. 读取 `docs/public/changelogs/cn.json`，确认是否已存在 `currentVersion`。
+2. 读取 `changelogs/cn.json`，确认是否已存在 `currentVersion`。
 3. 若已存在：停止新增流程，改为"就地更新该版本内容"。
 4. 计算 `previousVersion`：
    - 若 `currentVersion` 已存在于 changelog：取它的下一条记录版本号。
@@ -84,7 +84,7 @@ git show -s --format='%B' <commit>
 
 ## 5. 更新 JSON 文件
 
-目标文件：`docs/public/changelogs/cn.json`
+目标文件：`changelogs/cn.json`
 
 更新规则：
 
@@ -99,7 +99,7 @@ git show -s --format='%B' <commit>
 5. 写入后必须执行格式化，优先使用项目 Prettier，确保与"手动保存"风格一致：
 
 ```bash
-npx prettier --write docs/public/changelogs/cn.json
+npx prettier --write changelogs/cn.json
 ```
 
 6. 若环境没有 Prettier，回退为 `JSON.stringify(..., null, 2)` 的最小格式保证，并在输出中明确提示"未执行 Prettier 格式化"。
@@ -117,7 +117,7 @@ npx prettier --write docs/public/changelogs/cn.json
 
 补充检查：
 
-5. 确认 `docs/public/changelogs/cn.json` 已经过 Prettier（若可用）。
+5. 确认 `changelogs/cn.json` 已经过 Prettier（若可用）。
 
 ## 7. 任务完成后询问
 

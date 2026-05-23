@@ -1,10 +1,11 @@
-name: Sync docs to chatlab.fun
+name: Sync changelogs to chatlab.fun
 
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
-      - 'docs/**'
+      - 'changelogs/**'
 
 jobs:
   sync:
@@ -13,7 +14,7 @@ jobs:
       - name: Checkout ChatLab
         uses: actions/checkout@v4
         with:
-          sparse-checkout: docs
+          sparse-checkout: changelogs
 
       - name: Checkout chatlab.fun
         uses: actions/checkout@v4
@@ -22,18 +23,10 @@ jobs:
           token: ${{ secrets.CHATLAB_FUN_TOKEN }}
           path: chatlab-fun
 
-      - name: Sync docs
+      - name: Sync changelogs
         run: |
           rsync -av --delete \
-            --exclude='.vitepress' \
-            --exclude='public' \
-            --exclude='README*' \
-            docs/ chatlab-fun/docs/
-
-      - name: Sync public assets
-        run: |
-          rsync -av \
-            docs/public/ chatlab-fun/public/
+            changelogs/ chatlab-fun/public/changelogs/
 
       - name: Commit and push
         id: push
@@ -41,12 +34,12 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add docs/ public/
+          git add public/changelogs/
           if git diff --cached --quiet; then
             echo "No changes to commit"
             echo "pushed=false" >> $GITHUB_OUTPUT
           else
-            git commit -m "sync: update docs from ChatLab@${GITHUB_SHA::7}"
+            git commit -m "sync: update changelogs from ChatLab@${GITHUB_SHA::7}"
             git push
             echo "pushed=true" >> $GITHUB_OUTPUT
           fi

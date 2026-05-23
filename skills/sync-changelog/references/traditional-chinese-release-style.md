@@ -1,6 +1,6 @@
 # traditional-chinese-release-style
 
-用于将 `docs/changelogs_cn.json` 当前版本条目改写为繁体中文版本。
+用于将 `changelogs/cn.json` 当前版本条目改写为繁体中文版本。
 
 ## 目标
 

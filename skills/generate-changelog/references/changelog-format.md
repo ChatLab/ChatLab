@@ -1,6 +1,6 @@
 # changelog-format
 
-本项目中文更新日志文件：`docs/changelogs_cn.json`
+本项目中文更新日志文件：`changelogs/cn.json`
 
 ## 顶层结构
 

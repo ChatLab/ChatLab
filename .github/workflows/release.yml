@@ -338,8 +338,8 @@ jobs:
           echo "Current version: $CURRENT_VERSION"
 
           # 按当前版本号从 changelog JSON 中提取 summary，避免补发旧版本时误用第一条日志。
-          EN_SUMMARY=$(jq -r --arg version "$VERSION_NUMBER" 'map(select(.version == $version))[0].summary // "See changelog for details"' docs/public/changelogs/en.json 2>/dev/null || echo "See changelog for details")
-          CN_SUMMARY=$(jq -r --arg version "$VERSION_NUMBER" 'map(select(.version == $version))[0].summary // "详见更新日志"' docs/public/changelogs/cn.json 2>/dev/null || echo "详见更新日志")
+          EN_SUMMARY=$(jq -r --arg version "$VERSION_NUMBER" 'map(select(.version == $version))[0].summary // "See changelog for details"' changelogs/en.json 2>/dev/null || echo "See changelog for details")
+          CN_SUMMARY=$(jq -r --arg version "$VERSION_NUMBER" 'map(select(.version == $version))[0].summary // "详见更新日志"' changelogs/cn.json 2>/dev/null || echo "详见更新日志")
 
           echo "EN summary: $EN_SUMMARY"
           echo "CN summary: $CN_SUMMARY"
@@ -356,7 +356,7 @@ jobs:
             echo ""
             echo "---"
             echo ""
-            echo "Full Changelog: [English](https://github.com/ChatLab/ChatLab/blob/main/docs/public/changelogs/en.json) | [中文](https://github.com/ChatLab/ChatLab/blob/main/docs/public/changelogs/cn.json) | [日本語](https://github.com/ChatLab/ChatLab/blob/main/docs/public/changelogs/ja.json)"
+            echo "Full Changelog: [English](https://github.com/ChatLab/ChatLab/blob/main/changelogs/en.json) | [中文](https://github.com/ChatLab/ChatLab/blob/main/changelogs/cn.json) | [日本語](https://github.com/ChatLab/ChatLab/blob/main/changelogs/ja.json)"
             echo ""
             echo "---"
             echo ""

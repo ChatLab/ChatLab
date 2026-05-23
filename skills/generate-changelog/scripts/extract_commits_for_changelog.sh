@@ -23,13 +23,13 @@ CHANGELOG_META="$(
     const exists=idx!==-1;
     const prev=exists ? (arr[idx+1]?.version||'') : (arr?.[0]?.version||'');
     process.stdout.write(JSON.stringify({exists, prev}));
-  " "$ROOT_DIR/docs/changelogs_cn.json" "$CURRENT_VERSION"
+  " "$ROOT_DIR/changelogs/cn.json" "$CURRENT_VERSION"
 )"
 
 PREVIOUS_VERSION="$(node -e "const m=JSON.parse(process.argv[1]);process.stdout.write(m.prev||'');" "$CHANGELOG_META")"
 CURRENT_EXISTS="$(node -e "const m=JSON.parse(process.argv[1]);process.stdout.write(String(Boolean(m.exists)));" "$CHANGELOG_META")"
 if [[ -z "$PREVIOUS_VERSION" ]]; then
-  echo "错误: 无法从 docs/changelogs_cn.json 读取上一版本" >&2
+  echo "错误: 无法从 changelogs/cn.json 读取上一版本" >&2
   exit 1
 fi
 

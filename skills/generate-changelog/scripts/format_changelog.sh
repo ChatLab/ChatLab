@@ -3,7 +3,7 @@ set -euo pipefail
 
 # 读取项目根目录（默认当前目录，可通过参数覆盖）
 ROOT_DIR="${1:-$(pwd)}"
-TARGET_FILE="$ROOT_DIR/docs/changelogs_cn.json"
+TARGET_FILE="$ROOT_DIR/changelogs/cn.json"
 
 if [[ ! -f "$TARGET_FILE" ]]; then
   echo "错误: 未找到 $TARGET_FILE" >&2
