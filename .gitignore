@@ -18,6 +18,8 @@ error-log-*.txt
 # Project
 dist/
 dist-web/
+docs/.vitepress/cache/
+docs/.vitepress/dist/
 apps/cli/native/
 .history/
 out

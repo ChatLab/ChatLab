@@ -1,0 +1,56 @@
+:root {
+  --vp-c-brand-1: #ee4567;
+  --vp-c-brand-2: #e03d5f;
+  --vp-c-brand-3: #d53758;
+  --vp-c-brand-soft: rgba(238, 69, 103, 0.14);
+
+  --vp-c-tip-1: var(--vp-c-brand-1);
+  --vp-c-tip-2: var(--vp-c-brand-2);
+  --vp-c-tip-3: var(--vp-c-brand-3);
+  --vp-c-tip-soft: var(--vp-c-brand-soft);
+
+  --vp-button-brand-border: transparent;
+  --vp-button-brand-text: var(--vp-c-white);
+  --vp-button-brand-bg: var(--vp-c-brand-3);
+  --vp-button-brand-hover-border: transparent;
+  --vp-button-brand-hover-text: var(--vp-c-white);
+  --vp-button-brand-hover-bg: var(--vp-c-brand-2);
+  --vp-button-brand-active-border: transparent;
+  --vp-button-brand-active-text: var(--vp-c-white);
+  --vp-button-brand-active-bg: var(--vp-c-brand-1);
+
+  --vp-custom-block-tip-border: transparent;
+  --vp-custom-block-tip-text: var(--vp-c-text-1);
+  --vp-custom-block-tip-bg: var(--vp-c-brand-soft);
+  --vp-custom-block-tip-code-bg: var(--vp-c-brand-soft);
+}
+
+.dark {
+  --vp-c-bg: #101010;
+  --vp-c-bg-soft: #303030;
+}
+
+.VPNavBarMenuLink.vp-external-link-icon::after,
+.VPNavScreenMenuLink.vp-external-link-icon::after {
+  display: none;
+}
+
+.VPDoc a {
+  color: var(--vp-c-brand-1);
+}
+
+.VPDoc a:hover {
+  color: var(--vp-c-brand-2);
+}
+
+.VPNav .divider {
+  display: none !important;
+}
+
+.VPNavBarTitle .title {
+  border-bottom-color: transparent !important;
+  color: #ee4567 !important;
+  font-size: 20px !important;
+  font-weight: 900 !important;
+  letter-spacing: -0.025em !important;
+}
