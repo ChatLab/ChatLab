@@ -1,14 +1,20 @@
 <script setup lang="ts">
 import { ref, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { CHATLAB_SITE_BASE, getChatlabSiteLocalePath } from '@/utils/chatlabSiteLocale'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '@/stores/settings'
 import { sanitizeSummary } from '@/utils/sanitizeSummary'
 import { getChangeTypeConfig } from './changelogTypeConfig'
-import { IS_ELECTRON } from '@/utils/platform'
 import { usePlatformService } from '@/services'
 import CaptureButton from '@/components/common/CaptureButton.vue'
+import {
+  getBundledChangelogs,
+  getBundledLatestVersion,
+  hasBundledChangelogVersion,
+  isBundledLatestVersion,
+  normalizeChangelogVersion,
+  type ChangelogItem,
+} from './changelogData'
 
 const { t } = useI18n()
 const settingsStore = useSettingsStore()
@@ -47,11 +53,6 @@ function toggleVersion(version: string, index: number) {
   expandedState.value.set(version, !currentState)
 }
 
-// 版本号统一格式，避免 v 前缀造成匹配失败
-function normalizeVersion(version?: string | null) {
-  return version ? version.trim().replace(/^v/i, '') : null
-}
-
 // 判断版本是否展开
 function isExpanded(version: string, index: number) {
   // 如果有明确设置的状态，使用该状态
@@ -68,52 +69,22 @@ function isExpanded(version: string, index: number) {
 
 // 判断是否是当前软件版本
 function isCurrentVersion(version: string) {
-  const current = normalizeVersion(currentAppVersion.value)
-  return current ? normalizeVersion(version) === current : false
-}
-
-// Changelog 数据结构
-interface ChangelogItem {
-  version: string
-  date: string
-  summary: string
-  changes: {
-    type: 'feat' | 'fix' | 'refactor' | 'docs' | 'chore' | 'style'
-    items: string[]
-  }[]
+  const current = normalizeChangelogVersion(currentAppVersion.value)
+  return current ? normalizeChangelogVersion(version) === current : false
 }
 
 // Changelog 数据
 const changelogs = ref<ChangelogItem[]>([])
 
-function getChangelogUrl(lang: string) {
-  const localePath = getChatlabSiteLocalePath(lang)
-  const langPath = localePath || 'en'
-  return `${CHATLAB_SITE_BASE}/changelogs/${langPath}.json`
-}
-
-// 从服务端获取 changelog 数据
+// 从打包产物中读取 changelog 数据
 async function fetchChangelogs() {
   isLoading.value = true
   loadError.value = null
 
   try {
-    const url = getChangelogUrl(locale.value)
-    let data: unknown
-    if (IS_ELECTRON) {
-      const result = await usePlatformService().fetchRemoteConfig(url)
-      if (!result.success || !result.data) {
-        throw new Error(result.error || 'Failed to fetch')
-      }
-      data = result.data
-    } else {
-      const res = await fetch(url)
-      if (!res.ok) throw new Error(`HTTP ${res.status}`)
-      data = await res.json()
-    }
-    changelogs.value = data as ChangelogItem[]
+    changelogs.value = getBundledChangelogs(locale.value)
   } catch (error) {
-    console.error('Failed to fetch changelogs:', error)
+    console.error('Failed to load bundled changelogs:', error)
     loadError.value = t('home.changelog.loadError')
   } finally {
     isLoading.value = false
@@ -161,7 +132,6 @@ function markVersionAsRead(version: string) {
 
 // 检查是否需要显示新版本日志（冷启动时自动检查）
 async function checkNewVersion() {
-  if (!IS_ELECTRON) return
   try {
     if (!localStorage.getItem(AGREEMENT_KEY)) {
       return
@@ -169,12 +139,12 @@ async function checkNewVersion() {
 
     // 1. 获取当前软件版本号
     const rawVersion = await usePlatformService().getVersion()
-    const currentVersion = normalizeVersion(rawVersion)
+    const currentVersion = normalizeChangelogVersion(rawVersion)
     if (!currentVersion) return
 
     // 2. 获取 localStorage 中存储的已读版本号
     const rawReadVersion = localStorage.getItem(CHANGELOG_READ_KEY)
-    const readVersion = normalizeVersion(rawReadVersion)
+    const readVersion = normalizeChangelogVersion(rawReadVersion)
 
     // 2.1 如果是全新用户（从未设置过该 key），静默标记当前版本为已读，不弹窗
     if (rawReadVersion === null) {
@@ -187,22 +157,19 @@ async function checkNewVersion() {
       return
     }
 
-    // 4. readVersion 为空或不等于 currentVersion，需要请求远程 changelog 数据
-    const result = await usePlatformService().fetchRemoteConfig(getChangelogUrl(locale.value))
-    if (!result.success || !result.data) return
-
-    const data = result.data as ChangelogItem[]
-    const latestChangelogVersion = normalizeVersion(data[0]?.version)
+    // 4. readVersion 为空或不等于 currentVersion，需要读取本地打包的 changelog 数据
+    const data = getBundledChangelogs(locale.value)
+    const latestChangelogVersion = normalizeChangelogVersion(getBundledLatestVersion(locale.value))
     if (!latestChangelogVersion) return
 
     // 仅当“当前版本就是最新版本”时才弹窗
     // 避免当前版本较旧时（存在更高版本日志）也弹出阅读
-    if (currentVersion !== latestChangelogVersion) {
+    if (!isBundledLatestVersion(locale.value, currentVersion)) {
       return
     }
 
     // 5. 在 changelog 中查找当前软件版本
-    const currentVersionExists = data.some((log) => normalizeVersion(log.version) === currentVersion)
+    const currentVersionExists = hasBundledChangelogVersion(locale.value, currentVersion)
 
     // 如果在 changelog 中找不到当前版本，说明日志还没更新到当前版本，不显示弹窗
     if (!currentVersionExists) {
@@ -227,12 +194,10 @@ async function checkNewVersion() {
 // 手动打开弹窗（用户点击时调用），会自动获取数据
 async function open() {
   // 手动打开也标记当前版本，避免标签缺失
-  if (IS_ELECTRON) {
-    try {
-      currentAppVersion.value = normalizeVersion(await usePlatformService().getVersion())
-    } catch {
-      currentAppVersion.value = null
-    }
+  try {
+    currentAppVersion.value = normalizeChangelogVersion(await usePlatformService().getVersion())
+  } catch {
+    currentAppVersion.value = null
   }
   expandedState.value.clear()
   showModal.value = true

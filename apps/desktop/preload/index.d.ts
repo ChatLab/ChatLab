@@ -77,6 +77,12 @@ interface ChatApi {
     error?: string
     diagnostics?: ImportDiagnostics
   }>
+  importDirectory: (dirPath: string) => Promise<{
+    success: boolean
+    sessionId?: string
+    error?: string
+    diagnostics?: ImportDiagnostics
+  }>
   importWithOptions: (
     filePath: string,
     formatOptions: Record<string, unknown>

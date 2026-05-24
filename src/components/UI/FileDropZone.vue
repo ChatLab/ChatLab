@@ -128,7 +128,6 @@ async function handleDirectoryDrop(dirEntry: FileSystemDirectoryEntry, fileList:
   // Electron: derive directory path from the native file path
   if (fileList.length > 0) {
     try {
-      // @ts-expect-error Electron webUtils
       const filePath: string | undefined = window.electron?.webUtils?.getPathForFile?.(fileList[0])
       if (filePath) {
         // fileList[0] may be the directory itself or a file inside it;
@@ -192,7 +191,6 @@ function processFiles(files: File[]) {
   // 尝试获取文件路径（Electron 环境）
   for (const file of files) {
     try {
-      // @ts-ignore - Electron webUtils
       const path = window.electron?.webUtils?.getPathForFile?.(file)
       if (path) {
         paths.push(path)

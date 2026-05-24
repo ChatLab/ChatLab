@@ -3,6 +3,7 @@
 - 边界：只解决当前需求，不做与需求无关的重构和"顺手优化"
 - 每次完成任务后，对产生修改的文件进行类型检查、lint检查和format格式化，指定修改的文件路径去执行，确保代码质量
 - 在执行检查时，如果有其他与本次修改无关的报错，也需要一并修复
+- 测试文件位置：与单个业务模块强相关的单元测试应就近放在被测文件同目录，命名为 `*.test.ts` / `*.test.js`；跨模块、集成、E2E、测试工具或不明显归属某个业务文件的测试放在根目录 `tests/`；某个 app/package 专属测试放在对应的 `apps/*` 或 `packages/*` 内，遵循该子项目现有约定
 - 多语言：代码中的日志、注释、AI 工具描述、错误消息等非 UI 文本默认使用英文。当有运行时 locale 可用时（如工具返回结果、AI 看到的文本），应通过 `isChineseLocale(locale)` 等机制支持中英双语。数据清洗中与聊天平台格式匹配的标签（如 `[分享]`、`[图片]`）保持原始语言不变。UI 文案的国际化遵循 `.docs/rules/i18n.md`
 - 多端复用：维护 Electron 和 CLI Web 的共享业务逻辑时，优先在 `packages/node-runtime/src/services/` 下实现，禁止在路由/IPC handler 中绕过 core 直接写 SQL。详见 `.docs/README.md` 的"多端逻辑复用"章节。
 - Commit 规范：使用 Conventional Commits。scope 规则——通用改动 scope 随意（如 `ai`、`import`、`sidebar` 等模块名）；仅当改动是**平台特有**时才使用平台 scope（`electron`、`cli`、`web`）。
