@@ -6,6 +6,7 @@
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { usePlatformService } from '@/services'
+import { IS_ELECTRON } from '@/utils/platform'
 
 const { t } = useI18n()
 
@@ -24,6 +25,7 @@ interface CacheDirectoryInfo {
 
 interface CacheInfo {
   baseDir: string
+  systemDir?: string
   directories: CacheDirectoryInfo[]
   totalSize: number
 }
@@ -182,10 +184,9 @@ async function relaunchApp() {
   await usePlatformService().relaunch()
 }
 
-// 组件挂载时加载数据
 onMounted(() => {
   loadCacheInfo()
-  loadDataDir()
+  if (IS_ELECTRON) loadDataDir()
 })
 
 // 暴露刷新方法
@@ -206,6 +207,15 @@ defineExpose({
         <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('settings.storage.description') }}</p>
       </div>
       <div class="flex items-center gap-2">
+        <UButton
+          v-if="cacheInfo?.systemDir"
+          icon="i-heroicons-folder-open"
+          variant="ghost"
+          size="sm"
+          @click="openDirectory('system')"
+        >
+          {{ t('settings.storage.openRootDir') }}
+        </UButton>
         <!-- 总大小 -->
         <div class="rounded-lg bg-gray-100 px-3 py-1.5 dark:bg-gray-800">
           <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('settings.storage.totalUsage') }}</span>
@@ -295,116 +305,118 @@ defineExpose({
       </div>
     </div>
 
-    <!-- 数据目录设置 -->
-    <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-      <div class="flex items-start justify-between gap-3">
-        <div class="min-w-0 flex-1">
-          <p class="text-sm font-medium text-gray-900 dark:text-white">
-            {{ t('settings.storage.dataLocation.title') }}
-          </p>
-          <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            {{ t('settings.storage.dataLocation.description') }}
-          </p>
+    <!-- 数据目录设置（仅 Electron 支持切换） -->
+    <template v-if="IS_ELECTRON">
+      <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+        <div class="flex items-start justify-between gap-3">
+          <div class="min-w-0 flex-1">
+            <p class="text-sm font-medium text-gray-900 dark:text-white">
+              {{ t('settings.storage.dataLocation.title') }}
+            </p>
+            <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
+              {{ t('settings.storage.dataLocation.description') }}
+            </p>
+          </div>
+          <div class="shrink-0">
+            <UButton icon="i-heroicons-folder-open" variant="ghost" size="xs" @click="openBaseDir">
+              {{ t('settings.storage.dataLocation.open') }}
+            </UButton>
+          </div>
         </div>
-        <div class="shrink-0">
-          <UButton icon="i-heroicons-folder-open" variant="ghost" size="xs" @click="openBaseDir">
-            {{ t('settings.storage.dataLocation.open') }}
+
+        <div class="mt-3 flex items-center gap-2">
+          <UInput v-model="dataDir" readonly size="sm" class="min-w-0 flex-1" />
+          <UButton
+            size="sm"
+            variant="soft"
+            :loading="isUpdatingDataDir"
+            :disabled="isUpdatingDataDir"
+            @click="selectDataDir"
+          >
+            {{ t('settings.storage.dataLocation.choose') }}
+          </UButton>
+          <UButton v-if="isCustomDataDir" size="sm" variant="ghost" :disabled="isUpdatingDataDir" @click="resetDataDir">
+            {{ t('settings.storage.dataLocation.reset') }}
           </UButton>
         </div>
+
+        <p class="mt-2 text-xs text-amber-600 dark:text-amber-400">
+          {{ t('settings.storage.dataLocation.restartTip') }}
+        </p>
+        <p v-if="dataDirError" class="mt-1 text-xs text-red-500">
+          {{ dataDirError }}
+        </p>
       </div>
 
-      <div class="mt-3 flex items-center gap-2">
-        <UInput v-model="dataDir" readonly size="sm" class="min-w-0 flex-1" />
-        <UButton
-          size="sm"
-          variant="soft"
-          :loading="isUpdatingDataDir"
-          :disabled="isUpdatingDataDir"
-          @click="selectDataDir"
-        >
-          {{ t('settings.storage.dataLocation.choose') }}
-        </UButton>
-        <UButton v-if="isCustomDataDir" size="sm" variant="ghost" :disabled="isUpdatingDataDir" @click="resetDataDir">
-          {{ t('settings.storage.dataLocation.reset') }}
-        </UButton>
-      </div>
-
-      <p class="mt-2 text-xs text-amber-600 dark:text-amber-400">
-        {{ t('settings.storage.dataLocation.restartTip') }}
-      </p>
-      <p v-if="dataDirError" class="mt-1 text-xs text-red-500">
-        {{ dataDirError }}
-      </p>
-    </div>
-
-    <!-- 切换数据目录确认弹窗 -->
-    <UModal v-model:open="showConfirmModal" :ui="{ content: 'z-[101]', overlay: 'z-[100]' }">
-      <template #content>
-        <div class="p-5">
-          <div class="mb-4 flex items-center gap-3">
-            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
-              <UIcon name="i-heroicons-exclamation-triangle" class="h-5 w-5 text-amber-600 dark:text-amber-400" />
+      <!-- 切换数据目录确认弹窗 -->
+      <UModal v-model:open="showConfirmModal" :ui="{ content: 'z-[101]', overlay: 'z-[100]' }">
+        <template #content>
+          <div class="p-5">
+            <div class="mb-4 flex items-center gap-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-full bg-amber-100 dark:bg-amber-900/30">
+                <UIcon name="i-heroicons-exclamation-triangle" class="h-5 w-5 text-amber-600 dark:text-amber-400" />
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ t('settings.storage.dataLocation.confirmTitle') }}
+              </h3>
             </div>
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-              {{ t('settings.storage.dataLocation.confirmTitle') }}
-            </h3>
-          </div>
 
-          <div class="space-y-3 text-sm text-gray-600 dark:text-gray-400">
-            <p>{{ t('settings.storage.dataLocation.confirmMessage') }}</p>
-            <div class="rounded-lg bg-gray-100 p-3 dark:bg-gray-800">
-              <p class="text-xs text-gray-500 dark:text-gray-400">
-                {{ t('settings.storage.dataLocation.newPath') }}
-              </p>
-              <p class="mt-1 font-mono text-sm text-gray-900 dark:text-white">
-                {{ pendingNewDir || t('settings.storage.dataLocation.defaultPath') }}
-              </p>
+            <div class="space-y-3 text-sm text-gray-600 dark:text-gray-400">
+              <p>{{ t('settings.storage.dataLocation.confirmMessage') }}</p>
+              <div class="rounded-lg bg-gray-100 p-3 dark:bg-gray-800">
+                <p class="text-xs text-gray-500 dark:text-gray-400">
+                  {{ t('settings.storage.dataLocation.newPath') }}
+                </p>
+                <p class="mt-1 font-mono text-sm text-gray-900 dark:text-white">
+                  {{ pendingNewDir || t('settings.storage.dataLocation.defaultPath') }}
+                </p>
+              </div>
+              <div
+                class="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800/50 dark:bg-amber-900/20"
+              >
+                <p class="text-xs text-amber-700 dark:text-amber-400">
+                  {{ t('settings.storage.dataLocation.confirmWarning') }}
+                </p>
+              </div>
             </div>
-            <div
-              class="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800/50 dark:bg-amber-900/20"
-            >
-              <p class="text-xs text-amber-700 dark:text-amber-400">
-                {{ t('settings.storage.dataLocation.confirmWarning') }}
-              </p>
+
+            <div class="mt-5 flex justify-end gap-2">
+              <UButton variant="ghost" @click="cancelDataDirChange">
+                {{ t('settings.storage.dataLocation.cancel') }}
+              </UButton>
+              <UButton color="primary" @click="confirmDataDirChange">
+                {{ t('settings.storage.dataLocation.confirm') }}
+              </UButton>
             </div>
           </div>
+        </template>
+      </UModal>
 
-          <div class="mt-5 flex justify-end gap-2">
-            <UButton variant="ghost" @click="cancelDataDirChange">
-              {{ t('settings.storage.dataLocation.cancel') }}
-            </UButton>
-            <UButton color="primary" @click="confirmDataDirChange">
-              {{ t('settings.storage.dataLocation.confirm') }}
-            </UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
-
-    <!-- 迁移成功后强制重启弹窗 -->
-    <UModal v-model:open="showRelaunchModal" :dismissible="false" :ui="{ content: 'z-[101]', overlay: 'z-[100]' }">
-      <template #content>
-        <div class="p-5">
-          <div class="mb-4 flex items-center gap-3">
-            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
-              <UIcon name="i-heroicons-check-circle" class="h-5 w-5 text-green-600 dark:text-green-400" />
+      <!-- 迁移成功后强制重启弹窗 -->
+      <UModal v-model:open="showRelaunchModal" :dismissible="false" :ui="{ content: 'z-[101]', overlay: 'z-[100]' }">
+        <template #content>
+          <div class="p-5">
+            <div class="mb-4 flex items-center gap-3">
+              <div class="flex h-10 w-10 items-center justify-center rounded-full bg-green-100 dark:bg-green-900/30">
+                <UIcon name="i-heroicons-check-circle" class="h-5 w-5 text-green-600 dark:text-green-400" />
+              </div>
+              <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+                {{ t('settings.storage.dataLocation.migrationSuccessTitle') }}
+              </h3>
             </div>
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-              {{ t('settings.storage.dataLocation.migrationSuccessTitle') }}
-            </h3>
-          </div>
 
-          <p class="text-sm text-gray-600 dark:text-gray-400">
-            {{ t('settings.storage.dataLocation.migrationSuccessMessage') }}
-          </p>
+            <p class="text-sm text-gray-600 dark:text-gray-400">
+              {{ t('settings.storage.dataLocation.migrationSuccessMessage') }}
+            </p>
 
-          <div class="mt-5 flex justify-end">
-            <UButton color="primary" @click="relaunchApp">
-              {{ t('settings.storage.dataLocation.relaunchNow') }}
-            </UButton>
+            <div class="mt-5 flex justify-end">
+              <UButton color="primary" @click="relaunchApp">
+                {{ t('settings.storage.dataLocation.relaunchNow') }}
+              </UButton>
+            </div>
           </div>
-        </div>
-      </template>
-    </UModal>
+        </template>
+      </UModal>
+    </template>
   </div>
 </template>

@@ -222,6 +222,7 @@
       "migrationSuccessMessage": "The app needs to restart for changes to take effect.",
       "relaunchNow": "Restart Now"
     },
+    "openRootDir": "Open Root",
     "totalUsage": "Total: ",
     "loading": "Loading...",
     "files": "files",

@@ -222,6 +222,7 @@
       "migrationSuccessMessage": "应用需要重启以使更改生效。",
       "relaunchNow": "立即重启"
     },
+    "openRootDir": "打开根目录",
     "totalUsage": "总占用：",
     "loading": "加载中...",
     "files": "文件",

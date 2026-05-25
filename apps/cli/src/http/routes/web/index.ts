@@ -14,12 +14,13 @@
  *   import    – File / directory / incremental import + demo
  *   merge     – Merge parse / conflicts / execute
  *   export    – Markdown export
- *   cache     – Save to downloads + show in folder
+ *   cache     – Storage management + save to downloads + show in folder
  */
 
 import * as os from 'os'
 import * as path from 'path'
 import type { FastifyInstance } from 'fastify'
+import type { PathProvider } from '@openchatlab/core'
 import type { DatabaseManager } from '@openchatlab/node-runtime'
 import { createDatabaseManagerAdapter } from '@openchatlab/node-runtime'
 import { MergeSessionCache } from '../../../merger/merge-cache'
@@ -37,7 +38,7 @@ import { registerCacheRoutes } from './cache'
 export function registerWebRoutes(
   server: FastifyInstance,
   dbManager: DatabaseManager,
-  options?: { pathProvider?: import('@openchatlab/core').PathProvider; nativeBinding?: string }
+  options?: { pathProvider?: PathProvider; nativeBinding?: string }
 ): void {
   const adapter = createDatabaseManagerAdapter(dbManager)
 
@@ -46,7 +47,18 @@ export function registerWebRoutes(
     : null
   mergeCache?.cleanupOrphans()
 
-  const downloadsDir = options?.pathProvider?.getDownloadsDir() || path.join(os.homedir(), 'Downloads')
+  const fallbackPathProvider: PathProvider = {
+    getSystemDir: () => path.join(os.homedir(), '.chatlab'),
+    getUserDataDir: () => path.join(os.homedir(), '.chatlab', 'data'),
+    getDatabaseDir: () => path.join(os.homedir(), '.chatlab', 'data', 'databases'),
+    getAiDataDir: () => path.join(os.homedir(), '.chatlab', 'ai'),
+    getSettingsDir: () => path.join(os.homedir(), '.chatlab', 'settings'),
+    getCacheDir: () => path.join(os.homedir(), '.chatlab', 'cache'),
+    getTempDir: () => path.join(os.homedir(), '.chatlab', 'temp'),
+    getLogsDir: () => path.join(os.homedir(), '.chatlab', 'logs'),
+    getDownloadsDir: () => path.join(os.homedir(), 'Downloads'),
+  }
+  const resolvedPathProvider = options?.pathProvider ?? fallbackPathProvider
 
   registerSessionRoutes(server, adapter)
   registerMemberRoutes(server, adapter)
@@ -59,5 +71,5 @@ export function registerWebRoutes(
     registerMergeRoutes(server, dbManager, mergeCache)
   }
   registerExportRoutes(server, adapter)
-  registerCacheRoutes(server, downloadsDir)
+  registerCacheRoutes(server, resolvedPathProvider)
 }

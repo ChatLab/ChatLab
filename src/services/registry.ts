@@ -433,11 +433,54 @@ async function installAiApiShims(): Promise<void> {
         return { success: false, error: error instanceof Error ? error.message : String(error) }
       }
     },
-    getInfo: () => Promise.resolve({ success: true, caches: [] }),
-    clear: () => Promise.resolve({ success: true }),
-    openDir: () => Promise.resolve({ success: true }),
-    getLatestImportLog: () => Promise.resolve({ success: true }),
-    getDataDir: () => Promise.resolve({ success: true, path: '' }),
+    getInfo: async () => {
+      try {
+        const resp = await fetch('/_web/cache/info')
+        return await resp.json()
+      } catch (error) {
+        return { baseDir: '', directories: [], totalSize: 0 }
+      }
+    },
+    clear: async (cacheId: string) => {
+      try {
+        const resp = await fetch('/_web/cache/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cacheId }),
+        })
+        return await resp.json()
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    },
+    openDir: async (cacheId: string) => {
+      try {
+        const resp = await fetch('/_web/cache/open-dir', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ cacheId }),
+        })
+        return await resp.json()
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    },
+    getLatestImportLog: async () => {
+      try {
+        const resp = await fetch('/_web/cache/latest-import-log')
+        return await resp.json()
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    },
+    getDataDir: async () => {
+      try {
+        const resp = await fetch('/_web/cache/data-dir')
+        return await resp.json()
+      } catch (error) {
+        return { path: '', isCustom: false }
+      }
+    },
   }
 }
 

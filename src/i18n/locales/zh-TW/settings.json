@@ -222,6 +222,7 @@
       "migrationSuccessMessage": "應用程式需要重新啟動以使變更生效。",
       "relaunchNow": "立即重新啟動"
     },
+    "openRootDir": "開啟根目錄",
     "totalUsage": "總佔用：",
     "loading": "載入中...",
     "files": "檔案",
