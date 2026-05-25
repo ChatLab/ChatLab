@@ -55,6 +55,8 @@ function isNewerVersion(latest: string, current: string): boolean {
   if (l.major !== c.major) return l.major > c.major
   if (l.minor !== c.minor) return l.minor > c.minor
   if (l.patch !== c.patch) return l.patch > c.patch
+  // Design note: prerelease users are not prompted for prerelease-to-prerelease updates.
+  // Only a stable release with the same core version should supersede a prerelease build.
   if (c.pre && !l.pre) return true
   return false
 }

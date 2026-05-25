@@ -53,6 +53,7 @@ function isNewerVersion(latest: string, current: string): boolean {
   if (l.minor !== c.minor) return l.minor > c.minor
   if (l.patch !== c.patch) return l.patch > c.patch
   // Same core version: stable > pre-release
+  // Design note: prerelease-to-prerelease updates are intentionally not surfaced.
   if (c.pre && !l.pre) return true
   return false
 }

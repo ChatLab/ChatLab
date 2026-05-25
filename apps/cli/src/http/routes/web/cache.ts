@@ -1,9 +1,52 @@
 import * as fs from 'fs'
 import * as fsp from 'fs/promises'
 import * as path from 'path'
+import { execFile } from 'child_process'
 import type { FastifyInstance } from 'fastify'
 import type { PathProvider } from '@openchatlab/core'
 import { loadConfig } from '@openchatlab/config'
+
+type ExecFileRunner = (file: string, args: string[], callback: (error: Error | null) => void) => unknown
+
+function runExecFile(file: string, args: string[], runner: ExecFileRunner = execFile): Promise<void> {
+  return new Promise((resolve, reject) => {
+    runner(file, args, (error) => {
+      if (error) {
+        reject(error)
+        return
+      }
+      resolve()
+    })
+  })
+}
+
+export async function openDirectoryPath(
+  dirPath: string,
+  platform: NodeJS.Platform = process.platform,
+  runner?: ExecFileRunner
+): Promise<void> {
+  if (platform === 'darwin') {
+    await runExecFile('open', [dirPath], runner)
+  } else if (platform === 'win32') {
+    await runExecFile('explorer.exe', [dirPath], runner)
+  } else {
+    await runExecFile('xdg-open', [dirPath], runner)
+  }
+}
+
+export async function showPathInFolder(
+  filePath: string,
+  platform: NodeJS.Platform = process.platform,
+  runner?: ExecFileRunner
+): Promise<void> {
+  if (platform === 'darwin') {
+    await runExecFile('open', ['-R', filePath], runner)
+  } else if (platform === 'win32') {
+    await runExecFile('explorer.exe', [`/select,${filePath}`], runner)
+  } else {
+    await runExecFile('xdg-open', [path.dirname(filePath)], runner)
+  }
+}
 
 async function getDirSize(dirPath: string): Promise<number> {
   let totalSize = 0
@@ -142,14 +185,10 @@ export function registerCacheRoutes(server: FastifyInstance, pathProvider: PathP
       await fsp.mkdir(dirPath, { recursive: true })
     }
 
-    const { exec } = await import('child_process')
-    const platform = process.platform
-    if (platform === 'darwin') {
-      exec(`open "${dirPath}"`)
-    } else if (platform === 'win32') {
-      exec(`explorer "${dirPath}"`)
-    } else {
-      exec(`xdg-open "${dirPath}"`)
+    try {
+      await openDirectoryPath(dirPath)
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) }
     }
     return { success: true }
   })
@@ -216,16 +255,10 @@ export function registerCacheRoutes(server: FastifyInstance, pathProvider: PathP
       return { success: false, error: 'filePath is required' }
     }
 
-    const { exec } = await import('child_process')
-    const platform = process.platform
-    const dir = path.dirname(filePath)
-
-    if (platform === 'darwin') {
-      exec(`open -R "${filePath}"`)
-    } else if (platform === 'win32') {
-      exec(`explorer /select,"${filePath}"`)
-    } else {
-      exec(`xdg-open "${dir}"`)
+    try {
+      await showPathInFolder(filePath)
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) }
     }
 
     return { success: true }
