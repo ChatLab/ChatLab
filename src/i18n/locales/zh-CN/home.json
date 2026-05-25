@@ -1,19 +1,13 @@
 {
-  "title": "ChatLab",
-  "subtitle": "重构你的社交记忆",
-  "features": {
-    "privacy": {
-      "title": "隐私至上",
-      "description": "聊天记录本地存储本地分析，保护你的隐私。"
-    },
-    "analysis": {
-      "title": "多维度分析",
-      "description": "从榜单到语录，全方位解读群聊数据，发现隐藏的趣味。"
-    },
-    "ai": {
-      "title": "智能 Agent",
-      "description": "内置 AI Agent，智能回答关于群聊的一切疑问，挖掘数据背后的趣事。"
-    }
+  "tagline": "探索新的聊天记忆",
+  "tabs": {
+    "file": "文件导入",
+    "api": "自动同步",
+    "push": "API导入",
+    "apiDescription": "配置外部平台的数据源，让聊天记录定期自动同步到ChatLab。",
+    "apiButton": "去配置自动同步",
+    "pushDescription": "开启本地API服务，允许第三方工具/插件或脚本将聊天记录主动推送至ChatLab。",
+    "pushButton": "去开启 API 服务"
   },
   "import": {
     "dropHint": "松开鼠标导入文件",
@@ -33,7 +27,6 @@
       "error": "导入中断"
     },
     "processed": "已处理 {count} 条消息",
-    "tutorial": "如何导出聊天记录",
     "viewLog": "查看导入日志",
     "cannotReadPath": "无法读取文件路径",
     "preparing": "准备导入...",
@@ -114,6 +107,10 @@
     "hint": "无法自动识别此文件的格式，请手动选择对应的聊天记录格式。",
     "manualSelect": "手动选择格式",
     "confirm": "使用此格式导入"
+  },
+  "quickStart": {
+    "export": "如何导出聊天记录",
+    "import": "支持哪些格式"
   },
   "footer": {
     "website": "官网",

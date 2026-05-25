@@ -7,11 +7,9 @@ import { storeToRefs } from 'pinia'
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { getChatlabSiteLocalePath } from '@/utils/chatlabSiteLocale'
 import { useSessionStore, type BatchFileInfo, type MergeFileInfo } from '@/stores/session'
 import { useDataService, useImportService, useSessionIndexService, usePlatformService } from '@/services'
 import { IS_ELECTRON } from '@/utils/platform'
-import DemoImportButton from './DemoImportButton.vue'
 import { getSessionGapThreshold } from '@/composables/useUiConfig'
 
 const { t } = useI18n()
@@ -63,9 +61,6 @@ const router = useRouter()
 
 // 合并导入开关
 const mergeImportEnabled = ref(false)
-
-// 是否展示 Demo 按钮（仅无任何会话时）
-const showDemoButton = computed(() => sessionStore.sessions.length === 0)
 
 // 计算是否正在导入（单文件、批量或合并）
 const isAnyImporting = computed(() => isImporting.value || isBatchImporting.value || isMergeImporting.value)
@@ -543,14 +538,6 @@ async function handleGoToSession(sessionId: string) {
   await navigateToSession(sessionId)
 }
 
-// 教程链接：根据语言动态生成
-const tutorialUrl = computed(() => {
-  const { locale } = useI18n()
-  const localePath = getChatlabSiteLocalePath(locale.value)
-  const langPath = localePath ? `/${localePath}` : ''
-  return `https://chatlab.fun${langPath}/usage/how-to-export?utm_source=app`
-})
-
 // 打开最新的导入日志文件
 async function openLatestImportLog() {
   const result = await window.cacheApi.getLatestImportLog()
@@ -637,7 +624,7 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
 </script>
 
 <template>
-  <div class="flex flex-col items-center space-y-6">
+  <div class="w-full flex flex-col items-center space-y-6">
     <!-- 批量导入进度（导入中） -->
     <div
       v-if="isBatchImporting && batchFiles.length > 0"
@@ -842,13 +829,13 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
       :accept="['.json', '.jsonl', '.txt']"
       :disabled="isAnyImporting"
       :multiple="true"
-      class="w-full max-w-4xl"
+      class="w-full max-w-md"
       @files="handleFileDrop"
       @directory-drop="handleDirectoryDropEvent"
     >
       <template #default="{ isDragOver }">
         <div
-          class="group relative flex w-full cursor-pointer flex-col items-center justify-center rounded-3xl border border-gray-200/50 bg-gray-100/50 px-8 py-4 backdrop-blur-md transition-all duration-300 hover:border-pink-500/30 hover:bg-gray-100/80 hover:shadow-2xl hover:shadow-pink-500/10 focus:outline-none focus:ring-4 focus:ring-pink-500/20 sm:px-12 sm:py-6 dark:border-white/10 dark:bg-gray-800/40 dark:hover:border-pink-500/30 dark:hover:bg-gray-800/60"
+          class="group relative flex w-full cursor-pointer flex-col items-center justify-center rounded-3xl border border-gray-200/50 bg-gray-100/50 px-8 h-[190px] sm:h-[220px] backdrop-blur-md transition-all duration-300 hover:border-pink-500/30 hover:bg-gray-100/80 hover:shadow-2xl hover:shadow-pink-500/10 focus:outline-none focus:ring-4 focus:ring-pink-500/20 sm:px-12 dark:border-white/10 dark:bg-gray-800/40 dark:hover:border-pink-500/30 dark:hover:bg-gray-800/60"
           :class="{
             'border-pink-500/50 bg-pink-50/50 dark:border-pink-400/50 dark:bg-pink-500/10':
               isDragOver && !isAnyImporting,
@@ -858,7 +845,7 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
         >
           <!-- 上传图标容器 -->
           <div
-            class="mb-4 flex h-16 w-16 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-105"
+            class="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-105"
             :class="{ 'scale-105': isDragOver && !isAnyImporting, 'animate-pulse': isImporting }"
           >
             <UIcon
@@ -886,7 +873,7 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
               <p class="text-lg font-semibold text-gray-900 dark:text-white">
                 {{ isDragOver ? t('home.import.dropHint') : t('home.import.clickHint') }}
               </p>
-              <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+              <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
                 {{ t('home.import.multipleHint') }}
               </p>
             </template>
@@ -899,7 +886,7 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
     <FileDropZone ref="dirDropZoneRef" :directory="true" class="hidden" @files="handleDirectoryDrop" />
 
     <!-- 导入选项 -->
-    <div v-if="!isAnyImporting && !batchImportResult" class="flex flex-wrap items-center justify-center gap-4">
+    <div v-if="!isAnyImporting && !batchImportResult" class="h-6 flex flex-wrap items-center justify-center gap-4">
       <!-- 导入文件夹模式 -->
       <UCheckbox
         v-model="folderImportEnabled"
@@ -971,13 +958,6 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
           {{ t('home.import.viewLog') }}
         </UButton>
       </div>
-    </div>
-
-    <div class="flex items-center gap-3">
-      <DemoImportButton v-if="showDemoButton" />
-      <UButton :to="tutorialUrl" target="_blank" trailing-icon="i-heroicons-chevron-right-20-solid">
-        {{ t('home.import.tutorial') }}
-      </UButton>
     </div>
 
     <!-- 聊天选择器（多聊天格式通用） -->

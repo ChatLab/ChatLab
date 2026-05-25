@@ -1,19 +1,13 @@
 {
-  "title": "ChatLab",
-  "subtitle": "チャット履歴分析ラボ",
-  "features": {
-    "privacy": {
-      "title": "プライバシー最優先",
-      "description": "チャット履歴はローカルに保存・分析され、外部へ送信されません。"
-    },
-    "analysis": {
-      "title": "多角的分析",
-      "description": "ランキングから名言集まで、多角的にグループチャットを分析し、埋もれた面白さを見つけます。"
-    },
-    "ai": {
-      "title": "AI Agent",
-      "description": "内蔵 AI Agent がグループチャットに関する質問に答え、データの裏にある流れや面白い話題を掘り起こします。"
-    }
+  "tagline": "新しいチャットの記憶を探索する",
+  "tabs": {
+    "file": "ファイルインポート",
+    "api": "自動同期",
+    "push": "APIインポート",
+    "apiDescription": "外部プラットフォームのデータソースを設定し、チャット履歴をChatLabへ定期的に自動同期します。",
+    "apiButton": "自動同期を設定する",
+    "pushDescription": "ローカルAPIサーバーを起動し、サードパーティのツール・プラグイン・スクリプトからChatLabへチャット履歴をプッシュできます。",
+    "pushButton": "APIサーバーを設定する"
   },
   "import": {
     "dropHint": "マウスを離してファイルをインポート",
@@ -33,7 +27,6 @@
       "error": "インポート中断"
     },
     "processed": "{count} 件のメッセージを処理しました",
-    "tutorial": "チャット記録のエクスポート方法",
     "viewLog": "インポートログを表示",
     "cannotReadPath": "ファイルパスを読み取れません",
     "preparing": "インポートを準備中...",
@@ -114,6 +107,10 @@
     "hint": "ファイル形式を自動検出できませんでした。対応するチャット形式を手動で選択してください。",
     "manualSelect": "形式を手動で選択",
     "confirm": "この形式でインポート"
+  },
+  "quickStart": {
+    "export": "チャット記録のエクスポート方法",
+    "import": "対応フォーマット一覧"
   },
   "footer": {
     "website": "公式サイト",

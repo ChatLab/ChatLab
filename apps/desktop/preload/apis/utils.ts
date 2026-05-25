@@ -77,6 +77,7 @@ export interface CacheInfo {
 
 export interface DataDirInfo {
   path: string
+  defaultPath?: string
   isCustom: boolean
 }
 

@@ -409,6 +409,10 @@ async function installAiApiShims(): Promise<void> {
 
   // cacheApi shim (server-side file operations)
   // chatApi — merge-related shims (handles ↔ filePaths adaptation)
+  if (!(window as any).chatApi) {
+    ;(window as any).chatApi = {}
+  }
+  const chatApi = (window as any).chatApi
   chatApi.exportSessionsToTempFiles = async (sessionIds: string[]) => {
     try {
       const resp = await fetch('/_web/sessions/export-for-merge', {

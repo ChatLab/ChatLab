@@ -1,19 +1,13 @@
 {
-  "title": "ChatLab",
-  "subtitle": "Chat History Analysis Lab",
-  "features": {
-    "privacy": {
-      "title": "Privacy First",
-      "description": "Chat records stored and analyzed locally, protecting your privacy."
-    },
-    "analysis": {
-      "title": "Multi-dimensional Analysis",
-      "description": "From rankings to quotes, comprehensive insights into chat data."
-    },
-    "ai": {
-      "title": "AI Insights",
-      "description": "Built-in AI Agent to answer all questions about your chats and discover hidden stories."
-    }
+  "tagline": "Explore New Chat Memories",
+  "tabs": {
+    "file": "File Import",
+    "api": "Auto Sync",
+    "push": "API Import",
+    "apiDescription": "Connect external platform data sources to automatically sync chat records to ChatLab on a schedule.",
+    "apiButton": "Configure Auto Sync",
+    "pushDescription": "Start the local API server to let third-party tools, plugins, or scripts push chat records directly into ChatLab.",
+    "pushButton": "Configure API Server"
   },
   "import": {
     "dropHint": "Drop to import files",
@@ -33,7 +27,6 @@
       "error": "Import interrupted"
     },
     "processed": "{count} messages processed",
-    "tutorial": "How to export chat records",
     "viewLog": "View import log",
     "cannotReadPath": "Cannot read file path",
     "preparing": "Preparing import...",
@@ -114,6 +107,10 @@
     "hint": "Unable to auto-detect the file format. Please manually select the corresponding chat format.",
     "manualSelect": "Select format manually",
     "confirm": "Import with this format"
+  },
+  "quickStart": {
+    "export": "How to export chat records",
+    "import": "Supported formats"
   },
   "footer": {
     "website": "Website",

@@ -15,6 +15,11 @@ yarn-error.log*
 *.log
 error-log-*.txt
 
+# IDE
+.vscode/*
+!.vscode/settings.json
+!.vscode/snippets.code-snippets
+
 # Project
 dist/
 dist-web/
@@ -23,7 +28,6 @@ docs/.vitepress/dist/
 apps/cli/native/
 .history/
 out
-.obskey
 release-config.json
 src/auto-imports.d.ts
 src/components.d.ts
@@ -34,9 +38,7 @@ yarn.lock
 
 # AI
 .cursor
-.vscode/*
-!.vscode/settings.json
-!.vscode/snippets.code-snippets
+.antigravitycli
 .docs
 
 .playwright-mcp/

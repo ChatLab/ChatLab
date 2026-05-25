@@ -890,6 +890,7 @@ interface CacheInfo {
 
 interface DataDirInfo {
   path: string
+  defaultPath?: string
   isCustom: boolean
 }
 

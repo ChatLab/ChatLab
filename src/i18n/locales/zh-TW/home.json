@@ -1,19 +1,13 @@
 {
-  "title": "ChatLab",
-  "subtitle": "聊天紀錄分析工作台",
-  "features": {
-    "privacy": {
-      "title": "隱私至上",
-      "description": "聊天紀錄只在本機儲存與分析，資料不外傳。"
-    },
-    "analysis": {
-      "title": "多維度分析",
-      "description": "從排行榜到金句，多角度解析群聊資料，挖出隱藏的趣味。"
-    },
-    "ai": {
-      "title": "AI Agent",
-      "description": "內建 AI Agent，能回答各種群聊問題，幫你找出資料背後的脈絡與趣事。"
-    }
+  "tagline": "探索新的聊天記憶",
+  "tabs": {
+    "file": "檔案匯入",
+    "api": "自動同步",
+    "push": "API匯入",
+    "apiDescription": "設定外部平台的資料來源，讓聊天記錄定期自動同步到ChatLab。",
+    "apiButton": "前往設定自動同步",
+    "pushDescription": "開啟本地API服務，允許第三方工具/掛件或腳本將聊天記錄主動推送至ChatLab。",
+    "pushButton": "前往設定 API 服務"
   },
   "import": {
     "dropHint": "鬆開滑鼠匯入檔案",
@@ -33,7 +27,6 @@
       "error": "匯入中斷"
     },
     "processed": "已處理 {count} 則訊息",
-    "tutorial": "如何匯出聊天紀錄",
     "viewLog": "檢視匯入日誌",
     "cannotReadPath": "無法讀取檔案路徑",
     "preparing": "準備匯入...",
@@ -114,6 +107,10 @@
     "hint": "無法自動識別此檔案的格式，請手動選擇對應的聊天記錄格式。",
     "manualSelect": "手動選擇格式",
     "confirm": "使用此格式匯入"
+  },
+  "quickStart": {
+    "export": "如何匯出聊天紀錄",
+    "import": "支援哪些格式"
   },
   "footer": {
     "website": "官網",

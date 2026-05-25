@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApiServerStore, type DataSource, type ImportSession } from '@/stores/apiServer'
 import { storeToRefs } from 'pinia'
 import { SubTabs } from '@/components/UI'
+import { useLayoutStore } from '@/stores/layout'
 import DataSourceAddModal from './API/DataSourceAddModal.vue'
 import DataSourceEditModal from './API/DataSourceEditModal.vue'
 import McpSettingsTab from './McpSettingsTab.vue'
@@ -14,6 +15,18 @@ const { config, status, loading, isRunning, hasError, isPortInUse, dataSources, 
   storeToRefs(store)
 
 const activeSubTab = ref('sync')
+const layoutStore = useLayoutStore()
+
+// 监听全局布局状态中的子 Tab 变化，自动切换当前子 Tab
+watch(
+  () => layoutStore.settingsSubTab,
+  (newSubTab) => {
+    if (layoutStore.settingsTab === 'api' && newSubTab && ['sync', 'api', 'mcp'].includes(newSubTab)) {
+      activeSubTab.value = newSubTab
+    }
+  },
+  { immediate: true }
+)
 
 const subTabs = computed(() => [
   {
