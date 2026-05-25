@@ -24,8 +24,8 @@ interface ScrollableTab {
 const tabs = computed(() => [
   { id: 'settings', label: t('settings.tabs.basic'), icon: 'i-heroicons-cog-6-tooth' },
   { id: 'ai', label: t('settings.tabs.ai'), icon: 'i-heroicons-sparkles' },
-  { id: 'data', label: t('settings.tabs.dataManage'), icon: 'i-heroicons-rectangle-stack' },
   { id: 'api', label: t('settings.tabs.api'), icon: 'i-heroicons-server-stack' },
+  { id: 'data', label: t('settings.tabs.dataManage'), icon: 'i-heroicons-rectangle-stack' },
   { id: 'storage', label: t('settings.tabs.storage'), icon: 'i-heroicons-folder-open' },
   { id: 'about', label: t('settings.tabs.about'), icon: 'i-heroicons-information-circle' },
 ])

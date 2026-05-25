@@ -10,7 +10,7 @@
     "dataManage": "データ管理",
     "storage": "ストレージ管理",
     "storageManage": "ストレージ管理",
-    "sessionManage": "セッション管理",
+    "sessionManage": "セッションインデックス",
     "about": "ChatLabについて",
     "api": "オートメーション",
     "apiSubTabs": {

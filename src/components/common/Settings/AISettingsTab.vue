@@ -6,6 +6,7 @@ import AIDefaultModelTab from './AI/AIDefaultModelTab.vue'
 import AIPromptConfigTab from './AI/AIPromptConfigTab.vue'
 import AIPreprocessTab from './AI/AIPreprocessTab.vue'
 import AIExportSettingsTab from './AI/AIExportSettingsTab.vue'
+import SessionIndexSection from './AI/SessionIndexSection.vue'
 import SubTabs from '@/components/UI/SubTabs.vue'
 import { useSubTabsScroll } from '@/composables/useSubTabsScroll'
 
@@ -24,6 +25,7 @@ const navItems = computed(() => [
   { id: 'skill', label: t('settings.aiPrompt.skillSettings.title') },
   { id: 'compression', label: t('settings.aiPrompt.compression.title') },
   { id: 'preprocess', label: t('settings.tabs.aiPreprocess') },
+  { id: 'sessionIndex', label: t('settings.tabs.sessionManage') },
   { id: 'export', label: t('settings.aiPrompt.exportSettings.title') },
 ])
 
@@ -79,6 +81,11 @@ void aiModelConfigRef.value
         <!-- 预处理配置 -->
         <div :ref="(el) => setSectionRef('preprocess', el as HTMLElement)">
           <AIPreprocessTab />
+        </div>
+
+        <!-- 会话索引 -->
+        <div :ref="(el) => setSectionRef('sessionIndex', el as HTMLElement)">
+          <SessionIndexSection />
         </div>
 
         <!-- 导出设置 -->
