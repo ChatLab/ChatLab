@@ -24,6 +24,7 @@ import {
   executeReadonlySql,
 } from '@openchatlab/core'
 import { getVersion } from './version'
+import { resolveCliPath } from './paths'
 
 const program = new Command()
 
@@ -291,7 +292,7 @@ program
 
     let webRoot: string | undefined
     if (options.web !== undefined) {
-      const webDir = typeof options.web === 'string' ? options.web : path.resolve(__dirname, '../dist-web')
+      const webDir = typeof options.web === 'string' ? options.web : resolveCliPath('dist-web')
       if (fs.existsSync(webDir)) {
         webRoot = path.resolve(webDir)
       } else {
@@ -349,7 +350,7 @@ program
   .action(async (options) => {
     const { startHttpServer } = await import('./http')
     const port = parseInt(options.port, 10)
-    const webDir = path.resolve(__dirname, '../dist-web')
+    const webDir = resolveCliPath('dist-web')
     let webRoot: string | undefined
 
     if (fs.existsSync(webDir)) {
@@ -434,7 +435,7 @@ function openBrowser(url: string): void {
  */
 function resolveNativeBinding(): string | undefined {
   if (process.versions.electron) return undefined
-  const nativePath = path.resolve(__dirname, '../native/better_sqlite3.node')
+  const nativePath = resolveCliPath('native/better_sqlite3.node')
   if (fs.existsSync(nativePath)) return nativePath
   return undefined
 }

@@ -17,10 +17,10 @@
 
 import * as fs from 'fs'
 import * as path from 'path'
-import { parser } from 'stream-json'
-import { pick } from 'stream-json/filters/Pick'
-import { streamValues } from 'stream-json/streamers/StreamValues'
-import { chain } from 'stream-chain'
+import streamJson from 'stream-json'
+import pickModule from 'stream-json/filters/Pick.js'
+import streamValuesModule from 'stream-json/streamers/StreamValues.js'
+import streamChain from 'stream-chain'
 import { KNOWN_PLATFORMS, ChatType, MessageType } from '@openchatlab/shared-types'
 import type {
   FormatFeature,
@@ -33,6 +33,11 @@ import type {
   ParsedMessage,
 } from '../types'
 import { getFileSize, createProgress, readFileHeadBytes } from '../utils'
+
+const { parser } = streamJson
+const { pick } = pickModule
+const { streamValues } = streamValuesModule
+const { chain } = streamChain
 
 // ==================== 辅助函数 ====================
 

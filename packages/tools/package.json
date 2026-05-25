@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "ChatLab AI 工具链：工具定义 + 平台无关 handler，服务于 MCP/HTTP/Electron",
+  "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "dependencies": {

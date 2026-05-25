@@ -7,6 +7,7 @@
 
 import * as fs from 'fs'
 import * as path from 'path'
+import { createRequire } from 'module'
 import type {
   SupportedLocale,
   PosFilterMode,
@@ -24,6 +25,7 @@ interface JiebaInstance {
 
 let _nlpDir: string | null = null
 const jiebaInstances = new Map<DictType, JiebaInstance>()
+const require = createRequire(import.meta.url)
 
 /**
  * 设置自定义词库目录路径（由应用初始化时调用）
@@ -65,7 +67,6 @@ export function getJieba(dictType: DictType = 'default'): JiebaInstance {
   }
 
   try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
     const { Jieba } = require('@node-rs/jieba')
     let instance: JiebaInstance
     const diskDict = tryLoadDictFromDisk(effectiveType)

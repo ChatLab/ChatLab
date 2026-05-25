@@ -3,9 +3,9 @@
  */
 
 import * as fs from 'fs'
-import * as path from 'path'
 import type { TimeFilter } from '@openchatlab/shared-types'
 import type { DatabaseManager } from '@openchatlab/node-runtime'
+import { resolveCliPath } from '../../../paths'
 
 export function parseTimeFilter(query: Record<string, string | undefined>): TimeFilter | undefined {
   const { startTs, endTs, memberId } = query
@@ -19,7 +19,7 @@ export function parseTimeFilter(query: Record<string, string | undefined>): Time
 
 export function resolveNativeBinding(): string | undefined {
   if (process.versions.electron) return undefined
-  const nativePath = path.resolve(__dirname, '../../../../native/better_sqlite3.node')
+  const nativePath = resolveCliPath('native/better_sqlite3.node')
   if (fs.existsSync(nativePath)) return nativePath
   return undefined
 }

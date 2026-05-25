@@ -16,10 +16,10 @@
  */
 
 import * as fs from 'fs'
-import { chain } from 'stream-chain'
-import { parser } from 'stream-json'
-import { pick } from 'stream-json/filters/Pick'
-import { streamValues } from 'stream-json/streamers/StreamValues'
+import streamChain from 'stream-chain'
+import streamJson from 'stream-json'
+import pickModule from 'stream-json/filters/Pick.js'
+import streamValuesModule from 'stream-json/streamers/StreamValues.js'
 
 import { KNOWN_PLATFORMS, ChatType } from '@openchatlab/shared-types'
 import type {
@@ -35,6 +35,11 @@ import type {
 import { getFileSize, createProgress } from '../utils'
 import { mapChatType, extractPlatformId, detectMessageType, buildContent } from './utils/telegram-utils'
 import type { TelegramChat } from './utils/telegram-utils'
+
+const { chain } = streamChain
+const { parser } = streamJson
+const { pick } = pickModule
+const { streamValues } = streamValuesModule
 
 // ==================== 类型定义 ====================
 

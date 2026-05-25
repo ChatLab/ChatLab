@@ -5,7 +5,6 @@
  */
 
 import fs from 'fs'
-import path from 'path'
 import { loadConfig } from '@openchatlab/config'
 import {
   NodePathProvider,
@@ -15,10 +14,11 @@ import {
 } from '@openchatlab/node-runtime'
 import { startMcpServer } from 'chatlab-mcp'
 import { getVersion } from './version'
+import { resolveCliPath } from './paths'
 
 function resolveNativeBinding(): string | undefined {
   if (process.versions.electron) return undefined
-  const nativePath = path.resolve(__dirname, '../native/better_sqlite3.node')
+  const nativePath = resolveCliPath('native/better_sqlite3.node')
   if (fs.existsSync(nativePath)) return nativePath
   return undefined
 }

@@ -17,6 +17,7 @@ import type { DatabaseManager } from '@openchatlab/node-runtime'
 import { openBetterSqliteDatabase } from '@openchatlab/node-runtime'
 import { parseFile } from '../import/chatlab-reader'
 import { importData } from '../import/importer'
+import { resolveCliPath } from '../paths'
 
 function getTempFilePath(ext: string): string {
   const id = crypto.randomBytes(8).toString('hex')
@@ -52,7 +53,7 @@ export class NodeFetcher implements HttpFetcher {
 
 function resolveNativeBinding(): string | undefined {
   if (process.versions.electron) return undefined
-  const nativePath = path.resolve(__dirname, '../../native/better_sqlite3.node')
+  const nativePath = resolveCliPath('native/better_sqlite3.node')
   if (fs.existsSync(nativePath)) return nativePath
   return undefined
 }

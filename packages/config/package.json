@@ -3,6 +3,7 @@
   "version": "0.0.0",
   "private": true,
   "description": "ChatLab 配置读取层：TOML/JSON 文件 + 环境变量 + Zod 校验",
+  "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "dependencies": {

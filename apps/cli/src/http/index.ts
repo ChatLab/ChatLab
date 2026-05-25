@@ -6,7 +6,6 @@
  */
 
 import * as fs from 'fs'
-import * as path from 'path'
 import * as crypto from 'crypto'
 import type { FastifyInstance } from 'fastify'
 import { loadConfig, writeConfigField, MigrationRunner, ALL_MIGRATIONS } from '@openchatlab/config'
@@ -28,6 +27,7 @@ import { registerAiRoutes } from './routes/ai'
 import { registerPreferencesRoutes } from './routes/preferences'
 import { initServerAiLogger, closeServerAiLogger } from '../ai/logger'
 import { initSync, cleanupSync } from '../sync'
+import { resolveCliPath } from '../paths'
 
 let server: FastifyInstance | null = null
 let dbManager: DatabaseManager | null = null
@@ -43,7 +43,7 @@ export interface HttpServerOptions {
 
 function resolveNativeBinding(): string | undefined {
   if (process.versions.electron) return undefined
-  const nativePath = path.resolve(__dirname, '../../native/better_sqlite3.node')
+  const nativePath = resolveCliPath('native/better_sqlite3.node')
   if (fs.existsSync(nativePath)) return nativePath
   return undefined
 }
