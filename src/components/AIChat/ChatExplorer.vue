@@ -362,7 +362,7 @@ watch(
                     class="cursor-pointer pr-7 text-center text-sm leading-relaxed text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 line-clamp-2"
                     @click="handleConfigureAssistant(assistantStore.selectedAssistant!.id)"
                   >
-                    <UTooltip :text="t('ai.assistant.systemPrompt', '系统设定')" :popper="{ placement: 'top' }">
+                    <UTooltip :text="t('ai.assistant.config.systemPrompt', '系统设定')" :popper="{ placement: 'top' }">
                       {{ welcomeInfo.preview }}
                     </UTooltip>
                   </p>

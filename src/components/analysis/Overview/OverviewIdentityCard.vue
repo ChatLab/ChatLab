@@ -220,7 +220,9 @@ const chartOption = computed<EChartsOption>(() => ({
             height: size,
             r: 3, // 圆角
           },
-          style: api.style(),
+          style: {
+            fill: api.visual('color'),
+          },
         }
       },
       itemStyle: {
