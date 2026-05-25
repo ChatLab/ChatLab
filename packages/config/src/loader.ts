@@ -111,7 +111,7 @@ function loadEnvConfig(): Record<string, unknown> {
  * 如果文件不存在则创建，如果已存在则保留其他内容，只更新指定字段。
  * 采用简单的 TOML 序列化：仅支持一级 section + 字符串/数字值。
  */
-export function writeConfigField(section: string, key: string, value: string | number): void {
+export function writeConfigField(section: string, key: string, value: string | number | boolean): void {
   if (!fs.existsSync(CONFIG_DIR)) {
     fs.mkdirSync(CONFIG_DIR, { recursive: true })
   }

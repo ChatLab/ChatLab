@@ -209,6 +209,8 @@
       "choose": "选择位置",
       "reset": "恢复默认",
       "open": "打开",
+      "migrateHint": "检测到数据仍在旧位置，建议迁移至统一目录：",
+      "migrateAction": "一键迁移",
       "restartTip": "切换目录后请重启应用，旧目录下缓存会跟随迁移",
       "confirmTitle": "确认切换数据目录",
       "confirmMessage": "您即将切换数据存储位置，现有数据将被迁移到新目录。",

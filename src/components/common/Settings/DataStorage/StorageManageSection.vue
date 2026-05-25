@@ -35,6 +35,7 @@ const cacheInfo = ref<CacheInfo | null>(null)
 const isLoading = ref(false)
 const clearingId = ref<string | null>(null)
 const dataDir = ref('')
+const defaultDataDir = ref('')
 const isCustomDataDir = ref(false)
 const isUpdatingDataDir = ref(false)
 const dataDirError = ref<string | null>(null)
@@ -75,10 +76,15 @@ async function loadCacheInfo() {
 }
 
 // 加载数据目录
+const canMigrateToDefault = computed(() => {
+  return IS_ELECTRON && dataDir.value && defaultDataDir.value && dataDir.value !== defaultDataDir.value
+})
+
 async function loadDataDir() {
   try {
     const info = await window.cacheApi.getDataDir()
     dataDir.value = info.path
+    defaultDataDir.value = info.defaultPath || ''
     isCustomDataDir.value = info.isCustom
   } catch (error) {
     console.error('获取数据目录失败:', error)
@@ -138,10 +144,15 @@ async function selectDataDir() {
   }
 }
 
-// 恢复默认数据目录
 async function resetDataDir() {
   dataDirError.value = null
-  // 显示确认弹窗
+  pendingNewDir.value = null
+  pendingMigrate.value = true
+  showConfirmModal.value = true
+}
+
+function migrateToDefaultDir() {
+  dataDirError.value = null
   pendingNewDir.value = null
   pendingMigrate.value = true
   showConfirmModal.value = true
@@ -337,6 +348,31 @@ defineExpose({
           </UButton>
           <UButton v-if="isCustomDataDir" size="sm" variant="ghost" :disabled="isUpdatingDataDir" @click="resetDataDir">
             {{ t('settings.storage.dataLocation.reset') }}
+          </UButton>
+        </div>
+
+        <!-- 一键迁移到默认路径 -->
+        <div
+          v-if="canMigrateToDefault"
+          class="mt-3 flex items-center justify-between rounded-lg border border-blue-200 bg-blue-50 p-3 dark:border-blue-800/50 dark:bg-blue-900/20"
+        >
+          <div>
+            <p class="text-xs font-medium text-blue-700 dark:text-blue-300">
+              {{ t('settings.storage.dataLocation.migrateHint') }}
+            </p>
+            <p class="mt-0.5 font-mono text-xs text-blue-600 dark:text-blue-400">
+              {{ defaultDataDir }}
+            </p>
+          </div>
+          <UButton
+            size="sm"
+            color="primary"
+            variant="soft"
+            :loading="isUpdatingDataDir"
+            :disabled="isUpdatingDataDir"
+            @click="migrateToDefaultDir"
+          >
+            {{ t('settings.storage.dataLocation.migrateAction') }}
           </UButton>
         </div>
 

@@ -90,7 +90,7 @@ export function getUserDataDir(): string {
   return _userDataDir
 }
 
-function getDefaultUserDataDir(): string {
+export function getDefaultUserDataDir(): string {
   return path.join(os.homedir(), '.chatlab', 'data')
 }
 
@@ -180,6 +180,7 @@ export function setCustomDataDir(
       }
 
       writeConfigField('data', 'user_data_dir', newDir)
+      writeConfigField('data', 'electron_migration_done', true)
       _userDataDir = newDir
 
       let canDeleteOldDir = false
@@ -264,6 +265,7 @@ export function setCustomDataDir(
     }
 
     writeConfigField('data', 'user_data_dir', normalized)
+    writeConfigField('data', 'electron_migration_done', true)
 
     if (canDeleteOldDir) {
       writeStorageConfig({ pendingDeleteDir: oldDir })
@@ -582,6 +584,9 @@ const SYSTEM_SUBDIRS = ['ai', 'settings', 'cache', 'logs', 'temp', 'nlp']
  * Electron 启动并写入了默认值 ~/.chatlab/data，导致迁移被跳过。
  */
 export function needsUnifiedDirMigration(): boolean {
+  const config = loadConfig()
+  if (config.data.electron_migration_done) return false
+
   const oldDataDir = resolveOldElectronDataDir()
   const oldDbDir = path.join(oldDataDir, 'databases')
   if (!fs.existsSync(oldDbDir)) return false
@@ -589,7 +594,6 @@ export function needsUnifiedDirMigration(): boolean {
   const hasDb = fs.readdirSync(oldDbDir).some((f) => f.endsWith('.db'))
   if (!hasDb) return false
 
-  const config = loadConfig()
   const currentUserDataDir = config.data.user_data_dir || getDefaultUserDataDir()
   if (path.resolve(currentUserDataDir) === path.resolve(oldDataDir)) return false
 
@@ -707,6 +711,8 @@ export function migrateToUnifiedDirs(): { success: boolean; error?: string } {
     const summary = `Unified dir migration: ${movedDirs.length} dirs moved, ${failedDirs.length} failed`
     writeMigrationLog(getLogsDir(), summary, ensureDir)
     console.log(`[Migration] ${summary}`)
+
+    writeConfigField('data', 'electron_migration_done', true)
 
     return { success: failedDirs.length === 0 }
   } catch (error) {

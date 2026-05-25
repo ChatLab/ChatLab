@@ -209,6 +209,8 @@
       "choose": "Choose",
       "reset": "Reset",
       "open": "Open",
+      "migrateHint": "Data is still at a legacy location. Migrate to the unified directory:",
+      "migrateAction": "Migrate Now",
       "restartTip": "Please restart the app after switching. Data will be migrated from the old directory.",
       "confirmTitle": "Confirm Directory Change",
       "confirmMessage": "You are about to change the data storage location. Existing data will be migrated to the new directory.",

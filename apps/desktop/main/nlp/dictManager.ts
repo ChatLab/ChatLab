@@ -1,12 +1,11 @@
 /**
  * Electron 词库管理器
  *
- * 封装 Electron 特定的 nlpDir 路径解析（使用 app.getPath），
+ * 封装 Electron 特定的 nlpDir 路径解析，
  * 实际词库操作委托给 @openchatlab/node-runtime 的共享实现。
  */
 
 import * as path from 'path'
-import { app } from 'electron'
 import {
   isDictDownloaded as _isDictDownloaded,
   getDictList as _getDictList,
@@ -16,14 +15,12 @@ import {
   ensureDefaultDict as _ensureDefaultDict,
 } from '@openchatlab/node-runtime'
 import type { DictInfo } from '@openchatlab/core'
+import { getSystemDataDir } from '../paths'
 
 export type { DictInfo }
 
-const NLP_DIR_NAME = 'nlp'
-
 export function getNlpDir(): string {
-  const userDataPath = app.getPath('userData')
-  return path.join(userDataPath, 'data', NLP_DIR_NAME)
+  return path.join(getSystemDataDir(), 'nlp')
 }
 
 export function isDictDownloaded(dictId: string): boolean {

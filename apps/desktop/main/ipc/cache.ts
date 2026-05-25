@@ -6,6 +6,7 @@ import * as path from 'path'
 import type { IpcContext } from './types'
 import {
   getUserDataDir,
+  getDefaultUserDataDir,
   getSystemDataDir,
   getDatabaseDir,
   getCacheDir,
@@ -143,6 +144,7 @@ export function registerCacheHandlers(_context: IpcContext): void {
   ipcMain.handle('cache:getDataDir', async () => {
     return {
       path: getUserDataDir(),
+      defaultPath: getDefaultUserDataDir(),
       isCustom: Boolean(getCustomDataDir()),
     }
   })

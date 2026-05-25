@@ -209,6 +209,8 @@
       "choose": "選擇位置",
       "reset": "還原預設",
       "open": "開啟",
+      "migrateHint": "偵測到資料仍在舊位置，建議遷移至統一目錄：",
+      "migrateAction": "一鍵遷移",
       "restartTip": "切換目錄後請重新啟動應用程式，舊目錄下快取會跟隨遷移",
       "confirmTitle": "確認切換資料目錄",
       "confirmMessage": "您即將切換資料儲存位置，現有資料將被遷移到新目錄。",

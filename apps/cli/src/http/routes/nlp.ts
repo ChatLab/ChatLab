@@ -35,7 +35,7 @@ function ensureDb(dbManager: DatabaseManager, sessionId: string) {
 export function registerNlpRoutes(server: FastifyInstance, dbManager: DatabaseManager): void {
   const pathProvider = (dbManager as any)['pathProvider']
   if (pathProvider) {
-    const nlpDir = path.join(pathProvider.getUserDataDir(), 'nlp')
+    const nlpDir = path.join(pathProvider.getSystemDir(), 'nlp')
     initNlpDir(nlpDir)
     ensureDefaultDict(nlpDir).catch((err) => console.warn('[NLP] Auto-download zh-CN dict failed:', err))
   }
@@ -81,5 +81,5 @@ export function registerNlpRoutes(server: FastifyInstance, dbManager: DatabaseMa
 
 function resolveNlpDir(dbManager: DatabaseManager): string {
   const pathProvider = (dbManager as any)['pathProvider']
-  return path.join(pathProvider.getUserDataDir(), 'nlp')
+  return path.join(pathProvider.getSystemDir(), 'nlp')
 }

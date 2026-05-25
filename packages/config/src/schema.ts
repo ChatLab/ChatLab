@@ -16,6 +16,7 @@ export const llmConfigSchema = z.object({
 
 export const dataConfigSchema = z.object({
   user_data_dir: z.string().default(''),
+  electron_migration_done: z.boolean().default(false),
 })
 
 export const apiConfigSchema = z.object({
