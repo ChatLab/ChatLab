@@ -408,6 +408,89 @@ async function installAiApiShims(): Promise<void> {
   ;(window as any).agentApi = agentApiImpl
 
   // cacheApi shim (server-side file operations)
+  // chatApi — merge-related shims (handles ↔ filePaths adaptation)
+  chatApi.exportSessionsToTempFiles = async (sessionIds: string[]) => {
+    try {
+      const resp = await fetch('/_web/sessions/export-for-merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sessionIds }),
+      })
+      const result = await resp.json()
+      if (!result.success) return { success: false, tempFiles: [], error: result.error }
+      return { success: true, tempFiles: result.handles.map((h: { handle: string }) => h.handle) }
+    } catch (error) {
+      return { success: false, tempFiles: [], error: error instanceof Error ? error.message : String(error) }
+    }
+  }
+  chatApi.cleanupTempExportFiles = async (filePaths: string[]) => {
+    try {
+      for (const handle of filePaths) {
+        await fetch('/_web/merge/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ handle }),
+        })
+      }
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) }
+    }
+  }
+
+  // mergeApi — delegates to CLI Web merge HTTP routes (handle-based)
+  ;(window as any).mergeApi = {
+    parseFileInfo: async (_filePath: string) => {
+      // In CLI Web, sessions are pre-parsed during export-for-merge
+      return { name: '', format: '', platform: '', messageCount: 0, memberCount: 0, fileSize: 0 }
+    },
+    checkConflicts: async (filePaths: string[]) => {
+      try {
+        const resp = await fetch('/_web/merge/conflicts', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ handles: filePaths }),
+        })
+        return await resp.json()
+      } catch {
+        return { conflicts: [], totalMessages: 0 }
+      }
+    },
+    mergeFiles: async (params: {
+      filePaths: string[]
+      outputName: string
+      outputFormat?: string
+      andAnalyze?: boolean
+    }) => {
+      try {
+        const resp = await fetch('/_web/merge/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            handles: params.filePaths,
+            outputName: params.outputName,
+            format: params.outputFormat || 'json',
+            andImport: params.andAnalyze ?? false,
+          }),
+        })
+        return await resp.json()
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    },
+    clearCache: async (filePath?: string) => {
+      try {
+        await fetch('/_web/merge/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ handle: filePath }),
+        })
+        return true
+      } catch {
+        return false
+      }
+    },
+  }
   ;(window as any).cacheApi = {
     saveToDownloads: async (filename: string, dataUrl: string) => {
       try {
