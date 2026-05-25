@@ -2,60 +2,100 @@
 import { ref, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
+import { useToast } from '@/composables/useToast'
 import { useSettingsStore } from '@/stores/settings'
 import { usePlatformService } from '@/services'
+import { IS_ELECTRON } from '@/utils/platform'
 
 const { t } = useI18n()
+const toast = useToast()
 const settingsStore = useSettingsStore()
 const { debugMode } = storeToRefs(settingsStore)
 
-// 版本信息
 const appVersion = ref(t('common.loading'))
 const isCheckingUpdate = ref(false)
-
-// 匿名统计开关
 const analyticsEnabled = ref(true)
 
-// 获取应用版本
 async function loadAppVersion() {
   try {
     appVersion.value = await usePlatformService().getVersion()
   } catch (error) {
-    console.error('获取版本号失败:', error)
+    console.error('Failed to get version:', error)
     appVersion.value = t('settings.about.unknown')
   }
 }
 
-// 加载统计开关状态
 async function loadAnalyticsEnabled() {
   try {
     analyticsEnabled.value = await usePlatformService().getAnalyticsEnabled()
   } catch (error) {
-    console.error('获取统计开关状态失败:', error)
+    console.error('Failed to get analytics status:', error)
   }
 }
 
-// 切换统计开关
 async function toggleAnalytics(enabled: boolean) {
   try {
     await usePlatformService().setAnalyticsEnabled(enabled)
     analyticsEnabled.value = enabled
   } catch (error) {
-    console.error('设置统计开关失败:', error)
+    console.error('Failed to set analytics:', error)
   }
 }
 
-// 检查更新
-function checkUpdate() {
+const isUpdating = ref(false)
+
+async function checkUpdate() {
   isCheckingUpdate.value = true
-  usePlatformService().checkUpdate()
-  // 3 秒后恢复按钮状态（实际检查结果由主进程 dialog 显示）
-  setTimeout(() => {
-    isCheckingUpdate.value = false
-  }, 3000)
+  try {
+    const result = await usePlatformService().checkUpdate()
+    if (!result) return
+
+    if (result.error) {
+      toast.fail(t('settings.about.updateCheckFailed', { error: result.error }))
+    } else if (result.hasUpdate) {
+      toast.success(t('settings.about.newVersionAvailable', { version: result.latestVersion }), {
+        duration: 15_000,
+        actions: [
+          {
+            label: t('settings.about.updateNow'),
+            icon: 'i-heroicons-arrow-down-tray',
+            onClick: () => performUpdate(),
+          },
+        ],
+      })
+    } else {
+      toast.success(t('settings.about.upToDate'))
+    }
+  } catch (error) {
+    console.error('Update check failed:', error)
+  } finally {
+    if (IS_ELECTRON) {
+      setTimeout(() => {
+        isCheckingUpdate.value = false
+      }, 3000)
+    } else {
+      isCheckingUpdate.value = false
+    }
+  }
 }
 
-// 组件挂载时加载数据
+async function performUpdate() {
+  isUpdating.value = true
+  toast.info(t('settings.about.updating'))
+  try {
+    const result = await usePlatformService().performUpdate()
+    if (result.success) {
+      toast.success(t('settings.about.updateSuccess'), { duration: 60_000 })
+    } else {
+      toast.fail(t('settings.about.updateFailed', { error: result.error || '' }))
+    }
+  } catch (error) {
+    toast.fail(t('settings.about.updateFailed', { error: String(error) }))
+  } finally {
+    isUpdating.value = false
+  }
+}
+
 onMounted(() => {
   loadAppVersion()
   loadAnalyticsEnabled()
@@ -84,9 +124,25 @@ onMounted(() => {
               <p class="mt-1 text-xs text-gray-400">{{ t('settings.about.version') }} {{ appVersion }}</p>
             </div>
           </div>
-          <UButton :disabled="isCheckingUpdate" color="primary" variant="soft" size="sm" @click="checkUpdate">
-            <UIcon name="i-heroicons-arrow-path" class="mr-1 h-4 w-4" :class="{ 'animate-spin': isCheckingUpdate }" />
-            {{ isCheckingUpdate ? t('settings.about.checking') : t('settings.about.checkUpdate') }}
+          <UButton
+            :disabled="isCheckingUpdate || isUpdating"
+            color="primary"
+            variant="soft"
+            size="sm"
+            @click="checkUpdate"
+          >
+            <UIcon
+              name="i-heroicons-arrow-path"
+              class="mr-1 h-4 w-4"
+              :class="{ 'animate-spin': isCheckingUpdate || isUpdating }"
+            />
+            {{
+              isUpdating
+                ? t('settings.about.updating')
+                : isCheckingUpdate
+                  ? t('settings.about.checking')
+                  : t('settings.about.checkUpdate')
+            }}
           </UButton>
         </div>
       </div>

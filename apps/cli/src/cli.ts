@@ -29,6 +29,11 @@ const program = new Command()
 
 program.name('chatlab').description('ChatLab - Chat history analysis tool').version(getVersion())
 
+program.hook('preAction', async () => {
+  const { checkForUpdatesInteractive } = await import('./update-checker')
+  await checkForUpdatesInteractive()
+})
+
 program
   .command('sessions')
   .description('List all imported chat sessions')

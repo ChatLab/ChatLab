@@ -41,8 +41,12 @@ export class ElectronPlatformAdapter implements PlatformAdapter {
     return window.api.clipboard.copyImage(dataUrl)
   }
 
-  checkUpdate(): void {
+  async checkUpdate(): Promise<void> {
     window.api.app.checkUpdate()
+  }
+
+  async performUpdate(): Promise<{ success: boolean; error?: string }> {
+    return { success: false, error: 'Use built-in updater' }
   }
 
   relaunch(): Promise<void> {

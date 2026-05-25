@@ -4,7 +4,14 @@
  * 大部分平台能力在 Web 模式下不可用，提供安全的降级行为。
  */
 
-import type { PlatformAdapter, OpenDialogOptions, OpenDialogResult, RemoteConfigResult } from './types'
+import type {
+  PlatformAdapter,
+  OpenDialogOptions,
+  OpenDialogResult,
+  RemoteConfigResult,
+  CheckUpdateResult,
+  PerformUpdateResult,
+} from './types'
 
 declare const __APP_VERSION__: string
 
@@ -52,8 +59,26 @@ export class WebPlatformAdapter implements PlatformAdapter {
     return { success: false, error: 'Not available in web mode' }
   }
 
-  checkUpdate(): void {
-    // No-op in web mode
+  async checkUpdate(): Promise<CheckUpdateResult> {
+    try {
+      const resp = await fetch('/_web/system/check-update')
+      return await resp.json()
+    } catch (err) {
+      return {
+        hasUpdate: false,
+        currentVersion: 'unknown',
+        error: err instanceof Error ? err.message : String(err),
+      }
+    }
+  }
+
+  async performUpdate(): Promise<PerformUpdateResult> {
+    try {
+      const resp = await fetch('/_web/system/update', { method: 'POST' })
+      return await resp.json()
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
   }
 
   async relaunch(): Promise<void> {

@@ -19,6 +19,7 @@
 
 import * as os from 'os'
 import * as path from 'path'
+import { execFile } from 'child_process'
 import type { FastifyInstance } from 'fastify'
 import type { PathProvider } from '@openchatlab/core'
 import type { DatabaseManager } from '@openchatlab/node-runtime'
@@ -34,6 +35,27 @@ import { registerImportRoutes } from './import'
 import { registerMergeRoutes } from './merge'
 import { registerExportRoutes } from './export'
 import { registerCacheRoutes } from './cache'
+import { getVersion } from '../../../version'
+
+/**
+ * Semver comparison: returns true if `latest` is strictly newer than `current`.
+ * Handles pre-release tags (e.g. 0.22.0-beta.1 < 0.22.0).
+ */
+function isNewerVersion(latest: string, current: string): boolean {
+  const parse = (v: string) => {
+    const [core, pre] = v.split('-', 2)
+    const parts = core.split('.').map(Number)
+    return { major: parts[0] || 0, minor: parts[1] || 0, patch: parts[2] || 0, pre }
+  }
+  const l = parse(latest)
+  const c = parse(current)
+  if (l.major !== c.major) return l.major > c.major
+  if (l.minor !== c.minor) return l.minor > c.minor
+  if (l.patch !== c.patch) return l.patch > c.patch
+  // Same core version: stable > pre-release
+  if (c.pre && !l.pre) return true
+  return false
+}
 
 export function registerWebRoutes(
   server: FastifyInstance,
@@ -72,4 +94,44 @@ export function registerWebRoutes(
   }
   registerExportRoutes(server, adapter)
   registerCacheRoutes(server, resolvedPathProvider)
+
+  server.get('/_web/system/check-update', async () => {
+    const currentVersion = getVersion()
+    const packageName = 'chatlab-cli'
+    try {
+      const resp = await fetch(`https://registry.npmjs.org/${packageName}/latest`, {
+        headers: { Accept: 'application/json' },
+        signal: AbortSignal.timeout(10_000),
+      })
+      if (!resp.ok) {
+        return { hasUpdate: false, currentVersion, error: `npm registry HTTP ${resp.status}` }
+      }
+      const data = (await resp.json()) as { version?: string }
+      const latestVersion = data.version || currentVersion
+      const hasUpdate = isNewerVersion(latestVersion, currentVersion)
+      return { hasUpdate, currentVersion, latestVersion }
+    } catch (err) {
+      return {
+        hasUpdate: false,
+        currentVersion,
+        error: err instanceof Error ? err.message : String(err),
+      }
+    }
+  })
+
+  server.post('/_web/system/update', async () => {
+    const packageName = 'chatlab-cli'
+    try {
+      await new Promise<void>((resolve, reject) => {
+        const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm'
+        execFile(npmCmd, ['install', '-g', `${packageName}@latest`], { timeout: 120_000 }, (err, _stdout, stderr) => {
+          if (err) return reject(new Error(stderr || err.message))
+          resolve()
+        })
+      })
+      return { success: true }
+    } catch (err) {
+      return { success: false, error: err instanceof Error ? err.message : String(err) }
+    }
+  })
 }

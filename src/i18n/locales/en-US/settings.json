@@ -376,6 +376,13 @@
     "version": "Version",
     "checkUpdate": "Check for Updates",
     "checking": "Checking...",
+    "upToDate": "You are up to date",
+    "newVersionAvailable": "New version {version} available",
+    "updateNow": "Update Now",
+    "updating": "Updating...",
+    "updateSuccess": "Update successful, please restart the service to apply",
+    "updateFailed": "Update failed: {error}",
+    "updateCheckFailed": "Update check failed: {error}",
     "unknown": "Unknown",
     "privacy": {
       "title": "Privacy Settings",

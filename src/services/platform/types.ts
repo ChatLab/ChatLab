@@ -24,6 +24,18 @@ export interface RemoteConfigResult {
   error?: string
 }
 
+export interface CheckUpdateResult {
+  hasUpdate: boolean
+  currentVersion: string
+  latestVersion?: string
+  error?: string
+}
+
+export interface PerformUpdateResult {
+  success: boolean
+  error?: string
+}
+
 export interface PlatformAdapter {
   getVersion(): Promise<string>
   fetchRemoteConfig(url: string): Promise<RemoteConfigResult>
@@ -39,6 +51,7 @@ export interface PlatformAdapter {
   showOpenDialog(options: OpenDialogOptions): Promise<OpenDialogResult>
   copyImageToClipboard(dataUrl: string): Promise<{ success: boolean; error?: string }>
 
-  checkUpdate(): void
+  checkUpdate(): Promise<CheckUpdateResult | void>
+  performUpdate(): Promise<PerformUpdateResult>
   relaunch(): Promise<void>
 }
