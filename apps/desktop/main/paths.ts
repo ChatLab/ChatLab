@@ -573,6 +573,10 @@ export function removeLegacyDir(): boolean {
 
 const SYSTEM_SUBDIRS = ['ai', 'settings', 'cache', 'logs', 'temp', 'nlp']
 
+export function shouldMarkUnifiedDirMigrationDone(failedDirs: string[]): boolean {
+  return failedDirs.length === 0
+}
+
 /**
  * 检测是否需要从 Electron 旧目录结构迁移到新的双根目录结构
  *
@@ -712,7 +716,9 @@ export function migrateToUnifiedDirs(): { success: boolean; error?: string } {
     writeMigrationLog(getLogsDir(), summary, ensureDir)
     console.log(`[Migration] ${summary}`)
 
-    writeConfigField('data', 'electron_migration_done', true)
+    if (shouldMarkUnifiedDirMigrationDone(failedDirs)) {
+      writeConfigField('data', 'electron_migration_done', true)
+    }
 
     return { success: failedDirs.length === 0 }
   } catch (error) {

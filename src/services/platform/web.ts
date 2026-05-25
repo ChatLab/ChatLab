@@ -74,7 +74,12 @@ export class WebPlatformAdapter implements PlatformAdapter {
 
   async performUpdate(): Promise<PerformUpdateResult> {
     try {
-      const resp = await fetch('/_web/system/update', { method: 'POST' })
+      const configResp = await fetch('/_web/automation/config')
+      const config = (await configResp.json()) as { token?: string }
+      const headers: Record<string, string> = {}
+      if (config.token) headers.Authorization = `Bearer ${config.token}`
+
+      const resp = await fetch('/_web/system/update', { method: 'POST', headers })
       return await resp.json()
     } catch (err) {
       return { success: false, error: err instanceof Error ? err.message : String(err) }
