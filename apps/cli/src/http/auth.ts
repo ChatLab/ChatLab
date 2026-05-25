@@ -10,7 +10,6 @@ import { unauthorized, errorResponse } from './errors'
 
 let cachedToken: string | null = null
 let webModeEnabled = false
-const protectedWebPaths = new Set(['/_web/system/update'])
 
 /**
  * 设置 auth hook 使用的 token（由 server 启动时注入）
@@ -36,10 +35,6 @@ function safeTokenCompare(a: string, b: string): boolean {
 
 export async function authHook(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   if (!cachedToken) return
-
-  if (protectedWebPaths.has(request.url.split('?')[0])) {
-    return requireBearerToken(request, reply)
-  }
 
   // /_web/ internal API: no auth required (same-origin Web UI only)
   if (request.url.startsWith('/_web/')) return

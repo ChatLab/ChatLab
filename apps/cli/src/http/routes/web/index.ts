@@ -19,7 +19,6 @@
 
 import * as os from 'os'
 import * as path from 'path'
-import { execFile } from 'child_process'
 import type { FastifyInstance } from 'fastify'
 import type { PathProvider } from '@openchatlab/core'
 import type { DatabaseManager } from '@openchatlab/node-runtime'
@@ -117,22 +116,6 @@ export function registerWebRoutes(
         currentVersion,
         error: err instanceof Error ? err.message : String(err),
       }
-    }
-  })
-
-  server.post('/_web/system/update', async () => {
-    const packageName = 'chatlab-cli'
-    try {
-      await new Promise<void>((resolve, reject) => {
-        const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm'
-        execFile(npmCmd, ['install', '-g', `${packageName}@latest`], { timeout: 120_000 }, (err, _stdout, stderr) => {
-          if (err) return reject(new Error(stderr || err.message))
-          resolve()
-        })
-      })
-      return { success: true }
-    } catch (err) {
-      return { success: false, error: err instanceof Error ? err.message : String(err) }
     }
   })
 }
