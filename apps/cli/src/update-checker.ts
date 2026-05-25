@@ -13,7 +13,8 @@ import { execFile } from 'child_process'
 import { getVersion } from './version'
 
 const PACKAGE_NAME = 'chatlab-cli'
-const CHECK_INTERVAL_MS = 4 * 60 * 60 * 1000 // 4 hours
+const CACHE_STALE_MS = 6 * 60 * 60 * 1000 // 6h — startup cache TTL
+const PERIODIC_CHECK_MS = 24 * 60 * 60 * 1000 // 24h — long-running service interval
 const CACHE_FILE = path.join(os.homedir(), '.chatlab', 'update-check.json')
 
 interface UpdateCache {
@@ -81,21 +82,34 @@ function promptUser(question: string, choices: string[]): Promise<number> {
     process.stderr.write('\n')
 
     if (!process.stdin.isTTY || !process.stdin.setRawMode) {
-      resolve(2) // default to "Skip" in non-interactive
+      resolve(2)
       return
     }
 
     process.stdin.setRawMode(true)
     process.stdin.resume()
-    process.stdin.once('data', (data) => {
-      process.stdin.setRawMode!(false)
-      process.stdin.pause()
+
+    const onData = (data: Buffer) => {
       const key = data.toString()
-      if (key === '\x03') process.exit(0) // Ctrl+C
-      const num = parseInt(key)
-      process.stderr.write('\n')
-      resolve(num >= 1 && num <= choices.length ? num : 2)
-    })
+      if (key === '\x03') {
+        process.stdin.setRawMode!(false)
+        process.stdin.pause()
+        process.exit(0)
+      }
+      // Only accept single-digit keys matching a valid choice;
+      // ignore arrow keys (\x1b[A/B/C/D), Enter, and other non-digit input.
+      if (key.length === 1) {
+        const num = parseInt(key)
+        if (num >= 1 && num <= choices.length) {
+          process.stdin.removeListener('data', onData)
+          process.stdin.setRawMode!(false)
+          process.stdin.pause()
+          process.stderr.write('\n')
+          resolve(num)
+        }
+      }
+    }
+    process.stdin.on('data', onData)
   })
 }
 
@@ -129,8 +143,45 @@ function isDevEnvironment(): boolean {
 }
 
 /**
+ * Fire-and-forget: fetch latest version from npm and update local cache.
+ * Runs in background so CLI startup is never blocked by network IO.
+ */
+function refreshCacheInBackground(existingCache: UpdateCache | null): void {
+  fetchLatestVersion()
+    .then((latestVersion) => {
+      writeCache({
+        lastCheckTime: Date.now(),
+        latestVersion,
+        skippedVersion: existingCache?.skippedVersion,
+      })
+    })
+    .catch(() => {})
+}
+
+/**
+ * Start a periodic background cache refresh for long-running services.
+ * Immediately refreshes once on startup, then every 24h thereafter.
+ * The update prompt will appear on the *next* CLI startup.
+ * The timer is unref'd so it won't prevent process exit.
+ */
+export function startPeriodicUpdateCheck(): void {
+  if (isDevEnvironment()) return
+  refreshCacheInBackground(readCache())
+  const timer = setInterval(() => {
+    refreshCacheInBackground(readCache())
+  }, PERIODIC_CHECK_MS)
+  timer.unref()
+}
+
+/**
  * Check for updates and prompt user interactively.
- * Returns quickly if no update, check was recent, or running in dev.
+ *
+ * Strategy (Codex-style):
+ *  - Read local cache synchronously (instant, no network).
+ *  - If cache is stale, kick off a background fetch for *next* run.
+ *  - Prompt is only shown when cache already contains a newer version.
+ *  - This means the first run after a new release sees no prompt;
+ *    the second run (with fresh cache) shows it — zero startup delay.
  */
 export async function checkForUpdatesInteractive(): Promise<void> {
   if (!process.stdin.isTTY || process.env.CI || isDevEnvironment()) return
@@ -138,23 +189,14 @@ export async function checkForUpdatesInteractive(): Promise<void> {
   const currentVersion = getVersion()
   const cache = readCache()
 
-  let latestVersion: string | null = null
-
-  // Use cached result if recent enough
-  if (cache && Date.now() - cache.lastCheckTime < CHECK_INTERVAL_MS) {
-    latestVersion = cache.latestVersion
-  } else {
-    latestVersion = await fetchLatestVersion()
-    writeCache({
-      lastCheckTime: Date.now(),
-      latestVersion,
-      skippedVersion: cache?.skippedVersion,
-    })
+  // Kick off background refresh if cache is missing or stale
+  if (!cache || Date.now() - cache.lastCheckTime >= CACHE_STALE_MS) {
+    refreshCacheInBackground(cache)
   }
 
+  // Prompt is based on cached data only — no network wait
+  const latestVersion = cache?.latestVersion
   if (!latestVersion || !isNewerVersion(latestVersion, currentVersion)) return
-
-  // User previously chose "skip until next version" for this exact version
   if (cache?.skippedVersion === latestVersion) return
 
   const choice = await promptUser(`  ✨ Update available! ${currentVersion} → ${latestVersion}`, [
@@ -166,7 +208,9 @@ export async function checkForUpdatesInteractive(): Promise<void> {
   if (choice === 1) {
     const result = await runNpmUpdate()
     if (result.success) {
-      process.stderr.write(`  🎉 Updated successfully! Please restart chatlab.\n\n`)
+      process.stderr.write(
+        `  \x1b[32m🎉 Updated successfully! Please restart chatlab to use the new version.\x1b[0m\n\n`
+      )
       process.exit(0)
     } else {
       process.stderr.write(`  ❌ Update failed: ${result.error}\n\n`)

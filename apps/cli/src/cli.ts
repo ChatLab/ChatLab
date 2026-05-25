@@ -27,7 +27,7 @@ import { getVersion } from './version'
 
 const program = new Command()
 
-program.name('chatlab').description('ChatLab - Chat history analysis tool').version(getVersion())
+program.name('chatlab').description('ChatLab - Chat history analysis tool').version(getVersion(), '-v, --version')
 
 program.hook('preAction', async () => {
   const { checkForUpdatesInteractive } = await import('./update-checker')
@@ -307,6 +307,9 @@ program
         webRoot,
       })
 
+      const { startPeriodicUpdateCheck } = await import('./update-checker')
+      startPeriodicUpdateCheck()
+
       console.log(`\nChatLab HTTP API started`)
       console.log(`  Address: http://${info.host}:${info.port}`)
       console.log(`  Token:   ${info.token}`)
@@ -357,6 +360,9 @@ program
 
     try {
       const info = await startHttpServer({ port, host: options.host, webRoot })
+      const { startPeriodicUpdateCheck } = await import('./update-checker')
+      startPeriodicUpdateCheck()
+
       const url = `http://${info.host === '0.0.0.0' ? '127.0.0.1' : info.host}:${info.port}`
 
       console.log(`\nChatLab v${getVersion()}`)
