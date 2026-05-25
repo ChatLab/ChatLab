@@ -2,6 +2,7 @@
   "name": "chatlab-cli",
   "version": "0.0.0",
   "description": "ChatLab CLI & Service - Chat history analysis tool",
+  "type": "module",
   "bin": {
     "chatlab": "bin/chatlab.mjs"
   },
@@ -46,8 +47,8 @@
   "dependencies": {
     "@fastify/multipart": "^10.0.0",
     "@fastify/static": "^9.1.3",
-    "@mariozechner/pi-agent-core": "0.54.2",
-    "@mariozechner/pi-ai": "0.54.2",
+    "@earendil-works/pi-agent-core": "0.74.2",
+    "@earendil-works/pi-ai": "0.74.2",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "better-sqlite3": "^12.4.6",
     "commander": "^13.1.0",

@@ -6,9 +6,9 @@
  */
 
 import { BUILTIN_PROVIDERS } from '@openchatlab/core'
-import { completeSimple } from '@mariozechner/pi-ai'
+import { completeSimple } from '@earendil-works/pi-ai'
 import { buildPiModel, normalizeOpenAICompatibleBaseUrl, type PiModelConfig } from './llm-builder'
-import type { Model as PiModel, Api as PiApi } from '@mariozechner/pi-ai'
+import type { Model as PiModel, Api as PiApi } from '@earendil-works/pi-ai'
 
 export interface RemoteModel {
   id: string

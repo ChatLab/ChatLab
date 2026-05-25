@@ -5,13 +5,13 @@
  * Server 和 Electron 通过 AgentCoreOptions DI 注入平台差异。
  */
 
-import { Agent as PiAgentCore } from '@mariozechner/pi-agent-core'
-import type { AgentEvent as PiAgentEvent } from '@mariozechner/pi-agent-core'
+import { Agent as PiAgentCore } from '@earendil-works/pi-agent-core'
+import type { AgentEvent as PiAgentEvent, AgentMessage as PiAgentMessage } from '@earendil-works/pi-agent-core'
 import {
   type Message as PiMessage,
   type Usage as PiUsage,
   streamSimple as defaultStreamSimple,
-} from '@mariozechner/pi-ai'
+} from '@earendil-works/pi-ai'
 import { StreamingThinkTagParser, needsStreamingThinkParsing } from '@openchatlab/core'
 
 import type { AgentCoreOptions, AgentCoreResult, AgentTokenUsage, SimpleHistoryMessage } from './types'
@@ -49,6 +49,10 @@ function toPiHistoryMessages(messages: SimpleHistoryMessage[]): PiMessage[] {
   })
 }
 
+function isPiMessage(message: PiAgentMessage): message is PiMessage {
+  return message.role === 'user' || message.role === 'assistant' || message.role === 'toolResult'
+}
+
 export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCoreResult> {
   const {
     piModel,
@@ -84,8 +88,11 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
 
   const coreAgent = new PiAgentCore({
     initialState: {
+      systemPrompt,
       model: piModel,
       thinkingLevel: piModel.reasoning ? 'medium' : 'off',
+      tools: maxToolRounds > 0 ? tools : [],
+      messages: toPiHistoryMessages(history),
     },
     getApiKey: () => apiKey,
     streamFn: resolvedStreamFn,
@@ -97,10 +104,6 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
       return filtered
     },
   })
-
-  coreAgent.setSystemPrompt(systemPrompt)
-  coreAgent.setTools(maxToolRounds > 0 ? tools : [])
-  coreAgent.replaceMessages(toPiHistoryMessages(history))
 
   let hasReachedToolRoundLimit = false
   const thinkingStartTime = new Map<number, number>()
@@ -167,7 +170,7 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
         toolRounds += 1
         if (!hasReachedToolRoundLimit && maxToolRounds > 0 && toolRounds >= maxToolRounds) {
           hasReachedToolRoundLimit = true
-          coreAgent.setTools([])
+          coreAgent.state.tools = []
           coreAgent.steer({
             role: 'user',
             content: [{ type: 'text', text: steerMessage }],
@@ -211,8 +214,8 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
 
     return {
       usage: totalUsage,
-      error: coreAgent.state.error || undefined,
-      finalMessages: [...coreAgent.state.messages],
+      error: coreAgent.state.errorMessage || undefined,
+      finalMessages: coreAgent.state.messages.filter(isPiMessage),
       toolsUsed: [...toolsUsed],
       toolRounds,
     }

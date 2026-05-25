@@ -134,15 +134,15 @@ export type { PiModelConfig, BuildPiModelOptions } from './llm-builder'
 export { fetchRemoteModels, validateApiKey } from './remote-api'
 export type { RemoteModel, FetchRemoteModelsResult, RemoteApiOptions } from './remote-api'
 
-// Re-exports from @mariozechner/pi-agent-core
-export type { AgentTool, AgentToolResult } from '@mariozechner/pi-agent-core'
+// Re-exports from @earendil-works/pi-agent-core
+export type { AgentTool, AgentToolResult } from '@earendil-works/pi-agent-core'
 
 // LLM simple streaming
 export { runSimpleLlmStream } from './llm-stream'
 export type { LlmStreamChunk, RunSimpleLlmStreamOptions } from './llm-stream'
 
-// Re-exports from @mariozechner/pi-ai
-export { Type, completeSimple, streamSimple } from '@mariozechner/pi-ai'
+// Re-exports from @earendil-works/pi-ai
+export { Type, completeSimple, streamSimple } from '@earendil-works/pi-ai'
 export type {
   Model as PiModel,
   Api as PiApi,
@@ -150,7 +150,7 @@ export type {
   Usage as PiUsage,
   TextContent as PiTextContent,
   AssistantMessage as PiAssistantMessage,
-} from '@mariozechner/pi-ai'
+} from '@earendil-works/pi-ai'
 
 // ==================== RAG ====================
 export {

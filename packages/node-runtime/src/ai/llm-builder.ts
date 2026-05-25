@@ -1,13 +1,13 @@
 /**
  * Shared PiModel builder — translates an AIServiceConfig-like
- * object into a PiModel instance for @mariozechner/pi-ai.
+ * object into a PiModel instance for @earendil-works/pi-ai.
  *
  * Used by both Electron and Server to eliminate duplicated
  * URL normalization, apiFormat mapping, and model construction.
  */
 
 import { BUILTIN_PROVIDERS, getBuiltinModelsByProvider, BUILTIN_MODELS, type ModelDefinition } from '@openchatlab/core'
-import type { Model as PiModel, Api as PiApi } from '@mariozechner/pi-ai'
+import type { Model as PiModel, Api as PiApi } from '@earendil-works/pi-ai'
 
 export interface PiModelConfig {
   provider: string

@@ -51,10 +51,11 @@ export function adaptSharedTool(tool: ToolDefinition, options: AdaptOptions): To
         label: tool.name,
         description: `ai.tools.${tool.name}.desc`,
         parameters: schema as any,
-        async execute(_toolCallId: string, params: Record<string, unknown>): Promise<AgentToolResult<unknown>> {
+        async execute(_toolCallId: string, params: unknown): Promise<AgentToolResult<unknown>> {
+          const toolParams = (params && typeof params === 'object' ? params : {}) as Record<string, unknown>
           const execCtx = buildExecutionContext(context)
           try {
-            const result = await tool.handler(params, execCtx)
+            const result = await tool.handler(toolParams, execCtx)
 
             if (result.rawMessages && result.rawMessages.length > 0) {
               const baseData = (typeof result.data === 'object' && result.data !== null ? result.data : {}) as Record<

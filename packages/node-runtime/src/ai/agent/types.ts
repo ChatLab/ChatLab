@@ -5,8 +5,8 @@
  * 供 Server 和 Electron 两端通过 DI 适配。
  */
 
-import type { AgentTool } from '@mariozechner/pi-agent-core'
-import type { Model, Api, Message } from '@mariozechner/pi-ai'
+import type { AgentTool } from '@earendil-works/pi-agent-core'
+import type { Model, Api, Message } from '@earendil-works/pi-ai'
 
 export interface AgentTokenUsage {
   promptTokens: number

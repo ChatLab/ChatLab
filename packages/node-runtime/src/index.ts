@@ -255,7 +255,7 @@ export {
 } from './merger/temp-db'
 export type { TempDbMeta, ExportedSession } from './merger/temp-db'
 
-// Re-exports: @mariozechner/pi-agent-core & @mariozechner/pi-ai
+// Re-exports: @earendil-works/pi-agent-core & @earendil-works/pi-ai
 export type { AgentTool, AgentToolResult } from './ai'
 export { Type, completeSimple, streamSimple, runSimpleLlmStream } from './ai'
 export type { LlmStreamChunk, RunSimpleLlmStreamOptions } from './ai'

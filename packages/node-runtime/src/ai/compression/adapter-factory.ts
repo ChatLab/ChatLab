@@ -3,7 +3,7 @@ import {
   type Model as PiModel,
   type Api as PiApi,
   type TextContent as PiTextContent,
-} from '@mariozechner/pi-ai'
+} from '@earendil-works/pi-ai'
 import type { CompressionLlmAdapter } from './types'
 
 export interface CreateCompressionLlmAdapterOptions {

@@ -27,7 +27,7 @@ export interface ActivateSkillTool {
   parameters: Record<string, unknown>
   execute: (
     toolCallId: string,
-    params: { skill_id: string },
+    params: unknown,
     signal?: AbortSignal,
     onUpdate?: unknown
   ) => Promise<ActivateSkillToolResult>
@@ -53,12 +53,14 @@ export function createActivateSkillTool(options: ActivateSkillToolOptions): Acti
       },
       required: ['skill_id'],
     },
-    execute: async (_toolCallId: string, params: { skill_id: string }) => {
-      const skill: SkillDef | null = getSkillConfig(params.skill_id)
+    execute: async (_toolCallId: string, params: unknown) => {
+      const toolParams = (params && typeof params === 'object' ? params : {}) as { skill_id?: string }
+      const skillId = toolParams.skill_id || ''
+      const skill: SkillDef | null = getSkillConfig(skillId)
       if (!skill) {
         return {
           content: [{ type: 'text' as const, text: isZh ? '技能不存在' : 'Skill not found' }],
-          details: { skillId: params.skill_id, found: false },
+          details: { skillId, found: false },
         }
       }
 
@@ -68,7 +70,7 @@ export function createActivateSkillTool(options: ActivateSkillToolOptions): Acti
           : `This skill is only applicable to ${skill.chatScope === 'group' ? 'group chat' : 'private chat'} scenarios`
         return {
           content: [{ type: 'text' as const, text: scopeMsg }],
-          details: { skillId: params.skill_id, found: true, applicable: false },
+          details: { skillId, found: true, applicable: false },
         }
       }
 
@@ -80,7 +82,7 @@ export function createActivateSkillTool(options: ActivateSkillToolOptions): Acti
             : `Current assistant lacks tools required by this skill: ${missing.join(', ')}`
           return {
             content: [{ type: 'text' as const, text: msg }],
-            details: { skillId: params.skill_id, found: true, applicable: false, missingTools: missing },
+            details: { skillId, found: true, applicable: false, missingTools: missing },
           }
         }
       }
@@ -91,7 +93,7 @@ export function createActivateSkillTool(options: ActivateSkillToolOptions): Acti
 
       return {
         content: [{ type: 'text' as const, text: `${skill.prompt}${actionPrompt}` }],
-        details: { skillId: params.skill_id, found: true, applicable: true },
+        details: { skillId, found: true, applicable: true },
       }
     },
   }

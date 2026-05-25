@@ -1,7 +1,7 @@
 /**
  * 工具适配层
  *
- * 将 @openchatlab/tools 的 ToolDefinition 适配为 @mariozechner/pi-agent-core 的 AgentTool 格式。
+ * 将 @openchatlab/tools 的 ToolDefinition 适配为 @earendil-works/pi-agent-core 的 AgentTool 格式。
  * 消息类工具返回 rawMessages 时自动执行预处理管道（清洗、去噪、脱敏、截断、格式化）。
  */
 
@@ -63,7 +63,8 @@ export function adaptToolsForAgent(
     label: tool.name,
     description: tool.description,
     parameters: convertJsonSchemaToParameters(tool.inputSchema) as any,
-    async execute(_toolCallId: string, params: Record<string, unknown>): Promise<AgentToolResult<unknown>> {
+    async execute(_toolCallId: string, params: unknown): Promise<AgentToolResult<unknown>> {
+      const toolParams = (params && typeof params === 'object' ? params : {}) as Record<string, unknown>
       const ctx = getContext()
       const execCtx: ToolExecutionContext = {
         db: ctx.db,
@@ -73,7 +74,7 @@ export function adaptToolsForAgent(
         segmentText: (texts, locale, options) => batchSegmentWithFrequency(texts, locale as any, options as any),
       }
       try {
-        const result = await tool.handler(params, execCtx)
+        const result = await tool.handler(toolParams, execCtx)
 
         if (result.rawMessages && result.rawMessages.length > 0) {
           const pipelineResult = applyPreprocessingPipeline({

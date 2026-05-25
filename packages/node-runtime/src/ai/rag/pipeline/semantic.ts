@@ -16,7 +16,7 @@ import { getEmbeddingService } from '../embedding'
 import { getVectorStore } from '../store'
 import { getSessionChunks } from '../chunking'
 import { loadRAGConfig } from '../config'
-import { completeSimple, type TextContent } from '@mariozechner/pi-ai'
+import { completeSimple, type TextContent } from '@earendil-works/pi-ai'
 import { buildPiModel, type PiModelConfig } from '../../llm-builder'
 
 /**

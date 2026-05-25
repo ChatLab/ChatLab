@@ -5,7 +5,7 @@
  * estimates context tokens. Platform-agnostic via generic chunk type.
  */
 
-import type { Message as PiMessage } from '@mariozechner/pi-ai'
+import type { Message as PiMessage } from '@earendil-works/pi-ai'
 import type { AgentCoreEvent } from './types'
 
 // ==================== Shared types ====================

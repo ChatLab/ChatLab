@@ -110,9 +110,9 @@ export class Agent {
     const errorCapturingStreamFn: typeof streamSimple = (model, context, options) => {
       return streamSimple(model, context, {
         ...options,
-        onPayload: (payload) => {
+        onPayload: (payload, model) => {
           lastRequestPayload = payload
-          options?.onPayload?.(payload)
+          return options?.onPayload?.(payload, model)
         },
       })
     }
