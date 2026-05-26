@@ -82,7 +82,7 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
   pathProvider.ensureAllDirs()
 
   if (hasPendingElectronDataWarning() || !verifyCliDataPath(pathProvider.getDatabaseDir())) {
-    throw new Error(
+    console.error(
       '\n' +
         '='.repeat(68) +
         '\n' +
