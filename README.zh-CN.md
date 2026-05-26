@@ -8,7 +8,7 @@
 
 [English](README.md) | 简体中文
 
-[官网](https://chatlab.fun/cn/) · [项目文档](https://chatlab.fun/cn/usage/) · [路线图](https://chatlab.fun/cn/roadmap/tasks)
+[官网](https://chatlab.fun/cn/) · [项目文档](https://docs.chatlab.fun/cn/usage/) · [路线图](https://chatlab.fun/cn/roadmap/tasks)
 
 </div>
 
@@ -27,9 +27,9 @@ ChatLab 是一个专注于社交记录分析的本地化应用。通过 AI Agent
 ## 使用指南
 
 - [下载 ChatLab 指南](https://chatlab.fun/cn/?type=download)
-- [导出聊天记录指南](https://chatlab.fun/cn/usage/how-to-export)
-- [标准化格式规范](https://chatlab.fun/cn/standard/chatlab-format)
-- [故障排查指南](https://chatlab.fun/cn/usage/troubleshooting)
+- [导出聊天记录指南](https://docs.chatlab.fun/cn/usage/how-to-export)
+- [标准化格式规范](https://docs.chatlab.fun/cn/standard/chatlab-format)
+- [故障排查指南](https://docs.chatlab.fun/cn/usage/troubleshooting)
 
 ## 预览界面
 

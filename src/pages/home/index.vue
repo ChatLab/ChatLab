@@ -111,8 +111,8 @@ async function handleDemoImport() {
 // 教程链接 URL
 const tutorialExportUrl = computed(() => {
   const localePath = getChatlabSiteLocalePath(locale.value)
-  const langPath = localePath ? `/${localePath}` : ''
-  return `https://chatlab.fun${langPath}/usage/how-to-export?utm_source=app`
+  const langPath = localePath ? `/${localePath}` : '/en'
+  return `https://docs.chatlab.fun${langPath}/usage/how-to-export?utm_source=app`
 })
 
 // 教程列表项

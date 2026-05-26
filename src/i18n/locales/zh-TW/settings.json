@@ -597,7 +597,7 @@
       "dataDir": "MCP 伺服器讀取 ~/.chatlab/ 目錄下的聊天資料，與桌面應用程式共用同一份資料。",
       "readOnly": "所有操作均為唯讀，不會修改你的聊天記錄。",
       "nodeRequired": "npx 和 CLI 方式需要 Node.js 20 或更高版本。",
-      "docs": "詳細文件請造訪 chatlab.fun。"
+      "docs": "詳細文件請造訪 docs.chatlab.fun。"
     }
   }
 }

@@ -8,7 +8,7 @@ Your chat history, finally yours.
 
 English | [简体中文](./README.zh-CN.md)
 
-[Official Website](https://chatlab.fun/) · [Documentation](https://chatlab.fun/usage/) · [Roadmap](https://chatlab.fun/cn/roadmap/tasks)
+[Official Website](https://chatlab.fun/) · [Documentation](https://docs.chatlab.fun/en/usage/) · [Roadmap](https://chatlab.fun/cn/roadmap/tasks)
 
 </div>
 
@@ -27,9 +27,9 @@ Currently supported: **WhatsApp, LINE, WeChat, QQ, Discord, Instagram, and Teleg
 ## Usage Guides
 
 - [Download Guide](https://chatlab.fun/?type=download)
-- [Chat Record Export Guide](https://chatlab.fun/usage/how-to-export)
-- [Standardized Format Specification](https://chatlab.fun/standard/chatlab-format)
-- [Troubleshooting Guide](https://chatlab.fun/usage/troubleshooting)
+- [Chat Record Export Guide](https://docs.chatlab.fun/en/usage/how-to-export)
+- [Standardized Format Specification](https://docs.chatlab.fun/en/standard/chatlab-format)
+- [Troubleshooting Guide](https://docs.chatlab.fun/en/usage/troubleshooting)
 
 ## Preview
 

@@ -597,7 +597,7 @@
       "dataDir": "The MCP server reads chat data from ~/.chatlab/, sharing the same data as the desktop app.",
       "readOnly": "All operations are read-only and will not modify your chat records.",
       "nodeRequired": "npx and CLI modes require Node.js 20 or higher.",
-      "docs": "For detailed documentation, visit chatlab.fun."
+      "docs": "For detailed documentation, visit docs.chatlab.fun."
     }
   }
 }
