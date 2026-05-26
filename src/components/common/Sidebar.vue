@@ -12,6 +12,7 @@ import { useSessionStore } from '@/stores/session'
 import { useLayoutStore } from '@/stores/layout'
 import { usePlatformService } from '@/services'
 import { IS_ELECTRON } from '@/utils/platform'
+import logoSvg from '@/assets/images/logo.svg'
 
 const { t } = useI18n()
 
@@ -220,25 +221,37 @@ function getSessionAvatar(session: AnalysisSession): string | null {
         :class="[isCollapsed ? 'justify-center' : 'justify-between']"
         style="-webkit-app-region: drag"
       >
-        <div v-if="!isCollapsed" class="ml-2 flex items-baseline">
-          <div class="text-2xl font-black tracking-tight text-pink-500">
+        <div v-if="!isCollapsed" class="ml-2 flex items-center">
+          <img :src="logoSvg" alt="ChatLab" class="h-6 w-6 select-none pointer-events-none" />
+          <div class="ml-2 text-2xl font-black tracking-tight text-pink-500">
             {{ t('layout.brand') }}
           </div>
           <span class="ml-2 text-xs text-gray-400">v{{ version }}</span>
         </div>
+        <div v-else
+          class="group relative flex h-12 w-12 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-gray-800"
+          style="-webkit-app-region: no-drag"
+          @click="toggleSidebar"
+        >
+          <img :src="logoSvg" alt="ChatLab" class="size-6 select-none pointer-events-none group-hover:hidden" />
+          <UIcon name="i-lucide-panel-right-open" class="size-5 hidden group-hover:block scale-x-[-1]" />
+        </div>
         <UTooltip
-          :text="isCollapsed ? t('layout.tooltip.expand') : t('layout.tooltip.collapse')"
+          v-if="!isCollapsed"
+          :text="t('layout.tooltip.collapse')"
           :popper="{ placement: 'right' }"
           style="-webkit-app-region: no-drag"
         >
           <UButton
-            icon="i-heroicons-bars-3"
             color="gray"
             variant="ghost"
             size="md"
-            class="flex h-12 w-12 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-gray-800"
+            class="group flex h-12 w-12 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-gray-800"
             @click="toggleSidebar"
-          />
+          >
+            <UIcon name="i-lucide-panel-right" class="size-5 group-hover:hidden scale-x-[-1]" />
+            <UIcon name="i-lucide-panel-right-close" class="size-5 hidden group-hover:block scale-x-[-1]" />
+          </UButton>
         </UTooltip>
       </div>
 
