@@ -379,6 +379,7 @@
     "upToDate": "最新バージョンです",
     "newVersionAvailable": "新しいバージョン {version} があります",
     "updateNow": "今すぐ更新",
+    "webUpdateHint": "ターミナルで npm install -g chatlab-cli@latest を実行し、サービスを再起動してください。",
     "updating": "更新中...",
     "updateSuccess": "更新が完了しました。サービスを再起動してください",
     "updateFailed": "更新に失敗しました：{error}",

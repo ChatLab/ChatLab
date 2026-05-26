@@ -379,6 +379,7 @@
     "upToDate": "已是最新版本",
     "newVersionAvailable": "發現新版本 {version}",
     "updateNow": "立即更新",
+    "webUpdateHint": "請在終端機執行 npm install -g chatlab-cli@latest 後重啟服務。",
     "updating": "更新中...",
     "updateSuccess": "更新成功，請重啟服務以生效",
     "updateFailed": "更新失敗：{error}",

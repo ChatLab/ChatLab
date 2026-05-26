@@ -42,8 +42,6 @@ async function toggleAnalytics(enabled: boolean) {
   }
 }
 
-const isUpdating = ref(false)
-
 async function checkUpdate() {
   isCheckingUpdate.value = true
   try {
@@ -55,13 +53,7 @@ async function checkUpdate() {
     } else if (result.hasUpdate) {
       toast.success(t('settings.about.newVersionAvailable', { version: result.latestVersion }), {
         duration: 15_000,
-        actions: [
-          {
-            label: t('settings.about.updateNow'),
-            icon: 'i-heroicons-arrow-down-tray',
-            onClick: () => performUpdate(),
-          },
-        ],
+        description: IS_ELECTRON ? undefined : t('settings.about.webUpdateHint'),
       })
     } else {
       toast.success(t('settings.about.upToDate'))
@@ -76,23 +68,6 @@ async function checkUpdate() {
     } else {
       isCheckingUpdate.value = false
     }
-  }
-}
-
-async function performUpdate() {
-  isUpdating.value = true
-  toast.info(t('settings.about.updating'))
-  try {
-    const result = await usePlatformService().performUpdate()
-    if (result.success) {
-      toast.success(t('settings.about.updateSuccess'), { duration: 60_000 })
-    } else {
-      toast.fail(t('settings.about.updateFailed', { error: result.error || '' }))
-    }
-  } catch (error) {
-    toast.fail(t('settings.about.updateFailed', { error: String(error) }))
-  } finally {
-    isUpdating.value = false
   }
 }
 
@@ -124,25 +99,9 @@ onMounted(() => {
               <p class="mt-1 text-xs text-gray-400">{{ t('settings.about.version') }} {{ appVersion }}</p>
             </div>
           </div>
-          <UButton
-            :disabled="isCheckingUpdate || isUpdating"
-            color="primary"
-            variant="soft"
-            size="sm"
-            @click="checkUpdate"
-          >
-            <UIcon
-              name="i-heroicons-arrow-path"
-              class="mr-1 h-4 w-4"
-              :class="{ 'animate-spin': isCheckingUpdate || isUpdating }"
-            />
-            {{
-              isUpdating
-                ? t('settings.about.updating')
-                : isCheckingUpdate
-                  ? t('settings.about.checking')
-                  : t('settings.about.checkUpdate')
-            }}
+          <UButton :disabled="isCheckingUpdate" color="primary" variant="soft" size="sm" @click="checkUpdate">
+            <UIcon name="i-heroicons-arrow-path" class="mr-1 h-4 w-4" :class="{ 'animate-spin': isCheckingUpdate }" />
+            {{ isCheckingUpdate ? t('settings.about.checking') : t('settings.about.checkUpdate') }}
           </UButton>
         </div>
       </div>
