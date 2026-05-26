@@ -187,16 +187,16 @@ function isPrivateChat(session: AnalysisSession): boolean {
   return session.type === 'private'
 }
 
-// 获取会话头像显示文字：私聊取最后两字，群聊取前两字
+// 获取会话头像显示文字：私聊取最后一字，群聊取前一字
 function getSessionAvatarText(session: AnalysisSession): string {
   const name = session.name || ''
   if (!name) return '?'
   if (isPrivateChat(session)) {
-    // 私聊：取最后两个字
-    return name.length <= 2 ? name : name.slice(-2)
+    // 私聊：取最后一个字
+    return name.slice(-1)
   } else {
-    // 群聊：取前两个字
-    return name.length <= 2 ? name : name.slice(0, 2)
+    // 群聊：取第一个字
+    return name.slice(0, 1)
   }
 }
 
@@ -206,6 +206,32 @@ function getSessionAvatar(session: AnalysisSession): string | null {
     return session.memberAvatar || null
   }
   return session.groupAvatar || null
+}
+
+// 根据会话 ID 生成雅致的莫兰迪色系头像背景和文字颜色（中文注释）
+function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
+  if (isActive) {
+    return isPrivateChat(session)
+      ? 'bg-pink-500 text-white dark:bg-pink-600'
+      : 'bg-primary-600 text-white dark:bg-primary-500'
+  }
+
+  // 雅致的低饱和度配色方案，提升侧边栏的简洁感与品质感（中文注释）
+  const palettes = [
+    { bg: 'bg-pink-50 dark:bg-pink-950/20', text: 'text-pink-600 dark:text-pink-400' },
+    { bg: 'bg-blue-50 dark:bg-blue-950/20', text: 'text-blue-600 dark:text-blue-400' },
+    { bg: 'bg-emerald-50 dark:bg-emerald-950/20', text: 'text-emerald-600 dark:text-emerald-400' },
+    { bg: 'bg-purple-50 dark:bg-purple-950/20', text: 'text-purple-600 dark:text-purple-400' },
+    { bg: 'bg-amber-50 dark:bg-amber-950/20', text: 'text-amber-600 dark:text-amber-400' },
+  ]
+
+  const idStr = session.id || ''
+  let hash = 0
+  for (let i = 0; i < idStr.length; i++) {
+    hash = idStr.charCodeAt(i) + ((hash << 5) - hash)
+  }
+  const index = Math.abs(hash) % palettes.length
+  return `${palettes[index].bg} ${palettes[index].text}`
 }
 </script>
 
@@ -228,7 +254,8 @@ function getSessionAvatar(session: AnalysisSession): string | null {
           </div>
           <span class="ml-2 text-xs text-gray-400">v{{ version }}</span>
         </div>
-        <div v-else
+        <div
+          v-else
           class="group relative flex h-12 w-12 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-gray-800"
           style="-webkit-app-region: no-drag"
           @click="toggleSidebar"
@@ -314,7 +341,7 @@ function getSessionAvatar(session: AnalysisSession): string | null {
           {{ t('layout.noSearchResult') }}
         </div>
 
-        <div class="space-y-1 pb-8" :class="[isCollapsed ? '' : 'px-4']">
+        <div class="space-y-1 pb-8" :class="[isCollapsed ? 'px-3' : 'px-4']">
           <UContextMenu
             v-for="session in filteredSortedSessions"
             :key="session.id"
@@ -323,66 +350,59 @@ function getSessionAvatar(session: AnalysisSession): string | null {
             <!-- 侧边栏折叠时，hover 显示完整会话名称（Tooltip 需绑定到真实 DOM） -->
             <UTooltip :text="session.name" :disabled="!isCollapsed || !session.name" :popper="{ placement: 'right' }">
               <div
-                class="group relative flex items-center p-2 text-left transition-colors"
+                class="group relative flex items-center text-left transition-all duration-200 cursor-pointer"
                 :class="[
-                  route.params.id === session.id && !isCollapsed
-                    ? 'bg-primary-100 text-gray-900 dark:bg-primary-900/30 dark:text-primary-100'
-                    : 'text-gray-700 dark:text-gray-200 hover:bg-gray-200/60 dark:hover:bg-gray-800',
-                  isCollapsed
-                    ? 'justify-center cursor-pointer h-13 w-13 rounded-full ml-3.5'
-                    : 'cursor-pointer w-full rounded-full',
+                  route.params.id === session.id
+                    ? 'bg-gray-200/50 dark:bg-gray-800/80 text-gray-900 dark:text-white font-medium'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/30 dark:hover:bg-gray-800/30',
+                  isCollapsed ? 'justify-center h-10 w-10 rounded-xl mx-auto' : 'w-full rounded-xl p-1.5 px-2.5 pl-1.5',
                 ]"
                 @click="
                   router.push({ name: getSessionRouteName(session), params: { id: session.id }, query: route.query })
                 "
               >
+                <!-- 激活指示器：在展开和折叠下，都优雅地贴在侧边栏最左侧边缘 -->
+                <div
+                  class="absolute top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-pink-500 dark:bg-pink-400 transition-all duration-200"
+                  :class="[
+                    isCollapsed ? '-left-3' : '-left-4',
+                    route.params.id === session.id
+                      ? 'h-4.5 opacity-100'
+                      : 'h-0 opacity-0 group-hover:h-2.5 group-hover:opacity-40',
+                  ]"
+                />
+
                 <!-- 会话头像 -->
                 <!-- 有头像图片时显示图片 -->
                 <img
                   v-if="getSessionAvatar(session)"
                   :src="getSessionAvatar(session)!"
                   :alt="session.name"
-                  class="h-9 w-9 min-w-9 shrink-0 rounded-full object-cover"
-                  :class="[isCollapsed ? '' : 'mr-3']"
+                  class="h-7 w-7 min-w-7 shrink-0 rounded-lg object-cover"
+                  :class="[isCollapsed ? '' : 'mr-2.5']"
                 />
-                <!-- 无头像时显示图标/文字 -->
+                <!-- 无头像时显示精致的首字母/缩写字头像 -->
                 <div
                   v-else
-                  class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
-                  :class="[
-                    route.params.id === session.id
-                      ? isPrivateChat(session)
-                        ? 'bg-pink-600 text-white dark:bg-pink-500 dark:text-white'
-                        : 'bg-primary-600 text-white dark:bg-primary-500 dark:text-white'
-                      : 'bg-gray-400 text-white dark:bg-gray-600 dark:text-white',
-                    isCollapsed ? '' : 'mr-3',
-                  ]"
+                  class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-semibold select-none"
+                  :class="[getAvatarColorClass(session, route.params.id === session.id), isCollapsed ? '' : 'mr-2.5']"
                 >
-                  <!-- 折叠时显示缩略名字，不折叠时显示图标 -->
-                  <template v-if="isCollapsed">
-                    {{ getSessionAvatarText(session) }}
-                  </template>
-                  <template v-else>
-                    <UIcon
-                      :name="isPrivateChat(session) ? 'i-heroicons-user' : 'i-heroicons-chat-bubble-left-right'"
-                      class="h-4 w-4"
-                    />
-                  </template>
+                  {{ getSessionAvatarText(session) }}
                 </div>
 
                 <!-- Session Info -->
                 <div v-if="!isCollapsed" class="min-w-0 flex-1">
-                  <div class="flex items-center justify-between gap-2">
-                    <p class="truncate text-sm font-medium">
+                  <div class="flex items-center justify-between gap-1.5">
+                    <p class="truncate text-xs font-medium">
                       {{ session.name }}
                     </p>
                     <UIcon
                       v-if="sessionStore.isPinned(session.id)"
                       name="i-lucide-pin"
-                      class="h-3.5 w-3.5 shrink-0 text-gray-400 rotate-45"
+                      class="h-3 w-3 shrink-0 text-gray-400/80 rotate-45"
                     />
                   </div>
-                  <p class="truncate text-xs text-gray-500 dark:text-gray-400">
+                  <p class="truncate text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 leading-none">
                     {{ t('layout.sessionInfo', { count: session.messageCount }) }}
                   </p>
                 </div>

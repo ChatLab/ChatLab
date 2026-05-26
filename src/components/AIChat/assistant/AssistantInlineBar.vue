@@ -153,7 +153,7 @@ onUnmounted(() => {
     >
       <!-- 滑动选中焦点层：基于 CSS Transform 平滑移动 -->
       <div
-        class="absolute left-0 inset-y-0 -z-10 rounded-full bg-white ring-[1.5px] ring-primary-500 shadow-sm transition-all duration-350 ease-out dark:bg-primary-500/15 dark:ring-primary-400"
+        class="absolute left-0 inset-y-0 -z-10 rounded-full bg-white ring-[1.5px] ring-primary-500 shadow-sm transition-all duration-350 ease-out dark:bg-primary-700/15 dark:ring-primary-500"
         :style="ringStyle"
       ></div>
 
@@ -168,7 +168,7 @@ onUnmounted(() => {
         class="relative z-10 flex h-[32px] items-center justify-center whitespace-nowrap rounded-full px-4 text-[13px] font-medium transition-colors duration-200"
         :class="[
           selectedId === assistant.id
-            ? 'text-primary-600 dark:text-primary-300'
+            ? 'text-primary-600 dark:text-primary-400'
             : 'text-gray-500 hover:bg-gray-200/50 hover:text-gray-800 dark:text-gray-400 dark:hover:bg-gray-700/50 dark:hover:text-gray-200',
         ]"
         @click="emit('select', assistant.id)"
