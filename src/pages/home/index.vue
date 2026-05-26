@@ -1,12 +1,8 @@
 <script setup lang="ts">
 import { ref, computed, onMounted } from 'vue'
-import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useSessionStore } from '@/stores/session'
-import { useSettingsStore } from '@/stores/settings'
 import { getChatlabSiteLocalePath } from '@/utils/chatlabSiteLocale'
-import { useDataService, useImportService, useSessionIndexService } from '@/services'
-import { getSessionGapThreshold } from '@/composables/useUiConfig'
 import logoSvg from '@/assets/images/logo.svg'
 import LanguageSelectModal from './components/LanguageSelectModal.vue'
 import AgreementModal from './components/AgreementModal.vue'
@@ -17,11 +13,10 @@ import AutoSyncCard from './components/import/AutoSyncCard.vue'
 import ApiImportCard from './components/import/ApiImportCard.vue'
 import ChangelogModal from './components/ChangelogModal.vue'
 import HomeFooter from './components/HomeFooter.vue'
+import DemoImportButton from './components/DemoImportButton.vue'
 
 const { t, locale } = useI18n()
-const router = useRouter()
 const sessionStore = useSessionStore()
-const settingsStore = useSettingsStore()
 
 // 导入方式选中的 Tab 状态
 const activeTab = ref<'file' | 'api' | 'push'>('file')
@@ -55,78 +50,13 @@ function openTerms() {
   agreementModalRef.value?.open()
 }
 
-// 是否展示 Demo 按钮（仅无任何会话时）
+// 三个导入 Tab 共用的底部入口按钮
 const showDemoButton = computed(() => sessionStore.sessions.length === 0)
 
-// Demo 导入状态
-const isDemoImporting = ref(false)
-const demoStage = ref<'downloading' | 'importing'>('downloading')
-const demoError = ref<string | null>(null)
-
-async function navigateToSession(sessionId: string) {
-  const session = await useDataService().getSession(sessionId)
-  if (session) {
-    const routeName = session.type === 'private' ? 'private-chat' : 'group-chat'
-    router.push({ name: routeName, params: { id: sessionId } })
-  }
-}
-
-async function handleDemoImport() {
-  isDemoImporting.value = true
-  demoError.value = null
-  demoStage.value = 'downloading'
-
-  try {
-    const demoLocale = getChatlabSiteLocalePath(settingsStore.locale) || 'en'
-    const result = await useImportService().importDemo(demoLocale, (progress) => {
-      demoStage.value = progress.stage as 'downloading' | 'importing'
-    })
-
-    if (result.success && result.groupSessionId) {
-      await sessionStore.loadSessions()
-      sessionStore.selectSession(result.groupSessionId)
-
-      try {
-        const gapThreshold = getSessionGapThreshold()
-        const sessionIndexService = useSessionIndexService()
-        await sessionIndexService.generate(result.groupSessionId, gapThreshold)
-        if (result.privateSessionId) {
-          await sessionIndexService.generate(result.privateSessionId, gapThreshold)
-        }
-      } catch (e) {
-        console.error('自动生成会话索引失败:', e)
-      }
-
-      await navigateToSession(result.groupSessionId)
-    } else {
-      demoError.value = result.error || t('home.demo.failed')
-    }
-  } catch (e) {
-    demoError.value = String(e)
-  } finally {
-    isDemoImporting.value = false
-  }
-}
-
-// 教程链接 URL
 const tutorialExportUrl = computed(() => {
   const localePath = getChatlabSiteLocalePath(locale.value)
   const langPath = localePath ? `/${localePath}` : '/en'
   return `https://docs.chatlab.fun${langPath}/usage/how-to-export?utm_source=app`
-})
-
-// 教程列表项
-const tutorialItems = computed(() => {
-  const items = [
-    {
-      key: 'export',
-      icon: 'i-heroicons-arrow-up-tray',
-      label: t('home.quickStart.export'),
-      url: tutorialExportUrl.value,
-      external: true,
-    },
-  ]
-  return items
 })
 </script>
 
@@ -171,48 +101,14 @@ const tutorialItems = computed(() => {
           <ApiImportCard v-else-if="activeTab === 'push'" />
         </div>
 
-        <!-- Quick Start List -->
         <div
-          class="mt-6 flex flex-col items-center gap-3 transition-all duration-700 ease-out delay-300"
+          class="mt-6 flex items-center gap-3 transition-all duration-700 ease-out delay-300"
           :class="isMounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'"
         >
-          <template v-for="item in tutorialItems" :key="item.key">
-            <a
-              :href="item.url"
-              :target="item.external ? '_blank' : undefined"
-              class="group flex items-center gap-2 text-sm text-gray-500 hover:text-pink-500 transition-colors dark:text-gray-400 dark:hover:text-pink-400"
-            >
-              <UIcon :name="item.icon" class="h-4 w-4" />
-              <span>{{ item.label }}</span>
-              <UIcon
-                v-if="item.external"
-                name="i-heroicons-arrow-top-right-on-square"
-                class="h-3.5 w-3.5 opacity-0 transition-opacity group-hover:opacity-100"
-              />
-            </a>
-          </template>
-
-          <!-- Demo Import (only when no sessions) -->
-          <template v-if="showDemoButton">
-            <button
-              class="group flex items-center gap-2 text-sm text-gray-500 hover:text-pink-500 transition-colors dark:text-gray-400 dark:hover:text-pink-400"
-              :disabled="isDemoImporting"
-              @click="handleDemoImport"
-            >
-              <UIcon v-if="isDemoImporting" name="i-heroicons-arrow-path" class="h-4 w-4 animate-spin" />
-              <UIcon v-else name="i-heroicons-play-circle" class="h-4 w-4" />
-              <span>
-                {{
-                  isDemoImporting
-                    ? demoStage === 'downloading'
-                      ? t('home.demo.downloading')
-                      : t('home.demo.importing')
-                    : t('home.demo.viewExample')
-                }}
-              </span>
-            </button>
-            <p v-if="demoError" class="text-xs text-red-500 dark:text-red-400">{{ demoError }}</p>
-          </template>
+          <DemoImportButton v-if="showDemoButton" />
+          <UButton :href="tutorialExportUrl" target="_blank" trailing-icon="i-heroicons-chevron-right-20-solid">
+            {{ t('home.quickStart.export') }}
+          </UButton>
         </div>
       </div>
 
