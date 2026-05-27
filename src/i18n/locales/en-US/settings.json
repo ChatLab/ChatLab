@@ -252,7 +252,9 @@
         "name": "Log Files",
         "description": "App logs including import, AI, error logs"
       }
-    },
+    }
+  },
+  "ai": {
     "session": {
       "title": "Session Index Settings",
       "description": "Session index splits chat history into conversation segments by time gaps for better AI analysis",

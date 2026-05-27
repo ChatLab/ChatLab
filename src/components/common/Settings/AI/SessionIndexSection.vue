@@ -31,8 +31,8 @@ const sessionGapMinutes = ref(DEFAULT_GAP_MINUTES)
 // 摘要策略
 const summaryStrategy = ref<SummaryStrategy>('standard')
 const summaryStrategyItems = computed(() => [
-  { label: t('settings.storage.session.summaryBrief'), value: 'brief' },
-  { label: t('settings.storage.session.summaryStandard'), value: 'standard' },
+  { label: t('settings.ai.session.summaryBrief'), value: 'brief' },
+  { label: t('settings.ai.session.summaryStandard'), value: 'standard' },
 ])
 
 // 批量生成相关状态
@@ -199,10 +199,10 @@ onMounted(() => {
         <div>
           <h3 class="flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
             <UIcon name="i-heroicons-clock" class="h-4 w-4 text-blue-500" />
-            {{ t('settings.storage.session.title') }}
+            {{ t('settings.ai.session.title') }}
           </h3>
           <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-            {{ t('settings.storage.session.description') }}
+            {{ t('settings.ai.session.description') }}
           </p>
         </div>
         <!-- 刷新按钮 -->
@@ -215,16 +215,36 @@ onMounted(() => {
         />
       </div>
 
+      <!-- 摘要策略设置 -->
+      <div
+        class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/50"
+      >
+        <div>
+          <span class="text-sm text-gray-700 dark:text-gray-300">
+            {{ t('settings.ai.session.summaryStrategy') }}
+          </span>
+          <p class="text-xs text-gray-400">
+            {{ t('settings.ai.session.summaryStrategyHelp') }}
+          </p>
+        </div>
+        <UITabs
+          :model-value="summaryStrategy"
+          :items="summaryStrategyItems"
+          size="xs"
+          @update:model-value="onSummaryStrategyChange"
+        />
+      </div>
+
       <!-- 默认阈值设置 -->
       <div
         class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/50"
       >
         <div>
           <span class="text-sm text-gray-700 dark:text-gray-300">
-            {{ t('settings.storage.session.defaultThreshold') }}
+            {{ t('settings.ai.session.defaultThreshold') }}
           </span>
           <p class="text-xs text-gray-400">
-            {{ t('settings.storage.session.thresholdHelp') }}
+            {{ t('settings.ai.session.thresholdHelp') }}
           </p>
         </div>
         <div class="flex items-center gap-2">
@@ -237,28 +257,8 @@ onMounted(() => {
             class="w-20"
             @blur="saveSessionThreshold"
           />
-          <span class="text-xs text-gray-500">{{ t('settings.storage.session.thresholdUnit') }}</span>
+          <span class="text-xs text-gray-500">{{ t('settings.ai.session.thresholdUnit') }}</span>
         </div>
-      </div>
-
-      <!-- 摘要策略设置 -->
-      <div
-        class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/50"
-      >
-        <div>
-          <span class="text-sm text-gray-700 dark:text-gray-300">
-            {{ t('settings.storage.session.summaryStrategy') }}
-          </span>
-          <p class="text-xs text-gray-400">
-            {{ t('settings.storage.session.summaryStrategyHelp') }}
-          </p>
-        </div>
-        <UITabs
-          :model-value="summaryStrategy"
-          :items="summaryStrategyItems"
-          size="xs"
-          @update:model-value="onSummaryStrategyChange"
-        />
       </div>
 
       <!-- 会话索引统计 -->
@@ -266,22 +266,22 @@ onMounted(() => {
         <div class="flex items-center justify-between">
           <div>
             <span class="text-sm text-gray-700 dark:text-gray-300">
-              {{ t('settings.storage.session.batchTitle') }}
+              {{ t('settings.ai.session.batchTitle') }}
             </span>
             <div v-if="!isLoadingSessionStatus" class="mt-1 flex items-center gap-3 text-xs">
               <span class="text-gray-500">
-                {{ t('settings.storage.session.totalSessions', { count: sessionIndexStats.total }) }}
+                {{ t('settings.ai.session.totalSessions', { count: sessionIndexStats.total }) }}
               </span>
               <span class="text-green-600 dark:text-green-400">
-                {{ t('settings.storage.session.generatedCount', { count: sessionIndexStats.generated }) }}
+                {{ t('settings.ai.session.generatedCount', { count: sessionIndexStats.generated }) }}
               </span>
               <span v-if="sessionIndexStats.notGenerated > 0" class="text-amber-600 dark:text-amber-400">
-                {{ t('settings.storage.session.notGeneratedCount', { count: sessionIndexStats.notGenerated }) }}
+                {{ t('settings.ai.session.notGeneratedCount', { count: sessionIndexStats.notGenerated }) }}
               </span>
             </div>
             <div v-else class="mt-1 flex items-center gap-1 text-xs text-gray-400">
               <UIcon name="i-heroicons-arrow-path" class="h-3 w-3 animate-spin" />
-              {{ t('settings.storage.session.loadingStatus') }}
+              {{ t('settings.ai.session.loadingStatus') }}
             </div>
           </div>
           <div class="flex items-center gap-2">
@@ -294,7 +294,7 @@ onMounted(() => {
               @click="batchGenerateIndex"
             >
               <UIcon v-if="!isBatchGenerating" name="i-heroicons-sparkles" class="mr-1 h-3 w-3" />
-              {{ t('settings.storage.session.batchGenerate') }}
+              {{ t('settings.ai.session.batchGenerate') }}
             </UButton>
             <UButton
               size="xs"
@@ -304,7 +304,7 @@ onMounted(() => {
               @click="batchRegenerateAll"
             >
               <UIcon v-if="!isBatchGenerating" name="i-heroicons-arrow-path" class="mr-1 h-3 w-3" />
-              {{ t('settings.storage.session.batchRegenerate') }}
+              {{ t('settings.ai.session.batchRegenerate') }}
             </UButton>
           </div>
         </div>
@@ -312,9 +312,7 @@ onMounted(() => {
         <!-- 批量生成进度 -->
         <div v-if="isBatchGenerating" class="mt-3 space-y-2">
           <div class="flex items-center justify-between text-xs">
-            <span class="text-gray-500">
-              {{ t('settings.storage.session.generating') }} {{ batchProgress.currentName }}
-            </span>
+            <span class="text-gray-500">{{ t('settings.ai.session.generating') }} {{ batchProgress.currentName }}</span>
             <span class="font-medium text-gray-700 dark:text-gray-300">
               {{ batchProgress.current }}/{{ batchProgress.total }} ({{ batchProgressPercent }}%)
             </span>
