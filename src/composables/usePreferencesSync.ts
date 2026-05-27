@@ -70,6 +70,15 @@ function setupConfigWatchers(svc: ReturnType<typeof usePreferencesService>): voi
   )
 
   watch(
+    () => getUiConfig().summary_strategy,
+    (val) => {
+      svc.saveUiConfig({ summary_strategy: val }).catch((err) => {
+        console.warn('[PreferencesSync] Failed to save ui config:', err)
+      })
+    }
+  )
+
+  watch(
     () => settingsStore.locale,
     (val) => {
       svc.saveLocale(val).catch((err) => {

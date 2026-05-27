@@ -5,8 +5,14 @@
  */
 import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import UITabs from '@/components/UI/Tabs.vue'
 import { useDataService, useSessionIndexService } from '@/services'
-import { getSessionGapThreshold, patchUiConfig } from '@/composables/useUiConfig'
+import {
+  getSessionGapThreshold,
+  getSummaryStrategy,
+  patchUiConfig,
+  type SummaryStrategy,
+} from '@/composables/useUiConfig'
 
 const { t } = useI18n()
 
@@ -21,6 +27,13 @@ interface SessionIndexStatus {
 // 会话索引配置
 const DEFAULT_GAP_MINUTES = 30 // 默认30分钟
 const sessionGapMinutes = ref(DEFAULT_GAP_MINUTES)
+
+// 摘要策略
+const summaryStrategy = ref<SummaryStrategy>('standard')
+const summaryStrategyItems = computed(() => [
+  { label: t('settings.storage.session.summaryBrief'), value: 'brief' },
+  { label: t('settings.storage.session.summaryStandard'), value: 'standard' },
+])
 
 // 批量生成相关状态
 const allSessionsStatus = ref<SessionIndexStatus[]>([])
@@ -51,6 +64,11 @@ function saveSessionThreshold() {
 function loadSessionThreshold() {
   const threshold = getSessionGapThreshold()
   sessionGapMinutes.value = Math.round(threshold / 60)
+}
+
+function onSummaryStrategyChange(val: string | number) {
+  summaryStrategy.value = val as SummaryStrategy
+  patchUiConfig({ summary_strategy: val as SummaryStrategy })
 }
 
 // 加载所有会话的索引状态
@@ -168,6 +186,7 @@ async function batchRegenerateAll() {
 // 组件挂载时加载数据
 onMounted(() => {
   loadSessionThreshold()
+  summaryStrategy.value = getSummaryStrategy()
   loadSessionIndexStatus()
 })
 </script>
@@ -220,6 +239,26 @@ onMounted(() => {
           />
           <span class="text-xs text-gray-500">{{ t('settings.storage.session.thresholdUnit') }}</span>
         </div>
+      </div>
+
+      <!-- 摘要策略设置 -->
+      <div
+        class="flex items-center justify-between rounded-lg border border-gray-200 bg-gray-50 px-4 py-3 dark:border-gray-700 dark:bg-gray-800/50"
+      >
+        <div>
+          <span class="text-sm text-gray-700 dark:text-gray-300">
+            {{ t('settings.storage.session.summaryStrategy') }}
+          </span>
+          <p class="text-xs text-gray-400">
+            {{ t('settings.storage.session.summaryStrategyHelp') }}
+          </p>
+        </div>
+        <UITabs
+          :model-value="summaryStrategy"
+          :items="summaryStrategyItems"
+          size="xs"
+          @update:model-value="onSummaryStrategyChange"
+        />
       </div>
 
       <!-- 会话索引统计 -->

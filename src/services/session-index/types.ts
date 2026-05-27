@@ -52,7 +52,8 @@ export interface SessionIndexAdapter {
     dbSessionId: string,
     chatSessionId: number,
     locale?: string,
-    forceRegenerate?: boolean
+    forceRegenerate?: boolean,
+    strategy?: 'brief' | 'standard'
   ): Promise<SummaryResult>
 
   generateSummaries(dbSessionId: string, chatSessionIds: number[], locale?: string): Promise<BatchSummaryResult>

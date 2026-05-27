@@ -83,9 +83,10 @@ export async function generateSessionSummary(
   dbSessionId: string,
   chatSessionId: number,
   locale: string = 'zh-CN',
-  forceRegenerate: boolean = false
+  forceRegenerate: boolean = false,
+  strategy?: 'brief' | 'standard'
 ): Promise<{ success: boolean; summary?: string; error?: string }> {
-  return generateCore(buildDeps(dbSessionId), chatSessionId, { locale, forceRegenerate })
+  return generateCore(buildDeps(dbSessionId), chatSessionId, { locale, forceRegenerate, strategy })
 }
 
 export async function generateSessionSummaries(

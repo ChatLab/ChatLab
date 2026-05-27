@@ -52,9 +52,10 @@ export class ElectronSessionIndexAdapter implements SessionIndexAdapter {
     dbSessionId: string,
     chatSessionId: number,
     locale?: string,
-    forceRegenerate?: boolean
+    forceRegenerate?: boolean,
+    strategy?: 'brief' | 'standard'
   ): Promise<SummaryResult> {
-    return window.sessionApi.generateSummary(dbSessionId, chatSessionId, locale, forceRegenerate)
+    return window.sessionApi.generateSummary(dbSessionId, chatSessionId, locale, forceRegenerate, strategy)
   }
 
   generateSummaries(dbSessionId: string, chatSessionIds: number[], locale?: string): Promise<BatchSummaryResult> {

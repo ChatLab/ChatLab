@@ -3,6 +3,7 @@ import { ref, computed, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useDebounceFn } from '@vueuse/core'
 import { useSessionIndexService } from '@/services'
+import { getSummaryStrategy } from '@/composables/useUiConfig'
 
 const props = defineProps<{
   open: boolean
@@ -271,7 +272,13 @@ async function startGenerate() {
       if (shouldStop.value) break
 
       try {
-        const result = await useSessionIndexService().generateSummary(props.sessionId, session.id, locale.value, false)
+        const result = await useSessionIndexService().generateSummary(
+          props.sessionId,
+          session.id,
+          locale.value,
+          false,
+          getSummaryStrategy()
+        )
 
         if (result.success) {
           // 成功：显示摘要内容

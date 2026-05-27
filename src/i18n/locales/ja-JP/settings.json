@@ -274,7 +274,11 @@
       "notGeneratedCount": "未生成 {count} 件",
       "loadingStatus": "読み込み中...",
       "batchGenerate": "未生成分を作成",
-      "batchRegenerate": "すべて再生成"
+      "batchRegenerate": "すべて再生成",
+      "summaryStrategy": "要約の詳細度",
+      "summaryStrategyHelp": "AI が要約を生成する際の詳細さを設定します",
+      "summaryBrief": "簡潔",
+      "summaryStandard": "標準"
     }
   },
   "aiPrompt": {

@@ -32,6 +32,7 @@ export const localeConfigSchema = z.object({
 export const uiConfigSchema = z.object({
   default_session_tab: z.enum(['overview', 'ai-chat']).default('overview'),
   session_gap_threshold: z.number().int().min(60).max(86400).default(1800),
+  summary_strategy: z.enum(['brief', 'standard']).default('standard'),
 })
 
 export const configSchema = z.object({

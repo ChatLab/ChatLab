@@ -196,4 +196,5 @@ export interface Preferences {
 export interface UiConfig {
   default_session_tab: 'overview' | 'ai-chat'
   session_gap_threshold: number
+  summary_strategy?: 'brief' | 'standard'
 }

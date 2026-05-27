@@ -7,9 +7,12 @@
 import { ref } from 'vue'
 import type { UiConfig } from '@/services/preferences/types'
 
+export type SummaryStrategy = 'brief' | 'standard'
+
 const _uiConfig = ref<UiConfig>({
   default_session_tab: 'overview',
   session_gap_threshold: 1800,
+  summary_strategy: 'standard',
 })
 
 export function getUiConfig(): UiConfig {
@@ -26,4 +29,8 @@ export function patchUiConfig(partial: Partial<UiConfig>): void {
 
 export function getSessionGapThreshold(): number {
   return _uiConfig.value.session_gap_threshold
+}
+
+export function getSummaryStrategy(): SummaryStrategy {
+  return _uiConfig.value.summary_strategy ?? 'standard'
 }

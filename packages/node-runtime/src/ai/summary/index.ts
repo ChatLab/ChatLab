@@ -29,9 +29,12 @@ export interface SummaryDeps {
   }
 }
 
+export type SummaryStrategy = 'brief' | 'standard'
+
 export interface SummaryOptions {
   locale?: string
   forceRegenerate?: boolean
+  strategy?: SummaryStrategy
 }
 
 export interface SummaryResult {
@@ -48,11 +51,18 @@ const SEGMENT_THRESHOLD = 8000
 
 // ==================== Pure algorithms ====================
 
-function getSummaryLengthLimit(messageCount: number): number {
-  if (messageCount <= 10) return 50
-  if (messageCount <= 30) return 80
-  if (messageCount <= 100) return 120
-  return 200
+function getSummaryLengthLimit(messageCount: number, strategy: SummaryStrategy = 'standard'): number {
+  if (strategy === 'brief') {
+    if (messageCount <= 10) return 50
+    if (messageCount <= 30) return 80
+    if (messageCount <= 100) return 120
+    return 200
+  }
+  // standard: richer summaries covering who, what, and key details
+  if (messageCount <= 10) return 100
+  if (messageCount <= 30) return 200
+  if (messageCount <= 100) return 350
+  return 500
 }
 
 const MEANINGFUL_SHORT_ZH = ['好的', '不是', '是的', '可以', '不行', '好吧', '明白', '知道', '同意']
@@ -166,26 +176,44 @@ export function splitIntoSegments(
 
 // ==================== Prompt builders ====================
 
-function buildSummaryPrompt(content: string, lengthLimit: number, locale: string): string {
-  if (locale.startsWith('zh')) {
-    return `请用简洁的语言（${lengthLimit}字以内）总结以下对话的主要内容或话题。只输出摘要内容，不要添加任何前缀、解释或引号。\n\n${content}`
+function buildSummaryPrompt(content: string, lengthLimit: number, locale: string, strategy: SummaryStrategy): string {
+  if (strategy === 'brief') {
+    if (locale.startsWith('zh')) {
+      return `请用简洁的语言（${lengthLimit}字以内）总结以下对话的主要内容或话题。只输出摘要内容，不要添加任何前缀、解释或引号。\n\n${content}`
+    }
+    return `Summarize the following conversation concisely (max ${lengthLimit} characters). Output only the summary, no prefix, explanation, or quotes.\n\n${content}`
   }
-  return `Summarize the following conversation concisely (max ${lengthLimit} characters). Output only the summary, no prefix, explanation, or quotes.\n\n${content}`
+  if (locale.startsWith('zh')) {
+    return `请总结以下聊天记录（${lengthLimit}字以内），需包含：谁参与了讨论、讨论了什么事情、关键细节和结论。用2-4句话描述，不要罗列每条消息。只输出摘要内容，不要添加任何前缀、解释或引号。\n\n${content}`
+  }
+  return `Summarize the following chat log (max ${lengthLimit} characters). Include: who participated, what was discussed, key details and conclusions. Use 2-4 sentences, don't list individual messages. Output only the summary, no prefix, explanation, or quotes.\n\n${content}`
 }
 
-function buildSubSummaryPrompt(content: string, locale: string): string {
+function buildSubSummaryPrompt(content: string, locale: string, strategy: SummaryStrategy): string {
+  const limit = strategy === 'brief' ? 50 : 100
   if (locale.startsWith('zh')) {
-    return `请用一句话（不超过50字）概括以下对话片段的主要内容。只输出摘要内容，不要添加任何前缀、解释或引号。\n\n${content}`
+    return `请用一到两句话（不超过${limit}字）概括以下对话片段的主要内容，包括谁说了什么。只输出摘要内容，不要添加任何前缀、解释或引号。\n\n${content}`
   }
-  return `Summarize this conversation segment in one sentence (max 50 characters). Output only the summary, no prefix or quotes.\n\n${content}`
+  return `Summarize this conversation segment in 1-2 sentences (max ${limit} characters), including who said what. Output only the summary, no prefix or quotes.\n\n${content}`
 }
 
-function buildMergePrompt(subSummaries: string[], lengthLimit: number, locale: string): string {
+function buildMergePrompt(
+  subSummaries: string[],
+  lengthLimit: number,
+  locale: string,
+  strategy: SummaryStrategy
+): string {
   const list = subSummaries.map((s, i) => `${i + 1}. ${s}`).join('\n')
-  if (locale.startsWith('zh')) {
-    return `以下是一段对话的多个片段摘要，请将它们合并成一个完整的总结（${lengthLimit}字以内）。只输出摘要内容，不要添加任何前缀、解释或引号。\n\n${list}`
+  if (strategy === 'brief') {
+    if (locale.startsWith('zh')) {
+      return `以下是一段对话的多个片段摘要，请将它们合并成一个完整的总结（${lengthLimit}字以内）。只输出摘要内容，不要添加任何前缀、解释或引号。\n\n${list}`
+    }
+    return `Below are summaries of different parts of a conversation. Merge them into one cohesive summary (max ${lengthLimit} characters). Output only the summary, no prefix or quotes.\n\n${list}`
   }
-  return `Below are summaries of different parts of a conversation. Merge them into one cohesive summary (max ${lengthLimit} characters). Output only the summary, no prefix or quotes.\n\n${list}`
+  if (locale.startsWith('zh')) {
+    return `以下是一段对话的多个片段摘要，请将它们合并成一个完整的总结（${lengthLimit}字以内）。保留参与者、事件和关键细节。只输出摘要内容，不要添加任何前缀、解释或引号。\n\n${list}`
+  }
+  return `Below are summaries of different parts of a conversation. Merge them into one cohesive summary (max ${lengthLimit} characters). Preserve participants, events, and key details. Output only the summary, no prefix or quotes.\n\n${list}`
 }
 
 // ==================== Post-processing ====================
@@ -209,7 +237,7 @@ export async function generateSessionSummary(
   chatSessionId: number,
   options: SummaryOptions = {}
 ): Promise<SummaryResult> {
-  const { locale = 'zh-CN', forceRegenerate = false } = options
+  const { locale = 'zh-CN', forceRegenerate = false, strategy = 'standard' } = options
   const log = deps.logger
 
   try {
@@ -232,20 +260,22 @@ export async function generateSessionSummary(
       return { success: false, error: deps.t('summary.tooFewValidMessages', { count: MIN_MESSAGE_COUNT }) }
     }
 
-    const lengthLimit = getSummaryLengthLimit(validMessages.length)
+    const lengthLimit = getSummaryLengthLimit(validMessages.length, strategy)
+    const maxTokens = strategy === 'brief' ? 300 : 600
+    const subMaxTokens = strategy === 'brief' ? 100 : 200
     const content = formatMessages(validMessages)
 
     log?.info(
       'Summary',
-      `Generating summary: sessionId=${chatSessionId}, raw=${rawMessages.length}, valid=${validMessages.length}, chars=${content.length}`
+      `Generating summary: sessionId=${chatSessionId}, strategy=${strategy}, raw=${rawMessages.length}, valid=${validMessages.length}, chars=${content.length}`
     )
 
     let summary: string
     if (content.length <= SEGMENT_THRESHOLD) {
       summary = await deps.llmComplete(
         deps.t('summary.systemPromptDirect'),
-        buildSummaryPrompt(content, lengthLimit, locale),
-        { temperature: 0.3, maxTokens: 300 }
+        buildSummaryPrompt(content, lengthLimit, locale, strategy),
+        { temperature: 0.3, maxTokens }
       )
       summary = summary.trim()
     } else {
@@ -257,8 +287,8 @@ export async function generateSessionSummary(
         const segContent = formatMessages(segment)
         const sub = await deps.llmComplete(
           deps.t('summary.systemPromptDirect'),
-          buildSubSummaryPrompt(segContent, locale),
-          { temperature: 0.3, maxTokens: 100 }
+          buildSubSummaryPrompt(segContent, locale, strategy),
+          { temperature: 0.3, maxTokens: subMaxTokens }
         )
         subSummaries.push(sub.trim())
       }
@@ -268,8 +298,8 @@ export async function generateSessionSummary(
       } else {
         summary = await deps.llmComplete(
           deps.t('summary.systemPromptMerge'),
-          buildMergePrompt(subSummaries, lengthLimit, locale),
-          { temperature: 0.3, maxTokens: 300 }
+          buildMergePrompt(subSummaries, lengthLimit, locale, strategy),
+          { temperature: 0.3, maxTokens }
         )
         summary = summary.trim()
       }

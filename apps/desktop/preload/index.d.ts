@@ -1125,7 +1125,8 @@ interface SessionApi {
     dbSessionId: string,
     chatSessionId: number,
     locale?: string,
-    forceRegenerate?: boolean
+    forceRegenerate?: boolean,
+    strategy?: 'brief' | 'standard'
   ) => Promise<{ success: boolean; summary?: string; error?: string }>
   /** 批量生成会话摘要 */
   generateSummaries: (

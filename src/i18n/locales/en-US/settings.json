@@ -274,7 +274,11 @@
       "notGeneratedCount": "{count} not generated",
       "loadingStatus": "Loading...",
       "batchGenerate": "Generate Missing",
-      "batchRegenerate": "Regenerate All"
+      "batchRegenerate": "Regenerate All",
+      "summaryStrategy": "Summary Detail Level",
+      "summaryStrategyHelp": "Controls how detailed AI-generated summaries will be",
+      "summaryBrief": "Brief",
+      "summaryStandard": "Standard"
     }
   },
   "aiPrompt": {

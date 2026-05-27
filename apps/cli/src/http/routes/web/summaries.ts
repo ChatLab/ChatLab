@@ -25,12 +25,13 @@ export function registerSummaryRoutes(
 
   server.post<{
     Params: { id: string }
-    Body: { chatSessionId: number; locale?: string; forceRegenerate?: boolean }
+    Body: { chatSessionId: number; locale?: string; forceRegenerate?: boolean; strategy?: 'brief' | 'standard' }
   }>('/_web/sessions/:id/summaries/generate', async (request, reply) => {
-    const { chatSessionId, locale, forceRegenerate } = request.body
+    const { chatSessionId, locale, forceRegenerate, strategy } = request.body
     const result = await summaryService.generateSummary(adapter, request.params.id, chatSessionId, deps, {
       locale,
       forceRegenerate,
+      strategy,
     })
     if ('error' in result && !result.success) {
       return reply.code(400).send({ error: result.error })

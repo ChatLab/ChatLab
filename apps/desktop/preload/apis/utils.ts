@@ -284,9 +284,10 @@ export const sessionApi = {
     dbSessionId: string,
     chatSessionId: number,
     locale?: string,
-    forceRegenerate?: boolean
+    forceRegenerate?: boolean,
+    strategy?: 'brief' | 'standard'
   ): Promise<{ success: boolean; summary?: string; error?: string }> => {
-    return ipcRenderer.invoke('session:generateSummary', dbSessionId, chatSessionId, locale, forceRegenerate)
+    return ipcRenderer.invoke('session:generateSummary', dbSessionId, chatSessionId, locale, forceRegenerate, strategy)
   },
 
   /**

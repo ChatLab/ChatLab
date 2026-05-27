@@ -274,7 +274,11 @@
       "notGeneratedCount": "未生成 {count} 个",
       "loadingStatus": "加载中...",
       "batchGenerate": "生成未索引",
-      "batchRegenerate": "全部重新生成"
+      "batchRegenerate": "全部重新生成",
+      "summaryStrategy": "摘要详细程度",
+      "summaryStrategyHelp": "影响 AI 生成摘要时的详细程度",
+      "summaryBrief": "简要",
+      "summaryStandard": "标准"
     }
   },
   "aiPrompt": {

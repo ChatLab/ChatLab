@@ -881,12 +881,20 @@ export function registerChatHandlers(ctx: IpcContext): void {
    */
   ipcMain.handle(
     'session:generateSummary',
-    async (_, dbSessionId: string, chatSessionId: number, locale?: string, forceRegenerate?: boolean) => {
+    async (
+      _,
+      dbSessionId: string,
+      chatSessionId: number,
+      locale?: string,
+      forceRegenerate?: boolean,
+      strategy?: 'brief' | 'standard'
+    ) => {
       console.log('[IPC] session:generateSummary request received:', {
         dbSessionId,
         chatSessionId,
         locale,
         forceRegenerate,
+        strategy,
       })
       try {
         const { generateSessionSummary } = await import('../ai/summary')
@@ -894,7 +902,8 @@ export function registerChatHandlers(ctx: IpcContext): void {
           dbSessionId,
           chatSessionId,
           locale || 'zh-CN',
-          forceRegenerate || false
+          forceRegenerate || false,
+          strategy
         )
         console.log('[IPC] session:generateSummary result:', result)
         return result

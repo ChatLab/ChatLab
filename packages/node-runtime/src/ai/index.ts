@@ -120,7 +120,7 @@ export {
   filterValidMessages,
   splitIntoSegments,
 } from './summary'
-export type { SummaryDeps, SummaryMessage, SummaryOptions, SummaryResult } from './summary'
+export type { SummaryDeps, SummaryMessage, SummaryOptions, SummaryResult, SummaryStrategy } from './summary'
 
 // LLM Config Store
 export { LLMConfigStore, MAX_CONFIG_COUNT } from './llm-config-store'

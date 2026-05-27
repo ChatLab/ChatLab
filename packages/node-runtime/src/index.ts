@@ -161,7 +161,7 @@ export {
   filterValidMessages,
   splitIntoSegments,
 } from './ai'
-export type { SummaryDeps, SummaryMessage, SummaryOptions, SummaryResult } from './ai'
+export type { SummaryDeps, SummaryMessage, SummaryOptions, SummaryResult, SummaryStrategy } from './ai'
 
 // LLM Config Store
 export { LLMConfigStore, MAX_CONFIG_COUNT } from './ai'

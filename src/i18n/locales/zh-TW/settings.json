@@ -274,7 +274,11 @@
       "notGeneratedCount": "未產生 {count} 個",
       "loadingStatus": "載入中...",
       "batchGenerate": "產生未索引項目",
-      "batchRegenerate": "全部重新產生"
+      "batchRegenerate": "全部重新產生",
+      "summaryStrategy": "摘要詳細程度",
+      "summaryStrategyHelp": "影響 AI 生成摘要時的詳細程度",
+      "summaryBrief": "簡要",
+      "summaryStandard": "標準"
     }
   },
   "aiPrompt": {

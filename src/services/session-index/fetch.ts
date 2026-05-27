@@ -100,13 +100,14 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
     dbSessionId: string,
     chatSessionId: number,
     locale?: string,
-    forceRegenerate?: boolean
+    forceRegenerate?: boolean,
+    strategy?: 'brief' | 'standard'
   ): Promise<SummaryResult> {
     try {
       const resp = await fetch(`/_web/sessions/${dbSessionId}/summaries/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chatSessionId, locale, forceRegenerate }),
+        body: JSON.stringify({ chatSessionId, locale, forceRegenerate, strategy }),
       })
       const result = await resp.json()
       if (!resp.ok) {
