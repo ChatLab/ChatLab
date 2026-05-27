@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { useDebounceFn } from '@vueuse/core'
 import { useSessionIndexService } from '@/services'
 import { getSummaryStrategy } from '@/composables/useUiConfig'
+import { stopBatchSummaryGeneration } from './summaryGeneration'
 
 const props = defineProps<{
   open: boolean
@@ -330,10 +331,9 @@ async function startGenerate() {
   }
 }
 
-// 停止生成：立即更新 UI 状态，后台请求自然结束不影响
+// 停止生成：保持生成锁定，等待当前循环进入 finally 后统一释放。
 function stopGenerate() {
-  shouldStop.value = true
-  isGenerating.value = false
+  stopBatchSummaryGeneration(shouldStop)
 }
 
 // 关闭弹窗

@@ -46,6 +46,8 @@ import {
   deleteCustomModel,
 } from '../../ai/custom-store'
 import { validateApiKey, fetchRemoteModels } from '../../ai/remote-api'
+import { resolveApiKey } from '@openchatlab/config'
+import { toLlmConfigDisplay } from './ai-config-display'
 
 function getAiDir(dbManager: DatabaseManager): string {
   const pathProvider = (dbManager as any)['pathProvider']
@@ -177,10 +179,7 @@ export function registerAiRoutes(
 
     try {
       const data = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
-      const configs = (data.configs || []).map((c: Record<string, unknown>) => {
-        const { apiKey: _k, ...rest } = c
-        return { ...rest, apiKey: '', apiKeySet: !!c.authProfile }
-      })
+      const configs = (data.configs || []).map((c: Record<string, unknown>) => toLlmConfigDisplay(c, resolveApiKey))
       return {
         configs,
         defaultAssistant: data.defaultAssistant ?? null,

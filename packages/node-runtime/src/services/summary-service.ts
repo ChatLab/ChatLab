@@ -16,6 +16,7 @@ import {
   generateSessionSummary,
   checkSessionsCanGenerateSummary,
   type SummaryDeps,
+  type SummaryOptions,
   completeSimple,
   type PiTextContent,
 } from '../ai'
@@ -67,7 +68,7 @@ export async function generateSummary(
   sessionId: string,
   chatSessionId: number,
   serviceDeps: SummaryServiceDeps,
-  options?: { locale?: string; forceRegenerate?: boolean }
+  options?: SummaryOptions
 ) {
   const llmConfig = serviceDeps.getLlmConfig()
   if (!llmConfig) {
@@ -83,7 +84,7 @@ export async function generateAllSummaries(
   adapter: SessionRuntimeAdapter,
   sessionId: string,
   serviceDeps: SummaryServiceDeps,
-  options?: { locale?: string; forceRegenerate?: boolean }
+  options?: SummaryOptions
 ) {
   const llmConfig = serviceDeps.getLlmConfig()
   if (!llmConfig) {

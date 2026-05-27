@@ -8,7 +8,9 @@ import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { useSessionIndexService, type ChatSessionItem } from '@/services'
+import { getSummaryStrategy } from '@/composables/useUiConfig'
 import BatchSummaryModal from './BatchSummaryModal.vue'
+import { buildGenerateSummaryArgs } from './summaryGeneration'
 
 // 扁平化列表项类型
 type FlatListItem =
@@ -229,7 +231,9 @@ async function generateSummary(session: ChatSessionItem, event: Event) {
 
   try {
     console.log('[SessionTimeline] 调用 IPC...')
-    const result = await useSessionIndexService().generateSummary(props.sessionId, session.id, locale.value)
+    const result = await useSessionIndexService().generateSummary(
+      ...buildGenerateSummaryArgs(props.sessionId, session.id, locale.value, getSummaryStrategy())
+    )
     console.log('[SessionTimeline] IPC 返回:', result)
 
     if (result.success && result.summary) {

@@ -2,6 +2,7 @@ import { ref, computed, watch, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '@/stores/settings'
 import { useLLMStore } from '@/stores/llm'
+import { canReuseExistingApiKey, getConnectionModeForConfig, type ConnectionMode } from './apiKeyReuse'
 
 // ==================== 类型 ====================
 
@@ -36,8 +37,6 @@ export interface Provider {
   defaultBaseUrl: string
   models: Array<{ id: string; name: string; description?: string }>
 }
-
-export type ConnectionMode = 'preset' | 'local' | 'openai-compat'
 
 // ==================== Composable ====================
 
@@ -165,7 +164,17 @@ export function useAIConfigForm(props: {
   const canSave = computed(() => {
     const { provider, apiKey, baseUrl, model } = formData.value
     const isEdit = props.mode.value === 'edit'
-    const existingKeySet = isEdit && props.config.value?.apiKeySet
+    const existingKeySet =
+      isEdit &&
+      canReuseExistingApiKey({
+        mode: props.mode.value,
+        existingApiKeySet: props.config.value?.apiKeySet,
+        hasNewApiKey: !!apiKey.trim(),
+        originalProvider: props.config.value?.provider,
+        currentProvider: provider,
+        originalConnectionMode: props.config.value ? getConnectionModeForConfig(props.config.value) : undefined,
+        currentConnectionMode: connectionMode.value,
+      })
 
     if (isLocalMode.value) {
       return baseUrl.trim() && model.trim()
@@ -263,8 +272,7 @@ export function useAIConfigForm(props: {
     const hasModelInCatalog = !!(config.model && llmStore.getModelById(config.provider, config.model))
 
     if (isCompat) {
-      const looksLocal = !config.apiKeySet || (config.baseUrl?.includes('localhost') ?? false)
-      connectionMode.value = looksLocal ? 'local' : 'openai-compat'
+      connectionMode.value = getConnectionModeForConfig(config)
       if (config.customModels && config.customModels.length > 0) {
         compatModels.value = [...config.customModels]
       } else {
@@ -665,8 +673,8 @@ export function useAIConfigForm(props: {
           customModels: persistCustomModels,
         }
 
-        if (formData.value.apiKey.trim()) {
-          updates.apiKey = formData.value.apiKey.trim()
+        if (formData.value.apiKey.trim() || isLocalMode.value) {
+          updates.apiKey = finalApiKey
         }
 
         const result = await window.llmApi.updateConfig(props.config.value!.id, updates)
@@ -693,7 +701,15 @@ export function useAIConfigForm(props: {
     }
 
     const hasNewApiKey = !!formData.value.apiKey.trim()
-    const isEditWithExistingKey = props.mode.value === 'edit' && props.config.value?.apiKeySet && !hasNewApiKey
+    const isEditWithExistingKey = canReuseExistingApiKey({
+      mode: props.mode.value,
+      existingApiKeySet: props.config.value?.apiKeySet,
+      hasNewApiKey,
+      originalProvider: props.config.value?.provider,
+      currentProvider: formData.value.provider,
+      originalConnectionMode: props.config.value ? getConnectionModeForConfig(props.config.value) : undefined,
+      currentConnectionMode: connectionMode.value,
+    })
     if (isEditWithExistingKey) {
       return doSave()
     }
