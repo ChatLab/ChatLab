@@ -129,9 +129,26 @@ const flatList = computed<FlatListItem[]>(() => {
   return result
 })
 
+// 根据会话 ID 哈希映射莫兰迪低饱和度配色
+function getSessionAvatarClass(sessionId: number): string {
+  const colors = [
+    // 粉色
+    'bg-pink-50 dark:bg-pink-950/30 text-pink-500 dark:text-pink-400',
+    // 蓝色
+    'bg-blue-50 dark:bg-blue-950/30 text-blue-500 dark:text-blue-400',
+    // 绿色
+    'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-500 dark:text-emerald-400',
+    // 紫色
+    'bg-violet-50 dark:bg-violet-950/30 text-violet-500 dark:text-violet-400',
+    // 黄色
+    'bg-amber-50 dark:bg-amber-950/30 text-amber-500 dark:text-amber-400',
+  ]
+  return colors[sessionId % colors.length]
+}
+
 // 估算项目高度
 const ESTIMATED_DATE_HEIGHT = 28 // 日期头高度
-const ESTIMATED_SESSION_HEIGHT = 60 // 会话项高度（含两行摘要）
+const ESTIMATED_SESSION_HEIGHT = 52 // 会话项高度（含两行摘要）
 
 // 虚拟化器
 const virtualizer = useVirtualizer(
@@ -301,7 +318,7 @@ watch(
   <!-- 展开状态 -->
   <div
     v-else
-    class="flex h-full w-40 flex-col border-r border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50"
+    class="flex h-full w-56 flex-col border-r border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50"
   >
     <!-- 头部 -->
     <div class="flex items-center justify-between border-b border-gray-200 px-2 py-1.5 dark:border-gray-700">
@@ -348,66 +365,95 @@ watch(
 
           <!-- 会话项 -->
           <template v-else-if="flatList[virtualItem.index]?.type === 'session'">
-            <button
-              class="flex w-full flex-col rounded px-2 py-1 pl-4 text-left transition-colors"
-              :class="[
-                activeSessionId === (flatList[virtualItem.index] as { session: ChatSessionItem }).session.id
-                  ? 'bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-300'
-                  : 'hover:bg-gray-100 dark:hover:bg-gray-700',
-              ]"
-              @click="handleSelectSession((flatList[virtualItem.index] as { session: ChatSessionItem }).session)"
-            >
-              <!-- 时间和消息数 -->
-              <div class="flex w-full items-center justify-between">
-                <span class="text-xs text-gray-600 dark:text-gray-300">
-                  {{ formatTime((flatList[virtualItem.index] as { session: ChatSessionItem }).session.startTs) }}
-                </span>
-                <span class="text-xs text-gray-400">
-                  ({{ (flatList[virtualItem.index] as { session: ChatSessionItem }).session.messageCount }})
-                </span>
-              </div>
+            <div class="px-1.5 py-0.5">
+              <button
+                class="group relative flex w-full gap-2.5 items-center rounded-xl p-1.5 pl-2.5 text-left transition-all duration-200"
+                :class="[
+                  activeSessionId === (flatList[virtualItem.index] as { session: ChatSessionItem }).session.id
+                    ? 'bg-pink-500/5 dark:bg-pink-500/10'
+                    : 'hover:bg-gray-100 dark:hover:bg-gray-800/60',
+                ]"
+                @click="handleSelectSession((flatList[virtualItem.index] as { session: ChatSessionItem }).session)"
+              >
+                <!-- 动态微型激活指示器 -->
+                <div
+                  class="absolute left-0 top-1/2 -translate-y-1/2 w-1 rounded-r-md transition-all duration-200"
+                  :class="[
+                    activeSessionId === (flatList[virtualItem.index] as { session: ChatSessionItem }).session.id
+                      ? 'h-5 bg-pink-500 dark:bg-pink-400 opacity-100'
+                      : 'h-0 bg-pink-500/40 dark:bg-pink-400/40 group-hover:h-3 group-hover:opacity-100 opacity-0',
+                  ]"
+                />
 
-              <!-- 摘要或生成按钮 -->
-              <div class="mt-0.5 flex w-full items-center">
-                <!-- 有摘要：显示摘要（两行） -->
-                <UTooltip
-                  v-if="(flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary"
-                  :popper="{ placement: 'right' }"
-                  :ui="{ content: 'z-[10001] h-auto max-h-80 overflow-y-auto' }"
-                >
-                  <span class="line-clamp-2 text-xs leading-tight text-gray-400 dark:text-gray-500">
-                    {{ (flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary }}
-                  </span>
-                  <template #content>
-                    <div class="max-w-sm whitespace-pre-wrap text-sm leading-relaxed">
-                      {{ (flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary }}
-                    </div>
-                  </template>
-                </UTooltip>
-
-                <!-- 无摘要且消息数>=3：显示生成按钮 -->
-                <span
-                  v-else-if="(flatList[virtualItem.index] as { session: ChatSessionItem }).session.messageCount >= 3"
-                  class="flex items-center gap-1 text-xs text-gray-400 hover:text-blue-500 dark:text-gray-500 dark:hover:text-blue-400"
-                  @click="
-                    generateSummary((flatList[virtualItem.index] as { session: ChatSessionItem }).session, $event)
+                <!-- 莫兰迪配色哈希头像 -->
+                <div
+                  class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors"
+                  :class="
+                    getSessionAvatarClass((flatList[virtualItem.index] as { session: ChatSessionItem }).session.id)
                   "
                 >
-                  <UIcon
-                    v-if="isGenerating((flatList[virtualItem.index] as { session: ChatSessionItem }).session.id)"
-                    name="i-heroicons-arrow-path"
-                    class="h-3 w-3 animate-spin"
-                  />
-                  <UIcon v-else name="i-heroicons-sparkles" class="h-3 w-3" />
-                  <span>{{ t('records.timeline.generateSummary') }}</span>
-                </span>
+                  <UIcon name="i-heroicons-chat-bubble-oval-left" class="w-3.5 h-3.5" />
+                </div>
 
-                <!-- 消息数<3：显示提示 -->
-                <span v-else class="text-xs italic text-gray-300 dark:text-gray-600">
-                  {{ t('records.timeline.tooFewMessages') }}
-                </span>
-              </div>
-            </button>
+                <!-- 会话内容信息 -->
+                <div class="flex-1 min-w-0">
+                  <!-- 时间和消息数 -->
+                  <div class="flex items-center justify-between mb-0.5">
+                    <span class="text-xs font-semibold text-gray-700 dark:text-gray-200">
+                      {{ formatTime((flatList[virtualItem.index] as { session: ChatSessionItem }).session.startTs) }}
+                    </span>
+                    <span
+                      class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-gray-200/50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 font-medium"
+                    >
+                      {{ (flatList[virtualItem.index] as { session: ChatSessionItem }).session.messageCount }}
+                    </span>
+                  </div>
+
+                  <!-- 摘要或生成按钮 -->
+                  <div class="flex w-full items-center">
+                    <!-- 有摘要：显示摘要（两行） -->
+                    <UTooltip
+                      v-if="(flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary"
+                      :popper="{ placement: 'right' }"
+                      :ui="{ content: 'z-[10001] h-auto max-h-80 overflow-y-auto' }"
+                    >
+                      <span class="line-clamp-2 text-xs leading-normal text-gray-400 dark:text-gray-500 font-normal">
+                        {{ (flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary }}
+                      </span>
+                      <template #content>
+                        <div class="max-w-sm whitespace-pre-wrap text-sm leading-relaxed font-normal">
+                          {{ (flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary }}
+                        </div>
+                      </template>
+                    </UTooltip>
+
+                    <!-- 无摘要且消息数>=3：显示生成按钮 -->
+                    <span
+                      v-else-if="
+                        (flatList[virtualItem.index] as { session: ChatSessionItem }).session.messageCount >= 3
+                      "
+                      class="flex items-center gap-1 text-xs text-gray-400 hover:text-pink-500 dark:text-gray-500 dark:hover:text-pink-400 cursor-pointer"
+                      @click="
+                        generateSummary((flatList[virtualItem.index] as { session: ChatSessionItem }).session, $event)
+                      "
+                    >
+                      <UIcon
+                        v-if="isGenerating((flatList[virtualItem.index] as { session: ChatSessionItem }).session.id)"
+                        name="i-heroicons-arrow-path"
+                        class="h-3 w-3 animate-spin"
+                      />
+                      <UIcon v-else name="i-heroicons-sparkles" class="h-3 w-3" />
+                      <span>{{ t('records.timeline.generateSummary') }}</span>
+                    </span>
+
+                    <!-- 消息数<3：显示提示 -->
+                    <span v-else class="text-xs italic text-gray-300 dark:text-gray-600">
+                      {{ t('records.timeline.tooFewMessages') }}
+                    </span>
+                  </div>
+                </div>
+              </button>
+            </div>
           </template>
         </div>
       </div>

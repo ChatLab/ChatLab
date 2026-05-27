@@ -70,9 +70,9 @@ const currentColor = computed(() => colorPalette[colorIndex.value])
 const avatarColor = computed(() => currentColor.value.avatar)
 const nameColor = computed(() => currentColor.value.name)
 
-// 气泡颜色（Owner 使用绿色，其他人使用灰色）
+// 气泡颜色（Owner 使用微粉色，其他人使用微灰色）
 const bubbleColor = computed(() =>
-  isOwner.value ? 'bg-green-100 dark:bg-green-900/40' : 'bg-gray-100 dark:bg-gray-800'
+  isOwner.value ? 'bg-pink-50/80 dark:bg-pink-950/20' : 'bg-gray-100/80 dark:bg-gray-800/80'
 )
 
 // 显示名称（包含别名）
@@ -131,16 +131,14 @@ function highlightContent(content: string): string {
 
 <template>
   <div
-    class="group px-4 py-2 transition-colors"
-    :class="{
-      'bg-yellow-50/50 dark:bg-yellow-900/10': isTarget,
-    }"
+    class="group px-4 py-2.5 transition-all duration-300"
+    :class="[isTarget ? 'bg-amber-500/5 dark:bg-amber-500/10' : 'hover:bg-gray-50/40 dark:hover:bg-gray-900/10']"
   >
     <!-- Owner 消息显示在右侧 -->
     <div class="flex gap-3" :class="isOwner ? 'flex-row-reverse' : ''">
       <!-- 头像 -->
       <div
-        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-sm font-medium text-white overflow-hidden"
+        class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-sm font-medium text-white overflow-hidden"
         :class="message.senderAvatar ? '' : avatarColor"
       >
         <img
@@ -165,19 +163,22 @@ function highlightContent(content: string): string {
         <!-- max-w-[calc(100%-48px)] = 100% - 头像宽度(36px) - gap(12px) -->
         <div class="flex items-start gap-1 max-w-[calc(100%-68px)]" :class="isOwner ? 'flex-row-reverse' : ''">
           <div
-            class="relative inline-block rounded-lg px-3 py-2 transition-shadow"
-            :class="[bubbleColor, isTarget ? 'ring-2 ring-yellow-400 dark:ring-yellow-500' : '']"
+            class="relative inline-block rounded-2xl px-3.5 py-2.5 transition-all duration-300 border border-gray-100 dark:border-gray-800/40"
+            :class="[bubbleColor, isTarget ? 'ring-2 ring-amber-400 dark:ring-amber-500' : '']"
           >
             <!-- 回复引用样式 -->
             <div
               v-if="message.replyToMessageId"
-              class="mb-2 border-l-2 border-gray-300 dark:border-gray-600 pl-2 text-xs text-gray-500 dark:text-gray-400"
+              class="mb-2 border-l-2 border-pink-400 dark:border-pink-500 pl-2.5 py-1 text-xs text-gray-500 dark:text-gray-400 bg-gray-500/5 dark:bg-white/5 rounded-r"
             >
-              <span class="font-medium">{{ t('records.messageItem.replyTo') }}</span>
-              <span v-if="message.replyToSenderName" class="ml-1 text-gray-600 dark:text-gray-300">
+              <span class="font-medium text-gray-600 dark:text-gray-300">{{ t('records.messageItem.replyTo') }}</span>
+              <span v-if="message.replyToSenderName" class="ml-1 font-semibold text-gray-700 dark:text-gray-200">
                 {{ message.replyToSenderName }}
               </span>
-              <p v-if="message.replyToContent" class="mt-0.5 line-clamp-2 italic">
+              <p
+                v-if="message.replyToContent"
+                class="mt-1 line-clamp-2 italic text-gray-500 dark:text-gray-400 leading-normal"
+              >
                 {{ message.replyToContent }}
               </p>
             </div>
@@ -190,11 +191,11 @@ function highlightContent(content: string): string {
           <!-- 上下文查看按钮 -->
           <button
             v-if="isFiltered"
-            class="mt-1 flex h-6 w-6 items-center justify-center rounded opacity-0 transition-opacity hover:bg-gray-200 group-hover:opacity-100 dark:hover:bg-gray-700"
+            class="mt-1 flex h-6 w-6 items-center justify-center rounded-lg opacity-0 transition-all duration-200 hover:bg-gray-100 dark:hover:bg-gray-800 hover:text-pink-500 dark:hover:text-pink-400 active:scale-95 group-hover:opacity-100 cursor-pointer"
             :title="t('records.messageItem.viewContext')"
             @click="$emit('view-context', message.id)"
           >
-            <UIcon name="i-heroicons-chat-bubble-left-ellipsis" class="h-4 w-4 text-gray-400" />
+            <UIcon name="i-heroicons-chat-bubble-left-ellipsis" class="h-4 w-4" />
           </button>
         </div>
       </div>
