@@ -172,7 +172,7 @@ function closeModal() {
               <!-- API Key -->
               <ApiKeyInput
                 v-model="formData.apiKey"
-                :placeholder="t('settings.aiConfig.modal.apiKeyPlaceholder')"
+                :placeholder="mode === 'edit' && config?.apiKeySet ? t('settings.aiConfig.modal.apiKeyPlaceholderEdit') : t('settings.aiConfig.modal.apiKeyPlaceholder')"
                 :validate-loading="isValidating"
                 :validate-disabled="!formData.apiKey"
                 :validate-text="t('settings.aiConfig.modal.validate')"
@@ -402,7 +402,7 @@ function closeModal() {
               <!-- API Key -->
               <ApiKeyInput
                 v-model="formData.apiKey"
-                :placeholder="t('settings.aiConfig.modal.apiKeyPlaceholder')"
+                :placeholder="mode === 'edit' && config?.apiKeySet ? t('settings.aiConfig.modal.apiKeyPlaceholderEdit') : t('settings.aiConfig.modal.apiKeyPlaceholder')"
                 :validate-loading="isValidating"
                 :validate-disabled="!formData.apiKey || !formData.baseUrl"
                 :validate-text="t('settings.aiConfig.modal.validate')"

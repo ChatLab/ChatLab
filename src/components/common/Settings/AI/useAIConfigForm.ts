@@ -164,17 +164,19 @@ export function useAIConfigForm(props: {
 
   const canSave = computed(() => {
     const { provider, apiKey, baseUrl, model } = formData.value
+    const isEdit = props.mode.value === 'edit'
+    const existingKeySet = isEdit && props.config.value?.apiKeySet
 
     if (isLocalMode.value) {
       return baseUrl.trim() && model.trim()
     }
 
     if (isOpenAICompat.value) {
-      return baseUrl.trim() && apiKey.trim() && model.trim()
+      return baseUrl.trim() && (apiKey.trim() || existingKeySet) && model.trim()
     }
 
     if (!provider) return false
-    return apiKey.trim()
+    return apiKey.trim() || existingKeySet
   })
 
   const apiFormatItems = computed(() =>
@@ -687,6 +689,12 @@ export function useAIConfigForm(props: {
     if (!canSave.value) return
 
     if (validationResult.value === 'valid') {
+      return doSave()
+    }
+
+    const hasNewApiKey = !!formData.value.apiKey.trim()
+    const isEditWithExistingKey = props.mode.value === 'edit' && props.config.value?.apiKeySet && !hasNewApiKey
+    if (isEditWithExistingKey) {
       return doSave()
     }
 

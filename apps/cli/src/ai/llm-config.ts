@@ -27,6 +27,7 @@ export interface AIServiceConfig {
   apiFormat?: string
   disableThinking?: boolean
   isReasoningModel?: boolean
+  customModels?: Array<{ id: string; name: string }>
   authProfile?: string
 }
 

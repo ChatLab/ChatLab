@@ -179,7 +179,7 @@ export function registerAiRoutes(
       const data = JSON.parse(fs.readFileSync(configPath, 'utf-8'))
       const configs = (data.configs || []).map((c: Record<string, unknown>) => {
         const { apiKey: _k, ...rest } = c
-        return { ...rest, apiKey: '' }
+        return { ...rest, apiKey: '', apiKeySet: !!c.authProfile }
       })
       return {
         configs,
@@ -268,6 +268,9 @@ export function registerAiRoutes(
       baseUrl?: string
       maxTokens?: number
       apiFormat?: string
+      disableThinking?: boolean
+      isReasoningModel?: boolean
+      customModels?: Array<{ id: string; name: string }>
     }
   }>('/_web/ai/llm/configs', async (request) => {
     const aiDataDir = getAiDir(dbManager)
@@ -284,6 +287,9 @@ export function registerAiRoutes(
       baseUrl?: string
       maxTokens?: number
       apiFormat?: string
+      disableThinking?: boolean
+      isReasoningModel?: boolean
+      customModels?: Array<{ id: string; name: string }>
     }
   }>('/_web/ai/llm/configs/:id', async (request) => {
     const aiDataDir = getAiDir(dbManager)
