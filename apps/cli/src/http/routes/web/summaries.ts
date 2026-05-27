@@ -52,4 +52,12 @@ export function registerSummaryRoutes(
     }
     return result
   })
+
+  server.post<{
+    Params: { id: string }
+    Body: { chatSessionIds: number[] }
+  }>('/_web/sessions/:id/summaries/check-can-generate', async (request) => {
+    const { chatSessionIds } = request.body
+    return summaryService.checkCanGenerate(adapter, request.params.id, chatSessionIds)
+  })
 }

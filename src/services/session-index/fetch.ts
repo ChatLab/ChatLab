@@ -96,18 +96,63 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
     )
   }
 
-  async generateSummary(): Promise<SummaryResult> {
-    return { success: false, error: 'Not available in web mode' }
+  async generateSummary(
+    dbSessionId: string,
+    chatSessionId: number,
+    locale?: string,
+    forceRegenerate?: boolean
+  ): Promise<SummaryResult> {
+    try {
+      const resp = await fetch(`/_web/sessions/${dbSessionId}/summaries/generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatSessionId, locale, forceRegenerate }),
+      })
+      const result = await resp.json()
+      if (!resp.ok) {
+        return { success: false, error: result.error || `HTTP ${resp.status}` }
+      }
+      return result
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) }
+    }
   }
 
-  async generateSummaries(): Promise<BatchSummaryResult> {
-    return { success: 0, failed: 0, skipped: 0 }
+  async generateSummaries(
+    dbSessionId: string,
+    _chatSessionIds: number[],
+    locale?: string
+  ): Promise<BatchSummaryResult> {
+    try {
+      const resp = await fetch(`/_web/sessions/${dbSessionId}/summaries/generate-all`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ locale }),
+      })
+      const result = await resp.json()
+      if (!resp.ok) {
+        return { success: 0, failed: 0, skipped: 0 }
+      }
+      return { success: result.success ?? 0, failed: result.failed ?? 0, skipped: result.skipped ?? 0 }
+    } catch {
+      return { success: 0, failed: 0, skipped: 0 }
+    }
   }
 
   async checkCanGenerateSummary(
-    _dbSessionId: string,
-    _chatSessionIds: number[]
+    dbSessionId: string,
+    chatSessionIds: number[]
   ): Promise<Record<number, CanGenerateInfo>> {
-    return {}
+    try {
+      const resp = await fetch(`/_web/sessions/${dbSessionId}/summaries/check-can-generate`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ chatSessionIds }),
+      })
+      if (!resp.ok) return {}
+      return await resp.json()
+    } catch {
+      return {}
+    }
   }
 }

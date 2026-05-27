@@ -12,7 +12,13 @@ import {
   getSessionMessages,
 } from '@openchatlab/core'
 import type { DatabaseAdapter } from '@openchatlab/core'
-import { generateSessionSummary, type SummaryDeps, completeSimple, type PiTextContent } from '../ai'
+import {
+  generateSessionSummary,
+  checkSessionsCanGenerateSummary,
+  type SummaryDeps,
+  completeSimple,
+  type PiTextContent,
+} from '../ai'
 import type { SessionRuntimeAdapter } from './adapters'
 
 export interface LlmConfig {
@@ -98,4 +104,26 @@ export async function generateAllSummaries(
   }
 
   return { success, failed, total: chatSessions.length }
+}
+
+export function checkCanGenerate(
+  adapter: SessionRuntimeAdapter,
+  sessionId: string,
+  chatSessionIds: number[]
+): Record<number, { canGenerate: boolean; reason?: string }> {
+  const db = adapter.ensureReadonly(sessionId)
+  const deps: Pick<SummaryDeps, 'loadMessages' | 't'> = {
+    loadMessages(chatSessionId, limit = 500) {
+      const data = getSessionMessages(db, chatSessionId, limit)
+      if (!data) return null
+      return data.messages.map((m) => ({ senderName: m.senderName, content: m.content }))
+    },
+    t: (key: string) => key,
+  }
+  const resultMap = checkSessionsCanGenerateSummary(deps, chatSessionIds)
+  const result: Record<number, { canGenerate: boolean; reason?: string }> = {}
+  for (const [id, info] of resultMap) {
+    result[id] = info
+  }
+  return result
 }
