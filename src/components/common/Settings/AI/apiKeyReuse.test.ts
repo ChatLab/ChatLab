@@ -44,4 +44,52 @@ describe('canReuseExistingApiKey', () => {
 
     assert.equal(result, false)
   })
+
+  it('requires a new key when base URL changes in openai-compat mode', () => {
+    const result = canReuseExistingApiKey({
+      mode: 'edit',
+      existingApiKeySet: true,
+      hasNewApiKey: false,
+      originalProvider: 'openai-compatible',
+      currentProvider: 'openai-compatible',
+      originalConnectionMode: 'openai-compat',
+      currentConnectionMode: 'openai-compat',
+      originalBaseUrl: 'https://api.provider-a.com',
+      currentBaseUrl: 'https://api.provider-b.com',
+    })
+
+    assert.equal(result, false)
+  })
+
+  it('allows reusing key when base URL is unchanged in openai-compat mode (trailing slash normalized)', () => {
+    const result = canReuseExistingApiKey({
+      mode: 'edit',
+      existingApiKeySet: true,
+      hasNewApiKey: false,
+      originalProvider: 'openai-compatible',
+      currentProvider: 'openai-compatible',
+      originalConnectionMode: 'openai-compat',
+      currentConnectionMode: 'openai-compat',
+      originalBaseUrl: 'https://api.provider-a.com/',
+      currentBaseUrl: 'https://api.provider-a.com',
+    })
+
+    assert.equal(result, true)
+  })
+
+  it('allows reusing key when base URL is unchanged in openai-compat mode', () => {
+    const result = canReuseExistingApiKey({
+      mode: 'edit',
+      existingApiKeySet: true,
+      hasNewApiKey: false,
+      originalProvider: 'openai-compatible',
+      currentProvider: 'openai-compatible',
+      originalConnectionMode: 'openai-compat',
+      currentConnectionMode: 'openai-compat',
+      originalBaseUrl: 'https://api.provider-a.com',
+      currentBaseUrl: 'https://api.provider-a.com',
+    })
+
+    assert.equal(result, true)
+  })
 })

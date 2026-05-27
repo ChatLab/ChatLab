@@ -174,6 +174,8 @@ export function useAIConfigForm(props: {
         currentProvider: provider,
         originalConnectionMode: props.config.value ? getConnectionModeForConfig(props.config.value) : undefined,
         currentConnectionMode: connectionMode.value,
+        originalBaseUrl: props.config.value?.baseUrl,
+        currentBaseUrl: baseUrl.trim() || undefined,
       })
 
     if (isLocalMode.value) {
@@ -709,6 +711,8 @@ export function useAIConfigForm(props: {
       currentProvider: formData.value.provider,
       originalConnectionMode: props.config.value ? getConnectionModeForConfig(props.config.value) : undefined,
       currentConnectionMode: connectionMode.value,
+      originalBaseUrl: props.config.value?.baseUrl,
+      currentBaseUrl: formData.value.baseUrl.trim() || undefined,
     })
     if (isEditWithExistingKey) {
       return doSave()

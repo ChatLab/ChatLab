@@ -8,6 +8,10 @@ export interface ApiKeyReuseInput {
   currentProvider: string
   originalConnectionMode?: ConnectionMode
   currentConnectionMode: ConnectionMode
+  /** Original base URL (for openai-compat mode endpoint change detection) */
+  originalBaseUrl?: string
+  /** Current base URL entered by the user */
+  currentBaseUrl?: string
 }
 
 export function getConnectionModeForConfig(config: {
@@ -23,11 +27,21 @@ export function getConnectionModeForConfig(config: {
 }
 
 export function canReuseExistingApiKey(input: ApiKeyReuseInput): boolean {
-  return (
+  const baseConditions =
     input.mode === 'edit' &&
     !!input.existingApiKeySet &&
     !input.hasNewApiKey &&
     input.originalProvider === input.currentProvider &&
     input.originalConnectionMode === input.currentConnectionMode
-  )
+
+  if (!baseConditions) return false
+
+  // For openai-compat mode, a base URL change means a different endpoint/service,
+  // so the existing credential must not be silently reused without re-validation.
+  if (input.currentConnectionMode === 'openai-compat') {
+    const normalizeUrl = (url?: string) => url?.trim().replace(/\/+$/, '') || ''
+    return normalizeUrl(input.originalBaseUrl) === normalizeUrl(input.currentBaseUrl)
+  }
+
+  return true
 }
