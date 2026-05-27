@@ -330,9 +330,10 @@ async function startGenerate() {
   }
 }
 
-// 停止生成
+// 停止生成：立即更新 UI 状态，后台请求自然结束不影响
 function stopGenerate() {
   shouldStop.value = true
+  isGenerating.value = false
 }
 
 // 关闭弹窗
