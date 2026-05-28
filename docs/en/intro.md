@@ -21,7 +21,7 @@ Since each app exports differently, see [Export Chat Records](./usage/how-to-exp
 
 ## Next steps
 
-<!-- If you want a faster overview, read the [Quick Start](./quick-start.md) guide. -->
+<!-- If you want a faster overview, read the [Quick Start](./usage/quick-start.md) guide. -->
 
 If you run into import or AI issues, check [Troubleshooting](./usage/troubleshooting.md).
 

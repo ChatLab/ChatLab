@@ -2,16 +2,11 @@ import { defineConfig } from 'vitepress'
 import type { DefaultTheme } from 'vitepress'
 
 const enSidebar: DefaultTheme.SidebarItem[] = [
-  {
-    text: 'Introduction',
-    items: [
-      { text: 'What is ChatLab', link: '/intro' },
-      { text: 'Quick Start', link: '/quick-start' },
-    ],
-  },
+  { text: 'What is ChatLab', link: '/intro' },
   {
     text: 'Usage',
     items: [
+      { text: 'Quick Start', link: '/usage/quick-start' },
       { text: 'Export Chat Records', link: '/usage/how-to-export' },
       { text: 'Import Chat Records', link: '/usage/how-to-import' },
       { text: 'Configure AI', link: '/usage/how-to-config-ai' },
@@ -29,16 +24,11 @@ const enSidebar: DefaultTheme.SidebarItem[] = [
 ]
 
 const cnSidebar: DefaultTheme.SidebarItem[] = [
-  {
-    text: '简介',
-    items: [
-      { text: 'ChatLab 介绍', link: '/cn/intro' },
-      { text: '快速上手', link: '/cn/quick-start' },
-    ],
-  },
+  { text: 'ChatLab 介绍', link: '/cn/intro' },
   {
     text: '使用指南',
     items: [
+      { text: '快速开始', link: '/cn/usage/quick-start' },
       { text: '导出聊天记录', link: '/cn/usage/how-to-export' },
       { text: '导入聊天记录', link: '/cn/usage/how-to-import' },
       { text: '配置 AI', link: '/cn/usage/how-to-config-ai' },
@@ -59,16 +49,11 @@ const cnSidebar: DefaultTheme.SidebarItem[] = [
 ]
 
 const twSidebar: DefaultTheme.SidebarItem[] = [
-  {
-    text: '簡介',
-    items: [
-      { text: 'ChatLab 介紹', link: '/tw/intro' },
-      { text: '快速上手', link: '/tw/quick-start' },
-    ],
-  },
+  { text: 'ChatLab 介紹', link: '/tw/intro' },
   {
     text: '使用指南',
     items: [
+      { text: '快速開始', link: '/tw/usage/quick-start' },
       { text: '匯出聊天記錄', link: '/tw/usage/how-to-export' },
       { text: '匯入聊天記錄', link: '/tw/usage/how-to-import' },
       { text: '配置 AI', link: '/tw/usage/how-to-config-ai' },
@@ -95,6 +80,21 @@ export default defineConfig({
   sitemap: {
     hostname: 'https://docs.chatlab.fun',
   },
+  head: [
+    [
+      'script',
+      {},
+      `
+    var _hmt = _hmt || [];
+    (function() {
+      var hm = document.createElement("script");
+      hm.src = "https://hm.baidu.com/hm.js?adea56ed261a02133c38250af3a6f7b6";
+      var s = document.getElementsByTagName("script")[0];
+      s.parentNode.insertBefore(hm, s);
+    })();
+    `,
+    ],
+  ],
   rewrites: {
     'en/:rest*': ':rest*',
   },
@@ -116,7 +116,7 @@ export default defineConfig({
             target: '_self',
             noIcon: true,
           },
-          { text: 'Docs', link: '/intro', activeMatch: '^/' },
+          { text: 'Docs', link: '/', activeMatch: '^/$' },
           {
             text: 'Roadmap',
             link: 'https://chatlab.fun/roadmap/tasks',
@@ -154,7 +154,7 @@ export default defineConfig({
             target: '_self',
             noIcon: true,
           },
-          { text: '文档', link: '/cn/intro', activeMatch: '^/cn/' },
+          { text: '文档', link: '/cn/', activeMatch: '^/cn/$' },
           {
             text: '路线图',
             link: 'https://chatlab.fun/cn/roadmap/tasks',
@@ -195,7 +195,7 @@ export default defineConfig({
             target: '_self',
             noIcon: true,
           },
-          { text: '文件', link: '/tw/intro', activeMatch: '^/tw/' },
+          { text: '文件', link: '/tw/', activeMatch: '^/tw/$' },
           {
             text: '路線圖',
             link: 'https://chatlab.fun/tw/roadmap/tasks',
