@@ -24,11 +24,19 @@ After installation, start ChatLab with:
 
 ```bash
 chatlab start             # Start API + Web UI and open in browser
-chatlab start --no-open   # Start without auto-opening the browser (for server environments)
+chatlab start --no-open   # Start API + Web UI without auto-opening the browser
 chatlab start --headless  # API-only mode, no Web UI (for scripts / AI Agents)
 ```
 
 Common options: `--port <port>` (default 3110), `--host <address>`, `--token <token>`.
+
+To keep ChatLab running persistently (auto-start on login + crash recovery), add the `--daemon` flag:
+
+```bash
+chatlab start --daemon   # Install as a system service (macOS / Linux)
+chatlab status           # Check service status
+chatlab stop             # Stop and remove the service
+```
 
 ## Step 2: Import chat records
 

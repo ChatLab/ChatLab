@@ -286,7 +286,20 @@ program
   .option('--token <token>', 'Custom Bearer Token (reads from config or auto-generates if omitted)')
   .option('--headless', 'API-only mode, do not serve the Web UI')
   .option('--no-open', 'Do not auto-open the browser')
+  .option('--daemon', 'Run as a resident system service (auto-start on login, macOS/Linux)')
   .action(async (options) => {
+    // --daemon: install as system service and exit
+    if (options.daemon) {
+      const { serviceInstall } = await import('./daemon/service')
+      serviceInstall({
+        port: parseInt(options.port, 10),
+        host: options.host,
+        token: options.token || undefined,
+        headless: options.headless,
+      })
+      return
+    }
+
     const { startHttpServer } = await import('./http')
     const port = parseInt(options.port, 10)
 
@@ -363,6 +376,37 @@ configCmd
   .action(() => {
     const config = loadConfig()
     console.log(JSON.stringify(config, null, 2))
+  })
+
+program
+  .command('stop')
+  .description('Stop the resident service and remove auto-start (reverse of start --daemon)')
+  .action(async () => {
+    const { serviceUninstall } = await import('./daemon/service')
+    serviceUninstall()
+  })
+
+program
+  .command('status')
+  .description('Show resident service status')
+  .action(async () => {
+    const { getServiceStatus } = await import('./daemon/service')
+    const svc = getServiceStatus()
+
+    console.log('\nChatLab Status')
+    console.log('─'.repeat(36))
+
+    if (svc.installed) {
+      const portStr = svc.port ? `http://${svc.host ?? '127.0.0.1'}:${svc.port}` : ''
+      console.log(`  Service:    ${svc.running ? 'running' : 'installed (not running)'}`)
+      if (portStr) console.log(`  Address:    ${portStr}`)
+      console.log(`  Auto-start: enabled`)
+      console.log(`\n  Use \`chatlab stop\` to remove the service.\n`)
+    } else {
+      console.log(`  Service:    not installed`)
+      console.log(`  Auto-start: disabled`)
+      console.log(`\n  Use \`chatlab start --daemon\` to install as a system service.\n`)
+    }
   })
 
 // --- 工具函数 ---

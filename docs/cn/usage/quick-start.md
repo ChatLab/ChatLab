@@ -24,11 +24,19 @@ npm i chatlab-cli -g
 
 ```bash
 chatlab start           # 启动 API + Web UI，并在浏览器中打开
-chatlab start --no-open # 启动但不自动打开浏览器（适合服务器环境）
+chatlab start --no-open # 启动 API + Web UI，但不自动打开浏览器
 chatlab start --headless  # 仅启动 API，不挂载 Web UI（供脚本 / AI Agent 调用）
 ```
 
 常用选项：`--port <端口>`（默认 3110）、`--host <地址>`、`--token <令牌>`。
+
+如果希望服务常驻后台（开机自启 + 崩溃自动重启），加上 `--daemon` 参数：
+
+```bash
+chatlab start --daemon   # 注册为系统服务，开机自启（macOS / Linux）
+chatlab status           # 查看常驻状态
+chatlab stop             # 停止并取消常驻
+```
 
 ## 第二步：导入聊天记录
 
