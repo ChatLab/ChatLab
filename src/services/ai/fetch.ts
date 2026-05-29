@@ -1,7 +1,7 @@
 /**
- * CLI serve Web 模式下的 AIAdapter 实现
+ * CLI Web 模式下的 AIAdapter 实现
  *
- * 通过 HTTP 调用 chatlab serve 后端的 /_web/ai/* 端点。
+ * 通过 HTTP 调用 chatlab start 后端的 /_web/ai/* 端点。
  * 不支持 Web 模式的功能（文件导出等）返回安全的降级响应。
  */
 

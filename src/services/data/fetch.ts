@@ -1,7 +1,7 @@
 /**
  * FetchDataAdapter — 通过 HTTP 调用 /_web/ 内部 API
  *
- * 用于 CLI serve Web 场景：前端通过 fetch 访问 chatlab serve 后端。
+ * 用于 CLI Web 场景：前端通过 fetch 访问 chatlab start 后端。
  */
 
 import type { AnalysisSession, MessageType } from '@/types/base'

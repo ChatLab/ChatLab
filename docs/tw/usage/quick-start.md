@@ -20,6 +20,16 @@ npm i chatlab-cli -g
 
 需要 Node.js ≥ 20。CLI 適合伺服器部署或搭配 AI Agent（如 Claude Desktop）使用。
 
+安裝完成後，執行以下指令啟動 ChatLab：
+
+```bash
+chatlab start             # 啟動 API + Web UI，並在瀏覽器中開啟
+chatlab start --no-open   # 啟動但不自動開啟瀏覽器（適合伺服器環境）
+chatlab start --headless  # 僅啟動 API，不掛載 Web UI（供腳本 / AI Agent 呼叫）
+```
+
+常用選項：`--port <連接埠>`（預設 3110）、`--host <位址>`、`--token <令牌>`。
+
 ## 第二步：匯入聊天記錄
 
 ChatLab 提供三種匯入方式，適用於不同場景：

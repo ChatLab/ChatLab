@@ -20,6 +20,16 @@ npm i chatlab-cli -g
 
 Requires Node.js ≥ 20. The CLI is suited for server-side deployments or pairing with an AI Agent (e.g., Claude Desktop).
 
+After installation, start ChatLab with:
+
+```bash
+chatlab start             # Start API + Web UI and open in browser
+chatlab start --no-open   # Start without auto-opening the browser (for server environments)
+chatlab start --headless  # API-only mode, no Web UI (for scripts / AI Agents)
+```
+
+Common options: `--port <port>` (default 3110), `--host <address>`, `--token <token>`.
+
 ## Step 2: Import chat records
 
 ChatLab provides three import methods for different scenarios:

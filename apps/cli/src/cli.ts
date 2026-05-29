@@ -5,7 +5,6 @@
  */
 
 import * as fs from 'fs'
-import * as path from 'path'
 import { execSync } from 'child_process'
 import { Command } from 'commander'
 import { DEFAULT_API_PORT, loadConfig, getConfigPath } from '@openchatlab/config'
@@ -280,23 +279,24 @@ program
   })
 
 program
-  .command('serve')
-  .description('Start the HTTP API server')
+  .command('start')
+  .description('Start ChatLab (HTTP API + Web UI)')
   .option('--port <port>', 'Server port', String(DEFAULT_API_PORT))
   .option('--host <host>', 'Listen address', '127.0.0.1')
   .option('--token <token>', 'Custom Bearer Token (reads from config or auto-generates if omitted)')
-  .option('--web [dir]', 'Serve Web frontend static assets (defaults to dist-web/)')
+  .option('--headless', 'API-only mode, do not serve the Web UI')
+  .option('--no-open', 'Do not auto-open the browser')
   .action(async (options) => {
     const { startHttpServer } = await import('./http')
     const port = parseInt(options.port, 10)
 
     let webRoot: string | undefined
-    if (options.web !== undefined) {
-      const webDir = typeof options.web === 'string' ? options.web : resolveCliPath('dist-web')
+    if (!options.headless) {
+      const webDir = resolveCliPath('dist-web')
       if (fs.existsSync(webDir)) {
-        webRoot = path.resolve(webDir)
+        webRoot = webDir
       } else {
-        console.warn(`Warning: Web directory not found: ${webDir}, starting in API-only mode`)
+        console.warn('Warning: dist-web/ not found, starting in API-only mode')
       }
     }
 
@@ -311,70 +311,21 @@ program
       const { startPeriodicUpdateCheck } = await import('./update-checker')
       startPeriodicUpdateCheck()
 
-      console.log(`\nChatLab HTTP API started`)
-      console.log(`  Address: http://${info.host}:${info.port}`)
-      console.log(`  Token:   ${info.token}`)
-      if (webRoot) {
-        console.log(`  Web UI:  http://${info.host}:${info.port}/`)
-      }
-      console.log(`\nExample:`)
-      console.log(`  curl -H "Authorization: Bearer ${info.token}" http://${info.host}:${info.port}/api/v1/status`)
-      console.log(`\nPress Ctrl+C to stop.\n`)
-
-      const shutdown = async () => {
-        console.log('\nShutting down...')
-        const { stopHttpServer } = await import('./http')
-        await stopHttpServer()
-        process.exit(0)
-      }
-
-      process.on('SIGINT', shutdown)
-      process.on('SIGTERM', shutdown)
-    } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : String(err)
-      if (message.includes('EADDRINUSE')) {
-        console.error(`Error: port ${port} is already in use`)
-      } else {
-        console.error(`Startup failed: ${message}`)
-      }
-      process.exit(1)
-    }
-  })
-
-program
-  .command('web')
-  .description('Launch Web UI with one click (HTTP API + browser auto-open)')
-  .option('--port <port>', 'Server port', String(DEFAULT_API_PORT))
-  .option('--host <host>', 'Listen address', '127.0.0.1')
-  .option('--no-open', 'Do not auto-open browser')
-  .action(async (options) => {
-    const { startHttpServer } = await import('./http')
-    const port = parseInt(options.port, 10)
-    const webDir = resolveCliPath('dist-web')
-    let webRoot: string | undefined
-
-    if (fs.existsSync(webDir)) {
-      webRoot = webDir
-    } else {
-      console.warn('Warning: dist-web/ not found, Web UI will not be available (API-only mode)')
-    }
-
-    try {
-      const info = await startHttpServer({ port, host: options.host, webRoot })
-      const { startPeriodicUpdateCheck } = await import('./update-checker')
-      startPeriodicUpdateCheck()
-
-      const url = `http://${info.host === '0.0.0.0' ? '127.0.0.1' : info.host}:${info.port}`
+      const displayHost = info.host === '0.0.0.0' ? '127.0.0.1' : info.host
+      const url = `http://${displayHost}:${info.port}`
 
       console.log(`\nChatLab v${getVersion()}`)
-      console.log(`  Web UI: ${url}`)
+      if (webRoot) console.log(`  Web UI: ${url}/`)
+      console.log(`  API:    ${url}`)
       console.log(`  Token:  ${info.token}`)
+      console.log(`\nExample:`)
+      console.log(`  curl -H "Authorization: Bearer ${info.token}" ${url}/api/v1/status`)
 
-      if (options.open && webRoot) {
+      if (webRoot && options.open) {
         openBrowser(url)
-        console.log(`\nBrowser opened. Press Ctrl+C to stop.`)
+        console.log(`\nBrowser opened. Press Ctrl+C to stop.\n`)
       } else {
-        console.log(`\nPress Ctrl+C to stop.`)
+        console.log(`\nPress Ctrl+C to stop.\n`)
       }
 
       const shutdown = async () => {
@@ -383,6 +334,7 @@ program
         await stopHttpServer()
         process.exit(0)
       }
+
       process.on('SIGINT', shutdown)
       process.on('SIGTERM', shutdown)
     } catch (err: unknown) {
