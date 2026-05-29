@@ -1,8 +1,8 @@
 /**
  * Web 版 Vite 构建配置
  *
- * 用于构建 CLI serve Web 的 SPA 前端（不含 Electron 依赖）。
- * 输出到 dist-web/，由 chatlab serve 托管。
+ * 用于构建 CLI Web 的 SPA 前端（不含 Electron 依赖）。
+ * 输出到 dist-web/，由 chatlab start 托管。
  *
  * 与 Electron renderer 构建的关键区别：
  * - __IS_ELECTRON__ = false（使用 FetchAdapter 而非 window.chatApi）
@@ -18,7 +18,7 @@ import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import ui from '@nuxt/ui/vite'
 import { DEFAULT_API_PORT } from './packages/config/src/schema'
-import { createChatlabServeCommand } from './scripts/dev-server-command.mjs'
+import { createChatlabStartCommand } from './scripts/dev-server-command.mjs'
 
 const BACKEND_PORT = DEFAULT_API_PORT
 
@@ -35,41 +35,41 @@ function isPortInUse(port: number): Promise<boolean> {
 }
 
 /**
- * 自动启动 chatlab serve 后端的插件
+ * 自动启动 chatlab start 后端的插件
  * 仅在 CHATLAB_AUTO_SERVE=1 时生效（由 dev:web 脚本设置）
  */
 function chatlabServePlugin(): Plugin {
   let serverProcess: ChildProcess | null = null
 
   return {
-    name: 'chatlab-serve',
+    name: 'chatlab-start',
     async configureServer() {
       if (process.env.CHATLAB_AUTO_SERVE !== '1') return
 
       const inUse = await isPortInUse(BACKEND_PORT)
       if (inUse) {
-        console.log(`[chatlab serve] Port ${BACKEND_PORT} already in use, skipping`)
+        console.log(`[chatlab start] Port ${BACKEND_PORT} already in use, skipping`)
         return
       }
 
       const serverDir = resolve(__dirname, 'apps/cli')
-      const serveCommand = createChatlabServeCommand({
+      const startCommand = createChatlabStartCommand({
         serverDir,
         backendPort: BACKEND_PORT,
       })
-      serverProcess = spawn(serveCommand.command, serveCommand.args, serveCommand.options)
+      serverProcess = spawn(startCommand.command, startCommand.args, startCommand.options)
 
       serverProcess.stdout?.on('data', (data: Buffer) => {
         const line = data.toString().trim()
-        if (line) console.log(`[chatlab serve] ${line}`)
+        if (line) console.log(`[chatlab start] ${line}`)
       })
       serverProcess.stderr?.on('data', (data: Buffer) => {
         const line = data.toString().trim()
-        if (line) console.error(`[chatlab serve] ${line}`)
+        if (line) console.error(`[chatlab start] ${line}`)
       })
       serverProcess.on('exit', (code) => {
         if (code !== null && code !== 0) {
-          console.error(`[chatlab serve] exited with code ${code}`)
+          console.error(`[chatlab start] exited with code ${code}`)
         }
         serverProcess = null
       })

@@ -19,7 +19,7 @@ const cacheFile = join(rootDir, 'node_modules', '.cache', 'dev-mode')
 
 const options = [
   { key: 'desktop', label: 'Desktop      (Electron)', command: 'pnpm run dev:desktop' },
-  { key: 'web', label: 'Web          (CLI serve + frontend)', command: 'pnpm run dev:web' },
+  { key: 'web', label: 'Web          (CLI start + frontend)', command: 'pnpm run dev:web' },
   { key: 'server', label: 'Server Only  (API backend)', command: 'pnpm run dev:serve' },
   { key: 'frontend', label: 'Frontend     (no backend)', command: 'pnpm run dev:app' },
 ]

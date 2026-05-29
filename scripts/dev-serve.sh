@@ -7,4 +7,4 @@ pnpm run ensure:server-native
 exec tsx watch \
   --include 'packages/core/src/**' \
   --include 'packages/node-runtime/src/**' \
-  apps/cli/src/cli.ts serve "$@"
+  apps/cli/src/cli.ts start --headless --no-open "$@"

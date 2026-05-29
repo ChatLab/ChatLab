@@ -2,7 +2,7 @@
  * NLP Web API — /_web/nlp/ routes
  *
  * 提供词频统计、词性标签、词库管理等 NLP 功能的 HTTP 接口，
- * 供 CLI serve Web 前端使用（对齐 Electron preload 的 window.nlpApi）。
+ * 供 CLI Web 前端使用（对齐 Electron preload 的 window.nlpApi）。
  *
  * 业务逻辑全部来自 @openchatlab/core（类型/数据）和
  * @openchatlab/node-runtime（分词引擎/词频计算/词库管理）。

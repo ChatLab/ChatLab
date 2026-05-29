@@ -1,10 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { createChatlabServeCommand } from './dev-server-command.mjs'
+import { createChatlabStartCommand } from './dev-server-command.mjs'
 
 test('web dev backend runs through the current Node executable with the tsx loader', () => {
-  const command = createChatlabServeCommand({
+  const command = createChatlabStartCommand({
     rootDir: '/repo',
     serverDir: '/repo/apps/cli',
     coreDir: '/repo/packages/core/src',
@@ -14,5 +14,15 @@ test('web dev backend runs through the current Node executable with the tsx load
   })
 
   assert.equal(command.command, '/custom/node')
-  assert.deepEqual(command.args, ['--watch', '--import', 'tsx', 'src/cli.ts', 'serve', '--port', '3110'])
+  assert.deepEqual(command.args, [
+    '--watch',
+    '--import',
+    'tsx',
+    'src/cli.ts',
+    'start',
+    '--headless',
+    '--no-open',
+    '--port',
+    '3110',
+  ])
 })

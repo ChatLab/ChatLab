@@ -1,7 +1,7 @@
 /**
  * ChatLab Internal Web API — /_web/ routes
  *
- * 供 CLI serve Web 前端使用的内部 API（无认证、UI 友好的响应格式）。
+ * 供 CLI Web 前端使用的内部 API（无认证、UI 友好的响应格式）。
  * 数据格式直接对齐 QueryAdapter 接口，避免前端二次转换。
  *
  * Route modules:

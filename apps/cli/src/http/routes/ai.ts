@@ -2,7 +2,7 @@
  * AI Web API — /_web/ai/ routes
  *
  * 提供助手、技能、LLM 配置和工具目录的只读 HTTP 接口，
- * 供 CLI serve Web 前端使用（对齐 Electron preload 的 window.*Api）。
+ * 供 CLI Web 前端使用（对齐 Electron preload 的 window.*Api）。
  *
  * - 助手/技能数据来自 ~/.chatlab/ai/{assistants,skills}/*.md
  * - LLM 配置来自 ~/.chatlab/ai/llm-config.json
