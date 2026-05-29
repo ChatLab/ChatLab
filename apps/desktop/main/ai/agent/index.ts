@@ -279,7 +279,7 @@ export class Agent {
       return []
     }
     try {
-      return getHistoryForAgent(conversationId)
+      return getHistoryForAgent(conversationId, undefined, this.context.historyLeafMessageId)
     } catch (error) {
       aiLogger.warn('Agent', 'Failed to load history from DB, using empty history', { conversationId, error })
       return []

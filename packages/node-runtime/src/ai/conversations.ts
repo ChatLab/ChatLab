@@ -18,6 +18,7 @@ export interface AIConversation {
   sessionId: string
   title: string | null
   assistantId: string
+  activeMessageId?: string | null
   createdAt: number
   updatedAt: number
 }
@@ -54,10 +55,39 @@ export interface AIMessage {
   role: AIMessageRole
   content: string
   timestamp: number
+  parentId?: string | null
+  siblingGroupId?: string
+  branchIndex?: number
+  branch?: {
+    index: number
+    total: number
+    prevMessageId: string | null
+    nextMessageId: string | null
+  }
   dataKeywords?: string[]
   dataMessageCount?: number
   contentBlocks?: ContentBlock[]
   tokenUsage?: TokenUsageData
+}
+
+interface AIMessageRow {
+  id: string
+  conversationId: string
+  role: string
+  content: string
+  timestamp: number
+  parentId: string | null
+  siblingGroupId: string | null
+  branchIndex: number | null
+  dataKeywords: string | null
+  dataMessageCount: number | null
+  contentBlocks: string | null
+  tokenUsage: string | null
+}
+
+export interface MessageBranchResult {
+  userMessage: AIMessage
+  assistantMessage: AIMessage
 }
 
 export interface ConversationManagerLogger {
@@ -104,6 +134,7 @@ export class AIConversationManager {
         id TEXT PRIMARY KEY,
         session_id TEXT NOT NULL,
         title TEXT,
+        active_message_id TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
       );
@@ -117,6 +148,9 @@ export class AIConversationManager {
         data_keywords TEXT,
         data_message_count INTEGER,
         content_blocks TEXT,
+        parent_id TEXT,
+        sibling_group_id TEXT,
+        branch_index INTEGER DEFAULT 0,
         FOREIGN KEY(conversation_id) REFERENCES ai_conversation(id) ON DELETE CASCADE
       );
 
@@ -133,6 +167,11 @@ export class AIConversationManager {
       const messageTableInfo = db.pragma('table_info(ai_message)') as Array<{ name: string }>
       const messageColumns = messageTableInfo.map((col) => col.name)
 
+      const needsMessageTreeBackfill =
+        !messageColumns.includes('parent_id') ||
+        !messageColumns.includes('sibling_group_id') ||
+        !messageColumns.includes('branch_index')
+
       if (!messageColumns.includes('content_blocks')) {
         db.exec('ALTER TABLE ai_message ADD COLUMN content_blocks TEXT')
       }
@@ -142,20 +181,202 @@ export class AIConversationManager {
       if (!messageColumns.includes('debug_context')) {
         db.exec('ALTER TABLE ai_message ADD COLUMN debug_context TEXT')
       }
+      if (!messageColumns.includes('parent_id')) {
+        db.exec('ALTER TABLE ai_message ADD COLUMN parent_id TEXT')
+      }
+      if (!messageColumns.includes('sibling_group_id')) {
+        db.exec('ALTER TABLE ai_message ADD COLUMN sibling_group_id TEXT')
+      }
+      if (!messageColumns.includes('branch_index')) {
+        db.exec('ALTER TABLE ai_message ADD COLUMN branch_index INTEGER DEFAULT 0')
+      }
 
       const convTableInfo = db.pragma('table_info(ai_conversation)') as Array<{ name: string }>
       const convColumns = convTableInfo.map((col) => col.name)
+      const needsConversationBackfill = !convColumns.includes('active_message_id')
 
       if (!convColumns.includes('assistant_id')) {
         db.exec(`ALTER TABLE ai_conversation ADD COLUMN assistant_id TEXT DEFAULT '${DEFAULT_GENERAL_ID}'`)
       }
+      if (!convColumns.includes('active_message_id')) {
+        db.exec('ALTER TABLE ai_conversation ADD COLUMN active_message_id TEXT')
+      }
+
+      if (needsMessageTreeBackfill || needsConversationBackfill) {
+        this.backfillMessageTree(db)
+      }
+
+      db.exec(`
+        CREATE INDEX IF NOT EXISTS idx_ai_message_parent ON ai_message(parent_id);
+        CREATE INDEX IF NOT EXISTS idx_ai_message_sibling ON ai_message(sibling_group_id);
+      `)
     } catch (error) {
       console.error('[AI DB Migration] Migration failed:', error)
     }
   }
 
+  private backfillMessageTree(db: Database.Database): void {
+    const conversations = db.prepare('SELECT id FROM ai_conversation').all() as Array<{ id: string }>
+    const updateMessage = db.prepare(
+      'UPDATE ai_message SET parent_id = ?, sibling_group_id = COALESCE(sibling_group_id, ?), branch_index = COALESCE(branch_index, 0) WHERE id = ?'
+    )
+    const updateConversation = db.prepare('UPDATE ai_conversation SET active_message_id = ? WHERE id = ?')
+
+    const tx = db.transaction(() => {
+      for (const conversation of conversations) {
+        const messages = db
+          .prepare(
+            `SELECT id, parent_id as parentId, sibling_group_id as siblingGroupId
+             FROM ai_message WHERE conversation_id = ? ORDER BY timestamp ASC, id ASC`
+          )
+          .all(conversation.id) as Array<{ id: string; parentId: string | null; siblingGroupId: string | null }>
+
+        let previousId: string | null = null
+        for (const message of messages) {
+          const parentId = message.parentId === undefined ? previousId : (message.parentId ?? previousId)
+          updateMessage.run(parentId, message.siblingGroupId ?? message.id, message.id)
+          previousId = message.id
+        }
+
+        const conversationRow = db
+          .prepare('SELECT active_message_id as activeMessageId FROM ai_conversation WHERE id = ?')
+          .get(conversation.id) as { activeMessageId: string | null } | undefined
+        if (!conversationRow?.activeMessageId && previousId) {
+          updateConversation.run(previousId, conversation.id)
+        }
+      }
+    })
+
+    tx()
+  }
+
   private generateId(prefix: string): string {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
+  }
+
+  private parseMessageRow(row: AIMessageRow, branch?: AIMessage['branch']): AIMessage {
+    return {
+      id: row.id,
+      conversationId: row.conversationId,
+      role: row.role as AIMessageRole,
+      content: row.content,
+      timestamp: row.timestamp,
+      parentId: row.parentId ?? null,
+      siblingGroupId: row.siblingGroupId ?? row.id,
+      branchIndex: row.branchIndex ?? 0,
+      branch,
+      dataKeywords: row.dataKeywords ? JSON.parse(row.dataKeywords) : undefined,
+      dataMessageCount: row.dataMessageCount ?? undefined,
+      contentBlocks: row.contentBlocks ? JSON.parse(row.contentBlocks) : undefined,
+      tokenUsage: row.tokenUsage ? JSON.parse(row.tokenUsage) : undefined,
+    }
+  }
+
+  private getMessageRow(messageId: string): AIMessageRow | null {
+    const db = this.getDb()
+    const row = db
+      .prepare(
+        `SELECT id, conversation_id as conversationId, role, content, timestamp,
+                parent_id as parentId, sibling_group_id as siblingGroupId, branch_index as branchIndex,
+                data_keywords as dataKeywords, data_message_count as dataMessageCount,
+                content_blocks as contentBlocks, token_usage as tokenUsage
+         FROM ai_message WHERE id = ?`
+      )
+      .get(messageId) as AIMessageRow | undefined
+    return row ?? null
+  }
+
+  private getActiveMessageId(conversationId: string): string | null {
+    const db = this.getDb()
+    const row = db
+      .prepare('SELECT active_message_id as activeMessageId FROM ai_conversation WHERE id = ?')
+      .get(conversationId) as { activeMessageId: string | null } | undefined
+    if (row?.activeMessageId) {
+      const activeExists = db.prepare('SELECT 1 FROM ai_message WHERE id = ?').get(row.activeMessageId)
+      if (activeExists) return row.activeMessageId
+    }
+
+    const fallback = db
+      .prepare('SELECT id FROM ai_message WHERE conversation_id = ? ORDER BY timestamp DESC, id DESC LIMIT 1')
+      .get(conversationId) as { id: string } | undefined
+    if (fallback?.id) {
+      db.prepare('UPDATE ai_conversation SET active_message_id = ? WHERE id = ?').run(fallback.id, conversationId)
+      return fallback.id
+    }
+    return null
+  }
+
+  private getActivePathRows(conversationId: string, leafMessageId?: string | null): AIMessageRow[] {
+    const db = this.getDb()
+    if (leafMessageId === null) return []
+    let currentId = leafMessageId ?? this.getActiveMessageId(conversationId)
+    const rows: AIMessageRow[] = []
+    const seen = new Set<string>()
+
+    while (currentId && !seen.has(currentId)) {
+      seen.add(currentId)
+      const row = this.getMessageRow(currentId)
+      if (!row || row.conversationId !== conversationId) break
+      rows.push(row)
+      currentId = row.parentId
+    }
+
+    if (rows.length === 0) {
+      return db
+        .prepare(
+          `SELECT id, conversation_id as conversationId, role, content, timestamp,
+                  parent_id as parentId, sibling_group_id as siblingGroupId, branch_index as branchIndex,
+                  data_keywords as dataKeywords, data_message_count as dataMessageCount,
+                  content_blocks as contentBlocks, token_usage as tokenUsage
+           FROM ai_message WHERE conversation_id = ? ORDER BY timestamp ASC, id ASC`
+        )
+        .all(conversationId) as AIMessageRow[]
+    }
+
+    return rows.reverse()
+  }
+
+  private getBranchMeta(row: AIMessageRow): AIMessage['branch'] | undefined {
+    const groupId = row.siblingGroupId ?? row.id
+    const siblings = this.getDb()
+      .prepare(
+        `SELECT id FROM ai_message
+         WHERE conversation_id = ? AND sibling_group_id = ?
+         ORDER BY branch_index ASC, timestamp ASC, id ASC`
+      )
+      .all(row.conversationId, groupId) as Array<{ id: string }>
+
+    if (siblings.length <= 1) return undefined
+    const index = siblings.findIndex((item) => item.id === row.id)
+    const safeIndex = index >= 0 ? index : 0
+    return {
+      index: safeIndex,
+      total: siblings.length,
+      prevMessageId: safeIndex > 0 ? siblings[safeIndex - 1]!.id : null,
+      nextMessageId: safeIndex < siblings.length - 1 ? siblings[safeIndex + 1]!.id : null,
+    }
+  }
+
+  private getDeepestLeafId(messageId: string): string {
+    const db = this.getDb()
+    let currentId = messageId
+    const seen = new Set<string>()
+
+    while (!seen.has(currentId)) {
+      seen.add(currentId)
+      const child = db
+        .prepare(
+          `SELECT id FROM ai_message
+           WHERE parent_id = ?
+           ORDER BY branch_index DESC, timestamp DESC, id DESC
+           LIMIT 1`
+        )
+        .get(currentId) as { id: string } | undefined
+      if (!child?.id) break
+      currentId = child.id
+    }
+
+    return currentId
   }
 
   // ==================== 生命周期 ====================
@@ -246,7 +467,7 @@ export class AIConversationManager {
        VALUES (?, ?, ?, ?, ?, ?)`
     ).run(id, sessionId, title || null, assistantId, now, now)
 
-    return { id, sessionId, title: title || null, assistantId, createdAt: now, updatedAt: now }
+    return { id, sessionId, title: title || null, assistantId, activeMessageId: null, createdAt: now, updatedAt: now }
   }
 
   getConversationCountsBySession(): Map<string, number> {
@@ -270,6 +491,7 @@ export class AIConversationManager {
     return db
       .prepare(
         `SELECT id, session_id as sessionId, title, assistant_id as assistantId,
+                active_message_id as activeMessageId,
                 created_at as createdAt, updated_at as updatedAt
          FROM ai_conversation WHERE session_id = ? ORDER BY updated_at DESC`
       )
@@ -281,6 +503,7 @@ export class AIConversationManager {
     const row = db
       .prepare(
         `SELECT id, session_id as sessionId, title, assistant_id as assistantId,
+                active_message_id as activeMessageId,
                 created_at as createdAt, updated_at as updatedAt
          FROM ai_conversation WHERE id = ?`
       )
@@ -318,6 +541,9 @@ export class AIConversationManager {
     const db = this.getDb()
     const now = Math.floor(Date.now() / 1000)
     const id = this.generateId('msg')
+    const parentId = this.getActiveMessageId(conversationId)
+    const siblingGroupId = id
+    const branchIndex = 0
 
     const pendingDebug = role === 'assistant' ? this.pendingDebugContextMap.get(conversationId) : undefined
     if (pendingDebug) {
@@ -325,8 +551,11 @@ export class AIConversationManager {
     }
 
     db.prepare(
-      `INSERT INTO ai_message (id, conversation_id, role, content, timestamp, data_keywords, data_message_count, content_blocks, token_usage, debug_context)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO ai_message (
+         id, conversation_id, role, content, timestamp, data_keywords, data_message_count,
+         content_blocks, token_usage, debug_context, parent_id, sibling_group_id, branch_index
+       )
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       id,
       conversationId,
@@ -337,10 +566,17 @@ export class AIConversationManager {
       dataMessageCount ?? null,
       contentBlocks ? JSON.stringify(contentBlocks) : null,
       tokenUsage ? JSON.stringify(tokenUsage) : null,
-      pendingDebug ?? null
+      pendingDebug ?? null,
+      parentId,
+      siblingGroupId,
+      branchIndex
     )
 
-    db.prepare('UPDATE ai_conversation SET updated_at = ? WHERE id = ?').run(now, conversationId)
+    db.prepare('UPDATE ai_conversation SET active_message_id = ?, updated_at = ? WHERE id = ?').run(
+      id,
+      now,
+      conversationId
+    )
 
     return {
       id,
@@ -348,6 +584,9 @@ export class AIConversationManager {
       role,
       content,
       timestamp: now,
+      parentId,
+      siblingGroupId,
+      branchIndex,
       dataKeywords,
       dataMessageCount,
       contentBlocks,
@@ -356,37 +595,8 @@ export class AIConversationManager {
   }
 
   getMessages(conversationId: string): AIMessage[] {
-    const db = this.getDb()
-    const rows = db
-      .prepare(
-        `SELECT id, conversation_id as conversationId, role, content, timestamp,
-                data_keywords as dataKeywords, data_message_count as dataMessageCount,
-                content_blocks as contentBlocks, token_usage as tokenUsage
-         FROM ai_message WHERE conversation_id = ? ORDER BY timestamp ASC`
-      )
-      .all(conversationId) as Array<{
-      id: string
-      conversationId: string
-      role: string
-      content: string
-      timestamp: number
-      dataKeywords: string | null
-      dataMessageCount: number | null
-      contentBlocks: string | null
-      tokenUsage: string | null
-    }>
-
-    return rows.map((row) => ({
-      id: row.id,
-      conversationId: row.conversationId,
-      role: row.role as AIMessageRole,
-      content: row.content,
-      timestamp: row.timestamp,
-      dataKeywords: row.dataKeywords ? JSON.parse(row.dataKeywords) : undefined,
-      dataMessageCount: row.dataMessageCount ?? undefined,
-      contentBlocks: row.contentBlocks ? JSON.parse(row.contentBlocks) : undefined,
-      tokenUsage: row.tokenUsage ? JSON.parse(row.tokenUsage) : undefined,
-    }))
+    const rows = this.getActivePathRows(conversationId)
+    return rows.map((row) => this.parseMessageRow(row, this.getBranchMeta(row)))
   }
 
   deleteMessage(messageId: string): boolean {
@@ -395,18 +605,115 @@ export class AIConversationManager {
     return result.changes > 0
   }
 
-  getConversationTokenUsage(conversationId: string): TokenUsageData {
+  createMessageBranch(
+    originalUserMessageId: string,
+    newUserContent: string,
+    assistantContent: string,
+    contentBlocks?: ContentBlock[],
+    tokenUsage?: TokenUsageData
+  ): MessageBranchResult {
     const db = this.getDb()
-    const row = db
+    const original = this.getMessageRow(originalUserMessageId)
+    if (!original || original.role !== 'user') {
+      throw new Error('Original user message not found')
+    }
+
+    const now = Math.floor(Date.now() / 1000)
+    const userMessageId = this.generateId('msg')
+    const assistantMessageId = this.generateId('msg')
+    const siblingGroupId = original.siblingGroupId ?? original.id
+    const branchRow = db
       .prepare(
-        `SELECT
-           COALESCE(SUM(json_extract(token_usage, '$.promptTokens')), 0) as promptTokens,
-           COALESCE(SUM(json_extract(token_usage, '$.completionTokens')), 0) as completionTokens,
-           COALESCE(SUM(json_extract(token_usage, '$.totalTokens')), 0) as totalTokens
-         FROM ai_message WHERE conversation_id = ? AND token_usage IS NOT NULL`
+        `SELECT COALESCE(MAX(branch_index), -1) + 1 as branchIndex
+         FROM ai_message WHERE conversation_id = ? AND sibling_group_id = ?`
       )
-      .get(conversationId) as { promptTokens: number; completionTokens: number; totalTokens: number }
-    return { promptTokens: row.promptTokens, completionTokens: row.completionTokens, totalTokens: row.totalTokens }
+      .get(original.conversationId, siblingGroupId) as { branchIndex: number }
+
+    const pendingDebug = this.pendingDebugContextMap.get(original.conversationId)
+    if (pendingDebug) {
+      this.pendingDebugContextMap.delete(original.conversationId)
+    }
+
+    const tx = db.transaction(() => {
+      db.prepare(
+        `INSERT INTO ai_message (
+           id, conversation_id, role, content, timestamp, data_keywords, data_message_count,
+           content_blocks, token_usage, debug_context, parent_id, sibling_group_id, branch_index
+         )
+         VALUES (?, ?, 'user', ?, ?, NULL, NULL, NULL, NULL, NULL, ?, ?, ?)`
+      ).run(
+        userMessageId,
+        original.conversationId,
+        newUserContent,
+        now,
+        original.parentId,
+        siblingGroupId,
+        branchRow.branchIndex
+      )
+
+      db.prepare(
+        `INSERT INTO ai_message (
+           id, conversation_id, role, content, timestamp, data_keywords, data_message_count,
+           content_blocks, token_usage, debug_context, parent_id, sibling_group_id, branch_index
+         )
+         VALUES (?, ?, 'assistant', ?, ?, NULL, NULL, ?, ?, ?, ?, ?, 0)`
+      ).run(
+        assistantMessageId,
+        original.conversationId,
+        assistantContent,
+        now,
+        contentBlocks ? JSON.stringify(contentBlocks) : null,
+        tokenUsage ? JSON.stringify(tokenUsage) : null,
+        pendingDebug ?? null,
+        userMessageId,
+        assistantMessageId
+      )
+
+      db.prepare('UPDATE ai_conversation SET active_message_id = ?, updated_at = ? WHERE id = ?').run(
+        assistantMessageId,
+        now,
+        original.conversationId
+      )
+    })
+
+    tx()
+
+    const userRow = this.getMessageRow(userMessageId)!
+    const assistantRow = this.getMessageRow(assistantMessageId)!
+    return {
+      userMessage: this.parseMessageRow(userRow, this.getBranchMeta(userRow)),
+      assistantMessage: this.parseMessageRow(assistantRow, this.getBranchMeta(assistantRow)),
+    }
+  }
+
+  switchMessageBranch(conversationId: string, messageId: string): AIMessage[] {
+    const target = this.getMessageRow(messageId)
+    if (!target || target.conversationId !== conversationId) {
+      throw new Error('Message branch not found')
+    }
+
+    const leafId = this.getDeepestLeafId(messageId)
+    const now = Math.floor(Date.now() / 1000)
+    this.getDb()
+      .prepare('UPDATE ai_conversation SET active_message_id = ?, updated_at = ? WHERE id = ?')
+      .run(leafId, now, conversationId)
+
+    return this.getMessages(conversationId)
+  }
+
+  getConversationTokenUsage(conversationId: string): TokenUsageData {
+    const messages = this.getMessages(conversationId)
+    return messages.reduce<TokenUsageData>(
+      (total, message) => {
+        if (message.tokenUsage) {
+          total.promptTokens += message.tokenUsage.promptTokens
+          total.completionTokens += message.tokenUsage.completionTokens
+          total.totalTokens += message.tokenUsage.totalTokens
+        }
+        return total
+      },
+      { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+    )
   }
 
   // ==================== Debug context ====================
@@ -430,9 +737,10 @@ export class AIConversationManager {
 
   getHistoryForAgent(
     conversationId: string,
-    maxMessages?: number
+    maxMessages?: number,
+    leafMessageId?: string | null
   ): Array<{ role: 'user' | 'assistant' | 'summary'; content: string }> {
-    const messages = this.getMessages(conversationId)
+    const messages = this.getActivePathRows(conversationId, leafMessageId).map((row) => this.parseMessageRow(row))
     const validMessages = messages.filter(
       (m) => (m.role === 'user' || m.role === 'assistant' || m.role === 'summary') && m.content?.trim()
     )
@@ -490,9 +798,6 @@ export class AIConversationManager {
     content: string,
     meta: { bufferBoundaryTimestamp: number; compressedMessageCount: number }
   ): AIMessage {
-    const db = this.getDb()
-    db.prepare("DELETE FROM ai_message WHERE conversation_id = ? AND role = 'summary'").run(conversationId)
-
     const contentBlocks: ContentBlock[] = [
       {
         type: 'summary_meta',
@@ -505,78 +810,32 @@ export class AIConversationManager {
   }
 
   getLatestSummary(conversationId: string): AIMessage | null {
-    const db = this.getDb()
-    const row = db
-      .prepare(
-        `SELECT id, conversation_id as conversationId, role, content, timestamp,
-                data_keywords as dataKeywords, data_message_count as dataMessageCount,
-                content_blocks as contentBlocks
-         FROM ai_message WHERE conversation_id = ? AND role = 'summary'
-         ORDER BY timestamp DESC LIMIT 1`
-      )
-      .get(conversationId) as
-      | {
-          id: string
-          conversationId: string
-          role: string
-          content: string
-          timestamp: number
-          dataKeywords: string | null
-          dataMessageCount: number | null
-          contentBlocks: string | null
-        }
-      | undefined
-
-    if (!row) return null
-    return {
-      id: row.id,
-      conversationId: row.conversationId,
-      role: row.role as AIMessageRole,
-      content: row.content,
-      timestamp: row.timestamp,
-      dataKeywords: row.dataKeywords ? JSON.parse(row.dataKeywords) : undefined,
-      dataMessageCount: row.dataMessageCount ?? undefined,
-      contentBlocks: row.contentBlocks ? JSON.parse(row.contentBlocks) : undefined,
-    }
+    const row = [...this.getActivePathRows(conversationId)].reverse().find((message) => message.role === 'summary')
+    return row ? this.parseMessageRow(row) : null
   }
 
   getMessagesAfterSummary(
     conversationId: string,
     summaryTimestamp: number
   ): Array<{ role: AIMessageRole; content: string; timestamp: number }> {
-    const db = this.getDb()
-    const rows = db
-      .prepare(
-        `SELECT role, content, timestamp FROM ai_message
-         WHERE conversation_id = ? AND timestamp > ? AND role IN ('user', 'assistant')
-         ORDER BY timestamp ASC`
-      )
-      .all(conversationId, summaryTimestamp) as Array<{ role: string; content: string; timestamp: number }>
-    return rows.map((r) => ({ role: r.role as AIMessageRole, content: r.content, timestamp: r.timestamp }))
+    return this.getActivePathRows(conversationId)
+      .filter((row) => row.timestamp > summaryTimestamp && (row.role === 'user' || row.role === 'assistant'))
+      .map((row) => ({ role: row.role as AIMessageRole, content: row.content, timestamp: row.timestamp }))
   }
 
   getAllUserAssistantMessages(
     conversationId: string
   ): Array<{ role: AIMessageRole; content: string; timestamp: number }> {
-    const db = this.getDb()
-    const rows = db
-      .prepare(
-        `SELECT role, content, timestamp FROM ai_message
-         WHERE conversation_id = ? AND role IN ('user', 'assistant')
-         ORDER BY timestamp ASC`
-      )
-      .all(conversationId) as Array<{ role: string; content: string; timestamp: number }>
-    return rows.map((r) => ({ role: r.role as AIMessageRole, content: r.content, timestamp: r.timestamp }))
+    return this.getActivePathRows(conversationId)
+      .filter((row) => row.role === 'user' || row.role === 'assistant')
+      .map((row) => ({ role: row.role as AIMessageRole, content: row.content, timestamp: row.timestamp }))
   }
 
   getMessageCountAfterSummary(conversationId: string): number {
     const summary = this.getLatestSummary(conversationId)
     if (!summary) {
-      const db = this.getDb()
-      const row = db
-        .prepare("SELECT COUNT(*) as count FROM ai_message WHERE conversation_id = ? AND role IN ('user', 'assistant')")
-        .get(conversationId) as { count: number }
-      return row.count
+      return this.getActivePathRows(conversationId).filter((row) => row.role === 'user' || row.role === 'assistant')
+        .length
     }
 
     const metaBlock = summary.contentBlocks?.find(
@@ -584,12 +843,8 @@ export class AIConversationManager {
     )
     const boundary = metaBlock?.bufferBoundaryTimestamp ?? summary.timestamp
 
-    const db = this.getDb()
-    const row = db
-      .prepare(
-        "SELECT COUNT(*) as count FROM ai_message WHERE conversation_id = ? AND timestamp >= ? AND role IN ('user', 'assistant')"
-      )
-      .get(conversationId, boundary) as { count: number }
-    return row.count
+    return this.getActivePathRows(conversationId).filter(
+      (row) => row.timestamp >= boundary && (row.role === 'user' || row.role === 'assistant')
+    ).length
   }
 }

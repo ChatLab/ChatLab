@@ -27,6 +27,7 @@ export interface AIConversation {
   sessionId: string
   title: string | null
   assistantId: string
+  activeMessageId?: string | null
   createdAt: number
   updatedAt: number
 }
@@ -34,6 +35,7 @@ export interface AIConversation {
 // 内容块类型（用于 AI 消息的混合渲染）
 export type ContentBlock =
   | { type: 'text'; text: string }
+  | { type: 'think'; tag: string; text: string; durationMs?: number }
   | {
       type: 'tool'
       tool: {
@@ -44,6 +46,8 @@ export type ContentBlock =
       }
     }
   | { type: 'skill'; skillId: string; skillName: string }
+  | { type: 'error'; error: SerializedErrorInfo }
+  | { type: 'summary_meta'; bufferBoundaryTimestamp: number; compressedMessageCount: number }
 
 export type AIMessageRole = 'user' | 'assistant' | 'summary'
 
@@ -59,10 +63,24 @@ export interface AIMessage {
   role: AIMessageRole
   content: string
   timestamp: number
+  parentId?: string | null
+  siblingGroupId?: string
+  branchIndex?: number
+  branch?: {
+    index: number
+    total: number
+    prevMessageId: string | null
+    nextMessageId: string | null
+  }
   dataKeywords?: string[]
   dataMessageCount?: number
   contentBlocks?: ContentBlock[]
   tokenUsage?: TokenUsageData
+}
+
+export interface MessageBranchResult {
+  userMessage: AIMessage
+  assistantMessage: AIMessage
 }
 
 // LLM API 类型
@@ -171,6 +189,7 @@ export interface PreprocessConfig {
 export interface ToolContext {
   sessionId: string
   conversationId?: string
+  historyLeafMessageId?: string | null
   timeFilter?: { startTs: number; endTs: number }
   maxMessagesLimit?: number
   ownerInfo?: { platformId: string; displayName: string }
@@ -494,6 +513,27 @@ export const aiApi = {
       contentBlocks,
       tokenUsage
     )
+  },
+
+  createMessageBranch: (
+    originalUserMessageId: string,
+    newUserContent: string,
+    assistantContent: string,
+    contentBlocks?: ContentBlock[],
+    tokenUsage?: TokenUsageData
+  ): Promise<MessageBranchResult> => {
+    return ipcRenderer.invoke(
+      'ai:createMessageBranch',
+      originalUserMessageId,
+      newUserContent,
+      assistantContent,
+      contentBlocks,
+      tokenUsage
+    )
+  },
+
+  switchMessageBranch: (conversationId: string, messageId: string): Promise<AIMessage[]> => {
+    return ipcRenderer.invoke('ai:switchMessageBranch', conversationId, messageId)
   },
 
   /**
@@ -1014,6 +1054,7 @@ export const agentApi = {
     const sanitizedContext: ToolContext = {
       sessionId: context.sessionId,
       conversationId: context.conversationId,
+      historyLeafMessageId: context.historyLeafMessageId,
       timeFilter: context.timeFilter
         ? {
             startTs: context.timeFilter.startTs,

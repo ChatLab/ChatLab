@@ -314,6 +314,7 @@ async function installAiApiShims(): Promise<void> {
           body: {
             userMessage,
             conversationId: context.conversationId,
+            historyLeafMessageId: context.historyLeafMessageId,
             sessionId: context.sessionId,
             chatType: chatType || 'group',
             locale: locale || 'zh-CN',

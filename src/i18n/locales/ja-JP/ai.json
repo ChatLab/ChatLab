@@ -53,6 +53,10 @@
         "success": "Markdown をクリップボードにコピーしました",
         "failed": "Markdown のコピーに失敗しました"
       },
+      "edit": {
+        "tooltip": "編集して再生成",
+        "submit": "送信"
+      },
       "tools": {
         "get_chat_overview": "チャット概要を取得",
         "search_messages": "チャット履歴を検索",

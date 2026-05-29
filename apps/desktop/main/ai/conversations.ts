@@ -9,7 +9,14 @@ import { AIConversationManager } from '@openchatlab/node-runtime'
 import { getPathProvider } from '../path-context'
 import { aiLogger } from './logger'
 
-export type { AIConversation, AIMessage, AIMessageRole, ContentBlock, TokenUsageData } from '@openchatlab/node-runtime'
+export type {
+  AIConversation,
+  AIMessage,
+  AIMessageRole,
+  ContentBlock,
+  TokenUsageData,
+  MessageBranchResult,
+} from '@openchatlab/node-runtime'
 
 let manager: AIConversationManager | null = null
 
@@ -93,6 +100,26 @@ export function deleteMessage(messageId: string) {
   return getManager().deleteMessage(messageId)
 }
 
+export function createMessageBranch(
+  originalUserMessageId: string,
+  newUserContent: string,
+  assistantContent: string,
+  contentBlocks?: import('@openchatlab/node-runtime').ContentBlock[],
+  tokenUsage?: import('@openchatlab/node-runtime').TokenUsageData
+) {
+  return getManager().createMessageBranch(
+    originalUserMessageId,
+    newUserContent,
+    assistantContent,
+    contentBlocks,
+    tokenUsage
+  )
+}
+
+export function switchMessageBranch(conversationId: string, messageId: string) {
+  return getManager().switchMessageBranch(conversationId, messageId)
+}
+
 export function setPendingDebugContext(conversationId: string, debugContext: string) {
   return getManager().setPendingDebugContext(conversationId, debugContext)
 }
@@ -109,8 +136,8 @@ export function getConversationTokenUsage(conversationId: string) {
   return getManager().getConversationTokenUsage(conversationId)
 }
 
-export function getHistoryForAgent(conversationId: string, maxMessages?: number) {
-  return getManager().getHistoryForAgent(conversationId, maxMessages)
+export function getHistoryForAgent(conversationId: string, maxMessages?: number, leafMessageId?: string | null) {
+  return getManager().getHistoryForAgent(conversationId, maxMessages, leafMessageId)
 }
 
 export function addSummaryMessage(

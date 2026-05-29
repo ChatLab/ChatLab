@@ -53,6 +53,10 @@
         "success": "Markdown copied to clipboard",
         "failed": "Failed to copy Markdown"
       },
+      "edit": {
+        "tooltip": "Edit and regenerate",
+        "submit": "Send"
+      },
       "tools": {
         "get_chat_overview": "Get Chat Overview",
         "search_messages": "Search Messages",

@@ -12,6 +12,7 @@ import type {
   AIMessageRole,
   ContentBlock,
   TokenUsageData,
+  MessageBranchResult,
   FilterResultWithPagination,
   ExportFilterParams,
   ExportProgress,
@@ -74,6 +75,25 @@ export class FetchAIAdapter implements AIAdapter {
       contentBlocks,
       tokenUsage,
     })
+  }
+
+  async createMessageBranch(
+    originalUserMessageId: string,
+    newUserContent: string,
+    assistantContent: string,
+    contentBlocks?: ContentBlock[],
+    tokenUsage?: TokenUsageData
+  ): Promise<MessageBranchResult> {
+    return post<MessageBranchResult>(`/ai/messages/${originalUserMessageId}/branches`, {
+      content: newUserContent,
+      assistantContent,
+      contentBlocks,
+      tokenUsage,
+    })
+  }
+
+  async switchMessageBranch(conversationId: string, messageId: string): Promise<AIMessage[]> {
+    return post<AIMessage[]>(`/ai/conversations/${conversationId}/branches/switch`, { messageId })
   }
 
   async getConversationTokenUsage(conversationId: string): Promise<TokenUsageData> {

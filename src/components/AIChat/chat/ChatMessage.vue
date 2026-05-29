@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import dayjs from 'dayjs'
 import MarkdownIt from 'markdown-it'
@@ -13,6 +13,7 @@ const toast = useToast()
 
 // Props
 const props = defineProps<{
+  messageId?: string
   role: 'user' | 'assistant' | 'summary'
   content: string
   timestamp: number
@@ -21,6 +22,19 @@ const props = defineProps<{
   contentBlocks?: ContentBlock[]
   /** 是否显示截屏按钮（仅 AI 回复） */
   showCaptureButton?: boolean
+  editable?: boolean
+  branch?: {
+    index: number
+    total: number
+    prevMessageId: string | null
+    nextMessageId: string | null
+  }
+}>()
+
+const emit = defineEmits<{
+  edit: [payload: { messageId: string; content: string }]
+  branchPrev: [messageId: string | null]
+  branchNext: [messageId: string | null]
 }>()
 
 // 格式化时间
@@ -31,6 +45,11 @@ const formattedTime = computed(() => {
 // 是否是用户消息
 const isUser = computed(() => props.role === 'user')
 const isSummary = computed(() => props.role === 'summary')
+const isEditing = ref(false)
+const editContent = ref(props.content)
+const editTextareaRef = ref<HTMLTextAreaElement | null>(null)
+const canEdit = computed(() => isUser.value && props.editable && !props.isStreaming && !!props.messageId)
+const hasBranchSwitcher = computed(() => isUser.value && !!props.branch && props.branch.total > 1)
 
 // 创建 markdown-it 实例
 const md = new MarkdownIt({
@@ -76,6 +95,37 @@ const renderedContent = computed(() => {
   if (!props.content) return ''
   return md.render(props.content)
 })
+
+watch(
+  () => props.content,
+  (content) => {
+    if (!isEditing.value) editContent.value = content
+  }
+)
+
+async function startEditing() {
+  if (!canEdit.value) return
+  editContent.value = props.content
+  isEditing.value = true
+  await nextTick()
+  editTextareaRef.value?.focus()
+}
+
+function cancelEditing() {
+  isEditing.value = false
+  editContent.value = props.content
+}
+
+function submitEditing() {
+  if (!props.messageId) return
+  const content = editContent.value.trim()
+  if (!content || content === props.content.trim()) {
+    cancelEditing()
+    return
+  }
+  isEditing.value = false
+  emit('edit', { messageId: props.messageId, content })
+}
 
 // 过滤无内容的文本/思考块，避免显示空气泡
 const visibleBlocks = computed(() => {
@@ -331,7 +381,28 @@ async function handleCopyMarkdown() {
 
       <!-- 用户消息：简单气泡 -->
       <template v-else-if="isUser">
-        <div class="rounded-3xl bg-primary-50 px-5 py-3 text-gray-900 dark:bg-primary-500/50 dark:text-gray-100">
+        <div
+          v-if="isEditing"
+          class="rounded-2xl bg-primary-50 p-3 text-gray-900 dark:bg-primary-500/50 dark:text-gray-100"
+        >
+          <textarea
+            ref="editTextareaRef"
+            v-model="editContent"
+            class="max-h-64 min-h-28 w-full resize-y rounded-xl border border-primary-200 bg-white/90 px-3 py-2 text-sm leading-relaxed outline-none focus:border-primary-400 dark:border-primary-400/40 dark:bg-gray-900/70"
+            @keydown.esc.prevent="cancelEditing"
+            @keydown.ctrl.enter.prevent="submitEditing"
+            @keydown.meta.enter.prevent="submitEditing"
+          />
+          <div class="mt-2 flex justify-end gap-2">
+            <UButton size="xs" variant="ghost" color="gray" @click="cancelEditing">
+              {{ t('common.cancel') }}
+            </UButton>
+            <UButton size="xs" color="primary" @click="submitEditing">
+              {{ t('ai.chat.message.edit.submit') }}
+            </UButton>
+          </div>
+        </div>
+        <div v-else class="rounded-3xl bg-primary-50 px-5 py-3 text-gray-900 dark:bg-primary-500/50 dark:text-gray-100">
           <div class="prose prose-sm dark:prose-invert max-w-none leading-relaxed" v-html="renderedContent" />
         </div>
       </template>
@@ -480,6 +551,31 @@ async function handleCopyMarkdown() {
             @click="handleCopyMarkdown"
           />
         </UTooltip>
+        <UTooltip v-if="canEdit" :text="t('ai.chat.message.edit.tooltip')" class="no-capture">
+          <UButton icon="i-heroicons-pencil-square" variant="ghost" color="primary" size="xs" @click="startEditing" />
+        </UTooltip>
+        <div
+          v-if="hasBranchSwitcher"
+          class="no-capture flex items-center gap-1 rounded-full bg-gray-100 px-1 py-0.5 text-[11px] text-gray-500 dark:bg-gray-800 dark:text-gray-400"
+        >
+          <UButton
+            icon="i-heroicons-chevron-left"
+            variant="ghost"
+            color="gray"
+            size="xs"
+            :disabled="!branch?.prevMessageId"
+            @click="emit('branchPrev', branch?.prevMessageId ?? null)"
+          />
+          <span class="min-w-8 text-center">{{ (branch?.index ?? 0) + 1 }} / {{ branch?.total ?? 1 }}</span>
+          <UButton
+            icon="i-heroicons-chevron-right"
+            variant="ghost"
+            color="gray"
+            size="xs"
+            :disabled="!branch?.nextMessageId"
+            @click="emit('branchNext', branch?.nextMessageId ?? null)"
+          />
+        </div>
         <!-- 截屏按钮（仅 AI 回复显示） -->
         <CaptureButton
           v-if="showCaptureButton && !isUser && !isStreaming"

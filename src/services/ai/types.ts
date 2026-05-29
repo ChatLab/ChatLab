@@ -5,12 +5,14 @@ export interface AIConversation {
   sessionId: string
   title: string | null
   assistantId: string
+  activeMessageId?: string | null
   createdAt: number
   updatedAt: number
 }
 
 export type ContentBlock =
   | { type: 'text'; text: string }
+  | { type: 'think'; tag: string; text: string; durationMs?: number }
   | {
       type: 'tool'
       tool: {
@@ -21,6 +23,8 @@ export type ContentBlock =
       }
     }
   | { type: 'skill'; skillId: string; skillName: string }
+  | { type: 'error'; error: { name: string | null; message: string; stack?: string | null } }
+  | { type: 'summary_meta'; bufferBoundaryTimestamp: number; compressedMessageCount: number }
 
 export type AIMessageRole = 'user' | 'assistant' | 'summary'
 
@@ -36,10 +40,24 @@ export interface AIMessage {
   role: AIMessageRole
   content: string
   timestamp: number
+  parentId?: string | null
+  siblingGroupId?: string
+  branchIndex?: number
+  branch?: {
+    index: number
+    total: number
+    prevMessageId: string | null
+    nextMessageId: string | null
+  }
   dataKeywords?: string[]
   dataMessageCount?: number
   contentBlocks?: ContentBlock[]
   tokenUsage?: TokenUsageData
+}
+
+export interface MessageBranchResult {
+  userMessage: AIMessage
+  assistantMessage: AIMessage
 }
 
 export interface DesensitizeRule {
@@ -162,6 +180,14 @@ export interface AIAdapter {
     contentBlocks?: ContentBlock[],
     tokenUsage?: TokenUsageData
   ): Promise<AIMessage>
+  createMessageBranch(
+    originalUserMessageId: string,
+    newUserContent: string,
+    assistantContent: string,
+    contentBlocks?: ContentBlock[],
+    tokenUsage?: TokenUsageData
+  ): Promise<MessageBranchResult>
+  switchMessageBranch(conversationId: string, messageId: string): Promise<AIMessage[]>
   getConversationTokenUsage(conversationId: string): Promise<TokenUsageData>
   estimateContextTokens(
     conversationId: string

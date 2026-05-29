@@ -5,6 +5,7 @@ import type {
   AIMessageRole,
   ContentBlock,
   TokenUsageData,
+  MessageBranchResult,
   FilterResultWithPagination,
   ExportFilterParams,
   ExportProgress,
@@ -63,6 +64,20 @@ export class WebAIAdapter implements AIAdapter {
     _tokenUsage?: TokenUsageData
   ): Promise<AIMessage> {
     throw new Error(NOT_AVAILABLE)
+  }
+
+  async createMessageBranch(
+    _originalUserMessageId: string,
+    _newUserContent: string,
+    _assistantContent: string,
+    _contentBlocks?: ContentBlock[],
+    _tokenUsage?: TokenUsageData
+  ): Promise<MessageBranchResult> {
+    throw new Error('AI message branching is not available in static web mode')
+  }
+
+  async switchMessageBranch(_conversationId: string, _messageId: string): Promise<AIMessage[]> {
+    throw new Error('AI message branching is not available in static web mode')
   }
 
   async getConversationTokenUsage(_conversationId: string): Promise<TokenUsageData> {
