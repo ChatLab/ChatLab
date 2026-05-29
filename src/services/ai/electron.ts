@@ -5,6 +5,7 @@ import type {
   AIMessageRole,
   ContentBlock,
   TokenUsageData,
+  MessageBranchResult,
   FilterResultWithPagination,
   ExportFilterParams,
   ExportProgress,
@@ -61,6 +62,26 @@ export class ElectronAIAdapter implements AIAdapter {
       contentBlocks as any,
       tokenUsage
     ) as Promise<AIMessage>
+  }
+
+  async createMessageBranch(
+    originalUserMessageId: string,
+    newUserContent: string,
+    assistantContent: string,
+    contentBlocks?: ContentBlock[],
+    tokenUsage?: TokenUsageData
+  ): Promise<MessageBranchResult> {
+    return window.aiApi.createMessageBranch(
+      originalUserMessageId,
+      newUserContent,
+      assistantContent,
+      contentBlocks as any,
+      tokenUsage
+    ) as Promise<MessageBranchResult>
+  }
+
+  async switchMessageBranch(conversationId: string, messageId: string): Promise<AIMessage[]> {
+    return window.aiApi.switchMessageBranch(conversationId, messageId) as Promise<AIMessage[]>
   }
 
   async getConversationTokenUsage(conversationId: string): Promise<TokenUsageData> {

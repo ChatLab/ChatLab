@@ -66,6 +66,9 @@ export function useAIChat(
     selectedAssistantId: toRef(state, 'selectedAssistantId'),
     sendMessage: (content: string, options?: { mentionedMembers?: MentionedMemberContext[] }) =>
       aiChatStore.sendMessage(chatKey, content, options),
+    editMessageAndRegenerate: (messageId: string, content: string) =>
+      aiChatStore.editMessageAndRegenerate(chatKey, messageId, content),
+    switchMessageBranch: (messageId: string) => aiChatStore.switchMessageBranch(chatKey, messageId),
     loadConversation: (conversationId: string) => aiChatStore.loadConversation(chatKey, conversationId),
     startNewConversation: (welcomeMessage?: string) => aiChatStore.startNewConversation(chatKey, welcomeMessage),
     loadMoreSourceMessages: () => aiChatStore.loadMoreSourceMessages(),

@@ -304,6 +304,7 @@ interface AIConversation {
   sessionId: string
   title: string | null
   assistantId: string
+  activeMessageId?: string | null
   createdAt: number
   updatedAt: number
 }
@@ -311,6 +312,7 @@ interface AIConversation {
 // 内容块类型（用于 AI 消息的混合渲染）
 type AIContentBlock =
   | { type: 'text'; text: string }
+  | { type: 'think'; tag: string; text: string; durationMs?: number }
   | {
       type: 'tool'
       tool: {
@@ -321,6 +323,7 @@ type AIContentBlock =
       }
     }
   | { type: 'skill'; skillId: string; skillName: string }
+  | { type: 'error'; error: SerializedErrorInfo }
   | {
       type: 'summary_meta'
       bufferBoundaryTimestamp: number
@@ -341,10 +344,24 @@ interface AIMessage {
   role: AIMessageRole
   content: string
   timestamp: number
+  parentId?: string | null
+  siblingGroupId?: string
+  branchIndex?: number
+  branch?: {
+    index: number
+    total: number
+    prevMessageId: string | null
+    nextMessageId: string | null
+  }
   dataKeywords?: string[]
   dataMessageCount?: number
   contentBlocks?: AIContentBlock[]
   tokenUsage?: AITokenUsageData
+}
+
+interface MessageBranchResult {
+  userMessage: AIMessage
+  assistantMessage: AIMessage
 }
 
 interface AiApi {
@@ -408,7 +425,14 @@ interface AiApi {
     contentBlocks?: AIContentBlock[],
     tokenUsage?: AITokenUsageData
   ) => Promise<AIMessage>
-  getMessages: (conversationId: string) => Promise<AIMessage[]>
+  createMessageBranch: (
+    originalUserMessageId: string,
+    newUserContent: string,
+    assistantContent: string,
+    contentBlocks?: AIContentBlock[],
+    tokenUsage?: AITokenUsageData
+  ) => Promise<MessageBranchResult>
+  switchMessageBranch: (conversationId: string, messageId: string) => Promise<AIMessage[]>
   getMessages: (conversationId: string) => Promise<AIMessage[]>
   getConversationTokenUsage: (conversationId: string) => Promise<AITokenUsageData>
   deleteMessage: (messageId: string) => Promise<boolean>
@@ -744,6 +768,7 @@ interface PreprocessConfig {
 interface ToolContext {
   sessionId: string
   conversationId?: string
+  historyLeafMessageId?: string | null
   timeFilter?: { startTs: number; endTs: number }
   /** 用户配置：每次发送给 AI 的最大消息条数 */
   maxMessagesLimit?: number
@@ -1225,6 +1250,7 @@ export {
   SearchMessageResult,
   AIConversation,
   AIMessage,
+  MessageBranchResult,
   LLMProviderInfo,
   AIServiceConfigDisplay,
   LLMChatMessage,

@@ -53,6 +53,10 @@
         "success": "Markdown 已复制到剪贴板",
         "failed": "复制 Markdown 失败"
       },
+      "edit": {
+        "tooltip": "编辑并重新生成",
+        "submit": "发送"
+      },
       "tools": {
         "get_chat_overview": "获取聊天概览",
         "search_messages": "搜索聊天记录",

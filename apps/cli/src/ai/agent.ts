@@ -32,6 +32,7 @@ export type { AgentStreamChunk }
 export interface RunAgentOptions {
   userMessage: string
   conversationId: string
+  historyLeafMessageId?: string | null
   chatType?: 'group' | 'private'
   locale?: string
   assistantSystemPrompt?: string
@@ -51,6 +52,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
   const {
     userMessage,
     conversationId,
+    historyLeafMessageId,
     chatType = 'group',
     locale = 'zh-CN',
     assistantSystemPrompt,
@@ -135,7 +137,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
 
   let history: SimpleHistoryMessage[] = []
   try {
-    history = convManager.getHistoryForAgent(conversationId)
+    history = convManager.getHistoryForAgent(conversationId, undefined, historyLeafMessageId)
   } catch {
     // empty history on failure
   }

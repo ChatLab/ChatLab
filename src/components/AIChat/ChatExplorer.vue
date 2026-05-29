@@ -54,6 +54,8 @@ const {
   agentStatus,
   selectedAssistantId,
   sendMessage,
+  editMessageAndRegenerate,
+  switchMessageBranch,
   loadConversation,
   startNewConversation,
   loadMoreSourceMessages,
@@ -244,6 +246,28 @@ async function handleSend(payload: { content: string; mentionedMembers: Mentione
   conversationListRef.value?.refresh()
 }
 
+async function handleEditMessage(payload: { messageId: string; content: string }) {
+  const result = await editMessageAndRegenerate(payload.messageId, payload.content)
+  if (!result.success) {
+    if (result.reason === 'busy') {
+      showRunningTaskToast()
+    }
+    return
+  }
+  scrollToBottom(true)
+  conversationListRef.value?.refresh()
+}
+
+async function handleSwitchMessageBranch(messageId: string | null) {
+  if (!messageId) return
+  const ok = await switchMessageBranch(messageId)
+  if (!ok) {
+    showLockedActionToast()
+    return
+  }
+  scrollToBottom(true)
+}
+
 // 切换数据源面板
 function toggleSourcePanel() {
   isSourcePanelCollapsed.value = !isSourcePanelCollapsed.value
@@ -413,10 +437,16 @@ watch(
                   <ChatMessage
                     v-if="pair.user && (pair.user.role === 'user' || pair.user.content)"
                     :role="pair.user.role"
+                    :message-id="pair.user.id"
                     :content="pair.user.content"
                     :timestamp="pair.user.timestamp"
                     :is-streaming="pair.user.isStreaming"
                     :content-blocks="pair.user.contentBlocks"
+                    :branch="pair.user.branch"
+                    :editable="!isAIThinking"
+                    @edit="handleEditMessage"
+                    @branch-prev="handleSwitchMessageBranch"
+                    @branch-next="handleSwitchMessageBranch"
                   />
                   <!-- AI 回复 -->
                   <ChatMessage

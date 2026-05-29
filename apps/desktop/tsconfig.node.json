@@ -11,6 +11,7 @@
     "../../packages/node-runtime/**/*",
     "../../packages/config/**/*",
     "../../packages/parser/**/*",
+    "../../packages/mcp-server/**/*",
     "../../apps/cli/**/*",
     "../../packages/tools/**/*",
     "../../packages/sync/**/*"
@@ -23,7 +24,8 @@
     "paths": {
       "@/*": ["../../src/*"],
       "@electron/*": ["./*"],
-      "@openchatlab/*": ["../../packages/*"]
+      "@openchatlab/*": ["../../packages/*"],
+      "chatlab-mcp": ["../../packages/mcp-server/src"]
     }
   }
 }

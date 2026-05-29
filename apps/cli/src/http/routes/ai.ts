@@ -521,6 +521,31 @@ export function registerAiRoutes(
     return convManager.getMessages(request.params.id)
   })
 
+  server.post<{
+    Params: { id: string }
+    Body: {
+      content: string
+      assistantContent: string
+      contentBlocks?: unknown[]
+      tokenUsage?: { promptTokens: number; completionTokens: number; totalTokens: number }
+    }
+  }>('/_web/ai/messages/:id/branches', async (request) => {
+    return convManager.createMessageBranch(
+      request.params.id,
+      request.body.content,
+      request.body.assistantContent,
+      request.body.contentBlocks as any,
+      request.body.tokenUsage
+    )
+  })
+
+  server.post<{
+    Params: { id: string }
+    Body: { messageId: string }
+  }>('/_web/ai/conversations/:id/branches/switch', async (request) => {
+    return convManager.switchMessageBranch(request.params.id, request.body.messageId)
+  })
+
   server.get<{ Params: { id: string } }>('/_web/ai/conversations/:id/token-usage', async (request) => {
     return convManager.getConversationTokenUsage(request.params.id)
   })
@@ -533,6 +558,7 @@ export function registerAiRoutes(
     Body: {
       userMessage: string
       conversationId: string
+      historyLeafMessageId?: string | null
       sessionId: string
       chatType?: 'group' | 'private'
       locale?: string
@@ -550,6 +576,7 @@ export function registerAiRoutes(
     const {
       userMessage,
       conversationId,
+      historyLeafMessageId,
       sessionId,
       chatType,
       locale,
@@ -660,6 +687,7 @@ export function registerAiRoutes(
       await runServerAgent({
         userMessage,
         conversationId,
+        historyLeafMessageId,
         chatType,
         locale,
         assistantSystemPrompt,

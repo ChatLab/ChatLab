@@ -284,6 +284,40 @@ export function registerAIHandlers({ win }: IpcContext): void {
     }
   })
 
+  ipcMain.handle(
+    'ai:createMessageBranch',
+    async (
+      _,
+      originalUserMessageId: string,
+      newUserContent: string,
+      assistantContent: string,
+      contentBlocks?: aiConversations.ContentBlock[],
+      tokenUsage?: aiConversations.TokenUsageData
+    ) => {
+      try {
+        return aiConversations.createMessageBranch(
+          originalUserMessageId,
+          newUserContent,
+          assistantContent,
+          contentBlocks,
+          tokenUsage
+        )
+      } catch (error) {
+        console.error('Failed to create AI message branch:', error)
+        throw error
+      }
+    }
+  )
+
+  ipcMain.handle('ai:switchMessageBranch', async (_, conversationId: string, messageId: string) => {
+    try {
+      return aiConversations.switchMessageBranch(conversationId, messageId)
+    } catch (error) {
+      console.error('Failed to switch AI message branch:', error)
+      throw error
+    }
+  })
+
   // ==================== 脱敏规则 ====================
 
   ipcMain.handle('ai:getDefaultDesensitizeRules', (_, locale: string) => {
