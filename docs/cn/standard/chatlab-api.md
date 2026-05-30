@@ -10,7 +10,7 @@ ChatLab 提供本地 RESTful API 服务，允许外部工具、脚本和 MCP 等
 
 ::: tip 数据导入
 
-如需通过 API 导入聊天数据，请参阅：
+如需通过 API 推送或同步聊天数据，请参阅：
 
 - **[Push 导入协议](./chatlab-import.md)** — 外部系统主动将数据推送到 ChatLab
 - **[Pull 远程数据源协议](./chatlab-pull.md)** — 第三方暴露标准端点，ChatLab 主动拉取数据

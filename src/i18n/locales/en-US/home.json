@@ -3,7 +3,7 @@
   "tabs": {
     "file": "File Import",
     "api": "Auto Sync",
-    "push": "API Import",
+    "push": "API Push",
     "apiDescription": "Connect external platform data sources to automatically sync chat records to ChatLab on a schedule.",
     "apiButton": "Configure Auto Sync",
     "pushDescription": "Start the local API server to let third-party tools, plugins, or scripts push chat records directly into ChatLab.",

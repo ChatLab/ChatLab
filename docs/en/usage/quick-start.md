@@ -46,7 +46,7 @@ ChatLab provides three import methods for different scenarios:
 |--------|----------|
 | **File import** | Drag exported chat record files directly into the ChatLab homepage — ideal for one-time imports |
 | **Auto sync** | Configure external platform data sources for periodic automatic sync to ChatLab |
-| **API import** | Enable the local API service to let third-party tools/plugins/scripts push chat records to ChatLab |
+| **API push** | Enable the local API service to let third-party tools/plugins/scripts push chat records to ChatLab |
 
 ### Regular users
 
@@ -57,7 +57,7 @@ Use **file import** — you need to:
 
 ### Developers
 
-If you're a developer looking to integrate **auto sync** or **API import**, see:
+If you're a developer looking to integrate **auto sync** or **API push**, see:
 
 - [ChatLab Format](/standard/chatlab-format) — understand the data format specification
 

@@ -3,7 +3,7 @@
   "tabs": {
     "file": "檔案匯入",
     "api": "自動同步",
-    "push": "API匯入",
+    "push": "API推送",
     "apiDescription": "設定外部平台的資料來源，讓聊天記錄定期自動同步到ChatLab。",
     "apiButton": "前往設定自動同步",
     "pushDescription": "開啟本地API服務，允許第三方工具/掛件或腳本將聊天記錄主動推送至ChatLab。",

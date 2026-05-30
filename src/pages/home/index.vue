@@ -97,7 +97,7 @@ const tutorialExportUrl = computed(() => {
           <!-- 自动同步区域 -->
           <AutoSyncCard v-else-if="activeTab === 'api'" />
 
-          <!-- API 导入区域 -->
+          <!-- API 推送区域 -->
           <ApiImportCard v-else-if="activeTab === 'push'" />
         </div>
 

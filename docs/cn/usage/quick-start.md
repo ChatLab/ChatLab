@@ -46,7 +46,7 @@ ChatLab 提供三种导入方式，适用于不同场景：
 |------|----------|
 | **文件导入** | 将导出的聊天记录文件直接拖入 ChatLab 首页，适合一次性导入 |
 | **自动同步** | 配置外部平台的数据源，让聊天记录定期自动同步到 ChatLab |
-| **API 导入** | 开启本地 API 服务，允许第三方工具/插件或脚本主动推送聊天记录至 ChatLab |
+| **API 推送** | 开启本地 API 服务，允许第三方工具/插件或脚本主动推送聊天记录至 ChatLab |
 
 ### 普通用户
 
@@ -57,9 +57,9 @@ ChatLab 提供三种导入方式，适用于不同场景：
 
 ### 开发者
 
-如果你是开发者，想要对接**自动同步**或 **API 导入**，请查看以下文档：
+如果你是开发者，想要对接**自动同步**或 **API 推送**，请查看以下文档：
 
-- [Push 导入协议](/cn/standard/chatlab-import) — 对应「API 导入」
+- [Push 导入协议](/cn/standard/chatlab-import) — 对应「API 推送」
 - [Pull 远程数据源协议](/cn/standard/chatlab-pull) — 对应「自动同步」
 - [ChatLab Format](/cn/standard/chatlab-format) — 了解数据格式规范
 

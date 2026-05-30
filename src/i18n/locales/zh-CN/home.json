@@ -3,7 +3,7 @@
   "tabs": {
     "file": "文件导入",
     "api": "自动同步",
-    "push": "API导入",
+    "push": "API推送",
     "apiDescription": "配置外部平台的数据源，让聊天记录定期自动同步到ChatLab。",
     "apiButton": "去配置自动同步",
     "pushDescription": "开启本地API服务，允许第三方工具/插件或脚本将聊天记录主动推送至ChatLab。",
