@@ -40,6 +40,7 @@ const allSessionsStatus = ref<SessionIndexStatus[]>([])
 const isLoadingSessionStatus = ref(false)
 const isBatchGenerating = ref(false)
 const batchProgress = ref({ current: 0, total: 0, currentName: '' })
+const showRegenerateConfirm = ref(false)
 
 // 计算统计信息
 const sessionIndexStats = computed(() => {
@@ -145,6 +146,11 @@ async function batchGenerateIndex() {
     currentName: '',
   }
   isBatchGenerating.value = false
+}
+
+function confirmRegenerateAll() {
+  showRegenerateConfirm.value = false
+  batchRegenerateAll()
 }
 
 // 批量重新生成所有会话的索引
@@ -301,7 +307,7 @@ onMounted(() => {
               variant="soft"
               :loading="isBatchGenerating"
               :disabled="isLoadingSessionStatus || sessionIndexStats.total === 0"
-              @click="batchRegenerateAll"
+              @click="showRegenerateConfirm = true"
             >
               <UIcon v-if="!isBatchGenerating" name="i-heroicons-arrow-path" class="mr-1 h-3 w-3" />
               {{ t('settings.ai.session.batchRegenerate') }}
@@ -321,5 +327,39 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <!-- 全部重新生成确认弹窗 -->
+    <UModal v-model:open="showRegenerateConfirm" :ui="{ content: 'z-[101]', overlay: 'z-[100]' }">
+      <template #content>
+        <div class="p-5">
+          <div class="mb-4 flex items-center gap-3">
+            <div class="flex h-10 w-10 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30">
+              <UIcon name="i-heroicons-exclamation-triangle" class="h-5 w-5 text-red-600 dark:text-red-400" />
+            </div>
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
+              {{ t('settings.ai.session.batchRegenerateConfirmTitle') }}
+            </h3>
+          </div>
+
+          <div class="space-y-3 text-sm text-gray-600 dark:text-gray-400">
+            <p>{{ t('settings.ai.session.batchRegenerateConfirmMessage') }}</p>
+            <div class="rounded-lg border border-red-200 bg-red-50 p-3 dark:border-red-800/50 dark:bg-red-900/20">
+              <p class="text-xs text-red-700 dark:text-red-400">
+                {{ t('settings.ai.session.batchRegenerateConfirmWarning') }}
+              </p>
+            </div>
+          </div>
+
+          <div class="mt-5 flex justify-end gap-2">
+            <UButton variant="ghost" @click="showRegenerateConfirm = false">
+              {{ t('common.cancel') }}
+            </UButton>
+            <UButton color="error" @click="confirmRegenerateAll">
+              {{ t('settings.ai.session.batchRegenerate') }}
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
   </div>
 </template>
