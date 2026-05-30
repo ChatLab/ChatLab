@@ -15,8 +15,6 @@ export interface AIServiceConfig {
   model?: string
   baseUrl?: string
   apiFormat?: string
-  disableThinking?: boolean
-  isReasoningModel?: boolean
   customModels?: Array<{ id: string; name: string }>
   createdAt: number
   updatedAt: number
@@ -96,8 +94,6 @@ export function useAIConfigForm(props: {
     baseUrl: '',
     apiFormat: API_FORMAT_DEFAULT,
     customName: '',
-    disableThinking: true,
-    isReasoningModel: false,
   })
 
   const validationResult = ref<'idle' | 'valid' | 'invalid'>('idle')
@@ -261,8 +257,6 @@ export function useAIConfigForm(props: {
       baseUrl: defaultProviderDef?.defaultBaseUrl || '',
       apiFormat: API_FORMAT_DEFAULT,
       customName: '',
-      disableThinking: true,
-      isReasoningModel: false,
     }
     validationResult.value = 'idle'
     validationMessage.value = ''
@@ -292,8 +286,6 @@ export function useAIConfigForm(props: {
       baseUrl: config.baseUrl || providerDef?.defaultBaseUrl || '',
       apiFormat: config.apiFormat || API_FORMAT_DEFAULT,
       customName: config.name || '',
-      disableThinking: config.disableThinking ?? true,
-      isReasoningModel: config.isReasoningModel ?? false,
     }
     validationResult.value = 'idle'
     validationMessage.value = ''
@@ -637,7 +629,6 @@ export function useAIConfigForm(props: {
       }
       const finalName = formData.value.customName.trim() || generateName()
 
-      const isReasoning = formData.value.isReasoningModel
       const persistCustomModels =
         isCompatMode.value && compatModels.value.length > 0
           ? compatModels.value.map((m) => ({ id: m.id, name: m.name }))
@@ -651,8 +642,6 @@ export function useAIConfigForm(props: {
           model: formData.value.model.trim() || undefined,
           baseUrl: formData.value.baseUrl.trim() || undefined,
           apiFormat: savedApiFormat,
-          disableThinking: isReasoning ? formData.value.disableThinking : undefined,
-          isReasoningModel: isReasoning || undefined,
           customModels: persistCustomModels,
         })
 
@@ -670,8 +659,6 @@ export function useAIConfigForm(props: {
           model: formData.value.model.trim() || undefined,
           baseUrl: formData.value.baseUrl.trim() || undefined,
           apiFormat: savedApiFormat,
-          disableThinking: isReasoning ? formData.value.disableThinking : undefined,
-          isReasoningModel: isReasoning || undefined,
           customModels: persistCustomModels,
         }
 

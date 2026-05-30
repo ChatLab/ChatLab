@@ -526,35 +526,6 @@ function closeModal() {
               </div>
             </template>
 
-            <!-- ===== 通用：推理模型选项 ===== -->
-            <template v-if="formData.provider || !isPresetMode">
-              <div class="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-800">
-                <div>
-                  <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {{ t('settings.aiConfig.modal.isReasoningModel') }}
-                  </p>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">
-                    {{ t('settings.aiConfig.modal.isReasoningModelDesc') }}
-                  </p>
-                </div>
-                <USwitch v-model="formData.isReasoningModel" />
-              </div>
-
-              <div
-                v-if="formData.isReasoningModel"
-                class="flex items-center justify-between rounded-lg bg-gray-50 p-3 dark:bg-gray-800"
-              >
-                <div>
-                  <p class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                    {{ t('settings.aiConfig.modal.disableThinking') }}
-                  </p>
-                  <p class="text-xs text-gray-500 dark:text-gray-400">
-                    {{ t('settings.aiConfig.modal.disableThinkingDesc') }}
-                  </p>
-                </div>
-                <USwitch v-model="formData.disableThinking" />
-              </div>
-            </template>
           </div>
         </div>
 

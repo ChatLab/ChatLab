@@ -267,8 +267,6 @@ export function registerAiRoutes(
       baseUrl?: string
       maxTokens?: number
       apiFormat?: string
-      disableThinking?: boolean
-      isReasoningModel?: boolean
       customModels?: Array<{ id: string; name: string }>
     }
   }>('/_web/ai/llm/configs', async (request) => {
@@ -286,8 +284,6 @@ export function registerAiRoutes(
       baseUrl?: string
       maxTokens?: number
       apiFormat?: string
-      disableThinking?: boolean
-      isReasoningModel?: boolean
       customModels?: Array<{ id: string; name: string }>
     }
   }>('/_web/ai/llm/configs/:id', async (request) => {

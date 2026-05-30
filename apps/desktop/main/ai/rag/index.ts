@@ -43,8 +43,6 @@ function ensureInit(): void {
         baseUrl: cfg.baseUrl,
         maxTokens: cfg.maxTokens,
         apiFormat: cfg.apiFormat,
-        disableThinking: cfg.disableThinking,
-        isReasoningModel: cfg.isReasoningModel,
         apiKey: cfg.apiKey || undefined,
       }
     },

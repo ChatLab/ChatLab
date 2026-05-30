@@ -15,8 +15,6 @@ export interface PiModelConfig {
   baseUrl?: string
   maxTokens?: number
   apiFormat?: string
-  disableThinking?: boolean
-  isReasoningModel?: boolean
 }
 
 export interface BuildPiModelOptions {
@@ -65,6 +63,37 @@ const BUILTIN_PROVIDER_API: Record<string, PiApi> = {
   anthropic: 'anthropic-messages',
 }
 
+/**
+ * Infer whether a model should have reasoning enabled and which
+ * thinking format to use, based on the model catalog and provider.
+ *
+ * - reasoning: true when the catalog marks the model as 'reasoning' capable,
+ *   or (for custom/unlisted models) when the model id matches a known pattern.
+ * - compat.thinkingFormat 'qwen': only for Qwen-family endpoints (official
+ *   DashScope provider or model id containing "qwen"/"qwq"). Other providers
+ *   must never receive `enable_thinking` in the request body.
+ */
+function inferReasoning(
+  provider: string,
+  modelId: string,
+  modelDef: ModelDefinition | null,
+): { reasoning: boolean; compat: PiModel<PiApi>['compat'] } {
+  // Catalog is the authoritative source; fall back to heuristic for unlisted
+  // custom/self-hosted models where modelDef is null.
+  const reasoning = modelDef
+    ? modelDef.capabilities.includes('reasoning')
+    : /qwen3|qwq|deepseek-r|r1\b|o1\b|o3\b|thinking|reasoning/i.test(modelId)
+
+  if (!reasoning) return { reasoning: false, compat: undefined }
+
+  // Qwen-family: official DashScope provider id OR model name containing qwen/qwq.
+  const isQwen = provider === 'qwen' || /qwen|qwq/i.test(modelId)
+  return {
+    reasoning: true,
+    compat: isQwen ? { thinkingFormat: 'qwen' } : undefined,
+  }
+}
+
 export function buildPiModel(config: PiModelConfig, options?: BuildPiModelOptions): PiModel<PiApi> {
   const providerDef = BUILTIN_PROVIDERS.find((p) => p.id === config.provider)
   const baseUrl = config.baseUrl || providerDef?.defaultBaseUrl || ''
@@ -111,6 +140,8 @@ export function buildPiModel(config: PiModelConfig, options?: BuildPiModelOption
       ? normalizeOpenAICompatibleBaseUrl(baseUrl)
       : baseUrl
 
+  const { reasoning, compat } = inferReasoning(config.provider, modelId, modelDef)
+
   return {
     id: modelId,
     name: modelId,
@@ -118,11 +149,11 @@ export function buildPiModel(config: PiModelConfig, options?: BuildPiModelOption
     provider: config.provider,
     baseUrl: resolvedBaseUrl,
     headers: options?.headers,
-    reasoning: config.isReasoningModel ?? false,
+    reasoning,
     input: ['text'],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow,
     maxTokens: config.maxTokens ?? 4096,
-    compat: config.disableThinking ? { thinkingFormat: 'qwen' } : undefined,
+    compat,
   }
 }

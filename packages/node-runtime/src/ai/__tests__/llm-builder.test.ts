@@ -87,24 +87,56 @@ describe('buildPiModel', () => {
     assert.deepEqual(model.headers, { 'X-Custom': 'value' })
   })
 
-  it('sets compat.thinkingFormat when disableThinking is true', () => {
+  it('auto-infers reasoning=true for catalog models with reasoning capability', () => {
+    // o3 is in the ChatLab catalog with capabilities: ['chat', 'reasoning', ...]
     const model = buildPiModel({
       provider: 'openai',
-      model: 'test',
+      model: 'o3',
       baseUrl: 'https://api.openai.com/v1',
-      disableThinking: true,
     })
+    assert.equal(model.reasoning, true)
+  })
+
+  it('auto-infers reasoning=false and compat=undefined for non-reasoning OpenAI model', () => {
+    // gpt-4o is not a reasoning model; no enable_thinking should ever be injected
+    const model = buildPiModel({
+      provider: 'openai',
+      model: 'gpt-4o',
+      baseUrl: 'https://api.openai.com/v1',
+    })
+    assert.equal(model.reasoning, false)
+    assert.equal(model.compat, undefined)
+  })
+
+  it('auto-infers reasoning=true and compat.thinkingFormat=qwen for official qwen reasoning model', () => {
+    // qwen3-max is in the qwen provider catalog with reasoning capability
+    const model = buildPiModel({
+      provider: 'qwen',
+      model: 'qwen3-max',
+      baseUrl: 'https://dashscope.aliyuncs.com/compatible-mode/v1',
+    })
+    assert.equal(model.reasoning, true)
     assert.deepEqual(model.compat, { thinkingFormat: 'qwen' })
   })
 
-  it('sets reasoning flag from isReasoningModel', () => {
-    const model = buildPiModel({
-      provider: 'openai',
-      model: 'o1',
-      baseUrl: 'https://api.openai.com/v1',
-      isReasoningModel: true,
-    })
+  it('auto-infers reasoning=true and compat.thinkingFormat=qwen for custom self-hosted qwen3 model', () => {
+    // Custom model not in catalog — falls back to name heuristic
+    const model = buildPiModel(
+      { provider: 'openai-compatible', model: 'qwen3:8b', baseUrl: 'http://localhost:11434/v1' },
+      { findModelFn: () => null }
+    )
     assert.equal(model.reasoning, true)
+    assert.deepEqual(model.compat, { thinkingFormat: 'qwen' })
+  })
+
+  it('auto-infers reasoning=false and compat=undefined for non-reasoning Anthropic model', () => {
+    const model = buildPiModel({
+      provider: 'openai-compatible',
+      model: 'claude-3-5-sonnet',
+      baseUrl: 'https://api.anthropic.com/v1',
+    })
+    assert.equal(model.reasoning, false)
+    assert.equal(model.compat, undefined)
   })
 
   it('uses custom findModelFn for context window', () => {

@@ -57,8 +57,6 @@ export interface LLMConnectionConfig {
 }
 
 export interface LLMConnectionConfigCompat extends LLMConnectionConfig {
-  disableThinking?: boolean
-  isReasoningModel?: boolean
   customModels?: Array<{ id: string; name: string }>
 }
 

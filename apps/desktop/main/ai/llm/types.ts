@@ -26,8 +26,6 @@ export interface AIServiceConfig {
   baseUrl?: string
   maxTokens?: number
   apiFormat?: string
-  disableThinking?: boolean
-  isReasoningModel?: boolean
   customModels?: Array<{ id: string; name: string }>
   createdAt: number
   updatedAt: number
