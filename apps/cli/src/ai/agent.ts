@@ -46,6 +46,7 @@ export interface RunAgentOptions {
   ownerInfo?: OwnerInfo
   mentionedMembers?: MentionedMember[]
   dataSnapshot?: DataSnapshot
+  thinkingLevel?: string
 }
 
 export async function runServerAgent(options: RunAgentOptions): Promise<void> {
@@ -66,6 +67,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
     ownerInfo,
     mentionedMembers,
     dataSnapshot,
+    thinkingLevel,
   } = options
 
   const aiLogger = getServerAiLogger()
@@ -163,6 +165,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
       maxToolRounds: 5,
       abortSignal,
       steerMessage,
+      thinkingLevel: thinkingLevel as import('@openchatlab/core').ThinkingLevel | undefined,
       onConvertToLlm: (filteredMessages) => {
         cachedMessages = filteredMessages as PiMessage[]
       },

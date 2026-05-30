@@ -6,7 +6,14 @@
  * URL normalization, apiFormat mapping, and model construction.
  */
 
-import { BUILTIN_PROVIDERS, getBuiltinModelsByProvider, BUILTIN_MODELS, type ModelDefinition } from '@openchatlab/core'
+import {
+  BUILTIN_PROVIDERS,
+  getBuiltinModelsByProvider,
+  BUILTIN_MODELS,
+  type ModelDefinition,
+  isReasoningModel,
+  getThinkingCompat,
+} from '@openchatlab/core'
 import type { Model as PiModel, Api as PiApi } from '@earendil-works/pi-ai'
 
 export interface PiModelConfig {
@@ -64,33 +71,34 @@ const BUILTIN_PROVIDER_API: Record<string, PiApi> = {
 }
 
 /**
- * Infer whether a model should have reasoning enabled and which
- * thinking format to use, based on the model catalog and provider.
+ * Infer reasoning flag and pi-ai compat fragment for a model.
  *
- * - reasoning: true when the catalog marks the model as 'reasoning' capable,
- *   or (for custom/unlisted models) when the model id matches a known pattern.
- * - compat.thinkingFormat 'qwen': only for Qwen-family endpoints (official
- *   DashScope provider or model id containing "qwen"/"qwq"). Other providers
- *   must never receive `enable_thinking` in the request body.
+ * Uses the catalog's capabilities array as the authoritative source;
+ * falls back to the thinking-module's heuristic for unlisted custom models.
+ * The compat fragment is sourced from getThinkingCompat() (thinking.ts) which
+ * carries supportsReasoningEffort + thinkingLevelMap so pi-ai can inject the
+ * correct request-body param for each provider family.
  */
 function inferReasoning(
   provider: string,
   modelId: string,
   modelDef: ModelDefinition | null,
 ): { reasoning: boolean; compat: PiModel<PiApi>['compat'] } {
-  // Catalog is the authoritative source; fall back to heuristic for unlisted
-  // custom/self-hosted models where modelDef is null.
+  // Catalog capabilities are authoritative; fall back to name-heuristic for
+  // unlisted / self-hosted models.
   const reasoning = modelDef
     ? modelDef.capabilities.includes('reasoning')
-    : /qwen3|qwq|deepseek-r|r1\b|o1\b|o3\b|thinking|reasoning/i.test(modelId)
+    : isReasoningModel(provider, modelId)
 
   if (!reasoning) return { reasoning: false, compat: undefined }
 
-  // Qwen-family: official DashScope provider id OR model name containing qwen/qwq.
-  const isQwen = provider === 'qwen' || /qwen|qwq/i.test(modelId)
+  const thinkingCompat = getThinkingCompat(provider, modelId)
+  // thinkingCompat may be an empty object {} for unknown reasoning models —
+  // that's fine: pi-ai will still receive reasoning:true and default to
+  // passing the effort level verbatim.
   return {
     reasoning: true,
-    compat: isQwen ? { thinkingFormat: 'qwen' } : undefined,
+    compat: Object.keys(thinkingCompat).length > 0 ? thinkingCompat : undefined,
   }
 }
 

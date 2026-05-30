@@ -14,6 +14,7 @@ import { useDataService, useAIService } from '@/services'
 import type { AIMessage as PersistedAIMessage } from '@/services/ai/types'
 import { useAssistantStore } from '@/stores/assistant'
 import { useSkillStore } from '@/stores/skill'
+import { useLLMStore } from '@/stores/llm'
 import type { TokenUsage, AgentRuntimeStatus, SerializedErrorInfo } from '@electron/shared/types'
 
 // 工具调用记录
@@ -250,6 +251,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
   const settingsStore = useSettingsStore()
   const assistantStore = useAssistantStore()
   const skillStore = useSkillStore()
+  const llmStore = useLLMStore()
   const { aiGlobalSettings } = storeToRefs(promptStore)
 
   let pendingFocusReturn = false
@@ -904,7 +906,12 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           tokenThresholdPercent: aiGlobalSettings.value.contextCompression?.tokenThresholdPercent ?? 75,
           bufferSizePercent: aiGlobalSettings.value.contextCompression?.bufferSizePercent ?? 20,
           maxToolResultPercent: aiGlobalSettings.value.contextCompression?.maxToolResultPercent ?? 50,
-        }
+        },
+        (() => {
+          const cfg = llmStore.defaultAssistant
+          if (!cfg?.configId || !cfg?.modelId) return undefined
+          return promptStore.getThinkingLevel(cfg.configId, cfg.modelId)
+        })()
       )
 
       state.currentAgentRequestId = agentReqId
@@ -1384,7 +1391,12 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           tokenThresholdPercent: aiGlobalSettings.value.contextCompression?.tokenThresholdPercent ?? 75,
           bufferSizePercent: aiGlobalSettings.value.contextCompression?.bufferSizePercent ?? 20,
           maxToolResultPercent: aiGlobalSettings.value.contextCompression?.maxToolResultPercent ?? 50,
-        }
+        },
+        (() => {
+          const cfg = llmStore.defaultAssistant
+          if (!cfg?.configId || !cfg?.modelId) return undefined
+          return promptStore.getThinkingLevel(cfg.configId, cfg.modelId)
+        })()
       )
 
       state.currentAgentRequestId = agentReqId

@@ -64,6 +64,7 @@ export class Agent {
     this.locale = locale
     this.config = {
       maxToolRounds: config.maxToolRounds ?? 5,
+      thinkingLevel: config.thinkingLevel,
     }
   }
 
@@ -145,6 +146,7 @@ export class Agent {
         maxToolRounds,
         abortSignal: this.abortSignal,
         steerMessage: answerWithoutToolsPrompt,
+        thinkingLevel: this.config.thinkingLevel,
         streamFn: errorCapturingStreamFn,
         onConvertToLlm: (filteredMessages) => {
           cachedMessages = filteredMessages as PiMessage[]

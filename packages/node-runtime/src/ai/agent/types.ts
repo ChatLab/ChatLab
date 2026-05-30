@@ -7,6 +7,7 @@
 
 import type { AgentTool } from '@earendil-works/pi-agent-core'
 import type { Model, Api, Message } from '@earendil-works/pi-ai'
+import type { ThinkingLevel } from '@openchatlab/core'
 
 export interface AgentTokenUsage {
   promptTokens: number
@@ -39,6 +40,8 @@ export interface AgentCoreOptions {
   maxToolRounds?: number
   abortSignal?: AbortSignal
   steerMessage?: string
+  /** Override the thinking level for this request. Clamped to what the model supports. */
+  thinkingLevel?: ThinkingLevel
   onEvent: (event: AgentCoreEvent) => void
   /**
    * 自定义 stream 函数，默认使用 pi-ai 的 streamSimple。

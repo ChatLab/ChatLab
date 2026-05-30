@@ -788,7 +788,8 @@ interface AgentApi {
       tokenThresholdPercent: number
       bufferSizePercent: number
       maxToolResultPercent?: number
-    }
+    },
+    thinkingLevel?: string
   ) => { requestId: string; promise: Promise<{ success: boolean; result?: AgentResult; error?: SerializedErrorInfo }> }
   abort: (requestId: string) => Promise<{ success: boolean; error?: string }>
 }

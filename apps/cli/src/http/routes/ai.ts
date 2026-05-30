@@ -611,6 +611,7 @@ export function registerAiRoutes(
       }
       ownerInfo?: OwnerInfo
       mentionedMembers?: MentionedMember[]
+      thinkingLevel?: string
     }
   }>('/_web/ai/agent/stream', async (request, reply) => {
     const {
@@ -624,6 +625,7 @@ export function registerAiRoutes(
       compressionConfig,
       ownerInfo,
       mentionedMembers,
+      thinkingLevel,
     } = request.body
 
     const requestId = `req_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
@@ -741,6 +743,7 @@ export function registerAiRoutes(
         ownerInfo,
         mentionedMembers,
         dataSnapshot,
+        thinkingLevel,
       })
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)

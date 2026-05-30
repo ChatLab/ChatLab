@@ -178,6 +178,20 @@
           "error": "错误"
         }
       },
+      "thinking": {
+        "title": "思考强度",
+        "tooltip": "设置模型的思考强度",
+        "auto": "自动",
+        "off": "关闭思考",
+        "level": {
+          "off": "关闭思考",
+          "minimal": "极低",
+          "low": "低",
+          "medium": "中",
+          "high": "高",
+          "xhigh": "最高"
+        }
+      },
       "tokenUsageTitle": "累计 Token 使用量",
       "export": {
         "label": "导出",

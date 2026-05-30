@@ -178,6 +178,20 @@
           "error": "Err"
         }
       },
+      "thinking": {
+        "title": "Thinking level",
+        "tooltip": "Set the thinking intensity for this model",
+        "auto": "Auto",
+        "off": "Thinking off",
+        "level": {
+          "off": "Off",
+          "minimal": "Minimal",
+          "low": "Low",
+          "medium": "Medium",
+          "high": "High",
+          "xhigh": "Max"
+        }
+      },
       "tokenUsageTitle": "Total token usage",
       "export": {
         "label": "Export",

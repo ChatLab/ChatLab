@@ -4,6 +4,7 @@
 
 import type { TokenUsage } from '@openchatlab/node-runtime'
 import type { SerializedErrorInfo } from '../../../shared/types'
+import type { ThinkingLevel } from '@openchatlab/core'
 
 export type { TokenUsage, AgentRuntimeStatus } from '@openchatlab/node-runtime'
 export type { SerializedErrorInfo }
@@ -16,6 +17,8 @@ export interface AgentConfig {
   maxToolRounds?: number
   /** 中止信号，用于取消执行 */
   abortSignal?: AbortSignal
+  /** Override thinking level for this request; clamped to what the model supports. */
+  thinkingLevel?: ThinkingLevel
 }
 
 /**

@@ -95,6 +95,9 @@ describe('buildPiModel', () => {
       baseUrl: 'https://api.openai.com/v1',
     })
     assert.equal(model.reasoning, true)
+    // o-series uses reasoning_effort without thinkingLevelMap
+    assert.equal((model.compat as Record<string, unknown> | undefined)?.supportsReasoningEffort, true)
+    assert.equal((model.compat as Record<string, unknown> | undefined)?.thinkingLevelMap, undefined)
   })
 
   it('auto-infers reasoning=false and compat=undefined for non-reasoning OpenAI model', () => {
@@ -137,6 +140,23 @@ describe('buildPiModel', () => {
     })
     assert.equal(model.reasoning, false)
     assert.equal(model.compat, undefined)
+  })
+
+  it('uses thinkingFormat:deepseek (not supportsReasoningEffort) for deepseek-v4', () => {
+    const model = buildPiModel({
+      provider: 'deepseek',
+      model: 'deepseek-v4-pro',
+      baseUrl: 'https://api.deepseek.com/v1',
+    })
+    assert.equal(model.reasoning, true)
+    const compat = model.compat as Record<string, unknown> | undefined
+    // Must use thinkingFormat:'deepseek' so that 'off' sends thinking:{type:"disabled"}
+    assert.equal(compat?.thinkingFormat, 'deepseek')
+    assert.equal(compat?.supportsReasoningEffort, undefined)
+    const map = compat?.thinkingLevelMap as Record<string, unknown> | undefined
+    assert.equal(map?.high, 'high')
+    assert.equal(map?.xhigh, 'max')
+    assert.equal(map?.minimal, null)
   })
 
   it('uses custom findModelFn for context window', () => {

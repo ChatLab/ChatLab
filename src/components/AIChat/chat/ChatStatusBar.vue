@@ -9,6 +9,7 @@ import { useLLMStore } from '@/stores/llm'
 import { exportConversation, type ExportFormat, type ExportMessage } from '@/utils/conversationExport'
 import type { AgentRuntimeStatus } from '@electron/shared/types'
 import { useAIService } from '@/services'
+import { getSupportedThinkingLevels, type ThinkingLevel } from '@openchatlab/core'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -217,6 +218,42 @@ async function openAiLogFile() {
     isOpeningLog.value = false
   }
 }
+
+// ── Thinking level selector ───────────────────────────────────────────────────
+
+const isThinkingPopoverOpen = ref(false)
+
+/** The current model's supported thinking levels (empty = not a reasoning model). */
+const supportedThinkingLevels = computed<ThinkingLevel[]>(() => {
+  const cfg = defaultAssistantConfig.value
+  if (!cfg?.provider || !cfg?.model) return []
+  return getSupportedThinkingLevels(cfg.provider, cfg.model)
+})
+
+/** Whether to show the selector at all. */
+const showThinkingSelector = computed(() => supportedThinkingLevels.value.length > 0)
+
+/** The currently remembered level for this model slot (undefined → default). */
+const currentThinkingLevel = computed<ThinkingLevel | undefined>(() => {
+  const cfg = llmStore.defaultAssistant
+  if (!cfg?.configId || !cfg?.modelId) return undefined
+  return promptStore.getThinkingLevel(cfg.configId, cfg.modelId)
+})
+
+function selectThinkingLevel(level: ThinkingLevel) {
+  const cfg = llmStore.defaultAssistant
+  if (!cfg?.configId || !cfg?.modelId) return
+  promptStore.setThinkingLevel(cfg.configId, cfg.modelId, level)
+  isThinkingPopoverOpen.value = false
+}
+
+/** Label shown on the trigger button. */
+const thinkingLevelLabel = computed(() => {
+  const level = currentThinkingLevel.value
+  // undefined means no explicit preference set — core defaults to 'medium'
+  if (level === undefined) return t('ai.chat.statusBar.thinking.auto')
+  return t(`ai.chat.statusBar.thinking.level.${level}`)
+})
 </script>
 
 <template>
@@ -285,6 +322,51 @@ async function openAiLogFile() {
             >
               <UIcon name="i-heroicons-cog-6-tooth" class="h-4 w-4 shrink-0" />
               <span>{{ t('ai.chat.statusBar.model.manage') }}</span>
+            </button>
+          </div>
+        </template>
+      </UPopover>
+
+      <!-- 思考强度选择器（仅对 reasoning 模型显示） -->
+      <UPopover v-if="showThinkingSelector" v-model:open="isThinkingPopoverOpen" :ui="{ content: 'z-[80] p-0' }">
+        <button
+          class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+          :class="
+            !currentThinkingLevel || currentThinkingLevel === 'off'
+              ? 'text-gray-400 dark:text-gray-500'
+              : 'text-blue-500 dark:text-blue-400'
+          "
+          :title="t('ai.chat.statusBar.thinking.tooltip')"
+        >
+          <UIcon name="i-heroicons-light-bulb" class="h-3.5 w-3.5" />
+          <span>{{ thinkingLevelLabel }}</span>
+        </button>
+        <template #content>
+          <div class="w-40 py-1">
+            <div class="px-3 py-1.5 text-xs font-medium text-gray-400 dark:text-gray-500">
+              {{ t('ai.chat.statusBar.thinking.title') }}
+            </div>
+            <button
+              v-for="level in supportedThinkingLevels"
+              :key="level"
+              class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+              :class="
+                (currentThinkingLevel ?? 'medium') === level
+                  ? 'text-blue-600 dark:text-blue-400'
+                  : 'text-gray-700 dark:text-gray-300'
+              "
+              @click="selectThinkingLevel(level)"
+            >
+              <UIcon
+                :name="
+                  (currentThinkingLevel ?? 'medium') === level
+                    ? 'i-heroicons-check-circle-solid'
+                    : 'i-heroicons-light-bulb'
+                "
+                class="h-4 w-4 shrink-0"
+                :class="(currentThinkingLevel ?? 'medium') === level ? 'text-blue-500' : 'text-gray-400'"
+              />
+              <span>{{ t(`ai.chat.statusBar.thinking.level.${level}`) }}</span>
             </button>
           </div>
         </template>

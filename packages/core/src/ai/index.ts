@@ -29,3 +29,7 @@ export { THINK_TAGS, extractThinkingContent, stripToolCallTags, stripAvatarField
 // Streaming think-tag parser (for models that embed <think> in content)
 export { StreamingThinkTagParser, needsStreamingThinkParsing } from './streaming-think-parser'
 export type { StreamParserEvent } from './streaming-think-parser'
+
+// Thinking / reasoning level configuration (per-model level tables + compat)
+export type { ThinkingLevel, ThinkingCompat } from './thinking'
+export { getSupportedThinkingLevels, isReasoningModel, getThinkingCompat } from './thinking'

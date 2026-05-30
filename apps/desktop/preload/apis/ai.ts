@@ -1039,7 +1039,8 @@ export const agentApi = {
       tokenThresholdPercent: number
       bufferSizePercent: number
       maxToolResultPercent?: number
-    }
+    },
+    thinkingLevel?: string
   ): {
     requestId: string
     promise: Promise<{ success: boolean; result?: AgentResult; error?: SerializedErrorInfo }>
@@ -1131,7 +1132,8 @@ export const agentApi = {
           assistantId,
           skillId,
           enableAutoSkill,
-          compressionConfig
+          compressionConfig,
+          thinkingLevel
         )
         .then((result) => {
           console.log('[preload] Agent invoke 返回:', result)

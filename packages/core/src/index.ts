@@ -231,8 +231,11 @@ export {
   stripAvatarFields,
   StreamingThinkTagParser,
   needsStreamingThinkParsing,
+  getSupportedThinkingLevels,
+  isReasoningModel,
+  getThinkingCompat,
 } from './ai'
-export type { StreamParserEvent } from './ai'
+export type { StreamParserEvent, ThinkingLevel, ThinkingCompat } from './ai'
 
 // Import utilities
 export { generateMessageKey, buildMemberIdMap } from './import'

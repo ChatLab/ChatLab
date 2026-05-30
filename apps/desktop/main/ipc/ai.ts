@@ -1002,7 +1002,8 @@ export function registerAIHandlers({ win }: IpcContext): void {
       assistantId?: string,
       skillId?: string | null,
       enableAutoSkill?: boolean,
-      compressionConfig?: CompressionConfig
+      compressionConfig?: CompressionConfig,
+      thinkingLevel?: string
     ) => {
       aiLogger.info('IPC', `Agent stream request received: ${requestId}`, {
         userMessage: userMessage.slice(0, 100),
@@ -1165,7 +1166,7 @@ export function registerAIHandlers({ win }: IpcContext): void {
           enrichedContext,
           piModel,
           activeAIConfig.apiKey,
-          { abortSignal: abortController.signal },
+          { abortSignal: abortController.signal, thinkingLevel: thinkingLevel as import('@openchatlab/core').ThinkingLevel | undefined },
           chatType ?? 'group',
           locale ?? 'zh-CN',
           assistantConfig,

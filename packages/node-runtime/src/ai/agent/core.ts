@@ -11,6 +11,7 @@ import {
   type Message as PiMessage,
   type Usage as PiUsage,
   streamSimple as defaultStreamSimple,
+  clampThinkingLevel,
 } from '@earendil-works/pi-ai'
 import { StreamingThinkTagParser, needsStreamingThinkParsing } from '@openchatlab/core'
 
@@ -90,7 +91,11 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
     initialState: {
       systemPrompt,
       model: piModel,
-      thinkingLevel: piModel.reasoning ? 'medium' : 'off',
+      thinkingLevel: options.thinkingLevel
+        ? clampThinkingLevel(piModel, options.thinkingLevel)
+        : piModel.reasoning
+          ? 'medium'
+          : 'off',
       tools: maxToolRounds > 0 ? tools : [],
       messages: toPiHistoryMessages(history),
     },

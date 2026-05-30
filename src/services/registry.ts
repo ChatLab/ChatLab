@@ -287,7 +287,8 @@ async function installAiApiShims(): Promise<void> {
       assistantId?: string,
       _skillId?: string | null,
       _enableAutoSkill?: boolean,
-      _compressionConfig?: Record<string, unknown>
+      _compressionConfig?: Record<string, unknown>,
+      thinkingLevel?: string
     ): {
       requestId: string
       promise: Promise<{ success: boolean; result?: Record<string, unknown>; error?: Record<string, unknown> }>
@@ -322,6 +323,7 @@ async function installAiApiShims(): Promise<void> {
             compressionConfig: _compressionConfig,
             ownerInfo: context.ownerInfo,
             mentionedMembers: context.mentionedMembers,
+            thinkingLevel,
           },
           signal: abortController.signal,
           onEvent: ({ event, data }) => {

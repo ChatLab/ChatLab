@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { KeywordTemplate } from '@/types/analysis'
+import type { ThinkingLevel } from '@openchatlab/core'
 
 interface ContextCompressionSettings {
   enabled: boolean
@@ -46,6 +47,13 @@ export const usePromptStore = defineStore(
     })
     const customKeywordTemplates = ref<KeywordTemplate[]>([])
     const deletedPresetTemplateIds = ref<string[]>([])
+
+    /**
+     * Per-model thinking level memory.
+     * Key: `${configId}:${modelId}` — matches the current defaultAssistant slot.
+     * Persisted so users' choices survive page reload.
+     */
+    const thinkingLevels = ref<Record<string, ThinkingLevel>>({})
 
     /**
      * 通知外部 AI 配置已经被修改
@@ -108,12 +116,28 @@ export const usePromptStore = defineStore(
       }
     }
 
+    /**
+     * Get the remembered thinking level for a model slot.
+     * Returns undefined if the user has never set a preference (core will default to 'medium').
+     */
+    function getThinkingLevel(configId: string, modelId: string): ThinkingLevel | undefined {
+      return thinkingLevels.value[`${configId}:${modelId}`]
+    }
+
+    /**
+     * Persist the user's thinking level choice for a specific model slot.
+     */
+    function setThinkingLevel(configId: string, modelId: string, level: ThinkingLevel) {
+      thinkingLevels.value = { ...thinkingLevels.value, [`${configId}:${modelId}`]: level }
+    }
+
     return {
       // state
       aiConfigVersion,
       aiGlobalSettings,
       customKeywordTemplates,
       deletedPresetTemplateIds,
+      thinkingLevels,
       // actions
       notifyAIConfigChanged,
       updateAIGlobalSettings,
@@ -121,12 +145,14 @@ export const usePromptStore = defineStore(
       updateCustomKeywordTemplate,
       removeCustomKeywordTemplate,
       addDeletedPresetTemplateId,
+      getThinkingLevel,
+      setThinkingLevel,
     }
   },
   {
     persist: false,
     backendPersist: {
-      pick: ['aiGlobalSettings', 'customKeywordTemplates', 'deletedPresetTemplateIds'],
+      pick: ['aiGlobalSettings', 'customKeywordTemplates', 'deletedPresetTemplateIds', 'thinkingLevels'],
     },
   }
 )
