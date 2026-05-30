@@ -184,6 +184,10 @@ function statusMacos(): ServiceStatus {
 
 // ── Linux (systemd --user) ────────────────────────────────────────────
 
+function escapeSystemdArg(arg: string): string {
+  return '"' + arg.replace(/\\/g, '\\\\').replace(/"/g, '\\"') + '"'
+}
+
 function buildUnit(options: ServiceInstallOptions): string {
   const port = options.port ?? 3110
   const host = options.host ?? '127.0.0.1'
@@ -191,7 +195,7 @@ function buildUnit(options: ServiceInstallOptions): string {
   const args = ['start', '--no-open', '--port', String(port), '--host', host]
   if (options.token) args.push('--token', options.token)
   if (options.headless) args.push('--headless')
-  const execStart = [process.execPath, cliEntry, ...args].join(' ')
+  const execStart = [process.execPath, cliEntry, ...args].map(escapeSystemdArg).join(' ')
 
   return `[Unit]
 Description=ChatLab daemon
