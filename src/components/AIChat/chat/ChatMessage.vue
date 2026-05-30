@@ -27,6 +27,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   edit: [payload: { messageId: string; content: string; overwriteSubsequent?: boolean }]
+  fork: [messageId: string]
 }>()
 
 // 格式化时间
@@ -41,6 +42,7 @@ const isEditing = ref(false)
 const editContent = ref(props.content)
 const editTextareaRef = ref<HTMLTextAreaElement | null>(null)
 const canEdit = computed(() => isUser.value && props.editable && !props.isStreaming && !!props.messageId)
+const canFork = computed(() => !isUser.value && !isSummary.value && !props.isStreaming && !!props.messageId)
 const overwriteSubsequent = ref(false)
 
 // 创建 markdown-it 实例
@@ -573,6 +575,15 @@ async function handleCopyMarkdown() {
         </UTooltip>
         <UTooltip v-if="canEdit" :text="t('ai.chat.message.edit.tooltip')" class="no-capture">
           <UButton icon="i-heroicons-pencil-square" variant="ghost" color="primary" size="xs" @click="startEditing" />
+        </UTooltip>
+        <UTooltip v-if="canFork" :text="t('ai.chat.message.fork.tooltip')" class="no-capture">
+          <UButton
+            icon="i-heroicons-arrow-top-right-on-square"
+            variant="ghost"
+            color="primary"
+            size="xs"
+            @click="emit('fork', messageId!)"
+          />
         </UTooltip>
         <!-- 截屏按钮（仅 AI 回复显示） -->
         <CaptureButton

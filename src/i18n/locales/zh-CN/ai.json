@@ -38,6 +38,10 @@
       "needMoreThanSkill": "仅选择技能还不能发送，请继续输入具体问题",
       "needQuestion": "请输入问题后再发送"
     },
+    "fork": {
+      "success": "已复刻对话",
+      "failed": "复刻对话失败"
+    },
     "backgroundTask": {
       "runningShort": "进行中",
       "runningTitle": "AI 正在后台推理",
@@ -57,6 +61,9 @@
         "tooltip": "编辑并重新生成",
         "submit": "发送",
         "overwriteSubsequent": "覆盖后续所有对话"
+      },
+      "fork": {
+        "tooltip": "从此处复刻对话"
       },
       "tools": {
         "get_chat_overview": "获取聊天概览",

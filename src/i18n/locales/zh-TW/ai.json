@@ -38,6 +38,10 @@
       "needMoreThanSkill": "只選擇技能還不能送出，請繼續輸入具體問題",
       "needQuestion": "請輸入問題後再送出"
     },
+    "fork": {
+      "success": "已複製對話",
+      "failed": "複製對話失敗"
+    },
     "backgroundTask": {
       "runningShort": "進行中",
       "runningTitle": "AI 正在背景推理",
@@ -57,6 +61,9 @@
         "tooltip": "編輯並重新生成",
         "submit": "送出",
         "overwriteSubsequent": "覆蓋後續所有對話"
+      },
+      "fork": {
+        "tooltip": "從此處複製對話"
       },
       "tools": {
         "get_chat_overview": "取得聊天概覽",

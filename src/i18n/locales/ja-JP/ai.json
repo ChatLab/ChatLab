@@ -38,6 +38,10 @@
       "needMoreThanSkill": "スキルを選んだだけでは送信できません。具体的な質問を入力してください。",
       "needQuestion": "質問を入力してから送信してください"
     },
+    "fork": {
+      "success": "会話をフォークしました",
+      "failed": "会話のフォークに失敗しました"
+    },
     "backgroundTask": {
       "runningShort": "進行中",
       "runningTitle": "AI がバックグラウンドで推論中です",
@@ -57,6 +61,9 @@
         "tooltip": "編集して再生成",
         "submit": "送信",
         "overwriteSubsequent": "以降のすべての会話を上書き"
+      },
+      "fork": {
+        "tooltip": "ここから会話をフォーク"
       },
       "tools": {
         "get_chat_overview": "チャット概要を取得",

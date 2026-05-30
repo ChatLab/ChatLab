@@ -259,6 +259,19 @@ async function handleEditMessage(payload: { messageId: string; content: string; 
   conversationListRef.value?.refresh()
 }
 
+async function handleForkConversation(messageId: string) {
+  if (!currentConversationId.value) return
+  try {
+    const forked = await useAIService().forkConversation(currentConversationId.value, messageId)
+    await loadConversation(forked.id)
+    conversationListRef.value?.refresh()
+    scrollToBottom(true)
+    toast.success(t('ai.chat.fork.success'))
+  } catch (error) {
+    toast.fail(t('ai.chat.fork.failed'), { description: String(error) })
+  }
+}
+
 // 切换数据源面板
 function toggleSourcePanel() {
   isSourcePanelCollapsed.value = !isSourcePanelCollapsed.value
@@ -444,11 +457,13 @@ watch(
                         (pair.assistant.contentBlocks && pair.assistant.contentBlocks.length > 0))
                     "
                     :role="pair.assistant.role"
+                    :message-id="pair.assistant.id"
                     :content="pair.assistant.content"
                     :timestamp="pair.assistant.timestamp"
                     :is-streaming="pair.assistant.isStreaming"
                     :content-blocks="pair.assistant.contentBlocks"
                     :show-capture-button="!pair.assistant.isStreaming"
+                    @fork="handleForkConversation"
                   />
                 </div>
               </template>

@@ -38,6 +38,10 @@
       "needMoreThanSkill": "Selecting a skill alone is not enough. Enter a specific question.",
       "needQuestion": "Enter a question before sending"
     },
+    "fork": {
+      "success": "Conversation forked",
+      "failed": "Failed to fork conversation"
+    },
     "backgroundTask": {
       "runningShort": "Running",
       "runningTitle": "AI is still thinking",
@@ -57,6 +61,9 @@
         "tooltip": "Edit and regenerate",
         "submit": "Send",
         "overwriteSubsequent": "Overwrite all subsequent messages"
+      },
+      "fork": {
+        "tooltip": "Fork conversation from here"
       },
       "tools": {
         "get_chat_overview": "Get Chat Overview",

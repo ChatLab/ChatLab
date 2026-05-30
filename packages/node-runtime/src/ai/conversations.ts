@@ -609,7 +609,7 @@ export class AIConversationManager {
       throw new Error('Message not on active path')
     }
 
-    const messagesToCopy = activePath.slice(0, cutIndex)
+    const messagesToCopy = activePath.slice(0, cutIndex + 1)
     const now = Math.floor(Date.now() / 1000)
     const newConvId = this.generateId('conv')
     const forkTitle = title || `${source.title || 'Untitled'} (fork)`

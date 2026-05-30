@@ -347,10 +347,10 @@ describe('AIConversationManager forkConversation', () => {
       assert.equal(forked.sessionId, 's1')
 
       const forkedMessages = manager.getMessages(forked.id)
-      assert.equal(forkedMessages.length, 2)
+      assert.equal(forkedMessages.length, 3)
       assert.deepEqual(
         forkedMessages.map((m) => m.content),
-        ['q1', 'a1']
+        ['q1', 'a1', 'q2']
       )
 
       // Original conversation should be untouched
@@ -374,8 +374,11 @@ describe('AIConversationManager forkConversation', () => {
 
       assert.equal(forked.title, 'MyChat (fork)')
       const forkedMessages = manager.getMessages(forked.id)
-      assert.equal(forkedMessages.length, 1)
-      assert.equal(forkedMessages[0]?.content, 'q1')
+      assert.equal(forkedMessages.length, 2)
+      assert.deepEqual(
+        forkedMessages.map((m) => m.content),
+        ['q1', 'a1']
+      )
       manager.close()
     } finally {
       cleanup(dir)
