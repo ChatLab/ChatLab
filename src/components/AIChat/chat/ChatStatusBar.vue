@@ -87,7 +87,7 @@ const contextTokens = computed(() => {
 
 const modelContextWindow = computed(() => {
   const defaultConfig = defaultAssistantConfig.value
-  const modelId = defaultConfig?.model
+  const modelId = llmStore.defaultAssistant?.modelId || defaultConfig?.model
   if (!defaultConfig || !modelId) return 128000
 
   const model = llmStore.getModelById(defaultConfig.provider, modelId) || llmStore.findModelAcrossProviders(modelId)
@@ -212,8 +212,9 @@ const isThinkingPopoverOpen = ref(false)
 /** The current model's supported thinking levels (empty = not a reasoning model). */
 const supportedThinkingLevels = computed<ThinkingLevel[]>(() => {
   const cfg = defaultAssistantConfig.value
-  if (!cfg?.provider || !cfg?.model) return []
-  return getSupportedThinkingLevels(cfg.provider, cfg.model)
+  const modelId = llmStore.defaultAssistant?.modelId || cfg?.model
+  if (!cfg?.provider || !modelId) return []
+  return getSupportedThinkingLevels(cfg.provider, modelId)
 })
 
 /** Whether to show the selector at all. */
@@ -252,9 +253,9 @@ const thinkingLevelLabel = computed(() => {
         <UIcon name="i-heroicons-cpu-chip" class="h-3.5 w-3.5" />
         <span class="max-w-[160px] truncate">
           {{
-            defaultAssistantConfig?.model
-              ? llmStore.getModelById(defaultAssistantConfig.provider, defaultAssistantConfig.model)?.name ||
-                defaultAssistantConfig.model
+            llmStore.defaultAssistant?.modelId
+              ? llmStore.getModelById(defaultAssistantConfig?.provider ?? '', llmStore.defaultAssistant.modelId)
+                  ?.name || llmStore.defaultAssistant.modelId
               : t('ai.chat.statusBar.model.notConfigured')
           }}
         </span>

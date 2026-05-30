@@ -16,10 +16,10 @@ export async function get<T>(path: string): Promise<T> {
 }
 
 export async function post<T>(path: string, body?: unknown): Promise<T> {
+  const hasBody = body !== undefined
   const resp = await fetch(`${BASE}${path}`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: body != null ? JSON.stringify(body) : undefined,
+    ...(hasBody && { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
   })
   if (!resp.ok) {
     const text = await resp.text().catch(() => '')
@@ -38,10 +38,10 @@ export async function del<T = boolean>(path: string): Promise<T> {
 }
 
 export async function put<T>(path: string, body?: unknown): Promise<T> {
+  const hasBody = body !== undefined
   const resp = await fetch(`${BASE}${path}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: body != null ? JSON.stringify(body) : undefined,
+    ...(hasBody && { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
   })
   if (!resp.ok) {
     const text = await resp.text().catch(() => '')
@@ -51,10 +51,10 @@ export async function put<T>(path: string, body?: unknown): Promise<T> {
 }
 
 export async function patch<T>(path: string, body?: unknown): Promise<T> {
+  const hasBody = body !== undefined
   const resp = await fetch(`${BASE}${path}`, {
     method: 'PATCH',
-    headers: { 'Content-Type': 'application/json' },
-    body: body != null ? JSON.stringify(body) : undefined,
+    ...(hasBody && { headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }),
   })
   if (!resp.ok) {
     const text = await resp.text().catch(() => '')
