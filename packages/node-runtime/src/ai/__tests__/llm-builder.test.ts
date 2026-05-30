@@ -153,7 +153,8 @@ describe('buildPiModel', () => {
     // Must use thinkingFormat:'deepseek' so that 'off' sends thinking:{type:"disabled"}
     assert.equal(compat?.thinkingFormat, 'deepseek')
     assert.equal(compat?.supportsReasoningEffort, undefined)
-    const map = compat?.thinkingLevelMap as Record<string, unknown> | undefined
+    // thinkingLevelMap is on the model top-level (for clampThinkingLevel)
+    const map = model.thinkingLevelMap as Record<string, unknown> | undefined
     assert.equal(map?.high, 'high')
     assert.equal(map?.xhigh, 'max')
     assert.equal(map?.minimal, null)

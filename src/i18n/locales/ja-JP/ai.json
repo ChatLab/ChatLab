@@ -181,15 +181,15 @@
       "thinking": {
         "title": "思考強度",
         "tooltip": "モデルの思考強度を設定",
-        "auto": "自動",
-        "off": "思考オフ",
         "level": {
+          "default": "デフォルト",
           "off": "オフ",
           "minimal": "極小",
           "low": "低",
           "medium": "中",
           "high": "高",
-          "xhigh": "最大"
+          "xhigh": "最大",
+          "auto": "自動"
         }
       },
       "tokenUsageTitle": "累計 Token 使用量",

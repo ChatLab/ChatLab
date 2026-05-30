@@ -87,15 +87,44 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
     return { usage: totalUsage, finalMessages: [], toolsUsed: [], toolRounds: 0 }
   }
 
+  // Resolve thinkingLevel for pi-agent-core:
+  // - 'default'/undefined → strip reasoning from piModel so pi-ai sends a plain request
+  //   with NO reasoning params at all (model uses its native default behavior).
+  // - 'off' → pi-ai sends disable signals (thinking:{type:'disabled'} / enable_thinking:false)
+  // - 'auto' → for thinkingFormat models, use 'high' to enable; others no params
+  // - Other levels → clamp to what pi-agent-core accepts.
+  const isDefault = !options.thinkingLevel || options.thinkingLevel === 'default'
+  const effectiveModel = isDefault
+    ? { ...piModel, reasoning: false, compat: undefined, thinkingLevelMap: undefined }
+    : piModel
+
+  const resolvedThinkingLevel = (() => {
+    if (isDefault) return 'off'
+    const level = options.thinkingLevel!
+    if (level === 'auto') {
+      if (!piModel.reasoning) return 'off'
+      const compat = piModel.compat as Record<string, unknown> | undefined
+      if (compat?.thinkingFormat) return 'high'
+      return undefined
+    }
+    return clampThinkingLevel(piModel, level as Exclude<typeof level, 'default' | 'auto'>)
+  })()
+
+  const finalThinkingLevel = resolvedThinkingLevel ?? (piModel.reasoning ? undefined : 'off')
+  console.debug('[agent-core] thinkingLevel resolution:', {
+    input: options.thinkingLevel,
+    modelId: piModel.id,
+    modelReasoning: effectiveModel.reasoning,
+    isDefault,
+    resolved: resolvedThinkingLevel,
+    final: finalThinkingLevel,
+  })
+
   const coreAgent = new PiAgentCore({
     initialState: {
       systemPrompt,
-      model: piModel,
-      thinkingLevel: options.thinkingLevel
-        ? clampThinkingLevel(piModel, options.thinkingLevel)
-        : piModel.reasoning
-          ? 'medium'
-          : 'off',
+      model: effectiveModel,
+      thinkingLevel: finalThinkingLevel,
       tools: maxToolRounds > 0 ? tools : [],
       messages: toPiHistoryMessages(history),
     },

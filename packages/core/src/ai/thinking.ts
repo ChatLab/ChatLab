@@ -6,52 +6,56 @@
  *   - which models support thinking and at what granularity
  *   - what `compat` fields pi-ai needs to actually inject the right request params
  *
- * Scope (v1): openai-completions API path only.
+ * Scope: openai-completions API path only.
  * anthropic-messages / google-generative-ai are out of scope for this version.
  */
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
-/** Ordered from off (weakest) to xhigh (strongest), mirrors pi-ai's enum. */
-export type ThinkingLevel = 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh'
+/**
+ * ThinkingLevel values the UI selector can display.
+ * - 'default': no reasoning params sent — rely on model's native default behavior
+ * - 'off': explicitly disable reasoning
+ * - 'auto': let the model flexibly decide reasoning intensity
+ * - others: specific intensity levels
+ */
+export type ThinkingLevel = 'default' | 'off' | 'minimal' | 'low' | 'medium' | 'high' | 'xhigh' | 'auto'
 
 /** Used internally to categorise a model into a thinking behaviour group. */
 type ThinkingType =
-  | 'none'          // model is not a reasoning model
-  | 'qwen'          // Qwen-family: boolean enable_thinking (off/on)
-  | 'deepseek_v4'   // DeepSeek V4+: thinkingFormat:'deepseek', off/high/xhigh
-  | 'o_series'      // OpenAI o1/o3: can't disable thinking; low/medium/high only
-  | 'gpt5'          // OpenAI gpt-5 base: can't disable; minimal/low/medium/high
-  | 'gpt5_1'        // OpenAI gpt-5.1: off→none supported; off/low/medium/high
-  | 'gpt5_2plus'    // OpenAI gpt-5.2+: off→none + xhigh; full range
-  | 'grok'          // xAI grok: can't disable; low/high only
-  | 'kimi'          // Kimi thinking: low/medium/high
-  | 'doubao'        // Doubao seed reasoning: high only (no disable support)
-  | 'default'       // generic reasoning: off / low / medium / high
+  | 'none' // model is not a reasoning model
+  | 'qwen' // Qwen/GLM-family: boolean enable_thinking (off/on)
+  | 'deepseek_v4' // DeepSeek V4+: thinkingFormat:'deepseek', off/high/xhigh
+  | 'deepseek_hybrid' // DeepSeek V3.x hybrid inference: supports auto
+  | 'o_series' // OpenAI o1/o3: can't disable thinking; low/medium/high only
+  | 'gpt5' // OpenAI gpt-5 base: can't disable; minimal/low/medium/high
+  | 'gpt5_1' // OpenAI gpt-5.1: off→none supported; off/low/medium/high
+  | 'gpt5_2plus' // OpenAI gpt-5.2+: off→none + xhigh; full range
+  | 'grok' // xAI grok: can't disable; low/high only
+  | 'kimi' // Kimi thinking: off/auto/low/medium/high
+  | 'doubao' // Doubao seed reasoning: off/auto/high
+  | 'hunyuan' // Hunyuan: enable_thinking boolean, similar to qwen
+  | 'gemini' // Gemini 2.5+: thinking level via Google API (off/low/medium/high)
+  | 'default' // generic reasoning: off / low / medium / high
 
 // ── Internal: per-type level tables ──────────────────────────────────────────
 
 /** UI options for each type — what the selector will show. */
 const TYPE_LEVELS: Record<ThinkingType, ThinkingLevel[]> = {
-  none:        [],
-  // Qwen/GLM: boolean enable_thinking; 'off' sends false, 'high' sends true
-  qwen:        ['off', 'high'],
-  // DeepSeek V4+: thinkingFormat:'deepseek', 'off' → thinking:{type:"disabled"}
-  deepseek_v4: ['off', 'high', 'xhigh'],
-  // o-series: always thinks, no API param to disable; don't show 'off'
-  o_series:    ['low', 'medium', 'high'],
-  // gpt-5 base: API doesn't support reasoning_effort:'none'; no 'off'
-  gpt5:        ['minimal', 'low', 'medium', 'high'],
-  // gpt-5.1+: supports reasoning_effort:'none' to disable thinking
-  gpt5_1:      ['off', 'low', 'medium', 'high'],
-  gpt5_2plus:  ['off', 'minimal', 'low', 'medium', 'high', 'xhigh'],
-  // Grok: no disable support; only low/high
-  grok:        ['low', 'high'],
-  // Kimi: low/medium/high (no confirmed disable API)
-  kimi:        ['low', 'medium', 'high'],
-  // Doubao: only 'high' confirmed; no disable
-  doubao:      ['high'],
-  default:     ['off', 'low', 'medium', 'high'],
+  none: [],
+  qwen: ['default', 'off', 'high'],
+  deepseek_v4: ['default', 'off', 'high', 'xhigh'],
+  deepseek_hybrid: ['default', 'off', 'auto'],
+  o_series: ['default', 'low', 'medium', 'high'],
+  gpt5: ['default', 'minimal', 'low', 'medium', 'high'],
+  gpt5_1: ['default', 'off', 'low', 'medium', 'high'],
+  gpt5_2plus: ['default', 'off', 'minimal', 'low', 'medium', 'high', 'xhigh'],
+  grok: ['default', 'low', 'high'],
+  kimi: ['default', 'off', 'auto', 'low', 'medium', 'high'],
+  doubao: ['default', 'off', 'auto', 'high'],
+  hunyuan: ['default', 'off', 'high'],
+  gemini: ['default', 'off', 'low', 'medium', 'high'],
+  default: ['default', 'off', 'low', 'medium', 'high'],
 }
 
 /**
@@ -60,46 +64,52 @@ const TYPE_LEVELS: Record<ThinkingType, ThinkingLevel[]> = {
  * `undefined` (key absent) means pass the level string verbatim.
  * Matches pi-ai's convention in models.generated.js.
  */
-// thinkingLevelMap is only used by models on the supportsReasoningEffort path.
-// DeepSeek uses thinkingFormat:'deepseek' (its own pi-ai branch) and has no entry here.
 const TYPE_LEVEL_MAP: Partial<Record<ThinkingType, Partial<Record<ThinkingLevel, string | null>>>> = {
   gpt5: {
     minimal: 'minimal',
-    low:     'low',
-    medium:  'medium',
-    high:    'high',
-  },
-  // 'off' maps to reasoning_effort:'none' — API confirmed to disable thinking
-  gpt5_1: {
-    off:    'none',
-    low:    'low',
+    low: 'low',
     medium: 'medium',
-    high:   'high',
-    xhigh:  null,
+    high: 'high',
+  },
+  gpt5_1: {
+    off: 'none',
+    low: 'low',
+    medium: 'medium',
+    high: 'high',
+    xhigh: null,
   },
   gpt5_2plus: {
-    off:     'none',
+    off: 'none',
     minimal: 'minimal',
-    low:     'low',
-    medium:  'medium',
-    high:    'high',
-    xhigh:   'xhigh',
+    low: 'low',
+    medium: 'medium',
+    high: 'high',
+    xhigh: 'xhigh',
   },
   grok: {
     minimal: null,
-    low:     'low',
-    medium:  null,
-    high:    'high',
-    xhigh:   null,
+    low: 'low',
+    medium: null,
+    high: 'high',
+    xhigh: null,
   },
   kimi: {
+    off: 'none',
+    auto: 'auto',
     minimal: null,
-    low:     'low',
-    medium:  'medium',
-    high:    'high',
-    xhigh:   null,
+    low: 'low',
+    medium: 'medium',
+    high: 'high',
+    xhigh: null,
   },
   doubao: {
+    off: null,
+    auto: 'auto',
+    high: 'high',
+  },
+  deepseek_hybrid: {
+    off: null,
+    auto: 'auto',
     high: 'high',
   },
 }
@@ -107,21 +117,40 @@ const TYPE_LEVEL_MAP: Partial<Record<ThinkingType, Partial<Record<ThinkingLevel,
 // ── Internal: model → ThinkingType classification ─────────────────────────────
 
 /**
+ * Broad regex matching common reasoning model naming patterns.
+ * Used as a fallback when no specific provider/model rule matches.
+ * Excludes explicit '-non-reasoning' variants.
+ */
+const REASONING_FALLBACK_REGEX =
+  /^(?!.*-non-reasoning\b)(o\d+(?:-[\w-]+)?|.*\b(?:reasoning|reasoner|thinking|think)\b.*|.*-[rR]\d+.*|.*\bqwq(?:-[\w-]+)?\b.*|.*\bhunyuan-t1(?:-[\w-]+)?\b.*|.*\bgrok-(?:3-mini|4|4-fast|build)(?:-[\w-]+)?\b.*)$/i
+
+/**
  * Classify a model into a ThinkingType based on provider + model id.
- * Kept intentionally simple: providers/ids are stable enough for direct matching.
  */
 function classifyThinkingType(provider: string, modelId: string): ThinkingType {
   const id = modelId.toLowerCase()
   const prov = provider.toLowerCase()
 
-  // ── Non-reasoning paths handled by other API formats (out of scope v1) ──
-  if (prov === 'anthropic' || prov === 'gemini') return 'none'
+  // ── Explicit non-reasoning variants ──
+  if (id.includes('-non-reasoning')) return 'none'
+
+  // ── Anthropic uses different API format (out of scope) ──
+  if (prov === 'anthropic') return 'none'
+
+  // ── Gemini 2.5+ reasoning models (via Google Generative AI API) ──
+  if (prov === 'gemini') {
+    if (/gemini-(?:2\.5|3(?:\.\d+)?-(?:flash|pro)|flash-latest|pro-latest)/i.test(id)) return 'gemini'
+    return 'none'
+  }
 
   // ── Qwen (official DashScope + self-hosted models containing qwen/qwq) ──
-  if (prov === 'qwen' || /qwen|qwq/i.test(id)) return 'qwen'
+  if (prov === 'qwen' || /\bqwen|qwq/i.test(id)) return 'qwen'
 
   // ── DeepSeek V4+ ──
   if (/deepseek[_-]v([4-9]|\d{2,})/i.test(id) || /deepseek-ai\/deepseek-r1/i.test(id)) return 'deepseek_v4'
+
+  // ── DeepSeek V3.x hybrid inference (deepseek-chat, deepseek-v3.x) ──
+  if (/deepseek[_-]chat|deepseek[_-]v3/i.test(id)) return 'deepseek_hybrid'
 
   // ── OpenAI gpt-5.x family ──
   if (prov === 'openai' || prov === 'openai-compatible') {
@@ -133,35 +162,57 @@ function classifyThinkingType(provider: string, modelId: string): ThinkingType {
   // o-series on other providers (e.g., Azure, OpenRouter)
   if (/^o\d/.test(id)) return 'o_series'
 
-  // ── xAI Grok reasoning models ──
-  if (prov === 'xai' && /grok-[34]/i.test(id) && /mini|4\b/i.test(id)) return 'grok'
+  // ── xAI Grok reasoning models (grok-3-mini, grok-4, grok-4-fast, grok-build) ──
+  if (/\bgrok-(?:3-mini|4|4-fast|build)\b/i.test(id)) return 'grok'
 
-  // ── Kimi thinking models ──
+  // ── Kimi thinking models (k2-thinking, k2.5+, k3+) ──
+  if (/\bkimi-k(?:2-thinking|2\.[5-9]|[3-9])/i.test(id)) return 'kimi'
   if (prov === 'kimi' && /thinking/i.test(id)) return 'kimi'
 
   // ── Doubao seed reasoning ──
-  if (prov === 'doubao' && /seed/i.test(id)) return 'doubao'
+  if (/\bdoubao-.*seed/i.test(id) || (prov === 'doubao' && /seed/i.test(id))) return 'doubao'
 
-  // ── GLM (ZAI) — only boolean enable_thinking, same as Qwen ──
-  if (prov === 'glm' || /glm[-_]/i.test(id)) return 'qwen'
+  // ── Hunyuan reasoning models ──
+  if (/\bhunyuan-(?:t1|a13b)/i.test(id)) return 'hunyuan'
+
+  // ── GLM (ZAI) — glm-5, glm-4.5/4.6/4.7, glm-z1, glm-zero-preview ──
+  if (prov === 'glm' || /\bglm-?(?:5|4\.[5-7]|z1|zero)/i.test(id)) return 'qwen'
 
   // ── SiliconFlow hosted reasoning models (DeepSeek R1 family) ──
   if (prov === 'siliconflow' && /r[1-9]/i.test(id)) return 'deepseek_v4'
 
-  // ── OpenRouter: wrap by inner model id if known ──
+  // ── OpenRouter: classify by inner model id ──
   if (prov === 'openrouter') {
     if (/deepseek.*(v[4-9]|r\d)/i.test(id)) return 'deepseek_v4'
-    return 'default'
+    if (/deepseek[_-]?(chat|v3)/i.test(id)) return 'deepseek_hybrid'
+    if (/\bgrok-(?:3-mini|4|4-fast|build)\b/i.test(id)) return 'grok'
+    if (/\bkimi-k(?:2-thinking|2\.[5-9]|[3-9])/i.test(id)) return 'kimi'
+    if (REASONING_FALLBACK_REGEX.test(id)) return 'default'
+    return 'none'
   }
 
+  // ── Models using thinking:{type:'disabled'/'enabled'} format (same as DeepSeek) ──
+  if (/\bmimo-v2/i.test(id)) return 'deepseek_hybrid'
+  if (/\bminimax-m[123]/i.test(id)) return 'deepseek_hybrid'
+  if (/\bseed-oss/i.test(id)) return 'deepseek_hybrid'
+
+  // ── Known reasoning model families → 'default' bucket (supportsReasoningEffort) ──
+  if (/\bbaichuan-m[23]/i.test(id)) return 'default'
+  if (/\bmagistral/i.test(id)) return 'default'
+  if (/\bmistral-small-2603/i.test(id)) return 'default'
+  if (/\bstep-(?:3|r1-v-mini)/i.test(id)) return 'default'
+  if (/\bgemma-?4/i.test(id)) return 'default'
+  if (/\bpangu-pro-moe/i.test(id)) return 'default'
+  if (/\bsonar-deep-research/i.test(id)) return 'default'
+  if (/\bring-(?:1t|mini|flash)/i.test(id)) return 'default'
+
   // ── Self-hosted / unknown — heuristic from model name ──
-  if (/qwen|qwq/i.test(id)) return 'qwen'
+  if (/\bqwen|qwq/i.test(id)) return 'qwen'
   if (/deepseek[_-]?r\d|deepseek[_-]?v[4-9]/i.test(id)) return 'deepseek_v4'
   if (/^o\d/i.test(id)) return 'o_series'
 
-  // Only assign 'default' (reasoning bucket) when the model name itself
-  // suggests thinking capability. Otherwise return 'none'.
-  if (/reasoning|thinking|r1\b|r2\b|qwq|think/i.test(id)) return 'default'
+  // Broad fallback: match common reasoning naming patterns
+  if (REASONING_FALLBACK_REGEX.test(id)) return 'default'
 
   return 'none'
 }
@@ -184,7 +235,6 @@ export function getSupportedThinkingLevels(provider: string, modelId: string): T
  * on the openai-completions path. (anthropic/gemini always return false here.)
  *
  * Used by: buildPiModel to set `PiModel.reasoning`.
- * Replaces the ad-hoc inferReasoning logic in llm-builder.ts.
  */
 export function isReasoningModel(provider: string, modelId: string): boolean {
   return classifyThinkingType(provider, modelId) !== 'none'
@@ -197,8 +247,8 @@ export function isReasoningModel(provider: string, modelId: string): boolean {
  * Used by: buildPiModel (openai-completions branch).
  */
 export interface ThinkingCompat {
-  thinkingFormat?: 'qwen' | 'deepseek'  // provider-specific injection format
-  supportsReasoningEffort?: true         // OpenAI-style reasoning_effort param
+  thinkingFormat?: 'qwen' | 'deepseek'
+  supportsReasoningEffort?: true
   thinkingLevelMap?: Partial<Record<ThinkingLevel, string | null>>
 }
 
@@ -207,20 +257,24 @@ export function getThinkingCompat(provider: string, modelId: string): ThinkingCo
 
   if (type === 'none') return {}
 
-  if (type === 'qwen') {
-    // Qwen/GLM: pi-ai injects enable_thinking boolean.
-    // 'off' → reasoningEffort=undefined → enable_thinking:false
-    // 'high' → reasoningEffort='high' → enable_thinking:true
+  // Gemini uses pi-ai's native Google provider; no compat fields needed.
+  if (type === 'gemini') return {}
+
+  if (type === 'qwen' || type === 'hunyuan') {
     return { thinkingFormat: 'qwen' }
   }
 
   if (type === 'deepseek_v4') {
-    // DeepSeek requires thinkingFormat:'deepseek' so pi-ai sends:
-    //   thinking:{type:"disabled"} when reasoningEffort=undefined (off)
-    //   thinking:{type:"enabled"} + reasoning_effort when set
     return {
       thinkingFormat: 'deepseek',
       thinkingLevelMap: { high: 'high', xhigh: 'max', minimal: null, low: null, medium: null },
+    }
+  }
+
+  if (type === 'deepseek_hybrid') {
+    return {
+      thinkingFormat: 'deepseek',
+      thinkingLevelMap: { auto: 'auto', high: 'high', minimal: null, low: null, medium: null, xhigh: null },
     }
   }
 

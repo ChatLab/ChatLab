@@ -181,15 +181,15 @@
       "thinking": {
         "title": "Thinking level",
         "tooltip": "Set the thinking intensity for this model",
-        "auto": "Auto",
-        "off": "Thinking off",
         "level": {
+          "default": "Default",
           "off": "Off",
           "minimal": "Minimal",
           "low": "Low",
           "medium": "Medium",
           "high": "High",
-          "xhigh": "Max"
+          "xhigh": "Max",
+          "auto": "Auto"
         }
       },
       "tokenUsageTitle": "Total token usage",

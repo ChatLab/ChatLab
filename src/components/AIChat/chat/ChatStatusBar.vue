@@ -233,11 +233,11 @@ const supportedThinkingLevels = computed<ThinkingLevel[]>(() => {
 /** Whether to show the selector at all. */
 const showThinkingSelector = computed(() => supportedThinkingLevels.value.length > 0)
 
-/** The currently remembered level for this model slot (undefined → default). */
-const currentThinkingLevel = computed<ThinkingLevel | undefined>(() => {
+/** The currently remembered level for this model slot (undefined → 'default'). */
+const currentThinkingLevel = computed<ThinkingLevel>(() => {
   const cfg = llmStore.defaultAssistant
-  if (!cfg?.configId || !cfg?.modelId) return undefined
-  return promptStore.getThinkingLevel(cfg.configId, cfg.modelId)
+  if (!cfg?.configId || !cfg?.modelId) return 'default'
+  return promptStore.getThinkingLevel(cfg.configId, cfg.modelId) ?? 'default'
 })
 
 function selectThinkingLevel(level: ThinkingLevel) {
@@ -249,10 +249,7 @@ function selectThinkingLevel(level: ThinkingLevel) {
 
 /** Label shown on the trigger button. */
 const thinkingLevelLabel = computed(() => {
-  const level = currentThinkingLevel.value
-  // undefined means no explicit preference set — core defaults to 'medium'
-  if (level === undefined) return t('ai.chat.statusBar.thinking.auto')
-  return t(`ai.chat.statusBar.thinking.level.${level}`)
+  return t(`ai.chat.statusBar.thinking.level.${currentThinkingLevel.value}`)
 })
 </script>
 
@@ -332,9 +329,9 @@ const thinkingLevelLabel = computed(() => {
         <button
           class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
           :class="
-            !currentThinkingLevel || currentThinkingLevel === 'off'
+            currentThinkingLevel === 'default' || currentThinkingLevel === 'off'
               ? 'text-gray-400 dark:text-gray-500'
-              : 'text-blue-500 dark:text-blue-400'
+              : 'text-primary-500 dark:text-primary-400'
           "
           :title="t('ai.chat.statusBar.thinking.tooltip')"
         >
@@ -351,20 +348,16 @@ const thinkingLevelLabel = computed(() => {
               :key="level"
               class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
               :class="
-                (currentThinkingLevel ?? 'medium') === level
-                  ? 'text-blue-600 dark:text-blue-400'
+                currentThinkingLevel === level
+                  ? 'text-primary-600 dark:text-primary-400'
                   : 'text-gray-700 dark:text-gray-300'
               "
               @click="selectThinkingLevel(level)"
             >
               <UIcon
-                :name="
-                  (currentThinkingLevel ?? 'medium') === level
-                    ? 'i-heroicons-check-circle-solid'
-                    : 'i-heroicons-light-bulb'
-                "
+                :name="currentThinkingLevel === level ? 'i-heroicons-check-circle-solid' : 'i-heroicons-light-bulb'"
                 class="h-4 w-4 shrink-0"
-                :class="(currentThinkingLevel ?? 'medium') === level ? 'text-blue-500' : 'text-gray-400'"
+                :class="currentThinkingLevel === level ? 'text-primary-500' : 'text-gray-400'"
               />
               <span>{{ t(`ai.chat.statusBar.thinking.level.${level}`) }}</span>
             </button>

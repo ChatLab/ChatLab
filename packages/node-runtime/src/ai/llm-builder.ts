@@ -79,26 +79,29 @@ const BUILTIN_PROVIDER_API: Record<string, PiApi> = {
  * carries supportsReasoningEffort + thinkingLevelMap so pi-ai can inject the
  * correct request-body param for each provider family.
  */
-function inferReasoning(
-  provider: string,
-  modelId: string,
-  modelDef: ModelDefinition | null,
-): { reasoning: boolean; compat: PiModel<PiApi>['compat'] } {
-  // Catalog capabilities are authoritative; fall back to name-heuristic for
-  // unlisted / self-hosted models.
-  const reasoning = modelDef
-    ? modelDef.capabilities.includes('reasoning')
-    : isReasoningModel(provider, modelId)
+interface InferReasoningResult {
+  reasoning: boolean
+  compat: PiModel<PiApi>['compat']
+  thinkingLevelMap?: PiModel<PiApi>['thinkingLevelMap']
+}
+
+function inferReasoning(provider: string, modelId: string, modelDef: ModelDefinition | null): InferReasoningResult {
+  const reasoning = modelDef ? modelDef.capabilities.includes('reasoning') : isReasoningModel(provider, modelId)
 
   if (!reasoning) return { reasoning: false, compat: undefined }
 
   const thinkingCompat = getThinkingCompat(provider, modelId)
-  // thinkingCompat may be an empty object {} for unknown reasoning models —
-  // that's fine: pi-ai will still receive reasoning:true and default to
-  // passing the effort level verbatim.
+  if (Object.keys(thinkingCompat).length === 0) {
+    return { reasoning: true, compat: undefined }
+  }
+
+  // thinkingLevelMap belongs on the Model top-level (for clampThinkingLevel),
+  // while thinkingFormat/supportsReasoningEffort belong in compat (for the provider).
+  const { thinkingLevelMap, ...compatFields } = thinkingCompat
   return {
     reasoning: true,
-    compat: Object.keys(thinkingCompat).length > 0 ? thinkingCompat : undefined,
+    compat: Object.keys(compatFields).length > 0 ? compatFields : undefined,
+    thinkingLevelMap: thinkingLevelMap as PiModel<PiApi>['thinkingLevelMap'],
   }
 }
 
@@ -120,7 +123,7 @@ export function buildPiModel(config: PiModelConfig, options?: BuildPiModelOption
       api: 'google-generative-ai',
       provider: 'google',
       baseUrl,
-      reasoning: false,
+      reasoning: isReasoningModel(config.provider, modelId),
       input: ['text'],
       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
       contextWindow,
@@ -148,7 +151,7 @@ export function buildPiModel(config: PiModelConfig, options?: BuildPiModelOption
       ? normalizeOpenAICompatibleBaseUrl(baseUrl)
       : baseUrl
 
-  const { reasoning, compat } = inferReasoning(config.provider, modelId, modelDef)
+  const { reasoning, compat, thinkingLevelMap } = inferReasoning(config.provider, modelId, modelDef)
 
   return {
     id: modelId,
@@ -158,6 +161,7 @@ export function buildPiModel(config: PiModelConfig, options?: BuildPiModelOption
     baseUrl: resolvedBaseUrl,
     headers: options?.headers,
     reasoning,
+    thinkingLevelMap,
     input: ['text'],
     cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
     contextWindow,
