@@ -345,23 +345,10 @@ interface AIMessage {
   content: string
   timestamp: number
   parentId?: string | null
-  siblingGroupId?: string
-  branchIndex?: number
-  branch?: {
-    index: number
-    total: number
-    prevMessageId: string | null
-    nextMessageId: string | null
-  }
   dataKeywords?: string[]
   dataMessageCount?: number
   contentBlocks?: AIContentBlock[]
   tokenUsage?: AITokenUsageData
-}
-
-interface MessageBranchResult {
-  userMessage: AIMessage
-  assistantMessage: AIMessage
 }
 
 interface AiApi {
@@ -425,14 +412,18 @@ interface AiApi {
     contentBlocks?: AIContentBlock[],
     tokenUsage?: AITokenUsageData
   ) => Promise<AIMessage>
-  createMessageBranch: (
-    originalUserMessageId: string,
-    newUserContent: string,
-    assistantContent: string,
+  deleteMessagesFrom: (conversationId: string, messageId: string) => Promise<void>
+  forkConversation: (sourceConversationId: string, upToMessageId: string, title?: string) => Promise<AIConversation>
+  updateMessageContent: (messageId: string, newContent: string) => Promise<void>
+  deleteAndRelinkMessage: (conversationId: string, messageId: string) => Promise<void>
+  insertMessageAfter: (
+    conversationId: string,
+    afterMessageId: string,
+    role: 'user' | 'assistant',
+    content: string,
     contentBlocks?: AIContentBlock[],
     tokenUsage?: AITokenUsageData
-  ) => Promise<MessageBranchResult>
-  switchMessageBranch: (conversationId: string, messageId: string) => Promise<AIMessage[]>
+  ) => Promise<AIMessage>
   getMessages: (conversationId: string) => Promise<AIMessage[]>
   getConversationTokenUsage: (conversationId: string) => Promise<AITokenUsageData>
   deleteMessage: (messageId: string) => Promise<boolean>
@@ -1250,7 +1241,6 @@ export {
   SearchMessageResult,
   AIConversation,
   AIMessage,
-  MessageBranchResult,
   LLMProviderInfo,
   AIServiceConfigDisplay,
   LLMChatMessage,

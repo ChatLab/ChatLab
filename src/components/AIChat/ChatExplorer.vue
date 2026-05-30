@@ -55,7 +55,6 @@ const {
   selectedAssistantId,
   sendMessage,
   editMessageAndRegenerate,
-  switchMessageBranch,
   loadConversation,
   startNewConversation,
   loadMoreSourceMessages,
@@ -246,8 +245,10 @@ async function handleSend(payload: { content: string; mentionedMembers: Mentione
   conversationListRef.value?.refresh()
 }
 
-async function handleEditMessage(payload: { messageId: string; content: string }) {
-  const result = await editMessageAndRegenerate(payload.messageId, payload.content)
+async function handleEditMessage(payload: { messageId: string; content: string; overwriteSubsequent?: boolean }) {
+  const result = await editMessageAndRegenerate(payload.messageId, payload.content, {
+    overwriteSubsequent: payload.overwriteSubsequent,
+  })
   if (!result.success) {
     if (result.reason === 'busy') {
       showRunningTaskToast()
@@ -256,16 +257,6 @@ async function handleEditMessage(payload: { messageId: string; content: string }
   }
   scrollToBottom(true)
   conversationListRef.value?.refresh()
-}
-
-async function handleSwitchMessageBranch(messageId: string | null) {
-  if (!messageId) return
-  const ok = await switchMessageBranch(messageId)
-  if (!ok) {
-    showLockedActionToast()
-    return
-  }
-  scrollToBottom(true)
 }
 
 // 切换数据源面板
@@ -442,11 +433,8 @@ watch(
                     :timestamp="pair.user.timestamp"
                     :is-streaming="pair.user.isStreaming"
                     :content-blocks="pair.user.contentBlocks"
-                    :branch="pair.user.branch"
                     :editable="!isAIThinking"
                     @edit="handleEditMessage"
-                    @branch-prev="handleSwitchMessageBranch"
-                    @branch-next="handleSwitchMessageBranch"
                   />
                   <!-- AI 回复 -->
                   <ChatMessage

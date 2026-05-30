@@ -56,14 +56,6 @@ export interface AIMessage {
   content: string
   timestamp: number
   parentId?: string | null
-  siblingGroupId?: string
-  branchIndex?: number
-  branch?: {
-    index: number
-    total: number
-    prevMessageId: string | null
-    nextMessageId: string | null
-  }
   dataKeywords?: string[]
   dataMessageCount?: number
   contentBlocks?: ContentBlock[]
@@ -83,11 +75,6 @@ interface AIMessageRow {
   dataMessageCount: number | null
   contentBlocks: string | null
   tokenUsage: string | null
-}
-
-export interface MessageBranchResult {
-  userMessage: AIMessage
-  assistantMessage: AIMessage
 }
 
 export interface ConversationManagerLogger {
@@ -202,7 +189,7 @@ export class AIConversationManager {
         db.exec('ALTER TABLE ai_conversation ADD COLUMN active_message_id TEXT')
       }
 
-      if (needsMessageTreeBackfill || needsConversationBackfill) {
+      if (needsMessageTreeBackfill || needsConversationBackfill || this.hasUnbackfilledMessageTree(db)) {
         this.backfillMessageTree(db)
       }
 
@@ -213,6 +200,29 @@ export class AIConversationManager {
     } catch (error) {
       console.error('[AI DB Migration] Migration failed:', error)
     }
+  }
+
+  private hasUnbackfilledMessageTree(db: Database.Database): boolean {
+    const row = db
+      .prepare(
+        `SELECT 1
+         FROM ai_conversation c
+         WHERE EXISTS (
+           SELECT 1 FROM ai_message m
+           WHERE m.conversation_id = c.id
+         )
+         AND (
+           c.active_message_id IS NULL
+           OR EXISTS (
+             SELECT 1 FROM ai_message m
+             WHERE m.conversation_id = c.id
+               AND (m.sibling_group_id IS NULL OR m.branch_index IS NULL)
+           )
+         )
+         LIMIT 1`
+      )
+      .get()
+    return !!row
   }
 
   private backfillMessageTree(db: Database.Database): void {
@@ -254,7 +264,7 @@ export class AIConversationManager {
     return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
   }
 
-  private parseMessageRow(row: AIMessageRow, branch?: AIMessage['branch']): AIMessage {
+  private parseMessageRow(row: AIMessageRow): AIMessage {
     return {
       id: row.id,
       conversationId: row.conversationId,
@@ -262,9 +272,6 @@ export class AIConversationManager {
       content: row.content,
       timestamp: row.timestamp,
       parentId: row.parentId ?? null,
-      siblingGroupId: row.siblingGroupId ?? row.id,
-      branchIndex: row.branchIndex ?? 0,
-      branch,
       dataKeywords: row.dataKeywords ? JSON.parse(row.dataKeywords) : undefined,
       dataMessageCount: row.dataMessageCount ?? undefined,
       contentBlocks: row.contentBlocks ? JSON.parse(row.contentBlocks) : undefined,
@@ -306,77 +313,38 @@ export class AIConversationManager {
     return null
   }
 
+  private getAllMessageRows(conversationId: string): AIMessageRow[] {
+    return this.getDb()
+      .prepare(
+        `SELECT id, conversation_id as conversationId, role, content, timestamp,
+                parent_id as parentId, sibling_group_id as siblingGroupId, branch_index as branchIndex,
+                data_keywords as dataKeywords, data_message_count as dataMessageCount,
+                content_blocks as contentBlocks, token_usage as tokenUsage
+         FROM ai_message WHERE conversation_id = ? ORDER BY timestamp ASC, id ASC`
+      )
+      .all(conversationId) as AIMessageRow[]
+  }
+
   private getActivePathRows(conversationId: string, leafMessageId?: string | null): AIMessageRow[] {
-    const db = this.getDb()
     if (leafMessageId === null) return []
+
+    const allRows = this.getAllMessageRows(conversationId)
+    if (allRows.length === 0) return []
+
+    const rowMap = new Map(allRows.map((row) => [row.id, row]))
     let currentId = leafMessageId ?? this.getActiveMessageId(conversationId)
-    const rows: AIMessageRow[] = []
+    const path: AIMessageRow[] = []
     const seen = new Set<string>()
 
     while (currentId && !seen.has(currentId)) {
       seen.add(currentId)
-      const row = this.getMessageRow(currentId)
-      if (!row || row.conversationId !== conversationId) break
-      rows.push(row)
+      const row = rowMap.get(currentId)
+      if (!row) break
+      path.push(row)
       currentId = row.parentId
     }
 
-    if (rows.length === 0) {
-      return db
-        .prepare(
-          `SELECT id, conversation_id as conversationId, role, content, timestamp,
-                  parent_id as parentId, sibling_group_id as siblingGroupId, branch_index as branchIndex,
-                  data_keywords as dataKeywords, data_message_count as dataMessageCount,
-                  content_blocks as contentBlocks, token_usage as tokenUsage
-           FROM ai_message WHERE conversation_id = ? ORDER BY timestamp ASC, id ASC`
-        )
-        .all(conversationId) as AIMessageRow[]
-    }
-
-    return rows.reverse()
-  }
-
-  private getBranchMeta(row: AIMessageRow): AIMessage['branch'] | undefined {
-    const groupId = row.siblingGroupId ?? row.id
-    const siblings = this.getDb()
-      .prepare(
-        `SELECT id FROM ai_message
-         WHERE conversation_id = ? AND sibling_group_id = ?
-         ORDER BY branch_index ASC, timestamp ASC, id ASC`
-      )
-      .all(row.conversationId, groupId) as Array<{ id: string }>
-
-    if (siblings.length <= 1) return undefined
-    const index = siblings.findIndex((item) => item.id === row.id)
-    const safeIndex = index >= 0 ? index : 0
-    return {
-      index: safeIndex,
-      total: siblings.length,
-      prevMessageId: safeIndex > 0 ? siblings[safeIndex - 1]!.id : null,
-      nextMessageId: safeIndex < siblings.length - 1 ? siblings[safeIndex + 1]!.id : null,
-    }
-  }
-
-  private getDeepestLeafId(messageId: string): string {
-    const db = this.getDb()
-    let currentId = messageId
-    const seen = new Set<string>()
-
-    while (!seen.has(currentId)) {
-      seen.add(currentId)
-      const child = db
-        .prepare(
-          `SELECT id FROM ai_message
-           WHERE parent_id = ?
-           ORDER BY branch_index DESC, timestamp DESC, id DESC
-           LIMIT 1`
-        )
-        .get(currentId) as { id: string } | undefined
-      if (!child?.id) break
-      currentId = child.id
-    }
-
-    return currentId
+    return path.length > 0 ? path.reverse() : allRows
   }
 
   // ==================== 生命周期 ====================
@@ -585,8 +553,6 @@ export class AIConversationManager {
       content,
       timestamp: now,
       parentId,
-      siblingGroupId,
-      branchIndex,
       dataKeywords,
       dataMessageCount,
       contentBlocks,
@@ -595,8 +561,7 @@ export class AIConversationManager {
   }
 
   getMessages(conversationId: string): AIMessage[] {
-    const rows = this.getActivePathRows(conversationId)
-    return rows.map((row) => this.parseMessageRow(row, this.getBranchMeta(row)))
+    return this.getActivePathRows(conversationId).map((row) => this.parseMessageRow(row))
   }
 
   deleteMessage(messageId: string): boolean {
@@ -605,115 +570,202 @@ export class AIConversationManager {
     return result.changes > 0
   }
 
-  createMessageBranch(
-    originalUserMessageId: string,
-    newUserContent: string,
-    assistantContent: string,
-    contentBlocks?: ContentBlock[],
-    tokenUsage?: TokenUsageData
-  ): MessageBranchResult {
+  deleteMessagesFrom(conversationId: string, messageId: string): void {
     const db = this.getDb()
-    const original = this.getMessageRow(originalUserMessageId)
-    if (!original || original.role !== 'user') {
-      throw new Error('Original user message not found')
+    const target = this.getMessageRow(messageId)
+    if (!target || target.conversationId !== conversationId) {
+      throw new Error('Message not found in conversation')
     }
 
+    const activePath = this.getActivePathRows(conversationId)
+    const targetIndex = activePath.findIndex((row) => row.id === messageId)
+    if (targetIndex < 0) {
+      throw new Error('Message not on active path')
+    }
+
+    const idsToDelete = activePath.slice(targetIndex).map((row) => row.id)
+    const placeholders = idsToDelete.map(() => '?').join(', ')
+    db.prepare(`DELETE FROM ai_message WHERE id IN (${placeholders})`).run(...idsToDelete)
+
+    const newLeafId = targetIndex > 0 ? activePath[targetIndex - 1]!.id : null
     const now = Math.floor(Date.now() / 1000)
-    const userMessageId = this.generateId('msg')
-    const assistantMessageId = this.generateId('msg')
-    const siblingGroupId = original.siblingGroupId ?? original.id
-    const branchRow = db
-      .prepare(
-        `SELECT COALESCE(MAX(branch_index), -1) + 1 as branchIndex
-         FROM ai_message WHERE conversation_id = ? AND sibling_group_id = ?`
-      )
-      .get(original.conversationId, siblingGroupId) as { branchIndex: number }
+    db.prepare('UPDATE ai_conversation SET active_message_id = ?, updated_at = ? WHERE id = ?').run(
+      newLeafId,
+      now,
+      conversationId
+    )
+  }
 
-    const pendingDebug = this.pendingDebugContextMap.get(original.conversationId)
-    if (pendingDebug) {
-      this.pendingDebugContextMap.delete(original.conversationId)
+  forkConversation(sourceConversationId: string, upToMessageId: string, title?: string): AIConversation {
+    const db = this.getDb()
+    const source = this.getConversation(sourceConversationId)
+    if (!source) {
+      throw new Error('Source conversation not found')
     }
 
-    const tx = db.transaction(() => {
-      db.prepare(
-        `INSERT INTO ai_message (
-           id, conversation_id, role, content, timestamp, data_keywords, data_message_count,
-           content_blocks, token_usage, debug_context, parent_id, sibling_group_id, branch_index
-         )
-         VALUES (?, ?, 'user', ?, ?, NULL, NULL, NULL, NULL, NULL, ?, ?, ?)`
-      ).run(
-        userMessageId,
-        original.conversationId,
-        newUserContent,
-        now,
-        original.parentId,
-        siblingGroupId,
-        branchRow.branchIndex
-      )
+    const activePath = this.getActivePathRows(sourceConversationId)
+    const cutIndex = activePath.findIndex((row) => row.id === upToMessageId)
+    if (cutIndex < 0) {
+      throw new Error('Message not on active path')
+    }
+
+    const messagesToCopy = activePath.slice(0, cutIndex)
+    const now = Math.floor(Date.now() / 1000)
+    const newConvId = this.generateId('conv')
+    const forkTitle = title || `${source.title || 'Untitled'} (fork)`
+
+    db.prepare(
+      `INSERT INTO ai_conversation (id, session_id, title, assistant_id, active_message_id, created_at, updated_at)
+       VALUES (?, ?, ?, ?, NULL, ?, ?)`
+    ).run(newConvId, source.sessionId, forkTitle, source.assistantId, now, now)
+
+    const idMap = new Map<string, string>()
+    let lastNewId: string | null = null
+
+    for (const row of messagesToCopy) {
+      const newMsgId = this.generateId('msg')
+      idMap.set(row.id, newMsgId)
+      const newParentId = row.parentId ? (idMap.get(row.parentId) ?? null) : null
 
       db.prepare(
         `INSERT INTO ai_message (
            id, conversation_id, role, content, timestamp, data_keywords, data_message_count,
            content_blocks, token_usage, debug_context, parent_id, sibling_group_id, branch_index
          )
-         VALUES (?, ?, 'assistant', ?, ?, NULL, NULL, ?, ?, ?, ?, ?, 0)`
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?, ?, 0)`
       ).run(
-        assistantMessageId,
-        original.conversationId,
-        assistantContent,
-        now,
-        contentBlocks ? JSON.stringify(contentBlocks) : null,
-        tokenUsage ? JSON.stringify(tokenUsage) : null,
-        pendingDebug ?? null,
-        userMessageId,
-        assistantMessageId
+        newMsgId,
+        newConvId,
+        row.role,
+        row.content,
+        row.timestamp,
+        row.dataKeywords,
+        row.dataMessageCount,
+        row.contentBlocks,
+        row.tokenUsage,
+        newParentId,
+        newMsgId
       )
+      lastNewId = newMsgId
+    }
 
-      db.prepare('UPDATE ai_conversation SET active_message_id = ?, updated_at = ? WHERE id = ?').run(
-        assistantMessageId,
-        now,
-        original.conversationId
-      )
-    })
+    if (lastNewId) {
+      db.prepare('UPDATE ai_conversation SET active_message_id = ? WHERE id = ?').run(lastNewId, newConvId)
+    }
 
-    tx()
-
-    const userRow = this.getMessageRow(userMessageId)!
-    const assistantRow = this.getMessageRow(assistantMessageId)!
     return {
-      userMessage: this.parseMessageRow(userRow, this.getBranchMeta(userRow)),
-      assistantMessage: this.parseMessageRow(assistantRow, this.getBranchMeta(assistantRow)),
+      id: newConvId,
+      sessionId: source.sessionId,
+      title: forkTitle,
+      assistantId: source.assistantId,
+      activeMessageId: lastNewId,
+      createdAt: now,
+      updatedAt: now,
     }
   }
 
-  switchMessageBranch(conversationId: string, messageId: string): AIMessage[] {
+  updateMessageContent(messageId: string, newContent: string): void {
+    const db = this.getDb()
+    const result = db.prepare('UPDATE ai_message SET content = ? WHERE id = ?').run(newContent, messageId)
+    if (result.changes === 0) throw new Error('Message not found')
+  }
+
+  deleteAndRelinkMessage(conversationId: string, messageId: string): void {
+    const db = this.getDb()
     const target = this.getMessageRow(messageId)
     if (!target || target.conversationId !== conversationId) {
-      throw new Error('Message branch not found')
+      throw new Error('Message not found in conversation')
     }
 
-    const leafId = this.getDeepestLeafId(messageId)
-    const now = Math.floor(Date.now() / 1000)
-    this.getDb()
-      .prepare('UPDATE ai_conversation SET active_message_id = ?, updated_at = ? WHERE id = ?')
-      .run(leafId, now, conversationId)
+    db.prepare('UPDATE ai_message SET parent_id = ? WHERE parent_id = ? AND conversation_id = ?').run(
+      target.parentId,
+      messageId,
+      conversationId
+    )
 
-    return this.getMessages(conversationId)
+    const conv = this.getConversation(conversationId)
+    if (conv?.activeMessageId === messageId) {
+      const now = Math.floor(Date.now() / 1000)
+      db.prepare('UPDATE ai_conversation SET active_message_id = ?, updated_at = ? WHERE id = ?').run(
+        target.parentId,
+        now,
+        conversationId
+      )
+    }
+
+    db.prepare('DELETE FROM ai_message WHERE id = ?').run(messageId)
+  }
+
+  insertMessageAfter(
+    conversationId: string,
+    afterMessageId: string,
+    role: AIMessageRole,
+    content: string,
+    contentBlocks?: ContentBlock[],
+    tokenUsage?: TokenUsageData
+  ): AIMessage {
+    const db = this.getDb()
+    const now = Math.floor(Date.now() / 1000)
+    const id = this.generateId('msg')
+
+    const pendingDebug = role === 'assistant' ? this.pendingDebugContextMap.get(conversationId) : undefined
+    if (pendingDebug) {
+      this.pendingDebugContextMap.delete(conversationId)
+    }
+
+    const childRow = db
+      .prepare('SELECT id FROM ai_message WHERE parent_id = ? AND conversation_id = ? LIMIT 1')
+      .get(afterMessageId, conversationId) as { id: string } | undefined
+
+    db.prepare(
+      `INSERT INTO ai_message (
+         id, conversation_id, role, content, timestamp, data_keywords, data_message_count,
+         content_blocks, token_usage, debug_context, parent_id, sibling_group_id, branch_index
+       )
+       VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, ?, ?, ?, ?, 0)`
+    ).run(
+      id,
+      conversationId,
+      role,
+      content,
+      now,
+      contentBlocks ? JSON.stringify(contentBlocks) : null,
+      tokenUsage ? JSON.stringify(tokenUsage) : null,
+      pendingDebug ?? null,
+      afterMessageId,
+      id
+    )
+
+    if (childRow) {
+      db.prepare('UPDATE ai_message SET parent_id = ? WHERE id = ?').run(id, childRow.id)
+    }
+
+    db.prepare('UPDATE ai_conversation SET updated_at = ? WHERE id = ?').run(now, conversationId)
+
+    return {
+      id,
+      conversationId,
+      role,
+      content,
+      timestamp: now,
+      parentId: afterMessageId,
+      contentBlocks,
+      tokenUsage,
+    }
   }
 
   getConversationTokenUsage(conversationId: string): TokenUsageData {
-    const messages = this.getMessages(conversationId)
-    return messages.reduce<TokenUsageData>(
-      (total, message) => {
-        if (message.tokenUsage) {
-          total.promptTokens += message.tokenUsage.promptTokens
-          total.completionTokens += message.tokenUsage.completionTokens
-          total.totalTokens += message.tokenUsage.totalTokens
-        }
-        return total
-      },
-      { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
-    )
+    const rows = this.getActivePathRows(conversationId)
+    const result: TokenUsageData = { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+    for (const row of rows) {
+      if (row.tokenUsage) {
+        const usage = JSON.parse(row.tokenUsage) as TokenUsageData
+        result.promptTokens += usage.promptTokens
+        result.completionTokens += usage.completionTokens
+        result.totalTokens += usage.totalTokens
+      }
+    }
+    return result
   }
 
   // ==================== Debug context ====================

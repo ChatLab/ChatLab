@@ -5,7 +5,6 @@ import type {
   AIMessageRole,
   ContentBlock,
   TokenUsageData,
-  MessageBranchResult,
   FilterResultWithPagination,
   ExportFilterParams,
   ExportProgress,
@@ -66,18 +65,35 @@ export class WebAIAdapter implements AIAdapter {
     throw new Error(NOT_AVAILABLE)
   }
 
-  async createMessageBranch(
-    _originalUserMessageId: string,
-    _newUserContent: string,
-    _assistantContent: string,
-    _contentBlocks?: ContentBlock[],
-    _tokenUsage?: TokenUsageData
-  ): Promise<MessageBranchResult> {
-    throw new Error('AI message branching is not available in static web mode')
+  async deleteMessagesFrom(_conversationId: string, _messageId: string): Promise<void> {
+    throw new Error('AI message editing is not available in static web mode')
   }
 
-  async switchMessageBranch(_conversationId: string, _messageId: string): Promise<AIMessage[]> {
-    throw new Error('AI message branching is not available in static web mode')
+  async forkConversation(
+    _sourceConversationId: string,
+    _upToMessageId: string,
+    _title?: string
+  ): Promise<AIConversation> {
+    throw new Error('AI conversation forking is not available in static web mode')
+  }
+
+  async updateMessageContent(_messageId: string, _newContent: string): Promise<void> {
+    throw new Error('AI message editing is not available in static web mode')
+  }
+
+  async deleteAndRelinkMessage(_conversationId: string, _messageId: string): Promise<void> {
+    throw new Error('AI message editing is not available in static web mode')
+  }
+
+  async insertMessageAfter(
+    _conversationId: string,
+    _afterMessageId: string,
+    _role: AIMessageRole,
+    _content: string,
+    _contentBlocks?: ContentBlock[],
+    _tokenUsage?: TokenUsageData
+  ): Promise<AIMessage> {
+    throw new Error('AI message editing is not available in static web mode')
   }
 
   async getConversationTokenUsage(_conversationId: string): Promise<TokenUsageData> {

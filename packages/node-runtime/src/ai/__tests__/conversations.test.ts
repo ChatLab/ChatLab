@@ -30,7 +30,7 @@ function cleanup(dir: string): void {
   }
 }
 
-describe('AIConversationManager message branches', () => {
+describe('AIConversationManager legacy migration', () => {
   it('migrates legacy flat messages into an active path', () => {
     const dir = createTempDir()
     try {
@@ -86,117 +86,296 @@ describe('AIConversationManager message branches', () => {
     }
   })
 
-  it('does not rerun legacy backfill over existing root branches', () => {
+  it('repairs partially migrated legacy rows that already have tree columns', () => {
     const dir = createTempDir()
     try {
-      let manager = createManager(dir)
-      const conversation = manager.createConversation('session-1', 'Root branch', 'general_cn')
-      const root = manager.addMessage(conversation.id, 'user', 'original root')
-      manager.addMessage(conversation.id, 'assistant', 'original answer')
-      const branch = manager.createMessageBranch(root.id, 'edited root', 'edited answer')
-      assert.equal(branch.userMessage.parentId, null)
-      manager.close()
+      const db = createTestDatabase(join(dir, 'conversations.db'))
+      db.exec(`
+        CREATE TABLE ai_conversation (
+          id TEXT PRIMARY KEY,
+          session_id TEXT NOT NULL,
+          title TEXT,
+          assistant_id TEXT DEFAULT 'general_cn',
+          active_message_id TEXT,
+          created_at INTEGER NOT NULL,
+          updated_at INTEGER NOT NULL
+        );
+        CREATE TABLE ai_message (
+          id TEXT PRIMARY KEY,
+          conversation_id TEXT NOT NULL,
+          role TEXT NOT NULL,
+          content TEXT NOT NULL,
+          timestamp INTEGER NOT NULL,
+          data_keywords TEXT,
+          data_message_count INTEGER,
+          content_blocks TEXT,
+          token_usage TEXT,
+          debug_context TEXT,
+          parent_id TEXT,
+          sibling_group_id TEXT,
+          branch_index INTEGER DEFAULT 0
+        );
+      `)
+      db.prepare('INSERT INTO ai_conversation VALUES (?, ?, ?, ?, NULL, ?, ?)').run(
+        'conv-partial',
+        'session-1',
+        'Partial',
+        'general_cn',
+        1,
+        3
+      )
+      db.prepare('INSERT INTO ai_message VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)').run(
+        'pm1',
+        'conv-partial',
+        'user',
+        'first',
+        1
+      )
+      db.prepare('INSERT INTO ai_message VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL)').run(
+        'pm2',
+        'conv-partial',
+        'assistant',
+        'second',
+        2
+      )
+      db.close()
 
-      manager = createManager(dir)
-      const messages = manager.getMessages(conversation.id)
+      const manager = createManager(dir)
+      const messages = manager.getMessages('conv-partial')
       assert.deepEqual(
         messages.map((message) => message.content),
-        ['edited root', 'edited answer']
+        ['first', 'second']
       )
       assert.equal(messages[0]?.parentId, null)
-      assert.equal(manager.getConversation(conversation.id)?.activeMessageId, branch.assistantMessage.id)
+      assert.equal(messages[1]?.parentId, 'pm1')
+      assert.equal(manager.getConversation('conv-partial')?.activeMessageId, 'pm2')
+      manager.close()
+    } finally {
+      cleanup(dir)
+    }
+  })
+})
+
+describe('AIConversationManager message editing', () => {
+  it('updateMessageContent updates message text in place', () => {
+    const dir = createTempDir()
+    try {
+      const manager = createManager(dir)
+      const conv = manager.createConversation('s1', 'Test', 'general_cn')
+      const msg = manager.addMessage(conv.id, 'user', 'original text')
+      manager.addMessage(conv.id, 'assistant', 'reply')
+
+      manager.updateMessageContent(msg.id, 'edited text')
+
+      const messages = manager.getMessages(conv.id)
+      assert.equal(messages[0]?.content, 'edited text')
+      assert.equal(messages[1]?.content, 'reply')
       manager.close()
     } finally {
       cleanup(dir)
     }
   })
 
-  it('creates editable branches without losing the original path', () => {
+  it('updateMessageContent throws for non-existent message', () => {
     const dir = createTempDir()
     try {
       const manager = createManager(dir)
-      const conversation = manager.createConversation('session-1', 'Branch', 'general_cn')
-      const user1 = manager.addMessage(conversation.id, 'user', 'original question')
-      manager.addMessage(conversation.id, 'assistant', 'original answer', undefined, undefined, undefined, {
-        promptTokens: 1,
-        completionTokens: 2,
-        totalTokens: 3,
-      })
-      manager.addMessage(conversation.id, 'user', 'follow up')
-      const oldLeaf = manager.addMessage(
-        conversation.id,
-        'assistant',
-        'follow answer',
-        undefined,
-        undefined,
-        undefined,
-        {
-          promptTokens: 4,
-          completionTokens: 5,
-          totalTokens: 9,
-        }
-      )
-
-      const branch = manager.createMessageBranch('' + user1.id, 'edited question', 'edited answer', undefined, {
-        promptTokens: 10,
-        completionTokens: 11,
-        totalTokens: 21,
-      })
-
-      assert.deepEqual(
-        manager.getMessages(conversation.id).map((message) => message.content),
-        ['edited question', 'edited answer']
-      )
-      assert.equal(branch.userMessage.branch?.total, 2)
-      assert.equal(manager.getHistoryForAgent(conversation.id, undefined, branch.userMessage.parentId).length, 0)
-      assert.deepEqual(manager.getConversationTokenUsage(conversation.id), {
-        promptTokens: 10,
-        completionTokens: 11,
-        totalTokens: 21,
-      })
-
-      manager.switchMessageBranch(conversation.id, user1.id)
-      assert.deepEqual(
-        manager.getMessages(conversation.id).map((message) => message.content),
-        ['original question', 'original answer', 'follow up', 'follow answer']
-      )
-      assert.equal(manager.getConversation(conversation.id)?.activeMessageId, oldLeaf.id)
-      assert.deepEqual(manager.getConversationTokenUsage(conversation.id), {
-        promptTokens: 5,
-        completionTokens: 7,
-        totalTokens: 12,
-      })
+      assert.throws(() => manager.updateMessageContent('non-existent', 'text'), /Message not found/)
       manager.close()
     } finally {
       cleanup(dir)
     }
   })
 
-  it('keeps summaries on inactive branches when adding a new summary', () => {
+  it('deleteAndRelinkMessage removes a message and rewires children', () => {
     const dir = createTempDir()
     try {
       const manager = createManager(dir)
-      const conversation = manager.createConversation('session-1', 'Summary branch', 'general_cn')
-      manager.addMessage(conversation.id, 'user', 'intro')
-      manager.addMessage(conversation.id, 'assistant', 'answer')
-      manager.addSummaryMessage(conversation.id, 'original summary', {
-        bufferBoundaryTimestamp: 2,
-        compressedMessageCount: 2,
-      })
-      const followUp = manager.addMessage(conversation.id, 'user', 'follow up')
-      manager.addMessage(conversation.id, 'assistant', 'follow answer')
+      const conv = manager.createConversation('s1', 'Test', 'general_cn')
+      const userMsg = manager.addMessage(conv.id, 'user', 'question')
+      const aiMsg = manager.addMessage(conv.id, 'assistant', 'answer')
+      const followUp = manager.addMessage(conv.id, 'user', 'follow up')
+      manager.addMessage(conv.id, 'assistant', 'follow answer')
 
-      manager.createMessageBranch(followUp.id, 'edited follow up', 'edited follow answer')
-      manager.addSummaryMessage(conversation.id, 'edited summary', {
-        bufferBoundaryTimestamp: 4,
-        compressedMessageCount: 2,
-      })
-      manager.switchMessageBranch(conversation.id, followUp.id)
+      manager.deleteAndRelinkMessage(conv.id, aiMsg.id)
 
+      const messages = manager.getMessages(conv.id)
+      assert.equal(messages.length, 3)
       assert.deepEqual(
-        manager.getMessages(conversation.id).map((message) => message.content),
-        ['intro', 'answer', 'original summary', 'follow up', 'follow answer']
+        messages.map((m) => m.content),
+        ['question', 'follow up', 'follow answer']
       )
+      // follow up's parent should now be userMsg (was aiMsg)
+      assert.equal(messages[1]?.parentId, userMsg.id)
+      assert.equal(messages[2]?.parentId, followUp.id)
+      manager.close()
+    } finally {
+      cleanup(dir)
+    }
+  })
+
+  it('deleteAndRelinkMessage updates activeMessageId when removing the active leaf', () => {
+    const dir = createTempDir()
+    try {
+      const manager = createManager(dir)
+      const conv = manager.createConversation('s1', 'Test', 'general_cn')
+      const userMsg = manager.addMessage(conv.id, 'user', 'question')
+      const aiMsg = manager.addMessage(conv.id, 'assistant', 'answer')
+      assert.equal(manager.getConversation(conv.id)?.activeMessageId, aiMsg.id)
+
+      manager.deleteAndRelinkMessage(conv.id, aiMsg.id)
+
+      assert.equal(manager.getConversation(conv.id)?.activeMessageId, userMsg.id)
+      const messages = manager.getMessages(conv.id)
+      assert.equal(messages.length, 1)
+      assert.equal(messages[0]?.content, 'question')
+      manager.close()
+    } finally {
+      cleanup(dir)
+    }
+  })
+
+  it('insertMessageAfter inserts a message in the middle of a chain', () => {
+    const dir = createTempDir()
+    try {
+      const manager = createManager(dir)
+      const conv = manager.createConversation('s1', 'Test', 'general_cn')
+      const userMsg = manager.addMessage(conv.id, 'user', 'question')
+      const followUp = manager.addMessage(conv.id, 'user', 'follow up')
+      manager.addMessage(conv.id, 'assistant', 'follow answer')
+
+      const inserted = manager.insertMessageAfter(conv.id, userMsg.id, 'assistant', 'inserted answer')
+
+      const messages = manager.getMessages(conv.id)
+      assert.equal(messages.length, 4)
+      assert.deepEqual(
+        messages.map((m) => m.content),
+        ['question', 'inserted answer', 'follow up', 'follow answer']
+      )
+      assert.equal(inserted.parentId, userMsg.id)
+      // followUp's parent should be updated to the inserted message
+      assert.equal(messages[2]?.parentId, inserted.id)
+      manager.close()
+    } finally {
+      cleanup(dir)
+    }
+  })
+
+  it('insertMessageAfter appends to the end when no child exists', () => {
+    const dir = createTempDir()
+    try {
+      const manager = createManager(dir)
+      const conv = manager.createConversation('s1', 'Test', 'general_cn')
+      const userMsg = manager.addMessage(conv.id, 'user', 'question')
+
+      const inserted = manager.insertMessageAfter(conv.id, userMsg.id, 'assistant', 'new answer')
+
+      const messages = manager.getMessages(conv.id)
+      assert.equal(messages.length, 2)
+      assert.deepEqual(
+        messages.map((m) => m.content),
+        ['question', 'new answer']
+      )
+      assert.equal(inserted.parentId, userMsg.id)
+      manager.close()
+    } finally {
+      cleanup(dir)
+    }
+  })
+})
+
+describe('AIConversationManager deleteMessagesFrom', () => {
+  it('deletes the target message and all subsequent messages', () => {
+    const dir = createTempDir()
+    try {
+      const manager = createManager(dir)
+      const conv = manager.createConversation('s1', 'Test', 'general_cn')
+      const user1 = manager.addMessage(conv.id, 'user', 'q1')
+      manager.addMessage(conv.id, 'assistant', 'a1')
+      manager.addMessage(conv.id, 'user', 'q2')
+      manager.addMessage(conv.id, 'assistant', 'a2')
+
+      manager.deleteMessagesFrom(conv.id, user1.id)
+
+      const messages = manager.getMessages(conv.id)
+      assert.equal(messages.length, 0)
+      assert.equal(manager.getConversation(conv.id)?.activeMessageId, null)
+      manager.close()
+    } finally {
+      cleanup(dir)
+    }
+  })
+
+  it('deletes from a mid-chain message, preserving earlier ones', () => {
+    const dir = createTempDir()
+    try {
+      const manager = createManager(dir)
+      const conv = manager.createConversation('s1', 'Test', 'general_cn')
+      const user1 = manager.addMessage(conv.id, 'user', 'q1')
+      const ai1 = manager.addMessage(conv.id, 'assistant', 'a1')
+      manager.addMessage(conv.id, 'user', 'q2')
+      manager.addMessage(conv.id, 'assistant', 'a2')
+
+      manager.deleteMessagesFrom(conv.id, ai1.id)
+
+      const messages = manager.getMessages(conv.id)
+      assert.equal(messages.length, 1)
+      assert.equal(messages[0]?.content, 'q1')
+      assert.equal(manager.getConversation(conv.id)?.activeMessageId, user1.id)
+      manager.close()
+    } finally {
+      cleanup(dir)
+    }
+  })
+})
+
+describe('AIConversationManager forkConversation', () => {
+  it('creates a new conversation with copied messages up to the specified point', () => {
+    const dir = createTempDir()
+    try {
+      const manager = createManager(dir)
+      const conv = manager.createConversation('s1', 'Original', 'general_cn')
+      manager.addMessage(conv.id, 'user', 'q1')
+      manager.addMessage(conv.id, 'assistant', 'a1')
+      const q2 = manager.addMessage(conv.id, 'user', 'q2')
+      manager.addMessage(conv.id, 'assistant', 'a2')
+
+      const forked = manager.forkConversation(conv.id, q2.id, 'Forked')
+
+      assert.notEqual(forked.id, conv.id)
+      assert.equal(forked.title, 'Forked')
+      assert.equal(forked.sessionId, 's1')
+
+      const forkedMessages = manager.getMessages(forked.id)
+      assert.equal(forkedMessages.length, 2)
+      assert.deepEqual(
+        forkedMessages.map((m) => m.content),
+        ['q1', 'a1']
+      )
+
+      // Original conversation should be untouched
+      const originalMessages = manager.getMessages(conv.id)
+      assert.equal(originalMessages.length, 4)
+      manager.close()
+    } finally {
+      cleanup(dir)
+    }
+  })
+
+  it('uses default fork title when none provided', () => {
+    const dir = createTempDir()
+    try {
+      const manager = createManager(dir)
+      const conv = manager.createConversation('s1', 'MyChat', 'general_cn')
+      manager.addMessage(conv.id, 'user', 'q1')
+      const a1 = manager.addMessage(conv.id, 'assistant', 'a1')
+
+      const forked = manager.forkConversation(conv.id, a1.id)
+
+      assert.equal(forked.title, 'MyChat (fork)')
+      const forkedMessages = manager.getMessages(forked.id)
+      assert.equal(forkedMessages.length, 1)
+      assert.equal(forkedMessages[0]?.content, 'q1')
       manager.close()
     } finally {
       cleanup(dir)

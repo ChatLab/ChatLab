@@ -23,7 +23,7 @@ export type ContentBlock =
       }
     }
   | { type: 'skill'; skillId: string; skillName: string }
-  | { type: 'error'; error: { name: string | null; message: string; stack?: string | null } }
+  | { type: 'error'; error: { name: string | null; message: string; stack: string | null } }
   | { type: 'summary_meta'; bufferBoundaryTimestamp: number; compressedMessageCount: number }
 
 export type AIMessageRole = 'user' | 'assistant' | 'summary'
@@ -41,23 +41,10 @@ export interface AIMessage {
   content: string
   timestamp: number
   parentId?: string | null
-  siblingGroupId?: string
-  branchIndex?: number
-  branch?: {
-    index: number
-    total: number
-    prevMessageId: string | null
-    nextMessageId: string | null
-  }
   dataKeywords?: string[]
   dataMessageCount?: number
   contentBlocks?: ContentBlock[]
   tokenUsage?: TokenUsageData
-}
-
-export interface MessageBranchResult {
-  userMessage: AIMessage
-  assistantMessage: AIMessage
 }
 
 export interface DesensitizeRule {
@@ -180,14 +167,18 @@ export interface AIAdapter {
     contentBlocks?: ContentBlock[],
     tokenUsage?: TokenUsageData
   ): Promise<AIMessage>
-  createMessageBranch(
-    originalUserMessageId: string,
-    newUserContent: string,
-    assistantContent: string,
+  deleteMessagesFrom(conversationId: string, messageId: string): Promise<void>
+  forkConversation(sourceConversationId: string, upToMessageId: string, title?: string): Promise<AIConversation>
+  updateMessageContent(messageId: string, newContent: string): Promise<void>
+  deleteAndRelinkMessage(conversationId: string, messageId: string): Promise<void>
+  insertMessageAfter(
+    conversationId: string,
+    afterMessageId: string,
+    role: AIMessageRole,
+    content: string,
     contentBlocks?: ContentBlock[],
     tokenUsage?: TokenUsageData
-  ): Promise<MessageBranchResult>
-  switchMessageBranch(conversationId: string, messageId: string): Promise<AIMessage[]>
+  ): Promise<AIMessage>
   getConversationTokenUsage(conversationId: string): Promise<TokenUsageData>
   estimateContextTokens(
     conversationId: string

@@ -79,7 +79,7 @@ export {
 } from './nlp'
 
 // AI 助手/技能解析器 + 对话管理
-export type { AssistantConfig, AssistantSummary, SkillDef, SkillSummary, MessageBranchResult } from './ai'
+export type { AssistantConfig, AssistantSummary, SkillDef, SkillSummary } from './ai'
 export { parseAssistantFile, serializeAssistant, parseSkillFile, extractSkillId } from './ai'
 export { AIConversationManager } from './ai'
 export { countTokens, countMessagesTokens } from './ai'

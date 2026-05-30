@@ -9,14 +9,7 @@ import { AIConversationManager } from '@openchatlab/node-runtime'
 import { getPathProvider } from '../path-context'
 import { aiLogger } from './logger'
 
-export type {
-  AIConversation,
-  AIMessage,
-  AIMessageRole,
-  ContentBlock,
-  TokenUsageData,
-  MessageBranchResult,
-} from '@openchatlab/node-runtime'
+export type { AIConversation, AIMessage, AIMessageRole, ContentBlock, TokenUsageData } from '@openchatlab/node-runtime'
 
 let manager: AIConversationManager | null = null
 
@@ -100,24 +93,31 @@ export function deleteMessage(messageId: string) {
   return getManager().deleteMessage(messageId)
 }
 
-export function createMessageBranch(
-  originalUserMessageId: string,
-  newUserContent: string,
-  assistantContent: string,
+export function deleteMessagesFrom(conversationId: string, messageId: string) {
+  return getManager().deleteMessagesFrom(conversationId, messageId)
+}
+
+export function forkConversation(sourceConversationId: string, upToMessageId: string, title?: string) {
+  return getManager().forkConversation(sourceConversationId, upToMessageId, title)
+}
+
+export function updateMessageContent(messageId: string, newContent: string) {
+  return getManager().updateMessageContent(messageId, newContent)
+}
+
+export function deleteAndRelinkMessage(conversationId: string, messageId: string) {
+  return getManager().deleteAndRelinkMessage(conversationId, messageId)
+}
+
+export function insertMessageAfter(
+  conversationId: string,
+  afterMessageId: string,
+  role: import('@openchatlab/node-runtime').AIMessageRole,
+  content: string,
   contentBlocks?: import('@openchatlab/node-runtime').ContentBlock[],
   tokenUsage?: import('@openchatlab/node-runtime').TokenUsageData
 ) {
-  return getManager().createMessageBranch(
-    originalUserMessageId,
-    newUserContent,
-    assistantContent,
-    contentBlocks,
-    tokenUsage
-  )
-}
-
-export function switchMessageBranch(conversationId: string, messageId: string) {
-  return getManager().switchMessageBranch(conversationId, messageId)
+  return getManager().insertMessageAfter(conversationId, afterMessageId, role, content, contentBlocks, tokenUsage)
 }
 
 export function setPendingDebugContext(conversationId: string, debugContext: string) {

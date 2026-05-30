@@ -55,7 +55,8 @@
       },
       "edit": {
         "tooltip": "編輯並重新生成",
-        "submit": "送出"
+        "submit": "送出",
+        "overwriteSubsequent": "覆蓋後續所有對話"
       },
       "tools": {
         "get_chat_overview": "取得聊天概覽",

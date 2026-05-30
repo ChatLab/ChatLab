@@ -23,18 +23,10 @@ const props = defineProps<{
   /** 是否显示截屏按钮（仅 AI 回复） */
   showCaptureButton?: boolean
   editable?: boolean
-  branch?: {
-    index: number
-    total: number
-    prevMessageId: string | null
-    nextMessageId: string | null
-  }
 }>()
 
 const emit = defineEmits<{
-  edit: [payload: { messageId: string; content: string }]
-  branchPrev: [messageId: string | null]
-  branchNext: [messageId: string | null]
+  edit: [payload: { messageId: string; content: string; overwriteSubsequent?: boolean }]
 }>()
 
 // 格式化时间
@@ -49,7 +41,7 @@ const isEditing = ref(false)
 const editContent = ref(props.content)
 const editTextareaRef = ref<HTMLTextAreaElement | null>(null)
 const canEdit = computed(() => isUser.value && props.editable && !props.isStreaming && !!props.messageId)
-const hasBranchSwitcher = computed(() => isUser.value && !!props.branch && props.branch.total > 1)
+const overwriteSubsequent = ref(false)
 
 // 创建 markdown-it 实例
 const md = new MarkdownIt({
@@ -103,17 +95,29 @@ watch(
   }
 )
 
+function syncEditTextareaHeight() {
+  const el = editTextareaRef.value
+  if (!el) return
+  el.style.height = 'auto'
+  const maxHeight = 384
+  const nextHeight = Math.min(el.scrollHeight, maxHeight)
+  el.style.height = `${nextHeight}px`
+  el.style.overflowY = el.scrollHeight > maxHeight ? 'auto' : 'hidden'
+}
+
 async function startEditing() {
   if (!canEdit.value) return
   editContent.value = props.content
   isEditing.value = true
   await nextTick()
+  syncEditTextareaHeight()
   editTextareaRef.value?.focus()
 }
 
 function cancelEditing() {
   isEditing.value = false
   editContent.value = props.content
+  overwriteSubsequent.value = false
 }
 
 function submitEditing() {
@@ -124,7 +128,8 @@ function submitEditing() {
     return
   }
   isEditing.value = false
-  emit('edit', { messageId: props.messageId, content })
+  emit('edit', { messageId: props.messageId, content, overwriteSubsequent: overwriteSubsequent.value })
+  overwriteSubsequent.value = false
 }
 
 // 过滤无内容的文本/思考块，避免显示空气泡
@@ -352,9 +357,12 @@ async function handleCopyMarkdown() {
 </script>
 
 <template>
-  <div class="flex items-start gap-3" :class="[isUser ? 'flex-row-reverse' : '', isSummary ? 'justify-center' : '']">
+  <div
+    class="flex items-start gap-3"
+    :class="[isUser && !isEditing ? 'flex-row-reverse' : '', isSummary ? 'justify-center' : '']"
+  >
     <!-- 消息内容 -->
-    <div :class="[isSummary ? 'w-full min-w-0' : 'max-w-[85%] min-w-0']">
+    <div :class="[isSummary || isEditing ? 'w-full min-w-0' : 'max-w-[85%] min-w-0']">
       <!-- System 消息：可折叠的上下文总结 -->
       <template v-if="isSummary">
         <details
@@ -383,23 +391,35 @@ async function handleCopyMarkdown() {
       <template v-else-if="isUser">
         <div
           v-if="isEditing"
-          class="rounded-2xl bg-primary-50 p-3 text-gray-900 dark:bg-primary-500/50 dark:text-gray-100"
+          class="rounded-2xl bg-primary-50 p-4 text-gray-900 dark:bg-primary-500/50 dark:text-gray-100"
         >
           <textarea
             ref="editTextareaRef"
             v-model="editContent"
-            class="max-h-64 min-h-28 w-full resize-y rounded-xl border border-primary-200 bg-white/90 px-3 py-2 text-sm leading-relaxed outline-none focus:border-primary-400 dark:border-primary-400/40 dark:bg-gray-900/70"
+            rows="2"
+            class="w-full resize-none rounded-xl border border-primary-200 bg-white/90 px-4 py-3 text-sm leading-relaxed outline-none focus:border-primary-400 dark:border-primary-400/40 dark:bg-gray-900/70"
+            @input="syncEditTextareaHeight"
             @keydown.esc.prevent="cancelEditing"
             @keydown.ctrl.enter.prevent="submitEditing"
             @keydown.meta.enter.prevent="submitEditing"
           />
-          <div class="mt-2 flex justify-end gap-2">
-            <UButton size="xs" variant="ghost" color="gray" @click="cancelEditing">
-              {{ t('common.cancel') }}
-            </UButton>
-            <UButton size="xs" color="primary" @click="submitEditing">
-              {{ t('ai.chat.message.edit.submit') }}
-            </UButton>
+          <div class="mt-2 flex items-center justify-between">
+            <label class="flex cursor-pointer items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+              <input
+                v-model="overwriteSubsequent"
+                type="checkbox"
+                class="h-3.5 w-3.5 rounded border-gray-300 text-primary-500 focus:ring-primary-500 dark:border-gray-600"
+              />
+              {{ t('ai.chat.message.edit.overwriteSubsequent') }}
+            </label>
+            <div class="flex gap-2">
+              <UButton size="xs" variant="ghost" color="gray" @click="cancelEditing">
+                {{ t('common.cancel') }}
+              </UButton>
+              <UButton size="xs" color="primary" @click="submitEditing">
+                {{ t('ai.chat.message.edit.submit') }}
+              </UButton>
+            </div>
           </div>
         </div>
         <div v-else class="rounded-3xl bg-primary-50 px-5 py-3 text-gray-900 dark:bg-primary-500/50 dark:text-gray-100">
@@ -554,28 +574,6 @@ async function handleCopyMarkdown() {
         <UTooltip v-if="canEdit" :text="t('ai.chat.message.edit.tooltip')" class="no-capture">
           <UButton icon="i-heroicons-pencil-square" variant="ghost" color="primary" size="xs" @click="startEditing" />
         </UTooltip>
-        <div
-          v-if="hasBranchSwitcher"
-          class="no-capture flex items-center gap-1 rounded-full bg-gray-100 px-1 py-0.5 text-[11px] text-gray-500 dark:bg-gray-800 dark:text-gray-400"
-        >
-          <UButton
-            icon="i-heroicons-chevron-left"
-            variant="ghost"
-            color="gray"
-            size="xs"
-            :disabled="!branch?.prevMessageId"
-            @click="emit('branchPrev', branch?.prevMessageId ?? null)"
-          />
-          <span class="min-w-8 text-center">{{ (branch?.index ?? 0) + 1 }} / {{ branch?.total ?? 1 }}</span>
-          <UButton
-            icon="i-heroicons-chevron-right"
-            variant="ghost"
-            color="gray"
-            size="xs"
-            :disabled="!branch?.nextMessageId"
-            @click="emit('branchNext', branch?.nextMessageId ?? null)"
-          />
-        </div>
         <!-- 截屏按钮（仅 AI 回复显示） -->
         <CaptureButton
           v-if="showCaptureButton && !isUser && !isStreaming"

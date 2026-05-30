@@ -284,39 +284,71 @@ export function registerAIHandlers({ win }: IpcContext): void {
     }
   })
 
+  ipcMain.handle('ai:deleteMessagesFrom', async (_, conversationId: string, messageId: string) => {
+    try {
+      return aiConversations.deleteMessagesFrom(conversationId, messageId)
+    } catch (error) {
+      console.error('Failed to delete messages:', error)
+      throw error
+    }
+  })
+
   ipcMain.handle(
-    'ai:createMessageBranch',
-    async (
-      _,
-      originalUserMessageId: string,
-      newUserContent: string,
-      assistantContent: string,
-      contentBlocks?: aiConversations.ContentBlock[],
-      tokenUsage?: aiConversations.TokenUsageData
-    ) => {
+    'ai:forkConversation',
+    async (_, sourceConversationId: string, upToMessageId: string, title?: string) => {
       try {
-        return aiConversations.createMessageBranch(
-          originalUserMessageId,
-          newUserContent,
-          assistantContent,
-          contentBlocks,
-          tokenUsage
-        )
+        return aiConversations.forkConversation(sourceConversationId, upToMessageId, title)
       } catch (error) {
-        console.error('Failed to create AI message branch:', error)
+        console.error('Failed to fork conversation:', error)
         throw error
       }
     }
   )
 
-  ipcMain.handle('ai:switchMessageBranch', async (_, conversationId: string, messageId: string) => {
+  ipcMain.handle('ai:updateMessageContent', async (_, messageId: string, newContent: string) => {
     try {
-      return aiConversations.switchMessageBranch(conversationId, messageId)
+      return aiConversations.updateMessageContent(messageId, newContent)
     } catch (error) {
-      console.error('Failed to switch AI message branch:', error)
+      console.error('Failed to update message content:', error)
       throw error
     }
   })
+
+  ipcMain.handle('ai:deleteAndRelinkMessage', async (_, conversationId: string, messageId: string) => {
+    try {
+      return aiConversations.deleteAndRelinkMessage(conversationId, messageId)
+    } catch (error) {
+      console.error('Failed to delete and relink message:', error)
+      throw error
+    }
+  })
+
+  ipcMain.handle(
+    'ai:insertMessageAfter',
+    async (
+      _,
+      conversationId: string,
+      afterMessageId: string,
+      role: aiConversations.AIMessageRole,
+      content: string,
+      contentBlocks?: aiConversations.ContentBlock[],
+      tokenUsage?: aiConversations.TokenUsageData
+    ) => {
+      try {
+        return aiConversations.insertMessageAfter(
+          conversationId,
+          afterMessageId,
+          role,
+          content,
+          contentBlocks,
+          tokenUsage
+        )
+      } catch (error) {
+        console.error('Failed to insert message after:', error)
+        throw error
+      }
+    }
+  )
 
   // ==================== 脱敏规则 ====================
 
@@ -993,7 +1025,7 @@ export function registerAIHandlers({ win }: IpcContext): void {
         const piModel = buildPiModel(activeAIConfig)
 
         // 上下文压缩前置步骤（在 Agent 创建之前执行）
-        if (compressionConfig?.enabled && context.conversationId) {
+        if (compressionConfig?.enabled && context.conversationId && context.historyLeafMessageId === undefined) {
           try {
             // 获取助手 systemPrompt 用于 token 计算
             const tempAssistantConfig = assistantId
@@ -1046,6 +1078,11 @@ export function registerAIHandlers({ win }: IpcContext): void {
               error: String(error),
             })
           }
+        } else if (compressionConfig?.enabled && context.historyLeafMessageId !== undefined) {
+          aiLogger.info('IPC', `Skipping compression for edited branch request: ${requestId}`, {
+            conversationId: context.conversationId,
+            historyLeafMessageId: context.historyLeafMessageId,
+          })
         }
 
         const pp = context.preprocessConfig

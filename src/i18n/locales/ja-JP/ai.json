@@ -55,7 +55,8 @@
       },
       "edit": {
         "tooltip": "編集して再生成",
-        "submit": "送信"
+        "submit": "送信",
+        "overwriteSubsequent": "以降のすべての会話を上書き"
       },
       "tools": {
         "get_chat_overview": "チャット概要を取得",

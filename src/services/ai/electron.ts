@@ -5,7 +5,6 @@ import type {
   AIMessageRole,
   ContentBlock,
   TokenUsageData,
-  MessageBranchResult,
   FilterResultWithPagination,
   ExportFilterParams,
   ExportProgress,
@@ -64,24 +63,38 @@ export class ElectronAIAdapter implements AIAdapter {
     ) as Promise<AIMessage>
   }
 
-  async createMessageBranch(
-    originalUserMessageId: string,
-    newUserContent: string,
-    assistantContent: string,
-    contentBlocks?: ContentBlock[],
-    tokenUsage?: TokenUsageData
-  ): Promise<MessageBranchResult> {
-    return window.aiApi.createMessageBranch(
-      originalUserMessageId,
-      newUserContent,
-      assistantContent,
-      contentBlocks as any,
-      tokenUsage
-    ) as Promise<MessageBranchResult>
+  async deleteMessagesFrom(conversationId: string, messageId: string): Promise<void> {
+    return window.aiApi.deleteMessagesFrom(conversationId, messageId)
   }
 
-  async switchMessageBranch(conversationId: string, messageId: string): Promise<AIMessage[]> {
-    return window.aiApi.switchMessageBranch(conversationId, messageId) as Promise<AIMessage[]>
+  async forkConversation(sourceConversationId: string, upToMessageId: string, title?: string): Promise<AIConversation> {
+    return window.aiApi.forkConversation(sourceConversationId, upToMessageId, title) as Promise<AIConversation>
+  }
+
+  async updateMessageContent(messageId: string, newContent: string): Promise<void> {
+    return window.aiApi.updateMessageContent(messageId, newContent)
+  }
+
+  async deleteAndRelinkMessage(conversationId: string, messageId: string): Promise<void> {
+    return window.aiApi.deleteAndRelinkMessage(conversationId, messageId)
+  }
+
+  async insertMessageAfter(
+    conversationId: string,
+    afterMessageId: string,
+    role: AIMessageRole,
+    content: string,
+    contentBlocks?: ContentBlock[],
+    tokenUsage?: TokenUsageData
+  ): Promise<AIMessage> {
+    return window.aiApi.insertMessageAfter(
+      conversationId,
+      afterMessageId,
+      role,
+      content,
+      contentBlocks as any,
+      tokenUsage
+    ) as Promise<AIMessage>
   }
 
   async getConversationTokenUsage(conversationId: string): Promise<TokenUsageData> {

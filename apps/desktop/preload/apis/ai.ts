@@ -64,23 +64,10 @@ export interface AIMessage {
   content: string
   timestamp: number
   parentId?: string | null
-  siblingGroupId?: string
-  branchIndex?: number
-  branch?: {
-    index: number
-    total: number
-    prevMessageId: string | null
-    nextMessageId: string | null
-  }
   dataKeywords?: string[]
   dataMessageCount?: number
   contentBlocks?: ContentBlock[]
   tokenUsage?: TokenUsageData
-}
-
-export interface MessageBranchResult {
-  userMessage: AIMessage
-  assistantMessage: AIMessage
 }
 
 // LLM API 类型
@@ -515,25 +502,39 @@ export const aiApi = {
     )
   },
 
-  createMessageBranch: (
-    originalUserMessageId: string,
-    newUserContent: string,
-    assistantContent: string,
+  deleteMessagesFrom: (conversationId: string, messageId: string): Promise<void> => {
+    return ipcRenderer.invoke('ai:deleteMessagesFrom', conversationId, messageId)
+  },
+
+  forkConversation: (sourceConversationId: string, upToMessageId: string, title?: string): Promise<AIConversation> => {
+    return ipcRenderer.invoke('ai:forkConversation', sourceConversationId, upToMessageId, title)
+  },
+
+  updateMessageContent: (messageId: string, newContent: string): Promise<void> => {
+    return ipcRenderer.invoke('ai:updateMessageContent', messageId, newContent)
+  },
+
+  deleteAndRelinkMessage: (conversationId: string, messageId: string): Promise<void> => {
+    return ipcRenderer.invoke('ai:deleteAndRelinkMessage', conversationId, messageId)
+  },
+
+  insertMessageAfter: (
+    conversationId: string,
+    afterMessageId: string,
+    role: AIMessageRole,
+    content: string,
     contentBlocks?: ContentBlock[],
     tokenUsage?: TokenUsageData
-  ): Promise<MessageBranchResult> => {
+  ): Promise<AIMessage> => {
     return ipcRenderer.invoke(
-      'ai:createMessageBranch',
-      originalUserMessageId,
-      newUserContent,
-      assistantContent,
+      'ai:insertMessageAfter',
+      conversationId,
+      afterMessageId,
+      role,
+      content,
       contentBlocks,
       tokenUsage
     )
-  },
-
-  switchMessageBranch: (conversationId: string, messageId: string): Promise<AIMessage[]> => {
-    return ipcRenderer.invoke('ai:switchMessageBranch', conversationId, messageId)
   },
 
   /**

@@ -102,7 +102,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
     systemPrompt,
   })
 
-  if (compressionConfig?.enabled) {
+  if (compressionConfig?.enabled && historyLeafMessageId === undefined) {
     const llmAdapter = createCompressionLlmAdapter({
       piModel,
       apiKey: llmConfig.apiKey,
@@ -127,6 +127,11 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
         },
       })
     }
+  } else if (compressionConfig?.enabled && historyLeafMessageId !== undefined) {
+    aiLogger?.info?.('Compression', 'Skipping compression for edited branch request', {
+      conversationId,
+      historyLeafMessageId,
+    })
   }
 
   if (abortSignal?.aborted) {

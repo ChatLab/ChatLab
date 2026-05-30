@@ -55,7 +55,8 @@
       },
       "edit": {
         "tooltip": "Edit and regenerate",
-        "submit": "Send"
+        "submit": "Send",
+        "overwriteSubsequent": "Overwrite all subsequent messages"
       },
       "tools": {
         "get_chat_overview": "Get Chat Overview",

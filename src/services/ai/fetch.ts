@@ -12,7 +12,6 @@ import type {
   AIMessageRole,
   ContentBlock,
   TokenUsageData,
-  MessageBranchResult,
   FilterResultWithPagination,
   ExportFilterParams,
   ExportProgress,
@@ -77,23 +76,37 @@ export class FetchAIAdapter implements AIAdapter {
     })
   }
 
-  async createMessageBranch(
-    originalUserMessageId: string,
-    newUserContent: string,
-    assistantContent: string,
+  async deleteMessagesFrom(conversationId: string, messageId: string): Promise<void> {
+    return post<void>(`/ai/conversations/${conversationId}/messages/${messageId}/delete-from`, {})
+  }
+
+  async forkConversation(sourceConversationId: string, upToMessageId: string, title?: string): Promise<AIConversation> {
+    return post<AIConversation>(`/ai/conversations/${sourceConversationId}/fork`, { upToMessageId, title })
+  }
+
+  async updateMessageContent(messageId: string, newContent: string): Promise<void> {
+    await put<unknown>(`/ai/messages/${messageId}/content`, { content: newContent })
+  }
+
+  async deleteAndRelinkMessage(conversationId: string, messageId: string): Promise<void> {
+    await post<unknown>(`/ai/conversations/${conversationId}/messages/${messageId}/delete-relink`, {})
+  }
+
+  async insertMessageAfter(
+    conversationId: string,
+    afterMessageId: string,
+    role: AIMessageRole,
+    content: string,
     contentBlocks?: ContentBlock[],
     tokenUsage?: TokenUsageData
-  ): Promise<MessageBranchResult> {
-    return post<MessageBranchResult>(`/ai/messages/${originalUserMessageId}/branches`, {
-      content: newUserContent,
-      assistantContent,
+  ): Promise<AIMessage> {
+    return post<AIMessage>(`/ai/conversations/${conversationId}/messages/insert-after`, {
+      afterMessageId,
+      role,
+      content,
       contentBlocks,
       tokenUsage,
     })
-  }
-
-  async switchMessageBranch(conversationId: string, messageId: string): Promise<AIMessage[]> {
-    return post<AIMessage[]>(`/ai/conversations/${conversationId}/branches/switch`, { messageId })
   }
 
   async getConversationTokenUsage(conversationId: string): Promise<TokenUsageData> {

@@ -522,28 +522,72 @@ export function registerAiRoutes(
   })
 
   server.post<{
-    Params: { id: string }
-    Body: {
-      content: string
-      assistantContent: string
-      contentBlocks?: unknown[]
-      tokenUsage?: { promptTokens: number; completionTokens: number; totalTokens: number }
+    Params: { id: string; messageId: string }
+  }>('/_web/ai/conversations/:id/messages/:messageId/delete-from', async (request, reply) => {
+    const { id, messageId } = request.params
+    if (!id || typeof id !== 'string' || !messageId || typeof messageId !== 'string') {
+      return reply.code(400).send({ error: 'conversation id and messageId are required' })
     }
-  }>('/_web/ai/messages/:id/branches', async (request) => {
-    return convManager.createMessageBranch(
-      request.params.id,
-      request.body.content,
-      request.body.assistantContent,
-      request.body.contentBlocks as any,
-      request.body.tokenUsage
-    )
+    convManager.deleteMessagesFrom(id, messageId)
+    return { success: true }
   })
 
   server.post<{
     Params: { id: string }
-    Body: { messageId: string }
-  }>('/_web/ai/conversations/:id/branches/switch', async (request) => {
-    return convManager.switchMessageBranch(request.params.id, request.body.messageId)
+    Body: { upToMessageId: string; title?: string }
+  }>('/_web/ai/conversations/:id/fork', async (request, reply) => {
+    const { upToMessageId, title } = request.body
+    if (!upToMessageId || typeof upToMessageId !== 'string') {
+      return reply.code(400).send({ error: 'upToMessageId is required' })
+    }
+    return convManager.forkConversation(request.params.id, upToMessageId, title)
+  })
+
+  server.put<{
+    Params: { messageId: string }
+    Body: { content: string }
+  }>('/_web/ai/messages/:messageId/content', async (request, reply) => {
+    const { content } = request.body
+    if (!content || typeof content !== 'string') {
+      return reply.code(400).send({ error: 'content is required' })
+    }
+    convManager.updateMessageContent(request.params.messageId, content)
+    return { success: true }
+  })
+
+  server.post<{
+    Params: { id: string; messageId: string }
+  }>('/_web/ai/conversations/:id/messages/:messageId/delete-relink', async (request, reply) => {
+    const { id, messageId } = request.params
+    if (!id || !messageId) {
+      return reply.code(400).send({ error: 'conversation id and messageId are required' })
+    }
+    convManager.deleteAndRelinkMessage(id, messageId)
+    return { success: true }
+  })
+
+  server.post<{
+    Params: { id: string }
+    Body: {
+      afterMessageId: string
+      role: 'user' | 'assistant' | 'summary'
+      content: string
+      contentBlocks?: unknown[]
+      tokenUsage?: { promptTokens: number; completionTokens: number; totalTokens: number }
+    }
+  }>('/_web/ai/conversations/:id/messages/insert-after', async (request, reply) => {
+    const { afterMessageId, role, content, contentBlocks, tokenUsage } = request.body
+    if (!afterMessageId || typeof afterMessageId !== 'string') {
+      return reply.code(400).send({ error: 'afterMessageId is required' })
+    }
+    return convManager.insertMessageAfter(
+      request.params.id,
+      afterMessageId,
+      role,
+      content,
+      contentBlocks as any,
+      tokenUsage
+    )
   })
 
   server.get<{ Params: { id: string } }>('/_web/ai/conversations/:id/token-usage', async (request) => {

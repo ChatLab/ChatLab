@@ -65,14 +65,6 @@ export interface ChatMessage {
   content: string
   timestamp: number
   parentId?: string | null
-  siblingGroupId?: string
-  branchIndex?: number
-  branch?: {
-    index: number
-    total: number
-    prevMessageId: string | null
-    nextMessageId: string | null
-  }
   dataSource?: {
     toolsUsed: string[]
     toolRounds: number
@@ -201,9 +193,6 @@ function toRuntimeMessage(msg: PersistedAIMessage): ChatMessage {
     content: msg.content,
     timestamp: msg.timestamp * 1000,
     parentId: msg.parentId,
-    siblingGroupId: msg.siblingGroupId,
-    branchIndex: msg.branchIndex,
-    branch: msg.branch,
     contentBlocks: msg.contentBlocks as ContentBlock[] | undefined,
   }
 }
@@ -576,6 +565,87 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     // Agent 模式下由工具自行控制
   }
 
+  interface StreamBlockHelpers {
+    updateAIMessage: (updates: Partial<ChatMessage>) => void
+    appendTextToBlocks: (text: string) => void
+    appendThinkToBlocks: (text: string, tag?: string, durationMs?: number) => void
+    addToolBlock: (toolName: string, params?: Record<string, unknown>) => void
+    updateToolBlockStatus: (toolName: string, status: 'done' | 'error') => void
+  }
+
+  function createStreamBlockHelpers(
+    targetBuffer: ConversationBuffer,
+    getAiMessageIndex: () => number
+  ): StreamBlockHelpers {
+    const updateAIMessage = (updates: Partial<ChatMessage>) => {
+      const idx = getAiMessageIndex()
+      targetBuffer.messages[idx] = { ...targetBuffer.messages[idx], ...updates }
+    }
+
+    const appendTextToBlocks = (text: string) => {
+      if (!text) return
+      const idx = getAiMessageIndex()
+      const blocks = targetBuffer.messages[idx].contentBlocks || []
+      const lastBlock = blocks[blocks.length - 1]
+      if (text.trim().length === 0 && (!lastBlock || lastBlock.type !== 'text')) return
+      if (lastBlock && lastBlock.type === 'text') {
+        lastBlock.text += text
+      } else {
+        blocks.push({ type: 'text', text })
+      }
+      updateAIMessage({ contentBlocks: [...blocks], content: targetBuffer.messages[idx].content + text })
+    }
+
+    const appendThinkToBlocks = (text: string, tag?: string, durationMs?: number) => {
+      if (!text && durationMs === undefined) return
+      const idx = getAiMessageIndex()
+      const blocks = targetBuffer.messages[idx].contentBlocks || []
+      const thinkTag = tag || 'think'
+      const lastBlock = blocks[blocks.length - 1]
+      let targetBlock: ContentBlock | undefined = lastBlock
+      if (lastBlock && lastBlock.type === 'think' && lastBlock.tag === thinkTag) {
+        lastBlock.text += text
+      } else if (text.trim().length > 0) {
+        targetBlock = { type: 'think', tag: thinkTag, text }
+        blocks.push(targetBlock)
+      } else if (durationMs !== undefined) {
+        for (let index = blocks.length - 1; index >= 0; index--) {
+          const block = blocks[index]
+          if (block.type === 'think' && block.tag === thinkTag) {
+            targetBlock = block
+            break
+          }
+        }
+      }
+      if (durationMs !== undefined && targetBlock && targetBlock.type === 'think') {
+        targetBlock.durationMs = durationMs
+      }
+      updateAIMessage({ contentBlocks: [...blocks] })
+    }
+
+    const addToolBlock = (toolName: string, params?: Record<string, unknown>) => {
+      const idx = getAiMessageIndex()
+      const blocks = targetBuffer.messages[idx].contentBlocks || []
+      blocks.push({ type: 'tool', tool: { name: toolName, displayName: toolName, status: 'running', params } })
+      updateAIMessage({ contentBlocks: [...blocks] })
+    }
+
+    const updateToolBlockStatus = (toolName: string, status: 'done' | 'error') => {
+      const idx = getAiMessageIndex()
+      const blocks = targetBuffer.messages[idx].contentBlocks || []
+      for (let index = blocks.length - 1; index >= 0; index--) {
+        const block = blocks[index]
+        if (block.type === 'tool' && block.tool.name === toolName && block.tool.status === 'running') {
+          block.tool.status = status
+          break
+        }
+      }
+      updateAIMessage({ contentBlocks: [...blocks] })
+    }
+
+    return { updateAIMessage, appendTextToBlocks, appendThinkToBlocks, addToolBlock, updateToolBlockStatus }
+  }
+
   async function sendMessage(
     chatKey: string,
     content: string,
@@ -681,90 +751,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       let aiMessageIndex = targetBuffer.messages.length - 1
       let hasStreamError = false
 
-      const updateAIMessage = (updates: Partial<ChatMessage>) => {
-        targetBuffer.messages[aiMessageIndex] = {
-          ...targetBuffer.messages[aiMessageIndex],
-          ...updates,
-        }
-      }
-
-      const appendTextToBlocks = (text: string) => {
-        if (!text) return
-
-        const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
-        const lastBlock = blocks[blocks.length - 1]
-
-        if (text.trim().length === 0 && (!lastBlock || lastBlock.type !== 'text')) {
-          return
-        }
-
-        if (lastBlock && lastBlock.type === 'text') {
-          lastBlock.text += text
-        } else {
-          blocks.push({ type: 'text', text })
-        }
-
-        updateAIMessage({
-          contentBlocks: [...blocks],
-          content: targetBuffer.messages[aiMessageIndex].content + text,
-        })
-      }
-
-      const appendThinkToBlocks = (text: string, tag?: string, durationMs?: number) => {
-        if (!text && durationMs === undefined) return
-
-        const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
-        const thinkTag = tag || 'think'
-        const lastBlock = blocks[blocks.length - 1]
-
-        let targetBlock = lastBlock
-        if (lastBlock && lastBlock.type === 'think' && lastBlock.tag === thinkTag) {
-          lastBlock.text += text
-        } else if (text.trim().length > 0) {
-          targetBlock = { type: 'think', tag: thinkTag, text }
-          blocks.push(targetBlock)
-        } else if (durationMs !== undefined) {
-          for (let index = blocks.length - 1; index >= 0; index--) {
-            const block = blocks[index]
-            if (block.type === 'think' && block.tag === thinkTag) {
-              targetBlock = block
-              break
-            }
-          }
-        }
-
-        if (durationMs !== undefined && targetBlock && targetBlock.type === 'think') {
-          targetBlock.durationMs = durationMs
-        }
-
-        updateAIMessage({ contentBlocks: [...blocks] })
-      }
-
-      const addToolBlock = (toolName: string, params?: Record<string, unknown>) => {
-        const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
-        blocks.push({
-          type: 'tool',
-          tool: {
-            name: toolName,
-            displayName: toolName,
-            status: 'running',
-            params,
-          },
-        })
-        updateAIMessage({ contentBlocks: [...blocks] })
-      }
-
-      const updateToolBlockStatus = (toolName: string, status: 'done' | 'error') => {
-        const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
-        for (let index = blocks.length - 1; index >= 0; index--) {
-          const block = blocks[index]
-          if (block.type === 'tool' && block.tool.name === toolName && block.tool.status === 'running') {
-            block.tool.status = status
-            break
-          }
-        }
-        updateAIMessage({ contentBlocks: [...blocks] })
-      }
+      const { updateAIMessage, appendTextToBlocks, appendThinkToBlocks, addToolBlock, updateToolBlockStatus } =
+        createStreamBlockHelpers(targetBuffer, () => aiMessageIndex)
 
       const currentAssistantId = targetBuffer.assistantId ?? getDefaultGeneralAssistantId(state.locale)
       if (!resolvedConversationId) {
@@ -788,31 +776,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         updateActiveTaskConversationId(chatKey, conversation.id)
       }
 
-      const preprocessConfig = settingsStore.aiPreprocessConfig
-      const hasPreprocess =
-        preprocessConfig.dataCleaning ||
-        preprocessConfig.mergeConsecutive ||
-        preprocessConfig.blacklistKeywords.length > 0 ||
-        preprocessConfig.denoise ||
-        preprocessConfig.desensitize ||
-        preprocessConfig.anonymizeNames
-
-      const serializablePreprocessConfig = hasPreprocess
-        ? {
-            dataCleaning: preprocessConfig.dataCleaning,
-            mergeConsecutive: preprocessConfig.mergeConsecutive,
-            mergeWindowSeconds: preprocessConfig.mergeWindowSeconds,
-            blacklistKeywords: [...preprocessConfig.blacklistKeywords],
-            denoise: preprocessConfig.denoise,
-            desensitize: preprocessConfig.desensitize,
-            desensitizeRules: preprocessConfig.desensitizeRules.map((rule) => ({
-              ...rule,
-              locales: [...rule.locales],
-            })),
-            anonymizeNames: preprocessConfig.anonymizeNames,
-          }
-        : undefined
-
       const context = {
         sessionId: state.sessionId,
         conversationId: resolvedConversationId,
@@ -822,7 +785,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           ? { platformId: state.ownerInfo.platformId, displayName: state.ownerInfo.displayName }
           : undefined,
         mentionedMembers: currentMentionedMembers.length > 0 ? currentMentionedMembers : undefined,
-        preprocessConfig: serializablePreprocessConfig,
+        preprocessConfig: buildSerializablePreprocessConfig(),
         searchContextBefore: aiGlobalSettings.value.searchContextBefore,
         searchContextAfter: aiGlobalSettings.value.searchContextAfter,
       }
@@ -1205,7 +1168,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
   async function editMessageAndRegenerate(
     chatKey: string,
     messageId: string,
-    newContent: string
+    newContent: string,
+    options?: { overwriteSubsequent?: boolean }
   ): Promise<SendMessageResult> {
     const state = getSessionState(chatKey)
     const content = newContent.trim()
@@ -1215,6 +1179,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       return { success: false, reason: 'busy', activeTask: activeTask.value }
     }
 
+    const overwriteAll = options?.overwriteSubsequent ?? false
     const targetBuffer = getOrCreateBuffer(state, state.currentConversationId, state.selectedAssistantId)
     const editIndex = targetBuffer.messages.findIndex((message) => message.id === messageId)
     const originalMessage = targetBuffer.messages[editIndex]
@@ -1225,6 +1190,38 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       return { success: false, reason: 'empty' }
     }
 
+    if (overwriteAll) {
+      return editAndOverwriteAll(chatKey, state, targetBuffer, editIndex, originalMessage, content)
+    }
+    return editCurrentRoundOnly(chatKey, state, targetBuffer, editIndex, originalMessage, content)
+  }
+
+  async function editAndOverwriteAll(
+    chatKey: string,
+    state: AIChatSessionState,
+    targetBuffer: ConversationBuffer,
+    editIndex: number,
+    originalMessage: ChatMessage,
+    content: string
+  ): Promise<SendMessageResult> {
+    try {
+      await useAIService().deleteMessagesFrom(state.currentConversationId!, originalMessage.id)
+      targetBuffer.messages.splice(editIndex, targetBuffer.messages.length - editIndex)
+      return sendMessage(chatKey, content)
+    } catch (error) {
+      console.error('[AI] edit and overwrite failed:', error)
+      return { success: false, reason: 'error' }
+    }
+  }
+
+  async function editCurrentRoundOnly(
+    chatKey: string,
+    state: AIChatSessionState,
+    targetBuffer: ConversationBuffer,
+    editIndex: number,
+    originalMessage: ChatMessage,
+    content: string
+  ): Promise<SendMessageResult> {
     const thisRequestId = generateId('req')
     let lastDoneUsage: TokenUsage | undefined
     let hasStreamError = false
@@ -1242,15 +1239,13 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     state.currentRequestId = thisRequestId
     state.currentAgentRequestId = ''
 
-    const userMessage: ChatMessage = {
-      id: generateId('user'),
-      role: 'user',
-      content,
-      timestamp: Date.now(),
-      parentId: originalMessage.parentId ?? null,
-      toolCalls: [],
-    }
-    const aiMessage: ChatMessage = {
+    const oldAiResponse = targetBuffer.messages[editIndex + 1]
+    const hasOldAiResponse = oldAiResponse?.role === 'assistant'
+    const subsequentMessages = hasOldAiResponse
+      ? targetBuffer.messages.slice(editIndex + 2)
+      : targetBuffer.messages.slice(editIndex + 1)
+
+    const aiPlaceholder: ChatMessage = {
       id: generateId('ai'),
       role: 'assistant',
       content: '',
@@ -1262,84 +1257,32 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     const currentSkillId = skillStore.activeSkillId
     const currentSkillName = skillStore.activeSkill?.name
     if (currentSkillId && currentSkillName) {
-      aiMessage.contentBlocks!.push({ type: 'skill', skillId: currentSkillId, skillName: currentSkillName })
+      aiPlaceholder.contentBlocks!.push({ type: 'skill', skillId: currentSkillId, skillName: currentSkillName })
     }
 
-    const previousTail = targetBuffer.messages.slice(editIndex)
-    targetBuffer.messages.splice(editIndex, targetBuffer.messages.length - editIndex, userMessage, aiMessage)
+    const editedUserMessage: ChatMessage = {
+      ...originalMessage,
+      content,
+    }
+    const removeCount = hasOldAiResponse ? 2 : 1
+    targetBuffer.messages.splice(editIndex, removeCount, editedUserMessage, aiPlaceholder)
     const aiMessageIndex = editIndex + 1
-    const restorePreviousTail = () => {
-      targetBuffer.messages.splice(editIndex, targetBuffer.messages.length - editIndex, ...previousTail)
+
+    const restoreOriginal = () => {
+      targetBuffer.messages.splice(editIndex, targetBuffer.messages.length - editIndex, originalMessage)
+      if (hasOldAiResponse) {
+        targetBuffer.messages.splice(editIndex + 1, 0, oldAiResponse)
+      }
+      targetBuffer.messages.push(...subsequentMessages)
     }
 
-    const updateAIMessage = (updates: Partial<ChatMessage>) => {
-      targetBuffer.messages[aiMessageIndex] = {
-        ...targetBuffer.messages[aiMessageIndex],
-        ...updates,
-      }
-    }
-
-    const appendTextToBlocks = (text: string) => {
-      if (!text) return
-      const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
-      const lastBlock = blocks[blocks.length - 1]
-      if (text.trim().length === 0 && (!lastBlock || lastBlock.type !== 'text')) return
-      if (lastBlock && lastBlock.type === 'text') {
-        lastBlock.text += text
-      } else {
-        blocks.push({ type: 'text', text })
-      }
-      updateAIMessage({
-        contentBlocks: [...blocks],
-        content: targetBuffer.messages[aiMessageIndex].content + text,
-      })
-    }
-
-    const appendThinkToBlocks = (text: string, tag?: string, durationMs?: number) => {
-      if (!text && durationMs === undefined) return
-      const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
-      const thinkTag = tag || 'think'
-      const lastBlock = blocks[blocks.length - 1]
-      let targetBlock: ContentBlock | undefined = lastBlock
-      if (lastBlock && lastBlock.type === 'think' && lastBlock.tag === thinkTag) {
-        lastBlock.text += text
-      } else if (text.trim().length > 0) {
-        targetBlock = { type: 'think', tag: thinkTag, text }
-        blocks.push(targetBlock)
-      } else if (durationMs !== undefined) {
-        targetBlock = [...blocks].reverse().find((block) => block.type === 'think' && block.tag === thinkTag)
-      }
-      if (durationMs !== undefined && targetBlock && targetBlock.type === 'think') {
-        targetBlock.durationMs = durationMs
-      }
-      updateAIMessage({ contentBlocks: [...blocks] })
-    }
-
-    const addToolBlock = (toolName: string, params?: Record<string, unknown>) => {
-      const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
-      blocks.push({
-        type: 'tool',
-        tool: { name: toolName, displayName: toolName, status: 'running', params },
-      })
-      updateAIMessage({ contentBlocks: [...blocks] })
-    }
-
-    const updateToolBlockStatus = (toolName: string, status: 'done' | 'error') => {
-      const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
-      for (let index = blocks.length - 1; index >= 0; index--) {
-        const block = blocks[index]
-        if (block.type === 'tool' && block.tool.name === toolName && block.tool.status === 'running') {
-          block.tool.status = status
-          break
-        }
-      }
-      updateAIMessage({ contentBlocks: [...blocks] })
-    }
+    const { updateAIMessage, appendTextToBlocks, appendThinkToBlocks, addToolBlock, updateToolBlockStatus } =
+      createStreamBlockHelpers(targetBuffer, () => aiMessageIndex)
 
     try {
       const hasConfig = await window.llmApi.hasConfig()
       if (!hasConfig) {
-        restorePreviousTail()
+        restoreOriginal()
         clearActiveTask(chatKey, thisRequestId)
         return { success: false, reason: 'no_config' }
       }
@@ -1347,19 +1290,24 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       const currentAssistantId = targetBuffer.assistantId ?? getDefaultGeneralAssistantId(state.locale)
       const currentMentionedMembers = await resolveMentionedMembersFromContent(state, content)
       if (state.isAborted) {
-        restorePreviousTail()
+        restoreOriginal()
         clearActiveTask(chatKey, thisRequestId)
         return { success: false, reason: 'aborted' }
       }
       if (thisRequestId !== state.currentRequestId) {
-        restorePreviousTail()
+        restoreOriginal()
         clearActiveTask(chatKey, thisRequestId)
         return { success: false, reason: 'busy', activeTask: activeTask.value }
       }
 
+      await useAIService().updateMessageContent(originalMessage.id, content)
+      if (hasOldAiResponse) {
+        await useAIService().deleteAndRelinkMessage(state.currentConversationId!, oldAiResponse.id)
+      }
+
       const context = {
         sessionId: state.sessionId,
-        conversationId: state.currentConversationId,
+        conversationId: state.currentConversationId!,
         historyLeafMessageId: originalMessage.parentId ?? null,
         timeFilter: state.timeFilter ? { startTs: state.timeFilter.startTs, endTs: state.timeFilter.endTs } : undefined,
         maxMessagesLimit: aiGlobalSettings.value.maxMessagesPerRequest,
@@ -1425,7 +1373,12 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         currentAssistantId,
         currentSkillId,
         !currentSkillId ? (aiGlobalSettings.value.enableAutoSkill ?? true) : undefined,
-        { enabled: false, tokenThresholdPercent: 75, bufferSizePercent: 20 }
+        {
+          enabled: aiGlobalSettings.value.contextCompression?.enabled ?? false,
+          tokenThresholdPercent: aiGlobalSettings.value.contextCompression?.tokenThresholdPercent ?? 75,
+          bufferSizePercent: aiGlobalSettings.value.contextCompression?.bufferSizePercent ?? 20,
+          maxToolResultPercent: aiGlobalSettings.value.contextCompression?.maxToolResultPercent ?? 50,
+        }
       )
 
       state.currentAgentRequestId = agentReqId
@@ -1433,12 +1386,12 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
       const result = await agentPromise
       if (state.isAborted) {
-        restorePreviousTail()
+        restoreOriginal()
         clearActiveTask(chatKey, agentReqId)
         return { success: false, reason: 'aborted' }
       }
       if (thisRequestId !== state.currentRequestId) {
-        restorePreviousTail()
+        restoreOriginal()
         clearActiveTask(chatKey, agentReqId)
         return { success: false, reason: 'busy', activeTask: activeTask.value }
       }
@@ -1457,33 +1410,34 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       const serializableContentBlocks = targetBuffer.messages[aiMessageIndex].contentBlocks
         ? JSON.parse(JSON.stringify(targetBuffer.messages[aiMessageIndex].contentBlocks))
         : undefined
-      const branch = await useAIService().createMessageBranch(
-        messageId,
-        userMessage.content,
+      const savedAiMsg = await useAIService().insertMessageAfter(
+        state.currentConversationId!,
+        originalMessage.id,
+        'assistant',
         targetBuffer.messages[aiMessageIndex].content,
         serializableContentBlocks,
         lastDoneUsage
       )
-      targetBuffer.messages.splice(
-        editIndex,
-        targetBuffer.messages.length - editIndex,
-        toRuntimeMessage(branch.userMessage),
-        {
-          ...toRuntimeMessage(branch.assistantMessage),
-          dataSource: targetBuffer.messages[aiMessageIndex].dataSource,
-          isStreaming: false,
-        }
-      )
-      targetBuffer.sessionTokenUsage = await useAIService().getConversationTokenUsage(state.currentConversationId)
+      targetBuffer.messages[aiMessageIndex] = {
+        ...toRuntimeMessage(savedAiMsg),
+        dataSource: targetBuffer.messages[aiMessageIndex].dataSource,
+        isStreaming: false,
+      }
+      targetBuffer.messages[editIndex] = {
+        ...targetBuffer.messages[editIndex],
+        content,
+      }
+
+      targetBuffer.sessionTokenUsage = await useAIService().getConversationTokenUsage(state.currentConversationId!)
       state.sessionTokenUsage = { ...targetBuffer.sessionTokenUsage }
       return { success: true }
     } catch (error) {
       if (state.isAborted) {
-        restorePreviousTail()
+        restoreOriginal()
         return { success: false, reason: 'aborted' }
       }
-      console.error('[AI] 编辑并重新生成失败：', error)
-      const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
+      console.error('[AI] edit and regenerate failed:', error)
+      const blocks = targetBuffer.messages[aiMessageIndex]?.contentBlocks || []
       blocks.push({
         type: 'error',
         error: {
@@ -1492,7 +1446,9 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           stack: error instanceof Error ? (error.stack ?? null) : null,
         },
       })
-      updateAIMessage({ contentBlocks: [...blocks], isStreaming: false })
+      if (targetBuffer.messages[aiMessageIndex]) {
+        updateAIMessage({ contentBlocks: [...blocks], isStreaming: false })
+      }
       return { success: false, reason: 'error' }
     } finally {
       state.isAIThinking = false
@@ -1502,23 +1458,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       state.currentRequestId = ''
       state.currentAgentRequestId = ''
       clearActiveTask(chatKey)
-    }
-  }
-
-  async function switchMessageBranch(chatKey: string, messageId: string): Promise<boolean> {
-    const state = getSessionState(chatKey)
-    if (!state?.currentConversationId || state.isAIThinking || activeTask.value) return false
-    const buffer = getOrCreateBuffer(state, state.currentConversationId, state.selectedAssistantId)
-    try {
-      const messages = await useAIService().switchMessageBranch(state.currentConversationId, messageId)
-      const tokenUsage = await useAIService().getConversationTokenUsage(state.currentConversationId)
-      buffer.messages.splice(0, buffer.messages.length, ...messages.map((message) => toRuntimeMessage(message)))
-      buffer.sessionTokenUsage = tokenUsage
-      state.sessionTokenUsage = { ...tokenUsage }
-      return true
-    } catch (error) {
-      console.error('[AI] 切换消息分支失败：', error)
-      return false
     }
   }
 
@@ -1580,7 +1519,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     updateMaxMessages,
     sendMessage,
     editMessageAndRegenerate,
-    switchMessageBranch,
     stopGeneration,
     stopActiveTask,
   }
