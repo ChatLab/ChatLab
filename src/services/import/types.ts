@@ -66,7 +66,7 @@ export interface DemoProgress {
 export interface DemoImportResult {
   success: boolean
   groupSessionId?: string
-  privateSessionId?: string
+  privateSessionIds?: string[]
   error?: string
 }
 

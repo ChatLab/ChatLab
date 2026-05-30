@@ -48,8 +48,8 @@ async function handleImport() {
         const gapThreshold = getSessionGapThreshold()
         const sessionIndexService = useSessionIndexService()
         await sessionIndexService.generate(result.groupSessionId, gapThreshold)
-        if (result.privateSessionId) {
-          await sessionIndexService.generate(result.privateSessionId, gapThreshold)
+        if (result.privateSessionIds?.length) {
+          await Promise.all(result.privateSessionIds.map((id) => sessionIndexService.generate(id, gapThreshold)))
         }
       } catch (e) {
         console.error('自动生成会话索引失败:', e)

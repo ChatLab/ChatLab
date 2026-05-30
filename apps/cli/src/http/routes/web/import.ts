@@ -307,9 +307,17 @@ export function registerImportRoutes(server: FastifyInstance, dbManager: Databas
 
   // ==================== Demo Import ====================
 
+  const DEMO_FILES = [
+    'demo-group.json',
+    'demo-private-A-cuilan.json',
+    'demo-private-B-wukong.json',
+    'demo-private-C-spider.json',
+  ]
+
   server.post<{ Body: { locale?: string } }>('/_web/demo/import', async (request, reply) => {
     const locale = (request.body as any)?.locale || 'en'
     const nativeBinding = resolveNativeBinding()
+    const total = DEMO_FILES.length
 
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -322,41 +330,41 @@ export function registerImportRoutes(server: FastifyInstance, dbManager: Databas
     }
 
     const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-demo-'))
-    const groupPath = path.join(tmpDir, 'demo-group.json')
-    const privatePath = path.join(tmpDir, 'demo-private.json')
 
     try {
-      sendEvent('progress', { stage: 'downloading', current: 1, total: 2 })
-      const groupResp = await fetch(`${DEMO_BASE_URL}/${locale}/demo-group.json`, {
-        signal: AbortSignal.timeout(60_000),
-      })
-      if (!groupResp.ok) throw new Error(`Download group demo failed: ${groupResp.status}`)
-      fs.writeFileSync(groupPath, Buffer.from(await groupResp.arrayBuffer()))
+      const localPaths: string[] = []
+      for (let i = 0; i < total; i++) {
+        sendEvent('progress', { stage: 'downloading', current: i + 1, total })
+        const localPath = path.join(tmpDir, DEMO_FILES[i])
+        const resp = await fetch(`${DEMO_BASE_URL}/${locale}/${DEMO_FILES[i]}`, {
+          signal: AbortSignal.timeout(60_000),
+        })
+        if (!resp.ok) throw new Error(`Download demo failed (${DEMO_FILES[i]}): ${resp.status}`)
+        fs.writeFileSync(localPath, Buffer.from(await resp.arrayBuffer()))
+        localPaths.push(localPath)
+      }
 
-      sendEvent('progress', { stage: 'downloading', current: 2, total: 2 })
-      const privateResp = await fetch(`${DEMO_BASE_URL}/${locale}/demo-private.json`, {
-        signal: AbortSignal.timeout(60_000),
-      })
-      if (!privateResp.ok) throw new Error(`Download private demo failed: ${privateResp.status}`)
-      fs.writeFileSync(privatePath, Buffer.from(await privateResp.arrayBuffer()))
-
-      sendEvent('progress', { stage: 'importing', current: 1, total: 2 })
-      const groupResult = await streamImport(dbManager, groupPath, { nativeBinding })
+      sendEvent('progress', { stage: 'importing', current: 1, total })
+      const groupResult = await streamImport(dbManager, localPaths[0], { nativeBinding })
       if (!groupResult.success) throw new Error(groupResult.error || 'Failed to import group demo')
 
-      sendEvent('progress', { stage: 'importing', current: 2, total: 2 })
-      const privateResult = await streamImport(dbManager, privatePath, { nativeBinding })
-      if (!privateResult.success) throw new Error(privateResult.error || 'Failed to import private demo')
+      const privateSessionIds: string[] = []
+      for (let i = 1; i < localPaths.length; i++) {
+        sendEvent('progress', { stage: 'importing', current: i + 1, total })
+        const result = await streamImport(dbManager, localPaths[i], { nativeBinding })
+        if (!result.success) throw new Error(result.error || `Failed to import private demo: ${DEMO_FILES[i]}`)
+        if (result.sessionId) privateSessionIds.push(result.sessionId)
+      }
 
-      sendEvent('progress', { stage: 'done', current: 2, total: 2 })
+      sendEvent('progress', { stage: 'done', current: total, total })
       sendEvent('result', {
         success: true,
         groupSessionId: groupResult.sessionId,
-        privateSessionId: privateResult.sessionId,
+        privateSessionIds,
       })
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err)
-      sendEvent('progress', { stage: 'error', current: 0, total: 2, message })
+      sendEvent('progress', { stage: 'error', current: 0, total, message })
       sendEvent('result', { success: false, error: message })
     } finally {
       reply.raw.end()

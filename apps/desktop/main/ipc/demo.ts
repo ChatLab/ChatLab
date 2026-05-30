@@ -60,6 +60,13 @@ export function registerDemoHandlers(ctx: IpcContext): void {
    * 下载并导入 Demo 示例数据
    * 返回群聊和私聊的 sessionId
    */
+  const DEMO_FILES = [
+    'demo-group.json',
+    'demo-private-A-cuilan.json',
+    'demo-private-B-wukong.json',
+    'demo-private-C-spider.json',
+  ]
+
   ipcMain.handle(
     'demo:downloadAndImport',
     async (
@@ -68,52 +75,52 @@ export function registerDemoHandlers(ctx: IpcContext): void {
     ): Promise<{
       success: boolean
       groupSessionId?: string
-      privateSessionId?: string
+      privateSessionIds?: string[]
       error?: string
     }> => {
       const tempDir = getDemoTempDir()
-      const groupPath = path.join(tempDir, 'demo-group.json')
-      const privatePath = path.join(tempDir, 'demo-private.json')
+      const total = DEMO_FILES.length
 
       const sendProgress = (progress: DemoProgress) => {
         win.webContents.send('demo:progress', progress)
       }
 
       try {
-        // Phase 1: Download
-        sendProgress({ stage: 'downloading', current: 1, total: 2 })
-        await downloadFile(`${DEMO_BASE_URL}/${locale}/demo-group.json`, groupPath)
+        const localPaths: string[] = []
+        for (let i = 0; i < total; i++) {
+          sendProgress({ stage: 'downloading', current: i + 1, total })
+          const localPath = path.join(tempDir, DEMO_FILES[i])
+          await downloadFile(`${DEMO_BASE_URL}/${locale}/${DEMO_FILES[i]}`, localPath)
+          localPaths.push(localPath)
+        }
 
-        sendProgress({ stage: 'downloading', current: 2, total: 2 })
-        await downloadFile(`${DEMO_BASE_URL}/${locale}/demo-private.json`, privatePath)
-
-        // Phase 2: Import group chat
-        sendProgress({ stage: 'importing', current: 1, total: 2 })
-        const groupResult = await worker.streamImport(groupPath)
-
+        sendProgress({ stage: 'importing', current: 1, total })
+        const groupResult = await worker.streamImport(localPaths[0])
         if (!groupResult.success || !groupResult.sessionId) {
           throw new Error(groupResult.error || 'Failed to import group demo')
         }
 
-        // Phase 3: Import private chat
-        sendProgress({ stage: 'importing', current: 2, total: 2 })
-        const privateResult = await worker.streamImport(privatePath)
-
-        if (!privateResult.success || !privateResult.sessionId) {
-          throw new Error(privateResult.error || 'Failed to import private demo')
+        const privateSessionIds: string[] = []
+        for (let i = 1; i < localPaths.length; i++) {
+          sendProgress({ stage: 'importing', current: i + 1, total })
+          const result = await worker.streamImport(localPaths[i])
+          if (!result.success || !result.sessionId) {
+            throw new Error(result.error || `Failed to import private demo: ${DEMO_FILES[i]}`)
+          }
+          privateSessionIds.push(result.sessionId)
         }
 
-        sendProgress({ stage: 'done', current: 2, total: 2 })
+        sendProgress({ stage: 'done', current: total, total })
 
         return {
           success: true,
           groupSessionId: groupResult.sessionId,
-          privateSessionId: privateResult.sessionId,
+          privateSessionIds,
         }
       } catch (error) {
         const message = error instanceof Error ? error.message : String(error)
         console.error('[Demo] Download and import failed:', message)
-        sendProgress({ stage: 'error', current: 0, total: 2, message })
+        sendProgress({ stage: 'error', current: 0, total, message })
         return { success: false, error: message }
       } finally {
         cleanupDemoTemp(tempDir)

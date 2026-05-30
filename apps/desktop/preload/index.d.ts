@@ -198,7 +198,7 @@ interface ChatApi {
   importDemo: (locale: string) => Promise<{
     success: boolean
     groupSessionId?: string
-    privateSessionId?: string
+    privateSessionIds?: string[]
     error?: string
   }>
 

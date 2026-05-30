@@ -501,7 +501,7 @@ export const chatApi = {
   ): Promise<{
     success: boolean
     groupSessionId?: string
-    privateSessionId?: string
+    privateSessionIds?: string[]
     error?: string
   }> => {
     return ipcRenderer.invoke('demo:downloadAndImport', locale)
