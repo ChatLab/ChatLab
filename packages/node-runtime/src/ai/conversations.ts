@@ -738,9 +738,14 @@ export class AIConversationManager {
 
     if (childRow) {
       db.prepare('UPDATE ai_message SET parent_id = ? WHERE id = ?').run(id, childRow.id)
+      db.prepare('UPDATE ai_conversation SET updated_at = ? WHERE id = ?').run(now, conversationId)
+    } else {
+      db.prepare('UPDATE ai_conversation SET active_message_id = ?, updated_at = ? WHERE id = ?').run(
+        id,
+        now,
+        conversationId
+      )
     }
-
-    db.prepare('UPDATE ai_conversation SET updated_at = ? WHERE id = ?').run(now, conversationId)
 
     return {
       id,

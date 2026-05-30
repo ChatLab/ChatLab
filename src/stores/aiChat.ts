@@ -1205,6 +1205,17 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     content: string
   ): Promise<SendMessageResult> {
     try {
+      const hasConfig = await window.llmApi.hasConfig()
+      if (!hasConfig) {
+        return { success: false, reason: 'no_config' }
+      }
+      if (state.isAborted) {
+        return { success: false, reason: 'aborted' }
+      }
+      if (state.isAIThinking || activeTask.value) {
+        return { success: false, reason: 'busy', activeTask: activeTask.value }
+      }
+
       await useAIService().deleteMessagesFrom(state.currentConversationId!, originalMessage.id)
       targetBuffer.messages.splice(editIndex, targetBuffer.messages.length - editIndex)
       return sendMessage(chatKey, content)
@@ -1298,11 +1309,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         restoreOriginal()
         clearActiveTask(chatKey, thisRequestId)
         return { success: false, reason: 'busy', activeTask: activeTask.value }
-      }
-
-      await useAIService().updateMessageContent(originalMessage.id, content)
-      if (hasOldAiResponse) {
-        await useAIService().deleteAndRelinkMessage(state.currentConversationId!, oldAiResponse.id)
       }
 
       const context = {
@@ -1407,6 +1413,16 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         updateAIMessage({ contentBlocks: [...blocks], isStreaming: false })
       }
 
+      if (!result.success) {
+        restoreOriginal()
+        return { success: false, reason: 'error' }
+      }
+
+      await useAIService().updateMessageContent(originalMessage.id, content)
+      if (hasOldAiResponse) {
+        await useAIService().deleteAndRelinkMessage(state.currentConversationId!, oldAiResponse.id)
+      }
+
       const serializableContentBlocks = targetBuffer.messages[aiMessageIndex].contentBlocks
         ? JSON.parse(JSON.stringify(targetBuffer.messages[aiMessageIndex].contentBlocks))
         : undefined
@@ -1426,6 +1442,14 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       targetBuffer.messages[editIndex] = {
         ...targetBuffer.messages[editIndex],
         content,
+      }
+
+      const nextMsgIndex = aiMessageIndex + 1
+      if (nextMsgIndex < targetBuffer.messages.length) {
+        targetBuffer.messages[nextMsgIndex] = {
+          ...targetBuffer.messages[nextMsgIndex],
+          parentId: savedAiMsg.id,
+        }
       }
 
       targetBuffer.sessionTokenUsage = await useAIService().getConversationTokenUsage(state.currentConversationId!)
