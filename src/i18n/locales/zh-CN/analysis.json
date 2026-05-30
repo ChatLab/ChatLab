@@ -87,6 +87,8 @@
   "subTabs": {
     "view": {
       "message": "消息",
+      "typeAnalysis": "类型",
+      "timeAnalysis": "时间",
       "topic": "话题",
       "interaction": "互动分析",
       "groupRelationships": "群关系",

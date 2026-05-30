@@ -112,3 +112,18 @@ export interface TextStats {
   maxLength: number
   shortCount: number
 }
+
+/** 消息类型月度趋势 */
+export interface TypeMonthlyTrend {
+  month: string
+  type: number
+  count: number
+}
+
+/** 文字长度百分位 */
+export interface TextLengthPercentiles {
+  p25: number
+  p50: number
+  p75: number
+  p90: number
+}

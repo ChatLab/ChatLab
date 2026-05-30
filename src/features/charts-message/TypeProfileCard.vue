@@ -3,44 +3,102 @@ import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useDark } from '@vueuse/core'
 import * as echarts from 'echarts/core'
-import { PieChart, BarChart } from 'echarts/charts'
-import { TooltipComponent, GridComponent } from 'echarts/components'
+import { PieChart } from 'echarts/charts'
+import { TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { ThemeCard } from '@/components/UI'
 import { MessageType, getMessageTypeName } from './types'
-import type { MessageTypeCount, HourlyActivity, WeekdayActivity, DailyActivity, TextStats } from './types'
-import { queryLongMessageCount } from './queries'
+import type { MessageTypeCount, TextStats } from './types'
+import { queryLongMessageCount, queryDailyActivity } from './queries'
 import type { TimeFilter } from '@openchatlab/shared-types'
 import dayjs from 'dayjs'
 
-echarts.use([PieChart, BarChart, TooltipComponent, GridComponent, CanvasRenderer])
+echarts.use([PieChart, TooltipComponent, CanvasRenderer])
 
 const { t } = useI18n()
 const isDark = useDark()
 
 const props = defineProps<{
   sessionId: string
-  sessionName: string
   messageTypes: MessageTypeCount[]
-  hourlyActivity: HourlyActivity[]
-  weekdayActivity: WeekdayActivity[]
-  dailyActivity: DailyActivity[]
   textStats: TextStats
   timeFilter?: TimeFilter
 }>()
 
-// ==================== 核心数字 ====================
-
 const totalMessages = computed(() => props.messageTypes.reduce((sum, item) => sum + item.count, 0))
+const textCount = computed(() => props.messageTypes.find((m) => m.type === MessageType.TEXT)?.count ?? 0)
 
 const mediaRatio = computed(() => {
   if (totalMessages.value === 0) return 0
-  const nonText = totalMessages.value - (props.messageTypes.find((m) => m.type === MessageType.TEXT)?.count ?? 0)
+  const nonText = totalMessages.value - textCount.value
   return Math.round((nonText / totalMessages.value) * 100)
 })
 
-// ==================== 小作文爱好者（可调阈值） ====================
+const shortRatio = computed(() => {
+  if (props.textStats.textCount === 0) return 0
+  return Math.round((props.textStats.shortCount / props.textStats.textCount) * 100)
+})
 
+// 日期范围
+const dateRange = ref({ first: '', last: '' })
+
+async function loadDateRange() {
+  if (!props.sessionId) return
+  try {
+    const daily = await queryDailyActivity(props.sessionId, props.timeFilter)
+    if (daily.length > 0) {
+      const sorted = [...daily].sort((a, b) => a.date.localeCompare(b.date))
+      dateRange.value = {
+        first: dayjs(sorted[0].date).format('YYYY/MM/DD'),
+        last: dayjs(sorted[sorted.length - 1].date).format('YYYY/MM/DD'),
+      }
+    }
+  } catch {
+    // ignore
+  }
+}
+
+// 非文字类型明细（只列出数量>0的）
+function getTypeCount(type: MessageType): number {
+  return props.messageTypes.find((m) => m.type === type)?.count ?? 0
+}
+
+const nonTextItems = computed(() =>
+  [
+    {
+      label: t('views.message.typeCard.nonTextImage'),
+      count: getTypeCount(MessageType.IMAGE),
+      unit: t('views.message.typeCard.unitImage'),
+    },
+    {
+      label: t('views.message.typeCard.nonTextEmoji'),
+      count: getTypeCount(MessageType.EMOJI),
+      unit: t('views.message.typeCard.unitEmoji'),
+    },
+    {
+      label: t('views.message.typeCard.nonTextVoice'),
+      count: getTypeCount(MessageType.VOICE),
+      unit: t('views.message.typeCard.unitVoice'),
+    },
+    {
+      label: t('views.message.typeCard.nonTextVideo'),
+      count: getTypeCount(MessageType.VIDEO),
+      unit: t('views.message.typeCard.unitVideo'),
+    },
+    {
+      label: t('views.message.typeCard.nonTextFile'),
+      count: getTypeCount(MessageType.FILE),
+      unit: t('views.message.typeCard.unitFile'),
+    },
+    {
+      label: t('views.message.typeCard.nonTextLink'),
+      count: getTypeCount(MessageType.LINK),
+      unit: t('views.message.typeCard.unitLink'),
+    },
+  ].filter((m) => m.count > 0)
+)
+
+// 小作文阈值可调
 const essayThreshold = ref(30)
 const essayCount = ref(0)
 const isEssayLoading = ref(false)
@@ -76,71 +134,14 @@ async function loadEssayCount() {
 
 watch(
   () => [props.sessionId, props.timeFilter],
-  () => loadEssayCount(),
+  () => {
+    loadEssayCount()
+    loadDateRange()
+  },
   { immediate: true, deep: true }
 )
 
-// ==================== 短消息达人 ====================
-
-const shortRatio = computed(() => {
-  if (props.textStats.textCount === 0) return 0
-  return Math.round((props.textStats.shortCount / props.textStats.textCount) * 100)
-})
-
-// ==================== 媒体丰富度 ====================
-
-function getTypeCount(type: MessageType): number {
-  return props.messageTypes.find((m) => m.type === type)?.count ?? 0
-}
-
-const mediaItems = computed(() => [
-  { label: t('views.message.profile.images'), count: getTypeCount(MessageType.IMAGE) },
-  { label: t('views.message.profile.emoji'), count: getTypeCount(MessageType.EMOJI) },
-  {
-    label: t('views.message.profile.voiceVideo'),
-    count: getTypeCount(MessageType.VOICE) + getTypeCount(MessageType.VIDEO),
-  },
-])
-
-// ==================== 巅峰记录 ====================
-
-const peakDay = computed(() => {
-  if (props.dailyActivity.length === 0) return null
-  return props.dailyActivity.reduce((max, d) => (d.messageCount > max.messageCount ? d : max), props.dailyActivity[0])
-})
-
-// ==================== 最活跃时段 TOP3 ====================
-
-const topHours = computed(() => {
-  if (props.hourlyActivity.length === 0) return []
-  return [...props.hourlyActivity].sort((a, b) => b.messageCount - a.messageCount).slice(0, 3)
-})
-
-// ==================== 文字表达力 ====================
-
-const textExpressionValue = computed(() =>
-  t('views.message.profile.avgLengthUnit', { count: props.textStats.avgLength || 0 })
-)
-const textExpressionDesc = computed(() => {
-  if (props.textStats.maxLength > 0) {
-    return t('views.message.profile.textExpressionDesc', { count: props.textStats.maxLength })
-  }
-  return ''
-})
-
-// ==================== 聊天时间跨度 ====================
-
-const dateRange = computed(() => {
-  if (props.dailyActivity.length === 0) return { first: '', last: '' }
-  const sorted = [...props.dailyActivity].sort((a, b) => a.date.localeCompare(b.date))
-  return {
-    first: dayjs(sorted[0].date).format('YYYY/MM/DD'),
-    last: dayjs(sorted[sorted.length - 1].date).format('YYYY/MM/DD'),
-  }
-})
-
-// ==================== 指标卡片数据 ====================
-
+// 指标卡片
 interface MetricItem {
   icon: string
   label: string
@@ -154,8 +155,11 @@ const metricItems = computed<MetricItem[]>(() => [
   {
     icon: 'i-heroicons-pencil-square',
     label: t('views.message.profile.textExpression'),
-    value: textExpressionValue.value,
-    subtext: textExpressionDesc.value,
+    value: t('views.message.profile.avgLengthUnit', { count: props.textStats.avgLength || 0 }),
+    subtext:
+      props.textStats.maxLength > 0
+        ? t('views.message.profile.textExpressionDesc', { count: props.textStats.maxLength })
+        : '',
     colorClass: 'text-violet-600 dark:text-violet-400',
   },
   {
@@ -178,30 +182,15 @@ const metricItems = computed<MetricItem[]>(() => [
     label: t('views.message.profile.mediaRichness'),
     value: `${mediaRatio.value}%`,
     subtext:
-      mediaItems.value
-        .filter((m) => m.count > 0)
+      nonTextItems.value
+        .slice(0, 3)
         .map((m) => `${m.label} ${m.count}`)
         .join(' · ') || '-',
     colorClass: 'text-pink-600 dark:text-pink-400',
   },
-  {
-    icon: 'i-heroicons-fire',
-    label: t('views.message.profile.peakRecord'),
-    value: peakDay.value ? dayjs(peakDay.value.date).format('MM/DD') : '-',
-    subtext: peakDay.value ? t('views.message.profile.peakRecordDesc', { count: peakDay.value.messageCount }) : '',
-    colorClass: 'text-red-600 dark:text-red-400',
-  },
-  {
-    icon: 'i-heroicons-clock',
-    label: t('views.message.profile.topHours'),
-    value: topHours.value.length > 0 ? `${topHours.value[0].hour}:00` : '-',
-    subtext: topHours.value.length >= 2 ? topHours.value.map((h) => `${h.hour}:00`).join(' > ') : '',
-    colorClass: 'text-cyan-600 dark:text-cyan-400',
-  },
 ])
 
-// ==================== 迷你环形图 ====================
-
+// 环形图
 const donutRef = ref<HTMLElement | null>(null)
 let donutInstance: echarts.ECharts | null = null
 
@@ -220,7 +209,7 @@ const typeColors = [
 
 const donutData = computed(() => {
   const sorted = [...props.messageTypes].sort((a, b) => b.count - a.count)
-  return sorted.slice(0, 6).map((item, i) => ({
+  return sorted.slice(0, 8).map((item, i) => ({
     name: getMessageTypeName(item.type, t),
     value: item.count,
     itemStyle: { color: typeColors[i % typeColors.length] },
@@ -257,101 +246,28 @@ function updateDonut() {
   )
 }
 
-// ==================== 24h 迷你柱状图 ====================
-
-const barRef = ref<HTMLElement | null>(null)
-let barInstance: echarts.ECharts | null = null
-
-function initBar() {
-  barInstance = echarts.init(barRef.value, undefined, { renderer: 'canvas' })
-  updateBar()
-}
-
-function updateBar() {
-  if (!barInstance) return
-
-  const hourMap = new Map(props.hourlyActivity.map((h) => [h.hour, h.messageCount]))
-  const data: number[] = []
-  for (let i = 0; i < 24; i++) data.push(hourMap.get(i) || 0)
-
-  const maxVal = Math.max(...data, 1)
-  const barColors = data.map((v) => {
-    const ratio = v / maxVal
-    if (ratio > 0.8) return isDark.value ? '#f472b6' : '#ec4899'
-    if (ratio > 0.5) return isDark.value ? '#a78bfa' : '#8b5cf6'
-    return isDark.value ? 'rgba(255,255,255,0.15)' : 'rgba(0,0,0,0.08)'
-  })
-
-  barInstance.setOption(
-    {
-      backgroundColor: 'transparent',
-      tooltip: {
-        trigger: 'axis',
-        formatter: (params: any) => `${params[0].axisValue}:00 — ${params[0].value}`,
-      },
-      grid: { left: 0, right: 0, top: 4, bottom: 16 },
-      xAxis: {
-        type: 'category',
-        data: Array.from({ length: 24 }, (_, i) => `${i}`),
-        axisLine: { show: false },
-        axisTick: { show: false },
-        axisLabel: {
-          fontSize: 9,
-          color: isDark.value ? '#6b7280' : '#9ca3af',
-          interval: (idx: number) => idx % 6 === 0,
-        },
-      },
-      yAxis: { type: 'value', show: false },
-      series: [
-        {
-          type: 'bar',
-          data: data.map((v, i) => ({ value: v, itemStyle: { color: barColors[i] } })),
-          barWidth: '60%',
-          itemStyle: { borderRadius: [2, 2, 0, 0] },
-        },
-      ],
-    },
-    { notMerge: true }
-  )
-}
-
-// ==================== 生命周期 ====================
-
 function handleResize() {
   donutInstance?.resize()
-  barInstance?.resize()
 }
 
 watch(
   () => props.messageTypes,
-  () => {
-    updateDonut()
-    updateBar()
-  }
-)
-
-watch(
-  () => props.hourlyActivity,
-  () => updateBar()
+  () => updateDonut()
 )
 
 watch(isDark, () => {
   donutInstance?.dispose()
-  barInstance?.dispose()
   initDonut()
-  initBar()
 })
 
 onMounted(() => {
   initDonut()
-  initBar()
   window.addEventListener('resize', handleResize)
 })
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
   donutInstance?.dispose()
-  barInstance?.dispose()
 })
 </script>
 
@@ -359,15 +275,17 @@ onUnmounted(() => {
   <ThemeCard variant="elevated" decorative class="flex flex-col">
     <!-- 主视觉区域 -->
     <div class="relative z-10 px-6 pt-8 pb-4 sm:px-8">
-      <div class="flex items-start gap-6 sm:gap-10">
-        <!-- 左侧：叙事文字 + 核心数字 -->
+      <div class="flex items-center gap-6 sm:gap-10">
+        <!-- 左侧：叙事文字 -->
         <div class="min-w-0 flex-1">
           <div class="flex flex-col text-[15px] leading-relaxed text-gray-600 dark:text-gray-300">
-            <p class="mb-2 text-sm font-medium tracking-wide text-gray-500 dark:text-gray-400">
+            <!-- 日期范围 -->
+            <p v-if="dateRange.first" class="mb-2 text-sm font-medium tracking-wide text-gray-500 dark:text-gray-400">
               {{ dateRange.first }} – {{ dateRange.last }}
             </p>
 
-            <div class="mb-3 flex items-baseline gap-2">
+            <!-- 第一行：总消息数 -->
+            <div class="mb-4 flex min-w-0 flex-wrap items-baseline gap-2">
               <span class="text-xl font-medium text-gray-700 dark:text-gray-300">
                 {{ t('views.message.profile.heroLine1Prefix') }}
               </span>
@@ -379,38 +297,34 @@ onUnmounted(() => {
               </span>
             </div>
 
-            <div class="flex items-baseline flex-wrap gap-x-1.5 gap-y-1">
+            <!-- 第二行：非文字类型明细 -->
+            <div
+              v-if="nonTextItems.length > 0"
+              class="flex min-w-0 max-w-full flex-wrap items-center gap-x-1.5 gap-y-1.5"
+            >
               <span class="text-base font-medium text-gray-600 dark:text-gray-300">
-                {{ t('views.message.profile.heroLine2Prefix') }}
+                {{ t('views.message.typeCard.nonTextPrefix') }}
               </span>
-              <span class="font-black text-3xl text-pink-500 dark:text-pink-400">
-                {{ textStats.avgLength || 0 }}
-              </span>
-              <span class="text-base font-medium text-gray-600 dark:text-gray-300">
-                {{ t('views.message.profile.heroLine2Middle') }}
-              </span>
-              <span class="font-bold text-xl text-gray-900 dark:text-white">{{ mediaRatio }}%</span>
-              <span class="text-base font-medium text-gray-600 dark:text-gray-300">
-                {{ t('views.message.profile.heroLine2Suffix') }}
+              <span
+                v-for="item in nonTextItems"
+                :key="item.label"
+                class="inline-flex items-center gap-1 rounded-full bg-gray-100 px-2.5 py-0.5 text-xs font-semibold text-gray-700 dark:bg-white/10 dark:text-gray-200"
+              >
+                <span class="font-bold tabular-nums text-pink-500 dark:text-pink-400">
+                  {{ item.count.toLocaleString() }}
+                </span>
+                <span>{{ item.unit }}</span>
               </span>
             </div>
           </div>
         </div>
 
-        <!-- 右侧：环形图 + 24h 柱状图 并排 -->
-        <div class="flex shrink-0 items-start gap-4">
-          <div class="flex flex-col items-center">
-            <div class="mb-1 text-[10px] font-bold text-gray-500 dark:text-gray-400">
-              {{ t('views.message.profile.typeDistribution') }}
-            </div>
-            <div ref="donutRef" style="width: 110px; height: 110px" />
+        <!-- 右侧：环形图 -->
+        <div class="flex shrink-0 flex-col items-center">
+          <div class="mb-1 text-[10px] font-bold text-gray-500 dark:text-gray-400">
+            {{ t('views.message.profile.typeDistribution') }}
           </div>
-          <div class="flex flex-col items-center">
-            <div class="mb-1 text-[10px] font-bold text-gray-500 dark:text-gray-400">
-              {{ t('views.message.profile.hourlyDistribution') }}
-            </div>
-            <div ref="barRef" style="width: 180px; height: 100px" />
-          </div>
+          <div ref="donutRef" style="width: 130px; height: 130px" />
         </div>
       </div>
     </div>
@@ -419,10 +333,10 @@ onUnmounted(() => {
     <div class="relative z-10 px-6 pb-6 pt-4 sm:px-8">
       <div class="mb-3 flex items-center justify-between">
         <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
-          Message Profile
+          Type Profile
         </span>
       </div>
-      <div class="grid grid-cols-2 gap-3 lg:grid-cols-3">
+      <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
         <div
           v-for="item in metricItems"
           :key="item.icon + item.label"
@@ -465,7 +379,7 @@ onUnmounted(() => {
         <span class="text-[10px] font-bold uppercase tracking-wider">ChatLab</span>
       </div>
       <span class="text-[9px] font-medium uppercase tracking-widest">
-        {{ t('views.message.profile.watermark') }}
+        {{ t('views.message.typeCard.watermark') }}
       </span>
     </div>
   </ThemeCard>

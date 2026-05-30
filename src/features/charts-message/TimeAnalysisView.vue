@@ -1,20 +1,18 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { EChartPie, EChartBar, EChartHeatmap, EChartCalendar } from '@/components/charts'
-import type { EChartPieData, EChartBarData, EChartHeatmapData, EChartCalendarData } from '@/components/charts'
+import { EChartBar, EChartHeatmap, EChartCalendar, EChart } from '@/components/charts'
+import type { EChartBarData, EChartHeatmapData, EChartCalendarData } from '@/components/charts'
 import { SectionCard, LoadingState } from '@/components/UI'
 import {
-  queryMessageTypes,
   queryHourlyActivity,
   queryDailyActivity,
   queryWeekdayActivity,
   queryMonthlyActivity,
   queryYearlyActivity,
-  queryLengthDistribution,
-  queryTextStats,
+  queryMessageTypes,
+  queryMemberMonthlyTrend,
 } from './queries'
-import { getMessageTypeName } from './types'
 import type {
   HourlyActivity,
   WeekdayActivity,
@@ -22,10 +20,10 @@ import type {
   DailyActivity,
   YearlyActivity,
   MessageTypeCount,
-  TextStats,
 } from './types'
-import MessageProfileCard from './MessageProfileCard.vue'
+import TimeProfileCard from './TimeProfileCard.vue'
 import type { TimeFilter } from '@openchatlab/shared-types'
+import type { EChartsOption } from 'echarts'
 
 const props = defineProps<{
   sessionId: string
@@ -35,7 +33,6 @@ const props = defineProps<{
 
 const { t } = useI18n()
 
-// 数据状态
 const isLoading = ref(true)
 const messageTypes = ref<MessageTypeCount[]>([])
 const hourlyActivity = ref<HourlyActivity[]>([])
@@ -43,11 +40,21 @@ const weekdayActivity = ref<WeekdayActivity[]>([])
 const monthlyActivity = ref<MonthlyActivity[]>([])
 const yearlyActivity = ref<YearlyActivity[]>([])
 const dailyActivity = ref<DailyActivity[]>([])
-const lengthDetail = ref<Array<{ len: number; count: number }>>([])
-const lengthGrouped = ref<Array<{ range: string; count: number }>>([])
-const textStats = ref<TextStats>({ textCount: 0, avgLength: 0, maxLength: 0, shortCount: 0 })
+const memberTrend = ref<Array<{ month: string; memberId: number; memberName: string; count: number }>>([])
 
-// 星期名称（按 1=周一 到 7=周日 的顺序）
+const memberColors = [
+  '#6366f1',
+  '#ec4899',
+  '#f97316',
+  '#22c55e',
+  '#06b6d4',
+  '#8b5cf6',
+  '#f43f5e',
+  '#eab308',
+  '#14b8a6',
+  '#3b82f6',
+]
+
 const weekdayNames = computed(() => [
   t('common.weekday.mon'),
   t('common.weekday.tue'),
@@ -58,7 +65,6 @@ const weekdayNames = computed(() => [
   t('common.weekday.sun'),
 ])
 
-// 月份名称
 const monthNames = computed(() => [
   t('common.month.jan'),
   t('common.month.feb'),
@@ -74,84 +80,39 @@ const monthNames = computed(() => [
   t('common.month.dec'),
 ])
 
-// 消息类型饼图数据
-const typeChartData = computed<EChartPieData>(() => {
-  const sorted = [...messageTypes.value].sort((a, b) => b.count - a.count)
-  return {
-    labels: sorted.map((item) => getMessageTypeName(item.type, t)),
-    values: sorted.map((item) => item.count),
-  }
-})
-
-// 消息类型摘要数据（用于右侧列表展示）
-const typeSummary = computed(() => {
-  const total = messageTypes.value.reduce((sum, item) => sum + item.count, 0)
-  const sorted = [...messageTypes.value].sort((a, b) => b.count - a.count)
-
-  return sorted.map((item) => ({
-    name: getMessageTypeName(item.type, t),
-    count: item.count,
-    percentage: total > 0 ? Math.round((item.count / total) * 100) : 0,
-  }))
-})
-
-// 类型颜色
-const typeColors = [
-  '#6366f1',
-  '#8b5cf6',
-  '#ec4899',
-  '#f43f5e',
-  '#f97316',
-  '#eab308',
-  '#22c55e',
-  '#14b8a6',
-  '#06b6d4',
-  '#3b82f6',
-]
-
-function getTypeColor(index: number): string {
-  return typeColors[index % typeColors.length]
-}
-
-// 小时分布图表数据
+// 小时分布
 const hourlyChartData = computed<EChartBarData>(() => {
   const hourMap = new Map(hourlyActivity.value.map((h) => [h.hour, h.messageCount]))
   const labels: string[] = []
   const values: number[] = []
-
   for (let i = 0; i < 24; i++) {
     labels.push(`${i}`)
     values.push(hourMap.get(i) || 0)
   }
-
   return { labels, values }
 })
 
-// 星期分布图表数据
+// 星期分布
 const weekdayChartData = computed<EChartBarData>(() => {
   const dayMap = new Map(weekdayActivity.value.map((w) => [w.weekday, w.messageCount]))
   const values: number[] = []
-
   for (let i = 1; i <= 7; i++) {
     values.push(dayMap.get(i) || 0)
   }
-
   return { labels: weekdayNames.value, values }
 })
 
-// 月份分布图表数据
+// 月份分布
 const monthlyChartData = computed<EChartBarData>(() => {
   const monthMap = new Map(monthlyActivity.value.map((m) => [m.month, m.messageCount]))
   const values: number[] = []
-
   for (let i = 1; i <= 12; i++) {
     values.push(monthMap.get(i) || 0)
   }
-
   return { labels: monthNames.value, values }
 })
 
-// 年份分布图表数据
+// 年份分布
 const yearlyChartData = computed<EChartBarData>(() => {
   const sorted = [...yearlyActivity.value].sort((a, b) => a.year - b.year)
   return {
@@ -160,25 +121,11 @@ const yearlyChartData = computed<EChartBarData>(() => {
   }
 })
 
-// 消息长度详细分布图表数据
-const lengthDetailChartData = computed<EChartBarData>(() => ({
-  labels: lengthDetail.value.map((d) => String(d.len)),
-  values: lengthDetail.value.map((d) => d.count),
-}))
-
-// 消息长度分组分布图表数据
-const lengthGroupedChartData = computed<EChartBarData>(() => ({
-  labels: lengthGrouped.value.map((d) => d.range),
-  values: lengthGrouped.value.map((d) => d.count),
-}))
-
-// 热力图数据（小时 x 星期）
+// 热力图
 const heatmapChartData = computed<EChartHeatmapData>(() => {
   const xLabels = Array.from({ length: 24 }, (_, i) => `${i}:00`)
   const yLabels = weekdayNames.value
-
   const total = messageTypes.value.reduce((sum, item) => sum + item.count, 0) || 1
-
   const data: Array<[number, number, number]> = []
 
   for (let day = 1; day <= 7; day++) {
@@ -193,12 +140,11 @@ const heatmapChartData = computed<EChartHeatmapData>(() => {
   return { xLabels, yLabels, data }
 })
 
-// 日历热力图数据
+// 日历
 const calendarChartData = computed<EChartCalendarData[]>(() =>
   dailyActivity.value.map((d) => ({ date: d.date, value: d.messageCount }))
 )
 
-// 日历可用年份
 const calendarYears = computed(() => {
   const years = new Set<number>()
   dailyActivity.value.forEach((d) => {
@@ -215,21 +161,116 @@ const filteredCalendarData = computed(() => {
   return calendarChartData.value.filter((d) => d.date.startsWith(`${year}-`))
 })
 
-// 加载数据 — 所有查询通过 window.chatApi.pluginQuery 在 Worker 线程执行
+// 消息趋势（按成员堆叠面积图）
+const memberTrendOption = computed<EChartsOption>(() => {
+  if (memberTrend.value.length === 0) return {}
+
+  const months = [...new Set(memberTrend.value.map((d) => d.month))].sort()
+
+  // 按总发言量排序
+  const memberTotals = new Map<number, { name: string; total: number }>()
+  memberTrend.value.forEach((d) => {
+    const existing = memberTotals.get(d.memberId)
+    if (existing) {
+      existing.total += d.count
+    } else {
+      memberTotals.set(d.memberId, { name: d.memberName, total: d.count })
+    }
+  })
+
+  const isPrivateChat = memberTotals.size <= 2
+
+  // 私聊：单条总趋势线
+  if (isPrivateChat) {
+    const monthlyTotalMap = new Map<string, number>()
+    memberTrend.value.forEach((d) => {
+      monthlyTotalMap.set(d.month, (monthlyTotalMap.get(d.month) || 0) + d.count)
+    })
+    return {
+      tooltip: {
+        trigger: 'axis',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        borderColor: 'transparent',
+        textStyle: { color: '#fff' },
+      },
+      grid: { left: 50, right: 20, top: 10, bottom: 30 },
+      xAxis: {
+        type: 'category',
+        data: months,
+        boundaryGap: false,
+        axisLine: { show: false },
+        axisTick: { show: false },
+      },
+      yAxis: {
+        type: 'value',
+        splitLine: { lineStyle: { type: 'dashed', opacity: 0.3 } },
+      },
+      series: [
+        {
+          type: 'line',
+          smooth: true,
+          symbol: 'none',
+          areaStyle: { opacity: 0.2 },
+          itemStyle: { color: '#6366f1' },
+          data: months.map((m) => monthlyTotalMap.get(m) || 0),
+        },
+      ],
+    }
+  }
+
+  // 群聊：取前10按成员堆叠
+  const topMembers = [...memberTotals.entries()].sort((a, b) => b[1].total - a[1].total).slice(0, 10)
+
+  const series = topMembers.map(([memberId, info], i) => {
+    const dataMap = new Map(memberTrend.value.filter((d) => d.memberId === memberId).map((d) => [d.month, d.count]))
+    return {
+      name: info.name,
+      type: 'line' as const,
+      stack: 'total',
+      areaStyle: { opacity: 0.3 },
+      smooth: true,
+      symbol: 'none',
+      itemStyle: { color: memberColors[i % memberColors.length] },
+      data: months.map((m) => dataMap.get(m) || 0),
+    }
+  })
+
+  return {
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: 'rgba(0, 0, 0, 0.8)',
+      borderColor: 'transparent',
+      textStyle: { color: '#fff' },
+    },
+    legend: { bottom: 0, textStyle: { fontSize: 11 } },
+    grid: { left: 50, right: 20, top: 10, bottom: 40 },
+    xAxis: {
+      type: 'category',
+      data: months,
+      boundaryGap: false,
+      axisLine: { show: false },
+      axisTick: { show: false },
+    },
+    yAxis: {
+      type: 'value',
+      splitLine: { lineStyle: { type: 'dashed', opacity: 0.3 } },
+    },
+    series,
+  }
+})
+
 async function loadData() {
   if (!props.sessionId) return
-
   isLoading.value = true
   try {
-    const [types, hourly, weekday, monthly, yearly, daily, lengthData, txtStats] = await Promise.all([
+    const [types, hourly, weekday, monthly, yearly, daily, trend] = await Promise.all([
       queryMessageTypes(props.sessionId, props.timeFilter),
       queryHourlyActivity(props.sessionId, props.timeFilter),
       queryWeekdayActivity(props.sessionId, props.timeFilter),
       queryMonthlyActivity(props.sessionId, props.timeFilter),
       queryYearlyActivity(props.sessionId, props.timeFilter),
       queryDailyActivity(props.sessionId, props.timeFilter),
-      queryLengthDistribution(props.sessionId, props.timeFilter),
-      queryTextStats(props.sessionId, props.timeFilter),
+      queryMemberMonthlyTrend(props.sessionId, props.timeFilter),
     ])
 
     messageTypes.value = types
@@ -238,21 +279,18 @@ async function loadData() {
     monthlyActivity.value = monthly
     yearlyActivity.value = yearly
     dailyActivity.value = daily
-    lengthDetail.value = lengthData.detail
-    lengthGrouped.value = lengthData.grouped
-    textStats.value = txtStats
+    memberTrend.value = trend
 
     if (calendarYears.value.length > 0) {
       selectedCalendarYear.value = calendarYears.value[0]
     }
   } catch (error) {
-    console.error('[chart-message] Failed to load data:', error)
+    console.error('[chart-message] Failed to load time analysis data:', error)
   } finally {
     isLoading.value = false
   }
 }
 
-// 监听 props 变化重新加载
 watch(
   () => [props.sessionId, props.timeFilter],
   () => loadData(),
@@ -262,60 +300,18 @@ watch(
 
 <template>
   <div :class="isLoading ? 'h-full' : ''">
-    <!-- 加载状态 -->
     <LoadingState v-if="isLoading" variant="page" :text="t('common.loading')" />
 
     <div v-else class="main-content mx-auto max-w-[920px] space-y-6 p-6">
-      <!-- 消息画像卡 -->
-      <MessageProfileCard
-        v-if="messageTypes.length > 0"
-        :session-id="sessionId"
-        :session-name="sessionName || ''"
-        :message-types="messageTypes"
+      <!-- 时间画像卡 -->
+      <TimeProfileCard
+        v-if="dailyActivity.length > 0"
         :hourly-activity="hourlyActivity"
         :weekday-activity="weekdayActivity"
         :daily-activity="dailyActivity"
-        :text-stats="textStats"
-        :time-filter="timeFilter"
       />
 
-      <!-- 消息类型分布 -->
-      <SectionCard :title="t('views.message.typeDistribution')" :show-divider="false">
-        <div class="p-5">
-          <div v-if="typeChartData.values.length > 0" class="grid grid-cols-1 gap-6 lg:grid-cols-2 lg:items-center">
-            <div>
-              <EChartPie :data="typeChartData" :height="280" :show-legend="false" />
-            </div>
-            <div>
-              <div class="space-y-3">
-                <div v-for="(item, index) in typeSummary" :key="index" class="flex items-center gap-3">
-                  <div class="h-3 w-3 shrink-0 rounded-full" :style="{ backgroundColor: getTypeColor(index) }" />
-                  <div class="min-w-20 shrink-0 text-sm text-gray-700 dark:text-gray-300">{{ item.name }}</div>
-                  <div class="flex-1">
-                    <div class="h-2 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-                      <div
-                        class="h-full rounded-full transition-all"
-                        :style="{ width: `${item.percentage}%`, backgroundColor: getTypeColor(index) }"
-                      />
-                    </div>
-                  </div>
-                  <div class="shrink-0 text-right">
-                    <span class="text-sm font-medium text-gray-900 dark:text-white">
-                      {{ item.count.toLocaleString() }}
-                    </span>
-                    <span class="ml-1 text-xs text-gray-400">({{ item.percentage }}%)</span>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-          <div v-else class="flex h-48 items-center justify-center text-gray-400">
-            {{ t('views.message.noData') }}
-          </div>
-        </div>
-      </SectionCard>
-
-      <!-- 时间分布图表（小时 & 星期） -->
+      <!-- 小时 & 星期分布 -->
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <SectionCard :title="t('views.message.hourlyDistribution')" :show-divider="false">
           <div class="p-5">
@@ -330,7 +326,7 @@ watch(
         </SectionCard>
       </div>
 
-      <!-- 时间分布图表（月份 & 年份） -->
+      <!-- 月份 & 年份分布 -->
       <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
         <SectionCard :title="t('views.message.monthlyDistribution')" :show-divider="false">
           <div class="p-5">
@@ -348,40 +344,18 @@ watch(
         </SectionCard>
       </div>
 
-      <!-- 消息长度分布 -->
-      <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-        <SectionCard :title="t('views.message.lengthDetailTitle')" :show-divider="false">
-          <template #headerRight>
-            <span class="text-xs text-gray-400">{{ t('views.message.lengthDetailHint') }}</span>
-          </template>
-          <div class="p-5">
-            <EChartBar
-              v-if="lengthDetailChartData.values.some((v) => v > 0)"
-              :data="lengthDetailChartData"
-              :height="200"
-            />
-            <div v-else class="flex h-48 items-center justify-center text-gray-400">
-              {{ t('views.message.noTextMessages') }}
-            </div>
+      <!-- 消息趋势 -->
+      <SectionCard :title="t('views.message.timeAnalysis.memberTrendTitle')" :show-divider="false">
+        <template #headerRight>
+          <span class="text-xs text-gray-400">{{ t('views.message.timeAnalysis.memberTrendHint') }}</span>
+        </template>
+        <div class="p-5">
+          <EChart v-if="memberTrend.length > 0" :option="memberTrendOption" :height="280" />
+          <div v-else class="flex h-48 items-center justify-center text-gray-400">
+            {{ t('views.message.noData') }}
           </div>
-        </SectionCard>
-
-        <SectionCard :title="t('views.message.lengthGroupedTitle')" :show-divider="false">
-          <template #headerRight>
-            <span class="text-xs text-gray-400">{{ t('views.message.lengthGroupedHint') }}</span>
-          </template>
-          <div class="p-5">
-            <EChartBar
-              v-if="lengthGroupedChartData.values.some((v) => v > 0)"
-              :data="lengthGroupedChartData"
-              :height="200"
-            />
-            <div v-else class="flex h-48 items-center justify-center text-gray-400">
-              {{ t('views.message.noTextMessages') }}
-            </div>
-          </div>
-        </SectionCard>
-      </div>
+        </div>
+      </SectionCard>
 
       <!-- 时间热力图 -->
       <SectionCard :title="t('views.message.timeHeatmap')" :show-divider="false">

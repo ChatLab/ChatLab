@@ -192,6 +192,85 @@ export async function queryLongMessageCount(
   return rows[0]?.cnt ?? 0
 }
 
+/** 获取消息类型月度趋势（按月 × 类型） */
+export async function queryTypeMonthlyTrend(
+  sessionId: string,
+  timeFilter?: TimeFilter
+): Promise<Array<{ month: string; type: number; count: number }>> {
+  const { conditions, params } = buildFilter(timeFilter)
+
+  return window.chatApi.pluginQuery<{ month: string; type: number; count: number }>(
+    sessionId,
+    `SELECT
+       strftime('%Y-%m', msg.ts, 'unixepoch', 'localtime') as month,
+       msg.type,
+       COUNT(*) as count
+     FROM message msg
+     JOIN member m ON msg.sender_id = m.id
+     WHERE 1=1 ${SYSTEM_FILTER} ${conditions}
+     GROUP BY month, msg.type
+     ORDER BY month, msg.type`,
+    params
+  )
+}
+
+/** 获取成员月度消息趋势（按月 × 发送者） */
+export async function queryMemberMonthlyTrend(
+  sessionId: string,
+  timeFilter?: TimeFilter
+): Promise<Array<{ month: string; memberId: number; memberName: string; count: number }>> {
+  const { conditions, params } = buildFilter(timeFilter)
+
+  return window.chatApi.pluginQuery<{ month: string; memberId: number; memberName: string; count: number }>(
+    sessionId,
+    `SELECT
+       strftime('%Y-%m', msg.ts, 'unixepoch', 'localtime') as month,
+       msg.sender_id as memberId,
+       m.account_name as memberName,
+       COUNT(*) as count
+     FROM message msg
+     JOIN member m ON msg.sender_id = m.id
+     WHERE 1=1 ${SYSTEM_FILTER} ${conditions}
+     GROUP BY month, msg.sender_id
+     ORDER BY month`,
+    params
+  )
+}
+
+/** 获取文字消息长度百分位统计 */
+export async function queryTextLengthPercentiles(
+  sessionId: string,
+  timeFilter?: TimeFilter
+): Promise<{ p25: number; p50: number; p75: number; p90: number }> {
+  const { conditions, params } = buildFilter(timeFilter)
+
+  const rows = await window.chatApi.pluginQuery<{ len: number }>(
+    sessionId,
+    `SELECT LENGTH(msg.content) as len
+     FROM message msg
+     JOIN member m ON msg.sender_id = m.id
+     WHERE 1=1 ${SYSTEM_FILTER} ${conditions}
+       AND msg.type = 0 AND msg.content IS NOT NULL AND LENGTH(msg.content) > 0
+     ORDER BY len`,
+    params
+  )
+
+  if (rows.length === 0) return { p25: 0, p50: 0, p75: 0, p90: 0 }
+
+  const getPercentile = (arr: number[], p: number) => {
+    const idx = Math.ceil((p / 100) * arr.length) - 1
+    return arr[Math.max(0, idx)]
+  }
+
+  const lengths = rows.map((r) => r.len)
+  return {
+    p25: getPercentile(lengths, 25),
+    p50: getPercentile(lengths, 50),
+    p75: getPercentile(lengths, 75),
+    p90: getPercentile(lengths, 90),
+  }
+}
+
 /** 获取消息长度分布（仅文字消息） */
 export async function queryLengthDistribution(sessionId: string, timeFilter?: TimeFilter): Promise<LengthDistribution> {
   const { conditions, params } = buildFilter(timeFilter)

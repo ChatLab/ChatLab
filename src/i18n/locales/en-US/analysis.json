@@ -87,6 +87,8 @@
   "subTabs": {
     "view": {
       "message": "Messages",
+      "typeAnalysis": "Types",
+      "timeAnalysis": "Time",
       "topic": "Topics",
       "interaction": "Interactions",
       "groupRelationships": "Relationships",

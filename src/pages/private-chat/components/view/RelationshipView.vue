@@ -438,7 +438,7 @@ function formatDuration(seconds: number): string {
                 :left-value="formatResponseByMember(memberA?.memberId)"
                 :right-name="memberB?.name"
                 :right-value="formatResponseByMember(memberB?.memberId)"
-                value-class="text-lg text-amber-600 dark:text-amber-400"
+                value-class="text-base text-amber-600 dark:text-amber-400"
                 :description="t('views.relationship.responseLatency.hint')"
               />
 

@@ -3,7 +3,8 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SubTabs } from '@/components/UI'
 import UserSelect from '@/components/common/UserSelect.vue'
-import MessageView from '@/features/charts-message/MessageView.vue'
+import TypeAnalysisView from '@/features/charts-message/TypeAnalysisView.vue'
+import TimeAnalysisView from '@/features/charts-message/TimeAnalysisView.vue'
 import RankingView from '@/features/charts-ranking/RankingView.vue'
 import GroupRelationships from './view/GroupRelationships.vue'
 import { WordcloudTab, CatchphraseTab, HotRepeatTab } from '@/components/analysis/quotes'
@@ -18,10 +19,10 @@ const props = defineProps<{
   timeFilter?: TimeFilter
 }>()
 
-// 子 Tab 配置（群聊专属：包含互动分析和榜单）
 const subTabs = computed(() => {
   const tabs = [
-    { id: 'message', label: t('analysis.subTabs.view.message'), icon: 'i-heroicons-chat-bubble-left-right' },
+    { id: 'type-analysis', label: t('analysis.subTabs.view.typeAnalysis'), icon: 'i-heroicons-chart-pie' },
+    { id: 'time-analysis', label: t('analysis.subTabs.view.timeAnalysis'), icon: 'i-heroicons-clock' },
     { id: 'topic', label: t('analysis.subTabs.view.topic'), icon: 'i-heroicons-cloud' },
     { id: 'group-relationships', label: t('analysis.subTabs.view.groupRelationships'), icon: 'i-heroicons-heart' },
     { id: 'hot-repeat', label: t('analysis.subTabs.quotes.hotRepeat'), icon: 'i-heroicons-fire' },
@@ -31,19 +32,16 @@ const subTabs = computed(() => {
       icon: 'i-heroicons-chat-bubble-bottom-center-text',
     },
   ]
-  // 榜单仅在中文下显示
   if (isFeatureSupported('groupRanking', locale.value as LocaleType)) {
-    tabs.splice(1, 0, { id: 'ranking', label: t('analysis.subTabs.view.ranking'), icon: 'i-heroicons-trophy' })
+    tabs.splice(2, 0, { id: 'ranking', label: t('analysis.subTabs.view.ranking'), icon: 'i-heroicons-trophy' })
   }
   return tabs
 })
 
-const activeSubTab = ref('message')
+const activeSubTab = ref('type-analysis')
 
-// 成员筛选
 const selectedMemberId = ref<number | null>(null)
 
-// 构建 timeFilter（含 memberId）
 const viewTimeFilter = computed(() => ({
   ...props.timeFilter,
   memberId: selectedMemberId.value,
@@ -52,18 +50,22 @@ const viewTimeFilter = computed(() => ({
 
 <template>
   <div class="flex h-full flex-col">
-    <!-- 子 Tab 导航（右侧插槽放成员筛选） -->
     <SubTabs v-model="activeSubTab" :items="subTabs" persist-key="groupViewTab">
       <template #right>
         <UserSelect v-if="activeSubTab !== 'topic'" v-model="selectedMemberId" :session-id="props.sessionId" />
       </template>
     </SubTabs>
 
-    <!-- 子 Tab 内容 -->
     <div class="flex-1 min-h-0 overflow-y-auto">
       <Transition name="fade" mode="out-in">
-        <MessageView
-          v-if="activeSubTab === 'message'"
+        <TypeAnalysisView
+          v-if="activeSubTab === 'type-analysis'"
+          :session-id="props.sessionId"
+          :session-name="props.sessionName"
+          :time-filter="viewTimeFilter"
+        />
+        <TimeAnalysisView
+          v-else-if="activeSubTab === 'time-analysis'"
           :session-id="props.sessionId"
           :session-name="props.sessionName"
           :time-filter="viewTimeFilter"
