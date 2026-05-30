@@ -8,6 +8,7 @@
 import type {
   SessionIndexAdapter,
   SessionStats,
+  SessionIndexStatusItem,
   ChatSessionItem,
   SummaryResult,
   BatchSummaryResult,
@@ -61,6 +62,12 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
     } catch {
       return { hasIndex: false, sessionCount: 0, gapThreshold: 1800 }
     }
+  }
+
+  async getAllIndexStats(): Promise<SessionIndexStatusItem[]> {
+    const resp = await fetch('/_web/sessions/index-stats')
+    if (!resp.ok) return []
+    return (await resp.json()) as SessionIndexStatusItem[]
   }
 
   async clear(sessionId: string): Promise<boolean> {

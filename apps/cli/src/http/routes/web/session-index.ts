@@ -2,6 +2,10 @@ import type { FastifyInstance } from 'fastify'
 import { sessionIndexService, type SessionRuntimeAdapter } from '@openchatlab/node-runtime'
 
 export function registerSessionIndexRoutes(server: FastifyInstance, adapter: SessionRuntimeAdapter): void {
+  server.get('/_web/sessions/index-stats', async () => {
+    return sessionIndexService.getAllIndexStats(adapter)
+  })
+
   server.post<{
     Params: { id: string }
     Body: { gapThreshold?: number }

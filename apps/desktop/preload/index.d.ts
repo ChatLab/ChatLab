@@ -1128,6 +1128,7 @@ interface SessionApi {
   generateIncremental: (sessionId: string, gapThreshold?: number) => Promise<number>
   hasIndex: (sessionId: string) => Promise<boolean>
   getStats: (sessionId: string) => Promise<SessionStats>
+  getAllIndexStats: () => Promise<Array<{ sessionId: string; hasIndex: boolean; sessionCount: number }>>
   clear: (sessionId: string) => Promise<boolean>
   updateGapThreshold: (sessionId: string, gapThreshold: number | null) => Promise<boolean>
   getSessions: (sessionId: string) => Promise<ChatSessionItem[]>

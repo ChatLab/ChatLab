@@ -257,6 +257,13 @@ export const sessionApi = {
   },
 
   /**
+   * 批量获取所有会话的索引状态
+   */
+  getAllIndexStats: (): Promise<Array<{ sessionId: string; hasIndex: boolean; sessionCount: number }>> => {
+    return ipcRenderer.invoke('session:getAllIndexStats')
+  },
+
+  /**
    * 清空会话索引
    */
   clear: (sessionId: string): Promise<boolean> => {

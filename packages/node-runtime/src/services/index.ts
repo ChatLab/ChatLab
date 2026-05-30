@@ -31,7 +31,9 @@ export {
   getFtsStatus,
   searchFts,
   rebuildFts,
+  getAllIndexStats,
 } from './session-index-service'
+export type { SessionIndexStatusItem } from './session-index-service'
 
 // Summary service
 export { generateSummary, generateAllSummaries } from './summary-service'

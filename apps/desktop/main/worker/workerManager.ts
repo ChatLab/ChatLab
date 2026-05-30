@@ -746,6 +746,14 @@ export async function getSessionStats(sessionId: string): Promise<SessionStats> 
   return sendToWorker('getSessionStats', { sessionId })
 }
 
+export async function getAllIndexStats(): Promise<
+  Array<{ sessionId: string; hasIndex: boolean; sessionCount: number }>
+> {
+  const sessions = await getAllSessions()
+  const sessionIds = sessions.map((s: any) => s.id)
+  return sendToWorker('getAllIndexStats', { sessionIds })
+}
+
 /**
  * 更新单个聊天的会话切分阈值
  */

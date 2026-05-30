@@ -82,6 +82,19 @@ export function getSessionStats(sessionId: string): SessionIndexStats {
   })
 }
 
+export interface SessionIndexStatusItem {
+  sessionId: string
+  hasIndex: boolean
+  sessionCount: number
+}
+
+export function getAllIndexStats(sessionIds: string[]): SessionIndexStatusItem[] {
+  return sessionIds.map((sessionId) => {
+    const stats = getSessionStats(sessionId)
+    return { sessionId, hasIndex: stats.hasIndex, sessionCount: stats.sessionCount }
+  })
+}
+
 export function updateSessionGapThreshold(sessionId: string, gapThreshold: number | null): void {
   withWritableAdapter(sessionId, (adapter) => coreUpdateSessionGapThreshold(adapter, gapThreshold))
 }

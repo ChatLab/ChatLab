@@ -836,6 +836,15 @@ export function registerChatHandlers(ctx: IpcContext): void {
     }
   })
 
+  ipcMain.handle('session:getAllIndexStats', async () => {
+    try {
+      return await worker.getAllIndexStats()
+    } catch (error) {
+      console.error('Failed to get all index stats:', error)
+      return []
+    }
+  })
+
   /**
    * 清空会话索引
    */

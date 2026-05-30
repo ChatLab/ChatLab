@@ -3,7 +3,7 @@
  * 会话索引管理区块
  * 配置会话索引阈值和批量生成功能
  */
-import { ref, onMounted, computed } from 'vue'
+import { ref, onMounted, onUnmounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import UITabs from '@/components/UI/Tabs.vue'
 import { useDataService, useSessionIndexService } from '@/services'
@@ -72,35 +72,25 @@ function onSummaryStrategyChange(val: string | number) {
   patchUiConfig({ summary_strategy: val as SummaryStrategy })
 }
 
-// 加载所有会话的索引状态
+// 加载所有会话的索引状态（单次批量请求）
 async function loadSessionIndexStatus() {
   isLoadingSessionStatus.value = true
   try {
-    // 获取所有会话
-    const sessions = await useDataService().getSessions()
+    const [sessions, indexStats] = await Promise.all([
+      useDataService().getSessions(),
+      useSessionIndexService().getAllIndexStats(),
+    ])
 
-    // 获取每个会话的索引状态
-    const statusList: SessionIndexStatus[] = []
-    for (const session of sessions) {
-      try {
-        const stats = await useSessionIndexService().getStats(session.id)
-        statusList.push({
-          id: session.id,
-          name: session.name,
-          hasIndex: stats.hasIndex,
-          sessionCount: stats.sessionCount,
-        })
-      } catch {
-        statusList.push({
-          id: session.id,
-          name: session.name,
-          hasIndex: false,
-          sessionCount: 0,
-        })
+    const statsMap = new Map(indexStats.map((s) => [s.sessionId, s]))
+    allSessionsStatus.value = sessions.map((session) => {
+      const stats = statsMap.get(session.id)
+      return {
+        id: session.id,
+        name: session.name,
+        hasIndex: stats?.hasIndex ?? false,
+        sessionCount: stats?.sessionCount ?? 0,
       }
-    }
-
-    allSessionsStatus.value = statusList
+    })
   } catch (error) {
     console.error('加载会话索引状态失败:', error)
   } finally {
@@ -189,16 +179,35 @@ async function batchRegenerateAll() {
   isBatchGenerating.value = false
 }
 
-// 组件挂载时加载数据
+// 使用 IntersectionObserver 实现懒加载：仅当组件进入视口时才加载会话状态
+const sectionRef = ref<HTMLElement | null>(null)
+let observer: IntersectionObserver | null = null
+let hasLoadedStatus = false
+
 onMounted(() => {
   loadSessionThreshold()
   summaryStrategy.value = getSummaryStrategy()
-  loadSessionIndexStatus()
+
+  observer = new IntersectionObserver(
+    (entries) => {
+      if (entries[0]?.isIntersecting && !hasLoadedStatus) {
+        hasLoadedStatus = true
+        loadSessionIndexStatus()
+        observer?.disconnect()
+      }
+    },
+    { threshold: 0.1 }
+  )
+  if (sectionRef.value) observer.observe(sectionRef.value)
+})
+
+onUnmounted(() => {
+  observer?.disconnect()
 })
 </script>
 
 <template>
-  <div class="space-y-6">
+  <div ref="sectionRef" class="space-y-6">
     <!-- 会话索引配置 -->
     <div class="space-y-3">
       <div class="flex items-center justify-between">

@@ -37,11 +37,18 @@ export interface CanGenerateInfo {
   reason?: string
 }
 
+export interface SessionIndexStatusItem {
+  sessionId: string
+  hasIndex: boolean
+  sessionCount: number
+}
+
 export interface SessionIndexAdapter {
   generate(sessionId: string, gapThreshold?: number): Promise<number>
   generateIncremental(sessionId: string, gapThreshold?: number): Promise<number>
   hasIndex(sessionId: string): Promise<boolean>
   getStats(sessionId: string): Promise<SessionStats>
+  getAllIndexStats(): Promise<SessionIndexStatusItem[]>
   clear(sessionId: string): Promise<boolean>
   updateGapThreshold(sessionId: string, gapThreshold: number | null): Promise<boolean>
   getSessions(sessionId: string): Promise<ChatSessionItem[]>

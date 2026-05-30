@@ -5,6 +5,7 @@
 import type {
   SessionIndexAdapter,
   SessionStats,
+  SessionIndexStatusItem,
   ChatSessionItem,
   SummaryResult,
   BatchSummaryResult,
@@ -26,6 +27,10 @@ export class ElectronSessionIndexAdapter implements SessionIndexAdapter {
 
   getStats(sessionId: string): Promise<SessionStats> {
     return window.sessionApi.getStats(sessionId)
+  }
+
+  async getAllIndexStats(): Promise<SessionIndexStatusItem[]> {
+    return window.sessionApi.getAllIndexStats()
   }
 
   clear(sessionId: string): Promise<boolean> {

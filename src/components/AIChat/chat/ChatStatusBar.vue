@@ -27,10 +27,8 @@ const props = defineProps<{
 const promptStore = usePromptStore()
 const llmStore = useLLMStore()
 const { aiGlobalSettings } = storeToRefs(promptStore)
-const { configs, defaultAssistantConfig, isLoading: isLoadingLLM } = storeToRefs(llmStore)
+const { defaultAssistantConfig, isLoading: isLoadingLLM } = storeToRefs(llmStore)
 
-// 下拉菜单状态
-const isModelPopoverOpen = ref(false)
 const isOpeningLog = ref(false)
 
 const agentPhaseText = computed(() => {
@@ -121,20 +119,8 @@ function openChatSettings() {
   layoutStore.openSettings('ai', 'chat')
 }
 
-// 切换 AI 模型配置
-async function switchModelConfig(configId: string) {
-  const config = llmStore.configs.find((c) => c.id === configId)
-  const success = await llmStore.setDefaultAssistantModel(configId, config?.model || '')
-  if (success) {
-    isModelPopoverOpen.value = false
-  } else {
-    toast.fail(t('ai.chat.statusBar.model.switchFailed'))
-  }
-}
-
 function openModelSettings() {
-  isModelPopoverOpen.value = false
-  layoutStore.openSettings('ai', 'model')
+  layoutStore.openSettings('ai', 'defaultModel')
 }
 
 // 导出当前对话
@@ -258,71 +244,21 @@ const thinkingLevelLabel = computed(() => {
   <div class="relative z-20 flex items-center justify-between">
     <!-- 左侧：模型切换器 -->
     <div class="flex items-center gap-1">
-      <UPopover v-model:open="isModelPopoverOpen" :ui="{ content: 'z-[80] p-0' }">
-        <button
-          class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-300"
-          :disabled="isLoadingLLM"
-        >
-          <UIcon name="i-heroicons-cpu-chip" class="h-3.5 w-3.5" />
-          <span class="max-w-[120px] truncate">
-            {{ defaultAssistantConfig?.name || t('ai.chat.statusBar.model.notConfigured') }}
-          </span>
-          <UIcon name="i-heroicons-chevron-down" class="h-3 w-3" />
-        </button>
-        <template #content>
-          <div class="w-48 py-1">
-            <div class="px-3 py-1.5 text-xs font-medium text-gray-400 dark:text-gray-500">
-              {{ t('ai.chat.statusBar.model.title') }}
-            </div>
-
-            <!-- 配置列表 -->
-            <template v-if="configs.length > 0">
-              <button
-                v-for="config in configs"
-                :key="config.id"
-                class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-                :class="[
-                  config.id === defaultAssistantConfig?.id
-                    ? 'text-pink-600 dark:text-pink-400'
-                    : 'text-gray-700 dark:text-gray-300',
-                ]"
-                @click="switchModelConfig(config.id)"
-              >
-                <UIcon
-                  :name="
-                    config.id === defaultAssistantConfig?.id ? 'i-heroicons-check-circle-solid' : 'i-heroicons-cpu-chip'
-                  "
-                  class="h-4 w-4 shrink-0"
-                  :class="[config.id === defaultAssistantConfig?.id ? 'text-pink-500' : 'text-gray-400']"
-                />
-                <div class="flex flex-col truncate">
-                  <span class="truncate">{{ config.name }}</span>
-                  <span v-if="config.model" class="truncate text-[10px] text-gray-400 dark:text-gray-500">
-                    {{ llmStore.getModelById(config.provider, config.model)?.name || config.model }}
-                  </span>
-                </div>
-              </button>
-            </template>
-
-            <!-- 空状态 -->
-            <div v-else class="px-3 py-2 text-sm text-gray-400 dark:text-gray-500">
-              {{ t('ai.chat.statusBar.model.empty') }}
-            </div>
-
-            <!-- 分隔线 -->
-            <div class="my-1 border-t border-gray-200 dark:border-gray-700" />
-
-            <!-- 管理配置按钮 -->
-            <button
-              class="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-300"
-              @click="openModelSettings"
-            >
-              <UIcon name="i-heroicons-cog-6-tooth" class="h-4 w-4 shrink-0" />
-              <span>{{ t('ai.chat.statusBar.model.manage') }}</span>
-            </button>
-          </div>
-        </template>
-      </UPopover>
+      <button
+        class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+        :disabled="isLoadingLLM"
+        @click="openModelSettings"
+      >
+        <UIcon name="i-heroicons-cpu-chip" class="h-3.5 w-3.5" />
+        <span class="max-w-[160px] truncate">
+          {{
+            defaultAssistantConfig?.model
+              ? llmStore.getModelById(defaultAssistantConfig.provider, defaultAssistantConfig.model)?.name ||
+                defaultAssistantConfig.model
+              : t('ai.chat.statusBar.model.notConfigured')
+          }}
+        </span>
+      </button>
 
       <!-- 思考强度选择器（仅对 reasoning 模型显示） -->
       <UPopover v-if="showThinkingSelector" v-model:open="isThinkingPopoverOpen" :ui="{ content: 'z-[80] p-0' }">

@@ -8,6 +8,7 @@ import {
   generateSessionIndex as coreGenerateSessionIndex,
   generateIncrementalSessionIndex as coreGenerateIncrementalSessionIndex,
   clearSessionIndex as coreClearSessionIndex,
+  getSessionIndexStats,
 } from '@openchatlab/core'
 import { hasFtsTable, searchByFts, rebuildFtsIndex } from '../fts'
 import type { SessionRuntimeAdapter } from './adapters'
@@ -50,4 +51,23 @@ export function searchFts(
 export function rebuildFts(adapter: SessionRuntimeAdapter, sessionId: string) {
   const db = adapter.ensureWritable(sessionId)
   return rebuildFtsIndex(db)
+}
+
+export interface SessionIndexStatusItem {
+  sessionId: string
+  hasIndex: boolean
+  sessionCount: number
+}
+
+export function getAllIndexStats(adapter: SessionRuntimeAdapter): SessionIndexStatusItem[] {
+  const ids = adapter.listSessionIds()
+  return ids.map((sessionId) => {
+    try {
+      const db = adapter.ensureReadonly(sessionId)
+      const stats = getSessionIndexStats(db)
+      return { sessionId, hasIndex: stats.hasIndex, sessionCount: stats.sessionCount }
+    } catch {
+      return { sessionId, hasIndex: false, sessionCount: 0 }
+    }
+  })
 }
