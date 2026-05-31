@@ -24,6 +24,7 @@ import {
 } from '@openchatlab/core'
 import { getVersion } from './version'
 import { resolveCliPath } from './paths'
+import { isPortAvailable, formatPortInUseError } from './http/port'
 
 const program = new Command()
 
@@ -303,6 +304,12 @@ program
     const { startHttpServer } = await import('./http')
     const port = parseInt(options.port, 10)
 
+    // 启动前预检端口，快速失败，避免无谓的初始化后再报 EADDRINUSE
+    if (!(await isPortAvailable(port, options.host))) {
+      console.error(formatPortInUseError(port))
+      process.exit(1)
+    }
+
     let webRoot: string | undefined
     if (!options.headless) {
       const webDir = resolveCliPath('dist-web')
@@ -353,7 +360,8 @@ program
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : String(err)
       if (message.includes('EADDRINUSE')) {
-        console.error(`Error: port ${port} is already in use`)
+        // 极低概率的 TOCTOU 竞态（预检通过后端口被占），复用统一文案
+        console.error(formatPortInUseError(port))
       } else {
         console.error(`Startup failed: ${message}`)
       }
