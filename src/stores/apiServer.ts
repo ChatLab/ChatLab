@@ -12,6 +12,7 @@ import { IS_ELECTRON } from '@/utils/platform'
 import { useSessionStore } from './session'
 import { useSessionIndexService } from '@/services/session-index/service'
 import { getSessionGapThreshold } from '@/composables/useUiConfig'
+import { fetchWithAuth } from '@/services/utils/http'
 
 export interface ApiServerConfig {
   enabled: boolean
@@ -133,7 +134,7 @@ function createWebTransport(): ApiTransport {
   const noop = () => () => {}
 
   async function fetchJson<T>(url: string, options?: RequestInit): Promise<T> {
-    const resp = await fetch(url, options)
+    const resp = await fetchWithAuth(url, options)
     if (!resp.ok) {
       const body = await resp.json().catch(() => ({}))
       throw new Error((body as any)?.error || `HTTP ${resp.status}`)
@@ -429,7 +430,7 @@ export const useApiServerStore = defineStore('apiServer', () => {
   async function fetchSyncProgress() {
     if (!isWebMode.value) return
     try {
-      const list = await fetch('/_web/automation/sync-progress').then((r) => r.json())
+      const list = await fetchWithAuth('/_web/automation/sync-progress').then((r) => r.json())
       const map = new Map<string, { current: number; pages: number }>()
       for (const item of list as Array<{ sessionId: string; current: number; pages: number; done: boolean }>) {
         if (!item.done) map.set(item.sessionId, { current: item.current, pages: item.pages })

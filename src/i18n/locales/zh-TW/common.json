@@ -131,5 +131,18 @@
   },
   "userSelect": {
     "allMembers": "全部成員"
+  },
+  "login": {
+    "description": "此服務已開啟認證保護，請輸入 API Token 登入",
+    "tokenLabel": "API Token",
+    "tokenPlaceholder": "clb_xxxxxxxx",
+    "submit": "登入",
+    "hint": "Token 可在 chatlab 啟動日誌中查看",
+    "errorEmpty": "請輸入 Token",
+    "errorInvalid": "Token 無效，請檢查後重試",
+    "errorNetwork": "網路連線失敗",
+    "logoutTitle": "帳戶",
+    "logoutDesc": "退出目前認證登入",
+    "logout": "登出"
   }
 }

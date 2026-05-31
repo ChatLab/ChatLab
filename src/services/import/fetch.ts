@@ -16,9 +16,7 @@ import type {
   IncrementalAnalysis,
   IncrementalImportResult,
 } from './types'
-import { get } from '../utils/http'
-
-const BASE = '/_web'
+import { get, fetchWithAuth, getBaseUrl } from '../utils/http'
 
 async function consumeSseStream<T>(res: Response, fallback: T, onProgress?: (p: ImportProgress) => void): Promise<T> {
   const reader = res.body?.getReader()
@@ -70,7 +68,7 @@ export class FetchImportAdapter implements ImportAdapter {
     if (options?.formatId) form.append('formatId', options.formatId)
     if (options?.chatIndex !== undefined) form.append('chatIndex', String(options.chatIndex))
 
-    const res = await fetch(`${BASE}/import`, { method: 'POST', body: form })
+    const res = await fetchWithAuth(`${getBaseUrl()}/import`, { method: 'POST', body: form })
 
     if (!res.ok) {
       const text = await res.text()
@@ -84,7 +82,7 @@ export class FetchImportAdapter implements ImportAdapter {
     if (typeof file === 'string') return null
     const form = new FormData()
     form.append('file', file)
-    const res = await fetch(`${BASE}/detect-format`, { method: 'POST', body: form })
+    const res = await fetchWithAuth(`${getBaseUrl()}/detect-format`, { method: 'POST', body: form })
     if (!res.ok) return null
     const data = (await res.json()) as { format: FormatInfo | null }
     return data.format
@@ -94,7 +92,7 @@ export class FetchImportAdapter implements ImportAdapter {
     if (typeof file === 'string') return []
     const form = new FormData()
     form.append('file', file)
-    const res = await fetch(`${BASE}/scan-multi-chat`, { method: 'POST', body: form })
+    const res = await fetchWithAuth(`${getBaseUrl()}/scan-multi-chat`, { method: 'POST', body: form })
     if (!res.ok) return []
     const data = (await res.json()) as { chats: MultiChatEntry[] }
     return data.chats
@@ -106,7 +104,7 @@ export class FetchImportAdapter implements ImportAdapter {
 
   async importDemo(locale: string, onProgress?: (p: DemoProgress) => void): Promise<DemoImportResult> {
     return new Promise((resolve) => {
-      fetch(`${BASE}/demo/import`, {
+      fetchWithAuth(`${getBaseUrl()}/demo/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ locale }),
@@ -161,7 +159,7 @@ export class FetchImportAdapter implements ImportAdapter {
     const form = new FormData()
     form.append('file', file)
 
-    const res = await fetch(`${BASE}/sessions/${sessionId}/import/incremental/analyze`, {
+    const res = await fetchWithAuth(`${getBaseUrl()}/sessions/${sessionId}/import/incremental/analyze`, {
       method: 'POST',
       body: form,
     })
@@ -186,7 +184,7 @@ export class FetchImportAdapter implements ImportAdapter {
     const form = new FormData()
     form.append('file', file)
 
-    const res = await fetch(`${BASE}/sessions/${sessionId}/import/incremental`, {
+    const res = await fetchWithAuth(`${getBaseUrl()}/sessions/${sessionId}/import/incremental`, {
       method: 'POST',
       body: form,
     })
@@ -222,7 +220,7 @@ export class FetchImportAdapter implements ImportAdapter {
       form.append('relativePaths', file.webkitRelativePath || file.name)
     }
 
-    const res = await fetch(`${BASE}/import-directory`, { method: 'POST', body: form })
+    const res = await fetchWithAuth(`${getBaseUrl()}/import-directory`, { method: 'POST', body: form })
 
     if (!res.ok) {
       const text = await res.text()

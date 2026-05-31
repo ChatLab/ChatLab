@@ -3,7 +3,10 @@
  *
  * 封装 fetch + ReadableStream 解析 SSE 流，
  * 供各 FetchXxxAdapter 复用。
+ * 自动注入 Authorization header（通过 http.ts 的 getAuthHeaders）。
  */
+
+import { getAuthHeaders } from './http'
 
 export interface SSEEvent {
   event: string
@@ -28,7 +31,7 @@ export async function fetchSSE(options: FetchSSEOptions): Promise<void> {
 
   const resp = await fetch(url, {
     method,
-    headers: { 'Content-Type': 'application/json', ...headers },
+    headers: { 'Content-Type': 'application/json', ...getAuthHeaders(), ...headers },
     body: body != null ? JSON.stringify(body) : undefined,
     signal,
   })

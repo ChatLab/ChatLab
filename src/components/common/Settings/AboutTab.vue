@@ -2,15 +2,29 @@
 import { ref, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
+import { useRouter } from 'vue-router'
 import { useToast } from '@/composables/useToast'
 import { useSettingsStore } from '@/stores/settings'
+import { useLayoutStore } from '@/stores/layout'
+import { useAuthStore } from '@/stores/auth'
 import { usePlatformService } from '@/services'
 import { IS_ELECTRON } from '@/utils/platform'
 
 const { t } = useI18n()
 const toast = useToast()
+const router = useRouter()
 const settingsStore = useSettingsStore()
+const layoutStore = useLayoutStore()
+const authStore = useAuthStore()
 const { debugMode } = storeToRefs(settingsStore)
+
+const showLogout = !IS_ELECTRON && authStore.isAuthenticated
+
+function handleLogout() {
+  layoutStore.closeSettings()
+  authStore.logout()
+  router.push({ name: 'login' })
+}
 
 const appVersion = ref(t('common.loading'))
 const isCheckingUpdate = ref(false)
@@ -143,6 +157,25 @@ onMounted(() => {
             </p>
           </div>
           <USwitch :model-value="debugMode" @update:model-value="settingsStore.setDebugMode" />
+        </div>
+      </div>
+    </div>
+
+    <!-- 退出登录（仅 Server 模式已认证时显示） -->
+    <div v-if="showLogout">
+      <h3 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+        <UIcon name="i-heroicons-arrow-right-on-rectangle" class="h-4 w-4 text-red-500" />
+        {{ t('common.login.logoutTitle') }}
+      </h3>
+      <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+        <div class="flex items-center justify-between">
+          <div>
+            <p class="text-sm font-medium text-gray-900 dark:text-white">{{ t('common.login.logoutDesc') }}</p>
+          </div>
+          <UButton color="error" variant="soft" size="sm" @click="handleLogout">
+            <UIcon name="i-heroicons-arrow-right-on-rectangle" class="mr-1 h-4 w-4" />
+            {{ t('common.login.logout') }}
+          </UButton>
         </div>
       </div>
     </div>
