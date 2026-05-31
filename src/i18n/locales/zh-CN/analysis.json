@@ -66,7 +66,8 @@
     "viewChatRecord": "查看聊天记录",
     "sessionIndex": "会话索引",
     "incrementalImport": "增量导入",
-    "memberManagement": "成员管理"
+    "memberManagement": "成员管理",
+    "more": "更多"
   },
   "incremental": {
     "title": "追加聊天记录",

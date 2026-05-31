@@ -240,7 +240,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
     class="flex h-full flex-col border-r border-gray-200/50 transition-all duration-300 ease-in-out dark:border-gray-800/50"
     :class="[isCollapsed ? 'w-20' : 'w-72', isHomePage ? '' : 'bg-gray-50 dark:bg-gray-900']"
   >
-    <div class="flex flex-col p-4 pt-5">
+    <div class="flex flex-col pt-5" :class="[isCollapsed ? 'px-3 pb-4' : 'p-4']">
       <!-- Header -->
       <div
         class="mb-2 flex items-center"
@@ -256,12 +256,12 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
         </div>
         <div
           v-else
-          class="group relative flex h-12 w-12 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-gray-800"
+          class="group relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-gray-800"
           style="-webkit-app-region: no-drag"
           @click="toggleSidebar"
         >
-          <img :src="logoSvg" alt="ChatLab" class="size-6 select-none pointer-events-none group-hover:hidden" />
-          <UIcon name="i-lucide-panel-right-open" class="size-5 hidden group-hover:block scale-x-[-1]" />
+          <img :src="logoSvg" alt="ChatLab" class="size-5 select-none pointer-events-none group-hover:hidden" />
+          <UIcon name="i-lucide-panel-right-open" class="size-4 hidden group-hover:block scale-x-[-1]" />
         </div>
         <UTooltip
           v-if="!isCollapsed"
@@ -272,18 +272,23 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
           <UButton
             color="gray"
             variant="ghost"
-            size="md"
-            class="group flex h-12 w-12 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-gray-800"
+            size="sm"
+            class="group flex h-9 w-9 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-gray-800"
             @click="toggleSidebar"
           >
-            <UIcon name="i-lucide-panel-right" class="size-5 group-hover:hidden scale-x-[-1]" />
-            <UIcon name="i-lucide-panel-right-close" class="size-5 hidden group-hover:block scale-x-[-1]" />
+            <UIcon name="i-lucide-panel-right" class="size-4 group-hover:hidden scale-x-[-1]" />
+            <UIcon name="i-lucide-panel-right-close" class="size-4 hidden group-hover:block scale-x-[-1]" />
           </UButton>
         </UTooltip>
       </div>
 
       <!-- 新建分析 -->
-      <SidebarButton icon="i-heroicons-plus" :title="t('layout.newAnalysis')" @click="handleImport" />
+      <SidebarButton
+        icon="i-heroicons-plus"
+        :title="t('layout.newAnalysis')"
+        :active="isHomePage"
+        @click="handleImport"
+      />
     </div>
 
     <!-- Session List -->

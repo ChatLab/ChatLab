@@ -23,7 +23,7 @@ import LoadingState from '@/components/UI/LoadingState.vue'
 import { useSessionStore } from '@/stores/session'
 import { useLayoutStore } from '@/stores/layout'
 import { useSettingsStore } from '@/stores/settings'
-import { useSessionAnalysisPageBase, useSessionHeaderDescription } from '@/composables'
+import { useSessionAnalysisPageBase } from '@/composables'
 
 const { t } = useI18n()
 
@@ -111,13 +111,6 @@ const filteredMessageCount = computed(() => {
 const filteredMemberCount = computed(() => {
   return memberActivity.value.filter((m) => m.messageCount > 0).length
 })
-
-const { headerDescription } = useSessionHeaderDescription({
-  session,
-  fullTimeRange,
-  timeRangeValue,
-  descriptionKey: 'analysis.groupChat.description',
-})
 </script>
 
 <template>
@@ -130,25 +123,59 @@ const { headerDescription } = useSessionHeaderDescription({
       <!-- Header -->
       <PageHeader
         :title="session.name"
-        :description="headerDescription"
         :avatar="session.groupAvatar"
+        size="compact"
         icon="i-heroicons-chat-bubble-left-right"
         icon-class="bg-primary-600 text-white dark:bg-primary-500 dark:text-white"
       >
         <template #actions>
-          <UTooltip v-if="layoutStore.toolsPanelPosition === 'header'" :text="t('analysis.overview.tools')">
-            <UButton
-              icon="i-heroicons-wrench-screwdriver"
-              variant="ghost"
-              color="primary"
-              size="sm"
-              @click="layoutStore.toggleToolsPanelOpen()"
-            />
-          </UTooltip>
-          <CaptureButton />
+          <template v-if="layoutStore.toolsPanelPosition === 'header'">
+            <UTooltip :text="t('analysis.tooltip.incrementalImport')">
+              <UButton
+                icon="i-heroicons-plus-circle"
+                variant="ghost"
+                color="gray"
+                size="sm"
+                class="hover:bg-gray-100 dark:hover:bg-gray-800"
+                @click="showIncrementalImportModal = true"
+              />
+            </UTooltip>
+            <UTooltip :text="t('analysis.tooltip.memberManagement')">
+              <UButton
+                icon="i-heroicons-user-group"
+                variant="ghost"
+                color="gray"
+                size="sm"
+                class="hover:bg-gray-100 dark:hover:bg-gray-800"
+                @click="showMemberManagementModal = true"
+              />
+            </UTooltip>
+            <UTooltip :text="t('analysis.tooltip.viewChatRecord')">
+              <UButton
+                icon="i-heroicons-chat-bubble-bottom-center-text"
+                variant="ghost"
+                color="gray"
+                size="sm"
+                class="hover:bg-gray-100 dark:hover:bg-gray-800"
+                @click="openChatRecordViewer"
+              />
+            </UTooltip>
+            <CaptureButton color="gray" />
+            <UTooltip :text="t('analysis.tooltip.more')">
+              <UButton
+                icon="i-heroicons-ellipsis-horizontal"
+                variant="ghost"
+                color="gray"
+                size="sm"
+                class="hover:bg-gray-100 dark:hover:bg-gray-800"
+                @click="layoutStore.toggleToolsPanelOpen()"
+              />
+            </UTooltip>
+          </template>
+          <CaptureButton v-else color="gray" />
         </template>
         <!-- Tabs -->
-        <div class="mt-2 flex items-center justify-between gap-3">
+        <div class="mt-3 flex items-center justify-between gap-3">
           <div class="flex shrink-0 items-center gap-0.5 overflow-x-auto scrollbar-hide">
             <button
               v-for="tab in tabs"
@@ -238,7 +265,6 @@ const { headerDescription } = useSessionHeaderDescription({
         </div>
       </div>
 
-      <!-- 右侧工具面板（fixed 定位，不占用页面空间） -->
       <ActionToolsPanel
         @open-incremental-import="showIncrementalImportModal = true"
         @open-session-index="showSessionIndexModal = true"

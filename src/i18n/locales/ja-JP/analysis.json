@@ -66,7 +66,8 @@
     "viewChatRecord": "チャット履歴を見る",
     "sessionIndex": "セッション索引",
     "incrementalImport": "追加インポート",
-    "memberManagement": "メンバー管理"
+    "memberManagement": "メンバー管理",
+    "more": "その他"
   },
   "incremental": {
     "title": "チャット記録を追加",

@@ -26,10 +26,13 @@ const props = withDefaults(
     targetSelector?: string
     /** 是否应用 Markdown 列表渲染兼容修复（仅截取 Markdown 内容时传 true） */
     markdownFix?: boolean
+    /** 按钮颜色，默认 primary */
+    color?: string
   }>(),
   {
     size: 'sm',
     type: 'page',
+    color: 'primary',
   }
 )
 
@@ -77,7 +80,8 @@ async function handleCapture(event: Event) {
       :id="buttonId"
       icon="i-heroicons-camera"
       variant="ghost"
-      color="primary"
+      :color="color"
+      :class="color !== 'primary' ? 'hover:bg-gray-100 dark:hover:bg-gray-800' : ''"
       :size="size"
       :loading="isCapturing"
       @click="handleCapture"

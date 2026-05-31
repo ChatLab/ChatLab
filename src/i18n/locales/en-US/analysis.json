@@ -66,7 +66,8 @@
     "viewChatRecord": "View Chat History",
     "sessionIndex": "Session Index",
     "incrementalImport": "Import More",
-    "memberManagement": "Manage Member"
+    "memberManagement": "Manage Member",
+    "more": "More"
   },
   "incremental": {
     "title": "Append Chat Records",

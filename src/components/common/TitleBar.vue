@@ -82,7 +82,7 @@ function close() {
   height: 32px;
   display: flex;
   align-items: center;
-  z-index: 9999;
+  z-index: 30;
   -webkit-app-region: drag;
 }
 
