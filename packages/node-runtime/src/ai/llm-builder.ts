@@ -86,7 +86,11 @@ interface InferReasoningResult {
 }
 
 function inferReasoning(provider: string, modelId: string, modelDef: ModelDefinition | null): InferReasoningResult {
-  const reasoning = modelDef ? modelDef.capabilities.includes('reasoning') : isReasoningModel(provider, modelId)
+  // Builtin catalog models: trust capabilities array exclusively.
+  // Custom (builtin=false) or unlisted models: also check name heuristic as fallback because
+  // auto-saved custom model entries carry only capabilities:['chat'] even for reasoning models.
+  const reasoning =
+    modelDef?.capabilities.includes('reasoning') || (!modelDef?.builtin && isReasoningModel(provider, modelId))
 
   if (!reasoning) return { reasoning: false, compat: undefined }
 

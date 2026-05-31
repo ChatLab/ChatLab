@@ -132,6 +132,30 @@ describe('buildPiModel', () => {
     assert.deepEqual(model.compat, { thinkingFormat: 'qwen' })
   })
 
+  it('auto-infers reasoning=true for custom model saved with only capabilities:["chat"]', () => {
+    // Regression: ensureCustomProvidersAndModels saves user-added models with capabilities:['chat']
+    // only. The heuristic must still fire for non-builtin model definitions so that thinking
+    // level selections are not silently ignored in the UI.
+    const model = buildPiModel(
+      { provider: 'openai-compatible', model: 'qwen3:8b', baseUrl: 'http://localhost:11434/v1' },
+      {
+        findModelFn: () => ({
+          id: 'qwen3:8b',
+          providerId: 'openai-compatible',
+          name: 'qwen3:8b',
+          contextWindow: 32768,
+          capabilities: ['chat'] as const,
+          recommendedFor: ['chat'] as const,
+          status: 'stable' as const,
+          builtin: false,
+          editable: true,
+        }),
+      }
+    )
+    assert.equal(model.reasoning, true)
+    assert.deepEqual(model.compat, { thinkingFormat: 'qwen' })
+  })
+
   it('auto-infers reasoning=false and compat=undefined for non-reasoning Anthropic model', () => {
     const model = buildPiModel({
       provider: 'openai-compatible',
