@@ -70,7 +70,7 @@ export interface ServiceStatus {
 function buildPlist(options: ServiceInstallOptions): string {
   const port = options.port ?? 3110
   const host = options.host ?? '127.0.0.1'
-  const cliEntry = resolveCliPath('dist/cli.mjs')
+  const cliEntry = resolveCliPath('bin/chatlab.mjs')
   const args = ['start', '--no-open', '--port', String(port), '--host', host]
   if (options.token) args.push('--token', options.token)
   if (options.headless) args.push('--headless')
@@ -191,7 +191,7 @@ function escapeSystemdArg(arg: string): string {
 function buildUnit(options: ServiceInstallOptions): string {
   const port = options.port ?? 3110
   const host = options.host ?? '127.0.0.1'
-  const cliEntry = resolveCliPath('dist/cli.mjs')
+  const cliEntry = resolveCliPath('bin/chatlab.mjs')
   const args = ['start', '--no-open', '--port', String(port), '--host', host]
   if (options.token) args.push('--token', options.token)
   if (options.headless) args.push('--headless')
