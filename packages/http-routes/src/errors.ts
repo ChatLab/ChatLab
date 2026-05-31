@@ -1,7 +1,7 @@
 /**
  * ChatLab HTTP API — Error codes and factory functions
  *
- * 从 electron/main/api/errors.ts 迁移，完全平台无关。
+ * Platform-agnostic error handling shared by CLI Server and Electron Internal Server.
  */
 
 export enum ApiErrorCode {

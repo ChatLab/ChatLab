@@ -1,7 +1,9 @@
 /**
  * ChatLab HTTP API — Bearer Token authentication hook
  *
- * 从 electron/main/api/auth.ts 迁移，使用 @openchatlab/config 读取 token。
+ * Shared auth middleware for CLI Server and Electron Internal Server.
+ * URL classification: /api/* always requires token, /_web/* conditionally,
+ * static files and SPA fallback are public.
  */
 
 import type { FastifyRequest, FastifyReply } from 'fastify'
@@ -11,9 +13,6 @@ import { unauthorized, errorResponse } from './errors'
 let cachedToken: string | null = null
 let requireAuthEnabled = false
 
-/**
- * 设置 auth hook 使用的 token（由 server 启动时注入）
- */
 export function setAuthToken(token: string): void {
   cachedToken = token
 }
@@ -40,12 +39,10 @@ export async function authHook(request: FastifyRequest, reply: FastifyReply): Pr
 
   const url = request.url
 
-  // /api/* always requires Bearer token
   if (url.startsWith('/api/')) {
     return requireBearerToken(request, reply)
   }
 
-  // /_web/* requires Bearer token when requireAuthEnabled
   if (url.startsWith('/_web/')) {
     if (requireAuthEnabled) return requireBearerToken(request, reply)
     return

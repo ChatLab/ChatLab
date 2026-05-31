@@ -66,6 +66,7 @@
   "devDependencies": {
     "@openchatlab/config": "workspace:*",
     "@openchatlab/core": "workspace:*",
+    "@openchatlab/http-routes": "workspace:*",
     "@openchatlab/node-runtime": "workspace:*",
     "@openchatlab/parser": "workspace:*",
     "@openchatlab/shared-types": "workspace:*",

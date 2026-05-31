@@ -6,22 +6,21 @@
  */
 
 import type { FastifyInstance } from 'fastify'
-import type { DatabaseManager } from '@openchatlab/node-runtime'
+import type { HttpRouteContext } from '../context'
 import { successResponse } from '../errors'
-import { getVersion } from '../../version'
 
-export function registerSystemRoutes(server: FastifyInstance, dbManager: DatabaseManager): void {
+export function registerSystemRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
   server.get('/api/v1/status', async () => {
     let sessionCount = 0
     try {
-      sessionCount = dbManager.listSessionIds().length
+      sessionCount = ctx.dbManager.listSessionIds().length
     } catch {
       // ignore
     }
 
     return successResponse({
       name: 'ChatLab API',
-      version: getVersion(),
+      version: ctx.getVersion(),
       uptime: Math.floor(process.uptime()),
       sessionCount,
     })

@@ -2,7 +2,8 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import Fastify from 'fastify'
 import type { SessionRuntimeAdapter } from '@openchatlab/node-runtime'
-import { registerSessionRoutes } from './sessions'
+import type { HttpRouteContext } from '@openchatlab/http-routes'
+import { registerSessionRoutes } from '@openchatlab/http-routes'
 
 function createMissingSessionAdapter(): SessionRuntimeAdapter {
   return {
@@ -21,10 +22,20 @@ function createMissingSessionAdapter(): SessionRuntimeAdapter {
   }
 }
 
-describe('CLI Web session routes', () => {
+function createMockContext(adapter: SessionRuntimeAdapter): HttpRouteContext {
+  return {
+    dbManager: {} as any,
+    sessionAdapter: adapter,
+    pathProvider: {} as any,
+    getVersion: () => '0.0.0-test',
+  }
+}
+
+describe('shared session routes', () => {
   it('returns 404 when requesting a missing session by id', async () => {
     const app = Fastify()
-    registerSessionRoutes(app, createMissingSessionAdapter())
+    const ctx = createMockContext(createMissingSessionAdapter())
+    registerSessionRoutes(app, ctx)
 
     const response = await app.inject({ method: 'GET', url: '/_web/sessions/missing' })
     await app.close()

@@ -1,7 +1,10 @@
 import type { FastifyInstance } from 'fastify'
-import { sessionIndexService, type SessionRuntimeAdapter } from '@openchatlab/node-runtime'
+import type { HttpRouteContext } from '../../context'
+import { sessionIndexService } from '@openchatlab/node-runtime'
 
-export function registerSessionIndexRoutes(server: FastifyInstance, adapter: SessionRuntimeAdapter): void {
+export function registerSessionIndexRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+  const { sessionAdapter: adapter } = ctx
+
   server.get('/_web/sessions/index-stats', async () => {
     return sessionIndexService.getAllIndexStats(adapter)
   })

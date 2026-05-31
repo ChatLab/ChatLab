@@ -1,12 +1,12 @@
 /**
- * ChatLab HTTP API — Session routes
+ * ChatLab HTTP API — REST Session routes (/api/v1/sessions/*)
  *
- * 从 electron/main/api/routes/sessions.ts 迁移。
- * 使用 DatabaseManager + @openchatlab/core 替代 workerManager。
+ * Public REST API for external tools, scripts, and integrations.
+ * Uses DatabaseManager + @openchatlab/core for data access.
  */
 
 import type { FastifyInstance } from 'fastify'
-import type { DatabaseManager } from '@openchatlab/node-runtime'
+import type { HttpRouteContext } from '../context'
 import {
   getSessionInfo,
   getSessionMeta,
@@ -22,19 +22,18 @@ import { successResponse, errorResponse, sessionNotFound, exportTooLarge, sqlExe
 
 const EXPORT_MESSAGE_LIMIT = 100_000
 
-function ensureDb(dbManager: DatabaseManager, sessionId: string) {
-  const db = dbManager.open(sessionId)
+function ensureDb(ctx: HttpRouteContext, sessionId: string) {
+  const db = ctx.dbManager.open(sessionId)
   if (!db) throw sessionNotFound(sessionId)
   return db
 }
 
-export function registerSessionRoutes(server: FastifyInstance, dbManager: DatabaseManager): void {
-  // GET /api/v1/sessions — List all sessions
+export function registerRestSessionRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
   server.get('/api/v1/sessions', async () => {
-    const sessionIds = dbManager.listSessionIds()
+    const sessionIds = ctx.dbManager.listSessionIds()
     const sessions = sessionIds
       .map((id) => {
-        const db = dbManager.open(id)
+        const db = ctx.dbManager.open(id)
         if (!db) return null
         const info = getSessionInfo(db)
         if (!info) return null
@@ -54,9 +53,8 @@ export function registerSessionRoutes(server: FastifyInstance, dbManager: Databa
     return successResponse(sessions)
   })
 
-  // GET /api/v1/sessions/:id — Single session detail
   server.get<{ Params: { id: string } }>('/api/v1/sessions/:id', async (request) => {
-    const db = ensureDb(dbManager, request.params.id)
+    const db = ensureDb(ctx, request.params.id)
     const info = getSessionInfo(db)
     if (!info) throw sessionNotFound(request.params.id)
     return successResponse({
@@ -72,7 +70,6 @@ export function registerSessionRoutes(server: FastifyInstance, dbManager: Databa
     })
   })
 
-  // GET /api/v1/sessions/:id/messages — Query messages (paginated)
   server.get<{
     Params: { id: string }
     Querystring: {
@@ -85,7 +82,7 @@ export function registerSessionRoutes(server: FastifyInstance, dbManager: Databa
     }
   }>('/api/v1/sessions/:id/messages', async (request) => {
     const { id } = request.params
-    const db = ensureDb(dbManager, id)
+    const db = ensureDb(ctx, id)
 
     const page = Math.max(1, parseInt(request.query.page || '1', 10) || 1)
     const limit = Math.min(1000, Math.max(1, parseInt(request.query.limit || '100', 10) || 100))
@@ -111,17 +108,15 @@ export function registerSessionRoutes(server: FastifyInstance, dbManager: Databa
     })
   })
 
-  // GET /api/v1/sessions/:id/members — Member list
   server.get<{ Params: { id: string } }>('/api/v1/sessions/:id/members', async (request) => {
-    const db = ensureDb(dbManager, request.params.id)
+    const db = ensureDb(ctx, request.params.id)
     const members = getMembers(db)
     return successResponse(members)
   })
 
-  // GET /api/v1/sessions/:id/stats/overview — Overview statistics
   server.get<{ Params: { id: string } }>('/api/v1/sessions/:id/stats/overview', async (request) => {
     const { id } = request.params
-    const db = ensureDb(dbManager, id)
+    const db = ensureDb(ctx, id)
 
     const overview = getSessionOverview(db)
     const memberActivity = getMemberActivity(db)
@@ -151,10 +146,9 @@ export function registerSessionRoutes(server: FastifyInstance, dbManager: Databa
     })
   })
 
-  // POST /api/v1/sessions/:id/sql — Execute SQL (read-only)
   server.post<{ Params: { id: string }; Body: { sql: string } }>('/api/v1/sessions/:id/sql', async (request, reply) => {
     const { id } = request.params
-    const db = ensureDb(dbManager, id)
+    const db = ensureDb(ctx, id)
 
     const { sql } = request.body || {}
     if (!sql || typeof sql !== 'string') {
@@ -177,10 +171,9 @@ export function registerSessionRoutes(server: FastifyInstance, dbManager: Databa
     }
   })
 
-  // GET /api/v1/sessions/:id/export — Export ChatLab Format JSON
   server.get<{ Params: { id: string } }>('/api/v1/sessions/:id/export', async (request, reply) => {
     const { id } = request.params
-    const db = ensureDb(dbManager, id)
+    const db = ensureDb(ctx, id)
     const meta = getSessionMeta(db)
     if (!meta) throw sessionNotFound(id)
     const overview = getSessionOverview(db)
