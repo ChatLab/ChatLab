@@ -23,6 +23,7 @@ export const apiConfigSchema = z.object({
   port: z.number().int().min(1).max(65535).default(DEFAULT_API_PORT),
   host: z.string().default('127.0.0.1'),
   token: z.string().default(''),
+  require_auth: z.boolean().default(false),
 })
 
 export const localeConfigSchema = z.object({

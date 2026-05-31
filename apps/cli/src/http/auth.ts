@@ -10,6 +10,7 @@ import { unauthorized, errorResponse } from './errors'
 
 let cachedToken: string | null = null
 let webModeEnabled = false
+let requireAuthEnabled = false
 
 /**
  * 设置 auth hook 使用的 token（由 server 启动时注入）
@@ -26,6 +27,14 @@ export function setWebMode(enabled: boolean): void {
   webModeEnabled = enabled
 }
 
+/**
+ * When enabled, /_web/* routes also require Bearer token (same as /api/*).
+ * Used for server/headless deployments where same-origin assumption doesn't hold.
+ */
+export function setRequireAuth(enabled: boolean): void {
+  requireAuthEnabled = enabled
+}
+
 function safeTokenCompare(a: string, b: string): boolean {
   const bufA = Buffer.from(a)
   const bufB = Buffer.from(b)
@@ -36,8 +45,8 @@ function safeTokenCompare(a: string, b: string): boolean {
 export async function authHook(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   if (!cachedToken) return
 
-  // /_web/ internal API: no auth required (same-origin Web UI only)
-  if (request.url.startsWith('/_web/')) return
+  // /_web/ internal API: skip auth unless require_auth is enabled
+  if (request.url.startsWith('/_web/') && !requireAuthEnabled) return
 
   // Web mode: only /api/ routes require auth; static files and SPA are public
   if (webModeEnabled && !request.url.startsWith('/api/')) return
