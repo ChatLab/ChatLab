@@ -79,6 +79,7 @@ export {
   clearSessions,
   hasSessionIndex,
   getSessionStats,
+  getAllIndexStats,
   updateSessionGapThreshold,
   getSessions,
   getSessionsByTimeRange,

@@ -7,6 +7,44 @@ description: 根据当前项目 package.json 版本与 Git 提交记录生成中
 
 按以下流程更新 `changelogs/cn.json`。
 
+## 0. 发布预检（Pre-release Checks）
+
+**在执行任何 changelog 相关操作前，必须先完成以下预检。任意一项失败则立即停止，报告错误并提示用户修复后再重试。**
+
+### 0.1 TypeScript 类型检查
+
+运行全量类型检查（同时覆盖 Web 与 Node/Electron 主进程）：
+
+```bash
+pnpm run type-check:all
+```
+
+- 成功：输出 `[预检 ✓] 类型检查通过`，继续下一步。
+- 失败：输出完整错误信息，停止并提示 `[预检 ✗] 类型检查失败，请修复后重新执行 generate-changelog`。
+
+### 0.2 Vite 构建检查
+
+运行桌面端完整构建（electron-vite build），验证 Rollup 打包不会因模块导出缺失等问题而报错：
+
+```bash
+pnpm run build:desktop
+```
+
+- 成功：输出 `[预检 ✓] 构建检查通过`，继续下一步。
+- 失败：输出完整错误信息，停止并提示 `[预检 ✗] 构建失败，请修复后重新执行 generate-changelog`。
+
+> **说明**：`type-check:all` 覆盖导出缺失、类型错误等静态问题；`build:desktop` 覆盖 Rollup 打包层面的模块解析问题（如本次漏写 re-export 导致的报错），两者互补。
+
+### 0.3 报告预检结论
+
+两项全部通过后输出：
+
+```
+[预检完成] 类型检查 ✓ 构建检查 ✓，开始生成 changelog...
+```
+
+---
+
 ## 1. 读取版本与日志现状
 
 1. 读取 `package.json` 中的 `version` 作为 `currentVersion`。
