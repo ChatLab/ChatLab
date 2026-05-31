@@ -1033,6 +1033,8 @@ export function registerChatHandlers(ctx: IpcContext): void {
         }
         // 数据变更后清除分析缓存
         worker.invalidateAnalysisCache(sessionId).catch(() => {})
+        // 通知渲染进程刷新会话列表（与 API 路由的 notifySessionListChanged 保持一致）
+        win.webContents.send('api:importCompleted')
       }
 
       return result
