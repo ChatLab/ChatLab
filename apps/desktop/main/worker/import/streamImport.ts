@@ -15,6 +15,7 @@ import {
   analyzeNewImport as sharedAnalyzeNewImport,
   streamParseFileInfo as sharedStreamParseFileInfo,
   TEMP_DB_SCHEMA,
+  computeAndSetOverviewCache,
 } from '@openchatlab/node-runtime'
 import type { StreamImportDeps, StreamImportResult, ImportLogger } from '@openchatlab/node-runtime'
 import { sendProgress, generateSessionId, getDbPath, createDatabaseWithoutIndexes } from './utils'
@@ -87,9 +88,8 @@ function buildStreamImportDeps(requestId: string): StreamImportDeps {
       sendProgress(requestId, progress)
     },
     logger: buildElectronLogger(),
-    async postImportHook(_db, sessionId) {
+    postImportHook(_db, sessionId) {
       try {
-        const { computeAndSetOverviewCache } = await import('@openchatlab/node-runtime')
         const dbPath = getDbPath(sessionId)
         const rawDb = new Database(dbPath)
         computeAndSetOverviewCache(new BetterSqliteAdapter(rawDb), sessionId, getCacheDir())

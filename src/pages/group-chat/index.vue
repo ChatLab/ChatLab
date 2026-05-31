@@ -294,7 +294,12 @@ const filteredMemberCount = computed(() => {
       v-model="showIncrementalImportModal"
       :session-id="currentSessionId"
       :session-name="session.name"
-      @imported="loadData"
+      @imported="
+        () => {
+          loadData()
+          sessionStore.loadSessions()
+        }
+      "
     />
 
     <!-- 导出聊天记录弹窗 -->

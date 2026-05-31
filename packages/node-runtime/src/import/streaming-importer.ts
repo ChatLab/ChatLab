@@ -74,7 +74,7 @@ export interface StreamImportDeps {
   /** Optional perf/diagnostic logger */
   logger?: ImportLogger
   /** Optional hook after import completes (e.g. write overview cache) */
-  postImportHook?: (db: DatabaseAdapter, sessionId: string) => void
+  postImportHook?: (db: DatabaseAdapter, sessionId: string) => void | Promise<void>
   /** Generate a session ID. Defaults to timestamp + random. */
   generateSessionId?: () => string
 }
@@ -520,7 +520,7 @@ async function streamImportSingle(
 
     // Post-import hook (e.g. overview cache)
     try {
-      deps.postImportHook?.(db, sessionId)
+      await deps.postImportHook?.(db, sessionId)
       if (deps.postImportHook) logger?.perf('Post-import hook done', totalMessageCount)
     } catch {
       /* non-fatal */
