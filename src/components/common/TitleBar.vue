@@ -82,7 +82,7 @@ function close() {
   height: 32px;
   display: flex;
   align-items: center;
-  z-index: 30;
+  z-index: 40;
   -webkit-app-region: drag;
 }
 
@@ -105,9 +105,10 @@ function close() {
   display: flex;
   height: 100%;
   -webkit-app-region: no-drag;
+  --ctrl-color: var(--color-gray-600);
+  --ctrl-hover-bg: rgba(0, 0, 0, 0.1);
 }
 
-/* 窗口控制按钮 */
 .control-btn {
   width: 46px;
   height: 100%;
@@ -116,32 +117,26 @@ function close() {
   justify-content: center;
   border: none;
   background: transparent;
-  color: var(--color-gray-600);
+  color: var(--ctrl-color);
   cursor: pointer;
   transition: background-color 0.15s;
 }
 
 .control-btn:hover {
-  background-color: rgba(0, 0, 0, 0.1);
+  background-color: var(--ctrl-hover-bg);
 }
 
-/* 深色模式 */
-:global(.dark) .control-btn {
-  color: var(--color-gray-400);
-}
-
-:global(.dark) .control-btn:hover {
-  background-color: rgba(255, 255, 255, 0.1);
-}
-
-/* 关闭按钮特殊样式 */
+/* 关闭按钮：亮/暗模式颜色相同，无需 dark 覆盖 */
 .control-btn-close:hover {
   background-color: #e81123;
   color: white;
 }
+</style>
 
-:global(.dark) .control-btn-close:hover {
-  background-color: #e81123;
-  color: white;
+<style>
+/* 深色模式：仅覆盖 CSS 变量，不使用 :global() + 子选择器（避免 scoped 编译时选择器泄漏） */
+.dark .window-controls {
+  --ctrl-color: var(--color-gray-400);
+  --ctrl-hover-bg: rgba(255, 255, 255, 0.1);
 }
 </style>
