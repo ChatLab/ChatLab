@@ -25,6 +25,7 @@ import { registerWebRoutes } from './routes/web'
 import { registerNlpRoutes } from './routes/nlp'
 import { registerAiRoutes } from './routes/ai'
 import { registerPreferencesRoutes } from './routes/preferences'
+import { registerProxyRoutes } from './routes/proxy'
 import { initServerAiLogger, closeServerAiLogger } from '../ai/logger'
 import { initSync, cleanupSync } from '../sync'
 import { resolveCliPath } from '../paths'
@@ -140,6 +141,10 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
 
   if (options?.webRoot && fs.existsSync(options.webRoot)) {
     setWebMode(true)
+    // 注册反向代理：将 /_proxy/chatlab.fun/* 转发至 https://chatlab.fun，
+    // 行为与 vite dev proxy 一致，解决浏览器 CORS 问题（见 vite.web.config.mts:138-144）。
+    // 必须在 @fastify/static 之前注册，确保显式路由优先于静态文件/SPA fallback。
+    registerProxyRoutes(server)
     const fastifyStatic = await import('@fastify/static')
     await server.register(fastifyStatic.default, {
       root: options.webRoot,
