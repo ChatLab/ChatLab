@@ -3,6 +3,8 @@ import { join } from 'path'
 import { optimizer, is, platform } from '@electron-toolkit/utils'
 import { checkUpdate } from './update'
 import mainIpcMain, { cleanup } from './ipcMain'
+import { startInternalServer, stopInternalServer, registerInternalApiIpc } from './internal-api'
+import { getPathProvider } from './path-context'
 import { initAnalytics, trackDailyActive } from './analytics'
 import { initProxy } from './network/proxy'
 import {
@@ -270,6 +272,16 @@ class MainProcess {
       // 记录日活（用于统计操作系统版本、客户端版本，便于更好的适配客户端）
       trackDailyActive()
 
+      // 启动 Internal API Server（在 createWindow 之前，确保 Renderer 加载时 endpoint 可用）
+      try {
+        await startInternalServer(getPathProvider())
+        registerInternalApiIpc()
+        console.log('[Main] Internal API Server ready')
+      } catch (err) {
+        console.error('[Main] Internal API Server failed to start (falling back to IPC):', err)
+        registerInternalApiIpc()
+      }
+
       // 创建主窗口
       console.log('[Main] Creating window...')
       await this.createWindow()
@@ -329,6 +341,7 @@ class MainProcess {
 
       // 退出前清理资源
       app.on('will-quit', () => {
+        stopInternalServer().catch(() => {})
         cleanup()
       })
     })

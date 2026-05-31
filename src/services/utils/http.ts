@@ -37,8 +37,26 @@ export function getBaseUrl(): string {
 }
 
 /**
+ * Resolve a URL path against the configured base.
+ * When baseUrl is absolute (http://...), relative paths like "/_web/..."
+ * are rewritten to the Internal Server origin. Otherwise returns as-is.
+ */
+function resolveFullUrl(url: string): string {
+  if (!_baseUrl.startsWith('http://') && !_baseUrl.startsWith('https://')) return url
+  if (url.startsWith('http://') || url.startsWith('https://')) return url
+  try {
+    const origin = new URL(_baseUrl).origin
+    return `${origin}${url}`
+  } catch {
+    return url
+  }
+}
+
+/**
  * Authenticated fetch wrapper — same API as native fetch,
  * but auto-injects Authorization header and handles 401.
+ * Paths starting with / are resolved via resolveFullUrl so that
+ * Electron Internal Server mode works with absolute base URLs.
  */
 export async function fetchWithAuth(url: string, init?: RequestInit): Promise<Response> {
   const headers = new Headers(init?.headers)
@@ -46,7 +64,8 @@ export async function fetchWithAuth(url: string, init?: RequestInit): Promise<Re
   if (token && !headers.has('Authorization')) {
     headers.set('Authorization', `Bearer ${token}`)
   }
-  const resp = await fetch(url, { ...init, headers })
+  const resolvedUrl = resolveFullUrl(url)
+  const resp = await fetch(resolvedUrl, { ...init, headers })
   if (resp.status === 401 && _on401) _on401()
   return resp
 }

@@ -60,7 +60,66 @@ export async function initServices(): Promise<void> {
   _initialized = true
 }
 
+/**
+ * Check if the Internal HTTP Server is available.
+ * When available, business adapters use Fetch instead of IPC.
+ */
+function isInternalHttpAvailable(): boolean {
+  try {
+    return typeof window !== 'undefined' && typeof (window as any).internalApi?.getEndpoint === 'function'
+  } catch {
+    return false
+  }
+}
+
 async function initElectronAdapters(): Promise<void> {
+  // Check if Internal API Server endpoint was configured in App.vue
+  const { getBaseUrl } = await import('./utils/http')
+  const useHttp = isInternalHttpAvailable() && getBaseUrl().startsWith('http')
+
+  if (useHttp) {
+    await initElectronHttpAdapters()
+  } else {
+    await initElectronIpcAdapters()
+  }
+}
+
+/**
+ * HTTP mode: business adapters use Fetch (via Internal API Server).
+ * Only platform + import + ai remain on IPC (routes not yet available).
+ */
+async function initElectronHttpAdapters(): Promise<void> {
+  const { FetchDataAdapter } = await import('./data/fetch')
+  registerAdapter('data', new FetchDataAdapter())
+
+  // Import stays on IPC: routes depend on CLI-specific modules
+  const { ElectronImportAdapter } = await import('./import/electron')
+  registerAdapter('import', new ElectronImportAdapter())
+
+  // Session-index stays on IPC: summaries routes (generateSummary, checkCanGenerateSummary)
+  // depend on LLM config and are not registered in Internal Server's registerSharedRoutes()
+  const { ElectronSessionIndexAdapter } = await import('./session-index/electron')
+  registerAdapter('session-index', new ElectronSessionIndexAdapter())
+
+  const { FetchMessageAdapter } = await import('./message/fetch')
+  registerAdapter('message', new FetchMessageAdapter())
+
+  // Platform always uses IPC (native capabilities)
+  const { ElectronPlatformAdapter } = await import('./platform/electron')
+  registerAdapter('platform', new ElectronPlatformAdapter())
+
+  // AI stays on IPC: routes depend on CLI-specific modules
+  const { ElectronAIAdapter } = await import('./ai/electron')
+  registerAdapter('ai', new ElectronAIAdapter())
+
+  const { FetchPreferencesAdapter } = await import('./preferences/fetch')
+  registerAdapter('preferences', new FetchPreferencesAdapter())
+}
+
+/**
+ * IPC fallback mode: all adapters use Electron IPC (original behavior).
+ */
+async function initElectronIpcAdapters(): Promise<void> {
   const { ElectronDataAdapter } = await import('./data/electron')
   registerAdapter('data', new ElectronDataAdapter())
 
