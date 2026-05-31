@@ -1,5 +1,44 @@
 [
   {
+    "version": "0.23.0",
+    "date": "2026-05-31",
+    "summary": "Overhauls message editing with a fork/regenerate model, adds per-model thinking level controls, unifies the CLI entry point, and fixes multiple reasoning detection and computation issues.",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Add a Fork button to AI replies to branch the conversation from any point into an independent session",
+          "Add a per-model thinking level selector in the status bar, with the choice remembered per model slot",
+          "Extend thinking level controls with default and auto options, covering Kimi, Doubao, Gemini, and more model families",
+          "Split the message analysis view into Type Analysis and Time Analysis tabs, each with enriched statistical insight cards",
+          "Add a confirmation dialog before regenerating all session indexes to prevent accidental data loss",
+          "Expand demo data to 4 files covering group and multiple private chat scenarios",
+          "【CLI】Add unified chatlab start command with --headless and --no-open flags",
+          "【CLI】Add daemon mode via chatlab start --daemon to install as a system service, with stop and status commands"
+        ]
+      },
+      {
+        "type": "fix",
+        "items": [
+          "Fix multiple concurrency issues in message editing that could cause data loss or stale state",
+          "Fix thinking level and context window computation not using the active model ID",
+          "Fix reasoning detection failure for custom models with only chat capabilities by adding a heuristic fallback",
+          "Fix thinking being silently disabled for Kimi, Doubao, and similar models when the auto level is selected",
+          "【CLI】Fix the start command failing to launch the web development backend",
+          "【CLI】Fix daemon startup failure on Linux when the service path contains spaces"
+        ]
+      },
+      {
+        "type": "refactor",
+        "items": [
+          "Refactor the message branching system to an edit-and-regenerate model, supporting both current-round-only and overwrite-all modes",
+          "Remove the manual Reasoning Model and Disable Thinking toggles in favor of automatic inference from model capabilities",
+          "Simplify the model switcher button UI and improve session index loading performance"
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.22.1",
     "date": "2026-05-29",
     "summary": "Adds session summary detail level settings, and fixes CLI Web batch summary freeze, AI config edit misidentification, and several API credential detection issues.",
