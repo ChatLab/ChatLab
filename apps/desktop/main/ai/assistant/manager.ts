@@ -50,7 +50,7 @@ const nodeFs: AssistantManagerFs = {
 
 let _manager: SharedAssistantManager | null = null
 
-function getManager(): SharedAssistantManager {
+export function getManager(): SharedAssistantManager {
   if (!_manager) {
     _manager = new SharedAssistantManager({
       fs: nodeFs,

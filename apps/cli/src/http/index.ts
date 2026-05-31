@@ -14,21 +14,43 @@ import {
   NodePathProvider,
   DatabaseManager,
   AIConversationManager,
+  LLMConfigStore,
+  CustomProviderStore,
+  CustomModelStore,
   hasPendingElectronDataWarning,
   verifyCliDataPath,
 } from '@openchatlab/node-runtime'
+import type { ConfigStorage } from '@openchatlab/node-runtime'
 import { createServer } from './server'
 import { setAuthToken, setRequireAuth } from '@openchatlab/http-routes'
 import { registerWebRoutes } from './routes/web'
 import { registerAiRoutes } from './routes/ai'
 import { registerProxyRoutes } from './routes/proxy'
 import { initServerAiLogger, closeServerAiLogger } from '../ai/logger'
+import { getAssistantManager, getSkillManagerCore } from '../ai/manager-factory'
 import { initSync, cleanupSync } from '../sync'
 import { resolveCliPath } from '../paths'
+import { resolveApiKey, writeAuthProfile } from '@openchatlab/config'
 
 let server: FastifyInstance | null = null
 let dbManager: DatabaseManager | null = null
 let convManager: AIConversationManager | null = null
+
+function createFileConfigStorage(aiDataDir: string): ConfigStorage {
+  return {
+    readJson<T>(key: string): T | null {
+      try {
+        return JSON.parse(fs.readFileSync(`${aiDataDir}/${key}.json`, 'utf-8')) as T
+      } catch {
+        return null
+      }
+    },
+    writeJson<T>(key: string, data: T): void {
+      if (!fs.existsSync(aiDataDir)) fs.mkdirSync(aiDataDir, { recursive: true })
+      fs.writeFileSync(`${aiDataDir}/${key}.json`, JSON.stringify(data, null, 2), 'utf-8')
+    },
+  }
+}
 
 export interface HttpServerOptions {
   port?: number
@@ -115,7 +137,20 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
   await migrationRunner.run()
   const nativeBinding = resolveNativeBinding()
   dbManager = new DatabaseManager(pathProvider, { nativeBinding })
-  convManager = new AIConversationManager(pathProvider.getAiDataDir(), { nativeBinding })
+
+  const aiDataDir = pathProvider.getAiDataDir()
+  convManager = new AIConversationManager(aiDataDir, { nativeBinding })
+
+  const assistantManager = getAssistantManager(aiDataDir)
+  const skillManagerCore = getSkillManagerCore(aiDataDir)
+  const llmConfigStore = new LLMConfigStore(createFileConfigStorage(aiDataDir), {
+    resolveApiKey: (provider, authProfile) => resolveApiKey(provider, authProfile) || undefined,
+    onApiKeyCreated: (config, apiKey) => {
+      const profileName = config.name?.toLowerCase().replace(/\s+/g, '-') || config.provider
+      writeAuthProfile(profileName, { type: 'api_key', provider: config.provider, key: apiKey })
+      return profileName
+    },
+  })
 
   initServerAiLogger(pathProvider.getLogsDir())
 
@@ -130,7 +165,19 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
   })
 
   registerAiRoutes(server, dbManager, convManager)
-  registerWebRoutes(server, dbManager, { pathProvider, nativeBinding })
+  registerWebRoutes(server, dbManager, {
+    pathProvider,
+    nativeBinding,
+    aiContext: {
+      aiDataDir,
+      convManager,
+      assistantManager,
+      skillManagerCore,
+      llmConfigStore,
+      customProviderStore: new CustomProviderStore(createFileConfigStorage(aiDataDir)),
+      customModelStore: new CustomModelStore(createFileConfigStorage(aiDataDir)),
+    },
+  })
 
   initSync(server, dbManager, pathProvider, { port, host, token })
 

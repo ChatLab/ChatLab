@@ -126,6 +126,9 @@ export type { SummaryDeps, SummaryMessage, SummaryOptions, SummaryResult, Summar
 export { LLMConfigStore, MAX_CONFIG_COUNT } from './llm-config-store'
 export type { AIServiceConfig, AIConfigStore, ConfigStorage, LLMConfigStoreDeps } from './llm-config-store'
 
+// Custom Provider/Model Store
+export { CustomProviderStore, CustomModelStore } from './custom-store'
+
 // LLM Model Builder
 export { buildPiModel, normalizeAnthropicBaseUrl, normalizeOpenAICompatibleBaseUrl } from './llm-builder'
 export type { PiModelConfig, BuildPiModelOptions } from './llm-builder'

@@ -3,7 +3,7 @@ import { ref, nextTick, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SchemaPanel, AIHistoryModal, ResultTable, getTableLabel, getColumnLabel } from './SQLLab'
 import type { AIHistory, SQLResult, TableSchema } from './SQLLab'
-import { useDataService } from '@/services'
+import { useDataService, useLLMService } from '@/services'
 
 const { t, locale } = useI18n()
 
@@ -213,7 +213,7 @@ async function generateAndRunSQL() {
     return
   }
 
-  const hasConfig = await window.llmApi.hasConfig()
+  const hasConfig = await useLLMService().hasConfig()
   if (!hasConfig) {
     error.value = t('common.errorNoAIConfig')
     return

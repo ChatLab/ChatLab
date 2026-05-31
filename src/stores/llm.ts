@@ -1,28 +1,10 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { ProviderDefinition, ModelDefinition } from '@electron/preload/index'
+import { useLLMService } from '@/services'
+import type { AIServiceConfigDisplay, LLMProvider } from '@/services'
 
-/**
- * LLM 服务配置（展示用，不含敏感信息）
- */
-export interface AIServiceConfigDisplay {
-  id: string
-  name: string
-  provider: string
-  apiKeySet: boolean
-  model?: string
-  baseUrl?: string
-  customModels?: Array<{ id: string; name: string }>
-  createdAt: number
-  updatedAt: number
-}
-
-export interface LLMProvider {
-  id: string
-  name: string
-  defaultBaseUrl: string
-  models: Array<{ id: string; name: string; description?: string }>
-}
+export type { AIServiceConfigDisplay, LLMProvider }
 
 export const useLLMStore = defineStore('llm', () => {
   // ============ 状态 ============
@@ -74,18 +56,19 @@ export const useLLMStore = defineStore('llm', () => {
   async function loadConfigs() {
     isLoading.value = true
     try {
-      const [providersData, registryData, catalogData, configsData, assistantSlot, fastSlot] = await Promise.all([
-        window.llmApi.getProviders(),
-        window.llmApi.getProviderRegistry(),
-        window.llmApi.getModelCatalog(),
-        window.llmApi.getAllConfigs(),
-        window.llmApi.getDefaultAssistantSlot(),
-        window.llmApi.getFastModelSlot(),
+      const svc = useLLMService()
+      const [providersData, registryData, catalogData, configStore, assistantSlot, fastSlot] = await Promise.all([
+        svc.getProviders(),
+        svc.getProviderRegistry(),
+        svc.getModelCatalog(),
+        svc.getConfigStore(),
+        svc.getDefaultAssistantSlot(),
+        svc.getFastModelSlot(),
       ])
       providers.value = providersData
-      providerRegistry.value = registryData
-      modelCatalog.value = catalogData
-      configs.value = configsData
+      providerRegistry.value = registryData as ProviderDefinition[]
+      modelCatalog.value = catalogData as ModelDefinition[]
+      configs.value = configStore.configs
       defaultAssistant.value = assistantSlot
       fastModel.value = fastSlot
     } catch (error) {
@@ -97,7 +80,7 @@ export const useLLMStore = defineStore('llm', () => {
 
   async function setDefaultAssistantModel(configId: string, modelId: string): Promise<boolean> {
     try {
-      const result = await window.llmApi.setDefaultAssistantModel(configId, modelId)
+      const result = await useLLMService().setDefaultAssistantModel(configId, modelId)
       if (result.success) {
         defaultAssistant.value = { configId, modelId }
         return true
@@ -112,7 +95,7 @@ export const useLLMStore = defineStore('llm', () => {
 
   async function setFastModel(slot: { configId: string; modelId: string } | null): Promise<boolean> {
     try {
-      const result = await window.llmApi.setFastModel(slot)
+      const result = await useLLMService().setFastModel(slot)
       if (result.success) {
         fastModel.value = slot
         return true

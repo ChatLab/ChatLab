@@ -21,15 +21,32 @@ import * as os from 'os'
 import * as path from 'path'
 import type { FastifyInstance } from 'fastify'
 import type { PathProvider } from '@openchatlab/core'
-import type { DatabaseManager } from '@openchatlab/node-runtime'
+import type {
+  DatabaseManager,
+  AIConversationManager,
+  AssistantManager,
+  SkillManagerCore,
+  LLMConfigStore,
+  CustomProviderStore,
+  CustomModelStore,
+} from '@openchatlab/node-runtime'
 import { createDatabaseManagerAdapter } from '@openchatlab/node-runtime'
 import { registerSharedRoutes } from '@openchatlab/http-routes'
 import { MergeSessionCache } from '../../../merger/merge-cache'
-import { registerSummaryRoutes } from './summaries'
 import { registerImportRoutes } from './import'
 import { registerMergeRoutes } from './merge'
 import { registerCacheRoutes } from './cache'
 import { getVersion } from '../../../version'
+
+export interface AiContextOptions {
+  aiDataDir: string
+  convManager: AIConversationManager
+  assistantManager: AssistantManager
+  skillManagerCore: SkillManagerCore
+  llmConfigStore: LLMConfigStore
+  customProviderStore: CustomProviderStore
+  customModelStore: CustomModelStore
+}
 
 /**
  * Semver comparison: returns true if `latest` is strictly newer than `current`.
@@ -55,7 +72,7 @@ function isNewerVersion(latest: string, current: string): boolean {
 export function registerWebRoutes(
   server: FastifyInstance,
   dbManager: DatabaseManager,
-  options?: { pathProvider?: PathProvider; nativeBinding?: string }
+  options?: { pathProvider?: PathProvider; nativeBinding?: string; aiContext?: AiContextOptions }
 ): void {
   const adapter = createDatabaseManagerAdapter(dbManager)
 
@@ -77,16 +94,29 @@ export function registerWebRoutes(
   }
   const resolvedPathProvider = options?.pathProvider ?? fallbackPathProvider
 
-  registerSharedRoutes(server, {
-    dbManager,
-    sessionAdapter: adapter,
-    pathProvider: resolvedPathProvider,
-    getVersion,
-    nativeBinding: options?.nativeBinding,
-  })
+  const ai = options?.aiContext
+  registerSharedRoutes(
+    server,
+    {
+      dbManager,
+      sessionAdapter: adapter,
+      pathProvider: resolvedPathProvider,
+      getVersion,
+      nativeBinding: options?.nativeBinding,
+      ...(ai && {
+        aiDataDir: ai.aiDataDir,
+        conversationManager: ai.convManager,
+        assistantManager: ai.assistantManager,
+        skillManagerCore: ai.skillManagerCore,
+        llmConfigStore: ai.llmConfigStore,
+        customProviderStore: ai.customProviderStore,
+        customModelStore: ai.customModelStore,
+      }),
+    },
+    ai ? { requireAi: true } : undefined
+  )
 
   // CLI-specific routes not yet migrated to @openchatlab/http-routes
-  registerSummaryRoutes(server, dbManager, adapter)
   registerImportRoutes(server, dbManager)
   if (mergeCache) {
     registerMergeRoutes(server, dbManager, mergeCache)

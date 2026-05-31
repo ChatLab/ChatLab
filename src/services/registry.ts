@@ -71,9 +71,8 @@ async function initElectronAdapters(): Promise<void> {
   const { ElectronImportAdapter } = await import('./import/electron')
   registerAdapter('import', new ElectronImportAdapter())
 
-  // Session-index stays on IPC: summaries depend on LLM config
-  const { ElectronSessionIndexAdapter } = await import('./session-index/electron')
-  registerAdapter('session-index', new ElectronSessionIndexAdapter())
+  const { FetchSessionIndexAdapter } = await import('./session-index/fetch')
+  registerAdapter('session-index', new FetchSessionIndexAdapter())
 
   const { FetchMessageAdapter } = await import('./message/fetch')
   registerAdapter('message', new FetchMessageAdapter())
@@ -86,6 +85,15 @@ async function initElectronAdapters(): Promise<void> {
 
   const { FetchPreferencesAdapter } = await import('./preferences/fetch')
   registerAdapter('preferences', new FetchPreferencesAdapter())
+
+  const { FetchLLMAdapter } = await import('./llm/fetch')
+  registerAdapter('llm', new FetchLLMAdapter())
+
+  const { FetchAssistantAdapter } = await import('./assistant/fetch')
+  registerAdapter('assistant-crud', new FetchAssistantAdapter())
+
+  const { FetchSkillAdapter } = await import('./skill/fetch')
+  registerAdapter('skill-crud', new FetchSkillAdapter())
 }
 
 async function initWebServeAdapters(): Promise<void> {
@@ -110,89 +118,24 @@ async function initWebServeAdapters(): Promise<void> {
   const { FetchPreferencesAdapter } = await import('./preferences/fetch')
   registerAdapter('preferences', new FetchPreferencesAdapter())
 
+  const { FetchLLMAdapter } = await import('./llm/fetch')
+  registerAdapter('llm', new FetchLLMAdapter())
+
+  const { FetchAssistantAdapter } = await import('./assistant/fetch')
+  registerAdapter('assistant-crud', new FetchAssistantAdapter())
+
+  const { FetchSkillAdapter } = await import('./skill/fetch')
+  registerAdapter('skill-crud', new FetchSkillAdapter())
+
   await installAiApiShims()
 }
 
-const WEB_STUB = { success: false as const, error: 'Not available in web mode' }
-
+/**
+ * Install remaining window shims for SSE streaming APIs that the
+ * service-layer adapters do not (yet) cover.
+ */
 async function installAiApiShims(): Promise<void> {
-  const { get } = await import('./utils/http')
-
-  ;(window as any).assistantApi = {
-    getAll: () => get('/ai/assistants'),
-    getConfig: (id: string) => get(`/ai/assistants/${id}`),
-    getBuiltinToolCatalog: () => get('/ai/tools/catalog'),
-    getBuiltinCatalog: () => Promise.resolve([]),
-    importFromMd: () => Promise.resolve(WEB_STUB),
-    update: () => Promise.resolve(WEB_STUB),
-    reset: () => Promise.resolve(WEB_STUB),
-    importAssistant: () => Promise.resolve(WEB_STUB),
-    reimportAssistant: () => Promise.resolve(WEB_STUB),
-    create: () => Promise.resolve(WEB_STUB),
-    delete: () => Promise.resolve(WEB_STUB),
-  }
-  ;(window as any).skillApi = {
-    getAll: () => get('/ai/skills'),
-    getConfig: (id: string) => get(`/ai/skills/${id}`),
-    getBuiltinCatalog: () => Promise.resolve([]),
-    importFromMd: () => Promise.resolve(WEB_STUB),
-    update: () => Promise.resolve(WEB_STUB),
-    create: () => Promise.resolve(WEB_STUB),
-    delete: () => Promise.resolve(WEB_STUB),
-    importSkill: () => Promise.resolve(WEB_STUB),
-    reimportSkill: () => Promise.resolve(WEB_STUB),
-  }
-
-  let _cachedLlmData: { configs: any[]; defaultAssistant: any; fastModel: any } | null = null
-  async function loadLlmData() {
-    if (!_cachedLlmData) {
-      _cachedLlmData = await get('/ai/llm/configs')
-    }
-    return _cachedLlmData!
-  }
-
   ;(window as any).llmApi = {
-    hasConfig: () => get('/ai/llm/has-config'),
-    getAllConfigs: async () => (await loadLlmData()).configs,
-    getDefaultAssistantSlot: () => get('/ai/llm/default-assistant-slot'),
-    getFastModelSlot: () => get('/ai/llm/fast-model-slot'),
-    getProviders: () => get('/ai/llm/providers'),
-    getProviderRegistry: () => get('/ai/llm/provider-registry'),
-    getModelCatalog: () => get('/ai/llm/model-catalog'),
-    setDefaultAssistantModel: async (configId: string, modelId: string) => {
-      const { put: httpPut } = await import('./utils/http')
-      _cachedLlmData = null
-      return httpPut('/ai/llm/default-assistant-slot', { configId, modelId })
-    },
-    setFastModel: async (slot: { configId: string; modelId: string } | null) => {
-      const { put: httpPut } = await import('./utils/http')
-      _cachedLlmData = null
-      return httpPut('/ai/llm/fast-model-slot', slot)
-    },
-    deleteConfig: async (id?: string) => {
-      if (!id) return WEB_STUB
-      const { del } = await import('./utils/http')
-      _cachedLlmData = null
-      return del(`/ai/llm/configs/${id}`)
-    },
-    addConfig: async (config: Record<string, unknown>) => {
-      const { post: httpPost } = await import('./utils/http')
-      _cachedLlmData = null
-      return httpPost('/ai/llm/configs', config)
-    },
-    updateConfig: async (id: string, updates: Record<string, unknown>) => {
-      const { put: httpPut } = await import('./utils/http')
-      _cachedLlmData = null
-      return httpPut(`/ai/llm/configs/${id}`, updates)
-    },
-    validateApiKey: async (provider: string, apiKey: string, baseUrl?: string, model?: string) => {
-      const { post: httpPost } = await import('./utils/http')
-      return httpPost('/ai/llm/validate-key', { provider, apiKey, baseUrl, model })
-    },
-    fetchRemoteModels: async (provider: string, apiKey: string, baseUrl?: string, apiFormat?: string) => {
-      const { post: httpPost } = await import('./utils/http')
-      return httpPost('/ai/llm/remote-models', { provider, apiKey, baseUrl, apiFormat })
-    },
     chatStream: async (
       messages: Array<{ role: string; content: string }>,
       options?: { temperature?: number; maxTokens?: number },
@@ -226,18 +169,6 @@ async function installAiApiShims(): Promise<void> {
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }
       }
-    },
-    addCustomModel: async (input: Record<string, unknown>) => {
-      const { post: httpPost } = await import('./utils/http')
-      return httpPost('/ai/llm/custom-models', input)
-    },
-    updateCustomModel: async (providerId: string, modelId: string, updates: Record<string, unknown>) => {
-      const { put: httpPut } = await import('./utils/http')
-      return httpPut(`/ai/llm/custom-models/${providerId}/${encodeURIComponent(modelId)}`, updates)
-    },
-    deleteCustomModel: async (providerId: string, modelId: string) => {
-      const { del } = await import('./utils/http')
-      return del(`/ai/llm/custom-models/${providerId}/${encodeURIComponent(modelId)}`)
     },
   }
   const { fetchSSE } = await import('./utils/sse')

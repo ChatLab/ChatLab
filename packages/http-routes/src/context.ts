@@ -7,7 +7,17 @@
  */
 
 import type { PathProvider } from '@openchatlab/core'
-import type { DatabaseManager, SessionRuntimeAdapter, PreferencesManager } from '@openchatlab/node-runtime'
+import type {
+  DatabaseManager,
+  SessionRuntimeAdapter,
+  PreferencesManager,
+  AIConversationManager,
+  AssistantManager,
+  SkillManagerCore,
+  LLMConfigStore,
+  CustomProviderStore,
+  CustomModelStore,
+} from '@openchatlab/node-runtime'
 
 export interface HttpRouteContext {
   dbManager: DatabaseManager
@@ -20,4 +30,13 @@ export interface HttpRouteContext {
   nativeBinding?: string
 
   preferencesManager?: PreferencesManager
+
+  /** AI subsystem — optional, routes gracefully skip when absent */
+  aiDataDir?: string
+  conversationManager?: AIConversationManager
+  assistantManager?: AssistantManager
+  skillManagerCore?: SkillManagerCore
+  llmConfigStore?: LLMConfigStore
+  customProviderStore?: CustomProviderStore
+  customModelStore?: CustomModelStore
 }

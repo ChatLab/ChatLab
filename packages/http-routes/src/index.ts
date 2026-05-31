@@ -1,5 +1,6 @@
 export type { HttpRouteContext } from './context'
 export { registerSharedRoutes } from './register'
+export type { SharedRouteOptions } from './register'
 export { setAuthToken, setRequireAuth, authHook } from './auth'
 export {
   ApiError,
@@ -27,3 +28,8 @@ export { registerSqlRoutes } from './routes/web/sql'
 export { registerSessionIndexRoutes } from './routes/web/session-index'
 export { registerExportRoutes } from './routes/web/export'
 export { registerNlpRoutes } from './routes/web/nlp'
+export { registerAiAssistantRoutes } from './routes/web/ai-assistants'
+export { registerAiSkillRoutes } from './routes/web/ai-skills'
+export { registerAiLlmRoutes } from './routes/web/ai-llm'
+export { registerAiConversationRoutes } from './routes/web/ai-conversations'
+export { registerAiSummaryRoutes } from './routes/web/ai-summaries'

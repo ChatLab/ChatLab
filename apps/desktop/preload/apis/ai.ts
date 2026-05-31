@@ -54,15 +54,6 @@ export interface AIMessage {
   tokenUsage?: TokenUsageData
 }
 
-// LLM API 类型
-export interface LLMProvider {
-  id: string
-  name: string
-  description: string
-  defaultBaseUrl: string
-  models: Array<{ id: string; name: string; description?: string }>
-}
-
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
   content: string
@@ -173,22 +164,6 @@ export interface ToolContext {
   }>
   locale?: string
   preprocessConfig?: PreprocessConfig
-}
-
-// AI 服务配置类型（前端用）
-export interface AIServiceConfigDisplay {
-  id: string
-  name: string
-  provider: string
-  apiKey: string // 脱敏后的 API Key
-  apiKeySet: boolean
-  model?: string
-  baseUrl?: string
-  maxTokens?: number
-  apiFormat?: string
-  customModels?: Array<{ id: string; name: string }>
-  createdAt: number
-  updatedAt: number
 }
 
 // ==================== AI API ====================
@@ -530,162 +505,12 @@ export const aiApi = {
 // ==================== LLM API ====================
 
 export const llmApi = {
-  // ==================== Provider Registry / Model Catalog ====================
-
-  getProviderRegistry: () => {
-    return ipcRenderer.invoke('llm:getProviderRegistry')
-  },
-
-  getModelCatalog: () => {
-    return ipcRenderer.invoke('llm:getModelCatalog')
-  },
-
-  addCustomProvider: (input: Record<string, unknown>) => {
-    return ipcRenderer.invoke('llm:addCustomProvider', input)
-  },
-
-  updateCustomProvider: (id: string, updates: Record<string, unknown>) => {
-    return ipcRenderer.invoke('llm:updateCustomProvider', id, updates)
-  },
-
-  deleteCustomProvider: (id: string) => {
-    return ipcRenderer.invoke('llm:deleteCustomProvider', id)
-  },
-
-  addCustomModel: (input: Record<string, unknown>) => {
-    return ipcRenderer.invoke('llm:addCustomModel', input)
-  },
-
-  updateCustomModel: (providerId: string, modelId: string, updates: Record<string, unknown>) => {
-    return ipcRenderer.invoke('llm:updateCustomModel', providerId, modelId, updates)
-  },
-
-  deleteCustomModel: (providerId: string, modelId: string) => {
-    return ipcRenderer.invoke('llm:deleteCustomModel', providerId, modelId)
-  },
-
-  /** @deprecated 使用 getProviderRegistry 代替 */
-  getProviders: (): Promise<LLMProvider[]> => {
-    return ipcRenderer.invoke('llm:getProviders')
-  },
-
-  // ==================== 多配置管理 API ====================
-
   /**
-   * 获取所有配置列表
+   * LLM CRUD (config, provider, model, validate, etc.) has been migrated to
+   * HTTP service layer via FetchLLMAdapter. Only streaming / non-streaming
+   * chat APIs remain on IPC because they require real-time event forwarding.
    */
-  getAllConfigs: (): Promise<AIServiceConfigDisplay[]> => {
-    return ipcRenderer.invoke('llm:getAllConfigs')
-  },
 
-  /**
-   * 获取默认助手 slot（configId + modelId）
-   */
-  getDefaultAssistantSlot: (): Promise<{ configId: string; modelId: string } | null> => {
-    return ipcRenderer.invoke('llm:getDefaultAssistantSlot')
-  },
-
-  /**
-   * 获取快速模型 slot
-   */
-  getFastModelSlot: (): Promise<{ configId: string; modelId: string } | null> => {
-    return ipcRenderer.invoke('llm:getFastModelSlot')
-  },
-
-  /**
-   * 添加新配置
-   */
-  addConfig: (config: {
-    name: string
-    provider: string
-    apiKey: string
-    model?: string
-    baseUrl?: string
-    maxTokens?: number
-    apiFormat?: string
-    customModels?: Array<{ id: string; name: string }>
-  }): Promise<{ success: boolean; config?: AIServiceConfigDisplay; error?: string }> => {
-    return ipcRenderer.invoke('llm:addConfig', config)
-  },
-
-  /**
-   * 更新配置
-   */
-  updateConfig: (
-    id: string,
-    updates: {
-      name?: string
-      provider?: string
-      apiKey?: string
-      model?: string
-      baseUrl?: string
-      maxTokens?: number
-      apiFormat?: string
-      customModels?: Array<{ id: string; name: string }>
-    }
-  ): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke('llm:updateConfig', id, updates)
-  },
-
-  /**
-   * 删除配置
-   */
-  deleteConfig: (id?: string): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke('llm:deleteConfig', id)
-  },
-
-  /**
-   * 设置默认助手模型（configId + modelId）
-   */
-  setDefaultAssistantModel: (configId: string, modelId: string): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke('llm:setDefaultAssistantModel', configId, modelId)
-  },
-
-  /**
-   * 设置快速模型
-   */
-  setFastModel: (slot: { configId: string; modelId: string } | null): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke('llm:setFastModel', slot)
-  },
-
-  /**
-   * 验证 API Key（支持自定义 baseUrl 和 model）
-   */
-  validateApiKey: (
-    provider: string,
-    apiKey: string,
-    baseUrl?: string,
-    model?: string
-  ): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke('llm:validateApiKey', provider, apiKey, baseUrl, model)
-  },
-
-  /**
-   * 获取远程模型列表
-   */
-  fetchRemoteModels: (
-    provider: string,
-    apiKey: string,
-    baseUrl?: string,
-    apiFormat?: string
-  ): Promise<{
-    success: boolean
-    models?: Array<{ id: string; name: string; ownedBy?: string; contextWindow?: number }>
-    error?: string
-  }> => {
-    return ipcRenderer.invoke('llm:fetchRemoteModels', provider, apiKey, baseUrl, apiFormat)
-  },
-
-  /**
-   * 检查是否已配置 LLM（是否有激活的配置）
-   */
-  hasConfig: (): Promise<boolean> => {
-    return ipcRenderer.invoke('llm:hasConfig')
-  },
-
-  /**
-   * 发送 LLM 聊天请求（非流式）
-   */
   chat: (
     messages: ChatMessage[],
     options?: ChatOptions
@@ -693,10 +518,6 @@ export const llmApi = {
     return ipcRenderer.invoke('llm:chat', messages, options)
   },
 
-  /**
-   * 发送 LLM 聊天请求（流式）
-   * 返回一个 Promise，该 Promise 在流完成后才 resolve
-   */
   chatStream: (
     messages: ChatMessage[],
     options?: ChatOptions,
@@ -755,149 +576,15 @@ export const llmApi = {
   },
 }
 
-// ==================== Assistant API ====================
+/**
+ * Assistant CRUD has been migrated to HTTP service layer via FetchAssistantAdapter.
+ * The preload bridge is no longer needed.
+ */
 
-export interface AssistantSummary {
-  id: string
-  name: string
-  systemPrompt: string
-  presetQuestions: string[]
-  builtinId?: string
-  applicableChatTypes?: ('group' | 'private')[]
-  supportedLocales?: string[]
-}
-
-export interface AssistantConfigFull {
-  id: string
-  name: string
-  systemPrompt: string
-  presetQuestions: string[]
-  allowedBuiltinTools?: string[]
-  builtinId?: string
-  applicableChatTypes?: ('group' | 'private')[]
-  supportedLocales?: string[]
-}
-
-export interface BuiltinAssistantInfo {
-  id: string
-  name: string
-  systemPrompt: string
-  applicableChatTypes?: ('group' | 'private')[]
-  supportedLocales?: string[]
-  imported: boolean
-}
-
-export const assistantApi = {
-  getAll: (): Promise<AssistantSummary[]> => {
-    return ipcRenderer.invoke('assistant:getAll')
-  },
-
-  getConfig: (id: string): Promise<AssistantConfigFull | null> => {
-    return ipcRenderer.invoke('assistant:getConfig', id)
-  },
-
-  update: (id: string, updates: Partial<AssistantConfigFull>): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke('assistant:update', id, updates)
-  },
-
-  create: (config: Omit<AssistantConfigFull, 'id'>): Promise<{ success: boolean; id?: string; error?: string }> => {
-    return ipcRenderer.invoke('assistant:create', config)
-  },
-
-  delete: (id: string): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke('assistant:delete', id)
-  },
-
-  reset: (id: string): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke('assistant:reset', id)
-  },
-
-  getBuiltinCatalog: (): Promise<BuiltinAssistantInfo[]> => {
-    return ipcRenderer.invoke('assistant:getBuiltinCatalog')
-  },
-
-  getBuiltinToolCatalog: (): Promise<Array<{ name: string; category: 'core' | 'analysis' }>> => {
-    return ipcRenderer.invoke('assistant:getBuiltinToolCatalog')
-  },
-
-  importAssistant: (builtinId: string): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke('assistant:import', builtinId)
-  },
-
-  reimportAssistant: (id: string): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke('assistant:reimport', id)
-  },
-
-  importFromMd: (rawMd: string): Promise<{ success: boolean; id?: string; error?: string }> => {
-    return ipcRenderer.invoke('assistant:importFromMd', rawMd)
-  },
-}
-
-// ==================== Skill API ====================
-
-export interface SkillSummary {
-  id: string
-  name: string
-  description: string
-  tags: string[]
-  chatScope: 'all' | 'group' | 'private'
-  tools: string[]
-  builtinId?: string
-}
-
-export interface SkillConfigFull {
-  id: string
-  name: string
-  description: string
-  tags: string[]
-  chatScope: 'all' | 'group' | 'private'
-  prompt: string
-  tools: string[]
-  builtinId?: string
-}
-
-export interface BuiltinSkillInfo extends SkillSummary {
-  imported: boolean
-  hasUpdate: boolean
-}
-
-export const skillApi = {
-  getAll: (): Promise<SkillSummary[]> => {
-    return ipcRenderer.invoke('skill:getAll')
-  },
-
-  getConfig: (id: string): Promise<SkillConfigFull | null> => {
-    return ipcRenderer.invoke('skill:getConfig', id)
-  },
-
-  update: (id: string, rawMd: string): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke('skill:update', id, rawMd)
-  },
-
-  create: (rawMd: string): Promise<{ success: boolean; id?: string; error?: string }> => {
-    return ipcRenderer.invoke('skill:create', rawMd)
-  },
-
-  delete: (id: string): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke('skill:delete', id)
-  },
-
-  getBuiltinCatalog: (): Promise<BuiltinSkillInfo[]> => {
-    return ipcRenderer.invoke('skill:getBuiltinCatalog')
-  },
-
-  importSkill: (builtinId: string): Promise<{ success: boolean; id?: string; error?: string }> => {
-    return ipcRenderer.invoke('skill:import', builtinId)
-  },
-
-  reimportSkill: (id: string): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke('skill:reimport', id)
-  },
-
-  importFromMd: (rawMd: string): Promise<{ success: boolean; id?: string; error?: string }> => {
-    return ipcRenderer.invoke('skill:importFromMd', rawMd)
-  },
-}
+/**
+ * Skill CRUD has been migrated to HTTP service layer via FetchSkillAdapter.
+ * The preload bridge is no longer needed.
+ */
 
 // ==================== Agent API ====================
 

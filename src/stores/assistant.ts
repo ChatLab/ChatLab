@@ -6,7 +6,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { i18n } from '@/i18n'
-import { usePlatformService } from '@/services'
+import { usePlatformService, useAssistantService } from '@/services'
 
 import { CHATLAB_SITE_BASE } from '@/utils/chatlabSiteLocale'
 const CLOUD_MARKET_BASE_URL = CHATLAB_SITE_BASE
@@ -108,7 +108,8 @@ export const useAssistantStore = defineStore('assistant', () => {
 
   async function loadAssistants(): Promise<void> {
     try {
-      assistants.value = await window.assistantApi.getAll()
+      const svc = useAssistantService()
+      assistants.value = await svc.getAll()
       isLoaded.value = true
     } catch (error) {
       console.error('[AssistantStore] Failed to load assistants:', error)
@@ -118,7 +119,7 @@ export const useAssistantStore = defineStore('assistant', () => {
   /** @deprecated 本地内置目录已清空，保留兼容 */
   async function loadBuiltinCatalog(): Promise<void> {
     try {
-      builtinCatalog.value = await window.assistantApi.getBuiltinCatalog()
+      builtinCatalog.value = await useAssistantService().getBuiltinCatalog()
     } catch (error) {
       console.error('[AssistantStore] Failed to load builtin catalog:', error)
     }
@@ -126,7 +127,7 @@ export const useAssistantStore = defineStore('assistant', () => {
 
   async function loadBuiltinToolCatalog(): Promise<void> {
     try {
-      builtinToolCatalog.value = await window.assistantApi.getBuiltinToolCatalog()
+      builtinToolCatalog.value = await useAssistantService().getBuiltinToolCatalog()
     } catch (error) {
       console.error('[AssistantStore] Failed to load builtin tool catalog:', error)
     }
@@ -175,7 +176,7 @@ export const useAssistantStore = defineStore('assistant', () => {
         return { success: false, error: mdResult.error || 'Failed to fetch assistant content' }
       }
 
-      const result = await window.assistantApi.importFromMd(mdResult.data)
+      const result = await useAssistantService().importFromMd(mdResult.data)
       if (result.success) {
         await loadAssistants()
       }
@@ -201,7 +202,7 @@ export const useAssistantStore = defineStore('assistant', () => {
 
   async function getAssistantConfig(id: string): Promise<AssistantConfigFull | null> {
     try {
-      return await window.assistantApi.getConfig(id)
+      return await useAssistantService().getConfig(id)
     } catch (error) {
       console.error('[AssistantStore] Failed to get config:', error)
       return null
@@ -213,10 +214,8 @@ export const useAssistantStore = defineStore('assistant', () => {
     updates: Partial<AssistantConfigFull>
   ): Promise<{ success: boolean; error?: string }> {
     try {
-      const result = await window.assistantApi.update(id, updates)
-      if (result.success) {
-        await loadAssistants()
-      }
+      const result = await useAssistantService().update(id, updates)
+      if (result.success) await loadAssistants()
       return result
     } catch (error) {
       return { success: false, error: String(error) }
@@ -225,10 +224,8 @@ export const useAssistantStore = defineStore('assistant', () => {
 
   async function resetAssistant(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const result = await window.assistantApi.reset(id)
-      if (result.success) {
-        await loadAssistants()
-      }
+      const result = await useAssistantService().reset(id)
+      if (result.success) await loadAssistants()
       return result
     } catch (error) {
       return { success: false, error: String(error) }
@@ -237,7 +234,7 @@ export const useAssistantStore = defineStore('assistant', () => {
 
   async function importAssistant(builtinId: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const result = await window.assistantApi.importAssistant(builtinId)
+      const result = await useAssistantService().importBuiltin(builtinId)
       if (result.success) {
         await loadAssistants()
         await loadBuiltinCatalog()
@@ -250,7 +247,7 @@ export const useAssistantStore = defineStore('assistant', () => {
 
   async function reimportAssistant(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const result = await window.assistantApi.reimportAssistant(id)
+      const result = await useAssistantService().reimport(id)
       if (result.success) {
         await loadAssistants()
         await loadBuiltinCatalog()
@@ -265,10 +262,8 @@ export const useAssistantStore = defineStore('assistant', () => {
     config: Omit<AssistantConfigFull, 'id'>
   ): Promise<{ success: boolean; id?: string; error?: string }> {
     try {
-      const result = await window.assistantApi.create(config)
-      if (result.success) {
-        await loadAssistants()
-      }
+      const result = await useAssistantService().create(config)
+      if (result.success) await loadAssistants()
       return result
     } catch (error) {
       return { success: false, error: String(error) }
@@ -277,18 +272,15 @@ export const useAssistantStore = defineStore('assistant', () => {
 
   async function duplicateAssistant(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const config = await window.assistantApi.getConfig(id)
-      if (!config) {
-        return { success: false, error: 'Assistant not found' }
-      }
+      const svc = useAssistantService()
+      const config = await svc.getConfig(id)
+      if (!config) return { success: false, error: 'Assistant not found' }
       const { id: _id, builtinId: _bid, ...rest } = config
-      const result = await window.assistantApi.create({
+      const result = await svc.create({
         ...rest,
         name: `${config.name}${i18n.global.t('ai.assistant.duplicateSuffix')}`,
       })
-      if (result.success) {
-        await loadAssistants()
-      }
+      if (result.success) await loadAssistants()
       return result
     } catch (error) {
       return { success: false, error: String(error) }
@@ -297,10 +289,8 @@ export const useAssistantStore = defineStore('assistant', () => {
 
   async function deleteAssistant(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const result = await window.assistantApi.delete(id)
-      if (result.success) {
-        await loadAssistants()
-      }
+      const result = await useAssistantService().delete(id)
+      if (result.success) await loadAssistants()
       return result
     } catch (error) {
       return { success: false, error: String(error) }

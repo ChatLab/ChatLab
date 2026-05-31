@@ -8,13 +8,26 @@
  * (apps/desktop/main/api/). Different port, different token, different lifecycle.
  */
 
+import * as fs from 'fs'
+import * as path from 'path'
 import { randomBytes, createHmac, timingSafeEqual } from 'crypto'
 import { ipcMain } from 'electron'
 import Fastify, { type FastifyInstance, type FastifyError, type FastifyRequest, type FastifyReply } from 'fastify'
 import type { PathProvider } from '@openchatlab/core'
-import { DatabaseManager, createDatabaseManagerAdapter } from '@openchatlab/node-runtime'
+import {
+  DatabaseManager,
+  createDatabaseManagerAdapter,
+  LLMConfigStore,
+  CustomProviderStore,
+  CustomModelStore,
+} from '@openchatlab/node-runtime'
+import type { ConfigStorage } from '@openchatlab/node-runtime'
 import { registerSharedRoutes, ApiError, ApiErrorCode, errorResponse, serverError } from '@openchatlab/http-routes'
 import type { HttpRouteContext } from '@openchatlab/http-routes'
+import { resolveApiKey, writeAuthProfile } from '@openchatlab/config'
+import { getManager as getConversationManager } from './ai/conversations'
+import { getManager as getAssistantManager } from './ai/assistant/manager'
+import { getManager as getSkillManager } from './ai/skills/manager'
 
 export interface InternalEndpoint {
   baseUrl: string
@@ -26,6 +39,22 @@ let endpoint: InternalEndpoint | null = null
 let dbManager: DatabaseManager | null = null
 
 const JSON_BODY_LIMIT = 50 * 1024 * 1024 // 50 MB
+
+function createFileConfigStorage(aiDataDir: string): ConfigStorage {
+  return {
+    readJson<T>(key: string): T | null {
+      try {
+        return JSON.parse(fs.readFileSync(path.join(aiDataDir, `${key}.json`), 'utf-8')) as T
+      } catch {
+        return null
+      }
+    },
+    writeJson<T>(key: string, data: T): void {
+      if (!fs.existsSync(aiDataDir)) fs.mkdirSync(aiDataDir, { recursive: true })
+      fs.writeFileSync(path.join(aiDataDir, `${key}.json`), JSON.stringify(data, null, 2), 'utf-8')
+    },
+  }
+}
 
 /**
  * Start the Internal API Server.
@@ -43,13 +72,31 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
     newDbManager = new DatabaseManager(pathProvider)
     const sessionAdapter = createDatabaseManagerAdapter(newDbManager)
 
+    const aiDataDir = pathProvider.getAiDataDir()
+    const llmConfigStore = new LLMConfigStore(createFileConfigStorage(aiDataDir), {
+      resolveApiKey: (provider, authProfile) => resolveApiKey(provider, authProfile) || undefined,
+      onApiKeyCreated: (config, apiKey) => {
+        const profileName = config.name?.toLowerCase().replace(/\s+/g, '-') || config.provider
+        writeAuthProfile(profileName, { type: 'api_key', provider: config.provider, key: apiKey })
+        return profileName
+      },
+    })
+
     const { app } = await import('electron')
 
+    const configStorage = createFileConfigStorage(aiDataDir)
     const ctx: HttpRouteContext = {
       dbManager: newDbManager,
       sessionAdapter,
       pathProvider,
       getVersion: () => app.getVersion(),
+      aiDataDir,
+      conversationManager: getConversationManager(),
+      assistantManager: getAssistantManager(),
+      skillManagerCore: getSkillManager(),
+      llmConfigStore,
+      customProviderStore: new CustomProviderStore(configStorage),
+      customModelStore: new CustomModelStore(configStorage),
     }
 
     newServer = Fastify({ logger: false, bodyLimit: JSON_BODY_LIMIT })
@@ -103,7 +150,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
       reply.code(err.statusCode).send(errorResponse(err))
     })
 
-    registerSharedRoutes(newServer, ctx)
+    registerSharedRoutes(newServer, ctx, { requireAi: true })
 
     await newServer.listen({ port: 0, host: '127.0.0.1' })
 
@@ -117,9 +164,16 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
 
     return endpoint
   } catch (err) {
-    // Cleanup partial initialization to avoid leaked resources
-    try { await newServer?.close() } catch { /* best-effort */ }
-    try { newDbManager?.closeAll() } catch { /* best-effort */ }
+    try {
+      await newServer?.close()
+    } catch {
+      /* best-effort */
+    }
+    try {
+      newDbManager?.closeAll()
+    } catch {
+      /* best-effort */
+    }
     server = null
     dbManager = null
     endpoint = null
@@ -138,7 +192,11 @@ export async function stopInternalServer(): Promise<void> {
   } catch (err) {
     console.error('[InternalAPI] Error closing server:', err)
   } finally {
-    try { dbManager?.closeAll() } catch { /* best-effort */ }
+    try {
+      dbManager?.closeAll()
+    } catch {
+      /* best-effort */
+    }
     server = null
     endpoint = null
     dbManager = null

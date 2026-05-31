@@ -8,7 +8,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 // 从拆分的模块导入 API
 import { extendedApi } from './apis/core'
 import { chatApi, mergeApi } from './apis/chat'
-import { aiApi, llmApi, agentApi, assistantApi, skillApi } from './apis/ai'
+import { aiApi, llmApi, agentApi } from './apis/ai'
 import { networkApi, cacheApi, sessionApi } from './apis/utils'
 import { apiServerApi } from './apis/api-server'
 import { internalApi } from './apis/internal-api'
@@ -40,8 +40,6 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('aiApi', aiApi)
     contextBridge.exposeInMainWorld('llmApi', llmApi)
     contextBridge.exposeInMainWorld('agentApi', agentApi)
-    contextBridge.exposeInMainWorld('assistantApi', assistantApi)
-    contextBridge.exposeInMainWorld('skillApi', skillApi)
     contextBridge.exposeInMainWorld('cacheApi', cacheApi)
     contextBridge.exposeInMainWorld('networkApi', networkApi)
     contextBridge.exposeInMainWorld('sessionApi', sessionApi)
@@ -65,10 +63,6 @@ if (process.contextIsolated) {
   window.llmApi = llmApi
   // @ts-ignore (define in dts)
   window.agentApi = agentApi
-  // @ts-ignore (define in dts)
-  window.assistantApi = assistantApi
-  // @ts-ignore (define in dts)
-  window.skillApi = skillApi
   // @ts-ignore (define in dts)
   window.cacheApi = cacheApi
   // @ts-ignore (define in dts)

@@ -64,12 +64,20 @@ interface ChatApi {
   analyzeIncrementalImport: (
     sessionId: string,
     filePath: string
-  ) => Promise<{ newMessageCount: number; duplicateCount: number; totalInFile: number; error?: string; diagnosis?: { suggestion?: string } }>
+  ) => Promise<{
+    newMessageCount: number
+    duplicateCount: number
+    totalInFile: number
+    error?: string
+    diagnosis?: { suggestion?: string }
+  }>
   incrementalImport: (
     sessionId: string,
     filePath: string
   ) => Promise<{ success: boolean; newMessageCount: number; error?: string }>
-  exportSessionsToTempFiles: (sessionIds: string[]) => Promise<{ success: boolean; tempFiles: string[]; error?: string }>
+  exportSessionsToTempFiles: (
+    sessionIds: string[]
+  ) => Promise<{ success: boolean; tempFiles: string[]; error?: string }>
   cleanupTempExportFiles: (filePaths: string[]) => Promise<{ success: boolean; error?: string }>
   importDemo: (locale: string) => Promise<{
     success: boolean
@@ -353,29 +361,6 @@ interface ModelDefinition {
   editable: boolean
 }
 
-// LLM 相关类型（旧，兼容）
-interface LLMProviderInfo {
-  id: string
-  name: string
-  defaultBaseUrl: string
-  models: Array<{ id: string; name: string; description?: string }>
-}
-
-// 单个 AI 服务配置（前端显示用，API Key 已脱敏）
-interface AIServiceConfigDisplay {
-  id: string
-  name: string
-  provider: string
-  apiKey: string // 脱敏后的 API Key
-  apiKeySet: boolean
-  model?: string
-  baseUrl?: string
-  maxTokens?: number
-  apiFormat?: string
-  createdAt: number
-  updatedAt: number
-}
-
 interface LLMChatMessage {
   role: 'system' | 'user' | 'assistant'
   content: string
@@ -395,81 +380,12 @@ interface LLMChatStreamChunk {
   thinkingDone?: boolean
 }
 
+/**
+ * LLM CRUD (config, provider, model, validate, etc.) has been migrated to
+ * HTTP service layer via FetchLLMAdapter. Only streaming / non-streaming
+ * chat APIs remain on IPC.
+ */
 interface LlmApi {
-  // Provider Registry / Model Catalog
-  getProviderRegistry: () => Promise<ProviderDefinition[]>
-  getModelCatalog: () => Promise<ModelDefinition[]>
-  addCustomProvider: (
-    input: Omit<ProviderDefinition, 'id' | 'builtin' | 'enabledByDefault'>
-  ) => Promise<{ success: boolean; provider?: ProviderDefinition; error?: string }>
-  updateCustomProvider: (
-    id: string,
-    updates: Partial<Omit<ProviderDefinition, 'id' | 'builtin'>>
-  ) => Promise<{ success: boolean; error?: string }>
-  deleteCustomProvider: (id: string) => Promise<{ success: boolean; error?: string }>
-  addCustomModel: (
-    input: Omit<ModelDefinition, 'builtin' | 'editable'>
-  ) => Promise<{ success: boolean; model?: ModelDefinition; error?: string }>
-  updateCustomModel: (
-    providerId: string,
-    modelId: string,
-    updates: Partial<Omit<ModelDefinition, 'id' | 'providerId' | 'builtin'>>
-  ) => Promise<{ success: boolean; error?: string }>
-  deleteCustomModel: (providerId: string, modelId: string) => Promise<{ success: boolean; error?: string }>
-
-  getProviders: () => Promise<LLMProviderInfo[]>
-
-  // 多配置管理 API
-  getAllConfigs: () => Promise<AIServiceConfigDisplay[]>
-  getDefaultAssistantSlot: () => Promise<{ configId: string; modelId: string } | null>
-  getFastModelSlot: () => Promise<{ configId: string; modelId: string } | null>
-  addConfig: (config: {
-    name: string
-    provider: string
-    apiKey: string
-    model?: string
-    baseUrl?: string
-    maxTokens?: number
-    apiFormat?: string
-    customModels?: Array<{ id: string; name: string }>
-  }) => Promise<{ success: boolean; config?: AIServiceConfigDisplay; error?: string }>
-  updateConfig: (
-    id: string,
-    updates: {
-      name?: string
-      provider?: string
-      apiKey?: string
-      model?: string
-      baseUrl?: string
-      maxTokens?: number
-      apiFormat?: string
-      customModels?: Array<{ id: string; name: string }>
-    }
-  ) => Promise<{ success: boolean; error?: string }>
-  deleteConfig: (id?: string) => Promise<{ success: boolean; error?: string }>
-  setDefaultAssistantModel: (configId: string, modelId: string) => Promise<{ success: boolean; error?: string }>
-  setFastModel: (slot: { configId: string; modelId: string } | null) => Promise<{ success: boolean; error?: string }>
-
-  // 验证和检查
-  validateApiKey: (
-    provider: string,
-    apiKey: string,
-    baseUrl?: string,
-    model?: string
-  ) => Promise<{ success: boolean; error?: string }>
-  fetchRemoteModels: (
-    provider: string,
-    apiKey: string,
-    baseUrl?: string,
-    apiFormat?: string
-  ) => Promise<{
-    success: boolean
-    models?: Array<{ id: string; name: string; ownedBy?: string; contextWindow?: number }>
-    error?: string
-  }>
-  hasConfig: () => Promise<boolean>
-
-  // 聊天功能
   chat: (
     messages: LLMChatMessage[],
     options?: LLMChatOptions
@@ -607,91 +523,8 @@ interface AgentApi {
   abort: (requestId: string) => Promise<{ success: boolean; error?: string }>
 }
 
-// ==================== 助手管理 ====================
-
-interface AssistantSummary {
-  id: string
-  name: string
-  systemPrompt: string
-  presetQuestions: string[]
-  builtinId?: string
-  applicableChatTypes?: ('group' | 'private')[]
-  supportedLocales?: string[]
-}
-
-interface AssistantConfigFull {
-  id: string
-  name: string
-  systemPrompt: string
-  presetQuestions: string[]
-  allowedBuiltinTools?: string[]
-  builtinId?: string
-  applicableChatTypes?: ('group' | 'private')[]
-  supportedLocales?: string[]
-}
-
-interface BuiltinAssistantInfo {
-  id: string
-  name: string
-  systemPrompt: string
-  applicableChatTypes?: ('group' | 'private')[]
-  supportedLocales?: string[]
-  imported: boolean
-}
-
-interface AssistantApi {
-  getAll: () => Promise<AssistantSummary[]>
-  getConfig: (id: string) => Promise<AssistantConfigFull | null>
-  update: (id: string, updates: Partial<AssistantConfigFull>) => Promise<{ success: boolean; error?: string }>
-  create: (config: Omit<AssistantConfigFull, 'id'>) => Promise<{ success: boolean; id?: string; error?: string }>
-  delete: (id: string) => Promise<{ success: boolean; error?: string }>
-  reset: (id: string) => Promise<{ success: boolean; error?: string }>
-  getBuiltinCatalog: () => Promise<BuiltinAssistantInfo[]>
-  getBuiltinToolCatalog: () => Promise<Array<{ name: string; category: 'core' | 'analysis' }>>
-  importAssistant: (builtinId: string) => Promise<{ success: boolean; error?: string }>
-  reimportAssistant: (id: string) => Promise<{ success: boolean; error?: string }>
-  importFromMd: (rawMd: string) => Promise<{ success: boolean; id?: string; error?: string }>
-}
-
-// ==================== 技能管理 ====================
-
-interface SkillSummary {
-  id: string
-  name: string
-  description: string
-  tags: string[]
-  chatScope: 'all' | 'group' | 'private'
-  tools: string[]
-  builtinId?: string
-}
-
-interface SkillConfigFull {
-  id: string
-  name: string
-  description: string
-  tags: string[]
-  chatScope: 'all' | 'group' | 'private'
-  prompt: string
-  tools: string[]
-  builtinId?: string
-}
-
-interface BuiltinSkillInfo extends SkillSummary {
-  imported: boolean
-  hasUpdate: boolean
-}
-
-interface SkillApi {
-  getAll: () => Promise<SkillSummary[]>
-  getConfig: (id: string) => Promise<SkillConfigFull | null>
-  update: (id: string, rawMd: string) => Promise<{ success: boolean; error?: string }>
-  create: (rawMd: string) => Promise<{ success: boolean; id?: string; error?: string }>
-  delete: (id: string) => Promise<{ success: boolean; error?: string }>
-  getBuiltinCatalog: () => Promise<BuiltinSkillInfo[]>
-  importSkill: (builtinId: string) => Promise<{ success: boolean; id?: string; error?: string }>
-  reimportSkill: (id: string) => Promise<{ success: boolean; error?: string }>
-  importFromMd: (rawMd: string) => Promise<{ success: boolean; id?: string; error?: string }>
-}
+// Assistant CRUD migrated to HTTP service layer (FetchAssistantAdapter)
+// Skill CRUD migrated to HTTP service layer (FetchSkillAdapter)
 
 // Cache API 类型
 interface CacheDirectoryInfo {
@@ -929,8 +762,6 @@ declare global {
     aiApi: AiApi
     llmApi: LlmApi
     agentApi: AgentApi
-    assistantApi: AssistantApi
-    skillApi: SkillApi
     cacheApi: CacheApi
     networkApi: NetworkApi
     sessionApi: SessionApi
@@ -961,21 +792,11 @@ export {
   ModelStatus,
   ModelRecommendedFor,
   AgentApi,
-  AssistantApi,
-  AssistantSummary,
-  AssistantConfigFull,
-  BuiltinAssistantInfo,
-  SkillApi,
-  SkillSummary,
-  SkillConfigFull,
-  BuiltinSkillInfo,
   CacheApi,
   NetworkApi,
   ProxyConfig,
   AIConversation,
   AIMessage,
-  LLMProviderInfo,
-  AIServiceConfigDisplay,
   LLMChatMessage,
   LLMChatOptions,
   LLMChatStreamChunk,

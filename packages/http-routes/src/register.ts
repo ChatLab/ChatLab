@@ -17,8 +17,22 @@ import { registerSqlRoutes } from './routes/web/sql'
 import { registerSessionIndexRoutes } from './routes/web/session-index'
 import { registerExportRoutes } from './routes/web/export'
 import { registerNlpRoutes } from './routes/web/nlp'
+import { registerAiAssistantRoutes } from './routes/web/ai-assistants'
+import { registerAiSkillRoutes } from './routes/web/ai-skills'
+import { registerAiLlmRoutes } from './routes/web/ai-llm'
+import { registerAiConversationRoutes } from './routes/web/ai-conversations'
+import { registerAiSummaryRoutes } from './routes/web/ai-summaries'
 
-export function registerSharedRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+export interface SharedRouteOptions {
+  /** When true, AI routes will throw on missing dependencies instead of silently skipping */
+  requireAi?: boolean
+}
+
+export function registerSharedRoutes(
+  server: FastifyInstance,
+  ctx: HttpRouteContext,
+  options?: SharedRouteOptions
+): void {
   // REST API (/api/v1/*)
   registerSystemRoutes(server, ctx)
   registerRestSessionRoutes(server, ctx)
@@ -32,4 +46,24 @@ export function registerSharedRoutes(server: FastifyInstance, ctx: HttpRouteCont
   registerSessionIndexRoutes(server, ctx)
   registerExportRoutes(server, ctx)
   registerNlpRoutes(server, ctx)
+
+  if (options?.requireAi) {
+    const missing: string[] = []
+    if (!ctx.aiDataDir) missing.push('aiDataDir')
+    if (!ctx.conversationManager) missing.push('conversationManager')
+    if (!ctx.assistantManager) missing.push('assistantManager')
+    if (!ctx.skillManagerCore) missing.push('skillManagerCore')
+    if (!ctx.llmConfigStore) missing.push('llmConfigStore')
+    if (!ctx.customProviderStore) missing.push('customProviderStore')
+    if (!ctx.customModelStore) missing.push('customModelStore')
+    if (missing.length > 0) {
+      throw new Error(`[http-routes] requireAi is set but missing AI dependencies: ${missing.join(', ')}`)
+    }
+  }
+
+  registerAiAssistantRoutes(server, ctx)
+  registerAiSkillRoutes(server, ctx)
+  registerAiLlmRoutes(server, ctx)
+  registerAiConversationRoutes(server, ctx)
+  registerAiSummaryRoutes(server, ctx)
 }

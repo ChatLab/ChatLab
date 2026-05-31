@@ -10,7 +10,7 @@ import { storeToRefs } from 'pinia'
 import { usePromptStore } from '@/stores/prompt'
 import { useSessionStore } from '@/stores/session'
 import { useSettingsStore } from '@/stores/settings'
-import { useDataService, useAIService } from '@/services'
+import { useDataService, useAIService, useLLMService } from '@/services'
 import type { AIMessage as PersistedAIMessage } from '@/services/ai/types'
 import { useAssistantStore } from '@/stores/assistant'
 import { useSkillStore } from '@/stores/skill'
@@ -702,7 +702,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     state.currentAgentRequestId = ''
 
     try {
-      const hasConfig = await window.llmApi.hasConfig()
+      const hasConfig = await useLLMService().hasConfig()
       if (state.isAborted) {
         clearActiveTask(chatKey, thisRequestId)
         return { success: false, reason: 'aborted' }
@@ -1212,7 +1212,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     content: string
   ): Promise<SendMessageResult> {
     try {
-      const hasConfig = await window.llmApi.hasConfig()
+      const hasConfig = await useLLMService().hasConfig()
       if (!hasConfig) {
         return { success: false, reason: 'no_config' }
       }
@@ -1298,7 +1298,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       createStreamBlockHelpers(targetBuffer, () => aiMessageIndex)
 
     try {
-      const hasConfig = await window.llmApi.hasConfig()
+      const hasConfig = await useLLMService().hasConfig()
       if (!hasConfig) {
         restoreOriginal()
         clearActiveTask(chatKey, thisRequestId)

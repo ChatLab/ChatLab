@@ -167,6 +167,9 @@ export type { SummaryDeps, SummaryMessage, SummaryOptions, SummaryResult, Summar
 export { LLMConfigStore, MAX_CONFIG_COUNT } from './ai'
 export type { AIServiceConfig, AIConfigStore, ConfigStorage, LLMConfigStoreDeps } from './ai'
 
+// Custom Provider/Model Store
+export { CustomProviderStore, CustomModelStore } from './ai'
+
 // Agent Event Handler
 export { AgentEventHandler, estimateTokensFromText } from './ai'
 export type { TokenUsage, AgentRuntimeStatus, AgentStreamChunk, EventHandlerConfig, EventHandlerContext } from './ai'

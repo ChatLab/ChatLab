@@ -9,7 +9,7 @@ import AIChatInput from './input/AIChatInput.vue'
 import AIThinkingIndicator from './chat/AIThinkingIndicator.vue'
 import ChatStatusBar from './chat/ChatStatusBar.vue'
 import { useAIChat } from '@/composables/useAIChat'
-import { useAIService } from '@/services'
+import { useAIService, useLLMService } from '@/services'
 import CaptureButton from '@/components/common/CaptureButton.vue'
 import AssistantInlineBar from './assistant/AssistantInlineBar.vue'
 import AssistantConfigModal from './assistant/AssistantConfigModal.vue'
@@ -144,7 +144,7 @@ const conversationContentRef = ref<HTMLElement | null>(null)
 async function checkLLMConfig() {
   isCheckingConfig.value = true
   try {
-    hasLLMConfig.value = await window.llmApi.hasConfig()
+    hasLLMConfig.value = await useLLMService().hasConfig()
   } catch (error) {
     console.error('检查 LLM 配置失败：', error)
     hasLLMConfig.value = false
