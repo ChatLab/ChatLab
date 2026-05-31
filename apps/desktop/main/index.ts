@@ -1,4 +1,4 @@
-import { app, shell, BrowserWindow, protocol, nativeTheme } from 'electron'
+import { app, shell, BrowserWindow, protocol, nativeTheme, dialog } from 'electron'
 import { join } from 'path'
 import { optimizer, is, platform } from '@electron-toolkit/utils'
 import { checkUpdate } from './update'
@@ -272,14 +272,19 @@ class MainProcess {
       // 记录日活（用于统计操作系统版本、客户端版本，便于更好的适配客户端）
       trackDailyActive()
 
-      // 启动 Internal API Server（在 createWindow 之前，确保 Renderer 加载时 endpoint 可用）
+      // 启动 Internal API Server（硬依赖：失败则退出应用）
       try {
         await startInternalServer(getPathProvider())
         registerInternalApiIpc()
         console.log('[Main] Internal API Server ready')
       } catch (err) {
-        console.error('[Main] Internal API Server failed to start (falling back to IPC):', err)
-        registerInternalApiIpc()
+        console.error('[Main] Internal API Server failed to start:', err)
+        dialog.showErrorBox(
+          'ChatLab Internal Server Error',
+          `Internal API Server failed to start. The application cannot continue.\n\n${err instanceof Error ? err.message : String(err)}`
+        )
+        app.quit()
+        return
       }
 
       // 创建主窗口

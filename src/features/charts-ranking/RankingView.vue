@@ -5,6 +5,7 @@
 import { computed, ref, watch } from 'vue'
 import { PageAnchorsNav, TopNSelect } from '@/components/UI'
 import { usePageAnchors } from '@/composables'
+import { useDataService } from '@/services/data/service'
 import type { MemberActivity } from './types'
 import { ActivityRank, CheckInRank, MemeBattleRank, RepeatSection, DivingRank, NightOwlRank } from './sections'
 import type { TimeFilter } from '@openchatlab/shared-types'
@@ -22,9 +23,10 @@ const availableYears = ref<number[]>([])
 async function loadBaseData() {
   if (!props.sessionId) return
 
+  const dataService = useDataService()
   const [members, years] = await Promise.all([
-    window.chatApi.getMemberActivity(props.sessionId, props.timeFilter),
-    window.chatApi.getAvailableYears(props.sessionId),
+    dataService.getMemberActivity(props.sessionId, props.timeFilter),
+    dataService.getAvailableYears(props.sessionId),
   ])
   memberActivity.value = members
   availableYears.value = years

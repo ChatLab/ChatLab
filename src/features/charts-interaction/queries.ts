@@ -1,11 +1,10 @@
 /**
  * chart-interaction 数据查询
  *
- * 将原 getMentionGraph 后端函数拆解为：
- * 1. 三个 SQL 查询获取原始数据
- * 2. 一个 compute 在 Worker 中完成关系图构建
+ * 三个 SQL 查询获取原始数据 + compute 完成关系图构建
  */
 
+import { useDataService } from '@/services/data/service'
 import type { MemberInfo, NameHistory, MentionMessage, MentionGraphData, BuildGraphInput } from './types'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
@@ -40,7 +39,7 @@ const SYSTEM_FILTER = "AND COALESCE(m.account_name, '') != '系统消息'"
 async function queryMembers(sessionId: string, timeFilter?: TimeFilter): Promise<MemberInfo[]> {
   const { conditions, params } = buildFilter(timeFilter)
 
-  return window.chatApi.pluginQuery<MemberInfo>(
+  return useDataService().pluginQuery<MemberInfo>(
     sessionId,
     `SELECT
        m.id,
@@ -59,7 +58,7 @@ async function queryMembers(sessionId: string, timeFilter?: TimeFilter): Promise
  * 查询所有成员的历史昵称
  */
 async function queryNameHistory(sessionId: string): Promise<NameHistory[]> {
-  return window.chatApi.pluginQuery<NameHistory>(
+  return useDataService().pluginQuery<NameHistory>(
     sessionId,
     `SELECT member_id as memberId, name
      FROM member_name_history`
@@ -72,7 +71,7 @@ async function queryNameHistory(sessionId: string): Promise<NameHistory[]> {
 async function queryMentionMessages(sessionId: string, timeFilter?: TimeFilter): Promise<MentionMessage[]> {
   const { conditions, params } = buildFilter(timeFilter)
 
-  return window.chatApi.pluginQuery<MentionMessage>(
+  return useDataService().pluginQuery<MentionMessage>(
     sessionId,
     `SELECT msg.sender_id as senderId, msg.content
      FROM message msg
@@ -204,8 +203,7 @@ export async function loadMentionGraph(sessionId: string, timeFilter?: TimeFilte
 
     if (members.length === 0) return emptyResult
 
-    // 在 Worker 中构建关系图
-    const result = await window.chatApi.pluginCompute<MentionGraphData>(buildMentionGraph.toString(), {
+    const result = await useDataService().pluginCompute<MentionGraphData>(buildMentionGraph.toString(), {
       members,
       nameHistory,
       messages,

@@ -6,22 +6,6 @@ import type { ExportProgress } from '../../../../src/types/base'
 
 // ==================== 类型定义 ====================
 
-// AI API 类型
-export interface SearchMessageResult {
-  id: number
-  senderId: number
-  senderName: string
-  senderPlatformId: string
-  senderAliases: string[]
-  senderAvatar: string | null
-  content: string
-  timestamp: number
-  type: number
-  replyToMessageId: string | null
-  replyToContent: string | null
-  replyToSenderName: string | null
-}
-
 export interface AIConversation {
   id: string
   sessionId: string
@@ -210,108 +194,8 @@ export interface AIServiceConfigDisplay {
 // ==================== AI API ====================
 
 export const aiApi = {
-  /**
-   * 搜索消息（关键词搜索）
-   * @param senderId 可选的发送者成员 ID，用于筛选特定成员的消息
-   */
-  searchMessages: (
-    sessionId: string,
-    keywords: string[],
-    filter?: { startTs?: number; endTs?: number },
-    limit?: number,
-    offset?: number,
-    senderId?: number
-  ): Promise<{ messages: SearchMessageResult[]; total: number }> => {
-    return ipcRenderer.invoke('ai:searchMessages', sessionId, keywords, filter, limit, offset, senderId)
-  },
+  // ==================== 消息筛选/导出（IPC handler 保留） ====================
 
-  /**
-   * 获取消息上下文
-   * @param messageIds 支持单个或批量消息 ID
-   */
-  getMessageContext: (
-    sessionId: string,
-    messageIds: number | number[],
-    contextSize?: number
-  ): Promise<SearchMessageResult[]> => {
-    return ipcRenderer.invoke('ai:getMessageContext', sessionId, messageIds, contextSize)
-  },
-
-  /**
-   * 获取最近消息（AI Agent 专用）
-   */
-  getRecentMessages: (
-    sessionId: string,
-    filter?: { startTs?: number; endTs?: number },
-    limit?: number
-  ): Promise<{ messages: SearchMessageResult[]; total: number }> => {
-    return ipcRenderer.invoke('ai:getRecentMessages', sessionId, filter, limit)
-  },
-
-  /**
-   * 获取所有最近消息（消息查看器专用）
-   */
-  getAllRecentMessages: (
-    sessionId: string,
-    filter?: { startTs?: number; endTs?: number },
-    limit?: number
-  ): Promise<{ messages: SearchMessageResult[]; total: number }> => {
-    return ipcRenderer.invoke('ai:getAllRecentMessages', sessionId, filter, limit)
-  },
-
-  /**
-   * 获取两人之间的对话
-   */
-  getConversationBetween: (
-    sessionId: string,
-    memberId1: number,
-    memberId2: number,
-    filter?: { startTs?: number; endTs?: number },
-    limit?: number
-  ): Promise<{ messages: SearchMessageResult[]; total: number; member1Name: string; member2Name: string }> => {
-    return ipcRenderer.invoke('ai:getConversationBetween', sessionId, memberId1, memberId2, filter, limit)
-  },
-
-  /**
-   * 获取指定消息之前的 N 条（用于向上无限滚动）
-   */
-  getMessagesBefore: (
-    sessionId: string,
-    beforeId: number,
-    limit?: number,
-    filter?: { startTs?: number; endTs?: number },
-    senderId?: number,
-    keywords?: string[]
-  ): Promise<{ messages: SearchMessageResult[]; hasMore: boolean }> => {
-    return ipcRenderer.invoke('ai:getMessagesBefore', sessionId, beforeId, limit, filter, senderId, keywords)
-  },
-
-  /**
-   * 获取指定消息之后的 N 条（用于向下无限滚动）
-   */
-  getMessagesAfter: (
-    sessionId: string,
-    afterId: number,
-    limit?: number,
-    filter?: { startTs?: number; endTs?: number },
-    senderId?: number,
-    keywords?: string[]
-  ): Promise<{ messages: SearchMessageResult[]; hasMore: boolean }> => {
-    return ipcRenderer.invoke('ai:getMessagesAfter', sessionId, afterId, limit, filter, senderId, keywords)
-  },
-
-  // ==================== 自定义筛选（支持分页） ====================
-
-  /**
-   * 筛选结果消息类型
-   */
-  // FilterMessage 和 FilterResult 类型定义在下方
-
-  /**
-   * 按条件筛选消息并扩充上下文（支持分页）
-   * @param page 页码（从 1 开始，默认 1）
-   * @param pageSize 每页块数（默认 50）
-   */
   filterMessagesWithContext: (
     sessionId: string,
     keywords?: string[],

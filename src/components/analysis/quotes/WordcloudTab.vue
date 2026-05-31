@@ -13,6 +13,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { useLayoutStore } from '@/stores/layout'
 import { useWordFilterStore } from '@/stores/wordFilter'
 import { useToast } from '@/composables/useToast'
+import { get, post } from '@/services/utils/http'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
 const { t } = useI18n()
@@ -26,6 +27,14 @@ interface PosTagInfo {
   name: string
   description: string
   meaningful: boolean
+}
+
+interface WordFreqResponse {
+  words: Array<{ word: string; count: number; percentage: number }>
+  totalWords: number
+  totalMessages: number
+  uniqueWords: number
+  posTagStats?: Array<{ tag: string; count: number }>
 }
 
 type PosFilterMode = 'all' | 'meaningful' | 'custom'
@@ -145,7 +154,7 @@ const undownloadedDicts = computed(() => {
 
 async function refreshDictList() {
   try {
-    dictList.value = await window.nlpApi.getDictList()
+    dictList.value = await get('/nlp/dicts')
     // 繁体中文用户自动切换到 zh-TW（如已下载）
     if (isTraditionalChinese.value && selectedDictType.value === 'default') {
       const zhTW = dictList.value.find((d) => d.id === 'zh-TW')
@@ -167,7 +176,7 @@ async function handleDownloadDict(dictId: string) {
   isDictDownloading.value = true
   downloadingDictId.value = dictId
   try {
-    const result = await window.nlpApi.downloadDict(dictId)
+    const result = await post<{ success: boolean; error?: string }>(`/nlp/dicts/${dictId}/download`)
     if (result.success) {
       await refreshDictList()
       selectedDictType.value = dictId as DictType
@@ -234,7 +243,7 @@ const posTagOptions = computed(() =>
 // 加载词性标签定义
 async function loadPosTagDefinitions() {
   try {
-    const tags = await window.nlpApi.getPosTags()
+    const tags = await get<PosTagInfo[]>('/nlp/pos-tags')
     posTagDefinitions.value = tags
     // 初始化自定义词性为有意义的词性
     customPosTags.value = tags.filter((t) => t.meaningful).map((t) => t.tag)
@@ -247,7 +256,7 @@ async function loadPosTagDefinitions() {
 async function loadTopicMiniWords() {
   if (!props.sessionId || !canAnalyzeWithoutDictBlocking.value) return
   try {
-    const result = await window.nlpApi.getWordFrequency({
+    const result = await post<WordFreqResponse>('/nlp/word-frequency', {
       sessionId: props.sessionId,
       locale: locale.value,
       timeFilter: props.timeFilter ? { startTs: props.timeFilter.startTs, endTs: props.timeFilter.endTs } : undefined,
@@ -277,7 +286,7 @@ async function loadWordFrequency() {
 
   isLoading.value = true
   try {
-    const result = await window.nlpApi.getWordFrequency({
+    const result = await post<WordFreqResponse>('/nlp/word-frequency', {
       sessionId: props.sessionId,
       locale: locale.value,
       timeFilter: props.timeFilter ? { startTs: props.timeFilter.startTs, endTs: props.timeFilter.endTs } : undefined,

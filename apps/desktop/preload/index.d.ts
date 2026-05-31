@@ -1,33 +1,9 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
-import type { AnalysisSession, MessageType, ImportProgress, ExportProgress } from '../../../src/types/base'
+import type { ImportProgress, ExportProgress } from '../../../src/types/base'
 import type { TokenUsage, AgentRuntimeStatus, SerializedErrorInfo } from '../shared/types'
-import type {
-  MemberActivity,
-  MemberNameHistory,
-  HourlyActivity,
-  DailyActivity,
-  WeekdayActivity,
-  MonthlyActivity,
-  CatchphraseAnalysis,
-  MentionAnalysis,
-  LaughAnalysis,
-  MemberWithStats,
-  ClusterGraphData,
-  ClusterGraphOptions,
-  RelationshipStats,
-} from '../../../src/types/analysis'
 import type { FileParseInfo, ConflictCheckResult, MergeParams, MergeResult } from '../../../src/types/format'
-import type { LanguagePreferenceResult } from '../../../src/types/quotes/languagePreference'
-import type { TableSchema, SQLResult } from '../../../src/components/analysis/SQLLab/types'
 
 import type { TimeFilter } from '@openchatlab/shared-types'
-
-// @ 互动关系图数据
-interface MentionGraphData {
-  nodes: Array<{ id: number; name: string; value: number; symbolSize: number }>
-  links: Array<{ source: string; target: string; value: number }>
-  maxLinkValue: number
-}
 
 // 迁移相关类型
 interface MigrationInfo {
@@ -64,144 +40,43 @@ interface ImportDiagnostics {
   }
 }
 
+/**
+ * ChatApi — 导入、迁移、Demo（数据查询/分析/成员/SQL 已迁移到 HTTP）
+ */
 interface ChatApi {
-  selectFile: () => Promise<{
-    filePath?: string
-    format?: string
-    error?: string
-  } | null>
+  selectFile: () => Promise<{ filePath?: string; format?: string; error?: string } | null>
   detectFormat: (filePath: string) => Promise<{ id: string; name: string; platform: string; multiChat: boolean } | null>
-  import: (filePath: string) => Promise<{
-    success: boolean
-    sessionId?: string
-    error?: string
-    diagnostics?: ImportDiagnostics
-  }>
-  importDirectory: (dirPath: string) => Promise<{
-    success: boolean
-    sessionId?: string
-    error?: string
-    diagnostics?: ImportDiagnostics
-  }>
+  import: (filePath: string) => Promise<{ success: boolean; sessionId?: string; error?: string }>
+  importDirectory: (dirPath: string) => Promise<{ success: boolean; sessionId?: string; error?: string }>
   importWithOptions: (
     filePath: string,
     formatOptions: Record<string, unknown>
-  ) => Promise<{
-    success: boolean
-    sessionId?: string
-    error?: string
-    diagnostics?: ImportDiagnostics
-  }>
+  ) => Promise<{ success: boolean; sessionId?: string; error?: string }>
   scanMultiChatFile: (filePath: string) => Promise<{
     success: boolean
     chats: Array<{ index: number; name: string; type: string; id: number; messageCount: number }>
     error?: string
   }>
-  getSessions: () => Promise<AnalysisSession[]>
-  getSession: (sessionId: string) => Promise<AnalysisSession | null>
-  deleteSession: (sessionId: string) => Promise<boolean>
-  renameSession: (sessionId: string, newName: string) => Promise<boolean>
-  // 迁移相关
   checkMigration: () => Promise<MigrationCheckResult>
   runMigration: () => Promise<{ success: boolean; error?: string }>
-  // 会话所有者
-  updateSessionOwnerId: (sessionId: string, ownerId: string | null) => Promise<boolean>
-  getAvailableYears: (sessionId: string) => Promise<number[]>
-  getMemberActivity: (sessionId: string, filter?: TimeFilter) => Promise<MemberActivity[]>
-  getMemberNameHistory: (sessionId: string, memberId: number) => Promise<MemberNameHistory[]>
-  getHourlyActivity: (sessionId: string, filter?: TimeFilter) => Promise<HourlyActivity[]>
-  getDailyActivity: (sessionId: string, filter?: TimeFilter) => Promise<DailyActivity[]>
-  getWeekdayActivity: (sessionId: string, filter?: TimeFilter) => Promise<WeekdayActivity[]>
-  getMonthlyActivity: (sessionId: string, filter?: TimeFilter) => Promise<MonthlyActivity[]>
-  getYearlyActivity: (sessionId: string, filter?: TimeFilter) => Promise<Array<{ year: number; messageCount: number }>>
-  getMessageLengthDistribution: (
-    sessionId: string,
-    filter?: TimeFilter
-  ) => Promise<{
-    detail: Array<{ len: number; count: number }>
-    grouped: Array<{ range: string; count: number }>
-  }>
-  getMessageTypeDistribution: (
-    sessionId: string,
-    filter?: TimeFilter
-  ) => Promise<Array<{ type: MessageType; count: number }>>
-  getTimeRange: (sessionId: string) => Promise<{ start: number; end: number } | null>
-  getDbDirectory: () => Promise<string | null>
   getSupportedFormats: () => Promise<Array<{ id: string; name: string; platform: string; extensions: string[] }>>
   onImportProgress: (callback: (progress: ImportProgress) => void) => () => void
-  getCatchphraseAnalysis: (sessionId: string, filter?: TimeFilter) => Promise<CatchphraseAnalysis>
-  getLanguagePreferenceAnalysis: (
-    sessionId: string,
-    locale: string,
-    filter?: TimeFilter,
-    dictType?: string
-  ) => Promise<LanguagePreferenceResult>
-  getMentionAnalysis: (sessionId: string, filter?: TimeFilter) => Promise<MentionAnalysis>
-  getMentionGraph: (sessionId: string, filter?: TimeFilter) => Promise<MentionGraphData>
-  getClusterGraph: (sessionId: string, filter?: TimeFilter, options?: ClusterGraphOptions) => Promise<ClusterGraphData>
-  getLaughAnalysis: (sessionId: string, filter?: TimeFilter, keywords?: string[]) => Promise<LaughAnalysis>
-  getRelationshipStats: (
-    sessionId: string,
-    filter?: TimeFilter,
-    options?: { perseveranceThreshold?: number }
-  ) => Promise<RelationshipStats>
-  // 成员管理
-  getMembers: (sessionId: string) => Promise<MemberWithStats[]>
-  getMembersPaginated: (
-    sessionId: string,
-    params: { page: number; pageSize: number; search?: string; sortOrder?: 'asc' | 'desc' }
-  ) => Promise<{
-    members: MemberWithStats[]
-    total: number
-    page: number
-    pageSize: number
-    totalPages: number
-  }>
-  updateMemberAliases: (sessionId: string, memberId: number, aliases: string[]) => Promise<boolean>
-  mergeMembers: (sessionId: string, memberId1: number, memberId2: number) => Promise<boolean>
-  deleteMember: (sessionId: string, memberId: number) => Promise<boolean>
-  // 插件系统
-  pluginQuery: <T = Record<string, any>>(sessionId: string, sql: string, params?: any[]) => Promise<T[]>
-  pluginCompute: <T = any>(fnString: string, input: any) => Promise<T>
-  // SQL 实验室
-  getSchema: (sessionId: string) => Promise<TableSchema[]>
-  executeSQL: (sessionId: string, sql: string) => Promise<SQLResult>
-  // 增量导入
   analyzeIncrementalImport: (
     sessionId: string,
     filePath: string
-  ) => Promise<{
-    newMessageCount: number
-    duplicateCount: number
-    totalInFile: number
-    error?: string
-    diagnosis?: { suggestion?: string }
-  }>
+  ) => Promise<{ newMessageCount: number; duplicateCount: number; totalInFile: number; error?: string; diagnosis?: { suggestion?: string } }>
   incrementalImport: (
     sessionId: string,
     filePath: string
-  ) => Promise<{
-    success: boolean
-    newMessageCount: number
-    error?: string
-  }>
-  exportSessionsToTempFiles: (sessionIds: string[]) => Promise<{
-    success: boolean
-    tempFiles: string[]
-    error?: string
-  }>
-  cleanupTempExportFiles: (filePaths: string[]) => Promise<{
-    success: boolean
-    error?: string
-  }>
-
+  ) => Promise<{ success: boolean; newMessageCount: number; error?: string }>
+  exportSessionsToTempFiles: (sessionIds: string[]) => Promise<{ success: boolean; tempFiles: string[]; error?: string }>
+  cleanupTempExportFiles: (filePaths: string[]) => Promise<{ success: boolean; error?: string }>
   importDemo: (locale: string) => Promise<{
     success: boolean
     groupSessionId?: string
     privateSessionIds?: string[]
     error?: string
   }>
-
   onDemoProgress: (
     callback: (progress: { stage: string; current: number; total: number; message?: string }) => void
   ) => () => void
@@ -236,22 +111,6 @@ interface MergeApi {
   checkConflicts: (filePaths: string[]) => Promise<ConflictCheckResult>
   mergeFiles: (params: MergeParams) => Promise<MergeResult>
   clearCache: (filePath?: string) => Promise<boolean>
-}
-
-// AI 相关类型
-interface SearchMessageResult {
-  id: number
-  senderId: number
-  senderName: string
-  senderPlatformId: string
-  senderAliases: string[]
-  senderAvatar: string | null
-  content: string
-  timestamp: number
-  type: number
-  replyToMessageId: string | null
-  replyToContent: string | null
-  replyToSenderName: string | null
 }
 
 interface FilterMessage {
@@ -352,52 +211,6 @@ interface AIMessage {
 }
 
 interface AiApi {
-  searchMessages: (
-    sessionId: string,
-    keywords: string[],
-    filter?: TimeFilter,
-    limit?: number,
-    offset?: number,
-    senderId?: number
-  ) => Promise<{ messages: SearchMessageResult[]; total: number }>
-  getMessageContext: (
-    sessionId: string,
-    messageIds: number | number[],
-    contextSize?: number
-  ) => Promise<SearchMessageResult[]>
-  getRecentMessages: (
-    sessionId: string,
-    filter?: TimeFilter,
-    limit?: number
-  ) => Promise<{ messages: SearchMessageResult[]; total: number }>
-  getAllRecentMessages: (
-    sessionId: string,
-    filter?: TimeFilter,
-    limit?: number
-  ) => Promise<{ messages: SearchMessageResult[]; total: number }>
-  getConversationBetween: (
-    sessionId: string,
-    memberId1: number,
-    memberId2: number,
-    filter?: TimeFilter,
-    limit?: number
-  ) => Promise<{ messages: SearchMessageResult[]; total: number; member1Name: string; member2Name: string }>
-  getMessagesBefore: (
-    sessionId: string,
-    beforeId: number,
-    limit?: number,
-    filter?: TimeFilter,
-    senderId?: number,
-    keywords?: string[]
-  ) => Promise<{ messages: SearchMessageResult[]; hasMore: boolean }>
-  getMessagesAfter: (
-    sessionId: string,
-    afterId: number,
-    limit?: number,
-    filter?: TimeFilter,
-    senderId?: number,
-    keywords?: string[]
-  ) => Promise<{ messages: SearchMessageResult[]; hasMore: boolean }>
   createConversation: (sessionId: string, title: string | undefined, assistantId: string) => Promise<AIConversation>
   getConversations: (sessionId: string) => Promise<AIConversation[]>
   getConversation: (conversationId: string) => Promise<AIConversation | null>
@@ -937,79 +750,6 @@ interface NetworkApi {
   testProxyConnection: (proxyUrl: string) => Promise<{ success: boolean; error?: string }>
 }
 
-// NLP API 类型 - 自然语言处理功能
-type SupportedLocale = 'zh-CN' | 'en-US' | 'zh-TW' | 'ja-JP'
-
-/** 词性过滤模式 */
-type PosFilterMode = 'all' | 'meaningful' | 'custom'
-
-interface WordFrequencyItem {
-  word: string
-  count: number
-  percentage: number
-}
-
-interface PosTagStat {
-  tag: string
-  count: number
-}
-
-interface WordFrequencyResult {
-  words: WordFrequencyItem[]
-  totalWords: number
-  totalMessages: number
-  uniqueWords: number
-  posTagStats?: PosTagStat[]
-}
-
-type DictType = 'default' | 'zh-CN' | 'zh-TW'
-
-interface DictInfo {
-  id: string
-  label: string
-  locale: string
-  downloaded: boolean
-  fileSize?: number
-}
-
-interface WordFrequencyParams {
-  sessionId: string
-  locale: SupportedLocale
-  timeFilter?: { startTs?: number; endTs?: number }
-  memberId?: number
-  topN?: number
-  minWordLength?: number
-  minCount?: number
-  /** 词性过滤模式：all=全部, meaningful=只保留有意义的词, custom=自定义 */
-  posFilterMode?: PosFilterMode
-  /** 自定义词性过滤列表（posFilterMode='custom' 时使用） */
-  customPosTags?: string[]
-  /** 是否启用停用词过滤，默认 true */
-  enableStopwords?: boolean
-  /** 词库类型：default=内置简体中文, zh-TW=繁体中文 */
-  dictType?: DictType
-  /** 要排除的词语列表（词云过滤方案） */
-  excludeWords?: string[]
-}
-
-/** 词性标签信息 */
-interface PosTagInfo {
-  tag: string
-  name: string
-  description: string
-  meaningful: boolean
-}
-
-interface NlpApi {
-  getWordFrequency: (params: WordFrequencyParams) => Promise<WordFrequencyResult>
-  segmentText: (text: string, locale: SupportedLocale, minLength?: number) => Promise<string[]>
-  getPosTags: () => Promise<PosTagInfo[]>
-  getDictList: () => Promise<DictInfo[]>
-  isDictDownloaded: (dictId: string) => Promise<boolean>
-  downloadDict: (dictId: string) => Promise<{ success: boolean; error?: string }>
-  deleteDict: (dictId: string) => Promise<{ success: boolean; error?: string }>
-}
-
 // ChatLab API 服务类型
 interface ApiServerConfig {
   enabled: boolean
@@ -1180,15 +920,6 @@ interface SessionApi {
   >
 }
 
-interface PreferencesApi {
-  get: () => Promise<Record<string, unknown>>
-  save: (partial: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>
-  getUiConfig: () => Promise<Record<string, unknown>>
-  saveUiConfig: (partial: Record<string, unknown>) => Promise<{ success: boolean; error?: string }>
-  getLocale: () => Promise<string>
-  saveLocale: (lang: string) => Promise<{ success: boolean; error?: string }>
-}
-
 declare global {
   interface Window {
     electron: ElectronAPI
@@ -1203,9 +934,7 @@ declare global {
     cacheApi: CacheApi
     networkApi: NetworkApi
     sessionApi: SessionApi
-    nlpApi: NlpApi
     apiServerApi: ApiServerApi
-    preferencesApi: PreferencesApi
     internalApi: InternalApi
   }
 }
@@ -1242,9 +971,7 @@ export {
   BuiltinSkillInfo,
   CacheApi,
   NetworkApi,
-  NlpApi,
   ProxyConfig,
-  SearchMessageResult,
   AIConversation,
   AIMessage,
   LLMProviderInfo,
@@ -1267,18 +994,11 @@ export {
   FilterMessage,
   ContextBlock,
   FilterResult,
-  WordFrequencyItem,
-  WordFrequencyResult,
-  WordFrequencyParams,
-  SupportedLocale,
-  PosFilterMode,
-  PosTagInfo,
   ApiServerApi,
   ApiServerConfig,
   ApiServerStatus,
   DataSource,
   ImportSession,
-  PreferencesApi,
   InternalApi,
   InternalEndpoint,
 }

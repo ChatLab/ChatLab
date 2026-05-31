@@ -1,52 +1,9 @@
 /**
- * 工具类 API - NLP、网络、缓存、会话索引
+ * 工具类 API - 网络、缓存、会话索引
  */
 import { ipcRenderer } from 'electron'
 
 // ==================== 类型定义 ====================
-
-// NLP API 类型
-export interface WordFrequencyItem {
-  word: string
-  count: number
-  percentage: number
-}
-
-export interface WordFrequencyResult {
-  words: WordFrequencyItem[]
-  totalWords: number
-  totalMessages: number
-  uniqueWords: number
-}
-
-export type PosFilterMode = 'all' | 'meaningful' | 'custom'
-
-export interface WordFrequencyParams {
-  sessionId: string
-  locale: 'zh-CN' | 'en-US'
-  timeFilter?: { startTs?: number; endTs?: number }
-  memberId?: number
-  topN?: number
-  minWordLength?: number
-  minCount?: number
-  /** 词性过滤模式：all=全部, meaningful=只保留有意义的词, custom=自定义 */
-  posFilterMode?: PosFilterMode
-  /** 自定义词性过滤列表（posFilterMode='custom' 时使用） */
-  customPosTags?: string[]
-  /** 是否启用停用词过滤，默认 true */
-  enableStopwords?: boolean
-  /** 词库类型 */
-  dictType?: string
-  /** 要排除的词语列表（词云过滤方案） */
-  excludeWords?: string[]
-}
-
-export interface PosTagInfo {
-  tag: string
-  name: string
-  description: string
-  meaningful: boolean
-}
 
 // Network API 类型
 export type ProxyMode = 'off' | 'system' | 'manual'
@@ -94,40 +51,6 @@ export interface ChatSessionItem {
   endTs: number
   messageCount: number
   firstMessageId: number
-}
-
-// ==================== NLP API ====================
-
-export const nlpApi = {
-  getWordFrequency: (params: WordFrequencyParams): Promise<WordFrequencyResult> => {
-    return ipcRenderer.invoke('nlp:getWordFrequency', params)
-  },
-
-  segmentText: (text: string, locale: 'zh-CN' | 'en-US', minLength?: number): Promise<string[]> => {
-    return ipcRenderer.invoke('nlp:segmentText', text, locale, minLength)
-  },
-
-  getPosTags: (): Promise<PosTagInfo[]> => {
-    return ipcRenderer.invoke('nlp:getPosTags')
-  },
-
-  getDictList: (): Promise<
-    Array<{ id: string; label: string; locale: string; downloaded: boolean; fileSize?: number }>
-  > => {
-    return ipcRenderer.invoke('nlp:getDictList')
-  },
-
-  isDictDownloaded: (dictId: string): Promise<boolean> => {
-    return ipcRenderer.invoke('nlp:isDictDownloaded', dictId)
-  },
-
-  downloadDict: (dictId: string): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke('nlp:downloadDict', dictId)
-  },
-
-  deleteDict: (dictId: string): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke('nlp:deleteDict', dictId)
-  },
 }
 
 // ==================== Network API ====================
