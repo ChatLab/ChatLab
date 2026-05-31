@@ -53,6 +53,7 @@ export type ContentBlock =
     }
   | { type: 'skill'; skillId: string; skillName: string }
   | { type: 'error'; error: SerializedErrorInfo }
+  | { type: 'chart'; chartType: string; title: string; data: Record<string, unknown> }
   | {
       type: 'summary_meta'
       bufferBoundaryTimestamp: number
@@ -185,6 +186,49 @@ export function buildAIChatKey(params: {
 
 function createEmptyTokenUsage(): TokenUsage {
   return { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+}
+
+function parseToolResultContent(toolResult: unknown): unknown[] {
+  let parsed = toolResult
+  if (typeof parsed === 'string') {
+    try {
+      parsed = JSON.parse(parsed)
+    } catch {
+      return []
+    }
+  }
+
+  if (Array.isArray(parsed)) return parsed
+  if (parsed && typeof parsed === 'object') {
+    const content = (parsed as { content?: unknown }).content
+    if (Array.isArray(content)) return content
+  }
+
+  return []
+}
+
+function extractChartBlocksFromToolResult(toolResult: unknown): Array<Extract<ContentBlock, { type: 'chart' }>> {
+  return parseToolResultContent(toolResult).flatMap((item) => {
+    if (!item || typeof item !== 'object') return []
+
+    const block = item as {
+      type?: unknown
+      chartType?: unknown
+      title?: unknown
+      data?: unknown
+    }
+    if (block.type !== 'chart' || typeof block.chartType !== 'string') return []
+    if (!block.data || typeof block.data !== 'object' || Array.isArray(block.data)) return []
+
+    return [
+      {
+        type: 'chart',
+        chartType: block.chartType,
+        title: typeof block.title === 'string' ? block.title : '',
+        data: block.data as Record<string, unknown>,
+      },
+    ]
+  })
 }
 
 function toRuntimeMessage(msg: PersistedAIMessage): ChatMessage {
@@ -839,6 +883,14 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                 }
                 updateToolBlockStatus(chunk.toolName, 'done')
               }
+              {
+                const chartBlocks = extractChartBlocksFromToolResult(chunk.toolResult)
+                if (chartBlocks.length > 0) {
+                  const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
+                  blocks.push(...chartBlocks)
+                  updateAIMessage({ contentBlocks: [...blocks] })
+                }
+              }
               state.isLoadingSource = false
               break
 
@@ -1357,6 +1409,14 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               break
             case 'tool_result':
               if (chunk.toolName) updateToolBlockStatus(chunk.toolName, 'done')
+              {
+                const chartBlocks = extractChartBlocksFromToolResult(chunk.toolResult)
+                if (chartBlocks.length > 0) {
+                  const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
+                  blocks.push(...chartBlocks)
+                  updateAIMessage({ contentBlocks: [...blocks] })
+                }
+              }
               state.currentToolStatus = null
               state.isLoadingSource = false
               break

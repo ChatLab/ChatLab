@@ -260,6 +260,19 @@ export interface RawMessage {
   timestamp: number
 }
 
+// ==================== Chart Hint ====================
+
+/**
+ * 工具可返回的图表提示。
+ * AI 不参与渲染决策——前端根据 type 选择对应的 EChart 组件。
+ * chartHint 沿 details 通路透传，与 rawMessages 同路径。
+ */
+export interface ChartHint {
+  type: 'bar' | 'line' | 'pie' | 'heatmap'
+  title: string
+  data: Record<string, unknown>
+}
+
 // ==================== Tool Result ====================
 
 /**
@@ -270,6 +283,8 @@ export interface ToolResult {
   data?: unknown
   /** 消息类工具可透传原始消息数据，供预处理管道消费 */
   rawMessages?: RawMessage[]
+  /** 图表类工具可透传图表提示，供前端渲染 */
+  chartHint?: ChartHint
 }
 
 // ==================== Tool Definition ====================

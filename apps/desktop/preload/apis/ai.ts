@@ -47,6 +47,7 @@ export type ContentBlock =
     }
   | { type: 'skill'; skillId: string; skillName: string }
   | { type: 'error'; error: SerializedErrorInfo }
+  | { type: 'chart'; chartType: string; title: string; data: Record<string, unknown> }
   | { type: 'summary_meta'; bufferBoundaryTimestamp: number; compressedMessageCount: number }
 
 export type AIMessageRole = 'user' | 'assistant' | 'summary'

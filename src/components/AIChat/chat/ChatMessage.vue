@@ -5,6 +5,7 @@ import dayjs from 'dayjs'
 import MarkdownIt from 'markdown-it'
 import type { ContentBlock, ToolBlockContent } from '@/composables/useAIChat'
 import CaptureButton from '@/components/common/CaptureButton.vue'
+import { EChartBar, EChartHeatmap, EChartLine, EChartPie } from '@/components/charts'
 import ErrorBlock from './ErrorBlock.vue'
 import { useToast } from '@/composables/useToast'
 
@@ -149,6 +150,85 @@ const visibleBlocks = computed(() => {
 const useBlocksRendering = computed(() => {
   return props.role === 'assistant' && visibleBlocks.value.length > 0
 })
+
+type ChartBlock = Extract<ContentBlock, { type: 'chart' }>
+
+function toStringArray(value: unknown): string[] {
+  return Array.isArray(value) ? value.map((item) => String(item)).filter((item) => item.trim().length > 0) : []
+}
+
+function toNumberArray(value: unknown): number[] {
+  if (!Array.isArray(value)) return []
+  return value.map((item) => {
+    const num = Number(item)
+    return Number.isFinite(num) ? num : 0
+  })
+}
+
+function getSeriesChartData(block: ChartBlock): { labels: string[]; values: number[] } {
+  const labels = toStringArray(block.data.labels)
+  const values = toNumberArray(block.data.values)
+  const length = Math.min(labels.length, values.length)
+
+  return {
+    labels: labels.slice(0, length),
+    values: values.slice(0, length),
+  }
+}
+
+function getHeatmapData(block: ChartBlock): {
+  xLabels: string[]
+  yLabels: string[]
+  data: Array<[number, number, number]>
+} {
+  const rawData = Array.isArray(block.data.data) ? block.data.data : []
+  return {
+    xLabels: toStringArray(block.data.xLabels),
+    yLabels: toStringArray(block.data.yLabels),
+    data: rawData.flatMap((item) => {
+      if (!Array.isArray(item) || item.length < 3) return []
+      const x = Number(item[0])
+      const y = Number(item[1])
+      const value = Number(item[2])
+      if (!Number.isFinite(x) || !Number.isFinite(y)) return []
+      return [[x, y, Number.isFinite(value) ? value : 0] as [number, number, number]]
+    }),
+  }
+}
+
+function canRenderChart(block: ChartBlock): boolean {
+  if (block.chartType === 'bar' || block.chartType === 'line' || block.chartType === 'pie') {
+    const data = getSeriesChartData(block)
+    return data.labels.length > 0 && data.values.length > 0
+  }
+
+  if (block.chartType === 'heatmap') {
+    const data = getHeatmapData(block)
+    return data.xLabels.length > 0 && data.yLabels.length > 0 && data.data.length > 0
+  }
+
+  return false
+}
+
+function getChartHeight(block: ChartBlock): number {
+  if (block.chartType === 'bar' && block.data.horizontal === true) {
+    return Math.max(220, toStringArray(block.data.labels).length * 28 + 56)
+  }
+  if (block.chartType === 'line') return 260
+  return 240
+}
+
+function getChartEmptyText(block: ChartBlock): string {
+  if (block.chartType === 'bar' || block.chartType === 'line' || block.chartType === 'pie') {
+    const labels = toStringArray(block.data.labels)
+    const values = toNumberArray(block.data.values)
+    if (labels.length === 0) return 'No chart labels'
+    if (values.length === 0) return 'No chart values'
+    return 'Chart data is incomplete'
+  }
+  if (block.chartType === 'heatmap') return 'Heatmap data is incomplete'
+  return `Unsupported chart type: ${block.chartType}`
+}
 
 function getToolDisplayName(tool: ToolBlockContent): string {
   return te(`ai.chat.message.tools.${tool.name}`) ? t(`ai.chat.message.tools.${tool.name}`) : tool.displayName
@@ -335,6 +415,10 @@ const copyMarkdownText = computed(() => {
         const toolParams = formatToolParams(block.tool)
         const paramsSuffix = toolParams ? ` (${toolParams})` : ''
         return `- [${formatToolStatusForCopy(block.tool.status)}] ${toolName}${paramsSuffix}`
+      }
+
+      if (block.type === 'chart') {
+        return block.title ? `> ${block.title}` : ''
       }
 
       return ''
@@ -524,6 +608,47 @@ async function handleCopyMarkdown() {
                   · {{ formatThinkDuration(block.tool.durationMs) }}
                 </span>
               </div>
+            </div>
+
+            <!-- 图表块 -->
+            <div
+              v-else-if="block.type === 'chart' && canRenderChart(block)"
+              class="my-3 w-full min-w-[280px] max-w-[720px] rounded-lg border border-gray-200 bg-white p-3 shadow-sm sm:min-w-[480px] dark:border-gray-700 dark:bg-gray-900/80"
+            >
+              <div v-if="block.title" class="mb-2 text-sm font-medium text-gray-800 dark:text-gray-100">
+                {{ block.title }}
+              </div>
+              <EChartBar
+                v-if="block.chartType === 'bar'"
+                :data="getSeriesChartData(block)"
+                :horizontal="block.data.horizontal === true"
+                :height="getChartHeight(block)"
+              />
+              <EChartLine
+                v-else-if="block.chartType === 'line'"
+                :data="getSeriesChartData(block)"
+                :height="getChartHeight(block)"
+              />
+              <EChartPie
+                v-else-if="block.chartType === 'pie'"
+                :data="getSeriesChartData(block)"
+                :height="getChartHeight(block)"
+              />
+              <EChartHeatmap
+                v-else-if="block.chartType === 'heatmap'"
+                :data="getHeatmapData(block)"
+                :height="getChartHeight(block)"
+              />
+            </div>
+
+            <div
+              v-else-if="block.type === 'chart'"
+              class="my-3 w-full min-w-[280px] max-w-[720px] rounded-lg border border-dashed border-gray-200 bg-gray-50 p-4 text-xs text-gray-500 sm:min-w-[480px] dark:border-gray-700 dark:bg-gray-900/50 dark:text-gray-400"
+            >
+              <div v-if="block.title" class="mb-1 text-sm font-medium text-gray-700 dark:text-gray-200">
+                {{ block.title }}
+              </div>
+              {{ getChartEmptyText(block) }}
             </div>
 
             <!-- 错误块 -->

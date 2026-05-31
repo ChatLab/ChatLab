@@ -12,6 +12,13 @@ import type { ToolContext, ToolRegistryEntry, ToolCategory } from './types'
 import { WorkerDataProvider } from './worker-data-provider'
 import { t as i18nT } from '../../i18n'
 
+interface ChartContentBlock {
+  type: 'chart'
+  chartType: string
+  title: string
+  data: Record<string, unknown>
+}
+
 interface AdaptOptions {
   category: ToolCategory
   truncationStrategy?: 'keep_first' | 'keep_last'
@@ -57,20 +64,33 @@ export function adaptSharedTool(tool: ToolDefinition, options: AdaptOptions): To
           try {
             const result = await tool.handler(toolParams, execCtx)
 
+            const baseData = (typeof result.data === 'object' && result.data !== null ? result.data : {}) as Record<
+              string,
+              unknown
+            >
+            const details: Record<string, unknown> = { ...baseData }
             if (result.rawMessages && result.rawMessages.length > 0) {
-              const baseData = (typeof result.data === 'object' && result.data !== null ? result.data : {}) as Record<
-                string,
-                unknown
-              >
-              return {
-                content: [{ type: 'text', text: result.content }],
-                details: { ...baseData, rawMessages: result.rawMessages },
-              }
+              details.rawMessages = result.rawMessages
+            }
+            if (result.chartHint) {
+              details.chartHint = result.chartHint
+            }
+
+            const content: Array<{ type: 'text'; text: string } | ChartContentBlock> = [
+              { type: 'text', text: result.content },
+            ]
+            if (result.chartHint) {
+              content.push({
+                type: 'chart',
+                chartType: result.chartHint.type,
+                title: result.chartHint.title,
+                data: result.chartHint.data,
+              })
             }
 
             return {
-              content: [{ type: 'text', text: result.content }],
-              details: result.data ?? null,
+              content: content as AgentToolResult<unknown>['content'],
+              details: Object.keys(details).length > 0 ? details : null,
             }
           } catch (error) {
             const msg = error instanceof Error ? error.message : String(error)

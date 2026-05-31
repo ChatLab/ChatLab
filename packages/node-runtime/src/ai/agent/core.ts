@@ -54,6 +54,18 @@ function isPiMessage(message: PiAgentMessage): message is PiMessage {
   return message.role === 'user' || message.role === 'assistant' || message.role === 'toolResult'
 }
 
+function stripUiOnlyToolContent(message: PiMessage): PiMessage {
+  if (message.role !== 'toolResult') return message
+
+  const content = message.content.filter((item) => item.type === 'text' || item.type === 'image')
+  if (content.length === message.content.length) return message
+
+  return {
+    ...message,
+    content,
+  }
+}
+
 export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCoreResult> {
   const {
     piModel,
@@ -138,9 +150,9 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
     getApiKey: () => apiKey,
     streamFn: resolvedStreamFn,
     convertToLlm: (messages) => {
-      const filtered = messages.filter(
-        (msg): msg is PiMessage => msg.role === 'user' || msg.role === 'assistant' || msg.role === 'toolResult'
-      )
+      const filtered = messages
+        .filter((msg): msg is PiMessage => msg.role === 'user' || msg.role === 'assistant' || msg.role === 'toolResult')
+        .map(stripUiOnlyToolContent)
       onConvertToLlm?.(filtered)
       return filtered
     },

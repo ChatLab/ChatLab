@@ -241,7 +241,7 @@ describe('AIConversationManager message editing', () => {
       const manager = createManager(dir)
       const conv = manager.createConversation('s1', 'Test', 'general_cn')
       const userMsg = manager.addMessage(conv.id, 'user', 'question')
-      const followUp = manager.addMessage(conv.id, 'user', 'follow up')
+      manager.addMessage(conv.id, 'user', 'follow up')
       manager.addMessage(conv.id, 'assistant', 'follow answer')
 
       const inserted = manager.insertMessageAfter(conv.id, userMsg.id, 'assistant', 'inserted answer')
@@ -253,7 +253,7 @@ describe('AIConversationManager message editing', () => {
         ['question', 'inserted answer', 'follow up', 'follow answer']
       )
       assert.equal(inserted.parentId, userMsg.id)
-      // followUp's parent should be updated to the inserted message
+      // The original follow-up parent should be updated to the inserted message.
       assert.equal(messages[2]?.parentId, inserted.id)
       manager.close()
     } finally {

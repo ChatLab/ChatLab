@@ -324,6 +324,7 @@ type AIContentBlock =
     }
   | { type: 'skill'; skillId: string; skillName: string }
   | { type: 'error'; error: SerializedErrorInfo }
+  | { type: 'chart'; chartType: string; title: string; data: Record<string, unknown> }
   | {
       type: 'summary_meta'
       bufferBoundaryTimestamp: number
@@ -688,7 +689,7 @@ interface AgentStreamChunk {
     tokensAfter: number
     timestamp: number
   }
-  /** Token 使用量（type=done 时返回累计值） */
+  /** Token usage (returned cumulatively when type=done). */
   usage?: TokenUsage
 }
 

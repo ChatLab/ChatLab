@@ -40,6 +40,7 @@ export type ContentBlock =
       bufferBoundaryTimestamp: number
       compressedMessageCount: number
     }
+  | { type: 'chart'; chartType: string; title: string; data: Record<string, unknown> }
 
 export type AIMessageRole = 'user' | 'assistant' | 'summary'
 

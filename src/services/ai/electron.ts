@@ -90,7 +90,7 @@ export class ElectronAIAdapter implements AIAdapter {
     return window.aiApi.insertMessageAfter(
       conversationId,
       afterMessageId,
-      role,
+      role as any,
       content,
       contentBlocks as any,
       tokenUsage

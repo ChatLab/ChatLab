@@ -41,6 +41,8 @@ const option = computed<EChartsOption>(() => {
       right: 20,
       top: 20,
       bottom: 30,
+      outerBoundsMode: 'same',
+      outerBoundsContain: 'axisLabel',
     },
     xAxis: {
       type: 'category',

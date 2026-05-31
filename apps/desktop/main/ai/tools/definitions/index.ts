@@ -51,7 +51,7 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
 
   // ==================== Analysis 工具（按需加载） ====================
   adaptSharedTool(memberStatsTool, { category: 'analysis' }),
-  adaptSharedTool(timeStatsTool, { category: 'analysis' }),
+  adaptSharedTool(timeStatsTool, { category: 'core' }),
   adaptSharedTool(getMemberNameHistoryTool, { category: 'analysis' }),
   adaptSharedTool(getConversationBetweenTool, { category: 'analysis', truncationStrategy: 'keep_last' }),
   adaptSharedTool(getSessionSummariesTool, { category: 'analysis' }),
