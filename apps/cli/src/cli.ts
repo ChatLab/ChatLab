@@ -304,12 +304,6 @@ program
     const { startHttpServer } = await import('./http')
     const port = parseInt(options.port, 10)
 
-    // 启动前预检端口，快速失败，避免无谓的初始化后再报 EADDRINUSE
-    if (!(await isPortAvailable(port, options.host))) {
-      console.error(formatPortInUseError(port))
-      process.exit(1)
-    }
-
     let webRoot: string | undefined
     if (!options.headless) {
       const webDir = resolveCliPath('dist-web')
@@ -321,6 +315,14 @@ program
     }
 
     try {
+      // 启动前预检端口，快速失败，避免无谓的初始化后再报 EADDRINUSE；
+      // 置于 try 内确保非 EADDRINUSE 错误（EACCES/EADDRNOTAVAIL 等）
+      // 也能走到统一的 Startup failed 错误处理路径。
+      if (!(await isPortAvailable(port, options.host))) {
+        console.error(formatPortInUseError(port))
+        process.exit(1)
+      }
+
       const info = await startHttpServer({
         port,
         host: options.host,

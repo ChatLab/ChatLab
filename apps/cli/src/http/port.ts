@@ -9,9 +9,15 @@ import * as net from 'net'
  * 使用 net.createServer() 试探性绑定，无副作用（成功后立即释放）。
  */
 export function isPortAvailable(port: number, host: string): Promise<boolean> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const server = net.createServer()
-    server.once('error', () => resolve(false))
+    server.once('error', (err: NodeJS.ErrnoException) => {
+      if (err.code === 'EADDRINUSE') {
+        resolve(false)
+      } else {
+        reject(err)
+      }
+    })
     server.once('listening', () => server.close(() => resolve(true)))
     server.listen(port, host)
   })
