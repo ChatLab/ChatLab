@@ -254,6 +254,7 @@ describe('AIConversationManager message editing', () => {
       )
       assert.equal(inserted.parentId, userMsg.id)
       // followUp's parent should be updated to the inserted message
+      assert.equal(messages[2]?.id, followUp.id)
       assert.equal(messages[2]?.parentId, inserted.id)
       manager.close()
     } finally {

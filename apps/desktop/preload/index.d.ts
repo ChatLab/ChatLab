@@ -405,7 +405,7 @@ interface AiApi {
   deleteConversation: (conversationId: string) => Promise<boolean>
   addMessage: (
     conversationId: string,
-    role: 'user' | 'assistant',
+    role: AIMessageRole,
     content: string,
     dataKeywords?: string[],
     dataMessageCount?: number,
@@ -419,7 +419,7 @@ interface AiApi {
   insertMessageAfter: (
     conversationId: string,
     afterMessageId: string,
-    role: 'user' | 'assistant',
+    role: AIMessageRole,
     content: string,
     contentBlocks?: AIContentBlock[],
     tokenUsage?: AITokenUsageData
