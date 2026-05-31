@@ -14,13 +14,19 @@ import { randomBytes, createHmac, timingSafeEqual } from 'crypto'
 import { ipcMain } from 'electron'
 import Fastify, { type FastifyInstance, type FastifyError, type FastifyRequest, type FastifyReply } from 'fastify'
 import type { PathProvider } from '@openchatlab/core'
+import { CHAT_DB_TABLES } from '@openchatlab/core'
 import {
   DatabaseManager,
   createDatabaseManagerAdapter,
   LLMConfigStore,
   CustomProviderStore,
   CustomModelStore,
+  MergeSessionCache,
+  openBetterSqliteDatabase,
+  streamingImport,
 } from '@openchatlab/node-runtime'
+import type { StreamImportDeps } from '@openchatlab/node-runtime'
+import multipart from '@fastify/multipart'
 import type { ConfigStorage } from '@openchatlab/node-runtime'
 import { registerSharedRoutes, ApiError, ApiErrorCode, errorResponse, serverError } from '@openchatlab/http-routes'
 import type { HttpRouteContext } from '@openchatlab/http-routes'
@@ -37,6 +43,7 @@ export interface InternalEndpoint {
 let server: FastifyInstance | null = null
 let endpoint: InternalEndpoint | null = null
 let dbManager: DatabaseManager | null = null
+let mergeCache: MergeSessionCache | null = null
 
 const JSON_BODY_LIMIT = 50 * 1024 * 1024 // 50 MB
 
@@ -85,11 +92,47 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
     const { app } = await import('electron')
 
     const configStorage = createFileConfigStorage(aiDataDir)
+
+    const newMergeCache = new MergeSessionCache(pathProvider)
+    newMergeCache.cleanupOrphans()
+
+    const electronStreamImport = async (_dm: DatabaseManager, filePath: string) => {
+      const dbDir = pathProvider.getDatabaseDir()
+      if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true })
+
+      const deps: StreamImportDeps = {
+        openDatabase(sessionId: string) {
+          const dbPath = path.join(dbDir, `${sessionId}.db`)
+          const adapter = openBetterSqliteDatabase(dbPath, { readonly: false })
+          adapter.exec(CHAT_DB_TABLES)
+          return adapter
+        },
+        deleteDatabase(sessionId: string) {
+          const dbPath = path.join(dbDir, `${sessionId}.db`)
+          for (const suffix of ['', '-wal', '-shm']) {
+            try {
+              if (fs.existsSync(dbPath + suffix)) fs.unlinkSync(dbPath + suffix)
+            } catch {
+              /* ignore */
+            }
+          }
+        },
+        onProgress() {
+          /* no progress for merge-triggered import */
+        },
+      }
+      const result = await streamingImport(filePath, deps)
+      if (!result.sessionId) throw new Error('Import succeeded but no sessionId returned')
+      return { sessionId: result.sessionId }
+    }
+
     const ctx: HttpRouteContext = {
       dbManager: newDbManager,
       sessionAdapter,
       pathProvider,
       getVersion: () => app.getVersion(),
+      mergeSessionCache: newMergeCache,
+      streamImport: electronStreamImport,
       aiDataDir,
       conversationManager: getConversationManager(),
       assistantManager: getAssistantManager(),
@@ -100,6 +143,8 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
     }
 
     newServer = Fastify({ logger: false, bodyLimit: JSON_BODY_LIMIT })
+
+    await newServer.register(multipart, { limits: { fileSize: 1024 * 1024 * 1024 } })
 
     // CORS: dev allows the Vite dev server origin; prod allows Electron app origins only
     const isDev = !app.isPackaged
@@ -159,6 +204,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
 
     server = newServer
     dbManager = newDbManager
+    mergeCache = newMergeCache
     endpoint = { baseUrl: `http://127.0.0.1:${port}`, token }
     console.log(`[InternalAPI] Server started on port ${port}`)
 
@@ -176,6 +222,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
     }
     server = null
     dbManager = null
+    mergeCache = null
     endpoint = null
     throw err
   }
@@ -193,6 +240,11 @@ export async function stopInternalServer(): Promise<void> {
     console.error('[InternalAPI] Error closing server:', err)
   } finally {
     try {
+      mergeCache?.clear()
+    } catch {
+      /* best-effort */
+    }
+    try {
       dbManager?.closeAll()
     } catch {
       /* best-effort */
@@ -200,6 +252,7 @@ export async function stopInternalServer(): Promise<void> {
     server = null
     endpoint = null
     dbManager = null
+    mergeCache = null
     console.log('[InternalAPI] Server stopped')
   }
 }

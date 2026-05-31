@@ -405,7 +405,7 @@ async function executeMerge() {
 
   try {
     // 1. 导出选中的会话为临时文件
-    const exportResult = await window.chatApi.exportSessionsToTempFiles(selectedSessionIds)
+    const exportResult = await window.mergeApi.exportSessionsToTempFiles(selectedSessionIds)
     if (!exportResult.success) {
       throw new Error(exportResult.error || '导出失败')
     }
@@ -456,7 +456,7 @@ async function executeMerge() {
     }
 
     // 6. 清理临时文件
-    await window.chatApi.cleanupTempExportFiles(tempFiles)
+    await window.mergeApi.cleanupTempExportFiles(tempFiles)
 
     // 7. 刷新会话列表
     await sessionStore.loadSessions()
@@ -473,7 +473,7 @@ async function executeMerge() {
 
     // 清理临时文件
     if (tempFiles.length > 0) {
-      await window.chatApi.cleanupTempExportFiles(tempFiles)
+      await window.mergeApi.cleanupTempExportFiles(tempFiles)
     }
   } finally {
     isMerging.value = false

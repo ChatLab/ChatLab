@@ -13,7 +13,6 @@ import { detectFormat, findEntryFileInDirectory, scanMultiChatFile, type ParsePr
 import * as parser from '../parser'
 import type { IpcContext } from './types'
 import { CURRENT_SCHEMA_VERSION, getPendingMigrationInfos } from '../database/migrations'
-import { exportSessionToTempFile, cleanupTempExportFiles } from '../merger'
 import { t } from '../i18n'
 
 export function registerChatHandlers(ctx: IpcContext): void {
@@ -382,32 +381,6 @@ export function registerChatHandlers(ctx: IpcContext): void {
     } catch (error) {
       console.error('Failed to batch check session summaries:', error)
       return {}
-    }
-  })
-
-  // ==================== 临时导出（合并用） ====================
-
-  ipcMain.handle('chat:exportSessionsToTempFiles', async (_, sessionIds: string[]) => {
-    try {
-      const tempFiles: string[] = []
-      for (const sessionId of sessionIds) {
-        const tempPath = await exportSessionToTempFile(sessionId)
-        tempFiles.push(tempPath)
-      }
-      return { success: true, tempFiles }
-    } catch (error) {
-      console.error('[IpcMain] Failed to export session:', error)
-      return { success: false, error: String(error), tempFiles: [] }
-    }
-  })
-
-  ipcMain.handle('chat:cleanupTempExportFiles', async (_, filePaths: string[]) => {
-    try {
-      cleanupTempExportFiles(filePaths)
-      return { success: true }
-    } catch (error) {
-      console.error('[IpcMain] Failed to clean up temp files:', error)
-      return { success: false, error: String(error) }
     }
   })
 }

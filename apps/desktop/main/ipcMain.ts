@@ -8,7 +8,6 @@ import type { IpcContext } from './ipc/types'
 // 导入各功能模块
 import { registerWindowHandlers } from './ipc/window'
 import { registerChatHandlers } from './ipc/chat'
-import { registerMergeHandlers, initMergeModule, cleanupTempDbs } from './ipc/merge'
 import { registerAIHandlers } from './ipc/ai'
 import { registerMessagesHandlers } from './ipc/messages'
 import { registerCacheHandlers } from './ipc/cache'
@@ -26,9 +25,6 @@ import * as worker from './worker/workerManager'
 const mainIpcMain = (win: BrowserWindow) => {
   console.log('[IpcMain] Registering IPC handlers...')
 
-  // 初始化合并模块（清理残留的临时数据库）
-  initMergeModule()
-
   // 初始化 Worker
   try {
     worker.initWorker()
@@ -42,7 +38,6 @@ const mainIpcMain = (win: BrowserWindow) => {
   // 注册各模块的处理器
   registerWindowHandlers(context)
   registerChatHandlers(context)
-  registerMergeHandlers(context)
   registerAIHandlers(context)
   registerMessagesHandlers(context)
   registerCacheHandlers(context)
@@ -62,10 +57,7 @@ const mainIpcMain = (win: BrowserWindow) => {
 export const cleanup = () => {
   console.log('[IpcMain] Cleaning up resources...')
   try {
-    // 关闭 Worker
     worker.closeWorker()
-    // 清理临时数据库
-    cleanupTempDbs()
   } catch (error) {
     console.error('[IpcMain] Error during cleanup:', error)
   }
@@ -81,8 +73,6 @@ export const cleanupAsync = async () => {
     await cleanupApiServer()
     // 等待 Worker 完全关闭
     await worker.closeWorkerAsync()
-    // 清理临时数据库
-    cleanupTempDbs()
     console.log('[IpcMain] Cleanup completed')
   } catch (error) {
     console.error('[IpcMain] Error during async cleanup:', error)

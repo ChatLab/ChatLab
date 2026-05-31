@@ -1,8 +1,16 @@
+/**
+ * Merge routes — shared across CLI, Electron, and web-serve.
+ *
+ * Parse supports dual-mode:
+ *   - multipart/form-data → file upload (web/CLI)
+ *   - application/json { filePath } → local disk path (Electron)
+ */
+
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 import type { FastifyInstance } from 'fastify'
-import type { DatabaseManager } from '@openchatlab/node-runtime'
+import type { HttpRouteContext } from '../../context'
 import {
   streamParseFileInfo,
   checkConflictsFromSources,
@@ -10,39 +18,62 @@ import {
   serializeChatLabToJsonl,
   exportSessionToJson,
   TempDbReader,
+  TempDbWriter,
 } from '@openchatlab/node-runtime'
-import { MergeSessionCache } from '../../../merger/merge-cache'
-import { ensureDb } from './helpers'
+import type { MergerDataSource } from '@openchatlab/node-runtime'
+import { sessionNotFound } from '../../errors'
 
-export function registerMergeRoutes(
-  server: FastifyInstance,
-  dbManager: DatabaseManager,
-  mergeCache: MergeSessionCache
-): void {
+function ensureDb(ctx: HttpRouteContext, sessionId: string) {
+  const db = ctx.dbManager.open(sessionId)
+  if (!db) throw sessionNotFound(sessionId)
+  return db
+}
+
+export function registerMergeRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+  const { dbManager, mergeSessionCache: mergeCache, streamImport } = ctx
+  if (!mergeCache) return
+
+  // ── parse (dual-mode) ──────────────────────────────────────────────
+
   server.post('/_web/merge/parse', async (request, reply) => {
-    const data = await (request as any).file()
-    if (!data) return reply.code(400).send({ error: 'No file uploaded' })
+    const contentType = request.headers['content-type'] || ''
+    let filePath: string
+    let cleanupFile = false
+    let cleanupDir: string | undefined
 
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-merge-'))
-    const tmpPath = path.join(tmpDir, data.filename || 'upload')
+    if (contentType.includes('multipart/form-data')) {
+      const data = await (request as any).file()
+      if (!data) return reply.code(400).send({ error: 'No file uploaded' })
 
-    const chunks: Buffer[] = []
-    for await (const chunk of data.file) {
-      chunks.push(chunk)
+      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-merge-'))
+      const tmpPath = path.join(tmpDir, data.filename || 'upload')
+      const chunks: Buffer[] = []
+      for await (const chunk of data.file) {
+        chunks.push(chunk)
+      }
+      fs.writeFileSync(tmpPath, Buffer.concat(chunks))
+      filePath = tmpPath
+      cleanupFile = true
+      cleanupDir = tmpDir
+    } else {
+      const body = request.body as { filePath?: string }
+      if (!body?.filePath) return reply.code(400).send({ error: 'Missing filePath in body' })
+      if (!fs.existsSync(body.filePath)) return reply.code(400).send({ error: 'File not found' })
+      filePath = body.filePath
     }
-    fs.writeFileSync(tmpPath, Buffer.concat(chunks))
 
     try {
-      const result = await streamParseFileInfo(tmpPath, {
+      const result = await streamParseFileInfo(filePath, {
         createTempDatabase(sourceFilePath: string) {
           return mergeCache.createTempDatabase(path.basename(sourceFilePath))
         },
         onProgress() {
-          /* no-op for HTTP merge parse */
+          /* HTTP parse has no progress stream */
         },
       })
 
-      const handle = mergeCache.store(data.filename || 'upload', result.tempDbPath)
+      const filename = path.basename(filePath)
+      const handle = mergeCache.store(filename, result.tempDbPath)
 
       return {
         handle,
@@ -54,18 +85,24 @@ export function registerMergeRoutes(
         fileSize: result.fileSize,
       }
     } finally {
-      try {
-        fs.unlinkSync(tmpPath)
-      } catch {
-        /* ignore */
+      if (cleanupFile) {
+        try {
+          fs.unlinkSync(filePath)
+        } catch {
+          /* ignore */
+        }
       }
-      try {
-        fs.rmdirSync(tmpDir)
-      } catch {
-        /* ignore */
+      if (cleanupDir) {
+        try {
+          fs.rmdirSync(cleanupDir)
+        } catch {
+          /* ignore */
+        }
       }
     }
   })
+
+  // ── conflicts ──────────────────────────────────────────────────────
 
   server.post<{ Body: { handles: string[] } }>('/_web/merge/conflicts', async (request, reply) => {
     const { handles } = request.body as { handles?: string[] }
@@ -75,7 +112,7 @@ export function registerMergeRoutes(
 
     const readers: TempDbReader[] = []
     try {
-      const dataSources: Array<{ source: import('@openchatlab/node-runtime').MergerDataSource; filename: string }> = []
+      const dataSources: Array<{ source: MergerDataSource; filename: string }> = []
       for (const handle of handles) {
         const entry = mergeCache.openReader(handle)
         if (!entry) return reply.code(404).send({ error: `Handle not found: ${handle}` })
@@ -87,6 +124,8 @@ export function registerMergeRoutes(
       for (const r of readers) r.close()
     }
   })
+
+  // ── execute ────────────────────────────────────────────────────────
 
   server.post<{
     Body: { handles: string[]; outputName: string; format?: 'json' | 'jsonl'; andImport?: boolean }
@@ -101,7 +140,7 @@ export function registerMergeRoutes(
 
     const readers: TempDbReader[] = []
     try {
-      const dataSources: Array<{ source: import('@openchatlab/node-runtime').MergerDataSource; filename: string }> = []
+      const dataSources: Array<{ source: MergerDataSource; filename: string }> = []
       for (const handle of handles) {
         const entry = mergeCache.openReader(handle)
         if (!entry) return reply.code(404).send({ error: `Handle not found: ${handle}` })
@@ -113,14 +152,17 @@ export function registerMergeRoutes(
 
       let sessionId: string | undefined
       if (andImport) {
-        const { streamImport: serverStreamImport } = await import('../../../import/stream-import')
+        if (!streamImport) {
+          return reply.code(501).send({ error: 'Import not available on this server' })
+        }
         const jsonData = JSON.stringify(merged.chatLabData)
         const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-merged-'))
-        const tmpPath = path.join(tmpDir, `${outputName}.json`)
+        const safeName = path.basename(outputName).replace(/[/\\?%*:|"<>]/g, '_') || 'merged'
+        const tmpPath = path.join(tmpDir, `${safeName}.json`)
         fs.writeFileSync(tmpPath, jsonData, 'utf-8')
 
         try {
-          const importResult = await serverStreamImport(dbManager, tmpPath)
+          const importResult = await streamImport(dbManager, tmpPath)
           sessionId = importResult.sessionId
         } finally {
           try {
@@ -154,6 +196,8 @@ export function registerMergeRoutes(
     }
   })
 
+  // ── clear ──────────────────────────────────────────────────────────
+
   server.post<{ Body: { handle?: string } }>('/_web/merge/clear', async (request) => {
     const { handle } = (request.body as any) || {}
     if (handle) {
@@ -163,6 +207,8 @@ export function registerMergeRoutes(
     }
     return { success: true }
   })
+
+  // ── export sessions for merge ──────────────────────────────────────
 
   server.post<{
     Body: { sessionIds: string[] }
@@ -174,11 +220,10 @@ export function registerMergeRoutes(
 
     const handles: Array<{ sessionId: string; handle: string }> = []
     for (const sid of sessionIds) {
-      const db = ensureDb(dbManager, sid)
+      const db = ensureDb(ctx, sid)
       const exported = exportSessionToJson(db)
       const { db: tempDb, tempDbPath } = mergeCache.createTempDatabase(exported.meta.name)
 
-      const { TempDbWriter } = await import('@openchatlab/node-runtime')
       const writer = new TempDbWriter(tempDb)
       writer.writeMeta({
         name: exported.meta.name,

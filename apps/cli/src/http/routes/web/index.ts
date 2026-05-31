@@ -34,7 +34,6 @@ import { createDatabaseManagerAdapter } from '@openchatlab/node-runtime'
 import { registerSharedRoutes } from '@openchatlab/http-routes'
 import { MergeSessionCache } from '../../../merger/merge-cache'
 import { registerImportRoutes } from './import'
-import { registerMergeRoutes } from './merge'
 import { registerCacheRoutes } from './cache'
 import { getVersion } from '../../../version'
 
@@ -95,6 +94,14 @@ export function registerWebRoutes(
   const resolvedPathProvider = options?.pathProvider ?? fallbackPathProvider
 
   const ai = options?.aiContext
+
+  const cliStreamImport = async (dm: typeof dbManager, filePath: string) => {
+    const { streamImport } = await import('../../../import/stream-import')
+    const result = await streamImport(dm, filePath)
+    if (!result.sessionId) throw new Error('Import succeeded but no sessionId returned')
+    return { sessionId: result.sessionId }
+  }
+
   registerSharedRoutes(
     server,
     {
@@ -103,6 +110,10 @@ export function registerWebRoutes(
       pathProvider: resolvedPathProvider,
       getVersion,
       nativeBinding: options?.nativeBinding,
+      ...(mergeCache && {
+        mergeSessionCache: mergeCache,
+        streamImport: cliStreamImport,
+      }),
       ...(ai && {
         aiDataDir: ai.aiDataDir,
         conversationManager: ai.convManager,
@@ -118,9 +129,6 @@ export function registerWebRoutes(
 
   // CLI-specific routes not yet migrated to @openchatlab/http-routes
   registerImportRoutes(server, dbManager)
-  if (mergeCache) {
-    registerMergeRoutes(server, dbManager, mergeCache)
-  }
   registerCacheRoutes(server, resolvedPathProvider)
 
   server.get('/_web/system/check-update', async () => {

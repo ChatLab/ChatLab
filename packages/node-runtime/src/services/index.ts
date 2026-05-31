@@ -41,3 +41,6 @@ export type { LlmConfig, SummaryServiceDeps } from './summary-service'
 
 // Export service
 export { exportMarkdown } from './export-service'
+
+// Merge cache
+export { MergeSessionCache } from './merge-cache'
