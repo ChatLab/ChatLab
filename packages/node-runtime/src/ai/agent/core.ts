@@ -91,7 +91,11 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
   // - 'default'/undefined → strip reasoning from piModel so pi-ai sends a plain request
   //   with NO reasoning params at all (model uses its native default behavior).
   // - 'off' → pi-ai sends disable signals (thinking:{type:'disabled'} / enable_thinking:false)
-  // - 'auto' → for thinkingFormat models, use 'high' to enable; others no params
+  // - 'auto' → for thinkingFormat models or effort-based models with thinkingLevelMap,
+  //   use 'high' to enable; others no params.
+  //   Note: pi-ai's clampThinkingLevel only covers EXTENDED_THINKING_LEVELS (no 'auto'),
+  //   so 'auto' cannot be forwarded verbatim for effort-based models like Kimi/Doubao.
+  //   Returning 'high' ensures reasoning is at least enabled.
   // - Other levels → clamp to what pi-agent-core accepts.
   const isDefault = !options.thinkingLevel || options.thinkingLevel === 'default'
   const effectiveModel = isDefault
@@ -105,6 +109,9 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
       if (!piModel.reasoning) return 'off'
       const compat = piModel.compat as Record<string, unknown> | undefined
       if (compat?.thinkingFormat) return 'high'
+      // Effort-based reasoning models (e.g., Kimi, Doubao) have a thinkingLevelMap but no
+      // thinkingFormat. pi-ai's clampThinkingLevel can't pass 'auto' through, so use 'high'.
+      if (piModel.thinkingLevelMap) return 'high'
       return undefined
     }
     return clampThinkingLevel(piModel, level as Exclude<typeof level, 'default' | 'auto'>)
