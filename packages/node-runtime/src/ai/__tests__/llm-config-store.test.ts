@@ -129,4 +129,73 @@ describe('LLMConfigStore', () => {
     assert.equal(captured[0].name, 'Hooked')
     assert.equal(captured[0].key, 'my-key')
   })
+
+  it('persists authProfile from onApiKeyCreated return value on addConfig', () => {
+    const storeWithAuth = new LLMConfigStore(storage, {
+      generateId: () => `id-${++idCounter}`,
+      onApiKeyCreated: (config) => {
+        return config.name.toLowerCase().replace(/\s+/g, '-')
+      },
+      resolveApiKey: (_provider, authProfile) => {
+        if (authProfile === 'my-openai') return 'resolved-key'
+        return undefined
+      },
+    })
+
+    storeWithAuth.addConfig({ name: 'My OpenAI', provider: 'openai', apiKey: 'sk-secret' })
+
+    const raw = storage.data.get('llm-config') as AIConfigStore
+    const savedConfig = raw.configs[0] as unknown as Record<string, unknown>
+    assert.equal(savedConfig.authProfile, 'my-openai')
+    assert.equal(savedConfig.apiKey, '', 'apiKey should be cleared on disk')
+
+    const loaded = storeWithAuth.getAllConfigs()
+    assert.equal(loaded[0].apiKey, 'resolved-key', 'resolveApiKey should use authProfile')
+  })
+
+  it('persists authProfile on updateConfig when key changes', () => {
+    const storeWithAuth = new LLMConfigStore(storage, {
+      generateId: () => `id-${++idCounter}`,
+      onApiKeyCreated: (config) => {
+        return config.name.toLowerCase().replace(/\s+/g, '-')
+      },
+    })
+
+    storeWithAuth.addConfig({ name: 'Test Config', provider: 'openai', apiKey: 'sk-old' })
+    storeWithAuth.updateConfig('id-1', { apiKey: 'sk-new' })
+
+    const raw = storage.data.get('llm-config') as AIConfigStore
+    const savedConfig = raw.configs[0] as unknown as Record<string, unknown>
+    assert.equal(savedConfig.authProfile, 'test-config')
+  })
+
+  it('addConfig returns config with apiKey cleared', () => {
+    const result = store.addConfig({ name: 'A', provider: 'openai', apiKey: 'sk-secret' })
+    assert.ok(result.success)
+    assert.equal(result.config!.apiKey, '', 'returned config should not leak apiKey')
+  })
+
+  it('resolves correct key for same-provider configs with different authProfiles', () => {
+    const profiles = new Map<string, string>()
+    const storeWithAuth = new LLMConfigStore(storage, {
+      generateId: () => `id-${++idCounter}`,
+      onApiKeyCreated: (config, apiKey) => {
+        const profileName = config.name.toLowerCase().replace(/\s+/g, '-')
+        profiles.set(profileName, apiKey)
+        return profileName
+      },
+      resolveApiKey: (_provider, authProfile) => {
+        if (authProfile) return profiles.get(authProfile)
+        return undefined
+      },
+    })
+
+    storeWithAuth.addConfig({ name: 'Work OpenAI', provider: 'openai', apiKey: 'sk-work' })
+    storeWithAuth.addConfig({ name: 'Personal OpenAI', provider: 'openai', apiKey: 'sk-personal' })
+
+    const configs = storeWithAuth.getAllConfigs()
+    assert.equal(configs.length, 2)
+    assert.equal(configs[0].apiKey, 'sk-work')
+    assert.equal(configs[1].apiKey, 'sk-personal')
+  })
 })

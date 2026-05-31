@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useLLMStore, type AIServiceConfigDisplay } from '@/stores/llm'
+import { useLLMService } from '@/services'
 import type { ProviderDefinition } from '@electron/preload/index'
 import AIModelEditModal from './AIModelEditModal.vue'
 import AlertTips from './AlertTips.vue'
@@ -52,7 +53,7 @@ async function handleModalSaved() {
 
 async function deleteConfig(id: string) {
   try {
-    const result = await window.llmApi.deleteConfig(id)
+    const result = await useLLMService().deleteConfig(id)
     if (result.success) {
       await llmStore.refreshConfigs()
       emit('config-changed')

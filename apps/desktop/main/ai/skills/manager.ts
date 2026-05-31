@@ -40,7 +40,7 @@ const nodeFs: SkillManagerFs = {
 
 let _manager: SkillManagerCore | null = null
 
-function getManager(): SkillManagerCore {
+export function getManager(): SkillManagerCore {
   if (!_manager) {
     _manager = new SkillManagerCore({
       fs: nodeFs,

@@ -42,7 +42,8 @@ export interface ConfigStorage {
 export interface LLMConfigStoreDeps {
   t?: (key: string, options?: Record<string, unknown>) => string
   generateId?: () => string
-  onApiKeyCreated?: (config: AIServiceConfig, apiKey: string) => void
+  /** Returns the auth profile name so LLMConfigStore can persist it on the config */
+  onApiKeyCreated?: (config: AIServiceConfig, apiKey: string) => string | void
   resolveApiKey?: (provider: string, authProfile?: string) => string | undefined
   onStoreLoaded?: (configs: AIServiceConfig[]) => void
 }
@@ -69,7 +70,7 @@ export class LLMConfigStore {
   private storage: ConfigStorage
   private t: (key: string, options?: Record<string, unknown>) => string
   private generateId: () => string
-  private onApiKeyCreated?: (config: AIServiceConfig, apiKey: string) => void
+  private onApiKeyCreated?: (config: AIServiceConfig, apiKey: string) => string | void
   private resolveApiKey?: (provider: string, authProfile?: string) => string | undefined
   private onStoreLoaded?: (configs: AIServiceConfig[]) => void
 
@@ -185,11 +186,14 @@ export class LLMConfigStore {
     }
 
     if (newConfig.apiKey && this.onApiKeyCreated) {
-      this.onApiKeyCreated(newConfig, newConfig.apiKey)
+      const profileName = this.onApiKeyCreated(newConfig, newConfig.apiKey)
+      if (profileName) {
+        ;(newConfig as unknown as Record<string, unknown>).authProfile = profileName
+      }
     }
 
     this.saveStore(store)
-    return { success: true, config: newConfig }
+    return { success: true, config: { ...newConfig, apiKey: '' } }
   }
 
   updateConfig(
@@ -211,7 +215,10 @@ export class LLMConfigStore {
     store.configs[index] = updated
 
     if (updates.apiKey && this.onApiKeyCreated) {
-      this.onApiKeyCreated(updated, updates.apiKey)
+      const profileName = this.onApiKeyCreated(updated, updates.apiKey)
+      if (profileName) {
+        ;(store.configs[index] as unknown as Record<string, unknown>).authProfile = profileName
+      }
     }
 
     this.saveStore(store)

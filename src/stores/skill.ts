@@ -6,7 +6,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useAssistantStore } from './assistant'
-import { usePlatformService } from '@/services'
+import { usePlatformService, useSkillService } from '@/services'
 
 import { CHATLAB_SITE_BASE } from '@/utils/chatlabSiteLocale'
 const CLOUD_MARKET_BASE_URL = CHATLAB_SITE_BASE
@@ -109,7 +109,7 @@ export const useSkillStore = defineStore('skill', () => {
 
   async function loadSkills(): Promise<void> {
     try {
-      skills.value = await window.skillApi.getAll()
+      skills.value = await useSkillService().getAll()
       isLoaded.value = true
     } catch (error) {
       console.error('[SkillStore] Failed to load skills:', error)
@@ -119,7 +119,7 @@ export const useSkillStore = defineStore('skill', () => {
   /** @deprecated 本地内置目录已清空，保留兼容 */
   async function loadBuiltinCatalog(): Promise<void> {
     try {
-      builtinCatalog.value = await window.skillApi.getBuiltinCatalog()
+      builtinCatalog.value = await useSkillService().getBuiltinCatalog()
     } catch (error) {
       console.error('[SkillStore] Failed to load builtin catalog:', error)
     }
@@ -167,7 +167,7 @@ export const useSkillStore = defineStore('skill', () => {
         return { success: false, error: mdResult.error || 'Failed to fetch skill content' }
       }
 
-      const result = await window.skillApi.importFromMd(mdResult.data)
+      const result = await useSkillService().importFromMd(mdResult.data)
       if (result.success) {
         await loadSkills()
       }
@@ -189,7 +189,7 @@ export const useSkillStore = defineStore('skill', () => {
 
   async function getSkillConfig(id: string): Promise<SkillConfigFull | null> {
     try {
-      return await window.skillApi.getConfig(id)
+      return await useSkillService().getConfig(id)
     } catch (error) {
       console.error('[SkillStore] Failed to get skill config:', error)
       return null
@@ -198,10 +198,8 @@ export const useSkillStore = defineStore('skill', () => {
 
   async function updateSkill(id: string, rawMd: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const result = await window.skillApi.update(id, rawMd)
-      if (result.success) {
-        await loadSkills()
-      }
+      const result = await useSkillService().update(id, rawMd)
+      if (result.success) await loadSkills()
       return result
     } catch (error) {
       return { success: false, error: String(error) }
@@ -210,10 +208,8 @@ export const useSkillStore = defineStore('skill', () => {
 
   async function createSkill(rawMd: string): Promise<{ success: boolean; id?: string; error?: string }> {
     try {
-      const result = await window.skillApi.create(rawMd)
-      if (result.success) {
-        await loadSkills()
-      }
+      const result = await useSkillService().create(rawMd)
+      if (result.success) await loadSkills()
       return result
     } catch (error) {
       return { success: false, error: String(error) }
@@ -222,11 +218,9 @@ export const useSkillStore = defineStore('skill', () => {
 
   async function deleteSkill(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const result = await window.skillApi.delete(id)
+      const result = await useSkillService().delete(id)
       if (result.success) {
-        if (activeSkillId.value === id) {
-          activeSkillId.value = null
-        }
+        if (activeSkillId.value === id) activeSkillId.value = null
         await loadSkills()
       }
       return result
@@ -237,7 +231,7 @@ export const useSkillStore = defineStore('skill', () => {
 
   async function importSkill(builtinId: string): Promise<{ success: boolean; id?: string; error?: string }> {
     try {
-      const result = await window.skillApi.importSkill(builtinId)
+      const result = await useSkillService().importBuiltin(builtinId)
       if (result.success) {
         await loadSkills()
         await loadBuiltinCatalog()
@@ -250,7 +244,7 @@ export const useSkillStore = defineStore('skill', () => {
 
   async function reimportSkill(id: string): Promise<{ success: boolean; error?: string }> {
     try {
-      const result = await window.skillApi.reimportSkill(id)
+      const result = await useSkillService().reimport(id)
       if (result.success) {
         await loadSkills()
         await loadBuiltinCatalog()

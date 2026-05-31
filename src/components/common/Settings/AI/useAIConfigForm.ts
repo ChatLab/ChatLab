@@ -2,6 +2,7 @@ import { ref, computed, watch, type Ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '@/stores/settings'
 import { useLLMStore } from '@/stores/llm'
+import { useLLMService } from '@/services'
 import { canReuseExistingApiKey, getConnectionModeForConfig, type ConnectionMode } from './apiKeyReuse'
 
 // ==================== 类型 ====================
@@ -368,7 +369,7 @@ export function useAIConfigForm(props: {
     showRemoteModelBrowser.value = true
 
     try {
-      const result = await window.llmApi.fetchRemoteModels(
+      const result = await useLLMService().fetchRemoteModels(
         formData.value.provider || 'openai-compatible',
         apiKey,
         baseUrl,
@@ -399,7 +400,7 @@ export function useAIConfigForm(props: {
       const providerId = formData.value.provider || 'openai-compatible'
       if (model.contextWindow && !llmStore.getModelById(providerId, model.id)?.contextWindow) {
         try {
-          await window.llmApi.addCustomModel({
+          await useLLMService().addCustomModel({
             id: model.id,
             providerId,
             name: model.name,
@@ -418,7 +419,7 @@ export function useAIConfigForm(props: {
       const providerId = formData.value.provider || 'openai-compatible'
       if (!catalogModels.value.some((m) => m.id === model.id)) {
         try {
-          await window.llmApi.addCustomModel({
+          await useLLMService().addCustomModel({
             id: model.id,
             providerId,
             name: model.name,
@@ -471,7 +472,7 @@ export function useAIConfigForm(props: {
     const providerId = formData.value.provider || 'openai-compatible'
 
     try {
-      await window.llmApi.addCustomModel({
+      await useLLMService().addCustomModel({
         id: modelId,
         providerId,
         name: modelName,
@@ -514,9 +515,10 @@ export function useAIConfigForm(props: {
       if (editModelName.value.trim()) {
         updates.name = editModelName.value.trim()
       }
-      const result = await window.llmApi.updateCustomModel(providerId, modelId, updates)
+      const svc = useLLMService()
+      const result = await svc.updateCustomModel(providerId, modelId, updates)
       if (!result.success) {
-        await window.llmApi.addCustomModel({
+        await svc.addCustomModel({
           id: modelId,
           providerId,
           name: editModelName.value.trim() || modelId,
@@ -546,7 +548,7 @@ export function useAIConfigForm(props: {
 
     const providerId = formData.value.provider || 'openai-compatible'
     try {
-      await window.llmApi.deleteCustomModel(providerId, modelId)
+      await useLLMService().deleteCustomModel(providerId, modelId)
       await llmStore.refreshConfigs()
       if (formData.value.model === modelId) {
         const models = catalogModels.value
@@ -578,7 +580,7 @@ export function useAIConfigForm(props: {
 
     try {
       const testApiKey = apiKey || 'sk-no-key-required'
-      const result = await window.llmApi.validateApiKey(
+      const result = await useLLMService().validateApiKey(
         provider || 'openai-compatible',
         testApiKey,
         baseUrl || undefined,
@@ -635,7 +637,7 @@ export function useAIConfigForm(props: {
           : undefined
       if (props.mode.value === 'add') {
         const savedApiFormat = isCompatMode.value ? formData.value.apiFormat || undefined : undefined
-        const result = await window.llmApi.addConfig({
+        const result = await useLLMService().addConfig({
           name: finalName,
           provider: finalProvider,
           apiKey: finalApiKey,
@@ -666,7 +668,7 @@ export function useAIConfigForm(props: {
           updates.apiKey = finalApiKey
         }
 
-        const result = await window.llmApi.updateConfig(props.config.value!.id, updates)
+        const result = await useLLMService().updateConfig(props.config.value!.id, updates)
 
         if (result.success) {
           props.onClose()
@@ -708,7 +710,7 @@ export function useAIConfigForm(props: {
     isValidating.value = true
     try {
       const testApiKey = formData.value.apiKey.trim() || 'sk-no-key-required'
-      const result = await window.llmApi.validateApiKey(
+      const result = await useLLMService().validateApiKey(
         formData.value.provider || 'openai-compatible',
         testApiKey,
         formData.value.baseUrl.trim() || undefined,

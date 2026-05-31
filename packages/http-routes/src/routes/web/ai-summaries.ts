@@ -1,0 +1,65 @@
+import type { FastifyInstance } from 'fastify'
+import type { HttpRouteContext } from '../../context'
+import { summaryService, buildPiModel } from '@openchatlab/node-runtime'
+import type { SummaryServiceDeps, LlmConfig, PiModelConfig } from '@openchatlab/node-runtime'
+
+function createSummaryDeps(ctx: HttpRouteContext): SummaryServiceDeps | null {
+  const store = ctx.llmConfigStore
+  if (!store) return null
+  return {
+    getLlmConfig(): LlmConfig | null {
+      const config = store.getDefaultAssistantConfig()
+      if (!config) return null
+      return config
+    },
+    buildPiModel(config: LlmConfig) {
+      return buildPiModel(config as unknown as PiModelConfig)
+    },
+  }
+}
+
+export function registerAiSummaryRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+  const deps = createSummaryDeps(ctx)
+  if (!deps) return
+
+  const { sessionAdapter: adapter } = ctx
+
+  server.post<{
+    Params: { id: string }
+    Body: { chatSessionId: number; locale?: string; forceRegenerate?: boolean; strategy?: 'brief' | 'standard' }
+  }>('/_web/sessions/:id/summaries/generate', async (request, reply) => {
+    const { chatSessionId, locale, forceRegenerate, strategy } = request.body
+    const result = await summaryService.generateSummary(adapter, request.params.id, chatSessionId, deps, {
+      locale,
+      forceRegenerate,
+      strategy,
+    })
+    if ('error' in result && !result.success) {
+      return reply.code(400).send({ error: result.error })
+    }
+    return result
+  })
+
+  server.post<{
+    Params: { id: string }
+    Body: { locale?: string; forceRegenerate?: boolean }
+  }>('/_web/sessions/:id/summaries/generate-all', async (request, reply) => {
+    const { locale, forceRegenerate } = request.body
+    const result = await summaryService.generateAllSummaries(adapter, request.params.id, deps, {
+      locale,
+      forceRegenerate,
+    })
+    if (result.error) {
+      return reply.code(400).send({ error: result.error })
+    }
+    return result
+  })
+
+  server.post<{
+    Params: { id: string }
+    Body: { chatSessionIds: number[] }
+  }>('/_web/sessions/:id/summaries/check-can-generate', async (request) => {
+    const { chatSessionIds } = request.body
+    return summaryService.checkCanGenerate(adapter, request.params.id, chatSessionIds)
+  })
+}

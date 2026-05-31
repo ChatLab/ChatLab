@@ -46,6 +46,22 @@ export { usePlatformService } from './platform/service'
 export type { PlatformAdapter, OpenDialogOptions, OpenDialogResult, RemoteConfigResult } from './platform/types'
 export { useAIService } from './ai/service'
 export { usePreferencesService } from './preferences/service'
+export { useLLMService } from './llm/service'
+export type {
+  LLMServiceAdapter,
+  AIServiceConfigDisplay,
+  AIServiceConfigInput,
+  ModelSlot,
+  LLMProvider,
+  ProviderRegistryItem,
+  ModelCatalogItem,
+  CustomProviderInput,
+  CustomModelInput,
+} from './llm/types'
+export { useAssistantService } from './assistant/service'
+export type { AssistantServiceAdapter } from './assistant/types'
+export { useSkillService } from './skill/service'
+export type { SkillServiceAdapter } from './skill/types'
 export type {
   PreferencesAdapter,
   Preferences,

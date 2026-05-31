@@ -10,6 +10,7 @@ import { COLUMN_LABELS } from './types'
 import { usePromptStore } from '@/stores/prompt'
 import { useLayoutStore } from '@/stores/layout'
 import { exportSQLResult, type SQLExportFormat } from '@/utils/sqlExport'
+import { useLLMService } from '@/services'
 
 const { t, locale } = useI18n()
 const toast = useToast()
@@ -305,7 +306,7 @@ async function openSummaryModal() {
 
 // AI 总结
 async function generateSummary() {
-  const hasConfig = await window.llmApi.hasConfig()
+  const hasConfig = await useLLMService().hasConfig()
   if (!hasConfig) {
     summaryError.value = t('common.errorNoAIConfig')
     return
