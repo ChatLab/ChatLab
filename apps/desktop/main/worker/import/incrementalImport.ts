@@ -11,6 +11,7 @@ import {
   BetterSqliteAdapter,
   analyzeIncrementalImport as sharedAnalyze,
   incrementalImport as sharedImport,
+  computeAndSetOverviewCache,
 } from '@openchatlab/node-runtime'
 import type {
   IncrementalImportDeps,
@@ -39,9 +40,8 @@ function buildDeps(requestId: string): IncrementalImportDeps {
     onProgress(progress) {
       sendProgress(requestId, progress)
     },
-    async postImportHook(_db, sessionId) {
+    postImportHook(_db, sessionId) {
       try {
-        const { computeAndSetOverviewCache } = await import('@openchatlab/node-runtime')
         const dbPath = getDbPath(sessionId)
         const rawDb = new Database(dbPath)
         computeAndSetOverviewCache(new BetterSqliteAdapter(rawDb), sessionId, getCacheDir())

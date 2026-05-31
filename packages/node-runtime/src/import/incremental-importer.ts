@@ -64,7 +64,7 @@ export interface IncrementalImportDeps {
   openDatabase(sessionId: string, readonly?: boolean): DatabaseAdapter
   onProgress: ImportProgressCallback
   /** Optional hook after incremental import (e.g. update overview cache). */
-  postImportHook?: (db: DatabaseAdapter, sessionId: string) => void
+  postImportHook?: (db: DatabaseAdapter, sessionId: string) => void | Promise<void>
 }
 
 // ==================== Internal helpers ====================
@@ -383,7 +383,7 @@ export async function incrementalImport(
 
     // Post-import hook (e.g. overview cache)
     try {
-      deps.postImportHook?.(db, sessionId)
+      await deps.postImportHook?.(db, sessionId)
     } catch {
       /* non-fatal */
     }

@@ -304,7 +304,12 @@ const otherMemberAvatar = computed(() => {
       v-model="showIncrementalImportModal"
       :session-id="currentSessionId"
       :session-name="session.name"
-      @imported="loadAnalysisData"
+      @imported="
+        () => {
+          loadAnalysisData()
+          sessionStore.loadSessions()
+        }
+      "
     />
 
     <!-- 导出聊天记录弹窗 -->
