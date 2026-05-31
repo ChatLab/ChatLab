@@ -4,7 +4,8 @@
   "description": "ChatLab CLI & Service - Chat history analysis tool",
   "type": "module",
   "bin": {
-    "chatlab": "bin/chatlab.mjs"
+    "chatlab": "bin/chatlab.mjs",
+    "clb": "bin/chatlab.mjs"
   },
   "main": "./dist/index.mjs",
   "files": [
