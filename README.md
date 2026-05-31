@@ -8,7 +8,7 @@ Your chat history, finally yours.
 
 English | [简体中文](./README.zh-CN.md)
 
-[Official Website](https://chatlab.fun/) · [Documentation](https://docs.chatlab.fun/en/usage/) · [Roadmap](https://chatlab.fun/cn/roadmap/tasks)
+[Official Website](https://chatlab.fun/) · [Docs](https://docs.chatlab.fun/) · [Quick Start](https://docs.chatlab.fun/usage/quick-start) · [Roadmap](https://chatlab.fun/roadmap/tasks) · [Releases](https://github.com/ChatLab/ChatLab/releases)
 
 </div>
 
@@ -16,20 +16,56 @@ ChatLab is an open-source desktop app for understanding your social conversation
 
 Currently supported: **WhatsApp, LINE, WeChat, QQ, Discord, Instagram, and Telegram**. Coming next: **iMessage, Messenger, and KakaoTalk**.
 
+> New install? Start here: [Getting started](https://docs.chatlab.fun/usage/quick-start)
+
 ## Core Features
 
 - 🚀 **Built for large histories**: Stream parsing and multi-worker processing keep imports and analysis responsive, even at million-message scale.
 - 🔒 **Private by default**: Your chat data and settings stay local. No mandatory cloud upload of raw conversations.
-- 🤖 **AI that can actually operate on data**: Agent + Function Calling workflows can search, summarize, and analyze chat records with context.
+- 🤖 **AI that can actually operate on data**: Agent + Function Calling workflows (24+ tools) can search, summarize, and analyze chat records with context.
 - 📊 **Insight-rich visual views**: See trends, time patterns, interaction frequency, rankings, and more in one place.
 - 🧩 **Cross-platform normalization**: Different export formats are mapped into a unified model so you can analyze them consistently.
+
+## Installation
+
+### Desktop App
+
+Download the installer for your OS from the [official website](https://chatlab.fun/?type=download) or [GitHub Releases](https://github.com/ChatLab/ChatLab/releases), then double-click to install.
+
+### CLI
+
+Requires Node.js ≥ 20.
+
+```bash
+npm i chatlab-cli -g
+```
+
+Start ChatLab:
+
+```bash
+chatlab start            # Start API + Web UI, auto-open in browser
+chatlab start --no-open  # Start API + Web UI, skip auto-open
+chatlab start --headless # API only, no Web UI (for scripts / AI Agents)
+```
+
+Common options: `--port <port>` (default 3110), `--host <address>`, `--token <token>`.
+
+To run as a persistent background service (auto-start on login + auto-restart on crash):
+
+```bash
+chatlab start --daemon   # Install as system service (macOS / Linux)
+chatlab status           # Check service status
+chatlab stop             # Stop and uninstall service
+```
+
+For a full walkthrough, see the [Quick Start guide](https://docs.chatlab.fun/usage/quick-start).
 
 ## Usage Guides
 
 - [Download Guide](https://chatlab.fun/?type=download)
-- [Chat Record Export Guide](https://docs.chatlab.fun/en/usage/how-to-export)
-- [Standardized Format Specification](https://docs.chatlab.fun/en/standard/chatlab-format)
-- [Troubleshooting Guide](https://docs.chatlab.fun/en/usage/troubleshooting)
+- [Chat Record Export Guide](https://docs.chatlab.fun/usage/how-to-export)
+- [Standardized Format Specification](https://docs.chatlab.fun/standard/chatlab-format)
+- [Troubleshooting Guide](https://docs.chatlab.fun/usage/troubleshooting)
 
 ## Preview
 
@@ -37,7 +73,13 @@ For more previews, please visit the official website: [chatlab.fun](https://chat
 
 ![Preview Interface](/public/images/intro_en.png)
 
-## System Architecture
+## Architecture Overview
+
+ChatLab is a pnpm monorepo built on Electron + Vue 3 + Nuxt UI + Tailwind CSS. Core business logic lives in shared packages (`@openchatlab/core`, `@openchatlab/node-runtime`, `@openchatlab/tools`), consumed by both the desktop app and the CLI service — so they stay in sync.
+
+Data flows in five stages: **format detection → stream parsing → local persistence → SQL + AI query → visualization**.
+
+For a deep dive, see the [architecture documentation](https://docs.chatlab.fun/intro).
 
 ### Architecture Principles
 
@@ -45,27 +87,6 @@ For more previews, please visit the official website: [chatlab.fun](https://chat
 - **Streaming over buffering**: Stream-first parsing and incremental processing keep large imports stable and memory-efficient.
 - **Composable intelligence**: AI features are assembled through Agent + Tool Calling, not hard-coded into one model path.
 - **Schema-first evolution**: Import, query, analysis, and visualization share a consistent data model that scales with new features.
-
-### Runtime Architecture
-
-- **Main Process (control plane)**: `apps/desktop/main/index.ts` handles lifecycle and windows. `apps/desktop/main/ipc/` defines domain-scoped IPC. Core AI, query, NLP, import, and merge logic lives in shared packages (`packages/core`, `packages/node-runtime`, `packages/tools`); `apps/desktop/main/ai/` and `apps/desktop/main/i18n/` are thin Electron adaptation layers.
-- **Worker Layer (compute plane)**: `apps/desktop/main/worker/` runs import, indexing, and query tasks via `workerManager`, delegating core logic to `@openchatlab/core` and `@openchatlab/node-runtime`.
-- **Renderer Layer (interaction plane)**: Vue 3 + Nuxt UI + Tailwind CSS drive management, private chat, group chat, and analysis interfaces. `apps/desktop/preload/index.ts` exposes tightly scoped APIs for secure process boundaries.
-
-### Data Pipeline
-
-1. **Ingestion**: `parser/` detects file format and dispatches to the matching parser module.
-2. **Persistence**: Stream-based writes populate core local entities: sessions, members, and messages.
-3. **Indexing**: Session- and time-oriented indexes are built for timeline navigation and retrieval.
-4. **Query & Analysis**: `worker/query/*` powers activity metrics, interaction analysis, SQL Lab, and AI-assisted exploration.
-5. **Presentation**: The renderer turns query output into charts, rankings, timelines, and conversational analysis flows.
-
-### Extensibility & Reliability
-
-- **Pluggable parser architecture**: Adding a new import source is mostly an extension in `parser/formats/*`, without reworking downstream query logic.
-- **Full + incremental import paths**: `streamImport.ts` and `incrementalImport.ts` support both first-time onboarding and ongoing updates.
-- **Modular IPC boundaries**: Domain-based IPC segmentation reduces cross-layer coupling and limits permission spread.
-- **Unified i18n evolution**: Main and renderer processes share an i18n system that can evolve with product scope.
 
 ---
 
@@ -79,11 +100,14 @@ For more previews, please visit the official website: [chatlab.fun](https://chat
 ### Setup
 
 ```bash
-# install dependencies
+# Install dependencies
 pnpm install
 
-# run electron app in dev mode
+# Run desktop app in dev mode
 pnpm dev
+
+# Run CLI in dev mode (apps/cli)
+cd apps/cli && pnpm dev
 ```
 
 If Electron encounters exceptions during startup, you can try using `electron-fix`:
@@ -91,7 +115,6 @@ If Electron encounters exceptions during startup, you can try using `electron-fi
 ```bash
 npm install electron-fix -g
 electron-fix start
-
 ```
 
 ## Privacy Policy & User Agreement
