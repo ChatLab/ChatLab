@@ -332,7 +332,7 @@ export * as memberService from './services/member-service'
 export * as sessionIndexService from './services/session-index-service'
 export * as summaryService from './services/summary-service'
 export * as exportService from './services/export-service'
-export { createDatabaseManagerAdapter } from './services'
+export { createDatabaseManagerAdapter, MergeSessionCache } from './services'
 export type {
   SessionRuntimeAdapter,
   AnalysisSessionDTO,

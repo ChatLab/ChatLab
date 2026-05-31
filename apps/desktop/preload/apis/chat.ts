@@ -6,7 +6,6 @@
  */
 import { ipcRenderer } from 'electron'
 import type { ImportProgress } from '../../../../src/types/base'
-import type { FileParseInfo, ConflictCheckResult, MergeParams, MergeResult } from '../../../../src/types/format'
 
 export const chatApi = {
   // ==================== 数据库迁移 ====================
@@ -79,16 +78,6 @@ export const chatApi = {
   ): Promise<{ success: boolean; newMessageCount: number; error?: string }> =>
     ipcRenderer.invoke('chat:incrementalImport', sessionId, filePath),
 
-  // ==================== 临时导出（合并用） ====================
-
-  exportSessionsToTempFiles: (
-    sessionIds: string[]
-  ): Promise<{ success: boolean; tempFiles: string[]; error?: string }> =>
-    ipcRenderer.invoke('chat:exportSessionsToTempFiles', sessionIds),
-
-  cleanupTempExportFiles: (filePaths: string[]): Promise<{ success: boolean; error?: string }> =>
-    ipcRenderer.invoke('chat:cleanupTempExportFiles', filePaths),
-
   // ==================== Demo ====================
 
   importDemo: (
@@ -106,13 +95,4 @@ export const chatApi = {
     ipcRenderer.on('demo:progress', handler)
     return () => ipcRenderer.removeListener('demo:progress', handler)
   },
-}
-
-// Merge API
-export const mergeApi = {
-  parseFileInfo: (filePath: string): Promise<FileParseInfo> => ipcRenderer.invoke('merge:parseFileInfo', filePath),
-  checkConflicts: (filePaths: string[]): Promise<ConflictCheckResult> =>
-    ipcRenderer.invoke('merge:checkConflicts', filePaths),
-  mergeFiles: (params: MergeParams): Promise<MergeResult> => ipcRenderer.invoke('merge:mergeFiles', params),
-  clearCache: (filePath?: string): Promise<boolean> => ipcRenderer.invoke('merge:clearCache', filePath),
 }

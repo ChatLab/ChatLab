@@ -1,8 +1,6 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 import type { ImportProgress, ExportProgress } from '../../../src/types/base'
 import type { TokenUsage, AgentRuntimeStatus, SerializedErrorInfo } from '../shared/types'
-import type { FileParseInfo, ConflictCheckResult, MergeParams, MergeResult } from '../../../src/types/format'
-
 import type { TimeFilter } from '@openchatlab/shared-types'
 
 // 迁移相关类型
@@ -75,10 +73,6 @@ interface ChatApi {
     sessionId: string,
     filePath: string
   ) => Promise<{ success: boolean; newMessageCount: number; error?: string }>
-  exportSessionsToTempFiles: (
-    sessionIds: string[]
-  ) => Promise<{ success: boolean; tempFiles: string[]; error?: string }>
-  cleanupTempExportFiles: (filePaths: string[]) => Promise<{ success: boolean; error?: string }>
   importDemo: (locale: string) => Promise<{
     success: boolean
     groupSessionId?: string
@@ -112,13 +106,6 @@ interface Api {
     getOpenAtLogin: () => Promise<boolean>
     setOpenAtLogin: (enabled: boolean) => Promise<{ success: boolean; error?: string }>
   }
-}
-
-interface MergeApi {
-  parseFileInfo: (filePath: string) => Promise<FileParseInfo>
-  checkConflicts: (filePaths: string[]) => Promise<ConflictCheckResult>
-  mergeFiles: (params: MergeParams) => Promise<MergeResult>
-  clearCache: (filePath?: string) => Promise<boolean>
 }
 
 interface FilterMessage {
@@ -758,7 +745,6 @@ declare global {
     electron: ElectronAPI
     api: Api
     chatApi: ChatApi
-    mergeApi: MergeApi
     aiApi: AiApi
     llmApi: LlmApi
     agentApi: AgentApi
@@ -782,7 +768,6 @@ interface InternalApi {
 export {
   ChatApi,
   Api,
-  MergeApi,
   AiApi,
   LlmApi,
   ProviderDefinition,

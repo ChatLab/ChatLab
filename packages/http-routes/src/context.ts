@@ -17,6 +17,7 @@ import type {
   LLMConfigStore,
   CustomProviderStore,
   CustomModelStore,
+  MergeSessionCache,
 } from '@openchatlab/node-runtime'
 
 export interface HttpRouteContext {
@@ -26,10 +27,18 @@ export interface HttpRouteContext {
 
   getVersion: () => string
 
-  /** Reserved for future migrated routes (import/merge) that need the native binding path */
+  /** Native binding path for better-sqlite3 (CLI needs it, Electron does not) */
   nativeBinding?: string
 
   preferencesManager?: PreferencesManager
+
+  /** Merge subsystem — optional, merge routes gracefully skip when absent */
+  mergeSessionCache?: MergeSessionCache
+  /**
+   * Platform-specific import function for merge "andImport" flow.
+   * CLI and Electron each provide their own implementation.
+   */
+  streamImport?: (dbManager: DatabaseManager, filePath: string) => Promise<{ sessionId: string }>
 
   /** AI subsystem — optional, routes gracefully skip when absent */
   aiDataDir?: string

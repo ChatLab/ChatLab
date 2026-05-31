@@ -94,6 +94,8 @@ async function initElectronAdapters(): Promise<void> {
 
   const { FetchSkillAdapter } = await import('./skill/fetch')
   registerAdapter('skill-crud', new FetchSkillAdapter())
+
+  installMergeShims('electron')
 }
 
 async function initWebServeAdapters(): Promise<void> {
@@ -307,94 +309,7 @@ async function installAiApiShims(): Promise<void> {
 
   ;(window as any).agentApi = agentApiImpl
 
-  // cacheApi shim (server-side file operations)
-  // chatApi — merge-related shims (handles ↔ filePaths adaptation)
-  if (!(window as any).chatApi) {
-    ;(window as any).chatApi = {}
-  }
-  const chatApi = (window as any).chatApi
-  chatApi.exportSessionsToTempFiles = async (sessionIds: string[]) => {
-    try {
-      const resp = await fetchWithAuth('/_web/sessions/export-for-merge', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionIds }),
-      })
-      const result = await resp.json()
-      if (!result.success) return { success: false, tempFiles: [], error: result.error }
-      return { success: true, tempFiles: result.handles.map((h: { handle: string }) => h.handle) }
-    } catch (error) {
-      return { success: false, tempFiles: [], error: error instanceof Error ? error.message : String(error) }
-    }
-  }
-  chatApi.cleanupTempExportFiles = async (filePaths: string[]) => {
-    try {
-      for (const handle of filePaths) {
-        await fetchWithAuth('/_web/merge/clear', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ handle }),
-        })
-      }
-      return { success: true }
-    } catch (error) {
-      return { success: false, error: error instanceof Error ? error.message : String(error) }
-    }
-  }
-
-  // mergeApi — delegates to CLI Web merge HTTP routes (handle-based)
-  ;(window as any).mergeApi = {
-    parseFileInfo: async (_filePath: string) => {
-      // In CLI Web, sessions are pre-parsed during export-for-merge
-      return { name: '', format: '', platform: '', messageCount: 0, memberCount: 0, fileSize: 0 }
-    },
-    checkConflicts: async (filePaths: string[]) => {
-      try {
-        const resp = await fetchWithAuth('/_web/merge/conflicts', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ handles: filePaths }),
-        })
-        return await resp.json()
-      } catch {
-        return { conflicts: [], totalMessages: 0 }
-      }
-    },
-    mergeFiles: async (params: {
-      filePaths: string[]
-      outputName: string
-      outputFormat?: string
-      andAnalyze?: boolean
-    }) => {
-      try {
-        const resp = await fetchWithAuth('/_web/merge/execute', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            handles: params.filePaths,
-            outputName: params.outputName,
-            format: params.outputFormat || 'json',
-            andImport: params.andAnalyze ?? false,
-          }),
-        })
-        return await resp.json()
-      } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : String(error) }
-      }
-    },
-    clearCache: async (filePath?: string) => {
-      try {
-        await fetchWithAuth('/_web/merge/clear', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ handle: filePath }),
-        })
-        return true
-      } catch {
-        return false
-      }
-    },
-  }
+  installMergeShims('web-serve')
   ;(window as any).cacheApi = {
     saveToDownloads: async (filename: string, dataUrl: string) => {
       try {
@@ -466,6 +381,143 @@ async function installAiApiShims(): Promise<void> {
         return await resp.json()
       } catch (error) {
         return { path: '', isCustom: false }
+      }
+    },
+  }
+}
+
+/**
+ * Install merge-related window shims.
+ *
+ * Both Electron and web-serve use the same HTTP merge routes. The shim
+ * maintains a filePath→handle Map so that existing frontend code
+ * (session.ts, BatchManageTab.vue) can continue calling with filePaths
+ * while the HTTP layer operates with UUID handles.
+ */
+function installMergeShims(platform: 'electron' | 'web-serve'): void {
+  const pathToHandle = new Map<string, string>()
+
+  const isHandle = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
+
+  const resolveHandle = (filePathOrHandle: string) => pathToHandle.get(filePathOrHandle) ?? filePathOrHandle
+
+  async function ensureOk(resp: Response, context: string): Promise<void> {
+    if (!resp.ok) {
+      const body = await resp.text().catch(() => '')
+      throw new Error(`[mergeApi] ${context} failed (${resp.status}): ${body}`)
+    }
+  }
+
+  ;(window as any).mergeApi = {
+    exportSessionsToTempFiles: async (sessionIds: string[]) => {
+      try {
+        const resp = await fetchWithAuth('/_web/sessions/export-for-merge', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ sessionIds }),
+        })
+        await ensureOk(resp, 'exportSessionsToTempFiles')
+        const result = await resp.json()
+        if (!result.success) return { success: false, tempFiles: [], error: result.error }
+        const tempFiles = result.handles.map((h: { handle: string }) => h.handle)
+        return { success: true, tempFiles }
+      } catch (error) {
+        return { success: false, tempFiles: [], error: error instanceof Error ? error.message : String(error) }
+      }
+    },
+
+    cleanupTempExportFiles: async (filePaths: string[]) => {
+      try {
+        for (const fp of filePaths) {
+          const handle = resolveHandle(fp)
+          await fetchWithAuth('/_web/merge/clear', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ handle }),
+          })
+          pathToHandle.delete(fp)
+        }
+        return { success: true }
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    },
+
+    parseFileInfo: async (filePath: string) => {
+      if (isHandle(filePath) || pathToHandle.has(filePath)) {
+        return { name: '', format: '', platform: '', messageCount: 0, memberCount: 0, fileSize: 0 }
+      }
+
+      if (platform === 'electron') {
+        const resp = await fetchWithAuth('/_web/merge/parse', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ filePath }),
+        })
+        await ensureOk(resp, 'parseFileInfo')
+        const result = await resp.json()
+        if (!result.handle) throw new Error('Parse succeeded but no handle returned')
+        pathToHandle.set(filePath, result.handle)
+        return result
+      }
+
+      return { name: '', format: '', platform: '', messageCount: 0, memberCount: 0, fileSize: 0 }
+    },
+
+    checkConflicts: async (filePaths: string[]) => {
+      const handles = filePaths.map(resolveHandle)
+      const resp = await fetchWithAuth('/_web/merge/conflicts', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ handles }),
+      })
+      await ensureOk(resp, 'checkConflicts')
+      return await resp.json()
+    },
+
+    mergeFiles: async (params: {
+      filePaths: string[]
+      outputName: string
+      outputFormat?: string
+      andAnalyze?: boolean
+    }) => {
+      try {
+        const handles = params.filePaths.map(resolveHandle)
+        const resp = await fetchWithAuth('/_web/merge/execute', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            handles,
+            outputName: params.outputName,
+            format: params.outputFormat || 'json',
+            andImport: params.andAnalyze ?? false,
+          }),
+        })
+        await ensureOk(resp, 'mergeFiles')
+        const result = await resp.json()
+        for (const fp of params.filePaths) pathToHandle.delete(fp)
+        return result
+      } catch (error) {
+        return { success: false, error: error instanceof Error ? error.message : String(error) }
+      }
+    },
+
+    clearCache: async (filePath?: string) => {
+      try {
+        const handle = filePath ? resolveHandle(filePath) : undefined
+        await fetchWithAuth('/_web/merge/clear', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ handle }),
+        })
+        if (filePath) {
+          pathToHandle.delete(filePath)
+        } else {
+          pathToHandle.clear()
+        }
+        return true
+      } catch {
+        return false
       }
     },
   }
