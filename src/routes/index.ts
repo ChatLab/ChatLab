@@ -1,4 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
+import { IS_ELECTRON } from '@/utils/platform'
+import { useAuthStore } from '@/stores/auth'
 
 export const router = createRouter({
   routes: [
@@ -27,7 +29,19 @@ export const router = createRouter({
   history: createWebHashHistory(),
 })
 
-router.beforeEach((_to, _from, next) => {
+router.beforeEach((to, _from, next) => {
+  // Electron never needs web login
+  if (IS_ELECTRON) {
+    return to.name === 'login' ? next({ name: 'home' }) : next()
+  }
+
+  if (to.meta.public) return next()
+
+  const authStore = useAuthStore()
+  if (authStore.requiresAuth && !authStore.isAuthenticated) {
+    return next({ name: 'login', query: { redirect: to.fullPath } })
+  }
+
   next()
 })
 

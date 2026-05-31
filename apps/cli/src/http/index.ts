@@ -18,7 +18,7 @@ import {
   verifyCliDataPath,
 } from '@openchatlab/node-runtime'
 import { createServer } from './server'
-import { setAuthToken, setRequireAuth, setWebMode } from './auth'
+import { setAuthToken, setRequireAuth } from './auth'
 import { registerSystemRoutes } from './routes/system'
 import { registerSessionRoutes } from './routes/sessions'
 import { registerWebRoutes } from './routes/web'
@@ -124,9 +124,7 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
   initServerAiLogger(pathProvider.getLogsDir())
 
   setAuthToken(token)
-  if (options?.requireAuth ?? config.api.require_auth) {
-    setRequireAuth(true)
-  }
+  setRequireAuth(!!(options?.requireAuth ?? config.api.require_auth))
 
   server = createServer()
 
@@ -145,7 +143,6 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
   initSync(server, dbManager, pathProvider, { port, host, token })
 
   if (options?.webRoot && fs.existsSync(options.webRoot)) {
-    setWebMode(true)
     // 注册反向代理：将 /_proxy/chatlab.fun/* 转发至 https://chatlab.fun，
     // 行为与 vite dev proxy 一致，解决浏览器 CORS 问题（见 vite.web.config.mts:138-144）。
     // 必须在 @fastify/static 之前注册，确保显式路由优先于静态文件/SPA fallback。
@@ -186,7 +183,7 @@ export async function stopHttpServer(): Promise<void> {
       dbManager = null
     }
     closeServerAiLogger()
-    setWebMode(false)
+    setRequireAuth(false)
     server = null
   }
 }

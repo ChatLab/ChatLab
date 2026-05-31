@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -30,7 +30,8 @@ const { isInitialized } = storeToRefs(sessionStore)
 const route = useRoute()
 const router = useRouter()
 
-const isLoginPage = computed(() => route.name === 'login')
+const isLoginPage = computed(() => !IS_ELECTRON && route.name === 'login')
+const initError = ref<string | null>(null)
 
 const tooltip = {
   delayDuration: 100,
@@ -40,6 +41,26 @@ const toaster = {
   position: 'top-center' as const,
   progress: false,
   duration: 2000,
+}
+
+let initInProgress = false
+
+async function initializeApp() {
+  if (initInProgress || isInitialized.value) return
+  initInProgress = true
+  initError.value = null
+  try {
+    await initServices()
+    await initPreferencesSync()
+    await settingsStore.initLocale()
+    llmStore.init()
+    await sessionStore.loadSessions()
+  } catch (err) {
+    console.error('App initialization failed:', err)
+    initError.value = err instanceof Error ? err.message : String(err)
+  } finally {
+    initInProgress = false
+  }
 }
 
 function handleGlobalKeydown(e: KeyboardEvent) {
@@ -53,6 +74,11 @@ function handleGlobalKeydown(e: KeyboardEvent) {
   }
 }
 
+// After login success, route changes from login → app; trigger init
+watch(isLoginPage, (isLogin) => {
+  if (!isLogin) initializeApp()
+})
+
 onMounted(async () => {
   window.addEventListener('keydown', handleGlobalKeydown)
   const platform = navigator.platform.toLowerCase()
@@ -63,25 +89,24 @@ onMounted(async () => {
   }
 
   if (!IS_ELECTRON) {
-    let redirecting = false
+    let redirectingTo401 = false
     const on401 = () => {
-      if (redirecting || router.currentRoute.value.name === 'login') return
-      redirecting = true
+      if (redirectingTo401 || router.currentRoute.value.name === 'login') return
+      redirectingTo401 = true
+      authStore.markRequiresAuth()
+      authStore.logout()
       const currentPath = router.currentRoute.value.fullPath
       const redirect = currentPath.startsWith('/login') ? '/' : currentPath
-      authStore.logout()
-      router.push({ name: 'login', query: { redirect } })
+      router.push({ name: 'login', query: { redirect } }).finally(() => {
+        redirectingTo401 = false
+      })
     }
-    configureHttpClient({ token: authStore.token || undefined, on401 })
+    configureHttpClient({ getToken: () => authStore.token, on401 })
   }
 
   if (isLoginPage.value) return
 
-  await initServices()
-  await initPreferencesSync()
-  await settingsStore.initLocale()
-  llmStore.init()
-  await sessionStore.loadSessions()
+  await initializeApp()
 })
 
 onUnmounted(() => {
@@ -101,7 +126,15 @@ onUnmounted(() => {
         <!-- 主内容区域 -->
         <template v-if="!isInitialized">
           <div class="flex h-full w-full items-center justify-center">
-            <div class="flex flex-col items-center justify-center text-center">
+            <div v-if="initError" class="flex flex-col items-center justify-center gap-3 text-center">
+              <UIcon name="i-heroicons-exclamation-triangle" class="h-8 w-8 text-red-500" />
+              <p class="text-sm text-gray-700 dark:text-gray-300">{{ t('common.initFailed') }}</p>
+              <p class="max-w-sm text-xs text-gray-500">{{ initError }}</p>
+              <UButton size="sm" color="primary" variant="soft" @click="initializeApp">
+                {{ t('common.retry') }}
+              </UButton>
+            </div>
+            <div v-else class="flex flex-col items-center justify-center text-center">
               <UIcon name="i-heroicons-arrow-path" class="h-8 w-8 animate-spin text-pink-500" />
               <p class="mt-2 text-sm text-gray-500">{{ t('common.initializing') }}</p>
             </div>
