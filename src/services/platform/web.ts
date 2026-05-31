@@ -12,6 +12,7 @@ import type {
   CheckUpdateResult,
   PerformUpdateResult,
 } from './types'
+import { fetchWithAuth } from '../utils/http'
 
 declare const __APP_VERSION__: string
 
@@ -61,7 +62,7 @@ export class WebPlatformAdapter implements PlatformAdapter {
 
   async checkUpdate(): Promise<CheckUpdateResult> {
     try {
-      const resp = await fetch('/_web/system/check-update')
+      const resp = await fetchWithAuth('/_web/system/check-update')
       return await resp.json()
     } catch (err) {
       return {

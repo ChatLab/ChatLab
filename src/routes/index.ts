@@ -3,6 +3,12 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 export const router = createRouter({
   routes: [
     {
+      path: '/login',
+      name: 'login',
+      component: () => import('@/pages/login/index.vue'),
+      meta: { public: true },
+    },
+    {
       path: '/',
       name: 'home',
       component: () => import('@/pages/home/index.vue'),
@@ -34,11 +40,9 @@ router.afterEach((to) => {
  */
 function preloadCriticalRoutes() {
   requestIdleCallback(() => {
-    // 预加载聊天分析页面（最常访问的路由）
     import('@/pages/group-chat/index.vue')
     import('@/pages/private-chat/index.vue')
   })
 }
 
-// 路由准备就绪后触发预加载
 router.isReady().then(preloadCriticalRoutes)

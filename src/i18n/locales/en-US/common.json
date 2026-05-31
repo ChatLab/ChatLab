@@ -131,5 +131,18 @@
   },
   "userSelect": {
     "allMembers": "All Members"
+  },
+  "login": {
+    "description": "This service requires authentication. Enter your API Token to continue.",
+    "tokenLabel": "API Token",
+    "tokenPlaceholder": "clb_xxxxxxxx",
+    "submit": "Login",
+    "hint": "You can find the token in the chatlab startup log",
+    "errorEmpty": "Please enter a token",
+    "errorInvalid": "Invalid token, please check and try again",
+    "errorNetwork": "Network connection failed",
+    "logoutTitle": "Account",
+    "logoutDesc": "Sign out of the current session",
+    "logout": "Sign out"
   }
 }

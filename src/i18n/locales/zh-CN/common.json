@@ -131,5 +131,18 @@
   },
   "userSelect": {
     "allMembers": "全部成员"
+  },
+  "login": {
+    "description": "此服务已开启认证保护，请输入 API Token 登录",
+    "tokenLabel": "API Token",
+    "tokenPlaceholder": "clb_xxxxxxxx",
+    "submit": "登录",
+    "hint": "Token 可在 chatlab 启动日志中查看",
+    "errorEmpty": "请输入 Token",
+    "errorInvalid": "Token 无效，请检查后重试",
+    "errorNetwork": "网络连接失败",
+    "logoutTitle": "账户",
+    "logoutDesc": "退出当前认证登录",
+    "logout": "退出登录"
   }
 }

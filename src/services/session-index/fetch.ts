@@ -17,6 +17,7 @@ import type {
 
 import { getRegisteredAdapter } from '../registry'
 import type { DataAdapter } from '../data/types'
+import { fetchWithAuth } from '../utils/http'
 
 function getDataAdapter(): DataAdapter {
   return getRegisteredAdapter<DataAdapter>('data')
@@ -24,7 +25,7 @@ function getDataAdapter(): DataAdapter {
 
 export class FetchSessionIndexAdapter implements SessionIndexAdapter {
   async generate(sessionId: string, gapThreshold: number = 1800): Promise<number> {
-    const resp = await fetch(`/_web/sessions/${sessionId}/generate-index`, {
+    const resp = await fetchWithAuth(`/_web/sessions/${sessionId}/generate-index`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ gapThreshold }),
@@ -35,7 +36,7 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
   }
 
   async generateIncremental(sessionId: string, gapThreshold: number = 1800): Promise<number> {
-    const resp = await fetch(`/_web/sessions/${sessionId}/generate-incremental-index`, {
+    const resp = await fetchWithAuth(`/_web/sessions/${sessionId}/generate-incremental-index`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ gapThreshold }),
@@ -65,13 +66,13 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
   }
 
   async getAllIndexStats(): Promise<SessionIndexStatusItem[]> {
-    const resp = await fetch('/_web/sessions/index-stats')
+    const resp = await fetchWithAuth('/_web/sessions/index-stats')
     if (!resp.ok) return []
     return (await resp.json()) as SessionIndexStatusItem[]
   }
 
   async clear(sessionId: string): Promise<boolean> {
-    await fetch(`/_web/sessions/${sessionId}/clear-index`, { method: 'POST' })
+    await fetchWithAuth(`/_web/sessions/${sessionId}/clear-index`, { method: 'POST' })
     return true
   }
 
@@ -111,7 +112,7 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
     strategy?: 'brief' | 'standard'
   ): Promise<SummaryResult> {
     try {
-      const resp = await fetch(`/_web/sessions/${dbSessionId}/summaries/generate`, {
+      const resp = await fetchWithAuth(`/_web/sessions/${dbSessionId}/summaries/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chatSessionId, locale, forceRegenerate, strategy }),
@@ -156,7 +157,7 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
     chatSessionIds: number[]
   ): Promise<Record<number, CanGenerateInfo>> {
     try {
-      const resp = await fetch(`/_web/sessions/${dbSessionId}/summaries/check-can-generate`, {
+      const resp = await fetchWithAuth(`/_web/sessions/${dbSessionId}/summaries/check-can-generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ chatSessionIds }),

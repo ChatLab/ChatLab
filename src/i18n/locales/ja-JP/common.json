@@ -131,5 +131,18 @@
   },
   "userSelect": {
     "allMembers": "すべてのメンバー"
+  },
+  "login": {
+    "description": "このサービスは認証が必要です。API Tokenを入力してください。",
+    "tokenLabel": "API Token",
+    "tokenPlaceholder": "clb_xxxxxxxx",
+    "submit": "ログイン",
+    "hint": "Tokenはchatlabの起動ログで確認できます",
+    "errorEmpty": "Tokenを入力してください",
+    "errorInvalid": "無効なTokenです。確認してもう一度お試しください",
+    "errorNetwork": "ネットワーク接続に失敗しました",
+    "logoutTitle": "アカウント",
+    "logoutDesc": "現在のセッションからログアウト",
+    "logout": "ログアウト"
   }
 }

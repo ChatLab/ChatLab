@@ -7,6 +7,7 @@
  */
 
 import { IS_ELECTRON, IS_BROWSER_STANDALONE } from '@/utils/platform'
+import { fetchWithAuth } from './utils/http'
 
 export type Platform = 'electron' | 'web-serve' | 'web-browser'
 
@@ -418,7 +419,7 @@ async function installAiApiShims(): Promise<void> {
   const chatApi = (window as any).chatApi
   chatApi.exportSessionsToTempFiles = async (sessionIds: string[]) => {
     try {
-      const resp = await fetch('/_web/sessions/export-for-merge', {
+      const resp = await fetchWithAuth('/_web/sessions/export-for-merge', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ sessionIds }),
@@ -433,7 +434,7 @@ async function installAiApiShims(): Promise<void> {
   chatApi.cleanupTempExportFiles = async (filePaths: string[]) => {
     try {
       for (const handle of filePaths) {
-        await fetch('/_web/merge/clear', {
+        await fetchWithAuth('/_web/merge/clear', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ handle }),
@@ -453,7 +454,7 @@ async function installAiApiShims(): Promise<void> {
     },
     checkConflicts: async (filePaths: string[]) => {
       try {
-        const resp = await fetch('/_web/merge/conflicts', {
+        const resp = await fetchWithAuth('/_web/merge/conflicts', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ handles: filePaths }),
@@ -470,7 +471,7 @@ async function installAiApiShims(): Promise<void> {
       andAnalyze?: boolean
     }) => {
       try {
-        const resp = await fetch('/_web/merge/execute', {
+        const resp = await fetchWithAuth('/_web/merge/execute', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -487,7 +488,7 @@ async function installAiApiShims(): Promise<void> {
     },
     clearCache: async (filePath?: string) => {
       try {
-        await fetch('/_web/merge/clear', {
+        await fetchWithAuth('/_web/merge/clear', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ handle: filePath }),
@@ -501,7 +502,7 @@ async function installAiApiShims(): Promise<void> {
   ;(window as any).cacheApi = {
     saveToDownloads: async (filename: string, dataUrl: string) => {
       try {
-        const resp = await fetch('/_web/cache/save-to-downloads', {
+        const resp = await fetchWithAuth('/_web/cache/save-to-downloads', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ filename, dataUrl }),
@@ -513,7 +514,7 @@ async function installAiApiShims(): Promise<void> {
     },
     showInFolder: async (filePath: string) => {
       try {
-        const resp = await fetch('/_web/cache/show-in-folder', {
+        const resp = await fetchWithAuth('/_web/cache/show-in-folder', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ filePath }),
@@ -525,7 +526,7 @@ async function installAiApiShims(): Promise<void> {
     },
     getInfo: async () => {
       try {
-        const resp = await fetch('/_web/cache/info')
+        const resp = await fetchWithAuth('/_web/cache/info')
         return await resp.json()
       } catch (error) {
         return { baseDir: '', directories: [], totalSize: 0 }
@@ -533,7 +534,7 @@ async function installAiApiShims(): Promise<void> {
     },
     clear: async (cacheId: string) => {
       try {
-        const resp = await fetch('/_web/cache/clear', {
+        const resp = await fetchWithAuth('/_web/cache/clear', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ cacheId }),
@@ -545,7 +546,7 @@ async function installAiApiShims(): Promise<void> {
     },
     openDir: async (cacheId: string) => {
       try {
-        const resp = await fetch('/_web/cache/open-dir', {
+        const resp = await fetchWithAuth('/_web/cache/open-dir', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ cacheId }),
@@ -557,7 +558,7 @@ async function installAiApiShims(): Promise<void> {
     },
     getLatestImportLog: async () => {
       try {
-        const resp = await fetch('/_web/cache/latest-import-log')
+        const resp = await fetchWithAuth('/_web/cache/latest-import-log')
         return await resp.json()
       } catch (error) {
         return { success: false, error: error instanceof Error ? error.message : String(error) }
@@ -565,7 +566,7 @@ async function installAiApiShims(): Promise<void> {
     },
     getDataDir: async () => {
       try {
-        const resp = await fetch('/_web/cache/data-dir')
+        const resp = await fetchWithAuth('/_web/cache/data-dir')
         return await resp.json()
       } catch (error) {
         return { path: '', isCustom: false }
