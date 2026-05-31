@@ -110,46 +110,7 @@ async function initWebServeAdapters(): Promise<void> {
   const { FetchPreferencesAdapter } = await import('./preferences/fetch')
   registerAdapter('preferences', new FetchPreferencesAdapter())
 
-  await installChartPluginShims()
-  await installNlpApiShim()
   await installAiApiShims()
-}
-
-/**
- * Web-serve shims: chart modules and other code that may still reference
- * window.chatApi.pluginQuery / pluginCompute / getMemberActivity / getAvailableYears.
- * In Electron these are no longer used (charts call useDataService() directly).
- */
-async function installChartPluginShims(): Promise<void> {
-  const { useDataService } = await import('./data/service')
-  if (!(window as any).chatApi) {
-    ;(window as any).chatApi = {}
-  }
-  const chatApi = (window as any).chatApi
-  const dataService = useDataService()
-
-  chatApi.pluginQuery = <T>(sid: string, sql: string, params?: unknown[]) =>
-    dataService.pluginQuery<T>(sid, sql, params)
-  chatApi.pluginCompute = <T>(_fnString: string, input: unknown): Promise<T> => {
-    const fn = new Function('return ' + _fnString)()
-    return Promise.resolve(fn(input))
-  }
-  chatApi.getMemberActivity = (sid: string, f?: any) => dataService.getMemberActivity(sid, f)
-  chatApi.getAvailableYears = (sid: string) => dataService.getAvailableYears(sid)
-}
-
-async function installNlpApiShim(): Promise<void> {
-  const { get, post, del } = await import('./utils/http')
-  ;(window as any).nlpApi = {
-    getWordFrequency: (params: unknown) => post('/nlp/word-frequency', params),
-    segmentText: (text: string, locale: string, minLength?: number) =>
-      post('/nlp/segment', { text, locale, minLength }),
-    getPosTags: () => get('/nlp/pos-tags'),
-    getDictList: () => get('/nlp/dicts'),
-    isDictDownloaded: (dictId: string) => get(`/nlp/dicts/${dictId}/status`),
-    downloadDict: (dictId: string) => post(`/nlp/dicts/${dictId}/download`),
-    deleteDict: (dictId: string) => del(`/nlp/dicts/${dictId}`),
-  }
 }
 
 const WEB_STUB = { success: false as const, error: 'Not available in web mode' }
