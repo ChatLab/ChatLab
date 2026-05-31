@@ -32,7 +32,7 @@ function handleSortSelect(field: SortOption['value']) {
 
 <template>
   <UPopover v-model:open="isSortPopoverOpen" :ui="{ content: 'z-50 p-0' }">
-    <UTooltip :text="t('layout.tooltip.sort')" :popper="{ placement: 'right' }">
+    <UTooltip :text="t('layout.tooltip.sort')" :content="{ side: 'bottom' }">
       <UButton
         :icon="sortOrder === 'desc' ? 'i-heroicons-bars-arrow-down' : 'i-heroicons-bars-arrow-up'"
         color="neutral"

@@ -266,7 +266,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
         <UTooltip
           v-if="!isCollapsed"
           :text="t('layout.tooltip.collapse')"
-          :popper="{ placement: 'right' }"
+          :content="{ side: 'bottom' }"
           style="-webkit-app-region: no-drag"
         >
           <UButton
@@ -298,7 +298,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
         <SubTabs v-model="filterType" :items="filterTabItems" size="sm" :bordered="false">
           <template #right>
             <div class="flex items-center gap-0.5">
-              <UTooltip :text="t('layout.tooltip.search')" :popper="{ placement: 'right' }">
+              <UTooltip :text="t('layout.tooltip.search')" :content="{ side: 'bottom' }">
                 <UButton
                   :icon="showSearch ? 'i-heroicons-x-mark' : 'i-heroicons-magnifying-glass'"
                   color="neutral"
@@ -308,7 +308,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
                 />
               </UTooltip>
               <SidebarSortPopover />
-              <UTooltip :text="t('layout.manage')" :popper="{ placement: 'right' }">
+              <UTooltip :text="t('layout.manage')" :content="{ side: 'bottom' }">
                 <UButton
                   icon="i-heroicons-rectangle-stack"
                   color="neutral"
@@ -353,7 +353,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
             :items="getContextMenuItems(session)"
           >
             <!-- 侧边栏折叠时，hover 显示完整会话名称（Tooltip 需绑定到真实 DOM） -->
-            <UTooltip :text="session.name" :disabled="!isCollapsed || !session.name" :popper="{ placement: 'right' }">
+            <UTooltip :text="session.name" :disabled="!isCollapsed || !session.name" :content="{ side: 'right' }">
               <div
                 class="group relative flex items-center text-left transition-all duration-200 cursor-pointer"
                 :class="[
