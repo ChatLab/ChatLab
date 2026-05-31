@@ -1,7 +1,10 @@
 import type { FastifyInstance } from 'fastify'
-import { exportService, type SessionRuntimeAdapter } from '@openchatlab/node-runtime'
+import type { HttpRouteContext } from '../../context'
+import { exportService } from '@openchatlab/node-runtime'
 
-export function registerExportRoutes(server: FastifyInstance, adapter: SessionRuntimeAdapter): void {
+export function registerExportRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+  const { sessionAdapter: adapter } = ctx
+
   server.post<{
     Params: { id: string }
     Body: {

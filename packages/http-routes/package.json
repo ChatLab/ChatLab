@@ -1,0 +1,16 @@
+{
+  "name": "@openchatlab/http-routes",
+  "version": "0.0.0",
+  "private": true,
+  "description": "ChatLab shared HTTP API routes — consumed by CLI Server and Electron Internal Server",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "dependencies": {
+    "@openchatlab/config": "workspace:*",
+    "@openchatlab/core": "workspace:*",
+    "@openchatlab/node-runtime": "workspace:*",
+    "@openchatlab/shared-types": "workspace:*",
+    "fastify": "^5.8.4"
+  }
+}

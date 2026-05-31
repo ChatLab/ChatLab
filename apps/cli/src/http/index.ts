@@ -18,13 +18,9 @@ import {
   verifyCliDataPath,
 } from '@openchatlab/node-runtime'
 import { createServer } from './server'
-import { setAuthToken, setRequireAuth } from './auth'
-import { registerSystemRoutes } from './routes/system'
-import { registerSessionRoutes } from './routes/sessions'
+import { setAuthToken, setRequireAuth } from '@openchatlab/http-routes'
 import { registerWebRoutes } from './routes/web'
-import { registerNlpRoutes } from './routes/nlp'
 import { registerAiRoutes } from './routes/ai'
-import { registerPreferencesRoutes } from './routes/preferences'
 import { registerProxyRoutes } from './routes/proxy'
 import { initServerAiLogger, closeServerAiLogger } from '../ai/logger'
 import { initSync, cleanupSync } from '../sync'
@@ -133,12 +129,8 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
     limits: { fileSize: 1024 * 1024 * 1024 }, // 1GB
   })
 
-  registerSystemRoutes(server, dbManager)
-  registerSessionRoutes(server, dbManager)
-  registerNlpRoutes(server, dbManager)
   registerAiRoutes(server, dbManager, convManager)
   registerWebRoutes(server, dbManager, { pathProvider, nativeBinding })
-  registerPreferencesRoutes(server, pathProvider)
 
   initSync(server, dbManager, pathProvider, { port, host, token })
 
@@ -189,8 +181,5 @@ export async function stopHttpServer(): Promise<void> {
 }
 
 export { createServer } from './server'
-export { registerSystemRoutes } from './routes/system'
-export { registerSessionRoutes } from './routes/sessions'
 export { registerWebRoutes } from './routes/web'
-export { registerNlpRoutes } from './routes/nlp'
 export { registerAiRoutes } from './routes/ai'

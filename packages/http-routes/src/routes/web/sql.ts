@@ -1,8 +1,10 @@
 import type { FastifyInstance } from 'fastify'
-import type { SessionRuntimeAdapter } from '@openchatlab/node-runtime'
+import type { HttpRouteContext } from '../../context'
 import { executeSql, getSchemaDetailed } from '@openchatlab/core'
 
-export function registerSqlRoutes(server: FastifyInstance, adapter: SessionRuntimeAdapter): void {
+export function registerSqlRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+  const { sessionAdapter: adapter } = ctx
+
   server.post<{ Params: { id: string }; Body: { sql: string } }>('/_web/sessions/:id/sql', async (request, reply) => {
     const db = adapter.ensureReadonly(request.params.id)
     const { sql } = request.body || {}

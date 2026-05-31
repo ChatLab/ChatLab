@@ -140,6 +140,9 @@ importers:
       '@openchatlab/core':
         specifier: workspace:*
         version: link:../../packages/core
+      '@openchatlab/http-routes':
+        specifier: workspace:*
+        version: link:../../packages/http-routes
       '@openchatlab/node-runtime':
         specifier: workspace:*
         version: link:../../packages/node-runtime
@@ -230,6 +233,24 @@ importers:
         version: 3.25.76
 
   packages/core: {}
+
+  packages/http-routes:
+    dependencies:
+      '@openchatlab/config':
+        specifier: workspace:*
+        version: link:../config
+      '@openchatlab/core':
+        specifier: workspace:*
+        version: link:../core
+      '@openchatlab/node-runtime':
+        specifier: workspace:*
+        version: link:../node-runtime
+      '@openchatlab/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
+      fastify:
+        specifier: ^5.8.4
+        version: 5.8.4
 
   packages/mcp-server:
     dependencies:

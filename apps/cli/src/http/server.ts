@@ -5,8 +5,7 @@
  */
 
 import Fastify, { type FastifyInstance, type FastifyError } from 'fastify'
-import { authHook } from './auth'
-import { ApiError, ApiErrorCode, errorResponse, serverError } from './errors'
+import { authHook, ApiError, ApiErrorCode, errorResponse, serverError } from '@openchatlab/http-routes'
 
 const JSON_BODY_LIMIT = 50 * 1024 * 1024 // 50MB
 

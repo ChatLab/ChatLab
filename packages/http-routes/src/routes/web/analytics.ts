@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify'
-import type { DatabaseManager } from '@openchatlab/node-runtime'
-import { createJiebaNlpProvider, type SessionRuntimeAdapter } from '@openchatlab/node-runtime'
+import type { HttpRouteContext } from '../../context'
+import { createJiebaNlpProvider } from '@openchatlab/node-runtime'
 import {
   getTimeRange,
   getAvailableYears,
@@ -20,16 +20,12 @@ import {
   getClusterGraph,
   getLanguagePreferenceAnalysis,
 } from '@openchatlab/core'
-import { parseTimeFilter } from './helpers'
+import { parseTimeFilter } from '../../helpers'
 
 type FilteredQuery = { startTs?: string; endTs?: string; memberId?: string }
 
-export function registerAnalyticsRoutes(
-  server: FastifyInstance,
-  _dbManager: DatabaseManager,
-  adapter: SessionRuntimeAdapter
-): void {
-  // ==================== 时间范围 ====================
+export function registerAnalyticsRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+  const { sessionAdapter: adapter } = ctx
 
   server.get<{ Params: { id: string } }>('/_web/sessions/:id/years', async (request) => {
     const db = adapter.ensureReadonly(request.params.id)
@@ -40,8 +36,6 @@ export function registerAnalyticsRoutes(
     const db = adapter.ensureReadonly(request.params.id)
     return getTimeRange(db)
   })
-
-  // ==================== 统计分析 ====================
 
   server.get<{ Params: { id: string }; Querystring: FilteredQuery }>(
     '/_web/sessions/:id/stats/member-activity',
@@ -82,8 +76,6 @@ export function registerAnalyticsRoutes(
       return getMessageTypeStats(db, parseTimeFilter(request.query))
     }
   )
-
-  // ==================== 高级分析 ====================
 
   server.get<{ Params: { id: string }; Querystring: FilteredQuery }>(
     '/_web/sessions/:id/analytics/relationship',

@@ -23,16 +23,11 @@ import type { FastifyInstance } from 'fastify'
 import type { PathProvider } from '@openchatlab/core'
 import type { DatabaseManager } from '@openchatlab/node-runtime'
 import { createDatabaseManagerAdapter } from '@openchatlab/node-runtime'
+import { registerSharedRoutes } from '@openchatlab/http-routes'
 import { MergeSessionCache } from '../../../merger/merge-cache'
-import { registerSessionRoutes } from './sessions'
-import { registerMemberRoutes } from './members'
-import { registerAnalyticsRoutes } from './analytics'
-import { registerSqlRoutes } from './sql'
-import { registerSessionIndexRoutes } from './session-index'
 import { registerSummaryRoutes } from './summaries'
 import { registerImportRoutes } from './import'
 import { registerMergeRoutes } from './merge'
-import { registerExportRoutes } from './export'
 import { registerCacheRoutes } from './cache'
 import { getVersion } from '../../../version'
 
@@ -82,17 +77,20 @@ export function registerWebRoutes(
   }
   const resolvedPathProvider = options?.pathProvider ?? fallbackPathProvider
 
-  registerSessionRoutes(server, adapter)
-  registerMemberRoutes(server, adapter)
-  registerAnalyticsRoutes(server, dbManager, adapter)
-  registerSqlRoutes(server, adapter)
-  registerSessionIndexRoutes(server, adapter)
+  registerSharedRoutes(server, {
+    dbManager,
+    sessionAdapter: adapter,
+    pathProvider: resolvedPathProvider,
+    getVersion,
+    nativeBinding: options?.nativeBinding,
+  })
+
+  // CLI-specific routes not yet migrated to @openchatlab/http-routes
   registerSummaryRoutes(server, dbManager, adapter)
   registerImportRoutes(server, dbManager)
   if (mergeCache) {
     registerMergeRoutes(server, dbManager, mergeCache)
   }
-  registerExportRoutes(server, adapter)
   registerCacheRoutes(server, resolvedPathProvider)
 
   server.get('/_web/system/check-update', async () => {
