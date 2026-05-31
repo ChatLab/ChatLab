@@ -373,9 +373,7 @@ async function handleLegacyImport(request: FastifyRequest, reply: FastifyReply, 
     if (sessionId) {
       const session = await worker.getSession(sessionId)
       if (!session) {
-        // Legacy route requires session to exist
-        const { sessionNotFound } = await import('../errors')
-        const err = sessionNotFound(sessionId)
+        const err = new ApiError(ApiErrorCode.SESSION_NOT_FOUND, `Session not found: ${sessionId}`)
         reply.code(err.statusCode).send(errorResponse(err))
         return
       }
