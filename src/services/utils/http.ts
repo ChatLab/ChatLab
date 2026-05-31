@@ -7,17 +7,29 @@
 
 let _baseUrl = '/_web'
 let _token = ''
+let _getToken: (() => string) | undefined
 let _on401: (() => void) | undefined
 
-export function configureHttpClient(config: { baseUrl?: string; token?: string; on401?: () => void }): void {
+export function configureHttpClient(config: {
+  baseUrl?: string
+  token?: string
+  getToken?: (() => string) | null
+  on401?: (() => void) | null
+}): void {
   if (config.baseUrl !== undefined) _baseUrl = config.baseUrl
   if (config.token !== undefined) _token = config.token
-  if (config.on401 !== undefined) _on401 = config.on401
+  if (config.getToken !== undefined) _getToken = config.getToken ?? undefined
+  if (config.on401 !== undefined) _on401 = config.on401 ?? undefined
+}
+
+function resolveToken(): string {
+  return _getToken ? _getToken() : _token
 }
 
 export function getAuthHeaders(): Record<string, string> {
-  if (!_token) return {}
-  return { Authorization: `Bearer ${_token}` }
+  const token = resolveToken()
+  if (!token) return {}
+  return { Authorization: `Bearer ${token}` }
 }
 
 export function getBaseUrl(): string {
@@ -30,8 +42,9 @@ export function getBaseUrl(): string {
  */
 export async function fetchWithAuth(url: string, init?: RequestInit): Promise<Response> {
   const headers = new Headers(init?.headers)
-  if (_token && !headers.has('Authorization')) {
-    headers.set('Authorization', `Bearer ${_token}`)
+  const token = resolveToken()
+  if (token && !headers.has('Authorization')) {
+    headers.set('Authorization', `Bearer ${token}`)
   }
   const resp = await fetch(url, { ...init, headers })
   if (resp.status === 401 && _on401) _on401()

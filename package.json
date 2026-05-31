@@ -39,6 +39,7 @@
     "type-check:node": "tsc --noEmit -p apps/desktop/tsconfig.node.json",
     "type-check:all": "pnpm run type-check:web && pnpm run type-check:node",
     "type-check": "vue-tsc --noEmit -p tsconfig.web.json",
+    "test:auth": "tsx --test apps/cli/src/http/auth.test.ts src/services/utils/http.test.ts",
     "test:agent-context": "node --experimental-strip-types --test apps/desktop/main/ai/context/sessionLog.test.mjs",
     "test:e2e:launcher": "node --test tests/e2e/helpers/app-launcher.test.js",
     "test:e2e:smoke": "node tests/e2e/run-smoke.js"

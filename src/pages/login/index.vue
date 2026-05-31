@@ -3,7 +3,6 @@ import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
-import { configureHttpClient } from '@/services/utils/http'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -11,8 +10,14 @@ const route = useRoute()
 const authStore = useAuthStore()
 
 const tokenInput = ref('')
+const rememberMe = ref(authStore.rememberDevice)
 const error = ref('')
 const loading = ref(false)
+
+function sanitizeRedirect(raw: string | undefined): string {
+  if (!raw || !raw.startsWith('/') || raw.startsWith('/login')) return '/'
+  return raw
+}
 
 async function handleLogin() {
   const trimmed = tokenInput.value.trim()
@@ -34,10 +39,9 @@ async function handleLogin() {
       return
     }
 
-    authStore.login(trimmed)
-    configureHttpClient({ token: trimmed })
+    authStore.login(trimmed, rememberMe.value)
 
-    const redirect = (route.query.redirect as string) || '/'
+    const redirect = sanitizeRedirect(route.query.redirect as string)
     router.replace(redirect)
   } catch {
     error.value = t('common.login.errorNetwork')
@@ -70,6 +74,11 @@ async function handleLogin() {
 
         <p v-if="error" class="text-sm text-red-500">{{ error }}</p>
 
+        <label class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
+          <UCheckbox v-model="rememberMe" />
+          <span>{{ t('common.login.rememberDevice') }}</span>
+        </label>
+
         <UButton type="submit" block :loading="loading" color="primary">
           {{ t('common.login.submit') }}
         </UButton>
@@ -77,6 +86,9 @@ async function handleLogin() {
 
       <p class="text-center text-xs text-gray-400 dark:text-gray-500">
         {{ t('common.login.hint') }}
+      </p>
+      <p v-if="rememberMe" class="text-center text-xs text-amber-500 dark:text-amber-400">
+        {{ t('common.login.rememberWarning') }}
       </p>
     </div>
   </div>

@@ -5,11 +5,10 @@
  */
 
 import type { FastifyRequest, FastifyReply } from 'fastify'
-import { timingSafeEqual } from 'crypto'
+import { timingSafeEqual, createHmac, randomBytes } from 'crypto'
 import { unauthorized, errorResponse } from './errors'
 
 let cachedToken: string | null = null
-let webModeEnabled = false
 let requireAuthEnabled = false
 
 /**
@@ -20,14 +19,6 @@ export function setAuthToken(token: string): void {
 }
 
 /**
- * Enable web mode: static resources and SPA paths bypass auth.
- * Only `/api/` routes remain protected.
- */
-export function setWebMode(enabled: boolean): void {
-  webModeEnabled = enabled
-}
-
-/**
  * When enabled, /_web/* routes also require Bearer token (same as /api/*).
  * Used for server/headless deployments where same-origin assumption doesn't hold.
  */
@@ -35,23 +26,32 @@ export function setRequireAuth(enabled: boolean): void {
   requireAuthEnabled = enabled
 }
 
+// Compare via HMAC digests (fixed 32-byte length) to avoid leaking token length
+const hmacKey = randomBytes(32)
+
 function safeTokenCompare(a: string, b: string): boolean {
-  const bufA = Buffer.from(a)
-  const bufB = Buffer.from(b)
-  if (bufA.length !== bufB.length) return false
-  return timingSafeEqual(bufA, bufB)
+  const hashA = createHmac('sha256', hmacKey).update(a).digest()
+  const hashB = createHmac('sha256', hmacKey).update(b).digest()
+  return timingSafeEqual(hashA, hashB)
 }
 
 export async function authHook(request: FastifyRequest, reply: FastifyReply): Promise<void> {
   if (!cachedToken) return
 
-  // /_web/ internal API: skip auth unless require_auth is enabled
-  if (request.url.startsWith('/_web/') && !requireAuthEnabled) return
+  const url = request.url
 
-  // Web mode: only /api/ routes require auth; static files and SPA are public
-  if (webModeEnabled && !request.url.startsWith('/api/')) return
+  // /api/* always requires Bearer token
+  if (url.startsWith('/api/')) {
+    return requireBearerToken(request, reply)
+  }
 
-  return requireBearerToken(request, reply)
+  // /_web/* requires Bearer token when requireAuthEnabled
+  if (url.startsWith('/_web/')) {
+    if (requireAuthEnabled) return requireBearerToken(request, reply)
+    return
+  }
+
+  // Static files and SPA fallback are public
 }
 
 function requireBearerToken(request: FastifyRequest, reply: FastifyReply): void {

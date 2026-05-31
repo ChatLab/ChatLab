@@ -6,7 +6,7 @@
  * 自动注入 Authorization header（通过 http.ts 的 getAuthHeaders）。
  */
 
-import { getAuthHeaders } from './http'
+import { fetchWithAuth } from './http'
 
 export interface SSEEvent {
   event: string
@@ -29,9 +29,9 @@ export interface FetchSSEOptions {
 export async function fetchSSE(options: FetchSSEOptions): Promise<void> {
   const { url, method = 'POST', headers = {}, body, signal, onEvent } = options
 
-  const resp = await fetch(url, {
+  const resp = await fetchWithAuth(url, {
     method,
-    headers: { 'Content-Type': 'application/json', ...getAuthHeaders(), ...headers },
+    headers: { 'Content-Type': 'application/json', ...headers },
     body: body != null ? JSON.stringify(body) : undefined,
     signal,
   })
