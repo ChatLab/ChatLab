@@ -1,8 +1,8 @@
 /**
  * chart-message SQL 查询
- * 直接通过 window.chatApi.pluginQuery 执行（参数化 + readonly + Worker 线程）
  */
 
+import { useDataService } from '@/services/data/service'
 import type {
   HourlyActivity,
   DailyActivity,
@@ -45,7 +45,7 @@ const SYSTEM_FILTER = "AND COALESCE(m.account_name, '') != '系统消息'"
 export async function queryMessageTypes(sessionId: string, timeFilter?: TimeFilter): Promise<MessageTypeCount[]> {
   const { conditions, params } = buildFilter(timeFilter)
 
-  return window.chatApi.pluginQuery<MessageTypeCount>(
+  return useDataService().pluginQuery<MessageTypeCount>(
     sessionId,
     `SELECT msg.type, COUNT(*) as count
      FROM message msg
@@ -61,7 +61,7 @@ export async function queryMessageTypes(sessionId: string, timeFilter?: TimeFilt
 export async function queryHourlyActivity(sessionId: string, timeFilter?: TimeFilter): Promise<HourlyActivity[]> {
   const { conditions, params } = buildFilter(timeFilter)
 
-  return window.chatApi.pluginQuery<HourlyActivity>(
+  return useDataService().pluginQuery<HourlyActivity>(
     sessionId,
     `SELECT
        CAST(strftime('%H', msg.ts, 'unixepoch', 'localtime') AS INTEGER) as hour,
@@ -79,7 +79,7 @@ export async function queryHourlyActivity(sessionId: string, timeFilter?: TimeFi
 export async function queryDailyActivity(sessionId: string, timeFilter?: TimeFilter): Promise<DailyActivity[]> {
   const { conditions, params } = buildFilter(timeFilter)
 
-  return window.chatApi.pluginQuery<DailyActivity>(
+  return useDataService().pluginQuery<DailyActivity>(
     sessionId,
     `SELECT
        strftime('%Y-%m-%d', msg.ts, 'unixepoch', 'localtime') as date,
@@ -97,7 +97,7 @@ export async function queryDailyActivity(sessionId: string, timeFilter?: TimeFil
 export async function queryWeekdayActivity(sessionId: string, timeFilter?: TimeFilter): Promise<WeekdayActivity[]> {
   const { conditions, params } = buildFilter(timeFilter)
 
-  return window.chatApi.pluginQuery<WeekdayActivity>(
+  return useDataService().pluginQuery<WeekdayActivity>(
     sessionId,
     `SELECT
        CASE
@@ -118,7 +118,7 @@ export async function queryWeekdayActivity(sessionId: string, timeFilter?: TimeF
 export async function queryMonthlyActivity(sessionId: string, timeFilter?: TimeFilter): Promise<MonthlyActivity[]> {
   const { conditions, params } = buildFilter(timeFilter)
 
-  return window.chatApi.pluginQuery<MonthlyActivity>(
+  return useDataService().pluginQuery<MonthlyActivity>(
     sessionId,
     `SELECT
        CAST(strftime('%m', msg.ts, 'unixepoch', 'localtime') AS INTEGER) as month,
@@ -136,7 +136,7 @@ export async function queryMonthlyActivity(sessionId: string, timeFilter?: TimeF
 export async function queryYearlyActivity(sessionId: string, timeFilter?: TimeFilter): Promise<YearlyActivity[]> {
   const { conditions, params } = buildFilter(timeFilter)
 
-  return window.chatApi.pluginQuery<YearlyActivity>(
+  return useDataService().pluginQuery<YearlyActivity>(
     sessionId,
     `SELECT
        CAST(strftime('%Y', msg.ts, 'unixepoch', 'localtime') AS INTEGER) as year,
@@ -154,7 +154,7 @@ export async function queryYearlyActivity(sessionId: string, timeFilter?: TimeFi
 export async function queryTextStats(sessionId: string, timeFilter?: TimeFilter): Promise<TextStats> {
   const { conditions, params } = buildFilter(timeFilter)
 
-  const rows = await window.chatApi.pluginQuery<TextStats>(
+  const rows = await useDataService().pluginQuery<TextStats>(
     sessionId,
     `SELECT
        COUNT(*) as textCount,
@@ -179,7 +179,7 @@ export async function queryLongMessageCount(
 ): Promise<number> {
   const { conditions, params } = buildFilter(timeFilter)
 
-  const rows = await window.chatApi.pluginQuery<{ cnt: number }>(
+  const rows = await useDataService().pluginQuery<{ cnt: number }>(
     sessionId,
     `SELECT COUNT(*) as cnt
      FROM message msg
@@ -199,7 +199,7 @@ export async function queryTypeMonthlyTrend(
 ): Promise<Array<{ month: string; type: number; count: number }>> {
   const { conditions, params } = buildFilter(timeFilter)
 
-  return window.chatApi.pluginQuery<{ month: string; type: number; count: number }>(
+  return useDataService().pluginQuery<{ month: string; type: number; count: number }>(
     sessionId,
     `SELECT
        strftime('%Y-%m', msg.ts, 'unixepoch', 'localtime') as month,
@@ -221,7 +221,7 @@ export async function queryMemberMonthlyTrend(
 ): Promise<Array<{ month: string; memberId: number; memberName: string; count: number }>> {
   const { conditions, params } = buildFilter(timeFilter)
 
-  return window.chatApi.pluginQuery<{ month: string; memberId: number; memberName: string; count: number }>(
+  return useDataService().pluginQuery<{ month: string; memberId: number; memberName: string; count: number }>(
     sessionId,
     `SELECT
        strftime('%Y-%m', msg.ts, 'unixepoch', 'localtime') as month,
@@ -244,7 +244,7 @@ export async function queryTextLengthPercentiles(
 ): Promise<{ p25: number; p50: number; p75: number; p90: number }> {
   const { conditions, params } = buildFilter(timeFilter)
 
-  const rows = await window.chatApi.pluginQuery<{ len: number }>(
+  const rows = await useDataService().pluginQuery<{ len: number }>(
     sessionId,
     `SELECT LENGTH(msg.content) as len
      FROM message msg
@@ -275,7 +275,7 @@ export async function queryTextLengthPercentiles(
 export async function queryLengthDistribution(sessionId: string, timeFilter?: TimeFilter): Promise<LengthDistribution> {
   const { conditions, params } = buildFilter(timeFilter)
 
-  const rows = await window.chatApi.pluginQuery<{ len: number; count: number }>(
+  const rows = await useDataService().pluginQuery<{ len: number; count: number }>(
     sessionId,
     `SELECT LENGTH(msg.content) as len, COUNT(*) as count
      FROM message msg

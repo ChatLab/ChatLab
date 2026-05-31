@@ -1,12 +1,10 @@
 /**
  * chart-cluster 数据查询
  *
- * 将原 getClusterGraph 后端函数拆解为：
- * 1. 两个 SQL 查询获取原始数据（成员 + 消息）
- * 2. 一个 compute 在 Worker 中完成全部计算逻辑
- *    （时间衰减评分、归一化、混合评分、排序、节点度数计算）
+ * SQL 获取成员+消息原始数据，compute 完成关系图计算
  */
 
+import { useDataService } from '@/services/data/service'
 import type { MemberRow, MessageRow, ClusterGraphData, ClusterGraphOptions, BuildClusterInput } from './types'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
@@ -41,7 +39,7 @@ function buildFilter(filter?: TimeFilter): { conditions: string; params: any[] }
  * 查询所有成员（含消息数）
  */
 async function queryMembers(sessionId: string): Promise<MemberRow[]> {
-  return window.chatApi.pluginQuery<MemberRow>(
+  return useDataService().pluginQuery<MemberRow>(
     sessionId,
     `SELECT
        id,
@@ -59,7 +57,7 @@ async function queryMembers(sessionId: string): Promise<MemberRow[]> {
 async function queryMessages(sessionId: string, timeFilter?: TimeFilter): Promise<MessageRow[]> {
   const { conditions, params } = buildFilter(timeFilter)
 
-  return window.chatApi.pluginQuery<MessageRow>(
+  return useDataService().pluginQuery<MessageRow>(
     sessionId,
     `SELECT msg.sender_id as senderId, msg.ts as ts
      FROM message msg
@@ -320,7 +318,7 @@ export async function loadClusterGraph(
       ...userOptions,
     }
 
-    const result = await window.chatApi.pluginCompute<ClusterGraphData>(buildClusterGraph.toString(), {
+    const result = await useDataService().pluginCompute<ClusterGraphData>(buildClusterGraph.toString(), {
       members,
       messages,
       options: mergedOptions,

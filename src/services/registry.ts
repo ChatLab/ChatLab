@@ -61,85 +61,31 @@ export async function initServices(): Promise<void> {
 }
 
 /**
- * Check if the Internal HTTP Server is available.
- * When available, business adapters use Fetch instead of IPC.
+ * Electron adapters: Internal HTTP Server is a hard dependency.
+ * data/message/preferences use Fetch; import/session-index/ai stay on IPC.
  */
-function isInternalHttpAvailable(): boolean {
-  try {
-    return typeof window !== 'undefined' && typeof (window as any).internalApi?.getEndpoint === 'function'
-  } catch {
-    return false
-  }
-}
-
 async function initElectronAdapters(): Promise<void> {
-  // Check if Internal API Server endpoint was configured in App.vue
-  const { getBaseUrl } = await import('./utils/http')
-  const useHttp = isInternalHttpAvailable() && getBaseUrl().startsWith('http')
-
-  if (useHttp) {
-    await initElectronHttpAdapters()
-  } else {
-    await initElectronIpcAdapters()
-  }
-}
-
-/**
- * HTTP mode: business adapters use Fetch (via Internal API Server).
- * Only platform + import + ai remain on IPC (routes not yet available).
- */
-async function initElectronHttpAdapters(): Promise<void> {
   const { FetchDataAdapter } = await import('./data/fetch')
   registerAdapter('data', new FetchDataAdapter())
 
-  // Import stays on IPC: routes depend on CLI-specific modules
   const { ElectronImportAdapter } = await import('./import/electron')
   registerAdapter('import', new ElectronImportAdapter())
 
-  // Session-index stays on IPC: summaries routes (generateSummary, checkCanGenerateSummary)
-  // depend on LLM config and are not registered in Internal Server's registerSharedRoutes()
+  // Session-index stays on IPC: summaries depend on LLM config
   const { ElectronSessionIndexAdapter } = await import('./session-index/electron')
   registerAdapter('session-index', new ElectronSessionIndexAdapter())
 
   const { FetchMessageAdapter } = await import('./message/fetch')
   registerAdapter('message', new FetchMessageAdapter())
 
-  // Platform always uses IPC (native capabilities)
   const { ElectronPlatformAdapter } = await import('./platform/electron')
   registerAdapter('platform', new ElectronPlatformAdapter())
 
-  // AI stays on IPC: routes depend on CLI-specific modules
   const { ElectronAIAdapter } = await import('./ai/electron')
   registerAdapter('ai', new ElectronAIAdapter())
 
   const { FetchPreferencesAdapter } = await import('./preferences/fetch')
   registerAdapter('preferences', new FetchPreferencesAdapter())
-}
-
-/**
- * IPC fallback mode: all adapters use Electron IPC (original behavior).
- */
-async function initElectronIpcAdapters(): Promise<void> {
-  const { ElectronDataAdapter } = await import('./data/electron')
-  registerAdapter('data', new ElectronDataAdapter())
-
-  const { ElectronImportAdapter } = await import('./import/electron')
-  registerAdapter('import', new ElectronImportAdapter())
-
-  const { ElectronSessionIndexAdapter } = await import('./session-index/electron')
-  registerAdapter('session-index', new ElectronSessionIndexAdapter())
-
-  const { ElectronMessageAdapter } = await import('./message/electron')
-  registerAdapter('message', new ElectronMessageAdapter())
-
-  const { ElectronPlatformAdapter } = await import('./platform/electron')
-  registerAdapter('platform', new ElectronPlatformAdapter())
-
-  const { ElectronAIAdapter } = await import('./ai/electron')
-  registerAdapter('ai', new ElectronAIAdapter())
-
-  const { ElectronPreferencesAdapter } = await import('./preferences/electron')
-  registerAdapter('preferences', new ElectronPreferencesAdapter())
 }
 
 async function initWebServeAdapters(): Promise<void> {
@@ -170,10 +116,9 @@ async function initWebServeAdapters(): Promise<void> {
 }
 
 /**
- * chart-* modules (src/features/charts-ranking, charts-message, etc.) directly
- * call window.chatApi.pluginQuery / pluginCompute / getMemberActivity /
- * getAvailableYears. In Electron, these are injected by the preload script.
- * In web-serve mode, we install equivalent shims backed by DataService.
+ * Web-serve shims: chart modules and other code that may still reference
+ * window.chatApi.pluginQuery / pluginCompute / getMemberActivity / getAvailableYears.
+ * In Electron these are no longer used (charts call useDataService() directly).
  */
 async function installChartPluginShims(): Promise<void> {
   const { useDataService } = await import('./data/service')

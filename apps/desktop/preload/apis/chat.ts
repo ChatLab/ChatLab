@@ -1,444 +1,67 @@
 /**
- * 聊天记录 API - 导入、分析、管理聊天记录
+ * 聊天记录 Preload API — 导入、迁移、Demo、合并
+ *
+ * 数据查询/分析/成员管理/SQL/NLP/偏好设置已迁移到
+ * Internal HTTP Server (FetchDataAdapter, FetchPreferencesAdapter 等)。
  */
 import { ipcRenderer } from 'electron'
-import type { AnalysisSession, MessageType, ImportProgress } from '../../../../src/types/base'
-import type {
-  MemberActivity,
-  MemberNameHistory,
-  HourlyActivity,
-  DailyActivity,
-  WeekdayActivity,
-  MonthlyActivity,
-  CatchphraseAnalysis,
-  MentionAnalysis,
-  LaughAnalysis,
-  MemberWithStats,
-  ClusterGraphData,
-  ClusterGraphOptions,
-  RelationshipStats,
-} from '../../../../src/types/analysis'
-import type { LanguagePreferenceResult } from '../../../../src/types/quotes/languagePreference'
+import type { ImportProgress } from '../../../../src/types/base'
 import type { FileParseInfo, ConflictCheckResult, MergeParams, MergeResult } from '../../../../src/types/format'
 
-// Chat Analysis API
 export const chatApi = {
   // ==================== 数据库迁移 ====================
 
-  /**
-   * 检查是否需要数据库迁移
-   */
   checkMigration: (): Promise<{
     needsMigration: boolean
     count: number
     currentVersion: number
     pendingMigrations: Array<{ version: number; userMessage: string }>
-  }> => {
-    return ipcRenderer.invoke('chat:checkMigration')
-  },
+  }> => ipcRenderer.invoke('chat:checkMigration'),
 
-  /**
-   * 执行数据库迁移
-   */
-  runMigration: (): Promise<{ success: boolean; migratedCount: number; error?: string }> => {
-    return ipcRenderer.invoke('chat:runMigration')
-  },
+  runMigration: (): Promise<{ success: boolean; migratedCount: number; error?: string }> =>
+    ipcRenderer.invoke('chat:runMigration'),
 
-  // ==================== 聊天记录导入与分析 ====================
+  // ==================== 文件选择与导入 ====================
 
-  /**
-   * 选择聊天记录文件
-   */
-  selectFile: (): Promise<{ filePath?: string; format?: string; error?: string } | null> => {
-    return ipcRenderer.invoke('chat:selectFile')
-  },
+  selectFile: (): Promise<{ filePath?: string; format?: string; error?: string } | null> =>
+    ipcRenderer.invoke('chat:selectFile'),
 
-  /**
-   * 导入聊天记录
-   */
-  import: (filePath: string): Promise<{ success: boolean; sessionId?: string; error?: string }> => {
-    return ipcRenderer.invoke('chat:import', filePath)
-  },
+  import: (filePath: string): Promise<{ success: boolean; sessionId?: string; error?: string }> =>
+    ipcRenderer.invoke('chat:import', filePath),
 
-  /**
-   * Import from a directory path (scans for entry file)
-   */
-  importDirectory: (dirPath: string): Promise<{ success: boolean; sessionId?: string; error?: string }> => {
-    return ipcRenderer.invoke('chat:importDirectory', dirPath)
-  },
+  importDirectory: (dirPath: string): Promise<{ success: boolean; sessionId?: string; error?: string }> =>
+    ipcRenderer.invoke('chat:importDirectory', dirPath),
 
-  /**
-   * 检测文件格式（轻量级）
-   */
   detectFormat: (
     filePath: string
-  ): Promise<{ id: string; name: string; platform: string; multiChat: boolean } | null> => {
-    return ipcRenderer.invoke('chat:detectFormat', filePath)
-  },
+  ): Promise<{ id: string; name: string; platform: string; multiChat: boolean } | null> =>
+    ipcRenderer.invoke('chat:detectFormat', filePath),
 
-  /**
-   * 导入聊天记录（带格式选项）
-   * 用于多聊天格式等需要额外参数的场景（如指定 chatIndex）
-   */
   importWithOptions: (
     filePath: string,
     formatOptions: Record<string, unknown>
-  ): Promise<{ success: boolean; sessionId?: string; error?: string }> => {
-    return ipcRenderer.invoke('chat:importWithOptions', filePath, formatOptions)
-  },
+  ): Promise<{ success: boolean; sessionId?: string; error?: string }> =>
+    ipcRenderer.invoke('chat:importWithOptions', filePath, formatOptions),
 
-  /**
-   * 扫描多聊天文件中的聊天列表（通用）
-   * 自动检测格式并调用对应格式的 scanChats
-   */
   scanMultiChatFile: (
     filePath: string
   ): Promise<{
     success: boolean
     chats: Array<{ index: number; name: string; type: string; id: number; messageCount: number }>
     error?: string
-  }> => {
-    return ipcRenderer.invoke('chat:scanMultiChatFile', filePath)
-  },
+  }> => ipcRenderer.invoke('chat:scanMultiChatFile', filePath),
 
-  /**
-   * 获取所有分析会话列表
-   */
-  getSessions: (): Promise<AnalysisSession[]> => {
-    return ipcRenderer.invoke('chat:getSessions')
-  },
+  getSupportedFormats: (): Promise<Array<{ id: string; name: string; platform: string; extensions: string[] }>> =>
+    ipcRenderer.invoke('chat:getSupportedFormats'),
 
-  /**
-   * 获取单个会话信息
-   */
-  getSession: (sessionId: string): Promise<AnalysisSession | null> => {
-    return ipcRenderer.invoke('chat:getSession', sessionId)
-  },
-
-  /**
-   * 删除会话
-   */
-  deleteSession: (sessionId: string): Promise<boolean> => {
-    return ipcRenderer.invoke('chat:deleteSession', sessionId)
-  },
-
-  /**
-   * 重命名会话
-   */
-  renameSession: (sessionId: string, newName: string): Promise<boolean> => {
-    return ipcRenderer.invoke('chat:renameSession', sessionId, newName)
-  },
-
-  /**
-   * 获取可用年份列表
-   */
-  getAvailableYears: (sessionId: string): Promise<number[]> => {
-    return ipcRenderer.invoke('chat:getAvailableYears', sessionId)
-  },
-
-  /**
-   * 获取成员活跃度排行
-   */
-  getMemberActivity: (sessionId: string, filter?: { startTs?: number; endTs?: number }): Promise<MemberActivity[]> => {
-    return ipcRenderer.invoke('chat:getMemberActivity', sessionId, filter)
-  },
-
-  /**
-   * 获取成员历史昵称
-   */
-  getMemberNameHistory: (sessionId: string, memberId: number): Promise<MemberNameHistory[]> => {
-    return ipcRenderer.invoke('chat:getMemberNameHistory', sessionId, memberId)
-  },
-
-  /**
-   * 获取每小时活跃度分布
-   */
-  getHourlyActivity: (sessionId: string, filter?: { startTs?: number; endTs?: number }): Promise<HourlyActivity[]> => {
-    return ipcRenderer.invoke('chat:getHourlyActivity', sessionId, filter)
-  },
-
-  /**
-   * 获取每日活跃度趋势
-   */
-  getDailyActivity: (sessionId: string, filter?: { startTs?: number; endTs?: number }): Promise<DailyActivity[]> => {
-    return ipcRenderer.invoke('chat:getDailyActivity', sessionId, filter)
-  },
-
-  /**
-   * 获取星期活跃度分布
-   */
-  getWeekdayActivity: (
-    sessionId: string,
-    filter?: { startTs?: number; endTs?: number }
-  ): Promise<WeekdayActivity[]> => {
-    return ipcRenderer.invoke('chat:getWeekdayActivity', sessionId, filter)
-  },
-
-  /**
-   * 获取月份活跃度分布
-   */
-  getMonthlyActivity: (
-    sessionId: string,
-    filter?: { startTs?: number; endTs?: number }
-  ): Promise<MonthlyActivity[]> => {
-    return ipcRenderer.invoke('chat:getMonthlyActivity', sessionId, filter)
-  },
-
-  /**
-   * 获取年份活跃度分布
-   */
-  getYearlyActivity: (
-    sessionId: string,
-    filter?: { startTs?: number; endTs?: number }
-  ): Promise<Array<{ year: number; messageCount: number }>> => {
-    return ipcRenderer.invoke('chat:getYearlyActivity', sessionId, filter)
-  },
-
-  /**
-   * 获取消息长度分布
-   */
-  getMessageLengthDistribution: (
-    sessionId: string,
-    filter?: { startTs?: number; endTs?: number }
-  ): Promise<{
-    detail: Array<{ len: number; count: number }>
-    grouped: Array<{ range: string; count: number }>
-  }> => {
-    return ipcRenderer.invoke('chat:getMessageLengthDistribution', sessionId, filter)
-  },
-
-  /**
-   * 获取消息类型分布
-   */
-  getMessageTypeDistribution: (
-    sessionId: string,
-    filter?: { startTs?: number; endTs?: number }
-  ): Promise<Array<{ type: MessageType; count: number }>> => {
-    return ipcRenderer.invoke('chat:getMessageTypeDistribution', sessionId, filter)
-  },
-
-  /**
-   * 获取时间范围
-   */
-  getTimeRange: (sessionId: string): Promise<{ start: number; end: number } | null> => {
-    return ipcRenderer.invoke('chat:getTimeRange', sessionId)
-  },
-
-  /**
-   * 获取数据库存储目录
-   */
-  getDbDirectory: (): Promise<string | null> => {
-    return ipcRenderer.invoke('chat:getDbDirectory')
-  },
-
-  /**
-   * 获取支持的格式列表
-   */
-  getSupportedFormats: (): Promise<Array<{ id: string; name: string; platform: string; extensions: string[] }>> => {
-    return ipcRenderer.invoke('chat:getSupportedFormats')
-  },
-
-  /**
-   * 监听导入进度
-   */
   onImportProgress: (callback: (progress: ImportProgress) => void) => {
-    const handler = (_event: Electron.IpcRendererEvent, progress: ImportProgress) => {
-      callback(progress)
-    }
+    const handler = (_event: Electron.IpcRendererEvent, progress: ImportProgress) => callback(progress)
     ipcRenderer.on('chat:importProgress', handler)
-    return () => {
-      ipcRenderer.removeListener('chat:importProgress', handler)
-    }
-  },
-
-  /**
-   * 获取口头禅分析数据
-   */
-  getCatchphraseAnalysis: (
-    sessionId: string,
-    filter?: { startTs?: number; endTs?: number }
-  ): Promise<CatchphraseAnalysis> => {
-    return ipcRenderer.invoke('chat:getCatchphraseAnalysis', sessionId, filter)
-  },
-
-  /**
-   * 获取语言偏好分析数据（私聊专用）
-   */
-  getLanguagePreferenceAnalysis: (
-    sessionId: string,
-    locale: string,
-    filter?: { startTs?: number; endTs?: number },
-    dictType?: string
-  ): Promise<LanguagePreferenceResult> => {
-    return ipcRenderer.invoke('chat:getLanguagePreferenceAnalysis', sessionId, locale, filter, dictType)
-  },
-
-  /**
-   * 获取 @ 互动分析数据
-   */
-  getMentionAnalysis: (sessionId: string, filter?: { startTs?: number; endTs?: number }): Promise<MentionAnalysis> => {
-    return ipcRenderer.invoke('chat:getMentionAnalysis', sessionId, filter)
-  },
-
-  /**
-   * 获取 @ 互动关系图数据
-   */
-  getMentionGraph: (
-    sessionId: string,
-    filter?: { startTs?: number; endTs?: number }
-  ): Promise<{
-    nodes: Array<{ id: number; name: string; value: number; symbolSize: number }>
-    links: Array<{ source: string; target: string; value: number }>
-    maxLinkValue: number
-  }> => {
-    return ipcRenderer.invoke('chat:getMentionGraph', sessionId, filter)
-  },
-
-  /**
-   * 获取小团体关系图数据（基于时间相邻共现）
-   */
-  getClusterGraph: (
-    sessionId: string,
-    filter?: { startTs?: number; endTs?: number },
-    options?: ClusterGraphOptions
-  ): Promise<ClusterGraphData> => {
-    return ipcRenderer.invoke('chat:getClusterGraph', sessionId, filter, options)
-  },
-
-  /**
-   * 获取含笑量分析数据
-   */
-  getLaughAnalysis: (
-    sessionId: string,
-    filter?: { startTs?: number; endTs?: number },
-    keywords?: string[]
-  ): Promise<LaughAnalysis> => {
-    return ipcRenderer.invoke('chat:getLaughAnalysis', sessionId, filter, keywords)
-  },
-
-  /**
-   * 获取关系主动性分析数据（私聊专属）
-   */
-  getRelationshipStats: (
-    sessionId: string,
-    filter?: { startTs?: number; endTs?: number },
-    options?: { perseveranceThreshold?: number }
-  ): Promise<RelationshipStats> => {
-    return ipcRenderer.invoke('chat:getRelationshipStats', sessionId, filter, options)
-  },
-
-  // ==================== 成员管理 ====================
-
-  /**
-   * 获取所有成员列表（含消息数和别名）
-   */
-  getMembers: (sessionId: string): Promise<MemberWithStats[]> => {
-    return ipcRenderer.invoke('chat:getMembers', sessionId)
-  },
-
-  /**
-   * 获取成员列表（分页版本）
-   */
-  getMembersPaginated: (
-    sessionId: string,
-    params: { page: number; pageSize: number; search?: string; sortOrder?: 'asc' | 'desc' }
-  ): Promise<{
-    members: MemberWithStats[]
-    total: number
-    page: number
-    pageSize: number
-    totalPages: number
-  }> => {
-    return ipcRenderer.invoke('chat:getMembersPaginated', sessionId, params)
-  },
-
-  /**
-   * 更新成员别名
-   */
-  updateMemberAliases: (sessionId: string, memberId: number, aliases: string[]): Promise<boolean> => {
-    return ipcRenderer.invoke('chat:updateMemberAliases', sessionId, memberId, aliases)
-  },
-
-  /**
-   * 合并成员（保留消息数更多的一方）
-   */
-  mergeMembers: (sessionId: string, memberId1: number, memberId2: number): Promise<boolean> => {
-    return ipcRenderer.invoke('chat:mergeMembers', sessionId, memberId1, memberId2)
-  },
-
-  /**
-   * 删除成员及其所有消息
-   */
-  deleteMember: (sessionId: string, memberId: number): Promise<boolean> => {
-    return ipcRenderer.invoke('chat:deleteMember', sessionId, memberId)
-  },
-
-  /**
-   * 更新会话的所有者（ownerId）
-   * @param ownerId 成员的 platformId，设置为 null 则清除
-   */
-  updateSessionOwnerId: (sessionId: string, ownerId: string | null): Promise<boolean> => {
-    return ipcRenderer.invoke('chat:updateSessionOwnerId', sessionId, ownerId)
-  },
-
-  // ==================== 插件系统 ====================
-
-  /**
-   * 插件参数化只读 SQL 查询
-   */
-  pluginQuery: <T = Record<string, any>>(sessionId: string, sql: string, params: any[] = []): Promise<T[]> => {
-    return ipcRenderer.invoke('chat:pluginQuery', sessionId, sql, params)
-  },
-
-  /**
-   * 插件计算卸载（纯函数在 Worker 中执行）
-   */
-  pluginCompute: <T = any>(fnString: string, input: any): Promise<T> => {
-    return ipcRenderer.invoke('chat:pluginCompute', fnString, input)
-  },
-
-  // ==================== SQL 实验室 ====================
-
-  /**
-   * 执行用户 SQL 查询
-   */
-  executeSQL: (
-    sessionId: string,
-    sql: string
-  ): Promise<{
-    columns: string[]
-    rows: any[][]
-    rowCount: number
-    duration: number
-    limited: boolean
-  }> => {
-    return ipcRenderer.invoke('chat:executeSQL', sessionId, sql)
-  },
-
-  /**
-   * 获取数据库 Schema
-   */
-  getSchema: (
-    sessionId: string
-  ): Promise<
-    Array<{
-      name: string
-      columns: Array<{
-        name: string
-        type: string
-        notnull: boolean
-        pk: boolean
-      }>
-    }>
-  > => {
-    return ipcRenderer.invoke('chat:getSchema', sessionId)
+    return () => ipcRenderer.removeListener('chat:importProgress', handler)
   },
 
   // ==================== 增量导入 ====================
 
-  /**
-   * 分析增量导入（检测去重后能新增多少消息）
-   */
   analyzeIncrementalImport: (
     sessionId: string,
     filePath: string
@@ -448,113 +71,48 @@ export const chatApi = {
     totalInFile: number
     error?: string
     diagnosis?: { suggestion?: string }
-  }> => {
-    return ipcRenderer.invoke('chat:analyzeIncrementalImport', sessionId, filePath)
-  },
+  }> => ipcRenderer.invoke('chat:analyzeIncrementalImport', sessionId, filePath),
 
-  /**
-   * 执行增量导入
-   */
   incrementalImport: (
     sessionId: string,
     filePath: string
-  ): Promise<{
-    success: boolean
-    newMessageCount: number
-    error?: string
-  }> => {
-    return ipcRenderer.invoke('chat:incrementalImport', sessionId, filePath)
-  },
+  ): Promise<{ success: boolean; newMessageCount: number; error?: string }> =>
+    ipcRenderer.invoke('chat:incrementalImport', sessionId, filePath),
 
-  /**
-   * 导出多个会话为临时文件（用于批量管理中的合并）
-   */
+  // ==================== 临时导出（合并用） ====================
+
   exportSessionsToTempFiles: (
     sessionIds: string[]
-  ): Promise<{
-    success: boolean
-    tempFiles: string[]
-    error?: string
-  }> => {
-    return ipcRenderer.invoke('chat:exportSessionsToTempFiles', sessionIds)
-  },
+  ): Promise<{ success: boolean; tempFiles: string[]; error?: string }> =>
+    ipcRenderer.invoke('chat:exportSessionsToTempFiles', sessionIds),
 
-  /**
-   * 清理临时导出文件
-   */
-  cleanupTempExportFiles: (
-    filePaths: string[]
-  ): Promise<{
-    success: boolean
-    error?: string
-  }> => {
-    return ipcRenderer.invoke('chat:cleanupTempExportFiles', filePaths)
-  },
+  cleanupTempExportFiles: (filePaths: string[]): Promise<{ success: boolean; error?: string }> =>
+    ipcRenderer.invoke('chat:cleanupTempExportFiles', filePaths),
 
-  // ==================== Demo 示例数据 ====================
+  // ==================== Demo ====================
 
-  /**
-   * 下载并导入 Demo 示例数据
-   */
   importDemo: (
     locale: string
-  ): Promise<{
-    success: boolean
-    groupSessionId?: string
-    privateSessionIds?: string[]
-    error?: string
-  }> => {
-    return ipcRenderer.invoke('demo:downloadAndImport', locale)
-  },
+  ): Promise<{ success: boolean; groupSessionId?: string; privateSessionIds?: string[]; error?: string }> =>
+    ipcRenderer.invoke('demo:downloadAndImport', locale),
 
-  /**
-   * 监听 Demo 导入进度
-   */
   onDemoProgress: (
     callback: (progress: { stage: string; current: number; total: number; message?: string }) => void
   ) => {
     const handler = (
       _event: Electron.IpcRendererEvent,
       progress: { stage: string; current: number; total: number; message?: string }
-    ) => {
-      callback(progress)
-    }
+    ) => callback(progress)
     ipcRenderer.on('demo:progress', handler)
-    return () => {
-      ipcRenderer.removeListener('demo:progress', handler)
-    }
+    return () => ipcRenderer.removeListener('demo:progress', handler)
   },
 }
 
-// Merge API - 合并功能
+// Merge API
 export const mergeApi = {
-  /**
-   * 解析文件获取基本信息（用于合并预览）
-   * 解析后结果会被缓存，后续合并时无需再次读取原始文件
-   */
-  parseFileInfo: (filePath: string): Promise<FileParseInfo> => {
-    return ipcRenderer.invoke('merge:parseFileInfo', filePath)
-  },
-
-  /**
-   * 检测合并冲突
-   */
-  checkConflicts: (filePaths: string[]): Promise<ConflictCheckResult> => {
-    return ipcRenderer.invoke('merge:checkConflicts', filePaths)
-  },
-
-  /**
-   * 执行合并
-   */
-  mergeFiles: (params: MergeParams): Promise<MergeResult> => {
-    return ipcRenderer.invoke('merge:mergeFiles', params)
-  },
-
-  /**
-   * 清理解析缓存
-   * @param filePath 可选，指定文件路径则清理该文件的缓存，否则清理所有缓存
-   */
-  clearCache: (filePath?: string): Promise<boolean> => {
-    return ipcRenderer.invoke('merge:clearCache', filePath)
-  },
+  parseFileInfo: (filePath: string): Promise<FileParseInfo> => ipcRenderer.invoke('merge:parseFileInfo', filePath),
+  checkConflicts: (filePaths: string[]): Promise<ConflictCheckResult> =>
+    ipcRenderer.invoke('merge:checkConflicts', filePaths),
+  mergeFiles: (params: MergeParams): Promise<MergeResult> => ipcRenderer.invoke('merge:mergeFiles', params),
+  clearCache: (filePath?: string): Promise<boolean> => ipcRenderer.invoke('merge:clearCache', filePath),
 }
