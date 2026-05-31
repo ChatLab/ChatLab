@@ -88,7 +88,14 @@ onMounted(async () => {
     document.documentElement.classList.add('platform-linux')
   }
 
-  if (!IS_ELECTRON) {
+  if (IS_ELECTRON) {
+    // Electron: get Internal API Server endpoint from preload
+    const ep = await window.internalApi?.getEndpoint()
+    if (ep) {
+      configureHttpClient({ baseUrl: `${ep.baseUrl}/_web`, token: ep.token })
+    }
+  } else {
+    // CLI Web: use relative paths + dynamic token from auth store
     let redirectingTo401 = false
     const on401 = () => {
       if (redirectingTo401 || router.currentRoute.value.name === 'login') return

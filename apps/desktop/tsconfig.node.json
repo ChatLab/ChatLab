@@ -14,7 +14,8 @@
     "../../packages/mcp-server/**/*",
     "../../apps/cli/**/*",
     "../../packages/tools/**/*",
-    "../../packages/sync/**/*"
+    "../../packages/sync/**/*",
+    "../../packages/http-routes/**/*"
   ],
   "compilerOptions": {
     "composite": true,

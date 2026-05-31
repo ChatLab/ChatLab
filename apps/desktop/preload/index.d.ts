@@ -1206,7 +1206,17 @@ declare global {
     nlpApi: NlpApi
     apiServerApi: ApiServerApi
     preferencesApi: PreferencesApi
+    internalApi: InternalApi
   }
+}
+
+interface InternalEndpoint {
+  baseUrl: string
+  token: string
+}
+
+interface InternalApi {
+  getEndpoint: () => Promise<InternalEndpoint | null>
 }
 
 export {
@@ -1269,4 +1279,6 @@ export {
   DataSource,
   ImportSession,
   PreferencesApi,
+  InternalApi,
+  InternalEndpoint,
 }
