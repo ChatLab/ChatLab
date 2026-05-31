@@ -56,6 +56,7 @@ export interface ServiceInstallOptions {
   host?: string
   token?: string
   headless?: boolean
+  requireAuth?: boolean
 }
 
 export interface ServiceStatus {
@@ -74,10 +75,9 @@ function buildPlist(options: ServiceInstallOptions): string {
   const args = ['start', '--no-open', '--port', String(port), '--host', host]
   if (options.token) args.push('--token', options.token)
   if (options.headless) args.push('--headless')
+  if (options.requireAuth) args.push('--require-auth')
 
-  const programArgs = [process.execPath, cliEntry, ...args]
-    .map((a) => `    <string>${a}</string>`)
-    .join('\n')
+  const programArgs = [process.execPath, cliEntry, ...args].map((a) => `    <string>${a}</string>`).join('\n')
 
   fs.mkdirSync(path.join(SYSTEM_DIR, 'logs'), { recursive: true })
 
@@ -195,6 +195,7 @@ function buildUnit(options: ServiceInstallOptions): string {
   const args = ['start', '--no-open', '--port', String(port), '--host', host]
   if (options.token) args.push('--token', options.token)
   if (options.headless) args.push('--headless')
+  if (options.requireAuth) args.push('--require-auth')
   const execStart = [process.execPath, cliEntry, ...args].map(escapeSystemdArg).join(' ')
 
   return `[Unit]

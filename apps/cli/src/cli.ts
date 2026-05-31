@@ -286,6 +286,7 @@ program
   .option('--host <host>', 'Listen address', '127.0.0.1')
   .option('--token <token>', 'Custom Bearer Token (reads from config or auto-generates if omitted)')
   .option('--headless', 'API-only mode, do not serve the Web UI')
+  .option('--require-auth', 'Require Bearer token for all routes including /_web/*')
   .option('--no-open', 'Do not auto-open the browser')
   .option('--daemon', 'Run as a resident system service (auto-start on login, macOS/Linux)')
   .action(async (options) => {
@@ -297,6 +298,7 @@ program
         host: options.host,
         token: options.token || undefined,
         headless: options.headless,
+        requireAuth: options.requireAuth || undefined,
       })
       return
     }
@@ -328,6 +330,7 @@ program
         host: options.host,
         token: options.token || undefined,
         webRoot,
+        requireAuth: options.requireAuth || undefined,
       })
 
       const { startPeriodicUpdateCheck } = await import('./update-checker')

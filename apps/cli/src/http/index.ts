@@ -18,7 +18,7 @@ import {
   verifyCliDataPath,
 } from '@openchatlab/node-runtime'
 import { createServer } from './server'
-import { setAuthToken, setWebMode } from './auth'
+import { setAuthToken, setRequireAuth, setWebMode } from './auth'
 import { registerSystemRoutes } from './routes/system'
 import { registerSessionRoutes } from './routes/sessions'
 import { registerWebRoutes } from './routes/web'
@@ -40,6 +40,8 @@ export interface HttpServerOptions {
   token?: string
   /** dist-web/ 目录路径，启用后托管 Web SPA 静态资源 */
   webRoot?: string
+  /** When true, /_web/* also requires Bearer token (for server/headless deployments) */
+  requireAuth?: boolean
 }
 
 function resolveNativeBinding(): string | undefined {
@@ -122,6 +124,9 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
   initServerAiLogger(pathProvider.getLogsDir())
 
   setAuthToken(token)
+  if (options?.requireAuth ?? config.api.require_auth) {
+    setRequireAuth(true)
+  }
 
   server = createServer()
 
