@@ -357,8 +357,7 @@ export function useAIConfigForm(props: {
   const canFetchModels = computed(() => {
     if (effectiveApiFormat.value === 'anthropic-messages') return false
     const baseUrl = formData.value.baseUrl || currentProviderDef.value?.defaultBaseUrl || ''
-    const hasKey =
-      formData.value.apiKey.trim() || isLocalMode.value || canReuseStoredKey.value
+    const hasKey = formData.value.apiKey.trim() || isLocalMode.value || canReuseStoredKey.value
     return !!(baseUrl.trim() && hasKey)
   })
 
@@ -569,7 +568,8 @@ export function useAIConfigForm(props: {
   // ============ 验证 ============
 
   async function validateKey() {
-    const { provider, apiKey, baseUrl } = formData.value
+    const { provider, baseUrl } = formData.value
+    const apiKey = formData.value.apiKey.trim()
     const canReuse = canReuseStoredKey.value
 
     if (!isPresetMode.value) {
@@ -589,7 +589,7 @@ export function useAIConfigForm(props: {
     const configId = !apiKey && canReuse ? props.config.value?.id : undefined
 
     try {
-      const testApiKey = apiKey || 'sk-no-key-required'
+      const testApiKey = !apiKey && canReuse ? '' : apiKey || 'sk-no-key-required'
       const result = await useLLMService().validateApiKey(
         provider || 'openai-compatible',
         testApiKey,

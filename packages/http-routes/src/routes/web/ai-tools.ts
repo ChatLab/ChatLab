@@ -82,11 +82,6 @@ export function registerAiToolRoutes(server: FastifyInstance, ctx: HttpRouteCont
       return { success: false, error: String(error) }
     } finally {
       activeToolTests.delete(testId)
-      try {
-        db.close()
-      } catch {
-        /* ignore close errors */
-      }
     }
   })
 

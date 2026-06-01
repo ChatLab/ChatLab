@@ -18,11 +18,7 @@ export function registerAiFilterRoutes(server: FastifyInstance, ctx: HttpRouteCo
     const db = ctx.dbManager.open(sessionId)
     if (!db) return reply.code(404).send({ error: `Session not found: ${sessionId}` })
 
-    try {
-      return filterMessagesWithContext(db, { keywords, timeFilter, senderIds, contextSize, page, pageSize })
-    } finally {
-      db.close()
-    }
+    return filterMessagesWithContext(db, { keywords, timeFilter, senderIds, contextSize, page, pageSize })
   })
 
   server.post<{
@@ -37,10 +33,6 @@ export function registerAiFilterRoutes(server: FastifyInstance, ctx: HttpRouteCo
     const db = ctx.dbManager.open(sessionId)
     if (!db) return reply.code(404).send({ error: `Session not found: ${sessionId}` })
 
-    try {
-      return getMultipleSessionsMessages(db, chatSessionIds, page, pageSize)
-    } finally {
-      db.close()
-    }
+    return getMultipleSessionsMessages(db, chatSessionIds, page, pageSize)
   })
 }
