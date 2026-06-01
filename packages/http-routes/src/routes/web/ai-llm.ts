@@ -205,17 +205,19 @@ export function registerAiLlmRoutes(server: FastifyInstance, ctx: HttpRouteConte
   // ---------- Remote API ----------
 
   server.post<{
-    Body: { provider: string; apiKey: string; baseUrl?: string; model?: string; apiFormat?: string }
+    Body: { provider: string; apiKey: string; baseUrl?: string; model?: string; apiFormat?: string; configId?: string }
   }>('/_web/ai/llm/validate-key', async (request) => {
-    const { provider, apiKey, baseUrl, model, apiFormat } = request.body
-    return validateApiKey(provider, apiKey, baseUrl, model, apiFormat)
+    const { provider, apiKey, baseUrl, model, apiFormat, configId } = request.body
+    const resolvedKey = apiKey?.trim() ? apiKey : (configId ? store.getConfigById(configId)?.apiKey || '' : '')
+    return validateApiKey(provider, resolvedKey, baseUrl, model, apiFormat)
   })
 
   server.post<{
-    Body: { provider: string; apiKey: string; baseUrl?: string; apiFormat?: string }
+    Body: { provider: string; apiKey: string; baseUrl?: string; apiFormat?: string; configId?: string }
   }>('/_web/ai/llm/remote-models', async (request) => {
-    const { provider, apiKey, baseUrl, apiFormat } = request.body
-    return fetchRemoteModels(provider, apiKey, baseUrl, apiFormat)
+    const { provider, apiKey, baseUrl, apiFormat, configId } = request.body
+    const resolvedKey = apiKey?.trim() ? apiKey : (configId ? store.getConfigById(configId)?.apiKey || '' : '')
+    return fetchRemoteModels(provider, resolvedKey, baseUrl, apiFormat)
   })
 
   // ---------- Desensitize Rules ----------

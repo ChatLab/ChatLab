@@ -66,22 +66,30 @@ export class FetchLLMAdapter implements LLMServiceAdapter {
     return del<{ success: boolean; error?: string }>(`/ai/llm/configs/${id}`)
   }
 
-  async validateApiKey(provider: string, apiKey: string, baseUrl?: string, model?: string, apiFormat?: string) {
+  async validateApiKey(
+    provider: string,
+    apiKey: string,
+    baseUrl?: string,
+    model?: string,
+    apiFormat?: string,
+    configId?: string
+  ) {
     return post<{ success: boolean; error?: string }>('/ai/llm/validate-key', {
       provider,
       apiKey,
       baseUrl,
       model,
       apiFormat,
+      configId,
     })
   }
 
-  async fetchRemoteModels(provider: string, apiKey: string, baseUrl?: string, apiFormat?: string) {
+  async fetchRemoteModels(provider: string, apiKey: string, baseUrl?: string, apiFormat?: string, configId?: string) {
     return post<{
       success: boolean
       models?: Array<{ id: string; name: string; ownedBy?: string; contextWindow?: number }>
       error?: string
-    }>('/ai/llm/remote-models', { provider, apiKey, baseUrl, apiFormat })
+    }>('/ai/llm/remote-models', { provider, apiKey, baseUrl, apiFormat, configId })
   }
 
   async addCustomProvider(input: CustomProviderInput) {

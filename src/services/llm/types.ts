@@ -116,13 +116,15 @@ export interface LLMServiceAdapter {
     apiKey: string,
     baseUrl?: string,
     model?: string,
-    apiFormat?: string
+    apiFormat?: string,
+    configId?: string
   ): Promise<{ success: boolean; error?: string }>
   fetchRemoteModels(
     provider: string,
     apiKey: string,
     baseUrl?: string,
-    apiFormat?: string
+    apiFormat?: string,
+    configId?: string
   ): Promise<{
     success: boolean
     models?: Array<{ id: string; name: string; ownedBy?: string; contextWindow?: number }>

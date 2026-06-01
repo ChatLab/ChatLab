@@ -47,6 +47,7 @@ const {
   selectedModelIsCustom,
   selectedModelContextWindow,
   canSave,
+  canReuseStoredKey,
   apiFormatItems,
   modalTitle,
   resolvedApiUrl,
@@ -174,7 +175,7 @@ function closeModal() {
                 v-model="formData.apiKey"
                 :placeholder="mode === 'edit' && config?.apiKeySet ? t('settings.aiConfig.modal.apiKeyPlaceholderEdit') : t('settings.aiConfig.modal.apiKeyPlaceholder')"
                 :validate-loading="isValidating"
-                :validate-disabled="!formData.apiKey"
+                :validate-disabled="!formData.apiKey && !canReuseStoredKey"
                 :validate-text="t('settings.aiConfig.modal.validate')"
                 :validation-result="validationResult"
                 :validation-message="validationMessage"
@@ -404,7 +405,7 @@ function closeModal() {
                 v-model="formData.apiKey"
                 :placeholder="mode === 'edit' && config?.apiKeySet ? t('settings.aiConfig.modal.apiKeyPlaceholderEdit') : t('settings.aiConfig.modal.apiKeyPlaceholder')"
                 :validate-loading="isValidating"
-                :validate-disabled="!formData.apiKey || !formData.baseUrl"
+                :validate-disabled="(!formData.apiKey && !canReuseStoredKey) || !formData.baseUrl"
                 :validate-text="t('settings.aiConfig.modal.validate')"
                 :validation-result="validationResult"
                 :validation-message="validationMessage"

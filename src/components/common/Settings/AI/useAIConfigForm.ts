@@ -158,22 +158,24 @@ export function useAIConfigForm(props: {
     return model?.contextWindow
   })
 
+  const canReuseStoredKey = computed(() => {
+    const { provider, apiKey, baseUrl } = formData.value
+    return canReuseExistingApiKey({
+      mode: props.mode.value,
+      existingApiKeySet: props.config.value?.apiKeySet,
+      hasNewApiKey: !!apiKey.trim(),
+      originalProvider: props.config.value?.provider,
+      currentProvider: provider,
+      originalConnectionMode: props.config.value ? getConnectionModeForConfig(props.config.value) : undefined,
+      currentConnectionMode: connectionMode.value,
+      originalBaseUrl: props.config.value?.baseUrl,
+      currentBaseUrl: baseUrl.trim() || undefined,
+    })
+  })
+
   const canSave = computed(() => {
     const { provider, apiKey, baseUrl, model } = formData.value
-    const isEdit = props.mode.value === 'edit'
-    const existingKeySet =
-      isEdit &&
-      canReuseExistingApiKey({
-        mode: props.mode.value,
-        existingApiKeySet: props.config.value?.apiKeySet,
-        hasNewApiKey: !!apiKey.trim(),
-        originalProvider: props.config.value?.provider,
-        currentProvider: provider,
-        originalConnectionMode: props.config.value ? getConnectionModeForConfig(props.config.value) : undefined,
-        currentConnectionMode: connectionMode.value,
-        originalBaseUrl: props.config.value?.baseUrl,
-        currentBaseUrl: baseUrl.trim() || undefined,
-      })
+    const existingKeySet = canReuseStoredKey.value
 
     if (isLocalMode.value) {
       return baseUrl.trim() && model.trim()
@@ -355,14 +357,18 @@ export function useAIConfigForm(props: {
   const canFetchModels = computed(() => {
     if (effectiveApiFormat.value === 'anthropic-messages') return false
     const baseUrl = formData.value.baseUrl || currentProviderDef.value?.defaultBaseUrl || ''
-    const apiKey = formData.value.apiKey || (isLocalMode.value ? 'sk-no-key-required' : '')
-    return !!(baseUrl.trim() && apiKey.trim())
+    const hasKey =
+      formData.value.apiKey.trim() || isLocalMode.value || canReuseStoredKey.value
+    return !!(baseUrl.trim() && hasKey)
   })
 
   async function fetchRemoteModels() {
     const baseUrl = formData.value.baseUrl || currentProviderDef.value?.defaultBaseUrl || ''
     const apiKey = formData.value.apiKey || (isLocalMode.value ? 'sk-no-key-required' : '')
-    if (!baseUrl || !apiKey) return
+    const canReuse = canReuseStoredKey.value
+    if (!baseUrl || (!apiKey && !canReuse)) return
+
+    const configId = !apiKey && canReuse ? props.config.value?.id : undefined
 
     isFetchingModels.value = true
     remoteModelsError.value = ''
@@ -373,7 +379,8 @@ export function useAIConfigForm(props: {
         formData.value.provider || 'openai-compatible',
         apiKey,
         baseUrl,
-        effectiveApiFormat.value
+        effectiveApiFormat.value,
+        configId
       )
       if (result.success && result.models) {
         const providerId = formData.value.provider || 'openai-compatible'
@@ -563,12 +570,13 @@ export function useAIConfigForm(props: {
 
   async function validateKey() {
     const { provider, apiKey, baseUrl } = formData.value
+    const canReuse = canReuseStoredKey.value
 
     if (!isPresetMode.value) {
       if (!baseUrl) return
-      if (isOpenAICompat.value && !apiKey) return
+      if (isOpenAICompat.value && !apiKey && !canReuse) return
     } else {
-      if (!provider || !apiKey) {
+      if (!provider || (!apiKey && !canReuse)) {
         validationResult.value = 'idle'
         validationMessage.value = ''
         return
@@ -578,13 +586,17 @@ export function useAIConfigForm(props: {
     isValidating.value = true
     validationResult.value = 'idle'
 
+    const configId = !apiKey && canReuse ? props.config.value?.id : undefined
+
     try {
       const testApiKey = apiKey || 'sk-no-key-required'
       const result = await useLLMService().validateApiKey(
         provider || 'openai-compatible',
         testApiKey,
         baseUrl || undefined,
-        formData.value.model || undefined
+        formData.value.model || undefined,
+        undefined,
+        configId
       )
       validationResult.value = result.success ? 'valid' : 'invalid'
       if (result.success) {
@@ -797,6 +809,7 @@ export function useAIConfigForm(props: {
     selectedModelIsCustom,
     selectedModelContextWindow,
     canSave,
+    canReuseStoredKey,
     apiFormatItems,
     modalTitle,
     resolvedApiUrl,
