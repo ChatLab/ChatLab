@@ -54,20 +54,29 @@ scripts/preflight_main_clean.sh . "package.json,changelogs/cn.json"
 5. 翻译时必须逐条对应当前中文条目：`summary` 与 `changes.items` 的语义都应来自最新中文文件内容，不得沿用旧版本措辞。
 6. 写入后执行格式化（若项目有 Prettier，优先使用 Prettier）。
 
-## 4. 在当前仓库创建发布提交
+## 4. 生成多语言 Markdown
+
+在提交前，将 4 个 JSON 渲染为可读的 Markdown 文件：
+
+```bash
+node scripts/changelog-to-markdown.mjs
+prettier --write changelogs/*.md
+```
+
+生成结果：`changelogs/cn.md`、`en.md`、`tw.md`、`ja.md`（全量幂等，每次重写）。
+
+## 5. 在当前仓库创建发布提交
 
 1. 提交文件必须包含：
    - `package.json`
-   - `changelogs/cn.json`
-   - `changelogs/en.json`
-   - `changelogs/tw.json`
-   - `changelogs/ja.json`
+   - `changelogs/cn.json`、`en.json`、`tw.json`、`ja.json`
+   - `changelogs/cn.md`、`en.md`、`tw.md`、`ja.md`
 2. commit message：`release: v<version>`（示例：`release: v0.9.6`）。
 3. 仅创建 commit，不 push。
 
 可复用脚本：`scripts/commit_release_changelogs.sh`
 
-## 5. 输出结果
+## 6. 输出结果
 
 输出以下信息给用户：
 
@@ -82,3 +91,4 @@ scripts/preflight_main_clean.sh . "package.json,changelogs/cn.json"
 - `references/japanese-release-style.md`
 - `scripts/preflight_main_clean.sh`
 - `scripts/commit_release_changelogs.sh`
+- `scripts/changelog-to-markdown.mjs`

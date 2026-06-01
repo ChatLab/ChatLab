@@ -13,10 +13,19 @@ CN_FILE="$REPO_PATH/changelogs/cn.json"
 EN_FILE="$REPO_PATH/changelogs/en.json"
 TW_FILE="$REPO_PATH/changelogs/tw.json"
 JA_FILE="$REPO_PATH/changelogs/ja.json"
+CN_MD="$REPO_PATH/changelogs/cn.md"
+EN_MD="$REPO_PATH/changelogs/en.md"
+TW_MD="$REPO_PATH/changelogs/tw.md"
+JA_MD="$REPO_PATH/changelogs/ja.md"
 PKG_FILE="$REPO_PATH/package.json"
 
 if [[ ! -f "$CN_FILE" || ! -f "$EN_FILE" || ! -f "$TW_FILE" || ! -f "$JA_FILE" || ! -f "$PKG_FILE" ]]; then
   echo "错误: 多语言 changelog 或 package.json 不存在，无法提交" >&2
+  exit 1
+fi
+
+if [[ ! -f "$CN_MD" || ! -f "$EN_MD" || ! -f "$TW_MD" || ! -f "$JA_MD" ]]; then
+  echo "错误: Markdown 文件不完整，请先运行 node scripts/changelog-to-markdown.mjs" >&2
   exit 1
 fi
 
@@ -33,7 +42,11 @@ git -C "$REPO_PATH" add \
   changelogs/cn.json \
   changelogs/en.json \
   changelogs/tw.json \
-  changelogs/ja.json
+  changelogs/ja.json \
+  changelogs/cn.md \
+  changelogs/en.md \
+  changelogs/tw.md \
+  changelogs/ja.md
 
 # 若没有差异则不提交，避免空提交失败。
 if git -C "$REPO_PATH" diff --cached --quiet; then
