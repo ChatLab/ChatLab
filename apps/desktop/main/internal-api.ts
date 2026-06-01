@@ -162,6 +162,10 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
     // CORS: dev allows the Vite dev server origin; prod allows Electron app origins only
     const isDev = !app.isPackaged
     const devOrigin = process.env.ELECTRON_RENDERER_URL || 'http://localhost:13100'
+    const setCorsHeader = (reply: FastifyReply, name: string, value: string) => {
+      reply.header(name, value)
+      reply.raw.setHeader(name, value)
+    }
     newServer.addHook('onRequest', (request, reply, done) => {
       const origin = request.headers.origin
       if (!origin) {
@@ -170,15 +174,21 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
       }
 
       if (isDev) {
-        if (origin === devOrigin || origin.startsWith('http://localhost:')) {
-          reply.header('Access-Control-Allow-Origin', origin)
+        const isLoopbackOrigin =
+          origin.startsWith('http://localhost:') ||
+          origin.startsWith('http://127.0.0.1:') ||
+          origin.startsWith('http://[::1]:')
+        if (origin === devOrigin || isLoopbackOrigin) {
+          setCorsHeader(reply, 'Access-Control-Allow-Origin', origin)
         }
       } else if (origin === 'file://' || origin === 'app://' || origin === 'null') {
-        reply.header('Access-Control-Allow-Origin', origin)
+        setCorsHeader(reply, 'Access-Control-Allow-Origin', origin)
       }
 
-      reply.header('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
-      reply.header('Access-Control-Allow-Headers', 'Content-Type, Authorization')
+      // SSE 路由会直接调用 reply.raw.writeHead()，因此 CORS 必须同时写到 raw response；
+      // 只写 Fastify reply header 时，流式响应会丢失跨域头并在浏览器侧表现为 Failed to fetch。
+      setCorsHeader(reply, 'Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS')
+      setCorsHeader(reply, 'Access-Control-Allow-Headers', 'Content-Type, Authorization')
 
       if (request.method === 'OPTIONS') {
         reply.code(204).send()

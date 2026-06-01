@@ -86,7 +86,6 @@ export function createElectronRunAgentStream(): (
     const activeAIConfig = getDefaultAssistantConfig()
     if (!activeAIConfig) {
       onEvent({ type: 'error', error: { name: 'ConfigError', message: t('llm.notConfigured') } })
-      onEvent({ type: 'done', isFinished: true })
       return
     }
     const piModel = buildPiModel(activeAIConfig)
@@ -211,38 +210,20 @@ export function createElectronRunAgentStream(): (
     )
 
     try {
-      const result = await agent.executeStream(userMessage, (chunk: AgentStreamChunk) => {
+      await agent.executeStream(userMessage, (chunk: AgentStreamChunk) => {
         if (abortSignal.aborted) return
         onEvent(chunk as SharedAgentStreamChunk)
       })
-
-      if (abortSignal.aborted) {
-        onEvent({
-          type: 'done',
-          isFinished: true,
-          usage: result.totalUsage,
-        })
-        return
-      }
-
-      onEvent({
-        type: 'done',
-        isFinished: true,
-        usage: result.totalUsage,
-      })
     } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        onEvent({ type: 'done', isFinished: true })
-        return
-      }
+      if (error instanceof Error && error.name === 'AbortError') return
       const serializedError = serializeError(error, activeAIConfig.provider)
       serializedError.friendlyMessage = formatAIError(error, {
         providerName: resolveProviderName(activeAIConfig.provider),
         rawErrorLabel: t('llm.rawErrorLabel'),
       })
+      if (!serializedError.url && activeAIConfig.baseUrl) serializedError.url = activeAIConfig.baseUrl
       aiLogger.error('AgentStream', `Agent execution error: ${requestId}`, serializedError)
       onEvent({ type: 'error', error: serializedError, isFinished: true })
-      onEvent({ type: 'done', isFinished: true })
     }
   }
 }

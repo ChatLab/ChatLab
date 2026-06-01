@@ -37,6 +37,7 @@ export interface RunAgentOptions {
   locale?: string
   assistantSystemPrompt?: string
   skillMenu?: string | null
+  skillDef?: { name: string; prompt: string }
   compressionConfig?: CompressionConfig
   tools?: AgentTool[]
   aiDataDir: string
@@ -58,6 +59,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
     locale = 'zh-CN',
     assistantSystemPrompt,
     skillMenu,
+    skillDef,
     compressionConfig,
     tools = [],
     aiDataDir,
@@ -83,7 +85,9 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
   const t = createAiTranslate(locale)
 
   let skillCtx: { skillDef?: { name: string; prompt: string }; skillMenu?: string } | undefined
-  if (skillMenu) {
+  if (skillDef) {
+    skillCtx = { skillDef }
+  } else if (skillMenu) {
     skillCtx = { skillMenu }
   }
 

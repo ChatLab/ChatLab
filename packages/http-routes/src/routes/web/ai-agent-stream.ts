@@ -20,11 +20,19 @@ export function registerAiAgentStreamRoutes(server: FastifyInstance, ctx: HttpRo
       'X-Request-Id': requestId,
     })
 
-    const sendSSE = (event: string, data: unknown) => {
+    let emittedDone = false
+
+    const safeSendSSE = (event: string, data: unknown) => {
+      if (reply.raw.writableEnded || reply.raw.destroyed) return
       reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
     }
 
-    sendSSE('meta', { requestId })
+    const safeEnd = () => {
+      if (reply.raw.writableEnded || reply.raw.destroyed) return
+      reply.raw.end()
+    }
+
+    safeSendSSE('meta', { requestId })
 
     reply.raw.on('close', () => {
       if (!abortController.signal.aborted) {
@@ -37,20 +45,18 @@ export function registerAiAgentStreamRoutes(server: FastifyInstance, ctx: HttpRo
       await runAgentStream(
         request.body,
         (chunk) => {
-          sendSSE(chunk.type, chunk)
-          if (chunk.type === 'done') {
-            activeAgentAborts.delete(requestId)
-            reply.raw.end()
-          }
+          if (chunk.type === 'done') emittedDone = true
+          safeSendSSE(chunk.type, chunk)
         },
         abortController.signal
       )
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error)
-      sendSSE('error', { type: 'error', error: { name: 'ServerError', message: msg } })
-      sendSSE('done', { type: 'done', isFinished: true })
+      safeSendSSE('error', { type: 'error', error: { name: 'ServerError', message: msg } })
+    } finally {
+      if (!emittedDone) safeSendSSE('done', { type: 'done', isFinished: true })
       activeAgentAborts.delete(requestId)
-      reply.raw.end()
+      safeEnd()
     }
   })
 

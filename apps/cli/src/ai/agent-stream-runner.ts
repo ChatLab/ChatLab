@@ -35,6 +35,8 @@ export function createCliRunAgentStream(
       chatType,
       locale,
       assistantId,
+      skillId,
+      enableAutoSkill,
       compressionConfig,
       ownerInfo,
       mentionedMembers,
@@ -61,17 +63,26 @@ export function createCliRunAgentStream(
       ? adaptToolsForAgent(AGENT_TOOL_REGISTRY, () => ({ db, sessionId, locale }), { maxToolResultTokens })
       : []
 
-    const skillManager = new SkillManager(aiDataDir)
-    skillManager.init()
+    const skillMgr = new SkillManager(aiDataDir)
+    skillMgr.init()
     const toolNames = agentTools.map((t: { name: string }) => t.name)
-    const skillMenu = skillManager.getSkillMenu(chatType ?? 'group', toolNames)
 
-    if (skillMenu) {
+    let resolvedSkillDef: { name: string; prompt: string } | undefined
+    let resolvedSkillMenu: string | undefined
+    if (skillId) {
+      const def = skillMgr.getSkillConfig(skillId)
+      if (def) resolvedSkillDef = { name: def.name, prompt: def.prompt }
+    } else if (enableAutoSkill) {
+      const menu = skillMgr.getSkillMenu(chatType ?? 'group', toolNames)
+      if (menu) resolvedSkillMenu = menu
+    }
+
+    if (resolvedSkillMenu) {
       const activateSkillTool = createActivateSkillTool({
         chatType: chatType ?? 'group',
         allowedTools: toolNames,
         locale,
-        getSkillConfig: (id) => skillManager.getSkillConfig(id),
+        getSkillConfig: (id) => skillMgr.getSkillConfig(id),
       })
       agentTools.push(activateSkillTool as any)
     }
@@ -113,7 +124,8 @@ export function createCliRunAgentStream(
       chatType,
       locale,
       assistantSystemPrompt,
-      skillMenu,
+      skillMenu: resolvedSkillMenu,
+      skillDef: resolvedSkillDef,
       compressionConfig: resolvedCompression,
       tools: agentTools,
       aiDataDir,

@@ -20,6 +20,7 @@ export function registerAiLlmStreamRoutes(server: FastifyInstance, ctx: HttpRout
     }
 
     const piModel = buildPiModel(llmConfig)
+    const abortController = new AbortController()
 
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -27,7 +28,12 @@ export function registerAiLlmStreamRoutes(server: FastifyInstance, ctx: HttpRout
       Connection: 'keep-alive',
     })
 
+    reply.raw.on('close', () => {
+      if (!abortController.signal.aborted) abortController.abort()
+    })
+
     const sendChunk = (data: unknown) => {
+      if (reply.raw.writableEnded || reply.raw.destroyed) return
       reply.raw.write(`event: chunk\ndata: ${JSON.stringify(data)}\n\n`)
     }
 
@@ -39,12 +45,14 @@ export function registerAiLlmStreamRoutes(server: FastifyInstance, ctx: HttpRout
         temperature: options?.temperature,
         maxTokens: options?.maxTokens,
         onChunk: sendChunk,
+        abortSignal: abortController.signal,
       })
     } catch (error) {
+      if (abortController.signal.aborted) return
       const msg = error instanceof Error ? error.message : String(error)
       sendChunk({ content: '', isFinished: true, finishReason: 'error', error: msg })
+    } finally {
+      if (!reply.raw.writableEnded && !reply.raw.destroyed) reply.raw.end()
     }
-
-    reply.raw.end()
   })
 }

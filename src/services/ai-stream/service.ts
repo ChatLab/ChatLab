@@ -12,24 +12,28 @@ export function useLlmStreamService() {
       options?: { temperature?: number; maxTokens?: number },
       onChunk?: (chunk: LlmStreamChunk) => void
     ): Promise<{ success: boolean; error?: string }> {
+      let streamError: string | undefined
       try {
         await fetchSSE({
           url: '/_web/ai/llm/chat-stream',
           body: { messages, options },
           onEvent: ({ data }) => {
-            if (!onChunk) return
             try {
               const parsed = JSON.parse(data) as LlmStreamChunk
-              onChunk(parsed)
+              if (parsed.finishReason === 'error' && parsed.error) {
+                streamError = parsed.error
+              }
+              onChunk?.(parsed)
             } catch {
               // skip malformed JSON
             }
           },
         })
+        if (streamError) return { success: false, error: streamError }
         return { success: true }
       } catch (error) {
         const msg = error instanceof Error ? error.message : String(error)
-        return { success: false, error: msg }
+        return { success: false, error: streamError ?? msg }
       }
     },
   }
@@ -56,7 +60,7 @@ export function useAgentStreamService() {
         let resultContent = ''
         const toolsUsed: string[] = []
         let toolRounds = 0
-        let lastUsage: AgentStreamResult['result'] extends { totalUsage?: infer U } ? U : undefined
+        let lastUsage: import('./types').TokenUsage | undefined
         let hasError = false
         let lastError: AgentStreamResult['error']
 
@@ -82,9 +86,7 @@ export function useAgentStreamService() {
                   if (chunk.content) resultContent += chunk.content
                   break
                 case 'tool_start':
-                  if (chunk.toolName && !toolsUsed.includes(chunk.toolName)) {
-                    toolsUsed.push(chunk.toolName)
-                  }
+                  if (chunk.toolName) toolsUsed.push(chunk.toolName)
                   break
                 case 'status':
                   if (chunk.status) toolRounds = chunk.status.round
