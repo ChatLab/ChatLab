@@ -36,7 +36,7 @@
     "format": "prettier --write .",
     "lint": "eslint . --ext .js,.jsx,.cjs,.mjs,.ts,.tsx,.cts,.mts --fix",
     "type-check:web": "vue-tsc --noEmit -p tsconfig.web.json",
-    "type-check:node": "tsc --noEmit -p apps/desktop/tsconfig.node.json",
+    "type-check:node": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p apps/desktop/tsconfig.node.json",
     "type-check:all": "pnpm run type-check:web && pnpm run type-check:node",
     "type-check": "vue-tsc --noEmit -p tsconfig.web.json",
     "test:auth": "tsx --test apps/cli/src/http/auth.test.ts src/services/utils/http.test.ts",

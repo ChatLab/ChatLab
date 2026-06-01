@@ -8,5 +8,7 @@
       "@openchatlab/*": ["packages/*"],
       "chatlab-mcp": ["packages/mcp-server/src"]
     }
-  }
+  },
+  "include": ["apps/cli/src/**/*.ts", "packages/**/*.ts"],
+  "exclude": ["**/node_modules/**", "**/dist/**", "**/bin/**", "**/*.test.ts", "**/*.spec.ts"]
 }
