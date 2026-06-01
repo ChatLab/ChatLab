@@ -16,6 +16,7 @@ import {
 import { StreamingThinkTagParser, needsStreamingThinkParsing } from '@openchatlab/core'
 
 import type { AgentCoreOptions, AgentCoreResult, AgentTokenUsage, SimpleHistoryMessage } from './types'
+import { initTokenizer } from '../tokenizer'
 
 function createEmptyPiUsage(): PiUsage {
   return {
@@ -69,6 +70,9 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
     onConvertToLlm,
     onDebugContext,
   } = options
+
+  // 确保 cl100k rank 表已加载，压缩/预处理路径使用精确 token 计数
+  await initTokenizer()
 
   const resolvedStreamFn = (options.streamFn ?? defaultStreamSimple) as typeof defaultStreamSimple
 

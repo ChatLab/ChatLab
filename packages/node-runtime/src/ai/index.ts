@@ -35,7 +35,7 @@ export type {
 } from './conversations'
 
 // Tokenizer
-export { countTokens, countMessagesTokens } from './tokenizer'
+export { countTokens, countMessagesTokens, initTokenizer } from './tokenizer'
 
 // SkillManager (runtime: activate-skill tool builder)
 export { SkillManager } from './skill-manager'

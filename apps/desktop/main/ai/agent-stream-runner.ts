@@ -8,7 +8,7 @@
 
 import type { AgentStreamChunk as SharedAgentStreamChunk } from '@openchatlab/node-runtime'
 import type { AgentStreamRequest } from '@openchatlab/http-routes'
-import { checkAndCompress, createCompressionLlmAdapter, formatAIError } from '@openchatlab/node-runtime'
+import { checkAndCompress, createCompressionLlmAdapter, formatAIError, initTokenizer } from '@openchatlab/node-runtime'
 import type { CompressionConfig, CompressionLlmAdapter, AgentRuntimeStatus } from '@openchatlab/node-runtime'
 import { Agent, type AgentStreamChunk, type SkillContext } from './agent'
 import type { ToolContext } from './tools/types'
@@ -70,6 +70,9 @@ export function createElectronRunAgentStream(): (
       mentionedMembers,
       thinkingLevel,
     } = params
+
+    // 确保 tokenizer rank 表已加载（compression + agent 路径均依赖）
+    await initTokenizer()
 
     const requestId = `internal_${Date.now()}`
 

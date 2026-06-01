@@ -13,6 +13,7 @@ import {
   createCompressionLlmAdapter,
   AgentEventHandler,
   formatAIError,
+  initTokenizer,
   type AgentStreamChunk,
   type PiMessage,
   type SimpleHistoryMessage,
@@ -73,6 +74,9 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
   } = options
 
   const aiLogger = getServerAiLogger()
+
+  // 确保 tokenizer rank 表已加载（compression + agent 路径均依赖）
+  await initTokenizer()
 
   const llmConfig = getDefaultAssistantConfig(aiDataDir)
   if (!llmConfig) {

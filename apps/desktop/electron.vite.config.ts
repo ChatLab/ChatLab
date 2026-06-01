@@ -23,6 +23,7 @@ export default defineConfig({
       'process.env.WS_NO_UTF_8_VALIDATE': JSON.stringify('true'),
     },
     build: {
+      minify: 'esbuild',
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'main/index.ts'),
@@ -38,6 +39,7 @@ export default defineConfig({
       },
     },
     build: {
+      minify: 'esbuild',
       rollupOptions: {
         input: {
           index: resolve(__dirname, 'preload/index.ts'),

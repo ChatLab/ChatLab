@@ -203,17 +203,18 @@ jobs:
           pnpm install --frozen-lockfile
 
       - name: Inject version into app package.json
-        shell: bash
+        shell: pwsh
         run: |
-          VERSION="${{ needs.prepare_release.outputs.version }}"
-          echo "Injecting version: $VERSION"
+          $env:RELEASE_VERSION = "${{ needs.prepare_release.outputs.version }}"
+          Write-Host "Injecting version: $env:RELEASE_VERSION"
           node -e "
             const fs = require('fs');
+            const version = process.env.RELEASE_VERSION;
             for (const p of ['apps/desktop/package.json', 'apps/cli/package.json']) {
               const pkg = JSON.parse(fs.readFileSync(p, 'utf-8'));
-              pkg.version = '${VERSION}';
+              pkg.version = version;
               fs.writeFileSync(p, JSON.stringify(pkg, null, 2) + '\n');
-              console.log(p + ' → ' + '${VERSION}');
+              console.log(p + ' -> ' + version);
             }
           "
 
