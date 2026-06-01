@@ -1,7 +1,12 @@
 import type { FastifyInstance } from 'fastify'
 import type { HttpRouteContext } from '../../context'
 import { BUILTIN_PROVIDERS, BUILTIN_MODELS, getBuiltinModelsByProvider } from '@openchatlab/core'
-import { validateApiKey, fetchRemoteModels } from '@openchatlab/node-runtime'
+import {
+  validateApiKey,
+  fetchRemoteModels,
+  getDefaultRulesForLocale,
+  mergeRulesForLocale,
+} from '@openchatlab/node-runtime'
 
 // ==================== API key display masking ====================
 
@@ -211,5 +216,19 @@ export function registerAiLlmRoutes(server: FastifyInstance, ctx: HttpRouteConte
   }>('/_web/ai/llm/remote-models', async (request) => {
     const { provider, apiKey, baseUrl, apiFormat } = request.body
     return fetchRemoteModels(provider, apiKey, baseUrl, apiFormat)
+  })
+
+  // ---------- Desensitize Rules ----------
+
+  server.get<{
+    Querystring: { locale?: string }
+  }>('/_web/ai/desensitize-rules/defaults', async (request) => {
+    return getDefaultRulesForLocale(request.query.locale ?? 'zh-CN')
+  })
+
+  server.post<{
+    Body: { existingRules: unknown[]; locale: string }
+  }>('/_web/ai/desensitize-rules/merge', async (request) => {
+    return mergeRulesForLocale(request.body.existingRules as any[], request.body.locale)
   })
 }

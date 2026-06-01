@@ -114,38 +114,65 @@ export class FetchAIAdapter implements AIAdapter {
   }
 
   async estimateContextTokens(
-    _conversationId: string
+    conversationId: string
   ): Promise<{ success: boolean; tokens: number; messageCount?: number; error?: string }> {
-    return { success: false, tokens: 0, error: NOT_AVAILABLE_WEB }
+    try {
+      return await get<{ success: boolean; tokens: number; messageCount?: number }>(
+        `/ai/conversations/${conversationId}/estimate-tokens`
+      )
+    } catch (error) {
+      return { success: false, tokens: 0, error: error instanceof Error ? error.message : String(error) }
+    }
   }
 
-  // ===== 消息筛选/导出 (降级) =====
+  // ===== 消息筛选 =====
   async filterMessagesWithContext(
-    _sessionId: string,
-    _keywords?: string[],
-    _timeFilter?: TimeFilter,
-    _senderIds?: number[],
-    _contextSize?: number,
-    _page?: number,
-    _pageSize?: number
+    sessionId: string,
+    keywords?: string[],
+    timeFilter?: TimeFilter,
+    senderIds?: number[],
+    contextSize?: number,
+    page?: number,
+    pageSize?: number
   ): Promise<FilterResultWithPagination> {
-    return {
-      blocks: [],
-      stats: { totalMessages: 0, hitMessages: 0, totalChars: 0 },
-      pagination: { page: 1, pageSize: 50, totalBlocks: 0, totalHits: 0, hasMore: false },
+    try {
+      return await post<FilterResultWithPagination>('/ai/filter-messages', {
+        sessionId,
+        keywords,
+        timeFilter,
+        senderIds,
+        contextSize,
+        page,
+        pageSize,
+      })
+    } catch {
+      return {
+        blocks: [],
+        stats: { totalMessages: 0, hitMessages: 0, totalChars: 0 },
+        pagination: { page: 1, pageSize: 50, totalBlocks: 0, totalHits: 0, hasMore: false },
+      }
     }
   }
 
   async getMultipleSessionsMessages(
-    _sessionId: string,
-    _chatSessionIds: number[],
-    _page?: number,
-    _pageSize?: number
+    sessionId: string,
+    chatSessionIds: number[],
+    page?: number,
+    pageSize?: number
   ): Promise<FilterResultWithPagination> {
-    return {
-      blocks: [],
-      stats: { totalMessages: 0, hitMessages: 0, totalChars: 0 },
-      pagination: { page: 1, pageSize: 50, totalBlocks: 0, totalHits: 0, hasMore: false },
+    try {
+      return await post<FilterResultWithPagination>('/ai/multiple-sessions-messages', {
+        sessionId,
+        chatSessionIds,
+        page,
+        pageSize,
+      })
+    } catch {
+      return {
+        blocks: [],
+        stats: { totalMessages: 0, hitMessages: 0, totalChars: 0 },
+        pagination: { page: 1, pageSize: 50, totalBlocks: 0, totalHits: 0, hasMore: false },
+      }
     }
   }
 
@@ -174,29 +201,49 @@ export class FetchAIAdapter implements AIAdapter {
 
   // ===== 工具 =====
   async getToolCatalog(): Promise<ToolCatalogEntry[]> {
-    return get<ToolCatalogEntry[]>('/ai/tools/catalog')
+    try {
+      return await get<ToolCatalogEntry[]>('/ai/tools/full-catalog')
+    } catch {
+      return get<ToolCatalogEntry[]>('/ai/tools/catalog')
+    }
   }
 
   async executeTool(
-    _testId: string,
-    _toolName: string,
-    _params: Record<string, unknown>,
-    _sessionId: string
+    testId: string,
+    toolName: string,
+    params: Record<string, unknown>,
+    sessionId: string
   ): Promise<ToolExecuteResult> {
-    return { success: false, error: NOT_AVAILABLE_WEB }
+    try {
+      return await post<ToolExecuteResult>('/ai/tools/execute', { testId, toolName, params, sessionId })
+    } catch (error) {
+      return { success: false, error: String(error) }
+    }
   }
 
-  async cancelToolTest(_testId: string): Promise<{ success: boolean }> {
-    return { success: false }
+  async cancelToolTest(testId: string): Promise<{ success: boolean }> {
+    try {
+      return await post<{ success: boolean }>('/ai/tools/cancel', { testId })
+    } catch {
+      return { success: false }
+    }
   }
 
   // ===== 脱敏 =====
-  async getDefaultDesensitizeRules(_locale: string): Promise<DesensitizeRule[]> {
-    return []
+  async getDefaultDesensitizeRules(locale: string): Promise<DesensitizeRule[]> {
+    try {
+      return await get<DesensitizeRule[]>(`/ai/desensitize-rules/defaults?locale=${encodeURIComponent(locale)}`)
+    } catch {
+      return []
+    }
   }
 
-  async mergeDesensitizeRules(existingRules: DesensitizeRule[], _locale: string): Promise<DesensitizeRule[]> {
-    return existingRules
+  async mergeDesensitizeRules(existingRules: DesensitizeRule[], locale: string): Promise<DesensitizeRule[]> {
+    try {
+      return await post<DesensitizeRule[]>('/ai/desensitize-rules/merge', { existingRules, locale })
+    } catch {
+      return existingRules
+    }
   }
 
   // ===== 日志 =====

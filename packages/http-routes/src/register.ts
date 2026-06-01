@@ -22,6 +22,8 @@ import { registerAiSkillRoutes } from './routes/web/ai-skills'
 import { registerAiLlmRoutes } from './routes/web/ai-llm'
 import { registerAiLlmStreamRoutes } from './routes/web/ai-llm-stream'
 import { registerAiAgentStreamRoutes } from './routes/web/ai-agent-stream'
+import { registerAiFilterRoutes } from './routes/web/ai-filter'
+import { registerAiToolRoutes } from './routes/web/ai-tools'
 import { registerAiConversationRoutes } from './routes/web/ai-conversations'
 import { registerAiSummaryRoutes } from './routes/web/ai-summaries'
 import { registerMergeRoutes } from './routes/web/merge'
@@ -60,6 +62,7 @@ export function registerSharedRoutes(
     if (!ctx.llmConfigStore) missing.push('llmConfigStore')
     if (!ctx.customProviderStore) missing.push('customProviderStore')
     if (!ctx.customModelStore) missing.push('customModelStore')
+    if (!ctx.runAgentStream) missing.push('runAgentStream')
     if (missing.length > 0) {
       throw new Error(`[http-routes] requireAi is set but missing AI dependencies: ${missing.join(', ')}`)
     }
@@ -70,6 +73,8 @@ export function registerSharedRoutes(
   registerAiLlmRoutes(server, ctx)
   registerAiLlmStreamRoutes(server, ctx)
   registerAiAgentStreamRoutes(server, ctx)
+  registerAiFilterRoutes(server, ctx)
+  registerAiToolRoutes(server, ctx)
   registerAiConversationRoutes(server, ctx)
   registerAiSummaryRoutes(server, ctx)
 

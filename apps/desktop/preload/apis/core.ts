@@ -21,14 +21,7 @@ export const api = {
     }
   },
   receive: (channel: string, func: (...args: unknown[]) => void) => {
-    const validChannels = [
-      'show-message',
-      'chat:importProgress',
-      'merge:parseProgress',
-      'llm:streamChunk',
-      'agent:streamChunk',
-      'agent:complete',
-    ]
+    const validChannels = ['show-message', 'chat:importProgress', 'merge:parseProgress']
     if (validChannels.includes(channel)) {
       // Deliberately strip event as it includes `sender`
       ipcRenderer.on(channel, (_event, ...args) => func(...args))

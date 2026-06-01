@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import type { HttpRouteContext } from '../../context'
+import { countMessagesTokens } from '@openchatlab/node-runtime'
 
 export function registerAiConversationRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
   const cm = ctx.conversationManager
@@ -158,5 +159,13 @@ export function registerAiConversationRoutes(server: FastifyInstance, ctx: HttpR
   server.post('/_web/ai/debug/clear-debug-context', async () => {
     const cleared = cm.clearAllDebugContext()
     return { success: true, cleared }
+  })
+
+  server.get<{
+    Params: { id: string }
+  }>('/_web/ai/conversations/:id/estimate-tokens', async (request) => {
+    const history = cm.getHistoryForAgent(request.params.id)
+    const tokens = countMessagesTokens(history.map((m) => ({ role: m.role, content: m.content })))
+    return { success: true, tokens, messageCount: history.length }
   })
 }

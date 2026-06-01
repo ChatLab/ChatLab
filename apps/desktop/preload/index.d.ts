@@ -156,27 +156,10 @@ interface FilterResultWithPagination extends FilterResult {
 /**
  * AiApi — IPC-only subset
  *
- * Conversation/message CRUD and debug queries have been migrated to HTTP
- * shared routes (FetchAIAdapter via Internal Server). Only features that
- * require worker, native shell, or tool registry remain on IPC.
+ * Most AI functionality has been migrated to HTTP shared routes.
+ * Only export (fs write + progress push) and native shell remain on IPC.
  */
 interface AiApi {
-  // Message filtering / export (worker-dependent)
-  filterMessagesWithContext: (
-    sessionId: string,
-    keywords?: string[],
-    timeFilter?: TimeFilter,
-    senderIds?: number[],
-    contextSize?: number,
-    page?: number,
-    pageSize?: number
-  ) => Promise<FilterResultWithPagination>
-  getMultipleSessionsMessages: (
-    sessionId: string,
-    chatSessionIds: number[],
-    page?: number,
-    pageSize?: number
-  ) => Promise<FilterResultWithPagination>
   exportFilterResultToFile: (params: {
     sessionId: string
     sessionName: string
@@ -189,24 +172,7 @@ interface AiApi {
     chatSessionIds?: number[]
   }) => Promise<{ success: boolean; filePath?: string; error?: string }>
   onExportProgress: (callback: (progress: ExportProgress) => void) => () => void
-  // Native shell
   showAiLogFile: () => Promise<{ success: boolean; path?: string; error?: string }>
-  // Desensitize rules (node-runtime)
-  getDefaultDesensitizeRules: (locale: string) => Promise<DesensitizeRule[]>
-  mergeDesensitizeRules: (existingRules: DesensitizeRule[], locale: string) => Promise<DesensitizeRule[]>
-  // Tool testing (tool registry on main process)
-  getToolCatalog: () => Promise<ToolCatalogEntry[]>
-  executeTool: (
-    testId: string,
-    toolName: string,
-    params: Record<string, unknown>,
-    sessionId: string
-  ) => Promise<ToolExecuteResult>
-  cancelToolTest: (testId: string) => Promise<{ success: boolean }>
-  // Context estimation (needs conversationManager)
-  estimateContextTokens: (
-    conversationId: string
-  ) => Promise<{ success: boolean; tokens: number; messageCount?: number; error?: string }>
 }
 
 // ==================== 新模型系统类型 ====================
@@ -244,27 +210,8 @@ interface ModelDefinition {
   editable: boolean
 }
 
-interface LLMChatMessage {
-  role: 'system' | 'user' | 'assistant'
-  content: string
-}
-
-interface LLMChatOptions {
-  temperature?: number
-  maxTokens?: number
-}
-
-/**
- * LLM CRUD (config, provider, model, validate, etc.) has been migrated to
- * HTTP service layer via FetchLLMAdapter. Streaming chat uses shared SSE route.
- * Only non-streaming chat remains on IPC.
- */
-interface LlmApi {
-  chat: (
-    messages: LLMChatMessage[],
-    options?: LLMChatOptions
-  ) => Promise<{ success: boolean; content?: string; error?: string }>
-}
+// LLM API has been fully migrated to shared HTTP/SSE routes.
+// LlmApi interface removed — no IPC consumers remain.
 
 /** Owner 信息（当前用户在对话中的身份） */
 interface OwnerInfo {
@@ -283,24 +230,6 @@ interface DesensitizeRule {
   enabled: boolean
   builtin: boolean
   locales: string[]
-}
-
-/** 工具目录条目（实验室 - 基础工具） */
-interface ToolCatalogEntry {
-  name: string
-  category: 'core' | 'analysis'
-  description: string
-  parameters: Record<string, unknown>
-}
-
-/** 工具执行结果 */
-interface ToolExecuteResult {
-  success: boolean
-  elapsed?: number
-  content?: Array<{ type: string; text: string }>
-  details?: Record<string, unknown>
-  error?: string
-  truncated?: boolean
 }
 
 /** 聊天记录预处理配置 */
@@ -444,79 +373,7 @@ interface ApiServerApi {
   onImportCompleted: (callback: () => void) => () => void
 }
 
-// Session Index API 类型 - 会话索引功能
-interface SessionStats {
-  sessionCount: number
-  hasIndex: boolean
-  gapThreshold: number
-}
-
-interface ChatSessionItem {
-  id: number
-  startTs: number
-  endTs: number
-  messageCount: number
-  firstMessageId: number
-  /** 会话摘要（如果有） */
-  summary?: string | null
-}
-
-interface SessionApi {
-  generate: (sessionId: string, gapThreshold?: number) => Promise<number>
-  generateIncremental: (sessionId: string, gapThreshold?: number) => Promise<number>
-  hasIndex: (sessionId: string) => Promise<boolean>
-  getStats: (sessionId: string) => Promise<SessionStats>
-  getAllIndexStats: () => Promise<Array<{ sessionId: string; hasIndex: boolean; sessionCount: number }>>
-  clear: (sessionId: string) => Promise<boolean>
-  updateGapThreshold: (sessionId: string, gapThreshold: number | null) => Promise<boolean>
-  getSessions: (sessionId: string) => Promise<ChatSessionItem[]>
-  /** 生成单个会话摘要 */
-  generateSummary: (
-    dbSessionId: string,
-    chatSessionId: number,
-    locale?: string,
-    forceRegenerate?: boolean,
-    strategy?: 'brief' | 'standard'
-  ) => Promise<{ success: boolean; summary?: string; error?: string }>
-  /** 批量生成会话摘要 */
-  generateSummaries: (
-    dbSessionId: string,
-    chatSessionIds: number[],
-    locale?: string
-  ) => Promise<{ success: number; failed: number; skipped: number }>
-  /** 批量检查会话是否可以生成摘要 */
-  checkCanGenerateSummary: (
-    dbSessionId: string,
-    chatSessionIds: number[]
-  ) => Promise<Record<number, { canGenerate: boolean; reason?: string }>>
-  /** 根据时间范围查询会话列表 */
-  getByTimeRange: (
-    dbSessionId: string,
-    startTs: number,
-    endTs: number
-  ) => Promise<
-    Array<{
-      id: number
-      startTs: number
-      endTs: number
-      messageCount: number
-      summary: string | null
-    }>
-  >
-  /** 获取最近 N 条会话 */
-  getRecent: (
-    dbSessionId: string,
-    limit: number
-  ) => Promise<
-    Array<{
-      id: number
-      startTs: number
-      endTs: number
-      messageCount: number
-      summary: string | null
-    }>
-  >
-}
+// Session index API has been migrated to shared HTTP routes (FetchSessionIndexAdapter).
 
 declare global {
   interface Window {
@@ -524,10 +381,8 @@ declare global {
     api: Api
     chatApi: ChatApi
     aiApi: AiApi
-    llmApi: LlmApi
     cacheApi: CacheApi
     networkApi: NetworkApi
-    sessionApi: SessionApi
     apiServerApi: ApiServerApi
     internalApi: InternalApi
   }
@@ -546,29 +401,19 @@ export {
   ChatApi,
   Api,
   AiApi,
-  LlmApi,
   ProviderDefinition,
   ProviderKind,
   ModelDefinition,
   ModelCapability,
   ModelStatus,
   ModelRecommendedFor,
-  AgentApi,
   CacheApi,
   NetworkApi,
   ProxyConfig,
-  LLMChatMessage,
-  LLMChatOptions,
-  LLMChatStreamChunk,
-  AgentStreamChunk,
   AgentRuntimeStatus,
-  AgentResult,
   SerializedErrorInfo,
-  ToolContext,
   DesensitizeRule,
   PreprocessConfig,
-  ToolCatalogEntry,
-  ToolExecuteResult,
   TokenUsage,
   FilterMessage,
   ContextBlock,

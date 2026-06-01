@@ -251,6 +251,9 @@ importers:
       '@openchatlab/shared-types':
         specifier: workspace:*
         version: link:../shared-types
+      '@openchatlab/tools':
+        specifier: workspace:*
+        version: link:../tools
       fastify:
         specifier: ^5.8.4
         version: 5.8.4

@@ -11,6 +11,7 @@
     "@openchatlab/core": "workspace:*",
     "@openchatlab/node-runtime": "workspace:*",
     "@openchatlab/shared-types": "workspace:*",
+    "@openchatlab/tools": "workspace:*",
     "fastify": "^5.8.4"
   }
 }
