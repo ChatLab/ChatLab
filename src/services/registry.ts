@@ -65,8 +65,8 @@ export async function initServices(): Promise<void> {
  * data/message/preferences/ai-streaming use Fetch/SSE; import stays on IPC.
  */
 async function initElectronAdapters(): Promise<void> {
-  const { FetchDataAdapter } = await import('./data/fetch')
-  registerAdapter('data', new FetchDataAdapter())
+  const { ElectronDataAdapter } = await import('./data/electron')
+  registerAdapter('data', new ElectronDataAdapter())
 
   const { ElectronImportAdapter } = await import('./import/electron')
   registerAdapter('import', new ElectronImportAdapter())

@@ -73,6 +73,7 @@ interface ChatApi {
     sessionId: string,
     filePath: string
   ) => Promise<{ success: boolean; newMessageCount: number; error?: string }>
+  pluginCompute: <T = unknown>(fnString: string, input: unknown) => Promise<T>
   importDemo: (locale: string) => Promise<{
     success: boolean
     groupSessionId?: string
