@@ -2,7 +2,7 @@
  * SessionIndexAdapter — 会话索引领域适配器接口
  *
  * 负责会话切分索引的生成、查询、摘要等操作。
- * 来源：window.sessionApi（Electron IPC）/ web-api-shim 垫片（Web SQL）
+ * 统一通过 FetchSessionIndexAdapter 消费共享 HTTP 路由。
  */
 
 export interface SessionStats {

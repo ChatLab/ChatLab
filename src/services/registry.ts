@@ -62,7 +62,7 @@ export async function initServices(): Promise<void> {
 
 /**
  * Electron adapters: Internal HTTP Server is a hard dependency.
- * data/message/preferences use Fetch; import/session-index/ai stay on IPC.
+ * data/message/preferences/ai-streaming use Fetch/SSE; import stays on IPC.
  */
 async function initElectronAdapters(): Promise<void> {
   const { FetchDataAdapter } = await import('./data/fetch')

@@ -9,7 +9,7 @@ import { electronAPI } from '@electron-toolkit/preload'
 import { extendedApi } from './apis/core'
 import { chatApi } from './apis/chat'
 import { aiApi } from './apis/ai'
-import { networkApi, cacheApi, sessionApi } from './apis/utils'
+import { networkApi, cacheApi } from './apis/utils'
 import { apiServerApi } from './apis/api-server'
 import { internalApi } from './apis/internal-api'
 
@@ -39,7 +39,6 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('aiApi', aiApi)
     contextBridge.exposeInMainWorld('cacheApi', cacheApi)
     contextBridge.exposeInMainWorld('networkApi', networkApi)
-    contextBridge.exposeInMainWorld('sessionApi', sessionApi)
     contextBridge.exposeInMainWorld('apiServerApi', apiServerApi)
     contextBridge.exposeInMainWorld('internalApi', internalApi)
   } catch (error) {
@@ -58,8 +57,6 @@ if (process.contextIsolated) {
   window.cacheApi = cacheApi
   // @ts-ignore (define in dts)
   window.networkApi = networkApi
-  // @ts-ignore (define in dts)
-  window.sessionApi = sessionApi
   // @ts-ignore (define in dts)
   window.apiServerApi = apiServerApi
   // @ts-ignore (define in dts)
