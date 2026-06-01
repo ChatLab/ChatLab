@@ -16,6 +16,7 @@ import { useAssistantStore } from '@/stores/assistant'
 import { useSkillStore } from '@/stores/skill'
 import { useLLMStore } from '@/stores/llm'
 import type { TokenUsage, AgentRuntimeStatus, SerializedErrorInfo } from '@electron/shared/types'
+import { useAgentStreamService } from '@/services/ai-stream/service'
 
 // 工具调用记录
 export interface ToolCallRecord {
@@ -792,9 +793,33 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         searchContextAfter: aiGlobalSettings.value.searchContextAfter,
       }
 
-      const { requestId: agentReqId, promise: agentPromise } = window.agentApi.runStream(
-        content,
-        context,
+      const { requestId: agentReqId, promise: agentPromise } = useAgentStreamService().runStream(
+        {
+          userMessage: content,
+          sessionId: state.sessionId,
+          conversationId: resolvedConversationId,
+          timeFilter: context.timeFilter,
+          maxMessagesLimit: context.maxMessagesLimit,
+          ownerInfo: context.ownerInfo,
+          mentionedMembers: context.mentionedMembers,
+          preprocessConfig: context.preprocessConfig,
+          chatType: state.chatType,
+          locale: state.locale,
+          assistantId: currentAssistantId,
+          skillId: currentSkillId,
+          enableAutoSkill: !currentSkillId ? autoSkillEnabled : undefined,
+          compressionConfig: {
+            enabled: aiGlobalSettings.value.contextCompression?.enabled ?? false,
+            tokenThresholdPercent: aiGlobalSettings.value.contextCompression?.tokenThresholdPercent ?? 75,
+            bufferSizePercent: aiGlobalSettings.value.contextCompression?.bufferSizePercent ?? 20,
+            maxToolResultPercent: aiGlobalSettings.value.contextCompression?.maxToolResultPercent ?? 50,
+          },
+          thinkingLevel: (() => {
+            const cfg = llmStore.defaultAssistant
+            if (!cfg?.configId || !cfg?.modelId) return undefined
+            return promptStore.getThinkingLevel(cfg.configId, cfg.modelId)
+          })(),
+        },
         (chunk) => {
           if (state.isAborted || thisRequestId !== state.currentRequestId) {
             return
@@ -895,23 +920,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               setAgentPhase(state, 'error')
               break
           }
-        },
-        state.chatType,
-        state.locale,
-        currentAssistantId,
-        currentSkillId,
-        !currentSkillId ? autoSkillEnabled : undefined,
-        {
-          enabled: aiGlobalSettings.value.contextCompression?.enabled ?? false,
-          tokenThresholdPercent: aiGlobalSettings.value.contextCompression?.tokenThresholdPercent ?? 75,
-          bufferSizePercent: aiGlobalSettings.value.contextCompression?.bufferSizePercent ?? 20,
-          maxToolResultPercent: aiGlobalSettings.value.contextCompression?.maxToolResultPercent ?? 50,
-        },
-        (() => {
-          const cfg = llmStore.defaultAssistant
-          if (!cfg?.configId || !cfg?.modelId) return undefined
-          return promptStore.getThinkingLevel(cfg.configId, cfg.modelId)
-        })()
+        }
       )
 
       state.currentAgentRequestId = agentReqId
@@ -1333,9 +1342,34 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         searchContextAfter: aiGlobalSettings.value.searchContextAfter,
       }
 
-      const { requestId: agentReqId, promise: agentPromise } = window.agentApi.runStream(
-        content,
-        context,
+      const { requestId: agentReqId, promise: agentPromise } = useAgentStreamService().runStream(
+        {
+          userMessage: content,
+          sessionId: state.sessionId,
+          conversationId: state.currentConversationId!,
+          historyLeafMessageId: originalMessage.parentId ?? null,
+          timeFilter: context.timeFilter,
+          maxMessagesLimit: context.maxMessagesLimit,
+          ownerInfo: context.ownerInfo,
+          mentionedMembers: context.mentionedMembers,
+          preprocessConfig: context.preprocessConfig,
+          chatType: state.chatType,
+          locale: state.locale,
+          assistantId: currentAssistantId,
+          skillId: currentSkillId,
+          enableAutoSkill: !currentSkillId ? (aiGlobalSettings.value.enableAutoSkill ?? true) : undefined,
+          compressionConfig: {
+            enabled: aiGlobalSettings.value.contextCompression?.enabled ?? false,
+            tokenThresholdPercent: aiGlobalSettings.value.contextCompression?.tokenThresholdPercent ?? 75,
+            bufferSizePercent: aiGlobalSettings.value.contextCompression?.bufferSizePercent ?? 20,
+            maxToolResultPercent: aiGlobalSettings.value.contextCompression?.maxToolResultPercent ?? 50,
+          },
+          thinkingLevel: (() => {
+            const cfg = llmStore.defaultAssistant
+            if (!cfg?.configId || !cfg?.modelId) return undefined
+            return promptStore.getThinkingLevel(cfg.configId, cfg.modelId)
+          })(),
+        },
         (chunk) => {
           if (state.isAborted || thisRequestId !== state.currentRequestId) return
           switch (chunk.type) {
@@ -1380,23 +1414,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               break
             }
           }
-        },
-        state.chatType,
-        state.locale,
-        currentAssistantId,
-        currentSkillId,
-        !currentSkillId ? (aiGlobalSettings.value.enableAutoSkill ?? true) : undefined,
-        {
-          enabled: aiGlobalSettings.value.contextCompression?.enabled ?? false,
-          tokenThresholdPercent: aiGlobalSettings.value.contextCompression?.tokenThresholdPercent ?? 75,
-          bufferSizePercent: aiGlobalSettings.value.contextCompression?.bufferSizePercent ?? 20,
-          maxToolResultPercent: aiGlobalSettings.value.contextCompression?.maxToolResultPercent ?? 50,
-        },
-        (() => {
-          const cfg = llmStore.defaultAssistant
-          if (!cfg?.configId || !cfg?.modelId) return undefined
-          return promptStore.getThinkingLevel(cfg.configId, cfg.modelId)
-        })()
+        }
       )
 
       state.currentAgentRequestId = agentReqId
@@ -1521,7 +1539,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
     if (state.currentAgentRequestId) {
       try {
-        await window.agentApi.abort(state.currentAgentRequestId)
+        await useAgentStreamService().abort(state.currentAgentRequestId)
       } catch (error) {
         console.error('[AI] 中止 Agent 请求失败:', error)
       }

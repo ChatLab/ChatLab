@@ -34,6 +34,7 @@ import { resolveApiKey, writeAuthProfile } from '@openchatlab/config'
 import { getManager as getConversationManager } from './ai/conversations'
 import { getManager as getAssistantManager } from './ai/assistant/manager'
 import { getManager as getSkillManager } from './ai/skills/manager'
+import { createElectronRunAgentStream } from './ai/agent-stream-runner'
 
 export interface InternalEndpoint {
   baseUrl: string
@@ -151,6 +152,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
       downloadsDir: getDownloadsDir(),
       defaultUserDataDir: getDefaultUserDataDir(),
       isCustomDataDir: Boolean(getCustomDataDir()),
+      runAgentStream: createElectronRunAgentStream(),
     }
 
     newServer = Fastify({ logger: false, bodyLimit: JSON_BODY_LIMIT })

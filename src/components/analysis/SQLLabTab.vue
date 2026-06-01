@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { SchemaPanel, AIHistoryModal, ResultTable, getTableLabel, getColumnLabel } from './SQLLab'
 import type { AIHistory, SQLResult, TableSchema } from './SQLLab'
 import { useDataService, useLLMService } from '@/services'
+import { useLlmStreamService } from '@/services/ai-stream/service'
 
 const { t, locale } = useI18n()
 
@@ -237,7 +238,7 @@ async function generateAndRunSQL() {
 
   try {
     const fullPrompt = buildAIPrompt(prompt, schemaList)
-    const result = await window.llmApi.chatStream(
+    const result = await useLlmStreamService().chatStream(
       [
         { role: 'system', content: '你是一个 SQLite 专家，请以 JSON 格式输出 sql 和 explanation 字段。' },
         { role: 'user', content: fullPrompt },

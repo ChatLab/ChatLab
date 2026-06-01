@@ -1,4 +1,4 @@
-export type { HttpRouteContext } from './context'
+export type { HttpRouteContext, AgentStreamRequest } from './context'
 export { registerSharedRoutes } from './register'
 export type { SharedRouteOptions } from './register'
 export { setAuthToken, setRequireAuth, authHook } from './auth'

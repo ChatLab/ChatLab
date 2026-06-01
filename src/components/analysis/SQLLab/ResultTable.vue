@@ -12,6 +12,7 @@ import { useLayoutStore } from '@/stores/layout'
 import { exportSQLResult, type SQLExportFormat } from '@/utils/sqlExport'
 import { useLLMService } from '@/services'
 import { useCacheService } from '@/services/cache/service'
+import { useLlmStreamService } from '@/services/ai-stream/service'
 
 const { t, locale } = useI18n()
 const toast = useToast()
@@ -339,7 +340,7 @@ ${resultSummary}
 2. 关键发现（2-4 个要点）
 3. 如有明显的趋势或异常，请指出`
 
-    const result = await window.llmApi.chatStream(
+    const result = await useLlmStreamService().chatStream(
       [
         {
           role: 'system',

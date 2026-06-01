@@ -254,63 +254,16 @@ interface LLMChatOptions {
   maxTokens?: number
 }
 
-interface LLMChatStreamChunk {
-  content: string
-  isFinished: boolean
-  finishReason?: 'stop' | 'length' | 'error'
-  error?: string
-  thinking?: string
-  thinkingDone?: boolean
-}
-
 /**
  * LLM CRUD (config, provider, model, validate, etc.) has been migrated to
- * HTTP service layer via FetchLLMAdapter. Only streaming / non-streaming
- * chat APIs remain on IPC.
+ * HTTP service layer via FetchLLMAdapter. Streaming chat uses shared SSE route.
+ * Only non-streaming chat remains on IPC.
  */
 interface LlmApi {
   chat: (
     messages: LLMChatMessage[],
     options?: LLMChatOptions
   ) => Promise<{ success: boolean; content?: string; error?: string }>
-  chatStream: (
-    messages: LLMChatMessage[],
-    options?: LLMChatOptions,
-    onChunk?: (chunk: LLMChatStreamChunk) => void
-  ) => Promise<{ success: boolean; error?: string }>
-}
-
-// TokenUsage & AgentRuntimeStatus — imported from electron/shared/types.ts
-
-// Agent 相关类型
-interface AgentStreamChunk {
-  type: 'content' | 'think' | 'tool_start' | 'tool_result' | 'status' | 'compression_done' | 'done' | 'error'
-  content?: string
-  thinkTag?: string
-  thinkDurationMs?: number
-  toolName?: string
-  toolParams?: Record<string, unknown>
-  toolResult?: unknown
-  status?: AgentRuntimeStatus
-  error?: SerializedErrorInfo
-  isFinished?: boolean
-  compressionResult?: {
-    summaryContent: string
-    tokensBefore: number
-    tokensAfter: number
-    timestamp: number
-  }
-  /** Token 使用量（type=done 时返回累计值） */
-  usage?: TokenUsage
-}
-
-interface AgentResult {
-  content: string
-  toolsUsed: string[]
-  toolRounds: number
-  /** 总 Token 使用量（累计所有 LLM 调用） */
-  totalUsage?: TokenUsage
-  error?: SerializedErrorInfo
 }
 
 /** Owner 信息（当前用户在对话中的身份） */
@@ -362,50 +315,7 @@ interface PreprocessConfig {
   anonymizeNames: boolean
 }
 
-interface ToolContext {
-  sessionId: string
-  conversationId?: string
-  historyLeafMessageId?: string | null
-  timeFilter?: { startTs: number; endTs: number }
-  /** 用户配置：每次发送给 AI 的最大消息条数 */
-  maxMessagesLimit?: number
-  /** Owner 信息（当前用户在对话中的身份） */
-  ownerInfo?: OwnerInfo
-  /** 本轮显式 @ 的成员 */
-  mentionedMembers?: Array<{
-    memberId: number
-    platformId: string
-    displayName: string
-    aliases: string[]
-    mentionText: string
-  }>
-  /** 语言环境 */
-  locale?: string
-  /** 聊天记录预处理配置 */
-  preprocessConfig?: PreprocessConfig
-}
-
-interface AgentApi {
-  runStream: (
-    userMessage: string,
-    context: ToolContext,
-    onChunk?: (chunk: AgentStreamChunk) => void,
-    chatType?: 'group' | 'private',
-    locale?: string,
-    assistantId?: string,
-    skillId?: string | null,
-    enableAutoSkill?: boolean,
-    compressionConfig?: {
-      enabled: boolean
-      tokenThresholdPercent: number
-      bufferSizePercent: number
-      maxToolResultPercent?: number
-    },
-    thinkingLevel?: string
-  ) => { requestId: string; promise: Promise<{ success: boolean; result?: AgentResult; error?: SerializedErrorInfo }> }
-  abort: (requestId: string) => Promise<{ success: boolean; error?: string }>
-}
-
+// Agent streaming migrated to shared SSE route (useAgentStreamService)
 // Assistant CRUD migrated to HTTP service layer (FetchAssistantAdapter)
 // Skill CRUD migrated to HTTP service layer (FetchSkillAdapter)
 
@@ -615,7 +525,6 @@ declare global {
     chatApi: ChatApi
     aiApi: AiApi
     llmApi: LlmApi
-    agentApi: AgentApi
     cacheApi: CacheApi
     networkApi: NetworkApi
     sessionApi: SessionApi

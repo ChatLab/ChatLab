@@ -24,10 +24,10 @@ import type { ConfigStorage } from '@openchatlab/node-runtime'
 import { createServer } from './server'
 import { setAuthToken, setRequireAuth } from '@openchatlab/http-routes'
 import { registerWebRoutes } from './routes/web'
-import { registerAiRoutes } from './routes/ai'
 import { registerProxyRoutes } from './routes/proxy'
 import { initServerAiLogger, closeServerAiLogger } from '../ai/logger'
 import { getAssistantManager, getSkillManagerCore } from '../ai/manager-factory'
+import { createCliRunAgentStream } from '../ai/agent-stream-runner'
 import { initSync, cleanupSync } from '../sync'
 import { resolveCliPath } from '../paths'
 import { resolveApiKey, writeAuthProfile } from '@openchatlab/config'
@@ -164,7 +164,6 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
     limits: { fileSize: 1024 * 1024 * 1024 }, // 1GB
   })
 
-  registerAiRoutes(server, dbManager, convManager)
   registerWebRoutes(server, dbManager, {
     pathProvider,
     nativeBinding,
@@ -176,6 +175,7 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
       llmConfigStore,
       customProviderStore: new CustomProviderStore(createFileConfigStorage(aiDataDir)),
       customModelStore: new CustomModelStore(createFileConfigStorage(aiDataDir)),
+      runAgentStream: createCliRunAgentStream(dbManager, convManager),
     },
   })
 
@@ -229,4 +229,3 @@ export async function stopHttpServer(): Promise<void> {
 
 export { createServer } from './server'
 export { registerWebRoutes } from './routes/web'
-export { registerAiRoutes } from './routes/ai'

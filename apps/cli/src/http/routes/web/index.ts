@@ -32,6 +32,7 @@ import type {
 } from '@openchatlab/node-runtime'
 import { createDatabaseManagerAdapter } from '@openchatlab/node-runtime'
 import { registerSharedRoutes } from '@openchatlab/http-routes'
+import type { HttpRouteContext } from '@openchatlab/http-routes'
 import { MergeSessionCache } from '../../../merger/merge-cache'
 import { registerImportRoutes } from './import'
 import { openDirectoryPath, showPathInFolder } from './cache'
@@ -46,6 +47,7 @@ export interface AiContextOptions {
   llmConfigStore: LLMConfigStore
   customProviderStore: CustomProviderStore
   customModelStore: CustomModelStore
+  runAgentStream?: HttpRouteContext['runAgentStream']
 }
 
 /**
@@ -130,6 +132,7 @@ export function registerWebRoutes(
         llmConfigStore: ai.llmConfigStore,
         customProviderStore: ai.customProviderStore,
         customModelStore: ai.customModelStore,
+        runAgentStream: ai.runAgentStream,
       }),
     },
     ai ? { requireAi: true } : undefined

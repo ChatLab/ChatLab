@@ -20,6 +20,8 @@ import { registerNlpRoutes } from './routes/web/nlp'
 import { registerAiAssistantRoutes } from './routes/web/ai-assistants'
 import { registerAiSkillRoutes } from './routes/web/ai-skills'
 import { registerAiLlmRoutes } from './routes/web/ai-llm'
+import { registerAiLlmStreamRoutes } from './routes/web/ai-llm-stream'
+import { registerAiAgentStreamRoutes } from './routes/web/ai-agent-stream'
 import { registerAiConversationRoutes } from './routes/web/ai-conversations'
 import { registerAiSummaryRoutes } from './routes/web/ai-summaries'
 import { registerMergeRoutes } from './routes/web/merge'
@@ -66,6 +68,8 @@ export function registerSharedRoutes(
   registerAiAssistantRoutes(server, ctx)
   registerAiSkillRoutes(server, ctx)
   registerAiLlmRoutes(server, ctx)
+  registerAiLlmStreamRoutes(server, ctx)
+  registerAiAgentStreamRoutes(server, ctx)
   registerAiConversationRoutes(server, ctx)
   registerAiSummaryRoutes(server, ctx)
 

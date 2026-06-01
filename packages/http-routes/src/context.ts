@@ -18,6 +18,7 @@ import type {
   CustomProviderStore,
   CustomModelStore,
   MergeSessionCache,
+  AgentStreamChunk,
 } from '@openchatlab/node-runtime'
 
 export interface HttpRouteContext {
@@ -55,4 +56,41 @@ export interface HttpRouteContext {
   downloadsDir?: string
   defaultUserDataDir?: string
   isCustomDataDir?: boolean
+
+  /** Agent streaming — platform-specific execution (optional) */
+  runAgentStream?: (
+    params: AgentStreamRequest,
+    onEvent: (chunk: AgentStreamChunk) => void,
+    abortSignal: AbortSignal
+  ) => Promise<void>
+}
+
+export interface AgentStreamRequest {
+  userMessage: string
+  conversationId: string
+  historyLeafMessageId?: string | null
+  sessionId: string
+  chatType?: 'group' | 'private'
+  locale?: string
+  assistantId?: string
+  skillId?: string | null
+  enableAutoSkill?: boolean
+  compressionConfig?: {
+    enabled: boolean
+    tokenThresholdPercent?: number
+    bufferSizePercent?: number
+    maxToolResultPercent?: number
+  }
+  ownerInfo?: { platformId: string; displayName: string }
+  mentionedMembers?: Array<{
+    memberId: number
+    platformId: string
+    displayName: string
+    aliases: string[]
+    mentionText: string
+  }>
+  thinkingLevel?: string
+  timeFilter?: { startTs: number; endTs: number }
+  maxMessagesLimit?: number
+  preprocessConfig?: Record<string, unknown>
 }

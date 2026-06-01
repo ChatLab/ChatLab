@@ -1,17 +1,14 @@
 /**
  * AI 相关 API — 仅保留 IPC 必须的能力
  *
- * Conversation/message CRUD 和 debug 已迁移到 HTTP 共享路由（FetchAIAdapter），
+ * Conversation/message CRUD 已迁移到 HTTP 共享路由（FetchAIAdapter）。
+ * LLM/Agent streaming 已迁移到 SSE 共享路由（useAgentStreamService/useLlmStreamService）。
  * 此处只保留需要 worker、native shell、工具注册表等 IPC 才能提供的功能。
  */
 import { ipcRenderer } from 'electron'
 import type { ExportProgress } from '../../../../src/types/base'
 
-// Agent API 类型 — 从 shared/types 统一导入
-export type { TokenUsage, AgentRuntimeStatus } from '../../shared/types'
-import type { TokenUsage, AgentRuntimeStatus, SerializedErrorInfo } from '../../shared/types'
-
-export type { SerializedErrorInfo } from '../../shared/types'
+export type { TokenUsage, AgentRuntimeStatus, SerializedErrorInfo } from '../../shared/types'
 
 // ==================== 类型定义 ====================
 
@@ -23,42 +20,6 @@ export interface ChatMessage {
 export interface ChatOptions {
   temperature?: number
   maxTokens?: number
-}
-
-export interface ChatStreamChunk {
-  content: string
-  isFinished: boolean
-  finishReason?: 'stop' | 'length' | 'error'
-  error?: string
-  thinking?: string
-  thinkingDone?: boolean
-}
-
-export interface AgentStreamChunk {
-  type: 'content' | 'think' | 'tool_start' | 'tool_result' | 'status' | 'compression_done' | 'done' | 'error'
-  content?: string
-  thinkTag?: string
-  thinkDurationMs?: number
-  toolName?: string
-  toolParams?: Record<string, unknown>
-  toolResult?: unknown
-  status?: AgentRuntimeStatus
-  error?: SerializedErrorInfo
-  isFinished?: boolean
-  compressionResult?: {
-    summaryContent: string
-    tokensBefore: number
-    tokensAfter: number
-    timestamp: number
-  }
-  usage?: TokenUsage
-}
-
-export interface AgentResult {
-  content: string
-  toolsUsed: string[]
-  toolRounds: number
-  error?: SerializedErrorInfo
 }
 
 export interface DesensitizeRule {
@@ -96,24 +57,6 @@ export interface PreprocessConfig {
   desensitize: boolean
   desensitizeRules: DesensitizeRule[]
   anonymizeNames: boolean
-}
-
-export interface ToolContext {
-  sessionId: string
-  conversationId?: string
-  historyLeafMessageId?: string | null
-  timeFilter?: { startTs: number; endTs: number }
-  maxMessagesLimit?: number
-  ownerInfo?: { platformId: string; displayName: string }
-  mentionedMembers?: Array<{
-    memberId: number
-    platformId: string
-    displayName: string
-    aliases: string[]
-    mentionText: string
-  }>
-  locale?: string
-  preprocessConfig?: PreprocessConfig
 }
 
 // ==================== AI API (IPC-only subset) ====================
@@ -283,207 +226,12 @@ export const aiApi = {
   },
 }
 
-// ==================== LLM API ====================
-
+// LLM chat (non-streaming) still uses IPC for Electron-specific config resolution
 export const llmApi = {
   chat: (
     messages: ChatMessage[],
     options?: ChatOptions
   ): Promise<{ success: boolean; content?: string; error?: string }> => {
     return ipcRenderer.invoke('llm:chat', messages, options)
-  },
-
-  chatStream: (
-    messages: ChatMessage[],
-    options?: ChatOptions,
-    onChunk?: (chunk: ChatStreamChunk) => void
-  ): Promise<{ success: boolean; error?: string }> => {
-    return new Promise((resolve) => {
-      const requestId = `llm_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-      console.log('[preload] chatStream 开始，requestId:', requestId)
-
-      const handler = (
-        _event: Electron.IpcRendererEvent,
-        data: { requestId: string; chunk: ChatStreamChunk; error?: string }
-      ) => {
-        if (data.requestId === requestId) {
-          if (data.error) {
-            console.log('[preload] chatStream 收到错误:', data.error)
-            if (onChunk) {
-              onChunk({ content: '', isFinished: true, finishReason: 'error', error: data.error })
-            }
-            ipcRenderer.removeListener('llm:streamChunk', handler)
-            resolve({ success: false, error: data.error })
-          } else {
-            if (onChunk) {
-              onChunk(data.chunk)
-            }
-
-            if (data.chunk.isFinished) {
-              console.log('[preload] chatStream 完成，requestId:', requestId)
-              ipcRenderer.removeListener('llm:streamChunk', handler)
-              resolve({ success: true })
-            }
-          }
-        }
-      }
-
-      ipcRenderer.on('llm:streamChunk', handler)
-
-      ipcRenderer
-        .invoke('llm:chatStream', requestId, messages, options)
-        .then((result) => {
-          console.log('[preload] chatStream invoke 返回:', result)
-          if (!result.success) {
-            ipcRenderer.removeListener('llm:streamChunk', handler)
-            resolve(result)
-          }
-        })
-        .catch((error) => {
-          console.error('[preload] chatStream invoke 错误:', error)
-          ipcRenderer.removeListener('llm:streamChunk', handler)
-          resolve({ success: false, error: String(error) })
-        })
-    })
-  },
-}
-
-// ==================== Agent API ====================
-
-export const agentApi = {
-  runStream: (
-    userMessage: string,
-    context: ToolContext,
-    onChunk?: (chunk: AgentStreamChunk) => void,
-    chatType?: 'group' | 'private',
-    locale?: string,
-    assistantId?: string,
-    skillId?: string | null,
-    enableAutoSkill?: boolean,
-    compressionConfig?: {
-      enabled: boolean
-      tokenThresholdPercent: number
-      bufferSizePercent: number
-      maxToolResultPercent?: number
-    },
-    thinkingLevel?: string
-  ): {
-    requestId: string
-    promise: Promise<{ success: boolean; result?: AgentResult; error?: SerializedErrorInfo }>
-  } => {
-    const sanitizedContext: ToolContext = {
-      sessionId: context.sessionId,
-      conversationId: context.conversationId,
-      historyLeafMessageId: context.historyLeafMessageId,
-      timeFilter: context.timeFilter
-        ? {
-            startTs: context.timeFilter.startTs,
-            endTs: context.timeFilter.endTs,
-          }
-        : undefined,
-      maxMessagesLimit: context.maxMessagesLimit,
-      ownerInfo: context.ownerInfo
-        ? {
-            platformId: context.ownerInfo.platformId,
-            displayName: context.ownerInfo.displayName,
-          }
-        : undefined,
-      mentionedMembers: context.mentionedMembers
-        ? context.mentionedMembers.map((member) => ({
-            memberId: member.memberId,
-            platformId: member.platformId,
-            displayName: member.displayName,
-            aliases: [...member.aliases],
-            mentionText: member.mentionText,
-          }))
-        : undefined,
-      locale: context.locale,
-      preprocessConfig: context.preprocessConfig,
-    }
-
-    const requestId = `agent_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
-    console.log(
-      '[preload] Agent runStream 开始，requestId:',
-      requestId,
-      'conversationId:',
-      sanitizedContext.conversationId ?? 'none',
-      'chatType:',
-      chatType ?? 'group'
-    )
-
-    const promise = new Promise<{ success: boolean; result?: AgentResult; error?: SerializedErrorInfo }>((resolve) => {
-      const chunkHandler = (
-        _event: Electron.IpcRendererEvent,
-        data: { requestId: string; chunk: AgentStreamChunk }
-      ) => {
-        if (data.requestId === requestId) {
-          if (onChunk) {
-            onChunk(data.chunk)
-          }
-        }
-      }
-
-      const completeHandler = (
-        _event: Electron.IpcRendererEvent,
-        data: { requestId: string; result: AgentResult & { error?: SerializedErrorInfo } }
-      ) => {
-        if (data.requestId === requestId) {
-          console.log('[preload] Agent 完成，requestId:', requestId, 'hasError:', !!data.result?.error)
-          ipcRenderer.removeListener('agent:streamChunk', chunkHandler)
-          ipcRenderer.removeListener('agent:complete', completeHandler)
-          if (data.result?.error) {
-            resolve({ success: false, error: data.result.error })
-          } else {
-            resolve({ success: true, result: data.result })
-          }
-        }
-      }
-
-      ipcRenderer.on('agent:streamChunk', chunkHandler)
-      ipcRenderer.on('agent:complete', completeHandler)
-
-      ipcRenderer
-        .invoke(
-          'agent:runStream',
-          requestId,
-          userMessage,
-          sanitizedContext,
-          chatType,
-          locale,
-          assistantId,
-          skillId,
-          enableAutoSkill,
-          compressionConfig,
-          thinkingLevel
-        )
-        .then((result) => {
-          console.log('[preload] Agent invoke 返回:', result)
-          if (!result.success) {
-            ipcRenderer.removeListener('agent:streamChunk', chunkHandler)
-            ipcRenderer.removeListener('agent:complete', completeHandler)
-            resolve(result)
-          }
-        })
-        .catch((error) => {
-          console.error('[preload] Agent invoke 错误:', error)
-          ipcRenderer.removeListener('agent:streamChunk', chunkHandler)
-          ipcRenderer.removeListener('agent:complete', completeHandler)
-          resolve({
-            success: false,
-            error: {
-              name: error instanceof Error ? error.name : null,
-              message: error instanceof Error ? error.message : String(error),
-              stack: error instanceof Error ? (error.stack ?? null) : null,
-            },
-          })
-        })
-    })
-
-    return { requestId, promise }
-  },
-
-  abort: (requestId: string): Promise<{ success: boolean; error?: string }> => {
-    console.log('[preload] Agent abort 请求，requestId:', requestId)
-    return ipcRenderer.invoke('agent:abort', requestId)
   },
 }
