@@ -2,7 +2,6 @@
 import { ipcMain, shell } from 'electron'
 import * as fs from 'fs'
 import * as path from 'path'
-import * as aiConversations from '../ai/conversations'
 import * as llm from '../ai/llm'
 import { aiLogger, setDebugMode } from '../ai/logger'
 import { serializeError } from '../ai/serialize-error'
@@ -19,7 +18,6 @@ import type { AssistantConfig } from '../ai/assistant/types'
 import * as skillManager from '../ai/skills'
 import {
   checkAndCompress,
-  manualCompress,
   createCompressionLlmAdapter,
   type CompressionConfig,
   type CompressionLlmAdapter,
@@ -56,7 +54,6 @@ function buildCompressionAdapter(activeAIConfig: AIServiceConfig, onCompressing?
 }
 
 function toPiSimpleMessages(messages: Array<{ role: string; content: string }>, timestamp: number): PiMessage[] {
-  // pi-ai 的 simple API 在类型上要求完整 Message 联合，这里沿用现有轻量消息格式并集中做兼容转换。
   return messages.map((message) => ({
     role: message.role as 'user' | 'assistant',
     content: message.content,
@@ -65,7 +62,6 @@ function toPiSimpleMessages(messages: Array<{ role: string; content: string }>, 
 }
 
 // ==================== AI Agent 请求追踪 ====================
-// 用于跟踪活跃的 Agent 请求，支持中止操作
 const activeAgentRequests = new Map<string, AbortController>()
 
 function resolveProviderName(provider?: llm.LLMProvider): string {
@@ -76,7 +72,6 @@ function resolveProviderName(provider?: llm.LLMProvider): string {
 export function registerAIHandlers({ win }: IpcContext): void {
   console.log('[IPC] Registering AI handlers...')
 
-  // 初始化助手管理器（同步内置助手、加载用户助手）
   try {
     assistantManager.initAssistantManager()
     console.log('[IPC] Assistant manager initialized')
@@ -84,7 +79,6 @@ export function registerAIHandlers({ win }: IpcContext): void {
     console.error('[IPC] Failed to initialize assistant manager:', error)
   }
 
-  // 初始化技能管理器（扫描用户技能文件）
   try {
     skillManager.initSkillManager()
     console.log('[IPC] Skill manager initialized')
@@ -99,53 +93,10 @@ export function registerAIHandlers({ win }: IpcContext): void {
     aiLogger.info('Config', `Debug mode ${enabled ? 'enabled' : 'disabled'}`)
   })
 
-  ipcMain.handle('ai:clearDebugContext', async () => {
-    try {
-      const cleared = aiConversations.clearAllDebugContext()
-      aiLogger.info('Debug', `Cleared debug_context for ${cleared} messages`)
-      return { success: true, cleared }
-    } catch (error) {
-      console.error('Failed to clear debug context:', error)
-      throw error
-    }
-  })
+  // ==================== AI 日志 ====================
 
-  // ==================== AI 对话管理 ====================
-
-  /**
-   * 创建新的 AI 对话
-   * 参数契约与 preload / 数据层保持一致：(sessionId, title?)
-   */
-  ipcMain.handle(
-    'ai:createConversation',
-    async (_, sessionId: string, title: string | undefined, assistantId: string) => {
-      try {
-        return aiConversations.createConversation(sessionId, title, assistantId)
-      } catch (error) {
-        console.error('Failed to create AI conversation:', error)
-        throw error
-      }
-    }
-  )
-
-  /**
-   * 获取所有 AI 对话列表
-   */
-  ipcMain.handle('ai:getConversations', async (_, sessionId: string) => {
-    try {
-      return aiConversations.getConversations(sessionId)
-    } catch (error) {
-      console.error('Failed to get AI conversations:', error)
-      return []
-    }
-  })
-
-  /**
-   * 打开当前 AI 日志文件并定位到文件
-   */
   ipcMain.handle('ai:showLogFile', async () => {
     try {
-      // 优先使用当前已存在的日志文件，避免创建新的空日志
       const existingLogPath = aiLogger.getExistingLogPath()
       if (existingLogPath) {
         shell.showItemInFolder(existingLogPath)
@@ -163,7 +114,6 @@ export function registerAIHandlers({ win }: IpcContext): void {
         return { success: false, error: 'No AI log files found' }
       }
 
-      // 选择最近修改的日志文件
       const latestLog = logFiles
         .map((name) => {
           const filePath = path.join(logDir, name)
@@ -180,176 +130,6 @@ export function registerAIHandlers({ win }: IpcContext): void {
     }
   })
 
-  /**
-   * 获取单个对话详情
-   */
-  ipcMain.handle('ai:getConversation', async (_, conversationId: string) => {
-    try {
-      return aiConversations.getConversation(conversationId)
-    } catch (error) {
-      console.error('Failed to get AI conversation details:', error)
-      return null
-    }
-  })
-
-  /**
-   * 更新 AI 对话标题
-   */
-  ipcMain.handle('ai:updateConversationTitle', async (_, conversationId: string, title: string) => {
-    try {
-      return aiConversations.updateConversationTitle(conversationId, title)
-    } catch (error) {
-      console.error('Failed to update AI conversation title:', error)
-      return false
-    }
-  })
-
-  /**
-   * 删除 AI 对话
-   */
-  ipcMain.handle('ai:deleteConversation', async (_, conversationId: string) => {
-    try {
-      return aiConversations.deleteConversation(conversationId)
-    } catch (error) {
-      console.error('Failed to delete AI conversation:', error)
-      return false
-    }
-  })
-
-  /**
-   * 添加 AI 消息
-   */
-  ipcMain.handle(
-    'ai:addMessage',
-    async (
-      _,
-      conversationId: string,
-      role: aiConversations.AIMessageRole,
-      content: string,
-      dataKeywords?: string[],
-      dataMessageCount?: number,
-      contentBlocks?: aiConversations.ContentBlock[],
-      tokenUsage?: aiConversations.TokenUsageData
-    ) => {
-      try {
-        return aiConversations.addMessage(
-          conversationId,
-          role,
-          content,
-          dataKeywords,
-          dataMessageCount,
-          contentBlocks,
-          tokenUsage
-        )
-      } catch (error) {
-        console.error('Failed to add AI message:', error)
-        throw error
-      }
-    }
-  )
-
-  /**
-   * 获取 AI 对话的所有消息
-   */
-  ipcMain.handle('ai:getMessages', async (_, conversationId: string) => {
-    try {
-      return aiConversations.getMessages(conversationId)
-    } catch (error) {
-      console.error('Failed to get AI messages:', error)
-      return []
-    }
-  })
-
-  /**
-   * 获取对话的累计 token 使用量
-   */
-  ipcMain.handle('ai:getConversationTokenUsage', async (_, conversationId: string) => {
-    try {
-      return aiConversations.getConversationTokenUsage(conversationId)
-    } catch (error) {
-      console.error('Failed to get conversation token usage:', error)
-      return { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
-    }
-  })
-
-  /**
-   * 删除 AI 消息
-   */
-  ipcMain.handle('ai:deleteMessage', async (_, messageId: string) => {
-    try {
-      return aiConversations.deleteMessage(messageId)
-    } catch (error) {
-      console.error('Failed to delete AI message:', error)
-      return false
-    }
-  })
-
-  ipcMain.handle('ai:deleteMessagesFrom', async (_, conversationId: string, messageId: string) => {
-    try {
-      return aiConversations.deleteMessagesFrom(conversationId, messageId)
-    } catch (error) {
-      console.error('Failed to delete messages:', error)
-      throw error
-    }
-  })
-
-  ipcMain.handle(
-    'ai:forkConversation',
-    async (_, sourceConversationId: string, upToMessageId: string, title?: string) => {
-      try {
-        return aiConversations.forkConversation(sourceConversationId, upToMessageId, title)
-      } catch (error) {
-        console.error('Failed to fork conversation:', error)
-        throw error
-      }
-    }
-  )
-
-  ipcMain.handle('ai:updateMessageContent', async (_, messageId: string, newContent: string) => {
-    try {
-      return aiConversations.updateMessageContent(messageId, newContent)
-    } catch (error) {
-      console.error('Failed to update message content:', error)
-      throw error
-    }
-  })
-
-  ipcMain.handle('ai:deleteAndRelinkMessage', async (_, conversationId: string, messageId: string) => {
-    try {
-      return aiConversations.deleteAndRelinkMessage(conversationId, messageId)
-    } catch (error) {
-      console.error('Failed to delete and relink message:', error)
-      throw error
-    }
-  })
-
-  ipcMain.handle(
-    'ai:insertMessageAfter',
-    async (
-      _,
-      conversationId: string,
-      afterMessageId: string,
-      role: aiConversations.AIMessageRole,
-      content: string,
-      contentBlocks?: aiConversations.ContentBlock[],
-      tokenUsage?: aiConversations.TokenUsageData
-    ) => {
-      try {
-        return aiConversations.insertMessageAfter(
-          conversationId,
-          afterMessageId,
-          role,
-          content,
-          contentBlocks,
-          tokenUsage
-        )
-      } catch (error) {
-        console.error('Failed to insert message after:', error)
-        throw error
-      }
-    }
-  )
-
   // ==================== 脱敏规则 ====================
 
   ipcMain.handle('ai:getDefaultDesensitizeRules', (_, locale: string) => {
@@ -360,14 +140,8 @@ export function registerAIHandlers({ win }: IpcContext): void {
     return mergeRulesForLocale(existingRules as any[], locale)
   })
 
-  // LLM CRUD (config, provider, model, validate, etc.) has been migrated to
-  // HTTP service layer via shared routes. Only chat APIs remain on IPC.
+  // ==================== LLM 直接调用 API（SQLLab 等非 Agent 场景） ====================
 
-  // ==================== LLM 直接调用 API（SQLLab 等非 Agent 场景使用） ====================
-
-  /**
-   * 非流式 LLM 调用
-   */
   ipcMain.handle(
     'llm:chat',
     async (
@@ -411,9 +185,6 @@ export function registerAIHandlers({ win }: IpcContext): void {
     }
   )
 
-  /**
-   * 流式 LLM 调用（SQLLab AI 生成 / 结果总结等场景使用）
-   */
   ipcMain.handle(
     'llm:chatStream',
     async (
@@ -454,9 +225,7 @@ export function registerAIHandlers({ win }: IpcContext): void {
     }
   )
 
-  // Assistant and Skill CRUD has been migrated to HTTP service layer via shared routes.
-
-  // ==================== 工具测试 API（实验室 - 基础工具） ====================
+  // ==================== 工具测试 API ====================
 
   const activeToolTests = new Map<string, AbortController>()
 
@@ -546,14 +315,6 @@ export function registerAIHandlers({ win }: IpcContext): void {
 
   // ==================== AI Agent API ====================
 
-  /**
-   * 执行 Agent 对话（流式）
-   * Agent 会自动调用工具并返回最终结果
-   * Agent 通过 context.conversationId 从 SQLite 读取对话历史（数据流倒置）
-   * @param chatType 聊天类型（'group' | 'private'）
-   * @param locale 语言设置（可选，默认 'zh-CN'）
-   * @param assistantId 助手 ID（可选，传入时从 AssistantManager 获取配置）
-   */
   ipcMain.handle(
     'agent:runStream',
     async (
@@ -589,10 +350,8 @@ export function registerAIHandlers({ win }: IpcContext): void {
         }
         const piModel = buildPiModel(activeAIConfig)
 
-        // 上下文压缩前置步骤（在 Agent 创建之前执行）
         if (compressionConfig?.enabled && context.conversationId && context.historyLeafMessageId === undefined) {
           try {
-            // 获取助手 systemPrompt 用于 token 计算
             const tempAssistantConfig = assistantId
               ? (assistantManager.getAssistantConfig(assistantId) ?? undefined)
               : undefined
@@ -669,7 +428,6 @@ export function registerAIHandlers({ win }: IpcContext): void {
             : '(disabled)',
         })
 
-        // 提示词系统已退场，主流程统一从助手配置获取 systemPrompt。
         const defaultAssistantId = getDefaultGeneralAssistantId(locale)
         let resolvedAssistantId = assistantId || defaultAssistantId
         let assistantConfig: AssistantConfig | undefined =
@@ -683,7 +441,6 @@ export function registerAIHandlers({ win }: IpcContext): void {
           assistantConfig = assistantManager.getAssistantConfig(defaultAssistantId) ?? undefined
         }
 
-        // 构建技能上下文
         let skillCtx: SkillContext | undefined
         if (skillId) {
           const skillDef = skillManager.getSkillConfig(skillId) ?? undefined
@@ -701,7 +458,6 @@ export function registerAIHandlers({ win }: IpcContext): void {
           }
         }
 
-        // 工具结果 token 预算注入：基于 context window 百分比计算
         const maxToolResultPercent = compressionConfig?.maxToolResultPercent ?? 50
         const modelDef = llm.findModelDefinition(activeAIConfig.provider, activeAIConfig.model || '')
         const resolvedContextWindow = modelDef?.contextWindow || 128000
@@ -740,11 +496,9 @@ export function registerAIHandlers({ win }: IpcContext): void {
           skillCtx
         )
 
-        // 异步执行，通过事件发送流式数据
         ;(async () => {
           try {
             const result = await agent.executeStream(userMessage, (chunk: AgentStreamChunk) => {
-              // 如果已中止，不再发送
               if (abortController.signal.aborted) {
                 return
               }
@@ -769,7 +523,6 @@ export function registerAIHandlers({ win }: IpcContext): void {
               return
             }
 
-            // 发送完成信息
             win.webContents.send('agent:complete', {
               requestId,
               result: {
@@ -804,12 +557,10 @@ export function registerAIHandlers({ win }: IpcContext): void {
               serializedError.url = activeAIConfig.baseUrl
             }
             aiLogger.error('IPC', `Agent execution error: ${requestId}`, serializedError)
-            // 发送错误 chunk
             win.webContents.send('agent:streamChunk', {
               requestId,
               chunk: { type: 'error', error: serializedError, isFinished: true },
             })
-            // 发送完成事件（带错误信息），确保前端 promise 能 resolve
             win.webContents.send('agent:complete', {
               requestId,
               result: {
@@ -821,7 +572,6 @@ export function registerAIHandlers({ win }: IpcContext): void {
               },
             })
           } finally {
-            // 清理请求追踪
             activeAgentRequests.delete(requestId)
           }
         })()
@@ -834,9 +584,6 @@ export function registerAIHandlers({ win }: IpcContext): void {
     }
   )
 
-  /**
-   * 中止 Agent 请求
-   */
   ipcMain.handle('agent:abort', async (_, requestId: string) => {
     aiLogger.info('IPC', `Abort request received: ${requestId}`)
 
@@ -852,64 +599,15 @@ export function registerAIHandlers({ win }: IpcContext): void {
     }
   })
 
-  // ==================== 上下文压缩 ====================
-
-  ipcMain.handle(
-    'ai:compressContext',
-    async (_, conversationId: string, compressionConfig: CompressionConfig, systemPrompt: string) => {
-      try {
-        const activeAIConfig = getDefaultAssistantConfig()
-        if (!activeAIConfig) {
-          return { success: false, error: t('llm.notConfigured') }
-        }
-
-        const result = await manualCompress(
-          conversationId,
-          compressionConfig,
-          systemPrompt,
-          buildCompressionAdapter(activeAIConfig),
-          getConversationManager(),
-          compressionLogger
-        )
-        return { success: true, result }
-      } catch (error) {
-        aiLogger.error('IPC', 'Manual compression failed', { error: String(error) })
-        return { success: false, error: String(error) }
-      }
-    }
-  )
+  // ==================== 上下文 token 估算 ====================
 
   ipcMain.handle('ai:estimateContextTokens', async (_, conversationId: string) => {
     try {
-      const history = aiConversations.getHistoryForAgent(conversationId)
+      const history = getConversationManager().getHistoryForAgent(conversationId)
       const tokens = countMessagesTokens(history.map((m) => ({ role: m.role, content: m.content })))
       return { success: true, tokens, messageCount: history.length }
     } catch (error) {
       return { success: false, tokens: 0, error: String(error) }
-    }
-  })
-
-  /**
-   * [Debug] 获取 AI 数据库 Schema
-   */
-  ipcMain.handle('ai:getAiSchema', async () => {
-    try {
-      return aiConversations.getAiSchema()
-    } catch (error) {
-      console.error('Failed to get AI schema:', error)
-      return []
-    }
-  })
-
-  /**
-   * [Debug] 在 AI 数据库上执行原始 SQL
-   */
-  ipcMain.handle('ai:executeAiSQL', async (_, sql: string) => {
-    try {
-      return aiConversations.executeAiSQL(sql)
-    } catch (error: any) {
-      console.error('Failed to execute AI SQL:', error)
-      throw error
     }
   })
 }

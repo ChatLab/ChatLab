@@ -153,124 +153,15 @@ interface FilterResultWithPagination extends FilterResult {
   pagination: PaginationInfo
 }
 
-interface AIConversation {
-  id: string
-  sessionId: string
-  title: string | null
-  assistantId: string
-  activeMessageId?: string | null
-  createdAt: number
-  updatedAt: number
-}
-
-// 内容块类型（用于 AI 消息的混合渲染）
-type AIContentBlock =
-  | { type: 'text'; text: string }
-  | { type: 'think'; tag: string; text: string; durationMs?: number }
-  | {
-      type: 'tool'
-      tool: {
-        name: string
-        displayName: string
-        status: 'running' | 'done' | 'error'
-        params?: Record<string, unknown>
-      }
-    }
-  | { type: 'skill'; skillId: string; skillName: string }
-  | { type: 'error'; error: SerializedErrorInfo }
-  | {
-      type: 'summary_meta'
-      bufferBoundaryTimestamp: number
-      compressedMessageCount: number
-    }
-
-type AIMessageRole = 'user' | 'assistant' | 'summary'
-
-interface AITokenUsageData {
-  promptTokens: number
-  completionTokens: number
-  totalTokens: number
-}
-
-interface AIMessage {
-  id: string
-  conversationId: string
-  role: AIMessageRole
-  content: string
-  timestamp: number
-  parentId?: string | null
-  dataKeywords?: string[]
-  dataMessageCount?: number
-  contentBlocks?: AIContentBlock[]
-  tokenUsage?: AITokenUsageData
-}
-
+/**
+ * AiApi — IPC-only subset
+ *
+ * Conversation/message CRUD and debug queries have been migrated to HTTP
+ * shared routes (FetchAIAdapter via Internal Server). Only features that
+ * require worker, native shell, or tool registry remain on IPC.
+ */
 interface AiApi {
-  createConversation: (sessionId: string, title: string | undefined, assistantId: string) => Promise<AIConversation>
-  getConversations: (sessionId: string) => Promise<AIConversation[]>
-  getConversation: (conversationId: string) => Promise<AIConversation | null>
-  updateConversationTitle: (conversationId: string, title: string) => Promise<boolean>
-  deleteConversation: (conversationId: string) => Promise<boolean>
-  addMessage: (
-    conversationId: string,
-    role: AIMessageRole,
-    content: string,
-    dataKeywords?: string[],
-    dataMessageCount?: number,
-    contentBlocks?: AIContentBlock[],
-    tokenUsage?: AITokenUsageData
-  ) => Promise<AIMessage>
-  deleteMessagesFrom: (conversationId: string, messageId: string) => Promise<void>
-  forkConversation: (sourceConversationId: string, upToMessageId: string, title?: string) => Promise<AIConversation>
-  updateMessageContent: (messageId: string, newContent: string) => Promise<void>
-  deleteAndRelinkMessage: (conversationId: string, messageId: string) => Promise<void>
-  insertMessageAfter: (
-    conversationId: string,
-    afterMessageId: string,
-    role: AIMessageRole,
-    content: string,
-    contentBlocks?: AIContentBlock[],
-    tokenUsage?: AITokenUsageData
-  ) => Promise<AIMessage>
-  getMessages: (conversationId: string) => Promise<AIMessage[]>
-  getConversationTokenUsage: (conversationId: string) => Promise<AITokenUsageData>
-  deleteMessage: (messageId: string) => Promise<boolean>
-  showAiLogFile: () => Promise<{ success: boolean; path?: string; error?: string }>
-  clearDebugContext: () => Promise<{ success: boolean; cleared: number }>
-  getDefaultDesensitizeRules: (locale: string) => Promise<DesensitizeRule[]>
-  mergeDesensitizeRules: (existingRules: DesensitizeRule[], locale: string) => Promise<DesensitizeRule[]>
-  getToolCatalog: () => Promise<ToolCatalogEntry[]>
-  executeTool: (
-    testId: string,
-    toolName: string,
-    params: Record<string, unknown>,
-    sessionId: string
-  ) => Promise<ToolExecuteResult>
-  cancelToolTest: (testId: string) => Promise<{ success: boolean }>
-  estimateContextTokens: (
-    conversationId: string
-  ) => Promise<{ success: boolean; tokens: number; messageCount?: number; error?: string }>
-  compressContext: (
-    conversationId: string,
-    compressionConfig: {
-      enabled: boolean
-      tokenThresholdPercent: number
-      bufferSizePercent: number
-      maxToolResultPercent?: number
-    },
-    systemPrompt: string
-  ) => Promise<{
-    success: boolean
-    result?: {
-      compressed: boolean
-      reason: string
-      tokensBefore?: number
-      tokensAfter?: number
-      error?: string
-    }
-    error?: string
-  }>
-  // 自定义筛选（支持分页）
+  // Message filtering / export (worker-dependent)
   filterMessagesWithContext: (
     sessionId: string,
     keywords?: string[],
@@ -286,7 +177,6 @@ interface AiApi {
     page?: number,
     pageSize?: number
   ) => Promise<FilterResultWithPagination>
-  // 导出筛选结果到文件
   exportFilterResultToFile: (params: {
     sessionId: string
     sessionName: string
@@ -298,19 +188,25 @@ interface AiApi {
     contextSize?: number
     chatSessionIds?: number[]
   }) => Promise<{ success: boolean; filePath?: string; error?: string }>
-  // 监听导出进度
   onExportProgress: (callback: (progress: ExportProgress) => void) => () => void
-  // [Debug] AI 数据库直接访问
-  getAiSchema: () => Promise<
-    Array<{ name: string; columns: Array<{ name: string; type: string; notnull: boolean; pk: boolean }> }>
-  >
-  executeAiSQL: (sql: string) => Promise<{
-    columns: string[]
-    rows: any[][]
-    rowCount: number
-    duration: number
-    limited: boolean
-  }>
+  // Native shell
+  showAiLogFile: () => Promise<{ success: boolean; path?: string; error?: string }>
+  // Desensitize rules (node-runtime)
+  getDefaultDesensitizeRules: (locale: string) => Promise<DesensitizeRule[]>
+  mergeDesensitizeRules: (existingRules: DesensitizeRule[], locale: string) => Promise<DesensitizeRule[]>
+  // Tool testing (tool registry on main process)
+  getToolCatalog: () => Promise<ToolCatalogEntry[]>
+  executeTool: (
+    testId: string,
+    toolName: string,
+    params: Record<string, unknown>,
+    sessionId: string
+  ) => Promise<ToolExecuteResult>
+  cancelToolTest: (testId: string) => Promise<{ success: boolean }>
+  // Context estimation (needs conversationManager)
+  estimateContextTokens: (
+    conversationId: string
+  ) => Promise<{ success: boolean; tokens: number; messageCount?: number; error?: string }>
 }
 
 // ==================== 新模型系统类型 ====================
@@ -780,8 +676,6 @@ export {
   CacheApi,
   NetworkApi,
   ProxyConfig,
-  AIConversation,
-  AIMessage,
   LLMChatMessage,
   LLMChatOptions,
   LLMChatStreamChunk,

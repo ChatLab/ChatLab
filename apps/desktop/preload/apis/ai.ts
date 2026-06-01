@@ -1,58 +1,19 @@
 /**
- * AI 相关 API - AI 对话、LLM 服务、Agent、Embedding
+ * AI 相关 API — 仅保留 IPC 必须的能力
+ *
+ * Conversation/message CRUD 和 debug 已迁移到 HTTP 共享路由（FetchAIAdapter），
+ * 此处只保留需要 worker、native shell、工具注册表等 IPC 才能提供的功能。
  */
 import { ipcRenderer } from 'electron'
 import type { ExportProgress } from '../../../../src/types/base'
 
+// Agent API 类型 — 从 shared/types 统一导入
+export type { TokenUsage, AgentRuntimeStatus } from '../../shared/types'
+import type { TokenUsage, AgentRuntimeStatus, SerializedErrorInfo } from '../../shared/types'
+
+export type { SerializedErrorInfo } from '../../shared/types'
+
 // ==================== 类型定义 ====================
-
-export interface AIConversation {
-  id: string
-  sessionId: string
-  title: string | null
-  assistantId: string
-  activeMessageId?: string | null
-  createdAt: number
-  updatedAt: number
-}
-
-// 内容块类型（用于 AI 消息的混合渲染）
-export type ContentBlock =
-  | { type: 'text'; text: string }
-  | { type: 'think'; tag: string; text: string; durationMs?: number }
-  | {
-      type: 'tool'
-      tool: {
-        name: string
-        displayName: string
-        status: 'running' | 'done' | 'error'
-        params?: Record<string, unknown>
-      }
-    }
-  | { type: 'skill'; skillId: string; skillName: string }
-  | { type: 'error'; error: SerializedErrorInfo }
-  | { type: 'summary_meta'; bufferBoundaryTimestamp: number; compressedMessageCount: number }
-
-export type AIMessageRole = 'user' | 'assistant' | 'summary'
-
-export interface TokenUsageData {
-  promptTokens: number
-  completionTokens: number
-  totalTokens: number
-}
-
-export interface AIMessage {
-  id: string
-  conversationId: string
-  role: AIMessageRole
-  content: string
-  timestamp: number
-  parentId?: string | null
-  dataKeywords?: string[]
-  dataMessageCount?: number
-  contentBlocks?: ContentBlock[]
-  tokenUsage?: TokenUsageData
-}
 
 export interface ChatMessage {
   role: 'system' | 'user' | 'assistant'
@@ -73,12 +34,6 @@ export interface ChatStreamChunk {
   thinkingDone?: boolean
 }
 
-// Agent API 类型 — 从 shared/types 统一导入
-export type { TokenUsage, AgentRuntimeStatus } from '../../shared/types'
-import type { TokenUsage, AgentRuntimeStatus, SerializedErrorInfo } from '../../shared/types'
-
-export type { SerializedErrorInfo } from '../../shared/types'
-
 export interface AgentStreamChunk {
   type: 'content' | 'think' | 'tool_start' | 'tool_result' | 'status' | 'compression_done' | 'done' | 'error'
   content?: string
@@ -96,7 +51,6 @@ export interface AgentStreamChunk {
     tokensAfter: number
     timestamp: number
   }
-  /** Token 使用量（type=done 时返回累计值） */
   usage?: TokenUsage
 }
 
@@ -107,7 +61,6 @@ export interface AgentResult {
   error?: SerializedErrorInfo
 }
 
-/** 单条脱敏规则 */
 export interface DesensitizeRule {
   id: string
   label: string
@@ -118,7 +71,6 @@ export interface DesensitizeRule {
   locales: string[]
 }
 
-/** 工具目录条目（实验室 - 基础工具） */
 export interface ToolCatalogEntry {
   name: string
   category: 'core' | 'analysis'
@@ -126,7 +78,6 @@ export interface ToolCatalogEntry {
   parameters: Record<string, unknown>
 }
 
-/** 工具执行结果 */
 export interface ToolExecuteResult {
   success: boolean
   elapsed?: number
@@ -136,7 +87,6 @@ export interface ToolExecuteResult {
   truncated?: boolean
 }
 
-/** 聊天记录预处理配置 */
 export interface PreprocessConfig {
   dataCleaning: boolean
   mergeConsecutive: boolean
@@ -166,10 +116,10 @@ export interface ToolContext {
   preprocessConfig?: PreprocessConfig
 }
 
-// ==================== AI API ====================
+// ==================== AI API (IPC-only subset) ====================
 
 export const aiApi = {
-  // ==================== 消息筛选/导出（IPC handler 保留） ====================
+  // ===== 消息筛选/导出（worker-dependent） =====
 
   filterMessagesWithContext: (
     sessionId: string,
@@ -224,11 +174,6 @@ export const aiApi = {
     )
   },
 
-  /**
-   * 获取多个会话的完整消息（支持分页）
-   * @param page 页码（从 1 开始，默认 1）
-   * @param pageSize 每页块数（默认 50）
-   */
   getMultipleSessionsMessages: (
     sessionId: string,
     chatSessionIds: number[],
@@ -270,9 +215,6 @@ export const aiApi = {
     return ipcRenderer.invoke('ai:getMultipleSessionsMessages', sessionId, chatSessionIds, page, pageSize)
   },
 
-  /**
-   * 导出筛选结果到文件（后端生成，支持大数据量）
-   */
   exportFilterResultToFile: (params: {
     sessionId: string
     sessionName: string
@@ -287,9 +229,6 @@ export const aiApi = {
     return ipcRenderer.invoke('ai:exportFilterResultToFile', params)
   },
 
-  /**
-   * 监听导出进度
-   */
   onExportProgress: (callback: (progress: ExportProgress) => void) => {
     const handler = (_event: Electron.IpcRendererEvent, progress: ExportProgress) => {
       callback(progress)
@@ -300,134 +239,13 @@ export const aiApi = {
     }
   },
 
-  /**
-   * 创建 AI 对话
-   */
-  createConversation: (sessionId: string, title: string | undefined, assistantId: string): Promise<AIConversation> => {
-    return ipcRenderer.invoke('ai:createConversation', sessionId, title, assistantId)
-  },
+  // ===== 日志（native shell） =====
 
-  /**
-   * 获取会话的所有 AI 对话列表
-   */
-  getConversations: (sessionId: string): Promise<AIConversation[]> => {
-    return ipcRenderer.invoke('ai:getConversations', sessionId)
-  },
-
-  /**
-   * 获取单个 AI 对话
-   */
-  getConversation: (conversationId: string): Promise<AIConversation | null> => {
-    return ipcRenderer.invoke('ai:getConversation', conversationId)
-  },
-
-  /**
-   * 更新 AI 对话标题
-   */
-  updateConversationTitle: (conversationId: string, title: string): Promise<boolean> => {
-    return ipcRenderer.invoke('ai:updateConversationTitle', conversationId, title)
-  },
-
-  /**
-   * 删除 AI 对话
-   */
-  deleteConversation: (conversationId: string): Promise<boolean> => {
-    return ipcRenderer.invoke('ai:deleteConversation', conversationId)
-  },
-
-  /**
-   * 添加 AI 消息
-   */
-  addMessage: (
-    conversationId: string,
-    role: AIMessageRole,
-    content: string,
-    dataKeywords?: string[],
-    dataMessageCount?: number,
-    contentBlocks?: ContentBlock[],
-    tokenUsage?: TokenUsageData
-  ): Promise<AIMessage> => {
-    return ipcRenderer.invoke(
-      'ai:addMessage',
-      conversationId,
-      role,
-      content,
-      dataKeywords,
-      dataMessageCount,
-      contentBlocks,
-      tokenUsage
-    )
-  },
-
-  deleteMessagesFrom: (conversationId: string, messageId: string): Promise<void> => {
-    return ipcRenderer.invoke('ai:deleteMessagesFrom', conversationId, messageId)
-  },
-
-  forkConversation: (sourceConversationId: string, upToMessageId: string, title?: string): Promise<AIConversation> => {
-    return ipcRenderer.invoke('ai:forkConversation', sourceConversationId, upToMessageId, title)
-  },
-
-  updateMessageContent: (messageId: string, newContent: string): Promise<void> => {
-    return ipcRenderer.invoke('ai:updateMessageContent', messageId, newContent)
-  },
-
-  deleteAndRelinkMessage: (conversationId: string, messageId: string): Promise<void> => {
-    return ipcRenderer.invoke('ai:deleteAndRelinkMessage', conversationId, messageId)
-  },
-
-  insertMessageAfter: (
-    conversationId: string,
-    afterMessageId: string,
-    role: AIMessageRole,
-    content: string,
-    contentBlocks?: ContentBlock[],
-    tokenUsage?: TokenUsageData
-  ): Promise<AIMessage> => {
-    return ipcRenderer.invoke(
-      'ai:insertMessageAfter',
-      conversationId,
-      afterMessageId,
-      role,
-      content,
-      contentBlocks,
-      tokenUsage
-    )
-  },
-
-  /**
-   * 获取 AI 对话的所有消息
-   */
-  getMessages: (conversationId: string): Promise<AIMessage[]> => {
-    return ipcRenderer.invoke('ai:getMessages', conversationId)
-  },
-
-  /**
-   * 获取对话的累计 token 使用量
-   */
-  getConversationTokenUsage: (conversationId: string): Promise<TokenUsageData> => {
-    return ipcRenderer.invoke('ai:getConversationTokenUsage', conversationId)
-  },
-
-  /**
-   * 删除 AI 消息
-   */
-  deleteMessage: (messageId: string): Promise<boolean> => {
-    return ipcRenderer.invoke('ai:deleteMessage', messageId)
-  },
-
-  /**
-   * 打开当前 AI 日志文件并定位到文件
-   */
   showAiLogFile: (): Promise<{ success: boolean; path?: string; error?: string }> => {
     return ipcRenderer.invoke('ai:showLogFile')
   },
 
-  /**
-   * 一键清除所有消息的 debug_context 数据
-   */
-  clearDebugContext: (): Promise<{ success: boolean; cleared: number }> => {
-    return ipcRenderer.invoke('ai:clearDebugContext')
-  },
+  // ===== 脱敏规则（node-runtime） =====
 
   getDefaultDesensitizeRules: (locale: string): Promise<DesensitizeRule[]> => {
     return ipcRenderer.invoke('ai:getDefaultDesensitizeRules', locale)
@@ -436,6 +254,8 @@ export const aiApi = {
   mergeDesensitizeRules: (existingRules: DesensitizeRule[], locale: string): Promise<DesensitizeRule[]> => {
     return ipcRenderer.invoke('ai:mergeDesensitizeRules', existingRules, locale)
   },
+
+  // ===== 工具测试（tool registry on main process） =====
 
   getToolCatalog: (): Promise<ToolCatalogEntry[]> => {
     return ipcRenderer.invoke('ai:getToolCatalog')
@@ -454,63 +274,18 @@ export const aiApi = {
     return ipcRenderer.invoke('ai:cancelToolTest', testId)
   },
 
+  // ===== 上下文估算（needs conversationManager） =====
+
   estimateContextTokens: (
     conversationId: string
   ): Promise<{ success: boolean; tokens: number; messageCount?: number; error?: string }> => {
     return ipcRenderer.invoke('ai:estimateContextTokens', conversationId)
-  },
-
-  compressContext: (
-    conversationId: string,
-    compressionConfig: {
-      enabled: boolean
-      tokenThresholdPercent: number
-      bufferSizePercent: number
-      maxToolResultPercent?: number
-    },
-    systemPrompt: string
-  ): Promise<{
-    success: boolean
-    result?: {
-      compressed: boolean
-      reason: string
-      tokensBefore?: number
-      tokensAfter?: number
-      error?: string
-    }
-    error?: string
-  }> => {
-    return ipcRenderer.invoke('ai:compressContext', conversationId, compressionConfig, systemPrompt)
-  },
-
-  /**
-   * [Debug] 获取 AI 数据库 Schema
-   */
-  getAiSchema: (): Promise<
-    Array<{ name: string; columns: Array<{ name: string; type: string; notnull: boolean; pk: boolean }> }>
-  > => {
-    return ipcRenderer.invoke('ai:getAiSchema')
-  },
-
-  /**
-   * [Debug] 在 AI 数据库上执行原始 SQL
-   */
-  executeAiSQL: (
-    sql: string
-  ): Promise<{ columns: string[]; rows: any[][]; rowCount: number; duration: number; limited: boolean }> => {
-    return ipcRenderer.invoke('ai:executeAiSQL', sql)
   },
 }
 
 // ==================== LLM API ====================
 
 export const llmApi = {
-  /**
-   * LLM CRUD (config, provider, model, validate, etc.) has been migrated to
-   * HTTP service layer via FetchLLMAdapter. Only streaming / non-streaming
-   * chat APIs remain on IPC because they require real-time event forwarding.
-   */
-
   chat: (
     messages: ChatMessage[],
     options?: ChatOptions
@@ -544,7 +319,6 @@ export const llmApi = {
               onChunk(data.chunk)
             }
 
-            // 如果已完成，移除监听器并 resolve
             if (data.chunk.isFinished) {
               console.log('[preload] chatStream 完成，requestId:', requestId)
               ipcRenderer.removeListener('llm:streamChunk', handler)
@@ -556,7 +330,6 @@ export const llmApi = {
 
       ipcRenderer.on('llm:streamChunk', handler)
 
-      // 发起请求
       ipcRenderer
         .invoke('llm:chatStream', requestId, messages, options)
         .then((result) => {
@@ -565,7 +338,6 @@ export const llmApi = {
             ipcRenderer.removeListener('llm:streamChunk', handler)
             resolve(result)
           }
-          // 如果 success，等待流完成（由 handler 处理 resolve）
         })
         .catch((error) => {
           console.error('[preload] chatStream invoke 错误:', error)
@@ -576,26 +348,9 @@ export const llmApi = {
   },
 }
 
-/**
- * Assistant CRUD has been migrated to HTTP service layer via FetchAssistantAdapter.
- * The preload bridge is no longer needed.
- */
-
-/**
- * Skill CRUD has been migrated to HTTP service layer via FetchSkillAdapter.
- * The preload bridge is no longer needed.
- */
-
 // ==================== Agent API ====================
 
 export const agentApi = {
-  /**
-   * 执行 Agent 对话（流式）
-   * Agent 通过 context.conversationId 从后端 SQLite 读取对话历史
-   * @param chatType 聊天类型（'group' | 'private'）
-   * @param locale 语言设置（可选，默认 'zh-CN'）
-   * @returns 返回 { requestId, promise }，requestId 可用于中止请求
-   */
   runStream: (
     userMessage: string,
     context: ToolContext,
@@ -616,8 +371,6 @@ export const agentApi = {
     requestId: string
     promise: Promise<{ success: boolean; result?: AgentResult; error?: SerializedErrorInfo }>
   } => {
-    // 防御性处理：确保传给 IPC 的 context 是“可结构化克隆”的纯对象
-    // 避免调用方误传入响应式 Proxy（例如 Pinia/Vue state）导致 invoke 失败
     const sanitizedContext: ToolContext = {
       sessionId: context.sessionId,
       conversationId: context.conversationId,
@@ -659,7 +412,6 @@ export const agentApi = {
     )
 
     const promise = new Promise<{ success: boolean; result?: AgentResult; error?: SerializedErrorInfo }>((resolve) => {
-      // 监听流式 chunks
       const chunkHandler = (
         _event: Electron.IpcRendererEvent,
         data: { requestId: string; chunk: AgentStreamChunk }
@@ -671,7 +423,6 @@ export const agentApi = {
         }
       }
 
-      // 监听完成事件
       const completeHandler = (
         _event: Electron.IpcRendererEvent,
         data: { requestId: string; result: AgentResult & { error?: SerializedErrorInfo } }
@@ -680,7 +431,6 @@ export const agentApi = {
           console.log('[preload] Agent 完成，requestId:', requestId, 'hasError:', !!data.result?.error)
           ipcRenderer.removeListener('agent:streamChunk', chunkHandler)
           ipcRenderer.removeListener('agent:complete', completeHandler)
-          // 如果 result 中包含 error，返回失败状态
           if (data.result?.error) {
             resolve({ success: false, error: data.result.error })
           } else {
@@ -713,7 +463,6 @@ export const agentApi = {
             ipcRenderer.removeListener('agent:complete', completeHandler)
             resolve(result)
           }
-          // 如果 success，等待完成（由 completeHandler 处理 resolve）
         })
         .catch((error) => {
           console.error('[preload] Agent invoke 错误:', error)
@@ -733,10 +482,6 @@ export const agentApi = {
     return { requestId, promise }
   },
 
-  /**
-   * 中止 Agent 请求
-   * @param requestId 请求 ID
-   */
   abort: (requestId: string): Promise<{ success: boolean; error?: string }> => {
     console.log('[preload] Agent abort 请求，requestId:', requestId)
     return ipcRenderer.invoke('agent:abort', requestId)
