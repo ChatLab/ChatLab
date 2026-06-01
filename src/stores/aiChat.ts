@@ -188,6 +188,29 @@ function createEmptyTokenUsage(): TokenUsage {
   return { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
 }
 
+function normalizeSerializedError(error: unknown): SerializedErrorInfo {
+  if (error && typeof error === 'object') {
+    const record = error as Record<string, unknown>
+    return {
+      name: typeof record.name === 'string' ? record.name : null,
+      message: typeof record.message === 'string' ? record.message : '未知错误',
+      stack: typeof record.stack === 'string' ? record.stack : null,
+      statusCode: typeof record.statusCode === 'number' ? record.statusCode : null,
+      url: typeof record.url === 'string' ? record.url : null,
+      responseBody: typeof record.responseBody === 'string' ? record.responseBody : null,
+      responseHeaders:
+        record.responseHeaders && typeof record.responseHeaders === 'object'
+          ? (record.responseHeaders as Record<string, string>)
+          : null,
+      requestBody: typeof record.requestBody === 'string' ? record.requestBody : null,
+      cause: typeof record.cause === 'string' ? record.cause : null,
+      provider: typeof record.provider === 'string' ? record.provider : null,
+      friendlyMessage: typeof record.friendlyMessage === 'string' ? record.friendlyMessage : null,
+    }
+  }
+  return { name: null, message: error ? String(error) : '未知错误', stack: null }
+}
+
 function toRuntimeMessage(msg: PersistedAIMessage): ChatMessage {
   return {
     id: msg.id,
@@ -913,7 +936,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                 const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
                 blocks.push({
                   type: 'error',
-                  error: chunk.error || { name: null, message: '未知错误', stack: null },
+                  error: normalizeSerializedError(chunk.error),
                 })
                 updateAIMessage({ contentBlocks: [...blocks], isStreaming: false })
               }
@@ -965,7 +988,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
         blocks.push({
           type: 'error',
-          error: result.error || { name: null, message: '未知错误', stack: null },
+          error: normalizeSerializedError(result.error),
         })
         targetBuffer.messages[aiMessageIndex] = {
           ...targetBuffer.messages[aiMessageIndex],
@@ -1408,7 +1431,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               hasStreamError = true
               if (state.currentToolStatus) updateToolBlockStatus(state.currentToolStatus.name, 'error')
               const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
-              blocks.push({ type: 'error', error: chunk.error || { name: null, message: '未知错误', stack: null } })
+              blocks.push({ type: 'error', error: normalizeSerializedError(chunk.error) })
               updateAIMessage({ contentBlocks: [...blocks], isStreaming: false })
               setAgentPhase(state, 'error')
               break
@@ -1439,7 +1462,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         })
       } else if (!hasStreamError) {
         const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
-        blocks.push({ type: 'error', error: result.error || { name: null, message: '未知错误', stack: null } })
+        blocks.push({ type: 'error', error: normalizeSerializedError(result.error) })
         updateAIMessage({ contentBlocks: [...blocks], isStreaming: false })
       }
 

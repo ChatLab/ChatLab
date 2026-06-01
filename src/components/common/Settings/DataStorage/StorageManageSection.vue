@@ -201,11 +201,11 @@ defineExpose({
       </div>
       <div class="flex items-center gap-2">
         <UButton
-          v-if="cacheInfo?.systemDir"
+          v-if="cacheInfo?.baseDir"
           icon="i-heroicons-folder-open"
           variant="ghost"
           size="sm"
-          @click="openDirectory('system')"
+          @click="openBaseDir"
         >
           {{ t('settings.storage.openRootDir') }}
         </UButton>
