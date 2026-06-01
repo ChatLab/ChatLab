@@ -48,4 +48,11 @@ export interface HttpRouteContext {
   llmConfigStore?: LLMConfigStore
   customProviderStore?: CustomProviderStore
   customModelStore?: CustomModelStore
+
+  /** Cache/storage — platform-specific (optional) */
+  openDirectory?: (dirPath: string) => Promise<void>
+  showInFolder?: (filePath: string) => Promise<void>
+  downloadsDir?: string
+  defaultUserDataDir?: string
+  isCustomDataDir?: boolean
 }

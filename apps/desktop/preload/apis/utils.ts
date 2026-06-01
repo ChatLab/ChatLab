@@ -13,31 +13,6 @@ export interface ProxyConfig {
   url: string // 仅 manual 模式使用
 }
 
-// Cache API 类型
-export interface CacheDirectoryInfo {
-  id: string
-  name: string
-  description: string
-  path: string
-  icon: string
-  canClear: boolean
-  size: number
-  fileCount: number
-  exists: boolean
-}
-
-export interface CacheInfo {
-  baseDir: string
-  directories: CacheDirectoryInfo[]
-  totalSize: number
-}
-
-export interface DataDirInfo {
-  path: string
-  defaultPath?: string
-  isCustom: boolean
-}
-
 // Session API 类型
 export interface SessionStats {
   sessionCount: number
@@ -80,74 +55,24 @@ export const networkApi = {
 
 // ==================== Cache API ====================
 
+/**
+ * CacheApi — IPC-only subset
+ *
+ * Most cache operations (getInfo, clear, openDir, saveToDownloads, etc.)
+ * have been migrated to HTTP shared routes (FetchCacheAdapter).
+ * Only selectDataDir and setDataDir remain on IPC because they require
+ * native Electron dialogs and app restart capabilities.
+ */
 export const cacheApi = {
-  /**
-   * 获取所有缓存目录信息
-   */
-  getInfo: (): Promise<CacheInfo> => {
-    return ipcRenderer.invoke('cache:getInfo')
-  },
-
-  /**
-   * 清理指定缓存目录
-   */
-  clear: (cacheId: string): Promise<{ success: boolean; error?: string; message?: string }> => {
-    return ipcRenderer.invoke('cache:clear', cacheId)
-  },
-
-  /**
-   * 在文件管理器中打开缓存目录
-   */
-  openDir: (cacheId: string): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke('cache:openDir', cacheId)
-  },
-
-  /**
-   * 保存文件到下载目录
-   */
-  saveToDownloads: (
-    filename: string,
-    dataUrl: string
-  ): Promise<{ success: boolean; filePath?: string; error?: string }> => {
-    return ipcRenderer.invoke('cache:saveToDownloads', filename, dataUrl)
-  },
-
-  /**
-   * 获取最新的导入日志文件路径
-   */
-  getLatestImportLog: (): Promise<{ success: boolean; path?: string; name?: string; error?: string }> => {
-    return ipcRenderer.invoke('cache:getLatestImportLog')
-  },
-
-  /**
-   * 获取当前数据目录
-   */
-  getDataDir: (): Promise<DataDirInfo> => {
-    return ipcRenderer.invoke('cache:getDataDir')
-  },
-
-  /**
-   * 选择数据目录（只返回路径）
-   */
   selectDataDir: (): Promise<{ success: boolean; path?: string; error?: string }> => {
     return ipcRenderer.invoke('cache:selectDataDir')
   },
 
-  /**
-   * 设置数据目录
-   */
   setDataDir: (
     path: string | null,
     migrate: boolean = true
   ): Promise<{ success: boolean; error?: string; from?: string; to?: string }> => {
     return ipcRenderer.invoke('cache:setDataDir', { path, migrate })
-  },
-
-  /**
-   * 在文件管理器中显示并高亮文件
-   */
-  showInFolder: (filePath: string): Promise<{ success: boolean; error?: string }> => {
-    return ipcRenderer.invoke('cache:showInFolder', filePath)
   },
 }
 

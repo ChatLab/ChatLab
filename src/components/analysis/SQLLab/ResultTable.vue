@@ -11,6 +11,7 @@ import { usePromptStore } from '@/stores/prompt'
 import { useLayoutStore } from '@/stores/layout'
 import { exportSQLResult, type SQLExportFormat } from '@/utils/sqlExport'
 import { useLLMService } from '@/services'
+import { useCacheService } from '@/services/cache/service'
 
 const { t, locale } = useI18n()
 const toast = useToast()
@@ -246,7 +247,7 @@ async function exportResult() {
           {
             label: t('common.openFolder'),
             onClick: () => {
-              window.cacheApi.showInFolder(result.filePath!)
+              useCacheService().showInFolder(result.filePath!)
             },
           },
         ],

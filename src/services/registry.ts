@@ -95,6 +95,9 @@ async function initElectronAdapters(): Promise<void> {
   const { FetchSkillAdapter } = await import('./skill/fetch')
   registerAdapter('skill-crud', new FetchSkillAdapter())
 
+  const { FetchCacheAdapter } = await import('./cache/fetch')
+  registerAdapter('cache', new FetchCacheAdapter())
+
   installMergeShims('electron')
 }
 
@@ -128,6 +131,9 @@ async function initWebServeAdapters(): Promise<void> {
 
   const { FetchSkillAdapter } = await import('./skill/fetch')
   registerAdapter('skill-crud', new FetchSkillAdapter())
+
+  const { FetchCacheAdapter } = await import('./cache/fetch')
+  registerAdapter('cache', new FetchCacheAdapter())
 
   await installAiApiShims()
 }
@@ -310,80 +316,6 @@ async function installAiApiShims(): Promise<void> {
   ;(window as any).agentApi = agentApiImpl
 
   installMergeShims('web-serve')
-  ;(window as any).cacheApi = {
-    saveToDownloads: async (filename: string, dataUrl: string) => {
-      try {
-        const resp = await fetchWithAuth('/_web/cache/save-to-downloads', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filename, dataUrl }),
-        })
-        return await resp.json()
-      } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : String(error) }
-      }
-    },
-    showInFolder: async (filePath: string) => {
-      try {
-        const resp = await fetchWithAuth('/_web/cache/show-in-folder', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ filePath }),
-        })
-        return await resp.json()
-      } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : String(error) }
-      }
-    },
-    getInfo: async () => {
-      try {
-        const resp = await fetchWithAuth('/_web/cache/info')
-        return await resp.json()
-      } catch (error) {
-        return { baseDir: '', directories: [], totalSize: 0 }
-      }
-    },
-    clear: async (cacheId: string) => {
-      try {
-        const resp = await fetchWithAuth('/_web/cache/clear', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cacheId }),
-        })
-        return await resp.json()
-      } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : String(error) }
-      }
-    },
-    openDir: async (cacheId: string) => {
-      try {
-        const resp = await fetchWithAuth('/_web/cache/open-dir', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ cacheId }),
-        })
-        return await resp.json()
-      } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : String(error) }
-      }
-    },
-    getLatestImportLog: async () => {
-      try {
-        const resp = await fetchWithAuth('/_web/cache/latest-import-log')
-        return await resp.json()
-      } catch (error) {
-        return { success: false, error: error instanceof Error ? error.message : String(error) }
-      }
-    },
-    getDataDir: async () => {
-      try {
-        const resp = await fetchWithAuth('/_web/cache/data-dir')
-        return await resp.json()
-      } catch (error) {
-        return { path: '', isCustom: false }
-      }
-    },
-  }
 }
 
 /**

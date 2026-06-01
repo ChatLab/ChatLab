@@ -7,28 +7,10 @@ import { ref, onMounted, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { usePlatformService } from '@/services'
 import { IS_ELECTRON } from '@/utils/platform'
+import { useCacheService } from '@/services/cache/service'
+import type { CacheInfo } from '@/services/cache/types'
 
 const { t } = useI18n()
-
-// 缓存目录信息类型
-interface CacheDirectoryInfo {
-  id: string
-  name: string
-  description: string
-  path: string
-  icon: string
-  canClear: boolean
-  size: number
-  fileCount: number
-  exists: boolean
-}
-
-interface CacheInfo {
-  baseDir: string
-  systemDir?: string
-  directories: CacheDirectoryInfo[]
-  totalSize: number
-}
 
 // 状态
 const cacheInfo = ref<CacheInfo | null>(null)
@@ -67,7 +49,7 @@ const totalSizeFormatted = computed(() => {
 async function loadCacheInfo() {
   isLoading.value = true
   try {
-    cacheInfo.value = await window.cacheApi.getInfo()
+    cacheInfo.value = await useCacheService().getInfo()
   } catch (error) {
     console.error('获取缓存信息失败:', error)
   } finally {
@@ -82,7 +64,7 @@ const canMigrateToDefault = computed(() => {
 
 async function loadDataDir() {
   try {
-    const info = await window.cacheApi.getDataDir()
+    const info = await useCacheService().getDataDir()
     dataDir.value = info.path
     defaultDataDir.value = info.defaultPath || ''
     isCustomDataDir.value = info.isCustom
@@ -95,7 +77,7 @@ async function loadDataDir() {
 async function clearCache(cacheId: string) {
   clearingId.value = cacheId
   try {
-    const result = await window.cacheApi.clear(cacheId)
+    const result = await useCacheService().clear(cacheId)
     if (result.success) {
       // 刷新缓存信息
       await loadCacheInfo()
@@ -112,7 +94,7 @@ async function clearCache(cacheId: string) {
 // 打开目录
 async function openDirectory(cacheId: string) {
   try {
-    await window.cacheApi.openDir(cacheId)
+    await useCacheService().openDir(cacheId)
   } catch (error) {
     console.error('打开目录失败:', error)
   }

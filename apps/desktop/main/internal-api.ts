@@ -126,6 +126,9 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
       return { sessionId: result.sessionId }
     }
 
+    const { shell } = await import('electron')
+    const { getDefaultUserDataDir, getCustomDataDir, getDownloadsDir } = await import('./paths')
+
     const ctx: HttpRouteContext = {
       dbManager: newDbManager,
       sessionAdapter,
@@ -140,6 +143,14 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
       llmConfigStore,
       customProviderStore: new CustomProviderStore(configStorage),
       customModelStore: new CustomModelStore(configStorage),
+      openDirectory: (dirPath) => shell.openPath(dirPath).then(() => {}),
+      showInFolder: (filePath) => {
+        shell.showItemInFolder(filePath)
+        return Promise.resolve()
+      },
+      downloadsDir: getDownloadsDir(),
+      defaultUserDataDir: getDefaultUserDataDir(),
+      isCustomDataDir: Boolean(getCustomDataDir()),
     }
 
     newServer = Fastify({ logger: false, bodyLimit: JSON_BODY_LIMIT })

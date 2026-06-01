@@ -10,6 +10,7 @@ import { exportConversation, type ExportFormat, type ExportMessage } from '@/uti
 import type { AgentRuntimeStatus } from '@electron/shared/types'
 import { useAIService } from '@/services'
 import { getSupportedThinkingLevels, type ThinkingLevel } from '@openchatlab/core'
+import { useCacheService } from '@/services/cache/service'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -170,7 +171,7 @@ async function handleExportConversation() {
           {
             label: t('common.openFolder'),
             onClick: () => {
-              window.cacheApi.showInFolder(exportedFilePath)
+              useCacheService().showInFolder(exportedFilePath)
             },
           },
         ],

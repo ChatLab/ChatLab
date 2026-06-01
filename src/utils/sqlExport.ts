@@ -59,7 +59,8 @@ export async function exportSQLResult(
 
   // 转换为 data URL 并保存
   const dataUrl = `data:${mimeType};charset=utf-8,${encodeURIComponent(content)}`
-  const result = await window.cacheApi.saveToDownloads(filename, dataUrl)
+  const { useCacheService } = await import('@/services/cache/service')
+  const result = await useCacheService().saveToDownloads(filename, dataUrl)
 
   return result
 }

@@ -34,8 +34,9 @@ import { createDatabaseManagerAdapter } from '@openchatlab/node-runtime'
 import { registerSharedRoutes } from '@openchatlab/http-routes'
 import { MergeSessionCache } from '../../../merger/merge-cache'
 import { registerImportRoutes } from './import'
-import { registerCacheRoutes } from './cache'
+import { openDirectoryPath, showPathInFolder } from './cache'
 import { getVersion } from '../../../version'
+import { loadConfig } from '@openchatlab/config'
 
 export interface AiContextOptions {
   aiDataDir: string
@@ -102,6 +103,9 @@ export function registerWebRoutes(
     return { sessionId: result.sessionId }
   }
 
+  const cliConfig = loadConfig()
+  const isCustom = Boolean(cliConfig.data.user_data_dir || process.env.CHATLAB_DATA_DIR)
+
   registerSharedRoutes(
     server,
     {
@@ -110,6 +114,10 @@ export function registerWebRoutes(
       pathProvider: resolvedPathProvider,
       getVersion,
       nativeBinding: options?.nativeBinding,
+      openDirectory: openDirectoryPath,
+      showInFolder: showPathInFolder,
+      downloadsDir: resolvedPathProvider.getDownloadsDir(),
+      isCustomDataDir: isCustom,
       ...(mergeCache && {
         mergeSessionCache: mergeCache,
         streamImport: cliStreamImport,
@@ -129,7 +137,6 @@ export function registerWebRoutes(
 
   // CLI-specific routes not yet migrated to @openchatlab/http-routes
   registerImportRoutes(server, dbManager)
-  registerCacheRoutes(server, resolvedPathProvider)
 
   server.get('/_web/system/check-update', async () => {
     const currentVersion = getVersion()

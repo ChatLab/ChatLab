@@ -10,6 +10,7 @@ import { useI18n } from 'vue-i18n'
 import { useSessionStore, type BatchFileInfo, type MergeFileInfo } from '@/stores/session'
 import { useDataService, useImportService, useSessionIndexService, usePlatformService } from '@/services'
 import { IS_ELECTRON } from '@/utils/platform'
+import { useCacheService } from '@/services/cache/service'
 import { getSessionGapThreshold } from '@/composables/useUiConfig'
 
 const { t } = useI18n()
@@ -108,7 +109,7 @@ async function navigateToSession(sessionId: string) {
 // 检查是否有导入日志 - Electron only
 async function checkImportLog() {
   if (!IS_ELECTRON) return
-  const result = await window.cacheApi.getLatestImportLog()
+  const result = await useCacheService().getLatestImportLog()
   hasImportLog.value = result.success && !!result.path
 }
 
@@ -540,12 +541,11 @@ async function handleGoToSession(sessionId: string) {
 
 // 打开最新的导入日志文件
 async function openLatestImportLog() {
-  const result = await window.cacheApi.getLatestImportLog()
+  const result = await useCacheService().getLatestImportLog()
   if (result.success && result.path) {
-    await window.cacheApi.showInFolder(result.path)
+    await useCacheService().showInFolder(result.path)
   } else {
-    // 没有日志文件时，打开日志目录
-    await window.cacheApi.openDir('logs')
+    await useCacheService().openDir('logs')
   }
 }
 

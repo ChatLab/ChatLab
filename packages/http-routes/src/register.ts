@@ -23,6 +23,7 @@ import { registerAiLlmRoutes } from './routes/web/ai-llm'
 import { registerAiConversationRoutes } from './routes/web/ai-conversations'
 import { registerAiSummaryRoutes } from './routes/web/ai-summaries'
 import { registerMergeRoutes } from './routes/web/merge'
+import { registerCacheRoutes } from './routes/web/cache'
 
 export interface SharedRouteOptions {
   /** When true, AI routes will throw on missing dependencies instead of silently skipping */
@@ -70,4 +71,7 @@ export function registerSharedRoutes(
 
   // Merge routes (graceful skip when mergeSessionCache is absent)
   registerMergeRoutes(server, ctx)
+
+  // Cache/storage routes
+  registerCacheRoutes(server, ctx)
 }

@@ -409,42 +409,14 @@ interface AgentApi {
 // Assistant CRUD migrated to HTTP service layer (FetchAssistantAdapter)
 // Skill CRUD migrated to HTTP service layer (FetchSkillAdapter)
 
-// Cache API 类型
-interface CacheDirectoryInfo {
-  id: string
-  name: string
-  description: string
-  path: string
-  icon: string
-  canClear: boolean
-  size: number
-  fileCount: number
-  exists: boolean
-}
-
-interface CacheInfo {
-  baseDir: string
-  directories: CacheDirectoryInfo[]
-  totalSize: number
-}
-
-interface DataDirInfo {
-  path: string
-  defaultPath?: string
-  isCustom: boolean
-}
-
+/**
+ * CacheApi — IPC-only subset
+ *
+ * Most cache operations have been migrated to HTTP shared routes
+ * (FetchCacheAdapter). Only selectDataDir and setDataDir remain on IPC
+ * because they require native Electron dialogs and app restart.
+ */
 interface CacheApi {
-  getInfo: () => Promise<CacheInfo>
-  clear: (cacheId: string) => Promise<{ success: boolean; error?: string; message?: string }>
-  openDir: (cacheId: string) => Promise<{ success: boolean; error?: string }>
-  saveToDownloads: (
-    filename: string,
-    dataUrl: string
-  ) => Promise<{ success: boolean; filePath?: string; error?: string }>
-  getLatestImportLog: () => Promise<{ success: boolean; path?: string; name?: string; error?: string }>
-  showInFolder: (filePath: string) => Promise<{ success: boolean; error?: string }>
-  getDataDir: () => Promise<DataDirInfo>
   selectDataDir: () => Promise<{ success: boolean; path?: string; error?: string }>
   setDataDir: (
     path: string | null,
@@ -689,8 +661,6 @@ export {
   ToolCatalogEntry,
   ToolExecuteResult,
   TokenUsage,
-  CacheDirectoryInfo,
-  CacheInfo,
   FilterMessage,
   ContextBlock,
   FilterResult,

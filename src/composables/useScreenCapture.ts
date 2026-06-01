@@ -7,6 +7,7 @@ import { captureAsImageData } from '@/utils/snapCapture'
 import { useToast } from '@/composables/useToast'
 import { useLayoutStore } from '@/stores/layout'
 import { usePlatformService } from '@/services'
+import { useCacheService } from '@/services/cache/service'
 
 /** 默认移动端最大宽度 */
 const DEFAULT_MOBILE_MAX_WIDTH = 525
@@ -51,7 +52,7 @@ export function useScreenCapture() {
     const filename = `chatlab-screenshot-${timestamp}.png`
 
     try {
-      const result = await window.cacheApi.saveToDownloads(filename, imageData)
+      const result = await useCacheService().saveToDownloads(filename, imageData)
       if (result.success) {
         toast.add({
           title: '截图已保存',
@@ -61,7 +62,7 @@ export function useScreenCapture() {
             {
               label: '打开目录',
               onClick: () => {
-                window.cacheApi.openDir('downloads')
+                useCacheService().openDir('downloads')
               },
             },
           ],
