@@ -517,7 +517,7 @@
         "name": "名前",
         "namePlaceholder": "例：マイチャットサーバー",
         "url": "データソース URL",
-        "token": "アクセストークン（任意）",
+        "token": "アクセストークン",
         "tokenPlaceholder": "リモート API の Bearer Token",
         "interval": "取得間隔（分）",
         "pullLimit": "1回の取得メッセージ数",

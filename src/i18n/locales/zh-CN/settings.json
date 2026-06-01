@@ -518,7 +518,7 @@
         "name": "名称",
         "namePlaceholder": "例如：我的聊天服务器",
         "url": "数据源 URL",
-        "token": "访问令牌（可选）",
+        "token": "访问令牌",
         "tokenPlaceholder": "远程 API 的 Bearer Token",
         "interval": "拉取间隔（分钟）",
         "pullLimit": "每次拉取消息数",

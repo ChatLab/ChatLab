@@ -298,6 +298,7 @@ function formatMessageCount(count?: number): string {
             <div>
               <label class="mb-1 block text-xs font-medium text-gray-700 dark:text-gray-300">
                 {{ t('settings.api.dataSources.form.token') }}
+                <span class="text-red-500">*</span>
               </label>
               <UInput
                 v-model="formData.token"
@@ -452,7 +453,7 @@ function formatMessageCount(count?: number): string {
             >
               {{ t('settings.api.dataSources.discovery.subscribe', { count: selectedSessionIds.size }) }}
             </UButton>
-            <UButton v-else color="primary" :disabled="!formData.baseUrl" :loading="submitting" @click="handleSubmit">
+            <UButton v-else color="primary" :disabled="!formData.baseUrl || !formData.token" :loading="submitting" @click="handleSubmit">
               {{ t('settings.api.dataSources.addBtn') }}
             </UButton>
           </div>

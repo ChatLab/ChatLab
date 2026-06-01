@@ -518,7 +518,7 @@
         "name": "Name",
         "namePlaceholder": "e.g., My Chat Server",
         "url": "Data Source URL",
-        "token": "Access Token (optional)",
+        "token": "Access Token",
         "tokenPlaceholder": "Bearer Token for the remote API",
         "interval": "Pull Interval (minutes)",
         "pullLimit": "Messages per Pull",

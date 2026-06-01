@@ -517,7 +517,7 @@
         "name": "名稱",
         "namePlaceholder": "例如：我的聊天伺服器",
         "url": "資料來源 URL",
-        "token": "存取權杖（可選）",
+        "token": "存取權杖",
         "tokenPlaceholder": "遠端 API 的 Bearer Token",
         "interval": "拉取間隔（分鐘）",
         "pullLimit": "每次拉取訊息數",
