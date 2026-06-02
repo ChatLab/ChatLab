@@ -17,6 +17,14 @@ import {
 } from '@openchatlab/core'
 import { openBetterSqliteDatabase } from './better-sqlite3-adapter'
 import { getChatDbMigrations, type MigrationDeps } from './migrations'
+import { tokenizeForFts } from './nlp/fts-tokenizer'
+
+function createMigrationDeps(overrides?: MigrationDeps): MigrationDeps {
+  return {
+    tokenizeForFts,
+    ...overrides,
+  }
+}
 
 export class DatabaseManager {
   private cache = new Map<string, DatabaseAdapter>()
@@ -28,7 +36,7 @@ export class DatabaseManager {
     options?: { nativeBinding?: string; migrationDeps?: MigrationDeps }
   ) {
     this.nativeBinding = options?.nativeBinding
-    this.migrationDeps = options?.migrationDeps
+    this.migrationDeps = createMigrationDeps(options?.migrationDeps)
   }
 
   /**
@@ -53,16 +61,25 @@ export class DatabaseManager {
   }
 
   private migrateIfNeeded(dbPath: string): void {
+    const readonlyAdapter = openBetterSqliteDatabase(dbPath, {
+      readonly: true,
+      nativeBinding: this.nativeBinding,
+    })
+
+    try {
+      if (!isChatSessionDb(readonlyAdapter) || !coreNeedsMigration(readonlyAdapter, CURRENT_SCHEMA_VERSION)) return
+    } finally {
+      readonlyAdapter.close()
+    }
+
     const adapter = openBetterSqliteDatabase(dbPath, {
       readonly: false,
       nativeBinding: this.nativeBinding,
     })
 
     try {
-      if (coreNeedsMigration(adapter, CURRENT_SCHEMA_VERSION)) {
-        const migrations = getChatDbMigrations(this.migrationDeps)
-        runMigrations(adapter, migrations)
-      }
+      const migrations = getChatDbMigrations(this.migrationDeps)
+      runMigrations(adapter, migrations)
     } finally {
       adapter.close()
     }

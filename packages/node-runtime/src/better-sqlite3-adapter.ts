@@ -77,6 +77,8 @@ export function openBetterSqliteDatabase(
     readonly: options?.readonly ?? false,
     nativeBinding: options?.nativeBinding,
   })
-  db.pragma('journal_mode = WAL')
+  if (!options?.readonly) {
+    db.pragma('journal_mode = WAL')
+  }
   return new BetterSqliteAdapter(db)
 }

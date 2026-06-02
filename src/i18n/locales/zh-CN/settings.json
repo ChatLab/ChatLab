@@ -225,9 +225,9 @@
       "migrationQueuedTitle": "数据迁移已登记",
       "migrationSuccessTitle": "数据迁移完成",
       "migrationSuccessMessage": "应用需要重启以使更改生效。",
-      "cliMigrationSuccessMessage": "请重启 CLI 服务，迁移会在服务启动前执行。刷新页面后可查看新目录。",
+      "cliMigrationSuccessMessage": "请停止当前 CLI 服务并重新启动，迁移会在服务启动前执行。重启完成后再重新打开页面查看新目录。",
       "relaunchNow": "立即重启",
-      "refreshPage": "刷新页面"
+      "acknowledge": "知道了"
     },
     "openRootDir": "打开根目录",
     "totalUsage": "总占用：",

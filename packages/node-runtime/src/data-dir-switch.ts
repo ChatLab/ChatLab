@@ -105,11 +105,24 @@ function hasChatLabUserDataStructure(entries: string[]): boolean {
   return entries.includes(CHATLAB_MARKER_FILE) && USER_DATA_REQUIRED_DIRS.every((dir) => entries.includes(dir))
 }
 
+function hasChatLabDatabaseFiles(dirPath: string, entries?: string[]): boolean {
+  const dirEntries = entries ?? fs.readdirSync(dirPath)
+  if (!dirEntries.includes('databases')) return false
+
+  const dbDir = path.join(dirPath, 'databases')
+  try {
+    return fs.existsSync(dbDir) && fs.readdirSync(dbDir).some((file) => file.endsWith('.db'))
+  } catch {
+    return false
+  }
+}
+
 export function isExistingUserDataDir(dirPath: string): boolean {
   if (!fs.existsSync(dirPath)) return false
 
   try {
-    return hasChatLabUserDataStructure(fs.readdirSync(dirPath))
+    const entries = fs.readdirSync(dirPath)
+    return hasChatLabUserDataStructure(entries) || hasChatLabDatabaseFiles(dirPath, entries)
   } catch {
     return false
   }
@@ -121,7 +134,7 @@ export function isUserDataDirSafeToUse(dirPath: string): boolean {
   try {
     const entries = fs.readdirSync(dirPath)
     if (entries.length === 0) return true
-    return hasChatLabUserDataStructure(entries)
+    return hasChatLabUserDataStructure(entries) || hasChatLabDatabaseFiles(dirPath, entries)
   } catch {
     return false
   }

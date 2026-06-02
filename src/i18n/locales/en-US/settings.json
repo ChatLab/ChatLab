@@ -225,9 +225,9 @@
       "migrationQueuedTitle": "Migration Queued",
       "migrationSuccessTitle": "Migration Complete",
       "migrationSuccessMessage": "The app needs to restart for changes to take effect.",
-      "cliMigrationSuccessMessage": "Restart the CLI server. Migration will run before the server starts. Refresh the page afterward to see the new directory.",
+      "cliMigrationSuccessMessage": "Stop the current CLI server and start it again. Migration will run before the server starts. Reopen the page afterward to see the new directory.",
       "relaunchNow": "Restart Now",
-      "refreshPage": "Refresh Page"
+      "acknowledge": "Got it"
     },
     "openRootDir": "Open Root",
     "totalUsage": "Total: ",

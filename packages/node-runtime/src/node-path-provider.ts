@@ -103,6 +103,11 @@ export class NodePathProvider implements PathProvider {
         fs.mkdirSync(dir, { recursive: true })
       }
     }
+
+    const markerPath = path.join(this.userDataDir, '.chatlab')
+    if (!fs.existsSync(markerPath)) {
+      fs.writeFileSync(markerPath, 'ChatLab Data Directory', 'utf-8')
+    }
   }
 }
 

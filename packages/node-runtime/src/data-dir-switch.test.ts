@@ -11,7 +11,7 @@ import {
   isExistingUserDataDir,
   runPendingDataDirMigration,
 } from './data-dir-switch'
-import { applyPendingNodeDataDirMigrationIfNeeded } from './node-path-provider'
+import { applyPendingNodeDataDirMigrationIfNeeded, NodePathProvider } from './node-path-provider'
 
 function makeTempDir(): string {
   const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
@@ -133,6 +133,34 @@ test('isExistingUserDataDir accepts current user data layout without settings di
   fs.mkdirSync(path.join(dataDir, 'databases'), { recursive: true })
 
   assert.equal(isExistingUserDataDir(dataDir), true)
+})
+
+test('createNodeDataDirSwitch accepts existing CLI data directories without marker', () => {
+  const root = makeTempDir()
+  const currentDir = path.join(root, 'current')
+  const targetDir = path.join(root, 'previous-cli-data')
+  writeFile(path.join(currentDir, 'databases', 'current.db'), 'sqlite')
+  writeFile(path.join(targetDir, 'databases', 'session.db'), 'sqlite')
+
+  const result = createNodeDataDirSwitch({
+    systemDir: path.join(root, 'system'),
+    currentDir,
+    targetDir,
+    migrate: true,
+  })
+
+  assert.equal(result.success, true)
+  assert.equal(result.requiresRelaunch, true)
+})
+
+test('NodePathProvider marks CLI-created data directories', () => {
+  const root = makeTempDir()
+  const dataDir = path.join(root, 'data')
+  const provider = new NodePathProvider(dataDir)
+
+  provider.ensureAllDirs()
+
+  assert.equal(fs.readFileSync(path.join(dataDir, '.chatlab'), 'utf-8'), 'ChatLab Data Directory')
 })
 
 test('createNodeDataDirSwitch writes pending migration under the system settings directory', () => {

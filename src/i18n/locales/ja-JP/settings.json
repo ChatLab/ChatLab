@@ -225,9 +225,9 @@
       "migrationQueuedTitle": "データ移行を予約しました",
       "migrationSuccessTitle": "データ移行が完了しました",
       "migrationSuccessMessage": "変更を反映するにはアプリの再起動が必要です。",
-      "cliMigrationSuccessMessage": "CLI サーバーを再起動してください。移行はサーバー起動前に実行されます。その後ページを更新すると新しいディレクトリを確認できます。",
+      "cliMigrationSuccessMessage": "現在の CLI サーバーを停止してから再起動してください。移行はサーバー起動前に実行されます。再起動後にページを開き直すと新しいディレクトリを確認できます。",
       "relaunchNow": "今すぐ再起動",
-      "refreshPage": "ページを更新"
+      "acknowledge": "了解"
     },
     "openRootDir": "ルートを開く",
     "totalUsage": "合計使用量：",

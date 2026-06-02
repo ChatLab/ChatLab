@@ -225,9 +225,9 @@
       "migrationQueuedTitle": "資料遷移已登記",
       "migrationSuccessTitle": "資料遷移完成",
       "migrationSuccessMessage": "應用程式需要重新啟動以使變更生效。",
-      "cliMigrationSuccessMessage": "請重新啟動 CLI 服務，遷移會在服務啟動前執行。重新整理頁面後可查看新目錄。",
+      "cliMigrationSuccessMessage": "請停止目前的 CLI 服務並重新啟動，遷移會在服務啟動前執行。重新啟動完成後再重新開啟頁面查看新目錄。",
       "relaunchNow": "立即重新啟動",
-      "refreshPage": "重新整理頁面"
+      "acknowledge": "知道了"
     },
     "openRootDir": "開啟根目錄",
     "totalUsage": "總佔用：",

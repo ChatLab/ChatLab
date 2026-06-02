@@ -249,7 +249,7 @@ async function relaunchApp() {
     await usePlatformService().relaunch()
     return
   }
-  window.location.reload()
+  showRelaunchModal.value = false
 }
 
 onMounted(() => {
@@ -538,7 +538,7 @@ defineExpose({
                 {{
                   IS_ELECTRON
                     ? t('settings.storage.dataLocation.relaunchNow')
-                    : t('settings.storage.dataLocation.refreshPage')
+                    : t('settings.storage.dataLocation.acknowledge')
                 }}
               </UButton>
             </div>
