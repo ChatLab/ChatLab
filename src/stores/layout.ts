@@ -127,11 +127,7 @@ export const useLayoutStore = defineStore(
   {
     persist: [
       {
-        pick: ['isSidebarCollapsed'],
-        storage: sessionStorage,
-      },
-      {
-        pick: ['screenshotMobileAdapt', 'isToolsPanelLocked', 'isToolsPanelMini', 'toolsPanelPosition'],
+        pick: ['isSidebarCollapsed', 'screenshotMobileAdapt', 'isToolsPanelLocked', 'isToolsPanelMini', 'toolsPanelPosition'],
         storage: localStorage,
       },
     ],
