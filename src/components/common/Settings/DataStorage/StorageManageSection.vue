@@ -21,6 +21,7 @@ const defaultDataDir = ref('')
 const isCustomDataDir = ref(false)
 const isUpdatingDataDir = ref(false)
 const dataDirError = ref<string | null>(null)
+const isMigrateHintIgnored = ref(false)
 
 // 确认弹窗状态
 const showConfirmModal = ref(false)
@@ -59,8 +60,32 @@ async function loadCacheInfo() {
 
 // 加载数据目录
 const canMigrateToDefault = computed(() => {
-  return IS_ELECTRON && dataDir.value && defaultDataDir.value && dataDir.value !== defaultDataDir.value
+  return (
+    IS_ELECTRON &&
+    dataDir.value &&
+    defaultDataDir.value &&
+    dataDir.value !== defaultDataDir.value &&
+    !isMigrateHintIgnored.value
+  )
 })
+
+function getMigrateHintIgnoreKey(pathValue: string, defaultPathValue: string): string {
+  return `chatlab_ignore_migrate_default_hint:${pathValue}:${defaultPathValue}`
+}
+
+function updateMigrateHintIgnored() {
+  if (!dataDir.value || !defaultDataDir.value) {
+    isMigrateHintIgnored.value = false
+    return
+  }
+
+  try {
+    isMigrateHintIgnored.value =
+      localStorage.getItem(getMigrateHintIgnoreKey(dataDir.value, defaultDataDir.value)) === '1'
+  } catch {
+    isMigrateHintIgnored.value = false
+  }
+}
 
 async function loadDataDir() {
   try {
@@ -68,6 +93,7 @@ async function loadDataDir() {
     dataDir.value = info.path
     defaultDataDir.value = info.defaultPath || ''
     isCustomDataDir.value = info.isCustom
+    updateMigrateHintIgnored()
   } catch (error) {
     console.error('获取数据目录失败:', error)
   }
@@ -138,6 +164,17 @@ function migrateToDefaultDir() {
   pendingNewDir.value = null
   pendingMigrate.value = true
   showConfirmModal.value = true
+}
+
+function ignoreMigrateHint() {
+  if (!dataDir.value || !defaultDataDir.value) return
+
+  try {
+    localStorage.setItem(getMigrateHintIgnoreKey(dataDir.value, defaultDataDir.value), '1')
+  } catch {
+    // localStorage 不可用时只在当前页面隐藏，避免阻塞用户继续使用设置页。
+  }
+  isMigrateHintIgnored.value = true
 }
 
 // 确认切换数据目录
@@ -351,16 +388,21 @@ defineExpose({
               {{ defaultDataDir }}
             </p>
           </div>
-          <UButton
-            size="sm"
-            color="primary"
-            variant="soft"
-            :loading="isUpdatingDataDir"
-            :disabled="isUpdatingDataDir"
-            @click="migrateToDefaultDir"
-          >
-            {{ t('settings.storage.dataLocation.migrateAction') }}
-          </UButton>
+          <div class="flex shrink-0 items-center gap-2">
+            <UButton size="sm" variant="ghost" :disabled="isUpdatingDataDir" @click="ignoreMigrateHint">
+              {{ t('settings.storage.dataLocation.ignoreMigrateHint') }}
+            </UButton>
+            <UButton
+              size="sm"
+              color="primary"
+              variant="soft"
+              :loading="isUpdatingDataDir"
+              :disabled="isUpdatingDataDir"
+              @click="migrateToDefaultDir"
+            >
+              {{ t('settings.storage.dataLocation.migrateAction') }}
+            </UButton>
+          </div>
         </div>
 
         <p class="mt-2 text-xs text-amber-600 dark:text-amber-400">
