@@ -3,10 +3,19 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { createPendingDataDirMigration, runPendingDataDirMigration, isExistingUserDataDir } from './dataDirSwitch'
+import {
+  applyPendingNodeDataDirMigration,
+  createPendingDataDirMigration,
+  createNodeDataDirSwitch,
+  getPendingNodeDataDirMigration,
+  isExistingUserDataDir,
+  runPendingDataDirMigration,
+} from './data-dir-switch'
+import { applyPendingNodeDataDirMigrationIfNeeded } from './node-path-provider'
 
 function makeTempDir(): string {
-  return fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-data-switch-'))
+  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+  return fs.mkdtempSync(path.join(baseDir, 'chatlab-data-switch-'))
 }
 
 function writeFile(filePath: string, content = 'data'): void {
@@ -124,4 +133,78 @@ test('isExistingUserDataDir accepts current user data layout without settings di
   fs.mkdirSync(path.join(dataDir, 'databases'), { recursive: true })
 
   assert.equal(isExistingUserDataDir(dataDir), true)
+})
+
+test('createNodeDataDirSwitch writes pending migration under the system settings directory', () => {
+  const root = makeTempDir()
+  const systemDir = path.join(root, 'system')
+  const currentDir = path.join(root, 'current')
+  const targetDir = path.join(root, 'target')
+  writeFile(path.join(currentDir, 'databases', 'session.db'), 'sqlite')
+
+  const result = createNodeDataDirSwitch({ systemDir, currentDir, targetDir, migrate: true })
+  const pending = getPendingNodeDataDirMigration(systemDir)
+
+  assert.equal(result.success, true)
+  assert.equal(result.requiresRelaunch, true)
+  assert.equal(pending?.from, currentDir)
+  assert.equal(pending?.to, targetDir)
+})
+
+test('applyPendingNodeDataDirMigration deletes old data directory after successful migration to empty target', () => {
+  const root = makeTempDir()
+  const systemDir = path.join(root, 'system')
+  const currentDir = path.join(root, 'current')
+  const targetDir = path.join(root, 'target')
+  writeFile(path.join(currentDir, '.chatlab'), 'ChatLab Data Directory')
+  writeFile(path.join(currentDir, 'databases', 'session.db'), 'sqlite')
+
+  const switchResult = createNodeDataDirSwitch({ systemDir, currentDir, targetDir, migrate: true })
+  assert.equal(switchResult.success, true)
+
+  const writes: Array<{ section: string; key: string; value: unknown }> = []
+  const result = applyPendingNodeDataDirMigration(systemDir, {
+    writeConfigField(section, key, value) {
+      writes.push({ section, key, value })
+    },
+  })
+
+  assert.equal(result.success, true)
+  assert.equal(fs.existsSync(currentDir), false)
+  assert.equal(fs.readFileSync(path.join(targetDir, 'databases', 'session.db'), 'utf-8'), 'sqlite')
+  assert.equal(getPendingNodeDataDirMigration(systemDir), null)
+  assert.deepEqual(writes, [
+    { section: 'data', key: 'user_data_dir', value: targetDir },
+    { section: 'data', key: 'electron_migration_done', value: true },
+  ])
+})
+
+test('createNodeDataDirSwitch rejects data directory changes while CHATLAB_DATA_DIR is active', () => {
+  const root = makeTempDir()
+  const result = createNodeDataDirSwitch({
+    systemDir: path.join(root, 'system'),
+    currentDir: path.join(root, 'current'),
+    targetDir: path.join(root, 'target'),
+    migrate: true,
+    envDataDir: '/env/data',
+  })
+
+  assert.equal(result.success, false)
+})
+
+test('applyPendingNodeDataDirMigrationIfNeeded skips while CHATLAB_DATA_DIR is active', () => {
+  const originalEnvDir = process.env.CHATLAB_DATA_DIR
+  process.env.CHATLAB_DATA_DIR = '/env/data'
+
+  try {
+    const result = applyPendingNodeDataDirMigrationIfNeeded()
+    assert.equal(result.success, true)
+    assert.equal(result.skipped, true)
+  } finally {
+    if (originalEnvDir === undefined) {
+      delete process.env.CHATLAB_DATA_DIR
+    } else {
+      process.env.CHATLAB_DATA_DIR = originalEnvDir
+    }
+  }
 })

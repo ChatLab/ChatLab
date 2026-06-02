@@ -11,6 +11,7 @@ import { DEFAULT_API_PORT, loadConfig, getConfigPath } from '@openchatlab/config
 import {
   NodePathProvider,
   DatabaseManager,
+  applyPendingNodeDataDirMigrationIfNeeded,
   hasPendingElectronDataWarning,
   verifyCliDataPath,
 } from '@openchatlab/node-runtime'
@@ -450,7 +451,16 @@ function resolveNativeBinding(): string | undefined {
 }
 
 function initRuntime() {
-  const config = loadConfig()
+  let config = loadConfig()
+  const pendingMigration = applyPendingNodeDataDirMigrationIfNeeded()
+  if (!pendingMigration.skipped) {
+    if (pendingMigration.success) {
+      console.log('[Migration] Pending data directory migration completed')
+      config = loadConfig()
+    } else {
+      console.error('[Migration] Pending data directory migration failed:', pendingMigration.error)
+    }
+  }
   const userDataDir = config.data.user_data_dir || undefined
   const pathProvider = new NodePathProvider(userDataDir)
   pathProvider.ensureAllDirs()

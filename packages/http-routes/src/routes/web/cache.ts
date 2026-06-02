@@ -122,11 +122,30 @@ export function registerCacheRoutes(server: FastifyInstance, ctx: HttpRouteConte
   })
 
   server.get('/_web/cache/data-dir', async () => {
+    const pending = ctx.getPendingDataDirMigration?.()
     return {
       path: pp.getUserDataDir(),
       defaultPath: ctx.defaultUserDataDir,
       isCustom: ctx.isCustomDataDir ?? false,
+      canSetDataDir: ctx.canSetDataDir ?? Boolean(ctx.setDataDir),
+      pendingMigration: pending
+        ? {
+            from: pending.from,
+            to: pending.to,
+            createdAt: pending.createdAt,
+          }
+        : undefined,
     }
+  })
+
+  server.post<{ Body: { path?: string | null; migrate?: boolean } }>('/_web/cache/data-dir', async (request, reply) => {
+    if (!ctx.setDataDir) {
+      return reply.code(501).send({ success: false, error: 'Data directory changes are not supported' })
+    }
+
+    const targetPath = typeof request.body?.path === 'string' ? request.body.path : null
+    const migrate = request.body?.migrate !== false
+    return ctx.setDataDir(targetPath, migrate)
   })
 
   server.get('/_web/cache/latest-import-log', async () => {

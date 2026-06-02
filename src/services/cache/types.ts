@@ -20,12 +20,22 @@ export interface DataDirInfo {
   path: string
   defaultPath?: string
   isCustom: boolean
+  canSetDataDir?: boolean
+  pendingMigration?: {
+    from: string
+    to: string
+    createdAt: string
+  }
 }
 
 export interface CacheServiceAdapter {
   getInfo(): Promise<CacheInfo>
   clear(cacheId: string): Promise<{ success: boolean; error?: string; message?: string }>
   getDataDir(): Promise<DataDirInfo>
+  setDataDir(
+    path: string | null,
+    migrate?: boolean
+  ): Promise<{ success: boolean; error?: string; from?: string; to?: string; requiresRelaunch?: boolean }>
   getLatestImportLog(): Promise<{ success: boolean; path?: string; name?: string; error?: string }>
   saveToDownloads(filename: string, dataUrl: string): Promise<{ success: boolean; filePath?: string; error?: string }>
   openDir(cacheId: string): Promise<{ success: boolean; error?: string }>

@@ -52,9 +52,34 @@ export { hasFtsTable, createFtsTable, buildFtsIndex, rebuildFtsIndex, insertFtsE
 // AI Logger & Error formatting
 export { AiLogger, extractErrorInfo, extractErrorStack, formatAIError } from './ai'
 export type { FormatAIErrorOptions } from './ai'
-export { NodePathProvider, hasPendingElectronDataWarning } from './node-path-provider'
+export {
+  NodePathProvider,
+  applyPendingNodeDataDirMigrationIfNeeded,
+  getDefaultNodeUserDataDir,
+  hasPendingElectronDataWarning,
+} from './node-path-provider'
 export { DatabaseManager } from './database-manager'
 export { createJiebaNlpProvider } from './jieba-nlp-provider'
+export {
+  applyPendingNodeDataDirMigration,
+  clearPendingNodeDataDirMigration,
+  copyDirMerge as copyDataDirMerge,
+  createNodeDataDirSwitch,
+  createPendingDataDirMigration,
+  getPendingNodeDataDirMigration,
+  isDirectoryEmptyOrMissing,
+  isExistingUserDataDir,
+  isUserDataDirSafeToUse,
+  runPendingDataDirMigration,
+} from './data-dir-switch'
+export type {
+  ApplyPendingNodeDataDirMigrationDeps,
+  CopyStats as DataDirCopyStats,
+  DataDirSwitchResult,
+  PendingDataDirMigration,
+  RunPendingDataDirMigrationDeps,
+  RunPendingDataDirMigrationResult,
+} from './data-dir-switch'
 
 // NLP 分词引擎、词频统计、词库管理
 export {

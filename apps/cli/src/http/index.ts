@@ -17,6 +17,7 @@ import {
   LLMConfigStore,
   CustomProviderStore,
   CustomModelStore,
+  applyPendingNodeDataDirMigrationIfNeeded,
   hasPendingElectronDataWarning,
   verifyCliDataPath,
 } from '@openchatlab/node-runtime'
@@ -93,10 +94,20 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
     throw new Error('HTTP server is already running')
   }
 
-  const config = loadConfig()
+  let config = loadConfig()
   const port = options?.port ?? config.api.port
   const host = options?.host ?? config.api.host
   const token = options?.token ?? ensureToken(config)
+
+  const pendingMigration = applyPendingNodeDataDirMigrationIfNeeded()
+  if (!pendingMigration.skipped) {
+    if (pendingMigration.success) {
+      console.log('[Migration] Pending data directory migration completed')
+      config = loadConfig()
+    } else {
+      console.error('[Migration] Pending data directory migration failed:', pendingMigration.error)
+    }
+  }
 
   const userDataDir = config.data.user_data_dir || undefined
   const pathProvider = new NodePathProvider(userDataDir)

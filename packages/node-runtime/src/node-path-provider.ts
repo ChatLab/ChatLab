@@ -20,6 +20,7 @@ import * as path from 'path'
 import type { PathProvider } from '@openchatlab/core'
 import { writeConfigField, loadConfig } from '@openchatlab/config'
 import { migrateFromElectronIfNeeded } from './migrations/electron-data-migration'
+import { applyPendingNodeDataDirMigration } from './data-dir-switch'
 
 const SYSTEM_DIR = path.join(os.homedir(), '.chatlab')
 
@@ -31,6 +32,11 @@ let _pendingElectronDataWarning = false
 
 export function hasPendingElectronDataWarning(): boolean {
   return _pendingElectronDataWarning
+}
+
+export function applyPendingNodeDataDirMigrationIfNeeded(): { success: boolean; skipped?: boolean; error?: string } {
+  if (process.env.CHATLAB_DATA_DIR) return { success: true, skipped: true }
+  return applyPendingNodeDataDirMigration(SYSTEM_DIR)
 }
 
 export class NodePathProvider implements PathProvider {
@@ -117,7 +123,7 @@ function resolveUserDataDir(): string {
     return result.userDataDir
   }
 
-  const defaultDir = getDefaultUserDataDir()
+  const defaultDir = getDefaultNodeUserDataDir()
 
   if (result.electronDetected) {
     // Electron was used but we couldn't find databases — likely a custom data directory.
@@ -130,7 +136,7 @@ function resolveUserDataDir(): string {
   return defaultDir
 }
 
-function getDefaultUserDataDir(): string {
+export function getDefaultNodeUserDataDir(): string {
   return path.join(os.homedir(), '.chatlab', 'data')
 }
 

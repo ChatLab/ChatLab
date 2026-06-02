@@ -29,15 +29,20 @@ import type {
   LLMConfigStore,
   CustomProviderStore,
   CustomModelStore,
+  PendingDataDirMigration,
 } from '@openchatlab/node-runtime'
-import { createDatabaseManagerAdapter } from '@openchatlab/node-runtime'
+import {
+  createDatabaseManagerAdapter,
+  createNodeDataDirSwitch,
+  getDefaultNodeUserDataDir,
+  getPendingNodeDataDirMigration,
+} from '@openchatlab/node-runtime'
 import { registerSharedRoutes } from '@openchatlab/http-routes'
 import type { HttpRouteContext } from '@openchatlab/http-routes'
 import { MergeSessionCache } from '../../../merger/merge-cache'
 import { registerImportRoutes } from './import'
 import { openDirectoryPath, showPathInFolder } from './cache'
 import { getVersion } from '../../../version'
-import { loadConfig } from '@openchatlab/config'
 
 export interface AiContextOptions {
   aiDataDir: string
@@ -105,8 +110,8 @@ export function registerWebRoutes(
     return { sessionId: result.sessionId }
   }
 
-  const cliConfig = loadConfig()
-  const isCustom = Boolean(cliConfig.data.user_data_dir || process.env.CHATLAB_DATA_DIR)
+  const defaultUserDataDir = getDefaultNodeUserDataDir()
+  const isCustom = path.resolve(resolvedPathProvider.getUserDataDir()) !== path.resolve(defaultUserDataDir)
 
   registerSharedRoutes(
     server,
@@ -119,7 +124,20 @@ export function registerWebRoutes(
       openDirectory: openDirectoryPath,
       showInFolder: showPathInFolder,
       downloadsDir: resolvedPathProvider.getDownloadsDir(),
+      defaultUserDataDir,
       isCustomDataDir: isCustom,
+      canSetDataDir: !process.env.CHATLAB_DATA_DIR,
+      getPendingDataDirMigration: (): PendingDataDirMigration | null =>
+        getPendingNodeDataDirMigration(resolvedPathProvider.getSystemDir()),
+      setDataDir: (dirPath, migrate) =>
+        createNodeDataDirSwitch({
+          systemDir: resolvedPathProvider.getSystemDir(),
+          currentDir: resolvedPathProvider.getUserDataDir(),
+          targetDir: dirPath,
+          defaultDir: defaultUserDataDir,
+          migrate,
+          envDataDir: process.env.CHATLAB_DATA_DIR,
+        }),
       ...(mergeCache && {
         mergeSessionCache: mergeCache,
         streamImport: cliStreamImport,

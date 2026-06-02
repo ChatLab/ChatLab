@@ -17,8 +17,10 @@ const cacheInfo = ref<CacheInfo | null>(null)
 const isLoading = ref(false)
 const clearingId = ref<string | null>(null)
 const dataDir = ref('')
+const dataDirInput = ref('')
 const defaultDataDir = ref('')
 const isCustomDataDir = ref(false)
+const canSetDataDir = ref(false)
 const isUpdatingDataDir = ref(false)
 const dataDirError = ref<string | null>(null)
 const isMigrateHintIgnored = ref(false)
@@ -59,9 +61,13 @@ async function loadCacheInfo() {
 }
 
 // 加载数据目录
+const showDataDirSettings = computed(() => {
+  return IS_ELECTRON || canSetDataDir.value || Boolean(dataDir.value)
+})
+
 const canMigrateToDefault = computed(() => {
   return (
-    IS_ELECTRON &&
+    showDataDirSettings.value &&
     dataDir.value &&
     defaultDataDir.value &&
     dataDir.value !== defaultDataDir.value &&
@@ -91,8 +97,10 @@ async function loadDataDir() {
   try {
     const info = await useCacheService().getDataDir()
     dataDir.value = info.path
+    dataDirInput.value = info.pendingMigration?.to || info.path
     defaultDataDir.value = info.defaultPath || ''
     isCustomDataDir.value = info.isCustom
+    canSetDataDir.value = IS_ELECTRON || Boolean(info.canSetDataDir)
     updateMigrateHintIgnored()
   } catch (error) {
     console.error('获取数据目录失败:', error)
@@ -166,6 +174,18 @@ function migrateToDefaultDir() {
   showConfirmModal.value = true
 }
 
+function applyTypedDataDir() {
+  dataDirError.value = null
+  const targetDir = dataDirInput.value.trim()
+  if (!targetDir) {
+    dataDirError.value = t('settings.storage.dataLocation.pathRequired')
+    return
+  }
+  pendingNewDir.value = targetDir
+  pendingMigrate.value = true
+  showConfirmModal.value = true
+}
+
 function ignoreMigrateHint() {
   if (!dataDir.value || !defaultDataDir.value) return
 
@@ -194,7 +214,9 @@ function cancelDataDirChange() {
 async function applyDataDirChange(newDir: string | null, migrate: boolean) {
   isUpdatingDataDir.value = true
   try {
-    const result = await window.cacheApi.setDataDir(newDir, migrate)
+    const result = IS_ELECTRON
+      ? await window.cacheApi.setDataDir(newDir, migrate)
+      : await useCacheService().setDataDir(newDir, migrate)
     if (!result.success) {
       dataDirError.value = result.error || '设置失败'
       return
@@ -216,12 +238,16 @@ async function applyDataDirChange(newDir: string | null, migrate: boolean) {
 
 // 重启应用
 async function relaunchApp() {
-  await usePlatformService().relaunch()
+  if (IS_ELECTRON) {
+    await usePlatformService().relaunch()
+    return
+  }
+  window.location.reload()
 }
 
 onMounted(() => {
   loadCacheInfo()
-  if (IS_ELECTRON) loadDataDir()
+  loadDataDir()
 })
 
 // 暴露刷新方法
@@ -340,8 +366,8 @@ defineExpose({
       </div>
     </div>
 
-    <!-- 数据目录设置（仅 Electron 支持切换） -->
-    <template v-if="IS_ELECTRON">
+    <!-- 数据目录设置 -->
+    <template v-if="showDataDirSettings">
       <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
         <div class="flex items-start justify-between gap-3">
           <div class="min-w-0 flex-1">
@@ -360,8 +386,9 @@ defineExpose({
         </div>
 
         <div class="mt-3 flex items-center gap-2">
-          <UInput v-model="dataDir" readonly size="sm" class="min-w-0 flex-1" />
+          <UInput v-model="dataDirInput" :readonly="IS_ELECTRON || !canSetDataDir" size="sm" class="min-w-0 flex-1" />
           <UButton
+            v-if="IS_ELECTRON"
             size="sm"
             variant="soft"
             :loading="isUpdatingDataDir"
@@ -370,10 +397,23 @@ defineExpose({
           >
             {{ t('settings.storage.dataLocation.choose') }}
           </UButton>
+          <UButton
+            v-else-if="canSetDataDir"
+            size="sm"
+            variant="soft"
+            :loading="isUpdatingDataDir"
+            :disabled="isUpdatingDataDir || !dataDirInput.trim()"
+            @click="applyTypedDataDir"
+          >
+            {{ t('settings.storage.dataLocation.applyPath') }}
+          </UButton>
           <UButton v-if="isCustomDataDir" size="sm" variant="ghost" :disabled="isUpdatingDataDir" @click="resetDataDir">
             {{ t('settings.storage.dataLocation.reset') }}
           </UButton>
         </div>
+        <p v-if="!IS_ELECTRON && canSetDataDir" class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+          {{ t('settings.storage.dataLocation.serverPathHint') }}
+        </p>
 
         <!-- 一键迁移到默认路径 -->
         <div
@@ -406,7 +446,11 @@ defineExpose({
         </div>
 
         <p class="mt-2 text-xs text-amber-600 dark:text-amber-400">
-          {{ t('settings.storage.dataLocation.restartTip') }}
+          {{
+            IS_ELECTRON
+              ? t('settings.storage.dataLocation.restartTip')
+              : t('settings.storage.dataLocation.cliRestartTip')
+          }}
         </p>
         <p v-if="dataDirError" class="mt-1 text-xs text-red-500">
           {{ dataDirError }}
@@ -440,7 +484,11 @@ defineExpose({
                 class="rounded-lg border border-amber-200 bg-amber-50 p-3 dark:border-amber-800/50 dark:bg-amber-900/20"
               >
                 <p class="text-xs text-amber-700 dark:text-amber-400">
-                  {{ t('settings.storage.dataLocation.confirmWarning') }}
+                  {{
+                    IS_ELECTRON
+                      ? t('settings.storage.dataLocation.confirmWarning')
+                      : t('settings.storage.dataLocation.cliConfirmWarning')
+                  }}
                 </p>
               </div>
             </div>
@@ -466,17 +514,25 @@ defineExpose({
                 <UIcon name="i-heroicons-check-circle" class="h-5 w-5 text-green-600 dark:text-green-400" />
               </div>
               <h3 class="text-lg font-semibold text-gray-900 dark:text-white">
-                {{ t('settings.storage.dataLocation.migrationSuccessTitle') }}
+                {{ t('settings.storage.dataLocation.migrationQueuedTitle') }}
               </h3>
             </div>
 
             <p class="text-sm text-gray-600 dark:text-gray-400">
-              {{ t('settings.storage.dataLocation.migrationSuccessMessage') }}
+              {{
+                IS_ELECTRON
+                  ? t('settings.storage.dataLocation.migrationSuccessMessage')
+                  : t('settings.storage.dataLocation.cliMigrationSuccessMessage')
+              }}
             </p>
 
             <div class="mt-5 flex justify-end">
               <UButton color="primary" @click="relaunchApp">
-                {{ t('settings.storage.dataLocation.relaunchNow') }}
+                {{
+                  IS_ELECTRON
+                    ? t('settings.storage.dataLocation.relaunchNow')
+                    : t('settings.storage.dataLocation.refreshPage')
+                }}
               </UButton>
             </div>
           </div>

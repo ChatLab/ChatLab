@@ -9,6 +9,8 @@
 import type { PathProvider } from '@openchatlab/core'
 import type {
   DatabaseManager,
+  DataDirSwitchResult,
+  PendingDataDirMigration,
   SessionRuntimeAdapter,
   PreferencesManager,
   AIConversationManager,
@@ -56,6 +58,9 @@ export interface HttpRouteContext {
   downloadsDir?: string
   defaultUserDataDir?: string
   isCustomDataDir?: boolean
+  canSetDataDir?: boolean
+  getPendingDataDirMigration?: () => PendingDataDirMigration | null
+  setDataDir?: (dirPath: string | null, migrate?: boolean) => Promise<DataDirSwitchResult> | DataDirSwitchResult
 
   /** Agent streaming — platform-specific execution (optional) */
   runAgentStream?: (

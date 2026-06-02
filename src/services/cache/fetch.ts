@@ -14,6 +14,19 @@ export class FetchCacheAdapter implements CacheServiceAdapter {
     return get<DataDirInfo>('/cache/data-dir')
   }
 
+  async setDataDir(
+    path: string | null,
+    migrate: boolean = true
+  ): Promise<{ success: boolean; error?: string; from?: string; to?: string; requiresRelaunch?: boolean }> {
+    return post<{ success: boolean; error?: string; from?: string; to?: string; requiresRelaunch?: boolean }>(
+      '/cache/data-dir',
+      {
+        path,
+        migrate,
+      }
+    )
+  }
+
   async getLatestImportLog(): Promise<{ success: boolean; path?: string; name?: string; error?: string }> {
     return get<{ success: boolean; path?: string; name?: string; error?: string }>('/cache/latest-import-log')
   }
