@@ -54,12 +54,15 @@ export function registerCacheHandlers(_context: IpcContext): void {
       return { success: false, error: result.error }
     }
 
-    ensureAppDirs()
+    if (result.requiresRelaunch === false) {
+      ensureAppDirs()
+    }
 
     return {
       success: true,
       from: result.from,
       to: result.to,
+      requiresRelaunch: result.requiresRelaunch,
     }
   })
 }

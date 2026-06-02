@@ -261,7 +261,7 @@ interface CacheApi {
   setDataDir: (
     path: string | null,
     migrate?: boolean
-  ) => Promise<{ success: boolean; error?: string; from?: string; to?: string }>
+  ) => Promise<{ success: boolean; error?: string; from?: string; to?: string; requiresRelaunch?: boolean }>
 }
 
 // Network API 类型 - 网络代理配置

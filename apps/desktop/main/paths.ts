@@ -30,13 +30,19 @@ import {
   copyDirMerge,
   copyDirRecursive,
   ensureMarkerFile,
-  isDirectorySafeToUse,
-  isExistingChatLabDir,
   isInsideAppInstallDir,
   isPathSafe,
   isSubPath,
   writeMigrationLog,
 } from './utils/pathUtils'
+import {
+  createPendingDataDirMigration,
+  isDirectoryEmptyOrMissing,
+  isExistingUserDataDir,
+  isUserDataDirSafeToUse,
+  runPendingDataDirMigration,
+  type PendingDataDirMigration,
+} from './utils/dataDirSwitch'
 
 // 缓存路径，避免重复计算
 let _systemDataDir: string | null = null
@@ -48,8 +54,6 @@ const STORAGE_CONFIG_FILE = 'storage.json'
 
 // ChatLab 数据目录标记文件（用于更严格的目录识别）
 const CHATLAB_MARKER_FILE = '.chatlab'
-// ChatLab 数据目录关键子目录（用于识别已有数据）
-const CHATLAB_REQUIRED_DIRS = ['databases', 'settings']
 
 // ==================== 新路径体系 ====================
 
@@ -124,6 +128,7 @@ function getStorageConfigPath(): string {
 interface StorageConfig {
   dataDir?: string
   pendingDeleteDir?: string
+  pendingDataDirMigration?: PendingDataDirMigration
 }
 
 function readStorageConfig(): StorageConfig {
@@ -167,115 +172,105 @@ export function getCustomDataDir(): string | null {
 export function setCustomDataDir(
   dataDir: string | null,
   migrate: boolean = true
-): { success: boolean; error?: string; from?: string; to?: string } {
+): { success: boolean; error?: string; from?: string; to?: string; requiresRelaunch?: boolean } {
   const normalized = typeof dataDir === 'string' ? dataDir.trim() : ''
   const oldDir = getUserDataDir()
 
   try {
-    if (!normalized) {
-      const newDir = getDefaultUserDataDir()
-
-      if (migrate && oldDir !== newDir && isSubPath(oldDir, newDir)) {
-        return { success: false, error: '目标目录不能是当前数据目录的子目录' }
-      }
-
-      writeConfigField('data', 'user_data_dir', newDir)
-      writeConfigField('data', 'electron_migration_done', true)
-      _userDataDir = newDir
-
-      let canDeleteOldDir = false
-      if (migrate && oldDir !== newDir) {
-        const migrateResult = copyDirMerge(oldDir, newDir, ensureDir)
-        console.log(
-          `[Paths] 数据迁移完成: 复制 ${migrateResult.copied} 项, 跳过 ${migrateResult.skipped} 项, 错误 ${migrateResult.errors.length} 项`
-        )
-        if (migrateResult.errors.length > 0) {
-          console.warn('[Paths] Errors during migration:', migrateResult.errors)
-          writeMigrationLog(
-            getLogsDir(),
-            `切换为默认目录迁移失败: 从 ${oldDir} 到 ${newDir}，复制 ${migrateResult.copied} 项，跳过 ${migrateResult.skipped} 项，错误 ${migrateResult.errors.length} 项`,
-            ensureDir
-          )
-        } else {
-          canDeleteOldDir = true
-          writeMigrationLog(
-            getLogsDir(),
-            `切换为默认目录迁移成功: 从 ${oldDir} 到 ${newDir}，复制 ${migrateResult.copied} 项，跳过 ${migrateResult.skipped} 项`,
-            ensureDir
-          )
-        }
-      }
-
-      if (canDeleteOldDir) {
-        writeStorageConfig({ pendingDeleteDir: oldDir })
-      }
-
-      return { success: true, from: oldDir, to: newDir }
+    if (process.env.CHATLAB_DATA_DIR) {
+      return { success: false, error: 'CHATLAB_DATA_DIR 已设置，不能在界面中切换数据目录' }
     }
 
-    if (!path.isAbsolute(normalized)) {
+    const newDir = normalized || getDefaultUserDataDir()
+
+    if (!path.isAbsolute(newDir)) {
       return { success: false, error: '数据目录必须是绝对路径' }
     }
 
-    if (migrate && oldDir !== normalized && isSubPath(oldDir, normalized)) {
+    if (migrate && oldDir !== newDir && isSubPath(oldDir, newDir)) {
       return { success: false, error: '目标目录不能是当前数据目录的子目录' }
     }
 
-    if (!isPathSafe(normalized)) {
+    if (!isPathSafe(newDir)) {
       return { success: false, error: '不能使用系统关键目录作为数据目录' }
     }
 
     try {
       const exePath = app.getPath('exe')
-      if (isInsideAppInstallDir(normalized, exePath)) {
+      if (isInsideAppInstallDir(newDir, exePath)) {
         return { success: false, error: '不能将数据目录放在应用安装目录下，应用更新时该目录会被清空' }
       }
     } catch {
       // 获取 exe 路径失败时跳过此检查
     }
 
-    if (!isDirectorySafeToUse(normalized, CHATLAB_MARKER_FILE, CHATLAB_REQUIRED_DIRS)) {
+    if (!isUserDataDirSafeToUse(newDir)) {
       return { success: false, error: '目标目录不为空且不包含 ChatLab 数据，请选择空目录或已有数据目录' }
     }
 
-    ensureDir(normalized)
-    _userDataDir = normalized
-
-    let canDeleteOldDir = false
-    if (migrate && oldDir !== normalized) {
-      const migrateResult = copyDirMerge(oldDir, normalized, ensureDir)
-      console.log(
-        `[Paths] 数据迁移完成: 复制 ${migrateResult.copied} 项, 跳过 ${migrateResult.skipped} 项, 错误 ${migrateResult.errors.length} 项`
-      )
-      if (migrateResult.errors.length > 0) {
-        console.warn('[Paths] Errors during migration:', migrateResult.errors)
-        writeMigrationLog(
-          getLogsDir(),
-          `切换目录迁移失败: 从 ${oldDir} 到 ${normalized}，复制 ${migrateResult.copied} 项，跳过 ${migrateResult.skipped} 项，错误 ${migrateResult.errors.length} 项`,
-          ensureDir
-        )
-      } else {
-        canDeleteOldDir = true
-        writeMigrationLog(
-          getLogsDir(),
-          `切换目录迁移成功: 从 ${oldDir} 到 ${normalized}，复制 ${migrateResult.copied} 项，跳过 ${migrateResult.skipped} 项`,
-          ensureDir
-        )
-      }
+    if (path.resolve(oldDir) === path.resolve(newDir)) {
+      const config = readStorageConfig()
+      writeStorageConfig({ ...config, pendingDataDirMigration: undefined })
+      return { success: true, from: oldDir, to: newDir, requiresRelaunch: false }
     }
 
-    writeConfigField('data', 'user_data_dir', normalized)
-    writeConfigField('data', 'electron_migration_done', true)
+    const config = readStorageConfig()
+    const pending = createPendingDataDirMigration({
+      from: oldDir,
+      to: newDir,
+      migrate,
+      targetWasEmpty: isDirectoryEmptyOrMissing(newDir),
+    })
+    writeStorageConfig({ ...config, pendingDataDirMigration: pending })
 
-    if (canDeleteOldDir) {
-      writeStorageConfig({ pendingDeleteDir: oldDir })
-    }
-
-    return { success: true, from: oldDir, to: normalized }
+    return { success: true, from: oldDir, to: newDir, requiresRelaunch: true }
   } catch (error) {
     console.error('[Paths] Error setting custom data dir:', error)
     return { success: false, error: error instanceof Error ? error.message : String(error) }
   }
+}
+
+export function applyPendingDataDirMigration(): { success: boolean; skipped?: boolean; error?: string } {
+  const config = readStorageConfig()
+  const pending = config.pendingDataDirMigration
+  if (!pending) return { success: true, skipped: true }
+
+  const result = runPendingDataDirMigration(pending, {
+    writeUserDataDir(dir) {
+      writeConfigField('data', 'user_data_dir', dir)
+      writeConfigField('data', 'electron_migration_done', true)
+      _userDataDir = dir
+    },
+    clearPendingMigration() {
+      const latest = readStorageConfig()
+      writeStorageConfig({ ...latest, pendingDataDirMigration: undefined })
+    },
+    markPendingDeleteDir(dir) {
+      const latest = readStorageConfig()
+      writeStorageConfig({ ...latest, pendingDeleteDir: dir })
+    },
+    log(message) {
+      writeMigrationLog(getLogsDir(), message, ensureDir)
+    },
+  })
+
+  if (!result.success) {
+    const error = result.errors.join('; ') || '数据目录迁移失败'
+    console.warn('[Paths] Pending data dir migration failed:', error)
+    writeMigrationLog(
+      getLogsDir(),
+      `切换目录迁移失败: 从 ${pending.from} 到 ${pending.to}，复制 ${result.copied} 项，跳过 ${result.skipped} 项，错误 ${result.errors.length} 项: ${error}`,
+      ensureDir
+    )
+    return { success: false, error }
+  }
+
+  writeMigrationLog(
+    getLogsDir(),
+    `切换目录迁移成功: 从 ${pending.from} 到 ${pending.to}，复制 ${result.copied} 项，跳过 ${result.skipped} 项`,
+    ensureDir
+  )
+  return { success: true }
 }
 
 /**
@@ -292,25 +287,25 @@ export function cleanupPendingDeleteDir(): void {
 
     if (pendingDir === currentDir) {
       console.log('[Paths] Skipping cleanup: pending dir is same as current dir')
-      writeStorageConfig({ dataDir: config.dataDir })
+      writeStorageConfig({ ...config, pendingDeleteDir: undefined })
       return
     }
 
     if (!isPathSafe(pendingDir)) {
       console.log('[Paths] Skipping cleanup: pending dir is a system directory:', pendingDir)
-      writeStorageConfig({ dataDir: config.dataDir })
+      writeStorageConfig({ ...config, pendingDeleteDir: undefined })
       return
     }
 
-    if (fs.existsSync(pendingDir) && !isExistingChatLabDir(pendingDir, CHATLAB_MARKER_FILE, CHATLAB_REQUIRED_DIRS)) {
+    if (fs.existsSync(pendingDir) && !isExistingUserDataDir(pendingDir)) {
       console.log('[Paths] Skipping cleanup: pending dir is not a ChatLab data dir:', pendingDir)
-      writeStorageConfig({ dataDir: config.dataDir })
+      writeStorageConfig({ ...config, pendingDeleteDir: undefined })
       return
     }
 
     if (!fs.existsSync(pendingDir)) {
       console.log('[Paths] Pending dir does not exist, skipping cleanup:', pendingDir)
-      writeStorageConfig({ dataDir: config.dataDir })
+      writeStorageConfig({ ...config, pendingDeleteDir: undefined })
       return
     }
 
@@ -318,7 +313,7 @@ export function cleanupPendingDeleteDir(): void {
     fs.rmSync(pendingDir, { recursive: true, force: true })
     console.log('[Paths] Old data directory deleted:', pendingDir)
 
-    writeStorageConfig({ dataDir: config.dataDir })
+    writeStorageConfig({ ...config, pendingDeleteDir: undefined })
   } catch (error) {
     console.error('[Paths] Failed to clean up old directory:', error)
   }

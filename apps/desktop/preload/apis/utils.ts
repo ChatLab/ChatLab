@@ -56,7 +56,7 @@ export const cacheApi = {
   setDataDir: (
     path: string | null,
     migrate: boolean = true
-  ): Promise<{ success: boolean; error?: string; from?: string; to?: string }> => {
+  ): Promise<{ success: boolean; error?: string; from?: string; to?: string; requiresRelaunch?: boolean }> => {
     return ipcRenderer.invoke('cache:setDataDir', { path, migrate })
   },
 }

@@ -128,7 +128,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
     }
 
     const { shell } = await import('electron')
-    const { getDefaultUserDataDir, getCustomDataDir, getDownloadsDir } = await import('./paths')
+    const { getDefaultUserDataDir, getUserDataDir, getDownloadsDir } = await import('./paths')
 
     const ctx: HttpRouteContext = {
       dbManager: newDbManager,
@@ -151,7 +151,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
       },
       downloadsDir: getDownloadsDir(),
       defaultUserDataDir: getDefaultUserDataDir(),
-      isCustomDataDir: Boolean(getCustomDataDir()),
+      isCustomDataDir: path.resolve(getUserDataDir()) !== path.resolve(getDefaultUserDataDir()),
       runAgentStream: createElectronRunAgentStream(),
     }
 

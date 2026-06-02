@@ -163,7 +163,12 @@ async function applyDataDirChange(newDir: string | null, migrate: boolean) {
       return
     }
 
-    // 迁移成功，显示强制重启弹窗
+    if (result.requiresRelaunch === false) {
+      await loadDataDir()
+      return
+    }
+
+    // 已登记重启期迁移任务，重启后会在数据库服务启动前执行
     showRelaunchModal.value = true
   } catch (error) {
     dataDirError.value = error instanceof Error ? error.message : String(error)

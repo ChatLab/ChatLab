@@ -12,6 +12,7 @@ import {
   migrateFromLegacyDir,
   ensureAppDirs,
   cleanupPendingDeleteDir,
+  applyPendingDataDirMigration,
   needsUnifiedDirMigration,
   migrateToUnifiedDirs,
   verifyDataPath,
@@ -89,6 +90,9 @@ class MainProcess {
     // E2E 测试模式：跳过遗留数据迁移
     // 遗留迁移会删除 Documents/ChatLab，在本地测试时可能破坏用户数据
     if (!this.isTestMode) {
+      // 应用上次设置页登记的数据目录切换；必须早于任何数据库连接初始化
+      this.applyPendingDataDirMigrationIfNeeded()
+
       // 清理上次切换目录后的旧数据目录
       cleanupPendingDeleteDir()
 
@@ -131,6 +135,20 @@ class MainProcess {
 
     // 主应用程序事件
     this.mainAppEvents()
+  }
+
+  // 应用设置页登记的数据目录切换（重启期执行）
+  applyPendingDataDirMigrationIfNeeded() {
+    const result = applyPendingDataDirMigration()
+    if (result.skipped) {
+      console.log('[Main] No pending data directory migration')
+      return
+    }
+    if (result.success) {
+      console.log('[Main] Pending data directory migration completed')
+    } else {
+      console.error('[Main] Pending data directory migration failed:', result.error)
+    }
   }
 
   // 从旧目录迁移数据（Documents/ChatLab → userData/data）
