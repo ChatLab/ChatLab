@@ -239,8 +239,9 @@ export function setCustomDataDir(
     }
 
     ensureDir(normalized)
-    _userDataDir = normalized
 
+    // 先执行迁移（如果需要），成功后再更新配置
+    let migrationSuccess = true
     let canDeleteOldDir = false
     if (migrate && oldDir !== normalized) {
       const migrateResult = copyDirMerge(oldDir, normalized, ensureDir)
@@ -254,6 +255,7 @@ export function setCustomDataDir(
           `切换目录迁移失败: 从 ${oldDir} 到 ${normalized}，复制 ${migrateResult.copied} 项，跳过 ${migrateResult.skipped} 项，错误 ${migrateResult.errors.length} 项`,
           ensureDir
         )
+        migrationSuccess = false
       } else {
         canDeleteOldDir = true
         writeMigrationLog(
@@ -264,8 +266,15 @@ export function setCustomDataDir(
       }
     }
 
-    writeConfigField('data', 'user_data_dir', normalized)
-    writeConfigField('data', 'electron_migration_done', true)
+    // 只有迁移成功才更新配置
+    if (migrationSuccess) {
+      writeConfigField('data', 'user_data_dir', normalized)
+      writeConfigField('data', 'electron_migration_done', true)
+      _userDataDir = normalized
+    } else {
+      // 迁移失败，保持原路径不变
+      return { success: false, error: '数据迁移失败，请检查目标目录权限' }
+    }
 
     if (canDeleteOldDir) {
       writeStorageConfig({ pendingDeleteDir: oldDir })
