@@ -1,5 +1,53 @@
 [
   {
+    "version": "0.23.2",
+    "date": "2026-06-02",
+    "summary": "Unifies multi-platform HTTP and AI streaming paths, adds web authentication, and fixes several migration regressions.",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "Add token-based frontend login with remembered sessions for protected Web API access",
+          "Move AI config, assistants, skills, conversations, and summaries CRUD to shared HTTP routes",
+          "Move chat merge and cache management to shared HTTP routes",
+          "[Desktop] Add an internal HTTP server so the renderer can use the unified backend adapters",
+          "[CLI] Add --require-auth to protect /_web/* API access"
+        ]
+      },
+      {
+        "type": "fix",
+        "items": [
+          "Improve shared SSE streaming stability around connections, errors, and abort cleanup",
+          "Fix incorrect fetch-models and validation button states when editing AI configs",
+          "Fix validation of saved API keys accidentally testing a placeholder key",
+          "Fix later requests failing after AI filter and tool test routes closed cached database handles",
+          "Require the token field in the add data source modal",
+          "Fix web type-check regressions",
+          "[Desktop] Keep large chart computations off the renderer thread to avoid UI freezes"
+        ]
+      },
+      {
+        "type": "refactor",
+        "items": [
+          "Extract @openchatlab/http-routes to share route handling between CLI Web and desktop",
+          "Move AI chat streaming and Agent runs to shared HTTP SSE endpoints",
+          "Remove migrated Electron IPC and preload bridges for data, messages, preferences, AI, and session indexes",
+          "Trim obsolete Electron/Web shims from the frontend registry"
+        ]
+      },
+      {
+        "type": "ci",
+        "items": ["Fix the Windows release zstd cache issue and add CLI update notes to the release workflow"]
+      },
+      {
+        "type": "chore",
+        "items": [
+          "Adjust Node type-check projects to avoid scanning frontend SFCs while covering the desktop main process"
+        ]
+      }
+    ]
+  },
+  {
     "version": "0.23.1",
     "date": "2026-06-01",
     "summary": "Adds a clb command alias and port conflict detection with actionable guidance. Fixes daemon silent exit and several UI issues in dark mode.",

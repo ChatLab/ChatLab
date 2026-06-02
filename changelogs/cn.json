@@ -1,5 +1,51 @@
 [
   {
+    "version": "0.23.2",
+    "date": "2026-06-02",
+    "summary": "统一多端 HTTP 能力与 AI 流式通道，新增 Web 鉴权并修复多处迁移回归。",
+    "changes": [
+      {
+        "type": "feat",
+        "items": [
+          "新增前端 Token 登录与记住登录状态，支持受保护的 Web API 访问",
+          "将 AI 配置、助手、技能、会话、摘要等 CRUD 能力迁移到共享 HTTP 路由",
+          "将合并聊天记录与缓存管理迁移到共享 HTTP 路由",
+          "【桌面端】新增内置 HTTP server，让渲染进程通过统一适配器访问后端能力",
+          "【CLI】新增 --require-auth 参数，可保护 /_web/* API 访问"
+        ]
+      },
+      {
+        "type": "fix",
+        "items": [
+          "修复共享 SSE 流式连接、错误处理和中止清理的稳定性问题",
+          "修复 AI 配置编辑时获取模型与验证按钮状态异常的问题",
+          "修复复用已保存 API Key 验证时误测占位 key 的问题",
+          "修复 AI 筛选和工具测试后关闭缓存数据库句柄导致后续请求失败的问题",
+          "修复数据源新增弹窗未强制填写 Token 的问题",
+          "修复 Web 类型检查中的回归问题",
+          "【桌面端】修复图表大数据计算落到渲染线程导致界面卡顿的问题"
+        ]
+      },
+      {
+        "type": "refactor",
+        "items": [
+          "抽取 @openchatlab/http-routes 共享路由包，统一 CLI Web 与桌面端业务入口",
+          "将 AI 流式对话与 Agent 执行迁移为共享 HTTP SSE 通道",
+          "清理 Electron 中已迁移的数据、消息、偏好、AI、会话索引等 IPC 和 preload 桥接",
+          "精简前端 registry 中不再需要的 Electron/Web 双实现 shim"
+        ]
+      },
+      {
+        "type": "ci",
+        "items": ["修复 Windows 发布流程中的 zstd 缓存问题，并补充 CLI 更新发布说明"]
+      },
+      {
+        "type": "chore",
+        "items": ["调整 Node 类型检查项目配置，避免误扫前端 SFC 并覆盖桌面主进程类型检查"]
+      }
+    ]
+  },
+  {
     "version": "0.23.1",
     "date": "2026-06-01",
     "summary": "新增 clb 短别名与端口预检引导，修复守护进程静默退出及暗色模式标题栏等多处问题。",
