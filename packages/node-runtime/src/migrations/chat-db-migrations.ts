@@ -21,6 +21,17 @@ export interface MigrationDeps {
  * @returns Array of migrations compatible with core `runMigrations`
  */
 export function getChatDbMigrations(deps?: MigrationDeps): CoreMigration[] {
+  const hasColumn = (db: DatabaseAdapter, tableName: string, columnName: string): boolean => {
+    const tableInfo = db.pragma(`table_info(${tableName})`) as Array<{ name: string }>
+    return tableInfo.some((col) => col.name === columnName)
+  }
+
+  const addColumnIfMissing = (db: DatabaseAdapter, tableName: string, columnName: string, definition: string): void => {
+    if (!hasColumn(db, tableName, columnName)) {
+      db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`)
+    }
+  }
+
   return [
     {
       version: 1,
@@ -146,6 +157,72 @@ export function getChatDbMigrations(deps?: MigrationDeps): CoreMigration[] {
 
           offset += BATCH_SIZE
         }
+      },
+    },
+    {
+      version: 5,
+      description: 'Repair legacy member/message columns',
+      up: (db: DatabaseAdapter) => {
+        addColumnIfMissing(db, 'meta', 'group_id', 'TEXT')
+        addColumnIfMissing(db, 'meta', 'group_avatar', 'TEXT')
+        addColumnIfMissing(db, 'meta', 'owner_id', 'TEXT')
+        addColumnIfMissing(db, 'meta', 'session_gap_threshold', 'INTEGER')
+
+        const memberHadName = hasColumn(db, 'member', 'name')
+        const memberHadNickname = hasColumn(db, 'member', 'nickname')
+        addColumnIfMissing(db, 'member', 'account_name', 'TEXT')
+        addColumnIfMissing(db, 'member', 'group_nickname', 'TEXT')
+        addColumnIfMissing(db, 'member', 'aliases', "TEXT DEFAULT '[]'")
+        addColumnIfMissing(db, 'member', 'avatar', 'TEXT')
+        addColumnIfMissing(db, 'member', 'roles', "TEXT DEFAULT '[]'")
+
+        if (memberHadName) {
+          db.exec("UPDATE member SET account_name = COALESCE(NULLIF(account_name, ''), name)")
+        }
+        if (memberHadNickname) {
+          db.exec("UPDATE member SET group_nickname = COALESCE(NULLIF(group_nickname, ''), nickname)")
+        }
+        db.exec("UPDATE member SET aliases = COALESCE(aliases, '[]'), roles = COALESCE(roles, '[]')")
+
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS member_name_history (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            member_id INTEGER NOT NULL,
+            name_type TEXT DEFAULT 'account_name',
+            name TEXT NOT NULL,
+            start_ts INTEGER NOT NULL,
+            end_ts INTEGER,
+            FOREIGN KEY(member_id) REFERENCES member(id)
+          )
+        `)
+        addColumnIfMissing(db, 'member_name_history', 'name_type', "TEXT DEFAULT 'account_name'")
+        addColumnIfMissing(db, 'message', 'sender_account_name', 'TEXT')
+        addColumnIfMissing(db, 'message', 'sender_group_nickname', 'TEXT')
+        addColumnIfMissing(db, 'message', 'reply_to_message_id', 'TEXT DEFAULT NULL')
+        addColumnIfMissing(db, 'message', 'platform_message_id', 'TEXT DEFAULT NULL')
+
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS chat_session (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            start_ts INTEGER NOT NULL,
+            end_ts INTEGER NOT NULL,
+            message_count INTEGER DEFAULT 0,
+            is_manual INTEGER DEFAULT 0,
+            summary TEXT
+          )
+        `)
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS message_context (
+            message_id INTEGER PRIMARY KEY,
+            session_id INTEGER NOT NULL,
+            topic_id INTEGER
+          )
+        `)
+
+        db.exec('CREATE INDEX IF NOT EXISTS idx_message_platform_id ON message(platform_message_id)')
+        db.exec('CREATE INDEX IF NOT EXISTS idx_member_name_history_member_id ON member_name_history(member_id)')
+        db.exec('CREATE INDEX IF NOT EXISTS idx_session_time ON chat_session(start_ts, end_ts)')
+        db.exec('CREATE INDEX IF NOT EXISTS idx_context_session ON message_context(session_id)')
       },
     },
   ]

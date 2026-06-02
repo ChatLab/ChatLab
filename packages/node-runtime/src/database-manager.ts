@@ -42,12 +42,30 @@ export class DatabaseManager {
     const dbPath = this.getDbPath(sessionId)
     if (!fs.existsSync(dbPath)) return null
 
+    this.migrateIfNeeded(dbPath)
+
     const adapter = openBetterSqliteDatabase(dbPath, {
       readonly: options?.readonly ?? true,
       nativeBinding: this.nativeBinding,
     })
     this.cache.set(sessionId, adapter)
     return adapter
+  }
+
+  private migrateIfNeeded(dbPath: string): void {
+    const adapter = openBetterSqliteDatabase(dbPath, {
+      readonly: false,
+      nativeBinding: this.nativeBinding,
+    })
+
+    try {
+      if (coreNeedsMigration(adapter, CURRENT_SCHEMA_VERSION)) {
+        const migrations = getChatDbMigrations(this.migrationDeps)
+        runMigrations(adapter, migrations)
+      }
+    } finally {
+      adapter.close()
+    }
   }
 
   /**
