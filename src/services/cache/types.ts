@@ -21,6 +21,7 @@ export interface DataDirInfo {
   defaultPath?: string
   isCustom: boolean
   canSetDataDir?: boolean
+  hasLegacyDataAtDefaultDir?: boolean
   pendingMigration?: {
     from: string
     to: string

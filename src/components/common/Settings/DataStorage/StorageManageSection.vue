@@ -20,6 +20,7 @@ const clearingId = ref<string | null>(null)
 const dataDir = ref('')
 const dataDirInput = ref('')
 const defaultDataDir = ref('')
+const hasLegacyDataAtDefaultDir = ref(false)
 const isCustomDataDir = ref(false)
 const canSetDataDir = ref(false)
 const isUpdatingDataDir = ref(false)
@@ -72,6 +73,7 @@ const canMigrateToDefault = computed(() => {
     dataDir.value &&
     defaultDataDir.value &&
     dataDir.value !== defaultDataDir.value &&
+    hasLegacyDataAtDefaultDir.value &&
     !isMigrateHintIgnored.value
   )
 })
@@ -95,6 +97,7 @@ async function loadDataDir() {
     dataDir.value = info.path
     dataDirInput.value = info.pendingMigration?.to || info.path
     defaultDataDir.value = info.defaultPath || ''
+    hasLegacyDataAtDefaultDir.value = Boolean(info.hasLegacyDataAtDefaultDir)
     isCustomDataDir.value = info.isCustom
     canSetDataDir.value = IS_ELECTRON || Boolean(info.canSetDataDir)
     updateMigrateHintIgnored()

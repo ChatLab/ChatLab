@@ -1,11 +1,14 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import Fastify from 'fastify'
 import type { PathProvider } from '@openchatlab/core'
 import type { HttpRouteContext } from '../../context'
 import { registerCacheRoutes } from './cache'
 
-function createPathProvider(): PathProvider {
+function createPathProvider(overrides: Partial<PathProvider> = {}): PathProvider {
   return {
     getSystemDir: () => '/tmp/chatlab-test',
     getUserDataDir: () => '/tmp/chatlab-test/data',
@@ -16,7 +19,13 @@ function createPathProvider(): PathProvider {
     getTempDir: () => '/tmp/chatlab-test/temp',
     getLogsDir: () => '/tmp/chatlab-test/logs',
     getDownloadsDir: () => '/tmp/chatlab-test/downloads',
+    ...overrides,
   }
+}
+
+function makeTempDir(): string {
+  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+  return fs.mkdtempSync(path.join(baseDir, 'chatlab-cache-routes-'))
 }
 
 describe('registerCacheRoutes data directory routes', () => {
@@ -45,6 +54,7 @@ describe('registerCacheRoutes data directory routes', () => {
       defaultPath: '/tmp/chatlab-test/default-data',
       isCustom: true,
       canSetDataDir: true,
+      hasLegacyDataAtDefaultDir: false,
       pendingMigration: {
         from: '/tmp/chatlab-test/data',
         to: '/tmp/chatlab-test/new-data',
@@ -53,6 +63,42 @@ describe('registerCacheRoutes data directory routes', () => {
     })
 
     await app.close()
+  })
+
+  it('reports legacy data at default directory only when default databases contain db files', async () => {
+    const root = makeTempDir()
+    const currentDir = path.join(root, 'custom-data')
+    const defaultDir = path.join(root, 'default-data')
+    fs.mkdirSync(path.join(defaultDir, 'databases'), { recursive: true })
+    fs.writeFileSync(path.join(defaultDir, '.chatlab'), 'ChatLab Data Directory')
+
+    const appWithoutDb = Fastify()
+    registerCacheRoutes(appWithoutDb, {
+      pathProvider: createPathProvider({ getUserDataDir: () => currentDir }),
+      defaultUserDataDir: defaultDir,
+      isCustomDataDir: true,
+    } as unknown as HttpRouteContext)
+    await appWithoutDb.ready()
+
+    const emptyResponse = await appWithoutDb.inject({ method: 'GET', url: '/_web/cache/data-dir' })
+    assert.equal(emptyResponse.statusCode, 200)
+    assert.equal(emptyResponse.json().hasLegacyDataAtDefaultDir, false)
+    await appWithoutDb.close()
+
+    fs.writeFileSync(path.join(defaultDir, 'databases', 'legacy.db'), 'sqlite')
+
+    const appWithDb = Fastify()
+    registerCacheRoutes(appWithDb, {
+      pathProvider: createPathProvider({ getUserDataDir: () => currentDir }),
+      defaultUserDataDir: defaultDir,
+      isCustomDataDir: true,
+    } as unknown as HttpRouteContext)
+    await appWithDb.ready()
+
+    const response = await appWithDb.inject({ method: 'GET', url: '/_web/cache/data-dir' })
+    assert.equal(response.statusCode, 200)
+    assert.equal(response.json().hasLegacyDataAtDefaultDir, true)
+    await appWithDb.close()
   })
 
   it('delegates data directory changes to context callback', async () => {

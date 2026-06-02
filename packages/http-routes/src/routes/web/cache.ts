@@ -43,6 +43,17 @@ async function getFileCount(dirPath: string): Promise<number> {
   return count
 }
 
+function hasChatLabDatabases(dirPath: string): boolean {
+  try {
+    const markerPath = path.join(dirPath, '.chatlab')
+    const dbDir = path.join(dirPath, 'databases')
+    if (!fs.existsSync(markerPath) || !fs.existsSync(dbDir)) return false
+    return fs.readdirSync(dbDir).some((file) => file.endsWith('.db'))
+  } catch {
+    return false
+  }
+}
+
 export function registerCacheRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
   const pp = ctx.pathProvider
   const downloadsDir = ctx.downloadsDir ?? pp.getDownloadsDir()
@@ -128,6 +139,10 @@ export function registerCacheRoutes(server: FastifyInstance, ctx: HttpRouteConte
       defaultPath: ctx.defaultUserDataDir,
       isCustom: ctx.isCustomDataDir ?? false,
       canSetDataDir: ctx.canSetDataDir ?? Boolean(ctx.setDataDir),
+      hasLegacyDataAtDefaultDir:
+        Boolean(ctx.defaultUserDataDir) &&
+        path.resolve(pp.getUserDataDir()) !== path.resolve(ctx.defaultUserDataDir ?? '') &&
+        hasChatLabDatabases(ctx.defaultUserDataDir ?? ''),
       pendingMigration: pending
         ? {
             from: pending.from,
