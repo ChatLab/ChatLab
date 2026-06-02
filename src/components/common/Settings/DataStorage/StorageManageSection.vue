@@ -9,6 +9,7 @@ import { usePlatformService } from '@/services'
 import { IS_ELECTRON } from '@/utils/platform'
 import { useCacheService } from '@/services/cache/service'
 import type { CacheInfo } from '@/services/cache/types'
+import { clearMigrateHintIgnore, isMigrateHintIgnoredForDir, writeMigrateHintIgnore } from './migrateHintIgnore'
 
 const { t } = useI18n()
 
@@ -75,10 +76,6 @@ const canMigrateToDefault = computed(() => {
   )
 })
 
-function getMigrateHintIgnoreKey(pathValue: string, defaultPathValue: string): string {
-  return `chatlab_ignore_migrate_default_hint:${pathValue}:${defaultPathValue}`
-}
-
 function updateMigrateHintIgnored() {
   if (!dataDir.value || !defaultDataDir.value) {
     isMigrateHintIgnored.value = false
@@ -86,8 +83,7 @@ function updateMigrateHintIgnored() {
   }
 
   try {
-    isMigrateHintIgnored.value =
-      localStorage.getItem(getMigrateHintIgnoreKey(dataDir.value, defaultDataDir.value)) === '1'
+    isMigrateHintIgnored.value = isMigrateHintIgnoredForDir(localStorage, dataDir.value)
   } catch {
     isMigrateHintIgnored.value = false
   }
@@ -190,7 +186,7 @@ function ignoreMigrateHint() {
   if (!dataDir.value || !defaultDataDir.value) return
 
   try {
-    localStorage.setItem(getMigrateHintIgnoreKey(dataDir.value, defaultDataDir.value), '1')
+    writeMigrateHintIgnore(localStorage, dataDir.value)
   } catch {
     // localStorage 不可用时只在当前页面隐藏，避免阻塞用户继续使用设置页。
   }
@@ -220,6 +216,14 @@ async function applyDataDirChange(newDir: string | null, migrate: boolean) {
     if (!result.success) {
       dataDirError.value = result.error || '设置失败'
       return
+    }
+
+    if (result.requiresRelaunch !== false) {
+      try {
+        clearMigrateHintIgnore(localStorage)
+      } catch {
+        // localStorage 清理失败不影响目录切换，下一次加载时仍会按当前内存状态处理。
+      }
     }
 
     if (result.requiresRelaunch === false) {
