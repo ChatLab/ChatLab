@@ -151,7 +151,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
       },
       downloadsDir: getDownloadsDir(),
       defaultUserDataDir: getDefaultUserDataDir(),
-      isCustomDataDir: Boolean(getCustomDataDir()),
+      isCustomDataDir: getUserDataDir() !== getDefaultUserDataDir(),
       runAgentStream: createElectronRunAgentStream(),
     }
 
