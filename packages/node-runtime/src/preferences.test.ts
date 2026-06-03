@@ -131,3 +131,53 @@ test('sanitizes built-in desensitize rule bodies on save', () => {
     rmSync(systemDir, { recursive: true, force: true })
   }
 })
+
+test('replaces built-in desensitize overrides with an empty map on save', () => {
+  const systemDir = createTempSystemDir()
+  try {
+    const manager = new PreferencesManager(systemDir)
+    assert.equal(
+      manager.save({
+        aiPreprocessConfig: {
+          dataCleaning: true,
+          mergeConsecutive: true,
+          mergeWindowSeconds: 180,
+          blacklistKeywords: [],
+          denoise: true,
+          desensitize: true,
+          anonymizeNames: false,
+          desensitizeRulesSchemaVersion: 2,
+          desensitizeBuiltinRuleOverrides: {
+            api_key_prefix: false,
+          },
+          desensitizeRules: [],
+        },
+      }).success,
+      true
+    )
+
+    assert.equal(
+      manager.save({
+        aiPreprocessConfig: {
+          dataCleaning: true,
+          mergeConsecutive: true,
+          mergeWindowSeconds: 180,
+          blacklistKeywords: [],
+          denoise: true,
+          desensitize: true,
+          anonymizeNames: false,
+          desensitizeRulesSchemaVersion: 2,
+          desensitizeBuiltinRuleOverrides: {},
+          desensitizeRules: [],
+        },
+      }).success,
+      true
+    )
+
+    const saved = readPreferencesFile(systemDir)
+
+    assert.deepEqual(saved.aiPreprocessConfig.desensitizeBuiltinRuleOverrides, {})
+  } finally {
+    rmSync(systemDir, { recursive: true, force: true })
+  }
+})

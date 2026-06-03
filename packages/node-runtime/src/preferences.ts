@@ -105,6 +105,11 @@ export class PreferencesManager {
         current as unknown as Record<string, unknown>,
         partial as unknown as Record<string, unknown>
       )
+      if (Object.prototype.hasOwnProperty.call(partial.aiPreprocessConfig ?? {}, 'desensitizeBuiltinRuleOverrides')) {
+        const mergedAiPreprocessConfig = merged.aiPreprocessConfig as Record<string, unknown>
+        mergedAiPreprocessConfig.desensitizeBuiltinRuleOverrides =
+          partial.aiPreprocessConfig?.desensitizeBuiltinRuleOverrides
+      }
       this.cache = this.mergeDefaults(merged as unknown as Partial<Preferences>)
 
       this.writePreferences(this.cache)
