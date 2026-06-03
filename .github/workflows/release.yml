@@ -361,7 +361,7 @@ jobs:
             echo ""
             echo "---"
             echo ""
-            echo "Full Changelog: [English](https://github.com/ChatLab/ChatLab/blob/main/changelogs/en.json) | [中文](https://github.com/ChatLab/ChatLab/blob/main/changelogs/cn.json) | [日本語](https://github.com/ChatLab/ChatLab/blob/main/changelogs/ja.json)"
+            echo "Full Changelog: [English](https://github.com/ChatLab/ChatLab/blob/main/changelogs/en.md) | [中文](https://github.com/ChatLab/ChatLab/blob/main/changelogs/cn.md) | [日本語](https://github.com/ChatLab/ChatLab/blob/main/changelogs/ja.md)"
             echo ""
             echo "---"
             echo ""
