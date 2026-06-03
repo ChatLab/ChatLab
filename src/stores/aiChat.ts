@@ -17,6 +17,7 @@ import { useSkillStore } from '@/stores/skill'
 import { useLLMStore } from '@/stores/llm'
 import type { TokenUsage, AgentRuntimeStatus, SerializedErrorInfo } from '@electron/shared/types'
 import { useAgentStreamService } from '@/services/ai-stream/service'
+import { buildSerializablePreprocessConfig, shouldEnsureDesensitizeRulesBeforeSerialize } from './aiPreprocessConfig'
 
 // 工具调用记录
 export interface ToolCallRecord {
@@ -811,7 +812,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           ? { platformId: state.ownerInfo.platformId, displayName: state.ownerInfo.displayName }
           : undefined,
         mentionedMembers: currentMentionedMembers.length > 0 ? currentMentionedMembers : undefined,
-        preprocessConfig: buildSerializablePreprocessConfig(),
+        preprocessConfig: await buildReadySerializablePreprocessConfig(),
         searchContextBefore: aiGlobalSettings.value.searchContextBefore,
         searchContextAfter: aiGlobalSettings.value.searchContextAfter,
       }
@@ -1096,30 +1097,13 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     }
   }
 
-  function buildSerializablePreprocessConfig() {
+  async function buildReadySerializablePreprocessConfig() {
     const preprocessConfig = settingsStore.aiPreprocessConfig
-    const hasPreprocess =
-      preprocessConfig.dataCleaning ||
-      preprocessConfig.mergeConsecutive ||
-      preprocessConfig.blacklistKeywords.length > 0 ||
-      preprocessConfig.denoise ||
-      preprocessConfig.desensitize ||
-      preprocessConfig.anonymizeNames
-
-    if (!hasPreprocess) return undefined
-    return {
-      dataCleaning: preprocessConfig.dataCleaning,
-      mergeConsecutive: preprocessConfig.mergeConsecutive,
-      mergeWindowSeconds: preprocessConfig.mergeWindowSeconds,
-      blacklistKeywords: [...preprocessConfig.blacklistKeywords],
-      denoise: preprocessConfig.denoise,
-      desensitize: preprocessConfig.desensitize,
-      desensitizeRules: preprocessConfig.desensitizeRules.map((rule) => ({
-        ...rule,
-        locales: [...rule.locales],
-      })),
-      anonymizeNames: preprocessConfig.anonymizeNames,
+    if (shouldEnsureDesensitizeRulesBeforeSerialize(preprocessConfig)) {
+      await settingsStore.ensureDesensitizeRules()
     }
+
+    return buildSerializablePreprocessConfig(settingsStore.aiPreprocessConfig)
   }
 
   function normalizeMentionLookupText(value: string): string {
@@ -1360,7 +1344,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           ? { platformId: state.ownerInfo.platformId, displayName: state.ownerInfo.displayName }
           : undefined,
         mentionedMembers: currentMentionedMembers.length > 0 ? currentMentionedMembers : undefined,
-        preprocessConfig: buildSerializablePreprocessConfig(),
+        preprocessConfig: await buildReadySerializablePreprocessConfig(),
         searchContextBefore: aiGlobalSettings.value.searchContextBefore,
         searchContextAfter: aiGlobalSettings.value.searchContextAfter,
       }
