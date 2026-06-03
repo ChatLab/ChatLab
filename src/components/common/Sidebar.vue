@@ -3,6 +3,7 @@ import { storeToRefs } from 'pinia'
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
+import { isNewerStableVersion } from '@openchatlab/core'
 import type { AnalysisSession } from '@/types/base'
 import SidebarButton from './sidebar/SidebarButton.vue'
 import SidebarFooter from './sidebar/SidebarFooter.vue'
@@ -15,6 +16,9 @@ import { IS_ELECTRON } from '@/utils/platform'
 import logoSvg from '@/assets/images/logo.svg'
 
 const { t } = useI18n()
+const LATEST_VERSION_URL = 'https://chatlab.fun/latest-version'
+const UPDATE_CHECK_CACHE_KEY = 'chatlab:latest-version-check'
+const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000
 
 const sessionStore = useSessionStore()
 const layoutStore = useLayoutStore()
@@ -39,6 +43,10 @@ const deleteTarget = ref<AnalysisSession | null>(null)
 
 // 版本号
 const version = ref('')
+const latestVersion = ref('')
+const hasUpdate = ref(false)
+const showUpdateModal = ref(false)
+const isStartingUpdate = ref(false)
 
 // 搜索相关状态
 const showSearch = ref(false)
@@ -74,6 +82,7 @@ onMounted(async () => {
   sessionStore.loadSessions()
   try {
     version.value = await usePlatformService().getVersion()
+    void checkUpdateNotice()
   } catch (e) {
     console.error('Failed to get version', e)
   }
@@ -92,6 +101,96 @@ onUnmounted(() => {
 function handleImport() {
   // Navigate to home (Welcome Guide)
   router.push('/')
+}
+
+function readUpdateCheckCache(): { lastCheckTime: number; latestVersion: string | null } | null {
+  try {
+    const raw = window.localStorage.getItem(UPDATE_CHECK_CACHE_KEY)
+    if (!raw) return null
+    const data = JSON.parse(raw) as { lastCheckTime?: unknown; latestVersion?: unknown }
+    if (typeof data.lastCheckTime !== 'number') return null
+    return {
+      lastCheckTime: data.lastCheckTime,
+      latestVersion: typeof data.latestVersion === 'string' ? data.latestVersion : null,
+    }
+  } catch {
+    return null
+  }
+}
+
+function writeUpdateCheckCache(nextLatestVersion: string | null) {
+  try {
+    window.localStorage.setItem(
+      UPDATE_CHECK_CACHE_KEY,
+      JSON.stringify({
+        lastCheckTime: Date.now(),
+        latestVersion: nextLatestVersion,
+      })
+    )
+  } catch {
+    // localStorage 不可用时忽略，更新提醒是非关键能力。
+  }
+}
+
+function setLatestVersion(nextLatestVersion: string | null) {
+  latestVersion.value = nextLatestVersion || ''
+  hasUpdate.value = Boolean(nextLatestVersion && isNewerStableVersion(nextLatestVersion, version.value))
+}
+
+function parseLatestVersionPayload(data: unknown): string | null {
+  if (!data || typeof data !== 'object') return null
+  const versionValue = (data as { version?: unknown }).version
+  return typeof versionValue === 'string' ? versionValue : null
+}
+
+async function fetchLatestVersion(): Promise<string | null> {
+  const platformService = usePlatformService()
+  if (IS_ELECTRON) {
+    const result = await platformService.fetchRemoteConfig(LATEST_VERSION_URL)
+    if (!result.success) return null
+    return parseLatestVersionPayload(result.data)
+  }
+
+  const result = await platformService.checkUpdate()
+  if (!result || result.error) return null
+  return result.latestVersion || null
+}
+
+async function checkUpdateNotice() {
+  const cache = readUpdateCheckCache()
+  if (cache) {
+    setLatestVersion(cache.latestVersion)
+    if (Date.now() - cache.lastCheckTime < UPDATE_CHECK_INTERVAL_MS) return
+  }
+
+  try {
+    const nextLatestVersion = await fetchLatestVersion()
+    writeUpdateCheckCache(nextLatestVersion)
+    setLatestVersion(nextLatestVersion)
+  } catch (error) {
+    console.debug('Update notice check failed:', error)
+  }
+}
+
+function openUpdateModal() {
+  showUpdateModal.value = true
+}
+
+async function confirmUpdate() {
+  if (!IS_ELECTRON) {
+    showUpdateModal.value = false
+    return
+  }
+
+  isStartingUpdate.value = true
+  try {
+    await usePlatformService().checkUpdate()
+    showUpdateModal.value = false
+  } finally {
+    setTimeout(() => {
+      isStartingUpdate.value = false
+    }, 3000)
+  }
 }
 
 // 打开重命名弹窗
@@ -253,6 +352,15 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
             {{ t('layout.brand') }}
           </div>
           <span class="ml-2 text-xs text-gray-400">v{{ version }}</span>
+          <button
+            v-if="hasUpdate"
+            type="button"
+            class="ml-1.5 rounded-full bg-red-500 px-1.5 py-0.5 text-[10px] font-bold leading-none text-white shadow-sm shadow-red-500/20 transition hover:bg-red-600"
+            style="-webkit-app-region: no-drag"
+            @click="openUpdateModal"
+          >
+            {{ t('layout.updateNotice.tag') }}
+          </button>
         </div>
         <div
           v-else
@@ -455,6 +563,42 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
           <div class="flex justify-end gap-2">
             <UButton variant="soft" @click="closeDeleteModal">{{ t('common.cancel') }}</UButton>
             <UButton color="error" @click="confirmDelete">{{ t('common.delete') }}</UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- Update Notice Modal -->
+    <UModal v-model:open="showUpdateModal" :ui="{ content: 'z-50' }">
+      <template #content>
+        <div class="p-4">
+          <div class="mb-3 flex items-center gap-2">
+            <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-red-50 text-red-500 dark:bg-red-950/30">
+              <UIcon name="i-lucide-sparkles" class="h-4 w-4" />
+            </div>
+            <h3 class="font-semibold text-gray-900 dark:text-white">
+              {{ t('layout.updateNotice.title') }}
+            </h3>
+          </div>
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            {{ t('layout.updateNotice.message', { version: latestVersion }) }}
+          </p>
+          <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
+            {{ IS_ELECTRON ? t('layout.updateNotice.desktopHint') : t('layout.updateNotice.cliHint') }}
+          </p>
+          <div
+            v-if="!IS_ELECTRON"
+            class="mt-3 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+          >
+            clb update
+          </div>
+          <div class="mt-4 flex justify-end gap-2">
+            <UButton variant="soft" :disabled="isStartingUpdate" @click="showUpdateModal = false">
+              {{ t('layout.updateNotice.later') }}
+            </UButton>
+            <UButton v-if="IS_ELECTRON" color="primary" :loading="isStartingUpdate" @click="confirmUpdate">
+              {{ t('layout.updateNotice.updateNow') }}
+            </UButton>
           </div>
         </div>
       </template>

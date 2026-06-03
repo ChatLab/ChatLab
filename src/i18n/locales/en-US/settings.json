@@ -393,7 +393,7 @@
     "upToDate": "You are up to date",
     "newVersionAvailable": "New version {version} available",
     "updateNow": "Update Now",
-    "webUpdateHint": "Run npm install -g chatlab-cli@latest in your terminal, then restart the service.",
+    "webUpdateHint": "Run clb update in your terminal, then restart the service.",
     "updating": "Updating...",
     "updateSuccess": "Update successful, please restart the service to apply",
     "updateFailed": "Update failed: {error}",

@@ -31,10 +31,29 @@ const program = new Command()
 
 program.name('chatlab').description('ChatLab - Chat history analysis tool').version(getVersion(), '-v, --version')
 
-program.hook('preAction', async () => {
+program.hook('preAction', async (_thisCommand, actionCommand) => {
+  if (actionCommand.name() === 'update') return
   const { checkForUpdatesInteractive } = await import('./update-checker')
   await checkForUpdatesInteractive()
 })
+
+program
+  .command('update')
+  .description('Update ChatLab CLI to the latest version')
+  .action(async () => {
+    const { performCliSelfUpdate } = await import('./update-checker')
+    const result = await performCliSelfUpdate({
+      write: (text) => process.stderr.write(text),
+    })
+
+    if (result.success) {
+      console.error('  Updated successfully. Please restart chatlab to use the new version.\n')
+      return
+    }
+
+    console.error(`  Update failed: ${result.error || 'unknown error'}\n`)
+    process.exitCode = 1
+  })
 
 program
   .command('sessions')

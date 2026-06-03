@@ -23,6 +23,17 @@ interface UpdateCache {
   skippedVersion?: string
 }
 
+export interface UpdateCommandResult {
+  success: boolean
+  error?: string
+}
+
+export interface PerformCliSelfUpdateOptions {
+  runCommand?: (command: string, args: string[]) => Promise<UpdateCommandResult>
+  write?: (text: string) => void
+  platform?: NodeJS.Platform
+}
+
 function readCache(): UpdateCache | null {
   try {
     if (fs.existsSync(CACHE_FILE)) {
@@ -115,26 +126,33 @@ function promptUser(question: string, choices: string[]): Promise<number> {
   })
 }
 
-function runNpmUpdate(): Promise<{ success: boolean; error?: string }> {
+function runNpmUpdateCommand(
+  command: string,
+  args: string[],
+  write: (text: string) => void
+): Promise<UpdateCommandResult> {
   return new Promise((resolve) => {
-    const npmCmd = process.platform === 'win32' ? 'npm.cmd' : 'npm'
-    process.stderr.write(`\n  Running: npm install -g ${PACKAGE_NAME}@latest\n\n`)
-
-    const child = execFile(
-      npmCmd,
-      ['install', '-g', `${PACKAGE_NAME}@latest`],
-      { timeout: 120_000 },
-      (err, _stdout, stderr) => {
-        if (err) {
-          resolve({ success: false, error: stderr || err.message })
-        } else {
-          resolve({ success: true })
-        }
+    const child = execFile(command, args, { timeout: 120_000 }, (err, _stdout, stderr) => {
+      if (err) {
+        resolve({ success: false, error: stderr || err.message })
+      } else {
+        resolve({ success: true })
       }
-    )
-    child.stdout?.pipe(process.stderr)
-    child.stderr?.pipe(process.stderr)
+    })
+    child.stdout?.on('data', (chunk) => write(String(chunk)))
+    child.stderr?.on('data', (chunk) => write(String(chunk)))
   })
+}
+
+export function performCliSelfUpdate(options: PerformCliSelfUpdateOptions = {}): Promise<UpdateCommandResult> {
+  const platformName = options.platform ?? process.platform
+  const npmCmd = platformName === 'win32' ? 'npm.cmd' : 'npm'
+  const args = ['install', '-g', `${PACKAGE_NAME}@latest`]
+  const write = options.write ?? ((text) => process.stderr.write(text))
+  const runCommand = options.runCommand ?? ((command, commandArgs) => runNpmUpdateCommand(command, commandArgs, write))
+
+  write(`\n  Running: ${npmCmd} ${args.join(' ')}\n\n`)
+  return runCommand(npmCmd, args)
 }
 
 function isDevEnvironment(): boolean {
@@ -208,7 +226,7 @@ export async function checkForUpdatesInteractive(): Promise<void> {
   ])
 
   if (choice === 1) {
-    const result = await runNpmUpdate()
+    const result = await performCliSelfUpdate()
     if (result.success) {
       process.stderr.write(
         `  \x1b[32m🎉 Updated successfully! Please restart chatlab to use the new version.\x1b[0m\n\n`

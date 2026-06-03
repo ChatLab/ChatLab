@@ -21,6 +21,15 @@
     "title": "Confirm Delete",
     "message": "Are you sure you want to delete \"{name}\"? This action cannot be undone."
   },
+  "updateNotice": {
+    "tag": "New",
+    "title": "Update Available",
+    "message": "The latest version is v{version}.",
+    "desktopHint": "Click Update Now to start checking and downloading the desktop update.",
+    "cliHint": "Run the following command in your terminal, then restart the service.",
+    "updateNow": "Update Now",
+    "later": "Later"
+  },
   "filter": {
     "all": "All",
     "private": "Private",

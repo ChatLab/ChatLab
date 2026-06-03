@@ -20,7 +20,7 @@
 import * as os from 'os'
 import * as path from 'path'
 import type { FastifyInstance } from 'fastify'
-import type { PathProvider } from '@openchatlab/core'
+import { isNewerStableVersion, type PathProvider } from '@openchatlab/core'
 import type {
   DatabaseManager,
   AIConversationManager,
@@ -53,27 +53,6 @@ export interface AiContextOptions {
   customProviderStore: CustomProviderStore
   customModelStore: CustomModelStore
   runAgentStream?: HttpRouteContext['runAgentStream']
-}
-
-/**
- * Semver comparison: returns true if `latest` is strictly newer than `current`.
- * Handles pre-release tags (e.g. 0.22.0-beta.1 < 0.22.0).
- */
-function isNewerVersion(latest: string, current: string): boolean {
-  const parse = (v: string) => {
-    const [core, pre] = v.split('-', 2)
-    const parts = core.split('.').map(Number)
-    return { major: parts[0] || 0, minor: parts[1] || 0, patch: parts[2] || 0, pre }
-  }
-  const l = parse(latest)
-  const c = parse(current)
-  if (l.major !== c.major) return l.major > c.major
-  if (l.minor !== c.minor) return l.minor > c.minor
-  if (l.patch !== c.patch) return l.patch > c.patch
-  // Same core version: stable > pre-release
-  // Design note: prerelease-to-prerelease updates are intentionally not surfaced.
-  if (c.pre && !l.pre) return true
-  return false
 }
 
 export function registerWebRoutes(
@@ -161,18 +140,17 @@ export function registerWebRoutes(
 
   server.get('/_web/system/check-update', async () => {
     const currentVersion = getVersion()
-    const packageName = 'chatlab-cli'
     try {
-      const resp = await fetch(`https://registry.npmjs.org/${packageName}/latest`, {
+      const resp = await fetch('https://chatlab.fun/latest-version', {
         headers: { Accept: 'application/json' },
         signal: AbortSignal.timeout(10_000),
       })
       if (!resp.ok) {
-        return { hasUpdate: false, currentVersion, error: `npm registry HTTP ${resp.status}` }
+        return { hasUpdate: false, currentVersion, error: `latest-version HTTP ${resp.status}` }
       }
       const data = (await resp.json()) as { version?: string }
       const latestVersion = data.version || currentVersion
-      const hasUpdate = isNewerVersion(latestVersion, currentVersion)
+      const hasUpdate = isNewerStableVersion(latestVersion, currentVersion)
       return { hasUpdate, currentVersion, latestVersion }
     } catch (err) {
       return {

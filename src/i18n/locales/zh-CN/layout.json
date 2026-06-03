@@ -21,6 +21,15 @@
     "title": "确认删除",
     "message": "确定要删除聊天记录 \"{name}\" 吗？此操作无法撤销。"
   },
+  "updateNotice": {
+    "tag": "New",
+    "title": "发现新版本",
+    "message": "最新版本是 v{version}。",
+    "desktopHint": "点击立即更新后，ChatLab 会开始检查并下载桌面端更新。",
+    "cliHint": "请在终端运行以下命令更新 CLI，更新后重启服务。",
+    "updateNow": "立即更新",
+    "later": "稍后"
+  },
   "filter": {
     "all": "全部",
     "private": "私聊",

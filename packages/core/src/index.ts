@@ -180,6 +180,10 @@ export type {
   TableSchema,
 } from './query'
 
+// 版本比较
+export { isNewerStableVersion, isStableVersion } from './version'
+export type { ParsedStableVersion } from './version'
+
 // NLP（平台无关的类型、数据和工具函数）
 export {
   POS_TAG_DEFINITIONS,

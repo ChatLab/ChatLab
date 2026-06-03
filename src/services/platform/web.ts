@@ -76,7 +76,7 @@ export class WebPlatformAdapter implements PlatformAdapter {
   async performUpdate(): Promise<PerformUpdateResult> {
     return {
       success: false,
-      error: 'Web update is unavailable. Run npm install -g chatlab-cli@latest in your terminal.',
+      error: 'Web update is unavailable. Run clb update in your terminal.',
     }
   }
 
