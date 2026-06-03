@@ -20,7 +20,7 @@
 import * as os from 'os'
 import * as path from 'path'
 import type { FastifyInstance } from 'fastify'
-import { isNewerStableVersion, type PathProvider } from '@openchatlab/core'
+import type { PathProvider } from '@openchatlab/core'
 import type {
   DatabaseManager,
   AIConversationManager,
@@ -43,6 +43,7 @@ import { MergeSessionCache } from '../../../merger/merge-cache'
 import { registerImportRoutes } from './import'
 import { openDirectoryPath, showPathInFolder } from './cache'
 import { getVersion } from '../../../version'
+import { buildWebUpdateCheckResult } from './update-check'
 
 export interface AiContextOptions {
   aiDataDir: string
@@ -149,9 +150,7 @@ export function registerWebRoutes(
         return { hasUpdate: false, currentVersion, error: `latest-version HTTP ${resp.status}` }
       }
       const data = (await resp.json()) as { version?: string }
-      const latestVersion = data.version || currentVersion
-      const hasUpdate = isNewerStableVersion(latestVersion, currentVersion)
-      return { hasUpdate, currentVersion, latestVersion }
+      return buildWebUpdateCheckResult({ currentVersion, latestVersion: data.version })
     } catch (err) {
       return {
         hasUpdate: false,
