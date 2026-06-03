@@ -4,7 +4,7 @@
  * 平台无关的工具注册表类型，同时服务于 MCP Server、HTTP API 和 Electron Agent。
  */
 
-import type { DatabaseAdapter } from '@openchatlab/core'
+import type { ChartPayload, DatabaseAdapter } from '@openchatlab/core'
 
 // ==================== Schema ====================
 
@@ -19,6 +19,8 @@ export interface JsonSchema {
       type: string
       description?: string
       items?: { type: string }
+      properties?: Record<string, unknown>
+      additionalProperties?: boolean | Record<string, unknown>
       default?: unknown
       enum?: unknown[]
       minimum?: number
@@ -268,6 +270,8 @@ export interface RawMessage {
 export interface ToolResult {
   content: string
   data?: unknown
+  chart?: ChartPayload
+  charts?: ChartPayload[]
   /** 消息类工具可透传原始消息数据，供预处理管道消费 */
   rawMessages?: RawMessage[]
 }

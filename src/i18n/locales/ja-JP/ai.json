@@ -76,6 +76,7 @@
         "get_member_name_history": "ニックネーム履歴を取得",
         "get_conversation_between": "やり取り履歴を取得",
         "get_message_context": "コンテキストを取得",
+        "get_schema": "スキーマ確認",
         "search_sessions": "セッションを検索",
         "get_session_messages": "セッションメッセージを取得",
         "get_session_summaries": "セッション要約を取得",
@@ -91,7 +92,8 @@
         "daily_active_members": "日別アクティブ人数",
         "conversation_initiator_stats": "話題開始者統計",
         "activity_heatmap": "活動ヒートマップ",
-        "unanswered_messages": "未返信メッセージ"
+        "unanswered_messages": "未返信メッセージ",
+        "render_chart": "チャート生成"
       },
       "generating": "回答を作成中...",
       "summary": {
@@ -414,6 +416,7 @@
       "get_message_context": "メッセージのコンテキストを取得",
       "get_conversation_between": "2人のやり取りを取得",
       "get_members": "メンバー一覧を取得",
+      "get_schema": "データベーススキーマを確認",
       "get_member_stats": "メンバー統計を取得",
       "get_member_name_history": "メンバーの名前変更履歴を取得",
       "get_time_stats": "時間統計を取得",
@@ -432,7 +435,8 @@
       "conversation_initiator_stats": "話題開始者統計",
       "activity_heatmap": "活性度ヒートマップ",
       "response_time_analysis": "応答時間分析",
-      "keyword_frequency": "高頻度キーワード統計"
+      "keyword_frequency": "高頻度キーワード統計",
+      "render_chart": "動的チャート生成"
     }
   },
   "skill": {

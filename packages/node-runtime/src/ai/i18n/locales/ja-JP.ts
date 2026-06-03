@@ -252,6 +252,19 @@ export default {
           top_n: '上位何個のキーワードを返却するか',
         },
       },
+      get_schema: {
+        desc: 'チャットデータベースのスキーマを確認します。チャート作成やカスタム SQL の前にテーブル名とフィールド名を確認してください。',
+        params: {},
+      },
+      render_chart: {
+        desc: '読み取り専用 SQL と ChartSpec v1 から ChatLab ネイティブチャートを生成します。bar、line、pie、heatmap をサポートします。HTML、JavaScript、SVG、ECharts option、描画コードは出力しないでください。',
+        params: {
+          sql: '読み取り専用の SELECT または WITH SELECT SQL。ChartSpec encoding で参照するフィールドを返す必要があります。',
+          params: 'SQL の名前付きパラメータ。不要な場合は空オブジェクトを渡します。',
+          chartSpec: 'version、type、title、encoding を含む ChartSpec v1。',
+          maxRows: 'チャートクエリの最大行数。デフォルトは 1000。',
+        },
+      },
     },
 
     agent: {

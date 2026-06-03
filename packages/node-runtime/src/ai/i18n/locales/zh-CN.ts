@@ -243,6 +243,19 @@ export default {
           top_n: '返回前多少个关键词',
         },
       },
+      get_schema: {
+        desc: '查看聊天数据库表结构。绘图或自定义 SQL 前应先用它确认表名和字段名。',
+        params: {},
+      },
+      render_chart: {
+        desc: '根据只读 SQL 和 ChartSpec v1 生成 ChatLab 原生图表。支持 bar、line、pie、heatmap。禁止输出 HTML、JavaScript、SVG、ECharts option 或渲染代码。',
+        params: {
+          sql: '只读 SELECT 或 WITH SELECT SQL。必须返回 ChartSpec encoding 中引用的字段。',
+          params: 'SQL 命名参数对象；不需要参数时传空对象。',
+          chartSpec: 'ChartSpec v1，包含 version、type、title、encoding。',
+          maxRows: '图表查询最大行数，默认 1000。',
+        },
+      },
     },
 
     agent: {

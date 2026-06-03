@@ -180,6 +180,23 @@ export type {
   TableSchema,
 } from './query'
 
+// Chart runtime
+export { ChartValidationError, normalizeChartSpec, inferChartDataset, buildChartPayload } from './chart'
+export type {
+  ChartType,
+  ChartFieldType,
+  ChartField,
+  ChartEncoding,
+  ChartSpec,
+  ChartDataset,
+  ChartPayload,
+  ChartRenderData,
+  BarChartRenderData,
+  LineChartRenderData,
+  PieChartRenderData,
+  HeatmapChartRenderData,
+} from './chart'
+
 // NLP（平台无关的类型、数据和工具函数）
 export {
   POS_TAG_DEFINITIONS,
@@ -225,6 +242,10 @@ export {
   BUILTIN_MODELS,
   getBuiltinModelsByProvider,
   getBuiltinModelById,
+  CHART_CAPABILITY_SKILL_ID,
+  CHART_CAPABILITY_ANALYSIS_TOOLS,
+  getChartCapabilityAllowedBuiltinTools,
+  getChartCapabilitySkill,
   THINK_TAGS,
   extractThinkingContent,
   stripToolCallTags,

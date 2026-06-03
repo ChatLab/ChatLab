@@ -243,6 +243,19 @@ export default {
           top_n: '回傳前多少個關鍵詞',
         },
       },
+      get_schema: {
+        desc: '查看聊天資料庫表結構。繪圖或自訂 SQL 前應先用它確認表名和欄位名。',
+        params: {},
+      },
+      render_chart: {
+        desc: '根據唯讀 SQL 和 ChartSpec v1 生成 ChatLab 原生圖表。支援 bar、line、pie、heatmap。禁止輸出 HTML、JavaScript、SVG、ECharts option 或渲染程式碼。',
+        params: {
+          sql: '唯讀 SELECT 或 WITH SELECT SQL。必須返回 ChartSpec encoding 中引用的欄位。',
+          params: 'SQL 命名參數物件；不需要參數時傳空物件。',
+          chartSpec: 'ChartSpec v1，包含 version、type、title、encoding。',
+          maxRows: '圖表查詢最大行數，預設 1000。',
+        },
+      },
     },
 
     agent: {

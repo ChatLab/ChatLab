@@ -56,6 +56,13 @@ export function adaptSharedTool(tool: ToolDefinition, options: AdaptOptions): To
           const execCtx = buildExecutionContext(context)
           try {
             const result = await tool.handler(toolParams, execCtx)
+            const chartDetails =
+              result.chart || result.charts
+                ? {
+                    ...(result.chart ? { chart: result.chart } : {}),
+                    ...(result.charts ? { charts: result.charts } : {}),
+                  }
+                : {}
 
             if (result.rawMessages && result.rawMessages.length > 0) {
               const baseData = (typeof result.data === 'object' && result.data !== null ? result.data : {}) as Record<
@@ -64,13 +71,20 @@ export function adaptSharedTool(tool: ToolDefinition, options: AdaptOptions): To
               >
               return {
                 content: [{ type: 'text', text: result.content }],
-                details: { ...baseData, rawMessages: result.rawMessages },
+                details: { ...baseData, ...chartDetails, rawMessages: result.rawMessages },
               }
             }
 
+            const baseDetails =
+              typeof result.data === 'object' && result.data !== null
+                ? (result.data as Record<string, unknown>)
+                : result.data === undefined
+                  ? null
+                  : { value: result.data }
+
             return {
               content: [{ type: 'text', text: result.content }],
-              details: result.data ?? null,
+              details: Object.keys(chartDetails).length > 0 ? { ...(baseDetails ?? {}), ...chartDetails } : baseDetails,
             }
           } catch (error) {
             const msg = error instanceof Error ? error.message : String(error)

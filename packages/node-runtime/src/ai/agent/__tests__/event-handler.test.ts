@@ -97,4 +97,31 @@ describe('AgentEventHandler', () => {
     assert.equal(contentChunks.length, 1)
     assert.equal(contentChunks[0].content, 'Hello')
   })
+
+  it('passes chart tool results through unchanged', () => {
+    const chunks: AgentStreamChunk[] = []
+    const handler = new AgentEventHandler({
+      onChunk: (c) => chunks.push(c),
+      context: {},
+      systemPrompt: 'test',
+    })
+    const toolResult = {
+      content: 'Chart generated.',
+      details: {
+        chart: {
+          version: 1,
+          type: 'pie',
+          title: 'Selected members',
+          data: [{ label: 'Alice', value: 3 }],
+          source: { rowCount: 1, truncated: false },
+        },
+      },
+    }
+
+    handler.handleCoreEvent({ type: 'tool_end', toolName: 'render_chart', toolResult }, [])
+
+    const resultChunk = chunks.find((c) => c.type === 'tool_result')
+    assert.equal(resultChunk?.toolName, 'render_chart')
+    assert.deepEqual(resultChunk?.toolResult, toolResult)
+  })
 })

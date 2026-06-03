@@ -11,6 +11,7 @@
 import type { ToolDefinition } from './types'
 
 import { sqlQueryTool, schemaTool } from './definitions/sql-query'
+import { renderChartTool } from './definitions/render-chart'
 import { sessionInfoTool } from './definitions/session-info'
 import { sessionsListTool } from './definitions/sessions'
 import { chatOverviewTool } from './definitions/chat-overview'
@@ -44,6 +45,7 @@ const SHARED_TOOLS: ToolDefinition[] = [
   searchSessionsTool,
   getSessionMessagesTool,
   getMembersTool,
+  schemaTool,
 
   // Analysis
   memberStatsTool,
@@ -53,6 +55,7 @@ const SHARED_TOOLS: ToolDefinition[] = [
   getSessionSummariesTool,
   responseTimeAnalysisTool,
   keywordFrequencyTool,
+  renderChartTool,
 
   // Raw SQL
   sqlQueryTool,
@@ -75,7 +78,6 @@ export const MCP_TOOL_REGISTRY: ToolDefinition[] = [
   // MCP-specific: session discovery & schema
   sessionsListTool,
   sessionInfoTool,
-  schemaTool,
   // Shared core + analysis + raw SQL
   ...SHARED_TOOLS,
 ]
