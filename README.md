@@ -92,10 +92,12 @@ For a deep dive, see the [architecture documentation](https://docs.chatlab.fun/i
 
 ## Local Development
 
+For complete contributor instructions, see the [Development Guide](https://docs.chatlab.fun/contributing/development).
+
 ### Requirements
 
-- Node.js >= 20
-- pnpm
+- Node.js >= 24 < 25
+- pnpm >= 9 < 10
 
 ### Setup
 
@@ -128,6 +130,7 @@ Please follow these principles before submitting a Pull Request:
 - Obvious bug fixes can be submitted directly.
 - For new features, please submit an Issue for discussion first; **PRs submitted without prior discussion will be closed**.
 - Keep one PR focused on one task; if changes are extensive, consider splitting them into multiple independent PRs.
+- For local setup, repository structure, checks, and AI collaboration notes, see the [Development Guide](https://docs.chatlab.fun/contributing/development).
 
 Thanks to all contributors:
 

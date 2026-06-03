@@ -23,6 +23,10 @@ title: ChatLab
 
 - [标准与 API](/cn/standard/chatlab-api) — 使用 ChatLab Format 和本地 REST API 对接外部工具。
 
+## 贡献
+
+- [开发指南](/cn/contributing/development) — 了解本地运行、仓库结构、架构边界和 PR 规范。
+
 ## 更多
 
 - [官网与路线图](https://chatlab.fun/cn/) — 前往官网下载 ChatLab，查看路线图和社区入口。

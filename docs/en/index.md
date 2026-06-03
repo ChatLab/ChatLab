@@ -21,6 +21,10 @@ Welcome to the ChatLab documentation. Use the sidebar to browse topics, or jump 
 
 - [Standards And API](/standard/chatlab-api) — Integrate external tools with ChatLab Format and the local REST API.
 
+## Contributing
+
+- [Development Guide](/contributing/development) — Learn local setup, repository structure, architecture boundaries, and PR rules.
+
 ## More
 
 - [Website And Roadmap](https://chatlab.fun) — Visit the product website for downloads, roadmap, and community links.

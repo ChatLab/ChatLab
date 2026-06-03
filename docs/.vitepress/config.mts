@@ -21,6 +21,10 @@ const enSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'ChatLab API', link: '/standard/chatlab-api' },
     ],
   },
+  {
+    text: 'Contributing',
+    items: [{ text: 'Development Guide', link: '/contributing/development' }],
+  },
 ]
 
 const cnSidebar: DefaultTheme.SidebarItem[] = [
@@ -45,6 +49,10 @@ const cnSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'Push 导入协议', link: '/cn/standard/chatlab-import' },
       { text: 'Pull 远程数据源协议', link: '/cn/standard/chatlab-pull' },
     ],
+  },
+  {
+    text: '贡献',
+    items: [{ text: '开发指南', link: '/cn/contributing/development' }],
   },
 ]
 
@@ -134,6 +142,7 @@ export default defineConfig({
           '/': enSidebar,
           '/usage/': enSidebar,
           '/standard/': enSidebar,
+          '/contributing/': enSidebar,
         },
         editLink: {
           pattern: 'https://github.com/ChatLab/ChatLab/edit/main/docs/:path',
@@ -172,6 +181,7 @@ export default defineConfig({
           '/cn/': cnSidebar,
           '/cn/usage/': cnSidebar,
           '/cn/standard/': cnSidebar,
+          '/cn/contributing/': cnSidebar,
         },
         outline: {
           label: '目录',

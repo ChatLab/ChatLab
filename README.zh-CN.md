@@ -92,10 +92,12 @@ ChatLab 是一个基于 pnpm monorepo 的工程，桌面端使用 Electron + Vue
 
 ## 本地开发
 
+完整协作者说明见[开发指南](https://docs.chatlab.fun/cn/contributing/development)。
+
 ### 环境要求
 
-- Node.js >= 20
-- pnpm
+- Node.js >= 24 < 25
+- pnpm >= 9 < 10
 
 ### 启动步骤
 
@@ -128,6 +130,7 @@ electron-fix start
 - 明显的 Bug 修复可直接提交
 - 对于新功能，请先提交 Issue 进行讨论，**未经讨论直接提交的 PR 会被关闭**
 - 一个 PR 尽量只做一件事，若改动较大，请考虑拆分为多个独立的 PR
+- 本地运行、目录职责、测试检查和 AI 协作说明见[开发指南](https://docs.chatlab.fun/cn/contributing/development)
 
 感谢所有为 ChatLab 做出贡献的人！
 
