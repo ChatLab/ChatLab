@@ -26,11 +26,11 @@ export const useSettingsStore = defineStore(
 
     const aiPreprocessConfig = ref<PreprocessConfig>({
       dataCleaning: true,
-      mergeConsecutive: false,
+      mergeConsecutive: true,
       mergeWindowSeconds: 180,
       blacklistKeywords: [],
-      denoise: false,
-      desensitize: false,
+      denoise: true,
+      desensitize: true,
       desensitizeRules: [],
       anonymizeNames: false,
     })
