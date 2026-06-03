@@ -8,8 +8,9 @@ import SidebarButton from './sidebar/SidebarButton.vue'
 import SidebarFooter from './sidebar/SidebarFooter.vue'
 import SidebarSortPopover from './sidebar/SidebarSortPopover.vue'
 import {
+  buildUpdateNoticeCacheEntry,
   buildUpdateNoticeState,
-  shouldUseCachedUpdateNotice,
+  getUsableCachedUpdateNotice,
   type UpdateNoticeCache,
   type UpdateNoticeState,
 } from './sidebar/updateNotice'
@@ -132,16 +133,11 @@ function readUpdateCheckCache(): UpdateNoticeCache | null {
 }
 
 function writeUpdateCheckCache(state: UpdateNoticeState | null) {
+  const cacheEntry = buildUpdateNoticeCacheEntry(state)
+  if (!cacheEntry) return
+
   try {
-    window.localStorage.setItem(
-      UPDATE_CHECK_CACHE_KEY,
-      JSON.stringify({
-        lastCheckTime: Date.now(),
-        latestVersion: state?.latestVersion ?? '',
-        hasUpdate: state?.hasUpdate ?? false,
-        currentVersion: state?.currentVersion ?? version.value,
-      })
-    )
+    window.localStorage.setItem(UPDATE_CHECK_CACHE_KEY, JSON.stringify(cacheEntry))
   } catch {
     // localStorage 不可用时忽略，更新提醒是非关键能力。
   }
@@ -179,17 +175,27 @@ async function fetchUpdateNoticeState(): Promise<UpdateNoticeState | null> {
 }
 
 async function checkUpdateNotice() {
-  const cache = readUpdateCheckCache()
-  if (cache) {
-    setUpdateNoticeState(cache)
-    if (shouldUseCachedUpdateNotice(cache, { isElectron: IS_ELECTRON, currentVersion: version.value })) return
+  if (IS_ELECTRON) {
+    const cache = readUpdateCheckCache()
+    const usableCache = cache
+      ? getUsableCachedUpdateNotice(cache, { isElectron: true, currentVersion: version.value })
+      : null
+    if (usableCache) {
+      setUpdateNoticeState(usableCache)
+      return
+    }
   }
 
   try {
     const nextState = await fetchUpdateNoticeState()
-    writeUpdateCheckCache(nextState)
+    if (!nextState) {
+      setUpdateNoticeState(null)
+      return
+    }
+    if (IS_ELECTRON) writeUpdateCheckCache(nextState)
     setUpdateNoticeState(nextState)
   } catch (error) {
+    setUpdateNoticeState(null)
     console.debug('Update notice check failed:', error)
   }
 }

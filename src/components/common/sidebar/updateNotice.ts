@@ -29,16 +29,35 @@ export function buildUpdateNoticeState(options: {
   }
 }
 
+export function buildUpdateNoticeCacheEntry(
+  state: UpdateNoticeState | null,
+  now: number = Date.now()
+): UpdateNoticeCache | null {
+  if (!state) return null
+  return {
+    lastCheckTime: now,
+    latestVersion: state.latestVersion,
+    hasUpdate: state.hasUpdate,
+    currentVersion: state.currentVersion,
+  }
+}
+
 export function shouldUseCachedUpdateNotice(
   cache: UpdateNoticeCache,
   options: { isElectron: boolean; currentVersion: string; now?: number }
 ): boolean {
+  if (!options.isElectron) return false
+
   const now = options.now ?? Date.now()
   if (now - cache.lastCheckTime >= UPDATE_CHECK_INTERVAL_MS) return false
   if (cache.currentVersion !== options.currentVersion) return false
 
-  // CLI Web 的正向结果必须重新问服务端，避免 CLI 已更新但浏览器还保留旧 badge。
-  if (!options.isElectron && cache.hasUpdate) return false
-
   return true
+}
+
+export function getUsableCachedUpdateNotice(
+  cache: UpdateNoticeCache,
+  options: { isElectron: boolean; currentVersion: string; now?: number }
+): UpdateNoticeCache | null {
+  return shouldUseCachedUpdateNotice(cache, options) ? cache : null
 }
