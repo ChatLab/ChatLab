@@ -144,13 +144,17 @@ export type {
   PreprocessConfig,
   PreprocessableMessage,
   DesensitizeRule,
+  DesensitizeRuleGroup,
   TruncationStrategy,
   PreprocessLogger,
 } from './ai'
 export {
   preprocessMessages,
   BUILTIN_DESENSITIZE_RULES,
+  DESENSITIZE_RULES_SCHEMA_VERSION,
+  applyDesensitizeRuleOverrides,
   getDefaultRulesForLocale,
+  getRuleGroupsForLocale,
   mergeRulesForLocale,
   formatMessageCompact,
   formatTimeRange,

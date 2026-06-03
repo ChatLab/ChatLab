@@ -7,7 +7,15 @@
 export type { PreprocessConfig, PreprocessableMessage, DesensitizeRule, TruncationStrategy } from './types'
 export { preprocessMessages } from './pipeline'
 export type { PreprocessLogger } from './pipeline'
-export { BUILTIN_DESENSITIZE_RULES, getDefaultRulesForLocale, mergeRulesForLocale } from './builtin-rules'
+export {
+  BUILTIN_DESENSITIZE_RULES,
+  DESENSITIZE_RULES_SCHEMA_VERSION,
+  applyDesensitizeRuleOverrides,
+  getDefaultRulesForLocale,
+  getRuleGroupsForLocale,
+  mergeRulesForLocale,
+} from './builtin-rules'
+export type { DesensitizeRuleGroup } from './builtin-rules'
 export {
   formatMessageCompact,
   formatTimeRange,

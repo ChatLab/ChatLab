@@ -423,8 +423,9 @@
     "desensitize": "資料脫敏",
     "desensitizeDesc": "根據規則將敏感資訊（手機號、電子郵件、證件號等）替換為佔位符",
     "desensitizeRules": "脫敏規則",
-    "desensitizeRulesDesc": "勾選需要啟用的脫敏規則，按清單順序優先匹配",
+    "desensitizeRulesDesc": "按組啟用脫敏規則，組內規則仍可單獨關閉，按清單順序優先匹配",
     "desensitizeBuiltin": "預置規則",
+    "desensitizeResetBuiltin": "恢復預設",
     "desensitizeCustom": "自訂規則",
     "desensitizeAddCustom": "新增自訂規則",
     "desensitizeRuleName": "規則名稱",
@@ -443,6 +444,24 @@
     "blacklistAdd": "新增"
   },
   "desensitize": {
+    "groups": {
+      "credentials": "密碼與 Token",
+      "credentials_desc": "API Key、Bearer Token 等憑證",
+      "global_contact": "通用聯絡方式",
+      "global_contact_desc": "電子郵件等跨地區聯絡方式",
+      "global_financial": "通用金融資訊",
+      "global_financial_desc": "信用卡等金融編號",
+      "global_network": "通用網路資訊",
+      "global_network_desc": "URL、IP 地址等網路識別",
+      "region_cn": "中國大陸",
+      "region_cn_desc": "中國大陸電話、證件和銀行卡等規則",
+      "region_us": "美國",
+      "region_us_desc": "美國電話、證件等規則",
+      "region_jp": "日本",
+      "region_jp_desc": "日本電話、個人編號等規則",
+      "region_kr": "韓國",
+      "region_kr_desc": "韓國電話、身份證號等規則"
+    },
     "rules": {
       "cn_phone": "中國手機號",
       "cn_phone_desc": "1xx xxxx xxxx 格式的 11 位號碼",

@@ -1,8 +1,6 @@
 /**
  * AI 相关 API — 仅保留 IPC 必须的能力
  *
- * Conversation/message CRUD 已迁移到 HTTP 共享路由（FetchAIAdapter）。
- * LLM/Agent streaming 已迁移到 SSE 共享路由（useAgentStreamService/useLlmStreamService）。
  * 此处只保留需要 worker、native shell、工具注册表等 IPC 才能提供的功能。
  */
 import { ipcRenderer } from 'electron'
@@ -20,6 +18,7 @@ export interface DesensitizeRule {
   enabled: boolean
   builtin: boolean
   locales: string[]
+  group?: string
 }
 
 export interface PreprocessConfig {
@@ -29,6 +28,8 @@ export interface PreprocessConfig {
   blacklistKeywords: string[]
   denoise: boolean
   desensitize: boolean
+  desensitizeRulesSchemaVersion?: number
+  desensitizeBuiltinRuleOverrides?: Record<string, boolean>
   desensitizeRules: DesensitizeRule[]
   anonymizeNames: boolean
 }
@@ -70,6 +71,3 @@ export const aiApi = {
 
   // Desensitize rules, tool testing, estimateContextTokens have been migrated to shared HTTP routes.
 }
-
-// LLM chat (non-streaming) IPC has been removed — no frontend consumers remain.
-// All LLM calls now go through shared HTTP/SSE routes.

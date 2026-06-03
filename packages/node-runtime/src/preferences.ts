@@ -7,6 +7,7 @@
 
 import * as fs from 'fs'
 import * as path from 'path'
+import { DESENSITIZE_RULES_SCHEMA_VERSION } from './ai/preprocessor'
 import type {
   Preferences,
   AIGlobalSettings,
@@ -38,6 +39,8 @@ const DEFAULTS: Preferences = {
     blacklistKeywords: [],
     denoise: true,
     desensitize: true,
+    desensitizeRulesSchemaVersion: DESENSITIZE_RULES_SCHEMA_VERSION,
+    desensitizeBuiltinRuleOverrides: {},
     desensitizeRules: [],
     anonymizeNames: false,
   },
@@ -80,7 +83,11 @@ export class PreferencesManager {
       if (fs.existsSync(this.filePath)) {
         const raw = fs.readFileSync(this.filePath, 'utf-8')
         const parsed = JSON.parse(raw) as Partial<Preferences>
-        this.cache = this.mergeDefaults(parsed)
+        const migrated = this.migrateLegacyDesensitizeRules(parsed, raw)
+        this.cache = this.mergeDefaults(migrated.preferences)
+        if (migrated.changed) {
+          this.writePreferences(this.cache)
+        }
         return this.cache
       }
     } catch (err) {
@@ -98,13 +105,9 @@ export class PreferencesManager {
         current as unknown as Record<string, unknown>,
         partial as unknown as Record<string, unknown>
       )
-      this.cache = merged as unknown as Preferences
+      this.cache = this.mergeDefaults(merged as unknown as Partial<Preferences>)
 
-      const dir = path.dirname(this.filePath)
-      if (!fs.existsSync(dir)) {
-        fs.mkdirSync(dir, { recursive: true })
-      }
-      fs.writeFileSync(this.filePath, JSON.stringify(this.cache, null, 2), 'utf-8')
+      this.writePreferences(this.cache)
       return { success: true }
     } catch (err) {
       const msg = err instanceof Error ? err.message : String(err)
@@ -125,7 +128,7 @@ export class PreferencesManager {
     return {
       pinnedSessionIds: partial.pinnedSessionIds ?? DEFAULTS.pinnedSessionIds,
       aiPreprocessConfig: partial.aiPreprocessConfig
-        ? { ...DEFAULTS.aiPreprocessConfig, ...partial.aiPreprocessConfig }
+        ? this.normalizeAiPreprocessConfig(partial.aiPreprocessConfig)
         : { ...DEFAULTS.aiPreprocessConfig },
       aiGlobalSettings: partial.aiGlobalSettings
         ? {
@@ -142,6 +145,77 @@ export class PreferencesManager {
       wordFilter: partial.wordFilter ? { ...DEFAULTS.wordFilter, ...partial.wordFilter } : { ...DEFAULTS.wordFilter },
       filterHistory: partial.filterHistory ?? DEFAULTS.filterHistory,
     }
+  }
+
+  private normalizeAiPreprocessConfig(partial: Partial<AIPreprocessConfig> | undefined): AIPreprocessConfig {
+    const defaults = DEFAULTS.aiPreprocessConfig
+    const rules = Array.isArray(partial?.desensitizeRules) ? partial.desensitizeRules : []
+    const customRules = rules.filter((rule) => !rule.builtin)
+    return {
+      dataCleaning: partial?.dataCleaning ?? defaults.dataCleaning,
+      mergeConsecutive: partial?.mergeConsecutive ?? defaults.mergeConsecutive,
+      mergeWindowSeconds: partial?.mergeWindowSeconds ?? defaults.mergeWindowSeconds,
+      blacklistKeywords: partial?.blacklistKeywords ?? defaults.blacklistKeywords,
+      denoise: partial?.denoise ?? defaults.denoise,
+      desensitize: partial?.desensitize ?? defaults.desensitize,
+      desensitizeRulesSchemaVersion: DESENSITIZE_RULES_SCHEMA_VERSION,
+      desensitizeBuiltinRuleOverrides: this.normalizeBooleanMap(partial?.desensitizeBuiltinRuleOverrides),
+      desensitizeRules: customRules,
+      anonymizeNames: partial?.anonymizeNames ?? defaults.anonymizeNames,
+    }
+  }
+
+  private normalizeBooleanMap(value: unknown): Record<string, boolean> {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+    const result: Record<string, boolean> = {}
+    for (const [key, flag] of Object.entries(value as Record<string, unknown>)) {
+      if (typeof flag === 'boolean') result[key] = flag
+    }
+    return result
+  }
+
+  private migrateLegacyDesensitizeRules(
+    partial: Partial<Preferences>,
+    rawContent: string
+  ): { preferences: Partial<Preferences>; changed: boolean } {
+    const rules = partial.aiPreprocessConfig?.desensitizeRules
+    if (!Array.isArray(rules) || !rules.some((rule) => rule.builtin)) {
+      return { preferences: partial, changed: false }
+    }
+
+    this.backupLegacyPreferences(rawContent)
+
+    return {
+      preferences: {
+        ...partial,
+        aiPreprocessConfig: {
+          ...partial.aiPreprocessConfig,
+          desensitizeRulesSchemaVersion: DESENSITIZE_RULES_SCHEMA_VERSION,
+          desensitizeBuiltinRuleOverrides: {},
+          desensitizeRules: rules.filter((rule) => !rule.builtin),
+        },
+      } as Partial<Preferences>,
+      changed: true,
+    }
+  }
+
+  private backupLegacyPreferences(rawContent: string): void {
+    const backupDir = path.join(path.dirname(this.filePath), 'backups')
+    if (!fs.existsSync(backupDir)) {
+      fs.mkdirSync(backupDir, { recursive: true })
+    }
+    const timestamp = new Date().toISOString().replace(/[:.]/g, '-')
+    const backupPath = path.join(backupDir, `preferences-pre-desensitize-groups-${timestamp}.json`)
+    fs.writeFileSync(backupPath, rawContent, 'utf-8')
+    console.info(`[Preferences] Backed up legacy desensitize rules to ${backupPath}`)
+  }
+
+  private writePreferences(preferences: Preferences): void {
+    const dir = path.dirname(this.filePath)
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true })
+    }
+    fs.writeFileSync(this.filePath, JSON.stringify(preferences, null, 2), 'utf-8')
   }
 
   /**

@@ -3,6 +3,7 @@ import { ref, computed, onMounted } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useSettingsStore } from '@/stores/settings'
+import type { PreprocessConfig } from '@electron/preload/index'
 
 const { t, te } = useI18n()
 const settingsStore = useSettingsStore()
@@ -11,6 +12,20 @@ const { aiPreprocessConfig } = storeToRefs(settingsStore)
 onMounted(() => settingsStore.ensureDesensitizeRules())
 
 const newKeyword = ref('')
+const expandedBuiltinGroups = ref<Record<string, boolean>>({})
+
+type DesensitizeRuleView = PreprocessConfig['desensitizeRules'][number]
+
+const BUILTIN_GROUP_ORDER = [
+  'credentials',
+  'global_contact',
+  'global_financial',
+  'global_network',
+  'region_cn',
+  'region_us',
+  'region_jp',
+  'region_kr',
+]
 
 function addKeyword() {
   const kw = newKeyword.value.trim()
@@ -30,6 +45,16 @@ function removeKeyword(index: number) {
 // 脱敏规则：内置 vs 自定义
 const builtinRules = computed(() => aiPreprocessConfig.value.desensitizeRules.filter((r) => r.builtin))
 const customRules = computed(() => aiPreprocessConfig.value.desensitizeRules.filter((r) => !r.builtin))
+const builtinRuleGroups = computed(() => {
+  const groups = new Map<string, DesensitizeRuleView[]>()
+  for (const rule of builtinRules.value) {
+    const groupId = rule.group ?? 'global_contact'
+    groups.set(groupId, [...(groups.get(groupId) ?? []), rule])
+  }
+  return BUILTIN_GROUP_ORDER.map((id) => ({ id, rules: groups.get(id) ?? [] })).filter(
+    (group) => group.rules.length > 0
+  )
+})
 
 // 自定义规则表单
 const customForm = ref({ name: '', pattern: '', replacement: '' })
@@ -45,9 +70,71 @@ function getRuleDesc(rule: { id: string; builtin: boolean }): string {
   return te(key) ? t(key) : ''
 }
 
+function getGroupLabel(groupId: string): string {
+  const key = `settings.desensitize.groups.${groupId}`
+  return te(key) ? t(key) : groupId
+}
+
+function getGroupDesc(groupId: string): string {
+  const key = `settings.desensitize.groups.${groupId}_desc`
+  return te(key) ? t(key) : ''
+}
+
+function isGroupExpanded(groupId: string): boolean {
+  return expandedBuiltinGroups.value[groupId] ?? false
+}
+
+function toggleGroupExpanded(groupId: string) {
+  expandedBuiltinGroups.value = {
+    ...expandedBuiltinGroups.value,
+    [groupId]: !isGroupExpanded(groupId),
+  }
+}
+
+function getGroupState(rules: Array<{ enabled: boolean }>): { checked: boolean; indeterminate: boolean } {
+  const enabledCount = rules.filter((rule) => rule.enabled).length
+  return {
+    checked: rules.length > 0 && enabledCount === rules.length,
+    indeterminate: enabledCount > 0 && enabledCount < rules.length,
+  }
+}
+
+function setBuiltinOverride(ruleId: string, enabled: boolean) {
+  aiPreprocessConfig.value.desensitizeBuiltinRuleOverrides = {
+    ...(aiPreprocessConfig.value.desensitizeBuiltinRuleOverrides ?? {}),
+    [ruleId]: enabled,
+  }
+}
+
 function toggleRule(ruleId: string) {
   const rule = aiPreprocessConfig.value.desensitizeRules.find((r) => r.id === ruleId)
-  if (rule) rule.enabled = !rule.enabled
+  if (!rule) return
+  rule.enabled = !rule.enabled
+  if (rule.builtin) {
+    setBuiltinOverride(rule.id, rule.enabled)
+  }
+}
+
+function setRuleEnabled(rule: { id: string; enabled: boolean; builtin: boolean }, enabled: boolean) {
+  rule.enabled = enabled
+  if (rule.builtin) {
+    setBuiltinOverride(rule.id, enabled)
+  }
+}
+
+function setGroupEnabled(rules: Array<{ id: string; enabled: boolean; builtin: boolean }>, enabled: boolean) {
+  for (const rule of rules) {
+    setRuleEnabled(rule, enabled)
+  }
+}
+
+function resetBuiltinRules() {
+  const overrides = { ...(aiPreprocessConfig.value.desensitizeBuiltinRuleOverrides ?? {}) }
+  for (const rule of builtinRules.value) {
+    delete overrides[rule.id]
+    rule.enabled = true
+  }
+  aiPreprocessConfig.value.desensitizeBuiltinRuleOverrides = overrides
 }
 
 function addCustomRule() {
@@ -176,24 +263,74 @@ function removeCustomRule(ruleId: string) {
       <div v-if="aiPreprocessConfig.desensitize" class="ml-4 space-y-3">
         <!-- 预置规则 -->
         <div v-if="builtinRules.length > 0">
-          <p class="mb-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-            {{ t('settings.aiPreprocess.desensitizeBuiltin') }}
-          </p>
-          <div class="space-y-1.5">
-            <label
-              v-for="rule in builtinRules"
-              :key="rule.id"
-              class="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+          <div class="mb-2 flex items-center justify-between gap-3">
+            <p class="text-xs font-medium text-gray-500 dark:text-gray-400">
+              {{ t('settings.aiPreprocess.desensitizeBuiltin') }}
+            </p>
+            <button
+              type="button"
+              class="inline-flex items-center gap-1 text-xs font-medium text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+              @click="resetBuiltinRules"
             >
-              <input
-                type="checkbox"
-                :checked="rule.enabled"
-                class="h-3.5 w-3.5 rounded border-gray-300 text-primary-500 focus:ring-primary-500"
-                @change="toggleRule(rule.id)"
-              />
-              <span class="flex-1 text-xs text-gray-700 dark:text-gray-300">{{ getRuleLabel(rule) }}</span>
-              <span v-if="getRuleDesc(rule)" class="shrink-0 text-[10px] text-gray-400">{{ getRuleDesc(rule) }}</span>
-            </label>
+              <UIcon name="i-heroicons-arrow-path" class="h-3.5 w-3.5" />
+              {{ t('settings.aiPreprocess.desensitizeResetBuiltin') }}
+            </button>
+          </div>
+          <div class="space-y-2">
+            <div
+              v-for="group in builtinRuleGroups"
+              :key="group.id"
+              class="rounded-md border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900/40"
+            >
+              <div class="flex items-center gap-2 px-2.5 py-2">
+                <UCheckbox
+                  :model-value="getGroupState(group.rules).checked"
+                  :indeterminate="getGroupState(group.rules).indeterminate"
+                  size="xs"
+                  @update:model-value="(value) => setGroupEnabled(group.rules, Boolean(value))"
+                />
+                <button
+                  type="button"
+                  class="flex min-w-0 flex-1 items-center gap-2 text-left"
+                  @click="toggleGroupExpanded(group.id)"
+                >
+                  <UIcon
+                    :name="isGroupExpanded(group.id) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'"
+                    class="h-3.5 w-3.5 shrink-0 text-gray-400"
+                  />
+                  <span class="min-w-0 flex-1">
+                    <span class="block truncate text-xs font-medium text-gray-700 dark:text-gray-200">
+                      {{ getGroupLabel(group.id) }}
+                    </span>
+                    <span v-if="getGroupDesc(group.id)" class="block truncate text-[10px] text-gray-400">
+                      {{ getGroupDesc(group.id) }}
+                    </span>
+                  </span>
+                  <span class="shrink-0 text-[10px] text-gray-400">
+                    {{ group.rules.filter((rule) => rule.enabled).length }}/{{ group.rules.length }}
+                  </span>
+                </button>
+              </div>
+
+              <div v-if="isGroupExpanded(group.id)" class="border-t border-gray-100 px-2 py-1.5 dark:border-gray-800">
+                <label
+                  v-for="rule in group.rules"
+                  :key="rule.id"
+                  class="flex cursor-pointer items-center gap-2.5 rounded-md px-2 py-1.5 hover:bg-gray-100 dark:hover:bg-gray-700/50"
+                >
+                  <input
+                    type="checkbox"
+                    :checked="rule.enabled"
+                    class="h-3.5 w-3.5 rounded border-gray-300 text-primary-500 focus:ring-primary-500"
+                    @change="toggleRule(rule.id)"
+                  />
+                  <span class="flex-1 text-xs text-gray-700 dark:text-gray-300">{{ getRuleLabel(rule) }}</span>
+                  <span v-if="getRuleDesc(rule)" class="shrink-0 text-[10px] text-gray-400">
+                    {{ getRuleDesc(rule) }}
+                  </span>
+                </label>
+              </div>
+            </div>
           </div>
         </div>
 

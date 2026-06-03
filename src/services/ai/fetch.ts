@@ -238,9 +238,13 @@ export class FetchAIAdapter implements AIAdapter {
     }
   }
 
-  async mergeDesensitizeRules(existingRules: DesensitizeRule[], locale: string): Promise<DesensitizeRule[]> {
+  async mergeDesensitizeRules(
+    existingRules: DesensitizeRule[],
+    locale: string,
+    overrides: Record<string, boolean> = {}
+  ): Promise<DesensitizeRule[]> {
     try {
-      return await post<DesensitizeRule[]>('/ai/desensitize-rules/merge', { existingRules, locale })
+      return await post<DesensitizeRule[]>('/ai/desensitize-rules/merge', { existingRules, locale, overrides })
     } catch {
       return existingRules
     }

@@ -423,8 +423,9 @@
     "desensitize": "データマスキング",
     "desensitizeDesc": "ルールに基づいて機密情報（電話番号、メールアドレス、身分証番号など）をプレースホルダーに置換します",
     "desensitizeRules": "マスキングルール",
-    "desensitizeRulesDesc": "有効にするマスキングルールにチェックを入れてください。リスト順に優先マッチングされます",
+    "desensitizeRulesDesc": "グループ単位でマスキングルールを有効化します。グループ内のルールは個別に無効化でき、リスト順に優先マッチングされます",
     "desensitizeBuiltin": "プリセットルール",
+    "desensitizeResetBuiltin": "既定に戻す",
     "desensitizeCustom": "カスタムルール",
     "desensitizeAddCustom": "カスタムルールを追加",
     "desensitizeRuleName": "ルール名",
@@ -443,6 +444,24 @@
     "blacklistAdd": "追加"
   },
   "desensitize": {
+    "groups": {
+      "credentials": "パスワードと Token",
+      "credentials_desc": "API Key、Bearer Token などの認証情報",
+      "global_contact": "汎用連絡先情報",
+      "global_contact_desc": "メールアドレスなど地域をまたぐ連絡先情報",
+      "global_financial": "汎用金融情報",
+      "global_financial_desc": "クレジットカード番号などの金融識別子",
+      "global_network": "汎用ネットワーク情報",
+      "global_network_desc": "URL、IP アドレスなどのネットワーク識別子",
+      "region_cn": "中国本土",
+      "region_cn_desc": "中国本土の電話番号、証明書、銀行カードなどのルール",
+      "region_us": "米国",
+      "region_us_desc": "米国の電話番号、証明書などのルール",
+      "region_jp": "日本",
+      "region_jp_desc": "日本の電話番号、マイナンバーなどのルール",
+      "region_kr": "韓国",
+      "region_kr_desc": "韓国の電話番号、住民登録番号などのルール"
+    },
     "rules": {
       "cn_phone": "中国の携帯電話番号",
       "cn_phone_desc": "1xx xxxx xxxx 形式の11桁の番号",

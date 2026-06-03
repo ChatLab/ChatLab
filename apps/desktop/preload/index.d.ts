@@ -231,6 +231,7 @@ interface DesensitizeRule {
   enabled: boolean
   builtin: boolean
   locales: string[]
+  group?: string
 }
 
 /** 聊天记录预处理配置 */
@@ -241,6 +242,8 @@ interface PreprocessConfig {
   blacklistKeywords: string[]
   denoise: boolean
   desensitize: boolean
+  desensitizeRulesSchemaVersion?: number
+  desensitizeBuiltinRuleOverrides?: Record<string, boolean>
   desensitizeRules: DesensitizeRule[]
   anonymizeNames: boolean
 }

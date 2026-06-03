@@ -423,8 +423,9 @@
     "desensitize": "Data Masking",
     "desensitizeDesc": "Replace sensitive information (phone numbers, emails, ID numbers, etc.) based on rules",
     "desensitizeRules": "Masking Rules",
-    "desensitizeRulesDesc": "Check the rules to enable. Rules are matched in list order",
+    "desensitizeRulesDesc": "Enable masking rules by group. Individual rules can still be disabled and are matched in list order",
     "desensitizeBuiltin": "Built-in Rules",
+    "desensitizeResetBuiltin": "Restore Defaults",
     "desensitizeCustom": "Custom Rules",
     "desensitizeAddCustom": "Add Custom Rule",
     "desensitizeRuleName": "Rule Name",
@@ -443,6 +444,24 @@
     "blacklistAdd": "Add"
   },
   "desensitize": {
+    "groups": {
+      "credentials": "Passwords & Tokens",
+      "credentials_desc": "Credentials such as API keys and Bearer tokens",
+      "global_contact": "Global Contact Info",
+      "global_contact_desc": "Cross-region contact details such as email addresses",
+      "global_financial": "Global Financial Info",
+      "global_financial_desc": "Financial identifiers such as credit card numbers",
+      "global_network": "Global Network Info",
+      "global_network_desc": "Network identifiers such as URLs and IP addresses",
+      "region_cn": "Mainland China",
+      "region_cn_desc": "Rules for phone numbers, IDs, and bank cards in Mainland China",
+      "region_us": "United States",
+      "region_us_desc": "Rules for phone numbers and IDs in the United States",
+      "region_jp": "Japan",
+      "region_jp_desc": "Rules for phone numbers and My Number in Japan",
+      "region_kr": "Korea",
+      "region_kr_desc": "Rules for phone numbers and resident registration numbers in Korea"
+    },
     "rules": {
       "cn_phone": "China Mobile Number",
       "cn_phone_desc": "11-digit starting with 1xx",

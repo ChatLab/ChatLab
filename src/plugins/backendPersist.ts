@@ -20,6 +20,8 @@ export interface BackendPersistConfig {
   pick: string[]
   /** Nest picked fields under this key in preferences.json */
   key?: string
+  /** Serialize store state before saving to preferences.json */
+  serialize?: (store: Record<string, unknown>) => Partial<Preferences>
 }
 
 declare module 'pinia' {
@@ -50,6 +52,12 @@ function scheduleSave() {
 }
 
 function collectAndQueue(store: Record<string, unknown>, config: BackendPersistConfig) {
+  if (config.serialize) {
+    Object.assign(pendingSave, config.serialize(store))
+    scheduleSave()
+    return
+  }
+
   const data: Record<string, unknown> = {}
   for (const field of config.pick) {
     data[field] = JSON.parse(JSON.stringify(store[field]))

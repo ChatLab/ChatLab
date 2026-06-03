@@ -55,6 +55,7 @@ export interface DesensitizeRule {
   enabled: boolean
   builtin: boolean
   locales: string[]
+  group?: string
 }
 
 export interface ToolCatalogEntry {
@@ -220,7 +221,11 @@ export interface AIAdapter {
 
   // ===== 脱敏 =====
   getDefaultDesensitizeRules(locale: string): Promise<DesensitizeRule[]>
-  mergeDesensitizeRules(existingRules: DesensitizeRule[], locale: string): Promise<DesensitizeRule[]>
+  mergeDesensitizeRules(
+    existingRules: DesensitizeRule[],
+    locale: string,
+    overrides?: Record<string, boolean>
+  ): Promise<DesensitizeRule[]>
 
   // ===== 日志 =====
   showAiLogFile(): Promise<{ success: boolean; path?: string; error?: string }>

@@ -14,6 +14,8 @@ export interface DesensitizeRule {
   builtin: boolean
   /** 适用的 locale 列表（空数组表示通用） */
   locales: string[]
+  /** 预置规则所属分组 */
+  group?: string
 }
 
 /** 预处理配置 */
@@ -30,6 +32,10 @@ export interface PreprocessConfig {
   denoise: boolean
   /** 数据脱敏总开关 */
   desensitize: boolean
+  /** 脱敏规则存储格式版本 */
+  desensitizeRulesSchemaVersion?: number
+  /** 内置脱敏规则显式覆盖表 */
+  desensitizeBuiltinRuleOverrides?: Record<string, boolean>
   /** 脱敏规则列表（预置 + 自定义，按优先级排序） */
   desensitizeRules: DesensitizeRule[]
   /** 昵称匿名化：用 U{id} 替代真实昵称，减少 AI 幻觉 */

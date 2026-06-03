@@ -182,7 +182,11 @@ export class WebAIAdapter implements AIAdapter {
     return []
   }
 
-  async mergeDesensitizeRules(existingRules: DesensitizeRule[], _locale: string): Promise<DesensitizeRule[]> {
+  async mergeDesensitizeRules(
+    existingRules: DesensitizeRule[],
+    _locale: string,
+    _overrides: Record<string, boolean> = {}
+  ): Promise<DesensitizeRule[]> {
     return existingRules
   }
 

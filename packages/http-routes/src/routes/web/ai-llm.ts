@@ -208,7 +208,7 @@ export function registerAiLlmRoutes(server: FastifyInstance, ctx: HttpRouteConte
     Body: { provider: string; apiKey: string; baseUrl?: string; model?: string; apiFormat?: string; configId?: string }
   }>('/_web/ai/llm/validate-key', async (request) => {
     const { provider, apiKey, baseUrl, model, apiFormat, configId } = request.body
-    const resolvedKey = apiKey?.trim() ? apiKey : (configId ? store.getConfigById(configId)?.apiKey || '' : '')
+    const resolvedKey = apiKey?.trim() ? apiKey : configId ? store.getConfigById(configId)?.apiKey || '' : ''
     return validateApiKey(provider, resolvedKey, baseUrl, model, apiFormat)
   })
 
@@ -216,7 +216,7 @@ export function registerAiLlmRoutes(server: FastifyInstance, ctx: HttpRouteConte
     Body: { provider: string; apiKey: string; baseUrl?: string; apiFormat?: string; configId?: string }
   }>('/_web/ai/llm/remote-models', async (request) => {
     const { provider, apiKey, baseUrl, apiFormat, configId } = request.body
-    const resolvedKey = apiKey?.trim() ? apiKey : (configId ? store.getConfigById(configId)?.apiKey || '' : '')
+    const resolvedKey = apiKey?.trim() ? apiKey : configId ? store.getConfigById(configId)?.apiKey || '' : ''
     return fetchRemoteModels(provider, resolvedKey, baseUrl, apiFormat)
   })
 
@@ -229,8 +229,8 @@ export function registerAiLlmRoutes(server: FastifyInstance, ctx: HttpRouteConte
   })
 
   server.post<{
-    Body: { existingRules: unknown[]; locale: string }
+    Body: { existingRules: unknown[]; locale: string; overrides?: Record<string, boolean> }
   }>('/_web/ai/desensitize-rules/merge', async (request) => {
-    return mergeRulesForLocale(request.body.existingRules as any[], request.body.locale)
+    return mergeRulesForLocale(request.body.existingRules as any[], request.body.locale, request.body.overrides ?? {})
   })
 }

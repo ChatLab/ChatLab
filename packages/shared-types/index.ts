@@ -151,6 +151,7 @@ export interface DesensitizeRule {
   enabled: boolean
   builtin: boolean
   locales: string[]
+  group?: string
 }
 
 export interface AIPreprocessConfig {
@@ -160,6 +161,8 @@ export interface AIPreprocessConfig {
   blacklistKeywords: string[]
   denoise: boolean
   desensitize: boolean
+  desensitizeRulesSchemaVersion?: number
+  desensitizeBuiltinRuleOverrides?: Record<string, boolean>
   desensitizeRules: DesensitizeRule[]
   anonymizeNames: boolean
 }
