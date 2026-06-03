@@ -3,11 +3,16 @@ import { storeToRefs } from 'pinia'
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
-import { isNewerStableVersion } from '@openchatlab/core'
 import type { AnalysisSession } from '@/types/base'
 import SidebarButton from './sidebar/SidebarButton.vue'
 import SidebarFooter from './sidebar/SidebarFooter.vue'
 import SidebarSortPopover from './sidebar/SidebarSortPopover.vue'
+import {
+  buildUpdateNoticeState,
+  shouldUseCachedUpdateNotice,
+  type UpdateNoticeCache,
+  type UpdateNoticeState,
+} from './sidebar/updateNotice'
 import SubTabs from '@/components/UI/SubTabs.vue'
 import { useSessionStore } from '@/stores/session'
 import { useLayoutStore } from '@/stores/layout'
@@ -17,8 +22,7 @@ import logoSvg from '@/assets/images/logo.svg'
 
 const { t } = useI18n()
 const LATEST_VERSION_URL = 'https://chatlab.fun/latest-version'
-const UPDATE_CHECK_CACHE_KEY = 'chatlab:latest-version-check'
-const UPDATE_CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000
+const UPDATE_CHECK_CACHE_KEY = 'chatlab:latest-version-check:v2'
 
 const sessionStore = useSessionStore()
 const layoutStore = useLayoutStore()
@@ -103,28 +107,39 @@ function handleImport() {
   router.push('/')
 }
 
-function readUpdateCheckCache(): { lastCheckTime: number; latestVersion: string | null } | null {
+function readUpdateCheckCache(): UpdateNoticeCache | null {
   try {
     const raw = window.localStorage.getItem(UPDATE_CHECK_CACHE_KEY)
     if (!raw) return null
-    const data = JSON.parse(raw) as { lastCheckTime?: unknown; latestVersion?: unknown }
+    const data = JSON.parse(raw) as {
+      lastCheckTime?: unknown
+      latestVersion?: unknown
+      hasUpdate?: unknown
+      currentVersion?: unknown
+    }
     if (typeof data.lastCheckTime !== 'number') return null
+    if (typeof data.hasUpdate !== 'boolean') return null
+    if (typeof data.currentVersion !== 'string') return null
     return {
       lastCheckTime: data.lastCheckTime,
-      latestVersion: typeof data.latestVersion === 'string' ? data.latestVersion : null,
+      latestVersion: typeof data.latestVersion === 'string' ? data.latestVersion : '',
+      hasUpdate: data.hasUpdate,
+      currentVersion: data.currentVersion,
     }
   } catch {
     return null
   }
 }
 
-function writeUpdateCheckCache(nextLatestVersion: string | null) {
+function writeUpdateCheckCache(state: UpdateNoticeState | null) {
   try {
     window.localStorage.setItem(
       UPDATE_CHECK_CACHE_KEY,
       JSON.stringify({
         lastCheckTime: Date.now(),
-        latestVersion: nextLatestVersion,
+        latestVersion: state?.latestVersion ?? '',
+        hasUpdate: state?.hasUpdate ?? false,
+        currentVersion: state?.currentVersion ?? version.value,
       })
     )
   } catch {
@@ -132,9 +147,9 @@ function writeUpdateCheckCache(nextLatestVersion: string | null) {
   }
 }
 
-function setLatestVersion(nextLatestVersion: string | null) {
-  latestVersion.value = nextLatestVersion || ''
-  hasUpdate.value = Boolean(nextLatestVersion && isNewerStableVersion(nextLatestVersion, version.value))
+function setUpdateNoticeState(state: UpdateNoticeState | null) {
+  latestVersion.value = state?.latestVersion ?? ''
+  hasUpdate.value = state?.hasUpdate ?? false
 }
 
 function parseLatestVersionPayload(data: unknown): string | null {
@@ -143,30 +158,37 @@ function parseLatestVersionPayload(data: unknown): string | null {
   return typeof versionValue === 'string' ? versionValue : null
 }
 
-async function fetchLatestVersion(): Promise<string | null> {
+async function fetchUpdateNoticeState(): Promise<UpdateNoticeState | null> {
   const platformService = usePlatformService()
   if (IS_ELECTRON) {
     const result = await platformService.fetchRemoteConfig(LATEST_VERSION_URL)
     if (!result.success) return null
-    return parseLatestVersionPayload(result.data)
+    return buildUpdateNoticeState({
+      latestVersion: parseLatestVersionPayload(result.data),
+      currentVersion: version.value,
+    })
   }
 
   const result = await platformService.checkUpdate()
   if (!result || result.error) return null
-  return result.latestVersion || null
+  return buildUpdateNoticeState({
+    latestVersion: result.latestVersion,
+    currentVersion: result.currentVersion,
+    serverHasUpdate: result.hasUpdate,
+  })
 }
 
 async function checkUpdateNotice() {
   const cache = readUpdateCheckCache()
   if (cache) {
-    setLatestVersion(cache.latestVersion)
-    if (Date.now() - cache.lastCheckTime < UPDATE_CHECK_INTERVAL_MS) return
+    setUpdateNoticeState(cache)
+    if (shouldUseCachedUpdateNotice(cache, { isElectron: IS_ELECTRON, currentVersion: version.value })) return
   }
 
   try {
-    const nextLatestVersion = await fetchLatestVersion()
-    writeUpdateCheckCache(nextLatestVersion)
-    setLatestVersion(nextLatestVersion)
+    const nextState = await fetchUpdateNoticeState()
+    writeUpdateCheckCache(nextState)
+    setUpdateNoticeState(nextState)
   } catch (error) {
     console.debug('Update notice check failed:', error)
   }

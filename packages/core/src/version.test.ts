@@ -11,12 +11,13 @@ describe('stable version comparison', () => {
     assert.equal(isStableVersion('latest'), false)
   })
 
-  it('reports newer stable versions only when both sides are stable', () => {
+  it('reports newer stable versions against stable and prerelease current versions', () => {
     assert.equal(isNewerStableVersion('0.25.0', '0.24.0'), true)
     assert.equal(isNewerStableVersion('0.24.1', '0.24.0'), true)
     assert.equal(isNewerStableVersion('0.24.0', '0.24.0'), false)
     assert.equal(isNewerStableVersion('0.23.9', '0.24.0'), false)
     assert.equal(isNewerStableVersion('0.25.0-beta.1', '0.24.0'), false)
-    assert.equal(isNewerStableVersion('0.25.0', '0.25.0-beta.1'), false)
+    assert.equal(isNewerStableVersion('0.25.0', '0.25.0-beta.1'), true)
+    assert.equal(isNewerStableVersion('0.26.0', '0.25.0-beta.1'), true)
   })
 })
