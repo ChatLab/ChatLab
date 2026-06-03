@@ -49,12 +49,17 @@ test('migrates old built-in desensitize rules out of preferences with a backup',
     const backupsDir = join(systemDir, 'backups')
 
     assert.equal(prefs.aiPreprocessConfig.desensitizeRulesSchemaVersion, 2)
-    assert.deepEqual(prefs.aiPreprocessConfig.desensitizeBuiltinRuleOverrides, {})
+    assert.deepEqual(prefs.aiPreprocessConfig.desensitizeBuiltinRuleOverrides, {
+      api_key_prefix: false,
+    })
     assert.deepEqual(
       prefs.aiPreprocessConfig.desensitizeRules.map((rule) => rule.id),
       ['custom_staff_id']
     )
     assert.equal(saved.aiPreprocessConfig.desensitizeRules[0].id, 'custom_staff_id')
+    assert.deepEqual(saved.aiPreprocessConfig.desensitizeBuiltinRuleOverrides, {
+      api_key_prefix: false,
+    })
     assert.equal(
       saved.aiPreprocessConfig.desensitizeRules.some((rule: any) => rule.builtin),
       false

@@ -185,13 +185,24 @@ export class PreferencesManager {
 
     this.backupLegacyPreferences(rawContent)
 
+    const legacyBuiltinRuleOverrides = rules
+      .filter((rule) => rule.builtin && typeof rule.enabled === 'boolean')
+      .reduce<Record<string, boolean>>((overrides, rule) => {
+        overrides[rule.id] = rule.enabled
+        return overrides
+      }, {})
+    const existingOverrides = this.normalizeBooleanMap(partial.aiPreprocessConfig?.desensitizeBuiltinRuleOverrides)
+
     return {
       preferences: {
         ...partial,
         aiPreprocessConfig: {
           ...partial.aiPreprocessConfig,
           desensitizeRulesSchemaVersion: DESENSITIZE_RULES_SCHEMA_VERSION,
-          desensitizeBuiltinRuleOverrides: {},
+          desensitizeBuiltinRuleOverrides: {
+            ...legacyBuiltinRuleOverrides,
+            ...existingOverrides,
+          },
           desensitizeRules: rules.filter((rule) => !rule.builtin),
         },
       } as Partial<Preferences>,
