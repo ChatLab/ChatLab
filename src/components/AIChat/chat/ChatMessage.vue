@@ -6,6 +6,7 @@ import MarkdownIt from 'markdown-it'
 import type { ContentBlock, ToolBlockContent } from '@/composables/useAIChat'
 import CaptureButton from '@/components/common/CaptureButton.vue'
 import ErrorBlock from './ErrorBlock.vue'
+import ChartBlockRenderer from './ChartBlockRenderer.vue'
 import { useToast } from '@/composables/useToast'
 
 const { t, te, locale } = useI18n()
@@ -330,6 +331,10 @@ const copyMarkdownText = computed(() => {
         return `> ${t('ai.skill.active.label', { name: block.skillName })}`
       }
 
+      if (block.type === 'chart') {
+        return `> Chart: ${block.chart.spec.title}`
+      }
+
       if (block.type === 'tool') {
         const toolName = getToolDisplayName(block.tool)
         const toolParams = formatToolParams(block.tool)
@@ -483,6 +488,9 @@ async function handleCopyMarkdown() {
               <UIcon name="i-heroicons-bolt" class="h-3.5 w-3.5" />
               <span>{{ t('ai.skill.active.label', { name: block.skillName }) }}</span>
             </div>
+
+            <!-- 图表块 -->
+            <ChartBlockRenderer v-else-if="block.type === 'chart'" :chart="block.chart" />
 
             <!-- 工具块 -->
             <div

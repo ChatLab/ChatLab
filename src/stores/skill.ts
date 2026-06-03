@@ -7,6 +7,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useAssistantStore } from './assistant'
 import { usePlatformService, useSkillService } from '@/services'
+import { CHART_CAPABILITY_SKILL_ID, getChartCapabilitySkill } from '@openchatlab/core'
 
 import { CHATLAB_SITE_BASE } from '@/utils/chatlabSiteLocale'
 const CLOUD_MARKET_BASE_URL = CHATLAB_SITE_BASE
@@ -65,8 +66,13 @@ export const useSkillStore = defineStore('skill', () => {
 
   const activeSkill = computed(() => {
     if (!activeSkillId.value) return null
+    if (activeSkillId.value === CHART_CAPABILITY_SKILL_ID) {
+      return getChartCapabilitySkill(currentLocale.value)
+    }
     return skills.value.find((s) => s.id === activeSkillId.value) ?? null
   })
+
+  const chartCapabilitySkill = computed(() => getChartCapabilitySkill(currentLocale.value))
 
   const scopedSkills = computed(() => {
     return skills.value.filter((s) => s.chatScope === 'all' || s.chatScope === currentChatType.value)
@@ -75,9 +81,10 @@ export const useSkillStore = defineStore('skill', () => {
   const compatibleSkills = computed(() => {
     const assistantStore = useAssistantStore()
     const config = assistantStore.selectedAssistant
-    if (!config) return scopedSkills.value
+    const baseSkills = [chartCapabilitySkill.value, ...scopedSkills.value]
+    if (!config) return baseSkills
 
-    return scopedSkills.value.filter((s) => {
+    return baseSkills.filter((s) => {
       if (!s.tools.length) return true
       return true
     })
@@ -188,6 +195,13 @@ export const useSkillStore = defineStore('skill', () => {
   }
 
   async function getSkillConfig(id: string): Promise<SkillConfigFull | null> {
+    if (id === CHART_CAPABILITY_SKILL_ID) {
+      const skill = getChartCapabilitySkill(currentLocale.value)
+      return {
+        ...skill,
+        builtinId: CHART_CAPABILITY_SKILL_ID,
+      }
+    }
     try {
       return await useSkillService().getConfig(id)
     } catch (error) {

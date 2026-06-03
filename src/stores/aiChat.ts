@@ -18,6 +18,13 @@ import { useLLMStore } from '@/stores/llm'
 import type { TokenUsage, AgentRuntimeStatus, SerializedErrorInfo } from '@electron/shared/types'
 import { useAgentStreamService } from '@/services/ai-stream/service'
 import { buildSerializablePreprocessConfig, shouldEnsureDesensitizeRulesBeforeSerialize } from './aiPreprocessConfig'
+import type { ChartPayload } from '@openchatlab/core'
+import {
+  extractChartPayloads,
+  isRenderOnlyTool,
+  toChartContentBlocks,
+  toRenderOnlyToolErrorBlock,
+} from './aiChatChartBlocks'
 
 // 工具调用记录
 export interface ToolCallRecord {
@@ -49,6 +56,7 @@ export interface MentionedMemberContext {
 export type ContentBlock =
   | { type: 'text'; text: string }
   | { type: 'think'; tag: string; text: string; durationMs?: number }
+  | { type: 'chart'; chart: ChartPayload }
   | {
       type: 'tool'
       tool: ToolBlockContent
@@ -596,6 +604,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     updateAIMessage: (updates: Partial<ChatMessage>) => void
     appendTextToBlocks: (text: string) => void
     appendThinkToBlocks: (text: string, tag?: string, durationMs?: number) => void
+    appendChartsToBlocks: (charts: ChartPayload[]) => void
+    appendErrorToBlocks: (error: SerializedErrorInfo) => void
     addToolBlock: (toolName: string, params?: Record<string, unknown>) => void
     updateToolBlockStatus: (toolName: string, status: 'done' | 'error') => void
   }
@@ -650,6 +660,21 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       updateAIMessage({ contentBlocks: [...blocks] })
     }
 
+    const appendChartsToBlocks = (charts: ChartPayload[]) => {
+      if (charts.length === 0) return
+      const idx = getAiMessageIndex()
+      const blocks = targetBuffer.messages[idx].contentBlocks || []
+      blocks.push(...toChartContentBlocks(charts))
+      updateAIMessage({ contentBlocks: [...blocks] })
+    }
+
+    const appendErrorToBlocks = (error: SerializedErrorInfo) => {
+      const idx = getAiMessageIndex()
+      const blocks = targetBuffer.messages[idx].contentBlocks || []
+      blocks.push({ type: 'error', error })
+      updateAIMessage({ contentBlocks: [...blocks] })
+    }
+
     const addToolBlock = (toolName: string, params?: Record<string, unknown>) => {
       const idx = getAiMessageIndex()
       const blocks = targetBuffer.messages[idx].contentBlocks || []
@@ -670,7 +695,15 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       updateAIMessage({ contentBlocks: [...blocks] })
     }
 
-    return { updateAIMessage, appendTextToBlocks, appendThinkToBlocks, addToolBlock, updateToolBlockStatus }
+    return {
+      updateAIMessage,
+      appendTextToBlocks,
+      appendThinkToBlocks,
+      appendChartsToBlocks,
+      appendErrorToBlocks,
+      addToolBlock,
+      updateToolBlockStatus,
+    }
   }
 
   async function sendMessage(
@@ -778,8 +811,15 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       let aiMessageIndex = targetBuffer.messages.length - 1
       let hasStreamError = false
 
-      const { updateAIMessage, appendTextToBlocks, appendThinkToBlocks, addToolBlock, updateToolBlockStatus } =
-        createStreamBlockHelpers(targetBuffer, () => aiMessageIndex)
+      const {
+        updateAIMessage,
+        appendTextToBlocks,
+        appendThinkToBlocks,
+        appendChartsToBlocks,
+        appendErrorToBlocks,
+        addToolBlock,
+        updateToolBlockStatus,
+      } = createStreamBlockHelpers(targetBuffer, () => aiMessageIndex)
 
       const currentAssistantId = targetBuffer.assistantId ?? getDefaultGeneralAssistantId(state.locale)
       if (!resolvedConversationId) {
@@ -874,19 +914,29 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                   status: 'running',
                 }
                 state.toolsUsedInCurrentRound.push(chunk.toolName)
-                addToolBlock(chunk.toolName, toolParams)
+                if (!isRenderOnlyTool(chunk.toolName)) {
+                  addToolBlock(chunk.toolName, toolParams)
+                }
               }
               break
 
             case 'tool_result':
               if (chunk.toolName) {
+                const charts = extractChartPayloads(chunk.toolResult)
+                appendChartsToBlocks(charts)
+                const renderOnlyError = toRenderOnlyToolErrorBlock(chunk.toolName, chunk.toolResult)
+                if (renderOnlyError) {
+                  appendErrorToBlocks(renderOnlyError.error)
+                }
                 if (state.currentToolStatus?.name === chunk.toolName) {
                   state.currentToolStatus = {
                     ...state.currentToolStatus,
-                    status: 'done',
+                    status: renderOnlyError ? 'error' : 'done',
                   }
                 }
-                updateToolBlockStatus(chunk.toolName, 'done')
+                if (!isRenderOnlyTool(chunk.toolName)) {
+                  updateToolBlockStatus(chunk.toolName, renderOnlyError ? 'error' : 'done')
+                }
               }
               state.isLoadingSource = false
               break
@@ -1310,8 +1360,15 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       targetBuffer.messages.push(...subsequentMessages)
     }
 
-    const { updateAIMessage, appendTextToBlocks, appendThinkToBlocks, addToolBlock, updateToolBlockStatus } =
-      createStreamBlockHelpers(targetBuffer, () => aiMessageIndex)
+    const {
+      updateAIMessage,
+      appendTextToBlocks,
+      appendThinkToBlocks,
+      appendChartsToBlocks,
+      appendErrorToBlocks,
+      addToolBlock,
+      updateToolBlockStatus,
+    } = createStreamBlockHelpers(targetBuffer, () => aiMessageIndex)
 
     try {
       const hasConfig = await useLLMService().hasConfig()
@@ -1393,11 +1450,23 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               if (chunk.toolName) {
                 state.currentToolStatus = { name: chunk.toolName, displayName: chunk.toolName, status: 'running' }
                 state.toolsUsedInCurrentRound.push(chunk.toolName)
-                addToolBlock(chunk.toolName, chunk.toolParams as Record<string, unknown> | undefined)
+                if (!isRenderOnlyTool(chunk.toolName)) {
+                  addToolBlock(chunk.toolName, chunk.toolParams as Record<string, unknown> | undefined)
+                }
               }
               break
             case 'tool_result':
-              if (chunk.toolName) updateToolBlockStatus(chunk.toolName, 'done')
+              if (chunk.toolName) {
+                const charts = extractChartPayloads(chunk.toolResult)
+                appendChartsToBlocks(charts)
+                const renderOnlyError = toRenderOnlyToolErrorBlock(chunk.toolName, chunk.toolResult)
+                if (renderOnlyError) {
+                  appendErrorToBlocks(renderOnlyError.error)
+                }
+                if (!isRenderOnlyTool(chunk.toolName)) {
+                  updateToolBlockStatus(chunk.toolName, renderOnlyError ? 'error' : 'done')
+                }
+              }
               state.currentToolStatus = null
               state.isLoadingSource = false
               break

@@ -29,6 +29,7 @@ export { getConversationBetweenTool } from './definitions/get-conversation-betwe
 export { getSessionSummariesTool } from './definitions/get-session-summaries'
 export { responseTimeAnalysisTool } from './definitions/response-time-analysis'
 export { keywordFrequencyTool } from './definitions/keyword-frequency'
+export { renderChartTool } from './definitions/render-chart'
 
 // === SQL Tools ===
 export { SQL_TOOL_DEFS, createSqlToolDefinition, createAllSqlToolDefinitions } from './sql'

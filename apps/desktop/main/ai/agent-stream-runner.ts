@@ -15,6 +15,11 @@ import type { ToolContext } from './tools/types'
 import { getDefaultAssistantConfig, buildPiModel, findModelDefinition } from './llm'
 import type { AIServiceConfig } from './llm/types'
 import { getDefaultGeneralAssistantId } from './assistant/defaultGeneral'
+import {
+  CHART_CAPABILITY_SKILL_ID,
+  getChartCapabilityAllowedBuiltinTools,
+  getChartCapabilitySkill,
+} from '@openchatlab/core'
 import * as assistantManager from './assistant'
 import type { AssistantConfig } from './assistant/types'
 import * as skillManager from './skills'
@@ -147,7 +152,20 @@ export function createElectronRunAgentStream(): (
     }
 
     let skillCtx: SkillContext | undefined
-    if (skillId) {
+    const isChartCapability = skillId === CHART_CAPABILITY_SKILL_ID
+    if (isChartCapability) {
+      const chartSkill = getChartCapabilitySkill(locale ?? 'zh-CN')
+      skillCtx = { skillDef: { ...chartSkill, chatScope: 'all' } as SkillContext['skillDef'] }
+      assistantConfig = {
+        ...(assistantConfig ?? {
+          id: resolvedAssistantId,
+          name: resolvedAssistantId,
+          systemPrompt: '',
+          presetQuestions: [],
+        }),
+        allowedBuiltinTools: getChartCapabilityAllowedBuiltinTools(assistantConfig?.allowedBuiltinTools),
+      }
+    } else if (skillId) {
       const skillDef = skillManager.getSkillConfig(skillId) ?? undefined
       if (skillDef) {
         skillCtx = { skillDef }

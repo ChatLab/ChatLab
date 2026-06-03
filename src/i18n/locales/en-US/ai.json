@@ -76,6 +76,7 @@
         "get_member_name_history": "Get Nickname History",
         "get_conversation_between": "Get Conversation",
         "get_message_context": "Get Message Context",
+        "get_schema": "Inspect Schema",
         "search_sessions": "Search Sessions",
         "get_session_messages": "Get Session Messages",
         "get_session_summaries": "Get Session Summaries",
@@ -91,7 +92,8 @@
         "daily_active_members": "Daily Active Members",
         "conversation_initiator_stats": "Conversation Initiators",
         "activity_heatmap": "Activity Heatmap",
-        "unanswered_messages": "Unanswered Messages"
+        "unanswered_messages": "Unanswered Messages",
+        "render_chart": "Generate Chart"
       },
       "generating": "Generating response...",
       "summary": {
@@ -414,6 +416,7 @@
       "get_message_context": "Get message context",
       "get_conversation_between": "Get conversation between two members",
       "get_members": "Get members",
+      "get_schema": "Inspect database schema",
       "get_member_stats": "Get member statistics",
       "get_member_name_history": "Get member name history",
       "get_time_stats": "Get time statistics",
@@ -432,7 +435,8 @@
       "conversation_initiator_stats": "Conversation initiators",
       "activity_heatmap": "Activity heatmap",
       "response_time_analysis": "Response time analysis",
-      "keyword_frequency": "Keyword frequency"
+      "keyword_frequency": "Keyword frequency",
+      "render_chart": "Generate dynamic chart"
     }
   },
   "skill": {

@@ -252,6 +252,19 @@ Returned summaries are brief descriptions of each session, helping quickly locat
           top_n: 'Number of top keywords to return',
         },
       },
+      get_schema: {
+        desc: 'Inspect the chat database schema. Use it before charting or custom SQL when table or field names are uncertain.',
+        params: {},
+      },
+      render_chart: {
+        desc: 'Generate a native ChatLab chart from read-only SQL and ChartSpec v1. Supports bar, line, pie, and heatmap. Do not output HTML, JavaScript, SVG, ECharts options, or rendering code.',
+        params: {
+          sql: 'Read-only SELECT or WITH SELECT SQL. It must return fields referenced by ChartSpec encoding.',
+          params: 'Named SQL parameters. Use an empty object when no parameters are needed.',
+          chartSpec: 'ChartSpec v1 with version, type, title, and encoding.',
+          maxRows: 'Maximum chart query rows. Default 1000.',
+        },
+      },
     },
 
     // ===== AI Agent system prompts =====
