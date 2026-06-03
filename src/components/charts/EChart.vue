@@ -3,7 +3,7 @@
  * ECharts 基础封装组件
  * 提供自动响应式、主题适配、加载状态等通用功能
  */
-import { ref, onMounted, onUnmounted, watch, computed } from 'vue'
+import { ref, onMounted, onUnmounted, watch, computed, nextTick } from 'vue'
 import * as echarts from 'echarts/core'
 import { CanvasRenderer } from 'echarts/renderers'
 import { PieChart, BarChart, LineChart, HeatmapChart } from 'echarts/charts'
@@ -129,7 +129,10 @@ watch(
 let observer: MutationObserver | null = null
 
 onMounted(() => {
-  initChart()
+  // Defer init to next tick so the container has completed layout before ECharts reads its width
+  nextTick(() => {
+    initChart()
+  })
   window.addEventListener('resize', handleResize)
 
   // 监听 HTML 元素的 class 变化（用于检测暗色模式切换）

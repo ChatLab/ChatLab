@@ -76,6 +76,7 @@
         "get_member_name_history": "取得暱稱歷史",
         "get_conversation_between": "取得對話紀錄",
         "get_message_context": "取得上下文",
+        "get_schema": "查看表結構",
         "search_sessions": "搜尋會話",
         "get_session_messages": "取得會話訊息",
         "get_session_summaries": "取得會話摘要",
@@ -91,7 +92,8 @@
         "daily_active_members": "每日活躍人數",
         "conversation_initiator_stats": "話題發起者統計",
         "activity_heatmap": "活躍度熱力圖",
-        "unanswered_messages": "未回覆訊息"
+        "unanswered_messages": "未回覆訊息",
+        "render_chart": "生成圖表"
       },
       "generating": "正在產生回覆...",
       "summary": {
@@ -414,6 +416,7 @@
       "get_message_context": "取得訊息上下文",
       "get_conversation_between": "取得兩人對話",
       "get_members": "取得成員列表",
+      "get_schema": "查看資料表結構",
       "get_member_stats": "取得成員統計",
       "get_member_name_history": "取得成員改名歷史",
       "get_time_stats": "取得時間統計",
@@ -432,7 +435,8 @@
       "conversation_initiator_stats": "話題發起者統計",
       "activity_heatmap": "活躍度熱力圖",
       "response_time_analysis": "回應時間分析",
-      "keyword_frequency": "高頻詞統計"
+      "keyword_frequency": "高頻詞統計",
+      "render_chart": "生成動態圖表"
     }
   },
   "skill": {

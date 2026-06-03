@@ -22,6 +22,7 @@ export const BUILTIN_TOOL_CATALOG: BuiltinToolCatalogEntry[] = [
   { name: 'search_sessions', category: 'core' },
   { name: 'get_session_messages', category: 'core' },
   { name: 'get_members', category: 'core' },
+  { name: 'get_schema', category: 'core' },
 
   // Analysis 工具
   { name: 'get_member_stats', category: 'analysis' },
@@ -31,6 +32,7 @@ export const BUILTIN_TOOL_CATALOG: BuiltinToolCatalogEntry[] = [
   { name: 'get_session_summaries', category: 'analysis' },
   { name: 'response_time_analysis', category: 'analysis' },
   { name: 'keyword_frequency', category: 'analysis' },
+  { name: 'render_chart', category: 'analysis' },
 
   // SQL Analysis 工具
   { name: 'message_type_breakdown', category: 'analysis' },

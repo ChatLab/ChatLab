@@ -5,7 +5,12 @@
 
 import type { DatabaseManager, AIConversationManager, AgentStreamChunk } from '@openchatlab/node-runtime'
 import { SkillManager, createActivateSkillTool } from '@openchatlab/node-runtime'
-import { getChatOverview } from '@openchatlab/core'
+import {
+  CHART_CAPABILITY_SKILL_ID,
+  getChartCapabilityAllowedBuiltinTools,
+  getChartCapabilitySkill,
+  getChatOverview,
+} from '@openchatlab/core'
 import type { DataSnapshot } from '@openchatlab/node-runtime'
 import type { AgentStreamRequest } from '@openchatlab/http-routes'
 import { AGENT_TOOL_REGISTRY } from '@openchatlab/tools'
@@ -46,11 +51,13 @@ export function createCliRunAgentStream(
     const aiDataDir = getAiDir(dbManager)
 
     let assistantSystemPrompt: string | undefined
+    let assistantAllowedTools: string[] | undefined
     if (assistantId) {
       const assistantConfig = loadAssistantConfig(aiDataDir, assistantId)
       if (assistantConfig?.systemPrompt) {
         assistantSystemPrompt = assistantConfig.systemPrompt
       }
+      assistantAllowedTools = assistantConfig?.allowedBuiltinTools
     }
 
     const llmConfig = getDefaultAssistantConfig(aiDataDir)
@@ -59,8 +66,18 @@ export function createCliRunAgentStream(
     const maxToolResultTokens = Math.floor(contextWindow * (maxToolResultPercent / 100))
 
     const db = (dbManager as any).open?.(sessionId)
+    const isChartCapability = skillId === CHART_CAPABILITY_SKILL_ID
+    const allowedToolSet = isChartCapability
+      ? new Set(getChartCapabilityAllowedBuiltinTools(assistantAllowedTools))
+      : assistantAllowedTools && assistantAllowedTools.length > 0
+        ? new Set(assistantAllowedTools)
+        : null
+    const availableToolDefs = allowedToolSet
+      ? AGENT_TOOL_REGISTRY.filter((tool) => tool.category !== 'analysis' || allowedToolSet.has(tool.name))
+      : AGENT_TOOL_REGISTRY
+
     const agentTools = db
-      ? adaptToolsForAgent(AGENT_TOOL_REGISTRY, () => ({ db, sessionId, locale }), { maxToolResultTokens })
+      ? adaptToolsForAgent(availableToolDefs, () => ({ db, sessionId, locale }), { maxToolResultTokens })
       : []
 
     const skillMgr = new SkillManager(aiDataDir)
@@ -69,7 +86,10 @@ export function createCliRunAgentStream(
 
     let resolvedSkillDef: { name: string; prompt: string } | undefined
     let resolvedSkillMenu: string | undefined
-    if (skillId) {
+    if (isChartCapability) {
+      const def = getChartCapabilitySkill(locale ?? 'zh-CN')
+      resolvedSkillDef = { name: def.name, prompt: def.prompt }
+    } else if (skillId) {
       const def = skillMgr.getSkillConfig(skillId)
       if (def) resolvedSkillDef = { name: def.name, prompt: def.prompt }
     } else if (enableAutoSkill) {

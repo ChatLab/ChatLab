@@ -1,0 +1,111 @@
+import { describe, it } from 'node:test'
+import assert from 'node:assert/strict'
+import type { ChartPayload } from '@openchatlab/core'
+import {
+  extractChartPayloads,
+  isRenderOnlyTool,
+  toChartContentBlocks,
+  toRenderOnlyToolErrorBlock,
+} from './aiChatChartBlocks'
+
+const chart: ChartPayload = {
+  version: 1,
+  spec: {
+    version: 1,
+    type: 'line',
+    title: 'Daily messages',
+    encoding: { x: 'day', y: 'message_count', series: 'member_name' },
+  },
+  dataset: {
+    columns: [
+      { name: 'day', type: 'date' },
+      { name: 'member_name', type: 'category' },
+      { name: 'message_count', type: 'integer' },
+    ],
+    rows: [{ day: '2026-06-01', member_name: 'Alice', message_count: 4 }],
+  },
+  data: {
+    labels: ['2026-06-01'],
+    values: [4],
+    series: [{ name: 'Alice', values: [4] }],
+  },
+  rowCount: 1,
+}
+
+const secondChart: ChartPayload = {
+  ...chart,
+  spec: {
+    ...chart.spec,
+    type: 'pie',
+    title: 'Selected members',
+    encoding: { label: 'member_name', value: 'message_count' },
+  },
+  data: {
+    labels: ['Alice'],
+    values: [4],
+  },
+}
+
+describe('aiChat chart block helpers', () => {
+  it('treats render_chart as render-only', () => {
+    assert.equal(isRenderOnlyTool('render_chart'), true)
+    assert.equal(isRenderOnlyTool('search_messages'), false)
+    assert.equal(isRenderOnlyTool(undefined), false)
+  })
+
+  it('extracts chart payloads from agent result details', () => {
+    const result = {
+      content: [{ type: 'text', text: 'Generated chart.' }],
+      details: { rowCount: 1, chart },
+    }
+
+    assert.deepEqual(extractChartPayloads(result), [chart])
+  })
+
+  it('extracts multiple chart payloads and filters invalid entries', () => {
+    const result = {
+      details: {
+        charts: [chart, { version: 1, spec: null }, secondChart],
+      },
+    }
+
+    assert.deepEqual(extractChartPayloads(result), [chart, secondChart])
+  })
+
+  it('supports top-level chart payload fallback', () => {
+    assert.deepEqual(extractChartPayloads({ chart }), [chart])
+  })
+
+  it('converts chart payloads to content blocks', () => {
+    assert.deepEqual(toChartContentBlocks([chart, secondChart]), [
+      { type: 'chart', chart },
+      { type: 'chart', chart: secondChart },
+    ])
+  })
+
+  it('converts render-only chart tool failures to visible error blocks', () => {
+    const errorBlock = toRenderOnlyToolErrorBlock('render_chart', {
+      content: [{ type: 'text', text: 'Error: Field "missing_count" does not exist in SQL result' }],
+      details: null,
+    })
+
+    assert.deepEqual(errorBlock, {
+      type: 'error',
+      error: {
+        name: 'ChartRenderError',
+        message: 'Field "missing_count" does not exist in SQL result',
+        stack: null,
+      },
+    })
+  })
+
+  it('does not create render-only error blocks for successful charts or normal tools', () => {
+    assert.equal(toRenderOnlyToolErrorBlock('render_chart', { details: { chart } }), null)
+    assert.equal(
+      toRenderOnlyToolErrorBlock('search_messages', {
+        content: [{ type: 'text', text: 'Error: search failed' }],
+      }),
+      null
+    )
+  })
+})

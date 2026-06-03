@@ -5,6 +5,12 @@
 // 内置工具目录
 export type { ToolCategory, BuiltinToolCatalogEntry } from './tool-catalog'
 export { BUILTIN_TOOL_CATALOG } from './tool-catalog'
+export {
+  CHART_CAPABILITY_SKILL_ID,
+  CHART_CAPABILITY_ANALYSIS_TOOLS,
+  getChartCapabilityAllowedBuiltinTools,
+  getChartCapabilitySkill,
+} from './chart-capability'
 
 // LLM 模型系统类型
 export type {

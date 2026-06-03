@@ -16,6 +16,7 @@ import {
   searchSessionsTool,
   getSessionMessagesTool,
   getMembersTool,
+  schemaTool,
   memberStatsTool,
   timeStatsTool,
   getMemberNameHistoryTool,
@@ -23,6 +24,7 @@ import {
   getSessionSummariesTool,
   responseTimeAnalysisTool,
   keywordFrequencyTool,
+  renderChartTool,
   SQL_TOOL_DEFS,
   createSqlToolDefinition,
 } from '@openchatlab/tools'
@@ -48,6 +50,7 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   adaptSharedTool(searchSessionsTool, { category: 'core' }),
   adaptSharedTool(getSessionMessagesTool, { category: 'core', truncationStrategy: 'keep_last' }),
   adaptSharedTool(getMembersTool, { category: 'core' }),
+  adaptSharedTool(schemaTool, { category: 'core' }),
 
   // ==================== Analysis 工具（按需加载） ====================
   adaptSharedTool(memberStatsTool, { category: 'analysis' }),
@@ -57,6 +60,7 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   adaptSharedTool(getSessionSummariesTool, { category: 'analysis' }),
   adaptSharedTool(responseTimeAnalysisTool, { category: 'analysis' }),
   adaptSharedTool(keywordFrequencyTool, { category: 'analysis' }),
+  adaptSharedTool(renderChartTool, { category: 'analysis' }),
 
   // ==================== SQL 分析工具 ====================
   ...sqlToolEntries,

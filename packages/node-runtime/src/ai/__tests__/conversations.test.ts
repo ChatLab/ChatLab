@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import Database from 'better-sqlite3'
 import { AIConversationManager } from '../conversations'
+import type { ChartPayload } from '@openchatlab/core'
 
 const sqliteNativeBinding = process.env.CHATLAB_TEST_SQLITE_NATIVE_BINDING
 
@@ -279,6 +280,56 @@ describe('AIConversationManager message editing', () => {
       )
       assert.equal(inserted.parentId, userMsg.id)
       manager.close()
+    } finally {
+      cleanup(dir)
+    }
+  })
+})
+
+describe('AIConversationManager chart content blocks', () => {
+  it('persists normalized chart payloads for stable replay', () => {
+    const dir = createTempDir()
+    try {
+      const chart: ChartPayload = {
+        version: 1,
+        spec: {
+          version: 1,
+          type: 'bar',
+          title: 'Messages by member',
+          encoding: { x: 'name', y: 'message_count' },
+        },
+        dataset: {
+          columns: [
+            { name: 'name', type: 'category' },
+            { name: 'message_count', type: 'integer' },
+          ],
+          rows: [
+            { name: 'Alice', message_count: 4 },
+            { name: 'Bob', message_count: 3 },
+          ],
+        },
+        data: {
+          labels: ['Alice', 'Bob'],
+          values: [4, 3],
+        },
+        rowCount: 2,
+      }
+
+      const manager = createManager(dir)
+      const conv = manager.createConversation('s1', 'Chart Replay', 'general_cn')
+      manager.addMessage(conv.id, 'user', 'draw a chart')
+      manager.addMessage(conv.id, 'assistant', 'Here is the chart.', undefined, undefined, [{ type: 'chart', chart }])
+      manager.close()
+
+      const reloaded = createManager(dir)
+      const messages = reloaded.getMessages(conv.id)
+      const block = messages[1]?.contentBlocks?.[0]
+
+      if (!block || block.type !== 'chart') {
+        assert.fail('Expected a chart content block')
+      }
+      assert.deepEqual(block?.chart, chart)
+      reloaded.close()
     } finally {
       cleanup(dir)
     }

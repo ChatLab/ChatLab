@@ -9,6 +9,7 @@ import EChart from './EChart.vue'
 export interface EChartLineData {
   labels: string[]
   values: number[]
+  series?: Array<{ name: string; values: number[] }>
 }
 
 interface Props {
@@ -27,6 +28,65 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const option = computed<EChartsOption>(() => {
+  const hasSeries = !!props.data.series?.length
+  const series = hasSeries
+    ? props.data.series!.map((item) => ({
+        name: item.name,
+        type: 'line' as const,
+        data: item.values,
+        smooth: props.smooth,
+        symbol: 'circle',
+        symbolSize: 4,
+        showSymbol: false,
+        lineStyle: {
+          width: 2,
+        },
+        areaStyle: props.showArea ? { opacity: 0.08 } : undefined,
+        emphasis: {
+          focus: 'series' as const,
+        },
+      }))
+    : [
+        {
+          type: 'line' as const,
+          data: props.data.values,
+          smooth: props.smooth,
+          symbol: 'circle',
+          symbolSize: 4,
+          showSymbol: false,
+          lineStyle: {
+            width: 2,
+            color: '#ee4567',
+          },
+          itemStyle: {
+            color: '#ee4567',
+          },
+          areaStyle: props.showArea
+            ? {
+                color: {
+                  type: 'linear' as const,
+                  x: 0,
+                  y: 0,
+                  x2: 0,
+                  y2: 1,
+                  colorStops: [
+                    { offset: 0, color: 'rgba(238, 69, 103, 0.3)' },
+                    { offset: 1, color: 'rgba(238, 69, 103, 0.05)' },
+                  ],
+                },
+              }
+            : undefined,
+          emphasis: {
+            focus: 'series' as const,
+            itemStyle: {
+              color: '#ee4567',
+              borderColor: '#fff',
+              borderWidth: 2,
+            },
+          },
+        },
+      ]
+
   return {
     tooltip: {
       trigger: 'axis',
@@ -39,9 +99,15 @@ const option = computed<EChartsOption>(() => {
     grid: {
       left: 50,
       right: 20,
-      top: 20,
+      top: hasSeries ? 36 : 20,
       bottom: 30,
     },
+    legend: hasSeries
+      ? {
+          top: 0,
+          textStyle: { color: '#6b7280', fontSize: 11 },
+        }
+      : undefined,
     xAxis: {
       type: 'category',
       data: props.data.labels,
@@ -66,46 +132,7 @@ const option = computed<EChartsOption>(() => {
         },
       },
     },
-    series: [
-      {
-        type: 'line',
-        data: props.data.values,
-        smooth: props.smooth,
-        symbol: 'circle',
-        symbolSize: 4,
-        showSymbol: false,
-        lineStyle: {
-          width: 2,
-          color: '#ee4567', // 项目主题 pink-500
-        },
-        itemStyle: {
-          color: '#ee4567',
-        },
-        areaStyle: props.showArea
-          ? {
-              color: {
-                type: 'linear',
-                x: 0,
-                y: 0,
-                x2: 0,
-                y2: 1,
-                colorStops: [
-                  { offset: 0, color: 'rgba(238, 69, 103, 0.3)' }, // 项目主题粉色
-                  { offset: 1, color: 'rgba(238, 69, 103, 0.05)' },
-                ],
-              },
-            }
-          : undefined,
-        emphasis: {
-          focus: 'series',
-          itemStyle: {
-            color: '#ee4567',
-            borderColor: '#fff',
-            borderWidth: 2,
-          },
-        },
-      },
-    ],
+    series,
   }
 })
 </script>

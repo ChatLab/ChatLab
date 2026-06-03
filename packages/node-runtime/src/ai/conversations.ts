@@ -8,6 +8,7 @@
 import Database from 'better-sqlite3'
 import * as fs from 'fs'
 import * as path from 'path'
+import type { ChartPayload } from '@openchatlab/core'
 
 const DEFAULT_GENERAL_ID = 'general_cn'
 
@@ -26,6 +27,7 @@ export interface AIConversation {
 export type ContentBlock =
   | { type: 'text'; text: string }
   | { type: 'think'; tag: string; text: string; durationMs?: number }
+  | { type: 'chart'; chart: ChartPayload }
   | {
       type: 'tool'
       tool: {
