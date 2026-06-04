@@ -18,14 +18,20 @@ import { defineConfig, type Plugin } from 'vite'
 import vue from '@vitejs/plugin-vue'
 import ui from '@nuxt/ui/vite'
 import { DEFAULT_API_PORT } from './packages/config/src/schema'
-import { createChatlabStartCommand } from './scripts/dev-server-command.mjs'
+import { createChatlabStartCommand, terminateChatlabStartProcess } from './scripts/dev-server-command.mjs'
 
 const BACKEND_PORT = DEFAULT_API_PORT
 
 function isPortInUse(port: number): Promise<boolean> {
-  return new Promise((resolve) => {
+  return new Promise((resolve, reject) => {
     const server = net.createServer()
-    server.once('error', () => resolve(true))
+    server.once('error', (error: NodeJS.ErrnoException) => {
+      if (error.code === 'EADDRINUSE') {
+        resolve(true)
+        return
+      }
+      reject(error)
+    })
     server.once('listening', () => {
       server.close()
       resolve(false)
@@ -34,22 +40,73 @@ function isPortInUse(port: number): Promise<boolean> {
   })
 }
 
+async function isChatlabBackendResponsive(port: number, timeoutMs = 800): Promise<boolean> {
+  try {
+    const response = await fetch(`http://127.0.0.1:${port}/_web/sessions`, {
+      signal: AbortSignal.timeout(timeoutMs),
+    })
+    return response.status === 200 || response.status === 401 || response.status === 403
+  } catch {
+    return false
+  }
+}
+
 /**
  * 自动启动 chatlab start 后端的插件
  * 仅在 CHATLAB_AUTO_SERVE=1 时生效（由 dev:web 脚本设置）
  */
 function chatlabServePlugin(): Plugin {
   let serverProcess: ChildProcess | null = null
+  let processCleanupRegistered = false
+
+  function unregisterProcessCleanup() {
+    if (!processCleanupRegistered) return
+    process.off('exit', stopServerProcess)
+    process.off('SIGINT', handleSigint)
+    process.off('SIGTERM', handleSigterm)
+    processCleanupRegistered = false
+  }
+
+  function stopServerProcess() {
+    if (!serverProcess) return
+    terminateChatlabStartProcess(serverProcess)
+    serverProcess = null
+    unregisterProcessCleanup()
+  }
+
+  function handleSigint() {
+    stopServerProcess()
+    process.exit(130)
+  }
+
+  function handleSigterm() {
+    stopServerProcess()
+    process.exit(143)
+  }
+
+  function registerProcessCleanup() {
+    if (processCleanupRegistered) return
+    process.once('exit', stopServerProcess)
+    process.once('SIGINT', handleSigint)
+    process.once('SIGTERM', handleSigterm)
+    processCleanupRegistered = true
+  }
 
   return {
     name: 'chatlab-start',
-    async configureServer() {
+    async configureServer(server) {
       if (process.env.CHATLAB_AUTO_SERVE !== '1') return
 
       const inUse = await isPortInUse(BACKEND_PORT)
       if (inUse) {
-        console.log(`[chatlab start] Port ${BACKEND_PORT} already in use, skipping`)
-        return
+        const responsive = await isChatlabBackendResponsive(BACKEND_PORT)
+        if (responsive) {
+          console.log(`[chatlab start] Port ${BACKEND_PORT} already has a responsive ChatLab API, skipping`)
+          return
+        }
+        throw new Error(
+          `[chatlab start] Port ${BACKEND_PORT} is in use, but ChatLab API did not respond. Stop the stale process and restart dev:web.`
+        )
       }
 
       const serverDir = resolve(__dirname, 'apps/cli')
@@ -72,13 +129,13 @@ function chatlabServePlugin(): Plugin {
           console.error(`[chatlab start] exited with code ${code}`)
         }
         serverProcess = null
+        unregisterProcessCleanup()
       })
+      registerProcessCleanup()
+      server.httpServer?.once('close', stopServerProcess)
     },
     buildEnd() {
-      if (serverProcess) {
-        serverProcess.kill()
-        serverProcess = null
-      }
+      stopServerProcess()
     },
   }
 }
