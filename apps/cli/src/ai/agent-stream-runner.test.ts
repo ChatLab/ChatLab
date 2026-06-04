@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { getChartCapabilityAllowedBuiltinTools } from '@openchatlab/core'
+import { getChartCapabilityAllowedBuiltinTools } from '@openchatlab/node-runtime'
 import { getAvailableToolDefs } from './agent-stream-runner'
 
 describe('CLI chart capability tool filtering', () => {

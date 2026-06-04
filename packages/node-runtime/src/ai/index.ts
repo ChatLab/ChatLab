@@ -53,10 +53,18 @@ export type { SkillManagerLogger } from './skill-manager'
 export { createActivateSkillTool } from './activate-skill-tool'
 export type { ActivateSkillToolOptions, ActivateSkillTool, ActivateSkillToolResult } from './activate-skill-tool'
 export {
+  CHART_CAPABILITY_ANALYSIS_TOOLS,
+  CHART_CAPABILITY_CORE_TOOLS,
+  CHART_CAPABILITY_SKILL_ID,
   buildSkillMenuWithBuiltinChart,
-  getBuiltinChartSkill,
+  getAllowedBuiltinToolsForChartAutoSkill,
+  getChartCapabilityAllowedBuiltinTools,
+  getChartCapabilitySkill,
+  getChartCapabilitySkill as getBuiltinChartSkill,
   getSkillConfigWithBuiltinChart,
-} from './builtin-chart-skill'
+  resolveChartRuntimeForRequest,
+  shouldUseChartCapabilityForMessage,
+} from './chart-runtime'
 export { CHART_SCHEMA_REQUIRED_MESSAGE, createChartSchemaGateState, wrapWithChartSchemaGate } from './chart-schema-gate'
 export type { ChartSchemaGateState } from './chart-schema-gate'
 

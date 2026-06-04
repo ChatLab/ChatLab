@@ -28,8 +28,8 @@ const isEmpty = computed(() => props.chart.rowCount === 0)
 const summary = computed(() => {
   const parts: string[] = []
   if (props.chart.spec.unit) parts.push(props.chart.spec.unit)
-  if (props.chart.truncated) parts.push('truncated')
-  parts.push(`${props.chart.rowCount} rows`)
+  if (props.chart.truncated) parts.push(t('ai.chat.message.chart.truncated'))
+  parts.push(t('ai.chat.message.chart.rows', { count: props.chart.rowCount }))
   return parts.join(' · ')
 })
 
@@ -138,7 +138,7 @@ const expandedMinWidth = computed(() => {
                       v-if="isEmpty"
                       class="flex h-64 items-center justify-center text-xs text-gray-400 dark:text-gray-500"
                     >
-                      No data
+                      {{ t('ai.chat.message.chart.empty') }}
                     </div>
                     <EChartBar
                       v-else-if="chart.spec.type === 'bar'"
@@ -178,7 +178,7 @@ const expandedMinWidth = computed(() => {
 
     <div class="px-2 py-3">
       <div v-if="isEmpty" class="flex h-32 items-center justify-center text-xs text-gray-400 dark:text-gray-500">
-        No data
+        {{ t('ai.chat.message.chart.empty') }}
       </div>
       <EChartBar
         v-else-if="chart.spec.type === 'bar'"

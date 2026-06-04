@@ -33,8 +33,18 @@ export function extractChartPayloads(toolResult: unknown): ChartPayload[] {
   return charts
 }
 
+export function toPersistedChartPayload(chart: ChartPayload): ChartPayload {
+  return {
+    ...chart,
+    dataset: {
+      ...chart.dataset,
+      rows: [],
+    },
+  }
+}
+
 export function toChartContentBlocks(charts: ChartPayload[]): ChartContentBlock[] {
-  return charts.map((chart) => ({ type: 'chart', chart }))
+  return charts.map((chart) => ({ type: 'chart', chart: toPersistedChartPayload(chart) }))
 }
 
 function extractToolResultText(toolResult: unknown): string | null {
@@ -63,6 +73,7 @@ export function toRenderOnlyToolErrorBlock(
   const match = /^Error:\s*(.+)$/is.exec(text)
   const message = match?.[1]?.trim()
   if (!message) return null
+  if (/^Call get_schema before render_chart\b/i.test(message)) return null
 
   return {
     type: 'error',

@@ -5,19 +5,16 @@
 
 import type { DatabaseManager, AIConversationManager, AgentStreamChunk } from '@openchatlab/node-runtime'
 import {
+  CHART_CAPABILITY_CORE_TOOLS,
   SkillManager,
   buildSkillMenuWithBuiltinChart,
   createActivateSkillTool,
-  getSkillConfigWithBuiltinChart,
-} from '@openchatlab/node-runtime'
-import {
-  CHART_CAPABILITY_CORE_TOOLS,
-  CHART_CAPABILITY_SKILL_ID,
-  getChartCapabilityAllowedBuiltinTools,
+  getAllowedBuiltinToolsForChartAutoSkill,
   getChartCapabilitySkill,
-  getChatOverview,
-  shouldUseChartCapabilityForMessage,
-} from '@openchatlab/core'
+  getSkillConfigWithBuiltinChart,
+  resolveChartRuntimeForRequest,
+} from '@openchatlab/node-runtime'
+import { getChatOverview } from '@openchatlab/core'
 import type { DataSnapshot } from '@openchatlab/node-runtime'
 import type { AgentStreamRequest } from '@openchatlab/http-routes'
 import { AGENT_TOOL_REGISTRY } from '@openchatlab/tools'
@@ -90,14 +87,19 @@ export function createCliRunAgentStream(
     const maxToolResultTokens = Math.floor(contextWindow * (maxToolResultPercent / 100))
 
     const db = (dbManager as any).open?.(sessionId)
-    const isChartCapability =
-      skillId === CHART_CAPABILITY_SKILL_ID || (!skillId && shouldUseChartCapabilityForMessage(userMessage))
+    const chartRuntime = resolveChartRuntimeForRequest({
+      skillId,
+      userMessage,
+      locale,
+      assistantAllowedTools,
+    })
+    const isChartCapability = chartRuntime.isChartCapability
     const autoSkillAllowedTools =
-      !skillId && enableAutoSkill && assistantAllowedTools && assistantAllowedTools.length > 0
-        ? getChartCapabilityAllowedBuiltinTools(assistantAllowedTools)
+      !skillId && enableAutoSkill
+        ? getAllowedBuiltinToolsForChartAutoSkill(assistantAllowedTools)
         : assistantAllowedTools
     const allowedToolSet = isChartCapability
-      ? new Set(getChartCapabilityAllowedBuiltinTools(assistantAllowedTools))
+      ? new Set(chartRuntime.allowedBuiltinTools)
       : autoSkillAllowedTools && autoSkillAllowedTools.length > 0
         ? new Set(autoSkillAllowedTools)
         : null
@@ -114,7 +116,7 @@ export function createCliRunAgentStream(
     let resolvedSkillDef: { name: string; prompt: string } | undefined
     let resolvedSkillMenu: string | undefined
     if (isChartCapability) {
-      const def = getChartCapabilitySkill(locale ?? 'zh-CN')
+      const def = chartRuntime.skillDef ?? getChartCapabilitySkill(locale ?? 'zh-CN')
       resolvedSkillDef = { name: def.name, prompt: def.prompt }
     } else if (skillId) {
       const def = skillMgr.getSkillConfig(skillId)

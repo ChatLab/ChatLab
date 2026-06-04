@@ -40,7 +40,7 @@ describe('skill store chart capability', () => {
     const config = await store.getSkillConfig(CHART_CAPABILITY_SKILL_ID)
     assert.equal(config?.id, CHART_CAPABILITY_SKILL_ID)
     assert.deepEqual(config?.tools, ['render_chart', 'get_schema'])
-    assert.match(config?.prompt ?? '', /render_chart/)
+    assert.equal(config?.prompt, '')
 
     store.activateSkill(null)
     assert.equal(store.activeSkillId, null)
