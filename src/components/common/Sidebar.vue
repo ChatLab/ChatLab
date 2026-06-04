@@ -335,7 +335,7 @@ function getSessionAvatar(session: AnalysisSession): string | null {
   return session.groupAvatar || null
 }
 
-// 根据会话 ID 生成雅致的莫兰迪色系头像背景和文字颜色（中文注释）
+// 根据会话 ID 生成雅致的莫兰迪色系头像背景和文字颜色
 function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
   if (isActive) {
     return isPrivateChat(session)
@@ -343,7 +343,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
       : 'bg-primary-600 text-white dark:bg-primary-500'
   }
 
-  // 雅致的低饱和度配色方案，提升侧边栏的简洁感与品质感（中文注释）
+  // 雅致的低饱和度配色方案，提升侧边栏的简洁感与品质感
   const palettes = [
     { bg: 'bg-pink-50 dark:bg-pink-950/20', text: 'text-pink-600 dark:text-pink-400' },
     { bg: 'bg-blue-50 dark:bg-blue-950/20', text: 'text-blue-600 dark:text-blue-400' },

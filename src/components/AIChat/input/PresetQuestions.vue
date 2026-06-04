@@ -54,7 +54,7 @@ onBeforeUnmount(() => {
 
 <template>
   <div v-if="leadingActionLabel || questions.length > 0" class="relative">
-    <div class="relative z-10 flex flex-nowrap gap-2">
+    <div class="relative flex flex-nowrap gap-2">
       <button v-if="leadingActionLabel" :class="chipClass" :disabled="props.disabled" @click="emit('leadingAction')">
         {{ leadingActionLabel }}
       </button>
