@@ -36,6 +36,18 @@ tools: []
 ---
 You are a test skill.`
 
+const TOOL_SKILL = `---
+id: tool_skill
+name: Tool Skill
+description: A skill that requires an analysis tool
+tags:
+  - test
+chatScope: all
+tools:
+  - keyword_frequency
+---
+Use keyword frequency.`
+
 function createManager(builtins?: Array<{ id: string; content: string }>) {
   const memFs = createMemoryFs()
   const deps: SkillManagerCoreDeps = {
@@ -133,6 +145,14 @@ describe('SkillManagerCore', () => {
     manager.createSkill(groupOnly)
     assert.ok(manager.getSkillMenu('group'))
     assert.equal(manager.getSkillMenu('private'), null)
+  })
+
+  it('getSkillMenu treats an empty allowedTools list as no analysis tools allowed', () => {
+    manager.init()
+    manager.createSkill(TOOL_SKILL)
+
+    assert.equal(manager.getSkillMenu('group', []), null)
+    assert.match(manager.getSkillMenu('group', ['keyword_frequency']) ?? '', /tool_skill/)
   })
 })
 

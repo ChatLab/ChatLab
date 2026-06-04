@@ -74,7 +74,7 @@ export function createActivateSkillTool(options: ActivateSkillToolOptions): Acti
         }
       }
 
-      if (skill.tools.length > 0 && allowedTools && allowedTools.length > 0) {
+      if (skill.tools.length > 0 && allowedTools !== undefined) {
         const missing = skill.tools.filter((t) => !(coreToolNames?.has(t) ?? false) && !allowedTools.includes(t))
         if (missing.length > 0) {
           const msg = isZh

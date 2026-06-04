@@ -5,9 +5,14 @@ import { CHART_CAPABILITY_SKILL_ID } from '@openchatlab/core'
 import { buildSkillMenuWithBuiltinChart, getSkillConfigWithBuiltinChart } from '../builtin-chart-skill'
 import { buildSkillMenuText, formatSkillMenuLine } from '../skill-menu'
 
+function requireMenu(menu: string | null): string {
+  assert.ok(menu)
+  return menu
+}
+
 describe('builtin chart skill helpers', () => {
   it('adds chart_runtime to an empty auto skill menu', () => {
-    const menu = buildSkillMenuWithBuiltinChart(null, 'zh-CN')
+    const menu = requireMenu(buildSkillMenuWithBuiltinChart(null, 'zh-CN'))
 
     assert.match(menu, /chart_runtime/)
     assert.match(menu, /绘图助手/)
@@ -23,11 +28,23 @@ describe('builtin chart skill helpers', () => {
       }),
     ])
 
-    const menu = buildSkillMenuWithBuiltinChart(baseMenu, 'zh-CN')
+    const menu = requireMenu(buildSkillMenuWithBuiltinChart(baseMenu, 'zh-CN'))
 
     assert.match(menu, /existing/)
     assert.match(menu, /chart_runtime/)
     assert.ok(menu.indexOf('existing') < menu.indexOf('chart_runtime'))
+  })
+
+  it('does not add chart_runtime when render_chart is unavailable', () => {
+    const menu = buildSkillMenuWithBuiltinChart(null, 'zh-CN', [])
+
+    assert.equal(menu, null)
+  })
+
+  it('adds chart_runtime when render_chart is explicitly available', () => {
+    const menu = requireMenu(buildSkillMenuWithBuiltinChart(null, 'zh-CN', ['render_chart']))
+
+    assert.match(menu, /chart_runtime/)
   })
 
   it('resolves chart_runtime without a user-imported skill file', () => {

@@ -74,6 +74,7 @@ test('findAvailablePortWithReservation 达到最大重试会抛错', async () =>
 })
 
 test('launchApp 支持 startPort 并正确注入 TEST_MODE 环境', async () => {
+  const fakeElectronPath = '/tmp/fake-electron'
   const captured = {
     startPort: null,
     spawnCmd: null,
@@ -108,6 +109,7 @@ test('launchApp 支持 startPort 并正确注入 TEST_MODE 环境', async () => 
         mkdirSync: () => {},
       },
       sleepFn: async () => {},
+      electronPath: fakeElectronPath,
       findPortFn: async (startPort) => {
         captured.startPort = startPort
         return {
@@ -130,7 +132,7 @@ test('launchApp 支持 startPort 并正确注入 TEST_MODE 环境', async () => 
 
   assert.equal(captured.startPort, 9900)
   assert.equal(captured.reservationClosed, true)
-  assert.match(captured.spawnCmd, /electron(\.cmd|\.exe)?$/)
+  assert.equal(captured.spawnCmd, fakeElectronPath)
   assert.deepEqual(captured.spawnArgs, ['--remote-debugging-port=9901', captured.spawnArgs[1]])
   assert.equal(captured.spawnEnv.TEST_MODE, 'true')
   assert.match(captured.spawnEnv.CHATLAB_E2E_USER_DATA_DIR, /chatlab-e2e-9901$/)

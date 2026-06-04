@@ -1,7 +1,7 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { getChartCapabilityAllowedBuiltinTools } from '@openchatlab/node-runtime'
-import { getAvailableToolDefs } from './agent-stream-runner'
+import { getAllowedToolSet, getAvailableToolDefs } from './agent-stream-runner'
 
 describe('CLI chart capability tool filtering', () => {
   it('does not expose uncategorized raw SQL in chart-only turns', () => {
@@ -37,6 +37,19 @@ describe('CLI chart capability tool filtering', () => {
     const toolNames = getAvailableToolDefs(false, allowedToolSet).map((tool) => tool.name)
 
     assert.ok(toolNames.includes('keyword_frequency'))
+    assert.ok(!toolNames.includes('execute_sql'))
+  })
+
+  it('preserves an empty assistant allowlist instead of treating it as unrestricted', () => {
+    const allowedToolSet = getAllowedToolSet(false, [])
+
+    assert.ok(allowedToolSet instanceof Set)
+    assert.equal(allowedToolSet.size, 0)
+
+    const toolNames = getAvailableToolDefs(false, allowedToolSet).map((tool) => tool.name)
+
+    assert.ok(toolNames.includes('get_schema'))
+    assert.ok(!toolNames.includes('keyword_frequency'))
     assert.ok(!toolNames.includes('execute_sql'))
   })
 })

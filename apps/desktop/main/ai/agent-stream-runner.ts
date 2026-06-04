@@ -10,6 +10,7 @@ import type { AgentStreamChunk as SharedAgentStreamChunk } from '@openchatlab/no
 import type { AgentStreamRequest } from '@openchatlab/http-routes'
 import {
   buildSkillMenuWithBuiltinChart,
+  CHART_CAPABILITY_ANALYSIS_TOOLS,
   checkAndCompress,
   createCompressionLlmAdapter,
   formatAIError,
@@ -181,7 +182,9 @@ export function createElectronRunAgentStream(): (
       }
     } else if (enableAutoSkill) {
       const effectiveChatType = chatType ?? 'group'
-      const autoSkillAllowedTools = getAllowedBuiltinToolsForChartAutoSkill(assistantConfig?.allowedBuiltinTools)
+      const autoSkillAllowedTools = getAllowedBuiltinToolsForChartAutoSkill(assistantConfig?.allowedBuiltinTools) ?? [
+        ...CHART_CAPABILITY_ANALYSIS_TOOLS,
+      ]
       assistantConfig = {
         ...(assistantConfig ?? {
           id: resolvedAssistantId,
@@ -192,7 +195,11 @@ export function createElectronRunAgentStream(): (
         allowedBuiltinTools: autoSkillAllowedTools,
       }
       const allowedTools = autoSkillAllowedTools
-      const menu = buildSkillMenuWithBuiltinChart(skillManager.getSkillMenu(effectiveChatType, allowedTools), locale)
+      const menu = buildSkillMenuWithBuiltinChart(
+        skillManager.getSkillMenu(effectiveChatType, allowedTools),
+        locale,
+        allowedTools
+      )
       if (menu) {
         skillCtx = { skillMenu: menu }
       }

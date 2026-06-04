@@ -48,6 +48,17 @@ export function getAvailableToolDefs(isChartCapability: boolean, allowedToolSet:
     : AGENT_TOOL_REGISTRY
 }
 
+// 区分“未配置白名单”和“配置为空白名单”：前者无限制，后者禁用 analysis 工具。
+export function getAllowedToolSet(
+  isChartCapability: boolean,
+  allowedBuiltinTools?: readonly string[]
+): Set<string> | null {
+  if (isChartCapability) {
+    return new Set(allowedBuiltinTools)
+  }
+  return allowedBuiltinTools === undefined ? null : new Set(allowedBuiltinTools)
+}
+
 export function createCliRunAgentStream(
   dbManager: DatabaseManager,
   convManager: AIConversationManager
@@ -98,11 +109,10 @@ export function createCliRunAgentStream(
       !skillId && enableAutoSkill
         ? getAllowedBuiltinToolsForChartAutoSkill(assistantAllowedTools)
         : assistantAllowedTools
-    const allowedToolSet = isChartCapability
-      ? new Set(chartRuntime.allowedBuiltinTools)
-      : autoSkillAllowedTools && autoSkillAllowedTools.length > 0
-        ? new Set(autoSkillAllowedTools)
-        : null
+    const allowedToolSet = getAllowedToolSet(
+      isChartCapability,
+      isChartCapability ? chartRuntime.allowedBuiltinTools : autoSkillAllowedTools
+    )
     const availableToolDefs = getAvailableToolDefs(isChartCapability, allowedToolSet)
 
     const agentTools = db
@@ -122,7 +132,11 @@ export function createCliRunAgentStream(
       const def = skillMgr.getSkillConfig(skillId)
       if (def) resolvedSkillDef = { name: def.name, prompt: def.prompt }
     } else if (enableAutoSkill) {
-      const menu = buildSkillMenuWithBuiltinChart(skillMgr.getSkillMenu(chatType ?? 'group', toolNames), locale)
+      const menu = buildSkillMenuWithBuiltinChart(
+        skillMgr.getSkillMenu(chatType ?? 'group', toolNames),
+        locale,
+        toolNames
+      )
       if (menu) resolvedSkillMenu = menu
     }
 

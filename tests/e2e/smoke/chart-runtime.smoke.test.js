@@ -6,7 +6,7 @@ const fs = require('node:fs')
 const path = require('node:path')
 const os = require('node:os')
 const http = require('node:http')
-const Database = require('better-sqlite3')
+const { createRequire } = require('node:module')
 
 const { launchApp } = require('../helpers/app-launcher')
 
@@ -114,6 +114,15 @@ const CONVERSATION_ID = 'conv_chart_smoke'
 const CONVERSATION_TITLE = 'Chart replay smoke'
 const CHART_TITLE = 'Selected members smoke'
 
+let Database = null
+
+function getDatabaseConstructor() {
+  if (Database) return Database
+  const nodeRuntimePackageJson = path.resolve(__dirname, '../../../packages/node-runtime/package.json')
+  Database = createRequire(nodeRuntimePackageJson)('better-sqlite3')
+  return Database
+}
+
 function resolveNativeBinding() {
   if (process.env.CHATLAB_TEST_SQLITE_NATIVE_BINDING) {
     return process.env.CHATLAB_TEST_SQLITE_NATIVE_BINDING
@@ -135,6 +144,7 @@ function ensureDir(dir) {
 }
 
 function seedChatSessionDb(chatDataDir) {
+  const Database = getDatabaseConstructor()
   const dbDir = path.join(chatDataDir, 'databases')
   ensureDir(dbDir)
   const db = new Database(path.join(dbDir, `${SESSION_ID}.db`), {
@@ -183,6 +193,7 @@ function seedChatSessionDb(chatDataDir) {
 }
 
 function seedAiConversationDb(homeDir) {
+  const Database = getDatabaseConstructor()
   const aiDir = path.join(homeDir, '.chatlab', 'ai')
   ensureDir(aiDir)
   const db = new Database(path.join(aiDir, 'conversations.db'), {

@@ -291,7 +291,7 @@ export class SkillManagerCore {
 
     const compatible = Array.from(this.cache.values()).filter((skill) => {
       if (skill.chatScope !== 'all' && skill.chatScope !== chatType) return false
-      if (skill.tools.length > 0 && allowedTools && allowedTools.length > 0) {
+      if (skill.tools.length > 0 && allowedTools !== undefined) {
         if (!skill.tools.every((t) => allowedTools.includes(t))) return false
       }
       return true

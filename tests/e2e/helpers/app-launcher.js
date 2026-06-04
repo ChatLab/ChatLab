@@ -11,7 +11,7 @@ const path = require('node:path')
 const fs = require('node:fs')
 const os = require('node:os')
 const net = require('node:net')
-const electron = require('electron')
+const { createRequire } = require('node:module')
 
 const DEFAULT_START_PORT = 9222
 const DEFAULT_MAX_PORT_RETRIES = 100
@@ -127,6 +127,20 @@ function releaseReservation(reservationServer) {
   safeCloseServer(reservationServer)
 }
 
+function resolveElectronExecutable(deps = {}) {
+  if (deps.electronPath) return deps.electronPath
+
+  const desktopPackageJson = path.resolve(__dirname, '../../../apps/desktop/package.json')
+  const requireElectron = deps.requireElectron || createRequire(desktopPackageJson)
+
+  try {
+    const electronModule = requireElectron('electron')
+    return typeof electronModule === 'string' ? electronModule : ''
+  } catch (error) {
+    throw new Error(`[AppLauncher] 无法解析 Electron 可执行文件: ${error.message}`)
+  }
+}
+
 /**
  * 启动 Electron 应用
  */
@@ -172,7 +186,7 @@ async function launchApp(options = {}, deps = {}) {
     throw new Error(`[AppLauncher] 应用目录不存在: ${appPath}`)
   }
 
-  const electronExe = typeof electron === 'string' ? electron : ''
+  const electronExe = resolveElectronExecutable(deps)
 
   if (!electronExe || !fsImpl.existsSync(electronExe)) {
     throw new Error(`Electron 可执行文件不存在: ${electronExe}`)
@@ -261,5 +275,6 @@ module.exports = {
     findAvailablePortWithReservation,
     terminateProcess,
     releaseReservation,
+    resolveElectronExecutable,
   },
 }

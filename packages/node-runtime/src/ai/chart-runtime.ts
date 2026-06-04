@@ -90,7 +90,12 @@ function getChartMenuLine(locale: string): string {
   })
 }
 
-export function buildSkillMenuWithBuiltinChart(baseMenu: string | null | undefined, locale: string = 'zh-CN'): string {
+export function buildSkillMenuWithBuiltinChart(
+  baseMenu: string | null | undefined,
+  locale: string = 'zh-CN',
+  allowedTools?: readonly string[] | null
+): string | null {
+  if (allowedTools && !allowedTools.includes(CHART_CAPABILITY_ANALYSIS_TOOLS[0])) return baseMenu ?? null
   if (baseMenu?.includes(CHART_CAPABILITY_SKILL_ID)) return baseMenu
 
   const chartLine = getChartMenuLine(locale)
