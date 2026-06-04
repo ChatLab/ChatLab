@@ -71,7 +71,13 @@ watch(showSettings, async (visible) => {
 </script>
 
 <template>
-  <UModal v-model:open="showSettings" :ui="{ content: 'sm:max-w-[900px] z-[100]', overlay: 'backdrop-blur-sm z-[99]' }">
+  <UModal
+    v-model:open="showSettings"
+    :ui="{
+      content: 'sm:max-w-[900px] z-[100]',
+      overlay: 'z-[99] bg-gray-200/80 backdrop-blur-sm dark:bg-gray-950/80',
+    }"
+  >
     <template #content>
       <div class="flex min-h-[650px] h-[85vh] flex-col overflow-hidden">
         <!-- Header -->

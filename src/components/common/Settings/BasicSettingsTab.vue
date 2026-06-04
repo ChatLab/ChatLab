@@ -83,18 +83,6 @@ const toolsPanelPositionOptions = computed(() => [
   { label: t('settings.basic.toolsPanel.positionHeader'), value: 'header' },
   { label: t('settings.basic.toolsPanel.positionSide'), value: 'side' },
 ])
-
-// Sync theme with main process (Electron only)
-import { watch } from 'vue'
-watch(
-  colorMode,
-  (val) => {
-    if (!IS_ELECTRON) return
-    const mode = val === 'auto' ? 'system' : (val as 'light' | 'dark')
-    usePlatformService().setThemeSource(mode)
-  },
-  { immediate: true }
-)
 </script>
 
 <template>
