@@ -6,6 +6,7 @@
 
 export { getCatchphraseAnalysis } from './repeat'
 export type { CatchphraseAnalysis, MemberCatchphrase, CatchphraseItem } from './repeat'
+export { isHumanCatchphraseContent, NON_HUMAN_CATCHPHRASE_PLACEHOLDERS } from './catchphrase-filter'
 
 export { getMentionAnalysis, getMentionGraph, getLaughAnalysis, getClusterGraph } from './social'
 export type {

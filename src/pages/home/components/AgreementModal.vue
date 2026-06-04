@@ -76,6 +76,8 @@ defineExpose({ open, needsAgreement })
 <template>
   <UModal
     :open="isOpen"
+    :title="t('common.agreement.title')"
+    :description="t('common.agreement.subtitle')"
     prevent-close
     :ui="{
       content: 'md:w-full max-w-2xl',

@@ -65,6 +65,9 @@
       "fork": {
         "tooltip": "ここから会話をフォーク"
       },
+      "chart": {
+        "expand": "大きなチャートを開く"
+      },
       "tools": {
         "get_chat_overview": "チャット概要を取得",
         "search_messages": "チャット履歴を検索",

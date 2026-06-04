@@ -8,6 +8,7 @@ import { useI18n } from 'vue-i18n'
 
 import type { ChatRecordMessage } from './types'
 import { useSessionStore } from '@/stores/session'
+import { escapeHtml, escapeRegExp } from '@/utils/html'
 
 const { t } = useI18n()
 
@@ -118,11 +119,12 @@ const avatarLetter = computed(() => {
 
 // 高亮关键词
 function highlightContent(content: string): string {
-  if (!props.highlightKeywords?.length || !content) return content
+  const escapedContent = escapeHtml(content)
+  if (!props.highlightKeywords?.length || !content) return escapedContent
 
-  const pattern = props.highlightKeywords.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
+  const pattern = props.highlightKeywords.map((k) => escapeRegExp(escapeHtml(k))).join('|')
   const regex = new RegExp(`(${pattern})`, 'gi')
-  return content.replace(
+  return escapedContent.replace(
     regex,
     '<mark class="bg-transparent border-b-2 border-yellow-400 dark:border-yellow-500">$1</mark>'
   )

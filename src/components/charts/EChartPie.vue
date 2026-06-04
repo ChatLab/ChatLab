@@ -14,6 +14,7 @@ export interface EChartPieData {
 interface Props {
   data: EChartPieData
   height?: number
+  mode?: 'compact' | 'expanded'
   /** 是否为环形图 */
   doughnut?: boolean
   /** 内圈半径（环形图时生效） */
@@ -24,6 +25,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   height: 280,
+  mode: 'expanded',
   doughnut: true,
   innerRadius: '50%',
   showLegend: true,
@@ -48,33 +50,57 @@ const option = computed<EChartsOption>(() => {
     name: label,
     value: props.data.values[index],
   }))
+  const itemCount = props.data.labels.length
+  const isCompact = props.mode === 'compact'
+  const isDense = itemCount > (isCompact ? 8 : 14)
+  const useScrollableLegend = itemCount > (isCompact ? 6 : 12)
+  const legendPlacement = isCompact
+    ? {
+        type: useScrollableLegend ? 'scroll' : 'plain',
+        orient: 'horizontal' as const,
+        left: 8,
+        right: 8,
+        bottom: 0,
+        height: 28,
+        textStyle: {
+          fontSize: 11,
+          overflow: 'truncate' as const,
+          width: 72,
+        },
+      }
+    : {
+        type: useScrollableLegend ? 'scroll' : 'plain',
+        orient: 'vertical' as const,
+        right: 10,
+        top: 24,
+        bottom: 24,
+        textStyle: {
+          fontSize: 12,
+          overflow: 'truncate' as const,
+          width: 120,
+        },
+      }
+  const showOuterLabel = !isCompact && !isDense
 
   return {
     color: colors,
     tooltip: {
       trigger: 'item',
       formatter: '{b}: {c} ({d}%)',
+      confine: true,
+      extraCssText: 'max-width: min(360px, 70vw); white-space: normal; word-break: break-word;',
       backgroundColor: 'rgba(0, 0, 0, 0.8)',
       borderColor: 'transparent',
       textStyle: {
         color: '#fff',
       },
     },
-    legend: props.showLegend
-      ? {
-          orient: 'vertical',
-          right: 10,
-          top: 'center',
-          textStyle: {
-            fontSize: 12,
-          },
-        }
-      : undefined,
+    legend: props.showLegend ? legendPlacement : undefined,
     series: [
       {
         type: 'pie',
-        radius: props.doughnut ? [props.innerRadius, '70%'] : '70%',
-        center: props.showLegend ? ['35%', '50%'] : ['50%', '50%'],
+        radius: props.doughnut ? [props.innerRadius, isCompact ? '58%' : '68%'] : isCompact ? '58%' : '68%',
+        center: props.showLegend ? (isCompact ? ['50%', '42%'] : ['38%', '50%']) : ['50%', isCompact ? '46%' : '50%'],
         avoidLabelOverlap: true,
         itemStyle: {
           borderRadius: 4,
@@ -82,13 +108,20 @@ const option = computed<EChartsOption>(() => {
           borderWidth: 2,
         },
         label: {
-          show: false,
+          show: showOuterLabel,
+          formatter: '{b}',
+          overflow: 'truncate',
+          width: 110,
+          alignTo: 'edge',
+          edgeDistance: 12,
         },
         emphasis: {
           label: {
-            show: true,
+            show: showOuterLabel,
             fontSize: 14,
             fontWeight: 'bold',
+            overflow: 'truncate',
+            width: 140,
           },
           itemStyle: {
             shadowBlur: 10,

@@ -108,6 +108,22 @@ describe('renderChartTool', () => {
     assert.equal(calls.length, 0)
   })
 
+  it('rejects dividing ChatLab second timestamps by 1000', async () => {
+    const calls: Array<{ query: string; params: Record<string, unknown> }> = []
+    const context = createContext([], calls)
+
+    await assert.rejects(async () => {
+      await renderChartTool.handler(
+        {
+          sql: "SELECT date(ts/1000, 'unixepoch') AS day, COUNT(*) AS message_count FROM message GROUP BY day",
+          chartSpec: barSpec,
+        },
+        context
+      )
+    }, /message\.ts is already a Unix timestamp in seconds/)
+    assert.equal(calls.length, 0)
+  })
+
   it('enforces an outer row limit even when SQL already has a LIMIT', async () => {
     const calls: Array<{ query: string; params: Record<string, unknown> }> = []
     const context = createContext([{ name: 'Alice', message_count: 4 }], calls)

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { useI18n } from 'vue-i18n'
 import dayjs from 'dayjs'
+import { escapeHtml, escapeRegExp } from '@/utils/html'
 
 const { t } = useI18n()
 
@@ -30,10 +31,11 @@ function formatTime(timestamp: number): string {
 
 // 高亮关键词
 function highlightKeywords(text: string): string {
-  if (!props.keywords.length) return text
-  const pattern = props.keywords.join('|')
+  const escapedText = escapeHtml(text)
+  if (!props.keywords.length) return escapedText
+  const pattern = props.keywords.map((keyword) => escapeRegExp(escapeHtml(keyword))).join('|')
   const regex = new RegExp(`(${pattern})`, 'gi')
-  return text.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-800/50 px-0.5 rounded">$1</mark>')
+  return escapedText.replace(regex, '<mark class="bg-yellow-200 dark:bg-yellow-800/50 px-0.5 rounded">$1</mark>')
 }
 </script>
 

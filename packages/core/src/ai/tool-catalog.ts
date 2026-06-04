@@ -33,6 +33,7 @@ export const BUILTIN_TOOL_CATALOG: BuiltinToolCatalogEntry[] = [
   { name: 'response_time_analysis', category: 'analysis' },
   { name: 'keyword_frequency', category: 'analysis' },
   { name: 'render_chart', category: 'analysis' },
+  { name: 'execute_sql', category: 'analysis' },
 
   // SQL Analysis 工具
   { name: 'message_type_breakdown', category: 'analysis' },

@@ -8,6 +8,7 @@
 import type { TimeFilter } from '@openchatlab/shared-types'
 import type { DatabaseAdapter } from '../../interfaces'
 import { buildTimeFilter } from '../filters'
+import { isHumanCatchphraseContent } from './catchphrase-filter'
 
 // ==================== NLP Provider 接口 ====================
 
@@ -136,7 +137,7 @@ export function getLanguagePreferenceAnalysis(db: DatabaseAdapter, params: Langu
       if (trimmed.length > 0 && !RE_ENDS_WITH_PUNCT.test(trimmed)) punct.noPunct++
       punct.total++
 
-      if (trimmed.length >= 2) phraseFreq.set(trimmed, (phraseFreq.get(trimmed) || 0) + 1)
+      if (isHumanCatchphraseContent(trimmed)) phraseFreq.set(trimmed, (phraseFreq.get(trimmed) || 0) + 1)
 
       const cleaned = cleanTextForNlp(content)
       if (!cleaned) continue

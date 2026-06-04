@@ -9,6 +9,7 @@ import { buildChartPayload } from '@openchatlab/core'
 import type { ToolDefinition, ToolExecutionContext, ToolResult, JsonSchema } from '../types'
 
 const DEFAULT_MAX_ROWS = 1000
+const RE_SECONDS_TIMESTAMP_DIVIDED_AS_MILLISECONDS = /\b(?:\w+\.)?ts\s*\/\s*1000\b/i
 
 const inputSchema: JsonSchema = {
   type: 'object',
@@ -53,6 +54,10 @@ function normalizeSql(sql: unknown, maxRows: number): string {
   const statementStart = trimmed.replace(/^(\s|--[^\n]*(\n|$)|\/\*[\s\S]*?\*\/)*/, '')
   if (!/^(SELECT|WITH)\b/i.test(statementStart)) {
     throw new Error('render_chart only accepts SELECT or WITH SELECT SQL')
+  }
+
+  if (RE_SECONDS_TIMESTAMP_DIVIDED_AS_MILLISECONDS.test(trimmed)) {
+    throw new Error('message.ts is already a Unix timestamp in seconds; do not divide ts by 1000')
   }
 
   return `SELECT * FROM (\n${trimmed}\n) AS chart_query LIMIT ${maxRows + 1}`

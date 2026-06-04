@@ -2,6 +2,7 @@
 
 const test = require('node:test')
 const assert = require('node:assert/strict')
+const http = require('node:http')
 
 const { launchApp } = require('../helpers/app-launcher')
 
@@ -14,12 +15,32 @@ async function waitForCdpReady(port, timeoutMs = 15000) {
 
   while (Date.now() - start < timeoutMs) {
     try {
-      const response = await fetch(endpoint)
-      if (response.ok) {
-        const payload = await response.json()
-        if (payload && payload.webSocketDebuggerUrl) {
-          return payload
-        }
+      const payload = await new Promise((resolve, reject) => {
+        const req = http.get(endpoint, (response) => {
+          let body = ''
+          response.setEncoding('utf8')
+          response.on('data', (chunk) => {
+            body += chunk
+          })
+          response.on('end', () => {
+            if (response.statusCode !== 200) {
+              reject(new Error(`HTTP ${response.statusCode}`))
+              return
+            }
+            try {
+              resolve(JSON.parse(body))
+            } catch (error) {
+              reject(error)
+            }
+          })
+        })
+        req.on('error', reject)
+        req.setTimeout(2000, () => {
+          req.destroy(new Error('timeout'))
+        })
+      })
+      if (payload && payload.webSocketDebuggerUrl) {
+        return payload
       }
     } catch (error) {
       lastError = error

@@ -158,6 +158,8 @@ export {
   getClusterGraph,
   getRelationshipStats,
   getLanguagePreferenceAnalysis,
+  isHumanCatchphraseContent,
+  NON_HUMAN_CATCHPHRASE_PLACEHOLDERS,
 } from './advanced'
 export type {
   CatchphraseAnalysis,

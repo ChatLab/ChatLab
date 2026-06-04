@@ -4,12 +4,19 @@
  */
 
 import type { DatabaseManager, AIConversationManager, AgentStreamChunk } from '@openchatlab/node-runtime'
-import { SkillManager, createActivateSkillTool } from '@openchatlab/node-runtime'
 import {
+  SkillManager,
+  buildSkillMenuWithBuiltinChart,
+  createActivateSkillTool,
+  getSkillConfigWithBuiltinChart,
+} from '@openchatlab/node-runtime'
+import {
+  CHART_CAPABILITY_CORE_TOOLS,
   CHART_CAPABILITY_SKILL_ID,
   getChartCapabilityAllowedBuiltinTools,
   getChartCapabilitySkill,
   getChatOverview,
+  shouldUseChartCapabilityForMessage,
 } from '@openchatlab/core'
 import type { DataSnapshot } from '@openchatlab/node-runtime'
 import type { AgentStreamRequest } from '@openchatlab/http-routes'
@@ -25,6 +32,23 @@ function getAiDir(dbManager: DatabaseManager): string {
     throw Object.assign(new Error('PathProvider not available'), { statusCode: 500 })
   }
   return pathProvider.getAiDataDir()
+}
+
+const RAW_SQL_TOOL_NAMES = new Set(['execute_sql'])
+
+export function getAvailableToolDefs(isChartCapability: boolean, allowedToolSet: Set<string> | null) {
+  if (isChartCapability) {
+    const chartCoreTools = new Set<string>(CHART_CAPABILITY_CORE_TOOLS)
+    return AGENT_TOOL_REGISTRY.filter(
+      (tool) =>
+        chartCoreTools.has(tool.name) ||
+        (tool.category === 'analysis' && allowedToolSet?.has(tool.name) && !RAW_SQL_TOOL_NAMES.has(tool.name))
+    )
+  }
+
+  return allowedToolSet
+    ? AGENT_TOOL_REGISTRY.filter((tool) => tool.category !== 'analysis' || allowedToolSet.has(tool.name))
+    : AGENT_TOOL_REGISTRY
 }
 
 export function createCliRunAgentStream(
@@ -66,15 +90,18 @@ export function createCliRunAgentStream(
     const maxToolResultTokens = Math.floor(contextWindow * (maxToolResultPercent / 100))
 
     const db = (dbManager as any).open?.(sessionId)
-    const isChartCapability = skillId === CHART_CAPABILITY_SKILL_ID
+    const isChartCapability =
+      skillId === CHART_CAPABILITY_SKILL_ID || (!skillId && shouldUseChartCapabilityForMessage(userMessage))
+    const autoSkillAllowedTools =
+      !skillId && enableAutoSkill && assistantAllowedTools && assistantAllowedTools.length > 0
+        ? getChartCapabilityAllowedBuiltinTools(assistantAllowedTools)
+        : assistantAllowedTools
     const allowedToolSet = isChartCapability
       ? new Set(getChartCapabilityAllowedBuiltinTools(assistantAllowedTools))
-      : assistantAllowedTools && assistantAllowedTools.length > 0
-        ? new Set(assistantAllowedTools)
+      : autoSkillAllowedTools && autoSkillAllowedTools.length > 0
+        ? new Set(autoSkillAllowedTools)
         : null
-    const availableToolDefs = allowedToolSet
-      ? AGENT_TOOL_REGISTRY.filter((tool) => tool.category !== 'analysis' || allowedToolSet.has(tool.name))
-      : AGENT_TOOL_REGISTRY
+    const availableToolDefs = getAvailableToolDefs(isChartCapability, allowedToolSet)
 
     const agentTools = db
       ? adaptToolsForAgent(availableToolDefs, () => ({ db, sessionId, locale }), { maxToolResultTokens })
@@ -93,7 +120,7 @@ export function createCliRunAgentStream(
       const def = skillMgr.getSkillConfig(skillId)
       if (def) resolvedSkillDef = { name: def.name, prompt: def.prompt }
     } else if (enableAutoSkill) {
-      const menu = skillMgr.getSkillMenu(chatType ?? 'group', toolNames)
+      const menu = buildSkillMenuWithBuiltinChart(skillMgr.getSkillMenu(chatType ?? 'group', toolNames), locale)
       if (menu) resolvedSkillMenu = menu
     }
 
@@ -101,8 +128,10 @@ export function createCliRunAgentStream(
       const activateSkillTool = createActivateSkillTool({
         chatType: chatType ?? 'group',
         allowedTools: toolNames,
+        coreToolNames: new Set<string>(CHART_CAPABILITY_CORE_TOOLS),
         locale,
-        getSkillConfig: (id) => skillMgr.getSkillConfig(id),
+        getSkillConfig: (id) =>
+          getSkillConfigWithBuiltinChart(id, locale, (skillConfigId) => skillMgr.getSkillConfig(skillConfigId)),
       })
       agentTools.push(activateSkillTool as any)
     }
