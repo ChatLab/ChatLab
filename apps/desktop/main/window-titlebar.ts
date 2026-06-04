@@ -40,6 +40,10 @@ export function applyTitleBarOverlayColor(win: BrowserWindow | null | undefined,
   win?.setTitleBarOverlay(getTitleBarOverlayOptionsForColor(color))
 }
 
+export function resetCurrentTitleBarOverlayColor(): void {
+  currentTitleBarOverlayColor = null
+}
+
 function getReadableSymbolColor(hexColor: string): string {
   const match = /^#([0-9a-f]{6})$/i.exec(hexColor)
   if (!match) return '#52525b'

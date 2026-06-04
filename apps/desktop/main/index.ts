@@ -22,7 +22,11 @@ import {
 import { migrateAllDatabases, checkMigrationNeeded } from './database/core'
 import { initLocale } from './i18n'
 import { MigrationRunner, ALL_MIGRATIONS } from '@openchatlab/config'
-import { applyCurrentTitleBarOverlay, getTitleBarOverlayOptions } from './window-titlebar'
+import {
+  applyCurrentTitleBarOverlay,
+  getTitleBarOverlayOptions,
+  resetCurrentTitleBarOverlayColor,
+} from './window-titlebar'
 
 type AppWithQuitFlag = typeof app & { isQuiting?: boolean }
 // 统一通过扩展类型访问退出标记，避免使用 @ts-ignore。
@@ -243,6 +247,7 @@ class MainProcess {
         // 监听主题变化，动态更新颜色
         nativeTheme.on('updated', () => {
           if (this.mainWindow && platform.isWindows) {
+            resetCurrentTitleBarOverlayColor()
             applyCurrentTitleBarOverlay(this.mainWindow, nativeTheme.shouldUseDarkColors)
           }
         })
