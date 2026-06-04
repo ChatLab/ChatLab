@@ -196,7 +196,7 @@ export type {
 
 // Agent Core
 export type { AgentCoreOptions, AgentCoreEvent, AgentCoreResult, AgentTokenUsage, SimpleHistoryMessage } from './ai'
-export { runAgentCore } from './ai'
+export { DEFAULT_MAX_TOOL_ROUNDS, runAgentCore } from './ai'
 
 // Summary generation
 export {

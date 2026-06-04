@@ -10,6 +10,7 @@ import { getHistoryForAgent, setPendingDebugContext } from '../conversations'
 import { aiLogger, isDebugMode } from '../logger'
 import { t as i18nT } from '../../i18n'
 import {
+  DEFAULT_MAX_TOOL_ROUNDS,
   runAgentCore,
   streamSimple,
   type PiMessage,
@@ -63,7 +64,7 @@ export class Agent {
     this.skillCtx = skillCtx
     this.locale = locale
     this.config = {
-      maxToolRounds: config.maxToolRounds ?? 5,
+      maxToolRounds: config.maxToolRounds ?? DEFAULT_MAX_TOOL_ROUNDS,
       thinkingLevel: config.thinkingLevel,
     }
   }

@@ -17,6 +17,7 @@ import { StreamingThinkTagParser, needsStreamingThinkParsing } from '@openchatla
 
 import type { AgentCoreOptions, AgentCoreResult, AgentTokenUsage, SimpleHistoryMessage } from './types'
 import { initTokenizer } from '../tokenizer'
+import { DEFAULT_MAX_TOOL_ROUNDS } from './constants'
 
 function createEmptyPiUsage(): PiUsage {
   return {
@@ -63,7 +64,7 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
     tools,
     history,
     userMessage,
-    maxToolRounds = 5,
+    maxToolRounds = DEFAULT_MAX_TOOL_ROUNDS,
     abortSignal,
     steerMessage = 'Please provide your final answer based on the information gathered.',
     onEvent,

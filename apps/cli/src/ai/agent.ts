@@ -6,6 +6,7 @@
  */
 
 import {
+  DEFAULT_MAX_TOOL_ROUNDS,
   runAgentCore,
   checkAndCompress,
   buildSystemPrompt,
@@ -170,7 +171,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
       tools,
       history,
       userMessage,
-      maxToolRounds: 5,
+      maxToolRounds: DEFAULT_MAX_TOOL_ROUNDS,
       abortSignal,
       steerMessage,
       thinkingLevel: thinkingLevel as import('@openchatlab/core').ThinkingLevel | undefined,
