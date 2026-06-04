@@ -14,6 +14,7 @@ export interface EChartBarData {
 interface Props {
   data: EChartBarData
   height?: number
+  mode?: 'compact' | 'expanded'
   /** 是否为横向柱状图 */
   horizontal?: boolean
   /** 是否显示渐变色 */
@@ -24,6 +25,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   height: 200,
+  mode: 'expanded',
   horizontal: false,
   gradient: true,
   borderRadius: 4,
@@ -44,10 +46,14 @@ const gradientColor = {
 
 const option = computed<EChartsOption>(() => {
   const isHorizontal = props.horizontal
+  const isCompact = props.mode === 'compact'
+  const labelCount = props.data.labels.length
 
   return {
     tooltip: {
       trigger: 'axis',
+      confine: true,
+      extraCssText: 'max-width: min(360px, 70vw); white-space: normal; word-break: break-word;',
       axisPointer: {
         type: 'shadow',
       },
@@ -58,11 +64,11 @@ const option = computed<EChartsOption>(() => {
       },
     },
     grid: {
-      left: isHorizontal ? 60 : 40,
-      right: 20,
+      left: isHorizontal ? (isCompact ? 72 : 96) : 36,
+      right: 16,
       top: 20,
-      bottom: isHorizontal ? 20 : 30,
-      containLabel: false,
+      bottom: isHorizontal ? 20 : labelCount > 8 ? 48 : 30,
+      containLabel: true,
     },
     xAxis: isHorizontal
       ? {
@@ -84,6 +90,9 @@ const option = computed<EChartsOption>(() => {
           axisLabel: {
             fontSize: 11,
             color: '#6b7280',
+            interval: 'auto',
+            rotate: !isHorizontal && labelCount > 8 ? 28 : 0,
+            hideOverlap: true,
           },
         },
     yAxis: isHorizontal
@@ -95,6 +104,8 @@ const option = computed<EChartsOption>(() => {
           axisLabel: {
             fontSize: 11,
             color: '#6b7280',
+            overflow: 'truncate',
+            width: isCompact ? 70 : 110,
           },
         }
       : {

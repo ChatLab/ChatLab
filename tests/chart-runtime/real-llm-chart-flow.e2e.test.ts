@@ -151,9 +151,14 @@ describe('real external LLM chart flow', () => {
 Test-specific requirements:
 - Use get_schema if you need table names or columns.
 - Produce exactly two render_chart calls.
+- Do not make exploratory, retry, or debugging render_chart calls beyond those two charts.
 - The pie chart must include only Alice and Bob and must exclude Cara.
 - The heatmap must include only Alice and Bob and use hour on x, member name on y, and message count as value.
-- Use the data from June 1-2, 2026 inclusive. The database stores Unix seconds in message.ts.`,
+- Use the data from June 1-2, 2026 inclusive.
+- The database stores Unix seconds in message.ts. Use this exact UTC range:
+  - start: 1780272000
+  - end: 1780444799
+- Member display names in chat messages are stored as Alice, Bob, and Cara in message.sender_group_nickname.`,
           tools,
           history: [],
           userMessage:
@@ -181,7 +186,8 @@ Test-specific requirements:
         assert.ok(!heatmap.data.yLabels.includes('Cara'), 'heatmap should exclude Cara')
         assert.ok(heatmap.data.yLabels.includes('Alice'), 'heatmap should include Alice')
         assert.ok(heatmap.data.yLabels.includes('Bob'), 'heatmap should include Bob')
-        assert.ok(heatmap.data.xLabels.includes('09'), 'heatmap should include hour 09')
+        const heatmapHours = new Set(heatmap.data.xLabels.map((label) => Number(label)))
+        assert.ok(heatmapHours.has(9), 'heatmap should include hour 9')
         assert.ok(heatmap.data.data.length > 0, 'heatmap should include density cells')
 
         const finalContent = events

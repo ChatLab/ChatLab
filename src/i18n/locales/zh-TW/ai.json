@@ -65,6 +65,9 @@
       "fork": {
         "tooltip": "從此處複製對話"
       },
+      "chart": {
+        "expand": "開啟大圖"
+      },
       "tools": {
         "get_chat_overview": "取得聊天概覽",
         "search_messages": "搜尋聊天紀錄",

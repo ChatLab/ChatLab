@@ -15,6 +15,7 @@ export interface EChartLineData {
 interface Props {
   data: EChartLineData
   height?: number
+  mode?: 'compact' | 'expanded'
   /** 是否显示面积 */
   showArea?: boolean
   /** 是否平滑曲线 */
@@ -23,12 +24,18 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   height: 288,
+  mode: 'expanded',
   showArea: true,
   smooth: true,
 })
 
 const option = computed<EChartsOption>(() => {
   const hasSeries = !!props.data.series?.length
+  const isCompact = props.mode === 'compact'
+  const seriesCount = props.data.series?.length ?? 0
+  const labelCount = props.data.labels.length
+  const useScrollableLegend = seriesCount > (isCompact ? 3 : 8)
+  const useDataZoom = !isCompact && labelCount > 30
   const series = hasSeries
     ? props.data.series!.map((item) => ({
         name: item.name,
@@ -37,7 +44,7 @@ const option = computed<EChartsOption>(() => {
         smooth: props.smooth,
         symbol: 'circle',
         symbolSize: 4,
-        showSymbol: false,
+        showSymbol: !isCompact && labelCount <= 80,
         lineStyle: {
           width: 2,
         },
@@ -53,7 +60,7 @@ const option = computed<EChartsOption>(() => {
           smooth: props.smooth,
           symbol: 'circle',
           symbolSize: 4,
-          showSymbol: false,
+          showSymbol: !isCompact && labelCount <= 80,
           lineStyle: {
             width: 2,
             color: '#ee4567',
@@ -90,6 +97,8 @@ const option = computed<EChartsOption>(() => {
   return {
     tooltip: {
       trigger: 'axis',
+      confine: true,
+      extraCssText: 'max-width: min(420px, 76vw); white-space: normal; word-break: break-word;',
       backgroundColor: 'rgba(0, 0, 0, 0.8)',
       borderColor: 'transparent',
       textStyle: {
@@ -99,12 +108,17 @@ const option = computed<EChartsOption>(() => {
     grid: {
       left: 50,
       right: 20,
-      top: hasSeries ? 36 : 20,
-      bottom: 30,
+      top: hasSeries ? (isCompact ? 44 : 56) : 20,
+      bottom: useDataZoom ? 66 : 34,
+      containLabel: true,
     },
     legend: hasSeries
       ? {
+          type: useScrollableLegend ? 'scroll' : 'plain',
           top: 0,
+          left: 8,
+          right: 8,
+          height: 32,
           textStyle: { color: '#6b7280', fontSize: 11 },
         }
       : undefined,
@@ -119,6 +133,7 @@ const option = computed<EChartsOption>(() => {
         color: '#6b7280',
         // 自动间隔显示标签
         interval: 'auto',
+        hideOverlap: true,
       },
     },
     yAxis: {
@@ -132,6 +147,12 @@ const option = computed<EChartsOption>(() => {
         },
       },
     },
+    dataZoom: useDataZoom
+      ? [
+          { type: 'inside', throttle: 50 },
+          { type: 'slider', height: 18, bottom: 18, showDetail: false },
+        ]
+      : undefined,
     series,
   }
 })

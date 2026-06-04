@@ -6,20 +6,28 @@
  */
 
 import type { AgentTool } from '@openchatlab/node-runtime'
+import { CHART_CAPABILITY_ANALYSIS_TOOLS, getChartCapabilityAllowedBuiltinTools } from '@openchatlab/core'
 import type { ToolContext, TruncationStrategy } from './types'
 import { TOOL_REGISTRY } from './definitions'
-
-const CORE_TOOL_NAMES = new Set(TOOL_REGISTRY.filter((e) => e.category === 'core').map((e) => e.name))
 import { t as i18nT } from '../../i18n'
 import { applyPreprocessingPipeline, type PreprocessableMessage } from '@openchatlab/node-runtime'
 import { aiLogger } from '../logger'
+import { getSkillConfig } from '../skills'
+import {
+  createActivateSkillTool as sharedCreateActivateSkillTool,
+  createChartSchemaGateState,
+  getSkillConfigWithBuiltinChart,
+  wrapWithChartSchemaGate,
+} from '@openchatlab/node-runtime'
+
+const CORE_TOOL_NAMES = new Set(TOOL_REGISTRY.filter((e) => e.category === 'core').map((e) => e.name))
+const RAW_SQL_TOOL_NAME_SET = new Set(['execute_sql'])
+const CHART_CAPABILITY_ANALYSIS_TOOL_SET = new Set<string>(CHART_CAPABILITY_ANALYSIS_TOOLS)
 
 const preprocessLogger = {
   info: (category: string, message: string, extra?: Record<string, unknown>) => aiLogger.info(category, message, extra),
   warn: (category: string, message: string, extra?: Record<string, unknown>) => aiLogger.warn(category, message, extra),
 }
-import { getSkillConfig } from '../skills'
-import { createActivateSkillTool as sharedCreateActivateSkillTool } from '@openchatlab/node-runtime'
 
 const TRUNCATION_STRATEGY_MAP = new Map<string, TruncationStrategy>(
   TOOL_REGISTRY.filter((e) => e.truncationStrategy).map((e) => [e.name, e.truncationStrategy!])
@@ -116,7 +124,18 @@ export function getAllTools(context: ToolContext, allowedTools?: string[]): Agen
     )
   }
 
-  return [...coreTools, ...analysisTools].map(translateTool).map((t) => wrapWithPreprocessing(t, context))
+  const chartSchemaGateState = createChartSchemaGateState()
+
+  return [...coreTools, ...analysisTools]
+    .map(translateTool)
+    .map((t) => wrapWithChartSchemaGate(t, chartSchemaGateState))
+    .map((t) => wrapWithPreprocessing(t, context))
+}
+
+export function getAllowedToolsForChartCapability(allowedTools?: readonly string[] | null): string[] {
+  return getChartCapabilityAllowedBuiltinTools(allowedTools).filter(
+    (toolName) => CHART_CAPABILITY_ANALYSIS_TOOL_SET.has(toolName) || !RAW_SQL_TOOL_NAME_SET.has(toolName)
+  )
 }
 
 /**
@@ -132,7 +151,8 @@ export function createActivateSkillTool(
     chatType,
     allowedTools,
     locale,
-    getSkillConfig: (id) => getSkillConfig(id),
+    getSkillConfig: (id) =>
+      getSkillConfigWithBuiltinChart(id, locale, (skillConfigId) => getSkillConfig(skillConfigId)),
     coreToolNames: CORE_TOOL_NAMES,
   })
 }

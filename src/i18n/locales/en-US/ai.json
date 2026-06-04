@@ -65,6 +65,9 @@
       "fork": {
         "tooltip": "Fork conversation from here"
       },
+      "chart": {
+        "expand": "Open large chart"
+      },
       "tools": {
         "get_chat_overview": "Get Chat Overview",
         "search_messages": "Search Messages",

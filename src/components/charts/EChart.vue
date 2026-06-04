@@ -13,6 +13,7 @@ import {
   LegendComponent,
   GridComponent,
   VisualMapComponent,
+  DataZoomComponent,
 } from 'echarts/components'
 import type { EChartsOption } from 'echarts'
 
@@ -28,6 +29,7 @@ echarts.use([
   LegendComponent,
   GridComponent,
   VisualMapComponent,
+  DataZoomComponent,
 ])
 
 interface Props {
@@ -45,6 +47,7 @@ const props = withDefaults(defineProps<Props>(), {
 
 const chartRef = ref<HTMLDivElement>()
 let chartInstance: echarts.ECharts | null = null
+let resizeObserver: ResizeObserver | null = null
 
 // 计算高度样式
 const heightStyle = computed(() => {
@@ -134,6 +137,10 @@ onMounted(() => {
     initChart()
   })
   window.addEventListener('resize', handleResize)
+  if (chartRef.value) {
+    resizeObserver = new ResizeObserver(() => handleResize())
+    resizeObserver.observe(chartRef.value)
+  }
 
   // 监听 HTML 元素的 class 变化（用于检测暗色模式切换）
   observer = new MutationObserver(() => {
@@ -149,6 +156,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.removeEventListener('resize', handleResize)
+  resizeObserver?.disconnect()
   observer?.disconnect()
   chartInstance?.dispose()
   chartInstance = null

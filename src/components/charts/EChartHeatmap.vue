@@ -19,6 +19,7 @@ export interface EChartHeatmapData {
 interface Props {
   data: EChartHeatmapData
   height?: number
+  mode?: 'compact' | 'expanded'
   /** 最小值颜色 */
   minColor?: string
   /** 最大值颜色 */
@@ -27,6 +28,7 @@ interface Props {
 
 const props = withDefaults(defineProps<Props>(), {
   height: 280,
+  mode: 'expanded',
   minColor: '#fee5e8', // 项目主题 pink-100
   maxColor: '#ee4567', // 项目主题 pink-500
 })
@@ -41,9 +43,14 @@ const maxValue = computed(() => {
 })
 
 const option = computed<EChartsOption>(() => {
+  const isCompact = props.mode === 'compact'
+  const xCount = props.data.xLabels.length
+  const yCount = props.data.yLabels.length
   return {
     tooltip: {
       position: 'top',
+      confine: true,
+      extraCssText: 'max-width: min(360px, 70vw); white-space: normal; word-break: break-word;',
       formatter: (params: any) => {
         const xLabel = props.data.xLabels[params.data[0]]
         const yLabel = props.data.yLabels[params.data[1]]
@@ -57,10 +64,11 @@ const option = computed<EChartsOption>(() => {
       },
     },
     grid: {
-      left: 60,
+      left: isCompact ? 52 : 72,
       right: 20,
-      top: 20,
-      bottom: 60,
+      top: isCompact ? 12 : 24,
+      bottom: isCompact ? 52 : 70,
+      containLabel: true,
     },
     xAxis: {
       type: 'category',
@@ -71,9 +79,10 @@ const option = computed<EChartsOption>(() => {
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: {
-        fontSize: 11,
+        fontSize: isCompact ? 10 : 11,
         color: '#6b7280',
-        interval: 0,
+        interval: isCompact && xCount > 16 ? 'auto' : 0,
+        hideOverlap: true,
       },
     },
     yAxis: {
@@ -85,8 +94,10 @@ const option = computed<EChartsOption>(() => {
       axisLine: { show: false },
       axisTick: { show: false },
       axisLabel: {
-        fontSize: 11,
+        fontSize: isCompact ? 10 : 11,
         color: '#6b7280',
+        interval: isCompact && yCount > 14 ? 'auto' : 0,
+        hideOverlap: true,
       },
     },
     visualMap: {
@@ -96,8 +107,8 @@ const option = computed<EChartsOption>(() => {
       orient: 'horizontal',
       left: 'center',
       bottom: 0,
-      itemWidth: 10,
-      itemHeight: 120,
+      itemWidth: isCompact ? 8 : 10,
+      itemHeight: isCompact ? 84 : 120,
       inRange: {
         color: [props.minColor, props.maxColor],
       },

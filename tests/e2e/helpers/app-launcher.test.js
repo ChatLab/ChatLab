@@ -130,11 +130,57 @@ test('launchApp 支持 startPort 并正确注入 TEST_MODE 环境', async () => 
 
   assert.equal(captured.startPort, 9900)
   assert.equal(captured.reservationClosed, true)
-  assert.match(captured.spawnCmd, /electron(\.cmd)?$/)
+  assert.match(captured.spawnCmd, /electron(\.cmd|\.exe)?$/)
   assert.deepEqual(captured.spawnArgs, ['--remote-debugging-port=9901', captured.spawnArgs[1]])
   assert.equal(captured.spawnEnv.TEST_MODE, 'true')
   assert.match(captured.spawnEnv.CHATLAB_E2E_USER_DATA_DIR, /chatlab-e2e-9901$/)
 
   await app.close()
   assert.deepEqual(captured.killSignals, ['SIGTERM'])
+})
+
+test('launchApp 允许注入额外环境变量覆盖', async () => {
+  const captured = {
+    spawnEnv: null,
+  }
+
+  const proc = new EventEmitter()
+  proc.pid = 45678
+  proc.exitCode = null
+  proc.signalCode = null
+  proc.kill = () => {
+    proc.exitCode = 0
+    proc.emit('exit', 0, null)
+    return true
+  }
+
+  const app = await launchApp(
+    {
+      startupWaitTime: 1,
+      envOverrides: {
+        CHATLAB_DATA_DIR: 'C:\\temp\\chat-data',
+        USERPROFILE: 'C:\\temp\\profile',
+      },
+    },
+    {
+      fsImpl: {
+        existsSync: () => true,
+        mkdirSync: () => {},
+      },
+      sleepFn: async () => {},
+      findPortFn: async () => ({
+        port: 9910,
+        reservationServer: { close: () => {} },
+      }),
+      spawnFn: (_cmd, _args, options) => {
+        captured.spawnEnv = options.env
+        return proc
+      },
+    }
+  )
+
+  assert.equal(captured.spawnEnv.CHATLAB_DATA_DIR, 'C:\\temp\\chat-data')
+  assert.equal(captured.spawnEnv.USERPROFILE, 'C:\\temp\\profile')
+
+  await app.close()
 })

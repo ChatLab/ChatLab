@@ -11,6 +11,7 @@ const path = require('node:path')
 const fs = require('node:fs')
 const os = require('node:os')
 const net = require('node:net')
+const electron = require('electron')
 
 const DEFAULT_START_PORT = 9222
 const DEFAULT_MAX_PORT_RETRIES = 100
@@ -142,6 +143,7 @@ async function launchApp(options = {}, deps = {}) {
   const portProbeTimeoutMs = options.portProbeTimeoutMs ?? DEFAULT_PORT_PROBE_TIMEOUT_MS
   const startupWaitTime = options.startupWaitTime ?? DEFAULT_STARTUP_WAIT_MS
   const forceKillTimeoutMs = options.forceKillTimeoutMs ?? DEFAULT_FORCE_KILL_TIMEOUT_MS
+  const envOverrides = options.envOverrides || {}
 
   if (!port) {
     const reservation = await findPortFn(startPort, maxPortRetries, 0, {
@@ -165,17 +167,14 @@ async function launchApp(options = {}, deps = {}) {
     fsImpl.mkdirSync(userDataDir, { recursive: true })
   }
 
-  const appPath = path.resolve(__dirname, '../../..')
+  const appPath = path.resolve(__dirname, '../../../apps/desktop')
   if (!fsImpl.existsSync(appPath)) {
     throw new Error(`[AppLauncher] 应用目录不存在: ${appPath}`)
   }
 
-  const electronExe =
-    process.platform === 'win32'
-      ? path.resolve(appPath, 'node_modules/.bin/electron.cmd')
-      : path.resolve(appPath, 'node_modules/.bin/electron')
+  const electronExe = typeof electron === 'string' ? electron : ''
 
-  if (!fsImpl.existsSync(electronExe)) {
+  if (!electronExe || !fsImpl.existsSync(electronExe)) {
     throw new Error(`Electron 可执行文件不存在: ${electronExe}`)
   }
 
@@ -196,6 +195,7 @@ async function launchApp(options = {}, deps = {}) {
         TEST_MODE: 'true',
         CHATLAB_E2E_USER_DATA_DIR: userDataDir,
         ELECTRON_ENABLE_LOGGING: '1',
+        ...envOverrides,
       },
     })
   } finally {

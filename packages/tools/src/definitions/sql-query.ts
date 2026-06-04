@@ -51,6 +51,7 @@ export const sqlQueryTool: ToolDefinition = {
   description: '对聊天数据库执行只读 SELECT 查询。使用前可先调用 get_schema 查看表结构。',
   inputSchema,
   handler,
+  category: 'analysis',
 }
 
 export const schemaTool: ToolDefinition = {

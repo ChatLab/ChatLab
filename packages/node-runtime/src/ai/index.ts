@@ -52,6 +52,13 @@ export type {
 export type { SkillManagerLogger } from './skill-manager'
 export { createActivateSkillTool } from './activate-skill-tool'
 export type { ActivateSkillToolOptions, ActivateSkillTool, ActivateSkillToolResult } from './activate-skill-tool'
+export {
+  buildSkillMenuWithBuiltinChart,
+  getBuiltinChartSkill,
+  getSkillConfigWithBuiltinChart,
+} from './builtin-chart-skill'
+export { CHART_SCHEMA_REQUIRED_MESSAGE, createChartSchemaGateState, wrapWithChartSchemaGate } from './chart-schema-gate'
+export type { ChartSchemaGateState } from './chart-schema-gate'
 
 // Compression
 export type { CompressionConfig, CompressionResult, CompressionLogger, CompressionLlmAdapter } from './compression'
