@@ -7,6 +7,7 @@
  */
 
 import { parseSkillFile } from './skill-parser'
+import { buildSkillMenuText, formatSkillMenuLine, MAX_SKILL_MENU_ITEMS } from './skill-menu'
 import type { SkillDef, SkillSummary } from './types'
 
 // ==================== Result types ====================
@@ -89,8 +90,6 @@ function simpleHash(content: string): string {
 }
 
 // ==================== Manager ====================
-
-const MAX_SKILL_MENU_ITEMS = 15
 
 export class SkillManagerCore {
   private deps: SkillManagerCoreDeps
@@ -301,15 +300,7 @@ export class SkillManagerCore {
     if (compatible.length === 0) return null
 
     const items = compatible.slice(0, MAX_SKILL_MENU_ITEMS)
-    const lines = items.map((s) => `- ${s.id}: ${s.name} — ${s.description}`)
-
-    return `## 可用技能
-以下是你可以使用的分析技能。当你判断用户的问题适合使用某个技能时，
-请调用 activate_skill 工具激活它，然后按照返回的指导完成任务。
-
-${lines.join('\n')}
-
-如果用户的问题不需要使用技能，直接回答即可。`
+    return buildSkillMenuText(items.map(formatSkillMenuLine))
   }
 
   // ==================== Internal ====================

@@ -7,11 +7,10 @@
 
 import * as fs from 'fs'
 import * as path from 'path'
-import { parseSkillFile } from './skill-parser'
+import { SkillManagerCore, type SkillInitResult, type SkillManagerFs } from './skill-manager-core'
 import type { SkillDef, SkillSummary } from './types'
 
 const SKILLS_DIR_NAME = 'skills'
-const MAX_SKILL_MENU_ITEMS = 15
 
 export interface SkillManagerLogger {
   info(message: string, extra?: Record<string, unknown>): void
@@ -23,40 +22,61 @@ const defaultLogger: SkillManagerLogger = {
   warn: () => {},
 }
 
+const nodeFs: SkillManagerFs = {
+  ensureDir(dir) {
+    fs.mkdirSync(dir, { recursive: true })
+  },
+  listFiles(dir, ext) {
+    if (!fs.existsSync(dir)) return []
+    return fs.readdirSync(dir).filter((file) => file.endsWith(ext))
+  },
+  readFile(filePath) {
+    return fs.readFileSync(filePath, 'utf-8')
+  },
+  writeFile(filePath, content) {
+    fs.writeFileSync(filePath, content, 'utf-8')
+  },
+  deleteFile(filePath) {
+    fs.unlinkSync(filePath)
+  },
+  fileExists(filePath) {
+    return fs.existsSync(filePath)
+  },
+  joinPath(...parts) {
+    return path.join(...parts)
+  },
+}
+
 export class SkillManager {
-  private skills = new Map<string, SkillDef>()
-  private initialized = false
-  private skillsDir: string
+  private core: SkillManagerCore
   private logger: SkillManagerLogger
 
   constructor(aiDataDir: string, logger?: SkillManagerLogger) {
-    this.skillsDir = path.join(aiDataDir, SKILLS_DIR_NAME)
     this.logger = logger ?? defaultLogger
+    this.core = new SkillManagerCore({
+      fs: nodeFs,
+      skillsDir: path.join(aiDataDir, SKILLS_DIR_NAME),
+      builtinRawSkills: [],
+      logger: {
+        info: () => {},
+        warn: (_category, message, data) => this.logger.warn(message, toLoggerExtra(data)),
+        error: (_category, message, data) => this.logger.warn(message, toLoggerExtra(data)),
+      },
+    })
   }
 
-  init(): { total: number } {
-    this.loadAll()
-    this.initialized = true
-    this.logger.info(`SkillManager initialized: ${this.skills.size} skills`)
-    return { total: this.skills.size }
+  init(): SkillInitResult {
+    const result = this.core.init()
+    this.logger.info(`SkillManager initialized: ${result.total} skills`)
+    return result
   }
 
   getSkillConfig(id: string): SkillDef | null {
-    this.ensureInitialized()
-    return this.skills.get(id) ?? null
+    return this.core.getSkillConfig(id)
   }
 
   getAllSkills(): SkillSummary[] {
-    this.ensureInitialized()
-    return Array.from(this.skills.values()).map((def) => ({
-      id: def.id,
-      name: def.name,
-      description: def.description,
-      tags: def.tags,
-      chatScope: def.chatScope,
-      tools: def.tools,
-      builtinId: def.builtinId,
-    }))
+    return this.core.getAllSkills()
   }
 
   /**
@@ -64,53 +84,12 @@ export class SkillManager {
    * 只包含与当前 chatType + 助手工具权限兼容的技能
    */
   getSkillMenu(chatType: 'group' | 'private', allowedTools?: string[]): string | null {
-    this.ensureInitialized()
-
-    const compatible = Array.from(this.skills.values()).filter((skill) => {
-      if (skill.chatScope !== 'all' && skill.chatScope !== chatType) return false
-      if (skill.tools.length > 0 && allowedTools && allowedTools.length > 0) {
-        const allCovered = skill.tools.every((t) => allowedTools.includes(t))
-        if (!allCovered) return false
-      }
-      return true
-    })
-
-    if (compatible.length === 0) return null
-
-    const items = compatible.slice(0, MAX_SKILL_MENU_ITEMS)
-    const lines = items.map((s) => `- ${s.id}: ${s.name} — ${s.description}`)
-
-    return `## 可用技能
-以下是你可以使用的分析技能。当你判断用户的问题适合使用某个技能时，
-请调用 activate_skill 工具激活它，然后按照返回的指导完成任务。
-
-${lines.join('\n')}
-
-如果用户的问题不需要使用技能，直接回答即可。`
+    return this.core.getSkillMenu(chatType, allowedTools)
   }
+}
 
-  private ensureInitialized(): void {
-    if (!this.initialized) {
-      this.init()
-    }
-  }
-
-  private loadAll(): void {
-    this.skills.clear()
-    if (!fs.existsSync(this.skillsDir)) return
-
-    const files = fs.readdirSync(this.skillsDir).filter((f) => f.endsWith('.md'))
-    for (const file of files) {
-      try {
-        const filePath = path.join(this.skillsDir, file)
-        const content = fs.readFileSync(filePath, 'utf-8')
-        const def = parseSkillFile(content, filePath)
-        if (def) {
-          this.skills.set(def.id, def)
-        }
-      } catch (error) {
-        this.logger.warn(`Failed to load skill: ${file}`, { error: String(error) })
-      }
-    }
-  }
+function toLoggerExtra(data: unknown): Record<string, unknown> | undefined {
+  if (data === undefined) return undefined
+  if (data && typeof data === 'object' && !Array.isArray(data)) return data as Record<string, unknown>
+  return { data }
 }

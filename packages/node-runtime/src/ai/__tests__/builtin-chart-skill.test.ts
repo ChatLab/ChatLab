@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 import { CHART_CAPABILITY_SKILL_ID } from '@openchatlab/core'
 
 import { buildSkillMenuWithBuiltinChart, getSkillConfigWithBuiltinChart } from '../builtin-chart-skill'
+import { buildSkillMenuText, formatSkillMenuLine } from '../skill-menu'
 
 describe('builtin chart skill helpers', () => {
   it('adds chart_runtime to an empty auto skill menu', () => {
@@ -14,13 +15,13 @@ describe('builtin chart skill helpers', () => {
   })
 
   it('appends chart_runtime to an existing auto skill menu', () => {
-    const baseMenu = `## 可用技能
-以下是你可以使用的分析技能。当你判断用户的问题适合使用某个技能时，
-请调用 activate_skill 工具激活它，然后按照返回的指导完成任务。
-
-- existing: Existing Skill — Existing description
-
-如果用户的问题不需要使用技能，直接回答即可。`
+    const baseMenu = buildSkillMenuText([
+      formatSkillMenuLine({
+        id: 'existing',
+        name: 'Existing Skill',
+        description: 'Existing description',
+      }),
+    ])
 
     const menu = buildSkillMenuWithBuiltinChart(baseMenu, 'zh-CN')
 

@@ -41,7 +41,6 @@
     "type-check": "vue-tsc --noEmit -p tsconfig.web.json",
     "test:auth": "tsx --test apps/cli/src/http/auth.test.ts src/services/utils/http.test.ts",
     "test:agent-context": "node --experimental-strip-types --test apps/desktop/main/ai/context/sessionLog.test.mjs",
-    "test:chart-runtime": "tsx --test packages/core/src/chart/index.test.ts packages/tools/src/definitions/render-chart.test.ts packages/node-runtime/src/ai/__tests__/chart-runtime.test.ts packages/node-runtime/src/ai/__tests__/builtin-chart-skill.test.ts packages/node-runtime/src/ai/__tests__/chart-schema-gate.test.ts apps/cli/src/ai/agent-stream-runner.test.ts apps/cli/src/ai/tool-adapter.test.ts apps/desktop/main/ai/tools/tool-filter.test.ts src/stores/aiChatChartBlocks.test.ts src/stores/skill.test.ts && node --import tsx --test tests/chart-runtime/agent-chart-flow.test.mts",
     "test:e2e:launcher": "node --test tests/e2e/helpers/app-launcher.test.js",
     "test:e2e:smoke": "node tests/e2e/run-smoke.js"
   },
