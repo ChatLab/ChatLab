@@ -22,6 +22,7 @@ import {
 import { migrateAllDatabases, checkMigrationNeeded } from './database/core'
 import { initLocale } from './i18n'
 import { MigrationRunner, ALL_MIGRATIONS } from '@openchatlab/config'
+import { applyCurrentTitleBarOverlay, getTitleBarOverlayOptions } from './window-titlebar'
 
 type AppWithQuitFlag = typeof app & { isQuiting?: boolean }
 // 统一通过扩展类型访问退出标记，避免使用 @ts-ignore。
@@ -223,13 +224,8 @@ class MainProcess {
       windowOptions.titleBarStyle = 'hidden'
       // 获取当前主题状态
       const isDark = nativeTheme.shouldUseDarkColors
-      windowOptions.titleBarOverlay = {
-        // 背景色与应用背景保持一致
-        color: isDark ? '#111827' : '#ffffff', // dark: gray-900, light: white
-        // 图标颜色适配主题
-        symbolColor: isDark ? '#a1a1aa' : '#52525b', // dark: zinc-400, light: zinc-600
-        height: 32,
-      }
+      windowOptions.titleBarOverlay = getTitleBarOverlayOptions(isDark)
+      windowOptions.backgroundColor = isDark ? '#111827' : '#f9fafb'
     } else {
       // Linux 继续使用无边框 + 自定义按钮
       windowOptions.frame = false
@@ -242,22 +238,12 @@ class MainProcess {
 
       // Windows 上根据当前主题设置 titleBarOverlay 颜色
       if (platform.isWindows) {
-        const isDark = nativeTheme.shouldUseDarkColors
-        this.mainWindow?.setTitleBarOverlay({
-          color: isDark ? '#111827' : '#ffffff', // dark: gray-900, light: white
-          symbolColor: isDark ? '#a1a1aa' : '#52525b', // dark: zinc-400, light: zinc-600
-          height: 32,
-        })
+        applyCurrentTitleBarOverlay(this.mainWindow, nativeTheme.shouldUseDarkColors)
 
         // 监听主题变化，动态更新颜色
         nativeTheme.on('updated', () => {
           if (this.mainWindow && platform.isWindows) {
-            const isDark = nativeTheme.shouldUseDarkColors
-            this.mainWindow.setTitleBarOverlay({
-              color: isDark ? '#111827' : '#ffffff', // dark: gray-900, light: white
-              symbolColor: isDark ? '#a1a1aa' : '#52525b', // dark: zinc-400, light: zinc-600
-              height: 32,
-            })
+            applyCurrentTitleBarOverlay(this.mainWindow, nativeTheme.shouldUseDarkColors)
           }
         })
       }

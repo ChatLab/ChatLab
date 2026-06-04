@@ -33,6 +33,9 @@ export const api = {
   setThemeSource: (mode: 'system' | 'light' | 'dark') => {
     ipcRenderer.send('window:setThemeSource', mode)
   },
+  setTitleBarOverlayColor: (color: string) => {
+    ipcRenderer.send('window:setTitleBarOverlayColor', color)
+  },
 }
 
 // 扩展 api，添加 dialog、clipboard 和应用功能

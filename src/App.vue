@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
+import { useColorMode } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -16,6 +17,7 @@ import { useLLMStore } from '@/stores/llm'
 import { useAuthStore } from '@/stores/auth'
 import { initServices } from '@/services'
 import { initPreferencesSync } from '@/composables/usePreferencesSync'
+import { useWindowsTitleBarOverlay } from '@/composables/useWindowsTitleBarOverlay'
 import { configureHttpClient } from '@/services/utils/http'
 import { IS_ELECTRON } from '@/utils/platform'
 
@@ -32,6 +34,10 @@ const router = useRouter()
 
 const isLoginPage = computed(() => !IS_ELECTRON && route.name === 'login')
 const initError = ref<string | null>(null)
+const colorMode = useColorMode({
+  emitAuto: true,
+  initialValue: 'light',
+})
 
 const tooltip = {
   delayDuration: 100,
@@ -78,6 +84,24 @@ function handleGlobalKeydown(e: KeyboardEvent) {
 watch(isLoginPage, (isLogin) => {
   if (!isLogin) initializeApp()
 })
+
+watch(
+  colorMode,
+  (val) => {
+    if (!IS_ELECTRON) return
+    const mode = val === 'auto' ? 'system' : (val as 'light' | 'dark')
+    window.api?.setThemeSource(mode)
+  },
+  { immediate: true }
+)
+
+useWindowsTitleBarOverlay([
+  colorMode,
+  () => route.fullPath,
+  () => layoutStore.showSettings,
+  () => layoutStore.showScreenCaptureModal,
+  () => layoutStore.showChatRecordDrawer,
+])
 
 onMounted(async () => {
   window.addEventListener('keydown', handleGlobalKeydown)

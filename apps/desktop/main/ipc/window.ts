@@ -7,6 +7,7 @@ import * as fs from 'fs/promises'
 import type { IpcContext } from './types'
 import { simulateUpdateDialog, manualCheckForUpdates } from '../update'
 import { t } from '../i18n'
+import { applyCurrentTitleBarOverlay, applyTitleBarOverlayColor } from '../window-titlebar'
 
 type AppWithQuitFlag = typeof app & { isQuiting?: boolean }
 // 通过类型扩展记录应用退出意图，避免使用 @ts-ignore。
@@ -87,12 +88,15 @@ export function registerWindowHandlers(ctx: IpcContext): void {
 
     // Windows 上动态更新 overlay 颜色以匹配主题
     if (process.platform === 'win32' && win) {
-      const isDark = nativeTheme.shouldUseDarkColors
-      win.setTitleBarOverlay({
-        color: isDark ? '#111827' : '#f9fafb', // dark: gray-900, light: gray-50
-        symbolColor: isDark ? '#a1a1aa' : '#52525b', // dark: zinc-400, light: zinc-600
-        height: 32,
-      })
+      applyCurrentTitleBarOverlay(win, nativeTheme.shouldUseDarkColors)
+    }
+  })
+
+  ipcMain.on('window:setTitleBarOverlayColor', (_, color: string) => {
+    if (!/^#[0-9a-f]{6}$/i.test(color)) return
+
+    if (process.platform === 'win32' && win) {
+      applyTitleBarOverlayColor(win, color)
     }
   })
 
