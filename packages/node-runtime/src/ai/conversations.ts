@@ -37,6 +37,7 @@ export type ContentBlock =
         params?: Record<string, unknown>
       }
     }
+  | { type: 'error'; error: { name: string | null; message: string; stack: string | null } }
   | {
       type: 'summary_meta'
       bufferBoundaryTimestamp: number

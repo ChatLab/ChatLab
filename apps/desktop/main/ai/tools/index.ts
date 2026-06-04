@@ -6,9 +6,9 @@
  */
 
 import type { AgentTool } from '@openchatlab/node-runtime'
-import { CHART_CAPABILITY_ANALYSIS_TOOLS, getChartCapabilityAllowedBuiltinTools } from '@openchatlab/core'
 import type { ToolContext, TruncationStrategy } from './types'
 import { TOOL_REGISTRY } from './definitions'
+import { isAnalysisToolAllowed } from './tool-filter'
 import { t as i18nT } from '../../i18n'
 import { applyPreprocessingPipeline, type PreprocessableMessage } from '@openchatlab/node-runtime'
 import { aiLogger } from '../logger'
@@ -21,8 +21,6 @@ import {
 } from '@openchatlab/node-runtime'
 
 const CORE_TOOL_NAMES = new Set(TOOL_REGISTRY.filter((e) => e.category === 'core').map((e) => e.name))
-const RAW_SQL_TOOL_NAME_SET = new Set(['execute_sql'])
-const CHART_CAPABILITY_ANALYSIS_TOOL_SET = new Set<string>(CHART_CAPABILITY_ANALYSIS_TOOLS)
 
 const preprocessLogger = {
   info: (category: string, message: string, extra?: Record<string, unknown>) => aiLogger.info(category, message, extra),
@@ -109,20 +107,17 @@ function wrapWithPreprocessing(tool: AgentTool<any>, context: ToolContext): Agen
  * 获取所有可用的 AgentTool
  *
  * - Core 工具始终加载，不受 allowedTools 白名单影响
- * - Analysis 工具仅在 allowedTools 中显式列出时才加载（opt-in）
+ * - Analysis 工具仅在 allowedTools 中显式列出时加载
  *
  * @param context 工具上下文
- * @param allowedTools analysis 工具白名单（仅控制 analysis 工具）
+ * @param allowedTools analysis 工具白名单；undefined/[] 表示不加载 analysis 工具
  */
 export function getAllTools(context: ToolContext, allowedTools?: string[]): AgentTool<any>[] {
   const coreTools = TOOL_REGISTRY.filter((e) => e.category === 'core').map((e) => e.factory(context))
 
-  let analysisTools: AgentTool<any>[] = []
-  if (allowedTools && allowedTools.length > 0) {
-    analysisTools = TOOL_REGISTRY.filter((e) => e.category === 'analysis' && allowedTools.includes(e.name)).map((e) =>
-      e.factory(context)
-    )
-  }
+  const analysisTools = TOOL_REGISTRY.filter(
+    (e) => e.category === 'analysis' && isAnalysisToolAllowed(e.name, allowedTools)
+  ).map((e) => e.factory(context))
 
   const chartSchemaGateState = createChartSchemaGateState()
 
@@ -130,12 +125,6 @@ export function getAllTools(context: ToolContext, allowedTools?: string[]): Agen
     .map(translateTool)
     .map((t) => wrapWithChartSchemaGate(t, chartSchemaGateState))
     .map((t) => wrapWithPreprocessing(t, context))
-}
-
-export function getAllowedToolsForChartCapability(allowedTools?: readonly string[] | null): string[] {
-  return getChartCapabilityAllowedBuiltinTools(allowedTools).filter(
-    (toolName) => CHART_CAPABILITY_ANALYSIS_TOOL_SET.has(toolName) || !RAW_SQL_TOOL_NAME_SET.has(toolName)
-  )
 }
 
 /**

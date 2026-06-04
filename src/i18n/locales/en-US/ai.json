@@ -66,7 +66,10 @@
         "tooltip": "Fork conversation from here"
       },
       "chart": {
-        "expand": "Open large chart"
+        "expand": "Open large chart",
+        "empty": "No data",
+        "rows": "{count} rows",
+        "truncated": "Truncated"
       },
       "tools": {
         "get_chat_overview": "Get Chat Overview",

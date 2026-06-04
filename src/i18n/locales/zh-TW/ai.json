@@ -66,7 +66,10 @@
         "tooltip": "從此處複製對話"
       },
       "chart": {
-        "expand": "開啟大圖"
+        "expand": "開啟大圖",
+        "empty": "暫無資料",
+        "rows": "{count} 行資料",
+        "truncated": "已截斷"
       },
       "tools": {
         "get_chat_overview": "取得聊天概覽",

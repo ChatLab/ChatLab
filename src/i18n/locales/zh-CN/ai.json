@@ -66,7 +66,10 @@
         "tooltip": "从此处复刻对话"
       },
       "chart": {
-        "expand": "打开大图"
+        "expand": "打开大图",
+        "empty": "暂无数据",
+        "rows": "{count} 行数据",
+        "truncated": "已截断"
       },
       "tools": {
         "get_chat_overview": "获取聊天概览",

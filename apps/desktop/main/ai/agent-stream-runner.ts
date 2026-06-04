@@ -13,21 +13,17 @@ import {
   checkAndCompress,
   createCompressionLlmAdapter,
   formatAIError,
+  getAllowedBuiltinToolsForChartAutoSkill,
+  getChartCapabilitySkill,
   initTokenizer,
+  resolveChartRuntimeForRequest,
 } from '@openchatlab/node-runtime'
 import type { CompressionConfig, CompressionLlmAdapter, AgentRuntimeStatus } from '@openchatlab/node-runtime'
 import { Agent, type AgentStreamChunk, type SkillContext } from './agent'
 import type { ToolContext } from './tools/types'
-import { getAllowedToolsForChartCapability } from './tools'
 import { getDefaultAssistantConfig, buildPiModel, findModelDefinition } from './llm'
 import type { AIServiceConfig } from './llm/types'
 import { getDefaultGeneralAssistantId } from './assistant/defaultGeneral'
-import {
-  CHART_CAPABILITY_SKILL_ID,
-  getChartCapabilityAllowedBuiltinTools,
-  getChartCapabilitySkill,
-  shouldUseChartCapabilityForMessage,
-} from '@openchatlab/core'
 import * as assistantManager from './assistant'
 import type { AssistantConfig } from './assistant/types'
 import * as skillManager from './skills'
@@ -160,10 +156,14 @@ export function createElectronRunAgentStream(): (
     }
 
     let skillCtx: SkillContext | undefined
-    const isChartCapability =
-      skillId === CHART_CAPABILITY_SKILL_ID || (!skillId && shouldUseChartCapabilityForMessage(userMessage))
-    if (isChartCapability) {
-      const chartSkill = getChartCapabilitySkill(locale ?? 'zh-CN')
+    const chartRuntime = resolveChartRuntimeForRequest({
+      skillId,
+      userMessage,
+      locale,
+      assistantAllowedTools: assistantConfig?.allowedBuiltinTools,
+    })
+    if (chartRuntime.isChartCapability) {
+      const chartSkill = chartRuntime.skillDef ?? getChartCapabilitySkill(locale ?? 'zh-CN')
       skillCtx = { skillDef: { ...chartSkill, chatScope: 'all' } as SkillContext['skillDef'] }
       assistantConfig = {
         ...(assistantConfig ?? {
@@ -172,7 +172,7 @@ export function createElectronRunAgentStream(): (
           systemPrompt: '',
           presetQuestions: [],
         }),
-        allowedBuiltinTools: getAllowedToolsForChartCapability(assistantConfig?.allowedBuiltinTools),
+        allowedBuiltinTools: chartRuntime.allowedBuiltinTools,
       }
     } else if (skillId) {
       const skillDef = skillManager.getSkillConfig(skillId) ?? undefined
@@ -181,6 +181,7 @@ export function createElectronRunAgentStream(): (
       }
     } else if (enableAutoSkill) {
       const effectiveChatType = chatType ?? 'group'
+      const autoSkillAllowedTools = getAllowedBuiltinToolsForChartAutoSkill(assistantConfig?.allowedBuiltinTools)
       assistantConfig = {
         ...(assistantConfig ?? {
           id: resolvedAssistantId,
@@ -188,9 +189,9 @@ export function createElectronRunAgentStream(): (
           systemPrompt: '',
           presetQuestions: [],
         }),
-        allowedBuiltinTools: getChartCapabilityAllowedBuiltinTools(assistantConfig?.allowedBuiltinTools),
+        allowedBuiltinTools: autoSkillAllowedTools,
       }
-      const allowedTools = assistantConfig.allowedBuiltinTools
+      const allowedTools = autoSkillAllowedTools
       const menu = buildSkillMenuWithBuiltinChart(skillManager.getSkillMenu(effectiveChatType, allowedTools), locale)
       if (menu) {
         skillCtx = { skillMenu: menu }

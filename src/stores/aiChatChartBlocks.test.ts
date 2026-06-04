@@ -77,10 +77,13 @@ describe('aiChat chart block helpers', () => {
   })
 
   it('converts chart payloads to content blocks', () => {
-    assert.deepEqual(toChartContentBlocks([chart, secondChart]), [
-      { type: 'chart', chart },
-      { type: 'chart', chart: secondChart },
+    const blocks = toChartContentBlocks([chart, secondChart])
+
+    assert.deepEqual(blocks, [
+      { type: 'chart', chart: { ...chart, dataset: { ...chart.dataset, rows: [] } } },
+      { type: 'chart', chart: { ...secondChart, dataset: { ...secondChart.dataset, rows: [] } } },
     ])
+    assert.equal(blocks[0].chart.rowCount, chart.rowCount)
   })
 
   it('converts render-only chart tool failures to visible error blocks', () => {
@@ -104,6 +107,20 @@ describe('aiChat chart block helpers', () => {
     assert.equal(
       toRenderOnlyToolErrorBlock('search_messages', {
         content: [{ type: 'text', text: 'Error: search failed' }],
+      }),
+      null
+    )
+  })
+
+  it('does not expose recoverable schema-gate guidance as a user-visible error', () => {
+    assert.equal(
+      toRenderOnlyToolErrorBlock('render_chart', {
+        content: [
+          {
+            type: 'text',
+            text: 'Error: Call get_schema before render_chart. Do not guess table names, fields, or timestamp units.',
+          },
+        ],
       }),
       null
     )

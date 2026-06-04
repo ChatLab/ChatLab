@@ -127,9 +127,17 @@ export type { CreateCompressionLlmAdapterOptions } from './ai'
 // SkillManager
 export { SkillManager } from './ai'
 export {
+  CHART_CAPABILITY_ANALYSIS_TOOLS,
+  CHART_CAPABILITY_CORE_TOOLS,
+  CHART_CAPABILITY_SKILL_ID,
   buildSkillMenuWithBuiltinChart,
+  getAllowedBuiltinToolsForChartAutoSkill,
+  getChartCapabilityAllowedBuiltinTools,
+  getChartCapabilitySkill,
   getBuiltinChartSkill,
   getSkillConfigWithBuiltinChart,
+  resolveChartRuntimeForRequest,
+  shouldUseChartCapabilityForMessage,
   CHART_SCHEMA_REQUIRED_MESSAGE,
   createChartSchemaGateState,
   wrapWithChartSchemaGate,

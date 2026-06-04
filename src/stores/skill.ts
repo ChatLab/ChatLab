@@ -7,7 +7,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { useAssistantStore } from './assistant'
 import { usePlatformService, useSkillService } from '@/services'
-import { CHART_CAPABILITY_SKILL_ID, getChartCapabilitySkill } from '@openchatlab/core'
+import { CHART_CAPABILITY_SKILL_ID } from '@openchatlab/core'
 
 import { CHATLAB_SITE_BASE } from '@/utils/chatlabSiteLocale'
 const CLOUD_MARKET_BASE_URL = CHATLAB_SITE_BASE
@@ -64,15 +64,28 @@ export const useSkillStore = defineStore('skill', () => {
   const currentChatType = ref<'group' | 'private'>('group')
   const currentLocale = ref<string>('zh-CN')
 
+  function getChartCapabilitySkillSummary(): SkillSummary {
+    const isZh = currentLocale.value.startsWith('zh')
+    return {
+      id: CHART_CAPABILITY_SKILL_ID,
+      name: isZh ? '绘图助手' : 'Chart Assistant',
+      description: isZh ? '按本轮问题生成灵活的聊天数据图表' : 'Generate flexible charts for this chat question',
+      tags: [isZh ? '图表' : 'chart'],
+      chatScope: 'all',
+      tools: ['render_chart', 'get_schema'],
+      builtinId: CHART_CAPABILITY_SKILL_ID,
+    }
+  }
+
   const activeSkill = computed(() => {
     if (!activeSkillId.value) return null
     if (activeSkillId.value === CHART_CAPABILITY_SKILL_ID) {
-      return getChartCapabilitySkill(currentLocale.value)
+      return getChartCapabilitySkillSummary()
     }
     return skills.value.find((s) => s.id === activeSkillId.value) ?? null
   })
 
-  const chartCapabilitySkill = computed(() => getChartCapabilitySkill(currentLocale.value))
+  const chartCapabilitySkill = computed(() => getChartCapabilitySkillSummary())
 
   const scopedSkills = computed(() => {
     return skills.value.filter((s) => s.chatScope === 'all' || s.chatScope === currentChatType.value)
@@ -196,9 +209,10 @@ export const useSkillStore = defineStore('skill', () => {
 
   async function getSkillConfig(id: string): Promise<SkillConfigFull | null> {
     if (id === CHART_CAPABILITY_SKILL_ID) {
-      const skill = getChartCapabilitySkill(currentLocale.value)
+      const skill = getChartCapabilitySkillSummary()
       return {
         ...skill,
+        prompt: '',
         builtinId: CHART_CAPABILITY_SKILL_ID,
       }
     }
