@@ -44,9 +44,14 @@ For Instagram, we currently support the official export feature.
 
 ## iMessage
 
-We plan to support the JSON format exported by https://github.com/ReagentX/imessage-exporter
+For iMessage, **imessage-chatlab** now supports exporting to the ChatLab standard JSON format.
 
-However, the developer currently doesn't have data samples for testing. If you have an urgent need, please provide anonymized data samples and we'll support it as soon as possible.
+- **Project URL**: [https://github.com/gamesme/imessage-chatlab](https://github.com/gamesme/imessage-chatlab)
+- **Supported Platform**: macOS
+- **Installation**: If you have the Rust toolchain installed, run `cargo install imessage-chatlab`. You can also install from source by following the project README.
+- **Export Method**: Refer to the project README. For example, run `imessage-chatlab -c clone -o ~/imessage_chatlab_export` to export local iMessage data.
+- **Format**: The tool exports one ChatLab standard JSON file per conversation. Drag the exported `.json` files into ChatLab.
+- **Tip**: This tool reads the local macOS Messages database. Please read the project documentation carefully and make sure you have legal permission to access and analyze the relevant chat records.
 
 ## LINE
 

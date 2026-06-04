@@ -56,9 +56,14 @@ Tips：歡迎訪問 [加入社群](https://chatlab.fun/tw/other/community)，討
 
 ## iMessage
 
-計劃相容 https://github.com/ReagentX/imessage-exporter 該項目匯出的 json 格式
+對於 iMessage，目前 **imessage-chatlab** 已適配 ChatLab 標準 JSON 格式。
 
-不過目前開發者沒有數據樣本用來測試，如果您有迫切的需求，歡迎提供脫敏後的數據樣本，我會第一時間支援。
+- **項目地址**：[https://github.com/gamesme/imessage-chatlab](https://github.com/gamesme/imessage-chatlab)
+- **支援平台**：macOS
+- **安裝方式**：如果已安裝 Rust 工具鏈，可以執行 `cargo install imessage-chatlab`；也可以依照項目 README 從源碼安裝。
+- **匯出方式**：參考項目 README。例如可執行 `imessage-chatlab -c clone -o ~/imessage_chatlab_export` 匯出本機 iMessage 數據。
+- **格式**：工具會按會話匯出 ChatLab 標準 JSON 檔案，將匯出的 `.json` 檔案拖入 ChatLab 即可。
+- **提示**：該工具會讀取 macOS 本機 Messages 資料庫。使用前請仔細閱讀項目文件，並確認您擁有讀取與分析相關聊天記錄的合法權限。
 
 ## Q&A：飛書/企微/千牛等的聊天記錄能分析嗎？
 
