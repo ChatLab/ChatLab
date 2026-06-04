@@ -1,6 +1,13 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { getTitleBarOverlayOptionsForColor, getTitleBarOverlayOptions } from './window-titlebar'
+import type { BrowserWindow, TitleBarOverlayOptions } from 'electron'
+import {
+  applyCurrentTitleBarOverlay,
+  applyTitleBarOverlayColor,
+  getTitleBarOverlayOptionsForColor,
+  getTitleBarOverlayOptions,
+  resetCurrentTitleBarOverlayColor,
+} from './window-titlebar'
 
 describe('Windows title bar overlay options', () => {
   it('keeps the native overlay background transparent in normal mode', () => {
@@ -25,6 +32,25 @@ describe('Windows title bar overlay options', () => {
     assert.deepEqual(getTitleBarOverlayOptionsForColor('#111827'), {
       color: 'rgba(0, 0, 0, 0)',
       symbolColor: '#e4e4e7',
+      height: 32,
+    })
+  })
+
+  it('can drop a sampled color when the effective theme changes', () => {
+    const calls: TitleBarOverlayOptions[] = []
+    const win = {
+      setTitleBarOverlay: (options: TitleBarOverlayOptions) => {
+        calls.push(options)
+      },
+    } as Pick<BrowserWindow, 'setTitleBarOverlay'> as BrowserWindow
+
+    applyTitleBarOverlayColor(win, '#111827')
+    resetCurrentTitleBarOverlayColor()
+    applyCurrentTitleBarOverlay(win, false)
+
+    assert.deepEqual(calls.at(-1), {
+      color: 'rgba(0, 0, 0, 0)',
+      symbolColor: '#52525b',
       height: 32,
     })
   })

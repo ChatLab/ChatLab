@@ -7,7 +7,11 @@ import * as fs from 'fs/promises'
 import type { IpcContext } from './types'
 import { simulateUpdateDialog, manualCheckForUpdates } from '../update'
 import { t } from '../i18n'
-import { applyCurrentTitleBarOverlay, applyTitleBarOverlayColor } from '../window-titlebar'
+import {
+  applyCurrentTitleBarOverlay,
+  applyTitleBarOverlayColor,
+  resetCurrentTitleBarOverlayColor,
+} from '../window-titlebar'
 
 type AppWithQuitFlag = typeof app & { isQuiting?: boolean }
 // 通过类型扩展记录应用退出意图，避免使用 @ts-ignore。
@@ -88,6 +92,7 @@ export function registerWindowHandlers(ctx: IpcContext): void {
 
     // Windows 上动态更新 overlay 颜色以匹配主题
     if (process.platform === 'win32' && win) {
+      resetCurrentTitleBarOverlayColor()
       applyCurrentTitleBarOverlay(win, nativeTheme.shouldUseDarkColors)
     }
   })
