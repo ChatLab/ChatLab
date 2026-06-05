@@ -24,8 +24,9 @@
   "minimax": {
     "name": "MiniMax",
     "models": {
-      "MiniMax-M2": "Flagship model",
-      "MiniMax-M2-Stable": "Stable version"
+      "MiniMax-M3": "Latest flagship, 512K context, 128K max output, vision",
+      "MiniMax-M2.7": "Previous generation flagship",
+      "MiniMax-M2.7-highspeed": "M2.7 high-speed"
     }
   },
   "glm": {

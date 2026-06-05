@@ -245,7 +245,7 @@ const MINIMAX: ProviderDefinition = {
   supportsCustomModels: true,
   builtin: true,
   enabledByDefault: true,
-  modelIds: ['MiniMax-M2.7', 'MiniMax-M2.7-highspeed', 'MiniMax-M2.5', 'MiniMax-M2.5-highspeed'],
+  modelIds: ['MiniMax-M3', 'MiniMax-M2.7', 'MiniMax-M2.7-highspeed'],
 }
 
 const OPENAI_COMPATIBLE: ProviderDefinition = {

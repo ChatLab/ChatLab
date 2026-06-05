@@ -24,8 +24,9 @@
   "minimax": {
     "name": "MiniMax",
     "models": {
-      "MiniMax-M2": "フラッグシップモデル",
-      "MiniMax-M2-Stable": "安定版"
+      "MiniMax-M3": "最新フラッグシップ、512K コンテキスト、最大出力 128K、画像入力対応",
+      "MiniMax-M2.7": "前世代フラッグシップ",
+      "MiniMax-M2.7-highspeed": "M2.7 高速版"
     }
   },
   "glm": {

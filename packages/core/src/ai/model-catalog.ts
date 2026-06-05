@@ -827,10 +827,20 @@ const XAI_MODELS: ModelDefinition[] = [
 
 const MINIMAX_MODELS: ModelDefinition[] = [
   builtin({
+    id: 'MiniMax-M3',
+    providerId: 'minimax',
+    name: 'MiniMax M3',
+    description: 'Latest flagship, 512K context, 128K max output, vision',
+    contextWindow: 512000,
+    capabilities: ['chat', 'vision', 'function_calling'],
+    recommendedFor: ['chat'],
+    status: 'stable',
+  }),
+  builtin({
     id: 'MiniMax-M2.7',
     providerId: 'minimax',
     name: 'MiniMax M2.7',
-    description: 'Latest flagship model',
+    description: 'Previous generation flagship',
     contextWindow: 200000,
     capabilities: ['chat', 'function_calling'],
     recommendedFor: ['chat'],
@@ -844,26 +854,6 @@ const MINIMAX_MODELS: ModelDefinition[] = [
     contextWindow: 200000,
     capabilities: ['chat', 'function_calling'],
     recommendedFor: ['chat'],
-    status: 'stable',
-  }),
-  builtin({
-    id: 'MiniMax-M2.5',
-    providerId: 'minimax',
-    name: 'MiniMax M2.5',
-    description: 'M2.5 standard',
-    contextWindow: 204800,
-    capabilities: ['chat', 'function_calling'],
-    recommendedFor: [],
-    status: 'stable',
-  }),
-  builtin({
-    id: 'MiniMax-M2.5-highspeed',
-    providerId: 'minimax',
-    name: 'MiniMax M2.5 HS',
-    description: 'M2.5 high-speed',
-    contextWindow: 204800,
-    capabilities: ['chat', 'function_calling'],
-    recommendedFor: [],
     status: 'stable',
   }),
 ]

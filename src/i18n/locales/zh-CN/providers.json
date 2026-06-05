@@ -24,8 +24,9 @@
   "minimax": {
     "name": "MiniMax",
     "models": {
-      "MiniMax-M2": "旗舰模型",
-      "MiniMax-M2-Stable": "稳定版本"
+      "MiniMax-M3": "最新旗舰模型，512K 上下文，最大输出 128K，支持图片输入",
+      "MiniMax-M2.7": "上一代旗舰模型",
+      "MiniMax-M2.7-highspeed": "M2.7 高速版"
     }
   },
   "glm": {
