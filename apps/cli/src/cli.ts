@@ -11,6 +11,7 @@ import { DEFAULT_API_PORT, loadConfig, getConfigPath } from '@openchatlab/config
 import {
   NodePathProvider,
   DatabaseManager,
+  AIChatManager,
   applyPendingNodeDataDirMigrationIfNeeded,
   hasPendingElectronDataWarning,
   verifyCliDataPath,
@@ -297,6 +298,41 @@ program
   .action(async () => {
     const { startCliMcpServer } = await import('./mcp')
     await startCliMcpServer()
+  })
+
+program
+  .command('chat')
+  .description('Ask ChatLab AI about an imported chat session')
+  .option('--session-id <id>', 'Source chat session ID')
+  .option('--ai-chat-id <id>', 'Existing AI chat ID to continue')
+  .option('-q, --question <text>', 'Question to ask')
+  .option('--json', 'Output structured JSON')
+  .option('--no-stream', 'Disable streaming output')
+  .option('--locale <locale>', 'AI response locale', 'zh-CN')
+  .action(async (options) => {
+    const { runChatCommand } = await import('./ai/chat-command')
+    const { dbManager, pathProvider } = initRuntime()
+    const aiChatManager = new AIChatManager(pathProvider.getAiDataDir(), { nativeBinding: resolveNativeBinding() })
+
+    try {
+      await runChatCommand(
+        {
+          sessionId: options.sessionId,
+          aiChatId: options.aiChatId,
+          question: options.question,
+          json: !!options.json,
+          stream: options.stream,
+          locale: options.locale,
+        },
+        { dbManager, pathProvider, aiChatManager }
+      )
+    } catch (error) {
+      console.error(error instanceof Error ? error.message : String(error))
+      process.exitCode = 1
+    } finally {
+      aiChatManager.close()
+      dbManager.closeAll()
+    }
   })
 
 program
