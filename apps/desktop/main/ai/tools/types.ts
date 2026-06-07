@@ -36,7 +36,7 @@ export interface ToolContext {
   /** 当前会话 ID（数据库文件名） */
   sessionId: string
   /** 当前 AI 对话 ID（用于上下文管理隔离） */
-  conversationId?: string
+  aiChatId?: string
   /** 读取 Agent 历史时使用的叶子消息；编辑重答时指向被编辑消息的父节点 */
   historyLeafMessageId?: string | null
   /** 当前聊天数据库快照（仅用于提示模型当前数据范围，不能替代工具检索结果） */

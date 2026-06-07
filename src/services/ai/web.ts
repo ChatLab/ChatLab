@@ -1,6 +1,6 @@
 import type {
   AIAdapter,
-  AIConversation,
+  AIChat,
   AIMessage,
   AIMessageRole,
   ContentBlock,
@@ -24,37 +24,33 @@ const NOT_AVAILABLE = 'AI 对话功能暂不支持 Web 模式，请使用桌面�
  */
 export class WebAIAdapter implements AIAdapter {
   // ===== 对话管理 =====
-  async getConversation(_conversationId: string): Promise<AIConversation | null> {
+  async getAIChat(_aiChatId: string): Promise<AIChat | null> {
     return null
   }
 
-  async getConversations(_sessionId: string): Promise<AIConversation[]> {
+  async getAIChats(_sessionId: string): Promise<AIChat[]> {
     return []
   }
 
-  async createConversation(
-    _sessionId: string,
-    _title: string | undefined,
-    _assistantId: string
-  ): Promise<AIConversation> {
+  async createAIChat(_sessionId: string, _title: string | undefined, _assistantId: string): Promise<AIChat> {
     throw new Error(NOT_AVAILABLE)
   }
 
-  async updateConversationTitle(_conversationId: string, _title: string): Promise<boolean> {
+  async updateAIChatTitle(_aiChatId: string, _title: string): Promise<boolean> {
     return false
   }
 
-  async deleteConversation(_conversationId: string): Promise<boolean> {
+  async deleteAIChat(_aiChatId: string): Promise<boolean> {
     return false
   }
 
   // ===== 消息 =====
-  async getMessages(_conversationId: string): Promise<AIMessage[]> {
+  async getMessages(_aiChatId: string): Promise<AIMessage[]> {
     return []
   }
 
   async addMessage(
-    _conversationId: string,
+    _aiChatId: string,
     _role: AIMessageRole,
     _content: string,
     _dataKeywords?: string[],
@@ -65,15 +61,11 @@ export class WebAIAdapter implements AIAdapter {
     throw new Error(NOT_AVAILABLE)
   }
 
-  async deleteMessagesFrom(_conversationId: string, _messageId: string): Promise<void> {
+  async deleteMessagesFrom(_aiChatId: string, _messageId: string): Promise<void> {
     throw new Error('AI message editing is not available in static web mode')
   }
 
-  async forkConversation(
-    _sourceConversationId: string,
-    _upToMessageId: string,
-    _title?: string
-  ): Promise<AIConversation> {
+  async forkAIChat(_sourceAIChatId: string, _upToMessageId: string, _title?: string): Promise<AIChat> {
     throw new Error('AI conversation forking is not available in static web mode')
   }
 
@@ -81,12 +73,12 @@ export class WebAIAdapter implements AIAdapter {
     throw new Error('AI message editing is not available in static web mode')
   }
 
-  async deleteAndRelinkMessage(_conversationId: string, _messageId: string): Promise<void> {
+  async deleteAndRelinkMessage(_aiChatId: string, _messageId: string): Promise<void> {
     throw new Error('AI message editing is not available in static web mode')
   }
 
   async insertMessageAfter(
-    _conversationId: string,
+    _aiChatId: string,
     _afterMessageId: string,
     _role: AIMessageRole,
     _content: string,
@@ -96,12 +88,12 @@ export class WebAIAdapter implements AIAdapter {
     throw new Error('AI message editing is not available in static web mode')
   }
 
-  async getConversationTokenUsage(_conversationId: string): Promise<TokenUsageData> {
+  async getAIChatTokenUsage(_aiChatId: string): Promise<TokenUsageData> {
     return { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
   }
 
   async estimateContextTokens(
-    _conversationId: string
+    _aiChatId: string
   ): Promise<{ success: boolean; tokens: number; messageCount?: number; error?: string }> {
     return { success: false, tokens: 0, error: NOT_AVAILABLE }
   }
@@ -125,7 +117,7 @@ export class WebAIAdapter implements AIAdapter {
 
   async getMultipleSessionsMessages(
     _sessionId: string,
-    _chatSessionIds: number[],
+    _segmentIds: number[],
     _page?: number,
     _pageSize?: number
   ): Promise<FilterResultWithPagination> {

@@ -140,7 +140,7 @@ describe('filterMessagesWithContext', () => {
 })
 
 describe('getMultipleSessionsMessages', () => {
-  it('returns empty result for empty chatSessionIds', () => {
+  it('returns empty result for empty segmentIds', () => {
     const db = createMockDb([], [])
     const result = getMultipleSessionsMessages(db, [])
     assert.equal(result.blocks.length, 0)

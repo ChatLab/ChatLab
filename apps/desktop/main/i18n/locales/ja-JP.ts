@@ -45,7 +45,7 @@ export default {
     migrationV2Desc: 'roles、reply_to_message_id、platform_message_id フィールドを追加',
     migrationV2Message: 'メンバーロール、メッセージ返信関係、返信内容プレビューをサポート',
     migrationV3Desc:
-      'セッションインデックス関連テーブル（chat_session、message_context）と session_gap_threshold フィールドを追加',
+      'セッションインデックス関連テーブル（segment、message_context）と session_gap_threshold フィールドを追加',
     migrationV3Message: 'セッションのタイムライン表示と AI 拡張分析に対応',
     migrationV4Desc: 'FTS5 全文検索インデックス（message_fts）を作成しインデックスデータを構築',
     migrationV4Message: '全文検索に対応し、キーワード検索速度が大幅に向上',

@@ -73,7 +73,7 @@ export interface CompressionConfig {
 export interface AgentStreamParams {
   userMessage: string
   sessionId: string
-  conversationId?: string
+  aiChatId?: string
   historyLeafMessageId?: string | null
   chatType?: 'group' | 'private'
   locale?: string

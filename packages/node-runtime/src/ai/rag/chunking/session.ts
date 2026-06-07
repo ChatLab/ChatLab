@@ -141,7 +141,7 @@ function getSessionsFromDb(db: Database.Database, options: ChunkingOptions): Ses
       start_ts as startTs,
       end_ts as endTs,
       message_count as messageCount
-    FROM chat_session
+    FROM segment
   `
 
   const params: (number | undefined)[] = []
@@ -170,7 +170,7 @@ function getSessionMessagesFromDb(db: Database.Database, sessionId: number, limi
     FROM message_context mc
     JOIN message m ON m.id = mc.message_id
     JOIN member mb ON mb.id = m.sender_id
-    WHERE mc.session_id = ?
+    WHERE mc.segment_id = ?
     ORDER BY m.ts ASC
     LIMIT ?
   `
@@ -263,7 +263,7 @@ export function getSessionChunk(dbPath: string, sessionId: number): Chunk | null
         start_ts as startTs,
         end_ts as endTs,
         message_count as messageCount
-      FROM chat_session
+      FROM segment
       WHERE id = ?
     `
       )

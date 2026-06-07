@@ -22,9 +22,9 @@ import {
   getMembersWithAliases,
   executeParameterizedSql as coreExecuteParameterizedSql,
   getChatOverview as coreGetChatOverview,
-  searchSessions as coreSearchSessions,
-  getSessionMessages as coreGetSessionMessages,
-  getSessionSummaries as coreGetSessionSummaries,
+  searchSegments as coreSearchSegments,
+  getSegmentMessages as coreGetSegmentMessages,
+  getSegmentSummaries as coreGetSegmentSummaries,
 } from '@openchatlab/core'
 import type {
   ToolDataProvider,
@@ -35,10 +35,10 @@ import type {
   ChatOverviewResult,
   MemberInfo,
   NameHistoryItem,
-  SessionSearchResult,
-  SessionMessagesResult,
+  SegmentSearchResult,
+  SegmentMessagesResult,
   ConversationResult,
-  SessionSummaryItem,
+  SegmentSummaryItem,
   RawMessage,
 } from '../types'
 
@@ -133,21 +133,21 @@ export class CoreDataProvider implements ToolDataProvider {
     }
   }
 
-  async searchSessions(
+  async searchSegments(
     keywords?: string[],
     timeFilter?: TimeFilter,
     limit?: number,
     previewCount?: number
-  ): Promise<SessionSearchResult[]> {
-    return coreSearchSessions(this.db, keywords, timeFilter, limit, previewCount)
+  ): Promise<SegmentSearchResult[]> {
+    return coreSearchSegments(this.db, keywords, timeFilter, limit, previewCount)
   }
 
-  async getSessionMessages(chatSessionId: number, limit?: number): Promise<SessionMessagesResult | null> {
-    return coreGetSessionMessages(this.db, chatSessionId, limit)
+  async getSegmentMessages(segmentId: number, limit?: number): Promise<SegmentMessagesResult | null> {
+    return coreGetSegmentMessages(this.db, segmentId, limit)
   }
 
-  async getSessionSummaries(options?: { limit?: number; timeFilter?: TimeFilter }): Promise<SessionSummaryItem[]> {
-    return coreGetSessionSummaries(this.db, options)
+  async getSegmentSummaries(options?: { limit?: number; timeFilter?: TimeFilter }): Promise<SegmentSummaryItem[]> {
+    return coreGetSegmentSummaries(this.db, options)
   }
 
   async getConversationBetween(

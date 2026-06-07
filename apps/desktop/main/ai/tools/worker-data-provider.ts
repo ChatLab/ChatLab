@@ -15,10 +15,10 @@ import type {
   ChatOverviewResult,
   MemberInfo,
   NameHistoryItem,
-  SessionSearchResult,
-  SessionMessagesResult,
+  SegmentSearchResult,
+  SegmentMessagesResult,
   ConversationResult,
-  SessionSummaryItem,
+  SegmentSummaryItem,
   RawMessage,
 } from '@openchatlab/tools'
 
@@ -132,21 +132,21 @@ export class WorkerDataProvider implements ToolDataProvider {
     }
   }
 
-  async searchSessions(
+  async searchSegments(
     keywords?: string[],
     timeFilter?: TimeFilter,
     limit?: number,
     previewCount?: number
-  ): Promise<SessionSearchResult[]> {
-    return workerManager.searchSessions(this.sessionId, keywords, timeFilter, limit, previewCount)
+  ): Promise<SegmentSearchResult[]> {
+    return workerManager.searchSegments(this.sessionId, keywords, timeFilter, limit, previewCount)
   }
 
-  async getSessionMessages(chatSessionId: number, limit?: number): Promise<SessionMessagesResult | null> {
-    return workerManager.getSessionMessages(this.sessionId, chatSessionId, limit)
+  async getSegmentMessages(segmentId: number, limit?: number): Promise<SegmentMessagesResult | null> {
+    return workerManager.getSegmentMessages(this.sessionId, segmentId, limit)
   }
 
-  async getSessionSummaries(options?: { limit?: number; timeFilter?: TimeFilter }): Promise<SessionSummaryItem[]> {
-    return workerManager.getSessionSummaries(this.sessionId, {
+  async getSegmentSummaries(options?: { limit?: number; timeFilter?: TimeFilter }): Promise<SegmentSummaryItem[]> {
+    return workerManager.getSegmentSummaries(this.sessionId, {
       limit: options?.limit,
       timeFilter: options?.timeFilter,
     })

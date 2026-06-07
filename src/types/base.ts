@@ -186,7 +186,7 @@ export interface ChatSession {
  */
 export interface MessageContext {
   messageId: number // 关联 message.id
-  sessionId: number // 关联 chat_session.id
+  sessionId: number // 关联 segment.id
   topicId: number | null // 关联 chat_topic.id（预留）
 }
 

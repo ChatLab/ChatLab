@@ -11,15 +11,15 @@ import {
   getChatSessionList as coreGetChatSessionList,
   getSessionsByTimeRange as coreGetSessionsByTimeRange,
   getRecentChatSessions as coreGetRecentChatSessions,
-  getChatSessionSummary as coreGetChatSessionSummary,
-  saveChatSessionSummary as coreSaveChatSessionSummary,
+  getSegmentSummary as coreGetChatSessionSummary,
+  saveSegmentSummary as coreSaveChatSessionSummary,
   updateSessionGapThreshold as coreUpdateSessionGapThreshold,
   clearSessionIndex as coreClearSessionIndex,
   generateSessionIndex as coreGenerateSessionIndex,
   generateIncrementalSessionIndex as coreGenerateIncrementalSessionIndex,
-  getSessionSummaries as coreGetSessionSummaries,
+  getSegmentSummaries as coreGetSessionSummaries,
 } from '@openchatlab/core'
-import type { ChatSessionItem, SessionIndexStats, SessionSummaryData } from '@openchatlab/core'
+import type { ChatSessionItem, SessionIndexStats, SegmentSummaryData } from '@openchatlab/core'
 import { openWritableDatabase, openReadonlyDatabase, closeDatabase } from './core'
 import { wrapAsDatabaseAdapter } from '../../core'
 
@@ -111,17 +111,17 @@ export function getRecentChatSessions(sessionId: string, limit: number): ChatSes
   return withReadonlyAdapter(sessionId, (adapter) => coreGetRecentChatSessions(adapter, limit), [])
 }
 
-export function getSessionSummariesInWorker(
+export function getSegmentSummariesInWorker(
   sessionId: string,
   options?: { limit?: number; timeFilter?: { startTs: number; endTs: number } }
-): SessionSummaryData[] {
+): SegmentSummaryData[] {
   return withReadonlyAdapter(sessionId, (adapter) => coreGetSessionSummaries(adapter, options), [])
 }
 
-export function saveSessionSummary(sessionId: string, chatSessionId: number, summary: string): void {
-  withWritableAdapter(sessionId, (adapter) => coreSaveChatSessionSummary(adapter, chatSessionId, summary))
+export function saveSessionSummary(sessionId: string, segmentId: number, summary: string): void {
+  withWritableAdapter(sessionId, (adapter) => coreSaveChatSessionSummary(adapter, segmentId, summary))
 }
 
-export function getSessionSummary(sessionId: string, chatSessionId: number): string | null {
-  return withReadonlyAdapter(sessionId, (adapter) => coreGetChatSessionSummary(adapter, chatSessionId), null)
+export function getSessionSummary(sessionId: string, segmentId: number): string | null {
+  return withReadonlyAdapter(sessionId, (adapter) => coreGetChatSessionSummary(adapter, segmentId), null)
 }

@@ -27,7 +27,7 @@ const TOOL_TRUNCATION_STRATEGY: Record<string, TruncationStrategy> = {
   deep_search_messages: 'keep_first',
   get_recent_messages: 'keep_last',
   get_message_context: 'keep_last',
-  get_session_messages: 'keep_last',
+  get_segment_messages: 'keep_last',
   get_conversation_between: 'keep_last',
 }
 

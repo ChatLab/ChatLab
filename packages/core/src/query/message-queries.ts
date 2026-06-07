@@ -574,8 +574,8 @@ export function getSearchMessageContext(
     contextIds.add(messageId)
 
     if (hasSessionData) {
-      const sessionRow = db.prepare('SELECT session_id FROM message_context WHERE message_id = ?').get(messageId) as
-        | { session_id: number }
+      const sessionRow = db.prepare('SELECT segment_id FROM message_context WHERE message_id = ?').get(messageId) as
+        | { segment_id: number }
         | undefined
 
       if (sessionRow) {
@@ -583,20 +583,20 @@ export function getSearchMessageContext(
           const rows = db
             .prepare(
               `SELECT mc.message_id as id FROM message_context mc
-               WHERE mc.session_id = ? AND mc.message_id < ?
+               WHERE mc.segment_id = ? AND mc.message_id < ?
                ORDER BY mc.message_id DESC LIMIT ?`
             )
-            .all(sessionRow.session_id, messageId, contextBefore) as { id: number }[]
+            .all(sessionRow.segment_id, messageId, contextBefore) as { id: number }[]
           rows.forEach((r) => contextIds.add(r.id))
         }
         if (contextAfter > 0) {
           const rows = db
             .prepare(
               `SELECT mc.message_id as id FROM message_context mc
-               WHERE mc.session_id = ? AND mc.message_id > ?
+               WHERE mc.segment_id = ? AND mc.message_id > ?
                ORDER BY mc.message_id ASC LIMIT ?`
             )
-            .all(sessionRow.session_id, messageId, contextAfter) as { id: number }[]
+            .all(sessionRow.segment_id, messageId, contextAfter) as { id: number }[]
           rows.forEach((r) => contextIds.add(r.id))
         }
         continue

@@ -25,10 +25,10 @@ export function registerSummaryRoutes(
 
   server.post<{
     Params: { id: string }
-    Body: { chatSessionId: number; locale?: string; forceRegenerate?: boolean; strategy?: 'brief' | 'standard' }
+    Body: { segmentId: number; locale?: string; forceRegenerate?: boolean; strategy?: 'brief' | 'standard' }
   }>('/_web/sessions/:id/summaries/generate', async (request, reply) => {
-    const { chatSessionId, locale, forceRegenerate, strategy } = request.body
-    const result = await summaryService.generateSummary(adapter, request.params.id, chatSessionId, deps, {
+    const { segmentId, locale, forceRegenerate, strategy } = request.body
+    const result = await summaryService.generateSummary(adapter, request.params.id, segmentId, deps, {
       locale,
       forceRegenerate,
       strategy,
@@ -56,9 +56,9 @@ export function registerSummaryRoutes(
 
   server.post<{
     Params: { id: string }
-    Body: { chatSessionIds: number[] }
+    Body: { segmentIds: number[] }
   }>('/_web/sessions/:id/summaries/check-can-generate', async (request) => {
-    const { chatSessionIds } = request.body
-    return summaryService.checkCanGenerate(adapter, request.params.id, chatSessionIds)
+    const { segmentIds } = request.body
+    return summaryService.checkCanGenerate(adapter, request.params.id, segmentIds)
   })
 }

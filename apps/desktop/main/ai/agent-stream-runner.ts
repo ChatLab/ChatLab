@@ -30,7 +30,7 @@ import type { AssistantConfig } from './assistant/types'
 import * as skillManager from './skills'
 import { aiLogger } from './logger'
 import { serializeError } from './serialize-error'
-import { getManager as getConversationManager } from './conversations'
+import { getManager as getAIChatManager } from './chats'
 import { t } from '../i18n'
 import * as workerManager from '../worker/workerManager'
 import { getProviderInfo, type LLMProvider } from './llm'
@@ -67,7 +67,7 @@ export function createElectronRunAgentStream(): (
   return async (params, onEvent, abortSignal) => {
     const {
       userMessage,
-      conversationId,
+      aiChatId,
       historyLeafMessageId,
       sessionId,
       chatType,
@@ -89,7 +89,7 @@ export function createElectronRunAgentStream(): (
     aiLogger.info('AgentStream', `Agent stream request: ${requestId}`, {
       userMessage: userMessage.slice(0, 100),
       sessionId,
-      conversationId,
+      aiChatId,
       chatType: chatType ?? 'group',
       assistantId: assistantId ?? '(none)',
       skillId: skillId ?? '(none)',
@@ -103,7 +103,7 @@ export function createElectronRunAgentStream(): (
     }
     const piModel = buildPiModel(activeAIConfig)
 
-    if (compressionConfig?.enabled && conversationId && historyLeafMessageId === undefined) {
+    if (compressionConfig?.enabled && aiChatId && historyLeafMessageId === undefined) {
       try {
         const tempAssistantConfig = assistantId
           ? (assistantManager.getAssistantConfig(assistantId) ?? undefined)
@@ -111,7 +111,7 @@ export function createElectronRunAgentStream(): (
         const systemPromptForCompression = tempAssistantConfig?.systemPrompt || ''
 
         const compressionResult = await checkAndCompress(
-          conversationId,
+          aiChatId,
           compressionConfig as CompressionConfig,
           systemPromptForCompression,
           buildCompressionAdapter(activeAIConfig, () => {
@@ -127,7 +127,7 @@ export function createElectronRunAgentStream(): (
               } satisfies AgentRuntimeStatus,
             })
           }),
-          getConversationManager(),
+          getAIChatManager(),
           compressionLogger
         )
 
@@ -231,7 +231,7 @@ export function createElectronRunAgentStream(): (
 
     const context: ToolContext = {
       sessionId,
-      conversationId,
+      aiChatId,
       historyLeafMessageId: historyLeafMessageId ?? undefined,
       timeFilter: params.timeFilter,
       maxMessagesLimit: params.maxMessagesLimit,

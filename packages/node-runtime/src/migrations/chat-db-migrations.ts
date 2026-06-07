@@ -71,10 +71,10 @@ export function getChatDbMigrations(deps?: MigrationDeps): CoreMigration[] {
     },
     {
       version: 3,
-      description: 'Add chat_session and message_context tables',
+      description: 'Add segment and message_context tables',
       up: (db: DatabaseAdapter) => {
         db.exec(`
-          CREATE TABLE IF NOT EXISTS chat_session (
+          CREATE TABLE IF NOT EXISTS segment (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             start_ts INTEGER NOT NULL,
             end_ts INTEGER NOT NULL,
@@ -85,7 +85,7 @@ export function getChatDbMigrations(deps?: MigrationDeps): CoreMigration[] {
         `)
 
         try {
-          db.exec('CREATE INDEX IF NOT EXISTS idx_session_time ON chat_session(start_ts, end_ts)')
+          db.exec('CREATE INDEX IF NOT EXISTS idx_segment_time ON segment(start_ts, end_ts)')
         } catch {
           // Index may already exist
         }
@@ -93,13 +93,13 @@ export function getChatDbMigrations(deps?: MigrationDeps): CoreMigration[] {
         db.exec(`
           CREATE TABLE IF NOT EXISTS message_context (
             message_id INTEGER PRIMARY KEY,
-            session_id INTEGER NOT NULL,
+            segment_id INTEGER NOT NULL,
             topic_id INTEGER
           )
         `)
 
         try {
-          db.exec('CREATE INDEX IF NOT EXISTS idx_context_session ON message_context(session_id)')
+          db.exec('CREATE INDEX IF NOT EXISTS idx_context_segment ON message_context(segment_id)')
         } catch {
           // Index may already exist
         }
@@ -202,7 +202,7 @@ export function getChatDbMigrations(deps?: MigrationDeps): CoreMigration[] {
         addColumnIfMissing(db, 'message', 'platform_message_id', 'TEXT DEFAULT NULL')
 
         db.exec(`
-          CREATE TABLE IF NOT EXISTS chat_session (
+          CREATE TABLE IF NOT EXISTS segment (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             start_ts INTEGER NOT NULL,
             end_ts INTEGER NOT NULL,
@@ -214,15 +214,60 @@ export function getChatDbMigrations(deps?: MigrationDeps): CoreMigration[] {
         db.exec(`
           CREATE TABLE IF NOT EXISTS message_context (
             message_id INTEGER PRIMARY KEY,
-            session_id INTEGER NOT NULL,
+            segment_id INTEGER NOT NULL,
             topic_id INTEGER
           )
         `)
 
         db.exec('CREATE INDEX IF NOT EXISTS idx_message_platform_id ON message(platform_message_id)')
         db.exec('CREATE INDEX IF NOT EXISTS idx_member_name_history_member_id ON member_name_history(member_id)')
-        db.exec('CREATE INDEX IF NOT EXISTS idx_session_time ON chat_session(start_ts, end_ts)')
-        db.exec('CREATE INDEX IF NOT EXISTS idx_context_session ON message_context(session_id)')
+        db.exec('CREATE INDEX IF NOT EXISTS idx_segment_time ON segment(start_ts, end_ts)')
+        db.exec('CREATE INDEX IF NOT EXISTS idx_context_segment ON message_context(segment_id)')
+      },
+    },
+    {
+      version: 6,
+      description: 'Rename chat_session index tables to segment terminology',
+      up: (db: DatabaseAdapter) => {
+        const hasTable = (tableName: string): boolean => {
+          const row = db.prepare("SELECT 1 FROM sqlite_master WHERE type='table' AND name = ?").get(tableName) as
+            | Record<string, unknown>
+            | undefined
+          return !!row
+        }
+
+        db.exec(`
+          DROP INDEX IF EXISTS idx_session_time;
+          DROP INDEX IF EXISTS idx_context_session;
+        `)
+
+        if (hasTable('chat_session') && !hasTable('segment')) {
+          db.exec('ALTER TABLE chat_session RENAME TO segment')
+        }
+
+        if (hasTable('message_context') && hasColumn(db, 'message_context', 'session_id')) {
+          db.exec('ALTER TABLE message_context RENAME COLUMN session_id TO segment_id')
+        }
+
+        db.exec(`
+          CREATE TABLE IF NOT EXISTS segment (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            start_ts INTEGER NOT NULL,
+            end_ts INTEGER NOT NULL,
+            message_count INTEGER DEFAULT 0,
+            is_manual INTEGER DEFAULT 0,
+            summary TEXT
+          );
+
+          CREATE TABLE IF NOT EXISTS message_context (
+            message_id INTEGER PRIMARY KEY,
+            segment_id INTEGER NOT NULL,
+            topic_id INTEGER
+          );
+
+          CREATE INDEX IF NOT EXISTS idx_segment_time ON segment(start_ts, end_ts);
+          CREATE INDEX IF NOT EXISTS idx_context_segment ON message_context(segment_id);
+        `)
       },
     },
   ]

@@ -110,7 +110,7 @@ interface OwnerInfo {
   displayName: string
 }
 
-interface ConversationBuffer {
+interface AIChatBuffer {
   messages: ChatMessage[]
   sourceMessages: SourceMessage[]
   currentKeywords: string[]
@@ -131,7 +131,7 @@ export interface AIChatSessionState {
   currentKeywords: string[]
   isLoadingSource: boolean
   isAIThinking: boolean
-  currentConversationId: string | null
+  currentAIChatId: string | null
   currentToolStatus: ToolStatus | null
   toolsUsedInCurrentRound: string[]
   sessionTokenUsage: TokenUsage
@@ -141,7 +141,7 @@ export interface AIChatSessionState {
   isAborted: boolean
   currentRequestId: string
   currentAgentRequestId: string
-  conversationBuffers: Record<string, ConversationBuffer>
+  aiChatBuffers: Record<string, AIChatBuffer>
 }
 
 export interface AIBackgroundTask {
@@ -150,7 +150,7 @@ export interface AIBackgroundTask {
   sessionId: string
   sessionName: string
   chatType: 'group' | 'private'
-  conversationId: string | null
+  aiChatId: string | null
   questionPreview: string
   startedAt: number
 }
@@ -169,7 +169,7 @@ export interface SendMessageResult {
   activeTask?: AIBackgroundTask | null
 }
 
-const DRAFT_CONVERSATION_KEY = '__draft__'
+const DRAFT_AI_CHAT_KEY = '__draft__'
 
 /**
  * 创建对话时前端已经知道 locale，因此默认助手在这里选择即可。
@@ -231,7 +231,7 @@ function toRuntimeMessage(msg: PersistedAIMessage): ChatMessage {
   }
 }
 
-function createConversationBuffer(assistantId: string | null = null): ConversationBuffer {
+function createAIChatBuffer(assistantId: string | null = null): AIChatBuffer {
   return {
     messages: [],
     sourceMessages: [],
@@ -242,7 +242,7 @@ function createConversationBuffer(assistantId: string | null = null): Conversati
 }
 
 function createSessionState(params: EnsureAIChatSessionParams): AIChatSessionState {
-  const draftBuffer = createConversationBuffer(null)
+  const draftBuffer = createAIChatBuffer(null)
   return {
     sessionId: params.sessionId,
     sessionName: params.sessionName,
@@ -255,7 +255,7 @@ function createSessionState(params: EnsureAIChatSessionParams): AIChatSessionSta
     currentKeywords: draftBuffer.currentKeywords,
     isLoadingSource: false,
     isAIThinking: false,
-    currentConversationId: null,
+    currentAIChatId: null,
     currentToolStatus: null,
     toolsUsedInCurrentRound: [],
     sessionTokenUsage: createEmptyTokenUsage(),
@@ -265,14 +265,14 @@ function createSessionState(params: EnsureAIChatSessionParams): AIChatSessionSta
     isAborted: false,
     currentRequestId: '',
     currentAgentRequestId: '',
-    conversationBuffers: {
-      [DRAFT_CONVERSATION_KEY]: draftBuffer,
+    aiChatBuffers: {
+      [DRAFT_AI_CHAT_KEY]: draftBuffer,
     },
   }
 }
 
 function getDisplayedBufferKey(state: AIChatSessionState): string {
-  return state.currentConversationId ?? DRAFT_CONVERSATION_KEY
+  return state.currentAIChatId ?? DRAFT_AI_CHAT_KEY
 }
 
 export const useAIChatStore = defineStore('aiChatRuntime', () => {
@@ -327,11 +327,11 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     state: AIChatSessionState,
     bufferKey: string,
     assistantId: string | null = null
-  ): ConversationBuffer {
-    if (!state.conversationBuffers[bufferKey]) {
-      state.conversationBuffers[bufferKey] = createConversationBuffer(assistantId)
+  ): AIChatBuffer {
+    if (!state.aiChatBuffers[bufferKey]) {
+      state.aiChatBuffers[bufferKey] = createAIChatBuffer(assistantId)
     }
-    return state.conversationBuffers[bufferKey]
+    return state.aiChatBuffers[bufferKey]
   }
 
   /**
@@ -340,14 +340,14 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
    */
   function bindDisplayedBuffer(state: AIChatSessionState, bufferKey: string): void {
     // 保存当前对话的 token 使用量
-    const currentKey = state.currentConversationId ?? DRAFT_CONVERSATION_KEY
-    const currentBuffer = state.conversationBuffers[currentKey]
+    const currentKey = state.currentAIChatId ?? DRAFT_AI_CHAT_KEY
+    const currentBuffer = state.aiChatBuffers[currentKey]
     if (currentBuffer) {
       currentBuffer.sessionTokenUsage = { ...state.sessionTokenUsage }
     }
 
     const buffer = getOrCreateBuffer(state, bufferKey)
-    state.currentConversationId = bufferKey === DRAFT_CONVERSATION_KEY ? null : bufferKey
+    state.currentAIChatId = bufferKey === DRAFT_AI_CHAT_KEY ? null : bufferKey
     state.messages = buffer.messages
     state.sourceMessages = buffer.sourceMessages
     state.currentKeywords = buffer.currentKeywords
@@ -356,14 +356,14 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     state.agentStatus = null
   }
 
-  function renameBufferKey(state: AIChatSessionState, fromKey: string, toKey: string): ConversationBuffer {
+  function renameBufferKey(state: AIChatSessionState, fromKey: string, toKey: string): AIChatBuffer {
     const buffer = getOrCreateBuffer(state, fromKey)
-    state.conversationBuffers[toKey] = buffer
+    state.aiChatBuffers[toKey] = buffer
     if (fromKey !== toKey) {
-      delete state.conversationBuffers[fromKey]
+      delete state.aiChatBuffers[fromKey]
     }
-    if (state.currentConversationId === null && fromKey === DRAFT_CONVERSATION_KEY) {
-      state.currentConversationId = toKey
+    if (state.currentAIChatId === null && fromKey === DRAFT_AI_CHAT_KEY) {
+      state.currentAIChatId = toKey
     }
     return buffer
   }
@@ -420,7 +420,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     chatKey: string,
     content: string,
     requestId: string,
-    conversationId: string | null = null
+    aiChatId: string | null = null
   ): void {
     const state = getSessionState(chatKey)
     if (!state) return
@@ -431,7 +431,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       sessionId: state.sessionId,
       sessionName: state.sessionName,
       chatType: state.chatType,
-      conversationId,
+      aiChatId,
       questionPreview: content.trim().slice(0, 80),
       startedAt: Date.now(),
     }
@@ -445,13 +445,13 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
   }
 
   /**
-   * 会话创建成功后，把后台任务绑定到真实 conversationId。
+   * 会话创建成功后，把后台任务绑定到真实 aiChatId。
    * 单独抽成 helper，避免在长 async 流程里触发异常的类型缩窄。
    */
-  function updateActiveTaskConversationId(chatKey: string, conversationId: string): void {
+  function updateActiveTaskAIChatId(chatKey: string, aiChatId: string): void {
     if (!activeTask.value) return
     if (activeTask.value.chatKey !== chatKey) return
-    activeTask.value.conversationId = conversationId
+    activeTask.value.aiChatId = aiChatId
   }
 
   function buildFallbackAgentStatus(state: AIChatSessionState): AgentRuntimeStatus {
@@ -490,18 +490,18 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     return true
   }
 
-  async function loadConversation(chatKey: string, conversationId: string): Promise<boolean> {
+  async function loadAIChat(chatKey: string, aiChatId: string): Promise<boolean> {
     const state = getSessionState(chatKey)
     if (!state) return false
 
     try {
-      const conversation = await useAIService().getConversation(conversationId)
-      const buffer = getOrCreateBuffer(state, conversationId, conversation?.assistantId ?? null)
+      const conversation = await useAIService().getAIChat(aiChatId)
+      const buffer = getOrCreateBuffer(state, aiChatId, conversation?.assistantId ?? null)
 
       if (!buffer.loaded) {
         const [history, tokenUsage] = await Promise.all([
-          useAIService().getMessages(conversationId),
-          useAIService().getConversationTokenUsage(conversationId),
+          useAIService().getMessages(aiChatId),
+          useAIService().getAIChatTokenUsage(aiChatId),
         ])
         buffer.messages.splice(0, buffer.messages.length, ...history.map((msg) => toRuntimeMessage(msg)))
         buffer.sourceMessages.splice(0, buffer.sourceMessages.length)
@@ -511,7 +511,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       }
 
       buffer.assistantId = conversation?.assistantId ?? buffer.assistantId ?? null
-      bindDisplayedBuffer(state, conversationId)
+      bindDisplayedBuffer(state, aiChatId)
       applySessionAssistantSelection(chatKey)
       return true
     } catch (error) {
@@ -520,12 +520,12 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     }
   }
 
-  function focusConversation(chatKey: string, conversationId: string | null): boolean {
+  function focusAIChat(chatKey: string, aiChatId: string | null): boolean {
     const state = getSessionState(chatKey)
     if (!state) return false
 
-    const bufferKey = conversationId ?? DRAFT_CONVERSATION_KEY
-    if (!state.conversationBuffers[bufferKey]) {
+    const bufferKey = aiChatId ?? DRAFT_AI_CHAT_KEY
+    if (!state.aiChatBuffers[bufferKey]) {
       return false
     }
 
@@ -534,10 +534,10 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     return true
   }
 
-  function focusActiveTaskConversation(): boolean {
+  function focusActiveTaskAIChat(): boolean {
     if (!activeTask.value) return false
     pendingFocusReturn = true
-    return focusConversation(activeTask.value.chatKey, activeTask.value.conversationId)
+    return focusAIChat(activeTask.value.chatKey, activeTask.value.aiChatId)
   }
 
   /**
@@ -561,16 +561,16 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       const defaultId = getDefaultGeneralAssistantId(state.locale)
       selectAssistantForSession(chatKey, defaultId)
     }
-    startNewConversation(chatKey)
+    startNewAIChat(chatKey)
   }
 
-  function startNewConversation(chatKey: string, welcomeMessage?: string): boolean {
+  function startNewAIChat(chatKey: string, welcomeMessage?: string): boolean {
     const state = getSessionState(chatKey)
     if (!state || state.isAIThinking) return false
 
-    const draftBuffer = createConversationBuffer(state.selectedAssistantId)
-    state.conversationBuffers[DRAFT_CONVERSATION_KEY] = draftBuffer
-    bindDisplayedBuffer(state, DRAFT_CONVERSATION_KEY)
+    const draftBuffer = createAIChatBuffer(state.selectedAssistantId)
+    state.aiChatBuffers[DRAFT_AI_CHAT_KEY] = draftBuffer
+    bindDisplayedBuffer(state, DRAFT_AI_CHAT_KEY)
     state.currentToolStatus = null
     state.toolsUsedInCurrentRound = []
     state.isLoadingSource = false
@@ -610,10 +610,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     updateToolBlockStatus: (toolName: string, status: 'done' | 'error') => void
   }
 
-  function createStreamBlockHelpers(
-    targetBuffer: ConversationBuffer,
-    getAiMessageIndex: () => number
-  ): StreamBlockHelpers {
+  function createStreamBlockHelpers(targetBuffer: AIChatBuffer, getAiMessageIndex: () => number): StreamBlockHelpers {
     const updateAIMessage = (updates: Partial<ChatMessage>) => {
       const idx = getAiMessageIndex()
       targetBuffer.messages[idx] = { ...targetBuffer.messages[idx], ...updates }
@@ -726,7 +723,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
     const thisRequestId = generateId('req')
     const initialBufferKey = getDisplayedBufferKey(state)
-    let resolvedConversationId = initialBufferKey === DRAFT_CONVERSATION_KEY ? null : initialBufferKey
+    let resolvedAIChatId = initialBufferKey === DRAFT_AI_CHAT_KEY ? null : initialBufferKey
     const targetBuffer = getOrCreateBuffer(state, initialBufferKey, state.selectedAssistantId)
     // 在 try 外部声明，以便 catch 块能正确引用当前轮次的用户消息
     let currentUserMessage: ChatMessage | undefined
@@ -735,7 +732,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     targetBuffer.assistantId = state.selectedAssistantId
     targetBuffer.loaded = true
 
-    setActiveTaskMeta(chatKey, content, thisRequestId, resolvedConversationId)
+    setActiveTaskMeta(chatKey, content, thisRequestId, resolvedAIChatId)
     applySessionAssistantSelection(chatKey)
     void ensureOwnerInfo(chatKey)
 
@@ -822,9 +819,9 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       } = createStreamBlockHelpers(targetBuffer, () => aiMessageIndex)
 
       const currentAssistantId = targetBuffer.assistantId ?? getDefaultGeneralAssistantId(state.locale)
-      if (!resolvedConversationId) {
+      if (!resolvedAIChatId) {
         const title = content.slice(0, 50) + (content.length > 50 ? '...' : '')
-        const conversation = await useAIService().createConversation(state.sessionId, title, currentAssistantId)
+        const conversation = await useAIService().createAIChat(state.sessionId, title, currentAssistantId)
         if (state.isAborted) {
           updateAIMessage({ isStreaming: false })
           clearActiveTask(chatKey, thisRequestId)
@@ -837,15 +834,15 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           return { success: false, reason: 'busy', activeTask: activeTask.value }
         }
 
-        resolvedConversationId = conversation.id
-        renameBufferKey(state, DRAFT_CONVERSATION_KEY, conversation.id)
+        resolvedAIChatId = conversation.id
+        renameBufferKey(state, DRAFT_AI_CHAT_KEY, conversation.id)
         targetBuffer.assistantId = currentAssistantId
-        updateActiveTaskConversationId(chatKey, conversation.id)
+        updateActiveTaskAIChatId(chatKey, conversation.id)
       }
 
       const context = {
         sessionId: state.sessionId,
-        conversationId: resolvedConversationId,
+        aiChatId: resolvedAIChatId,
         timeFilter: state.timeFilter ? { startTs: state.timeFilter.startTs, endTs: state.timeFilter.endTs } : undefined,
         maxMessagesLimit: aiGlobalSettings.value.maxMessagesPerRequest,
         ownerInfo: state.ownerInfo
@@ -861,7 +858,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         {
           userMessage: content,
           sessionId: state.sessionId,
-          conversationId: resolvedConversationId,
+          aiChatId: resolvedAIChatId,
           timeFilter: context.timeFilter,
           maxMessagesLimit: context.maxMessagesLimit,
           ownerInfo: context.ownerInfo,
@@ -998,7 +995,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       )
 
       state.currentAgentRequestId = agentReqId
-      setActiveTaskMeta(chatKey, content, agentReqId, resolvedConversationId)
+      setActiveTaskMeta(chatKey, content, agentReqId, resolvedAIChatId)
 
       const result = await agentPromise
       if (state.isAborted) {
@@ -1021,8 +1018,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           isStreaming: false,
         }
 
-        const savedMessages = await saveConversation(
-          resolvedConversationId,
+        const savedMessages = await saveAIChatMessages(
+          resolvedAIChatId,
           userMessage,
           targetBuffer.messages[aiMessageIndex],
           lastDoneUsage
@@ -1046,8 +1043,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           contentBlocks: [...blocks],
           isStreaming: false,
         }
-        const savedMessages = await saveConversation(
-          resolvedConversationId,
+        const savedMessages = await saveAIChatMessages(
+          resolvedAIChatId,
           userMessage,
           targetBuffer.messages[aiMessageIndex],
           lastDoneUsage
@@ -1061,8 +1058,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           }
         }
       } else {
-        const savedMessages = await saveConversation(
-          resolvedConversationId,
+        const savedMessages = await saveAIChatMessages(
+          resolvedAIChatId,
           userMessage,
           targetBuffer.messages[aiMessageIndex],
           lastDoneUsage
@@ -1097,7 +1094,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         // 优先使用当前轮次的用户消息，避免多轮对话取到第一条历史消息
         const userMsg = currentUserMessage || targetBuffer.messages.findLast((m) => m.role === 'user')
         if (userMsg) {
-          await saveConversation(resolvedConversationId, userMsg, lastMessage, lastDoneUsage)
+          await saveAIChatMessages(resolvedAIChatId, userMsg, lastMessage, lastDoneUsage)
         }
       }
 
@@ -1113,23 +1110,23 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     }
   }
 
-  async function saveConversation(
-    conversationId: string | null,
+  async function saveAIChatMessages(
+    aiChatId: string | null,
     userMsg: ChatMessage,
     aiMsg: ChatMessage,
     tokenUsage?: TokenUsage
   ): Promise<{ userMessage: ChatMessage; assistantMessage: ChatMessage } | null> {
     try {
-      if (!conversationId) {
+      if (!aiChatId) {
         return null
       }
 
-      const savedUserMessage = await useAIService().addMessage(conversationId, 'user', userMsg.content)
+      const savedUserMessage = await useAIService().addMessage(aiChatId, 'user', userMsg.content)
       const serializableContentBlocks = aiMsg.contentBlocks
         ? JSON.parse(JSON.stringify(aiMsg.contentBlocks))
         : undefined
       const savedAssistantMessage = await useAIService().addMessage(
-        conversationId,
+        aiChatId,
         'assistant',
         aiMsg.content,
         undefined,
@@ -1246,14 +1243,14 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
   ): Promise<SendMessageResult> {
     const state = getSessionState(chatKey)
     const content = newContent.trim()
-    if (!state || !state.currentConversationId) return { success: false, reason: 'error' }
+    if (!state || !state.currentAIChatId) return { success: false, reason: 'error' }
     if (!content) return { success: false, reason: 'empty' }
     if (state.isAIThinking || activeTask.value) {
       return { success: false, reason: 'busy', activeTask: activeTask.value }
     }
 
     const overwriteAll = options?.overwriteSubsequent ?? false
-    const targetBuffer = getOrCreateBuffer(state, state.currentConversationId, state.selectedAssistantId)
+    const targetBuffer = getOrCreateBuffer(state, state.currentAIChatId, state.selectedAssistantId)
     const editIndex = targetBuffer.messages.findIndex((message) => message.id === messageId)
     const originalMessage = targetBuffer.messages[editIndex]
     if (!originalMessage || originalMessage.role !== 'user' || originalMessage.isStreaming) {
@@ -1272,7 +1269,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
   async function editAndOverwriteAll(
     chatKey: string,
     state: AIChatSessionState,
-    targetBuffer: ConversationBuffer,
+    targetBuffer: AIChatBuffer,
     editIndex: number,
     originalMessage: ChatMessage,
     content: string
@@ -1289,7 +1286,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         return { success: false, reason: 'busy', activeTask: activeTask.value }
       }
 
-      await useAIService().deleteMessagesFrom(state.currentConversationId!, originalMessage.id)
+      await useAIService().deleteMessagesFrom(state.currentAIChatId!, originalMessage.id)
       targetBuffer.messages.splice(editIndex, targetBuffer.messages.length - editIndex)
       return sendMessage(chatKey, content)
     } catch (error) {
@@ -1301,7 +1298,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
   async function editCurrentRoundOnly(
     chatKey: string,
     state: AIChatSessionState,
-    targetBuffer: ConversationBuffer,
+    targetBuffer: AIChatBuffer,
     editIndex: number,
     originalMessage: ChatMessage,
     content: string
@@ -1310,7 +1307,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     let lastDoneUsage: TokenUsage | undefined
     let hasStreamError = false
 
-    setActiveTaskMeta(chatKey, content, thisRequestId, state.currentConversationId)
+    setActiveTaskMeta(chatKey, content, thisRequestId, state.currentAIChatId)
     applySessionAssistantSelection(chatKey)
     void ensureOwnerInfo(chatKey)
 
@@ -1393,7 +1390,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
       const context = {
         sessionId: state.sessionId,
-        conversationId: state.currentConversationId!,
+        aiChatId: state.currentAIChatId!,
         historyLeafMessageId: originalMessage.parentId ?? null,
         timeFilter: state.timeFilter ? { startTs: state.timeFilter.startTs, endTs: state.timeFilter.endTs } : undefined,
         maxMessagesLimit: aiGlobalSettings.value.maxMessagesPerRequest,
@@ -1410,7 +1407,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         {
           userMessage: content,
           sessionId: state.sessionId,
-          conversationId: state.currentConversationId!,
+          aiChatId: state.currentAIChatId!,
           historyLeafMessageId: originalMessage.parentId ?? null,
           timeFilter: context.timeFilter,
           maxMessagesLimit: context.maxMessagesLimit,
@@ -1494,7 +1491,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       )
 
       state.currentAgentRequestId = agentReqId
-      setActiveTaskMeta(chatKey, content, agentReqId, state.currentConversationId)
+      setActiveTaskMeta(chatKey, content, agentReqId, state.currentAIChatId)
 
       const result = await agentPromise
       if (state.isAborted) {
@@ -1526,14 +1523,14 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
       await useAIService().updateMessageContent(originalMessage.id, content)
       if (hasOldAiResponse) {
-        await useAIService().deleteAndRelinkMessage(state.currentConversationId!, oldAiResponse.id)
+        await useAIService().deleteAndRelinkMessage(state.currentAIChatId!, oldAiResponse.id)
       }
 
       const serializableContentBlocks = targetBuffer.messages[aiMessageIndex].contentBlocks
         ? JSON.parse(JSON.stringify(targetBuffer.messages[aiMessageIndex].contentBlocks))
         : undefined
       const savedAiMsg = await useAIService().insertMessageAfter(
-        state.currentConversationId!,
+        state.currentAIChatId!,
         originalMessage.id,
         'assistant',
         targetBuffer.messages[aiMessageIndex].content,
@@ -1558,7 +1555,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         }
       }
 
-      targetBuffer.sessionTokenUsage = await useAIService().getConversationTokenUsage(state.currentConversationId!)
+      targetBuffer.sessionTokenUsage = await useAIService().getAIChatTokenUsage(state.currentAIChatId!)
       state.sessionTokenUsage = { ...targetBuffer.sessionTokenUsage }
       return { success: true }
     } catch (error) {
@@ -1604,9 +1601,9 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     // 停止时优先定位真实仍在流式写入的会话缓冲，而不是当前页面正在查看的缓冲。
     const runningBufferKey =
       activeTask.value?.chatKey === chatKey
-        ? (activeTask.value.conversationId ?? DRAFT_CONVERSATION_KEY)
+        ? (activeTask.value.aiChatId ?? DRAFT_AI_CHAT_KEY)
         : getDisplayedBufferKey(state)
-    const runningBuffer = state.conversationBuffers[runningBufferKey]
+    const runningBuffer = state.aiChatBuffers[runningBufferKey]
     const lastMessage = runningBuffer ? runningBuffer.messages[runningBuffer.messages.length - 1] : undefined
     if (lastMessage && lastMessage.role === 'assistant' && lastMessage.isStreaming) {
       lastMessage.isStreaming = false
@@ -1640,11 +1637,11 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     getActiveTaskState,
     applySessionAssistantSelection,
     selectAssistantForSession,
-    loadConversation,
-    focusConversation,
-    focusActiveTaskConversation,
+    loadAIChat,
+    focusAIChat,
+    focusActiveTaskAIChat,
     resetToSelectorOnEnter,
-    startNewConversation,
+    startNewAIChat,
     loadMoreSourceMessages,
     updateMaxMessages,
     sendMessage,

@@ -44,7 +44,7 @@ export default {
     migrationV1Message: '支援「Owner」功能，可在成員清單中設定自己的身份',
     migrationV2Desc: '新增 roles、reply_to_message_id、platform_message_id 欄位',
     migrationV2Message: '支援成員角色、訊息回覆關係和回覆內容預覽',
-    migrationV3Desc: '新增會話索引相關資料表（chat_session、message_context）及 session_gap_threshold 欄位',
+    migrationV3Desc: '新增會話索引相關資料表（segment、message_context）及 session_gap_threshold 欄位',
     migrationV3Message: '支援會話時間軸瀏覽與 AI 增強分析功能',
     migrationV4Desc: '建立 FTS5 全文搜尋索引（message_fts）並建構索引資料',
     migrationV4Message: '支援全文搜尋，大幅提升關鍵詞搜尋速度',

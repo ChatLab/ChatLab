@@ -2,11 +2,11 @@
  * 上下文压缩核心逻辑（平台无关）
  *
  * 通过 CompressionLlmAdapter 抽象 LLM 调用，
- * 通过 AIConversationManager 操作对话数据。
+ * 通过 AIChatManager 操作对话数据。
  */
 
 import { countTokens, countMessagesTokens } from '../tokenizer'
-import type { AIConversationManager, ContentBlock, AIMessageRole } from '../conversations'
+import type { AIChatManager, ContentBlock, AIMessageRole } from '../chats'
 import type { CompressionConfig, CompressionResult, CompressionLogger, CompressionLlmAdapter } from './types'
 
 const DEFAULT_CONTEXT_WINDOW = 128000
@@ -53,11 +53,11 @@ const defaultLogger: CompressionLogger = {
 }
 
 export async function checkAndCompress(
-  conversationId: string,
+  aiChatId: string,
   config: CompressionConfig,
   systemPrompt: string,
   llmAdapter: CompressionLlmAdapter,
-  convManager: AIConversationManager,
+  convManager: AIChatManager,
   logger: CompressionLogger = defaultLogger
 ): Promise<CompressionResult> {
   if (!config.enabled) {
@@ -68,7 +68,7 @@ export async function checkAndCompress(
     const contextWindow = llmAdapter.contextWindow || DEFAULT_CONTEXT_WINDOW
     const thresholdTokens = Math.floor(contextWindow * (config.tokenThresholdPercent / 100) * 0.95)
 
-    const summary = convManager.getLatestSummary(conversationId)
+    const summary = convManager.getLatestSummary(aiChatId)
 
     let messages: Array<{ role: AIMessageRole; content: string; timestamp: number }>
     if (summary) {
@@ -76,9 +76,9 @@ export async function checkAndCompress(
         (b): b is Extract<ContentBlock, { type: 'summary_meta' }> => b.type === 'summary_meta'
       )
       const boundary = metaBlock?.bufferBoundaryTimestamp ?? summary.timestamp
-      messages = convManager.getMessagesAfterSummary(conversationId, boundary - 1)
+      messages = convManager.getMessagesAfterSummary(aiChatId, boundary - 1)
     } else {
-      messages = convManager.getAllUserAssistantMessages(conversationId)
+      messages = convManager.getAllUserAssistantMessages(aiChatId)
     }
 
     const historyForTokenCount: Array<{ role: string; content: string }> = []
@@ -92,7 +92,7 @@ export async function checkAndCompress(
     const currentTokens = countMessagesTokens(historyForTokenCount, systemPrompt)
 
     logger.info('Compression', `Token check: ${currentTokens} / ${thresholdTokens} (${contextWindow} window)`, {
-      conversationId,
+      aiChatId,
       messageCount: messages.length,
       hasSummary: !!summary,
     })
@@ -128,7 +128,7 @@ export async function checkAndCompress(
         ? bufferMessages[0].timestamp
         : messagesToCompress[messagesToCompress.length - 1]!.timestamp + 1
 
-    convManager.addSummaryMessage(conversationId, summaryText, {
+    convManager.addSummaryMessage(aiChatId, summaryText, {
       bufferBoundaryTimestamp: bufferBoundary,
       compressedMessageCount: messagesToCompress.length,
     })
@@ -168,20 +168,20 @@ export async function checkAndCompress(
 }
 
 export async function manualCompress(
-  conversationId: string,
+  aiChatId: string,
   config: CompressionConfig,
   systemPrompt: string,
   llmAdapter: CompressionLlmAdapter,
-  convManager: AIConversationManager,
+  convManager: AIChatManager,
   logger?: CompressionLogger
 ): Promise<CompressionResult> {
-  const messageCount = convManager.getMessageCountAfterSummary(conversationId)
+  const messageCount = convManager.getMessageCountAfterSummary(aiChatId)
   if (messageCount < 5) {
     return { compressed: false, reason: 'skipped_idempotent' }
   }
 
   const overrideConfig = { ...config, enabled: true, tokenThresholdPercent: 0 }
-  return checkAndCompress(conversationId, overrideConfig, systemPrompt, llmAdapter, convManager, logger)
+  return checkAndCompress(aiChatId, overrideConfig, systemPrompt, llmAdapter, convManager, logger)
 }
 
 // ==================== Internal Helpers ====================

@@ -93,7 +93,7 @@ export default {
           context_size: '上下文大小，即取得前後各多少條訊息，預設 20',
         },
       },
-      search_sessions: {
+      search_segments: {
         desc: '搜尋聊天會話（對話段落）。會話是根據訊息時間間隔自動切分的對話單元。適用於查找特定話題的討論、了解某個時間段內發生了幾次對話等場景。回傳匹配的會話清單及每個會話的前5條訊息預覽。',
         params: {
           keywords: '可選的搜尋關鍵詞清單，只回傳包含這些關鍵詞的會話（OR 邏輯匹配）',
@@ -105,22 +105,22 @@ export default {
           end_time: '結束時間，格式 "YYYY-MM-DD HH:mm"，如 "2024-03-15 18:30"',
         },
       },
-      get_session_messages: {
-        desc: '取得指定會話的完整訊息清單。用於在 search_sessions 找到相關會話後，取得該會話的完整上下文。回傳會話的所有訊息及參與者資訊。',
+      get_segment_messages: {
+        desc: '取得指定會話的完整訊息清單。用於在 search_segments 找到相關會話後，取得該會話的完整上下文。回傳會話的所有訊息及參與者資訊。',
         params: {
-          session_id: '會話 ID，可以從 search_sessions 的回傳結果中取得',
+          segment_id: '會話 ID，可以從 search_segments 的回傳結果中取得',
           limit: '回傳訊息數量限制，預設 1000。對於超長會話可以限制回傳數量以節省 token',
         },
       },
-      get_session_summaries: {
-        desc: `取得會話摘要清單，快速了解群聊歷史討論的主題。
+      get_segment_summaries: {
+        desc: `取得段落摘要清單，快速了解群聊歷史討論的主題。
 
 適用場景：
 1. 了解群裡最近在聊什麼話題
 2. 按關鍵詞搜尋討論過的話題
 3. 概覽性問題如「群裡有沒有討論過旅遊」
 
-回傳的摘要是對每個會話的簡短總結，可以幫助快速定位感興趣的會話，然後用 get_session_messages 取得詳情。`,
+回傳的摘要是對每個會話的簡短總結，可以幫助快速定位感興趣的會話，然後用 get_segment_messages 取得詳情。`,
         params: {
           keywords: '在摘要中搜尋的關鍵詞清單（OR 邏輯匹配）',
           limit: '回傳會話數量限制，預設 20',
@@ -326,10 +326,10 @@ export default {
   },
 
   summary: {
-    sessionNotFound: '會話不存在或資料庫開啟失敗',
+    segmentNotFound: '會話不存在或資料庫開啟失敗',
     tooFewMessages: '訊息數量少於 {{count}} 條，無需產生摘要',
     tooFewValidMessages: '有效訊息數量少於 {{count}} 條，無需產生摘要',
-    sessionNotExist: '找不到會話',
+    segmentNotExist: '找不到會話',
     messagesTooFew: '訊息太少',
     validMessagesTooFew: '有效訊息太少',
     systemPromptDirect: '你是一個對話摘要專家，擅長用簡潔的語言總結對話內容。',

@@ -85,7 +85,7 @@ export function getRelationshipStats(
     perseveranceThreshold,
   }
 
-  const sessionCount = db.prepare('SELECT COUNT(*) as count FROM chat_session').get() as { count: number } | undefined
+  const sessionCount = db.prepare('SELECT COUNT(*) as count FROM segment').get() as { count: number } | undefined
   if (!sessionCount || sessionCount.count === 0) return emptyResult
 
   const timeConditions: string[] = []
@@ -106,10 +106,10 @@ export function getRelationshipStats(
     .prepare(
       `SELECT cs.id AS session_id, cs.start_ts, cs.end_ts,
               (SELECT m.sender_id FROM message_context mc JOIN message m ON m.id = mc.message_id
-               WHERE mc.session_id = cs.id ORDER BY m.ts ASC, m.id ASC LIMIT 1) AS initiator_id,
+               WHERE mc.segment_id = cs.id ORDER BY m.ts ASC, m.id ASC LIMIT 1) AS initiator_id,
               (SELECT m.sender_id FROM message_context mc JOIN message m ON m.id = mc.message_id
-               WHERE mc.session_id = cs.id ORDER BY m.ts DESC, m.id DESC LIMIT 1) AS closer_id
-       FROM chat_session cs ${whereClause} ORDER BY cs.start_ts ASC`
+               WHERE mc.segment_id = cs.id ORDER BY m.ts DESC, m.id DESC LIMIT 1) AS closer_id
+       FROM segment cs ${whereClause} ORDER BY cs.start_ts ASC`
     )
     .all(...params) as Array<{
     session_id: number
@@ -242,10 +242,10 @@ function queryMessageLevelStats(
       .prepare(
         `WITH msg_lag AS (
            SELECT m.sender_id, m.ts,
-                  LAG(m.sender_id) OVER (PARTITION BY mc.session_id ORDER BY m.ts, m.id) AS prev_sender_id,
-                  LAG(m.ts) OVER (PARTITION BY mc.session_id ORDER BY m.ts, m.id) AS prev_ts
+                  LAG(m.sender_id) OVER (PARTITION BY mc.segment_id ORDER BY m.ts, m.id) AS prev_sender_id,
+                  LAG(m.ts) OVER (PARTITION BY mc.segment_id ORDER BY m.ts, m.id) AS prev_ts
            FROM message_context mc JOIN message m ON m.id = mc.message_id
-           WHERE mc.session_id IN (${placeholders}) AND m.type = 0
+           WHERE mc.segment_id IN (${placeholders}) AND m.type = 0
          )
          SELECT strftime('%Y-%m', datetime(ts, 'unixepoch', 'localtime')) AS month,
                 sender_id AS responder_id, SUM(ts - prev_ts) AS total_time, COUNT(*) AS response_count
@@ -274,10 +274,10 @@ function queryMessageLevelStats(
       .prepare(
         `WITH msg_lag AS (
            SELECT m.sender_id, m.ts,
-                  LAG(m.sender_id) OVER (PARTITION BY mc.session_id ORDER BY m.ts, m.id) AS prev_sender_id,
-                  LAG(m.ts) OVER (PARTITION BY mc.session_id ORDER BY m.ts, m.id) AS prev_ts
+                  LAG(m.sender_id) OVER (PARTITION BY mc.segment_id ORDER BY m.ts, m.id) AS prev_sender_id,
+                  LAG(m.ts) OVER (PARTITION BY mc.segment_id ORDER BY m.ts, m.id) AS prev_ts
            FROM message_context mc JOIN message m ON m.id = mc.message_id
-           WHERE mc.session_id IN (${placeholders}) AND m.type = 0
+           WHERE mc.segment_id IN (${placeholders}) AND m.type = 0
          )
          SELECT strftime('%Y-%m', datetime(ts, 'unixepoch', 'localtime')) AS month,
                 sender_id, COUNT(*) AS double_text_count

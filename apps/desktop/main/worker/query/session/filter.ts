@@ -44,7 +44,7 @@ export function filterMessagesWithContext(
 
 export function getMultipleSessionsMessages(
   sessionId: string,
-  chatSessionIds: number[],
+  segmentIds: number[],
   page: number = 1,
   pageSize: number = 50
 ): FilterResultWithPagination {
@@ -53,7 +53,7 @@ export function getMultipleSessionsMessages(
 
   const db = new BetterSqliteAdapter(rawDb)
   try {
-    return getMultiSessionsCore(db, chatSessionIds, page, pageSize)
+    return getMultiSessionsCore(db, segmentIds, page, pageSize)
   } catch (error) {
     console.error('getMultipleSessionsMessages error:', error)
     return EMPTY_RESULT(page, pageSize)

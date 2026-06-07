@@ -18,7 +18,7 @@ import {
   type AgentStreamChunk,
   type PiMessage,
   type SimpleHistoryMessage,
-  type AIConversationManager,
+  type AIChatManager,
   type CompressionConfig,
   type AgentTool,
   type DataSnapshot,
@@ -33,7 +33,7 @@ export type { AgentStreamChunk }
 
 export interface RunAgentOptions {
   userMessage: string
-  conversationId: string
+  aiChatId: string
   historyLeafMessageId?: string | null
   chatType?: 'group' | 'private'
   locale?: string
@@ -43,7 +43,7 @@ export interface RunAgentOptions {
   compressionConfig?: CompressionConfig
   tools?: AgentTool[]
   aiDataDir: string
-  convManager: AIConversationManager
+  aiChatManager: AIChatManager
   onEvent: (event: AgentStreamChunk) => void
   abortSignal?: AbortSignal
   ownerInfo?: OwnerInfo
@@ -55,7 +55,7 @@ export interface RunAgentOptions {
 export async function runServerAgent(options: RunAgentOptions): Promise<void> {
   const {
     userMessage,
-    conversationId,
+    aiChatId,
     historyLeafMessageId,
     chatType = 'group',
     locale = 'zh-CN',
@@ -65,7 +65,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
     compressionConfig,
     tools = [],
     aiDataDir,
-    convManager,
+    aiChatManager,
     onEvent,
     abortSignal,
     ownerInfo,
@@ -120,11 +120,11 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
       onCompressing: () => handler.emitStatus('compressing', []),
     })
     const compressionResult = await checkAndCompress(
-      conversationId,
+      aiChatId,
       compressionConfig,
       systemPrompt,
       llmAdapter,
-      convManager,
+      aiChatManager,
       aiLogger ?? undefined
     )
     if (compressionResult.compressed) {
@@ -140,7 +140,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
     }
   } else if (compressionConfig?.enabled && historyLeafMessageId !== undefined) {
     aiLogger?.info?.('Compression', 'Skipping compression for edited branch request', {
-      conversationId,
+      aiChatId,
       historyLeafMessageId,
     })
   }
@@ -153,7 +153,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
 
   let history: SimpleHistoryMessage[] = []
   try {
-    history = convManager.getHistoryForAgent(conversationId, undefined, historyLeafMessageId)
+    history = aiChatManager.getHistoryForAgent(aiChatId, undefined, historyLeafMessageId)
   } catch {
     // empty history on failure
   }
@@ -181,7 +181,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
       onEvent: (coreEvent) => handler.handleCoreEvent(coreEvent, cachedMessages),
       onDebugContext: (messages) => {
         try {
-          convManager.setPendingDebugContext(conversationId, JSON.stringify(messages, null, 2))
+          aiChatManager.setPendingDebugContext(aiChatId, JSON.stringify(messages, null, 2))
         } catch {
           // silent
         }

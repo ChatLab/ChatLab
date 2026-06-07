@@ -58,7 +58,7 @@ const CHAT_DB_SCHEMA = `
     FOREIGN KEY(sender_id) REFERENCES member(id)
   );
 
-  CREATE TABLE IF NOT EXISTS chat_session (
+  CREATE TABLE IF NOT EXISTS segment (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     start_ts INTEGER NOT NULL,
     end_ts INTEGER NOT NULL,
@@ -69,13 +69,13 @@ const CHAT_DB_SCHEMA = `
 
   CREATE TABLE IF NOT EXISTS message_context (
     message_id INTEGER PRIMARY KEY,
-    session_id INTEGER NOT NULL,
+    segment_id INTEGER NOT NULL,
     topic_id INTEGER
   );
 `
 
 const AI_DB_SCHEMA = `
-  CREATE TABLE IF NOT EXISTS ai_conversation (
+  CREATE TABLE IF NOT EXISTS ai_chat (
     id TEXT PRIMARY KEY,
     session_id TEXT NOT NULL,
     title TEXT,
@@ -87,7 +87,7 @@ const AI_DB_SCHEMA = `
 
   CREATE TABLE IF NOT EXISTS ai_message (
     id TEXT PRIMARY KEY,
-    conversation_id TEXT NOT NULL,
+    ai_chat_id TEXT NOT NULL,
     role TEXT NOT NULL,
     content TEXT NOT NULL,
     timestamp INTEGER NOT NULL,
@@ -99,19 +99,19 @@ const AI_DB_SCHEMA = `
     parent_id TEXT,
     sibling_group_id TEXT,
     branch_index INTEGER DEFAULT 0,
-    FOREIGN KEY(conversation_id) REFERENCES ai_conversation(id) ON DELETE CASCADE
+    FOREIGN KEY(ai_chat_id) REFERENCES ai_chat(id) ON DELETE CASCADE
   );
 
-  CREATE INDEX IF NOT EXISTS idx_ai_conversation_session ON ai_conversation(session_id);
-  CREATE INDEX IF NOT EXISTS idx_ai_message_conversation ON ai_message(conversation_id);
+  CREATE INDEX IF NOT EXISTS idx_ai_chat_session ON ai_chat(session_id);
+  CREATE INDEX IF NOT EXISTS idx_ai_message_ai_chat ON ai_message(ai_chat_id);
   CREATE INDEX IF NOT EXISTS idx_ai_message_parent ON ai_message(parent_id);
   CREATE INDEX IF NOT EXISTS idx_ai_message_sibling ON ai_message(sibling_group_id);
 `
 
 const SESSION_ID = 'chart-smoke-session'
 const SESSION_NAME = 'Chart Smoke Group'
-const CONVERSATION_ID = 'conv_chart_smoke'
-const CONVERSATION_TITLE = 'Chart replay smoke'
+const AI_CHAT_ID = 'aichat_chart_smoke'
+const AI_CHAT_TITLE = 'Chart replay smoke'
 const CHART_TITLE = 'Selected members smoke'
 
 let Database = null
@@ -225,25 +225,25 @@ function seedAiConversationDb(homeDir) {
   try {
     db.exec(AI_DB_SCHEMA)
     db.prepare(
-      `INSERT INTO ai_conversation (id, session_id, title, active_message_id, created_at, updated_at, assistant_id)
+      `INSERT INTO ai_chat (id, session_id, title, active_message_id, created_at, updated_at, assistant_id)
        VALUES (?, ?, ?, ?, ?, ?, ?)`
-    ).run(CONVERSATION_ID, SESSION_ID, CONVERSATION_TITLE, 'msg_ai_chart', now - 120, now - 60, 'general_cn')
+    ).run(AI_CHAT_ID, SESSION_ID, AI_CHAT_TITLE, 'msg_ai_chart', now - 120, now - 60, 'general_cn')
 
     db.prepare(
       `INSERT INTO ai_message (
-         id, conversation_id, role, content, timestamp, data_keywords, data_message_count,
+         id, ai_chat_id, role, content, timestamp, data_keywords, data_message_count,
          content_blocks, token_usage, debug_context, parent_id, sibling_group_id, branch_index
        ) VALUES (?, ?, ?, ?, ?, NULL, NULL, NULL, NULL, NULL, NULL, ?, 0)`
-    ).run('msg_user_chart', CONVERSATION_ID, 'user', 'Show me Alice and Bob share.', now - 110, 'msg_user_chart')
+    ).run('msg_user_chart', AI_CHAT_ID, 'user', 'Show me Alice and Bob share.', now - 110, 'msg_user_chart')
 
     db.prepare(
       `INSERT INTO ai_message (
-         id, conversation_id, role, content, timestamp, data_keywords, data_message_count,
+         id, ai_chat_id, role, content, timestamp, data_keywords, data_message_count,
          content_blocks, token_usage, debug_context, parent_id, sibling_group_id, branch_index
        ) VALUES (?, ?, ?, ?, ?, NULL, NULL, ?, NULL, NULL, ?, ?, 0)`
     ).run(
       'msg_ai_chart',
-      CONVERSATION_ID,
+      AI_CHAT_ID,
       'assistant',
       'Here is the chart.',
       now - 100,
@@ -388,7 +388,7 @@ async function getRendererSnapshot(client) {
       bodyId: document.body?.id || null,
       title: document.title,
       hasSessionName: document.body?.innerText.includes(${JSON.stringify(SESSION_NAME)}) || false,
-      hasConversationTitle: document.body?.innerText.includes(${JSON.stringify(CONVERSATION_TITLE)}) || false,
+      hasConversationTitle: document.body?.innerText.includes(${JSON.stringify(AI_CHAT_TITLE)}) || false,
       hasChartTitle: document.body?.innerText.includes(${JSON.stringify(CHART_TITLE)}) || false,
       canvasCount: document.querySelectorAll('canvas').length,
       textExcerpt: (document.body?.innerText || '').slice(0, 800),
@@ -452,7 +452,7 @@ test(
       )
 
       await waitFor(
-        async () => evaluate(client, `document.body.innerText.includes(${JSON.stringify(CONVERSATION_TITLE)})`),
+        async () => evaluate(client, `document.body.innerText.includes(${JSON.stringify(AI_CHAT_TITLE)})`),
         15000,
         'Conversation title'
       )
@@ -464,7 +464,7 @@ test(
             `
             (() => {
               const rows = [...document.querySelectorAll('div.group.relative.rounded-lg.cursor-pointer')]
-              const target = rows.find((el) => el.innerText && el.innerText.includes(${JSON.stringify(CONVERSATION_TITLE)}))
+              const target = rows.find((el) => el.innerText && el.innerText.includes(${JSON.stringify(AI_CHAT_TITLE)}))
               if (!target) return false
               target.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }))
               return true

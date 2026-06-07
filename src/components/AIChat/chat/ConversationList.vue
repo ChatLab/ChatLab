@@ -46,7 +46,7 @@ const menuOpenId = ref<string | null>(null)
 async function loadConversations() {
   isLoading.value = true
   try {
-    conversations.value = await useAIService().getConversations(props.sessionId)
+    conversations.value = await useAIService().getAIChats(props.sessionId)
   } catch (error) {
     console.error('加载对话列表失败：', error)
   } finally {
@@ -116,7 +116,7 @@ async function saveTitle(convId: string) {
   if (props.disabled) return
   if (editingTitle.value.trim()) {
     try {
-      await useAIService().updateConversationTitle(convId, editingTitle.value.trim())
+      await useAIService().updateAIChatTitle(convId, editingTitle.value.trim())
       const conv = conversations.value.find((c) => c.id === convId)
       if (conv) {
         conv.title = editingTitle.value.trim()
@@ -142,7 +142,7 @@ function handleMenuDelete(convId: string) {
 async function handleDelete(convId: string) {
   if (props.disabled) return
   try {
-    await useAIService().deleteConversation(convId)
+    await useAIService().deleteAIChat(convId)
     conversations.value = conversations.value.filter((c) => c.id !== convId)
     emit('delete', convId)
   } catch (error) {

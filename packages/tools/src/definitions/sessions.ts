@@ -2,7 +2,7 @@
  * 会话列表工具
  *
  * MCP 场景下列出所有可用的聊天会话。
- * 这是 Electron 工具 search_sessions 的平台无关版本。
+ * 这是 MCP 场景下的完整聊天记录发现工具，不是 segment 搜索工具。
  */
 
 import type { ToolDefinition, ToolExecutionContext, ToolResult, JsonSchema } from '../types'

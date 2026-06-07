@@ -142,17 +142,17 @@ describe('getSessionInfo', () => {
 })
 
 describe('getSummaryCount', () => {
-  it('returns 0 when chat_session table does not exist', () => {
+  it('returns 0 when segment table does not exist', () => {
     const db = createMockDb({
       sqlite_master: () => ({ cnt: 0 }),
     })
     assert.equal(getSummaryCount(db), 0)
   })
 
-  it('returns count when chat_session table exists', () => {
+  it('returns count when segment table exists', () => {
     const db = createMockDb({
       sqlite_master: () => ({ cnt: 1 }),
-      'FROM chat_session': () => ({ count: 7 }),
+      'FROM segment': () => ({ count: 7 }),
     })
     assert.equal(getSummaryCount(db), 7)
   })

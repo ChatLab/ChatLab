@@ -94,10 +94,10 @@ export function getSessionInfo(db: DatabaseAdapter): CoreSessionInfo | null {
  * Count of chat sessions that have an AI-generated summary.
  */
 export function getSummaryCount(db: DatabaseAdapter): number {
-  if (!hasTable(db, 'chat_session')) return 0
-  const row = db
-    .prepare("SELECT COUNT(*) as count FROM chat_session WHERE summary IS NOT NULL AND summary != ''")
-    .get() as { count: number } | undefined
+  if (!hasTable(db, 'segment')) return 0
+  const row = db.prepare("SELECT COUNT(*) as count FROM segment WHERE summary IS NOT NULL AND summary != ''").get() as
+    | { count: number }
+    | undefined
   return row?.count ?? 0
 }
 
@@ -205,7 +205,7 @@ export interface SessionPreviewMessage {
   timestamp: number
 }
 
-export interface SessionSearchItem {
+export interface SegmentSearchItem {
   id: number
   startTs: number
   endTs: number
@@ -214,8 +214,8 @@ export interface SessionSearchItem {
   previewMessages: SessionPreviewMessage[]
 }
 
-export interface SessionMessagesData {
-  sessionId: number
+export interface SegmentMessagesData {
+  segmentId: number
   startTs: number
   endTs: number
   messageCount: number
@@ -224,7 +224,7 @@ export interface SessionMessagesData {
   messages: SessionPreviewMessage[]
 }
 
-export interface SearchSessionsOptions {
+export interface SearchSegmentsOptions {
   keywords?: string[]
   timeFilter?: TimeFilter
   limit?: number
@@ -233,7 +233,7 @@ export interface SearchSessionsOptions {
   ftsMatchExpression?: string
 }
 
-export interface SessionSummaryData {
+export interface SegmentSummaryData {
   id: number
   startTs: number
   endTs: number
@@ -273,22 +273,22 @@ export function getChatOverview(db: DatabaseAdapter, topN: number = 10): ChatOve
 
 /**
  * Search chat sessions with optional keyword and time filters.
- * Requires chat_session and message_context tables (session indexing).
+ * Requires segment and message_context tables (session indexing).
  * Supports LIKE-based search and optional FTS when ftsMatchExpression is provided.
  */
-export function searchSessions(
+export function searchSegments(
   db: DatabaseAdapter,
   keywords?: string[],
   timeFilter?: TimeFilter,
   limit: number = 20,
   previewCount: number = 5,
   ftsMatchExpression?: string
-): SessionSearchItem[] {
-  if (!hasTable(db, 'chat_session')) return []
+): SegmentSearchItem[] {
+  if (!hasTable(db, 'segment')) return []
 
   let sessionSql = `
     SELECT cs.id, cs.start_ts as startTs, cs.end_ts as endTs, cs.message_count as messageCount
-    FROM chat_session cs WHERE 1=1
+    FROM segment cs WHERE 1=1
   `
   const params: unknown[] = []
 
@@ -305,7 +305,7 @@ export function searchSessions(
     if (ftsMatchExpression) {
       sessionSql += `
         AND cs.id IN (
-          SELECT DISTINCT mc.session_id FROM message_context mc
+          SELECT DISTINCT mc.segment_id FROM message_context mc
           WHERE mc.message_id IN (SELECT rowid FROM message_fts WHERE content MATCH ?)
         )
       `
@@ -314,7 +314,7 @@ export function searchSessions(
       const keywordConditions = keywords.map(() => 'm.content LIKE ?').join(' OR ')
       sessionSql += `
         AND cs.id IN (
-          SELECT DISTINCT mc.session_id FROM message_context mc
+          SELECT DISTINCT mc.segment_id FROM message_context mc
           JOIN message m ON m.id = mc.message_id
           WHERE (${keywordConditions})
         )
@@ -343,7 +343,7 @@ export function searchSessions(
     FROM message_context mc
     JOIN message m ON m.id = mc.message_id
     JOIN member mb ON mb.id = m.sender_id
-    WHERE mc.session_id = ? ORDER BY m.ts ASC LIMIT ?
+    WHERE mc.segment_id = ? ORDER BY m.ts ASC LIMIT ?
   `
 
   return sessions.map((session) => {
@@ -363,19 +363,19 @@ export function searchSessions(
 /**
  * Get messages for a specific chat session
  */
-export function getSessionMessages(
+export function getSegmentMessages(
   db: DatabaseAdapter,
-  chatSessionId: number,
+  segmentId: number,
   limit: number = 500
-): SessionMessagesData | null {
-  if (!hasTable(db, 'chat_session')) return null
+): SegmentMessagesData | null {
+  if (!hasTable(db, 'segment')) return null
 
   const session = db
     .prepare(
       `SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount
-       FROM chat_session WHERE id = ?`
+       FROM segment WHERE id = ?`
     )
-    .get(chatSessionId) as { id: number; startTs: number; endTs: number; messageCount: number } | undefined
+    .get(segmentId) as { id: number; startTs: number; endTs: number; messageCount: number } | undefined
 
   if (!session) return null
 
@@ -388,9 +388,9 @@ export function getSessionMessages(
        FROM message_context mc
        JOIN message m ON m.id = mc.message_id
        JOIN member mb ON mb.id = m.sender_id
-       WHERE mc.session_id = ? ORDER BY m.ts ASC LIMIT ?`
+       WHERE mc.segment_id = ? ORDER BY m.ts ASC LIMIT ?`
     )
-    .all(chatSessionId, limit) as unknown as SessionPreviewMessage[]
+    .all(segmentId, limit) as unknown as SessionPreviewMessage[]
 
   const participantsSet = new Set<string>()
   for (const msg of messages) {
@@ -398,7 +398,7 @@ export function getSessionMessages(
   }
 
   return {
-    sessionId: session.id,
+    segmentId: session.id,
     startTs: session.startTs,
     endTs: session.endTs,
     messageCount: session.messageCount,
@@ -411,18 +411,18 @@ export function getSessionMessages(
 /**
  * Get session summaries (only sessions that have AI-generated summaries)
  */
-export function getSessionSummaries(
+export function getSegmentSummaries(
   db: DatabaseAdapter,
   options?: { limit?: number; timeFilter?: TimeFilter }
-): SessionSummaryData[] {
-  if (!hasTable(db, 'chat_session')) return []
+): SegmentSummaryData[] {
+  if (!hasTable(db, 'segment')) return []
 
   const { limit = 50, timeFilter } = options ?? {}
 
   let sql = `
     SELECT cs.id, cs.start_ts as startTs, cs.end_ts as endTs,
            cs.message_count as messageCount, cs.summary
-    FROM chat_session cs
+    FROM segment cs
     WHERE cs.summary IS NOT NULL AND cs.summary != ''
   `
   const params: unknown[] = []
@@ -452,7 +452,7 @@ export function getSessionSummaries(
     FROM message_context mc
     JOIN message m ON m.id = mc.message_id
     JOIN member mb ON mb.id = m.sender_id
-    WHERE mc.session_id = ? LIMIT 10
+    WHERE mc.segment_id = ? LIMIT 10
   `
 
   return sessions.map((session) => {
@@ -469,7 +469,7 @@ export function getSessionSummaries(
   })
 }
 
-// ==================== Session Index (chat_session) ====================
+// ==================== Session Index (segment) ====================
 
 /** Default gap threshold for session segmentation: 30 minutes (seconds) */
 export const DEFAULT_SESSION_GAP_THRESHOLD = 1800
@@ -490,12 +490,12 @@ export interface SessionIndexStats {
 }
 
 /**
- * Check whether the chat_session table exists and has at least one row.
+ * Check whether the segment table exists and has at least one row.
  */
 export function hasSessionIndex(db: DatabaseAdapter): boolean {
-  if (!hasTable(db, 'chat_session')) return false
+  if (!hasTable(db, 'segment')) return false
   try {
-    const row = db.prepare('SELECT COUNT(*) as count FROM chat_session').get() as { count: number } | undefined
+    const row = db.prepare('SELECT COUNT(*) as count FROM segment').get() as { count: number } | undefined
     return (row?.count ?? 0) > 0
   } catch {
     return false
@@ -507,9 +507,9 @@ export function hasSessionIndex(db: DatabaseAdapter): boolean {
  */
 export function getSessionIndexStats(db: DatabaseAdapter): SessionIndexStats {
   let sessionCount = 0
-  if (hasTable(db, 'chat_session')) {
+  if (hasTable(db, 'segment')) {
     try {
-      const row = db.prepare('SELECT COUNT(*) as count FROM chat_session').get() as { count: number } | undefined
+      const row = db.prepare('SELECT COUNT(*) as count FROM segment').get() as { count: number } | undefined
       sessionCount = row?.count ?? 0
     } catch {
       /* table may not exist */
@@ -535,7 +535,7 @@ export function getSessionIndexStats(db: DatabaseAdapter): SessionIndexStats {
  * Query chat sessions within a time range.
  */
 export function getSessionsByTimeRange(db: DatabaseAdapter, startTs: number, endTs: number): ChatSessionItem[] {
-  if (!hasTable(db, 'chat_session')) return []
+  if (!hasTable(db, 'segment')) return []
   try {
     return db
       .prepare(
@@ -543,8 +543,8 @@ export function getSessionsByTimeRange(db: DatabaseAdapter, startTs: number, end
           id, start_ts as startTs, end_ts as endTs,
           message_count as messageCount, summary,
           (SELECT mc.message_id FROM message_context mc
-           WHERE mc.session_id = cs.id ORDER BY mc.message_id LIMIT 1) as firstMessageId
-        FROM chat_session cs
+           WHERE mc.segment_id = cs.id ORDER BY mc.message_id LIMIT 1) as firstMessageId
+        FROM segment cs
         WHERE start_ts >= ? AND start_ts <= ?
         ORDER BY start_ts DESC`
       )
@@ -558,7 +558,7 @@ export function getSessionsByTimeRange(db: DatabaseAdapter, startTs: number, end
  * Get the most recent N chat sessions.
  */
 export function getRecentChatSessions(db: DatabaseAdapter, limit: number): ChatSessionItem[] {
-  if (!hasTable(db, 'chat_session')) return []
+  if (!hasTable(db, 'segment')) return []
   try {
     return db
       .prepare(
@@ -566,8 +566,8 @@ export function getRecentChatSessions(db: DatabaseAdapter, limit: number): ChatS
           id, start_ts as startTs, end_ts as endTs,
           message_count as messageCount, summary,
           (SELECT mc.message_id FROM message_context mc
-           WHERE mc.session_id = cs.id ORDER BY mc.message_id LIMIT 1) as firstMessageId
-        FROM chat_session cs
+           WHERE mc.segment_id = cs.id ORDER BY mc.message_id LIMIT 1) as firstMessageId
+        FROM segment cs
         ORDER BY start_ts DESC
         LIMIT ?`
       )
@@ -581,7 +581,7 @@ export function getRecentChatSessions(db: DatabaseAdapter, limit: number): ChatS
  * Timeline list of chat sessions with first message id and summary.
  */
 export function getChatSessionList(db: DatabaseAdapter): ChatSessionItem[] {
-  if (!hasTable(db, 'chat_session')) return []
+  if (!hasTable(db, 'segment')) return []
   try {
     return db
       .prepare(
@@ -592,8 +592,8 @@ export function getChatSessionList(db: DatabaseAdapter): ChatSessionItem[] {
           cs.message_count as messageCount,
           cs.summary,
           (SELECT mc.message_id FROM message_context mc
-           WHERE mc.session_id = cs.id ORDER BY mc.message_id LIMIT 1) as firstMessageId
-        FROM chat_session cs
+           WHERE mc.segment_id = cs.id ORDER BY mc.message_id LIMIT 1) as firstMessageId
+        FROM segment cs
         ORDER BY cs.start_ts ASC`
       )
       .all() as unknown as ChatSessionItem[]
@@ -605,9 +605,9 @@ export function getChatSessionList(db: DatabaseAdapter): ChatSessionItem[] {
 /**
  * Load messages for a chat session (for summary generation).
  */
-export function loadSessionMessages(
+export function loadSegmentMessages(
   db: DatabaseAdapter,
-  chatSessionId: number,
+  segmentId: number,
   limit: number = 500
 ): Array<{ senderName: string; content: string | null }> | null {
   try {
@@ -619,11 +619,11 @@ export function loadSessionMessages(
         FROM message_context mc
         JOIN message m ON m.id = mc.message_id
         JOIN member mb ON mb.id = m.sender_id
-        WHERE mc.session_id = ?
+        WHERE mc.segment_id = ?
         ORDER BY m.ts ASC
         LIMIT ?`
       )
-      .all(chatSessionId, limit) as unknown as Array<{ senderName: string; content: string | null }>
+      .all(segmentId, limit) as unknown as Array<{ senderName: string; content: string | null }>
   } catch {
     return null
   }
@@ -632,9 +632,9 @@ export function loadSessionMessages(
 /**
  * Get summary text for a single chat session.
  */
-export function getChatSessionSummary(db: DatabaseAdapter, chatSessionId: number): string | null {
+export function getSegmentSummary(db: DatabaseAdapter, segmentId: number): string | null {
   try {
-    const row = db.prepare('SELECT summary FROM chat_session WHERE id = ?').get(chatSessionId) as
+    const row = db.prepare('SELECT summary FROM segment WHERE id = ?').get(segmentId) as
       | { summary: string | null }
       | undefined
     return row?.summary ?? null
@@ -646,8 +646,8 @@ export function getChatSessionSummary(db: DatabaseAdapter, chatSessionId: number
 /**
  * Save summary text for a chat session.
  */
-export function saveChatSessionSummary(db: DatabaseAdapter, chatSessionId: number, summary: string): void {
-  db.prepare('UPDATE chat_session SET summary = ? WHERE id = ?').run(summary, chatSessionId)
+export function saveSegmentSummary(db: DatabaseAdapter, segmentId: number, summary: string): void {
+  db.prepare('UPDATE segment SET summary = ? WHERE id = ?').run(summary, segmentId)
 }
 
 /**
@@ -672,11 +672,11 @@ export function renameSession(db: DatabaseAdapter, newName: string): void {
 }
 
 /**
- * Delete all session index data (chat_session + message_context).
+ * Delete all session index data (segment + message_context).
  */
 export function clearSessionIndex(db: DatabaseAdapter): void {
   db.exec('DELETE FROM message_context')
-  db.exec('DELETE FROM chat_session')
+  db.exec('DELETE FROM segment')
 }
 
 /**
@@ -731,9 +731,9 @@ export function generateSessionIndex(
   }
 
   const insertSession = db.prepare(
-    'INSERT INTO chat_session (start_ts, end_ts, message_count, is_manual, summary) VALUES (?, ?, ?, 0, NULL)'
+    'INSERT INTO segment (start_ts, end_ts, message_count, is_manual, summary) VALUES (?, ?, ?, 0, NULL)'
   )
-  const insertContext = db.prepare('INSERT INTO message_context (message_id, session_id, topic_id) VALUES (?, ?, NULL)')
+  const insertContext = db.prepare('INSERT INTO message_context (message_id, segment_id, topic_id) VALUES (?, ?, NULL)')
 
   return db.transaction(() => {
     let processed = 0
@@ -775,8 +775,8 @@ export function generateIncrementalSessionIndex(
   const newMessages = allMessages.filter((m) => !indexedIds.has(m.id))
   if (newMessages.length === 0) return 0
 
-  const lastSession = hasTable(db, 'chat_session')
-    ? (db.prepare('SELECT id, end_ts FROM chat_session ORDER BY end_ts DESC LIMIT 1').get() as
+  const lastSession = hasTable(db, 'segment')
+    ? (db.prepare('SELECT id, end_ts FROM segment ORDER BY end_ts DESC LIMIT 1').get() as
         | { id: number; end_ts: number }
         | undefined)
     : undefined
@@ -784,10 +784,10 @@ export function generateIncrementalSessionIndex(
   newMessages.sort((a, b) => a.ts - b.ts || a.id - b.id)
 
   const insertSession = db.prepare(
-    'INSERT INTO chat_session (start_ts, end_ts, message_count, is_manual, summary) VALUES (?, ?, ?, 0, NULL)'
+    'INSERT INTO segment (start_ts, end_ts, message_count, is_manual, summary) VALUES (?, ?, ?, 0, NULL)'
   )
-  const insertContext = db.prepare('INSERT INTO message_context (message_id, session_id, topic_id) VALUES (?, ?, NULL)')
-  const updateSession = db.prepare('UPDATE chat_session SET end_ts = ?, message_count = message_count + ? WHERE id = ?')
+  const insertContext = db.prepare('INSERT INTO message_context (message_id, segment_id, topic_id) VALUES (?, ?, NULL)')
+  const updateSession = db.prepare('UPDATE segment SET end_ts = ?, message_count = message_count + ? WHERE id = ?')
 
   return db.transaction(() => {
     let newSessionCount = 0

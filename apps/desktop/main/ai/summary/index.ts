@@ -7,7 +7,7 @@
 
 import Database from 'better-sqlite3'
 import { completeSimple, type PiTextContent } from '@openchatlab/node-runtime'
-import { loadSessionMessages, getChatSessionSummary, saveChatSessionSummary } from '@openchatlab/core'
+import { loadSegmentMessages, getSegmentSummary, saveSegmentSummary } from '@openchatlab/core'
 import { getFastModelConfig, buildPiModel } from '../llm'
 import { getDbPath, openDatabase } from '../../database/core'
 import { wrapAsDatabaseAdapter } from '../../worker/core'
@@ -22,32 +22,32 @@ import {
 
 function buildDeps(dbSessionId: string): SummaryDeps {
   return {
-    loadMessages(chatSessionId, limit = 500) {
+    loadMessages(segmentId, limit = 500) {
       const db = openDatabase(dbSessionId, true)
       if (!db) return null
       try {
-        return loadSessionMessages(wrapAsDatabaseAdapter(db), chatSessionId, limit)
+        return loadSegmentMessages(wrapAsDatabaseAdapter(db), segmentId, limit)
       } catch (error) {
         aiLogger.error('Summary', `Failed to get session messages: ${error}`)
         return null
       }
     },
 
-    saveSummary(chatSessionId, summary) {
+    saveSummary(segmentId, summary) {
       const dbPath = getDbPath(dbSessionId)
       const db = new Database(dbPath)
       try {
-        saveChatSessionSummary(wrapAsDatabaseAdapter(db), chatSessionId, summary)
+        saveSegmentSummary(wrapAsDatabaseAdapter(db), segmentId, summary)
       } finally {
         db.close()
       }
     },
 
-    getSummary(chatSessionId) {
+    getSummary(segmentId) {
       const db = openDatabase(dbSessionId, true)
       if (!db) return null
       try {
-        return getChatSessionSummary(wrapAsDatabaseAdapter(db), chatSessionId)
+        return getSegmentSummary(wrapAsDatabaseAdapter(db), segmentId)
       } catch {
         return null
       }
@@ -81,26 +81,26 @@ function buildDeps(dbSessionId: string): SummaryDeps {
 
 export async function generateSessionSummary(
   dbSessionId: string,
-  chatSessionId: number,
+  segmentId: number,
   locale: string = 'zh-CN',
   forceRegenerate: boolean = false,
   strategy?: 'brief' | 'standard'
 ): Promise<{ success: boolean; summary?: string; error?: string }> {
-  return generateCore(buildDeps(dbSessionId), chatSessionId, { locale, forceRegenerate, strategy })
+  return generateCore(buildDeps(dbSessionId), segmentId, { locale, forceRegenerate, strategy })
 }
 
 export async function generateSessionSummaries(
   dbSessionId: string,
-  chatSessionIds: number[],
+  segmentIds: number[],
   locale: string = 'zh-CN',
   onProgress?: (current: number, total: number) => void
 ): Promise<{ success: number; failed: number; skipped: number }> {
-  return generateBatchCore(buildDeps(dbSessionId), chatSessionIds, { locale }, onProgress)
+  return generateBatchCore(buildDeps(dbSessionId), segmentIds, { locale }, onProgress)
 }
 
 export function checkSessionsCanGenerateSummary(
   dbSessionId: string,
-  chatSessionIds: number[]
+  segmentIds: number[]
 ): Map<number, { canGenerate: boolean; reason?: string }> {
-  return checkCore(buildDeps(dbSessionId), chatSessionIds)
+  return checkCore(buildDeps(dbSessionId), segmentIds)
 }

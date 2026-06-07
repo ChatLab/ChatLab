@@ -23,7 +23,7 @@ import type { FastifyInstance } from 'fastify'
 import type { PathProvider } from '@openchatlab/core'
 import type {
   DatabaseManager,
-  AIConversationManager,
+  AIChatManager,
   AssistantManager,
   SkillManagerCore,
   LLMConfigStore,
@@ -47,7 +47,7 @@ import { buildWebUpdateCheckResult } from './update-check'
 
 export interface AiContextOptions {
   aiDataDir: string
-  convManager: AIConversationManager
+  aiChatManager: AIChatManager
   assistantManager: AssistantManager
   skillManagerCore: SkillManagerCore
   llmConfigStore: LLMConfigStore
@@ -124,7 +124,7 @@ export function registerWebRoutes(
       }),
       ...(ai && {
         aiDataDir: ai.aiDataDir,
-        conversationManager: ai.convManager,
+        aiChatManager: ai.aiChatManager,
         assistantManager: ai.assistantManager,
         skillManagerCore: ai.skillManagerCore,
         llmConfigStore: ai.llmConfigStore,

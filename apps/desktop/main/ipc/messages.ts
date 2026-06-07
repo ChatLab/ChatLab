@@ -24,7 +24,7 @@ export function registerMessagesHandlers({ win }: IpcContext): void {
         timeFilter?: { startTs: number; endTs: number }
         senderIds?: number[]
         contextSize?: number
-        chatSessionIds?: number[]
+        segmentIds?: number[]
       }
     ) => {
       try {

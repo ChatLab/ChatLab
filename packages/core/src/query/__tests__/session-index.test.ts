@@ -1,7 +1,7 @@
 /**
  * Tests for session index functions extracted to core:
  *   hasSessionIndex, getSessionIndexStats, getChatSessionList,
- *   getChatSessionSummary, saveChatSessionSummary, updateSessionGapThreshold,
+ *   getSegmentSummary, saveSegmentSummary, updateSessionGapThreshold,
  *   clearSessionIndex, generateSessionIndex, generateIncrementalSessionIndex.
  *
  * Run: npx tsx --test packages/core/src/query/__tests__/session-index.test.ts
@@ -14,8 +14,8 @@ import {
   hasSessionIndex,
   getSessionIndexStats,
   getChatSessionList,
-  getChatSessionSummary,
-  saveChatSessionSummary,
+  getSegmentSummary,
+  saveSegmentSummary,
   updateSessionGapThreshold,
   clearSessionIndex,
   generateSessionIndex,
@@ -36,7 +36,7 @@ interface MockRow {
 function createInMemoryDb(): DatabaseAdapter & { tables: Record<string, MockRow[]> } {
   const tables: Record<string, MockRow[]> = {
     message: [],
-    chat_session: [],
+    segment: [],
     message_context: [],
     meta: [{ session_gap_threshold: null }],
     sqlite_master: [],
@@ -62,8 +62,8 @@ function createInMemoryDb(): DatabaseAdapter & { tables: Record<string, MockRow[
       if (sql.includes('DELETE FROM message_context')) {
         tables.message_context = []
       }
-      if (sql.includes('DELETE FROM chat_session')) {
-        tables.chat_session = []
+      if (sql.includes('DELETE FROM segment')) {
+        tables.segment = []
         autoIncrement = 0
       }
     },
@@ -82,8 +82,8 @@ function createInMemoryDb(): DatabaseAdapter & { tables: Record<string, MockRow[
       const tableName = (params[0] as string) ?? ''
       return tables[tableName] ? { cnt: 1 } : { cnt: 0 }
     }
-    if (sql.includes('COUNT(*)') && sql.includes('FROM chat_session')) {
-      return { count: tables.chat_session.length }
+    if (sql.includes('COUNT(*)') && sql.includes('FROM segment')) {
+      return { count: tables.segment.length }
     }
     if (sql.includes('COUNT(*)') && sql.includes('FROM message')) {
       return { count: tables.message.length }
@@ -91,13 +91,13 @@ function createInMemoryDb(): DatabaseAdapter & { tables: Record<string, MockRow[
     if (sql.includes('session_gap_threshold') && sql.includes('meta')) {
       return tables.meta[0] ?? { session_gap_threshold: null }
     }
-    if (sql.includes('summary') && sql.includes('chat_session') && sql.includes('WHERE id')) {
+    if (sql.includes('summary') && sql.includes('segment') && sql.includes('WHERE id')) {
       const id = params[0] as number
-      const row = tables.chat_session.find((r) => r.id === id)
+      const row = tables.segment.find((r) => r.id === id)
       return row ? { summary: row.summary ?? null } : undefined
     }
-    if (sql.includes('end_ts') && sql.includes('chat_session') && sql.includes('ORDER BY end_ts DESC')) {
-      const sorted = [...tables.chat_session].sort((a, b) => (b.end_ts as number) - (a.end_ts as number))
+    if (sql.includes('end_ts') && sql.includes('segment') && sql.includes('ORDER BY end_ts DESC')) {
+      const sorted = [...tables.segment].sort((a, b) => (b.end_ts as number) - (a.end_ts as number))
       return sorted[0] ? { id: sorted[0].id, end_ts: sorted[0].end_ts } : undefined
     }
     return undefined
@@ -126,9 +126,9 @@ function createInMemoryDb(): DatabaseAdapter & { tables: Record<string, MockRow[
         return { id: m.id, ts: m.ts, session_num: sessionNum }
       })
     }
-    // chat_session list query (contains subquery on message_context) — must match before message_context
-    if (sql.includes('FROM chat_session') && sql.includes('ORDER BY')) {
-      return [...tables.chat_session]
+    // segment list query (contains subquery on message_context) — must match before message_context
+    if (sql.includes('FROM segment') && sql.includes('ORDER BY')) {
+      return [...tables.segment]
         .sort((a, b) => (a.start_ts as number) - (b.start_ts as number))
         .map((s) => ({
           id: s.id,
@@ -138,7 +138,7 @@ function createInMemoryDb(): DatabaseAdapter & { tables: Record<string, MockRow[
           summary: s.summary ?? null,
           firstMessageId:
             tables.message_context
-              .filter((mc) => mc.session_id === s.id)
+              .filter((mc) => mc.segment_id === s.id)
               .sort((a, b) => (a.message_id as number) - (b.message_id as number))[0]?.message_id ?? 0,
         }))
     }
@@ -154,9 +154,9 @@ function createInMemoryDb(): DatabaseAdapter & { tables: Record<string, MockRow[
   }
 
   function handleRun(sql: string, params: unknown[]): RunResult {
-    if (sql.includes('INSERT INTO chat_session')) {
+    if (sql.includes('INSERT INTO segment')) {
       autoIncrement++
-      tables.chat_session.push({
+      tables.segment.push({
         id: autoIncrement,
         start_ts: params[0],
         end_ts: params[1],
@@ -167,16 +167,16 @@ function createInMemoryDb(): DatabaseAdapter & { tables: Record<string, MockRow[
       return { changes: 1, lastInsertRowid: autoIncrement }
     }
     if (sql.includes('INSERT') && sql.includes('message_context')) {
-      tables.message_context.push({ message_id: params[0], session_id: params[1], topic_id: null })
+      tables.message_context.push({ message_id: params[0], segment_id: params[1], topic_id: null })
       return { changes: 1, lastInsertRowid: 0 }
     }
-    if (sql.includes('UPDATE chat_session') && sql.includes('summary')) {
-      const row = tables.chat_session.find((r) => r.id === params[1])
+    if (sql.includes('UPDATE segment') && sql.includes('summary')) {
+      const row = tables.segment.find((r) => r.id === params[1])
       if (row) row.summary = params[0]
       return { changes: row ? 1 : 0, lastInsertRowid: 0 }
     }
-    if (sql.includes('UPDATE chat_session') && sql.includes('end_ts')) {
-      const row = tables.chat_session.find((r) => r.id === params[2])
+    if (sql.includes('UPDATE segment') && sql.includes('end_ts')) {
+      const row = tables.segment.find((r) => r.id === params[2])
       if (row) {
         row.end_ts = params[0]
         row.message_count = (row.message_count as number) + (params[1] as number)
@@ -187,8 +187,8 @@ function createInMemoryDb(): DatabaseAdapter & { tables: Record<string, MockRow[
       if (tables.meta[0]) tables.meta[0].session_gap_threshold = params[0]
       return { changes: 1, lastInsertRowid: 0 }
     }
-    if (sql.includes('DELETE FROM chat_session')) {
-      tables.chat_session = []
+    if (sql.includes('DELETE FROM segment')) {
+      tables.segment = []
       autoIncrement = 0
       return { changes: 0, lastInsertRowid: 0 }
     }
@@ -265,7 +265,7 @@ describe('generateSessionIndex', () => {
 
     const count = generateSessionIndex(db, 2000)
     assert.equal(count, 2)
-    assert.equal(db.tables.chat_session.length, 2)
+    assert.equal(db.tables.segment.length, 2)
     assert.equal(db.tables.message_context.length, 4)
   })
 
@@ -289,10 +289,10 @@ describe('generateSessionIndex', () => {
     ])
 
     generateSessionIndex(db, 2000)
-    assert.equal(db.tables.chat_session.length, 2)
+    assert.equal(db.tables.segment.length, 2)
 
     generateSessionIndex(db, 99999)
-    assert.equal(db.tables.chat_session.length, 1)
+    assert.equal(db.tables.segment.length, 1)
   })
 
   it('calls onProgress callback', () => {
@@ -336,13 +336,13 @@ describe('getChatSessionList', () => {
   })
 })
 
-describe('getChatSessionSummary / saveChatSessionSummary', () => {
+describe('getSegmentSummary / saveSegmentSummary', () => {
   it('returns null when no summary set', () => {
     const db = createInMemoryDb()
     seedMessages(db, [{ id: 1, ts: 1000 }])
     generateSessionIndex(db)
 
-    assert.equal(getChatSessionSummary(db, 1), null)
+    assert.equal(getSegmentSummary(db, 1), null)
   })
 
   it('saves and retrieves summary', () => {
@@ -350,8 +350,8 @@ describe('getChatSessionSummary / saveChatSessionSummary', () => {
     seedMessages(db, [{ id: 1, ts: 1000 }])
     generateSessionIndex(db)
 
-    saveChatSessionSummary(db, 1, 'Test summary')
-    assert.equal(getChatSessionSummary(db, 1), 'Test summary')
+    saveSegmentSummary(db, 1, 'Test summary')
+    assert.equal(getSegmentSummary(db, 1), 'Test summary')
   })
 })
 
@@ -378,10 +378,10 @@ describe('clearSessionIndex', () => {
       { id: 2, ts: 5000 },
     ])
     generateSessionIndex(db, 2000)
-    assert.ok(db.tables.chat_session.length > 0)
+    assert.ok(db.tables.segment.length > 0)
 
     clearSessionIndex(db)
-    assert.equal(db.tables.chat_session.length, 0)
+    assert.equal(db.tables.segment.length, 0)
     assert.equal(db.tables.message_context.length, 0)
   })
 })
@@ -403,13 +403,13 @@ describe('generateIncrementalSessionIndex', () => {
       { id: 2, ts: 1100 },
     ])
     generateSessionIndex(db, 2000)
-    assert.equal(db.tables.chat_session.length, 1)
+    assert.equal(db.tables.segment.length, 1)
 
     db.tables.message.push({ id: 3, ts: 50000 })
 
     const newCount = generateIncrementalSessionIndex(db, 2000)
     assert.equal(newCount, 1)
-    assert.equal(db.tables.chat_session.length, 2)
+    assert.equal(db.tables.segment.length, 2)
   })
 
   it('appends to existing session when within threshold', () => {

@@ -7,7 +7,7 @@
 
 import type {
   AIAdapter,
-  AIConversation,
+  AIChat,
   AIMessage,
   AIMessageRole,
   ContentBlock,
@@ -28,37 +28,37 @@ const NOT_AVAILABLE_WEB = 'This feature is not available in web mode'
 
 export class FetchAIAdapter implements AIAdapter {
   // ===== 对话管理 =====
-  async getConversation(conversationId: string): Promise<AIConversation | null> {
+  async getAIChat(aiChatId: string): Promise<AIChat | null> {
     try {
-      return await get<AIConversation>(`/ai/conversations/${conversationId}`)
+      return await get<AIChat>(`/ai/chats/${aiChatId}`)
     } catch {
       return null
     }
   }
 
-  async getConversations(sessionId: string): Promise<AIConversation[]> {
-    return get<AIConversation[]>(`/ai/conversations?sessionId=${encodeURIComponent(sessionId)}`)
+  async getAIChats(sessionId: string): Promise<AIChat[]> {
+    return get<AIChat[]>(`/ai/chats?sessionId=${encodeURIComponent(sessionId)}`)
   }
 
-  async createConversation(sessionId: string, title: string | undefined, assistantId: string): Promise<AIConversation> {
-    return post<AIConversation>('/ai/conversations', { sessionId, title, assistantId })
+  async createAIChat(sessionId: string, title: string | undefined, assistantId: string): Promise<AIChat> {
+    return post<AIChat>('/ai/chats', { sessionId, title, assistantId })
   }
 
-  async updateConversationTitle(conversationId: string, title: string): Promise<boolean> {
-    return put<boolean>(`/ai/conversations/${conversationId}/title`, { title })
+  async updateAIChatTitle(aiChatId: string, title: string): Promise<boolean> {
+    return put<boolean>(`/ai/chats/${aiChatId}/title`, { title })
   }
 
-  async deleteConversation(conversationId: string): Promise<boolean> {
-    return del<boolean>(`/ai/conversations/${conversationId}`)
+  async deleteAIChat(aiChatId: string): Promise<boolean> {
+    return del<boolean>(`/ai/chats/${aiChatId}`)
   }
 
   // ===== 消息 =====
-  async getMessages(conversationId: string): Promise<AIMessage[]> {
-    return get<AIMessage[]>(`/ai/conversations/${conversationId}/messages`)
+  async getMessages(aiChatId: string): Promise<AIMessage[]> {
+    return get<AIMessage[]>(`/ai/chats/${aiChatId}/messages`)
   }
 
   async addMessage(
-    conversationId: string,
+    aiChatId: string,
     role: AIMessageRole,
     content: string,
     dataKeywords?: string[],
@@ -66,7 +66,7 @@ export class FetchAIAdapter implements AIAdapter {
     contentBlocks?: ContentBlock[],
     tokenUsage?: TokenUsageData
   ): Promise<AIMessage> {
-    return post<AIMessage>(`/ai/conversations/${conversationId}/messages`, {
+    return post<AIMessage>(`/ai/chats/${aiChatId}/messages`, {
       role,
       content,
       dataKeywords,
@@ -76,31 +76,31 @@ export class FetchAIAdapter implements AIAdapter {
     })
   }
 
-  async deleteMessagesFrom(conversationId: string, messageId: string): Promise<void> {
-    return post<void>(`/ai/conversations/${conversationId}/messages/${messageId}/delete-from`, {})
+  async deleteMessagesFrom(aiChatId: string, messageId: string): Promise<void> {
+    return post<void>(`/ai/chats/${aiChatId}/messages/${messageId}/delete-from`, {})
   }
 
-  async forkConversation(sourceConversationId: string, upToMessageId: string, title?: string): Promise<AIConversation> {
-    return post<AIConversation>(`/ai/conversations/${sourceConversationId}/fork`, { upToMessageId, title })
+  async forkAIChat(sourceAIChatId: string, upToMessageId: string, title?: string): Promise<AIChat> {
+    return post<AIChat>(`/ai/chats/${sourceAIChatId}/fork`, { upToMessageId, title })
   }
 
   async updateMessageContent(messageId: string, newContent: string): Promise<void> {
     await put<unknown>(`/ai/messages/${messageId}/content`, { content: newContent })
   }
 
-  async deleteAndRelinkMessage(conversationId: string, messageId: string): Promise<void> {
-    await post<unknown>(`/ai/conversations/${conversationId}/messages/${messageId}/delete-relink`, {})
+  async deleteAndRelinkMessage(aiChatId: string, messageId: string): Promise<void> {
+    await post<unknown>(`/ai/chats/${aiChatId}/messages/${messageId}/delete-relink`, {})
   }
 
   async insertMessageAfter(
-    conversationId: string,
+    aiChatId: string,
     afterMessageId: string,
     role: AIMessageRole,
     content: string,
     contentBlocks?: ContentBlock[],
     tokenUsage?: TokenUsageData
   ): Promise<AIMessage> {
-    return post<AIMessage>(`/ai/conversations/${conversationId}/messages/insert-after`, {
+    return post<AIMessage>(`/ai/chats/${aiChatId}/messages/insert-after`, {
       afterMessageId,
       role,
       content,
@@ -109,16 +109,16 @@ export class FetchAIAdapter implements AIAdapter {
     })
   }
 
-  async getConversationTokenUsage(conversationId: string): Promise<TokenUsageData> {
-    return get<TokenUsageData>(`/ai/conversations/${conversationId}/token-usage`)
+  async getAIChatTokenUsage(aiChatId: string): Promise<TokenUsageData> {
+    return get<TokenUsageData>(`/ai/chats/${aiChatId}/token-usage`)
   }
 
   async estimateContextTokens(
-    conversationId: string
+    aiChatId: string
   ): Promise<{ success: boolean; tokens: number; messageCount?: number; error?: string }> {
     try {
       return await get<{ success: boolean; tokens: number; messageCount?: number }>(
-        `/ai/conversations/${conversationId}/estimate-tokens`
+        `/ai/chats/${aiChatId}/estimate-tokens`
       )
     } catch (error) {
       return { success: false, tokens: 0, error: error instanceof Error ? error.message : String(error) }
@@ -156,14 +156,14 @@ export class FetchAIAdapter implements AIAdapter {
 
   async getMultipleSessionsMessages(
     sessionId: string,
-    chatSessionIds: number[],
+    segmentIds: number[],
     page?: number,
     pageSize?: number
   ): Promise<FilterResultWithPagination> {
     try {
       return await post<FilterResultWithPagination>('/ai/multiple-sessions-messages', {
         sessionId,
-        chatSessionIds,
+        segmentIds,
         page,
         pageSize,
       })

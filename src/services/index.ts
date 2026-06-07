@@ -72,7 +72,7 @@ export type {
 } from './preferences/types'
 export type {
   AIAdapter,
-  AIConversation,
+  AIChat,
   AIMessage,
   AIMessageRole,
   ContentBlock,

@@ -65,9 +65,9 @@ import {
   getSessions,
   getSessionsByTimeRange,
   getRecentChatSessions,
-  getSessionSummariesInWorker,
-  searchSessions,
-  getSessionMessages,
+  getSegmentSummariesInWorker,
+  searchSegments,
+  getSegmentMessages,
   // 自定义筛选
   filterMessagesWithContext,
   getMultipleSessionsMessages,
@@ -234,14 +234,14 @@ const syncHandlers: Record<string, (payload: any) => any> = {
   getSessions: (p) => getSessions(p.sessionId),
   getSessionsByTimeRange: (p) => getSessionsByTimeRange(p.sessionId, p.startTs, p.endTs),
   getRecentChatSessions: (p) => getRecentChatSessions(p.sessionId, p.limit),
-  getSessionSummaries: (p) => getSessionSummariesInWorker(p.sessionId, p.options),
-  searchSessions: (p) => searchSessions(p.sessionId, p.keywords, p.timeFilter, p.limit, p.previewCount),
-  getSessionMessages: (p) => getSessionMessages(p.sessionId, p.chatSessionId, p.limit),
+  getSegmentSummaries: (p) => getSegmentSummariesInWorker(p.sessionId, p.options),
+  searchSegments: (p) => searchSegments(p.sessionId, p.keywords, p.timeFilter, p.limit, p.previewCount),
+  getSegmentMessages: (p) => getSegmentMessages(p.sessionId, p.segmentId, p.limit),
 
   // 自定义筛选（支持分页）
   filterMessagesWithContext: (p) =>
     filterMessagesWithContext(p.sessionId, p.keywords, p.timeFilter, p.senderIds, p.contextSize, p.page, p.pageSize),
-  getMultipleSessionsMessages: (p) => getMultipleSessionsMessages(p.sessionId, p.chatSessionIds, p.page, p.pageSize),
+  getMultipleSessionsMessages: (p) => getMultipleSessionsMessages(p.sessionId, p.segmentIds, p.page, p.pageSize),
 
   // NLP 查询
   getWordFrequency: (p) => getWordFrequency(p),

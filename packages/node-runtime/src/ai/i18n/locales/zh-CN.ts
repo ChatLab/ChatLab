@@ -93,40 +93,40 @@ export default {
           context_size: '上下文大小，即获取前后各多少条消息，默认 20',
         },
       },
-      search_sessions: {
-        desc: '搜索聊天会话（对话段落）。会话是根据消息时间间隔自动切分的对话单元。适用于查找特定话题的讨论、了解某个时间段内发生了几次对话等场景。返回匹配的会话列表及每个会话的前5条消息预览。',
+      search_segments: {
+        desc: '搜索聊天段落（对话段落）。段落是根据消息时间间隔自动切分的对话单元。适用于查找特定话题的讨论、了解某个时间段内发生了几次对话等场景。返回匹配的段落列表及每个段落的前5条消息预览。',
         params: {
-          keywords: '可选的搜索关键词列表，只返回包含这些关键词的会话（OR 逻辑匹配）',
-          limit: '返回会话数量限制，默认 20',
-          year: '指定年份筛选会话，如 2024',
-          month: '指定月份筛选会话（1-12），需配合 year 使用',
-          day: '指定日期筛选会话（1-31），需配合 year 和 month 使用',
+          keywords: '可选的搜索关键词列表，只返回包含这些关键词的段落（OR 逻辑匹配）',
+          limit: '返回段落数量限制，默认 20',
+          year: '指定年份筛选段落，如 2024',
+          month: '指定月份筛选段落（1-12），需配合 year 使用',
+          day: '指定日期筛选段落（1-31），需配合 year 和 month 使用',
           start_time: '开始时间，格式 "YYYY-MM-DD HH:mm"，如 "2024-03-15 14:00"',
           end_time: '结束时间，格式 "YYYY-MM-DD HH:mm"，如 "2024-03-15 18:30"',
         },
       },
-      get_session_messages: {
-        desc: '获取指定会话的完整消息列表。用于在 search_sessions 找到相关会话后，获取该会话的完整上下文。返回会话的所有消息及参与者信息。',
+      get_segment_messages: {
+        desc: '获取指定段落的完整消息列表。用于在 search_segments 找到相关段落后，获取该段落的完整上下文。返回段落的所有消息及参与者信息。',
         params: {
-          session_id: '会话 ID，可以从 search_sessions 的返回结果中获取',
-          limit: '返回消息数量限制，默认 1000。对于超长会话可以限制返回数量以节省 token',
+          segment_id: '段落 ID，可以从 search_segments 的返回结果中获取',
+          limit: '返回消息数量限制，默认 1000。对于超长段落可以限制返回数量以节省 token',
         },
       },
-      get_session_summaries: {
-        desc: `获取会话摘要列表，快速了解群聊历史讨论的主题。
+      get_segment_summaries: {
+        desc: `获取段落摘要列表，快速了解群聊历史讨论的主题。
 
 适用场景：
 1. 了解群里最近在聊什么话题
 2. 按关键词搜索讨论过的话题
 3. 概览性问题如"群里有没有讨论过旅游"
 
-返回的摘要是对每个会话的简短总结，可以帮助快速定位感兴趣的会话，然后用 get_session_messages 获取详情。`,
+返回的摘要是对每个段落的简短总结，可以帮助快速定位感兴趣的段落，然后用 get_segment_messages 获取详情。`,
         params: {
           keywords: '在摘要中搜索的关键词列表（OR 逻辑匹配）',
-          limit: '返回会话数量限制，默认 20',
-          year: '指定年份筛选会话',
-          month: '指定月份筛选会话（1-12）',
-          day: '指定日期筛选会话（1-31）',
+          limit: '返回段落数量限制，默认 20',
+          year: '指定年份筛选段落',
+          month: '指定月份筛选段落（1-12）',
+          day: '指定日期筛选段落（1-31）',
           start_time: '开始时间，格式 "YYYY-MM-DD HH:mm"',
           end_time: '结束时间，格式 "YYYY-MM-DD HH:mm"',
         },
@@ -213,14 +213,14 @@ export default {
         fallback: '该时间范围内没有消息记录',
       },
       conversation_initiator_stats: {
-        desc: '统计每个成员发起会话（作为会话首条消息的发送者）的次数，找出谁最常开启话题。需要已生成会话索引。',
+        desc: '统计每个成员发起段落（作为段落首条消息的发送者）的次数，找出谁最常开启话题。需要已生成段落索引。',
         params: {
           days: '统计最近多少天的数据',
           limit: '返回前多少名',
         },
         rowTemplate: '{name}：发起 {initiated_count} 次话题',
         summaryTemplate: '话题发起者 Top {rowCount}：',
-        fallback: '该时间范围内没有会话记录，可能需要先生成会话索引',
+        fallback: '该时间范围内没有段落记录，可能需要先生成段落索引',
       },
       activity_heatmap: {
         desc: '返回 星期×小时 的消息数矩阵，适合生成活跃度热力图。weekday: 0=周日, 1=周一, ..., 6=周六。',
@@ -328,10 +328,10 @@ export default {
   },
 
   summary: {
-    sessionNotFound: '会话不存在或数据库打开失败',
+    segmentNotFound: '段落不存在或数据库打开失败',
     tooFewMessages: '消息数量少于{{count}}条，无需生成摘要',
     tooFewValidMessages: '有效消息数量少于{{count}}条，无需生成摘要',
-    sessionNotExist: '会话不存在',
+    segmentNotExist: '段落不存在',
     messagesTooFew: '消息太少',
     validMessagesTooFew: '有效消息太少',
     systemPromptDirect: '你是一个对话摘要专家，擅长用简洁的语言总结对话内容。',

@@ -21,12 +21,12 @@ export { chatOverviewTool } from './definitions/chat-overview'
 export { searchMessagesTool } from './definitions/search-messages'
 export { deepSearchMessagesTool } from './definitions/deep-search-messages'
 export { getMessageContextTool } from './definitions/get-message-context'
-export { searchSessionsTool } from './definitions/search-sessions'
-export { getSessionMessagesTool } from './definitions/get-session-messages'
+export { searchSegmentsTool } from './definitions/search-segments'
+export { getSegmentMessagesTool } from './definitions/get-segment-messages'
 export { getMembersTool } from './definitions/get-members'
 export { getMemberNameHistoryTool } from './definitions/get-member-name-history'
 export { getConversationBetweenTool } from './definitions/get-conversation-between'
-export { getSessionSummariesTool } from './definitions/get-session-summaries'
+export { getSegmentSummariesTool } from './definitions/get-segment-summaries'
 export { responseTimeAnalysisTool } from './definitions/response-time-analysis'
 export { keywordFrequencyTool } from './definitions/keyword-frequency'
 export { renderChartTool } from './definitions/render-chart'
@@ -55,10 +55,10 @@ export type {
   ChatOverviewResult,
   MemberInfo,
   NameHistoryItem,
-  SessionSearchResult,
-  SessionMessagesResult,
+  SegmentSearchResult,
+  SegmentMessagesResult,
   ConversationResult,
-  SessionSummaryItem,
+  SegmentSummaryItem,
   SqlToolDef,
   SqlToolExecution,
   SegmentResult,

@@ -1,7 +1,7 @@
 import type { TimeFilter } from '@/types/base'
 import type { ChartPayload } from '@openchatlab/core'
 
-export interface AIConversation {
+export interface AIChat {
   id: string
   sessionId: string
   title: string | null
@@ -38,7 +38,7 @@ export interface TokenUsageData {
 
 export interface AIMessage {
   id: string
-  conversationId: string
+  aiChatId: string
   role: AIMessageRole
   content: string
   timestamp: number
@@ -127,7 +127,7 @@ export interface ExportFilterParams {
   timeFilter?: TimeFilter
   senderIds?: number[]
   contextSize?: number
-  chatSessionIds?: number[]
+  segmentIds?: number[]
 }
 
 export interface ExportProgress {
@@ -153,16 +153,16 @@ export interface AiSQLResult {
 
 export interface AIAdapter {
   // ===== 对话管理 =====
-  getConversation(conversationId: string): Promise<AIConversation | null>
-  getConversations(sessionId: string): Promise<AIConversation[]>
-  createConversation(sessionId: string, title: string | undefined, assistantId: string): Promise<AIConversation>
-  updateConversationTitle(conversationId: string, title: string): Promise<boolean>
-  deleteConversation(conversationId: string): Promise<boolean>
+  getAIChat(aiChatId: string): Promise<AIChat | null>
+  getAIChats(sessionId: string): Promise<AIChat[]>
+  createAIChat(sessionId: string, title: string | undefined, assistantId: string): Promise<AIChat>
+  updateAIChatTitle(aiChatId: string, title: string): Promise<boolean>
+  deleteAIChat(aiChatId: string): Promise<boolean>
 
   // ===== 消息 =====
-  getMessages(conversationId: string): Promise<AIMessage[]>
+  getMessages(aiChatId: string): Promise<AIMessage[]>
   addMessage(
-    conversationId: string,
+    aiChatId: string,
     role: AIMessageRole,
     content: string,
     dataKeywords?: string[],
@@ -170,21 +170,21 @@ export interface AIAdapter {
     contentBlocks?: ContentBlock[],
     tokenUsage?: TokenUsageData
   ): Promise<AIMessage>
-  deleteMessagesFrom(conversationId: string, messageId: string): Promise<void>
-  forkConversation(sourceConversationId: string, upToMessageId: string, title?: string): Promise<AIConversation>
+  deleteMessagesFrom(aiChatId: string, messageId: string): Promise<void>
+  forkAIChat(sourceAIChatId: string, upToMessageId: string, title?: string): Promise<AIChat>
   updateMessageContent(messageId: string, newContent: string): Promise<void>
-  deleteAndRelinkMessage(conversationId: string, messageId: string): Promise<void>
+  deleteAndRelinkMessage(aiChatId: string, messageId: string): Promise<void>
   insertMessageAfter(
-    conversationId: string,
+    aiChatId: string,
     afterMessageId: string,
     role: AIMessageRole,
     content: string,
     contentBlocks?: ContentBlock[],
     tokenUsage?: TokenUsageData
   ): Promise<AIMessage>
-  getConversationTokenUsage(conversationId: string): Promise<TokenUsageData>
+  getAIChatTokenUsage(aiChatId: string): Promise<TokenUsageData>
   estimateContextTokens(
-    conversationId: string
+    aiChatId: string
   ): Promise<{ success: boolean; tokens: number; messageCount?: number; error?: string }>
 
   // ===== 消息筛选/导出 =====
@@ -199,7 +199,7 @@ export interface AIAdapter {
   ): Promise<FilterResultWithPagination>
   getMultipleSessionsMessages(
     sessionId: string,
-    chatSessionIds: number[],
+    segmentIds: number[],
     page?: number,
     pageSize?: number
   ): Promise<FilterResultWithPagination>

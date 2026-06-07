@@ -13,7 +13,7 @@ import type {
   PendingDataDirMigration,
   SessionRuntimeAdapter,
   PreferencesManager,
-  AIConversationManager,
+  AIChatManager,
   AssistantManager,
   SkillManagerCore,
   LLMConfigStore,
@@ -45,7 +45,7 @@ export interface HttpRouteContext {
 
   /** AI subsystem — optional, routes gracefully skip when absent */
   aiDataDir?: string
-  conversationManager?: AIConversationManager
+  aiChatManager?: AIChatManager
   assistantManager?: AssistantManager
   skillManagerCore?: SkillManagerCore
   llmConfigStore?: LLMConfigStore
@@ -72,7 +72,7 @@ export interface HttpRouteContext {
 
 export interface AgentStreamRequest {
   userMessage: string
-  conversationId: string
+  aiChatId: string
   historyLeafMessageId?: string | null
   sessionId: string
   chatType?: 'group' | 'private'

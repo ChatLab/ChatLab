@@ -801,22 +801,22 @@ export async function getRecentChatSessions(sessionId: string, limit: number): P
 
 export type { SessionSearchResultItem, SessionMessagesResult } from './query/session'
 
-export async function searchSessions(
+export async function searchSegments(
   sessionId: string,
   keywords?: string[],
   timeFilter?: { startTs: number; endTs: number },
   limit?: number,
   previewCount?: number
 ): Promise<import('./query/session').SessionSearchResultItem[]> {
-  return sendToWorker('searchSessions', { sessionId, keywords, timeFilter, limit, previewCount })
+  return sendToWorker('searchSegments', { sessionId, keywords, timeFilter, limit, previewCount })
 }
 
-export async function getSessionMessages(
+export async function getSegmentMessages(
   sessionId: string,
-  chatSessionId: number,
+  segmentId: number,
   limit?: number
 ): Promise<import('./query/session').SessionMessagesResult | null> {
-  return sendToWorker('getSessionMessages', { sessionId, chatSessionId, limit })
+  return sendToWorker('getSegmentMessages', { sessionId, segmentId, limit })
 }
 
 /**
@@ -834,14 +834,14 @@ export interface SessionSummaryItem {
 /**
  * 获取带摘要的会话列表（用于 AI 工具）
  */
-export async function getSessionSummaries(
+export async function getSegmentSummaries(
   sessionId: string,
   options: {
     limit?: number
     timeFilter?: { startTs: number; endTs: number }
   }
 ): Promise<SessionSummaryItem[]> {
-  return sendToWorker('getSessionSummaries', { sessionId, options })
+  return sendToWorker('getSegmentSummaries', { sessionId, options })
 }
 
 // ==================== 自定义筛选 API ====================
@@ -883,11 +883,11 @@ export async function filterMessagesWithContext(
  */
 export async function getMultipleSessionsMessages(
   sessionId: string,
-  chatSessionIds: number[],
+  segmentIds: number[],
   page?: number,
   pageSize?: number
 ): Promise<FilterResultWithPagination> {
-  return sendToWorker('getMultipleSessionsMessages', { sessionId, chatSessionIds, page, pageSize })
+  return sendToWorker('getMultipleSessionsMessages', { sessionId, segmentIds, page, pageSize })
 }
 
 /**
@@ -902,7 +902,7 @@ export interface ExportFilterParams {
   timeFilter?: { startTs: number; endTs: number }
   senderIds?: number[]
   contextSize?: number
-  chatSessionIds?: number[]
+  segmentIds?: number[]
 }
 
 /**

@@ -44,7 +44,7 @@ export default {
     migrationV1Message: 'Support "Owner" feature to set your identity in the member list',
     migrationV2Desc: 'Add roles, reply_to_message_id, platform_message_id fields',
     migrationV2Message: 'Support member roles, message reply relationships and reply preview',
-    migrationV3Desc: 'Add session index tables (chat_session, message_context) and session_gap_threshold field',
+    migrationV3Desc: 'Add session index tables (segment, message_context) and session_gap_threshold field',
     migrationV3Message: 'Support session timeline browsing and AI-enhanced analysis',
     migrationV4Desc: 'Create FTS5 full-text search index (message_fts) and build index data',
     migrationV4Message: 'Enable full-text search for significantly faster keyword search',

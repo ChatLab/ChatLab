@@ -43,7 +43,7 @@ export default {
     migrationV1Message: '支持「Owner」功能，可在成员列表中设置自己的身份',
     migrationV2Desc: '添加 roles、reply_to_message_id、platform_message_id 字段',
     migrationV2Message: '支持成员角色、消息回复关系和回复内容预览',
-    migrationV3Desc: '添加会话索引相关表（chat_session、message_context）和 session_gap_threshold 字段',
+    migrationV3Desc: '添加会话索引相关表（segment、message_context）和 session_gap_threshold 字段',
     migrationV3Message: '支持会话时间轴浏览和 AI 增强分析功能',
     migrationV4Desc: '创建 FTS5 全文搜索索引（message_fts）并构建索引数据',
     migrationV4Message: '支持全文搜索，大幅提升关键词搜索速度',

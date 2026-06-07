@@ -55,7 +55,7 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
     try {
       const rows = await getDataAdapter().pluginQuery<{ cnt: number }>(
         sessionId,
-        'SELECT COUNT(*) as cnt FROM chat_session',
+        'SELECT COUNT(*) as cnt FROM segment',
         []
       )
       const count = rows[0]?.cnt ?? 0
@@ -83,7 +83,7 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
   async getSessions(sessionId: string): Promise<ChatSessionItem[]> {
     return getDataAdapter().pluginQuery<ChatSessionItem>(
       sessionId,
-      'SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount, summary FROM chat_session ORDER BY start_ts ASC',
+      'SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount, summary FROM segment ORDER BY start_ts ASC',
       []
     )
   }
@@ -91,7 +91,7 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
   async getByTimeRange(sessionId: string, startTs: number, endTs: number): Promise<ChatSessionItem[]> {
     return getDataAdapter().pluginQuery<ChatSessionItem>(
       sessionId,
-      'SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount, summary FROM chat_session WHERE start_ts >= ? AND end_ts <= ? ORDER BY start_ts ASC',
+      'SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount, summary FROM segment WHERE start_ts >= ? AND end_ts <= ? ORDER BY start_ts ASC',
       [startTs, endTs]
     )
   }
@@ -99,14 +99,14 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
   async getRecent(sessionId: string, limit: number): Promise<ChatSessionItem[]> {
     return getDataAdapter().pluginQuery<ChatSessionItem>(
       sessionId,
-      'SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount, summary FROM chat_session ORDER BY start_ts DESC LIMIT ?',
+      'SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount, summary FROM segment ORDER BY start_ts DESC LIMIT ?',
       [limit]
     )
   }
 
   async generateSummary(
     dbSessionId: string,
-    chatSessionId: number,
+    segmentId: number,
     locale?: string,
     forceRegenerate?: boolean,
     strategy?: 'brief' | 'standard'
@@ -115,7 +115,7 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
       const resp = await fetchWithAuth(`/_web/sessions/${dbSessionId}/summaries/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chatSessionId, locale, forceRegenerate, strategy }),
+        body: JSON.stringify({ segmentId, locale, forceRegenerate, strategy }),
       })
       const result = await resp.json()
       if (!resp.ok) {
@@ -127,18 +127,18 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
     }
   }
 
-  async generateSummaries(dbSessionId: string, chatSessionIds: number[], locale?: string): Promise<BatchSummaryResult> {
+  async generateSummaries(dbSessionId: string, segmentIds: number[], locale?: string): Promise<BatchSummaryResult> {
     // Call generateSummary individually for each selected session so that only
     // the requested IDs are processed, matching the Electron adapter's behaviour.
-    // Previously this called /generate-all and ignored chatSessionIds entirely,
+    // Previously this called /generate-all and ignored segmentIds entirely,
     // which caused every session in the database to be regenerated.
     let success = 0
     let failed = 0
     const skipped = 0
 
-    for (const chatSessionId of chatSessionIds) {
+    for (const segmentId of segmentIds) {
       try {
-        const result = await this.generateSummary(dbSessionId, chatSessionId, locale)
+        const result = await this.generateSummary(dbSessionId, segmentId, locale)
         if (result.success) {
           success++
         } else {
@@ -152,15 +152,12 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
     return { success, failed, skipped }
   }
 
-  async checkCanGenerateSummary(
-    dbSessionId: string,
-    chatSessionIds: number[]
-  ): Promise<Record<number, CanGenerateInfo>> {
+  async checkCanGenerateSummary(dbSessionId: string, segmentIds: number[]): Promise<Record<number, CanGenerateInfo>> {
     try {
       const resp = await fetchWithAuth(`/_web/sessions/${dbSessionId}/summaries/check-can-generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ chatSessionIds }),
+        body: JSON.stringify({ segmentIds }),
       })
       if (!resp.ok) return {}
       return await resp.json()

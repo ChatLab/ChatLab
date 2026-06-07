@@ -48,7 +48,7 @@ export function exportFilterResultToFile(
       timeFilter: params.timeFilter,
       senderIds: params.senderIds,
       contextSize: params.contextSize,
-      chatSessionIds: params.chatSessionIds,
+      segmentIds: params.segmentIds,
     },
     {
       openDatabase(sessionId: string) {

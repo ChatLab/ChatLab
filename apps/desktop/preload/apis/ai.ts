@@ -48,7 +48,7 @@ export const aiApi = {
     timeFilter?: { startTs: number; endTs: number }
     senderIds?: number[]
     contextSize?: number
-    chatSessionIds?: number[]
+    segmentIds?: number[]
   }): Promise<{ success: boolean; filePath?: string; error?: string }> => {
     return ipcRenderer.invoke('ai:exportFilterResultToFile', params)
   },

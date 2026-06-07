@@ -269,7 +269,7 @@ async function exportFeedPack() {
         : undefined,
       senderIds: rawFilter.senderIds.length > 0 ? [...rawFilter.senderIds] : undefined,
       contextSize: rawFilter.contextSize,
-      chatSessionIds: filterMode.value === 'session' ? [...toRaw(selectedSessionIds.value)] : undefined,
+      segmentIds: filterMode.value === 'session' ? [...toRaw(selectedSessionIds.value)] : undefined,
     }
 
     const exportResult = await useAIService().exportFilterResultToFile(exportParams)

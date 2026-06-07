@@ -33,7 +33,7 @@ export interface ExportFilterParams {
   senderIds?: number[]
   contextSize?: number
   // 会话筛选参数
-  chatSessionIds?: number[]
+  segmentIds?: number[]
 }
 
 /**

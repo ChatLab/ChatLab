@@ -106,7 +106,7 @@ export {
 // AI 助手/技能解析器 + 对话管理
 export type { AssistantConfig, AssistantSummary, SkillDef, SkillSummary } from './ai'
 export { parseAssistantFile, serializeAssistant, parseSkillFile, extractSkillId } from './ai'
-export { AIConversationManager } from './ai'
+export { AIChatManager } from './ai'
 export { countTokens, countMessagesTokens, initTokenizer } from './ai'
 
 // Assistant Manager
@@ -185,14 +185,7 @@ export {
 } from './ai'
 export type { PreprocessingPipelineOptions, PreprocessingPipelineResult } from './ai'
 
-export type {
-  AIConversation,
-  AIMessage,
-  AIMessageRole,
-  ContentBlock,
-  TokenUsageData,
-  ConversationManagerLogger,
-} from './ai'
+export type { AIChat, AIMessage, AIMessageRole, ContentBlock, TokenUsageData, AIChatManagerLogger } from './ai'
 
 // Agent Core
 export type { AgentCoreOptions, AgentCoreEvent, AgentCoreResult, AgentTokenUsage, SimpleHistoryMessage } from './ai'

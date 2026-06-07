@@ -82,7 +82,7 @@ export interface NameHistoryItem {
   endTs: number | null
 }
 
-export interface SessionSearchResult {
+export interface SegmentSearchResult {
   id: number
   startTs: number
   endTs: number
@@ -96,8 +96,8 @@ export interface SessionSearchResult {
   }>
 }
 
-export interface SessionMessagesResult {
-  sessionId: number
+export interface SegmentMessagesResult {
+  segmentId: number
   startTs: number
   endTs: number
   messageCount: number
@@ -118,7 +118,7 @@ export interface ConversationResult {
   member2Name: string
 }
 
-export interface SessionSummaryItem {
+export interface SegmentSummaryItem {
   id: number
   startTs: number
   endTs: number
@@ -186,17 +186,17 @@ export interface ToolDataProvider {
   // === 时间统计 ===
   getTimeStats(type: 'hourly' | 'weekday' | 'daily', options?: { timeFilter?: TimeFilter }): Promise<unknown[]>
 
-  // === 会话相关 ===
-  searchSessions(
+  // === 段落相关 ===
+  searchSegments(
     keywords?: string[],
     timeFilter?: TimeFilter,
     limit?: number,
     previewCount?: number
-  ): Promise<SessionSearchResult[]>
+  ): Promise<SegmentSearchResult[]>
 
-  getSessionMessages(chatSessionId: number, limit?: number): Promise<SessionMessagesResult | null>
+  getSegmentMessages(segmentId: number, limit?: number): Promise<SegmentMessagesResult | null>
 
-  getSessionSummaries(options?: { limit?: number; timeFilter?: TimeFilter }): Promise<SessionSummaryItem[]>
+  getSegmentSummaries(options?: { limit?: number; timeFilter?: TimeFilter }): Promise<SegmentSummaryItem[]>
 
   // === 对话查询 ===
   getConversationBetween(

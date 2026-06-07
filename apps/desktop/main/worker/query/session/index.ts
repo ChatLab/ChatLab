@@ -32,13 +32,13 @@ export {
   getSessions,
   getSessionsByTimeRange,
   getRecentChatSessions,
-  getSessionSummariesInWorker,
+  getSegmentSummariesInWorker,
   saveSessionSummary,
   getSessionSummary,
 } from './sessionIndex'
 
 // AI 工具专用查询
-export { searchSessions, getSessionMessages } from './aiTools'
+export { searchSegments, getSegmentMessages } from './aiTools'
 
 // 自定义筛选
 export { filterMessagesWithContext, getMultipleSessionsMessages } from './filter'

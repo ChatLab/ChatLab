@@ -211,8 +211,8 @@ export async function fetchSearchMessageContext(
     contextIds.add(messageId)
 
     if (hasSessionData) {
-      const sessionRow = await executor.get<{ session_id: number }>(
-        'SELECT session_id FROM message_context WHERE message_id = ?',
+      const sessionRow = await executor.get<{ segment_id: number }>(
+        'SELECT segment_id FROM message_context WHERE message_id = ?',
         [messageId]
       )
 
@@ -220,18 +220,18 @@ export async function fetchSearchMessageContext(
         if (contextBefore > 0) {
           const rows = await executor.all<{ id: number }>(
             `SELECT mc.message_id as id FROM message_context mc
-             WHERE mc.session_id = ? AND mc.message_id < ?
+             WHERE mc.segment_id = ? AND mc.message_id < ?
              ORDER BY mc.message_id DESC LIMIT ?`,
-            [sessionRow.session_id, messageId, contextBefore]
+            [sessionRow.segment_id, messageId, contextBefore]
           )
           rows.forEach((r) => contextIds.add(r.id))
         }
         if (contextAfter > 0) {
           const rows = await executor.all<{ id: number }>(
             `SELECT mc.message_id as id FROM message_context mc
-             WHERE mc.session_id = ? AND mc.message_id > ?
+             WHERE mc.segment_id = ? AND mc.message_id > ?
              ORDER BY mc.message_id ASC LIMIT ?`,
-            [sessionRow.session_id, messageId, contextAfter]
+            [sessionRow.segment_id, messageId, contextAfter]
           )
           rows.forEach((r) => contextIds.add(r.id))
         }

@@ -14,7 +14,7 @@ export function registerExportRoutes(server: FastifyInstance, ctx: HttpRouteCont
       timeFilter?: { startTs: number; endTs: number }
       senderIds?: number[]
       contextSize?: number
-      chatSessionIds?: number[]
+      segmentIds?: number[]
     }
   }>('/_web/sessions/:id/export/markdown', async (request, reply) => {
     const { id } = request.params
@@ -29,7 +29,7 @@ export function registerExportRoutes(server: FastifyInstance, ctx: HttpRouteCont
       timeFilter: body.timeFilter,
       senderIds: body.senderIds,
       contextSize: body.contextSize,
-      chatSessionIds: body.chatSessionIds,
+      segmentIds: body.segmentIds,
     })
 
     if (!result.success) {

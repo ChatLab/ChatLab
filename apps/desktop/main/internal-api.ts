@@ -31,7 +31,7 @@ import type { ConfigStorage } from '@openchatlab/node-runtime'
 import { registerSharedRoutes, ApiError, ApiErrorCode, errorResponse, serverError } from '@openchatlab/http-routes'
 import type { HttpRouteContext } from '@openchatlab/http-routes'
 import { resolveApiKey, writeAuthProfile } from '@openchatlab/config'
-import { getManager as getConversationManager } from './ai/conversations'
+import { getManager as getAIChatManager } from './ai/chats'
 import { getManager as getAssistantManager } from './ai/assistant/manager'
 import { getManager as getSkillManager } from './ai/skills/manager'
 import { createElectronRunAgentStream } from './ai/agent-stream-runner'
@@ -138,7 +138,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
       mergeSessionCache: newMergeCache,
       streamImport: electronStreamImport,
       aiDataDir,
-      conversationManager: getConversationManager(),
+      aiChatManager: getAIChatManager(),
       assistantManager: getAssistantManager(),
       skillManagerCore: getSkillManager(),
       llmConfigStore,

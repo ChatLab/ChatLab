@@ -36,14 +36,14 @@ const isClearingDebug = ref(false)
 
 const isAiDb = computed(() => dbSource.value === 'ai')
 
-const conversations = ref<Array<{ id: string; title: string | null }>>([])
-const selectedConversation = ref('')
+const aiChats = ref<Array<{ id: string; title: string | null }>>([])
+const selectedAIChat = ref('')
 const showConversationFilter = computed(
-  () => isAiDb.value && selectedTable.value === 'ai_message' && conversations.value.length > 0
+  () => isAiDb.value && selectedTable.value === 'ai_message' && aiChats.value.length > 0
 )
 const conversationItems = computed(() => {
   const all = { label: t('analysis.debug.tableBrowser.allConversations'), value: '__all__' }
-  const items = conversations.value.map((c) => ({
+  const items = aiChats.value.map((c) => ({
     label: c.title || c.id.slice(0, 16),
     value: c.id,
   }))
@@ -52,18 +52,18 @@ const conversationItems = computed(() => {
 
 async function loadConversations() {
   if (!isAiDb.value) {
-    conversations.value = []
+    aiChats.value = []
     return
   }
   try {
     const escapedId = props.sessionId.replace(/'/g, "''")
     const res = await useAIService().executeAiSQL(
-      `SELECT id, title FROM ai_conversation WHERE session_id = '${escapedId}' ORDER BY updated_at DESC`
+      `SELECT id, title FROM ai_chat WHERE session_id = '${escapedId}' ORDER BY updated_at DESC`
     )
-    conversations.value = res.rows.map((r) => ({ id: String(r[0]), title: r[1] ? String(r[1]) : null }))
-    selectedConversation.value = '__all__'
+    aiChats.value = res.rows.map((r) => ({ id: String(r[0]), title: r[1] ? String(r[1]) : null }))
+    selectedAIChat.value = '__all__'
   } catch {
-    conversations.value = []
+    aiChats.value = []
   }
 }
 
@@ -124,15 +124,15 @@ function getSessionWhereClause(): string {
   if (!isAiDb.value) return ''
   const escapedId = props.sessionId.replace(/'/g, "''")
   const table = selectedTable.value
-  if (table === 'ai_conversation') {
+  if (table === 'ai_chat') {
     return ` WHERE "session_id" = '${escapedId}'`
   }
   if (table === 'ai_message') {
-    if (selectedConversation.value && selectedConversation.value !== '__all__') {
-      const escapedConvId = selectedConversation.value.replace(/'/g, "''")
-      return ` WHERE "conversation_id" = '${escapedConvId}'`
+    if (selectedAIChat.value && selectedAIChat.value !== '__all__') {
+      const escapedAIChatId = selectedAIChat.value.replace(/'/g, "''")
+      return ` WHERE "ai_chat_id" = '${escapedAIChatId}'`
     }
-    return ` WHERE "conversation_id" IN (SELECT "id" FROM "ai_conversation" WHERE "session_id" = '${escapedId}')`
+    return ` WHERE "ai_chat_id" IN (SELECT "id" FROM "ai_chat" WHERE "session_id" = '${escapedId}')`
   }
   return ''
 }
@@ -301,7 +301,7 @@ watch(dbSource, (val) => {
   result.value = null
   totalRows.value = 0
   currentPage.value = 1
-  selectedConversation.value = ''
+  selectedAIChat.value = ''
   loadSchema()
   loadConversations()
 })
@@ -313,7 +313,7 @@ watch(selectedTable, (val) => {
   }
 })
 
-watch(selectedConversation, () => {
+watch(selectedAIChat, () => {
   if (selectedTable.value === 'ai_message') {
     currentPage.value = 1
     loadTableData()
@@ -349,7 +349,7 @@ onMounted(async () => {
       <!-- Conversation Filter Dropdown (AI DB + ai_message) -->
       <USelectMenu
         v-if="showConversationFilter"
-        v-model="selectedConversation"
+        v-model="selectedAIChat"
         :items="conversationItems"
         value-key="value"
         class="w-48"

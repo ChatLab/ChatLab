@@ -24,15 +24,15 @@ export function registerAiFilterRoutes(server: FastifyInstance, ctx: HttpRouteCo
   server.post<{
     Body: {
       sessionId: string
-      chatSessionIds: number[]
+      segmentIds: number[]
       page?: number
       pageSize?: number
     }
   }>('/_web/ai/multiple-sessions-messages', async (request, reply) => {
-    const { sessionId, chatSessionIds, page, pageSize } = request.body
+    const { sessionId, segmentIds, page, pageSize } = request.body
     const db = ctx.dbManager.open(sessionId)
     if (!db) return reply.code(404).send({ error: `Session not found: ${sessionId}` })
 
-    return getMultipleSessionsMessages(db, chatSessionIds, page, pageSize)
+    return getMultipleSessionsMessages(db, segmentIds, page, pageSize)
   })
 }

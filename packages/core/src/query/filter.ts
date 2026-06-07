@@ -211,21 +211,21 @@ export function filterMessagesWithContext(
  */
 export function getMultipleSessionsMessages(
   db: DatabaseAdapter,
-  chatSessionIds: number[],
+  segmentIds: number[],
   page: number = 1,
   pageSize: number = 50
 ): FilterResultWithPagination {
-  if (chatSessionIds.length === 0) {
+  if (segmentIds.length === 0) {
     return emptyResult(page, pageSize)
   }
 
   const sessionsSql = `
     SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount
-    FROM chat_session
-    WHERE id IN (${chatSessionIds.map(() => '?').join(',')})
+    FROM segment
+    WHERE id IN (${segmentIds.map(() => '?').join(',')})
     ORDER BY start_ts ASC
   `
-  const allSessions = db.prepare(sessionsSql).all(...chatSessionIds) as Array<{
+  const allSessions = db.prepare(sessionsSql).all(...segmentIds) as Array<{
     id: number
     startTs: number
     endTs: number
@@ -257,7 +257,7 @@ export function getMultipleSessionsMessages(
     JOIN member m ON msg.sender_id = m.id
     LEFT JOIN message reply_msg ON msg.reply_to_message_id = reply_msg.platform_message_id
     LEFT JOIN member reply_m ON reply_msg.sender_id = reply_m.id
-    WHERE mc.session_id = ?
+    WHERE mc.segment_id = ?
     ORDER BY msg.ts ASC
   `
 

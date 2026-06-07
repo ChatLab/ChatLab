@@ -57,13 +57,13 @@ export interface SessionIndexAdapter {
 
   generateSummary(
     dbSessionId: string,
-    chatSessionId: number,
+    segmentId: number,
     locale?: string,
     forceRegenerate?: boolean,
     strategy?: 'brief' | 'standard'
   ): Promise<SummaryResult>
 
-  generateSummaries(dbSessionId: string, chatSessionIds: number[], locale?: string): Promise<BatchSummaryResult>
+  generateSummaries(dbSessionId: string, segmentIds: number[], locale?: string): Promise<BatchSummaryResult>
 
-  checkCanGenerateSummary(dbSessionId: string, chatSessionIds: number[]): Promise<Record<number, CanGenerateInfo>>
+  checkCanGenerateSummary(dbSessionId: string, segmentIds: number[]): Promise<Record<number, CanGenerateInfo>>
 }

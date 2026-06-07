@@ -4,24 +4,24 @@
  * Electron adds FTS tokenization and DB lifecycle.
  */
 
-import { searchSessions as coreSearchSessions, getSessionMessages as coreGetSessionMessages } from '@openchatlab/core'
-import type { SessionSearchItem, SessionMessagesData } from '@openchatlab/core'
+import { searchSegments as coreSearchSessions, getSegmentMessages as coreGetSessionMessages } from '@openchatlab/core'
+import type { SegmentSearchItem, SegmentMessagesData } from '@openchatlab/core'
 import { openReadonlyDatabase } from './core'
 import { wrapAsDatabaseAdapter } from '../../core'
 import { hasFtsIndex } from '../fts'
 import { tokenizeQueryForFts } from '@openchatlab/node-runtime'
 
 // Re-export core types under Electron-local aliases
-export type { SessionSearchItem as SessionSearchResultItem }
-export type { SessionMessagesData as SessionMessagesResult }
+export type { SegmentSearchItem as SessionSearchResultItem }
+export type { SegmentMessagesData as SessionMessagesResult }
 
-export function searchSessions(
+export function searchSegments(
   sessionId: string,
   keywords?: string[],
   timeFilter?: { startTs: number; endTs: number },
   limit: number = 20,
   previewCount: number = 5
-): SessionSearchItem[] {
+): SegmentSearchItem[] {
   const db = openReadonlyDatabase(sessionId)
   if (!db) return []
 
@@ -36,26 +36,26 @@ export function searchSessions(
 
     return coreSearchSessions(adapter, keywords, timeFilter, limit, previewCount, ftsMatchExpression)
   } catch (error) {
-    console.error('searchSessions error:', error)
+    console.error('searchSegments error:', error)
     return []
   } finally {
     db.close()
   }
 }
 
-export function getSessionMessages(
+export function getSegmentMessages(
   sessionId: string,
-  chatSessionId: number,
+  segmentId: number,
   limit: number = 500
-): SessionMessagesData | null {
+): SegmentMessagesData | null {
   const db = openReadonlyDatabase(sessionId)
   if (!db) return null
 
   try {
     const adapter = wrapAsDatabaseAdapter(db)
-    return coreGetSessionMessages(adapter, chatSessionId, limit)
+    return coreGetSessionMessages(adapter, segmentId, limit)
   } catch (error) {
-    console.error('getSessionMessages error:', error)
+    console.error('getSegmentMessages error:', error)
     return null
   } finally {
     db.close()

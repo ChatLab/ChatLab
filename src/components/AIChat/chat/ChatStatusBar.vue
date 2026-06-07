@@ -20,7 +20,7 @@ const layoutStore = useLayoutStore()
 const props = defineProps<{
   sessionTokenUsage: { totalTokens: number }
   agentStatus?: AgentRuntimeStatus | null
-  currentConversationId?: string | null
+  currentAIChatId?: string | null
   estimatedContextTokens?: number
 }>()
 
@@ -128,13 +128,13 @@ function openModelSettings() {
 const isExporting = ref(false)
 
 async function handleExportConversation() {
-  if (isExporting.value || !props.currentConversationId) return
+  if (isExporting.value || !props.currentAIChatId) return
 
   isExporting.value = true
   try {
     const [conv, messages] = await Promise.all([
-      useAIService().getConversation(props.currentConversationId),
-      useAIService().getMessages(props.currentConversationId),
+      useAIService().getAIChat(props.currentAIChatId),
+      useAIService().getMessages(props.currentAIChatId),
     ])
 
     if (!conv || messages.length === 0) {
@@ -356,7 +356,7 @@ const thinkingLevelLabel = computed(() => {
       <button
         class="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-xs text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-gray-800 dark:hover:text-gray-300"
         :title="t('ai.chat.statusBar.export.title')"
-        :disabled="isExporting || !currentConversationId"
+        :disabled="isExporting || !currentAIChatId"
         @click="handleExportConversation"
       >
         <UIcon name="i-heroicons-arrow-down-tray" class="h-3.5 w-3.5" />

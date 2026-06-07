@@ -3,7 +3,7 @@
  * for the shared HTTP route context.
  */
 
-import type { DatabaseManager, AIConversationManager, AgentStreamChunk } from '@openchatlab/node-runtime'
+import type { DatabaseManager, AIChatManager, AgentStreamChunk } from '@openchatlab/node-runtime'
 import {
   CHART_CAPABILITY_CORE_TOOLS,
   SkillManager,
@@ -61,12 +61,12 @@ export function getAllowedToolSet(
 
 export function createCliRunAgentStream(
   dbManager: DatabaseManager,
-  convManager: AIConversationManager
+  aiChatManager: AIChatManager
 ): (params: AgentStreamRequest, onEvent: (chunk: AgentStreamChunk) => void, abortSignal: AbortSignal) => Promise<void> {
   return async (params, onEvent, abortSignal) => {
     const {
       userMessage,
-      conversationId,
+      aiChatId,
       historyLeafMessageId,
       sessionId,
       chatType,
@@ -184,7 +184,7 @@ export function createCliRunAgentStream(
 
     await runServerAgent({
       userMessage,
-      conversationId,
+      aiChatId,
       historyLeafMessageId,
       chatType,
       locale,
@@ -194,7 +194,7 @@ export function createCliRunAgentStream(
       compressionConfig: resolvedCompression,
       tools: agentTools,
       aiDataDir,
-      convManager,
+      aiChatManager,
       onEvent,
       abortSignal,
       ownerInfo,

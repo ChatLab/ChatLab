@@ -171,7 +171,7 @@ interface AiApi {
     timeFilter?: TimeFilter
     senderIds?: number[]
     contextSize?: number
-    chatSessionIds?: number[]
+    segmentIds?: number[]
   }) => Promise<{ success: boolean; filePath?: string; error?: string }>
   onExportProgress: (callback: (progress: ExportProgress) => void) => () => void
   showAiLogFile: () => Promise<{ success: boolean; path?: string; error?: string }>

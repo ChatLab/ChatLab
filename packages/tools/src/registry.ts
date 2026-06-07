@@ -18,15 +18,15 @@ import { chatOverviewTool } from './definitions/chat-overview'
 import { searchMessagesTool } from './definitions/search-messages'
 import { deepSearchMessagesTool } from './definitions/deep-search-messages'
 import { getMessageContextTool } from './definitions/get-message-context'
-import { searchSessionsTool } from './definitions/search-sessions'
-import { getSessionMessagesTool } from './definitions/get-session-messages'
+import { searchSegmentsTool } from './definitions/search-segments'
+import { getSegmentMessagesTool } from './definitions/get-segment-messages'
 import { getMembersTool } from './definitions/get-members'
 import { memberStatsTool } from './definitions/member-stats'
 import { timeStatsTool } from './definitions/time-stats'
 import { recentMessagesTool } from './definitions/recent-messages'
 import { getMemberNameHistoryTool } from './definitions/get-member-name-history'
 import { getConversationBetweenTool } from './definitions/get-conversation-between'
-import { getSessionSummariesTool } from './definitions/get-session-summaries'
+import { getSegmentSummariesTool } from './definitions/get-segment-summaries'
 import { responseTimeAnalysisTool } from './definitions/response-time-analysis'
 import { keywordFrequencyTool } from './definitions/keyword-frequency'
 import { SQL_TOOL_DEFS, createAllSqlToolDefinitions } from './sql'
@@ -42,8 +42,8 @@ const SHARED_TOOLS: ToolDefinition[] = [
   deepSearchMessagesTool,
   recentMessagesTool,
   getMessageContextTool,
-  searchSessionsTool,
-  getSessionMessagesTool,
+  searchSegmentsTool,
+  getSegmentMessagesTool,
   getMembersTool,
   schemaTool,
 
@@ -52,7 +52,7 @@ const SHARED_TOOLS: ToolDefinition[] = [
   timeStatsTool,
   getMemberNameHistoryTool,
   getConversationBetweenTool,
-  getSessionSummariesTool,
+  getSegmentSummariesTool,
   responseTimeAnalysisTool,
   keywordFrequencyTool,
   renderChartTool,

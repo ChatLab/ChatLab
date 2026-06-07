@@ -18,7 +18,7 @@ export interface ExportFilterParams {
   timeFilter?: { startTs: number; endTs: number }
   senderIds?: number[]
   contextSize?: number
-  chatSessionIds?: number[]
+  segmentIds?: number[]
 }
 
 export interface ExportProgress {
@@ -83,7 +83,7 @@ export function exportFilterResultToMarkdown(
       writer.write(`- Context: ±${params.contextSize || 10} messages\n`)
     } else {
       writer.write(`- Mode: session filter\n`)
-      writer.write(`- Selected sessions: ${params.chatSessionIds?.length || 0}\n`)
+      writer.write(`- Selected sessions: ${params.segmentIds?.length || 0}\n`)
     }
     writer.write('\n')
 
@@ -275,7 +275,7 @@ function exportSessionMode(
   writer: ExportWriter,
   progress?: ExportProgressCallback
 ): { totalMessages: number; blockIndex: number } {
-  if (!params.chatSessionIds || params.chatSessionIds.length === 0) {
+  if (!params.segmentIds || params.segmentIds.length === 0) {
     writer.write(`## Statistics\n\n- No sessions selected\n`)
     writer.end()
     return { totalMessages: 0, blockIndex: 0 }
@@ -284,18 +284,18 @@ function exportSessionMode(
   progress?.({
     stage: 'preparing',
     currentBlock: 0,
-    totalBlocks: params.chatSessionIds.length,
+    totalBlocks: params.segmentIds.length,
     percentage: 10,
-    message: `Preparing to export ${params.chatSessionIds.length} sessions...`,
+    message: `Preparing to export ${params.segmentIds.length} sessions...`,
   })
 
   const sessionsSql = `
     SELECT id, start_ts as startTs, end_ts as endTs
-    FROM chat_session
-    WHERE id IN (${params.chatSessionIds.map(() => '?').join(',')})
+    FROM segment
+    WHERE id IN (${params.segmentIds.map(() => '?').join(',')})
     ORDER BY start_ts ASC
   `
-  const sessions = db.prepare(sessionsSql).all(...params.chatSessionIds) as Array<{
+  const sessions = db.prepare(sessionsSql).all(...params.segmentIds) as Array<{
     id: number
     startTs: number
     endTs: number
@@ -313,7 +313,7 @@ function exportSessionMode(
     FROM message_context mc
     JOIN message msg ON msg.id = mc.message_id
     JOIN member m ON msg.sender_id = m.id
-    WHERE mc.session_id = ?
+    WHERE mc.segment_id = ?
     ORDER BY msg.ts ASC
   `
 

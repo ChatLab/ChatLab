@@ -47,7 +47,7 @@ const {
   currentKeywords,
   isLoadingSource,
   isAIThinking,
-  currentConversationId,
+  currentAIChatId,
   currentToolStatus,
   toolsUsedInCurrentRound,
   sessionTokenUsage,
@@ -55,8 +55,8 @@ const {
   selectedAssistantId,
   sendMessage,
   editMessageAndRegenerate,
-  loadConversation,
-  startNewConversation,
+  loadAIChat,
+  startNewAIChat,
   loadMoreSourceMessages,
   updateMaxMessages,
   stopGeneration,
@@ -97,7 +97,7 @@ const promptStore = usePromptStore()
 const estimatedContextTokens = ref(0)
 
 watch(
-  () => currentConversationId.value,
+  () => currentAIChatId.value,
   async (convId) => {
     if (!convId) {
       estimatedContextTokens.value = 0
@@ -200,7 +200,7 @@ function handleSwitchAssistant(id: string) {
     return
   }
   skillStore.activateSkill(null)
-  startNewConversation()
+  startNewAIChat()
 }
 
 async function handlePresetQuestion(question: string) {
@@ -259,11 +259,11 @@ async function handleEditMessage(payload: { messageId: string; content: string; 
   conversationListRef.value?.refresh()
 }
 
-async function handleForkConversation(messageId: string) {
-  if (!currentConversationId.value) return
+async function handleForkAIChat(messageId: string) {
+  if (!currentAIChatId.value) return
   try {
-    const forked = await useAIService().forkConversation(currentConversationId.value, messageId)
-    await loadConversation(forked.id)
+    const forked = await useAIService().forkAIChat(currentAIChatId.value, messageId)
+    await loadAIChat(forked.id)
     conversationListRef.value?.refresh()
     scrollToBottom(true)
     toast.success(t('ai.chat.fork.success'))
@@ -283,24 +283,24 @@ async function handleLoadMore() {
 }
 
 // 选择对话
-async function handleSelectConversation(convId: string) {
-  await loadConversation(convId)
+async function handleSelectAIChat(convId: string) {
+  await loadAIChat(convId)
   scrollToBottom(true)
 }
 
 // 创建新对话
-function handleCreateConversation() {
+function handleCreateAIChat() {
   if (isAIThinking.value) {
     showLockedActionToast()
     return
   }
-  startNewConversation()
+  startNewAIChat()
 }
 
 // 删除对话
-function handleDeleteConversation(convId: string) {
-  if (currentConversationId.value === convId) {
-    startNewConversation()
+function handleDeleteAIChat(convId: string) {
+  if (currentAIChatId.value === convId) {
+    startNewAIChat()
   }
 }
 
@@ -328,12 +328,12 @@ watch(
     <ConversationList
       ref="conversationListRef"
       :session-id="sessionId"
-      :active-id="currentConversationId"
+      :active-id="currentAIChatId"
       :disabled="isAIThinking"
       class="h-full shrink-0"
-      @select="handleSelectConversation"
-      @create="handleCreateConversation"
-      @delete="handleDeleteConversation"
+      @select="handleSelectAIChat"
+      @create="handleCreateAIChat"
+      @delete="handleDeleteAIChat"
     />
 
     <!-- 右侧：对话区域（始终显示） -->
@@ -463,7 +463,7 @@ watch(
                     :is-streaming="pair.assistant.isStreaming"
                     :content-blocks="pair.assistant.contentBlocks"
                     :show-capture-button="!pair.assistant.isStreaming"
-                    @fork="handleForkConversation"
+                    @fork="handleForkAIChat"
                   />
                 </div>
               </template>
@@ -526,7 +526,7 @@ watch(
               <ChatStatusBar
                 :session-token-usage="sessionTokenUsage"
                 :agent-status="agentStatus"
-                :current-conversation-id="currentConversationId"
+                :current-ai-chat-id="currentAIChatId"
                 :estimated-context-tokens="estimatedContextTokens"
               />
             </div>

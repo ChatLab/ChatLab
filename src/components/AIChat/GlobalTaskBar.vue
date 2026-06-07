@@ -26,8 +26,8 @@ const shouldShowFloatingBar = computed(() => {
   }
 
   // 正在查看当前仍在推理的那条对话时，不再重复显示浮窗入口。
-  const displayedConversationId = activeTaskState.value?.currentConversationId ?? null
-  return displayedConversationId !== (activeTask.value.conversationId ?? null)
+  const displayedAIChatId = activeTaskState.value?.currentAIChatId ?? null
+  return displayedAIChatId !== (activeTask.value.aiChatId ?? null)
 })
 
 async function handleOpenTask() {
@@ -35,7 +35,7 @@ async function handleOpenTask() {
 
   // 返回当前任务时，优先把正在流式写入的对话重新切回当前显示缓冲，
   // 避免用户此前查看了别的历史对话，回来后还停留在旧视图。
-  aiChatStore.focusActiveTaskConversation()
+  aiChatStore.focusActiveTaskAIChat()
 
   await router.push({
     name: activeTask.value.chatType === 'group' ? 'group-chat' : 'private-chat',

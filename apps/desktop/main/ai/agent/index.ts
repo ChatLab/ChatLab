@@ -6,7 +6,7 @@
 import { getDefaultAssistantConfig, buildPiModel } from '../llm'
 import { getAllTools, createActivateSkillTool } from '../tools'
 import type { ToolContext } from '../tools/types'
-import { getHistoryForAgent, setPendingDebugContext } from '../conversations'
+import { getHistoryForAgent, setPendingDebugContext } from '../chats'
 import { aiLogger, isDebugMode } from '../logger'
 import { t as i18nT } from '../../i18n'
 import {
@@ -181,9 +181,9 @@ export class Agent {
           }
         },
         onDebugContext: (messages) => {
-          if (isDebugMode() && this.context.conversationId) {
+          if (isDebugMode() && this.context.aiChatId) {
             try {
-              setPendingDebugContext(this.context.conversationId, JSON.stringify(messages, null, 2))
+              setPendingDebugContext(this.context.aiChatId, JSON.stringify(messages, null, 2))
             } catch {
               // silent
             }
@@ -277,14 +277,14 @@ export class Agent {
   }
 
   private loadHistory(): SimpleHistoryMessage[] {
-    const { conversationId } = this.context
-    if (!conversationId) {
+    const { aiChatId } = this.context
+    if (!aiChatId) {
       return []
     }
     try {
-      return getHistoryForAgent(conversationId, undefined, this.context.historyLeafMessageId)
+      return getHistoryForAgent(aiChatId, undefined, this.context.historyLeafMessageId)
     } catch (error) {
-      aiLogger.warn('Agent', 'Failed to load history from DB, using empty history', { conversationId, error })
+      aiLogger.warn('Agent', 'Failed to load history from DB, using empty history', { aiChatId, error })
       return []
     }
   }

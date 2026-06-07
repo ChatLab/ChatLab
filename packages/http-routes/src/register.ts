@@ -24,7 +24,7 @@ import { registerAiLlmStreamRoutes } from './routes/web/ai-llm-stream'
 import { registerAiAgentStreamRoutes } from './routes/web/ai-agent-stream'
 import { registerAiFilterRoutes } from './routes/web/ai-filter'
 import { registerAiToolRoutes } from './routes/web/ai-tools'
-import { registerAiConversationRoutes } from './routes/web/ai-conversations'
+import { registerAiChatRoutes } from './routes/web/ai-chats'
 import { registerAiSummaryRoutes } from './routes/web/ai-summaries'
 import { registerMergeRoutes } from './routes/web/merge'
 import { registerCacheRoutes } from './routes/web/cache'
@@ -56,7 +56,7 @@ export function registerSharedRoutes(
   if (options?.requireAi) {
     const missing: string[] = []
     if (!ctx.aiDataDir) missing.push('aiDataDir')
-    if (!ctx.conversationManager) missing.push('conversationManager')
+    if (!ctx.aiChatManager) missing.push('aiChatManager')
     if (!ctx.assistantManager) missing.push('assistantManager')
     if (!ctx.skillManagerCore) missing.push('skillManagerCore')
     if (!ctx.llmConfigStore) missing.push('llmConfigStore')
@@ -75,7 +75,7 @@ export function registerSharedRoutes(
   registerAiAgentStreamRoutes(server, ctx)
   registerAiFilterRoutes(server, ctx)
   registerAiToolRoutes(server, ctx)
-  registerAiConversationRoutes(server, ctx)
+  registerAiChatRoutes(server, ctx)
   registerAiSummaryRoutes(server, ctx)
 
   // Merge routes (graceful skip when mergeSessionCache is absent)

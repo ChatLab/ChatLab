@@ -190,7 +190,7 @@ export const SQL_TOOL_DEFS: SqlToolDef[] = [
     execution: {
       type: 'sqlite',
       query:
-        "SELECT COALESCE(m.group_nickname, m.account_name) AS name, COUNT(*) AS initiated_count FROM chat_session cs JOIN message_context mc ON mc.session_id = cs.id JOIN message msg ON msg.id = mc.message_id JOIN member m ON msg.sender_id = m.id WHERE msg.ts = cs.start_ts AND cs.start_ts > unixepoch('now', '-' || @days || ' days') GROUP BY msg.sender_id ORDER BY initiated_count DESC LIMIT @limit",
+        "SELECT COALESCE(m.group_nickname, m.account_name) AS name, COUNT(*) AS initiated_count FROM segment cs JOIN message_context mc ON mc.segment_id = cs.id JOIN message msg ON msg.id = mc.message_id JOIN member m ON msg.sender_id = m.id WHERE msg.ts = cs.start_ts AND cs.start_ts > unixepoch('now', '-' || @days || ' days') GROUP BY msg.sender_id ORDER BY initiated_count DESC LIMIT @limit",
       rowTemplate: '{name}：发起 {initiated_count} 次话题',
       summaryTemplate: '话题发起者 Top {rowCount}：',
       fallback: '该时间范围内没有会话记录，可能需要先生成会话索引',

@@ -5,12 +5,7 @@
  * and summary generation loop — shared across CLI Web and Electron.
  */
 
-import {
-  getChatSessionSummary,
-  saveChatSessionSummary,
-  getChatSessionList,
-  getSessionMessages,
-} from '@openchatlab/core'
+import { getSegmentSummary, saveSegmentSummary, getChatSessionList, getSegmentMessages } from '@openchatlab/core'
 import type { DatabaseAdapter } from '@openchatlab/core'
 import {
   generateSessionSummary,
@@ -34,16 +29,16 @@ export interface SummaryServiceDeps {
 function buildSummaryDeps(db: DatabaseAdapter, llmConfig: LlmConfig, deps: SummaryServiceDeps): SummaryDeps {
   const piModel = deps.buildPiModel(llmConfig)
   return {
-    loadMessages(chatSessionId, limit = 500) {
-      const data = getSessionMessages(db, chatSessionId, limit)
+    loadMessages(segmentId, limit = 500) {
+      const data = getSegmentMessages(db, segmentId, limit)
       if (!data) return null
       return data.messages.map((m) => ({ senderName: m.senderName, content: m.content }))
     },
-    saveSummary(chatSessionId, summary) {
-      saveChatSessionSummary(db, chatSessionId, summary)
+    saveSummary(segmentId, summary) {
+      saveSegmentSummary(db, segmentId, summary)
     },
-    getSummary(chatSessionId) {
-      return getChatSessionSummary(db, chatSessionId)
+    getSummary(segmentId) {
+      return getSegmentSummary(db, segmentId)
     },
     async llmComplete(systemPrompt, userPrompt, options) {
       const result = await completeSimple(
@@ -66,7 +61,7 @@ function buildSummaryDeps(db: DatabaseAdapter, llmConfig: LlmConfig, deps: Summa
 export async function generateSummary(
   adapter: SessionRuntimeAdapter,
   sessionId: string,
-  chatSessionId: number,
+  segmentId: number,
   serviceDeps: SummaryServiceDeps,
   options?: SummaryOptions
 ) {
@@ -77,7 +72,7 @@ export async function generateSummary(
 
   const db = adapter.ensureWritable(sessionId)
   const deps = buildSummaryDeps(db, llmConfig, serviceDeps)
-  return generateSessionSummary(deps, chatSessionId, options)
+  return generateSessionSummary(deps, segmentId, options)
 }
 
 export async function generateAllSummaries(
@@ -110,18 +105,18 @@ export async function generateAllSummaries(
 export function checkCanGenerate(
   adapter: SessionRuntimeAdapter,
   sessionId: string,
-  chatSessionIds: number[]
+  segmentIds: number[]
 ): Record<number, { canGenerate: boolean; reason?: string }> {
   const db = adapter.ensureReadonly(sessionId)
   const deps: Pick<SummaryDeps, 'loadMessages' | 't'> = {
-    loadMessages(chatSessionId, limit = 500) {
-      const data = getSessionMessages(db, chatSessionId, limit)
+    loadMessages(segmentId, limit = 500) {
+      const data = getSegmentMessages(db, segmentId, limit)
       if (!data) return null
       return data.messages.map((m) => ({ senderName: m.senderName, content: m.content }))
     },
     t: (key: string) => key,
   }
-  const resultMap = checkSessionsCanGenerateSummary(deps, chatSessionIds)
+  const resultMap = checkSessionsCanGenerateSummary(deps, segmentIds)
   const result: Record<number, { canGenerate: boolean; reason?: string }> = {}
   for (const [id, info] of resultMap) {
     result[id] = info

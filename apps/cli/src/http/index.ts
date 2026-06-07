@@ -13,7 +13,7 @@ import type { ChatLabConfig } from '@openchatlab/config'
 import {
   NodePathProvider,
   DatabaseManager,
-  AIConversationManager,
+  AIChatManager,
   LLMConfigStore,
   CustomProviderStore,
   CustomModelStore,
@@ -35,7 +35,7 @@ import { resolveApiKey, writeAuthProfile } from '@openchatlab/config'
 
 let server: FastifyInstance | null = null
 let dbManager: DatabaseManager | null = null
-let convManager: AIConversationManager | null = null
+let aiChatManager: AIChatManager | null = null
 
 function createFileConfigStorage(aiDataDir: string): ConfigStorage {
   return {
@@ -150,7 +150,7 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
   dbManager = new DatabaseManager(pathProvider, { nativeBinding })
 
   const aiDataDir = pathProvider.getAiDataDir()
-  convManager = new AIConversationManager(aiDataDir, { nativeBinding })
+  aiChatManager = new AIChatManager(aiDataDir, { nativeBinding })
 
   const assistantManager = getAssistantManager(aiDataDir)
   const skillManagerCore = getSkillManagerCore(aiDataDir)
@@ -180,13 +180,13 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
     nativeBinding,
     aiContext: {
       aiDataDir,
-      convManager,
+      aiChatManager,
       assistantManager,
       skillManagerCore,
       llmConfigStore,
       customProviderStore: new CustomProviderStore(createFileConfigStorage(aiDataDir)),
       customModelStore: new CustomModelStore(createFileConfigStorage(aiDataDir)),
-      runAgentStream: createCliRunAgentStream(dbManager, convManager),
+      runAgentStream: createCliRunAgentStream(dbManager, aiChatManager),
     },
   })
 
@@ -224,9 +224,9 @@ export async function stopHttpServer(): Promise<void> {
     await server.close()
   } finally {
     cleanupSync()
-    if (convManager) {
-      convManager.close()
-      convManager = null
+    if (aiChatManager) {
+      aiChatManager.close()
+      aiChatManager = null
     }
     if (dbManager) {
       dbManager.closeAll()

@@ -14,9 +14,9 @@ export interface SummaryMessage {
 }
 
 export interface SummaryDeps {
-  loadMessages: (chatSessionId: number, limit?: number) => SummaryMessage[] | null
-  saveSummary: (chatSessionId: number, summary: string) => void
-  getSummary: (chatSessionId: number) => string | null
+  loadMessages: (segmentId: number, limit?: number) => SummaryMessage[] | null
+  saveSummary: (segmentId: number, summary: string) => void
+  getSummary: (segmentId: number) => string | null
   llmComplete: (
     systemPrompt: string,
     userPrompt: string,
@@ -234,7 +234,7 @@ function postProcessSummary(summary: string, lengthLimit: number): string {
 
 export async function generateSessionSummary(
   deps: SummaryDeps,
-  chatSessionId: number,
+  segmentId: number,
   options: SummaryOptions = {}
 ): Promise<SummaryResult> {
   const { locale = 'zh-CN', forceRegenerate = false, strategy = 'standard' } = options
@@ -242,11 +242,11 @@ export async function generateSessionSummary(
 
   try {
     if (!forceRegenerate) {
-      const existing = deps.getSummary(chatSessionId)
+      const existing = deps.getSummary(segmentId)
       if (existing) return { success: true, summary: existing }
     }
 
-    const rawMessages = deps.loadMessages(chatSessionId)
+    const rawMessages = deps.loadMessages(segmentId)
     if (!rawMessages) {
       return { success: false, error: deps.t('summary.sessionNotFound') }
     }
@@ -267,7 +267,7 @@ export async function generateSessionSummary(
 
     log?.info(
       'Summary',
-      `Generating summary: sessionId=${chatSessionId}, strategy=${strategy}, raw=${rawMessages.length}, valid=${validMessages.length}, chars=${content.length}`
+      `Generating summary: sessionId=${segmentId}, strategy=${strategy}, raw=${rawMessages.length}, valid=${validMessages.length}, chars=${content.length}`
     )
 
     let summary: string
@@ -306,7 +306,7 @@ export async function generateSessionSummary(
     }
 
     summary = postProcessSummary(summary, lengthLimit)
-    deps.saveSummary(chatSessionId, summary)
+    deps.saveSummary(segmentId, summary)
 
     log?.info('Summary', `Summary generated: "${summary.slice(0, 50)}..."`)
     return { success: true, summary }
@@ -318,7 +318,7 @@ export async function generateSessionSummary(
 
 export async function generateSessionSummaries(
   deps: SummaryDeps,
-  chatSessionIds: number[],
+  segmentIds: number[],
   options: SummaryOptions = {},
   onProgress?: (current: number, total: number) => void
 ): Promise<{ success: number; failed: number; skipped: number }> {
@@ -326,8 +326,8 @@ export async function generateSessionSummaries(
   let failed = 0
   let skipped = 0
 
-  for (let i = 0; i < chatSessionIds.length; i++) {
-    const result = await generateSessionSummary(deps, chatSessionIds[i], options)
+  for (let i = 0; i < segmentIds.length; i++) {
+    const result = await generateSessionSummary(deps, segmentIds[i], options)
     if (result.success) {
       success++
     } else if (result.error?.includes('少于') || result.error?.includes('less than') || result.error?.includes('few')) {
@@ -335,7 +335,7 @@ export async function generateSessionSummaries(
     } else {
       failed++
     }
-    onProgress?.(i + 1, chatSessionIds.length)
+    onProgress?.(i + 1, segmentIds.length)
   }
 
   return { success, failed, skipped }
@@ -343,11 +343,11 @@ export async function generateSessionSummaries(
 
 export function checkSessionsCanGenerateSummary(
   deps: Pick<SummaryDeps, 'loadMessages' | 't'>,
-  chatSessionIds: number[]
+  segmentIds: number[]
 ): Map<number, { canGenerate: boolean; reason?: string }> {
   const results = new Map<number, { canGenerate: boolean; reason?: string }>()
 
-  for (const id of chatSessionIds) {
+  for (const id of segmentIds) {
     const messages = deps.loadMessages(id)
     if (!messages) {
       results.set(id, { canGenerate: false, reason: deps.t('summary.sessionNotExist') })

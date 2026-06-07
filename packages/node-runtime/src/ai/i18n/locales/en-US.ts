@@ -101,40 +101,40 @@ export default {
           context_size: 'Context size, i.e. how many messages before and after to retrieve, default 20',
         },
       },
-      search_sessions: {
-        desc: 'Search chat sessions (conversation segments). Sessions are conversation units automatically split by message time intervals. Suitable for finding discussions on specific topics or understanding how many conversations occurred in a time period. Returns matching sessions with a 5-message preview each.',
+      search_segments: {
+        desc: 'Search chat segments (conversation segments). Segments are conversation units automatically split by message time intervals. Suitable for finding discussions on specific topics or understanding how many conversations occurred in a time period. Returns matching segments with a 5-message preview each.',
         params: {
-          keywords: 'Optional keyword list, only returns sessions containing these keywords (OR logic)',
+          keywords: 'Optional keyword list, only returns segments containing these keywords (OR logic)',
           limit: 'Session count limit, default 20',
-          year: 'Filter sessions by year, e.g. 2024',
-          month: 'Filter sessions by month (1-12), use with year',
-          day: 'Filter sessions by day (1-31), use with year and month',
+          year: 'Filter segments by year, e.g. 2024',
+          month: 'Filter segments by month (1-12), use with year',
+          day: 'Filter segments by day (1-31), use with year and month',
           start_time: 'Start time, format "YYYY-MM-DD HH:mm", e.g. "2024-03-15 14:00"',
           end_time: 'End time, format "YYYY-MM-DD HH:mm", e.g. "2024-03-15 18:30"',
         },
       },
-      get_session_messages: {
-        desc: 'Get the complete message list for a specific session. Used to get full context after finding a relevant session via search_sessions. Returns all messages and participant information.',
+      get_segment_messages: {
+        desc: 'Get the complete message list for a specific segment. Used to get full context after finding a relevant segment via search_segments. Returns all messages and participant information.',
         params: {
-          session_id: 'Session ID, can be obtained from search_sessions results',
-          limit: 'Message count limit, default 1000. Can be limited for very long sessions to save tokens',
+          segment_id: 'Segment ID, can be obtained from search_segments results',
+          limit: 'Message count limit, default 1000. Can be limited for very long segments to save tokens',
         },
       },
-      get_session_summaries: {
-        desc: `Get session summary list to quickly understand discussion topics in chat history.
+      get_segment_summaries: {
+        desc: `Get segment summary list to quickly understand discussion topics in chat history.
 
 Use cases:
 1. Understand what topics have been discussed recently
 2. Search for discussed topics by keyword
 3. Overview questions like "has the group discussed travel"
 
-Returned summaries are brief descriptions of each session, helping quickly locate sessions of interest. Use get_session_messages for details.`,
+Returned summaries are brief descriptions of each segment, helping quickly locate segments of interest. Use get_segment_messages for details.`,
         params: {
           keywords: 'Keyword list to search within summaries (OR logic)',
           limit: 'Session count limit, default 20',
-          year: 'Filter sessions by year',
-          month: 'Filter sessions by month (1-12)',
-          day: 'Filter sessions by day (1-31)',
+          year: 'Filter segments by year',
+          month: 'Filter segments by month (1-12)',
+          day: 'Filter segments by day (1-31)',
           start_time: 'Start time, format "YYYY-MM-DD HH:mm"',
           end_time: 'End time, format "YYYY-MM-DD HH:mm"',
         },
@@ -222,14 +222,14 @@ Returned summaries are brief descriptions of each session, helping quickly locat
         fallback: 'No messages in this time range',
       },
       conversation_initiator_stats: {
-        desc: 'Count how many times each member initiated a conversation (was the first sender in a session). Requires session index to be generated.',
+        desc: 'Count how many times each member initiated a conversation (was the first sender in a segment). Requires segment index to be generated.',
         params: {
           days: 'Number of recent days to analyze',
           limit: 'Number of top members to return',
         },
         rowTemplate: '{name}: initiated {initiated_count} topics',
         summaryTemplate: 'Topic initiator Top {rowCount}:',
-        fallback: 'No session records in this time range. Session index may need to be generated first.',
+        fallback: 'No segment records in this time range. Session index may need to be generated first.',
       },
       activity_heatmap: {
         desc: 'Return a weekday × hour message count matrix for generating activity heatmaps. weekday: 0=Sun, 1=Mon, ..., 6=Sat.',
@@ -337,10 +337,10 @@ Your task is to help users understand and analyze their private chat data.
   },
 
   summary: {
-    sessionNotFound: 'Session not found or database could not be opened',
+    segmentNotFound: 'Session not found or database could not be opened',
     tooFewMessages: 'Message count less than {{count}}, no need to generate summary',
     tooFewValidMessages: 'Valid message count less than {{count}}, no need to generate summary',
-    sessionNotExist: 'Session not found',
+    segmentNotExist: 'Session not found',
     messagesTooFew: 'Too few messages',
     validMessagesTooFew: 'Too few valid messages',
     systemPromptDirect: 'You are a conversation summarization expert. Summarize conversations concisely.',

@@ -10,9 +10,9 @@ export function stopBatchSummaryGeneration(shouldStop: MutableBooleanRef): void 
 
 export function buildGenerateSummaryArgs(
   dbSessionId: string,
-  chatSessionId: number,
+  segmentId: number,
   locale: string,
   strategy: SummaryStrategy
 ): [string, number, string, false, SummaryStrategy] {
-  return [dbSessionId, chatSessionId, locale, false, strategy]
+  return [dbSessionId, segmentId, locale, false, strategy]
 }
