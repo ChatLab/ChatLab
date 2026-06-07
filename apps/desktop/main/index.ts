@@ -22,6 +22,8 @@ import {
 import { migrateAllDatabases, checkMigrationNeeded } from './database/core'
 import { initLocale } from './i18n'
 import { MigrationRunner, ALL_MIGRATIONS } from '@openchatlab/config'
+import { assertDesktopDataDirCompatible } from './runtime-compat'
+import type { RuntimeIdentity } from '@openchatlab/node-runtime/src/data-dir-compat'
 import {
   applyCurrentTitleBarOverlay,
   getTitleBarOverlayOptions,
@@ -114,6 +116,21 @@ class MainProcess {
     // 确保应用目录存在
     ensureAppDirs()
 
+    let runtime: RuntimeIdentity
+    try {
+      runtime = assertDesktopDataDirCompatible(getPathProvider(), app.getVersion())
+    } catch (error) {
+      console.error('[Main] Data directory compatibility check failed:', error)
+      dialog.showErrorBox(
+        'ChatLab Data Directory Incompatible',
+        `ChatLab cannot open this data directory with the current desktop version.\n\n${
+          error instanceof Error ? error.message : String(error)
+        }`
+      )
+      app.quit()
+      return
+    }
+
     // 执行配置数据迁移（Migration Runner，Electron 和 CLI 共享）
     await new MigrationRunner(ALL_MIGRATIONS, {
       dataDir: getSystemDataDir(),
@@ -129,7 +146,7 @@ class MainProcess {
     await initLocale()
 
     // 执行数据库 schema 迁移（确保所有数据库在 Worker 查询前已是最新 schema）
-    this.migrateDatabasesIfNeeded()
+    this.migrateDatabasesIfNeeded(runtime)
 
     initProxy() // 初始化代理配置
 
@@ -187,11 +204,11 @@ class MainProcess {
   }
 
   // 执行数据库 schema 迁移（静默迁移）
-  migrateDatabasesIfNeeded() {
+  migrateDatabasesIfNeeded(runtime: RuntimeIdentity) {
     try {
       const { count } = checkMigrationNeeded()
       if (count > 0) {
-        const result = migrateAllDatabases()
+        const result = migrateAllDatabases(runtime)
         if (!result.success) {
           console.error('[Main] Database schema migration failed:', result.error)
         }

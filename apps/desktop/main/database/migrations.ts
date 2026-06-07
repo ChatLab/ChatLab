@@ -6,11 +6,21 @@
  */
 
 import type Database from 'better-sqlite3'
-import { CURRENT_SCHEMA_VERSION, runMigrations, needsMigration as coreNeedsMigration } from '@openchatlab/core'
-import type { DatabaseAdapter } from '@openchatlab/core'
-import { BetterSqliteAdapter, getChatDbMigrations } from '@openchatlab/node-runtime'
+import {
+  CURRENT_SCHEMA_VERSION,
+  getSchemaVersion,
+  runMigrations,
+  needsMigration as coreNeedsMigration,
+} from '@openchatlab/core'
+import type { DatabaseAdapter, PathProvider } from '@openchatlab/core'
+import { BetterSqliteAdapter } from '@openchatlab/node-runtime/src/better-sqlite3-adapter'
+import {
+  CHAT_DB_COMPATIBILITY_RAISES,
+  getChatDbMigrations,
+} from '@openchatlab/node-runtime/src/migrations/chat-db-migrations'
+import { raiseDataDirMinRuntimeVersion, type RuntimeIdentity } from '@openchatlab/node-runtime/src/data-dir-compat'
 import { t } from '../i18n'
-import { tokenizeForFts } from '@openchatlab/node-runtime'
+import { tokenizeForFts } from '@openchatlab/node-runtime/src/nlp/fts-tokenizer'
 
 export { CURRENT_SCHEMA_VERSION }
 
@@ -18,6 +28,11 @@ export interface MigrationInfo {
   version: number
   description: string
   userMessage: string
+}
+
+export interface DesktopMigrationOptions {
+  pathProvider?: PathProvider
+  runtime?: RuntimeIdentity
 }
 
 const i18nKeys: Array<{ descriptionKey: string; userMessageKey: string }> = [
@@ -49,7 +64,11 @@ function checkDatabaseIntegrity(db: DatabaseAdapter): { valid: boolean; error?: 
  * Wraps better-sqlite3 Database in a DatabaseAdapter and delegates to core runMigrations
  * with shared migration definitions from @openchatlab/node-runtime.
  */
-export function migrateDatabase(db: Database.Database, forceRepair = false): boolean {
+export function migrateDatabase(
+  db: Database.Database,
+  forceRepair = false,
+  options: DesktopMigrationOptions = {}
+): boolean {
   const adapter = new BetterSqliteAdapter(db)
 
   const integrity = checkDatabaseIntegrity(adapter)
@@ -57,8 +76,27 @@ export function migrateDatabase(db: Database.Database, forceRepair = false): boo
     throw new Error(integrity.error)
   }
 
+  const beforeVersion = getSchemaVersion(adapter)
   const migrations = getChatDbMigrations({ tokenizeForFts })
-  return runMigrations(adapter, migrations, forceRepair)
+  const migrated = runMigrations(adapter, migrations, forceRepair)
+  if (!migrated || !options.pathProvider || !options.runtime) return migrated
+
+  const afterVersion = getSchemaVersion(adapter)
+  for (const compatibilityRaise of CHAT_DB_COMPATIBILITY_RAISES) {
+    if (beforeVersion >= compatibilityRaise.migrationVersion || afterVersion < compatibilityRaise.migrationVersion) {
+      continue
+    }
+
+    raiseDataDirMinRuntimeVersion(options.pathProvider, {
+      minRuntimeVersion: compatibilityRaise.minRuntimeVersion,
+      dataCompatibilityVersion: compatibilityRaise.dataCompatibilityVersion,
+      reason: compatibilityRaise.reason,
+      runtime: options.runtime,
+      module: compatibilityRaise.module,
+    })
+  }
+
+  return migrated
 }
 
 export function needsMigration(db: Database.Database): boolean {

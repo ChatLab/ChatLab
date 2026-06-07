@@ -35,6 +35,7 @@ import { getManager as getAIChatManager } from './ai/chats'
 import { getManager as getAssistantManager } from './ai/assistant/manager'
 import { getManager as getSkillManager } from './ai/skills/manager'
 import { createElectronRunAgentStream } from './ai/agent-stream-runner'
+import { assertDesktopDataDirCompatible } from './runtime-compat'
 
 export interface InternalEndpoint {
   baseUrl: string
@@ -76,8 +77,10 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
 
   try {
     const token = `int_${randomBytes(32).toString('hex')}`
+    const { app } = await import('electron')
+    const runtime = assertDesktopDataDirCompatible(pathProvider, app.getVersion())
 
-    newDbManager = new DatabaseManager(pathProvider)
+    newDbManager = new DatabaseManager(pathProvider, { runtime })
     const sessionAdapter = createDatabaseManagerAdapter(newDbManager)
 
     const aiDataDir = pathProvider.getAiDataDir()
@@ -89,8 +92,6 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
         return profileName
       },
     })
-
-    const { app } = await import('electron')
 
     const configStorage = createFileConfigStorage(aiDataDir)
 

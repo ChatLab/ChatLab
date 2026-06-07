@@ -13,6 +13,7 @@ import {
   renameSession as coreRenameSession,
 } from '@openchatlab/core'
 import { BetterSqliteAdapter, writeParseResultToDb } from '@openchatlab/node-runtime'
+import type { RuntimeIdentity } from '@openchatlab/node-runtime/src/data-dir-compat'
 import type { ParseResult } from '../../../../src/types/base'
 import { migrateDatabase, needsMigration, CURRENT_SCHEMA_VERSION } from './migrations'
 import { getPathProvider } from '../path-context'
@@ -85,7 +86,11 @@ export function openDatabase(sessionId: string, readonly = true): Database.Datab
  * @param sessionId 会话ID
  * @param forceRepair 是否强制修复（即使版本号已是最新也重新执行迁移脚本）
  */
-export function openDatabaseWithMigration(sessionId: string, forceRepair = false): Database.Database | null {
+export function openDatabaseWithMigration(
+  sessionId: string,
+  forceRepair = false,
+  runtime?: RuntimeIdentity
+): Database.Database | null {
   const dbPath = getDbPath(sessionId)
   if (!fs.existsSync(dbPath)) {
     return null
@@ -95,7 +100,7 @@ export function openDatabaseWithMigration(sessionId: string, forceRepair = false
   db.pragma('journal_mode = WAL')
 
   // 执行迁移
-  migrateDatabase(db, forceRepair)
+  migrateDatabase(db, forceRepair, { pathProvider: getPathProvider(), runtime })
 
   return db
 }
@@ -287,6 +292,18 @@ export function migrateAllDatabases(): {
   migratedCount: number
   failures: MigrationFailure[]
   error?: string
+}
+export function migrateAllDatabases(runtime: RuntimeIdentity): {
+  success: boolean
+  migratedCount: number
+  failures: MigrationFailure[]
+  error?: string
+}
+export function migrateAllDatabases(runtime?: RuntimeIdentity): {
+  success: boolean
+  migratedCount: number
+  failures: MigrationFailure[]
+  error?: string
 } {
   const { sessionIds, forceRepairIds } = checkMigrationNeeded()
   const forceRepairSet = new Set(forceRepairIds)
@@ -301,7 +318,7 @@ export function migrateAllDatabases(): {
   for (const sessionId of sessionIds) {
     try {
       const needsForceRepair = forceRepairSet.has(sessionId)
-      const db = openDatabaseWithMigration(sessionId, needsForceRepair)
+      const db = openDatabaseWithMigration(sessionId, needsForceRepair, runtime)
       if (db) {
         db.close()
         migratedCount++
