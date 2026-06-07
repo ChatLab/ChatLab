@@ -16,9 +16,8 @@ function main(): void {
   const userDataDir = config.data.user_data_dir || undefined
   const pathProvider = new NodePathProvider(userDataDir)
   pathProvider.ensureAllDirs()
-  const dbManager = new DatabaseManager(pathProvider)
-
-  const version = process.env.npm_package_version ?? '0.1.0'
+  const version = process.env.npm_package_version ?? '0.25.1'
+  const dbManager = new DatabaseManager(pathProvider, { runtime: { version, kind: 'mcp' } })
 
   startMcpServer({ version, dbManager }).catch((err) => {
     console.error('[chatlab-mcp] Fatal error:', err)

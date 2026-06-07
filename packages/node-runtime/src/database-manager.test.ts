@@ -30,6 +30,15 @@ function createPathProvider(root: string): PathProvider {
   }
 }
 
+test('constructor rejects missing runtime unless the test-only bypass is explicit', () => {
+  const root = makeTempDir()
+
+  assert.throws(() => new DatabaseManager(createPathProvider(root), { nativeBinding }), /runtime identity is required/i)
+  assert.doesNotThrow(
+    () => new DatabaseManager(createPathProvider(root), { nativeBinding, allowMissingRuntimeForTests: true })
+  )
+})
+
 test('open migrates legacy member name columns before readonly queries', () => {
   const root = makeTempDir()
   const dbDir = path.join(root, 'data', 'databases')
@@ -67,7 +76,7 @@ test('open migrates legacy member name columns before readonly queries', () => {
   `)
   rawDb.close()
 
-  const manager = new DatabaseManager(createPathProvider(root), { nativeBinding })
+  const manager = new DatabaseManager(createPathProvider(root), { nativeBinding, allowMissingRuntimeForTests: true })
   const db = manager.open('legacy')
   assert.ok(db)
 
@@ -127,7 +136,7 @@ test('open backfills FTS index when migrating legacy sessions', () => {
   `)
   rawDb.close()
 
-  const manager = new DatabaseManager(createPathProvider(root), { nativeBinding })
+  const manager = new DatabaseManager(createPathProvider(root), { nativeBinding, allowMissingRuntimeForTests: true })
   const db = manager.open('fts-legacy')
   assert.ok(db)
 
@@ -182,7 +191,7 @@ test('open migrates v2 chat_session schema to current segment schema', () => {
   `)
   rawDb.close()
 
-  const manager = new DatabaseManager(createPathProvider(root), { nativeBinding })
+  const manager = new DatabaseManager(createPathProvider(root), { nativeBinding, allowMissingRuntimeForTests: true })
   const db = manager.open('v2-segment-schema')
   assert.ok(db)
 
@@ -524,7 +533,7 @@ test('open preserves readonly access for current-schema databases', { skip: proc
   fs.chmodSync(dbDir, 0o555)
 
   try {
-    const manager = new DatabaseManager(createPathProvider(root), { nativeBinding })
+    const manager = new DatabaseManager(createPathProvider(root), { nativeBinding, allowMissingRuntimeForTests: true })
     const db = manager.open('current-readonly')
     assert.ok(db)
     assert.equal(db.readonly, true)
@@ -556,7 +565,7 @@ test('listSessionIds ignores non-ChatLab sqlite databases without migrating them
   `)
   rawDb.close()
 
-  const manager = new DatabaseManager(createPathProvider(root), { nativeBinding })
+  const manager = new DatabaseManager(createPathProvider(root), { nativeBinding, allowMissingRuntimeForTests: true })
 
   assert.deepEqual(manager.listSessionIds(), [])
   manager.closeAll()

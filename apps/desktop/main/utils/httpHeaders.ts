@@ -1,9 +1,10 @@
 import { app, session } from 'electron'
+import { getDesktopAppVersion } from '../runtime-compat'
 
 export function buildChatLabUserAgentHeaders(): Record<string, string> {
   const chatLabVersion = (() => {
     try {
-      return app.getVersion() || 'dev'
+      return getDesktopAppVersion(app.getVersion()) || 'dev'
     } catch {
       return 'dev'
     }

@@ -22,7 +22,7 @@ import {
 import { migrateAllDatabases, checkMigrationNeeded } from './database/core'
 import { initLocale } from './i18n'
 import { MigrationRunner, ALL_MIGRATIONS } from '@openchatlab/config'
-import { assertDesktopDataDirCompatible } from './runtime-compat'
+import { assertDesktopDataDirCompatible, getDesktopAppVersion } from './runtime-compat'
 import type { RuntimeIdentity } from '@openchatlab/node-runtime/src/data-dir-compat'
 import {
   applyCurrentTitleBarOverlay,
@@ -118,7 +118,7 @@ class MainProcess {
 
     let runtime: RuntimeIdentity
     try {
-      runtime = assertDesktopDataDirCompatible(getPathProvider(), app.getVersion())
+      runtime = assertDesktopDataDirCompatible(getPathProvider(), getDesktopAppVersion(app.getVersion()))
     } catch (error) {
       console.error('[Main] Data directory compatibility check failed:', error)
       dialog.showErrorBox(

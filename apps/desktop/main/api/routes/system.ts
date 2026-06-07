@@ -8,6 +8,7 @@ import type { FastifyInstance } from 'fastify'
 import { app } from 'electron'
 import { successResponse } from '../errors'
 import * as worker from '../../worker/workerManager'
+import { getDesktopAppVersion } from '../../runtime-compat'
 
 export function registerSystemRoutes(server: FastifyInstance): void {
   server.get('/api/v1/status', async () => {
@@ -21,7 +22,7 @@ export function registerSystemRoutes(server: FastifyInstance): void {
 
     return successResponse({
       name: 'ChatLab API',
-      version: app.getVersion(),
+      version: getDesktopAppVersion(app.getVersion()),
       uptime: Math.floor(process.uptime()),
       sessionCount,
     })

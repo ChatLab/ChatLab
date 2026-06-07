@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import type { PathProvider } from '@openchatlab/core'
-import { assertDesktopDataDirCompatible } from './runtime-compat'
+import { assertDesktopDataDirCompatible, resolveDesktopAppVersion } from './runtime-compat'
 
 function makeTempDir(): string {
   const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
@@ -24,6 +24,30 @@ function makePathProvider(userDataDir: string): PathProvider {
     getDownloadsDir: () => path.join(userDataDir, '..', 'downloads'),
   }
 }
+
+test('resolveDesktopAppVersion falls back to bundled app version when Electron reports 0.0.0', () => {
+  assert.equal(resolveDesktopAppVersion('0.0.0', '0.25.1'), '0.25.1')
+})
+
+test('assertDesktopDataDirCompatible accepts a gated data directory with the bundled fallback version', () => {
+  const userDataDir = makeTempDir()
+  fs.writeFileSync(
+    path.join(userDataDir, '.chatlab-meta.json'),
+    JSON.stringify({
+      formatVersion: 1,
+      minRuntimeVersion: '0.25.1',
+      dataCompatibilityVersion: 1,
+      reasons: ['segment-schema'],
+      updatedBy: { runtime: 'cli', module: 'chat-db-migration', version: '0.25.1' },
+      updatedAt: 1780830000,
+    }),
+    'utf-8'
+  )
+
+  assert.doesNotThrow(() =>
+    assertDesktopDataDirCompatible(makePathProvider(userDataDir), resolveDesktopAppVersion('0.0.0', '0.25.1'))
+  )
+})
 
 test('assertDesktopDataDirCompatible formats a startup error for older desktop runtimes', () => {
   const userDataDir = makeTempDir()

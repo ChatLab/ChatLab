@@ -28,19 +28,30 @@ function createMigrationDeps(overrides?: MigrationDeps): MigrationDeps {
   }
 }
 
+interface DatabaseManagerOptions {
+  nativeBinding?: string
+  migrationDeps?: MigrationDeps
+  runtime?: RuntimeIdentity
+  allowMissingRuntimeForTests?: boolean
+}
+
 export class DatabaseManager {
   private cache = new Map<string, DatabaseAdapter>()
   private nativeBinding?: string
   private migrationDeps?: MigrationDeps
-  private runtime?: RuntimeIdentity
+  private runtime: RuntimeIdentity | null
 
   constructor(
     private pathProvider: PathProvider,
-    options?: { nativeBinding?: string; migrationDeps?: MigrationDeps; runtime?: RuntimeIdentity }
+    options: DatabaseManagerOptions = {}
   ) {
+    if (!options.runtime && !options.allowMissingRuntimeForTests) {
+      throw new Error('DatabaseManager runtime identity is required for data directory compatibility checks.')
+    }
+
     this.nativeBinding = options?.nativeBinding
     this.migrationDeps = createMigrationDeps(options?.migrationDeps)
-    this.runtime = options?.runtime
+    this.runtime = options?.runtime ?? null
   }
 
   /**

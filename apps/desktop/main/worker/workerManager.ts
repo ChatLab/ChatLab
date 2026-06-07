@@ -12,6 +12,7 @@ import type { StreamImportResult } from './import'
 
 import { getDatabaseDir, getCacheDir, getTempDir, ensureDir } from '../paths'
 import { getNlpDir } from '../nlp/dictManager'
+import { getDesktopAppVersion } from '../runtime-compat'
 
 // Worker 实例
 let worker: Worker | null = null
@@ -88,7 +89,7 @@ function checkAndResetAnalysisCache(): void {
   }
 
   const versionFile = path.join(queryCacheDir, '.cache_version')
-  const currentVersion = app.getVersion()
+  const currentVersion = getDesktopAppVersion(app.getVersion())
 
   let lastVersion: string | null = null
   try {

@@ -12,6 +12,7 @@ import {
   applyTitleBarOverlayColor,
   resetCurrentTitleBarOverlayColor,
 } from '../window-titlebar'
+import { getDesktopAppVersion } from '../runtime-compat'
 
 type AppWithQuitFlag = typeof app & { isQuiting?: boolean }
 // 通过类型扩展记录应用退出意图，避免使用 @ts-ignore。
@@ -107,8 +108,7 @@ export function registerWindowHandlers(ctx: IpcContext): void {
 
   // ==================== 应用信息 ====================
   ipcMain.handle('app:getVersion', () => {
-    const v = app.getVersion()
-    return v && v !== '0.0.0' ? v : typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : v
+    return getDesktopAppVersion(app.getVersion())
   })
 
   // 重启应用
