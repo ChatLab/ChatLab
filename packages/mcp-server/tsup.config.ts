@@ -1,4 +1,7 @@
 import { defineConfig } from 'tsup'
+import { readFileSync } from 'node:fs'
+
+const pkg = JSON.parse(readFileSync(new URL('./package.json', import.meta.url), 'utf-8')) as { version: string }
 
 export default defineConfig({
   entry: {
@@ -14,6 +17,9 @@ export default defineConfig({
   clean: true,
   target: 'node20',
   platform: 'node',
+  define: {
+    __MCP_PACKAGE_VERSION__: JSON.stringify(pkg.version),
+  },
   noExternal: [/^@openchatlab\//],
   external: ['better-sqlite3', '@node-rs/jieba'],
   banner: {

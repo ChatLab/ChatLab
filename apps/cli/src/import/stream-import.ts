@@ -6,12 +6,10 @@
  * nickname history, FTS, format fallback).
  */
 
-import * as fs from 'fs'
-import * as path from 'path'
 import type { DatabaseManager } from '@openchatlab/node-runtime'
 import {
+  DataDirCompatibilityError,
   streamingImport,
-  openBetterSqliteDatabase,
   analyzeNewImport as sharedAnalyzeNewImport,
   analyzeIncrementalImport as sharedAnalyzeIncremental,
   incrementalImport as sharedIncrementalImport,
@@ -27,7 +25,6 @@ import type {
   ImportOptions,
   AnalyzeNewImportResult,
 } from '@openchatlab/node-runtime'
-import { CHAT_DB_TABLES } from '@openchatlab/core'
 import {
   detectFormat as parserDetectFormat,
   detectAllFormats,
@@ -65,31 +62,13 @@ function generateSessionId(): string {
   return `chat_${ts}_${rand}`
 }
 
-function resolveNativeBinding(dbManager: DatabaseManager): string | undefined {
-  return (dbManager as any).nativeBinding
-}
-
 function buildStreamImportDeps(dbManager: DatabaseManager, onProgress?: ImportProgressCallback): StreamImportDeps {
-  const nativeBinding = resolveNativeBinding(dbManager)
   return {
     openDatabase(sessionId: string) {
-      const dbPath = dbManager.getDbPath(sessionId)
-      const dir = path.dirname(dbPath)
-      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true })
-      const db = openBetterSqliteDatabase(dbPath, { nativeBinding })
-      db.exec(CHAT_DB_TABLES)
-      return db
+      return dbManager.openRawSessionDatabase(sessionId, { create: true, initializeChatTables: true })
     },
     deleteDatabase(sessionId: string) {
-      const dbPath = dbManager.getDbPath(sessionId)
-      for (const suffix of ['', '-wal', '-shm']) {
-        try {
-          const p = dbPath + suffix
-          if (fs.existsSync(p)) fs.unlinkSync(p)
-        } catch {
-          /* ignore */
-        }
-      }
+      dbManager.deleteSessionDatabaseFiles(sessionId)
     },
     onProgress: onProgress ?? (() => {}),
     postImportHook(db) {
@@ -101,6 +80,10 @@ function buildStreamImportDeps(dbManager: DatabaseManager, onProgress?: ImportPr
     },
     generateSessionId,
   }
+}
+
+function deleteSessionDatabase(dbManager: DatabaseManager, sessionId: string): void {
+  dbManager.deleteSessionDatabaseFiles(sessionId)
 }
 
 /**
@@ -157,20 +140,38 @@ export async function streamImport(
     : () => {}
 
   const deps = buildStreamImportDeps(dbManager, progressAdapter)
-  return streamingImport(filePath, deps, formatOptions)
+  const result = await streamingImport(filePath, deps, formatOptions)
+  if (!result.success || !result.sessionId) return result
+
+  try {
+    dbManager.raiseCurrentChatDbCompatibilityGate()
+  } catch (error) {
+    deleteSessionDatabase(dbManager, result.sessionId)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+      diagnostics: result.diagnostics,
+    }
+  }
+
+  return result
 }
 
 // ==================== Incremental import ====================
 
-function buildIncrementalDeps(dbManager: DatabaseManager, onProgress?: ImportProgressCallback): IncrementalImportDeps {
-  const nativeBinding = resolveNativeBinding(dbManager)
+function buildIncrementalDeps(
+  dbManager: DatabaseManager,
+  onProgress?: ImportProgressCallback,
+  onCompatibilityError?: (error: DataDirCompatibilityError) => void
+): IncrementalImportDeps {
   return {
     openDatabase(sessionId: string, readonly?: boolean) {
-      const dbPath = dbManager.getDbPath(sessionId)
-      if (!fs.existsSync(dbPath)) {
-        throw new Error(`Session database not found: ${sessionId}`)
+      try {
+        return dbManager.openRawSessionDatabase(sessionId, { readonly: readonly ?? false })
+      } catch (error) {
+        if (error instanceof DataDirCompatibilityError) onCompatibilityError?.(error)
+        throw error
       }
-      return openBetterSqliteDatabase(dbPath, { readonly: readonly ?? false, nativeBinding })
     },
     onProgress: onProgress ?? (() => {}),
     postImportHook(db) {
@@ -190,7 +191,30 @@ export async function incrementalImport(
   options?: ImportOptions & { onProgress?: ImportProgressCallback }
 ): Promise<IncrementalImportResult> {
   const { onProgress, ...importOpts } = options || {}
-  return sharedIncrementalImport(sessionId, filePath, buildIncrementalDeps(dbManager, onProgress), importOpts)
+  let compatibilityError: DataDirCompatibilityError | null = null
+  const result = await sharedIncrementalImport(
+    sessionId,
+    filePath,
+    buildIncrementalDeps(dbManager, onProgress, (error) => {
+      compatibilityError = error
+    }),
+    importOpts
+  )
+  if (compatibilityError) throw compatibilityError
+  if (!result.success) return result
+
+  try {
+    dbManager.raiseCurrentChatDbCompatibilityGate()
+  } catch (error) {
+    return {
+      ...result,
+      success: false,
+      newMessageCount: 0,
+      error: error instanceof Error ? error.message : String(error),
+    }
+  }
+
+  return result
 }
 
 export async function analyzeIncrementalImport(

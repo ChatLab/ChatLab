@@ -135,6 +135,29 @@ test('override bypasses only version insufficiency and emits a warning', () => {
   assert.match(warnings[0], new RegExp(userDataDir.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')))
 })
 
+test('override does not bypass malformed current runtime versions', () => {
+  const userDataDir = makeTempDir()
+  writeMeta(userDataDir, {
+    formatVersion: 1,
+    minRuntimeVersion: '0.25.1',
+    dataCompatibilityVersion: 1,
+    reasons: ['segment-schema'],
+    updatedBy: { runtime: 'desktop', module: 'chat-db-migration', version: '0.25.1' },
+    updatedAt: 1780830000,
+  })
+
+  withOverride('1', () => {
+    assert.throws(
+      () => assertDataDirCompatible(makePathProvider(userDataDir), { version: '0.0.0-dev', kind: 'cli' }),
+      (error) =>
+        error instanceof DataDirCompatibilityError &&
+        error.code === 'DATA_DIR_REQUIRES_NEWER_RUNTIME' &&
+        error.currentVersion === '0.0.0-dev' &&
+        error.minRuntimeVersion === '0.25.1'
+    )
+  })
+})
+
 test('broken JSON and invalid meta are blocked even with override', () => {
   const brokenDir = makeTempDir()
   fs.writeFileSync(path.join(brokenDir, '.chatlab-meta.json'), '{ broken', 'utf-8')

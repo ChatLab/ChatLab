@@ -10,6 +10,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import type { DatabaseAdapter, PathProvider } from '@openchatlab/core'
 import {
+  CHAT_DB_TABLES,
   isChatSessionDb,
   runMigrations as coreRunMigrations,
   needsMigration as coreNeedsMigration,
@@ -17,8 +18,13 @@ import {
   getSchemaVersion,
 } from '@openchatlab/core'
 import { openBetterSqliteDatabase } from './better-sqlite3-adapter'
-import { assertDataDirCompatible, raiseDataDirMinRuntimeVersion, type RuntimeIdentity } from './data-dir-compat'
-import { CHAT_DB_COMPATIBILITY_RAISES, getChatDbMigrations, type MigrationDeps } from './migrations'
+import { assertDataDirCompatible, type RuntimeIdentity } from './data-dir-compat'
+import {
+  CHAT_DB_COMPATIBILITY_RAISES,
+  getChatDbMigrations,
+  raiseChatDbCompatibilityGate,
+  type MigrationDeps,
+} from './migrations'
 import { tokenizeForFts } from './nlp/fts-tokenizer'
 
 function createMigrationDeps(overrides?: MigrationDeps): MigrationDeps {
@@ -33,6 +39,12 @@ interface DatabaseManagerOptions {
   migrationDeps?: MigrationDeps
   runtime?: RuntimeIdentity
   allowMissingRuntimeForTests?: boolean
+}
+
+interface OpenRawSessionDatabaseOptions {
+  readonly?: boolean
+  create?: boolean
+  initializeChatTables?: boolean
 }
 
 export class DatabaseManager {
@@ -85,7 +97,9 @@ export class DatabaseManager {
     })
 
     try {
-      if (!isChatSessionDb(readonlyAdapter) || !coreNeedsMigration(readonlyAdapter, CURRENT_SCHEMA_VERSION)) return
+      if (!isChatSessionDb(readonlyAdapter)) return
+      this.raiseCompatibilityGateIfNeeded(getSchemaVersion(readonlyAdapter))
+      if (!coreNeedsMigration(readonlyAdapter, CURRENT_SCHEMA_VERSION)) return
     } finally {
       readonlyAdapter.close()
     }
@@ -130,6 +144,8 @@ export class DatabaseManager {
       const migrations = getChatDbMigrations(this.migrationDeps)
       this.runMigrations(adapter, migrations)
       this.assertCompatible()
+    } else {
+      this.raiseCompatibilityGateIfNeeded(getSchemaVersion(adapter))
     }
 
     this.cache.set(sessionId, adapter)
@@ -184,6 +200,50 @@ export class DatabaseManager {
     return path.join(this.pathProvider.getDatabaseDir(), `${sessionId}.db`)
   }
 
+  openRawSessionDatabase(sessionId: string, options: OpenRawSessionDatabaseOptions = {}): DatabaseAdapter {
+    this.assertCompatible()
+
+    const dbPath = this.getDbPath(sessionId)
+    if (!options.create && !fs.existsSync(dbPath)) {
+      throw new Error(`Session database not found: ${sessionId}`)
+    }
+
+    if (!options.readonly) {
+      this.close(sessionId)
+      fs.mkdirSync(path.dirname(dbPath), { recursive: true })
+    }
+
+    const adapter = openBetterSqliteDatabase(dbPath, {
+      readonly: options.readonly ?? false,
+      nativeBinding: this.nativeBinding,
+    })
+
+    if (options.initializeChatTables) {
+      adapter.exec(CHAT_DB_TABLES)
+    }
+
+    return adapter
+  }
+
+  deleteSessionDatabaseFiles(sessionId: string): void {
+    this.close(sessionId)
+
+    const dbPath = this.getDbPath(sessionId)
+    for (const suffix of ['', '-wal', '-shm']) {
+      try {
+        const filePath = dbPath + suffix
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+      } catch {
+        /* ignore cleanup failures */
+      }
+    }
+  }
+
+  raiseCurrentChatDbCompatibilityGate(): void {
+    if (!this.runtime) return
+    raiseChatDbCompatibilityGate(this.pathProvider, this.runtime)
+  }
+
   private assertCompatible(): void {
     if (!this.runtime) return
     assertDataDirCompatible(this.pathProvider, this.runtime)
@@ -195,18 +255,26 @@ export class DatabaseManager {
     if (!migrated || !this.runtime) return
 
     const afterVersion = getSchemaVersion(adapter)
-    for (const compatibilityRaise of CHAT_DB_COMPATIBILITY_RAISES) {
-      if (beforeVersion >= compatibilityRaise.migrationVersion || afterVersion < compatibilityRaise.migrationVersion) {
-        continue
-      }
-
-      raiseDataDirMinRuntimeVersion(this.pathProvider, {
-        minRuntimeVersion: compatibilityRaise.minRuntimeVersion,
-        dataCompatibilityVersion: compatibilityRaise.dataCompatibilityVersion,
-        reason: compatibilityRaise.reason,
-        runtime: this.runtime,
-        module: compatibilityRaise.module,
-      })
+    if (shouldRaiseCompatibilityGate(beforeVersion, afterVersion)) {
+      this.raiseCurrentChatDbCompatibilityGate()
     }
   }
+
+  private raiseCompatibilityGateIfNeeded(schemaVersion: number): void {
+    if (!this.runtime) return
+    if (shouldRepairCompatibilityGate(schemaVersion)) {
+      this.raiseCurrentChatDbCompatibilityGate()
+    }
+  }
+}
+
+function shouldRaiseCompatibilityGate(beforeVersion: number, afterVersion: number): boolean {
+  return CHAT_DB_COMPATIBILITY_RAISES.some(
+    (compatibilityRaise) =>
+      beforeVersion < compatibilityRaise.migrationVersion && afterVersion >= compatibilityRaise.migrationVersion
+  )
+}
+
+function shouldRepairCompatibilityGate(schemaVersion: number): boolean {
+  return CHAT_DB_COMPATIBILITY_RAISES.some((compatibilityRaise) => schemaVersion >= compatibilityRaise.migrationVersion)
 }

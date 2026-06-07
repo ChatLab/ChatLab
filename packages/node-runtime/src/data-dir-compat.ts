@@ -90,7 +90,20 @@ export function assertDataDirCompatible(
   const meta = readDataDirCompatibilityMeta(userDataDir)
   if (!meta) return
 
-  if (!isStableSemver(runtime.version) || compareStableSemver(runtime.version, meta.minRuntimeVersion) < 0) {
+  if (!isStableSemver(runtime.version)) {
+    throw new DataDirCompatibilityError(
+      'DATA_DIR_REQUIRES_NEWER_RUNTIME',
+      `ChatLab data directory compatibility check requires a stable runtime version; current version is ${runtime.version}.`,
+      {
+        userDataDir,
+        metaPath: getMetaPath(userDataDir),
+        currentVersion: runtime.version,
+        minRuntimeVersion: meta.minRuntimeVersion,
+      }
+    )
+  }
+
+  if (compareStableSemver(runtime.version, meta.minRuntimeVersion) < 0) {
     const env = options.env ?? process.env
     if (env.CHATLAB_ALLOW_INCOMPATIBLE_DATA_DIR === '1') {
       const warn = options.warn ?? console.warn

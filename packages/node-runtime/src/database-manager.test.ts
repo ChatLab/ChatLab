@@ -375,6 +375,145 @@ test('open blocks database access when data directory requires a newer runtime',
   )
 })
 
+test('openRawSessionDatabase blocks raw access when data directory requires a newer runtime', () => {
+  const root = makeTempDir()
+  const dbDir = path.join(root, 'data', 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+  fs.writeFileSync(
+    path.join(root, 'data', '.chatlab-meta.json'),
+    JSON.stringify(
+      {
+        formatVersion: 1,
+        minRuntimeVersion: '0.25.1',
+        dataCompatibilityVersion: 1,
+        reasons: ['segment-schema'],
+        updatedBy: { runtime: 'desktop', module: 'chat-db-migration', version: '0.25.1' },
+        updatedAt: 1780830000,
+      },
+      null,
+      2
+    ),
+    'utf-8'
+  )
+
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.25.0', kind: 'cli' },
+  })
+
+  assert.throws(
+    () => manager.openRawSessionDatabase('blocked-raw', { create: true }),
+    (error) =>
+      error instanceof DataDirCompatibilityError &&
+      error.code === 'DATA_DIR_REQUIRES_NEWER_RUNTIME' &&
+      error.minRuntimeVersion === '0.25.1'
+  )
+  assert.equal(fs.existsSync(path.join(dbDir, 'blocked-raw.db')), false)
+})
+
+test('openRawSessionDatabase can initialize current chat tables for controlled import adapters', () => {
+  const root = makeTempDir()
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+
+  const db = manager.openRawSessionDatabase('raw-created', { create: true, initializeChatTables: true })
+
+  const metaTable = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'meta'").get()
+  const messageTable = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'message'").get()
+  assert.ok(metaTable)
+  assert.ok(messageTable)
+  db.close()
+})
+
+test('raiseCurrentChatDbCompatibilityGate writes metadata for fresh current-schema databases', () => {
+  const root = makeTempDir()
+  const dbDir = path.join(root, 'data', 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+  const dbPath = path.join(dbDir, 'fresh-current.db')
+
+  const rawDb = new Database(dbPath, { nativeBinding })
+  rawDb.exec(`
+    CREATE TABLE meta (
+      name TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      type TEXT NOT NULL,
+      imported_at INTEGER NOT NULL,
+      schema_version INTEGER DEFAULT ${CURRENT_SCHEMA_VERSION}
+    );
+    INSERT INTO meta (name, platform, type, imported_at, schema_version)
+    VALUES ('Fresh Current Chat', 'qq', 'group', 1000, ${CURRENT_SCHEMA_VERSION});
+  `)
+  rawDb.close()
+
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+
+  manager.raiseCurrentChatDbCompatibilityGate()
+
+  const meta = readDataDirCompatibilityMeta(path.join(root, 'data'))
+  assert.equal(meta?.minRuntimeVersion, '0.25.1')
+  assert.equal(meta?.dataCompatibilityVersion, 1)
+  assert.deepEqual(meta?.reasons, ['segment-schema'])
+  assert.deepEqual(meta?.updatedBy, {
+    runtime: 'cli',
+    module: 'chat-db-migration',
+    version: '0.25.1',
+  })
+})
+
+test('open repairs the data directory gate for existing current-schema databases', () => {
+  const root = makeTempDir()
+  const dbDir = path.join(root, 'data', 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+  const dbPath = path.join(dbDir, 'already-current.db')
+
+  const rawDb = new Database(dbPath, { nativeBinding })
+  rawDb.exec(`
+    CREATE TABLE meta (
+      name TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      type TEXT NOT NULL,
+      imported_at INTEGER NOT NULL,
+      schema_version INTEGER DEFAULT ${CURRENT_SCHEMA_VERSION}
+    );
+    INSERT INTO meta (name, platform, type, imported_at, schema_version)
+    VALUES ('Already Current Chat', 'qq', 'group', 1000, ${CURRENT_SCHEMA_VERSION});
+
+    CREATE TABLE member (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform_id TEXT NOT NULL UNIQUE,
+      account_name TEXT
+    );
+
+    CREATE TABLE message (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER NOT NULL,
+      ts INTEGER NOT NULL,
+      type INTEGER NOT NULL,
+      content TEXT
+    );
+  `)
+  rawDb.close()
+
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+
+  const db = manager.open('already-current')
+  assert.ok(db)
+  manager.closeAll()
+
+  const meta = readDataDirCompatibilityMeta(path.join(root, 'data'))
+  assert.equal(meta?.minRuntimeVersion, '0.25.1')
+  assert.equal(meta?.dataCompatibilityVersion, 1)
+  assert.deepEqual(meta?.reasons, ['segment-schema'])
+})
+
 test('open keeps a higher existing data directory runtime requirement after migration', () => {
   const root = makeTempDir()
   const dbDir = path.join(root, 'data', 'databases')

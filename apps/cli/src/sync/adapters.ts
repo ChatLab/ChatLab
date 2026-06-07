@@ -14,10 +14,9 @@ import type { HttpFetcher, DataImporter, SyncNotifier, ImportResult, FetchParams
 import { NOOP_LOGGER } from '@openchatlab/sync'
 import { buildPullUrl } from '@openchatlab/sync'
 import type { DatabaseManager } from '@openchatlab/node-runtime'
-import { openBetterSqliteDatabase } from '@openchatlab/node-runtime'
+import { DataDirCompatibilityError } from '@openchatlab/node-runtime'
 import { parseFile } from '../import/chatlab-reader'
 import { importData } from '../import/importer'
-import { resolveCliPath } from '../paths'
 
 function getTempFilePath(ext: string): string {
   const id = crypto.randomBytes(8).toString('hex')
@@ -51,21 +50,12 @@ export class NodeFetcher implements HttpFetcher {
 
 // ==================== DirectImporter ====================
 
-function resolveNativeBinding(): string | undefined {
-  if (process.versions.electron) return undefined
-  const nativePath = resolveCliPath('native/better_sqlite3.node')
-  if (fs.existsSync(nativePath)) return nativePath
-  return undefined
-}
-
 export class DirectImporter implements DataImporter {
   private dbManager: DatabaseManager
-  private nativeBinding: string | undefined
   private logger: SyncLogger
 
   constructor(dbManager: DatabaseManager, logger?: SyncLogger) {
     this.dbManager = dbManager
-    this.nativeBinding = resolveNativeBinding()
     this.logger = logger ?? NOOP_LOGGER
   }
 
@@ -73,7 +63,7 @@ export class DirectImporter implements DataImporter {
     const dbPath = this.dbManager.getDbPath(sessionId)
     if (!fs.existsSync(dbPath)) return false
     try {
-      const db = openBetterSqliteDatabase(dbPath, { readonly: true, nativeBinding: this.nativeBinding })
+      const db = this.dbManager.openRawSessionDatabase(sessionId, { readonly: true })
       const row = db
         .prepare("SELECT COUNT(*) as cnt FROM sqlite_master WHERE type='table' AND name='message'")
         .get() as { cnt: number }
@@ -88,7 +78,9 @@ export class DirectImporter implements DataImporter {
         return false
       }
       return true
-    } catch {
+    } catch (error) {
+      if (error instanceof DataDirCompatibilityError) throw error
+
       this.logger.warn(`[DirectImporter] Cannot validate DB file: ${sessionId}, removing`)
       try {
         fs.unlinkSync(dbPath)
@@ -119,7 +111,6 @@ export class DirectImporter implements DataImporter {
       this.dbManager.close(sessionId)
       const result = await importData(this.dbManager, data, {
         sessionId,
-        nativeBinding: this.nativeBinding,
       })
 
       if (result.success) {
@@ -154,7 +145,6 @@ export class DirectImporter implements DataImporter {
 
       const result = await importData(this.dbManager, data, {
         sessionId: externalId,
-        nativeBinding: this.nativeBinding,
       })
 
       if (result.success) {

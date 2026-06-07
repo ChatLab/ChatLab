@@ -14,7 +14,6 @@ import { randomBytes, createHmac, timingSafeEqual } from 'crypto'
 import { ipcMain } from 'electron'
 import Fastify, { type FastifyInstance, type FastifyError, type FastifyRequest, type FastifyReply } from 'fastify'
 import type { PathProvider } from '@openchatlab/core'
-import { CHAT_DB_TABLES } from '@openchatlab/core'
 import {
   DatabaseManager,
   createDatabaseManagerAdapter,
@@ -22,7 +21,7 @@ import {
   CustomProviderStore,
   CustomModelStore,
   MergeSessionCache,
-  openBetterSqliteDatabase,
+  raiseChatDbCompatibilityGate,
   streamingImport,
 } from '@openchatlab/node-runtime'
 import type { StreamImportDeps } from '@openchatlab/node-runtime'
@@ -105,26 +104,13 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
     const newMergeCache = new MergeSessionCache(pathProvider)
     newMergeCache.cleanupOrphans()
 
-    const electronStreamImport = async (_dm: DatabaseManager, filePath: string) => {
-      const dbDir = pathProvider.getDatabaseDir()
-      if (!fs.existsSync(dbDir)) fs.mkdirSync(dbDir, { recursive: true })
-
+    const electronStreamImport = async (dm: DatabaseManager, filePath: string) => {
       const deps: StreamImportDeps = {
         openDatabase(sessionId: string) {
-          const dbPath = path.join(dbDir, `${sessionId}.db`)
-          const adapter = openBetterSqliteDatabase(dbPath, { readonly: false })
-          adapter.exec(CHAT_DB_TABLES)
-          return adapter
+          return dm.openRawSessionDatabase(sessionId, { create: true, initializeChatTables: true })
         },
         deleteDatabase(sessionId: string) {
-          const dbPath = path.join(dbDir, `${sessionId}.db`)
-          for (const suffix of ['', '-wal', '-shm']) {
-            try {
-              if (fs.existsSync(dbPath + suffix)) fs.unlinkSync(dbPath + suffix)
-            } catch {
-              /* ignore */
-            }
-          }
+          dm.deleteSessionDatabaseFiles(sessionId)
         },
         onProgress() {
           /* no progress for merge-triggered import */
@@ -132,6 +118,12 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
       }
       const result = await streamingImport(filePath, deps)
       if (!result.sessionId) throw new Error('Import succeeded but no sessionId returned')
+      try {
+        raiseChatDbCompatibilityGate(pathProvider, runtime)
+      } catch (error) {
+        dm.deleteSessionDatabaseFiles(result.sessionId)
+        throw error
+      }
       return { sessionId: result.sessionId }
     }
 

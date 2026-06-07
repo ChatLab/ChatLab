@@ -86,6 +86,7 @@ export {
   raiseDataDirMinRuntimeVersion,
   readDataDirCompatibilityMeta,
 } from './data-dir-compat'
+export { raiseChatDbCompatibilityGate } from './migrations/chat-db-migrations'
 export type {
   AssertDataDirCompatibilityOptions,
   DataDirCompatibilityMeta,

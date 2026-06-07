@@ -8,6 +8,8 @@ import type { PathProvider } from '@openchatlab/core'
 import { readDataDirCompatibilityMeta } from '@openchatlab/node-runtime/src/data-dir-compat'
 import { migrateDatabase } from './migrations'
 
+const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
+
 function makeTempDir(): string {
   const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
   return fs.mkdtempSync(path.join(baseDir, 'chatlab-desktop-migration-'))
@@ -32,7 +34,7 @@ test('migrateDatabase writes data directory compatibility meta after segment sch
   const dbPath = path.join(root, 'data', 'databases', 'desktop-legacy.db')
   fs.mkdirSync(path.dirname(dbPath), { recursive: true })
 
-  const db = new Database(dbPath)
+  const db = new Database(dbPath, { nativeBinding })
   db.exec(`
     CREATE TABLE meta (
       name TEXT NOT NULL,

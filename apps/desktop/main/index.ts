@@ -20,6 +20,10 @@ import {
   getAiDataDir,
 } from './paths'
 import { migrateAllDatabases, checkMigrationNeeded } from './database/core'
+import {
+  assertDesktopStartupMigrationSucceeded,
+  repairDesktopStartupCompatibilityGate,
+} from './database/startup-migration'
 import { initLocale } from './i18n'
 import { MigrationRunner, ALL_MIGRATIONS } from '@openchatlab/config'
 import { assertDesktopDataDirCompatible, getDesktopAppVersion } from './runtime-compat'
@@ -146,7 +150,19 @@ class MainProcess {
     await initLocale()
 
     // 执行数据库 schema 迁移（确保所有数据库在 Worker 查询前已是最新 schema）
-    this.migrateDatabasesIfNeeded(runtime)
+    try {
+      this.migrateDatabasesIfNeeded(runtime)
+    } catch (error) {
+      console.error('[Main] Database schema migration failed:', error)
+      dialog.showErrorBox(
+        'ChatLab Database Migration Failed',
+        `ChatLab cannot start because database migration did not complete safely.\n\n${
+          error instanceof Error ? error.message : String(error)
+        }`
+      )
+      app.quit()
+      return
+    }
 
     initProxy() // 初始化代理配置
 
@@ -203,19 +219,14 @@ class MainProcess {
     }
   }
 
-  // 执行数据库 schema 迁移（静默迁移）
+  // 执行启动期数据库 schema 迁移；失败时必须中断，避免 schema 已升级但兼容门禁未落盘。
   migrateDatabasesIfNeeded(runtime: RuntimeIdentity) {
-    try {
-      const { count } = checkMigrationNeeded()
-      if (count > 0) {
-        const result = migrateAllDatabases(runtime)
-        if (!result.success) {
-          console.error('[Main] Database schema migration failed:', result.error)
-        }
-      }
-    } catch (error) {
-      console.error('[Main] Error in migrateDatabasesIfNeeded:', error)
+    const { count } = checkMigrationNeeded()
+    if (count > 0) {
+      assertDesktopStartupMigrationSucceeded(migrateAllDatabases(runtime))
     }
+
+    repairDesktopStartupCompatibilityGate(runtime, { pathProvider: getPathProvider() })
   }
 
   // 创建主窗口

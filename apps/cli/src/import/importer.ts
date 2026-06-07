@@ -10,7 +10,7 @@ import * as crypto from 'crypto'
 import type { DatabaseAdapter } from '@openchatlab/core'
 import { CHAT_DB_SCHEMA, FTS_TABLE_SCHEMA, generateMessageKey, buildMemberIdMap } from '@openchatlab/core'
 import type { DatabaseManager } from '@openchatlab/node-runtime'
-import { openBetterSqliteDatabase, writeParseResultToDb } from '@openchatlab/node-runtime'
+import { writeParseResultToDb } from '@openchatlab/node-runtime'
 import type { ParsedData, ImportMessage } from './chatlab-reader'
 
 export interface ImportResult {
@@ -272,40 +272,30 @@ export async function importData(
 
   try {
     if (exists) {
-      dbManager.close(sessionId)
-      const db = openBetterSqliteDatabase(dbPath, { readonly: false, nativeBinding: options?.nativeBinding })
+      const db = dbManager.openRawSessionDatabase(sessionId, { readonly: false })
+      let result: { messageCount: number; memberCount: number; duplicateCount: number }
       try {
-        const result = incrementalImport(db, data, options?.onProgress)
+        result = incrementalImport(db, data, options?.onProgress)
+      } finally {
         db.close()
-        return { success: true, sessionId, created: false, ...result }
-      } catch (err) {
-        db.close()
-        throw err
       }
+      dbManager.raiseCurrentChatDbCompatibilityGate()
+      return { success: true, sessionId, created: false, ...result }
     }
 
-    const db = openBetterSqliteDatabase(dbPath, { nativeBinding: options?.nativeBinding })
-    const result = fullImport(db, data, options?.onProgress)
-    db.close()
+    const db = dbManager.openRawSessionDatabase(sessionId, { create: true })
+    let result: { messageCount: number; memberCount: number; duplicateCount: number }
+    try {
+      result = fullImport(db, data, options?.onProgress)
+    } finally {
+      db.close()
+    }
+    dbManager.raiseCurrentChatDbCompatibilityGate()
     return { success: true, sessionId, created: true, ...result }
   } catch (err: unknown) {
     const message = err instanceof Error ? err.message : String(err)
     if (!exists) {
-      try {
-        fs.unlinkSync(dbPath)
-      } catch {
-        /* ignore */
-      }
-      try {
-        fs.unlinkSync(dbPath + '-wal')
-      } catch {
-        /* ignore */
-      }
-      try {
-        fs.unlinkSync(dbPath + '-shm')
-      } catch {
-        /* ignore */
-      }
+      dbManager.deleteSessionDatabaseFiles(sessionId)
     }
     return {
       success: false,

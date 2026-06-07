@@ -10,9 +10,11 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as crypto from 'crypto'
 import Database from 'better-sqlite3'
-import { net, BrowserWindow } from 'electron'
+import { net, BrowserWindow, app } from 'electron'
 import { getTempDir } from '../paths'
 import * as worker from '../worker/workerManager'
+import { getPathProvider } from '../path-context'
+import { assertDesktopDataDirCompatible, getDesktopAppVersion } from '../runtime-compat'
 import type { HttpFetcher, DataImporter, SyncNotifier, ImportResult, FetchParams, SyncLogger } from '@openchatlab/sync'
 import { buildPullUrl, NOOP_LOGGER } from '@openchatlab/sync'
 
@@ -84,6 +86,8 @@ export class WorkerImporter implements DataImporter {
   }
 
   sessionExists(sessionId: string): boolean {
+    assertDesktopDataDirCompatible(getPathProvider(), getDesktopAppVersion(app.getVersion()))
+
     const dbPath = path.join(worker.getDbDirectory(), `${sessionId}.db`)
     if (!fs.existsSync(dbPath)) return false
     try {

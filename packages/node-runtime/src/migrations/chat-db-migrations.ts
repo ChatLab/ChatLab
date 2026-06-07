@@ -7,7 +7,9 @@
  */
 
 import type { DatabaseAdapter } from '@openchatlab/core'
+import type { PathProvider } from '@openchatlab/core'
 import type { Migration as CoreMigration } from '@openchatlab/core'
+import { raiseDataDirMinRuntimeVersion, type RuntimeIdentity } from '../data-dir-compat'
 
 export interface MigrationDeps {
   /** FTS tokenizer — needed by v4 migration for backfilling the FTS index */
@@ -31,6 +33,18 @@ export const CHAT_DB_COMPATIBILITY_RAISES: ChatDbCompatibilityRaise[] = [
     module: 'chat-db-migration',
   },
 ]
+
+export function raiseChatDbCompatibilityGate(pathProvider: PathProvider, runtime: RuntimeIdentity): void {
+  for (const compatibilityRaise of CHAT_DB_COMPATIBILITY_RAISES) {
+    raiseDataDirMinRuntimeVersion(pathProvider, {
+      minRuntimeVersion: compatibilityRaise.minRuntimeVersion,
+      dataCompatibilityVersion: compatibilityRaise.dataCompatibilityVersion,
+      reason: compatibilityRaise.reason,
+      runtime,
+      module: compatibilityRaise.module,
+    })
+  }
+}
 
 /**
  * Build the chat DB migration list.

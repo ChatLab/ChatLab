@@ -12,7 +12,9 @@ import type { StreamImportResult } from './import'
 
 import { getDatabaseDir, getCacheDir, getTempDir, ensureDir } from '../paths'
 import { getNlpDir } from '../nlp/dictManager'
-import { getDesktopAppVersion } from '../runtime-compat'
+import { assertDesktopDataDirCompatible, getDesktopAppVersion } from '../runtime-compat'
+import { getPathProvider } from '../path-context'
+import { raiseChatDbCompatibilityGate } from '@openchatlab/node-runtime'
 
 // Worker 实例
 let worker: Worker | null = null
@@ -37,6 +39,10 @@ function getDbDir(): string {
   const dir = getDatabaseDir()
   ensureDir(dir)
   return dir
+}
+
+function assertDataDirCompatibleNow(): void {
+  assertDesktopDataDirCompatible(getPathProvider(), getDesktopAppVersion(app.getVersion()))
 }
 
 /**
@@ -526,7 +532,42 @@ export async function streamImport(
   formatOptions?: Record<string, unknown>,
   externalSessionId?: string
 ): Promise<StreamImportResult> {
-  return sendToWorkerWithProgress('streamImport', { filePath, formatOptions, externalSessionId }, onProgress)
+  assertDataDirCompatibleNow()
+
+  const result = await sendToWorkerWithProgress<StreamImportResult>(
+    'streamImport',
+    { filePath, formatOptions, externalSessionId },
+    onProgress
+  )
+  if (!result.success || !result.sessionId) return result
+
+  try {
+    raiseChatDbCompatibilityGate(getPathProvider(), {
+      version: getDesktopAppVersion(app.getVersion()),
+      kind: 'desktop',
+    })
+  } catch (error) {
+    deleteImportedSessionFiles(result.sessionId)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+      diagnostics: result.diagnostics,
+    }
+  }
+
+  return result
+}
+
+function deleteImportedSessionFiles(sessionId: string): void {
+  const dbPath = path.join(getDbDir(), `${sessionId}.db`)
+  for (const suffix of ['', '-wal', '-shm']) {
+    try {
+      const p = dbPath + suffix
+      if (fs.existsSync(p)) fs.unlinkSync(p)
+    } catch {
+      /* ignore */
+    }
+  }
 }
 
 /**
@@ -992,6 +1033,8 @@ export async function incrementalImport(
   onProgress?: (progress: ParseProgress) => void,
   options?: ImportOptions
 ): Promise<IncrementalImportResult> {
+  assertDataDirCompatibleNow()
+
   return sendToWorkerWithProgress('incrementalImport', { sessionId, filePath, options }, onProgress)
 }
 
