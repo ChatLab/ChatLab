@@ -223,7 +223,16 @@ export async function analyzeIncrementalImport(
   filePath: string,
   onProgress?: ImportProgressCallback
 ): Promise<IncrementalAnalyzeResult> {
-  return sharedAnalyzeIncremental(sessionId, filePath, buildIncrementalDeps(dbManager, onProgress))
+  let compatibilityError: DataDirCompatibilityError | null = null
+  const result = await sharedAnalyzeIncremental(
+    sessionId,
+    filePath,
+    buildIncrementalDeps(dbManager, onProgress, (error) => {
+      compatibilityError = error
+    })
+  )
+  if (compatibilityError) throw compatibilityError
+  return result
 }
 
 export async function analyzeNewImport(

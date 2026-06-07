@@ -4,7 +4,7 @@
 
 import Fastify, { type FastifyInstance, type FastifyError } from 'fastify'
 import { authHook } from './auth'
-import { ApiError, ApiErrorCode, errorResponse, serverError } from './errors'
+import { ApiError, ApiErrorCode, apiErrorFromUnknown, errorResponse, serverError } from './errors'
 import { apiLogger } from './logger'
 
 const JSON_BODY_LIMIT = 50 * 1024 * 1024 // 50MB
@@ -20,6 +20,12 @@ export function createServer(): FastifyInstance {
   server.setErrorHandler((error: FastifyError, _request, reply) => {
     if (error instanceof ApiError) {
       reply.code(error.statusCode).send(errorResponse(error))
+      return
+    }
+
+    const apiError = apiErrorFromUnknown(error)
+    if (apiError) {
+      reply.code(apiError.statusCode).send(errorResponse(apiError))
       return
     }
 

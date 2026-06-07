@@ -24,6 +24,7 @@ import {
   ApiError,
   ApiErrorCode,
   successResponse,
+  apiErrorFromUnknown,
   importInProgress,
   importFailed,
   invalidFormat,
@@ -328,6 +329,11 @@ async function handleUnifiedImport(request: FastifyRequest, reply: FastifyReply,
   } catch (error: any) {
     idempotencyFail(cacheKey)
     apiLogger.error('Import error', error)
+    const apiError = apiErrorFromUnknown(error)
+    if (apiError) {
+      reply.code(apiError.statusCode).send(errorResponse(apiError))
+      return
+    }
     const err = importFailed(error.message || 'Import process error')
     reply.code(err.statusCode).send(errorResponse(err))
   } finally {
@@ -421,6 +427,11 @@ async function handleLegacyImport(request: FastifyRequest, reply: FastifyReply, 
     }
   } catch (error: any) {
     apiLogger.error('Import error', error)
+    const apiError = apiErrorFromUnknown(error)
+    if (apiError) {
+      reply.code(apiError.statusCode).send(errorResponse(apiError))
+      return
+    }
     const err = importFailed(error.message || 'Import process error')
     reply.code(err.statusCode).send(errorResponse(err))
   } finally {

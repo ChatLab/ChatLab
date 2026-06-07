@@ -4,8 +4,13 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import type { PathProvider } from '@openchatlab/core'
-import { DatabaseManager, readDataDirCompatibilityMeta } from '@openchatlab/node-runtime'
-import { incrementalImport } from './stream-import'
+import {
+  DatabaseManager,
+  DataDirCompatibilityError,
+  raiseDataDirMinRuntimeVersion,
+  readDataDirCompatibilityMeta,
+} from '@openchatlab/node-runtime'
+import { analyzeIncrementalImport, incrementalImport } from './stream-import'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -78,4 +83,30 @@ test('incrementalImport raises the data directory gate after successful writes',
   assert.equal(meta?.minRuntimeVersion, '0.25.1')
   assert.equal(meta?.dataCompatibilityVersion, 1)
   assert.deepEqual(meta?.reasons, ['segment-schema'])
+})
+
+test('analyzeIncrementalImport propagates data directory compatibility errors', async () => {
+  const root = makeTempDir()
+  const pathProvider = createPathProvider(root)
+  fs.mkdirSync(pathProvider.getDatabaseDir(), { recursive: true })
+  fs.writeFileSync(path.join(pathProvider.getDatabaseDir(), 'existing.db'), 'not opened before compatibility check')
+  raiseDataDirMinRuntimeVersion(pathProvider, {
+    minRuntimeVersion: '0.26.0',
+    dataCompatibilityVersion: 2,
+    reason: 'future-schema',
+    runtime: { version: '0.26.0', kind: 'desktop' },
+    module: 'future-migration',
+    now: () => 1780830000,
+  })
+  const manager = new DatabaseManager(pathProvider, {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+  const filePath = path.join(root, 'incremental.jsonl')
+  writeIncrementalJsonl(filePath)
+
+  await assert.rejects(
+    () => analyzeIncrementalImport(manager, 'existing', filePath),
+    (error) => error instanceof DataDirCompatibilityError && error.code === 'DATA_DIR_REQUIRES_NEWER_RUNTIME'
+  )
 })

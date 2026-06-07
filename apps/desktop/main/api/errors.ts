@@ -2,6 +2,8 @@
  * ChatLab API — Error codes and factory functions
  */
 
+import { DataDirCompatibilityError } from '@openchatlab/node-runtime/src/data-dir-compat'
+
 export enum ApiErrorCode {
   UNAUTHORIZED = 'UNAUTHORIZED',
   SESSION_NOT_FOUND = 'SESSION_NOT_FOUND',
@@ -15,6 +17,7 @@ export enum ApiErrorCode {
   IDEMPOTENCY_CONFLICT = 'IDEMPOTENCY_CONFLICT',
   IDEMPOTENCY_PENDING = 'IDEMPOTENCY_PENDING',
   IMPORT_FAILED = 'IMPORT_FAILED',
+  DATA_DIR_INCOMPATIBLE = 'DATA_DIR_INCOMPATIBLE',
   SERVER_ERROR = 'SERVER_ERROR',
 }
 
@@ -31,6 +34,7 @@ const HTTP_STATUS: Record<ApiErrorCode, number> = {
   [ApiErrorCode.IDEMPOTENCY_CONFLICT]: 409,
   [ApiErrorCode.IDEMPOTENCY_PENDING]: 409,
   [ApiErrorCode.IMPORT_FAILED]: 500,
+  [ApiErrorCode.DATA_DIR_INCOMPATIBLE]: 409,
   [ApiErrorCode.SERVER_ERROR]: 500,
 }
 
@@ -89,8 +93,25 @@ export function importFailed(message: string): ApiError {
   return new ApiError(ApiErrorCode.IMPORT_FAILED, message)
 }
 
+export function dataDirIncompatible(message: string): ApiError {
+  return new ApiError(ApiErrorCode.DATA_DIR_INCOMPATIBLE, message)
+}
+
 export function serverError(message = 'Internal server error'): ApiError {
   return new ApiError(ApiErrorCode.SERVER_ERROR, message)
+}
+
+export function apiErrorFromUnknown(error: unknown): ApiError | null {
+  if (error instanceof ApiError) return error
+  const compatibilityError = findDataDirCompatibilityError(error)
+  if (compatibilityError) return dataDirIncompatible(compatibilityError.message)
+  return null
+}
+
+function findDataDirCompatibilityError(error: unknown): DataDirCompatibilityError | null {
+  if (error instanceof DataDirCompatibilityError) return error
+  if (error instanceof Error && error.cause) return findDataDirCompatibilityError(error.cause)
+  return null
 }
 
 export function successResponse<T>(data: T, meta?: Record<string, unknown>) {

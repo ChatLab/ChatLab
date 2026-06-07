@@ -8,17 +8,15 @@
  */
 
 import { loadConfig } from '@openchatlab/config'
-import { NodePathProvider, DatabaseManager } from '@openchatlab/node-runtime'
 import { startMcpServer } from './server'
+import { initStandaloneMcpRuntime } from './standalone-runtime'
 import { getMcpPackageVersion } from './runtime-version'
 
 function main(): void {
   const config = loadConfig()
   const userDataDir = config.data.user_data_dir || undefined
-  const pathProvider = new NodePathProvider(userDataDir)
-  pathProvider.ensureAllDirs()
   const version = getMcpPackageVersion()
-  const dbManager = new DatabaseManager(pathProvider, { runtime: { version, kind: 'mcp' } })
+  const { dbManager } = initStandaloneMcpRuntime(version, userDataDir)
 
   startMcpServer({ version, dbManager }).catch((err) => {
     console.error('[chatlab-mcp] Fatal error:', err)
