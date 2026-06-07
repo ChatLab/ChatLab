@@ -40,7 +40,7 @@
 - 类型检查：Node/CLI/Electron 主进程相关改动运行 `pnpm run type-check:node`；前端/Vue 相关改动运行 `pnpm run type-check:web`；跨端或发布前改动运行 `pnpm run type-check:all`
 - Lint：优先对修改文件运行 `pnpm exec eslint <files...>`；需要全量修复时再运行 `pnpm lint`
 - Format：优先对修改文件运行 `pnpm exec prettier --write <files...>`；大范围格式化才运行 `pnpm format`
-- 单元/集成测试：当前没有统一全量 `test` 脚本，优先运行相关测试文件，例如 `pnpm exec tsx --test path/to/file.test.ts`
+- 单元/集成测试：日常默认运行 `pnpm test` 或 `pnpm run test:unit`；优先运行相关测试文件时用 `pnpm test -- path/to/file.test.ts`
 - 文档：修改公开文档或 VitePress 配置后运行 `pnpm docs:build`；只改 `.docs/` 私有任务文档时不需要构建公开文档站
 - E2E/Smoke：`pnpm run test:e2e:launcher`、`pnpm run test:e2e:smoke` 和真实 LLM/真实 Electron 测试只在相关功能需要时运行，默认不作为每次改动的必跑项
 - 最后检查：提交前运行 `git diff --check`，确认没有空白错误

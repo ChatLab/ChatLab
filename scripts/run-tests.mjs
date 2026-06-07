@@ -1,0 +1,93 @@
+#!/usr/bin/env node
+
+import { readdirSync, statSync } from 'node:fs'
+import { join, relative, sep } from 'node:path'
+import { spawnSync } from 'node:child_process'
+import { fileURLToPath } from 'node:url'
+
+const SKIP_DIRS = new Set([
+  '.git',
+  '.docs',
+  'node_modules',
+  'dist',
+  'dist-web',
+  'out',
+  'build',
+  'coverage',
+  '.vitepress',
+])
+
+const TEST_FILE_RE = /\.(?:test|spec)\.(?:ts|tsx|js|jsx|mjs|mts|cjs|cts)$/
+
+function normalizePath(filePath) {
+  return filePath.split(sep).join('/')
+}
+
+export function filterDefaultTestFiles(files) {
+  return files
+    .map(normalizePath)
+    .filter((file) => TEST_FILE_RE.test(file))
+    .filter((file) => !file.startsWith('tests/e2e/'))
+    .filter((file) => !file.includes('/smoke/'))
+    .filter((file) => !file.includes('.smoke.test.'))
+    .filter((file) => !file.includes('.e2e.test.'))
+}
+
+function collectFiles(rootDir, dir = rootDir) {
+  const entries = readdirSync(dir, { withFileTypes: true })
+  const files = []
+
+  for (const entry of entries) {
+    if (entry.isDirectory()) {
+      if (SKIP_DIRS.has(entry.name)) continue
+      files.push(...collectFiles(rootDir, join(dir, entry.name)))
+      continue
+    }
+
+    if (!entry.isFile()) continue
+
+    const filePath = join(dir, entry.name)
+    files.push(normalizePath(relative(rootDir, filePath)))
+  }
+
+  return files
+}
+
+export function collectDefaultTestFiles(rootDir = process.cwd()) {
+  if (!statSync(rootDir).isDirectory()) {
+    throw new Error(`Test root is not a directory: ${rootDir}`)
+  }
+  return filterDefaultTestFiles(collectFiles(rootDir)).sort()
+}
+
+export function buildNodeTestArgs(testArgs) {
+  return ['--import', 'tsx', '--test', ...testArgs]
+}
+
+function run() {
+  const explicitArgs = process.argv.slice(2)
+  const testArgs = explicitArgs.length > 0 ? explicitArgs : collectDefaultTestFiles()
+
+  if (testArgs.length === 0) {
+    console.error('No test files found.')
+    process.exit(1)
+  }
+
+  if (explicitArgs.length === 0) {
+    console.log(`Running ${testArgs.length} default test files.`)
+  }
+
+  const result = spawnSync(process.execPath, buildNodeTestArgs(testArgs), {
+    stdio: 'inherit',
+  })
+
+  if (result.error) {
+    throw result.error
+  }
+
+  process.exit(result.status ?? 1)
+}
+
+if (process.argv[1] === fileURLToPath(import.meta.url)) {
+  run()
+}

@@ -35,6 +35,7 @@ import {
   isSubPath,
   writeMigrationLog,
 } from './utils/pathUtils'
+import { shouldMarkUnifiedDirMigrationDone } from './utils/unifiedDirMigration'
 import {
   createPendingDataDirMigration,
   isDirectoryEmptyOrMissing,
@@ -567,10 +568,6 @@ export function removeLegacyDir(): boolean {
 // ==================== Electron 旧目录结构 → 新目录结构迁移 ====================
 
 const SYSTEM_SUBDIRS = ['ai', 'settings', 'cache', 'logs', 'temp', 'nlp']
-
-export function shouldMarkUnifiedDirMigrationDone(failedDirs: string[]): boolean {
-  return failedDirs.length === 0
-}
 
 /**
  * 检测是否需要从 Electron 旧目录结构迁移到新的双根目录结构
