@@ -34,6 +34,8 @@
 - 可以不加测试：只改文案、样式、类型声明、日志、注释、无行为变化的小重构时，可以不新增测试，但仍需运行相关类型检查、lint 和 format
 - 测试分层：纯函数、解析/格式化、权限判断、参数规范化、错误分支优先写单元测试；SQL 行为、数据库迁移、文件迁移、导入写库、Fastify route、跨包 service 优先写集成测试；Electron、真实浏览器、真实 LLM、真实网络仅用于少量关键 E2E/Smoke，并默认通过环境变量显式启用
 - 避免重复测试：新增测试前先搜索同类断言；如果下层单测已覆盖算法，上层只测调用链是否接通，不重复枚举算法细节；如果测试只锁定实现写法、失败后不指向用户可见风险，应合并、改写或删除
+- 测试替身选择：涉及 SQL、数据库迁移、Fastify route 或跨包 service 时，优先使用轻量内存 SQLite / 临时文件 fixture 验证真实行为；只有在测试纯适配边界时才使用 mock/fake。避免用大量 `sql.includes(...)` 一类字符串匹配来模拟数据库行为
+- 适配层测试边界：CLI/Electron/Web route、IPC adapter、tool adapter 只验证参数传递、权限过滤、错误映射和返回契约；core 已覆盖的算法矩阵不要在入口层重复展开
 
 ## 命令与验证
 
@@ -42,7 +44,7 @@
 - Format：优先对修改文件运行 `pnpm exec prettier --write <files...>`；大范围格式化才运行 `pnpm format`
 - 单元/集成测试：日常默认运行 `pnpm test` 或 `pnpm run test:unit`；优先运行相关测试文件时用 `pnpm test -- path/to/file.test.ts`
 - 文档：修改公开文档或 VitePress 配置后运行 `pnpm docs:build`；只改 `.docs/` 私有任务文档时不需要构建公开文档站
-- E2E/Smoke：`pnpm run test:e2e:launcher`、`pnpm run test:e2e:smoke` 和真实 LLM/真实 Electron 测试只在相关功能需要时运行，默认不作为每次改动的必跑项
+- E2E/Smoke：`pnpm run test:e2e:launcher`、`pnpm run test:e2e:smoke` 和真实 LLM/真实 Electron/真实网络测试只在相关功能需要时运行，不加入默认 `pnpm test`
 - 最后检查：提交前运行 `git diff --check`，确认没有空白错误
 
 ## 代码规范
