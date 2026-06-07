@@ -80,6 +80,19 @@ export type {
   RunPendingDataDirMigrationDeps,
   RunPendingDataDirMigrationResult,
 } from './data-dir-switch'
+export {
+  assertDataDirCompatible,
+  DataDirCompatibilityError,
+  raiseDataDirMinRuntimeVersion,
+  readDataDirCompatibilityMeta,
+} from './data-dir-compat'
+export type {
+  AssertDataDirCompatibilityOptions,
+  DataDirCompatibilityMeta,
+  RaiseDataDirCompatibilityInput,
+  RuntimeIdentity,
+  RuntimeKind,
+} from './data-dir-compat'
 
 // NLP 分词引擎、词频统计、词库管理
 export {
