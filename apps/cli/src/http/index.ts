@@ -32,6 +32,7 @@ import { createCliRunAgentStream } from '../ai/agent-stream-runner'
 import { initSync, cleanupSync } from '../sync'
 import { resolveCliPath } from '../paths'
 import { resolveApiKey, writeAuthProfile } from '@openchatlab/config'
+import { assertCliDataDirCompatible } from '../runtime-compat'
 
 let server: FastifyInstance | null = null
 let dbManager: DatabaseManager | null = null
@@ -112,6 +113,7 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
   const userDataDir = config.data.user_data_dir || undefined
   const pathProvider = new NodePathProvider(userDataDir)
   pathProvider.ensureAllDirs()
+  const runtime = assertCliDataDirCompatible(pathProvider, 'cli')
 
   if (hasPendingElectronDataWarning() || !verifyCliDataPath(pathProvider.getDatabaseDir())) {
     console.error(
@@ -147,7 +149,7 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
   })
   await migrationRunner.run()
   const nativeBinding = resolveNativeBinding()
-  dbManager = new DatabaseManager(pathProvider, { nativeBinding })
+  dbManager = new DatabaseManager(pathProvider, { nativeBinding, runtime })
 
   const aiDataDir = pathProvider.getAiDataDir()
   aiChatManager = new AIChatManager(aiDataDir, { nativeBinding })

@@ -27,6 +27,7 @@ import {
 import { getVersion } from './version'
 import { resolveCliPath } from './paths'
 import { isPortAvailable, formatPortInUseError } from './http/port'
+import { assertCliDataDirCompatible } from './runtime-compat'
 
 const program = new Command()
 
@@ -519,6 +520,7 @@ function initRuntime() {
   const userDataDir = config.data.user_data_dir || undefined
   const pathProvider = new NodePathProvider(userDataDir)
   pathProvider.ensureAllDirs()
+  const runtime = assertCliDataDirCompatible(pathProvider, 'cli')
 
   if (hasPendingElectronDataWarning() || !verifyCliDataPath(pathProvider.getDatabaseDir())) {
     printElectronDataError()
@@ -526,7 +528,7 @@ function initRuntime() {
   }
 
   const nativeBinding = resolveNativeBinding()
-  const dbManager = new DatabaseManager(pathProvider, { nativeBinding })
+  const dbManager = new DatabaseManager(pathProvider, { nativeBinding, runtime })
   return { config, pathProvider, dbManager }
 }
 

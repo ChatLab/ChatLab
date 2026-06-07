@@ -15,6 +15,7 @@ import {
 import { startMcpServer } from 'chatlab-mcp'
 import { getVersion } from './version'
 import { resolveCliPath } from './paths'
+import { assertCliDataDirCompatible } from './runtime-compat'
 
 function resolveNativeBinding(): string | undefined {
   if (process.versions.electron) return undefined
@@ -23,11 +24,12 @@ function resolveNativeBinding(): string | undefined {
   return undefined
 }
 
-function initMcpRuntime(): DatabaseManager {
+export function initMcpRuntime(): DatabaseManager {
   const config = loadConfig()
   const userDataDir = config.data.user_data_dir || undefined
   const pathProvider = new NodePathProvider(userDataDir)
   pathProvider.ensureAllDirs()
+  const runtime = assertCliDataDirCompatible(pathProvider, 'mcp')
 
   if (hasPendingElectronDataWarning() || !verifyCliDataPath(pathProvider.getDatabaseDir())) {
     console.error('[MCP] Electron desktop data detected but databases not found.')
@@ -36,7 +38,7 @@ function initMcpRuntime(): DatabaseManager {
   }
 
   const nativeBinding = resolveNativeBinding()
-  return new DatabaseManager(pathProvider, { nativeBinding })
+  return new DatabaseManager(pathProvider, { nativeBinding, runtime })
 }
 
 export async function startCliMcpServer(): Promise<void> {
