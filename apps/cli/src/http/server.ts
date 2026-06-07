@@ -5,7 +5,14 @@
  */
 
 import Fastify, { type FastifyInstance, type FastifyError } from 'fastify'
-import { authHook, ApiError, ApiErrorCode, errorResponse, serverError } from '@openchatlab/http-routes'
+import {
+  authHook,
+  ApiError,
+  ApiErrorCode,
+  apiErrorFromUnknown,
+  errorResponse,
+  serverError,
+} from '@openchatlab/http-routes'
 
 const JSON_BODY_LIMIT = 50 * 1024 * 1024 // 50MB
 
@@ -18,8 +25,9 @@ export function createServer(): FastifyInstance {
   server.addHook('onRequest', authHook)
 
   server.setErrorHandler((error: FastifyError, _request, reply) => {
-    if (error instanceof ApiError) {
-      reply.code(error.statusCode).send(errorResponse(error))
+    const apiError = apiErrorFromUnknown(error)
+    if (apiError) {
+      reply.code(apiError.statusCode).send(errorResponse(apiError))
       return
     }
 

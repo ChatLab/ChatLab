@@ -28,7 +28,14 @@ import {
 import type { StreamImportDeps } from '@openchatlab/node-runtime'
 import multipart from '@fastify/multipart'
 import type { ConfigStorage } from '@openchatlab/node-runtime'
-import { registerSharedRoutes, ApiError, ApiErrorCode, errorResponse, serverError } from '@openchatlab/http-routes'
+import {
+  registerSharedRoutes,
+  ApiError,
+  ApiErrorCode,
+  apiErrorFromUnknown,
+  errorResponse,
+  serverError,
+} from '@openchatlab/http-routes'
 import type { HttpRouteContext } from '@openchatlab/http-routes'
 import { resolveApiKey, writeAuthProfile } from '@openchatlab/config'
 import { getManager as getAIChatManager } from './ai/chats'
@@ -201,8 +208,9 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
     newServer.addHook('onRequest', createInternalAuthHook(token))
 
     newServer.setErrorHandler((error: FastifyError, _request, reply) => {
-      if (error instanceof ApiError) {
-        reply.code(error.statusCode).send(errorResponse(error))
+      const apiError = apiErrorFromUnknown(error)
+      if (apiError) {
+        reply.code(apiError.statusCode).send(errorResponse(apiError))
         return
       }
       if (error.statusCode === 413) {

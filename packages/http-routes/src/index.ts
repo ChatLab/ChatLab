@@ -12,6 +12,8 @@ export {
   sqlExecutionError,
   exportTooLarge,
   serverError,
+  dataDirIncompatible,
+  apiErrorFromUnknown,
   successResponse,
   errorResponse,
 } from './errors'
