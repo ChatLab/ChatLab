@@ -102,9 +102,9 @@ export function getRelationshipStats(
 
   const whereClause = timeConditions.length > 0 ? `WHERE ${timeConditions.join(' AND ')}` : ''
 
-  const sessionRows = db
+  const segmentRows = db
     .prepare(
-      `SELECT cs.id AS session_id, cs.start_ts, cs.end_ts,
+      `SELECT cs.id AS segment_id, cs.start_ts, cs.end_ts,
               (SELECT m.sender_id FROM message_context mc JOIN message m ON m.id = mc.message_id
                WHERE mc.segment_id = cs.id ORDER BY m.ts ASC, m.id ASC LIMIT 1) AS initiator_id,
               (SELECT m.sender_id FROM message_context mc JOIN message m ON m.id = mc.message_id
@@ -112,7 +112,7 @@ export function getRelationshipStats(
        FROM segment cs ${whereClause} ORDER BY cs.start_ts ASC`
     )
     .all(...params) as Array<{
-    session_id: number
+    segment_id: number
     start_ts: number
     end_ts: number
     initiator_id: number | null
@@ -135,7 +135,7 @@ export function getRelationshipStats(
   let totalIceBreaks = 0
   let prevEndTs: number | null = null
 
-  for (const row of sessionRows) {
+  for (const row of segmentRows) {
     const month = toLocalMonth(row.start_ts)
     if (!monthMap.has(month)) monthMap.set(month, { initiateMap: new Map(), closeMap: new Map(), totalSessions: 0 })
     const ms = monthMap.get(month)!
@@ -192,13 +192,13 @@ export function getRelationshipStats(
     }
   }
 
-  const sessionIdList = sessionRows.map((r) => r.session_id)
-  const msgStats = queryMessageLevelStats(db, sessionIdList, memberNames, perseveranceThreshold)
+  const segmentIdList = segmentRows.map((r) => r.segment_id)
+  const msgStats = queryMessageLevelStats(db, segmentIdList, memberNames, perseveranceThreshold)
 
   return {
     months,
     members,
-    totalSessions: sessionRows.length,
+    totalSessions: segmentRows.length,
     hasSessionIndex: true,
     iceBreakers,
     totalIceBreaks,
@@ -209,7 +209,7 @@ export function getRelationshipStats(
 
 function queryMessageLevelStats(
   db: DatabaseAdapter,
-  sessionIds: number[],
+  segmentIds: number[],
   memberNames: Map<number, string>,
   perseveranceThreshold: number
 ): {
@@ -226,7 +226,7 @@ function queryMessageLevelStats(
     monthlyResponseLatency: [],
     monthlyPerseverance: [],
   }
-  if (sessionIds.length === 0) return empty
+  if (segmentIds.length === 0) return empty
 
   const BATCH_SIZE = 500
   const responseTotals = new Map<number, { sum: number; count: number }>()
@@ -234,8 +234,8 @@ function queryMessageLevelStats(
   const monthlyRespMap = new Map<string, Map<number, { sum: number; count: number }>>()
   const monthlyDtMap = new Map<string, Map<number, number>>()
 
-  for (let i = 0; i < sessionIds.length; i += BATCH_SIZE) {
-    const batch = sessionIds.slice(i, i + BATCH_SIZE)
+  for (let i = 0; i < segmentIds.length; i += BATCH_SIZE) {
+    const batch = segmentIds.slice(i, i + BATCH_SIZE)
     const placeholders = batch.map(() => '?').join(',')
 
     const latencyRows = db

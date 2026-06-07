@@ -26,6 +26,7 @@ export interface ChatCommandDeps {
 export interface ResolvedAIChatTarget {
   sessionId: string
   aiChatId: string
+  assistantId: string
   created: boolean
 }
 
@@ -48,6 +49,21 @@ function buildTitle(question?: string): string {
   const trimmed = question?.trim()
   if (!trimmed) return 'CLI Chat'
   return trimmed.length > 50 ? `${trimmed.slice(0, 50)}...` : trimmed
+}
+
+function createAgentStreamError(error: unknown): Error {
+  if (error instanceof Error) return error
+  if (typeof error === 'string' && error) return new Error(error)
+  if (typeof error === 'object' && error !== null) {
+    const record = error as { name?: unknown; message?: unknown; stack?: unknown }
+    const streamError = new Error(
+      typeof record.message === 'string' && record.message ? record.message : 'Agent stream failed'
+    )
+    if (typeof record.name === 'string' && record.name) streamError.name = record.name
+    if (typeof record.stack === 'string' && record.stack) streamError.stack = record.stack
+    return streamError
+  }
+  return new Error('Agent stream failed')
 }
 
 function resolveSingleSessionId(dbManager: DatabaseManager): string {
@@ -79,13 +95,13 @@ export function resolveAIChatTarget(
       throw new Error(`AI chat ${options.aiChatId} belongs to session ${aiChat.sessionId}, not ${options.sessionId}`)
     }
     assertSessionExists(deps.dbManager, aiChat.sessionId)
-    return { sessionId: aiChat.sessionId, aiChatId: aiChat.id, created: false }
+    return { sessionId: aiChat.sessionId, aiChatId: aiChat.id, assistantId: aiChat.assistantId, created: false }
   }
 
   const sessionId = options.sessionId ?? resolveSingleSessionId(deps.dbManager)
   assertSessionExists(deps.dbManager, sessionId)
   const aiChat = deps.aiChatManager.createAIChat(sessionId, buildTitle(options.question), 'general_cn')
-  return { sessionId, aiChatId: aiChat.id, created: true }
+  return { sessionId, aiChatId: aiChat.id, assistantId: aiChat.assistantId, created: true }
 }
 
 export async function runChatTurn(
@@ -98,6 +114,7 @@ export async function runChatTurn(
   const startedAt = Date.now()
   let answer = ''
   let tokenUsage: TokenUsageData | null = null
+  let streamError: Error | null = null
 
   const runAgentStream = (deps.createRunAgentStream ?? createCliRunAgentStream)(deps.dbManager, deps.aiChatManager)
 
@@ -106,10 +123,15 @@ export async function runChatTurn(
       userMessage: options.question,
       sessionId: target.sessionId,
       aiChatId: target.aiChatId,
+      assistantId: target.assistantId,
       chatType: 'group',
       locale: options.locale ?? 'zh-CN',
     },
     (chunk: AgentStreamChunk) => {
+      if (chunk.type === 'error') {
+        streamError = createAgentStreamError(chunk.error)
+        return
+      }
       if (chunk.type === 'content' && chunk.content) {
         answer += chunk.content
         if (!options.json && options.stream !== false) write(stdout, chunk.content)
@@ -120,6 +142,8 @@ export async function runChatTurn(
     },
     new AbortController().signal
   )
+
+  if (streamError) throw streamError
 
   if (!options.json && options.stream !== false && answer && !answer.endsWith('\n')) {
     write(stdout, '\n')
@@ -172,12 +196,13 @@ export async function runChatCommand(options: ChatCommandOptions, deps: ChatComm
     while (true) {
       const question = (await rl.question('chatlab> ')).trim()
       if (!question || question === 'exit' || question === 'quit') break
-      const result = await runChatTurn({ ...options, aiChatId, question, json: false, stream: true }, deps)
-      aiChatId = result.aiChatId
+      try {
+        const result = await runChatTurn({ ...options, aiChatId, question, json: false, stream: true }, deps)
+        aiChatId = result.aiChatId
+      } catch (error) {
+        write(stderr, `${error instanceof Error ? error.message : String(error)}\n`)
+      }
     }
-  } catch (error) {
-    write(stderr, `${error instanceof Error ? error.message : String(error)}\n`)
-    throw error
   } finally {
     rl.close()
   }

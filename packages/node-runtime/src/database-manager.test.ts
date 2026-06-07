@@ -131,7 +131,7 @@ test('open backfills FTS index when migrating legacy sessions', () => {
   assert.ok(db)
 
   const version = db.prepare('SELECT schema_version FROM meta LIMIT 1').get() as { schema_version: number }
-  assert.equal(version.schema_version, 5)
+  assert.equal(version.schema_version, CURRENT_SCHEMA_VERSION)
 
   const ftsCount = db.prepare('SELECT COUNT(*) as total FROM message_fts').get() as { total: number }
   assert.equal(ftsCount.total, 1)
@@ -140,6 +140,163 @@ test('open backfills FTS index when migrating legacy sessions', () => {
     .prepare("SELECT COUNT(*) as total FROM message_fts WHERE content MATCH 'searchable'")
     .get() as { total: number }
   assert.equal(searchCount.total, 1)
+
+  manager.closeAll()
+})
+
+test('open migrates v2 chat_session schema to current segment schema', () => {
+  const root = makeTempDir()
+  const dbDir = path.join(root, 'data', 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+  const dbPath = path.join(dbDir, 'v2-segment-schema.db')
+
+  const rawDb = new Database(dbPath, { nativeBinding })
+  rawDb.exec(`
+    CREATE TABLE meta (
+      name TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      type TEXT NOT NULL,
+      imported_at INTEGER NOT NULL,
+      schema_version INTEGER DEFAULT 2
+    );
+    INSERT INTO meta (name, platform, type, imported_at, schema_version)
+    VALUES ('V2 Segment Schema', 'qq', 'group', 1000, 2);
+
+    CREATE TABLE member (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform_id TEXT NOT NULL UNIQUE,
+      account_name TEXT
+    );
+    INSERT INTO member (platform_id, account_name) VALUES ('u1', 'Alice');
+
+    CREATE TABLE message (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER NOT NULL,
+      ts INTEGER NOT NULL,
+      type INTEGER NOT NULL,
+      content TEXT,
+      platform_message_id TEXT DEFAULT NULL
+    );
+    INSERT INTO message (sender_id, ts, type, content) VALUES (1, 1000, 0, 'hello v2');
+  `)
+  rawDb.close()
+
+  const manager = new DatabaseManager(createPathProvider(root), { nativeBinding })
+  const db = manager.open('v2-segment-schema')
+  assert.ok(db)
+
+  const version = db.prepare('SELECT schema_version FROM meta LIMIT 1').get() as { schema_version: number }
+  assert.equal(version.schema_version, CURRENT_SCHEMA_VERSION)
+
+  const segmentTable = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'segment'").get()
+  const legacyTable = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'chat_session'").get()
+  assert.ok(segmentTable)
+  assert.equal(legacyTable, undefined)
+
+  const contextColumns = db.pragma('table_info(message_context)') as Array<{ name: string }>
+  assert.equal(
+    contextColumns.some((col) => col.name === 'segment_id'),
+    true
+  )
+  assert.equal(
+    contextColumns.some((col) => col.name === 'session_id'),
+    false
+  )
+
+  manager.closeAll()
+})
+
+test('open migrates legacy chat_session rows into segment after v5 creates segment table', () => {
+  const root = makeTempDir()
+  const dbDir = path.join(root, 'data', 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+  const dbPath = path.join(dbDir, 'legacy-segments.db')
+
+  const rawDb = new Database(dbPath, { nativeBinding })
+  rawDb.exec(`
+    CREATE TABLE meta (
+      name TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      type TEXT NOT NULL,
+      imported_at INTEGER NOT NULL,
+      schema_version INTEGER DEFAULT 4
+    );
+    INSERT INTO meta (name, platform, type, imported_at, schema_version)
+    VALUES ('Legacy Segment Chat', 'qq', 'group', 1000, 4);
+
+    CREATE TABLE member (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform_id TEXT NOT NULL UNIQUE,
+      account_name TEXT
+    );
+    INSERT INTO member (platform_id, account_name) VALUES ('u1', 'Alice');
+
+    CREATE TABLE message (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER NOT NULL,
+      ts INTEGER NOT NULL,
+      type INTEGER NOT NULL,
+      content TEXT
+    );
+    INSERT INTO message (sender_id, ts, type, content) VALUES (1, 1000, 0, 'hello segment');
+
+    CREATE TABLE chat_session (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      start_ts INTEGER NOT NULL,
+      end_ts INTEGER NOT NULL,
+      message_count INTEGER DEFAULT 0,
+      is_manual INTEGER DEFAULT 0,
+      summary TEXT
+    );
+    INSERT INTO chat_session (id, start_ts, end_ts, message_count, is_manual, summary)
+    VALUES (7, 1000, 1010, 1, 0, 'legacy summary');
+
+    CREATE TABLE message_context (
+      message_id INTEGER PRIMARY KEY,
+      session_id INTEGER NOT NULL,
+      topic_id INTEGER
+    );
+    INSERT INTO message_context (message_id, session_id, topic_id) VALUES (1, 7, 3);
+  `)
+  rawDb.close()
+
+  const manager = new DatabaseManager(createPathProvider(root), { nativeBinding })
+  const db = manager.open('legacy-segments')
+  assert.ok(db)
+
+  const version = db.prepare('SELECT schema_version FROM meta LIMIT 1').get() as { schema_version: number }
+  assert.equal(version.schema_version, CURRENT_SCHEMA_VERSION)
+
+  const legacyTable = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'chat_session'").get()
+  assert.equal(legacyTable, undefined)
+
+  const segment = db.prepare('SELECT id, start_ts, end_ts, message_count, summary FROM segment').get() as
+    | { id: number; start_ts: number; end_ts: number; message_count: number; summary: string | null }
+    | undefined
+  assert.deepEqual(segment, {
+    id: 7,
+    start_ts: 1000,
+    end_ts: 1010,
+    message_count: 1,
+    summary: 'legacy summary',
+  })
+
+  const contextColumns = db.pragma('table_info(message_context)') as Array<{ name: string }>
+  assert.equal(
+    contextColumns.some((col) => col.name === 'segment_id'),
+    true
+  )
+  assert.equal(
+    contextColumns.some((col) => col.name === 'session_id'),
+    false
+  )
+
+  const context = db.prepare('SELECT message_id, segment_id, topic_id FROM message_context').get() as {
+    message_id: number
+    segment_id: number
+    topic_id: number
+  }
+  assert.deepEqual(context, { message_id: 1, segment_id: 7, topic_id: 3 })
 
   manager.closeAll()
 })

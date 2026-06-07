@@ -4,6 +4,7 @@
 
 import * as path from 'path'
 import matter from 'gray-matter'
+import { normalizeBuiltinToolNames } from '@openchatlab/core'
 import type { AssistantConfig } from './types'
 
 export function parseAssistantFile(content: string, filePath: string): AssistantConfig | null {
@@ -19,7 +20,7 @@ export function parseAssistantFile(content: string, filePath: string): Assistant
       name,
       systemPrompt: body.trim(),
       presetQuestions: parseStringArray(fm.presetQuestions),
-      allowedBuiltinTools: parseStringArray(fm.allowedBuiltinTools),
+      allowedBuiltinTools: normalizeBuiltinToolNames(parseStringArray(fm.allowedBuiltinTools)),
       builtinId: typeof fm.builtinId === 'string' ? fm.builtinId : undefined,
       applicableChatTypes: parseChatTypes(fm.applicableChatTypes),
       supportedLocales: parseStringArray(fm.supportedLocales),
@@ -38,7 +39,7 @@ export function serializeAssistant(config: AssistantConfig): string {
   if (config.builtinId) fm.builtinId = config.builtinId
   if (config.applicableChatTypes?.length) fm.applicableChatTypes = config.applicableChatTypes
   if (config.supportedLocales?.length) fm.supportedLocales = config.supportedLocales
-  if (config.allowedBuiltinTools?.length) fm.allowedBuiltinTools = config.allowedBuiltinTools
+  if (config.allowedBuiltinTools?.length) fm.allowedBuiltinTools = normalizeBuiltinToolNames(config.allowedBuiltinTools)
   if (config.presetQuestions?.length) fm.presetQuestions = config.presetQuestions
 
   return matter.stringify(`\n${config.systemPrompt}\n`, fm)

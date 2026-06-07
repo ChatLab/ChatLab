@@ -14,7 +14,7 @@ import {
   getSkillConfigWithBuiltinChart,
   resolveChartRuntimeForRequest,
 } from '@openchatlab/node-runtime'
-import { getChatOverview } from '@openchatlab/core'
+import { getChatOverview, normalizeBuiltinToolNames } from '@openchatlab/core'
 import type { DataSnapshot } from '@openchatlab/node-runtime'
 import type { AgentStreamRequest } from '@openchatlab/http-routes'
 import { AGENT_TOOL_REGISTRY } from '@openchatlab/tools'
@@ -54,9 +54,9 @@ export function getAllowedToolSet(
   allowedBuiltinTools?: readonly string[]
 ): Set<string> | null {
   if (isChartCapability) {
-    return new Set(allowedBuiltinTools)
+    return new Set(normalizeBuiltinToolNames(allowedBuiltinTools ?? []))
   }
-  return allowedBuiltinTools === undefined ? null : new Set(allowedBuiltinTools)
+  return allowedBuiltinTools === undefined ? null : new Set(normalizeBuiltinToolNames(allowedBuiltinTools))
 }
 
 export function createCliRunAgentStream(

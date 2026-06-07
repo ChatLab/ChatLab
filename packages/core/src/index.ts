@@ -230,7 +230,7 @@ export type {
 
 // AI（内置工具目录、LLM 模型系统等静态数据）
 export type { ToolCategory, BuiltinToolCatalogEntry } from './ai'
-export { BUILTIN_TOOL_CATALOG } from './ai'
+export { BUILTIN_TOOL_CATALOG, normalizeBuiltinToolName, normalizeBuiltinToolNames } from './ai'
 export type {
   ProviderKind,
   ProviderDefinition,

@@ -40,6 +40,17 @@ describe('CLI chart capability tool filtering', () => {
     assert.ok(!toolNames.includes('execute_sql'))
   })
 
+  it('accepts legacy session tool names in assistant allowlists', () => {
+    const allowedToolSet = getAllowedToolSet(false, ['get_session_summaries'])
+
+    assert.ok(allowedToolSet instanceof Set)
+
+    const toolNames = getAvailableToolDefs(false, allowedToolSet).map((tool) => tool.name)
+
+    assert.ok(toolNames.includes('get_segment_summaries'))
+    assert.ok(!toolNames.includes('get_session_summaries'))
+  })
+
   it('preserves an empty assistant allowlist instead of treating it as unrestricted', () => {
     const allowedToolSet = getAllowedToolSet(false, [])
 

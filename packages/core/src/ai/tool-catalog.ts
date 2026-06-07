@@ -12,6 +12,20 @@ export interface BuiltinToolCatalogEntry {
   category: ToolCategory
 }
 
+const LEGACY_BUILTIN_TOOL_NAME_ALIASES: Record<string, string> = {
+  search_sessions: 'search_segments',
+  get_session_messages: 'get_segment_messages',
+  get_session_summaries: 'get_segment_summaries',
+}
+
+export function normalizeBuiltinToolName(toolName: string): string {
+  return LEGACY_BUILTIN_TOOL_NAME_ALIASES[toolName] ?? toolName
+}
+
+export function normalizeBuiltinToolNames(toolNames: readonly string[]): string[] {
+  return Array.from(new Set(toolNames.map(normalizeBuiltinToolName)))
+}
+
 export const BUILTIN_TOOL_CATALOG: BuiltinToolCatalogEntry[] = [
   // Core 工具
   { name: 'get_chat_overview', category: 'core' },
