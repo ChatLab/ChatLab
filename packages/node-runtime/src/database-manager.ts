@@ -11,12 +11,14 @@ import * as path from 'path'
 import type { DatabaseAdapter, PathProvider } from '@openchatlab/core'
 import {
   isChatSessionDb,
-  runMigrations,
+  runMigrations as coreRunMigrations,
   needsMigration as coreNeedsMigration,
   CURRENT_SCHEMA_VERSION,
+  getSchemaVersion,
 } from '@openchatlab/core'
 import { openBetterSqliteDatabase } from './better-sqlite3-adapter'
-import { getChatDbMigrations, type MigrationDeps } from './migrations'
+import { assertDataDirCompatible, raiseDataDirMinRuntimeVersion, type RuntimeIdentity } from './data-dir-compat'
+import { CHAT_DB_COMPATIBILITY_RAISES, getChatDbMigrations, type MigrationDeps } from './migrations'
 import { tokenizeForFts } from './nlp/fts-tokenizer'
 
 function createMigrationDeps(overrides?: MigrationDeps): MigrationDeps {
@@ -30,19 +32,23 @@ export class DatabaseManager {
   private cache = new Map<string, DatabaseAdapter>()
   private nativeBinding?: string
   private migrationDeps?: MigrationDeps
+  private runtime?: RuntimeIdentity
 
   constructor(
     private pathProvider: PathProvider,
-    options?: { nativeBinding?: string; migrationDeps?: MigrationDeps }
+    options?: { nativeBinding?: string; migrationDeps?: MigrationDeps; runtime?: RuntimeIdentity }
   ) {
     this.nativeBinding = options?.nativeBinding
     this.migrationDeps = createMigrationDeps(options?.migrationDeps)
+    this.runtime = options?.runtime
   }
 
   /**
    * Open a session DB (read-only by default, cached).
    */
   open(sessionId: string, options?: { readonly?: boolean }): DatabaseAdapter | null {
+    this.assertCompatible()
+
     if (this.cache.has(sessionId)) {
       return this.cache.get(sessionId)!
     }
@@ -51,6 +57,7 @@ export class DatabaseManager {
     if (!fs.existsSync(dbPath)) return null
 
     this.migrateIfNeeded(dbPath)
+    this.assertCompatible()
 
     const adapter = openBetterSqliteDatabase(dbPath, {
       readonly: options?.readonly ?? true,
@@ -79,7 +86,7 @@ export class DatabaseManager {
 
     try {
       const migrations = getChatDbMigrations(this.migrationDeps)
-      runMigrations(adapter, migrations)
+      this.runMigrations(adapter, migrations)
     } finally {
       adapter.close()
     }
@@ -90,6 +97,8 @@ export class DatabaseManager {
    * Falls back to `open(id, { readonly: false })` if migration is unnecessary.
    */
   openWritable(sessionId: string): DatabaseAdapter | null {
+    this.assertCompatible()
+
     const existing = this.cache.get(sessionId)
     if (existing && !existing.readonly) return existing
 
@@ -108,7 +117,8 @@ export class DatabaseManager {
 
     if (coreNeedsMigration(adapter, CURRENT_SCHEMA_VERSION)) {
       const migrations = getChatDbMigrations(this.migrationDeps)
-      runMigrations(adapter, migrations)
+      this.runMigrations(adapter, migrations)
+      this.assertCompatible()
     }
 
     this.cache.set(sessionId, adapter)
@@ -140,6 +150,8 @@ export class DatabaseManager {
    * 列举数据库目录下的所有聊天会话 ID
    */
   listSessionIds(): string[] {
+    this.assertCompatible()
+
     const dbDir = this.pathProvider.getDatabaseDir()
     if (!fs.existsSync(dbDir)) return []
 
@@ -159,5 +171,31 @@ export class DatabaseManager {
    */
   getDbPath(sessionId: string): string {
     return path.join(this.pathProvider.getDatabaseDir(), `${sessionId}.db`)
+  }
+
+  private assertCompatible(): void {
+    if (!this.runtime) return
+    assertDataDirCompatible(this.pathProvider, this.runtime)
+  }
+
+  private runMigrations(adapter: DatabaseAdapter, migrations: ReturnType<typeof getChatDbMigrations>): void {
+    const beforeVersion = getSchemaVersion(adapter)
+    const migrated = coreRunMigrations(adapter, migrations)
+    if (!migrated || !this.runtime) return
+
+    const afterVersion = getSchemaVersion(adapter)
+    for (const compatibilityRaise of CHAT_DB_COMPATIBILITY_RAISES) {
+      if (beforeVersion >= compatibilityRaise.migrationVersion || afterVersion < compatibilityRaise.migrationVersion) {
+        continue
+      }
+
+      raiseDataDirMinRuntimeVersion(this.pathProvider, {
+        minRuntimeVersion: compatibilityRaise.minRuntimeVersion,
+        dataCompatibilityVersion: compatibilityRaise.dataCompatibilityVersion,
+        reason: compatibilityRaise.reason,
+        runtime: this.runtime,
+        module: compatibilityRaise.module,
+      })
+    }
   }
 }

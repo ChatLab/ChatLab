@@ -6,6 +6,7 @@ import test from 'node:test'
 import Database from 'better-sqlite3'
 import type { PathProvider } from '@openchatlab/core'
 import { CURRENT_SCHEMA_VERSION, getSessionInfo } from '@openchatlab/core'
+import { DataDirCompatibilityError, readDataDirCompatibilityMeta } from './data-dir-compat'
 import { DatabaseManager } from './database-manager'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
@@ -260,7 +261,10 @@ test('open migrates legacy chat_session rows into segment after v5 creates segme
   `)
   rawDb.close()
 
-  const manager = new DatabaseManager(createPathProvider(root), { nativeBinding })
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
   const db = manager.open('legacy-segments')
   assert.ok(db)
 
@@ -298,8 +302,187 @@ test('open migrates legacy chat_session rows into segment after v5 creates segme
   }
   assert.deepEqual(context, { message_id: 1, segment_id: 7, topic_id: 3 })
 
+  const meta = readDataDirCompatibilityMeta(path.join(root, 'data'))
+  assert.equal(meta?.minRuntimeVersion, '0.25.1')
+  assert.equal(meta?.dataCompatibilityVersion, 1)
+  assert.deepEqual(meta?.reasons, ['segment-schema'])
+  assert.deepEqual(meta?.updatedBy, {
+    runtime: 'cli',
+    module: 'chat-db-migration',
+    version: '0.25.1',
+  })
+
   manager.closeAll()
 })
+
+test('open blocks database access when data directory requires a newer runtime', () => {
+  const root = makeTempDir()
+  const dbDir = path.join(root, 'data', 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+  const dbPath = path.join(dbDir, 'blocked.db')
+
+  fs.writeFileSync(
+    path.join(root, 'data', '.chatlab-meta.json'),
+    JSON.stringify(
+      {
+        formatVersion: 1,
+        minRuntimeVersion: '0.25.1',
+        dataCompatibilityVersion: 1,
+        reasons: ['segment-schema'],
+        updatedBy: { runtime: 'desktop', module: 'chat-db-migration', version: '0.25.1' },
+        updatedAt: 1780830000,
+      },
+      null,
+      2
+    ),
+    'utf-8'
+  )
+
+  const rawDb = new Database(dbPath, { nativeBinding })
+  rawDb.exec(`
+    CREATE TABLE meta (
+      name TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      type TEXT NOT NULL,
+      imported_at INTEGER NOT NULL,
+      schema_version INTEGER DEFAULT ${CURRENT_SCHEMA_VERSION}
+    );
+    INSERT INTO meta (name, platform, type, imported_at, schema_version)
+    VALUES ('Blocked Chat', 'qq', 'group', 1000, ${CURRENT_SCHEMA_VERSION});
+  `)
+  rawDb.close()
+
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.25.0', kind: 'cli' },
+  })
+
+  assert.throws(
+    () => manager.open('blocked'),
+    (error) =>
+      error instanceof DataDirCompatibilityError &&
+      error.code === 'DATA_DIR_REQUIRES_NEWER_RUNTIME' &&
+      error.minRuntimeVersion === '0.25.1'
+  )
+})
+
+test('open keeps a higher existing data directory runtime requirement after migration', () => {
+  const root = makeTempDir()
+  const dbDir = path.join(root, 'data', 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+  const dbPath = path.join(dbDir, 'higher-meta.db')
+
+  fs.writeFileSync(
+    path.join(root, 'data', '.chatlab-meta.json'),
+    JSON.stringify(
+      {
+        formatVersion: 1,
+        minRuntimeVersion: '0.26.0',
+        dataCompatibilityVersion: 2,
+        reasons: ['future-schema'],
+        updatedBy: { runtime: 'desktop', module: 'future-migration', version: '0.26.0' },
+        updatedAt: 1780830000,
+      },
+      null,
+      2
+    ),
+    'utf-8'
+  )
+
+  const rawDb = new Database(dbPath, { nativeBinding })
+  rawDb.exec(`
+    CREATE TABLE meta (
+      name TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      type TEXT NOT NULL,
+      imported_at INTEGER NOT NULL,
+      schema_version INTEGER DEFAULT 4
+    );
+    INSERT INTO meta (name, platform, type, imported_at, schema_version)
+    VALUES ('Higher Meta Chat', 'qq', 'group', 1000, 4);
+
+    CREATE TABLE member (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform_id TEXT NOT NULL UNIQUE,
+      account_name TEXT
+    );
+
+    CREATE TABLE message (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER NOT NULL,
+      ts INTEGER NOT NULL,
+      type INTEGER NOT NULL,
+      content TEXT
+    );
+  `)
+  rawDb.close()
+
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.26.0', kind: 'desktop' },
+  })
+  const db = manager.open('higher-meta')
+  assert.ok(db)
+  manager.closeAll()
+
+  const meta = readDataDirCompatibilityMeta(path.join(root, 'data'))
+  assert.equal(meta?.minRuntimeVersion, '0.26.0')
+  assert.equal(meta?.dataCompatibilityVersion, 2)
+  assert.deepEqual(meta?.reasons, ['future-schema', 'segment-schema'])
+})
+
+test(
+  'open fails after a compatibility-raising migration when data directory meta cannot be written',
+  { skip: process.platform === 'win32' },
+  () => {
+    const root = makeTempDir()
+    const userDataDir = path.join(root, 'data')
+    const dbDir = path.join(userDataDir, 'databases')
+    fs.mkdirSync(dbDir, { recursive: true })
+    const dbPath = path.join(dbDir, 'unwritable-meta.db')
+
+    const rawDb = new Database(dbPath, { nativeBinding })
+    rawDb.exec(`
+      CREATE TABLE meta (
+        name TEXT NOT NULL,
+        platform TEXT NOT NULL,
+        type TEXT NOT NULL,
+        imported_at INTEGER NOT NULL,
+        schema_version INTEGER DEFAULT 4
+      );
+      INSERT INTO meta (name, platform, type, imported_at, schema_version)
+      VALUES ('Unwritable Meta Chat', 'qq', 'group', 1000, 4);
+
+      CREATE TABLE member (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        platform_id TEXT NOT NULL UNIQUE,
+        account_name TEXT
+      );
+
+      CREATE TABLE message (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        sender_id INTEGER NOT NULL,
+        ts INTEGER NOT NULL,
+        type INTEGER NOT NULL,
+        content TEXT
+      );
+    `)
+    rawDb.close()
+
+    fs.chmodSync(userDataDir, 0o555)
+
+    try {
+      const manager = new DatabaseManager(createPathProvider(root), {
+        nativeBinding,
+        runtime: { version: '0.25.1', kind: 'cli' },
+      })
+
+      assert.throws(() => manager.open('unwritable-meta'), /EACCES|EPERM|permission/i)
+    } finally {
+      fs.chmodSync(userDataDir, 0o755)
+    }
+  }
+)
 
 test('open preserves readonly access for current-schema databases', { skip: process.platform === 'win32' }, () => {
   const root = makeTempDir()

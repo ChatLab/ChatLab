@@ -14,6 +14,24 @@ export interface MigrationDeps {
   tokenizeForFts?: (content: string) => string | null
 }
 
+export interface ChatDbCompatibilityRaise {
+  migrationVersion: number
+  minRuntimeVersion: string
+  dataCompatibilityVersion: number
+  reason: string
+  module: string
+}
+
+export const CHAT_DB_COMPATIBILITY_RAISES: ChatDbCompatibilityRaise[] = [
+  {
+    migrationVersion: 6,
+    minRuntimeVersion: '0.25.1',
+    dataCompatibilityVersion: 1,
+    reason: 'segment-schema',
+    module: 'chat-db-migration',
+  },
+]
+
 /**
  * Build the chat DB migration list.
  *
