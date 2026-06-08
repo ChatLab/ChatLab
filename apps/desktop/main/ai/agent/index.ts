@@ -11,7 +11,10 @@ import { aiLogger, isDebugMode } from '../logger'
 import { t as i18nT } from '../../i18n'
 import {
   DEFAULT_MAX_TOOL_ROUNDS,
+  buildPlanGuidance,
+  createAnalysisPlanner,
   createLlmRouteDecider,
+  createPlanContentBlock,
   decideRequestRoute,
   runAgentCore,
   streamSimple,
@@ -129,31 +132,53 @@ export class Agent {
       piTools.push(createActivateSkillTool(this.chatType, allowedTools, this.locale))
     }
 
+    const routeInput = {
+      userMessage,
+      chatType: this.chatType,
+      locale: this.locale,
+      dataSnapshot: this.context.dataSnapshot,
+      availableTools: piTools.map((tool) => tool.name),
+      assistantSummary: this.assistantConfig?.name,
+      skillSummary: this.skillCtx?.skillDef?.name ?? (this.skillCtx?.skillMenu ? 'auto_skill_menu' : undefined),
+    }
+
     const routeStartedAt = Date.now()
-    const routeDecision = await decideRequestRoute(
-      {
-        userMessage,
-        chatType: this.chatType,
-        locale: this.locale,
-        dataSnapshot: this.context.dataSnapshot,
-        availableTools: piTools.map((tool) => tool.name),
-        assistantSummary: this.assistantConfig?.name,
-        skillSummary: this.skillCtx?.skillDef?.name ?? (this.skillCtx?.skillMenu ? 'auto_skill_menu' : undefined),
-      },
-      {
-        llmRouter: createLlmRouteDecider({
-          piModel: this.piModel,
-          apiKey: this.apiKey,
-          abortSignal: this.abortSignal,
-        }),
-      }
-    )
+    const routeDecision = await decideRequestRoute(routeInput, {
+      llmRouter: createLlmRouteDecider({
+        piModel: this.piModel,
+        apiKey: this.apiKey,
+        abortSignal: this.abortSignal,
+      }),
+    })
     aiLogger.info('Router', 'Shadow route decision', {
       ...routeDecision,
       elapsedMs: Date.now() - routeStartedAt,
       availableToolCount: piTools.length,
       shadowOnly: true,
     })
+
+    let effectiveSystemPrompt = systemPrompt
+    if (routeDecision.route === 'planned_execution') {
+      const planStartedAt = Date.now()
+      const planner = createAnalysisPlanner({ piModel: this.piModel, apiKey: this.apiKey })
+      const plan = await planner(routeInput, this.abortSignal)
+      if (plan) {
+        const planBlock = createPlanContentBlock(plan)
+        onChunk({ type: 'plan', plan: planBlock })
+        effectiveSystemPrompt = `${systemPrompt}\n\n${buildPlanGuidance(plan)}`
+        aiLogger.info('Planner', 'Plan generated', {
+          title: plan.title,
+          steps: plan.steps.length,
+          successCriteria: plan.successCriteria.length,
+          elapsedMs: Date.now() - planStartedAt,
+        })
+      } else {
+        aiLogger.warn('Planner', 'Plan generation skipped or failed', {
+          elapsedMs: Date.now() - planStartedAt,
+          route: routeDecision.route,
+        })
+      }
+    }
 
     const historyMessages = this.loadHistory()
 
@@ -168,7 +193,7 @@ export class Agent {
       const result = await runAgentCore({
         piModel: this.piModel,
         apiKey: this.apiKey,
-        systemPrompt,
+        systemPrompt: effectiveSystemPrompt,
         tools: maxToolRounds > 0 ? piTools : [],
         history: historyMessages,
         userMessage,

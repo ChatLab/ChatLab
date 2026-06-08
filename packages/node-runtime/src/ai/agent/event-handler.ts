@@ -7,6 +7,7 @@
 
 import type { Message as PiMessage } from '@earendil-works/pi-ai'
 import type { AgentCoreEvent } from './types'
+import type { PlanContentBlock } from './planning-types'
 
 // ==================== Shared types ====================
 
@@ -27,7 +28,7 @@ export interface AgentRuntimeStatus {
 }
 
 export interface AgentStreamChunk {
-  type: 'content' | 'think' | 'tool_start' | 'tool_result' | 'status' | 'compression_done' | 'done' | 'error'
+  type: 'content' | 'think' | 'tool_start' | 'tool_result' | 'status' | 'compression_done' | 'plan' | 'done' | 'error'
   content?: string
   thinkTag?: string
   thinkDurationMs?: number
@@ -38,6 +39,7 @@ export interface AgentStreamChunk {
   isFinished?: boolean
   usage?: TokenUsage
   status?: AgentRuntimeStatus
+  plan?: PlanContentBlock
   compressionResult?: {
     summaryContent: string
     tokensBefore: number

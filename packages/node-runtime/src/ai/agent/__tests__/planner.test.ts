@@ -1,6 +1,7 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { createAnalysisPlanner } from '../planner'
+import { buildPlanGuidance, createAnalysisPlanner, createPlanContentBlock } from '../planner'
+import type { AnalysisPlanSummary } from '../planning-types'
 
 const baseInput = {
   userMessage: '分析过去一年群里话题的变化趋势，按季度总结主要变化，并举出证据。',
@@ -63,5 +64,40 @@ describe('createAnalysisPlanner', () => {
     const plan = await planner(baseInput)
 
     assert.equal(plan, null)
+  })
+
+  it('creates versioned plan content blocks', () => {
+    const plan: AnalysisPlanSummary = {
+      version: 1,
+      title: '年度话题趋势分析',
+      route: 'planned_execution',
+      intent: 'trend',
+      steps: [{ goal: '按季度检索', suggestedTools: ['search_messages'], evidenceNeeded: '季度证据' }],
+      successCriteria: ['覆盖全年'],
+    }
+
+    const block = createPlanContentBlock(plan)
+
+    assert.equal(block.type, 'plan')
+    assert.equal(block.version, 1)
+    assert.equal(block.status, 'created')
+    assert.deepEqual(block.plan, plan)
+  })
+
+  it('builds soft guidance from plan summaries', () => {
+    const guidance = buildPlanGuidance({
+      version: 1,
+      title: '年度话题趋势分析',
+      route: 'planned_execution',
+      intent: 'trend',
+      steps: [{ goal: '按季度检索', suggestedTools: ['search_messages'], evidenceNeeded: '季度证据' }],
+      successCriteria: ['覆盖全年'],
+    })
+
+    assert.match(guidance, /suggested analysis plan/i)
+    assert.match(guidance, /do not follow it mechanically/i)
+    assert.match(guidance, /年度话题趋势分析/)
+    assert.match(guidance, /search_messages/)
+    assert.match(guidance, /覆盖全年/)
   })
 })

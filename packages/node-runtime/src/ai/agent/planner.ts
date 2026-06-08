@@ -4,7 +4,13 @@ import {
   type Model as PiModel,
   type TextContent as PiTextContent,
 } from '@earendil-works/pi-ai'
-import type { AnalysisPlanIntent, AnalysisPlanSummary, AnalysisPlanner, PlannerInput } from './planning-types'
+import type {
+  AnalysisPlanIntent,
+  AnalysisPlanSummary,
+  AnalysisPlanner,
+  PlanContentBlock,
+  PlannerInput,
+} from './planning-types'
 
 export type PlannerCompletionResult = string | { text: string }
 
@@ -147,6 +153,39 @@ export function createAnalysisPlanner(options: CreateAnalysisPlannerOptions): An
       return null
     }
   }
+}
+
+export function createPlanContentBlock(
+  plan: AnalysisPlanSummary,
+  status: PlanContentBlock['status'] = 'created'
+): PlanContentBlock {
+  return {
+    type: 'plan',
+    version: 1,
+    status,
+    plan,
+  }
+}
+
+export function buildPlanGuidance(plan: AnalysisPlanSummary): string {
+  const steps = plan.steps
+    .map((step, index) => {
+      const tools = step.suggestedTools.length > 0 ? step.suggestedTools.join(', ') : 'none'
+      return `${index + 1}. ${step.goal}\n   Evidence needed: ${step.evidenceNeeded}\n   Suggested tools: ${tools}`
+    })
+    .join('\n')
+  const successCriteria = plan.successCriteria.map((item) => `- ${item}`).join('\n')
+
+  return `A suggested analysis plan is available below. Use it as guidance when helpful, but do not follow it mechanically if the user's question can be answered more directly.
+
+Plan title: ${plan.title}
+Intent: ${plan.intent}
+
+Steps:
+${steps}
+
+Success criteria:
+${successCriteria}`
 }
 
 async function completeWithPiAi(
