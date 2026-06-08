@@ -23,6 +23,7 @@ test('default test collection excludes e2e, smoke, and real external tests', () 
 
 test('explicit test arguments are passed through without default exclusions', () => {
   assert.deepEqual(buildNodeTestArgs(['tests/e2e/helpers/app-launcher.test.js']), [
+    '--experimental-test-module-mocks',
     '--import',
     'tsx',
     '--test',

@@ -61,7 +61,7 @@ export function collectDefaultTestFiles(rootDir = process.cwd()) {
 }
 
 export function buildNodeTestArgs(testArgs) {
-  return ['--import', 'tsx', '--test', ...testArgs]
+  return ['--experimental-test-module-mocks', '--import', 'tsx', '--test', ...testArgs]
 }
 
 function run() {
