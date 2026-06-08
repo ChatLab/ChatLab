@@ -11,6 +11,7 @@ import { aiLogger, isDebugMode } from '../logger'
 import { t as i18nT } from '../../i18n'
 import {
   DEFAULT_MAX_TOOL_ROUNDS,
+  decideRequestRoute,
   runAgentCore,
   streamSimple,
   type PiMessage,
@@ -126,6 +127,23 @@ export class Agent {
     if (this.skillCtx?.skillMenu && !this.skillCtx?.skillDef) {
       piTools.push(createActivateSkillTool(this.chatType, allowedTools, this.locale))
     }
+
+    const routeStartedAt = Date.now()
+    const routeDecision = await decideRequestRoute({
+      userMessage,
+      chatType: this.chatType,
+      locale: this.locale,
+      dataSnapshot: this.context.dataSnapshot,
+      availableTools: piTools.map((tool) => tool.name),
+      assistantSummary: this.assistantConfig?.name,
+      skillSummary: this.skillCtx?.skillDef?.name ?? (this.skillCtx?.skillMenu ? 'auto_skill_menu' : undefined),
+    })
+    aiLogger.info('Router', 'Shadow route decision', {
+      ...routeDecision,
+      elapsedMs: Date.now() - routeStartedAt,
+      availableToolCount: piTools.length,
+      shadowOnly: true,
+    })
 
     const historyMessages = this.loadHistory()
 

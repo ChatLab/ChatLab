@@ -1,4 +1,4 @@
-export type RequestRoute = 'direct_response' | 'tool_assisted' | 'planned_execution'
+import type { RequestRoute } from './routing-types'
 
 export type EvaluationScenario =
   | 'casual_chat'

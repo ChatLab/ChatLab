@@ -97,7 +97,8 @@ export type { PreprocessingPipelineOptions, PreprocessingPipelineResult } from '
 
 // Agent Core
 export type { AgentCoreOptions, AgentCoreEvent, AgentCoreResult, AgentTokenUsage, SimpleHistoryMessage } from './agent'
-export { DEFAULT_MAX_TOOL_ROUNDS, runAgentCore } from './agent'
+export { DEFAULT_MAX_TOOL_ROUNDS, decideRequestRoute, runAgentCore } from './agent'
+export type { LlmRouteDecider, RequestRoute, RouteDecision, RouteDecisionSource, RouterInput } from './agent'
 
 // Agent Event Handler
 export { AgentEventHandler, estimateTokensFromText } from './agent/event-handler'

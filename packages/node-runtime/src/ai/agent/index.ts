@@ -1,3 +1,5 @@
 export type { AgentCoreOptions, AgentCoreEvent, AgentCoreResult, AgentTokenUsage, SimpleHistoryMessage } from './types'
 export { runAgentCore } from './core'
 export { DEFAULT_MAX_TOOL_ROUNDS } from './constants'
+export { decideRequestRoute } from './router'
+export type { LlmRouteDecider, RequestRoute, RouteDecision, RouteDecisionSource, RouterInput } from './routing-types'

@@ -7,6 +7,7 @@
 
 import {
   DEFAULT_MAX_TOOL_ROUNDS,
+  decideRequestRoute,
   runAgentCore,
   checkAndCompress,
   buildSystemPrompt,
@@ -164,6 +165,22 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
   let cachedMessages: PiMessage[] = []
 
   try {
+    const routeStartedAt = Date.now()
+    const routeDecision = await decideRequestRoute({
+      userMessage,
+      chatType,
+      locale,
+      dataSnapshot,
+      availableTools: tools.map((tool) => tool.name),
+      skillSummary: skillDef?.name ?? (skillMenu ? 'auto_skill_menu' : undefined),
+    })
+    aiLogger?.info('Router', 'Shadow route decision', {
+      ...routeDecision,
+      elapsedMs: Date.now() - routeStartedAt,
+      availableToolCount: tools.length,
+      shadowOnly: true,
+    })
+
     const result = await runAgentCore({
       piModel,
       apiKey: llmConfig.apiKey,
