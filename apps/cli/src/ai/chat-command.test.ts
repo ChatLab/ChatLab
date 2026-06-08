@@ -200,6 +200,8 @@ describe('runChatTurn', () => {
               source: 'rule',
             },
           })
+          onEvent({ type: 'plan_delta', planDelta: '年度话题趋势\n' })
+          onEvent({ type: 'plan_delta', planDelta: '1. 按季度检索\n' })
           onEvent({
             type: 'plan',
             plan: {
@@ -227,12 +229,18 @@ describe('runChatTurn', () => {
     )
 
     assert.equal(result.answer, '年度趋势如下。')
-    assert.equal(result.events?.length, 4)
+    assert.equal(result.events?.length, 6)
     assert.equal(result.events?.[0]?.type, 'route')
     assert.equal(result.events?.[0]?.routeDecision?.route, 'planned_execution')
-    assert.equal(result.events?.[1]?.type, 'plan')
-    assert.equal(result.contentBlocks?.[0]?.type, 'plan')
-    assert.equal(result.contentBlocks?.[0]?.status, 'done')
+    assert.equal(result.events?.[1]?.type, 'plan_delta')
+    assert.equal(result.events?.[2]?.type, 'plan_delta')
+    assert.equal(result.events?.[3]?.type, 'plan')
+    const firstBlock = result.contentBlocks?.[0]
+    assert.equal(firstBlock?.type, 'plan')
+    if (firstBlock?.type === 'plan') {
+      assert.equal(firstBlock.status, 'done')
+      assert.equal(firstBlock.displayText, '年度话题趋势\n1. 按季度检索')
+    }
     assert.deepEqual((aiChatManager as unknown as { __messages: unknown[] }).__messages, [
       { aiChatId: 'ai_chat_1', role: 'user', content: '分析过去一年话题趋势' },
       {
@@ -243,6 +251,34 @@ describe('runChatTurn', () => {
         tokenUsage: { promptTokens: 3, completionTokens: 5, totalTokens: 8 },
       },
     ])
+  })
+
+  it('drops streamed plan drafts when planner validation is skipped', async () => {
+    const stdout = new MemoryWritable()
+    const aiChatManager = createAIChatManager()
+
+    const result = await runChatTurn(
+      { sessionId: 'session-1', question: '分析过去一年话题趋势', json: true, includeEvents: true },
+      {
+        dbManager: createDbManager(['session-1']),
+        pathProvider: {} as never,
+        aiChatManager,
+        stdout,
+        createRunAgentStream: () => async (_params, onEvent) => {
+          onEvent({ type: 'plan_delta', planDelta: '无法校验的计划草稿\n' })
+          onEvent({ type: 'plan_skipped' })
+          onEvent({ type: 'content', content: '直接给出分析。' })
+          onEvent({ type: 'done', isFinished: true })
+        },
+      }
+    )
+
+    assert.equal(result.events?.[0]?.type, 'plan_delta')
+    assert.equal(result.events?.[1]?.type, 'plan_skipped')
+    assert.deepEqual(
+      result.contentBlocks?.map((block) => block.type),
+      ['text']
+    )
   })
 
   it('persists streamed thinking and answer text blocks for full CLI replay', async () => {

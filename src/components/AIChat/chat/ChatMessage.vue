@@ -73,6 +73,7 @@ function getThinkLabel(tag: string): string {
   if (normalized === 'analysis') return t('ai.chat.message.think.labels.analysis')
   if (normalized === 'reasoning') return t('ai.chat.message.think.labels.reasoning')
   if (normalized === 'reflection') return t('ai.chat.message.think.labels.reflection')
+  if (normalized === 'plan_validation') return t('ai.chat.message.think.labels.planValidation')
   if (normalized === 'think' || normalized === 'thought' || normalized === 'thinking') {
     return t('ai.chat.message.think.labels.think')
   }
@@ -171,13 +172,52 @@ function formatToolStatusForCopy(status: ToolBlockContent['status']): string {
   return 'error'
 }
 
-function getPlanStatusLabel(status: 'created' | 'executing' | 'done' | 'skipped'): string {
-  return t(`ai.chat.message.plan.status.${status}`)
-}
-
 function formatPlanTools(tools: string[]): string {
   if (tools.length === 0) return t('ai.chat.message.plan.noTools')
   return tools.join(', ')
+}
+
+function parsePlanValidation(text: string): {
+  title?: string
+  steps: Array<{ goal: string; suggestedTools: string[]; evidenceNeeded: string }>
+  successCriteria: string[]
+} | null {
+  try {
+    const parsed = JSON.parse(text.trim()) as unknown
+    if (!parsed || typeof parsed !== 'object') return null
+    const record = parsed as Record<string, unknown>
+    const steps = Array.isArray(record.steps)
+      ? record.steps
+          .filter((step): step is Record<string, unknown> => !!step && typeof step === 'object')
+          .map((step) => ({
+            goal: typeof step.goal === 'string' ? step.goal : '',
+            suggestedTools: Array.isArray(step.suggestedTools)
+              ? step.suggestedTools.filter((tool): tool is string => typeof tool === 'string')
+              : [],
+            evidenceNeeded: typeof step.evidenceNeeded === 'string' ? step.evidenceNeeded : '',
+          }))
+          .filter((step) => step.goal)
+      : []
+    return {
+      title: typeof record.title === 'string' ? record.title : undefined,
+      steps,
+      successCriteria: Array.isArray(record.successCriteria)
+        ? record.successCriteria.filter((item): item is string => typeof item === 'string')
+        : [],
+    }
+  } catch {
+    return null
+  }
+}
+
+const planValidationCache = new Map<string, NonNullable<ReturnType<typeof parsePlanValidation>>>()
+
+function getPlanValidation(text: string): ReturnType<typeof parsePlanValidation> {
+  const cached = planValidationCache.get(text)
+  if (cached) return cached
+  const parsed = parsePlanValidation(text)
+  if (parsed) planValidationCache.set(text, parsed)
+  return parsed
 }
 
 // 格式化时间参数显示
@@ -362,7 +402,23 @@ const copyMarkdownText = computed(() => {
           )
           .join('\n')
         const criteria = block.plan.successCriteria.map((item) => `- ${item}`).join('\n')
-        return `> ${t('ai.chat.message.plan.label')}: ${block.plan.title} (${getPlanStatusLabel(block.status)})\n\n${steps}\n\n${t('ai.chat.message.plan.successCriteria')}:\n${criteria}`
+        const displayText = block.displayText
+          ? `${block.displayText
+              .split('\n')
+              .map((line) => `> ${line}`)
+              .join('\n')}\n\n`
+          : ''
+        if (block.displayText) {
+          return `> ${t('ai.chat.message.plan.label')}: ${block.plan.title}\n\n${displayText.trimEnd()}`
+        }
+        return `> ${t('ai.chat.message.plan.label')}: ${block.plan.title}\n\n${steps}\n\n${t('ai.chat.message.plan.successCriteria')}:\n${criteria}`
+      }
+
+      if (block.type === 'plan_draft') {
+        return `> ${t('ai.chat.message.plan.label')}\n>\n${block.text
+          .split('\n')
+          .map((line) => `> ${line}`)
+          .join('\n')}`
       }
 
       if (block.type === 'tool') {
@@ -506,7 +562,50 @@ async function handleCopyMarkdown() {
                 </span>
               </summary>
               <div class="mt-2 prose prose-sm dark:prose-invert max-w-none leading-relaxed text-xs">
-                <div v-html="renderMarkdown(block.text)" />
+                <template v-if="block.tag === 'plan_validation' && getPlanValidation(block.text)">
+                  <div
+                    v-if="getPlanValidation(block.text)?.title"
+                    class="mb-2 font-medium text-gray-700 dark:text-gray-200"
+                  >
+                    {{ getPlanValidation(block.text)?.title }}
+                  </div>
+                  <ol class="not-prose space-y-2 text-xs leading-relaxed">
+                    <li
+                      v-for="(step, stepIndex) in getPlanValidation(block.text)?.steps"
+                      :key="stepIndex"
+                      class="text-gray-600 dark:text-gray-300"
+                    >
+                      <div class="font-medium text-gray-800 dark:text-gray-200">
+                        {{ stepIndex + 1 }}. {{ step.goal }}
+                      </div>
+                      <div v-if="step.evidenceNeeded" class="mt-1 text-gray-500 dark:text-gray-400">
+                        {{ t('ai.chat.message.plan.evidenceNeeded') }}: {{ step.evidenceNeeded }}
+                      </div>
+                      <div class="mt-0.5 text-gray-500 dark:text-gray-400">
+                        {{ t('ai.chat.message.plan.suggestedTools') }}: {{ formatPlanTools(step.suggestedTools) }}
+                      </div>
+                    </li>
+                  </ol>
+                  <div
+                    v-if="getPlanValidation(block.text)?.successCriteria.length"
+                    class="not-prose mt-2 border-t border-gray-100 pt-2 dark:border-gray-800"
+                  >
+                    <div class="text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                      {{ t('ai.chat.message.plan.successCriteria') }}
+                    </div>
+                    <ul
+                      class="mt-1 list-disc space-y-0.5 pl-4 text-xs leading-relaxed text-gray-600 dark:text-gray-300"
+                    >
+                      <li
+                        v-for="(criterion, criterionIndex) in getPlanValidation(block.text)?.successCriteria"
+                        :key="criterionIndex"
+                      >
+                        {{ criterion }}
+                      </li>
+                    </ul>
+                  </div>
+                </template>
+                <div v-else v-html="renderMarkdown(block.text)" />
               </div>
             </details>
 
@@ -522,21 +621,22 @@ async function handleCopyMarkdown() {
             <!-- 计划块 -->
             <details
               v-else-if="block.type === 'plan'"
-              class="mb-2 rounded-lg border border-blue-100 bg-blue-50/60 text-sm text-gray-700 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-gray-300"
+              open
+              class="mb-2 border-l-2 border-gray-200 py-1 pl-4 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400"
             >
               <summary
-                class="flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-xs font-medium text-blue-700 transition-colors hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
+                class="flex cursor-pointer select-none items-center gap-2 text-xs font-medium text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
               >
                 <UIcon name="i-heroicons-clipboard-document-list" class="h-3.5 w-3.5 shrink-0" />
                 <span class="min-w-0 truncate">{{ t('ai.chat.message.plan.label') }} · {{ block.plan.title }}</span>
-                <span
-                  class="ml-auto shrink-0 rounded-full bg-white/70 px-2 py-0.5 text-[11px] text-blue-600 dark:bg-blue-950/60 dark:text-blue-300"
-                >
-                  {{ getPlanStatusLabel(block.status) }}
-                </span>
               </summary>
-              <div class="border-t border-blue-100/70 px-3 py-2.5 dark:border-blue-900/40">
-                <ol class="space-y-2">
+              <div class="mt-2">
+                <div
+                  v-if="block.displayText"
+                  class="prose prose-sm dark:prose-invert max-w-none text-xs leading-relaxed text-gray-600 dark:text-gray-300"
+                  v-html="renderMarkdown(block.displayText)"
+                />
+                <ol v-else class="space-y-2">
                   <li v-for="(step, stepIndex) in block.plan.steps" :key="stepIndex" class="text-xs leading-relaxed">
                     <div class="font-medium text-gray-800 dark:text-gray-200">{{ stepIndex + 1 }}. {{ step.goal }}</div>
                     <div class="mt-1 text-gray-500 dark:text-gray-400">
@@ -547,7 +647,7 @@ async function handleCopyMarkdown() {
                     </div>
                   </li>
                 </ol>
-                <div class="mt-2 border-t border-blue-100/70 pt-2 dark:border-blue-900/40">
+                <div v-if="!block.displayText" class="mt-2 border-t border-gray-100 pt-2 dark:border-gray-800">
                   <div class="text-[11px] font-medium text-gray-500 dark:text-gray-400">
                     {{ t('ai.chat.message.plan.successCriteria') }}
                   </div>
@@ -559,6 +659,31 @@ async function handleCopyMarkdown() {
                 </div>
               </div>
             </details>
+
+            <!-- 计划草稿块 -->
+            <div
+              v-else-if="block.type === 'plan_draft'"
+              class="mb-2 border-l-2 border-gray-200 py-1 pl-4 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400"
+            >
+              <div class="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                <UIcon name="i-heroicons-clipboard-document-list" class="h-3.5 w-3.5 shrink-0" />
+                <span>{{ t('ai.chat.message.plan.label') }}</span>
+                <span
+                  v-if="isStreaming"
+                  class="inline-flex items-center gap-1 text-[11px] font-normal text-gray-400 dark:text-gray-500"
+                >
+                  <span class="flex gap-0.5">
+                    <span class="h-1 w-1 animate-bounce rounded-full bg-gray-400 [animation-delay:0ms]" />
+                    <span class="h-1 w-1 animate-bounce rounded-full bg-gray-400 [animation-delay:150ms]" />
+                    <span class="h-1 w-1 animate-bounce rounded-full bg-gray-400 [animation-delay:300ms]" />
+                  </span>
+                </span>
+              </div>
+              <div
+                class="mt-2 prose prose-sm dark:prose-invert max-w-none text-xs leading-relaxed text-gray-600 dark:text-gray-300"
+                v-html="renderMarkdown(block.text)"
+              />
+            </div>
 
             <!-- 图表块 -->
             <ChartBlockRenderer v-else-if="block.type === 'chart'" :chart="block.chart" />

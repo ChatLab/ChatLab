@@ -12,4 +12,5 @@ export type {
   PlannerCapabilitySummary,
   PlannerInput,
   PlanContentBlock,
+  PlanDraftContentBlock,
 } from './planning-types'

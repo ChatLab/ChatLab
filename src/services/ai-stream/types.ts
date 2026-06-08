@@ -18,7 +18,9 @@ export interface AgentStreamChunk {
     | 'status'
     | 'compression_done'
     | 'route'
+    | 'plan_delta'
     | 'plan'
+    | 'plan_skipped'
     | 'done'
     | 'error'
   content?: string
@@ -32,6 +34,7 @@ export interface AgentStreamChunk {
   usage?: TokenUsage
   status?: AgentRuntimeStatus
   routeDecision?: RouteDecision
+  planDelta?: string
   plan?: PlanContentBlock
   compressionResult?: {
     summaryContent: string

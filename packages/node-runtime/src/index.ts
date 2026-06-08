@@ -216,6 +216,7 @@ export type {
   PlannerCapabilitySummary,
   PlannerInput,
   PlanContentBlock,
+  PlanDraftContentBlock,
 } from './ai'
 
 // Summary generation

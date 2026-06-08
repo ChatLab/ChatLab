@@ -29,6 +29,14 @@ export interface PlanContentBlock {
   version: 1
   status: 'created' | 'executing' | 'done' | 'skipped'
   plan: AnalysisPlanSummary
+  displayText?: string
+}
+
+export interface PlanDraftContentBlock {
+  type: 'plan_draft'
+  version: 1
+  status: 'streaming'
+  text: string
 }
 
 export interface PlannerInput {

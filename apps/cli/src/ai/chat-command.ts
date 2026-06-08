@@ -6,6 +6,7 @@ import type {
   AgentStreamChunk,
   ContentBlock,
   PlanContentBlock,
+  PlanDraftContentBlock,
   TokenUsageData,
 } from '@openchatlab/node-runtime'
 import type { ChartPayload, PathProvider } from '@openchatlab/core'
@@ -211,6 +212,41 @@ export async function runChatTurn(
     hasReplayContentBlocks = true
   }
 
+  const appendPlanDraftBlock = (delta: string) => {
+    if (!delta) return
+    const lastBlock = contentBlocks[contentBlocks.length - 1]
+    if (lastBlock?.type === 'plan_draft') {
+      lastBlock.text += delta
+    } else {
+      contentBlocks.push({ type: 'plan_draft', version: 1, status: 'streaming', text: delta } as PlanDraftContentBlock)
+    }
+    hasReplayContentBlocks = true
+  }
+
+  const removePlanDraftBlocks = () => {
+    for (let index = contentBlocks.length - 1; index >= 0; index--) {
+      if (contentBlocks[index]?.type === 'plan_draft') {
+        contentBlocks.splice(index, 1)
+      }
+    }
+  }
+
+  const appendFinalPlanBlock = (plan: PlanContentBlock) => {
+    const planBlock = JSON.parse(JSON.stringify(plan)) as PlanContentBlock
+    for (let index = contentBlocks.length - 1; index >= 0; index--) {
+      const block = contentBlocks[index]
+      if (block?.type === 'plan_draft') {
+        const displayText = block.text.trim()
+        if (displayText) planBlock.displayText = displayText
+        contentBlocks[index] = planBlock
+        hasReplayContentBlocks = true
+        return
+      }
+    }
+    contentBlocks.push(planBlock)
+    hasReplayContentBlocks = true
+  }
+
   await runAgentStream(
     {
       userMessage: options.question,
@@ -226,12 +262,20 @@ export async function runChatTurn(
         events.push(JSON.parse(JSON.stringify(chunk)) as AgentStreamChunk)
       }
       if (chunk.type === 'error') {
+        removePlanDraftBlocks()
         streamError = createAgentStreamError(chunk.error)
         return
       }
+      if (chunk.type === 'plan_delta' && chunk.planDelta) {
+        appendPlanDraftBlock(chunk.planDelta)
+        return
+      }
       if (chunk.type === 'plan' && chunk.plan) {
-        hasReplayContentBlocks = true
-        contentBlocks.push(JSON.parse(JSON.stringify(chunk.plan)) as PlanContentBlock)
+        appendFinalPlanBlock(chunk.plan)
+        return
+      }
+      if (chunk.type === 'plan_skipped') {
+        removePlanDraftBlocks()
         return
       }
       if (chunk.type === 'think') {

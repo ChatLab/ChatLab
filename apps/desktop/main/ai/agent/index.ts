@@ -177,7 +177,17 @@ export class Agent {
     let effectiveSystemPrompt = systemPrompt
     if (routeDecision.route === 'planned_execution') {
       const planStartedAt = Date.now()
-      const planner = createAnalysisPlanner({ piModel: this.piModel, apiKey: this.apiKey })
+      const planner = createAnalysisPlanner({
+        piModel: this.piModel,
+        apiKey: this.apiKey,
+        onPlanDelta: (delta) => onChunk({ type: 'plan_delta', planDelta: delta }),
+        onThinkingDelta: (delta) => onChunk({ type: 'think', content: delta, thinkTag: 'thinking' }),
+        onThinkingEnd: (durationMs) =>
+          onChunk({ type: 'think', content: '', thinkTag: 'thinking', thinkDurationMs: durationMs }),
+        onValidationDelta: (delta) => onChunk({ type: 'think', content: delta, thinkTag: 'plan_validation' }),
+        onValidationEnd: (durationMs) =>
+          onChunk({ type: 'think', content: '', thinkTag: 'plan_validation', thinkDurationMs: durationMs }),
+      })
       const plan = await planner(routeInput, this.abortSignal)
       if (plan) {
         const planBlock = createPlanContentBlock(plan)
@@ -194,6 +204,7 @@ export class Agent {
           elapsedMs: Date.now() - planStartedAt,
           route: routeDecision.route,
         })
+        onChunk({ type: 'plan_skipped' })
       }
     }
 

@@ -66,6 +66,64 @@ describe('createAnalysisPlanner', () => {
     assert.equal(plan, null)
   })
 
+  it('streams planning draft as thinking and final plan text as plan deltas', async () => {
+    const deltas: string[] = []
+    const thinkingDeltas: string[] = []
+    const validationDeltas: string[] = []
+    let thinkingEnded = false
+    let validationEnded = false
+    const planner = createAnalysisPlanner({
+      stream: async (_prompt, callbacks) => {
+        callbacks.onThinkingDelta?.('先判断问题类型。')
+        callbacks.onThinkingEnd?.(120)
+        callbacks.onPlanDelta('年度话题趋势分析\n')
+        callbacks.onPlanDelta('1. 按季度检索代表性话题\n')
+        const json = JSON.stringify({
+          title: '年度话题趋势分析',
+          intent: 'trend',
+          steps: [
+            {
+              goal: '按季度检索代表性话题',
+              suggestedTools: ['search_messages'],
+              evidenceNeeded: '每个季度的代表消息',
+            },
+          ],
+          successCriteria: ['覆盖全年'],
+        })
+        callbacks.onValidationDelta?.(json)
+        callbacks.onValidationEnd?.(80)
+        return `<draft>
+先判断问题类型。
+</draft>
+<plan>
+年度话题趋势分析
+1. 按季度检索代表性话题
+</plan>
+<json>
+${json}
+</json>`
+      },
+      onPlanDelta: (delta) => deltas.push(delta),
+      onThinkingDelta: (delta) => thinkingDeltas.push(delta),
+      onThinkingEnd: () => {
+        thinkingEnded = true
+      },
+      onValidationDelta: (delta) => validationDeltas.push(delta),
+      onValidationEnd: () => {
+        validationEnded = true
+      },
+    })
+
+    const plan = await planner(baseInput)
+
+    assert.equal(plan?.title, '年度话题趋势分析')
+    assert.deepEqual(deltas, ['年度话题趋势分析\n', '1. 按季度检索代表性话题\n'])
+    assert.deepEqual(thinkingDeltas, ['先判断问题类型。'])
+    assert.equal(validationDeltas.join('').includes('"suggestedTools":["search_messages"]'), true)
+    assert.equal(thinkingEnded, true)
+    assert.equal(validationEnded, true)
+  })
+
   it('creates versioned plan content blocks', () => {
     const plan: AnalysisPlanSummary = {
       version: 1,
@@ -139,5 +197,25 @@ describe('createAnalysisPlanner', () => {
     assert.match(capturedPrompt, /chart_generation/)
     assert.match(capturedPrompt, /get_schema/)
     assert.match(capturedPrompt, /render_chart/)
+  })
+
+  it('keeps display plan concise and leaves structured details to JSON', async () => {
+    let capturedPrompt = ''
+    const planner = createAnalysisPlanner({
+      complete: async (prompt) => {
+        capturedPrompt = prompt
+        return JSON.stringify({
+          title: '年度话题趋势分析',
+          intent: 'trend',
+          steps: [{ goal: '按季度检索', suggestedTools: ['search_messages'], evidenceNeeded: '季度证据' }],
+          successCriteria: ['覆盖全年'],
+        })
+      },
+    })
+
+    await planner(baseInput)
+
+    assert.match(capturedPrompt, /A concise user-facing analysis approach/)
+    assert.match(capturedPrompt, /those details belong in <json>/)
   })
 })

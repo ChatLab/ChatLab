@@ -110,6 +110,7 @@ export type {
   PlannerCapabilitySummary,
   PlannerInput,
   PlanContentBlock,
+  PlanDraftContentBlock,
 } from './agent'
 
 // Agent Event Handler

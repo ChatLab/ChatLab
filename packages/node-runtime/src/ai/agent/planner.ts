@@ -1,5 +1,6 @@
 import {
   completeSimple,
+  streamSimple,
   type Api as PiApi,
   type Model as PiModel,
   type TextContent as PiTextContent,
@@ -14,10 +15,24 @@ import type {
 
 export type PlannerCompletionResult = string | { text: string }
 
+export interface PlannerStreamCallbacks {
+  onPlanDelta: (delta: string) => void
+  onThinkingDelta?: (delta: string) => void
+  onThinkingEnd?: (durationMs?: number) => void
+  onValidationDelta?: (delta: string) => void
+  onValidationEnd?: (durationMs?: number) => void
+}
+
 export interface CreateAnalysisPlannerOptions {
   piModel?: PiModel<PiApi>
   apiKey?: string
   complete?: (prompt: string, signal?: AbortSignal) => Promise<PlannerCompletionResult> | PlannerCompletionResult
+  stream?: (prompt: string, callbacks: PlannerStreamCallbacks, signal?: AbortSignal) => Promise<PlannerCompletionResult>
+  onPlanDelta?: (delta: string) => void
+  onThinkingDelta?: (delta: string) => void
+  onThinkingEnd?: (durationMs?: number) => void
+  onValidationDelta?: (delta: string) => void
+  onValidationEnd?: (durationMs?: number) => void
   maxTokens?: number
   temperature?: number
 }
@@ -30,6 +45,7 @@ const PLAN_INTENTS: readonly AnalysisPlanIntent[] = [
   'comparison',
   'mixed',
 ]
+const STREAM_MARKER_HOLDBACK_CHARS = Math.max('</draft>'.length, '</plan>'.length, '<json>'.length) - 1
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -120,7 +136,14 @@ function buildPlannerPrompt(input: PlannerInput): string {
 
   return `Create a concise user-visible analysis plan for a ChatLab planned_execution request.
 
-Return strict JSON only:
+Return exactly three blocks:
+<draft>
+A brief user-visible planning note in the user's locale. Keep it high-level; do not reveal hidden chain-of-thought.
+</draft>
+<plan>
+A concise user-facing analysis approach in the user's locale. Do not include suggested tools, evidence fields, or success criteria; those details belong in <json>.
+</plan>
+<json>
 {
   "title": "short title",
   "intent": "summary|trend|relationship|search|comparison|mixed",
@@ -129,13 +152,14 @@ Return strict JSON only:
   ],
   "successCriteria": ["criterion"]
 }
+</json>
 
 Limits:
 - Max 5 steps.
 - Max 5 successCriteria.
 - suggestedTools must come only from availableTools.
 - If availableCapabilities are listed, you may plan steps that use their tools when the capability helps the user.
-- Do not reveal hidden chain-of-thought; write a user-readable plan summary.
+- Do not reveal hidden chain-of-thought; draft and plan are user-readable summaries only.
 - The plan is soft guidance, not a mandatory execution script.
 
 Context:
@@ -157,9 +181,20 @@ export function createAnalysisPlanner(options: CreateAnalysisPlannerOptions): An
   return async (input, signal) => {
     try {
       const prompt = buildPlannerPrompt(input)
-      const rawResult = options.complete
-        ? await options.complete(prompt, signal)
-        : await completeWithPiAi(prompt, options, signal)
+      const callbacks: PlannerStreamCallbacks = {
+        onPlanDelta: options.onPlanDelta ?? (() => {}),
+        onThinkingDelta: options.onThinkingDelta,
+        onThinkingEnd: options.onThinkingEnd,
+        onValidationDelta: options.onValidationDelta,
+        onValidationEnd: options.onValidationEnd,
+      }
+      const rawResult = options.stream
+        ? await options.stream(prompt, callbacks, signal)
+        : options.complete
+          ? await options.complete(prompt, signal)
+          : options.onPlanDelta
+            ? await streamWithPiAi(prompt, options, signal)
+            : await completeWithPiAi(prompt, options, signal)
       return parsePlanJson(resultToText(rawResult), new Set(input.availableTools))
     } catch {
       return null
@@ -212,12 +247,12 @@ async function completeWithPiAi(
   const result = await completeSimple(
     options.piModel,
     {
-      systemPrompt: 'You are a strict JSON planner for ChatLab analysis. Return JSON only.',
+      systemPrompt: 'You are a strict planner for ChatLab analysis. Return the requested blocks only.',
       messages: [{ role: 'user', content: [{ type: 'text', text: prompt }], timestamp: Date.now() }] as any,
     },
     {
       apiKey: options.apiKey,
-      maxTokens: options.maxTokens ?? 700,
+      maxTokens: options.maxTokens ?? 900,
       temperature: options.temperature ?? 0.2,
       signal,
     }
@@ -229,4 +264,117 @@ async function completeWithPiAi(
       .map((item) => item.text)
       .join(''),
   }
+}
+
+function extractTaggedBlockText(rawText: string, tag: 'draft' | 'plan' | 'json', nextTags: string[]): string {
+  const openTag = `<${tag}>`
+  const closeTag = `</${tag}>`
+  const blockStart = rawText.indexOf(openTag)
+  if (blockStart < 0) return ''
+
+  const bodyStart = blockStart + openTag.length
+  const closeStart = rawText.indexOf(closeTag, bodyStart)
+  const nextStarts = nextTags.map((nextTag) => rawText.indexOf(nextTag, bodyStart)).filter((index) => index >= 0)
+  const endCandidates = [closeStart, ...nextStarts].filter((index) => index >= 0)
+  const bodyEnd =
+    endCandidates.length > 0
+      ? Math.min(...endCandidates)
+      : Math.max(bodyStart, rawText.length - STREAM_MARKER_HOLDBACK_CHARS)
+  const text = rawText.slice(bodyStart, bodyEnd)
+  return text.replace(/^\s+/, '')
+}
+
+async function streamWithPiAi(
+  prompt: string,
+  options: CreateAnalysisPlannerOptions,
+  signal?: AbortSignal
+): Promise<PlannerCompletionResult> {
+  if (!options.piModel || !options.apiKey) {
+    throw new Error('Planner requires piModel and apiKey')
+  }
+
+  const stream = streamSimple(
+    options.piModel,
+    {
+      systemPrompt: 'You are a strict planner for ChatLab analysis. Return the requested plan and JSON blocks only.',
+      messages: [{ role: 'user', content: [{ type: 'text', text: prompt }], timestamp: Date.now() }] as any,
+    },
+    {
+      apiKey: options.apiKey,
+      maxTokens: options.maxTokens ?? 900,
+      temperature: options.temperature ?? 0.2,
+      signal,
+    }
+  )
+
+  let text = ''
+  let emittedDraftLength = 0
+  let emittedPlanLength = 0
+  let emittedJsonLength = 0
+  let thinkingStartedAt: number | undefined
+  let draftThinkingStartedAt: number | undefined
+  let draftThinkingEnded = false
+  let validationStartedAt: number | undefined
+  let validationEnded = false
+
+  for await (const event of stream) {
+    if (signal?.aborted) break
+    if (event.type === 'thinking_start') {
+      thinkingStartedAt = Date.now()
+      continue
+    }
+    if (event.type === 'thinking_delta') {
+      options.onThinkingDelta?.(event.delta)
+      continue
+    }
+    if (event.type === 'thinking_end') {
+      const durationMs = thinkingStartedAt ? Date.now() - thinkingStartedAt : undefined
+      thinkingStartedAt = undefined
+      options.onThinkingEnd?.(durationMs)
+      continue
+    }
+    if (event.type !== 'text_delta') continue
+
+    text += event.delta
+    const draftText = extractTaggedBlockText(text, 'draft', ['<plan>', '<json>'])
+    if (draftText.length > emittedDraftLength) {
+      if (!draftThinkingStartedAt) draftThinkingStartedAt = Date.now()
+      const delta = draftText.slice(emittedDraftLength)
+      emittedDraftLength = draftText.length
+      if (delta.trim().length > 0 || /\s/.test(delta)) {
+        options.onThinkingDelta?.(delta)
+      }
+    }
+    if (!draftThinkingEnded && emittedDraftLength > 0 && (text.includes('</draft>') || text.includes('<plan>'))) {
+      draftThinkingEnded = true
+      const durationMs = draftThinkingStartedAt ? Date.now() - draftThinkingStartedAt : undefined
+      options.onThinkingEnd?.(durationMs)
+    }
+
+    const planText = extractTaggedBlockText(text, 'plan', ['<json>'])
+    if (planText.length > emittedPlanLength) {
+      const delta = planText.slice(emittedPlanLength)
+      emittedPlanLength = planText.length
+      if (delta.trim().length > 0 || /\s/.test(delta)) {
+        options.onPlanDelta?.(delta)
+      }
+    }
+
+    const jsonText = extractTaggedBlockText(text, 'json', [])
+    if (jsonText.length > emittedJsonLength) {
+      if (!validationStartedAt) validationStartedAt = Date.now()
+      const delta = jsonText.slice(emittedJsonLength)
+      emittedJsonLength = jsonText.length
+      if (delta.trim().length > 0 || /\s/.test(delta)) {
+        options.onValidationDelta?.(delta)
+      }
+    }
+    if (!validationEnded && emittedJsonLength > 0 && text.includes('</json>')) {
+      validationEnded = true
+      const durationMs = validationStartedAt ? Date.now() - validationStartedAt : undefined
+      options.onValidationEnd?.(durationMs)
+    }
+  }
+
+  return { text }
 }

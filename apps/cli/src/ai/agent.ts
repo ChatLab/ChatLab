@@ -204,7 +204,17 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
     let effectiveSystemPrompt = systemPrompt
     if (routeDecision.route === 'planned_execution') {
       const planStartedAt = Date.now()
-      const planner = createAnalysisPlanner({ piModel, apiKey: llmConfig.apiKey })
+      const planner = createAnalysisPlanner({
+        piModel,
+        apiKey: llmConfig.apiKey,
+        onPlanDelta: (delta) => onEvent({ type: 'plan_delta', planDelta: delta }),
+        onThinkingDelta: (delta) => onEvent({ type: 'think', content: delta, thinkTag: 'thinking' }),
+        onThinkingEnd: (durationMs) =>
+          onEvent({ type: 'think', content: '', thinkTag: 'thinking', thinkDurationMs: durationMs }),
+        onValidationDelta: (delta) => onEvent({ type: 'think', content: delta, thinkTag: 'plan_validation' }),
+        onValidationEnd: (durationMs) =>
+          onEvent({ type: 'think', content: '', thinkTag: 'plan_validation', thinkDurationMs: durationMs }),
+      })
       const plan = await planner(routeInput, abortSignal)
       if (plan) {
         const planBlock = createPlanContentBlock(plan)
@@ -221,6 +231,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
           elapsedMs: Date.now() - planStartedAt,
           route: routeDecision.route,
         })
+        onEvent({ type: 'plan_skipped' })
       }
     }
 

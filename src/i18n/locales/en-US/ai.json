@@ -127,6 +127,7 @@
           "analysis": "Analysis",
           "reasoning": "Reasoning",
           "reflection": "Reflection",
+          "planValidation": "Generate and validate steps",
           "other": "Thinking ({tag})"
         },
         "loading": "Thinking",
