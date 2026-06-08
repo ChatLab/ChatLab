@@ -279,6 +279,14 @@ function closeDeleteModal() {
   deleteTarget.value = null
 }
 
+async function copySessionId(sessionId: string) {
+  try {
+    await navigator.clipboard.writeText(sessionId)
+  } catch (error) {
+    console.error('Failed to copy session id:', error)
+  }
+}
+
 // 生成右键菜单项
 function getContextMenuItems(session: AnalysisSession) {
   const isPinned = sessionStore.isPinned(session.id)
@@ -293,6 +301,11 @@ function getContextMenuItems(session: AnalysisSession) {
         label: t('layout.contextMenu.rename'),
         class: 'p-2',
         onSelect: () => openRenameModal(session),
+      },
+      {
+        label: t('layout.contextMenu.copyId'),
+        class: 'p-2',
+        onSelect: () => copySessionId(session.id),
       },
       {
         label: t('layout.contextMenu.delete'),

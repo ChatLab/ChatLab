@@ -11,6 +11,7 @@
     "rename": "重命名",
     "pin": "置顶",
     "unpin": "取消置顶",
+    "copyId": "复制 ID",
     "delete": "删除"
   },
   "renameModal": {

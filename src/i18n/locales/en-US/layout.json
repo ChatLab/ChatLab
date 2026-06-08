@@ -11,6 +11,7 @@
     "rename": "Rename",
     "pin": "Pin",
     "unpin": "Unpin",
+    "copyId": "Copy ID",
     "delete": "Delete"
   },
   "renameModal": {

@@ -252,6 +252,7 @@
         "last30Days": "最近 30 天"
       },
       "rename": "重新命名",
+      "copyId": "複製 ID",
       "delete": "刪除",
       "export": {
         "createdAt": "建立時間",

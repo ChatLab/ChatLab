@@ -133,6 +133,11 @@ function handleMenuRename(conv: Conversation) {
   startEditing(conv)
 }
 
+function handleMenuCopyId(convId: string) {
+  menuOpenId.value = null
+  navigator.clipboard.writeText(convId)
+}
+
 function handleMenuDelete(convId: string) {
   menuOpenId.value = null
   handleDelete(convId)
@@ -298,6 +303,13 @@ defineExpose({
                           >
                             <UIcon name="i-heroicons-pencil" class="h-3.5 w-3.5" />
                             {{ t('ai.chat.conversation.rename') }}
+                          </button>
+                          <button
+                            class="flex w-full items-center gap-2 rounded-md px-2 py-2 text-xs text-gray-600 transition-colors hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800"
+                            @click="handleMenuCopyId(conv.id)"
+                          >
+                            <UIcon name="i-heroicons-clipboard-document" class="h-3.5 w-3.5" />
+                            {{ t('ai.chat.conversation.copyId') }}
                           </button>
                           <button
                             class="flex w-full items-center gap-2 rounded-md px-2 py-2 text-xs text-red-500 transition-colors hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/30"

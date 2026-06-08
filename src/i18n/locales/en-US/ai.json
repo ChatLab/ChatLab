@@ -252,6 +252,7 @@
         "last30Days": "Last 30 Days"
       },
       "rename": "Rename",
+      "copyId": "Copy ID",
       "delete": "Delete",
       "export": {
         "createdAt": "Created",
