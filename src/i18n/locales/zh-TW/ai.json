@@ -127,7 +127,7 @@
           "analysis": "分析",
           "reasoning": "推理",
           "reflection": "反思",
-          "planValidation": "產生並校驗步驟",
+          "planValidation": "產生計畫",
           "other": "思考（{tag}）"
         },
         "loading": "思考中",

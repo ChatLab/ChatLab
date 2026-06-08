@@ -127,7 +127,7 @@
           "analysis": "分析",
           "reasoning": "推論",
           "reflection": "振り返り",
-          "planValidation": "手順の生成・検証",
+          "planValidation": "計画を生成",
           "other": "思考（{tag}）"
         },
         "loading": "思考中...",

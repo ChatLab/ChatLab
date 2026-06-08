@@ -576,7 +576,7 @@ async function handleCopyMarkdown() {
                       class="text-gray-600 dark:text-gray-300"
                     >
                       <div class="font-medium text-gray-800 dark:text-gray-200">
-                        {{ stepIndex + 1 }}. {{ step.goal }}
+                        {{ step.goal }}
                       </div>
                       <div v-if="step.evidenceNeeded" class="mt-1 text-gray-500 dark:text-gray-400">
                         {{ t('ai.chat.message.plan.evidenceNeeded') }}: {{ step.evidenceNeeded }}
