@@ -17,6 +17,7 @@ import {
   getSegmentMessagesTool,
   getMembersTool,
   schemaTool,
+  sqlQueryTool,
   memberStatsTool,
   timeStatsTool,
   getMemberNameHistoryTool,
@@ -61,6 +62,7 @@ export const TOOL_REGISTRY: ToolRegistryEntry[] = [
   adaptSharedTool(responseTimeAnalysisTool, { category: 'analysis' }),
   adaptSharedTool(keywordFrequencyTool, { category: 'analysis' }),
   adaptSharedTool(renderChartTool, { category: 'analysis' }),
+  adaptSharedTool(sqlQueryTool, { category: 'analysis' }),
 
   // ==================== SQL 分析工具 ====================
   ...sqlToolEntries,
