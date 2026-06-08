@@ -66,6 +66,7 @@ const DEFAULTS: Preferences = {
     sessionSchemeOverrides: {},
   },
   filterHistory: [],
+  thinkingLevels: {},
 }
 
 export class PreferencesManager {
@@ -149,6 +150,7 @@ export class PreferencesManager {
       deletedPresetTemplateIds: partial.deletedPresetTemplateIds ?? DEFAULTS.deletedPresetTemplateIds,
       wordFilter: partial.wordFilter ? { ...DEFAULTS.wordFilter, ...partial.wordFilter } : { ...DEFAULTS.wordFilter },
       filterHistory: partial.filterHistory ?? DEFAULTS.filterHistory,
+      thinkingLevels: partial.thinkingLevels ?? DEFAULTS.thinkingLevels,
     }
   }
 

@@ -194,6 +194,8 @@ export interface Preferences {
     sessionSchemeOverrides: Record<string, string | null>
   }
   filterHistory: FilterHistoryItem[]
+  /** Per-model thinking level, keyed by `${configId}:${modelId}`. */
+  thinkingLevels: Record<string, string>
 }
 
 export interface UiConfig {

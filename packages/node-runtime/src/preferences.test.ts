@@ -132,6 +132,62 @@ test('sanitizes built-in desensitize rule bodies on save', () => {
   }
 })
 
+test('persists thinkingLevels across save/load cycle', () => {
+  const systemDir = createTempSystemDir()
+  try {
+    const manager = new PreferencesManager(systemDir)
+
+    const result = manager.save({ thinkingLevels: { 'cfg1:model-a': 'high' } })
+    assert.equal(result.success, true)
+
+    // Disk must contain the value (regression: mergeDefaults whitelist must not strip it)
+    const saved = readPreferencesFile(systemDir)
+    assert.equal(saved.thinkingLevels?.['cfg1:model-a'], 'high')
+
+    // Cache-invalidated reload must return the persisted value
+    manager.invalidateCache()
+    const loaded = manager.load()
+    assert.equal(loaded.thinkingLevels['cfg1:model-a'], 'high')
+  } finally {
+    rmSync(systemDir, { recursive: true, force: true })
+  }
+})
+
+test('merges thinkingLevels across multiple saves without losing earlier entries', () => {
+  const systemDir = createTempSystemDir()
+  try {
+    const manager = new PreferencesManager(systemDir)
+
+    manager.save({ thinkingLevels: { 'cfg1:model-a': 'high' } })
+    manager.save({ thinkingLevels: { 'cfg2:model-b': 'off' } })
+
+    manager.invalidateCache()
+    const loaded = manager.load()
+    assert.equal(loaded.thinkingLevels['cfg1:model-a'], 'high')
+    assert.equal(loaded.thinkingLevels['cfg2:model-b'], 'off')
+  } finally {
+    rmSync(systemDir, { recursive: true, force: true })
+  }
+})
+
+test('loads thinkingLevels as empty object when field is absent in legacy preferences file', () => {
+  const systemDir = createTempSystemDir()
+  try {
+    // Write a legacy preferences.json that has no thinkingLevels field
+    writeFileSync(
+      join(systemDir, 'preferences.json'),
+      JSON.stringify({ aiGlobalSettings: { maxMessagesPerRequest: 500 } })
+    )
+
+    const loaded = new PreferencesManager(systemDir).load()
+    assert.deepEqual(loaded.thinkingLevels, {})
+    // Existing fields must survive the migration
+    assert.equal(loaded.aiGlobalSettings.maxMessagesPerRequest, 500)
+  } finally {
+    rmSync(systemDir, { recursive: true, force: true })
+  }
+})
+
 test('replaces built-in desensitize overrides with an empty map on save', () => {
   const systemDir = createTempSystemDir()
   try {
