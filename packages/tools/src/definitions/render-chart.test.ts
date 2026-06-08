@@ -63,6 +63,31 @@ describe('renderChartTool', () => {
     ])
   })
 
+  it('includes a compact data preview in the tool text for model reasoning', async () => {
+    const calls: Array<{ query: string; params: Record<string, unknown> }> = []
+    const context = createContext(
+      [
+        { name: 'Alice', message_count: 4 },
+        { name: 'Bob', message_count: 3 },
+      ],
+      calls
+    )
+
+    const result = await renderChartTool.handler(
+      {
+        sql: 'SELECT name, message_count FROM member_stats',
+        chartSpec: barSpec,
+      },
+      context
+    )
+
+    assert.match(result.content, /Generated chart "Messages by member"/)
+    assert.match(result.content, /Data preview/)
+    assert.match(result.content, /Alice/)
+    assert.match(result.content, /message_count/)
+    assert.match(result.content, /4/)
+  })
+
   it('truncates rows after fetching one more than maxRows', async () => {
     const calls: Array<{ query: string; params: Record<string, unknown> }> = []
     const context = createContext(

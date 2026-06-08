@@ -3,6 +3,7 @@ import assert from 'node:assert/strict'
 
 import {
   CHART_CAPABILITY_SKILL_ID,
+  getChartPlannerCapabilityForMessage,
   getAllowedBuiltinToolsForChartAutoSkill,
   getChartCapabilityAllowedBuiltinTools,
   getChartCapabilitySkill,
@@ -17,6 +18,8 @@ describe('chart runtime policy', () => {
     assert.equal(skill.name, 'Chart Assistant')
     assert.deepEqual(skill.tools, ['render_chart', 'get_schema'])
     assert.match(skill.prompt, /render_chart/)
+    assert.match(skill.prompt, /chart1\.png/)
+    assert.match(skill.prompt, /Data preview/)
   })
 
   it('enables chart runtime only for explicit chart skill by default', () => {
@@ -37,6 +40,20 @@ describe('chart runtime policy', () => {
       }).isChartCapability,
       false
     )
+  })
+
+  it('can auto-enable chart runtime for analytical trend questions', () => {
+    const runtime = resolveChartRuntimeForRequest({
+      skillId: null,
+      userMessage: '分析过去一年群里每季度消息量变化趋势，指出峰值和低谷。',
+      locale: 'zh-CN',
+      enableAutoDetection: true,
+      enableAnalyticalAutoDetection: true,
+    })
+
+    assert.equal(runtime.isChartCapability, true)
+    assert.equal(runtime.skillDef?.id, CHART_CAPABILITY_SKILL_ID)
+    assert.deepEqual(runtime.allowedBuiltinTools, ['render_chart'])
   })
 
   it('keeps chart tool allowlists free of raw SQL', () => {
@@ -62,5 +79,29 @@ describe('chart runtime policy', () => {
       'keyword_frequency',
       'render_chart',
     ])
+  })
+
+  it('offers chart planner capability for analytical trend questions without explicit chart wording', () => {
+    const capability = getChartPlannerCapabilityForMessage({
+      userMessage: '分析过去一年群里话题的变化趋势，按季度总结主要变化。',
+      locale: 'zh-CN',
+      availableTools: ['get_schema', 'search_messages', 'render_chart'],
+    })
+
+    assert.equal(capability?.id, 'chart_generation')
+    assert.deepEqual(capability?.tools, ['get_schema', 'render_chart'])
+    assert.match(capability?.guidance ?? '', /趋势/)
+    assert.match(capability?.guidance ?? '', /get_schema/)
+    assert.match(capability?.guidance ?? '', /render_chart/)
+  })
+
+  it('does not offer chart planner capability when render_chart is unavailable', () => {
+    const capability = getChartPlannerCapabilityForMessage({
+      userMessage: '分析过去一年群里话题的变化趋势。',
+      locale: 'zh-CN',
+      availableTools: ['get_schema', 'search_messages'],
+    })
+
+    assert.equal(capability, null)
   })
 })

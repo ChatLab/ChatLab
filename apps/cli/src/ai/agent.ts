@@ -19,6 +19,7 @@ import {
   createCompressionLlmAdapter,
   AgentEventHandler,
   formatAIError,
+  getChartPlannerCapabilityForMessage,
   initTokenizer,
   type AgentStreamChunk,
   type PiMessage,
@@ -175,6 +176,13 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
       locale,
       dataSnapshot,
       availableTools: tools.map((tool) => tool.name),
+      availableCapabilities: [
+        getChartPlannerCapabilityForMessage({
+          userMessage,
+          locale,
+          availableTools: tools.map((tool) => tool.name),
+        }),
+      ].filter((capability) => capability !== null),
       skillSummary: skillDef?.name ?? (skillMenu ? 'auto_skill_menu' : undefined),
     }
     const routeStartedAt = Date.now()

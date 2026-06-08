@@ -162,6 +162,8 @@ export function createElectronRunAgentStream(): (
       userMessage,
       locale,
       assistantAllowedTools: assistantConfig?.allowedBuiltinTools,
+      enableAutoDetection: enableAutoSkill === true,
+      enableAnalyticalAutoDetection: enableAutoSkill === true,
     })
     if (chartRuntime.isChartCapability) {
       const chartSkill = chartRuntime.skillDef ?? getChartCapabilitySkill(locale ?? 'zh-CN')

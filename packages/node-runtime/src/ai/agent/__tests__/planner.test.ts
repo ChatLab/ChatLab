@@ -100,4 +100,44 @@ describe('createAnalysisPlanner', () => {
     assert.match(guidance, /search_messages/)
     assert.match(guidance, /覆盖全年/)
   })
+
+  it('includes available capability summaries in the planner prompt', async () => {
+    let capturedPrompt = ''
+    const planner = createAnalysisPlanner({
+      complete: async (prompt) => {
+        capturedPrompt = prompt
+        return JSON.stringify({
+          title: '趋势和图表分析',
+          intent: 'trend',
+          steps: [
+            {
+              goal: '确认 schema 后生成趋势图',
+              suggestedTools: ['get_schema', 'render_chart'],
+              evidenceNeeded: '按季度聚合后的趋势数据',
+            },
+          ],
+          successCriteria: ['给出趋势证据'],
+        })
+      },
+    })
+
+    const plan = await planner({
+      ...baseInput,
+      availableTools: ['search_messages', 'get_schema', 'render_chart'],
+      availableCapabilities: [
+        {
+          id: 'chart_generation',
+          label: '图表生成',
+          tools: ['get_schema', 'render_chart'],
+          guidance: '趋势、排名、分布、占比用图更清楚时，可先调用 get_schema，再用 render_chart 生成一张图。',
+        },
+      ],
+    })
+
+    assert.equal(plan?.steps[0]?.suggestedTools.includes('render_chart'), true)
+    assert.match(capturedPrompt, /availableCapabilities/)
+    assert.match(capturedPrompt, /chart_generation/)
+    assert.match(capturedPrompt, /get_schema/)
+    assert.match(capturedPrompt, /render_chart/)
+  })
 })

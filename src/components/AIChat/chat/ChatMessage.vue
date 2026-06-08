@@ -8,6 +8,7 @@ import CaptureButton from '@/components/common/CaptureButton.vue'
 import ErrorBlock from './ErrorBlock.vue'
 import ChartBlockRenderer from './ChartBlockRenderer.vue'
 import { useToast } from '@/composables/useToast'
+import { stripChartImagePlaceholders } from '@/services/ai/chartMarkdownPlaceholders'
 
 const { t, te, locale } = useI18n()
 const toast = useToast()
@@ -88,7 +89,7 @@ function formatThinkDuration(durationMs?: number): string {
 // 渲染后的 HTML（用于用户消息或纯文本 AI 消息）
 const renderedContent = computed(() => {
   if (!props.content) return ''
-  return md.render(props.content)
+  return md.render(getDisplayText(props.content))
 })
 
 watch(
@@ -135,11 +136,20 @@ function submitEditing() {
   overwriteSubsequent.value = false
 }
 
+const hasChartBlocks = computed(() => (props.contentBlocks || []).some((block) => block.type === 'chart'))
+
+function getDisplayText(text: string): string {
+  return hasChartBlocks.value ? stripChartImagePlaceholders(text) : text
+}
+
 // 过滤无内容的文本/思考块，避免显示空气泡
 const visibleBlocks = computed(() => {
   const blocks = props.contentBlocks || []
   return blocks.filter((block) => {
-    if (block.type === 'text' || block.type === 'think') {
+    if (block.type === 'text') {
+      return getDisplayText(block.text).trim().length > 0
+    }
+    if (block.type === 'think') {
       return block.text.trim().length > 0
     }
     return true
@@ -318,13 +328,13 @@ function formatToolParams(tool: ToolBlockContent): string {
 }
 
 const copyMarkdownText = computed(() => {
-  if (props.content.trim()) return props.content
+  if (!useBlocksRendering.value && props.content.trim()) return getDisplayText(props.content)
   if (!useBlocksRendering.value) return ''
 
   const lines = visibleBlocks.value
     .map((block) => {
       if (block.type === 'text') {
-        return block.text
+        return getDisplayText(block.text)
       }
 
       if (block.type === 'think') {
@@ -462,7 +472,7 @@ async function handleCopyMarkdown() {
             <div v-if="block.type === 'text'" class="py-1 text-gray-900 dark:text-gray-100">
               <div
                 class="prose prose-sm dark:prose-invert max-w-none leading-relaxed"
-                v-html="renderMarkdown(block.text)"
+                v-html="renderMarkdown(getDisplayText(block.text))"
               />
               <!-- 流式输出光标（只在最后一个文本块显示） -->
               <span

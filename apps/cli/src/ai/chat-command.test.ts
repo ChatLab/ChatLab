@@ -316,6 +316,87 @@ describe('runChatTurn', () => {
     ])
   })
 
+  it('persists render_chart results as chart content blocks for CLI replay', async () => {
+    const stdout = new MemoryWritable()
+    const aiChatManager = createAIChatManager()
+    const chart = {
+      version: 1,
+      spec: {
+        version: 1,
+        type: 'bar',
+        title: '季度消息量趋势',
+        encoding: { x: 'quarter', y: 'count' },
+      },
+      dataset: {
+        columns: [
+          { name: 'quarter', type: 'category' },
+          { name: 'count', type: 'integer' },
+        ],
+        rows: [
+          { quarter: '2025-Q4', count: 1607 },
+          { quarter: '2026-Q1', count: 4284 },
+        ],
+      },
+      data: {
+        labels: ['2025-Q4', '2026-Q1'],
+        values: [1607, 4284],
+      },
+      rowCount: 2,
+    } as const
+
+    const result = await runChatTurn(
+      { sessionId: 'session-1', question: '分析季度消息量变化趋势', json: true, includeEvents: true },
+      {
+        dbManager: createDbManager(['session-1']),
+        pathProvider: {} as never,
+        aiChatManager,
+        stdout,
+        createRunAgentStream: () => async (_params, onEvent) => {
+          onEvent({
+            type: 'plan',
+            plan: {
+              type: 'plan',
+              version: 1,
+              status: 'created',
+              plan: {
+                version: 1,
+                title: '季度消息量趋势',
+                route: 'planned_execution',
+                intent: 'trend',
+                steps: [
+                  { goal: '生成趋势图', suggestedTools: ['get_schema', 'render_chart'], evidenceNeeded: '季度数据' },
+                ],
+                successCriteria: ['展示趋势'],
+              },
+            },
+          })
+          onEvent({ type: 'tool_result', toolName: 'render_chart', toolResult: { details: { chart } } })
+          onEvent({ type: 'content', content: '2026-Q1 是峰值。' })
+          onEvent({
+            type: 'done',
+            isFinished: true,
+            usage: { promptTokens: 3, completionTokens: 5, totalTokens: 8 },
+          })
+        },
+      }
+    )
+
+    assert.deepEqual(
+      result.contentBlocks?.map((block) => block.type),
+      ['plan', 'chart', 'text']
+    )
+    assert.equal(result.contentBlocks?.[1]?.type, 'chart')
+    assert.deepEqual(result.contentBlocks?.[1]?.chart.dataset.rows, [])
+    assert.deepEqual(result.contentBlocks?.[1]?.chart.data, chart.data)
+    assert.deepEqual((aiChatManager as unknown as { __messages: unknown[] }).__messages.at(-1), {
+      aiChatId: 'ai_chat_1',
+      role: 'assistant',
+      content: '2026-Q1 是峰值。',
+      contentBlocks: result.contentBlocks,
+      tokenUsage: { promptTokens: 3, completionTokens: 5, totalTokens: 8 },
+    })
+  })
+
   it('fails the turn and does not persist messages when the agent stream reports an error', async () => {
     const stdout = new MemoryWritable()
     const aiChatManager = createAIChatManager()
@@ -348,6 +429,7 @@ describe('runChatTurn', () => {
       { id: 'ai-chat-1', sessionId: 'session-1', assistantId: 'custom_assistant' },
     ])
     let streamedAssistantId: string | undefined
+    let streamedEnableAutoSkill: boolean | undefined
 
     await runChatTurn(
       { aiChatId: 'ai-chat-1', question: 'hello', json: true },
@@ -358,6 +440,7 @@ describe('runChatTurn', () => {
         stdout,
         createRunAgentStream: () => async (params, onEvent) => {
           streamedAssistantId = params.assistantId
+          streamedEnableAutoSkill = params.enableAutoSkill
           onEvent({ type: 'content', content: 'hi' })
           onEvent({ type: 'done', isFinished: true })
         },
@@ -365,6 +448,7 @@ describe('runChatTurn', () => {
     )
 
     assert.equal(streamedAssistantId, 'custom_assistant')
+    assert.equal(streamedEnableAutoSkill, true)
   })
 })
 

@@ -9,6 +9,7 @@ export type {
   AnalysisPlanner,
   AnalysisPlanStep,
   AnalysisPlanSummary,
+  PlannerCapabilitySummary,
   PlannerInput,
   PlanContentBlock,
 } from './planning-types'

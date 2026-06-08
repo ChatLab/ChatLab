@@ -9,6 +9,7 @@ import { buildChartPayload } from '@openchatlab/core'
 import type { ToolDefinition, ToolExecutionContext, ToolResult, JsonSchema } from '../types'
 
 const DEFAULT_MAX_ROWS = 1000
+const DEFAULT_PREVIEW_ROWS = 20
 const RE_SECONDS_TIMESTAMP_DIVIDED_AS_MILLISECONDS = /\b(?:\w+\.)?ts\s*\/\s*1000\b/i
 
 const inputSchema: JsonSchema = {
@@ -81,6 +82,24 @@ function summarizeChart(type: string, title: string, rowCount: number, truncated
   return `Generated chart "${title}" (${type}, ${rowCount} rows${truncated ? ', truncated' : ''}).`
 }
 
+function summarizeChartForModel(
+  type: string,
+  title: string,
+  rows: Record<string, unknown>[],
+  truncated: boolean,
+  locale?: string
+): string {
+  const summary = summarizeChart(type, title, rows.length, truncated, locale)
+  const previewRows = rows.slice(0, DEFAULT_PREVIEW_ROWS)
+  if (previewRows.length === 0) return summary
+
+  const preview = JSON.stringify(previewRows)
+  if (locale?.startsWith('zh')) {
+    return `${summary}\n数据预览（前 ${previewRows.length} 行，用于分析峰值、低谷和差异）：${preview}`
+  }
+  return `${summary}\nData preview (first ${previewRows.length} rows; use this to identify peaks, lows, and differences): ${preview}`
+}
+
 async function handler(params: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {
   if (!context.dataProvider) throw new Error('render_chart requires a data provider')
 
@@ -94,7 +113,7 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
   const chart = buildChartPayload(rows, params.chartSpec, { truncated })
 
   return {
-    content: summarizeChart(chart.spec.type, chart.spec.title, rows.length, truncated, context.locale),
+    content: summarizeChartForModel(chart.spec.type, chart.spec.title, rows, truncated, context.locale),
     data: {
       rowCount: rows.length,
       truncated,

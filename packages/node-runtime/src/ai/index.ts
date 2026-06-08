@@ -54,8 +54,10 @@ export {
   getChartCapabilityAllowedBuiltinTools,
   getChartCapabilitySkill,
   getChartCapabilitySkill as getBuiltinChartSkill,
+  getChartPlannerCapabilityForMessage,
   getSkillConfigWithBuiltinChart,
   resolveChartRuntimeForRequest,
+  shouldOfferChartCapabilityForAnalyticalMessage,
   shouldUseChartCapabilityForMessage,
 } from './chart-runtime'
 export { CHART_SCHEMA_REQUIRED_MESSAGE, createChartSchemaGateState, wrapWithChartSchemaGate } from './chart-schema-gate'
@@ -105,6 +107,7 @@ export type {
   AnalysisPlanner,
   AnalysisPlanStep,
   AnalysisPlanSummary,
+  PlannerCapabilitySummary,
   PlannerInput,
   PlanContentBlock,
 } from './agent'

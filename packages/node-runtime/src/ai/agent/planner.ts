@@ -108,6 +108,15 @@ function buildPlannerPrompt(input: PlannerInput): string {
   const dataSnapshot = input.dataSnapshot
     ? `${input.dataSnapshot.name}, ${input.dataSnapshot.totalMessages} messages, ${input.dataSnapshot.totalMembers} members`
     : '(none)'
+  const availableCapabilities =
+    input.availableCapabilities && input.availableCapabilities.length > 0
+      ? input.availableCapabilities
+          .map((capability) => {
+            const tools = capability.tools.join(', ') || 'none'
+            return `  - ${capability.id} (${capability.label}; tools: ${tools}): ${capability.guidance}`
+          })
+          .join('\n')
+      : '(none)'
 
   return `Create a concise user-visible analysis plan for a ChatLab planned_execution request.
 
@@ -125,6 +134,7 @@ Limits:
 - Max 5 steps.
 - Max 5 successCriteria.
 - suggestedTools must come only from availableTools.
+- If availableCapabilities are listed, you may plan steps that use their tools when the capability helps the user.
 - Do not reveal hidden chain-of-thought; write a user-readable plan summary.
 - The plan is soft guidance, not a mandatory execution script.
 
@@ -132,6 +142,8 @@ Context:
 - locale: ${input.locale}
 - chatType: ${input.chatType}
 - availableTools: ${input.availableTools.join(', ') || '(none)'}
+- availableCapabilities:
+${availableCapabilities}
 - dataSnapshot: ${dataSnapshot}
 - assistantSummary: ${input.assistantSummary ?? '(none)'}
 - skillSummary: ${input.skillSummary ?? '(none)'}

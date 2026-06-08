@@ -16,6 +16,7 @@ import {
   createLlmRouteDecider,
   createPlanContentBlock,
   decideRequestRoute,
+  getChartPlannerCapabilityForMessage,
   runAgentCore,
   streamSimple,
   type PiMessage,
@@ -132,12 +133,27 @@ export class Agent {
       piTools.push(createActivateSkillTool(this.chatType, allowedTools, this.locale))
     }
 
+    let cachedMessages: PiMessage[] = []
+
+    handler.emitStatus('preparing', cachedMessages, {
+      pendingUserMessage: userMessage,
+      force: true,
+    })
+
+    const availableToolNames = piTools.map((tool) => tool.name)
     const routeInput = {
       userMessage,
       chatType: this.chatType,
       locale: this.locale,
       dataSnapshot: this.context.dataSnapshot,
-      availableTools: piTools.map((tool) => tool.name),
+      availableTools: availableToolNames,
+      availableCapabilities: [
+        getChartPlannerCapabilityForMessage({
+          userMessage,
+          locale: this.locale,
+          availableTools: availableToolNames,
+        }),
+      ].filter((capability) => capability !== null),
       assistantSummary: this.assistantConfig?.name,
       skillSummary: this.skillCtx?.skillDef?.name ?? (this.skillCtx?.skillMenu ? 'auto_skill_menu' : undefined),
     }
@@ -182,13 +198,6 @@ export class Agent {
     }
 
     const historyMessages = this.loadHistory()
-
-    let cachedMessages: PiMessage[] = []
-
-    handler.emitStatus('preparing', cachedMessages, {
-      pendingUserMessage: userMessage,
-      force: true,
-    })
 
     try {
       const result = await runAgentCore({

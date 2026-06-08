@@ -8,7 +8,7 @@ import type {
   PlanContentBlock,
   TokenUsageData,
 } from '@openchatlab/node-runtime'
-import type { PathProvider } from '@openchatlab/core'
+import type { ChartPayload, PathProvider } from '@openchatlab/core'
 import { createCliRunAgentStream } from './agent-stream-runner'
 
 export interface ChatCommandOptions {
@@ -74,6 +74,37 @@ function createAgentStreamError(error: unknown): Error {
     return streamError
   }
   return new Error('Agent stream failed')
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function isChartPayload(value: unknown): value is ChartPayload {
+  return isRecord(value) && value.version === 1 && isRecord(value.spec) && isRecord(value.dataset)
+}
+
+function extractChartPayloads(toolResult: unknown): ChartPayload[] {
+  if (!isRecord(toolResult)) return []
+  const details = isRecord(toolResult.details) ? toolResult.details : toolResult
+  const charts: ChartPayload[] = []
+  if (isChartPayload(details.chart)) charts.push(details.chart)
+  if (Array.isArray(details.charts)) {
+    for (const chart of details.charts) {
+      if (isChartPayload(chart)) charts.push(chart)
+    }
+  }
+  return charts
+}
+
+function toPersistedChartPayload(chart: ChartPayload): ChartPayload {
+  return {
+    ...chart,
+    dataset: {
+      ...chart.dataset,
+      rows: [],
+    },
+  }
 }
 
 function resolveSingleSessionId(dbManager: DatabaseManager): string {
@@ -172,6 +203,14 @@ export async function runChatTurn(
     }
   }
 
+  const appendChartBlocks = (charts: ChartPayload[]) => {
+    if (charts.length === 0) return
+    // 中文注释：图表 block 需要持久化给 CLI 生成的 AI 对话回放；
+    // 原始 SQL 行数据可能较大，保存时只保留渲染数据和字段元信息。
+    contentBlocks.push(...charts.map((chart) => ({ type: 'chart' as const, chart: toPersistedChartPayload(chart) })))
+    hasReplayContentBlocks = true
+  }
+
   await runAgentStream(
     {
       userMessage: options.question,
@@ -180,6 +219,7 @@ export async function runChatTurn(
       assistantId: target.assistantId,
       chatType: 'group',
       locale: options.locale ?? 'zh-CN',
+      enableAutoSkill: true,
     },
     (chunk: AgentStreamChunk) => {
       if (options.includeEvents) {
@@ -196,6 +236,10 @@ export async function runChatTurn(
       }
       if (chunk.type === 'think') {
         appendThinkBlock(chunk.content ?? '', chunk.thinkTag, chunk.thinkDurationMs)
+        return
+      }
+      if (chunk.type === 'tool_result' && chunk.toolName === 'render_chart') {
+        appendChartBlocks(extractChartPayloads(chunk.toolResult))
         return
       }
       if (chunk.type === 'content' && chunk.content) {

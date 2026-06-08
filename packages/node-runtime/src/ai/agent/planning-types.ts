@@ -17,6 +17,13 @@ export interface AnalysisPlanSummary {
   successCriteria: string[]
 }
 
+export interface PlannerCapabilitySummary {
+  id: string
+  label: string
+  tools: string[]
+  guidance: string
+}
+
 export interface PlanContentBlock {
   type: 'plan'
   version: 1
@@ -30,6 +37,7 @@ export interface PlannerInput {
   locale: string
   dataSnapshot?: DataSnapshot
   availableTools: string[]
+  availableCapabilities?: PlannerCapabilitySummary[]
   assistantSummary?: string
   skillSummary?: string
   recentIntentSummary?: string

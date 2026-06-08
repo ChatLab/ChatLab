@@ -103,6 +103,8 @@ export function createCliRunAgentStream(
       userMessage,
       locale,
       assistantAllowedTools,
+      enableAutoDetection: enableAutoSkill === true,
+      enableAnalyticalAutoDetection: enableAutoSkill === true,
     })
     const isChartCapability = chartRuntime.isChartCapability
     const autoSkillAllowedTools =
