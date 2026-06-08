@@ -1,6 +1,13 @@
 import { createInterface } from 'node:readline/promises'
 import type { Readable, Writable } from 'node:stream'
-import type { DatabaseManager, AIChatManager, AgentStreamChunk, TokenUsageData } from '@openchatlab/node-runtime'
+import type {
+  DatabaseManager,
+  AIChatManager,
+  AgentStreamChunk,
+  ContentBlock,
+  PlanContentBlock,
+  TokenUsageData,
+} from '@openchatlab/node-runtime'
 import type { PathProvider } from '@openchatlab/core'
 import { createCliRunAgentStream } from './agent-stream-runner'
 
@@ -11,6 +18,7 @@ export interface ChatCommandOptions {
   json?: boolean
   stream?: boolean
   locale?: string
+  includeEvents?: boolean
 }
 
 export interface ChatCommandDeps {
@@ -35,6 +43,8 @@ export interface ChatTurnResult {
   aiChatId: string
   question: string
   answer: string
+  events?: AgentStreamChunk[]
+  contentBlocks?: ContentBlock[]
   usage: {
     durationMs: number
     tokenUsage: TokenUsageData | null
@@ -106,7 +116,7 @@ export function resolveAIChatTarget(
 
 export async function runChatTurn(
   options: Required<Pick<ChatCommandOptions, 'question'>> &
-    Pick<ChatCommandOptions, 'sessionId' | 'aiChatId' | 'json' | 'stream' | 'locale'>,
+    Pick<ChatCommandOptions, 'sessionId' | 'aiChatId' | 'json' | 'stream' | 'locale' | 'includeEvents'>,
   deps: ChatCommandDeps
 ): Promise<ChatTurnResult> {
   const stdout = deps.stdout ?? process.stdout
@@ -115,8 +125,52 @@ export async function runChatTurn(
   let answer = ''
   let tokenUsage: TokenUsageData | null = null
   let streamError: Error | null = null
+  const events: AgentStreamChunk[] = []
+  const contentBlocks: ContentBlock[] = []
+  let hasReplayContentBlocks = false
 
   const runAgentStream = (deps.createRunAgentStream ?? createCliRunAgentStream)(deps.dbManager, deps.aiChatManager)
+
+  // 中文注释：CLI 历史回放依赖 contentBlocks 的时序；只要出现计划/思考块，
+  // 就同步保留后续正文 text block，避免 UI 使用 blocks 渲染时丢失最终回答。
+  const appendTextBlock = (text: string) => {
+    if (!text) return
+    const lastBlock = contentBlocks[contentBlocks.length - 1]
+    if (lastBlock?.type === 'text') {
+      lastBlock.text += text
+    } else {
+      contentBlocks.push({ type: 'text', text })
+    }
+  }
+
+  const appendThinkBlock = (text: string, tag = 'thinking', durationMs?: number) => {
+    if (!text && durationMs === undefined) return
+    const lastBlock = contentBlocks[contentBlocks.length - 1]
+    let targetBlock: ContentBlock | undefined
+
+    if (lastBlock?.type === 'think' && lastBlock.tag === tag) {
+      lastBlock.text += text
+      targetBlock = lastBlock
+    } else if (text.trim().length > 0) {
+      targetBlock = { type: 'think', tag, text }
+      contentBlocks.push(targetBlock)
+    } else if (durationMs !== undefined) {
+      for (let index = contentBlocks.length - 1; index >= 0; index--) {
+        const block = contentBlocks[index]
+        if (block.type === 'think' && block.tag === tag) {
+          targetBlock = block
+          break
+        }
+      }
+    }
+
+    if (durationMs !== undefined && targetBlock?.type === 'think') {
+      targetBlock.durationMs = durationMs
+    }
+    if (targetBlock?.type === 'think') {
+      hasReplayContentBlocks = true
+    }
+  }
 
   await runAgentStream(
     {
@@ -128,16 +182,36 @@ export async function runChatTurn(
       locale: options.locale ?? 'zh-CN',
     },
     (chunk: AgentStreamChunk) => {
+      if (options.includeEvents) {
+        events.push(JSON.parse(JSON.stringify(chunk)) as AgentStreamChunk)
+      }
       if (chunk.type === 'error') {
         streamError = createAgentStreamError(chunk.error)
         return
       }
+      if (chunk.type === 'plan' && chunk.plan) {
+        hasReplayContentBlocks = true
+        contentBlocks.push(JSON.parse(JSON.stringify(chunk.plan)) as PlanContentBlock)
+        return
+      }
+      if (chunk.type === 'think') {
+        appendThinkBlock(chunk.content ?? '', chunk.thinkTag, chunk.thinkDurationMs)
+        return
+      }
       if (chunk.type === 'content' && chunk.content) {
         answer += chunk.content
+        appendTextBlock(chunk.content)
         if (!options.json && options.stream !== false) write(stdout, chunk.content)
       }
       if (chunk.type === 'done' && chunk.usage) {
         tokenUsage = chunk.usage
+        for (let index = contentBlocks.length - 1; index >= 0; index--) {
+          const block = contentBlocks[index]
+          if (block.type === 'plan') {
+            block.status = 'done'
+            break
+          }
+        }
       }
     },
     new AbortController().signal
@@ -156,7 +230,7 @@ export async function runChatTurn(
     answer,
     undefined,
     undefined,
-    undefined,
+    hasReplayContentBlocks ? contentBlocks : undefined,
     tokenUsage ?? undefined
   )
 
@@ -165,6 +239,8 @@ export async function runChatTurn(
     aiChatId: target.aiChatId,
     question: options.question,
     answer,
+    ...(options.includeEvents ? { events } : {}),
+    ...(hasReplayContentBlocks ? { contentBlocks } : {}),
     usage: {
       durationMs: Date.now() - startedAt,
       tokenUsage,

@@ -2,7 +2,7 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { Readable } from 'node:stream'
 import { Writable } from 'node:stream'
-import type { AIChatManager, DatabaseManager } from '@openchatlab/node-runtime'
+import type { AIChatManager, ContentBlock, DatabaseManager, TokenUsageData } from '@openchatlab/node-runtime'
 import { resolveAIChatTarget, runChatCommand, runChatTurn } from './chat-command'
 
 function createDbManager(sessionIds: string[]): DatabaseManager {
@@ -18,7 +18,13 @@ function createAIChatManager(
   const chats = new Map<string, { id: string; sessionId: string; title: string | null; assistantId: string }>(
     existing.map((chat) => [chat.id, { ...chat, title: null, assistantId: chat.assistantId ?? 'general_cn' }])
   )
-  const messages: Array<{ aiChatId: string; role: string; content: string }> = []
+  const messages: Array<{
+    aiChatId: string
+    role: string
+    content: string
+    contentBlocks?: ContentBlock[]
+    tokenUsage?: TokenUsageData
+  }> = []
 
   return {
     getAIChat: (aiChatId: string) => chats.get(aiChatId) ?? null,
@@ -28,8 +34,22 @@ function createAIChatManager(
       chats.set(id, chat)
       return chat
     },
-    addMessage: (aiChatId: string, role: string, content: string) => {
-      messages.push({ aiChatId, role, content })
+    addMessage: (
+      aiChatId: string,
+      role: string,
+      content: string,
+      _dataKeywords?: string[],
+      _dataMessageCount?: number,
+      contentBlocks?: ContentBlock[],
+      tokenUsage?: TokenUsageData
+    ) => {
+      messages.push({
+        aiChatId,
+        role,
+        content,
+        ...(contentBlocks ? { contentBlocks } : {}),
+        ...(tokenUsage ? { tokenUsage } : {}),
+      })
       return { id: `msg_${messages.length}`, aiChatId, role, content, timestamp: 1 }
     },
     __messages: messages,
@@ -150,7 +170,149 @@ describe('runChatTurn', () => {
     assert.equal(stdout.text(), '')
     assert.deepEqual((aiChatManager as unknown as { __messages: unknown[] }).__messages, [
       { aiChatId: 'ai_chat_1', role: 'user', content: 'hello' },
-      { aiChatId: 'ai_chat_1', role: 'assistant', content: 'hi' },
+      {
+        aiChatId: 'ai_chat_1',
+        role: 'assistant',
+        content: 'hi',
+        tokenUsage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+      },
+    ])
+  })
+
+  it('can include all agent events and persist plan content blocks', async () => {
+    const stdout = new MemoryWritable()
+    const aiChatManager = createAIChatManager()
+
+    const result = await runChatTurn(
+      { sessionId: 'session-1', question: '分析过去一年话题趋势', json: true, includeEvents: true },
+      {
+        dbManager: createDbManager(['session-1']),
+        pathProvider: {} as never,
+        aiChatManager,
+        stdout,
+        createRunAgentStream: () => async (_params, onEvent) => {
+          onEvent({
+            type: 'route',
+            routeDecision: {
+              route: 'planned_execution',
+              confidence: 0.91,
+              reason: 'Complex long-range trend analysis.',
+              source: 'rule',
+            },
+          })
+          onEvent({
+            type: 'plan',
+            plan: {
+              type: 'plan',
+              version: 1,
+              status: 'created',
+              plan: {
+                version: 1,
+                title: '年度话题趋势',
+                route: 'planned_execution',
+                intent: 'trend',
+                steps: [{ goal: '按季度检索', suggestedTools: ['search_messages'], evidenceNeeded: '季度证据' }],
+                successCriteria: ['覆盖至少三个季度'],
+              },
+            },
+          })
+          onEvent({ type: 'content', content: '年度趋势如下。' })
+          onEvent({
+            type: 'done',
+            isFinished: true,
+            usage: { promptTokens: 3, completionTokens: 5, totalTokens: 8 },
+          })
+        },
+      }
+    )
+
+    assert.equal(result.answer, '年度趋势如下。')
+    assert.equal(result.events?.length, 4)
+    assert.equal(result.events?.[0]?.type, 'route')
+    assert.equal(result.events?.[0]?.routeDecision?.route, 'planned_execution')
+    assert.equal(result.events?.[1]?.type, 'plan')
+    assert.equal(result.contentBlocks?.[0]?.type, 'plan')
+    assert.equal(result.contentBlocks?.[0]?.status, 'done')
+    assert.deepEqual((aiChatManager as unknown as { __messages: unknown[] }).__messages, [
+      { aiChatId: 'ai_chat_1', role: 'user', content: '分析过去一年话题趋势' },
+      {
+        aiChatId: 'ai_chat_1',
+        role: 'assistant',
+        content: '年度趋势如下。',
+        contentBlocks: result.contentBlocks,
+        tokenUsage: { promptTokens: 3, completionTokens: 5, totalTokens: 8 },
+      },
+    ])
+  })
+
+  it('persists streamed thinking and answer text blocks for full CLI replay', async () => {
+    const stdout = new MemoryWritable()
+    const aiChatManager = createAIChatManager()
+
+    const result = await runChatTurn(
+      { sessionId: 'session-1', question: '分析过去一年话题趋势', json: true, includeEvents: true },
+      {
+        dbManager: createDbManager(['session-1']),
+        pathProvider: {} as never,
+        aiChatManager,
+        stdout,
+        createRunAgentStream: () => async (_params, onEvent) => {
+          onEvent({
+            type: 'plan',
+            plan: {
+              type: 'plan',
+              version: 1,
+              status: 'created',
+              plan: {
+                version: 1,
+                title: '年度话题趋势',
+                route: 'planned_execution',
+                intent: 'trend',
+                steps: [{ goal: '按季度检索', suggestedTools: ['search_messages'], evidenceNeeded: '季度证据' }],
+                successCriteria: ['覆盖至少三个季度'],
+              },
+            },
+          })
+          onEvent({ type: 'think', thinkTag: 'thinking', content: '先理解问题，' })
+          onEvent({ type: 'think', thinkTag: 'thinking', content: '再整理证据。' })
+          onEvent({ type: 'think', thinkTag: 'thinking', content: '', thinkDurationMs: 1200 })
+          onEvent({ type: 'content', content: '年度趋势如下。' })
+          onEvent({
+            type: 'done',
+            isFinished: true,
+            usage: { promptTokens: 3, completionTokens: 5, totalTokens: 8 },
+          })
+        },
+      }
+    )
+
+    assert.equal(result.answer, '年度趋势如下。')
+    assert.equal(result.events?.filter((event) => event.type === 'think').length, 3)
+    assert.deepEqual(
+      result.contentBlocks?.map((block) => block.type),
+      ['plan', 'think', 'text']
+    )
+    assert.equal(result.contentBlocks?.[0]?.type, 'plan')
+    assert.equal(result.contentBlocks?.[0]?.status, 'done')
+    assert.deepEqual(result.contentBlocks?.[1], {
+      type: 'think',
+      tag: 'thinking',
+      text: '先理解问题，再整理证据。',
+      durationMs: 1200,
+    })
+    assert.deepEqual(result.contentBlocks?.[2], {
+      type: 'text',
+      text: '年度趋势如下。',
+    })
+    assert.deepEqual((aiChatManager as unknown as { __messages: unknown[] }).__messages, [
+      { aiChatId: 'ai_chat_1', role: 'user', content: '分析过去一年话题趋势' },
+      {
+        aiChatId: 'ai_chat_1',
+        role: 'assistant',
+        content: '年度趋势如下。',
+        contentBlocks: result.contentBlocks,
+        tokenUsage: { promptTokens: 3, completionTokens: 5, totalTokens: 8 },
+      },
     ])
   })
 

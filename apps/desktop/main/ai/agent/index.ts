@@ -156,6 +156,7 @@ export class Agent {
       availableToolCount: piTools.length,
       shadowOnly: true,
     })
+    onChunk({ type: 'route', routeDecision })
 
     let effectiveSystemPrompt = systemPrompt
     if (routeDecision.route === 'planned_execution') {

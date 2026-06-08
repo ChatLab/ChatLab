@@ -308,6 +308,7 @@ program
   .option('--ai-chat-id <id>', 'Existing AI chat ID to continue')
   .option('-q, --question <text>', 'Question to ask')
   .option('--json', 'Output structured JSON')
+  .option('--include-events', 'Include all agent stream chunks in JSON output')
   .option('--no-stream', 'Disable streaming output')
   .option('--locale <locale>', 'AI response locale', 'zh-CN')
   .action(async (options) => {
@@ -324,6 +325,7 @@ program
           json: !!options.json,
           stream: options.stream,
           locale: options.locale,
+          includeEvents: !!options.includeEvents,
         },
         { dbManager, pathProvider, aiChatManager }
       )

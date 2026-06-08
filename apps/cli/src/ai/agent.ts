@@ -191,6 +191,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
       availableToolCount: tools.length,
       shadowOnly: true,
     })
+    onEvent({ type: 'route', routeDecision })
 
     let effectiveSystemPrompt = systemPrompt
     if (routeDecision.route === 'planned_execution') {

@@ -10,7 +10,17 @@ export interface LlmStreamChunk {
 }
 
 export interface AgentStreamChunk {
-  type: 'content' | 'think' | 'tool_start' | 'tool_result' | 'status' | 'compression_done' | 'plan' | 'done' | 'error'
+  type:
+    | 'content'
+    | 'think'
+    | 'tool_start'
+    | 'tool_result'
+    | 'status'
+    | 'compression_done'
+    | 'route'
+    | 'plan'
+    | 'done'
+    | 'error'
   content?: string
   thinkTag?: string
   thinkDurationMs?: number
@@ -21,12 +31,28 @@ export interface AgentStreamChunk {
   isFinished?: boolean
   usage?: TokenUsage
   status?: AgentRuntimeStatus
+  routeDecision?: RouteDecision
   plan?: PlanContentBlock
   compressionResult?: {
     summaryContent: string
     tokensBefore: number
     tokensAfter: number
     timestamp: number
+  }
+}
+
+export type RequestRoute = 'direct_response' | 'tool_assisted' | 'planned_execution'
+export type RouteDecisionSource = 'rule' | 'llm'
+
+export interface RouteDecision {
+  route: RequestRoute
+  confidence: number
+  reason: string
+  source: RouteDecisionSource
+  usage?: {
+    promptTokens?: number
+    completionTokens?: number
+    totalTokens?: number
   }
 }
 
