@@ -113,6 +113,11 @@ function isDuplicate(
   return false
 }
 
+function normalizeTimestamp(timestamp: unknown): number | null {
+  const value = typeof timestamp === 'string' && timestamp.trim() !== '' ? Number(timestamp) : timestamp
+  return typeof value === 'number' && value > 0 && Number.isFinite(value) ? value : null
+}
+
 // ==================== Analyze (dry-run) ====================
 
 export async function analyzeIncrementalImport(
@@ -148,7 +153,10 @@ export async function analyzeIncrementalImport(
     onMessageBatch: (batch) => {
       for (const msg of batch) {
         totalInFile++
-        if (isDuplicate(msg, existingPlatformMsgIds, existingKeys)) {
+        const timestamp = normalizeTimestamp(msg.timestamp)
+        if (timestamp === null) continue
+
+        if (isDuplicate({ ...msg, timestamp }, existingPlatformMsgIds, existingKeys)) {
           duplicateCount++
         } else {
           newMessageCount++
@@ -297,12 +305,13 @@ export async function incrementalImport(
             trackError(processedCount, 'MISSING_TIMESTAMP', 'timestamp field is missing')
             continue
           }
-          if (typeof msg.timestamp !== 'number' || msg.timestamp <= 0 || !isFinite(msg.timestamp)) {
+          const timestamp = normalizeTimestamp(msg.timestamp)
+          if (timestamp === null) {
             trackError(processedCount, 'INVALID_TIMESTAMP', `timestamp value: ${msg.timestamp}`)
             continue
           }
 
-          if (isDuplicate(msg, existingPlatformMsgIds, existingKeys)) {
+          if (isDuplicate({ ...msg, timestamp }, existingPlatformMsgIds, existingKeys)) {
             duplicateCount++
             continue
           }
@@ -328,7 +337,7 @@ export async function incrementalImport(
             memberId,
             msg.senderAccountName || null,
             msg.senderGroupNickname || null,
-            msg.timestamp,
+            timestamp,
             msg.type,
             msg.content || null,
             msg.replyToMessageId || null,
