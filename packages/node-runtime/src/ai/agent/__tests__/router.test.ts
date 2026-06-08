@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { decideRequestRoute } from '../router'
+import { createLlmRouteDecider, decideRequestRoute } from '../router'
 import type { RouteDecision, RouteDecisionSource } from '../routing-types'
 
 const baseInput = {
@@ -85,5 +85,65 @@ describe('decideRequestRoute', () => {
     assert.equal(decision.source, 'rule')
     assert.ok(decision.confidence < 0.6)
     assert.match(decision.reason, /ambiguous/i)
+  })
+
+  it('creates an LLM fallback decider that parses route JSON', async () => {
+    const decider = createLlmRouteDecider({
+      complete: async () => '{"route":"direct_response","confidence":1.4,"reason":"No local data dependency."}',
+    })
+
+    const decision = await decider(
+      {
+        ...baseInput,
+        userMessage: '帮我看一下这个情况。',
+      },
+      {
+        route: 'tool_assisted',
+        confidence: 0.45,
+        reason: 'Ambiguous request.',
+        source: 'rule',
+      }
+    )
+
+    assert.equal(decision.route, 'direct_response')
+    assert.equal(decision.source, 'llm')
+    assert.equal(decision.confidence, 1)
+    assert.match(decision.reason, /No local data/)
+  })
+
+  it('keeps the rule decision when LLM fallback output is invalid', async () => {
+    const decider = createLlmRouteDecider({
+      complete: async () => '{"route":"unknown","confidence":0.9,"reason":"bad"}',
+    })
+    const ruleDecision: RouteDecision = {
+      route: 'tool_assisted',
+      confidence: 0.45,
+      reason: 'Ambiguous request.',
+      source: 'rule',
+    }
+
+    const decision = await decider(baseInput, ruleDecision)
+
+    assert.equal(decision.route, 'tool_assisted')
+    assert.equal(decision.source, 'rule')
+    assert.match(decision.reason, /invalid/i)
+  })
+
+  it('does not mark invalid LLM fallback as an LLM-sourced decision', async () => {
+    const decision = await decideRequestRoute(
+      {
+        ...baseInput,
+        userMessage: '帮我看一下这个情况。',
+      },
+      {
+        llmRouter: createLlmRouteDecider({
+          complete: async () => '{"route":"unknown","confidence":0.9,"reason":"bad"}',
+        }),
+      }
+    )
+
+    assert.equal(decision.route, 'tool_assisted')
+    assert.equal(decision.source, 'rule')
+    assert.match(decision.reason, /invalid/i)
   })
 })

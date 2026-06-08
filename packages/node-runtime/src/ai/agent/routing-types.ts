@@ -20,6 +20,11 @@ export interface RouteDecision {
   confidence: number
   reason: string
   source: RouteDecisionSource
+  usage?: {
+    promptTokens?: number
+    completionTokens?: number
+    totalTokens?: number
+  }
 }
 
 export type LlmRouteDecider = (

@@ -7,6 +7,7 @@
 
 import {
   DEFAULT_MAX_TOOL_ROUNDS,
+  createLlmRouteDecider,
   decideRequestRoute,
   runAgentCore,
   checkAndCompress,
@@ -166,14 +167,23 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
 
   try {
     const routeStartedAt = Date.now()
-    const routeDecision = await decideRequestRoute({
-      userMessage,
-      chatType,
-      locale,
-      dataSnapshot,
-      availableTools: tools.map((tool) => tool.name),
-      skillSummary: skillDef?.name ?? (skillMenu ? 'auto_skill_menu' : undefined),
-    })
+    const routeDecision = await decideRequestRoute(
+      {
+        userMessage,
+        chatType,
+        locale,
+        dataSnapshot,
+        availableTools: tools.map((tool) => tool.name),
+        skillSummary: skillDef?.name ?? (skillMenu ? 'auto_skill_menu' : undefined),
+      },
+      {
+        llmRouter: createLlmRouteDecider({
+          piModel,
+          apiKey: llmConfig.apiKey,
+          abortSignal,
+        }),
+      }
+    )
     aiLogger?.info('Router', 'Shadow route decision', {
       ...routeDecision,
       elapsedMs: Date.now() - routeStartedAt,

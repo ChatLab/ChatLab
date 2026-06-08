@@ -1,8 +1,30 @@
 import type { LlmRouteDecider, RouteDecision, RouterInput } from './routing-types'
+import {
+  completeSimple,
+  type Api as PiApi,
+  type Model as PiModel,
+  type TextContent as PiTextContent,
+} from '@earendil-works/pi-ai'
 
 export interface DecideRequestRouteOptions {
   llmRouter?: LlmRouteDecider
   llmFallbackConfidenceThreshold?: number
+}
+
+export type LlmRouterCompletionResult =
+  | string
+  | {
+      text: string
+      usage?: RouteDecision['usage']
+    }
+
+export interface CreateLlmRouteDeciderOptions {
+  piModel?: PiModel<PiApi>
+  apiKey?: string
+  complete?: (prompt: string, signal?: AbortSignal) => Promise<LlmRouterCompletionResult> | LlmRouterCompletionResult
+  abortSignal?: AbortSignal
+  maxTokens?: number
+  temperature?: number
 }
 
 const DEFAULT_LLM_FALLBACK_CONFIDENCE_THRESHOLD = 0.6
@@ -18,6 +40,69 @@ function normalizeText(text: string): string {
 
 function matchAny(text: string, patterns: RegExp[]): boolean {
   return patterns.some((pattern) => pattern.test(text))
+}
+
+function isRoute(value: unknown): value is RouteDecision['route'] {
+  return value === 'direct_response' || value === 'tool_assisted' || value === 'planned_execution'
+}
+
+function resultToText(result: LlmRouterCompletionResult): { text: string; usage?: RouteDecision['usage'] } {
+  return typeof result === 'string' ? { text: result } : result
+}
+
+function extractJsonObject(text: string): string {
+  const fenced = text.match(/```(?:json)?\s*([\s\S]*?)```/i)
+  if (fenced?.[1]) return fenced[1].trim()
+  const start = text.indexOf('{')
+  const end = text.lastIndexOf('}')
+  if (start >= 0 && end > start) return text.slice(start, end + 1)
+  return text.trim()
+}
+
+function parseLlmDecision(rawText: string, usage?: RouteDecision['usage']): RouteDecision | null {
+  try {
+    const parsed = JSON.parse(extractJsonObject(rawText)) as Record<string, unknown>
+    if (!isRoute(parsed.route)) return null
+    return {
+      route: parsed.route,
+      confidence: clampConfidence(typeof parsed.confidence === 'number' ? parsed.confidence : 0.5),
+      reason: typeof parsed.reason === 'string' && parsed.reason.trim() ? parsed.reason.trim() : 'LLM route decision.',
+      source: 'llm',
+      usage,
+    }
+  } catch {
+    return null
+  }
+}
+
+function buildLlmRouterPrompt(input: RouterInput, ruleDecision: RouteDecision): string {
+  const toolNames = input.availableTools?.length ? input.availableTools.join(', ') : '(none)'
+  const dataSnapshot = input.dataSnapshot
+    ? `${input.dataSnapshot.name}, ${input.dataSnapshot.totalMessages} messages, ${input.dataSnapshot.totalMembers} members`
+    : '(none)'
+
+  return `Classify the user's ChatLab request into exactly one route.
+
+Routes:
+- direct_response: no local chat data/tools needed.
+- tool_assisted: local chat data/tools needed, but the task is simple.
+- planned_execution: complex analysis, multi-step evidence gathering, retries, long-range comparison, relationship analysis, or insufficient-evidence handling.
+
+Return strict JSON only:
+{"route":"direct_response|tool_assisted|planned_execution","confidence":0.0,"reason":"short reason"}
+
+Context:
+- locale: ${input.locale}
+- chatType: ${input.chatType}
+- availableTools: ${toolNames}
+- dataSnapshot: ${dataSnapshot}
+- assistantSummary: ${input.assistantSummary ?? '(none)'}
+- skillSummary: ${input.skillSummary ?? '(none)'}
+- recentIntentSummary: ${input.recentIntentSummary ?? '(none)'}
+- ruleDecision: ${ruleDecision.route}, confidence=${ruleDecision.confidence}, reason=${ruleDecision.reason}
+
+User request:
+${input.userMessage}`
 }
 
 function directRuleDecision(text: string): RouteDecision | null {
@@ -156,6 +241,67 @@ export async function decideRequestRoute(
   return {
     ...llmDecision,
     confidence: clampConfidence(llmDecision.confidence),
-    source: 'llm',
+  }
+}
+
+export function createLlmRouteDecider(options: CreateLlmRouteDeciderOptions): LlmRouteDecider {
+  return async (input, ruleDecision) => {
+    const prompt = buildLlmRouterPrompt(input, ruleDecision)
+
+    try {
+      const rawResult = options.complete
+        ? await options.complete(prompt, options.abortSignal)
+        : await completeWithPiAi(prompt, options)
+      const { text, usage } = resultToText(rawResult)
+      const decision = parseLlmDecision(text, usage)
+      if (decision) return decision
+      return {
+        ...ruleDecision,
+        reason: `${ruleDecision.reason} LLM fallback returned invalid route JSON.`,
+      }
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      return {
+        ...ruleDecision,
+        reason: `${ruleDecision.reason} LLM fallback failed: ${message}`,
+      }
+    }
+  }
+}
+
+async function completeWithPiAi(
+  prompt: string,
+  options: CreateLlmRouteDeciderOptions
+): Promise<LlmRouterCompletionResult> {
+  if (!options.piModel || !options.apiKey) {
+    throw new Error('LLM router requires piModel and apiKey')
+  }
+
+  const result = await completeSimple(
+    options.piModel,
+    {
+      systemPrompt: 'You are a strict JSON classifier for ChatLab AI routing. Return JSON only.',
+      messages: [{ role: 'user', content: [{ type: 'text', text: prompt }], timestamp: Date.now() }] as any,
+    },
+    {
+      apiKey: options.apiKey,
+      maxTokens: options.maxTokens ?? 180,
+      temperature: options.temperature ?? 0,
+      signal: options.abortSignal,
+    }
+  )
+
+  const text = result.content
+    .filter((item): item is PiTextContent => item.type === 'text')
+    .map((item) => item.text)
+    .join('')
+
+  return {
+    text,
+    usage: {
+      promptTokens: result.usage?.input,
+      completionTokens: result.usage?.output,
+      totalTokens: result.usage?.totalTokens,
+    },
   }
 }

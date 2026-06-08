@@ -11,6 +11,7 @@ import { aiLogger, isDebugMode } from '../logger'
 import { t as i18nT } from '../../i18n'
 import {
   DEFAULT_MAX_TOOL_ROUNDS,
+  createLlmRouteDecider,
   decideRequestRoute,
   runAgentCore,
   streamSimple,
@@ -129,15 +130,24 @@ export class Agent {
     }
 
     const routeStartedAt = Date.now()
-    const routeDecision = await decideRequestRoute({
-      userMessage,
-      chatType: this.chatType,
-      locale: this.locale,
-      dataSnapshot: this.context.dataSnapshot,
-      availableTools: piTools.map((tool) => tool.name),
-      assistantSummary: this.assistantConfig?.name,
-      skillSummary: this.skillCtx?.skillDef?.name ?? (this.skillCtx?.skillMenu ? 'auto_skill_menu' : undefined),
-    })
+    const routeDecision = await decideRequestRoute(
+      {
+        userMessage,
+        chatType: this.chatType,
+        locale: this.locale,
+        dataSnapshot: this.context.dataSnapshot,
+        availableTools: piTools.map((tool) => tool.name),
+        assistantSummary: this.assistantConfig?.name,
+        skillSummary: this.skillCtx?.skillDef?.name ?? (this.skillCtx?.skillMenu ? 'auto_skill_menu' : undefined),
+      },
+      {
+        llmRouter: createLlmRouteDecider({
+          piModel: this.piModel,
+          apiKey: this.apiKey,
+          abortSignal: this.abortSignal,
+        }),
+      }
+    )
     aiLogger.info('Router', 'Shadow route decision', {
       ...routeDecision,
       elapsedMs: Date.now() - routeStartedAt,
