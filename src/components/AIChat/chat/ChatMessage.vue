@@ -161,6 +161,15 @@ function formatToolStatusForCopy(status: ToolBlockContent['status']): string {
   return 'error'
 }
 
+function getPlanStatusLabel(status: 'created' | 'executing' | 'done' | 'skipped'): string {
+  return t(`ai.chat.message.plan.status.${status}`)
+}
+
+function formatPlanTools(tools: string[]): string {
+  if (tools.length === 0) return t('ai.chat.message.plan.noTools')
+  return tools.join(', ')
+}
+
 // 格式化时间参数显示
 function formatTimeParams(params: Record<string, unknown>): string {
   // 优先使用 start_time/end_time
@@ -335,6 +344,17 @@ const copyMarkdownText = computed(() => {
         return `> Chart: ${block.chart.spec.title}`
       }
 
+      if (block.type === 'plan') {
+        const steps = block.plan.steps
+          .map(
+            (step, index) =>
+              `${index + 1}. ${step.goal}\n   - ${t('ai.chat.message.plan.evidenceNeeded')}: ${step.evidenceNeeded}\n   - ${t('ai.chat.message.plan.suggestedTools')}: ${formatPlanTools(step.suggestedTools)}`
+          )
+          .join('\n')
+        const criteria = block.plan.successCriteria.map((item) => `- ${item}`).join('\n')
+        return `> ${t('ai.chat.message.plan.label')}: ${block.plan.title} (${getPlanStatusLabel(block.status)})\n\n${steps}\n\n${t('ai.chat.message.plan.successCriteria')}:\n${criteria}`
+      }
+
       if (block.type === 'tool') {
         const toolName = getToolDisplayName(block.tool)
         const toolParams = formatToolParams(block.tool)
@@ -488,6 +508,47 @@ async function handleCopyMarkdown() {
               <UIcon name="i-heroicons-bolt" class="h-3.5 w-3.5" />
               <span>{{ t('ai.skill.active.label', { name: block.skillName }) }}</span>
             </div>
+
+            <!-- 计划块 -->
+            <details
+              v-else-if="block.type === 'plan'"
+              class="mb-2 rounded-lg border border-blue-100 bg-blue-50/60 text-sm text-gray-700 dark:border-blue-900/40 dark:bg-blue-950/20 dark:text-gray-300"
+            >
+              <summary
+                class="flex cursor-pointer select-none items-center gap-2 px-3 py-2 text-xs font-medium text-blue-700 transition-colors hover:text-blue-800 dark:text-blue-300 dark:hover:text-blue-200"
+              >
+                <UIcon name="i-heroicons-clipboard-document-list" class="h-3.5 w-3.5 shrink-0" />
+                <span class="min-w-0 truncate">{{ t('ai.chat.message.plan.label') }} · {{ block.plan.title }}</span>
+                <span
+                  class="ml-auto shrink-0 rounded-full bg-white/70 px-2 py-0.5 text-[11px] text-blue-600 dark:bg-blue-950/60 dark:text-blue-300"
+                >
+                  {{ getPlanStatusLabel(block.status) }}
+                </span>
+              </summary>
+              <div class="border-t border-blue-100/70 px-3 py-2.5 dark:border-blue-900/40">
+                <ol class="space-y-2">
+                  <li v-for="(step, stepIndex) in block.plan.steps" :key="stepIndex" class="text-xs leading-relaxed">
+                    <div class="font-medium text-gray-800 dark:text-gray-200">{{ stepIndex + 1 }}. {{ step.goal }}</div>
+                    <div class="mt-1 text-gray-500 dark:text-gray-400">
+                      {{ t('ai.chat.message.plan.evidenceNeeded') }}: {{ step.evidenceNeeded }}
+                    </div>
+                    <div class="mt-0.5 text-gray-500 dark:text-gray-400">
+                      {{ t('ai.chat.message.plan.suggestedTools') }}: {{ formatPlanTools(step.suggestedTools) }}
+                    </div>
+                  </li>
+                </ol>
+                <div class="mt-2 border-t border-blue-100/70 pt-2 dark:border-blue-900/40">
+                  <div class="text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                    {{ t('ai.chat.message.plan.successCriteria') }}
+                  </div>
+                  <ul class="mt-1 list-disc space-y-0.5 pl-4 text-xs leading-relaxed text-gray-600 dark:text-gray-300">
+                    <li v-for="(criterion, criterionIndex) in block.plan.successCriteria" :key="criterionIndex">
+                      {{ criterion }}
+                    </li>
+                  </ul>
+                </div>
+              </div>
+            </details>
 
             <!-- 图表块 -->
             <ChartBlockRenderer v-else-if="block.type === 'chart'" :chart="block.chart" />

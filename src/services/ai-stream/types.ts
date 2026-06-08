@@ -1,3 +1,5 @@
+import type { PlanContentBlock } from '@/services/ai/planBlocks'
+
 export interface LlmStreamChunk {
   content: string
   isFinished: boolean
@@ -8,7 +10,7 @@ export interface LlmStreamChunk {
 }
 
 export interface AgentStreamChunk {
-  type: 'content' | 'think' | 'tool_start' | 'tool_result' | 'status' | 'compression_done' | 'done' | 'error'
+  type: 'content' | 'think' | 'tool_start' | 'tool_result' | 'status' | 'compression_done' | 'plan' | 'done' | 'error'
   content?: string
   thinkTag?: string
   thinkDurationMs?: number
@@ -19,6 +21,7 @@ export interface AgentStreamChunk {
   isFinished?: boolean
   usage?: TokenUsage
   status?: AgentRuntimeStatus
+  plan?: PlanContentBlock
   compressionResult?: {
     summaryContent: string
     tokensBefore: number

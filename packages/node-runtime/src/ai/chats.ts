@@ -9,6 +9,7 @@ import Database from 'better-sqlite3'
 import * as fs from 'fs'
 import * as path from 'path'
 import type { ChartPayload } from '@openchatlab/core'
+import type { PlanContentBlock } from './agent'
 
 const DEFAULT_GENERAL_ID = 'general_cn'
 
@@ -28,6 +29,7 @@ export type ContentBlock =
   | { type: 'text'; text: string }
   | { type: 'think'; tag: string; text: string; durationMs?: number }
   | { type: 'chart'; chart: ChartPayload }
+  | PlanContentBlock
   | {
       type: 'tool'
       tool: {
@@ -154,9 +156,9 @@ export class AIChatManager {
   }
 
   private tableExists(db: Database.Database, tableName: string): boolean {
-    const row = db
-      .prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?")
-      .get(tableName) as { 1: number } | undefined
+    const row = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(tableName) as
+      | { 1: number }
+      | undefined
     return !!row
   }
 
@@ -369,9 +371,9 @@ export class AIChatManager {
 
   private getActiveMessageId(aiChatId: string): string | null {
     const db = this.getDb()
-    const row = db
-      .prepare('SELECT active_message_id as activeMessageId FROM ai_chat WHERE id = ?')
-      .get(aiChatId) as { activeMessageId: string | null } | undefined
+    const row = db.prepare('SELECT active_message_id as activeMessageId FROM ai_chat WHERE id = ?').get(aiChatId) as
+      | { activeMessageId: string | null }
+      | undefined
     if (row?.activeMessageId) {
       const activeExists = db.prepare('SELECT 1 FROM ai_message WHERE id = ?').get(row.activeMessageId)
       if (activeExists) return row.activeMessageId
@@ -516,9 +518,10 @@ export class AIChatManager {
     const result = new Map<string, number>()
     try {
       const db = this.getDb()
-      const rows = db
-        .prepare('SELECT session_id, COUNT(*) as count FROM ai_chat GROUP BY session_id')
-        .all() as Array<{ session_id: string; count: number }>
+      const rows = db.prepare('SELECT session_id, COUNT(*) as count FROM ai_chat GROUP BY session_id').all() as Array<{
+        session_id: string
+        count: number
+      }>
       for (const row of rows) {
         result.set(row.session_id, row.count)
       }
@@ -556,9 +559,7 @@ export class AIChatManager {
   updateAIChatTitle(aiChatId: string, title: string): boolean {
     const db = this.getDb()
     const now = Math.floor(Date.now() / 1000)
-    const result = db
-      .prepare('UPDATE ai_chat SET title = ?, updated_at = ? WHERE id = ?')
-      .run(title, now, aiChatId)
+    const result = db.prepare('UPDATE ai_chat SET title = ?, updated_at = ? WHERE id = ?').run(title, now, aiChatId)
     return result.changes > 0
   }
 
@@ -614,11 +615,7 @@ export class AIChatManager {
       branchIndex
     )
 
-    db.prepare('UPDATE ai_chat SET active_message_id = ?, updated_at = ? WHERE id = ?').run(
-      id,
-      now,
-      aiChatId
-    )
+    db.prepare('UPDATE ai_chat SET active_message_id = ?, updated_at = ? WHERE id = ?').run(id, now, aiChatId)
 
     return {
       id,
@@ -663,11 +660,7 @@ export class AIChatManager {
 
     const newLeafId = targetIndex > 0 ? activePath[targetIndex - 1]!.id : null
     const now = Math.floor(Date.now() / 1000)
-    db.prepare('UPDATE ai_chat SET active_message_id = ?, updated_at = ? WHERE id = ?').run(
-      newLeafId,
-      now,
-      aiChatId
-    )
+    db.prepare('UPDATE ai_chat SET active_message_id = ?, updated_at = ? WHERE id = ?').run(newLeafId, now, aiChatId)
   }
 
   forkAIChat(sourceAIChatId: string, upToMessageId: string, title?: string): AIChat {
@@ -814,11 +807,7 @@ export class AIChatManager {
       db.prepare('UPDATE ai_message SET parent_id = ? WHERE id = ?').run(id, childRow.id)
       db.prepare('UPDATE ai_chat SET updated_at = ? WHERE id = ?').run(now, aiChatId)
     } else {
-      db.prepare('UPDATE ai_chat SET active_message_id = ?, updated_at = ? WHERE id = ?').run(
-        id,
-        now,
-        aiChatId
-      )
+      db.prepare('UPDATE ai_chat SET active_message_id = ?, updated_at = ? WHERE id = ?').run(id, now, aiChatId)
     }
 
     return {
@@ -954,9 +943,7 @@ export class AIChatManager {
       .map((row) => ({ role: row.role as AIMessageRole, content: row.content, timestamp: row.timestamp }))
   }
 
-  getAllUserAssistantMessages(
-    aiChatId: string
-  ): Array<{ role: AIMessageRole; content: string; timestamp: number }> {
+  getAllUserAssistantMessages(aiChatId: string): Array<{ role: AIMessageRole; content: string; timestamp: number }> {
     return this.getActivePathRows(aiChatId)
       .filter((row) => row.role === 'user' || row.role === 'assistant')
       .map((row) => ({ role: row.role as AIMessageRole, content: row.content, timestamp: row.timestamp }))
@@ -965,8 +952,7 @@ export class AIChatManager {
   getMessageCountAfterSummary(aiChatId: string): number {
     const summary = this.getLatestSummary(aiChatId)
     if (!summary) {
-      return this.getActivePathRows(aiChatId).filter((row) => row.role === 'user' || row.role === 'assistant')
-        .length
+      return this.getActivePathRows(aiChatId).filter((row) => row.role === 'user' || row.role === 'assistant').length
     }
 
     const metaBlock = summary.contentBlocks?.find(

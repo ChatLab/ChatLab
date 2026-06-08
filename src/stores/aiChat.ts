@@ -25,6 +25,7 @@ import {
   toChartContentBlocks,
   toRenderOnlyToolErrorBlock,
 } from './aiChatChartBlocks'
+import { toPlanContentBlock, type PlanBlockStatus, type PlanContentBlock } from '@/services/ai/planBlocks'
 
 // 工具调用记录
 export interface ToolCallRecord {
@@ -57,6 +58,7 @@ export type ContentBlock =
   | { type: 'text'; text: string }
   | { type: 'think'; tag: string; text: string; durationMs?: number }
   | { type: 'chart'; chart: ChartPayload }
+  | PlanContentBlock
   | {
       type: 'tool'
       tool: ToolBlockContent
@@ -605,6 +607,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     appendTextToBlocks: (text: string) => void
     appendThinkToBlocks: (text: string, tag?: string, durationMs?: number) => void
     appendChartsToBlocks: (charts: ChartPayload[]) => void
+    appendPlanToBlocks: (plan: PlanContentBlock) => void
+    updatePlanBlockStatus: (status: PlanBlockStatus) => void
     appendErrorToBlocks: (error: SerializedErrorInfo) => void
     addToolBlock: (toolName: string, params?: Record<string, unknown>) => void
     updateToolBlockStatus: (toolName: string, status: 'done' | 'error') => void
@@ -665,6 +669,26 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       updateAIMessage({ contentBlocks: [...blocks] })
     }
 
+    const appendPlanToBlocks = (plan: PlanContentBlock) => {
+      const idx = getAiMessageIndex()
+      const blocks = targetBuffer.messages[idx].contentBlocks || []
+      blocks.push(toPlanContentBlock(plan))
+      updateAIMessage({ contentBlocks: [...blocks] })
+    }
+
+    const updatePlanBlockStatus = (status: PlanBlockStatus) => {
+      const idx = getAiMessageIndex()
+      const blocks = targetBuffer.messages[idx].contentBlocks || []
+      for (let index = blocks.length - 1; index >= 0; index--) {
+        const block = blocks[index]
+        if (block.type === 'plan') {
+          block.status = status
+          break
+        }
+      }
+      updateAIMessage({ contentBlocks: [...blocks] })
+    }
+
     const appendErrorToBlocks = (error: SerializedErrorInfo) => {
       const idx = getAiMessageIndex()
       const blocks = targetBuffer.messages[idx].contentBlocks || []
@@ -697,6 +721,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       appendTextToBlocks,
       appendThinkToBlocks,
       appendChartsToBlocks,
+      appendPlanToBlocks,
+      updatePlanBlockStatus,
       appendErrorToBlocks,
       addToolBlock,
       updateToolBlockStatus,
@@ -813,6 +839,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         appendTextToBlocks,
         appendThinkToBlocks,
         appendChartsToBlocks,
+        appendPlanToBlocks,
+        updatePlanBlockStatus,
         appendErrorToBlocks,
         addToolBlock,
         updateToolBlockStatus,
@@ -938,6 +966,13 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               state.isLoadingSource = false
               break
 
+            case 'plan':
+              if (chunk.plan) {
+                appendPlanToBlocks(chunk.plan)
+                updatePlanBlockStatus('executing')
+              }
+              break
+
             case 'status':
               if (chunk.status && (!state.agentStatus || chunk.status.updatedAt >= state.agentStatus.updatedAt)) {
                 state.agentStatus = chunk.status
@@ -960,6 +995,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
             case 'done':
               state.currentToolStatus = null
+              updatePlanBlockStatus('done')
               if (chunk.usage) {
                 lastDoneUsage = { ...chunk.usage }
                 state.sessionTokenUsage = {
@@ -972,6 +1008,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               break
 
             case 'error':
+              updatePlanBlockStatus('skipped')
               if (state.currentToolStatus) {
                 state.currentToolStatus = {
                   ...state.currentToolStatus,
@@ -1362,6 +1399,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       appendTextToBlocks,
       appendThinkToBlocks,
       appendChartsToBlocks,
+      appendPlanToBlocks,
+      updatePlanBlockStatus,
       appendErrorToBlocks,
       addToolBlock,
       updateToolBlockStatus,
@@ -1467,6 +1506,12 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               state.currentToolStatus = null
               state.isLoadingSource = false
               break
+            case 'plan':
+              if (chunk.plan) {
+                appendPlanToBlocks(chunk.plan)
+                updatePlanBlockStatus('executing')
+              }
+              break
             case 'status':
               if (chunk.status && (!state.agentStatus || chunk.status.updatedAt >= state.agentStatus.updatedAt)) {
                 state.agentStatus = chunk.status
@@ -1474,10 +1519,12 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               break
             case 'done':
               state.currentToolStatus = null
+              updatePlanBlockStatus('done')
               if (chunk.usage) lastDoneUsage = { ...chunk.usage }
               setAgentPhase(state, 'completed', chunk.usage ? { totalUsage: chunk.usage } : undefined)
               break
             case 'error': {
+              updatePlanBlockStatus('skipped')
               hasStreamError = true
               if (state.currentToolStatus) updateToolBlockStatus(state.currentToolStatus.name, 'error')
               const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []

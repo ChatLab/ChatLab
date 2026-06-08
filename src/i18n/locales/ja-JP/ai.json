@@ -108,6 +108,19 @@
         "collapse": "要約を折りたたむ",
         "info": "以前の会話がコンテキスト節約のため要約に圧縮されました"
       },
+      "plan": {
+        "label": "分析計画",
+        "evidenceNeeded": "必要な証拠",
+        "suggestedTools": "推奨ツール",
+        "successCriteria": "成功基準",
+        "noTools": "なし",
+        "status": {
+          "created": "作成済み",
+          "executing": "実行中",
+          "done": "完了",
+          "skipped": "スキップ"
+        }
+      },
       "think": {
         "labels": {
           "think": "思考",

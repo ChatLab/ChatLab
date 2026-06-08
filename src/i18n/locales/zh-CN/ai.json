@@ -108,6 +108,19 @@
         "collapse": "收起摘要",
         "info": "以上对话已被压缩为摘要以节省上下文空间"
       },
+      "plan": {
+        "label": "分析计划",
+        "evidenceNeeded": "所需证据",
+        "suggestedTools": "建议工具",
+        "successCriteria": "完成标准",
+        "noTools": "无",
+        "status": {
+          "created": "已创建",
+          "executing": "执行中",
+          "done": "已完成",
+          "skipped": "已跳过"
+        }
+      },
       "think": {
         "labels": {
           "think": "已思考",

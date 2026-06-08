@@ -108,6 +108,19 @@
         "collapse": "Collapse summary",
         "info": "Previous conversation has been compressed into a summary to save context space"
       },
+      "plan": {
+        "label": "Analysis Plan",
+        "evidenceNeeded": "Evidence needed",
+        "suggestedTools": "Suggested tools",
+        "successCriteria": "Success criteria",
+        "noTools": "None",
+        "status": {
+          "created": "Created",
+          "executing": "Executing",
+          "done": "Done",
+          "skipped": "Skipped"
+        }
+      },
       "think": {
         "labels": {
           "think": "Thinking",

@@ -108,6 +108,19 @@
         "collapse": "收起摘要",
         "info": "以上對話已被壓縮為摘要以節省上下文空間"
       },
+      "plan": {
+        "label": "分析計畫",
+        "evidenceNeeded": "所需證據",
+        "suggestedTools": "建議工具",
+        "successCriteria": "完成標準",
+        "noTools": "無",
+        "status": {
+          "created": "已建立",
+          "executing": "執行中",
+          "done": "已完成",
+          "skipped": "已略過"
+        }
+      },
       "think": {
         "labels": {
           "think": "已思考",
