@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref } from 'vue'
 import type { KeywordTemplate } from '@/types/analysis'
 import type { ThinkingLevel } from '@openchatlab/core'
+import type { ChartAutoMode } from '@openchatlab/shared-types'
 
 interface ContextCompressionSettings {
   enabled: boolean
@@ -15,6 +16,7 @@ interface AIGlobalSettings {
   exportFormat: 'markdown' | 'txt'
   sqlExportFormat: 'csv' | 'json'
   enableAutoSkill: boolean
+  chartAutoMode: ChartAutoMode
   searchContextBefore: number
   searchContextAfter: number
   contextCompression: ContextCompressionSettings
@@ -36,6 +38,7 @@ export const usePromptStore = defineStore(
       exportFormat: 'markdown',
       sqlExportFormat: 'csv',
       enableAutoSkill: true,
+      chartAutoMode: 'suggest',
       searchContextBefore: 2,
       searchContextAfter: 2,
       contextCompression: {

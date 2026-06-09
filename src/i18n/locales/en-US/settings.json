@@ -299,9 +299,19 @@
       "title": "Export Settings"
     },
     "skillSettings": {
-      "title": "Skill Settings",
+      "title": "Conversation Preferences",
       "enableAutoSkill": "AI Auto-Select Skills",
-      "enableAutoSkillDesc": "When enabled, AI will automatically match and activate suitable analysis skills based on user queries; when disabled, skills only take effect when manually selected"
+      "enableAutoSkillDesc": "When enabled, AI will automatically match and activate suitable analysis skills based on user queries; when disabled, skills only take effect when manually selected",
+      "chartAutoMode": {
+        "title": "Auto Chart Generation",
+        "description": "Controls how actively AI uses charts when the Chart Assistant is not manually selected",
+        "explicit": "Explicit requests",
+        "explicitHint": "AI only generates charts when you explicitly ask for them.",
+        "suggest": "Smart generation",
+        "suggestHint": "Conservative strategy: AI only generates charts when they clearly help explain the analysis.",
+        "aggressive": "Active generation",
+        "aggressiveHint": "AI more actively adds charts in data analysis scenarios."
+      }
     },
     "maxMessages": {
       "title": "Max Messages per Request",

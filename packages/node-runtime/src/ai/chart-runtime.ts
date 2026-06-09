@@ -2,6 +2,7 @@ import { CHART_CAPABILITY_SKILL_ID } from '@openchatlab/core'
 import { appendSkillMenuLines, formatSkillMenuLine } from './skill-menu'
 import type { SkillDef } from './types'
 import type { PlannerCapabilitySummary } from './agent/planning-types'
+import type { ChartAutoMode } from '@openchatlab/shared-types'
 
 export { CHART_CAPABILITY_SKILL_ID }
 
@@ -17,6 +18,7 @@ export interface ResolveChartRuntimeOptions {
   assistantAllowedTools?: readonly string[] | null
   enableAutoDetection?: boolean
   enableAnalyticalAutoDetection?: boolean
+  chartAutoMode?: ChartAutoMode
 }
 
 export interface ResolvedChartRuntime {
@@ -59,12 +61,18 @@ export function getChartPlannerCapabilityForMessage(options: {
   userMessage: string
   locale?: string
   availableTools: readonly string[]
+  chartAutoMode?: ChartAutoMode
 }): PlannerCapabilitySummary | null {
   const availableToolSet = new Set(options.availableTools)
   if (!availableToolSet.has('get_schema') || !availableToolSet.has('render_chart')) {
     return null
   }
-  if (!shouldOfferChartCapabilityForAnalyticalMessage(options.userMessage)) {
+  const chartAutoMode = options.chartAutoMode ?? 'suggest'
+  const shouldOffer =
+    chartAutoMode === 'explicit'
+      ? shouldUseChartCapabilityForMessage(options.userMessage)
+      : shouldOfferChartCapabilityForAnalyticalMessage(options.userMessage)
+  if (!shouldOffer) {
     return null
   }
 
@@ -82,10 +90,13 @@ export function getChartPlannerCapabilityForMessage(options: {
 export function resolveChartRuntimeForRequest(options: ResolveChartRuntimeOptions): ResolvedChartRuntime {
   const locale = options.locale ?? 'zh-CN'
   const isExplicitChartSkill = options.skillId === CHART_CAPABILITY_SKILL_ID
+  const allowAnalyticalAutoDetection =
+    options.chartAutoMode !== undefined
+      ? options.chartAutoMode === 'aggressive'
+      : options.enableAnalyticalAutoDetection === true
   const shouldAutoDetectChart =
     shouldUseChartCapabilityForMessage(options.userMessage ?? '') ||
-    (options.enableAnalyticalAutoDetection === true &&
-      shouldOfferChartCapabilityForAnalyticalMessage(options.userMessage ?? ''))
+    (allowAnalyticalAutoDetection && shouldOfferChartCapabilityForAnalyticalMessage(options.userMessage ?? ''))
   const isAutoChartSkill = options.enableAutoDetection === true && !options.skillId && shouldAutoDetectChart
 
   if (!isExplicitChartSkill && !isAutoChartSkill) {

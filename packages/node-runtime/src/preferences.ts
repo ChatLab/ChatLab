@@ -49,6 +49,7 @@ const DEFAULTS: Preferences = {
     exportFormat: 'markdown',
     sqlExportFormat: 'csv',
     enableAutoSkill: true,
+    chartAutoMode: 'suggest',
     searchContextBefore: 2,
     searchContextAfter: 2,
     contextCompression: {

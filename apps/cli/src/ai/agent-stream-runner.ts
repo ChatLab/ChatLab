@@ -16,6 +16,7 @@ import {
   resolveChartRuntimeForRequest,
 } from '@openchatlab/node-runtime'
 import { getChatOverview, normalizeBuiltinToolNames } from '@openchatlab/core'
+import type { ChartAutoMode } from '@openchatlab/shared-types'
 import type { DataSnapshot } from '@openchatlab/node-runtime'
 import type { AgentStreamRequest } from '@openchatlab/http-routes'
 import { AGENT_TOOL_REGISTRY } from '@openchatlab/tools'
@@ -75,6 +76,7 @@ export function createCliRunAgentStream(
       assistantId,
       skillId,
       enableAutoSkill,
+      chartAutoMode,
       compressionConfig,
       ownerInfo,
       mentionedMembers,
@@ -99,17 +101,18 @@ export function createCliRunAgentStream(
     const maxToolResultTokens = Math.floor(contextWindow * (maxToolResultPercent / 100))
 
     const db = (dbManager as any).open?.(sessionId)
+    const resolvedChartAutoMode: ChartAutoMode = chartAutoMode ?? 'suggest'
     const chartRuntime = resolveChartRuntimeForRequest({
       skillId,
       userMessage,
       locale,
       assistantAllowedTools,
       enableAutoDetection: enableAutoSkill === true,
-      enableAnalyticalAutoDetection: enableAutoSkill === true,
+      chartAutoMode: resolvedChartAutoMode,
     })
     const isChartCapability = chartRuntime.isChartCapability
     const autoSkillAllowedTools =
-      !skillId && enableAutoSkill
+      !skillId && enableAutoSkill && resolvedChartAutoMode !== 'explicit'
         ? getAllowedBuiltinToolsForChartAutoSkill(assistantAllowedTools)
         : assistantAllowedTools
     const allowedToolSet = getAllowedToolSet(
@@ -135,11 +138,9 @@ export function createCliRunAgentStream(
       const def = skillMgr.getSkillConfig(skillId)
       if (def) resolvedSkillDef = { name: def.name, prompt: def.prompt }
     } else if (enableAutoSkill) {
-      const menu = buildSkillMenuWithBuiltinChart(
-        skillMgr.getSkillMenu(chatType ?? 'group', toolNames),
-        locale,
-        toolNames
-      )
+      const baseMenu = skillMgr.getSkillMenu(chatType ?? 'group', toolNames)
+      const menu =
+        resolvedChartAutoMode === 'aggressive' ? buildSkillMenuWithBuiltinChart(baseMenu, locale, toolNames) : baseMenu
       if (menu) resolvedSkillMenu = menu
     }
 
@@ -150,7 +151,9 @@ export function createCliRunAgentStream(
         coreToolNames: new Set<string>(CHART_CAPABILITY_CORE_TOOLS),
         locale,
         getSkillConfig: (id) =>
-          getSkillConfigWithBuiltinChart(id, locale, (skillConfigId) => skillMgr.getSkillConfig(skillConfigId)),
+          resolvedChartAutoMode === 'aggressive'
+            ? getSkillConfigWithBuiltinChart(id, locale, (skillConfigId) => skillMgr.getSkillConfig(skillConfigId))
+            : skillMgr.getSkillConfig(id),
       })
       agentTools.push(activateSkillTool as any)
     }
@@ -192,6 +195,7 @@ export function createCliRunAgentStream(
       mentionedMembers,
       dataSnapshot,
       thinkingLevel,
+      chartAutoMode: resolvedChartAutoMode,
     })
   }
 }

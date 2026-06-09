@@ -7,6 +7,7 @@
  */
 
 import type { PathProvider } from '@openchatlab/core'
+import type { ChartAutoMode } from '@openchatlab/shared-types'
 import type {
   DatabaseManager,
   DataDirSwitchResult,
@@ -80,6 +81,7 @@ export interface AgentStreamRequest {
   assistantId?: string
   skillId?: string | null
   enableAutoSkill?: boolean
+  chartAutoMode?: ChartAutoMode
   compressionConfig?: {
     enabled: boolean
     tokenThresholdPercent?: number

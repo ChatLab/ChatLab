@@ -183,6 +183,7 @@ test('loads thinkingLevels as empty object when field is absent in legacy prefer
     assert.deepEqual(loaded.thinkingLevels, {})
     // Existing fields must survive the migration
     assert.equal(loaded.aiGlobalSettings.maxMessagesPerRequest, 500)
+    assert.equal(loaded.aiGlobalSettings.chartAutoMode, 'suggest')
   } finally {
     rmSync(systemDir, { recursive: true, force: true })
   }

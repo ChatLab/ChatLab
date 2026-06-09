@@ -19,6 +19,7 @@ import {
   createCompressionLlmAdapter,
   AgentEventHandler,
   formatAIError,
+  shouldUseChartCapabilityForMessage,
   getChartPlannerCapabilityForMessage,
   initTokenizer,
   type AgentStreamChunk,
@@ -31,6 +32,7 @@ import {
   type OwnerInfo,
   type MentionedMember,
 } from '@openchatlab/node-runtime'
+import type { ChartAutoMode } from '@openchatlab/shared-types'
 
 import { getDefaultAssistantConfig, buildPiModel } from './llm-config'
 import { getServerAiLogger } from './logger'
@@ -56,6 +58,7 @@ export interface RunAgentOptions {
   mentionedMembers?: MentionedMember[]
   dataSnapshot?: DataSnapshot
   thinkingLevel?: string
+  chartAutoMode?: ChartAutoMode
 }
 
 export async function runServerAgent(options: RunAgentOptions): Promise<void> {
@@ -78,6 +81,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
     mentionedMembers,
     dataSnapshot,
     thinkingLevel,
+    chartAutoMode = 'suggest',
   } = options
 
   const aiLogger = getServerAiLogger()
@@ -168,6 +172,10 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
 
   const steerMessage = t('ai.agent.answerWithoutTools')
   let cachedMessages: PiMessage[] = []
+  const effectiveTools =
+    chartAutoMode === 'explicit' && !shouldUseChartCapabilityForMessage(userMessage)
+      ? tools.filter((tool) => tool.name !== 'render_chart')
+      : tools
 
   try {
     const routeInput = {
@@ -175,12 +183,13 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
       chatType,
       locale,
       dataSnapshot,
-      availableTools: tools.map((tool) => tool.name),
+      availableTools: effectiveTools.map((tool) => tool.name),
       availableCapabilities: [
         getChartPlannerCapabilityForMessage({
           userMessage,
           locale,
-          availableTools: tools.map((tool) => tool.name),
+          availableTools: effectiveTools.map((tool) => tool.name),
+          chartAutoMode,
         }),
       ].filter((capability) => capability !== null),
       skillSummary: skillDef?.name ?? (skillMenu ? 'auto_skill_menu' : undefined),
@@ -239,7 +248,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
       piModel,
       apiKey: llmConfig.apiKey,
       systemPrompt: effectiveSystemPrompt,
-      tools,
+      tools: effectiveTools,
       history,
       userMessage,
       maxToolRounds: DEFAULT_MAX_TOOL_ROUNDS,

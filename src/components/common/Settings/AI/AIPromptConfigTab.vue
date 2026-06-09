@@ -3,6 +3,7 @@ import { computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { usePromptStore } from '@/stores/prompt'
+import type { ChartAutoMode } from '@openchatlab/shared-types'
 
 const { t } = useI18n()
 
@@ -39,6 +40,22 @@ const enableAutoSkill = computed({
     emit('config-changed')
   },
 })
+
+const chartAutoModeOptions = computed(() => [
+  { label: t('settings.aiPrompt.skillSettings.chartAutoMode.explicit'), value: 'explicit' },
+  { label: t('settings.aiPrompt.skillSettings.chartAutoMode.suggest'), value: 'suggest' },
+  { label: t('settings.aiPrompt.skillSettings.chartAutoMode.aggressive'), value: 'aggressive' },
+])
+
+const chartAutoMode = computed({
+  get: () => aiGlobalSettings.value.chartAutoMode ?? 'suggest',
+  set: (val: ChartAutoMode) => {
+    promptStore.updateAIGlobalSettings({ chartAutoMode: val })
+    emit('config-changed')
+  },
+})
+
+const chartAutoModeHint = computed(() => t(`settings.aiPrompt.skillSettings.chartAutoMode.${chartAutoMode.value}Hint`))
 
 const searchContextBefore = computed({
   get: () => aiGlobalSettings.value.searchContextBefore ?? 3,
@@ -105,6 +122,44 @@ const maxToolResultPercent = computed({
 
 <template>
   <div class="space-y-6">
+    <!-- 对话偏好 -->
+    <div :ref="(el) => setPromptSectionRef('skill', el as HTMLElement | null)">
+      <h4 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
+        <UIcon name="i-heroicons-bolt" class="h-4 w-4 text-amber-500" />
+        {{ t('settings.aiPrompt.skillSettings.title') }}
+      </h4>
+      <div class="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
+        <div class="flex items-center justify-between">
+          <div class="flex-1 pr-4">
+            <p class="text-sm font-medium text-gray-900 dark:text-white">
+              {{ t('settings.aiPrompt.skillSettings.enableAutoSkill') }}
+            </p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              {{ t('settings.aiPrompt.skillSettings.enableAutoSkillDesc') }}
+            </p>
+          </div>
+          <USwitch v-model="enableAutoSkill" />
+        </div>
+
+        <div class="flex items-center justify-between">
+          <div class="flex-1 pr-4">
+            <p class="text-sm font-medium text-gray-900 dark:text-white">
+              {{ t('settings.aiPrompt.skillSettings.chartAutoMode.title') }}
+            </p>
+            <p class="text-xs text-gray-500 dark:text-gray-400">
+              {{ t('settings.aiPrompt.skillSettings.chartAutoMode.description') }}
+            </p>
+          </div>
+          <div class="flex flex-col items-end gap-1">
+            <UTabs v-model="chartAutoMode" :items="chartAutoModeOptions" :disabled="!enableAutoSkill" size="xs" />
+            <p class="max-w-64 text-right text-xs text-gray-500 dark:text-gray-400">
+              {{ chartAutoModeHint }}
+            </p>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 工具设置 -->
     <div :ref="(el) => setPromptSectionRef('chat', el as HTMLElement | null)">
       <h4 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
@@ -149,27 +204,6 @@ const maxToolResultPercent = computed({
               <UInputNumber v-model="searchContextAfter" :min="0" :max="20" class="w-24" />
             </div>
           </div>
-        </div>
-      </div>
-    </div>
-
-    <!-- 技能设置 -->
-    <div :ref="(el) => setPromptSectionRef('skill', el as HTMLElement | null)">
-      <h4 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
-        <UIcon name="i-heroicons-bolt" class="h-4 w-4 text-amber-500" />
-        {{ t('settings.aiPrompt.skillSettings.title') }}
-      </h4>
-      <div class="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-        <div class="flex items-center justify-between">
-          <div class="flex-1 pr-4">
-            <p class="text-sm font-medium text-gray-900 dark:text-white">
-              {{ t('settings.aiPrompt.skillSettings.enableAutoSkill') }}
-            </p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-              {{ t('settings.aiPrompt.skillSettings.enableAutoSkillDesc') }}
-            </p>
-          </div>
-          <USwitch v-model="enableAutoSkill" />
         </div>
       </div>
     </div>

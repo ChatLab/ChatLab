@@ -256,6 +256,7 @@ export async function runChatTurn(
       chatType: 'group',
       locale: options.locale ?? 'zh-CN',
       enableAutoSkill: true,
+      chartAutoMode: 'suggest',
     },
     (chunk: AgentStreamChunk) => {
       if (options.includeEvents) {

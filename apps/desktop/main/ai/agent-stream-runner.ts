@@ -8,6 +8,7 @@
 
 import type { AgentStreamChunk as SharedAgentStreamChunk } from '@openchatlab/node-runtime'
 import type { AgentStreamRequest } from '@openchatlab/http-routes'
+import type { ChartAutoMode } from '@openchatlab/shared-types'
 import {
   buildSkillMenuWithBuiltinChart,
   CHART_CAPABILITY_ANALYSIS_TOOLS,
@@ -76,6 +77,7 @@ export function createElectronRunAgentStream(): (
       assistantId,
       skillId,
       enableAutoSkill,
+      chartAutoMode,
       compressionConfig,
       ownerInfo,
       mentionedMembers,
@@ -158,13 +160,14 @@ export function createElectronRunAgentStream(): (
     }
 
     let skillCtx: SkillContext | undefined
+    const resolvedChartAutoMode: ChartAutoMode = chartAutoMode ?? 'suggest'
     const chartRuntime = resolveChartRuntimeForRequest({
       skillId,
       userMessage,
       locale,
       assistantAllowedTools: assistantConfig?.allowedBuiltinTools,
       enableAutoDetection: enableAutoSkill === true,
-      enableAnalyticalAutoDetection: enableAutoSkill === true,
+      chartAutoMode: resolvedChartAutoMode,
     })
     if (chartRuntime.isChartCapability) {
       const chartSkill = chartRuntime.skillDef ?? getChartCapabilitySkill(locale ?? 'zh-CN')
@@ -185,9 +188,12 @@ export function createElectronRunAgentStream(): (
       }
     } else if (enableAutoSkill) {
       const effectiveChatType = chatType ?? 'group'
-      const autoSkillAllowedTools = getAllowedBuiltinToolsForChartAutoSkill(assistantConfig?.allowedBuiltinTools) ?? [
-        ...CHART_CAPABILITY_ANALYSIS_TOOLS,
-      ]
+      const autoSkillAllowedTools =
+        resolvedChartAutoMode === 'explicit'
+          ? assistantConfig?.allowedBuiltinTools
+          : (getAllowedBuiltinToolsForChartAutoSkill(assistantConfig?.allowedBuiltinTools) ?? [
+              ...CHART_CAPABILITY_ANALYSIS_TOOLS,
+            ])
       assistantConfig = {
         ...(assistantConfig ?? {
           id: resolvedAssistantId,
@@ -198,11 +204,11 @@ export function createElectronRunAgentStream(): (
         allowedBuiltinTools: autoSkillAllowedTools,
       }
       const allowedTools = autoSkillAllowedTools
-      const menu = buildSkillMenuWithBuiltinChart(
-        skillManager.getSkillMenu(effectiveChatType, allowedTools),
-        locale,
-        allowedTools
-      )
+      const baseMenu = skillManager.getSkillMenu(effectiveChatType, allowedTools)
+      const menu =
+        resolvedChartAutoMode === 'aggressive'
+          ? buildSkillMenuWithBuiltinChart(baseMenu, locale, allowedTools)
+          : baseMenu
       if (menu) {
         skillCtx = { skillMenu: menu }
       }
@@ -240,6 +246,7 @@ export function createElectronRunAgentStream(): (
       {
         abortSignal,
         thinkingLevel: thinkingLevel as import('@openchatlab/core').ThinkingLevel | undefined,
+        chartAutoMode: resolvedChartAutoMode,
       },
       chatType ?? 'group',
       locale ?? 'zh-CN',

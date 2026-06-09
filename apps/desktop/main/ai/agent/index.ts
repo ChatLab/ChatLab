@@ -17,6 +17,7 @@ import {
   createPlanContentBlock,
   decideRequestRoute,
   getChartPlannerCapabilityForMessage,
+  shouldUseChartCapabilityForMessage,
   runAgentCore,
   streamSimple,
   type PiMessage,
@@ -72,6 +73,7 @@ export class Agent {
     this.config = {
       maxToolRounds: config.maxToolRounds ?? DEFAULT_MAX_TOOL_ROUNDS,
       thinkingLevel: config.thinkingLevel,
+      chartAutoMode: config.chartAutoMode ?? 'suggest',
     }
   }
 
@@ -127,7 +129,10 @@ export class Agent {
 
     const allowedTools = this.assistantConfig?.allowedBuiltinTools
     const toolContext = { ...this.context, locale: this.locale }
-    const piTools = getAllTools(toolContext, allowedTools)
+    let piTools = getAllTools(toolContext, allowedTools)
+    if (this.config.chartAutoMode === 'explicit' && !shouldUseChartCapabilityForMessage(userMessage)) {
+      piTools = piTools.filter((tool) => tool.name !== 'render_chart')
+    }
 
     if (this.skillCtx?.skillMenu && !this.skillCtx?.skillDef) {
       piTools.push(createActivateSkillTool(this.chatType, allowedTools, this.locale))
@@ -152,6 +157,7 @@ export class Agent {
           userMessage,
           locale: this.locale,
           availableTools: availableToolNames,
+          chartAutoMode: this.config.chartAutoMode,
         }),
       ].filter((capability) => capability !== null),
       assistantSummary: this.assistantConfig?.name,

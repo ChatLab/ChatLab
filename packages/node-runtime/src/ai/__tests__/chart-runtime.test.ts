@@ -39,18 +39,42 @@ describe('chart runtime policy', () => {
     )
   })
 
-  it('can auto-enable chart runtime for analytical trend questions', () => {
+  it('keeps analytical trend questions in normal runtime for the default chart auto mode', () => {
     const runtime = resolveChartRuntimeForRequest({
       skillId: null,
       userMessage: '分析过去一年群里每季度消息量变化趋势，指出峰值和低谷。',
       locale: 'zh-CN',
       enableAutoDetection: true,
-      enableAnalyticalAutoDetection: true,
+      chartAutoMode: 'suggest',
+    })
+
+    assert.equal(runtime.isChartCapability, false)
+  })
+
+  it('can auto-enable chart runtime aggressively for analytical trend questions', () => {
+    const runtime = resolveChartRuntimeForRequest({
+      skillId: null,
+      userMessage: '分析过去一年群里每季度消息量变化趋势，指出峰值和低谷。',
+      locale: 'zh-CN',
+      enableAutoDetection: true,
+      chartAutoMode: 'aggressive',
     })
 
     assert.equal(runtime.isChartCapability, true)
     assert.equal(runtime.skillDef?.id, CHART_CAPABILITY_SKILL_ID)
     assert.deepEqual(runtime.allowedBuiltinTools, ['render_chart'])
+  })
+
+  it('still auto-enables chart runtime for explicit chart requests', () => {
+    const runtime = resolveChartRuntimeForRequest({
+      skillId: null,
+      userMessage: '画一个最近一年的消息量趋势图。',
+      locale: 'zh-CN',
+      enableAutoDetection: true,
+      chartAutoMode: 'explicit',
+    })
+
+    assert.equal(runtime.isChartCapability, true)
   })
 
   it('keeps chart tool allowlists free of raw SQL', () => {
@@ -78,15 +102,27 @@ describe('chart runtime policy', () => {
     ])
   })
 
-  it('offers chart planner capability for analytical trend questions without explicit chart wording', () => {
+  it('offers chart planner capability for analytical trend questions in suggest mode', () => {
     const capability = getChartPlannerCapabilityForMessage({
       userMessage: '分析过去一年群里话题的变化趋势，按季度总结主要变化。',
       locale: 'zh-CN',
       availableTools: ['get_schema', 'search_messages', 'render_chart'],
+      chartAutoMode: 'suggest',
     })
 
     assert.equal(capability?.id, 'chart_generation')
     assert.deepEqual(capability?.tools, ['get_schema', 'render_chart'])
+  })
+
+  it('does not offer chart planner capability for analytical wording in explicit mode', () => {
+    const capability = getChartPlannerCapabilityForMessage({
+      userMessage: '分析过去一年群里话题的变化趋势，按季度总结主要变化。',
+      locale: 'zh-CN',
+      availableTools: ['get_schema', 'search_messages', 'render_chart'],
+      chartAutoMode: 'explicit',
+    })
+
+    assert.equal(capability, null)
   })
 
   it('does not offer chart planner capability when render_chart is unavailable', () => {

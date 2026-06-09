@@ -299,9 +299,19 @@
       "title": "匯出設定"
     },
     "skillSettings": {
-      "title": "技能設定",
+      "title": "對話偏好",
       "enableAutoSkill": "AI 自主選擇技能",
-      "enableAutoSkillDesc": "啟用後，AI 會根據使用者的問題自動匹配並啟用合適的分析技能；關閉後僅在手動選擇技能時生效"
+      "enableAutoSkillDesc": "啟用後，AI 會根據使用者的問題自動匹配並啟用合適的分析技能；關閉後僅在手動選擇技能時生效",
+      "chartAutoMode": {
+        "title": "圖表自動生成",
+        "description": "控制 AI 在沒有手動選擇繪圖助手時使用圖表的積極程度",
+        "explicit": "明確要求時",
+        "explicitHint": "只有你明確要求圖表時，AI 才會生成圖表。",
+        "suggest": "智慧生成",
+        "suggestHint": "策略保守，僅在能明顯幫助理解分析結果時生成圖表。",
+        "aggressive": "積極生成",
+        "aggressiveHint": "AI 會更主動地在資料分析場景中生成圖表。"
+      }
     },
     "maxMessages": {
       "title": "傳送條數限制",

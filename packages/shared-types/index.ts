@@ -126,11 +126,14 @@ export interface ContextCompressionSettings {
   maxToolResultPercent: number
 }
 
+export type ChartAutoMode = 'explicit' | 'suggest' | 'aggressive'
+
 export interface AIGlobalSettings {
   maxMessagesPerRequest: number
   exportFormat: 'markdown' | 'txt'
   sqlExportFormat: 'csv' | 'json'
   enableAutoSkill: boolean
+  chartAutoMode: ChartAutoMode
   searchContextBefore: number
   searchContextAfter: number
   contextCompression: ContextCompressionSettings

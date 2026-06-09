@@ -1,4 +1,5 @@
 import type { PlanContentBlock } from '@/services/ai/planBlocks'
+import type { ChartAutoMode } from '@openchatlab/shared-types'
 
 export interface LlmStreamChunk {
   content: string
@@ -112,6 +113,7 @@ export interface AgentStreamParams {
   assistantId?: string
   skillId?: string | null
   enableAutoSkill?: boolean
+  chartAutoMode?: ChartAutoMode
   compressionConfig?: CompressionConfig
   ownerInfo?: { platformId: string; displayName: string }
   mentionedMembers?: Array<{

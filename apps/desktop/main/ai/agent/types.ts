@@ -5,6 +5,7 @@
 import type { TokenUsage } from '@openchatlab/node-runtime'
 import type { SerializedErrorInfo } from '../../../shared/types'
 import type { ThinkingLevel } from '@openchatlab/core'
+import type { ChartAutoMode } from '@openchatlab/shared-types'
 
 export type { TokenUsage, AgentRuntimeStatus } from '@openchatlab/node-runtime'
 export type { SerializedErrorInfo }
@@ -19,6 +20,8 @@ export interface AgentConfig {
   abortSignal?: AbortSignal
   /** Override thinking level for this request; clamped to what the model supports. */
   thinkingLevel?: ThinkingLevel
+  /** Controls how aggressively chart capability is exposed for automatic use. */
+  chartAutoMode?: ChartAutoMode
 }
 
 /**

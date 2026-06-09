@@ -789,6 +789,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     const currentSkillId = skillStore.activeSkillId
     const currentSkillName = skillStore.activeSkill?.name
     const autoSkillEnabled = aiGlobalSettings.value.enableAutoSkill ?? true
+    const chartAutoMode = autoSkillEnabled ? (aiGlobalSettings.value.chartAutoMode ?? 'suggest') : 'explicit'
     const currentMentionedMembers = (options?.mentionedMembers ?? []).map((member) => ({
       memberId: member.memberId,
       platformId: member.platformId,
@@ -923,6 +924,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           assistantId: currentAssistantId,
           skillId: currentSkillId,
           enableAutoSkill: !currentSkillId ? autoSkillEnabled : undefined,
+          chartAutoMode: !currentSkillId ? chartAutoMode : undefined,
           compressionConfig: {
             enabled: aiGlobalSettings.value.contextCompression?.enabled ?? false,
             tokenThresholdPercent: aiGlobalSettings.value.contextCompression?.tokenThresholdPercent ?? 75,
@@ -1466,6 +1468,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         return { success: false, reason: 'busy', activeTask: activeTask.value }
       }
 
+      const autoSkillEnabled = aiGlobalSettings.value.enableAutoSkill ?? true
+      const chartAutoMode = autoSkillEnabled ? (aiGlobalSettings.value.chartAutoMode ?? 'suggest') : 'explicit'
       const context = {
         sessionId: state.sessionId,
         aiChatId: state.currentAIChatId!,
@@ -1496,7 +1500,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           locale: state.locale,
           assistantId: currentAssistantId,
           skillId: currentSkillId,
-          enableAutoSkill: !currentSkillId ? (aiGlobalSettings.value.enableAutoSkill ?? true) : undefined,
+          enableAutoSkill: !currentSkillId ? autoSkillEnabled : undefined,
+          chartAutoMode: !currentSkillId ? chartAutoMode : undefined,
           compressionConfig: {
             enabled: aiGlobalSettings.value.contextCompression?.enabled ?? false,
             tokenThresholdPercent: aiGlobalSettings.value.contextCompression?.tokenThresholdPercent ?? 75,
