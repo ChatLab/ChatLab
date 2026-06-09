@@ -81,6 +81,7 @@ const option = computed<EChartsOption>(() => {
         },
       }
   const showOuterLabel = !isCompact && !isDense
+  const effectiveShowLegend = props.showLegend && !showOuterLabel
 
   return {
     color: colors,
@@ -95,12 +96,16 @@ const option = computed<EChartsOption>(() => {
         color: '#fff',
       },
     },
-    legend: props.showLegend ? legendPlacement : undefined,
+    legend: effectiveShowLegend ? legendPlacement : undefined,
     series: [
       {
         type: 'pie',
         radius: props.doughnut ? [props.innerRadius, isCompact ? '58%' : '68%'] : isCompact ? '58%' : '68%',
-        center: props.showLegend ? (isCompact ? ['50%', '42%'] : ['38%', '50%']) : ['50%', isCompact ? '46%' : '50%'],
+        center: effectiveShowLegend
+          ? isCompact
+            ? ['50%', '42%']
+            : ['38%', '50%']
+          : ['50%', isCompact ? '46%' : '50%'],
         avoidLabelOverlap: true,
         itemStyle: {
           borderRadius: 4,

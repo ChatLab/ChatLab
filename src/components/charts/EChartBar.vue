@@ -68,7 +68,7 @@ const option = computed<EChartsOption>(() => {
       right: 16,
       top: 20,
       bottom: isHorizontal ? 20 : labelCount > 8 ? 48 : 30,
-      containLabel: true,
+      outerBoundsMode: 'same',
     },
     xAxis: isHorizontal
       ? {

@@ -68,7 +68,7 @@ const option = computed<EChartsOption>(() => {
       right: 20,
       top: isCompact ? 12 : 24,
       bottom: isCompact ? 52 : 70,
-      containLabel: true,
+      outerBoundsMode: 'same',
     },
     xAxis: {
       type: 'category',

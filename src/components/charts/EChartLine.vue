@@ -110,7 +110,7 @@ const option = computed<EChartsOption>(() => {
       right: 20,
       top: hasSeries ? (isCompact ? 44 : 56) : 20,
       bottom: useDataZoom ? 66 : 34,
-      containLabel: true,
+      outerBoundsMode: 'same',
     },
     legend: hasSeries
       ? {
