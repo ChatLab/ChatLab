@@ -1,5 +1,5 @@
 const CHART_IMAGE_PLACEHOLDER_RE =
-  /^\s*!\[[^\]\n]*\]\(\s*(?:\.\/)?chart[\w-]*\.(?:png|jpg|jpeg|webp|svg)(?:\?[^)\s]*)?\s*(?:"[^"]*")?\s*\)\s*$/gim
+  /^\s*!\[[^\]\n]*\]\(\s*(?:(?:https?:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?)?\/?|\.\/)?chart[\w-]*(?:\.(?:png|jpg|jpeg|webp|svg))?(?:\?[^)\s]*)?\s*(?:"[^"]*")?\s*\)\s*$/gim
 
 export function stripChartImagePlaceholders(text: string): string {
   if (!text) return text

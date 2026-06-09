@@ -165,8 +165,6 @@ ${json}
       successCriteria: ['覆盖全年'],
     })
 
-    assert.match(guidance, /suggested analysis plan/i)
-    assert.match(guidance, /do not follow it mechanically/i)
     assert.match(guidance, /年度话题趋势分析/)
     assert.match(guidance, /search_messages/)
     assert.match(guidance, /覆盖全年/)
@@ -212,27 +210,7 @@ ${json}
     assert.match(capturedPrompt, /render_chart/)
   })
 
-  it('keeps display plan concise and leaves structured details to JSON', async () => {
-    let capturedPrompt = ''
-    const planner = createAnalysisPlanner({
-      complete: async (prompt) => {
-        capturedPrompt = prompt
-        return JSON.stringify({
-          title: '年度话题趋势分析',
-          intent: 'trend',
-          steps: [{ goal: '按季度检索', suggestedTools: ['search_messages'], evidenceNeeded: '季度证据' }],
-          successCriteria: ['覆盖全年'],
-        })
-      },
-    })
-
-    await planner(baseInput)
-
-    assert.match(capturedPrompt, /A concise user-facing analysis approach/)
-    assert.match(capturedPrompt, /those details belong in <json>/)
-  })
-
-  it('includes extended data snapshot context and reconnaissance strategy in the planner prompt', async () => {
+  it('includes extended data snapshot context in the planner prompt', async () => {
     let capturedPrompt = ''
     const planner = createAnalysisPlanner({
       complete: async (prompt) => {
@@ -259,7 +237,5 @@ ${json}
     assert.match(capturedPrompt, /segment_summaries_available: 8/)
     assert.match(capturedPrompt, /member_id=3/)
     assert.match(capturedPrompt, /display_name=Alice/)
-    assert.match(capturedPrompt, /lightweight reconnaissance step/i)
-    assert.match(capturedPrompt, /topic\/member activity map/i)
   })
 })

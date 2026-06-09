@@ -9,6 +9,7 @@ import ErrorBlock from './ErrorBlock.vue'
 import ChartBlockRenderer from './ChartBlockRenderer.vue'
 import { useToast } from '@/composables/useToast'
 import { stripChartImagePlaceholders } from '@/services/ai/chartMarkdownPlaceholders'
+import { shouldHideRecoverableChartError } from '@/stores/aiChatChartBlocks'
 
 const { t, te, locale } = useI18n()
 const toast = useToast()
@@ -137,21 +138,22 @@ function submitEditing() {
   overwriteSubsequent.value = false
 }
 
-const hasChartBlocks = computed(() => (props.contentBlocks || []).some((block) => block.type === 'chart'))
-
 function getDisplayText(text: string): string {
-  return hasChartBlocks.value ? stripChartImagePlaceholders(text) : text
+  return stripChartImagePlaceholders(text)
 }
 
 // 过滤无内容的文本/思考块，避免显示空气泡
 const visibleBlocks = computed(() => {
   const blocks = props.contentBlocks || []
-  return blocks.filter((block) => {
+  return blocks.filter((block, index) => {
     if (block.type === 'text') {
       return getDisplayText(block.text).trim().length > 0
     }
     if (block.type === 'think') {
       return block.text.trim().length > 0
+    }
+    if (block.type === 'error') {
+      return !shouldHideRecoverableChartError(blocks, index)
     }
     return true
   })

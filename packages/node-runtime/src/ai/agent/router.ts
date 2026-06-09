@@ -158,10 +158,12 @@ function plannedRuleDecision(text: string): RouteDecision | null {
 
   const dimensions = [
     matchAny(text, [/分析|复盘|总结.*规律|趋势|变化|演变|compare|comparison/i]),
-    matchAny(text, [/过去一年|最近半年|今年|去年|上半年|下半年|长期|按季度|按月份|first half|second half/i]),
-    matchAny(text, [/关系|互动|影响力|最强|最活跃|被忽略|主动|回应|turning point|转折点/i]),
+    matchAny(text, [
+      /过去一年|最近一年|近一年|过去.*年|最近半年|今年|去年|上半年|下半年|长期|按季度|按月份|first half|second half/i,
+    ]),
+    matchAny(text, [/关系|互动|影响力|核心成员|最强|最活跃|被忽略|主动|回应|turning point|转折点/i]),
     matchAny(text, [/证据|举出|例子|关键分歧|主要矛盾|evidence/i]),
-    matchAny(text, [/并且|同时|以及|分别|每个阶段|多条件|参与|回复|topic|theme/i]),
+    matchAny(text, [/并且|同时|以及|分别|每个阶段|按阶段|阶段|多条件|参与|回复|话题|主题|发言规律|topic|theme/i]),
     matchAny(text, [/证据不够|不足以|不够|uncertain|insufficient/i]),
   ]
   const score = dimensions.filter(Boolean).length

@@ -92,5 +92,6 @@ notes:
 - member_id is a tool lookup hint; display_name may not be unique.
 - Active member hints reflect historical total message volume, not recent activity.
 - Use real current date for relative ranges; database bounds only describe data coverage.
-- Do not plan a tool call only to rediscover min/max timestamp.`
+- Do not plan a tool call only to rediscover min/max timestamp.
+- When using default recent-day tools, choose a range that intersects database bounds instead of probing an empty real-current-date window first.`
 }

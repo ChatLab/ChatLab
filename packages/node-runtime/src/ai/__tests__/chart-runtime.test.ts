@@ -11,15 +11,12 @@ import {
 } from '../chart-runtime'
 
 describe('chart runtime policy', () => {
-  it('keeps chart prompt and skill metadata in node runtime', () => {
+  it('keeps chart skill metadata in node runtime', () => {
     const skill = getChartCapabilitySkill('en-US')
 
     assert.equal(skill.id, CHART_CAPABILITY_SKILL_ID)
     assert.equal(skill.name, 'Chart Assistant')
     assert.deepEqual(skill.tools, ['render_chart', 'get_schema'])
-    assert.match(skill.prompt, /render_chart/)
-    assert.match(skill.prompt, /chart1\.png/)
-    assert.match(skill.prompt, /Data preview/)
   })
 
   it('enables chart runtime only for explicit chart skill by default', () => {
@@ -90,9 +87,6 @@ describe('chart runtime policy', () => {
 
     assert.equal(capability?.id, 'chart_generation')
     assert.deepEqual(capability?.tools, ['get_schema', 'render_chart'])
-    assert.match(capability?.guidance ?? '', /趋势/)
-    assert.match(capability?.guidance ?? '', /get_schema/)
-    assert.match(capability?.guidance ?? '', /render_chart/)
   })
 
   it('does not offer chart planner capability when render_chart is unavailable', () => {

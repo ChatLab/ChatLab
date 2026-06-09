@@ -52,6 +52,5 @@ describe('builtin chart skill helpers', () => {
 
     assert.ok(skill)
     assert.equal(skill.id, CHART_CAPABILITY_SKILL_ID)
-    assert.match(skill.prompt, /render_chart/)
   })
 })

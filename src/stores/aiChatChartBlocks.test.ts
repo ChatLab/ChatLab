@@ -4,6 +4,7 @@ import type { ChartPayload } from '@openchatlab/core'
 import {
   extractChartPayloads,
   isRenderOnlyTool,
+  shouldHideRecoverableChartError,
   toChartContentBlocks,
   toRenderOnlyToolErrorBlock,
 } from './aiChatChartBlocks'
@@ -123,6 +124,24 @@ describe('aiChat chart block helpers', () => {
         ],
       }),
       null
+    )
+  })
+
+  it('hides recovered chart render errors when a later native chart exists', () => {
+    const blocks = [
+      { type: 'error', error: { name: 'ChartRenderError', message: 'Field "metric" does not exist in SQL result' } },
+      { type: 'think', text: '修正 SQL' },
+      { type: 'chart', chart },
+    ]
+
+    assert.equal(shouldHideRecoverableChartError(blocks, 0), true)
+    assert.equal(shouldHideRecoverableChartError(blocks.slice(0, 2), 0), false)
+    assert.equal(
+      shouldHideRecoverableChartError(
+        [{ type: 'error', error: { name: 'OtherError', message: 'boom' } }, blocks[2]],
+        0
+      ),
+      false
     )
   })
 })

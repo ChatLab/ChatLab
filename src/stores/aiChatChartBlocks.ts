@@ -47,6 +47,14 @@ export function toChartContentBlocks(charts: ChartPayload[]): ChartContentBlock[
   return charts.map((chart) => ({ type: 'chart', chart: toPersistedChartPayload(chart) }))
 }
 
+export function shouldHideRecoverableChartError(blocks: readonly unknown[], index: number): boolean {
+  const block = blocks[index]
+  if (!isRecord(block) || block.type !== 'error' || !isRecord(block.error)) return false
+  if (block.error.name !== 'ChartRenderError') return false
+
+  return blocks.slice(index + 1).some((nextBlock) => isRecord(nextBlock) && nextBlock.type === 'chart')
+}
+
 function extractToolResultText(toolResult: unknown): string | null {
   if (!isRecord(toolResult)) return null
   if (typeof toolResult.error === 'string') return toolResult.error

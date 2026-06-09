@@ -324,6 +324,7 @@ Usage rules:
 - Interpret relative time expressions using the real current date, not the database's last message time.
 - "recent year" / "past year" means one year back from the real current date to today; "last year" means the previous calendar year.
 - Database time bounds are only for explaining coverage, not for redefining the user's requested time range.
+- When using default recent-day tools, first choose a range that intersects database time bounds instead of probing an empty real-current-date window.
 - Do not call tools only to rediscover min/max timestamp; concrete chat facts, statistics, and conclusions still require tool evidence.`,
       evidencePolicy: `Evidence policy:
 - AI conversation history, prior AI replies, and compressed summaries are only for understanding the user's intent; they are not evidence for chat-record facts.
