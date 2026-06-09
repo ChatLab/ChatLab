@@ -10,6 +10,7 @@ import { getHistoryForAgent, setPendingDebugContext } from '../chats'
 import { aiLogger, isDebugMode } from '../logger'
 import { t as i18nT } from '../../i18n'
 import {
+  CHART_CAPABILITY_SKILL_ID,
   DEFAULT_MAX_TOOL_ROUNDS,
   buildPlanGuidance,
   createAnalysisPlanner,
@@ -130,7 +131,12 @@ export class Agent {
     const allowedTools = this.assistantConfig?.allowedBuiltinTools
     const toolContext = { ...this.context, locale: this.locale }
     let piTools = getAllTools(toolContext, allowedTools)
-    if (this.config.chartAutoMode === 'explicit' && !shouldUseChartCapabilityForMessage(userMessage)) {
+    const isExplicitChartSkill = this.skillCtx?.skillDef?.id === CHART_CAPABILITY_SKILL_ID
+    if (
+      this.config.chartAutoMode === 'explicit' &&
+      !isExplicitChartSkill &&
+      !shouldUseChartCapabilityForMessage(userMessage)
+    ) {
       piTools = piTools.filter((tool) => tool.name !== 'render_chart')
     }
 
