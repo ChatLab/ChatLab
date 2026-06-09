@@ -190,7 +190,7 @@ export function createElectronRunAgentStream(): (
       const effectiveChatType = chatType ?? 'group'
       const autoSkillAllowedTools =
         resolvedChartAutoMode === 'explicit'
-          ? assistantConfig?.allowedBuiltinTools
+          ? (assistantConfig?.allowedBuiltinTools ?? [...CHART_CAPABILITY_ANALYSIS_TOOLS])
           : (getAllowedBuiltinToolsForChartAutoSkill(assistantConfig?.allowedBuiltinTools) ?? [
               ...CHART_CAPABILITY_ANALYSIS_TOOLS,
             ])

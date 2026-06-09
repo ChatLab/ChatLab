@@ -1033,7 +1033,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
             case 'done':
               state.currentToolStatus = null
-              updatePlanBlockStatus('done')
+              if (!hasStreamError) updatePlanBlockStatus('done')
               if (chunk.usage) {
                 lastDoneUsage = { ...chunk.usage }
                 state.sessionTokenUsage = {
@@ -1569,7 +1569,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               break
             case 'done':
               state.currentToolStatus = null
-              updatePlanBlockStatus('done')
+              if (!hasStreamError) updatePlanBlockStatus('done')
               if (chunk.usage) lastDoneUsage = { ...chunk.usage }
               setAgentPhase(state, 'completed', chunk.usage ? { totalUsage: chunk.usage } : undefined)
               break
