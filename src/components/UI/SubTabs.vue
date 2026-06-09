@@ -153,6 +153,7 @@ watch(
             'flex items-center justify-between',
             bordered !== false ? 'border-b border-gray-200/50 dark:border-gray-800/50' : '',
             size === 'sm' ? 'px-3' : 'px-6',
+            'overflow-x-auto',
           ],
     ]"
   >
@@ -161,7 +162,7 @@ watch(
         v-for="tab in items"
         :key="tab.id"
         :ref="(el) => setTabRef(tab.id, el as HTMLElement)"
-        class="flex items-center font-medium transition-colors"
+        class="flex shrink-0 items-center whitespace-nowrap font-medium transition-colors"
         :class="[
           isVertical
             ? 'justify-start gap-2 px-3 py-2 text-sm'

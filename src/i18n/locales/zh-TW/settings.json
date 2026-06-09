@@ -298,7 +298,7 @@
     "exportSettings": {
       "title": "匯出設定"
     },
-    "skillSettings": {
+    "chatPreferences": {
       "title": "對話偏好",
       "enableAutoSkill": "AI 自主選擇技能",
       "enableAutoSkillDesc": "啟用後，AI 會根據使用者的問題自動匹配並啟用合適的分析技能；關閉後僅在手動選擇技能時生效",
