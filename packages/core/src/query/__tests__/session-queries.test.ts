@@ -10,7 +10,13 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import type { SessionMeta, SessionOverview } from '../session-queries'
-import { buildSessionInfo, getSessionInfo, getSummaryCount, getLastPlatformMessageId } from '../session-queries'
+import {
+  buildSessionInfo,
+  getChatOverview,
+  getSessionInfo,
+  getSummaryCount,
+  getLastPlatformMessageId,
+} from '../session-queries'
 import type { DatabaseAdapter } from '../../interfaces'
 
 // ==================== Mock helpers ====================
@@ -138,6 +144,38 @@ describe('getSessionInfo', () => {
     assert.equal(info.platform, 'telegram')
     assert.equal(info.type, 'private')
     assert.equal(info.ownerId, 'me')
+  })
+})
+
+describe('getChatOverview', () => {
+  it('returns summaryCount together with overview and top members', () => {
+    const db = createMockDb({
+      'FROM meta': () => ({
+        name: 'Chat',
+        platform: 'wechat',
+        type: 'group',
+        imported_at: 1700000000,
+        group_id: null,
+        group_avatar: null,
+        owner_id: null,
+      }),
+      'FROM message msg': () => ({ count: 42 }),
+      'FROM member\n       WHERE': () => ({ count: 2 }),
+      'MIN(ts)': () => ({ v: 1600000000 }),
+      'MAX(ts)': () => ({ v: 1700000000 }),
+      sqlite_master: () => ({ cnt: 1 }),
+      'FROM segment': () => ({ count: 5 }),
+      'FROM member m': () => [
+        { memberId: 1, platformId: 'u1', name: 'Alice', avatar: null, messageCount: 30 },
+        { memberId: 2, platformId: 'u2', name: 'Bob', avatar: null, messageCount: 12 },
+      ],
+    })
+
+    const overview = getChatOverview(db, 1)
+
+    assert.ok(overview)
+    assert.equal(overview.summaryCount, 5)
+    assert.deepEqual(overview.topMembers, [{ id: 1, name: 'Alice', count: 30 }])
   })
 })
 

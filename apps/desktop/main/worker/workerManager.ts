@@ -432,6 +432,7 @@ export async function getChatOverview(
   firstMessageTs: number | null
   lastMessageTs: number | null
   topMembers: Array<{ id: number; name: string; count: number }>
+  summaryCount: number
 } | null> {
   return sendToWorker('getChatOverview', { sessionId, topN })
 }

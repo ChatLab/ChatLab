@@ -102,6 +102,7 @@ export type { AgentCoreOptions, AgentCoreEvent, AgentCoreResult, AgentTokenUsage
 export { DEFAULT_MAX_TOOL_ROUNDS, createLlmRouteDecider, decideRequestRoute, runAgentCore } from './agent'
 export type { LlmRouteDecider, RequestRoute, RouteDecision, RouteDecisionSource, RouterInput } from './agent'
 export { buildPlanGuidance, createAnalysisPlanner, createPlanContentBlock } from './agent'
+export { createDataSnapshotFromOverview } from './agent'
 export type {
   AnalysisPlanIntent,
   AnalysisPlanner,
@@ -111,6 +112,7 @@ export type {
   PlannerInput,
   PlanContentBlock,
   PlanDraftContentBlock,
+  ChatOverviewForSnapshot,
 } from './agent'
 
 // Agent Event Handler

@@ -9,6 +9,7 @@ import {
   SkillManager,
   buildSkillMenuWithBuiltinChart,
   createActivateSkillTool,
+  createDataSnapshotFromOverview,
   getAllowedBuiltinToolsForChartAutoSkill,
   getChartCapabilitySkill,
   getSkillConfigWithBuiltinChart,
@@ -166,19 +167,7 @@ export function createCliRunAgentStream(
     let dataSnapshot: DataSnapshot | undefined
     if (db) {
       try {
-        const overview = getChatOverview(db, 5)
-        if (overview) {
-          dataSnapshot = {
-            name: overview.name,
-            platform: overview.platform,
-            type: overview.type,
-            totalMessages: overview.totalMessages,
-            totalMembers: overview.totalMembers,
-            firstMessageTs: overview.firstMessageTs,
-            lastMessageTs: overview.lastMessageTs,
-            capturedAt: Math.floor(Date.now() / 1000),
-          }
-        }
+        dataSnapshot = createDataSnapshotFromOverview(getChatOverview(db, 10))
       } catch {
         // non-fatal
       }

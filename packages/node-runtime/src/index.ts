@@ -207,7 +207,7 @@ export type { AIChat, AIMessage, AIMessageRole, ContentBlock, TokenUsageData, AI
 export type { AgentCoreOptions, AgentCoreEvent, AgentCoreResult, AgentTokenUsage, SimpleHistoryMessage } from './ai'
 export { DEFAULT_MAX_TOOL_ROUNDS, createLlmRouteDecider, decideRequestRoute, runAgentCore } from './ai'
 export type { LlmRouteDecider, RequestRoute, RouteDecision, RouteDecisionSource, RouterInput } from './ai'
-export { buildPlanGuidance, createAnalysisPlanner, createPlanContentBlock } from './ai'
+export { buildPlanGuidance, createAnalysisPlanner, createDataSnapshotFromOverview, createPlanContentBlock } from './ai'
 export type {
   AnalysisPlanIntent,
   AnalysisPlanner,
@@ -217,6 +217,7 @@ export type {
   PlannerInput,
   PlanContentBlock,
   PlanDraftContentBlock,
+  ChatOverviewForSnapshot,
 } from './ai'
 
 // Summary generation

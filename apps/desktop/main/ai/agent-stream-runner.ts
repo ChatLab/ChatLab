@@ -13,6 +13,7 @@ import {
   CHART_CAPABILITY_ANALYSIS_TOOLS,
   checkAndCompress,
   createCompressionLlmAdapter,
+  createDataSnapshotFromOverview,
   formatAIError,
   getAllowedBuiltinToolsForChartAutoSkill,
   getChartCapabilitySkill,
@@ -214,19 +215,7 @@ export function createElectronRunAgentStream(): (
 
     let dataSnapshot: ToolContext['dataSnapshot'] | undefined
     try {
-      const overview = await workerManager.getChatOverview(sessionId, 5)
-      if (overview) {
-        dataSnapshot = {
-          name: overview.name,
-          platform: overview.platform,
-          type: overview.type,
-          totalMessages: overview.totalMessages,
-          totalMembers: overview.totalMembers,
-          firstMessageTs: overview.firstMessageTs,
-          lastMessageTs: overview.lastMessageTs,
-          capturedAt: Math.floor(Date.now() / 1000),
-        }
-      }
+      dataSnapshot = createDataSnapshotFromOverview(await workerManager.getChatOverview(sessionId, 10))
     } catch (error) {
       aiLogger.warn('AgentStream', `Failed to load data snapshot: ${requestId}`, { error: String(error) })
     }

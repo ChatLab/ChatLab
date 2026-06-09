@@ -194,6 +194,7 @@ export interface ChatOverviewData {
   firstMessageTs: number | null
   lastMessageTs: number | null
   topMembers: Array<{ id: number; name: string; count: number }>
+  summaryCount: number
 }
 
 export interface SessionPreviewMessage {
@@ -252,6 +253,7 @@ export function getChatOverview(db: DatabaseAdapter, topN: number = 10): ChatOve
 
   const overview = getSessionOverview(db)
   const members = getMemberActivity(db)
+  const summaryCount = getSummaryCount(db)
 
   const topMembers = members.slice(0, topN).map((m) => ({
     id: m.memberId,
@@ -268,6 +270,7 @@ export function getChatOverview(db: DatabaseAdapter, topN: number = 10): ChatOve
     firstMessageTs: overview.firstMessageTs,
     lastMessageTs: overview.lastMessageTs,
     topMembers,
+    summaryCount,
   }
 }
 

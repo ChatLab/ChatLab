@@ -160,6 +160,7 @@ export function getChatOverview(sessionId: string, topN: number = 10) {
 
   const cacheDir = getCacheDir()
   const overview = resolveOverview(db, sessionId, cacheDir)
+  const summaryCount = getSummaryCount(coreDb)
 
   let membersCache = getCache<MembersCache>(sessionId, CACHE_KEY_MEMBERS, cacheDir)
   if (!membersCache) {
@@ -187,5 +188,6 @@ export function getChatOverview(sessionId: string, topN: number = 10) {
     firstMessageTs: overview.firstMessageTs,
     lastMessageTs: overview.lastMessageTs,
     topMembers,
+    summaryCount,
   }
 }
