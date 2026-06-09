@@ -21,6 +21,36 @@ const mockT: TranslateFn = (key, options) => {
     const opts = options as Record<string, unknown>
     return `[snapshot:${opts.name}:${opts.totalMessages}:${opts.lastMessageDate}]`
   }
+  if (key === 'ai.agent.dataSnapshotContext') {
+    const opts = options as Record<string, unknown>
+    return `[snapshot-context]
+- name: ${opts.name}
+- platform: ${opts.platform}
+- type: ${opts.type}
+- total_messages: ${opts.totalMessages}
+- total_members: ${opts.totalMembers}
+- first_message_ts: ${opts.firstMessageTs}
+- first_message_time: ${opts.firstMessageTime}
+- last_message_ts: ${opts.lastMessageTs}
+- last_message_time: ${opts.lastMessageTime}
+- segment_summaries_available: ${opts.segmentSummaryCount}
+
+${opts.memberHintTitle}
+${opts.memberHintLines}
+
+${opts.usageRules}`
+  }
+  if (key === 'ai.agent.dataSnapshotMemberHintsAll') return '活跃成员查询提示（全部成员）：'
+  if (key === 'ai.agent.dataSnapshotMemberHintsTop') return '活跃成员查询提示（按历史总消息量 Top 10）：'
+  if (key === 'ai.agent.dataSnapshotMemberHintsUnavailable') return '活跃成员查询提示：'
+  if (key === 'ai.agent.dataSnapshotMemberHintsEmpty') return '无可用成员提示。'
+  if (key === 'ai.agent.dataSnapshotUsageRules') {
+    return `- member_id 是工具查询提示；display_name 仅用于人类识别，可能不唯一。
+- 不要在最终回答中主动暴露 member_id 或启动上下文本身，除非用户明确要求技术细节。
+- 活跃成员排行只代表历史总消息量，不代表最近活跃情况。
+- 相对时间表达以真实当前日期为基准，而不是数据库最后消息时间。
+- 不要只为了重新发现 min/max timestamp 调用工具。`
+  }
   if (key === 'ai.agent.evidencePolicy') return '[evidence-policy]'
   if (key === 'ai.agent.responseInstruction') return '[response-instruction]'
   if (key === 'ai.agent.mentionedMembersNote') return 'Mentioned members:'
@@ -108,7 +138,42 @@ describe('buildSystemPrompt', () => {
       },
     })
 
-    assert.ok(result.includes('[snapshot:Team Chat:1234:'))
+    assert.ok(result.includes('[snapshot-context]'))
+    assert.ok(result.includes('total_messages: 1234'))
+    assert.ok(result.includes('segment_summaries_available: 0'))
     assert.ok(result.includes('[evidence-policy]'))
+  })
+
+  it('renders extended data snapshot startup context and rules', () => {
+    const result = buildSystemPrompt({
+      t: mockT,
+      locale: 'zh-CN',
+      dataSnapshot: {
+        version: 2,
+        name: 'Team Chat',
+        platform: 'wechat',
+        type: 'group',
+        totalMessages: 100,
+        totalMembers: 2,
+        firstMessageTs: 1735689600,
+        lastMessageTs: 1767225599,
+        activeMemberHints: [
+          { memberId: 1, displayName: 'Alice', messageCount: 60, share: 60 },
+          { memberId: 2, displayName: 'Bob', messageCount: 40, share: 40 },
+        ],
+        segmentSummaries: { availableCount: 12 },
+      },
+    })
+
+    assert.ok(result.includes('first_message_ts: 1735689600'))
+    assert.ok(result.includes('last_message_ts: 1767225599'))
+    assert.ok(result.includes('segment_summaries_available: 12'))
+    assert.ok(result.includes('member_id=1 | display_name=Alice | messages=60 | share=60%'))
+    assert.ok(result.includes('member_id=2 | display_name=Bob | messages=40 | share=40%'))
+    assert.ok(result.includes('历史总消息量'))
+    assert.ok(result.includes('真实当前日期'))
+    assert.ok(result.includes('不要只为了重新发现 min/max timestamp 调用工具'))
+    assert.ok(!result.includes('platform_id='))
+    assert.ok(!result.includes('aliases='))
   })
 })

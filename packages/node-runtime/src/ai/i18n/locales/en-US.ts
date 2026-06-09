@@ -297,6 +297,34 @@ Returned summaries are brief descriptions of each segment, helping quickly locat
       defaultYearNote: 'When no time range is specified, queries default to all data. Current year is {{year}}.',
       dataSnapshotNote:
         'Current chat database snapshot: {{name}} ({{platform}}), {{totalMessages}} total messages, {{totalMembers}} members, time range {{firstMessageDate}} ~ {{lastMessageDate}}. This snapshot only helps judge data coverage; concrete chat facts still require tool retrieval from the current database.',
+      dataSnapshotContext: `Current chat database startup context:
+- name: {{name}}
+- platform: {{platform}}
+- type: {{type}}
+- total_messages: {{totalMessages}}
+- total_members: {{totalMembers}}
+- first_message_ts: {{firstMessageTs}}
+- first_message_time: {{firstMessageTime}}
+- last_message_ts: {{lastMessageTs}}
+- last_message_time: {{lastMessageTime}}
+- segment_summaries_available: {{segmentSummaryCount}}
+
+{{memberHintTitle}}
+{{memberHintLines}}
+
+Usage rules:
+{{usageRules}}`,
+      dataSnapshotMemberHintsAll: 'Active member lookup hints (all members):',
+      dataSnapshotMemberHintsTop: 'Active member lookup hints (top 10 by historical total messages):',
+      dataSnapshotMemberHintsUnavailable: 'Active member lookup hints:',
+      dataSnapshotMemberHintsEmpty: 'No member hints available.',
+      dataSnapshotUsageRules: `- member_id is a tool lookup hint; display_name is only for human recognition and may not be unique.
+- Do not proactively expose member_id or the startup context in the final answer unless the user explicitly asks for technical details.
+- Active member ranking only reflects historical total message volume, not recent activity; it is also not evidence for influence, relationships, or recent trends.
+- Interpret relative time expressions using the real current date, not the database's last message time.
+- "recent year" / "past year" means one year back from the real current date to today; "last year" means the previous calendar year.
+- Database time bounds are only for explaining coverage, not for redefining the user's requested time range.
+- Do not call tools only to rediscover min/max timestamp; concrete chat facts, statistics, and conclusions still require tool evidence.`,
       evidencePolicy: `Evidence policy:
 - AI conversation history, prior AI replies, and compressed summaries are only for understanding the user's intent; they are not evidence for chat-record facts.
 - Whenever the user asks about chat content, recent topics, what someone said, rankings/statistics, whether a topic appeared, or asks for exact quotes, first call an appropriate data tool to retrieve the current database.

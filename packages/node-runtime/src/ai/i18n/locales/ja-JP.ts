@@ -296,6 +296,34 @@ export default {
       defaultYearNote: '時間範囲を指定しない場合は全期間が対象。現在の年は{{year}}年',
       dataSnapshotNote:
         '現在のチャットデータベースのスナップショット：{{name}}（{{platform}}）、総メッセージ {{totalMessages}} 件、メンバー {{totalMembers}} 人、期間 {{firstMessageDate}} ~ {{lastMessageDate}}。このスナップショットはデータ範囲の判断にのみ使い、具体的なチャット事実の回答には必ず現在のデータベースをツールで検索する。',
+      dataSnapshotContext: `現在のチャットデータベース起動コンテキスト：
+- name: {{name}}
+- platform: {{platform}}
+- type: {{type}}
+- total_messages: {{totalMessages}}
+- total_members: {{totalMembers}}
+- first_message_ts: {{firstMessageTs}}
+- first_message_time: {{firstMessageTime}}
+- last_message_ts: {{lastMessageTs}}
+- last_message_time: {{lastMessageTime}}
+- segment_summaries_available: {{segmentSummaryCount}}
+
+{{memberHintTitle}}
+{{memberHintLines}}
+
+使用ルール：
+{{usageRules}}`,
+      dataSnapshotMemberHintsAll: 'アクティブメンバー検索ヒント（全メンバー）：',
+      dataSnapshotMemberHintsTop: 'アクティブメンバー検索ヒント（過去の総メッセージ数 Top 10）：',
+      dataSnapshotMemberHintsUnavailable: 'アクティブメンバー検索ヒント：',
+      dataSnapshotMemberHintsEmpty: '利用可能なメンバーヒントはありません。',
+      dataSnapshotUsageRules: `- member_id はツール検索用のヒントです。display_name は人間が識別するためだけのもので、一意とは限りません。
+- ユーザーが技術的詳細を明示的に求めない限り、最終回答で member_id や起動コンテキスト自体を積極的に開示しないでください。
+- アクティブメンバー順位は過去の総メッセージ量だけを示し、最近の活発さを示すものではありません。また、影響力、関係性、最近の傾向の結論証拠にもなりません。
+- 相対的な時間表現は、データベースの最終メッセージ時刻ではなく、実際の現在日付を基準に解釈してください。
+- 「最近一年/過去一年」は実際の現在日付から今日までの1年間を指し、「去年」は前の暦年を指します。
+- データベースの時間境界はカバレッジ説明にのみ使い、ユーザーが求めた時間範囲を再定義するために使わないでください。
+- min/max timestamp を再発見するためだけにツールを呼ばないでください。ただし、具体的なチャット事実、統計、結論には引き続きツール証拠が必要です。`,
       evidencePolicy: `証拠ポリシー：
 - AI 会話履歴、過去の AI 回答、圧縮要約はユーザー意図の理解にのみ使用し、チャット記録の事実証拠として扱わない。
 - ユーザーがチャット内容、最近の話題、誰かの発言、ランキング/統計、ある話題が出たかどうか、または原文引用を求めた場合は、必ず先に適切なデータツールで現在のデータベースを検索する。

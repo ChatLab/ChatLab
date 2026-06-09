@@ -23,7 +23,15 @@ export interface SkillContext {
   skillMenu?: string
 }
 
+export interface ActiveMemberHint {
+  memberId: number
+  displayName: string
+  messageCount: number
+  share: number
+}
+
 export interface DataSnapshot {
+  version?: 2
   name: string
   platform: string
   type: string
@@ -31,7 +39,11 @@ export interface DataSnapshot {
   totalMembers: number
   firstMessageTs: number | null
   lastMessageTs: number | null
-  capturedAt: number
+  capturedAt?: number
+  activeMemberHints?: ActiveMemberHint[]
+  segmentSummaries?: {
+    availableCount: number
+  }
 }
 
 export type TranslateFn = (key: string, options?: Record<string, unknown>) => string
@@ -49,6 +61,56 @@ export interface BuildSystemPromptOptions {
 
 function agentT(t: TranslateFn, key: string, locale: string, options?: Record<string, unknown>): string {
   return t(key, { lng: locale, ...options })
+}
+
+function formatNullableTimestamp(timestamp: number | null | undefined): string {
+  return typeof timestamp === 'number' && Number.isFinite(timestamp) ? String(timestamp) : 'null'
+}
+
+function formatSharePercent(share: number): string {
+  if (!Number.isFinite(share)) return '0%'
+  const rounded = Math.round(share * 10) / 10
+  return Number.isInteger(rounded) ? `${rounded}%` : `${rounded.toFixed(1)}%`
+}
+
+function normalizeInlineText(text: string): string {
+  return text.replace(/\s+/g, ' ').trim()
+}
+
+export function formatDataSnapshotContext(t: TranslateFn, dataSnapshot: DataSnapshot, locale: string): string {
+  const memberHints = dataSnapshot.activeMemberHints ?? []
+  const memberHintTitle =
+    memberHints.length === 0
+      ? agentT(t, 'ai.agent.dataSnapshotMemberHintsUnavailable', locale)
+      : dataSnapshot.totalMembers <= 10
+        ? agentT(t, 'ai.agent.dataSnapshotMemberHintsAll', locale)
+        : agentT(t, 'ai.agent.dataSnapshotMemberHintsTop', locale)
+
+  // 中文注释：启动上下文会进入每轮系统提示词，字段顺序和标签必须稳定，便于模型缓存和后续 smoke 对比。
+  const memberHintLines =
+    memberHints.length > 0
+      ? memberHints
+          .map((member, index) => {
+            return `${index + 1}. member_id=${member.memberId} | display_name=${normalizeInlineText(member.displayName)} | messages=${member.messageCount} | share=${formatSharePercent(member.share)}`
+          })
+          .join('\n')
+      : agentT(t, 'ai.agent.dataSnapshotMemberHintsEmpty', locale)
+
+  return agentT(t, 'ai.agent.dataSnapshotContext', locale, {
+    name: dataSnapshot.name,
+    platform: dataSnapshot.platform,
+    type: dataSnapshot.type,
+    totalMessages: dataSnapshot.totalMessages,
+    totalMembers: dataSnapshot.totalMembers,
+    firstMessageTs: formatNullableTimestamp(dataSnapshot.firstMessageTs),
+    firstMessageTime: formatTimestamp(dataSnapshot.firstMessageTs, locale),
+    lastMessageTs: formatNullableTimestamp(dataSnapshot.lastMessageTs),
+    lastMessageTime: formatTimestamp(dataSnapshot.lastMessageTs, locale),
+    segmentSummaryCount: dataSnapshot.segmentSummaries?.availableCount ?? 0,
+    memberHintTitle,
+    memberHintLines,
+    usageRules: agentT(t, 'ai.agent.dataSnapshotUsageRules', locale),
+  })
 }
 
 function getLockedPromptSection(
@@ -94,16 +156,7 @@ function getLockedPromptSection(
       : ''
 
   const year = now.getFullYear()
-  const dataSnapshotNote = dataSnapshot
-    ? `${agentT(t, 'ai.agent.dataSnapshotNote', locale, {
-        name: dataSnapshot.name,
-        platform: dataSnapshot.platform,
-        totalMessages: dataSnapshot.totalMessages,
-        totalMembers: dataSnapshot.totalMembers,
-        firstMessageDate: formatTimestamp(dataSnapshot.firstMessageTs, locale),
-        lastMessageDate: formatTimestamp(dataSnapshot.lastMessageTs, locale),
-      })}\n`
-    : ''
+  const dataSnapshotNote = dataSnapshot ? `${formatDataSnapshotContext(t, dataSnapshot, locale)}\n` : ''
 
   return `${agentT(t, 'ai.agent.currentDateIs', locale)} ${currentDate}。
 ${ownerNote}

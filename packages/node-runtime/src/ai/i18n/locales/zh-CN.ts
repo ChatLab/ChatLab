@@ -286,6 +286,34 @@ export default {
       defaultYearNote: '未指定时间范围时默认查询全部。当前年份为{{year}}年',
       dataSnapshotNote:
         '当前聊天数据库快照：{{name}}（{{platform}}），总消息 {{totalMessages}} 条，成员 {{totalMembers}} 人，时间范围 {{firstMessageDate}} ~ {{lastMessageDate}}。该快照只用于判断数据范围；回答具体聊天事实仍必须调用工具检索当前数据库。',
+      dataSnapshotContext: `当前聊天数据库启动上下文：
+- name: {{name}}
+- platform: {{platform}}
+- type: {{type}}
+- total_messages: {{totalMessages}}
+- total_members: {{totalMembers}}
+- first_message_ts: {{firstMessageTs}}
+- first_message_time: {{firstMessageTime}}
+- last_message_ts: {{lastMessageTs}}
+- last_message_time: {{lastMessageTime}}
+- segment_summaries_available: {{segmentSummaryCount}}
+
+{{memberHintTitle}}
+{{memberHintLines}}
+
+使用规则：
+{{usageRules}}`,
+      dataSnapshotMemberHintsAll: '活跃成员查询提示（全部成员）：',
+      dataSnapshotMemberHintsTop: '活跃成员查询提示（按历史总消息量 Top 10）：',
+      dataSnapshotMemberHintsUnavailable: '活跃成员查询提示：',
+      dataSnapshotMemberHintsEmpty: '无可用成员提示。',
+      dataSnapshotUsageRules: `- member_id 是工具查询提示；display_name 仅用于人类识别，可能不唯一。
+- 不要在最终回答中主动暴露 member_id 或启动上下文本身，除非用户明确要求技术细节。
+- 活跃成员排行只代表历史总消息量，不代表最近活跃情况；也不足以作为影响力、关系或近期趋势结论的证据。
+- 相对时间表达以真实当前日期为基准，而不是数据库最后消息时间。
+- “最近一年/过去一年”表示从真实当前日期回推一年到今天；“去年”表示上一自然年。
+- 数据库时间边界只用于说明覆盖范围，不用于重定义用户要求的时间范围。
+- 不要只为了重新发现 min/max timestamp 调用工具；但回答具体聊天事实、统计和结论仍必须调用工具获取证据。`,
       evidencePolicy: `证据策略：
 - AI 对话历史、历史 AI 回复和压缩摘要只用于理解用户意图，不能作为聊天记录事实证据。
 - 只要用户询问聊天记录内容、最近聊什么、某人说过什么、统计排行、是否出现过某话题或要求引用原话，必须先调用合适的数据工具检索当前数据库。
