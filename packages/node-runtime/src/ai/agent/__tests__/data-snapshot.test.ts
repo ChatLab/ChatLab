@@ -6,7 +6,7 @@
 
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { createDataSnapshotFromOverview } from '../data-snapshot'
+import { createDataSnapshotFromOverview, formatDataSnapshotForPlanner } from '../data-snapshot'
 
 describe('createDataSnapshotFromOverview', () => {
   it('maps overview members and summary count into an extended data snapshot', () => {
@@ -96,5 +96,25 @@ describe('createDataSnapshotFromOverview', () => {
   it('returns undefined for missing overview', () => {
     assert.equal(createDataSnapshotFromOverview(null), undefined)
     assert.equal(createDataSnapshotFromOverview(undefined), undefined)
+  })
+
+  it('warns the planner about default recent-day tools when data coverage stops before today', () => {
+    const snapshot = createDataSnapshotFromOverview({
+      name: 'Dorm Chat',
+      platform: 'wechat',
+      type: 'group',
+      totalMessages: 100,
+      totalMembers: 2,
+      firstMessageTs: 1735689600,
+      lastMessageTs: 1776051993,
+      summaryCount: 3,
+      topMembers: [{ id: 1, name: 'Alice', count: 60 }],
+    })
+
+    const formatted = formatDataSnapshotForPlanner(snapshot)
+
+    assert.match(formatted, /real current date/)
+    assert.match(formatted, /default recent-day tools/)
+    assert.match(formatted, /database bounds/)
   })
 })

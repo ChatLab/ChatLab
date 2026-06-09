@@ -63,6 +63,17 @@ describe('decideRequestRoute', () => {
     assert.ok(decision.confidence >= 0.8)
   })
 
+  it('routes open-ended recent-year topic and core-member retrospectives to planned execution by rule', async () => {
+    const decision = await decideRequestRoute({
+      ...baseInput,
+      userMessage: '请分析这个群最近一年的话题演变和核心成员变化。先建立话题地图和发言规律，再按阶段总结主要变化。',
+    })
+
+    assert.equal(decision.route, 'planned_execution')
+    assert.equal(decision.source, 'rule')
+    assert.ok(decision.confidence >= 0.8)
+  })
+
   it('uses injected LLM fallback for ambiguous requests', async () => {
     const llmDecision: RouteDecision = {
       route: 'planned_execution',
