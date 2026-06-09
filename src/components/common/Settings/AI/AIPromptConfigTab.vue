@@ -42,9 +42,9 @@ const enableAutoSkill = computed({
 })
 
 const chartAutoModeOptions = computed(() => [
-  { label: t('settings.aiPrompt.skillSettings.chartAutoMode.explicit'), value: 'explicit' },
-  { label: t('settings.aiPrompt.skillSettings.chartAutoMode.suggest'), value: 'suggest' },
-  { label: t('settings.aiPrompt.skillSettings.chartAutoMode.aggressive'), value: 'aggressive' },
+  { label: t('settings.aiPrompt.chatPreferences.chartAutoMode.explicit'), value: 'explicit' },
+  { label: t('settings.aiPrompt.chatPreferences.chartAutoMode.suggest'), value: 'suggest' },
+  { label: t('settings.aiPrompt.chatPreferences.chartAutoMode.aggressive'), value: 'aggressive' },
 ])
 
 const chartAutoMode = computed({
@@ -55,7 +55,9 @@ const chartAutoMode = computed({
   },
 })
 
-const chartAutoModeHint = computed(() => t(`settings.aiPrompt.skillSettings.chartAutoMode.${chartAutoMode.value}Hint`))
+const chartAutoModeHint = computed(() =>
+  t(`settings.aiPrompt.chatPreferences.chartAutoMode.${chartAutoMode.value}Hint`)
+)
 
 const searchContextBefore = computed({
   get: () => aiGlobalSettings.value.searchContextBefore ?? 3,
@@ -126,16 +128,16 @@ const maxToolResultPercent = computed({
     <div :ref="(el) => setPromptSectionRef('skill', el as HTMLElement | null)">
       <h4 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
         <UIcon name="i-heroicons-bolt" class="h-4 w-4 text-amber-500" />
-        {{ t('settings.aiPrompt.skillSettings.title') }}
+        {{ t('settings.aiPrompt.chatPreferences.title') }}
       </h4>
       <div class="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
         <div class="flex items-center justify-between">
           <div class="flex-1 pr-4">
             <p class="text-sm font-medium text-gray-900 dark:text-white">
-              {{ t('settings.aiPrompt.skillSettings.enableAutoSkill') }}
+              {{ t('settings.aiPrompt.chatPreferences.enableAutoSkill') }}
             </p>
             <p class="text-xs text-gray-500 dark:text-gray-400">
-              {{ t('settings.aiPrompt.skillSettings.enableAutoSkillDesc') }}
+              {{ t('settings.aiPrompt.chatPreferences.enableAutoSkillDesc') }}
             </p>
           </div>
           <USwitch v-model="enableAutoSkill" />
@@ -144,10 +146,10 @@ const maxToolResultPercent = computed({
         <div class="flex items-center justify-between">
           <div class="flex-1 pr-4">
             <p class="text-sm font-medium text-gray-900 dark:text-white">
-              {{ t('settings.aiPrompt.skillSettings.chartAutoMode.title') }}
+              {{ t('settings.aiPrompt.chatPreferences.chartAutoMode.title') }}
             </p>
             <p class="text-xs text-gray-500 dark:text-gray-400">
-              {{ t('settings.aiPrompt.skillSettings.chartAutoMode.description') }}
+              {{ t('settings.aiPrompt.chatPreferences.chartAutoMode.description') }}
             </p>
           </div>
           <div class="flex flex-col items-end gap-1">

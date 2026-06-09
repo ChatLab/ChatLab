@@ -21,8 +21,8 @@ const emit = defineEmits<{
 const navItems = computed(() => [
   { id: 'model', label: t('settings.tabs.aiConfig') },
   { id: 'defaultModel', label: t('settings.tabs.aiDefaultModel') },
+  { id: 'skill', label: t('settings.aiPrompt.chatPreferences.title') },
   { id: 'chat', label: t('settings.aiPrompt.chatSettings.title') },
-  { id: 'skill', label: t('settings.aiPrompt.skillSettings.title') },
   { id: 'compression', label: t('settings.aiPrompt.compression.title') },
   { id: 'preprocess', label: t('settings.tabs.aiPreprocess') },
   { id: 'sessionIndex', label: t('settings.tabs.sessionManage') },
