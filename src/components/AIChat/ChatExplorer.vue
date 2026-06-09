@@ -367,6 +367,7 @@ watch(
               :class="{
                 'flex min-h-full flex-col justify-center px-4 pb-32 pt-4 space-y-0!':
                   messages.length === 0 && !isAIThinking,
+                'px-4': messages.length > 0 || isAIThinking,
               }"
             >
               <!-- 空状态 Hero 区域 -->
@@ -509,7 +510,7 @@ watch(
 
           <!-- 输入框区域 -->
           <div class="px-4 pb-2">
-            <div class="mx-auto max-w-3xl">
+            <div class="mx-auto max-w-[740px]">
               <AIChatInput
                 ref="chatInputRef"
                 :session-id="sessionId"

@@ -141,7 +141,7 @@ export function useScreenCapture() {
     const originalMinWidth = element.style.minWidth
     const originalMaxWidth = element.style.maxWidth
 
-    element.style.padding = '16px'
+    element.style.padding = '16px 40px'
     element.style.paddingBottom = '48px' // 为水印留出空间
     const computedPosition = window.getComputedStyle(element).position
     if (computedPosition === 'static') {

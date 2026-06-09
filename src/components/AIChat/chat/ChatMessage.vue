@@ -457,7 +457,7 @@ async function handleCopyMarkdown() {
     :class="[isUser && !isEditing ? 'flex-row-reverse' : '', isSummary ? 'justify-center' : '']"
   >
     <!-- 消息内容 -->
-    <div :class="[isSummary || isEditing ? 'w-full min-w-0' : 'max-w-[85%] min-w-0']">
+    <div :class="[isUser && !isEditing ? 'max-w-[85%] min-w-0' : 'w-full min-w-0']">
       <!-- System 消息：可折叠的上下文总结 -->
       <template v-if="isSummary">
         <details
