@@ -10,6 +10,19 @@ const baseInput = {
   availableTools: ['get_chat_overview', 'search_messages', 'get_member_stats'],
 }
 
+const extendedDataSnapshot = {
+  version: 2 as const,
+  name: 'Team Chat',
+  platform: 'wechat',
+  type: 'group',
+  totalMessages: 1000,
+  totalMembers: 12,
+  firstMessageTs: 1735689600,
+  lastMessageTs: 1767225599,
+  activeMemberHints: [{ memberId: 3, displayName: 'Alice', messageCount: 300, share: 30 }],
+  segmentSummaries: { availableCount: 8 },
+}
+
 describe('decideRequestRoute', () => {
   it('routes concept and help questions to direct response by rule', async () => {
     const concept = await decideRequestRoute({
@@ -109,6 +122,37 @@ describe('decideRequestRoute', () => {
     assert.equal(decision.source, 'llm')
     assert.equal(decision.confidence, 1)
     assert.match(decision.reason, /No local data/)
+  })
+
+  it('includes compact extended data snapshot context in the LLM fallback prompt', async () => {
+    let capturedPrompt = ''
+    const decider = createLlmRouteDecider({
+      complete: async (prompt) => {
+        capturedPrompt = prompt
+        return '{"route":"planned_execution","confidence":0.8,"reason":"Needs trend analysis."}'
+      },
+    })
+
+    await decider(
+      {
+        ...baseInput,
+        userMessage: '帮我看一下这个情况。',
+        dataSnapshot: extendedDataSnapshot,
+      },
+      {
+        route: 'tool_assisted',
+        confidence: 0.45,
+        reason: 'Ambiguous request.',
+        source: 'rule',
+      }
+    )
+
+    assert.match(capturedPrompt, /total_messages: 1000/)
+    assert.match(capturedPrompt, /total_members: 12/)
+    assert.match(capturedPrompt, /first_message_ts: 1735689600/)
+    assert.match(capturedPrompt, /last_message_ts: 1767225599/)
+    assert.match(capturedPrompt, /segment_summaries_available: 8/)
+    assert.match(capturedPrompt, /active_member_hint_count: 1/)
   })
 
   it('keeps the rule decision when LLM fallback output is invalid', async () => {

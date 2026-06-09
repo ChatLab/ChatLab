@@ -12,6 +12,7 @@ import type {
   PlanContentBlock,
   PlannerInput,
 } from './planning-types'
+import { formatDataSnapshotForPlanner } from './data-snapshot'
 
 export type PlannerCompletionResult = string | { text: string }
 
@@ -121,9 +122,7 @@ function resultToText(result: PlannerCompletionResult): string {
 }
 
 function buildPlannerPrompt(input: PlannerInput): string {
-  const dataSnapshot = input.dataSnapshot
-    ? `${input.dataSnapshot.name}, ${input.dataSnapshot.totalMessages} messages, ${input.dataSnapshot.totalMembers} members`
-    : '(none)'
+  const dataSnapshot = formatDataSnapshotForPlanner(input.dataSnapshot)
   const availableCapabilities =
     input.availableCapabilities && input.availableCapabilities.length > 0
       ? input.availableCapabilities
@@ -161,6 +160,11 @@ Limits:
 - If availableCapabilities are listed, you may plan steps that use their tools when the capability helps the user.
 - Do not reveal hidden chain-of-thought; draft and plan are user-readable summaries only.
 - The plan is soft guidance, not a mandatory execution script.
+
+Planning strategy:
+- For open-ended topic, community profile, influence, interaction-pattern, or multi-dimensional retrospective analysis, first plan a lightweight reconnaissance step to build a topic/member activity map before drawing conclusions.
+- Prefer segment summaries, keyword frequency, time distribution, member activity, and representative message retrieval when available.
+- Do not create a dedicated step whose only purpose is finding max timestamp or confirming latest message time.
 
 Context:
 - locale: ${input.locale}

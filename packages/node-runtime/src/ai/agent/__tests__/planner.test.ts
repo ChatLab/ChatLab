@@ -10,6 +10,19 @@ const baseInput = {
   availableTools: ['search_messages', 'get_time_stats', 'get_member_stats'],
 }
 
+const extendedDataSnapshot = {
+  version: 2 as const,
+  name: 'Team Chat',
+  platform: 'wechat',
+  type: 'group',
+  totalMessages: 1000,
+  totalMembers: 12,
+  firstMessageTs: 1735689600,
+  lastMessageTs: 1767225599,
+  activeMemberHints: [{ memberId: 3, displayName: 'Alice', messageCount: 300, share: 30 }],
+  segmentSummaries: { availableCount: 8 },
+}
+
 describe('createAnalysisPlanner', () => {
   it('parses valid JSON and filters suggested tools to the available set', async () => {
     const planner = createAnalysisPlanner({
@@ -217,5 +230,36 @@ ${json}
 
     assert.match(capturedPrompt, /A concise user-facing analysis approach/)
     assert.match(capturedPrompt, /those details belong in <json>/)
+  })
+
+  it('includes extended data snapshot context and reconnaissance strategy in the planner prompt', async () => {
+    let capturedPrompt = ''
+    const planner = createAnalysisPlanner({
+      complete: async (prompt) => {
+        capturedPrompt = prompt
+        return JSON.stringify({
+          title: '年度话题趋势分析',
+          intent: 'trend',
+          steps: [
+            {
+              goal: '先建立话题地图和发言规律',
+              suggestedTools: ['search_messages', 'get_time_stats'],
+              evidenceNeeded: '摘要、时间分布、成员活跃和代表消息',
+            },
+          ],
+          successCriteria: ['覆盖真实最近一年'],
+        })
+      },
+    })
+
+    await planner({ ...baseInput, dataSnapshot: extendedDataSnapshot })
+
+    assert.match(capturedPrompt, /first_message_ts: 1735689600/)
+    assert.match(capturedPrompt, /last_message_ts: 1767225599/)
+    assert.match(capturedPrompt, /segment_summaries_available: 8/)
+    assert.match(capturedPrompt, /member_id=3/)
+    assert.match(capturedPrompt, /display_name=Alice/)
+    assert.match(capturedPrompt, /lightweight reconnaissance step/i)
+    assert.match(capturedPrompt, /topic\/member activity map/i)
   })
 })

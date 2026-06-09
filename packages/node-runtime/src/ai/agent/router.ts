@@ -1,4 +1,5 @@
 import type { LlmRouteDecider, RouteDecision, RouterInput } from './routing-types'
+import { formatDataSnapshotForRouter } from './data-snapshot'
 import {
   completeSimple,
   type Api as PiApi,
@@ -77,9 +78,7 @@ function parseLlmDecision(rawText: string, usage?: RouteDecision['usage']): Rout
 
 function buildLlmRouterPrompt(input: RouterInput, ruleDecision: RouteDecision): string {
   const toolNames = input.availableTools?.length ? input.availableTools.join(', ') : '(none)'
-  const dataSnapshot = input.dataSnapshot
-    ? `${input.dataSnapshot.name}, ${input.dataSnapshot.totalMessages} messages, ${input.dataSnapshot.totalMembers} members`
-    : '(none)'
+  const dataSnapshot = formatDataSnapshotForRouter(input.dataSnapshot)
 
   return `Classify the user's ChatLab request into exactly one route.
 
