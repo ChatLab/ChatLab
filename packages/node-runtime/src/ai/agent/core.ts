@@ -123,14 +123,6 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
   })()
 
   const finalThinkingLevel = resolvedThinkingLevel ?? (piModel.reasoning ? undefined : 'off')
-  console.debug('[agent-core] thinkingLevel resolution:', {
-    input: options.thinkingLevel,
-    modelId: piModel.id,
-    modelReasoning: effectiveModel.reasoning,
-    isDefault,
-    resolved: resolvedThinkingLevel,
-    final: finalThinkingLevel,
-  })
 
   const coreAgent = new PiAgentCore({
     initialState: {

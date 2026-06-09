@@ -57,7 +57,7 @@ export default {
         },
       },
       get_time_stats: {
-        desc: '获取群聊的时间分布统计。适用于回答"什么时候最活跃"、"大家一般几点聊天"等问题。',
+        desc: '获取群聊的时间分布统计。适用于回答"什么时候最活跃"、"大家一般几点聊天"等问题。返回的 `data` 数组可直接作为 `render_chart` 的 `rows` 参数用于绘图。',
         params: {
           type: '统计类型：hourly（按小时）、weekday（按星期）、daily（按日期）',
         },
@@ -248,9 +248,10 @@ export default {
         params: {},
       },
       render_chart: {
-        desc: '根据只读 SQL 和 ChartSpec v1 生成 ChatLab 原生图表。支持 bar、line、pie、heatmap。禁止输出 HTML、JavaScript、SVG、ECharts option 或渲染代码。',
+        desc: '根据 ChartSpec v1 生成 ChatLab 原生图表。支持 bar、line、pie、heatmap。提供 `rows`（来自高层工具的数据数组，如 get_time_stats 的 `data` 字段）或 `sql`（只读 SELECT）二选一；有现成数据时优先用 `rows`，只有高层工具无法满足时才写 `sql`。禁止输出 HTML、JavaScript、SVG、ECharts option 或渲染代码。',
         params: {
-          sql: '只读 SELECT 或 WITH SELECT SQL。必须返回 ChartSpec encoding 中引用的字段。',
+          rows: '来自高层工具返回的数据数组（如 get_time_stats 的 `data` 字段）。有现成数据时优先使用，与 sql 二选一。',
+          sql: '只读 SELECT 或 WITH SELECT SQL。仅在高层工具无法满足需求时使用，必须返回 ChartSpec encoding 中引用的字段。',
           params: 'SQL 命名参数对象；不需要参数时传空对象。',
           chartSpec: 'ChartSpec v1，包含 version、type、title、encoding。',
           maxRows: '图表查询最大行数，默认 1000。',

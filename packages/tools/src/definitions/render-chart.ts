@@ -15,13 +15,20 @@ const RE_SECONDS_TIMESTAMP_DIVIDED_AS_MILLISECONDS = /\b(?:\w+\.)?ts\s*\/\s*1000
 const inputSchema: JsonSchema = {
   type: 'object',
   properties: {
+    rows: {
+      type: 'array',
+      description:
+        'Pre-fetched data rows to render directly, skipping SQL execution. Pass the data array from a high-level tool result (e.g. the `data` field from get_time_stats, or member activity rows). Prefer this over sql when data is already available. Mutually exclusive with sql.',
+      items: { type: 'object' },
+    },
     sql: {
       type: 'string',
-      description: 'Read-only SELECT or WITH SELECT SQL used to produce chart rows.',
+      description:
+        'Read-only SELECT or WITH SELECT SQL used to produce chart rows. Use only when pre-fetched data is unavailable or custom aggregation is required.',
     },
     params: {
       type: 'object',
-      description: 'Named SQL parameters. Use an empty object when no parameters are needed.',
+      description: 'Named SQL parameters. Only used when sql is provided.',
       additionalProperties: true,
       default: {},
     },
@@ -39,7 +46,7 @@ const inputSchema: JsonSchema = {
       maximum: 5000,
     },
   },
-  required: ['sql', 'chartSpec'],
+  required: ['chartSpec'],
 }
 
 function normalizeSql(sql: unknown, maxRows: number): string {
@@ -67,6 +74,15 @@ function normalizeSql(sql: unknown, maxRows: number): string {
 function normalizeParams(raw: unknown): Record<string, unknown> {
   if (!raw || typeof raw !== 'object' || Array.isArray(raw)) return {}
   return raw as Record<string, unknown>
+}
+
+function normalizeRows(raw: unknown, maxRows: number): { rows: Record<string, unknown>[]; truncated: boolean } {
+  if (!Array.isArray(raw)) throw new Error('rows must be an array')
+  const items = raw.filter(
+    (item): item is Record<string, unknown> => typeof item === 'object' && item !== null && !Array.isArray(item)
+  )
+  const truncated = items.length > maxRows
+  return { rows: truncated ? items.slice(0, maxRows) : items, truncated }
 }
 
 function normalizeMaxRows(raw: unknown): number {
@@ -103,13 +119,26 @@ function summarizeChartForModel(
 async function handler(params: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {
   if (!context.dataProvider) throw new Error('render_chart requires a data provider')
 
-  const maxRows = normalizeMaxRows(params.maxRows)
-  const sql = normalizeSql(params.sql, maxRows)
-  const sqlParams = normalizeParams(params.params)
+  const hasSql = typeof params.sql === 'string' && params.sql.trim().length > 0
+  const hasRows = Array.isArray(params.rows)
+  if (!hasSql && !hasRows) throw new Error('render_chart requires either sql or rows')
 
-  const fetchedRows = await context.dataProvider.executeParameterizedSql<Record<string, unknown>>(sql, sqlParams)
-  const truncated = fetchedRows.length > maxRows
-  const rows = truncated ? fetchedRows.slice(0, maxRows) : fetchedRows
+  const maxRows = normalizeMaxRows(params.maxRows)
+  let rows: Record<string, unknown>[]
+  let truncated: boolean
+
+  if (hasRows) {
+    const normalized = normalizeRows(params.rows, maxRows)
+    rows = normalized.rows
+    truncated = normalized.truncated
+  } else {
+    const sql = normalizeSql(params.sql, maxRows)
+    const sqlParams = normalizeParams(params.params)
+    const fetchedRows = await context.dataProvider.executeParameterizedSql<Record<string, unknown>>(sql, sqlParams)
+    truncated = fetchedRows.length > maxRows
+    rows = truncated ? fetchedRows.slice(0, maxRows) : fetchedRows
+  }
+
   const chart = buildChartPayload(rows, params.chartSpec, { truncated })
 
   return {
@@ -127,7 +156,7 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
 export const renderChartTool: ToolDefinition = {
   name: 'render_chart',
   description:
-    'Generate a native ChatLab chart from read-only SQL plus ChartSpec v1. Use this for flexible bar, line, pie, and heatmap charts. Never output HTML, JavaScript, SVG, ECharts options, or rendering code.',
+    "Generate a native ChatLab chart from ChartSpec v1. Provide either `rows` (pre-fetched data array from a tool result such as get_time_stats or member_stats) or `sql` (read-only SELECT). Prefer `rows` when data is already available — pass the tool's data array directly. Use `sql` only for custom aggregations not covered by existing tools. Never output HTML, JavaScript, SVG, ECharts options, or rendering code.",
   inputSchema,
   handler,
   category: 'analysis',

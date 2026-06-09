@@ -63,7 +63,7 @@ export default {
         },
       },
       get_time_stats: {
-        desc: 'Get time distribution statistics of chat activity. Suitable for questions like "when is the group most active" or "what time do people usually chat".',
+        desc: 'Get time distribution statistics of chat activity. Suitable for questions like "when is the group most active" or "what time do people usually chat". The returned `data` array can be passed directly as the `rows` parameter of render_chart for visualization.',
         params: {
           type: 'Statistics type: hourly (by hour), weekday (by day of week), daily (by date)',
         },
@@ -257,9 +257,10 @@ Returned summaries are brief descriptions of each segment, helping quickly locat
         params: {},
       },
       render_chart: {
-        desc: 'Generate a native ChatLab chart from read-only SQL and ChartSpec v1. Supports bar, line, pie, and heatmap. Do not output HTML, JavaScript, SVG, ECharts options, or rendering code.',
+        desc: 'Generate a native ChatLab chart from ChartSpec v1. Supports bar, line, pie, and heatmap. Provide either `rows` (pre-fetched data array from a tool result, e.g. the `data` field from get_time_stats) or `sql` (read-only SELECT) — prefer `rows` when data is already available; use `sql` only when high-level tools cannot satisfy the need. Do not output HTML, JavaScript, SVG, ECharts options, or rendering code.',
         params: {
-          sql: 'Read-only SELECT or WITH SELECT SQL. It must return fields referenced by ChartSpec encoding.',
+          rows: 'Pre-fetched data array from a high-level tool result (e.g. the `data` field from get_time_stats). Prefer this over sql when data is already available. Mutually exclusive with sql.',
+          sql: 'Read-only SELECT or WITH SELECT SQL. Use only when high-level tools cannot satisfy the need. Must return fields referenced by ChartSpec encoding.',
           params: 'Named SQL parameters. Use an empty object when no parameters are needed.',
           chartSpec: 'ChartSpec v1 with version, type, title, and encoding.',
           maxRows: 'Maximum chart query rows. Default 1000.',

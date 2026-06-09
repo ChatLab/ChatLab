@@ -64,7 +64,7 @@ export default {
         },
       },
       get_time_stats: {
-        desc: 'グループチャットの時間分布統計を取得する。「いつが一番アクティブ？」「みんな何時にチャットしている？」などの質問に適している。',
+        desc: 'グループチャットの時間分布統計を取得する。「いつが一番アクティブ？」「みんな何時にチャットしている？」などの質問に適している。返される `data` 配列は render_chart の `rows` パラメータとして直接使用できる。',
         params: {
           type: '統計タイプ：hourly（時間別）、weekday（曜日別）、daily（日別）',
         },
@@ -257,9 +257,10 @@ export default {
         params: {},
       },
       render_chart: {
-        desc: '読み取り専用 SQL と ChartSpec v1 から ChatLab ネイティブチャートを生成します。bar、line、pie、heatmap をサポートします。HTML、JavaScript、SVG、ECharts option、描画コードは出力しないでください。',
+        desc: 'ChartSpec v1 から ChatLab ネイティブチャートを生成します。bar、line、pie、heatmap をサポートします。`rows`（高レベルツールのデータ配列、例：get_time_stats の `data` フィールド）または `sql`（読み取り専用 SELECT）のいずれかを指定します。データがすでに取得済みの場合は `rows` を優先し、高レベルツールで対応できない場合のみ `sql` を使用します。HTML、JavaScript、SVG、ECharts option、描画コードは出力しないでください。',
         params: {
-          sql: '読み取り専用の SELECT または WITH SELECT SQL。ChartSpec encoding で参照するフィールドを返す必要があります。',
+          rows: '高レベルツールから取得したデータ配列（例：get_time_stats の `data` フィールド）。データが取得済みの場合は sql より優先して使用します。sql とは排他。',
+          sql: '読み取り専用の SELECT または WITH SELECT SQL。高レベルツールで対応できない場合のみ使用します。ChartSpec encoding で参照するフィールドを返す必要があります。',
           params: 'SQL の名前付きパラメータ。不要な場合は空オブジェクトを渡します。',
           chartSpec: 'version、type、title、encoding を含む ChartSpec v1。',
           maxRows: 'チャートクエリの最大行数。デフォルトは 1000。',
