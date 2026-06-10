@@ -3,8 +3,6 @@ import { ref, computed, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
-import CaptureButton from '@/components/common/CaptureButton.vue'
-import TimeSelect from '@/components/common/TimeSelect.vue'
 import AITab from '@/components/analysis/AITab.vue'
 import MemoryTab from '@/components/analysis/MemoryTab.vue'
 import { DebugTab } from '@/components/DebugTab'
@@ -13,7 +11,7 @@ import OverviewTab from './components/OverviewTab.vue'
 import ViewTab from './components/ViewTab.vue'
 import MemberList from '@/components/common/member/MemberList.vue'
 import NicknameHistoryEntry from './components/member/NicknameHistoryEntry.vue'
-import PageHeader from '@/components/layout/PageHeader.vue'
+import SessionAnalysisHeader from '@/components/layout/session/SessionAnalysisHeader.vue'
 import SessionIndexModal from '@/components/analysis/SessionIndexModal.vue'
 import IncrementalImportModal from '@/components/analysis/IncrementalImportModal.vue'
 const MessageExportModal = defineAsyncComponent(() => import('@/components/MessageExport/MessageExportModal.vue'))
@@ -120,90 +118,22 @@ const filteredMemberCount = computed(() => {
 
     <!-- Content -->
     <template v-else-if="session">
-      <!-- Header -->
-      <PageHeader
+      <SessionAnalysisHeader
+        v-model:active-tab="activeTab"
+        v-model:time-range-value="timeRangeValue"
         :title="session.name"
         :avatar="session.groupAvatar"
-        size="compact"
         icon="i-heroicons-chat-bubble-left-right"
         icon-class="bg-primary-600 text-white dark:bg-primary-500 dark:text-white"
-      >
-        <template #actions>
-          <template v-if="layoutStore.toolsPanelPosition === 'header'">
-            <UTooltip :text="t('analysis.tooltip.incrementalImport')">
-              <UButton
-                icon="i-heroicons-plus-circle"
-                variant="ghost"
-                color="gray"
-                size="sm"
-                class="hover:bg-gray-100 dark:hover:bg-gray-800"
-                @click="showIncrementalImportModal = true"
-              />
-            </UTooltip>
-            <UTooltip :text="t('analysis.tooltip.memberManagement')">
-              <UButton
-                icon="i-heroicons-user-group"
-                variant="ghost"
-                color="gray"
-                size="sm"
-                class="hover:bg-gray-100 dark:hover:bg-gray-800"
-                @click="showMemberManagementModal = true"
-              />
-            </UTooltip>
-            <UTooltip :text="t('analysis.tooltip.viewChatRecord')">
-              <UButton
-                icon="i-heroicons-chat-bubble-bottom-center-text"
-                variant="ghost"
-                color="gray"
-                size="sm"
-                class="hover:bg-gray-100 dark:hover:bg-gray-800"
-                @click="openChatRecordViewer"
-              />
-            </UTooltip>
-            <CaptureButton color="gray" />
-            <UTooltip :text="t('analysis.tooltip.more')">
-              <UButton
-                data-tools-panel-trigger
-                icon="i-heroicons-ellipsis-horizontal"
-                variant="ghost"
-                color="gray"
-                size="sm"
-                class="hover:bg-gray-100 dark:hover:bg-gray-800"
-                @click="layoutStore.toggleToolsPanelOpen()"
-              />
-            </UTooltip>
-          </template>
-          <CaptureButton v-else color="gray" />
-        </template>
-        <!-- Tabs -->
-        <div class="mt-3 flex items-center justify-between gap-3">
-          <div class="flex shrink-0 items-center gap-0.5 overflow-x-auto scrollbar-hide">
-            <button
-              v-for="tab in tabs"
-              :key="tab.id"
-              class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all"
-              :class="[
-                activeTab === tab.id
-                  ? 'bg-pink-500 text-white dark:bg-pink-900/30 dark:text-pink-300'
-                  : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800',
-              ]"
-              @click="activeTab = tab.id"
-            >
-              <UIcon :name="tab.icon" class="h-4 w-4" />
-              <span class="whitespace-nowrap">{{ t(tab.labelKey) }}</span>
-            </button>
-          </div>
-          <!-- AI 对话和实验室都不使用这里的时间范围筛选，因此在这些一级 Tab 下隐藏。 -->
-          <TimeSelect
-            v-model="timeRangeValue"
-            :session-id="currentSessionId ?? undefined"
-            :visible="activeTab !== 'ai-chat' && activeTab !== 'memory' && activeTab !== 'lab' && activeTab !== 'debug'"
-            :initial-state="initialTimeState"
-            @update:full-range="fullTimeRange = $event"
-            @update:available-years="availableYears = $event"
-          />
-        </div>
-      </PageHeader>
+        :tabs="tabs"
+        :current-session-id="currentSessionId"
+        :initial-time-state="initialTimeState"
+        @open-incremental-import="showIncrementalImportModal = true"
+        @open-member-management="showMemberManagementModal = true"
+        @open-chat-record="openChatRecordViewer"
+        @update:full-range="fullTimeRange = $event"
+        @update:available-years="availableYears = $event"
+      />
 
       <!-- Tab Content -->
       <div class="relative flex-1 overflow-y-auto">
