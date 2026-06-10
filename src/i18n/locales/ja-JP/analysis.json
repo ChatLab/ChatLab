@@ -168,7 +168,9 @@
     "exitMini": "ミニモードを終了"
   },
   "messageExport": {
-    "title": "チャット記録をエクスポート"
+    "title": "チャット記録をエクスポート",
+    "selectOutputDir": "保存先を選択",
+    "format": "形式"
   },
   "filter": {
     "title": "詳細フィルター",

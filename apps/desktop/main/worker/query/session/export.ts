@@ -1,75 +1,45 @@
 /**
  * Export module — Electron worker adapter.
  *
- * Thin wrapper around @openchatlab/node-runtime markdown exporter.
- * Provides Electron-specific wiring: worker progress IPC, filesystem output,
- * and readonly better-sqlite3 database opening.
+ * Uses @openchatlab/node-runtime format exporter for multi-format output.
+ * Provides Electron-specific wiring: filesystem write and readonly DB opening.
  */
 
 import * as fs from 'fs'
 import * as path from 'path'
-import { parentPort } from 'worker_threads'
 import { BetterSqliteAdapter } from '@openchatlab/node-runtime'
-import { exportFilterResultToMarkdown } from '@openchatlab/node-runtime'
-import type { ExportProgress } from '@openchatlab/node-runtime'
+import { exportWithFormat } from '@openchatlab/node-runtime'
+import type { ExportFormat } from '@openchatlab/node-runtime'
 import { openReadonlyDatabase } from './core'
-import type { ExportFilterParams } from './types'
 
-export type { ExportFilterParams, ExportProgress } from './types'
+export function exportFilterResultToFile(params: {
+  sessionId: string
+  sessionName: string
+  outputDir: string
+  format?: ExportFormat
+  timeFilter?: { startTs: number; endTs: number }
+}): { success: boolean; filePath?: string; error?: string } {
+  const format: ExportFormat = params.format || 'txt'
 
-function sendExportProgress(requestId: string, progress: ExportProgress): void {
-  parentPort?.postMessage({
-    id: requestId,
-    type: 'progress',
-    payload: progress,
-  })
-}
-
-/**
- * Export filter results to a Markdown file on disk.
- * Delegates to shared engine; provides fs.createWriteStream as the ExportWriter.
- */
-export function exportFilterResultToFile(
-  params: ExportFilterParams,
-  requestId?: string
-): { success: boolean; filePath?: string; error?: string } {
-  const timestamp = Date.now()
-  const fileName = `${params.sessionName}_筛选结果_${timestamp}.md`
-  const filePath = path.join(params.outputDir, fileName)
-
-  const writeStream = fs.createWriteStream(filePath, { encoding: 'utf8' })
-
-  const result = exportFilterResultToMarkdown(
+  const result = exportWithFormat(
     {
       sessionId: params.sessionId,
       sessionName: params.sessionName,
-      filterMode: params.filterMode,
-      keywords: params.keywords,
+      format,
       timeFilter: params.timeFilter,
-      senderIds: params.senderIds,
-      contextSize: params.contextSize,
-      segmentIds: params.segmentIds,
     },
-    {
-      openDatabase(sessionId: string) {
-        const rawDb = openReadonlyDatabase(sessionId)
-        if (!rawDb) return null
-        return new BetterSqliteAdapter(rawDb)
-      },
-      onProgress: requestId ? (progress) => sendExportProgress(requestId, progress) : undefined,
-    },
-    {
-      write(chunk: string) {
-        writeStream.write(chunk)
-      },
-      end() {
-        writeStream.end()
-      },
+    (sessionId) => {
+      const rawDb = openReadonlyDatabase(sessionId)
+      if (!rawDb) return null
+      return new BetterSqliteAdapter(rawDb)
     }
   )
 
-  if (result.success) {
-    return { success: true, filePath }
+  if (!result.success) {
+    return { success: false, error: result.error }
   }
-  return { success: false, error: result.error }
+
+  const filePath = path.join(params.outputDir, result.filename)
+  fs.writeFileSync(filePath, result.content, 'utf8')
+  return { success: true, filePath }
 }

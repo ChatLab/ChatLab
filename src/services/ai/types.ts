@@ -78,58 +78,15 @@ export interface ToolExecuteResult {
   truncated?: boolean
 }
 
-export interface FilterMessage {
-  id: number
-  senderName: string
-  senderPlatformId: string
-  senderAliases: string[]
-  senderAvatar: string | null
-  content: string
-  timestamp: number
-  type: number
-  replyToMessageId: string | null
-  replyToContent: string | null
-  replyToSenderName: string | null
-  isHit: boolean
-}
-
-export interface ContextBlock {
-  startTs: number
-  endTs: number
-  messages: FilterMessage[]
-  hitCount: number
-}
-
-export interface FilterStats {
-  totalMessages: number
-  hitMessages: number
-  totalChars: number
-}
-
-export interface PaginationInfo {
-  page: number
-  pageSize: number
-  totalBlocks: number
-  totalHits: number
-  hasMore: boolean
-}
-
-export interface FilterResultWithPagination {
-  blocks: ContextBlock[]
-  stats: FilterStats
-  pagination: PaginationInfo
-}
+export type ExportFormat = 'txt' | 'json' | 'markdown'
 
 export interface ExportFilterParams {
   sessionId: string
   sessionName: string
   outputDir: string
-  filterMode: 'condition' | 'session'
-  keywords?: string[]
+  format?: ExportFormat
+  filterMode?: 'condition'
   timeFilter?: TimeFilter
-  senderIds?: number[]
-  contextSize?: number
-  segmentIds?: number[]
 }
 
 export interface ExportProgress {
@@ -189,22 +146,7 @@ export interface AIAdapter {
     aiChatId: string
   ): Promise<{ success: boolean; tokens: number; messageCount?: number; error?: string }>
 
-  // ===== 消息筛选/导出 =====
-  filterMessagesWithContext(
-    sessionId: string,
-    keywords?: string[],
-    timeFilter?: TimeFilter,
-    senderIds?: number[],
-    contextSize?: number,
-    page?: number,
-    pageSize?: number
-  ): Promise<FilterResultWithPagination>
-  getMultipleSessionsMessages(
-    sessionId: string,
-    segmentIds: number[],
-    page?: number,
-    pageSize?: number
-  ): Promise<FilterResultWithPagination>
+  // ===== 消息导出 =====
   exportFilterResultToFile(params: ExportFilterParams): Promise<{ success: boolean; filePath?: string; error?: string }>
   onExportProgress(callback: (progress: ExportProgress) => void): () => void
 

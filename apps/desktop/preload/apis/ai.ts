@@ -37,18 +37,12 @@ export interface PreprocessConfig {
 // ==================== AI API (IPC-only subset) ====================
 
 export const aiApi = {
-  // filterMessagesWithContext / getMultipleSessionsMessages migrated to shared HTTP routes.
-
   exportFilterResultToFile: (params: {
     sessionId: string
     sessionName: string
     outputDir: string
-    filterMode: 'condition' | 'session'
-    keywords?: string[]
+    format?: 'txt' | 'json' | 'markdown'
     timeFilter?: { startTs: number; endTs: number }
-    senderIds?: number[]
-    contextSize?: number
-    segmentIds?: number[]
   }): Promise<{ success: boolean; filePath?: string; error?: string }> => {
     return ipcRenderer.invoke('ai:exportFilterResultToFile', params)
   },

@@ -22,7 +22,6 @@ import { registerAiSkillRoutes } from './routes/web/ai-skills'
 import { registerAiLlmRoutes } from './routes/web/ai-llm'
 import { registerAiLlmStreamRoutes } from './routes/web/ai-llm-stream'
 import { registerAiAgentStreamRoutes } from './routes/web/ai-agent-stream'
-import { registerAiFilterRoutes } from './routes/web/ai-filter'
 import { registerAiToolRoutes } from './routes/web/ai-tools'
 import { registerAiChatRoutes } from './routes/web/ai-chats'
 import { registerAiSummaryRoutes } from './routes/web/ai-summaries'
@@ -73,7 +72,6 @@ export function registerSharedRoutes(
   registerAiLlmRoutes(server, ctx)
   registerAiLlmStreamRoutes(server, ctx)
   registerAiAgentStreamRoutes(server, ctx)
-  registerAiFilterRoutes(server, ctx)
   registerAiToolRoutes(server, ctx)
   registerAiChatRoutes(server, ctx)
   registerAiSummaryRoutes(server, ctx)

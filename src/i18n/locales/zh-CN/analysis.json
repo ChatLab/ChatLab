@@ -168,7 +168,9 @@
     "exitMini": "退出迷你模式"
   },
   "messageExport": {
-    "title": "导出聊天记录"
+    "title": "导出聊天记录",
+    "selectOutputDir": "选择保存目录",
+    "format": "格式"
   },
   "filter": {
     "title": "自定义筛选",

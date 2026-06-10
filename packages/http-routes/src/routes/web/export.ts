@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import type { HttpRouteContext } from '../../context'
 import { exportService } from '@openchatlab/node-runtime'
+import type { ExportFormat } from '@openchatlab/node-runtime'
 
 export function registerExportRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
   const { sessionAdapter: adapter } = ctx
@@ -9,35 +10,28 @@ export function registerExportRoutes(server: FastifyInstance, ctx: HttpRouteCont
     Params: { id: string }
     Body: {
       sessionName: string
-      filterMode: 'condition' | 'session'
-      keywords?: string[]
+      format?: ExportFormat
       timeFilter?: { startTs: number; endTs: number }
-      senderIds?: number[]
-      contextSize?: number
-      segmentIds?: number[]
     }
-  }>('/_web/sessions/:id/export/markdown', async (request, reply) => {
+  }>('/_web/sessions/:id/export', async (request, reply) => {
     const { id } = request.params
     const body = request.body as any
     const sessionName = body?.sessionName || id
+    const format: ExportFormat = body?.format || 'txt'
 
-    const { result, content } = exportService.exportMarkdown(adapter, {
+    const result = exportService.exportFormatted(adapter, {
       sessionId: id,
       sessionName,
-      filterMode: body.filterMode || 'condition',
-      keywords: body.keywords,
+      format,
       timeFilter: body.timeFilter,
-      senderIds: body.senderIds,
-      contextSize: body.contextSize,
-      segmentIds: body.segmentIds,
     })
 
     if (!result.success) {
-      return reply.code(500).send({ error: result.error })
+      return reply.code(result.totalMessages === 0 ? 404 : 500).send({ error: result.error })
     }
 
-    reply.header('Content-Type', 'text/markdown; charset=utf-8')
-    reply.header('Content-Disposition', `attachment; filename="${encodeURIComponent(sessionName)}_export.md"`)
-    return reply.send(content)
+    reply.header('Content-Type', result.mimeType)
+    reply.header('Content-Disposition', `attachment; filename="${encodeURIComponent(result.filename)}"`)
+    return reply.send(result.content)
   })
 }

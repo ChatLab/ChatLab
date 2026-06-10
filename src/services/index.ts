@@ -80,7 +80,6 @@ export type {
   DesensitizeRule,
   ToolCatalogEntry,
   ToolExecuteResult,
-  FilterResultWithPagination,
   ExportFilterParams,
   AiSQLResult,
   AiSchemaTable,

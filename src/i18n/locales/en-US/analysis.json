@@ -168,7 +168,9 @@
     "exitMini": "Exit mini mode"
   },
   "messageExport": {
-    "title": "Export Records"
+    "title": "Export Records",
+    "selectOutputDir": "Select Output Directory",
+    "format": "Format"
   },
   "filter": {
     "title": "Filter Analysis",

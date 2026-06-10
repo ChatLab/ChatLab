@@ -12,7 +12,6 @@ import type {
   AIMessageRole,
   ContentBlock,
   TokenUsageData,
-  FilterResultWithPagination,
   ExportFilterParams,
   ExportProgress,
   AiSQLResult,
@@ -21,8 +20,7 @@ import type {
   ToolExecuteResult,
   DesensitizeRule,
 } from './types'
-import type { TimeFilter } from '@/types/base'
-import { get, post, put, del } from '../utils/http'
+import { get, post, put, del, fetchWithAuth } from '../utils/http'
 
 const NOT_AVAILABLE_WEB = 'This feature is not available in web mode'
 
@@ -125,61 +123,38 @@ export class FetchAIAdapter implements AIAdapter {
     }
   }
 
-  // ===== 消息筛选 =====
-  async filterMessagesWithContext(
-    sessionId: string,
-    keywords?: string[],
-    timeFilter?: TimeFilter,
-    senderIds?: number[],
-    contextSize?: number,
-    page?: number,
-    pageSize?: number
-  ): Promise<FilterResultWithPagination> {
-    try {
-      return await post<FilterResultWithPagination>('/ai/filter-messages', {
-        sessionId,
-        keywords,
-        timeFilter,
-        senderIds,
-        contextSize,
-        page,
-        pageSize,
-      })
-    } catch {
-      return {
-        blocks: [],
-        stats: { totalMessages: 0, hitMessages: 0, totalChars: 0 },
-        pagination: { page: 1, pageSize: 50, totalBlocks: 0, totalHits: 0, hasMore: false },
-      }
-    }
-  }
-
-  async getMultipleSessionsMessages(
-    sessionId: string,
-    segmentIds: number[],
-    page?: number,
-    pageSize?: number
-  ): Promise<FilterResultWithPagination> {
-    try {
-      return await post<FilterResultWithPagination>('/ai/multiple-sessions-messages', {
-        sessionId,
-        segmentIds,
-        page,
-        pageSize,
-      })
-    } catch {
-      return {
-        blocks: [],
-        stats: { totalMessages: 0, hitMessages: 0, totalChars: 0 },
-        pagination: { page: 1, pageSize: 50, totalBlocks: 0, totalHits: 0, hasMore: false },
-      }
-    }
-  }
-
+  // ===== 消息导出 =====
   async exportFilterResultToFile(
-    _params: ExportFilterParams
+    params: ExportFilterParams
   ): Promise<{ success: boolean; filePath?: string; error?: string }> {
-    return { success: false, error: NOT_AVAILABLE_WEB }
+    try {
+      const resp = await fetchWithAuth(`/_web/sessions/${params.sessionId}/export`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          sessionName: params.sessionName,
+          format: params.format || 'txt',
+          timeFilter: params.timeFilter,
+        }),
+      })
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => null)
+        const error = body?.error || `HTTP ${resp.status}`
+        return { success: false, error }
+      }
+      const blob = await resp.blob()
+      const filename =
+        resp.headers.get('Content-Disposition')?.match(/filename="?(.+?)"?$/)?.[1] || `${params.sessionName}_export.txt`
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = decodeURIComponent(filename)
+      a.click()
+      URL.revokeObjectURL(url)
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) }
+    }
   }
 
   onExportProgress(_callback: (progress: ExportProgress) => void): () => void {

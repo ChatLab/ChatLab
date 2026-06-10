@@ -110,51 +110,6 @@ interface Api {
   }
 }
 
-interface FilterMessage {
-  id: number
-  senderName: string
-  senderPlatformId: string
-  senderAliases: string[]
-  senderAvatar: string | null
-  content: string
-  timestamp: number
-  type: number
-  replyToMessageId: string | null
-  replyToContent: string | null
-  replyToSenderName: string | null
-  isHit: boolean
-}
-
-interface ContextBlock {
-  startTs: number
-  endTs: number
-  messages: FilterMessage[]
-  hitCount: number
-}
-
-interface FilterResult {
-  blocks: ContextBlock[]
-  stats: {
-    totalMessages: number
-    hitMessages: number
-    totalChars: number
-  }
-}
-
-// 分页信息类型
-interface PaginationInfo {
-  page: number
-  pageSize: number
-  totalBlocks: number
-  totalHits: number
-  hasMore: boolean
-}
-
-// 带分页的筛选结果类型
-interface FilterResultWithPagination extends FilterResult {
-  pagination: PaginationInfo
-}
-
 /**
  * AiApi — IPC-only subset
  *
@@ -166,12 +121,8 @@ interface AiApi {
     sessionId: string
     sessionName: string
     outputDir: string
-    filterMode: 'condition' | 'session'
-    keywords?: string[]
+    format?: 'txt' | 'json' | 'markdown'
     timeFilter?: TimeFilter
-    senderIds?: number[]
-    contextSize?: number
-    segmentIds?: number[]
   }) => Promise<{ success: boolean; filePath?: string; error?: string }>
   onExportProgress: (callback: (progress: ExportProgress) => void) => () => void
   showAiLogFile: () => Promise<{ success: boolean; path?: string; error?: string }>
@@ -420,9 +371,6 @@ export {
   DesensitizeRule,
   PreprocessConfig,
   TokenUsage,
-  FilterMessage,
-  ContextBlock,
-  FilterResult,
   ApiServerApi,
   ApiServerConfig,
   ApiServerStatus,

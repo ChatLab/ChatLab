@@ -261,8 +261,8 @@ export type { PiModelConfig, BuildPiModelOptions } from './ai'
 export { fetchRemoteModels, validateApiKey } from './ai'
 export type { RemoteModel, FetchRemoteModelsResult, RemoteApiOptions } from './ai'
 
-// Markdown export engine
-export { exportFilterResultToMarkdown } from './export'
+// Export engine
+export { exportFilterResultToMarkdown, exportWithFormat } from './export'
 export type {
   ExportFilterParams,
   ExportProgress,
@@ -270,6 +270,9 @@ export type {
   ExportWriter,
   ExportDeps,
   ExportResult,
+  ExportFormat,
+  FormatExportParams,
+  FormatExportResult,
 } from './export'
 
 // Session cache (overview + members JSON file cache)

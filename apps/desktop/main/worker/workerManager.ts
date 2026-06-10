@@ -887,87 +887,20 @@ export async function getSegmentSummaries(
   return sendToWorker('getSegmentSummaries', { sessionId, options })
 }
 
-// ==================== 自定义筛选 API ====================
+// ==================== 导出 API ====================
 
-import type {
-  FilterMessage,
-  ContextBlock,
-  FilterStats,
-  PaginationInfo,
-  FilterResultWithPagination,
-} from '@openchatlab/core'
-export type { FilterMessage, ContextBlock, FilterStats, PaginationInfo, FilterResultWithPagination }
-
-/**
- * 按条件筛选消息并扩充上下文（支持分页）
- */
-export async function filterMessagesWithContext(
-  sessionId: string,
-  keywords?: string[],
-  timeFilter?: { startTs: number; endTs: number },
-  senderIds?: number[],
-  contextSize?: number,
-  page?: number,
-  pageSize?: number
-): Promise<FilterResultWithPagination> {
-  return sendToWorker('filterMessagesWithContext', {
-    sessionId,
-    keywords,
-    timeFilter,
-    senderIds,
-    contextSize,
-    page,
-    pageSize,
-  })
-}
-
-/**
- * 获取多个会话的完整消息（支持分页）
- */
-export async function getMultipleSessionsMessages(
-  sessionId: string,
-  segmentIds: number[],
-  page?: number,
-  pageSize?: number
-): Promise<FilterResultWithPagination> {
-  return sendToWorker('getMultipleSessionsMessages', { sessionId, segmentIds, page, pageSize })
-}
-
-/**
- * 导出筛选结果参数
- */
-export interface ExportFilterParams {
+export interface ExportFileParams {
   sessionId: string
   sessionName: string
   outputDir: string
-  filterMode: 'condition' | 'session'
-  keywords?: string[]
+  format?: 'txt' | 'json' | 'markdown'
   timeFilter?: { startTs: number; endTs: number }
-  senderIds?: number[]
-  contextSize?: number
-  segmentIds?: number[]
 }
 
-/**
- * 导出进度回调类型
- */
-export interface ExportProgress {
-  stage: 'preparing' | 'exporting' | 'done' | 'error'
-  currentBlock: number
-  totalBlocks: number
-  percentage: number
-  message: string
-}
-
-/**
- * 导出筛选结果到文件（后端生成）
- * 使用 10 分钟超时，支持大数据量导出和进度回调
- */
 export async function exportFilterResultToFile(
-  params: ExportFilterParams,
-  onProgress?: (progress: ExportProgress) => void
+  params: ExportFileParams
 ): Promise<{ success: boolean; filePath?: string; error?: string }> {
-  return sendToWorkerWithProgress('exportFilterResultToFile', params, onProgress as any, 600000)
+  return sendToWorker('exportFilterResultToFile', params)
 }
 
 // ==================== 增量导入 ====================

@@ -4,19 +4,7 @@
  */
 
 // Types — core types re-exported via ./types, Electron-only types kept there
-export type {
-  ChatSessionItem,
-  SessionIndexStats,
-  SessionSearchResultItem,
-  SessionMessagesResult,
-  FilterMessage,
-  ContextBlock,
-  FilterStats,
-  PaginationInfo,
-  FilterResultWithPagination,
-  ExportFilterParams,
-  ExportProgress,
-} from './types'
+export type { ChatSessionItem, SessionIndexStats, SessionSearchResultItem, SessionMessagesResult } from './types'
 
 export { DEFAULT_SESSION_GAP_THRESHOLD } from './types'
 
@@ -39,9 +27,6 @@ export {
 
 // AI 工具专用查询
 export { searchSegments, getSegmentMessages } from './aiTools'
-
-// 自定义筛选
-export { filterMessagesWithContext, getMultipleSessionsMessages } from './filter'
 
 // 导出功能
 export { exportFilterResultToFile } from './export'

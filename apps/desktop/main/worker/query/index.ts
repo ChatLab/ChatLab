@@ -91,24 +91,10 @@ export {
   searchSegments,
   getSegmentMessages,
   DEFAULT_SESSION_GAP_THRESHOLD,
-  // 自定义筛选
-  filterMessagesWithContext,
-  getMultipleSessionsMessages,
   // 导出功能
   exportFilterResultToFile,
 } from './session'
-export type {
-  ChatSessionItem,
-  SessionSearchResultItem,
-  SessionMessagesResult,
-  ContextBlock,
-  FilterStats,
-  FilterMessage,
-  PaginationInfo,
-  FilterResultWithPagination,
-  ExportFilterParams,
-  ExportProgress,
-} from './session'
+export type { ChatSessionItem, SessionSearchResultItem, SessionMessagesResult } from './session'
 
 // NLP 查询
 export { getWordFrequency, segmentText, getPosTags } from './nlp'

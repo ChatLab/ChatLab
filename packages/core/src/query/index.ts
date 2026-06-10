@@ -138,17 +138,6 @@ export type { AsyncPaginatedMessages, AsyncMessagesWithTotal, AsyncConversationD
 // Member write operations (merge, delete, update aliases, DDL migration)
 export { updateMemberAliases, mergeMembers, deleteMember, ensureAliasesColumn, ensureAvatarColumn } from './member-ops'
 
-// Filter with context (keyword/sender/time filter + pagination)
-export { filterMessagesWithContext, getMultipleSessionsMessages } from './filter'
-export type {
-  FilterMessage,
-  ContextBlock,
-  FilterStats,
-  PaginationInfo,
-  FilterResultWithPagination,
-  FilterOptions,
-} from './filter'
-
 // Advanced analytics
 export {
   getCatchphraseAnalysis,
