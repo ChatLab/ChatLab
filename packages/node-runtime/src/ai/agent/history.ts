@@ -7,6 +7,10 @@
  * Persisted toolCallIds are replayed verbatim to keep requests byte-stable
  * across turns (prompt cache friendly). Legacy messages without tool data
  * fall back to plain text replay.
+ *
+ * When model info is provided, thinking blocks are replayed alongside tool
+ * calls so APIs that require reasoning_content on tool-call turns (e.g.
+ * DeepSeek) receive the original reasoning chain instead of an empty string.
  */
 
 import type { Message as PiMessage, AssistantMessage, Usage as PiUsage } from '@earendil-works/pi-ai'
@@ -17,6 +21,28 @@ import type { ContentBlock } from '../chats'
 
 type ToolBlock = Extract<ContentBlock, { type: 'tool' }>
 export type ReplayableToolBlock = ToolBlock & { tool: ToolBlock['tool'] & { toolCallId: string; result: string } }
+
+/**
+ * Model metadata attached to replayed assistant messages so pi-ai's
+ * transform-messages layer treats them as same-model (preserving thinking
+ * blocks in their native format instead of converting to plain text).
+ */
+export interface ReplayModelInfo {
+  api: string
+  provider: string
+  id: string
+}
+
+export interface ReplayOptions {
+  modelInfo?: ReplayModelInfo
+  /**
+   * Field name used by the provider's streaming API for reasoning content
+   * (e.g. "reasoning_content" for DeepSeek). When set and the assistant
+   * message contains tool calls, persisted think blocks are replayed as
+   * pi-ai ThinkingContent blocks with this signature.
+   */
+  thinkingSignature?: string
+}
 
 function createEmptyPiUsage(): PiUsage {
   return {
@@ -50,25 +76,34 @@ function stripInternalParams(params?: Record<string, unknown>): Record<string, u
   return cleaned
 }
 
-function makeAssistantMessage(content: AssistantMessage['content'], stopReason: 'stop' | 'toolUse'): AssistantMessage {
+function makeAssistantMessage(
+  content: AssistantMessage['content'],
+  stopReason: 'stop' | 'toolUse',
+  modelInfo?: ReplayModelInfo
+): AssistantMessage {
   return {
     role: 'assistant',
     content,
-    api: 'openai-completions',
-    provider: 'chatlab',
-    model: 'unknown',
+    api: (modelInfo?.api ?? 'openai-completions') as AssistantMessage['api'],
+    provider: modelInfo?.provider ?? 'chatlab',
+    model: modelInfo?.id ?? 'unknown',
     usage: createEmptyPiUsage(),
     stopReason,
     timestamp: Date.now(),
   }
 }
 
-function replayAssistantBlocks(blocks: ContentBlock[], out: PiMessage[]): void {
+function replayAssistantBlocks(blocks: ContentBlock[], out: PiMessage[], options?: ReplayOptions): void {
+  const { modelInfo, thinkingSignature } = options ?? {}
+  const replayThinking = !!thinkingSignature && blocks.some(isReplayableToolBlock)
+
   let content: AssistantMessage['content'] = []
 
   for (const block of blocks) {
     if (block.type === 'text') {
       if (block.text.trim()) content.push({ type: 'text', text: block.text })
+    } else if (block.type === 'think' && replayThinking && block.text.trim()) {
+      content.push({ type: 'thinking', thinking: block.text, thinkingSignature })
     } else if (isReplayableToolBlock(block)) {
       content.push({
         type: 'toolCall',
@@ -76,7 +111,7 @@ function replayAssistantBlocks(blocks: ContentBlock[], out: PiMessage[]): void {
         name: block.tool.name,
         arguments: stripInternalParams(block.tool.params),
       })
-      out.push(makeAssistantMessage(content, 'toolUse'))
+      out.push(makeAssistantMessage(content, 'toolUse', modelInfo))
       out.push({
         role: 'toolResult',
         toolCallId: block.tool.toolCallId,
@@ -87,15 +122,15 @@ function replayAssistantBlocks(blocks: ContentBlock[], out: PiMessage[]): void {
       })
       content = []
     }
-    // think/chart/plan/error/summary_meta blocks and unfinished/legacy tool blocks are not replayed
+    // chart/plan/error/summary_meta blocks and unfinished/legacy tool blocks are not replayed
   }
 
   if (content.length > 0) {
-    out.push(makeAssistantMessage(content, 'stop'))
+    out.push(makeAssistantMessage(content, 'stop', modelInfo))
   }
 }
 
-export function toPiHistoryMessages(messages: SimpleHistoryMessage[]): PiMessage[] {
+export function toPiHistoryMessages(messages: SimpleHistoryMessage[], options?: ReplayOptions): PiMessage[] {
   const out: PiMessage[] = []
 
   for (const msg of messages) {
@@ -111,9 +146,9 @@ export function toPiHistoryMessages(messages: SimpleHistoryMessage[]): PiMessage
     // summary 作为 assistant 消息传给 LLM（它是压缩后的上下文总结）
     const replayable = msg.role === 'assistant' && msg.contentBlocks?.some(isReplayableToolBlock)
     if (replayable) {
-      replayAssistantBlocks(msg.contentBlocks!, out)
+      replayAssistantBlocks(msg.contentBlocks!, out, options)
     } else {
-      out.push(makeAssistantMessage([{ type: 'text', text: msg.content || '' }], 'stop'))
+      out.push(makeAssistantMessage([{ type: 'text', text: msg.content || '' }], 'stop', options?.modelInfo))
     }
   }
 

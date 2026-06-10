@@ -18,7 +18,7 @@ import { StreamingThinkTagParser, needsStreamingThinkParsing } from '@openchatla
 import type { AgentCoreOptions, AgentCoreResult, AgentTokenUsage } from './types'
 import { initTokenizer } from '../tokenizer'
 import { DEFAULT_MAX_TOOL_ROUNDS } from './constants'
-import { toPiHistoryMessages } from './history'
+import { toPiHistoryMessages, type ReplayOptions } from './history'
 
 function isPiMessage(message: PiAgentMessage): message is PiMessage {
   return message.role === 'user' || message.role === 'assistant' || message.role === 'toolResult'
@@ -92,13 +92,25 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
 
   const finalThinkingLevel = resolvedThinkingLevel ?? (piModel.reasoning ? undefined : 'off')
 
+  // DeepSeek-format APIs require reasoning_content on assistant messages that
+  // precede tool results; build replay options so toPiHistoryMessages includes
+  // persisted thinking blocks in those messages.
+  const thinkingFormat = (piModel.compat as Record<string, unknown> | undefined)?.thinkingFormat
+  const replayOptions: ReplayOptions | undefined =
+    piModel.reasoning && thinkingFormat === 'deepseek'
+      ? {
+          modelInfo: { api: piModel.api, provider: piModel.provider, id: piModel.id },
+          thinkingSignature: 'reasoning_content',
+        }
+      : undefined
+
   const coreAgent = new PiAgentCore({
     initialState: {
       systemPrompt,
       model: effectiveModel,
       thinkingLevel: finalThinkingLevel,
       tools: maxToolRounds > 0 ? tools : [],
-      messages: toPiHistoryMessages(history),
+      messages: toPiHistoryMessages(history, replayOptions),
     },
     getApiKey: () => apiKey,
     streamFn: resolvedStreamFn,
