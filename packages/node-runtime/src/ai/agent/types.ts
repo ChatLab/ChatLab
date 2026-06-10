@@ -8,6 +8,7 @@
 import type { AgentTool } from '@earendil-works/pi-agent-core'
 import type { Model, Api, Message } from '@earendil-works/pi-ai'
 import type { ThinkingLevel } from '@openchatlab/core'
+import type { ContentBlock } from '../chats'
 
 export interface AgentTokenUsage {
   promptTokens: number
@@ -18,6 +19,8 @@ export interface AgentTokenUsage {
 export interface SimpleHistoryMessage {
   role: 'user' | 'assistant' | 'summary'
   content: string
+  /** Persisted content blocks; tool blocks with toolCallId+result are replayed as real toolCall/toolResult pairs. */
+  contentBlocks?: ContentBlock[]
 }
 
 export type AgentCoreEvent =
@@ -25,8 +28,8 @@ export type AgentCoreEvent =
   | { type: 'thinking_start' }
   | { type: 'thinking_delta'; content: string }
   | { type: 'thinking_end'; durationMs?: number }
-  | { type: 'tool_start'; toolName: string; toolParams: Record<string, unknown> }
-  | { type: 'tool_end'; toolName: string; toolResult: unknown }
+  | { type: 'tool_start'; toolCallId: string; toolName: string; toolParams: Record<string, unknown> }
+  | { type: 'tool_end'; toolCallId: string; toolName: string; toolResult: unknown; isError: boolean }
   | { type: 'turn_end'; round: number; hadToolCalls: boolean }
   | { type: 'usage_update'; usage: AgentTokenUsage }
 

@@ -18,9 +18,7 @@ function createTestDatabase(filename: string): Database.Database {
 }
 
 function createManager(dir: string): AIChatManager {
-  return sqliteNativeBinding
-    ? new AIChatManager(dir, { nativeBinding: sqliteNativeBinding })
-    : new AIChatManager(dir)
+  return sqliteNativeBinding ? new AIChatManager(dir, { nativeBinding: sqliteNativeBinding }) : new AIChatManager(dir)
 }
 
 function cleanup(dir: string): void {
@@ -41,12 +39,12 @@ describe('AIChatManager legacy migration', () => {
       manager.close()
 
       const db = createTestDatabase(join(dir, 'conversations.db'))
-      const tables = db
-        .prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name")
-        .all() as Array<{ name: string }>
-      const indexes = db
-        .prepare("SELECT name FROM sqlite_master WHERE type='index' ORDER BY name")
-        .all() as Array<{ name: string }>
+      const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table' ORDER BY name").all() as Array<{
+        name: string
+      }>
+      const indexes = db.prepare("SELECT name FROM sqlite_master WHERE type='index' ORDER BY name").all() as Array<{
+        name: string
+      }>
       const messageColumns = db.pragma('table_info(ai_message)') as Array<{ name: string }>
 
       assert.ok(tables.some((table) => table.name === 'ai_chat'))
@@ -560,6 +558,77 @@ describe('AIChatManager forkAIChat', () => {
         forkedMessages.map((m) => m.content),
         ['q1', 'a1']
       )
+      manager.close()
+    } finally {
+      cleanup(dir)
+    }
+  })
+})
+
+describe('AIChatManager getHistoryForAgent content blocks', () => {
+  it('returns persisted contentBlocks so tool calls can be replayed', () => {
+    const dir = createTempDir()
+    try {
+      const manager = createManager(dir)
+      const conv = manager.createAIChat('s1', 'History', 'general_cn')
+      manager.addMessage(conv.id, 'user', 'find birthday messages')
+      manager.addMessage(conv.id, 'assistant', 'Searching… found 3.', undefined, undefined, [
+        { type: 'text', text: 'Searching… ' },
+        {
+          type: 'tool',
+          tool: {
+            name: 'search_messages',
+            displayName: 'search_messages',
+            status: 'done',
+            params: { query: 'birthday' },
+            toolCallId: 'call_xyz',
+            result: 'found 3 messages',
+          },
+        },
+        { type: 'text', text: 'found 3.' },
+      ])
+
+      const history = manager.getHistoryForAgent(conv.id)
+      assert.equal(history.length, 2)
+      assert.equal(history[0].contentBlocks, undefined)
+      const blocks = history[1].contentBlocks
+      assert.ok(blocks, 'assistant message should carry contentBlocks')
+      const toolBlock = blocks.find((b) => b.type === 'tool')
+      assert.ok(toolBlock && toolBlock.type === 'tool')
+      assert.equal(toolBlock.tool.toolCallId, 'call_xyz')
+      assert.equal(toolBlock.tool.result, 'found 3 messages')
+      manager.close()
+    } finally {
+      cleanup(dir)
+    }
+  })
+
+  it('keeps contentBlocks on buffer messages after a summary boundary', () => {
+    const dir = createTempDir()
+    try {
+      const manager = createManager(dir)
+      const conv = manager.createAIChat('s1', 'Summary', 'general_cn')
+      manager.addMessage(conv.id, 'user', 'old question')
+      manager.addMessage(conv.id, 'assistant', 'old answer')
+      // 边界之后的消息（带工具块）应保留 contentBlocks
+      const late = manager.addMessage(conv.id, 'assistant', 'late answer', undefined, undefined, [
+        {
+          type: 'tool',
+          tool: { name: 'search_messages', displayName: 's', status: 'done', toolCallId: 'call_late', result: 'r' },
+        },
+        { type: 'text', text: 'late answer' },
+      ])
+      const boundaryTs = Math.floor(Date.now() / 1000) + 100
+      manager.executeAiSQL(`UPDATE ai_message SET timestamp = ${boundaryTs} WHERE id = '${late.id}'`)
+      manager.addSummaryMessage(conv.id, 'summary of old context', {
+        bufferBoundaryTimestamp: boundaryTs,
+        compressedMessageCount: 2,
+      })
+
+      const history = manager.getHistoryForAgent(conv.id)
+      assert.equal(history[0].role, 'summary')
+      const lateMsg = history.find((m) => m.content === 'late answer')
+      assert.ok(lateMsg?.contentBlocks?.some((b) => b.type === 'tool'))
       manager.close()
     } finally {
       cleanup(dir)

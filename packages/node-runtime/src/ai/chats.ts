@@ -38,6 +38,12 @@ export type ContentBlock =
         displayName: string
         status: 'running' | 'done' | 'error'
         params?: Record<string, unknown>
+        /** Provider-issued tool call id, persisted so history replay keeps stable ids (prompt cache friendly). */
+        toolCallId?: string
+        /** Truncated text of the tool result as seen by the model. Absent on legacy rows and unfinished calls. */
+        result?: string
+        /** Whether the tool execution failed (pi-level isError, distinct from UI status). */
+        isError?: boolean
       }
     }
   | { type: 'error'; error: { name: string | null; message: string; stack: string | null } }
@@ -860,7 +866,7 @@ export class AIChatManager {
     aiChatId: string,
     maxMessages?: number,
     leafMessageId?: string | null
-  ): Array<{ role: 'user' | 'assistant' | 'summary'; content: string }> {
+  ): Array<{ role: 'user' | 'assistant' | 'summary'; content: string; contentBlocks?: ContentBlock[] }> {
     const messages = this.getActivePathRows(aiChatId, leafMessageId).map((row) => this.parseMessageRow(row))
     const validMessages = messages.filter(
       (m) => (m.role === 'user' || m.role === 'assistant' || m.role === 'summary') && m.content?.trim()
@@ -874,7 +880,7 @@ export class AIChatManager {
       }
     }
 
-    let result: Array<{ role: 'user' | 'assistant' | 'summary'; content: string }>
+    let result: Array<{ role: 'user' | 'assistant' | 'summary'; content: string; contentBlocks?: ContentBlock[] }>
 
     if (summaryMsg) {
       const metaBlock = summaryMsg.contentBlocks?.find(
@@ -895,10 +901,10 @@ export class AIChatManager {
 
       result = [
         { role: 'summary' as const, content: summaryMsg.content },
-        ...contextMessages.map((m) => ({ role: m.role, content: m.content })),
+        ...contextMessages.map((m) => ({ role: m.role, content: m.content, contentBlocks: m.contentBlocks })),
       ]
     } else {
-      result = validMessages.map((m) => ({ role: m.role, content: m.content }))
+      result = validMessages.map((m) => ({ role: m.role, content: m.content, contentBlocks: m.contentBlocks }))
     }
 
     if (maxMessages && result.length > maxMessages) {

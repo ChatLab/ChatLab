@@ -248,6 +248,9 @@ export {
   getSupportedThinkingLevels,
   isReasoningModel,
   getThinkingCompat,
+  MAX_PERSISTED_TOOL_RESULT_CHARS,
+  extractToolResultText,
+  truncateToolResultText,
 } from './ai'
 export type { StreamParserEvent, ThinkingLevel, ThinkingCompat } from './ai'
 

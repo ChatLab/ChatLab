@@ -35,8 +35,14 @@ describe('AgentEventHandler', () => {
       systemPrompt: 'test',
     })
 
-    handler.handleCoreEvent({ type: 'tool_start', toolName: 'search', toolParams: { q: 'test' } }, [])
+    handler.handleCoreEvent(
+      { type: 'tool_start', toolCallId: 'call_1', toolName: 'search', toolParams: { q: 'test' } },
+      []
+    )
     assert.deepEqual(handler.toolsUsed, ['search'])
+
+    const startChunk = chunks.find((c) => c.type === 'tool_start')
+    assert.equal(startChunk?.toolCallId, 'call_1')
   })
 
   it('updates tool rounds on turn_end', () => {
@@ -118,10 +124,15 @@ describe('AgentEventHandler', () => {
       },
     }
 
-    handler.handleCoreEvent({ type: 'tool_end', toolName: 'render_chart', toolResult }, [])
+    handler.handleCoreEvent(
+      { type: 'tool_end', toolCallId: 'call_chart', toolName: 'render_chart', toolResult, isError: false },
+      []
+    )
 
     const resultChunk = chunks.find((c) => c.type === 'tool_result')
     assert.equal(resultChunk?.toolName, 'render_chart')
     assert.deepEqual(resultChunk?.toolResult, toolResult)
+    assert.equal(resultChunk?.toolCallId, 'call_chart')
+    assert.equal(resultChunk?.toolIsError, false)
   })
 })

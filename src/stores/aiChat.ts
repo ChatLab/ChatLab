@@ -19,6 +19,7 @@ import type { TokenUsage, AgentRuntimeStatus, SerializedErrorInfo } from '@elect
 import { useAgentStreamService } from '@/services/ai-stream/service'
 import { buildSerializablePreprocessConfig, shouldEnsureDesensitizeRulesBeforeSerialize } from './aiPreprocessConfig'
 import type { ChartPayload } from '@openchatlab/core'
+import { extractToolResultText, truncateToolResultText } from '@openchatlab/core'
 import {
   extractChartPayloads,
   isRenderOnlyTool,
@@ -50,6 +51,12 @@ export interface ToolBlockContent {
   status: 'running' | 'done' | 'error'
   params?: Record<string, unknown>
   durationMs?: number
+  /** Provider-issued tool call id; replayed verbatim so multi-turn requests stay cache-stable */
+  toolCallId?: string
+  /** Truncated tool result text persisted for history replay */
+  result?: string
+  /** Whether the tool execution failed (from the agent runtime, not UI render errors) */
+  isError?: boolean
 }
 
 export interface MentionedMemberContext {
@@ -620,8 +627,12 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     removePlanDraftsFromBlocks: () => void
     updatePlanBlockStatus: (status: PlanBlockStatus) => void
     appendErrorToBlocks: (error: SerializedErrorInfo) => void
-    addToolBlock: (toolName: string, params?: Record<string, unknown>) => void
-    updateToolBlockStatus: (toolName: string, status: 'done' | 'error') => void
+    addToolBlock: (toolName: string, params?: Record<string, unknown>, toolCallId?: string) => void
+    updateToolBlockStatus: (
+      toolName: string,
+      status: 'done' | 'error',
+      completion?: { toolCallId?: string; result?: string; isError?: boolean }
+    ) => void
   }
 
   function createStreamBlockHelpers(targetBuffer: AIChatBuffer, getAiMessageIndex: () => number): StreamBlockHelpers {
@@ -718,22 +729,49 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       updateAIMessage({ contentBlocks: [...blocks] })
     }
 
-    const addToolBlock = (toolName: string, params?: Record<string, unknown>) => {
+    const addToolBlock = (toolName: string, params?: Record<string, unknown>, toolCallId?: string) => {
       const idx = getAiMessageIndex()
       const blocks = targetBuffer.messages[idx].contentBlocks || []
-      blocks.push({ type: 'tool', tool: { name: toolName, displayName: toolName, status: 'running', params } })
+      blocks.push({
+        type: 'tool',
+        tool: { name: toolName, displayName: toolName, status: 'running', params, toolCallId },
+      })
       updateAIMessage({ contentBlocks: [...blocks] })
     }
 
-    const updateToolBlockStatus = (toolName: string, status: 'done' | 'error') => {
+    const updateToolBlockStatus = (
+      toolName: string,
+      status: 'done' | 'error',
+      completion?: { toolCallId?: string; result?: string; isError?: boolean }
+    ) => {
       const idx = getAiMessageIndex()
       const blocks = targetBuffer.messages[idx].contentBlocks || []
-      for (let index = blocks.length - 1; index >= 0; index--) {
-        const block = blocks[index]
-        if (block.type === 'tool' && block.tool.name === toolName && block.tool.status === 'running') {
-          block.tool.status = status
-          break
+      const isRunningTool = (block: ContentBlock): block is Extract<ContentBlock, { type: 'tool' }> =>
+        block.type === 'tool' && block.tool.status === 'running'
+      // 优先按 toolCallId 精确匹配（支持同名工具并行调用），找不到再按名称回退
+      let target: Extract<ContentBlock, { type: 'tool' }> | undefined
+      if (completion?.toolCallId) {
+        for (let index = blocks.length - 1; index >= 0; index--) {
+          const block = blocks[index]
+          if (isRunningTool(block) && block.tool.toolCallId === completion.toolCallId) {
+            target = block
+            break
+          }
         }
+      }
+      if (!target) {
+        for (let index = blocks.length - 1; index >= 0; index--) {
+          const block = blocks[index]
+          if (isRunningTool(block) && block.tool.name === toolName) {
+            target = block
+            break
+          }
+        }
+      }
+      if (target) {
+        target.tool.status = status
+        if (completion?.result !== undefined) target.tool.result = completion.result
+        if (completion?.isError !== undefined) target.tool.isError = completion.isError
       }
       updateAIMessage({ contentBlocks: [...blocks] })
     }
@@ -968,7 +1006,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                 }
                 state.toolsUsedInCurrentRound.push(chunk.toolName)
                 if (!isRenderOnlyTool(chunk.toolName)) {
-                  addToolBlock(chunk.toolName, toolParams)
+                  addToolBlock(chunk.toolName, toolParams, chunk.toolCallId)
                 }
               }
               break
@@ -981,14 +1019,19 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                 if (renderOnlyError) {
                   appendErrorToBlocks(renderOnlyError.error)
                 }
+                const toolFailed = renderOnlyError !== null || chunk.toolIsError === true
                 if (state.currentToolStatus?.name === chunk.toolName) {
                   state.currentToolStatus = {
                     ...state.currentToolStatus,
-                    status: renderOnlyError ? 'error' : 'done',
+                    status: toolFailed ? 'error' : 'done',
                   }
                 }
                 if (!isRenderOnlyTool(chunk.toolName)) {
-                  updateToolBlockStatus(chunk.toolName, renderOnlyError ? 'error' : 'done')
+                  updateToolBlockStatus(chunk.toolName, toolFailed ? 'error' : 'done', {
+                    toolCallId: chunk.toolCallId,
+                    result: truncateToolResultText(extractToolResultText(chunk.toolResult)),
+                    isError: chunk.toolIsError,
+                  })
                 }
               }
               state.isLoadingSource = false
@@ -1531,7 +1574,11 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                 state.currentToolStatus = { name: chunk.toolName, displayName: chunk.toolName, status: 'running' }
                 state.toolsUsedInCurrentRound.push(chunk.toolName)
                 if (!isRenderOnlyTool(chunk.toolName)) {
-                  addToolBlock(chunk.toolName, chunk.toolParams as Record<string, unknown> | undefined)
+                  addToolBlock(
+                    chunk.toolName,
+                    chunk.toolParams as Record<string, unknown> | undefined,
+                    chunk.toolCallId
+                  )
                 }
               }
               break
@@ -1544,7 +1591,15 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                   appendErrorToBlocks(renderOnlyError.error)
                 }
                 if (!isRenderOnlyTool(chunk.toolName)) {
-                  updateToolBlockStatus(chunk.toolName, renderOnlyError ? 'error' : 'done')
+                  updateToolBlockStatus(
+                    chunk.toolName,
+                    renderOnlyError !== null || chunk.toolIsError === true ? 'error' : 'done',
+                    {
+                      toolCallId: chunk.toolCallId,
+                      result: truncateToolResultText(extractToolResultText(chunk.toolResult)),
+                      isError: chunk.toolIsError,
+                    }
+                  )
                 }
               }
               state.currentToolStatus = null

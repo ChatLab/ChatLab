@@ -34,3 +34,6 @@ export type { StreamParserEvent } from './streaming-think-parser'
 // Thinking / reasoning level configuration (per-model level tables + compat)
 export type { ThinkingLevel, ThinkingCompat } from './thinking'
 export { getSupportedThinkingLevels, isReasoningModel, getThinkingCompat } from './thinking'
+
+// Tool result text extraction/truncation (persisted into content blocks for history replay)
+export { MAX_PERSISTED_TOOL_RESULT_CHARS, extractToolResultText, truncateToolResultText } from './tool-result-text'

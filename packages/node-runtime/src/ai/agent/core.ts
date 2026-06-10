@@ -15,42 +15,10 @@ import {
 } from '@earendil-works/pi-ai'
 import { StreamingThinkTagParser, needsStreamingThinkParsing } from '@openchatlab/core'
 
-import type { AgentCoreOptions, AgentCoreResult, AgentTokenUsage, SimpleHistoryMessage } from './types'
+import type { AgentCoreOptions, AgentCoreResult, AgentTokenUsage } from './types'
 import { initTokenizer } from '../tokenizer'
 import { DEFAULT_MAX_TOOL_ROUNDS } from './constants'
-
-function createEmptyPiUsage(): PiUsage {
-  return {
-    input: 0,
-    output: 0,
-    cacheRead: 0,
-    cacheWrite: 0,
-    totalTokens: 0,
-    cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0, total: 0 },
-  }
-}
-
-function toPiHistoryMessages(messages: SimpleHistoryMessage[]): PiMessage[] {
-  return messages.map((msg): PiMessage => {
-    if (msg.role === 'user') {
-      return {
-        role: 'user',
-        content: [{ type: 'text', text: msg.content || '' }],
-        timestamp: Date.now(),
-      }
-    }
-    return {
-      role: 'assistant',
-      content: [{ type: 'text', text: msg.content || '' }],
-      api: 'openai-completions',
-      provider: 'chatlab',
-      model: 'unknown',
-      usage: createEmptyPiUsage(),
-      stopReason: 'stop',
-      timestamp: Date.now(),
-    }
-  })
-}
+import { toPiHistoryMessages } from './history'
 
 function isPiMessage(message: PiAgentMessage): message is PiMessage {
   return message.role === 'user' || message.role === 'assistant' || message.role === 'toolResult'
@@ -197,11 +165,18 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
       toolsUsed.push(event.toolName)
       onEvent({
         type: 'tool_start',
+        toolCallId: event.toolCallId,
         toolName: event.toolName,
         toolParams: (event.args || {}) as Record<string, unknown>,
       })
     } else if (event.type === 'tool_execution_end') {
-      onEvent({ type: 'tool_end', toolName: event.toolName, toolResult: event.result })
+      onEvent({
+        type: 'tool_end',
+        toolCallId: event.toolCallId,
+        toolName: event.toolName,
+        toolResult: event.result,
+        isError: event.isError,
+      })
     } else if (event.type === 'turn_end') {
       const hadToolCalls = event.toolResults.length > 0
       if (hadToolCalls) {

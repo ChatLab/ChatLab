@@ -27,9 +27,11 @@ export interface AgentStreamChunk {
   content?: string
   thinkTag?: string
   thinkDurationMs?: number
+  toolCallId?: string
   toolName?: string
   toolParams?: Record<string, unknown>
   toolResult?: unknown
+  toolIsError?: boolean
   error?: unknown
   isFinished?: boolean
   usage?: TokenUsage

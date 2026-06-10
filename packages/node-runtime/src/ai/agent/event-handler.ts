@@ -45,9 +45,11 @@ export interface AgentStreamChunk {
   content?: string
   thinkTag?: string
   thinkDurationMs?: number
+  toolCallId?: string
   toolName?: string
   toolParams?: Record<string, unknown>
   toolResult?: unknown
+  toolIsError?: boolean
   error?: unknown
   isFinished?: boolean
   usage?: TokenUsage
@@ -173,12 +175,18 @@ export class AgentEventHandler {
       case 'tool_start': {
         const params = this.normalizeToolParams(event.toolName, event.toolParams)
         this.toolsUsed.push(event.toolName)
-        this.onChunk({ type: 'tool_start', toolName: event.toolName, toolParams: params })
+        this.onChunk({ type: 'tool_start', toolCallId: event.toolCallId, toolName: event.toolName, toolParams: params })
         this.emitStatus('tool_running', messages, { currentTool: event.toolName, force: true })
         break
       }
       case 'tool_end':
-        this.onChunk({ type: 'tool_result', toolName: event.toolName, toolResult: event.toolResult })
+        this.onChunk({
+          type: 'tool_result',
+          toolCallId: event.toolCallId,
+          toolName: event.toolName,
+          toolResult: event.toolResult,
+          toolIsError: event.isError,
+        })
         this.emitStatus('thinking', messages, { force: true })
         break
       case 'turn_end':
