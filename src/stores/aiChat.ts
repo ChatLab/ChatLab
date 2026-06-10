@@ -211,7 +211,17 @@ export function buildAIChatKey(params: {
 }
 
 function createEmptyTokenUsage(): TokenUsage {
-  return { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+  return { promptTokens: 0, completionTokens: 0, totalTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 }
+}
+
+function toTokenUsage(data: { [K in keyof TokenUsage]?: number }): TokenUsage {
+  return {
+    promptTokens: data.promptTokens ?? 0,
+    completionTokens: data.completionTokens ?? 0,
+    totalTokens: data.totalTokens ?? 0,
+    cacheReadTokens: data.cacheReadTokens ?? 0,
+    cacheWriteTokens: data.cacheWriteTokens ?? 0,
+  }
 }
 
 function normalizeSerializedError(error: unknown): SerializedErrorInfo {
@@ -523,7 +533,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         buffer.messages.splice(0, buffer.messages.length, ...history.map((msg) => toRuntimeMessage(msg)))
         buffer.sourceMessages.splice(0, buffer.sourceMessages.length)
         buffer.currentKeywords.splice(0, buffer.currentKeywords.length)
-        buffer.sessionTokenUsage = tokenUsage
+        buffer.sessionTokenUsage = toTokenUsage(tokenUsage)
         buffer.loaded = true
       }
 
@@ -1083,6 +1093,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                   promptTokens: state.sessionTokenUsage.promptTokens + chunk.usage.promptTokens,
                   completionTokens: state.sessionTokenUsage.completionTokens + chunk.usage.completionTokens,
                   totalTokens: state.sessionTokenUsage.totalTokens + chunk.usage.totalTokens,
+                  cacheReadTokens: state.sessionTokenUsage.cacheReadTokens + chunk.usage.cacheReadTokens,
+                  cacheWriteTokens: state.sessionTokenUsage.cacheWriteTokens + chunk.usage.cacheWriteTokens,
                 }
               }
               setAgentPhase(state, 'completed', chunk.usage ? { totalUsage: chunk.usage } : undefined)
@@ -1708,7 +1720,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         }
       }
 
-      targetBuffer.sessionTokenUsage = await useAIService().getAIChatTokenUsage(state.currentAIChatId!)
+      targetBuffer.sessionTokenUsage = toTokenUsage(await useAIService().getAIChatTokenUsage(state.currentAIChatId!))
       state.sessionTokenUsage = { ...targetBuffer.sessionTokenUsage }
       return { success: true }
     } catch (error) {

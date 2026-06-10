@@ -50,7 +50,13 @@ export function registerAiChatRoutes(server: FastifyInstance, ctx: HttpRouteCont
       dataKeywords?: string[]
       dataMessageCount?: number
       contentBlocks?: unknown[]
-      tokenUsage?: { promptTokens: number; completionTokens: number; totalTokens: number }
+      tokenUsage?: {
+        promptTokens: number
+        completionTokens: number
+        totalTokens: number
+        cacheReadTokens?: number
+        cacheWriteTokens?: number
+      }
     }
   }>('/_web/ai/chats/:id/messages', async (request) => {
     const { role, content, dataKeywords, dataMessageCount, contentBlocks, tokenUsage } = request.body
@@ -121,7 +127,13 @@ export function registerAiChatRoutes(server: FastifyInstance, ctx: HttpRouteCont
       role: 'user' | 'assistant' | 'summary'
       content: string
       contentBlocks?: unknown[]
-      tokenUsage?: { promptTokens: number; completionTokens: number; totalTokens: number }
+      tokenUsage?: {
+        promptTokens: number
+        completionTokens: number
+        totalTokens: number
+        cacheReadTokens?: number
+        cacheWriteTokens?: number
+      }
     }
   }>('/_web/ai/chats/:id/messages/insert-after', async (request, reply) => {
     const { afterMessageId, role, content, contentBlocks, tokenUsage } = request.body

@@ -215,6 +215,7 @@
         }
       },
       "tokenUsageTitle": "累計 Token 使用量",
+      "cacheHit": "キャッシュヒット",
       "export": {
         "label": "エクスポート",
         "title": "現在のチャットをエクスポート"

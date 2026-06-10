@@ -59,6 +59,8 @@ export interface TokenUsageData {
   promptTokens: number
   completionTokens: number
   totalTokens: number
+  cacheReadTokens?: number
+  cacheWriteTokens?: number
 }
 
 export interface AIMessage {
@@ -831,13 +833,21 @@ export class AIChatManager {
 
   getAIChatTokenUsage(aiChatId: string): TokenUsageData {
     const rows = this.getActivePathRows(aiChatId)
-    const result: TokenUsageData = { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+    const result: TokenUsageData = {
+      promptTokens: 0,
+      completionTokens: 0,
+      totalTokens: 0,
+      cacheReadTokens: 0,
+      cacheWriteTokens: 0,
+    }
     for (const row of rows) {
       if (row.tokenUsage) {
         const usage = JSON.parse(row.tokenUsage) as TokenUsageData
         result.promptTokens += usage.promptTokens
         result.completionTokens += usage.completionTokens
         result.totalTokens += usage.totalTokens
+        result.cacheReadTokens! += usage.cacheReadTokens || 0
+        result.cacheWriteTokens! += usage.cacheWriteTokens || 0
       }
     }
     return result

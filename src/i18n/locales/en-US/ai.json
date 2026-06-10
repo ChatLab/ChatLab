@@ -215,6 +215,7 @@
         }
       },
       "tokenUsageTitle": "Total token usage",
+      "cacheHit": "Cache hit",
       "export": {
         "label": "Export",
         "title": "Export current conversation"
