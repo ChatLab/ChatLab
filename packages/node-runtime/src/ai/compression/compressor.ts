@@ -5,9 +5,19 @@
  * 通过 AIChatManager 操作对话数据。
  */
 
+import { truncateToolResultText } from '@openchatlab/core'
+
 import { countTokens, countMessagesTokens } from '../tokenizer'
+import { isReplayableToolBlock } from '../agent/history'
 import type { AIChatManager, ContentBlock, AIMessageRole } from '../chats'
 import type { CompressionConfig, CompressionResult, CompressionLogger, CompressionLlmAdapter } from './types'
+
+interface CompressibleMessage {
+  role: string
+  content: string
+  timestamp: number
+  contentBlocks?: ContentBlock[]
+}
 
 const DEFAULT_CONTEXT_WINDOW = 128000
 
@@ -70,7 +80,7 @@ export async function checkAndCompress(
 
     const summary = convManager.getLatestSummary(aiChatId)
 
-    let messages: Array<{ role: AIMessageRole; content: string; timestamp: number }>
+    let messages: Array<{ role: AIMessageRole; content: string; timestamp: number; contentBlocks?: ContentBlock[] }>
     if (summary) {
       const metaBlock = summary.contentBlocks?.find(
         (b): b is Extract<ContentBlock, { type: 'summary_meta' }> => b.type === 'summary_meta'
@@ -87,6 +97,11 @@ export async function checkAndCompress(
     }
     for (const msg of messages) {
       historyForTokenCount.push({ role: msg.role, content: msg.content })
+      // Persisted tool results are replayed as toolCall/toolResult pairs each
+      // turn (see agent/history.ts), so they occupy real context and must be counted.
+      for (const toolText of replayedToolResultTexts(msg.contentBlocks)) {
+        historyForTokenCount.push({ role: 'tool', content: toolText })
+      }
     }
 
     const currentTokens = countMessagesTokens(historyForTokenCount, systemPrompt)
@@ -133,10 +148,13 @@ export async function checkAndCompress(
       compressedMessageCount: messagesToCompress.length,
     })
 
-    const afterTokenCount: Array<{ role: string; content: string }> = [
-      { role: 'assistant', content: summaryText },
-      ...bufferMessages.map((m) => ({ role: m.role, content: m.content })),
-    ]
+    const afterTokenCount: Array<{ role: string; content: string }> = [{ role: 'assistant', content: summaryText }]
+    for (const m of bufferMessages) {
+      afterTokenCount.push({ role: m.role, content: m.content })
+      for (const toolText of replayedToolResultTexts(m.contentBlocks)) {
+        afterTokenCount.push({ role: 'tool', content: toolText })
+      }
+    }
     const tokensAfter = countMessagesTokens(afterTokenCount, systemPrompt)
 
     if (tokensAfter >= thresholdTokens) {
@@ -186,18 +204,32 @@ export async function manualCompress(
 
 // ==================== Internal Helpers ====================
 
-function splitMessagesForCompression(
-  messages: Array<{ role: string; content: string; timestamp: number }>,
+/** Tool result texts that history replay will inject back into the LLM context. */
+function replayedToolResultTexts(blocks?: ContentBlock[]): string[] {
+  if (!blocks) return []
+  return blocks.filter(isReplayableToolBlock).map((block) => truncateToolResultText(block.tool.result))
+}
+
+function countMessageTokensWithTools(msg: CompressibleMessage): number {
+  let tokens = countTokens(msg.content) + 4
+  for (const toolText of replayedToolResultTexts(msg.contentBlocks)) {
+    tokens += countTokens(toolText) + 4
+  }
+  return tokens
+}
+
+function splitMessagesForCompression<T extends CompressibleMessage>(
+  messages: T[],
   bufferTokenBudget: number
 ): {
-  bufferMessages: Array<{ role: string; content: string; timestamp: number }>
-  messagesToCompress: Array<{ role: string; content: string; timestamp: number }>
+  bufferMessages: T[]
+  messagesToCompress: T[]
 } {
   let bufferTokens = 0
   let splitIndex = messages.length
 
   for (let i = messages.length - 1; i >= 0; i--) {
-    const msgTokens = countTokens(messages[i].content) + 4
+    const msgTokens = countMessageTokensWithTools(messages[i])
     if (bufferTokens + msgTokens > bufferTokenBudget) {
       splitIndex = i + 1
       break
@@ -215,7 +247,7 @@ function splitMessagesForCompression(
 }
 
 function buildCompressionInput(
-  messagesToCompress: Array<{ role: string; content: string }>,
+  messagesToCompress: Array<{ role: string; content: string; contentBlocks?: ContentBlock[] }>,
   existingSummary: { content: string } | null
 ): string {
   const parts: string[] = []
@@ -228,6 +260,9 @@ function buildCompressionInput(
   for (const msg of messagesToCompress) {
     const roleLabel = msg.role === 'user' ? 'User' : 'Assistant'
     parts.push(`${roleLabel}: ${msg.content}`)
+    for (const block of (msg.contentBlocks ?? []).filter(isReplayableToolBlock)) {
+      parts.push(`[Tool result: ${block.tool.name}]\n${truncateToolResultText(block.tool.result)}`)
+    }
   }
 
   return parts.join('\n\n')

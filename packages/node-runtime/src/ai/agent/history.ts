@@ -16,7 +16,7 @@ import type { SimpleHistoryMessage } from './types'
 import type { ContentBlock } from '../chats'
 
 type ToolBlock = Extract<ContentBlock, { type: 'tool' }>
-type ReplayableToolBlock = ToolBlock & { tool: ToolBlock['tool'] & { toolCallId: string; result: string } }
+export type ReplayableToolBlock = ToolBlock & { tool: ToolBlock['tool'] & { toolCallId: string; result: string } }
 
 function createEmptyPiUsage(): PiUsage {
   return {
@@ -29,7 +29,7 @@ function createEmptyPiUsage(): PiUsage {
   }
 }
 
-function isReplayableToolBlock(block: ContentBlock): block is ReplayableToolBlock {
+export function isReplayableToolBlock(block: ContentBlock): block is ReplayableToolBlock {
   if (block.type !== 'tool') return false
   const { toolCallId, result, status } = block.tool
   return (

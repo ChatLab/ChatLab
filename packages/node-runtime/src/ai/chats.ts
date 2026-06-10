@@ -944,16 +944,32 @@ export class AIChatManager {
   getMessagesAfterSummary(
     aiChatId: string,
     summaryTimestamp: number
-  ): Array<{ role: AIMessageRole; content: string; timestamp: number }> {
+  ): Array<{ role: AIMessageRole; content: string; timestamp: number; contentBlocks?: ContentBlock[] }> {
     return this.getActivePathRows(aiChatId)
       .filter((row) => row.timestamp > summaryTimestamp && (row.role === 'user' || row.role === 'assistant'))
-      .map((row) => ({ role: row.role as AIMessageRole, content: row.content, timestamp: row.timestamp }))
+      .map((row) => this.toCompressionMessage(row))
   }
 
-  getAllUserAssistantMessages(aiChatId: string): Array<{ role: AIMessageRole; content: string; timestamp: number }> {
+  getAllUserAssistantMessages(
+    aiChatId: string
+  ): Array<{ role: AIMessageRole; content: string; timestamp: number; contentBlocks?: ContentBlock[] }> {
     return this.getActivePathRows(aiChatId)
       .filter((row) => row.role === 'user' || row.role === 'assistant')
-      .map((row) => ({ role: row.role as AIMessageRole, content: row.content, timestamp: row.timestamp }))
+      .map((row) => this.toCompressionMessage(row))
+  }
+
+  private toCompressionMessage(row: AIMessageRow): {
+    role: AIMessageRole
+    content: string
+    timestamp: number
+    contentBlocks?: ContentBlock[]
+  } {
+    return {
+      role: row.role as AIMessageRole,
+      content: row.content,
+      timestamp: row.timestamp,
+      contentBlocks: row.contentBlocks ? JSON.parse(row.contentBlocks) : undefined,
+    }
   }
 
   getMessageCountAfterSummary(aiChatId: string): number {
