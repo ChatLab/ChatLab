@@ -86,6 +86,9 @@ export function formatToolResultAsText(details: Record<string, unknown>): string
 
   for (const [key, value] of Object.entries(details)) {
     if (key === 'messages') continue
+    // raw message objects are already rendered via the formatted messages list;
+    // joining them here would print "[object Object]" for every entry
+    if (key === 'rawMessages') continue
     if (value === undefined || value === null) continue
 
     if (typeof value === 'object') {

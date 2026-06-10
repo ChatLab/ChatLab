@@ -89,12 +89,15 @@ export function adaptToolsForAgent(
                 : {}
 
             if (result.rawMessages && result.rawMessages.length > 0) {
+              // tools may mirror rawMessages inside data; keep it out of extraDetails
+              // so the pipeline only renders scalar metadata (same as the desktop adapter)
+              const { rawMessages: _rawInData, ...extraDetails } = (result.data ?? {}) as Record<string, unknown>
               const pipelineResult = applyPreprocessingPipeline({
                 rawMessages: result.rawMessages as PreprocessableMessage[],
                 locale: ctx.locale,
                 maxToolResultTokens: tokenBudget,
                 truncationStrategy: TOOL_TRUNCATION_STRATEGY[tool.name] ?? 'keep_last',
-                extraDetails: (result.data ?? {}) as Record<string, unknown>,
+                extraDetails,
                 logger: getServerAiLogger() ?? undefined,
               })
               return {
