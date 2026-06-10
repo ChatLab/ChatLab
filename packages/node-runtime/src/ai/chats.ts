@@ -879,7 +879,9 @@ export class AIChatManager {
   ): Array<{ role: 'user' | 'assistant' | 'summary'; content: string; contentBlocks?: ContentBlock[] }> {
     const messages = this.getActivePathRows(aiChatId, leafMessageId).map((row) => this.parseMessageRow(row))
     const validMessages = messages.filter(
-      (m) => (m.role === 'user' || m.role === 'assistant' || m.role === 'summary') && m.content?.trim()
+      (m) =>
+        (m.role === 'user' || m.role === 'assistant' || m.role === 'summary') &&
+        (m.content?.trim() || (m.role === 'assistant' && m.contentBlocks?.some((b) => b.type === 'tool')))
     )
 
     let summaryMsg: AIMessage | undefined

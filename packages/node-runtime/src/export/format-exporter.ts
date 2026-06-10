@@ -140,7 +140,8 @@ export function exportWithFormat(
         break
     }
 
-    const filename = `${params.sessionName}_export.${ext}`
+    const timestamp = Date.now()
+    const filename = `${params.sessionName}_export_${timestamp}.${ext}`
     return { success: true, totalMessages: messages.length, content, filename, mimeType: mime }
   } catch (error) {
     return {

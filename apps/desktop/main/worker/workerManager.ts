@@ -900,7 +900,7 @@ export interface ExportFileParams {
 export async function exportFilterResultToFile(
   params: ExportFileParams
 ): Promise<{ success: boolean; filePath?: string; error?: string }> {
-  return sendToWorker('exportFilterResultToFile', params)
+  return sendToWorker('exportFilterResultToFile', params, 600000)
 }
 
 // ==================== 增量导入 ====================
