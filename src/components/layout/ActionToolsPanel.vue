@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useLayoutStore } from '@/stores/layout'
@@ -10,6 +10,7 @@ const { isToolsPanelMini, toolsPanelPosition, isToolsPanelOpen } = storeToRefs(l
 
 const isHeaderMode = computed(() => toolsPanelPosition.value === 'header')
 const isPanelVisible = computed(() => !isHeaderMode.value || isToolsPanelOpen.value)
+const panelRef = ref<HTMLElement | null>(null)
 
 type ToolEvent =
   | 'openIncrementalImport'
@@ -27,6 +28,18 @@ function handleToolClick(event: ToolEvent) {
   if (isHeaderMode.value) {
     isToolsPanelOpen.value = false
   }
+}
+
+function handleDocumentMouseDown(event: MouseEvent) {
+  if (!isHeaderMode.value || !isToolsPanelOpen.value) return
+
+  const target = event.target
+  if (!(target instanceof Element)) return
+
+  // header 模式下，“更多”按钮在面板外部，需要排除它，否则点按钮关闭时会被外部点击监听反向打开。
+  if (panelRef.value?.contains(target) || target.closest('[data-tools-panel-trigger]')) return
+
+  isToolsPanelOpen.value = false
 }
 
 const tools = [
@@ -89,6 +102,14 @@ const visibleTools = computed(() => (isHeaderMode.value ? headerTools : tools))
 watch(toolsPanelPosition, () => {
   isToolsPanelOpen.value = false
 })
+
+onMounted(() => {
+  document.addEventListener('mousedown', handleDocumentMouseDown)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('mousedown', handleDocumentMouseDown)
+})
 </script>
 
 <template>
@@ -129,6 +150,7 @@ watch(toolsPanelPosition, () => {
       :class="isPanelVisible ? 'translate-x-0 opacity-100' : 'pointer-events-none translate-x-full opacity-0'"
     >
       <div
+        ref="panelRef"
         class="no-capture flex w-40 flex-col rounded-l-xl border border-r-0 border-gray-200/60 bg-white p-3 shadow-lg dark:border-white/5 dark:bg-gray-900"
       >
         <div class="mb-2 flex items-center justify-between">

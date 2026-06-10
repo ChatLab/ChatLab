@@ -176,6 +176,7 @@ const otherMemberAvatar = computed(() => {
             <CaptureButton color="gray" />
             <UTooltip :text="t('analysis.tooltip.more')">
               <UButton
+                data-tools-panel-trigger
                 icon="i-heroicons-ellipsis-horizontal"
                 variant="ghost"
                 color="gray"
