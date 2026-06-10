@@ -91,4 +91,34 @@ describe('adaptToolsForAgent', () => {
     assert.deepEqual(result.content, [{ type: 'text', text: 'Generated chart.' }])
     assert.deepEqual(result.details, { rowCount: 2, chart })
   })
+
+  it('keeps rawMessages mirrored in data out of the LLM-facing text', async () => {
+    const rawMessages = [
+      { id: 1, senderName: 'Alice', content: 'hello world', timestamp: 1710000000 },
+      { id: 2, senderName: 'Bob', content: 'hi there', timestamp: 1710000060 },
+    ]
+    const tool: ToolDefinition = {
+      name: 'get_recent_messages',
+      description: 'Recent messages',
+      inputSchema: { type: 'object', properties: {} },
+      async handler() {
+        const data = { total: 2, timeRange: '全部时间', rawMessages }
+        return { content: JSON.stringify(data), data, rawMessages }
+      },
+    }
+
+    const [agentTool] = adaptToolsForAgent([tool], () => ({
+      db: {} as DatabaseAdapter,
+      sessionId: 'session-1',
+      locale: 'zh-CN',
+    }))
+
+    const result = await agentTool.execute('call-1', {})
+    const text = (result.content[0] as { type: 'text'; text: string }).text
+
+    assert.ok(!text.includes('[object Object]'))
+    assert.ok(text.includes('total: 2'))
+    assert.ok(text.includes('hello world'))
+    assert.ok(text.includes('hi there'))
+  })
 })
