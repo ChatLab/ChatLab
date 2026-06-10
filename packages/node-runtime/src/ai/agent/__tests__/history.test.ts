@@ -9,7 +9,7 @@
 
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { toPiHistoryMessages } from '../history'
+import { toPiHistoryMessages, type ReplayOptions } from '../history'
 import type { SimpleHistoryMessage } from '../types'
 import type { ContentBlock } from '../../chats'
 
@@ -235,7 +235,7 @@ describe('toPiHistoryMessages — tool call replay', () => {
     assert.equal(emptyAssistant, false)
   })
 
-  it('does not replay think/chart/error blocks', () => {
+  it('does not replay think/chart/error blocks without replay options', () => {
     const history: SimpleHistoryMessage[] = [
       {
         role: 'assistant',
@@ -256,5 +256,121 @@ describe('toPiHistoryMessages — tool call replay', () => {
     const allText = JSON.stringify(out)
     assert.ok(!allText.includes('internal reasoning'))
     assert.ok(!allText.includes('boom'))
+  })
+})
+
+describe('toPiHistoryMessages — thinking replay for tool-call turns', () => {
+  const replayOptions: ReplayOptions = {
+    modelInfo: { api: 'openai-completions', provider: 'deepseek', id: 'deepseek-v4-pro' },
+    thinkingSignature: 'reasoning_content',
+  }
+
+  it('replays thinking blocks alongside tool calls when thinkingSignature is set', () => {
+    const history: SimpleHistoryMessage[] = [
+      {
+        role: 'assistant',
+        content: 'result',
+        contentBlocks: [
+          { type: 'think', tag: 'thinking', text: 'I should search for birthday info' },
+          toolBlock(),
+          { type: 'text', text: 'result' },
+        ],
+      },
+    ]
+    const out = toPiHistoryMessages(history, replayOptions)
+    const assistantToolUse = out.find((m) => m.role === 'assistant' && m.stopReason === 'toolUse')
+    assert.ok(assistantToolUse && assistantToolUse.role === 'assistant')
+    const thinkingBlock = assistantToolUse.content.find((c) => c.type === 'thinking')
+    assert.ok(thinkingBlock && thinkingBlock.type === 'thinking')
+    assert.equal(thinkingBlock.thinking, 'I should search for birthday info')
+    assert.equal(thinkingBlock.thinkingSignature, 'reasoning_content')
+  })
+
+  it('sets model info on replayed assistant messages', () => {
+    const history: SimpleHistoryMessage[] = [
+      {
+        role: 'assistant',
+        content: 'x',
+        contentBlocks: [toolBlock(), { type: 'text', text: 'x' }],
+      },
+    ]
+    const out = toPiHistoryMessages(history, replayOptions)
+    const assistantMsg = out.find((m) => m.role === 'assistant')
+    assert.ok(assistantMsg && assistantMsg.role === 'assistant')
+    assert.equal(assistantMsg.provider, 'deepseek')
+    assert.equal(assistantMsg.model, 'deepseek-v4-pro')
+  })
+
+  it('does not replay thinking for messages without tool calls', () => {
+    const history: SimpleHistoryMessage[] = [
+      {
+        role: 'assistant',
+        content: 'just text',
+        contentBlocks: [
+          { type: 'think', tag: 'thinking', text: 'some reasoning' },
+          { type: 'text', text: 'just text' },
+        ],
+      },
+    ]
+    const out = toPiHistoryMessages(history, replayOptions)
+    const allText = JSON.stringify(out)
+    assert.ok(!allText.includes('some reasoning'))
+  })
+
+  it('replays multiple thinking blocks across multi-step tool calls', () => {
+    const history: SimpleHistoryMessage[] = [
+      {
+        role: 'assistant',
+        content: 'final',
+        contentBlocks: [
+          { type: 'think', tag: 'thinking', text: 'step 1 reasoning' },
+          toolBlock({ toolCallId: 'call_1', result: 'r1' }),
+          { type: 'think', tag: 'thinking', text: 'step 2 reasoning' },
+          toolBlock({ toolCallId: 'call_2', name: 'get_recent_messages', result: 'r2' }),
+          { type: 'think', tag: 'thinking', text: 'final reasoning' },
+          { type: 'text', text: 'final' },
+        ],
+      },
+    ]
+    const out = toPiHistoryMessages(history, replayOptions)
+
+    const assistantMsgs = out.filter((m) => m.role === 'assistant')
+    assert.equal(assistantMsgs.length, 3)
+
+    // First tool-call assistant has step 1 thinking
+    const first = assistantMsgs[0]
+    assert.ok(first.role === 'assistant' && first.stopReason === 'toolUse')
+    const think1 = first.content.find((c) => c.type === 'thinking')
+    assert.ok(think1 && think1.type === 'thinking')
+    assert.equal(think1.thinking, 'step 1 reasoning')
+
+    // Second tool-call assistant has step 2 thinking
+    const second = assistantMsgs[1]
+    assert.ok(second.role === 'assistant' && second.stopReason === 'toolUse')
+    const think2 = second.content.find((c) => c.type === 'thinking')
+    assert.ok(think2 && think2.type === 'thinking')
+    assert.equal(think2.thinking, 'step 2 reasoning')
+
+    // Final assistant has step 3 thinking
+    const third = assistantMsgs[2]
+    assert.ok(third.role === 'assistant' && third.stopReason === 'stop')
+    const think3 = third.content.find((c) => c.type === 'thinking')
+    assert.ok(think3 && think3.type === 'thinking')
+    assert.equal(think3.thinking, 'final reasoning')
+  })
+
+  it('skips empty thinking blocks during replay', () => {
+    const history: SimpleHistoryMessage[] = [
+      {
+        role: 'assistant',
+        content: 'x',
+        contentBlocks: [{ type: 'think', tag: 'thinking', text: '   ' }, toolBlock(), { type: 'text', text: 'x' }],
+      },
+    ]
+    const out = toPiHistoryMessages(history, replayOptions)
+    const assistantToolUse = out.find((m) => m.role === 'assistant' && m.stopReason === 'toolUse')
+    assert.ok(assistantToolUse && assistantToolUse.role === 'assistant')
+    const hasThinking = assistantToolUse.content.some((c) => c.type === 'thinking')
+    assert.equal(hasThinking, false)
   })
 })
