@@ -18,7 +18,7 @@ const layoutStore = useLayoutStore()
 
 // Props
 const props = defineProps<{
-  sessionTokenUsage: { totalTokens: number }
+  sessionTokenUsage: { totalTokens: number; cacheReadTokens: number; cacheWriteTokens: number }
   agentStatus?: AgentRuntimeStatus | null
   currentAIChatId?: string | null
   estimatedContextTokens?: number
@@ -79,6 +79,9 @@ function formatCompactNumber(value: number): string {
 
 const totalTokenUsageText = computed(() => formatNumber(props.sessionTokenUsage.totalTokens))
 const totalTokenUsageCompactText = computed(() => formatCompactNumber(props.sessionTokenUsage.totalTokens))
+
+const hasCacheData = computed(() => props.sessionTokenUsage.cacheReadTokens > 0)
+const cacheReadText = computed(() => formatCompactNumber(props.sessionTokenUsage.cacheReadTokens))
 
 const contextTokens = computed(() => {
   if (props.agentStatus?.contextTokens) return props.agentStatus.contextTokens
@@ -338,6 +341,9 @@ const thinkingLevelLabel = computed(() => {
               {{ formatCompactNumber(modelContextWindow) }}
             </div>
             <div>{{ t('ai.chat.statusBar.tokenUsageTitle') }}: {{ totalTokenUsageCompactText }}</div>
+            <div v-if="hasCacheData">
+              {{ t('ai.chat.statusBar.cacheHit') }}: {{ cacheReadText }}
+            </div>
           </div>
         </template>
       </UTooltip>

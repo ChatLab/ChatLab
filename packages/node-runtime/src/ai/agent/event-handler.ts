@@ -16,6 +16,8 @@ export interface TokenUsage {
   promptTokens: number
   completionTokens: number
   totalTokens: number
+  cacheReadTokens: number
+  cacheWriteTokens: number
 }
 
 export interface AgentRuntimeStatus {
@@ -143,7 +145,13 @@ export class AgentEventHandler {
   readonly toolsUsed: string[] = []
   toolRounds: number = 0
 
-  private totalUsage: TokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+  private totalUsage: TokenUsage = {
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+  }
   private lastStatusAt = 0
   private readonly onChunk: (chunk: AgentStreamChunk) => void
   private readonly context: EventHandlerContext
@@ -205,6 +213,8 @@ export class AgentEventHandler {
       promptTokens: this.totalUsage.promptTokens,
       completionTokens: this.totalUsage.completionTokens,
       totalTokens: this.totalUsage.totalTokens,
+      cacheReadTokens: this.totalUsage.cacheReadTokens,
+      cacheWriteTokens: this.totalUsage.cacheWriteTokens,
     }
   }
 

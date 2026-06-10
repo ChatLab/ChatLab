@@ -45,7 +45,13 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
 
   const resolvedStreamFn = (options.streamFn ?? defaultStreamSimple) as typeof defaultStreamSimple
 
-  const totalUsage: AgentTokenUsage = { promptTokens: 0, completionTokens: 0, totalTokens: 0 }
+  const totalUsage: AgentTokenUsage = {
+    promptTokens: 0,
+    completionTokens: 0,
+    totalTokens: 0,
+    cacheReadTokens: 0,
+    cacheWriteTokens: 0,
+  }
   const toolsUsed: string[] = []
   let toolRounds = 0
 
@@ -54,6 +60,8 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
     totalUsage.promptTokens += usage.input || 0
     totalUsage.completionTokens += usage.output || 0
     totalUsage.totalTokens += usage.totalTokens || usage.input + usage.output || 0
+    totalUsage.cacheReadTokens += usage.cacheRead || 0
+    totalUsage.cacheWriteTokens += usage.cacheWrite || 0
   }
 
   if (abortSignal?.aborted) {

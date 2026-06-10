@@ -64,15 +64,29 @@ describe('AgentEventHandler', () => {
     })
 
     handler.handleCoreEvent(
-      { type: 'usage_update', usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150 } },
+      {
+        type: 'usage_update',
+        usage: { promptTokens: 100, completionTokens: 50, totalTokens: 150, cacheReadTokens: 30, cacheWriteTokens: 10 },
+      },
       []
     )
 
     const usage = handler.cloneUsage()
     assert.equal(usage.totalTokens, 150)
+    assert.equal(usage.cacheReadTokens, 30)
+    assert.equal(usage.cacheWriteTokens, 10)
 
     handler.handleCoreEvent(
-      { type: 'usage_update', usage: { promptTokens: 200, completionTokens: 100, totalTokens: 300 } },
+      {
+        type: 'usage_update',
+        usage: {
+          promptTokens: 200,
+          completionTokens: 100,
+          totalTokens: 300,
+          cacheReadTokens: 60,
+          cacheWriteTokens: 20,
+        },
+      },
       []
     )
     assert.equal(usage.totalTokens, 150, 'clone should be independent')

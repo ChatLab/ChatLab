@@ -215,6 +215,7 @@
         }
       },
       "tokenUsageTitle": "累計 Token 用量",
+      "cacheHit": "快取命中",
       "export": {
         "label": "匯出",
         "title": "匯出當前對話"

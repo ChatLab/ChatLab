@@ -36,6 +36,8 @@ export interface TokenUsageData {
   promptTokens: number
   completionTokens: number
   totalTokens: number
+  cacheReadTokens?: number
+  cacheWriteTokens?: number
 }
 
 export interface AIMessage {

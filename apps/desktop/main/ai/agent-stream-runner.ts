@@ -125,7 +125,7 @@ export function createElectronRunAgentStream(): (
                 round: 0,
                 toolsUsed: 0,
                 contextTokens: 0,
-                totalUsage: { promptTokens: 0, completionTokens: 0, totalTokens: 0 },
+                totalUsage: { promptTokens: 0, completionTokens: 0, totalTokens: 0, cacheReadTokens: 0, cacheWriteTokens: 0 },
                 updatedAt: Date.now(),
               } satisfies AgentRuntimeStatus,
             })

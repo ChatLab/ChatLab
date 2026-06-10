@@ -156,7 +156,7 @@ describe('runChatTurn', () => {
           onEvent({
             type: 'done',
             isFinished: true,
-            usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+            usage: { promptTokens: 1, completionTokens: 1, totalTokens: 2, cacheReadTokens: 0, cacheWriteTokens: 0 },
           })
         },
       }
@@ -174,7 +174,7 @@ describe('runChatTurn', () => {
         aiChatId: 'ai_chat_1',
         role: 'assistant',
         content: 'hi',
-        tokenUsage: { promptTokens: 1, completionTokens: 1, totalTokens: 2 },
+        tokenUsage: { promptTokens: 1, completionTokens: 1, totalTokens: 2, cacheReadTokens: 0, cacheWriteTokens: 0 },
       },
     ])
   })
@@ -222,7 +222,7 @@ describe('runChatTurn', () => {
           onEvent({
             type: 'done',
             isFinished: true,
-            usage: { promptTokens: 3, completionTokens: 5, totalTokens: 8 },
+            usage: { promptTokens: 3, completionTokens: 5, totalTokens: 8, cacheReadTokens: 0, cacheWriteTokens: 0 },
           })
         },
       }
@@ -248,7 +248,7 @@ describe('runChatTurn', () => {
         role: 'assistant',
         content: '年度趋势如下。',
         contentBlocks: result.contentBlocks,
-        tokenUsage: { promptTokens: 3, completionTokens: 5, totalTokens: 8 },
+        tokenUsage: { promptTokens: 3, completionTokens: 5, totalTokens: 8, cacheReadTokens: 0, cacheWriteTokens: 0 },
       },
     ])
   })
@@ -316,7 +316,7 @@ describe('runChatTurn', () => {
           onEvent({
             type: 'done',
             isFinished: true,
-            usage: { promptTokens: 3, completionTokens: 5, totalTokens: 8 },
+            usage: { promptTokens: 3, completionTokens: 5, totalTokens: 8, cacheReadTokens: 0, cacheWriteTokens: 0 },
           })
         },
       }
@@ -347,7 +347,7 @@ describe('runChatTurn', () => {
         role: 'assistant',
         content: '年度趋势如下。',
         contentBlocks: result.contentBlocks,
-        tokenUsage: { promptTokens: 3, completionTokens: 5, totalTokens: 8 },
+        tokenUsage: { promptTokens: 3, completionTokens: 5, totalTokens: 8, cacheReadTokens: 0, cacheWriteTokens: 0 },
       },
     ])
   })
@@ -411,7 +411,7 @@ describe('runChatTurn', () => {
           onEvent({
             type: 'done',
             isFinished: true,
-            usage: { promptTokens: 3, completionTokens: 5, totalTokens: 8 },
+            usage: { promptTokens: 3, completionTokens: 5, totalTokens: 8, cacheReadTokens: 0, cacheWriteTokens: 0 },
           })
         },
       }
@@ -429,7 +429,7 @@ describe('runChatTurn', () => {
       role: 'assistant',
       content: '2026-Q1 是峰值。',
       contentBlocks: result.contentBlocks,
-      tokenUsage: { promptTokens: 3, completionTokens: 5, totalTokens: 8 },
+      tokenUsage: { promptTokens: 3, completionTokens: 5, totalTokens: 8, cacheReadTokens: 0, cacheWriteTokens: 0 },
     })
   })
 

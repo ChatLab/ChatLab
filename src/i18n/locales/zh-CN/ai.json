@@ -215,6 +215,7 @@
         }
       },
       "tokenUsageTitle": "累计 Token 使用量",
+      "cacheHit": "缓存命中",
       "export": {
         "label": "导出",
         "title": "导出当前对话"
