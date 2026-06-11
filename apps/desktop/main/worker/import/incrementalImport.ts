@@ -6,12 +6,14 @@
  * DB open, and overview cache hook.
  */
 
+import * as path from 'path'
 import Database from 'better-sqlite3'
 import {
   BetterSqliteAdapter,
   analyzeIncrementalImport as sharedAnalyze,
   incrementalImport as sharedImport,
   computeAndSetOverviewCache,
+  deleteSessionCache,
 } from '@openchatlab/node-runtime'
 import type {
   IncrementalImportDeps,
@@ -41,13 +43,18 @@ function buildDeps(requestId: string): IncrementalImportDeps {
       sendProgress(requestId, progress)
     },
     postImportHook(_db, sessionId) {
+      const cacheDir = getCacheDir()
       try {
         const dbPath = getDbPath(sessionId)
         const rawDb = new Database(dbPath)
-        computeAndSetOverviewCache(new BetterSqliteAdapter(rawDb), sessionId, getCacheDir())
+        computeAndSetOverviewCache(new BetterSqliteAdapter(rawDb), sessionId, cacheDir)
         rawDb.close()
-      } catch {
-        /* non-fatal */
+      } catch (err) {
+        // Non-fatal: getValidatedOverviewCache will recompute on next read.
+        console.warn('[Worker] postImportHook: failed to refresh overview cache', err)
+      }
+      if (cacheDir) {
+        deleteSessionCache(sessionId, path.join(cacheDir, 'query'))
       }
     },
   }

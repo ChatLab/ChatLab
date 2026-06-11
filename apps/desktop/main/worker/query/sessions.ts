@@ -14,11 +14,9 @@ import * as path from 'path'
 import { openDatabase, getDbDir, getDbPath, getCacheDir } from '../core'
 import {
   getCache,
-  computeAndSetOverviewCache,
+  getValidatedOverviewCache,
   computeAndSetMembersCache,
-  CACHE_KEY_OVERVIEW,
   CACHE_KEY_MEMBERS,
-  type OverviewCache,
   type MembersCache,
 } from '@openchatlab/node-runtime'
 import {
@@ -50,18 +48,20 @@ function isChatSessionDb(db: Database.Database): boolean {
 }
 
 /**
- * Resolve overview from cache (with compute-on-miss), or fall back to live SQL via core.
+ * Resolve overview with fingerprint-validated cache, falling back to live SQL.
+ *
+ * Uses getValidatedOverviewCache which checks MAX(message.id) so the cache is
+ * automatically recomputed whenever new messages are inserted (e.g. after
+ * incremental import), without relying on the import hook always succeeding.
  */
 function resolveOverview(db: Database.Database, sessionId: string, cacheDir: string | null): SessionOverview {
-  let cached = cacheDir ? getCache<OverviewCache>(sessionId, CACHE_KEY_OVERVIEW, cacheDir) : null
-  if (!cached && cacheDir) {
+  if (cacheDir) {
     try {
-      cached = computeAndSetOverviewCache(new BetterSqliteAdapter(db), sessionId, cacheDir)
+      return getValidatedOverviewCache(new BetterSqliteAdapter(db), sessionId, cacheDir)
     } catch {
       // cache compute failure — fall through to live query
     }
   }
-  if (cached) return cached
   return getSessionOverview(asCoreDb(db))
 }
 

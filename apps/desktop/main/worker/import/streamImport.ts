@@ -16,6 +16,7 @@ import {
   streamParseFileInfo as sharedStreamParseFileInfo,
   TEMP_DB_SCHEMA,
   computeAndSetOverviewCache,
+  deleteSessionCache,
 } from '@openchatlab/node-runtime'
 import type { StreamImportDeps, StreamImportResult, ImportLogger } from '@openchatlab/node-runtime'
 import { sendProgress, generateSessionId, getDbPath, createDatabaseWithoutIndexes } from './utils'
@@ -89,13 +90,17 @@ function buildStreamImportDeps(requestId: string): StreamImportDeps {
     },
     logger: buildElectronLogger(),
     postImportHook(_db, sessionId) {
+      const cacheDir = getCacheDir()
       try {
         const dbPath = getDbPath(sessionId)
         const rawDb = new Database(dbPath)
-        computeAndSetOverviewCache(new BetterSqliteAdapter(rawDb), sessionId, getCacheDir())
+        computeAndSetOverviewCache(new BetterSqliteAdapter(rawDb), sessionId, cacheDir)
         rawDb.close()
-      } catch {
-        /* non-fatal */
+      } catch (err) {
+        console.warn('[Worker] postImportHook: failed to refresh overview cache', err)
+      }
+      if (cacheDir) {
+        deleteSessionCache(sessionId, path.join(cacheDir, 'query'))
       }
     },
     generateSessionId,

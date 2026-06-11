@@ -95,6 +95,23 @@ export interface OverviewCache {
   totalMembers: number
   firstMessageTs: number | null
   lastMessageTs: number | null
+  /**
+   * MAX(message.id) at the time the cache was written.
+   * Used as a cheap O(1) freshness fingerprint: if current MAX(id) differs
+   * the cache is stale and must be recomputed.  Absent in legacy cache files
+   * written before this field was added; absence is treated as stale.
+   */
+  maxMessageId?: number
+}
+
+/**
+ * Return the current MAX(message.id) for freshness checking.
+ * This is O(1) via the AUTOINCREMENT rowid B-tree.
+ * Returns 0 for an empty table.
+ */
+function getMaxMessageId(db: DatabaseAdapter): number {
+  const row = db.prepare('SELECT MAX(id) AS m FROM message').get() as { m: number | null }
+  return row.m ?? 0
 }
 
 export function computeAndSetOverviewCache(db: DatabaseAdapter, sessionId: string, cacheDir: string): OverviewCache {
@@ -124,12 +141,32 @@ export function computeAndSetOverviewCache(db: DatabaseAdapter, sessionId: strin
     totalMembers,
     firstMessageTs: msgStats.first_ts,
     lastMessageTs: msgStats.last_ts,
+    maxMessageId: getMaxMessageId(db),
   }
 
   setCache(sessionId, CACHE_KEY_OVERVIEW, data, cacheDir)
   computeAndSetMembersCache(db, sessionId, cacheDir)
 
   return data
+}
+
+/**
+ * Cache-first overview read with fingerprint validation.
+ *
+ * Checks cached `maxMessageId` against the live `MAX(message.id)`.  If they
+ * match the cache is fresh and returned as-is (one extra O(1) query).
+ * On any mismatch — new inserts, legacy cache lacking the field, or a cold
+ * miss — the cache is recomputed and written before returning.
+ *
+ * Use this instead of bare `getCache` whenever you need a guaranteed-fresh
+ * overview (e.g. AI system prompt data-snapshot construction).
+ */
+export function getValidatedOverviewCache(db: DatabaseAdapter, sessionId: string, cacheDir: string): OverviewCache {
+  const cached = getCache<OverviewCache>(sessionId, CACHE_KEY_OVERVIEW, cacheDir)
+  if (cached && cached.maxMessageId !== undefined && cached.maxMessageId === getMaxMessageId(db)) {
+    return cached
+  }
+  return computeAndSetOverviewCache(db, sessionId, cacheDir)
 }
 
 // ==================== Members cache (per-member stats) ====================

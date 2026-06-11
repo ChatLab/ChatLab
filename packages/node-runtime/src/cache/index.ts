@@ -6,6 +6,7 @@ export {
   deleteSessionCache,
   computeAndSetOverviewCache,
   computeAndSetMembersCache,
+  getValidatedOverviewCache,
   CACHE_KEY_OVERVIEW,
   CACHE_KEY_MEMBERS,
 } from './session-cache'
