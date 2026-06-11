@@ -4,6 +4,7 @@
  */
 import { ref } from 'vue'
 import { captureAsImageData } from '@/utils/snapCapture'
+import { waitForCaptureLayoutStabilization } from '@/utils/captureLayout'
 import { useToast } from '@/composables/useToast'
 import { useLayoutStore } from '@/stores/layout'
 import { usePlatformService } from '@/services'
@@ -149,7 +150,6 @@ export function useScreenCapture() {
     }
 
     // 移动端宽度适配（渐进式缩放）
-    let appliedMobileWidth = false
     if (options?.mobileWidth) {
       const baseWidth = typeof options.mobileWidth === 'number' ? options.mobileWidth : DEFAULT_MOBILE_MAX_WIDTH
 
@@ -166,7 +166,6 @@ export function useScreenCapture() {
         element.style.width = `${targetWidth}px`
         element.style.minWidth = `${targetWidth}px`
         element.style.maxWidth = `${targetWidth}px`
-        appliedMobileWidth = true
       }
     }
 
@@ -402,14 +401,7 @@ export function useScreenCapture() {
     }
 
     try {
-      // 如果应用了移动端宽度，等待 DOM 重新布局
-      if (appliedMobileWidth) {
-        await new Promise<void>((resolve) => {
-          requestAnimationFrame(() => {
-            requestAnimationFrame(() => resolve())
-          })
-        })
-      }
+      await waitForCaptureLayoutStabilization()
 
       const imageData = await captureAsImageData(element, {
         maxExportWidth: options?.maxExportWidth,
@@ -492,6 +484,7 @@ export function useScreenCapture() {
       for (const el of hiddenElements) {
         el.classList.remove('__capture-hidden__')
       }
+      await waitForCaptureLayoutStabilization()
       isCapturing.value = false
     }
   }
