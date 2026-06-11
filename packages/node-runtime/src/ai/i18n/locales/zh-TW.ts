@@ -296,7 +296,7 @@ export default {
 - first_message_ts: {{firstMessageTs}}
 - first_message_time: {{firstMessageTime}}
 - last_message_ts: {{lastMessageTs}}
-- last_message_time: {{lastMessageTime}}
+- last_message_time: {{lastMessageTime}} (資料庫中已匯入訊息的截止時間，不代表群組/對話當前是否活躍)
 - segment_summaries_available: {{segmentSummaryCount}}
 
 {{memberHintTitle}}
@@ -315,7 +315,8 @@ export default {
 -「最近一年/過去一年」表示從真實目前日期回推一年到今天；「去年」表示上一自然年。
 - 資料庫時間邊界只用於說明覆蓋範圍，不用於重定義使用者要求的時間範圍。
 - 使用預設「近 N 天」的工具時，先選擇與資料庫時間邊界有交集的範圍，不要先探測真實目前日期視窗導致空結果。
-- 不要只為了重新發現 min/max timestamp 呼叫工具；但回答具體聊天事實、統計和結論仍必須呼叫工具取得證據。`,
+- 不要只為了重新發現 min/max timestamp 呼叫工具；但回答具體聊天事實、統計和結論仍必須呼叫工具取得證據。
+- last_message_time 是資料庫中已匯入訊息的截止時間，不是群組/對話在現實中最後一次發言的時間；使用者可能只是尚未匯入更新的紀錄。不要據此推斷群組「多久沒動靜」，更不要主動建議使用者去「喚醒」或「激活」群組。`,
       evidencePolicy: `證據策略：
 - AI 對話歷史、歷史 AI 回覆和壓縮摘要只用於理解使用者意圖，不能作為聊天紀錄事實證據。
 - 只要使用者詢問聊天紀錄內容、最近聊什麼、某人說過什麼、統計排行、是否出現過某話題或要求引用原話，必須先呼叫合適的資料工具檢索目前資料庫。

@@ -296,7 +296,7 @@ export default {
 - first_message_ts: {{firstMessageTs}}
 - first_message_time: {{firstMessageTime}}
 - last_message_ts: {{lastMessageTs}}
-- last_message_time: {{lastMessageTime}}
+- last_message_time: {{lastMessageTime}} (数据库中已导入消息的截止时间，不代表群组/对话当前是否活跃)
 - segment_summaries_available: {{segmentSummaryCount}}
 
 {{memberHintTitle}}
@@ -315,7 +315,8 @@ export default {
 - “最近一年/过去一年”表示从真实当前日期回推一年到今天；“去年”表示上一自然年。
 - 数据库时间边界只用于说明覆盖范围，不用于重定义用户要求的时间范围。
 - 使用默认“近 N 天”的工具时，先选择与数据库时间边界有交集的范围，不要先探测真实当前日期窗口导致空结果。
-- 不要只为了重新发现 min/max timestamp 调用工具；但回答具体聊天事实、统计和结论仍必须调用工具获取证据。`,
+- 不要只为了重新发现 min/max timestamp 调用工具；但回答具体聊天事实、统计和结论仍必须调用工具获取证据。
+- last_message_time 是数据库中已导入消息的截止时间，不是群组/对话在现实中最后一次发言的时间；用户可能只是还没有导入更新的记录。不要据此推断群组"多久没动静"，更不要主动建议用户去"唤醒"或"激活"群组。`,
       evidencePolicy: `证据策略：
 - AI 对话历史、历史 AI 回复和压缩摘要只用于理解用户意图，不能作为聊天记录事实证据。
 - 只要用户询问聊天记录内容、最近聊什么、某人说过什么、统计排行、是否出现过某话题或要求引用原话，必须先调用合适的数据工具检索当前数据库。

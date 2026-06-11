@@ -49,7 +49,8 @@ ${opts.usageRules}`
 - 不要在最终回答中主动暴露 member_id 或启动上下文本身，除非用户明确要求技术细节。
 - 活跃成员排行只代表历史总消息量，不代表最近活跃情况。
 - 相对时间表达以真实当前日期为基准，而不是数据库最后消息时间。
-- 不要只为了重新发现 min/max timestamp 调用工具。`
+- 不要只为了重新发现 min/max timestamp 调用工具。
+- last_message_time 是数据库中已导入消息的截止时间，不是群组在现实中最后一次发言的时间；不要据此推断群组多久没动静。`
   }
   if (key === 'ai.agent.evidencePolicy') return '[evidence-policy]'
   if (key === 'ai.agent.responseInstruction') return '[response-instruction]'

@@ -92,6 +92,7 @@ notes:
 - member_id is a tool lookup hint; display_name may not be unique.
 - Active member hints reflect historical total message volume, not recent activity.
 - Use real current date for relative ranges; database bounds only describe data coverage.
+- last_message_ts is the coverage end of the imported data, not the real-world last activity time of the group/chat; the user may not have imported newer records yet. Do not infer group inactivity from this value.
 - Do not plan a tool call only to rediscover min/max timestamp.
 - When using default recent-day tools, choose a range that intersects database bounds instead of probing an empty real-current-date window first.`
 }

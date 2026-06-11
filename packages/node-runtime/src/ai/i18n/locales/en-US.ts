@@ -307,7 +307,7 @@ Returned summaries are brief descriptions of each segment, helping quickly locat
 - first_message_ts: {{firstMessageTs}}
 - first_message_time: {{firstMessageTime}}
 - last_message_ts: {{lastMessageTs}}
-- last_message_time: {{lastMessageTime}}
+- last_message_time: {{lastMessageTime}} (coverage end of imported data — does not indicate whether the group/chat is currently active)
 - segment_summaries_available: {{segmentSummaryCount}}
 
 {{memberHintTitle}}
@@ -326,7 +326,8 @@ Usage rules:
 - "recent year" / "past year" means one year back from the real current date to today; "last year" means the previous calendar year.
 - Database time bounds are only for explaining coverage, not for redefining the user's requested time range.
 - When using default recent-day tools, first choose a range that intersects database time bounds instead of probing an empty real-current-date window.
-- Do not call tools only to rediscover min/max timestamp; concrete chat facts, statistics, and conclusions still require tool evidence.`,
+- Do not call tools only to rediscover min/max timestamp; concrete chat facts, statistics, and conclusions still require tool evidence.
+- last_message_time is the coverage end of the imported data, not the real-world last message time of the group/chat; the user may simply not have imported newer records yet. Do not infer that the group has been inactive for a certain period, and do not suggest the user "revive" or "wake up" the group.`,
       evidencePolicy: `Evidence policy:
 - AI conversation history, prior AI replies, and compressed summaries are only for understanding the user's intent; they are not evidence for chat-record facts.
 - Whenever the user asks about chat content, recent topics, what someone said, rankings/statistics, whether a topic appeared, or asks for exact quotes, first call an appropriate data tool to retrieve the current database.
