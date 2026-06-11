@@ -2,8 +2,10 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import type { ChartPayload } from '@openchatlab/core'
 import {
+  createRenderOnlyToolPendingBlock,
   extractChartPayloads,
   isRenderOnlyTool,
+  replaceRenderOnlyToolPendingBlockWithCharts,
   shouldHideRecoverableChartError,
   toChartContentBlocks,
   toRenderOnlyToolErrorBlock,
@@ -54,6 +56,21 @@ describe('aiChat chart block helpers', () => {
     assert.equal(isRenderOnlyTool(undefined), false)
   })
 
+  it('creates a transient running block for render-only tools', () => {
+    assert.deepEqual(createRenderOnlyToolPendingBlock('render_chart', { title: '趋势图' }, 'call_chart'), {
+      type: 'tool',
+      tool: {
+        name: 'render_chart',
+        displayName: 'render_chart',
+        status: 'running',
+        params: { title: '趋势图' },
+        toolCallId: 'call_chart',
+        transient: true,
+      },
+    })
+    assert.equal(createRenderOnlyToolPendingBlock('search_messages', {}, 'call_search'), null)
+  })
+
   it('extracts chart payloads from agent result details', () => {
     const result = {
       content: [{ type: 'text', text: 'Generated chart.' }],
@@ -85,6 +102,21 @@ describe('aiChat chart block helpers', () => {
       { type: 'chart', chart: { ...secondChart, dataset: { ...secondChart.dataset, rows: [] } } },
     ])
     assert.equal(blocks[0].chart.rowCount, chart.rowCount)
+  })
+
+  it('replaces a transient render-only tool block with generated charts', () => {
+    const blocks = [
+      { type: 'think', tag: 'thinking', text: '准备生成图表' },
+      createRenderOnlyToolPendingBlock('render_chart', { title: '趋势图' }, 'call_chart'),
+    ].filter((block): block is NonNullable<typeof block> => block !== null)
+
+    const nextBlocks = replaceRenderOnlyToolPendingBlockWithCharts(blocks, 'render_chart', 'call_chart', [chart])
+
+    assert.deepEqual(
+      nextBlocks.map((block) => block.type),
+      ['think', 'chart']
+    )
+    assert.equal(nextBlocks[1]?.type, 'chart')
   })
 
   it('converts render-only chart tool failures to visible error blocks', () => {
