@@ -153,7 +153,7 @@ const visibleBlocks = computed(() => {
       return block.text.trim().length > 0
     }
     if (block.type === 'error') {
-      return !shouldHideRecoverableChartError(blocks, index)
+      return !shouldHideRecoverableChartError(blocks, index, { isStreaming: props.isStreaming })
     }
     return true
   })

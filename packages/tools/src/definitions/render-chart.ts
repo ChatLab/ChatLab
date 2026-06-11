@@ -107,13 +107,16 @@ function summarizeChartForModel(
 ): string {
   const summary = summarizeChart(type, title, rows.length, truncated, locale)
   const previewRows = rows.slice(0, DEFAULT_PREVIEW_ROWS)
-  if (previewRows.length === 0) return summary
+  const coverage = locale?.startsWith('zh')
+    ? `图表已使用${truncated ? '截断后的' : '全部'} ${rows.length} 行数据生成；下面只是数据预览，不要为了查看预览外的行重复调用 render_chart。`
+    : `The chart already uses ${truncated ? 'the truncated' : 'all'} ${rows.length} rows; the rows below are only a preview. Do not call render_chart again just to inspect rows outside the preview.`
+  if (previewRows.length === 0) return `${summary}\n${coverage}`
 
   const preview = JSON.stringify(previewRows)
   if (locale?.startsWith('zh')) {
-    return `${summary}\n数据预览（前 ${previewRows.length} 行，用于分析峰值、低谷和差异）：${preview}`
+    return `${summary}\n${coverage}\n数据预览（前 ${previewRows.length} 行，用于分析峰值、低谷和差异）：${preview}`
   }
-  return `${summary}\nData preview (first ${previewRows.length} rows; use this to identify peaks, lows, and differences): ${preview}`
+  return `${summary}\n${coverage}\nData preview (first ${previewRows.length} rows; use this to identify peaks, lows, and differences): ${preview}`
 }
 
 async function handler(params: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {

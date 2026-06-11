@@ -119,6 +119,36 @@ describe('aiChat chart block helpers', () => {
     assert.equal(nextBlocks[1]?.type, 'chart')
   })
 
+  it('does not append duplicate render-only charts already present in the message', () => {
+    const reorderedSpecChart: ChartPayload = {
+      ...chart,
+      spec: {
+        encoding: { series: 'member_name', y: 'message_count', x: 'day' },
+        title: chart.spec.title,
+        type: chart.spec.type,
+        version: chart.spec.version,
+      },
+      dataset: {
+        ...chart.dataset,
+        rows: [{ day: '2026-06-01', member_name: 'Alice', message_count: 4 }],
+      },
+    }
+    const blocks = [
+      { type: 'chart', chart: { ...chart, dataset: { ...chart.dataset, rows: [] } } },
+      { type: 'think', tag: 'thinking', text: '再看剩余月份' },
+      createRenderOnlyToolPendingBlock('render_chart', { title: '趋势图' }, 'call_chart_2'),
+    ].filter((block): block is NonNullable<typeof block> => block !== null)
+
+    const nextBlocks = replaceRenderOnlyToolPendingBlockWithCharts(blocks, 'render_chart', 'call_chart_2', [
+      reorderedSpecChart,
+    ])
+
+    assert.deepEqual(
+      nextBlocks.map((block) => block.type),
+      ['chart', 'think']
+    )
+  })
+
   it('converts render-only chart tool failures to visible error blocks', () => {
     const errorBlock = toRenderOnlyToolErrorBlock('render_chart', {
       content: [{ type: 'text', text: 'Error: Field "missing_count" does not exist in SQL result' }],
@@ -175,5 +205,17 @@ describe('aiChat chart block helpers', () => {
       ),
       false
     )
+  })
+
+  it('hides chart render errors while the assistant message is still streaming', () => {
+    const blocks = [
+      {
+        type: 'error',
+        error: { name: 'ChartRenderError', message: 'encoding.x must be a non-empty field name' },
+      },
+    ]
+
+    assert.equal(shouldHideRecoverableChartError(blocks, 0, { isStreaming: true }), true)
+    assert.equal(shouldHideRecoverableChartError(blocks, 0, { isStreaming: false }), false)
   })
 })

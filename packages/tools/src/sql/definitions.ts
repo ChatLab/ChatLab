@@ -178,7 +178,7 @@ export const SQL_TOOL_DEFS: SqlToolDef[] = [
   },
   {
     name: 'conversation_initiator_stats',
-    description: '统计每个成员发起会话（作为会话首条消息的发送者）的次数，找出谁最常开启话题。需要已生成会话索引。',
+    description: '统计每个成员发起会话（作为会话首条消息的发送者）的次数，找出谁最常开启话题。',
     parameters: {
       type: 'object',
       properties: {

@@ -83,6 +83,8 @@ describe('renderChartTool', () => {
 
     assert.match(result.content, /Generated chart "Messages by member"/)
     assert.match(result.content, /Data preview/)
+    assert.match(result.content, /already uses all 2 rows/i)
+    assert.match(result.content, /Do not call render_chart again/i)
     assert.match(result.content, /Alice/)
     assert.match(result.content, /message_count/)
     assert.match(result.content, /4/)

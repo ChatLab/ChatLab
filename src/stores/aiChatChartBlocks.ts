@@ -27,6 +27,11 @@ type BlockWithTool = {
   }
 }
 
+type BlockWithChart = {
+  type?: unknown
+  chart?: ChartPayload
+}
+
 export function isRenderOnlyTool(toolName?: string): boolean {
   return toolName === 'render_chart'
 }
@@ -139,19 +144,57 @@ export function toChartContentBlocks(charts: ChartPayload[]): ChartContentBlock[
   return charts.map((chart) => ({ type: 'chart', chart: toPersistedChartPayload(chart) }))
 }
 
+function stableStringify(value: unknown): string {
+  if (Array.isArray(value)) return `[${value.map(stableStringify).join(',')}]`
+  if (isRecord(value)) {
+    return `{${Object.keys(value)
+      .sort()
+      .map((key) => `${JSON.stringify(key)}:${stableStringify(value[key])}`)
+      .join(',')}}`
+  }
+  return JSON.stringify(value)
+}
+
+function chartSignature(chart: ChartPayload): string {
+  const persisted = toPersistedChartPayload(chart)
+  return stableStringify({
+    spec: persisted.spec,
+    columns: persisted.dataset.columns,
+    data: persisted.data,
+    rowCount: persisted.rowCount,
+    truncated: persisted.truncated,
+  })
+}
+
+function hasDuplicateChart(blocks: readonly unknown[], chart: ChartPayload): boolean {
+  const signature = chartSignature(chart)
+  return blocks.some((block) => {
+    if (!isRecord(block)) return false
+    const candidate = block as BlockWithChart
+    return candidate.type === 'chart' && candidate.chart ? chartSignature(candidate.chart) === signature : false
+  })
+}
+
 export function replaceRenderOnlyToolPendingBlockWithCharts<T>(
   blocks: readonly T[],
   toolName: string | undefined,
   toolCallId: string | undefined,
   charts: ChartPayload[]
 ): Array<T | ChartContentBlock> {
-  return [...removeRenderOnlyToolPendingBlock(blocks, toolName, toolCallId), ...toChartContentBlocks(charts)]
+  const withoutPending = removeRenderOnlyToolPendingBlock(blocks, toolName, toolCallId)
+  const uniqueCharts = charts.filter((chart) => !hasDuplicateChart(withoutPending, chart))
+  return [...withoutPending, ...toChartContentBlocks(uniqueCharts)]
 }
 
-export function shouldHideRecoverableChartError(blocks: readonly unknown[], index: number): boolean {
+export function shouldHideRecoverableChartError(
+  blocks: readonly unknown[],
+  index: number,
+  options?: { isStreaming?: boolean }
+): boolean {
   const block = blocks[index]
   if (!isRecord(block) || block.type !== 'error' || !isRecord(block.error)) return false
   if (block.error.name !== 'ChartRenderError') return false
+  if (options?.isStreaming) return true
 
   return blocks.slice(index + 1).some((nextBlock) => isRecord(nextBlock) && nextBlock.type === 'chart')
 }
