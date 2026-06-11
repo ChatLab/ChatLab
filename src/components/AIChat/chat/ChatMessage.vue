@@ -342,6 +342,14 @@ function formatToolParams(tool: ToolBlockContent): string {
     return t(`ai.chat.message.toolParams.timeStats.${typeKey}`) || String(params.type)
   }
 
+  if (name === 'render_chart') {
+    const spec = params.spec && typeof params.spec === 'object' ? (params.spec as Record<string, unknown>) : null
+    const parts = [spec?.title, spec?.type].filter(
+      (part): part is string => typeof part === 'string' && part.length > 0
+    )
+    return parts.join(' | ')
+  }
+
   if (name === 'get_members') {
     if (params.search) {
       return `${t('ai.chat.message.toolParams.search')}: ${params.search}`

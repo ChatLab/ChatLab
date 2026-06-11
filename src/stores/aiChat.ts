@@ -21,8 +21,12 @@ import { buildSerializablePreprocessConfig, shouldEnsureDesensitizeRulesBeforeSe
 import type { ChartPayload } from '@openchatlab/core'
 import { extractToolResultText, truncateToolResultText } from '@openchatlab/core'
 import {
+  completeRenderOnlyToolPendingBlock,
+  createRenderOnlyToolPendingBlock,
   extractChartPayloads,
   isRenderOnlyTool,
+  removeRenderOnlyToolPendingBlock,
+  replaceRenderOnlyToolPendingBlockWithCharts,
   toChartContentBlocks,
   toRenderOnlyToolErrorBlock,
 } from './aiChatChartBlocks'
@@ -51,6 +55,8 @@ export interface ToolBlockContent {
   status: 'running' | 'done' | 'error'
   params?: Record<string, unknown>
   durationMs?: number
+  /** Runtime-only tool row used while a render-only tool is still generating its visible block. */
+  transient?: boolean
   /** Provider-issued tool call id; replayed verbatim so multi-turn requests stay cache-stable */
   toolCallId?: string
   /** Truncated tool result text persisted for history replay */
@@ -638,6 +644,14 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     updatePlanBlockStatus: (status: PlanBlockStatus) => void
     appendErrorToBlocks: (error: SerializedErrorInfo) => void
     addToolBlock: (toolName: string, params?: Record<string, unknown>, toolCallId?: string) => void
+    addRenderOnlyToolPendingBlock: (toolName: string, params?: Record<string, unknown>, toolCallId?: string) => void
+    updateRenderOnlyToolResult: (
+      toolName: string,
+      toolCallId: string | undefined,
+      charts: ChartPayload[],
+      errorBlock: ReturnType<typeof toRenderOnlyToolErrorBlock>,
+      toolFailed?: boolean
+    ) => void
     updateToolBlockStatus: (
       toolName: string,
       status: 'done' | 'error',
@@ -749,6 +763,44 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       updateAIMessage({ contentBlocks: [...blocks] })
     }
 
+    const addRenderOnlyToolPendingBlock = (toolName: string, params?: Record<string, unknown>, toolCallId?: string) => {
+      const pendingBlock = createRenderOnlyToolPendingBlock(toolName, params, toolCallId)
+      if (!pendingBlock) return
+      const idx = getAiMessageIndex()
+      const blocks = targetBuffer.messages[idx].contentBlocks || []
+      blocks.push(pendingBlock)
+      updateAIMessage({ contentBlocks: [...blocks] })
+    }
+
+    const updateRenderOnlyToolResult = (
+      toolName: string,
+      toolCallId: string | undefined,
+      charts: ChartPayload[],
+      errorBlock: ReturnType<typeof toRenderOnlyToolErrorBlock>,
+      toolFailed = false
+    ) => {
+      const idx = getAiMessageIndex()
+      const blocks = targetBuffer.messages[idx].contentBlocks || []
+
+      if (charts.length > 0) {
+        updateAIMessage({
+          contentBlocks: replaceRenderOnlyToolPendingBlockWithCharts(blocks, toolName, toolCallId, charts),
+        })
+        return
+      }
+
+      if (errorBlock) {
+        const nextBlocks = removeRenderOnlyToolPendingBlock(blocks, toolName, toolCallId)
+        nextBlocks.push(errorBlock)
+        updateAIMessage({ contentBlocks: [...nextBlocks] })
+        return
+      }
+
+      updateAIMessage({
+        contentBlocks: completeRenderOnlyToolPendingBlock(blocks, toolName, toolCallId, toolFailed ? 'error' : 'done'),
+      })
+    }
+
     const updateToolBlockStatus = (
       toolName: string,
       status: 'done' | 'error',
@@ -797,6 +849,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       updatePlanBlockStatus,
       appendErrorToBlocks,
       addToolBlock,
+      addRenderOnlyToolPendingBlock,
+      updateRenderOnlyToolResult,
       updateToolBlockStatus,
     }
   }
@@ -918,6 +972,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         updatePlanBlockStatus,
         appendErrorToBlocks,
         addToolBlock,
+        addRenderOnlyToolPendingBlock,
+        updateRenderOnlyToolResult,
         updateToolBlockStatus,
       } = createStreamBlockHelpers(targetBuffer, () => aiMessageIndex)
 
@@ -1015,7 +1071,9 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                   status: 'running',
                 }
                 state.toolsUsedInCurrentRound.push(chunk.toolName)
-                if (!isRenderOnlyTool(chunk.toolName)) {
+                if (isRenderOnlyTool(chunk.toolName)) {
+                  addRenderOnlyToolPendingBlock(chunk.toolName, toolParams, chunk.toolCallId)
+                } else {
                   addToolBlock(chunk.toolName, toolParams, chunk.toolCallId)
                 }
               }
@@ -1024,10 +1082,22 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
             case 'tool_result':
               if (chunk.toolName) {
                 const charts = extractChartPayloads(chunk.toolResult)
-                appendChartsToBlocks(charts)
                 const renderOnlyError = toRenderOnlyToolErrorBlock(chunk.toolName, chunk.toolResult)
+                if (isRenderOnlyTool(chunk.toolName)) {
+                  updateRenderOnlyToolResult(
+                    chunk.toolName,
+                    chunk.toolCallId,
+                    charts,
+                    renderOnlyError,
+                    chunk.toolIsError === true
+                  )
+                } else {
+                  appendChartsToBlocks(charts)
+                }
                 if (renderOnlyError) {
-                  appendErrorToBlocks(renderOnlyError.error)
+                  if (!isRenderOnlyTool(chunk.toolName)) {
+                    appendErrorToBlocks(renderOnlyError.error)
+                  }
                 }
                 const toolFailed = renderOnlyError !== null || chunk.toolIsError === true
                 if (state.currentToolStatus?.name === chunk.toolName) {
@@ -1499,6 +1569,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       updatePlanBlockStatus,
       appendErrorToBlocks,
       addToolBlock,
+      addRenderOnlyToolPendingBlock,
+      updateRenderOnlyToolResult,
       updateToolBlockStatus,
     } = createStreamBlockHelpers(targetBuffer, () => aiMessageIndex)
 
@@ -1583,24 +1655,35 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               break
             case 'tool_start':
               if (chunk.toolName) {
+                const toolParams = chunk.toolParams as Record<string, unknown> | undefined
                 state.currentToolStatus = { name: chunk.toolName, displayName: chunk.toolName, status: 'running' }
                 state.toolsUsedInCurrentRound.push(chunk.toolName)
-                if (!isRenderOnlyTool(chunk.toolName)) {
-                  addToolBlock(
-                    chunk.toolName,
-                    chunk.toolParams as Record<string, unknown> | undefined,
-                    chunk.toolCallId
-                  )
+                if (isRenderOnlyTool(chunk.toolName)) {
+                  addRenderOnlyToolPendingBlock(chunk.toolName, toolParams, chunk.toolCallId)
+                } else {
+                  addToolBlock(chunk.toolName, toolParams, chunk.toolCallId)
                 }
               }
               break
             case 'tool_result':
               if (chunk.toolName) {
                 const charts = extractChartPayloads(chunk.toolResult)
-                appendChartsToBlocks(charts)
                 const renderOnlyError = toRenderOnlyToolErrorBlock(chunk.toolName, chunk.toolResult)
+                if (isRenderOnlyTool(chunk.toolName)) {
+                  updateRenderOnlyToolResult(
+                    chunk.toolName,
+                    chunk.toolCallId,
+                    charts,
+                    renderOnlyError,
+                    chunk.toolIsError === true
+                  )
+                } else {
+                  appendChartsToBlocks(charts)
+                }
                 if (renderOnlyError) {
-                  appendErrorToBlocks(renderOnlyError.error)
+                  if (!isRenderOnlyTool(chunk.toolName)) {
+                    appendErrorToBlocks(renderOnlyError.error)
+                  }
                 }
                 if (!isRenderOnlyTool(chunk.toolName)) {
                   updateToolBlockStatus(

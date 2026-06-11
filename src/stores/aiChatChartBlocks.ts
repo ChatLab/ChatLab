@@ -1,13 +1,105 @@
 import type { ChartPayload } from '@openchatlab/core'
 
 export type ChartContentBlock = { type: 'chart'; chart: ChartPayload }
+export type RenderOnlyToolPendingBlock = {
+  type: 'tool'
+  tool: {
+    name: string
+    displayName: string
+    status: 'running' | 'done' | 'error'
+    params?: Record<string, unknown>
+    toolCallId?: string
+    transient: true
+  }
+}
 export type RenderOnlyToolErrorBlock = {
   type: 'error'
   error: { name: string | null; message: string; stack: string | null }
 }
 
+type BlockWithTool = {
+  type?: unknown
+  tool?: {
+    name?: unknown
+    status?: unknown
+    toolCallId?: unknown
+    transient?: unknown
+  }
+}
+
 export function isRenderOnlyTool(toolName?: string): boolean {
   return toolName === 'render_chart'
+}
+
+export function createRenderOnlyToolPendingBlock(
+  toolName: string | undefined,
+  params?: Record<string, unknown>,
+  toolCallId?: string
+): RenderOnlyToolPendingBlock | null {
+  if (!toolName || !isRenderOnlyTool(toolName)) return null
+  const name = toolName
+
+  return {
+    type: 'tool',
+    tool: {
+      name,
+      displayName: name,
+      status: 'running',
+      params,
+      toolCallId,
+      transient: true,
+    },
+  }
+}
+
+function isMatchingPendingRenderOnlyToolBlock(
+  block: unknown,
+  toolName: string | undefined,
+  toolCallId?: string
+): block is RenderOnlyToolPendingBlock {
+  if (!isRecord(block)) return false
+  const candidate = block as BlockWithTool
+  if (candidate.type !== 'tool' || !candidate.tool) return false
+  if (candidate.tool.transient !== true) return false
+  if (candidate.tool.name !== toolName) return false
+  if (toolCallId && candidate.tool.toolCallId !== toolCallId) return false
+  return isRenderOnlyTool(String(candidate.tool.name))
+}
+
+export function removeRenderOnlyToolPendingBlock<T>(
+  blocks: readonly T[],
+  toolName: string | undefined,
+  toolCallId?: string
+): T[] {
+  let removed = false
+  const next = [...blocks]
+  for (let index = next.length - 1; index >= 0; index--) {
+    if (isMatchingPendingRenderOnlyToolBlock(next[index], toolName, toolCallId)) {
+      next.splice(index, 1)
+      removed = true
+      break
+    }
+  }
+  return removed ? next : [...blocks]
+}
+
+export function completeRenderOnlyToolPendingBlock<T>(
+  blocks: readonly T[],
+  toolName: string | undefined,
+  toolCallId: string | undefined,
+  status: 'done' | 'error'
+): T[] {
+  const next = blocks.map((block) => {
+    if (!isMatchingPendingRenderOnlyToolBlock(block, toolName, toolCallId)) return block
+    return {
+      ...block,
+      tool: {
+        ...block.tool,
+        status,
+      },
+    }
+  })
+  return next as T[]
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -45,6 +137,15 @@ export function toPersistedChartPayload(chart: ChartPayload): ChartPayload {
 
 export function toChartContentBlocks(charts: ChartPayload[]): ChartContentBlock[] {
   return charts.map((chart) => ({ type: 'chart', chart: toPersistedChartPayload(chart) }))
+}
+
+export function replaceRenderOnlyToolPendingBlockWithCharts<T>(
+  blocks: readonly T[],
+  toolName: string | undefined,
+  toolCallId: string | undefined,
+  charts: ChartPayload[]
+): Array<T | ChartContentBlock> {
+  return [...removeRenderOnlyToolPendingBlock(blocks, toolName, toolCallId), ...toChartContentBlocks(charts)]
 }
 
 export function shouldHideRecoverableChartError(blocks: readonly unknown[], index: number): boolean {
