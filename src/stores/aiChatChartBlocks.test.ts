@@ -4,6 +4,7 @@ import type { ChartPayload } from '@openchatlab/core'
 import {
   createRenderOnlyToolPendingBlock,
   extractChartPayloads,
+  finishRenderOnlyToolResultBlocks,
   isRenderOnlyTool,
   replaceRenderOnlyToolPendingBlockWithCharts,
   shouldHideRecoverableChartError,
@@ -186,6 +187,28 @@ describe('aiChat chart block helpers', () => {
         ],
       }),
       null
+    )
+  })
+
+  it('removes transient render-only rows when a recoverable result produces no chart', () => {
+    const blocks = [
+      { type: 'think', tag: 'thinking', text: '准备生成图表' },
+      createRenderOnlyToolPendingBlock('render_chart', { spec: { title: '趋势图' } }, 'call_schema_gate'),
+    ].filter((block): block is NonNullable<typeof block> => block !== null)
+    const errorBlock = toRenderOnlyToolErrorBlock('render_chart', {
+      content: [
+        {
+          type: 'text',
+          text: 'Error: Call get_schema before render_chart. Do not guess table names, fields, or timestamp units.',
+        },
+      ],
+    })
+
+    const nextBlocks = finishRenderOnlyToolResultBlocks(blocks, 'render_chart', 'call_schema_gate', [], errorBlock)
+
+    assert.deepEqual(
+      nextBlocks.map((block) => block.type),
+      ['think']
     )
   })
 

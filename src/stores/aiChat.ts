@@ -21,12 +21,10 @@ import { buildSerializablePreprocessConfig, shouldEnsureDesensitizeRulesBeforeSe
 import type { ChartPayload } from '@openchatlab/core'
 import { extractToolResultText, truncateToolResultText } from '@openchatlab/core'
 import {
-  completeRenderOnlyToolPendingBlock,
   createRenderOnlyToolPendingBlock,
   extractChartPayloads,
+  finishRenderOnlyToolResultBlocks,
   isRenderOnlyTool,
-  removeRenderOnlyToolPendingBlock,
-  replaceRenderOnlyToolPendingBlockWithCharts,
   toChartContentBlocks,
   toRenderOnlyToolErrorBlock,
 } from './aiChatChartBlocks'
@@ -776,28 +774,13 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       toolName: string,
       toolCallId: string | undefined,
       charts: ChartPayload[],
-      errorBlock: ReturnType<typeof toRenderOnlyToolErrorBlock>,
-      toolFailed = false
+      errorBlock: ReturnType<typeof toRenderOnlyToolErrorBlock>
     ) => {
       const idx = getAiMessageIndex()
       const blocks = targetBuffer.messages[idx].contentBlocks || []
 
-      if (charts.length > 0) {
-        updateAIMessage({
-          contentBlocks: replaceRenderOnlyToolPendingBlockWithCharts(blocks, toolName, toolCallId, charts),
-        })
-        return
-      }
-
-      if (errorBlock) {
-        const nextBlocks = removeRenderOnlyToolPendingBlock(blocks, toolName, toolCallId)
-        nextBlocks.push(errorBlock)
-        updateAIMessage({ contentBlocks: [...nextBlocks] })
-        return
-      }
-
       updateAIMessage({
-        contentBlocks: completeRenderOnlyToolPendingBlock(blocks, toolName, toolCallId, toolFailed ? 'error' : 'done'),
+        contentBlocks: finishRenderOnlyToolResultBlocks(blocks, toolName, toolCallId, charts, errorBlock),
       })
     }
 
@@ -1084,13 +1067,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                 const charts = extractChartPayloads(chunk.toolResult)
                 const renderOnlyError = toRenderOnlyToolErrorBlock(chunk.toolName, chunk.toolResult)
                 if (isRenderOnlyTool(chunk.toolName)) {
-                  updateRenderOnlyToolResult(
-                    chunk.toolName,
-                    chunk.toolCallId,
-                    charts,
-                    renderOnlyError,
-                    chunk.toolIsError === true
-                  )
+                  updateRenderOnlyToolResult(chunk.toolName, chunk.toolCallId, charts, renderOnlyError)
                 } else {
                   appendChartsToBlocks(charts)
                 }
@@ -1670,13 +1647,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                 const charts = extractChartPayloads(chunk.toolResult)
                 const renderOnlyError = toRenderOnlyToolErrorBlock(chunk.toolName, chunk.toolResult)
                 if (isRenderOnlyTool(chunk.toolName)) {
-                  updateRenderOnlyToolResult(
-                    chunk.toolName,
-                    chunk.toolCallId,
-                    charts,
-                    renderOnlyError,
-                    chunk.toolIsError === true
-                  )
+                  updateRenderOnlyToolResult(chunk.toolName, chunk.toolCallId, charts, renderOnlyError)
                 } else {
                   appendChartsToBlocks(charts)
                 }

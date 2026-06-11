@@ -186,6 +186,23 @@ export function replaceRenderOnlyToolPendingBlockWithCharts<T>(
   return [...withoutPending, ...toChartContentBlocks(uniqueCharts)]
 }
 
+export function finishRenderOnlyToolResultBlocks<T>(
+  blocks: readonly T[],
+  toolName: string | undefined,
+  toolCallId: string | undefined,
+  charts: ChartPayload[],
+  errorBlock: RenderOnlyToolErrorBlock | null
+): Array<T | ChartContentBlock | RenderOnlyToolErrorBlock> {
+  // render-only 工具的 pending 行只用于流式占位；如果没有生成图表，也没有需要展示的错误，就应直接移除。
+  if (charts.length > 0) {
+    return replaceRenderOnlyToolPendingBlockWithCharts(blocks, toolName, toolCallId, charts)
+  }
+
+  const withoutPending = removeRenderOnlyToolPendingBlock(blocks, toolName, toolCallId)
+  if (errorBlock) return [...withoutPending, errorBlock]
+  return withoutPending
+}
+
 export function shouldHideRecoverableChartError(
   blocks: readonly unknown[],
   index: number,
