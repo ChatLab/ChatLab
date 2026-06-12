@@ -18,6 +18,7 @@ import {
   getSchemaVersion,
 } from '@openchatlab/core'
 import { openBetterSqliteDatabase } from './better-sqlite3-adapter'
+import { deleteSessionCache } from './cache/session-cache'
 import { assertDataDirCompatible, type RuntimeIdentity } from './data-dir-compat'
 import {
   CHAT_DB_COMPATIBILITY_RAISES,
@@ -225,10 +226,15 @@ export class DatabaseManager {
     return adapter
   }
 
-  deleteSessionDatabaseFiles(sessionId: string): void {
+  /**
+   * 删除一个会话在本地留下的完整文件集合。
+   * SQLite WAL 模式会产生 sidecar 文件，前端查询还会写 JSON 缓存；只删主库会让列表和后续同步读到脏状态。
+   */
+  deleteSessionDatabaseFiles(sessionId: string): boolean {
     this.close(sessionId)
 
     const dbPath = this.getDbPath(sessionId)
+    const existed = ['', '-wal', '-shm'].some((suffix) => fs.existsSync(dbPath + suffix))
     for (const suffix of ['', '-wal', '-shm']) {
       try {
         const filePath = dbPath + suffix
@@ -237,6 +243,10 @@ export class DatabaseManager {
         /* ignore cleanup failures */
       }
     }
+    const cacheDir = this.pathProvider.getCacheDir()
+    deleteSessionCache(sessionId, cacheDir)
+    deleteSessionCache(sessionId, path.join(cacheDir, 'query'))
+    return existed
   }
 
   raiseCurrentChatDbCompatibilityGate(): void {

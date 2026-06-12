@@ -14,7 +14,7 @@ export interface SessionRuntimeAdapter {
   closeSession(sessionId: string): void
   getDbPath(sessionId: string): string
 
-  /** Delete the session database file. Returns false if not found. */
+  /** Delete the session database files and cache. Returns false if not found. */
   deleteSessionFile(sessionId: string): boolean
 
   /** Open readonly, throw 404 if not found. */

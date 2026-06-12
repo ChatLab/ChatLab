@@ -126,7 +126,7 @@ export function updateSessionOwnerId(adapter: SessionRuntimeAdapter, sessionId: 
 }
 
 /**
- * Delete a session (close DB + remove file).
+ * Delete a session (close DB + remove files/cache).
  * Returns true if deleted, false if file not found.
  */
 export function deleteSession(adapter: SessionRuntimeAdapter, sessionId: string): boolean {

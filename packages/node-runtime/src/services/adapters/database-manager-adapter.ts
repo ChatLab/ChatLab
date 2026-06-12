@@ -5,7 +5,6 @@
  * interface expected by session/member services.
  */
 
-import * as fs from 'fs'
 import type { DatabaseAdapter } from '@openchatlab/core'
 import type { DatabaseManager } from '../../database-manager'
 import type { SessionRuntimeAdapter } from './types'
@@ -19,11 +18,7 @@ export function createDatabaseManagerAdapter(dbManager: DatabaseManager): Sessio
     getDbPath: (sessionId) => dbManager.getDbPath(sessionId),
 
     deleteSessionFile(sessionId: string): boolean {
-      dbManager.close(sessionId)
-      const dbPath = dbManager.getDbPath(sessionId)
-      if (!fs.existsSync(dbPath)) return false
-      fs.unlinkSync(dbPath)
-      return true
+      return dbManager.deleteSessionDatabaseFiles(sessionId)
     },
 
     ensureReadonly(sessionId: string): DatabaseAdapter {

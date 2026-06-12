@@ -91,10 +91,7 @@ export function registerAutomationRoutes(server: FastifyInstance, ctx: SyncRoute
     if (!removed) return reply.code(404).send({ error: 'Session not found' })
     reloadTimer(request.params.id)
     if (request.query.deleteData === 'true' && removed.targetSessionId) {
-      dbManager.close(removed.targetSessionId)
-      const dbPath = dbManager.getDbPath(removed.targetSessionId)
-      const fs = await import('node:fs')
-      if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath)
+      dbManager.deleteSessionDatabaseFiles(removed.targetSessionId)
     }
     return { success: true }
   })
