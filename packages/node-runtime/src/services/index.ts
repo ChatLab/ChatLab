@@ -23,6 +23,19 @@ export {
 } from './member-service'
 export type { MembersPaginatedDTO } from './member-service'
 
+// Owner profile service
+export {
+  tryApplyOwnerProfile,
+  setOwnerAndApplyProfile,
+  dismissOwnerPrompt,
+  clearSessionOwner,
+} from './owner-profile-service'
+export type {
+  ApplyOwnerProfileReason,
+  ApplyOwnerProfileResult,
+  SetOwnerAndApplyProfileResult,
+} from './owner-profile-service'
+
 // Session index service
 export {
   generateIndex,

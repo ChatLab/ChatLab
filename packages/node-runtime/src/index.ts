@@ -404,6 +404,7 @@ export * as memberService from './services/member-service'
 export * as sessionIndexService from './services/session-index-service'
 export * as summaryService from './services/summary-service'
 export * as exportService from './services/export-service'
+export * as ownerProfileService from './services/owner-profile-service'
 export { createDatabaseManagerAdapter, MergeSessionCache } from './services'
 export type {
   SessionRuntimeAdapter,
@@ -412,4 +413,7 @@ export type {
   MembersPaginatedDTO,
   LlmConfig,
   SummaryServiceDeps,
+  ApplyOwnerProfileReason,
+  ApplyOwnerProfileResult,
+  SetOwnerAndApplyProfileResult,
 } from './services'

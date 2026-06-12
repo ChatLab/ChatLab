@@ -7,10 +7,13 @@
 
 import { describe, it, before, after } from 'node:test'
 import assert from 'node:assert/strict'
+import fs from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
 import Database from 'better-sqlite3'
 import Fastify, { type FastifyInstance } from 'fastify'
 import type { DatabaseAdapter, PathProvider, PreparedStatement, RunResult } from '@openchatlab/core'
-import type { DatabaseManager, SessionRuntimeAdapter } from '@openchatlab/node-runtime'
+import { PreferencesManager, type DatabaseManager, type SessionRuntimeAdapter } from '@openchatlab/node-runtime'
 import type { HttpRouteContext } from '../context'
 import { registerSharedRoutes } from '../register'
 import { registerRestSessionRoutes } from './sessions'
@@ -292,5 +295,65 @@ describe('registerSharedRoutes smoke tests', () => {
     assert.equal(resp.statusCode, 200)
     assert.deepEqual(resp.json(), { success: true })
     assert.equal(dbs.has('chat-1'), false)
+  })
+
+  it('owner profile routes select, apply and dismiss across sessions', async () => {
+    const prefDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-owner-routes-'))
+    const current = createSessionDb()
+    current.exec(`UPDATE meta SET owner_id = NULL, platform = 'whatsapp'`)
+    const other = createSessionDb()
+    other.exec(`UPDATE meta SET owner_id = NULL, platform = 'whatsapp'`)
+    const dismissedOnly = createSessionDb()
+    dismissedOnly.exec(`UPDATE meta SET owner_id = NULL, platform = 'whatsapp'; DELETE FROM member`)
+
+    const dbs = new Map<string, DatabaseAdapter>([
+      ['chat-1', current],
+      ['chat-2', other],
+      ['chat-3', dismissedOnly],
+    ])
+    const ctx = createTestContext(dbs)
+    ctx.preferencesManager = new PreferencesManager(prefDir)
+    const routeApp = Fastify()
+    registerSessionRoutes(routeApp, ctx)
+    await routeApp.ready()
+
+    try {
+      // Dismiss the prompt for chat-3 (no matching member there)
+      const dismissResp = await routeApp.inject({ method: 'POST', url: '/_web/sessions/chat-3/owner/dismiss-prompt' })
+      assert.equal(dismissResp.statusCode, 200)
+      assert.deepEqual(dismissResp.json(), { success: true })
+
+      // apply-profile before any profile exists reports no_profile and the dismissed flag
+      const earlyApply = await routeApp.inject({ method: 'POST', url: '/_web/sessions/chat-3/owner/apply-profile' })
+      assert.equal(earlyApply.statusCode, 200)
+      assert.deepEqual(earlyApply.json(), { applied: false, reason: 'no_profile', dismissed: true })
+
+      // Manual selection writes owner, saves profile and batch-applies to chat-2
+      const selectResp = await routeApp.inject({
+        method: 'POST',
+        url: '/_web/sessions/chat-1/owner/select',
+        payload: { ownerPlatformId: 'alice' },
+      })
+      assert.equal(selectResp.statusCode, 200)
+      const selectBody = selectResp.json()
+      assert.equal(selectBody.ownerId, 'alice')
+      assert.equal(selectBody.platform, 'whatsapp')
+      assert.deepEqual(selectBody.updatedSessionIds, ['chat-2'])
+      const currentMeta = current.prepare('SELECT owner_id FROM meta LIMIT 1').get() as { owner_id: string }
+      const otherMeta = other.prepare('SELECT owner_id FROM meta LIMIT 1').get() as { owner_id: string }
+      assert.equal(currentMeta.owner_id, 'alice')
+      assert.equal(otherMeta.owner_id, 'alice')
+
+      // apply-profile on an already-owned session reports already_set
+      const applyResp = await routeApp.inject({ method: 'POST', url: '/_web/sessions/chat-2/owner/apply-profile' })
+      assert.equal(applyResp.statusCode, 200)
+      assert.deepEqual(applyResp.json(), { applied: false, ownerId: 'alice', reason: 'already_set', dismissed: false })
+    } finally {
+      await routeApp.close()
+      current.close()
+      other.close()
+      dismissedOnly.close()
+      fs.rmSync(prefDir, { recursive: true, force: true })
+    }
   })
 })

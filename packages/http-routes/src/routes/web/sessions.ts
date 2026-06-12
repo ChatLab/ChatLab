@@ -1,9 +1,16 @@
 import type { FastifyInstance } from 'fastify'
 import type { HttpRouteContext } from '../../context'
-import { sessionService } from '@openchatlab/node-runtime'
+import { sessionService, ownerProfileService, PreferencesManager } from '@openchatlab/node-runtime'
 
 export function registerSessionRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
   const { sessionAdapter: adapter } = ctx
+
+  // Lazy: only owner-profile routes need preferences.json access
+  let preferencesInstance: PreferencesManager | null = null
+  const preferences = () => {
+    preferencesInstance ??= ctx.preferencesManager ?? new PreferencesManager(ctx.pathProvider.getSystemDir())
+    return preferencesInstance
+  }
 
   server.get('/_web/sessions', async () => {
     return sessionService.listAnalysisSessions(adapter)
@@ -42,4 +49,29 @@ export function registerSessionRoutes(server: FastifyInstance, ctx: HttpRouteCon
       return { success: true }
     }
   )
+
+  // Try to auto-apply the stored platform owner profile to this session.
+  server.post<{ Params: { id: string } }>('/_web/sessions/:id/owner/apply-profile', async (request) => {
+    return ownerProfileService.tryApplyOwnerProfile(adapter, preferences(), request.params.id)
+  })
+
+  // Manually select owner: writes meta.owner_id, updates the platform profile,
+  // and batch-applies it to other unowned same-platform sessions.
+  server.post<{ Params: { id: string }; Body: { ownerPlatformId: string } }>(
+    '/_web/sessions/:id/owner/select',
+    async (request) => {
+      return ownerProfileService.setOwnerAndApplyProfile(
+        adapter,
+        preferences(),
+        request.params.id,
+        request.body.ownerPlatformId
+      )
+    }
+  )
+
+  // Suppress the owner prompt for this session (UI-only).
+  server.post<{ Params: { id: string } }>('/_web/sessions/:id/owner/dismiss-prompt', async (request) => {
+    ownerProfileService.dismissOwnerPrompt(preferences(), request.params.id)
+    return { success: true }
+  })
 }
