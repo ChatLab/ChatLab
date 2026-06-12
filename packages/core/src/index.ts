@@ -254,6 +254,17 @@ export {
 } from './ai'
 export type { StreamParserEvent, ThinkingLevel, ThinkingCompat } from './ai'
 
+// Owner profile matching（跨会话"我是谁"识别）
+export {
+  NAME_MATCH_PLATFORMS,
+  isNameMatchPlatform,
+  normalizeOwnerName,
+  collectCandidateNames,
+  mergeConfirmedNames,
+  matchOwnerProfile,
+} from './owner'
+export type { OwnerMatchCandidate, OwnerMatchResult } from './owner'
+
 // Import utilities
 export { generateMessageKey, buildMemberIdMap } from './import'
 

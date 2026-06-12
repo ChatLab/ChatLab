@@ -185,6 +185,39 @@ export interface FilterHistoryItem {
   selectedSessionIds?: number[]
 }
 
+export type OwnerMatchMode = 'platform_id' | 'name'
+
+/**
+ * Platform-level owner identity ("who am I" on this chat platform).
+ * Stored in preferences.json and shared across sessions of the same platform.
+ */
+export interface OwnerProfile {
+  platformId: string
+  displayName: string
+  /** Original (non-normalized) names confirmed by the user; normalization happens at match time. */
+  confirmedNames: string[]
+  matchMode: OwnerMatchMode
+  updatedAt: number
+}
+
+export type ApplyOwnerProfileReason = 'no_profile' | 'no_match' | 'ambiguous' | 'already_set' | 'missing_session'
+
+export interface ApplyOwnerProfileResult {
+  applied: boolean
+  ownerId?: string
+  reason?: ApplyOwnerProfileReason
+  /** Whether the user chose "do not remind me" for this session (UI hint only). */
+  dismissed: boolean
+}
+
+export interface SetOwnerAndApplyProfileResult {
+  sessionId: string
+  platform: string
+  ownerId: string
+  /** Other same-platform sessions auto-filled by the updated profile. */
+  updatedSessionIds: string[]
+}
+
 export interface Preferences {
   pinnedSessionIds: string[]
   aiPreprocessConfig: AIPreprocessConfig
@@ -199,6 +232,10 @@ export interface Preferences {
   filterHistory: FilterHistoryItem[]
   /** Per-model thinking level, keyed by `${configId}:${modelId}`. */
   thinkingLevels: Record<string, string>
+  /** Platform-level owner identity, keyed by platform (e.g. 'whatsapp'). */
+  ownerProfilesByPlatform: Record<string, OwnerProfile>
+  /** Sessions where the user chose "do not remind me"; suppresses the owner prompt UI only. */
+  ownerPromptDismissedSessionIds: string[]
 }
 
 export interface UiConfig {

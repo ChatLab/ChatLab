@@ -68,6 +68,8 @@ const DEFAULTS: Preferences = {
   },
   filterHistory: [],
   thinkingLevels: {},
+  ownerProfilesByPlatform: {},
+  ownerPromptDismissedSessionIds: [],
 }
 
 export class PreferencesManager {
@@ -152,6 +154,8 @@ export class PreferencesManager {
       wordFilter: partial.wordFilter ? { ...DEFAULTS.wordFilter, ...partial.wordFilter } : { ...DEFAULTS.wordFilter },
       filterHistory: partial.filterHistory ?? DEFAULTS.filterHistory,
       thinkingLevels: partial.thinkingLevels ?? DEFAULTS.thinkingLevels,
+      ownerProfilesByPlatform: partial.ownerProfilesByPlatform ?? DEFAULTS.ownerProfilesByPlatform,
+      ownerPromptDismissedSessionIds: partial.ownerPromptDismissedSessionIds ?? DEFAULTS.ownerPromptDismissedSessionIds,
     }
   }
 
