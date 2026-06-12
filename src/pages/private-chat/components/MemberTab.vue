@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { MemberWithStats } from '@/types/analysis'
-import OwnerSelector from '@/components/analysis/member/OwnerSelector.vue'
+import OwnerEntryCard from '@/components/analysis/member/OwnerEntryCard.vue'
 import { useDataService } from '@/services'
 
 const { t } = useI18n()
@@ -177,13 +177,7 @@ onMounted(() => {
     </div>
 
     <!-- Owner配置 -->
-    <OwnerSelector
-      class="mb-6"
-      :session-id="sessionId"
-      :members="members"
-      :is-loading="isLoading"
-      chat-type="private"
-    />
+    <OwnerEntryCard class="mb-6" :session-id="sessionId" :members="members" chat-type="private" />
 
     <!-- 加载状态 -->
     <div v-if="isLoading" class="flex h-60 items-center justify-center">

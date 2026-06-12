@@ -1,10 +1,22 @@
 {
-  "ownerSelector": {
-    "title": "選擇你是誰",
-    "unset": "未設定",
-    "selectMember": "選擇成員",
-    "currentOwner": "目前：{name}",
-    "hint": "1. 會顯示在聊天紀錄檢視器右側 2. AI 對話中也會標示你的身分"
+  "ownerPrompt": {
+    "title": "你是誰？",
+    "subtitle": "選擇你在這個對話中的身分",
+    "description": "設定後你的訊息會顯示在聊天紀錄檢視器右側，AI 對話也能識別你的身分，分析更準確。同平台的其他對話會自動套用。",
+    "searchPlaceholder": "搜尋成員",
+    "noMatch": "沒有找到符合的成員",
+    "empty": "暫無成員資料",
+    "later": "稍後",
+    "dontRemind": "此對話不再提醒",
+    "save": "儲存",
+    "clear": "清除目前選擇",
+    "saved": "已設定你的身分",
+    "appliedToOthers": "已自動套用到 {count} 個同平台對話",
+    "saveFailed": "設定身分失敗",
+    "currentOwner": "我是：{name}",
+    "choose": "選擇我是誰",
+    "change": "修改",
+    "helper": "設定後 AI 對話能識別你的身分，分析更準確"
   },
   "list": {
     "title": "成員管理",

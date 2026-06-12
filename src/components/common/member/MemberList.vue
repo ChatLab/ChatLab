@@ -2,7 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { MemberWithStats } from '@/types/analysis'
-import OwnerSelector from '@/components/analysis/member/OwnerSelector.vue'
+import OwnerEntryCard from '@/components/analysis/member/OwnerEntryCard.vue'
 import { useDataService } from '@/services'
 
 const { t } = useI18n()
@@ -25,7 +25,7 @@ const emit = defineEmits<{
 
 // 成员列表（当前页）
 const members = ref<MemberWithStats[]>([])
-const allMembers = ref<MemberWithStats[]>([]) // 用于 OwnerSelector（仅加载一次）
+const allMembers = ref<MemberWithStats[]>([]) // 用于 OwnerEntryCard（仅加载一次）
 const isLoading = ref(false)
 const searchQuery = ref('')
 
@@ -107,7 +107,7 @@ async function loadMembers() {
   }
 }
 
-// 加载所有成员（用于 OwnerSelector）
+// 加载所有成员（用于 OwnerEntryCard）
 async function loadAllMembers() {
   if (!props.sessionId) return
   try {
@@ -166,7 +166,7 @@ async function confirmDelete() {
     if (success) {
       // 重新加载当前页数据
       await loadMembers()
-      // 同时更新 allMembers（用于 OwnerSelector）
+      // 同时更新 allMembers（用于 OwnerEntryCard）
       await loadAllMembers()
       // 通知父组件刷新数据
       emit('data-changed')
@@ -275,13 +275,7 @@ onMounted(() => {
     </div>
 
     <!-- Owner配置 -->
-    <OwnerSelector
-      class="mb-6"
-      :session-id="sessionId"
-      :members="allMembers"
-      :is-loading="isLoading"
-      chat-type="group"
-    />
+    <OwnerEntryCard class="mb-6" :session-id="sessionId" :members="allMembers" chat-type="group" />
 
     <!-- 搜索框 -->
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">

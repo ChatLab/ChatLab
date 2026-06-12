@@ -5,7 +5,7 @@
  */
 
 import type { AnalysisSession, MessageType } from '@/types/base'
-import type { TimeFilter } from '@openchatlab/shared-types'
+import type { TimeFilter, ApplyOwnerProfileResult, SetOwnerAndApplyProfileResult } from '@openchatlab/shared-types'
 import type {
   MemberActivity,
   MemberWithStats,
@@ -70,6 +70,19 @@ export class FetchDataAdapter implements DataAdapter {
     const result = await patch<{ success: boolean }>(`/sessions/${sessionId}/owner`, {
       ownerId,
     })
+    return result.success
+  }
+
+  tryApplyOwnerProfile(sessionId: string): Promise<ApplyOwnerProfileResult> {
+    return post(`/sessions/${sessionId}/owner/apply-profile`, {})
+  }
+
+  setOwnerAndApplyProfile(sessionId: string, ownerPlatformId: string): Promise<SetOwnerAndApplyProfileResult> {
+    return post(`/sessions/${sessionId}/owner/select`, { ownerPlatformId })
+  }
+
+  async dismissOwnerPrompt(sessionId: string): Promise<boolean> {
+    const result = await post<{ success: boolean }>(`/sessions/${sessionId}/owner/dismiss-prompt`, {})
     return result.success
   }
 

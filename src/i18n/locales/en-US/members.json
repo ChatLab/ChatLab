@@ -1,10 +1,22 @@
 {
-  "ownerSelector": {
-    "title": "Select Your Identity",
-    "unset": "Not Set",
-    "selectMember": "Select Member",
-    "currentOwner": "Current: {name}",
-    "hint": "1. Shown on the right side of chat viewer 2. Identifies you in AI conversations"
+  "ownerPrompt": {
+    "title": "Who Are You?",
+    "subtitle": "Select your identity in this chat",
+    "description": "Your messages will appear on the right side of the chat viewer, and AI conversations can identify you for more accurate analysis. Other chats from the same platform will be filled in automatically.",
+    "searchPlaceholder": "Search members",
+    "noMatch": "No matching members found",
+    "empty": "No member data",
+    "later": "Later",
+    "dontRemind": "Don't remind me for this chat",
+    "save": "Save",
+    "clear": "Clear current selection",
+    "saved": "Your identity has been set",
+    "appliedToOthers": "Automatically applied to {count} chats from the same platform",
+    "saveFailed": "Failed to set identity",
+    "currentOwner": "I am: {name}",
+    "choose": "Choose who I am",
+    "change": "Change",
+    "helper": "Helps AI identify you in conversations for more accurate analysis"
   },
   "list": {
     "title": "Group Member Management",

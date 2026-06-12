@@ -13,6 +13,7 @@ import MemberList from '@/components/common/member/MemberList.vue'
 import NicknameHistoryEntry from './components/member/NicknameHistoryEntry.vue'
 import SessionAnalysisHeader from '@/components/layout/session/SessionAnalysisHeader.vue'
 import SessionIndexModal from '@/components/analysis/SessionIndexModal.vue'
+import OwnerPromptModal from '@/components/analysis/member/OwnerPromptModal.vue'
 import IncrementalImportModal from '@/components/analysis/IncrementalImportModal.vue'
 const MessageExportModal = defineAsyncComponent(() => import('@/components/MessageExport/MessageExportModal.vue'))
 import ActionToolsPanel from '@/components/layout/ActionToolsPanel.vue'
@@ -34,6 +35,9 @@ const { currentSessionId } = storeToRefs(sessionStore)
 
 // 会话索引弹窗状态
 const showSessionIndexModal = ref(false)
+
+// "我是谁"提示弹窗状态
+const showOwnerPromptModal = ref(false)
 
 // 增量导入弹窗状态
 const showIncrementalImportModal = ref(false)
@@ -217,6 +221,15 @@ const filteredMemberCount = computed(() => {
       v-model="showSessionIndexModal"
       :session-id="currentSessionId"
       :message-count="session.messageCount"
+    />
+
+    <!-- "我是谁"提示弹窗（内部自动检测并弹出；避免与索引弹窗叠加） -->
+    <OwnerPromptModal
+      v-if="currentSessionId && session && !showSessionIndexModal"
+      v-model="showOwnerPromptModal"
+      :session-id="currentSessionId"
+      chat-type="group"
+      auto-check
     />
 
     <!-- 增量导入弹窗 -->

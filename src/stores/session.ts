@@ -290,6 +290,8 @@ export const useSessionStore = defineStore(
             console.error('自动生成会话索引失败:', error)
           }
 
+          await applyOwnerProfileAfterImport(importResult.sessionId)
+
           return { success: true, diagnostics: importResult.diagnostics }
         } else {
           return {
@@ -420,6 +422,7 @@ export const useSessionStore = defineStore(
               } catch (error) {
                 console.error('自动生成会话索引失败:', error)
               }
+              await applyOwnerProfileAfterImport(importResult.sessionId)
             } else {
               file.status = 'failed'
               file.error = importResult.error || 'error.import_failed'
@@ -443,6 +446,7 @@ export const useSessionStore = defineStore(
                 console.error('自动生成会话索引失败:', error)
               }
             }
+            await applyOwnerProfileAfterImport(importResult.sessionId)
           } else {
             file.status = 'failed'
             file.error = importResult.error || 'error.import_failed'
@@ -684,6 +688,53 @@ export const useSessionStore = defineStore(
       }
     }
 
+    /**
+     * 手动选择"我是谁"：写入当前会话 owner，更新平台 owner profile，
+     * 并批量应用到同平台其他未设置 owner 的会话
+     */
+    async function setOwnerAndApplyProfile(id: string, ownerPlatformId: string) {
+      const result = await useDataService().setOwnerAndApplyProfile(id, ownerPlatformId)
+      for (const sessionId of [id, ...result.updatedSessionIds]) {
+        const session = sessions.value.find((s) => s.id === sessionId)
+        if (session) {
+          session.ownerId = result.ownerId
+        }
+      }
+      return result
+    }
+
+    /**
+     * 尝试用已保存的平台 owner profile 自动补全会话 owner（唯一匹配才写入）
+     */
+    async function tryApplyOwnerProfile(id: string) {
+      const result = await useDataService().tryApplyOwnerProfile(id)
+      if (result.applied && result.ownerId) {
+        const session = sessions.value.find((s) => s.id === id)
+        if (session) {
+          session.ownerId = result.ownerId
+        }
+      }
+      return result
+    }
+
+    /**
+     * 本会话不再提醒"选择我是谁"（仅抑制弹窗，不影响自动补全）
+     */
+    function dismissOwnerPrompt(id: string): Promise<boolean> {
+      return useDataService().dismissOwnerPrompt(id)
+    }
+
+    /**
+     * 导入成功后静默尝试应用平台 owner profile（失败不影响导入流程）
+     */
+    async function applyOwnerProfileAfterImport(id: string): Promise<void> {
+      try {
+        await tryApplyOwnerProfile(id)
+      } catch (error) {
+        console.warn('导入后应用 owner profile 失败:', error)
+      }
+    }
+
     // 置顶会话 ID 列表
     const pinnedSessionIds = ref<string[]>([])
 
@@ -774,6 +825,9 @@ export const useSessionStore = defineStore(
       renameSession,
       clearSelection,
       updateSessionOwnerId,
+      setOwnerAndApplyProfile,
+      tryApplyOwnerProfile,
+      dismissOwnerPrompt,
       togglePinSession,
       isPinned,
       // 批量导入

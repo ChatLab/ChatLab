@@ -6,7 +6,7 @@
  */
 
 import type { AnalysisSession, MessageType } from '@/types/base'
-import type { TimeFilter } from '@openchatlab/shared-types'
+import type { TimeFilter, ApplyOwnerProfileResult, SetOwnerAndApplyProfileResult } from '@openchatlab/shared-types'
 import type {
   MemberActivity,
   MemberWithStats,
@@ -86,6 +86,9 @@ export interface DataAdapter {
   deleteSession(sessionId: string): Promise<boolean>
   renameSession(sessionId: string, newName: string): Promise<boolean>
   updateSessionOwnerId(sessionId: string, ownerId: string | null): Promise<boolean>
+  tryApplyOwnerProfile(sessionId: string): Promise<ApplyOwnerProfileResult>
+  setOwnerAndApplyProfile(sessionId: string, ownerPlatformId: string): Promise<SetOwnerAndApplyProfileResult>
+  dismissOwnerPrompt(sessionId: string): Promise<boolean>
 
   // ==================== 时间范围 ====================
 
