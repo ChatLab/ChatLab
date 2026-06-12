@@ -256,6 +256,11 @@ export function getInternalEndpoint(): InternalEndpoint | null {
   return endpoint
 }
 
+/** Main-process DatabaseManager backing the internal server (null before startup). */
+export function getInternalDbManager(): DatabaseManager | null {
+  return dbManager
+}
+
 export async function stopInternalServer(): Promise<void> {
   if (!server) return
   try {

@@ -120,6 +120,12 @@ export interface PullEngineOptions {
   logger?: SyncLogger
   /** Return true when an import is already in progress (skip pull) */
   isImporting?: () => boolean
+  /**
+   * Called after a pull session completes successfully with the local session ID.
+   * Used for post-import side effects (e.g. applying the platform owner profile).
+   * Errors thrown by the hook never fail the pull.
+   */
+  onSessionImported?: (localSessionId: string) => void
 }
 
 export class PullEngine {
@@ -129,6 +135,7 @@ export class PullEngine {
   private dsManager: DataSourceManager
   private logger: SyncLogger
   private isImporting: () => boolean
+  private onSessionImported?: (localSessionId: string) => void
   private pullingSourceIds = new Set<string>()
   private progressMap = new Map<string, PullProgress>()
 
@@ -139,6 +146,7 @@ export class PullEngine {
     this.dsManager = options.dsManager
     this.logger = options.logger ?? NOOP_LOGGER
     this.isImporting = options.isImporting ?? (() => false)
+    this.onSessionImported = options.onSessionImported
   }
 
   getProgress(): PullProgress[] {
@@ -372,6 +380,13 @@ export class PullEngine {
       if (totalNewMessages > 0) this.notifier.onSessionListChanged()
       this.notifier.onPullResult(sourceId, sess.id, 'success', `+${totalNewMessages} messages`)
       this.markProgressDone(sess.id)
+      if (this.onSessionImported && sess.targetSessionId) {
+        try {
+          this.onSessionImported(sess.targetSessionId)
+        } catch (hookErr) {
+          this.logger.warn(`[Pull] onSessionImported hook failed for "${sess.name}": ${hookErr}`)
+        }
+      }
       return { success: true, newMessageCount: totalNewMessages }
     } catch (error: any) {
       const errMsg = error.message || 'Pull failed'

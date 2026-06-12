@@ -242,7 +242,7 @@ program
     }
 
     const { streamImport, detectFormat } = await import('./import')
-    const { dbManager } = initRuntime()
+    const { dbManager, pathProvider } = initRuntime()
     const nativeBinding = resolveNativeBinding()
 
     const format = detectFormat(file)
@@ -269,6 +269,23 @@ program
         console.log(`  Session ID: ${result.sessionId}`)
         console.log(`  Messages written: ${result.diagnostics?.messagesWritten ?? 0}`)
         console.log(`  Messages skipped: ${result.diagnostics?.messagesSkipped ?? 0}`)
+
+        if (result.sessionId) {
+          try {
+            const { PreferencesManager, createDatabaseManagerAdapter, ownerProfileService } =
+              await import('@openchatlab/node-runtime')
+            const applied = ownerProfileService.tryApplyOwnerProfile(
+              createDatabaseManagerAdapter(dbManager),
+              new PreferencesManager(pathProvider.getSystemDir()),
+              result.sessionId
+            )
+            if (applied.applied) {
+              console.log(`  Owner auto-detected: ${applied.ownerId}`)
+            }
+          } catch (ownerErr) {
+            console.warn(`  Owner profile apply skipped: ${ownerErr instanceof Error ? ownerErr.message : ownerErr}`)
+          }
+        }
       } else {
         console.error(`\n\nImport failed: ${result.error}`)
         process.exit(1)

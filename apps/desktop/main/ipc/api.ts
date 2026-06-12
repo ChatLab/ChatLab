@@ -8,10 +8,12 @@ import { ipcMain, net } from 'electron'
 import type { IpcContext } from './types'
 import * as apiServer from '../api'
 import { setConfigManager } from '../api'
-import { getSettingsDir } from '../paths'
+import { getSettingsDir, getSystemDataDir } from '../paths'
 import { apiLogger } from '../api/logger'
 import { getImportingStatus } from '../api/routes/import'
 import { deleteSession as deleteSessionFile } from '../database/core'
+import { getInternalDbManager } from '../internal-api'
+import { PreferencesManager, createDatabaseManagerAdapter, ownerProfileService } from '@openchatlab/node-runtime'
 import { ElectronFetcher, WorkerImporter, BrowserWindowNotifier } from '../api/adapters'
 import {
   ConfigManager,
@@ -52,6 +54,19 @@ function ensureInstances(): void {
     dsManager,
     logger: syncLogger,
     isImporting: getImportingStatus,
+    onSessionImported: (localSessionId) => {
+      // Resolve lazily: the internal server (and its DatabaseManager) starts after IPC registration
+      const dbManager = getInternalDbManager()
+      if (!dbManager) return
+      const result = ownerProfileService.tryApplyOwnerProfile(
+        createDatabaseManagerAdapter(dbManager),
+        new PreferencesManager(getSystemDataDir()),
+        localSessionId
+      )
+      if (result.applied) {
+        syncLogger.info(`[Pull] Applied owner profile to session ${localSessionId} (owner: ${result.ownerId})`)
+      }
+    },
   })
 }
 
