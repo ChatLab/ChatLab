@@ -53,6 +53,7 @@ export function initSync(
     dsManager,
     logger: syncLogger,
     onSessionImported: (localSessionId) => {
+      preferences.invalidateCache()
       const result = ownerProfileService.tryApplyOwnerProfile(sessionAdapter, preferences, localSessionId)
       if (result.applied) {
         syncLogger.info(`[Pull] Applied owner profile to session ${localSessionId} (owner: ${result.ownerId})`)
