@@ -7,6 +7,7 @@
 
 import type { FastifyInstance } from 'fastify'
 import type { HttpRouteContext } from './context'
+import { PreferencesManager } from '@openchatlab/node-runtime'
 import { registerSystemRoutes } from './routes/system'
 import { registerRestSessionRoutes } from './routes/sessions'
 import { registerSessionRoutes } from './routes/web/sessions'
@@ -38,47 +39,53 @@ export function registerSharedRoutes(
   ctx: HttpRouteContext,
   options?: SharedRouteOptions
 ): void {
+  // Ensure all routes share one PreferencesManager instance to avoid stale-cache
+  // overwrites between the session owner routes and the preferences routes.
+  const resolvedCtx: HttpRouteContext = ctx.preferencesManager
+    ? ctx
+    : { ...ctx, preferencesManager: new PreferencesManager(ctx.pathProvider.getSystemDir()) }
+
   // REST API (/api/v1/*)
-  registerSystemRoutes(server, ctx)
-  registerRestSessionRoutes(server, ctx)
+  registerSystemRoutes(server, resolvedCtx)
+  registerRestSessionRoutes(server, resolvedCtx)
 
   // Web UI API (/_web/*)
-  registerSessionRoutes(server, ctx)
-  registerMemberRoutes(server, ctx)
-  registerPreferencesRoutes(server, ctx)
-  registerAnalyticsRoutes(server, ctx)
-  registerSqlRoutes(server, ctx)
-  registerSessionIndexRoutes(server, ctx)
-  registerExportRoutes(server, ctx)
-  registerNlpRoutes(server, ctx)
+  registerSessionRoutes(server, resolvedCtx)
+  registerMemberRoutes(server, resolvedCtx)
+  registerPreferencesRoutes(server, resolvedCtx)
+  registerAnalyticsRoutes(server, resolvedCtx)
+  registerSqlRoutes(server, resolvedCtx)
+  registerSessionIndexRoutes(server, resolvedCtx)
+  registerExportRoutes(server, resolvedCtx)
+  registerNlpRoutes(server, resolvedCtx)
 
   if (options?.requireAi) {
     const missing: string[] = []
-    if (!ctx.aiDataDir) missing.push('aiDataDir')
-    if (!ctx.aiChatManager) missing.push('aiChatManager')
-    if (!ctx.assistantManager) missing.push('assistantManager')
-    if (!ctx.skillManagerCore) missing.push('skillManagerCore')
-    if (!ctx.llmConfigStore) missing.push('llmConfigStore')
-    if (!ctx.customProviderStore) missing.push('customProviderStore')
-    if (!ctx.customModelStore) missing.push('customModelStore')
-    if (!ctx.runAgentStream) missing.push('runAgentStream')
+    if (!resolvedCtx.aiDataDir) missing.push('aiDataDir')
+    if (!resolvedCtx.aiChatManager) missing.push('aiChatManager')
+    if (!resolvedCtx.assistantManager) missing.push('assistantManager')
+    if (!resolvedCtx.skillManagerCore) missing.push('skillManagerCore')
+    if (!resolvedCtx.llmConfigStore) missing.push('llmConfigStore')
+    if (!resolvedCtx.customProviderStore) missing.push('customProviderStore')
+    if (!resolvedCtx.customModelStore) missing.push('customModelStore')
+    if (!resolvedCtx.runAgentStream) missing.push('runAgentStream')
     if (missing.length > 0) {
       throw new Error(`[http-routes] requireAi is set but missing AI dependencies: ${missing.join(', ')}`)
     }
   }
 
-  registerAiAssistantRoutes(server, ctx)
-  registerAiSkillRoutes(server, ctx)
-  registerAiLlmRoutes(server, ctx)
-  registerAiLlmStreamRoutes(server, ctx)
-  registerAiAgentStreamRoutes(server, ctx)
-  registerAiToolRoutes(server, ctx)
-  registerAiChatRoutes(server, ctx)
-  registerAiSummaryRoutes(server, ctx)
+  registerAiAssistantRoutes(server, resolvedCtx)
+  registerAiSkillRoutes(server, resolvedCtx)
+  registerAiLlmRoutes(server, resolvedCtx)
+  registerAiLlmStreamRoutes(server, resolvedCtx)
+  registerAiAgentStreamRoutes(server, resolvedCtx)
+  registerAiToolRoutes(server, resolvedCtx)
+  registerAiChatRoutes(server, resolvedCtx)
+  registerAiSummaryRoutes(server, resolvedCtx)
 
   // Merge routes (graceful skip when mergeSessionCache is absent)
-  registerMergeRoutes(server, ctx)
+  registerMergeRoutes(server, resolvedCtx)
 
   // Cache/storage routes
-  registerCacheRoutes(server, ctx)
+  registerCacheRoutes(server, resolvedCtx)
 }

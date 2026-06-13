@@ -216,6 +216,13 @@ export interface SetOwnerAndApplyProfileResult {
   ownerId: string
   /** Other same-platform sessions auto-filled by the updated profile. */
   updatedSessionIds: string[]
+  /**
+   * The actual owner_id written to each updated session.
+   * On name-match platforms the matched member's platformId can differ from
+   * ownerId (the source session's platformId), so callers must use this map
+   * rather than ownerId when caching the result for updated sessions.
+   */
+  updatedSessionOwnerIds: Record<string, string>
 }
 
 export interface Preferences {

@@ -113,7 +113,12 @@ export function setOwnerAndApplyProfile(
     updatedAt: Date.now(),
   }
 
-  const updatedSessionIds = applyProfileToOtherSessions(adapter, meta.platform, profile, sessionId)
+  const updatedSessions = applyProfileToOtherSessions(adapter, meta.platform, profile, sessionId)
+  const updatedSessionIds = updatedSessions.map((s) => s.id)
+  const updatedSessionOwnerIds: Record<string, string> = {}
+  for (const s of updatedSessions) {
+    updatedSessionOwnerIds[s.id] = s.ownerId
+  }
 
   const noLongerDismissed = new Set([sessionId, ...updatedSessionIds])
   preferences.save({
@@ -121,20 +126,22 @@ export function setOwnerAndApplyProfile(
     ownerPromptDismissedSessionIds: prefs.ownerPromptDismissedSessionIds.filter((id) => !noLongerDismissed.has(id)),
   })
 
-  return { sessionId, platform: meta.platform, ownerId: ownerPlatformId, updatedSessionIds }
+  return { sessionId, platform: meta.platform, ownerId: ownerPlatformId, updatedSessionIds, updatedSessionOwnerIds }
 }
 
 /**
  * Apply a profile to all other unowned sessions of the same platform.
  * Unique match only; sessions with an existing owner are never touched.
+ * Returns the id and the actual platformId written for each updated session
+ * (may differ from profile.platformId on name-match platforms).
  */
 function applyProfileToOtherSessions(
   adapter: SessionRuntimeAdapter,
   platform: string,
   profile: OwnerProfile,
   excludeSessionId: string
-): string[] {
-  const updated: string[] = []
+): Array<{ id: string; ownerId: string }> {
+  const updated: Array<{ id: string; ownerId: string }> = []
   for (const id of adapter.listSessionIds()) {
     if (id === excludeSessionId) continue
     try {
@@ -146,7 +153,7 @@ function applyProfileToOtherSessions(
       const result = matchOwnerProfile(platform, profile, getMembersWithAliases(db))
       if (result.type === 'exact' || result.type === 'name') {
         coreUpdateSessionOwnerId(adapter.ensureWritable(id), result.platformId)
-        updated.push(id)
+        updated.push({ id, ownerId: result.platformId })
       }
     } catch (err) {
       console.warn(`[OwnerProfile] Failed to apply profile to session ${id}:`, err)

@@ -138,6 +138,7 @@ test('setOwnerAndApplyProfile writes owner, saves platform profile and merges na
   assert.equal(result.ownerId, 'Alice')
   assert.equal(result.platform, 'whatsapp')
   assert.deepEqual(result.updatedSessionIds, [])
+  assert.deepEqual(result.updatedSessionOwnerIds, {})
   assert.equal(env.ownerOf('s1'), 'Alice')
 
   env.preferences.invalidateCache()
@@ -170,6 +171,8 @@ test('setOwnerAndApplyProfile batch-applies to unowned same-platform sessions on
 
   const result = setOwnerAndApplyProfile(env.adapter, env.preferences, 'current', 'Alice')
   assert.deepEqual(result.updatedSessionIds, ['name-match'])
+  // name-match session has platformId 'alice' (lowercase) — must differ from source ownerId 'Alice'
+  assert.deepEqual(result.updatedSessionOwnerIds, { 'name-match': 'alice' })
   assert.equal(env.ownerOf('name-match'), 'alice')
   assert.equal(env.ownerOf('owned'), 'Bob')
   assert.equal(env.ownerOf('other-platform'), null)
@@ -303,6 +306,7 @@ test('exact platformId match works on platforms without name fallback', (t) => {
   const result = setOwnerAndApplyProfile(env.adapter, env.preferences, 'source', 'wx_me')
   assert.equal(result.platform, 'weixin')
   assert.deepEqual(result.updatedSessionIds, ['other'])
+  assert.deepEqual(result.updatedSessionOwnerIds, { other: 'wx_me' })
   assert.equal(env.ownerOf('other'), 'wx_me')
 
   env.preferences.invalidateCache()

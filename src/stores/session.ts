@@ -697,7 +697,7 @@ export const useSessionStore = defineStore(
       for (const sessionId of [id, ...result.updatedSessionIds]) {
         const session = sessions.value.find((s) => s.id === sessionId)
         if (session) {
-          session.ownerId = result.ownerId
+          session.ownerId = result.updatedSessionOwnerIds[sessionId] ?? result.ownerId
         }
       }
       return result
