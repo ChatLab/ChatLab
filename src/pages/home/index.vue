@@ -55,8 +55,8 @@ const showDemoButton = computed(() => sessionStore.sessions.length === 0)
 
 const tutorialExportUrl = computed(() => {
   const localePath = getChatlabSiteLocalePath(locale.value)
-  const langPath = localePath ? `/${localePath}` : '/en'
-  return `https://docs.chatlab.fun${langPath}/usage/how-to-export?utm_source=app`
+  const langPath = localePath === 'cn' || localePath === 'tw' ? `/${localePath}/` : '/'
+  return `https://docs.chatlab.fun${langPath}`
 })
 </script>
 
