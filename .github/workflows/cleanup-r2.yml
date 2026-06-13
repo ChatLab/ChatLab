@@ -1,0 +1,97 @@
+name: Cleanup R2 Old Versions
+
+on:
+  workflow_dispatch:
+    inputs:
+      keep_count:
+        description: 'Number of recent versions to keep'
+        required: false
+        default: '3'
+        type: string
+  workflow_call:
+    inputs:
+      keep_count:
+        description: 'Number of recent versions to keep'
+        required: false
+        default: '3'
+        type: string
+    secrets:
+      R2_ACCOUNT_ID:
+        required: true
+      R2_ACCESS_KEY_ID:
+        required: true
+      R2_SECRET_ACCESS_KEY:
+        required: true
+      R2_BUCKET_NAME:
+        required: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  cleanup:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Configure AWS CLI for R2
+        run: |
+          aws configure set aws_access_key_id "${{ secrets.R2_ACCESS_KEY_ID }}"
+          aws configure set aws_secret_access_key "${{ secrets.R2_SECRET_ACCESS_KEY }}"
+          aws configure set default.region auto
+
+      - name: Cleanup old versions from R2
+        env:
+          R2_ENDPOINT: https://${{ secrets.R2_ACCOUNT_ID }}.r2.cloudflarestorage.com
+          R2_BUCKET: ${{ secrets.R2_BUCKET_NAME }}
+          KEEP_COUNT: ${{ inputs.keep_count || '3' }}
+        run: |
+          echo "=== R2 Cleanup ==="
+          echo "Bucket: $R2_BUCKET"
+          echo "Keeping latest $KEEP_COUNT versions"
+          echo ""
+
+          PREFIXES=$(aws s3api list-objects-v2 \
+            --bucket "$R2_BUCKET" \
+            --prefix "releases/download/v" \
+            --delimiter "/" \
+            --endpoint-url "$R2_ENDPOINT" \
+            --query "CommonPrefixes[].Prefix" \
+            --output text 2>/dev/null || true)
+
+          if [ -z "$PREFIXES" ]; then
+            echo "No version directories found, nothing to clean up."
+            exit 0
+          fi
+
+          VERSIONS=$(echo "$PREFIXES" | tr '\t' '\n' | sed -n 's|releases/download/\(v[^/]*\)/.*|\1|p' | sort -V)
+          TOTAL=$(echo "$VERSIONS" | wc -l | tr -d ' ')
+
+          echo "Found $TOTAL versions:"
+          echo "$VERSIONS"
+          echo ""
+
+          if [ "$TOTAL" -le "$KEEP_COUNT" ]; then
+            echo "Total versions ($TOTAL) <= keep count ($KEEP_COUNT), nothing to delete."
+            exit 0
+          fi
+
+          DELETE_COUNT=$((TOTAL - KEEP_COUNT))
+          TO_DELETE=$(echo "$VERSIONS" | head -n "$DELETE_COUNT")
+          KEPT=$(echo "$VERSIONS" | tail -n "$KEEP_COUNT")
+
+          echo "Will delete $DELETE_COUNT old versions:"
+          echo "$TO_DELETE"
+          echo ""
+          echo "Will keep $KEEP_COUNT versions:"
+          echo "$KEPT"
+          echo ""
+
+          for VERSION in $TO_DELETE; do
+            PREFIX="releases/download/${VERSION}/"
+            echo "Deleting: s3://${R2_BUCKET}/${PREFIX}"
+            aws s3 rm "s3://${R2_BUCKET}/${PREFIX}" \
+              --recursive \
+              --endpoint-url "$R2_ENDPOINT"
+          done
+
+          echo ""
+          echo "=== Cleanup complete ==="

@@ -490,3 +490,15 @@ jobs:
       - name: Publish to npm
         working-directory: apps/cli
         run: npm publish --ignore-scripts --provenance --tag ${{ needs.prepare_release.outputs.npm_tag }}
+
+  cleanup-r2:
+    needs: [prepare_release, release]
+    if: needs.prepare_release.outputs.is_prerelease == 'false'
+    uses: ./.github/workflows/cleanup-r2.yml
+    with:
+      keep_count: '3'
+    secrets:
+      R2_ACCOUNT_ID: ${{ secrets.R2_ACCOUNT_ID }}
+      R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
+      R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
+      R2_BUCKET_NAME: ${{ secrets.R2_BUCKET_NAME }}
