@@ -88,35 +88,67 @@ async function fetchLatestVersion(): Promise<string | null> {
 
 function promptUser(question: string, choices: string[]): Promise<number> {
   return new Promise((resolve) => {
+    let selected = 0
+
+    const render = () => {
+      // Move cursor up to rewrite choices (skip on first draw)
+      if (rendered) process.stderr.write(`\x1b[${choices.length}A`)
+      choices.forEach((c, i) => {
+        process.stderr.write(`\x1b[2K${i === selected ? '› ' : '  '}${i + 1}. ${c}\n`)
+      })
+    }
+
     process.stderr.write(`${question}\n\n`)
-    choices.forEach((c, i) => {
-      process.stderr.write(i === 0 ? `› ${i + 1}. ${c}\n` : `  ${i + 1}. ${c}\n`)
-    })
-    process.stderr.write('\n')
 
     if (!process.stdin.isTTY || !process.stdin.setRawMode) {
       resolve(2)
       return
     }
 
+    let rendered = false
+    render()
+    rendered = true
+    process.stderr.write('\n')
+
     process.stdin.setRawMode(true)
     process.stdin.resume()
+
+    const cleanup = () => {
+      process.stdin.removeListener('data', onData)
+      process.stdin.setRawMode!(false)
+      process.stdin.pause()
+    }
 
     const onData = (data: Buffer) => {
       const key = data.toString()
       if (key === '\x03') {
-        process.stdin.setRawMode!(false)
-        process.stdin.pause()
+        cleanup()
         process.exit(0)
       }
-      // Only accept single-digit keys matching a valid choice;
-      // ignore arrow keys (\x1b[A/B/C/D), Enter, and other non-digit input.
+      // Arrow up / k
+      if (key === '\x1b[A' || key === 'k') {
+        selected = (selected - 1 + choices.length) % choices.length
+        render()
+        return
+      }
+      // Arrow down / j
+      if (key === '\x1b[B' || key === 'j') {
+        selected = (selected + 1) % choices.length
+        render()
+        return
+      }
+      // Enter — confirm current selection
+      if (key === '\r' || key === '\n') {
+        cleanup()
+        process.stderr.write('\n')
+        resolve(selected + 1)
+        return
+      }
+      // Digit key — direct choice
       if (key.length === 1) {
         const num = parseInt(key)
         if (num >= 1 && num <= choices.length) {
-          process.stdin.removeListener('data', onData)
-          process.stdin.setRawMode!(false)
-          process.stdin.pause()
+          cleanup()
           process.stderr.write('\n')
           resolve(num)
         }

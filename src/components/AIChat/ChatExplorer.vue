@@ -10,7 +10,6 @@ import AIThinkingIndicator from './chat/AIThinkingIndicator.vue'
 import ChatStatusBar from './chat/ChatStatusBar.vue'
 import { useAIChat } from '@/composables/useAIChat'
 import { useAIService, useLLMService } from '@/services'
-import CaptureButton from '@/components/common/CaptureButton.vue'
 import AssistantInlineBar from './assistant/AssistantInlineBar.vue'
 import AssistantConfigModal from './assistant/AssistantConfigModal.vue'
 import AssistantMarketModal from './assistant/AssistantMarketModal.vue'
@@ -136,9 +135,6 @@ const chatInputRef = ref<{
 
 // QA 对
 const qaPairs = computed(() => groupMessagesToQAPairs(messages.value))
-
-// 截屏功能
-const conversationContentRef = ref<HTMLElement | null>(null)
 
 // 检查 LLM 配置
 async function checkLLMConfig() {
@@ -362,7 +358,6 @@ watch(
             :class="{ 'p-0!': messages.length === 0 && !isAIThinking }"
           >
             <div
-              ref="conversationContentRef"
               class="mx-auto max-w-3xl space-y-6"
               :class="{
                 'flex min-h-full flex-col justify-center px-4 pb-32 pt-4 space-y-0!':
@@ -414,17 +409,6 @@ watch(
                     @market="handleOpenMarket"
                   />
                 </div>
-              </div>
-
-              <!-- 对话截屏按钮 -->
-              <div v-if="qaPairs.length > 0 && !isAIThinking" class="flex justify-end">
-                <CaptureButton
-                  :label="t('ai.chat.capture')"
-                  size="xs"
-                  type="element"
-                  :target-element="conversationContentRef"
-                  markdown-fix
-                />
               </div>
 
               <!-- QA 对渲染 -->
