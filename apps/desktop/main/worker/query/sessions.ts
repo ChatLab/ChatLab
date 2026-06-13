@@ -109,7 +109,7 @@ export function getAllSessions(): any[] {
           id: sessionId,
           dbPath,
           memberAvatar,
-          aiConversationCount: 0, // filled by IPC layer
+          aiConversationCount: 0,
         })
       }
 
