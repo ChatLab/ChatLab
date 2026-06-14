@@ -48,6 +48,12 @@ export default {
     migrationV3Message: 'Support session timeline browsing and AI-enhanced analysis',
     migrationV4Desc: 'Create FTS5 full-text search index (message_fts) and build index data',
     migrationV4Message: 'Enable full-text search for significantly faster keyword search',
+    migrationV5Desc: 'Repair legacy member and message fields',
+    migrationV5Message: 'Update legacy database fields for compatibility with the current version',
+    migrationV6Desc: 'Upgrade the session index to the segment schema',
+    migrationV6Message: 'Upgrade the session index structure while preserving existing indexes and summaries',
+    migrationV7Desc: 'Repair missing session message mappings',
+    migrationV7Message: 'Repair missing session index mappings while preserving existing sessions and summaries',
     integrityError:
       'Database structure is incomplete: missing meta table. Please delete this database file and re-import.',
     checkFailed: 'Database check failed: {{error}}',

@@ -35,12 +35,18 @@ export interface DesktopMigrationOptions {
   runtime?: RuntimeIdentity
 }
 
-const i18nKeys: Array<{ descriptionKey: string; userMessageKey: string }> = [
-  { descriptionKey: 'database.migrationV1Desc', userMessageKey: 'database.migrationV1Message' },
-  { descriptionKey: 'database.migrationV2Desc', userMessageKey: 'database.migrationV2Message' },
-  { descriptionKey: 'database.migrationV3Desc', userMessageKey: 'database.migrationV3Message' },
-  { descriptionKey: 'database.migrationV4Desc', userMessageKey: 'database.migrationV4Message' },
-]
+const i18nKeys: Record<number, { descriptionKey: string; userMessageKey: string }> = Object.fromEntries(
+  Array.from({ length: CURRENT_SCHEMA_VERSION }, (_, index) => {
+    const version = index + 1
+    return [
+      version,
+      {
+        descriptionKey: `database.migrationV${version}Desc`,
+        userMessageKey: `database.migrationV${version}Message`,
+      },
+    ]
+  })
+)
 
 function checkDatabaseIntegrity(db: DatabaseAdapter): { valid: boolean; error?: string } {
   try {
@@ -111,9 +117,12 @@ export function getPendingMigrationInfos(fromVersion = 0): MigrationInfo[] {
   const migrations = getChatDbMigrations({ tokenizeForFts })
   return migrations
     .filter((m) => m.version > fromVersion)
-    .map((m, idx) => ({
-      version: m.version,
-      description: i18nKeys[idx] ? t(i18nKeys[idx].descriptionKey) : m.description,
-      userMessage: i18nKeys[idx] ? t(i18nKeys[idx].userMessageKey) : m.description,
-    }))
+    .map((m) => {
+      const keys = i18nKeys[m.version]
+      return {
+        version: m.version,
+        description: (keys && t(keys.descriptionKey)) || m.description,
+        userMessage: (keys && t(keys.userMessageKey)) || m.description,
+      }
+    })
 }
