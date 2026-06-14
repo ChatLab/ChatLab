@@ -43,6 +43,10 @@ export function buildAnalyticsCacheKey(namespace: string, params: Record<string,
  * the current date (e.g. daysSinceLastMessage, currentStreak). This appends
  * today's date to the version string so the cache is refreshed each day even
  * when the DB file has not changed.
+ *
+ * Pass `options.extraVersion` to append an arbitrary fingerprint to the version
+ * (e.g. an external file's mtime/size) so the cache is invalidated whenever
+ * that resource changes independently of the DB or app version.
  */
 export function withAnalyticsCache<T>(
   ctx: HttpRouteContext,
@@ -50,11 +54,12 @@ export function withAnalyticsCache<T>(
   namespace: string,
   params: Record<string, unknown>,
   compute: () => T,
-  options?: { dailyInvalidate?: boolean }
+  options?: { dailyInvalidate?: boolean; extraVersion?: string }
 ): T {
   const queryCacheDir = path.join(ctx.pathProvider.getCacheDir(), 'query')
   const dateStr = options?.dailyInvalidate ? `|date:${new Date().toISOString().split('T')[0]}` : ''
-  const version = `${ctx.getVersion()}|${getDbFileVersion(ctx.sessionAdapter.getDbPath(sessionId))}${dateStr}`
+  const extraStr = options?.extraVersion ? `|${options.extraVersion}` : ''
+  const version = `${ctx.getVersion()}|${getDbFileVersion(ctx.sessionAdapter.getDbPath(sessionId))}${dateStr}${extraStr}`
   const key = buildAnalyticsCacheKey(namespace, params)
   return getOrComputeAnalysisCache(sessionId, key, queryCacheDir, version, compute)
 }
