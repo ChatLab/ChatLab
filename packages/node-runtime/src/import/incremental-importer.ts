@@ -14,7 +14,7 @@ import { streamParseFile, detectFormat, type ParseProgress } from '@openchatlab/
 import * as path from 'path'
 import { insertFtsEntries, hasFtsTable } from '../fts'
 import type { ImportProgressCallback } from './streaming-importer'
-import { archiveMessageMedia } from './media-archive'
+import { archiveMessageMedia, deleteArchivedSessionMediaFiles } from './media-archive'
 
 // ==================== Public interfaces ====================
 
@@ -195,6 +195,7 @@ export async function incrementalImport(
   const memberUpdateMode = options?.memberUpdateMode ?? 'upsert'
   const sourceRoot = path.dirname(filePath)
   const sessionMediaDir = deps.getSessionMediaDir?.(sessionId) ?? null
+  const archivedMediaPaths = new Set<string>()
 
   try {
     const { existingPlatformMsgIds, existingKeys } = loadExistingDedup(db)
@@ -348,7 +349,15 @@ export async function incrementalImport(
                 sessionMediaDir,
                 sequence: processedCount,
               })
-            : { mediaPath: null, mediaMime: msg.media?.mimeType ?? null, mediaFilename: msg.media?.filename ?? null }
+            : {
+                mediaPath: null,
+                mediaMime: msg.media?.mimeType ?? null,
+                mediaFilename: msg.media?.filename ?? null,
+                mediaCreated: false,
+              }
+          if (archivedMedia.mediaPath && archivedMedia.mediaCreated) {
+            archivedMediaPaths.add(archivedMedia.mediaPath)
+          }
 
           const msgResult = insertMessage.run(
             memberId,
@@ -458,6 +467,9 @@ export async function incrementalImport(
       /* ignore */
     }
     db.close()
+    if (sessionMediaDir) {
+      deleteArchivedSessionMediaFiles(sessionMediaDir, archivedMediaPaths)
+    }
 
     console.error('[IncrementalImport] Error:', error)
     return { success: false, newMessageCount: 0, error: String(error) }

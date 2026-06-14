@@ -426,7 +426,12 @@ async function streamImportSingle(
                   sessionMediaDir,
                   sequence: totalMessageCount + 1,
                 })
-              : { mediaPath: null, mediaMime: msg.media?.mimeType ?? null, mediaFilename: msg.media?.filename ?? null }
+              : {
+                  mediaPath: null,
+                  mediaMime: msg.media?.mimeType ?? null,
+                  mediaFilename: msg.media?.filename ?? null,
+                  mediaCreated: false,
+                }
 
             insertMessage.run(
               senderId,

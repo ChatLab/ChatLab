@@ -280,6 +280,56 @@ test('streamImport refuses to archive media paths outside the import root', asyn
   }
 })
 
+test('streamImport refuses to archive symlinked media outside the import root', async (t) => {
+  const root = makeTempDir()
+  const pathProvider = createPathProvider(root)
+  const manager = new DatabaseManager(pathProvider, {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+
+  const importDir = path.join(root, 'source')
+  const imageDir = path.join(importDir, 'images')
+  const outsideDir = path.join(root, 'outside')
+  fs.mkdirSync(imageDir, { recursive: true })
+  fs.mkdirSync(outsideDir, { recursive: true })
+  const outsideImage = path.join(outsideDir, 'secret.jpg')
+  fs.writeFileSync(outsideImage, Buffer.from([0xff, 0xd8, 0xff, 0xd9]))
+
+  try {
+    fs.symlinkSync(outsideImage, path.join(imageDir, 'photo.jpg'), 'file')
+  } catch (error) {
+    t.skip(`symlink creation unavailable: ${error instanceof Error ? error.message : String(error)}`)
+    return
+  }
+
+  const filePath = path.join(importDir, 'media.jsonl')
+  writeMediaJsonl(filePath, 'images/photo.jpg')
+
+  const result = await streamImport(manager, filePath, { formatId: 'chatlab-jsonl' })
+  assert.equal(result.success, true)
+  assert.ok(result.sessionId)
+
+  const db = manager.openRawSessionDatabase(result.sessionId!, { readonly: true })
+  try {
+    const row = db
+      .prepare('SELECT type, media_path, media_mime, media_filename FROM message WHERE platform_message_id = ?')
+      .get('m1') as {
+      type: number
+      media_path: string | null
+      media_mime: string | null
+      media_filename: string | null
+    }
+    assert.equal(row.type, 1)
+    assert.equal(row.media_path, null)
+    assert.equal(row.media_mime, 'image/jpeg')
+    assert.equal(row.media_filename, 'photo.jpg')
+    assert.equal(fs.existsSync(path.join(pathProvider.getUserDataDir(), 'media', result.sessionId!)), false)
+  } finally {
+    db.close()
+  }
+})
+
 test('incrementalImport archives newly added media paths', async () => {
   const root = makeTempDir()
   const pathProvider = createPathProvider(root)
