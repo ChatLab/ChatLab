@@ -121,8 +121,8 @@ Compatibility-related changes should cover:
 
 | If you want to change | Start here |
 | --- | --- |
-| Frontend pages and components | `src/pages/`, `src/components/`, `src/features/` |
-| Chart analysis | `src/features/charts-*`, `src/components/charts/` |
+| Frontend pages and components | `src/pages/`, `src/components/` |
+| Chart analysis | `src/components/analysis/`, `src/components/charts/` |
 | Data, message, and session API calls | `src/services/` |
 | Electron main process | `apps/desktop/main/`, `apps/desktop/preload/` |
 | CLI and Web API | `apps/cli/` |
