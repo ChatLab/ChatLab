@@ -128,6 +128,7 @@ const dictList = ref<Array<{ id: string; label: string; locale: string; download
 const isDictDownloading = ref(false)
 const downloadingDictId = ref<string | null>(null)
 const showDictPromptModal = ref(false)
+const dictListInitialized = ref(false)
 const DICT_PROMPT_DISMISSED_KEY = 'chatlab_zhTW_dict_prompt_dismissed'
 
 const locale = computed(() => settingsStore.locale as 'zh-CN' | 'en-US' | 'zh-TW' | 'ja-JP')
@@ -147,13 +148,14 @@ const hasAnyDict = computed(() => {
   return dictList.value.some((d) => d.downloaded)
 })
 // 即使没有外部词典，内置 jieba 分词器也能正常工作，不应阻止分析
-const canAnalyzeWithoutDictBlocking = computed(() => true)
+const canAnalyzeWithoutDictBlocking = computed(() => dictListInitialized.value)
 
 const undownloadedDicts = computed(() => {
   return dictList.value.filter((d) => !d.downloaded)
 })
 
 async function refreshDictList() {
+  dictListInitialized.value = false
   try {
     dictList.value = await get('/nlp/dicts')
     // 繁体中文用户自动切换到 zh-TW（如已下载）
@@ -170,6 +172,8 @@ async function refreshDictList() {
     }
   } catch (error) {
     console.error('Failed to get dict list:', error)
+  } finally {
+    dictListInitialized.value = true
   }
 }
 
@@ -254,8 +258,10 @@ async function loadPosTagDefinitions() {
 }
 
 // 加载话题迷你词云数据（固定词性过滤）
+let topicMiniWordsRequestId = 0
 async function loadTopicMiniWords() {
   if (!props.sessionId || !canAnalyzeWithoutDictBlocking.value) return
+  const requestId = ++topicMiniWordsRequestId
   try {
     const result = await post<WordFreqResponse>('/nlp/word-frequency', {
       sessionId: props.sessionId,
@@ -270,6 +276,7 @@ async function loadTopicMiniWords() {
       dictType: selectedDictType.value,
       excludeWords: currentExcludeWords.value.length > 0 ? [...currentExcludeWords.value] : undefined,
     })
+    if (requestId !== topicMiniWordsRequestId) return
     topicMiniWords.value = result.words.map((w) => ({
       word: w.word,
       count: w.count,
@@ -277,14 +284,17 @@ async function loadTopicMiniWords() {
     }))
   } catch (error) {
     console.error('加载话题迷你词云数据失败:', error)
+    if (requestId !== topicMiniWordsRequestId) return
     topicMiniWords.value = []
   }
 }
 
 // 加载词频数据
+let wordFrequencyRequestId = 0
 async function loadWordFrequency() {
   if (!props.sessionId || !canAnalyzeWithoutDictBlocking.value) return
 
+  const requestId = ++wordFrequencyRequestId
   isLoading.value = true
   try {
     const result = await post<WordFreqResponse>('/nlp/word-frequency', {
@@ -300,6 +310,7 @@ async function loadWordFrequency() {
       dictType: selectedDictType.value,
       excludeWords: currentExcludeWords.value.length > 0 ? [...currentExcludeWords.value] : undefined,
     })
+    if (requestId !== wordFrequencyRequestId) return
 
     wordcloudData.value = {
       words: result.words.map((w) => ({
@@ -325,9 +336,12 @@ async function loadWordFrequency() {
     }
   } catch (error) {
     console.error('加载词频数据失败:', error)
+    if (requestId !== wordFrequencyRequestId) return
     wordcloudData.value = { words: [] }
   } finally {
-    isLoading.value = false
+    if (requestId === wordFrequencyRequestId) {
+      isLoading.value = false
+    }
   }
 }
 
@@ -350,6 +364,7 @@ watch(
     enableStopwords.value,
     selectedDictType.value,
     currentExcludeWords.value,
+    canAnalyzeWithoutDictBlocking.value,
   ],
   () => {
     loadWordFrequency()
@@ -359,7 +374,14 @@ watch(
 
 // 监听参数变化（话题迷你词云：不受词性过滤/最大词数影响）
 watch(
-  () => [props.sessionId, props.timeFilter, selectedMemberId.value, selectedDictType.value, currentExcludeWords.value],
+  () => [
+    props.sessionId,
+    props.timeFilter,
+    selectedMemberId.value,
+    selectedDictType.value,
+    currentExcludeWords.value,
+    canAnalyzeWithoutDictBlocking.value,
+  ],
   () => {
     loadTopicMiniWords()
   },
