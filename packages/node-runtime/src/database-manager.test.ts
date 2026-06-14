@@ -427,6 +427,46 @@ test('openRawSessionDatabase can initialize current chat tables for controlled i
   db.close()
 })
 
+test('deleteSessionDatabaseFiles removes the session media directory for valid session ids', () => {
+  const root = makeTempDir()
+  const pathProvider = createPathProvider(root)
+  const manager = new DatabaseManager(pathProvider, {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+
+  const db = manager.openRawSessionDatabase('with-media', { create: true, initializeChatTables: true })
+  db.close()
+
+  const mediaDir = path.join(pathProvider.getUserDataDir(), 'media', 'with-media')
+  fs.mkdirSync(mediaDir, { recursive: true })
+  fs.writeFileSync(path.join(mediaDir, 'photo.jpg'), 'media')
+
+  assert.equal(manager.deleteSessionDatabaseFiles('with-media'), true)
+  assert.equal(fs.existsSync(mediaDir), false)
+})
+
+test('deleteSessionDatabaseFiles does not let invalid session ids remove the media root', () => {
+  const root = makeTempDir()
+  const pathProvider = createPathProvider(root)
+  const manager = new DatabaseManager(pathProvider, {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+
+  const userDataDir = pathProvider.getUserDataDir()
+  const mediaRoot = path.join(userDataDir, 'media')
+  fs.mkdirSync(mediaRoot, { recursive: true })
+  fs.writeFileSync(path.join(userDataDir, 'keep.txt'), 'user data')
+  fs.writeFileSync(path.join(mediaRoot, 'keep.txt'), 'media root')
+
+  assert.equal(manager.deleteSessionDatabaseFiles('..'), false)
+  assert.equal(fs.existsSync(userDataDir), true)
+  assert.equal(fs.existsSync(mediaRoot), true)
+  assert.equal(fs.existsSync(path.join(userDataDir, 'keep.txt')), true)
+  assert.equal(fs.existsSync(path.join(mediaRoot, 'keep.txt')), true)
+})
+
 test('raiseCurrentChatDbCompatibilityGate writes metadata for fresh current-schema databases', () => {
   const root = makeTempDir()
   const dbDir = path.join(root, 'data', 'databases')

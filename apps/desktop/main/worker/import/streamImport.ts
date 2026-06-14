@@ -17,6 +17,7 @@ import {
   TEMP_DB_SCHEMA,
   computeAndSetOverviewCache,
   deleteSessionCache,
+  deleteSessionMediaDir,
 } from '@openchatlab/node-runtime'
 import type { StreamImportDeps, StreamImportResult, ImportLogger } from '@openchatlab/node-runtime'
 import { sendProgress, generateSessionId, getDbPath, createDatabaseWithoutIndexes } from './utils'
@@ -84,6 +85,11 @@ function buildStreamImportDeps(requestId: string): StreamImportDeps {
         } catch {
           /* ignore */
         }
+      }
+      try {
+        deleteSessionMediaDir(getUserDataDir(), sessionId)
+      } catch {
+        /* ignore */
       }
     },
     onProgress(progress) {

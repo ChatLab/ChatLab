@@ -20,6 +20,7 @@ import {
 import { openBetterSqliteDatabase } from './better-sqlite3-adapter'
 import { deleteSessionCache } from './cache/session-cache'
 import { assertDataDirCompatible, type RuntimeIdentity } from './data-dir-compat'
+import { deleteSessionMediaDir } from './import/media-archive'
 import {
   CHAT_DB_COMPATIBILITY_RAISES,
   getChatDbMigrations,
@@ -247,7 +248,7 @@ export class DatabaseManager {
     deleteSessionCache(sessionId, cacheDir)
     deleteSessionCache(sessionId, path.join(cacheDir, 'query'))
     try {
-      fs.rmSync(path.join(this.pathProvider.getUserDataDir(), 'media', sessionId), { recursive: true, force: true })
+      deleteSessionMediaDir(this.pathProvider.getUserDataDir(), sessionId)
     } catch {
       /* ignore cleanup failures */
     }

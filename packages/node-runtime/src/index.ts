@@ -17,6 +17,7 @@ export {
   incrementalImport,
   getMimeTypeForPath,
   getSessionMediaDir,
+  deleteSessionMediaDir,
   isMediaMessageType,
 } from './import'
 export type {

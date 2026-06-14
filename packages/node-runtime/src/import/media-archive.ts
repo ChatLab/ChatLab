@@ -64,6 +64,14 @@ export function getSessionMediaDir(userDataDir: string, sessionId: string): stri
   return path.join(userDataDir, 'media', sessionId)
 }
 
+export function deleteSessionMediaDir(userDataDir: string, sessionId: string): void {
+  const mediaRoot = path.resolve(userDataDir, 'media')
+  const mediaDir = path.resolve(mediaRoot, sessionId)
+  const relative = path.relative(mediaRoot, mediaDir)
+  if (!relative || relative.startsWith('..') || path.isAbsolute(relative)) return
+  fs.rmSync(mediaDir, { recursive: true, force: true })
+}
+
 function sanitizeFilename(filename: string): string {
   const sanitized = filename
     .replace(/[<>:"/\\|?*]/g, '_')

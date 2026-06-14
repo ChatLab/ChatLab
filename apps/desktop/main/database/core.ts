@@ -18,7 +18,7 @@ import type { ParseResult } from '../../../../src/types/base'
 import { migrateDatabase, needsMigration, CURRENT_SCHEMA_VERSION } from './migrations'
 import { getPathProvider } from '../path-context'
 import { ensureDir } from '../paths'
-import { deleteSessionCache } from '@openchatlab/node-runtime'
+import { deleteSessionCache, deleteSessionMediaDir } from '@openchatlab/node-runtime'
 
 /**
  * 获取数据库目录
@@ -164,7 +164,7 @@ export function deleteSession(sessionId: string): boolean {
     const cacheDir = getPathProvider().getCacheDir()
     deleteSessionCache(sessionId, cacheDir)
     deleteSessionCache(sessionId, path.join(cacheDir, 'query'))
-    fs.rmSync(path.join(getPathProvider().getUserDataDir(), 'media', sessionId), { recursive: true, force: true })
+    deleteSessionMediaDir(getPathProvider().getUserDataDir(), sessionId)
     return true
   } catch (error) {
     console.error('[Database] Failed to delete session:', error)

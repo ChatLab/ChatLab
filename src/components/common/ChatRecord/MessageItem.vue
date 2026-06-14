@@ -75,6 +75,7 @@ const nameColor = computed(() => currentColor.value.name)
 const mediaUrl = ref<string | null>(null)
 const mediaLoading = ref(false)
 const mediaUnavailable = ref(false)
+let mediaRequestSeq = 0
 
 // 气泡颜色（Owner 使用微粉色，其他人使用微灰色）
 const bubbleColor = computed(() =>
@@ -153,29 +154,53 @@ function releaseMediaUrl() {
 }
 
 async function loadMediaUrl() {
+  const requestSeq = ++mediaRequestSeq
   releaseMediaUrl()
+  mediaLoading.value = false
   mediaUnavailable.value = false
 
   const sessionId = sessionStore.currentSessionId
-  if (!sessionId || !props.message.mediaPath || !isRenderableMedia.value) {
+  const messageId = props.message.id
+  const mediaPath = props.message.mediaPath
+  if (!sessionId || !mediaPath || !isRenderableMedia.value) {
     mediaUnavailable.value = isRenderableMedia.value
     return
   }
 
   mediaLoading.value = true
   try {
-    const resp = await fetchWithAuth(`/_web/sessions/${sessionId}/messages/${props.message.id}/media`)
+    const resp = await fetchWithAuth(`/_web/sessions/${sessionId}/messages/${messageId}/media`)
+    if (
+      requestSeq !== mediaRequestSeq ||
+      sessionId !== sessionStore.currentSessionId ||
+      messageId !== props.message.id
+    ) {
+      return
+    }
     if (!resp.ok) {
       mediaUnavailable.value = true
       return
     }
     const blob = await resp.blob()
-    mediaUrl.value = URL.createObjectURL(blob)
+    const nextUrl = URL.createObjectURL(blob)
+    if (
+      requestSeq !== mediaRequestSeq ||
+      sessionId !== sessionStore.currentSessionId ||
+      messageId !== props.message.id ||
+      mediaPath !== props.message.mediaPath
+    ) {
+      URL.revokeObjectURL(nextUrl)
+      return
+    }
+    mediaUrl.value = nextUrl
   } catch {
+    if (requestSeq !== mediaRequestSeq) return
     mediaUnavailable.value = true
   } finally {
-    mediaLoading.value = false
-    emit('media-load')
+    if (requestSeq === mediaRequestSeq) {
+      mediaLoading.value = false
+      emit('media-load')
+    }
   }
 }
 
@@ -184,14 +209,17 @@ function openMedia() {
 }
 
 watch(
-  () => [props.message.id, props.message.mediaPath, props.message.type],
+  () => [sessionStore.currentSessionId, props.message.id, props.message.mediaPath, props.message.type],
   () => {
     void loadMediaUrl()
   },
   { immediate: true }
 )
 
-onUnmounted(releaseMediaUrl)
+onUnmounted(() => {
+  mediaRequestSeq++
+  releaseMediaUrl()
+})
 </script>
 
 <template>
