@@ -7,6 +7,7 @@ import { computed } from 'vue'
 import type { EChartsOption, BarSeriesOption } from 'echarts'
 import { EChart } from '@/components/charts'
 import { SectionCard, ScrollableChart } from '@/components/UI'
+import { useRankingLayout } from '@/utils/rankingChartLayout'
 
 interface ConsecutiveItem {
   memberId: number
@@ -35,6 +36,7 @@ const props = withDefaults(defineProps<Props>(), {
   maxHeightVh: 60,
   bare: false,
 })
+const rankingLayout = useRankingLayout()
 
 // 限制显示数量
 const displayData = computed(() => {
@@ -83,7 +85,7 @@ const option = computed<EChartsOption>(() => {
   if (displayData.value.length === 0) return {}
 
   const reversedData = [...displayData.value].reverse()
-  const names = reversedData.map((item) => truncateName(item.name))
+  const names = reversedData.map((item) => truncateName(item.name, rankingLayout.value.labelMaxLength))
   const maxValue = Math.max(...displayData.value.map((item) => item.maxConsecutiveDays), 1)
 
   return {
@@ -114,7 +116,7 @@ const option = computed<EChartsOption>(() => {
       show: false,
     },
     grid: {
-      left: 110,
+      left: rankingLayout.value.gridLeft,
       right: 75,
       top: 15,
       bottom: 15,

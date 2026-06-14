@@ -8,6 +8,7 @@ import type { EChartsOption, BarSeriesOption } from 'echarts'
 import EChart from './EChart.vue'
 import type { RankItem } from './RankList.vue'
 import { SectionCard, ScrollableChart } from '@/components/UI'
+import { truncateRankName, useRankingLayout } from '@/utils/rankingChartLayout'
 
 interface Props {
   /** 排名数据 */
@@ -35,6 +36,7 @@ const props = withDefaults(defineProps<Props>(), {
   maxHeightVh: 60,
   bare: false,
 })
+const rankingLayout = useRankingLayout()
 
 // 限制显示数量
 const displayData = computed(() => {
@@ -66,16 +68,11 @@ const barColor = {
 }
 
 // 截断名字（最多8个字符）
-function truncateName(name: string, maxLength = 8): string {
-  if (name.length <= maxLength) return name
-  return name.slice(0, maxLength) + '…'
-}
-
 // 生成 ECharts 配置
 const option = computed<EChartsOption>(() => {
   // 数据需要反转，因为柱状图 Y 轴从下到上
   const reversedData = [...displayData.value].reverse()
-  const names = reversedData.map((item) => truncateName(item.name))
+  const names = reversedData.map((item) => truncateRankName(item.name, rankingLayout.value.labelMaxLength))
   const values = reversedData.map((item) => item.value)
   const maxValue = Math.max(...values, 1)
 
@@ -113,7 +110,7 @@ const option = computed<EChartsOption>(() => {
       },
     },
     grid: {
-      left: 110,
+      left: rankingLayout.value.gridLeft,
       right: 70,
       top: 15,
       bottom: 15,

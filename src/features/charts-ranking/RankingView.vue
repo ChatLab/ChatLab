@@ -2,13 +2,14 @@
 /**
  * RankingView - 榜单主组件
  */
-import { computed, ref, watch } from 'vue'
+import { computed, provide, ref, watch } from 'vue'
 import { PageAnchorsNav, TopNSelect } from '@/components/UI'
 import { usePageAnchors } from '@/composables'
 import { useDataService } from '@/services/data/service'
 import type { MemberActivity } from './types'
 import { ActivityRank, CheckInRank, MemeBattleRank, RepeatSection, DivingRank, NightOwlRank } from './sections'
 import type { TimeFilter } from '@openchatlab/shared-types'
+import { RANKING_LAYOUTS, RANKING_WIDTH_MODE_KEY, type RankingWidthMode } from '@/utils/rankingChartLayout'
 
 const props = defineProps<{
   sessionId: string
@@ -82,12 +83,22 @@ void contentRef
 
 // 全局 TopN 控制
 const globalTopN = ref(10)
+const widthMode = ref<RankingWidthMode>('standard')
+provide(RANKING_WIDTH_MODE_KEY, widthMode)
+
+const widthModeOptions: Array<{ value: RankingWidthMode; label: string }> = [
+  { value: 'standard', label: '标准' },
+  { value: 'wide', label: '宽屏' },
+  { value: 'full', label: '全宽' },
+]
+
+const mainContentClass = computed(() => RANKING_LAYOUTS[widthMode.value].contentClass)
 </script>
 
 <template>
   <div ref="contentRef" class="flex gap-6 p-6">
     <!-- 主内容区 -->
-    <div class="main-content min-w-0 flex-1 px-8 mx-auto max-w-3xl space-y-6">
+    <div class="main-content min-w-0 flex-1 px-8 mx-auto space-y-6" :class="mainContentClass">
       <!-- 赛季大标题 -->
       <div class="mb-8 mt-4">
         <h1
@@ -147,6 +158,27 @@ const globalTopN = ref(10)
       <div class="border-l border-gray-200 pl-4 dark:border-gray-800">
         <div class="text-xs text-gray-400 mb-2">显示数量</div>
         <TopNSelect v-model="globalTopN" />
+      </div>
+      <div class="mt-4 border-l border-gray-200 pl-4 dark:border-gray-800">
+        <div class="mb-2 text-xs text-gray-400">榜单宽度</div>
+        <div
+          class="flex rounded-lg border border-gray-200 bg-white p-0.5 text-xs dark:border-gray-700 dark:bg-gray-900"
+        >
+          <button
+            v-for="option in widthModeOptions"
+            :key="option.value"
+            type="button"
+            class="rounded-md px-2 py-1 transition"
+            :class="
+              widthMode === option.value
+                ? 'bg-pink-500 text-white shadow-sm'
+                : 'text-gray-500 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+            "
+            @click="widthMode = option.value"
+          >
+            {{ option.label }}
+          </button>
+        </div>
       </div>
     </PageAnchorsNav>
   </div>

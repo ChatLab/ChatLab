@@ -7,6 +7,7 @@ import { computed } from 'vue'
 import type { EChartsOption, BarSeriesOption } from 'echarts'
 import { EChart } from '@/components/charts'
 import { SectionCard, ScrollableChart } from '@/components/UI'
+import { useRankingLayout } from '@/utils/rankingChartLayout'
 
 interface StreakItem {
   memberId: number
@@ -40,6 +41,7 @@ const props = withDefaults(defineProps<Props>(), {
   maxHeightVh: 60,
   bare: false,
 })
+const rankingLayout = useRankingLayout()
 
 // 限制显示数量，根据模式过滤和排序
 const displayData = computed(() => {
@@ -105,7 +107,7 @@ function getValue(item: StreakItem): number {
 // 生成 ECharts 配置
 const option = computed<EChartsOption>(() => {
   const reversedData = [...displayData.value].reverse()
-  const names = reversedData.map((item) => truncateName(item.name))
+  const names = reversedData.map((item) => truncateName(item.name, rankingLayout.value.labelMaxLength))
   const values = reversedData.map((item) => getValue(item))
   const maxValue = Math.max(...values, 1)
 
@@ -160,7 +162,7 @@ const option = computed<EChartsOption>(() => {
       },
     },
     grid: {
-      left: 110,
+      left: rankingLayout.value.gridLeft,
       right: 70,
       top: 15,
       bottom: 15,

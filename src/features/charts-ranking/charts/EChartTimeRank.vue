@@ -7,6 +7,7 @@ import { computed } from 'vue'
 import type { EChartsOption, BarSeriesOption } from 'echarts'
 import { EChart } from '@/components/charts'
 import { SectionCard, ScrollableChart } from '@/components/UI'
+import { useRankingLayout } from '@/utils/rankingChartLayout'
 
 interface TimeRankItem {
   memberId: number
@@ -35,6 +36,7 @@ const props = withDefaults(defineProps<Props>(), {
   maxHeightVh: 60,
   bare: false,
 })
+const rankingLayout = useRankingLayout()
 
 // 限制显示数量
 const displayData = computed(() => {
@@ -76,7 +78,7 @@ const option = computed<EChartsOption>(() => {
   if (displayData.value.length === 0) return {}
 
   const reversedData = [...displayData.value].reverse()
-  const names = reversedData.map((item) => truncateName(item.name))
+  const names = reversedData.map((item) => truncateName(item.name, rankingLayout.value.labelMaxLength))
 
   // 计算相对值：第一名时间最短，进度条最长（100%）
   // 使用反比例：第一名时间 / 当前时间 * 100
@@ -116,7 +118,7 @@ const option = computed<EChartsOption>(() => {
       },
     },
     grid: {
-      left: 110,
+      left: rankingLayout.value.gridLeft,
       right: 100,
       top: 15,
       bottom: 15,

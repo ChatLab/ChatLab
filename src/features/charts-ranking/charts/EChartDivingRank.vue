@@ -8,6 +8,7 @@ import type { EChartsOption, BarSeriesOption } from 'echarts'
 import { EChart } from '@/components/charts'
 import { SectionCard, Tabs, TopNSelect } from '@/components/UI'
 import { formatFullDateTime } from '@/utils/dateFormat'
+import { useRankingLayout } from '@/utils/rankingChartLayout'
 
 interface DivingItem {
   memberId: number
@@ -31,6 +32,7 @@ const props = withDefaults(defineProps<Props>(), {
   showTopNSelect: true,
   maxHeightVh: 60,
 })
+const rankingLayout = useRankingLayout()
 
 const sortOrder = ref<'desc' | 'asc'>('desc') // 默认倒序（潜水最久的在前）
 const topN = ref(props.globalTopN ?? 10) // 内部控制的 topN
@@ -102,7 +104,7 @@ const option = computed<EChartsOption>(() => {
   if (displayData.value.length === 0) return {}
 
   const reversedData = [...displayData.value].reverse()
-  const names = reversedData.map((item) => truncateName(item.name))
+  const names = reversedData.map((item) => truncateName(item.name, rankingLayout.value.labelMaxLength))
   const maxDays = Math.max(...displayData.value.map((item) => item.daysSinceLastMessage), 1)
 
   const dataWithStyle = reversedData.map((item) => ({
@@ -139,7 +141,7 @@ const option = computed<EChartsOption>(() => {
       },
     },
     grid: {
-      left: 110,
+      left: rankingLayout.value.gridLeft,
       right: 100,
       top: 15,
       bottom: 15,
