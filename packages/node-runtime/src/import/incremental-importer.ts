@@ -11,8 +11,10 @@
 import type { DatabaseAdapter } from '@openchatlab/core'
 import { generateMessageKey } from '@openchatlab/core'
 import { streamParseFile, detectFormat, type ParseProgress } from '@openchatlab/parser'
+import * as path from 'path'
 import { insertFtsEntries, hasFtsTable } from '../fts'
 import type { ImportProgressCallback } from './streaming-importer'
+import { archiveMessageMedia } from './media-archive'
 
 // ==================== Public interfaces ====================
 
@@ -65,6 +67,7 @@ export interface IncrementalImportDeps {
   onProgress: ImportProgressCallback
   /** Optional hook after incremental import (e.g. update overview cache). */
   postImportHook?: (db: DatabaseAdapter, sessionId: string) => void | Promise<void>
+  getSessionMediaDir?: (sessionId: string) => string
 }
 
 // ==================== Internal helpers ====================
@@ -190,6 +193,8 @@ export async function incrementalImport(
 
   const metaUpdateMode = options?.metaUpdateMode ?? 'patch'
   const memberUpdateMode = options?.memberUpdateMode ?? 'upsert'
+  const sourceRoot = path.dirname(filePath)
+  const sessionMediaDir = deps.getSessionMediaDir?.(sessionId) ?? null
 
   try {
     const { existingPlatformMsgIds, existingKeys } = loadExistingDedup(db)
@@ -221,8 +226,12 @@ export async function incrementalImport(
     const getMemberId = db.prepare('SELECT id FROM member WHERE platform_id = ?')
 
     const insertMessage = db.prepare(`
-      INSERT INTO message (sender_id, sender_account_name, sender_group_nickname, ts, type, content, reply_to_message_id, platform_message_id)
-      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      INSERT INTO message (
+        sender_id, sender_account_name, sender_group_nickname, ts, type, content,
+        media_path, media_mime, media_filename,
+        reply_to_message_id, platform_message_id
+      )
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     `)
 
     const updateMeta = db.prepare(`
@@ -333,6 +342,14 @@ export async function incrementalImport(
           }
           if (!memberId) continue
 
+          const archivedMedia = sessionMediaDir
+            ? archiveMessageMedia(msg, {
+                sourceRoot,
+                sessionMediaDir,
+                sequence: processedCount,
+              })
+            : { mediaPath: null, mediaMime: msg.media?.mimeType ?? null, mediaFilename: msg.media?.filename ?? null }
+
           const msgResult = insertMessage.run(
             memberId,
             msg.senderAccountName || null,
@@ -340,6 +357,9 @@ export async function incrementalImport(
             timestamp,
             msg.type,
             msg.content || null,
+            archivedMedia.mediaPath,
+            archivedMedia.mediaMime,
+            archivedMedia.mediaFilename,
             msg.replyToMessageId || null,
             msg.platformMessageId || null
           )

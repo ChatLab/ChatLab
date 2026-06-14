@@ -108,6 +108,13 @@ export interface ParsedMessage {
   type: MessageType
   content: string | null
   replyToMessageId?: string
+  media?: ParsedMessageMedia
+}
+
+export interface ParsedMessageMedia {
+  sourcePath: string
+  filename?: string
+  mimeType?: string
 }
 
 // ==================== Preferences (跨端偏好设置) ====================

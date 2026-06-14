@@ -180,6 +180,9 @@ export interface ChatRecordMessage {
   senderAliases: string[]
   senderAvatar: string | null // 发送者头像
   content: string
+  mediaPath: string | null
+  mediaMime: string | null
+  mediaFilename: string | null
   timestamp: number
   type: number
   replyToMessageId: string | null // 回复的目标消息 ID（平台原始 ID）

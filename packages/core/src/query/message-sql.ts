@@ -16,6 +16,9 @@ export const FULL_MSG_COLUMNS = `
   COALESCE(m.aliases, '[]') as aliasesJson,
   m.avatar as senderAvatar,
   msg.content,
+  msg.media_path as mediaPath,
+  msg.media_mime as mediaMime,
+  msg.media_filename as mediaFilename,
   msg.ts as timestamp,
   msg.type,
   msg.reply_to_message_id as replyToMessageId,
@@ -45,6 +48,9 @@ export interface FullMessageRow {
   aliasesJson: string
   senderAvatar: string | null
   content: string | null
+  mediaPath: string | null
+  mediaMime: string | null
+  mediaFilename: string | null
   timestamp: number
   type: number
   replyToMessageId: string | null
@@ -60,6 +66,9 @@ export interface MappedMessage {
   senderAliases: string[]
   senderAvatar: string | null
   content: string
+  mediaPath: string | null
+  mediaMime: string | null
+  mediaFilename: string | null
   timestamp: number
   type: number
   replyToMessageId: string | null
@@ -86,6 +95,9 @@ export function mapMessageRow(row: FullMessageRow): MappedMessage {
     senderAliases,
     senderAvatar: row.senderAvatar || null,
     content: row.content != null ? String(row.content) : '',
+    mediaPath: row.mediaPath || null,
+    mediaMime: row.mediaMime || null,
+    mediaFilename: row.mediaFilename || null,
     timestamp: Number(row.timestamp),
     type: Number(row.type),
     replyToMessageId: row.replyToMessageId || null,

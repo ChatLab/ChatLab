@@ -28,6 +28,7 @@ import { registerAiChatRoutes } from './routes/web/ai-chats'
 import { registerAiSummaryRoutes } from './routes/web/ai-summaries'
 import { registerMergeRoutes } from './routes/web/merge'
 import { registerCacheRoutes } from './routes/web/cache'
+import { registerMediaRoutes } from './routes/web/media'
 
 export interface SharedRouteOptions {
   /** When true, AI routes will throw on missing dependencies instead of silently skipping */
@@ -58,6 +59,7 @@ export function registerSharedRoutes(
   registerSessionIndexRoutes(server, resolvedCtx)
   registerExportRoutes(server, resolvedCtx)
   registerNlpRoutes(server, resolvedCtx)
+  registerMediaRoutes(server, resolvedCtx)
 
   if (options?.requireAi) {
     const missing: string[] = []

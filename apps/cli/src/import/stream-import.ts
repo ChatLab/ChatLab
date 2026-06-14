@@ -37,6 +37,7 @@ import {
   type ParseProgress,
 } from '@openchatlab/parser'
 import * as crypto from 'crypto'
+import * as path from 'path'
 
 // ==================== Legacy progress interface (for SSE routes) ====================
 
@@ -79,6 +80,9 @@ function buildStreamImportDeps(dbManager: DatabaseManager, onProgress?: ImportPr
       }
     },
     generateSessionId,
+    getSessionMediaDir(sessionId: string) {
+      return path.join(path.dirname(dbManager.getDbPath(sessionId)), '..', 'media', sessionId)
+    },
   }
 }
 

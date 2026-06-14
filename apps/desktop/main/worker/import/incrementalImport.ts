@@ -23,6 +23,7 @@ import type {
 } from '@openchatlab/node-runtime'
 import { sendProgress, getDbPath } from './utils'
 import { getCacheDir } from '../core'
+import { getUserDataDir } from '../../paths'
 import * as fs from 'fs'
 
 export type { ImportOptions, IncrementalAnalyzeResult, IncrementalImportResult }
@@ -56,6 +57,9 @@ function buildDeps(requestId: string): IncrementalImportDeps {
       if (cacheDir) {
         deleteSessionCache(sessionId, path.join(cacheDir, 'query'))
       }
+    },
+    getSessionMediaDir(sessionId: string) {
+      return path.join(getUserDataDir(), 'media', sessionId)
     },
   }
 }

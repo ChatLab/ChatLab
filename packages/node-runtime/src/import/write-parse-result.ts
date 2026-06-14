@@ -15,6 +15,7 @@ export interface ImportMeta {
   groupId?: string | null
   groupAvatar?: string | null
   ownerId?: string | null
+  sourceRoot?: string | null
 }
 
 export interface WriteParseResultStats {
@@ -49,8 +50,8 @@ export function writeParseResultToDb(
 
   db.transaction(() => {
     db.prepare(
-      `INSERT INTO meta (name, platform, type, imported_at, group_id, group_avatar, owner_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO meta (name, platform, type, imported_at, group_id, group_avatar, owner_id, source_root)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
       meta.name,
       meta.platform,
@@ -58,7 +59,8 @@ export function writeParseResultToDb(
       Math.floor(Date.now() / 1000),
       meta.groupId || null,
       meta.groupAvatar || null,
-      meta.ownerId || null
+      meta.ownerId || null,
+      meta.sourceRoot || null
     )
 
     const insertMember = db.prepare(
@@ -86,8 +88,12 @@ export function writeParseResultToDb(
     const groupNicknameTracker = new Map<string, { currentName: string; lastSeenTs: number }>()
 
     const insertMessage = db.prepare(
-      `INSERT INTO message (sender_id, sender_account_name, sender_group_nickname, ts, type, content, reply_to_message_id, platform_message_id)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO message (
+         sender_id, sender_account_name, sender_group_nickname, ts, type, content,
+         media_path, media_mime, media_filename,
+         reply_to_message_id, platform_message_id
+       )
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
     const insertNameHistory = db.prepare(
       `INSERT INTO member_name_history (member_id, name_type, name, start_ts, end_ts) VALUES (?, ?, ?, ?, ?)`
@@ -112,6 +118,9 @@ export function writeParseResultToDb(
         msg.timestamp,
         msg.type,
         msg.content,
+        null,
+        msg.media?.mimeType || null,
+        msg.media?.filename || null,
         msg.replyToMessageId || null,
         msg.platformMessageId || null
       )

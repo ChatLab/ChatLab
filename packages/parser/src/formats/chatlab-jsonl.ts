@@ -30,6 +30,7 @@ import type {
   ParsedMessage,
 } from '../types'
 import { getFileSize, createProgress } from '../utils'
+import { inferMediaFromContent } from './media-utils'
 
 // ==================== JSONL 行类型定义 ====================
 
@@ -188,7 +189,7 @@ async function* parseChatLabJsonl(options: ParseOptions): AsyncGenerator<ParseEv
         }
         break
 
-      case 'message':
+      case 'message': {
         // 如果还没有 header，尝试从文件名推断
         if (!meta) {
           meta = {
@@ -209,15 +210,23 @@ async function* parseChatLabJsonl(options: ParseOptions): AsyncGenerator<ParseEv
           memberMap.set(parsed.sender, inferredMember)
         }
 
+        const inferredMedia = inferMediaFromContent(parsed.content, parsed.type)
         messageBatch.push({
           senderPlatformId: parsed.sender,
           senderAccountName: parsed.accountName,
           senderGroupNickname: parsed.groupNickname,
           timestamp: parsed.timestamp,
-          type: parsed.type as MessageType,
+          type: inferredMedia?.type ?? (parsed.type as MessageType),
           content: parsed.content,
           platformMessageId: parsed.platformMessageId,
           replyToMessageId: parsed.replyToMessageId,
+          media: inferredMedia
+            ? {
+                sourcePath: inferredMedia.sourcePath,
+                filename: inferredMedia.filename,
+                mimeType: inferredMedia.mimeType,
+              }
+            : undefined,
         })
         messagesProcessed++
 
@@ -233,6 +242,7 @@ async function* parseChatLabJsonl(options: ParseOptions): AsyncGenerator<ParseEv
           onProgress?.(progress)
         }
         break
+      }
     }
   }
 

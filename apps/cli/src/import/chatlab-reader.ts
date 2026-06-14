@@ -7,6 +7,7 @@
 
 import * as fs from 'fs'
 import * as readline from 'readline'
+import type { ParsedMessageMedia } from '@openchatlab/shared-types'
 
 export interface ImportMeta {
   name: string
@@ -34,6 +35,7 @@ export interface ImportMessage {
   type: number
   content: string | null
   replyToMessageId?: string
+  media?: ParsedMessageMedia
 }
 
 export interface ParsedData {

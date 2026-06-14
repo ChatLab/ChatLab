@@ -312,5 +312,15 @@ export function getChatDbMigrations(deps?: MigrationDeps): CoreMigration[] {
         `)
       },
     },
+    {
+      version: 7,
+      description: 'Add archived media metadata for messages',
+      up: (db: DatabaseAdapter) => {
+        addColumnIfMissing(db, 'meta', 'source_root', 'TEXT')
+        addColumnIfMissing(db, 'message', 'media_path', 'TEXT')
+        addColumnIfMissing(db, 'message', 'media_mime', 'TEXT')
+        addColumnIfMissing(db, 'message', 'media_filename', 'TEXT')
+      },
+    },
   ]
 }

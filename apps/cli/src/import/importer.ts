@@ -109,8 +109,12 @@ function incrementalImport(
   const memberIdMap = buildMemberIdMap(db)
 
   const insertMsg = db.prepare(
-    `INSERT INTO message (sender_id, sender_account_name, sender_group_nickname, ts, type, content, reply_to_message_id, platform_message_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO message (
+       sender_id, sender_account_name, sender_group_nickname, ts, type, content,
+       media_path, media_mime, media_filename,
+       reply_to_message_id, platform_message_id
+     )
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
   const insertMemberMinimal = db.prepare(`INSERT OR IGNORE INTO member (platform_id, account_name) VALUES (?, ?)`)
 
@@ -144,6 +148,9 @@ function incrementalImport(
           msg.timestamp,
           msg.type,
           msg.content,
+          null,
+          msg.media?.mimeType || null,
+          msg.media?.filename || null,
           msg.replyToMessageId || null,
           msg.platformMessageId || null
         )

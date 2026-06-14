@@ -8,7 +8,7 @@
  */
 
 /** 当前 Schema 版本（最新迁移的版本号） */
-export const CURRENT_SCHEMA_VERSION = 6
+export const CURRENT_SCHEMA_VERSION = 7
 
 /**
  * Table DDL only (no indexes). Used by bulk-import workflows that defer
@@ -23,6 +23,7 @@ export const CHAT_DB_TABLES = `
     group_id TEXT,
     group_avatar TEXT,
     owner_id TEXT,
+    source_root TEXT,
     schema_version INTEGER DEFAULT ${CURRENT_SCHEMA_VERSION},
     session_gap_threshold INTEGER
   );
@@ -55,6 +56,9 @@ export const CHAT_DB_TABLES = `
     ts INTEGER NOT NULL,
     type INTEGER NOT NULL,
     content TEXT,
+    media_path TEXT,
+    media_mime TEXT,
+    media_filename TEXT,
     reply_to_message_id TEXT DEFAULT NULL,
     platform_message_id TEXT DEFAULT NULL,
     FOREIGN KEY(sender_id) REFERENCES member(id)

@@ -10,7 +10,7 @@ import {
   raiseDataDirMinRuntimeVersion,
   readDataDirCompatibilityMeta,
 } from '@openchatlab/node-runtime'
-import { analyzeIncrementalImport, incrementalImport } from './stream-import'
+import { analyzeIncrementalImport, incrementalImport, streamImport } from './stream-import'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -54,6 +54,27 @@ function writeIncrementalJsonl(filePath: string): void {
   fs.writeFileSync(filePath, rows.map((row) => JSON.stringify(row)).join('\n'), 'utf-8')
 }
 
+function writeMediaJsonl(filePath: string): void {
+  const rows = [
+    {
+      _type: 'header',
+      chatlab: { version: '1.0.0', exportedAt: 1780830000 },
+      meta: { name: 'Media Chat', platform: 'qq', type: 'group' },
+    },
+    { _type: 'member', platformId: 'u1', accountName: 'Alice' },
+    {
+      _type: 'message',
+      sender: 'u1',
+      accountName: 'Alice',
+      timestamp: 2000,
+      type: 0,
+      content: 'images/photo.jpg',
+      platformMessageId: 'm1',
+    },
+  ]
+  fs.writeFileSync(filePath, rows.map((row) => JSON.stringify(row)).join('\n'), 'utf-8')
+}
+
 test('incrementalImport raises the data directory gate after successful writes', async () => {
   const root = makeTempDir()
   const pathProvider = createPathProvider(root)
@@ -83,6 +104,55 @@ test('incrementalImport raises the data directory gate after successful writes',
   assert.equal(meta?.minRuntimeVersion, '0.25.1')
   assert.equal(meta?.dataCompatibilityVersion, 1)
   assert.deepEqual(meta?.reasons, ['segment-schema'])
+})
+
+test('streamImport archives ChatLab media paths and stores media metadata', async () => {
+  const root = makeTempDir()
+  const pathProvider = createPathProvider(root)
+  const manager = new DatabaseManager(pathProvider, {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+
+  const importDir = path.join(root, 'source')
+  const imageDir = path.join(importDir, 'images')
+  fs.mkdirSync(imageDir, { recursive: true })
+  fs.writeFileSync(path.join(imageDir, 'photo.jpg'), Buffer.from([0xff, 0xd8, 0xff, 0xd9]))
+  const filePath = path.join(importDir, 'media.jsonl')
+  writeMediaJsonl(filePath)
+
+  const result = await streamImport(manager, filePath, { formatId: 'chatlab-jsonl' })
+  assert.equal(result.success, true)
+  assert.ok(result.sessionId)
+
+  const db = manager.openRawSessionDatabase(result.sessionId!, { readonly: true })
+  try {
+    const row = db
+      .prepare(
+        'SELECT type, content, media_path, media_mime, media_filename FROM message WHERE platform_message_id = ?'
+      )
+      .get('m1') as {
+      type: number
+      content: string
+      media_path: string | null
+      media_mime: string | null
+      media_filename: string | null
+    }
+    assert.equal(row.type, 1)
+    assert.equal(row.content, 'images/photo.jpg')
+    assert.equal(row.media_mime, 'image/jpeg')
+    assert.equal(row.media_filename, 'photo.jpg')
+    assert.ok(row.media_path)
+    assert.equal(
+      fs.existsSync(path.join(pathProvider.getUserDataDir(), 'media', result.sessionId!, row.media_path!)),
+      true
+    )
+
+    const typeRow = db.prepare('SELECT COUNT(*) as count FROM message WHERE type = 1').get() as { count: number }
+    assert.equal(typeRow.count, 1)
+  } finally {
+    db.close()
+  }
 })
 
 test('analyzeIncrementalImport propagates data directory compatibility errors', async () => {

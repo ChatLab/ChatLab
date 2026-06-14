@@ -3,11 +3,13 @@
  * 单条消息展示组件 - 气泡样式
  * 支持 Owner 消息显示在右侧（类似聊天界面）
  */
-import { computed } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 import type { ChatRecordMessage } from './types'
 import { useSessionStore } from '@/stores/session'
+import { MessageType } from '@/types/base'
+import { fetchWithAuth } from '@/services/utils/http'
 
 const { t } = useI18n()
 
@@ -24,6 +26,7 @@ const props = defineProps<{
 
 const emit = defineEmits<{
   (e: 'view-context', messageId: number): void
+  (e: 'media-load'): void
 }>()
 
 const sessionStore = useSessionStore()
@@ -69,11 +72,25 @@ const colorPalette = [
 const currentColor = computed(() => colorPalette[colorIndex.value])
 const avatarColor = computed(() => currentColor.value.avatar)
 const nameColor = computed(() => currentColor.value.name)
+const mediaUrl = ref<string | null>(null)
+const mediaLoading = ref(false)
+const mediaUnavailable = ref(false)
 
 // 气泡颜色（Owner 使用微粉色，其他人使用微灰色）
 const bubbleColor = computed(() =>
   isOwner.value ? 'bg-pink-50/80 dark:bg-pink-950/20' : 'bg-gray-100/80 dark:bg-gray-800/80'
 )
+
+const isImageMessage = computed(
+  () => props.message.type === MessageType.IMAGE || props.message.type === MessageType.EMOJI
+)
+const isVoiceMessage = computed(() => props.message.type === MessageType.VOICE)
+const isVideoMessage = computed(() => props.message.type === MessageType.VIDEO)
+const isFileMessage = computed(() => props.message.type === MessageType.FILE)
+const isRenderableMedia = computed(
+  () => isImageMessage.value || isVoiceMessage.value || isVideoMessage.value || isFileMessage.value
+)
+const mediaFilename = computed(() => props.message.mediaFilename || props.message.content || 'attachment')
 
 // 显示名称（包含别名）
 const displayName = computed(() => {
@@ -127,6 +144,54 @@ function highlightContent(content: string): string {
     '<mark class="bg-transparent border-b-2 border-yellow-400 dark:border-yellow-500">$1</mark>'
   )
 }
+
+function releaseMediaUrl() {
+  if (mediaUrl.value) {
+    URL.revokeObjectURL(mediaUrl.value)
+    mediaUrl.value = null
+  }
+}
+
+async function loadMediaUrl() {
+  releaseMediaUrl()
+  mediaUnavailable.value = false
+
+  const sessionId = sessionStore.currentSessionId
+  if (!sessionId || !props.message.mediaPath || !isRenderableMedia.value) {
+    mediaUnavailable.value = isRenderableMedia.value
+    return
+  }
+
+  mediaLoading.value = true
+  try {
+    const resp = await fetchWithAuth(`/_web/sessions/${sessionId}/messages/${props.message.id}/media`)
+    if (!resp.ok) {
+      mediaUnavailable.value = true
+      return
+    }
+    const blob = await resp.blob()
+    mediaUrl.value = URL.createObjectURL(blob)
+  } catch {
+    mediaUnavailable.value = true
+  } finally {
+    mediaLoading.value = false
+    emit('media-load')
+  }
+}
+
+function openMedia() {
+  if (mediaUrl.value) window.open(mediaUrl.value, '_blank', 'noopener,noreferrer')
+}
+
+watch(
+  () => [props.message.id, props.message.mediaPath, props.message.type],
+  () => {
+    void loadMediaUrl()
+  },
+  { immediate: true }
+)
+
+onUnmounted(releaseMediaUrl)
 </script>
 
 <template>
@@ -182,10 +247,83 @@ function highlightContent(content: string): string {
                 {{ message.replyToContent }}
               </p>
             </div>
+            <template v-if="isImageMessage">
+              <button
+                v-if="mediaUrl"
+                type="button"
+                class="block max-w-full overflow-hidden rounded-xl border border-gray-200 bg-white/60 text-left dark:border-gray-700 dark:bg-gray-900/40"
+                @click="openMedia"
+              >
+                <img
+                  :src="mediaUrl"
+                  :alt="mediaFilename"
+                  class="block max-h-80 max-w-full object-contain"
+                  @load="$emit('media-load')"
+                />
+              </button>
+              <div v-else class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                <UIcon
+                  :name="mediaLoading ? 'i-heroicons-arrow-path' : 'i-heroicons-photo'"
+                  class="h-4 w-4"
+                  :class="{ 'animate-spin': mediaLoading }"
+                />
+                <span class="break-all">{{ mediaLoading ? 'Loading media...' : mediaFilename }}</span>
+              </div>
+            </template>
+
+            <template v-else-if="isVoiceMessage">
+              <audio
+                v-if="mediaUrl"
+                :src="mediaUrl"
+                controls
+                class="h-10 max-w-[260px]"
+                @loadedmetadata="$emit('media-load')"
+              />
+              <div v-else class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                <UIcon
+                  :name="mediaLoading ? 'i-heroicons-arrow-path' : 'i-heroicons-speaker-wave'"
+                  class="h-4 w-4"
+                  :class="{ 'animate-spin': mediaLoading }"
+                />
+                <span class="break-all">{{ mediaLoading ? 'Loading media...' : mediaFilename }}</span>
+              </div>
+            </template>
+
+            <template v-else-if="isVideoMessage">
+              <video
+                v-if="mediaUrl"
+                :src="mediaUrl"
+                controls
+                class="max-h-80 max-w-full rounded-xl border border-gray-200 bg-black dark:border-gray-700"
+                @loadedmetadata="$emit('media-load')"
+              />
+              <div v-else class="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                <UIcon
+                  :name="mediaLoading ? 'i-heroicons-arrow-path' : 'i-heroicons-video-camera'"
+                  class="h-4 w-4"
+                  :class="{ 'animate-spin': mediaLoading }"
+                />
+                <span class="break-all">{{ mediaLoading ? 'Loading media...' : mediaFilename }}</span>
+              </div>
+            </template>
+
+            <button
+              v-else-if="isFileMessage"
+              type="button"
+              class="flex max-w-[280px] items-center gap-2 rounded-xl border border-gray-200 bg-white/60 px-3 py-2 text-left text-sm text-gray-700 transition hover:border-pink-200 hover:text-pink-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-200 dark:hover:border-pink-800 dark:hover:text-pink-300"
+              :disabled="!mediaUrl"
+              @click="openMedia"
+            >
+              <UIcon name="i-heroicons-document-arrow-down" class="h-5 w-5 shrink-0" />
+              <span class="min-w-0 flex-1 truncate">{{ mediaFilename }}</span>
+            </button>
+
             <p
+              v-else
               class="whitespace-pre-wrap break-all text-sm text-gray-700 dark:text-gray-200"
               v-html="highlightContent(message.content || '')"
             />
+            <p v-if="mediaUnavailable" class="mt-1 text-xs text-gray-400 dark:text-gray-500">Media file unavailable</p>
           </div>
 
           <!-- 上下文查看按钮 -->

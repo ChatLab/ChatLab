@@ -20,6 +20,7 @@ import {
 } from '@openchatlab/node-runtime'
 import type { StreamImportDeps, StreamImportResult, ImportLogger } from '@openchatlab/node-runtime'
 import { sendProgress, generateSessionId, getDbPath, createDatabaseWithoutIndexes } from './utils'
+import { getUserDataDir } from '../../paths'
 import {
   getCacheDir,
   getTempDir,
@@ -104,6 +105,9 @@ function buildStreamImportDeps(requestId: string): StreamImportDeps {
       }
     },
     generateSessionId,
+    getSessionMediaDir(sessionId: string) {
+      return path.join(getUserDataDir(), 'media', sessionId)
+    },
   }
 }
 

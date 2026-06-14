@@ -75,6 +75,7 @@ function createSessionDb(): TestSqliteDb {
       group_id TEXT,
       group_avatar TEXT,
       owner_id TEXT,
+      source_root TEXT,
       session_gap_threshold INTEGER
     );
     CREATE TABLE member (
@@ -90,6 +91,9 @@ function createSessionDb(): TestSqliteDb {
       ts INTEGER,
       type INTEGER,
       content TEXT,
+      media_path TEXT,
+      media_mime TEXT,
+      media_filename TEXT,
       platform_message_id TEXT
     );
     CREATE TABLE segment (
@@ -115,17 +119,20 @@ function createSessionDb(): TestSqliteDb {
   return db
 }
 
-function createTestContext(dbs: Map<string, DatabaseAdapter> = new Map()): HttpRouteContext {
+function createTestContext(
+  dbs: Map<string, DatabaseAdapter> = new Map(),
+  root = '/tmp/chatlab-test'
+): HttpRouteContext {
   const pathProvider: PathProvider = {
-    getSystemDir: () => '/tmp/chatlab-test',
-    getUserDataDir: () => '/tmp/chatlab-test/data',
-    getDatabaseDir: () => '/tmp/chatlab-test/databases',
-    getAiDataDir: () => '/tmp/chatlab-test/ai',
-    getSettingsDir: () => '/tmp/chatlab-test/settings',
-    getCacheDir: () => '/tmp/chatlab-test/cache',
-    getTempDir: () => '/tmp/chatlab-test/temp',
-    getLogsDir: () => '/tmp/chatlab-test/logs',
-    getDownloadsDir: () => '/tmp/chatlab-test/downloads',
+    getSystemDir: () => root,
+    getUserDataDir: () => path.join(root, 'data'),
+    getDatabaseDir: () => path.join(root, 'databases'),
+    getAiDataDir: () => path.join(root, 'ai'),
+    getSettingsDir: () => path.join(root, 'settings'),
+    getCacheDir: () => path.join(root, 'cache'),
+    getTempDir: () => path.join(root, 'temp'),
+    getLogsDir: () => path.join(root, 'logs'),
+    getDownloadsDir: () => path.join(root, 'downloads'),
   }
 
   const dbManager = {
@@ -295,6 +302,36 @@ describe('registerSharedRoutes smoke tests', () => {
     assert.equal(resp.statusCode, 200)
     assert.deepEqual(resp.json(), { success: true })
     assert.equal(dbs.has('chat-1'), false)
+  })
+
+  it('GET /_web/sessions/:id/messages/:messageId/media streams archived media only for media messages', async () => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-media-route-'))
+    const mediaDir = path.join(root, 'data', 'media', 'chat-1')
+    fs.mkdirSync(mediaDir, { recursive: true })
+    fs.writeFileSync(path.join(mediaDir, 'photo.jpg'), Buffer.from([0xff, 0xd8, 0xff, 0xd9]))
+
+    const db = createSessionDb()
+    db.exec(`
+      INSERT INTO message (id, sender_id, ts, type, content, media_path, media_mime, media_filename, platform_message_id)
+      VALUES (4, 1, 400, 1, 'images/photo.jpg', 'photo.jpg', 'image/jpeg', 'photo.jpg', 'm-4')
+    `)
+    const routeApp = Fastify()
+    registerSharedRoutes(routeApp, createTestContext(new Map([['chat-1', db]]), root))
+    await routeApp.ready()
+
+    try {
+      const okResp = await routeApp.inject({ method: 'GET', url: '/_web/sessions/chat-1/messages/4/media' })
+      assert.equal(okResp.statusCode, 200)
+      assert.equal(okResp.headers['content-type'], 'image/jpeg')
+      assert.equal(okResp.rawPayload.length, 4)
+
+      const nonMediaResp = await routeApp.inject({ method: 'GET', url: '/_web/sessions/chat-1/messages/1/media' })
+      assert.equal(nonMediaResp.statusCode, 400)
+    } finally {
+      await routeApp.close()
+      db.close()
+      fs.rmSync(root, { recursive: true, force: true })
+    }
   })
 
   it('owner profile routes select, apply and dismiss across sessions', async () => {

@@ -31,3 +31,5 @@ export type {
   IncrementalImportResult,
   IncrementalImportDeps,
 } from './incremental-importer'
+export { getMimeTypeForPath, getSessionMediaDir, isMediaMessageType, archiveMessageMedia } from './media-archive'
+export type { ArchivedMedia } from './media-archive'

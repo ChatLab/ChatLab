@@ -15,6 +15,9 @@ export {
   streamParseFileInfo,
   analyzeIncrementalImport,
   incrementalImport,
+  getMimeTypeForPath,
+  getSessionMediaDir,
+  isMediaMessageType,
 } from './import'
 export type {
   ImportMeta,

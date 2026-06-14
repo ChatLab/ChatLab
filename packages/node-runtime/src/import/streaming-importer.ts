@@ -24,7 +24,9 @@ import {
   type ParseProgress,
 } from '@openchatlab/parser'
 import * as fs from 'fs'
+import * as path from 'path'
 import { buildFtsIndex } from '../fts'
+import { archiveMessageMedia } from './media-archive'
 
 // ==================== Public interfaces ====================
 
@@ -77,6 +79,8 @@ export interface StreamImportDeps {
   postImportHook?: (db: DatabaseAdapter, sessionId: string) => void | Promise<void>
   /** Generate a session ID. Defaults to timestamp + random. */
   generateSessionId?: () => string
+  /** Return the per-session directory used for archived imported media. */
+  getSessionMediaDir?: (sessionId: string) => string
 }
 
 // ==================== Core streaming import ====================
@@ -200,17 +204,23 @@ async function streamImportSingle(
   }
 
   const db = deps.openDatabase(sessionId)
+  const sourceRoot = path.dirname(filePath)
+  const sessionMediaDir = deps.getSessionMediaDir?.(sessionId) ?? null
 
   const insertMeta = db.prepare(
-    `INSERT INTO meta (name, platform, type, imported_at, group_id, group_avatar, owner_id) VALUES (?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO meta (name, platform, type, imported_at, group_id, group_avatar, owner_id, source_root) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   )
   const insertMember = db.prepare(
     `INSERT OR IGNORE INTO member (platform_id, account_name, group_nickname, avatar, roles) VALUES (?, ?, ?, ?, ?)`
   )
   const getMemberId = db.prepare(`SELECT id FROM member WHERE platform_id = ?`)
   const insertMessage = db.prepare(
-    `INSERT INTO message (sender_id, sender_account_name, sender_group_nickname, ts, type, content, reply_to_message_id, platform_message_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+    `INSERT INTO message (
+       sender_id, sender_account_name, sender_group_nickname, ts, type, content,
+       media_path, media_mime, media_filename,
+       reply_to_message_id, platform_message_id
+     )
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
   )
   const insertNameHistory = db.prepare(
     `INSERT INTO member_name_history (member_id, name_type, name, start_ts, end_ts) VALUES (?, ?, ?, ?, ?)`
@@ -326,7 +336,8 @@ async function streamImportSingle(
               Math.floor(Date.now() / 1000),
               meta.groupId || null,
               meta.groupAvatar || null,
-              meta.ownerId || null
+              meta.ownerId || null,
+              sourceRoot
             )
             metaInserted = true
           }
@@ -409,6 +420,14 @@ async function streamImportSingle(
             }
 
             t0 = Date.now()
+            const archivedMedia = sessionMediaDir
+              ? archiveMessageMedia(msg, {
+                  sourceRoot,
+                  sessionMediaDir,
+                  sequence: totalMessageCount + 1,
+                })
+              : { mediaPath: null, mediaMime: msg.media?.mimeType ?? null, mediaFilename: msg.media?.filename ?? null }
+
             insertMessage.run(
               senderId,
               msg.senderAccountName || null,
@@ -416,6 +435,9 @@ async function streamImportSingle(
               msg.timestamp,
               msg.type,
               safeContent,
+              archivedMedia.mediaPath,
+              archivedMedia.mediaMime,
+              archivedMedia.mediaFilename,
               msg.replyToMessageId || null,
               msg.platformMessageId || null
             )

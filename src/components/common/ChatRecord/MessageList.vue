@@ -115,6 +115,9 @@ function buildFilterParams(query: ChatRecordQuery) {
 function mapMessages(messages: any[]): ChatRecordMessage[] {
   return messages.map((m) => ({
     ...m,
+    mediaPath: m.mediaPath ?? null,
+    mediaMime: m.mediaMime ?? null,
+    mediaFilename: m.mediaFilename ?? null,
     replyToMessageId: m.replyToMessageId ?? null,
     replyToContent: m.replyToContent ?? null,
     replyToSenderName: m.replyToSenderName ?? null,
@@ -617,6 +620,7 @@ defineExpose({
             :highlight-keywords="query.highlightKeywords"
             :is-filtered="isFiltered"
             @view-context="(id) => emit('jump-to-message', id)"
+            @media-load="virtualizer.measure()"
           />
         </div>
       </div>

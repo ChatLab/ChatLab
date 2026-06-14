@@ -26,6 +26,7 @@ import type {
 } from '../types'
 import { getFileSize, createProgress, readFileHeadBytes } from '../utils'
 import * as path from 'path'
+import { inferMediaFromContent } from './media-utils'
 
 const { parser } = streamJson
 const { pick } = pickModule
@@ -203,15 +204,23 @@ async function* parseChatLab(options: ParseOptions): AsyncGenerator<ParseEvent, 
         })
       }
 
+      const inferredMedia = inferMediaFromContent(msg.content, msg.type)
       batchCollector.push({
         senderPlatformId: msg.sender,
         senderAccountName: msg.accountName,
         senderGroupNickname: msg.groupNickname,
         timestamp: msg.timestamp,
-        type: msg.type,
+        type: inferredMedia?.type ?? msg.type,
         content: msg.content,
         platformMessageId: msg.platformMessageId,
         replyToMessageId: msg.replyToMessageId,
+        media: inferredMedia
+          ? {
+              sourcePath: inferredMedia.sourcePath,
+              filename: inferredMedia.filename,
+              mimeType: inferredMedia.mimeType,
+            }
+          : undefined,
       })
 
       messagesProcessed++
