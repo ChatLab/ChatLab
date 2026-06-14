@@ -201,14 +201,22 @@ async function loadSessions() {
   try {
     const data = await useSessionIndexService().getSessions(props.sessionId)
     allSessions.value = data
-    // 滚动到底部（最新会话在下面）
-    await nextTick()
-    scrollToBottom()
   } catch (error) {
     console.error('加载会话列表失败:', error)
   } finally {
     isLoading.value = false
   }
+
+  // 滚动需等 isLoading 置 false 后虚拟容器（v-else）渲染完成，否则 getScrollElement 为 null。
+  // 默认滚到当前激活会话（即最新会话），与右侧消息列表展示最新内容保持一致。
+  await nextTick()
+  setTimeout(() => {
+    if (props.activeSessionId) {
+      scrollToSession(props.activeSessionId)
+    } else {
+      scrollToBottom()
+    }
+  }, 50)
 }
 
 // 滚动到底部
