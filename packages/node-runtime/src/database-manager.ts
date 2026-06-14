@@ -246,6 +246,11 @@ export class DatabaseManager {
     const cacheDir = this.pathProvider.getCacheDir()
     deleteSessionCache(sessionId, cacheDir)
     deleteSessionCache(sessionId, path.join(cacheDir, 'query'))
+    try {
+      fs.rmSync(path.join(this.pathProvider.getUserDataDir(), 'media', sessionId), { recursive: true, force: true })
+    } catch {
+      /* ignore cleanup failures */
+    }
     return existed
   }
 

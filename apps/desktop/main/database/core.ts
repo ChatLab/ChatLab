@@ -164,6 +164,7 @@ export function deleteSession(sessionId: string): boolean {
     const cacheDir = getPathProvider().getCacheDir()
     deleteSessionCache(sessionId, cacheDir)
     deleteSessionCache(sessionId, path.join(cacheDir, 'query'))
+    fs.rmSync(path.join(getPathProvider().getUserDataDir(), 'media', sessionId), { recursive: true, force: true })
     return true
   } catch (error) {
     console.error('[Database] Failed to delete session:', error)

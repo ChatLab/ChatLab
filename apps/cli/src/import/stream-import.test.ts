@@ -54,7 +54,7 @@ function writeIncrementalJsonl(filePath: string): void {
   fs.writeFileSync(filePath, rows.map((row) => JSON.stringify(row)).join('\n'), 'utf-8')
 }
 
-function writeMediaJsonl(filePath: string): void {
+function writeMediaJsonl(filePath: string, content = 'images/photo.jpg', platformMessageId = 'm1'): void {
   const rows = [
     {
       _type: 'header',
@@ -68,8 +68,8 @@ function writeMediaJsonl(filePath: string): void {
       accountName: 'Alice',
       timestamp: 2000,
       type: 0,
-      content: 'images/photo.jpg',
-      platformMessageId: 'm1',
+      content,
+      platformMessageId,
     },
   ]
   fs.writeFileSync(filePath, rows.map((row) => JSON.stringify(row)).join('\n'), 'utf-8')
@@ -152,6 +152,95 @@ test('streamImport archives ChatLab media paths and stores media metadata', asyn
     assert.equal(typeRow.count, 1)
   } finally {
     db.close()
+  }
+
+  assert.equal(manager.deleteSessionDatabaseFiles(result.sessionId!), true)
+  assert.equal(fs.existsSync(path.join(pathProvider.getUserDataDir(), 'media', result.sessionId!)), false)
+})
+
+test('streamImport refuses to archive media paths outside the import root', async () => {
+  const root = makeTempDir()
+  const pathProvider = createPathProvider(root)
+  const manager = new DatabaseManager(pathProvider, {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+
+  const importDir = path.join(root, 'source')
+  const outsideDir = path.join(root, 'outside')
+  fs.mkdirSync(outsideDir, { recursive: true })
+  fs.writeFileSync(path.join(outsideDir, 'secret.jpg'), Buffer.from([0xff, 0xd8, 0xff, 0xd9]))
+  fs.mkdirSync(importDir, { recursive: true })
+  const filePath = path.join(importDir, 'media.jsonl')
+  writeMediaJsonl(filePath, '../outside/secret.jpg')
+
+  const result = await streamImport(manager, filePath, { formatId: 'chatlab-jsonl' })
+  assert.equal(result.success, true)
+  assert.ok(result.sessionId)
+
+  const db = manager.openRawSessionDatabase(result.sessionId!, { readonly: true })
+  try {
+    const row = db
+      .prepare('SELECT type, media_path, media_mime, media_filename FROM message WHERE platform_message_id = ?')
+      .get('m1') as {
+      type: number
+      media_path: string | null
+      media_mime: string | null
+      media_filename: string | null
+    }
+    assert.equal(row.type, 1)
+    assert.equal(row.media_path, null)
+    assert.equal(row.media_mime, 'image/jpeg')
+    assert.equal(row.media_filename, 'secret.jpg')
+  } finally {
+    db.close()
+  }
+})
+
+test('incrementalImport archives newly added media paths', async () => {
+  const root = makeTempDir()
+  const pathProvider = createPathProvider(root)
+  const manager = new DatabaseManager(pathProvider, {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+
+  const db = manager.openRawSessionDatabase('existing', { create: true, initializeChatTables: true })
+  db.prepare('INSERT INTO meta (name, platform, type, imported_at) VALUES (?, ?, ?, ?)').run(
+    'Existing Chat',
+    'qq',
+    'group',
+    1000
+  )
+  db.prepare('INSERT INTO member (platform_id, account_name) VALUES (?, ?)').run('u1', 'Alice')
+  db.close()
+
+  const importDir = path.join(root, 'source')
+  const imageDir = path.join(importDir, 'images')
+  fs.mkdirSync(imageDir, { recursive: true })
+  fs.writeFileSync(path.join(imageDir, 'photo.jpg'), Buffer.from([0xff, 0xd8, 0xff, 0xd9]))
+  const filePath = path.join(importDir, 'media.jsonl')
+  writeMediaJsonl(filePath, 'images/photo.jpg', 'm-incremental')
+
+  const result = await incrementalImport(manager, 'existing', filePath)
+  assert.equal(result.success, true)
+  assert.equal(result.newMessageCount, 1)
+
+  const readDb = manager.openRawSessionDatabase('existing', { readonly: true })
+  try {
+    const row = readDb
+      .prepare('SELECT media_path, media_mime, media_filename FROM message WHERE platform_message_id = ?')
+      .get('m-incremental') as {
+      media_path: string | null
+      media_mime: string | null
+      media_filename: string | null
+    }
+    assert.ok(row.media_path)
+    assert.equal(row.media_mime, 'image/jpeg')
+    assert.equal(row.media_filename, 'photo.jpg')
+    assert.equal(fs.existsSync(path.join(pathProvider.getUserDataDir(), 'media', 'existing', row.media_path!)), true)
+  } finally {
+    readDb.close()
   }
 })
 

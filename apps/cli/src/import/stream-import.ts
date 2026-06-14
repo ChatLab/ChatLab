@@ -185,6 +185,9 @@ function buildIncrementalDeps(
         /* non-fatal */
       }
     },
+    getSessionMediaDir(sessionId: string) {
+      return path.join(path.dirname(dbManager.getDbPath(sessionId)), '..', 'media', sessionId)
+    },
   }
 }
 

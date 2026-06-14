@@ -76,6 +76,11 @@ function resolveSourcePath(sourceRoot: string, sourcePath: string): string {
   return path.resolve(path.isAbsolute(sourcePath) ? sourcePath : path.join(sourceRoot, sourcePath))
 }
 
+function isPathInsideRoot(root: string, candidate: string): boolean {
+  const relative = path.relative(path.resolve(root), path.resolve(candidate))
+  return relative === '' || (!!relative && !relative.startsWith('..') && !path.isAbsolute(relative))
+}
+
 export function archiveMessageMedia(
   message: ParsedMessage,
   options: {
@@ -95,6 +100,10 @@ export function archiveMessageMedia(
   if (!sourcePath) return { mediaPath: null, mediaMime, mediaFilename }
 
   const resolvedSource = resolveSourcePath(options.sourceRoot, sourcePath)
+  if (!isPathInsideRoot(options.sourceRoot, resolvedSource)) {
+    return { mediaPath: null, mediaMime, mediaFilename }
+  }
+
   if (!fs.existsSync(resolvedSource)) {
     return { mediaPath: null, mediaMime, mediaFilename }
   }
