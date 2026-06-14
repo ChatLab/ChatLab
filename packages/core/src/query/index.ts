@@ -59,6 +59,10 @@ export {
   getMonthlyActivity,
   getYearlyActivity,
   getMessageLengthDistribution,
+  getTextStats,
+  getLongMessageCount,
+  getMemberMonthlyTrend,
+  getTextLengthPercentiles,
 } from './basic-queries'
 export type {
   MemberActivity,
@@ -69,6 +73,9 @@ export type {
   MonthlyActivity,
   YearlyActivity,
   MessageLengthDistribution,
+  TextStats,
+  TextLengthPercentiles,
+  MemberMonthlyTrend,
 } from './basic-queries'
 
 export {
@@ -147,6 +154,12 @@ export {
   getClusterGraph,
   getRelationshipStats,
   getLanguagePreferenceAnalysis,
+  getDragonKingAnalysis,
+  getDivingAnalysis,
+  getCheckInAnalysis,
+  getMemeBattleAnalysis,
+  getNightOwlAnalysis,
+  getRepeatAnalysis,
 } from './advanced'
 export type {
   CatchphraseAnalysis,
@@ -170,4 +183,26 @@ export type {
   NlpProvider,
   PosTagResult,
   LanguagePreferenceParams,
+  NightOwlTitle,
+  NightOwlRankItem,
+  TimeRankItem,
+  ConsecutiveNightRecord,
+  NightOwlChampion,
+  NightOwlAnalysis,
+  DragonKingRankItem,
+  DragonKingAnalysis,
+  DivingRankItem,
+  DivingAnalysis,
+  RepeatStatItem,
+  RepeatRateItem,
+  ChainLengthDistribution,
+  HotRepeatContent,
+  FastestRepeaterItem,
+  RepeatAnalysis,
+  MemeBattleRankItem,
+  MemeBattleRecord,
+  MemeBattleAnalysis,
+  StreakRankItem,
+  LoyaltyRankItem,
+  CheckInAnalysis,
 } from './advanced'

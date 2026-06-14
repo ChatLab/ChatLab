@@ -136,4 +136,39 @@ describe('analytics routes caching', () => {
     const second = await app.inject({ method: 'GET', url: MEMBER_ACTIVITY_URL })
     assert.equal(second.statusCode, 500)
   })
+
+  it('keys long-message-count cache by minLength', async () => {
+    const base = `/_web/sessions/${SESSION_ID}/analytics/long-message-count`
+    const first = await app.inject({ method: 'GET', url: `${base}?minLength=1` })
+    assert.equal(first.statusCode, 200)
+
+    raw.close()
+
+    // 相同 minLength => 命中缓存
+    const same = await app.inject({ method: 'GET', url: `${base}?minLength=1` })
+    assert.equal(same.statusCode, 200)
+    assert.deepEqual(same.json(), first.json())
+
+    // 不同 minLength => 缓存未命中、重算因 db 关闭而失败，证明 minLength 进入缓存键
+    const diff = await app.inject({ method: 'GET', url: `${base}?minLength=999` })
+    assert.equal(diff.statusCode, 500)
+  })
+
+  it('keys cluster cache by options so different params recompute', async () => {
+    const base = `/_web/sessions/${SESSION_ID}/analytics/cluster`
+    const first = await app.inject({ method: 'GET', url: `${base}?lookAhead=3&decaySeconds=120&topEdges=150` })
+    assert.equal(first.statusCode, 200)
+
+    // 关闭底层数据库：命中缓存才能成功，重算必然抛错。
+    raw.close()
+
+    // 相同参数 => 命中缓存
+    const same = await app.inject({ method: 'GET', url: `${base}?lookAhead=3&decaySeconds=120&topEdges=150` })
+    assert.equal(same.statusCode, 200)
+    assert.deepEqual(same.json(), first.json())
+
+    // 不同参数 => 缓存未命中、重算因 db 关闭而失败，证明 lookAhead 已进入缓存键
+    const diff = await app.inject({ method: 'GET', url: `${base}?lookAhead=10&decaySeconds=120&topEdges=150` })
+    assert.equal(diff.statusCode, 500)
+  })
 })
