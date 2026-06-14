@@ -7,6 +7,7 @@ import { useI18n } from 'vue-i18n'
 import { formatLocalizedDate } from '@/utils'
 import { useTimeSelect } from './useTimeSelect'
 import { useDataService } from '@/services'
+import { abortAnalyticsRequests } from '@/services/utils/http'
 
 interface UseSessionAnalysisPageBaseOptions {
   route: RouteLocationNormalizedLoaded
@@ -125,6 +126,8 @@ export function useSessionAnalysisPageBase(options: UseSessionAnalysisPageBaseOp
   watch(
     currentSessionId,
     () => {
+      // 切换会话时，上一会话的分析请求立即作废（切换后子 Tab 会按新 key 重挂并重新取数）。
+      abortAnalyticsRequests()
       loadData()
     },
     { immediate: true }

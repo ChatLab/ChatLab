@@ -13,7 +13,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { useLayoutStore } from '@/stores/layout'
 import { useWordFilterStore } from '@/stores/wordFilter'
 import { useToast } from '@/composables/useToast'
-import { get, post } from '@/services/utils/http'
+import { get, post, analyticsPost } from '@/services/utils/http'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
 const { t } = useI18n()
@@ -273,7 +273,7 @@ async function loadPosTagDefinitions() {
 async function loadTopicMiniWords() {
   if (!props.sessionId || !canAnalyzeWithoutDictBlocking.value) return
   try {
-    const result = await post<WordFreqResponse>('/nlp/word-frequency', {
+    const result = await analyticsPost<WordFreqResponse>('/nlp/word-frequency', {
       sessionId: props.sessionId,
       locale: locale.value,
       timeFilter: props.timeFilter ? { startTs: props.timeFilter.startTs, endTs: props.timeFilter.endTs } : undefined,
@@ -303,7 +303,7 @@ async function loadWordFrequency() {
 
   isLoading.value = true
   try {
-    const result = await post<WordFreqResponse>('/nlp/word-frequency', {
+    const result = await analyticsPost<WordFreqResponse>('/nlp/word-frequency', {
       sessionId: props.sessionId,
       locale: locale.value,
       timeFilter: props.timeFilter ? { startTs: props.timeFilter.startTs, endTs: props.timeFilter.endTs } : undefined,
