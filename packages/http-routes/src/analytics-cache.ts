@@ -38,16 +38,23 @@ export function buildAnalyticsCacheKey(namespace: string, params: Record<string,
  * Cache-first wrapper for an analytics computation bound to a session.
  * Returns the cached result when the DB file is unchanged; otherwise computes,
  * persists (tagged with the current DB fingerprint) and returns it.
+ *
+ * Pass `options.dailyInvalidate: true` for endpoints whose results depend on
+ * the current date (e.g. daysSinceLastMessage, currentStreak). This appends
+ * today's date to the version string so the cache is refreshed each day even
+ * when the DB file has not changed.
  */
 export function withAnalyticsCache<T>(
   ctx: HttpRouteContext,
   sessionId: string,
   namespace: string,
   params: Record<string, unknown>,
-  compute: () => T
+  compute: () => T,
+  options?: { dailyInvalidate?: boolean }
 ): T {
   const queryCacheDir = path.join(ctx.pathProvider.getCacheDir(), 'query')
-  const version = `${ctx.getVersion()}|${getDbFileVersion(ctx.sessionAdapter.getDbPath(sessionId))}`
+  const dateStr = options?.dailyInvalidate ? `|date:${new Date().toISOString().split('T')[0]}` : ''
+  const version = `${ctx.getVersion()}|${getDbFileVersion(ctx.sessionAdapter.getDbPath(sessionId))}${dateStr}`
   const key = buildAnalyticsCacheKey(namespace, params)
   return getOrComputeAnalysisCache(sessionId, key, queryCacheDir, version, compute)
 }

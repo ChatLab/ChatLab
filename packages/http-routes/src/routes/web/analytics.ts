@@ -40,8 +40,13 @@ export function registerAnalyticsRoutes(server: FastifyInstance, ctx: HttpRouteC
   const { sessionAdapter: adapter } = ctx
 
   /** Cache-first wrapper bound to this context; `params` must capture all inputs that affect the result. */
-  const cached = <T>(name: string, sessionId: string, params: Record<string, unknown>, compute: () => T): T =>
-    withAnalyticsCache(ctx, sessionId, `analytics.${name}`, params, compute)
+  const cached = <T>(
+    name: string,
+    sessionId: string,
+    params: Record<string, unknown>,
+    compute: () => T,
+    options?: { dailyInvalidate?: boolean }
+  ): T => withAnalyticsCache(ctx, sessionId, `analytics.${name}`, params, compute, options)
 
   server.get<{ Params: { id: string } }>('/_web/sessions/:id/years', async (request) => {
     const db = adapter.ensureReadonly(request.params.id)
@@ -262,7 +267,9 @@ export function registerAnalyticsRoutes(server: FastifyInstance, ctx: HttpRouteC
     async (request) => {
       const id = request.params.id
       const filter = parseTimeFilter(request.query)
-      return cached('diving', id, { ...filter }, () => getDivingAnalysis(adapter.ensureReadonly(id), filter))
+      return cached('diving', id, { ...filter }, () => getDivingAnalysis(adapter.ensureReadonly(id), filter), {
+        dailyInvalidate: true,
+      })
     }
   )
 
@@ -289,7 +296,9 @@ export function registerAnalyticsRoutes(server: FastifyInstance, ctx: HttpRouteC
     async (request) => {
       const id = request.params.id
       const filter = parseTimeFilter(request.query)
-      return cached('night-owl', id, { ...filter }, () => getNightOwlAnalysis(adapter.ensureReadonly(id), filter))
+      return cached('night-owl', id, { ...filter }, () => getNightOwlAnalysis(adapter.ensureReadonly(id), filter), {
+        dailyInvalidate: true,
+      })
     }
   )
 
