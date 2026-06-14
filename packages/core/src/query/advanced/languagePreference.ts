@@ -8,6 +8,7 @@
 import type { TimeFilter } from '@openchatlab/shared-types'
 import type { DatabaseAdapter } from '../../interfaces'
 import { buildTimeFilter } from '../filters'
+import { isSystemPlaceholderContent } from './text-filters'
 
 // ==================== NLP Provider 接口 ====================
 
@@ -133,6 +134,8 @@ export function getLanguagePreferenceAnalysis(db: DatabaseAdapter, params: Langu
       punct.tilde += countMatches(content, RE_TILDE)
       punct.period += countMatches(content, RE_PERIOD)
       const trimmed = content.trim()
+      if (isSystemPlaceholderContent(trimmed)) continue
+
       if (trimmed.length > 0 && !RE_ENDS_WITH_PUNCT.test(trimmed)) punct.noPunct++
       punct.total++
 
