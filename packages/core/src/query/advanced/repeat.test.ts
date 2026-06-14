@@ -59,12 +59,15 @@ describe('getLanguagePreferenceAnalysis', () => {
     const db = createRowsDb([
       { memberId: 1, name: 'Alice', content: '[回复消息]' },
       { memberId: 1, name: 'Alice', content: '[回复消息]' },
-      { memberId: 1, name: 'Alice', content: 'noted' },
-      { memberId: 1, name: 'Alice', content: 'noted' },
+      { memberId: 2, name: 'Bob', content: 'noted' },
+      { memberId: 2, name: 'Bob', content: 'noted' },
     ])
 
     const result = getLanguagePreferenceAnalysis(db, { locale: 'en-US' })
 
+    assert.equal(result.members.length, 1)
+    assert.equal(result.members[0]?.name, 'Bob')
+    assert.equal(result.members[0]?.totalMessages, 2)
     assert.deepEqual(result.members[0]?.catchphrases, [{ content: 'noted', count: 2 }])
   })
 })
