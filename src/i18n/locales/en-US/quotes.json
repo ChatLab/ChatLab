@@ -45,7 +45,7 @@
       "download": "Download dictionary",
       "download_zh-CN": "Download Simplified Chinese dict",
       "download_zh-TW": "Download Traditional Chinese dict",
-      "needDownload": "Please download a dictionary to use word cloud analysis",
+      "needDownload": "Word cloud is shown with the built-in tokenizer. Download a Chinese dictionary for more accurate segmentation.",
       "downloadHint": "~8MB",
       "downloadSuccess": "Dictionary downloaded successfully",
       "downloadFailed": "Dictionary download failed",

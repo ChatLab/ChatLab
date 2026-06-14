@@ -45,7 +45,7 @@
       "download": "辞書をダウンロード",
       "download_zh-CN": "簡体字辞書をダウンロード",
       "download_zh-TW": "繁体字辞書をダウンロード",
-      "needDownload": "ワードクラウドを使用するには辞書のダウンロードが必要です",
+      "needDownload": "ワードクラウドは内蔵トークナイザーの結果で表示されています。中国語辞書をダウンロードすると分かち書きの精度が向上します。",
       "downloadHint": "~8MB",
       "downloadSuccess": "辞書のダウンロードが完了しました",
       "downloadFailed": "辞書のダウンロードに失敗しました",

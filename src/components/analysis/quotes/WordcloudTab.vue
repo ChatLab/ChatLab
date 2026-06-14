@@ -398,16 +398,18 @@ onMounted(async () => {
 
 <template>
   <div class="main-content mx-auto max-w-[920px] space-y-6 p-6">
-    <!-- 需要下载词库（全屏提示） -->
+    <!-- 中文词库可提升分词效果，但不能阻断后端 fallback 词云结果展示 -->
     <div
       v-if="requiresChineseDict && !hasAnyDict"
-      class="flex h-64 flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-gray-300 dark:border-gray-600"
+      class="flex flex-col gap-3 rounded-lg border border-primary-200 bg-primary-50/70 p-4 dark:border-primary-800 dark:bg-primary-950/30 sm:flex-row sm:items-center sm:justify-between"
     >
-      <UIcon name="i-heroicons-arrow-down-tray" class="text-4xl text-gray-400" />
-      <p class="text-sm text-gray-500 dark:text-gray-400">
-        {{ t('quotes.wordcloud.dict.needDownload') }}
-      </p>
-      <div class="flex gap-2">
+      <div class="flex min-w-0 items-start gap-3">
+        <UIcon name="i-heroicons-information-circle" class="mt-0.5 shrink-0 text-xl text-primary-500" />
+        <p class="min-w-0 text-sm text-primary-700 dark:text-primary-300">
+          {{ t('quotes.wordcloud.dict.needDownload') }}
+        </p>
+      </div>
+      <div class="flex shrink-0 flex-wrap gap-2">
         <UButton
           v-for="dict in dictList"
           :key="dict.id"
@@ -423,7 +425,7 @@ onMounted(async () => {
       </div>
     </div>
 
-    <template v-else>
+    <template v-if="canAnalyzeWithoutDictBlocking">
       <div class="space-y-6">
         <LoadingState v-if="isLoading && topWords.length === 0" :text="t('quotes.wordcloud.loading')" class="py-8" />
 
