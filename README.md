@@ -103,6 +103,9 @@ For complete contributor instructions, see the [Development Guide](https://docs.
 
 ```bash
 # Install dependencies
+
+[![Listed on TakoAPI](https://img.shields.io/badge/Listed%20on-TakoAPI-7c3aed)](https://takoapi.com/agents/chatlab-chatlab)
+
 pnpm install
 
 # Run desktop app in dev mode
