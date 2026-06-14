@@ -146,7 +146,8 @@ const dictOptions = computed(() => {
 const hasAnyDict = computed(() => {
   return dictList.value.some((d) => d.downloaded)
 })
-const canAnalyzeWithoutDictBlocking = computed(() => !requiresChineseDict.value || hasAnyDict.value)
+// 即使没有外部词典，内置 jieba 分词器也能正常工作，不应阻止分析
+const canAnalyzeWithoutDictBlocking = computed(() => true)
 
 const undownloadedDicts = computed(() => {
   return dictList.value.filter((d) => !d.downloaded)
