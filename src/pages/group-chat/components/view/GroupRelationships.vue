@@ -6,9 +6,9 @@
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SubTabs } from '@/components/UI'
-import InteractionView from '@/features/charts-interaction/InteractionView.vue'
+import InteractionView from '@/components/analysis/relationships/InteractionView.vue'
 import Relationships from './Relationships.vue'
-import ClusterView from '@/features/charts-cluster/ClusterView.vue'
+import ClusterView from '@/components/analysis/relationships/ClusterView.vue'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
 const { t } = useI18n()

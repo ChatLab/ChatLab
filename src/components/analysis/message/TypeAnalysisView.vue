@@ -4,15 +4,9 @@ import { useI18n } from 'vue-i18n'
 import { EChartPie, EChartBar } from '@/components/charts'
 import type { EChartPieData, EChartBarData } from '@/components/charts'
 import { SectionCard, LoadingState } from '@/components/UI'
-import {
-  queryMessageTypes,
-  queryLengthDistribution,
-  queryTextStats,
-  queryLongMessageCount,
-  queryTextLengthPercentiles,
-} from './queries'
-import { getMessageTypeName } from './types'
-import type { MessageTypeCount, TextStats, TextLengthPercentiles } from './types'
+import { useDataService } from '@/services/data/service'
+import { getMessageTypeName } from '@/types/base'
+import type { MessageTypeStats, TextStats, TextLengthPercentiles } from '@openchatlab/core'
 import TypeProfileCard from './TypeProfileCard.vue'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
@@ -25,7 +19,7 @@ const props = defineProps<{
 const { t } = useI18n()
 
 const isLoading = ref(true)
-const messageTypes = ref<MessageTypeCount[]>([])
+const messageTypes = ref<MessageTypeStats[]>([])
 const lengthDetail = ref<Array<{ len: number; count: number }>>([])
 const lengthGrouped = ref<Array<{ range: string; count: number }>>([])
 const textStats = ref<TextStats>({ textCount: 0, avgLength: 0, maxLength: 0, shortCount: 0 })
@@ -91,12 +85,13 @@ async function loadData() {
   if (!props.sessionId) return
   isLoading.value = true
   try {
+    const data = useDataService()
     const [types, lengthData, txtStats, pctiles, essays] = await Promise.all([
-      queryMessageTypes(props.sessionId, props.timeFilter),
-      queryLengthDistribution(props.sessionId, props.timeFilter),
-      queryTextStats(props.sessionId, props.timeFilter),
-      queryTextLengthPercentiles(props.sessionId, props.timeFilter),
-      queryLongMessageCount(props.sessionId, props.timeFilter, 30),
+      data.getMessageTypeDistribution(props.sessionId, props.timeFilter),
+      data.getMessageLengthDistribution(props.sessionId, props.timeFilter),
+      data.getTextStats(props.sessionId, props.timeFilter),
+      data.getTextLengthPercentiles(props.sessionId, props.timeFilter),
+      data.getLongMessageCount(props.sessionId, props.timeFilter, 30),
     ])
 
     messageTypes.value = types

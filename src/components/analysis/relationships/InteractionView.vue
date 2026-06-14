@@ -7,7 +7,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { EChartGraph } from '@/components/charts'
 import type { EChartGraphData } from '@/components/charts'
-import { loadMentionGraph } from './queries'
+import { useDataService } from '@/services/data/service'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
 const props = defineProps<{
@@ -41,7 +41,7 @@ async function loadData() {
 
   isLoading.value = true
   try {
-    const data = await loadMentionGraph(props.sessionId, props.timeFilter)
+    const data = await useDataService().getMentionGraph(props.sessionId, props.timeFilter)
     graphData.value = {
       nodes: data.nodes,
       links: data.links,

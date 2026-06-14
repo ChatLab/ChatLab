@@ -6,7 +6,7 @@ import { computed, ref, watch } from 'vue'
 import { PageAnchorsNav, TopNSelect } from '@/components/UI'
 import { usePageAnchors } from '@/composables'
 import { useDataService } from '@/services/data/service'
-import type { MemberActivity } from './types'
+import type { MemberActivity } from '@/types/analysis'
 import { ActivityRank, CheckInRank, MemeBattleRank, RepeatSection, DivingRank, NightOwlRank } from './sections'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
