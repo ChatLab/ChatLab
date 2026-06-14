@@ -8,6 +8,7 @@
 import * as path from 'path'
 import type { FastifyInstance } from 'fastify'
 import type { HttpRouteContext } from '../../context'
+import { withAnalyticsCache } from '../../analytics-cache'
 import type { WordFrequencyParams, SupportedLocale } from '@openchatlab/core'
 import { POS_TAG_DEFINITIONS } from '@openchatlab/core'
 import {
@@ -52,7 +53,8 @@ export function registerNlpRoutes(server: FastifyInstance, ctx: HttpRouteContext
     if (!db) {
       throw Object.assign(new Error(`Session not found: ${params.sessionId}`), { statusCode: 404 })
     }
-    return computeWordFrequency(db, params)
+    const { sessionId, ...keyParams } = params
+    return withAnalyticsCache(ctx, sessionId, 'nlp.word-frequency', keyParams, () => computeWordFrequency(db, params))
   })
 
   server.post<{ Body: { text: string; locale: SupportedLocale; minLength?: number } }>(

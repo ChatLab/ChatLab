@@ -11,3 +11,4 @@ export {
   CACHE_KEY_MEMBERS,
 } from './session-cache'
 export type { OverviewCache, MembersCache, MemberStat } from './session-cache'
+export { getDbFileVersion, getOrComputeAnalysisCache } from './analytics-cache'
