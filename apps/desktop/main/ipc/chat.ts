@@ -236,14 +236,6 @@ export function registerChatHandlers(ctx: IpcContext): void {
     }
   })
 
-  /**
-   * 仅保留图表插件计算的 worker 卸载路径。
-   * 其他数据查询已迁移到 HTTP，但这些计算会处理大数组，放在 renderer 会冻结 UI。
-   */
-  ipcMain.handle('chat:pluginCompute', async (_, fnString: string, input: unknown) => {
-    return worker.pluginCompute(fnString, input)
-  })
-
   // Session index and summary IPC handlers have been removed.
   // All session-index operations now go through shared HTTP routes
   // (FetchSessionIndexAdapter via /_web/sessions/* endpoints).

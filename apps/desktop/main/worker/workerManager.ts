@@ -257,14 +257,6 @@ export async function pluginQuery<T = Record<string, any>>(
   return sendToWorker('pluginQuery', { sessionId, sql, params }, 120000)
 }
 
-/**
- * 插件计算卸载（纯函数在 Worker 中执行）
- * 超时设为 120s，因为计算密集型任务 + 排队等待可能较长
- */
-export async function pluginCompute<TOutput = any>(fnString: string, input: any): Promise<TOutput> {
-  return sendToWorker('pluginCompute', { fnString, input }, 120000)
-}
-
 // ==================== 导出的异步 API ====================
 
 export async function getAvailableYears(sessionId: string): Promise<number[]> {

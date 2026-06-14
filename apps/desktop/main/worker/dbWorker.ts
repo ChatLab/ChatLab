@@ -217,12 +217,8 @@ const syncHandlers: Record<string, (payload: any) => any> = {
   executeRawSQL: (p) => executeRawSQL(p.sessionId, p.sql),
   getSchema: (p) => getSchema(p.sessionId),
 
-  // 插件系统
+  // 通用 SQL 查询
   pluginQuery: (p) => executePluginQuery(p.sessionId, p.sql, p.params),
-  pluginCompute: (p: { fnString: string; input: any }) => {
-    const fn = new Function('return ' + p.fnString)()
-    return fn(p.input)
-  },
 
   // 会话索引
   generateSessions: (p) => generateSessions(p.sessionId, p.gapThreshold),
