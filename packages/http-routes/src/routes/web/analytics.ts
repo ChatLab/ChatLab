@@ -1,3 +1,5 @@
+import * as fs from 'fs'
+import * as path from 'path'
 import type { FastifyInstance } from 'fastify'
 import type { HttpRouteContext } from '../../context'
 import { createJiebaNlpProvider } from '@openchatlab/node-runtime'
@@ -45,7 +47,7 @@ export function registerAnalyticsRoutes(server: FastifyInstance, ctx: HttpRouteC
     sessionId: string,
     params: Record<string, unknown>,
     compute: () => T,
-    options?: { dailyInvalidate?: boolean }
+    options?: { dailyInvalidate?: boolean; extraVersion?: string }
   ): T => withAnalyticsCache(ctx, sessionId, `analytics.${name}`, params, compute, options)
 
   server.get<{ Params: { id: string } }>('/_web/sessions/:id/years', async (request) => {
@@ -171,12 +173,25 @@ export function registerAnalyticsRoutes(server: FastifyInstance, ctx: HttpRouteC
       const id = request.params.id
       const filter = parseTimeFilter(request.query)
       const locale = request.query.locale || 'zh-CN'
-      return cached('language-preference', id, { ...filter, locale }, () =>
-        getLanguagePreferenceAnalysis(adapter.ensureReadonly(id), {
-          locale,
-          timeFilter: filter,
-          nlpProvider: createJiebaNlpProvider(),
-        })
+      const zhDictPath = path.join(ctx.pathProvider.getSystemDir(), 'nlp', 'zh-CN.dict')
+      let zhDictVersion: string
+      try {
+        const st = fs.statSync(zhDictPath)
+        zhDictVersion = `${Math.floor(st.mtimeMs)}:${st.size}`
+      } catch {
+        zhDictVersion = '-'
+      }
+      return cached(
+        'language-preference',
+        id,
+        { ...filter, locale },
+        () =>
+          getLanguagePreferenceAnalysis(adapter.ensureReadonly(id), {
+            locale,
+            timeFilter: filter,
+            nlpProvider: createJiebaNlpProvider(),
+          }),
+        { extraVersion: `dict:${zhDictVersion}` }
       )
     }
   )
