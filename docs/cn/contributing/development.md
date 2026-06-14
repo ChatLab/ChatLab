@@ -121,8 +121,8 @@ CHATLAB_ALLOW_INCOMPATIBLE_DATA_DIR=1
 
 | 想改什么 | 先看哪里 |
 | --- | --- |
-| 前端页面和组件 | `src/pages/`、`src/components/`、`src/features/` |
-| 图表分析 | `src/features/charts-*`、`src/components/charts/` |
+| 前端页面和组件 | `src/pages/`、`src/components/` |
+| 图表分析 | `src/components/analysis/`、`src/components/charts/` |
 | 数据、消息、会话 API 调用 | `src/services/` |
 | Electron 主进程 | `apps/desktop/main/`、`apps/desktop/preload/` |
 | CLI 和 Web API | `apps/cli/` |

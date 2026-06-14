@@ -21,8 +21,8 @@
     "filter": "篩選"
   },
   "timeline": {
-    "timeline": "會話",
-    "noSessions": "暫無會話",
+    "timeline": "摘要",
+    "noSessions": "暫無摘要",
     "generateSummary": "產生摘要",
     "tooFewMessages": "訊息太少"
   },

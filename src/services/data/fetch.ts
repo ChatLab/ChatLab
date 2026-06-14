@@ -23,6 +23,17 @@ import type {
 } from '@/types/analysis'
 import type { LanguagePreferenceResult } from '@/types/quotes/languagePreference'
 import type {
+  TextStats,
+  TextLengthPercentiles,
+  MemberMonthlyTrend,
+  DragonKingAnalysis,
+  DivingAnalysis,
+  CheckInAnalysis,
+  MemeBattleAnalysis,
+  NightOwlAnalysis,
+  RepeatAnalysis,
+} from '@openchatlab/core'
+import type {
   DataAdapter,
   PaginationParams,
   PaginatedResult,
@@ -31,7 +42,7 @@ import type {
   MentionGraphData,
   MessageLengthDistribution,
 } from './types'
-import { get, post, del, patch } from '../utils/http'
+import { get, post, del, patch, analyticsGet } from '../utils/http'
 
 function buildFilterParams(filter?: TimeFilter): string {
   if (!filter) return ''
@@ -99,38 +110,84 @@ export class FetchDataAdapter implements DataAdapter {
   // ==================== 统计分析 ====================
 
   getMemberActivity(sessionId: string, filter?: TimeFilter): Promise<MemberActivity[]> {
-    return get(`/sessions/${sessionId}/stats/member-activity${buildFilterParams(filter)}`)
+    return analyticsGet(`/sessions/${sessionId}/stats/member-activity${buildFilterParams(filter)}`)
   }
 
   getHourlyActivity(sessionId: string, filter?: TimeFilter): Promise<HourlyActivity[]> {
-    return get(`/sessions/${sessionId}/stats/hourly${buildFilterParams(filter)}`)
+    return analyticsGet(`/sessions/${sessionId}/stats/hourly${buildFilterParams(filter)}`)
   }
 
   getDailyActivity(sessionId: string, filter?: TimeFilter): Promise<DailyActivity[]> {
-    return get(`/sessions/${sessionId}/stats/daily${buildFilterParams(filter)}`)
+    return analyticsGet(`/sessions/${sessionId}/stats/daily${buildFilterParams(filter)}`)
   }
 
   getWeekdayActivity(sessionId: string, filter?: TimeFilter): Promise<WeekdayActivity[]> {
-    return get(`/sessions/${sessionId}/stats/weekday${buildFilterParams(filter)}`)
+    return analyticsGet(`/sessions/${sessionId}/stats/weekday${buildFilterParams(filter)}`)
   }
 
   getMonthlyActivity(sessionId: string, filter?: TimeFilter): Promise<MonthlyActivity[]> {
-    return get(`/sessions/${sessionId}/analytics/monthly-activity${buildFilterParams(filter)}`)
+    return analyticsGet(`/sessions/${sessionId}/analytics/monthly-activity${buildFilterParams(filter)}`)
   }
 
   getYearlyActivity(sessionId: string, filter?: TimeFilter): Promise<Array<{ year: number; messageCount: number }>> {
-    return get(`/sessions/${sessionId}/analytics/yearly-activity${buildFilterParams(filter)}`)
+    return analyticsGet(`/sessions/${sessionId}/analytics/yearly-activity${buildFilterParams(filter)}`)
   }
 
   getMessageLengthDistribution(sessionId: string, filter?: TimeFilter): Promise<MessageLengthDistribution> {
-    return get(`/sessions/${sessionId}/analytics/message-length-distribution${buildFilterParams(filter)}`)
+    return analyticsGet(`/sessions/${sessionId}/analytics/message-length-distribution${buildFilterParams(filter)}`)
   }
 
   getMessageTypeDistribution(
     sessionId: string,
     filter?: TimeFilter
   ): Promise<Array<{ type: MessageType; count: number }>> {
-    return get(`/sessions/${sessionId}/stats/message-types${buildFilterParams(filter)}`)
+    return analyticsGet(`/sessions/${sessionId}/stats/message-types${buildFilterParams(filter)}`)
+  }
+
+  getTextStats(sessionId: string, filter?: TimeFilter): Promise<TextStats> {
+    return analyticsGet(`/sessions/${sessionId}/analytics/text-stats${buildFilterParams(filter)}`)
+  }
+
+  getLongMessageCount(sessionId: string, filter?: TimeFilter, minLength?: number): Promise<number> {
+    const params = new URLSearchParams()
+    if (filter?.startTs) params.set('startTs', String(filter.startTs))
+    if (filter?.endTs) params.set('endTs', String(filter.endTs))
+    if (filter?.memberId) params.set('memberId', String(filter.memberId))
+    if (minLength != null) params.set('minLength', String(minLength))
+    const qs = params.toString()
+    return analyticsGet(`/sessions/${sessionId}/analytics/long-message-count${qs ? `?${qs}` : ''}`)
+  }
+
+  getMemberMonthlyTrend(sessionId: string, filter?: TimeFilter): Promise<MemberMonthlyTrend[]> {
+    return analyticsGet(`/sessions/${sessionId}/analytics/member-monthly-trend${buildFilterParams(filter)}`)
+  }
+
+  getTextLengthPercentiles(sessionId: string, filter?: TimeFilter): Promise<TextLengthPercentiles> {
+    return analyticsGet(`/sessions/${sessionId}/analytics/text-length-percentiles${buildFilterParams(filter)}`)
+  }
+
+  getDragonKingAnalysis(sessionId: string, filter?: TimeFilter): Promise<DragonKingAnalysis> {
+    return analyticsGet(`/sessions/${sessionId}/analytics/dragon-king${buildFilterParams(filter)}`)
+  }
+
+  getDivingAnalysis(sessionId: string, filter?: TimeFilter): Promise<DivingAnalysis> {
+    return analyticsGet(`/sessions/${sessionId}/analytics/diving${buildFilterParams(filter)}`)
+  }
+
+  getCheckInAnalysis(sessionId: string, filter?: TimeFilter): Promise<CheckInAnalysis> {
+    return analyticsGet(`/sessions/${sessionId}/analytics/check-in${buildFilterParams(filter)}`)
+  }
+
+  getMemeBattleAnalysis(sessionId: string, filter?: TimeFilter): Promise<MemeBattleAnalysis> {
+    return analyticsGet(`/sessions/${sessionId}/analytics/meme-battle${buildFilterParams(filter)}`)
+  }
+
+  getNightOwlAnalysis(sessionId: string, filter?: TimeFilter): Promise<NightOwlAnalysis> {
+    return analyticsGet(`/sessions/${sessionId}/analytics/night-owl${buildFilterParams(filter)}`)
+  }
+
+  getRepeatAnalysis(sessionId: string, filter?: TimeFilter): Promise<RepeatAnalysis> {
+    return analyticsGet(`/sessions/${sessionId}/analytics/repeat${buildFilterParams(filter)}`)
   }
 
   // ==================== 成员管理 ====================
@@ -176,7 +233,7 @@ export class FetchDataAdapter implements DataAdapter {
   // ==================== 社交分析 ====================
 
   getCatchphraseAnalysis(sessionId: string, filter?: TimeFilter): Promise<CatchphraseAnalysis> {
-    return get(`/sessions/${sessionId}/analytics/catchphrase${buildFilterParams(filter)}`)
+    return analyticsGet(`/sessions/${sessionId}/analytics/catchphrase${buildFilterParams(filter)}`)
   }
 
   getLanguagePreferenceAnalysis(
@@ -190,15 +247,15 @@ export class FetchDataAdapter implements DataAdapter {
     if (filter?.startTs) params.set('startTs', String(filter.startTs))
     if (filter?.endTs) params.set('endTs', String(filter.endTs))
     if (filter?.memberId) params.set('memberId', String(filter.memberId))
-    return get(`/sessions/${sessionId}/analytics/language-preference?${params}`)
+    return analyticsGet(`/sessions/${sessionId}/analytics/language-preference?${params}`)
   }
 
   getMentionAnalysis(sessionId: string, filter?: TimeFilter): Promise<MentionAnalysis> {
-    return get(`/sessions/${sessionId}/analytics/mention${buildFilterParams(filter)}`)
+    return analyticsGet(`/sessions/${sessionId}/analytics/mention${buildFilterParams(filter)}`)
   }
 
   getMentionGraph(sessionId: string, filter?: TimeFilter): Promise<MentionGraphData> {
-    return get(`/sessions/${sessionId}/analytics/mention-graph${buildFilterParams(filter)}`)
+    return analyticsGet(`/sessions/${sessionId}/analytics/mention-graph${buildFilterParams(filter)}`)
   }
 
   getClusterGraph(sessionId: string, filter?: TimeFilter, options?: ClusterGraphOptions): Promise<ClusterGraphData> {
@@ -207,12 +264,14 @@ export class FetchDataAdapter implements DataAdapter {
     if (filter?.endTs) params.set('endTs', String(filter.endTs))
     if (filter?.memberId) params.set('memberId', String(filter.memberId))
     if (options?.topEdges) params.set('topEdges', String(options.topEdges))
+    if (options?.lookAhead) params.set('lookAhead', String(options.lookAhead))
+    if (options?.decaySeconds) params.set('decaySeconds', String(options.decaySeconds))
     const qs = params.toString()
-    return get(`/sessions/${sessionId}/analytics/cluster${qs ? `?${qs}` : ''}`)
+    return analyticsGet(`/sessions/${sessionId}/analytics/cluster${qs ? `?${qs}` : ''}`)
   }
 
   getLaughAnalysis(sessionId: string, filter?: TimeFilter, _keywords?: string[]): Promise<LaughAnalysis> {
-    return get(`/sessions/${sessionId}/analytics/laugh${buildFilterParams(filter)}`)
+    return analyticsGet(`/sessions/${sessionId}/analytics/laugh${buildFilterParams(filter)}`)
   }
 
   getRelationshipStats(
@@ -220,7 +279,7 @@ export class FetchDataAdapter implements DataAdapter {
     filter?: TimeFilter,
     _options?: { perseveranceThreshold?: number }
   ): Promise<RelationshipStats> {
-    return get(`/sessions/${sessionId}/analytics/relationship${buildFilterParams(filter)}`)
+    return analyticsGet(`/sessions/${sessionId}/analytics/relationship${buildFilterParams(filter)}`)
   }
 
   // ==================== SQL Lab ====================
@@ -233,14 +292,9 @@ export class FetchDataAdapter implements DataAdapter {
     return get(`/sessions/${sessionId}/schema`)
   }
 
-  // ==================== 插件系统 ====================
+  // ==================== 通用 SQL 查询 ====================
 
   pluginQuery<T = Record<string, unknown>>(sessionId: string, sql: string, params?: unknown[]): Promise<T[]> {
     return post<T[]>(`/sessions/${sessionId}/query`, { sql, params: params ?? [] })
-  }
-
-  async pluginCompute<T = unknown>(fnString: string, input: unknown): Promise<T> {
-    const fn = new Function('return ' + fnString)()
-    return Promise.resolve(fn(input))
   }
 }

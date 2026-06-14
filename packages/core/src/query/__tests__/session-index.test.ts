@@ -296,6 +296,26 @@ describe('clearSessionIndex', () => {
     assert.equal(countRows(db, 'segment'), 0)
     assert.equal(countRows(db, 'message_context'), 0)
   })
+
+  it('rolls back context deletion when segment deletion fails', () => {
+    const db = createSqliteDb()
+    seedMessages(db, [
+      { id: 1, ts: 1000 },
+      { id: 2, ts: 5000 },
+    ])
+    generateSessionIndex(db, 2000)
+    db.exec(`
+      CREATE TRIGGER prevent_segment_delete
+      BEFORE DELETE ON segment
+      BEGIN
+        SELECT RAISE(ABORT, 'blocked');
+      END;
+    `)
+
+    assert.throws(() => clearSessionIndex(db), /blocked/)
+    assert.equal(countRows(db, 'segment'), 2)
+    assert.equal(countRows(db, 'message_context'), 2)
+  })
 })
 
 describe('generateIncrementalSessionIndex', () => {
@@ -333,6 +353,28 @@ describe('generateIncrementalSessionIndex', () => {
 
     const newCount = generateIncrementalSessionIndex(db, 2000)
     assert.equal(newCount, 0, 'should not create new session')
+    assert.equal(countRows(db, 'message_context'), 2)
+  })
+})
+
+describe('generateSessionIndex atomicity', () => {
+  it('preserves the existing index when rebuilding fails', () => {
+    const db = createSqliteDb()
+    seedMessages(db, [
+      { id: 1, ts: 1000 },
+      { id: 2, ts: 5000 },
+    ])
+    generateSessionIndex(db, 2000)
+    db.exec(`
+      CREATE TRIGGER prevent_segment_insert
+      BEFORE INSERT ON segment
+      BEGIN
+        SELECT RAISE(ABORT, 'blocked');
+      END;
+    `)
+
+    assert.throws(() => generateSessionIndex(db, 2000), /blocked/)
+    assert.equal(countRows(db, 'segment'), 2)
     assert.equal(countRows(db, 'message_context'), 2)
   })
 })

@@ -7,9 +7,9 @@ import { PieChart } from 'echarts/charts'
 import { TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { ThemeCard } from '@/components/UI'
-import { MessageType, getMessageTypeName } from './types'
-import type { MessageTypeCount, TextStats } from './types'
-import { queryLongMessageCount, queryDailyActivity } from './queries'
+import { useDataService } from '@/services/data/service'
+import { MessageType, getMessageTypeName } from '@/types/base'
+import type { MessageTypeStats, TextStats } from '@openchatlab/core'
 import type { TimeFilter } from '@openchatlab/shared-types'
 import dayjs from 'dayjs'
 
@@ -20,7 +20,7 @@ const isDark = useDark()
 
 const props = defineProps<{
   sessionId: string
-  messageTypes: MessageTypeCount[]
+  messageTypes: MessageTypeStats[]
   textStats: TextStats
   timeFilter?: TimeFilter
 }>()
@@ -45,7 +45,7 @@ const dateRange = ref({ first: '', last: '' })
 async function loadDateRange() {
   if (!props.sessionId) return
   try {
-    const daily = await queryDailyActivity(props.sessionId, props.timeFilter)
+    const daily = await useDataService().getDailyActivity(props.sessionId, props.timeFilter)
     if (daily.length > 0) {
       const sorted = [...daily].sort((a, b) => a.date.localeCompare(b.date))
       dateRange.value = {
@@ -124,7 +124,11 @@ async function loadEssayCount() {
   if (!props.sessionId) return
   isEssayLoading.value = true
   try {
-    essayCount.value = await queryLongMessageCount(props.sessionId, props.timeFilter, essayThreshold.value)
+    essayCount.value = await useDataService().getLongMessageCount(
+      props.sessionId,
+      props.timeFilter,
+      essayThreshold.value
+    )
   } catch (error) {
     console.error('[chart-message] Failed to load essay count:', error)
   } finally {

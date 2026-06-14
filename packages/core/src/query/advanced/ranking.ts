@@ -1,24 +1,207 @@
 /**
- * chart-ranking SQL 查询与计算
+ * 榜单分析模块（平台无关）
+ *
+ * 包含：龙王、潜水、打卡、斗图、夜猫、复读分析。
+ * 算法从原前端 pluginCompute 移植，行为与现状保持一致（含原有时区/边界处理）。
+ * 所有函数接收 DatabaseAdapter，不依赖全局状态。
  */
 
-import { useDataService } from '@/services/data/service'
-import type {
-  DragonKingAnalysis,
-  DragonKingRankItem,
-  DivingAnalysis,
-  DivingRankItem,
-  CheckInAnalysis,
-  NightOwlAnalysis,
-  NightOwlTitle,
-  MemeBattleAnalysis,
-  RepeatAnalysis,
-} from './types'
 import type { TimeFilter } from '@openchatlab/shared-types'
+import type { DatabaseAdapter } from '../../interfaces'
 
-function buildFilter(filter?: TimeFilter): { conditions: string; params: any[] } {
+// ==================== 类型定义 ====================
+
+export type NightOwlTitle = '养生达人' | '偶尔失眠' | '经常失眠' | '夜猫子' | '秃头预备役' | '修仙练习生' | '守夜冠军'
+
+export interface NightOwlRankItem {
+  memberId: number
+  platformId: string
+  name: string
+  totalNightMessages: number
+  title: NightOwlTitle
+  hourlyBreakdown: {
+    h23: number
+    h0: number
+    h1: number
+    h2: number
+    h3to4: number
+  }
+  percentage: number
+}
+
+export interface TimeRankItem {
+  memberId: number
+  platformId: string
+  name: string
+  count: number
+  avgTime: string
+  extremeTime: string
+  percentage: number
+}
+
+export interface ConsecutiveNightRecord {
+  memberId: number
+  platformId: string
+  name: string
+  maxConsecutiveDays: number
+  currentStreak: number
+}
+
+export interface NightOwlChampion {
+  memberId: number
+  platformId: string
+  name: string
+  score: number
+  nightMessages: number
+  lastSpeakerCount: number
+  consecutiveDays: number
+}
+
+export interface NightOwlAnalysis {
+  nightOwlRank: NightOwlRankItem[]
+  lastSpeakerRank: TimeRankItem[]
+  firstSpeakerRank: TimeRankItem[]
+  consecutiveRecords: ConsecutiveNightRecord[]
+  champions: NightOwlChampion[]
+  totalDays: number
+}
+
+export interface DragonKingRankItem {
+  memberId: number
+  platformId: string
+  name: string
+  count: number
+  percentage: number
+}
+
+export interface DragonKingAnalysis {
+  rank: DragonKingRankItem[]
+  totalDays: number
+}
+
+export interface DivingRankItem {
+  memberId: number
+  platformId: string
+  name: string
+  lastMessageTs: number
+  daysSinceLastMessage: number
+}
+
+export interface DivingAnalysis {
+  rank: DivingRankItem[]
+}
+
+export interface RepeatStatItem {
+  memberId: number
+  platformId: string
+  name: string
+  count: number
+  percentage: number
+}
+
+export interface RepeatRateItem {
+  memberId: number
+  platformId: string
+  name: string
+  count: number
+  totalMessages: number
+  rate: number
+}
+
+export interface ChainLengthDistribution {
+  length: number
+  count: number
+}
+
+export interface HotRepeatContent {
+  content: string
+  count: number
+  maxChainLength: number
+  originatorName: string
+  lastTs: number
+  firstMessageId: number
+}
+
+export interface FastestRepeaterItem {
+  memberId: number
+  platformId: string
+  name: string
+  count: number
+  avgTimeDiff: number
+}
+
+export interface RepeatAnalysis {
+  originators: RepeatStatItem[]
+  initiators: RepeatStatItem[]
+  breakers: RepeatStatItem[]
+  fastestRepeaters: FastestRepeaterItem[]
+  originatorRates: RepeatRateItem[]
+  initiatorRates: RepeatRateItem[]
+  breakerRates: RepeatRateItem[]
+  chainLengthDistribution: ChainLengthDistribution[]
+  hotContents: HotRepeatContent[]
+  avgChainLength: number
+  totalRepeatChains: number
+}
+
+export interface MemeBattleRankItem {
+  memberId: number
+  platformId: string
+  name: string
+  count: number
+  percentage: number
+}
+
+export interface MemeBattleRecord {
+  startTime: number
+  endTime: number
+  totalImages: number
+  participantCount: number
+  participants: Array<{
+    memberId: number
+    name: string
+    imageCount: number
+  }>
+}
+
+export interface MemeBattleAnalysis {
+  topBattles: MemeBattleRecord[]
+  rankByCount: MemeBattleRankItem[]
+  rankByImageCount: MemeBattleRankItem[]
+  totalBattles: number
+}
+
+export interface StreakRankItem {
+  memberId: number
+  name: string
+  maxStreak: number
+  maxStreakStart: string
+  maxStreakEnd: string
+  currentStreak: number
+}
+
+export interface LoyaltyRankItem {
+  memberId: number
+  name: string
+  totalDays: number
+  percentage: number
+}
+
+export interface CheckInAnalysis {
+  streakRank: StreakRankItem[]
+  loyaltyRank: LoyaltyRankItem[]
+  totalDays: number
+}
+
+// ==================== 过滤条件构建 ====================
+
+/** 系统消息过滤条件（始终排除），与前端历史实现保持一致 */
+const SYSTEM_FILTER = "AND COALESCE(m.account_name, '') != '系统消息'"
+
+/** 构建 AND 形式的时间/成员过滤条件（msg 别名），与原前端 SQL 保持等价 */
+function buildFilter(filter?: TimeFilter): { conditions: string; params: (number | string)[] } {
   const parts: string[] = []
-  const params: any[] = []
+  const params: (number | string)[] = []
   if (filter?.startTs != null) {
     parts.push('AND msg.ts >= ?')
     params.push(filter.startTs)
@@ -34,21 +217,13 @@ function buildFilter(filter?: TimeFilter): { conditions: string; params: any[] }
   return { conditions: parts.join(' '), params }
 }
 
-const SYSTEM_FILTER = "AND COALESCE(m.account_name, '') != '系统消息'"
-
 // ==================== 龙王分析 ====================
 
-export async function queryDragonKingAnalysis(sessionId: string, timeFilter?: TimeFilter): Promise<DragonKingAnalysis> {
-  const { conditions, params } = buildFilter(timeFilter)
+export function getDragonKingAnalysis(db: DatabaseAdapter, filter?: TimeFilter): DragonKingAnalysis {
+  const { conditions, params } = buildFilter(filter)
 
-  const [rankRows, totalRow] = await Promise.all([
-    useDataService().pluginQuery<{
-      sender_id: number
-      platform_id: string
-      name: string
-      dragon_days: number
-    }>(
-      sessionId,
+  const rankRows = db
+    .prepare(
       `WITH daily_counts AS (
         SELECT
           strftime('%Y-%m-%d', msg.ts, 'unixepoch', 'localtime') as date,
@@ -70,20 +245,20 @@ export async function queryDragonKingAnalysis(sessionId: string, timeFilter?: Ti
       FROM daily_counts dc
       JOIN daily_max dm ON dc.date = dm.date AND dc.msg_count = dm.max_count
       GROUP BY dc.sender_id
-      ORDER BY dragon_days DESC`,
-      params
-    ),
-    useDataService().pluginQuery<{ total: number }>(
-      sessionId,
+      ORDER BY dragon_days DESC`
+    )
+    .all(...params) as Array<{ sender_id: number; platform_id: string; name: string; dragon_days: number }>
+
+  const totalRow = db
+    .prepare(
       `SELECT COUNT(DISTINCT strftime('%Y-%m-%d', msg.ts, 'unixepoch', 'localtime')) as total
        FROM message msg
        JOIN member m ON msg.sender_id = m.id
-       WHERE 1=1 ${SYSTEM_FILTER} ${conditions}`,
-      params
-    ),
-  ])
+       WHERE 1=1 ${SYSTEM_FILTER} ${conditions}`
+    )
+    .get(...params) as { total: number } | undefined
 
-  const totalDays = totalRow[0]?.total ?? 0
+  const totalDays = totalRow?.total ?? 0
   const rank: DragonKingRankItem[] = rankRows.map((item) => ({
     memberId: item.sender_id,
     platformId: item.platform_id,
@@ -97,28 +272,23 @@ export async function queryDragonKingAnalysis(sessionId: string, timeFilter?: Ti
 
 // ==================== 潜水分析 ====================
 
-export async function queryDivingAnalysis(sessionId: string, timeFilter?: TimeFilter): Promise<DivingAnalysis> {
-  const { conditions, params } = buildFilter(timeFilter)
+export function getDivingAnalysis(db: DatabaseAdapter, filter?: TimeFilter): DivingAnalysis {
+  const { conditions, params } = buildFilter(filter)
 
-  const rows = await useDataService().pluginQuery<{
-    member_id: number
-    platform_id: string
-    name: string
-    last_ts: number
-  }>(
-    sessionId,
-    `SELECT
-      m.id as member_id,
-      m.platform_id,
-      COALESCE(m.group_nickname, m.account_name, m.platform_id) as name,
-      MAX(msg.ts) as last_ts
-    FROM member m
-    JOIN message msg ON m.id = msg.sender_id
-    WHERE 1=1 ${SYSTEM_FILTER} ${conditions}
-    GROUP BY m.id
-    ORDER BY last_ts ASC`,
-    params
-  )
+  const rows = db
+    .prepare(
+      `SELECT
+        m.id as member_id,
+        m.platform_id,
+        COALESCE(m.group_nickname, m.account_name, m.platform_id) as name,
+        MAX(msg.ts) as last_ts
+      FROM member m
+      JOIN message msg ON m.id = msg.sender_id
+      WHERE 1=1 ${SYSTEM_FILTER} ${conditions}
+      GROUP BY m.id
+      ORDER BY last_ts ASC`
+    )
+    .all(...params) as Array<{ member_id: number; platform_id: string; name: string; last_ts: number }>
 
   const now = Math.floor(Date.now() / 1000)
   const rank: DivingRankItem[] = rows.map((item) => ({
@@ -134,10 +304,7 @@ export async function queryDivingAnalysis(sessionId: string, timeFilter?: TimeFi
 
 // ==================== 打卡分析 ====================
 
-function computeCheckIn(input: {
-  dailyActivity: Array<{ senderId: number; name: string; day: string }>
-}): CheckInAnalysis {
-  const { dailyActivity } = input
+function computeCheckIn(dailyActivity: Array<{ senderId: number; name: string; day: string }>): CheckInAnalysis {
   if (dailyActivity.length === 0) {
     return { streakRank: [], loyaltyRank: [], totalDays: 0 }
   }
@@ -155,20 +322,8 @@ function computeCheckIn(input: {
     memberDays.get(record.senderId)!.days.add(record.day)
   }
 
-  const streakData: Array<{
-    memberId: number
-    name: string
-    maxStreak: number
-    maxStreakStart: string
-    maxStreakEnd: string
-    currentStreak: number
-  }> = []
-
-  const loyaltyData: Array<{
-    memberId: number
-    name: string
-    totalDays: number
-  }> = []
+  const streakData: StreakRankItem[] = []
+  const loyaltyData: Array<{ memberId: number; name: string; totalDays: number }> = []
 
   for (const [memberId, data] of memberDays) {
     const sortedMemberDays = Array.from(data.days).sort()
@@ -238,7 +393,7 @@ function computeCheckIn(input: {
   const streakRank = streakData.sort((a, b) => b.maxStreak - a.maxStreak)
   const sortedLoyalty = loyaltyData.sort((a, b) => b.totalDays - a.totalDays)
   const maxLoyaltyDays = sortedLoyalty.length > 0 ? sortedLoyalty[0].totalDays : 1
-  const loyaltyRank = sortedLoyalty.map((item) => ({
+  const loyaltyRank: LoyaltyRankItem[] = sortedLoyalty.map((item) => ({
     ...item,
     percentage: Math.round((item.totalDays / maxLoyaltyDays) * 100),
   }))
@@ -246,40 +401,35 @@ function computeCheckIn(input: {
   return { streakRank, loyaltyRank, totalDays }
 }
 
-export async function queryCheckInAnalysis(sessionId: string, timeFilter?: TimeFilter): Promise<CheckInAnalysis> {
-  const { conditions, params } = buildFilter(timeFilter)
+export function getCheckInAnalysis(db: DatabaseAdapter, filter?: TimeFilter): CheckInAnalysis {
+  const { conditions, params } = buildFilter(filter)
 
-  const dailyActivity = await useDataService().pluginQuery<{
-    senderId: number
-    name: string
-    day: string
-  }>(
-    sessionId,
-    `SELECT
-      msg.sender_id as senderId,
-      COALESCE(m.group_nickname, m.account_name, m.platform_id) as name,
-      DATE(msg.ts, 'unixepoch', 'localtime') as day
-    FROM message msg
-    JOIN member m ON msg.sender_id = m.id
-    WHERE 1=1 ${SYSTEM_FILTER} ${conditions}
-    GROUP BY msg.sender_id, day
-    ORDER BY msg.sender_id, day`,
-    params
-  )
+  const dailyActivity = db
+    .prepare(
+      `SELECT
+        msg.sender_id as senderId,
+        COALESCE(m.group_nickname, m.account_name, m.platform_id) as name,
+        DATE(msg.ts, 'unixepoch', 'localtime') as day
+      FROM message msg
+      JOIN member m ON msg.sender_id = m.id
+      WHERE 1=1 ${SYSTEM_FILTER} ${conditions}
+      GROUP BY msg.sender_id, day
+      ORDER BY msg.sender_id, day`
+    )
+    .all(...params) as Array<{ senderId: number; name: string; day: string }>
 
   if (dailyActivity.length === 0) {
     return { streakRank: [], loyaltyRank: [], totalDays: 0 }
   }
 
-  return useDataService().pluginCompute<CheckInAnalysis>(computeCheckIn.toString(), { dailyActivity })
+  return computeCheckIn(dailyActivity)
 }
 
 // ==================== 斗图分析 ====================
 
-function computeMemeBattle(input: {
+function computeMemeBattle(
   messages: Array<{ senderId: number; type: number; ts: number; platformId: string; name: string }>
-}): MemeBattleAnalysis {
-  const { messages } = input
+): MemeBattleAnalysis {
   const emptyResult: MemeBattleAnalysis = {
     topBattles: [],
     rankByCount: [],
@@ -325,7 +475,7 @@ function computeMemeBattle(input: {
 
   if (battles.length === 0) return emptyResult
 
-  const topBattles = battles
+  const topBattles: MemeBattleRecord[] = battles
     .map((battle) => ({
       startTime: battle.startTime,
       endTime: battle.endTime,
@@ -339,7 +489,7 @@ function computeMemeBattle(input: {
           acc[curr.senderId].imageCount++
           return acc
         }, {})
-      ).sort((a: any, b: any) => b.imageCount - a.imageCount),
+      ).sort((a, b) => b.imageCount - a.imageCount),
     }))
     .sort((a, b) => b.totalImages - a.totalImages)
     .slice(0, 30)
@@ -371,7 +521,7 @@ function computeMemeBattle(input: {
 
   const allStats = Array.from(memberStats.values())
 
-  const rankByCount = [...allStats]
+  const rankByCount: MemeBattleRankItem[] = [...allStats]
     .sort((a, b) => b.battleCount - a.battleCount)
     .map((item) => ({
       memberId: item.memberId,
@@ -382,7 +532,7 @@ function computeMemeBattle(input: {
     }))
 
   const totalBattleImages = battles.reduce((sum, b) => sum + b.msgs.length, 0)
-  const rankByImageCount = [...allStats]
+  const rankByImageCount: MemeBattleRankItem[] = [...allStats]
     .sort((a, b) => b.imageCount - a.imageCount)
     .map((item) => ({
       memberId: item.memberId,
@@ -400,43 +550,37 @@ function computeMemeBattle(input: {
   }
 }
 
-export async function queryMemeBattleAnalysis(sessionId: string, timeFilter?: TimeFilter): Promise<MemeBattleAnalysis> {
-  const { conditions, params } = buildFilter(timeFilter)
+export function getMemeBattleAnalysis(db: DatabaseAdapter, filter?: TimeFilter): MemeBattleAnalysis {
+  // 斗图分析过滤条件与众不同：不排除系统消息，仅排除 type=6（链接）
+  const { conditions, params } = buildFilter(filter)
 
-  const messages = await useDataService().pluginQuery<{
-    senderId: number
-    type: number
-    ts: number
-    platformId: string
-    name: string
-  }>(
-    sessionId,
-    `SELECT
-      msg.sender_id as senderId,
-      msg.type,
-      msg.ts,
-      m.platform_id as platformId,
-      COALESCE(m.group_nickname, m.account_name, m.platform_id) as name
-    FROM message msg
-    JOIN member m ON msg.sender_id = m.id
-    WHERE msg.type != 6 ${conditions}
-    ORDER BY msg.ts ASC`,
-    params
-  )
+  const messages = db
+    .prepare(
+      `SELECT
+        msg.sender_id as senderId,
+        msg.type,
+        msg.ts,
+        m.platform_id as platformId,
+        COALESCE(m.group_nickname, m.account_name, m.platform_id) as name
+      FROM message msg
+      JOIN member m ON msg.sender_id = m.id
+      WHERE msg.type != 6 ${conditions}
+      ORDER BY msg.ts ASC`
+    )
+    .all(...params) as Array<{ senderId: number; type: number; ts: number; platformId: string; name: string }>
 
   if (messages.length === 0) {
     return { topBattles: [], rankByCount: [], rankByImageCount: [], totalBattles: 0 }
   }
 
-  return useDataService().pluginCompute<MemeBattleAnalysis>(computeMemeBattle.toString(), { messages })
+  return computeMemeBattle(messages)
 }
 
 // ==================== 夜猫分析 ====================
 
-function computeNightOwl(input: {
+function computeNightOwl(
   messages: Array<{ id: number; senderId: number; ts: number; platformId: string; name: string }>
-}): NightOwlAnalysis {
-  const { messages } = input
+): NightOwlAnalysis {
   const emptyResult: NightOwlAnalysis = {
     nightOwlRank: [],
     lastSpeakerRank: [],
@@ -567,15 +711,7 @@ function computeNightOwl(input: {
     firstStats.times.push(firstMsg.hour * 60 + firstMsg.minute)
   }
 
-  const lastSpeakerRank: Array<{
-    memberId: number
-    platformId: string
-    name: string
-    count: number
-    avgTime: string
-    extremeTime: string
-    percentage: number
-  }> = []
+  const lastSpeakerRank: TimeRankItem[] = []
   for (const [memberId, stats] of lastSpeakerStats.entries()) {
     const info = memberInfo.get(memberId)!
     const avgMinutes = stats.times.reduce((a, b) => a + b, 0) / stats.times.length
@@ -592,15 +728,7 @@ function computeNightOwl(input: {
   }
   lastSpeakerRank.sort((a, b) => b.count - a.count)
 
-  const firstSpeakerRank: Array<{
-    memberId: number
-    platformId: string
-    name: string
-    count: number
-    avgTime: string
-    extremeTime: string
-    percentage: number
-  }> = []
+  const firstSpeakerRank: TimeRankItem[] = []
   for (const [memberId, stats] of firstSpeakerStats.entries()) {
     const info = memberInfo.get(memberId)!
     const avgMinutes = stats.times.reduce((a, b) => a + b, 0) / stats.times.length
@@ -617,13 +745,7 @@ function computeNightOwl(input: {
   }
   firstSpeakerRank.sort((a, b) => b.count - a.count)
 
-  const consecutiveRecords: Array<{
-    memberId: number
-    platformId: string
-    name: string
-    maxConsecutiveDays: number
-    currentStreak: number
-  }> = []
+  const consecutiveRecords: ConsecutiveNightRecord[] = []
   for (const [memberId, nightDaysSet] of memberNightDays.entries()) {
     if (nightDaysSet.size === 0) continue
     const info = memberInfo.get(memberId)!
@@ -678,15 +800,7 @@ function computeNightOwl(input: {
     championScores.get(item.memberId)!.consecutiveDays = item.maxConsecutiveDays
   }
 
-  const champions: Array<{
-    memberId: number
-    platformId: string
-    name: string
-    score: number
-    nightMessages: number
-    lastSpeakerCount: number
-    consecutiveDays: number
-  }> = []
+  const champions: NightOwlChampion[] = []
   for (const [memberId, scores] of championScores.entries()) {
     const info = memberInfo.get(memberId)!
     const score = scores.nightMessages * 1 + scores.lastSpeakerCount * 10 + scores.consecutiveDays * 20
@@ -707,29 +821,23 @@ function computeNightOwl(input: {
   return { nightOwlRank, lastSpeakerRank, firstSpeakerRank, consecutiveRecords, champions, totalDays }
 }
 
-export async function queryNightOwlAnalysis(sessionId: string, timeFilter?: TimeFilter): Promise<NightOwlAnalysis> {
-  const { conditions, params } = buildFilter(timeFilter)
+export function getNightOwlAnalysis(db: DatabaseAdapter, filter?: TimeFilter): NightOwlAnalysis {
+  const { conditions, params } = buildFilter(filter)
 
-  const messages = await useDataService().pluginQuery<{
-    id: number
-    senderId: number
-    ts: number
-    platformId: string
-    name: string
-  }>(
-    sessionId,
-    `SELECT
-      msg.id,
-      msg.sender_id as senderId,
-      msg.ts,
-      m.platform_id as platformId,
-      COALESCE(m.group_nickname, m.account_name, m.platform_id) as name
-    FROM message msg
-    JOIN member m ON msg.sender_id = m.id
-    WHERE 1=1 ${SYSTEM_FILTER} ${conditions}
-    ORDER BY msg.ts ASC`,
-    params
-  )
+  const messages = db
+    .prepare(
+      `SELECT
+        msg.id,
+        msg.sender_id as senderId,
+        msg.ts,
+        m.platform_id as platformId,
+        COALESCE(m.group_nickname, m.account_name, m.platform_id) as name
+      FROM message msg
+      JOIN member m ON msg.sender_id = m.id
+      WHERE 1=1 ${SYSTEM_FILTER} ${conditions}
+      ORDER BY msg.ts ASC`
+    )
+    .all(...params) as Array<{ id: number; senderId: number; ts: number; platformId: string; name: string }>
 
   if (messages.length === 0) {
     return {
@@ -742,16 +850,14 @@ export async function queryNightOwlAnalysis(sessionId: string, timeFilter?: Time
     }
   }
 
-  return useDataService().pluginCompute<NightOwlAnalysis>(computeNightOwl.toString(), { messages })
+  return computeNightOwl(messages)
 }
 
 // ==================== 复读分析 ====================
 
-function computeRepeat(input: {
+function computeRepeat(
   messages: Array<{ id: number; senderId: number; content: string; ts: number; platformId: string; name: string }>
-}): RepeatAnalysis {
-  const { messages } = input
-
+): RepeatAnalysis {
   const originatorCount = new Map<number, number>()
   const initiatorCount = new Map<number, number>()
   const breakerCount = new Map<number, number>()
@@ -849,8 +955,8 @@ function computeRepeat(input: {
   }
   processRepeatChain(repeatChain)
 
-  const buildRankList = (countMap: Map<number, number>, total: number): any[] => {
-    const items: any[] = []
+  const buildRankList = (countMap: Map<number, number>, total: number): RepeatStatItem[] => {
+    const items: RepeatStatItem[] = []
     for (const [memberId, count] of countMap.entries()) {
       const info = memberInfo.get(memberId)
       if (info) {
@@ -866,8 +972,8 @@ function computeRepeat(input: {
     return items.sort((a, b) => b.count - a.count)
   }
 
-  const buildRateList = (countMap: Map<number, number>): any[] => {
-    const items: any[] = []
+  const buildRateList = (countMap: Map<number, number>): RepeatRateItem[] => {
+    const items: RepeatRateItem[] = []
     for (const [memberId, count] of countMap.entries()) {
       const info = memberInfo.get(memberId)
       const totalMessages = memberMessageCount.get(memberId) || 0
@@ -885,8 +991,8 @@ function computeRepeat(input: {
     return items.sort((a, b) => b.rate - a.rate)
   }
 
-  const buildFastestList = (): any[] => {
-    const items: any[] = []
+  const buildFastestList = (): FastestRepeaterItem[] => {
+    const items: FastestRepeaterItem[] = []
     for (const [memberId, stats] of fastestRepeaterStats.entries()) {
       if (stats.count < 5) continue
       const info = memberInfo.get(memberId)
@@ -903,13 +1009,13 @@ function computeRepeat(input: {
     return items.sort((a, b) => a.avgTimeDiff - b.avgTimeDiff)
   }
 
-  const chainLengthDistribution: any[] = []
+  const chainLengthDistribution: ChainLengthDistribution[] = []
   for (const [length, count] of chainLengthCount.entries()) {
     chainLengthDistribution.push({ length, count })
   }
   chainLengthDistribution.sort((a, b) => a.length - b.length)
 
-  const hotContents: any[] = []
+  const hotContents: HotRepeatContent[] = []
   for (const [content, stats] of contentStats.entries()) {
     const originatorInfo = memberInfo.get(stats.originatorId)
     hotContents.push({
@@ -939,35 +1045,35 @@ function computeRepeat(input: {
   }
 }
 
-export async function queryRepeatAnalysis(sessionId: string, timeFilter?: TimeFilter): Promise<RepeatAnalysis> {
-  const { conditions, params } = buildFilter(timeFilter)
+export function getRepeatAnalysis(db: DatabaseAdapter, filter?: TimeFilter): RepeatAnalysis {
+  const { conditions, params } = buildFilter(filter)
 
-  const messages = await useDataService().pluginQuery<{
+  const messages = db
+    .prepare(
+      `SELECT
+        msg.id,
+        msg.sender_id as senderId,
+        msg.content,
+        msg.ts,
+        m.platform_id as platformId,
+        COALESCE(m.group_nickname, m.account_name, m.platform_id) as name
+      FROM message msg
+      JOIN member m ON msg.sender_id = m.id
+      WHERE 1=1 ${SYSTEM_FILTER}
+        AND msg.type = 0
+        AND msg.content IS NOT NULL
+        AND TRIM(msg.content) != ''
+        ${conditions}
+      ORDER BY msg.ts ASC, msg.id ASC`
+    )
+    .all(...params) as Array<{
     id: number
     senderId: number
     content: string
     ts: number
     platformId: string
     name: string
-  }>(
-    sessionId,
-    `SELECT
-      msg.id,
-      msg.sender_id as senderId,
-      msg.content,
-      msg.ts,
-      m.platform_id as platformId,
-      COALESCE(m.group_nickname, m.account_name, m.platform_id) as name
-    FROM message msg
-    JOIN member m ON msg.sender_id = m.id
-    WHERE 1=1 ${SYSTEM_FILTER}
-      AND msg.type = 0
-      AND msg.content IS NOT NULL
-      AND TRIM(msg.content) != ''
-      ${conditions}
-    ORDER BY msg.ts ASC, msg.id ASC`,
-    params
-  )
+  }>
 
   if (messages.length === 0) {
     return {
@@ -985,5 +1091,5 @@ export async function queryRepeatAnalysis(sessionId: string, timeFilter?: TimeFi
     }
   }
 
-  return useDataService().pluginCompute<RepeatAnalysis>(computeRepeat.toString(), { messages })
+  return computeRepeat(messages)
 }

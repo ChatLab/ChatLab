@@ -1,11 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { RepeatAnalysis } from '../types'
+import type { RepeatAnalysis } from '@openchatlab/core'
 import { EChartRank, EChartBar } from '@/components/charts'
 import type { RankItem, EChartBarData } from '@/components/charts'
 import { SectionCard, EmptyState, LoadingState, Tabs, TopNSelect } from '@/components/UI'
 import { EChartTimeRank } from '../charts'
-import { queryRepeatAnalysis } from '../queries'
+import { useDataService } from '@/services/data/service'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
 const props = withDefaults(
@@ -44,7 +44,7 @@ async function loadData() {
   if (!props.sessionId) return
   isLoading.value = true
   try {
-    analysis.value = await queryRepeatAnalysis(props.sessionId, props.timeFilter)
+    analysis.value = await useDataService().getRepeatAnalysis(props.sessionId, props.timeFilter)
   } catch (error) {
     console.error('加载复读分析失败:', error)
   } finally {

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
-import type { DivingAnalysis } from '../types'
+import type { DivingAnalysis } from '@openchatlab/core'
 import { EChartDivingRank } from '../charts'
 import { LoadingState } from '@/components/UI'
-import { queryDivingAnalysis } from '../queries'
+import { useDataService } from '@/services/data/service'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
 const props = defineProps<{
@@ -20,7 +20,7 @@ async function loadData() {
   if (!props.sessionId) return
   isLoading.value = true
   try {
-    analysis.value = await queryDivingAnalysis(props.sessionId, props.timeFilter)
+    analysis.value = await useDataService().getDivingAnalysis(props.sessionId, props.timeFilter)
   } catch (error) {
     console.error('加载潜水分析失败:', error)
   } finally {

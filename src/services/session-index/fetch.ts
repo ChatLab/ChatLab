@@ -23,6 +23,10 @@ function getDataAdapter(): DataAdapter {
   return getRegisteredAdapter<DataAdapter>('data')
 }
 
+// 取会话首条消息 ID，供时间线点击跳转到对应消息位置使用（与 core getChatSessionList 保持一致）
+const FIRST_MESSAGE_ID_SUBQUERY = `(SELECT mc.message_id FROM message_context mc
+   WHERE mc.segment_id = segment.id ORDER BY mc.message_id LIMIT 1) as firstMessageId`
+
 export class FetchSessionIndexAdapter implements SessionIndexAdapter {
   async generate(sessionId: string, gapThreshold: number = 1800): Promise<number> {
     const resp = await fetchWithAuth(`/_web/sessions/${sessionId}/generate-index`, {
@@ -83,7 +87,8 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
   async getSessions(sessionId: string): Promise<ChatSessionItem[]> {
     return getDataAdapter().pluginQuery<ChatSessionItem>(
       sessionId,
-      'SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount, summary FROM segment ORDER BY start_ts ASC',
+      `SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount, summary, ${FIRST_MESSAGE_ID_SUBQUERY}
+       FROM segment ORDER BY start_ts ASC`,
       []
     )
   }
@@ -91,7 +96,8 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
   async getByTimeRange(sessionId: string, startTs: number, endTs: number): Promise<ChatSessionItem[]> {
     return getDataAdapter().pluginQuery<ChatSessionItem>(
       sessionId,
-      'SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount, summary FROM segment WHERE start_ts >= ? AND end_ts <= ? ORDER BY start_ts ASC',
+      `SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount, summary, ${FIRST_MESSAGE_ID_SUBQUERY}
+       FROM segment WHERE start_ts >= ? AND end_ts <= ? ORDER BY start_ts ASC`,
       [startTs, endTs]
     )
   }
@@ -99,7 +105,8 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
   async getRecent(sessionId: string, limit: number): Promise<ChatSessionItem[]> {
     return getDataAdapter().pluginQuery<ChatSessionItem>(
       sessionId,
-      'SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount, summary FROM segment ORDER BY start_ts DESC LIMIT ?',
+      `SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount, summary, ${FIRST_MESSAGE_ID_SUBQUERY}
+       FROM segment ORDER BY start_ts DESC LIMIT ?`,
       [limit]
     )
   }

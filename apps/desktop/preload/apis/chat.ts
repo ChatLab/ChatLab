@@ -78,13 +78,6 @@ export const chatApi = {
   ): Promise<{ success: boolean; newMessageCount: number; error?: string }> =>
     ipcRenderer.invoke('chat:incrementalImport', sessionId, filePath),
 
-  /**
-   * 图表插件计算会处理大量消息数组，Electron 下必须卸载到 worker，
-   * 避免 renderer 主线程同步执行造成窗口卡顿。
-   */
-  pluginCompute: <T = unknown>(fnString: string, input: unknown): Promise<T> =>
-    ipcRenderer.invoke('chat:pluginCompute', fnString, input),
-
   // ==================== Demo ====================
 
   importDemo: (

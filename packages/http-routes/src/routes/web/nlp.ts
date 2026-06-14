@@ -5,9 +5,11 @@
  * Business logic from @openchatlab/core and @openchatlab/node-runtime.
  */
 
+import * as fs from 'fs'
 import * as path from 'path'
 import type { FastifyInstance } from 'fastify'
 import type { HttpRouteContext } from '../../context'
+import { withAnalyticsCache } from '../../analytics-cache'
 import type { WordFrequencyParams, SupportedLocale } from '@openchatlab/core'
 import { POS_TAG_DEFINITIONS } from '@openchatlab/core'
 import {
@@ -52,7 +54,19 @@ export function registerNlpRoutes(server: FastifyInstance, ctx: HttpRouteContext
     if (!db) {
       throw Object.assign(new Error(`Session not found: ${params.sessionId}`), { statusCode: 404 })
     }
-    return computeWordFrequency(db, params)
+    const { sessionId, ...keyParams } = params
+    const effectiveDictId = !params.dictType || params.dictType === 'default' ? 'zh-CN' : String(params.dictType)
+    const dictFilePath = path.join(nlpDir, `${effectiveDictId}.dict`)
+    let dictVersion: string
+    try {
+      const st = fs.statSync(dictFilePath)
+      dictVersion = `${Math.floor(st.mtimeMs)}:${st.size}`
+    } catch {
+      dictVersion = '-'
+    }
+    return withAnalyticsCache(ctx, sessionId, 'nlp.word-frequency', keyParams, () => computeWordFrequency(db, params), {
+      extraVersion: `dict:${dictVersion}`,
+    })
   })
 
   server.post<{ Body: { text: string; locale: SupportedLocale; minLength?: number } }>(

@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { CheckInAnalysis } from '../types'
+import type { CheckInAnalysis } from '@openchatlab/core'
 import { EChartStreakRank } from '../charts'
 import { SectionCard, LoadingState, EmptyState, Tabs, TopNSelect } from '@/components/UI'
-import { queryCheckInAnalysis } from '../queries'
+import { useDataService } from '@/services/data/service'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
 const props = withDefaults(
@@ -51,7 +51,7 @@ async function loadAnalysis() {
   if (!props.sessionId) return
   isLoading.value = true
   try {
-    analysis.value = await queryCheckInAnalysis(props.sessionId, props.timeFilter)
+    analysis.value = await useDataService().getCheckInAnalysis(props.sessionId, props.timeFilter)
   } catch (error) {
     console.error('加载打卡分析失败:', error)
   } finally {

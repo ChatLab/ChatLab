@@ -4,23 +4,16 @@ import { useI18n } from 'vue-i18n'
 import { EChartBar, EChartHeatmap, EChartCalendar, EChart } from '@/components/charts'
 import type { EChartBarData, EChartHeatmapData, EChartCalendarData } from '@/components/charts'
 import { SectionCard, LoadingState } from '@/components/UI'
-import {
-  queryHourlyActivity,
-  queryDailyActivity,
-  queryWeekdayActivity,
-  queryMonthlyActivity,
-  queryYearlyActivity,
-  queryMessageTypes,
-  queryMemberMonthlyTrend,
-} from './queries'
+import { useDataService } from '@/services/data/service'
 import type {
   HourlyActivity,
   WeekdayActivity,
   MonthlyActivity,
   DailyActivity,
   YearlyActivity,
-  MessageTypeCount,
-} from './types'
+  MessageTypeStats,
+  MemberMonthlyTrend,
+} from '@openchatlab/core'
 import TimeProfileCard from './TimeProfileCard.vue'
 import type { TimeFilter } from '@openchatlab/shared-types'
 import type { EChartsOption } from 'echarts'
@@ -34,13 +27,13 @@ const props = defineProps<{
 const { t } = useI18n()
 
 const isLoading = ref(true)
-const messageTypes = ref<MessageTypeCount[]>([])
+const messageTypes = ref<MessageTypeStats[]>([])
 const hourlyActivity = ref<HourlyActivity[]>([])
 const weekdayActivity = ref<WeekdayActivity[]>([])
 const monthlyActivity = ref<MonthlyActivity[]>([])
 const yearlyActivity = ref<YearlyActivity[]>([])
 const dailyActivity = ref<DailyActivity[]>([])
-const memberTrend = ref<Array<{ month: string; memberId: number; memberName: string; count: number }>>([])
+const memberTrend = ref<MemberMonthlyTrend[]>([])
 
 const memberColors = [
   '#6366f1',
@@ -263,14 +256,15 @@ async function loadData() {
   if (!props.sessionId) return
   isLoading.value = true
   try {
+    const data = useDataService()
     const [types, hourly, weekday, monthly, yearly, daily, trend] = await Promise.all([
-      queryMessageTypes(props.sessionId, props.timeFilter),
-      queryHourlyActivity(props.sessionId, props.timeFilter),
-      queryWeekdayActivity(props.sessionId, props.timeFilter),
-      queryMonthlyActivity(props.sessionId, props.timeFilter),
-      queryYearlyActivity(props.sessionId, props.timeFilter),
-      queryDailyActivity(props.sessionId, props.timeFilter),
-      queryMemberMonthlyTrend(props.sessionId, props.timeFilter),
+      data.getMessageTypeDistribution(props.sessionId, props.timeFilter),
+      data.getHourlyActivity(props.sessionId, props.timeFilter),
+      data.getWeekdayActivity(props.sessionId, props.timeFilter),
+      data.getMonthlyActivity(props.sessionId, props.timeFilter),
+      data.getYearlyActivity(props.sessionId, props.timeFilter),
+      data.getDailyActivity(props.sessionId, props.timeFilter),
+      data.getMemberMonthlyTrend(props.sessionId, props.timeFilter),
     ])
 
     messageTypes.value = types

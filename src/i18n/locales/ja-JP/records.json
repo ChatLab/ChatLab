@@ -21,8 +21,8 @@
     "filter": "フィルター"
   },
   "timeline": {
-    "timeline": "セッション",
-    "noSessions": "セッションがありません",
+    "timeline": "要約",
+    "noSessions": "要約がありません",
     "generateSummary": "要約を作成",
     "tooFewMessages": "メッセージが少なすぎます"
   },

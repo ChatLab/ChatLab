@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { DragonKingAnalysis, CheckInAnalysis, MemberActivity } from '../types'
+import type { DragonKingAnalysis, CheckInAnalysis } from '@openchatlab/core'
+import type { MemberActivity } from '@/types/analysis'
 import { EChartRank } from '@/components/charts'
 import type { RankItem } from '@/components/charts'
 import { SectionCard, LoadingState, Tabs, TopNSelect } from '@/components/UI'
-import { queryDragonKingAnalysis, queryCheckInAnalysis } from '../queries'
+import { useDataService } from '@/services/data/service'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
 const props = withDefaults(
@@ -42,9 +43,10 @@ async function loadData() {
   if (!props.sessionId) return
   isLoading.value = true
   try {
+    const data = useDataService()
     const [dragonKing, checkIn] = await Promise.all([
-      queryDragonKingAnalysis(props.sessionId, props.timeFilter),
-      queryCheckInAnalysis(props.sessionId, props.timeFilter),
+      data.getDragonKingAnalysis(props.sessionId, props.timeFilter),
+      data.getCheckInAnalysis(props.sessionId, props.timeFilter),
     ])
     dragonKingAnalysis.value = dragonKing
     checkInAnalysis.value = checkIn

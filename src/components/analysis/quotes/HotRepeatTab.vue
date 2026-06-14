@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { RepeatAnalysis } from '@/features/charts-ranking/types'
-import { queryRepeatAnalysis } from '@/features/charts-ranking/queries'
+import type { RepeatAnalysis } from '@openchatlab/core'
+import { useDataService } from '@/services/data/service'
 import { ListPro } from '@/components/charts'
 import { LoadingState, EmptyState, SectionCard } from '@/components/UI'
 import { formatDate, getRankBadgeClass } from '@/utils'
@@ -26,7 +26,7 @@ async function loadRepeatAnalysis() {
   if (!props.sessionId) return
   isLoading.value = true
   try {
-    repeatAnalysis.value = await queryRepeatAnalysis(props.sessionId, props.timeFilter)
+    repeatAnalysis.value = await useDataService().getRepeatAnalysis(props.sessionId, props.timeFilter)
   } catch (error) {
     console.error('Failed to load repeat analysis:', error)
   } finally {

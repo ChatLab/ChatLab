@@ -6,8 +6,15 @@
  */
 
 import type { DatabaseAdapter } from '@openchatlab/core'
-import type { SupportedLocale, DictType, WordFrequencyParams, WordFrequencyResult, PosTagStat } from '@openchatlab/core'
-import { segment, batchSegmentWithFrequency, collectPosTagStats } from './segmenter'
+import type {
+  SupportedLocale,
+  DictType,
+  WordFrequencyParams,
+  WordFrequencyResult,
+  PosTagStat,
+  BatchSegmentResult,
+} from '@openchatlab/core'
+import { segment, batchSegmentWithFrequency, batchSegmentChineseWithStats, collectPosTagStats } from './segmenter'
 
 function buildMessageQuery(
   timeFilter?: { startTs?: number; endTs?: number },
@@ -70,13 +77,7 @@ export function computeWordFrequency(db: DatabaseAdapter, params: WordFrequencyP
 
   const texts = messages.map((m) => m.content)
 
-  let posTagStats: PosTagStat[] | undefined
-  if (locale.startsWith('zh')) {
-    const posStatsMap = collectPosTagStats(texts, minWordLength ?? 2, enableStopwords, dictType as DictType)
-    posTagStats = [...posStatsMap.entries()].map(([tag, count]) => ({ tag, count }))
-  }
-
-  const result = batchSegmentWithFrequency(texts, locale as SupportedLocale, {
+  const segmentOptions = {
     minLength: minWordLength,
     minCount,
     topN,
@@ -85,7 +86,23 @@ export function computeWordFrequency(db: DatabaseAdapter, params: WordFrequencyP
     enableStopwords,
     dictType: dictType as DictType,
     excludeWords,
-  })
+  }
+
+  let posTagStats: PosTagStat[] | undefined
+  let result: BatchSegmentResult
+
+  // 中文 meaningful/custom 模式下，词频与词性统计可在一次分词内同时产出，避免重复分词。
+  if (locale.startsWith('zh') && posFilterMode !== 'all') {
+    const combined = batchSegmentChineseWithStats(texts, locale as SupportedLocale, segmentOptions)
+    result = { words: combined.words, uniqueWords: combined.uniqueWords, totalWords: combined.totalWords }
+    posTagStats = [...combined.posTagStats.entries()].map(([tag, count]) => ({ tag, count }))
+  } else {
+    if (locale.startsWith('zh')) {
+      const posStatsMap = collectPosTagStats(texts, minWordLength ?? 2, enableStopwords, dictType as DictType)
+      posTagStats = [...posStatsMap.entries()].map(([tag, count]) => ({ tag, count }))
+    }
+    result = batchSegmentWithFrequency(texts, locale as SupportedLocale, segmentOptions)
+  }
 
   let topNTotalWords = 0
   for (const count of result.words.values()) topNTotalWords += count

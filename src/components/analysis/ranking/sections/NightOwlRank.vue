@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import type { NightOwlAnalysis } from '../types'
+import type { NightOwlAnalysis } from '@openchatlab/core'
 import { EChartRank } from '@/components/charts'
 import { SectionCard, Tabs, TopNSelect, LoadingState } from '@/components/UI'
 import { EChartConsecutiveRank, EChartNightOwlRank } from '../charts'
-import { queryNightOwlAnalysis } from '../queries'
+import { useDataService } from '@/services/data/service'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
 const props = withDefaults(
@@ -43,7 +43,7 @@ async function loadData() {
   if (!props.sessionId) return
   isLoading.value = true
   try {
-    analysis.value = await queryNightOwlAnalysis(props.sessionId, props.timeFilter)
+    analysis.value = await useDataService().getNightOwlAnalysis(props.sessionId, props.timeFilter)
   } catch (error) {
     console.error('加载出勤分析失败:', error)
   } finally {

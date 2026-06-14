@@ -7,7 +7,7 @@ import { BarChart } from 'echarts/charts'
 import { GridComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import { ThemeCard } from '@/components/UI'
-import type { HourlyActivity, WeekdayActivity, DailyActivity } from './types'
+import type { HourlyActivity, WeekdayActivity, DailyActivity } from '@openchatlab/core'
 import dayjs from 'dayjs'
 
 echarts.use([BarChart, GridComponent, CanvasRenderer])

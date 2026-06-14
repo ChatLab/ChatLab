@@ -11,8 +11,8 @@
 
 import * as path from 'path'
 import { parentPort, workerData } from 'worker_threads'
-import { initDbDir, closeDatabase, closeAllDatabases, getCacheDir } from './core'
-import { getCache, setCache, deleteSessionCache } from '@openchatlab/node-runtime'
+import { initDbDir, closeDatabase, closeAllDatabases, getCacheDir, getDbPath } from './core'
+import { getDbFileVersion, getOrComputeAnalysisCache } from '@openchatlab/node-runtime'
 import {
   getAvailableYears,
   getMemberActivity,
@@ -94,6 +94,9 @@ if (workerData.nlpDir) {
 // ==================== 分析结果缓存 ====================
 
 const ANALYSIS_CACHE_PREFIX = 'analysis:'
+
+// 缓存版本指纹的代码维度：随发布版本变化，使查询逻辑变更后的旧缓存失效。
+const APP_VERSION: string = workerData?.appVersion ?? ''
 
 function getQueryCacheDir(): string {
   const cacheDir = getCacheDir()
@@ -214,12 +217,8 @@ const syncHandlers: Record<string, (payload: any) => any> = {
   executeRawSQL: (p) => executeRawSQL(p.sessionId, p.sql),
   getSchema: (p) => getSchema(p.sessionId),
 
-  // 插件系统
+  // 通用 SQL 查询
   pluginQuery: (p) => executePluginQuery(p.sessionId, p.sql, p.params),
-  pluginCompute: (p: { fnString: string; input: any }) => {
-    const fn = new Function('return ' + p.fnString)()
-    return fn(p.input)
-  },
 
   // 会话索引
   generateSessions: (p) => generateSessions(p.sessionId, p.gapThreshold),
@@ -243,15 +242,6 @@ const syncHandlers: Record<string, (payload: any) => any> = {
 
   // 深度搜索（LIKE 子串匹配）
   deepSearchMessages: (p) => deepSearchMessages(p.sessionId, p.keywords, p.filter, p.limit, p.offset, p.senderId),
-
-  // 缓存管理
-  invalidateAnalysisCache: (p) => {
-    const queryCacheDir = getQueryCacheDir()
-    if (queryCacheDir && p.sessionId) {
-      deleteSessionCache(p.sessionId, queryCacheDir)
-    }
-    return true
-  },
 }
 
 // 异步消息处理器（流式操作）
@@ -287,17 +277,15 @@ parentPort?.on('message', async (message: WorkerMessage) => {
       throw new Error(`Unknown message type: ${type}`)
     }
 
-    // 可缓存查询：先查缓存，miss 后执行并写回
+    // 可缓存查询：按「产品版本 + DB 文件状态」派生版本指纹，命中即返回，未命中则计算并写回。
+    // 与共享 HTTP 路由共用同一份 cacheDir/query 文件与文件版本失效机制，数据变更后自动失效。
     const queryCacheDir = getQueryCacheDir()
     if (queryCacheDir && CACHEABLE_QUERIES.has(type) && payload.sessionId) {
       const cacheKey = buildAnalysisCacheKey(type, payload)
-      const cached = getCache(payload.sessionId, cacheKey, queryCacheDir)
-      if (cached !== null) {
-        parentPort?.postMessage({ id, success: true, result: cached })
-        return
-      }
-      const result = await syncHandler(payload)
-      setCache(payload.sessionId, cacheKey, result, queryCacheDir)
+      const version = `${APP_VERSION}|${getDbFileVersion(getDbPath(payload.sessionId))}`
+      const result = getOrComputeAnalysisCache(payload.sessionId, cacheKey, queryCacheDir, version, () =>
+        syncHandler(payload)
+      )
       parentPort?.postMessage({ id, success: true, result })
       return
     }

@@ -11,8 +11,8 @@ import { HeatmapChart } from 'echarts/charts'
 import { TooltipComponent, GridComponent, VisualMapComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { EChartsOption } from 'echarts'
-import { loadClusterGraph } from './queries'
-import type { ClusterGraphData, ClusterGraphOptions } from './types'
+import { useDataService } from '@/services/data/service'
+import type { ClusterGraphData, ClusterGraphOptions } from '@/types/analysis'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
 echarts.use([HeatmapChart, TooltipComponent, GridComponent, VisualMapComponent, CanvasRenderer])
@@ -53,7 +53,7 @@ async function loadData() {
 
   isLoading.value = true
   try {
-    graphData.value = await loadClusterGraph(props.sessionId, props.timeFilter, {
+    graphData.value = await useDataService().getClusterGraph(props.sessionId, props.timeFilter, {
       lookAhead: modelOptions.value.lookAhead,
       decaySeconds: modelOptions.value.decaySeconds,
       topEdges: modelOptions.value.topEdges,
