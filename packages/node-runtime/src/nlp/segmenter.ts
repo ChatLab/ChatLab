@@ -213,6 +213,68 @@ export function batchSegmentWithFrequency(
 }
 
 /**
+ * 中文单遍分词：一次 jieba.tag 同时产出词频与词性统计。
+ *
+ * 仅适用于中文 meaningful/custom 模式（all 模式走 jieba.cut，无词性）。
+ * 输出与 `batchSegmentWithFrequency` + `collectPosTagStats` 组合完全一致，
+ * 用于消除对同一批文本重复分词的开销。
+ */
+export function batchSegmentChineseWithStats(
+  texts: string[],
+  locale: SupportedLocale,
+  options: BatchSegmentOptions = {}
+): BatchSegmentResult & { posTagStats: Map<string, number> } {
+  const {
+    minLength,
+    minCount = 2,
+    topN = 100,
+    posFilterMode = 'meaningful',
+    customPosTags,
+    enableStopwords = true,
+    dictType = 'default',
+    excludeWords,
+  } = options
+
+  const effectiveMinLength = minLength ?? 2
+  const allowedTags = posFilterMode === 'custom' && customPosTags ? new Set(customPosTags) : MEANINGFUL_POS_TAGS
+  const excludeSet = excludeWords?.length ? new Set(excludeWords.map((w) => w.toLowerCase())) : null
+
+  const wordFrequency = new Map<string, number>()
+  const posTagStats = new Map<string, number>()
+
+  try {
+    const jieba = getJieba(dictType)
+    for (const text of texts) {
+      const cleaned = cleanText(text)
+      if (!cleaned) continue
+      for (const { tag, word } of jieba.tag(cleaned)) {
+        if (!isValidWord(word, locale, effectiveMinLength, enableStopwords, isStopword)) continue
+        // 词性统计覆盖全部有效词（与 collectPosTagStats 一致）
+        posTagStats.set(tag, (posTagStats.get(tag) || 0) + 1)
+        // 词频仅统计命中允许词性的词（与 batchSegmentWithFrequency 一致）
+        if (!allowedTags.has(tag)) continue
+        if (excludeSet && excludeSet.has(word.toLowerCase())) continue
+        wordFrequency.set(word, (wordFrequency.get(word) || 0) + 1)
+      }
+    }
+  } catch (error) {
+    console.error('[NLP] Chinese single-pass segmentation failed:', error)
+  }
+
+  const filtered = new Map<string, number>()
+  let totalWords = 0
+  for (const [word, count] of wordFrequency) {
+    if (count >= minCount) {
+      filtered.set(word, count)
+      totalWords += count
+    }
+  }
+
+  const sorted = [...filtered.entries()].sort((a, b) => b[1] - a[1]).slice(0, topN)
+  return { words: new Map(sorted), uniqueWords: filtered.size, totalWords, posTagStats }
+}
+
+/**
  * 收集文本的词性统计
  */
 export function collectPosTagStats(

@@ -48,7 +48,8 @@ const props = defineProps<{
 }>()
 
 const isLoading = ref(false)
-const wordcloudData = ref<EChartWordcloudData>({ words: [] })
+// 完整词表：按最大档一次性获取并缓存，切换词数时本地切片，避免重复请求与重复分词
+const allWords = ref<WordFrequencyItem[]>([])
 const stats = ref({
   totalMessages: 0,
   totalWords: 0,
@@ -63,6 +64,19 @@ const sizeScale = ref(1.25)
 
 // 最大显示词数（默认 150）
 const maxWords = ref(150)
+
+// 词云展示数据：从完整词表按当前词数本地切片，并按子集重算占比（纯本地计算，不触发后端分词）
+const wordcloudData = computed<EChartWordcloudData>(() => {
+  const sliced = allWords.value.slice(0, maxWords.value)
+  const total = sliced.reduce((sum, w) => sum + w.count, 0)
+  return {
+    words: sliced.map((w) => ({
+      word: w.word,
+      count: w.count,
+      percentage: total > 0 ? Math.round((w.count / total) * 10000) / 100 : 0,
+    })),
+  }
+})
 
 // 词性过滤模式
 const posFilterMode = ref<PosFilterMode>('meaningful')
@@ -221,6 +235,9 @@ const maxWordsOptions = [
   { label: '300', value: 300 },
 ]
 
+// 一次性获取的词数上限（取最大档）：切换词数时仅在本地切片，无需重新请求
+const MAX_WORDS = Math.max(...maxWordsOptions.map((o) => o.value))
+
 // 字体大小选项
 const sizeScaleOptions = computed(() => [
   { label: t('quotes.wordcloud.size.small'), value: 0.75 },
@@ -291,7 +308,7 @@ async function loadWordFrequency() {
       locale: locale.value,
       timeFilter: props.timeFilter ? { startTs: props.timeFilter.startTs, endTs: props.timeFilter.endTs } : undefined,
       memberId: selectedMemberId.value ?? undefined,
-      topN: maxWords.value,
+      topN: MAX_WORDS,
       minCount: 2,
       posFilterMode: posFilterMode.value,
       customPosTags: posFilterMode.value === 'custom' ? [...customPosTags.value] : undefined,
@@ -300,13 +317,11 @@ async function loadWordFrequency() {
       excludeWords: currentExcludeWords.value.length > 0 ? [...currentExcludeWords.value] : undefined,
     })
 
-    wordcloudData.value = {
-      words: result.words.map((w) => ({
-        word: w.word,
-        count: w.count,
-        percentage: w.percentage,
-      })),
-    }
+    allWords.value = result.words.map((w) => ({
+      word: w.word,
+      count: w.count,
+      percentage: w.percentage,
+    }))
 
     stats.value = {
       totalMessages: result.totalMessages,
@@ -324,7 +339,7 @@ async function loadWordFrequency() {
     }
   } catch (error) {
     console.error('加载词频数据失败:', error)
-    wordcloudData.value = { words: [] }
+    allWords.value = []
   } finally {
     isLoading.value = false
   }
@@ -338,13 +353,12 @@ watch(
   }
 )
 
-// 监听参数变化（词云主图）
+// 监听参数变化（词云主图）。注意：maxWords 不在此处——切换词数只做本地切片，不重新请求/分词。
 watch(
   () => [
     props.sessionId,
     props.timeFilter,
     selectedMemberId.value,
-    maxWords.value,
     posFilterMode.value,
     enableStopwords.value,
     selectedDictType.value,
