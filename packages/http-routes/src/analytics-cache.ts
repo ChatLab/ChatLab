@@ -4,8 +4,9 @@
  * Wraps expensive analytics / NLP computations with the platform-agnostic
  * analytics cache (cacheDir/query/{sessionId}.cache.json). Used by both CLI Web
  * (`chatlab start`) and the Electron internal server so the two share one cache
- * implementation. Validity is keyed to the session DB file fingerprint, so any
- * import / incremental import / member edit transparently invalidates entries.
+ * implementation. Validity is keyed to the product version plus the session DB
+ * file fingerprint, so any release that changes query logic, and any import /
+ * incremental import / member edit, transparently invalidates entries.
  */
 
 import * as path from 'path'
@@ -46,7 +47,7 @@ export function withAnalyticsCache<T>(
   compute: () => T
 ): T {
   const queryCacheDir = path.join(ctx.pathProvider.getCacheDir(), 'query')
-  const version = getDbFileVersion(ctx.sessionAdapter.getDbPath(sessionId))
+  const version = `${ctx.getVersion()}|${getDbFileVersion(ctx.sessionAdapter.getDbPath(sessionId))}`
   const key = buildAnalyticsCacheKey(namespace, params)
   return getOrComputeAnalysisCache(sessionId, key, queryCacheDir, version, compute)
 }

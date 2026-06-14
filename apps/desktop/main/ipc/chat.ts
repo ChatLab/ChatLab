@@ -224,7 +224,7 @@ export function registerChatHandlers(ctx: IpcContext): void {
         } catch (e) {
           console.error('[IpcMain] Failed to incrementally generate session index:', e)
         }
-        worker.invalidateAnalysisCache(sessionId).catch(() => {})
+        // 分析缓存按 DB 文件版本自动失效，无需手动清理
         // 通知渲染进程刷新会话列表（与 API 路由的 notifySessionListChanged 保持一致）
         win.webContents.send('api:importCompleted')
       }

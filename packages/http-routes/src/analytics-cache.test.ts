@@ -56,6 +56,7 @@ describe('withAnalyticsCache', () => {
     return {
       pathProvider: { getCacheDir: () => path.join(root, 'cache') },
       sessionAdapter: { getDbPath: () => dbPath },
+      getVersion: () => '0.0.0-test',
     } as unknown as HttpRouteContext
   }
 
