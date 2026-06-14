@@ -279,6 +279,11 @@ export async function importData(
 
   try {
     if (exists) {
+      const migratedDb = dbManager.openWritable(sessionId)
+      if (!migratedDb) {
+        throw new Error(`Session database not found: ${sessionId}`)
+      }
+      dbManager.close(sessionId)
       const db = dbManager.openRawSessionDatabase(sessionId, { readonly: false })
       let result: { messageCount: number; memberCount: number; duplicateCount: number }
       try {

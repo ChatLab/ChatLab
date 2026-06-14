@@ -106,6 +106,89 @@ test('incrementalImport raises the data directory gate after successful writes',
   assert.deepEqual(meta?.reasons, ['segment-schema'])
 })
 
+test('incrementalImport migrates legacy sessions before inserting media columns', async () => {
+  const root = makeTempDir()
+  const pathProvider = createPathProvider(root)
+  const manager = new DatabaseManager(pathProvider, {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+
+  const db = manager.openRawSessionDatabase('legacy', { create: true })
+  db.exec(`
+    CREATE TABLE meta (
+      name TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      type TEXT NOT NULL,
+      imported_at INTEGER NOT NULL,
+      group_id TEXT,
+      group_avatar TEXT,
+      owner_id TEXT,
+      session_gap_threshold INTEGER,
+      schema_version INTEGER DEFAULT 6
+    );
+    CREATE TABLE member (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform_id TEXT NOT NULL UNIQUE,
+      account_name TEXT,
+      group_nickname TEXT,
+      aliases TEXT DEFAULT '[]',
+      avatar TEXT,
+      roles TEXT DEFAULT '[]'
+    );
+    CREATE TABLE message (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER NOT NULL,
+      sender_account_name TEXT,
+      sender_group_nickname TEXT,
+      ts INTEGER NOT NULL,
+      type INTEGER NOT NULL,
+      content TEXT,
+      reply_to_message_id TEXT DEFAULT NULL,
+      platform_message_id TEXT DEFAULT NULL
+    );
+    CREATE TABLE segment (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      start_ts INTEGER NOT NULL,
+      end_ts INTEGER NOT NULL,
+      message_count INTEGER DEFAULT 0,
+      is_manual INTEGER DEFAULT 0,
+      summary TEXT
+    );
+    CREATE TABLE message_context (
+      message_id INTEGER PRIMARY KEY,
+      segment_id INTEGER NOT NULL,
+      topic_id INTEGER
+    );
+    INSERT INTO meta (name, platform, type, imported_at, schema_version)
+    VALUES ('Legacy Chat', 'qq', 'group', 1000, 6);
+    INSERT INTO member (platform_id, account_name) VALUES ('u0', 'Existing User');
+  `)
+  db.close()
+
+  const filePath = path.join(root, 'incremental.jsonl')
+  writeIncrementalJsonl(filePath)
+
+  const result = await incrementalImport(manager, 'legacy', filePath)
+  assert.equal(result.success, true)
+  assert.equal(result.newMessageCount, 1)
+
+  const readDb = manager.openRawSessionDatabase('legacy', { readonly: true })
+  try {
+    const columns = readDb.pragma('table_info(message)') as Array<{ name: string }>
+    assert.equal(
+      columns.some((column) => column.name === 'media_path'),
+      true
+    )
+    const row = readDb.prepare('SELECT content, media_path FROM message WHERE platform_message_id = ?').get('m1') as
+      | { content: string; media_path: string | null }
+      | undefined
+    assert.deepEqual(row, { content: 'new incremental message', media_path: null })
+  } finally {
+    readDb.close()
+  }
+})
+
 test('streamImport archives ChatLab media paths and stores media metadata', async () => {
   const root = makeTempDir()
   const pathProvider = createPathProvider(root)

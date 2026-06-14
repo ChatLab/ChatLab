@@ -91,6 +91,7 @@ const isFileMessage = computed(() => props.message.type === MessageType.FILE)
 const isRenderableMedia = computed(
   () => isImageMessage.value || isVoiceMessage.value || isVideoMessage.value || isFileMessage.value
 )
+const shouldPreloadMedia = computed(() => isImageMessage.value)
 const mediaFilename = computed(() => props.message.mediaFilename || props.message.content || 'attachment')
 
 // 显示名称（包含别名）
@@ -153,7 +154,7 @@ function releaseMediaUrl() {
   }
 }
 
-async function loadMediaUrl() {
+async function loadMediaUrl(force = false): Promise<string | null> {
   const requestSeq = ++mediaRequestSeq
   releaseMediaUrl()
   mediaLoading.value = false
@@ -164,7 +165,10 @@ async function loadMediaUrl() {
   const mediaPath = props.message.mediaPath
   if (!sessionId || !mediaPath || !isRenderableMedia.value) {
     mediaUnavailable.value = isRenderableMedia.value
-    return
+    return null
+  }
+  if (!force && !shouldPreloadMedia.value) {
+    return null
   }
 
   mediaLoading.value = true
@@ -175,11 +179,11 @@ async function loadMediaUrl() {
       sessionId !== sessionStore.currentSessionId ||
       messageId !== props.message.id
     ) {
-      return
+      return null
     }
     if (!resp.ok) {
       mediaUnavailable.value = true
-      return
+      return null
     }
     const blob = await resp.blob()
     const nextUrl = URL.createObjectURL(blob)
@@ -190,12 +194,14 @@ async function loadMediaUrl() {
       mediaPath !== props.message.mediaPath
     ) {
       URL.revokeObjectURL(nextUrl)
-      return
+      return null
     }
     mediaUrl.value = nextUrl
+    return nextUrl
   } catch {
-    if (requestSeq !== mediaRequestSeq) return
+    if (requestSeq !== mediaRequestSeq) return null
     mediaUnavailable.value = true
+    return null
   } finally {
     if (requestSeq === mediaRequestSeq) {
       mediaLoading.value = false
@@ -204,14 +210,15 @@ async function loadMediaUrl() {
   }
 }
 
-function openMedia() {
-  if (mediaUrl.value) window.open(mediaUrl.value, '_blank', 'noopener,noreferrer')
+async function openMedia() {
+  const url = mediaUrl.value ?? (await loadMediaUrl(true))
+  if (url) window.open(url, '_blank', 'noopener,noreferrer')
 }
 
 watch(
   () => [sessionStore.currentSessionId, props.message.id, props.message.mediaPath, props.message.type],
   () => {
-    void loadMediaUrl()
+    void loadMediaUrl(false)
   },
   { immediate: true }
 )
@@ -313,7 +320,14 @@ onUnmounted(() => {
                   class="h-4 w-4"
                   :class="{ 'animate-spin': mediaLoading }"
                 />
-                <span class="break-all">{{ mediaLoading ? 'Loading media...' : mediaFilename }}</span>
+                <button
+                  type="button"
+                  class="min-w-0 break-all text-left transition hover:text-pink-600 dark:hover:text-pink-300"
+                  :disabled="mediaLoading || !message.mediaPath"
+                  @click="loadMediaUrl(true)"
+                >
+                  {{ mediaLoading ? 'Loading media...' : mediaFilename }}
+                </button>
               </div>
             </template>
 
@@ -331,7 +345,14 @@ onUnmounted(() => {
                   class="h-4 w-4"
                   :class="{ 'animate-spin': mediaLoading }"
                 />
-                <span class="break-all">{{ mediaLoading ? 'Loading media...' : mediaFilename }}</span>
+                <button
+                  type="button"
+                  class="min-w-0 break-all text-left transition hover:text-pink-600 dark:hover:text-pink-300"
+                  :disabled="mediaLoading || !message.mediaPath"
+                  @click="loadMediaUrl(true)"
+                >
+                  {{ mediaLoading ? 'Loading media...' : mediaFilename }}
+                </button>
               </div>
             </template>
 
@@ -339,11 +360,15 @@ onUnmounted(() => {
               v-else-if="isFileMessage"
               type="button"
               class="flex max-w-[280px] items-center gap-2 rounded-xl border border-gray-200 bg-white/60 px-3 py-2 text-left text-sm text-gray-700 transition hover:border-pink-200 hover:text-pink-600 dark:border-gray-700 dark:bg-gray-900/40 dark:text-gray-200 dark:hover:border-pink-800 dark:hover:text-pink-300"
-              :disabled="!mediaUrl"
+              :disabled="mediaLoading || !message.mediaPath"
               @click="openMedia"
             >
-              <UIcon name="i-heroicons-document-arrow-down" class="h-5 w-5 shrink-0" />
-              <span class="min-w-0 flex-1 truncate">{{ mediaFilename }}</span>
+              <UIcon
+                :name="mediaLoading ? 'i-heroicons-arrow-path' : 'i-heroicons-document-arrow-down'"
+                class="h-5 w-5 shrink-0"
+                :class="{ 'animate-spin': mediaLoading }"
+              />
+              <span class="min-w-0 flex-1 truncate">{{ mediaLoading ? 'Loading media...' : mediaFilename }}</span>
             </button>
 
             <p

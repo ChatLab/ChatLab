@@ -51,6 +51,8 @@ const MEDIA_TYPES = new Set<number>([
   MessageType.FILE,
   MessageType.EMOJI,
 ])
+const URL_PROTOCOL_REGEX = /^[a-z][a-z0-9+.-]*:\/\//i
+const WINDOWS_ABSOLUTE_PATH_REGEX = /^[a-z]:[\\/]/i
 
 export interface InferredMedia {
   type: MessageType
@@ -61,6 +63,18 @@ export interface InferredMedia {
 
 export function getMimeTypeForPath(filePath: string): string {
   return MIME_BY_EXT[path.extname(filePath).toLowerCase()] || 'application/octet-stream'
+}
+
+function looksLikeLocalExportPath(value: string): boolean {
+  if (URL_PROTOCOL_REGEX.test(value)) return false
+  if (value.includes('\n') || value.includes('\r')) return false
+
+  const normalized = value.replace(/\\/g, '/')
+  if (normalized.startsWith('./') || normalized.startsWith('../')) return true
+  if (normalized.includes('/')) return true
+  if (path.isAbsolute(value) || WINDOWS_ABSOLUTE_PATH_REGEX.test(value)) return true
+
+  return !/\s/.test(value)
 }
 
 export function inferMediaFromContent(content: string | null, type: number | null | undefined): InferredMedia | null {
@@ -79,6 +93,7 @@ export function inferMediaFromContent(content: string | null, type: number | nul
   let inferredType: MessageType | null = null
   if (type != null && MEDIA_TYPES.has(type)) inferredType = type as MessageType
   else if (type == null || INFERABLE_TYPES.has(type)) {
+    if (!looksLikeLocalExportPath(trimmed)) return null
     if (IMAGE_EXTS.has(ext)) inferredType = MessageType.IMAGE
     else if (VOICE_EXTS.has(ext)) inferredType = MessageType.VOICE
     else if (VIDEO_EXTS.has(ext)) inferredType = MessageType.VIDEO

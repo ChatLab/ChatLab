@@ -171,6 +171,13 @@ function buildIncrementalDeps(
   return {
     openDatabase(sessionId: string, readonly?: boolean) {
       try {
+        if (!readonly) {
+          const migratedDb = dbManager.openWritable(sessionId)
+          if (!migratedDb) {
+            throw new Error(`Session database not found: ${sessionId}`)
+          }
+          dbManager.close(sessionId)
+        }
         return dbManager.openRawSessionDatabase(sessionId, { readonly: readonly ?? false })
       } catch (error) {
         if (error instanceof DataDirCompatibilityError) onCompatibilityError?.(error)
