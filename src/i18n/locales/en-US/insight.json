@@ -1,0 +1,9 @@
+{
+  "title": "Insights",
+  "placeholder": "Global insights are coming soon, stay tuned",
+  "tabs": {
+    "overview": "Overview",
+    "trends": "Trends",
+    "ranking": "Ranking"
+  }
+}

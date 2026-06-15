@@ -50,6 +50,9 @@ const showContactsEntry = computed(() =>
   })
 )
 
+// 是否在洞察页
+const isInsightPage = computed(() => route.path === '/insight')
+
 // 重命名相关状态
 const showRenameModal = ref(false)
 const renameTarget = ref<AnalysisSession | null>(null)
@@ -460,21 +463,32 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
         </UButton>
       </div>
 
-      <!-- 新建分析 -->
-      <SidebarButton
-        icon="i-heroicons-plus"
-        :title="t('layout.newAnalysis')"
-        :active="isHomePage"
-        @click="handleImport"
-      />
-      <SidebarButton
-        v-if="showContactsEntry"
-        icon="i-lucide-users"
-        icon-class="scale-90"
-        :title="t('layout.relationships')"
-        :active="isPeoplePage"
-        @click="openContacts"
-      />
+      <div class="space-y-1">
+        <!-- 新建分析 -->
+        <SidebarButton
+          icon="i-heroicons-plus"
+          :title="t('layout.newAnalysis')"
+          :active="isHomePage"
+          @click="handleImport"
+        />
+
+        <SidebarButton
+          v-if="showContactsEntry"
+          icon="i-lucide-users"
+          icon-class="scale-90"
+          :title="t('layout.relationships')"
+          :active="isPeoplePage"
+          @click="openContacts"
+        />
+
+        <!-- 洞察 -->
+        <SidebarButton
+          icon="i-heroicons-presentation-chart-bar"
+          :title="t('layout.insight')"
+          :active="isInsightPage"
+          @click="router.push('/insight')"
+        />
+      </div>
     </div>
 
     <!-- Session List -->

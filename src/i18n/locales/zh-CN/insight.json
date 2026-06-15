@@ -1,0 +1,9 @@
+{
+  "title": "洞察",
+  "placeholder": "全局洞察功能正在建设中，敬请期待",
+  "tabs": {
+    "overview": "总览",
+    "trends": "趋势",
+    "ranking": "排行"
+  }
+}
