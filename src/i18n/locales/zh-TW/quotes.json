@@ -45,7 +45,7 @@
       "download": "下載詞庫",
       "download_zh-CN": "下載簡體詞庫",
       "download_zh-TW": "下載繁體詞庫",
-      "needDownload": "使用詞雲分析需要先下載分詞詞庫",
+      "needDownload": "詞雲已使用內建分詞結果顯示。下載中文詞庫可提升分詞準確度。",
       "downloadHint": "~8MB",
       "downloadSuccess": "詞庫下載成功",
       "downloadFailed": "詞庫下載失敗",

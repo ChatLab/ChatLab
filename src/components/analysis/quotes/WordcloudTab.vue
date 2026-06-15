@@ -142,6 +142,7 @@ const dictList = ref<Array<{ id: string; label: string; locale: string; download
 const isDictDownloading = ref(false)
 const downloadingDictId = ref<string | null>(null)
 const showDictPromptModal = ref(false)
+const dictListInitialized = ref(false)
 const DICT_PROMPT_DISMISSED_KEY = 'chatlab_zhTW_dict_prompt_dismissed'
 
 const locale = computed(() => settingsStore.locale as 'zh-CN' | 'en-US' | 'zh-TW' | 'ja-JP')
@@ -160,13 +161,15 @@ const dictOptions = computed(() => {
 const hasAnyDict = computed(() => {
   return dictList.value.some((d) => d.downloaded)
 })
-const canAnalyzeWithoutDictBlocking = computed(() => !requiresChineseDict.value || hasAnyDict.value)
+// 即使没有外部词典，内置 jieba 分词器也能正常工作，不应阻止分析
+const canAnalyzeWithoutDictBlocking = computed(() => dictListInitialized.value)
 
 const undownloadedDicts = computed(() => {
   return dictList.value.filter((d) => !d.downloaded)
 })
 
 async function refreshDictList() {
+  dictListInitialized.value = false
   try {
     dictList.value = await get('/nlp/dicts')
     // 繁体中文用户自动切换到 zh-TW（如已下载）
@@ -183,6 +186,8 @@ async function refreshDictList() {
     }
   } catch (error) {
     console.error('Failed to get dict list:', error)
+  } finally {
+    dictListInitialized.value = true
   }
 }
 
@@ -270,8 +275,10 @@ async function loadPosTagDefinitions() {
 }
 
 // 加载话题迷你词云数据（固定词性过滤）
+let topicMiniWordsRequestId = 0
 async function loadTopicMiniWords() {
   if (!props.sessionId || !canAnalyzeWithoutDictBlocking.value) return
+  const requestId = ++topicMiniWordsRequestId
   try {
     const result = await analyticsPost<WordFreqResponse>('/nlp/word-frequency', {
       sessionId: props.sessionId,
@@ -286,6 +293,7 @@ async function loadTopicMiniWords() {
       dictType: selectedDictType.value,
       excludeWords: currentExcludeWords.value.length > 0 ? [...currentExcludeWords.value] : undefined,
     })
+    if (requestId !== topicMiniWordsRequestId) return
     topicMiniWords.value = result.words.map((w) => ({
       word: w.word,
       count: w.count,
@@ -293,14 +301,17 @@ async function loadTopicMiniWords() {
     }))
   } catch (error) {
     console.error('加载话题迷你词云数据失败:', error)
+    if (requestId !== topicMiniWordsRequestId) return
     topicMiniWords.value = []
   }
 }
 
 // 加载词频数据
+let wordFrequencyRequestId = 0
 async function loadWordFrequency() {
   if (!props.sessionId || !canAnalyzeWithoutDictBlocking.value) return
 
+  const requestId = ++wordFrequencyRequestId
   isLoading.value = true
   try {
     const result = await analyticsPost<WordFreqResponse>('/nlp/word-frequency', {
@@ -316,6 +327,7 @@ async function loadWordFrequency() {
       dictType: selectedDictType.value,
       excludeWords: currentExcludeWords.value.length > 0 ? [...currentExcludeWords.value] : undefined,
     })
+    if (requestId !== wordFrequencyRequestId) return
 
     allWords.value = result.words.map((w) => ({
       word: w.word,
@@ -339,9 +351,12 @@ async function loadWordFrequency() {
     }
   } catch (error) {
     console.error('加载词频数据失败:', error)
+    if (requestId !== wordFrequencyRequestId) return
     allWords.value = []
   } finally {
-    isLoading.value = false
+    if (requestId === wordFrequencyRequestId) {
+      isLoading.value = false
+    }
   }
 }
 
@@ -363,6 +378,7 @@ watch(
     enableStopwords.value,
     selectedDictType.value,
     currentExcludeWords.value,
+    canAnalyzeWithoutDictBlocking.value,
   ],
   () => {
     loadWordFrequency()
@@ -372,7 +388,14 @@ watch(
 
 // 监听参数变化（话题迷你词云：不受词性过滤/最大词数影响）
 watch(
-  () => [props.sessionId, props.timeFilter, selectedMemberId.value, selectedDictType.value, currentExcludeWords.value],
+  () => [
+    props.sessionId,
+    props.timeFilter,
+    selectedMemberId.value,
+    selectedDictType.value,
+    currentExcludeWords.value,
+    canAnalyzeWithoutDictBlocking.value,
+  ],
   () => {
     loadTopicMiniWords()
   },
@@ -411,16 +434,18 @@ onMounted(async () => {
 
 <template>
   <div class="main-content mx-auto max-w-[920px] space-y-6 p-6">
-    <!-- 需要下载词库（全屏提示） -->
+    <!-- 中文词库可提升分词效果，但不能阻断后端 fallback 词云结果展示 -->
     <div
       v-if="requiresChineseDict && !hasAnyDict"
-      class="flex h-64 flex-col items-center justify-center gap-4 rounded-lg border border-dashed border-gray-300 dark:border-gray-600"
+      class="flex flex-col gap-3 rounded-lg border border-primary-200 bg-primary-50/70 p-4 dark:border-primary-800 dark:bg-primary-950/30 sm:flex-row sm:items-center sm:justify-between"
     >
-      <UIcon name="i-heroicons-arrow-down-tray" class="text-4xl text-gray-400" />
-      <p class="text-sm text-gray-500 dark:text-gray-400">
-        {{ t('quotes.wordcloud.dict.needDownload') }}
-      </p>
-      <div class="flex gap-2">
+      <div class="flex min-w-0 items-start gap-3">
+        <UIcon name="i-heroicons-information-circle" class="mt-0.5 shrink-0 text-xl text-primary-500" />
+        <p class="min-w-0 text-sm text-primary-700 dark:text-primary-300">
+          {{ t('quotes.wordcloud.dict.needDownload') }}
+        </p>
+      </div>
+      <div class="flex shrink-0 flex-wrap gap-2">
         <UButton
           v-for="dict in dictList"
           :key="dict.id"
@@ -436,7 +461,7 @@ onMounted(async () => {
       </div>
     </div>
 
-    <template v-else>
+    <template v-if="canAnalyzeWithoutDictBlocking">
       <div class="space-y-6">
         <LoadingState v-if="isLoading && topWords.length === 0" :text="t('quotes.wordcloud.loading')" class="py-8" />
 

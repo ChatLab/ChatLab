@@ -45,7 +45,7 @@
       "download": "下载词库",
       "download_zh-CN": "下载简体词库",
       "download_zh-TW": "下载繁体词库",
-      "needDownload": "使用词云分析需要先下载分词词库",
+      "needDownload": "词云已使用内置分词结果展示。下载中文词库可提升分词准确度。",
       "downloadHint": "~8MB",
       "downloadSuccess": "词库下载成功",
       "downloadFailed": "词库下载失败",
