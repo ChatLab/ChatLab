@@ -128,7 +128,7 @@ export const SQL_TOOL_DEFS: SqlToolDef[] = [
     execution: {
       type: 'sqlite',
       query:
-        "SELECT COALESCE(m1.group_nickname, m1.account_name) AS member_a, COALESCE(m2.group_nickname, m2.account_name) AS member_b, COUNT(*) AS interaction_count FROM message a JOIN message b ON b.sender_id != a.sender_id AND b.ts > a.ts AND b.ts <= a.ts + 300 JOIN member m1 ON a.sender_id = m1.id JOIN member m2 ON b.sender_id = m2.id WHERE a.sender_id < b.sender_id AND a.ts > unixepoch('now', '-' || @days || ' days') AND a.type = 0 AND b.type = 0 GROUP BY a.sender_id, b.sender_id ORDER BY interaction_count DESC LIMIT @limit",
+        "WITH ordered_messages AS (SELECT id, sender_id, ts, LAG(sender_id) OVER (ORDER BY ts, id) AS prev_sender_id, LAG(ts) OVER (ORDER BY ts, id) AS prev_ts FROM message WHERE type = 0 AND ts > unixepoch('now', '-' || @days || ' days')), pairs AS (SELECT CASE WHEN prev_sender_id < sender_id THEN prev_sender_id ELSE sender_id END AS member_a_id, CASE WHEN prev_sender_id < sender_id THEN sender_id ELSE prev_sender_id END AS member_b_id FROM ordered_messages WHERE prev_sender_id IS NOT NULL AND prev_sender_id != sender_id AND prev_ts IS NOT NULL AND ts <= prev_ts + 300) SELECT COALESCE(m1.group_nickname, m1.account_name) AS member_a, COALESCE(m2.group_nickname, m2.account_name) AS member_b, COUNT(*) AS interaction_count FROM pairs JOIN member m1 ON pairs.member_a_id = m1.id JOIN member m2 ON pairs.member_b_id = m2.id GROUP BY member_a_id, member_b_id ORDER BY interaction_count DESC LIMIT @limit",
       rowTemplate: '{member_a} ↔ {member_b}：{interaction_count} 次互动',
       summaryTemplate: '互动最频繁的 {rowCount} 对好友：',
       fallback: '该时间范围内没有检测到明显的互动关系',

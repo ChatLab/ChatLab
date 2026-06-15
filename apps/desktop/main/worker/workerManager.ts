@@ -25,12 +25,45 @@ const pendingRequests = new Map<
   {
     resolve: (value: any) => void
     reject: (error: Error) => void
+    timeout: ReturnType<typeof setTimeout>
     onProgress?: (progress: ParseProgress) => void // 进度回调
   }
 >()
 
 // 请求 ID 计数器
 let requestIdCounter = 0
+
+function hasProgressRequest(): boolean {
+  for (const pending of pendingRequests.values()) {
+    if (pending.onProgress) return true
+  }
+  return false
+}
+
+function rejectAllPending(error: Error): void {
+  for (const [id, pending] of pendingRequests.entries()) {
+    clearTimeout(pending.timeout)
+    pending.reject(error)
+    pendingRequests.delete(id)
+  }
+}
+
+function terminateWorkerAfterQueryTimeout(type: string): void {
+  if (!worker) return
+
+  if (hasProgressRequest()) {
+    console.warn(`[WorkerManager] Query timed out while a progress task is active; keeping worker alive: ${type}`)
+    return
+  }
+
+  console.warn(`[WorkerManager] Restarting worker after request timeout: ${type}`)
+  const timedOutWorker = worker
+  worker = null
+  rejectAllPending(new Error(`Worker restarted after request timeout: ${type}`))
+  timedOutWorker.terminate().catch((error) => {
+    console.error('[WorkerManager] Failed to terminate timed-out worker:', error)
+  })
+}
 
 /**
  * 获取数据库目录
@@ -102,6 +135,7 @@ export function initWorker(): void {
 
       // 处理完成或错误消息
       pendingRequests.delete(id)
+      clearTimeout(pending.timeout)
 
       if (success) {
         pending.resolve(result)
@@ -121,10 +155,7 @@ export function initWorker(): void {
       worker = null
 
       // 拒绝所有等待中的请求
-      for (const [id, pending] of pendingRequests.entries()) {
-        pending.reject(new Error('Worker exited unexpectedly'))
-        pendingRequests.delete(id)
-      }
+      rejectAllPending(new Error('Worker exited unexpectedly'))
     })
 
     console.log('[WorkerManager] Worker initialized successfully')
@@ -150,17 +181,17 @@ function sendToWorker<T>(type: string, payload: any, timeoutMs: number = 60000):
 
     const id = `req_${++requestIdCounter}`
 
-    pendingRequests.set(id, { resolve, reject })
-
-    worker!.postMessage({ id, type, payload })
-
-    // 设置超时
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       if (pendingRequests.has(id)) {
         pendingRequests.delete(id)
         reject(new Error(`Worker request timeout: ${type}`))
+        terminateWorkerAfterQueryTimeout(type)
       }
     }, timeoutMs)
+
+    pendingRequests.set(id, { resolve, reject, timeout })
+
+    worker!.postMessage({ id, type, payload })
   })
 }
 
@@ -186,17 +217,16 @@ function sendToWorkerWithProgress<T>(
 
     const id = `req_${++requestIdCounter}`
 
-    pendingRequests.set(id, { resolve, reject, onProgress })
-
-    worker!.postMessage({ id, type, payload })
-
-    // 设置超时
-    setTimeout(() => {
+    const timeout = setTimeout(() => {
       if (pendingRequests.has(id)) {
         pendingRequests.delete(id)
         reject(new Error(`Worker request timeout: ${type}`))
       }
     }, timeoutMs)
+
+    pendingRequests.set(id, { resolve, reject, timeout, onProgress })
+
+    worker!.postMessage({ id, type, payload })
   })
 }
 

@@ -19,10 +19,11 @@ interface AdaptOptions {
 
 function buildExecutionContext(ctx: ToolContext): ToolExecutionContext {
   return {
-    dataProvider: new WorkerDataProvider(ctx.sessionId),
+    dataProvider: new WorkerDataProvider(ctx.sessionId, ctx.abortSignal),
     sessionId: ctx.sessionId,
     locale: ctx.locale,
     timeFilter: ctx.timeFilter,
+    abortSignal: ctx.abortSignal,
     searchContextBefore: ctx.searchContextBefore,
     searchContextAfter: ctx.searchContextAfter,
     maxMessagesLimit: ctx.maxMessagesLimit,

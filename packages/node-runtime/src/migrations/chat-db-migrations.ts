@@ -395,5 +395,18 @@ export function getChatDbMigrations(deps?: MigrationDeps): CoreMigration[] {
         }
       },
     },
+    {
+      version: 8,
+      description: 'Add analysis tool performance indexes',
+      up: (db: DatabaseAdapter) => {
+        addColumnIfMissing(db, 'message', 'reply_to_message_id', 'TEXT DEFAULT NULL')
+
+        db.exec(`
+          CREATE INDEX IF NOT EXISTS idx_message_sender_ts ON message(sender_id, ts);
+          CREATE INDEX IF NOT EXISTS idx_message_type_ts ON message(type, ts);
+          CREATE INDEX IF NOT EXISTS idx_message_reply_to ON message(reply_to_message_id);
+        `)
+      },
+    },
   ]
 }

@@ -32,19 +32,24 @@ export function registerAiToolRoutes(server: FastifyInstance, ctx: HttpRouteCont
       return reply.code(404).send({ success: false, error: `Tool not found: ${toolName}` })
     }
 
-    const db = ctx.dbManager.open(sessionId)
-    if (!db) {
-      return reply.code(404).send({ success: false, error: `Session not found: ${sessionId}` })
-    }
-
     const abortController = new AbortController()
     activeToolTests.set(testId, abortController)
 
     try {
+      if (ctx.executeAiTool) {
+        return await ctx.executeAiTool({ testId, toolName, params, sessionId, abortSignal: abortController.signal })
+      }
+
+      const db = ctx.dbManager.open(sessionId)
+      if (!db) {
+        return reply.code(404).send({ success: false, error: `Session not found: ${sessionId}` })
+      }
+
       const execCtx: ToolExecutionContext = {
         sessionId,
         db,
         dataProvider: new CoreDataProvider(db),
+        abortSignal: abortController.signal,
       }
 
       const startTime = Date.now()

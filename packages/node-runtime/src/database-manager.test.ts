@@ -5,7 +5,7 @@ import path from 'node:path'
 import test from 'node:test'
 import Database from 'better-sqlite3'
 import type { PathProvider } from '@openchatlab/core'
-import { CURRENT_SCHEMA_VERSION, getSessionInfo } from '@openchatlab/core'
+import { CHAT_DB_SCHEMA, CURRENT_SCHEMA_VERSION, getSessionInfo } from '@openchatlab/core'
 import { DataDirCompatibilityError, readDataDirCompatibilityMeta } from './data-dir-compat'
 import { DatabaseManager } from './database-manager'
 
@@ -28,6 +28,20 @@ function createPathProvider(root: string): PathProvider {
     getLogsDir: () => path.join(root, 'logs'),
     getDownloadsDir: () => path.join(root, 'downloads'),
   }
+}
+
+function getIndexNames(db: Database.Database): string[] {
+  const rows = db.prepare("SELECT name FROM sqlite_master WHERE type = 'index' ORDER BY name").all() as Array<{
+    name: string
+  }>
+  return rows.map((row) => row.name)
+}
+
+function assertAnalysisToolIndexes(db: Database.Database): void {
+  const indexes = getIndexNames(db)
+  assert.ok(indexes.includes('idx_message_reply_to'))
+  assert.ok(indexes.includes('idx_message_sender_ts'))
+  assert.ok(indexes.includes('idx_message_type_ts'))
 }
 
 test('constructor rejects missing runtime unless the test-only bypass is explicit', () => {
@@ -152,6 +166,65 @@ test('open backfills FTS index when migrating legacy sessions', () => {
   assert.equal(searchCount.total, 1)
 
   manager.closeAll()
+})
+
+test('open migrates v7 databases to include analysis tool indexes', () => {
+  const root = makeTempDir()
+  const dbDir = path.join(root, 'data', 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+  const dbPath = path.join(dbDir, 'v7-analysis-indexes.db')
+
+  const rawDb = new Database(dbPath, { nativeBinding })
+  rawDb.exec(`
+    CREATE TABLE meta (
+      name TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      type TEXT NOT NULL,
+      imported_at INTEGER NOT NULL,
+      schema_version INTEGER DEFAULT 7
+    );
+    INSERT INTO meta (name, platform, type, imported_at, schema_version)
+    VALUES ('V7 Analysis Indexes', 'qq', 'group', 1000, 7);
+
+    CREATE TABLE member (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform_id TEXT NOT NULL UNIQUE,
+      account_name TEXT
+    );
+    INSERT INTO member (platform_id, account_name) VALUES ('u1', 'Alice');
+
+    CREATE TABLE message (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER NOT NULL,
+      ts INTEGER NOT NULL,
+      type INTEGER NOT NULL,
+      content TEXT,
+      reply_to_message_id TEXT DEFAULT NULL,
+      platform_message_id TEXT DEFAULT NULL
+    );
+    INSERT INTO message (sender_id, ts, type, content) VALUES (1, 1000, 0, 'hello indexed tools');
+  `)
+  rawDb.close()
+
+  const manager = new DatabaseManager(createPathProvider(root), { nativeBinding, allowMissingRuntimeForTests: true })
+  const db = manager.open('v7-analysis-indexes')
+  assert.ok(db)
+
+  const version = db.prepare('SELECT schema_version FROM meta LIMIT 1').get() as { schema_version: number }
+  assert.equal(version.schema_version, CURRENT_SCHEMA_VERSION)
+  assertAnalysisToolIndexes(db as unknown as Database.Database)
+
+  manager.closeAll()
+})
+
+test('CHAT_DB_SCHEMA creates analysis tool indexes for new databases', () => {
+  const db = new Database(':memory:', { nativeBinding })
+  try {
+    db.exec(CHAT_DB_SCHEMA)
+    assertAnalysisToolIndexes(db)
+  } finally {
+    db.close()
+  }
 })
 
 test('open migrates v2 chat_session schema to current segment schema', () => {

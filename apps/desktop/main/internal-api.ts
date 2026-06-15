@@ -41,6 +41,7 @@ import { getManager as getAIChatManager } from './ai/chats'
 import { getManager as getAssistantManager } from './ai/assistant/manager'
 import { getManager as getSkillManager } from './ai/skills/manager'
 import { createElectronRunAgentStream } from './ai/agent-stream-runner'
+import { executeElectronAiTool } from './ai/tools/debug-executor'
 import { assertDesktopDataDirCompatible, getDesktopAppVersion } from './runtime-compat'
 
 export interface InternalEndpoint {
@@ -153,6 +154,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
       defaultUserDataDir: getDefaultUserDataDir(),
       isCustomDataDir: path.resolve(getUserDataDir()) !== path.resolve(getDefaultUserDataDir()),
       runAgentStream: createElectronRunAgentStream(),
+      executeAiTool: executeElectronAiTool,
     }
 
     newServer = Fastify({ logger: false, bodyLimit: JSON_BODY_LIMIT })

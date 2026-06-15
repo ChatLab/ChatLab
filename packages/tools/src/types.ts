@@ -232,6 +232,7 @@ export interface ToolExecutionContext {
   sessionId: string
   locale?: string
   timeFilter?: TimeFilter
+  abortSignal?: AbortSignal
   /** 抽象查询接口 */
   dataProvider?: ToolDataProvider
   /** @deprecated 逐步迁移到 dataProvider 后移除；Electron 端不提供此字段 */

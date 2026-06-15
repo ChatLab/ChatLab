@@ -6,6 +6,7 @@ import { getSegmentSummariesTool } from './get-segment-summaries'
 import { searchMessagesTool } from './search-messages'
 import { searchSegmentsTool } from './search-segments'
 import { schemaTool, sqlQueryTool } from './sql-query'
+import { SQL_TOOL_DEFS, createSqlToolDefinition } from '../sql'
 import type { RawMessage, ToolDataProvider, ToolExecutionContext, TimeFilter } from '../types'
 
 function createContext(
@@ -18,6 +19,12 @@ function createContext(
     dataProvider: dataProvider as ToolDataProvider,
     ...overrides,
   }
+}
+
+function createSqlTool(name: string) {
+  const def = SQL_TOOL_DEFS.find((tool) => tool.name === name)
+  assert.ok(def, `Expected SQL tool definition for ${name}`)
+  return { def, tool: createSqlToolDefinition(def) }
 }
 
 describe('high-risk analysis tool definitions', () => {
@@ -231,5 +238,53 @@ describe('high-risk analysis tool definitions', () => {
 
     assert.deepEqual(result.data, schema)
     assert.deepEqual(JSON.parse(result.content), { tables: schema })
+  })
+
+  it('mutual_interaction_pairs uses adjacent-message windows instead of a message self-join', async () => {
+    const { def } = createSqlTool('mutual_interaction_pairs')
+
+    assert.doesNotMatch(def.execution.query, /JOIN message b ON b\.sender_id != a\.sender_id/)
+    assert.match(def.execution.query, /LAG\(sender_id\) OVER/)
+    assert.match(def.execution.query, /ordered_messages/)
+  })
+
+  it('mutual_interaction_pairs formats adjacent interaction rows from the provider', async () => {
+    const { tool } = createSqlTool('mutual_interaction_pairs')
+    const calls: Array<{ query: string; params: Record<string, unknown> }> = []
+    const context = createContext({
+      async executeParameterizedSql<T = Record<string, unknown>>(query: string, params: Record<string, unknown>) {
+        calls.push({ query, params })
+        return [{ member_a: 'Alice', member_b: 'Bob', interaction_count: 2 }] as T[]
+      },
+    })
+
+    const result = await tool.handler({ days: 30, limit: 5 }, context)
+
+    assert.equal(calls.length, 1)
+    assert.equal(calls[0]?.params.days, 30)
+    assert.equal(calls[0]?.params.limit, 5)
+    assert.match(result.content, /Alice/)
+    assert.match(result.content, /Bob/)
+    assert.deepEqual((result.data as { rows: unknown[]; rowCount: number }).rowCount, 1)
+  })
+
+  it('reply_interaction_ranking still ranks explicit reply relationships', async () => {
+    const { def, tool } = createSqlTool('reply_interaction_ranking')
+    const context = createContext({
+      async executeParameterizedSql<T = Record<string, unknown>>(query: string, params: Record<string, unknown>) {
+        assert.equal(query, def.execution.query)
+        assert.deepEqual(params, { days: 14, limit: 3 })
+        return [{ replier_name: 'Bob', original_name: 'Alice', reply_count: 4 }] as T[]
+      },
+    })
+
+    assert.match(def.execution.query, /reply_to_message_id/)
+    assert.match(def.execution.query, /ORDER BY reply_count DESC/)
+
+    const result = await tool.handler({ days: 14, limit: 3 }, context)
+
+    assert.match(result.content, /Bob/)
+    assert.match(result.content, /Alice/)
+    assert.match(result.content, /4/)
   })
 })

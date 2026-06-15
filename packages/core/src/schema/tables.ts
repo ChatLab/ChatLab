@@ -8,7 +8,7 @@
  */
 
 /** 当前 Schema 版本（最新迁移的版本号） */
-export const CURRENT_SCHEMA_VERSION = 7
+export const CURRENT_SCHEMA_VERSION = 8
 
 /**
  * Table DDL only (no indexes). Used by bulk-import workflows that defer
@@ -82,6 +82,9 @@ export const CHAT_DB_TABLES = `
 export const CHAT_DB_INDEXES = `
   CREATE INDEX IF NOT EXISTS idx_message_ts ON message(ts);
   CREATE INDEX IF NOT EXISTS idx_message_sender ON message(sender_id);
+  CREATE INDEX IF NOT EXISTS idx_message_sender_ts ON message(sender_id, ts);
+  CREATE INDEX IF NOT EXISTS idx_message_type_ts ON message(type, ts);
+  CREATE INDEX IF NOT EXISTS idx_message_reply_to ON message(reply_to_message_id);
   CREATE INDEX IF NOT EXISTS idx_message_platform_id ON message(platform_message_id);
   CREATE INDEX IF NOT EXISTS idx_member_name_history_member_id ON member_name_history(member_id);
   CREATE INDEX IF NOT EXISTS idx_segment_time ON segment(start_ts, end_ts);

@@ -69,6 +69,26 @@ export interface HttpRouteContext {
     onEvent: (chunk: AgentStreamChunk) => void,
     abortSignal: AbortSignal
   ) => Promise<void>
+
+  /** AI tool debug execution - platform-specific so Electron can keep DB work in its worker. */
+  executeAiTool?: (params: AiToolExecuteRequest) => Promise<AiToolExecuteResult>
+}
+
+export interface AiToolExecuteRequest {
+  testId: string
+  toolName: string
+  params: Record<string, unknown>
+  sessionId: string
+  abortSignal: AbortSignal
+}
+
+export interface AiToolExecuteResult {
+  success: boolean
+  elapsed?: number
+  content?: Array<{ type: 'text'; text: string }>
+  details?: unknown
+  truncated?: boolean
+  error?: string
 }
 
 export interface AgentStreamRequest {
