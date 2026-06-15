@@ -21,8 +21,8 @@
     "filter": "Filter"
   },
   "timeline": {
-    "timeline": "Sessions",
-    "noSessions": "No sessions",
+    "timeline": "Summaries",
+    "noSessions": "No summaries",
     "generateSummary": "Summarize",
     "tooFewMessages": "Too few"
   },

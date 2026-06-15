@@ -63,63 +63,6 @@ function getWorkerPath(): string {
 }
 
 /**
- * 清空 cache/query/ 下所有 .cache.json 文件
- */
-function clearAnalysisCacheFiles(queryCacheDir: string): void {
-  if (!fs.existsSync(queryCacheDir)) return
-  const files = fs.readdirSync(queryCacheDir)
-  for (const file of files) {
-    if (file.endsWith('.cache.json')) {
-      fs.unlinkSync(path.join(queryCacheDir, file))
-    }
-  }
-}
-
-/**
- * 启动时检查是否需要清除分析缓存：
- * - 开发模式：每次启动都清空（代码随时可能变更，避免旧缓存误导）
- * - 生产模式：版本号变更时清空（兜底查询逻辑变更导致的缓存过时）
- */
-function checkAndResetAnalysisCache(): void {
-  const queryCacheDir = path.join(getCacheDir(), 'query')
-  const isDev = !app.isPackaged
-
-  if (isDev) {
-    console.log('[WorkerManager] Dev mode: clearing analysis cache on startup')
-    try {
-      clearAnalysisCacheFiles(queryCacheDir)
-    } catch (err) {
-      console.error('[WorkerManager] Failed to clear analysis cache:', err)
-    }
-    return
-  }
-
-  const versionFile = path.join(queryCacheDir, '.cache_version')
-  const currentVersion = getDesktopAppVersion(app.getVersion())
-
-  let lastVersion: string | null = null
-  try {
-    if (fs.existsSync(versionFile)) {
-      lastVersion = fs.readFileSync(versionFile, 'utf-8').trim()
-    }
-  } catch {
-    // ignore read errors
-  }
-
-  if (lastVersion === currentVersion) return
-
-  console.log(`[WorkerManager] Version changed (${lastVersion ?? 'none'} → ${currentVersion}), clearing analysis cache`)
-
-  try {
-    clearAnalysisCacheFiles(queryCacheDir)
-    ensureDir(queryCacheDir)
-    fs.writeFileSync(versionFile, currentVersion, 'utf-8')
-  } catch (err) {
-    console.error('[WorkerManager] Failed to reset analysis cache:', err)
-  }
-}
-
-/**
  * 初始化 Worker
  */
 export function initWorker(): void {
@@ -127,8 +70,6 @@ export function initWorker(): void {
     console.log('[WorkerManager] Worker already initialized')
     return
   }
-
-  checkAndResetAnalysisCache()
 
   const workerPath = getWorkerPath()
   console.log('[WorkerManager] Initializing worker at:', workerPath)
@@ -140,6 +81,7 @@ export function initWorker(): void {
         cacheDir: getCacheDir(),
         tempDir: getTempDir(),
         nlpDir: getNlpDir(),
+        appVersion: getDesktopAppVersion(app.getVersion()),
       },
     })
 
@@ -313,24 +255,6 @@ export async function pluginQuery<T = Record<string, any>>(
   params: any[] | Record<string, any> = []
 ): Promise<T[]> {
   return sendToWorker('pluginQuery', { sessionId, sql, params }, 120000)
-}
-
-/**
- * 插件计算卸载（纯函数在 Worker 中执行）
- * 超时设为 120s，因为计算密集型任务 + 排队等待可能较长
- */
-export async function pluginCompute<TOutput = any>(fnString: string, input: any): Promise<TOutput> {
-  return sendToWorker('pluginCompute', { fnString, input }, 120000)
-}
-
-// ==================== 缓存管理 ====================
-
-/**
- * 清除指定 session 的所有分析结果缓存
- * 在数据变更（增量导入、成员删除/别名更新）后调用
- */
-export async function invalidateAnalysisCache(sessionId: string): Promise<boolean> {
-  return sendToWorker('invalidateAnalysisCache', { sessionId })
 }
 
 // ==================== 导出的异步 API ====================

@@ -285,6 +285,8 @@ export {
   computeAndSetOverviewCache,
   computeAndSetMembersCache,
   getValidatedOverviewCache,
+  getDbFileVersion,
+  getOrComputeAnalysisCache,
   CACHE_KEY_OVERVIEW,
   CACHE_KEY_MEMBERS,
 } from './cache'

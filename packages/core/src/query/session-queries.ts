@@ -677,9 +677,13 @@ export function renameSession(db: DatabaseAdapter, newName: string): void {
 /**
  * Delete all session index data (segment + message_context).
  */
-export function clearSessionIndex(db: DatabaseAdapter): void {
+function clearSessionIndexRows(db: DatabaseAdapter): void {
   db.exec('DELETE FROM message_context')
   db.exec('DELETE FROM segment')
+}
+
+export function clearSessionIndex(db: DatabaseAdapter): void {
+  db.transaction(() => clearSessionIndexRows(db))
 }
 
 /**
@@ -695,8 +699,6 @@ export function generateSessionIndex(
 ): number {
   const countRow = db.prepare('SELECT COUNT(*) as count FROM message').get() as { count: number } | undefined
   if (!countRow || countRow.count === 0) return 0
-
-  clearSessionIndex(db)
 
   const sessionMarkSQL = `
     WITH message_ordered AS (
@@ -739,6 +741,8 @@ export function generateSessionIndex(
   const insertContext = db.prepare('INSERT INTO message_context (message_id, segment_id, topic_id) VALUES (?, ?, NULL)')
 
   return db.transaction(() => {
+    clearSessionIndexRows(db)
+
     let processed = 0
     const total = sessionMap.size
     for (const [, data] of sessionMap) {

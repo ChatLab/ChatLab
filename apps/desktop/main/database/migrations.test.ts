@@ -6,7 +6,7 @@ import test from 'node:test'
 import Database from 'better-sqlite3'
 import type { PathProvider } from '@openchatlab/core'
 import { readDataDirCompatibilityMeta } from '@openchatlab/node-runtime/src/data-dir-compat'
-import { migrateDatabase } from './migrations'
+import { getPendingMigrationInfos, migrateDatabase } from './migrations'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -82,4 +82,13 @@ test('migrateDatabase writes data directory compatibility meta after segment sch
     module: 'chat-db-migration',
     version: '0.25.1',
   })
+})
+
+test('getPendingMigrationInfos maps v7 to its own localized message', () => {
+  const migrations = getPendingMigrationInfos(6)
+
+  assert.equal(migrations.length, 1)
+  assert.equal(migrations[0].version, 7)
+  assert.match(migrations[0].userMessage, /Repair|修复/)
+  assert.doesNotMatch(migrations[0].userMessage, /Owner/)
 })

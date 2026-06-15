@@ -1,7 +1,7 @@
 /**
  * DataAdapter — 数据查询领域的适配器接口
  *
- * 涵盖：会话管理、统计分析、成员管理、社交分析、SQL Lab、插件查询
+ * 涵盖：会话管理、统计分析、成员管理、社交分析、SQL Lab、通用 SQL 查询
  * Electron 通过 window.chatApi IPC 实现，Web 通过 /_web/ HTTP API 实现。
  */
 
@@ -23,6 +23,17 @@ import type {
   RelationshipStats,
 } from '@/types/analysis'
 import type { LanguagePreferenceResult } from '@/types/quotes/languagePreference'
+import type {
+  TextStats,
+  TextLengthPercentiles,
+  MemberMonthlyTrend,
+  DragonKingAnalysis,
+  DivingAnalysis,
+  CheckInAnalysis,
+  MemeBattleAnalysis,
+  NightOwlAnalysis,
+  RepeatAnalysis,
+} from '@openchatlab/core'
 
 // ==================== 分页参数与结果 ====================
 
@@ -108,6 +119,16 @@ export interface DataAdapter {
     sessionId: string,
     filter?: TimeFilter
   ): Promise<Array<{ type: MessageType; count: number }>>
+  getTextStats(sessionId: string, filter?: TimeFilter): Promise<TextStats>
+  getLongMessageCount(sessionId: string, filter?: TimeFilter, minLength?: number): Promise<number>
+  getMemberMonthlyTrend(sessionId: string, filter?: TimeFilter): Promise<MemberMonthlyTrend[]>
+  getTextLengthPercentiles(sessionId: string, filter?: TimeFilter): Promise<TextLengthPercentiles>
+  getDragonKingAnalysis(sessionId: string, filter?: TimeFilter): Promise<DragonKingAnalysis>
+  getDivingAnalysis(sessionId: string, filter?: TimeFilter): Promise<DivingAnalysis>
+  getCheckInAnalysis(sessionId: string, filter?: TimeFilter): Promise<CheckInAnalysis>
+  getMemeBattleAnalysis(sessionId: string, filter?: TimeFilter): Promise<MemeBattleAnalysis>
+  getNightOwlAnalysis(sessionId: string, filter?: TimeFilter): Promise<NightOwlAnalysis>
+  getRepeatAnalysis(sessionId: string, filter?: TimeFilter): Promise<RepeatAnalysis>
 
   // ==================== 成员管理 ====================
 
@@ -142,8 +163,14 @@ export interface DataAdapter {
   executeSQL(sessionId: string, sql: string): Promise<SQLResult>
   getSchema(sessionId: string): Promise<TableSchema[]>
 
-  // ==================== 插件系统 ====================
+  // ==================== 通用 SQL 查询 ====================
 
+  /**
+   * 执行只读 SQL 查询并返回原始行。
+   *
+   * 用途边界：仅用于消息浏览/搜索/分页与 session-index 等通用数据访问；
+   * 图表与分析必须走专用的缓存端点（core 计算 → analytics 路由 → 上面的 getXxx 方法），
+   * 不要再用本方法在前端拉全量数据后自行计算。
+   */
   pluginQuery<T = Record<string, unknown>>(sessionId: string, sql: string, params?: unknown[]): Promise<T[]>
-  pluginCompute<T = unknown>(fnString: string, input: unknown): Promise<T>
 }

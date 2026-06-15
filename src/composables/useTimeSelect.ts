@@ -8,6 +8,7 @@ import { ref, computed, watch } from 'vue'
 import type { Ref } from 'vue'
 import type { RouteLocationNormalizedLoaded, Router } from 'vue-router'
 import type { TimeRangeValue, TimeSelectState, TimeSelectMode } from '@/components/common/TimeSelect.vue'
+import { abortAnalyticsRequests } from '@/services/utils/http'
 
 /**
  * 模块级缓存：按 sessionId 保存用户最后设置的时间筛选状态。
@@ -125,6 +126,9 @@ export function useTimeSelect(route: RouteLocationNormalizedLoaded, router: Rout
     timeRangeValue,
     (val) => {
       if (!val || !currentSessionId.value) return
+      // 新筛选生效前，作废上一批仍在途的分析请求：释放连接、避免过期结果回写。
+      // 此 watch 在父页面 setup 阶段注册，早于子分析组件，确保子组件随后发起的新请求绑定新 epoch。
+      abortAnalyticsRequests()
       // 缓存当前时间筛选状态，供从其他页面返回时恢复
       timeStateCache.set(currentSessionId.value, val.state)
       onTimeRangeChange?.()

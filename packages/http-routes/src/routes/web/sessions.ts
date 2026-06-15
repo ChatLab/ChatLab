@@ -13,13 +13,21 @@ export function registerSessionRoutes(server: FastifyInstance, ctx: HttpRouteCon
   }
 
   server.get('/_web/sessions', async () => {
-    return sessionService.listAnalysisSessions(adapter)
+    const aiChatCounts = ctx.aiChatManager?.getAIChatCountsBySession()
+    return sessionService.listAnalysisSessions(adapter, {
+      enrichSession: aiChatCounts?.size
+        ? (dto) => ({ ...dto, aiConversationCount: aiChatCounts.get(dto.id) ?? 0 })
+        : undefined,
+    })
   })
 
   server.get<{ Params: { id: string } }>('/_web/sessions/:id', async (request) => {
     const session = sessionService.getAnalysisSession(adapter, request.params.id)
     if (!session) {
       throw Object.assign(new Error(`Session not found: ${request.params.id}`), { statusCode: 404 })
+    }
+    if (ctx.aiChatManager) {
+      session.aiConversationCount = ctx.aiChatManager.getAIChats(request.params.id).length
     }
     return session
   })

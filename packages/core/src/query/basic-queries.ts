@@ -53,6 +53,27 @@ export interface MessageTypeStats {
   count: number
 }
 
+export interface TextStats {
+  textCount: number
+  avgLength: number
+  maxLength: number
+  shortCount: number
+}
+
+export interface TextLengthPercentiles {
+  p25: number
+  p50: number
+  p75: number
+  p90: number
+}
+
+export interface MemberMonthlyTrend {
+  month: string
+  memberId: number
+  memberName: string
+  count: number
+}
+
 /**
  * 获取消息时间范围
  */
@@ -329,4 +350,108 @@ export function getMessageLengthDistribution(db: DatabaseAdapter, filter?: TimeF
   }))
 
   return { detail, grouped }
+}
+
+/**
+ * 获取文字消息统计（仅 type=0）：数量、平均长度、最大长度、短消息（≤5 字）数
+ */
+export function getTextStats(db: DatabaseAdapter, filter?: TimeFilter): TextStats {
+  const { clause, params } = buildTimeFilter(filter)
+  const typeCondition =
+    buildSystemMessageFilter(clause) + ' AND msg.type = 0 AND msg.content IS NOT NULL AND LENGTH(msg.content) > 0'
+
+  const row = db
+    .prepare(
+      `SELECT
+        COUNT(*) as textCount,
+        ROUND(AVG(LENGTH(msg.content)), 1) as avgLength,
+        MAX(LENGTH(msg.content)) as maxLength,
+        SUM(CASE WHEN LENGTH(msg.content) <= 5 THEN 1 ELSE 0 END) as shortCount
+       FROM message msg JOIN member m ON msg.sender_id = m.id
+       ${typeCondition}`
+    )
+    .get(...params) as
+    | { textCount: number; avgLength: number | null; maxLength: number | null; shortCount: number | null }
+    | undefined
+
+  return {
+    textCount: row?.textCount ?? 0,
+    avgLength: row?.avgLength ?? 0,
+    maxLength: row?.maxLength ?? 0,
+    shortCount: row?.shortCount ?? 0,
+  }
+}
+
+/**
+ * 获取长消息（小作文）数量，minLength 为字符阈值（默认 30），仅统计文字消息
+ */
+export function getLongMessageCount(db: DatabaseAdapter, filter?: TimeFilter, minLength = 30): number {
+  const { clause, params } = buildTimeFilter(filter)
+  const typeCondition =
+    buildSystemMessageFilter(clause) + ' AND msg.type = 0 AND msg.content IS NOT NULL AND LENGTH(msg.content) >= ?'
+
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) as cnt
+       FROM message msg JOIN member m ON msg.sender_id = m.id
+       ${typeCondition}`
+    )
+    .get(...params, minLength) as { cnt: number } | undefined
+
+  return row?.cnt ?? 0
+}
+
+/**
+ * 获取成员月度消息趋势（按月 × 发送者）
+ */
+export function getMemberMonthlyTrend(db: DatabaseAdapter, filter?: TimeFilter): MemberMonthlyTrend[] {
+  const { clause, params } = buildTimeFilter(filter)
+  const clauseWithSystem = buildSystemMessageFilter(clause)
+
+  return db
+    .prepare(
+      `SELECT
+        strftime('%Y-%m', msg.ts, 'unixepoch', 'localtime') as month,
+        msg.sender_id as memberId,
+        m.account_name as memberName,
+        COUNT(*) as count
+      FROM message msg JOIN member m ON msg.sender_id = m.id
+      ${clauseWithSystem}
+      GROUP BY month, msg.sender_id
+      ORDER BY month`
+    )
+    .all(...params) as unknown as MemberMonthlyTrend[]
+}
+
+/**
+ * 获取文字消息长度百分位（P25/P50/P75/P90），仅统计文字消息
+ */
+export function getTextLengthPercentiles(db: DatabaseAdapter, filter?: TimeFilter): TextLengthPercentiles {
+  const { clause, params } = buildTimeFilter(filter)
+  const typeCondition =
+    buildSystemMessageFilter(clause) + ' AND msg.type = 0 AND msg.content IS NOT NULL AND LENGTH(msg.content) > 0'
+
+  const rows = db
+    .prepare(
+      `SELECT LENGTH(msg.content) as len
+       FROM message msg JOIN member m ON msg.sender_id = m.id
+       ${typeCondition}
+       ORDER BY len`
+    )
+    .all(...params) as Array<{ len: number }>
+
+  if (rows.length === 0) return { p25: 0, p50: 0, p75: 0, p90: 0 }
+
+  const lengths = rows.map((r) => r.len)
+  const getPercentile = (arr: number[], p: number) => {
+    const idx = Math.ceil((p / 100) * arr.length) - 1
+    return arr[Math.max(0, idx)]
+  }
+
+  return {
+    p25: getPercentile(lengths, 25),
+    p50: getPercentile(lengths, 50),
+    p75: getPercentile(lengths, 75),
+    p90: getPercentile(lengths, 90),
+  }
 }

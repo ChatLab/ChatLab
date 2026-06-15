@@ -18,6 +18,7 @@ export {
   errorResponse,
 } from './errors'
 export { parseTimeFilter } from './helpers'
+export { buildAnalyticsCacheKey, withAnalyticsCache } from './analytics-cache'
 
 // Individual route registration for granular testing or selective registration
 export { registerSystemRoutes } from './routes/system'

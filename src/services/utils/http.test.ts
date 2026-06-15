@@ -1,6 +1,13 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { configureHttpClient, fetchWithAuth, getAuthHeaders, getBaseUrl } from './http'
+import {
+  configureHttpClient,
+  fetchWithAuth,
+  getAuthHeaders,
+  getBaseUrl,
+  analyticsGet,
+  abortAnalyticsRequests,
+} from './http'
 
 describe('http client', () => {
   beforeEach(() => {
@@ -108,6 +115,71 @@ describe('http client', () => {
         })
         assert.equal(capturedHeaders?.get('Authorization'), 'Bearer explicit-token')
       } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+  })
+
+  describe('analytics request cancellation', () => {
+    // 模拟真实 fetch：捕获 signal，并在 abort 时以 AbortError 拒绝（其余保持 pending）。
+    function abortableFetch(captured: { signal?: AbortSignal | null }) {
+      return ((_input: unknown, init?: RequestInit) => {
+        captured.signal = init?.signal
+        return new Promise<Response>((_resolve, reject) => {
+          const signal = init?.signal
+          if (signal?.aborted) {
+            reject(new DOMException('Aborted', 'AbortError'))
+            return
+          }
+          signal?.addEventListener('abort', () => reject(new DOMException('Aborted', 'AbortError')))
+        })
+      }) as typeof fetch
+    }
+
+    it('passes a non-aborted signal and abortAnalyticsRequests() cancels the in-flight request', async () => {
+      const originalFetch = globalThis.fetch
+      const captured: { signal?: AbortSignal | null } = {}
+      globalThis.fetch = abortableFetch(captured)
+
+      try {
+        const pending = analyticsGet('/stats/x')
+        assert.equal(captured.signal?.aborted, false)
+
+        abortAnalyticsRequests()
+        assert.equal(captured.signal?.aborted, true)
+
+        // 已作废请求不应 settle（既不 resolve 也不以 AbortError 拒绝调用方）。
+        let settled = false
+        void pending.then(
+          () => {
+            settled = true
+          },
+          () => {
+            settled = true
+          }
+        )
+        await new Promise((r) => setTimeout(r, 10))
+        assert.equal(settled, false)
+      } finally {
+        globalThis.fetch = originalFetch
+      }
+    })
+
+    it('issues a fresh (non-aborted) signal after abortAnalyticsRequests()', async () => {
+      const originalFetch = globalThis.fetch
+
+      try {
+        // 先让上一 epoch 处于已 abort 状态
+        globalThis.fetch = abortableFetch({})
+        void analyticsGet('/stats/old').catch(() => {})
+        abortAnalyticsRequests()
+
+        const captured: { signal?: AbortSignal | null } = {}
+        globalThis.fetch = abortableFetch(captured)
+        void analyticsGet('/stats/new').catch(() => {})
+        assert.equal(captured.signal?.aborted, false)
+      } finally {
+        abortAnalyticsRequests()
         globalThis.fetch = originalFetch
       }
     })

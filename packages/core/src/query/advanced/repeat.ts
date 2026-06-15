@@ -5,6 +5,7 @@
 import type { TimeFilter } from '@openchatlab/shared-types'
 import type { DatabaseAdapter } from '../../interfaces'
 import { buildTimeFilter } from '../filters'
+import { isSystemPlaceholderContent } from './text-filters'
 
 export interface CatchphraseItem {
   content: string
@@ -61,6 +62,8 @@ export function getCatchphraseAnalysis(db: DatabaseAdapter, filter?: TimeFilter)
   const memberMap = new Map<number, MemberCatchphrase>()
 
   for (const row of rows) {
+    if (isSystemPlaceholderContent(row.content)) continue
+
     if (!memberMap.has(row.memberId)) {
       memberMap.set(row.memberId, {
         memberId: row.memberId,

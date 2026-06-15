@@ -312,5 +312,88 @@ export function getChatDbMigrations(deps?: MigrationDeps): CoreMigration[] {
         `)
       },
     },
+    {
+      version: 7,
+      description: 'Repair fully missing segment message contexts',
+      up: (db: DatabaseAdapter) => {
+        const counts = db
+          .prepare(
+            `SELECT
+              (SELECT COUNT(*) FROM message) AS messageCount,
+              (SELECT COUNT(*) FROM segment) AS segmentCount,
+              (SELECT COUNT(*) FROM message_context) AS contextCount,
+              (SELECT COALESCE(SUM(message_count), 0) FROM segment) AS declaredMessageCount`
+          )
+          .get() as
+          | {
+              messageCount: number
+              segmentCount: number
+              contextCount: number
+              declaredMessageCount: number
+            }
+          | undefined
+
+        if (!counts || counts.messageCount === 0 || counts.segmentCount === 0 || counts.contextCount > 0) {
+          return
+        }
+
+        if (counts.declaredMessageCount !== counts.messageCount) {
+          throw new Error(
+            'Cannot safely repair missing message_context rows: segment message counts do not match message table'
+          )
+        }
+
+        const invalidRange = db
+          .prepare(
+            `WITH ordered_segments AS (
+              SELECT
+                id,
+                start_ts,
+                end_ts,
+                LAG(end_ts) OVER (ORDER BY start_ts, id) AS previousEndTs
+              FROM segment
+            )
+            SELECT COUNT(*) AS count
+            FROM ordered_segments
+            WHERE start_ts > end_ts OR (previousEndTs IS NOT NULL AND start_ts <= previousEndTs)`
+          )
+          .get() as { count: number } | undefined
+        if ((invalidRange?.count ?? 0) > 0) {
+          throw new Error(
+            'Cannot safely repair missing message_context rows: segment time ranges are invalid or overlapping'
+          )
+        }
+
+        const mismatchedSegments = db
+          .prepare(
+            `SELECT COUNT(*) AS count
+            FROM (
+              SELECT s.id
+              FROM segment s
+              LEFT JOIN message m ON m.ts >= s.start_ts AND m.ts <= s.end_ts
+              GROUP BY s.id
+              HAVING COUNT(m.id) != s.message_count
+            )`
+          )
+          .get() as { count: number } | undefined
+        if ((mismatchedSegments?.count ?? 0) > 0) {
+          throw new Error(
+            'Cannot safely repair missing message_context rows: messages do not match segment time ranges'
+          )
+        }
+
+        const result = db
+          .prepare(
+            `INSERT INTO message_context (message_id, segment_id, topic_id)
+            SELECT m.id, s.id, NULL
+            FROM segment s
+            JOIN message m ON m.ts >= s.start_ts AND m.ts <= s.end_ts`
+          )
+          .run()
+        if (result.changes !== counts.messageCount) {
+          throw new Error('Cannot safely repair missing message_context rows: rebuilt row count is inconsistent')
+        }
+      },
+    },
   ]
 }

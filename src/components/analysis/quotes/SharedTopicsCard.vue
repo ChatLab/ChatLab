@@ -6,7 +6,7 @@ import { useSettingsStore } from '@/stores/settings'
 import type { SharedWord } from '@/types/quotes/languagePreference'
 import type { MemberWithStats } from '@/types/analysis'
 import { useDataService } from '@/services'
-import { post } from '@/services/utils/http'
+import { analyticsPost } from '@/services/utils/http'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
 interface WordFrequencyResult {
@@ -78,8 +78,8 @@ async function loadSharedWords() {
     }
 
     const [resultA, resultB] = await Promise.all([
-      post<WordFrequencyResult>('/nlp/word-frequency', { ...baseParams, memberId: topTwo[0].id }),
-      post<WordFrequencyResult>('/nlp/word-frequency', { ...baseParams, memberId: topTwo[1].id }),
+      analyticsPost<WordFrequencyResult>('/nlp/word-frequency', { ...baseParams, memberId: topTwo[0].id }),
+      analyticsPost<WordFrequencyResult>('/nlp/word-frequency', { ...baseParams, memberId: topTwo[1].id }),
     ])
 
     const wordsB = new Map(resultB.words.map((w) => [w.word, w.count]))

@@ -59,6 +59,23 @@ export default defineConfig({
     define: {
       __IS_ELECTRON__: JSON.stringify(true),
     },
+    // 分析页（私聊/群聊）懒加载时才会引入图表/Markdown/截图等重依赖，
+    // 默认冷启动扫描发现不到，首次进入会触发二次依赖优化，导致已加载 chunk 失效报
+    // 504 (Outdated Optimize Dep) 并使动态导入页面失败。这里显式预打包，避免运行中再次优化。
+    optimizeDeps: {
+      include: [
+        'echarts/core',
+        'echarts/charts',
+        'echarts/components',
+        'echarts/renderers',
+        'echarts-wordcloud',
+        'markdown-it',
+        '@zumer/snapdom',
+        '@tanstack/vue-virtual',
+        '@internationalized/date',
+        '@vueuse/core',
+      ],
+    },
     plugins: [
       vue(),
       ui({

@@ -74,9 +74,10 @@ function handle401(resp: Response): void {
   if (resp.status === 401 && _on401) _on401()
 }
 
-export async function get<T>(path: string): Promise<T> {
+export async function get<T>(path: string, signal?: AbortSignal): Promise<T> {
   const resp = await fetch(`${_baseUrl}${path}`, {
     headers: getAuthHeaders(),
+    signal,
   })
   handle401(resp)
   if (!resp.ok) {
@@ -86,7 +87,7 @@ export async function get<T>(path: string): Promise<T> {
   return resp.json() as Promise<T>
 }
 
-export async function post<T>(path: string, body?: unknown): Promise<T> {
+export async function post<T>(path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const hasBody = body !== undefined
   const resp = await fetch(`${_baseUrl}${path}`, {
     method: 'POST',
@@ -95,6 +96,7 @@ export async function post<T>(path: string, body?: unknown): Promise<T> {
       ...(hasBody && { 'Content-Type': 'application/json' }),
     },
     ...(hasBody && { body: JSON.stringify(body) }),
+    signal,
   })
   handle401(resp)
   if (!resp.ok) {
@@ -102,6 +104,44 @@ export async function post<T>(path: string, body?: unknown): Promise<T> {
     throw new Error(`HTTP ${resp.status}: ${text}`)
   }
   return resp.json() as Promise<T>
+}
+
+// ==================== 分析请求取消（epoch）====================
+//
+// 分析类只读请求（统计 / 分词 / 图表数据）都绑定当前「会话 + 时间筛选」。
+// 切换会话或时间筛选时，上一批查询立即作废：abortAnalyticsRequests() 取消所有在途请求，
+// 既释放浏览器对同源的并发连接（避免后续请求长时间 pending），又确保过期结果不会回写。
+let _analyticsController = new AbortController()
+
+/** 作废当前所有分析类在途请求，并开启新的请求 epoch。切换会话 / 时间筛选前调用。 */
+export function abortAnalyticsRequests(): void {
+  _analyticsController.abort()
+  _analyticsController = new AbortController()
+}
+
+function isAbortError(err: unknown): boolean {
+  return err instanceof DOMException && err.name === 'AbortError'
+}
+
+// 已作废的请求永不 settle：避免旧数据覆盖新数据，也避免在调用方触发无意义的错误处理与空态闪烁。
+function neverSettle<T>(): Promise<T> {
+  return new Promise<T>(() => {})
+}
+
+/** 绑定当前 epoch 的 GET：被 abortAnalyticsRequests() 取消时静默作废。 */
+export function analyticsGet<T>(path: string): Promise<T> {
+  return get<T>(path, _analyticsController.signal).catch((err) => {
+    if (isAbortError(err)) return neverSettle<T>()
+    throw err
+  })
+}
+
+/** 绑定当前 epoch 的 POST：被 abortAnalyticsRequests() 取消时静默作废。 */
+export function analyticsPost<T>(path: string, body?: unknown): Promise<T> {
+  return post<T>(path, body, _analyticsController.signal).catch((err) => {
+    if (isAbortError(err)) return neverSettle<T>()
+    throw err
+  })
 }
 
 export async function del<T = boolean>(path: string): Promise<T> {

@@ -1,6 +1,6 @@
 {
   "name": "chatlab-cli",
-  "version": "0.26.2",
+  "version": "0.26.3",
   "description": "ChatLab CLI & Service - Chat history analysis tool",
   "type": "module",
   "bin": {

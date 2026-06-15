@@ -1,5 +1,38 @@
 # Changelog
 
+## v0.26.3 (2026-06-15)
+
+> Improve analytics performance with on-disk caching and stale request cancellation for smoother session switching; fix several issues in word cloud, top-word stats, and the timeline panel.
+
+### ✨ Features
+
+- [CLI Web] Add favicon
+
+### ⚡ Performance
+
+- Cache analytics results to disk keyed by database file version, significantly speeding up subsequent loads
+- Automatically cancel stale analytics requests when switching sessions or changing filters
+- Skip re-segmentation when changing the word cloud word count to reduce unnecessary computation
+
+### 🐛 Bug Fixes
+
+- Fix catchphrase stats including platform reply message placeholders
+- Fix word cloud text including media placeholders
+- Fix language-preference and word-frequency caches not being invalidated when the Jieba custom dictionary changes
+- Fix time-sensitive analytics cache entries not expiring daily
+- Fix timeline panel default scroll position and session jump not working
+- Fix missing context for segmented messages
+- Fix AI conversation count always returning 0
+- Fix the home page tutorial link not using the localized path
+- Remove the screenshot button from the top of the AI chat panel
+- [Desktop] Pre-bundle lazy-route dependencies to avoid 504 errors in dev mode
+- [CLI] Fix false update notifications caused by mismatched package version
+- [CLI] Support arrow key selection in the update prompt
+
+### ♻️ Refactoring
+
+- Rename the timeline panel label to 'Summary'
+
 ## v0.26.2 (2026-06-13)
 
 > Improve the 'Who am I' session identity feature with manual owner profile selection and automatic batch-fill across same-platform sessions; fix several chart rendering and AI cache issues.

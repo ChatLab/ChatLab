@@ -324,6 +324,165 @@ test('open migrates legacy chat_session rows into segment after v5 creates segme
   manager.closeAll()
 })
 
+test('open repairs a v6 segment index whose message contexts are entirely missing', () => {
+  const root = makeTempDir()
+  const dbDir = path.join(root, 'data', 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+  const dbPath = path.join(dbDir, 'missing-segment-contexts.db')
+
+  const rawDb = new Database(dbPath, { nativeBinding })
+  rawDb.exec(`
+    CREATE TABLE meta (
+      name TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      type TEXT NOT NULL,
+      imported_at INTEGER NOT NULL,
+      schema_version INTEGER DEFAULT 6
+    );
+    INSERT INTO meta (name, platform, type, imported_at, schema_version)
+    VALUES ('Missing Segment Contexts', 'qq', 'group', 1000, 6);
+
+    CREATE TABLE member (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform_id TEXT NOT NULL UNIQUE,
+      account_name TEXT
+    );
+    INSERT INTO member (id, platform_id, account_name) VALUES (1, 'u1', 'Alice');
+
+    CREATE TABLE message (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER NOT NULL,
+      ts INTEGER NOT NULL,
+      type INTEGER NOT NULL,
+      content TEXT
+    );
+    INSERT INTO message (id, sender_id, ts, type, content) VALUES
+      (1, 1, 1000, 0, 'first segment message'),
+      (2, 1, 1100, 0, 'second segment message'),
+      (3, 1, 5000, 0, 'later segment message');
+
+    CREATE TABLE segment (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      start_ts INTEGER NOT NULL,
+      end_ts INTEGER NOT NULL,
+      message_count INTEGER DEFAULT 0,
+      is_manual INTEGER DEFAULT 0,
+      summary TEXT
+    );
+    INSERT INTO segment (id, start_ts, end_ts, message_count, is_manual, summary) VALUES
+      (7, 1000, 1100, 2, 0, 'existing summary'),
+      (8, 5000, 5000, 1, 0, NULL);
+
+    CREATE TABLE message_context (
+      message_id INTEGER PRIMARY KEY,
+      segment_id INTEGER NOT NULL,
+      topic_id INTEGER
+    );
+  `)
+  rawDb.close()
+
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.26.2', kind: 'cli' },
+  })
+  const db = manager.open('missing-segment-contexts')
+  assert.ok(db)
+
+  const version = db.prepare('SELECT schema_version FROM meta LIMIT 1').get() as { schema_version: number }
+  assert.equal(version.schema_version, CURRENT_SCHEMA_VERSION)
+
+  const contexts = db.prepare('SELECT message_id, segment_id FROM message_context ORDER BY message_id').all() as Array<{
+    message_id: number
+    segment_id: number
+  }>
+  assert.deepEqual(contexts, [
+    { message_id: 1, segment_id: 7 },
+    { message_id: 2, segment_id: 7 },
+    { message_id: 3, segment_id: 8 },
+  ])
+
+  const summary = db.prepare('SELECT summary FROM segment WHERE id = 7').get() as { summary: string | null }
+  assert.equal(summary.summary, 'existing summary')
+
+  manager.closeAll()
+})
+
+test('open rejects ambiguous v6 segment data instead of guessing missing message contexts', () => {
+  const root = makeTempDir()
+  const dbDir = path.join(root, 'data', 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+  const dbPath = path.join(dbDir, 'ambiguous-segment-contexts.db')
+
+  const rawDb = new Database(dbPath, { nativeBinding })
+  rawDb.exec(`
+    CREATE TABLE meta (
+      name TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      type TEXT NOT NULL,
+      imported_at INTEGER NOT NULL,
+      schema_version INTEGER DEFAULT 6
+    );
+    INSERT INTO meta (name, platform, type, imported_at, schema_version)
+    VALUES ('Ambiguous Segment Contexts', 'qq', 'group', 1000, 6);
+
+    CREATE TABLE member (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform_id TEXT NOT NULL UNIQUE,
+      account_name TEXT
+    );
+    INSERT INTO member (id, platform_id, account_name) VALUES (1, 'u1', 'Alice');
+
+    CREATE TABLE message (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER NOT NULL,
+      ts INTEGER NOT NULL,
+      type INTEGER NOT NULL,
+      content TEXT
+    );
+    INSERT INTO message (id, sender_id, ts, type, content) VALUES
+      (1, 1, 1000, 0, 'first message'),
+      (2, 1, 1100, 0, 'second message');
+
+    CREATE TABLE segment (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      start_ts INTEGER NOT NULL,
+      end_ts INTEGER NOT NULL,
+      message_count INTEGER DEFAULT 0,
+      is_manual INTEGER DEFAULT 0,
+      summary TEXT
+    );
+    INSERT INTO segment (id, start_ts, end_ts, message_count, is_manual, summary)
+    VALUES (7, 1000, 1100, 3, 0, 'must be preserved');
+
+    CREATE TABLE message_context (
+      message_id INTEGER PRIMARY KEY,
+      segment_id INTEGER NOT NULL,
+      topic_id INTEGER
+    );
+  `)
+  rawDb.close()
+
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.26.2', kind: 'cli' },
+  })
+
+  assert.throws(() => manager.open('ambiguous-segment-contexts'), /Cannot safely repair missing message_context rows/)
+
+  const checkDb = new Database(dbPath, { readonly: true, nativeBinding })
+  try {
+    const version = checkDb.prepare('SELECT schema_version FROM meta LIMIT 1').get() as { schema_version: number }
+    assert.equal(version.schema_version, 6)
+    assert.equal((checkDb.prepare('SELECT COUNT(*) AS count FROM message_context').get() as { count: number }).count, 0)
+    assert.equal(
+      (checkDb.prepare('SELECT summary FROM segment WHERE id = 7').get() as { summary: string | null }).summary,
+      'must be preserved'
+    )
+  } finally {
+    checkDb.close()
+  }
+})
+
 test('open blocks database access when data directory requires a newer runtime', () => {
   const root = makeTempDir()
   const dbDir = path.join(root, 'data', 'databases')
