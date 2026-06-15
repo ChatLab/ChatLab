@@ -161,15 +161,14 @@ const dictOptions = computed(() => {
 const hasAnyDict = computed(() => {
   return dictList.value.some((d) => d.downloaded)
 })
-// 即使没有外部词典，内置 jieba 分词器也能正常工作，不应阻止分析
-const canAnalyzeWithoutDictBlocking = computed(() => dictListInitialized.value)
+// 非中文语言无需词典即可分析；中文语言在词典列表初始化后可用内置分词器兜底
+const isDictListReady = computed(() => !requiresChineseDict.value || dictListInitialized.value)
 
 const undownloadedDicts = computed(() => {
   return dictList.value.filter((d) => !d.downloaded)
 })
 
 async function refreshDictList() {
-  dictListInitialized.value = false
   try {
     dictList.value = await get('/nlp/dicts')
     // 繁体中文用户自动切换到 zh-TW（如已下载）
@@ -277,7 +276,7 @@ async function loadPosTagDefinitions() {
 // 加载话题迷你词云数据（固定词性过滤）
 let topicMiniWordsRequestId = 0
 async function loadTopicMiniWords() {
-  if (!props.sessionId || !canAnalyzeWithoutDictBlocking.value) return
+  if (!props.sessionId || !isDictListReady.value) return
   const requestId = ++topicMiniWordsRequestId
   try {
     const result = await analyticsPost<WordFreqResponse>('/nlp/word-frequency', {
@@ -309,10 +308,10 @@ async function loadTopicMiniWords() {
 // 加载词频数据
 let wordFrequencyRequestId = 0
 async function loadWordFrequency() {
-  if (!props.sessionId || !canAnalyzeWithoutDictBlocking.value) return
+  if (!props.sessionId || !isDictListReady.value) return
 
   const requestId = ++wordFrequencyRequestId
-  isLoading.value = true
+  if (allWords.value.length === 0) isLoading.value = true
   try {
     const result = await analyticsPost<WordFreqResponse>('/nlp/word-frequency', {
       sessionId: props.sessionId,
@@ -378,7 +377,7 @@ watch(
     enableStopwords.value,
     selectedDictType.value,
     currentExcludeWords.value,
-    canAnalyzeWithoutDictBlocking.value,
+    isDictListReady.value,
   ],
   () => {
     loadWordFrequency()
@@ -394,7 +393,7 @@ watch(
     selectedMemberId.value,
     selectedDictType.value,
     currentExcludeWords.value,
-    canAnalyzeWithoutDictBlocking.value,
+    isDictListReady.value,
   ],
   () => {
     loadTopicMiniWords()
@@ -461,7 +460,7 @@ onMounted(async () => {
       </div>
     </div>
 
-    <template v-if="canAnalyzeWithoutDictBlocking">
+    <template v-if="isDictListReady">
       <div class="space-y-6">
         <LoadingState v-if="isLoading && topWords.length === 0" :text="t('quotes.wordcloud.loading')" class="py-8" />
 
