@@ -359,11 +359,15 @@ async function loadWordFrequency() {
   }
 }
 
-// 切换会话时重置用户筛选
+// 切换会话时重置筛选状态并清空词云数据，避免展示上一个会话的陈旧内容
 watch(
   () => props.sessionId,
   () => {
     selectedMemberId.value = null
+    allWords.value = []
+    topicMiniWords.value = []
+    stats.value = { totalMessages: 0, totalWords: 0, uniqueWords: 0 }
+    posTagStats.value = new Map()
   }
 )
 
