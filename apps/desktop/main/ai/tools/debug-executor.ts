@@ -1,4 +1,5 @@
 import { stripAvatarFields } from '@openchatlab/core'
+import type { BatchSegmentOptions, SupportedLocale } from '@openchatlab/core'
 import type { AiToolExecuteRequest, AiToolExecuteResult } from '@openchatlab/http-routes'
 import { batchSegmentWithFrequency } from '@openchatlab/node-runtime'
 import { AGENT_TOOL_REGISTRY } from '@openchatlab/tools'
@@ -15,7 +16,7 @@ function assertNotAborted(signal: AbortSignal): void {
 }
 
 export async function executeElectronAiTool(params: AiToolExecuteRequest): Promise<AiToolExecuteResult> {
-  const { toolName, sessionId, abortSignal } = params
+  const { toolName, params: toolParams, sessionId, abortSignal } = params
   const entry = AGENT_TOOL_REGISTRY.find((tool) => tool.name === toolName)
   if (!entry) {
     return { success: false, error: `Tool not found: ${toolName}` }
@@ -27,7 +28,8 @@ export async function executeElectronAiTool(params: AiToolExecuteRequest): Promi
       sessionId,
       abortSignal,
       dataProvider: new WorkerDataProvider(sessionId, abortSignal),
-      segmentText: (texts, locale, options) => batchSegmentWithFrequency(texts, locale as any, options as any),
+      segmentText: (texts, locale, options) =>
+        batchSegmentWithFrequency(texts, locale as SupportedLocale, options as BatchSegmentOptions),
       translateTemplate: (key: string) => {
         const translated = i18nT(key)
         return translated !== key ? translated : undefined
@@ -35,7 +37,7 @@ export async function executeElectronAiTool(params: AiToolExecuteRequest): Promi
     }
 
     const startTime = Date.now()
-    const result = await entry.handler(params.params, execCtx)
+    const result = await entry.handler(toolParams, execCtx)
     const elapsed = Date.now() - startTime
     assertNotAborted(abortSignal)
 

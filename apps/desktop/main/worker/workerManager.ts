@@ -246,6 +246,7 @@ function sendToWorkerWithProgress<T>(
       }
     }
 
+    const requestWorker = worker!
     const id = `req_${++requestIdCounter}`
 
     const timeout = setTimeout(() => {
@@ -257,7 +258,7 @@ function sendToWorkerWithProgress<T>(
 
     pendingRequests.set(id, { resolve, reject, timeout, restartOnTimeout: false, onProgress })
 
-    worker!.postMessage({ id, type, payload })
+    requestWorker.postMessage({ id, type, payload })
   })
 }
 
