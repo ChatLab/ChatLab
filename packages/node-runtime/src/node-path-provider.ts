@@ -60,6 +60,10 @@ export class NodePathProvider implements PathProvider {
     return path.join(this.userDataDir, 'databases')
   }
 
+  getVectorDir(): string {
+    return path.join(this.userDataDir, 'vector')
+  }
+
   getAiDataDir(): string {
     return path.join(this.systemDir, 'ai')
   }
@@ -92,6 +96,7 @@ export class NodePathProvider implements PathProvider {
       this.systemDir,
       this.userDataDir,
       this.getDatabaseDir(),
+      this.getVectorDir(),
       this.getAiDataDir(),
       this.getSettingsDir(),
       this.getCacheDir(),

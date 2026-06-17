@@ -16,6 +16,7 @@ function makePathProvider(userDataDir: string): PathProvider {
     getSystemDir: () => path.join(userDataDir, '..', 'system'),
     getUserDataDir: () => userDataDir,
     getDatabaseDir: () => path.join(userDataDir, 'databases'),
+    getVectorDir: () => path.join(userDataDir, 'vector'),
     getAiDataDir: () => path.join(userDataDir, '..', 'system', 'ai'),
     getSettingsDir: () => path.join(userDataDir, '..', 'system', 'settings'),
     getCacheDir: () => path.join(userDataDir, '..', 'system', 'cache'),

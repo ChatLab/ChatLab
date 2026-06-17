@@ -32,6 +32,9 @@ export interface PathProvider {
   /** 数据库文件目录（存放 {uuid}.db），基于 userDataDir */
   getDatabaseDir(): string
 
+  /** 向量库目录（存放 embedding_index.db 等可再生派生索引），基于 userDataDir */
+  getVectorDir(): string
+
   /** AI 数据目录（对话历史、LLM 配置），基于 systemDir */
   getAiDataDir(): string
 

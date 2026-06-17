@@ -208,6 +208,7 @@ export type { AgentCoreOptions, AgentCoreEvent, AgentCoreResult, AgentTokenUsage
 export { DEFAULT_MAX_TOOL_ROUNDS, createLlmRouteDecider, decideRequestRoute, runAgentCore } from './ai'
 export type { LlmRouteDecider, RequestRoute, RouteDecision, RouteDecisionSource, RouterInput } from './ai'
 export { buildPlanGuidance, createAnalysisPlanner, createDataSnapshotFromOverview, createPlanContentBlock } from './ai'
+export { buildSemanticSearchGuidance } from './ai'
 export type {
   AnalysisPlanIntent,
   AnalysisPlanner,
@@ -338,68 +339,6 @@ export { Type, completeSimple, streamSimple, runSimpleLlmStream } from './ai'
 export type { LlmStreamChunk, RunSimpleLlmStreamOptions } from './ai'
 export type { PiModel, PiApi, PiMessage, PiUsage, PiTextContent, PiAssistantMessage } from './ai'
 
-// ==================== RAG ====================
-export {
-  initRag,
-  initRagConfig,
-  loadEmbeddingConfigStore,
-  saveEmbeddingConfigStore,
-  getAllEmbeddingConfigs,
-  getActiveEmbeddingConfig,
-  getEmbeddingConfigById,
-  addEmbeddingConfig,
-  updateEmbeddingConfig,
-  deleteEmbeddingConfig,
-  setActiveEmbeddingConfig,
-  isEmbeddingEnabled,
-  getActiveEmbeddingConfigId,
-  loadRAGConfig,
-  saveRAGConfig,
-  updateRAGConfig,
-  resetRAGConfig,
-  getVectorStoreDir,
-  getEmbeddingService,
-  resetEmbeddingService,
-  validateEmbeddingConfig,
-  getSessionChunks,
-  getSessionChunk,
-  formatSessionChunk,
-  getVectorStore,
-  resetVectorStore,
-  getVectorStoreStats,
-  SQLiteVectorStore,
-  MemoryVectorStore,
-  executeSemanticPipeline,
-  cosineSimilarity,
-  DEFAULT_RAG_CONFIG,
-  DEFAULT_EMBEDDING_CONFIG_STORE,
-  MAX_EMBEDDING_CONFIG_COUNT,
-} from './ai'
-export type {
-  RagInitOptions,
-  RagLogger,
-  RAGConfig,
-  EmbeddingConfig,
-  EmbeddingServiceConfig,
-  EmbeddingConfigStore,
-  VectorStoreConfig,
-  RerankConfig,
-  IEmbeddingService,
-  IVectorStore,
-  IRerankService,
-  Chunk,
-  ChunkMetadata,
-  VectorSearchResult,
-  VectorStoreStats,
-  SemanticPipelineOptions,
-  SemanticPipelineResult,
-  LLMConfigForEmbedding,
-  SemanticPipelineLLMConfig,
-  ChunkingOptions,
-  SessionMessage,
-  SessionInfo,
-} from './ai'
-
 // Shared application services (session / member / index / summary / export)
 export * as sessionService from './services/session-service'
 export * as memberService from './services/member-service'
@@ -407,6 +346,21 @@ export * as sessionIndexService from './services/session-index-service'
 export * as summaryService from './services/summary-service'
 export * as exportService from './services/export-service'
 export * as ownerProfileService from './services/owner-profile-service'
+// Semantic index (Phase 1 vector search) — independent of legacy ai/rag
+export * as semanticIndex from './semantic-index'
+export { SemanticIndexService, createSemanticIndexService } from './semantic-index'
+export type {
+  SemanticIndexServiceOptions,
+  SemanticIndexSessionStatus,
+  SemanticSearchResult,
+  SemanticSearchReason,
+  SemanticSearchToolResult,
+  SemanticSearchToolSource,
+  SemanticSearchToolOptions,
+  SemanticIndexConfig,
+  SemanticIndexMode,
+} from './semantic-index'
+
 export { createDatabaseManagerAdapter, MergeSessionCache } from './services'
 export type {
   SessionRuntimeAdapter,

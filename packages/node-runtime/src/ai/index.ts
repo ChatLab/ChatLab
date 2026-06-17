@@ -103,6 +103,7 @@ export { DEFAULT_MAX_TOOL_ROUNDS, createLlmRouteDecider, decideRequestRoute, run
 export type { LlmRouteDecider, RequestRoute, RouteDecision, RouteDecisionSource, RouterInput } from './agent'
 export { buildPlanGuidance, createAnalysisPlanner, createPlanContentBlock } from './agent'
 export { createDataSnapshotFromOverview } from './agent'
+export { buildSemanticSearchGuidance } from './agent'
 export type {
   AnalysisPlanIntent,
   AnalysisPlanner,
@@ -182,65 +183,3 @@ export type {
   TextContent as PiTextContent,
   AssistantMessage as PiAssistantMessage,
 } from '@earendil-works/pi-ai'
-
-// ==================== RAG ====================
-export {
-  initRag,
-  initRagConfig,
-  loadEmbeddingConfigStore,
-  saveEmbeddingConfigStore,
-  getAllEmbeddingConfigs,
-  getActiveEmbeddingConfig,
-  getEmbeddingConfigById,
-  addEmbeddingConfig,
-  updateEmbeddingConfig,
-  deleteEmbeddingConfig,
-  setActiveEmbeddingConfig,
-  isEmbeddingEnabled,
-  getActiveEmbeddingConfigId,
-  loadRAGConfig,
-  saveRAGConfig,
-  updateRAGConfig,
-  resetRAGConfig,
-  getVectorStoreDir,
-  getEmbeddingService,
-  resetEmbeddingService,
-  validateEmbeddingConfig,
-  getSessionChunks,
-  getSessionChunk,
-  formatSessionChunk,
-  getVectorStore,
-  resetVectorStore,
-  getVectorStoreStats,
-  SQLiteVectorStore,
-  MemoryVectorStore,
-  executeSemanticPipeline,
-  cosineSimilarity,
-  DEFAULT_RAG_CONFIG,
-  DEFAULT_EMBEDDING_CONFIG_STORE,
-  MAX_EMBEDDING_CONFIG_COUNT,
-} from './rag'
-export type {
-  RagInitOptions,
-  RagLogger,
-  RAGConfig,
-  EmbeddingConfig,
-  EmbeddingServiceConfig,
-  EmbeddingConfigStore,
-  VectorStoreConfig,
-  RerankConfig,
-  IEmbeddingService,
-  IVectorStore,
-  IRerankService,
-  Chunk,
-  ChunkMetadata,
-  VectorSearchResult,
-  VectorStoreStats,
-  SemanticPipelineOptions,
-  SemanticPipelineResult,
-  LLMConfigForEmbedding,
-  SemanticPipelineLLMConfig,
-  ChunkingOptions,
-  SessionMessage,
-  SessionInfo,
-} from './rag'

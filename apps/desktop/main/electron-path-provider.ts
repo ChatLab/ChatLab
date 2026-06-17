@@ -8,6 +8,7 @@ import {
   getSystemDataDir,
   getUserDataDir,
   getDatabaseDir,
+  getVectorDir,
   getAiDataDir,
   getSettingsDir,
   getCacheDir,
@@ -25,6 +26,9 @@ export class ElectronPathProvider implements PathProvider {
   }
   getDatabaseDir(): string {
     return getDatabaseDir()
+  }
+  getVectorDir(): string {
+    return getVectorDir()
   }
   getAiDataDir(): string {
     return getAiDataDir()

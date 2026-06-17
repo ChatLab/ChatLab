@@ -355,6 +355,10 @@ export function getDatabaseDir(): string {
   return path.join(getUserDataDir(), 'databases')
 }
 
+export function getVectorDir(): string {
+  return path.join(getUserDataDir(), 'vector')
+}
+
 export function getAiDataDir(): string {
   return path.join(getSystemDataDir(), 'ai')
 }
@@ -391,6 +395,7 @@ export function ensureAppDirs(): void {
   ensureDir(getSystemDataDir())
   ensureDir(getUserDataDir())
   ensureDir(getDatabaseDir())
+  ensureDir(getVectorDir())
   ensureDir(getAiDataDir())
   ensureDir(getSettingsDir())
   ensureDir(getCacheDir())
