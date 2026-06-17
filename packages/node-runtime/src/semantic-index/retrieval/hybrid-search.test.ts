@@ -134,3 +134,57 @@ test('empty query returns no results', async () => {
   assert.deepEqual(results, [])
   store.close()
 })
+
+// 时间过滤：chunk startTs/endTs 为毫秒（makeRecord 用 messageId*1000）
+// c1: 1000-2000, c2: 3000-4000, c3: 5000-6000, c4: 7000-8000
+test('timeRangeMs filters out chunks with no overlap', async () => {
+  const store = setupStore()
+  const embedder = makeEmbedder([0.5, 0.5, 0.5, 0.5])
+  const fts: FtsSearcher = { search: () => [] }
+
+  const results = await hybridSearch(
+    { embedder, store, fts },
+    { ...baseParams, timeRangeMs: { startTs: 4500, endTs: 9000 } }
+  )
+  const ids = results.map((r) => r.chunkId).sort()
+  assert.deepEqual(ids, ['c3', 'c4'])
+  store.close()
+})
+
+test('timeRangeMs keeps chunks overlapping the range', async () => {
+  const store = setupStore()
+  const embedder = makeEmbedder([0.5, 0.5, 0.5, 0.5])
+  const fts: FtsSearcher = { search: () => [] }
+
+  const results = await hybridSearch(
+    { embedder, store, fts },
+    { ...baseParams, timeRangeMs: { startTs: 1500, endTs: 3500 } }
+  )
+  const ids = results.map((r) => r.chunkId).sort()
+  assert.deepEqual(ids, ['c1', 'c2'])
+  store.close()
+})
+
+test('timeRangeMs supports single-sided startTs', async () => {
+  const store = setupStore()
+  const embedder = makeEmbedder([0.5, 0.5, 0.5, 0.5])
+  const fts: FtsSearcher = { search: () => [] }
+
+  const results = await hybridSearch({ embedder, store, fts }, { ...baseParams, timeRangeMs: { startTs: 5000 } })
+  const ids = results.map((r) => r.chunkId).sort()
+  assert.deepEqual(ids, ['c3', 'c4'])
+  store.close()
+})
+
+test('timeRangeMs supports single-sided endTs and filters fts-mapped chunks', async () => {
+  const store = setupStore()
+  const embedder = makeEmbedder([0.5, 0.5, 0.5, 0.5])
+  // fts maps message 7 -> c4 (out of range, must be dropped)
+  const fts: FtsSearcher = { search: () => [7] }
+
+  const results = await hybridSearch({ embedder, store, fts }, { ...baseParams, timeRangeMs: { endTs: 4000 } })
+  const ids = results.map((r) => r.chunkId).sort()
+  assert.deepEqual(ids, ['c1', 'c2'])
+  assert.ok(results.every((r) => r.chunkId !== 'c4'))
+  store.close()
+})

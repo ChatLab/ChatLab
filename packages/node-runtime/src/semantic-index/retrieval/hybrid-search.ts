@@ -25,6 +25,12 @@ export interface HybridSearchDeps {
   fts: FtsSearcher
 }
 
+/** 毫秒级、可单边的时间区间（语义 chunk startTs/endTs 也是毫秒） */
+export interface SemanticTimeRangeMs {
+  startTs?: number
+  endTs?: number
+}
+
 export interface HybridSearchParams {
   query: string
   dbPathHash: string
@@ -39,7 +45,23 @@ export interface HybridSearchParams {
   rrfK?: number
   /** 融合后最终返回数量，默认 5 */
   finalTopK?: number
+  /**
+   * 毫秒级时间范围过滤（可单边）。
+   * 只保留与 chunk [startTs, endTs] 有交集的候选；启用时会放大候选池避免过滤后结果过少。
+   */
+  timeRangeMs?: SemanticTimeRangeMs
 }
+
+/** chunk 时间范围是否与过滤区间有交集 */
+function overlapsTimeRangeMs(record: ChunkRecord, filter?: SemanticTimeRangeMs): boolean {
+  if (!filter) return true
+  if (filter.startTs != null && record.endTs < filter.startTs) return false
+  if (filter.endTs != null && record.startTs > filter.endTs) return false
+  return true
+}
+
+/** 启用时间过滤时放大候选池的倍数 */
+const TIME_FILTER_POOL_MULTIPLIER = 3
 
 export interface HybridSearchResult {
   chunkId: string
@@ -53,29 +75,36 @@ export interface HybridSearchResult {
 
 export async function hybridSearch(deps: HybridSearchDeps, params: HybridSearchParams): Promise<HybridSearchResult[]> {
   const { embedder, store, fts } = deps
-  const { query, dbPathHash, modelId, strategyId, dim, denseTopN = 40, ftsTopN = 40, rrfK = 60, finalTopK = 5 } = params
+  const { query, dbPathHash, modelId, strategyId, dim, rrfK = 60, finalTopK = 5, timeRangeMs } = params
 
   if (!query.trim()) return []
 
+  // 启用时间过滤时放大候选池，避免过滤后融合结果过少
+  const poolFactor = timeRangeMs ? TIME_FILTER_POOL_MULTIPLIER : 1
+  const denseTopN = Math.max((params.denseTopN ?? 40) * poolFactor, 40)
+  const ftsTopN = Math.max((params.ftsTopN ?? 40) * poolFactor, 40)
+
   const records = new Map<string, ChunkRecord>()
 
-  // dense
+  // dense（按时间交集过滤后顺序构造排名）
   const queryVector = await embedder.embedQuery(query)
   const dense = store.queryDense({ dbPathHash, modelId, dim, embedding: queryVector, k: denseTopN })
   const denseIds: string[] = []
   const denseRankById = new Map<string, number>()
-  dense.forEach((hit, rank) => {
+  for (const hit of dense) {
+    if (!overlapsTimeRangeMs(hit.record, timeRangeMs)) continue
+    denseRankById.set(hit.chunkId, denseIds.length)
     denseIds.push(hit.chunkId)
-    denseRankById.set(hit.chunkId, rank)
     records.set(hit.chunkId, hit.record)
-  })
+  }
 
-  // FTS message_id -> chunk（去重保序）
+  // FTS message_id -> chunk（去重保序 + 时间交集过滤）
   const ftsIds: string[] = []
   const ftsRankById = new Map<string, number>()
   for (const messageId of fts.search(query, ftsTopN)) {
     const record = store.mapMessageToChunk({ dbPathHash, modelId, strategyId, messageId })
     if (!record || ftsRankById.has(record.chunkId)) continue
+    if (!overlapsTimeRangeMs(record, timeRangeMs)) continue
     ftsRankById.set(record.chunkId, ftsIds.length)
     ftsIds.push(record.chunkId)
     if (!records.has(record.chunkId)) records.set(record.chunkId, record)
@@ -87,6 +116,8 @@ export async function hybridSearch(deps: HybridSearchDeps, params: HybridSearchP
   for (const { id, score } of fused) {
     const record = records.get(id) ?? store.getChunkById(id)
     if (!record) continue
+    // 兜底：getChunkById 取回的候选也按时间过滤
+    if (!overlapsTimeRangeMs(record, timeRangeMs)) continue
     results.push({
       chunkId: id,
       score,

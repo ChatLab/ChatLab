@@ -118,6 +118,8 @@ export interface SemanticSearchToolOptions {
   ownerPlatformId?: string
   locale?: string
   maxResultTokens?: number
+  /** 毫秒级时间范围过滤（可单边）；仅保留与 chunk 时间范围有交集的语义候选 */
+  timeFilter?: { startTs?: number; endTs?: number }
 }
 
 /** 工具返回片段预览的最大字符数 */
@@ -379,7 +381,7 @@ export class SemanticIndexService {
   async search(
     sessionId: string,
     query: string,
-    options?: { finalTopK?: number; budget?: EvidenceBudget }
+    options?: { finalTopK?: number; budget?: EvidenceBudget; timeRangeMs?: { startTs?: number; endTs?: number } }
   ): Promise<SemanticSearchResult> {
     const hash = this.hashFor(sessionId)
     const state = this.stateStore.getState(hash)
@@ -420,6 +422,7 @@ export class SemanticIndexService {
         finalTopK,
         denseTopN: candidateTopN,
         ftsTopN: candidateTopN,
+        timeRangeMs: options?.timeRangeMs,
       }
     )
 
@@ -492,6 +495,7 @@ export class SemanticIndexService {
       result = await this.search(sessionId, q, {
         finalTopK,
         budget: { maxChunks: finalTopK, totalTokens: evidenceTokens },
+        timeRangeMs: options?.timeFilter,
       })
     } catch (err) {
       return unavailable(err instanceof Error ? err.message : String(err))
