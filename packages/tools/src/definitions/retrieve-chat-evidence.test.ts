@@ -197,6 +197,35 @@ describe('retrieveChatEvidenceTool candidates & grouping', () => {
     assert.equal(source.timestamp, 1714521600 * 1000)
   })
 
+  it('strips per-line time prefixes from semantic snippets (display shows one group time)', async () => {
+    const service = makeService({
+      searchForTool: async () =>
+        semanticResult({
+          sources: [
+            {
+              startMessageId: 100,
+              endMessageId: 110,
+              score: 0.9,
+              chunkIds: ['c1'],
+              // 预处理管道渲染格式：每行「时间 发送者: 内容」
+              snippet: '2024/5/1 08:00:00 甲: 到了乐山\n2024/5/1 09:00:00 乙: 住了一晚',
+              startTime: '2024-05-01T00:00:00.000Z',
+              endTime: '2024-05-01T01:00:00.000Z',
+            },
+          ],
+        }),
+    })
+    const res = await retrieveChatEvidenceTool.handler(
+      { query: 'q', criteria: 'c', mode: 'semantic' },
+      makeContext({ semanticIndexService: service })
+    )
+    const snippet = getPayload(res.data).groups[0].sources[0].snippet
+    assert.equal(snippet.includes('2024/5/1'), false)
+    assert.equal(snippet.includes('08:00:00'), false)
+    assert.ok(snippet.includes('甲: 到了乐山'))
+    assert.ok(snippet.includes('乙: 住了一晚'))
+  })
+
   it('desensitizes keyword snippets and never persists raw secret content', async () => {
     const desensitize = (messages: RawMessage[]): RawMessage[] =>
       messages.map((m) => ({ ...m, content: (m.content ?? '').replace('13800000000', '***') }))

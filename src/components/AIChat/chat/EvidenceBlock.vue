@@ -1,8 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import dayjs from 'dayjs'
-import type { ChatEvidencePayload, ChatEvidenceGroup, EvidenceStatus } from '@openchatlab/core'
+import type { ChatEvidencePayload, EvidenceStatus } from '@openchatlab/core'
 import { useLayoutStore } from '@/stores/layout'
 
 const props = defineProps<{
@@ -41,20 +40,6 @@ const statusDotClass: Record<EvidenceStatus, string> = {
   included: 'bg-emerald-500',
   uncertain: 'bg-amber-500',
   excluded: 'bg-gray-400',
-}
-
-function formatGroupTimeRange(group: ChatEvidenceGroup): string | null {
-  let startTs = group.timeRange?.startTs
-  let endTs = group.timeRange?.endTs
-  if (startTs == null || endTs == null) {
-    const timestamps = group.sources.map((source) => source.timestamp).filter((ts) => Number.isFinite(ts))
-    if (timestamps.length === 0) return null
-    startTs = Math.min(...timestamps)
-    endTs = Math.max(...timestamps)
-  }
-  const start = dayjs(startTs).format('YYYY-MM-DD')
-  const end = dayjs(endTs).format('YYYY-MM-DD')
-  return start === end ? start : `${start} ~ ${end}`
 }
 
 function viewSource(messageId: number): void {
@@ -143,13 +128,7 @@ function viewSource(messageId: number): void {
             <span class="rounded px-1.5 py-0.5 text-[11px] font-medium" :class="statusBadgeClass[group.status]">
               {{ t(`ai.chat.evidence.group.${group.status}`) }}
             </span>
-            <span class="truncate text-xs font-medium text-gray-700 dark:text-gray-200">{{ group.title }}</span>
-            <span
-              v-if="formatGroupTimeRange(group)"
-              class="ml-auto shrink-0 text-[11px] text-gray-400 dark:text-gray-500"
-            >
-              {{ formatGroupTimeRange(group) }}
-            </span>
+            <span class="ml-auto shrink-0 text-[11px] text-gray-400 dark:text-gray-500">{{ group.title }}</span>
           </div>
 
           <div v-if="group.reason" class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{{ group.reason }}</div>

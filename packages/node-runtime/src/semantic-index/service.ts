@@ -524,7 +524,8 @@ export class SemanticIndexService {
         senderName: m.senderName,
         senderPlatformId: m.senderPlatformId,
         content: m.content,
-        timestamp: m.ts,
+        // EvidenceMessage.ts 是毫秒；预处理管道按秒渲染时间（format.ts 内部 *1000），故此处回退为秒
+        timestamp: Math.floor(m.ts / 1000),
       }))
       for (const m of block.messages) {
         if (m.senderId != null && !nameMap.has(m.senderId)) {

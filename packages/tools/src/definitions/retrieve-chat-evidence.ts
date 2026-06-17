@@ -94,6 +94,20 @@ function truncateSnippet(text: string): string {
   return t.length > EVIDENCE_SNIPPET_MAX_CHARS ? `${t.slice(0, EVIDENCE_SNIPPET_MAX_CHARS)}…` : t
 }
 
+/**
+ * 语义 snippet 由预处理管道渲染为多行「时间 发送者: 内容」，时间对证据块展示是噪声
+ * （分组已给出总时间）。这里去掉每行行首的时间前缀，仅保留「发送者: 内容」。
+ * 覆盖 zh-CN（`2025/3/3 07:25:04`）与 en-US（`3/3/2025, 7:25:04 AM`）两种 toLocaleString 输出。
+ */
+const LINE_TIME_PREFIX = /^\s*\d{1,4}[/-]\d{1,2}[/-]\d{1,4},?\s+\d{1,2}:\d{2}(?::\d{2})?(?:\s?[APap][Mm])?\s+/
+function stripLineTimestamps(text: string): string {
+  return text
+    .split('\n')
+    .map((line) => line.replace(LINE_TIME_PREFIX, ''))
+    .join('\n')
+    .trim()
+}
+
 function parseDateMs(s?: unknown): number | undefined {
   if (typeof s !== 'string' || !s.trim()) return undefined
   const d = new Date(s.trim().replace(' ', 'T'))
@@ -367,7 +381,7 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
             timestamp: startMs ?? 0,
             rangeStartMs: startMs ?? 0,
             rangeEndMs: endMs ?? startMs ?? 0,
-            snippet: truncateSnippet(s.snippet),
+            snippet: truncateSnippet(stripLineTimestamps(s.snippet)),
             sourceKind: 'semantic',
             score: s.score,
           })

@@ -14,6 +14,9 @@ import type { SessionRuntimeAdapter } from '../services/adapters'
 import type { LocalPipelineFactory } from './embedding/local'
 
 const SESSION_ID = 'sess1'
+// 真实秒级基准时间（2023-11-14），用于让证据 snippet 渲染出真实年份，
+// 暴露「毫秒被当作秒再 *1000」导致五位数年份（如 56150）的回归。
+const BASE_TS_SECONDS = 1_700_000_000
 
 function setup(opts?: { embedDelayMs?: number }) {
   const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
@@ -28,7 +31,7 @@ function setup(opts?: { embedDelayMs?: number }) {
   `)
   const insert = db.prepare('INSERT INTO message (id, sender_id, ts, type, content) VALUES (?, ?, ?, 0, ?)')
   for (let i = 1; i <= 40; i++) {
-    insert.run(i, (i % 2) + 1, i * 60, `第${i}条关于项目排期和需求讨论的消息内容`)
+    insert.run(i, (i % 2) + 1, BASE_TS_SECONDS + i * 60, `第${i}条关于项目排期和需求讨论的消息内容`)
   }
   buildFtsIndex(db)
 
@@ -343,6 +346,13 @@ test('searchForTool desensitizes + anonymizes via pipeline, never leaks raw', as
   }
   // 元数据不得夹带原始消息
   assert.equal(JSON.stringify(result.sources).includes('rawMessages'), false)
+
+  // 回归：snippet 时间口径正确——证据消息 ts 是毫秒，预处理管道按秒渲染（内部 *1000），
+  // 服务必须把毫秒转回秒，否则会渲染出五位数年份（如 2023 -> 56xxx）。
+  const fiveDigitYear = /\b\d{5}\/\d{1,2}\/\d{1,2}/
+  assert.equal(fiveDigitYear.test(result.text), false)
+  assert.ok(result.text.includes('2023/'))
+
   service.close()
   db.close()
 })
