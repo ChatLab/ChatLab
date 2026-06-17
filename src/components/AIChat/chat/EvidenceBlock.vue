@@ -43,14 +43,17 @@ const statusDotClass: Record<EvidenceStatus, string> = {
   excluded: 'bg-gray-400',
 }
 
-function formatTime(ts: number): string {
-  return dayjs(ts).format('YYYY-MM-DD HH:mm')
-}
-
 function formatGroupTimeRange(group: ChatEvidenceGroup): string | null {
-  if (!group.timeRange) return null
-  const start = dayjs(group.timeRange.startTs).format('YYYY-MM-DD')
-  const end = dayjs(group.timeRange.endTs).format('YYYY-MM-DD')
+  let startTs = group.timeRange?.startTs
+  let endTs = group.timeRange?.endTs
+  if (startTs == null || endTs == null) {
+    const timestamps = group.sources.map((source) => source.timestamp).filter((ts) => Number.isFinite(ts))
+    if (timestamps.length === 0) return null
+    startTs = Math.min(...timestamps)
+    endTs = Math.max(...timestamps)
+  }
+  const start = dayjs(startTs).format('YYYY-MM-DD')
+  const end = dayjs(endTs).format('YYYY-MM-DD')
   return start === end ? start : `${start} ~ ${end}`
 }
 
@@ -151,22 +154,23 @@ function viewSource(messageId: number): void {
 
           <div v-if="group.reason" class="mt-1 text-[11px] text-gray-500 dark:text-gray-400">{{ group.reason }}</div>
 
-          <ul class="mt-1 space-y-1">
+          <ul class="mt-1 space-y-0.5">
             <li
               v-for="(source, idx) in group.sources"
               :key="`${group.id}-${idx}`"
-              class="group/source cursor-pointer rounded px-1.5 py-1 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/40"
+              class="group/source flex cursor-pointer items-start gap-1.5 rounded px-1.5 py-1 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/40"
               @click="viewSource(source.messageId)"
             >
-              <div class="flex items-center gap-1.5 text-[11px] text-gray-400 dark:text-gray-500">
-                <span>{{ formatTime(source.timestamp) }}</span>
-                <span v-if="source.senderName" class="truncate">· {{ source.senderName }}</span>
-                <UIcon
-                  name="i-heroicons-arrow-top-right-on-square"
-                  class="ml-auto h-3 w-3 shrink-0 opacity-0 transition-opacity group-hover/source:opacity-100"
-                />
+              <div class="min-w-0 flex-1 text-xs leading-snug text-gray-600 dark:text-gray-300">
+                <span v-if="source.senderName" class="mr-1 text-gray-400 dark:text-gray-500">
+                  {{ source.senderName }}:
+                </span>
+                <span class="line-clamp-2 break-words align-middle">{{ source.snippet }}</span>
               </div>
-              <div class="line-clamp-2 break-words text-xs text-gray-600 dark:text-gray-300">{{ source.snippet }}</div>
+              <UIcon
+                name="i-heroicons-arrow-top-right-on-square"
+                class="mt-0.5 h-3 w-3 shrink-0 text-gray-400 opacity-0 transition-opacity group-hover/source:opacity-100 dark:text-gray-500"
+              />
             </li>
           </ul>
         </div>
