@@ -9,10 +9,12 @@
   "dependencies": {
     "@earendil-works/pi-agent-core": "0.74.2",
     "@earendil-works/pi-ai": "0.74.2",
+    "@huggingface/transformers": "^4.2.0",
     "@openchatlab/core": "workspace:*",
     "better-sqlite3": "^12.4.6",
     "gray-matter": "^4.0.3",
-    "js-tiktoken": "^1.0.21"
+    "js-tiktoken": "^1.0.21",
+    "sqlite-vec": "^0.1.9"
   },
   "optionalDependencies": {
     "@node-rs/jieba": "^2.0.1"
