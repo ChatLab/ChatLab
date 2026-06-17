@@ -20,8 +20,10 @@ import {
   applyPendingNodeDataDirMigrationIfNeeded,
   hasPendingElectronDataWarning,
   verifyCliDataPath,
+  createSemanticIndexService,
+  createDatabaseManagerAdapter,
 } from '@openchatlab/node-runtime'
-import type { ConfigStorage } from '@openchatlab/node-runtime'
+import type { ConfigStorage, SemanticIndexService } from '@openchatlab/node-runtime'
 import { createServer } from './server'
 import { setAuthToken, setRequireAuth } from '@openchatlab/http-routes'
 import { registerWebRoutes } from './routes/web'
@@ -177,9 +179,26 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
     limits: { fileSize: 1024 * 1024 * 1024 }, // 1GB
   })
 
+  // 语义索引 service：每进程一个共享实例，注入 runAgentStream 与 Web 路由，生命周期与 server 一致。
+  // 构建失败（如 sqlite-vec 原生扩展缺失）不应拖垮整个 server，下游会优雅跳过。
+  let semanticIndexService: SemanticIndexService | undefined
+  try {
+    semanticIndexService = createSemanticIndexService({
+      pathProvider,
+      sessionAdapter: createDatabaseManagerAdapter(dbManager),
+      nativeBinding,
+    })
+    semanticIndexService.recover()
+    server.addHook('onClose', async () => semanticIndexService?.close())
+  } catch (err) {
+    console.warn('[semantic-index] service unavailable:', err instanceof Error ? err.message : String(err))
+    semanticIndexService = undefined
+  }
+
   registerWebRoutes(server, dbManager, {
     pathProvider,
     nativeBinding,
+    semanticIndexService,
     aiContext: {
       aiDataDir,
       aiChatManager,
@@ -188,7 +207,7 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
       llmConfigStore,
       customProviderStore: new CustomProviderStore(createFileConfigStorage(aiDataDir)),
       customModelStore: new CustomModelStore(createFileConfigStorage(aiDataDir)),
-      runAgentStream: createCliRunAgentStream(dbManager, aiChatManager),
+      runAgentStream: createCliRunAgentStream(dbManager, aiChatManager, semanticIndexService),
     },
   })
 

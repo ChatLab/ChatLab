@@ -6,7 +6,7 @@
  * but outputs events via callback instead of IPC.
  */
 
-import type { AgentStreamChunk as SharedAgentStreamChunk } from '@openchatlab/node-runtime'
+import type { AgentStreamChunk as SharedAgentStreamChunk, SemanticIndexService } from '@openchatlab/node-runtime'
 import type { AgentStreamRequest } from '@openchatlab/http-routes'
 import type { ChartAutoMode } from '@openchatlab/shared-types'
 import {
@@ -20,6 +20,7 @@ import {
   getChartCapabilitySkill,
   initTokenizer,
   resolveChartRuntimeForRequest,
+  buildSemanticSearchGuidance,
 } from '@openchatlab/node-runtime'
 import type { CompressionConfig, CompressionLlmAdapter, AgentRuntimeStatus } from '@openchatlab/node-runtime'
 import { Agent, type AgentStreamChunk, type SkillContext } from './agent'
@@ -61,7 +62,9 @@ const compressionLogger = {
   error: (cat: string, msg: string, extra?: Record<string, unknown>) => aiLogger.error(cat, msg, extra),
 }
 
-export function createElectronRunAgentStream(): (
+export function createElectronRunAgentStream(
+  semanticIndexService?: SemanticIndexService
+): (
   params: AgentStreamRequest,
   onEvent: (chunk: SharedAgentStreamChunk) => void,
   abortSignal: AbortSignal
@@ -220,6 +223,21 @@ export function createElectronRunAgentStream(): (
       }
     }
 
+    // 语义检索按需暴露：工具可用时向 system prompt 加简短引导（实际检索由 LLM 调用工具触发）。
+    const canSemanticSearch = !!semanticIndexService && semanticIndexService.canSearch(sessionId)
+    if (canSemanticSearch) {
+      const baseSystemPrompt = assistantConfig?.systemPrompt ?? ''
+      assistantConfig = {
+        ...(assistantConfig ?? {
+          id: resolvedAssistantId,
+          name: resolvedAssistantId,
+          systemPrompt: '',
+          presetQuestions: [],
+        }),
+        systemPrompt: [baseSystemPrompt, buildSemanticSearchGuidance(locale)].filter(Boolean).join('\n\n'),
+      }
+    }
+
     const maxToolResultPercent = compressionConfig?.maxToolResultPercent ?? 50
     const modelDef = findModelDefinition(activeAIConfig.provider, activeAIConfig.model || '')
     const resolvedContextWindow = modelDef?.contextWindow || DEFAULT_CONTEXT_WINDOW
@@ -241,6 +259,7 @@ export function createElectronRunAgentStream(): (
       ownerInfo,
       mentionedMembers: mentionedMembers as ToolContext['mentionedMembers'],
       preprocessConfig: params.preprocessConfig as ToolContext['preprocessConfig'],
+      semanticIndexService,
       maxToolResultTokens,
       dataSnapshot,
       abortSignal,

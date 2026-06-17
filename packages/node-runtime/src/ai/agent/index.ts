@@ -6,6 +6,7 @@ export type { LlmRouteDecider, RequestRoute, RouteDecision, RouteDecisionSource,
 export { buildPlanGuidance, createAnalysisPlanner, createPlanContentBlock } from './planner'
 export { createDataSnapshotFromOverview } from './data-snapshot'
 export type { ChatOverviewForSnapshot } from './data-snapshot'
+export { buildSemanticSearchGuidance } from './semantic-search-guidance'
 export type {
   AnalysisPlanIntent,
   AnalysisPlanner,

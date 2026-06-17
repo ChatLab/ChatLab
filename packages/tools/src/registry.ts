@@ -29,6 +29,7 @@ import { getConversationBetweenTool } from './definitions/get-conversation-betwe
 import { getSegmentSummariesTool } from './definitions/get-segment-summaries'
 import { responseTimeAnalysisTool } from './definitions/response-time-analysis'
 import { keywordFrequencyTool } from './definitions/keyword-frequency'
+import { semanticSearchCurrentChatTool } from './definitions/semantic-search-current-chat'
 import { SQL_TOOL_DEFS, createAllSqlToolDefinitions } from './sql'
 
 /**
@@ -64,8 +65,18 @@ const SHARED_TOOLS: ToolDefinition[] = [
 /**
  * Agent full toolset (Server Agent / Electron Agent).
  * Includes declarative SQL convenience tools on top of the shared set.
+ *
+ * semantic_search_current_chat 仅在 AGENT registry，不进 MCP（语义片段外部访问的隐私/权限后续单独设计）。
+ * runner 会按当前会话是否可检索动态过滤，未启用/无 chunk/需重建时不暴露给 LLM。
  */
-export const AGENT_TOOL_REGISTRY: ToolDefinition[] = [...SHARED_TOOLS, ...createAllSqlToolDefinitions(SQL_TOOL_DEFS)]
+export const AGENT_TOOL_REGISTRY: ToolDefinition[] = [
+  ...SHARED_TOOLS,
+  semanticSearchCurrentChatTool,
+  ...createAllSqlToolDefinitions(SQL_TOOL_DEFS),
+]
+
+/** 语义检索工具名（runner 动态过滤用） */
+export const SEMANTIC_SEARCH_TOOL_NAME = semanticSearchCurrentChatTool.name
 
 /**
  * MCP Server toolset — slim registry optimised for external AI agents.

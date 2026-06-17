@@ -6,7 +6,7 @@
  */
 
 // === Registry ===
-export { MCP_TOOL_REGISTRY, AGENT_TOOL_REGISTRY, getToolByName } from './registry'
+export { MCP_TOOL_REGISTRY, AGENT_TOOL_REGISTRY, SEMANTIC_SEARCH_TOOL_NAME, getToolByName } from './registry'
 
 // === Providers ===
 export { CoreDataProvider } from './providers/core-data-provider'
@@ -30,6 +30,7 @@ export { getSegmentSummariesTool } from './definitions/get-segment-summaries'
 export { responseTimeAnalysisTool } from './definitions/response-time-analysis'
 export { keywordFrequencyTool } from './definitions/keyword-frequency'
 export { renderChartTool } from './definitions/render-chart'
+export { semanticSearchCurrentChatTool } from './definitions/semantic-search-current-chat'
 
 // === SQL Tools ===
 export { SQL_TOOL_DEFS, createSqlToolDefinition, createAllSqlToolDefinitions } from './sql'
@@ -62,4 +63,10 @@ export type {
   SqlToolDef,
   SqlToolExecution,
   SegmentResult,
+  SemanticSearchToolService,
+  SemanticSearchToolResult,
+  SemanticSearchToolSource,
+  SemanticSearchToolOptions,
 } from './types'
+
+export { SEMANTIC_SEARCH_DEFAULT_MAX_RESULTS, SEMANTIC_SEARCH_MAX_RESULTS_HARD_CAP } from './types'

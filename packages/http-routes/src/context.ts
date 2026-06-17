@@ -22,6 +22,7 @@ import type {
   CustomModelStore,
   MergeSessionCache,
   AgentStreamChunk,
+  SemanticIndexService,
 } from '@openchatlab/node-runtime'
 
 export interface HttpRouteContext {
@@ -52,6 +53,9 @@ export interface HttpRouteContext {
   llmConfigStore?: LLMConfigStore
   customProviderStore?: CustomProviderStore
   customModelStore?: CustomModelStore
+
+  /** 语义索引共享 service — 可选，路由在缺失时优雅跳过 */
+  semanticIndexService?: SemanticIndexService
 
   /** Cache/storage — platform-specific (optional) */
   openDirectory?: (dirPath: string) => Promise<void>

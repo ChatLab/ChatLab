@@ -45,7 +45,3 @@ export function logLLM(message: string, data?: unknown) {
 export function logSearch(message: string, data?: unknown) {
   aiLogger.info('Search', message, data)
 }
-
-export function logRAG(message: string, data?: unknown) {
-  aiLogger.info('RAG', message, data)
-}

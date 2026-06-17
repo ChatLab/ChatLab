@@ -13,6 +13,7 @@ function createPathProvider(overrides: Partial<PathProvider> = {}): PathProvider
     getSystemDir: () => '/tmp/chatlab-test',
     getUserDataDir: () => '/tmp/chatlab-test/data',
     getDatabaseDir: () => '/tmp/chatlab-test/databases',
+    getVectorDir: () => '/tmp/chatlab-test/vector',
     getAiDataDir: () => '/tmp/chatlab-test/ai',
     getSettingsDir: () => '/tmp/chatlab-test/settings',
     getCacheDir: () => '/tmp/chatlab-test/cache',

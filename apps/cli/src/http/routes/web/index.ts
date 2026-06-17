@@ -36,6 +36,8 @@ import {
   createNodeDataDirSwitch,
   getDefaultNodeUserDataDir,
   getPendingNodeDataDirMigration,
+  createSemanticIndexService,
+  type SemanticIndexService,
 } from '@openchatlab/node-runtime'
 import { registerSharedRoutes } from '@openchatlab/http-routes'
 import type { HttpRouteContext } from '@openchatlab/http-routes'
@@ -59,7 +61,13 @@ export interface AiContextOptions {
 export function registerWebRoutes(
   server: FastifyInstance,
   dbManager: DatabaseManager,
-  options?: { pathProvider?: PathProvider; nativeBinding?: string; aiContext?: AiContextOptions }
+  options?: {
+    pathProvider?: PathProvider
+    nativeBinding?: string
+    aiContext?: AiContextOptions
+    /** 由 server 入口注入的共享语义索引实例；传入时由调用方管理生命周期 */
+    semanticIndexService?: SemanticIndexService
+  }
 ): void {
   const adapter = createDatabaseManagerAdapter(dbManager)
 
@@ -72,6 +80,7 @@ export function registerWebRoutes(
     getSystemDir: () => path.join(os.homedir(), '.chatlab'),
     getUserDataDir: () => path.join(os.homedir(), '.chatlab', 'data'),
     getDatabaseDir: () => path.join(os.homedir(), '.chatlab', 'data', 'databases'),
+    getVectorDir: () => path.join(os.homedir(), '.chatlab', 'data', 'vector'),
     getAiDataDir: () => path.join(os.homedir(), '.chatlab', 'ai'),
     getSettingsDir: () => path.join(os.homedir(), '.chatlab', 'settings'),
     getCacheDir: () => path.join(os.homedir(), '.chatlab', 'cache'),
@@ -93,6 +102,24 @@ export function registerWebRoutes(
   const defaultUserDataDir = getDefaultNodeUserDataDir()
   const isCustom = path.resolve(resolvedPathProvider.getUserDataDir()) !== path.resolve(defaultUserDataDir)
 
+  // 语义索引 service：优先使用 server 入口注入的共享实例（与 runAgentStream 同一个）。
+  // 未注入时（如测试/旧调用方）就地创建并自管生命周期；构建失败不应拖垮 server，路由会优雅跳过。
+  let semanticIndexService = options?.semanticIndexService
+  if (!semanticIndexService) {
+    try {
+      semanticIndexService = createSemanticIndexService({
+        pathProvider: resolvedPathProvider,
+        sessionAdapter: adapter,
+        nativeBinding: options?.nativeBinding,
+      })
+      semanticIndexService.recover()
+      server.addHook('onClose', async () => semanticIndexService?.close())
+    } catch (err) {
+      console.warn('[semantic-index] service unavailable:', err instanceof Error ? err.message : String(err))
+      semanticIndexService = undefined
+    }
+  }
+
   registerSharedRoutes(
     server,
     {
@@ -101,6 +128,7 @@ export function registerWebRoutes(
       pathProvider: resolvedPathProvider,
       getVersion,
       nativeBinding: options?.nativeBinding,
+      semanticIndexService,
       openDirectory: openDirectoryPath,
       showInFolder: showPathInFolder,
       downloadsDir: resolvedPathProvider.getDownloadsDir(),

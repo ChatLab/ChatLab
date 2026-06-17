@@ -27,6 +27,10 @@ function buildExecutionContext(ctx: ToolContext): ToolExecutionContext {
     searchContextBefore: ctx.searchContextBefore,
     searchContextAfter: ctx.searchContextAfter,
     maxMessagesLimit: ctx.maxMessagesLimit,
+    maxToolResultTokens: ctx.maxToolResultTokens,
+    semanticIndexService: ctx.semanticIndexService,
+    preprocessConfig: ctx.preprocessConfig as Record<string, unknown> | undefined,
+    ownerPlatformId: ctx.ownerInfo?.platformId,
     segmentText: (texts, locale, options) => batchSegmentWithFrequency(texts, locale as any, options as any),
     translateTemplate: (key: string) => {
       const translated = i18nT(key)
@@ -50,7 +54,9 @@ export function adaptSharedTool(tool: ToolDefinition, options: AdaptOptions): To
       return {
         name: tool.name,
         label: tool.name,
-        description: `ai.tools.${tool.name}.desc`,
+        // 保留英文原始描述作为 fallback：translateTool 会在 i18n key 命中时覆盖为译文，
+        // 缺 key 时回退到此英文描述，避免把裸 i18n key 当作工具描述传给 LLM。
+        description: tool.description,
         parameters: schema as any,
         async execute(_toolCallId: string, params: unknown): Promise<AgentToolResult<unknown>> {
           const toolParams = (params && typeof params === 'object' ? params : {}) as Record<string, unknown>

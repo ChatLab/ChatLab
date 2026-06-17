@@ -5,7 +5,7 @@
  * 消息类工具返回 rawMessages 时自动执行预处理管道（清洗、去噪、脱敏、截断、格式化）。
  */
 
-import type { ToolDefinition, ToolExecutionContext } from '@openchatlab/tools'
+import type { ToolDefinition, ToolExecutionContext, SemanticSearchToolService } from '@openchatlab/tools'
 import { CoreDataProvider } from '@openchatlab/tools'
 import type { DatabaseAdapter } from '@openchatlab/core'
 import {
@@ -35,6 +35,12 @@ export interface ServerToolContext {
   db: DatabaseAdapter
   sessionId: string
   locale?: string
+  /** 语义检索窄接口（仅当前会话可检索时由 runner 注入） */
+  semanticIndexService?: SemanticSearchToolService
+  /** 预处理配置（脱敏/匿名化/清洗） */
+  preprocessConfig?: Record<string, unknown>
+  /** 当前用户平台 id（昵称匿名化 owner 识别） */
+  ownerPlatformId?: string
 }
 
 function convertJsonSchemaToParameters(schema: ToolDefinition['inputSchema']) {
@@ -76,6 +82,10 @@ export function adaptToolsForAgent(
             dataProvider: new CoreDataProvider(ctx.db),
             sessionId: ctx.sessionId,
             locale: ctx.locale,
+            semanticIndexService: ctx.semanticIndexService,
+            preprocessConfig: ctx.preprocessConfig,
+            ownerPlatformId: ctx.ownerPlatformId,
+            maxToolResultTokens: tokenBudget,
             segmentText: (texts, locale, options) => batchSegmentWithFrequency(texts, locale as any, options as any),
           }
           try {

@@ -23,8 +23,9 @@ import {
   MergeSessionCache,
   raiseChatDbCompatibilityGate,
   streamingImport,
+  createSemanticIndexService,
 } from '@openchatlab/node-runtime'
-import type { StreamImportDeps } from '@openchatlab/node-runtime'
+import type { StreamImportDeps, SemanticIndexService } from '@openchatlab/node-runtime'
 import multipart from '@fastify/multipart'
 import type { ConfigStorage } from '@openchatlab/node-runtime'
 import {
@@ -53,6 +54,7 @@ let server: FastifyInstance | null = null
 let endpoint: InternalEndpoint | null = null
 let dbManager: DatabaseManager | null = null
 let mergeCache: MergeSessionCache | null = null
+let semanticIndexService: SemanticIndexService | null = null
 
 const JSON_BODY_LIMIT = 50 * 1024 * 1024 // 50 MB
 
@@ -81,6 +83,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
 
   let newServer: FastifyInstance | null = null
   let newDbManager: DatabaseManager | null = null
+  let newSemanticIndexService: SemanticIndexService | null = null
 
   try {
     const token = `int_${randomBytes(32).toString('hex')}`
@@ -104,6 +107,16 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
 
     const newMergeCache = new MergeSessionCache(pathProvider)
     newMergeCache.cleanupOrphans()
+
+    // 语义索引 service：每进程一个实例，启动时仅做状态恢复。构建失败（如 sqlite-vec
+    // 扩展加载失败）不应阻断 server，路由会优雅跳过。
+    try {
+      newSemanticIndexService = createSemanticIndexService({ pathProvider, sessionAdapter })
+      newSemanticIndexService.recover()
+    } catch (err) {
+      console.warn('[semantic-index] service unavailable:', err instanceof Error ? err.message : String(err))
+      newSemanticIndexService = null
+    }
 
     const electronStreamImport = async (dm: DatabaseManager, filePath: string) => {
       const deps: StreamImportDeps = {
@@ -145,6 +158,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
       llmConfigStore,
       customProviderStore: new CustomProviderStore(configStorage),
       customModelStore: new CustomModelStore(configStorage),
+      semanticIndexService: newSemanticIndexService ?? undefined,
       openDirectory: (dirPath) => shell.openPath(dirPath).then(() => {}),
       showInFolder: (filePath) => {
         shell.showItemInFolder(filePath)
@@ -153,7 +167,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
       downloadsDir: getDownloadsDir(),
       defaultUserDataDir: getDefaultUserDataDir(),
       isCustomDataDir: path.resolve(getUserDataDir()) !== path.resolve(getDefaultUserDataDir()),
-      runAgentStream: createElectronRunAgentStream(),
+      runAgentStream: createElectronRunAgentStream(newSemanticIndexService ?? undefined),
       executeAiTool: executeElectronAiTool,
     }
 
@@ -231,6 +245,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
     server = newServer
     dbManager = newDbManager
     mergeCache = newMergeCache
+    semanticIndexService = newSemanticIndexService
     endpoint = { baseUrl: `http://127.0.0.1:${port}`, token }
     console.log(`[InternalAPI] Server started on port ${port}`)
 
@@ -246,9 +261,15 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
     } catch {
       /* best-effort */
     }
+    try {
+      newSemanticIndexService?.close()
+    } catch {
+      /* best-effort */
+    }
     server = null
     dbManager = null
     mergeCache = null
+    semanticIndexService = null
     endpoint = null
     throw err
   }
@@ -261,6 +282,11 @@ export function getInternalEndpoint(): InternalEndpoint | null {
 /** Main-process DatabaseManager backing the internal server (null before startup). */
 export function getInternalDbManager(): DatabaseManager | null {
   return dbManager
+}
+
+/** Main-process SemanticIndexService backing the internal server (null before startup / unavailable). */
+export function getInternalSemanticIndexService(): SemanticIndexService | null {
+  return semanticIndexService
 }
 
 export async function stopInternalServer(): Promise<void> {
@@ -280,10 +306,16 @@ export async function stopInternalServer(): Promise<void> {
     } catch {
       /* best-effort */
     }
+    try {
+      semanticIndexService?.close()
+    } catch {
+      /* best-effort */
+    }
     server = null
     endpoint = null
     dbManager = null
     mergeCache = null
+    semanticIndexService = null
     console.log('[InternalAPI] Server stopped')
   }
 }

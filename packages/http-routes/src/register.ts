@@ -26,6 +26,7 @@ import { registerAiAgentStreamRoutes } from './routes/web/ai-agent-stream'
 import { registerAiToolRoutes } from './routes/web/ai-tools'
 import { registerAiChatRoutes } from './routes/web/ai-chats'
 import { registerAiSummaryRoutes } from './routes/web/ai-summaries'
+import { registerSemanticIndexRoutes } from './routes/web/ai-semantic-index'
 import { registerMergeRoutes } from './routes/web/merge'
 import { registerCacheRoutes } from './routes/web/cache'
 
@@ -82,6 +83,7 @@ export function registerSharedRoutes(
   registerAiToolRoutes(server, resolvedCtx)
   registerAiChatRoutes(server, resolvedCtx)
   registerAiSummaryRoutes(server, resolvedCtx)
+  registerSemanticIndexRoutes(server, resolvedCtx)
 
   // Merge routes (graceful skip when mergeSessionCache is absent)
   registerMergeRoutes(server, resolvedCtx)

@@ -3,7 +3,7 @@
  * for the shared HTTP route context.
  */
 
-import type { DatabaseManager, AIChatManager, AgentStreamChunk } from '@openchatlab/node-runtime'
+import type { DatabaseManager, AIChatManager, AgentStreamChunk, SemanticIndexService } from '@openchatlab/node-runtime'
 import {
   CHART_CAPABILITY_CORE_TOOLS,
   SkillManager,
@@ -19,7 +19,8 @@ import { getChatOverview, normalizeBuiltinToolNames } from '@openchatlab/core'
 import type { ChartAutoMode } from '@openchatlab/shared-types'
 import type { DataSnapshot } from '@openchatlab/node-runtime'
 import type { AgentStreamRequest } from '@openchatlab/http-routes'
-import { AGENT_TOOL_REGISTRY } from '@openchatlab/tools'
+import { AGENT_TOOL_REGISTRY, SEMANTIC_SEARCH_TOOL_NAME } from '@openchatlab/tools'
+import { buildSemanticSearchGuidance } from '@openchatlab/node-runtime'
 import { adaptToolsForAgent } from './tool-adapter'
 import { getDefaultAssistantConfig, buildPiModel } from './llm-config'
 import { loadAssistantConfig } from './assistant-loader'
@@ -63,7 +64,8 @@ export function getAllowedToolSet(
 
 export function createCliRunAgentStream(
   dbManager: DatabaseManager,
-  aiChatManager: AIChatManager
+  aiChatManager: AIChatManager,
+  semanticIndexService?: SemanticIndexService
 ): (params: AgentStreamRequest, onEvent: (chunk: AgentStreamChunk) => void, abortSignal: AbortSignal) => Promise<void> {
   return async (params, onEvent, abortSignal) => {
     const {
@@ -121,9 +123,31 @@ export function createCliRunAgentStream(
     )
     const availableToolDefs = getAvailableToolDefs(isChartCapability, allowedToolSet)
 
+    // 语义检索按需暴露：仅当前会话可检索时保留工具，否则从工具集中过滤掉以减少 schema token 与无效调用。
+    const canSemanticSearch = !!db && !!semanticIndexService && semanticIndexService.canSearch(sessionId)
+    const filteredToolDefs = canSemanticSearch
+      ? availableToolDefs
+      : availableToolDefs.filter((tool) => tool.name !== SEMANTIC_SEARCH_TOOL_NAME)
+
     const agentTools = db
-      ? adaptToolsForAgent(availableToolDefs, () => ({ db, sessionId, locale }), { maxToolResultTokens })
+      ? adaptToolsForAgent(
+          filteredToolDefs,
+          () => ({
+            db,
+            sessionId,
+            locale,
+            semanticIndexService,
+            preprocessConfig: params.preprocessConfig,
+            ownerPlatformId: ownerInfo?.platformId,
+          }),
+          { maxToolResultTokens }
+        )
       : []
+
+    // 工具可用时向 system prompt 加简短引导，提示何时调用语义检索。
+    if (canSemanticSearch) {
+      assistantSystemPrompt = [assistantSystemPrompt, buildSemanticSearchGuidance(locale)].filter(Boolean).join('\n\n')
+    }
 
     const skillMgr = new SkillManager(aiDataDir)
     skillMgr.init()

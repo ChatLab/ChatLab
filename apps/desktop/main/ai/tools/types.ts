@@ -5,6 +5,7 @@
 import type { AgentTool } from '@openchatlab/node-runtime'
 import type { PreprocessConfig } from '@openchatlab/node-runtime'
 import type { DataSnapshot } from '@openchatlab/node-runtime'
+import type { SemanticSearchToolService } from '@openchatlab/tools'
 
 export type ToolCategory = 'core' | 'analysis'
 
@@ -62,6 +63,8 @@ export interface ToolContext {
   locale?: string
   /** 聊天记录预处理配置（全局） */
   preprocessConfig?: PreprocessConfig
+  /** 语义检索窄接口（仅当前会话可检索时由 runner 注入） */
+  semanticIndexService?: SemanticSearchToolService
   abortSignal?: AbortSignal
   /** 搜索结果上下文：向前取多少条（默认 3） */
   searchContextBefore?: number

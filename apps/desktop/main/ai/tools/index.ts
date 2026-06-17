@@ -19,6 +19,11 @@ import {
   getSkillConfigWithBuiltinChart,
   wrapWithChartSchemaGate,
 } from '@openchatlab/node-runtime'
+import { semanticSearchCurrentChatTool } from '@openchatlab/tools'
+import { adaptSharedTool } from './shared-tool-adapter'
+
+// 语义检索工具按需暴露：仅当前会话可检索时追加，不进 TOOL_REGISTRY（避免被当作始终加载的 core 工具）
+const semanticSearchEntry = adaptSharedTool(semanticSearchCurrentChatTool, { category: 'core' })
 
 const CORE_TOOL_NAMES = new Set(TOOL_REGISTRY.filter((e) => e.category === 'core').map((e) => e.name))
 
@@ -119,9 +124,13 @@ export function getAllTools(context: ToolContext, allowedTools?: string[]): Agen
     (e) => e.category === 'analysis' && isAnalysisToolAllowed(e.name, allowedTools)
   ).map((e) => e.factory(context))
 
+  const semanticTools = context.semanticIndexService?.canSearch(context.sessionId)
+    ? [semanticSearchEntry.factory(context)]
+    : []
+
   const chartSchemaGateState = createChartSchemaGateState()
 
-  return [...coreTools, ...analysisTools]
+  return [...coreTools, ...analysisTools, ...semanticTools]
     .map(translateTool)
     .map((t) => wrapWithChartSchemaGate(t, chartSchemaGateState))
     .map((t) => wrapWithPreprocessing(t, context))
