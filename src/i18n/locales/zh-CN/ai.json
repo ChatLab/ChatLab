@@ -295,6 +295,7 @@
       "criteria": "判定标准",
       "empty": "未找到明确可计入的证据",
       "viewSource": "查看原记录",
+      "totalSources": "共 {count} 条来源",
       "mode": {
         "auto": "自动",
         "hybrid": "语义 + 关键词",

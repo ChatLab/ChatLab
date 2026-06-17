@@ -295,6 +295,7 @@
       "criteria": "判定基準",
       "empty": "明確な根拠は見つかりませんでした",
       "viewSource": "元の記録を表示",
+      "totalSources": "全 {count} 件のソース",
       "mode": {
         "auto": "自動",
         "hybrid": "セマンティック + キーワード",
