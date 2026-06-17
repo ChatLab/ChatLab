@@ -1,6 +1,6 @@
 import type { DataSnapshot } from './prompt-builder'
 
-export type AnalysisPlanIntent = 'summary' | 'trend' | 'relationship' | 'search' | 'comparison' | 'mixed'
+export type AnalysisPlanIntent = 'summary' | 'trend' | 'relationship' | 'search' | 'comparison' | 'evidence' | 'mixed'
 
 export interface AnalysisPlanStep {
   goal: string

@@ -1,4 +1,4 @@
-export type PlanIntent = 'summary' | 'trend' | 'relationship' | 'search' | 'comparison' | 'mixed'
+export type PlanIntent = 'summary' | 'trend' | 'relationship' | 'search' | 'comparison' | 'evidence' | 'mixed'
 export type PlanBlockStatus = 'created' | 'executing' | 'done' | 'skipped'
 
 export interface PlanStep {

@@ -12,13 +12,18 @@ function isChinese(locale?: string): boolean {
 export function buildSemanticSearchGuidance(locale?: string): string {
   if (isChinese(locale)) {
     return [
-      '当需要确认本对话历史中的具体事实、人物、地点、事件或过往提及时，调用 semantic_search_current_chat 检索相关片段。',
-      '寒暄、写作、解释通用概念等不依赖历史证据的问题不要调用该工具。',
+      '检索本对话历史时按需选择工具：',
+      '需要证据链 / 事件次数统计 / 是否发生过 / “我们有没有/去过几次”这类历史事实判断时，优先调用 retrieve_chat_evidence（它会综合语义与关键词并给出可计入/不计入/不确定的证据）。',
+      '只是想找语义相关片段时，调用 semantic_search_current_chat。',
+      '只需按精确关键词字面查找时，用 search_messages。',
+      '寒暄、写作、解释通用概念等不依赖历史证据的问题不要调用检索工具。',
     ].join('')
   }
   return [
-    'When you need concrete facts, people, places, events, or past mentions from THIS conversation history, ',
-    'call semantic_search_current_chat to retrieve relevant excerpts. ',
-    'Do not call it for greetings, writing, or explaining general concepts that need no historical evidence.',
+    'Choose a retrieval tool by need when searching THIS conversation history: ',
+    'for evidence chains, event counts, whether something happened, or "how many times / did we ever" historical fact judgments, prefer retrieve_chat_evidence (it combines semantic + keyword retrieval and returns included/excluded/uncertain evidence). ',
+    'For finding semantically related excerpts only, call semantic_search_current_chat. ',
+    'For exact literal keyword lookup, use search_messages. ',
+    'Do not call retrieval tools for greetings, writing, or explaining general concepts that need no historical evidence.',
   ].join('')
 }

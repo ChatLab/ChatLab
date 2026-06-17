@@ -19,11 +19,18 @@ import {
   getSkillConfigWithBuiltinChart,
   wrapWithChartSchemaGate,
 } from '@openchatlab/node-runtime'
-import { semanticSearchCurrentChatTool } from '@openchatlab/tools'
+import { semanticSearchCurrentChatTool, retrieveChatEvidenceTool } from '@openchatlab/tools'
 import { adaptSharedTool } from './shared-tool-adapter'
 
 // 语义检索工具按需暴露：仅当前会话可检索时追加，不进 TOOL_REGISTRY（避免被当作始终加载的 core 工具）
 const semanticSearchEntry = adaptSharedTool(semanticSearchCurrentChatTool, { category: 'core' })
+
+// 证据检索工具始终暴露（语义不可用时可降级到关键词路径）。
+// 不进 TOOL_REGISTRY / 工具目录：它是始终加载、用户不可切换的特殊 core 工具，行为同语义工具一样特殊处理。
+const retrieveChatEvidenceEntry = adaptSharedTool(retrieveChatEvidenceTool, {
+  category: 'core',
+  truncationStrategy: 'keep_first',
+})
 
 const CORE_TOOL_NAMES = new Set(TOOL_REGISTRY.filter((e) => e.category === 'core').map((e) => e.name))
 
@@ -128,9 +135,12 @@ export function getAllTools(context: ToolContext, allowedTools?: string[]): Agen
     ? [semanticSearchEntry.factory(context)]
     : []
 
+  // 证据检索工具始终加载，不受语义索引可用性影响（无索引时走关键词降级）
+  const evidenceTools = [retrieveChatEvidenceEntry.factory(context)]
+
   const chartSchemaGateState = createChartSchemaGateState()
 
-  return [...coreTools, ...analysisTools, ...semanticTools]
+  return [...coreTools, ...analysisTools, ...evidenceTools, ...semanticTools]
     .map(translateTool)
     .map((t) => wrapWithChartSchemaGate(t, chartSchemaGateState))
     .map((t) => wrapWithPreprocessing(t, context))

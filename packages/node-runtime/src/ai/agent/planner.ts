@@ -44,6 +44,7 @@ const PLAN_INTENTS: readonly AnalysisPlanIntent[] = [
   'relationship',
   'search',
   'comparison',
+  'evidence',
   'mixed',
 ]
 const STREAM_MARKER_HOLDBACK_CHARS = Math.max('</draft>'.length, '</plan>'.length, '<json>'.length) - 1
@@ -145,7 +146,7 @@ A concise user-facing analysis approach in the user's locale. Do not include sug
 <json>
 {
   "title": "short title",
-  "intent": "summary|trend|relationship|search|comparison|mixed",
+  "intent": "summary|trend|relationship|search|comparison|evidence|mixed",
   "steps": [
     {"goal": "what to investigate", "suggestedTools": ["tool_name"], "evidenceNeeded": "what evidence is needed"}
   ],
@@ -165,6 +166,7 @@ Planning strategy:
 - For open-ended topic, community profile, influence, interaction-pattern, or multi-dimensional retrospective analysis, first plan a lightweight reconnaissance step to build a topic/member activity map before drawing conclusions.
 - Prefer segment summaries, keyword frequency, time distribution, member activity, and representative message retrieval when available.
 - Do not create a dedicated step whose only purpose is finding max timestamp or confirming latest message time.
+- Use intent "evidence" for historical fact / occurrence / count / "did we ever" / proof-from-chat questions that need an evidence chain or a counted/conservative conclusion. When the intent is "evidence" and retrieve_chat_evidence is in availableTools, suggest exactly ["retrieve_chat_evidence"] for that step instead of search_messages or semantic_search_current_chat, so the model does not pick only one low-level retrieval path.
 
 Context:
 - locale: ${input.locale}

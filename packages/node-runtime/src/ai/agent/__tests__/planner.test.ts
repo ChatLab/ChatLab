@@ -210,6 +210,39 @@ ${json}
     assert.match(capturedPrompt, /render_chart/)
   })
 
+  it('exposes the evidence intent and retrieve_chat_evidence guidance in the prompt', async () => {
+    let capturedPrompt = ''
+    const planner = createAnalysisPlanner({
+      complete: async (prompt) => {
+        capturedPrompt = prompt
+        return JSON.stringify({
+          title: '乐山出行次数核实',
+          intent: 'evidence',
+          steps: [
+            {
+              goal: '检索乐山实际出行证据并统计次数',
+              suggestedTools: ['retrieve_chat_evidence', 'missing_tool'],
+              evidenceNeeded: '到达/住宿/出行相关消息',
+            },
+          ],
+          successCriteria: ['给出可计入的出行次数'],
+        })
+      },
+    })
+
+    const plan = await planner({
+      ...baseInput,
+      userMessage: '我们去乐山旅行过多少次？用证据检索一下。',
+      availableTools: ['search_messages', 'semantic_search_current_chat', 'retrieve_chat_evidence'],
+    })
+
+    // evidence intent 可解析，幻觉工具被过滤，只保留可用的 retrieve_chat_evidence
+    assert.equal(plan?.intent, 'evidence')
+    assert.deepEqual(plan?.steps[0]?.suggestedTools, ['retrieve_chat_evidence'])
+    assert.match(capturedPrompt, /evidence/)
+    assert.match(capturedPrompt, /retrieve_chat_evidence/)
+  })
+
   it('includes extended data snapshot context in the planner prompt', async () => {
     let capturedPrompt = ''
     const planner = createAnalysisPlanner({
