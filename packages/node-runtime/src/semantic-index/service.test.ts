@@ -399,6 +399,28 @@ test('searchForTool honors maxResultTokens as evidence budget ceiling', async ()
   db.close()
 })
 
+test('searchForTool applies timeFilter to exclude out-of-range chunks', async () => {
+  const { service, db } = setup()
+  service.enable(SESSION_ID)
+  await service.whenIdle()
+
+  // 不带时间过滤：应有命中
+  const all = await service.searchForTool(SESSION_ID, '项目排期', { maxResults: 10 })
+  assert.equal(all.available, true)
+  assert.ok(all.sources.length > 0)
+
+  // 时间范围设在遥远未来：所有 chunk 都应被过滤掉（对秒/毫秒口径均成立）
+  const farFuture = Date.now() + 10 * 365 * 24 * 3600 * 1000
+  const future = await service.searchForTool(SESSION_ID, '项目排期', {
+    maxResults: 10,
+    timeFilter: { startTs: farFuture },
+  })
+  assert.equal(future.sources.length, 0)
+  assert.equal(future.returned, 0)
+  service.close()
+  db.close()
+})
+
 test('recover marks stale running as paused without auto-resuming', async () => {
   const { service, chatDbPath, dir, db } = setup()
   service.enable(SESSION_ID)

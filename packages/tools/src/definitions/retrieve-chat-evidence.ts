@@ -338,7 +338,7 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
   const semanticCandidates: EvidenceCandidate[] = []
   let keywordCandidates: EvidenceCandidate[] = []
 
-  // 语义路径（Phase 1 暂不传 timeFilter，工具层按 startTime/endTime 兜底过滤）
+  // 语义路径：service 内按 chunk 时间范围过滤；工具层再按 startTime/endTime 兜底过滤
   if (runSemantic) {
     if (!service || !semanticAvailable) {
       warnings.add('semantic_unavailable')
@@ -349,6 +349,7 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
         ownerPlatformId: context.ownerPlatformId,
         locale,
         maxResultTokens: context.maxToolResultTokens,
+        timeFilter: rangeMs,
       })
       semanticRan = true
       if (!result.available) {

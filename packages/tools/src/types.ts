@@ -259,6 +259,8 @@ export interface SemanticSearchToolOptions {
   locale?: string
   /** 证据文本 token 预算 */
   maxResultTokens?: number
+  /** 毫秒级时间范围过滤（可单边）；仅保留与 chunk 时间范围有交集的语义候选 */
+  timeFilter?: EvidenceTimeRangeMs
 }
 
 /**
