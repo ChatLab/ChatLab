@@ -5,15 +5,17 @@
  * 消息类工具返回 rawMessages 时自动执行预处理管道（清洗、去噪、脱敏、截断、格式化）。
  */
 
-import type { ToolDefinition, ToolExecutionContext, SemanticSearchToolService } from '@openchatlab/tools'
+import type { ToolDefinition, ToolExecutionContext, SemanticSearchToolService, RawMessage } from '@openchatlab/tools'
 import { CoreDataProvider } from '@openchatlab/tools'
 import type { DatabaseAdapter } from '@openchatlab/core'
 import {
   applyPreprocessingPipeline,
   batchSegmentWithFrequency,
+  preprocessMessages,
   type AgentTool,
   type AgentToolResult,
   type PreprocessableMessage,
+  type PreprocessConfig,
   type TruncationStrategy,
   createChartSchemaGateState,
   wrapWithChartSchemaGate,
@@ -87,6 +89,11 @@ export function adaptToolsForAgent(
             ownerPlatformId: ctx.ownerPlatformId,
             maxToolResultTokens: tokenBudget,
             segmentText: (texts, locale, options) => batchSegmentWithFrequency(texts, locale as any, options as any),
+            desensitizeMessages: (messages: RawMessage[]): RawMessage[] =>
+              preprocessMessages(
+                messages as PreprocessableMessage[],
+                ctx.preprocessConfig as PreprocessConfig | undefined
+              ) as RawMessage[],
           }
           try {
             const result = await tool.handler(toolParams, execCtx)

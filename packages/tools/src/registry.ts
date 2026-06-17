@@ -30,6 +30,7 @@ import { getSegmentSummariesTool } from './definitions/get-segment-summaries'
 import { responseTimeAnalysisTool } from './definitions/response-time-analysis'
 import { keywordFrequencyTool } from './definitions/keyword-frequency'
 import { semanticSearchCurrentChatTool } from './definitions/semantic-search-current-chat'
+import { retrieveChatEvidenceTool } from './definitions/retrieve-chat-evidence'
 import { SQL_TOOL_DEFS, createAllSqlToolDefinitions } from './sql'
 
 /**
@@ -72,11 +73,15 @@ const SHARED_TOOLS: ToolDefinition[] = [
 export const AGENT_TOOL_REGISTRY: ToolDefinition[] = [
   ...SHARED_TOOLS,
   semanticSearchCurrentChatTool,
+  retrieveChatEvidenceTool,
   ...createAllSqlToolDefinitions(SQL_TOOL_DEFS),
 ]
 
 /** 语义检索工具名（runner 动态过滤用） */
 export const SEMANTIC_SEARCH_TOOL_NAME = semanticSearchCurrentChatTool.name
+
+/** 证据检索工具名（planner / runner 判断用） */
+export const RETRIEVE_CHAT_EVIDENCE_TOOL_NAME = retrieveChatEvidenceTool.name
 
 /**
  * MCP Server toolset — slim registry optimised for external AI agents.

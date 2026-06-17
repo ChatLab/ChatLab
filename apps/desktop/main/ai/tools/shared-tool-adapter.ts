@@ -5,9 +5,9 @@
  * Electron 端使用 WorkerDataProvider 替代 Server 端的 CoreDataProvider。
  */
 
-import type { ToolDefinition, ToolExecutionContext } from '@openchatlab/tools'
-import type { AgentTool, AgentToolResult } from '@openchatlab/node-runtime'
-import { batchSegmentWithFrequency } from '@openchatlab/node-runtime'
+import type { ToolDefinition, ToolExecutionContext, RawMessage } from '@openchatlab/tools'
+import type { AgentTool, AgentToolResult, PreprocessableMessage, PreprocessConfig } from '@openchatlab/node-runtime'
+import { batchSegmentWithFrequency, preprocessMessages } from '@openchatlab/node-runtime'
 import type { ToolContext, ToolRegistryEntry, ToolCategory } from './types'
 import { WorkerDataProvider } from './worker-data-provider'
 import { t as i18nT } from '../../i18n'
@@ -36,6 +36,11 @@ function buildExecutionContext(ctx: ToolContext): ToolExecutionContext {
       const translated = i18nT(key)
       return translated !== key ? translated : undefined
     },
+    desensitizeMessages: (messages: RawMessage[]): RawMessage[] =>
+      preprocessMessages(
+        messages as PreprocessableMessage[],
+        ctx.preprocessConfig as PreprocessConfig | undefined
+      ) as RawMessage[],
   }
 }
 

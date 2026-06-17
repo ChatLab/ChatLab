@@ -318,6 +318,14 @@ export interface ToolExecutionContext {
   segmentText?: (texts: string[], locale: string, options: Record<string, unknown>) => SegmentResult
   /** i18n 模板翻译回调（用于 SQL 工具模板国际化） */
   translateTemplate?: (key: string) => string | undefined
+  /**
+   * 消息脱敏回调：对一组原始消息执行清洗 + 脱敏，返回安全消息（含 id/发送者/时间/脱敏后内容）。
+   *
+   * 供需要在工具内部生成可持久化安全 snippet 的工具使用（如证据检索的关键词路径）。
+   * 由平台 adapter 注入 applyPreprocessingPipeline 等价实现；清洗可能删除/合并消息，
+   * 返回条数可能少于输入。未注入时调用方应回退到不脱敏或跳过相关能力。
+   */
+  desensitizeMessages?: (messages: RawMessage[], options?: { anonymizeNames?: boolean }) => RawMessage[]
 }
 
 // ==================== Raw Message ====================
@@ -365,4 +373,86 @@ export interface ToolDefinition {
   handler: (params: Record<string, unknown>, context: ToolExecutionContext) => ToolResult | Promise<ToolResult>
   category?: ToolCategory
   truncationStrategy?: TruncationStrategy
+}
+
+// ==================== Chat Evidence ====================
+
+/** 证据检索模式 */
+export type EvidenceRetrievalMode = 'auto' | 'hybrid' | 'semantic' | 'keyword'
+
+/** 单组证据状态：计入 / 不计入 / 不确定 */
+export type EvidenceStatus = 'included' | 'excluded' | 'uncertain'
+
+/** 整个证据 payload 状态 */
+export type EvidencePayloadStatus = 'complete' | 'partial' | 'empty' | 'unavailable'
+
+/** 证据检索告警 */
+export type EvidenceWarning =
+  | 'criteria_missing'
+  | 'keywords_missing_for_hybrid'
+  | 'keywords_required_for_keyword_mode'
+  | 'semantic_unavailable'
+  | 'keyword_unavailable'
+  | 'semantic_partial'
+
+/**
+ * 毫秒级、可单边的时间区间。
+ *
+ * evidence payload 与语义路径统一使用毫秒口径（聊天库 / core RawMessage.timestamp 是秒，
+ * 语义 chunk 是毫秒）；单边区间用于“今年以来 / 截至某天”等查询。
+ */
+export interface EvidenceTimeRangeMs {
+  startTs?: number
+  endTs?: number
+}
+
+/** 单条证据来源（已脱敏，timestamp 为毫秒） */
+export interface ChatEvidenceSource {
+  /** 点击追溯锚点；语义 range source 默认用 startMessageId，关键词 source 用命中消息 id */
+  messageId: number
+  /** 范围来源起点；关键词 source 可与 messageId 相同 */
+  startMessageId?: number
+  /** 范围来源终点；关键词 source 可与 messageId 相同 */
+  endMessageId?: number
+  /** 毫秒时间戳 */
+  timestamp: number
+  senderName?: string
+  snippet: string
+  role?: 'primary' | 'supporting'
+  sourceKind?: 'semantic' | 'keyword'
+}
+
+/** 一组证据 */
+export interface ChatEvidenceGroup {
+  id: string
+  status: EvidenceStatus
+  title: string
+  reason: string
+  /** 毫秒时间范围 */
+  timeRange?: { startTs: number; endTs: number }
+  sources: ChatEvidenceSource[]
+}
+
+/**
+ * 证据 payload（持久化到 AI 对话历史，时间戳统一毫秒）。
+ *
+ * 只保存脱敏后的 snippet / 时间戳 / messageId / 分组元数据 / 查询上下文，
+ * 不保存原始 rawMessages、整段上下文全文或 embedding 原文。
+ */
+export interface ChatEvidencePayload {
+  version: 1
+  query: string
+  criteria?: string
+  /** 已 resolve 的实际检索模式（不会是 auto） */
+  mode: EvidenceRetrievalMode
+  status: EvidencePayloadStatus
+  summary?: string
+  /** 实际生效的时间过滤（毫秒，可单边） */
+  appliedTimeFilter?: {
+    startTs?: number
+    endTs?: number
+    label?: string
+  }
+  warnings?: EvidenceWarning[]
+  groups: ChatEvidenceGroup[]
 }

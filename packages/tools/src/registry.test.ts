@@ -1,6 +1,12 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { AGENT_TOOL_REGISTRY, MCP_TOOL_REGISTRY, SEMANTIC_SEARCH_TOOL_NAME, getToolByName } from './registry'
+import {
+  AGENT_TOOL_REGISTRY,
+  MCP_TOOL_REGISTRY,
+  SEMANTIC_SEARCH_TOOL_NAME,
+  RETRIEVE_CHAT_EVIDENCE_TOOL_NAME,
+  getToolByName,
+} from './registry'
 
 describe('semantic_search_current_chat registry placement', () => {
   it('is registered in AGENT registry only, not MCP (privacy: no external semantic access in Phase 1)', () => {
@@ -14,5 +20,20 @@ describe('semantic_search_current_chat registry placement', () => {
     const tool = getToolByName(SEMANTIC_SEARCH_TOOL_NAME)
     assert.ok(tool)
     assert.deepEqual(Object.keys(tool!.inputSchema.properties).sort(), ['max_results', 'query'])
+  })
+})
+
+describe('retrieve_chat_evidence registry placement', () => {
+  it('is registered in AGENT registry only, not MCP', () => {
+    const inAgent = AGENT_TOOL_REGISTRY.some((t) => t.name === RETRIEVE_CHAT_EVIDENCE_TOOL_NAME)
+    const inMcp = MCP_TOOL_REGISTRY.some((t) => t.name === RETRIEVE_CHAT_EVIDENCE_TOOL_NAME)
+    assert.equal(inAgent, true)
+    assert.equal(inMcp, false)
+  })
+
+  it('is resolvable by name and requires query', () => {
+    const tool = getToolByName(RETRIEVE_CHAT_EVIDENCE_TOOL_NAME)
+    assert.ok(tool)
+    assert.deepEqual(tool!.inputSchema.required, ['query'])
   })
 })
