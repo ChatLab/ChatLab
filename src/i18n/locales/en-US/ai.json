@@ -295,6 +295,7 @@
       "criteria": "Criteria",
       "empty": "No conclusive evidence found",
       "viewSource": "View source",
+      "totalSources": "{count} sources",
       "mode": {
         "auto": "Auto",
         "hybrid": "Semantic + Keyword",

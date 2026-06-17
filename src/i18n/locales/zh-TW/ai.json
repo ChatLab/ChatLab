@@ -295,6 +295,7 @@
       "criteria": "判定標準",
       "empty": "未找到明確可計入的證據",
       "viewSource": "查看原紀錄",
+      "totalSources": "共 {count} 條來源",
       "mode": {
         "auto": "自動",
         "hybrid": "語意 + 關鍵字",
