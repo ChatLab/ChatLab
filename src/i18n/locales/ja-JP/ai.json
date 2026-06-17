@@ -288,6 +288,32 @@
       "emptyHint": "質問を送信すると、関連する記録がここに表示されます",
       "totalRecords": "全 {count} 件の記録",
       "loadMore": "さらに読み込む"
+    },
+    "evidence": {
+      "title": "根拠",
+      "query": "質問",
+      "criteria": "判定基準",
+      "empty": "明確な根拠は見つかりませんでした",
+      "viewSource": "元の記録を表示",
+      "mode": {
+        "auto": "自動",
+        "hybrid": "セマンティック + キーワード",
+        "semantic": "セマンティック検索",
+        "keyword": "キーワード検索"
+      },
+      "group": {
+        "included": "根拠に算入",
+        "excluded": "除外",
+        "uncertain": "不確実"
+      },
+      "warning": {
+        "criteria_missing": "判定基準が未指定のため、グループ分けは保守的です",
+        "keywords_missing_for_hybrid": "キーワードが未指定のため、セマンティック検索のみに切り替えました",
+        "keywords_required_for_keyword_mode": "キーワードモードにはキーワードが必要です",
+        "semantic_unavailable": "セマンティックインデックスが利用できないため、キーワード検索を使用しました",
+        "keyword_unavailable": "キーワード検索が利用できません",
+        "semantic_partial": "セマンティック検索の結果が不完全な可能性があります"
+      }
     }
   },
   "sqlLab": {

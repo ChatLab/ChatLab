@@ -1,5 +1,5 @@
 import type { TimeFilter } from '@/types/base'
-import type { ChartPayload } from '@openchatlab/core'
+import type { ChartPayload, ChatEvidencePayload } from '@openchatlab/core'
 import type { PlanContentBlock } from './planBlocks'
 
 export interface AIChat {
@@ -16,6 +16,7 @@ export type ContentBlock =
   | { type: 'text'; text: string }
   | { type: 'think'; tag: string; text: string; durationMs?: number }
   | { type: 'chart'; chart: ChartPayload }
+  | { type: 'evidence'; evidence: ChatEvidencePayload }
   | PlanContentBlock
   | {
       type: 'tool'

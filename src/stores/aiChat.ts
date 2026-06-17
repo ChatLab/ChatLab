@@ -18,7 +18,7 @@ import { useLLMStore } from '@/stores/llm'
 import type { TokenUsage, AgentRuntimeStatus, SerializedErrorInfo } from '@electron/shared/types'
 import { useAgentStreamService } from '@/services/ai-stream/service'
 import { buildSerializablePreprocessConfig, shouldEnsureDesensitizeRulesBeforeSerialize } from './aiPreprocessConfig'
-import type { ChartPayload } from '@openchatlab/core'
+import type { ChartPayload, ChatEvidencePayload } from '@openchatlab/core'
 import { extractToolResultText, truncateToolResultText } from '@openchatlab/core'
 import {
   createRenderOnlyToolPendingBlock,
@@ -28,6 +28,7 @@ import {
   toChartContentBlocks,
   toRenderOnlyToolErrorBlock,
 } from './aiChatChartBlocks'
+import { extractEvidencePayload, toEvidenceContentBlock } from './aiChatEvidenceBlocks'
 import {
   appendPlanDraftDelta,
   removePlanDraftBlocks,
@@ -76,6 +77,7 @@ export type ContentBlock =
   | { type: 'text'; text: string }
   | { type: 'think'; tag: string; text: string; durationMs?: number }
   | { type: 'chart'; chart: ChartPayload }
+  | { type: 'evidence'; evidence: ChatEvidencePayload }
   | PlanContentBlock
   | PlanDraftContentBlock
   | {
@@ -636,6 +638,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     appendTextToBlocks: (text: string) => void
     appendThinkToBlocks: (text: string, tag?: string, durationMs?: number) => void
     appendChartsToBlocks: (charts: ChartPayload[]) => void
+    appendEvidenceToBlocks: (evidence: ChatEvidencePayload) => void
     appendPlanDraftToBlocks: (delta: string) => void
     appendPlanToBlocks: (plan: PlanContentBlock) => void
     removePlanDraftsFromBlocks: () => void
@@ -709,6 +712,13 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       const idx = getAiMessageIndex()
       const blocks = targetBuffer.messages[idx].contentBlocks || []
       blocks.push(...toChartContentBlocks(charts))
+      updateAIMessage({ contentBlocks: [...blocks] })
+    }
+
+    const appendEvidenceToBlocks = (evidence: ChatEvidencePayload) => {
+      const idx = getAiMessageIndex()
+      const blocks = targetBuffer.messages[idx].contentBlocks || []
+      blocks.push(toEvidenceContentBlock(evidence))
       updateAIMessage({ contentBlocks: [...blocks] })
     }
 
@@ -826,6 +836,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       appendTextToBlocks,
       appendThinkToBlocks,
       appendChartsToBlocks,
+      appendEvidenceToBlocks,
       appendPlanDraftToBlocks,
       appendPlanToBlocks,
       removePlanDraftsFromBlocks,
@@ -949,6 +960,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         appendTextToBlocks,
         appendThinkToBlocks,
         appendChartsToBlocks,
+        appendEvidenceToBlocks,
         appendPlanDraftToBlocks,
         appendPlanToBlocks,
         removePlanDraftsFromBlocks,
@@ -1070,6 +1082,10 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                   updateRenderOnlyToolResult(chunk.toolName, chunk.toolCallId, charts, renderOnlyError)
                 } else {
                   appendChartsToBlocks(charts)
+                }
+                const evidence = extractEvidencePayload(chunk.toolResult)
+                if (evidence) {
+                  appendEvidenceToBlocks(evidence)
                 }
                 if (renderOnlyError) {
                   if (!isRenderOnlyTool(chunk.toolName)) {
@@ -1540,6 +1556,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       appendTextToBlocks,
       appendThinkToBlocks,
       appendChartsToBlocks,
+      appendEvidenceToBlocks,
       appendPlanDraftToBlocks,
       appendPlanToBlocks,
       removePlanDraftsFromBlocks,
@@ -1650,6 +1667,10 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                   updateRenderOnlyToolResult(chunk.toolName, chunk.toolCallId, charts, renderOnlyError)
                 } else {
                   appendChartsToBlocks(charts)
+                }
+                const evidence = extractEvidencePayload(chunk.toolResult)
+                if (evidence) {
+                  appendEvidenceToBlocks(evidence)
                 }
                 if (renderOnlyError) {
                   if (!isRenderOnlyTool(chunk.toolName)) {

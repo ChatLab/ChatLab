@@ -288,6 +288,32 @@
       "emptyHint": "发送问题后，相关记录会显示在这里",
       "totalRecords": "共 {count} 条记录",
       "loadMore": "加载更多"
+    },
+    "evidence": {
+      "title": "依据证据",
+      "query": "问题",
+      "criteria": "判定标准",
+      "empty": "未找到明确可计入的证据",
+      "viewSource": "查看原记录",
+      "mode": {
+        "auto": "自动",
+        "hybrid": "语义 + 关键词",
+        "semantic": "语义检索",
+        "keyword": "关键词检索"
+      },
+      "group": {
+        "included": "计入证据",
+        "excluded": "不计入",
+        "uncertain": "不确定"
+      },
+      "warning": {
+        "criteria_missing": "未提供判定标准，分组结果较为保守",
+        "keywords_missing_for_hybrid": "未提供关键词，已退化为纯语义检索",
+        "keywords_required_for_keyword_mode": "关键词模式需要提供关键词",
+        "semantic_unavailable": "语义索引不可用，已改用关键词检索",
+        "keyword_unavailable": "关键词检索不可用",
+        "semantic_partial": "语义检索结果可能不完整"
+      }
     }
   },
   "sqlLab": {

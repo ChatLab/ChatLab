@@ -7,6 +7,7 @@ import type { ContentBlock, ToolBlockContent } from '@/composables/useAIChat'
 import CaptureButton from '@/components/common/CaptureButton.vue'
 import ErrorBlock from './ErrorBlock.vue'
 import ChartBlockRenderer from './ChartBlockRenderer.vue'
+import EvidenceBlock from './EvidenceBlock.vue'
 import { useToast } from '@/composables/useToast'
 import { stripChartImagePlaceholders } from '@/services/ai/chartMarkdownPlaceholders'
 import { shouldHideRecoverableChartError } from '@/stores/aiChatChartBlocks'
@@ -410,6 +411,16 @@ const copyMarkdownText = computed(() => {
         return `> Chart: ${block.chart.spec.title}`
       }
 
+      if (block.type === 'evidence') {
+        const header = `> ${t('ai.chat.evidence.title')}`
+        const groupLines = block.evidence.groups.map((group) => {
+          const status = t(`ai.chat.evidence.group.${group.status}`)
+          const sources = group.sources.map((source) => `>   - ${source.snippet}`).join('\n')
+          return `> [${status}] ${group.title}\n${sources}`
+        })
+        return [header, ...groupLines].join('\n')
+      }
+
       if (block.type === 'plan') {
         const steps = block.plan.steps
           .map(
@@ -703,6 +714,9 @@ async function handleCopyMarkdown() {
 
             <!-- 图表块 -->
             <ChartBlockRenderer v-else-if="block.type === 'chart'" :chart="block.chart" />
+
+            <!-- 证据块 -->
+            <EvidenceBlock v-else-if="block.type === 'evidence'" :evidence="block.evidence" />
 
             <!-- 工具块 -->
             <div

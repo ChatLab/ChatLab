@@ -288,6 +288,32 @@
       "emptyHint": "Related records will appear here after asking questions",
       "totalRecords": "{count} records",
       "loadMore": "Load More"
+    },
+    "evidence": {
+      "title": "Evidence",
+      "query": "Question",
+      "criteria": "Criteria",
+      "empty": "No conclusive evidence found",
+      "viewSource": "View source",
+      "mode": {
+        "auto": "Auto",
+        "hybrid": "Semantic + Keyword",
+        "semantic": "Semantic",
+        "keyword": "Keyword"
+      },
+      "group": {
+        "included": "Counted",
+        "excluded": "Excluded",
+        "uncertain": "Uncertain"
+      },
+      "warning": {
+        "criteria_missing": "No criteria provided; grouping is conservative",
+        "keywords_missing_for_hybrid": "No keywords provided; fell back to semantic-only search",
+        "keywords_required_for_keyword_mode": "Keyword mode requires keywords",
+        "semantic_unavailable": "Semantic index unavailable; used keyword search instead",
+        "keyword_unavailable": "Keyword search unavailable",
+        "semantic_partial": "Semantic results may be incomplete"
+      }
     }
   },
   "sqlLab": {

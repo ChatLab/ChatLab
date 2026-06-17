@@ -8,7 +8,7 @@
 import Database from 'better-sqlite3'
 import * as fs from 'fs'
 import * as path from 'path'
-import type { ChartPayload } from '@openchatlab/core'
+import type { ChartPayload, ChatEvidencePayload } from '@openchatlab/core'
 import type { PlanContentBlock, PlanDraftContentBlock } from './agent'
 
 const DEFAULT_GENERAL_ID = 'general_cn'
@@ -29,6 +29,7 @@ export type ContentBlock =
   | { type: 'text'; text: string }
   | { type: 'think'; tag: string; text: string; durationMs?: number }
   | { type: 'chart'; chart: ChartPayload }
+  | { type: 'evidence'; evidence: ChatEvidencePayload }
   | PlanContentBlock
   | PlanDraftContentBlock
   | {

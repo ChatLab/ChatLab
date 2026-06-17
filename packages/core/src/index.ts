@@ -288,6 +288,16 @@ export {
   truncateToolResultText,
 } from './ai'
 export type { StreamParserEvent, ThinkingLevel, ThinkingCompat } from './ai'
+export type {
+  EvidenceRetrievalMode,
+  EvidenceStatus,
+  EvidencePayloadStatus,
+  EvidenceWarning,
+  EvidenceTimeRangeMs,
+  ChatEvidenceSource,
+  ChatEvidenceGroup,
+  ChatEvidencePayload,
+} from './ai'
 
 // Owner profile matching（跨会话"我是谁"识别）
 export {

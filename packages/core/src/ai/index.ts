@@ -37,3 +37,15 @@ export { getSupportedThinkingLevels, isReasoningModel, getThinkingCompat } from 
 
 // Tool result text extraction/truncation (persisted into content blocks for history replay)
 export { MAX_PERSISTED_TOOL_RESULT_CHARS, extractToolResultText, truncateToolResultText } from './tool-result-text'
+
+// Chat evidence payload types (shared by tools / node-runtime / frontend)
+export type {
+  EvidenceRetrievalMode,
+  EvidenceStatus,
+  EvidencePayloadStatus,
+  EvidenceWarning,
+  EvidenceTimeRangeMs,
+  ChatEvidenceSource,
+  ChatEvidenceGroup,
+  ChatEvidencePayload,
+} from './evidence-types'
