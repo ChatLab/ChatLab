@@ -5,6 +5,7 @@
     "ai": "AI Settings",
     "aiConfig": "Model Service",
     "aiDefaultModel": "Default Model",
+    "semanticIndex": "Semantic Index",
     "aiPrompt": "Chat Config",
     "aiPreprocess": "Preprocess",
     "dataManage": "Data Management",
@@ -289,6 +290,74 @@
       "summaryStrategyHelp": "Controls how detailed AI-generated summaries will be",
       "summaryBrief": "Brief",
       "summaryStandard": "Standard"
+    },
+    "semanticIndex": {
+      "title": "Semantic Index",
+      "description": "When enabled, the AI can retrieve relevant past chat excerpts as supporting evidence before answering.",
+      "vectorModel": "Vector Model",
+      "modeLocal": "Local Model",
+      "modeApi": "API",
+      "recommended": "Recommended",
+      "approxSize": "~{mb} MB",
+      "localDownloadHint": "The model is downloaded automatically on first index build, which may take a while.",
+      "apiTemplate": "Service Template",
+      "modelName": "Model Name",
+      "apiKeySaved": "Saved; leave blank to keep",
+      "apiKeyHint": "API keys are stored separately and securely; the config keeps only a reference.",
+      "apiCostWarning": "API mode may incur provider costs. Please confirm model pricing.",
+      "changeRebuildHint": "After changing the model or API, enabled conversations need to be rebuilt.",
+      "searchMaxResults": {
+        "label": "Excerpts per search",
+        "hint": "Default number of relevant excerpts returned when the AI runs a semantic search (5-15). The AI may raise it as needed."
+      },
+      "overview": "Index Overview",
+      "enabledCount": "{count} conversations enabled",
+      "coverage": "Coverage {percent}%",
+      "buildPending": "Build Pending Indexes",
+      "cleanup": "Clean Up Unused Indexes",
+      "cleanupConfirm": "This deletes index data from disabled conversations and old models. It does not delete chat records.",
+      "configFirst": "Configure a vector model first",
+      "selectConversations": "Select Conversations",
+      "enabledSessions": "Enabled Conversations",
+      "state": {
+        "completed": "Completed",
+        "building": "Building",
+        "pending": "Pending",
+        "needsRebuild": "Needs Rebuild",
+        "failed": "Failed",
+        "paused": "Paused"
+      },
+      "action": {
+        "build": "Build Index",
+        "pause": "Pause",
+        "cancel": "Cancel",
+        "rebuild": "Rebuild",
+        "disable": "Disable"
+      },
+      "session": {
+        "statusLabel": "Status",
+        "notEnabled": "Not enabled",
+        "coverageLabel": "Coverage",
+        "progressLabel": "Build progress",
+        "enableHint": "Once enabled, the AI can retrieve past chat excerpts when answering questions about this conversation.",
+        "configFirst": "Configure a vector model under Settings > AI > Semantic Index before enabling.",
+        "enable": "Enable Index",
+        "buildVsEnable": "Enable Index: include this conversation in semantic retrieval. Build Index: read all messages and generate vectors, which may use local compute or API quota.",
+        "retry": "Retry",
+        "continue": "Continue"
+      },
+      "picker": {
+        "title": "Select Conversations",
+        "all": "All",
+        "group": "Group",
+        "private": "Private",
+        "searchPlaceholder": "Search by name",
+        "messages": "{count} messages",
+        "enabled": "Enabled",
+        "selectedSummary": "{count} conversations selected, ~{messages} messages",
+        "confirmDisableTitle": "Confirm Disable",
+        "confirmDisableMessage": "These conversations will be removed from semantic retrieval, but their index data is kept and can be cleaned up later."
+      }
     }
   },
   "aiPrompt": {

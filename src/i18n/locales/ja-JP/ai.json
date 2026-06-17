@@ -99,7 +99,8 @@
         "conversation_initiator_stats": "話題開始者統計",
         "activity_heatmap": "活動ヒートマップ",
         "unanswered_messages": "未返信メッセージ",
-        "render_chart": "チャート生成"
+        "render_chart": "チャート生成",
+        "semantic_search_current_chat": "チャット履歴を検索"
       },
       "generating": "回答を作成中...",
       "summary": {

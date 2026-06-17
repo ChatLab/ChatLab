@@ -7,6 +7,7 @@ import AIPromptConfigTab from './AI/AIPromptConfigTab.vue'
 import AIPreprocessTab from './AI/AIPreprocessTab.vue'
 import AIExportSettingsTab from './AI/AIExportSettingsTab.vue'
 import SessionIndexSection from './AI/SessionIndexSection.vue'
+import SemanticIndexSection from './AI/SemanticIndexSection.vue'
 import SubTabs from '@/components/UI/SubTabs.vue'
 import { useSubTabsScroll } from '@/composables/useSubTabsScroll'
 
@@ -21,6 +22,7 @@ const emit = defineEmits<{
 const navItems = computed(() => [
   { id: 'model', label: t('settings.tabs.aiConfig') },
   { id: 'defaultModel', label: t('settings.tabs.aiDefaultModel') },
+  { id: 'semanticIndex', label: t('settings.tabs.semanticIndex') },
   { id: 'skill', label: t('settings.aiPrompt.chatPreferences.title') },
   { id: 'chat', label: t('settings.aiPrompt.chatSettings.title') },
   { id: 'compression', label: t('settings.aiPrompt.compression.title') },
@@ -73,6 +75,11 @@ void aiModelConfigRef.value
         <!-- 默认模型 -->
         <div :ref="(el) => setSectionRef('defaultModel', el as HTMLElement)">
           <AIDefaultModelTab @config-changed="handleAIConfigChanged" />
+        </div>
+
+        <!-- 语义索引 -->
+        <div :ref="(el) => setSectionRef('semanticIndex', el as HTMLElement)">
+          <SemanticIndexSection />
         </div>
 
         <!-- 工具设置 -->

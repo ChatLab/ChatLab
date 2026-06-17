@@ -65,6 +65,7 @@
   "tooltip": {
     "viewChatRecord": "查看聊天紀錄",
     "sessionIndex": "會話索引",
+    "semanticIndex": "語意索引",
     "incrementalImport": "追加匯入",
     "memberManagement": "成員管理",
     "more": "更多"

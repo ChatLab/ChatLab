@@ -15,6 +15,7 @@ const panelRef = ref<HTMLElement | null>(null)
 type ToolEvent =
   | 'openIncrementalImport'
   | 'openSessionIndex'
+  | 'openSemanticIndex'
   | 'openMemberManagement'
   | 'openChatRecord'
   | 'openMessageExport'
@@ -58,6 +59,13 @@ const tools = [
     labelKey: 'analysis.tooltip.sessionIndex',
   },
   {
+    event: 'openSemanticIndex' as const,
+    icon: 'i-heroicons-circle-stack',
+    hoverColor: 'group-hover:text-indigo-500',
+    miniHoverBg: 'hover:text-indigo-500',
+    labelKey: 'analysis.tooltip.semanticIndex',
+  },
+  {
     event: 'openMemberManagement' as const,
     icon: 'i-heroicons-user-group',
     hoverColor: 'group-hover:text-purple-500',
@@ -87,6 +95,13 @@ const headerTools = [
     hoverColor: 'group-hover:text-blue-500',
     miniHoverBg: 'hover:text-blue-500',
     labelKey: 'analysis.tooltip.sessionIndex',
+  },
+  {
+    event: 'openSemanticIndex' as const,
+    icon: 'i-heroicons-circle-stack',
+    hoverColor: 'group-hover:text-indigo-500',
+    miniHoverBg: 'hover:text-indigo-500',
+    labelKey: 'analysis.tooltip.semanticIndex',
   },
   {
     event: 'openMessageExport' as const,

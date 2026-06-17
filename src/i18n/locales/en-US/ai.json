@@ -99,7 +99,8 @@
         "conversation_initiator_stats": "Conversation Initiators",
         "activity_heatmap": "Activity Heatmap",
         "unanswered_messages": "Unanswered Messages",
-        "render_chart": "Generate Chart"
+        "render_chart": "Generate Chart",
+        "semantic_search_current_chat": "Search chat history"
       },
       "generating": "Generating response...",
       "summary": {

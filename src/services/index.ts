@@ -32,6 +32,15 @@ export type {
   IncrementalImportResult,
 } from './import/types'
 export { useSessionIndexService } from './session-index/service'
+export { useSemanticIndexService } from './semantic-index/service'
+export { SEARCH_MAX_RESULTS_MIN, SEARCH_MAX_RESULTS_MAX, SEARCH_MAX_RESULTS_DEFAULT } from './semantic-index/types'
+export type {
+  SemanticIndexConfig,
+  SemanticIndexMode,
+  SemanticIndexApiConfig,
+  SemanticIndexSessionStatus,
+  SemanticIndexStatusValue,
+} from './semantic-index/types'
 export type {
   SessionIndexAdapter,
   SessionStats,

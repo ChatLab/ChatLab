@@ -361,6 +361,12 @@ function formatToolParams(tool: ToolBlockContent): string {
     return `${t('ai.chat.message.toolParams.memberId')}: ${params.member_id}`
   }
 
+  if (name === 'semantic_search_current_chat') {
+    const query = typeof params.query === 'string' ? params.query : ''
+    if (!query) return ''
+    return query.length > 40 ? `“${query.slice(0, 40)}…”` : `“${query}”`
+  }
+
   // 通用兜底方案：展示最多3个非空参数
   const genericParts: string[] = []
   for (const [key, value] of Object.entries(params)) {

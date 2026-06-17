@@ -5,6 +5,7 @@
     "ai": "AI 設定",
     "aiConfig": "モデルサービス",
     "aiDefaultModel": "デフォルトモデル",
+    "semanticIndex": "セマンティックインデックス",
     "aiPrompt": "チャット設定",
     "aiPreprocess": "前処理",
     "dataManage": "データ管理",
@@ -289,6 +290,74 @@
       "summaryStrategyHelp": "AI が要約を生成する際の詳細さを設定します",
       "summaryBrief": "簡潔",
       "summaryStandard": "標準"
+    },
+    "semanticIndex": {
+      "title": "セマンティックインデックス",
+      "description": "有効にすると、AI は回答前に関連する過去のチャット断片を検索し、裏付けとして利用できます。",
+      "vectorModel": "ベクトルモデル",
+      "modeLocal": "ローカルモデル",
+      "modeApi": "API",
+      "recommended": "推奨",
+      "approxSize": "約 {mb} MB",
+      "localDownloadHint": "初回のインデックス作成時にモデルが自動ダウンロードされます。時間がかかる場合があります。",
+      "apiTemplate": "サービステンプレート",
+      "modelName": "モデル名",
+      "apiKeySaved": "保存済み。空欄で変更しません",
+      "apiKeyHint": "API キーは別途安全に保存され、設定には参照のみが保存されます。",
+      "apiCostWarning": "API モードはプロバイダー費用が発生する場合があります。価格をご確認ください。",
+      "changeRebuildHint": "モデルや API を変更すると、有効な会話は再構築が必要です。",
+      "searchMaxResults": {
+        "label": "1回の検索で返す断片数",
+        "hint": "AI がセマンティック検索を実行する際に返す関連断片のデフォルト数（5〜15）。必要に応じて AI が増やせます。"
+      },
+      "overview": "インデックス概要",
+      "enabledCount": "{count} 件の会話で有効",
+      "coverage": "カバレッジ {percent}%",
+      "buildPending": "保留中のインデックスを作成",
+      "cleanup": "未使用インデックスを整理",
+      "cleanupConfirm": "無効化した会話や旧モデルのインデックスデータを削除します。チャット記録は削除されません。",
+      "configFirst": "先にベクトルモデルを設定してください",
+      "selectConversations": "会話を選択",
+      "enabledSessions": "有効な会話",
+      "state": {
+        "completed": "完了",
+        "building": "作成中",
+        "pending": "未作成",
+        "needsRebuild": "再構築が必要",
+        "failed": "失敗",
+        "paused": "一時停止"
+      },
+      "action": {
+        "build": "インデックス作成",
+        "pause": "一時停止",
+        "cancel": "キャンセル",
+        "rebuild": "再構築",
+        "disable": "無効化"
+      },
+      "session": {
+        "statusLabel": "状態",
+        "notEnabled": "未有効",
+        "coverageLabel": "カバレッジ",
+        "progressLabel": "構築の進捗",
+        "enableHint": "有効にすると、この会話に関する質問に答える際に AI が過去のチャット断片を検索できます。",
+        "configFirst": "有効化の前に 設定 > AI > セマンティックインデックス でベクトルモデルを設定してください。",
+        "enable": "インデックスを有効化",
+        "buildVsEnable": "有効化：この会話をセマンティック検索の対象に含めます。作成：全メッセージを読み込みベクトルを生成します。ローカル計算や API 枠を消費する場合があります。",
+        "retry": "再試行",
+        "continue": "続行"
+      },
+      "picker": {
+        "title": "会話を選択",
+        "all": "すべて",
+        "group": "グループ",
+        "private": "個人",
+        "searchPlaceholder": "名前で検索",
+        "messages": "{count} 件のメッセージ",
+        "enabled": "有効",
+        "selectedSummary": "{count} 件の会話を選択、約 {messages} 件のメッセージ",
+        "confirmDisableTitle": "無効化の確認",
+        "confirmDisableMessage": "これらの会話はセマンティック検索から除外されますが、インデックスデータは保持され、後で整理できます。"
+      }
     }
   },
   "aiPrompt": {

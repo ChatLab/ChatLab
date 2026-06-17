@@ -5,6 +5,7 @@
     "ai": "AI 设置",
     "aiConfig": "模型服务",
     "aiDefaultModel": "默认模型",
+    "semanticIndex": "语义索引",
     "aiPrompt": "对话配置",
     "aiPreprocess": "预处理",
     "dataManage": "数据管理",
@@ -289,6 +290,74 @@
       "summaryStrategyHelp": "影响 AI 生成摘要时的详细程度",
       "summaryBrief": "简要",
       "summaryStandard": "标准"
+    },
+    "semanticIndex": {
+      "title": "语义索引",
+      "description": "启用后，AI 回答时可先检索相关历史聊天片段，作为回答的支撑证据。",
+      "vectorModel": "向量模型",
+      "modeLocal": "本地模型",
+      "modeApi": "API",
+      "recommended": "推荐",
+      "approxSize": "约 {mb} MB",
+      "localDownloadHint": "首次建立索引时自动下载模型，可能需要一些时间。",
+      "apiTemplate": "服务模板",
+      "modelName": "模型名",
+      "apiKeySaved": "已保存，留空则不修改",
+      "apiKeyHint": "API Key 单独安全存储，配置文件只保存引用。",
+      "apiCostWarning": "API 模式可能产生服务商费用，请确认模型价格。",
+      "changeRebuildHint": "更换模型或 API 后，已启用对话需要重建索引。",
+      "searchMaxResults": {
+        "label": "单次检索片段数",
+        "hint": "AI 调用语义检索时默认返回的相关片段数（5-15）。AI 可按问题需要临时调高。"
+      },
+      "overview": "索引概览",
+      "enabledCount": "已启用 {count} 个对话",
+      "coverage": "覆盖率 {percent}%",
+      "buildPending": "建立待处理索引",
+      "cleanup": "清理未使用索引",
+      "cleanupConfirm": "将删除已停用对话和旧模型遗留的索引数据。此操作不会删除聊天记录。",
+      "configFirst": "请先配置向量模型",
+      "selectConversations": "选择对话",
+      "enabledSessions": "已启用对话",
+      "state": {
+        "completed": "已完成",
+        "building": "建立中",
+        "pending": "待建立",
+        "needsRebuild": "需要重建",
+        "failed": "失败",
+        "paused": "已暂停"
+      },
+      "action": {
+        "build": "建立索引",
+        "pause": "暂停",
+        "cancel": "取消",
+        "rebuild": "重建索引",
+        "disable": "停用"
+      },
+      "session": {
+        "statusLabel": "状态",
+        "notEnabled": "未启用",
+        "coverageLabel": "覆盖率",
+        "progressLabel": "建立进度",
+        "enableHint": "启用后，AI 可以在回答此对话相关问题时检索历史聊天片段。",
+        "configFirst": "启用前需要先在 设置 > AI > 语义索引 配置向量模型。",
+        "enable": "启用索引",
+        "buildVsEnable": "启用索引：让此对话进入语义检索范围；建立索引：开始读取全部消息生成向量，可能消耗本地算力或 API 额度。",
+        "retry": "重试",
+        "continue": "继续"
+      },
+      "picker": {
+        "title": "选择对话",
+        "all": "全部",
+        "group": "群聊",
+        "private": "私聊",
+        "searchPlaceholder": "按名称搜索",
+        "messages": "{count} 条消息",
+        "enabled": "已启用",
+        "selectedSummary": "已选择 {count} 个对话，约 {messages} 条消息",
+        "confirmDisableTitle": "确认停用",
+        "confirmDisableMessage": "这些对话将停用语义索引，但索引数据会保留，可稍后清理。"
+      }
     }
   },
   "aiPrompt": {

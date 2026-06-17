@@ -12,6 +12,7 @@ import ViewTab from './components/ViewTab.vue'
 import MemberManagementPanel from './components/MemberTab.vue'
 import SessionAnalysisHeader from '@/components/layout/session/SessionAnalysisHeader.vue'
 import SessionIndexModal from '@/components/analysis/SessionIndexModal.vue'
+import SemanticIndexSessionModal from '@/components/analysis/SemanticIndexSessionModal.vue'
 import OwnerPromptModal from '@/components/analysis/member/OwnerPromptModal.vue'
 import IncrementalImportModal from '@/components/analysis/IncrementalImportModal.vue'
 const MessageExportModal = defineAsyncComponent(() => import('@/components/MessageExport/MessageExportModal.vue'))
@@ -34,6 +35,7 @@ const { currentSessionId } = storeToRefs(sessionStore)
 
 // 会话索引弹窗状态
 const showSessionIndexModal = ref(false)
+const showSemanticIndexModal = ref(false)
 
 // "我是谁"提示弹窗状态
 const showOwnerPromptModal = ref(false)
@@ -213,6 +215,7 @@ const otherMemberAvatar = computed(() => {
       <ActionToolsPanel
         @open-incremental-import="showIncrementalImportModal = true"
         @open-session-index="showSessionIndexModal = true"
+        @open-semantic-index="showSemanticIndexModal = true"
         @open-member-management="showMemberManagementModal = true"
         @open-chat-record="openChatRecordViewer"
         @open-message-export="showMessageExportModal = true"
@@ -229,6 +232,14 @@ const otherMemberAvatar = computed(() => {
     <SessionIndexModal
       v-if="currentSessionId && session && session.messageCount > 0"
       v-model="showSessionIndexModal"
+      :session-id="currentSessionId"
+      :message-count="session.messageCount"
+    />
+
+    <!-- 语义索引弹窗（当前对话） -->
+    <SemanticIndexSessionModal
+      v-if="currentSessionId && session"
+      v-model="showSemanticIndexModal"
       :session-id="currentSessionId"
       :message-count="session.messageCount"
     />

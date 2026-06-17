@@ -65,6 +65,7 @@
   "tooltip": {
     "viewChatRecord": "チャット履歴を見る",
     "sessionIndex": "セッション索引",
+    "semanticIndex": "セマンティックインデックス",
     "incrementalImport": "追加インポート",
     "memberManagement": "メンバー管理",
     "more": "その他"
