@@ -20,6 +20,7 @@ function makePathProvider(root: string): PathProvider {
     getSystemDir: () => path.join(root, 'system'),
     getUserDataDir: () => path.join(root, 'data'),
     getDatabaseDir: () => path.join(root, 'data', 'databases'),
+    getVectorDir: () => path.join(root, 'data', 'vector'),
     getAiDataDir: () => path.join(root, 'system', 'ai'),
     getSettingsDir: () => path.join(root, 'system', 'settings'),
     getCacheDir: () => path.join(root, 'system', 'cache'),
@@ -84,11 +85,20 @@ test('migrateDatabase writes data directory compatibility meta after segment sch
   })
 })
 
-test('getPendingMigrationInfos maps v7 to its own localized message', () => {
+test('getPendingMigrationInfos maps each version to its own localized message', () => {
   const migrations = getPendingMigrationInfos(6)
 
-  assert.equal(migrations.length, 1)
-  assert.equal(migrations[0].version, 7)
-  assert.match(migrations[0].userMessage, /Repair|修复/)
-  assert.doesNotMatch(migrations[0].userMessage, /Owner/)
+  assert.deepEqual(
+    migrations.map((m) => m.version),
+    [7, 8]
+  )
+
+  const v7 = migrations[0]
+  assert.match(v7.userMessage, /Repair|修复/)
+  assert.doesNotMatch(v7.userMessage, /Owner/)
+
+  // v8 必须有自己的本地化消息，而非回退到首个迁移文案
+  const v8 = migrations[1]
+  assert.match(v8.userMessage, /index|索引|インデックス/i)
+  assert.doesNotMatch(v8.userMessage, /Owner/)
 })

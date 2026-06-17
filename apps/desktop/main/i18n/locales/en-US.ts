@@ -54,6 +54,9 @@ export default {
     migrationV6Message: 'Upgrade the session index structure while preserving existing indexes and summaries',
     migrationV7Desc: 'Repair missing session message mappings',
     migrationV7Message: 'Repair missing session index mappings while preserving existing sessions and summaries',
+    migrationV8Desc: 'Add analysis tool performance indexes',
+    migrationV8Message:
+      'Add performance indexes for analysis tools to speed up queries without affecting existing data',
     integrityError:
       'Database structure is incomplete: missing meta table. Please delete this database file and re-import.',
     checkFailed: 'Database check failed: {{error}}',

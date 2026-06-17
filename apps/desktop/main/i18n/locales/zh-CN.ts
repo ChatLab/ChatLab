@@ -53,6 +53,8 @@ export default {
     migrationV6Message: '升级会话索引结构，并保留现有索引和摘要',
     migrationV7Desc: '修复缺失的会话消息关联',
     migrationV7Message: '修复会话索引中缺失的消息关联，并保留现有会话和摘要',
+    migrationV8Desc: '添加分析工具性能索引',
+    migrationV8Message: '为分析工具添加性能索引，提升查询速度，不影响现有数据',
     integrityError: '数据库结构不完整：缺少 meta 表。建议删除此数据库文件后重新导入。',
     checkFailed: '数据库检查失败: {{error}}',
   },

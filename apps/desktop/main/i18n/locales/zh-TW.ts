@@ -54,6 +54,8 @@ export default {
     migrationV6Message: '升級會話索引結構，並保留現有索引和摘要',
     migrationV7Desc: '修復缺少的會話訊息關聯',
     migrationV7Message: '修復會話索引中缺少的訊息關聯，並保留現有會話和摘要',
+    migrationV8Desc: '新增分析工具效能索引',
+    migrationV8Message: '為分析工具新增效能索引，提升查詢速度，不影響現有資料',
     integrityError: '資料庫結構不完整：缺少 meta 資料表。建議刪除此資料庫檔案後重新匯入。',
     checkFailed: '資料庫檢查失敗: {{error}}',
   },
