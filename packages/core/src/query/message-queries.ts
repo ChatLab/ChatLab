@@ -8,7 +8,13 @@
 import type { TimeFilter } from '@openchatlab/shared-types'
 import type { DatabaseAdapter } from '../interfaces'
 import { buildTimeFilter, hasTable, hasColumn } from './filters'
-import { FULL_MSG_SELECT, mapMessageRow, type FullMessageRow, type MappedMessage } from './message-sql'
+import {
+  FULL_MSG_SELECT,
+  mapMessageRow,
+  buildMsgConditions,
+  type FullMessageRow,
+  type MappedMessage,
+} from './message-sql'
 
 export interface MessageResult {
   id: number
@@ -186,6 +192,54 @@ export function searchMessagesLike(
     timestamp: Number(row.timestamp),
     type: Number(row.type),
   }))
+
+  return { messages, hasMore, total: countRow.total }
+}
+
+/**
+ * 多关键词 LIKE 子串搜索（关键词之间 OR，命中任一即返回）
+ *
+ * 适用于 CLI/MCP/Web 等无 FTS 的场景，行为与 Electron worker 的
+ * searchMessagesLikeAsync 一致：支持时间范围、发送者过滤，并排除系统消息。
+ */
+export function searchMessagesByKeywords(
+  db: DatabaseAdapter,
+  keywords: string[],
+  options?: { startTs?: number; endTs?: number; senderId?: number; limit?: number; offset?: number }
+): PaginatedMessages {
+  const limit = options?.limit ?? 50
+  const offset = options?.offset ?? 0
+  const cleaned = keywords.map((k) => k.trim()).filter((k) => k.length > 0)
+
+  const { clause, params } = buildMsgConditions({
+    startTs: options?.startTs,
+    endTs: options?.endTs,
+    senderId: options?.senderId,
+    keywords: cleaned.length > 0 ? cleaned : undefined,
+    systemFilter: true,
+  })
+
+  const countRow = db
+    .prepare(`SELECT COUNT(*) as total FROM message msg JOIN member m ON msg.sender_id = m.id WHERE 1=1 ${clause}`)
+    .get(...params) as { total: number }
+
+  const rows = db
+    .prepare(`${FULL_MSG_SELECT} WHERE 1=1 ${clause} ORDER BY msg.ts DESC LIMIT ? OFFSET ?`)
+    .all(...params, limit + 1, offset) as unknown as FullMessageRow[]
+
+  const hasMore = rows.length > limit
+  const messages = rows.slice(0, limit).map((row) => {
+    const mapped = mapMessageRow(row)
+    return {
+      id: mapped.id,
+      senderId: mapped.senderId,
+      senderName: mapped.senderName,
+      senderPlatformId: mapped.senderPlatformId,
+      content: mapped.content,
+      timestamp: mapped.timestamp,
+      type: mapped.type,
+    }
+  })
 
   return { messages, hasMore, total: countRow.total }
 }

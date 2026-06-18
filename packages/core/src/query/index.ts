@@ -81,6 +81,7 @@ export type {
 export {
   queryMessages,
   searchMessagesLike,
+  searchMessagesByKeywords,
   getRecentMessages,
   getMembers,
   getMembersDetailed,

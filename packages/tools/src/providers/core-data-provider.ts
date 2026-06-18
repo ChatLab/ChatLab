@@ -7,7 +7,7 @@
 
 import type { DatabaseAdapter } from '@openchatlab/core'
 import {
-  searchMessagesLike,
+  searchMessagesByKeywords,
   getRecentMessages as coreGetRecentMessages,
   getMemberActivity,
   getHourlyActivity,
@@ -49,8 +49,12 @@ export class CoreDataProvider implements ToolDataProvider {
     keywords: string[],
     options?: { timeFilter?: TimeFilter; limit?: number; senderId?: number }
   ): Promise<SearchMessagesResult> {
-    const keyword = keywords.join(' ')
-    const result = searchMessagesLike(this.db, keyword, { limit: options?.limit ?? 50 })
+    const result = searchMessagesByKeywords(this.db, keywords, {
+      startTs: options?.timeFilter?.startTs,
+      endTs: options?.timeFilter?.endTs,
+      senderId: options?.senderId,
+      limit: options?.limit ?? 50,
+    })
     return {
       messages: result.messages.map((m) => ({
         id: m.id,

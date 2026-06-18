@@ -64,6 +64,7 @@ export {
   getTextLengthPercentiles,
   queryMessages,
   searchMessagesLike,
+  searchMessagesByKeywords,
   getRecentMessages,
   getMembers,
   getMembersDetailed,
