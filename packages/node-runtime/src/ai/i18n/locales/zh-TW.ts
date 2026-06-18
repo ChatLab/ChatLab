@@ -93,23 +93,11 @@ export default {
           context_size: '上下文大小，即取得前後各多少條訊息，預設 20',
         },
       },
-      search_segments: {
-        desc: '搜尋聊天會話（對話段落）。會話是根據訊息時間間隔自動切分的對話單元。適用於查找特定話題的討論、了解某個時間段內發生了幾次對話等場景。回傳匹配的會話清單及每個會話的前5條訊息預覽。',
-        params: {
-          keywords: '可選的搜尋關鍵詞清單，只回傳包含這些關鍵詞的會話（OR 邏輯匹配）',
-          limit: '回傳會話數量限制，預設 20',
-          year: '篩選指定年份的會話，如 2024',
-          month: '篩選指定月份的會話（1-12），需要配合 year 使用',
-          day: '篩選指定日期的會話（1-31），需要配合 year 和 month 使用',
-          start_time: '開始時間，格式 "YYYY-MM-DD HH:mm"，如 "2024-03-15 14:00"',
-          end_time: '結束時間，格式 "YYYY-MM-DD HH:mm"，如 "2024-03-15 18:30"',
-        },
-      },
       get_segment_messages: {
-        desc: '取得指定會話的完整訊息清單。用於在 search_segments 找到相關會話後，取得該會話的完整上下文。回傳會話的所有訊息及參與者資訊。',
+        desc: '取得指定段落的完整訊息清單。用於在 get_segment_summaries 找到相關段落摘要後，取得該段落的完整原文上下文。回傳段落的所有訊息及參與者資訊。',
         params: {
-          segment_id: '會話 ID，可以從 search_segments 的回傳結果中取得',
-          limit: '回傳訊息數量限制，預設 1000。對於超長會話可以限制回傳數量以節省 token',
+          segment_id: '段落 ID，可以從 get_segment_summaries 的回傳結果中取得',
+          limit: '回傳訊息數量限制，預設 1000。對於超長段落可以限制回傳數量以節省 token',
         },
       },
       get_segment_summaries: {

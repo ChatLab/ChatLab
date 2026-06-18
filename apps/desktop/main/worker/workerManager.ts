@@ -830,17 +830,7 @@ export async function getRecentChatSessions(sessionId: string, limit: number): P
 
 // ==================== AI 工具专用查询函数 ====================
 
-export type { SessionSearchResultItem, SessionMessagesResult } from './query/session'
-
-export async function searchSegments(
-  sessionId: string,
-  keywords?: string[],
-  timeFilter?: { startTs: number; endTs: number },
-  limit?: number,
-  previewCount?: number
-): Promise<import('./query/session').SessionSearchResultItem[]> {
-  return sendToWorker('searchSegments', { sessionId, keywords, timeFilter, limit, previewCount })
-}
+export type { SessionMessagesResult } from './query/session'
 
 export async function getSegmentMessages(
   sessionId: string,

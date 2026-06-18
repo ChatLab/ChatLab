@@ -8,7 +8,7 @@ import { isChineseLocale } from '../utils/format'
 const inputSchema: JsonSchema = {
   type: 'object',
   properties: {
-    segment_id: { type: 'number', description: '段落 ID（通过 search_segments 获取）' },
+    segment_id: { type: 'number', description: '段落 ID（通过 get_segment_summaries 获取）' },
     limit: { type: 'number', description: '返回的最大消息条数' },
   },
   required: ['segment_id'],
@@ -52,7 +52,8 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
 
 export const getSegmentMessagesTool: ToolDefinition = {
   name: 'get_segment_messages',
-  description: '获取指定段落的完整消息列表。用于在 search_segments 找到相关段落后，获取该段落的完整上下文。',
+  description:
+    '获取指定段落的完整消息列表。用于在 get_segment_summaries 找到相关段落摘要后，获取该段落的完整原文上下文。',
   inputSchema,
   handler,
   category: 'core',

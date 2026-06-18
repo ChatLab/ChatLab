@@ -128,9 +128,15 @@ const SEARCH_TOOL_SNIPPET_MAX = 160
 /**
  * 注入证据的固定 token 预算（与 max_results 解耦）。
  * max_results 只决定召回候选数，最终注入量由本预算（再以 maxResultTokens 封顶）控制，
- * 避免候选变多导致上下文 token 膨胀。
+ * 避免候选变多导致上下文 token 膨胀；单块 soft cap 保持较小，让宽泛检索优先增加结果数量。
  */
-const SEARCH_TOOL_EVIDENCE_TOKENS = 2500
+const SEARCH_TOOL_EVIDENCE_TOKENS = 8000
+
+export function resolveSearchToolEvidenceTokens(maxResultTokens?: number): number {
+  return maxResultTokens && maxResultTokens > 0
+    ? Math.min(SEARCH_TOOL_EVIDENCE_TOKENS, maxResultTokens)
+    : SEARCH_TOOL_EVIDENCE_TOKENS
+}
 
 export interface SemanticSearchResult {
   available: boolean
@@ -485,10 +491,7 @@ export class SemanticIndexService {
 
     // 注入预算与 max_results 解耦：固定预算再以工具结果预算（maxResultTokens）封顶。
     // finalTopK 只放大召回候选数，不放大注入 token，避免大范围查询撑爆上下文。
-    const evidenceTokens =
-      options?.maxResultTokens && options.maxResultTokens > 0
-        ? Math.min(SEARCH_TOOL_EVIDENCE_TOKENS, options.maxResultTokens)
-        : SEARCH_TOOL_EVIDENCE_TOKENS
+    const evidenceTokens = resolveSearchToolEvidenceTokens(options?.maxResultTokens)
 
     let result: SemanticSearchResult
     try {

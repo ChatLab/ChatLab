@@ -27,7 +27,6 @@ export { chatOverviewTool } from './definitions/chat-overview'
 export { searchMessagesTool } from './definitions/search-messages'
 export { deepSearchMessagesTool } from './definitions/deep-search-messages'
 export { getMessageContextTool } from './definitions/get-message-context'
-export { searchSegmentsTool } from './definitions/search-segments'
 export { getSegmentMessagesTool } from './definitions/get-segment-messages'
 export { getMembersTool } from './definitions/get-members'
 export { getMemberNameHistoryTool } from './definitions/get-member-name-history'
@@ -63,7 +62,6 @@ export type {
   ChatOverviewResult,
   MemberInfo,
   NameHistoryItem,
-  SegmentSearchResult,
   SegmentMessagesResult,
   ConversationResult,
   SegmentSummaryItem,

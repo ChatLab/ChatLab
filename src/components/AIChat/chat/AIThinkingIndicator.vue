@@ -7,7 +7,7 @@ const { t, te } = useI18n()
 
 // 获取工具的本地化显示名称
 function localizedToolName(name: string, fallback?: string): string {
-  const key = `ai.chat.message.tools.${name}`
+  const key = `ai.assistant.builtinToolDesc.${name}`
   return te(key) ? t(key) : fallback || name
 }
 

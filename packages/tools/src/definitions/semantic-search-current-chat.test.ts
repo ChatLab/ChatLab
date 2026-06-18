@@ -131,6 +131,6 @@ describe('semanticSearchCurrentChatTool', () => {
       searchForTool: async () => makeResult({ truncated: true }),
     }
     const result = await semanticSearchCurrentChatTool.handler({ query: 'hello' }, makeContext(service))
-    assert.match(result.content, /truncat/i)
+    assert.match(result.content, /result limit/i)
   })
 })

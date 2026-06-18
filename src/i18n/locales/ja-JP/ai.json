@@ -57,6 +57,14 @@
         "success": "Markdown をクリップボードにコピーしました",
         "failed": "Markdown のコピーに失敗しました"
       },
+      "toolResult": {
+        "view": "結果を表示",
+        "title": "AI に送信されたツール結果",
+        "copy": "結果をコピー",
+        "copySuccess": "ツール結果をコピーしました",
+        "copyFailed": "ツール結果のコピーに失敗しました",
+        "displayTruncated": "この履歴結果は切り詰められた版のみ保存されています。元のターンでは AI がより多くの内容を見ていた可能性があります。"
+      },
       "edit": {
         "tooltip": "編集して再生成",
         "submit": "送信",
@@ -70,37 +78,6 @@
         "empty": "データがありません",
         "rows": "{count} 行のデータ",
         "truncated": "切り捨て済み"
-      },
-      "tools": {
-        "get_chat_overview": "チャット概要を取得",
-        "search_messages": "チャット履歴を検索",
-        "deep_search_messages": "チャット履歴を深層検索",
-        "get_recent_messages": "最近のメッセージを取得",
-        "get_member_stats": "メンバー統計を取得",
-        "get_time_stats": "時間分布を取得",
-        "get_members": "メンバー一覧を取得",
-        "get_member_name_history": "ニックネーム履歴を取得",
-        "get_conversation_between": "やり取り履歴を取得",
-        "get_message_context": "コンテキストを取得",
-        "get_schema": "スキーマ確認",
-        "search_segments": "セグメントを検索",
-        "get_segment_messages": "セグメントメッセージを取得",
-        "get_segment_summaries": "セグメント要約を取得",
-        "response_time_analysis": "応答時間分析",
-        "keyword_frequency": "キーワード頻度分析",
-        "message_type_breakdown": "メッセージ種別分布",
-        "peak_chat_hours_by_member": "メンバー活動時間帯",
-        "member_activity_trend": "メンバー活動傾向",
-        "silent_members": "休眠メンバー検出",
-        "reply_interaction_ranking": "返信インタラクションランキング",
-        "mutual_interaction_pairs": "頻繁なインタラクションペア",
-        "member_message_length_stats": "メッセージ長統計",
-        "daily_active_members": "日別アクティブ人数",
-        "conversation_initiator_stats": "話題開始者統計",
-        "activity_heatmap": "活動ヒートマップ",
-        "unanswered_messages": "未返信メッセージ",
-        "render_chart": "チャート生成",
-        "semantic_search_current_chat": "チャット履歴を検索"
       },
       "generating": "回答を作成中...",
       "summary": {
@@ -470,7 +447,6 @@
       "get_member_stats": "メンバー統計を取得",
       "get_member_name_history": "メンバーの名前変更履歴を取得",
       "get_time_stats": "時間統計を取得",
-      "search_segments": "セグメントを検索",
       "get_segment_messages": "セグメントメッセージを取得",
       "get_segment_summaries": "セグメント要約を取得",
       "message_type_breakdown": "メッセージ種別分布",
@@ -486,7 +462,8 @@
       "activity_heatmap": "活性度ヒートマップ",
       "response_time_analysis": "応答時間分析",
       "keyword_frequency": "高頻度キーワード統計",
-      "render_chart": "動的チャート生成"
+      "render_chart": "動的チャート生成",
+      "semantic_search_current_chat": "チャット履歴を検索"
     }
   },
   "skill": {

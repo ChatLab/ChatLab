@@ -88,13 +88,12 @@ export {
   generateIncrementalSessions,
   saveSessionSummary,
   getSessionSummary,
-  searchSegments,
   getSegmentMessages,
   DEFAULT_SESSION_GAP_THRESHOLD,
   // 导出功能
   exportFilterResultToFile,
 } from './session'
-export type { ChatSessionItem, SessionSearchResultItem, SessionMessagesResult } from './session'
+export type { ChatSessionItem, SessionMessagesResult } from './session'
 
 // NLP 查询
 export { getWordFrequency, segmentText, getPosTags } from './nlp'

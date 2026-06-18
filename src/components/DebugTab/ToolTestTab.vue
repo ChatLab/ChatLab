@@ -38,7 +38,7 @@ const resultTruncated = ref(false)
 const elapsed = ref<number | null>(null)
 
 function toolLabel(name: string): string {
-  const key = `ai.chat.message.tools.${name}`
+  const key = `ai.assistant.builtinToolDesc.${name}`
   const translated = t(key)
   return translated !== key ? translated : name
 }

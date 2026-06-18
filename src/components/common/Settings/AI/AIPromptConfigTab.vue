@@ -113,7 +113,7 @@ const compressionBuffer = computed({
 const maxToolResultPercent = computed({
   get: () => aiGlobalSettings.value.contextCompression?.maxToolResultPercent ?? 50,
   set: (val: number) => {
-    const clampedVal = Math.max(10, Math.min(60, val || 50))
+    const clampedVal = Math.max(10, Math.min(80, val || 50))
     promptStore.updateAIGlobalSettings({
       contextCompression: { ...aiGlobalSettings.value.contextCompression, maxToolResultPercent: clampedVal },
     })
@@ -241,7 +241,7 @@ const maxToolResultPercent = computed({
             </p>
           </div>
           <div class="flex items-center gap-1">
-            <UInputNumber v-model="maxToolResultPercent" :min="10" :max="60" class="w-24" />
+            <UInputNumber v-model="maxToolResultPercent" :min="10" :max="80" class="w-24" />
             <span class="text-xs text-gray-400">%</span>
           </div>
         </div>

@@ -166,13 +166,38 @@ const useBlocksRendering = computed(() => {
 })
 
 function getToolDisplayName(tool: ToolBlockContent): string {
-  return te(`ai.chat.message.tools.${tool.name}`) ? t(`ai.chat.message.tools.${tool.name}`) : tool.displayName
+  return te(`ai.assistant.builtinToolDesc.${tool.name}`)
+    ? t(`ai.assistant.builtinToolDesc.${tool.name}`)
+    : tool.displayName
 }
 
 function formatToolStatusForCopy(status: ToolBlockContent['status']): string {
   if (status === 'running') return 'running'
   if (status === 'done') return 'done'
   return 'error'
+}
+
+function getToolResultText(tool: ToolBlockContent): string {
+  return tool.displayResult ?? tool.result ?? ''
+}
+
+function hasToolResult(tool: ToolBlockContent): boolean {
+  return tool.status !== 'running' && getToolResultText(tool).trim().length > 0
+}
+
+function isToolResultDisplayTruncated(tool: ToolBlockContent): boolean {
+  return !tool.displayResult && (tool.result ?? '').includes('…[truncated]')
+}
+
+async function copyToolResult(tool: ToolBlockContent) {
+  const text = getToolResultText(tool)
+  if (!text.trim()) return
+  try {
+    await navigator.clipboard.writeText(text)
+    toast.success(t('ai.chat.message.toolResult.copySuccess'))
+  } catch (error) {
+    toast.fail(t('ai.chat.message.toolResult.copyFailed'), { description: String(error) })
+  }
 }
 
 function formatPlanTools(tools: string[]): string {
@@ -718,7 +743,73 @@ async function handleCopyMarkdown() {
             <!-- 证据块 -->
             <EvidenceBlock v-else-if="block.type === 'evidence'" :evidence="block.evidence" />
 
-            <!-- 工具块 -->
+            <!-- 工具块：有结果时可展开查看发送给 AI 的安全文本 -->
+            <details v-else-if="block.type === 'tool' && hasToolResult(block.tool)" class="w-full max-w-full">
+              <summary class="inline-flex cursor-pointer list-none select-none [&::-webkit-details-marker]:hidden">
+                <div
+                  class="flex w-fit items-center gap-1.5 rounded-lg bg-gray-50 px-2.5 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100 dark:bg-gray-800/30 dark:text-gray-400/80 dark:hover:bg-gray-800/60"
+                  :class="[
+                    block.tool.status === 'error' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' : '',
+                  ]"
+                >
+                  <UIcon
+                    :name="
+                      block.tool.status === 'error'
+                        ? 'i-heroicons-exclamation-circle'
+                        : 'i-heroicons-wrench-screwdriver'
+                    "
+                    class="h-3.5 w-3.5 shrink-0"
+                  />
+                  <div class="flex min-w-0 items-baseline gap-1.5 font-medium">
+                    <span>{{ getToolDisplayName(block.tool) }}</span>
+                    <span
+                      v-if="formatToolParams(block.tool)"
+                      class="max-w-[200px] truncate text-[11px] font-normal opacity-75 sm:max-w-[300px]"
+                    >
+                      {{ formatToolParams(block.tool) }}
+                    </span>
+                    <span class="shrink-0 text-[11px] font-normal opacity-75">
+                      · {{ t('ai.chat.message.toolResult.view') }}
+                    </span>
+                  </div>
+                  <UIcon
+                    name="i-heroicons-chevron-right"
+                    class="h-3 w-3 shrink-0 transition-transform [[open]>&]:rotate-90"
+                  />
+                </div>
+              </summary>
+              <div
+                class="mt-2 max-w-full rounded-lg border border-gray-200 bg-gray-50/80 dark:border-gray-700/70 dark:bg-gray-900/40"
+              >
+                <div
+                  class="flex items-center justify-between gap-2 border-b border-gray-200/70 px-3 py-2 dark:border-gray-700/70"
+                >
+                  <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    {{ t('ai.chat.message.toolResult.title') }}
+                  </span>
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    color="primary"
+                    icon="i-heroicons-document-duplicate"
+                    :title="t('ai.chat.message.toolResult.copy')"
+                    @click.stop="copyToolResult(block.tool)"
+                  />
+                </div>
+                <div
+                  v-if="isToolResultDisplayTruncated(block.tool)"
+                  class="border-b border-amber-200/70 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-300"
+                >
+                  {{ t('ai.chat.message.toolResult.displayTruncated') }}
+                </div>
+                <pre
+                  class="max-h-[28rem] overflow-auto whitespace-pre-wrap break-words px-3 py-2.5 text-xs leading-relaxed text-gray-700 dark:text-gray-200"
+                  >{{ getToolResultText(block.tool) }}</pre
+                >
+              </div>
+            </details>
+
+            <!-- 工具块：运行中或无结果时保持紧凑展示 -->
             <div
               v-else-if="block.type === 'tool'"
               class="flex w-fit items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs transition-colors"
@@ -730,7 +821,6 @@ async function handleCopyMarkdown() {
                     : 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400',
               ]"
             >
-              <!-- 状态图标 -->
               <UIcon
                 :name="
                   block.tool.status === 'running'
@@ -742,18 +832,17 @@ async function handleCopyMarkdown() {
                 class="h-3.5 w-3.5 shrink-0"
                 :class="[block.tool.status === 'running' ? 'animate-spin' : '']"
               />
-              <!-- 工具信息 -->
               <div class="flex min-w-0 items-baseline gap-1.5 font-medium">
                 <span>{{ getToolDisplayName(block.tool) }}</span>
                 <span
                   v-if="formatToolParams(block.tool)"
-                  class="truncate font-normal text-[11px] opacity-75 max-w-[200px] sm:max-w-[300px]"
+                  class="max-w-[200px] truncate text-[11px] font-normal opacity-75 sm:max-w-[300px]"
                 >
                   {{ formatToolParams(block.tool) }}
                 </span>
                 <span
                   v-if="block.tool.status === 'done' && block.tool.durationMs"
-                  class="shrink-0 font-normal text-[11px] opacity-75"
+                  class="shrink-0 text-[11px] font-normal opacity-75"
                 >
                   · {{ formatThinkDuration(block.tool.durationMs) }}
                 </span>

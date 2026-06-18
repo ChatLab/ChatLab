@@ -9,7 +9,6 @@ describe('parseAssistantFile', () => {
 id: legacy_tools
 name: Legacy Tools
 allowedBuiltinTools:
-  - search_sessions
   - get_session_messages
   - get_session_summaries
   - keyword_frequency
@@ -19,11 +18,6 @@ Use selected tools.`,
     )
 
     assert.ok(config)
-    assert.deepEqual(config.allowedBuiltinTools, [
-      'search_segments',
-      'get_segment_messages',
-      'get_segment_summaries',
-      'keyword_frequency',
-    ])
+    assert.deepEqual(config.allowedBuiltinTools, ['get_segment_messages', 'get_segment_summaries', 'keyword_frequency'])
   })
 })

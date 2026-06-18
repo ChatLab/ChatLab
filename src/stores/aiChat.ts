@@ -60,6 +60,8 @@ export interface ToolBlockContent {
   toolCallId?: string
   /** Truncated tool result text persisted for history replay */
   result?: string
+  /** Full safe text result shown to the user; history replay continues to use result. */
+  displayResult?: string
   /** Whether the tool execution failed (from the agent runtime, not UI render errors) */
   isError?: boolean
 }
@@ -656,7 +658,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     updateToolBlockStatus: (
       toolName: string,
       status: 'done' | 'error',
-      completion?: { toolCallId?: string; result?: string; isError?: boolean }
+      completion?: { toolCallId?: string; result?: string; displayResult?: string; isError?: boolean }
     ) => void
   }
 
@@ -797,7 +799,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     const updateToolBlockStatus = (
       toolName: string,
       status: 'done' | 'error',
-      completion?: { toolCallId?: string; result?: string; isError?: boolean }
+      completion?: { toolCallId?: string; result?: string; displayResult?: string; isError?: boolean }
     ) => {
       const idx = getAiMessageIndex()
       const blocks = targetBuffer.messages[idx].contentBlocks || []
@@ -826,6 +828,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       if (target) {
         target.tool.status = status
         if (completion?.result !== undefined) target.tool.result = completion.result
+        if (completion?.displayResult !== undefined) target.tool.displayResult = completion.displayResult
         if (completion?.isError !== undefined) target.tool.isError = completion.isError
       }
       updateAIMessage({ contentBlocks: [...blocks] })
@@ -1100,9 +1103,11 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                   }
                 }
                 if (!isRenderOnlyTool(chunk.toolName)) {
+                  const resultText = extractToolResultText(chunk.toolResult)
                   updateToolBlockStatus(chunk.toolName, toolFailed ? 'error' : 'done', {
                     toolCallId: chunk.toolCallId,
-                    result: truncateToolResultText(extractToolResultText(chunk.toolResult)),
+                    result: truncateToolResultText(resultText),
+                    displayResult: resultText,
                     isError: chunk.toolIsError,
                   })
                 }
@@ -1678,12 +1683,14 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                   }
                 }
                 if (!isRenderOnlyTool(chunk.toolName)) {
+                  const resultText = extractToolResultText(chunk.toolResult)
                   updateToolBlockStatus(
                     chunk.toolName,
                     renderOnlyError !== null || chunk.toolIsError === true ? 'error' : 'done',
                     {
                       toolCallId: chunk.toolCallId,
-                      result: truncateToolResultText(extractToolResultText(chunk.toolResult)),
+                      result: truncateToolResultText(resultText),
+                      displayResult: resultText,
                       isError: chunk.toolIsError,
                     }
                   )

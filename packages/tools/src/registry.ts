@@ -18,7 +18,6 @@ import { chatOverviewTool } from './definitions/chat-overview'
 import { searchMessagesTool } from './definitions/search-messages'
 import { deepSearchMessagesTool } from './definitions/deep-search-messages'
 import { getMessageContextTool } from './definitions/get-message-context'
-import { searchSegmentsTool } from './definitions/search-segments'
 import { getSegmentMessagesTool } from './definitions/get-segment-messages'
 import { getMembersTool } from './definitions/get-members'
 import { memberStatsTool } from './definitions/member-stats'
@@ -44,7 +43,6 @@ const SHARED_TOOLS: ToolDefinition[] = [
   deepSearchMessagesTool,
   recentMessagesTool,
   getMessageContextTool,
-  searchSegmentsTool,
   getSegmentMessagesTool,
   getMembersTool,
   schemaTool,

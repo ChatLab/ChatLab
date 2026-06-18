@@ -57,6 +57,14 @@
         "success": "Markdown 已复制到剪贴板",
         "failed": "复制 Markdown 失败"
       },
+      "toolResult": {
+        "view": "查看结果",
+        "title": "发送给 AI 的工具结果",
+        "copy": "复制结果",
+        "copySuccess": "工具结果已复制",
+        "copyFailed": "复制工具结果失败",
+        "displayTruncated": "此历史结果仅保存了截断版本；当前轮 AI 可能看到了更完整的内容。"
+      },
       "edit": {
         "tooltip": "编辑并重新生成",
         "submit": "发送",
@@ -70,37 +78,6 @@
         "empty": "暂无数据",
         "rows": "{count} 行数据",
         "truncated": "已截断"
-      },
-      "tools": {
-        "get_chat_overview": "获取聊天概览",
-        "search_messages": "搜索聊天记录",
-        "deep_search_messages": "深度搜索聊天记录",
-        "get_recent_messages": "获取最近消息",
-        "get_member_stats": "获取成员统计",
-        "get_time_stats": "获取时间分布",
-        "get_members": "获取成员列表",
-        "get_member_name_history": "获取昵称历史",
-        "get_conversation_between": "获取对话记录",
-        "get_message_context": "获取上下文",
-        "get_schema": "查看表结构",
-        "search_segments": "搜索段落",
-        "get_segment_messages": "获取段落消息",
-        "get_segment_summaries": "获取段落摘要",
-        "response_time_analysis": "回复时间分析",
-        "keyword_frequency": "关键词频率分析",
-        "message_type_breakdown": "消息类型分布",
-        "peak_chat_hours_by_member": "成员活跃时段",
-        "member_activity_trend": "成员活跃趋势",
-        "silent_members": "沉默成员检测",
-        "reply_interaction_ranking": "回复互动排行",
-        "mutual_interaction_pairs": "互动频繁成员对",
-        "member_message_length_stats": "消息长度统计",
-        "daily_active_members": "每日活跃人数",
-        "conversation_initiator_stats": "话题发起者统计",
-        "activity_heatmap": "活跃度热力图",
-        "unanswered_messages": "未回复消息",
-        "render_chart": "生成图表",
-        "semantic_search_current_chat": "检索聊天历史"
       },
       "generating": "正在生成回复...",
       "summary": {
@@ -470,7 +447,6 @@
       "get_member_stats": "获取成员统计",
       "get_member_name_history": "获取成员改名历史",
       "get_time_stats": "获取时间统计",
-      "search_segments": "搜索段落",
       "get_segment_messages": "获取段落消息",
       "get_segment_summaries": "获取段落摘要",
       "message_type_breakdown": "消息类型分布",
@@ -486,7 +462,8 @@
       "activity_heatmap": "活跃度热力图",
       "response_time_analysis": "响应时间分析",
       "keyword_frequency": "高频词统计",
-      "render_chart": "生成动态图表"
+      "render_chart": "生成动态图表",
+      "semantic_search_current_chat": "检索聊天历史"
     }
   },
   "skill": {

@@ -4,7 +4,6 @@ import assert from 'node:assert/strict'
 import { getSegmentMessagesTool } from './get-segment-messages'
 import { getSegmentSummariesTool } from './get-segment-summaries'
 import { searchMessagesTool } from './search-messages'
-import { searchSegmentsTool } from './search-segments'
 import { schemaTool, sqlQueryTool } from './sql-query'
 import { SQL_TOOL_DEFS, createSqlToolDefinition } from '../sql'
 import type { RawMessage, ToolDataProvider, ToolExecutionContext, TimeFilter } from '../types'
@@ -71,54 +70,6 @@ describe('high-risk analysis tool definitions', () => {
     assert.deepEqual(result.rawMessages, expandedMessages)
     assert.deepEqual((result.data as { total: number; returned: number }).total, 1)
     assert.deepEqual((result.data as { total: number; returned: number }).returned, 3)
-  })
-
-  it('search_segments prefers explicit time parameters over context filters', async () => {
-    const calls: Array<{ keywords?: string[]; timeFilter?: TimeFilter; limit?: number; previewCount?: number }> = []
-    const context = createContext(
-      {
-        async searchSegments(keywords, timeFilter, limit, previewCount) {
-          calls.push({ keywords, timeFilter, limit, previewCount })
-          return [
-            {
-              id: 42,
-              startTs: 1704067200,
-              endTs: 1704067260,
-              messageCount: 2,
-              isComplete: true,
-              previewMessages: [{ id: 1, senderName: 'Alice', content: 'hello', timestamp: 1704067201 }],
-            },
-          ]
-        },
-      },
-      { timeFilter: { startTs: 1, endTs: 2 } }
-    )
-
-    const result = await searchSegmentsTool.handler(
-      {
-        keywords: ['hello'],
-        start_time: '2024-01-01T00:00:00Z',
-        end_time: '2024-01-01T00:01:00Z',
-        limit: 3,
-      },
-      context
-    )
-    const data = result.data as {
-      total: number
-      segments: Array<{ segmentId: number; preview: string[] }>
-    }
-
-    assert.deepEqual(calls, [
-      {
-        keywords: ['hello'],
-        timeFilter: { startTs: 1704067200, endTs: 1704067260 },
-        limit: 3,
-        previewCount: 5,
-      },
-    ])
-    assert.equal(data.total, 1)
-    assert.equal(data.segments[0]?.segmentId, 42)
-    assert.match(data.segments[0]?.preview[0] ?? '', /Alice: hello/)
   })
 
   it('get_segment_messages applies maxMessagesLimit before returning raw messages', async () => {

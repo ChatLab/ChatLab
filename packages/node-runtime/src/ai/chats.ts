@@ -43,6 +43,8 @@ export type ContentBlock =
         toolCallId?: string
         /** Truncated text of the tool result as seen by the model. Absent on legacy rows and unfinished calls. */
         result?: string
+        /** Full safe text result for UI display; not used for history replay. */
+        displayResult?: string
         /** Whether the tool execution failed (pi-level isError, distinct from UI status). */
         isError?: boolean
       }

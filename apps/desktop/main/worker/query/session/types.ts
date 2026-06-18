@@ -8,4 +8,4 @@ export { DEFAULT_SESSION_GAP_THRESHOLD } from '@openchatlab/core'
 export type { ChatSessionItem, SessionIndexStats } from '@openchatlab/core'
 
 // AI tool types — re-exported from core via aiTools.ts
-export type { SessionSearchResultItem, SessionMessagesResult } from './aiTools'
+export type { SessionMessagesResult } from './aiTools'

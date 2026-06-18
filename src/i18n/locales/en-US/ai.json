@@ -57,6 +57,14 @@
         "success": "Markdown copied to clipboard",
         "failed": "Failed to copy Markdown"
       },
+      "toolResult": {
+        "view": "View result",
+        "title": "Tool result sent to AI",
+        "copy": "Copy result",
+        "copySuccess": "Tool result copied",
+        "copyFailed": "Failed to copy tool result",
+        "displayTruncated": "Only a truncated version of this historical result was saved; the AI may have seen more content in the original turn."
+      },
       "edit": {
         "tooltip": "Edit and regenerate",
         "submit": "Send",
@@ -70,37 +78,6 @@
         "empty": "No data",
         "rows": "{count} rows",
         "truncated": "Truncated"
-      },
-      "tools": {
-        "get_chat_overview": "Get Chat Overview",
-        "search_messages": "Search Messages",
-        "deep_search_messages": "Deep Search Messages",
-        "get_recent_messages": "Get Recent Messages",
-        "get_member_stats": "Get Member Stats",
-        "get_time_stats": "Get Time Stats",
-        "get_members": "Get Members",
-        "get_member_name_history": "Get Nickname History",
-        "get_conversation_between": "Get Conversation",
-        "get_message_context": "Get Message Context",
-        "get_schema": "Inspect Schema",
-        "search_segments": "Search Segments",
-        "get_segment_messages": "Get Segment Messages",
-        "get_segment_summaries": "Get Segment Summaries",
-        "response_time_analysis": "Response Time Analysis",
-        "keyword_frequency": "Keyword Frequency",
-        "message_type_breakdown": "Message Type Breakdown",
-        "peak_chat_hours_by_member": "Peak Hours by Member",
-        "member_activity_trend": "Member Activity Trend",
-        "silent_members": "Silent Members",
-        "reply_interaction_ranking": "Reply Interaction Ranking",
-        "mutual_interaction_pairs": "Mutual Interaction Pairs",
-        "member_message_length_stats": "Message Length Stats",
-        "daily_active_members": "Daily Active Members",
-        "conversation_initiator_stats": "Conversation Initiators",
-        "activity_heatmap": "Activity Heatmap",
-        "unanswered_messages": "Unanswered Messages",
-        "render_chart": "Generate Chart",
-        "semantic_search_current_chat": "Search chat history"
       },
       "generating": "Generating response...",
       "summary": {
@@ -470,7 +447,6 @@
       "get_member_stats": "Get member statistics",
       "get_member_name_history": "Get member name history",
       "get_time_stats": "Get time statistics",
-      "search_segments": "Search segments",
       "get_segment_messages": "Get segment messages",
       "get_segment_summaries": "Get segment summaries",
       "message_type_breakdown": "Message type distribution",
@@ -486,7 +462,8 @@
       "activity_heatmap": "Activity heatmap",
       "response_time_analysis": "Response time analysis",
       "keyword_frequency": "Keyword frequency",
-      "render_chart": "Generate dynamic chart"
+      "render_chart": "Generate dynamic chart",
+      "semantic_search_current_chat": "Search chat history"
     }
   },
   "skill": {

@@ -75,7 +75,7 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
     content = `Note: index is incomplete, evidence may be partial.\n\n${content}`
   }
   if (result.truncated) {
-    content = `${content}\n\nResults truncated, use a more specific query to continue searching.`
+    content = `${content}\n\nReached the result limit; there may be more matching history. Use a narrower query to continue searching.`
   }
 
   return { content, data }

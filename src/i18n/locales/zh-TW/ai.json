@@ -57,6 +57,14 @@
         "success": "Markdown 已複製到剪貼簿",
         "failed": "複製 Markdown 失敗"
       },
+      "toolResult": {
+        "view": "查看結果",
+        "title": "傳送給 AI 的工具結果",
+        "copy": "複製結果",
+        "copySuccess": "工具結果已複製",
+        "copyFailed": "複製工具結果失敗",
+        "displayTruncated": "此歷史結果只保存了截斷版本；原本那一輪 AI 可能看到了更完整的內容。"
+      },
       "edit": {
         "tooltip": "編輯並重新生成",
         "submit": "送出",
@@ -70,37 +78,6 @@
         "empty": "暫無資料",
         "rows": "{count} 行資料",
         "truncated": "已截斷"
-      },
-      "tools": {
-        "get_chat_overview": "取得聊天概覽",
-        "search_messages": "搜尋聊天紀錄",
-        "deep_search_messages": "深度搜尋聊天紀錄",
-        "get_recent_messages": "取得最近訊息",
-        "get_member_stats": "取得成員統計",
-        "get_time_stats": "取得時間分佈",
-        "get_members": "取得成員列表",
-        "get_member_name_history": "取得暱稱歷史",
-        "get_conversation_between": "取得對話紀錄",
-        "get_message_context": "取得上下文",
-        "get_schema": "查看表結構",
-        "search_segments": "搜尋段落",
-        "get_segment_messages": "取得段落訊息",
-        "get_segment_summaries": "取得段落摘要",
-        "response_time_analysis": "回覆時間分析",
-        "keyword_frequency": "關鍵詞頻率分析",
-        "message_type_breakdown": "訊息類型分佈",
-        "peak_chat_hours_by_member": "成員活躍時段",
-        "member_activity_trend": "成員活躍趨勢",
-        "silent_members": "沉默成員偵測",
-        "reply_interaction_ranking": "回覆互動排行",
-        "mutual_interaction_pairs": "互動頻繁成員對",
-        "member_message_length_stats": "訊息長度統計",
-        "daily_active_members": "每日活躍人數",
-        "conversation_initiator_stats": "話題發起者統計",
-        "activity_heatmap": "活躍度熱力圖",
-        "unanswered_messages": "未回覆訊息",
-        "render_chart": "生成圖表",
-        "semantic_search_current_chat": "檢索聊天歷史"
       },
       "generating": "正在產生回覆...",
       "summary": {
@@ -470,7 +447,6 @@
       "get_member_stats": "取得成員統計",
       "get_member_name_history": "取得成員改名歷史",
       "get_time_stats": "取得時間統計",
-      "search_segments": "搜尋段落",
       "get_segment_messages": "取得段落訊息",
       "get_segment_summaries": "取得段落摘要",
       "message_type_breakdown": "訊息類型分佈",
@@ -486,7 +462,8 @@
       "activity_heatmap": "活躍度熱力圖",
       "response_time_analysis": "回應時間分析",
       "keyword_frequency": "高頻詞統計",
-      "render_chart": "生成動態圖表"
+      "render_chart": "生成動態圖表",
+      "semantic_search_current_chat": "檢索聊天歷史"
     }
   },
   "skill": {

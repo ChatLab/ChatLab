@@ -15,7 +15,6 @@ import type {
   ChatOverviewResult,
   MemberInfo,
   NameHistoryItem,
-  SegmentSearchResult,
   SegmentMessagesResult,
   ConversationResult,
   SegmentSummaryItem,
@@ -149,15 +148,6 @@ export class WorkerDataProvider implements ToolDataProvider {
       default:
         return this.run(() => workerManager.getHourlyActivity(this.sessionId, filter))
     }
-  }
-
-  async searchSegments(
-    keywords?: string[],
-    timeFilter?: TimeFilter,
-    limit?: number,
-    previewCount?: number
-  ): Promise<SegmentSearchResult[]> {
-    return this.run(() => workerManager.searchSegments(this.sessionId, keywords, timeFilter, limit, previewCount))
   }
 
   async getSegmentMessages(segmentId: number, limit?: number): Promise<SegmentMessagesResult | null> {

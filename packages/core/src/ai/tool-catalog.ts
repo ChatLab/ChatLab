@@ -13,7 +13,6 @@ export interface BuiltinToolCatalogEntry {
 }
 
 const LEGACY_BUILTIN_TOOL_NAME_ALIASES: Record<string, string> = {
-  search_sessions: 'search_segments',
   get_session_messages: 'get_segment_messages',
   get_session_summaries: 'get_segment_summaries',
 }
@@ -33,7 +32,6 @@ export const BUILTIN_TOOL_CATALOG: BuiltinToolCatalogEntry[] = [
   { name: 'deep_search_messages', category: 'core' },
   { name: 'get_recent_messages', category: 'core' },
   { name: 'get_message_context', category: 'core' },
-  { name: 'search_segments', category: 'core' },
   { name: 'get_segment_messages', category: 'core' },
   { name: 'get_members', category: 'core' },
   { name: 'get_schema', category: 'core' },

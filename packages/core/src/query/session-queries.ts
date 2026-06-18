@@ -206,15 +206,6 @@ export interface SessionPreviewMessage {
   timestamp: number
 }
 
-export interface SegmentSearchItem {
-  id: number
-  startTs: number
-  endTs: number
-  messageCount: number
-  isComplete: boolean
-  previewMessages: SessionPreviewMessage[]
-}
-
 export interface SegmentMessagesData {
   segmentId: number
   startTs: number
@@ -223,15 +214,6 @@ export interface SegmentMessagesData {
   returnedCount: number
   participants: string[]
   messages: SessionPreviewMessage[]
-}
-
-export interface SearchSegmentsOptions {
-  keywords?: string[]
-  timeFilter?: TimeFilter
-  limit?: number
-  previewCount?: number
-  /** Pre-tokenized FTS match expression. When provided, uses FTS index for keyword filtering. */
-  ftsMatchExpression?: string
 }
 
 export interface SegmentSummaryData {
@@ -272,95 +254,6 @@ export function getChatOverview(db: DatabaseAdapter, topN: number = 10): ChatOve
     topMembers,
     summaryCount,
   }
-}
-
-/**
- * Search chat sessions with optional keyword and time filters.
- * Requires segment and message_context tables (session indexing).
- * Supports LIKE-based search and optional FTS when ftsMatchExpression is provided.
- */
-export function searchSegments(
-  db: DatabaseAdapter,
-  keywords?: string[],
-  timeFilter?: TimeFilter,
-  limit: number = 20,
-  previewCount: number = 5,
-  ftsMatchExpression?: string
-): SegmentSearchItem[] {
-  if (!hasTable(db, 'segment')) return []
-
-  let sessionSql = `
-    SELECT cs.id, cs.start_ts as startTs, cs.end_ts as endTs, cs.message_count as messageCount
-    FROM segment cs WHERE 1=1
-  `
-  const params: unknown[] = []
-
-  if (timeFilter?.startTs !== undefined) {
-    sessionSql += ' AND cs.start_ts >= ?'
-    params.push(timeFilter.startTs)
-  }
-  if (timeFilter?.endTs !== undefined) {
-    sessionSql += ' AND cs.end_ts <= ?'
-    params.push(timeFilter.endTs)
-  }
-
-  if (keywords && keywords.length > 0) {
-    if (ftsMatchExpression) {
-      sessionSql += `
-        AND cs.id IN (
-          SELECT DISTINCT mc.segment_id FROM message_context mc
-          WHERE mc.message_id IN (SELECT rowid FROM message_fts WHERE content MATCH ?)
-        )
-      `
-      params.push(ftsMatchExpression)
-    } else {
-      const keywordConditions = keywords.map(() => 'm.content LIKE ?').join(' OR ')
-      sessionSql += `
-        AND cs.id IN (
-          SELECT DISTINCT mc.segment_id FROM message_context mc
-          JOIN message m ON m.id = mc.message_id
-          WHERE (${keywordConditions})
-        )
-      `
-      for (const kw of keywords) {
-        params.push(`%${kw}%`)
-      }
-    }
-  }
-
-  sessionSql += ' ORDER BY cs.start_ts DESC LIMIT ?'
-  params.push(limit)
-
-  const sessions = db.prepare(sessionSql).all(...params) as Array<{
-    id: number
-    startTs: number
-    endTs: number
-    messageCount: number
-  }>
-
-  const previewSql = `
-    SELECT m.id, mb.id as senderId,
-           COALESCE(mb.group_nickname, mb.account_name, mb.platform_id) as senderName,
-           mb.platform_id as senderPlatformId,
-           m.content, m.ts as timestamp
-    FROM message_context mc
-    JOIN message m ON m.id = mc.message_id
-    JOIN member mb ON mb.id = m.sender_id
-    WHERE mc.segment_id = ? ORDER BY m.ts ASC LIMIT ?
-  `
-
-  return sessions.map((session) => {
-    const previewMessages = db.prepare(previewSql).all(session.id, previewCount) as unknown as SessionPreviewMessage[]
-
-    return {
-      id: session.id,
-      startTs: session.startTs,
-      endTs: session.endTs,
-      messageCount: session.messageCount,
-      isComplete: session.messageCount <= previewCount,
-      previewMessages,
-    }
-  })
 }
 
 /**

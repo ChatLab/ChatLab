@@ -93,20 +93,6 @@ export interface NameHistoryItem {
   endTs: number | null
 }
 
-export interface SegmentSearchResult {
-  id: number
-  startTs: number
-  endTs: number
-  messageCount: number
-  isComplete: boolean
-  previewMessages: Array<{
-    id: number
-    senderName: string
-    content: string | null
-    timestamp: number
-  }>
-}
-
 export interface SegmentMessagesResult {
   segmentId: number
   startTs: number
@@ -198,13 +184,6 @@ export interface ToolDataProvider {
   getTimeStats(type: 'hourly' | 'weekday' | 'daily', options?: { timeFilter?: TimeFilter }): Promise<unknown[]>
 
   // === 段落相关 ===
-  searchSegments(
-    keywords?: string[],
-    timeFilter?: TimeFilter,
-    limit?: number,
-    previewCount?: number
-  ): Promise<SegmentSearchResult[]>
-
   getSegmentMessages(segmentId: number, limit?: number): Promise<SegmentMessagesResult | null>
 
   getSegmentSummaries(options?: { limit?: number; timeFilter?: TimeFilter }): Promise<SegmentSummaryItem[]>

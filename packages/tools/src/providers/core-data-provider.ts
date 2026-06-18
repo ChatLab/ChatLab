@@ -22,7 +22,6 @@ import {
   getMembersWithAliases,
   executeParameterizedSql as coreExecuteParameterizedSql,
   getChatOverview as coreGetChatOverview,
-  searchSegments as coreSearchSegments,
   getSegmentMessages as coreGetSegmentMessages,
   getSegmentSummaries as coreGetSegmentSummaries,
 } from '@openchatlab/core'
@@ -35,7 +34,6 @@ import type {
   ChatOverviewResult,
   MemberInfo,
   NameHistoryItem,
-  SegmentSearchResult,
   SegmentMessagesResult,
   ConversationResult,
   SegmentSummaryItem,
@@ -135,15 +133,6 @@ export class CoreDataProvider implements ToolDataProvider {
       default:
         return getHourlyActivity(this.db, filter)
     }
-  }
-
-  async searchSegments(
-    keywords?: string[],
-    timeFilter?: TimeFilter,
-    limit?: number,
-    previewCount?: number
-  ): Promise<SegmentSearchResult[]> {
-    return coreSearchSegments(this.db, keywords, timeFilter, limit, previewCount)
   }
 
   async getSegmentMessages(segmentId: number, limit?: number): Promise<SegmentMessagesResult | null> {

@@ -6,7 +6,6 @@ export {
   getSessionOverview,
   getDatabaseSchema,
   getChatOverview,
-  searchSegments,
   getSegmentMessages,
   getSegmentSummaries,
   buildSessionInfo,
@@ -38,13 +37,11 @@ export type {
   SessionInfo,
   CoreSessionInfo,
   ChatOverviewData,
-  SegmentSearchItem,
   SegmentMessagesData,
   SegmentSummaryData,
   ChatSessionItem,
   SessionIndexStats,
   SessionPreviewMessage,
-  SearchSegmentsOptions,
   ExportSessionData,
 } from './session-queries'
 

@@ -101,22 +101,10 @@ export default {
           context_size: 'Context size, i.e. how many messages before and after to retrieve, default 20',
         },
       },
-      search_segments: {
-        desc: 'Search chat segments (conversation segments). Segments are conversation units automatically split by message time intervals. Suitable for finding discussions on specific topics or understanding how many conversations occurred in a time period. Returns matching segments with a 5-message preview each.',
-        params: {
-          keywords: 'Optional keyword list, only returns segments containing these keywords (OR logic)',
-          limit: 'Session count limit, default 20',
-          year: 'Filter segments by year, e.g. 2024',
-          month: 'Filter segments by month (1-12), use with year',
-          day: 'Filter segments by day (1-31), use with year and month',
-          start_time: 'Start time, format "YYYY-MM-DD HH:mm", e.g. "2024-03-15 14:00"',
-          end_time: 'End time, format "YYYY-MM-DD HH:mm", e.g. "2024-03-15 18:30"',
-        },
-      },
       get_segment_messages: {
-        desc: 'Get the complete message list for a specific segment. Used to get full context after finding a relevant segment via search_segments. Returns all messages and participant information.',
+        desc: 'Get the complete message list for a specific segment. Used to get the full original context after finding a relevant segment summary via get_segment_summaries. Returns all messages and participant information.',
         params: {
-          segment_id: 'Segment ID, can be obtained from search_segments results',
+          segment_id: 'Segment ID, can be obtained from get_segment_summaries results',
           limit: 'Message count limit, default 1000. Can be limited for very long segments to save tokens',
         },
       },

@@ -66,7 +66,6 @@ import {
   getSessionsByTimeRange,
   getRecentChatSessions,
   getSegmentSummariesInWorker,
-  searchSegments,
   getSegmentMessages,
   // 导出
   exportFilterResultToFile,
@@ -232,7 +231,6 @@ const syncHandlers: Record<string, (payload: any) => any> = {
   getSessionsByTimeRange: (p) => getSessionsByTimeRange(p.sessionId, p.startTs, p.endTs),
   getRecentChatSessions: (p) => getRecentChatSessions(p.sessionId, p.limit),
   getSegmentSummaries: (p) => getSegmentSummariesInWorker(p.sessionId, p.options),
-  searchSegments: (p) => searchSegments(p.sessionId, p.keywords, p.timeFilter, p.limit, p.previewCount),
   getSegmentMessages: (p) => getSegmentMessages(p.sessionId, p.segmentId, p.limit),
 
   // NLP 查询

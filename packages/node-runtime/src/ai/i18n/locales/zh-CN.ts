@@ -93,22 +93,10 @@ export default {
           context_size: '上下文大小，即获取前后各多少条消息，默认 20',
         },
       },
-      search_segments: {
-        desc: '搜索聊天段落（对话段落）。段落是根据消息时间间隔自动切分的对话单元。适用于查找特定话题的讨论、了解某个时间段内发生了几次对话等场景。返回匹配的段落列表及每个段落的前5条消息预览。',
-        params: {
-          keywords: '可选的搜索关键词列表，只返回包含这些关键词的段落（OR 逻辑匹配）',
-          limit: '返回段落数量限制，默认 20',
-          year: '指定年份筛选段落，如 2024',
-          month: '指定月份筛选段落（1-12），需配合 year 使用',
-          day: '指定日期筛选段落（1-31），需配合 year 和 month 使用',
-          start_time: '开始时间，格式 "YYYY-MM-DD HH:mm"，如 "2024-03-15 14:00"',
-          end_time: '结束时间，格式 "YYYY-MM-DD HH:mm"，如 "2024-03-15 18:30"',
-        },
-      },
       get_segment_messages: {
-        desc: '获取指定段落的完整消息列表。用于在 search_segments 找到相关段落后，获取该段落的完整上下文。返回段落的所有消息及参与者信息。',
+        desc: '获取指定段落的完整消息列表。用于在 get_segment_summaries 找到相关段落摘要后，获取该段落的完整原文上下文。返回段落的所有消息及参与者信息。',
         params: {
-          segment_id: '段落 ID，可以从 search_segments 的返回结果中获取',
+          segment_id: '段落 ID，可以从 get_segment_summaries 的返回结果中获取',
           limit: '返回消息数量限制，默认 1000。对于超长段落可以限制返回数量以节省 token',
         },
       },
