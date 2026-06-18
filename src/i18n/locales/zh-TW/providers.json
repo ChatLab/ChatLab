@@ -1,60 +1,24 @@
 {
   "deepseek": {
-    "name": "DeepSeek",
-    "models": {
-      "deepseek-v4-pro": "旗艦模型，1M 上下文，支援思考與非思考模式",
-      "deepseek-v4-flash": "高速模型，1M 上下文，支援思考與非思考模式"
-    }
+    "name": "DeepSeek"
   },
   "qwen": {
-    "name": "通義千問",
-    "models": {
-      "qwen-turbo": "通義千問高速模型",
-      "qwen-plus": "通義千問高效能模型",
-      "qwen-max": "通義千問旗艦模型"
-    }
+    "name": "通義千問"
   },
   "gemini": {
-    "name": "Gemini",
-    "models": {
-      "gemini-3-flash-preview": "高速預覽版",
-      "gemini-3-pro-preview": "進階預覽版"
-    }
+    "name": "Gemini"
   },
   "minimax": {
-    "name": "MiniMax",
-    "models": {
-      "MiniMax-M2": "旗艦模型",
-      "MiniMax-M2-Stable": "穩定版本"
-    }
+    "name": "MiniMax"
   },
   "glm": {
-    "name": "GLM",
-    "models": {
-      "glm-4-plus": "旗艦模型，整體表現最佳",
-      "glm-4-flash": "高速模型，性價比高",
-      "glm-4": "標準模型",
-      "glm-4v-plus": "多模態視覺模型",
-      "glm-4.6v-flash": "4.6V 免費模型",
-      "glm-4.5-flash": "4.5 免費模型"
-    }
+    "name": "GLM"
   },
   "kimi": {
-    "name": "Kimi",
-    "models": {
-      "moonshot-v1-8k": "8K 上下文",
-      "moonshot-v1-32k": "32K 上下文",
-      "moonshot-v1-128k": "128K 超長上下文"
-    }
+    "name": "Kimi"
   },
   "doubao": {
-    "name": "豆包",
-    "models": {
-      "doubao-seed-1-6-lite-251015": "豆包 1.6 輕量模型，性價比高",
-      "doubao-seed-1-6-251015": "豆包 1.6 強化模型",
-      "doubao-seed-1-6-flash-250828": "豆包 1.6 高速模型",
-      "doubao-1-5-lite-32k-250115": "豆包 1.5 Pro 模型"
-    }
+    "name": "豆包"
   },
   "siliconflow": {
     "name": "矽基流動"

@@ -1,23 +1,13 @@
 {
   "tab": {
     "chatExplorer": "Chat Explorer",
-    "sqlLab": "SQL Lab",
-    "featureInDev": "{name} is in development",
-    "comingSoon": "Coming soon...",
-    "followNotice": "Follow me on X for updates"
+    "sqlLab": "SQL Lab"
   },
   "chat": {
-    "welcome": {
-      "configReady": "✅ AI service is configured and ready!",
-      "configNeeded": "**Note**: Please configure AI service in Settings (sidebar bottom) before using ⚙️"
-    },
-    "capture": "Capture Chat",
     "scrollToBottom": "Back to Bottom",
     "input": {
-      "placeholder": "Enter your question...",
       "placeholderWithSlash": "Enter your question, or type / for skills and {'@'} for members...",
       "placeholderWithActiveSkill": "/{name} selected. Enter your specific question...",
-      "removeSkill": "Remove active skill",
       "slashHint": "Type / to pick a skill",
       "useSkill": "Choose Skill",
       "mentionHint": "Type {'@'} to pick a member",
@@ -26,12 +16,9 @@
       "slashEmpty": "No matching skills",
       "slashEmptyHint": "Open Skill Manager to import built-in skills or create a custom one",
       "manageSkills": "Manage Skills",
-      "previewTitle": "Skill Prompt",
       "previewTagsLabel": "Tags",
       "previewToolsLabel": "Tools",
       "previewUnavailable": "No skill prompt available for preview",
-      "presetMore": "More",
-      "presetCollapse": "Collapse",
       "quickAsk": "Quick Ask",
       "editQuickAsk": "Edit Quick Ask",
       "send": "Send",
@@ -50,8 +37,6 @@
       "return": "Return"
     },
     "message": {
-      "userAvatar": "User Avatar",
-      "calling": "Calling",
       "copy": {
         "tooltip": "Copy Markdown",
         "success": "Markdown copied to clipboard",
@@ -82,8 +67,6 @@
       "generating": "Generating response...",
       "summary": {
         "label": "Context Summary",
-        "expand": "Expand summary",
-        "collapse": "Collapse summary",
         "info": "Previous conversation has been compressed into a summary to save context space"
       },
       "plan": {
@@ -91,13 +74,7 @@
         "evidenceNeeded": "Evidence needed",
         "suggestedTools": "Suggested tools",
         "successCriteria": "Success criteria",
-        "noTools": "None",
-        "status": {
-          "created": "Created",
-          "executing": "Executing",
-          "done": "Done",
-          "skipped": "Skipped"
-        }
+        "noTools": "None"
       },
       "think": {
         "labels": {
@@ -136,18 +113,8 @@
       "compressing": "Compressing context..."
     },
     "statusBar": {
-      "preset": {
-        "default": "Default Preset",
-        "groupTitle": "Group Chat Presets",
-        "privateTitle": "Private Chat Presets",
-        "manage": "Manage Presets"
-      },
       "model": {
-        "title": "AI Model Configs",
-        "notConfigured": "AI Not Configured",
-        "empty": "No configs",
-        "manage": "Manage Configs",
-        "switchFailed": "Failed to switch model"
+        "notConfigured": "AI Not Configured"
       },
       "messageLimit": {
         "label": "Limit: ",
@@ -156,7 +123,6 @@
       "agent": {
         "label": "Agent",
         "contextTokens": "Context",
-        "stats": "seg {segment} · tags {tags}",
         "phase": {
           "compressing": "Compressing",
           "preparing": "Preparing",
@@ -203,24 +169,9 @@
         "title": "Open current AI log file",
         "openFailed": "Failed to open log",
         "openFailedDesc": "Please try again later"
-      },
-      "compress": {
-        "label": "Compress",
-        "title": "Manually compress context",
-        "compressing": "Compressing...",
-        "success": "Context compressed",
-        "successDesc": "{before} → {after} tokens",
-        "skipped": "Compression skipped",
-        "skippedDesc": "Not enough messages to compress",
-        "failed": "Compression failed"
-      },
-      "status": {
-        "connected": "AI Connected",
-        "notConfigured": "Please configure AI service in Settings"
       }
     },
     "conversation": {
-      "title": "AI Conversations",
       "newChat": "New Chat",
       "newConversation": "New Chat",
       "empty": "No history yet",
@@ -271,7 +222,6 @@
       "query": "Question",
       "criteria": "Criteria",
       "empty": "No conclusive evidence found",
-      "viewSource": "View source",
       "totalSources": "{count} sources",
       "mode": {
         "auto": "Auto",
@@ -298,14 +248,11 @@
     "editor": {
       "errorEmptySQL": "Please enter an SQL statement",
       "placeholder": "Enter SQL query...",
-      "promptTip": "Describe your query in natural language. SQL will be generated and executed automatically",
       "tip": "Tip: Double-click column names to insert into SQL",
       "history": "History",
-      "aiGenerate": "AI Generate",
       "generateAndRun": "Generate and Run",
       "switchToSQLMode": "Switch to SQL Mode",
       "switchToPromptMode": "Switch to Prompt Mode",
-      "shortcut": "Ctrl/⌘ + Enter to run",
       "run": "Run"
     },
     "schema": {
@@ -320,7 +267,6 @@
       "viewChat": "View chat history",
       "summarize": "Summarize",
       "pageSize": "Per page",
-      "pageInfo": "Page {current} / {total}",
       "emptyResult": "Query returned no results",
       "initialState": "Enter SQL and run to see results",
       "initialHint": "Only read-only queries are supported (SELECT / WITH). Add LIMIT for better performance",
@@ -329,8 +275,6 @@
       "errorSummary": "Summary failed"
     },
     "generate": {
-      "title": "AI Generate SQL",
-      "description": "Describe what you want to query in natural language, and AI will generate the corresponding SQL.",
       "placeholder": "E.g.: Find top 10 members by message count, count daily messages, find messages containing 'keyword'...",
       "errorEmptyPrompt": "Please enter your query requirement",
       "errorGenerate": "AI generation failed",
@@ -339,11 +283,6 @@
       "thinking": "Thinking…",
       "thinkingProcess": "Thinking process",
       "waitingAI": "Waiting for AI response...",
-      "sqlStatement": "SQL Statement",
-      "explanation": "Explanation",
-      "generateSQL": "Generate SQL",
-      "useSQL": "Use SQL",
-      "run": "Run",
       "defaultPromptPrivate": "For the last 1 year of this private chat, compare both participants by total messages, message share, active days, average messages per active day, first message time, and latest message time; sort by total messages desc.",
       "defaultPromptGroup": "For the last 1 year of this group chat, rank members by total messages, message share, active days, average messages per active day, and text-message ratio; include display names and return top 20 by total messages desc."
     },
@@ -386,15 +325,12 @@
       "localeHint": "None selected = all languages",
       "presetQuestions": "Preset Questions",
       "addQuestion": "Add a question...",
-      "builtinTools": "Built-in Tools",
       "coreTools": "Core Tools",
       "coreToolsHint": "Essential data retrieval tools, always enabled",
       "analysisTools": "Analysis Tools",
       "analysisToolsHint": "Enable on demand. Only checked tools will be available to AI",
       "selectAll": "Select All",
       "deselectAll": "Deselect All",
-      "builtinToolsHint": "No selection = all tools available. Only checked tools will be enabled.",
-      "toolGroupQuery": "Data Query Tools",
       "resetDefault": "Reset to Default",
       "create": "Create"
     },
@@ -407,7 +343,6 @@
       "localHint": "Manage imported assistants, configure or delete",
       "marketHint": "Browse the assistant market, import to use and customize",
       "default": "Default",
-      "updateAvailable": "Update Available",
       "reimport": "Re-import",
       "imported": "Imported",
       "import": "Import",
@@ -467,30 +402,12 @@
     }
   },
   "skill": {
-    "selector": {
-      "title": "Select Skill",
-      "freeChat": "Free Chat",
-      "freeChatDesc": "No preset skill, AI responds freely",
-      "manage": "Manage Skills",
-      "incompatible": "Incompatible with current assistant",
-      "noSkills": "No skills available",
-      "noSkillsHint": "Import built-in skills or create custom skills via Skill Manager",
-      "autoSkill": "AI auto-select skill",
-      "autoSkillHint": "When enabled, AI can automatically choose the best skill for your question"
-    },
     "config": {
       "createTitle": "New Skill",
       "editTitle": "Skill Config",
-      "name": "Name",
-      "description": "Description",
-      "tags": "Tags",
-      "chatScope": "Scope",
       "chatScopeAll": "All",
       "chatScopeGroup": "Group",
       "chatScopePrivate": "Private",
-      "prompt": "Skill Prompt",
-      "tools": "Required Tools",
-      "rawEditor": "Markdown Editor",
       "rawEditorHint": "Edit the full skill Markdown file (with YAML frontmatter)",
       "create": "Create",
       "save": "Save"
@@ -503,7 +420,6 @@
       },
       "localHint": "Manage imported skills, configure or delete",
       "marketHint": "Browse the skill market, import to use and customize",
-      "updateAvailable": "Update Available",
       "reimport": "Re-import",
       "imported": "Imported",
       "import": "Import",
@@ -517,26 +433,12 @@
       "loadFailed": "Failed to load, please check your network",
       "retry": "Retry"
     },
-    "block": {
-      "label": "Skill: {name}"
-    },
     "active": {
       "label": "Manually Invoked Skill: {name}"
-    },
-    "toast": {
-      "createSuccess": "Skill created successfully",
-      "createFailed": "Failed to create skill",
-      "saveSuccess": "Skill saved successfully",
-      "saveFailed": "Failed to save skill",
-      "deleteSuccess": "Skill deleted",
-      "deleteFailed": "Failed to delete"
     }
   },
   "lab": {
-    "basicTools": "Basic Tools",
     "toolTest": {
-      "selectTool": "Select Tool",
-      "selectToolPlaceholder": "Select a tool...",
       "coreTools": "Core Tools",
       "analysisTools": "Analysis Tools",
       "parameters": "Parameters",

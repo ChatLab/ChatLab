@@ -29,7 +29,6 @@
     "processed": "已处理 {count} 条消息",
     "viewLog": "查看导入日志",
     "cannotReadPath": "无法读取文件路径",
-    "preparing": "准备导入...",
     "errors": {
       "no_file_selected": "未选择文件",
       "import_failed": "导入失败",
@@ -55,20 +54,17 @@
       "view": "查看"
     },
     "options": {
-      "title": "更多选项",
       "mergeImport": "合并导入",
       "mergeImportHint": "勾选后，多个文件将合并为一个聊天记录"
     },
     "merge": {
       "importing": "正在合并",
       "parsing": "正在解析文件...",
-      "parsingFile": "正在解析: {name}",
       "merging": "正在合并消息...",
       "completed": "合并完成",
       "completedHint": "{count} 个文件已合并",
       "messageCount": "{count} 条消息",
-      "failed": "合并失败",
-      "cancel": "取消合并"
+      "failed": "合并失败"
     }
   },
   "demo": {
@@ -109,8 +105,7 @@
     "confirm": "使用此格式导入"
   },
   "quickStart": {
-    "export": "新手引导",
-    "import": "支持哪些格式"
+    "export": "新手引导"
   },
   "footer": {
     "website": "官网",
@@ -119,7 +114,6 @@
   "changelog": {
     "title": "版本日志",
     "subtitle": "查看所有版本更新内容",
-    "viewChangelog": "版本日志",
     "latest": "最新版本",
     "current": "当前版本",
     "total": "共 {count} 个版本",

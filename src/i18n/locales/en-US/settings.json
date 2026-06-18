@@ -6,11 +6,9 @@
     "aiConfig": "Model Service",
     "aiDefaultModel": "Default Model",
     "semanticIndex": "Semantic Index",
-    "aiPrompt": "Chat Config",
     "aiPreprocess": "Preprocess",
     "dataManage": "Data Management",
     "storage": "Storage",
-    "storageManage": "Storage",
     "sessionManage": "Session Index",
     "about": "About",
     "api": "Automation",
@@ -28,7 +26,6 @@
       "title": "Preferences"
     },
     "language": {
-      "title": "Language",
       "description": "Choose language"
     },
     "appearance": {
@@ -39,13 +36,11 @@
       "dark": "Dark"
     },
     "defaultTab": {
-      "title": "Default Tab",
       "description": "Default page when entering a chat conversation",
       "overview": "Overview",
       "aiChat": "AI Chat"
     },
     "autoLaunch": {
-      "title": "Startup",
       "openAtLogin": "Launch at Login",
       "openAtLoginDesc": "Automatically start ChatLab when the system boots",
       "devModeHint": "Not available in dev mode"
@@ -57,7 +52,6 @@
       "positionHeader": "Header"
     },
     "screenshot": {
-      "title": "Screenshot",
       "mobileAdapt": "Mobile Adaptation",
       "mobileAdaptDesc": "Auto-scale width when taking screenshots for mobile viewing"
     },
@@ -98,13 +92,7 @@
   },
   "aiConfig": {
     "title": "Model Services",
-    "providerTitle": "Service Providers",
-    "loading": "Loading...",
-    "inUse": "Active",
     "defaultModel": "Default Model",
-    "localService": "Local Service",
-    "edit": "Edit",
-    "delete": "Delete",
     "empty": {
       "title": "No AI service configured",
       "description": "Add a configuration to start using AI features"
@@ -114,12 +102,7 @@
     "modal": {
       "addConfig": "Add New Service",
       "editConfig": "Edit Service",
-      "officialApi": "Official API",
-      "officialApiDesc": "DeepSeek, Gemini, etc.",
       "localService": "Local Service",
-      "localServiceDesc": "Ollama, etc.",
-      "openaiCompatible": "OpenAI Compatible",
-      "openaiCompatibleDesc": "Custom endpoint",
       "configName": "Configuration Name",
       "optional": " (Optional)",
       "configNamePlaceholderPreset": "Leave empty to use provider name",
@@ -137,11 +120,6 @@
       "saveAnyway": "Save Anyway",
       "validationError": "Validation failed: ",
       "model": "Model",
-      "modelName": "Model Name",
-      "modelNamePlaceholder": "e.g. gpt-4, claude-3",
-      "modelNamePlaceholderLocal": "e.g. qwen3, deepseek-r1",
-      "modelNameHint": "Enter the model name supported by the API",
-      "modelNameHintLocal": "Enter the locally deployed model name",
       "apiEndpoint": "API URL",
       "apiEndpointHint": "OpenAI-compatible API endpoint",
       "resolvedUrl": "Resolved URL:",
@@ -155,15 +133,11 @@
       "addAllModels": "Add all",
       "searchModels": "Search models...",
       "apiEndpointOverrideHint": "Default URL is prefilled. Replace if needed",
-      "advancedOptions": "Advanced Options",
       "customService": "Custom Service",
-      "unnamedConfig": "Unnamed Configuration",
       "visitWebsite": "Visit Website",
       "getApiKey": "Get API Key",
       "presetService": "Preset",
       "thirdPartyService": "Third-party",
-      "customModelInput": "Enter model manually",
-      "selectFromList": "Select from list",
       "addCustomModel": "Add Model",
       "deleteCustomModel": "Delete Selected",
       "customModelId": "Model Endpoint Name",
@@ -176,7 +150,6 @@
       "contextWindowHint": "Maximum context tokens supported by this model (used for context compression)",
       "contextWindowMissing": "Context window not set, will use default. Click \"Edit Model\" to set it manually",
       "modelRequired": "Add at least one model to save",
-      "modelCapabilities": "Model Capabilities",
       "apiFormat": "API Format",
       "apiFormatOpenAI": "OpenAI Completions",
       "apiFormatAnthropic": "Anthropic",
@@ -184,17 +157,8 @@
       "apiFormatOpenAIResponses": "OpenAI Responses"
     },
     "providerKind": {
-      "official": "Official",
       "aggregator": "Aggregator",
       "custom": "Custom"
-    },
-    "capabilities": {
-      "chat": "Chat",
-      "reasoning": "Reasoning",
-      "vision": "Vision",
-      "function_calling": "Function Calling",
-      "embedding": "Embedding",
-      "ranking": "Ranking"
     }
   },
   "storage": {
@@ -224,7 +188,6 @@
       "cancel": "Cancel",
       "confirm": "Confirm",
       "migrationQueuedTitle": "Migration Queued",
-      "migrationSuccessTitle": "Migration Complete",
       "migrationSuccessMessage": "The app needs to restart for changes to take effect.",
       "cliMigrationSuccessMessage": "Stop the current CLI server and start it again. Migration will run before the server starts. Reopen the page afterward to see the new directory.",
       "relaunchNow": "Restart Now",
@@ -246,10 +209,6 @@
         "name": "AI Chat Databases",
         "description": "AI chat history and config files"
       },
-      "downloads": {
-        "name": "Downloads",
-        "description": "Screenshots, analysis results, etc."
-      },
       "statsCache": {
         "name": "Cache Data",
         "description": "Statistics cache for chat records, auto-rebuilt after clearing"
@@ -267,15 +226,7 @@
       "defaultThreshold": "Default Gap Threshold",
       "thresholdUnit": "minutes",
       "thresholdHelp": "Messages exceeding this time gap will be split into a new session",
-      "notGenerated": "Session index not generated",
-      "generateHint": "Generate index to help AI better understand conversation context",
-      "generate": "Generate Index",
-      "regenerate": "Regenerate",
       "generating": "Generating",
-      "sessionCount": "{count} sessions",
-      "generated": "Session index generated",
-      "generateSuccess": "Session index generated successfully, {count} sessions created",
-      "generateError": "Generation failed",
       "batchTitle": "Batch Generate Index",
       "totalSessions": "{count} chats total",
       "generatedCount": "{count} generated",
@@ -411,56 +362,6 @@
       "bufferDesc": "Percentage of recent messages to keep uncompressed",
       "maxToolResultPercent": "Tool result limit",
       "maxToolResultPercentDesc": "Maximum data percentage per tool call sent to AI (based on model context window). Excess results are intelligently truncated"
-    },
-    "presets": {
-      "title": "System Prompts",
-      "add": "Add Preset",
-      "import": "Import Presets",
-      "description": "Prompts are used for both group and private chat analysis, system adjusts content based on analysis type"
-    },
-    "preset": {
-      "builtIn": "Built-in",
-      "groupOnly": "Group Only",
-      "privateOnly": "Private Only",
-      "view": "View",
-      "edit": "Edit",
-      "copy": "Copy",
-      "delete": "Delete"
-    },
-    "modal": {
-      "editBuiltin": "Edit System Prompt",
-      "editCustom": "Edit Custom Prompt",
-      "addCustom": "Add Custom Prompt",
-      "presetName": "Preset Name",
-      "presetNamePlaceholder": "Give your preset a name",
-      "applicableTo": "Applicable To",
-      "applicableToHint": " (Check to enable for corresponding analysis type)",
-      "groupChat": "Group Chat",
-      "privateChat": "Private Chat",
-      "systemPrompt": "System Prompt",
-      "systemPromptPlaceholder": "Define the AI assistant's role, tasks and response requirements...",
-      "preview": "Full Prompt Preview",
-      "previewHint": " (Preview shows group chat mode, actual will adjust based on analysis type)",
-      "resetToDefault": "Reset to Default",
-      "saveChanges": "Save Changes",
-      "addPreset": "Add Preset"
-    },
-    "importPreset": {
-      "title": "Import Presets",
-      "description": "Get recommended system prompt presets from remote",
-      "loading": "Loading remote presets...",
-      "loadError": "Failed to load remote presets",
-      "noPresets": "No remote presets available",
-      "commonPresets": "Universal Presets",
-      "groupPresets": "Group Chat Only",
-      "privatePresets": "Private Chat Only",
-      "add": "Add",
-      "added": "Added",
-      "preview": "Preview",
-      "systemPrompt": "System Prompt",
-      "noDescription": "No description",
-      "fetchingContent": "Loading content...",
-      "fetchError": "Failed to load content"
     }
   },
   "about": {
@@ -471,11 +372,7 @@
     "checking": "Checking...",
     "upToDate": "You are up to date",
     "newVersionAvailable": "New version {version} available",
-    "updateNow": "Update Now",
     "webUpdateHint": "Run clb update in your terminal, then restart the service.",
-    "updating": "Updating...",
-    "updateSuccess": "Update successful, please restart the service to apply",
-    "updateFailed": "Update failed: {error}",
     "updateCheckFailed": "Update check failed: {error}",
     "unknown": "Unknown",
     "privacy": {
@@ -501,8 +398,6 @@
     "denoiseDesc": "Filter out meaningless messages like interjections, emojis, and system placeholders (e.g. [Image])",
     "desensitize": "Data Masking",
     "desensitizeDesc": "Replace sensitive information (phone numbers, emails, ID numbers, etc.) based on rules",
-    "desensitizeRules": "Masking Rules",
-    "desensitizeRulesDesc": "Enable masking rules by group. Individual rules can still be disabled and are matched in list order",
     "desensitizeBuiltin": "Built-in Rules",
     "desensitizeResetBuiltin": "Restore Defaults",
     "desensitizeCustom": "Custom Rules",
@@ -579,7 +474,6 @@
     }
   },
   "api": {
-    "betaWarning": "The current API version is in Beta, and endpoints may change at any time.",
     "service": {
       "title": "API Service",
       "enable": "Enable API Service",
@@ -624,22 +518,15 @@
         "modalTitle": "Add Data Source",
         "name": "Name",
         "namePlaceholder": "e.g., My Chat Server",
-        "url": "Data Source URL",
         "token": "Access Token",
         "tokenPlaceholder": "Bearer Token for the remote API",
         "interval": "Pull Interval (minutes)",
         "pullLimit": "Messages per Pull",
-        "pullLimitPlaceholder": "Default 1000",
-        "targetSession": "Target Session ID (optional)",
-        "targetSessionPlaceholder": "Leave empty to create new session each time",
-        "add": "Add"
+        "pullLimitPlaceholder": "Default 1000"
       },
       "discovery": {
-        "directMode": "Direct URL",
-        "remoteMode": "Remote Server",
         "baseUrl": "Server URL",
         "baseUrlPlaceholder": "e.g. http://127.0.0.1:2333/api/v1",
-        "browse": "Browse Sessions",
         "found": "Found {count} sessions",
         "search": "Search",
         "searchPlaceholder": "Search by session name",
@@ -649,7 +536,6 @@
         "typeAll": "All",
         "typePrivate": "Private",
         "typeGroup": "Group",
-        "typeOther": "Other",
         "loadMore": "Load More",
         "subscribe": "Subscribe {count} sessions",
         "messages": "messages",
@@ -662,8 +548,6 @@
         "cancel": "Cancel",
         "editSource": "Edit Config",
         "manageSessions": "Manage Subscriptions",
-        "manageSessionsDesc": "Re-select remote sessions to sync",
-        "syncAll": "Sync All",
         "subscribed": "Subscribed"
       },
       "deleteConfirm": {

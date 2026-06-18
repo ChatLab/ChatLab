@@ -65,8 +65,6 @@
   },
   "messageItem": {
     "viewContext": "查看上下文",
-    "contextTitle": "消息上下文（前后各10条）",
-    "noContext": "暂无上下文",
     "replyTo": "回复"
   },
   "sessionIndex": {

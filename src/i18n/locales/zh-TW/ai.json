@@ -1,23 +1,13 @@
 {
   "tab": {
     "chatExplorer": "對話式探索",
-    "sqlLab": "SQL 實驗室",
-    "featureInDev": "{name} 功能開發中",
-    "comingSoon": "敬請期待...",
-    "followNotice": "新功能上線通知，歡迎關注我的小紅書"
+    "sqlLab": "SQL 實驗室"
   },
   "chat": {
-    "welcome": {
-      "configReady": "✅ AI 服務已設定完成，可以開始對話了！",
-      "configNeeded": "**注意**：使用前請先在側邊欄底部的「設定」中設定 AI 服務 ⚙️"
-    },
-    "capture": "截圖對話",
     "scrollToBottom": "回到底部",
     "input": {
-      "placeholder": "輸入你的問題...",
       "placeholderWithSlash": "輸入你的問題，或輸入 / 選擇技能、輸入 {'@'} 選擇成員...",
       "placeholderWithActiveSkill": "已選擇 /{name}，請輸入具體問題...",
-      "removeSkill": "移除目前技能",
       "slashHint": "輸入 / 選擇技能",
       "useSkill": "選擇技能",
       "mentionHint": "輸入 {'@'} 選擇成員",
@@ -26,12 +16,9 @@
       "slashEmpty": "沒有符合的技能",
       "slashEmptyHint": "開啟技能管理匯入內建技能，或建立自訂技能",
       "manageSkills": "管理技能",
-      "previewTitle": "技能提示詞",
       "previewTagsLabel": "標籤",
       "previewToolsLabel": "工具",
       "previewUnavailable": "暫無可預覽的技能提示詞",
-      "presetMore": "更多",
-      "presetCollapse": "收起",
       "quickAsk": "快速提問",
       "editQuickAsk": "編輯快速提問",
       "send": "送出",
@@ -50,8 +37,6 @@
       "return": "返回查看"
     },
     "message": {
-      "userAvatar": "使用者頭像",
-      "calling": "執行",
       "copy": {
         "tooltip": "複製 Markdown",
         "success": "Markdown 已複製到剪貼簿",
@@ -82,8 +67,6 @@
       "generating": "正在產生回覆...",
       "summary": {
         "label": "上下文摘要",
-        "expand": "展開摘要",
-        "collapse": "收起摘要",
         "info": "以上對話已被壓縮為摘要以節省上下文空間"
       },
       "plan": {
@@ -91,13 +74,7 @@
         "evidenceNeeded": "所需證據",
         "suggestedTools": "建議工具",
         "successCriteria": "完成標準",
-        "noTools": "無",
-        "status": {
-          "created": "已建立",
-          "executing": "執行中",
-          "done": "已完成",
-          "skipped": "已略過"
-        }
+        "noTools": "無"
       },
       "think": {
         "labels": {
@@ -136,18 +113,8 @@
       "compressing": "正在壓縮上下文..."
     },
     "statusBar": {
-      "preset": {
-        "default": "預設",
-        "groupTitle": "群聊提示詞預設",
-        "privateTitle": "私聊提示詞預設",
-        "manage": "管理提示詞"
-      },
       "model": {
-        "title": "AI 模型設定",
-        "notConfigured": "AI 尚未設定",
-        "empty": "尚無設定",
-        "manage": "管理模型",
-        "switchFailed": "切換模型失敗"
+        "notConfigured": "AI 尚未設定"
       },
       "messageLimit": {
         "label": "訊息上限：",
@@ -156,7 +123,6 @@
       "agent": {
         "label": "Agent",
         "contextTokens": "上下文",
-        "stats": "段 {segment} · 標籤 {tags}",
         "phase": {
           "compressing": "壓縮上下文",
           "preparing": "準備中",
@@ -203,24 +169,9 @@
         "title": "開啟當前 AI 日誌檔案",
         "openFailed": "開啟日誌失敗",
         "openFailedDesc": "請稍後重試"
-      },
-      "compress": {
-        "label": "壓縮",
-        "title": "手動壓縮上下文",
-        "compressing": "正在壓縮...",
-        "success": "上下文已壓縮",
-        "successDesc": "{before} → {after} tokens",
-        "skipped": "跳過壓縮",
-        "skippedDesc": "訊息不足，無需壓縮",
-        "failed": "壓縮失敗"
-      },
-      "status": {
-        "connected": "AI 已連線",
-        "notConfigured": "請先在全域設定中設定 AI 服務"
       }
     },
     "conversation": {
-      "title": "AI 對話紀錄",
       "newChat": "新對話",
       "newConversation": "新建對話",
       "empty": "暫無歷史紀錄",
@@ -271,7 +222,6 @@
       "query": "問題",
       "criteria": "判定標準",
       "empty": "未找到明確可計入的證據",
-      "viewSource": "查看原紀錄",
       "totalSources": "共 {count} 條來源",
       "mode": {
         "auto": "自動",
@@ -298,14 +248,11 @@
     "editor": {
       "errorEmptySQL": "請輸入 SQL 語句",
       "placeholder": "輸入 SQL 查詢語句...",
-      "promptTip": "用自然語言描述你的查詢需求，系統會自動生成並執行 SQL",
       "tip": "提示：雙擊左側欄位名可插入到 SQL",
       "history": "歷史",
-      "aiGenerate": "AI 產生",
       "generateAndRun": "生成並執行",
       "switchToSQLMode": "切換為 SQL 輸入模式",
       "switchToPromptMode": "切換為 Prompt 輸入模式",
-      "shortcut": "Ctrl/⌘ + Enter 執行",
       "run": "執行"
     },
     "schema": {
@@ -320,7 +267,6 @@
       "viewChat": "檢視聊天紀錄",
       "summarize": "整理摘要",
       "pageSize": "每頁",
-      "pageInfo": "第 {current} / {total} 頁",
       "emptyResult": "查詢結果為空",
       "initialState": "輸入 SQL 語句後執行，即可查看結果",
       "initialHint": "僅支援唯讀查詢（SELECT / WITH），建議添加 LIMIT 以提升效能",
@@ -329,8 +275,6 @@
       "errorSummary": "總結失敗"
     },
     "generate": {
-      "title": "AI 產生 SQL",
-      "description": "用自然語言描述你想查詢的內容，AI 會自動產生對應的 SQL 語句。",
       "placeholder": "例如：查找發言最多的前 10 個成員、統計每天的訊息數量、找出包含「買房」關鍵字的訊息...",
       "errorEmptyPrompt": "請輸入查詢需求",
       "errorGenerate": "AI 產生失敗",
@@ -339,11 +283,6 @@
       "thinking": "思考中…",
       "thinkingProcess": "思考過程",
       "waitingAI": "等待 AI 回應...",
-      "sqlStatement": "SQL 語句",
-      "explanation": "說明",
-      "generateSQL": "產生 SQL",
-      "useSQL": "使用 SQL",
-      "run": "執行",
       "defaultPromptPrivate": "請統計最近1年私聊中雙方各自的：訊息總數、訊息占比、活躍天數、日均訊息數（按活躍天計算）、首次發言時間、最近發言時間；依訊息總數降序顯示。",
       "defaultPromptGroup": "請統計最近1年群聊中各成員的：訊息總數、訊息占比、活躍天數、日均訊息數（按活躍天計算）、文字訊息占比；顯示成員名稱並依訊息總數降序，返回前20名。"
     },
@@ -386,15 +325,12 @@
       "localeHint": "不選代表套用全部語言",
       "presetQuestions": "預設問題",
       "addQuestion": "新增問題...",
-      "builtinTools": "內建工具",
       "coreTools": "核心工具",
       "coreToolsHint": "基礎資料取得工具，始終啟用，無法關閉",
       "analysisTools": "分析工具",
       "analysisToolsHint": "按需開啟的分析能力，勾選後才會對 AI 可用",
       "selectAll": "全選",
       "deselectAll": "全不選",
-      "builtinToolsHint": "若未勾選任何工具，代表全部可用；勾選後僅開放所選工具。",
-      "toolGroupQuery": "資料查詢",
       "resetDefault": "還原預設",
       "create": "建立"
     },
@@ -407,7 +343,6 @@
       "localHint": "管理已導入的助手，可配置或刪除",
       "marketHint": "瀏覽助手市場，導入後即可使用和自由編輯",
       "default": "預設",
-      "updateAvailable": "更新可用",
       "reimport": "重新導入",
       "imported": "已導入",
       "import": "導入",
@@ -475,7 +410,6 @@
       },
       "localHint": "管理已導入的技能，可配置或刪除",
       "marketHint": "瀏覽技能市場，導入後即可使用和自由編輯",
-      "updateAvailable": "更新可用",
       "reimport": "重新導入",
       "imported": "已導入",
       "import": "導入",
@@ -489,18 +423,12 @@
       "loadFailed": "載入失敗，請檢查網路連線",
       "retry": "重試"
     },
-    "block": {
-      "label": "技能：{name}"
-    },
     "active": {
       "label": "主動呼叫技能：{name}"
     }
   },
   "lab": {
-    "basicTools": "基礎工具",
     "toolTest": {
-      "selectTool": "選擇工具",
-      "selectToolPlaceholder": "請選擇一個工具...",
       "coreTools": "核心工具",
       "analysisTools": "分析工具",
       "parameters": "參數",

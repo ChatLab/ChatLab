@@ -1,6 +1,5 @@
 {
   "cluster": {
-    "title": "やり取り頻度",
     "rankingView": "ランキング表示",
     "memberView": "メンバー表示",
     "matrixView": "マトリクス表示",
@@ -45,11 +44,7 @@
     "noTextMessages": "テキストメッセージがありません",
     "noData": "データがありません",
     "profile": {
-      "totalMessages": "総メッセージ",
-      "textMessages": "テキストメッセージ",
-      "avgLength": "平均文字数",
       "avgLengthUnit": "{count} 文字/件",
-      "mediaRatio": "メディア比率",
       "textExpression": "テキスト表現力",
       "textExpressionDesc": "最長メッセージ {count} 文字",
       "mediaRichness": "メディアの豊かさ",
@@ -57,31 +52,12 @@
       "shortMasterDesc": "5文字以下 {count} 件",
       "essayLover": "長文好き",
       "essayLoverDesc": "{threshold}文字以上のメッセージ",
-      "peakRecord": "ピーク記録",
-      "peakRecordDesc": "1日最多 {count} 件",
-      "topHours": "最もアクティブな時間帯",
-      "images": "画像",
-      "emoji": "スタンプ",
-      "voiceVideo": "音声/動画",
       "typeDistribution": "メッセージ種類",
-      "hourlyDistribution": "24h アクティビティ",
-      "watermark": "メッセージレポート",
       "heroLine1Prefix": "合計で",
-      "heroLine1Suffix": "件のメッセージを交わしました",
-      "heroLine2Prefix": "1件平均",
-      "heroLine2Middle": "文字、そのうち",
-      "heroLine2Suffix": "がテキスト以外"
+      "heroLine1Suffix": "件のメッセージを交わしました"
     },
     "typeCard": {
-      "totalMessages": "件のメッセージ",
-      "typeCount": "タイプ数",
-      "textRatio": "テキスト比率",
-      "avgLength": "平均文字数",
-      "topType": "最多タイプ",
-      "distribution": "タイプ分布",
       "watermark": "タイプレポート",
-      "heroLine2Prefix": "",
-      "heroLine2TypeSuffix": "種類のタイプを含み、",
       "nonTextPrefix": "テキスト以外に、",
       "nonTextImage": "画像",
       "nonTextEmoji": "スタンプ",
@@ -97,11 +73,6 @@
       "unitLink": "個のリンク"
     },
     "timeCard": {
-      "activeDays": "日アクティブ",
-      "totalDays": "日",
-      "peakDay": "ピーク日",
-      "peakHour": "ピーク時間",
-      "peakWeekday": "ピーク曜日",
       "hourlyDistribution": "24h 分布",
       "watermark": "時間レポート",
       "heroDaysIn": "日間で",
@@ -128,9 +99,6 @@
       "memberTrendHint": "メンバー別月次メッセージ推移"
     },
     "typeAnalysis": {
-      "trendTitle": "メッセージタイプトレンド",
-      "trendHint": "タイプ別月次推移",
-      "otherTypes": "その他",
       "textDepthTitle": "テキスト深度分析",
       "textTotal": "テキスト総数",
       "avgLength": "平均文字数",
@@ -142,7 +110,6 @@
     }
   },
   "interaction": {
-    "mentionGraph": "メンション関係図",
     "layout": "レイアウト",
     "circular": "サークル",
     "force": "フォースレイアウト",
@@ -152,17 +119,9 @@
     "noInteraction": "メンションデータがありません"
   },
   "relationship": {
-    "loading": "関係動態を分析中…",
-    "noIndex": {
-      "title": "セッションインデックスが必要です",
-      "description": "関係分析にはセッションインデックスが必要です。概要ページからセッションインデックスを生成してください。"
-    },
     "empty": {
       "title": "関係データがありません",
       "description": "選択した期間内にセッションが見つかりません。"
-    },
-    "overview": {
-      "title": "全体概要"
     },
     "monthly": {
       "title": "月別明細",
@@ -174,11 +133,6 @@
       "hint": "青い線は {name} の月別主動発起率。50% 線がバランス基準です"
     },
     "hero": {
-      "monthPart": "{year}年{month}月",
-      "timeRange": {
-        "singleMonth": "{month}では、",
-        "range": "{start}から{end}までの期間では、"
-      },
       "totalSessionsPrefix": "2人の会話は合計",
       "totalSessionsSuffix": "回",
       "initiativePrefix": "",
@@ -190,46 +144,28 @@
     "closer": "話題を終える",
     "closerTitle": "会話の締め役",
     "closerHint": "話題が終わるときに最後に発言した人を集計します。",
-    "initiated": "{count} 回発起",
-    "closed": "{count} 回終了",
-    "totalSessions": "合計 {count} セッション",
-    "times": "回",
     "noActivity": "今月はやり取りなし",
     "watermarkReport": "関係レポート",
     "monthFormat": "{year}年{month}月",
     "monthShortFormat": "{month}月",
-    "monthDetail": "発起 {init} / 終了 {close}",
     "iceBreaker": {
       "title": "アイスブレイカー",
-      "hint": "24時間以上の沈黙を破って話しかけた回数",
-      "count": "{count} 回の破氷",
-      "total": "合計 {count} 回の破氷"
+      "hint": "24時間以上の沈黙を破って話しかけた回数"
     },
     "responseLatency": {
       "title": "返信速度",
       "hint": "相手がメッセージを送った後、平均何分で返信するか",
-      "count": "{count} 回の返信",
       "seconds": "{n} 秒",
-      "minutes": "{n} 分",
       "minutesSeconds": "{m}分{s}秒",
       "hours": "{n} 時間",
       "hoursMinutes": "{h} 時間 {m} 分"
     },
     "perseverance": {
       "title": "粘り強さ",
-      "hint": "相手が返信する前にもう一通メッセージを送った回数",
       "hintWithThreshold": "相手が{threshold}以内に返信しないうちに、もう一通メッセージを送った回数",
-      "thresholdMinutes": "{n}分",
-      "count": "{count} 回",
-      "total": "合計 {count} 回",
-      "threshold": "間隔",
-      "empty": "この閾値では粘り強さの記録がありません"
+      "thresholdMinutes": "{n}分"
     },
     "labels": {
-      "mutualPursuit": "双方向の想い",
-      "silentGuardian": "静かな守り手",
-      "devotedHeart": "一途な想い",
-      "distantBond": "遠い絆",
       "wellMatched": "互角",
       "missingYou": "{name} が恋しがっている",
       "monologue": "{name} の独白",

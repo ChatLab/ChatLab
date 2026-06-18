@@ -1,23 +1,13 @@
 {
   "tab": {
     "chatExplorer": "対話で探索",
-    "sqlLab": "SQL ラボ",
-    "featureInDev": "{name}機能は開発中です",
-    "comingSoon": "近日公開...",
-    "followNotice": "新機能のお知らせは公式 Xiaohongshu で発信しています"
+    "sqlLab": "SQL ラボ"
   },
   "chat": {
-    "welcome": {
-      "configReady": "✅ AI サービスの設定が完了しました。すぐにチャットを始められます。",
-      "configNeeded": "**ご注意**：ご利用前にサイドバー下部の「設定」から AI サービスを設定してください ⚙️"
-    },
-    "capture": "会話を画像保存",
     "scrollToBottom": "下へ移動",
     "input": {
-      "placeholder": "質問を入力...",
       "placeholderWithSlash": "質問を入力、または / でスキル、{'@'} でメンバーを選択...",
       "placeholderWithActiveSkill": "/{name} を選択済みです。具体的な質問を入力してください...",
-      "removeSkill": "現在のスキルを解除",
       "slashHint": "/ でスキルを選択",
       "useSkill": "スキルを選ぶ",
       "mentionHint": "{'@'} でメンバーを選択",
@@ -26,12 +16,9 @@
       "slashEmpty": "一致するスキルがありません",
       "slashEmptyHint": "スキル管理を開いて内蔵スキルを読み込むか、カスタムスキルを作成してください",
       "manageSkills": "スキルを管理",
-      "previewTitle": "スキルプロンプト",
       "previewTagsLabel": "タグ",
       "previewToolsLabel": "ツール",
       "previewUnavailable": "プレビューできるスキルプロンプトがありません",
-      "presetMore": "もっと見る",
-      "presetCollapse": "折りたたむ",
       "quickAsk": "クイック質問",
       "editQuickAsk": "クイック質問を編集",
       "send": "送信",
@@ -50,8 +37,6 @@
       "return": "戻って確認"
     },
     "message": {
-      "userAvatar": "ユーザーアバター",
-      "calling": "実行中",
       "copy": {
         "tooltip": "Markdown をコピー",
         "success": "Markdown をクリップボードにコピーしました",
@@ -82,8 +67,6 @@
       "generating": "回答を作成中...",
       "summary": {
         "label": "コンテキスト要約",
-        "expand": "要約を展開",
-        "collapse": "要約を折りたたむ",
         "info": "以前の会話がコンテキスト節約のため要約に圧縮されました"
       },
       "plan": {
@@ -91,13 +74,7 @@
         "evidenceNeeded": "必要な証拠",
         "suggestedTools": "推奨ツール",
         "successCriteria": "成功基準",
-        "noTools": "なし",
-        "status": {
-          "created": "作成済み",
-          "executing": "実行中",
-          "done": "完了",
-          "skipped": "スキップ"
-        }
+        "noTools": "なし"
       },
       "think": {
         "labels": {
@@ -136,18 +113,8 @@
       "compressing": "コンテキストを圧縮中..."
     },
     "statusBar": {
-      "preset": {
-        "default": "既定",
-        "groupTitle": "グループチャット用プロンプト",
-        "privateTitle": "個人チャット用プロンプト",
-        "manage": "プロンプト管理"
-      },
       "model": {
-        "title": "AI モデル設定",
-        "notConfigured": "AI 未設定",
-        "empty": "設定がありません",
-        "manage": "設定を管理",
-        "switchFailed": "モデルの切り替えに失敗しました"
+        "notConfigured": "AI 未設定"
       },
       "messageLimit": {
         "label": "メッセージ上限：",
@@ -156,7 +123,6 @@
       "agent": {
         "label": "Agent",
         "contextTokens": "コンテキスト",
-        "stats": "セグメント {segment} ・タグ {tags}",
         "phase": {
           "compressing": "圧縮中",
           "preparing": "準備中",
@@ -203,24 +169,9 @@
         "title": "現在の AI ログファイルを開く",
         "openFailed": "ログを開けませんでした",
         "openFailedDesc": "しばらくしてから再度お試しください"
-      },
-      "compress": {
-        "label": "圧縮",
-        "title": "手動でコンテキストを圧縮",
-        "compressing": "圧縮中...",
-        "success": "コンテキストが圧縮されました",
-        "successDesc": "{before} → {after} トークン",
-        "skipped": "圧縮をスキップ",
-        "skippedDesc": "圧縮に十分なメッセージがありません",
-        "failed": "圧縮に失敗しました"
-      },
-      "status": {
-        "connected": "AI 接続中",
-        "notConfigured": "グローバル設定で AI サービスを設定してください"
       }
     },
     "conversation": {
-      "title": "AI チャット履歴",
       "newChat": "新規チャット",
       "newConversation": "新規チャット",
       "empty": "履歴はありません",
@@ -271,7 +222,6 @@
       "query": "質問",
       "criteria": "判定基準",
       "empty": "明確な根拠は見つかりませんでした",
-      "viewSource": "元の記録を表示",
       "totalSources": "全 {count} 件のソース",
       "mode": {
         "auto": "自動",
@@ -298,14 +248,11 @@
     "editor": {
       "errorEmptySQL": "SQL 文を入力してください",
       "placeholder": "SQL クエリを入力...",
-      "promptTip": "自然言語で要件を書くと、SQL を自動生成して実行します",
       "tip": "ヒント：左側の列名をダブルクリックすると SQL に挿入できます",
       "history": "履歴",
-      "aiGenerate": "AI 生成",
       "generateAndRun": "生成して実行",
       "switchToSQLMode": "SQL 入力モードに切り替え",
       "switchToPromptMode": "Prompt 入力モードに切り替え",
-      "shortcut": "Ctrl/⌘ + Enter で実行",
       "run": "実行"
     },
     "schema": {
@@ -320,7 +267,6 @@
       "viewChat": "チャット履歴を見る",
       "summarize": "要約する",
       "pageSize": "表示件数",
-      "pageInfo": "{current} / {total} ページ",
       "emptyResult": "クエリ結果が空です",
       "initialState": "SQL 文を入力して実行すると結果が表示されます",
       "initialHint": "読み取り専用クエリ（SELECT / WITH）のみ対応しています。速度向上のため LIMIT の指定をおすすめします",
@@ -329,8 +275,6 @@
       "errorSummary": "要約に失敗しました"
     },
     "generate": {
-      "title": "AI で SQL 生成",
-      "description": "自然言語でクエリ内容を説明すると、AI が対応する SQL 文を自動生成します。",
       "placeholder": "例：発言数が最も多い上位10名のメンバーを検索、1日あたりのメッセージ数を集計、「旅行」というキーワードを含むメッセージを検索...",
       "errorEmptyPrompt": "クエリ要件を入力してください",
       "errorGenerate": "AI 生成に失敗しました",
@@ -339,11 +283,6 @@
       "thinking": "思考中…",
       "thinkingProcess": "思考プロセス",
       "waitingAI": "AI の応答待ち...",
-      "sqlStatement": "SQL 文",
-      "explanation": "説明",
-      "generateSQL": "SQL を生成",
-      "useSQL": "SQL を使用",
-      "run": "実行",
       "defaultPromptPrivate": "この個人チャットの直近1年間について、2人それぞれのメッセージ総数・割合・アクティブ日数・アクティブ日あたり平均件数・初回発言時刻・最終発言時刻を集計し、メッセージ総数の降順で表示してください。",
       "defaultPromptGroup": "このグループチャットの直近1年間について、各メンバーのメッセージ総数・割合・アクティブ日数・アクティブ日あたり平均件数・テキスト比率を集計し、表示名付きでメッセージ総数の降順上位20名を返してください。"
     },
@@ -386,15 +325,12 @@
       "localeHint": "未選択なら全言語が対象です",
       "presetQuestions": "プリセット質問",
       "addQuestion": "質問を追加...",
-      "builtinTools": "標準ツール",
       "coreTools": "コアツール",
       "coreToolsHint": "基本データ取得ツール、常に有効、無効化不可",
       "analysisTools": "分析ツール",
       "analysisToolsHint": "必要に応じて有効化。チェックしたツールのみ AI が利用可能",
       "selectAll": "すべて選択",
       "deselectAll": "すべて解除",
-      "builtinToolsHint": "何も選ばなければ全ツールを使います。選択した場合は、そのツールだけが有効になります。",
-      "toolGroupQuery": "データ検索ツール",
       "resetDefault": "デフォルトに戻す",
       "create": "作成"
     },
@@ -407,7 +343,6 @@
       "localHint": "インポート済みのアシスタントを管理・設定・削除",
       "marketHint": "アシスタントマーケットを閲覧し、インポートして使用・カスタマイズ",
       "default": "デフォルト",
-      "updateAvailable": "更新あり",
       "reimport": "再インポート",
       "imported": "インポート済み",
       "import": "インポート",
@@ -475,7 +410,6 @@
       },
       "localHint": "インポート済みのスキルを管理・設定・削除",
       "marketHint": "スキルマーケットを閲覧し、インポートして使用・カスタマイズ",
-      "updateAvailable": "更新あり",
       "reimport": "再インポート",
       "imported": "インポート済み",
       "import": "インポート",
@@ -489,18 +423,12 @@
       "loadFailed": "読み込みに失敗しました。ネットワーク接続を確認してください",
       "retry": "再試行"
     },
-    "block": {
-      "label": "スキル：{name}"
-    },
     "active": {
       "label": "手動呼び出しスキル：{name}"
     }
   },
   "lab": {
-    "basicTools": "基本ツール",
     "toolTest": {
-      "selectTool": "ツールを選択",
-      "selectToolPlaceholder": "ツールを選択してください...",
       "coreTools": "コアツール",
       "analysisTools": "分析ツール",
       "parameters": "パラメータ",

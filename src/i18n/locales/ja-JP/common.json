@@ -5,7 +5,6 @@
   "save": "保存",
   "edit": "編集",
   "add": "追加",
-  "rename": "名前変更",
   "capture": "スクリーンショット",
   "close": "閉じる",
   "back": "戻る",
@@ -14,7 +13,6 @@
   "initFailed": "アプリの初期化に失敗しました",
   "loading": "読み込み中...",
   "initializing": "初期化中...",
-  "noData": "データがありません",
   "noResults": "結果が見つかりません",
   "export": "エクスポート",
   "exportSuccess": "エクスポートに成功しました",
@@ -23,24 +21,8 @@
   "regenerate": "再生成",
   "openFolder": "フォルダーを開く",
   "errorNoAIConfig": "先に設定でAIサービスを構成してください",
-  "reset": "リセット",
   "error": {
-    "general": "操作に失敗しました。再試行してください",
-    "network": "ネットワークエラー",
     "unknown": "不明なエラー"
-  },
-  "attachment": {
-    "image": "画像",
-    "video": "動画",
-    "audio": "音声",
-    "file": "ファイル",
-    "sticker": "スタンプ",
-    "link": "リンク"
-  },
-  "unit": {
-    "messages": "件のメッセージ",
-    "members": "人",
-    "days": "日"
   },
   "messageType": {
     "text": "テキスト",
@@ -111,14 +93,12 @@
       "custom": "カスタム"
     },
     "recent": {
-      "halfYear": "半年間",
       "oneYear": "1年間",
       "twoYears": "2年間",
       "fiveYears": "5年間",
       "all": "すべて"
     },
     "display": {
-      "recent180": "最近半年間",
       "recent365": "最近1年間",
       "recent730": "最近2年間",
       "recent1825": "最近5年間"

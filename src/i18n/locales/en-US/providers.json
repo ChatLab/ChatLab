@@ -1,60 +1,24 @@
 {
   "deepseek": {
-    "name": "DeepSeek",
-    "models": {
-      "deepseek-v4-pro": "Flagship model, 1M context, thinking & non-thinking",
-      "deepseek-v4-flash": "Fast model, 1M context, thinking & non-thinking"
-    }
+    "name": "DeepSeek"
   },
   "qwen": {
-    "name": "Qwen",
-    "models": {
-      "qwen-turbo": "Large-scale model, fast speed",
-      "qwen-plus": "Large-scale model, better quality",
-      "qwen-max": "Massive-scale model"
-    }
+    "name": "Qwen"
   },
   "gemini": {
-    "name": "Gemini",
-    "models": {
-      "gemini-3-flash-preview": "Fast preview version",
-      "gemini-3-pro-preview": "Professional preview version"
-    }
+    "name": "Gemini"
   },
   "minimax": {
-    "name": "MiniMax",
-    "models": {
-      "MiniMax-M2": "Flagship model",
-      "MiniMax-M2-Stable": "Stable version"
-    }
+    "name": "MiniMax"
   },
   "glm": {
-    "name": "GLM",
-    "models": {
-      "glm-4-plus": "Flagship model, best performance",
-      "glm-4-flash": "Fast model, cost-effective",
-      "glm-4": "Standard model",
-      "glm-4v-plus": "Multimodal vision model",
-      "glm-4.6v-flash": "4.6V free version",
-      "glm-4.5-flash": "4.5 free version"
-    }
+    "name": "GLM"
   },
   "kimi": {
-    "name": "Kimi",
-    "models": {
-      "moonshot-v1-8k": "8K context",
-      "moonshot-v1-32k": "32K context",
-      "moonshot-v1-128k": "128K ultra-long context"
-    }
+    "name": "Kimi"
   },
   "doubao": {
-    "name": "Doubao",
-    "models": {
-      "doubao-seed-1-6-lite-251015": "Doubao 1.6 model, cost-effective",
-      "doubao-seed-1-6-251015": "Enhanced Doubao 1.6 model",
-      "doubao-seed-1-6-flash-250828": "Faster Doubao 1.6 model",
-      "doubao-1-5-lite-32k-250115": "Doubao 1.5 Pro model"
-    }
+    "name": "Doubao"
   },
   "siliconflow": {
     "name": "SiliconFlow"

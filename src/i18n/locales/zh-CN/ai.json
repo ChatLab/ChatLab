@@ -1,23 +1,13 @@
 {
   "tab": {
     "chatExplorer": "对话式探索",
-    "sqlLab": "SQL实验室",
-    "featureInDev": "{name}功能开发中",
-    "comingSoon": "敬请期待...",
-    "followNotice": "功能上线通知，欢迎关注我的小红书"
+    "sqlLab": "SQL实验室"
   },
   "chat": {
-    "welcome": {
-      "configReady": "✅ AI 服务已配置，可以开始对话了！",
-      "configNeeded": "**注意**：使用前请先在侧边栏底部的「设置」中配置 AI 服务 ⚙️"
-    },
-    "capture": "截屏对话",
     "scrollToBottom": "返回底部",
     "input": {
-      "placeholder": "输入你的问题...",
       "placeholderWithSlash": "输入你的问题，或输入 / 选择技能、输入 {'@'} 选择成员...",
       "placeholderWithActiveSkill": "已选择 /{name}，请输入具体问题...",
-      "removeSkill": "移除当前技能",
       "slashHint": "输入 / 选择技能",
       "useSkill": "选择技能",
       "mentionHint": "输入 {'@'} 选择成员",
@@ -26,12 +16,9 @@
       "slashEmpty": "没有匹配的技能",
       "slashEmptyHint": "打开技能管理导入内置技能，或创建一个自定义技能",
       "manageSkills": "管理技能",
-      "previewTitle": "技能提示词",
       "previewTagsLabel": "标签",
       "previewToolsLabel": "工具",
       "previewUnavailable": "暂无可预览的技能提示词",
-      "presetMore": "更多",
-      "presetCollapse": "收起",
       "quickAsk": "快速提问",
       "editQuickAsk": "编辑快速提问",
       "send": "发送",
@@ -50,8 +37,6 @@
       "return": "返回查看"
     },
     "message": {
-      "userAvatar": "用户头像",
-      "calling": "调用",
       "copy": {
         "tooltip": "复制 Markdown",
         "success": "Markdown 已复制到剪贴板",
@@ -82,8 +67,6 @@
       "generating": "正在生成回复...",
       "summary": {
         "label": "上下文摘要",
-        "expand": "展开摘要",
-        "collapse": "收起摘要",
         "info": "以上对话已被压缩为摘要以节省上下文空间"
       },
       "plan": {
@@ -91,13 +74,7 @@
         "evidenceNeeded": "所需证据",
         "suggestedTools": "建议工具",
         "successCriteria": "完成标准",
-        "noTools": "无",
-        "status": {
-          "created": "已创建",
-          "executing": "执行中",
-          "done": "已完成",
-          "skipped": "已跳过"
-        }
+        "noTools": "无"
       },
       "think": {
         "labels": {
@@ -136,18 +113,8 @@
       "compressing": "正在压缩上下文..."
     },
     "statusBar": {
-      "preset": {
-        "default": "默认预设",
-        "groupTitle": "群聊提示词预设",
-        "privateTitle": "私聊提示词预设",
-        "manage": "管理提示词"
-      },
       "model": {
-        "title": "AI 模型配置",
-        "notConfigured": "AI 未配置",
-        "empty": "暂无配置",
-        "manage": "管理配置",
-        "switchFailed": "切换模型失败"
+        "notConfigured": "AI 未配置"
       },
       "messageLimit": {
         "label": "消息上限：",
@@ -156,7 +123,6 @@
       "agent": {
         "label": "Agent",
         "contextTokens": "上下文",
-        "stats": "段 {segment} · 标签 {tags}",
         "phase": {
           "compressing": "压缩上下文",
           "preparing": "准备中",
@@ -203,24 +169,9 @@
         "title": "打开当前 AI 日志文件",
         "openFailed": "打开日志失败",
         "openFailedDesc": "请稍后重试"
-      },
-      "compress": {
-        "label": "压缩",
-        "title": "手动压缩上下文",
-        "compressing": "正在压缩...",
-        "success": "上下文已压缩",
-        "successDesc": "{before} → {after} tokens",
-        "skipped": "跳过压缩",
-        "skippedDesc": "消息不足，无需压缩",
-        "failed": "压缩失败"
-      },
-      "status": {
-        "connected": "AI 已连接",
-        "notConfigured": "请在全局设置中配置 AI 服务"
       }
     },
     "conversation": {
-      "title": "AI对话记录",
       "newChat": "新对话",
       "newConversation": "新建对话",
       "empty": "暂无历史记录",
@@ -271,7 +222,6 @@
       "query": "问题",
       "criteria": "判定标准",
       "empty": "未找到明确可计入的证据",
-      "viewSource": "查看原记录",
       "totalSources": "共 {count} 条来源",
       "mode": {
         "auto": "自动",
@@ -298,14 +248,11 @@
     "editor": {
       "errorEmptySQL": "请输入 SQL 语句",
       "placeholder": "输入 SQL 查询语句...",
-      "promptTip": "用自然语言描述你的查询需求，系统会自动生成并执行 SQL",
       "tip": "提示：双击左侧列名可插入到 SQL",
       "history": "历史",
-      "aiGenerate": "AI 生成",
       "generateAndRun": "生成并执行",
       "switchToSQLMode": "切换为 SQL 输入模式",
       "switchToPromptMode": "切换为 Prompt 输入模式",
-      "shortcut": "Ctrl/⌘ + Enter 执行",
       "run": "运行"
     },
     "schema": {
@@ -320,7 +267,6 @@
       "viewChat": "查看聊天记录",
       "summarize": "总结一下",
       "pageSize": "每页",
-      "pageInfo": "第 {current} / {total} 页",
       "emptyResult": "查询结果为空",
       "initialState": "输入 SQL 语句并运行查看结果",
       "initialHint": "仅支持只读查询（SELECT / WITH），建议添加 LIMIT 以提升性能",
@@ -329,8 +275,6 @@
       "errorSummary": "总结失败"
     },
     "generate": {
-      "title": "AI 生成 SQL",
-      "description": "用自然语言描述你想查询的内容，AI 将自动生成对应的 SQL 语句。",
       "placeholder": "例如：查找发言最多的前 10 个成员、统计每天的消息数量、找出包含「买房」关键词的消息...",
       "errorEmptyPrompt": "请输入查询需求",
       "errorGenerate": "AI 生成失败",
@@ -339,11 +283,6 @@
       "thinking": "思考中…",
       "thinkingProcess": "思考过程",
       "waitingAI": "等待 AI 响应...",
-      "sqlStatement": "SQL 语句",
-      "explanation": "说明",
-      "generateSQL": "生成 SQL",
-      "useSQL": "使用 SQL",
-      "run": "运行",
       "defaultPromptPrivate": "请统计最近1年私聊中双方各自的：消息总数、消息占比、活跃天数、日均消息数（按活跃天计算）、首次发言时间、最近发言时间；按消息总数降序展示。",
       "defaultPromptGroup": "请统计最近1年群聊中各成员的：消息总数、消息占比、活跃天数、日均消息数（按活跃天计算）、文本消息占比；显示成员名称并按消息总数降序，返回前20名。"
     },
@@ -386,15 +325,12 @@
       "localeHint": "不选 = 全语言",
       "presetQuestions": "预设问题",
       "addQuestion": "添加新问题...",
-      "builtinTools": "内置工具",
       "coreTools": "核心工具",
       "coreToolsHint": "基础数据获取工具，始终启用，不可关闭",
       "analysisTools": "分析工具",
       "analysisToolsHint": "按需开启的分析能力，勾选后才会对 AI 可用",
       "selectAll": "全选",
       "deselectAll": "全不选",
-      "builtinToolsHint": "不勾选任何工具 = 全部工具可用。勾选后仅开放已选工具。",
-      "toolGroupQuery": "数据查询工具",
       "resetDefault": "恢复默认",
       "create": "创建"
     },
@@ -407,7 +343,6 @@
       "localHint": "管理已导入的助手，可配置或删除",
       "marketHint": "浏览助手市场，导入后即可使用和自由编辑",
       "default": "默认",
-      "updateAvailable": "更新可用",
       "reimport": "重新导入",
       "imported": "已导入",
       "import": "导入",
@@ -467,30 +402,12 @@
     }
   },
   "skill": {
-    "selector": {
-      "title": "选择技能",
-      "freeChat": "自由对话",
-      "freeChatDesc": "不使用预设技能，由 AI 自主回答",
-      "manage": "技能管理",
-      "incompatible": "与当前助手不兼容",
-      "noSkills": "暂无可用技能",
-      "noSkillsHint": "通过技能管理导入内置技能或创建自定义技能",
-      "autoSkill": "AI 自主选择技能",
-      "autoSkillHint": "开启后 AI 可根据问题自动选择合适的技能"
-    },
     "config": {
       "createTitle": "新建技能",
       "editTitle": "技能配置",
-      "name": "名称",
-      "description": "描述",
-      "tags": "标签",
-      "chatScope": "适用范围",
       "chatScopeAll": "全部",
       "chatScopeGroup": "群聊",
       "chatScopePrivate": "私聊",
-      "prompt": "技能提示词",
-      "tools": "所需工具",
-      "rawEditor": "Markdown 编辑器",
       "rawEditorHint": "直接编辑完整的技能 Markdown 文件（含 YAML frontmatter）",
       "create": "创建",
       "save": "保存"
@@ -503,7 +420,6 @@
       },
       "localHint": "管理已导入的技能，可配置或删除",
       "marketHint": "浏览技能市场，导入后即可使用和自由编辑",
-      "updateAvailable": "更新可用",
       "reimport": "重新导入",
       "imported": "已导入",
       "import": "导入",
@@ -517,26 +433,12 @@
       "loadFailed": "加载失败，请检查网络连接",
       "retry": "重试"
     },
-    "block": {
-      "label": "技能：{name}"
-    },
     "active": {
       "label": "主动调用技能：{name}"
-    },
-    "toast": {
-      "createSuccess": "技能创建成功",
-      "createFailed": "技能创建失败",
-      "saveSuccess": "技能保存成功",
-      "saveFailed": "技能保存失败",
-      "deleteSuccess": "技能已删除",
-      "deleteFailed": "删除失败"
     }
   },
   "lab": {
-    "basicTools": "基础工具",
     "toolTest": {
-      "selectTool": "选择工具",
-      "selectToolPlaceholder": "请选择一个工具...",
       "coreTools": "核心工具",
       "analysisTools": "分析工具",
       "parameters": "参数",

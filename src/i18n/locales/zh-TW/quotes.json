@@ -1,14 +1,8 @@
 {
   "wordcloud": {
     "loading": "正在分析詞頻...",
-    "sidebar": {
-      "filter": "篩選條件",
-      "style": "樣式設定"
-    },
     "stats": {
-      "messagesLabel": "訊息數",
       "wordsLabel": "總詞數",
-      "uniqueLabel": "不重複詞數",
       "clickHint": "提示：點擊詞雲可查看相關訊息"
     },
     "config": {
@@ -17,8 +11,7 @@
       "userFilter": "使用者篩選",
       "posFilter": "詞性過濾",
       "enableStopwords": "過濾停用詞",
-      "dict": "分詞詞庫",
-      "advanced": "進階設定"
+      "dict": "分詞詞庫"
     },
     "size": {
       "small": "小",
@@ -82,8 +75,6 @@
       "templateNamePlaceholder": "如：正能量",
       "keywords": "關鍵字",
       "keywordPlaceholder": "輸入後按 Enter 新增",
-      "cancel": "取消",
-      "save": "儲存",
       "update": "更新"
     },
     "templates": {
@@ -136,14 +127,11 @@
     "empty": "暫無複讀資料"
   },
   "topicProfile": {
-    "dateAll": "全部訊息",
-    "dateNow": "至今",
     "heroPrefix": "共分析了",
     "heroMiddle": "則訊息，",
     "heroMiddleSecond": "產生了",
     "heroSuffix": "個不同詞彙",
     "topTopicsPrefix": "你們最愛聊：",
-    "topKeywords": "熱門關鍵詞",
     "hotTopic": "熱門話題",
     "hotTopicDesc": "出現了 {count} 次",
     "richness": "詞彙豐富度",
@@ -169,49 +157,30 @@
     "sharedTopics": "共同話題"
   },
   "catchphrase": {
-    "title": "💬 口頭禪分析",
     "loading": "正在分析口頭禪資料...",
-    "description": "已分析 {count} 位成員的高頻發言",
-    "countTemplate": "共 {count} 位成員",
     "times": "{count} 次",
     "empty": {
-      "title": "暫無口頭禪資料",
-      "description": "目前篩選條件下沒有足夠的重複發言用於產生詞雲"
+      "title": "暫無口頭禪資料"
     },
     "stats": {
-      "phrasesLabel": "高頻短語",
-      "totalLabel": "總使用次數",
       "clickHint": "提示：點擊可查看相關訊息"
     },
     "viewMode": {
       "list": "列表",
       "wordcloud": "詞雲"
     },
-    "phraseCount": "{count} 條口頭禪",
     "topN": "顯示數量"
   },
   "languagePreference": {
     "loading": "正在分析語言偏好...",
     "empty": "暫無足夠的文字訊息進行語言分析",
     "card": {
-      "sharedWordsLabel": "共同高頻詞",
-      "syncSubtext": "基於詞性分佈的說話方式相似度",
-      "warmthWarm": "暖",
-      "warmthCrisp": "幹練",
-      "warmthBalanced": "自然",
-      "expressionLabel": "你們的表達充滿了",
       "diversityTitle": "詞彙深度",
       "diversityDesc": "不重複詞彙佔比",
       "styleTitle": "聊天氣質",
       "styleDesc": "基於詞性分佈推導的表達風格",
       "punctTitle": "標點性格",
       "punctDesc": "最常用的標點風格",
-      "punctTopTitle": "標點符號 TOP5",
-      "punctTopDesc": "各自最常使用的標點符號",
-      "modalTopTitle": "語氣詞 TOP5",
-      "modalTopDesc": "各自最常使用的語氣詞",
-      "sharedWordsTitle": "共同高頻詞",
-      "sharedWordsDesc": "雙方都高頻使用的詞彙",
       "watermark": "語言偏好 · Language Preference",
       "radarFactual": "事實性",
       "radarActive": "行動感",
@@ -257,15 +226,6 @@
       "personalityFreeflow": "意識流型",
       "personalityPrecise": "嚴謹規範型",
       "empty": "暫無標點資料"
-    },
-    "sync": {
-      "title": "語言同頻度",
-      "description": "基於詞性分佈的說話方式相似度",
-
-      "labelSoulmate": "靈魂伴侶",
-      "labelHighSync": "高度默契",
-      "labelUnique": "各有特色",
-      "labelDiverse": "風格迥異"
     }
   }
 }

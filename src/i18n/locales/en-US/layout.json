@@ -1,8 +1,6 @@
 {
   "brand": "ChatLab",
   "newAnalysis": "New Analysis",
-  "tools": "Tools",
-  "chatHistory": "Chat History",
   "manage": "Manage",
   "noRecords": "No records",
   "searchPlaceholder": "Search conversation name",
@@ -42,15 +40,12 @@
     "messageCount": "Message Count"
   },
   "tooltip": {
-    "expand": "Expand sidebar",
     "collapse": "Collapse sidebar",
-    "hint": "Right-click to rename or delete",
     "search": "Search chat records",
     "sort": "Sort"
   },
   "sessionInfo": "{count} messages",
   "footer": {
-    "helpAndFeedback": "Help & Feedback",
     "settings": "Settings"
   }
 }

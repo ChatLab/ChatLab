@@ -5,7 +5,6 @@
   "save": "儲存",
   "edit": "編輯",
   "add": "新增",
-  "rename": "重新命名",
   "capture": "截圖",
   "close": "關閉",
   "back": "返回上一頁",
@@ -14,7 +13,6 @@
   "initFailed": "應用程式初始化失敗",
   "loading": "載入中...",
   "initializing": "初始化中...",
-  "noData": "暫無資料",
   "noResults": "無匹配結果",
   "export": "匯出",
   "exportSuccess": "匯出成功",
@@ -23,24 +21,8 @@
   "regenerate": "重新產生",
   "openFolder": "開啟資料夾",
   "errorNoAIConfig": "請先在設定中設定 AI 服務",
-  "reset": "重設",
   "error": {
-    "general": "操作失敗，請重試",
-    "network": "網路錯誤",
     "unknown": "未知錯誤"
-  },
-  "attachment": {
-    "image": "圖片",
-    "video": "影片",
-    "audio": "音訊",
-    "file": "檔案",
-    "sticker": "貼圖",
-    "link": "連結"
-  },
-  "unit": {
-    "messages": "條訊息",
-    "members": "位成員",
-    "days": "天"
   },
   "messageType": {
     "text": "文字",
@@ -111,14 +93,12 @@
       "custom": "自訂"
     },
     "recent": {
-      "halfYear": "近半年",
       "oneYear": "近一年",
       "twoYears": "近兩年",
       "fiveYears": "近五年",
       "all": "全部"
     },
     "display": {
-      "recent180": "最近半年",
       "recent365": "最近一年",
       "recent730": "最近兩年",
       "recent1825": "最近五年"

@@ -1,14 +1,8 @@
 {
   "wordcloud": {
     "loading": "Analyzing word frequency...",
-    "sidebar": {
-      "filter": "Filters",
-      "style": "Style"
-    },
     "stats": {
-      "messagesLabel": "Messages",
       "wordsLabel": "Total words",
-      "uniqueLabel": "Unique",
       "clickHint": "Note: Click a word in the cloud to view related messages"
     },
     "config": {
@@ -17,8 +11,7 @@
       "userFilter": "User filter",
       "posFilter": "POS filter",
       "enableStopwords": "Filter stopwords",
-      "dict": "Dictionary",
-      "advanced": "Advanced"
+      "dict": "Dictionary"
     },
     "size": {
       "small": "S",
@@ -82,8 +75,6 @@
       "templateNamePlaceholder": "e.g. Positive",
       "keywords": "Keywords",
       "keywordPlaceholder": "Press Enter to add",
-      "cancel": "Cancel",
-      "save": "Save",
       "update": "Update"
     },
     "templates": {
@@ -136,14 +127,11 @@
     "empty": "No repeat data available"
   },
   "topicProfile": {
-    "dateAll": "All messages",
-    "dateNow": "Present",
     "heroPrefix": "Analyzed",
     "heroMiddle": "messages,",
     "heroMiddleSecond": "yielding",
     "heroSuffix": "unique words",
     "topTopicsPrefix": "You love talking about:",
-    "topKeywords": "Top Keywords",
     "hotTopic": "Hot Topic",
     "hotTopicDesc": "Appeared {count} times",
     "richness": "Lexical Diversity",
@@ -169,49 +157,30 @@
     "sharedTopics": "Shared Topics"
   },
   "catchphrase": {
-    "title": "💬 Catchphrase Analysis",
     "loading": "Analyzing catchphrases...",
-    "description": "Analyzed frequent phrases from {count} members",
-    "countTemplate": "{count} members",
     "times": "{count}x",
     "empty": {
-      "title": "No catchphrase data",
-      "description": "Not enough repeated phrases to generate a word cloud with current filters"
+      "title": "No catchphrase data"
     },
     "stats": {
-      "phrasesLabel": "Top phrases",
-      "totalLabel": "Total uses",
       "clickHint": "Tip: Click a phrase to view related messages"
     },
     "viewMode": {
       "list": "List",
       "wordcloud": "Word Cloud"
     },
-    "phraseCount": "{count} catchphrases",
     "topN": "Show count"
   },
   "languagePreference": {
     "loading": "Analyzing language preferences...",
     "empty": "Not enough text messages for language analysis",
     "card": {
-      "sharedWordsLabel": "Shared High-Frequency Words",
-      "syncSubtext": "Speaking style similarity based on POS distribution",
-      "warmthWarm": "Warm",
-      "warmthCrisp": "Crisp",
-      "warmthBalanced": "Balanced",
-      "expressionLabel": "Your expressions are full of",
       "diversityTitle": "Lexical Depth",
       "diversityDesc": "Unique word ratio",
       "styleTitle": "Chat Style",
       "styleDesc": "Expression style based on POS distribution",
       "punctTitle": "Punctuation Style",
       "punctDesc": "Most used punctuation personality",
-      "punctTopTitle": "Punctuation TOP5",
-      "punctTopDesc": "Most frequently used punctuation marks",
-      "modalTopTitle": "Modal Particles TOP5",
-      "modalTopDesc": "Most frequently used modal particles",
-      "sharedWordsTitle": "Shared Words",
-      "sharedWordsDesc": "High-frequency words used by both",
       "watermark": "Language Preference",
       "radarFactual": "Factual",
       "radarActive": "Active",
@@ -257,15 +226,6 @@
       "personalityFreeflow": "Free-flow",
       "personalityPrecise": "Precise",
       "empty": "No punctuation data"
-    },
-    "sync": {
-      "title": "Language Sync",
-      "description": "Speaking style similarity based on POS distribution",
-
-      "labelSoulmate": "Soulmates",
-      "labelHighSync": "Highly Synced",
-      "labelUnique": "Unique Styles",
-      "labelDiverse": "Divergent"
     }
   }
 }

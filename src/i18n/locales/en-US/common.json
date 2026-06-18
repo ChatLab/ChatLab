@@ -5,7 +5,6 @@
   "save": "Save",
   "edit": "Edit",
   "add": "Add",
-  "rename": "Rename",
   "capture": "Capture",
   "close": "Close",
   "back": "Back",
@@ -14,7 +13,6 @@
   "initFailed": "App initialization failed",
   "loading": "Loading...",
   "initializing": "Initializing...",
-  "noData": "No data",
   "noResults": "No results found",
   "export": "Export",
   "exportSuccess": "Export successful",
@@ -23,24 +21,8 @@
   "regenerate": "Regenerate",
   "openFolder": "Open Folder",
   "errorNoAIConfig": "Please configure AI service in Settings first",
-  "reset": "Reset",
   "error": {
-    "general": "Operation failed, please try again",
-    "network": "Network error",
     "unknown": "Unknown error"
-  },
-  "attachment": {
-    "image": "Image",
-    "video": "Video",
-    "audio": "Audio",
-    "file": "File",
-    "sticker": "Sticker",
-    "link": "Link"
-  },
-  "unit": {
-    "messages": "messages",
-    "members": "members",
-    "days": "days"
   },
   "messageType": {
     "text": "Text",
@@ -111,14 +93,12 @@
       "custom": "Custom"
     },
     "recent": {
-      "halfYear": "Last 6M",
       "oneYear": "Last 1Y",
       "twoYears": "Last 2Y",
       "fiveYears": "Last 5Y",
       "all": "All"
     },
     "display": {
-      "recent180": "Last 6 months",
       "recent365": "Last 1 year",
       "recent730": "Last 2 years",
       "recent1825": "Last 5 years"

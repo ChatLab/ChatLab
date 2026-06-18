@@ -1,12 +1,5 @@
 {
-  "title": "管理",
-  "description": "チャット履歴を管理",
-  "tabs": {
-    "batchManage": "一括管理"
-  },
   "batchManage": {
-    "title": "一括削除",
-    "description": "削除するチャット履歴を選択してください",
     "searchPlaceholder": "チャット名を検索",
     "searchResult": "{count} / {total} 件を検出",
     "noSearchResult": "一致するチャット履歴が見つかりません",
@@ -18,10 +11,6 @@
     "confirmTitle": "削除の確認",
     "confirmMessage": "選択した {count} 件のチャット履歴を削除しますか？この操作は取り消せません。",
     "deleting": "削除中...",
-    "success": "{count} 件のチャット履歴を削除しました",
-    "error": "削除に失敗しました：{error}",
-    "messageCount": "{count} 件のメッセージ",
-    "importedAt": "{time} にインポート",
     "columns": {
       "name": "名前",
       "platform": "プラットフォーム",

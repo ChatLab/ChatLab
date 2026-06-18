@@ -65,8 +65,6 @@
   },
   "messageItem": {
     "viewContext": "コンテキストを表示",
-    "contextTitle": "メッセージコンテキスト（前後各10件）",
-    "noContext": "コンテキストがありません",
     "replyTo": "返信"
   },
   "sessionIndex": {

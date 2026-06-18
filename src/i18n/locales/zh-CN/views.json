@@ -1,6 +1,5 @@
 {
   "cluster": {
-    "title": "互动频率",
     "rankingView": "排行视图",
     "memberView": "成员视图",
     "matrixView": "矩阵视图",
@@ -45,11 +44,7 @@
     "noTextMessages": "暂无文字消息",
     "noData": "暂无数据",
     "profile": {
-      "totalMessages": "总消息",
-      "textMessages": "文字消息",
-      "avgLength": "平均长度",
       "avgLengthUnit": "{count} 字/条",
-      "mediaRatio": "媒体占比",
       "textExpression": "文字表达力",
       "textExpressionDesc": "最长消息 {count} 字",
       "mediaRichness": "媒体丰富度",
@@ -57,31 +52,12 @@
       "shortMasterDesc": "共 {count} 条 ≤5字",
       "essayLover": "小作文爱好者",
       "essayLoverDesc": "≥{threshold}字的消息",
-      "peakRecord": "巅峰记录",
-      "peakRecordDesc": "单日最多 {count} 条",
-      "topHours": "最活跃时段",
-      "images": "图片",
-      "emoji": "表情",
-      "voiceVideo": "语音/视频",
       "typeDistribution": "消息类型",
-      "hourlyDistribution": "24h 活跃",
-      "watermark": "消息报告",
       "heroLine1Prefix": "你们共留下了",
-      "heroLine1Suffix": "条消息",
-      "heroLine2Prefix": "每条平均",
-      "heroLine2Middle": "个字，其中",
-      "heroLine2Suffix": "是非文字消息"
+      "heroLine1Suffix": "条消息"
     },
     "typeCard": {
-      "totalMessages": "条消息",
-      "typeCount": "消息类型数",
-      "textRatio": "文字占比",
-      "avgLength": "平均字数",
-      "topType": "最多类型",
-      "distribution": "类型占比",
       "watermark": "类型报告",
-      "heroLine2Prefix": "涵盖",
-      "heroLine2TypeSuffix": "种类型，",
       "nonTextPrefix": "除文字外，发了",
       "nonTextImage": "图片",
       "nonTextEmoji": "表情包",
@@ -97,11 +73,6 @@
       "unitLink": "个链接"
     },
     "timeCard": {
-      "activeDays": "天有消息",
-      "totalDays": "天",
-      "peakDay": "巅峰日",
-      "peakHour": "高峰时段",
-      "peakWeekday": "最活跃周几",
       "hourlyDistribution": "24h 分布",
       "watermark": "时间报告",
       "heroDaysIn": "天里有",
@@ -128,9 +99,6 @@
       "memberTrendHint": "各成员的月度消息量变化"
     },
     "typeAnalysis": {
-      "trendTitle": "消息类型趋势",
-      "trendHint": "各类型消息的月度变化",
-      "otherTypes": "其他",
       "textDepthTitle": "文字深度分析",
       "textTotal": "文字消息总数",
       "avgLength": "平均字数",
@@ -142,7 +110,6 @@
     }
   },
   "interaction": {
-    "mentionGraph": "艾特互动关系图",
     "layout": "布局",
     "circular": "环形",
     "force": "力导向",
@@ -152,17 +119,9 @@
     "noInteraction": "暂无艾特互动数据"
   },
   "relationship": {
-    "loading": "正在分析关系动态…",
-    "noIndex": {
-      "title": "需要会话索引",
-      "description": "关系分析依赖会话索引数据，请先在总览页生成会话索引。"
-    },
     "empty": {
       "title": "暂无关系数据",
       "description": "当前时间范围内没有会话记录。"
-    },
-    "overview": {
-      "title": "整体概览"
     },
     "monthly": {
       "title": "月度明细",
@@ -174,11 +133,6 @@
       "hint": "蓝色线为 {name} 的月度主动发起占比，50% 线为均衡基准"
     },
     "hero": {
-      "monthPart": "{year}年{month}月",
-      "timeRange": {
-        "singleMonth": "在 {month} 中，",
-        "range": "在 {start} 至 {end} 期间，"
-      },
       "totalSessionsPrefix": "你们共进行了",
       "totalSessionsSuffix": "次对话",
       "initiativePrefix": "其中有",
@@ -190,46 +144,28 @@
     "closer": "结束话题",
     "closerTitle": "话题终结者",
     "closerHint": "统计话题结束时最后发言的人。",
-    "initiated": "发起 {count} 次",
-    "closed": "结束 {count} 次",
-    "totalSessions": "共 {count} 次会话",
-    "times": "次",
     "noActivity": "本月无互动",
     "watermarkReport": "关系报告",
     "monthFormat": "{year}年{month}月",
     "monthShortFormat": "{month}月",
-    "monthDetail": "发起 {init} / 结束 {close}",
     "iceBreaker": {
       "title": "破冰达人",
-      "hint": "超过 24 小时沉默后主动打破僵局的次数",
-      "count": "{count} 次破冰",
-      "total": "共 {count} 次破冰"
+      "hint": "超过 24 小时沉默后主动打破僵局的次数"
     },
     "responseLatency": {
       "title": "回复速度",
       "hint": "当对方发来消息后，平均多久回复",
-      "count": "{count} 次回复",
       "seconds": "{n} 秒",
-      "minutes": "{n} 分钟",
       "minutesSeconds": "{m}分{s}秒",
       "hours": "{n} 小时",
       "hoursMinutes": "{h} 小时 {m} 分钟"
     },
     "perseverance": {
       "title": "锲而不舍",
-      "hint": "对方还没回复就又发了一条消息的次数",
       "hintWithThreshold": "对方{threshold}内还没回复就又发了一次消息的次数",
-      "thresholdMinutes": "{n}分钟",
-      "count": "{count} 次",
-      "total": "共 {count} 次",
-      "threshold": "间隔",
-      "empty": "在当前阈值下没有锲而不舍的记录"
+      "thresholdMinutes": "{n}分钟"
     },
     "labels": {
-      "mutualPursuit": "双向奔赴",
-      "silentGuardian": "默默守候",
-      "devotedHeart": "一往情深",
-      "distantBond": "若即若离",
       "wellMatched": "势均力敌",
       "missingYou": "{name} 在想念",
       "monologue": "{name} 的独白",

@@ -1,14 +1,8 @@
 {
   "wordcloud": {
     "loading": "正在分析词频...",
-    "sidebar": {
-      "filter": "筛选配置",
-      "style": "样式设置"
-    },
     "stats": {
-      "messagesLabel": "消息数",
       "wordsLabel": "总词数",
-      "uniqueLabel": "独立词",
       "clickHint": "提示：点击词云可查看相关消息"
     },
     "config": {
@@ -17,8 +11,7 @@
       "userFilter": "用户筛选",
       "posFilter": "词性过滤",
       "enableStopwords": "过滤停用词",
-      "dict": "分词词库",
-      "advanced": "高级设置"
+      "dict": "分词词库"
     },
     "size": {
       "small": "小",
@@ -82,8 +75,6 @@
       "templateNamePlaceholder": "如：正能量",
       "keywords": "关键词",
       "keywordPlaceholder": "输入后回车添加",
-      "cancel": "取消",
-      "save": "保存",
       "update": "更新"
     },
     "templates": {
@@ -136,14 +127,11 @@
     "empty": "暂无复读数据"
   },
   "topicProfile": {
-    "dateAll": "全部消息",
-    "dateNow": "至今",
     "heroPrefix": "共分析了",
     "heroMiddle": "条消息，",
     "heroMiddleSecond": "产生了",
     "heroSuffix": "个不同词汇",
     "topTopicsPrefix": "你们最爱聊：",
-    "topKeywords": "热门关键词",
     "hotTopic": "热门话题",
     "hotTopicDesc": "出现了 {count} 次",
     "richness": "词汇丰富度",
@@ -169,49 +157,30 @@
     "sharedTopics": "共同话题"
   },
   "catchphrase": {
-    "title": "💬 口头禅分析",
     "loading": "正在分析口头禅数据...",
-    "description": "分析了 {count} 位成员的高频发言",
-    "countTemplate": "共 {count} 位成员",
     "times": "{count}次",
     "empty": {
-      "title": "暂无口头禅数据",
-      "description": "当前筛选条件下没有足够的重复发言用于生成词云"
+      "title": "暂无口头禅数据"
     },
     "stats": {
-      "phrasesLabel": "高频短语",
-      "totalLabel": "总使用次数",
       "clickHint": "提示：点击可查看相关消息"
     },
     "viewMode": {
       "list": "列表",
       "wordcloud": "词云"
     },
-    "phraseCount": "{count} 条口头禅",
     "topN": "显示数量"
   },
   "languagePreference": {
     "loading": "正在分析语言偏好...",
     "empty": "暂无足够的文字消息进行语言分析",
     "card": {
-      "sharedWordsLabel": "共同高频词",
-      "syncSubtext": "基于词性分布的说话方式相似度",
-      "warmthWarm": "暖",
-      "warmthCrisp": "干练",
-      "warmthBalanced": "自然",
-      "expressionLabel": "你们的表达充满了",
       "diversityTitle": "词汇深度",
       "diversityDesc": "不重复词汇占比",
       "styleTitle": "聊天气质",
       "styleDesc": "基于词性分布推导的表达风格",
       "punctTitle": "标点性格",
       "punctDesc": "最常用的标点风格",
-      "punctTopTitle": "标点符号 TOP5",
-      "punctTopDesc": "各自最常使用的标点符号",
-      "modalTopTitle": "语气词 TOP5",
-      "modalTopDesc": "各自最常使用的语气词",
-      "sharedWordsTitle": "共同高频词",
-      "sharedWordsDesc": "双方都高频使用的词汇",
       "watermark": "语言偏好 · Language Preference",
       "radarFactual": "事实性",
       "radarActive": "行动感",
@@ -257,15 +226,6 @@
       "personalityFreeflow": "意识流型",
       "personalityPrecise": "严谨规范型",
       "empty": "暂无标点数据"
-    },
-    "sync": {
-      "title": "语言同频度",
-      "description": "基于词性分布的说话方式相似度",
-
-      "labelSoulmate": "灵魂伴侣",
-      "labelHighSync": "高度默契",
-      "labelUnique": "各有特色",
-      "labelDiverse": "风格迥异"
     }
   }
 }

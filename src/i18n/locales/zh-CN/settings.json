@@ -6,11 +6,9 @@
     "aiConfig": "模型服务",
     "aiDefaultModel": "默认模型",
     "semanticIndex": "语义索引",
-    "aiPrompt": "对话配置",
     "aiPreprocess": "预处理",
     "dataManage": "数据管理",
     "storage": "存储管理",
-    "storageManage": "存储管理",
     "sessionManage": "会话索引",
     "about": "关于",
     "api": "自动化",
@@ -28,7 +26,6 @@
       "title": "偏好设置"
     },
     "language": {
-      "title": "语言",
       "description": "选择软件显示语言"
     },
     "appearance": {
@@ -39,13 +36,11 @@
       "dark": "深色模式"
     },
     "defaultTab": {
-      "title": "默认标签页",
       "description": "进入聊天对话后默认显示的页面",
       "overview": "总览",
       "aiChat": "AI 对话"
     },
     "autoLaunch": {
-      "title": "启动设置",
       "openAtLogin": "开机自启动",
       "openAtLoginDesc": "系统启动时自动运行 ChatLab",
       "devModeHint": "开发模式下不可用"
@@ -57,7 +52,6 @@
       "positionHeader": "顶部"
     },
     "screenshot": {
-      "title": "截图设置",
       "mobileAdapt": "移动端适配",
       "mobileAdaptDesc": "截图时自动缩放宽度，适合移动端查看"
     },
@@ -98,13 +92,7 @@
   },
   "aiConfig": {
     "title": "模型服务",
-    "providerTitle": "服务提供商",
-    "loading": "加载中...",
-    "inUse": "使用中",
     "defaultModel": "默认模型",
-    "localService": "本地服务",
-    "edit": "编辑",
-    "delete": "删除",
     "empty": {
       "title": "还没有配置 AI 服务",
       "description": "添加一个配置开始使用 AI 功能"
@@ -114,12 +102,7 @@
     "modal": {
       "addConfig": "添加新服务",
       "editConfig": "编辑服务",
-      "officialApi": "官方API",
-      "officialApiDesc": "DeepSeek、Gemini 等",
       "localService": "本地服务",
-      "localServiceDesc": "Ollama 等",
-      "openaiCompatible": "OpenAI 兼容",
-      "openaiCompatibleDesc": "自定义端点",
       "configName": "配置名称",
       "optional": "（选填）",
       "configNamePlaceholderPreset": "留空将使用服务商名称",
@@ -137,11 +120,6 @@
       "saveAnyway": "仍然保存",
       "validationError": "验证失败：",
       "model": "模型",
-      "modelName": "模型名称",
-      "modelNamePlaceholder": "如 gpt-4、claude-3",
-      "modelNamePlaceholderLocal": "如 qwen3、deepseek-r1",
-      "modelNameHint": "输入 API 支持的模型名称",
-      "modelNameHintLocal": "输入本地部署的模型名称",
       "apiEndpoint": "API 地址",
       "apiEndpointHint": "兼容 OpenAI 格式的 API 端点",
       "resolvedUrl": "实际请求地址:",
@@ -155,15 +133,11 @@
       "addAllModels": "全部添加",
       "searchModels": "搜索模型...",
       "apiEndpointOverrideHint": "默认地址已填入，可按需改为完整 URL",
-      "advancedOptions": "高级选项",
       "customService": "自定义服务",
-      "unnamedConfig": "未命名配置",
       "visitWebsite": "访问官网",
       "getApiKey": "获取 API Key",
       "presetService": "预设服务",
       "thirdPartyService": "第三方服务",
-      "customModelInput": "手动输入模型",
-      "selectFromList": "从列表选择",
       "addCustomModel": "添加模型",
       "deleteCustomModel": "删除选中",
       "customModelId": "模型端点名",
@@ -175,7 +149,6 @@
       "contextWindowPlaceholder": "如 128000",
       "contextWindowHint": "模型支持的最大上下文 token 数（用于上下文压缩）",
       "contextWindowMissing": "未设置上下文窗口，将使用默认值，建议点击「编辑模型」手动填写",
-      "modelCapabilities": "模型能力标注",
       "modelRequired": "至少添加一个模型才能保存",
       "apiFormat": "API 接口类型",
       "apiFormatOpenAI": "OpenAI Completions",
@@ -184,17 +157,8 @@
       "apiFormatOpenAIResponses": "OpenAI Responses"
     },
     "providerKind": {
-      "official": "官方",
       "aggregator": "聚合",
       "custom": "自定义"
-    },
-    "capabilities": {
-      "chat": "对话",
-      "reasoning": "推理",
-      "vision": "视觉",
-      "function_calling": "工具调用",
-      "embedding": "向量",
-      "ranking": "排序"
     }
   },
   "storage": {
@@ -224,7 +188,6 @@
       "cancel": "取消",
       "confirm": "确认切换",
       "migrationQueuedTitle": "数据迁移已登记",
-      "migrationSuccessTitle": "数据迁移完成",
       "migrationSuccessMessage": "应用需要重启以使更改生效。",
       "cliMigrationSuccessMessage": "请停止当前 CLI 服务并重新启动，迁移会在服务启动前执行。重启完成后再重新打开页面查看新目录。",
       "relaunchNow": "立即重启",
@@ -246,10 +209,6 @@
         "name": "AI 对话数据库",
         "description": "AI 对话历史和配置文件"
       },
-      "downloads": {
-        "name": "下载目录",
-        "description": "包含截屏文件、分析结果等"
-      },
       "statsCache": {
         "name": "缓存数据",
         "description": "聊天记录的统计缓存，清理后会自动重建"
@@ -267,15 +226,7 @@
       "defaultThreshold": "默认分割间隔",
       "thresholdUnit": "分钟",
       "thresholdHelp": "超过该时间间隔的消息将被分到新的会话段落",
-      "notGenerated": "尚未生成会话索引",
-      "generateHint": "生成索引后可让 AI 更精准地理解对话上下文",
-      "generate": "生成索引",
-      "regenerate": "重新生成",
       "generating": "正在生成",
-      "sessionCount": "{count} 个会话",
-      "generated": "已生成会话索引",
-      "generateSuccess": "会话索引生成成功，共 {count} 个会话",
-      "generateError": "生成失败",
       "batchTitle": "批量生成索引",
       "totalSessions": "共 {count} 个聊天",
       "generatedCount": "已生成 {count} 个",
@@ -411,56 +362,6 @@
       "bufferDesc": "保留最近消息原文的比例，不参与压缩",
       "maxToolResultPercent": "工具结果上限",
       "maxToolResultPercentDesc": "单次工具返回给 AI 的最大数据量占比（基于模型上下文窗口计算），超出部分会被智能截断"
-    },
-    "presets": {
-      "title": "系统提示词",
-      "add": "添加预设",
-      "import": "导入预设",
-      "description": "提示词同时用于群聊和私聊分析，系统会自动根据分析类型调整相关内容"
-    },
-    "preset": {
-      "builtIn": "内置",
-      "groupOnly": "仅群聊",
-      "privateOnly": "仅私聊",
-      "view": "查看",
-      "edit": "编辑",
-      "copy": "复制",
-      "delete": "删除"
-    },
-    "modal": {
-      "editBuiltin": "编辑系统提示词",
-      "editCustom": "编辑自定义提示词",
-      "addCustom": "添加自定义提示词",
-      "presetName": "预设名称",
-      "presetNamePlaceholder": "为预设起个名字",
-      "applicableTo": "适用场景",
-      "applicableToHint": "（勾选后可在对应分析类型中使用）",
-      "groupChat": "群聊分析",
-      "privateChat": "私聊分析",
-      "systemPrompt": "系统提示词",
-      "systemPromptPlaceholder": "定义 AI 助手的角色、任务和回答要求...",
-      "preview": "完整提示词预览",
-      "previewHint": "（预览为群聊模式，实际会根据分析类型自动调整）",
-      "resetToDefault": "重置为默认",
-      "saveChanges": "保存修改",
-      "addPreset": "添加预设"
-    },
-    "importPreset": {
-      "title": "导入预设",
-      "description": "从远程获取推荐的系统提示词预设",
-      "loading": "正在加载远程预设...",
-      "loadError": "加载远程预设失败",
-      "noPresets": "暂无可用的远程预设",
-      "commonPresets": "通用预设",
-      "groupPresets": "群聊专用预设",
-      "privatePresets": "私聊专用预设",
-      "add": "添加",
-      "added": "已添加",
-      "preview": "预览",
-      "systemPrompt": "系统提示词",
-      "noDescription": "暂无描述",
-      "fetchingContent": "正在加载内容...",
-      "fetchError": "加载内容失败"
     }
   },
   "about": {
@@ -471,11 +372,7 @@
     "checking": "检查中...",
     "upToDate": "已是最新版本",
     "newVersionAvailable": "发现新版本 {version}",
-    "updateNow": "立即更新",
     "webUpdateHint": "请在终端运行 clb update 后重启服务。",
-    "updating": "更新中...",
-    "updateSuccess": "更新成功，请重启服务以生效",
-    "updateFailed": "更新失败：{error}",
     "updateCheckFailed": "检查更新失败：{error}",
     "unknown": "未知",
     "privacy": {
@@ -501,8 +398,6 @@
     "denoiseDesc": "过滤纯语气词、纯表情、系统占位符（如 [图片]）等无意义消息",
     "desensitize": "数据脱敏",
     "desensitizeDesc": "根据规则将敏感信息（手机号、邮箱、证件号等）替换为占位符",
-    "desensitizeRules": "脱敏规则",
-    "desensitizeRulesDesc": "按组启用脱敏规则，组内规则仍可单独关闭，按列表顺序优先匹配",
     "desensitizeBuiltin": "预置规则",
     "desensitizeResetBuiltin": "恢复默认",
     "desensitizeCustom": "自定义规则",
@@ -579,7 +474,6 @@
     }
   },
   "api": {
-    "betaWarning": "当前 API 版本仅为测试版（Beta），接口可能会发生调整",
     "service": {
       "title": "API 服务",
       "enable": "启用 API 服务",
@@ -624,22 +518,15 @@
         "modalTitle": "添加数据源",
         "name": "名称",
         "namePlaceholder": "例如：我的聊天服务器",
-        "url": "数据源 URL",
         "token": "访问令牌",
         "tokenPlaceholder": "远程 API 的 Bearer Token",
         "interval": "拉取间隔（分钟）",
         "pullLimit": "每次拉取消息数",
-        "pullLimitPlaceholder": "默认 1000",
-        "targetSession": "目标会话 ID（可选）",
-        "targetSessionPlaceholder": "留空则每次新建会话",
-        "add": "添加"
+        "pullLimitPlaceholder": "默认 1000"
       },
       "discovery": {
-        "directMode": "直接 URL",
-        "remoteMode": "远程服务器",
         "baseUrl": "服务器地址",
         "baseUrlPlaceholder": "示例：http://127.0.0.1:2333/api/v1",
-        "browse": "浏览远程会话",
         "found": "发现 {count} 个会话",
         "search": "搜索",
         "searchPlaceholder": "按会话名称搜索",
@@ -649,7 +536,6 @@
         "typeAll": "全部",
         "typePrivate": "私聊",
         "typeGroup": "群聊",
-        "typeOther": "其他",
         "loadMore": "加载更多",
         "subscribe": "订阅 {count} 个会话",
         "messages": "条消息",
@@ -662,8 +548,6 @@
         "cancel": "取消",
         "editSource": "修改配置",
         "manageSessions": "管理订阅",
-        "manageSessionsDesc": "重新选择要同步的远程会话",
-        "syncAll": "一键同步",
         "subscribed": "已订阅"
       },
       "deleteConfirm": {

@@ -1,60 +1,24 @@
 {
   "deepseek": {
-    "name": "DeepSeek",
-    "models": {
-      "deepseek-v4-pro": "フラッグシップモデル、1M コンテキスト、思考・非思考モード対応",
-      "deepseek-v4-flash": "高速モデル、1M コンテキスト、思考・非思考モード対応"
-    }
+    "name": "DeepSeek"
   },
   "qwen": {
-    "name": "通義千問",
-    "models": {
-      "qwen-turbo": "Qwen の高速モデル",
-      "qwen-plus": "Qwen の高性能モデル",
-      "qwen-max": "Qwen のフラッグシップモデル"
-    }
+    "name": "通義千問"
   },
   "gemini": {
-    "name": "Gemini",
-    "models": {
-      "gemini-3-flash-preview": "高速プレビュー版",
-      "gemini-3-pro-preview": "高性能プレビュー版"
-    }
+    "name": "Gemini"
   },
   "minimax": {
-    "name": "MiniMax",
-    "models": {
-      "MiniMax-M2": "フラッグシップモデル",
-      "MiniMax-M2-Stable": "安定版"
-    }
+    "name": "MiniMax"
   },
   "glm": {
-    "name": "GLM",
-    "models": {
-      "glm-4-plus": "フラグシップモデル、最高性能",
-      "glm-4-flash": "高速モデル、コスト性能良好",
-      "glm-4": "標準モデル",
-      "glm-4v-plus": "マルチモーダルビジョンモデル",
-      "glm-4.6v-flash": "4.6V 無料モデル",
-      "glm-4.5-flash": "4.5 無料モデル"
-    }
+    "name": "GLM"
   },
   "kimi": {
-    "name": "Kimi",
-    "models": {
-      "moonshot-v1-8k": "8K コンテキスト",
-      "moonshot-v1-32k": "32K コンテキスト",
-      "moonshot-v1-128k": "128K 超ロングコンテキスト"
-    }
+    "name": "Kimi"
   },
   "doubao": {
-    "name": "豆包",
-    "models": {
-      "doubao-seed-1-6-lite-251015": "Doubao 1.6 軽量モデル",
-      "doubao-seed-1-6-251015": "Doubao 1.6 高性能モデル",
-      "doubao-seed-1-6-flash-250828": "Doubao 1.6 高速モデル",
-      "doubao-1-5-lite-32k-250115": "Doubao 1.5 Pro モデル"
-    }
+    "name": "豆包"
   },
   "siliconflow": {
     "name": "SiliconFlow"

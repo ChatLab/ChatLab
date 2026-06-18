@@ -29,7 +29,6 @@
     "processed": "{count} 件のメッセージを処理しました",
     "viewLog": "インポートログを表示",
     "cannotReadPath": "ファイルパスを読み取れません",
-    "preparing": "インポートを準備中...",
     "errors": {
       "no_file_selected": "ファイルが選択されていません",
       "import_failed": "インポートに失敗しました",
@@ -55,20 +54,17 @@
       "view": "表示"
     },
     "options": {
-      "title": "その他のオプション",
       "mergeImport": "結合インポート",
       "mergeImportHint": "チェックすると、複数ファイルが1つのチャット記録に結合されます"
     },
     "merge": {
       "importing": "結合中",
       "parsing": "ファイルを解析中...",
-      "parsingFile": "解析中: {name}",
       "merging": "メッセージを結合中...",
       "completed": "結合完了",
       "completedHint": "{count} 件のファイルを結合しました",
       "messageCount": "{count} 件のメッセージ",
-      "failed": "結合に失敗しました",
-      "cancel": "結合をキャンセル"
+      "failed": "結合に失敗しました"
     }
   },
   "demo": {
@@ -109,8 +105,7 @@
     "confirm": "この形式でインポート"
   },
   "quickStart": {
-    "export": "初心者ガイド",
-    "import": "対応フォーマット一覧"
+    "export": "初心者ガイド"
   },
   "footer": {
     "website": "公式サイト",
@@ -119,7 +114,6 @@
   "changelog": {
     "title": "バージョン履歴",
     "subtitle": "すべてのバージョン更新内容を確認",
-    "viewChangelog": "バージョン履歴",
     "latest": "最新バージョン",
     "current": "現在のバージョン",
     "total": "全 {count} バージョン",

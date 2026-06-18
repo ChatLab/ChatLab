@@ -1,8 +1,6 @@
 {
   "brand": "ChatLab",
   "newAnalysis": "分析新對話",
-  "tools": "實用工具",
-  "chatHistory": "聊天紀錄",
   "manage": "管理",
   "noRecords": "暫無紀錄",
   "searchPlaceholder": "搜尋聊天名稱",
@@ -42,15 +40,12 @@
     "messageCount": "訊息數量"
   },
   "tooltip": {
-    "expand": "展開側邊欄",
     "collapse": "收起側邊欄",
-    "hint": "右鍵可刪除或重新命名聊天紀錄",
     "search": "搜尋聊天紀錄",
     "sort": "排序"
   },
   "sessionInfo": "{count} 條訊息",
   "footer": {
-    "helpAndFeedback": "回饋與協助",
     "settings": "設定"
   }
 }

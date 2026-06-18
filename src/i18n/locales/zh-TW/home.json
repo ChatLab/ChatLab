@@ -29,7 +29,6 @@
     "processed": "已處理 {count} 則訊息",
     "viewLog": "檢視匯入日誌",
     "cannotReadPath": "無法讀取檔案路徑",
-    "preparing": "準備匯入...",
     "errors": {
       "no_file_selected": "未選擇檔案",
       "import_failed": "匯入失敗",
@@ -55,20 +54,17 @@
       "view": "檢視"
     },
     "options": {
-      "title": "更多選項",
       "mergeImport": "合併匯入",
       "mergeImportHint": "勾選後，多個檔案會合併成同一份聊天紀錄"
     },
     "merge": {
       "importing": "正在合併",
       "parsing": "正在解析檔案...",
-      "parsingFile": "正在解析：{name}",
       "merging": "正在合併訊息...",
       "completed": "合併完成",
       "completedHint": "{count} 個檔案已合併",
       "messageCount": "{count} 條訊息",
-      "failed": "合併失敗",
-      "cancel": "取消合併"
+      "failed": "合併失敗"
     }
   },
   "demo": {
@@ -109,8 +105,7 @@
     "confirm": "使用此格式匯入"
   },
   "quickStart": {
-    "export": "新手引導",
-    "import": "支援哪些格式"
+    "export": "新手引導"
   },
   "footer": {
     "website": "官網",
@@ -119,7 +114,6 @@
   "changelog": {
     "title": "更新紀錄",
     "subtitle": "查看所有版本更新內容",
-    "viewChangelog": "更新紀錄",
     "latest": "最新版本",
     "current": "目前版本",
     "total": "共 {count} 個版本",

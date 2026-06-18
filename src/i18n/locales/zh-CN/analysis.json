@@ -1,29 +1,18 @@
 {
   "groupChat": {
-    "title": "群聊分析",
     "loading": "加载分析数据...",
-    "loadError": "无法加载会话数据",
-    "description": "从 {startDate} 到 {endDate}，你们共聊了 {messageCount} 条消息"
+    "loadError": "无法加载会话数据"
   },
   "privateChat": {
-    "title": "私聊分析",
     "loading": "加载分析数据...",
-    "loadError": "无法加载会话数据",
-    "description": "从 {startDate} 到 {endDate}，你们共聊了 {messageCount} 条消息"
+    "loadError": "无法加载会话数据"
   },
   "tabs": {
     "overview": "总览",
     "view": "洞察",
-    "ranking": "榜单",
-    "groupQuotes": "语录",
-    "quotes": "语录",
-    "members": "成员",
-    "member": "成员",
-    "ai": "AI实验室",
     "aiChat": "AI对话",
     "memory": "记忆",
     "lab": "实验室",
-    "sqlLab": "SQL实验室",
     "debug": "Debug"
   },
   "debug": {
@@ -32,21 +21,13 @@
     "tableBrowser": {
       "chatDb": "聊天记录 DB",
       "aiDb": "AI 对话 DB",
-      "selectTable": "选择表",
       "rowCount": "共 {count} 行",
       "page": "第 {current} / {total} 页",
-      "prevPage": "上一页",
-      "nextPage": "下一页",
       "refresh": "刷新",
       "noData": "暂无数据",
       "editRow": "编辑行",
       "deleteRow": "删除行",
-      "save": "保存",
-      "cancel": "取消",
       "confirmDelete": "确认删除这行数据？",
-      "deleteSuccess": "删除成功",
-      "saveSuccess": "保存成功",
-      "operationFailed": "操作失败",
       "allConversations": "全部对话",
       "copyCell": "复制选中项",
       "copyRow": "复制整行 (JSON)",
@@ -57,10 +38,6 @@
   "memory": {
     "comingSoon": "正在计划中，如果你对记忆功能有什么建议，欢迎加群讨论。",
     "joinLink": "https://chatlab.fun/cn/other/community"
-  },
-  "yearFilter": {
-    "allTime": "全部时间",
-    "year": "{year}年"
   },
   "tooltip": {
     "viewChatRecord": "查看聊天记录",
@@ -73,7 +50,6 @@
   "incremental": {
     "title": "追加聊天记录",
     "description": "选择要追加到「{name}」的聊天记录文件，系统会自动去重。",
-    "selectFile": "选择聊天记录文件",
     "dropHint": "点击选择或拖拽文件到此处",
     "analyzing": "正在分析文件...",
     "totalInFile": "文件消息数",
@@ -88,22 +64,18 @@
   },
   "subTabs": {
     "view": {
-      "message": "消息",
       "typeAnalysis": "类型",
       "timeAnalysis": "时间",
       "topic": "话题",
-      "interaction": "互动分析",
       "groupRelationships": "群关系",
       "ranking": "榜单",
       "relationship": "关系",
       "languagePreference": "语言偏好"
     },
     "quotes": {
-      "wordcloud": "话题",
       "hotRepeat": "最火复读",
       "catchphrase": "口头禅",
-      "keywordAnalysis": "关键词分析",
-      "languagePreference": "语言偏好"
+      "keywordAnalysis": "关键词分析"
     },
     "groupRelationships": {
       "mentionGraph": "{'@'} 关系图",
@@ -111,9 +83,6 @@
       "proximity": "发言临近度"
     },
     "member": {
-      "memberList": "成员列表",
-      "relationships": "群关系",
-      "cluster": "互动频率",
       "nicknameHistory": "昵称变更"
     }
   },
@@ -121,8 +90,6 @@
     "messageTypeDistribution": "消息类型分布",
     "memberDistribution": "成员消息占比",
     "others": "其他人",
-    "messageRatio": "消息占比",
-    "messageUnit": "条",
     "memberComparison": "双方消息占比",
     "statCards": {
       "dailyAvgMessages": "日均消息",
@@ -136,8 +103,6 @@
       "weekendActivity": "周末活跃度",
       "weekendRatio": "周末消息占比",
       "mostActiveDate": "最活跃日期",
-      "activeDays": "活跃天数",
-      "slashDays": "/ {count} 天",
       "consecutiveStreak": "连续打卡",
       "daysStreak": "{count} 天",
       "longestStreak": "最长连续活跃",
@@ -152,7 +117,6 @@
     "identity": {
       "privateChat": "私聊",
       "groupChat": "群聊",
-      "analysisReport": "数据分析报告",
       "totalMessages": "消息总数",
       "durationDays": "跨度天数",
       "activeDays": "活跃天数",
@@ -161,10 +125,6 @@
     "tools": "常用工具"
   },
   "toolsPanel": {
-    "expand": "展开工具面板",
-    "collapse": "收起工具面板",
-    "lock": "锁定面板",
-    "unlock": "解锁面板",
     "miniMode": "迷你模式",
     "exitMini": "退出迷你模式"
   },
@@ -174,15 +134,6 @@
     "format": "格式"
   },
   "filter": {
-    "title": "自定义筛选",
-    "conditionMode": "条件筛选",
-    "sessionMode": "会话筛选",
-    "history": "历史记录",
-    "execute": "开始筛选",
-    "export": "导出筛选结果",
-    "keywords": "关键词",
-    "keywordsHint": "支持多个关键词，或逻辑匹配",
-    "keywordPlaceholder": "输入关键词，回车添加",
     "timeRange": "时间范围",
     "allTime": "全部",
     "today": "今天",
@@ -191,30 +142,6 @@
     "last3Months": "近3个月",
     "lastYear": "近1年",
     "customTime": "自定义",
-    "senders": "发送者",
-    "sendersHint": "可选，留空表示不限",
-    "searchMember": "搜索成员...",
-    "noMembers": "暂无成员",
-    "selectedCount": "已选择 {count} 位",
-    "contextSize": "上下文扩展",
-    "messages": "条消息",
-    "searchSession": "搜索日期...",
-    "selectedSessions": "已选择 {count} 个会话",
-    "noSessions": "暂无会话索引",
-    "filtering": "正在筛选...",
-    "emptyHint": "设置筛选条件后点击执行",
-    "noResults": "未找到匹配的消息",
-    "blockTitle": "对话块 {index}",
-    "stats": {
-      "blocks": "对话块",
-      "messages": "消息数",
-      "hits": "命中数",
-      "chars": "字符数"
-    },
-    "historyTitle": "筛选历史",
-    "noHistory": "暂无历史记录",
-    "loadMore": "加载更多",
-    "allLoaded": "已加载全部",
     "exportSuccess": "导出成功",
     "exportFailed": "导出失败",
     "exportPreparing": "正在准备导出..."

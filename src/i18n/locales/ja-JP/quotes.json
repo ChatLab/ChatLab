@@ -1,14 +1,8 @@
 {
   "wordcloud": {
     "loading": "単語頻度を分析中...",
-    "sidebar": {
-      "filter": "フィルター設定",
-      "style": "スタイル設定"
-    },
     "stats": {
-      "messagesLabel": "メッセージ数",
       "wordsLabel": "総単語数",
-      "uniqueLabel": "ユニーク単語",
       "clickHint": "ヒント：ワードクラウドをクリックすると関連メッセージを表示できます"
     },
     "config": {
@@ -17,8 +11,7 @@
       "userFilter": "ユーザーフィルター",
       "posFilter": "品詞フィルター",
       "enableStopwords": "ストップワードを除外",
-      "dict": "辞書",
-      "advanced": "詳細設定"
+      "dict": "辞書"
     },
     "size": {
       "small": "小",
@@ -82,8 +75,6 @@
       "templateNamePlaceholder": "例：ポジティブ",
       "keywords": "キーワード",
       "keywordPlaceholder": "入力して Enter で追加",
-      "cancel": "キャンセル",
-      "save": "保存",
       "update": "更新"
     },
     "templates": {
@@ -136,14 +127,11 @@
     "empty": "リピートデータがありません"
   },
   "topicProfile": {
-    "dateAll": "すべてのメッセージ",
-    "dateNow": "現在まで",
     "heroPrefix": "",
     "heroMiddle": "件のメッセージを分析し、",
     "heroMiddleSecond": "その結果、",
     "heroSuffix": "個のユニークな単語が見つかりました",
     "topTopicsPrefix": "よく話すトピック：",
-    "topKeywords": "人気キーワード",
     "hotTopic": "注目トピック",
     "hotTopicDesc": "{count} 回出現",
     "richness": "語彙の豊かさ",
@@ -169,49 +157,30 @@
     "sharedTopics": "共通のトピック"
   },
   "catchphrase": {
-    "title": "💬 口癖分析",
     "loading": "口癖データを分析中...",
-    "description": "{count} 名の高頻度フレーズを分析しました",
-    "countTemplate": "全 {count} 名のメンバー",
     "times": "{count}回",
     "empty": {
-      "title": "口癖データがありません",
-      "description": "現在の絞り込み条件では、ワードクラウドを生成できるほど繰り返しフレーズがありません"
+      "title": "口癖データがありません"
     },
     "stats": {
-      "phrasesLabel": "高頻度フレーズ",
-      "totalLabel": "合計使用回数",
       "clickHint": "ヒント：クリックすると関連メッセージを表示できます"
     },
     "viewMode": {
       "list": "リスト",
       "wordcloud": "ワードクラウド"
     },
-    "phraseCount": "{count} 件の口癖",
     "topN": "表示数"
   },
   "languagePreference": {
     "loading": "言語傾向を分析中...",
     "empty": "言語分析に十分なテキストメッセージがありません",
     "card": {
-      "sharedWordsLabel": "共通の高頻度単語",
-      "syncSubtext": "品詞分布に基づく話し方の類似度",
-      "warmthWarm": "暖かい",
-      "warmthCrisp": "簡潔",
-      "warmthBalanced": "バランス",
-      "expressionLabel": "あなたたちの表現は",
       "diversityTitle": "語彙の深さ",
       "diversityDesc": "ユニーク単語の割合",
       "styleTitle": "チャット気質",
       "styleDesc": "品詞分布に基づく表現スタイル",
       "punctTitle": "句読点パーソナリティ",
       "punctDesc": "最も使われる句読点スタイル",
-      "punctTopTitle": "句読点 TOP5",
-      "punctTopDesc": "最もよく使う句読点",
-      "modalTopTitle": "終助詞 TOP5",
-      "modalTopDesc": "最もよく使う終助詞",
-      "sharedWordsTitle": "共通の高頻度単語",
-      "sharedWordsDesc": "二人とも高頻度で使う単語",
       "watermark": "言語傾向 · Language Preference",
       "radarFactual": "事実性",
       "radarActive": "行動力",
@@ -255,15 +224,6 @@
       "personalityFreeflow": "自由型",
       "personalityPrecise": "几帳面",
       "empty": "句読点データがありません"
-    },
-    "sync": {
-      "title": "言語シンクロ度",
-      "description": "品詞分布に基づく話し方の類似度",
-
-      "labelSoulmate": "ソウルメイト",
-      "labelHighSync": "高い同期",
-      "labelUnique": "それぞれの個性",
-      "labelDiverse": "対照的なスタイル"
     }
   }
 }

@@ -1,29 +1,18 @@
 {
   "groupChat": {
-    "title": "群聊分析",
     "loading": "載入分析資料...",
-    "loadError": "無法載入聊天資料",
-    "description": "從 {startDate} 到 {endDate}，你們一共聊了 {messageCount} 則訊息"
+    "loadError": "無法載入聊天資料"
   },
   "privateChat": {
-    "title": "私聊分析",
     "loading": "載入分析資料...",
-    "loadError": "無法載入聊天資料",
-    "description": "從 {startDate} 到 {endDate}，你們一共聊了 {messageCount} 則訊息"
+    "loadError": "無法載入聊天資料"
   },
   "tabs": {
     "overview": "總覽",
     "view": "洞察",
-    "ranking": "榜單",
-    "groupQuotes": "金句",
-    "quotes": "金句",
-    "members": "成員",
-    "member": "成員",
-    "ai": "AI 實驗室",
     "aiChat": "AI 對話",
     "memory": "記憶",
     "lab": "實驗室",
-    "sqlLab": "SQL 實驗室",
     "debug": "Debug"
   },
   "debug": {
@@ -32,24 +21,15 @@
     "tableBrowser": {
       "chatDb": "聊天記錄 DB",
       "aiDb": "AI 對話 DB",
-      "selectTable": "選擇表",
       "rowCount": "共 {count} 行",
       "page": "第 {current} / {total} 頁",
-      "prevPage": "上一頁",
-      "nextPage": "下一頁",
       "refresh": "重新整理",
       "noData": "暫無資料",
-      "editRow": "編輯行",
+      "editRow": "編輯",
       "deleteRow": "刪除行",
-      "save": "儲存",
-      "cancel": "取消",
       "confirmDelete": "確認刪除這行資料？",
-      "deleteSuccess": "刪除成功",
-      "saveSuccess": "儲存成功",
-      "operationFailed": "操作失敗",
       "allConversations": "全部對話",
       "copyCell": "複製選取項",
-      "editRow": "編輯",
       "copyRow": "複製整行 (JSON)",
       "clearDebugContext": "清除 Debug 上下文",
       "confirmClearDebug": "確認清除所有訊息的 debug_context 資料？此操作不可撤銷。"
@@ -57,10 +37,6 @@
   },
   "memory": {
     "comingSoon": "記憶功能即將上線，敬請期待"
-  },
-  "yearFilter": {
-    "allTime": "全部時間",
-    "year": "{year}年"
   },
   "tooltip": {
     "viewChatRecord": "查看聊天紀錄",
@@ -73,7 +49,6 @@
   "incremental": {
     "title": "新增聊天紀錄",
     "description": "選擇要加入「{name}」的聊天紀錄檔案，系統會自動排除重複內容。",
-    "selectFile": "選擇聊天紀錄檔案",
     "dropHint": "點擊選擇或拖曳檔案到此處",
     "analyzing": "正在分析檔案...",
     "totalInFile": "檔案訊息數",
@@ -88,22 +63,18 @@
   },
   "subTabs": {
     "view": {
-      "message": "訊息",
       "typeAnalysis": "類型",
       "timeAnalysis": "時間",
       "topic": "話題",
-      "interaction": "互動分析",
       "groupRelationships": "群關係",
       "ranking": "榜單",
       "relationship": "關係",
       "languagePreference": "語言偏好"
     },
     "quotes": {
-      "wordcloud": "話題",
       "hotRepeat": "熱門複讀",
       "catchphrase": "口頭禪",
-      "keywordAnalysis": "關鍵字分析",
-      "languagePreference": "語言偏好"
+      "keywordAnalysis": "關鍵字分析"
     },
     "groupRelationships": {
       "mentionGraph": "{'@'} 關係圖",
@@ -111,9 +82,6 @@
       "proximity": "發言臨近度"
     },
     "member": {
-      "memberList": "成員列表",
-      "relationships": "互動關係",
-      "cluster": "互動頻率",
       "nicknameHistory": "暱稱變更"
     }
   },
@@ -121,8 +89,6 @@
     "messageTypeDistribution": "訊息類型分佈",
     "memberDistribution": "成員訊息占比",
     "others": "其他人",
-    "messageRatio": "訊息佔比",
-    "messageUnit": "條",
     "memberComparison": "雙方訊息佔比",
     "statCards": {
       "dailyAvgMessages": "日均訊息",
@@ -136,8 +102,6 @@
       "weekendActivity": "週末活躍度",
       "weekendRatio": "週末訊息佔比",
       "mostActiveDate": "最活躍日期",
-      "activeDays": "活躍天數",
-      "slashDays": "/ {count} 天",
       "consecutiveStreak": "連續活躍",
       "daysStreak": "{count} 天",
       "longestStreak": "最長連續活躍",
@@ -152,7 +116,6 @@
     "identity": {
       "privateChat": "私聊",
       "groupChat": "群聊",
-      "analysisReport": "資料分析報告",
       "totalMessages": "訊息總數",
       "durationDays": "跨度天數",
       "activeDays": "活躍天數",
@@ -161,10 +124,6 @@
     "tools": "常用工具"
   },
   "toolsPanel": {
-    "expand": "展開工具面板",
-    "collapse": "收起工具面板",
-    "lock": "鎖定面板",
-    "unlock": "解鎖面板",
     "miniMode": "迷你模式",
     "exitMini": "退出迷你模式"
   },
@@ -174,15 +133,6 @@
     "format": "格式"
   },
   "filter": {
-    "title": "自訂篩選",
-    "conditionMode": "條件篩選",
-    "sessionMode": "會話篩選",
-    "history": "歷史紀錄",
-    "execute": "開始篩選",
-    "export": "匯出篩選結果",
-    "keywords": "關鍵字",
-    "keywordsHint": "支援多個關鍵字，並以 OR 邏輯比對",
-    "keywordPlaceholder": "輸入關鍵字，按 Enter 新增",
     "timeRange": "時間範圍",
     "allTime": "全部",
     "today": "今天",
@@ -191,30 +141,6 @@
     "last3Months": "近3個月",
     "lastYear": "近1年",
     "customTime": "自訂",
-    "senders": "傳送者",
-    "sendersHint": "可選，留空表示不限",
-    "searchMember": "搜尋成員...",
-    "noMembers": "暫無成員",
-    "selectedCount": "已選 {count} 位",
-    "contextSize": "上下文延伸",
-    "messages": "條訊息",
-    "searchSession": "搜尋日期...",
-    "selectedSessions": "已選擇 {count} 個會話",
-    "noSessions": "暫無會話索引",
-    "filtering": "正在篩選...",
-    "emptyHint": "設定篩選條件後再按下開始篩選",
-    "noResults": "未找到匹配的訊息",
-    "blockTitle": "對話區塊 {index}",
-    "stats": {
-      "blocks": "對話區塊",
-      "messages": "訊息數",
-      "hits": "命中數",
-      "chars": "字元數"
-    },
-    "historyTitle": "篩選歷史",
-    "noHistory": "暫無歷史紀錄",
-    "loadMore": "載入更多",
-    "allLoaded": "已載入全部",
     "exportSuccess": "匯出成功",
     "exportFailed": "匯出失敗",
     "exportPreparing": "正在準備匯出..."
