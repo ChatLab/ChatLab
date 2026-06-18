@@ -215,6 +215,23 @@ export class SemanticIndexService {
     return this.configStore.get()
   }
 
+  /** 用户是否已显式配置向量模型（区分默认兜底配置） */
+  isConfigured(): boolean {
+    return this.configStore.isConfigured()
+  }
+
+  /** 全局功能开关是否开启 */
+  isEnabled(): boolean {
+    return this.configStore.isEnabled()
+  }
+
+  /** 语义索引是否可实际建立/检索：全局开启且已选择模型 */
+  canRun(): boolean {
+    if (!this.configStore.canRun()) return false
+    const cfg = this.configStore.get()
+    return cfg.mode !== 'api' || this.hasApiKey()
+  }
+
   /** 当前 API 模式是否已配置可用的 API Key（不返回明文，仅布尔） */
   hasApiKey(): boolean {
     const cfg = this.configStore.get()
@@ -237,6 +254,10 @@ export class SemanticIndexService {
     const saved = this.configStore.set(next)
     this.embedder = null
     this.embedderModelId = null
+    // 关闭全局开关时停止所有在跑/排队的建索引任务（保留已建立的部分数据）
+    if (!saved.enabled) {
+      for (const state of this.stateStore.listEnabled()) this.queue.pause(state.dbPathHash)
+    }
     return saved
   }
 
@@ -288,6 +309,7 @@ export class SemanticIndexService {
   }
 
   enable(sessionId: string): void {
+    if (!this.canRun()) return
     const dbPath = this.sessionAdapter.getDbPath(sessionId)
     const hash = computeDbPathHash(dbPath)
     // 旧记录身份(模型/chunker)已变化时必须重建：否则 enable 覆盖身份后按旧游标续建会保留旧 chunk
@@ -305,6 +327,7 @@ export class SemanticIndexService {
 
   /** 建立 / 续跑索引（续跑从断点游标继续） */
   build(sessionId: string): void {
+    if (!this.canRun()) return
     this.queue.enqueue({ type: 'build', dbPathHash: this.hashFor(sessionId) })
   }
 
@@ -318,6 +341,7 @@ export class SemanticIndexService {
 
   /** 重建：换模型身份或用户主动重建时清空旧索引后重新建立 */
   rebuild(sessionId: string): void {
+    if (!this.canRun()) return
     const dbPath = this.sessionAdapter.getDbPath(sessionId)
     const hash = computeDbPathHash(dbPath)
     this.queue.cancel(hash)
@@ -327,6 +351,7 @@ export class SemanticIndexService {
 
   /** 为所有启用但未完成 / 需重建的对话入队（"建立待处理索引"） */
   buildAllPending(): void {
+    if (!this.canRun()) return
     const modelId = this.currentModelId()
     for (const state of this.stateStore.listEnabled()) {
       if (state.indexStatus === 'running') continue
@@ -389,6 +414,9 @@ export class SemanticIndexService {
     query: string,
     options?: { finalTopK?: number; budget?: EvidenceBudget; timeRangeMs?: { startTs?: number; endTs?: number } }
   ): Promise<SemanticSearchResult> {
+    if (!this.canRun())
+      return { available: false, reason: 'disabled', blocks: [], coverage: 0, partial: false, hitCount: 0 }
+
     const hash = this.hashFor(sessionId)
     const state = this.stateStore.getState(hash)
     const modelId = this.currentModelId()
@@ -452,6 +480,7 @@ export class SemanticIndexService {
    * 未启用 / 需重建 / 无 chunk 返回 false，runner 据此不向 LLM 暴露检索工具。
    */
   canSearch(sessionId: string): boolean {
+    if (!this.canRun()) return false
     const hash = this.hashFor(sessionId)
     const state = this.stateStore.getState(hash)
     if (!state || !state.enabled) return false

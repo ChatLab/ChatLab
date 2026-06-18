@@ -4,8 +4,8 @@
 
 export type { EmbeddingProvider, EmbeddingPooling } from './types'
 export {
-  BGE_PROFILE,
   QWEN3_PROFILE,
+  BGE_BASE_PROFILE,
   getLocalProfilesForLocale,
   getLocalProfileByModelId,
   type LocalEmbeddingProfile,

@@ -80,9 +80,11 @@ async function load() {
   try {
     const [cfg, st] = await Promise.all([service.getConfig(), service.status(props.sessionId)])
     hasModelConfig.value =
-      cfg.config.mode === 'local'
+      cfg.config.enabled &&
+      cfg.configured &&
+      (cfg.config.mode === 'local'
         ? !!cfg.config.local.modelId
-        : !!cfg.config.api?.baseUrl && !!cfg.config.api?.model && cfg.apiKeySet
+        : !!cfg.config.api?.baseUrl && !!cfg.config.api?.model && cfg.apiKeySet)
     status.value = st
   } catch (error) {
     console.error('[semantic-index] load session status failed:', error)

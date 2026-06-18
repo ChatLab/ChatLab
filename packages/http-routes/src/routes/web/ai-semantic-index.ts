@@ -14,14 +14,14 @@ export function registerSemanticIndexRoutes(server: FastifyInstance, ctx: HttpRo
   if (!service) return
 
   server.get('/_web/ai/semantic-index/config', async () => {
-    return { config: service.getConfig(), apiKeySet: service.hasApiKey() }
+    return { config: service.getConfig(), apiKeySet: service.hasApiKey(), configured: service.isConfigured() }
   })
 
   server.put<{ Body: { config: SemanticIndexConfig; apiKey?: string } }>(
     '/_web/ai/semantic-index/config',
     async (request) => {
       const config = service.setConfig(request.body.config, { apiKey: request.body.apiKey })
-      return { config, apiKeySet: service.hasApiKey() }
+      return { config, apiKeySet: service.hasApiKey(), configured: service.isConfigured() }
     }
   )
 

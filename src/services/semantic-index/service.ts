@@ -11,8 +11,11 @@ import type { SemanticIndexConfig, SemanticIndexSessionStatus } from './types'
 const BASE = '/ai/semantic-index'
 
 export interface SemanticIndexService {
-  getConfig(): Promise<{ config: SemanticIndexConfig; apiKeySet: boolean }>
-  setConfig(config: SemanticIndexConfig, apiKey?: string): Promise<{ config: SemanticIndexConfig; apiKeySet: boolean }>
+  getConfig(): Promise<{ config: SemanticIndexConfig; apiKeySet: boolean; configured: boolean }>
+  setConfig(
+    config: SemanticIndexConfig,
+    apiKey?: string
+  ): Promise<{ config: SemanticIndexConfig; apiKeySet: boolean; configured: boolean }>
   listEnabled(): Promise<SemanticIndexSessionStatus[]>
   status(sessionId: string): Promise<SemanticIndexSessionStatus | null>
   statusForSessions(sessionIds: string[]): Promise<SemanticIndexSessionStatus[]>

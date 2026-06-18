@@ -26,6 +26,7 @@ function makeFakeService(calls: Call[]): SemanticIndexService {
   return {
     getConfig: () => ({ version: 1, mode: 'local', local: { modelId: 'm' }, api: null }),
     hasApiKey: () => false,
+    isConfigured: () => true,
     setConfig: (c: unknown, opts?: unknown) => {
       calls.push(['setConfig', c, opts])
       return c

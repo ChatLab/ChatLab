@@ -61,8 +61,8 @@ test('re-enable clears pending cleanup', () => {
 test('enable with a different model updates model id (rebuild scenario)', () => {
   const store = new SemanticIndexStateStore(makeTempDbPath())
   store.enable(ENABLE)
-  store.enable({ ...ENABLE, modelId: 'bge' })
-  assert.equal(store.getState('dbA')!.modelId, 'bge')
+  store.enable({ ...ENABLE, modelId: 'modelB' })
+  assert.equal(store.getState('dbA')!.modelId, 'modelB')
   store.close()
 })
 

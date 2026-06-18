@@ -2,7 +2,10 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { LocalEmbeddingProvider, type LocalPipelineFactory } from './local'
 import { OpenAICompatibleEmbeddingProvider, type FetchFn } from './api'
-import { BGE_PROFILE, QWEN3_PROFILE } from './profiles'
+import { QWEN3_PROFILE, type LocalEmbeddingProfile } from './profiles'
+
+// 无 maxBatchSize 的本地 profile，用于验证「不限批量时一次性 embed 全部文本」的分支
+const NO_BATCH_PROFILE: LocalEmbeddingProfile = { ...QWEN3_PROFILE, maxBatchSize: undefined, dim: 8 }
 
 // 返回固定 dim 的 fake 抽取器，并记录每次调用的 batch 文本
 function makeFakeFactory(dim: number, calls: string[][]): LocalPipelineFactory {
@@ -24,24 +27,24 @@ test('Qwen3 local provider embeds one text per call (batch=1)', async () => {
   assert.ok(calls.every((c) => c.length === 1))
 })
 
-test('BGE local provider batches all texts in a single call', async () => {
+test('local provider without maxBatchSize embeds all texts in a single call', async () => {
   const calls: string[][] = []
-  const provider = new LocalEmbeddingProvider(BGE_PROFILE, { pipelineFactory: makeFakeFactory(512, calls) })
+  const provider = new LocalEmbeddingProvider(NO_BATCH_PROFILE, { pipelineFactory: makeFakeFactory(8, calls) })
 
   const vectors = await provider.embedDocuments(['a', 'b', 'c'])
   assert.equal(vectors.length, 3)
-  assert.equal(vectors[0].length, 512)
+  assert.equal(vectors[0].length, 8)
   assert.equal(calls.length, 1)
   assert.equal(calls[0].length, 3)
 })
 
 test('local provider prepends query instruction for embedQuery', async () => {
   const calls: string[][] = []
-  const provider = new LocalEmbeddingProvider(BGE_PROFILE, { pipelineFactory: makeFakeFactory(512, calls) })
+  const provider = new LocalEmbeddingProvider(QWEN3_PROFILE, { pipelineFactory: makeFakeFactory(1024, calls) })
 
   await provider.embedQuery('北京天气')
   assert.equal(calls.length, 1)
-  assert.equal(calls[0][0], `${BGE_PROFILE.queryInstruction}北京天气`)
+  assert.equal(calls[0][0], `${QWEN3_PROFILE.queryInstruction}北京天气`)
 })
 
 test('local provider clamps document text to maxTextChars', async () => {
@@ -54,7 +57,7 @@ test('local provider clamps document text to maxTextChars', async () => {
 })
 
 test('local provider throws when returned dim mismatches profile', async () => {
-  const provider = new LocalEmbeddingProvider(BGE_PROFILE, { pipelineFactory: makeFakeFactory(256, []) })
+  const provider = new LocalEmbeddingProvider(QWEN3_PROFILE, { pipelineFactory: makeFakeFactory(256, []) })
   await assert.rejects(() => provider.embedDocuments(['a']), /dim/i)
 })
 

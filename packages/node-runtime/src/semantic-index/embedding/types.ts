@@ -1,8 +1,8 @@
 /**
  * Embedding provider 统一接口与公共类型
  *
- * Phase 1 三个 provider：BGE（本地 ONNX）、Qwen3（本地 ONNX，batch=1）、
- * OpenAI-compatible API。检索时 query 与 document 分别走 embedQuery / embedDocuments，
+ * 两类 provider：Qwen3（本地 ONNX，batch=1）与 OpenAI-compatible API。
+ * 检索时 query 与 document 分别走 embedQuery / embedDocuments，
  * 本地模型对 query 加 queryInstruction，document 不加。
  */
 

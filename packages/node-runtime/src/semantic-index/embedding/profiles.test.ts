@@ -1,14 +1,15 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { BGE_PROFILE, QWEN3_PROFILE, getLocalProfileByModelId, getLocalProfilesForLocale } from './profiles'
+import { BGE_BASE_PROFILE, QWEN3_PROFILE, getLocalProfileByModelId, getLocalProfilesForLocale } from './profiles'
 import { applyQueryInstruction, clampTextChars } from './text'
 
-test('BGE profile matches P0-2 conclusion', () => {
-  assert.equal(BGE_PROFILE.modelId, 'Xenova/bge-small-zh-v1.5')
-  assert.equal(BGE_PROFILE.dim, 512)
-  assert.equal(BGE_PROFILE.pooling, 'cls')
-  assert.equal(BGE_PROFILE.normalize, true)
-  assert.ok(BGE_PROFILE.queryInstruction.length > 0)
+test('BGE base zh profile uses cls pooling and 768 dim', () => {
+  assert.equal(BGE_BASE_PROFILE.modelId, 'Xenova/bge-base-zh-v1.5')
+  assert.equal(BGE_BASE_PROFILE.dim, 768)
+  assert.equal(BGE_BASE_PROFILE.pooling, 'cls')
+  assert.equal(BGE_BASE_PROFILE.normalize, true)
+  assert.equal(BGE_BASE_PROFILE.dtype, 'fp32')
+  assert.ok(BGE_BASE_PROFILE.queryInstruction.length > 0)
 })
 
 test('Qwen3 profile enforces batch=1 and last_token pooling', () => {
@@ -21,11 +22,11 @@ test('Qwen3 profile enforces batch=1 and last_token pooling', () => {
   assert.equal(QWEN3_PROFILE.maxTextChars, 2400)
 })
 
-test('locale registry exposes BGE only to Chinese UI', () => {
+test('locale registry exposes BGE base only to Chinese UI', () => {
   const zh = getLocalProfilesForLocale('zh-CN')
   assert.deepEqual(
     zh.map((p) => p.modelId),
-    [BGE_PROFILE.modelId, QWEN3_PROFILE.modelId]
+    [QWEN3_PROFILE.modelId, BGE_BASE_PROFILE.modelId]
   )
 
   for (const locale of ['en-US', 'ja-JP']) {
@@ -38,8 +39,8 @@ test('locale registry exposes BGE only to Chinese UI', () => {
 })
 
 test('getLocalProfileByModelId resolves known models and null otherwise', () => {
-  assert.equal(getLocalProfileByModelId(BGE_PROFILE.modelId)?.dim, 512)
   assert.equal(getLocalProfileByModelId(QWEN3_PROFILE.modelId)?.dim, 1024)
+  assert.equal(getLocalProfileByModelId(BGE_BASE_PROFILE.modelId)?.dim, 768)
   assert.equal(getLocalProfileByModelId('unknown/model'), null)
 })
 

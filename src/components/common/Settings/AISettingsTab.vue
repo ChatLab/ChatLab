@@ -23,9 +23,9 @@ const navItems = computed(() => [
   { id: 'model', label: t('settings.tabs.aiConfig') },
   { id: 'defaultModel', label: t('settings.tabs.aiDefaultModel') },
   { id: 'semanticIndex', label: t('settings.tabs.semanticIndex') },
-  { id: 'skill', label: t('settings.aiPrompt.chatPreferences.title') },
+  { id: 'skill', label: t('settings.tabs.chatPreferences') },
   { id: 'chat', label: t('settings.aiPrompt.chatSettings.title') },
-  { id: 'compression', label: t('settings.aiPrompt.compression.title') },
+  { id: 'compression', label: t('settings.tabs.compression') },
   { id: 'preprocess', label: t('settings.tabs.aiPreprocess') },
   { id: 'sessionIndex', label: t('settings.tabs.sessionManage') },
   { id: 'export', label: t('settings.aiPrompt.exportSettings.title') },
@@ -60,7 +60,7 @@ void aiModelConfigRef.value
 <template>
   <div class="flex h-full gap-6">
     <!-- 左侧锚点导航 -->
-    <div class="w-28 shrink-0">
+    <div class="w-36 shrink-0">
       <SubTabs v-model="activeNav" :items="navItems" orientation="vertical" @change="handleNavChange" />
     </div>
 

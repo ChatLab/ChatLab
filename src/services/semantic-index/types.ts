@@ -16,6 +16,8 @@ export interface SemanticIndexApiConfig {
 
 export interface SemanticIndexConfig {
   version: number
+  /** 全局功能开关：关闭后不暴露 AI 检索工具、不建立/检索索引（已有索引数据保留） */
+  enabled: boolean
   mode: SemanticIndexMode
   local: { modelId: string }
   api: SemanticIndexApiConfig | null

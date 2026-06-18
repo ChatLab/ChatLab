@@ -9,7 +9,7 @@ import { buildFtsIndex } from '../fts'
 import { SemanticIndexService } from './service'
 import { SemanticIndexStateStore } from './session-state-store'
 import { computeDbPathHash } from './chunker-config'
-import { BGE_PROFILE, QWEN3_PROFILE } from './embedding/profiles'
+import { QWEN3_PROFILE } from './embedding/profiles'
 import type { SessionRuntimeAdapter } from '../services/adapters'
 import type { LocalPipelineFactory } from './embedding/local'
 
@@ -52,15 +52,15 @@ function setup(opts?: { embedDelayMs?: number }) {
     },
   }
 
-  // 本地 pipeline 工厂：返回 BGE 维度向量，按文本长度给一点变化，避免零向量
+  // 本地 pipeline 工厂：返回 Qwen3 维度向量，按文本长度给一点变化，避免零向量
   // embedTextCount 统计累计嵌入文本数，用于区分 rebuild(重新嵌入) 与 build 续跑(跳过不嵌入)
   let embedTextCount = 0
   const localPipelineFactory: LocalPipelineFactory = async () => async (texts) => {
     embedTextCount += texts.length
     if (opts?.embedDelayMs) await new Promise((r) => setTimeout(r, opts.embedDelayMs))
     return texts.map((t) => {
-      const v = new Array(BGE_PROFILE.dim).fill(0)
-      v[t.length % BGE_PROFILE.dim] = 1
+      const v = new Array(QWEN3_PROFILE.dim).fill(0)
+      v[t.length % QWEN3_PROFILE.dim] = 1
       return v
     })
   }
@@ -78,6 +78,8 @@ function setup(opts?: { embedDelayMs?: number }) {
       resolveApiKey: (_provider, authProfile) => (authProfile ? (authProfiles.get(authProfile)?.key ?? '') : ''),
     },
   })
+  // 默认配置不再预选模型；测试显式选择 Qwen3 本地模型，使建索引可执行
+  service.setConfig({ version: 1, mode: 'local', local: { modelId: QWEN3_PROFILE.modelId }, api: null })
 
   return { service, chatDbPath, dir, db, authProfiles, getEmbedCount: () => embedTextCount }
 }
@@ -116,15 +118,20 @@ test('changing model identity marks needsRebuild and blocks search until rebuilt
   service.enable(SESSION_ID)
   await service.whenIdle()
 
-  // 切换到不同本地模型 -> 身份变化 -> 需重建
-  service.setConfig({ version: 1, mode: 'local', local: { modelId: QWEN3_PROFILE.modelId }, api: null })
+  // 切换到不同模型身份（改用 API）-> 身份变化 -> 需重建
+  service.setConfig({
+    version: 1,
+    mode: 'api',
+    local: { modelId: QWEN3_PROFILE.modelId },
+    api: { baseUrl: 'https://x', model: 'emb' },
+  })
   assert.equal(service.status(SESSION_ID)!.needsRebuild, true)
   const blocked = await service.search(SESSION_ID, '项目排期')
   assert.equal(blocked.available, false)
   assert.equal(blocked.reason, 'needs-rebuild')
 
-  // 切回原模型 -> 身份恢复 -> 旧索引可复用
-  service.setConfig({ version: 1, mode: 'local', local: { modelId: BGE_PROFILE.modelId }, api: null })
+  // 切回原本地模型 -> 身份恢复 -> 旧索引可复用
+  service.setConfig({ version: 1, mode: 'local', local: { modelId: QWEN3_PROFILE.modelId }, api: null })
   assert.equal(service.status(SESSION_ID)!.needsRebuild, false)
   const restored = await service.search(SESSION_ID, '项目排期')
   assert.equal(restored.available, true)
@@ -252,7 +259,7 @@ test('setConfig stores API key by reference only and hasApiKey reflects it', asy
   assert.equal(service.hasApiKey(), false)
 
   const saved = service.setConfig(
-    { version: 1, mode: 'api', local: { modelId: BGE_PROFILE.modelId }, api: { baseUrl: 'https://x', model: 'emb' } },
+    { version: 1, mode: 'api', local: { modelId: QWEN3_PROFILE.modelId }, api: { baseUrl: 'https://x', model: 'emb' } },
     { apiKey: 'sk-secret-123' }
   )
 
@@ -277,21 +284,21 @@ test('canSearch reflects availability: disabled/needs-rebuild/empty are false', 
   await service.whenIdle()
   assert.equal(service.canSearch(SESSION_ID), true)
 
-  // 模型身份变化 -> 需重建 -> 不可检索
+  // 模型身份变化（改用 API）-> 需重建 -> 不可检索
   service.setConfig({
     version: 1,
-    mode: 'local',
+    mode: 'api',
     local: { modelId: QWEN3_PROFILE.modelId },
-    api: null,
+    api: { baseUrl: 'https://x', model: 'emb' },
     searchMaxResults: 5,
   })
   assert.equal(service.canSearch(SESSION_ID), false)
 
-  // 切回 -> 可检索
+  // 切回本地模型 -> 可检索
   service.setConfig({
     version: 1,
     mode: 'local',
-    local: { modelId: BGE_PROFILE.modelId },
+    local: { modelId: QWEN3_PROFILE.modelId },
     api: null,
     searchMaxResults: 5,
   })
@@ -357,6 +364,27 @@ test('searchForTool desensitizes + anonymizes via pipeline, never leaks raw', as
   db.close()
 })
 
+test('disabling the global switch blocks search and re-enabling keeps data usable', async () => {
+  const { service, db } = setup()
+  service.enable(SESSION_ID)
+  await service.whenIdle()
+  assert.equal(service.canSearch(SESSION_ID), true)
+
+  // 关闭全局开关：不暴露工具 + 检索返回 disabled（已建索引数据保留）
+  service.setConfig({ version: 1, enabled: false, mode: 'local', local: { modelId: QWEN3_PROFILE.modelId }, api: null })
+  assert.equal(service.isEnabled(), false)
+  assert.equal(service.canSearch(SESSION_ID), false)
+  const res = await service.search(SESSION_ID, '项目排期')
+  assert.equal(res.available, false)
+  assert.equal(res.reason, 'disabled')
+
+  // 重新开启后可直接使用保留的索引
+  service.setConfig({ version: 1, enabled: true, mode: 'local', local: { modelId: QWEN3_PROFILE.modelId }, api: null })
+  assert.equal(service.canSearch(SESSION_ID), true)
+  service.close()
+  db.close()
+})
+
 test('searchForTool is unavailable when disabled or empty query', async () => {
   const { service, db } = setup()
 
@@ -380,7 +408,7 @@ test('searchForTool uses configured default max results when caller omits it', a
   service.setConfig({
     version: 1,
     mode: 'local',
-    local: { modelId: BGE_PROFILE.modelId },
+    local: { modelId: QWEN3_PROFILE.modelId },
     api: null,
     searchMaxResults: 5,
   })

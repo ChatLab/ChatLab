@@ -14,7 +14,6 @@
 
 import fs from 'node:fs'
 import path from 'node:path'
-import { BGE_PROFILE } from './embedding/profiles'
 
 export type SemanticIndexMode = 'local' | 'api'
 
@@ -34,6 +33,8 @@ export interface SemanticIndexApiConfig {
 
 export interface SemanticIndexConfig {
   version: number
+  /** 全局功能开关：关闭后不暴露 AI 检索工具、不建立/检索索引（已有索引数据保留） */
+  enabled: boolean
   mode: SemanticIndexMode
   local: SemanticIndexLocalConfig
   api: SemanticIndexApiConfig | null
@@ -41,8 +42,11 @@ export interface SemanticIndexConfig {
   searchMaxResults: number
 }
 
-/** setConfig 入参：searchMaxResults 可省略（缺省由 normalize 填充默认值） */
-export type SemanticIndexConfigInput = Omit<SemanticIndexConfig, 'searchMaxResults'> & { searchMaxResults?: number }
+/** setConfig 入参：searchMaxResults / enabled 可省略（缺省由 normalize 填充默认值） */
+export type SemanticIndexConfigInput = Omit<SemanticIndexConfig, 'searchMaxResults' | 'enabled'> & {
+  searchMaxResults?: number
+  enabled?: boolean
+}
 
 export const SEMANTIC_INDEX_CONFIG_VERSION = 1
 
@@ -58,11 +62,16 @@ export function clampSearchMaxResults(value: number | undefined): number {
   return Math.max(SEARCH_MAX_RESULTS_MIN, Math.min(SEARCH_MAX_RESULTS_MAX, Math.floor(value)))
 }
 
+/**
+ * 默认配置：功能开启，但不预选任何向量模型（modelId 为空 = 未选择）。
+ * 用户必须在设置中显式选择模型后才视为已配置（isConfigured）。
+ */
 export function defaultSemanticIndexConfig(): SemanticIndexConfig {
   return {
     version: SEMANTIC_INDEX_CONFIG_VERSION,
+    enabled: true,
     mode: 'local',
-    local: { modelId: BGE_PROFILE.modelId },
+    local: { modelId: '' },
     api: null,
     searchMaxResults: SEARCH_MAX_RESULTS_DEFAULT,
   }
@@ -76,6 +85,17 @@ export function resolveModelId(config: SemanticIndexConfig): string {
     return `api:${config.api.baseUrl}#${config.api.model}`
   }
   return config.local.modelId
+}
+
+/** 用户是否已显式选择向量模型（本地有 modelId，或 API 已填 baseUrl+model）。 */
+export function isSemanticIndexConfigured(config: SemanticIndexConfig): boolean {
+  if (config.mode === 'local') return config.local.modelId.trim().length > 0
+  return !!config.api && config.api.baseUrl.trim().length > 0 && config.api.model.trim().length > 0
+}
+
+/** 是否允许建立/检索索引：必须同时开启全局开关并完成模型配置。 */
+export function canRunSemanticIndex(config: SemanticIndexConfig): boolean {
+  return config.enabled && isSemanticIndexConfigured(config)
 }
 
 function normalizeConfig(raw: Partial<SemanticIndexConfig> | null | undefined): SemanticIndexConfig {
@@ -92,8 +112,10 @@ function normalizeConfig(raw: Partial<SemanticIndexConfig> | null | undefined): 
     : null
   return {
     version: SEMANTIC_INDEX_CONFIG_VERSION,
+    // 旧配置无 enabled 字段时默认开启，保证既有用户功能不被意外关闭
+    enabled: raw.enabled ?? true,
     mode,
-    local: { modelId: raw.local?.modelId || base.local.modelId },
+    local: { modelId: raw.local?.modelId ?? base.local.modelId },
     api,
     searchMaxResults: clampSearchMaxResults(raw.searchMaxResults),
   }
@@ -104,6 +126,24 @@ export class SemanticIndexConfigStore {
 
   constructor(filePath: string) {
     this.filePath = filePath
+  }
+
+  /** 用户是否已显式选择向量模型（本地有 modelId，或 API 已填 baseUrl+model）。未选择时为 false。 */
+  isConfigured(): boolean {
+    return isSemanticIndexConfigured(this.get())
+  }
+
+  isEnabled(): boolean {
+    return this.get().enabled
+  }
+
+  canRun(): boolean {
+    return canRunSemanticIndex(this.get())
+  }
+
+  /** 仅更新全局开关，保持已选模型与其余配置不变 */
+  setEnabled(enabled: boolean): SemanticIndexConfig {
+    return this.set({ ...this.get(), enabled })
   }
 
   get(): SemanticIndexConfig {

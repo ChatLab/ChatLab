@@ -1,27 +1,28 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { createEmbedder } from './embedder-factory'
-import { BGE_PROFILE } from './embedding/profiles'
+import { QWEN3_PROFILE } from './embedding/profiles'
 import type { SemanticIndexConfig } from './config'
 import type { FetchFn } from './embedding/api'
 import type { LocalPipelineFactory } from './embedding/local'
 
 const localConfig: SemanticIndexConfig = {
   version: 1,
+  enabled: true,
   mode: 'local',
-  local: { modelId: BGE_PROFILE.modelId },
+  local: { modelId: QWEN3_PROFILE.modelId },
   api: null,
   searchMaxResults: 5,
 }
 
 test('builds local provider from profile with injected pipeline factory', async () => {
   const fakeFactory: LocalPipelineFactory = async () => async (texts) =>
-    texts.map(() => new Array(BGE_PROFILE.dim).fill(0.1))
+    texts.map(() => new Array(QWEN3_PROFILE.dim).fill(0.1))
   const embedder = createEmbedder(localConfig, { localPipelineFactory: fakeFactory })
-  assert.equal(embedder.modelId, BGE_PROFILE.modelId)
-  assert.equal(embedder.dim, BGE_PROFILE.dim)
+  assert.equal(embedder.modelId, QWEN3_PROFILE.modelId)
+  assert.equal(embedder.dim, QWEN3_PROFILE.dim)
   const [vector] = await embedder.embedDocuments(['hello'])
-  assert.equal(vector.length, BGE_PROFILE.dim)
+  assert.equal(vector.length, QWEN3_PROFILE.dim)
 })
 
 test('throws for unknown local model', () => {
@@ -32,6 +33,7 @@ test('throws for unknown local model', () => {
 test('builds api provider and resolves key via authProfile', async () => {
   const config: SemanticIndexConfig = {
     version: 1,
+    enabled: true,
     mode: 'api',
     local: { modelId: 'x' },
     api: { baseUrl: 'https://api.example.com/v1', model: 'embed-1', authProfile: 'profileA' },
@@ -62,6 +64,7 @@ test('builds api provider and resolves key via authProfile', async () => {
 test('throws when api config incomplete', () => {
   const config: SemanticIndexConfig = {
     version: 1,
+    enabled: true,
     mode: 'api',
     local: { modelId: 'x' },
     api: { baseUrl: '', model: '' },

@@ -20,7 +20,7 @@ export interface LocalEmbeddingProfile {
   maxTextChars?: number
   pooling: EmbeddingPooling
   normalize: boolean
-  /** transformers.js dtype；BGE 默认 fp32，Qwen3 用 q8 */
+  /** transformers.js dtype；BGE 用 fp32，Qwen3 用 q8 */
   dtype?: 'fp32' | 'q8'
   /** 固定 batch 上限；Qwen3 必须为 1（P0-3：batch 污染 last_token） */
   maxBatchSize?: number
@@ -28,20 +28,6 @@ export interface LocalEmbeddingProfile {
   queryInstruction: string
   /** 近似下载体积（MB），用于 UI 提示 */
   approxDownloadMB: number
-}
-
-/** BGE small zh：中文轻量入口（P0-2） */
-export const BGE_PROFILE: LocalEmbeddingProfile = {
-  displayName: 'BGE small zh',
-  modelId: 'Xenova/bge-small-zh-v1.5',
-  architecture: 'bert',
-  dim: 512,
-  maxTokens: 512,
-  pooling: 'cls',
-  normalize: true,
-  dtype: 'fp32',
-  queryInstruction: '为这个句子生成表示以用于检索相关文章：',
-  approxDownloadMB: 97,
 }
 
 /** Qwen3-Embedding-0.6B：通用本地推荐模型，必须 batch=1（P0-3） */
@@ -60,14 +46,28 @@ export const QWEN3_PROFILE: LocalEmbeddingProfile = {
   approxDownloadMB: 593,
 }
 
-const ALL_LOCAL_PROFILES: LocalEmbeddingProfile[] = [BGE_PROFILE, QWEN3_PROFILE]
+/** BGE base zh v1.5：中文轻量入口，比 small 强、比 Qwen3 轻（cls pooling，512 token 上限） */
+export const BGE_BASE_PROFILE: LocalEmbeddingProfile = {
+  displayName: 'BGE base zh',
+  modelId: 'Xenova/bge-base-zh-v1.5',
+  architecture: 'bert',
+  dim: 768,
+  maxTokens: 512,
+  pooling: 'cls',
+  normalize: true,
+  dtype: 'fp32',
+  queryInstruction: '为这个句子生成表示以用于检索相关文章：',
+  approxDownloadMB: 390,
+}
+
+const ALL_LOCAL_PROFILES: LocalEmbeddingProfile[] = [QWEN3_PROFILE, BGE_BASE_PROFILE]
 
 /**
  * 按 UI 语言返回可选本地模型列表。
- * 中文 UI 同时提供 BGE（轻量快）与 Qwen3（通用慢）；其他语言只提供 Qwen3。
+ * Qwen3 为各语言通用推荐；BGE base zh 仅中文 UI 提供（中文轻量替代）。
  */
 export function getLocalProfilesForLocale(locale: string): LocalEmbeddingProfile[] {
-  if (locale.startsWith('zh')) return [BGE_PROFILE, QWEN3_PROFILE]
+  if (locale.startsWith('zh')) return [QWEN3_PROFILE, BGE_BASE_PROFILE]
   return [QWEN3_PROFILE]
 }
 

@@ -57,7 +57,7 @@ test('partition pruning isolates db_path_hash and model_id', () => {
   const store = new EmbeddingIndexStore(dbPath)
 
   store.insertChunk(baseRecord({ chunkId: 'a-q', dbPathHash: 'dbA', modelId: 'qwen3' }), [1, 0, 0, 0])
-  store.insertChunk(baseRecord({ chunkId: 'a-b', dbPathHash: 'dbA', modelId: 'bge' }), [1, 0, 0, 0])
+  store.insertChunk(baseRecord({ chunkId: 'a-b', dbPathHash: 'dbA', modelId: 'modelB' }), [1, 0, 0, 0])
   store.insertChunk(baseRecord({ chunkId: 'b-q', dbPathHash: 'dbB', modelId: 'qwen3' }), [1, 0, 0, 0])
 
   const results = store.queryDense({ dbPathHash: 'dbA', modelId: 'qwen3', dim: 4, embedding: [1, 0, 0, 0], k: 10 })
@@ -72,10 +72,10 @@ test('coexisting dims are stored in separate vec0 tables and queryable', () => {
   const dbPath = makeTempDbPath()
   const store = new EmbeddingIndexStore(dbPath)
 
-  store.insertChunk(baseRecord({ chunkId: 'small', modelId: 'bge', dim: 4 }), [1, 0, 0, 0])
+  store.insertChunk(baseRecord({ chunkId: 'small', modelId: 'modelB', dim: 4 }), [1, 0, 0, 0])
   store.insertChunk(baseRecord({ chunkId: 'big', modelId: 'qwen3', dim: 8 }), [1, 0, 0, 0, 0, 0, 0, 0])
 
-  const small = store.queryDense({ dbPathHash: 'dbA', modelId: 'bge', dim: 4, embedding: [1, 0, 0, 0], k: 10 })
+  const small = store.queryDense({ dbPathHash: 'dbA', modelId: 'modelB', dim: 4, embedding: [1, 0, 0, 0], k: 10 })
   const big = store.queryDense({
     dbPathHash: 'dbA',
     modelId: 'qwen3',
