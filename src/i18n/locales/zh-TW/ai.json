@@ -42,6 +42,11 @@
         "success": "Markdown 已複製到剪貼簿",
         "failed": "複製 Markdown 失敗"
       },
+      "process": {
+        "label": "執行過程",
+        "processing": "處理中",
+        "processed": "已處理"
+      },
       "toolResult": {
         "view": "查看結果",
         "title": "傳送給 AI 的工具結果",

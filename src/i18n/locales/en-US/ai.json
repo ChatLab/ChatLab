@@ -42,6 +42,11 @@
         "success": "Markdown copied to clipboard",
         "failed": "Failed to copy Markdown"
       },
+      "process": {
+        "label": "Process",
+        "processing": "Processing",
+        "processed": "Processed"
+      },
       "toolResult": {
         "view": "View result",
         "title": "Tool result sent to AI",

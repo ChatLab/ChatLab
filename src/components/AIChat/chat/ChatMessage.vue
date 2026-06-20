@@ -11,6 +11,12 @@ import EvidenceBlock from './EvidenceBlock.vue'
 import { useToast } from '@/composables/useToast'
 import { stripChartImagePlaceholders } from '@/services/ai/chartMarkdownPlaceholders'
 import { shouldHideRecoverableChartError } from '@/stores/aiChatChartBlocks'
+import {
+  buildProcessSegments,
+  getProcessSegmentStatusLabel,
+  getVisibleSegmentBlocks,
+  type ProcessSegment,
+} from './chatMessageProcessSegments'
 
 const { t, te, locale } = useI18n()
 const toast = useToast()
@@ -159,6 +165,74 @@ const visibleBlocks = computed(() => {
     return true
   })
 })
+
+function isFoldableProcessBlock(block: ContentBlock): boolean {
+  return block.type === 'think' || block.type === 'tool' || block.type === 'plan' || block.type === 'plan_draft'
+}
+
+function isTextBlock(block: ContentBlock): boolean {
+  return block.type === 'text'
+}
+
+const renderSegments = computed(() =>
+  buildProcessSegments(visibleBlocks.value, {
+    isFoldableProcessBlock,
+    isTextBlock,
+  })
+)
+
+const copyableBlocks = computed(() => getVisibleSegmentBlocks(renderSegments.value))
+
+const processSegmentOpenOverrides = ref<Record<string, boolean>>({})
+
+function getSegmentBlocks(segment: ProcessSegment<ContentBlock>): ContentBlock[] {
+  return segment.type === 'process' ? segment.blocks : [segment.block]
+}
+
+function getProcessSegmentKey(segmentIndex: number): string {
+  return `${props.messageId ?? props.timestamp}:process:${segmentIndex}`
+}
+
+function isProcessSegmentOpen(segmentIndex: number): boolean {
+  const key = getProcessSegmentKey(segmentIndex)
+  const override = processSegmentOpenOverrides.value[key]
+  if (override !== undefined) return override
+  return isProcessingProcessSegment(segmentIndex)
+}
+
+function toggleProcessSegment(segmentIndex: number): void {
+  const key = getProcessSegmentKey(segmentIndex)
+  processSegmentOpenOverrides.value = {
+    ...processSegmentOpenOverrides.value,
+    [key]: !isProcessSegmentOpen(segmentIndex),
+  }
+}
+
+function isLastVisibleBlock(block: ContentBlock): boolean {
+  return visibleBlocks.value[visibleBlocks.value.length - 1] === block
+}
+
+function isProcessingProcessSegment(segmentIndex: number): boolean {
+  return !!props.isStreaming && segmentIndex === renderSegments.value.length - 1
+}
+
+function getBlockDurationMs(block: ContentBlock): number {
+  if (block.type === 'think') return block.durationMs ?? 0
+  if (block.type === 'tool') return block.tool.durationMs ?? 0
+  return 0
+}
+
+function getProcessSegmentLabel(segment: ProcessSegment<ContentBlock>, segmentIndex: number): string {
+  return getProcessSegmentStatusLabel(segment, {
+    getBlockDurationMs,
+    isProcessing: isProcessingProcessSegment(segmentIndex),
+    labels: {
+      processed: t('ai.chat.message.process.processed'),
+      processing: t('ai.chat.message.process.processing'),
+    },
+    locale: locale.value,
+  })
+}
 
 // 是否使用 contentBlocks 渲染（AI 消息且有内容块）
 const useBlocksRendering = computed(() => {
@@ -413,7 +487,7 @@ const copyMarkdownText = computed(() => {
   if (!useBlocksRendering.value && props.content.trim()) return getDisplayText(props.content)
   if (!useBlocksRendering.value) return ''
 
-  const lines = visibleBlocks.value
+  const lines = copyableBlocks.value
     .map((block) => {
       if (block.type === 'text') {
         return getDisplayText(block.text)
@@ -575,282 +649,324 @@ async function handleCopyMarkdown() {
       <!-- AI 消息：混合内容块布局 -->
       <template v-else-if="useBlocksRendering">
         <div class="space-y-2">
-          <template v-for="(block, idx) in visibleBlocks" :key="idx">
-            <!-- 文本块 -->
-            <div v-if="block.type === 'text'" class="py-1 text-gray-900 dark:text-gray-100">
-              <div
-                class="prose prose-sm dark:prose-invert max-w-none leading-relaxed"
-                v-html="renderMarkdown(getDisplayText(block.text))"
-              />
-              <!-- 流式输出光标（只在最后一个文本块显示） -->
-              <span
-                v-if="isStreaming && idx === visibleBlocks.length - 1"
-                class="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-gray-800 dark:bg-gray-200"
-              />
-            </div>
-
-            <!-- 思考块（默认折叠） -->
-            <details
-              v-else-if="block.type === 'think'"
-              class="mb-2 border-l-2 border-gray-200 pl-4 py-1 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400"
-            >
-              <summary
-                class="cursor-pointer select-none text-xs font-medium transition-colors hover:text-gray-700 dark:hover:text-gray-300"
+          <template v-for="(segment, segmentIdx) in renderSegments" :key="segmentIdx">
+            <div :class="[segment.type === 'process' ? 'py-1' : '']">
+              <button
+                v-if="segment.type === 'process'"
+                type="button"
+                class="inline-flex max-w-full items-center gap-1.5 text-left text-xs text-gray-400 transition-colors hover:text-gray-600 dark:text-gray-500 dark:hover:text-gray-300"
+                :aria-expanded="isProcessSegmentOpen(segmentIdx)"
+                @click="toggleProcessSegment(segmentIdx)"
               >
-                {{ getThinkLabel(block.tag) }}
-                <span v-if="block.durationMs" class="ml-2 text-xs text-gray-400 dark:text-gray-500">
-                  {{ formatThinkDuration(block.durationMs) }}
-                </span>
-                <span
-                  v-if="isStreaming && idx === visibleBlocks.length - 1"
-                  class="ml-2 inline-flex items-center gap-1 text-[11px] text-gray-400 dark:text-gray-500"
-                >
-                  <span>{{ t('ai.chat.message.think.loading') }}</span>
-                  <span class="flex gap-0.5">
-                    <span class="h-1 w-1 animate-bounce rounded-full bg-gray-400 [animation-delay:0ms]" />
-                    <span class="h-1 w-1 animate-bounce rounded-full bg-gray-400 [animation-delay:150ms]" />
-                    <span class="h-1 w-1 animate-bounce rounded-full bg-gray-400 [animation-delay:300ms]" />
-                  </span>
-                </span>
-              </summary>
-              <div class="mt-2 prose prose-sm dark:prose-invert max-w-none leading-relaxed text-xs">
-                <template v-if="block.tag === 'plan_validation' && getPlanValidation(block.text)">
-                  <div
-                    v-if="getPlanValidation(block.text)?.title"
-                    class="mb-2 font-medium text-gray-700 dark:text-gray-200"
-                  >
-                    {{ getPlanValidation(block.text)?.title }}
-                  </div>
-                  <ol class="not-prose space-y-2 text-xs leading-relaxed">
-                    <li
-                      v-for="(step, stepIndex) in getPlanValidation(block.text)?.steps"
-                      :key="stepIndex"
-                      class="text-gray-600 dark:text-gray-300"
-                    >
-                      <div class="font-medium text-gray-800 dark:text-gray-200">
-                        {{ step.goal }}
-                      </div>
-                      <div v-if="step.evidenceNeeded" class="mt-1 text-gray-500 dark:text-gray-400">
-                        {{ t('ai.chat.message.plan.evidenceNeeded') }}: {{ step.evidenceNeeded }}
-                      </div>
-                      <div class="mt-0.5 text-gray-500 dark:text-gray-400">
-                        {{ t('ai.chat.message.plan.suggestedTools') }}: {{ formatPlanTools(step.suggestedTools) }}
-                      </div>
-                    </li>
-                  </ol>
-                  <div
-                    v-if="getPlanValidation(block.text)?.successCriteria.length"
-                    class="not-prose mt-2 border-t border-gray-100 pt-2 dark:border-gray-800"
-                  >
-                    <div class="text-[11px] font-medium text-gray-500 dark:text-gray-400">
-                      {{ t('ai.chat.message.plan.successCriteria') }}
-                    </div>
-                    <ul
-                      class="mt-1 list-disc space-y-0.5 pl-4 text-xs leading-relaxed text-gray-600 dark:text-gray-300"
-                    >
-                      <li
-                        v-for="(criterion, criterionIndex) in getPlanValidation(block.text)?.successCriteria"
-                        :key="criterionIndex"
-                      >
-                        {{ criterion }}
-                      </li>
-                    </ul>
-                  </div>
-                </template>
-                <div v-else v-html="renderMarkdown(block.text)" />
-              </div>
-            </details>
-
-            <!-- 技能块 -->
-            <div
-              v-else-if="block.type === 'skill'"
-              class="inline-flex items-center gap-1.5 rounded-lg bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600 dark:bg-gray-800/50 dark:text-gray-400"
-            >
-              <UIcon name="i-heroicons-bolt" class="h-3.5 w-3.5" />
-              <span>{{ t('ai.skill.active.label', { name: block.skillName }) }}</span>
-            </div>
-
-            <!-- 计划块 -->
-            <details
-              v-else-if="block.type === 'plan'"
-              open
-              class="mb-2 border-l-2 border-gray-200 py-1 pl-4 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400"
-            >
-              <summary
-                class="flex cursor-pointer select-none items-center gap-2 text-xs font-medium text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-              >
-                <UIcon name="i-heroicons-clipboard-document-list" class="h-3.5 w-3.5 shrink-0" />
-                <span class="min-w-0 truncate">{{ t('ai.chat.message.plan.label') }} · {{ block.plan.title }}</span>
-              </summary>
-              <div class="mt-2">
-                <div
-                  v-if="block.displayText"
-                  class="prose prose-sm dark:prose-invert max-w-none text-xs leading-relaxed text-gray-600 dark:text-gray-300"
-                  v-html="renderMarkdown(block.displayText)"
+                <UIcon
+                  :name="isProcessSegmentOpen(segmentIdx) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'"
+                  class="h-3 w-3 shrink-0"
                 />
-                <ol v-else class="space-y-2">
-                  <li v-for="(step, stepIndex) in block.plan.steps" :key="stepIndex" class="text-xs leading-relaxed">
-                    <div class="font-medium text-gray-800 dark:text-gray-200">{{ stepIndex + 1 }}. {{ step.goal }}</div>
-                    <div class="mt-1 text-gray-500 dark:text-gray-400">
-                      {{ t('ai.chat.message.plan.evidenceNeeded') }}: {{ step.evidenceNeeded }}
-                    </div>
-                    <div class="mt-0.5 text-gray-500 dark:text-gray-400">
-                      {{ t('ai.chat.message.plan.suggestedTools') }}: {{ formatPlanTools(step.suggestedTools) }}
-                    </div>
-                  </li>
-                </ol>
-                <div v-if="!block.displayText" class="mt-2 border-t border-gray-100 pt-2 dark:border-gray-800">
-                  <div class="text-[11px] font-medium text-gray-500 dark:text-gray-400">
-                    {{ t('ai.chat.message.plan.successCriteria') }}
-                  </div>
-                  <ul class="mt-1 list-disc space-y-0.5 pl-4 text-xs leading-relaxed text-gray-600 dark:text-gray-300">
-                    <li v-for="(criterion, criterionIndex) in block.plan.successCriteria" :key="criterionIndex">
-                      {{ criterion }}
-                    </li>
-                  </ul>
-                </div>
-              </div>
-            </details>
+                <span class="truncate">{{ getProcessSegmentLabel(segment, segmentIdx) }}</span>
+                <UIcon
+                  v-if="isProcessingProcessSegment(segmentIdx)"
+                  name="i-heroicons-arrow-path"
+                  class="h-3 w-3 shrink-0 animate-spin"
+                />
+              </button>
 
-            <!-- 计划草稿块 -->
-            <div
-              v-else-if="block.type === 'plan_draft'"
-              class="mb-2 border-l-2 border-gray-200 py-1 pl-4 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400"
-            >
-              <div class="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
-                <UIcon name="i-heroicons-clipboard-document-list" class="h-3.5 w-3.5 shrink-0" />
-                <span>{{ t('ai.chat.message.plan.label') }}</span>
-                <span
-                  v-if="isStreaming"
-                  class="inline-flex items-center gap-1 text-[11px] font-normal text-gray-400 dark:text-gray-500"
-                >
-                  <span class="flex gap-0.5">
-                    <span class="h-1 w-1 animate-bounce rounded-full bg-gray-400 [animation-delay:0ms]" />
-                    <span class="h-1 w-1 animate-bounce rounded-full bg-gray-400 [animation-delay:150ms]" />
-                    <span class="h-1 w-1 animate-bounce rounded-full bg-gray-400 [animation-delay:300ms]" />
-                  </span>
-                </span>
-              </div>
               <div
-                class="mt-2 prose prose-sm dark:prose-invert max-w-none text-xs leading-relaxed text-gray-600 dark:text-gray-300"
-                v-html="renderMarkdown(block.text)"
-              />
-            </div>
-
-            <!-- 图表块 -->
-            <ChartBlockRenderer v-else-if="block.type === 'chart'" :chart="block.chart" />
-
-            <!-- 证据块 -->
-            <EvidenceBlock v-else-if="block.type === 'evidence'" :evidence="block.evidence" />
-
-            <!-- 工具块：有结果时可展开查看发送给 AI 的安全文本 -->
-            <details v-else-if="block.type === 'tool' && hasToolResult(block.tool)" class="w-full max-w-full">
-              <summary class="inline-flex cursor-pointer list-none select-none [&::-webkit-details-marker]:hidden">
-                <div
-                  class="flex w-fit items-center gap-1.5 rounded-lg bg-gray-50 px-2.5 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100 dark:bg-gray-800/30 dark:text-gray-400/80 dark:hover:bg-gray-800/60"
-                  :class="[
-                    block.tool.status === 'error' ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400' : '',
-                  ]"
-                >
-                  <UIcon
-                    :name="
-                      block.tool.status === 'error'
-                        ? 'i-heroicons-exclamation-circle'
-                        : 'i-heroicons-wrench-screwdriver'
-                    "
-                    class="h-3.5 w-3.5 shrink-0"
-                  />
-                  <div class="flex min-w-0 items-baseline gap-1.5 font-medium">
-                    <span>{{ getToolDisplayName(block.tool) }}</span>
-                    <span
-                      v-if="formatToolParams(block.tool)"
-                      class="max-w-[200px] truncate text-[11px] font-normal opacity-75 sm:max-w-[300px]"
-                    >
-                      {{ formatToolParams(block.tool) }}
-                    </span>
-                    <span class="shrink-0 text-[11px] font-normal opacity-75">
-                      · {{ t('ai.chat.message.toolResult.view') }}
-                    </span>
-                  </div>
-                  <UIcon
-                    name="i-heroicons-chevron-right"
-                    class="h-3 w-3 shrink-0 transition-transform [[open]>&]:rotate-90"
-                  />
-                </div>
-              </summary>
-              <div
-                class="mt-2 max-w-full rounded-lg border border-gray-200 bg-gray-50/80 dark:border-gray-700/70 dark:bg-gray-900/40"
+                v-show="segment.type !== 'process' || isProcessSegmentOpen(segmentIdx)"
+                :class="[segment.type === 'process' ? 'mt-2 space-y-2 pl-4' : '']"
               >
-                <div
-                  class="flex items-center justify-between gap-2 border-b border-gray-200/70 px-3 py-2 dark:border-gray-700/70"
-                >
-                  <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                    {{ t('ai.chat.message.toolResult.title') }}
-                  </span>
-                  <UButton
-                    size="xs"
-                    variant="ghost"
-                    color="primary"
-                    icon="i-heroicons-document-duplicate"
-                    :title="t('ai.chat.message.toolResult.copy')"
-                    @click.stop="copyToolResult(block.tool)"
-                  />
-                </div>
-                <div
-                  v-if="isToolResultDisplayTruncated(block.tool)"
-                  class="border-b border-amber-200/70 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-300"
-                >
-                  {{ t('ai.chat.message.toolResult.displayTruncated') }}
-                </div>
-                <pre
-                  class="max-h-[28rem] overflow-auto whitespace-pre-wrap break-words px-3 py-2.5 text-xs leading-relaxed text-gray-700 dark:text-gray-200"
-                  >{{ getToolResultText(block.tool) }}</pre
-                >
-              </div>
-            </details>
+                <template v-for="(block, blockIdx) in getSegmentBlocks(segment)" :key="`${segmentIdx}-${blockIdx}`">
+                  <!-- 文本块 -->
+                  <div v-if="block.type === 'text'" class="py-1 text-gray-900 dark:text-gray-100">
+                    <div
+                      class="prose prose-sm dark:prose-invert max-w-none leading-relaxed"
+                      v-html="renderMarkdown(getDisplayText(block.text))"
+                    />
+                    <!-- 流式输出光标（只在最后一个文本块显示） -->
+                    <span
+                      v-if="isStreaming && isLastVisibleBlock(block)"
+                      class="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-gray-800 dark:bg-gray-200"
+                    />
+                  </div>
 
-            <!-- 工具块：运行中或无结果时保持紧凑展示 -->
-            <div
-              v-else-if="block.type === 'tool'"
-              class="flex w-fit items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs transition-colors"
-              :class="[
-                block.tool.status === 'running'
-                  ? 'bg-gray-100 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400'
-                  : block.tool.status === 'done'
-                    ? 'bg-gray-50 text-gray-500 dark:bg-gray-800/30 dark:text-gray-400/80'
-                    : 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400',
-              ]"
-            >
-              <UIcon
-                :name="
-                  block.tool.status === 'running'
-                    ? 'i-heroicons-arrow-path'
-                    : block.tool.status === 'done'
-                      ? 'i-heroicons-wrench-screwdriver'
-                      : 'i-heroicons-exclamation-circle'
-                "
-                class="h-3.5 w-3.5 shrink-0"
-                :class="[block.tool.status === 'running' ? 'animate-spin' : '']"
-              />
-              <div class="flex min-w-0 items-baseline gap-1.5 font-medium">
-                <span>{{ getToolDisplayName(block.tool) }}</span>
-                <span
-                  v-if="formatToolParams(block.tool)"
-                  class="max-w-[200px] truncate text-[11px] font-normal opacity-75 sm:max-w-[300px]"
-                >
-                  {{ formatToolParams(block.tool) }}
-                </span>
-                <span
-                  v-if="block.tool.status === 'done' && block.tool.durationMs"
-                  class="shrink-0 text-[11px] font-normal opacity-75"
-                >
-                  · {{ formatThinkDuration(block.tool.durationMs) }}
-                </span>
+                  <!-- 思考块（默认折叠） -->
+                  <details
+                    v-else-if="block.type === 'think'"
+                    class="mb-2 border-l-2 border-gray-200 pl-4 py-1 text-sm text-gray-500 dark:border-gray-700 dark:text-gray-400"
+                  >
+                    <summary
+                      class="cursor-pointer select-none text-xs font-medium transition-colors hover:text-gray-700 dark:hover:text-gray-300"
+                    >
+                      {{ getThinkLabel(block.tag) }}
+                      <span v-if="block.durationMs" class="ml-2 text-xs text-gray-400 dark:text-gray-500">
+                        {{ formatThinkDuration(block.durationMs) }}
+                      </span>
+                      <span
+                        v-if="isStreaming && isLastVisibleBlock(block)"
+                        class="ml-2 inline-flex items-center gap-1 text-[11px] text-gray-400 dark:text-gray-500"
+                      >
+                        <span>{{ t('ai.chat.message.think.loading') }}</span>
+                        <span class="flex gap-0.5">
+                          <span class="h-1 w-1 animate-bounce rounded-full bg-gray-400 [animation-delay:0ms]" />
+                          <span class="h-1 w-1 animate-bounce rounded-full bg-gray-400 [animation-delay:150ms]" />
+                          <span class="h-1 w-1 animate-bounce rounded-full bg-gray-400 [animation-delay:300ms]" />
+                        </span>
+                      </span>
+                    </summary>
+                    <div class="mt-2 prose prose-sm dark:prose-invert max-w-none leading-relaxed text-xs">
+                      <template v-if="block.tag === 'plan_validation' && getPlanValidation(block.text)">
+                        <div
+                          v-if="getPlanValidation(block.text)?.title"
+                          class="mb-2 font-medium text-gray-700 dark:text-gray-200"
+                        >
+                          {{ getPlanValidation(block.text)?.title }}
+                        </div>
+                        <ol class="not-prose space-y-2 text-xs leading-relaxed">
+                          <li
+                            v-for="(step, stepIndex) in getPlanValidation(block.text)?.steps"
+                            :key="stepIndex"
+                            class="text-gray-600 dark:text-gray-300"
+                          >
+                            <div class="font-medium text-gray-800 dark:text-gray-200">
+                              {{ step.goal }}
+                            </div>
+                            <div v-if="step.evidenceNeeded" class="mt-1 text-gray-500 dark:text-gray-400">
+                              {{ t('ai.chat.message.plan.evidenceNeeded') }}: {{ step.evidenceNeeded }}
+                            </div>
+                            <div class="mt-0.5 text-gray-500 dark:text-gray-400">
+                              {{ t('ai.chat.message.plan.suggestedTools') }}: {{ formatPlanTools(step.suggestedTools) }}
+                            </div>
+                          </li>
+                        </ol>
+                        <div
+                          v-if="getPlanValidation(block.text)?.successCriteria.length"
+                          class="not-prose mt-2 border-t border-gray-100 pt-2 dark:border-gray-800"
+                        >
+                          <div class="text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                            {{ t('ai.chat.message.plan.successCriteria') }}
+                          </div>
+                          <ul
+                            class="mt-1 list-disc space-y-0.5 pl-4 text-xs leading-relaxed text-gray-600 dark:text-gray-300"
+                          >
+                            <li
+                              v-for="(criterion, criterionIndex) in getPlanValidation(block.text)?.successCriteria"
+                              :key="criterionIndex"
+                            >
+                              {{ criterion }}
+                            </li>
+                          </ul>
+                        </div>
+                      </template>
+                      <div v-else v-html="renderMarkdown(block.text)" />
+                    </div>
+                  </details>
+
+                  <!-- 技能块 -->
+                  <div
+                    v-else-if="block.type === 'skill'"
+                    class="inline-flex items-center gap-1.5 rounded-lg bg-gray-50 px-3 py-1.5 text-xs font-medium text-gray-600 dark:bg-gray-800/50 dark:text-gray-400"
+                  >
+                    <UIcon name="i-heroicons-bolt" class="h-3.5 w-3.5" />
+                    <span>{{ t('ai.skill.active.label', { name: block.skillName }) }}</span>
+                  </div>
+
+                  <!-- 计划块 -->
+                  <details
+                    v-else-if="block.type === 'plan'"
+                    open
+                    class="mb-2 border-l-2 border-gray-200 py-1 pl-4 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400"
+                  >
+                    <summary
+                      class="flex cursor-pointer select-none items-center gap-2 text-xs font-medium text-gray-500 transition-colors hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
+                    >
+                      <UIcon name="i-heroicons-clipboard-document-list" class="h-3.5 w-3.5 shrink-0" />
+                      <span class="min-w-0 truncate">
+                        {{ t('ai.chat.message.plan.label') }} · {{ block.plan.title }}
+                      </span>
+                    </summary>
+                    <div class="mt-2">
+                      <div
+                        v-if="block.displayText"
+                        class="prose prose-sm dark:prose-invert max-w-none text-xs leading-relaxed text-gray-600 dark:text-gray-300"
+                        v-html="renderMarkdown(block.displayText)"
+                      />
+                      <ol v-else class="space-y-2">
+                        <li
+                          v-for="(step, stepIndex) in block.plan.steps"
+                          :key="stepIndex"
+                          class="text-xs leading-relaxed"
+                        >
+                          <div class="font-medium text-gray-800 dark:text-gray-200">
+                            {{ stepIndex + 1 }}. {{ step.goal }}
+                          </div>
+                          <div class="mt-1 text-gray-500 dark:text-gray-400">
+                            {{ t('ai.chat.message.plan.evidenceNeeded') }}: {{ step.evidenceNeeded }}
+                          </div>
+                          <div class="mt-0.5 text-gray-500 dark:text-gray-400">
+                            {{ t('ai.chat.message.plan.suggestedTools') }}: {{ formatPlanTools(step.suggestedTools) }}
+                          </div>
+                        </li>
+                      </ol>
+                      <div v-if="!block.displayText" class="mt-2 border-t border-gray-100 pt-2 dark:border-gray-800">
+                        <div class="text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                          {{ t('ai.chat.message.plan.successCriteria') }}
+                        </div>
+                        <ul
+                          class="mt-1 list-disc space-y-0.5 pl-4 text-xs leading-relaxed text-gray-600 dark:text-gray-300"
+                        >
+                          <li v-for="(criterion, criterionIndex) in block.plan.successCriteria" :key="criterionIndex">
+                            {{ criterion }}
+                          </li>
+                        </ul>
+                      </div>
+                    </div>
+                  </details>
+
+                  <!-- 计划草稿块 -->
+                  <div
+                    v-else-if="block.type === 'plan_draft'"
+                    class="mb-2 border-l-2 border-gray-200 py-1 pl-4 text-sm text-gray-600 dark:border-gray-700 dark:text-gray-400"
+                  >
+                    <div class="flex items-center gap-2 text-xs font-medium text-gray-500 dark:text-gray-400">
+                      <UIcon name="i-heroicons-clipboard-document-list" class="h-3.5 w-3.5 shrink-0" />
+                      <span>{{ t('ai.chat.message.plan.label') }}</span>
+                      <span
+                        v-if="isStreaming"
+                        class="inline-flex items-center gap-1 text-[11px] font-normal text-gray-400 dark:text-gray-500"
+                      >
+                        <span class="flex gap-0.5">
+                          <span class="h-1 w-1 animate-bounce rounded-full bg-gray-400 [animation-delay:0ms]" />
+                          <span class="h-1 w-1 animate-bounce rounded-full bg-gray-400 [animation-delay:150ms]" />
+                          <span class="h-1 w-1 animate-bounce rounded-full bg-gray-400 [animation-delay:300ms]" />
+                        </span>
+                      </span>
+                    </div>
+                    <div
+                      class="mt-2 prose prose-sm dark:prose-invert max-w-none text-xs leading-relaxed text-gray-600 dark:text-gray-300"
+                      v-html="renderMarkdown(block.text)"
+                    />
+                  </div>
+
+                  <!-- 图表块 -->
+                  <ChartBlockRenderer v-else-if="block.type === 'chart'" :chart="block.chart" />
+
+                  <!-- 证据块 -->
+                  <EvidenceBlock v-else-if="block.type === 'evidence'" :evidence="block.evidence" />
+
+                  <!-- 工具块：有结果时可展开查看发送给 AI 的安全文本 -->
+                  <details v-else-if="block.type === 'tool' && hasToolResult(block.tool)" class="w-full max-w-full">
+                    <summary
+                      class="inline-flex cursor-pointer list-none select-none [&::-webkit-details-marker]:hidden"
+                    >
+                      <div
+                        class="flex w-fit items-center gap-1.5 rounded-lg bg-gray-50 px-2.5 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100 dark:bg-gray-800/30 dark:text-gray-400/80 dark:hover:bg-gray-800/60"
+                        :class="[
+                          block.tool.status === 'error'
+                            ? 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400'
+                            : '',
+                        ]"
+                      >
+                        <UIcon
+                          :name="
+                            block.tool.status === 'error'
+                              ? 'i-heroicons-exclamation-circle'
+                              : 'i-heroicons-wrench-screwdriver'
+                          "
+                          class="h-3.5 w-3.5 shrink-0"
+                        />
+                        <div class="flex min-w-0 items-baseline gap-1.5 font-medium">
+                          <span>{{ getToolDisplayName(block.tool) }}</span>
+                          <span
+                            v-if="formatToolParams(block.tool)"
+                            class="max-w-[200px] truncate text-[11px] font-normal opacity-75 sm:max-w-[300px]"
+                          >
+                            {{ formatToolParams(block.tool) }}
+                          </span>
+                          <span class="shrink-0 text-[11px] font-normal opacity-75">
+                            · {{ t('ai.chat.message.toolResult.view') }}
+                          </span>
+                        </div>
+                        <UIcon
+                          name="i-heroicons-chevron-right"
+                          class="h-3 w-3 shrink-0 transition-transform [[open]>&]:rotate-90"
+                        />
+                      </div>
+                    </summary>
+                    <div
+                      class="mt-2 max-w-full rounded-lg border border-gray-200 bg-gray-50/80 dark:border-gray-700/70 dark:bg-gray-900/40"
+                    >
+                      <div
+                        class="flex items-center justify-between gap-2 border-b border-gray-200/70 px-3 py-2 dark:border-gray-700/70"
+                      >
+                        <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                          {{ t('ai.chat.message.toolResult.title') }}
+                        </span>
+                        <UButton
+                          size="xs"
+                          variant="ghost"
+                          color="primary"
+                          icon="i-heroicons-document-duplicate"
+                          :title="t('ai.chat.message.toolResult.copy')"
+                          @click.stop="copyToolResult(block.tool)"
+                        />
+                      </div>
+                      <div
+                        v-if="isToolResultDisplayTruncated(block.tool)"
+                        class="border-b border-amber-200/70 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-300"
+                      >
+                        {{ t('ai.chat.message.toolResult.displayTruncated') }}
+                      </div>
+                      <pre
+                        class="max-h-[28rem] overflow-auto whitespace-pre-wrap break-words px-3 py-2.5 text-xs leading-relaxed text-gray-700 dark:text-gray-200"
+                        >{{ getToolResultText(block.tool) }}</pre
+                      >
+                    </div>
+                  </details>
+
+                  <!-- 工具块：运行中或无结果时保持紧凑展示 -->
+                  <div
+                    v-else-if="block.type === 'tool'"
+                    class="flex w-fit items-center gap-1.5 rounded-lg px-2.5 py-1 text-xs transition-colors"
+                    :class="[
+                      block.tool.status === 'running'
+                        ? 'bg-gray-100 text-gray-600 dark:bg-gray-800/50 dark:text-gray-400'
+                        : block.tool.status === 'done'
+                          ? 'bg-gray-50 text-gray-500 dark:bg-gray-800/30 dark:text-gray-400/80'
+                          : 'bg-red-50 text-red-600 dark:bg-red-900/20 dark:text-red-400',
+                    ]"
+                  >
+                    <UIcon
+                      :name="
+                        block.tool.status === 'running'
+                          ? 'i-heroicons-arrow-path'
+                          : block.tool.status === 'done'
+                            ? 'i-heroicons-wrench-screwdriver'
+                            : 'i-heroicons-exclamation-circle'
+                      "
+                      class="h-3.5 w-3.5 shrink-0"
+                      :class="[block.tool.status === 'running' ? 'animate-spin' : '']"
+                    />
+                    <div class="flex min-w-0 items-baseline gap-1.5 font-medium">
+                      <span>{{ getToolDisplayName(block.tool) }}</span>
+                      <span
+                        v-if="formatToolParams(block.tool)"
+                        class="max-w-[200px] truncate text-[11px] font-normal opacity-75 sm:max-w-[300px]"
+                      >
+                        {{ formatToolParams(block.tool) }}
+                      </span>
+                      <span
+                        v-if="block.tool.status === 'done' && block.tool.durationMs"
+                        class="shrink-0 text-[11px] font-normal opacity-75"
+                      >
+                        · {{ formatThinkDuration(block.tool.durationMs) }}
+                      </span>
+                    </div>
+                  </div>
+
+                  <!-- 错误块 -->
+                  <ErrorBlock v-else-if="block.type === 'error'" :error="block.error" />
+                </template>
               </div>
             </div>
-
-            <!-- 错误块 -->
-            <ErrorBlock v-else-if="block.type === 'error'" :error="block.error" />
           </template>
 
           <!-- 流式处理中指示器（当最后一个块是已完成的工具块时显示） -->

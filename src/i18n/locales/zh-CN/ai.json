@@ -42,6 +42,11 @@
         "success": "Markdown 已复制到剪贴板",
         "failed": "复制 Markdown 失败"
       },
+      "process": {
+        "label": "执行过程",
+        "processing": "处理中",
+        "processed": "已处理"
+      },
       "toolResult": {
         "view": "查看结果",
         "title": "发送给 AI 的工具结果",

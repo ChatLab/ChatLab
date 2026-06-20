@@ -42,6 +42,11 @@
         "success": "Markdown をクリップボードにコピーしました",
         "failed": "Markdown のコピーに失敗しました"
       },
+      "process": {
+        "label": "実行過程",
+        "processing": "処理中",
+        "processed": "処理済み"
+      },
       "toolResult": {
         "view": "結果を表示",
         "title": "AI に送信されたツール結果",
