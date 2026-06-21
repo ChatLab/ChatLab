@@ -139,6 +139,8 @@ export function createCliRunAgentStream(
             semanticIndexService,
             preprocessConfig: params.preprocessConfig,
             ownerPlatformId: ownerInfo?.platformId,
+            timeFilter: params.timeFilter,
+            maxMessagesLimit: params.maxMessagesLimit,
           }),
           { maxToolResultTokens }
         )

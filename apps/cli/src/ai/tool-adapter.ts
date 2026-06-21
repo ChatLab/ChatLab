@@ -5,7 +5,13 @@
  * 消息类工具返回 rawMessages 时自动执行预处理管道（清洗、去噪、脱敏、截断、格式化）。
  */
 
-import type { ToolDefinition, ToolExecutionContext, SemanticSearchToolService, RawMessage } from '@openchatlab/tools'
+import type {
+  ToolDefinition,
+  ToolExecutionContext,
+  SemanticSearchToolService,
+  RawMessage,
+  TimeFilter,
+} from '@openchatlab/tools'
 import { CoreDataProvider } from '@openchatlab/tools'
 import type { DatabaseAdapter } from '@openchatlab/core'
 import {
@@ -43,6 +49,10 @@ export interface ServerToolContext {
   preprocessConfig?: Record<string, unknown>
   /** 当前用户平台 id（昵称匿名化 owner 识别） */
   ownerPlatformId?: string
+  /** 会话时间范围筛选（来自请求参数，供证据类工具继承） */
+  timeFilter?: TimeFilter
+  /** 关键词搜索消息条数上限 */
+  maxMessagesLimit?: number
 }
 
 function convertJsonSchemaToParameters(schema: ToolDefinition['inputSchema']) {
@@ -87,6 +97,8 @@ export function adaptToolsForAgent(
             semanticIndexService: ctx.semanticIndexService,
             preprocessConfig: ctx.preprocessConfig,
             ownerPlatformId: ctx.ownerPlatformId,
+            timeFilter: ctx.timeFilter,
+            maxMessagesLimit: ctx.maxMessagesLimit,
             maxToolResultTokens: tokenBudget,
             segmentText: (texts, locale, options) => batchSegmentWithFrequency(texts, locale as any, options as any),
             desensitizeMessages: (messages: RawMessage[]): RawMessage[] =>
@@ -109,8 +121,12 @@ export function adaptToolsForAgent(
               // tools may mirror rawMessages inside data; keep it out of extraDetails
               // so the pipeline only renders scalar metadata (same as the desktop adapter)
               const { rawMessages: _rawInData, ...extraDetails } = (result.data ?? {}) as Record<string, unknown>
+              const preprocessCfg = ctx.preprocessConfig as PreprocessConfig | undefined
               const pipelineResult = applyPreprocessingPipeline({
                 rawMessages: result.rawMessages as PreprocessableMessage[],
+                preprocessConfig: preprocessCfg,
+                anonymizeNames: preprocessCfg?.anonymizeNames ?? false,
+                ownerPlatformId: ctx.ownerPlatformId,
                 locale: ctx.locale,
                 maxToolResultTokens: tokenBudget,
                 truncationStrategy: TOOL_TRUNCATION_STRATEGY[tool.name] ?? 'keep_last',
