@@ -11,7 +11,7 @@ import { useI18n } from 'vue-i18n'
 import UITabs from '@/components/UI/Tabs.vue'
 import ApiKeyInput from './ApiKeyInput.vue'
 import { LOCAL_MODELS, API_TEMPLATES, type ModelConfigDraft } from './semantic-index-models'
-import { canReuseSemanticIndexApiAuthProfile } from './semantic-index-config-builder'
+import { canReuseSemanticIndexApiAuthProfile, isSemanticIndexApiKeyRequired } from './semantic-index-config-builder'
 import type { SemanticIndexConfig } from '@/services'
 
 const props = defineProps<{
@@ -48,10 +48,15 @@ const modeItems = computed(() => [
 const canReuseApiKey = computed(() =>
   canReuseSemanticIndexApiAuthProfile(props.config, apiBaseUrl.value, props.apiKeySet)
 )
+const apiKeyRequired = computed(() => isSemanticIndexApiKeyRequired(apiBaseUrl.value))
 
 const hasModelConfig = computed(() => {
   if (mode.value === 'local') return !!localModelId.value
-  return !!apiBaseUrl.value.trim() && !!apiModel.value.trim() && (canReuseApiKey.value || !!apiKey.value.trim())
+  return (
+    !!apiBaseUrl.value.trim() &&
+    !!apiModel.value.trim() &&
+    (!apiKeyRequired.value || canReuseApiKey.value || !!apiKey.value.trim())
+  )
 })
 
 function initDraft() {

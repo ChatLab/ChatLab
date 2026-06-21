@@ -58,13 +58,14 @@ export class OpenAICompatibleEmbeddingProvider implements EmbeddingProvider {
 
   async embedDocuments(texts: string[]): Promise<Float32Array[]> {
     if (texts.length === 0) return []
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    }
+    if (this.config.apiKey.trim()) headers.Authorization = `Bearer ${this.config.apiKey}`
 
     const response = await this.fetchFn(this.url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.config.apiKey}`,
-      },
+      headers,
       body: JSON.stringify({ model: this.config.model, input: texts }),
     })
 

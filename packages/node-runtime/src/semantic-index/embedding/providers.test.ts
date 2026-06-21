@@ -44,7 +44,7 @@ test('local provider prepends query instruction for embedQuery', async () => {
 
   await provider.embedQuery('北京天气')
   assert.equal(calls.length, 1)
-  assert.equal(calls[0][0], `${QWEN3_PROFILE.queryInstruction}北京天气`)
+  assert.equal(calls[0][0], `Instruct: ${QWEN3_PROFILE.queryInstruction}\nQuery: 北京天气`)
 })
 
 test('local provider clamps document text to maxTextChars', async () => {
@@ -91,6 +91,27 @@ test('API provider posts OpenAI-compatible request and parses ordered embeddings
   assert.ok(approx(vectors[0], [0.1, 0.2]))
   assert.ok(approx(vectors[1], [0.3, 0.4]))
   assert.equal(provider.dim, 2)
+})
+
+test('API provider omits Authorization header when API key is empty', async () => {
+  let capturedHeaders: Record<string, string> | null = null
+  const fetchFn: FetchFn = async (_url, init) => {
+    capturedHeaders = init.headers
+    return {
+      ok: true,
+      status: 200,
+      text: async () => '',
+      json: async () => ({ data: [{ index: 0, embedding: [0.1, 0.2] }] }),
+    }
+  }
+  const provider = new OpenAICompatibleEmbeddingProvider(
+    { baseUrl: 'http://localhost:11434/v1', apiKey: '', model: 'nomic-embed-text' },
+    { fetchFn }
+  )
+
+  await provider.embedDocuments(['hello'])
+
+  assert.equal(capturedHeaders!.Authorization, undefined)
 })
 
 test('API provider embedQuery does not add instruction', async () => {

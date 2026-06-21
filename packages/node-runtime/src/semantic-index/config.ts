@@ -98,6 +98,20 @@ export function canRunSemanticIndex(config: SemanticIndexConfig): boolean {
   return config.enabled && isSemanticIndexConfigured(config)
 }
 
+/** Local Ollama's OpenAI-compatible endpoint does not require authentication. */
+export function isKeylessSemanticIndexApiBaseUrl(baseUrl: string | undefined): boolean {
+  if (!baseUrl) return false
+  try {
+    const url = new URL(baseUrl)
+    const host = url.hostname.toLowerCase()
+    const isLoopback = host === 'localhost' || host === '127.0.0.1' || host === '::1'
+    const port = url.port || (url.protocol === 'https:' ? '443' : '80')
+    return isLoopback && port === '11434'
+  } catch {
+    return false
+  }
+}
+
 function normalizeConfig(raw: Partial<SemanticIndexConfig> | null | undefined): SemanticIndexConfig {
   const base = defaultSemanticIndexConfig()
   if (!raw || typeof raw !== 'object') return base

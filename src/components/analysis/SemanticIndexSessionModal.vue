@@ -9,6 +9,7 @@ import { ref, computed, watch, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSemanticIndexService } from '@/services'
 import type { SemanticIndexSessionStatus } from '@/services'
+import { isSemanticIndexApiKeyRequired } from '@/components/common/Settings/AI/semantic-index-config-builder'
 
 const props = defineProps<{
   modelValue: boolean
@@ -84,7 +85,9 @@ async function load() {
       cfg.configured &&
       (cfg.config.mode === 'local'
         ? !!cfg.config.local.modelId
-        : !!cfg.config.api?.baseUrl && !!cfg.config.api?.model && cfg.apiKeySet)
+        : !!cfg.config.api?.baseUrl &&
+          !!cfg.config.api?.model &&
+          (!isSemanticIndexApiKeyRequired(cfg.config.api?.baseUrl) || cfg.apiKeySet))
     status.value = st
   } catch (error) {
     console.error('[semantic-index] load session status failed:', error)

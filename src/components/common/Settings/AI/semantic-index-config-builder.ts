@@ -5,6 +5,20 @@ function normalizeBaseUrl(value: string | undefined): string {
   return (value ?? '').trim().replace(/\/+$/, '')
 }
 
+/** Local Ollama's OpenAI-compatible endpoint does not require authentication. */
+export function isSemanticIndexApiKeyRequired(apiBaseUrl: string | undefined): boolean {
+  if (!apiBaseUrl) return true
+  try {
+    const url = new URL(apiBaseUrl)
+    const host = url.hostname.toLowerCase()
+    const isLoopback = host === 'localhost' || host === '127.0.0.1' || host === '::1'
+    const port = url.port || (url.protocol === 'https:' ? '443' : '80')
+    return !(isLoopback && port === '11434')
+  } catch {
+    return true
+  }
+}
+
 export function canReuseSemanticIndexApiAuthProfile(
   savedConfig: SemanticIndexConfig | null,
   apiBaseUrl: string,

@@ -11,7 +11,7 @@ import { useI18n } from 'vue-i18n'
 import SemanticIndexConversationPicker from './SemanticIndexConversationPicker.vue'
 import SemanticIndexModelModal from './SemanticIndexModelModal.vue'
 import { LOCAL_MODELS, type ModelConfigDraft } from './semantic-index-models'
-import { buildSemanticIndexModelConfig } from './semantic-index-config-builder'
+import { buildSemanticIndexModelConfig, isSemanticIndexApiKeyRequired } from './semantic-index-config-builder'
 import {
   useDataService,
   useSemanticIndexService,
@@ -40,7 +40,7 @@ const hasModelConfig = computed(() => {
   const c = savedConfig.value
   if (!configured.value || !c) return false
   if (c.mode === 'local') return !!c.local.modelId
-  return !!c.api?.baseUrl && !!c.api?.model && apiKeySet.value
+  return !!c.api?.baseUrl && !!c.api?.model && (!isSemanticIndexApiKeyRequired(c.api.baseUrl) || apiKeySet.value)
 })
 
 // 摘要行展示的当前模型：本地查展示名，API 显示模型名与服务地址 host；未配置时为 null

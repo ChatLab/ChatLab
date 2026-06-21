@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
-import { buildSemanticIndexModelConfig, canReuseSemanticIndexApiAuthProfile } from './semantic-index-config-builder'
+import {
+  buildSemanticIndexModelConfig,
+  canReuseSemanticIndexApiAuthProfile,
+  isSemanticIndexApiKeyRequired,
+} from './semantic-index-config-builder'
 import type { SemanticIndexConfig } from '@/services'
 
 const savedApiConfig: SemanticIndexConfig = {
@@ -44,5 +48,11 @@ describe('buildSemanticIndexModelConfig', () => {
 
   it('does not allow UI key reuse when backend reports no saved key', () => {
     assert.equal(canReuseSemanticIndexApiAuthProfile(savedApiConfig, savedApiConfig.api!.baseUrl, false), false)
+  })
+
+  it('does not require an API key for local Ollama endpoints', () => {
+    assert.equal(isSemanticIndexApiKeyRequired('http://localhost:11434/v1'), false)
+    assert.equal(isSemanticIndexApiKeyRequired('http://127.0.0.1:11434/v1'), false)
+    assert.equal(isSemanticIndexApiKeyRequired('https://api.openai.com/v1'), true)
   })
 })

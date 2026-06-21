@@ -6,7 +6,8 @@
 export function applyQueryInstruction(instruction: string, query: string): string {
   const trimmed = instruction.trim()
   if (!trimmed) return query
-  return `${trimmed}${query}`
+  if (trimmed.endsWith(':') || trimmed.endsWith('：')) return `${trimmed}${query}`
+  return `Instruct: ${trimmed}\nQuery: ${query}`
 }
 
 /** 按字符上限截断文本；maxChars 未提供或文本更短时原样返回 */
