@@ -144,6 +144,18 @@ export class SemanticIndexStateStore {
       })
   }
 
+  /**
+   * 重新激活已有状态行（stale 重建场景）：仅更新 enabled 和 dbPath，保留旧身份字段，
+   * 使 buildAllPending() 重启后仍能通过 isStale() 检测到需重建并入队 rebuild。
+   */
+  reactivate(dbPathHash: string, dbPath: string): void {
+    this.db
+      .prepare(
+        `UPDATE semantic_index_session SET enabled = 1, db_path = ?, cleanup_status = 'none', updated_at = ? WHERE db_path_hash = ?`
+      )
+      .run(dbPath, Date.now(), dbPathHash)
+  }
+
   /** 停用对话索引；标记待清理，保留状态与已建索引直到清理任务执行 */
   disable(dbPathHash: string): void {
     this.db

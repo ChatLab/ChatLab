@@ -14,9 +14,9 @@ import type { EmbeddingIndexStore } from '../store'
 import type { ChunkRecord } from '../types'
 import { reciprocalRankFusion } from './rrf'
 
-/** 聊天库全文检索：返回按相关度排序的 message_id（最相关在前） */
+/** 聊天库全文检索：返回按相关度排序的消息（最相关在前）；ts 为毫秒，与 chunk_vector_index 的 startTs/endTs 单位一致 */
 export interface FtsSearcher {
-  search(query: string, topN: number): number[]
+  search(query: string, topN: number): Array<{ id: number; ts: number }>
 }
 
 export interface HybridSearchDeps {
@@ -60,8 +60,8 @@ function overlapsTimeRangeMs(record: ChunkRecord, filter?: SemanticTimeRangeMs):
   return true
 }
 
-/** 启用时间过滤时放大候选池的倍数 */
-const TIME_FILTER_POOL_MULTIPLIER = 3
+/** 启用时间过滤时放大候选池的倍数；必须足够大，避免长对话中窄时间段的 in-range chunk 均排在 top-N 以外 */
+const TIME_FILTER_POOL_MULTIPLIER = 10
 
 export interface HybridSearchResult {
   chunkId: string
@@ -98,11 +98,11 @@ export async function hybridSearch(deps: HybridSearchDeps, params: HybridSearchP
     records.set(hit.chunkId, hit.record)
   }
 
-  // FTS message_id -> chunk（去重保序 + 时间交集过滤）
+  // FTS message -> chunk（按 ts 映射，去重保序 + 时间交集过滤）
   const ftsIds: string[] = []
   const ftsRankById = new Map<string, number>()
-  for (const messageId of fts.search(query, ftsTopN)) {
-    const record = store.mapMessageToChunk({ dbPathHash, modelId, strategyId, messageId })
+  for (const { id: messageId, ts: messageTs } of fts.search(query, ftsTopN)) {
+    const record = store.mapMessageToChunk({ dbPathHash, modelId, strategyId, messageId, messageTs })
     if (!record || ftsRankById.has(record.chunkId)) continue
     if (!overlapsTimeRangeMs(record, timeRangeMs)) continue
     ftsRankById.set(record.chunkId, ftsIds.length)

@@ -64,8 +64,18 @@ export async function runWarmup(options: WarmupRunnerOptions): Promise<WarmupRes
     const streamIndexById = new Map<number, number>()
     messages.forEach((m, i) => streamIndexById.set(m.id, i))
 
-    const resumeMessageId = stateStore.getState(dbPathHash)?.lastIndexedMessageId ?? null
-    const resumeIndex = resumeMessageId !== null ? (streamIndexById.get(resumeMessageId) ?? -1) : -1
+    const savedState = stateStore.getState(dbPathHash)
+    const resumeMessageId = savedState?.lastIndexedMessageId ?? null
+    const rawResumeIndex = resumeMessageId !== null ? (streamIndexById.get(resumeMessageId) ?? -1) : -1
+
+    // Detect non-append-only additions: if the cursor's new stream position doesn't match the
+    // saved indexed count, older messages were backfilled before the cursor. Clear vectors and
+    // re-index from scratch to avoid silently missing the backfilled messages.
+    const isNonAppendOnly = rawResumeIndex >= 0 && rawResumeIndex + 1 !== (savedState?.indexedMessages ?? 0)
+    if (isNonAppendOnly) {
+      store.deleteByDbPathHash(dbPathHash)
+    }
+    const resumeIndex = isNonAppendOnly ? -1 : rawResumeIndex
 
     const { chunks, chunkerConfigHash } = chunkMessages({ messages, source: source.getSource(), config })
 

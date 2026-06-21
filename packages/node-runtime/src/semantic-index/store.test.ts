@@ -101,33 +101,71 @@ test('insertChunk rejects embedding whose length mismatches dim', () => {
   store.close()
 })
 
-test('mapMessageToChunk returns the chunk whose range covers the message', () => {
+test('mapMessageToChunk returns the chunk whose ts range covers the message', () => {
   const dbPath = makeTempDbPath()
   const store = new EmbeddingIndexStore(dbPath)
 
-  store.insertChunk(baseRecord({ chunkId: 'c1', startMessageId: 0, endMessageId: 11 }), [1, 0, 0, 0])
-  store.insertChunk(baseRecord({ chunkId: 'c2', startMessageId: 12, endMessageId: 23 }), [0, 1, 0, 0])
-  store.insertChunk(baseRecord({ chunkId: 'c3', startMessageId: 24, endMessageId: 35 }), [0, 0, 1, 0])
+  // ts 用 messageId * 100 映射，三段连续
+  store.insertChunk(
+    baseRecord({ chunkId: 'c1', startMessageId: 0, endMessageId: 11, startTs: 0, endTs: 1100 }),
+    [1, 0, 0, 0]
+  )
+  store.insertChunk(
+    baseRecord({ chunkId: 'c2', startMessageId: 12, endMessageId: 23, startTs: 1200, endTs: 2300 }),
+    [0, 1, 0, 0]
+  )
+  store.insertChunk(
+    baseRecord({ chunkId: 'c3', startMessageId: 24, endMessageId: 35, startTs: 2400, endTs: 3500 }),
+    [0, 0, 1, 0]
+  )
 
   const params = { dbPathHash: 'dbA', modelId: 'qwen3', strategyId: 'balanced' }
-  assert.equal(store.mapMessageToChunk({ ...params, messageId: 15 })?.chunkId, 'c2')
-  assert.equal(store.mapMessageToChunk({ ...params, messageId: 0 })?.chunkId, 'c1')
-  assert.equal(store.mapMessageToChunk({ ...params, messageId: 35 })?.chunkId, 'c3')
+  assert.equal(store.mapMessageToChunk({ ...params, messageId: 15, messageTs: 1500 })?.chunkId, 'c2')
+  assert.equal(store.mapMessageToChunk({ ...params, messageId: 0, messageTs: 0 })?.chunkId, 'c1')
+  assert.equal(store.mapMessageToChunk({ ...params, messageId: 35, messageTs: 3500 })?.chunkId, 'c3')
 
   store.close()
 })
 
-test('mapMessageToChunk returns null when message falls in a gap between chunks', () => {
+test('mapMessageToChunk returns null when message ts falls in a gap between chunks', () => {
   const dbPath = makeTempDbPath()
   const store = new EmbeddingIndexStore(dbPath)
 
-  // chunk 之间留空洞：12-99 没有任何 chunk 覆盖
-  store.insertChunk(baseRecord({ chunkId: 'c1', startMessageId: 0, endMessageId: 11 }), [1, 0, 0, 0])
-  store.insertChunk(baseRecord({ chunkId: 'c2', startMessageId: 100, endMessageId: 111 }), [0, 1, 0, 0])
+  // chunk 之间留 ts 空洞
+  store.insertChunk(
+    baseRecord({ chunkId: 'c1', startMessageId: 0, endMessageId: 11, startTs: 0, endTs: 1100 }),
+    [1, 0, 0, 0]
+  )
+  store.insertChunk(
+    baseRecord({ chunkId: 'c2', startMessageId: 100, endMessageId: 111, startTs: 10000, endTs: 11100 }),
+    [0, 1, 0, 0]
+  )
 
   const params = { dbPathHash: 'dbA', modelId: 'qwen3', strategyId: 'balanced' }
-  assert.equal(store.mapMessageToChunk({ ...params, messageId: 50 }), null)
-  assert.equal(store.mapMessageToChunk({ ...params, messageId: 200 }), null)
+  assert.equal(store.mapMessageToChunk({ ...params, messageId: 50, messageTs: 5000 }), null)
+  assert.equal(store.mapMessageToChunk({ ...params, messageId: 200, messageTs: 20000 }), null)
+
+  store.close()
+})
+
+test('mapMessageToChunk breaks ties when multiple chunks share the same start_ts', () => {
+  const dbPath = makeTempDbPath()
+  const store = new EmbeddingIndexStore(dbPath)
+
+  // 同一秒内两个 chunk：c1 覆盖 id 1-2，c2 覆盖 id 3-4，start_ts 相同
+  store.insertChunk(
+    baseRecord({ chunkId: 'c1', startMessageId: 1, endMessageId: 2, startTs: 1000, endTs: 1000 }),
+    [1, 0, 0, 0]
+  )
+  store.insertChunk(
+    baseRecord({ chunkId: 'c2', startMessageId: 3, endMessageId: 4, startTs: 1000, endTs: 1000 }),
+    [0, 1, 0, 0]
+  )
+
+  const params = { dbPathHash: 'dbA', modelId: 'qwen3', strategyId: 'balanced' }
+  assert.equal(store.mapMessageToChunk({ ...params, messageId: 1, messageTs: 1000 })?.chunkId, 'c1')
+  assert.equal(store.mapMessageToChunk({ ...params, messageId: 3, messageTs: 1000 })?.chunkId, 'c2')
+  assert.equal(store.mapMessageToChunk({ ...params, messageId: 4, messageTs: 1000 })?.chunkId, 'c2')
 
   store.close()
 })

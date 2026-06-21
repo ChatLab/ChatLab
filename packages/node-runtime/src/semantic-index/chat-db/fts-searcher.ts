@@ -28,10 +28,21 @@ export function extractFtsKeywords(query: string): string[] {
 
 export function createChatDbFtsSearcher(db: DatabaseAdapter): FtsSearcher {
   return {
-    search(query: string, topN: number): number[] {
+    search(query: string, topN: number): Array<{ id: number; ts: number }> {
       const keywords = extractFtsKeywords(query)
       if (keywords.length === 0) return []
-      return searchByFts(db, keywords, topN, 0).rowids
+      const { rowids } = searchByFts(db, keywords, topN, 0)
+      if (rowids.length === 0) return []
+      const placeholders = rowids.map(() => '?').join(', ')
+      const tsRows = db.prepare(`SELECT id, ts FROM message WHERE id IN (${placeholders})`).all(...rowids) as Array<{
+        id: number
+        ts: number
+      }>
+      const tsById = new Map(tsRows.map((r) => [r.id, r.ts * 1000]))
+      return rowids.flatMap((id) => {
+        const ts = tsById.get(id)
+        return ts !== undefined ? [{ id, ts }] : []
+      })
     },
   }
 }

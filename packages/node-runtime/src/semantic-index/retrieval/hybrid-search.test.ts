@@ -76,7 +76,12 @@ test('fuses dense and fts so a chunk hit by both ranks first', async () => {
   const store = setupStore()
   // query 最接近 c1；FTS 命中 message 5(c3) 和 7(c4)
   const embedder = makeEmbedder([0.9, 0.1, 0, 0])
-  const fts: FtsSearcher = { search: () => [5, 7] }
+  const fts: FtsSearcher = {
+    search: () => [
+      { id: 5, ts: 5000 },
+      { id: 7, ts: 7000 },
+    ],
+  }
 
   const results = await hybridSearch({ embedder, store, fts }, baseParams)
 
@@ -95,7 +100,12 @@ test('fuses dense and fts so a chunk hit by both ranks first', async () => {
 test('respects finalTopK limit', async () => {
   const store = setupStore()
   const embedder = makeEmbedder([0.9, 0.1, 0, 0])
-  const fts: FtsSearcher = { search: () => [5, 7] }
+  const fts: FtsSearcher = {
+    search: () => [
+      { id: 5, ts: 5000 },
+      { id: 7, ts: 7000 },
+    ],
+  }
 
   const results = await hybridSearch({ embedder, store, fts }, { ...baseParams, finalTopK: 2 })
   assert.equal(results.length, 2)
@@ -106,7 +116,12 @@ test('deduplicates fts message ids mapping to the same chunk', async () => {
   const store = setupStore()
   const embedder = makeEmbedder([1, 0, 0, 0])
   // message 5 和 6 都映射到 c3
-  const fts: FtsSearcher = { search: () => [5, 6] }
+  const fts: FtsSearcher = {
+    search: () => [
+      { id: 5, ts: 5000 },
+      { id: 6, ts: 6000 },
+    ],
+  }
 
   const results = await hybridSearch({ embedder, store, fts }, baseParams)
   const c3 = results.find((r) => r.chunkId === 'c3')!
@@ -128,7 +143,7 @@ test('works with dense only when fts returns nothing', async () => {
 test('empty query returns no results', async () => {
   const store = setupStore()
   const embedder = makeEmbedder([1, 0, 0, 0])
-  const fts: FtsSearcher = { search: () => [1] }
+  const fts: FtsSearcher = { search: () => [{ id: 1, ts: 1000 }] }
 
   const results = await hybridSearch({ embedder, store, fts }, { ...baseParams, query: '   ' })
   assert.deepEqual(results, [])
@@ -180,7 +195,7 @@ test('timeRangeMs supports single-sided endTs and filters fts-mapped chunks', as
   const store = setupStore()
   const embedder = makeEmbedder([0.5, 0.5, 0.5, 0.5])
   // fts maps message 7 -> c4 (out of range, must be dropped)
-  const fts: FtsSearcher = { search: () => [7] }
+  const fts: FtsSearcher = { search: () => [{ id: 7, ts: 7000 }] }
 
   const results = await hybridSearch({ embedder, store, fts }, { ...baseParams, timeRangeMs: { endTs: 4000 } })
   const ids = results.map((r) => r.chunkId).sort()

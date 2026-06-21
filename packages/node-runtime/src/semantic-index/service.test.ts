@@ -119,12 +119,15 @@ test('changing model identity marks needsRebuild and blocks search until rebuilt
   await service.whenIdle()
 
   // 切换到不同模型身份（改用 API）-> 身份变化 -> 需重建
-  service.setConfig({
-    version: 1,
-    mode: 'api',
-    local: { modelId: QWEN3_PROFILE.modelId },
-    api: { baseUrl: 'https://x', model: 'emb' },
-  })
+  service.setConfig(
+    {
+      version: 1,
+      mode: 'api',
+      local: { modelId: QWEN3_PROFILE.modelId },
+      api: { baseUrl: 'https://x', model: 'emb' },
+    },
+    { apiKey: 'sk-test' }
+  )
   assert.equal(service.status(SESSION_ID)!.needsRebuild, true)
   const blocked = await service.search(SESSION_ID, '项目排期')
   assert.equal(blocked.available, false)
@@ -140,7 +143,7 @@ test('changing model identity marks needsRebuild and blocks search until rebuilt
 })
 
 test('changing chunker identity marks needsRebuild and blocks search until rebuilt', async () => {
-  const { service, chatDbPath, dir, db } = setup()
+  const { service, dir, db } = setup()
   service.enable(SESSION_ID)
   await service.whenIdle()
   assert.equal(service.status(SESSION_ID)!.needsRebuild, false)
@@ -150,7 +153,7 @@ test('changing chunker identity marks needsRebuild and blocks search until rebui
   const external = openBetterSqliteDatabase(path.join(dir, 'embedding_index.db'))
   external
     .prepare('UPDATE semantic_index_session SET chunker_config_hash = ? WHERE db_path_hash = ?')
-    .run('stale-cfg', computeDbPathHash(chatDbPath))
+    .run('stale-cfg', computeDbPathHash(SESSION_ID))
   external.close()
 
   assert.equal(service.status(SESSION_ID)!.needsRebuild, true)
@@ -170,7 +173,7 @@ test('changing chunker identity marks needsRebuild and blocks search until rebui
 })
 
 test('buildAllPending rebuilds a stale index back to searchable', async () => {
-  const { service, chatDbPath, dir, db, getEmbedCount } = setup()
+  const { service, dir, db, getEmbedCount } = setup()
   service.enable(SESSION_ID)
   await service.whenIdle()
   const afterFirstBuild = getEmbedCount()
@@ -180,7 +183,7 @@ test('buildAllPending rebuilds a stale index back to searchable', async () => {
   const external = openBetterSqliteDatabase(path.join(dir, 'embedding_index.db'))
   external
     .prepare('UPDATE semantic_index_session SET chunker_config_hash = ? WHERE db_path_hash = ?')
-    .run('stale-cfg', computeDbPathHash(chatDbPath))
+    .run('stale-cfg', computeDbPathHash(SESSION_ID))
   external.close()
   assert.equal(service.status(SESSION_ID)!.needsRebuild, true)
 
@@ -198,7 +201,7 @@ test('buildAllPending rebuilds a stale index back to searchable', async () => {
 })
 
 test('re-enabling a stale index rebuilds instead of resuming stale chunks', async () => {
-  const { service, chatDbPath, dir, db, getEmbedCount } = setup()
+  const { service, dir, db, getEmbedCount } = setup()
   service.enable(SESSION_ID)
   await service.whenIdle()
   const afterFirstBuild = getEmbedCount()
@@ -206,7 +209,7 @@ test('re-enabling a stale index rebuilds instead of resuming stale chunks', asyn
   const external = openBetterSqliteDatabase(path.join(dir, 'embedding_index.db'))
   external
     .prepare('UPDATE semantic_index_session SET chunker_config_hash = ? WHERE db_path_hash = ?')
-    .run('stale-cfg', computeDbPathHash(chatDbPath))
+    .run('stale-cfg', computeDbPathHash(SESSION_ID))
   external.close()
 
   // 重新启用旧 stale 索引：必须走 rebuild(重新嵌入)，而不是按旧游标续建跳过
@@ -234,6 +237,27 @@ test('disable then cleanup removes the index and blocks search', async () => {
 
   const { cleaned } = service.cleanupUnused()
   assert.ok(cleaned >= 1)
+  service.close()
+  db.close()
+})
+
+test('re-enabling after cleanup rebuilds from scratch', async () => {
+  const { service, db, getEmbedCount } = setup()
+  service.enable(SESSION_ID)
+  await service.whenIdle()
+  const afterFirstBuild = getEmbedCount()
+
+  service.disable(SESSION_ID)
+  service.cleanupUnused()
+
+  service.enable(SESSION_ID)
+  await service.whenIdle()
+
+  assert.ok(getEmbedCount() > afterFirstBuild, 're-enabling a cleaned index should embed chunks again')
+  assert.equal(service.status(SESSION_ID)!.indexStatus, 'completed')
+  assert.equal(service.canSearch(SESSION_ID), true)
+  const result = await service.search(SESSION_ID, '项目排期')
+  assert.equal(result.available, true)
   service.close()
   db.close()
 })
@@ -460,13 +484,13 @@ test('searchForTool applies timeFilter to exclude out-of-range chunks', async ()
 })
 
 test('recover marks stale running as paused without auto-resuming', async () => {
-  const { service, chatDbPath, dir, db } = setup()
+  const { service, dir, db } = setup()
   service.enable(SESSION_ID)
   await service.whenIdle()
 
   // 模拟崩溃：另一连接把状态置为 running
   const external = new SemanticIndexStateStore(path.join(dir, 'embedding_index.db'))
-  external.setIndexStatus(computeDbPathHash(chatDbPath), 'running')
+  external.setIndexStatus(computeDbPathHash(SESSION_ID), 'running')
   external.close()
 
   service.recover()

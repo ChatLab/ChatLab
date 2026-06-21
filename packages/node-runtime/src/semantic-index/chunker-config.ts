@@ -84,9 +84,9 @@ export function computeChunkerConfigHash(config: ChunkerConfig): string {
   return sha256Hex(canonical)
 }
 
-/** 聊天数据库文件路径的 SHA256 前缀，用于区分不同聊天库的 chunk */
-export function computeDbPathHash(dbPath: string): string {
-  return sha256Hex(dbPath).slice(0, 16)
+/** 对话稳定标识（sessionId 或相关稳定字符串）的 SHA256 前缀，用于区分不同聊天库的 chunk */
+export function computeDbPathHash(stableKey: string): string {
+  return sha256Hex(stableKey).slice(0, 16)
 }
 
 /**

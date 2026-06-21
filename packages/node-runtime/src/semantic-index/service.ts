@@ -235,7 +235,7 @@ export class SemanticIndexService {
   /** 当前 API 模式是否已配置可用的 API Key（不返回明文，仅布尔） */
   hasApiKey(): boolean {
     const cfg = this.configStore.get()
-    if (cfg.mode !== 'api' || !cfg.api) return false
+    if (cfg.mode !== 'api' || !cfg.api || !cfg.api.authProfile) return false
     const resolve = this.options.embedderFactoryDeps?.resolveApiKey ?? defaultResolveApiKey
     return resolve('semantic-index', cfg.api.authProfile) !== ''
   }
@@ -280,7 +280,7 @@ export class SemanticIndexService {
   // ---------- 启用 / 生命周期 ----------
 
   private hashFor(sessionId: string): string {
-    return computeDbPathHash(this.sessionAdapter.getDbPath(sessionId))
+    return computeDbPathHash(sessionId)
   }
 
   /** 索引身份是否与当前运行时不一致（模型身份或 chunker 身份变化 => 需重建） */
@@ -300,7 +300,7 @@ export class SemanticIndexService {
     chunkerConfigHash: string
   } {
     return {
-      dbPathHash: computeDbPathHash(dbPath),
+      dbPathHash: computeDbPathHash(sessionIdFromDbPath(dbPath)),
       dbPath,
       modelId: this.currentModelId(),
       chunkerVersion: this.chunkerVersion,
@@ -311,11 +311,18 @@ export class SemanticIndexService {
   enable(sessionId: string): void {
     if (!this.canRun()) return
     const dbPath = this.sessionAdapter.getDbPath(sessionId)
-    const hash = computeDbPathHash(dbPath)
-    // 旧记录身份(模型/chunker)已变化时必须重建：否则 enable 覆盖身份后按旧游标续建会保留旧 chunk
+    const hash = computeDbPathHash(sessionId)
     const existing = this.stateStore.getState(hash)
     const stale = !!existing && this.isStale(existing, this.currentModelId())
-    this.stateStore.enable(this.enableParams(dbPath))
+    if (stale) {
+      // 保留旧身份字段，只重置 enabled 和 index_status。
+      // 这样 app 在 rebuild 运行前退出后，重启时 buildAllPending() 仍能通过
+      // isStale() 检测到需重建并入队 rebuild，避免永久卡死在"新身份+无向量"状态。
+      this.stateStore.reactivate(hash, dbPath)
+      this.stateStore.setIndexStatus(hash, 'idle')
+    } else {
+      this.stateStore.enable(this.enableParams(dbPath))
+    }
     this.queue.enqueue({ type: stale ? 'rebuild' : 'build', dbPathHash: hash })
   }
 
@@ -343,7 +350,7 @@ export class SemanticIndexService {
   rebuild(sessionId: string): void {
     if (!this.canRun()) return
     const dbPath = this.sessionAdapter.getDbPath(sessionId)
-    const hash = computeDbPathHash(dbPath)
+    const hash = computeDbPathHash(sessionId)
     this.queue.cancel(hash)
     this.stateStore.enable(this.enableParams(dbPath))
     this.queue.enqueue({ type: 'rebuild', dbPathHash: hash })
@@ -359,6 +366,16 @@ export class SemanticIndexService {
         this.queue.enqueue({ type: 'rebuild', dbPathHash: state.dbPathHash })
       } else if (state.indexStatus !== 'completed') {
         this.queue.enqueue({ type: 'build', dbPathHash: state.dbPathHash })
+      } else {
+        // Completed sessions may have received new messages since last index run
+        const sessionId = sessionIdFromDbPath(state.dbPath)
+        const db = this.sessionAdapter.openReadonly(sessionId)
+        if (db) {
+          const liveCount = (db.prepare('SELECT COUNT(*) AS c FROM message').get() as { c: number } | undefined)?.c ?? 0
+          if (liveCount > state.totalMessages) {
+            this.queue.enqueue({ type: 'build', dbPathHash: state.dbPathHash })
+          }
+        }
       }
     }
   }
@@ -466,6 +483,8 @@ export class SemanticIndexService {
       parentId: h.record.parentId,
       startMessageId: h.record.startMessageId,
       endMessageId: h.record.endMessageId,
+      startTs: h.record.startTs,
+      endTs: h.record.endTs,
     }))
     const reader = createChatDbMessageRangeReader(db)
     const { blocks } = assembleEvidence(reader, evidenceHits, options?.budget)
@@ -632,8 +651,18 @@ export class SemanticIndexService {
   /** 清理已停用待清理的对话索引，以及无对应业务状态的孤儿 chunk */
   cleanupUnused(): { cleaned: number } {
     let cleaned = 0
+
+    // 检测已删除的对话（DB 文件不再存在）：将其状态标为 pending cleanup，交由下方统一清理
+    const activeSessionIds = new Set(this.sessionAdapter.listSessionIds())
+    for (const state of this.stateStore.listAll()) {
+      if (state.cleanupStatus !== 'pending' && !activeSessionIds.has(sessionIdFromDbPath(state.dbPath))) {
+        this.stateStore.disable(state.dbPathHash)
+      }
+    }
+
     for (const state of this.stateStore.listPendingCleanup()) {
       this.store.deleteByDbPathHash(state.dbPathHash)
+      this.stateStore.resetProgress(state.dbPathHash)
       this.stateStore.setCleanupStatus(state.dbPathHash, 'done')
       cleaned++
     }

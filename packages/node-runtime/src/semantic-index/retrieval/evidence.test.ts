@@ -18,11 +18,14 @@ function makeMessages(startId: number, endId: number, charsPerMsg = 10): Evidenc
   return msgs
 }
 
-/** 多 parent 内存 reader：按 id 升序返回区间消息 */
+/** 多 parent 内存 reader：按 ts, id 升序返回区间消息（通过 startId/endId 的 ts 值确定范围） */
 function makeReader(all: EvidenceMessage[]): MessageRangeReader {
+  const tsById = new Map(all.map((m) => [m.id, m.ts]))
   return {
     readRange(startId, endId) {
-      return all.filter((m) => m.id >= startId && m.id <= endId)
+      const startTs = tsById.get(startId) ?? -Infinity
+      const endTs = tsById.get(endId) ?? Infinity
+      return all.filter((m) => m.ts >= startTs && m.ts <= endTs).sort((a, b) => a.ts - b.ts || a.id - b.id)
     },
   }
 }
@@ -32,7 +35,16 @@ function parentId(start: number, end: number): string {
 }
 
 function hit(chunkId: string, p: [number, number], range: [number, number], score: number): EvidenceHit {
-  return { chunkId, score, parentId: parentId(p[0], p[1]), startMessageId: range[0], endMessageId: range[1] }
+  // In makeMessages, ts = id * 1000
+  return {
+    chunkId,
+    score,
+    parentId: parentId(p[0], p[1]),
+    startMessageId: range[0],
+    endMessageId: range[1],
+    startTs: range[0] * 1000,
+    endTs: range[1] * 1000,
+  }
 }
 
 test('expands hit by ±N messages within parent', () => {
