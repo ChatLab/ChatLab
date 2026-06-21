@@ -37,6 +37,7 @@ import {
   type PlanContentBlock,
   type PlanDraftContentBlock,
 } from '@/services/ai/planBlocks'
+import { toSerializableContentBlocks } from './aiChatContentBlocks'
 
 // 工具调用记录
 export interface ToolCallRecord {
@@ -1321,9 +1322,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       }
 
       const savedUserMessage = await useAIService().addMessage(aiChatId, 'user', userMsg.content)
-      const serializableContentBlocks = aiMsg.contentBlocks
-        ? JSON.parse(JSON.stringify(aiMsg.contentBlocks))
-        : undefined
+      const serializableContentBlocks = toSerializableContentBlocks(aiMsg.contentBlocks)
       const savedAssistantMessage = await useAIService().addMessage(
         aiChatId,
         'assistant',
@@ -1773,9 +1772,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         await useAIService().deleteAndRelinkMessage(state.currentAIChatId!, oldAiResponse.id)
       }
 
-      const serializableContentBlocks = targetBuffer.messages[aiMessageIndex].contentBlocks
-        ? JSON.parse(JSON.stringify(targetBuffer.messages[aiMessageIndex].contentBlocks))
-        : undefined
+      const serializableContentBlocks = toSerializableContentBlocks(targetBuffer.messages[aiMessageIndex].contentBlocks)
       const savedAiMsg = await useAIService().insertMessageAfter(
         state.currentAIChatId!,
         originalMessage.id,
