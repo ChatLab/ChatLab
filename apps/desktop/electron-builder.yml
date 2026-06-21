@@ -26,6 +26,7 @@ files:
 # 哪些文件将不会被压缩，而是解压到构建目录
 asarUnpack:
   - resources/**
+  - node_modules/sqlite-vec*/**
 
 # Windows 平台配置
 win:
