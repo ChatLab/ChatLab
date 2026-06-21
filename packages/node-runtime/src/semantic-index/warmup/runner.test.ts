@@ -189,3 +189,48 @@ test('empty conversation completes with zero chunks', async () => {
   store.close()
   stateStore.close()
 })
+
+test('backfilled older messages trigger full re-index', async () => {
+  // First run: index 4 messages (ids 1-4, monotonically increasing ts)
+  const original = makeMessages(4)
+  const { store, stateStore } = setup(original)
+  const embedder = new FakeEmbedder()
+
+  await runWarmup({
+    dbPathHash: DB_HASH,
+    modelId: MODEL,
+    embedder,
+    store,
+    stateStore,
+    source: makeSource(original),
+    config,
+  })
+  assert.equal(stateStore.getState(DB_HASH)!.indexStatus, 'completed')
+  const chunksAfterFirst = countStored(store)
+
+  // Simulate backfill: prepend 2 older messages (ids 5-6 with ts before ids 1-4)
+  const backfilled: ChunkMessageInput[] = [
+    { id: 5, senderName: '张三', content: '这是一条二十个字左右的测试消息内容', ts: -2 * 0.1 * MINUTE },
+    { id: 6, senderName: '张三', content: '这是一条二十个字左右的测试消息内容', ts: -1 * 0.1 * MINUTE },
+    ...original,
+  ]
+
+  // Second run: non-append-only additions detected → should re-index all messages
+  const embedder2 = new FakeEmbedder()
+  const result = await runWarmup({
+    dbPathHash: DB_HASH,
+    modelId: MODEL,
+    embedder: embedder2,
+    store,
+    stateStore,
+    source: makeSource(backfilled),
+    config,
+  })
+
+  assert.equal(result.status, 'completed')
+  // Must have more chunks than before (backfilled messages now indexed)
+  assert.ok(countStored(store) > chunksAfterFirst, 'backfilled messages should produce additional chunks')
+  assert.equal(stateStore.getState(DB_HASH)!.totalMessages, 6)
+  store.close()
+  stateStore.close()
+})

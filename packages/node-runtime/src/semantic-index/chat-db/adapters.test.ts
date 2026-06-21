@@ -69,14 +69,16 @@ test('range reader returns inclusive id range including non-text messages', () =
   db.close()
 })
 
-test('fts searcher maps natural-language query to ranked message ids', () => {
+test('fts searcher maps natural-language query to ranked message hits', () => {
   const { db } = makeChatDb()
   const fts = createChatDbFtsSearcher(db)
 
-  const ids = fts.search('排期', 10)
-  assert.ok(ids.includes(1))
-  assert.ok(ids.includes(4))
-  assert.ok(!ids.includes(2))
+  const hits = fts.search('排期', 10)
+  assert.ok(hits.some((h) => h.id === 1))
+  assert.ok(hits.some((h) => h.id === 4))
+  assert.ok(!hits.some((h) => h.id === 2))
+  // ts 应为毫秒（chat DB ts 为秒，fts-searcher 乘 1000 转换）
+  assert.ok(hits.every((h) => h.ts > 0))
   db.close()
 })
 

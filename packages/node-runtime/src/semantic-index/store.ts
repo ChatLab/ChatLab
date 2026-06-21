@@ -192,20 +192,32 @@ export class EmbeddingIndexStore {
   }
 
   /**
-   * FTS message_id -> chunk 映射。利用 chunk 非重叠连续特性，取 start <= messageId
-   * 的最大 start，再校验 end 覆盖，O(log n)。
+   * FTS message -> chunk 映射。按 (ts, id) 复合查找：取 (start_ts, start_message_id) <= (messageTs, messageId)
+   * 的最大值，再校验 end 覆盖。
+   * - 用 ts 而非 ID 做主键：回填旧消息后 ID 不再单调
+   * - 用 (ts, id) 复合而非仅 ts：同秒多 chunk 时 ts 相同，需 id 打破 tie
    */
   mapMessageToChunk(params: MessageToChunkParams): ChunkRecord | null {
     const row = this.db
       .prepare(
         `SELECT ${CHUNK_COLUMNS} FROM chunk_vector_index
          WHERE db_path_hash = ? AND model_id = ? AND strategy_id = ?
-           AND start_message_id <= CAST(? AS INTEGER)
-         ORDER BY start_message_id DESC LIMIT 1`
+           AND (start_ts < CAST(? AS INTEGER)
+                OR (start_ts = CAST(? AS INTEGER) AND start_message_id <= CAST(? AS INTEGER)))
+         ORDER BY start_ts DESC, start_message_id DESC LIMIT 1`
       )
-      .get(params.dbPathHash, params.modelId, params.strategyId, params.messageId) as ChunkRow | undefined
+      .get(
+        params.dbPathHash,
+        params.modelId,
+        params.strategyId,
+        params.messageTs,
+        params.messageTs,
+        params.messageId
+      ) as ChunkRow | undefined
 
-    if (!row || row.end_message_id < params.messageId) return null
+    if (!row) return null
+    if (row.end_ts < params.messageTs) return null
+    if (row.end_ts === params.messageTs && row.end_message_id < params.messageId) return null
     return rowToRecord(row)
   }
 

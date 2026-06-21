@@ -23,7 +23,7 @@ export interface EvidenceMessage {
   senderPlatformId?: string
 }
 
-/** 读取聊天库 [startId, endId] 闭区间消息，按 id 升序返回 */
+/** 读取聊天库父消息区间，按 ts, id 升序返回；startId/endId 为 parent 两端消息 id（ts 序，非 min/max） */
 export interface MessageRangeReader {
   readRange(startId: number, endId: number): EvidenceMessage[]
 }
@@ -35,6 +35,10 @@ export interface EvidenceHit {
   parentId: string
   startMessageId: number
   endMessageId: number
+  /** chunk 的起始时间戳（毫秒），供时间范围过滤使用 */
+  startTs: number
+  /** chunk 的结束时间戳（毫秒），供时间范围过滤使用 */
+  endTs: number
 }
 
 export interface EvidenceBudget {
@@ -111,10 +115,11 @@ export function assembleEvidence(
     }
     if (parentMsgs.length === 0) continue
 
-    const coreStartIdx = parentMsgs.findIndex((m) => m.id >= hit.startMessageId)
+    // Use message IDs for precise core boundary — ts has second granularity and is non-unique
+    const coreStartIdx = parentMsgs.findIndex((m) => m.id === hit.startMessageId)
     let coreEndIdx = -1
     for (let i = parentMsgs.length - 1; i >= 0; i--) {
-      if (parentMsgs[i].id <= hit.endMessageId) {
+      if (parentMsgs[i].id === hit.endMessageId) {
         coreEndIdx = i
         break
       }
