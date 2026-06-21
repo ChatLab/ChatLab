@@ -8,10 +8,22 @@
 import type { FastifyInstance } from 'fastify'
 import type { HttpRouteContext } from '../../context'
 import type { SemanticIndexConfig } from '@openchatlab/node-runtime'
+import { defaultSemanticIndexConfig } from '@openchatlab/node-runtime'
 
 export function registerSemanticIndexRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
   const service = ctx.semanticIndexService
-  if (!service) return
+
+  // When the service is unavailable (e.g. sqlite-vec failed to load), register read-only stubs
+  // so the settings UI can still open without 404 errors.
+  if (!service) {
+    server.get('/_web/ai/semantic-index/config', async () => ({
+      config: defaultSemanticIndexConfig(),
+      apiKeySet: false,
+      configured: false,
+    }))
+    server.get('/_web/ai/semantic-index/enabled', async () => ({ sessions: [] }))
+    return
+  }
 
   server.get('/_web/ai/semantic-index/config', async () => {
     return { config: service.getConfig(), apiKeySet: service.hasApiKey(), configured: service.isConfigured() }

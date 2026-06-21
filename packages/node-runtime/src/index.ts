@@ -348,7 +348,7 @@ export * as exportService from './services/export-service'
 export * as ownerProfileService from './services/owner-profile-service'
 // Semantic index (Phase 1 vector search) — independent of legacy ai/rag
 export * as semanticIndex from './semantic-index'
-export { SemanticIndexService, createSemanticIndexService } from './semantic-index'
+export { SemanticIndexService, createSemanticIndexService, defaultSemanticIndexConfig } from './semantic-index'
 export type {
   SemanticIndexServiceOptions,
   SemanticIndexSessionStatus,
