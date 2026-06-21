@@ -300,4 +300,31 @@ describe('retrieveChatEvidenceTool output safety', () => {
     const ids = payload.groups.flatMap((g) => g.sources).map((s) => s.messageId)
     assert.deepEqual(ids, [1], 'out-of-range message should be filtered out')
   })
+
+  it('passes one-sided end_time to keyword search before local fallback filtering', async () => {
+    const capture: { args?: unknown[] } = {}
+    const endTs = Math.floor(Date.parse('2024-06-01') / 1000)
+    const res = await retrieveChatEvidenceTool.handler(
+      {
+        query: 'q',
+        criteria: 'c',
+        mode: 'keyword',
+        keywords: ['乐山'],
+        end_time: '2024-06-01',
+      },
+      makeContext({
+        dataProvider: makeDataProvider([rawMsg(1, 1714521600, '到了乐山')], capture),
+      })
+    )
+
+    assert.ok(capture.args, 'keyword search should be called')
+    assert.deepEqual(capture.args[1], {
+      timeFilter: { endTs },
+      limit: 80,
+    })
+    const ids = getPayload(res.data)
+      .groups.flatMap((g) => g.sources)
+      .map((s) => s.messageId)
+    assert.deepEqual(ids, [1])
+  })
 })

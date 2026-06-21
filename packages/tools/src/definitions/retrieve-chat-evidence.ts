@@ -149,6 +149,14 @@ function clampMaxResults(value: unknown): number | undefined {
   return Math.max(1, Math.min(SEMANTIC_SEARCH_MAX_RESULTS_HARD_CAP, Math.floor(value)))
 }
 
+function toKeywordTimeFilter(rangeMs: EvidenceTimeRangeMs | undefined): { startTs: number; endTs: number } | undefined {
+  if (!rangeMs) return undefined
+  const filter: { startTs?: number; endTs?: number } = {}
+  if (rangeMs.startTs != null) filter.startTs = Math.floor(rangeMs.startTs / 1000)
+  if (rangeMs.endTs != null) filter.endTs = Math.floor(rangeMs.endTs / 1000)
+  return Object.keys(filter).length > 0 ? (filter as { startTs: number; endTs: number }) : undefined
+}
+
 interface ResolveResult {
   mode: Exclude<EvidenceRetrievalMode, 'auto'>
   warnings: Set<EvidenceWarning>
@@ -197,10 +205,11 @@ function keywordMessagesToCandidates(
   return candidates
 }
 
-/** 合并去重：关键词命中落在语义范围内则丢弃；按 messageId 去重；按时间排序 */
+/** 合并去重：关键词命中的时间戳落在语义片段时间范围内则丢弃；按 messageId 去重；按时间排序 */
 function mergeCandidates(semantic: EvidenceCandidate[], keyword: EvidenceCandidate[]): EvidenceCandidate[] {
-  const semanticRanges = semantic.map((c) => [c.startMessageId ?? c.messageId, c.endMessageId ?? c.messageId] as const)
-  const keptKeyword = keyword.filter((kc) => !semanticRanges.some(([s, e]) => kc.messageId >= s && kc.messageId <= e))
+  const keptKeyword = keyword.filter(
+    (kc) => !semantic.some((sc) => kc.timestamp >= sc.rangeStartMs && kc.timestamp <= sc.rangeEndMs)
+  )
 
   const byId = new Map<number, EvidenceCandidate>()
   for (const c of [...semantic, ...keptKeyword]) {
@@ -209,8 +218,9 @@ function mergeCandidates(semantic: EvidenceCandidate[], keyword: EvidenceCandida
   return [...byId.values()].sort((a, b) => a.timestamp - b.timestamp)
 }
 
-function classifyGroup(snippets: string[], hasCriteria: boolean): EvidenceStatus {
+function classifyGroup(snippets: string[], hasCriteria: boolean, locale?: string): EvidenceStatus {
   if (!hasCriteria) return 'uncertain'
+  if (!isChinese(locale)) return 'uncertain'
   const joined = snippets.join('\n')
   const hasEvidence = EVIDENCE_WORDS.some((w) => joined.includes(w))
   const hasPlanning = PLANNING_WORDS.some((w) => joined.includes(w))
@@ -264,7 +274,7 @@ function buildGroups(candidates: EvidenceCandidate[], hasCriteria: boolean, loca
   const cn = isChinese(locale)
   for (const g of groups) {
     const snippets = g.sources.map((s) => s.snippet)
-    g.status = classifyGroup(snippets, hasCriteria)
+    g.status = classifyGroup(snippets, hasCriteria, locale)
     const start = formatDate(g.timeRange!.startTs, locale)
     const end = formatDate(g.timeRange!.endTs, locale)
     g.title = start === end ? start : cn ? `${start} 至 ${end}` : `${start} – ${end}`
@@ -307,8 +317,8 @@ function buildContent(payload: ChatEvidencePayload, locale: string | undefined):
   }
   lines.push(
     cn
-      ? '\n请基于以上证据保守作答：只把 included 计入确定结论，excluded/uncertain 不计入；证据不足时回答“无法确认”。'
-      : '\nAnswer conservatively: count only `included` toward the conclusion; do not count `excluded`/`uncertain`.'
+      ? '\n请基于以上证据保守作答：只把 included 计入确定结论，excluded/uncertain 不计入；证据不足时回答”无法确认”。'
+      : '\nAnswer conservatively: count `included` groups toward the conclusion; for `uncertain` groups, judge based on the snippet content whether evidence of actual occurrence is present; do not count `excluded` groups.'
   )
   return lines.join('\n')
 }
@@ -397,10 +407,7 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
     } else if (!context.dataProvider) {
       warnings.add('keyword_unavailable')
     } else {
-      const secFilter =
-        rangeMs?.startTs != null && rangeMs?.endTs != null
-          ? { startTs: Math.floor(rangeMs.startTs / 1000), endTs: Math.floor(rangeMs.endTs / 1000) }
-          : undefined
+      const secFilter = toKeywordTimeFilter(rangeMs)
       const searchResult = await context.dataProvider.searchMessages(keywords, {
         timeFilter: secFilter,
         limit: context.maxMessagesLimit || KEYWORD_DEFAULT_LIMIT,

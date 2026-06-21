@@ -49,6 +49,9 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
     ownerPlatformId: context.ownerPlatformId,
     locale: context.locale,
     maxResultTokens: context.maxToolResultTokens,
+    timeFilter: context.timeFilter
+      ? { startTs: context.timeFilter.startTs * 1000, endTs: context.timeFilter.endTs * 1000 }
+      : undefined,
   })
 
   if (!result.available) {
