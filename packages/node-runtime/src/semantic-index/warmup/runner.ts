@@ -9,7 +9,8 @@
  * - chunk 是纯函数且廉价，每次运行对全量消息重新 chunk（保证 parent 边界稳定）。
  * - 通过业务状态的 lastIndexedMessageId 游标跳过已写入 chunk，实现断点续跑。
  * - 每写入一个 chunk 即更新游标，保证崩溃后续跑不重复写入（chunk_id UNIQUE）。
- * - embedding 是瓶颈；每 chunk 前检查停止信号，暂停/取消可快速响应。
+ * - embedding 是瓶颈；每 chunk 前检查暂停/取消，embedding 返回后再次检查取消，
+ *   避免在清理已取消索引后写入刚完成的向量。
  *
  * 依赖全部注入，便于单测（fake source/embedder + 真实内存级 SQLite store）。
  */
@@ -58,13 +59,13 @@ export async function runWarmup(options: WarmupRunnerOptions): Promise<WarmupRes
   try {
     const messages = source.readAllMessages()
     const total = source.countMessages()
+    const savedState = stateStore.getState(dbPathHash)
     stateStore.updateProgress(dbPathHash, { indexStatus: 'running', totalMessages: total, error: null })
 
     // 消息 id -> 流位置，用于进度计数（消息按 ts 排序，id 未必单调）
     const streamIndexById = new Map<number, number>()
     messages.forEach((m, i) => streamIndexById.set(m.id, i))
 
-    const savedState = stateStore.getState(dbPathHash)
     const resumeMessageId = savedState?.lastIndexedMessageId ?? null
     const rawResumeIndex = resumeMessageId !== null ? (streamIndexById.get(resumeMessageId) ?? -1) : -1
 
@@ -75,16 +76,42 @@ export async function runWarmup(options: WarmupRunnerOptions): Promise<WarmupRes
     if (isNonAppendOnly) {
       store.deleteByDbPathHash(dbPathHash)
     }
-    const resumeIndex = isNonAppendOnly ? -1 : rawResumeIndex
-
     const { chunks, chunkerConfigHash } = chunkMessages({ messages, source: source.getSource(), config })
 
+    const chunkRanges = chunks.map((chunk) => ({
+      chunk,
+      startIndex: streamIndexById.get(chunk.startMessageId) ?? -1,
+      endIndex: streamIndexById.get(chunk.endMessageId) ?? -1,
+    }))
+
+    let resumeIndex = isNonAppendOnly ? -1 : rawResumeIndex
+    const hasAppendedMessages = !isNonAppendOnly && rawResumeIndex >= 0 && total > (savedState?.totalMessages ?? 0)
+    if (hasAppendedMessages) {
+      const cursorRange =
+        chunkRanges.find((range) => range.startIndex <= rawResumeIndex && rawResumeIndex <= range.endIndex) ??
+        chunkRanges.filter((range) => range.endIndex <= rawResumeIndex).sort((a, b) => b.endIndex - a.endIndex)[0]
+
+      if (cursorRange) {
+        const parentRanges = chunkRanges.filter((range) => range.chunk.parentId === cursorRange.chunk.parentId)
+        const rewindIndex = Math.min(...parentRanges.map((range) => range.startIndex).filter((index) => index >= 0))
+        const rewindMessage = messages[rewindIndex]
+        if (rewindMessage) {
+          store.deleteByModelFromPosition({
+            dbPathHash,
+            modelId,
+            startTs: rewindMessage.ts,
+            startMessageId: rewindMessage.id,
+          })
+          resumeIndex = rewindIndex - 1
+        }
+      }
+    }
+
     // 续跑时统计已写入 chunk 数，保证 chunkCount 连续
-    let storedChunkCount = stateStore.getState(dbPathHash)?.chunkCount ?? 0
+    let storedChunkCount = store.countChunks(dbPathHash, modelId)
     if (resumeIndex < 0) storedChunkCount = 0
 
-    for (const chunk of chunks) {
-      const chunkEndIndex = streamIndexById.get(chunk.endMessageId) ?? -1
+    for (const { chunk, endIndex: chunkEndIndex } of chunkRanges) {
       if (chunkEndIndex <= resumeIndex) continue
 
       const stop = checkStop?.()
@@ -94,6 +121,12 @@ export async function runWarmup(options: WarmupRunnerOptions): Promise<WarmupRes
       }
 
       const [vector] = await embedder.embedDocuments([chunk.embeddingInput])
+      const stopAfterEmbedding = checkStop?.()
+      if (stopAfterEmbedding === 'cancelled') {
+        stateStore.setIndexStatus(dbPathHash, 'cancelled')
+        return { status: 'cancelled', chunksWritten }
+      }
+
       const record: ChunkRecord = {
         chunkId: composeChunkId(dbPathHash, modelId, chunk.localChunkId),
         dbPathHash,

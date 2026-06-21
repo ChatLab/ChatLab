@@ -33,12 +33,15 @@ export const CHUNK_VECTOR_INDEX_TABLE = `
 `
 
 /**
- * 范围映射索引：FTS message_id -> chunk 的 O(log n) 查询依赖前导列顺序，
- * 配合 `start_message_id <= ? ORDER BY start_message_id DESC LIMIT 1`。
+ * 范围映射索引：
+ * - idx_chunk_range 保留 message_id 领先的旧查询路径和既有数据库兼容性。
+ * - idx_chunk_ts_range 支撑当前 `start_ts, start_message_id` 组合查找，避免按会话扫描排序。
  */
 export const CHUNK_VECTOR_INDEX_INDEXES = `
   CREATE INDEX IF NOT EXISTS idx_chunk_range
     ON chunk_vector_index(db_path_hash, model_id, strategy_id, start_message_id, end_message_id);
+  CREATE INDEX IF NOT EXISTS idx_chunk_ts_range
+    ON chunk_vector_index(db_path_hash, model_id, strategy_id, start_ts, start_message_id);
 `
 
 export const EMBEDDING_INDEX_SCHEMA = CHUNK_VECTOR_INDEX_TABLE + CHUNK_VECTOR_INDEX_INDEXES

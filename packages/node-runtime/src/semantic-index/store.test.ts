@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+import Database from 'better-sqlite3'
 import { EmbeddingIndexStore } from './store'
 import type { ChunkRecord } from './types'
 
@@ -168,6 +169,21 @@ test('mapMessageToChunk breaks ties when multiple chunks share the same start_ts
   assert.equal(store.mapMessageToChunk({ ...params, messageId: 4, messageTs: 1000 })?.chunkId, 'c2')
 
   store.close()
+})
+
+test('schema includes timestamp-leading index for message-to-chunk lookup', () => {
+  const dbPath = makeTempDbPath()
+  const store = new EmbeddingIndexStore(dbPath)
+  store.close()
+
+  const db = new Database(dbPath, { readonly: true })
+  const indexes = db.pragma('index_list(chunk_vector_index)') as { name: string }[]
+  const timestampIndex = indexes.find((index) => index.name === 'idx_chunk_ts_range')
+  assert.ok(timestampIndex, 'expected idx_chunk_ts_range to exist')
+
+  const columns = (db.pragma(`index_info(${timestampIndex.name})`) as { name: string }[]).map((column) => column.name)
+  assert.deepEqual(columns, ['db_path_hash', 'model_id', 'strategy_id', 'start_ts', 'start_message_id'])
+  db.close()
 })
 
 test('data persists across store reopen', () => {

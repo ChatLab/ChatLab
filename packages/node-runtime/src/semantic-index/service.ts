@@ -27,7 +27,12 @@ import {
   STRATEGY_ID,
 } from './chunker-config'
 import type { ChunkSource } from './chunker'
-import { SemanticIndexConfigStore, type SemanticIndexConfig, type SemanticIndexConfigInput } from './config'
+import {
+  isKeylessSemanticIndexApiBaseUrl,
+  SemanticIndexConfigStore,
+  type SemanticIndexConfig,
+  type SemanticIndexConfigInput,
+} from './config'
 import { createEmbedder, type EmbedderFactoryDeps } from './embedder-factory'
 import type { EmbeddingProvider } from './embedding/types'
 import { EmbeddingIndexStore, type LoadSqliteVec } from './store'
@@ -94,6 +99,7 @@ export interface SemanticSearchToolSource {
   score: number
   chunkIds: string[]
   snippet: string
+  text?: string
   startTime?: string
   endTime?: string
 }
@@ -229,7 +235,7 @@ export class SemanticIndexService {
   canRun(): boolean {
     if (!this.configStore.canRun()) return false
     const cfg = this.configStore.get()
-    return cfg.mode !== 'api' || this.hasApiKey()
+    return cfg.mode !== 'api' || isKeylessSemanticIndexApiBaseUrl(cfg.api?.baseUrl) || this.hasApiKey()
   }
 
   /** 当前 API 模式是否已配置可用的 API Key（不返回明文，仅布尔） */
@@ -323,7 +329,6 @@ export class SemanticIndexService {
     } else {
       this.stateStore.enable(this.enableParams(dbPath))
     }
-    this.queue.enqueue({ type: stale ? 'rebuild' : 'build', dbPathHash: hash })
   }
 
   disable(sessionId: string): void {
@@ -609,6 +614,7 @@ export class SemanticIndexService {
         score: block.score,
         chunkIds: block.chunkIds,
         snippet,
+        text: safeText,
         startTime,
         endTime,
       })
@@ -656,11 +662,13 @@ export class SemanticIndexService {
     const activeSessionIds = new Set(this.sessionAdapter.listSessionIds())
     for (const state of this.stateStore.listAll()) {
       if (state.cleanupStatus !== 'pending' && !activeSessionIds.has(sessionIdFromDbPath(state.dbPath))) {
+        this.queue.cancel(state.dbPathHash)
         this.stateStore.disable(state.dbPathHash)
       }
     }
 
     for (const state of this.stateStore.listPendingCleanup()) {
+      this.queue.cancel(state.dbPathHash)
       this.store.deleteByDbPathHash(state.dbPathHash)
       this.stateStore.resetProgress(state.dbPathHash)
       this.stateStore.setCleanupStatus(state.dbPathHash, 'done')

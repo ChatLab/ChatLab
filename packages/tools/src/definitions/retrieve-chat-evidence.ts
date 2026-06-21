@@ -384,6 +384,7 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
           const startMs = parseIsoMs(s.startTime)
           const endMs = parseIsoMs(s.endTime) ?? startMs
           if (rangeMs && startMs != null && endMs != null && !overlapsTimeRangeMs(startMs, endMs, rangeMs)) continue
+          const evidenceText = stripLineTimestamps(s.text || s.snippet)
           semanticCandidates.push({
             messageId: s.startMessageId,
             startMessageId: s.startMessageId,
@@ -391,7 +392,7 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
             timestamp: startMs ?? 0,
             rangeStartMs: startMs ?? 0,
             rangeEndMs: endMs ?? startMs ?? 0,
-            snippet: truncateSnippet(stripLineTimestamps(s.snippet)),
+            snippet: evidenceText,
             sourceKind: 'semantic',
             score: s.score,
           })

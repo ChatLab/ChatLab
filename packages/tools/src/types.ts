@@ -219,6 +219,8 @@ export interface SemanticSearchToolSource {
   chunkIds: string[]
   /** 已脱敏的片段预览 */
   snippet: string
+  /** 已脱敏的完整证据块文本，用于证据检索分类与引用 */
+  text?: string
   /** ISO 时间 */
   startTime?: string
   endTime?: string

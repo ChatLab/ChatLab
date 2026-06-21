@@ -84,10 +84,15 @@ function setup(opts?: { embedDelayMs?: number }) {
   return { service, chatDbPath, dir, db, authProfiles, getEmbedCount: () => embedTextCount }
 }
 
-test('enable builds index to completion and reports status', async () => {
-  const { service, db } = setup()
+async function enableAndBuild(service: SemanticIndexService): Promise<void> {
   service.enable(SESSION_ID)
+  service.build(SESSION_ID)
   await service.whenIdle()
+}
+
+test('explicit build indexes an enabled session to completion and reports status', async () => {
+  const { service, db } = setup()
+  await enableAndBuild(service)
 
   const status = service.status(SESSION_ID)!
   assert.equal(status.enabled, true)
@@ -100,10 +105,25 @@ test('enable builds index to completion and reports status', async () => {
   db.close()
 })
 
+test('enable only marks a session enabled without starting a build', async () => {
+  const { service, db } = setup({ embedDelayMs: 25 })
+
+  service.enable(SESSION_ID)
+
+  const status = service.status(SESSION_ID)!
+  assert.equal(status.enabled, true)
+  assert.equal(status.indexStatus, 'idle')
+  assert.equal(status.queued, false)
+  assert.equal(status.running, false)
+  assert.equal(status.chunkCount, 0)
+
+  service.close()
+  db.close()
+})
+
 test('search returns evidence blocks for an enabled completed index', async () => {
   const { service, db } = setup()
-  service.enable(SESSION_ID)
-  await service.whenIdle()
+  await enableAndBuild(service)
 
   const result = await service.search(SESSION_ID, '项目排期')
   assert.equal(result.available, true)
@@ -115,8 +135,7 @@ test('search returns evidence blocks for an enabled completed index', async () =
 
 test('changing model identity marks needsRebuild and blocks search until rebuilt', async () => {
   const { service, db } = setup()
-  service.enable(SESSION_ID)
-  await service.whenIdle()
+  await enableAndBuild(service)
 
   // 切换到不同模型身份（改用 API）-> 身份变化 -> 需重建
   service.setConfig(
@@ -144,8 +163,7 @@ test('changing model identity marks needsRebuild and blocks search until rebuilt
 
 test('changing chunker identity marks needsRebuild and blocks search until rebuilt', async () => {
   const { service, dir, db } = setup()
-  service.enable(SESSION_ID)
-  await service.whenIdle()
+  await enableAndBuild(service)
   assert.equal(service.status(SESSION_ID)!.needsRebuild, false)
   assert.equal(service.canSearch(SESSION_ID), true)
 
@@ -174,8 +192,7 @@ test('changing chunker identity marks needsRebuild and blocks search until rebui
 
 test('buildAllPending rebuilds a stale index back to searchable', async () => {
   const { service, dir, db, getEmbedCount } = setup()
-  service.enable(SESSION_ID)
-  await service.whenIdle()
+  await enableAndBuild(service)
   const afterFirstBuild = getEmbedCount()
   assert.ok(afterFirstBuild > 0)
 
@@ -200,10 +217,9 @@ test('buildAllPending rebuilds a stale index back to searchable', async () => {
   db.close()
 })
 
-test('re-enabling a stale index rebuilds instead of resuming stale chunks', async () => {
+test('re-enabling a stale index keeps it pending until explicit rebuild', async () => {
   const { service, dir, db, getEmbedCount } = setup()
-  service.enable(SESSION_ID)
-  await service.whenIdle()
+  await enableAndBuild(service)
   const afterFirstBuild = getEmbedCount()
 
   const external = openBetterSqliteDatabase(path.join(dir, 'embedding_index.db'))
@@ -212,11 +228,17 @@ test('re-enabling a stale index rebuilds instead of resuming stale chunks', asyn
     .run('stale-cfg', computeDbPathHash(SESSION_ID))
   external.close()
 
-  // 重新启用旧 stale 索引：必须走 rebuild(重新嵌入)，而不是按旧游标续建跳过
+  // 重新启用旧 stale 索引：只恢复 enabled，不自动消耗算力/API 额度。
   service.enable(SESSION_ID)
+
+  assert.equal(getEmbedCount(), afterFirstBuild)
+  assert.equal(service.status(SESSION_ID)!.needsRebuild, true)
+  assert.equal(service.canSearch(SESSION_ID), false)
+
+  service.buildAllPending()
   await service.whenIdle()
 
-  assert.ok(getEmbedCount() > afterFirstBuild, 're-enabling a stale index should rebuild, not resume-skip')
+  assert.ok(getEmbedCount() > afterFirstBuild, 'explicit pending rebuild should re-embed chunks')
   assert.equal(service.status(SESSION_ID)!.needsRebuild, false)
   assert.equal(service.canSearch(SESSION_ID), true)
   service.close()
@@ -225,8 +247,7 @@ test('re-enabling a stale index rebuilds instead of resuming stale chunks', asyn
 
 test('disable then cleanup removes the index and blocks search', async () => {
   const { service, db } = setup()
-  service.enable(SESSION_ID)
-  await service.whenIdle()
+  await enableAndBuild(service)
 
   service.disable(SESSION_ID)
   const disabledStatus = service.status(SESSION_ID)!
@@ -243,15 +264,13 @@ test('disable then cleanup removes the index and blocks search', async () => {
 
 test('re-enabling after cleanup rebuilds from scratch', async () => {
   const { service, db, getEmbedCount } = setup()
-  service.enable(SESSION_ID)
-  await service.whenIdle()
+  await enableAndBuild(service)
   const afterFirstBuild = getEmbedCount()
 
   service.disable(SESSION_ID)
   service.cleanupUnused()
 
-  service.enable(SESSION_ID)
-  await service.whenIdle()
+  await enableAndBuild(service)
 
   assert.ok(getEmbedCount() > afterFirstBuild, 're-enabling a cleaned index should embed chunks again')
   assert.equal(service.status(SESSION_ID)!.indexStatus, 'completed')
@@ -264,8 +283,7 @@ test('re-enabling after cleanup rebuilds from scratch', async () => {
 
 test('rebuild wipes and rebuilds the index', async () => {
   const { service, db } = setup()
-  service.enable(SESSION_ID)
-  await service.whenIdle()
+  await enableAndBuild(service)
   const before = service.status(SESSION_ID)!.chunkCount
 
   service.rebuild(SESSION_ID)
@@ -297,6 +315,23 @@ test('setConfig stores API key by reference only and hasApiKey reflects it', asy
   db.close()
 })
 
+test('keyless local Ollama API config can run without an auth profile', async () => {
+  const { service, db } = setup()
+
+  service.setConfig({
+    version: 1,
+    mode: 'api',
+    local: { modelId: QWEN3_PROFILE.modelId },
+    api: { baseUrl: 'http://localhost:11434/v1', model: 'nomic-embed-text' },
+  })
+
+  assert.equal(service.hasApiKey(), false)
+  assert.equal(service.isConfigured(), true)
+  assert.equal(service.canRun(), true)
+  service.close()
+  db.close()
+})
+
 test('canSearch reflects availability: disabled/needs-rebuild/empty are false', async () => {
   const { service, db } = setup()
 
@@ -304,7 +339,10 @@ test('canSearch reflects availability: disabled/needs-rebuild/empty are false', 
   assert.equal(service.canSearch(SESSION_ID), false)
 
   service.enable(SESSION_ID)
-  // 未完成建立前没有 chunk
+  // 未显式建立前没有 chunk
+  assert.equal(service.canSearch(SESSION_ID), false)
+
+  service.build(SESSION_ID)
   await service.whenIdle()
   assert.equal(service.canSearch(SESSION_ID), true)
 
@@ -333,8 +371,7 @@ test('canSearch reflects availability: disabled/needs-rebuild/empty are false', 
 
 test('searchForTool desensitizes + anonymizes via pipeline, never leaks raw', async () => {
   const { service, db } = setup()
-  service.enable(SESSION_ID)
-  await service.whenIdle()
+  await enableAndBuild(service)
 
   const result = await service.searchForTool(SESSION_ID, '项目排期', {
     preprocessConfig: {
@@ -372,6 +409,9 @@ test('searchForTool desensitizes + anonymizes via pipeline, never leaks raw', as
     assert.equal(s.snippet.includes('项目'), false)
     assert.equal(s.snippet.includes('张三'), false)
     assert.equal(s.snippet.includes('[Name Map]'), false)
+    assert.equal(s.text?.includes('项目'), false)
+    assert.equal(s.text?.includes('张三'), false)
+    assert.equal(s.text?.includes('[Name Map]'), false)
     assert.ok(typeof s.startMessageId === 'number')
     assert.ok(Array.isArray(s.chunkIds))
   }
@@ -390,8 +430,7 @@ test('searchForTool desensitizes + anonymizes via pipeline, never leaks raw', as
 
 test('disabling the global switch blocks search and re-enabling keeps data usable', async () => {
   const { service, db } = setup()
-  service.enable(SESSION_ID)
-  await service.whenIdle()
+  await enableAndBuild(service)
   assert.equal(service.canSearch(SESSION_ID), true)
 
   // 关闭全局开关：不暴露工具 + 检索返回 disabled（已建索引数据保留）
@@ -416,8 +455,7 @@ test('searchForTool is unavailable when disabled or empty query', async () => {
   assert.equal(disabled.available, false)
   assert.equal(disabled.reason, 'disabled')
 
-  service.enable(SESSION_ID)
-  await service.whenIdle()
+  await enableAndBuild(service)
   const empty = await service.searchForTool(SESSION_ID, '   ')
   assert.equal(empty.available, false)
   assert.equal(empty.reason, 'empty-query')
@@ -427,8 +465,7 @@ test('searchForTool is unavailable when disabled or empty query', async () => {
 
 test('searchForTool uses configured default max results when caller omits it', async () => {
   const { service, db } = setup()
-  service.enable(SESSION_ID)
-  await service.whenIdle()
+  await enableAndBuild(service)
   service.setConfig({
     version: 1,
     mode: 'local',
@@ -446,8 +483,7 @@ test('searchForTool uses configured default max results when caller omits it', a
 
 test('searchForTool honors maxResultTokens as evidence budget ceiling', async () => {
   const { service, db } = setup()
-  service.enable(SESSION_ID)
-  await service.whenIdle()
+  await enableAndBuild(service)
 
   const tiny = await service.searchForTool(SESSION_ID, '项目排期', { maxResults: 10, maxResultTokens: 10 })
   const big = await service.searchForTool(SESSION_ID, '项目排期', { maxResults: 10, maxResultTokens: 100000 })
@@ -463,8 +499,7 @@ test('searchForTool honors maxResultTokens as evidence budget ceiling', async ()
 
 test('searchForTool applies timeFilter to exclude out-of-range chunks', async () => {
   const { service, db } = setup()
-  service.enable(SESSION_ID)
-  await service.whenIdle()
+  await enableAndBuild(service)
 
   // 不带时间过滤：应有命中
   const all = await service.searchForTool(SESSION_ID, '项目排期', { maxResults: 10 })
@@ -485,8 +520,7 @@ test('searchForTool applies timeFilter to exclude out-of-range chunks', async ()
 
 test('recover marks stale running as paused without auto-resuming', async () => {
   const { service, dir, db } = setup()
-  service.enable(SESSION_ID)
-  await service.whenIdle()
+  await enableAndBuild(service)
 
   // 模拟崩溃：另一连接把状态置为 running
   const external = new SemanticIndexStateStore(path.join(dir, 'embedding_index.db'))

@@ -226,6 +226,38 @@ describe('retrieveChatEvidenceTool candidates & grouping', () => {
     assert.ok(snippet.includes('乙: 住了一晚'))
   })
 
+  it('uses full semantic evidence text when the preview omits the proof', async () => {
+    const previewOnly = '甲: 先整理路线和预算，讨论交通方式、请假安排、集合时间、装备清单、天气情况和备选方案。'.repeat(
+      3
+    )
+    const fullEvidenceText = `${previewOnly}\n乙: 到了乐山大佛，住了一晚，第二天返程`
+    const service = makeService({
+      searchForTool: async () =>
+        semanticResult({
+          text: `--- 2024-05-01T00:00:00.000Z ~ 2024-05-01T01:00:00.000Z\n${fullEvidenceText}`,
+          sources: [
+            {
+              startMessageId: 100,
+              endMessageId: 110,
+              score: 0.9,
+              chunkIds: ['c1'],
+              snippet: `${previewOnly.slice(0, 160)}…`,
+              text: fullEvidenceText,
+              startTime: '2024-05-01T00:00:00.000Z',
+              endTime: '2024-05-01T01:00:00.000Z',
+            },
+          ],
+        }),
+    })
+    const res = await retrieveChatEvidenceTool.handler(
+      { query: '去过乐山几次', criteria: '计入实际到达/住宿/返程证据', mode: 'semantic' },
+      makeContext({ semanticIndexService: service })
+    )
+    const source = getPayload(res.data).groups[0].sources[0]
+    assert.equal(getPayload(res.data).groups[0].status, 'included')
+    assert.ok(source.snippet.includes('到了乐山大佛'))
+  })
+
   it('desensitizes keyword snippets and never persists raw secret content', async () => {
     const desensitize = (messages: RawMessage[]): RawMessage[] =>
       messages.map((m) => ({ ...m, content: (m.content ?? '').replace('13800000000', '***') }))

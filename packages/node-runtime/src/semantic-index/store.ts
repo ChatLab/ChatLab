@@ -245,6 +245,50 @@ export class EmbeddingIndexStore {
     })()
   }
 
+  /** 删除某聊天库 + 模型中从指定聊天顺序位置开始的 chunks，返回删除的元数据行数 */
+  deleteByModelFromPosition(params: {
+    dbPathHash: string
+    modelId: string
+    startTs: number
+    startMessageId: number
+  }): number {
+    return this.db.transaction(() => {
+      const rows = this.db
+        .prepare(
+          `SELECT rowid AS rowid, dim FROM chunk_vector_index
+           WHERE db_path_hash = ? AND model_id = ?
+             AND (start_ts > CAST(? AS INTEGER)
+                  OR (start_ts = CAST(? AS INTEGER) AND start_message_id >= CAST(? AS INTEGER)))`
+        )
+        .all(params.dbPathHash, params.modelId, params.startTs, params.startTs, params.startMessageId) as Array<{
+        rowid: number
+        dim: number
+      }>
+
+      const delStmts = new Map<number, Database.Statement>()
+      for (const { rowid, dim } of rows) {
+        const table = vecTableName(dim)
+        if (!this.tableExists(table)) continue
+        let stmt = delStmts.get(dim)
+        if (!stmt) {
+          stmt = this.db.prepare(`DELETE FROM ${table} WHERE vector_id = CAST(? AS INTEGER)`)
+          delStmts.set(dim, stmt)
+        }
+        stmt.run(rowid)
+      }
+
+      const res = this.db
+        .prepare(
+          `DELETE FROM chunk_vector_index
+           WHERE db_path_hash = ? AND model_id = ?
+             AND (start_ts > CAST(? AS INTEGER)
+                  OR (start_ts = CAST(? AS INTEGER) AND start_message_id >= CAST(? AS INTEGER)))`
+        )
+        .run(params.dbPathHash, params.modelId, params.startTs, params.startTs, params.startMessageId)
+      return res.changes
+    })()
+  }
+
   /** 列出存储中存在 chunk 的所有 db_path_hash */
   listDbPathHashes(): string[] {
     const rows = this.db.prepare('SELECT DISTINCT db_path_hash FROM chunk_vector_index').all() as Array<{

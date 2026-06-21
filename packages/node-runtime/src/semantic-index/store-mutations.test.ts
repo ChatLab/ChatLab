@@ -58,6 +58,27 @@ test('deleteByDbPathHash removes only the target conversation across models and 
   store.close()
 })
 
+test('deleteByModelFromPosition removes only chunks at and after a chat-order boundary', () => {
+  const store = makeStore()
+  store.insertChunk(record('a1', 'A', 'm1', 4, 1), [1, 0, 0, 0])
+  store.insertChunk(record('a2', 'A', 'm1', 4, 3), [0, 1, 0, 0])
+  store.insertChunk(record('a3', 'A', 'm1', 4, 5), [0, 0, 1, 0])
+  store.insertChunk(record('other-model', 'A', 'm2', 4, 3), [0, 0, 0, 1])
+  store.insertChunk(record('other-db', 'B', 'm1', 4, 3), [1, 1, 0, 0])
+
+  const removed = store.deleteByModelFromPosition({ dbPathHash: 'A', modelId: 'm1', startTs: 3000, startMessageId: 3 })
+  assert.equal(removed, 2)
+  assert.equal(store.countChunks('A', 'm1'), 1)
+  assert.equal(store.countChunks('A', 'm2'), 1)
+  assert.equal(store.countChunks('B', 'm1'), 1)
+  assert.equal(store.getChunkById('a1')?.chunkId, 'a1')
+  assert.equal(store.getChunkById('a2'), null)
+  assert.equal(store.getChunkById('a3'), null)
+
+  assert.equal(store.queryDense({ dbPathHash: 'A', modelId: 'm1', dim: 4, embedding: [0, 1, 0, 0], k: 10 }).length, 1)
+  store.close()
+})
+
 test('listDbPathHashes returns distinct conversation hashes', () => {
   const store = makeStore()
   store.insertChunk(record('a1', 'A', 'm', 4, 1), [1, 0, 0, 0])

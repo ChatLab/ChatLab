@@ -53,11 +53,13 @@ class FakeEmbedder implements EmbeddingProvider {
   readonly maxTokens = 1000
   calls = 0
   failAtCall?: number
+  afterEmbed?: () => void
 
   async embedDocuments(texts: string[]): Promise<Float32Array[]> {
     return texts.map(() => {
       this.calls++
       if (this.failAtCall && this.calls >= this.failAtCall) throw new Error('boom')
+      this.afterEmbed?.()
       return new Float32Array([1, 0, 0, 0])
     })
   }
@@ -86,6 +88,12 @@ function countStored(store: EmbeddingIndexStore): number {
   return store.queryDense({ dbPathHash: DB_HASH, modelId: MODEL, dim: 4, embedding: [1, 0, 0, 0], k: 1000 }).length
 }
 
+function storedParentIds(store: EmbeddingIndexStore): string[] {
+  return store
+    .queryDense({ dbPathHash: DB_HASH, modelId: MODEL, dim: 4, embedding: [1, 0, 0, 0], k: 1000 })
+    .map((result) => result.record.parentId)
+}
+
 test('full warmup writes all chunks and marks completed', async () => {
   const { store, stateStore, source } = setup(makeMessages(8))
   const embedder = new FakeEmbedder()
@@ -110,7 +118,7 @@ test('pause then resume completes without duplicate inserts', async () => {
   const embedder = new FakeEmbedder()
 
   let calls = 0
-  const pauseOnThird: StopSignal = () => (++calls >= 3 ? 'paused' : null)
+  const pauseAfterTwoWrittenChunks: StopSignal = () => (++calls >= 5 ? 'paused' : null)
   const paused = await runWarmup({
     dbPathHash: DB_HASH,
     modelId: MODEL,
@@ -119,7 +127,7 @@ test('pause then resume completes without duplicate inserts', async () => {
     stateStore,
     source,
     config,
-    checkStop: pauseOnThird,
+    checkStop: pauseAfterTwoWrittenChunks,
   })
 
   assert.equal(paused.status, 'paused')
@@ -149,6 +157,34 @@ test('cancellation stops immediately and records cancelled state', async () => {
     source,
     config,
     checkStop: () => 'cancelled',
+  })
+
+  assert.equal(result.status, 'cancelled')
+  assert.equal(result.chunksWritten, 0)
+  assert.equal(countStored(store), 0)
+  assert.equal(stateStore.getState(DB_HASH)!.indexStatus, 'cancelled')
+  store.close()
+  stateStore.close()
+})
+
+test('cancellation after embedding does not write the just-finished chunk', async () => {
+  const { store, stateStore, source } = setup(makeMessages(8))
+  const embedder = new FakeEmbedder()
+
+  let cancelled = false
+  embedder.afterEmbed = () => {
+    cancelled = true
+  }
+
+  const result = await runWarmup({
+    dbPathHash: DB_HASH,
+    modelId: MODEL,
+    embedder,
+    store,
+    stateStore,
+    source,
+    config,
+    checkStop: () => (cancelled ? 'cancelled' : null),
   })
 
   assert.equal(result.status, 'cancelled')
@@ -231,6 +267,46 @@ test('backfilled older messages trigger full re-index', async () => {
   // Must have more chunks than before (backfilled messages now indexed)
   assert.ok(countStored(store) > chunksAfterFirst, 'backfilled messages should produce additional chunks')
   assert.equal(stateStore.getState(DB_HASH)!.totalMessages, 6)
+  store.close()
+  stateStore.close()
+})
+
+test('append-only warmup replaces stale chunks from the extended tail parent', async () => {
+  const original = makeMessages(4)
+  const { store, stateStore } = setup(original)
+  const embedder = new FakeEmbedder()
+
+  await runWarmup({
+    dbPathHash: DB_HASH,
+    modelId: MODEL,
+    embedder,
+    store,
+    stateStore,
+    source: makeSource(original),
+    config,
+  })
+  assert.equal(countStored(store), 2)
+  assert.ok(storedParentIds(store).every((id) => id.includes('parent:1:4:')))
+
+  const appended = [
+    ...original,
+    ...makeMessages(2).map((message) => ({ ...message, id: message.id + 4, ts: message.ts + 4 * 0.1 * MINUTE })),
+  ]
+  const result = await runWarmup({
+    dbPathHash: DB_HASH,
+    modelId: MODEL,
+    embedder: new FakeEmbedder(),
+    store,
+    stateStore,
+    source: makeSource(appended),
+    config,
+  })
+
+  assert.equal(result.status, 'completed')
+  assert.equal(result.chunksWritten, 3)
+  assert.equal(countStored(store), 3)
+  assert.ok(storedParentIds(store).every((id) => id.includes('parent:1:6:')))
+  assert.equal(stateStore.getState(DB_HASH)!.chunkCount, 3)
   store.close()
   stateStore.close()
 })
