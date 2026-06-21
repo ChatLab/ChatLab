@@ -119,11 +119,12 @@ const overview = computed(() => {
   }
 })
 
-// 待处理 = 需重建 / 失败 / 未建立 / 暂停，且当前不在执行
+// 待处理 = 需重建 / 失败 / 未建立 / 暂停 / 有新消息，且当前不在执行
 const pendingCount = computed(
   () =>
-    enabledStatuses.value.filter((s) => !s.running && !s.queued && (s.needsRebuild || s.indexStatus !== 'completed'))
-      .length
+    enabledStatuses.value.filter(
+      (s) => !s.running && !s.queued && (s.needsRebuild || s.indexStatus !== 'completed' || !!s.hasNewMessages)
+    ).length
 )
 
 async function persistConfig(next: SemanticIndexConfig, apiKey?: string): Promise<boolean> {

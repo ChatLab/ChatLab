@@ -79,6 +79,8 @@ export interface SemanticIndexSessionStatus {
   enabled: boolean
   indexStatus: SemanticIndexStatus
   needsRebuild: boolean
+  /** completed session has received new messages since last index run */
+  hasNewMessages?: boolean
   totalMessages: number
   indexedMessages: number
   chunkCount: number
@@ -379,6 +381,9 @@ export class SemanticIndexService {
           const liveCount = (db.prepare('SELECT COUNT(*) AS c FROM message').get() as { c: number } | undefined)?.c ?? 0
           if (liveCount > state.totalMessages) {
             this.queue.enqueue({ type: 'build', dbPathHash: state.dbPathHash })
+          } else if (liveCount < state.totalMessages) {
+            // Messages were deleted (e.g. member deletion); must rebuild to remove stale vectors
+            this.queue.enqueue({ type: 'rebuild', dbPathHash: state.dbPathHash })
           }
         }
       }
@@ -426,7 +431,18 @@ export class SemanticIndexService {
 
   listEnabledStatuses(): SemanticIndexSessionStatus[] {
     const modelId = this.currentModelId()
-    return this.stateStore.listEnabled().map((s) => this.toStatus(s, modelId))
+    return this.stateStore.listEnabled().map((s) => {
+      const status = this.toStatus(s, modelId)
+      if (s.indexStatus === 'completed' && !status.needsRebuild && !status.queued && !status.running) {
+        const sessionId = sessionIdFromDbPath(s.dbPath)
+        const db = this.sessionAdapter.openReadonly(sessionId)
+        if (db) {
+          const liveCount = (db.prepare('SELECT COUNT(*) AS c FROM message').get() as { c: number } | undefined)?.c ?? 0
+          if (liveCount !== s.totalMessages) status.hasNewMessages = true
+        }
+      }
+      return status
+    })
   }
 
   // ---------- 检索 ----------

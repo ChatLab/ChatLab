@@ -37,6 +37,8 @@ export interface SemanticIndexSessionStatus {
   enabled: boolean
   indexStatus: SemanticIndexStatusValue
   needsRebuild: boolean
+  /** completed session has received new messages since last index run */
+  hasNewMessages?: boolean
   totalMessages: number
   indexedMessages: number
   chunkCount: number
