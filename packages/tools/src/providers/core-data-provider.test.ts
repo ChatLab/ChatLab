@@ -13,6 +13,7 @@ import assert from 'node:assert/strict'
 import Database from 'better-sqlite3'
 import { CoreDataProvider } from './core-data-provider'
 import type { DatabaseAdapter, PreparedStatement, RunResult } from '@openchatlab/core'
+import { openTestSqliteDatabase } from '../../../../tests/helpers/sqlite.mts'
 
 class Stmt implements PreparedStatement {
   readonly?: boolean
@@ -57,7 +58,7 @@ describe('CoreDataProvider keyword search', () => {
   let provider: CoreDataProvider
 
   beforeEach(() => {
-    raw = new Database(':memory:')
+    raw = openTestSqliteDatabase()
     raw.exec(`
       CREATE TABLE member (
         id INTEGER PRIMARY KEY, platform_id TEXT, account_name TEXT,
