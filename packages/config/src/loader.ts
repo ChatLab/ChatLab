@@ -148,14 +148,11 @@ export function writeConfigField(section: string, key: string, value: string | n
   fs.writeFileSync(CONFIG_TOML, lines.join('\n'), 'utf-8')
 }
 
-/**
- * 简单的深度合并（仅处理纯对象，不处理数组）
- */
 function deepMerge(base: Record<string, unknown>, override: Record<string, unknown>): Record<string, unknown> {
   const result = { ...base }
   for (const [key, value] of Object.entries(override)) {
-    if (value !== undefined && value !== null && typeof value === 'object' && !Array.isArray(value)) {
-      result[key] = deepMerge((result[key] as Record<string, unknown>) ?? {}, value as Record<string, unknown>)
+    if (value !== null && typeof value === 'object' && !Array.isArray(value)) {
+      result[key] = { ...(result[key] as object), ...(value as object) }
     } else if (value !== undefined) {
       result[key] = value
     }

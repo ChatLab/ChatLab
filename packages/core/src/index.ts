@@ -6,14 +6,7 @@
  */
 
 // 抽象接口
-export type {
-  DatabaseAdapter,
-  PreparedStatement,
-  RunResult,
-  PathProvider,
-  NotificationBus,
-  NotificationPayload,
-} from './interfaces'
+export type { DatabaseAdapter, PreparedStatement, RunResult, PathProvider } from './interfaces'
 
 // 查询工具
 export {

@@ -9,7 +9,6 @@
  */
 
 import type { TimeFilter } from '@openchatlab/shared-types'
-import type { AsyncSqlExecutor } from './executor'
 import {
   FULL_MSG_SELECT,
   FULL_MSG_FROM,
@@ -19,6 +18,11 @@ import {
   type FullMessageRow,
   type MappedMessage,
 } from './message-sql'
+
+export interface AsyncSqlExecutor {
+  all<T>(sql: string, params?: unknown[]): Promise<T[]>
+  get<T>(sql: string, params?: unknown[]): Promise<T | undefined>
+}
 
 // ==================== Result types ====================
 

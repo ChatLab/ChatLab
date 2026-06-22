@@ -6,7 +6,7 @@ import { getSegmentSummariesTool } from './get-segment-summaries'
 import { searchMessagesTool } from './search-messages'
 import { schemaTool, sqlQueryTool } from './sql-query'
 import { SQL_TOOL_DEFS, createSqlToolDefinition } from '../sql'
-import type { RawMessage, ToolDataProvider, ToolExecutionContext, TimeFilter } from '../types'
+import type { RawMessage, ToolDataProvider, ToolExecutionContext, ToolTimeRange } from '../types'
 
 function createContext(
   dataProvider: Partial<ToolDataProvider>,
@@ -28,7 +28,7 @@ function createSqlTool(name: string) {
 
 describe('high-risk analysis tool definitions', () => {
   it('search_messages passes filters to the provider and returns expanded context messages', async () => {
-    const contextFilter: TimeFilter = { startTs: 1710000000, endTs: 1710000100 }
+    const contextFilter: ToolTimeRange = { startTs: 1710000000, endTs: 1710000100 }
     const searchCalls: Array<{ keywords: string[]; options: unknown }> = []
     const contextCalls: Array<{ ids: number[]; before: number; after: number }> = []
     const expandedMessages: RawMessage[] = [
@@ -109,8 +109,8 @@ describe('high-risk analysis tool definitions', () => {
   })
 
   it('get_segment_summaries filters empty and non-matching summaries after over-fetching', async () => {
-    const calls: Array<{ limit?: number; timeFilter?: TimeFilter }> = []
-    const contextFilter: TimeFilter = { startTs: 1704067200, endTs: 1704153600 }
+    const calls: Array<{ limit?: number; timeFilter?: ToolTimeRange }> = []
+    const contextFilter: ToolTimeRange = { startTs: 1704067200, endTs: 1704153600 }
     const context = createContext(
       {
         async getSegmentSummaries(options) {

@@ -4,7 +4,7 @@
  * 从 Electron 工具提取的共享实用函数，处理 start_time/end_time 字符串参数。
  */
 
-import type { TimeFilter } from '../types'
+import type { ToolTimeRange } from '../types'
 
 export interface ExtendedTimeParams {
   start_time?: string
@@ -13,12 +13,12 @@ export interface ExtendedTimeParams {
 
 /**
  * 解析时间参数，返回时间过滤器
- * 优先级: start_time/end_time > contextTimeFilter
+ * 优先级: start_time/end_time > contextToolTimeRange
  */
 export function parseExtendedTimeParams(
   params: ExtendedTimeParams,
-  contextTimeFilter?: TimeFilter
-): TimeFilter | undefined {
+  contextToolTimeRange?: ToolTimeRange
+): ToolTimeRange | undefined {
   if (params.start_time || params.end_time) {
     let startTs: number | undefined
     let endTs: number | undefined
@@ -45,5 +45,5 @@ export function parseExtendedTimeParams(
     }
   }
 
-  return contextTimeFilter
+  return contextToolTimeRange
 }

@@ -10,7 +10,7 @@ import type {
   ToolExecutionContext,
   SemanticSearchToolService,
   RawMessage,
-  TimeFilter,
+  ToolTimeRange,
 } from '@openchatlab/tools'
 import { CoreDataProvider } from '@openchatlab/tools'
 import type { DatabaseAdapter } from '@openchatlab/core'
@@ -50,7 +50,7 @@ export interface ServerToolContext {
   /** 当前用户平台 id（昵称匿名化 owner 识别） */
   ownerPlatformId?: string
   /** 会话时间范围筛选（来自请求参数，供证据类工具继承） */
-  timeFilter?: TimeFilter
+  timeFilter?: ToolTimeRange
   /** 关键词搜索消息条数上限 */
   maxMessagesLimit?: number
 }

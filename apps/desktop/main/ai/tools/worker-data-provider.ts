@@ -11,7 +11,7 @@ import type {
   SearchMessagesResult,
   MemberStatItem,
   SchemaTableInfo,
-  TimeFilter,
+  ToolTimeRange,
   ChatOverviewResult,
   MemberInfo,
   NameHistoryItem,
@@ -52,7 +52,7 @@ export class WorkerDataProvider implements ToolDataProvider {
 
   async searchMessages(
     keywords: string[],
-    options?: { timeFilter?: TimeFilter; limit?: number; senderId?: number }
+    options?: { timeFilter?: ToolTimeRange; limit?: number; senderId?: number }
   ): Promise<SearchMessagesResult> {
     const result = await this.run(() =>
       workerManager.searchMessages(
@@ -69,7 +69,7 @@ export class WorkerDataProvider implements ToolDataProvider {
 
   async deepSearchMessages(
     keywords: string[],
-    options?: { timeFilter?: TimeFilter; limit?: number; senderId?: number }
+    options?: { timeFilter?: ToolTimeRange; limit?: number; senderId?: number }
   ): Promise<SearchMessagesResult> {
     const result = await this.run(() =>
       workerManager.deepSearchMessages(
@@ -95,7 +95,7 @@ export class WorkerDataProvider implements ToolDataProvider {
     return mapSearchMessages(messages)
   }
 
-  async getRecentMessages(options?: { timeFilter?: TimeFilter; limit?: number }): Promise<SearchMessagesResult> {
+  async getRecentMessages(options?: { timeFilter?: ToolTimeRange; limit?: number }): Promise<SearchMessagesResult> {
     const result = await this.run(() =>
       workerManager.getRecentMessages(this.sessionId, options?.timeFilter, options?.limit ?? 50)
     )
@@ -123,7 +123,7 @@ export class WorkerDataProvider implements ToolDataProvider {
     }))
   }
 
-  async getMemberStats(options?: { timeFilter?: TimeFilter; top?: number }): Promise<MemberStatItem[]> {
+  async getMemberStats(options?: { timeFilter?: ToolTimeRange; top?: number }): Promise<MemberStatItem[]> {
     const top = options?.top ?? 20
     const members = await this.run(() => workerManager.getMemberActivity(this.sessionId, options?.timeFilter))
     return members.slice(0, top).map((m: any) => ({
@@ -137,7 +137,10 @@ export class WorkerDataProvider implements ToolDataProvider {
     return this.run(() => workerManager.getMemberNameHistory(this.sessionId, memberId))
   }
 
-  async getTimeStats(type: 'hourly' | 'weekday' | 'daily', options?: { timeFilter?: TimeFilter }): Promise<unknown[]> {
+  async getTimeStats(
+    type: 'hourly' | 'weekday' | 'daily',
+    options?: { timeFilter?: ToolTimeRange }
+  ): Promise<unknown[]> {
     const filter = options?.timeFilter
     switch (type) {
       case 'weekday':
@@ -154,7 +157,7 @@ export class WorkerDataProvider implements ToolDataProvider {
     return this.run(() => workerManager.getSegmentMessages(this.sessionId, segmentId, limit))
   }
 
-  async getSegmentSummaries(options?: { limit?: number; timeFilter?: TimeFilter }): Promise<SegmentSummaryItem[]> {
+  async getSegmentSummaries(options?: { limit?: number; timeFilter?: ToolTimeRange }): Promise<SegmentSummaryItem[]> {
     return this.run(() =>
       workerManager.getSegmentSummaries(this.sessionId, {
         limit: options?.limit,
@@ -166,7 +169,7 @@ export class WorkerDataProvider implements ToolDataProvider {
   async getConversationBetween(
     memberId1: number,
     memberId2: number,
-    timeFilter?: TimeFilter,
+    timeFilter?: ToolTimeRange,
     limit?: number
   ): Promise<ConversationResult> {
     const result = await this.run(() =>

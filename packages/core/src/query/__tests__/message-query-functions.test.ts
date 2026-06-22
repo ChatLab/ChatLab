@@ -9,7 +9,7 @@
 
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import type { AsyncSqlExecutor } from '../executor'
+import type { AsyncSqlExecutor } from '../message-query-functions'
 import type { FullMessageRow } from '../message-sql'
 import {
   fetchMessagesBefore,

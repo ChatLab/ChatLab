@@ -43,7 +43,7 @@ export interface JsonSchema {
 
 // ==================== Time Filter ====================
 
-export interface TimeFilter {
+export interface ToolTimeRange {
   startTs: number
   endTs: number
 }
@@ -156,17 +156,17 @@ export interface ToolDataProvider {
   // === 基础查询 ===
   searchMessages(
     keywords: string[],
-    options?: { timeFilter?: TimeFilter; limit?: number; senderId?: number }
+    options?: { timeFilter?: ToolTimeRange; limit?: number; senderId?: number }
   ): Promise<SearchMessagesResult>
 
   deepSearchMessages(
     keywords: string[],
-    options?: { timeFilter?: TimeFilter; limit?: number; senderId?: number }
+    options?: { timeFilter?: ToolTimeRange; limit?: number; senderId?: number }
   ): Promise<SearchMessagesResult>
 
   getSearchMessageContext(messageIds: number[], contextBefore: number, contextAfter: number): Promise<RawMessage[]>
 
-  getRecentMessages(options?: { timeFilter?: TimeFilter; limit?: number }): Promise<SearchMessagesResult>
+  getRecentMessages(options?: { timeFilter?: ToolTimeRange; limit?: number }): Promise<SearchMessagesResult>
 
   getMessageContext(messageIds: number[], contextSize: number): Promise<RawMessage[]>
 
@@ -176,23 +176,23 @@ export interface ToolDataProvider {
   // === 成员相关 ===
   getMembers(): Promise<MemberInfo[]>
 
-  getMemberStats(options?: { timeFilter?: TimeFilter; top?: number }): Promise<MemberStatItem[]>
+  getMemberStats(options?: { timeFilter?: ToolTimeRange; top?: number }): Promise<MemberStatItem[]>
 
   getMemberNameHistory(memberId: number): Promise<NameHistoryItem[]>
 
   // === 时间统计 ===
-  getTimeStats(type: 'hourly' | 'weekday' | 'daily', options?: { timeFilter?: TimeFilter }): Promise<unknown[]>
+  getTimeStats(type: 'hourly' | 'weekday' | 'daily', options?: { timeFilter?: ToolTimeRange }): Promise<unknown[]>
 
   // === 段落相关 ===
   getSegmentMessages(segmentId: number, limit?: number): Promise<SegmentMessagesResult | null>
 
-  getSegmentSummaries(options?: { limit?: number; timeFilter?: TimeFilter }): Promise<SegmentSummaryItem[]>
+  getSegmentSummaries(options?: { limit?: number; timeFilter?: ToolTimeRange }): Promise<SegmentSummaryItem[]>
 
   // === 对话查询 ===
   getConversationBetween(
     memberId1: number,
     memberId2: number,
-    timeFilter?: TimeFilter,
+    timeFilter?: ToolTimeRange,
     limit?: number
   ): Promise<ConversationResult>
 
@@ -288,7 +288,7 @@ export interface SegmentResult {
 export interface ToolExecutionContext {
   sessionId: string
   locale?: string
-  timeFilter?: TimeFilter
+  timeFilter?: ToolTimeRange
   abortSignal?: AbortSignal
   /** 抽象查询接口 */
   dataProvider?: ToolDataProvider

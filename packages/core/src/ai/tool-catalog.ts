@@ -25,6 +25,8 @@ export function normalizeBuiltinToolNames(toolNames: readonly string[]): string[
   return Array.from(new Set(toolNames.map(normalizeBuiltinToolName)))
 }
 
+export const CHART_CAPABILITY_SKILL_ID = 'chart_runtime'
+
 export const BUILTIN_TOOL_CATALOG: BuiltinToolCatalogEntry[] = [
   // Core 工具
   { name: 'get_chat_overview', category: 'core' },

@@ -123,9 +123,6 @@ export {
 } from './message-sql'
 export type { FullMessageRow, MappedMessage, MsgQueryConditions } from './message-sql'
 
-// Async SQL executor abstraction
-export type { AsyncSqlExecutor } from './executor'
-
 // Shared async message query functions (platform-agnostic)
 export {
   fetchMessagesBefore,
@@ -138,7 +135,12 @@ export {
   fetchRecentTextMessages,
   fetchConversationBetween,
 } from './message-query-functions'
-export type { AsyncPaginatedMessages, AsyncMessagesWithTotal, AsyncConversationData } from './message-query-functions'
+export type {
+  AsyncSqlExecutor,
+  AsyncPaginatedMessages,
+  AsyncMessagesWithTotal,
+  AsyncConversationData,
+} from './message-query-functions'
 
 // Member write operations (merge, delete, update aliases, DDL migration)
 export { updateMemberAliases, mergeMembers, deleteMember, ensureAliasesColumn, ensureAvatarColumn } from './member-ops'

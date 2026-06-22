@@ -56,7 +56,7 @@ export type {
   SearchMessagesResult,
   MemberStatItem,
   SchemaTableInfo,
-  TimeFilter,
+  ToolTimeRange,
   ToolCategory,
   TruncationStrategy,
   ChatOverviewResult,

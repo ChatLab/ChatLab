@@ -30,7 +30,7 @@ import type {
   SearchMessagesResult,
   MemberStatItem,
   SchemaTableInfo,
-  TimeFilter,
+  ToolTimeRange,
   ChatOverviewResult,
   MemberInfo,
   NameHistoryItem,
@@ -45,7 +45,7 @@ export class CoreDataProvider implements ToolDataProvider {
 
   async searchMessages(
     keywords: string[],
-    options?: { timeFilter?: TimeFilter; limit?: number; senderId?: number }
+    options?: { timeFilter?: ToolTimeRange; limit?: number; senderId?: number }
   ): Promise<SearchMessagesResult> {
     const result = searchMessagesByKeywords(this.db, keywords, {
       startTs: options?.timeFilter?.startTs,
@@ -68,7 +68,7 @@ export class CoreDataProvider implements ToolDataProvider {
 
   async deepSearchMessages(
     keywords: string[],
-    options?: { timeFilter?: TimeFilter; limit?: number; senderId?: number }
+    options?: { timeFilter?: ToolTimeRange; limit?: number; senderId?: number }
   ): Promise<SearchMessagesResult> {
     return this.searchMessages(keywords, options)
   }
@@ -81,7 +81,7 @@ export class CoreDataProvider implements ToolDataProvider {
     return coreGetSearchMessageContext(this.db, messageIds, contextBefore, contextAfter)
   }
 
-  async getRecentMessages(options?: { timeFilter?: TimeFilter; limit?: number }): Promise<SearchMessagesResult> {
+  async getRecentMessages(options?: { timeFilter?: ToolTimeRange; limit?: number }): Promise<SearchMessagesResult> {
     const messages = coreGetRecentMessages(this.db, { limit: options?.limit ?? 50 })
     return {
       messages: messages.map((m) => ({
@@ -108,7 +108,7 @@ export class CoreDataProvider implements ToolDataProvider {
     return getMembersWithAliases(this.db)
   }
 
-  async getMemberStats(options?: { timeFilter?: TimeFilter; top?: number }): Promise<MemberStatItem[]> {
+  async getMemberStats(options?: { timeFilter?: ToolTimeRange; top?: number }): Promise<MemberStatItem[]> {
     const top = options?.top ?? 20
     const members = getMemberActivity(this.db, options?.timeFilter)
     return members.slice(0, top).map((m) => ({
@@ -122,7 +122,10 @@ export class CoreDataProvider implements ToolDataProvider {
     return coreGetMemberNameHistory(this.db, memberId)
   }
 
-  async getTimeStats(type: 'hourly' | 'weekday' | 'daily', options?: { timeFilter?: TimeFilter }): Promise<unknown[]> {
+  async getTimeStats(
+    type: 'hourly' | 'weekday' | 'daily',
+    options?: { timeFilter?: ToolTimeRange }
+  ): Promise<unknown[]> {
     const filter = options?.timeFilter
     switch (type) {
       case 'weekday':
@@ -139,14 +142,14 @@ export class CoreDataProvider implements ToolDataProvider {
     return coreGetSegmentMessages(this.db, segmentId, limit)
   }
 
-  async getSegmentSummaries(options?: { limit?: number; timeFilter?: TimeFilter }): Promise<SegmentSummaryItem[]> {
+  async getSegmentSummaries(options?: { limit?: number; timeFilter?: ToolTimeRange }): Promise<SegmentSummaryItem[]> {
     return coreGetSegmentSummaries(this.db, options)
   }
 
   async getConversationBetween(
     memberId1: number,
     memberId2: number,
-    timeFilter?: TimeFilter,
+    timeFilter?: ToolTimeRange,
     limit?: number
   ): Promise<ConversationResult> {
     return coreGetConversationBetween(this.db, memberId1, memberId2, timeFilter, limit)
