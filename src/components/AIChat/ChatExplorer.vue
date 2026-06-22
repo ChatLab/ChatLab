@@ -512,6 +512,8 @@ watch(
                 :session-token-usage="sessionTokenUsage"
                 :agent-status="agentStatus"
                 :current-ai-chat-id="currentAIChatId"
+                :current-messages="messages"
+                :fallback-title="sessionName"
                 :estimated-context-tokens="estimatedContextTokens"
               />
             </div>

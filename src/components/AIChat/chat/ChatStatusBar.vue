@@ -6,11 +6,18 @@ import { useToast } from '@/composables/useToast'
 import { usePromptStore } from '@/stores/prompt'
 import { useLayoutStore } from '@/stores/layout'
 import { useLLMStore } from '@/stores/llm'
-import { exportConversation, type ExportFormat, type ExportMessage } from '@/utils/conversationExport'
+import {
+  exportConversation,
+  getExportableConversationMessages,
+  hasExportableConversationMessages,
+  type ConversationExportSourceMessage,
+  type ExportFormat,
+} from '@/utils/conversationExport'
 import type { AgentRuntimeStatus } from '@electron/shared/types'
 import { useAIService } from '@/services'
 import { getSupportedThinkingLevels, type ThinkingLevel } from '@openchatlab/core'
 import { useCacheService } from '@/services/cache/service'
+import type { ChatMessage } from '@/composables/useAIChat'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -21,6 +28,8 @@ const props = defineProps<{
   sessionTokenUsage: { totalTokens: number; cacheReadTokens: number; cacheWriteTokens: number }
   agentStatus?: AgentRuntimeStatus | null
   currentAIChatId?: string | null
+  currentMessages?: ChatMessage[]
+  fallbackTitle?: string
   estimatedContextTokens?: number
 }>()
 
@@ -129,39 +138,60 @@ function openModelSettings() {
 
 // 导出当前对话
 const isExporting = ref(false)
+const visibleExportMessages = computed(() => getExportableConversationMessages(props.currentMessages ?? []))
+const canExportConversation = computed(() => {
+  return Boolean(props.currentAIChatId) || hasExportableConversationMessages(props.currentMessages ?? [])
+})
+
+function getExportLabels() {
+  return {
+    createdAt: t('ai.chat.conversation.export.createdAt'),
+    user: t('ai.chat.conversation.export.user'),
+    assistant: t('ai.chat.conversation.export.assistant'),
+  }
+}
+
+function toExportSourceMessages(messages: ConversationExportSourceMessage[]): ConversationExportSourceMessage[] {
+  return messages.map((message) => ({
+    ...message,
+    timestamp: message.timestamp * 1000,
+  }))
+}
 
 async function handleExportConversation() {
-  if (isExporting.value || !props.currentAIChatId) return
+  if (isExporting.value || !canExportConversation.value) return
 
   isExporting.value = true
   try {
-    const [conv, messages] = await Promise.all([
-      useAIService().getAIChat(props.currentAIChatId),
-      useAIService().getMessages(props.currentAIChatId),
-    ])
+    const format = (aiGlobalSettings.value.exportFormat || 'markdown') as ExportFormat
+    const labels = getExportLabels()
+    let title = props.fallbackTitle || t('ai.chat.conversation.newChat')
+    let createdAt = visibleExportMessages.value[0]?.timestamp ?? Date.now()
+    let messages = visibleExportMessages.value
 
-    if (!conv || messages.length === 0) {
+    if (props.currentAIChatId) {
+      const [conv, persistedMessages] = await Promise.all([
+        useAIService().getAIChat(props.currentAIChatId),
+        useAIService().getMessages(props.currentAIChatId),
+      ])
+
+      if (conv) {
+        title = conv.title || title
+        createdAt = conv.createdAt * 1000
+      }
+
+      const persistedExportMessages = getExportableConversationMessages(toExportSourceMessages(persistedMessages))
+      if (persistedExportMessages.length > 0) {
+        messages = persistedExportMessages
+      }
+    }
+
+    if (messages.length === 0) {
       toast.warn(t('ai.chat.conversation.export.noMessages'))
       return
     }
 
-    const format = (aiGlobalSettings.value.exportFormat || 'markdown') as ExportFormat
-    const title = conv.title || t('ai.chat.conversation.newChat')
-    const labels = {
-      createdAt: t('ai.chat.conversation.export.createdAt'),
-      user: t('ai.chat.conversation.export.user'),
-      assistant: t('ai.chat.conversation.export.assistant'),
-    }
-    // 导出面向用户可见的问答内容，跳过压缩摘要等系统生成的内部消息。
-    const messagesWithMs: ExportMessage[] = messages
-      .filter((msg) => msg.role === 'user' || msg.role === 'assistant')
-      .map((msg) => ({
-        role: msg.role as ExportMessage['role'],
-        content: msg.content,
-        timestamp: msg.timestamp * 1000,
-      }))
-
-    const result = await exportConversation(title, messagesWithMs, conv.createdAt * 1000, format, labels)
+    const result = await exportConversation(title, messages, createdAt, format, labels)
 
     if (result.success && result.filePath) {
       const filename = result.filePath.split('/').pop() || result.filePath
@@ -341,9 +371,7 @@ const thinkingLevelLabel = computed(() => {
               {{ formatCompactNumber(modelContextWindow) }}
             </div>
             <div>{{ t('ai.chat.statusBar.tokenUsageTitle') }}: {{ totalTokenUsageCompactText }}</div>
-            <div v-if="hasCacheData">
-              {{ t('ai.chat.statusBar.cacheHit') }}: {{ cacheReadText }}
-            </div>
+            <div v-if="hasCacheData">{{ t('ai.chat.statusBar.cacheHit') }}: {{ cacheReadText }}</div>
           </div>
         </template>
       </UTooltip>
@@ -362,7 +390,7 @@ const thinkingLevelLabel = computed(() => {
       <button
         class="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-xs text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-gray-800 dark:hover:text-gray-300"
         :title="t('ai.chat.statusBar.export.title')"
-        :disabled="isExporting || !currentAIChatId"
+        :disabled="isExporting || !canExportConversation"
         @click="handleExportConversation"
       >
         <UIcon name="i-heroicons-arrow-down-tray" class="h-3.5 w-3.5" />
