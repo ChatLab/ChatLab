@@ -124,16 +124,17 @@ function wrapWithPreprocessing(tool: AgentTool<any>, context: ToolContext): Agen
  * @param context 工具上下文
  * @param allowedTools analysis 工具白名单；undefined/[] 表示不加载 analysis 工具
  */
-export function getAllTools(context: ToolContext, allowedTools?: string[]): AgentTool<any>[] {
+export async function getAllTools(context: ToolContext, allowedTools?: string[]): Promise<AgentTool<any>[]> {
   const coreTools = TOOL_REGISTRY.filter((e) => e.category === 'core').map((e) => e.factory(context))
 
   const analysisTools = TOOL_REGISTRY.filter(
     (e) => e.category === 'analysis' && isAnalysisToolAllowed(e.name, allowedTools)
   ).map((e) => e.factory(context))
 
-  const semanticTools = context.semanticIndexService?.canSearch(context.sessionId)
-    ? [semanticSearchEntry.factory(context)]
-    : []
+  const semanticTools =
+    context.semanticIndexService && (await context.semanticIndexService.canSearch(context.sessionId))
+      ? [semanticSearchEntry.factory(context)]
+      : []
 
   // 证据检索工具始终加载，不受语义索引可用性影响（无索引时走关键词降级）
   const evidenceTools = [retrieveChatEvidenceEntry.factory(context)]

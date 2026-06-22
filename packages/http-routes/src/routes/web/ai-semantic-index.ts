@@ -51,27 +51,31 @@ export function registerSemanticIndexRoutes(server: FastifyInstance, ctx: HttpRo
   }
 
   server.get('/_web/ai/semantic-index/config', async () => {
-    return { config: service.getConfig(), apiKeySet: service.hasApiKey(), configured: service.isConfigured() }
+    return {
+      config: await service.getConfig(),
+      apiKeySet: await service.hasApiKey(),
+      configured: await service.isConfigured(),
+    }
   })
 
   server.put<{ Body: { config: SemanticIndexConfig; apiKey?: string } }>(
     '/_web/ai/semantic-index/config',
     async (request) => {
-      const config = service.setConfig(request.body.config, { apiKey: request.body.apiKey })
-      return { config, apiKeySet: service.hasApiKey(), configured: service.isConfigured() }
+      const config = await service.setConfig(request.body.config, { apiKey: request.body.apiKey })
+      return { config, apiKeySet: await service.hasApiKey(), configured: await service.isConfigured() }
     }
   )
 
   server.get('/_web/ai/semantic-index/enabled', async () => {
-    return { sessions: service.listEnabledStatuses() }
+    return { sessions: await service.listEnabledStatuses() }
   })
 
   server.get<{ Querystring: { sessionId: string } }>('/_web/ai/semantic-index/status', async (request) => {
-    return { status: service.status(request.query.sessionId) }
+    return { status: await service.status(request.query.sessionId) }
   })
 
   server.post<{ Body: { sessionIds: string[] } }>('/_web/ai/semantic-index/status', async (request) => {
-    return { sessions: service.statusForSessions(request.body.sessionIds ?? []) }
+    return { sessions: await service.statusForSessions(request.body.sessionIds ?? []) }
   })
 
   const sessionAction = (path: string, action: (sessionId: string) => void | Promise<void>): void => {
@@ -79,7 +83,7 @@ export function registerSemanticIndexRoutes(server: FastifyInstance, ctx: HttpRo
       const { sessionId } = request.body
       if (!sessionId) return reply.code(400).send({ error: 'sessionId is required' })
       await action(sessionId)
-      return { status: service.status(sessionId) }
+      return { status: await service.status(sessionId) }
     })
   }
 
@@ -91,12 +95,12 @@ export function registerSemanticIndexRoutes(server: FastifyInstance, ctx: HttpRo
   sessionAction('/_web/ai/semantic-index/rebuild', (id) => service.rebuild(id))
 
   server.post('/_web/ai/semantic-index/build-pending', async () => {
-    service.buildAllPending()
-    return { sessions: service.listEnabledStatuses() }
+    await service.buildAllPending()
+    return { sessions: await service.listEnabledStatuses() }
   })
 
   server.post('/_web/ai/semantic-index/cleanup', async () => {
-    return service.cleanupUnused()
+    return await service.cleanupUnused()
   })
 
   server.post<{ Body: { sessionId: string; query: string; finalTopK?: number } }>(

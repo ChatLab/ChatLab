@@ -20,10 +20,9 @@ import {
   applyPendingNodeDataDirMigrationIfNeeded,
   hasPendingElectronDataWarning,
   verifyCliDataPath,
-  createSemanticIndexService,
-  createDatabaseManagerAdapter,
+  createSemanticIndexWorkerRuntimeClient,
 } from '@openchatlab/node-runtime'
-import type { ConfigStorage, SemanticIndexService } from '@openchatlab/node-runtime'
+import type { ConfigStorage, SemanticIndexRuntime } from '@openchatlab/node-runtime'
 import { createServer } from './server'
 import { setAuthToken, setRequireAuth } from '@openchatlab/http-routes'
 import { registerWebRoutes } from './routes/web'
@@ -179,19 +178,20 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
     limits: { fileSize: 1024 * 1024 * 1024 }, // 1GB
   })
 
-  // 语义索引 service：每进程一个共享实例，注入 runAgentStream 与 Web 路由，生命周期与 server 一致。
-  // 构建失败（如 sqlite-vec 原生扩展缺失）不应拖垮整个 server，下游会优雅跳过。
-  let semanticIndexService: SemanticIndexService | undefined
+  // 语义索引 worker client：启动 HTTP 服务时不拉起 worker；状态/构建/检索按需 lazy start。
+  let semanticIndexService: SemanticIndexRuntime | undefined
   try {
-    semanticIndexService = createSemanticIndexService({
+    semanticIndexService = createSemanticIndexWorkerRuntimeClient({
       pathProvider,
-      sessionAdapter: createDatabaseManagerAdapter(dbManager),
+      runtime,
       nativeBinding,
+      workerEntryUrl: import.meta.url.endsWith('.ts')
+        ? undefined
+        : new URL('./semantic-index-worker.mjs', import.meta.url),
     })
-    semanticIndexService.recover()
     server.addHook('onClose', async () => semanticIndexService?.close())
   } catch (err) {
-    console.warn('[semantic-index] service unavailable:', err instanceof Error ? err.message : String(err))
+    console.warn('[semantic-index] worker client unavailable:', err instanceof Error ? err.message : String(err))
     semanticIndexService = undefined
   }
 

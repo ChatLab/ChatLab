@@ -4,6 +4,7 @@ export default defineConfig({
   entry: {
     cli: 'src/cli.ts',
     index: 'src/index.ts',
+    'semantic-index-worker': '../../packages/node-runtime/src/semantic-index/worker-thread-entry.ts',
   },
   format: ['esm'],
   outDir: 'dist',

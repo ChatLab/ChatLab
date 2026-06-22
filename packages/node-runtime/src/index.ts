@@ -357,9 +357,12 @@ export {
   isSemanticIndexConfigured,
   persistSemanticIndexConfig,
   resolveSemanticIndexApiKeySet,
+  createSemanticIndexWorkerRuntimeClient,
 } from './semantic-index'
 export type {
   SemanticIndexServiceOptions,
+  SemanticIndexRuntime,
+  SemanticIndexWorkerRuntimeClientOptions,
   SemanticIndexSessionStatus,
   SemanticSearchResult,
   SemanticSearchReason,

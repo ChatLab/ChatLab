@@ -28,6 +28,7 @@ export default defineConfig({
         input: {
           index: resolve(__dirname, 'main/index.ts'),
           'worker/dbWorker': resolve(__dirname, 'main/worker/dbWorker.ts'),
+          'semantic-index-worker': resolve(rootDir, 'packages/node-runtime/src/semantic-index/worker-thread-entry.ts'),
         },
       },
     },

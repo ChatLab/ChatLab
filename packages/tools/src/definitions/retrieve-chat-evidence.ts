@@ -348,7 +348,7 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
       : 'auto'
 
   const service = context.semanticIndexService
-  const semanticAvailable = !!service && service.canSearch(context.sessionId)
+  const semanticAvailable = !!service && (await service.canSearch(context.sessionId))
   const rangeMs = parseEvidenceTimeRange(params, context)
 
   const { mode, warnings } = resolveMode(requestedMode, semanticAvailable, keywords.length > 0)

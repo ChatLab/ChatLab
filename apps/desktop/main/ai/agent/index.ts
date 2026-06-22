@@ -130,7 +130,7 @@ export class Agent {
 
     const allowedTools = this.assistantConfig?.allowedBuiltinTools
     const toolContext = { ...this.context, locale: this.locale }
-    let piTools = getAllTools(toolContext, allowedTools)
+    let piTools = await getAllTools(toolContext, allowedTools)
     const isExplicitChartSkill = this.skillCtx?.skillDef?.id === CHART_CAPABILITY_SKILL_ID
     if (
       this.config.chartAutoMode === 'explicit' &&

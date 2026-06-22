@@ -6,7 +6,7 @@
  * but outputs events via callback instead of IPC.
  */
 
-import type { AgentStreamChunk as SharedAgentStreamChunk, SemanticIndexService } from '@openchatlab/node-runtime'
+import type { AgentStreamChunk as SharedAgentStreamChunk, SemanticIndexRuntime } from '@openchatlab/node-runtime'
 import type { AgentStreamRequest } from '@openchatlab/http-routes'
 import type { ChartAutoMode } from '@openchatlab/shared-types'
 import {
@@ -63,7 +63,7 @@ const compressionLogger = {
 }
 
 export function createElectronRunAgentStream(
-  semanticIndexService?: SemanticIndexService
+  semanticIndexService?: SemanticIndexRuntime
 ): (
   params: AgentStreamRequest,
   onEvent: (chunk: SharedAgentStreamChunk) => void,
@@ -224,7 +224,7 @@ export function createElectronRunAgentStream(
     }
 
     // 语义检索按需暴露：工具可用时向 system prompt 加简短引导（实际检索由 LLM 调用工具触发）。
-    const canSemanticSearch = !!semanticIndexService && semanticIndexService.canSearch(sessionId)
+    const canSemanticSearch = !!semanticIndexService && (await semanticIndexService.canSearch(sessionId))
     if (canSemanticSearch) {
       const baseSystemPrompt = assistantConfig?.systemPrompt ?? ''
       assistantConfig = {

@@ -263,7 +263,7 @@ export interface SemanticSearchToolOptions {
  */
 export interface SemanticSearchToolService {
   /** 当前会话是否可检索（已启用 + 有 chunk + 模型一致） */
-  canSearch(sessionId: string): boolean
+  canSearch(sessionId: string): boolean | Promise<boolean>
   searchForTool(
     sessionId: string,
     query: string,

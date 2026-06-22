@@ -3,7 +3,7 @@
  * for the shared HTTP route context.
  */
 
-import type { DatabaseManager, AIChatManager, AgentStreamChunk, SemanticIndexService } from '@openchatlab/node-runtime'
+import type { DatabaseManager, AIChatManager, AgentStreamChunk, SemanticIndexRuntime } from '@openchatlab/node-runtime'
 import {
   CHART_CAPABILITY_CORE_TOOLS,
   SkillManager,
@@ -65,7 +65,7 @@ export function getAllowedToolSet(
 export function createCliRunAgentStream(
   dbManager: DatabaseManager,
   aiChatManager: AIChatManager,
-  semanticIndexService?: SemanticIndexService
+  semanticIndexService?: SemanticIndexRuntime
 ): (params: AgentStreamRequest, onEvent: (chunk: AgentStreamChunk) => void, abortSignal: AbortSignal) => Promise<void> {
   return async (params, onEvent, abortSignal) => {
     const {
@@ -124,7 +124,7 @@ export function createCliRunAgentStream(
     const availableToolDefs = getAvailableToolDefs(isChartCapability, allowedToolSet)
 
     // 语义检索按需暴露：仅当前会话可检索时保留工具，否则从工具集中过滤掉以减少 schema token 与无效调用。
-    const canSemanticSearch = !!db && !!semanticIndexService && semanticIndexService.canSearch(sessionId)
+    const canSemanticSearch = !!db && !!semanticIndexService && (await semanticIndexService.canSearch(sessionId))
     const filteredToolDefs = canSemanticSearch
       ? availableToolDefs
       : availableToolDefs.filter((tool) => tool.name !== SEMANTIC_SEARCH_TOOL_NAME)

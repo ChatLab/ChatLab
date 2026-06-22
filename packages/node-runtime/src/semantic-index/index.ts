@@ -72,6 +72,22 @@ export {
   SEMANTIC_INDEX_DB_FILE,
   SEMANTIC_INDEX_CONFIG_FILE,
 } from './service'
+export type { SemanticIndexRuntime, MaybePromise } from './runtime'
+export {
+  SemanticIndexWorkerClient,
+  createSemanticIndexWorkerClient,
+  createSemanticIndexWorkerRuntimeClient,
+} from './worker-client'
+export type {
+  SemanticIndexWorkerClientOptions,
+  SemanticIndexWorkerRuntimeClientOptions,
+  SemanticIndexWorkerTransport,
+  SemanticIndexWorkerTransportFactory,
+} from './worker-client'
+export { createSemanticIndexWorkerThreadTransport } from './worker-thread-transport'
+export type { SemanticIndexWorkerThreadTransportOptions, SemanticIndexWorkerLike } from './worker-thread-transport'
+export { StaticPathProvider, snapshotPathProvider } from './static-path-provider'
+export type { StaticPathProviderSnapshot } from './static-path-provider'
 export type {
   SemanticIndexServiceOptions,
   SemanticIndexSessionStatus,

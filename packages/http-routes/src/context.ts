@@ -23,7 +23,7 @@ import type {
   CustomModelStore,
   MergeSessionCache,
   AgentStreamChunk,
-  SemanticIndexService,
+  SemanticIndexRuntime,
 } from '@openchatlab/node-runtime'
 
 export interface HttpRouteContext {
@@ -56,7 +56,7 @@ export interface HttpRouteContext {
   customModelStore?: CustomModelStore
 
   /** 语义索引共享 service — 可选，路由在缺失时优雅跳过 */
-  semanticIndexService?: SemanticIndexService
+  semanticIndexService?: SemanticIndexRuntime
 
   /**
    * auth-profiles 读写注入 — 仅语义索引「向量库不可用」降级路径使用（其余路径走 service 内部注入）。
