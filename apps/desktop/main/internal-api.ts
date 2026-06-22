@@ -268,7 +268,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
       /* best-effort */
     }
     try {
-      newSemanticIndexService?.close()
+      await newSemanticIndexService?.close()
     } catch {
       /* best-effort */
     }
@@ -313,7 +313,7 @@ export async function stopInternalServer(): Promise<void> {
       /* best-effort */
     }
     try {
-      semanticIndexService?.close()
+      await semanticIndexService?.close()
     } catch {
       /* best-effort */
     }

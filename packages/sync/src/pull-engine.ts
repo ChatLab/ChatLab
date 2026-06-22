@@ -272,6 +272,8 @@ export class PullEngine {
                 this.logger.info(`[Pull] "${sess.name}" retry ${ri + 1}: fetched ${retryStat.size} bytes`)
                 const retrySync = parseSyncFromFile(retryFile)
                 if (retryStat.size < 1024 && !fileContainsMessages(retryFile) && retrySync?.hasMore === false) {
+                  // 空 retry 页也可能只返回服务端 watermark，跳过导入前仍要推进保存游标。
+                  if (retrySync.nextSince !== undefined) nextPullSince = Math.max(nextPullSince, retrySync.nextSince)
                   cleanupTempFile(retryFile)
                   continue
                 }
@@ -325,6 +327,8 @@ export class PullEngine {
                 }
                 totalNewMessages += retryResult.newMessageCount
                 if (retryMaxTs !== null) nextPullSince = Math.max(nextPullSince, retryMaxTs)
+                // retry 终止页也可能携带服务端 watermark，必须保存，否则下次会重复拉取尾部窗口。
+                if (retrySync?.nextSince !== undefined) nextPullSince = Math.max(nextPullSince, retrySync.nextSince)
                 this.progressMap.set(sess.id, {
                   sessionId: sess.id,
                   sessionName: sess.name,
@@ -335,7 +339,6 @@ export class PullEngine {
                 if (retrySync?.hasMore && retrySync.nextSince !== undefined) {
                   since = retrySync.nextSince
                   offset = undefined
-                  nextPullSince = Math.max(nextPullSince, retrySync.nextSince)
                 } else if (retrySync?.hasMore && retrySync.nextOffset !== undefined) {
                   offset = retrySync.nextOffset
                 }
@@ -436,8 +439,10 @@ export class PullEngine {
         this.logger.warn(`[Pull] "${sess.name}" reached page limit (${MAX_PAGES_PER_PULL}), data may be incomplete`)
       }
 
+      // 保留 overlap 窗口，但成功拉取未观察到更新游标时不能把已保存游标向后移动。
+      const savedLastPullAt = Math.max(sess.lastPullAt, Math.max(0, nextPullSince - PULL_OVERLAP_SECONDS))
       this.dsManager.updateSession(sourceId, sess.id, {
-        lastPullAt: Math.max(0, nextPullSince - PULL_OVERLAP_SECONDS),
+        lastPullAt: savedLastPullAt,
         lastStatus: 'success',
         lastNewMessages: totalNewMessages,
         lastError: '',

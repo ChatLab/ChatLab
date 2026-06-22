@@ -292,4 +292,107 @@ describe('PullEngine', () => {
     assert.equal(result.success, true)
     assert.equal(sessionUpdates.at(-1)?.updates.lastPullAt, 1940)
   })
+
+  it('persists terminal retry nextSince when it is newer than imported messages', async () => {
+    const session = createSession()
+    session.lastPullAt = 0
+    const dataSource = createDataSource()
+    dataSource.sessions = [session]
+    const emptyInitialPage = writeTempJson({
+      chatlab: { version: '0.0.2', exportedAt: 100 },
+      meta: { name: 'Test Session', platform: 'test', type: 'group' },
+      members: [],
+      messages: [],
+      sync: { hasMore: false, nextSince: 100 },
+    })
+    const terminalRetryPage = writeTempJson({
+      chatlab: { version: '0.0.2', exportedAt: 100 },
+      meta: { name: 'Test Session', platform: 'test', type: 'group' },
+      members: [{ platformId: 'u1', accountName: 'Alice' }],
+      messages: [{ sender: 'u1', timestamp: 2000, type: 0, content: 'late retry message' }],
+      sync: { hasMore: false, nextSince: 5000 },
+    })
+    const sessionUpdates: Array<{ sessionId: string; updates: Partial<ImportSession> }> = []
+    const engine = createEngine({
+      files: [emptyInitialPage, terminalRetryPage],
+      dataSource,
+      sessionUpdates,
+      importResult: {
+        success: true,
+        newMessageCount: 1,
+        sessionId: session.targetSessionId,
+      },
+    })
+
+    const result = await withImmediateTimers(() => engine.executePullSession(dataSource.id, dataSource, session))
+
+    assert.equal(result.success, true)
+    assert.equal(sessionUpdates.at(-1)?.updates.lastPullAt, 4940)
+  })
+
+  it('persists terminal retry nextSince from empty retry pages', async () => {
+    const session = createSession()
+    session.lastPullAt = 0
+    const dataSource = createDataSource()
+    dataSource.sessions = [session]
+    const emptyPages = Array.from({ length: 4 }, () =>
+      writeTempJson({
+        chatlab: { version: '0.0.2', exportedAt: 100 },
+        meta: { name: 'Test Session', platform: 'test', type: 'group' },
+        members: [],
+        messages: [],
+        sync: { hasMore: false, nextSince: 5000 },
+      })
+    )
+    const sessionUpdates: Array<{ sessionId: string; updates: Partial<ImportSession> }> = []
+    const engine = createEngine({
+      files: emptyPages,
+      dataSource,
+      sessionUpdates,
+      importResult: {
+        success: true,
+        newMessageCount: 0,
+        sessionId: session.targetSessionId,
+      },
+    })
+
+    const result = await withImmediateTimers(() => engine.executePullSession(dataSource.id, dataSource, session))
+
+    assert.equal(result.success, true)
+    assert.equal(result.newMessageCount, 0)
+    assert.equal(sessionUpdates.at(-1)?.updates.lastPullAt, 4940)
+  })
+
+  it('keeps the pull cursor stable when a successful pull returns no new cursor', async () => {
+    const session = createSession()
+    session.lastPullAt = 100
+    const dataSource = createDataSource()
+    dataSource.sessions = [session]
+    const emptyPages = Array.from({ length: 4 }, () =>
+      writeTempJson({
+        chatlab: { version: '0.0.2', exportedAt: 100 },
+        meta: { name: 'Test Session', platform: 'test', type: 'group' },
+        members: [],
+        messages: [],
+        sync: { hasMore: false },
+      })
+    )
+    const sessionUpdates: Array<{ sessionId: string; updates: Partial<ImportSession> }> = []
+    const engine = createEngine({
+      files: emptyPages,
+      dataSource,
+      sessionUpdates,
+      importResult: {
+        success: true,
+        newMessageCount: 0,
+        sessionId: session.targetSessionId,
+      },
+    })
+
+    const result = await withImmediateTimers(() => engine.executePullSession(dataSource.id, dataSource, session))
+
+    assert.equal(result.success, true)
+    assert.equal(result.newMessageCount, 0)
+    assert.equal(sessionUpdates.at(-1)?.updates.lastPullAt, 100)
+  })
 })

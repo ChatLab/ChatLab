@@ -3,7 +3,7 @@ import type { PathProvider } from '@openchatlab/core'
 import type { AuthProfile } from '@openchatlab/config'
 import { resolveApiKey as defaultResolveApiKey } from '@openchatlab/config'
 import type { SemanticIndexConfig, SemanticIndexConfigInput } from './config'
-import { SemanticIndexConfigStore } from './config'
+import { isKeylessSemanticIndexApiBaseUrl, SemanticIndexConfigStore } from './config'
 import {
   SEMANTIC_INDEX_CONFIG_FILE,
   persistSemanticIndexConfig,
@@ -61,7 +61,8 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
   private transport: SemanticIndexWorkerTransport | null = null
   private pendingRequests = 0
   private idleTimer: unknown = null
-  private hasActiveBuild = false
+  private activeBuildSessionIds = new Set<string>()
+  private hasUnknownActiveBuild = false
   private readonly configStore: SemanticIndexConfigStore
   private readonly transportFactory: SemanticIndexWorkerTransportFactory
   private readonly idleTimeoutMs: number
@@ -82,11 +83,14 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
     return this.configStore.get()
   }
 
-  setConfig(config: SemanticIndexConfigInput, options?: { apiKey?: string }): SemanticIndexConfig {
-    return persistSemanticIndexConfig(this.configStore, config, {
+  async setConfig(config: SemanticIndexConfigInput, options?: { apiKey?: string }): Promise<SemanticIndexConfig> {
+    const saved = persistSemanticIndexConfig(this.configStore, config, {
       apiKey: options?.apiKey,
       writeAuthProfile: this.writeAuthProfile,
     })
+    if (!saved.enabled) this.clearActiveBuildTracking()
+    if (!this.transport) return saved
+    return await this.call<SemanticIndexConfig>('setConfig', [saved])
   }
 
   isConfigured(): boolean {
@@ -105,9 +109,14 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
     return this.call('disable', [sessionId])
   }
 
-  build(sessionId: string): Promise<void> {
-    this.hasActiveBuild = true
-    return this.call('build', [sessionId])
+  async build(sessionId: string): Promise<void> {
+    this.activeBuildSessionIds.add(sessionId)
+    try {
+      await this.call('build', [sessionId])
+    } catch (error) {
+      this.activeBuildSessionIds.delete(sessionId)
+      throw error
+    }
   }
 
   pause(sessionId: string): Promise<void> {
@@ -118,36 +127,56 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
     return this.call('cancel', [sessionId])
   }
 
-  rebuild(sessionId: string): Promise<void> {
-    this.hasActiveBuild = true
-    return this.call('rebuild', [sessionId])
+  async rebuild(sessionId: string): Promise<void> {
+    this.activeBuildSessionIds.add(sessionId)
+    try {
+      await this.call('rebuild', [sessionId])
+    } catch (error) {
+      this.activeBuildSessionIds.delete(sessionId)
+      throw error
+    }
   }
 
-  buildAllPending(): Promise<void> {
-    this.hasActiveBuild = true
-    return this.call('buildAllPending', [])
+  async buildAllPending(): Promise<void> {
+    this.hasUnknownActiveBuild = true
+    try {
+      await this.call('buildAllPending', [])
+    } catch (error) {
+      this.hasUnknownActiveBuild = false
+      throw error
+    }
   }
 
   async listEnabledStatuses(): Promise<SemanticIndexSessionStatus[]> {
-    const statuses = await this.call<SemanticIndexSessionStatus[]>('listEnabledStatuses', [])
-    this.updateActiveBuildFromStatuses(statuses)
+    const statuses = await this.callProbe<SemanticIndexSessionStatus[]>('listEnabledStatuses', [], [], {
+      scheduleIdle: false,
+    })
+    this.updateActiveBuildFromCompleteSnapshot(statuses)
+    this.scheduleIdleCloseIfNeeded()
     return statuses
   }
 
   async status(sessionId: string): Promise<SemanticIndexSessionStatus | null> {
-    const status = await this.call<SemanticIndexSessionStatus | null>('status', [sessionId])
-    this.updateActiveBuildFromStatuses(status ? [status] : [])
+    const status = await this.callProbe<SemanticIndexSessionStatus | null>('status', [sessionId], null, {
+      scheduleIdle: false,
+    })
+    this.updateActiveBuildFromPartialSnapshot([sessionId], status ? [status] : [])
+    this.scheduleIdleCloseIfNeeded()
     return status
   }
 
   async statusForSessions(sessionIds: string[]): Promise<SemanticIndexSessionStatus[]> {
-    const statuses = await this.call<SemanticIndexSessionStatus[]>('statusForSessions', [sessionIds])
-    this.updateActiveBuildFromStatuses(statuses)
+    const statuses = await this.callProbe<SemanticIndexSessionStatus[]>('statusForSessions', [sessionIds], [], {
+      scheduleIdle: false,
+    })
+    this.updateActiveBuildFromPartialSnapshot(sessionIds, statuses)
+    this.scheduleIdleCloseIfNeeded()
     return statuses
   }
 
-  canSearch(sessionId: string): Promise<boolean> {
-    return this.call('canSearch', [sessionId])
+  async canSearch(sessionId: string): Promise<boolean> {
+    if (!this.canRunFromLocalConfig()) return false
+    return await this.callProbe<boolean>('canSearch', [sessionId], false)
   }
 
   search(
@@ -179,7 +208,7 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
     await this.closeTransport()
   }
 
-  private async call<T>(method: string, args: unknown[]): Promise<T> {
+  private async call<T>(method: string, args: unknown[], options?: { scheduleIdle?: boolean }): Promise<T> {
     const transport = this.ensureTransport()
     this.pendingRequests++
     this.clearIdleTimer()
@@ -187,7 +216,21 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
       return await transport.request<T>(method, args)
     } finally {
       this.pendingRequests--
-      this.scheduleIdleCloseIfNeeded()
+      if (options?.scheduleIdle !== false) this.scheduleIdleCloseIfNeeded()
+    }
+  }
+
+  private async callProbe<T>(
+    method: string,
+    args: unknown[],
+    fallback: T,
+    options?: { scheduleIdle?: boolean }
+  ): Promise<T> {
+    try {
+      return await this.call<T>(method, args, options)
+    } catch {
+      await this.closeFailedProbeTransport()
+      return fallback
     }
   }
 
@@ -198,12 +241,50 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
     return this.transport
   }
 
-  private updateActiveBuildFromStatuses(statuses: SemanticIndexSessionStatus[]): void {
-    this.hasActiveBuild = statuses.some((status) => status.running || status.queued || status.indexStatus === 'running')
+  private canRunFromLocalConfig(): boolean {
+    const config = this.configStore.get()
+    if (!this.configStore.canRun()) return false
+    if (config.mode !== 'api') return true
+    if (isKeylessSemanticIndexApiBaseUrl(config.api?.baseUrl)) return true
+    return resolveSemanticIndexApiKeySet(config, this.resolveApiKey)
+  }
+
+  private updateActiveBuildFromCompleteSnapshot(statuses: SemanticIndexSessionStatus[]): void {
+    this.hasUnknownActiveBuild = false
+    this.activeBuildSessionIds = new Set(
+      statuses.filter((status) => this.isActiveBuildStatus(status)).map((status) => status.sessionId)
+    )
+  }
+
+  private updateActiveBuildFromPartialSnapshot(
+    requestedSessionIds: string[],
+    statuses: SemanticIndexSessionStatus[]
+  ): void {
+    const bySessionId = new Map(statuses.map((status) => [status.sessionId, status]))
+    for (const sessionId of requestedSessionIds) {
+      const status = bySessionId.get(sessionId)
+      if (status && this.isActiveBuildStatus(status)) this.activeBuildSessionIds.add(sessionId)
+      else this.activeBuildSessionIds.delete(sessionId)
+    }
+  }
+
+  private isActiveBuildStatus(status: SemanticIndexSessionStatus): boolean {
+    return status.running || status.queued || status.indexStatus === 'running'
+  }
+
+  private clearActiveBuildTracking(): void {
+    this.hasUnknownActiveBuild = false
+    this.activeBuildSessionIds.clear()
   }
 
   private scheduleIdleCloseIfNeeded(): void {
-    if (!this.transport || this.pendingRequests > 0 || this.hasActiveBuild) return
+    if (
+      !this.transport ||
+      this.pendingRequests > 0 ||
+      this.hasUnknownActiveBuild ||
+      this.activeBuildSessionIds.size > 0
+    )
+      return
     this.clearIdleTimer()
     this.idleTimer = this.timers.setTimeout(() => {
       void this.closeTransport().catch((err) => {
@@ -222,8 +303,17 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
   private async closeTransport(): Promise<void> {
     const transport = this.transport
     this.transport = null
-    this.hasActiveBuild = false
+    this.clearActiveBuildTracking()
     if (transport) await transport.close()
+  }
+
+  private async closeFailedProbeTransport(): Promise<void> {
+    this.clearIdleTimer()
+    try {
+      await this.closeTransport()
+    } catch {
+      // 语义索引探针失败只降级为不可用，不能打断普通 AI 对话流程。
+    }
   }
 }
 
