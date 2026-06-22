@@ -255,6 +255,7 @@ export class PullEngine {
           if (stat.size < 1024) {
             if (!fileContainsMessages(tempFile) && sync0?.hasMore === false) {
               cleanupTempFile(tempFile)
+              if (sync0?.nextSince !== undefined) nextPullSince = Math.max(nextPullSince, sync0.nextSince)
               const retryDelays = [2000, 3000, 5000]
               let retrySuccess = false
               let retryHasMore = false
