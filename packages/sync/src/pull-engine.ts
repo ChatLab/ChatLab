@@ -102,6 +102,44 @@ function fileContainsMessages(filePath: string): boolean {
   }
 }
 
+function getMaxMessageTimestampFromFile(filePath: string): number | null {
+  try {
+    let maxTs: number | null = null
+    const visitTimestamp = (value: unknown) => {
+      const ts = typeof value === 'string' && value.trim() !== '' ? Number(value) : value
+      if (typeof ts === 'number' && Number.isFinite(ts)) {
+        maxTs = maxTs === null ? ts : Math.max(maxTs, ts)
+      }
+    }
+
+    if (filePath.endsWith('.jsonl')) {
+      const content = fs.readFileSync(filePath, 'utf-8')
+      for (const line of content.split('\n')) {
+        const trimmed = line.trim()
+        if (!trimmed) continue
+        try {
+          const obj = JSON.parse(trimmed)
+          if (obj._type === 'message') visitTimestamp(obj.timestamp)
+        } catch {
+          continue
+        }
+      }
+      return maxTs
+    }
+
+    const raw = fs.readFileSync(filePath, 'utf-8')
+    const parsed = JSON.parse(raw)
+    if (Array.isArray(parsed.messages)) {
+      for (const message of parsed.messages) {
+        visitTimestamp(message?.timestamp)
+      }
+    }
+    return maxTs
+  } catch {
+    return null
+  }
+}
+
 function cleanupTempFile(filePath: string): void {
   try {
     if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
@@ -193,6 +231,8 @@ export class PullEngine {
 
     let totalNewMessages = 0
     let since = sess.lastPullAt
+    let offset: number | undefined
+    let nextPullSince = sess.lastPullAt
     let pageCount = 0
     let resyncAttempted = false
 
@@ -203,6 +243,7 @@ export class PullEngine {
         pageCount++
         const tempFile = await this.fetcher.fetchToTempFile(ds.baseUrl, sess.remoteSessionId, ds.token, {
           since,
+          offset,
           limit: ds.pullLimit,
         })
 
@@ -224,6 +265,7 @@ export class PullEngine {
                 await new Promise((r) => setTimeout(r, retryDelays[ri]))
                 const retryFile = await this.fetcher.fetchToTempFile(ds.baseUrl, sess.remoteSessionId, ds.token, {
                   since,
+                  offset,
                   limit: ds.pullLimit,
                 })
                 const retryStat = fs.statSync(retryFile)
@@ -233,6 +275,7 @@ export class PullEngine {
                   cleanupTempFile(retryFile)
                   continue
                 }
+                const retryMaxTs = getMaxMessageTimestampFromFile(retryFile)
                 const retryResult = await this.importTempFile(ds.baseUrl, sess, retryFile)
                 cleanupTempFile(retryFile)
 
@@ -240,6 +283,8 @@ export class PullEngine {
                   resyncAttempted = true
                   this.logger.info(`[Pull] Resetting since=0 for "${sess.name}" full resync`)
                   since = 0
+                  offset = undefined
+                  nextPullSince = 0
                   pageCount = 0
                   sess.targetSessionId = ''
                   sess.lastPullAt = 0
@@ -279,6 +324,7 @@ export class PullEngine {
                   this.dsManager.updateSession(sourceId, sess.id, { targetSessionId: retryResult.sessionId })
                 }
                 totalNewMessages += retryResult.newMessageCount
+                if (retryMaxTs !== null) nextPullSince = Math.max(nextPullSince, retryMaxTs)
                 this.progressMap.set(sess.id, {
                   sessionId: sess.id,
                   sessionName: sess.name,
@@ -288,6 +334,10 @@ export class PullEngine {
                 })
                 if (retrySync?.hasMore && retrySync.nextSince !== undefined) {
                   since = retrySync.nextSince
+                  offset = undefined
+                  nextPullSince = Math.max(nextPullSince, retrySync.nextSince)
+                } else if (retrySync?.hasMore && retrySync.nextOffset !== undefined) {
+                  offset = retrySync.nextOffset
                 }
                 retryHasMore = !!retrySync?.hasMore
                 retrySuccess = true
@@ -305,6 +355,7 @@ export class PullEngine {
           }
 
           const sync = sync0
+          const maxMessageTs = getMaxMessageTimestampFromFile(tempFile)
           const result = await this.importTempFile(ds.baseUrl, sess, tempFile)
           cleanupTempFile(tempFile)
 
@@ -312,6 +363,8 @@ export class PullEngine {
             resyncAttempted = true
             this.logger.info(`[Pull] Resetting since=0 for "${sess.name}" full resync`)
             since = 0
+            offset = undefined
+            nextPullSince = 0
             pageCount = 0
             sess.targetSessionId = ''
             sess.lastPullAt = 0
@@ -350,6 +403,7 @@ export class PullEngine {
           }
 
           totalNewMessages += result.newMessageCount
+          if (maxMessageTs !== null) nextPullSince = Math.max(nextPullSince, maxMessageTs)
           this.progressMap.set(sess.id, {
             sessionId: sess.id,
             sessionName: sess.name,
@@ -358,9 +412,20 @@ export class PullEngine {
             done: false,
           })
 
+          if (sync?.nextSince !== undefined) nextPullSince = Math.max(nextPullSince, sync.nextSince)
+
           if (!sync || !sync.hasMore) break
 
-          if (sync.nextSince !== undefined) since = sync.nextSince
+          // 游标推进优先使用时间戳链；旧数据源只返回 nextOffset 时，继续使用 offset 续拉同一个 since 窗口。
+          if (sync.nextSince !== undefined) {
+            since = sync.nextSince
+            offset = undefined
+          } else if (sync.nextOffset !== undefined) {
+            offset = sync.nextOffset
+          } else {
+            this.logger.warn(`[Pull] "${sess.name}" returned hasMore=true without nextSince or nextOffset, stopping`)
+            break
+          }
         } catch (importErr) {
           cleanupTempFile(tempFile)
           throw importErr
@@ -372,7 +437,7 @@ export class PullEngine {
       }
 
       this.dsManager.updateSession(sourceId, sess.id, {
-        lastPullAt: Math.floor(Date.now() / 1000) - PULL_OVERLAP_SECONDS,
+        lastPullAt: Math.max(0, nextPullSince - PULL_OVERLAP_SECONDS),
         lastStatus: 'success',
         lastNewMessages: totalNewMessages,
         lastError: '',

@@ -17,6 +17,7 @@
     "../../packages/sync/**/*",
     "../../packages/http-routes/**/*"
   ],
+  "exclude": ["**/node_modules/**", "**/dist/**", "../../**/*.test.ts", "../../**/*.spec.ts", "../../tests/**"],
   "compilerOptions": {
     "composite": true,
     "types": ["electron-vite/node"],

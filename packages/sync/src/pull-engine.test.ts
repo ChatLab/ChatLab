@@ -69,6 +69,7 @@ function createEngine(options: {
   files: string[]
   importResult: Awaited<ReturnType<DataImporter['importFile']>>
   dataSource: DataSource
+  fetchParams?: FetchParams[]
   sessionUpdates?: Array<{ sessionId: string; updates: Partial<ImportSession> }>
   pullResults?: Array<{ status: 'success' | 'error'; detail: string }>
 }): PullEngine {
@@ -78,8 +79,9 @@ function createEngine(options: {
       _baseUrl: string,
       _remoteSessionId: string,
       _token: string,
-      _params: FetchParams
+      params: FetchParams
     ): Promise<string> {
+      options.fetchParams?.push({ ...params })
       const file = files.shift()
       if (!file) throw new Error('Unexpected retry fetch')
       return file
@@ -217,5 +219,77 @@ describe('PullEngine', () => {
     assert.equal(result.error, 'retry import failed')
     assert.equal(pullResults.at(-1)?.status, 'error')
     assert.equal(sessionUpdates.at(-1)?.updates.lastStatus, 'error')
+  })
+
+  it('continues pagination with nextOffset when nextSince is absent', async () => {
+    const session = createSession()
+    session.lastPullAt = 0
+    const dataSource = createDataSource()
+    dataSource.sessions = [session]
+    const firstPage = writeTempJson({
+      chatlab: { version: '0.0.2', exportedAt: 100 },
+      meta: { name: 'Test Session', platform: 'test', type: 'group' },
+      members: [{ platformId: 'u1', accountName: 'Alice' }],
+      messages: [
+        { sender: 'u1', timestamp: 100, type: 0, content: 'page 1a' },
+        { sender: 'u1', timestamp: 101, type: 0, content: 'page 1b' },
+      ],
+      sync: { hasMore: true, nextOffset: 2, watermark: 200 },
+    })
+    const secondPage = writeTempJson({
+      chatlab: { version: '0.0.2', exportedAt: 100 },
+      meta: { name: 'Test Session', platform: 'test', type: 'group' },
+      members: [{ platformId: 'u1', accountName: 'Alice' }],
+      messages: [{ sender: 'u1', timestamp: 200, type: 0, content: 'page 2' }],
+      sync: { hasMore: false, watermark: 200 },
+    })
+    const fetchParams: FetchParams[] = []
+    const engine = createEngine({
+      files: [firstPage, secondPage],
+      dataSource,
+      fetchParams,
+      importResult: {
+        success: true,
+        newMessageCount: 1,
+        sessionId: session.targetSessionId,
+      },
+    })
+
+    const result = await withImmediateTimers(() => engine.executePullSession(dataSource.id, dataSource, session))
+
+    assert.equal(result.success, true)
+    assert.equal(fetchParams.length, 2)
+    assert.equal(fetchParams[0]?.offset, undefined)
+    assert.equal(fetchParams[1]?.offset, 2)
+  })
+
+  it('persists the imported message cursor with overlap instead of the wall clock', async () => {
+    const session = createSession()
+    session.lastPullAt = 0
+    const dataSource = createDataSource()
+    dataSource.sessions = [session]
+    const page = writeTempJson({
+      chatlab: { version: '0.0.2', exportedAt: 100 },
+      meta: { name: 'Test Session', platform: 'test', type: 'group' },
+      members: [{ platformId: 'u1', accountName: 'Alice' }],
+      messages: [{ sender: 'u1', timestamp: 2000, type: 0, content: 'latest imported message' }],
+      sync: { hasMore: false, watermark: 999999 },
+    })
+    const sessionUpdates: Array<{ sessionId: string; updates: Partial<ImportSession> }> = []
+    const engine = createEngine({
+      files: [page],
+      dataSource,
+      sessionUpdates,
+      importResult: {
+        success: true,
+        newMessageCount: 1,
+        sessionId: session.targetSessionId,
+      },
+    })
+
+    const result = await withImmediateTimers(() => engine.executePullSession(dataSource.id, dataSource, session))
+
+    assert.equal(result.success, true)
+    assert.equal(sessionUpdates.at(-1)?.updates.lastPullAt, 1940)
   })
 })
