@@ -15,6 +15,8 @@ export interface EmbeddingProvider {
   readonly dim: number
   /** 单文本 token 上限（profile cap） */
   readonly maxTokens: number
+  /** warmup 建索引时推荐的 document 批量大小；未声明时按 1 条处理 */
+  readonly documentBatchSize?: number
   /** document 向量化（可批量；Qwen3 内部固定逐条） */
   embedDocuments(texts: string[]): Promise<Float32Array[]>
   /** query 向量化（本地模型会加 queryInstruction） */

@@ -20,7 +20,7 @@ import { chunkMessages, type ChunkMessageInput, type ChunkSource } from '../chun
 import { CHUNKER_VERSION, STRATEGY_ID, composeChunkId, type ChunkerConfig } from '../chunker-config'
 import type { EmbeddingIndexStore } from '../store'
 import type { SemanticIndexStateStore } from '../session-state-store'
-import type { ChunkRecord } from '../types'
+import type { ChunkInsert, ChunkRecord } from '../types'
 
 /** 对话消息来源（warmup 输入抽象，真实实现读取聊天库） */
 export interface SemanticMessageSource {
@@ -50,6 +50,11 @@ export interface WarmupResult {
   status: WarmupStatus
   chunksWritten: number
   error?: string
+}
+
+function resolveDocumentBatchSize(embedder: EmbeddingProvider): number {
+  const size = embedder.documentBatchSize
+  return Number.isFinite(size) && size && size > 0 ? Math.floor(size) : 1
 }
 
 export async function runWarmup(options: WarmupRunnerOptions): Promise<WarmupResult> {
@@ -111,8 +116,10 @@ export async function runWarmup(options: WarmupRunnerOptions): Promise<WarmupRes
     let storedChunkCount = store.countChunks(dbPathHash, modelId)
     if (resumeIndex < 0) storedChunkCount = 0
 
-    for (const { chunk, endIndex: chunkEndIndex } of chunkRanges) {
-      if (chunkEndIndex <= resumeIndex) continue
+    const pendingRanges = chunkRanges.filter(({ endIndex }) => endIndex > resumeIndex)
+    const batchSize = resolveDocumentBatchSize(embedder)
+    for (let i = 0; i < pendingRanges.length; i += batchSize) {
+      const batchRanges = pendingRanges.slice(i, i + batchSize)
 
       const stop = checkStop?.()
       if (stop) {
@@ -120,40 +127,50 @@ export async function runWarmup(options: WarmupRunnerOptions): Promise<WarmupRes
         return { status: stop, chunksWritten }
       }
 
-      const [vector] = await embedder.embedDocuments([chunk.embeddingInput])
+      const vectors = await embedder.embedDocuments(batchRanges.map(({ chunk }) => chunk.embeddingInput))
+      if (vectors.length !== batchRanges.length) {
+        throw new Error(`embedding provider returned ${vectors.length} vectors for ${batchRanges.length} inputs`)
+      }
       const stopAfterEmbedding = checkStop?.()
       if (stopAfterEmbedding === 'cancelled') {
         stateStore.setIndexStatus(dbPathHash, 'cancelled')
         return { status: 'cancelled', chunksWritten }
       }
 
-      const record: ChunkRecord = {
-        chunkId: composeChunkId(dbPathHash, modelId, chunk.localChunkId),
-        dbPathHash,
-        strategyId: STRATEGY_ID,
-        modelId,
-        dim: vector.length,
-        parentId: chunk.parentId,
-        startMessageId: chunk.startMessageId,
-        endMessageId: chunk.endMessageId,
-        startTs: chunk.startTs,
-        endTs: chunk.endTs,
-        messageCount: chunk.messageCount,
-        rawContentHash: chunk.rawContentHash,
-        embeddingInputHash: chunk.embeddingInputHash,
-        chunkerVersion: CHUNKER_VERSION,
-        chunkerConfigHash,
-        indexedAt: Date.now(),
-        status: 'indexed',
-      }
-      store.insertChunk(record, vector)
-      chunksWritten++
-      storedChunkCount++
+      // API provider 支持一次提交多个文本；本地 Qwen3 仍声明 batch=1，避免 last_token 污染。
+      const indexedAt = Date.now()
+      const inserts: ChunkInsert[] = batchRanges.map(({ chunk }, index) => {
+        const vector = vectors[index]
+        const record: ChunkRecord = {
+          chunkId: composeChunkId(dbPathHash, modelId, chunk.localChunkId),
+          dbPathHash,
+          strategyId: STRATEGY_ID,
+          modelId,
+          dim: vector.length,
+          parentId: chunk.parentId,
+          startMessageId: chunk.startMessageId,
+          endMessageId: chunk.endMessageId,
+          startTs: chunk.startTs,
+          endTs: chunk.endTs,
+          messageCount: chunk.messageCount,
+          rawContentHash: chunk.rawContentHash,
+          embeddingInputHash: chunk.embeddingInputHash,
+          chunkerVersion: CHUNKER_VERSION,
+          chunkerConfigHash,
+          indexedAt,
+          status: 'indexed',
+        }
+        return { record, embedding: vector }
+      })
+      store.insertChunks(inserts)
+      chunksWritten += inserts.length
+      storedChunkCount += inserts.length
 
+      const lastRange = batchRanges[batchRanges.length - 1]
       stateStore.updateProgress(dbPathHash, {
         indexStatus: 'running',
-        indexedMessages: chunkEndIndex + 1,
-        lastIndexedMessageId: chunk.endMessageId,
+        indexedMessages: lastRange.endIndex + 1,
+        lastIndexedMessageId: lastRange.chunk.endMessageId,
         chunkCount: storedChunkCount,
       })
     }

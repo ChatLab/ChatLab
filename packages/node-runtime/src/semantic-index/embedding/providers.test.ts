@@ -82,6 +82,7 @@ test('API provider posts OpenAI-compatible request and parses ordered embeddings
     { fetchFn }
   )
 
+  assert.equal(provider.documentBatchSize, 32)
   const vectors = await provider.embedDocuments(['first', 'second'])
   assert.equal(captured!.url, 'https://api.example.com/v1/embeddings')
   assert.equal(captured!.headers.Authorization, 'Bearer sk-test')

@@ -10,6 +10,9 @@
 
 import type { EmbeddingProvider } from './types'
 
+/** API embedding 默认一次提交 32 个 chunk，保持 concurrency=1 以降低 429 风险。 */
+export const API_DOCUMENT_BATCH_SIZE = 32
+
 export interface OpenAICompatibleConfig {
   baseUrl: string
   apiKey: string
@@ -37,6 +40,7 @@ function buildEmbeddingsUrl(baseUrl: string): string {
 export class OpenAICompatibleEmbeddingProvider implements EmbeddingProvider {
   readonly modelId: string
   readonly maxTokens: number
+  readonly documentBatchSize = API_DOCUMENT_BATCH_SIZE
 
   private config: OpenAICompatibleConfig
   private fetchFn: FetchFn

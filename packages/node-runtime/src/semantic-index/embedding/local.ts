@@ -47,6 +47,7 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
   readonly modelId: string
   readonly dim: number
   readonly maxTokens: number
+  readonly documentBatchSize: number
 
   private profile: LocalEmbeddingProfile
   private options: LocalEmbeddingProviderOptions
@@ -58,6 +59,7 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
     this.modelId = profile.modelId
     this.dim = profile.dim
     this.maxTokens = profile.maxTokens
+    this.documentBatchSize = profile.maxBatchSize ?? 1
   }
 
   private getExtractor(): Promise<FeatureExtractFn> {

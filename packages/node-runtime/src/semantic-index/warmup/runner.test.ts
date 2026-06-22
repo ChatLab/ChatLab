@@ -52,10 +52,12 @@ class FakeEmbedder implements EmbeddingProvider {
   readonly dim = 4
   readonly maxTokens = 1000
   calls = 0
+  batchSizes: number[] = []
   failAtCall?: number
   afterEmbed?: () => void
 
   async embedDocuments(texts: string[]): Promise<Float32Array[]> {
+    this.batchSizes.push(texts.length)
     return texts.map(() => {
       this.calls++
       if (this.failAtCall && this.calls >= this.failAtCall) throw new Error('boom')
@@ -67,6 +69,10 @@ class FakeEmbedder implements EmbeddingProvider {
   async embedQuery(text: string): Promise<Float32Array> {
     return (await this.embedDocuments([text]))[0]
   }
+}
+
+class BatchingFakeEmbedder extends FakeEmbedder {
+  readonly documentBatchSize = 32
 }
 
 function setup(messages: ChunkMessageInput[]) {
@@ -109,6 +115,20 @@ test('full warmup writes all chunks and marks completed', async () => {
   assert.equal(state.chunkCount, 4)
   assert.equal(state.totalMessages, 8)
   assert.equal(state.indexedMessages, 8)
+  store.close()
+  stateStore.close()
+})
+
+test('warmup batches document embeddings when the provider supports batches', async () => {
+  const { store, stateStore, source } = setup(makeMessages(70))
+  const embedder = new BatchingFakeEmbedder()
+
+  const result = await runWarmup({ dbPathHash: DB_HASH, modelId: MODEL, embedder, store, stateStore, source, config })
+
+  assert.equal(result.status, 'completed')
+  assert.equal(result.chunksWritten, 35)
+  assert.deepEqual(embedder.batchSizes, [32, 3])
+  assert.equal(countStored(store), 35)
   store.close()
   stateStore.close()
 })
