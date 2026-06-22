@@ -126,7 +126,8 @@ export class EmbeddingIndexStore {
 
     const meta = this.db
       .prepare(
-        `INSERT INTO chunk_vector_index (${CHUNK_COLUMNS})
+        // ponytail: OR IGNORE makes resume after mid-batch crash idempotent; vec insert skipped below if chunk exists
+        `INSERT OR IGNORE INTO chunk_vector_index (${CHUNK_COLUMNS})
          VALUES (@chunkId, @dbPathHash, @strategyId, @modelId, @dim, @parentId, @startMessageId, @endMessageId,
                  @startTs, @endTs, @messageCount, @rawContentHash, @embeddingInputHash, @chunkerVersion,
                  @chunkerConfigHash, @indexedAt, @status)`
@@ -151,6 +152,7 @@ export class EmbeddingIndexStore {
         status: record.status,
       })
 
+    if (meta.changes === 0) return
     this.db
       .prepare(
         `INSERT INTO ${vecTableName(record.dim)} (vector_id, db_path_hash, model_id, embedding)
