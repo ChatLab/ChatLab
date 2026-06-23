@@ -72,8 +72,12 @@ function getAuthProfile(config: AIServiceConfig): string | undefined {
   return (config as unknown as Record<string, unknown>).authProfile as string | undefined
 }
 
-function isAuthProfileUsed(configs: AIServiceConfig[], authProfile: string): boolean {
-  return configs.some((config) => getAuthProfile(config) === authProfile)
+function isAuthProfileUsed(configs: AIServiceConfig[], authProfile: string, profileProvider?: string): boolean {
+  return configs.some((config) => {
+    const configAuthProfile = getAuthProfile(config)
+    if (configAuthProfile === authProfile) return true
+    return !configAuthProfile && profileProvider !== undefined && config.provider === profileProvider
+  })
 }
 
 export class LLMConfigStore {
@@ -228,18 +232,24 @@ export class LLMConfigStore {
       updatedAt: Date.now(),
     }
     store.configs[index] = updated
+    let oldProfileToDelete: AIServiceConfig | null = null
 
     if (updates.apiKey && this.onApiKeyCreated) {
       const profileName = this.onApiKeyCreated(updated, updates.apiKey)
       if (profileName) {
         ;(store.configs[index] as unknown as Record<string, unknown>).authProfile = profileName
-        if (oldProfileName && oldProfileName !== profileName && !isAuthProfileUsed(store.configs, oldProfileName)) {
-          this.onApiKeyDeleted?.(oldConfig)
+        if (
+          oldProfileName &&
+          oldProfileName !== profileName &&
+          !isAuthProfileUsed(store.configs, oldProfileName, oldConfig.provider)
+        ) {
+          oldProfileToDelete = oldConfig
         }
       }
     }
 
     this.saveStore(store)
+    if (oldProfileToDelete) this.onApiKeyDeleted?.(oldProfileToDelete)
     return { success: true }
   }
 
@@ -264,7 +274,7 @@ export class LLMConfigStore {
 
     this.saveStore(store)
     const deletedProfileName = getAuthProfile(deleted)
-    if (!deletedProfileName || !isAuthProfileUsed(store.configs, deletedProfileName)) {
+    if (!deletedProfileName || !isAuthProfileUsed(store.configs, deletedProfileName, deleted.provider)) {
       this.onApiKeyDeleted?.(deleted)
     }
     return { success: true }

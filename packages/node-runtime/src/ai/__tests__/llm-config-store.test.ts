@@ -228,6 +228,44 @@ describe('LLMConfigStore', () => {
     )
   })
 
+  it('does not delete provider fallback profile still used by migrated legacy configs', () => {
+    const deleted: string[] = []
+    storage.data.set('llm-config', {
+      configs: [
+        {
+          id: 'legacy-openai',
+          name: 'Legacy OpenAI',
+          provider: 'openai',
+          apiKey: '',
+          createdAt: 1,
+          updatedAt: 1,
+        },
+        {
+          id: 'explicit-openai',
+          name: 'Explicit OpenAI',
+          provider: 'openai',
+          apiKey: '',
+          authProfile: 'openai',
+          createdAt: 2,
+          updatedAt: 2,
+        },
+      ],
+      defaultAssistant: { configId: 'legacy-openai', modelId: '' },
+      fastModel: null,
+    } satisfies AIConfigStore)
+
+    const storeWithHook = new LLMConfigStore(storage, {
+      onApiKeyDeleted: (config) => {
+        const profile = (config as unknown as Record<string, unknown>).authProfile as string | undefined
+        if (profile) deleted.push(profile)
+      },
+    })
+
+    storeWithHook.deleteConfig('explicit-openai')
+
+    assert.deepEqual(deleted, [], 'provider fallback profile should stay available for legacy config')
+  })
+
   it('calls onApiKeyDeleted for old profile when rename + key change causes profile name to change', () => {
     const deleted: string[] = []
     const storeWithHook = new LLMConfigStore(storage, {
@@ -267,6 +305,49 @@ describe('LLMConfigStore', () => {
     storeWithHook.updateConfig(id, { name: 'Work OpenAI', apiKey: 'sk-new' })
 
     assert.deepEqual(deleted, ['my-openai'], 'old profile should be cleaned up when no remaining config uses it')
+  })
+
+  it('does not delete old profile when saving updated config fails', () => {
+    const deleted: string[] = []
+    let failWrites = false
+    const failingStorage: ConfigStorage = {
+      readJson<T>(key: string): T | null {
+        return (storage.data.get(key) as T) ?? null
+      },
+      writeJson<T>(key: string, value: T): void {
+        if (failWrites) throw new Error('disk full')
+        storage.data.set(key, JSON.parse(JSON.stringify(value)))
+      },
+    }
+    storage.data.set('llm-config', {
+      configs: [
+        {
+          id: 'cfg-1',
+          name: 'Old OpenAI',
+          provider: 'openai',
+          apiKey: '',
+          authProfile: 'old-openai',
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      defaultAssistant: { configId: 'cfg-1', modelId: '' },
+      fastModel: null,
+    } satisfies AIConfigStore)
+    const storeWithHook = new LLMConfigStore(failingStorage, {
+      onApiKeyCreated: (config) => {
+        return config.name.toLowerCase().replace(/\s+/g, '-')
+      },
+      onApiKeyDeleted: (config) => {
+        const profile = (config as unknown as Record<string, unknown>).authProfile as string | undefined
+        if (profile) deleted.push(profile)
+      },
+    })
+
+    failWrites = true
+    assert.throws(() => storeWithHook.updateConfig('cfg-1', { name: 'New OpenAI', apiKey: 'sk-new' }), /disk full/)
+
+    assert.deepEqual(deleted, [], 'old profile should remain when config persistence fails')
   })
 
   it('does not call onApiKeyDeleted when key changes but profile name stays the same', () => {
