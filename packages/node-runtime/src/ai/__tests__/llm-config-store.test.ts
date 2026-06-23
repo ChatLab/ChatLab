@@ -200,6 +200,46 @@ describe('LLMConfigStore', () => {
     assert.equal(storeWithHook.getAllConfigs().length, 0, 'config should be removed')
   })
 
+  it('calls onApiKeyDeleted for old profile when rename + key change causes profile name to change', () => {
+    const deleted: string[] = []
+    const storeWithHook = new LLMConfigStore(storage, {
+      generateId: () => `id-${++idCounter}`,
+      onApiKeyCreated: (config, apiKey) => {
+        const name = config.name.toLowerCase().replace(/\s+/g, '-')
+        ;(config as unknown as Record<string, unknown>).authProfile = name
+        return name
+      },
+      onApiKeyDeleted: (config) => {
+        const profile = (config as unknown as Record<string, unknown>).authProfile as string | undefined
+        if (profile) deleted.push(profile)
+      },
+    })
+    storeWithHook.addConfig({ name: 'My OpenAI', provider: 'openai', apiKey: 'sk-old' })
+    const id = storeWithHook.getAllConfigs()[0].id
+    storeWithHook.updateConfig(id, { name: 'Work OpenAI', apiKey: 'sk-new' })
+    assert.deepEqual(deleted, ['my-openai'], 'old profile should be cleaned up when profile name changes')
+  })
+
+  it('does not call onApiKeyDeleted when key changes but profile name stays the same', () => {
+    const deleted: string[] = []
+    const storeWithHook = new LLMConfigStore(storage, {
+      generateId: () => `id-${++idCounter}`,
+      onApiKeyCreated: (config, apiKey) => {
+        const name = config.name.toLowerCase().replace(/\s+/g, '-')
+        ;(config as unknown as Record<string, unknown>).authProfile = name
+        return name
+      },
+      onApiKeyDeleted: (config) => {
+        const profile = (config as unknown as Record<string, unknown>).authProfile as string | undefined
+        if (profile) deleted.push(profile)
+      },
+    })
+    storeWithHook.addConfig({ name: 'My OpenAI', provider: 'openai', apiKey: 'sk-old' })
+    const id = storeWithHook.getAllConfigs()[0].id
+    storeWithHook.updateConfig(id, { apiKey: 'sk-new' })
+    assert.deepEqual(deleted, [], 'no cleanup needed when profile name is unchanged')
+  })
+
   it('resolves correct key for same-provider configs with different authProfiles', () => {
     const profiles = new Map<string, string>()
     const storeWithAuth = new LLMConfigStore(storage, {

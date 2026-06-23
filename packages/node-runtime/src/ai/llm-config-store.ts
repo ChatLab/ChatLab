@@ -211,8 +211,11 @@ export class LLMConfigStore {
       return { success: false, error: this.t('llm.configNotFound') }
     }
 
+    const oldConfig = store.configs[index]
+    const oldProfileName = (oldConfig as unknown as Record<string, unknown>).authProfile as string | undefined
+
     const updated = {
-      ...store.configs[index],
+      ...oldConfig,
       ...updates,
       updatedAt: Date.now(),
     }
@@ -221,6 +224,9 @@ export class LLMConfigStore {
     if (updates.apiKey && this.onApiKeyCreated) {
       const profileName = this.onApiKeyCreated(updated, updates.apiKey)
       if (profileName) {
+        if (oldProfileName && oldProfileName !== profileName) {
+          this.onApiKeyDeleted?.(oldConfig)
+        }
         ;(store.configs[index] as unknown as Record<string, unknown>).authProfile = profileName
       }
     }
