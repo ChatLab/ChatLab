@@ -32,7 +32,7 @@ import { getAssistantManager, getSkillManagerCore } from '../ai/manager-factory'
 import { createCliRunAgentStream } from '../ai/agent-stream-runner'
 import { initSync, cleanupSync } from '../sync'
 import { resolveCliPath } from '../paths'
-import { resolveApiKey, writeAuthProfile } from '@openchatlab/config'
+import { resolveApiKey, writeAuthProfile, deleteAuthProfile } from '@openchatlab/config'
 import { assertCliDataDirCompatible } from '../runtime-compat'
 
 let server: FastifyInstance | null = null
@@ -163,6 +163,10 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
       const profileName = config.name?.toLowerCase().replace(/\s+/g, '-') || config.provider
       writeAuthProfile(profileName, { type: 'api_key', provider: config.provider, key: apiKey })
       return profileName
+    },
+    onApiKeyDeleted: (config) => {
+      const profileName = (config as unknown as Record<string, unknown>).authProfile as string | undefined
+      if (profileName) deleteAuthProfile(profileName)
     },
   })
 

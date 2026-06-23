@@ -38,7 +38,7 @@ import {
   serverError,
 } from '@openchatlab/http-routes'
 import type { HttpRouteContext } from '@openchatlab/http-routes'
-import { resolveApiKey, writeAuthProfile } from '@openchatlab/config'
+import { resolveApiKey, writeAuthProfile, deleteAuthProfile } from '@openchatlab/config'
 import { getManager as getAIChatManager } from './ai/chats'
 import { getManager as getAssistantManager } from './ai/assistant/manager'
 import { getManager as getSkillManager } from './ai/skills/manager'
@@ -101,6 +101,10 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
         const profileName = config.name?.toLowerCase().replace(/\s+/g, '-') || config.provider
         writeAuthProfile(profileName, { type: 'api_key', provider: config.provider, key: apiKey })
         return profileName
+      },
+      onApiKeyDeleted: (config) => {
+        const profileName = (config as unknown as Record<string, unknown>).authProfile as string | undefined
+        if (profileName) deleteAuthProfile(profileName)
       },
     })
 

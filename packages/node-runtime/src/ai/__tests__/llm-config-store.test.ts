@@ -175,6 +175,31 @@ describe('LLMConfigStore', () => {
     assert.equal(result.config!.apiKey, '', 'returned config should not leak apiKey')
   })
 
+  it('calls onApiKeyDeleted with the deleted config when deleteConfig is called', () => {
+    const deleted: AIServiceConfig[] = []
+    const storeWithHook = new LLMConfigStore(storage, {
+      generateId: () => `id-${++idCounter}`,
+      onApiKeyCreated: (config) => {
+        const name = config.name.toLowerCase().replace(/\s+/g, '-')
+        ;(config as unknown as Record<string, unknown>).authProfile = name
+        return name
+      },
+      onApiKeyDeleted: (config) => {
+        deleted.push(config)
+      },
+    })
+    storeWithHook.addConfig({ name: 'My Service', provider: 'openai', apiKey: 'sk-test' })
+    const id = storeWithHook.getAllConfigs()[0].id
+    storeWithHook.deleteConfig(id)
+    assert.equal(deleted.length, 1, 'onApiKeyDeleted should be called once')
+    assert.equal(
+      (deleted[0] as unknown as Record<string, unknown>).authProfile,
+      'my-service',
+      'deleted config should retain authProfile for cleanup'
+    )
+    assert.equal(storeWithHook.getAllConfigs().length, 0, 'config should be removed')
+  })
+
   it('resolves correct key for same-provider configs with different authProfiles', () => {
     const profiles = new Map<string, string>()
     const storeWithAuth = new LLMConfigStore(storage, {

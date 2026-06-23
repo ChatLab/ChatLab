@@ -44,6 +44,8 @@ export interface LLMConfigStoreDeps {
   generateId?: () => string
   /** Returns the auth profile name so LLMConfigStore can persist it on the config */
   onApiKeyCreated?: (config: AIServiceConfig, apiKey: string) => string | void
+  /** Called after a config is removed; use to clean up the corresponding auth profile */
+  onApiKeyDeleted?: (config: AIServiceConfig) => void
   resolveApiKey?: (provider: string, authProfile?: string) => string | undefined
   onStoreLoaded?: (configs: AIServiceConfig[]) => void
 }
@@ -71,6 +73,7 @@ export class LLMConfigStore {
   private t: (key: string, options?: Record<string, unknown>) => string
   private generateId: () => string
   private onApiKeyCreated?: (config: AIServiceConfig, apiKey: string) => string | void
+  private onApiKeyDeleted?: (config: AIServiceConfig) => void
   private resolveApiKey?: (provider: string, authProfile?: string) => string | undefined
   private onStoreLoaded?: (configs: AIServiceConfig[]) => void
 
@@ -79,6 +82,7 @@ export class LLMConfigStore {
     this.t = deps.t || defaultT
     this.generateId = deps.generateId || defaultGenerateId
     this.onApiKeyCreated = deps.onApiKeyCreated
+    this.onApiKeyDeleted = deps.onApiKeyDeleted
     this.resolveApiKey = deps.resolveApiKey
     this.onStoreLoaded = deps.onStoreLoaded
   }
@@ -233,6 +237,7 @@ export class LLMConfigStore {
       return { success: false, error: this.t('llm.configNotFound') }
     }
 
+    const deleted = store.configs[index]
     store.configs.splice(index, 1)
 
     const fallback = store.configs[0]
@@ -244,6 +249,7 @@ export class LLMConfigStore {
     }
 
     this.saveStore(store)
+    this.onApiKeyDeleted?.(deleted)
     return { success: true }
   }
 
