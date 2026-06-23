@@ -2,6 +2,16 @@ import type { FastifyInstance } from 'fastify'
 import type { HttpRouteContext } from '../../context'
 
 export function registerTelemetryRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+  server.get('/_web/telemetry/enabled', async () => {
+    return { enabled: ctx.analyticsService?.getEnabled() ?? false }
+  })
+
+  server.post<{ Body: { enabled?: boolean } }>('/_web/telemetry/enabled', async (req) => {
+    if (!ctx.analyticsService || typeof req.body?.enabled !== 'boolean') return { success: false }
+    ctx.analyticsService.setEnabled(req.body.enabled)
+    return { success: true }
+  })
+
   server.post<{ Body: { eventName: string; properties?: Record<string, string | number> } }>(
     '/_web/telemetry/track',
     async (req, reply) => {

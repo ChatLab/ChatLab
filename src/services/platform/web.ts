@@ -45,11 +45,26 @@ export class WebPlatformAdapter implements PlatformAdapter {
   }
 
   async getAnalyticsEnabled(): Promise<boolean> {
-    return false
+    try {
+      const resp = await fetchWithAuth('/_web/telemetry/enabled')
+      const data = (await resp.json()) as { enabled?: boolean }
+      return data.enabled === true
+    } catch {
+      return false
+    }
   }
 
-  async setAnalyticsEnabled(_enabled: boolean): Promise<{ success: boolean }> {
-    return { success: false }
+  async setAnalyticsEnabled(enabled: boolean): Promise<{ success: boolean }> {
+    try {
+      const resp = await fetchWithAuth('/_web/telemetry/enabled', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ enabled }),
+      })
+      return (await resp.json()) as { success: boolean }
+    } catch {
+      return { success: false }
+    }
   }
 
   async trackDailyActive(locale: string): Promise<void> {
