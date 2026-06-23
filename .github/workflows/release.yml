@@ -292,6 +292,8 @@ jobs:
           "
 
       - name: Build CLI (with Web UI)
+        env:
+          APTABASE_APP_KEY: ${{ secrets.APTABASE_APP_KEY }}
         run: pnpm --filter chatlab-cli run build:full
 
       - name: Upload CLI build output
