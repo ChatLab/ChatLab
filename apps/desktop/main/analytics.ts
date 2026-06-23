@@ -1,6 +1,4 @@
 import { app, ipcMain } from 'electron'
-import * as fs from 'fs'
-import * as path from 'path'
 import { AnalyticsService } from '@openchatlab/node-runtime'
 import { getSystemDataDir } from './paths'
 
@@ -8,22 +6,10 @@ const APTABASE_APP_KEY = process.env.APTABASE_APP_KEY
 
 let _service: AnalyticsService | null = null
 
-function migrateAnalyticsIfNeeded(systemDir: string): void {
-  const newPath = path.join(systemDir, 'analytics.json')
-  if (fs.existsSync(newPath)) return
-  try {
-    const oldPath = path.join(app.getPath('userData'), 'analytics.json')
-    if (fs.existsSync(oldPath)) fs.copyFileSync(oldPath, newPath)
-  } catch (_e) {
-    // Non-critical migration, ignore errors
-  }
-}
-
 function getService(): AnalyticsService | null {
   if (!APTABASE_APP_KEY) return null
   if (!_service) {
     const systemDir = getSystemDataDir()
-    migrateAnalyticsIfNeeded(systemDir)
     _service = new AnalyticsService(systemDir, APTABASE_APP_KEY, app.getVersion())
   }
   return _service
