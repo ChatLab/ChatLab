@@ -62,11 +62,11 @@ export class AnalyticsService {
     this.save(data)
   }
 
-  async track(eventName: string, props?: Record<string, string | number>): Promise<void> {
-    if (!this.endpoint) return
-    if (!this.getEnabled()) return
+  async track(eventName: string, props?: Record<string, string | number>): Promise<boolean> {
+    if (!this.endpoint) return false
+    if (!this.getEnabled()) return false
     try {
-      await fetch(this.endpoint, {
+      const resp = await fetch(this.endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'App-Key': this.appKey },
         body: JSON.stringify({
@@ -86,8 +86,10 @@ export class AnalyticsService {
           props,
         }),
       })
+      return resp.ok
     } catch (e) {
       console.error(`[Analytics] Failed to track ${eventName}:`, e)
+      return false
     }
   }
 
@@ -102,7 +104,8 @@ export class AnalyticsService {
       if (isNew) this.save(data)
       return
     }
-    await this.track(isNew ? 'app_active_new' : 'app_active', props)
+    const tracked = await this.track(isNew ? 'app_active_new' : 'app_active', props)
+    if (!tracked) return
     data.lastReportDate = today
     this.save(data)
   }
