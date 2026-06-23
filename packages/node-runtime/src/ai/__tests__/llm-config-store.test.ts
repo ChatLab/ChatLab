@@ -200,6 +200,34 @@ describe('LLMConfigStore', () => {
     assert.equal(storeWithHook.getAllConfigs().length, 0, 'config should be removed')
   })
 
+  it('does not call onApiKeyDeleted when another config still uses the same authProfile', () => {
+    const deleted: string[] = []
+    const storeWithHook = new LLMConfigStore(storage, {
+      generateId: () => `id-${++idCounter}`,
+      onApiKeyCreated: (config) => {
+        const name = config.name.toLowerCase().replace(/\s+/g, '-')
+        ;(config as unknown as Record<string, unknown>).authProfile = name
+        return name
+      },
+      onApiKeyDeleted: (config) => {
+        const profile = (config as unknown as Record<string, unknown>).authProfile as string | undefined
+        if (profile) deleted.push(profile)
+      },
+    })
+
+    storeWithHook.addConfig({ name: 'OpenAI', provider: 'openai', apiKey: 'sk-first' })
+    storeWithHook.addConfig({ name: 'OpenAI', provider: 'openai', apiKey: 'sk-second' })
+
+    storeWithHook.deleteConfig('id-1')
+
+    assert.deepEqual(deleted, [], 'shared authProfile should stay available for remaining configs')
+    assert.equal(
+      (storage.data.get('llm-config') as AIConfigStore).configs.length,
+      1,
+      'only the deleted config should be removed'
+    )
+  })
+
   it('calls onApiKeyDeleted for old profile when rename + key change causes profile name to change', () => {
     const deleted: string[] = []
     const storeWithHook = new LLMConfigStore(storage, {
@@ -218,6 +246,27 @@ describe('LLMConfigStore', () => {
     const id = storeWithHook.getAllConfigs()[0].id
     storeWithHook.updateConfig(id, { name: 'Work OpenAI', apiKey: 'sk-new' })
     assert.deepEqual(deleted, ['my-openai'], 'old profile should be cleaned up when profile name changes')
+  })
+
+  it('cleans old profile when profile replacement hook does not mutate the updated config', () => {
+    const deleted: string[] = []
+    const storeWithHook = new LLMConfigStore(storage, {
+      generateId: () => `id-${++idCounter}`,
+      onApiKeyCreated: (config, _apiKey) => {
+        return config.name.toLowerCase().replace(/\s+/g, '-')
+      },
+      onApiKeyDeleted: (config) => {
+        const profile = (config as unknown as Record<string, unknown>).authProfile as string | undefined
+        if (profile) deleted.push(profile)
+      },
+    })
+
+    storeWithHook.addConfig({ name: 'My OpenAI', provider: 'openai', apiKey: 'sk-old' })
+    const id = storeWithHook.getAllConfigs()[0].id
+
+    storeWithHook.updateConfig(id, { name: 'Work OpenAI', apiKey: 'sk-new' })
+
+    assert.deepEqual(deleted, ['my-openai'], 'old profile should be cleaned up when no remaining config uses it')
   })
 
   it('does not call onApiKeyDeleted when key changes but profile name stays the same', () => {

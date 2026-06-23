@@ -68,6 +68,14 @@ function resolveSlot(slot: ModelSlot | null | undefined, configs: AIServiceConfi
   return fallback ? { configId: fallback.id, modelId: fallback.model || '' } : null
 }
 
+function getAuthProfile(config: AIServiceConfig): string | undefined {
+  return (config as unknown as Record<string, unknown>).authProfile as string | undefined
+}
+
+function isAuthProfileUsed(configs: AIServiceConfig[], authProfile: string): boolean {
+  return configs.some((config) => getAuthProfile(config) === authProfile)
+}
+
 export class LLMConfigStore {
   private storage: ConfigStorage
   private t: (key: string, options?: Record<string, unknown>) => string
@@ -224,10 +232,10 @@ export class LLMConfigStore {
     if (updates.apiKey && this.onApiKeyCreated) {
       const profileName = this.onApiKeyCreated(updated, updates.apiKey)
       if (profileName) {
-        if (oldProfileName && oldProfileName !== profileName) {
+        ;(store.configs[index] as unknown as Record<string, unknown>).authProfile = profileName
+        if (oldProfileName && oldProfileName !== profileName && !isAuthProfileUsed(store.configs, oldProfileName)) {
           this.onApiKeyDeleted?.(oldConfig)
         }
-        ;(store.configs[index] as unknown as Record<string, unknown>).authProfile = profileName
       }
     }
 
@@ -255,7 +263,10 @@ export class LLMConfigStore {
     }
 
     this.saveStore(store)
-    this.onApiKeyDeleted?.(deleted)
+    const deletedProfileName = getAuthProfile(deleted)
+    if (!deletedProfileName || !isAuthProfileUsed(store.configs, deletedProfileName)) {
+      this.onApiKeyDeleted?.(deleted)
+    }
     return { success: true }
   }
 
