@@ -14,6 +14,9 @@ export default defineConfig({
   clean: true,
   target: 'node20',
   platform: 'node',
+  define: {
+    'process.env.APTABASE_APP_KEY': JSON.stringify(process.env.APTABASE_APP_KEY || ''),
+  },
   noExternal: [/^@openchatlab\//, 'chatlab-mcp', 'stream-json'],
   external: ['better-sqlite3', '@node-rs/jieba'],
   banner: {

@@ -9,6 +9,7 @@
 import type { PathProvider } from '@openchatlab/core'
 import type { ChartAutoMode } from '@openchatlab/shared-types'
 import type { AuthProfile } from '@openchatlab/config'
+import type { AnalyticsService } from '@openchatlab/node-runtime'
 import type {
   DatabaseManager,
   DataDirSwitchResult,
@@ -65,6 +66,9 @@ export interface HttpRouteContext {
    */
   resolveApiKey?: (provider: string, authProfile?: string) => string
   writeAuthProfile?: (name: string, profile: AuthProfile) => void
+
+  /** Analytics tracking service — optional, telemetry routes silently skip when absent */
+  analyticsService?: AnalyticsService
 
   /** Cache/storage — platform-specific (optional) */
   openDirectory?: (dirPath: string) => Promise<void>

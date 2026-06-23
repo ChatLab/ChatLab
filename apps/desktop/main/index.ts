@@ -5,7 +5,7 @@ import { checkUpdate } from './update'
 import mainIpcMain, { cleanup } from './ipcMain'
 import { startInternalServer, stopInternalServer, registerInternalApiIpc } from './internal-api'
 import { getPathProvider } from './path-context'
-import { initAnalytics, trackDailyActive } from './analytics'
+import { initAnalytics } from './analytics'
 import { initProxy } from './network/proxy'
 import {
   needsLegacyMigration,
@@ -305,9 +305,6 @@ class MainProcess {
       console.log('[Main] App is ready')
       // 设置Windows应用程序用户模型id
       if (process.platform === 'win32') app.setAppUserModelId(app.getName())
-
-      // 记录日活（用于统计操作系统版本、客户端版本，便于更好的适配客户端）
-      trackDailyActive()
 
       // 启动 Internal API Server（硬依赖：失败则退出应用）
       try {

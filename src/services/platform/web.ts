@@ -52,6 +52,14 @@ export class WebPlatformAdapter implements PlatformAdapter {
     return { success: false }
   }
 
+  async trackDailyActive(locale: string): Promise<void> {
+    await fetchWithAuth('/_web/telemetry/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventName: 'app_active', properties: { platform: 'cli-web', locale } }),
+    }).catch(() => {})
+  }
+
   async showOpenDialog(_options: OpenDialogOptions): Promise<OpenDialogResult> {
     return { canceled: true, filePaths: [] }
   }

@@ -339,7 +339,8 @@ export { Type, completeSimple, streamSimple, runSimpleLlmStream } from './ai'
 export type { LlmStreamChunk, RunSimpleLlmStreamOptions } from './ai'
 export type { PiModel, PiApi, PiMessage, PiUsage, PiTextContent, PiAssistantMessage } from './ai'
 
-// Shared application services (session / member / index / summary / export)
+// Shared application services (session / member / index / summary / export / analytics)
+export { AnalyticsService } from './services/analytics'
 export * as sessionService from './services/session-service'
 export * as memberService from './services/member-service'
 export * as sessionIndexService from './services/session-index-service'

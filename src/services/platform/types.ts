@@ -47,6 +47,7 @@ export interface PlatformAdapter {
 
   getAnalyticsEnabled(): Promise<boolean>
   setAnalyticsEnabled(enabled: boolean): Promise<{ success: boolean }>
+  trackDailyActive(locale: string): Promise<void>
 
   showOpenDialog(options: OpenDialogOptions): Promise<OpenDialogResult>
   copyImageToClipboard(dataUrl: string): Promise<{ success: boolean; error?: string }>

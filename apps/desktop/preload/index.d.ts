@@ -103,6 +103,7 @@ interface Api {
     fetchRemoteConfig: (url: string) => Promise<{ success: boolean; data?: unknown; error?: string }>
     getAnalyticsEnabled: () => Promise<boolean>
     setAnalyticsEnabled: (enabled: boolean) => Promise<{ success: boolean }>
+    trackDailyActive: (locale: string) => Promise<void>
     relaunch: () => Promise<void>
     getOpenAtLogin: () => Promise<boolean>
     setOpenAtLogin: (enabled: boolean) => Promise<{ success: boolean; error?: string }>

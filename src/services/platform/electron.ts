@@ -33,6 +33,10 @@ export class ElectronPlatformAdapter implements PlatformAdapter {
     return window.api.app.setAnalyticsEnabled(enabled)
   }
 
+  trackDailyActive(locale: string): Promise<void> {
+    return window.api.app.trackDailyActive(locale)
+  }
+
   showOpenDialog(options: OpenDialogOptions): Promise<OpenDialogResult> {
     return window.api.dialog.showOpenDialog(options as Electron.OpenDialogOptions)
   }

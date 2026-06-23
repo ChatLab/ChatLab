@@ -173,9 +173,6 @@ importers:
 
   apps/desktop:
     dependencies:
-      '@aptabase/electron':
-        specifier: ^0.3.1
-        version: 0.3.1(electron@35.7.5)
       '@electron-toolkit/preload':
         specifier: ^3.0.1
         version: 3.0.2(electron@35.7.5)
@@ -456,11 +453,6 @@ packages:
     peerDependenciesMeta:
       zod:
         optional: true
-
-  '@aptabase/electron@0.3.1':
-    resolution: {integrity: sha512-FECaGsjuoQu70F+M6V1evdgLP7yaq/sne9fC60AZZ6B9RsCDlxFBnJzdq3+xevHlUx6AB5o9ygUhQ+ONT9EqiA==}
-    peerDependencies:
-      electron: '>= 3.x'
 
   '@aws-crypto/crc32@5.2.0':
     resolution: {integrity: sha512-nLbCWqQNgUiwwtFsen1AdzAtvuLRsQS8rYgMuxCrdKf9kOssamGLuPwyTY9wyYblNr9+1XM8v6zoDTPPSIeANg==}
@@ -6164,10 +6156,6 @@ snapshots:
       json-schema-to-ts: 3.1.1
     optionalDependencies:
       zod: 3.25.76
-
-  '@aptabase/electron@0.3.1(electron@35.7.5)':
-    dependencies:
-      electron: 35.7.5
 
   '@aws-crypto/crc32@5.2.0':
     dependencies:

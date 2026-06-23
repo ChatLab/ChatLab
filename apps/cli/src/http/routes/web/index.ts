@@ -36,6 +36,7 @@ import {
   createNodeDataDirSwitch,
   getDefaultNodeUserDataDir,
   getPendingNodeDataDirMigration,
+  AnalyticsService,
   type SemanticIndexRuntime,
 } from '@openchatlab/node-runtime'
 import { registerSharedRoutes } from '@openchatlab/http-routes'
@@ -103,6 +104,10 @@ export function registerWebRoutes(
 
   const semanticIndexService = options?.semanticIndexService
 
+  const analyticsService = process.env.APTABASE_APP_KEY
+    ? new AnalyticsService(resolvedPathProvider.getSystemDir(), process.env.APTABASE_APP_KEY, getVersion())
+    : undefined
+
   registerSharedRoutes(
     server,
     {
@@ -112,6 +117,7 @@ export function registerWebRoutes(
       getVersion,
       nativeBinding: options?.nativeBinding,
       semanticIndexService,
+      analyticsService,
       openDirectory: openDirectoryPath,
       showInFolder: showPathInFolder,
       downloadsDir: resolvedPathProvider.getDownloadsDir(),

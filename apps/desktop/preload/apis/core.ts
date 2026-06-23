@@ -92,6 +92,9 @@ export const extendedApi = {
     setAnalyticsEnabled: (enabled: boolean): Promise<{ success: boolean }> => {
       return ipcRenderer.invoke('analytics:setEnabled', enabled)
     },
+    trackDailyActive: (locale: string): Promise<void> => {
+      return ipcRenderer.invoke('analytics:trackDailyActive', locale)
+    },
     /**
      * 重启应用
      */

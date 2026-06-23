@@ -1,6 +1,6 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { LLMConfigStore, type ConfigStorage, type AIConfigStore } from '../llm-config-store'
+import { LLMConfigStore, type ConfigStorage, type AIConfigStore, type AIServiceConfig } from '../llm-config-store'
 
 function createMemoryStorage(): ConfigStorage & { data: Map<string, unknown> } {
   const data = new Map<string, unknown>()
@@ -204,7 +204,7 @@ describe('LLMConfigStore', () => {
     const deleted: string[] = []
     const storeWithHook = new LLMConfigStore(storage, {
       generateId: () => `id-${++idCounter}`,
-      onApiKeyCreated: (config, apiKey) => {
+      onApiKeyCreated: (config, _apiKey) => {
         const name = config.name.toLowerCase().replace(/\s+/g, '-')
         ;(config as unknown as Record<string, unknown>).authProfile = name
         return name
@@ -224,7 +224,7 @@ describe('LLMConfigStore', () => {
     const deleted: string[] = []
     const storeWithHook = new LLMConfigStore(storage, {
       generateId: () => `id-${++idCounter}`,
-      onApiKeyCreated: (config, apiKey) => {
+      onApiKeyCreated: (config, _apiKey) => {
         const name = config.name.toLowerCase().replace(/\s+/g, '-')
         ;(config as unknown as Record<string, unknown>).authProfile = name
         return name

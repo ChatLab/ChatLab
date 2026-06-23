@@ -14,7 +14,6 @@
     "build:win": "pnpm run build && electron-builder --win --config electron-builder.yml -p never"
   },
   "dependencies": {
-    "@aptabase/electron": "^0.3.1",
     "@electron-toolkit/preload": "^3.0.1",
     "@electron-toolkit/utils": "^4.0.0",
     "@fastify/multipart": "^10.0.0",

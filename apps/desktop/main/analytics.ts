@@ -1,158 +1,59 @@
-/**
- * 应用分析模块
- * 使用 Aptabase 进行匿名使用统计
- */
-
 import { app, ipcMain } from 'electron'
-import { initialize, trackEvent } from '@aptabase/electron/main'
 import * as fs from 'fs'
 import * as path from 'path'
+import { AnalyticsService } from '@openchatlab/node-runtime'
+import { getSystemDataDir } from './paths'
 
-// AppKey
-const ANALYTICS_APP_KEY = process.env.APTABASE_APP_KEY
+const APTABASE_APP_KEY = process.env.APTABASE_APP_KEY
 
-// 分析数据存储路径
-function getAnalyticsPath(): string {
-  return path.join(app.getPath('userData'), 'analytics.json')
-}
+let _service: AnalyticsService | null = null
 
-// 分析数据结构
-interface AnalyticsData {
-  lastReportDate: string | null
-  firstReportDate: string | null // 用于判断新老用户
-  enabled: boolean // 是否启用统计
-}
-
-// 默认配置
-const defaultAnalyticsData: AnalyticsData = {
-  lastReportDate: null,
-  firstReportDate: null,
-  enabled: true, // 默认启用
-}
-
-// 读取分析数据
-function loadAnalyticsData(): AnalyticsData {
+function migrateAnalyticsIfNeeded(systemDir: string): void {
+  const newPath = path.join(systemDir, 'analytics.json')
+  if (fs.existsSync(newPath)) return
   try {
-    const filePath = getAnalyticsPath()
-    if (fs.existsSync(filePath)) {
-      const data = fs.readFileSync(filePath, 'utf-8')
-      return { ...defaultAnalyticsData, ...JSON.parse(data) }
-    }
-  } catch (error) {
-    console.error('[Analytics] Failed to read analytics data:', error)
-  }
-  return { ...defaultAnalyticsData }
-}
-
-// 保存分析数据
-function saveAnalyticsData(data: AnalyticsData): void {
-  try {
-    const filePath = getAnalyticsPath()
-    fs.writeFileSync(filePath, JSON.stringify(data, null, 2), 'utf-8')
-  } catch (error) {
-    console.error('[Analytics] Failed to save analytics data:', error)
+    const oldPath = path.join(app.getPath('userData'), 'analytics.json')
+    if (fs.existsSync(oldPath)) fs.copyFileSync(oldPath, newPath)
+  } catch (_e) {
+    // Non-critical migration, ignore errors
   }
 }
 
-// 获取今天的日期字符串 (YYYY-MM-DD)
-function getTodayString(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+function getService(): AnalyticsService | null {
+  if (!APTABASE_APP_KEY) return null
+  if (!_service) {
+    const systemDir = getSystemDataDir()
+    migrateAnalyticsIfNeeded(systemDir)
+    _service = new AnalyticsService(systemDir, APTABASE_APP_KEY, app.getVersion())
+  }
+  return _service
 }
 
-/**
- * 初始化分析模块
- * 必须在 app.whenReady() 之前调用
- */
 export function initAnalytics(): void {
-  if (!ANALYTICS_APP_KEY) {
-    return
-  }
-
-  try {
-    initialize(ANALYTICS_APP_KEY)
-    console.log('[Analytics] Aptabase initialized')
-  } catch (error) {
-    console.error('[Analytics] Failed to initialize Aptabase:', error)
-  }
+  // Service is initialized lazily; no-op here unless we want eager validation.
+  if (!APTABASE_APP_KEY) return
+  getService()
 }
 
-/**
- * 注册 Analytics IPC 处理器
- */
 export function registerAnalyticsHandlers(): void {
-  // 获取统计启用状态
   ipcMain.handle('analytics:getEnabled', () => {
-    return loadAnalyticsData().enabled
+    return getService()?.getEnabled() ?? true
   })
 
-  // 设置统计启用状态
   ipcMain.handle('analytics:setEnabled', (_, enabled: boolean) => {
-    const data = loadAnalyticsData()
-    data.enabled = enabled
-    saveAnalyticsData(data)
+    getService()?.setEnabled(enabled)
     return { success: true }
   })
+
+  ipcMain.handle('analytics:trackDailyActive', (_, locale: string) => {
+    getService()
+      ?.trackDailyActive({ platform: 'desktop', locale })
+      .catch((e) => console.error('[Analytics] Failed to report daily active:', e))
+  })
 }
 
-/**
- * 上报每日活跃事件
- */
-export function trackDailyActive(): void {
-  if (!ANALYTICS_APP_KEY) {
-    return
-  }
-
-  try {
-    const data = loadAnalyticsData()
-
-    // 检查是否启用统计
-    if (!data.enabled) {
-      return
-    }
-
-    const today = getTodayString()
-    const isNew = data.firstReportDate === null
-
-    // 新用户记录首次使用日期
-    if (isNew) {
-      data.firstReportDate = today
-    }
-
-    // 检查今天是否已经上报过
-    if (data.lastReportDate === today) {
-      if (isNew) {
-        saveAnalyticsData(data)
-      }
-      return
-    }
-
-    // 上报每日活跃事件
-    trackEvent(isNew ? 'app_active_new' : 'app_active', { locale: app.getLocale() })
-
-    data.lastReportDate = today
-    saveAnalyticsData(data)
-  } catch (error) {
-    console.error('[Analytics] Failed to report daily active:', error)
-  }
-}
-
-/**
- * 事件上报
- */
 export function trackAppEvent(eventName: string, properties?: Record<string, string | number>): void {
-  if (!ANALYTICS_APP_KEY) {
-    return
-  }
-
-  // 检查是否启用统计
-  if (!loadAnalyticsData().enabled) {
-    return
-  }
-
-  try {
-    trackEvent(eventName, properties)
-  } catch (error) {
-    console.error(`[Analytics] Failed to report event ${eventName}:`, error)
-  }
+  getService()
+    ?.track(eventName, properties)
+    .catch((e) => console.error(`[Analytics] Failed to report event ${eventName}:`, e))
 }

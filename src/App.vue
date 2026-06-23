@@ -20,6 +20,7 @@ import { initPreferencesSync } from '@/composables/usePreferencesSync'
 import { useWindowsTitleBarOverlay } from '@/composables/useWindowsTitleBarOverlay'
 import { configureHttpClient } from '@/services/utils/http'
 import { IS_ELECTRON } from '@/utils/platform'
+import { usePlatformService } from '@/services'
 
 const { t } = useI18n()
 
@@ -61,6 +62,9 @@ async function initializeApp() {
     await settingsStore.initLocale()
     llmStore.init()
     await sessionStore.loadSessions()
+    usePlatformService()
+      .trackDailyActive(settingsStore.locale)
+      .catch(() => {})
   } catch (err) {
     console.error('App initialization failed:', err)
     initError.value = err instanceof Error ? err.message : String(err)
