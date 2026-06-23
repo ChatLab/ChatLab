@@ -197,6 +197,15 @@ importers:
       i18next:
         specifier: ^25.8.5
         version: 25.8.5(typescript@5.9.3)
+      onnxruntime-common:
+        specifier: 1.24.3
+        version: 1.24.3
+      onnxruntime-node:
+        specifier: 1.24.3
+        version: 1.24.3
+      sharp:
+        specifier: 0.34.5
+        version: 0.34.5
       sqlite-vec:
         specifier: ^0.1.9
         version: 0.1.9
@@ -319,6 +328,15 @@ importers:
       js-tiktoken:
         specifier: ^1.0.21
         version: 1.0.21
+      onnxruntime-common:
+        specifier: 1.24.3
+        version: 1.24.3
+      onnxruntime-node:
+        specifier: 1.24.3
+        version: 1.24.3
+      sharp:
+        specifier: 0.34.5
+        version: 0.34.5
       sqlite-vec:
         specifier: ^0.1.9
         version: 0.1.9

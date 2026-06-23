@@ -22,6 +22,9 @@
     "better-sqlite3": "^12.4.6",
     "electron-updater": "^6.6.2",
     "i18next": "^25.8.5",
+    "onnxruntime-common": "1.24.3",
+    "onnxruntime-node": "1.24.3",
+    "sharp": "0.34.5",
     "sqlite-vec": "^0.1.9"
   },
   "devDependencies": {
