@@ -32,6 +32,7 @@ function makeFakeService(calls: Call[]): SemanticIndexService {
     getConfig: () => ({ version: 1, mode: 'local', local: { modelId: 'm' }, api: null }),
     hasApiKey: () => false,
     isConfigured: () => true,
+    getModelStatus: () => 'ready',
     setConfig: (c: unknown, opts?: unknown) => {
       calls.push(['setConfig', c, opts])
       return c
@@ -76,6 +77,7 @@ describe('semantic-index routes', () => {
     const resp = await app.inject({ method: 'GET', url: '/_web/ai/semantic-index/config' })
     assert.equal(resp.statusCode, 200)
     assert.equal(resp.json().config.mode, 'local')
+    assert.equal(resp.json().modelStatus, 'ready')
   })
 
   it('PUT config forwards body to setConfig', async () => {
