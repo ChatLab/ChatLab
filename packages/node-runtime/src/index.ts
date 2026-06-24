@@ -53,6 +53,8 @@ export { hasFtsTable, createFtsTable, buildFtsIndex, rebuildFtsIndex, insertFtsE
 export { AiLogger, extractErrorInfo, extractErrorStack, formatAIError } from './ai'
 export type { FormatAIErrorOptions } from './ai'
 
+// Unified application logger (general + key-path + crash logs)
+export { initAppLogger, appLogger } from './logging/app-logger'
 export {
   NodePathProvider,
   applyPendingNodeDataDirMigrationIfNeeded,

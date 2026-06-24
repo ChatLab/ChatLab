@@ -24,6 +24,7 @@ import {
   raiseChatDbCompatibilityGate,
   streamingImport,
   createSemanticIndexWorkerRuntimeClient,
+  appLogger,
 } from '@openchatlab/node-runtime'
 import type { StreamImportDeps, SemanticIndexRuntime } from '@openchatlab/node-runtime'
 import { getLoadablePath as getSqliteVecLoadablePath } from 'sqlite-vec'
@@ -225,7 +226,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
 
     newServer.addHook('onRequest', createInternalAuthHook(token))
 
-    newServer.setErrorHandler((error: FastifyError, _request, reply) => {
+    newServer.setErrorHandler((error: FastifyError, request, reply) => {
       const apiError = apiErrorFromUnknown(error)
       if (apiError) {
         reply.code(apiError.statusCode).send(errorResponse(apiError))
@@ -241,6 +242,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
         reply.code(statusCode).send({ success: false, error: { code: 'CLIENT_ERROR', message: error.message } })
         return
       }
+      appLogger.error('http', `${request.method} ${request.url} -> 500`, error)
       const err = serverError(error.message)
       reply.code(err.statusCode).send(errorResponse(err))
     })

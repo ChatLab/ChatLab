@@ -30,6 +30,7 @@ import { registerSemanticIndexRoutes } from './routes/web/ai-semantic-index'
 import { registerMergeRoutes } from './routes/web/merge'
 import { registerCacheRoutes } from './routes/web/cache'
 import { registerTelemetryRoutes } from './routes/web/telemetry'
+import { registerLogRoutes } from './routes/web/logs'
 
 export interface SharedRouteOptions {
   /** When true, AI routes will throw on missing dependencies instead of silently skipping */
@@ -94,4 +95,7 @@ export function registerSharedRoutes(
 
   // Telemetry routes
   registerTelemetryRoutes(server, resolvedCtx)
+
+  // Front-end log report + open logs dir
+  registerLogRoutes(server, resolvedCtx)
 }

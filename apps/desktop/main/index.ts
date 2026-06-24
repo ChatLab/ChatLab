@@ -6,6 +6,7 @@ import mainIpcMain, { cleanup } from './ipcMain'
 import { startInternalServer, stopInternalServer, registerInternalApiIpc } from './internal-api'
 import { getPathProvider } from './path-context'
 import { initAnalytics } from './analytics'
+import { logger } from './logger'
 import { initProxy } from './network/proxy'
 import {
   needsLegacyMigration,
@@ -97,6 +98,7 @@ class MainProcess {
   // 初始化程序
   async init() {
     initAnalytics()
+    logger.info('Desktop app starting')
 
     // E2E 测试模式：跳过遗留数据迁移
     // 遗留迁移会删除 Documents/ChatLab，在本地测试时可能破坏用户数据
@@ -421,9 +423,18 @@ class MainProcess {
   }
 }
 
-// 捕获未捕获的异常
+// 捕获未捕获的异常与未处理的 Promise 拒绝，落盘到 logs/app.log 便于排查
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error)
+  logger.error(
+    `Uncaught Exception: ${error instanceof Error ? `${error.message}\n${error.stack ?? ''}` : String(error)}`
+  )
+})
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection:', reason)
+  logger.error(
+    `Unhandled Rejection: ${reason instanceof Error ? `${reason.message}\n${reason.stack ?? ''}` : String(reason)}`
+  )
 })
 
 new MainProcess()

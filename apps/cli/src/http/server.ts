@@ -13,6 +13,7 @@ import {
   errorResponse,
   serverError,
 } from '@openchatlab/http-routes'
+import { appLogger } from '@openchatlab/node-runtime'
 
 const JSON_BODY_LIMIT = 50 * 1024 * 1024 // 50MB
 
@@ -24,7 +25,7 @@ export function createServer(): FastifyInstance {
 
   server.addHook('onRequest', authHook)
 
-  server.setErrorHandler((error: FastifyError, _request, reply) => {
+  server.setErrorHandler((error: FastifyError, request, reply) => {
     const apiError = apiErrorFromUnknown(error)
     if (apiError) {
       reply.code(apiError.statusCode).send(errorResponse(apiError))
@@ -43,6 +44,7 @@ export function createServer(): FastifyInstance {
       return
     }
 
+    appLogger.error('http', `${request.method} ${request.url} -> 500`, error)
     const err = serverError(error.message)
     reply.code(err.statusCode).send(errorResponse(err))
   })

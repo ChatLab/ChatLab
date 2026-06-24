@@ -21,6 +21,8 @@ import {
   hasPendingElectronDataWarning,
   verifyCliDataPath,
   createSemanticIndexWorkerRuntimeClient,
+  initAppLogger,
+  appLogger,
 } from '@openchatlab/node-runtime'
 import type { ConfigStorage, SemanticIndexRuntime } from '@openchatlab/node-runtime'
 import { createServer } from './server'
@@ -170,7 +172,9 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
     },
   })
 
+  initAppLogger(pathProvider.getLogsDir())
   initServerAiLogger(pathProvider.getLogsDir())
+  appLogger.info('server', `HTTP server starting on ${host}:${port}`)
 
   setAuthToken(token)
   setRequireAuth(!!(options?.requireAuth ?? config.api.require_auth))
