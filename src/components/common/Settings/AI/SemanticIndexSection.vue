@@ -334,7 +334,7 @@ onUnmounted(() => {
           v-if="modelStatus === 'downloading'"
           class="flex items-center gap-1.5 text-xs text-blue-500 dark:text-blue-400"
         >
-          <UIcon name="i-heroicons-arrow-down-tray" class="h-3.5 w-3.5 animate-pulse shrink-0" />
+          <UIcon name="i-heroicons-arrow-path" class="h-3.5 w-3.5 animate-spin shrink-0" />
           {{ t('settings.ai.semanticIndex.modelDownloading') }}
         </p>
         <p v-else-if="modelStatus === 'error'" class="text-xs text-red-500">
