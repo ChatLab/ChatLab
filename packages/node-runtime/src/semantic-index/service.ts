@@ -295,8 +295,8 @@ export class SemanticIndexService {
     if (!saved.enabled) {
       for (const state of this.stateStore.listEnabled()) this.queue.pause(state.dbPathHash)
     }
-    // 本地模式已配置时，立即在后台触发模型下载，让用户在建索引前完成等待
-    if (isSemanticIndexConfigured(saved) && saved.mode === 'local') {
+    // 本地模式已配置且功能已开启时，立即在后台触发模型下载，让用户在建索引前完成等待
+    if (saved.enabled && isSemanticIndexConfigured(saved) && saved.mode === 'local') {
       this.modelPreloadStatus = 'downloading'
       void this.getEmbedder()
         .preload?.()
@@ -353,7 +353,10 @@ export class SemanticIndexService {
     )
   }
 
-  private enableParams(dbPath: string): {
+  private enableParams(
+    dbPath: string,
+    dbPathHash?: string
+  ): {
     dbPathHash: string
     dbPath: string
     modelId: string
@@ -361,7 +364,7 @@ export class SemanticIndexService {
     chunkerConfigHash: string
   } {
     return {
-      dbPathHash: computeDbPathHash(sessionIdFromDbPath(dbPath)),
+      dbPathHash: dbPathHash ?? computeDbPathHash(sessionIdFromDbPath(dbPath)),
       dbPath,
       modelId: this.currentModelId(),
       chunkerVersion: this.chunkerVersion,
@@ -412,9 +415,9 @@ export class SemanticIndexService {
   rebuild(sessionId: string): void {
     if (!this.canRun()) return
     const dbPath = this.sessionAdapter.getDbPath(sessionId)
-    const hash = computeDbPathHash(sessionId)
+    const hash = this.resolveHash(sessionId)
     this.queue.cancel(hash)
-    this.stateStore.enable(this.enableParams(dbPath))
+    this.stateStore.enable(this.enableParams(dbPath, hash))
     this.queue.enqueue({ type: 'rebuild', dbPathHash: hash })
   }
 

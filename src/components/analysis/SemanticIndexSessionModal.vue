@@ -97,7 +97,7 @@ async function load() {
   if (isRunning.value) schedulePoll()
 }
 
-async function act(action: 'enable' | 'disable' | 'build' | 'pause' | 'cancel' | 'rebuild') {
+async function act(action: 'enable' | 'remove' | 'build' | 'pause' | 'cancel' | 'rebuild') {
   busy.value = true
   try {
     status.value = await service[action](props.sessionId)
@@ -214,8 +214,8 @@ onUnmounted(clearPoll)
               <template v-else>
                 <UButton color="primary" :loading="busy" @click="act('build')">{{ t(`${k}.action.build`) }}</UButton>
               </template>
-              <UButton variant="ghost" color="neutral" :disabled="busy" @click="act('disable')">
-                {{ t(`${k}.action.disable`) }}
+              <UButton variant="ghost" color="neutral" :disabled="busy" @click="act('remove')">
+                {{ t(`${k}.action.remove`) }}
               </UButton>
             </div>
           </template>

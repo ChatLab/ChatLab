@@ -89,7 +89,10 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
       writeAuthProfile: this.writeAuthProfile,
     })
     if (!saved.enabled) this.clearActiveBuildTracking()
-    if (!this.transport) return saved
+    // 本地模式且功能开启时，即使 worker 未运行也需启动它以触发 preload；
+    // 其余情况（disabled / api 模式）无需唤醒 worker，直接返回本地保存结果。
+    const needsWorker = saved.enabled && saved.mode === 'local' && this.configStore.isConfigured()
+    if (!this.transport && !needsWorker) return saved
     return await this.call<SemanticIndexConfig>('setConfig', [saved])
   }
 
