@@ -78,6 +78,21 @@ For Telegram, we currently support the official export feature provided by Teleg
 - **Format**: Import the main JSON file from the export folder (usually `result.json`) into ChatLab.
 - **Tip**: Telegram's official export entry is on desktop. For some accounts, the first export request may be delayed for security reasons and must be completed later on the same device.
 
+## Google Chat
+
+For Google Chat, we currently support the ZIP archive exported by Google Takeout.
+
+- **Export Method**:
+  1. Go to [Google Takeout](https://takeout.google.com/) and sign in with your Google account.
+  2. Click "Deselect all", then check only **Google Chat** to reduce the export size.
+  3. Select **.zip** as the file type (**.tgz is not currently supported**).
+  4. Click "Create export" and wait for Google to process it — you'll receive an email when the download is ready.
+- **Format**: Drag the downloaded `.zip` file directly into ChatLab. ChatLab will scan all conversations inside the archive and show a selection list. Check the conversations you want and import them one by one.
+- **Tips**:
+  - Only ZIP format is supported. If Google Takeout offers .tgz, re-export and select .zip instead.
+  - The first export request may take several hours to process.
+  - Attachments (images, files, etc.) are not imported along with the chat history in the current version.
+
 ## Q&A: Can I analyze chat records from other chat applications?
 
 For various chat analysis needs, here's a unified response:

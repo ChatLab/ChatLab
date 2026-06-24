@@ -65,6 +65,21 @@ Tips：歡迎訪問 [加入社群](https://chatlab.fun/tw/other/community)，討
 - **格式**：工具會按會話匯出 ChatLab 標準 JSON 檔案，將匯出的 `.json` 檔案拖入 ChatLab 即可。
 - **提示**：該工具會讀取 macOS 本機 Messages 資料庫。使用前請仔細閱讀項目文件，並確認您擁有讀取與分析相關聊天記錄的合法權限。
 
+## Google Chat
+
+對於 Google Chat，目前已適配 Google 官方 Takeout 匯出的 ZIP 格式。
+
+- **匯出方式**：
+  1. 前往 [Google Takeout](https://takeout.google.com/)，以您的 Google 帳號登入。
+  2. 點擊「取消全選」，再單獨勾選 **Google Chat**（可縮小匯出體積）。
+  3. 選擇檔案類型為 **.zip**（暫不支援 .tgz 格式）。
+  4. 點擊「建立匯出」，等待 Google 處理完成後下載（系統會寄送電子郵件通知）。
+- **格式**：將下載的 `.zip` 檔案直接拖入 ChatLab，ChatLab 會掃描壓縮包內所有對話並顯示選擇清單，勾選後逐一匯入即可。
+- **提示**：
+  - 僅支援 ZIP 格式，若 Takeout 提供的是 .tgz，請重新匯出時選擇 .zip。
+  - 首次匯出請求可能需要等候數小時。
+  - 附件（圖片、檔案等）目前不會隨聊天記錄一併匯入。
+
 ## Q&A：飛書/企微/千牛等的聊天記錄能分析嗎？
 
 針對各種聊天分析的需求，統一回覆：

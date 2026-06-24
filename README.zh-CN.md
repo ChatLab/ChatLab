@@ -14,7 +14,7 @@
 
 ChatLab 是一个专注于聊天记录分析的本地化应用。通过 AI Agent和灵活的 SQL 引擎，你可以自由地分析你的聊天记录数据。
 
-目前已支持：**WhatsApp、LINE、QQ、Discord、Instagram、Telegram、iMessage**。即将支持：Messenger、KakaoTalk。
+目前已支持：**WhatsApp、LINE、QQ、Discord、Instagram、Telegram、iMessage、Google Chat**。即将支持：Messenger、KakaoTalk。
 
 > 首次安装？从这里开始：[快速开始](https://docs.chatlab.fun/cn/usage/quick-start)
 
