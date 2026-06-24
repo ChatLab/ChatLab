@@ -150,6 +150,10 @@ export function getDefaultNodeUserDataDir(): string {
   return path.join(os.homedir(), '.chatlab', 'data')
 }
 
+export function getSystemLogsDir(): string {
+  return path.join(SYSTEM_DIR, 'logs')
+}
+
 function expandHome(filePath: string): string {
   if (filePath.startsWith('~/') || filePath === '~') {
     return path.join(os.homedir(), filePath.slice(1))

@@ -55,11 +55,11 @@ class AppLogger {
     if (LEVEL_ORDER[level] < LEVEL_ORDER[this.threshold]) return
 
     let line = `[${new Date().toISOString()}] [${level}] [${scope}] ${message}`
-    const tail = formatData(data)
-    if (tail) line += `\n${tail}`
-    line += '\n'
 
     try {
+      const tail = formatData(data)
+      if (tail) line += `\n${tail}`
+      line += '\n'
       ensureDir(path.dirname(this.logFile))
       this.rotateIfNeeded()
       fs.appendFileSync(this.logFile, line, 'utf-8')

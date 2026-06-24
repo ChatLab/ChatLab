@@ -429,12 +429,14 @@ process.on('uncaughtException', (error) => {
   logger.error(
     `Uncaught Exception: ${error instanceof Error ? `${error.message}\n${error.stack ?? ''}` : String(error)}`
   )
+  process.exit(1)
 })
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled Rejection:', reason)
   logger.error(
     `Unhandled Rejection: ${reason instanceof Error ? `${reason.message}\n${reason.stack ?? ''}` : String(reason)}`
   )
+  process.exit(1)
 })
 
 new MainProcess()

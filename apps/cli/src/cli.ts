@@ -17,6 +17,7 @@ import {
   verifyCliDataPath,
   initAppLogger,
   appLogger,
+  getSystemLogsDir,
 } from '@openchatlab/node-runtime'
 import {
   getSessionMeta,
@@ -486,7 +487,7 @@ program
 
     console.log('\nChatLab Status')
     console.log('─'.repeat(36))
-    console.log(`  Logs:       ${new NodePathProvider().getLogsDir()}`)
+    console.log(`  Logs:       ${getSystemLogsDir()}`)
 
     if (svc.installed) {
       const portStr = svc.port ? `http://${svc.host ?? '127.0.0.1'}:${svc.port}` : ''
@@ -611,14 +612,16 @@ function printTable(columns: string[], rows: Record<string, unknown>[]): void {
 /** CLI entry function */
 export function run(argv?: string[]): void {
   // Logs go to ~/.chatlab/logs/app.log regardless of configured user data dir.
-  initAppLogger(new NodePathProvider().getLogsDir())
+  initAppLogger(getSystemLogsDir())
   process.on('uncaughtException', (error) => {
     console.error('Uncaught Exception:', error)
     appLogger.error('crash', 'uncaughtException', error)
+    process.exit(1)
   })
   process.on('unhandledRejection', (reason) => {
     console.error('Unhandled Rejection:', reason)
     appLogger.error('crash', 'unhandledRejection', reason)
+    process.exit(1)
   })
   program.parse(argv)
 }

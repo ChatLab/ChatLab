@@ -30,7 +30,7 @@ export function reportError(message: string, stack?: string): void {
   const key = `${message}::${stack?.split('\n')[1] ?? ''}`
   if (!shouldReport(key)) return
   // Fire-and-forget; never let reporting throw or block the UI.
-  void post('/_web/logs/report', {
+  void post('/logs/report', {
     level: 'error',
     message,
     stack,

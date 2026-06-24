@@ -59,6 +59,7 @@ export {
   NodePathProvider,
   applyPendingNodeDataDirMigrationIfNeeded,
   getDefaultNodeUserDataDir,
+  getSystemLogsDir,
   hasPendingElectronDataWarning,
 } from './node-path-provider'
 export { DatabaseManager } from './database-manager'
