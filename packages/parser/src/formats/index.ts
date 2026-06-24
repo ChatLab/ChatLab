@@ -18,6 +18,7 @@ import telegramNativeSingle from './telegram-native-single'
 import whatsappNativeTxt from './whatsapp-native-txt'
 import qqNativeTxt from './qq-native-txt'
 import instagramNative from './instagram-native'
+import googleChatTakeout from './google-chat-takeout'
 import lineNativeTxt from './line-native-txt'
 
 /**
@@ -32,6 +33,7 @@ export const formats: FormatModule[] = [
   tyrrrzDiscordExporter, // 优先级 20 - Tyrrrz/DiscordChatExporter
   telegramNative, // 优先级 22 - Telegram 官方全量导出 JSON
   telegramNativeSingle, // 优先级 23 - Telegram 单聊天导出 JSON
+  googleChatTakeout, // 优先级 24 - Google Chat Takeout 内部 manifest
   instagramNative, // 优先级 25 - Instagram 官方导出
   whatsappNativeTxt, // 优先级 26 - WhatsApp 官方导出 TXT
   qqNativeTxt, // 优先级 30 - QQ 官方导出 TXT
@@ -51,6 +53,7 @@ export {
   tyrrrzDiscordExporter,
   telegramNative,
   telegramNativeSingle,
+  googleChatTakeout,
   instagramNative,
   whatsappNativeTxt,
   qqNativeTxt,

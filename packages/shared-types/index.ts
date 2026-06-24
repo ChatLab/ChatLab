@@ -65,6 +65,7 @@ export const KNOWN_PLATFORMS = {
   WHATSAPP: 'whatsapp',
   TELEGRAM: 'telegram',
   INSTAGRAM: 'instagram',
+  GOOGLE_CHAT: 'google-chat',
   LINE: 'line',
   UNKNOWN: 'unknown',
 } as const
