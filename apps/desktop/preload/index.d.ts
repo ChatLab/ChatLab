@@ -55,6 +55,28 @@ interface ChatApi {
     chats: Array<{ index: number; name: string; type: string; id: number; messageCount: number }>
     error?: string
   }>
+  prepareImportSource: (filePath: string) => Promise<{
+    success: boolean
+    source?: {
+      sourceId: string
+      formatId: string
+      platform: string
+      chats: Array<{
+        chatId: string
+        name: string
+        type: 'private' | 'group'
+        messageCount: number
+        memberCount: number
+      }>
+      expiresAt: number
+    }
+    error?: string
+  }>
+  importPreparedChat: (
+    sourceId: string,
+    chatId: string
+  ) => Promise<{ success: boolean; sessionId?: string; error?: string; diagnostics?: ImportDiagnosticsInfo }>
+  releaseImportSource: (sourceId: string) => Promise<{ success: boolean }>
   checkMigration: () => Promise<MigrationCheckResult>
   runMigration: () => Promise<{ success: boolean; error?: string }>
   getSupportedFormats: () => Promise<Array<{ id: string; name: string; platform: string; extensions: string[] }>>

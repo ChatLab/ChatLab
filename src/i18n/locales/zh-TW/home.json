@@ -34,6 +34,17 @@
       "import_failed": "匯入失敗",
       "unrecognized_format": "無法識別的檔案格式",
       "no_messages": "未解析到任何訊息，請檢查檔案格式是否正確",
+      "no_chat_selected": "未選擇聊天",
+      "archive_single_file_required": "壓縮檔需要單獨選擇並匯入",
+      "archive_unsupported": "暫不支援此壓縮檔格式",
+      "archive_encrypted": "不支援加密壓縮檔",
+      "archive_corrupt": "壓縮檔已損壞或內容不完整",
+      "archive_unsafe_path": "壓縮檔包含不安全的檔案路徑",
+      "archive_limit_exceeded": "壓縮檔超過安全處理限制",
+      "google_chat_structure_not_found": "未找到 Google Chat 匯出資料",
+      "google_chat_conversation_incomplete": "Google Chat 會話檔案不完整",
+      "import_source_not_found": "匯入來源已不存在，請重新選擇壓縮檔",
+      "import_source_expired": "匯入來源已過期，請重新選擇壓縮檔",
       "actionHint": "你還可以嘗試下方手動匹配或查看日誌："
     },
     "diagnostics": {
@@ -95,6 +106,8 @@
     "chatCount": "共 {count} 個聊天",
     "selected": "已選 {count} 個",
     "messageCount": "{count} 條訊息",
+    "memberCount": "{count} 位成員",
+    "empty": "空會話",
     "import": "匯入 ({count})",
     "noChats": "未發現任何聊天"
   },

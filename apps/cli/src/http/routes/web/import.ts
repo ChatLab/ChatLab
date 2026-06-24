@@ -1,8 +1,10 @@
 import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
+import { randomUUID } from 'node:crypto'
+import { pipeline } from 'node:stream/promises'
 import type { FastifyInstance } from 'fastify'
-import type { DatabaseManager } from '@openchatlab/node-runtime'
+import { ArchiveImportError, ArchiveImportSourceManager, type DatabaseManager } from '@openchatlab/node-runtime'
 import {
   streamImport,
   incrementalImport,
@@ -17,6 +19,15 @@ import {
 import { resolveNativeBinding } from './helpers'
 
 const DEMO_BASE_URL = 'https://chatlab.fun/assets/demo'
+const ARCHIVE_UPLOAD_LIMIT = 50 * 1024 * 1024 * 1024
+
+interface ImportRouteOptions {
+  sourceManager?: ArchiveImportSourceManager
+  runPreparedImport?: (
+    manifestPath: string,
+    onProgress: (progress: unknown) => void
+  ) => Promise<{ success: boolean; sessionId?: string; error?: string; messageCount?: number; memberCount?: number }>
+}
 
 function cleanupTemp(...paths: string[]) {
   for (const p of paths) {
@@ -33,7 +44,107 @@ function cleanupTemp(...paths: string[]) {
   }
 }
 
-export function registerImportRoutes(server: FastifyInstance, dbManager: DatabaseManager): void {
+export function registerImportRoutes(
+  server: FastifyInstance,
+  dbManager: DatabaseManager,
+  options: ImportRouteOptions = {}
+): void {
+  const sourceManager =
+    options.sourceManager ??
+    new ArchiveImportSourceManager({
+      tempRoot: fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-import-sources-')),
+    })
+  const runPreparedImport =
+    options.runPreparedImport ??
+    (async (manifestPath: string, onProgress: (progress: unknown) => void) => {
+      const result = await streamImport(dbManager, manifestPath, {
+        formatId: 'google-chat-takeout',
+        nativeBinding: resolveNativeBinding(),
+        onProgress: onProgress as any,
+      })
+      return {
+        success: result.success,
+        sessionId: result.sessionId,
+        error: result.error,
+        messageCount: result.diagnostics?.messagesWritten ?? 0,
+        memberCount: 0,
+      }
+    })
+
+  server.addHook('onClose', async () => {
+    await sourceManager.close()
+  })
+
+  server.post('/_web/import-sources', async (request, reply) => {
+    const data = await (request as any).file({
+      limits: { fileSize: ARCHIVE_UPLOAD_LIMIT },
+    })
+    if (!data) return reply.code(400).send({ success: false, error: 'error.no_file_selected' })
+
+    const uploadPath = path.join(os.tmpdir(), `chatlab-archive-${randomUUID()}.zip`)
+    try {
+      await pipeline(data.file, fs.createWriteStream(uploadPath, { flags: 'wx' }))
+      if (data.file.truncated) {
+        cleanupTemp(uploadPath)
+        return reply.code(413).send({ success: false, error: 'error.archive_limit_exceeded' })
+      }
+
+      const source = await sourceManager.prepareOwnedArchive(uploadPath)
+      return { success: true, source }
+    } catch (error) {
+      cleanupTemp(uploadPath)
+      if (error instanceof ArchiveImportError) {
+        return reply.code(400).send({ success: false, error: error.code })
+      }
+      return reply.code(400).send({
+        success: false,
+        error: error instanceof Error ? error.message : String(error),
+      })
+    }
+  })
+
+  server.post<{ Params: { sourceId: string }; Body: { chatId?: string } }>(
+    '/_web/import-sources/:sourceId/import',
+    async (request, reply) => {
+      const chatId = request.body?.chatId
+      if (!chatId) return reply.code(400).send({ success: false, error: 'error.no_chat_selected' })
+
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      })
+
+      function sendEvent(event: string, eventData: unknown) {
+        reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(eventData)}\n\n`)
+      }
+
+      try {
+        const result = await sourceManager.withMaterializedChat(request.params.sourceId, chatId, (manifestPath) =>
+          runPreparedImport(manifestPath, (progress) => sendEvent('progress', progress))
+        )
+        if (result.success) {
+          sendEvent('done', result)
+        } else {
+          sendEvent('error', { success: false, error: result.error || 'error.import_failed' })
+        }
+      } catch (error) {
+        sendEvent('error', {
+          success: false,
+          error:
+            error instanceof ArchiveImportError ? error.code : error instanceof Error ? error.message : String(error),
+        })
+      } finally {
+        reply.raw.end()
+      }
+    }
+  )
+
+  server.delete<{ Params: { sourceId: string } }>('/_web/import-sources/:sourceId', async (request) => {
+    await sourceManager.release(request.params.sourceId)
+    return { success: true }
+  })
+
   server.get('/_web/supported-formats', async () => {
     return getSupportedFormats()
   })

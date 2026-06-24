@@ -34,6 +34,17 @@
       "import_failed": "インポートに失敗しました",
       "unrecognized_format": "認識できないファイル形式です",
       "no_messages": "メッセージを検出できませんでした。ファイル形式が正しいか確認してください",
+      "no_chat_selected": "チャットが選択されていません",
+      "archive_single_file_required": "アーカイブは1件ずつインポートしてください",
+      "archive_unsupported": "このアーカイブ形式はサポートされていません",
+      "archive_encrypted": "暗号化されたアーカイブはサポートされていません",
+      "archive_corrupt": "アーカイブが破損しているか不完全です",
+      "archive_unsafe_path": "アーカイブに安全でないファイルパスが含まれています",
+      "archive_limit_exceeded": "アーカイブが安全な処理上限を超えています",
+      "google_chat_structure_not_found": "Google Chat のエクスポートデータが見つかりません",
+      "google_chat_conversation_incomplete": "Google Chat の会話ファイルが不足しています",
+      "import_source_not_found": "インポート元が見つかりません。アーカイブを選択し直してください。",
+      "import_source_expired": "インポート元の有効期限が切れました。アーカイブを選択し直してください。",
       "actionHint": "下記の手動マッチングまたはログの確認をお試しください："
     },
     "diagnostics": {
@@ -95,6 +106,8 @@
     "chatCount": "全 {count} 件のチャット",
     "selected": "{count} 件を選択中",
     "messageCount": "{count} 件のメッセージ",
+    "memberCount": "{count} 人のメンバー",
+    "empty": "空のチャット",
     "import": "インポート ({count})",
     "noChats": "チャットが見つかりません"
   },

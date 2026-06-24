@@ -15,6 +15,7 @@ import { registerNetworkHandlers } from './ipc/network'
 import { registerAnalyticsHandlers } from './analytics'
 import { registerApiHandlers, initApiServer, cleanupApiServer } from './ipc/api'
 import { registerDemoHandlers } from './ipc/demo'
+import { cleanupArchiveImportSources } from './import-source-runtime'
 // 导入 Worker 模块（用于异步分析查询和流式导入）
 import * as worker from './worker/workerManager'
 
@@ -57,6 +58,7 @@ const mainIpcMain = (win: BrowserWindow) => {
 export const cleanup = () => {
   console.log('[IpcMain] Cleaning up resources...')
   try {
+    void cleanupArchiveImportSources()
     worker.closeWorker()
   } catch (error) {
     console.error('[IpcMain] Error during cleanup:', error)
@@ -71,6 +73,7 @@ export const cleanupAsync = async () => {
   try {
     // 关闭 ChatLab API 服务
     await cleanupApiServer()
+    await cleanupArchiveImportSources()
     // 等待 Worker 完全关闭
     await worker.closeWorkerAsync()
     console.log('[IpcMain] Cleanup completed')

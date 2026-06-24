@@ -14,6 +14,7 @@ import * as parser from '../parser'
 import type { IpcContext } from './types'
 import { CURRENT_SCHEMA_VERSION, getPendingMigrationInfos } from '../database/migrations'
 import { t } from '../i18n'
+import { getArchiveImportSourceManager, importPreparedChatWithSource } from '../import-source-runtime'
 
 export function registerChatHandlers(ctx: IpcContext): void {
   const { win } = ctx
@@ -101,6 +102,69 @@ export function registerChatHandlers(ctx: IpcContext): void {
 
   ipcMain.handle('chat:getSupportedFormats', async () => {
     return parser.getSupportedFormats()
+  })
+
+  ipcMain.handle('chat:prepareImportSource', async (_, filePath: string) => {
+    try {
+      const source = await getArchiveImportSourceManager().prepareLocalArchive(filePath)
+      return { success: true, source }
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          error && typeof error === 'object' && 'code' in error
+            ? String(error.code)
+            : error instanceof Error
+              ? error.message
+              : String(error),
+      }
+    }
+  })
+
+  ipcMain.handle('chat:importPreparedChat', async (_, sourceId: string, chatId: string) => {
+    try {
+      const result = await importPreparedChatWithSource(
+        getArchiveImportSourceManager(),
+        sourceId,
+        chatId,
+        (manifestPath) =>
+          worker.streamImport(
+            manifestPath,
+            (progress: ParseProgress) => {
+              win.webContents.send('chat:importProgress', {
+                stage: progress.stage,
+                progress: progress.percentage,
+                message: progress.message,
+                bytesRead: progress.bytesRead,
+                totalBytes: progress.totalBytes,
+                messagesProcessed: progress.messagesProcessed,
+              })
+            },
+            { formatId: 'google-chat-takeout' }
+          )
+      )
+      return {
+        success: result.success,
+        sessionId: result.sessionId,
+        error: result.error,
+        diagnostics: result.diagnostics,
+      }
+    } catch (error) {
+      return {
+        success: false,
+        error:
+          error && typeof error === 'object' && 'code' in error
+            ? String(error.code)
+            : error instanceof Error
+              ? error.message
+              : String(error),
+      }
+    }
+  })
+
+  ipcMain.handle('chat:releaseImportSource', async (_, sourceId: string) => {
+    await getArchiveImportSourceManager().release(sourceId)
+    return { success: true }
   })
 
   // ==================== 导入 ====================

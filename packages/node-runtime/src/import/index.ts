@@ -31,3 +31,17 @@ export type {
   IncrementalImportResult,
   IncrementalImportDeps,
 } from './incremental-importer'
+export { ZipArchiveReader, validateArchiveEntryName } from './archive/archive-reader'
+export { ArchiveImportError } from './archive/errors'
+export { GoogleChatTakeoutResolver } from './archive/google-chat-resolver'
+export { ArchiveImportSourceManager } from './archive/source-manager'
+export type {
+  ArchiveEntrySummary,
+  ArchiveEntryStreamOpener,
+  ArchiveEntryVisitor,
+  ZipArchiveReaderOptions,
+  PreparedImportChat,
+  PreparedImportSource,
+  MaterializedImport,
+  ArchiveResolver,
+} from './archive/types'

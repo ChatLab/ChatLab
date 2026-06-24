@@ -1,39 +1,42 @@
 <script setup lang="ts">
 /**
  * 通用聊天选择器弹窗
- * 用于包含多个聊天的导出文件（如 Telegram 官方导出），
- * 让用户选择要导入的聊天。
- *
- * 自治组件：传入 filePath 后自动扫描聊天列表，
- * 内部管理 loading / error / retry 状态。
+ * 用于包含多个聊天的导入源，让用户选择要导入的聊天。
+ * 扫描和 source 生命周期由父组件管理，本组件只负责展示与选择。
  */
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useImportService } from '@/services'
+import { createDefaultSelectedChatIds, toggleAllChatIds, toggleSelectedChatId } from './chatSelection'
 
 /** 聊天信息通用结构 */
 export interface ChatInfo {
-  /** 在源文件中的索引 */
-  index: number
+  /** 跨扫描与导入保持稳定的聊天标识 */
+  chatId: string
   /** 聊天名称 */
   name: string
   /** 聊天类型（平台特定的原始类型字符串） */
   type: string
-  /** 聊天 ID */
-  id: number
   /** 消息数量 */
   messageCount: number
+  /** 成员数量 */
+  memberCount?: number
+  /** Telegram 等旧多聊天格式使用的源文件索引 */
+  index?: number
+  /** 平台原始聊天 ID */
+  id?: number | string
 }
 
 const props = defineProps<{
   open: boolean
-  /** 要扫描的文件路径 */
-  filePath: string
+  chats: ChatInfo[]
+  loading?: boolean
+  error?: string | null
 }>()
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
   select: [chats: ChatInfo[]]
+  cancel: []
 }>()
 
 const { t } = useI18n()
@@ -41,20 +44,21 @@ const { t } = useI18n()
 // 双向绑定 open
 const isOpen = computed({
   get: () => props.open,
-  set: (value) => emit('update:open', value),
+  set: (value) => {
+    emit('update:open', value)
+    if (!value) emit('cancel')
+  },
 })
 
-// 内部状态
-const chats = ref<ChatInfo[]>([])
-const loading = ref(false)
-const error = ref<string | null>(null)
-const selectedIndexes = ref<Set<number>>(new Set())
+const selectedChatIds = ref<Set<string>>(new Set())
 
 // 已选数量
-const selectedCount = computed(() => selectedIndexes.value.size)
+const selectedCount = computed(() => selectedChatIds.value.size)
 
 // 是否全选
-const isAllSelected = computed(() => chats.value.length > 0 && selectedIndexes.value.size === chats.value.length)
+const isAllSelected = computed(
+  () => props.chats.length > 0 && props.chats.every((chat) => selectedChatIds.value.has(chat.chatId))
+)
 
 // ==================== 图标逻辑 ====================
 
@@ -75,61 +79,29 @@ function formatTypeLabel(type: string): string {
   return type.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())
 }
 
-// ==================== 扫描逻辑 ====================
-
-async function scan() {
-  loading.value = true
-  error.value = null
-  chats.value = []
-  selectedIndexes.value = new Set()
-
-  try {
-    const entries = await useImportService().scanMultiChatFile(props.filePath)
-    if (entries.length > 0) {
-      chats.value = entries
-    } else {
-      error.value = t('home.chatSelector.scanFailed')
-    }
-  } catch (err) {
-    error.value = String(err)
-  } finally {
-    loading.value = false
-  }
-}
-
-// 打开弹窗时自动扫描
 watch(
-  () => props.open,
-  (val) => {
-    if (val && props.filePath) {
-      scan()
+  () => [props.open, props.chats] as const,
+  ([open]) => {
+    if (open) {
+      selectedChatIds.value = createDefaultSelectedChatIds(props.chats)
     }
-  }
+  },
+  { deep: true }
 )
 
 // ==================== 选择逻辑 ====================
 
-function toggleSelect(index: number) {
-  const newSet = new Set(selectedIndexes.value)
-  if (newSet.has(index)) {
-    newSet.delete(index)
-  } else {
-    newSet.add(index)
-  }
-  selectedIndexes.value = newSet
+function toggleSelect(chatId: string) {
+  selectedChatIds.value = toggleSelectedChatId(selectedChatIds.value, chatId)
 }
 
 function toggleSelectAll() {
-  if (isAllSelected.value) {
-    selectedIndexes.value = new Set()
-  } else {
-    selectedIndexes.value = new Set(chats.value.map((c) => c.index))
-  }
+  selectedChatIds.value = toggleAllChatIds(selectedChatIds.value, props.chats)
 }
 
 function confirmSelection() {
-  const selected = chats.value.filter((c) => selectedIndexes.value.has(c.index))
-  isOpen.value = false
+  const selected = props.chats.filter((chat) => selectedChatIds.value.has(chat.chatId))
+  emit('update:open', false)
   emit('select', selected)
 }
 
@@ -143,22 +115,19 @@ function handleClose() {
     <template #body>
       <div class="min-h-[200px]">
         <!-- 加载中 -->
-        <div v-if="loading" class="flex flex-col items-center justify-center py-12">
+        <div v-if="props.loading" class="flex flex-col items-center justify-center py-12">
           <UIcon name="i-heroicons-arrow-path" class="mb-4 h-8 w-8 animate-spin text-pink-500" />
           <p class="text-gray-500 dark:text-gray-400">{{ t('home.chatSelector.scanning') }}</p>
         </div>
 
         <!-- 加载错误 -->
-        <div v-else-if="error" class="flex flex-col items-center justify-center py-12">
+        <div v-else-if="props.error" class="flex flex-col items-center justify-center py-12">
           <UIcon name="i-heroicons-exclamation-circle" class="mb-4 h-8 w-8 text-red-500" />
-          <p class="text-red-600 dark:text-red-400">{{ error }}</p>
-          <UButton class="mt-4" size="sm" variant="soft" @click="scan">
-            {{ t('home.chatSelector.retry') }}
-          </UButton>
+          <p class="text-red-600 dark:text-red-400">{{ props.error }}</p>
         </div>
 
         <!-- 聊天列表 -->
-        <div v-else-if="chats.length > 0">
+        <div v-else-if="props.chats.length > 0">
           <!-- 全选和统计 -->
           <div class="mb-2 flex items-center justify-between">
             <div class="flex items-center gap-2">
@@ -169,7 +138,7 @@ function handleClose() {
                 @update:model-value="toggleSelectAll"
               />
               <span class="text-xs text-gray-400">
-                ({{ t('home.chatSelector.chatCount', { count: chats.length }) }})
+                ({{ t('home.chatSelector.chatCount', { count: props.chats.length }) }})
               </span>
             </div>
             <span v-if="selectedCount > 0" class="text-sm font-medium text-pink-600 dark:text-pink-400">
@@ -180,28 +149,28 @@ function handleClose() {
           <!-- 聊天列表 -->
           <div class="max-h-[420px] space-y-0.5 overflow-y-auto pr-1">
             <div
-              v-for="chat in chats"
-              :key="chat.index"
+              v-for="chat in props.chats"
+              :key="chat.chatId"
               class="flex cursor-pointer items-center gap-2 rounded-lg px-2.5 py-1.5 transition-colors"
               :class="
-                selectedIndexes.has(chat.index)
+                selectedChatIds.has(chat.chatId)
                   ? 'bg-pink-50 dark:bg-pink-500/10'
                   : 'hover:bg-gray-100 dark:hover:bg-gray-800'
               "
-              @click="toggleSelect(chat.index)"
+              @click="toggleSelect(chat.chatId)"
             >
-              <UCheckbox :model-value="selectedIndexes.has(chat.index)" size="sm" @click.stop />
+              <UCheckbox :model-value="selectedChatIds.has(chat.chatId)" size="sm" @click.stop />
               <div
                 class="flex h-7 w-7 shrink-0 items-center justify-center rounded-md"
                 :class="
-                  selectedIndexes.has(chat.index) ? 'bg-pink-100 dark:bg-pink-500/20' : 'bg-gray-100 dark:bg-gray-700'
+                  selectedChatIds.has(chat.chatId) ? 'bg-pink-100 dark:bg-pink-500/20' : 'bg-gray-100 dark:bg-gray-700'
                 "
               >
                 <UIcon
                   :name="getChatTypeIcon(chat.type)"
                   class="h-3.5 w-3.5"
                   :class="
-                    selectedIndexes.has(chat.index)
+                    selectedChatIds.has(chat.chatId)
                       ? 'text-pink-600 dark:text-pink-400'
                       : 'text-gray-500 dark:text-gray-400'
                   "
@@ -209,11 +178,15 @@ function handleClose() {
               </div>
               <div class="min-w-0 flex-1">
                 <p class="truncate text-sm font-medium text-gray-900 dark:text-white">
-                  {{ chat.name || `Chat ${chat.id}` }}
+                  {{ chat.name || chat.chatId }}
                 </p>
                 <p class="text-xs text-gray-500 dark:text-gray-400">
                   {{ formatTypeLabel(chat.type) }} ·
                   {{ t('home.chatSelector.messageCount', { count: chat.messageCount.toLocaleString() }) }}
+                  <template v-if="chat.memberCount !== undefined">
+                    · {{ t('home.chatSelector.memberCount', { count: chat.memberCount.toLocaleString() }) }}
+                  </template>
+                  <template v-if="chat.messageCount === 0">· {{ t('home.chatSelector.empty') }}</template>
                 </p>
               </div>
             </div>

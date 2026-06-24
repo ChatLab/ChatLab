@@ -9,6 +9,7 @@ import type {
   ImportResult,
   FormatInfo,
   MultiChatEntry,
+  PreparedImportSourceResult,
   DemoProgress,
   DemoImportResult,
   IncrementalAnalysis,
@@ -79,6 +80,38 @@ export class ElectronImportAdapter implements ImportAdapter {
     const result = await window.chatApi.scanMultiChatFile(filePath)
     if (!result.success || !result.chats) return []
     return result.chats
+  }
+
+  async prepareImportSource(file: File | string): Promise<PreparedImportSourceResult> {
+    const filePath = resolveFilePath(file)
+    if (!filePath) return { success: false, error: 'Cannot get file path in Electron' }
+    return window.chatApi.prepareImportSource(filePath)
+  }
+
+  async importPreparedChat(
+    sourceId: string,
+    chatId: string,
+    onProgress?: (p: ImportProgress) => void
+  ): Promise<ImportResult> {
+    const unlisten = window.chatApi.onImportProgress((progress: any) => {
+      onProgress?.({
+        stage: progress.stage || 'parsing',
+        progress: progress.percentage || progress.progress || 0,
+        message: progress.message || '',
+        bytesRead: progress.bytesRead,
+        totalBytes: progress.totalBytes,
+        messagesProcessed: progress.messagesProcessed,
+      })
+    })
+    try {
+      return await window.chatApi.importPreparedChat(sourceId, chatId)
+    } finally {
+      unlisten()
+    }
+  }
+
+  async releaseImportSource(sourceId: string): Promise<void> {
+    await window.chatApi.releaseImportSource(sourceId)
   }
 
   getSupportedFormats(): Promise<FormatInfo[]> {

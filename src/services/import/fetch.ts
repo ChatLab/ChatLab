@@ -11,6 +11,7 @@ import type {
   ImportResult,
   FormatInfo,
   MultiChatEntry,
+  PreparedImportSourceResult,
   DemoProgress,
   DemoImportResult,
   IncrementalAnalysis,
@@ -96,6 +97,44 @@ export class FetchImportAdapter implements ImportAdapter {
     if (!res.ok) return []
     const data = (await res.json()) as { chats: MultiChatEntry[] }
     return data.chats
+  }
+
+  async prepareImportSource(file: File | string): Promise<PreparedImportSourceResult> {
+    if (typeof file === 'string') {
+      return { success: false, error: 'File path import is not supported in Web mode' }
+    }
+
+    const form = new FormData()
+    form.append('file', file)
+    const res = await fetchWithAuth(`${getBaseUrl()}/import-sources`, { method: 'POST', body: form })
+    const data = (await res.json().catch(() => null)) as PreparedImportSourceResult | null
+    if (!res.ok) {
+      return { success: false, error: data?.error || `HTTP ${res.status}` }
+    }
+    return data ?? { success: false, error: 'Invalid import source response' }
+  }
+
+  async importPreparedChat(
+    sourceId: string,
+    chatId: string,
+    onProgress?: (p: ImportProgress) => void
+  ): Promise<ImportResult> {
+    const res = await fetchWithAuth(`${getBaseUrl()}/import-sources/${encodeURIComponent(sourceId)}/import`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ chatId }),
+    })
+    if (!res.ok) {
+      const text = await res.text()
+      return { success: false, error: `HTTP ${res.status}: ${text}` }
+    }
+    return consumeSseStream<ImportResult>(res, { success: false, error: 'Unknown error' }, onProgress)
+  }
+
+  async releaseImportSource(sourceId: string): Promise<void> {
+    await fetchWithAuth(`${getBaseUrl()}/import-sources/${encodeURIComponent(sourceId)}`, {
+      method: 'DELETE',
+    })
   }
 
   getSupportedFormats(): Promise<FormatInfo[]> {

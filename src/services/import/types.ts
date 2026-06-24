@@ -57,6 +57,28 @@ export interface MultiChatEntry {
   messageCount: number
 }
 
+export interface PreparedImportChat {
+  chatId: string
+  name: string
+  type: 'private' | 'group'
+  messageCount: number
+  memberCount: number
+}
+
+export interface PreparedImportSource {
+  sourceId: string
+  formatId: string
+  platform: string
+  chats: PreparedImportChat[]
+  expiresAt: number
+}
+
+export interface PreparedImportSourceResult {
+  success: boolean
+  source?: PreparedImportSource
+  error?: string
+}
+
 // ==================== Demo 导入 ====================
 
 export interface DemoProgress {
@@ -102,6 +124,15 @@ export interface ImportAdapter {
 
   /** 扫描包含多个聊天的文件 */
   scanMultiChatFile(file: File | string): Promise<MultiChatEntry[]>
+
+  /** 注册 ZIP 导入源。Web 上传一次，Electron 记录本地路径。 */
+  prepareImportSource(file: File | string): Promise<PreparedImportSourceResult>
+
+  /** 从已注册导入源中导入一个聊天。 */
+  importPreparedChat(sourceId: string, chatId: string, onProgress?: (p: ImportProgress) => void): Promise<ImportResult>
+
+  /** 释放导入源及其临时文件；重复调用应保持幂等。 */
+  releaseImportSource(sourceId: string): Promise<void>
 
   /** 获取支持的导入格式列表 */
   getSupportedFormats(): Promise<FormatInfo[]>

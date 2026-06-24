@@ -15,6 +15,11 @@ export {
   streamParseFileInfo,
   analyzeIncrementalImport,
   incrementalImport,
+  ZipArchiveReader,
+  validateArchiveEntryName,
+  ArchiveImportError,
+  GoogleChatTakeoutResolver,
+  ArchiveImportSourceManager,
 } from './import'
 export type {
   ImportMeta,
@@ -32,6 +37,14 @@ export type {
   IncrementalAnalyzeResult,
   IncrementalImportResult,
   IncrementalImportDeps,
+  ArchiveEntrySummary,
+  ArchiveEntryStreamOpener,
+  ArchiveEntryVisitor,
+  ZipArchiveReaderOptions,
+  PreparedImportChat,
+  PreparedImportSource,
+  MaterializedImport,
+  ArchiveResolver,
 } from './import'
 export {
   LogLevel,

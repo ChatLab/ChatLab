@@ -34,6 +34,17 @@
       "import_failed": "Import failed",
       "unrecognized_format": "Unrecognized file format",
       "no_messages": "No messages parsed. Please check if the file format is correct.",
+      "no_chat_selected": "No chat selected",
+      "archive_single_file_required": "Import archive files one at a time",
+      "archive_unsupported": "This archive format is not supported",
+      "archive_encrypted": "Encrypted archives are not supported",
+      "archive_corrupt": "The archive is corrupt or incomplete",
+      "archive_unsafe_path": "The archive contains an unsafe file path",
+      "archive_limit_exceeded": "The archive exceeds the safe processing limit",
+      "google_chat_structure_not_found": "No Google Chat export data was found",
+      "google_chat_conversation_incomplete": "A Google Chat conversation is missing required files",
+      "import_source_not_found": "The import source no longer exists. Select the archive again.",
+      "import_source_expired": "The import source expired. Select the archive again.",
       "actionHint": "You can try manual format matching or view the log below:"
     },
     "diagnostics": {
@@ -95,6 +106,8 @@
     "chatCount": "{count} chats",
     "selected": "{count} selected",
     "messageCount": "{count} messages",
+    "memberCount": "{count} members",
+    "empty": "Empty chat",
     "import": "Import ({count})",
     "noChats": "No chats found"
   },

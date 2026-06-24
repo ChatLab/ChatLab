@@ -50,6 +50,13 @@ export const chatApi = {
     error?: string
   }> => ipcRenderer.invoke('chat:scanMultiChatFile', filePath),
 
+  prepareImportSource: (filePath: string) => ipcRenderer.invoke('chat:prepareImportSource', filePath),
+
+  importPreparedChat: (sourceId: string, chatId: string) =>
+    ipcRenderer.invoke('chat:importPreparedChat', sourceId, chatId),
+
+  releaseImportSource: (sourceId: string) => ipcRenderer.invoke('chat:releaseImportSource', sourceId),
+
   getSupportedFormats: (): Promise<Array<{ id: string; name: string; platform: string; extensions: string[] }>> =>
     ipcRenderer.invoke('chat:getSupportedFormats'),
 

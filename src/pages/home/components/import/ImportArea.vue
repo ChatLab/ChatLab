@@ -3,12 +3,19 @@ import { FileDropZone } from '@/components/UI'
 import FileListItem from './FileListItem.vue'
 import ChatSelector, { type ChatInfo } from './ChatSelector.vue'
 import FormatSelectorModal from './FormatSelectorModal.vue'
+import { runPreparedImportBatch } from './preparedImportFlow'
 import { storeToRefs } from 'pinia'
 import { ref, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useSessionStore, type BatchFileInfo, type MergeFileInfo } from '@/stores/session'
-import { useDataService, useImportService, useSessionIndexService, usePlatformService } from '@/services'
+import {
+  useDataService,
+  useImportService,
+  useSessionIndexService,
+  usePlatformService,
+  type PreparedImportSource,
+} from '@/services'
 import { IS_ELECTRON } from '@/utils/platform'
 import { useCacheService } from '@/services/cache/service'
 import { getSessionGapThreshold } from '@/composables/useUiConfig'
@@ -20,6 +27,7 @@ const {
   importProgress,
   isBatchImporting,
   batchFiles,
+  batchImportCancelled,
   batchImportResult,
   // 合并导入
   isMergeImporting,
@@ -32,6 +40,10 @@ const {
 // 聊天选择器状态（多聊天格式通用）
 const showChatSelector = ref(false)
 const chatSelectorFilePath = ref('')
+const chatSelectorChats = ref<ChatInfo[]>([])
+const chatSelectorLoading = ref(false)
+const chatSelectorError = ref<string | null>(null)
+const preparedImportSource = ref<PreparedImportSource | null>(null)
 
 // 格式选择器状态（自动检测失败时的手动兜底）
 const showFormatSelector = ref(false)
@@ -115,6 +127,66 @@ async function checkImportLog() {
 
 const dropZoneRef = ref<InstanceType<typeof FileDropZone> | null>(null)
 
+function isArchiveFile(file: File | string): boolean {
+  const name = typeof file === 'string' ? file : file.name
+  return name.toLowerCase().endsWith('.zip')
+}
+
+function mapLegacyChat(chat: {
+  index: number
+  name: string
+  type: string
+  id: number
+  messageCount: number
+}): ChatInfo {
+  return {
+    chatId: `legacy:${chat.index}`,
+    index: chat.index,
+    id: chat.id,
+    name: chat.name,
+    type: chat.type,
+    messageCount: chat.messageCount,
+  }
+}
+
+async function prepareArchiveImport(file: File | string) {
+  chatSelectorChats.value = []
+  chatSelectorError.value = null
+  chatSelectorLoading.value = true
+  showChatSelector.value = true
+
+  try {
+    const result = await useImportService().prepareImportSource(file)
+    if (!result.success || !result.source) {
+      chatSelectorError.value = translateError(result.error || 'error.archive_unsupported')
+      return
+    }
+    preparedImportSource.value = result.source
+    chatSelectorChats.value = result.source.chats.map((chat) => ({
+      chatId: chat.chatId,
+      name: chat.name,
+      type: chat.type,
+      messageCount: chat.messageCount,
+      memberCount: chat.memberCount,
+    }))
+  } catch (error) {
+    chatSelectorError.value = translateError(error instanceof Error ? error.message : String(error))
+  } finally {
+    chatSelectorLoading.value = false
+  }
+}
+
+async function handleChatSelectorCancel() {
+  const source = preparedImportSource.value
+  preparedImportSource.value = null
+  pendingWebFile.value = null
+  chatSelectorFilePath.value = ''
+  chatSelectorChats.value = []
+  if (source) {
+    await useImportService().releaseImportSource(source.sourceId)
+  }
+}
+
 // 文件夹导入模式
 const folderImportEnabled = ref(false)
 
@@ -134,7 +206,7 @@ async function handleClickImport() {
       title: t('home.import.selectFiles'),
       properties: ['openFile', 'multiSelections'],
       filters: [
-        { name: t('home.import.chatRecords'), extensions: ['json', 'jsonl', 'txt'] },
+        { name: t('home.import.chatRecords'), extensions: ['json', 'jsonl', 'txt', 'zip'] },
         { name: t('home.import.allFiles'), extensions: ['*'] },
       ],
     })
@@ -166,19 +238,18 @@ async function processWebFiles(files: File[]) {
 
   if (files.length === 1) {
     const file = files[0]
+    if (isArchiveFile(file)) {
+      await prepareArchiveImport(file)
+      return
+    }
 
     const format = await importService.detectFormat(file)
     if (format?.multiChat) {
       pendingWebFile.value = file
       const chats = await importService.scanMultiChatFile(file)
       if (chats.length > 0) {
-        webMultiChats.value = chats.map((c) => ({
-          index: c.index,
-          name: c.name,
-          type: c.type,
-          id: c.id,
-          messageCount: c.messageCount,
-        }))
+        chatSelectorChats.value = chats.map(mapLegacyChat)
+        chatSelectorError.value = null
         showChatSelector.value = true
         return
       }
@@ -191,6 +262,10 @@ async function processWebFiles(files: File[]) {
 
     await importSingleWebFile(file)
   } else {
+    if (files.some(isArchiveFile)) {
+      importError.value = translateError('error.archive_single_file_required')
+      return
+    }
     for (const file of files) {
       await importSingleWebFile(file)
     }
@@ -198,7 +273,6 @@ async function processWebFiles(files: File[]) {
 }
 
 const pendingWebFile = ref<File | null>(null)
-const webMultiChats = ref<ChatInfo[]>([])
 
 async function importSingleWebFile(file: File, options?: { formatId?: string; chatIndex?: number }) {
   isImporting.value = true
@@ -301,14 +375,28 @@ async function importDirectory(source: File[] | string) {
 
 // 统一处理文件路径（单文件或多文件）- Electron only
 async function processFilePaths(paths: string[]) {
+  if (paths.some(isArchiveFile)) {
+    if (paths.length !== 1) {
+      importError.value = translateError('error.archive_single_file_required')
+      return
+    }
+    await prepareArchiveImport(paths[0])
+    return
+  }
+
   // 单文件 或 未启用合并导入 - 使用原有逻辑
   if (paths.length === 1 || !mergeImportEnabled.value) {
     if (paths.length === 1) {
       const format = await useImportService().detectFormat(paths[0])
       if (format?.multiChat) {
         chatSelectorFilePath.value = paths[0]
-        showChatSelector.value = true
-        return
+        const chats = await useImportService().scanMultiChatFile(paths[0])
+        if (chats.length > 0) {
+          chatSelectorChats.value = chats.map(mapLegacyChat)
+          chatSelectorError.value = null
+          showChatSelector.value = true
+          return
+        }
       }
 
       // 单文件导入
@@ -399,17 +487,108 @@ async function handleFormatSelect(formatId: string) {
 async function handleChatSelect(selectedChats: ChatInfo[]) {
   if (selectedChats.length === 0) return
 
+  if (preparedImportSource.value) {
+    const source = preparedImportSource.value
+    preparedImportSource.value = null
+    chatSelectorChats.value = []
+
+    if (selectedChats.length === 1) {
+      isImporting.value = true
+      importProgress.value = { stage: 'detecting', progress: 0, message: '' }
+      try {
+        const result = await useImportService().importPreparedChat(
+          source.sourceId,
+          selectedChats[0].chatId,
+          (progress) => {
+            if (progress.stage !== 'done') importProgress.value = progress
+          }
+        )
+        if (result.success && result.sessionId) {
+          await sessionStore.loadSessions()
+          sessionStore.selectSession(result.sessionId)
+          await autoGenerateSessionIndex(result.sessionId)
+          await navigateToSession(result.sessionId)
+        } else {
+          importError.value = translateError(result.error || 'error.import_failed')
+        }
+      } catch (error) {
+        importError.value = translateError(error instanceof Error ? error.message : String(error))
+      } finally {
+        try {
+          await useImportService().releaseImportSource(source.sourceId)
+        } catch (error) {
+          console.error('释放导入源失败:', error)
+        } finally {
+          isImporting.value = false
+          importProgress.value = null
+        }
+      }
+      return
+    }
+
+    batchImportCancelled.value = false
+    isBatchImporting.value = true
+    batchFiles.value = selectedChats.map((chat) => ({
+      path: `archive:${source.sourceId}#${chat.chatId}`,
+      name: chat.name,
+      status: 'pending' as const,
+    }))
+
+    const batchResult = await runPreparedImportBatch({
+      sourceId: source.sourceId,
+      chats: selectedChats,
+      isCancelled: () => batchImportCancelled.value,
+      releaseSource: (sourceId) => useImportService().releaseImportSource(sourceId),
+      onItemStart: (_chat, index) => {
+        batchFiles.value[index].status = 'importing'
+      },
+      importChat: async (sourceId, chatId) => {
+        const index = selectedChats.findIndex((chat) => chat.chatId === chatId)
+        const result = await useImportService().importPreparedChat(sourceId, chatId, (progress) => {
+          if (progress.stage !== 'done' && index >= 0) batchFiles.value[index].progress = progress
+        })
+        if (result.success && result.sessionId) {
+          await autoGenerateSessionIndex(result.sessionId)
+        }
+        return result
+      },
+      onItemComplete: (_chat, index, result) => {
+        const file = batchFiles.value[index]
+        file.status = result.success ? 'success' : 'failed'
+        file.sessionId = result.sessionId
+        file.error = result.error
+      },
+    })
+
+    for (let index = 0; index < batchResult.items.length; index++) {
+      const item = batchResult.items[index]
+      const file = batchFiles.value[index]
+      if (item.status === 'cancelled') file.status = 'cancelled'
+    }
+
+    await sessionStore.loadSessions()
+    isBatchImporting.value = false
+    batchImportResult.value = {
+      total: batchResult.total,
+      success: batchResult.success,
+      failed: batchResult.failed,
+      cancelled: batchResult.cancelled,
+      files: batchFiles.value.map((file) => ({ ...file })),
+    }
+    return
+  }
+
   // Web 模式：使用 pendingWebFile + adapter
   if (!IS_ELECTRON && pendingWebFile.value) {
     const file = pendingWebFile.value
     pendingWebFile.value = null
-    webMultiChats.value = []
+    chatSelectorChats.value = []
 
     if (selectedChats.length === 1) {
-      await importSingleWebFile(file, { chatIndex: selectedChats[0].index })
+      await importSingleWebFile(file, { chatIndex: selectedChats[0].index! })
     } else {
       for (const chat of selectedChats) {
-        await importSingleWebFile(file, { chatIndex: chat.index })
+        await importSingleWebFile(file, { chatIndex: chat.index! })
       }
     }
     return
@@ -424,7 +603,7 @@ async function handleChatSelect(selectedChats: ChatInfo[]) {
     try {
       const result = await useImportService().importFile(
         filePath,
-        { chatIndex: selectedChats[0].index },
+        { chatIndex: selectedChats[0].index! },
         (progress) => {
           if (progress.stage === 'done') return
           importProgress.value = progress
@@ -456,7 +635,7 @@ async function handleChatSelect(selectedChats: ChatInfo[]) {
     isBatchImporting.value = true
     batchFiles.value = selectedChats.map((chat) => ({
       path: `${filePath}#${chat.index}`,
-      name: chat.name || `Chat ${chat.id}`,
+      name: chat.name || chat.chatId,
       status: 'pending' as const,
     }))
 
@@ -468,7 +647,7 @@ async function handleChatSelect(selectedChats: ChatInfo[]) {
       batchFiles.value[i].status = 'importing'
 
       try {
-        const result = await useImportService().importFile(filePath, { chatIndex: chat.index }, (progress) => {
+        const result = await useImportService().importFile(filePath, { chatIndex: chat.index! }, (progress) => {
           if (progress.stage === 'done') return
           batchFiles.value[i].progress = progress
         })
@@ -826,7 +1005,7 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
     <FileDropZone
       v-else
       ref="dropZoneRef"
-      :accept="['.json', '.jsonl', '.txt']"
+      :accept="['.json', '.jsonl', '.txt', '.zip']"
       :disabled="isAnyImporting"
       :multiple="true"
       class="w-full max-w-md"
@@ -961,7 +1140,14 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
     </div>
 
     <!-- 聊天选择器（多聊天格式通用） -->
-    <ChatSelector v-model:open="showChatSelector" :file-path="chatSelectorFilePath" @select="handleChatSelect" />
+    <ChatSelector
+      v-model:open="showChatSelector"
+      :chats="chatSelectorChats"
+      :loading="chatSelectorLoading"
+      :error="chatSelectorError"
+      @select="handleChatSelect"
+      @cancel="handleChatSelectorCancel"
+    />
 
     <!-- 格式选择器（自动检测失败时的手动兜底） -->
     <FormatSelectorModal
