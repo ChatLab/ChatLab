@@ -18,6 +18,8 @@
     "onnxruntime-node": "1.24.3",
     "sharp": "0.34.5",
     "sqlite-vec": "^0.1.9",
+    "stream-chain": "^2.2.5",
+    "stream-json": "^1.9.1",
     "yauzl": "^3.4.0"
   },
   "optionalDependencies": {

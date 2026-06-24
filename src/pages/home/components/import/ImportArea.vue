@@ -395,8 +395,10 @@ async function processFilePaths(paths: string[]) {
           chatSelectorChats.value = chats.map(mapLegacyChat)
           chatSelectorError.value = null
           showChatSelector.value = true
-          return
+        } else {
+          importError.value = t('home.chatSelector.scanFailed')
         }
+        return
       }
 
       // 单文件导入
