@@ -29,6 +29,7 @@ import {
 import type { ChunkSource } from './chunker'
 import {
   isKeylessSemanticIndexApiBaseUrl,
+  isSemanticIndexConfigured,
   SemanticIndexConfigStore,
   type SemanticIndexConfig,
   type SemanticIndexConfigInput,
@@ -197,7 +198,7 @@ export const SEMANTIC_INDEX_CONFIG_FILE = 'semantic-index-config.json'
  * 按 PathProvider 约定路径创建 service：
  * - 向量库：{vectorDir}/embedding_index.db
  * - 配置：{aiDataDir}/semantic-index-config.json
- * - 本地模型缓存：{cacheDir}/models/semantic-index
+ * - 本地模型：{aiDataDir}/models/semantic-index（不在 cache 目录，不随清理缓存丢失）
  */
 export function createSemanticIndexService(params: {
   pathProvider: PathProvider
@@ -210,7 +211,7 @@ export function createSemanticIndexService(params: {
   return new SemanticIndexService({
     vectorDbPath: path.join(pathProvider.getVectorDir(), SEMANTIC_INDEX_DB_FILE),
     configPath: path.join(pathProvider.getAiDataDir(), SEMANTIC_INDEX_CONFIG_FILE),
-    modelsCacheDir: path.join(pathProvider.getCacheDir(), 'models', 'semantic-index'),
+    modelsCacheDir: path.join(pathProvider.getAiDataDir(), 'models', 'semantic-index'),
     sessionAdapter: params.sessionAdapter,
     nativeBinding: params.nativeBinding,
     loadSqliteVec: params.loadSqliteVec,
@@ -228,6 +229,7 @@ export class SemanticIndexService {
 
   private embedder: EmbeddingProvider | null = null
   private embedderModelId: string | null = null
+  private modelPreloadStatus: 'idle' | 'downloading' | 'ready' | 'error' = 'idle'
 
   /** 当前激活的 chunker 身份（version + 参数 hash），随索引记录用于重建判定 */
   private readonly chunkerVersion = CHUNKER_VERSION
@@ -277,6 +279,10 @@ export class SemanticIndexService {
    * 保存配置；模型身份变化会使已启用对话的索引在重建完成前不被检索使用。
    * 传入 apiKey 时写入固定 auth profile，config 内只保存引用，绝不持久化明文。
    */
+  getModelStatus(): 'idle' | 'downloading' | 'ready' | 'error' {
+    return this.modelPreloadStatus
+  }
+
   setConfig(config: SemanticIndexConfigInput, options?: { apiKey?: string }): SemanticIndexConfig {
     const saved = persistSemanticIndexConfig(this.configStore, config, {
       apiKey: options?.apiKey,
@@ -284,9 +290,22 @@ export class SemanticIndexService {
     })
     this.embedder = null
     this.embedderModelId = null
+    this.modelPreloadStatus = 'idle'
     // 关闭全局开关时停止所有在跑/排队的建索引任务（保留已建立的部分数据）
     if (!saved.enabled) {
       for (const state of this.stateStore.listEnabled()) this.queue.pause(state.dbPathHash)
+    }
+    // 本地模式已配置时，立即在后台触发模型下载，让用户在建索引前完成等待
+    if (isSemanticIndexConfigured(saved) && saved.mode === 'local') {
+      this.modelPreloadStatus = 'downloading'
+      void this.getEmbedder()
+        .preload?.()
+        .then(() => {
+          this.modelPreloadStatus = 'ready'
+        })
+        .catch(() => {
+          this.modelPreloadStatus = 'error'
+        })
     }
     return saved
   }

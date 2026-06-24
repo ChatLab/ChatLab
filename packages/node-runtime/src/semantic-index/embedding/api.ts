@@ -89,4 +89,8 @@ export class OpenAICompatibleEmbeddingProvider implements EmbeddingProvider {
     const [vector] = await this.embedDocuments([text])
     return vector
   }
+
+  async preload(): Promise<void> {
+    // API mode: no local model to download
+  }
 }

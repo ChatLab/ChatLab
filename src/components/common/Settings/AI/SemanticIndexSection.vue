@@ -13,7 +13,7 @@ import SemanticIndexModelModal from './SemanticIndexModelModal.vue'
 import { LOCAL_MODELS, type ModelConfigDraft } from './semantic-index-models'
 import { buildSemanticIndexModelConfig, isSemanticIndexApiKeyRequired } from './semantic-index-config-builder'
 import { useDataService, useSemanticIndexService } from '@/services'
-import type { SemanticIndexConfig, SemanticIndexSessionStatus } from '@/services'
+import type { ModelDownloadStatus, SemanticIndexConfig, SemanticIndexSessionStatus } from '@/services'
 
 const { t } = useI18n()
 const service = useSemanticIndexService()
@@ -25,7 +25,30 @@ const configured = ref(false)
 const enabled = ref(true)
 const saving = ref(false)
 const savedConfig = ref<SemanticIndexConfig | null>(null)
+const modelStatus = ref<ModelDownloadStatus>('idle')
 const showModelModal = ref(false)
+
+let modelPollTimer: ReturnType<typeof setInterval> | null = null
+
+function startModelStatusPoll() {
+  if (modelPollTimer) return
+  modelPollTimer = setInterval(async () => {
+    try {
+      const res = await service.getConfig()
+      modelStatus.value = res.modelStatus
+      if (res.modelStatus !== 'downloading') stopModelStatusPoll()
+    } catch {
+      stopModelStatusPoll()
+    }
+  }, 2000)
+}
+
+function stopModelStatusPoll() {
+  if (modelPollTimer) {
+    clearInterval(modelPollTimer)
+    modelPollTimer = null
+  }
+}
 
 const isApiMode = computed(() => configured.value && savedConfig.value?.mode === 'api')
 
@@ -111,6 +134,8 @@ async function persistConfig(next: SemanticIndexConfig, apiKey?: string): Promis
     apiKeySet.value = res.apiKeySet
     configured.value = res.configured
     enabled.value = res.config.enabled
+    modelStatus.value = res.modelStatus
+    if (res.modelStatus === 'downloading') startModelStatusPoll()
     await loadStatuses()
     return true
   } catch (error) {
@@ -233,6 +258,8 @@ onMounted(async () => {
     apiKeySet.value = res.apiKeySet
     configured.value = res.configured
     enabled.value = res.config.enabled
+    modelStatus.value = res.modelStatus
+    if (res.modelStatus === 'downloading') startModelStatusPoll()
   } catch (error) {
     console.error('[semantic-index] load config failed:', error)
   }
@@ -253,6 +280,7 @@ onMounted(async () => {
 onUnmounted(() => {
   observer?.disconnect()
   clearPoll()
+  stopModelStatusPoll()
 })
 </script>
 
@@ -302,6 +330,16 @@ onUnmounted(() => {
           </UButton>
         </div>
         <p v-if="!hasModelConfig" class="text-xs text-amber-500">{{ t('settings.ai.semanticIndex.configFirst') }}</p>
+        <p
+          v-if="modelStatus === 'downloading'"
+          class="flex items-center gap-1.5 text-xs text-blue-500 dark:text-blue-400"
+        >
+          <UIcon name="i-heroicons-arrow-down-tray" class="h-3.5 w-3.5 animate-pulse shrink-0" />
+          {{ t('settings.ai.semanticIndex.modelDownloading') }}
+        </p>
+        <p v-else-if="modelStatus === 'error'" class="text-xs text-red-500">
+          {{ t('settings.ai.semanticIndex.modelError') }}
+        </p>
       </div>
 
       <!-- 向量模型配置弹窗 -->

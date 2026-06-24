@@ -30,7 +30,10 @@ export function registerSemanticIndexRoutes(server: FastifyInstance, ctx: HttpRo
         apiKeySet: resolveSemanticIndexApiKeySet(config, ctx.resolveApiKey),
         configured: isSemanticIndexConfigured(config),
       })
-      server.get('/_web/ai/semantic-index/config', async () => configResponse(configStore.get()))
+      server.get('/_web/ai/semantic-index/config', async () => ({
+        ...configResponse(configStore.get()),
+        modelStatus: 'idle' as const,
+      }))
       // 向量库不可用时仍允许写配置与 API Key（key 落 auth-profiles，不依赖向量库），
       // 否则 API 模式在降级期无法保存 key，恢复后会出现"已配置但无法检索"。
       server.put<{ Body: { config: SemanticIndexConfig; apiKey?: string } }>(
@@ -40,7 +43,7 @@ export function registerSemanticIndexRoutes(server: FastifyInstance, ctx: HttpRo
             apiKey: request.body.apiKey,
             writeAuthProfile: ctx.writeAuthProfile,
           })
-          return configResponse(config)
+          return { ...configResponse(config), modelStatus: 'idle' as const }
         }
       )
     }
@@ -55,6 +58,7 @@ export function registerSemanticIndexRoutes(server: FastifyInstance, ctx: HttpRo
       config: await service.getConfig(),
       apiKeySet: await service.hasApiKey(),
       configured: await service.isConfigured(),
+      modelStatus: await service.getModelStatus(),
     }
   })
 
@@ -62,7 +66,12 @@ export function registerSemanticIndexRoutes(server: FastifyInstance, ctx: HttpRo
     '/_web/ai/semantic-index/config',
     async (request) => {
       const config = await service.setConfig(request.body.config, { apiKey: request.body.apiKey })
-      return { config, apiKeySet: await service.hasApiKey(), configured: await service.isConfigured() }
+      return {
+        config,
+        apiKeySet: await service.hasApiKey(),
+        configured: await service.isConfigured(),
+        modelStatus: await service.getModelStatus(),
+      }
     }
   )
 

@@ -21,4 +21,6 @@ export interface EmbeddingProvider {
   embedDocuments(texts: string[]): Promise<Float32Array[]>
   /** query 向量化（本地模型会加 queryInstruction） */
   embedQuery(text: string): Promise<Float32Array>
+  /** 预热：触发模型下载/加载而不做实际 embedding。API provider 为 no-op。 */
+  preload?(): Promise<void>
 }

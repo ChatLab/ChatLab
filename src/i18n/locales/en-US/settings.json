@@ -263,6 +263,8 @@
       "apiKeyHint": "API keys are stored separately and securely; the config keeps only a reference.",
       "apiCostWarning": "API mode may incur provider costs. Please confirm model pricing.",
       "changeRebuildHint": "After changing the model or API, enabled conversations need to be rebuilt.",
+      "modelError": "Model download failed. It will be retried when building the index.",
+      "modelDownloading": "Downloading model, this may take a few minutes on first use…",
       "searchMaxResults": {
         "label": "Excerpts per search",
         "hint": "Default number of relevant excerpts returned when the AI runs a semantic search (5-15). The AI may raise it as needed."

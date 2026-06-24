@@ -263,6 +263,8 @@
       "apiKeyHint": "API Key 單獨安全儲存，設定檔只保存引用。",
       "apiCostWarning": "API 模式可能產生服務商費用，請確認模型價格。",
       "changeRebuildHint": "更換模型或 API 後，已啟用對話需要重建索引。",
+      "modelError": "模型下載失敗，建立索引時將重試。",
+      "modelDownloading": "正在下載模型，首次使用需要幾分鐘，請稍候…",
       "searchMaxResults": {
         "label": "單次檢索片段數",
         "hint": "AI 呼叫語意檢索時預設回傳的相關片段數（5-15）。AI 可依問題需要臨時調高。"

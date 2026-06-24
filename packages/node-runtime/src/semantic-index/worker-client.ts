@@ -101,6 +101,11 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
     return resolveSemanticIndexApiKeySet(this.configStore.get(), this.resolveApiKey)
   }
 
+  async getModelStatus(): Promise<'idle' | 'downloading' | 'ready' | 'error'> {
+    if (!this.transport) return 'idle'
+    return this.call<'idle' | 'downloading' | 'ready' | 'error'>('getModelStatus', [])
+  }
+
   enable(sessionId: string): Promise<void> {
     return this.call('enable', [sessionId])
   }

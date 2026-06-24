@@ -16,7 +16,7 @@ import type { EmbeddingProvider } from './embedding/types'
 import type { SemanticIndexConfig } from './config'
 
 export interface EmbedderFactoryDeps {
-  /** 本地模型缓存目录，例如 ~/.chatlab/cache/models/semantic-index */
+  /** 本地模型目录，例如 ~/.chatlab/ai/models/semantic-index */
   modelsCacheDir?: string
   /** auth-profiles 解析，默认走 @openchatlab/config */
   resolveApiKey?: (provider: string, authProfile?: string) => string

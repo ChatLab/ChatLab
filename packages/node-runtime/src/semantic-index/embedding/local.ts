@@ -101,4 +101,8 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
     const [vector] = await this.embedDocuments([withInstruction])
     return vector
   }
+
+  async preload(): Promise<void> {
+    await this.getExtractor()
+  }
 }
