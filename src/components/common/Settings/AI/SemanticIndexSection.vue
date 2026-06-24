@@ -195,7 +195,7 @@ async function loadStatuses() {
   schedulePoll()
 }
 
-async function runSession(action: 'build' | 'pause' | 'cancel' | 'rebuild' | 'disable', sessionId: string) {
+async function runSession(action: 'build' | 'pause' | 'cancel' | 'rebuild' | 'remove', sessionId: string) {
   busySession.value = sessionId
   try {
     await service[action](sessionId)
@@ -411,90 +411,92 @@ onUnmounted(() => {
         <!-- 已启用对话列表 -->
         <div v-if="enabledStatuses.length > 0" class="space-y-2">
           <span class="text-xs font-medium text-gray-500">{{ t('settings.ai.semanticIndex.enabledSessions') }}</span>
-          <div
-            v-for="s in enabledStatuses"
-            :key="s.sessionId"
-            class="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-700"
-          >
-            <div class="min-w-0">
-              <div class="truncate text-sm text-gray-800 dark:text-gray-200">
-                {{ sessionNames.get(s.sessionId) || s.sessionId }}
-              </div>
-              <div class="flex items-center gap-2 text-xs">
-                <span :class="statusBadge(s).color">{{ statusBadge(s).label }}</span>
-                <span v-if="s.error" class="truncate text-red-500" :title="s.error">{{ s.error }}</span>
-              </div>
-              <div v-if="isRunning(s)" class="mt-1 flex items-center gap-2">
-                <div class="h-1.5 max-w-[160px] flex-1 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                  <div
-                    class="h-full rounded-full bg-blue-500 transition-all duration-500"
-                    :style="{
-                      width: `${s.totalMessages > 0 ? Math.round((s.indexedMessages / s.totalMessages) * 100) : 0}%`,
-                    }"
-                  />
+          <div class="max-h-72 space-y-2 overflow-y-auto">
+            <div
+              v-for="s in enabledStatuses"
+              :key="s.sessionId"
+              class="flex items-center justify-between rounded-lg border border-gray-200 px-3 py-2 dark:border-gray-700"
+            >
+              <div class="min-w-0">
+                <div class="truncate text-sm text-gray-800 dark:text-gray-200">
+                  {{ sessionNames.get(s.sessionId) || s.sessionId }}
                 </div>
-                <span class="shrink-0 text-[11px] text-gray-400">{{ s.indexedMessages }}/{{ s.totalMessages }}</span>
+                <div class="flex items-center gap-2 text-xs">
+                  <span :class="statusBadge(s).color">{{ statusBadge(s).label }}</span>
+                  <span v-if="s.error" class="truncate text-red-500" :title="s.error">{{ s.error }}</span>
+                </div>
+                <div v-if="isRunning(s)" class="mt-1 flex items-center gap-2">
+                  <div class="h-1.5 max-w-[160px] flex-1 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
+                    <div
+                      class="h-full rounded-full bg-blue-500 transition-all duration-500"
+                      :style="{
+                        width: `${s.totalMessages > 0 ? Math.round((s.indexedMessages / s.totalMessages) * 100) : 0}%`,
+                      }"
+                    />
+                  </div>
+                  <span class="shrink-0 text-[11px] text-gray-400">{{ s.indexedMessages }}/{{ s.totalMessages }}</span>
+                </div>
               </div>
-            </div>
-            <div class="flex shrink-0 items-center gap-1">
-              <template v-if="isRunning(s)">
+              <div class="flex shrink-0 items-center gap-1">
+                <template v-if="isRunning(s)">
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    :loading="busySession === s.sessionId"
+                    @click="runSession('pause', s.sessionId)"
+                  >
+                    {{ t('settings.ai.semanticIndex.action.pause') }}
+                  </UButton>
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    color="error"
+                    :disabled="busySession === s.sessionId"
+                    @click="runSession('cancel', s.sessionId)"
+                  >
+                    {{ t('settings.ai.semanticIndex.action.cancel') }}
+                  </UButton>
+                </template>
+                <template v-else-if="s.indexStatus === 'completed' && !s.needsRebuild">
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    :loading="busySession === s.sessionId"
+                    @click="runSession('rebuild', s.sessionId)"
+                  >
+                    {{ t('settings.ai.semanticIndex.action.rebuild') }}
+                  </UButton>
+                </template>
+                <template v-else-if="s.needsRebuild">
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    :loading="busySession === s.sessionId"
+                    @click="runSession('rebuild', s.sessionId)"
+                  >
+                    {{ t('settings.ai.semanticIndex.action.rebuild') }}
+                  </UButton>
+                </template>
+                <template v-else>
+                  <UButton
+                    size="xs"
+                    variant="ghost"
+                    :loading="busySession === s.sessionId"
+                    @click="runSession('build', s.sessionId)"
+                  >
+                    {{ t('settings.ai.semanticIndex.action.build') }}
+                  </UButton>
+                </template>
                 <UButton
                   size="xs"
                   variant="ghost"
-                  :loading="busySession === s.sessionId"
-                  @click="runSession('pause', s.sessionId)"
-                >
-                  {{ t('settings.ai.semanticIndex.action.pause') }}
-                </UButton>
-                <UButton
-                  size="xs"
-                  variant="ghost"
-                  color="error"
+                  color="neutral"
                   :disabled="busySession === s.sessionId"
-                  @click="runSession('cancel', s.sessionId)"
+                  @click="runSession('remove', s.sessionId)"
                 >
-                  {{ t('settings.ai.semanticIndex.action.cancel') }}
+                  {{ t('settings.ai.semanticIndex.action.remove') }}
                 </UButton>
-              </template>
-              <template v-else-if="s.indexStatus === 'completed' && !s.needsRebuild">
-                <UButton
-                  size="xs"
-                  variant="ghost"
-                  :loading="busySession === s.sessionId"
-                  @click="runSession('rebuild', s.sessionId)"
-                >
-                  {{ t('settings.ai.semanticIndex.action.rebuild') }}
-                </UButton>
-              </template>
-              <template v-else-if="s.needsRebuild">
-                <UButton
-                  size="xs"
-                  variant="ghost"
-                  :loading="busySession === s.sessionId"
-                  @click="runSession('rebuild', s.sessionId)"
-                >
-                  {{ t('settings.ai.semanticIndex.action.rebuild') }}
-                </UButton>
-              </template>
-              <template v-else>
-                <UButton
-                  size="xs"
-                  variant="ghost"
-                  :loading="busySession === s.sessionId"
-                  @click="runSession('build', s.sessionId)"
-                >
-                  {{ t('settings.ai.semanticIndex.action.build') }}
-                </UButton>
-              </template>
-              <UButton
-                size="xs"
-                variant="ghost"
-                color="neutral"
-                :disabled="busySession === s.sessionId"
-                @click="runSession('disable', s.sessionId)"
-              >
-                {{ t('settings.ai.semanticIndex.action.disable') }}
-              </UButton>
+              </div>
             </div>
           </div>
         </div>

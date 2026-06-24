@@ -291,7 +291,7 @@
         "pause": "Pause",
         "cancel": "Cancel",
         "rebuild": "Rebuild",
-        "disable": "Disable"
+        "remove": "Remove"
       },
       "session": {
         "statusLabel": "Status",
@@ -314,8 +314,8 @@
         "messages": "{count} messages",
         "enabled": "Enabled",
         "selectedSummary": "{count} conversations selected, ~{messages} messages",
-        "confirmDisableTitle": "Confirm Disable",
-        "confirmDisableMessage": "These conversations will be removed from semantic retrieval, but their index data is kept and can be cleaned up later."
+        "confirmRemoveTitle": "Confirm Remove",
+        "confirmRemoveMessage": "The semantic index for these conversations will be permanently deleted."
       }
     }
   },

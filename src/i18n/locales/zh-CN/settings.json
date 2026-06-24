@@ -291,7 +291,7 @@
         "pause": "暂停",
         "cancel": "取消",
         "rebuild": "重建索引",
-        "disable": "停用"
+        "remove": "移除"
       },
       "session": {
         "statusLabel": "状态",
@@ -314,8 +314,8 @@
         "messages": "{count} 条消息",
         "enabled": "已启用",
         "selectedSummary": "已选择 {count} 个对话，约 {messages} 条消息",
-        "confirmDisableTitle": "确认停用",
-        "confirmDisableMessage": "这些对话将停用语义索引，但索引数据会保留，可稍后清理。"
+        "confirmRemoveTitle": "确认移除",
+        "confirmRemoveMessage": "这些对话的语义索引将被立即删除，不可恢复。"
       }
     }
   },

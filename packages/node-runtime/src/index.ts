@@ -52,6 +52,7 @@ export { hasFtsTable, createFtsTable, buildFtsIndex, rebuildFtsIndex, insertFtsE
 // AI Logger & Error formatting
 export { AiLogger, extractErrorInfo, extractErrorStack, formatAIError } from './ai'
 export type { FormatAIErrorOptions } from './ai'
+
 export {
   NodePathProvider,
   applyPendingNodeDataDirMigrationIfNeeded,

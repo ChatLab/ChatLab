@@ -26,7 +26,7 @@ export interface SemanticIndexService {
   status(sessionId: string): Promise<SemanticIndexSessionStatus | null>
   statusForSessions(sessionIds: string[]): Promise<SemanticIndexSessionStatus[]>
   enable(sessionId: string): Promise<SemanticIndexSessionStatus | null>
-  disable(sessionId: string): Promise<SemanticIndexSessionStatus | null>
+  remove(sessionId: string): Promise<SemanticIndexSessionStatus | null>
   build(sessionId: string): Promise<SemanticIndexSessionStatus | null>
   pause(sessionId: string): Promise<SemanticIndexSessionStatus | null>
   cancel(sessionId: string): Promise<SemanticIndexSessionStatus | null>
@@ -55,7 +55,7 @@ const instance: SemanticIndexService = {
   statusForSessions: async (sessionIds) =>
     (await post<{ sessions: SemanticIndexSessionStatus[] }>(`${BASE}/status`, { sessionIds })).sessions,
   enable: sessionAction('enable'),
-  disable: sessionAction('disable'),
+  remove: sessionAction('remove'),
   build: sessionAction('build'),
   pause: sessionAction('pause'),
   cancel: sessionAction('cancel'),

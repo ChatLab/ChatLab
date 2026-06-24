@@ -251,30 +251,26 @@ test('re-enabling a stale index keeps it pending until explicit rebuild', async 
   db.close()
 })
 
-test('disable then cleanup removes the index and blocks search', async () => {
+test('remove clears index immediately and blocks search', async () => {
   const { service, db } = setup()
   await enableAndBuild(service)
 
-  service.disable(SESSION_ID)
-  const disabledStatus = service.status(SESSION_ID)!
-  assert.equal(disabledStatus.enabled, false)
+  service.remove(SESSION_ID)
+  // State record is deleted — status() returns null
+  assert.equal(service.status(SESSION_ID), null)
   const blocked = await service.search(SESSION_ID, '排期')
   assert.equal(blocked.available, false)
-  assert.equal(blocked.reason, 'disabled')
-
-  const { cleaned } = service.cleanupUnused()
-  assert.ok(cleaned >= 1)
+  // cleanupUnused not needed; remove() is already immediate
   service.close()
   db.close()
 })
 
-test('re-enabling after cleanup rebuilds from scratch', async () => {
+test('re-enabling after remove rebuilds from scratch', async () => {
   const { service, db, getEmbedCount } = setup()
   await enableAndBuild(service)
   const afterFirstBuild = getEmbedCount()
 
-  service.disable(SESSION_ID)
-  service.cleanupUnused()
+  service.remove(SESSION_ID)
 
   await enableAndBuild(service)
 

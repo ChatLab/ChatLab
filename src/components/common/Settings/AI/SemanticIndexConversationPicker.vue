@@ -115,7 +115,7 @@ async function doSave() {
     const toEnable = [...selected.value].filter((id) => !originalEnabled.value.has(id))
     const toDisable = [...originalEnabled.value].filter((id) => !selected.value.has(id))
     for (const id of toEnable) await service.enable(id)
-    for (const id of toDisable) await service.disable(id)
+    for (const id of toDisable) await service.remove(id)
     emit('saved')
     open.value = false
   } catch (error) {
@@ -214,10 +214,10 @@ watch(
     <template #content>
       <div class="p-5">
         <h3 class="mb-3 text-base font-semibold text-gray-900 dark:text-white">
-          {{ t('settings.ai.semanticIndex.picker.confirmDisableTitle') }}
+          {{ t('settings.ai.semanticIndex.picker.confirmRemoveTitle') }}
         </h3>
         <p class="mb-3 text-sm text-gray-600 dark:text-gray-400">
-          {{ t('settings.ai.semanticIndex.picker.confirmDisableMessage') }}
+          {{ t('settings.ai.semanticIndex.picker.confirmRemoveMessage') }}
         </p>
         <ul
           class="mb-4 max-h-32 overflow-y-auto rounded border border-gray-200 p-2 text-xs text-gray-500 dark:border-gray-700"

@@ -97,7 +97,7 @@ export function registerSemanticIndexRoutes(server: FastifyInstance, ctx: HttpRo
   }
 
   sessionAction('/_web/ai/semantic-index/enable', (id) => service.enable(id))
-  sessionAction('/_web/ai/semantic-index/disable', (id) => service.disable(id))
+  sessionAction('/_web/ai/semantic-index/remove', (id) => service.remove(id))
   sessionAction('/_web/ai/semantic-index/build', (id) => service.build(id))
   sessionAction('/_web/ai/semantic-index/pause', (id) => service.pause(id))
   sessionAction('/_web/ai/semantic-index/cancel', (id) => service.cancel(id))

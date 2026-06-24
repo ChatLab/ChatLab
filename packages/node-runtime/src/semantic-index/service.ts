@@ -332,6 +332,18 @@ export class SemanticIndexService {
     return computeDbPathHash(sessionId)
   }
 
+  /**
+   * 查找 sessionId 对应的实际 db_path_hash。
+   * 优先用当前规则（computeDbPathHash(sessionId)），找不到时扫全表匹配 dbPath basename，
+   * 兼容旧版本用完整 dbPath 计算 hash 存储的历史记录。
+   */
+  private resolveHash(sessionId: string): string {
+    const hash = this.hashFor(sessionId)
+    if (this.stateStore.getState(hash)) return hash
+    const legacy = this.stateStore.listAll().find((s) => sessionIdFromDbPath(s.dbPath) === sessionId)
+    return legacy?.dbPathHash ?? hash
+  }
+
   /** 索引身份是否与当前运行时不一致（模型身份或 chunker 身份变化 => 需重建） */
   private isStale(state: SemanticIndexSessionState, currentModelId: string): boolean {
     return (
@@ -374,24 +386,26 @@ export class SemanticIndexService {
     }
   }
 
-  disable(sessionId: string): void {
-    const hash = this.hashFor(sessionId)
+  /** 彻底移除：取消队列、删除向量数据、删除状态记录，立即生效无需二次清理 */
+  remove(sessionId: string): void {
+    const hash = this.resolveHash(sessionId)
     this.queue.cancel(hash)
-    this.stateStore.disable(hash)
+    this.store.deleteByDbPathHash(hash)
+    this.stateStore.remove(hash)
   }
 
   /** 建立 / 续跑索引（续跑从断点游标继续） */
   build(sessionId: string): void {
     if (!this.canRun()) return
-    this.queue.enqueue({ type: 'build', dbPathHash: this.hashFor(sessionId) })
+    this.queue.enqueue({ type: 'build', dbPathHash: this.resolveHash(sessionId) })
   }
 
   pause(sessionId: string): void {
-    this.queue.pause(this.hashFor(sessionId))
+    this.queue.pause(this.resolveHash(sessionId))
   }
 
   cancel(sessionId: string): void {
-    this.queue.cancel(this.hashFor(sessionId))
+    this.queue.cancel(this.resolveHash(sessionId))
   }
 
   /** 重建：换模型身份或用户主动重建时清空旧索引后重新建立 */
@@ -454,7 +468,7 @@ export class SemanticIndexService {
   }
 
   status(sessionId: string): SemanticIndexSessionStatus | null {
-    const state = this.stateStore.getState(this.hashFor(sessionId))
+    const state = this.stateStore.getState(this.resolveHash(sessionId))
     if (!state) return null
     return this.toStatus(state, this.currentModelId())
   }
@@ -464,7 +478,7 @@ export class SemanticIndexService {
     const modelId = this.currentModelId()
     const result: SemanticIndexSessionStatus[] = []
     for (const sessionId of sessionIds) {
-      const state = this.stateStore.getState(this.hashFor(sessionId))
+      const state = this.stateStore.getState(this.resolveHash(sessionId))
       if (state) result.push(this.toStatus(state, modelId))
     }
     return result
@@ -496,7 +510,7 @@ export class SemanticIndexService {
     if (!this.canRun())
       return { available: false, reason: 'disabled', blocks: [], coverage: 0, partial: false, hitCount: 0 }
 
-    const hash = this.hashFor(sessionId)
+    const hash = this.resolveHash(sessionId)
     const state = this.stateStore.getState(hash)
     const modelId = this.currentModelId()
 
@@ -562,7 +576,7 @@ export class SemanticIndexService {
    */
   canSearch(sessionId: string): boolean {
     if (!this.canRun()) return false
-    const hash = this.hashFor(sessionId)
+    const hash = this.resolveHash(sessionId)
     const state = this.stateStore.getState(hash)
     if (!state || !state.enabled) return false
     const modelId = this.currentModelId()

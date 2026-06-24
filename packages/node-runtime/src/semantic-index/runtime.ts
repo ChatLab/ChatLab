@@ -22,7 +22,7 @@ export interface SemanticIndexRuntime {
   hasApiKey(): MaybePromise<boolean>
 
   enable(sessionId: string): MaybePromise<void>
-  disable(sessionId: string): MaybePromise<void>
+  remove(sessionId: string): MaybePromise<void>
   build(sessionId: string): MaybePromise<void>
   pause(sessionId: string): MaybePromise<void>
   cancel(sessionId: string): MaybePromise<void>

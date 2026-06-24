@@ -110,8 +110,8 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
     return this.call('enable', [sessionId])
   }
 
-  disable(sessionId: string): Promise<void> {
-    return this.call('disable', [sessionId])
+  remove(sessionId: string): Promise<void> {
+    return this.call('remove', [sessionId])
   }
 
   async build(sessionId: string): Promise<void> {

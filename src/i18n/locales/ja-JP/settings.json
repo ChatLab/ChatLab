@@ -291,7 +291,7 @@
         "pause": "一時停止",
         "cancel": "キャンセル",
         "rebuild": "再構築",
-        "disable": "無効化"
+        "remove": "削除"
       },
       "session": {
         "statusLabel": "状態",
@@ -314,8 +314,8 @@
         "messages": "{count} 件のメッセージ",
         "enabled": "有効",
         "selectedSummary": "{count} 件の会話を選択、約 {messages} 件のメッセージ",
-        "confirmDisableTitle": "無効化の確認",
-        "confirmDisableMessage": "これらの会話はセマンティック検索から除外されますが、インデックスデータは保持され、後で整理できます。"
+        "confirmRemoveTitle": "削除の確認",
+        "confirmRemoveMessage": "これらの会話のセマンティックインデックスは即座に削除され、復元できません。"
       }
     }
   },

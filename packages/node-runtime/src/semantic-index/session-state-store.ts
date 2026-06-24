@@ -259,8 +259,8 @@ export class SemanticIndexStateStore {
     return rows.map(rowToState)
   }
 
-  remove(dbPathHash: string): void {
-    this.db.prepare(`DELETE FROM semantic_index_session WHERE db_path_hash = ?`).run(dbPathHash)
+  remove(dbPathHash: string): number {
+    return this.db.prepare(`DELETE FROM semantic_index_session WHERE db_path_hash = ?`).run(dbPathHash).changes
   }
 
   close(): void {
