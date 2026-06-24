@@ -12,13 +12,7 @@ import SemanticIndexConversationPicker from './SemanticIndexConversationPicker.v
 import SemanticIndexModelModal from './SemanticIndexModelModal.vue'
 import { LOCAL_MODELS, type ModelConfigDraft } from './semantic-index-models'
 import { buildSemanticIndexModelConfig, isSemanticIndexApiKeyRequired } from './semantic-index-config-builder'
-import {
-  useDataService,
-  useSemanticIndexService,
-  SEARCH_MAX_RESULTS_MIN,
-  SEARCH_MAX_RESULTS_MAX,
-  SEARCH_MAX_RESULTS_DEFAULT,
-} from '@/services'
+import { useDataService, useSemanticIndexService } from '@/services'
 import type { SemanticIndexConfig, SemanticIndexSessionStatus } from '@/services'
 
 const { t } = useI18n()
@@ -31,7 +25,6 @@ const configured = ref(false)
 const enabled = ref(true)
 const saving = ref(false)
 const savedConfig = ref<SemanticIndexConfig | null>(null)
-const searchMaxResults = ref(SEARCH_MAX_RESULTS_DEFAULT)
 const showModelModal = ref(false)
 
 const isApiMode = computed(() => configured.value && savedConfig.value?.mode === 'api')
@@ -59,23 +52,6 @@ const currentModel = computed(() => {
   }
   return { type: t('settings.ai.semanticIndex.modeApi'), name: c.api?.model ?? '', sub: host }
 })
-
-function clampSearchMaxResults(value: number): number {
-  if (!Number.isFinite(value)) return SEARCH_MAX_RESULTS_DEFAULT
-  return Math.max(SEARCH_MAX_RESULTS_MIN, Math.min(SEARCH_MAX_RESULTS_MAX, Math.round(value)))
-}
-
-// 检索片段数变化后防抖落库（不触发重建，仅更新检索默认值）
-let searchSaveTimer: ReturnType<typeof setTimeout> | null = null
-function onSearchMaxResultsChange(value: number | null) {
-  searchMaxResults.value = clampSearchMaxResults(value ?? SEARCH_MAX_RESULTS_DEFAULT)
-  if (searchSaveTimer) clearTimeout(searchSaveTimer)
-  searchSaveTimer = setTimeout(() => {
-    const base = savedConfig.value
-    if (!base || searchMaxResults.value === base.searchMaxResults) return
-    persistConfig({ ...base, searchMaxResults: searchMaxResults.value })
-  }, 600)
-}
 
 // 概览与会话状态
 const enabledStatuses = ref<SemanticIndexSessionStatus[]>([])
@@ -135,7 +111,6 @@ async function persistConfig(next: SemanticIndexConfig, apiKey?: string): Promis
     apiKeySet.value = res.apiKeySet
     configured.value = res.configured
     enabled.value = res.config.enabled
-    searchMaxResults.value = clampSearchMaxResults(res.config.searchMaxResults ?? SEARCH_MAX_RESULTS_DEFAULT)
     await loadStatuses()
     return true
   } catch (error) {
@@ -148,7 +123,6 @@ async function persistConfig(next: SemanticIndexConfig, apiKey?: string): Promis
 
 async function onModelConfirm(payload: ModelConfigDraft) {
   const next = buildSemanticIndexModelConfig(savedConfig.value, payload)
-  next.searchMaxResults = clampSearchMaxResults(next.searchMaxResults)
   if (await persistConfig(next, payload.apiKey.trim() || undefined)) showModelModal.value = false
 }
 
@@ -259,7 +233,6 @@ onMounted(async () => {
     apiKeySet.value = res.apiKeySet
     configured.value = res.configured
     enabled.value = res.config.enabled
-    searchMaxResults.value = clampSearchMaxResults(res.config.searchMaxResults ?? SEARCH_MAX_RESULTS_DEFAULT)
   } catch (error) {
     console.error('[semantic-index] load config failed:', error)
   }
@@ -280,7 +253,6 @@ onMounted(async () => {
 onUnmounted(() => {
   observer?.disconnect()
   clearPoll()
-  if (searchSaveTimer) clearTimeout(searchSaveTimer)
 })
 </script>
 
@@ -341,32 +313,8 @@ onUnmounted(() => {
         @confirm="onModelConfirm"
       />
 
-      <!-- 选定向量模型后才展示检索参数 / 概览 / 已启用对话等 -->
+      <!-- 选定向量模型后才展示概览 / 已启用对话等 -->
       <template v-if="hasModelConfig">
-        <!-- AI 检索参数 -->
-        <div
-          class="space-y-2 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50"
-        >
-          <div class="flex items-center justify-between gap-3">
-            <div class="min-w-0">
-              <span class="text-sm font-medium text-gray-700 dark:text-gray-300">
-                {{ t('settings.ai.semanticIndex.searchMaxResults.label') }}
-              </span>
-              <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
-                {{ t('settings.ai.semanticIndex.searchMaxResults.hint') }}
-              </p>
-            </div>
-            <UInputNumber
-              :min="SEARCH_MAX_RESULTS_MIN"
-              :max="SEARCH_MAX_RESULTS_MAX"
-              :model-value="searchMaxResults"
-              size="sm"
-              class="w-28 shrink-0"
-              @update:model-value="onSearchMaxResultsChange"
-            />
-          </div>
-        </div>
-
         <!-- 索引概览 -->
         <div
           class="space-y-3 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50"

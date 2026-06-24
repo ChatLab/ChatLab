@@ -52,6 +52,6 @@ export function buildSemanticIndexModelConfig(
             ...(reusableAuthProfile ? { authProfile: reusableAuthProfile } : {}),
           }
         : null,
-    searchMaxResults: savedConfig?.searchMaxResults ?? 10,
+    searchMaxResults: 10,
   }
 }

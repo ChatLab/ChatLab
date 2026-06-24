@@ -131,7 +131,7 @@ function normalizeConfig(raw: Partial<SemanticIndexConfig> | null | undefined): 
     mode,
     local: { modelId: raw.local?.modelId ?? base.local.modelId },
     api,
-    searchMaxResults: clampSearchMaxResults(raw.searchMaxResults),
+    searchMaxResults: SEARCH_MAX_RESULTS_DEFAULT,
   }
 }
 
