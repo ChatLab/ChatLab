@@ -20,6 +20,8 @@ import { writeParseResultToDb } from '../import'
 
 // Per-session lock: concurrent imports to different sessions are fine (separate DB files).
 const importInProgress = new Set<string>()
+const SYSTEM_SENDER_ID = 'SYSTEM'
+const SYSTEM_MEMBER_NAME = '系统消息'
 
 export interface PushImportMessage {
   sender: string
@@ -74,7 +76,7 @@ export type PushImportOutcome =
 
 function validatePayload(payload: PushImportPayload, isNew: boolean): string | null {
   const messages = payload.messages
-  if (!messages || messages.length === 0) return 'messages is required and must contain at least one message'
+  if (!Array.isArray(messages) || messages.length === 0) return 'messages is required and must be a non-empty array'
 
   if (isNew) {
     if (!payload.chatlab) return 'chatlab is required for new sessions'
@@ -93,15 +95,17 @@ function validatePayload(payload: PushImportPayload, isNew: boolean): string | n
     return `options.memberUpdateMode must be 'upsert' or 'none'`
   }
 
+  if (payload.members !== undefined && !Array.isArray(payload.members)) return 'members must be an array'
   if (payload.members) {
     for (let i = 0; i < payload.members.length; i++) {
-      if (!payload.members[i].platformId) return `members[${i}].platformId is required`
+      if (typeof payload.members[i].platformId !== 'string' || payload.members[i].platformId.length === 0)
+        return `members[${i}].platformId must be a string`
     }
   }
 
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i]
-    if (!msg.sender) return `messages[${i}].sender is required`
+    if (typeof msg.sender !== 'string' || msg.sender.length === 0) return `messages[${i}].sender must be a string`
     if (typeof msg.timestamp !== 'number' || msg.timestamp <= 0)
       return `messages[${i}].timestamp must be a positive number`
     if (typeof msg.type !== 'number') return `messages[${i}].type must be a number`
@@ -109,6 +113,8 @@ function validatePayload(payload: PushImportPayload, isNew: boolean): string | n
       return `messages[${i}].content must be a string or null`
     if (msg.platformMessageId !== undefined && typeof msg.platformMessageId !== 'string')
       return `messages[${i}].platformMessageId must be a string`
+    if (msg.replyToMessageId !== undefined && typeof msg.replyToMessageId !== 'string')
+      return `messages[${i}].replyToMessageId must be a string`
   }
 
   return null
@@ -120,8 +126,18 @@ function queryStats(db: DatabaseAdapter): PushImportResult['session'] {
     first: number | null
     last: number | null
   }
-  const memberRow = db.prepare('SELECT COUNT(*) as cnt FROM member').get() as { cnt: number }
+  const memberRow = db
+    .prepare(`SELECT COUNT(*) as cnt FROM member WHERE COALESCE(account_name, '') != ?`)
+    .get(SYSTEM_MEMBER_NAME) as { cnt: number }
   return { totalCount: row.total, memberCount: memberRow.cnt, firstTimestamp: row.first, lastTimestamp: row.last }
+}
+
+function normalizeSenderAccountName(sender: string, accountName: string | undefined): string | undefined {
+  return sender === SYSTEM_SENDER_ID ? SYSTEM_MEMBER_NAME : accountName
+}
+
+function normalizeSenderGroupNickname(sender: string, groupNickname: string | undefined): string | undefined {
+  return sender === SYSTEM_SENDER_ID ? SYSTEM_MEMBER_NAME : groupNickname
 }
 
 function writeMessages(
@@ -152,17 +168,21 @@ function writeMessages(
 
   db.transaction(() => {
     for (const msg of sorted) {
+      const key = generateMessageKey(msg.timestamp, msg.sender, msg.content ?? null)
       if (msg.platformMessageId) {
         if (existingPmids.has(msg.platformMessageId)) {
+          duplicateCount++
+          continue
+        }
+        if (existingKeys.has(key)) {
           duplicateCount++
           continue
         }
         existingPmids.add(msg.platformMessageId)
         // Also register the content hash so a same-content no-pmid copy later
         // in this batch is caught by the fallback dedup path.
-        existingKeys.add(generateMessageKey(msg.timestamp, msg.sender, msg.content ?? null))
+        existingKeys.add(key)
       } else {
-        const key = generateMessageKey(msg.timestamp, msg.sender, msg.content ?? null)
         if (existingKeys.has(key)) {
           duplicateCount++
           continue
@@ -172,7 +192,7 @@ function writeMessages(
 
       let memberId = memberIdCache.get(msg.sender)
       if (!memberId) {
-        insertMinimalMember.run(msg.sender, msg.accountName || null)
+        insertMinimalMember.run(msg.sender, normalizeSenderAccountName(msg.sender, msg.accountName) || null)
         const row = getMemberId.get(msg.sender) as { id: number } | undefined
         if (row) {
           memberId = row.id
@@ -183,8 +203,8 @@ function writeMessages(
 
       const result = insertMsg.run(
         memberId,
-        msg.accountName || null,
-        msg.groupNickname || null,
+        normalizeSenderAccountName(msg.sender, msg.accountName) || null,
+        normalizeSenderGroupNickname(msg.sender, msg.groupNickname) || null,
         msg.timestamp,
         msg.type,
         msg.content ?? null,
@@ -214,7 +234,11 @@ function fullImport(
   const extraMembers: PushImportMember[] = []
   for (const msg of messages) {
     if (!knownIds.has(msg.sender)) {
-      extraMembers.push({ platformId: msg.sender, accountName: msg.accountName })
+      extraMembers.push({
+        platformId: msg.sender,
+        accountName: normalizeSenderAccountName(msg.sender, msg.accountName),
+        groupNickname: normalizeSenderGroupNickname(msg.sender, msg.groupNickname),
+      })
       knownIds.add(msg.sender)
     }
   }
@@ -226,14 +250,19 @@ function fullImport(
   let duplicateCount = 0
   const dedupedMessages: PushImportMessage[] = []
   for (const msg of messages) {
+    const key = generateMessageKey(msg.timestamp, msg.sender, msg.content ?? null)
     if (msg.platformMessageId) {
       if (pmids.has(msg.platformMessageId)) {
         duplicateCount++
         continue
       }
+      if (hashKeys.has(key)) {
+        duplicateCount++
+        continue
+      }
       pmids.add(msg.platformMessageId)
+      hashKeys.add(key)
     } else {
-      const key = generateMessageKey(msg.timestamp, msg.sender, msg.content ?? null)
       if (hashKeys.has(key)) {
         duplicateCount++
         continue
@@ -248,11 +277,15 @@ function fullImport(
   const stats = writeParseResultToDb(
     db,
     meta,
-    allMembers.map((m) => ({ ...m, accountName: m.accountName ?? m.platformId })),
+    allMembers.map((m) => ({
+      ...m,
+      accountName: normalizeSenderAccountName(m.platformId, m.accountName) ?? m.platformId,
+      groupNickname: normalizeSenderGroupNickname(m.platformId, m.groupNickname),
+    })),
     dedupedMessages.map((m) => ({
       senderPlatformId: m.sender,
-      senderAccountName: m.accountName ?? m.sender,
-      senderGroupNickname: m.groupNickname,
+      senderAccountName: normalizeSenderAccountName(m.sender, m.accountName) ?? m.sender,
+      senderGroupNickname: normalizeSenderGroupNickname(m.sender, m.groupNickname),
       timestamp: m.timestamp,
       type: m.type,
       content: m.content ?? null,
@@ -331,10 +364,12 @@ function incrementalImport(
     db.transaction(() => {
       for (const m of payload.members!) {
         const existed = existingMemberIds.has(m.platformId)
+        const accountName = normalizeSenderAccountName(m.platformId, m.accountName)
+        const groupNickname = normalizeSenderGroupNickname(m.platformId, m.groupNickname)
         upsertMember.run(
           m.platformId,
-          m.accountName || null,
-          m.groupNickname || null,
+          accountName || null,
+          groupNickname || null,
           m.avatar || null,
           m.roles ? JSON.stringify(m.roles) : '[]'
         )

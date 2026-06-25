@@ -156,8 +156,8 @@ export interface PullEngineOptions {
   notifier: SyncNotifier
   dsManager: DataSourceManager
   logger?: SyncLogger
-  /** Return true when an import is already in progress (skip pull) */
-  isImporting?: () => boolean
+  /** Return true when an import is already in progress for the local session (skip pull) */
+  isImporting?: (sessionId: string | undefined) => boolean
   /**
    * Called after a pull session completes successfully with the local session ID.
    * Used for post-import side effects (e.g. applying the platform owner profile).
@@ -172,7 +172,7 @@ export class PullEngine {
   private notifier: SyncNotifier
   private dsManager: DataSourceManager
   private logger: SyncLogger
-  private isImporting: () => boolean
+  private isImporting: (sessionId: string | undefined) => boolean
   private onSessionImported?: (localSessionId: string) => void
   private pullingSourceIds = new Set<string>()
   private progressMap = new Map<string, PullProgress>()
@@ -222,7 +222,8 @@ export class PullEngine {
       return { success: true, newMessageCount: 0 }
     }
 
-    if (this.isImporting()) {
+    const importStatusSessionId = sess.targetSessionId || deriveLocalSessionId(ds.baseUrl, sess.remoteSessionId)
+    if (this.isImporting(importStatusSessionId)) {
       this.logger.info(`[Pull] Skipping "${sess.name}": import in progress`)
       return { success: false, newMessageCount: 0, error: 'Import in progress' }
     }

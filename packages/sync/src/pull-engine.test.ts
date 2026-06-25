@@ -69,6 +69,7 @@ function createEngine(options: {
   files: string[]
   importResult: Awaited<ReturnType<DataImporter['importFile']>>
   dataSource: DataSource
+  isImporting?: (sessionId: string | undefined) => boolean
   fetchParams?: FetchParams[]
   sessionUpdates?: Array<{ sessionId: string; updates: Partial<ImportSession> }>
   pullResults?: Array<{ status: 'success' | 'error'; detail: string }>
@@ -109,6 +110,7 @@ function createEngine(options: {
     importer,
     notifier,
     dsManager: dsManager as any,
+    isImporting: options.isImporting,
   })
 }
 
@@ -144,6 +146,40 @@ describe('PullEngine', () => {
     assert.equal(result.success, true)
     assert.equal(result.newMessageCount, 1)
     assert.equal(importCount, 1)
+  })
+
+  it('does not skip pulls when a different local session is importing', async () => {
+    const session = createSession()
+    session.targetSessionId = 'local_session_b'
+    const dataSource = createDataSource()
+    dataSource.sessions = [session]
+    const page = writeTempJson({
+      chatlab: { version: '0.0.2', exportedAt: 100 },
+      meta: { name: 'Test Session', platform: 'test', type: 'group' },
+      members: [{ platformId: 'u1', accountName: 'Alice' }],
+      messages: [{ sender: 'u1', timestamp: 101, type: 0, content: 'hi' }],
+      sync: { hasMore: false, nextSince: 101 },
+    })
+    const checkedSessionIds: Array<string | undefined> = []
+    const engine = createEngine({
+      files: [page],
+      dataSource,
+      isImporting: (sessionId) => {
+        checkedSessionIds.push(sessionId)
+        return sessionId === 'local_session_a'
+      },
+      importResult: {
+        success: true,
+        newMessageCount: 1,
+        sessionId: session.targetSessionId,
+      },
+    })
+
+    const result = await withImmediateTimers(() => engine.executePullSession(dataSource.id, dataSource, session))
+
+    assert.equal(result.success, true)
+    assert.equal(result.newMessageCount, 1)
+    assert.deepEqual(checkedSessionIds, ['local_session_b'])
   })
 
   it('reports retry import failure instead of marking the pull successful', async () => {

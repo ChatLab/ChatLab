@@ -110,7 +110,10 @@ function idempotencyFail(key: string | undefined): void {
   idempotencyCache.delete(key)
 }
 
-export function getImportingStatus(): boolean {
+export function getImportingStatus(sessionId?: string): boolean {
+  if (sessionId) {
+    return isImporting.has(sessionId) || isImporting.has('__legacy__')
+  }
   return isImporting.size > 0
 }
 
