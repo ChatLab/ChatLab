@@ -14,7 +14,6 @@ import {
   analyzeIncrementalImport as sharedAnalyzeIncremental,
   incrementalImport as sharedIncrementalImport,
 } from '@openchatlab/node-runtime'
-import { generateSessionIndex, generateIncrementalSessionIndex } from '@openchatlab/core'
 import type {
   StreamImportResult,
   StreamImportDeps,
@@ -71,13 +70,6 @@ function buildStreamImportDeps(dbManager: DatabaseManager, onProgress?: ImportPr
       dbManager.deleteSessionDatabaseFiles(sessionId)
     },
     onProgress: onProgress ?? (() => {}),
-    postImportHook(db) {
-      try {
-        generateSessionIndex(db)
-      } catch {
-        /* non-fatal: frontend can regenerate via generate-index route */
-      }
-    },
     generateSessionId,
   }
 }
@@ -174,13 +166,6 @@ function buildIncrementalDeps(
       }
     },
     onProgress: onProgress ?? (() => {}),
-    postImportHook(db) {
-      try {
-        generateIncrementalSessionIndex(db)
-      } catch {
-        /* non-fatal */
-      }
-    },
   }
 }
 

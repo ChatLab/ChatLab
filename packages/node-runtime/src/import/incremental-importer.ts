@@ -9,7 +9,7 @@
  */
 
 import type { DatabaseAdapter } from '@openchatlab/core'
-import { generateMessageKey } from '@openchatlab/core'
+import { generateMessageKey, generateIncrementalSessionIndex } from '@openchatlab/core'
 import { streamParseFile, detectFormat, type ParseProgress } from '@openchatlab/parser'
 import { insertFtsEntries, hasFtsTable } from '../fts'
 import type { ImportProgressCallback } from './streaming-importer'
@@ -376,6 +376,15 @@ export async function incrementalImport(
         insertFtsEntries(db, newFtsEntries)
       } catch {
         /* FTS failure is non-fatal */
+      }
+    }
+
+    // Incremental session index (segment / message_context tables)
+    if (newMessageCount > 0) {
+      try {
+        generateIncrementalSessionIndex(db)
+      } catch {
+        /* non-fatal */
       }
     }
 

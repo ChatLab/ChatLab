@@ -10,7 +10,7 @@
  */
 
 import type { DatabaseAdapter } from '@openchatlab/core'
-import { CHAT_DB_INDEXES } from '@openchatlab/core'
+import { CHAT_DB_INDEXES, generateSessionIndex } from '@openchatlab/core'
 import type { ParsedMember, ParsedMessage } from '@openchatlab/shared-types'
 import {
   streamParseFile,
@@ -517,6 +517,14 @@ async function streamImportSingle(
     })
     doCheckpoint()
     logger?.perf('WAL checkpoint done', totalMessageCount)
+
+    // Build session index (segment / message_context tables)
+    try {
+      generateSessionIndex(db)
+      logger?.perf('Session index built', totalMessageCount)
+    } catch {
+      /* non-fatal */
+    }
 
     // Post-import hook (e.g. overview cache)
     try {

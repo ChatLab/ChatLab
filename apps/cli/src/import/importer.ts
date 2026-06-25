@@ -8,7 +8,14 @@
 import * as fs from 'fs'
 import * as crypto from 'crypto'
 import type { DatabaseAdapter } from '@openchatlab/core'
-import { CHAT_DB_SCHEMA, FTS_TABLE_SCHEMA, generateMessageKey, buildMemberIdMap } from '@openchatlab/core'
+import {
+  CHAT_DB_SCHEMA,
+  FTS_TABLE_SCHEMA,
+  generateMessageKey,
+  buildMemberIdMap,
+  generateSessionIndex,
+  generateIncrementalSessionIndex,
+} from '@openchatlab/core'
 import type { DatabaseManager } from '@openchatlab/node-runtime'
 import { writeParseResultToDb } from '@openchatlab/node-runtime'
 import type { ParsedData, ImportMessage } from './chatlab-reader'
@@ -50,6 +57,12 @@ function fullImport(
   const stats = writeParseResultToDb(db, data.meta, data.members, data.messages)
 
   buildFts(db, onProgress)
+
+  try {
+    generateSessionIndex(db)
+  } catch {
+    /* non-fatal */
+  }
 
   return { messageCount: stats.messageCount, memberCount: stats.memberCount, duplicateCount: stats.skippedCount }
 }
@@ -161,6 +174,11 @@ function incrementalImport(
   if (written > 0) {
     insertFtsEntries(db, onProgress)
     db.prepare('UPDATE meta SET imported_at = ?').run(Math.floor(Date.now() / 1000))
+    try {
+      generateIncrementalSessionIndex(db)
+    } catch {
+      /* non-fatal */
+    }
   }
 
   return { messageCount: written, memberCount: newMembers, duplicateCount: duplicates }
