@@ -264,11 +264,6 @@ async function handleUnifiedImport(request: FastifyRequest, reply: FastifyReply,
       const result = await worker.incrementalImport(sessionId, tempFile, undefined, importOptions)
 
       if (result.success) {
-        try {
-          await worker.generateIncrementalSessions(sessionId)
-        } catch {
-          // non-blocking
-        }
         notifySessionListChanged()
         const responsePayload = successResponse({
           sessionId,
@@ -390,11 +385,6 @@ async function handleLegacyImport(request: FastifyRequest, reply: FastifyReply, 
       const result = await worker.incrementalImport(sessionId, tempFile, undefined, importOptions)
 
       if (result.success) {
-        try {
-          await worker.generateIncrementalSessions(sessionId)
-        } catch {
-          // non-blocking
-        }
         notifySessionListChanged()
         reply.send(
           successResponse({

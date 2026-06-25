@@ -129,11 +129,6 @@ export class WorkerImporter implements DataImporter {
     const result = await worker.incrementalImport(sessionId, tempFile)
     if (result.success) {
       this.logger.info(`[Pull] Incremental OK: +${result.newMessageCount} messages`)
-      try {
-        await worker.generateIncrementalSessions(sessionId)
-      } catch {
-        /* ignore */
-      }
       return { success: true, newMessageCount: result.newMessageCount, sessionId }
     }
     if (result.error === 'error.session_not_found' || result.error?.includes('no such table')) {
