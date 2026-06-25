@@ -5,7 +5,7 @@ import path from 'node:path'
 import test from 'node:test'
 import type { PathProvider } from '@openchatlab/core'
 import { DatabaseManager, raiseDataDirMinRuntimeVersion, readDataDirCompatibilityMeta } from '@openchatlab/node-runtime'
-import { importData } from './importer'
+import { streamImport } from './stream-import'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -29,7 +29,23 @@ function createPathProvider(root: string): PathProvider {
   }
 }
 
-test('importData raises the data directory gate after creating a current-schema database', async () => {
+/** Write a minimal valid ChatLab Format JSON to a temp file and return the path. */
+function writeTempChatFile(dir: string): string {
+  const filePath = path.join(dir, 'test-chat.json')
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify({
+      chatlab: { version: '0.0.2', exportedAt: 1711468800 },
+      meta: { name: 'Test Chat', platform: 'qq', type: 'group' },
+      members: [{ platformId: 'u1', accountName: 'Alice' }],
+      // accountName is required by streaming-importer (skipped otherwise)
+      messages: [{ sender: 'u1', accountName: 'Alice', timestamp: 1711468800, type: 0, content: 'hello' }],
+    })
+  )
+  return filePath
+}
+
+test('streamImport raises the data directory gate after creating a current-schema database', async () => {
   const root = makeTempDir()
   fs.mkdirSync(path.join(root, 'data', 'databases'), { recursive: true })
   const manager = new DatabaseManager(createPathProvider(root), {
@@ -37,23 +53,8 @@ test('importData raises the data directory gate after creating a current-schema 
     runtime: { version: '0.25.1', kind: 'cli' },
   })
 
-  const result = await importData(
-    manager,
-    {
-      meta: { name: 'Fresh Import', platform: 'qq', type: 'group' },
-      members: [{ platformId: 'u1', accountName: 'Alice' }],
-      messages: [
-        {
-          senderPlatformId: 'u1',
-          senderAccountName: 'Alice',
-          timestamp: 1000,
-          type: 0,
-          content: 'hello',
-        },
-      ],
-    },
-    { nativeBinding }
-  )
+  const chatFile = writeTempChatFile(root)
+  const result = await streamImport(manager, chatFile, { sessionId: 'test-session', nativeBinding })
 
   assert.equal(result.success, true)
   const meta = readDataDirCompatibilityMeta(path.join(root, 'data'))
@@ -62,7 +63,7 @@ test('importData raises the data directory gate after creating a current-schema 
   assert.deepEqual(meta?.reasons, ['segment-schema'])
 })
 
-test('importData re-checks data directory compatibility before raw database writes', async () => {
+test('streamImport re-checks data directory compatibility before raw database writes', async () => {
   const root = makeTempDir()
   fs.mkdirSync(path.join(root, 'data', 'databases'), { recursive: true })
   const pathProvider = createPathProvider(root)
@@ -79,22 +80,11 @@ test('importData re-checks data directory compatibility before raw database writ
     runtime: { version: '0.25.1', kind: 'cli' },
   })
 
-  const result = await importData(
-    manager,
-    {
-      meta: { name: 'Blocked Import', platform: 'qq', type: 'group' },
-      members: [{ platformId: 'u1', accountName: 'Alice' }],
-      messages: [
-        {
-          senderPlatformId: 'u1',
-          senderAccountName: 'Alice',
-          timestamp: 1000,
-          type: 0,
-          content: 'hello',
-        },
-      ],
-    },
-    { nativeBinding }
+  const chatFile = writeTempChatFile(root)
+  // DataDirCompatibilityError is thrown before the inner try/catch in streaming-importer,
+  // so streamImport propagates it. Normalise to a result shape for assertions.
+  const result = await streamImport(manager, chatFile, { sessionId: 'test-session', nativeBinding }).catch(
+    (err: Error) => ({ success: false as const, error: err.message })
   )
 
   assert.equal(result.success, false)

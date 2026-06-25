@@ -53,6 +53,8 @@ export interface StreamImportOptions {
   chatIndex?: number
   nativeBinding?: string
   onProgress?: (progress: StreamImportProgress) => void
+  /** Fix the target session ID instead of auto-generating one. Used by sync/pull adapters. */
+  sessionId?: string
 }
 
 function generateSessionId(): string {
@@ -87,7 +89,7 @@ export async function streamImport(
   filePath: string,
   options?: StreamImportOptions
 ): Promise<StreamImportResult> {
-  const { formatId, chatIndex, onProgress } = options || {}
+  const { formatId, chatIndex, onProgress, sessionId } = options || {}
 
   const formatOptions: Record<string, unknown> = {}
   if (formatId) formatOptions.formatId = formatId
@@ -132,7 +134,7 @@ export async function streamImport(
     : () => {}
 
   const deps = buildStreamImportDeps(dbManager, progressAdapter)
-  const result = await streamingImport(filePath, deps, formatOptions)
+  const result = await streamingImport(filePath, deps, formatOptions, sessionId)
   if (!result.success || !result.sessionId) return result
 
   try {

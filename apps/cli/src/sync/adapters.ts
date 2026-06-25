@@ -2,7 +2,7 @@
  * Server-side implementations of @openchatlab/sync abstractions.
  *
  * NodeFetcher: uses Node.js fetch API
- * DirectImporter: uses DatabaseManager + streamImport/importData
+ * DirectImporter: uses DatabaseManager + streamImport/incrementalImport
  * NoopNotifier: placeholder (future: SSE push)
  */
 
@@ -15,8 +15,7 @@ import { NOOP_LOGGER } from '@openchatlab/sync'
 import { buildPullUrl } from '@openchatlab/sync'
 import type { DatabaseManager } from '@openchatlab/node-runtime'
 import { DataDirCompatibilityError } from '@openchatlab/node-runtime'
-import { parseFile } from '../import/chatlab-reader'
-import { importData } from '../import/importer'
+import { streamImport, incrementalImport } from '../import/stream-import'
 
 function getTempFilePath(ext: string): string {
   const id = crypto.randomBytes(8).toString('hex')
@@ -106,29 +105,19 @@ export class DirectImporter implements DataImporter {
 
   private async incrementalImportFile(sessionId: string, tempFile: string): Promise<ImportResult> {
     try {
-      const data = await parseFile(tempFile)
-
       this.dbManager.close(sessionId)
-      const result = await importData(this.dbManager, data, {
-        sessionId,
-      })
+      const result = await incrementalImport(this.dbManager, sessionId, tempFile)
 
       if (result.success) {
+        const newMessageCount = result.newMessageCount
+        const duplicateCount = result.batch?.duplicateCount ?? 0
         this.logger.info(
-          `[DirectImporter] Incremental OK: +${result.messageCount} messages (${result.duplicateCount} duplicates skipped)`
+          `[DirectImporter] Incremental OK: +${newMessageCount} messages (${duplicateCount} duplicates skipped)`
         )
-        return {
-          success: true,
-          newMessageCount: result.messageCount,
-          sessionId,
-        }
+        return { success: true, newMessageCount, sessionId }
       }
 
-      if (
-        result.error?.includes('not found') ||
-        result.error?.includes('session_not_found') ||
-        result.error?.includes('no such table')
-      ) {
+      if (result.error === 'error.session_not_found' || result.error?.includes('no such table')) {
         return { success: false, newMessageCount: 0, sessionId, needFullResync: true }
       }
 
@@ -141,17 +130,12 @@ export class DirectImporter implements DataImporter {
 
   private async fullImportFile(tempFile: string, externalId: string): Promise<ImportResult> {
     try {
-      const data = await parseFile(tempFile)
-
-      const result = await importData(this.dbManager, data, {
-        sessionId: externalId,
-      })
+      const result = await streamImport(this.dbManager, tempFile, { sessionId: externalId })
 
       if (result.success) {
-        this.logger.info(
-          `[DirectImporter] Full import OK: ${result.messageCount} messages, ${result.memberCount} members`
-        )
-        return { success: true, newMessageCount: result.messageCount, sessionId: externalId }
+        const newMessageCount = result.diagnostics?.messagesWritten ?? 0
+        this.logger.info(`[DirectImporter] Full import OK: +${newMessageCount} messages`)
+        return { success: true, newMessageCount, sessionId: result.sessionId ?? externalId }
       }
 
       return { success: false, newMessageCount: 0, error: result.error }
