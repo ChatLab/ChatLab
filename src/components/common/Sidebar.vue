@@ -482,7 +482,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
       </div>
 
       <!-- 聊天记录列表 - 可滚动区域，滚动条贴边 -->
-      <div class="flex-1 overflow-y-auto">
+      <div class="session-list flex-1 overflow-y-auto">
         <div v-if="sessions.length === 0 && !isCollapsed" class="py-8 text-center text-sm text-gray-500">
           {{ t('layout.noRecords') }}
         </div>
@@ -649,3 +649,23 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
     <SidebarFooter />
   </div>
 </template>
+
+<style scoped>
+.session-list {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.session-list:hover {
+  scrollbar-color: rgb(156 163 175 / 0.4) transparent;
+}
+.session-list::-webkit-scrollbar {
+  width: 4px;
+}
+.session-list::-webkit-scrollbar-thumb {
+  background-color: transparent;
+  border-radius: 9999px;
+}
+.session-list:hover::-webkit-scrollbar-thumb {
+  background-color: rgb(156 163 175 / 0.4);
+}
+</style>
