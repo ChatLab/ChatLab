@@ -70,10 +70,8 @@ const currentColor = computed(() => colorPalette[colorIndex.value])
 const avatarColor = computed(() => currentColor.value.avatar)
 const nameColor = computed(() => currentColor.value.name)
 
-// 气泡颜色（Owner 使用微粉色，其他人使用微灰色）
-const bubbleColor = computed(() =>
-  isOwner.value ? 'bg-pink-50/80 dark:bg-pink-950/20' : 'bg-gray-100/80 dark:bg-gray-800/80'
-)
+// 气泡颜色
+const bubbleColor = 'bg-gray-100/80 dark:bg-gray-800/80'
 
 // 显示名称（包含别名）
 const displayName = computed(() => {
@@ -116,23 +114,23 @@ const avatarLetter = computed(() => {
   return '?'
 })
 
+const HIGHLIGHT_MARK_CLASS =
+  'bg-transparent text-inherit underline decoration-primary-500/80 underline-offset-4 dark:decoration-primary-400/80'
+
 // 高亮关键词
 function highlightContent(content: string): string {
   if (!props.highlightKeywords?.length || !content) return content
 
   const pattern = props.highlightKeywords.map((k) => k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|')
   const regex = new RegExp(`(${pattern})`, 'gi')
-  return content.replace(
-    regex,
-    '<mark class="bg-transparent border-b-2 border-yellow-400 dark:border-yellow-500">$1</mark>'
-  )
+  return content.replace(regex, `<mark class="${HIGHLIGHT_MARK_CLASS}">$1</mark>`)
 }
 </script>
 
 <template>
   <div
     class="group px-4 py-2.5 transition-all duration-300"
-    :class="[isTarget ? 'bg-amber-500/5 dark:bg-amber-500/10' : 'hover:bg-gray-50/40 dark:hover:bg-gray-900/10']"
+    :class="[isTarget ? 'bg-primary-500/5 dark:bg-primary-500/10' : 'hover:bg-gray-50/40 dark:hover:bg-gray-900/10']"
   >
     <!-- Owner 消息显示在右侧 -->
     <div class="flex gap-3" :class="isOwner ? 'flex-row-reverse' : ''">
@@ -164,7 +162,7 @@ function highlightContent(content: string): string {
         <div class="flex items-start gap-1 max-w-[calc(100%-68px)]" :class="isOwner ? 'flex-row-reverse' : ''">
           <div
             class="relative inline-block rounded-2xl px-3.5 py-2.5 transition-all duration-300 border border-gray-100 dark:border-gray-800/40"
-            :class="[bubbleColor, isTarget ? 'ring-2 ring-amber-400 dark:ring-amber-500' : '']"
+            :class="bubbleColor"
           >
             <!-- 回复引用样式 -->
             <div

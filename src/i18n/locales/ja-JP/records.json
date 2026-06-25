@@ -30,6 +30,7 @@
   "summaryUnknownError": "不明なエラー",
   "batchSummary": {
     "title": "要約をまとめて作成",
+    "trigger": "一括生成",
     "byRange": "範囲で選択",
     "byTime": "時間で選択",
     "selectRange": "範囲を選択",

@@ -30,6 +30,7 @@
   "summaryUnknownError": "未知错误",
   "batchSummary": {
     "title": "批量生成摘要",
+    "trigger": "批量生成",
     "byRange": "按范围",
     "byTime": "按时间",
     "selectRange": "选择范围",

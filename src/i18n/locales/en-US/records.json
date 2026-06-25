@@ -30,6 +30,7 @@
   "summaryUnknownError": "Unknown error",
   "batchSummary": {
     "title": "Batch Generate Summaries",
+    "trigger": "Batch",
     "byRange": "By Range",
     "byTime": "By Time",
     "selectRange": "Select Range",
