@@ -32,7 +32,7 @@ Both modes share the same underlying import pipeline (deduplication, meta/member
 ### Base URL
 
 ```
-Base URL: http://<host>:<port>   (desktop default: 127.0.0.1:5200)
+Base URL: http://<host>:<port>   (desktop default: 127.0.0.1:3110)
 Prefix:   /api/v1
 ```
 
@@ -81,8 +81,8 @@ For query endpoint details, see [ChatLab API](./chatlab-api.md).
 
 | Priority | Scenario | Recommended Format | Example |
 | --- | --- | --- | --- |
-| 1 (preferred) | Platform-native ID available | `{platform}_{originalId}` | `wechat_xxx@chatroom`, `qq_123456789` |
-| 2 | File import (structured ID available) | `{platform}_{meta.groupId}` or `{platform}_{platformId}` | `wechat_xxx@chatroom` |
+| 1 (preferred) | Platform-native ID available | `{platform}_{originalId}` | `whatsapp_112233445566`, `qq_123456789` |
+| 2 | File import (structured ID available) | `{platform}_{meta.groupId}` or `{platform}_{platformId}` | `whatsapp_112233445566` |
 | 3 | File import (no structured identifier) | `file_{SHA256(content)[:16]}` | `file_a1b2c3d4e5f6g7h8` |
 | 4 (fallback) | One-off import | `import_{UUID}` | `import_550e8400-e29b-41d4-a716-446655440000` |
 
@@ -100,6 +100,30 @@ For query endpoint details, see [ChatLab API](./chatlab-api.md).
 | `Idempotency-Key` | Recommended | Unique identifier for the current batch, for safe retries. Suggested format: `{sessionId}-{batchIndex}-{windowStart}` |
 | `X-Dry-Run` | No | Set to `true` to analyze without writing; returns estimated results |
 
+### Quick Test
+
+Copy the command below to test immediately (replace `YOUR_TOKEN` and the port with your actual values):
+
+```bash
+curl http://127.0.0.1:3110/api/v1/imports/group_abc123 \
+  -H "Authorization: Bearer YOUR_TOKEN" \
+  -H "Content-Type: application/json" \
+  -d '{
+  "chatlab": { "version": "0.0.2", "exportedAt": 1711468800, "generator": "test" },
+  "meta": { "name": "Product Discussion", "platform": "whatsapp", "type": "group", "groupId": "112233445566" },
+  "members": [
+    { "platformId": "user_a", "accountName": "Alice", "roles": [{ "id": "owner" }] }
+  ],
+  "messages": [
+    { "platformMessageId": "msg_1001", "sender": "user_a", "timestamp": 1711468800, "type": 0, "content": "Hello" }
+  ]
+}'
+```
+
+A successful response returns `"success": true` with write statistics. Repeating the same `platformMessageId` is deduplicated — `duplicateCount` increases while `writtenCount` stays the same.
+
+---
+
 ### Request Body (JSON)
 
 ```json
@@ -111,15 +135,15 @@ For query endpoint details, see [ChatLab API](./chatlab-api.md).
   },
   "meta": {
     "name": "Product Discussion",
-    "platform": "wechat",
+    "platform": "whatsapp",
     "type": "group",
-    "groupId": "xxx@chatroom",
+    "groupId": "112233445566",
     "groupAvatar": "data:image/jpeg;base64,...",
-    "ownerId": "wxid_owner"
+    "ownerId": "user_owner"
   },
   "members": [
     {
-      "platformId": "wxid_a",
+      "platformId": "user_a",
       "accountName": "Alice",
       "groupNickname": "Product",
       "avatar": "data:image/jpeg;base64,...",
@@ -129,7 +153,7 @@ For query endpoint details, see [ChatLab API](./chatlab-api.md).
   "messages": [
     {
       "platformMessageId": "msg_1001",
-      "sender": "wxid_a",
+      "sender": "user_a",
       "accountName": "Alice",
       "groupNickname": "Product",
       "timestamp": 1711468800,
@@ -161,10 +185,10 @@ When backfilling historical data, pass `"metaUpdateMode": "none"` to prevent old
 One JSON object per line, distinguished by the `_type` field. Line order: `header` → `member` (zero or more) → `message` (one or more).
 
 ```jsonl
-{"_type":"header","chatlab":{"version":"0.0.2","exportedAt":1711468800,"generator":"YourSystem/1.0"},"meta":{"name":"Product Discussion","platform":"wechat","type":"group","groupId":"xxx@chatroom"},"options":{"metaUpdateMode":"patch","memberUpdateMode":"upsert"}}
-{"_type":"member","platformId":"wxid_a","accountName":"Alice","groupNickname":"Product"}
-{"_type":"message","platformMessageId":"msg_1001","sender":"wxid_a","accountName":"Alice","timestamp":1711468800,"type":0,"content":"Hello"}
-{"_type":"message","platformMessageId":"msg_1002","sender":"wxid_b","accountName":"Bob","timestamp":1711468860,"type":0,"content":"Hi"}
+{"_type":"header","chatlab":{"version":"0.0.2","exportedAt":1711468800,"generator":"YourSystem/1.0"},"meta":{"name":"Product Discussion","platform":"whatsapp","type":"group","groupId":"112233445566"},"options":{"metaUpdateMode":"patch","memberUpdateMode":"upsert"}}
+{"_type":"member","platformId":"user_a","accountName":"Alice","groupNickname":"Product"}
+{"_type":"message","platformMessageId":"msg_1001","sender":"user_a","accountName":"Alice","timestamp":1711468800,"type":0,"content":"Hello"}
+{"_type":"message","platformMessageId":"msg_1002","sender":"user_b","accountName":"Bob","timestamp":1711468860,"type":0,"content":"Hi"}
 ```
 
 ### Block Requirements
@@ -264,7 +288,7 @@ If your platform isn't listed, use a lowercase identifier (e.g. `signal`, `matri
 {
   "success": true,
   "data": {
-    "sessionId": "wechat_xxx@chatroom",
+    "sessionId": "group_abc123",
     "created": false,
     "batch": {
       "receivedCount": 5000,
@@ -351,7 +375,7 @@ ChatLab does not maintain cursors for callers. Recommended structure:
 
 ```json
 {
-  "sessionId": "wechat_xxx@chatroom",
+  "sessionId": "group_abc123",
   "lastSyncedTimestamp": 1711468800,
   "lastSyncedMessageId": "msg_900000"
 }
@@ -373,19 +397,19 @@ Current version: **only one import task is allowed at a time per session**. Conc
 1. Prepare all chat data and split into N batches in chronological order (≤5,000 messages each)
 
 2. First batch:
-   POST /api/v1/imports/wechat_xxx@chatroom
+   POST /api/v1/imports/group_abc123
    Body: { chatlab, meta, members, messages }
    → Response: created: true, session created
 
 3. Batches 2–N:
-   POST /api/v1/imports/wechat_xxx@chatroom
+   POST /api/v1/imports/group_abc123
    Body: { messages }
    Idempotency-Key: {sessionId}-{batchIndex}-{windowStart}
 
 4. After each batch, record cursor; on failure, retry with the same Idempotency-Key
 
 5. After all batches, reconcile:
-   GET /api/v1/sessions/wechat_xxx@chatroom
+   GET /api/v1/sessions/group_abc123
    → Verify totalCount, firstTimestamp, lastTimestamp
 ```
 

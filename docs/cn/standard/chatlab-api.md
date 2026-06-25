@@ -23,12 +23,12 @@ ChatLab 提供本地 RESTful API 服务，允许外部工具、脚本和 MCP 等
 
 打开 ChatLab → 设置 → ChatLab API → 开启服务。
 
-启用后会自动生成 API Token，默认监听端口 `5200`。
+启用后会自动生成 API Token，默认监听端口 `3110`。
 
 ### 2. 验证服务状态
 
 ```bash
-curl http://127.0.0.1:5200/api/v1/status \
+curl http://127.0.0.1:3110/api/v1/status \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
@@ -54,7 +54,7 @@ curl http://127.0.0.1:5200/api/v1/status \
 
 | 项目     | 说明                      |
 | -------- | ------------------------- |
-| 基础 URL | `http://127.0.0.1:5200`   |
+| 基础 URL | `http://127.0.0.1:3110`   |
 | API 前缀 | `/api/v1`                 |
 | 认证方式 | Bearer Token              |
 | 数据格式 | JSON                      |
@@ -192,16 +192,16 @@ Token 可在 设置 → ChatLab API 页面查看和重新生成。
 {
   "success": true,
   "data": {
-    "id": "wechat_xxx@chatroom",
+    "id": "group_abc123",
     "name": "产品讨论群",
-    "platform": "wechat",
+    "platform": "whatsapp",
     "type": "group",
     "messageCount": 58000,
     "memberCount": 86,
     "firstTimestamp": 1609459200,
     "lastTimestamp": 1711468800,
     "lastPlatformMessageId": "msg_900000",
-    "groupId": "xxx@chatroom",
+    "groupId": "112233445566",
     "importedAt": 1711469900
   }
 }
@@ -236,7 +236,7 @@ Token 可在 设置 → ChatLab API 页面查看和重新生成。
 **请求示例：**
 
 ```bash
-curl "http://127.0.0.1:5200/api/v1/sessions/abc123/messages?page=1&limit=50&keyword=你好" \
+curl "http://127.0.0.1:3110/api/v1/sessions/abc123/messages?page=1&limit=50&keyword=你好" \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 

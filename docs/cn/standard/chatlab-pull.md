@@ -70,18 +70,18 @@ Accept: application/json
 {
   "sessions": [
     {
-      "id": "xxx@chatroom",
+      "id": "112233445566",
       "name": "产品讨论群",
-      "platform": "wechat",
+      "platform": "whatsapp",
       "type": "group",
       "messageCount": 58000,
       "memberCount": 86,
       "lastMessageAt": 1711468800
     },
     {
-      "id": "wxid_friend_a",
+      "id": "user_a",
       "name": "张三",
-      "platform": "wechat",
+      "platform": "whatsapp",
       "type": "private",
       "messageCount": 1200,
       "memberCount": 2,
@@ -169,7 +169,7 @@ Accept: application/json
 ```json
 {
   "chatlab": { "version": "0.0.2", "exportedAt": 1711468800 },
-  "meta": { "name": "产品讨论群", "platform": "wechat", "type": "group" },
+  "meta": { "name": "产品讨论群", "platform": "whatsapp", "type": "group" },
   "members": [ ... ],
   "messages": [ ... ],
   "sync": {
@@ -263,7 +263,7 @@ Accept: text/event-stream
 
 ```
 event: message.new
-data: {"eventId":"evt_001","sessionId":"xxx@chatroom","timestamp":1711468800}
+data: {"eventId":"evt_001","sessionId":"112233445566","timestamp":1711468800}
 ```
 
 | 字段                | 类型   | 必填 | 说明                                       |

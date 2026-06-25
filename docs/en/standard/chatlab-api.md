@@ -8,12 +8,12 @@ ChatLab provides a local RESTful API service that allows external tools, scripts
 
 Open ChatLab → Settings → ChatLab API → Enable Service.
 
-Once enabled, an API Token is automatically generated. The default port is `5200`.
+Once enabled, an API Token is automatically generated. The default port is `3110`.
 
 ### 2. Verify Service Status
 
 ```bash
-curl http://127.0.0.1:5200/api/v1/status \
+curl http://127.0.0.1:3110/api/v1/status \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
@@ -39,7 +39,7 @@ Response example:
 
 | Item           | Description                  |
 | -------------- | ---------------------------- |
-| Base URL       | `http://127.0.0.1:5200`      |
+| Base URL       | `http://127.0.0.1:3110`      |
 | API Prefix     | `/api/v1`                    |
 | Authentication | Bearer Token                 |
 | Data Format    | JSON                         |
@@ -150,7 +150,7 @@ Get all imported sessions.
     {
       "id": "session_abc123",
       "name": "Tech Discussion Group",
-      "platform": "wechat",
+      "platform": "whatsapp",
       "type": "group",
       "messageCount": 58000,
       "memberCount": 120
@@ -192,7 +192,7 @@ Query messages from a specific session with pagination and filtering support.
 **Request example:**
 
 ```bash
-curl "http://127.0.0.1:5200/api/v1/sessions/abc123/messages?page=1&limit=50&keyword=hello" \
+curl "http://127.0.0.1:3110/api/v1/sessions/abc123/messages?page=1&limit=50&keyword=hello" \
   -H "Authorization: Bearer YOUR_TOKEN"
 ```
 
@@ -321,7 +321,7 @@ Export complete session data in [ChatLab Format](./chatlab-format.md) JSON.
     },
     "meta": {
       "name": "Tech Discussion Group",
-      "platform": "wechat",
+      "platform": "whatsapp",
       "type": "group"
     },
     "members": [...],
@@ -346,7 +346,7 @@ Import chat records into ChatLab, **creating a new session**.
 #### JSON Mode Example
 
 ```bash
-curl -X POST http://127.0.0.1:5200/api/v1/import \
+curl -X POST http://127.0.0.1:3110/api/v1/import \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/json" \
   -d '{
@@ -377,7 +377,7 @@ curl -X POST http://127.0.0.1:5200/api/v1/import \
 #### JSONL Mode Example
 
 ```bash
-cat data.jsonl | curl -X POST http://127.0.0.1:5200/api/v1/import \
+cat data.jsonl | curl -X POST http://127.0.0.1:3110/api/v1/import \
   -H "Authorization: Bearer YOUR_TOKEN" \
   -H "Content-Type: application/x-ndjson" \
   --data-binary @-

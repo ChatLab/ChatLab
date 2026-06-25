@@ -85,7 +85,7 @@ ChatLab 定义了一套标准的聊天记录数据交换格式，用于支持多
 | 字段          | 类型   | 必填 | 说明                                                     |
 | ------------- | ------ | ---- | -------------------------------------------------------- |
 | `name`        | string | ✅   | 群名或对话名                                             |
-| `platform`    | string | ✅   | 平台标识，如 `qq` / `wechat` / `discord` / `whatsapp` 等 |
+| `platform`    | string | ✅   | 平台标识，如 `qq` / `discord` / `whatsapp` / `slack` 等 |
 | `type`        | string | ✅   | 聊天类型：`group`（群聊）/ `private`（私聊）             |
 | `groupId`     | string | -    | 群 ID（仅群聊）                                          |
 | `groupAvatar` | string | -    | 群头像（Data URL 格式）                                  |
@@ -253,7 +253,7 @@ https://example.com/avatars/user123.jpg
   },
   "meta": {
     "name": "技术交流群",
-    "platform": "wechat",
+    "platform": "whatsapp",
     "type": "group",
     "groupId": "38988428513",
     "groupAvatar": "data:image/jpeg;base64,/9j/4AAQSkZJRg...",

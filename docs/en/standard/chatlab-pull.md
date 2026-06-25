@@ -70,18 +70,18 @@ Accept: application/json
 {
   "sessions": [
     {
-      "id": "xxx@chatroom",
+      "id": "112233445566",
       "name": "Product Discussion",
-      "platform": "wechat",
+      "platform": "whatsapp",
       "type": "group",
       "messageCount": 58000,
       "memberCount": 86,
       "lastMessageAt": 1711468800
     },
     {
-      "id": "wxid_friend_a",
+      "id": "user_a",
       "name": "Alice",
-      "platform": "wechat",
+      "platform": "whatsapp",
       "type": "private",
       "messageCount": 1200,
       "memberCount": 2,
@@ -169,7 +169,7 @@ The response is standard [ChatLab Format](./chatlab-format.md) (JSON or JSONL), 
 ```json
 {
   "chatlab": { "version": "0.0.2", "exportedAt": 1711468800 },
-  "meta": { "name": "Product Discussion", "platform": "wechat", "type": "group" },
+  "meta": { "name": "Product Discussion", "platform": "whatsapp", "type": "group" },
   "members": [ ... ],
   "messages": [ ... ],
   "sync": {
@@ -263,7 +263,7 @@ Accept: text/event-stream
 
 ```
 event: message.new
-data: {"eventId":"evt_001","sessionId":"xxx@chatroom","timestamp":1711468800}
+data: {"eventId":"evt_001","sessionId":"112233445566","timestamp":1711468800}
 ```
 
 | Field | Type | Required | Description |

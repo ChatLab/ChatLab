@@ -83,7 +83,7 @@ Here's a **minimal** ChatLab format example with only required fields:
 | Field         | Type   | Required | Description                                                         |
 | ------------- | ------ | -------- | ------------------------------------------------------------------- |
 | `name`        | string | ✅       | Group name or conversation name                                     |
-| `platform`    | string | ✅       | Platform identifier: `qq` / `wechat` / `discord` / `whatsapp`, etc. |
+| `platform`    | string | ✅       | Platform identifier: `qq` / `discord` / `whatsapp` / `slack`, etc. |
 | `type`        | string | ✅       | Chat type: `group` / `private`                                      |
 | `groupId`     | string | -        | Group ID (group chat only)                                          |
 | `groupAvatar` | string | -        | Group avatar (Data URL format)                                      |
@@ -184,7 +184,7 @@ When exporting, we recommend compressing avatars to 100×100 pixels or less to r
   },
   "meta": {
     "name": "Tech Exchange Group",
-    "platform": "wechat",
+    "platform": "whatsapp",
     "type": "group",
     "groupId": "38988428513",
     "groupAvatar": "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
