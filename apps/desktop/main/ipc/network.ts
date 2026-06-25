@@ -29,23 +29,26 @@ export function registerNetworkHandlers(_context: IpcContext): void {
   /**
    * 保存代理配置
    */
-  ipcMain.handle('network:saveProxyConfig', (_event, config: ProxyConfig): { success: boolean; error?: string } => {
-    try {
-      // 如果是手动模式且填写了 URL，验证 URL 格式
-      if (config.mode === 'manual' && config.url) {
-        const validation = validateProxyUrl(config.url)
-        if (!validation.valid) {
-          return { success: false, error: validation.error }
+  ipcMain.handle(
+    'network:saveProxyConfig',
+    async (_event, config: ProxyConfig): Promise<{ success: boolean; error?: string }> => {
+      try {
+        // 如果是手动模式且填写了 URL，验证 URL 格式
+        if (config.mode === 'manual' && config.url) {
+          const validation = validateProxyUrl(config.url)
+          if (!validation.valid) {
+            return { success: false, error: validation.error }
+          }
         }
-      }
 
-      saveProxyConfig(config)
-      return { success: true }
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : String(error)
-      return { success: false, error: `保存配置失败: ${errorMessage}` }
+        await saveProxyConfig(config)
+        return { success: true }
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : String(error)
+        return { success: false, error: `保存配置失败: ${errorMessage}` }
+      }
     }
-  })
+  )
 
   /**
    * 测试代理连接

@@ -209,6 +209,9 @@ importers:
       sqlite-vec:
         specifier: ^0.1.9
         version: 0.1.9
+      undici:
+        specifier: ^6.25.0
+        version: 6.25.0
     devDependencies:
       '@electron-toolkit/tsconfig':
         specifier: ^1.0.1

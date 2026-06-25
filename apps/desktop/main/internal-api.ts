@@ -46,6 +46,7 @@ import { getManager as getSkillManager } from './ai/skills/manager'
 import { createElectronRunAgentStream } from './ai/agent-stream-runner'
 import { createExecuteElectronAiTool } from './ai/tools/debug-executor'
 import { assertDesktopDataDirCompatible, getDesktopAppVersion } from './runtime-compat'
+import { resolveModelDownloadProxyUrl } from './network/proxy'
 
 export interface InternalEndpoint {
   baseUrl: string
@@ -120,6 +121,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
         pathProvider,
         runtime,
         sqliteVecLoadablePath: getSqliteVecLoadablePath().replace('app.asar', 'app.asar.unpacked'),
+        getModelDownloadProxyUrl: resolveModelDownloadProxyUrl,
         workerEntryUrl: import.meta.url.endsWith('.ts')
           ? undefined
           : new URL('./semantic-index-worker.js', import.meta.url),

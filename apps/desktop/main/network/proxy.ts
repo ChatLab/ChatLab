@@ -7,6 +7,8 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { app, session } from 'electron'
 import { getSettingsDir } from '../paths'
+import { ProxyApplyQueue } from './proxy-apply-queue'
+import { proxyUrlFromElectronResolvedProxy } from './proxy-resolver'
 
 // 代理模式
 export type ProxyMode = 'off' | 'system' | 'manual'
@@ -25,6 +27,7 @@ const DEFAULT_CONFIG: ProxyConfig = {
 
 // 配置文件路径
 let CONFIG_PATH: string | null = null
+const proxyApplyQueue = new ProxyApplyQueue()
 
 function getConfigPath(): string {
   if (CONFIG_PATH) return CONFIG_PATH
@@ -80,7 +83,7 @@ export function loadProxyConfig(): ProxyConfig {
 /**
  * 保存代理配置
  */
-export function saveProxyConfig(config: ProxyConfig): void {
+export async function saveProxyConfig(config: ProxyConfig): Promise<void> {
   const configPath = getConfigPath()
   const dir = path.dirname(configPath)
 
@@ -91,7 +94,7 @@ export function saveProxyConfig(config: ProxyConfig): void {
   fs.writeFileSync(configPath, JSON.stringify(config, null, 2), 'utf-8')
 
   // 保存后立即应用代理设置到 Electron session
-  applyProxyToSession()
+  await applyProxyToSession()
 }
 
 /**
@@ -120,9 +123,7 @@ export function validateProxyUrl(url: string): { valid: boolean; error?: string 
  * 将代理设置应用到 Electron session
  * 这会影响所有通过 Electron 发起的网络请求（包括主进程的 fetch）
  */
-export async function applyProxyToSession(): Promise<void> {
-  const config = loadProxyConfig()
-
+async function applyProxyConfigToSession(config: ProxyConfig): Promise<void> {
   try {
     switch (config.mode) {
       case 'off':
@@ -178,6 +179,14 @@ export async function applyProxyToSession(): Promise<void> {
   }
 }
 
+export function applyProxyToSession(): Promise<void> {
+  return proxyApplyQueue.apply(() => applyProxyConfigToSession(loadProxyConfig()))
+}
+
+function waitForPendingProxyApply(): Promise<void> {
+  return proxyApplyQueue.waitForPending()
+}
+
 /**
  * 测试代理连接
  * 通过代理请求一个可靠的 HTTPS 地址来验证代理是否可用
@@ -189,85 +198,80 @@ export async function testProxyConnection(proxyUrl: string): Promise<{ success: 
     return { success: false, error: validation.error }
   }
 
-  // 测试 URL 列表（按优先级）
-  const testUrls = ['https://www.google.com', 'https://www.cloudflare.com', 'https://api.deepseek.com']
+  return await proxyApplyQueue.apply(async () => {
+    // 测试 URL 列表（按优先级）
+    const testUrls = ['https://www.google.com', 'https://www.cloudflare.com', 'https://api.deepseek.com']
 
-  try {
-    // 临时设置代理
-    await session.defaultSession.setProxy({
-      proxyRules: proxyUrl,
-    })
+    try {
+      // 临时设置代理
+      await session.defaultSession.setProxy({
+        proxyRules: proxyUrl,
+      })
 
-    // 使用 Electron 的 net 模块测试连接
-    const { net } = await import('electron')
+      // 使用 Electron 的 net 模块测试连接
+      const { net } = await import('electron')
 
-    let lastError: string = ''
+      let lastError: string = ''
 
-    for (const testUrl of testUrls) {
-      try {
-        const result = await new Promise<{ success: boolean; error?: string }>((resolve) => {
-          const request = net.request({
-            method: 'HEAD',
-            url: testUrl,
+      for (const testUrl of testUrls) {
+        try {
+          const result = await new Promise<{ success: boolean; error?: string }>((resolve) => {
+            const request = net.request({
+              method: 'HEAD',
+              url: testUrl,
+            })
+
+            const timeout = setTimeout(() => {
+              request.abort()
+              resolve({ success: false, error: '连接超时' })
+            }, 10000)
+
+            request.on('response', (response) => {
+              clearTimeout(timeout)
+              // 任何响应都说明代理可用
+              if (response.statusCode < 500) {
+                resolve({ success: true })
+              } else {
+                resolve({ success: false, error: `HTTP ${response.statusCode}` })
+              }
+            })
+
+            request.on('error', (error) => {
+              clearTimeout(timeout)
+              resolve({ success: false, error: error.message })
+            })
+
+            request.end()
           })
 
-          const timeout = setTimeout(() => {
-            request.abort()
-            resolve({ success: false, error: '连接超时' })
-          }, 10000)
+          if (result.success) return { success: true }
 
-          request.on('response', (response) => {
-            clearTimeout(timeout)
-            // 任何响应都说明代理可用
-            if (response.statusCode < 500) {
-              resolve({ success: true })
-            } else {
-              resolve({ success: false, error: `HTTP ${response.statusCode}` })
-            }
-          })
-
-          request.on('error', (error) => {
-            clearTimeout(timeout)
-            resolve({ success: false, error: error.message })
-          })
-
-          request.end()
-        })
-
-        if (result.success) {
-          // 恢复之前的代理设置
-          await applyProxyToSession()
-          return { success: true }
+          lastError = result.error || ''
+        } catch (e) {
+          lastError = e instanceof Error ? e.message : String(e)
         }
-
-        lastError = result.error || ''
-      } catch (e) {
-        lastError = e instanceof Error ? e.message : String(e)
       }
-    }
 
-    // 恢复之前的代理设置
-    await applyProxyToSession()
-    return { success: false, error: lastError || '无法通过代理连接到测试服务器' }
-  } catch (error) {
-    // 恢复之前的代理设置
-    await applyProxyToSession()
+      return { success: false, error: lastError || '无法通过代理连接到测试服务器' }
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error)
 
-    const errorMessage = error instanceof Error ? error.message : String(error)
+      // 友好的错误提示
+      if (errorMessage.includes('ECONNREFUSED')) {
+        return { success: false, error: '连接被拒绝，请检查代理服务器是否运行中' }
+      }
+      if (errorMessage.includes('ETIMEDOUT') || errorMessage.includes('timeout')) {
+        return { success: false, error: '连接超时，请检查代理地址和端口' }
+      }
+      if (errorMessage.includes('ENOTFOUND')) {
+        return { success: false, error: '无法解析代理服务器地址' }
+      }
 
-    // 友好的错误提示
-    if (errorMessage.includes('ECONNREFUSED')) {
-      return { success: false, error: '连接被拒绝，请检查代理服务器是否运行中' }
+      return { success: false, error: `代理连接失败: ${errorMessage}` }
+    } finally {
+      await applyProxyConfigToSession(loadProxyConfig())
     }
-    if (errorMessage.includes('ETIMEDOUT') || errorMessage.includes('timeout')) {
-      return { success: false, error: '连接超时，请检查代理地址和端口' }
-    }
-    if (errorMessage.includes('ENOTFOUND')) {
-      return { success: false, error: '无法解析代理服务器地址' }
-    }
-
-    return { success: false, error: `代理连接失败: ${errorMessage}` }
-  }
+  })
 }
 
 /**
@@ -285,6 +289,26 @@ export function getActiveProxyUrl(): string | undefined {
   return undefined
 }
 
+export async function resolveModelDownloadProxyUrl(): Promise<string | undefined> {
+  const config = loadProxyConfig()
+
+  if (config.mode === 'manual' && config.url) {
+    const validation = validateProxyUrl(config.url)
+    if (validation.valid) return config.url
+  }
+
+  if (config.mode !== 'system') return undefined
+
+  try {
+    await waitForPendingProxyApply()
+    const resolvedProxy = await session.defaultSession.resolveProxy('https://huggingface.co/')
+    return proxyUrlFromElectronResolvedProxy(resolvedProxy)
+  } catch (error) {
+    console.warn('[Proxy] Failed to resolve system proxy for model downloads:', error)
+    return undefined
+  }
+}
+
 /**
  * 初始化代理模块
  * 应用启动时调用，加载并应用代理配置
@@ -292,10 +316,10 @@ export function getActiveProxyUrl(): string | undefined {
 export function initProxy(): void {
   // 延迟执行，确保 app ready
   if (app.isReady()) {
-    applyProxyToSession()
+    void applyProxyToSession()
   } else {
     app.whenReady().then(() => {
-      applyProxyToSession()
+      void applyProxyToSession()
     })
   }
 }
