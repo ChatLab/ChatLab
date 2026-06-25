@@ -6,19 +6,20 @@
  */
 
 import * as fs from 'fs'
+import { DataDirCompatibilityError } from '../data-dir-compat'
 import {
   CHAT_DB_SCHEMA,
-  FTS_TABLE_SCHEMA,
   generateMessageKey,
   generateSessionIndex,
   generateIncrementalSessionIndex,
 } from '@openchatlab/core'
 import type { DatabaseAdapter } from '@openchatlab/core'
 import type { DatabaseManager } from '../database-manager'
-import { insertFtsEntries } from '../fts'
+import { buildFtsIndex, insertFtsEntries } from '../fts'
+import { writeParseResultToDb } from '../import'
 
-// ponytail: global lock — only one push import at a time per docs
-let importInProgress = false
+// Per-session lock: concurrent imports to different sessions are fine (separate DB files).
+const importInProgress = new Set<string>()
 
 export interface PushImportMessage {
   sender: string
@@ -84,12 +85,30 @@ function validatePayload(payload: PushImportPayload, isNew: boolean): string | n
     if (!m.type) return 'meta.type is required'
   }
 
+  const { metaUpdateMode, memberUpdateMode } = payload.options ?? {}
+  if (metaUpdateMode !== undefined && metaUpdateMode !== 'patch' && metaUpdateMode !== 'none') {
+    return `options.metaUpdateMode must be 'patch' or 'none'`
+  }
+  if (memberUpdateMode !== undefined && memberUpdateMode !== 'upsert' && memberUpdateMode !== 'none') {
+    return `options.memberUpdateMode must be 'upsert' or 'none'`
+  }
+
+  if (payload.members) {
+    for (let i = 0; i < payload.members.length; i++) {
+      if (!payload.members[i].platformId) return `members[${i}].platformId is required`
+    }
+  }
+
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i]
     if (!msg.sender) return `messages[${i}].sender is required`
     if (typeof msg.timestamp !== 'number' || msg.timestamp <= 0)
       return `messages[${i}].timestamp must be a positive number`
     if (typeof msg.type !== 'number') return `messages[${i}].type must be a number`
+    if (msg.content !== undefined && msg.content !== null && typeof msg.content !== 'string')
+      return `messages[${i}].content must be a string or null`
+    if (msg.platformMessageId !== undefined && typeof msg.platformMessageId !== 'string')
+      return `messages[${i}].platformMessageId must be a string`
   }
 
   return null
@@ -110,7 +129,12 @@ function writeMessages(
   messages: PushImportMessage[],
   existingPmids: Set<string>,
   existingKeys: Set<string>
-): { writtenCount: number; duplicateCount: number; ftsEntries: Array<{ id: number; content: string | null }> } {
+): {
+  writtenCount: number
+  duplicateCount: number
+  minWrittenTs: number
+  ftsEntries: Array<{ id: number; content: string | null }>
+} {
   const insertMsg = db.prepare(
     `INSERT INTO message (sender_id, sender_account_name, sender_group_nickname, ts, type, content, reply_to_message_id, platform_message_id)
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
@@ -121,6 +145,7 @@ function writeMessages(
   const memberIdCache = new Map<string, number>()
   let writtenCount = 0
   let duplicateCount = 0
+  let minWrittenTs = Infinity
   const ftsEntries: Array<{ id: number; content: string | null }> = []
 
   const sorted = [...messages].sort((a, b) => a.timestamp - b.timestamp)
@@ -133,6 +158,9 @@ function writeMessages(
           continue
         }
         existingPmids.add(msg.platformMessageId)
+        // Also register the content hash so a same-content no-pmid copy later
+        // in this batch is caught by the fallback dedup path.
+        existingKeys.add(generateMessageKey(msg.timestamp, msg.sender, msg.content ?? null))
       } else {
         const key = generateMessageKey(msg.timestamp, msg.sender, msg.content ?? null)
         if (existingKeys.has(key)) {
@@ -164,11 +192,12 @@ function writeMessages(
         msg.platformMessageId || null
       )
       ftsEntries.push({ id: Number(result.lastInsertRowid), content: msg.content ?? null })
+      if (msg.timestamp < minWrittenTs) minWrittenTs = msg.timestamp
       writtenCount++
     }
   })
 
-  return { writtenCount, duplicateCount, ftsEntries }
+  return { writtenCount, duplicateCount, minWrittenTs, ftsEntries }
 }
 
 function fullImport(
@@ -179,37 +208,60 @@ function fullImport(
 ): { writtenCount: number; duplicateCount: number; membersAdded: number } {
   db.exec(CHAT_DB_SCHEMA)
 
-  const now = Math.floor(Date.now() / 1000)
-  db.prepare(
-    'INSERT INTO meta (name, platform, type, imported_at, group_id, group_avatar, owner_id) VALUES (?, ?, ?, ?, ?, ?, ?)'
-  ).run(meta.name, meta.platform, meta.type, now, meta.groupId || null, meta.groupAvatar || null, meta.ownerId || null)
-
-  const insertMember = db.prepare(
-    'INSERT OR IGNORE INTO member (platform_id, account_name, group_nickname, avatar, roles) VALUES (?, ?, ?, ?, ?)'
-  )
-  const getMemberId = db.prepare('SELECT id FROM member WHERE platform_id = ?')
-  const memberIdMap = new Map<string, number>()
-
-  db.transaction(() => {
-    for (const m of members) {
-      insertMember.run(
-        m.platformId,
-        m.accountName || null,
-        m.groupNickname || null,
-        m.avatar || null,
-        m.roles ? JSON.stringify(m.roles) : '[]'
-      )
-      const row = getMemberId.get(m.platformId) as { id: number } | undefined
-      if (row) memberIdMap.set(m.platformId, row.id)
+  // Auto-create minimal member entries for senders not listed in members,
+  // preserving the protocol promise that unknown senders are auto-created.
+  const knownIds = new Set(members.map((m) => m.platformId))
+  const extraMembers: PushImportMember[] = []
+  for (const msg of messages) {
+    if (!knownIds.has(msg.sender)) {
+      extraMembers.push({ platformId: msg.sender, accountName: msg.accountName })
+      knownIds.add(msg.sender)
     }
-  })
-
-  const { writtenCount, duplicateCount, ftsEntries } = writeMessages(db, messages, new Set(), new Set())
-
-  if (ftsEntries.length > 0) {
-    db.exec(FTS_TABLE_SCHEMA)
-    insertFtsEntries(db, ftsEntries)
   }
+  const allMembers = extraMembers.length > 0 ? [...members, ...extraMembers] : members
+
+  // Deduplicate within the batch using the same pmid/hash logic as incremental imports.
+  const pmids = new Set<string>()
+  const hashKeys = new Set<string>()
+  let duplicateCount = 0
+  const dedupedMessages: PushImportMessage[] = []
+  for (const msg of messages) {
+    if (msg.platformMessageId) {
+      if (pmids.has(msg.platformMessageId)) {
+        duplicateCount++
+        continue
+      }
+      pmids.add(msg.platformMessageId)
+    } else {
+      const key = generateMessageKey(msg.timestamp, msg.sender, msg.content ?? null)
+      if (hashKeys.has(key)) {
+        duplicateCount++
+        continue
+      }
+      hashKeys.add(key)
+    }
+    dedupedMessages.push(msg)
+  }
+
+  // Delegate to the shared writer so member_name_history is tracked correctly,
+  // matching the behaviour of file-based full imports.
+  const stats = writeParseResultToDb(
+    db,
+    meta,
+    allMembers.map((m) => ({ ...m, accountName: m.accountName ?? m.platformId })),
+    dedupedMessages.map((m) => ({
+      senderPlatformId: m.sender,
+      senderAccountName: m.accountName ?? m.sender,
+      senderGroupNickname: m.groupNickname,
+      timestamp: m.timestamp,
+      type: m.type,
+      content: m.content ?? null,
+      platformMessageId: m.platformMessageId,
+      replyToMessageId: m.replyToMessageId,
+    }))
+  )
+
+  buildFtsIndex(db)
 
   try {
     generateSessionIndex(db)
@@ -217,7 +269,7 @@ function fullImport(
     /* non-fatal */
   }
 
-  return { writtenCount, duplicateCount, membersAdded: members.length }
+  return { writtenCount: stats.messageCount, duplicateCount, membersAdded: members.length }
 }
 
 function incrementalImport(
@@ -241,11 +293,12 @@ function incrementalImport(
       platform_message_id: string
     }>
   ).forEach((r) => existingPmids.add(r.platform_message_id))
+  // Load hashes for ALL existing messages (not just those without pmid) so that
+  // messages previously imported with a platformMessageId are still caught by
+  // content-hash dedup when the same content arrives without one.
   ;(
     db
-      .prepare(
-        `SELECT msg.ts, m.platform_id, msg.content FROM message msg JOIN member m ON msg.sender_id = m.id WHERE msg.platform_message_id IS NULL`
-      )
+      .prepare(`SELECT msg.ts, m.platform_id, msg.content FROM message msg JOIN member m ON msg.sender_id = m.id`)
       .all() as Array<{ ts: number; platform_id: string; content: string | null }>
   ).forEach((r) => existingKeys.add(generateMessageKey(r.ts, r.platform_id, r.content)))
 
@@ -296,7 +349,16 @@ function incrementalImport(
     })
   }
 
-  const { writtenCount, duplicateCount, ftsEntries } = writeMessages(db, payload.messages!, existingPmids, existingKeys)
+  // Capture existing max timestamp before writing to detect backfill batches.
+  const preWriteMaxTs =
+    (db.prepare('SELECT MAX(ts) as max_ts FROM message').get() as { max_ts: number | null })?.max_ts ?? 0
+
+  const { writtenCount, duplicateCount, minWrittenTs, ftsEntries } = writeMessages(
+    db,
+    payload.messages!,
+    existingPmids,
+    existingKeys
+  )
 
   if (ftsEntries.length > 0) {
     try {
@@ -308,7 +370,13 @@ function incrementalImport(
 
   if (writtenCount > 0) {
     try {
-      generateIncrementalSessionIndex(db)
+      // Use minWrittenTs (not payload min) to avoid false-positive backfill detection
+      // when overlap duplicates in the batch have older timestamps than written rows.
+      if (minWrittenTs < preWriteMaxTs) {
+        generateSessionIndex(db)
+      } else {
+        generateIncrementalSessionIndex(db)
+      }
     } catch {
       /* non-fatal */
     }
@@ -321,13 +389,25 @@ function incrementalImport(
   return { writtenCount, duplicateCount, metaUpdated, membersAdded, membersUpdated }
 }
 
+// Only allow characters that are safe as a bare filename component.
+// Rejects path separators (/ \), dots-only sequences (..), and control chars.
+const SAFE_SESSION_ID_RE = /^[a-zA-Z0-9_@-][a-zA-Z0-9_@.-]*$/
+
 export async function pushImport(
   dbManager: DatabaseManager,
   sessionId: string,
   payload: PushImportPayload
 ): Promise<PushImportOutcome> {
-  if (importInProgress) {
-    return { ok: false, reason: 'import_in_progress', message: 'Another import is already in progress' }
+  if (!SAFE_SESSION_ID_RE.test(sessionId) || sessionId.includes('..')) {
+    return { ok: false, reason: 'invalid_payload', message: 'sessionId contains invalid characters' }
+  }
+
+  if (importInProgress.has(sessionId)) {
+    return {
+      ok: false,
+      reason: 'import_in_progress',
+      message: 'Another import is already in progress for this session',
+    }
   }
 
   const dbPath = dbManager.getDbPath(sessionId)
@@ -338,7 +418,7 @@ export async function pushImport(
     return { ok: false, reason: 'invalid_payload', message: validationError }
   }
 
-  importInProgress = true
+  importInProgress.add(sessionId)
   try {
     if (isNew) {
       const db = dbManager.openRawSessionDatabase(sessionId, { create: true })
@@ -385,6 +465,10 @@ export async function pushImport(
       db.close()
     }
   } catch (err: unknown) {
+    // Let DataDirCompatibilityError propagate so the Fastify error handler
+    // maps it to 409 DATA_DIR_INCOMPATIBLE (consistent with other routes).
+    if (err instanceof DataDirCompatibilityError) throw err
+
     if (isNew) {
       try {
         dbManager.deleteSessionDatabaseFiles(sessionId)
@@ -394,6 +478,6 @@ export async function pushImport(
     }
     return { ok: false, reason: 'import_failed', message: err instanceof Error ? err.message : String(err) }
   } finally {
-    importInProgress = false
+    importInProgress.delete(sessionId)
   }
 }

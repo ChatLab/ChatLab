@@ -9,7 +9,7 @@
  */
 
 import type { DatabaseAdapter } from '@openchatlab/core'
-import { generateMessageKey, generateIncrementalSessionIndex } from '@openchatlab/core'
+import { generateMessageKey, generateSessionIndex, generateIncrementalSessionIndex } from '@openchatlab/core'
 import { streamParseFile, detectFormat, type ParseProgress } from '@openchatlab/parser'
 import { insertFtsEntries, hasFtsTable } from '../fts'
 import type { ImportProgressCallback } from './streaming-importer'
@@ -234,11 +234,15 @@ export async function incrementalImport(
         imported_at = ?
     `)
 
+    const preWriteMaxTs =
+      (db.prepare('SELECT MAX(ts) as max_ts FROM message').get() as { max_ts: number | null })?.max_ts ?? 0
+
     db.exec('BEGIN TRANSACTION')
 
     let newMessageCount = 0
     let duplicateCount = 0
     let processedCount = 0
+    let minWrittenTs = Infinity
     let metaUpdated = false
     let membersAdded = 0
     let membersUpdated = 0
@@ -348,6 +352,7 @@ export async function incrementalImport(
             id: Number((msgResult as any).lastInsertRowid ?? 0),
             content: msg.content || null,
           })
+          if (timestamp < minWrittenTs) minWrittenTs = timestamp
           newMessageCount++
         }
 
@@ -379,10 +384,17 @@ export async function incrementalImport(
       }
     }
 
-    // Incremental session index (segment / message_context tables)
+    // Incremental session index (segment / message_context tables).
+    // Use full rebuild for backfill batches: generateIncrementalSessionIndex
+    // compares the first new message with the latest existing segment, so an
+    // older backfilled message would be incorrectly attached to the newest segment.
     if (newMessageCount > 0) {
       try {
-        generateIncrementalSessionIndex(db)
+        if (minWrittenTs < preWriteMaxTs) {
+          generateSessionIndex(db)
+        } else {
+          generateIncrementalSessionIndex(db)
+        }
       } catch {
         /* non-fatal */
       }

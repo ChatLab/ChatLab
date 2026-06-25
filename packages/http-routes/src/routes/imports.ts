@@ -20,7 +20,12 @@ export function registerImportRoutes(server: FastifyInstance, ctx: HttpRouteCont
       const contentType = request.headers['content-type'] || ''
 
       if (!contentType.includes('application/json')) {
-        const err = invalidPayload('Content-Type must be application/json')
+        const err = invalidPayload('Content-Type must be application/json (JSONL is not yet supported)')
+        return reply.code(err.statusCode).send(errorResponse(err))
+      }
+
+      if (request.headers['x-dry-run'] === 'true') {
+        const err = invalidPayload('X-Dry-Run is not yet supported')
         return reply.code(err.statusCode).send(errorResponse(err))
       }
 
