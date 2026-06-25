@@ -57,3 +57,14 @@ export { exportMarkdown } from './export-service'
 
 // Merge cache
 export { MergeSessionCache } from './merge-cache'
+
+// Push import (POST /api/v1/imports/:sessionId)
+export { pushImport } from './push-importer'
+export type {
+  PushImportPayload,
+  PushImportResult,
+  PushImportOutcome,
+  PushImportMessage,
+  PushImportMember,
+  PushImportMeta,
+} from './push-importer'

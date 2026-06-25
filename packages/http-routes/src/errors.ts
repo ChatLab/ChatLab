@@ -15,6 +15,8 @@ export enum ApiErrorCode {
   SQL_EXECUTION_ERROR = 'SQL_EXECUTION_ERROR',
   EXPORT_TOO_LARGE = 'EXPORT_TOO_LARGE',
   BODY_TOO_LARGE = 'BODY_TOO_LARGE',
+  IMPORT_IN_PROGRESS = 'IMPORT_IN_PROGRESS',
+  IMPORT_FAILED = 'IMPORT_FAILED',
   DATA_DIR_INCOMPATIBLE = 'DATA_DIR_INCOMPATIBLE',
   SERVER_ERROR = 'SERVER_ERROR',
 }
@@ -28,6 +30,8 @@ const HTTP_STATUS: Record<ApiErrorCode, number> = {
   [ApiErrorCode.SQL_EXECUTION_ERROR]: 400,
   [ApiErrorCode.EXPORT_TOO_LARGE]: 400,
   [ApiErrorCode.BODY_TOO_LARGE]: 413,
+  [ApiErrorCode.IMPORT_IN_PROGRESS]: 409,
+  [ApiErrorCode.IMPORT_FAILED]: 500,
   [ApiErrorCode.DATA_DIR_INCOMPATIBLE]: 409,
   [ApiErrorCode.SERVER_ERROR]: 500,
 }
@@ -73,6 +77,14 @@ export function exportTooLarge(count: number, limit: number): ApiError {
 
 export function serverError(message = 'Internal server error'): ApiError {
   return new ApiError(ApiErrorCode.SERVER_ERROR, message)
+}
+
+export function importInProgress(): ApiError {
+  return new ApiError(ApiErrorCode.IMPORT_IN_PROGRESS, 'Another import is already in progress')
+}
+
+export function importFailed(message: string): ApiError {
+  return new ApiError(ApiErrorCode.IMPORT_FAILED, message)
 }
 
 export function dataDirIncompatible(message: string): ApiError {

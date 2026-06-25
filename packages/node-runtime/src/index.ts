@@ -391,7 +391,7 @@ export type {
   SemanticIndexMode,
 } from './semantic-index'
 
-export { createDatabaseManagerAdapter, MergeSessionCache } from './services'
+export { createDatabaseManagerAdapter, MergeSessionCache, pushImport } from './services'
 export type {
   SessionRuntimeAdapter,
   AnalysisSessionDTO,
@@ -402,4 +402,10 @@ export type {
   ApplyOwnerProfileReason,
   ApplyOwnerProfileResult,
   SetOwnerAndApplyProfileResult,
+  PushImportPayload,
+  PushImportResult,
+  PushImportOutcome,
+  PushImportMessage,
+  PushImportMember,
+  PushImportMeta,
 } from './services'
