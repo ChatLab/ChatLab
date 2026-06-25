@@ -12,6 +12,10 @@ import type { EmbeddingProvider } from './types'
 import type { LocalEmbeddingProfile } from './profiles'
 import { applyQueryInstruction, clampTextChars } from './text'
 
+type UndiciFetch = (typeof import('undici'))['fetch']
+type UndiciRequestInit = NonNullable<Parameters<UndiciFetch>[1]>
+const SOCKS_PROXY_PROTOCOLS = new Set(['socks:', 'socks4:', 'socks5:'])
+
 /** 一次特征抽取调用：输入文本数组，返回每条文本的向量（number[][]） */
 export type FeatureExtractFn = (
   texts: string[],
@@ -23,13 +27,32 @@ export type LocalPipelineFactory = (params: {
   modelId: string
   dtype?: 'fp32' | 'q8'
   cacheDir?: string
+  modelDownloadProxyUrl?: string
 }) => Promise<FeatureExtractFn>
 
-const defaultPipelineFactory: LocalPipelineFactory = async ({ modelId, dtype, cacheDir }) => {
+export async function createProxyFetch(proxyUrl: string): Promise<typeof fetch> {
+  const parsed = new URL(proxyUrl)
+  if (SOCKS_PROXY_PROTOCOLS.has(parsed.protocol)) {
+    throw new Error(
+      `SOCKS proxy is not supported for local embedding model downloads: ${parsed.protocol}//${parsed.host}`
+    )
+  }
+  const { fetch: undiciFetch, ProxyAgent } = await import('undici')
+  const dispatcher = new ProxyAgent(proxyUrl)
+  return ((input, init) => {
+    const nextInit: UndiciRequestInit = { ...(init as UndiciRequestInit | undefined), dispatcher }
+    return undiciFetch(input as Parameters<UndiciFetch>[0], nextInit) as unknown as ReturnType<typeof fetch>
+  }) as typeof fetch
+}
+
+const defaultPipelineFactory: LocalPipelineFactory = async ({ modelId, dtype, cacheDir, modelDownloadProxyUrl }) => {
   const transformers = await import('@huggingface/transformers')
   if (cacheDir) {
     transformers.env.cacheDir = cacheDir
     transformers.env.allowRemoteModels = true
+  }
+  if (modelDownloadProxyUrl) {
+    transformers.env.fetch = await createProxyFetch(modelDownloadProxyUrl)
   }
   const extractor = await transformers.pipeline('feature-extraction', modelId, dtype ? { dtype } : undefined)
   return async (texts, options) => {
@@ -40,6 +63,7 @@ const defaultPipelineFactory: LocalPipelineFactory = async ({ modelId, dtype, ca
 
 export interface LocalEmbeddingProviderOptions {
   cacheDir?: string
+  modelDownloadProxyUrl?: string
   pipelineFactory?: LocalPipelineFactory
 }
 
@@ -69,6 +93,7 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
         modelId: this.profile.modelId,
         dtype: this.profile.dtype,
         cacheDir: this.options.cacheDir,
+        modelDownloadProxyUrl: this.options.modelDownloadProxyUrl,
       })
     }
     return this.extractorPromise

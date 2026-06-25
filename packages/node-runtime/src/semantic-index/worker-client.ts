@@ -23,7 +23,9 @@ export interface SemanticIndexWorkerTransport {
   close(): void | Promise<void>
 }
 
-export type SemanticIndexWorkerTransportFactory = () => SemanticIndexWorkerTransport
+type MaybePromise<T> = T | Promise<T>
+
+export type SemanticIndexWorkerTransportFactory = (modelDownloadProxyUrl?: string) => SemanticIndexWorkerTransport
 
 interface WorkerClientTimers {
   setTimeout(callback: () => void, ms: number): unknown
@@ -35,6 +37,7 @@ export interface SemanticIndexWorkerClientOptions {
   transportFactory: SemanticIndexWorkerTransportFactory
   idleTimeoutMs?: number
   timers?: WorkerClientTimers
+  getModelDownloadProxyUrl?: () => MaybePromise<string | undefined>
   resolveApiKey?: (provider: string, authProfile?: string) => string
   writeAuthProfile?: (name: string, profile: AuthProfile) => void
 }
@@ -46,6 +49,7 @@ export interface SemanticIndexWorkerRuntimeClientOptions {
   sqliteVecLoadablePath?: string
   workerEntryUrl?: string | URL
   idleTimeoutMs?: number
+  getModelDownloadProxyUrl?: () => MaybePromise<string | undefined>
   resolveApiKey?: (provider: string, authProfile?: string) => string
   writeAuthProfile?: (name: string, profile: AuthProfile) => void
 }
@@ -63,10 +67,12 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
   private idleTimer: unknown = null
   private activeBuildSessionIds = new Set<string>()
   private hasUnknownActiveBuild = false
+  private activeModelDownloadProxyUrl: string | undefined
   private readonly configStore: SemanticIndexConfigStore
   private readonly transportFactory: SemanticIndexWorkerTransportFactory
   private readonly idleTimeoutMs: number
   private readonly timers: WorkerClientTimers
+  private readonly getModelDownloadProxyUrl: () => MaybePromise<string | undefined>
   private readonly resolveApiKey: (provider: string, authProfile?: string) => string
   private readonly writeAuthProfile?: (name: string, profile: AuthProfile) => void
 
@@ -75,6 +81,7 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
     this.transportFactory = options.transportFactory
     this.idleTimeoutMs = options.idleTimeoutMs ?? DEFAULT_IDLE_TIMEOUT_MS
     this.timers = options.timers ?? defaultTimers
+    this.getModelDownloadProxyUrl = options.getModelDownloadProxyUrl ?? (() => undefined)
     this.resolveApiKey = options.resolveApiKey ?? defaultResolveApiKey
     this.writeAuthProfile = options.writeAuthProfile
   }
@@ -93,6 +100,7 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
     // 其余情况（disabled / api 模式）无需唤醒 worker，直接返回本地保存结果。
     const needsWorker = saved.enabled && saved.mode === 'local' && this.configStore.isConfigured()
     if (!this.transport && !needsWorker) return saved
+    if (needsWorker) await this.closeTransportForLocalModelProxyChangeIfNeeded()
     return await this.call<SemanticIndexConfig>('setConfig', [saved])
   }
 
@@ -118,6 +126,7 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
   }
 
   async build(sessionId: string): Promise<void> {
+    await this.closeTransportForLocalModelProxyChangeIfNeeded()
     this.activeBuildSessionIds.add(sessionId)
     try {
       await this.call('build', [sessionId])
@@ -136,6 +145,7 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
   }
 
   async rebuild(sessionId: string): Promise<void> {
+    await this.closeTransportForLocalModelProxyChangeIfNeeded()
     this.activeBuildSessionIds.add(sessionId)
     try {
       await this.call('rebuild', [sessionId])
@@ -146,6 +156,7 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
   }
 
   async buildAllPending(): Promise<void> {
+    await this.closeTransportForLocalModelProxyChangeIfNeeded()
     this.hasUnknownActiveBuild = true
     try {
       await this.call('buildAllPending', [])
@@ -187,20 +198,22 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
     return await this.callProbe<boolean>('canSearch', [sessionId], false)
   }
 
-  search(
+  async search(
     sessionId: string,
     query: string,
     options?: { finalTopK?: number; timeRangeMs?: { startTs?: number; endTs?: number } }
   ): Promise<SemanticSearchResult> {
-    return this.call('search', [sessionId, query, options])
+    await this.closeTransportForLocalModelProxyChangeIfNeeded()
+    return await this.call('search', [sessionId, query, options])
   }
 
-  searchForTool(
+  async searchForTool(
     sessionId: string,
     query: string,
     options?: SemanticSearchToolOptions
   ): Promise<SemanticSearchToolResult> {
-    return this.call('searchForTool', [sessionId, query, options])
+    await this.closeTransportForLocalModelProxyChangeIfNeeded()
+    return await this.call('searchForTool', [sessionId, query, options])
   }
 
   cleanupUnused(): Promise<{ cleaned: number }> {
@@ -217,7 +230,7 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
   }
 
   private async call<T>(method: string, args: unknown[], options?: { scheduleIdle?: boolean }): Promise<T> {
-    const transport = this.ensureTransport()
+    const transport = await this.ensureTransport()
     this.pendingRequests++
     this.clearIdleTimer()
     try {
@@ -242,11 +255,29 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
     }
   }
 
-  private ensureTransport(): SemanticIndexWorkerTransport {
+  private async ensureTransport(): Promise<SemanticIndexWorkerTransport> {
     if (!this.transport) {
-      this.transport = this.transportFactory()
+      const proxyUrl = await this.currentModelDownloadProxyUrl()
+      if (!this.transport) {
+        this.activeModelDownloadProxyUrl = proxyUrl
+        this.transport = this.transportFactory(proxyUrl)
+      }
     }
     return this.transport
+  }
+
+  private async currentModelDownloadProxyUrl(): Promise<string | undefined> {
+    const proxyUrl = (await this.getModelDownloadProxyUrl())?.trim()
+    return proxyUrl || undefined
+  }
+
+  private async closeTransportForLocalModelProxyChangeIfNeeded(): Promise<void> {
+    if (!this.transport) return
+    const config = this.configStore.get()
+    if (!this.configStore.canRun() || config.mode !== 'local') return
+    if (this.hasUnknownActiveBuild || this.activeBuildSessionIds.size > 0) return
+    if ((await this.currentModelDownloadProxyUrl()) === this.activeModelDownloadProxyUrl) return
+    await this.closeTransport()
   }
 
   private canRunFromLocalConfig(): boolean {
@@ -311,6 +342,7 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
   private async closeTransport(): Promise<void> {
     const transport = this.transport
     this.transport = null
+    this.activeModelDownloadProxyUrl = undefined
     this.clearActiveBuildTracking()
     if (transport) await transport.close()
   }
@@ -340,7 +372,8 @@ export function createSemanticIndexWorkerRuntimeClient(
     idleTimeoutMs: options.idleTimeoutMs,
     resolveApiKey: options.resolveApiKey,
     writeAuthProfile: options.writeAuthProfile,
-    transportFactory: () =>
+    getModelDownloadProxyUrl: options.getModelDownloadProxyUrl,
+    transportFactory: (modelDownloadProxyUrl) =>
       createSemanticIndexWorkerThreadTransport({
         workerEntryUrl: options.workerEntryUrl,
         startup: {
@@ -348,6 +381,7 @@ export function createSemanticIndexWorkerRuntimeClient(
           runtime: options.runtime,
           nativeBinding: options.nativeBinding,
           sqliteVecLoadablePath: options.sqliteVecLoadablePath,
+          modelDownloadProxyUrl,
         },
       }),
   })

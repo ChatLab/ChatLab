@@ -1,5 +1,6 @@
 import type { RuntimeIdentity } from '../data-dir-compat'
 import { DatabaseManager } from '../database-manager'
+import { initAppLogger } from '../logging/app-logger'
 import { createDatabaseManagerAdapter } from '../services'
 import { createSemanticIndexService } from './service'
 import type { LoadSqliteVec } from './store'
@@ -11,9 +12,14 @@ export interface SemanticIndexWorkerStartupOptions {
   runtime: RuntimeIdentity
   nativeBinding?: string
   sqliteVecLoadablePath?: string
+  modelDownloadProxyUrl?: string
 }
 
 export type SemanticIndexWorkerServiceFactory = () => SemanticIndexRuntime
+
+export interface SemanticIndexWorkerServiceFactoryDeps {
+  initLogger?: (logsDir: string) => void
+}
 
 export interface SemanticIndexWorkerRuntimeOptions {
   serviceFactory: SemanticIndexWorkerServiceFactory
@@ -61,8 +67,12 @@ export function createSemanticIndexWorkerRuntime(
 }
 
 export function createSemanticIndexWorkerServiceFactory(
-  options: SemanticIndexWorkerStartupOptions
+  options: SemanticIndexWorkerStartupOptions,
+  deps: SemanticIndexWorkerServiceFactoryDeps = {}
 ): SemanticIndexWorkerServiceFactory {
+  const initializeLogger = deps.initLogger ?? initAppLogger
+  initializeLogger(options.paths.logsDir)
+
   return () => {
     const pathProvider = new StaticPathProvider(options.paths)
     const dbManager = new DatabaseManager(pathProvider, {
@@ -79,6 +89,7 @@ export function createSemanticIndexWorkerServiceFactory(
       sessionAdapter,
       nativeBinding: options.nativeBinding,
       loadSqliteVec,
+      modelDownloadProxyUrl: options.modelDownloadProxyUrl,
     })
   }
 }

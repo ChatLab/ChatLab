@@ -20,6 +20,7 @@
     "sqlite-vec": "^0.1.9",
     "stream-chain": "^2.2.5",
     "stream-json": "^1.9.1",
+    "undici": "^6.25.0",
     "yauzl": "^3.4.0"
   },
   "optionalDependencies": {

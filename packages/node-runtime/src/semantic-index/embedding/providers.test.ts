@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { LocalEmbeddingProvider, type LocalPipelineFactory } from './local'
+import { createProxyFetch, LocalEmbeddingProvider, type LocalPipelineFactory } from './local'
 import { OpenAICompatibleEmbeddingProvider, type FetchFn } from './api'
 import { QWEN3_PROFILE, type LocalEmbeddingProfile } from './profiles'
 
@@ -59,6 +59,10 @@ test('local provider clamps document text to maxTextChars', async () => {
 test('local provider throws when returned dim mismatches profile', async () => {
   const provider = new LocalEmbeddingProvider(QWEN3_PROFILE, { pipelineFactory: makeFakeFactory(256, []) })
   await assert.rejects(() => provider.embedDocuments(['a']), /dim/i)
+})
+
+test('local model download proxy rejects SOCKS URLs explicitly', async () => {
+  await assert.rejects(() => createProxyFetch('socks5://127.0.0.1:1080'), /SOCKS proxy is not supported/)
 })
 
 test('API provider posts OpenAI-compatible request and parses ordered embeddings', async () => {

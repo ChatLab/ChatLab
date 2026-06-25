@@ -1,7 +1,12 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createSemanticIndexWorkerRuntime, type SemanticIndexWorkerServiceFactory } from './worker-runtime'
+import {
+  createSemanticIndexWorkerRuntime,
+  createSemanticIndexWorkerServiceFactory,
+  type SemanticIndexWorkerServiceFactory,
+} from './worker-runtime'
 import type { SemanticIndexRuntime } from './runtime'
+import type { SemanticIndexWorkerStartupOptions } from './worker-runtime'
 
 class FakeSemanticIndexRuntime implements Partial<SemanticIndexRuntime> {
   statusCalls: string[] = []
@@ -18,6 +23,24 @@ class FakeSemanticIndexRuntime implements Partial<SemanticIndexRuntime> {
 
   recover(): void {
     /* no-op */
+  }
+}
+
+function makeStartupOptions(logsDir: string): SemanticIndexWorkerStartupOptions {
+  return {
+    paths: {
+      systemDir: '/tmp/system',
+      userDataDir: '/tmp/data',
+      databaseDir: '/tmp/data/databases',
+      vectorDir: '/tmp/data/vector',
+      aiDataDir: '/tmp/system/ai',
+      settingsDir: '/tmp/system/settings',
+      cacheDir: '/tmp/system/cache',
+      tempDir: '/tmp/system/temp',
+      logsDir,
+      downloadsDir: '/tmp/downloads',
+    },
+    runtime: { version: '0.0.0-test', kind: 'cli' },
   }
 }
 
@@ -41,4 +64,14 @@ test('worker runtime lazily creates service and forwards RPC calls', async () =>
   await runtime.close()
 
   assert.equal(services[0].closed, true)
+})
+
+test('worker service factory initializes app logger with worker logs dir', () => {
+  const calls: string[] = []
+
+  createSemanticIndexWorkerServiceFactory(makeStartupOptions('/tmp/system/logs'), {
+    initLogger: (logsDir) => calls.push(logsDir),
+  })
+
+  assert.deepEqual(calls, ['/tmp/system/logs'])
 })

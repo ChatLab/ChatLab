@@ -16,13 +16,22 @@ const localConfig: SemanticIndexConfig = {
 }
 
 test('builds local provider from profile with injected pipeline factory', async () => {
+  let seenProxyUrl: string | undefined
   const fakeFactory: LocalPipelineFactory = async () => async (texts) =>
     texts.map(() => new Array(QWEN3_PROFILE.dim).fill(0.1))
-  const embedder = createEmbedder(localConfig, { localPipelineFactory: fakeFactory })
+  const fakeFactoryWithCapture: LocalPipelineFactory = async (params) => {
+    seenProxyUrl = params.modelDownloadProxyUrl
+    return fakeFactory(params)
+  }
+  const embedder = createEmbedder(localConfig, {
+    localPipelineFactory: fakeFactoryWithCapture,
+    modelDownloadProxyUrl: 'http://127.0.0.1:7890',
+  })
   assert.equal(embedder.modelId, QWEN3_PROFILE.modelId)
   assert.equal(embedder.dim, QWEN3_PROFILE.dim)
   const [vector] = await embedder.embedDocuments(['hello'])
   assert.equal(vector.length, QWEN3_PROFILE.dim)
+  assert.equal(seenProxyUrl, 'http://127.0.0.1:7890')
 })
 
 test('throws for unknown local model', () => {

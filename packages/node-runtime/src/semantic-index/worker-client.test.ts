@@ -43,9 +43,11 @@ class FakeTransport implements SemanticIndexWorkerTransport {
 
 function makeFactory(
   instances: FakeTransport[],
-  handler?: (method: string, args: unknown[]) => unknown
+  handler?: (method: string, args: unknown[]) => unknown,
+  proxyUrls?: Array<string | undefined>
 ): SemanticIndexWorkerTransportFactory {
-  return () => {
+  return (modelDownloadProxyUrl) => {
+    proxyUrls?.push(modelDownloadProxyUrl)
     const transport = new FakeTransport(handler)
     instances.push(transport)
     return transport
@@ -187,6 +189,181 @@ test('worker client forwards config updates to a live worker without starting a 
   assert.deepEqual(instances[0].requests, [
     { method: 'status', args: ['session-a'] },
     { method: 'setConfig', args: [saved] },
+  ])
+})
+
+test('worker client restarts live worker before local model preload when proxy changes', async () => {
+  const instances: FakeTransport[] = []
+  const proxy = { url: undefined as string | undefined }
+  const client = createSemanticIndexWorkerClient({
+    configStore: makeConfigStore(),
+    transportFactory: makeFactory(instances),
+    getModelDownloadProxyUrl: () => proxy.url,
+    idleTimeoutMs: 1000,
+  })
+
+  await client.status('session-a')
+  proxy.url = 'http://127.0.0.1:7890'
+  const initial = await client.getConfig()
+  const updated: SemanticIndexConfig = {
+    ...initial,
+    enabled: true,
+    mode: 'local',
+    local: { modelId: 'model-a' },
+    api: null,
+  }
+
+  const saved = await client.setConfig(updated)
+
+  assert.equal(saved.local.modelId, 'model-a')
+  assert.equal(instances.length, 2)
+  assert.equal(instances[0].closed, true)
+  assert.deepEqual(instances[0].requests, [{ method: 'status', args: ['session-a'] }])
+  assert.deepEqual(instances[1].requests, [{ method: 'setConfig', args: [saved] }])
+})
+
+test('worker client resolves async model download proxy before starting worker', async () => {
+  const instances: FakeTransport[] = []
+  const proxyUrls: Array<string | undefined> = []
+  const client = createSemanticIndexWorkerClient({
+    configStore: makeConfigStore(),
+    transportFactory: makeFactory(instances, undefined, proxyUrls),
+    getModelDownloadProxyUrl: async () => 'http://127.0.0.1:7890',
+    idleTimeoutMs: 1000,
+  })
+
+  await client.status('session-a')
+
+  assert.equal(instances.length, 1)
+  assert.deepEqual(proxyUrls, ['http://127.0.0.1:7890'])
+})
+
+test('worker client restarts live worker before local build calls when proxy changes', async () => {
+  const cases: Array<{
+    action: 'build' | 'rebuild' | 'buildAllPending'
+    run: (client: ReturnType<typeof createSemanticIndexWorkerClient>) => Promise<void>
+    expectedRequest: { method: string; args: unknown[] }
+  }> = [
+    {
+      action: 'build',
+      run: (client) => client.build('session-a'),
+      expectedRequest: { method: 'build', args: ['session-a'] },
+    },
+    {
+      action: 'rebuild',
+      run: (client) => client.rebuild('session-a'),
+      expectedRequest: { method: 'rebuild', args: ['session-a'] },
+    },
+    {
+      action: 'buildAllPending',
+      run: (client) => client.buildAllPending(),
+      expectedRequest: { method: 'buildAllPending', args: [] },
+    },
+  ]
+
+  for (const { action, run, expectedRequest } of cases) {
+    const instances: FakeTransport[] = []
+    const proxy = { url: undefined as string | undefined }
+    const configStore = makeConfigStore()
+    configStore.set({ version: 1, enabled: true, mode: 'local', local: { modelId: 'model-a' }, api: null })
+    const client = createSemanticIndexWorkerClient({
+      configStore,
+      transportFactory: makeFactory(instances, (method) => {
+        if (method === 'status') return null
+        if (method === action) return undefined
+        throw new Error(`unexpected method: ${method}`)
+      }),
+      getModelDownloadProxyUrl: () => proxy.url,
+      idleTimeoutMs: 1000,
+    })
+
+    await client.status('session-a')
+    proxy.url = 'http://127.0.0.1:7890'
+    await run(client)
+
+    assert.equal(instances.length, 2, action)
+    assert.equal(instances[0].closed, true, action)
+    assert.deepEqual(instances[0].requests, [{ method: 'status', args: ['session-a'] }], action)
+    assert.deepEqual(instances[1].requests, [expectedRequest], action)
+  }
+})
+
+test('worker client restarts live worker before local search calls when proxy changes', async () => {
+  const cases: Array<{
+    action: 'search' | 'searchForTool'
+    run: (client: ReturnType<typeof createSemanticIndexWorkerClient>) => Promise<unknown>
+    expectedRequest: { method: string; args: unknown[] }
+  }> = [
+    {
+      action: 'search',
+      run: (client) => client.search('session-a', 'query-a', { finalTopK: 3 }),
+      expectedRequest: { method: 'search', args: ['session-a', 'query-a', { finalTopK: 3 }] },
+    },
+    {
+      action: 'searchForTool',
+      run: (client) => client.searchForTool('session-a', 'query-a', { maxResults: 3 }),
+      expectedRequest: { method: 'searchForTool', args: ['session-a', 'query-a', { maxResults: 3 }] },
+    },
+  ]
+
+  for (const { action, run, expectedRequest } of cases) {
+    const instances: FakeTransport[] = []
+    const proxy = { url: undefined as string | undefined }
+    const configStore = makeConfigStore()
+    configStore.set({ version: 1, enabled: true, mode: 'local', local: { modelId: 'model-a' }, api: null })
+    const client = createSemanticIndexWorkerClient({
+      configStore,
+      transportFactory: makeFactory(instances, (method) => {
+        if (method === 'status') return null
+        if (method === action) return {}
+        throw new Error(`unexpected method: ${method}`)
+      }),
+      getModelDownloadProxyUrl: () => proxy.url,
+      idleTimeoutMs: 1000,
+    })
+
+    await client.status('session-a')
+    proxy.url = 'http://127.0.0.1:7890'
+    await run(client)
+
+    assert.equal(instances.length, 2, action)
+    assert.equal(instances[0].closed, true, action)
+    assert.deepEqual(instances[0].requests, [{ method: 'status', args: ['session-a'] }], action)
+    assert.deepEqual(instances[1].requests, [expectedRequest], action)
+  }
+})
+
+test('worker client does not restart api worker before build when proxy changes', async () => {
+  const instances: FakeTransport[] = []
+  const proxy = { url: undefined as string | undefined }
+  const configStore = makeConfigStore()
+  configStore.set({
+    version: 1,
+    enabled: true,
+    mode: 'api',
+    local: { modelId: 'model-a' },
+    api: { baseUrl: 'https://api.example.com/v1', model: 'embed-1' },
+  })
+  const client = createSemanticIndexWorkerClient({
+    configStore,
+    transportFactory: makeFactory(instances, (method) => {
+      if (method === 'status') return null
+      if (method === 'build') return undefined
+      throw new Error(`unexpected method: ${method}`)
+    }),
+    getModelDownloadProxyUrl: () => proxy.url,
+    idleTimeoutMs: 1000,
+  })
+
+  await client.status('session-a')
+  proxy.url = 'http://127.0.0.1:7890'
+  await client.build('session-a')
+
+  assert.equal(instances.length, 1)
+  assert.equal(instances[0].closed, false)
+  assert.deepEqual(instances[0].requests, [
+    { method: 'status', args: ['session-a'] },
+    { method: 'build', args: ['session-a'] },
   ])
 })
 

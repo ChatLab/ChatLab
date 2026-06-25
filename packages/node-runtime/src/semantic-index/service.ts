@@ -53,6 +53,7 @@ import type { SessionRuntimeAdapter } from '../services/adapters'
 import { clampSearchMaxResults, SEARCH_MAX_RESULTS_HARD_CAP } from './config'
 import { applyPreprocessingPipeline } from '../ai/preprocessor/preprocessing-pipeline'
 import type { PreprocessConfig, PreprocessableMessage } from '../ai/preprocessor/types'
+import { appLogger } from '../logging/app-logger'
 
 export interface SemanticIndexServiceOptions {
   /** embedding_index.db 路径（{vectorDir}/embedding_index.db） */
@@ -62,6 +63,8 @@ export interface SemanticIndexServiceOptions {
   sessionAdapter: SessionRuntimeAdapter
   /** 本地模型缓存目录 */
   modelsCacheDir?: string
+  /** Optional HTTP(S) proxy URL used only for local embedding model downloads. */
+  modelDownloadProxyUrl?: string
   /** embedder 工厂注入（测试/平台） */
   embedderFactoryDeps?: EmbedderFactoryDeps
   /** sqlite-vec 加载器注入（Electron 打包） */
@@ -206,12 +209,14 @@ export function createSemanticIndexService(params: {
   nativeBinding?: string
   loadSqliteVec?: LoadSqliteVec
   embedderFactoryDeps?: EmbedderFactoryDeps
+  modelDownloadProxyUrl?: string
 }): SemanticIndexService {
   const { pathProvider } = params
   return new SemanticIndexService({
     vectorDbPath: path.join(pathProvider.getVectorDir(), SEMANTIC_INDEX_DB_FILE),
     configPath: path.join(pathProvider.getAiDataDir(), SEMANTIC_INDEX_CONFIG_FILE),
     modelsCacheDir: path.join(pathProvider.getAiDataDir(), 'models', 'semantic-index'),
+    modelDownloadProxyUrl: params.modelDownloadProxyUrl,
     sessionAdapter: params.sessionAdapter,
     nativeBinding: params.nativeBinding,
     loadSqliteVec: params.loadSqliteVec,
@@ -297,14 +302,19 @@ export class SemanticIndexService {
     }
     // 本地模式已配置且功能已开启时，立即在后台触发模型下载，让用户在建索引前完成等待
     if (saved.enabled && isSemanticIndexConfigured(saved) && saved.mode === 'local') {
+      const modelId = saved.local.modelId
+      const cacheDir = this.options.modelsCacheDir
       this.modelPreloadStatus = 'downloading'
+      appLogger.info('semantic-index', 'local embedding model preload started', { modelId, cacheDir })
       void this.getEmbedder()
         .preload?.()
         .then(() => {
           this.modelPreloadStatus = 'ready'
+          appLogger.info('semantic-index', 'local embedding model preload completed', { modelId, cacheDir })
         })
-        .catch(() => {
+        .catch((error) => {
           this.modelPreloadStatus = 'error'
+          appLogger.error('semantic-index', `local embedding model preload failed: ${modelId}`, error)
         })
     }
     return saved
@@ -319,6 +329,7 @@ export class SemanticIndexService {
     if (!this.embedder || this.embedderModelId !== modelId) {
       this.embedder = createEmbedder(this.configStore.get(), {
         modelsCacheDir: this.options.modelsCacheDir,
+        modelDownloadProxyUrl: this.options.modelDownloadProxyUrl,
         ...this.options.embedderFactoryDeps,
       })
       this.embedderModelId = modelId

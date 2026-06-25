@@ -346,6 +346,9 @@ importers:
       stream-json:
         specifier: ^1.9.1
         version: 1.9.1
+      undici:
+        specifier: ^6.25.0
+        version: 6.25.0
       yauzl:
         specifier: ^3.4.0
         version: 3.4.0

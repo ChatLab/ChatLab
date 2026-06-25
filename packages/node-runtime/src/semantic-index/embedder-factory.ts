@@ -18,6 +18,8 @@ import type { SemanticIndexConfig } from './config'
 export interface EmbedderFactoryDeps {
   /** 本地模型目录，例如 ~/.chatlab/ai/models/semantic-index */
   modelsCacheDir?: string
+  /** Optional HTTP(S) proxy URL used only for downloading local embedding model files. */
+  modelDownloadProxyUrl?: string
   /** auth-profiles 解析，默认走 @openchatlab/config */
   resolveApiKey?: (provider: string, authProfile?: string) => string
   /** 本地 pipeline 工厂注入（测试用，不下载模型） */
@@ -45,6 +47,7 @@ export function createEmbedder(config: SemanticIndexConfig, deps: EmbedderFactor
   }
   return new LocalEmbeddingProvider(profile, {
     cacheDir: deps.modelsCacheDir,
+    modelDownloadProxyUrl: deps.modelDownloadProxyUrl,
     pipelineFactory: deps.localPipelineFactory,
   })
 }
