@@ -13,6 +13,7 @@ import { useSessionStore } from './session'
 import { useSessionIndexService } from '@/services/session-index/service'
 import { getSessionGapThreshold } from '@/composables/useUiConfig'
 import { fetchWithAuth } from '@/services/utils/http'
+import { createSyncResultPoller } from './syncResultPolling'
 
 export interface ApiServerConfig {
   enabled: boolean
@@ -218,7 +219,11 @@ function createWebTransport(): ApiTransport {
 
     triggerPullAll: (sourceId) => fetchJson(`/_web/automation/data-sources/${sourceId}/pull-all`, { method: 'POST' }),
 
-    onPullResult: noop,
+    onPullResult: (cb) =>
+      createSyncResultPoller({
+        loadDataSources: () => fetchJson('/_web/automation/data-sources'),
+        onResult: cb,
+      }),
 
     fetchRemoteSessions: async (baseUrl, token?, query?) => {
       const params = new URLSearchParams({ baseUrl })

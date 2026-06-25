@@ -62,18 +62,15 @@ const showDeleteSessionModal = ref(false)
 const deletingSession = ref<{ ds: DataSource; sess: ImportSession } | null>(null)
 
 let unlistenStartupError: (() => void) | null = null
-let unlistenPullResult: (() => void) | null = null
 
 onMounted(async () => {
   await store.refresh()
   portInput.value = config.value.port
   unlistenStartupError = store.listenStartupError()
-  unlistenPullResult = store.listenPullResult()
 })
 
 onUnmounted(() => {
   unlistenStartupError?.()
-  unlistenPullResult?.()
 })
 
 const maskedToken = computed(() => {
@@ -103,7 +100,9 @@ const apiBaseUrl = computed(() => {
 
 const apiDocUrl = computed(() => {
   const isChinese = locale.value === 'zh-CN' || locale.value === 'zh-TW'
-  return isChinese ? 'https://docs.chatlab.fun/cn/standard/chatlab-api' : 'https://docs.chatlab.fun/en/standard/chatlab-api'
+  return isChinese
+    ? 'https://docs.chatlab.fun/cn/standard/chatlab-api'
+    : 'https://docs.chatlab.fun/en/standard/chatlab-api'
 })
 
 async function toggleEnabled() {

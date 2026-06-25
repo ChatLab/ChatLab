@@ -15,6 +15,7 @@ import { useLayoutStore } from '@/stores/layout'
 import { useSettingsStore } from '@/stores/settings'
 import { useLLMStore } from '@/stores/llm'
 import { useAuthStore } from '@/stores/auth'
+import { useApiServerStore } from '@/stores/apiServer'
 import { initServices } from '@/services'
 import { initPreferencesSync } from '@/composables/usePreferencesSync'
 import { useWindowsTitleBarOverlay } from '@/composables/useWindowsTitleBarOverlay'
@@ -29,6 +30,7 @@ const layoutStore = useLayoutStore()
 const settingsStore = useSettingsStore()
 const llmStore = useLLMStore()
 const authStore = useAuthStore()
+const apiServerStore = useApiServerStore()
 const { isInitialized } = storeToRefs(sessionStore)
 const route = useRoute()
 const router = useRouter()
@@ -51,6 +53,7 @@ const toaster = {
 }
 
 let initInProgress = false
+let unlistenPullResult: (() => void) | null = null
 
 async function initializeApp() {
   if (initInProgress || isInitialized.value) return
@@ -62,6 +65,7 @@ async function initializeApp() {
     await settingsStore.initLocale()
     llmStore.init()
     await sessionStore.loadSessions()
+    unlistenPullResult ??= apiServerStore.listenPullResult()
     usePlatformService()
       .trackDailyActive(settingsStore.locale)
       .catch(() => {})
@@ -146,6 +150,8 @@ onMounted(async () => {
 
 onUnmounted(() => {
   window.removeEventListener('keydown', handleGlobalKeydown)
+  unlistenPullResult?.()
+  unlistenPullResult = null
 })
 </script>
 
