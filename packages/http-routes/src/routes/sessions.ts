@@ -17,6 +17,7 @@ import {
   getMemberActivity,
   getMessageTypeStats,
   executeReadonlySql,
+  getLastPlatformMessageId,
 } from '@openchatlab/core'
 import { successResponse, errorResponse, sessionNotFound, exportTooLarge, sqlExecutionError, ApiError } from '../errors'
 
@@ -67,6 +68,8 @@ export function registerRestSessionRoutes(server: FastifyInstance, ctx: HttpRout
       memberCount: info.memberCount,
       firstTimestamp: info.firstMessageTs,
       lastTimestamp: info.lastMessageTs,
+      lastPlatformMessageId: getLastPlatformMessageId(db),
+      importedAt: info.importedAt,
     })
   })
 
