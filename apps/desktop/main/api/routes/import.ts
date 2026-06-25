@@ -34,7 +34,8 @@ import {
 } from '../errors'
 import { apiLogger } from '../logger'
 
-let isImporting = false
+// Per-session lock: different sessionIds can import in parallel.
+const isImporting = new Set<string>()
 
 // ==================== Idempotency cache ====================
 
@@ -110,7 +111,7 @@ function idempotencyFail(key: string | undefined): void {
 }
 
 export function getImportingStatus(): boolean {
-  return isImporting
+  return isImporting.size > 0
 }
 
 /**
@@ -152,7 +153,7 @@ async function writeTempFile(
  * v3 统一导入处理：自动判断新建或增量
  */
 async function handleUnifiedImport(request: FastifyRequest, reply: FastifyReply, sessionId: string): Promise<void> {
-  if (isImporting) {
+  if (isImporting.has(sessionId)) {
     const err = importInProgress()
     reply.code(err.statusCode).send(errorResponse(err))
     return
@@ -173,7 +174,7 @@ async function handleUnifiedImport(request: FastifyRequest, reply: FastifyReply,
 
   const cacheKey = idempotencyKey ? `${idempotencyKey}:${sessionId}:${isDryRun}` : undefined
 
-  isImporting = true
+  isImporting.add(sessionId)
   let tempFile = ''
 
   try {
@@ -332,7 +333,7 @@ async function handleUnifiedImport(request: FastifyRequest, reply: FastifyReply,
     const err = importFailed(error.message || 'Import process error')
     reply.code(err.statusCode).send(errorResponse(err))
   } finally {
-    isImporting = false
+    isImporting.delete(sessionId)
     if (tempFile) {
       cleanupTempFile(tempFile)
     }
@@ -343,7 +344,8 @@ async function handleUnifiedImport(request: FastifyRequest, reply: FastifyReply,
  * Legacy import handler (backward compatibility)
  */
 async function handleLegacyImport(request: FastifyRequest, reply: FastifyReply, sessionId?: string): Promise<void> {
-  if (isImporting) {
+  const lockKey = sessionId ?? '__legacy__'
+  if (isImporting.has(lockKey)) {
     const err = importInProgress()
     reply.code(err.statusCode).send(errorResponse(err))
     return
@@ -359,7 +361,7 @@ async function handleLegacyImport(request: FastifyRequest, reply: FastifyReply, 
     return
   }
 
-  isImporting = true
+  isImporting.add(lockKey)
   let tempFile = ''
 
   try {
@@ -425,7 +427,7 @@ async function handleLegacyImport(request: FastifyRequest, reply: FastifyReply, 
     const err = importFailed(error.message || 'Import process error')
     reply.code(err.statusCode).send(errorResponse(err))
   } finally {
-    isImporting = false
+    isImporting.delete(lockKey)
     if (tempFile) {
       cleanupTempFile(tempFile)
     }

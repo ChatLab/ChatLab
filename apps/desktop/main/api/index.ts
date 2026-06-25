@@ -16,6 +16,7 @@ import type { ConfigManager, ApiServerConfig } from '@openchatlab/sync'
 let server: FastifyInstance | null = null
 let startedAt: number | null = null
 let lastError: string | null = null
+let runningPort: number | null = null
 let _configManager: ConfigManager | null = null
 
 /** Must be called before start/autoStart/setEnabled/setPort */
@@ -38,11 +39,13 @@ export interface ApiServerStatus {
 export function getStatus(): ApiServerStatus {
   return {
     running: server !== null && startedAt !== null,
-    port: server !== null && startedAt !== null ? cm().load().port : null,
+    port: server !== null && startedAt !== null ? runningPort : null,
     startedAt,
     error: lastError,
   }
 }
+
+const PORT_FALLBACK_LIMIT = 10
 
 export async function start(): Promise<void> {
   if (server) {
@@ -54,28 +57,44 @@ export async function start(): Promise<void> {
   cm().ensureToken(config)
   lastError = null
 
-  try {
-    server = createServer()
-    registerSystemRoutes(server)
-    registerSessionRoutes(server)
-    registerImportRoutes(server)
+  const preferredPort = config.port
+  let lastErr: any
 
-    await server.listen({ port: config.port, host: '127.0.0.1' })
-    startedAt = Math.floor(Date.now() / 1000)
-    apiLogger.info(`Server started on http://127.0.0.1:${config.port}`)
-  } catch (err: any) {
-    server = null
-    startedAt = null
+  for (let offset = 0; offset < PORT_FALLBACK_LIMIT; offset++) {
+    const port = preferredPort + offset
+    try {
+      server = createServer()
+      registerSystemRoutes(server)
+      registerSessionRoutes(server)
+      registerImportRoutes(server)
 
-    if (err.code === 'EADDRINUSE') {
-      lastError = `PORT_IN_USE:${config.port}`
-      apiLogger.warn(`Port ${config.port} is already in use`)
-    } else {
-      lastError = err.message || 'Unknown error'
-      apiLogger.error('Failed to start', err)
+      await server.listen({ port, host: '127.0.0.1' })
+      startedAt = Math.floor(Date.now() / 1000)
+      runningPort = port
+      if (offset > 0) {
+        apiLogger.info(`Port ${preferredPort} in use, bound to http://127.0.0.1:${port} instead`)
+      } else {
+        apiLogger.info(`Server started on http://127.0.0.1:${port}`)
+      }
+      return
+    } catch (err: any) {
+      server = null
+      lastErr = err
+      if (err.code !== 'EADDRINUSE') break
+      apiLogger.warn(`Port ${port} is already in use, trying ${port + 1}…`)
     }
-    throw err
   }
+
+  startedAt = null
+  runningPort = null
+  if (lastErr?.code === 'EADDRINUSE') {
+    lastError = `PORT_IN_USE:${preferredPort}`
+    apiLogger.warn(`No available port found starting from ${preferredPort}`)
+  } else {
+    lastError = lastErr?.message || 'Unknown error'
+    apiLogger.error('Failed to start', lastErr)
+  }
+  throw lastErr
 }
 
 export async function stop(): Promise<void> {
@@ -88,6 +107,7 @@ export async function stop(): Promise<void> {
   } finally {
     server = null
     startedAt = null
+    runningPort = null
     lastError = null
     apiLogger.info('Server stopped')
   }

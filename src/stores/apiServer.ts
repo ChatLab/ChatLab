@@ -250,7 +250,7 @@ export const useApiServerStore = defineStore('apiServer', () => {
 
   const config = ref<ApiServerConfig>({
     enabled: false,
-    port: 5200,
+    port: 3110,
     token: '',
     createdAt: 0,
   })

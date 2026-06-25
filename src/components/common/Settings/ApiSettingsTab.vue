@@ -48,7 +48,7 @@ const subTabs = computed(() => [
 
 const tokenVisible = ref(false)
 const editingPort = ref(false)
-const portInput = ref(5200)
+const portInput = ref(3110)
 const copied = ref(false)
 
 const showAddModal = ref(false)

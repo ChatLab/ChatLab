@@ -49,8 +49,7 @@ Tokens are generated in ChatLab settings and are formatted as `clb_` + 64 hex ch
 ### Content-Type
 
 ```
-application/json         # Standard JSON body (≤50MB)
-application/x-ndjson    # JSONL streaming (no size limit)
+application/json    # Standard JSON body (≤50MB)
 ```
 
 ---
@@ -96,9 +95,8 @@ For query endpoint details, see [ChatLab API](./chatlab-api.md).
 | Header | Required | Description |
 | --- | --- | --- |
 | `Authorization` | Yes | `Bearer <token>` |
-| `Content-Type` | Yes | `application/json` or `application/x-ndjson` |
+| `Content-Type` | Yes | `application/json` |
 | `Idempotency-Key` | Recommended | Unique identifier for the current batch, for safe retries. Suggested format: `{sessionId}-{batchIndex}-{windowStart}` |
-| `X-Dry-Run` | No | Set to `true` to analyze without writing; returns estimated results |
 
 ### Quick Test
 
@@ -179,17 +177,6 @@ A successful response returns `"success": true` with write statistics. Repeating
 ::: tip
 When backfilling historical data, pass `"metaUpdateMode": "none"` to prevent old group names from overwriting the current value.
 :::
-
-### Request Body (JSONL)
-
-One JSON object per line, distinguished by the `_type` field. Line order: `header` → `member` (zero or more) → `message` (one or more).
-
-```jsonl
-{"_type":"header","chatlab":{"version":"0.0.2","exportedAt":1711468800,"generator":"YourSystem/1.0"},"meta":{"name":"Product Discussion","platform":"whatsapp","type":"group","groupId":"112233445566"},"options":{"metaUpdateMode":"patch","memberUpdateMode":"upsert"}}
-{"_type":"member","platformId":"user_a","accountName":"Alice","groupNickname":"Product"}
-{"_type":"message","platformMessageId":"msg_1001","sender":"user_a","accountName":"Alice","timestamp":1711468800,"type":0,"content":"Hello"}
-{"_type":"message","platformMessageId":"msg_1002","sender":"user_b","accountName":"Bob","timestamp":1711468860,"type":0,"content":"Hi"}
-```
 
 ### Block Requirements
 
@@ -358,7 +345,6 @@ Deduplication is scoped to a single session and does not cross sessions.
 | Constraint | Value | Notes |
 | --- | --- | --- |
 | JSON body size limit | 50MB | Exceeding returns `BODY_TOO_LARGE` (413) |
-| JSONL body size | Unlimited | Streamed to a temp file before processing |
 | Recommended batch size | 5,000 messages | Balances performance and memory |
 
 ### Batching Rules
@@ -385,7 +371,7 @@ After each successful batch, update the cursor with `session.lastTimestamp` from
 
 ### Concurrency
 
-Current version: **only one import task is allowed at a time per session**. Concurrent requests return `IMPORT_IN_PROGRESS` (409).
+Current version: **only one import task is allowed at a time per session**. Concurrent requests to the same sessionId return `IMPORT_IN_PROGRESS` (409); imports to different sessions run independently.
 
 ---
 

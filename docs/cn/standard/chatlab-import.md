@@ -49,8 +49,7 @@ Token 在 ChatLab 设置页面生成，格式为 `clb_` + 64 字符 hex。
 ### Content-Type
 
 ```
-application/json         # 标准 JSON body（≤50MB）
-application/x-ndjson    # JSONL 流式（无大小限制）
+application/json    # 标准 JSON body（≤50MB）
 ```
 
 ---
@@ -96,9 +95,8 @@ application/x-ndjson    # JSONL 流式（无大小限制）
 | Header | 必填 | 说明 |
 | --- | --- | --- |
 | `Authorization` | 是 | `Bearer <token>` |
-| `Content-Type` | 是 | `application/json` 或 `application/x-ndjson` |
+| `Content-Type` | 是 | `application/json` |
 | `Idempotency-Key` | 建议 | 当前批次的唯一标识，用于重试安全。建议格式：`{sessionId}-{batchIndex}-{windowStart}` |
-| `X-Dry-Run` | 否 | 设为 `true` 时仅分析不写入，返回预估结果 |
 
 ### 快速测试
 
@@ -179,17 +177,6 @@ curl http://127.0.0.1:3110/api/v1/imports/group_abc123 \
 ::: tip 提示
 回填历史数据时建议传 `"metaUpdateMode": "none"` 防止旧群名覆盖当前值。
 :::
-
-### 请求 Body（JSONL 模式）
-
-每行一个 JSON 对象，通过 `_type` 字段区分类型。行顺序：`header` → `member`（零或多行） → `message`（一或多行）。
-
-```jsonl
-{"_type":"header","chatlab":{"version":"0.0.2","exportedAt":1711468800,"generator":"YourSystem/1.0"},"meta":{"name":"产品讨论群","platform":"telegram","type":"group","groupId":"112233445566"},"options":{"metaUpdateMode":"patch","memberUpdateMode":"upsert"}}
-{"_type":"member","platformId":"user_a","accountName":"张三","groupNickname":"产品"}
-{"_type":"message","platformMessageId":"msg_1001","sender":"user_a","accountName":"张三","timestamp":1711468800,"type":0,"content":"Hello"}
-{"_type":"message","platformMessageId":"msg_1002","sender":"user_b","accountName":"李四","timestamp":1711468860,"type":0,"content":"Hi"}
-```
 
 ### 各块携带规则
 
@@ -357,9 +344,8 @@ curl http://127.0.0.1:3110/api/v1/imports/group_abc123 \
 
 | 约束               | 值           | 说明                            |
 | ------------------ | ------------ | ------------------------------- |
-| JSON body 大小上限 | 50MB         | 超过返回 `BODY_TOO_LARGE` (413) |
-| JSONL body 大小    | 无限制       | 通过 stream 写入临时文件后处理  |
-| 建议每批消息数     | 5000 条      | 兼顾性能和内存占用              |
+| JSON body 大小上限 | 50MB    | 超过返回 `BODY_TOO_LARGE` (413) |
+| 建议每批消息数     | 5000 条 | 兼顾性能和内存占用              |
 
 ### 分批原则
 
@@ -385,7 +371,7 @@ ChatLab 不为调用方维护游标。推荐结构：
 
 ### 并发约束
 
-当前版本：**同一时刻仅允许一个导入任务**。并发请求会收到 `IMPORT_IN_PROGRESS` (409) 错误。
+当前版本：**同一 session 同一时刻仅允许一个导入任务**。对同一 sessionId 的并发请求会收到 `IMPORT_IN_PROGRESS` (409) 错误；不同 session 的并发导入互不影响。
 
 ---
 

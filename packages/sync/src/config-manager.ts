@@ -15,7 +15,7 @@ const CONFIG_FILE = 'api-server.json'
 
 const DEFAULT_CONFIG: ApiServerConfig = {
   enabled: false,
-  port: 5200,
+  port: 3110,
   token: '',
   createdAt: 0,
 }
