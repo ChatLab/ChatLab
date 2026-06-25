@@ -148,7 +148,7 @@ function getSessionAvatarClass(sessionId: number): string {
 
 // 估算项目高度
 const ESTIMATED_DATE_HEIGHT = 28 // 日期头高度
-const ESTIMATED_SESSION_HEIGHT = 52 // 会话项高度（含两行摘要）
+const ESTIMATED_SESSION_HEIGHT = 52 // 会话项高度（摘要/生成按钮单独一行）
 
 // 虚拟化器
 const virtualizer = useVirtualizer(
@@ -227,10 +227,10 @@ function scrollToBottom() {
 }
 
 // 滚动到指定会话
-function scrollToSession(sessionId: number) {
+function scrollToSession(sessionId: number, behavior: 'auto' | 'smooth' = 'auto') {
   const index = flatList.value.findIndex((item) => item.type === 'session' && item.session.id === sessionId)
   if (index !== -1) {
-    virtualizer.value.scrollToIndex(index, { align: 'center' })
+    virtualizer.value.scrollToIndex(index, { align: 'center', behavior })
   }
 }
 
@@ -296,7 +296,7 @@ watch(
   () => props.activeSessionId,
   (newId) => {
     if (newId) {
-      scrollToSession(newId)
+      scrollToSession(newId, 'smooth')
     }
   }
 )
@@ -333,7 +333,9 @@ watch(
       <span class="text-xs font-medium text-gray-600 dark:text-gray-300">{{ t('records.timeline.timeline') }}</span>
       <div class="flex items-center gap-0.5">
         <UTooltip :text="t('records.batchSummary.title')">
-          <UButton icon="i-heroicons-sparkles" variant="ghost" size="xs" @click="showBatchSummaryModal = true" />
+          <UButton icon="i-heroicons-sparkles" variant="ghost" size="xs" @click="showBatchSummaryModal = true">
+            {{ t('records.batchSummary.trigger') }}
+          </UButton>
         </UTooltip>
         <UButton icon="i-heroicons-chevron-left" variant="ghost" size="xs" @click="isCollapsed = true" />
       </div>
@@ -375,7 +377,7 @@ watch(
           <template v-else-if="flatList[virtualItem.index]?.type === 'session'">
             <div class="px-1.5 py-0.5">
               <button
-                class="group relative flex w-full gap-2.5 items-center rounded-xl p-1.5 pl-2.5 text-left transition-all duration-200"
+                class="group relative flex h-12 w-full items-center gap-2.5 rounded-xl p-1.5 pl-2.5 text-left transition-all duration-200"
                 :class="[
                   activeSessionId === (flatList[virtualItem.index] as { session: ChatSessionItem }).session.id
                     ? 'bg-pink-500/5 dark:bg-pink-500/10'
@@ -395,38 +397,35 @@ watch(
 
                 <!-- 莫兰迪配色哈希头像 -->
                 <div
-                  class="w-7 h-7 rounded-lg flex items-center justify-center shrink-0 transition-colors"
+                  class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg px-1 font-mono text-[10px] font-semibold transition-colors"
                   :class="
                     getSessionAvatarClass((flatList[virtualItem.index] as { session: ChatSessionItem }).session.id)
                   "
                 >
-                  <UIcon name="i-heroicons-chat-bubble-oval-left" class="w-3.5 h-3.5" />
+                  <span class="truncate">
+                    {{ (flatList[virtualItem.index] as { session: ChatSessionItem }).session.messageCount }}
+                  </span>
                 </div>
 
-                <!-- 会话内容信息 -->
-                <div class="flex-1 min-w-0">
-                  <!-- 时间和消息数 -->
-                  <div class="flex items-center justify-between mb-0.5">
-                    <span class="text-xs font-semibold text-gray-700 dark:text-gray-200">
-                      {{ formatTime((flatList[virtualItem.index] as { session: ChatSessionItem }).session.startTs) }}
-                    </span>
-                    <span
-                      class="font-mono text-[10px] px-1.5 py-0.5 rounded bg-gray-200/50 dark:bg-gray-700/50 text-gray-500 dark:text-gray-400 font-medium"
-                    >
-                      {{ (flatList[virtualItem.index] as { session: ChatSessionItem }).session.messageCount }}
-                    </span>
-                  </div>
-
-                  <!-- 摘要或生成按钮 -->
-                  <div class="flex w-full items-center">
-                    <!-- 有摘要：显示摘要（两行） -->
+                <div class="min-w-0 flex-1">
+                  <div class="min-w-0">
+                    <!-- 有摘要：时间和摘要作为连续文本排版，换行后从整行起点继续显示 -->
                     <UTooltip
                       v-if="(flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary"
-                      :popper="{ placement: 'right' }"
+                      :content="{ side: 'right', align: 'start' }"
                       :ui="{ content: 'z-[10001] h-auto max-h-80 overflow-y-auto' }"
                     >
-                      <span class="line-clamp-2 text-xs leading-normal text-gray-400 dark:text-gray-500 font-normal">
-                        {{ (flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary }}
+                      <span
+                        class="line-clamp-2 min-w-0 text-xs font-normal leading-snug text-gray-500 dark:text-gray-400"
+                      >
+                        <span class="font-medium">
+                          {{
+                            formatTime((flatList[virtualItem.index] as { session: ChatSessionItem }).session.startTs)
+                          }}
+                        </span>
+                        <span class="ml-1">
+                          {{ (flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary }}
+                        </span>
                       </span>
                       <template #content>
                         <div class="max-w-sm whitespace-pre-wrap text-sm leading-relaxed font-normal">
@@ -434,13 +433,19 @@ watch(
                         </div>
                       </template>
                     </UTooltip>
+                    <span v-else class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                      {{ formatTime((flatList[virtualItem.index] as { session: ChatSessionItem }).session.startTs) }}
+                    </span>
+                  </div>
 
+                  <div
+                    v-if="!(flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary"
+                    class="mt-0.5 flex min-w-0 items-center"
+                  >
                     <!-- 无摘要且消息数>=3：显示生成按钮 -->
                     <span
-                      v-else-if="
-                        (flatList[virtualItem.index] as { session: ChatSessionItem }).session.messageCount >= 3
-                      "
-                      class="flex items-center gap-1 text-xs text-gray-400 hover:text-pink-500 dark:text-gray-500 dark:hover:text-pink-400 cursor-pointer"
+                      v-if="(flatList[virtualItem.index] as { session: ChatSessionItem }).session.messageCount >= 3"
+                      class="flex min-w-0 cursor-pointer items-center gap-1 text-xs text-gray-400 hover:text-pink-500 dark:text-gray-500 dark:hover:text-pink-400"
                       @click="
                         generateSummary((flatList[virtualItem.index] as { session: ChatSessionItem }).session, $event)
                       "
@@ -448,14 +453,14 @@ watch(
                       <UIcon
                         v-if="isGenerating((flatList[virtualItem.index] as { session: ChatSessionItem }).session.id)"
                         name="i-heroicons-arrow-path"
-                        class="h-3 w-3 animate-spin"
+                        class="h-3 w-3 shrink-0 animate-spin"
                       />
-                      <UIcon v-else name="i-heroicons-sparkles" class="h-3 w-3" />
-                      <span>{{ t('records.timeline.generateSummary') }}</span>
+                      <UIcon v-else name="i-heroicons-sparkles" class="h-3 w-3 shrink-0" />
+                      <span class="truncate">{{ t('records.timeline.generateSummary') }}</span>
                     </span>
 
                     <!-- 消息数<3：显示提示 -->
-                    <span v-else class="text-xs italic text-gray-300 dark:text-gray-600">
+                    <span v-else class="min-w-0 flex-1 truncate text-xs italic text-gray-300 dark:text-gray-600">
                       {{ t('records.timeline.tooFewMessages') }}
                     </span>
                   </div>

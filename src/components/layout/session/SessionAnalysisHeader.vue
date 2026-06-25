@@ -44,6 +44,16 @@ const timeSelectVisible = computed(() => !['ai-chat', 'memory', 'lab', 'debug'].
   <PageHeader :title="title" :avatar="avatar" size="compact" :icon="icon" :icon-class="iconClass">
     <template #actions>
       <template v-if="layoutStore.toolsPanelPosition === 'header'">
+        <UTooltip :text="t('analysis.tooltip.viewChatRecord')">
+          <UButton
+            icon="i-heroicons-chat-bubble-bottom-center-text"
+            variant="ghost"
+            color="gray"
+            size="sm"
+            class="hover:bg-gray-100 dark:hover:bg-gray-800"
+            @click="emit('openChatRecord')"
+          />
+        </UTooltip>
         <UTooltip :text="t('analysis.tooltip.incrementalImport')">
           <UButton
             icon="i-heroicons-plus-circle"
@@ -62,16 +72,6 @@ const timeSelectVisible = computed(() => !['ai-chat', 'memory', 'lab', 'debug'].
             size="sm"
             class="hover:bg-gray-100 dark:hover:bg-gray-800"
             @click="emit('openMemberManagement')"
-          />
-        </UTooltip>
-        <UTooltip :text="t('analysis.tooltip.viewChatRecord')">
-          <UButton
-            icon="i-heroicons-chat-bubble-bottom-center-text"
-            variant="ghost"
-            color="gray"
-            size="sm"
-            class="hover:bg-gray-100 dark:hover:bg-gray-800"
-            @click="emit('openChatRecord')"
           />
         </UTooltip>
         <CaptureButton color="gray" />
