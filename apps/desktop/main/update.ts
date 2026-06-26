@@ -129,6 +129,26 @@ const checkUpdate = (win) => {
   // }
 
   let showUpdateMessageBox = false
+  let isDownloadingUpdate = false
+
+  // 自动检查走静默下载；手动检查仍由用户确认后再下载。
+  const startDownloadUpdate = (): void => {
+    if (isDownloadingUpdate) return
+    isDownloadingUpdate = true
+    autoUpdater
+      .downloadUpdate()
+      .then(() => {
+        console.log('wait for post download operation')
+      })
+      .catch((downloadError) => {
+        // 下载失败记录到日志，不显示给用户
+        logger.error(`[Update] Download update failed: ${downloadError}`)
+      })
+      .finally(() => {
+        isDownloadingUpdate = false
+      })
+  }
+
   autoUpdater.on('update-available', (info) => {
     // win.webContents.send('show-message', 'electron:发现新版本')
     if (showUpdateMessageBox) return
@@ -142,6 +162,12 @@ const checkUpdate = (win) => {
       logger.info(
         `[Update] Pre-release version found: ${info.version}, skipping auto-update prompt (manual check required)`
       )
+      return
+    }
+
+    if (!isManualCheck) {
+      logger.info(`[Update] New version ${info.version} found, downloading silently`)
+      startDownloadUpdate()
       return
     }
 
@@ -161,15 +187,7 @@ const checkUpdate = (win) => {
       .then((result) => {
         showUpdateMessageBox = false
         if (result.response === 0) {
-          autoUpdater
-            .downloadUpdate()
-            .then(() => {
-              console.log('wait for post download operation')
-            })
-            .catch((downloadError) => {
-              // 下载失败记录到日志，不显示给用户
-              logger.error(`[Update] Download update failed: ${downloadError}`)
-            })
+          startDownloadUpdate()
         }
       })
   })
