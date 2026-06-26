@@ -8,44 +8,58 @@
   "score": "Score {value}",
   "stats": {
     "total": "Contacts",
-    "core": "Core",
     "friends": "Friends",
-    "nonFriends": "Group contacts"
+    "nonFriends": "Groupmates"
   },
   "filters": {
     "allPools": "All sources",
     "friends": "Friends",
-    "nonFriends": "Group contacts",
-    "allTiers": "All tiers",
-    "showLow": "Show low interaction"
+    "nonFriends": "Groupmates",
+    "showLowSignal": "Show low-signal"
+  },
+  "tabs": {
+    "friends": "Friends",
+    "groupContacts": "Groupmates"
   },
   "pool": {
     "friend": "Friend",
-    "nonFriend": "Non-friend"
+    "nonFriend": "Groupmate"
   },
-  "tier": {
-    "core": "Core",
-    "friend": "Friend",
-    "acquaintance": "Acquaintance",
-    "high_interaction": "High interaction",
-    "medium_interaction": "Medium interaction",
-    "low_interaction": "Low interaction"
+  "group": {
+    "pinned": "Pinned contacts",
+    "friends": "Friends",
+    "group_contacts": "Groupmates"
+  },
+  "badge": {
+    "lowSignal": "Low signal"
+  },
+  "table": {
+    "contact": "Contact",
+    "status": "Type"
   },
   "actions": {
     "recompute": "Recompute",
-    "lockCore": "Lock core",
-    "unlock": "Unlock"
+    "showMoreLowSignal": "Show more low-signal groupmates ({count})",
+    "hideLowSignal": "Hide low-signal groupmates",
+    "clearSelection": "Clear selection",
+    "viewDetail": "View details for {name}"
   },
   "detail": {
+    "title": "Contact details",
     "score": "Score",
     "lastInteraction": "Last interaction",
-    "sources": "Source chats"
+    "sources": "Source chats",
+    "aliases": "Aliases",
+    "signals": "Interaction signals",
+    "emptyTitle": "Select a contact",
+    "emptyDescription": "Choose a contact on the left to view interaction metrics and source chats."
   },
   "metrics": {
     "privateMessages": "{count} private messages",
     "privateMessagesLabel": "Private messages",
     "activeMonths": "Active months",
     "commonGroups": "Common groups",
+    "lastInteractionShort": "Recent",
     "groups": "{count} common groups",
     "coOccurrence": "Co-occurrences",
     "replies": "Replies",
@@ -53,13 +67,12 @@
   },
   "stale": {
     "title": "Contacts may be stale",
-    "message": "Chat data or manual locks changed. Recompute contacts now?",
+    "message": "Chat data changed. Recompute contacts now?",
     "inline": "Contacts may be stale.",
     "later": "Later"
   },
   "toast": {
     "recomputed": "Contacts recomputed",
-    "recomputeFailed": "Recompute failed",
-    "overrideFailed": "Failed to save contact settings"
+    "recomputeFailed": "Recompute failed"
   }
 }

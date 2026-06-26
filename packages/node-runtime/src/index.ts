@@ -365,7 +365,6 @@ export * as summaryService from './services/summary-service'
 export * as exportService from './services/export-service'
 export * as ownerProfileService from './services/owner-profile-service'
 export * as contactsService from './services/contacts-service'
-export * as contactsOverrides from './services/contacts-overrides'
 // Semantic index (Phase 1 vector search) — independent of legacy ai/rag
 export * as semanticIndex from './semantic-index'
 export {
@@ -395,9 +394,7 @@ export type {
 
 export {
   CONTACTS_ALGORITHM_VERSION,
-  ContactsOverridesManager,
   MergeSessionCache,
-  buildContactOverrideKey,
   createContactsService,
   createDatabaseManagerAdapter,
   pushImport,
@@ -412,8 +409,6 @@ export type {
   ApplyOwnerProfileReason,
   ApplyOwnerProfileResult,
   SetOwnerAndApplyProfileResult,
-  BuildContactOverrideKeyInput,
-  ContactsOverrides,
   ContactsService,
   ContactsServiceDeps,
   ContactsServiceOptions,

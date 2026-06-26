@@ -228,26 +228,9 @@ export interface SetOwnerAndApplyProfileResult {
 
 // ==================== Contacts (cross-session relationship view) ====================
 
-export type ContactTier =
-  | 'core'
-  | 'friend'
-  | 'acquaintance'
-  | 'high_interaction'
-  | 'medium_interaction'
-  | 'low_interaction'
-
 export type ContactPool = 'friend' | 'non_friend'
 
 export type ContactsCacheStatus = 'fresh' | 'stale' | 'missing'
-
-export interface ContactOverride {
-  lockedTier?: ContactTier | null
-  updatedAt?: number
-}
-
-export interface ContactOverridePatch {
-  lockedTier?: ContactTier | null
-}
 
 export interface ContactScoreBreakdown {
   privateMessageScore?: number
@@ -292,9 +275,7 @@ export interface ContactItem {
   avatar: string | null
   isFriend: boolean
   pool: ContactPool
-  tier: ContactTier
-  algorithmTier: ContactTier
-  lockedTier: ContactTier | null
+  isLowSignal: boolean
   score: number
   scoreBreakdown: ContactScoreBreakdown
   sourceSessions: ContactSourceSession[]
@@ -310,7 +291,7 @@ export interface ContactsDiagnostics {
   skippedAmbiguousPrivateSessions: number
   skippedInvalidPlatformIdMembers: number
   skippedFailedSessions: number
-  hiddenLowInteractionNonFriends: number
+  hiddenLowSignalNonFriends: number
   warnings: string[]
 }
 

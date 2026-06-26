@@ -7,11 +7,13 @@ interface Props {
   title: string
   active?: boolean
   tooltip?: string
+  iconClass?: string
 }
 
 withDefaults(defineProps<Props>(), {
   active: false,
   tooltip: '',
+  iconClass: '',
 })
 
 const layoutStore = useLayoutStore()
@@ -29,7 +31,7 @@ const { isSidebarCollapsed: isCollapsed } = storeToRefs(layoutStore)
           : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/40 dark:hover:bg-gray-800/40',
       ]"
     >
-      <UIcon :name="icon" class="h-5 w-5 shrink-0" />
+      <UIcon :name="icon" class="h-5 w-5 shrink-0" :class="iconClass" />
     </div>
   </UTooltip>
   <!-- 展开状态：直接渲染 UButton，标题已可见，无需 tooltip -->
@@ -44,7 +46,7 @@ const { isSidebarCollapsed: isCollapsed } = storeToRefs(layoutStore)
     color="gray"
     variant="ghost"
   >
-    <UIcon :name="icon" class="mr-2.5 h-5 w-5 shrink-0" />
+    <UIcon :name="icon" class="mr-2.5 h-5 w-5 shrink-0" :class="iconClass" />
     <span class="truncate text-xs font-medium">{{ title }}</span>
   </UButton>
 </template>

@@ -85,30 +85,23 @@ export {
 export type { ContactMemberRef, GroupContactFacts, PrivateContactFacts } from './contact-queries'
 
 export {
-  MIN_NON_FRIEND_INTERACTIONS_FOR_HIGH,
-  MIN_NON_FRIENDS_FOR_TIERS,
-  MIN_PRIVATE_MESSAGES_FOR_CORE,
+  MIN_NON_FRIEND_INTERACTIONS_FOR_VISIBLE,
   MIN_PRIVATE_SESSIONS_FOR_CONTACTS,
-  applyContactOverride,
-  assignFriendTiers,
-  assignNonFriendTiers,
   computeFriendScore,
   computeFriendScores,
   computeNonFriendScore,
   computeNonFriendScores,
   computePrivateRegularity,
+  isLowSignalNonFriend,
   rankPercentiles,
 } from './contact-scoring'
 export type {
-  AppliedContactOverride,
   ContactScoringResult,
-  ContactTierAssignment,
   FriendScoreComponents,
   FriendScoreInput,
-  FriendTierInput,
   NonFriendScoreComponents,
   NonFriendScoreInput,
-  NonFriendTierInput,
+  NonFriendSignalInput,
 } from './contact-scoring'
 
 export {

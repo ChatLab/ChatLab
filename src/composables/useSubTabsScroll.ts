@@ -9,11 +9,22 @@ export interface SubTabNavItem {
   icon?: string
 }
 
+export interface SubTabsScrollOptions {
+  scrollBehavior?: ScrollBehavior
+  scrollLockDuration?: number
+}
+
 /**
  * 二级导航滚动联动 composable
  * 实现左侧锚点导航与右侧内容区域的滚动联动
  */
-export function useSubTabsScroll(navItems: ComputedRef<SubTabNavItem[]> | Ref<SubTabNavItem[]>) {
+export function useSubTabsScroll(
+  navItems: ComputedRef<SubTabNavItem[]> | Ref<SubTabNavItem[]>,
+  options: SubTabsScrollOptions = {}
+) {
+  const scrollBehavior = options.scrollBehavior ?? 'smooth'
+  const scrollLockDuration = options.scrollLockDuration ?? 500
+
   // 当前激活的导航项
   const activeNav = ref(navItems.value[0]?.id || '')
 
@@ -41,11 +52,11 @@ export function useSubTabsScroll(navItems: ComputedRef<SubTabNavItem[]> | Ref<Su
     if (section && scrollContainerRef.value) {
       // 标记为用户点击触发
       isUserClick.value = true
-      section.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      section.scrollIntoView({ behavior: scrollBehavior, block: 'start' })
       // 滚动动画结束后恢复
       setTimeout(() => {
         isUserClick.value = false
-      }, 500)
+      }, scrollLockDuration)
     }
   }
 
@@ -101,11 +112,11 @@ export function useSubTabsScroll(navItems: ComputedRef<SubTabNavItem[]> | Ref<Su
     const section = sectionRefs.value[id]
     if (section && scrollContainerRef.value) {
       isUserClick.value = true
-      section.scrollIntoView({ behavior: 'smooth', block: 'start' })
+      section.scrollIntoView({ behavior: scrollBehavior, block: 'start' })
       activeNav.value = id
       setTimeout(() => {
         isUserClick.value = false
-      }, 500)
+      }, scrollLockDuration)
     }
   }
 

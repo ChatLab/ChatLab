@@ -2,24 +2,20 @@ import { ChatType } from '@openchatlab/shared-types'
 import type {
   ChatPlatform,
   ContactItem,
-  ContactOverridePatch,
   ContactsCacheState,
   ContactsDiagnostics,
   ContactsResponse,
   ContactSourceSession,
-  ContactTier,
 } from '@openchatlab/shared-types'
 import {
   MIN_PRIVATE_SESSIONS_FOR_CONTACTS,
-  applyContactOverride,
-  assignFriendTiers,
-  assignNonFriendTiers,
   computeFriendScores,
   computeNonFriendScores,
   getGroupContactFacts,
   getPrivateContactFacts,
   getSessionMeta,
   isChatSessionDb,
+  isLowSignalNonFriend,
   isNameMatchPlatform,
   resolveOwnerMember,
 } from '@openchatlab/core'
@@ -27,7 +23,6 @@ import type { ContactMemberRef, SessionMeta } from '@openchatlab/core'
 import { getDbFileVersion } from '../cache/analytics-cache'
 import { appLogger } from '../logging/app-logger'
 import type { SessionRuntimeAdapter } from './adapters'
-import { ContactsOverridesManager, buildContactOverrideKey } from './contacts-overrides'
 
 export const CONTACTS_ALGORITHM_VERSION = 'contacts-v1'
 
@@ -38,14 +33,11 @@ export interface ContactsServiceOptions {
 
 export interface ContactsServiceDeps {
   adapter: SessionRuntimeAdapter
-  systemDir: string
   now?: () => number
 }
 
 export interface ContactsService {
   getContacts(options?: ContactsServiceOptions): ContactsResponse
-  setContactOverride(key: string, patch: ContactOverridePatch): void
-  deleteContactOverride(key: string): void
   invalidateContactsCache(): void
 }
 
@@ -89,12 +81,9 @@ export function createContactsService(deps: ContactsServiceDeps): ContactsServic
 }
 
 class DefaultContactsService implements ContactsService {
-  private readonly overrides: ContactsOverridesManager
   private cache: CachedContacts | null = null
 
-  constructor(private readonly deps: ContactsServiceDeps) {
-    this.overrides = new ContactsOverridesManager(deps.systemDir)
-  }
+  constructor(private readonly deps: ContactsServiceDeps) {}
 
   getContacts(options: ContactsServiceOptions = {}): ContactsResponse {
     const signature = this.buildSignature()
@@ -117,18 +106,6 @@ class DefaultContactsService implements ContactsService {
       skippedFailedSessions: result.diagnostics.skippedFailedSessions,
     })
     return this.toResponse(this.cache, 'fresh')
-  }
-
-  setContactOverride(key: string, patch: ContactOverridePatch): void {
-    this.overrides.saveOverride(key, patch)
-    this.invalidateContactsCache()
-    appLogger.info('contacts', 'contact override saved', { key })
-  }
-
-  deleteContactOverride(key: string): void {
-    this.overrides.deleteOverride(key)
-    this.invalidateContactsCache()
-    appLogger.info('contacts', 'contact override deleted', { key })
   }
 
   invalidateContactsCache(): void {
@@ -239,7 +216,6 @@ class DefaultContactsService implements ContactsService {
   }
 
   private buildContactItems(accumulators: ContactAccumulator[], diagnostics: ContactsDiagnostics): ContactItem[] {
-    const overrides = this.overrides.load()
     const friendInputs = accumulators
       .filter((acc) => acc.isFriend)
       .map((acc) => ({
@@ -259,38 +235,21 @@ class DefaultContactsService implements ContactsService {
       }))
 
     const friendScores = computeFriendScores(friendInputs)
-    const friendTierInputs = friendInputs.map((input) => ({
-      input,
-      score: friendScores.get(input)?.score ?? 0,
-      privateMessageCount: input.privateMessageCount,
-    }))
-    const friendTiers = assignFriendTiers(friendTierInputs)
-
     const nonFriendScores = computeNonFriendScores(nonFriendInputs)
-    const nonFriendTierInputs = nonFriendInputs.map((input) => ({
-      input,
-      score: nonFriendScores.get(input)?.score ?? 0,
-      coOccurrenceCount: input.coOccurrenceCount,
-      replyInteractionCount: input.replyInteractionCount,
-    }))
-    const nonFriendTiers = assignNonFriendTiers(nonFriendTierInputs)
 
     const contacts: ContactItem[] = []
 
-    // 评分和分层按好友/非好友分池计算；最终再应用手动锁定，保证用户选择拥有最高优先级。
-    for (const tierInput of friendTierInputs) {
-      const { input } = tierInput
+    // 评分仍按好友/群聊联系人分池计算；分池后的 score 只用于排序，不再生成关系定性标签。
+    for (const input of friendInputs) {
       const score = friendScores.get(input) ?? { score: 0, scoreBreakdown: {} }
-      const algorithmTier = friendTiers.tiers.get(tierInput) ?? 'acquaintance'
-      contacts.push(this.toContactItem(input.acc, 'friend', algorithmTier, score, overrides[input.acc.key]))
+      contacts.push(this.toContactItem(input.acc, 'friend', false, score))
     }
 
-    for (const tierInput of nonFriendTierInputs) {
-      const { input } = tierInput
+    for (const input of nonFriendInputs) {
       const score = nonFriendScores.get(input) ?? { score: 0, scoreBreakdown: {} }
-      const algorithmTier = nonFriendTiers.tiers.get(tierInput) ?? 'low_interaction'
-      const item = this.toContactItem(input.acc, 'non_friend', algorithmTier, score, overrides[input.acc.key])
-      if (item.tier === 'low_interaction') diagnostics.hiddenLowInteractionNonFriends++
+      const isLowSignal = isLowSignalNonFriend(input)
+      const item = this.toContactItem(input.acc, 'non_friend', isLowSignal, score)
+      if (item.isLowSignal) diagnostics.hiddenLowSignalNonFriends++
       contacts.push(item)
     }
 
@@ -300,11 +259,9 @@ class DefaultContactsService implements ContactsService {
   private toContactItem(
     acc: ContactAccumulator,
     pool: 'friend' | 'non_friend',
-    algorithmTier: ContactTier,
-    scoring: { score: number; scoreBreakdown: ContactItem['scoreBreakdown'] },
-    override: Parameters<typeof applyContactOverride>[1]
+    isLowSignal: boolean,
+    scoring: { score: number; scoreBreakdown: ContactItem['scoreBreakdown'] }
   ): ContactItem {
-    const applied = applyContactOverride(algorithmTier, override)
     const aliases = [...acc.aliases].filter((alias) => alias !== acc.displayName)
     const searchText = [acc.displayName, acc.platformId, ...aliases].join(' ').toLowerCase()
 
@@ -319,9 +276,7 @@ class DefaultContactsService implements ContactsService {
       avatar: acc.avatar,
       isFriend: acc.isFriend,
       pool,
-      tier: applied.tier,
-      algorithmTier: applied.algorithmTier,
-      lockedTier: applied.lockedTier,
+      isLowSignal,
       score: scoring.score,
       scoreBreakdown: {
         ...scoring.scoreBreakdown,
@@ -341,7 +296,7 @@ class DefaultContactsService implements ContactsService {
   }
 
   private buildSignature(): string {
-    const parts = [`algorithm:${CONTACTS_ALGORITHM_VERSION}`, `overrides:${this.overrides.getSignaturePart()}`]
+    const parts = [`algorithm:${CONTACTS_ALGORITHM_VERSION}`]
     for (const sessionId of [...this.deps.adapter.listSessionIds()].sort()) {
       const dbPath = this.deps.adapter.getDbPath(sessionId)
       parts.push(`${sessionId}:${getDbFileVersion(dbPath)}`)
@@ -381,7 +336,7 @@ function createEmptyDiagnostics(): ContactsDiagnostics {
     skippedAmbiguousPrivateSessions: 0,
     skippedInvalidPlatformIdMembers: 0,
     skippedFailedSessions: 0,
-    hiddenLowInteractionNonFriends: 0,
+    hiddenLowSignalNonFriends: 0,
     warnings: [],
   }
 }
@@ -393,12 +348,7 @@ function getOrCreateAccumulator(
   contact: ContactMemberRef
 ): ContactAccumulator {
   const sessionScoped = isNameMatchPlatform(meta.platform)
-  const key = buildContactOverrideKey({
-    platform: meta.platform,
-    platformId: contact.platformId,
-    sessionId,
-    matchMode: sessionScoped ? 'name' : 'platform_id',
-  })
+  const key = buildContactKey(meta.platform, contact.platformId, sessionScoped ? sessionId : undefined)
   const existing = accumulators.get(key)
   if (existing) {
     mergeContactIdentity(existing, contact)
@@ -428,6 +378,16 @@ function getOrCreateAccumulator(
   }
   accumulators.set(key, created)
   return created
+}
+
+function buildContactKey(platform: ChatPlatform, platformId: string, sessionId?: string): string {
+  const normalizedPlatform = platform.trim()
+  const normalizedPlatformId = platformId.trim()
+  if (!normalizedPlatform) throw new Error('platform is required')
+  if (!normalizedPlatformId) throw new Error('platformId is required')
+  return sessionId?.trim()
+    ? `${normalizedPlatform}:${sessionId.trim()}:${normalizedPlatformId}`
+    : `${normalizedPlatform}:${normalizedPlatformId}`
 }
 
 function mergeContactIdentity(acc: ContactAccumulator, contact: ContactMemberRef): void {

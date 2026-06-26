@@ -8,44 +8,58 @@
   "score": "スコア {value}",
   "stats": {
     "total": "連絡先",
-    "core": "コア",
     "friends": "友人",
-    "nonFriends": "グループ連絡先"
+    "nonFriends": "グループ仲間"
   },
   "filters": {
     "allPools": "すべて",
     "friends": "友人",
-    "nonFriends": "グループ連絡先",
-    "allTiers": "すべての階層",
-    "showLow": "低インタラクションを表示"
+    "nonFriends": "グループ仲間",
+    "showLowSignal": "低シグナルを表示"
+  },
+  "tabs": {
+    "friends": "友人",
+    "groupContacts": "グループ仲間"
   },
   "pool": {
     "friend": "友人",
-    "nonFriend": "非友人"
+    "nonFriend": "グループ仲間"
   },
-  "tier": {
-    "core": "コア関係",
-    "friend": "友人",
-    "acquaintance": "知人",
-    "high_interaction": "高インタラクション",
-    "medium_interaction": "中インタラクション",
-    "low_interaction": "低インタラクション"
+  "group": {
+    "pinned": "ピン留めした連絡先",
+    "friends": "友人",
+    "group_contacts": "グループ仲間"
+  },
+  "badge": {
+    "lowSignal": "低シグナル"
+  },
+  "table": {
+    "contact": "連絡先",
+    "status": "種別"
   },
   "actions": {
     "recompute": "再計算",
-    "lockCore": "コアに固定",
-    "unlock": "固定を解除"
+    "showMoreLowSignal": "低シグナルのグループ仲間をさらに表示（{count}）",
+    "hideLowSignal": "低シグナルのグループ仲間を閉じる",
+    "clearSelection": "選択を解除",
+    "viewDetail": "{name} の詳細を表示"
   },
   "detail": {
+    "title": "連絡先の詳細",
     "score": "総合スコア",
     "lastInteraction": "最終インタラクション",
-    "sources": "元チャット"
+    "sources": "元チャット",
+    "aliases": "別名",
+    "signals": "やり取りのシグナル",
+    "emptyTitle": "連絡先を選択",
+    "emptyDescription": "左側の連絡先を選ぶと、やり取りの指標と元チャットが表示されます。"
   },
   "metrics": {
     "privateMessages": "個人チャット {count} 件",
     "privateMessagesLabel": "個人メッセージ",
     "activeMonths": "アクティブ月",
     "commonGroups": "共通グループ",
+    "lastInteractionShort": "最近",
     "groups": "共通グループ {count} 件",
     "coOccurrence": "同時出現",
     "replies": "返信",
@@ -53,13 +67,12 @@
   },
   "stale": {
     "title": "連絡先データが古い可能性があります",
-    "message": "チャットデータまたは手動固定が変更されました。今すぐ再計算しますか？",
+    "message": "チャットデータが変更されました。今すぐ再計算しますか？",
     "inline": "連絡先データが古い可能性があります。",
     "later": "後で"
   },
   "toast": {
     "recomputed": "連絡先を再計算しました",
-    "recomputeFailed": "再計算に失敗しました",
-    "overrideFailed": "連絡先設定の保存に失敗しました"
+    "recomputeFailed": "再計算に失敗しました"
   }
 }

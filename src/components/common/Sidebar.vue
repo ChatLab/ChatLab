@@ -449,6 +449,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
       <SidebarButton
         v-if="showContactsEntry"
         icon="i-lucide-users"
+        icon-class="scale-90"
         :title="t('layout.contacts')"
         :active="isContactsPage"
         @click="openContacts"

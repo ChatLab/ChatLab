@@ -97,7 +97,7 @@ class TestEnv {
   }
 }
 
-test('contacts routes return contacts, recompute, and mutate overrides', async (t) => {
+test('contacts routes return contacts and recompute results', async (t) => {
   const env = new TestEnv()
   env.seed()
   t.after(() => env.cleanup())
@@ -111,20 +111,6 @@ test('contacts routes return contacts, recompute, and mutate overrides', async (
   const firstBody = first.json<ContactsResponse>()
   assert.equal(firstBody.contacts[0].key, 'weixin:alice')
   assert.equal(firstBody.cache.status, 'fresh')
-
-  const patched = await app.inject({
-    method: 'PATCH',
-    url: '/_web/contacts/weixin:alice/override',
-    payload: { lockedTier: 'core' },
-  })
-  assert.equal(patched.statusCode, 200)
-  const patchedBody = patched.json<ContactsResponse>()
-  assert.equal(patchedBody.contacts[0].tier, 'core')
-  assert.equal(patchedBody.contacts[0].lockedTier, 'core')
-
-  const deleted = await app.inject({ method: 'DELETE', url: '/_web/contacts/weixin:alice/override' })
-  assert.equal(deleted.statusCode, 200)
-  assert.equal(deleted.json<ContactsResponse>().contacts[0].lockedTier, null)
 
   const recomputed = await app.inject({ method: 'POST', url: '/_web/contacts/recompute' })
   assert.equal(recomputed.statusCode, 200)
@@ -149,7 +135,7 @@ test('GET /_web/contacts supports acceptStale query', async (t) => {
   assert.equal(stale.json<ContactsResponse>().cache.status, 'stale')
 })
 
-test('PATCH /_web/contacts/:key/override rejects invalid tiers', async (t) => {
+test('override routes are not registered', async (t) => {
   const env = new TestEnv()
   env.seed()
   t.after(() => env.cleanup())
@@ -158,10 +144,16 @@ test('PATCH /_web/contacts/:key/override rejects invalid tiers', async (t) => {
   registerContactsRoutes(app, env.context())
   await app.ready()
 
-  const response = await app.inject({
+  const patched = await app.inject({
     method: 'PATCH',
     url: '/_web/contacts/weixin:alice/override',
-    payload: { lockedTier: 'not-a-tier' },
+    payload: { isPinned: true },
   })
-  assert.equal(response.statusCode, 400)
+  assert.equal(patched.statusCode, 404)
+
+  const deleted = await app.inject({
+    method: 'DELETE',
+    url: '/_web/contacts/weixin:alice/override',
+  })
+  assert.equal(deleted.statusCode, 404)
 })

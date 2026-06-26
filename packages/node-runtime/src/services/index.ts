@@ -55,10 +55,6 @@ export type { LlmConfig, SummaryServiceDeps } from './summary-service'
 // Export service
 export { exportMarkdown } from './export-service'
 
-// Contacts overrides
-export { ContactsOverridesManager, buildContactOverrideKey } from './contacts-overrides'
-export type { BuildContactOverrideKeyInput, ContactsOverrides } from './contacts-overrides'
-
 // Contacts service
 export { CONTACTS_ALGORITHM_VERSION, createContactsService } from './contacts-service'
 export type { ContactsService, ContactsServiceDeps, ContactsServiceOptions } from './contacts-service'

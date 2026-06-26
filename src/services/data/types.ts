@@ -10,7 +10,6 @@ import type {
   TimeFilter,
   ApplyOwnerProfileResult,
   SetOwnerAndApplyProfileResult,
-  ContactOverridePatch,
   ContactsResponse,
 } from '@openchatlab/shared-types'
 import type {
@@ -117,8 +116,6 @@ export interface DataAdapter {
 
   getContacts(options?: ContactsFetchOptions): Promise<ContactsResponse>
   recomputeContacts(): Promise<ContactsResponse>
-  setContactOverride(key: string, patch: ContactOverridePatch): Promise<ContactsResponse>
-  deleteContactOverride(key: string): Promise<ContactsResponse>
 
   // ==================== 时间范围 ====================
 

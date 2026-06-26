@@ -1,5 +1,5 @@
 /**
- * Tests for pure contact scoring and tiering helpers.
+ * Tests for pure contact scoring and visibility helpers.
  *
  * Run: pnpm test -- packages/core/src/query/__tests__/contact-scoring.test.ts
  */
@@ -7,15 +7,11 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import {
-  MIN_NON_FRIEND_INTERACTIONS_FOR_HIGH,
-  MIN_NON_FRIENDS_FOR_TIERS,
-  MIN_PRIVATE_MESSAGES_FOR_CORE,
-  applyContactOverride,
-  assignFriendTiers,
-  assignNonFriendTiers,
+  MIN_NON_FRIEND_INTERACTIONS_FOR_VISIBLE,
   computeFriendScores,
   computeNonFriendScores,
   computePrivateRegularity,
+  isLowSignalNonFriend,
   rankPercentiles,
 } from '../contact-scoring'
 
@@ -74,69 +70,20 @@ describe('contact scoring helpers', () => {
     }
   })
 
-  it('assigns friend tiers by top 20, next 50, and last 30 percent cuts', () => {
-    const contacts = Array.from({ length: 10 }, (_, index) => ({
-      key: `friend-${index}`,
-      score: 10 - index,
-      privateMessageCount: MIN_PRIVATE_MESSAGES_FOR_CORE,
-    }))
-
-    const result = assignFriendTiers(contacts)
-
-    assert.equal(result.grouped, true)
-    assert.deepEqual(
-      contacts.map((contact) => result.tiers.get(contact)),
-      ['core', 'core', 'friend', 'friend', 'friend', 'friend', 'friend', 'acquaintance', 'acquaintance', 'acquaintance']
+  it('identifies low-signal non-friends with an absolute interaction threshold', () => {
+    assert.equal(
+      isLowSignalNonFriend({
+        coOccurrenceCount: MIN_NON_FRIEND_INTERACTIONS_FOR_VISIBLE - 2,
+        replyInteractionCount: 1,
+      }),
+      true
     )
-  })
-
-  it('clamps low-message friends out of core without promoting low-ranked contacts', () => {
-    const contacts = Array.from({ length: 10 }, (_, index) => ({
-      key: `friend-${index}`,
-      score: 10 - index,
-      privateMessageCount:
-        index === 0 || index === 9 ? MIN_PRIVATE_MESSAGES_FOR_CORE - 1 : MIN_PRIVATE_MESSAGES_FOR_CORE,
-    }))
-
-    const result = assignFriendTiers(contacts)
-
-    assert.equal(result.tiers.get(contacts[0]), 'friend')
-    assert.equal(result.tiers.get(contacts[9]), 'acquaintance')
-  })
-
-  it('assigns non-friend tiers, clamps weak high interactions, and supports ungrouped small pools', () => {
-    const contacts = Array.from({ length: MIN_NON_FRIENDS_FOR_TIERS }, (_, index) => ({
-      key: `non-friend-${index}`,
-      score: MIN_NON_FRIENDS_FOR_TIERS - index,
-      coOccurrenceCount: index === 0 ? MIN_NON_FRIEND_INTERACTIONS_FOR_HIGH - 2 : MIN_NON_FRIEND_INTERACTIONS_FOR_HIGH,
-      replyInteractionCount: index === 0 ? 1 : 0,
-    }))
-
-    const grouped = assignNonFriendTiers(contacts)
-
-    assert.equal(grouped.grouped, true)
-    assert.equal(grouped.tiers.get(contacts[0]), 'medium_interaction')
-    assert.equal(grouped.tiers.get(contacts[1]), 'high_interaction')
-    assert.equal(grouped.tiers.get(contacts[7]), 'low_interaction')
-
-    const smallPool = assignNonFriendTiers(contacts.slice(0, MIN_NON_FRIENDS_FOR_TIERS - 1))
-    assert.equal(smallPool.grouped, false)
-    assert.deepEqual(
-      contacts.slice(0, MIN_NON_FRIENDS_FOR_TIERS - 1).map((contact) => smallPool.tiers.get(contact)),
-      Array.from({ length: MIN_NON_FRIENDS_FOR_TIERS - 1 }, () => 'medium_interaction')
+    assert.equal(
+      isLowSignalNonFriend({
+        coOccurrenceCount: MIN_NON_FRIEND_INTERACTIONS_FOR_VISIBLE,
+        replyInteractionCount: 0,
+      }),
+      false
     )
-  })
-
-  it('applies manual locked tiers over algorithm tiers', () => {
-    assert.deepEqual(applyContactOverride('friend', { lockedTier: 'core' }), {
-      tier: 'core',
-      algorithmTier: 'friend',
-      lockedTier: 'core',
-    })
-    assert.deepEqual(applyContactOverride('core', { lockedTier: null }), {
-      tier: 'core',
-      algorithmTier: 'core',
-      lockedTier: null,
-    })
   })
 })

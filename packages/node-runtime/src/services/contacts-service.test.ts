@@ -192,7 +192,7 @@ test('aggregates stable-id contacts across private and group sessions', (t) => {
     ],
   })
 
-  const result = createContactsService({ adapter: env.adapter, systemDir: env.dir }).getContacts()
+  const result = createContactsService({ adapter: env.adapter }).getContacts()
   const byKey = new Map(result.contacts.map((contact) => [contact.key, contact]))
   const alice = byKey.get('weixin:alice')
   const bob = byKey.get('weixin:bob')
@@ -247,7 +247,7 @@ test('records diagnostics for missing owner, unresolved owner, and ambiguous pri
     ],
   })
 
-  const result = createContactsService({ adapter: env.adapter, systemDir: env.dir }).getContacts()
+  const result = createContactsService({ adapter: env.adapter }).getContacts()
 
   assert.equal(result.contacts.length, 0)
   assert.equal(result.diagnostics.privateSessionCount, 3)
@@ -256,7 +256,7 @@ test('records diagnostics for missing owner, unresolved owner, and ambiguous pri
   assert.equal(result.diagnostics.skippedAmbiguousPrivateSessions, 1)
 })
 
-test('keeps name-match platform contacts session-scoped and applies manual overrides only to existing contacts', (t) => {
+test('keeps name-match platform contacts session-scoped', (t) => {
   const env = new TestEnv()
   t.after(() => env.cleanup())
 
@@ -274,20 +274,53 @@ test('keeps name-match platform contacts session-scoped and applies manual overr
     })
   }
 
-  const service = createContactsService({ adapter: env.adapter, systemDir: env.dir })
-  service.setContactOverride('whatsapp:whatsapp-a:Alice', { lockedTier: 'core' })
-  service.setContactOverride('whatsapp:ghost:Alice', { lockedTier: 'core' })
+  const service = createContactsService({ adapter: env.adapter })
   const result = service.getContacts()
   const keys = result.contacts.map((contact) => contact.key).sort()
 
   assert.deepEqual(keys, ['whatsapp:whatsapp-a:Alice', 'whatsapp:whatsapp-b:Alice'])
-  const locked = result.contacts.find((contact) => contact.key === 'whatsapp:whatsapp-a:Alice')
-  const unlocked = result.contacts.find((contact) => contact.key === 'whatsapp:whatsapp-b:Alice')
-  assert.ok(locked)
-  assert.equal(locked.tier, 'core')
-  assert.equal(locked.lockedTier, 'core')
-  assert.ok(unlocked)
-  assert.equal(unlocked.lockedTier, null)
+})
+
+test('sorts contacts by score and marks low-signal non-friends', (t) => {
+  const env = new TestEnv()
+  t.after(() => env.cleanup())
+
+  env.seed({
+    id: 'private-a',
+    platform: 'weixin',
+    type: 'private',
+    ownerId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner' },
+      { id: 2, platformId: 'alice' },
+    ],
+    messages: privateMessages(60, 1, 1704103200),
+  })
+  env.seed({
+    id: 'group-a',
+    platform: 'weixin',
+    type: 'group',
+    ownerId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner' },
+      { id: 2, platformId: 'alice' },
+      { id: 3, platformId: 'bob' },
+    ],
+    messages: [
+      { id: 1, senderId: 1, ts: 1704103200, platformMessageId: 'owner-1' },
+      { id: 2, senderId: 3, ts: 1704103201, platformMessageId: 'bob-1' },
+    ],
+  })
+
+  const service = createContactsService({ adapter: env.adapter })
+  const result = service.getContacts()
+
+  assert.deepEqual(
+    result.contacts.map((contact) => contact.key),
+    ['weixin:alice', 'weixin:bob']
+  )
+  assert.equal(result.contacts[1].isLowSignal, true)
+  assert.equal(result.diagnostics.hiddenLowSignalNonFriends, 1)
 })
 
 test('returns stale cached contacts when signature changes and acceptStale is true', (t) => {
@@ -307,7 +340,7 @@ test('returns stale cached contacts when signature changes and acceptStale is tr
     messages: privateMessages(5, 1, 1704103200),
   })
 
-  const service = createContactsService({ adapter: env.adapter, systemDir: env.dir, now: () => now })
+  const service = createContactsService({ adapter: env.adapter, now: () => now })
   const first = service.getContacts()
   assert.equal(first.cache.status, 'fresh')
   assert.equal(first.cache.computedAt, 1000)
@@ -345,7 +378,7 @@ test('recomputes contacts after owner_id changes in a session database', (t) => 
     messages: privateMessages(5, 1, 1704103200),
   })
 
-  const service = createContactsService({ adapter: env.adapter, systemDir: env.dir, now: () => now })
+  const service = createContactsService({ adapter: env.adapter, now: () => now })
   const first = service.getContacts()
   assert.deepEqual(
     first.contacts.map((contact) => contact.key),

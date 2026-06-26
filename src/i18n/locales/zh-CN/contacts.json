@@ -8,44 +8,58 @@
   "score": "分数 {value}",
   "stats": {
     "total": "联系人",
-    "core": "核心",
     "friends": "好友",
-    "nonFriends": "群聊联系人"
+    "nonFriends": "群友"
   },
   "filters": {
     "allPools": "全部来源",
     "friends": "好友",
-    "nonFriends": "群聊联系人",
-    "allTiers": "全部分层",
-    "showLow": "显示低互动"
+    "nonFriends": "群友",
+    "showLowSignal": "显示低信号"
+  },
+  "tabs": {
+    "friends": "好友",
+    "groupContacts": "群友"
   },
   "pool": {
     "friend": "好友",
-    "nonFriend": "非好友"
+    "nonFriend": "群友"
   },
-  "tier": {
-    "core": "核心关系",
-    "friend": "朋友",
-    "acquaintance": "普通熟人",
-    "high_interaction": "高互动",
-    "medium_interaction": "中互动",
-    "low_interaction": "低互动"
+  "group": {
+    "pinned": "置顶联系人",
+    "friends": "好友",
+    "group_contacts": "群友"
+  },
+  "badge": {
+    "lowSignal": "低信号"
+  },
+  "table": {
+    "contact": "联系人",
+    "status": "类型"
   },
   "actions": {
     "recompute": "重新计算",
-    "lockCore": "锁定核心",
-    "unlock": "取消锁定"
+    "showMoreLowSignal": "显示更多低信号群友（{count}）",
+    "hideLowSignal": "收起低信号群友",
+    "clearSelection": "取消选中",
+    "viewDetail": "查看 {name} 的详情"
   },
   "detail": {
+    "title": "联系人详情",
     "score": "综合分",
     "lastInteraction": "最近互动",
-    "sources": "来源会话"
+    "sources": "来源会话",
+    "aliases": "别名",
+    "signals": "互动信号",
+    "emptyTitle": "选择一个联系人",
+    "emptyDescription": "点击左侧联系人后，这里会显示互动指标和来源会话。"
   },
   "metrics": {
     "privateMessages": "{count} 条私聊",
     "privateMessagesLabel": "私聊消息",
     "activeMonths": "活跃月份",
     "commonGroups": "共同群",
+    "lastInteractionShort": "最近",
     "groups": "{count} 个共同群",
     "coOccurrence": "同框次数",
     "replies": "回复互动",
@@ -53,13 +67,12 @@
   },
   "stale": {
     "title": "联系人数据可能已过期",
-    "message": "检测到聊天库或手动锁定发生变化，是否立即重新计算联系人？",
+    "message": "检测到聊天库发生变化，是否立即重新计算联系人？",
     "inline": "联系人数据可能已过期。",
     "later": "稍后"
   },
   "toast": {
     "recomputed": "联系人已重新计算",
-    "recomputeFailed": "重新计算失败",
-    "overrideFailed": "保存联系人设置失败"
+    "recomputeFailed": "重新计算失败"
   }
 }

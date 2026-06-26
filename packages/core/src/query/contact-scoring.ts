@@ -1,9 +1,7 @@
-import type { ContactOverride, ContactScoreBreakdown, ContactTier } from '@openchatlab/shared-types'
+import type { ContactScoreBreakdown } from '@openchatlab/shared-types'
 
 export const MIN_PRIVATE_SESSIONS_FOR_CONTACTS = 10
-export const MIN_PRIVATE_MESSAGES_FOR_CORE = 50
-export const MIN_NON_FRIENDS_FOR_TIERS = 10
-export const MIN_NON_FRIEND_INTERACTIONS_FOR_HIGH = 5
+export const MIN_NON_FRIEND_INTERACTIONS_FOR_VISIBLE = 5
 
 const FRIEND_SCORE_WEIGHTS = {
   privateMessage: 0.55,
@@ -58,26 +56,9 @@ export interface ContactScoringResult {
   scoreBreakdown: ContactScoreBreakdown
 }
 
-export interface FriendTierInput {
-  score: number
-  privateMessageCount: number
-}
-
-export interface NonFriendTierInput {
-  score: number
+export interface NonFriendSignalInput {
   coOccurrenceCount: number
   replyInteractionCount: number
-}
-
-export interface ContactTierAssignment<T> {
-  grouped: boolean
-  tiers: Map<T, ContactTier>
-}
-
-export interface AppliedContactOverride {
-  tier: ContactTier
-  algorithmTier: ContactTier
-  lockedTier: ContactTier | null
 }
 
 function clamp01(value: number): number {
@@ -245,59 +226,7 @@ export function computeNonFriendScores<T extends NonFriendScoreInput>(
   return result
 }
 
-function assignByPercentileCuts<T extends { score: number }>(
-  items: readonly T[],
-  highTier: ContactTier,
-  mediumTier: ContactTier,
-  lowTier: ContactTier,
-  clampHighTier?: (item: T) => ContactTier | null
-): ContactTierAssignment<T> {
-  const sorted = [...items].sort((a, b) => nonNegative(b.score) - nonNegative(a.score))
-  const tiers = new Map<T, ContactTier>()
-  if (sorted.length === 0) return { grouped: true, tiers }
-
-  const highCount = Math.ceil(sorted.length * 0.2)
-  const mediumCut = Math.ceil(sorted.length * 0.7)
-
-  for (let index = 0; index < sorted.length; index++) {
-    const item = sorted[index]
-    let tier = index < highCount ? highTier : index < mediumCut ? mediumTier : lowTier
-    if (tier === highTier) tier = clampHighTier?.(item) ?? tier
-    tiers.set(item, tier)
-  }
-
-  return { grouped: true, tiers }
-}
-
-export function assignFriendTiers<T extends FriendTierInput>(items: readonly T[]): ContactTierAssignment<T> {
-  return assignByPercentileCuts(items, 'core', 'friend', 'acquaintance', (item) =>
-    nonNegative(item.privateMessageCount) < MIN_PRIVATE_MESSAGES_FOR_CORE ? 'friend' : null
-  )
-}
-
-export function assignNonFriendTiers<T extends NonFriendTierInput>(items: readonly T[]): ContactTierAssignment<T> {
-  if (items.length < MIN_NON_FRIENDS_FOR_TIERS) {
-    return {
-      grouped: false,
-      tiers: new Map(items.map((item) => [item, 'medium_interaction' as ContactTier])),
-    }
-  }
-
-  return assignByPercentileCuts(items, 'high_interaction', 'medium_interaction', 'low_interaction', (item) => {
-    const totalInteractions = nonNegative(item.coOccurrenceCount) + nonNegative(item.replyInteractionCount)
-    return totalInteractions < MIN_NON_FRIEND_INTERACTIONS_FOR_HIGH ? 'medium_interaction' : null
-  })
-}
-
-export function applyContactOverride(
-  algorithmTier: ContactTier,
-  override?: ContactOverride | null
-): AppliedContactOverride {
-  const lockedTier = override?.lockedTier ?? null
-
-  return {
-    tier: lockedTier ?? algorithmTier,
-    algorithmTier,
-    lockedTier,
-  }
+export function isLowSignalNonFriend(input: NonFriendSignalInput): boolean {
+  const totalInteractions = nonNegative(input.coOccurrenceCount) + nonNegative(input.replyInteractionCount)
+  return totalInteractions < MIN_NON_FRIEND_INTERACTIONS_FOR_VISIBLE
 }
