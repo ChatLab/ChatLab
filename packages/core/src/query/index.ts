@@ -76,6 +76,42 @@ export type {
 } from './basic-queries'
 
 export {
+  getGroupContactFacts,
+  getNonSystemMembersForContacts,
+  getPrivateContactFacts,
+  isValidContactPlatformId,
+  resolveOwnerMember,
+} from './contact-queries'
+export type { ContactMemberRef, GroupContactFacts, PrivateContactFacts } from './contact-queries'
+
+export {
+  MIN_NON_FRIEND_INTERACTIONS_FOR_HIGH,
+  MIN_NON_FRIENDS_FOR_TIERS,
+  MIN_PRIVATE_MESSAGES_FOR_CORE,
+  MIN_PRIVATE_SESSIONS_FOR_CONTACTS,
+  applyContactOverride,
+  assignFriendTiers,
+  assignNonFriendTiers,
+  computeFriendScore,
+  computeFriendScores,
+  computeNonFriendScore,
+  computeNonFriendScores,
+  computePrivateRegularity,
+  rankPercentiles,
+} from './contact-scoring'
+export type {
+  AppliedContactOverride,
+  ContactScoringResult,
+  ContactTierAssignment,
+  FriendScoreComponents,
+  FriendScoreInput,
+  FriendTierInput,
+  NonFriendScoreComponents,
+  NonFriendScoreInput,
+  NonFriendTierInput,
+} from './contact-scoring'
+
+export {
   queryMessages,
   searchMessagesLike,
   searchMessagesByKeywords,

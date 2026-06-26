@@ -1,0 +1,264 @@
+/**
+ * Tests for single-session contact query helpers.
+ *
+ * Run: pnpm test -- packages/core/src/query/__tests__/contact-queries.test.ts
+ */
+
+import { afterEach, beforeEach, describe, it } from 'node:test'
+import assert from 'node:assert/strict'
+import path from 'node:path'
+import Database from 'better-sqlite3'
+import {
+  getGroupContactFacts,
+  getNonSystemMembersForContacts,
+  getPrivateContactFacts,
+  resolveOwnerMember,
+} from '../contact-queries'
+import type { DatabaseAdapter, PreparedStatement, RunResult } from '../../interfaces'
+
+const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
+
+class Stmt implements PreparedStatement {
+  readonly?: boolean
+
+  constructor(private stmt: Database.Statement) {
+    this.readonly = stmt.readonly
+  }
+
+  get(...p: unknown[]) {
+    return this.stmt.get(...p) as Record<string, unknown> | undefined
+  }
+
+  all(...p: unknown[]) {
+    return this.stmt.all(...p) as Record<string, unknown>[]
+  }
+
+  run(...p: unknown[]): RunResult {
+    const r = this.stmt.run(...p)
+    return { changes: r.changes, lastInsertRowid: r.lastInsertRowid }
+  }
+}
+
+class Adapter implements DatabaseAdapter {
+  constructor(private db: Database.Database) {}
+
+  exec(sql: string) {
+    this.db.exec(sql)
+  }
+
+  prepare(sql: string) {
+    return new Stmt(this.db.prepare(sql))
+  }
+
+  transaction<T>(fn: () => T): T {
+    return this.db.transaction(fn)()
+  }
+
+  pragma(p: string) {
+    return this.db.pragma(p)
+  }
+
+  close() {
+    this.db.close()
+  }
+}
+
+describe('contact query helpers', () => {
+  let raw: Database.Database
+  let db: Adapter
+
+  beforeEach(() => {
+    raw = new Database(':memory:', { nativeBinding })
+    raw.exec(`
+      CREATE TABLE meta (
+        name TEXT,
+        platform TEXT,
+        type TEXT,
+        imported_at INTEGER,
+        owner_id TEXT
+      );
+      CREATE TABLE member (
+        id INTEGER PRIMARY KEY,
+        platform_id TEXT,
+        account_name TEXT,
+        group_nickname TEXT,
+        avatar TEXT
+      );
+      CREATE TABLE message (
+        id INTEGER PRIMARY KEY,
+        sender_id INTEGER,
+        ts INTEGER,
+        type INTEGER,
+        content TEXT,
+        platform_message_id TEXT,
+        reply_to_message_id TEXT
+      );
+      INSERT INTO meta (name, platform, type, imported_at, owner_id)
+      VALUES ('Group', 'wechat', 'group', 1700000000, 'owner-pid');
+      INSERT INTO member (id, platform_id, account_name, group_nickname, avatar) VALUES
+        (1, 'owner-pid', 'Owner', NULL, NULL),
+        (2, 'alice-pid', 'Alice', 'Alice G', 'alice.png'),
+        (3, 'bob-pid', 'Bob', NULL, NULL),
+        (99, 'sys-pid', '系统消息', NULL, NULL);
+    `)
+    db = new Adapter(raw)
+  })
+
+  afterEach(() => {
+    raw.close()
+  })
+
+  it('resolves meta.owner_id to the matching member id', () => {
+    assert.deepEqual(resolveOwnerMember(db), {
+      id: 1,
+      platformId: 'owner-pid',
+      name: 'Owner',
+      avatar: null,
+    })
+  })
+
+  it('returns null when owner_id is missing or cannot be matched', () => {
+    raw.exec('UPDATE meta SET owner_id = NULL')
+    assert.equal(resolveOwnerMember(db), null)
+
+    raw.exec("UPDATE meta SET owner_id = 'missing-pid'")
+    assert.equal(resolveOwnerMember(db), null)
+  })
+
+  it('filters out system-message members from contact candidates', () => {
+    const members = getNonSystemMembersForContacts(db)
+
+    assert.deepEqual(
+      members.map((m) => m.platformId),
+      ['owner-pid', 'alice-pid', 'bob-pid']
+    )
+    assert.equal(
+      members.find((m) => m.platformId === 'sys-pid'),
+      undefined
+    )
+  })
+
+  it('returns private contact facts when the counterpart is unique', () => {
+    raw.exec("UPDATE meta SET type = 'private'")
+    raw.exec('DELETE FROM member WHERE id = 3')
+    const insert = raw.prepare(
+      'INSERT INTO message (id, sender_id, ts, type, content, platform_message_id) VALUES (?, ?, ?, ?, ?, ?)'
+    )
+    insert.run(1, 1, 1704103200, 0, 'from owner', 'm1')
+    insert.run(2, 2, 1704103260, 0, 'from alice', 'm2')
+    insert.run(3, 99, 1704103320, 0, 'system', 'm3')
+    insert.run(4, 2, 1706781600, 0, 'next month', 'm4')
+
+    const owner = resolveOwnerMember(db)
+    assert.ok(owner)
+
+    assert.deepEqual(getPrivateContactFacts(db, owner.id), {
+      type: 'ok',
+      contact: {
+        id: 2,
+        platformId: 'alice-pid',
+        name: 'Alice G',
+        avatar: 'alice.png',
+      },
+      privateMessageCount: 3,
+      activeMonths: ['2024-01', '2024-02'],
+      lastMessageTs: 1706781600,
+    })
+  })
+
+  it('marks private sessions with multiple non-owner members as ambiguous', () => {
+    raw.exec("UPDATE meta SET type = 'private'")
+    const owner = resolveOwnerMember(db)
+    assert.ok(owner)
+
+    const result = getPrivateContactFacts(db, owner.id)
+
+    assert.equal(result.type, 'ambiguous')
+    assert.deepEqual(result.type === 'ambiguous' ? result.candidates.map((m) => m.platformId) : [], [
+      'alice-pid',
+      'bob-pid',
+    ])
+  })
+
+  it('marks private sessions with no valid counterpart as missing', () => {
+    raw.exec("UPDATE meta SET type = 'private'; DELETE FROM member WHERE id IN (2, 3)")
+    const owner = resolveOwnerMember(db)
+    assert.ok(owner)
+
+    assert.deepEqual(getPrivateContactFacts(db, owner.id), { type: 'missing' })
+  })
+
+  it('returns one group contact fact per non-owner non-system member', () => {
+    const owner = resolveOwnerMember(db)
+    assert.ok(owner)
+    const insert = raw.prepare(
+      'INSERT INTO message (id, sender_id, ts, type, content, platform_message_id) VALUES (?, ?, ?, ?, ?, ?)'
+    )
+    insert.run(1, 1, 1704103200, 0, 'owner', 'owner-1')
+    insert.run(2, 2, 1704103260, 0, 'alice', 'alice-1')
+    insert.run(3, 2, 1704103320, 0, 'alice again', 'alice-2')
+    insert.run(4, 99, 1704103380, 0, 'system', 'sys-1')
+
+    const facts = getGroupContactFacts(db, owner.id)
+
+    assert.deepEqual(
+      facts.map((fact) => [fact.contact.platformId, fact.messageCount]),
+      [
+        ['alice-pid', 2],
+        ['bob-pid', 0],
+      ]
+    )
+  })
+
+  it('counts structured reply interactions in both directions', () => {
+    const owner = resolveOwnerMember(db)
+    assert.ok(owner)
+    const insert = raw.prepare(
+      `INSERT INTO message
+        (id, sender_id, ts, type, content, platform_message_id, reply_to_message_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    insert.run(1, 1, 1704103200, 0, 'owner to group', 'owner-1', null)
+    insert.run(2, 2, 1704103260, 0, 'alice replies owner', 'alice-1', 'owner-1')
+    insert.run(3, 3, 1704103320, 0, 'bob to group', 'bob-1', null)
+    insert.run(4, 1, 1704103380, 0, 'owner replies bob', 'owner-2', 'bob-1')
+
+    const facts = getGroupContactFacts(db, owner.id)
+    const alice = facts.find((fact) => fact.contact.platformId === 'alice-pid')
+    const bob = facts.find((fact) => fact.contact.platformId === 'bob-pid')
+
+    assert.ok(alice)
+    assert.equal(alice.repliesFromContactToOwner, 1)
+    assert.equal(alice.repliesFromOwnerToContact, 0)
+    assert.equal(alice.replyInteractionCount, 1)
+    assert.equal(alice.lastInteractionTs, 1704103260)
+
+    assert.ok(bob)
+    assert.equal(bob.repliesFromContactToOwner, 0)
+    assert.equal(bob.repliesFromOwnerToContact, 1)
+    assert.equal(bob.replyInteractionCount, 1)
+    assert.equal(bob.lastInteractionTs, 1704103380)
+  })
+
+  it('computes owner-contact co-occurrence from nearby group messages', () => {
+    const owner = resolveOwnerMember(db)
+    assert.ok(owner)
+    const insert = raw.prepare(
+      'INSERT INTO message (id, sender_id, ts, type, content, platform_message_id) VALUES (?, ?, ?, ?, ?, ?)'
+    )
+    insert.run(1, 1, 1704103200, 0, 'owner starts', 'owner-1')
+    insert.run(2, 2, 1704103201, 0, 'alice follows', 'alice-1')
+    insert.run(3, 1, 1704103202, 0, 'owner again', 'owner-2')
+    insert.run(4, 2, 1704103203, 0, 'alice follows again', 'alice-2')
+    insert.run(5, 3, 1704103800, 0, 'bob much later', 'bob-1')
+
+    const facts = getGroupContactFacts(db, owner.id)
+    const alice = facts.find((fact) => fact.contact.platformId === 'alice-pid')
+    const bob = facts.find((fact) => fact.contact.platformId === 'bob-pid')
+
+    assert.ok(alice)
+    assert.ok(bob)
+    assert.ok(alice.coOccurrenceCount > bob.coOccurrenceCount)
+    assert.ok(alice.coOccurrenceRawScore > bob.coOccurrenceRawScore)
+  })
+})

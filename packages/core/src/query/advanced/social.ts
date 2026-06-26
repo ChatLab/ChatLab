@@ -513,6 +513,18 @@ export interface ClusterGraphData {
   }
 }
 
+export interface CoOccurrenceMessage {
+  senderId: number
+  ts: number
+}
+
+export interface CoOccurrencePairStats {
+  sourceId: number
+  targetId: number
+  rawScore: number
+  coOccurrenceCount: number
+}
+
 const DEFAULT_CLUSTER_OPTIONS = { lookAhead: 3, decaySeconds: 120, topEdges: 100 }
 
 function roundNum(value: number, digits = 4): number {
@@ -522,6 +534,48 @@ function roundNum(value: number, digits = 4): number {
 
 function clusterPairKey(aId: number, bId: number): string {
   return aId < bId ? `${aId}-${bId}` : `${bId}-${aId}`
+}
+
+export function accumulateCoOccurrencePairs(
+  messages: CoOccurrenceMessage[],
+  options?: ClusterGraphOptions
+): CoOccurrencePairStats[] {
+  const opts = { ...DEFAULT_CLUSTER_OPTIONS, ...options }
+  const pairRawScore = new Map<string, number>()
+  const pairCoOccurrence = new Map<string, number>()
+
+  // 与小团体图保持同一口径：按消息顺序向后寻找不同发言人，并用时间衰减和位置权重累计关系强度。
+  for (let i = 0; i < messages.length - 1; i++) {
+    const anchor = messages[i]
+    const seenPartners = new Set<number>()
+    let partnersFound = 0
+    for (let j = i + 1; j < messages.length && partnersFound < opts.lookAhead; j++) {
+      const candidate = messages[j]
+      if (candidate.senderId === anchor.senderId || seenPartners.has(candidate.senderId)) continue
+      seenPartners.add(candidate.senderId)
+      partnersFound++
+      const deltaSeconds = (candidate.ts - anchor.ts) / 1000
+      const decayWeight = Math.exp(-deltaSeconds / opts.decaySeconds)
+      const positionWeight = 1 - (partnersFound - 1) * 0.2
+      const weight = decayWeight * positionWeight
+      const key = clusterPairKey(anchor.senderId, candidate.senderId)
+      pairRawScore.set(key, (pairRawScore.get(key) || 0) + weight)
+      pairCoOccurrence.set(key, (pairCoOccurrence.get(key) || 0) + 1)
+    }
+  }
+
+  const pairs: CoOccurrencePairStats[] = []
+  for (const [key, rawScore] of pairRawScore) {
+    const [sourceIdStr, targetIdStr] = key.split('-')
+    pairs.push({
+      sourceId: parseInt(sourceIdStr),
+      targetId: parseInt(targetIdStr),
+      rawScore,
+      coOccurrenceCount: pairCoOccurrence.get(key) || 0,
+    })
+  }
+
+  return pairs
 }
 
 export function getClusterGraph(
@@ -577,28 +631,6 @@ export function getClusterGraph(
   for (const msg of messages) memberMsgCount.set(msg.senderId, (memberMsgCount.get(msg.senderId) || 0) + 1)
   const totalMessages = messages.length
 
-  const pairRawScore = new Map<string, number>()
-  const pairCoOccurrence = new Map<string, number>()
-
-  for (let i = 0; i < messages.length - 1; i++) {
-    const anchor = messages[i]
-    const seenPartners = new Set<number>()
-    let partnersFound = 0
-    for (let j = i + 1; j < messages.length && partnersFound < opts.lookAhead; j++) {
-      const candidate = messages[j]
-      if (candidate.senderId === anchor.senderId || seenPartners.has(candidate.senderId)) continue
-      seenPartners.add(candidate.senderId)
-      partnersFound++
-      const deltaSeconds = (candidate.ts - anchor.ts) / 1000
-      const decayWeight = Math.exp(-deltaSeconds / opts.decaySeconds)
-      const positionWeight = 1 - (partnersFound - 1) * 0.2
-      const weight = decayWeight * positionWeight
-      const key = clusterPairKey(anchor.senderId, candidate.senderId)
-      pairRawScore.set(key, (pairRawScore.get(key) || 0) + weight)
-      pairCoOccurrence.set(key, (pairCoOccurrence.get(key) || 0) + 1)
-    }
-  }
-
   const lookAheadFactor = opts.lookAhead * 0.8
   const rawEdges: Array<{
     sourceId: number
@@ -609,21 +641,20 @@ export function getClusterGraph(
     coOccurrenceCount: number
   }> = []
 
-  for (const [key, rawScore] of pairRawScore) {
-    const [aIdStr, bIdStr] = key.split('-')
-    const aId = parseInt(aIdStr)
-    const bId = parseInt(bIdStr)
+  for (const pair of accumulateCoOccurrencePairs(messages, opts)) {
+    const aId = pair.sourceId
+    const bId = pair.targetId
     const aMsgCount = memberMsgCount.get(aId) || 0
     const bMsgCount = memberMsgCount.get(bId) || 0
     const expectedScore = ((aMsgCount * bMsgCount) / totalMessages) * lookAheadFactor
-    const normalizedScore = expectedScore > 0 ? rawScore / expectedScore : 0
+    const normalizedScore = expectedScore > 0 ? pair.rawScore / expectedScore : 0
     rawEdges.push({
       sourceId: aId,
       targetId: bId,
-      rawScore,
+      rawScore: pair.rawScore,
       expectedScore,
       normalizedScore,
-      coOccurrenceCount: pairCoOccurrence.get(key) || 0,
+      coOccurrenceCount: pair.coOccurrenceCount,
     })
   }
 
