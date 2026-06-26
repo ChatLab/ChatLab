@@ -226,6 +226,108 @@ export interface SetOwnerAndApplyProfileResult {
   updatedSessionOwnerIds: Record<string, string>
 }
 
+// ==================== Contacts (cross-session relationship view) ====================
+
+export type ContactTier =
+  | 'core'
+  | 'friend'
+  | 'acquaintance'
+  | 'high_interaction'
+  | 'medium_interaction'
+  | 'low_interaction'
+
+export type ContactPool = 'friend' | 'non_friend'
+
+export type ContactsCacheStatus = 'fresh' | 'stale' | 'missing'
+
+export interface ContactOverride {
+  lockedTier?: ContactTier | null
+  updatedAt?: number
+}
+
+export interface ContactOverridePatch {
+  lockedTier?: ContactTier | null
+}
+
+export interface ContactScoreBreakdown {
+  privateMessageScore?: number
+  privateRegularityScore?: number
+  commonGroupScore?: number
+  coOccurrenceScore?: number
+  replyInteractionScore?: number
+  privateMessageCount?: number
+  activePrivateMonths?: number
+  commonGroupCount?: number
+  coOccurrenceCount?: number
+  coOccurrenceRawScore?: number
+  replyInteractionCount?: number
+  repliesFromOwnerToContact?: number
+  repliesFromContactToOwner?: number
+}
+
+export interface ContactSourceSession {
+  id: string
+  name: string
+  platform: ChatPlatform
+  type: ChatType
+  messageCount?: number
+  privateMessageCount?: number
+  coOccurrenceCount?: number
+  coOccurrenceRawScore?: number
+  replyInteractionCount?: number
+  repliesFromOwnerToContact?: number
+  repliesFromContactToOwner?: number
+  lastMessageTs?: number | null
+  lastInteractionTs?: number | null
+}
+
+export interface ContactItem {
+  key: string
+  platform: ChatPlatform
+  platformId: string
+  sessionScoped: boolean
+  sessionId?: string
+  displayName: string
+  aliases: string[]
+  avatar: string | null
+  isFriend: boolean
+  pool: ContactPool
+  tier: ContactTier
+  algorithmTier: ContactTier
+  lockedTier: ContactTier | null
+  score: number
+  scoreBreakdown: ContactScoreBreakdown
+  sourceSessions: ContactSourceSession[]
+  searchText: string
+  lastInteractionTs: number | null
+}
+
+export interface ContactsDiagnostics {
+  privateSessionCount: number
+  contactsEnabled: boolean
+  skippedMissingOwnerSessions: number
+  skippedUnresolvedOwnerSessions: number
+  skippedAmbiguousPrivateSessions: number
+  skippedInvalidPlatformIdMembers: number
+  skippedFailedSessions: number
+  hiddenLowInteractionNonFriends: number
+  warnings: string[]
+}
+
+export interface ContactsCacheState {
+  status: ContactsCacheStatus
+  computedAt: number | null
+  signature?: string
+  staleReason?: string
+}
+
+export interface ContactsResponse {
+  contacts: ContactItem[]
+  diagnostics: ContactsDiagnostics
+  cache: ContactsCacheState
+  algorithmVersion: string
+}
+
 export interface Preferences {
   pinnedSessionIds: string[]
   aiPreprocessConfig: AIPreprocessConfig
