@@ -10,7 +10,7 @@ export function proxyUrlFromElectronResolvedProxy(resolvedProxy: string): string
   for (const rawRule of resolvedProxy.split(';')) {
     const rule = rawRule.trim()
     if (!rule) continue
-    if (rule.toUpperCase() === 'DIRECT') return undefined
+    if (rule.toUpperCase() === 'DIRECT') return firstSocksProxyUrl
 
     const [schemeRaw, targetRaw] = rule.split(/\s+/, 2)
     const scheme = schemeRaw?.toUpperCase()

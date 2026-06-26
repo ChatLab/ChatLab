@@ -14,6 +14,7 @@ test('proxyUrlFromElectronResolvedProxy returns the first usable model download 
     proxyUrlFromElectronResolvedProxy('SOCKS5 127.0.0.1:1080; PROXY 127.0.0.1:7890'),
     'http://127.0.0.1:7890'
   )
+  assert.equal(proxyUrlFromElectronResolvedProxy('SOCKS5 127.0.0.1:1080; DIRECT'), 'socks5://127.0.0.1:1080')
   assert.equal(proxyUrlFromElectronResolvedProxy('SOCKS5 127.0.0.1:1080'), 'socks5://127.0.0.1:1080')
   assert.equal(proxyUrlFromElectronResolvedProxy('SOCKS 127.0.0.1:1080'), 'socks://127.0.0.1:1080')
 })
