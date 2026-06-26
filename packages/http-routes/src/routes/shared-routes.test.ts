@@ -19,6 +19,8 @@ import { registerSharedRoutes } from '../register'
 import { registerRestSessionRoutes } from './sessions'
 import { registerSessionRoutes } from './web/sessions'
 
+const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
+
 class SqlitePreparedStatement implements PreparedStatement {
   readonly?: boolean
 
@@ -65,7 +67,7 @@ class TestSqliteDb implements DatabaseAdapter {
 }
 
 function createSessionDb(): TestSqliteDb {
-  const db = new TestSqliteDb(new Database(':memory:'))
+  const db = new TestSqliteDb(new Database(':memory:', { nativeBinding }))
   db.exec(`
     CREATE TABLE meta (
       name TEXT,

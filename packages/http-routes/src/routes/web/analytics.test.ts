@@ -58,6 +58,7 @@ class Adapter implements DatabaseAdapter {
 
 const SESSION_ID = 'chat-1'
 const MEMBER_ACTIVITY_URL = `/_web/sessions/${SESSION_ID}/stats/member-activity`
+const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
 describe('analytics routes caching', () => {
   let root: string
@@ -69,7 +70,7 @@ describe('analytics routes caching', () => {
     const base = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
     root = fs.mkdtempSync(path.join(base, 'chatlab-analytics-routes-'))
     dbFile = path.join(root, `${SESSION_ID}.db`)
-    raw = new Database(dbFile)
+    raw = new Database(dbFile, { nativeBinding })
     raw.exec(`
       CREATE TABLE member (id INTEGER PRIMARY KEY, platform_id TEXT, account_name TEXT, group_nickname TEXT, avatar TEXT);
       CREATE TABLE message (id INTEGER PRIMARY KEY, sender_id INTEGER, ts INTEGER, type INTEGER, content TEXT, platform_message_id TEXT);

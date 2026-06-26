@@ -13,6 +13,7 @@ import { registerRestSessionRoutes } from './routes/sessions'
 import { registerImportRoutes } from './routes/imports'
 import { registerSessionRoutes } from './routes/web/sessions'
 import { registerMemberRoutes } from './routes/web/members'
+import { registerContactsRoutes } from './routes/web/contacts'
 import { registerPreferencesRoutes } from './routes/web/preferences'
 import { registerAnalyticsRoutes } from './routes/web/analytics'
 import { registerSqlRoutes } from './routes/web/sql'
@@ -57,6 +58,7 @@ export function registerSharedRoutes(
   // Web UI API (/_web/*)
   registerSessionRoutes(server, resolvedCtx)
   registerMemberRoutes(server, resolvedCtx)
+  registerContactsRoutes(server, resolvedCtx)
   registerPreferencesRoutes(server, resolvedCtx)
   registerAnalyticsRoutes(server, resolvedCtx)
   registerSqlRoutes(server, resolvedCtx)
