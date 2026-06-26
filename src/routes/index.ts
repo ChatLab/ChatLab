@@ -25,6 +25,11 @@ export const router = createRouter({
       name: 'private-chat',
       component: () => import('@/pages/private-chat/index.vue'),
     },
+    {
+      path: '/contacts',
+      name: 'contacts',
+      component: () => import('@/pages/contacts/index.vue'),
+    },
   ],
   history: createWebHashHistory(),
 })
@@ -56,6 +61,7 @@ function preloadCriticalRoutes() {
   requestIdleCallback(() => {
     import('@/pages/group-chat/index.vue')
     import('@/pages/private-chat/index.vue')
+    import('@/pages/contacts/index.vue')
   })
 }
 

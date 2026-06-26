@@ -5,7 +5,13 @@
  */
 
 import type { AnalysisSession, MessageType } from '@/types/base'
-import type { TimeFilter, ApplyOwnerProfileResult, SetOwnerAndApplyProfileResult } from '@openchatlab/shared-types'
+import type {
+  TimeFilter,
+  ApplyOwnerProfileResult,
+  SetOwnerAndApplyProfileResult,
+  ContactOverridePatch,
+  ContactsResponse,
+} from '@openchatlab/shared-types'
 import type {
   MemberActivity,
   MemberWithStats,
@@ -35,6 +41,7 @@ import type {
 } from '@openchatlab/core'
 import type {
   DataAdapter,
+  ContactsFetchOptions,
   PaginationParams,
   PaginatedResult,
   SQLResult,
@@ -95,6 +102,27 @@ export class FetchDataAdapter implements DataAdapter {
   async dismissOwnerPrompt(sessionId: string): Promise<boolean> {
     const result = await post<{ success: boolean }>(`/sessions/${sessionId}/owner/dismiss-prompt`, {})
     return result.success
+  }
+
+  // ==================== 联系人 ====================
+
+  getContacts(options?: ContactsFetchOptions): Promise<ContactsResponse> {
+    const params = new URLSearchParams()
+    if (options?.acceptStale) params.set('acceptStale', '1')
+    const qs = params.toString()
+    return get(`/contacts${qs ? `?${qs}` : ''}`)
+  }
+
+  recomputeContacts(): Promise<ContactsResponse> {
+    return post('/contacts/recompute', {})
+  }
+
+  setContactOverride(key: string, patchBody: ContactOverridePatch): Promise<ContactsResponse> {
+    return patch(`/contacts/${encodeURIComponent(key)}/override`, patchBody)
+  }
+
+  deleteContactOverride(key: string): Promise<ContactsResponse> {
+    return del(`/contacts/${encodeURIComponent(key)}/override`)
   }
 
   // ==================== 时间范围 ====================

@@ -6,7 +6,13 @@
  */
 
 import type { AnalysisSession, MessageType } from '@/types/base'
-import type { TimeFilter, ApplyOwnerProfileResult, SetOwnerAndApplyProfileResult } from '@openchatlab/shared-types'
+import type {
+  TimeFilter,
+  ApplyOwnerProfileResult,
+  SetOwnerAndApplyProfileResult,
+  ContactOverridePatch,
+  ContactsResponse,
+} from '@openchatlab/shared-types'
 import type {
   MemberActivity,
   MemberWithStats,
@@ -72,6 +78,12 @@ export interface TableSchema {
   }>
 }
 
+// ==================== Contacts ====================
+
+export interface ContactsFetchOptions {
+  acceptStale?: boolean
+}
+
 // ==================== Mention Graph ====================
 
 export interface MentionGraphData {
@@ -100,6 +112,13 @@ export interface DataAdapter {
   tryApplyOwnerProfile(sessionId: string): Promise<ApplyOwnerProfileResult>
   setOwnerAndApplyProfile(sessionId: string, ownerPlatformId: string): Promise<SetOwnerAndApplyProfileResult>
   dismissOwnerPrompt(sessionId: string): Promise<boolean>
+
+  // ==================== 联系人 ====================
+
+  getContacts(options?: ContactsFetchOptions): Promise<ContactsResponse>
+  recomputeContacts(): Promise<ContactsResponse>
+  setContactOverride(key: string, patch: ContactOverridePatch): Promise<ContactsResponse>
+  deleteContactOverride(key: string): Promise<ContactsResponse>
 
   // ==================== 时间范围 ====================
 

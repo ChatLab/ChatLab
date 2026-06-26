@@ -1,0 +1,65 @@
+{
+  "title": "聯絡人",
+  "subtitle": "已匯入 {count} 個私聊會話",
+  "disabled": "目前私聊會話數為 {count}，聯絡人入口預設在私聊會話數超過 10 後顯示。",
+  "empty": "沒有符合的聯絡人",
+  "emptyValue": "暫無",
+  "search": "搜尋聯絡人、ID 或別名",
+  "score": "分數 {value}",
+  "stats": {
+    "total": "聯絡人",
+    "core": "核心",
+    "friends": "好友",
+    "nonFriends": "群聊聯絡人"
+  },
+  "filters": {
+    "allPools": "全部來源",
+    "friends": "好友",
+    "nonFriends": "群聊聯絡人",
+    "allTiers": "全部分層",
+    "showLow": "顯示低互動"
+  },
+  "pool": {
+    "friend": "好友",
+    "nonFriend": "非好友"
+  },
+  "tier": {
+    "core": "核心關係",
+    "friend": "朋友",
+    "acquaintance": "普通熟人",
+    "high_interaction": "高互動",
+    "medium_interaction": "中互動",
+    "low_interaction": "低互動"
+  },
+  "actions": {
+    "recompute": "重新計算",
+    "lockCore": "鎖定核心",
+    "unlock": "取消鎖定"
+  },
+  "detail": {
+    "score": "綜合分",
+    "lastInteraction": "最近互動",
+    "sources": "來源會話"
+  },
+  "metrics": {
+    "privateMessages": "{count} 則私聊",
+    "privateMessagesLabel": "私聊訊息",
+    "activeMonths": "活躍月份",
+    "commonGroups": "共同群",
+    "groups": "{count} 個共同群",
+    "coOccurrence": "同框次數",
+    "replies": "回覆互動",
+    "groupSignals": "{count} 次同框"
+  },
+  "stale": {
+    "title": "聯絡人資料可能已過期",
+    "message": "偵測到聊天庫或手動鎖定發生變化，是否立即重新計算聯絡人？",
+    "inline": "聯絡人資料可能已過期。",
+    "later": "稍後"
+  },
+  "toast": {
+    "recomputed": "聯絡人已重新計算",
+    "recomputeFailed": "重新計算失敗",
+    "overrideFailed": "儲存聯絡人設定失敗"
+  }
+}

@@ -1,0 +1,65 @@
+{
+  "title": "連絡先",
+  "subtitle": "{count} 件の個人チャットをインポート済み",
+  "disabled": "現在の個人チャット数は {count} 件です。サイドバー項目は個人チャットが 10 件を超えると表示されます。",
+  "empty": "一致する連絡先はありません",
+  "emptyValue": "なし",
+  "search": "連絡先、ID、別名を検索",
+  "score": "スコア {value}",
+  "stats": {
+    "total": "連絡先",
+    "core": "コア",
+    "friends": "友人",
+    "nonFriends": "グループ連絡先"
+  },
+  "filters": {
+    "allPools": "すべて",
+    "friends": "友人",
+    "nonFriends": "グループ連絡先",
+    "allTiers": "すべての階層",
+    "showLow": "低インタラクションを表示"
+  },
+  "pool": {
+    "friend": "友人",
+    "nonFriend": "非友人"
+  },
+  "tier": {
+    "core": "コア関係",
+    "friend": "友人",
+    "acquaintance": "知人",
+    "high_interaction": "高インタラクション",
+    "medium_interaction": "中インタラクション",
+    "low_interaction": "低インタラクション"
+  },
+  "actions": {
+    "recompute": "再計算",
+    "lockCore": "コアに固定",
+    "unlock": "固定を解除"
+  },
+  "detail": {
+    "score": "総合スコア",
+    "lastInteraction": "最終インタラクション",
+    "sources": "元チャット"
+  },
+  "metrics": {
+    "privateMessages": "個人チャット {count} 件",
+    "privateMessagesLabel": "個人メッセージ",
+    "activeMonths": "アクティブ月",
+    "commonGroups": "共通グループ",
+    "groups": "共通グループ {count} 件",
+    "coOccurrence": "同時出現",
+    "replies": "返信",
+    "groupSignals": "同時出現 {count} 回"
+  },
+  "stale": {
+    "title": "連絡先データが古い可能性があります",
+    "message": "チャットデータまたは手動固定が変更されました。今すぐ再計算しますか？",
+    "inline": "連絡先データが古い可能性があります。",
+    "later": "後で"
+  },
+  "toast": {
+    "recomputed": "連絡先を再計算しました",
+    "recomputeFailed": "再計算に失敗しました",
+    "overrideFailed": "連絡先設定の保存に失敗しました"
+  }
+}

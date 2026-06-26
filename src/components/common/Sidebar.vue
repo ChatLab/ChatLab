@@ -32,9 +32,13 @@ const { isSidebarCollapsed: isCollapsed } = storeToRefs(layoutStore)
 const { toggleSidebar } = layoutStore
 const router = useRouter()
 const route = useRoute()
+const CONTACTS_PRIVATE_SESSION_THRESHOLD = 10
 
 // 是否在首页
 const isHomePage = computed(() => route.path === '/')
+const isContactsPage = computed(() => route.name === 'contacts')
+const privateSessionCount = computed(() => sessions.value.filter((session) => session.type === 'private').length)
+const showContactsEntry = computed(() => privateSessionCount.value > CONTACTS_PRIVATE_SESSION_THRESHOLD)
 
 // 重命名相关状态
 const showRenameModal = ref(false)
@@ -106,6 +110,10 @@ onUnmounted(() => {
 function handleImport() {
   // Navigate to home (Welcome Guide)
   router.push('/')
+}
+
+function openContacts() {
+  router.push({ name: 'contacts' })
 }
 
 function readUpdateCheckCache(): UpdateNoticeCache | null {
@@ -437,6 +445,13 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
         :title="t('layout.newAnalysis')"
         :active="isHomePage"
         @click="handleImport"
+      />
+      <SidebarButton
+        v-if="showContactsEntry"
+        icon="i-lucide-users"
+        :title="t('layout.contacts')"
+        :active="isContactsPage"
+        @click="openContacts"
       />
     </div>
 

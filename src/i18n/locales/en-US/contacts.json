@@ -1,0 +1,65 @@
+{
+  "title": "Contacts",
+  "subtitle": "{count} private chats imported",
+  "disabled": "Current private chat count is {count}. The sidebar entry appears after more than 10 private chats.",
+  "empty": "No matching contacts",
+  "emptyValue": "None",
+  "search": "Search contacts, IDs, or aliases",
+  "score": "Score {value}",
+  "stats": {
+    "total": "Contacts",
+    "core": "Core",
+    "friends": "Friends",
+    "nonFriends": "Group contacts"
+  },
+  "filters": {
+    "allPools": "All sources",
+    "friends": "Friends",
+    "nonFriends": "Group contacts",
+    "allTiers": "All tiers",
+    "showLow": "Show low interaction"
+  },
+  "pool": {
+    "friend": "Friend",
+    "nonFriend": "Non-friend"
+  },
+  "tier": {
+    "core": "Core",
+    "friend": "Friend",
+    "acquaintance": "Acquaintance",
+    "high_interaction": "High interaction",
+    "medium_interaction": "Medium interaction",
+    "low_interaction": "Low interaction"
+  },
+  "actions": {
+    "recompute": "Recompute",
+    "lockCore": "Lock core",
+    "unlock": "Unlock"
+  },
+  "detail": {
+    "score": "Score",
+    "lastInteraction": "Last interaction",
+    "sources": "Source chats"
+  },
+  "metrics": {
+    "privateMessages": "{count} private messages",
+    "privateMessagesLabel": "Private messages",
+    "activeMonths": "Active months",
+    "commonGroups": "Common groups",
+    "groups": "{count} common groups",
+    "coOccurrence": "Co-occurrences",
+    "replies": "Replies",
+    "groupSignals": "{count} co-occurrences"
+  },
+  "stale": {
+    "title": "Contacts may be stale",
+    "message": "Chat data or manual locks changed. Recompute contacts now?",
+    "inline": "Contacts may be stale.",
+    "later": "Later"
+  },
+  "toast": {
+    "recomputed": "Contacts recomputed",
+    "recomputeFailed": "Recompute failed",
+    "overrideFailed": "Failed to save contact settings"
+  }
+}

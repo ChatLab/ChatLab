@@ -1,0 +1,65 @@
+{
+  "title": "联系人",
+  "subtitle": "已导入 {count} 个私聊会话",
+  "disabled": "当前私聊会话数为 {count}，联系人入口默认在私聊会话数超过 10 后显示。",
+  "empty": "没有匹配的联系人",
+  "emptyValue": "暂无",
+  "search": "搜索联系人、ID 或别名",
+  "score": "分数 {value}",
+  "stats": {
+    "total": "联系人",
+    "core": "核心",
+    "friends": "好友",
+    "nonFriends": "群聊联系人"
+  },
+  "filters": {
+    "allPools": "全部来源",
+    "friends": "好友",
+    "nonFriends": "群聊联系人",
+    "allTiers": "全部分层",
+    "showLow": "显示低互动"
+  },
+  "pool": {
+    "friend": "好友",
+    "nonFriend": "非好友"
+  },
+  "tier": {
+    "core": "核心关系",
+    "friend": "朋友",
+    "acquaintance": "普通熟人",
+    "high_interaction": "高互动",
+    "medium_interaction": "中互动",
+    "low_interaction": "低互动"
+  },
+  "actions": {
+    "recompute": "重新计算",
+    "lockCore": "锁定核心",
+    "unlock": "取消锁定"
+  },
+  "detail": {
+    "score": "综合分",
+    "lastInteraction": "最近互动",
+    "sources": "来源会话"
+  },
+  "metrics": {
+    "privateMessages": "{count} 条私聊",
+    "privateMessagesLabel": "私聊消息",
+    "activeMonths": "活跃月份",
+    "commonGroups": "共同群",
+    "groups": "{count} 个共同群",
+    "coOccurrence": "同框次数",
+    "replies": "回复互动",
+    "groupSignals": "{count} 次同框"
+  },
+  "stale": {
+    "title": "联系人数据可能已过期",
+    "message": "检测到聊天库或手动锁定发生变化，是否立即重新计算联系人？",
+    "inline": "联系人数据可能已过期。",
+    "later": "稍后"
+  },
+  "toast": {
+    "recomputed": "联系人已重新计算",
+    "recomputeFailed": "重新计算失败",
+    "overrideFailed": "保存联系人设置失败"
+  }
+}
