@@ -1,5 +1,5 @@
 /**
- * Run: pnpm test -- packages/node-runtime/src/services/contacts-snapshot.test.ts
+ * Run: pnpm test -- packages/node-runtime/src/services/contacts/snapshot.test.ts
  */
 
 import assert from 'node:assert/strict'
@@ -8,13 +8,13 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import type { ContactsDiagnostics } from '@openchatlab/shared-types'
-import { CONTACTS_ALGORITHM_VERSION, type ContactsSnapshot } from './contacts-compute'
+import { CONTACTS_ALGORITHM_VERSION, type ContactsSnapshot } from './compute'
 import {
   cleanupContactsSnapshotTempFiles,
   getContactsSnapshotPath,
   readContactsSnapshot,
   writeContactsSnapshot,
-} from './contacts-snapshot'
+} from './snapshot'
 
 function makeTempDir(): string {
   const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()

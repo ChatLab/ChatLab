@@ -364,7 +364,7 @@ export * as sessionIndexService from './services/session-index-service'
 export * as summaryService from './services/summary-service'
 export * as exportService from './services/export-service'
 export * as ownerProfileService from './services/owner-profile-service'
-export * as contactsService from './services/contacts-service'
+export * as contactsService from './services/contacts'
 // Semantic index (Phase 1 vector search) — independent of legacy ai/rag
 export * as semanticIndex from './semantic-index'
 export {

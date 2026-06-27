@@ -1,10 +1,10 @@
 import { parentPort, workerData } from 'node:worker_threads'
-import { DatabaseManager } from '../database-manager'
-import type { RuntimeIdentity } from '../data-dir-compat'
-import { initAppLogger } from '../logging/app-logger'
-import { StaticPathProvider, type StaticPathProviderSnapshot } from '../semantic-index/static-path-provider'
-import { createDatabaseManagerAdapter } from './adapters'
-import { computeContactsSnapshot, type ContactsComputeProgress } from './contacts-compute'
+import { DatabaseManager } from '../../database-manager'
+import type { RuntimeIdentity } from '../../data-dir-compat'
+import { initAppLogger } from '../../logging/app-logger'
+import { StaticPathProvider, type StaticPathProviderSnapshot } from '../../semantic-index/static-path-provider'
+import { createDatabaseManagerAdapter } from '../adapters'
+import { computeContactsSnapshot, type ContactsComputeProgress } from './compute'
 
 interface ContactsWorkerStartupOptions {
   paths: StaticPathProviderSnapshot

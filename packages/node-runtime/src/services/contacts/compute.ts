@@ -13,8 +13,8 @@ import {
   resolveOwnerMember,
 } from '@openchatlab/core'
 import type { ContactMemberRef, SessionMeta } from '@openchatlab/core'
-import { appLogger } from '../logging/app-logger'
-import type { SessionRuntimeAdapter } from './adapters'
+import { appLogger } from '../../logging/app-logger'
+import type { SessionRuntimeAdapter } from '../adapters'
 
 export const CONTACTS_ALGORITHM_VERSION = 'contacts-v1'
 

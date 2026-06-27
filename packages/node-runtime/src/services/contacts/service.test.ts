@@ -1,7 +1,7 @@
 /**
  * Integration tests for the cross-session contacts service.
  *
- * Run: pnpm test -- packages/node-runtime/src/services/contacts-service.test.ts
+ * Run: pnpm test -- packages/node-runtime/src/services/contacts/service.test.ts
  */
 
 import assert from 'node:assert/strict'
@@ -10,14 +10,13 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { CHAT_DB_SCHEMA } from '@openchatlab/core'
-import type { DatabaseAdapter } from '@openchatlab/core'
+import type { DatabaseAdapter, PathProvider } from '@openchatlab/core'
 import { ChatType } from '@openchatlab/shared-types'
 import type { ContactsResponse } from '@openchatlab/shared-types'
-import { openBetterSqliteDatabase } from '../better-sqlite3-adapter'
-import type { SessionRuntimeAdapter } from './adapters'
-import { CONTACTS_ALGORITHM_VERSION, computeContactsSnapshot, type ContactsSnapshot } from './contacts-compute'
-import { createContactsService } from './contacts-service'
-import type { PathProvider } from '@openchatlab/core'
+import { openBetterSqliteDatabase } from '../../better-sqlite3-adapter'
+import type { SessionRuntimeAdapter } from '../adapters'
+import { CONTACTS_ALGORITHM_VERSION, computeContactsSnapshot, type ContactsSnapshot } from './compute'
+import { createContactsService } from './service'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 

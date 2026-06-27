@@ -1,17 +1,17 @@
 import type { PathProvider } from '@openchatlab/core'
 import type { ContactsCacheState, ContactsResponse, ContactsTaskState } from '@openchatlab/shared-types'
-import type { RuntimeIdentity } from '../data-dir-compat'
-import { appLogger } from '../logging/app-logger'
-import type { SessionRuntimeAdapter } from './adapters'
+import type { RuntimeIdentity } from '../../data-dir-compat'
+import { appLogger } from '../../logging/app-logger'
+import type { SessionRuntimeAdapter } from '../adapters'
 import {
   CONTACTS_ALGORITHM_VERSION,
   createEmptyContactsDiagnostics,
   type ContactsComputeProgress,
   type ContactsSnapshot,
-} from './contacts-compute'
-import { buildContactsSignature } from './contacts-signature'
-import { cleanupContactsSnapshotTempFiles, readContactsSnapshot, writeContactsSnapshot } from './contacts-snapshot'
-import { createContactsWorkerRunner } from './contacts-worker-runner'
+} from './compute'
+import { buildContactsSignature } from './signature'
+import { cleanupContactsSnapshotTempFiles, readContactsSnapshot, writeContactsSnapshot } from './snapshot'
+import { createContactsWorkerRunner } from './worker-runner'
 
 export interface ContactsServiceOptions {
   forceRecompute?: boolean

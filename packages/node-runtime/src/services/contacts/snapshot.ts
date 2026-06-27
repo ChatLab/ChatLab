@@ -1,7 +1,7 @@
 import fs from 'node:fs'
 import path from 'node:path'
-import { appLogger } from '../logging/app-logger'
-import type { ContactsSnapshot } from './contacts-compute'
+import { appLogger } from '../../logging/app-logger'
+import type { ContactsSnapshot } from './compute'
 
 const CONTACTS_SNAPSHOT_FILE = 'contacts-snapshot.json'
 const CONTACTS_SNAPSHOT_TMP_PREFIX = 'contacts-snapshot.tmp-'

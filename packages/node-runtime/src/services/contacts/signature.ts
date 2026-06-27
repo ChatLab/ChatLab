@@ -1,6 +1,6 @@
-import { getDbFileVersion } from '../cache/analytics-cache'
-import type { SessionRuntimeAdapter } from './adapters'
-import { CONTACTS_ALGORITHM_VERSION } from './contacts-compute'
+import { getDbFileVersion } from '../../cache/analytics-cache'
+import type { SessionRuntimeAdapter } from '../adapters'
+import { CONTACTS_ALGORITHM_VERSION } from './compute'
 
 export function buildContactsSignature(adapter: SessionRuntimeAdapter): string {
   const parts = [`algorithm:${CONTACTS_ALGORITHM_VERSION}`]

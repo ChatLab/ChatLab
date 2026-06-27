@@ -1,10 +1,10 @@
 import { Worker } from 'node:worker_threads'
 import type { WorkerOptions } from 'node:worker_threads'
 import type { PathProvider } from '@openchatlab/core'
-import type { RuntimeIdentity } from '../data-dir-compat'
-import { snapshotPathProvider } from '../semantic-index/static-path-provider'
-import type { ContactsComputeProgress, ContactsSnapshot } from './contacts-compute'
-import type { ContactsComputeRunner } from './contacts-service'
+import type { RuntimeIdentity } from '../../data-dir-compat'
+import { snapshotPathProvider } from '../../semantic-index/static-path-provider'
+import type { ContactsComputeProgress, ContactsSnapshot } from './compute'
+import type { ContactsComputeRunner } from './service'
 
 export interface ContactsWorkerRunnerOptions {
   pathProvider: PathProvider
@@ -24,8 +24,8 @@ type ModuleWorkerOptions = WorkerOptions & { type: 'module' }
 
 function defaultWorkerEntryUrl(): URL {
   return import.meta.url.endsWith('.ts')
-    ? new URL('./contacts-worker-entry.ts', import.meta.url)
-    : new URL('./contacts-worker-entry.js', import.meta.url)
+    ? new URL('./worker-entry.ts', import.meta.url)
+    : new URL('./worker-entry.js', import.meta.url)
 }
 
 function normalizeWorkerEntryUrl(entryUrl?: string | URL): URL {
