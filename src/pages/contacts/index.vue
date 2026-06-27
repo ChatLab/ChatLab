@@ -674,7 +674,11 @@ function syncScroll(pool: ContactPoolTab, e: Event) {
                       <span
                         class="flex items-center gap-1 text-[10px] font-bold text-gray-400 transition group-hover/item:text-pink-500 dark:text-gray-500"
                       >
-                        {{ source.type === 'private' ? '私聊' : '群聊' }}
+                        {{
+                          source.type === 'private'
+                            ? t('contacts.detail.sourceType.private')
+                            : t('contacts.detail.sourceType.group')
+                        }}
                         <UIcon
                           name="i-lucide-arrow-up-right"
                           class="h-3 w-3 transition-transform group-hover/item:translate-x-0.5 group-hover/item:-translate-y-0.5"

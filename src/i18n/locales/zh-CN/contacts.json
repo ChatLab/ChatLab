@@ -49,6 +49,10 @@
     "score": "综合分",
     "lastInteraction": "最近互动",
     "sources": "来源会话",
+    "sourceType": {
+      "private": "私聊",
+      "group": "群聊"
+    },
     "aliases": "别名",
     "signals": "互动信号",
     "emptyTitle": "选择一个联系人",

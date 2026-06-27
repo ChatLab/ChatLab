@@ -49,6 +49,10 @@
     "score": "総合スコア",
     "lastInteraction": "最終インタラクション",
     "sources": "元チャット",
+    "sourceType": {
+      "private": "個人",
+      "group": "グループ"
+    },
     "aliases": "別名",
     "signals": "やり取りのシグナル",
     "emptyTitle": "連絡先を選択",

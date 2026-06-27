@@ -49,6 +49,10 @@
     "score": "Score",
     "lastInteraction": "Last interaction",
     "sources": "Source chats",
+    "sourceType": {
+      "private": "Private",
+      "group": "Group"
+    },
     "aliases": "Aliases",
     "signals": "Interaction signals",
     "emptyTitle": "Select a contact",
