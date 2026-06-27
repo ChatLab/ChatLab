@@ -311,7 +311,7 @@ function getOrCreateAccumulator(
   meta: SessionMeta,
   contact: ContactMemberRef
 ): ContactAccumulator {
-  const sessionScoped = isNameMatchPlatform(meta.platform)
+  const sessionScoped = shouldScopeContactToSession(meta.platform, contact)
   const key = buildContactKey(meta.platform, contact.platformId, sessionScoped ? sessionId : undefined)
   const existing = accumulators.get(key)
   if (existing) {
@@ -326,7 +326,7 @@ function getOrCreateAccumulator(
     sessionScoped,
     sessionId: sessionScoped ? sessionId : undefined,
     displayName: contact.name || contact.platformId,
-    aliases: new Set([contact.platformId, contact.name].filter(Boolean)),
+    aliases: new Set([contact.platformId, contact.name, ...contact.aliases].filter(Boolean)),
     avatar: contact.avatar,
     isFriend: false,
     privateMessageCount: 0,
@@ -344,6 +344,11 @@ function getOrCreateAccumulator(
   return created
 }
 
+function shouldScopeContactToSession(platform: ChatPlatform, contact: ContactMemberRef): boolean {
+  if (isNameMatchPlatform(platform)) return true
+  return platform.trim().toLowerCase() === 'qq' && contact.platformId.trim() === contact.name.trim()
+}
+
 function buildContactKey(platform: ChatPlatform, platformId: string, sessionId?: string): string {
   const normalizedPlatform = platform.trim()
   const normalizedPlatformId = platformId.trim()
@@ -357,6 +362,7 @@ function buildContactKey(platform: ChatPlatform, platformId: string, sessionId?:
 function mergeContactIdentity(acc: ContactAccumulator, contact: ContactMemberRef): void {
   if (contact.name) acc.aliases.add(contact.name)
   acc.aliases.add(contact.platformId)
+  for (const alias of contact.aliases) acc.aliases.add(alias)
   if ((!acc.displayName || acc.displayName === acc.platformId) && contact.name) {
     acc.displayName = contact.name
   }

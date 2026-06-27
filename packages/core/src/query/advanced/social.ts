@@ -523,6 +523,7 @@ export interface CoOccurrencePairStats {
   targetId: number
   rawScore: number
   coOccurrenceCount: number
+  lastOccurrenceTs: number
 }
 
 const DEFAULT_CLUSTER_OPTIONS = { lookAhead: 3, decaySeconds: 120, topEdges: 100 }
@@ -543,6 +544,7 @@ export function accumulateCoOccurrencePairs(
   const opts = { ...DEFAULT_CLUSTER_OPTIONS, ...options }
   const pairRawScore = new Map<string, number>()
   const pairCoOccurrence = new Map<string, number>()
+  const pairLastOccurrenceTs = new Map<string, number>()
 
   // 与小团体图保持同一口径：按消息顺序向后寻找不同发言人，并用时间衰减和位置权重累计关系强度。
   for (let i = 0; i < messages.length - 1; i++) {
@@ -554,13 +556,14 @@ export function accumulateCoOccurrencePairs(
       if (candidate.senderId === anchor.senderId || seenPartners.has(candidate.senderId)) continue
       seenPartners.add(candidate.senderId)
       partnersFound++
-      const deltaSeconds = (candidate.ts - anchor.ts) / 1000
+      const deltaSeconds = candidate.ts - anchor.ts
       const decayWeight = Math.exp(-deltaSeconds / opts.decaySeconds)
       const positionWeight = 1 - (partnersFound - 1) * 0.2
       const weight = decayWeight * positionWeight
       const key = clusterPairKey(anchor.senderId, candidate.senderId)
       pairRawScore.set(key, (pairRawScore.get(key) || 0) + weight)
       pairCoOccurrence.set(key, (pairCoOccurrence.get(key) || 0) + 1)
+      pairLastOccurrenceTs.set(key, Math.max(pairLastOccurrenceTs.get(key) ?? 0, candidate.ts))
     }
   }
 
@@ -572,6 +575,7 @@ export function accumulateCoOccurrencePairs(
       targetId: parseInt(targetIdStr),
       rawScore,
       coOccurrenceCount: pairCoOccurrence.get(key) || 0,
+      lastOccurrenceTs: pairLastOccurrenceTs.get(key) ?? 0,
     })
   }
 

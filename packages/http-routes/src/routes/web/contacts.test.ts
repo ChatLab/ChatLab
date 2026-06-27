@@ -47,6 +47,7 @@ function emptyContactsResponse(status: ContactsResponse['cache']['status'] = 'mi
 class FakeContactsService implements ContactsService {
   getCalls: Array<{ acceptStale?: boolean }> = []
   recomputeCalls = 0
+  closeCalls = 0
 
   getContacts(options?: { acceptStale?: boolean }): ContactsResponse {
     this.getCalls.push({ acceptStale: options?.acceptStale })
@@ -60,6 +61,10 @@ class FakeContactsService implements ContactsService {
 
   invalidateContactsCache(): void {
     throw new Error('not used in route contract tests')
+  }
+
+  close(): void {
+    this.closeCalls++
   }
 }
 
@@ -139,4 +144,15 @@ test('override routes are not registered', async (t) => {
     url: '/_web/contacts/weixin:alice/override',
   })
   assert.equal(deleted.statusCode, 404)
+})
+
+test('closes contacts service when Fastify app closes', async () => {
+  const service = new FakeContactsService()
+  const app = Fastify()
+  registerContactsRoutes(app, createMockContext(service))
+  await app.ready()
+
+  await app.close()
+
+  assert.equal(service.closeCalls, 1)
 })

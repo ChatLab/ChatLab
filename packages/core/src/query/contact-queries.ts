@@ -1,10 +1,16 @@
 import type { DatabaseAdapter } from '../interfaces'
+import { hasColumn } from './filters'
 import { accumulateCoOccurrencePairs } from './advanced/social'
+
+const SYSTEM_MESSAGE_TYPES = [80, 81] as const
+const SYSTEM_MESSAGE_TYPES_SQL = SYSTEM_MESSAGE_TYPES.join(', ')
+const LEGACY_SYSTEM_ACCOUNT_NAME = '系统消息'
 
 export interface ContactMemberRef {
   id: number
   platformId: string
   name: string
+  aliases: string[]
   avatar: string | null
 }
 
@@ -37,6 +43,7 @@ export function isValidContactPlatformId(platformId: string | null | undefined):
 export function resolveOwnerMember(db: DatabaseAdapter): ContactMemberRef | null {
   const meta = db.prepare('SELECT owner_id FROM meta LIMIT 1').get() as { owner_id: string | null } | undefined
   if (!isValidContactPlatformId(meta?.owner_id)) return null
+  const aliasesSelect = hasColumn(db, 'member', 'aliases') ? 'aliases' : 'NULL as aliases'
 
   const row = db
     .prepare(
@@ -44,31 +51,34 @@ export function resolveOwnerMember(db: DatabaseAdapter): ContactMemberRef | null
         id,
         platform_id as platformId,
         COALESCE(group_nickname, account_name, platform_id) as name,
+        ${aliasesSelect},
         avatar
-      FROM member
-      WHERE platform_id = ? AND COALESCE(account_name, '') != '系统消息'
+      FROM member m
+      WHERE platform_id = ? AND ${nonSystemContactMemberCondition('m')}
       LIMIT 1`
     )
-    .get(meta.owner_id) as ContactMemberRef | undefined
+    .get(meta.owner_id) as ContactMemberRow | undefined
 
-  return row ?? null
+  return row ? mapContactMemberRow(row) : null
 }
 
 export function getNonSystemMembersForContacts(db: DatabaseAdapter): ContactMemberRef[] {
+  const aliasesSelect = hasColumn(db, 'member', 'aliases') ? 'aliases' : 'NULL as aliases'
   const rows = db
     .prepare(
       `SELECT
         id,
         platform_id as platformId,
         COALESCE(group_nickname, account_name, platform_id) as name,
+        ${aliasesSelect},
         avatar
-      FROM member
-      WHERE COALESCE(account_name, '') != '系统消息'
+      FROM member m
+      WHERE ${nonSystemContactMemberCondition('m')}
       ORDER BY id ASC`
     )
-    .all() as unknown as ContactMemberRef[]
+    .all() as unknown as ContactMemberRow[]
 
-  return rows.filter((row) => isValidContactPlatformId(row.platformId))
+  return rows.map(mapContactMemberRow).filter((row) => isValidContactPlatformId(row.platformId))
 }
 
 export function getPrivateContactFacts(db: DatabaseAdapter, ownerMemberId: number): PrivateContactFacts {
@@ -81,7 +91,7 @@ export function getPrivateContactFacts(db: DatabaseAdapter, ownerMemberId: numbe
       `SELECT COUNT(*) as count
        FROM message msg
        JOIN member m ON msg.sender_id = m.id
-       WHERE COALESCE(m.account_name, '') != '系统消息'`
+       WHERE ${nonSystemMessageCondition('msg', 'm')}`
     )
     .get() as { count: number } | undefined
 
@@ -90,7 +100,7 @@ export function getPrivateContactFacts(db: DatabaseAdapter, ownerMemberId: numbe
       `SELECT DISTINCT strftime('%Y-%m', msg.ts, 'unixepoch', 'localtime') as month
        FROM message msg
        JOIN member m ON msg.sender_id = m.id
-       WHERE COALESCE(m.account_name, '') != '系统消息'
+       WHERE ${nonSystemMessageCondition('msg', 'm')}
        ORDER BY month ASC`
     )
     .all() as Array<{ month: string }>
@@ -100,7 +110,7 @@ export function getPrivateContactFacts(db: DatabaseAdapter, ownerMemberId: numbe
       `SELECT MAX(msg.ts) as lastMessageTs
        FROM message msg
        JOIN member m ON msg.sender_id = m.id
-       WHERE COALESCE(m.account_name, '') != '系统消息'`
+       WHERE ${nonSystemMessageCondition('msg', 'm')}`
     )
     .get() as { lastMessageTs: number | null } | undefined
 
@@ -120,7 +130,7 @@ export function getGroupContactFacts(db: DatabaseAdapter, ownerMemberId: number)
       `SELECT msg.sender_id as senderId, COUNT(*) as messageCount
        FROM message msg
        JOIN member m ON msg.sender_id = m.id
-       WHERE COALESCE(m.account_name, '') != '系统消息'
+       WHERE ${nonSystemMessageCondition('msg', 'm')}
        GROUP BY msg.sender_id`
     )
     .all() as Array<{ senderId: number; messageCount: number }>
@@ -132,11 +142,14 @@ export function getGroupContactFacts(db: DatabaseAdapter, ownerMemberId: number)
       `SELECT msg.sender_id as senderId, msg.ts as ts
        FROM message msg
        JOIN member m ON msg.sender_id = m.id
-       WHERE COALESCE(m.account_name, '') != '系统消息'
+       WHERE ${nonSystemMessageCondition('msg', 'm')}
        ORDER BY msg.ts ASC, msg.id ASC`
     )
     .all() as Array<{ senderId: number; ts: number }>
-  const coOccurrenceStats = new Map<number, { coOccurrenceCount: number; coOccurrenceRawScore: number }>()
+  const coOccurrenceStats = new Map<
+    number,
+    { coOccurrenceCount: number; coOccurrenceRawScore: number; lastOccurrenceTs: number }
+  >()
 
   // 共现算法会产出任意成员对；联系人页只消费 owner 与候选联系人的关系边。
   for (const pair of accumulateCoOccurrencePairs(coOccurrenceRows)) {
@@ -150,6 +163,7 @@ export function getGroupContactFacts(db: DatabaseAdapter, ownerMemberId: number)
     coOccurrenceStats.set(contactId, {
       coOccurrenceCount: pair.coOccurrenceCount,
       coOccurrenceRawScore: pair.rawScore,
+      lastOccurrenceTs: pair.lastOccurrenceTs,
     })
   }
   const replyStats = new Map<
@@ -172,8 +186,8 @@ export function getGroupContactFacts(db: DatabaseAdapter, ownerMemberId: number)
        JOIN member sender ON msg.sender_id = sender.id
        JOIN member targetMember ON target.sender_id = targetMember.id
        WHERE msg.reply_to_message_id IS NOT NULL
-         AND COALESCE(sender.account_name, '') != '系统消息'
-         AND COALESCE(targetMember.account_name, '') != '系统消息'`
+         AND ${nonSystemMessageCondition('msg', 'sender')}
+         AND ${nonSystemMessageCondition('target', 'targetMember')}`
     )
     .all() as Array<{ replySenderId: number; replyTs: number; targetSenderId: number }>
 
@@ -213,7 +227,64 @@ export function getGroupContactFacts(db: DatabaseAdapter, ownerMemberId: number)
       replyInteractionCount,
       repliesFromOwnerToContact: stats.repliesFromOwnerToContact,
       repliesFromContactToOwner: stats.repliesFromContactToOwner,
-      lastInteractionTs: stats.lastInteractionTs,
+      lastInteractionTs: stats.lastInteractionTs ?? coOccurrence?.lastOccurrenceTs ?? null,
     }
   })
+}
+
+interface ContactMemberRow {
+  id: number
+  platformId: string
+  name: string
+  aliases: string | null
+  avatar: string | null
+}
+
+function mapContactMemberRow(row: ContactMemberRow): ContactMemberRef {
+  return {
+    id: row.id,
+    platformId: row.platformId,
+    name: row.name,
+    aliases: parseContactAliases(row.aliases),
+    avatar: row.avatar ?? null,
+  }
+}
+
+function parseContactAliases(value: string | null): string[] {
+  if (!value) return []
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed)
+      ? parsed.filter((alias): alias is string => typeof alias === 'string' && alias.length > 0)
+      : []
+  } catch {
+    return []
+  }
+}
+
+function nonSystemContactMemberCondition(memberAlias: string): string {
+  // 系统消息名称会随平台和导出语言变化；联系人候选优先用稳定 sender identity 和消息类型识别伪成员。
+  return `(${nonSystemMemberIdentityCondition(memberAlias)}
+    AND (
+      NOT EXISTS (
+        SELECT 1 FROM message system_msg
+        WHERE system_msg.sender_id = ${memberAlias}.id
+          AND system_msg.type IN (${SYSTEM_MESSAGE_TYPES_SQL})
+      )
+      OR EXISTS (
+        SELECT 1 FROM message non_system_msg
+        WHERE non_system_msg.sender_id = ${memberAlias}.id
+          AND non_system_msg.type NOT IN (${SYSTEM_MESSAGE_TYPES_SQL})
+      )
+    ))`
+}
+
+function nonSystemMessageCondition(messageAlias: string, memberAlias: string): string {
+  return `(${messageAlias}.type NOT IN (${SYSTEM_MESSAGE_TYPES_SQL})
+    AND ${nonSystemMemberIdentityCondition(memberAlias)})`
+}
+
+function nonSystemMemberIdentityCondition(memberAlias: string): string {
+  return `(LOWER(COALESCE(${memberAlias}.platform_id, '')) != 'system'
+    AND COALESCE(${memberAlias}.account_name, '') != '${LEGACY_SYSTEM_ACCOUNT_NAME}')`
 }

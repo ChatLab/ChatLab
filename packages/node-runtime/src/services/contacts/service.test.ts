@@ -30,6 +30,7 @@ interface SeedMember {
   platformId: string
   accountName?: string
   groupNickname?: string
+  aliases?: string[]
   avatar?: string | null
 }
 
@@ -99,12 +100,13 @@ class TestEnv {
     )
     for (const member of session.members) {
       db.prepare(
-        `INSERT INTO member (id, platform_id, account_name, group_nickname, avatar) VALUES (?, ?, ?, ?, ?)`
+        `INSERT INTO member (id, platform_id, account_name, group_nickname, aliases, avatar) VALUES (?, ?, ?, ?, ?, ?)`
       ).run(
         member.id,
         member.platformId,
         member.accountName ?? member.platformId,
         member.groupNickname ?? null,
+        JSON.stringify(member.aliases ?? []),
         member.avatar ?? null
       )
     }
@@ -132,18 +134,20 @@ class TestEnv {
     return dbPath
   }
 
-  pathProvider(): PathProvider {
+  pathProvider(options: { systemDir?: string; userDataDir?: string } = {}): PathProvider {
+    const systemDir = options.systemDir ?? this.dir
+    const userDataDir = options.userDataDir ?? this.dir
     return {
-      getSystemDir: () => this.dir,
-      getUserDataDir: () => this.dir,
-      getDatabaseDir: () => this.dir,
-      getVectorDir: () => path.join(this.dir, 'vector'),
-      getAiDataDir: () => path.join(this.dir, 'ai'),
-      getSettingsDir: () => path.join(this.dir, 'settings'),
-      getCacheDir: () => path.join(this.dir, 'cache'),
-      getTempDir: () => path.join(this.dir, 'temp'),
-      getLogsDir: () => path.join(this.dir, 'logs'),
-      getDownloadsDir: () => path.join(this.dir, 'downloads'),
+      getSystemDir: () => systemDir,
+      getUserDataDir: () => userDataDir,
+      getDatabaseDir: () => userDataDir,
+      getVectorDir: () => path.join(userDataDir, 'vector'),
+      getAiDataDir: () => path.join(systemDir, 'ai'),
+      getSettingsDir: () => path.join(systemDir, 'settings'),
+      getCacheDir: () => path.join(systemDir, 'cache'),
+      getTempDir: () => path.join(systemDir, 'temp'),
+      getLogsDir: () => path.join(systemDir, 'logs'),
+      getDownloadsDir: () => path.join(systemDir, 'downloads'),
     }
   }
 
@@ -178,7 +182,7 @@ test('aggregates stable-id contacts across private and group sessions', (t) => {
     ownerId: 'owner',
     members: [
       { id: 1, platformId: 'owner', accountName: 'Me' },
-      { id: 2, platformId: 'alice', accountName: 'Alice', avatar: 'alice.png' },
+      { id: 2, platformId: 'alice', accountName: 'Alice', aliases: ['Ally'], avatar: 'alice.png' },
     ],
     messages: privateMessages(60, 1, 1704103200),
   })
@@ -222,6 +226,8 @@ test('aggregates stable-id contacts across private and group sessions', (t) => {
   assert.equal(alice.scoreBreakdown.activePrivateMonths, 2)
   assert.equal(alice.scoreBreakdown.commonGroupCount, 1)
   assert.equal(alice.avatar, 'alice.png')
+  assert.ok(alice.aliases.includes('Ally'))
+  assert.ok(alice.searchText.includes('ally'))
   assert.deepEqual(alice.sourceSessions.map((source) => source.id).sort(), ['group-a', 'private-a', 'private-b'])
 
   assert.ok(bob)
@@ -295,6 +301,33 @@ test('keeps name-match platform contacts session-scoped', (t) => {
   const keys = result.contacts.map((contact) => contact.key).sort()
 
   assert.deepEqual(keys, ['whatsapp:whatsapp-a:Alice', 'whatsapp:whatsapp-b:Alice'])
+})
+
+test('keeps QQ nickname fallback contacts session-scoped', (t) => {
+  const env = new TestEnv()
+  t.after(() => env.cleanup())
+
+  for (const id of ['qq-group-a', 'qq-group-b']) {
+    env.seed({
+      id,
+      platform: 'qq',
+      type: 'group',
+      ownerId: 'owner',
+      members: [
+        { id: 1, platformId: 'owner', accountName: 'Owner' },
+        { id: 2, platformId: 'Alice', accountName: 'Alice' },
+      ],
+      messages: [
+        { id: 1, senderId: 1, ts: 1704103200, platformMessageId: `${id}-owner-1` },
+        { id: 2, senderId: 2, ts: 1704103201, platformMessageId: `${id}-alice-1` },
+      ],
+    })
+  }
+
+  const result = computeContactsSnapshot({ adapter: env.adapter, signature: 'sig-1' })
+  const keys = result.contacts.map((contact) => contact.key).sort()
+
+  assert.deepEqual(keys, ['qq:qq-group-a:Alice', 'qq:qq-group-b:Alice'])
 })
 
 test('sorts contacts by score and marks low-signal non-friends', (t) => {
@@ -490,14 +523,169 @@ test('returns stale snapshot and reuses one in-flight task after signature chang
   now = 2000
   fs.utimesSync(env.dbPath('private-a'), new Date(), new Date(Date.now() + 5000))
 
+  const freshOnly = service.getContacts()
   const stale = service.getContacts({ acceptStale: true })
   const recompute = service.startRecompute()
 
   assert.equal(runCalls, 1)
+  assert.equal(freshOnly.cache.status, 'stale')
+  assert.equal(freshOnly.contacts.length, 0)
+  assert.equal(freshOnly.diagnostics.privateSessionCount, 0)
   assert.equal(stale.cache.status, 'stale')
   assert.equal(stale.contacts[0].key, 'weixin:alice')
   assert.equal(stale.task?.status, 'running')
   assert.equal(recompute.task?.status, 'running')
+})
+
+test('does not reuse contacts snapshots across user data directories that share one system dir', async (t) => {
+  const sharedSystemDir = makeTempDir()
+  const firstEnv = new TestEnv()
+  const secondEnv = new TestEnv()
+  t.after(() => {
+    firstEnv.cleanup()
+    secondEnv.cleanup()
+    fs.rmSync(sharedSystemDir, { recursive: true, force: true })
+  })
+
+  firstEnv.seed({
+    id: 'private-a',
+    platform: 'weixin',
+    type: 'private',
+    ownerId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner' },
+      { id: 2, platformId: 'alice' },
+    ],
+    messages: privateMessages(5, 1, 1704103200),
+  })
+  secondEnv.seed({
+    id: 'private-b',
+    platform: 'weixin',
+    type: 'private',
+    ownerId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner' },
+      { id: 2, platformId: 'bob' },
+    ],
+    messages: privateMessages(5, 1, 1704103200),
+  })
+
+  let now = 1000
+  const firstService = createContactsService({
+    adapter: firstEnv.adapter,
+    pathProvider: firstEnv.pathProvider({ systemDir: sharedSystemDir, userDataDir: firstEnv.dir }),
+    now: () => now,
+    runner: ({ signature }) => Promise.resolve(makeRuntimeSnapshot(signature, now)),
+  })
+
+  firstService.getContacts({ acceptStale: true })
+  const firstFinished = await waitForTaskSettled(firstService)
+  assert.equal(firstFinished.cache.status, 'fresh')
+  assert.equal(firstFinished.contacts[0].key, 'weixin:alice')
+
+  const pending = deferred<ContactsSnapshot>()
+  let secondRunCalls = 0
+  now = 2000
+  const secondService = createContactsService({
+    adapter: secondEnv.adapter,
+    pathProvider: secondEnv.pathProvider({ systemDir: sharedSystemDir, userDataDir: secondEnv.dir }),
+    now: () => now,
+    runner: () => {
+      secondRunCalls++
+      return pending.promise
+    },
+  })
+
+  const secondInitial = secondService.getContacts({ acceptStale: true })
+
+  assert.equal(secondRunCalls, 1)
+  assert.equal(secondInitial.cache.status, 'missing')
+  assert.equal(secondInitial.contacts.length, 0)
+})
+
+test('preserves failed contact task until explicit recompute retry', async (t) => {
+  const dir = makeTempDir()
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
+  const adapter: SessionRuntimeAdapter = {
+    listSessionIds: () => [],
+    openReadonly: () => null,
+    openWritable: () => null,
+    closeSession: () => {},
+    getDbPath: () => '',
+    deleteSessionFile: () => false,
+    ensureReadonly: () => {
+      throw new Error('not used')
+    },
+    ensureWritable: () => {
+      throw new Error('not used')
+    },
+  }
+
+  let runCalls = 0
+  const service = createContactsService({
+    adapter,
+    systemDir: dir,
+    runner: () => {
+      runCalls++
+      return Promise.reject(new Error('worker unavailable'))
+    },
+  })
+
+  const first = service.getContacts({ acceptStale: true })
+  assert.equal(first.cache.status, 'missing')
+  assert.equal(first.task?.status, 'running')
+  assert.equal(runCalls, 1)
+
+  await new Promise((resolve) => setTimeout(resolve, 0))
+  const failed = service.getContacts({ acceptStale: true })
+  assert.equal(failed.task?.status, 'failed')
+  assert.equal(failed.task?.lastError, 'worker unavailable')
+
+  const nextGet = service.getContacts({ acceptStale: true })
+  assert.equal(nextGet.task?.status, 'failed')
+  assert.equal(runCalls, 1)
+
+  const retry = service.startRecompute()
+  assert.equal(retry.task?.status, 'running')
+  assert.equal(runCalls, 2)
+})
+
+test('close aborts an in-flight contacts task', async (t) => {
+  const dir = makeTempDir()
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
+  const adapter: SessionRuntimeAdapter = {
+    listSessionIds: () => [],
+    openReadonly: () => null,
+    openWritable: () => null,
+    closeSession: () => {},
+    getDbPath: () => '',
+    deleteSessionFile: () => false,
+    ensureReadonly: () => {
+      throw new Error('not used')
+    },
+    ensureWritable: () => {
+      throw new Error('not used')
+    },
+  }
+
+  let taskSignal: AbortSignal | undefined
+  const service = createContactsService({
+    adapter,
+    systemDir: dir,
+    runner: ({ signal }) => {
+      taskSignal = signal
+      return new Promise<ContactsSnapshot>(() => {})
+    },
+  })
+
+  const first = service.getContacts({ acceptStale: true })
+  assert.equal(first.task?.status, 'running')
+  assert.equal(taskSignal?.aborted, false)
+
+  await service.close()
+
+  assert.equal(taskSignal?.aborted, true)
+  assert.equal(service.getContacts({ acceptStale: true }).task?.status, 'failed')
 })
 
 test('temporary contacts worker computes and persists a fresh snapshot', async (t) => {
@@ -530,5 +718,5 @@ test('temporary contacts worker computes and persists a fresh snapshot', async (
   assert.equal(finished.cache.status, 'fresh')
   assert.equal(finished.contacts[0].key, 'weixin:alice')
   assert.equal(finished.task?.status, 'succeeded')
-  assert.ok(fs.existsSync(path.join(env.dir, 'contacts-snapshot.json')))
+  assert.ok(fs.existsSync(path.join(env.dir, 'contacts', 'contacts-snapshot.json')))
 })

@@ -1,3 +1,4 @@
+import path from 'node:path'
 import type { PathProvider } from '@openchatlab/core'
 import type { ContactsCacheState, ContactsResponse, ContactsTaskState } from '@openchatlab/shared-types'
 import type { RuntimeIdentity } from '../../data-dir-compat'
@@ -13,6 +14,8 @@ import { buildContactsSignature } from './signature'
 import { cleanupContactsSnapshotTempFiles, readContactsSnapshot, writeContactsSnapshot } from './snapshot'
 import { createContactsWorkerRunner } from './worker-runner'
 
+const CONTACTS_SNAPSHOT_DIR_NAME = 'contacts'
+
 export interface ContactsServiceOptions {
   forceRecompute?: boolean
   acceptStale?: boolean
@@ -21,6 +24,7 @@ export interface ContactsServiceOptions {
 export interface ContactsRunnerOptions {
   signature: string
   onProgress: (progress: ContactsComputeProgress) => void
+  signal: AbortSignal
 }
 
 export type ContactsComputeRunner = (options: ContactsRunnerOptions) => Promise<ContactsSnapshot>
@@ -40,6 +44,7 @@ export interface ContactsService {
   getContacts(options?: ContactsServiceOptions): ContactsResponse
   startRecompute(): ContactsResponse
   invalidateContactsCache(): void
+  close(): Promise<void>
   replaceSnapshotForTests?(snapshot: ContactsSnapshot): void
 }
 
@@ -47,6 +52,7 @@ interface InFlightTask {
   id: string
   signature: string
   promise: Promise<ContactsSnapshot>
+  abortController: AbortController
 }
 
 export function createContactsService(deps: ContactsServiceDeps): ContactsService {
@@ -57,14 +63,13 @@ class DefaultContactsService implements ContactsService {
   private snapshot: ContactsSnapshot | null
   private inFlight: InFlightTask | null = null
   private task: ContactsTaskState = createIdleTaskState()
-  private readonly systemDir: string
+  private readonly snapshotDir: string
   private readonly runner: ContactsComputeRunner
 
   constructor(private readonly deps: ContactsServiceDeps) {
-    this.systemDir = deps.systemDir ?? deps.pathProvider?.getSystemDir() ?? ''
-    if (!this.systemDir) throw new Error('contacts service requires systemDir or pathProvider')
-    cleanupContactsSnapshotTempFiles(this.systemDir)
-    this.snapshot = readContactsSnapshot(this.systemDir, { now: deps.now })
+    this.snapshotDir = resolveContactsSnapshotDir(deps)
+    cleanupContactsSnapshotTempFiles(this.snapshotDir)
+    this.snapshot = readContactsSnapshot(this.snapshotDir, { now: deps.now })
     this.runner =
       deps.runner ??
       createContactsWorkerRunner({
@@ -78,22 +83,41 @@ class DefaultContactsService implements ContactsService {
   getContacts(options: ContactsServiceOptions = {}): ContactsResponse {
     const signature = buildContactsSignature(this.deps.adapter)
     const cacheStatus = this.getCacheStatus(signature)
-    if (options.forceRecompute || cacheStatus !== 'fresh') this.ensureTaskStarted(signature)
-    return this.toResponse(signature)
+    if (this.shouldStartTaskFromRead(options, cacheStatus)) this.ensureTaskStarted(signature)
+    return this.toResponse(signature, options)
   }
 
   startRecompute(): ContactsResponse {
     const signature = buildContactsSignature(this.deps.adapter)
     this.ensureTaskStarted(signature)
-    return this.toResponse(signature)
+    return this.toResponse(signature, { acceptStale: true })
   }
 
   invalidateContactsCache(): void {
     this.snapshot = null
   }
 
+  async close(): Promise<void> {
+    const inFlight = this.inFlight
+    if (!inFlight) return
+    this.inFlight = null
+    inFlight.abortController.abort()
+    this.task = {
+      ...this.task,
+      status: 'failed',
+      finishedAt: this.now(),
+      lastError: 'contacts task aborted',
+    }
+  }
+
   replaceSnapshotForTests(snapshot: ContactsSnapshot): void {
     this.snapshot = snapshot
+  }
+
+  private shouldStartTaskFromRead(options: ContactsServiceOptions, cacheStatus: ContactsCacheState['status']): boolean {
+    if (options.forceRecompute) return true
+    if (cacheStatus === 'fresh') return false
+    return this.task.status !== 'failed'
   }
 
   private ensureTaskStarted(signature: string): void {
@@ -109,8 +133,10 @@ class DefaultContactsService implements ContactsService {
       totalSessions: this.deps.adapter.listSessionIds().length,
     }
 
+    const abortController = new AbortController()
     const promise = this.runner({
       signature,
+      signal: abortController.signal,
       onProgress: (progress) => {
         if (this.task.id !== taskId || this.task.status !== 'running') return
         this.task = {
@@ -121,7 +147,7 @@ class DefaultContactsService implements ContactsService {
         }
       },
     })
-    this.inFlight = { id: taskId, signature, promise }
+    this.inFlight = { id: taskId, signature, promise, abortController }
 
     promise
       .then((snapshot) => this.handleTaskSuccess(taskId, signature, snapshot))
@@ -148,7 +174,7 @@ class DefaultContactsService implements ContactsService {
     }
 
     try {
-      writeContactsSnapshot(this.systemDir, snapshot)
+      writeContactsSnapshot(this.snapshotDir, snapshot)
       this.snapshot = snapshot
       this.task = {
         ...this.task,
@@ -184,13 +210,18 @@ class DefaultContactsService implements ContactsService {
     return this.snapshot.signature === signature ? 'fresh' : 'stale'
   }
 
-  private toResponse(signature: string): ContactsResponse {
+  private toResponse(signature: string, options: ContactsServiceOptions = {}): ContactsResponse {
     const snapshot = this.snapshot
     const status = this.getCacheStatus(signature)
+    const includeSnapshot = status === 'fresh' || (status === 'stale' && options.acceptStale === true)
     return {
-      contacts: snapshot?.contacts ?? [],
-      diagnostics: snapshot?.diagnostics ?? createEmptyContactsDiagnostics(),
-      algorithmVersion: snapshot?.algorithmVersion ?? CONTACTS_ALGORITHM_VERSION,
+      contacts: includeSnapshot ? (snapshot?.contacts ?? []) : [],
+      diagnostics: includeSnapshot
+        ? (snapshot?.diagnostics ?? createEmptyContactsDiagnostics())
+        : createEmptyContactsDiagnostics(),
+      algorithmVersion: includeSnapshot
+        ? (snapshot?.algorithmVersion ?? CONTACTS_ALGORITHM_VERSION)
+        : CONTACTS_ALGORITHM_VERSION,
       cache: {
         status,
         computedAt: snapshot?.computedAt ?? null,
@@ -222,4 +253,10 @@ function requirePathProvider(deps: ContactsServiceDeps): PathProvider {
     throw new Error('contacts worker runner requires pathProvider')
   }
   return deps.pathProvider
+}
+
+function resolveContactsSnapshotDir(deps: ContactsServiceDeps): string {
+  if (deps.pathProvider) return path.join(deps.pathProvider.getUserDataDir(), CONTACTS_SNAPSHOT_DIR_NAME)
+  if (deps.systemDir) return deps.systemDir
+  throw new Error('contacts service requires systemDir or pathProvider')
 }

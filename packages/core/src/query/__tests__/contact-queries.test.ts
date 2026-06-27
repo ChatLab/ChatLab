@@ -17,6 +17,7 @@ import {
 import type { DatabaseAdapter, PreparedStatement, RunResult } from '../../interfaces'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
+const SYSTEM_MESSAGE_TYPE = 80
 
 class Stmt implements PreparedStatement {
   readonly?: boolean
@@ -82,6 +83,7 @@ describe('contact query helpers', () => {
         platform_id TEXT,
         account_name TEXT,
         group_nickname TEXT,
+        aliases TEXT DEFAULT '[]',
         avatar TEXT
       );
       CREATE TABLE message (
@@ -95,11 +97,11 @@ describe('contact query helpers', () => {
       );
       INSERT INTO meta (name, platform, type, imported_at, owner_id)
       VALUES ('Group', 'wechat', 'group', 1700000000, 'owner-pid');
-      INSERT INTO member (id, platform_id, account_name, group_nickname, avatar) VALUES
-        (1, 'owner-pid', 'Owner', NULL, NULL),
-        (2, 'alice-pid', 'Alice', 'Alice G', 'alice.png'),
-        (3, 'bob-pid', 'Bob', NULL, NULL),
-        (99, 'sys-pid', '系统消息', NULL, NULL);
+      INSERT INTO member (id, platform_id, account_name, group_nickname, aliases, avatar) VALUES
+        (1, 'owner-pid', 'Owner', NULL, '[]', NULL),
+        (2, 'alice-pid', 'Alice', 'Alice G', '["Ally","小爱"]', 'alice.png'),
+        (3, 'bob-pid', 'Bob', NULL, '[]', NULL),
+        (99, 'sys-pid', '系统消息', NULL, '[]', NULL);
     `)
     db = new Adapter(raw)
   })
@@ -113,8 +115,16 @@ describe('contact query helpers', () => {
       id: 1,
       platformId: 'owner-pid',
       name: 'Owner',
+      aliases: [],
       avatar: null,
     })
+  })
+
+  it('returns saved member aliases for contact candidates', () => {
+    const alice = getNonSystemMembersForContacts(db).find((member) => member.platformId === 'alice-pid')
+
+    assert.ok(alice)
+    assert.deepEqual(alice.aliases, ['Ally', '小爱'])
   })
 
   it('returns null when owner_id is missing or cannot be matched', () => {
@@ -134,6 +144,20 @@ describe('contact query helpers', () => {
     )
     assert.equal(
       members.find((m) => m.platformId === 'sys-pid'),
+      undefined
+    )
+  })
+
+  it('filters localized parser system members by stable sender identity', () => {
+    raw.exec(`
+      INSERT INTO member (id, platform_id, account_name, group_nickname, aliases, avatar)
+      VALUES (100, 'system', '系統', NULL, '[]', NULL);
+    `)
+
+    const members = getNonSystemMembersForContacts(db)
+
+    assert.equal(
+      members.find((m) => m.platformId === 'system'),
       undefined
     )
   })
@@ -158,12 +182,37 @@ describe('contact query helpers', () => {
         id: 2,
         platformId: 'alice-pid',
         name: 'Alice G',
+        aliases: ['Ally', '小爱'],
         avatar: 'alice.png',
       },
       privateMessageCount: 3,
       activeMonths: ['2024-01', '2024-02'],
       lastMessageTs: 1706781600,
     })
+  })
+
+  it('does not mark private LINE sessions ambiguous when they include localized system events', () => {
+    raw.exec("UPDATE meta SET type = 'private'")
+    raw.exec(`
+      DELETE FROM member WHERE id = 3;
+      INSERT INTO member (id, platform_id, account_name, group_nickname, aliases, avatar)
+      VALUES (100, 'system', '系統', NULL, '[]', NULL);
+    `)
+    const insert = raw.prepare(
+      'INSERT INTO message (id, sender_id, ts, type, content, platform_message_id) VALUES (?, ?, ?, ?, ?, ?)'
+    )
+    insert.run(1, 1, 1704103200, 0, 'from owner', 'm1')
+    insert.run(2, 2, 1704103260, 0, 'from alice', 'm2')
+    insert.run(3, 100, 1704103320, SYSTEM_MESSAGE_TYPE, 'localized system event', 'system-1')
+
+    const owner = resolveOwnerMember(db)
+    assert.ok(owner)
+
+    const facts = getPrivateContactFacts(db, owner.id)
+
+    assert.equal(facts.type, 'ok')
+    assert.equal(facts.type === 'ok' ? facts.contact.platformId : null, 'alice-pid')
+    assert.equal(facts.type === 'ok' ? facts.privateMessageCount : null, 2)
   })
 
   it('marks private sessions with multiple non-owner members as ambiguous', () => {
@@ -207,6 +256,28 @@ describe('contact query helpers', () => {
         ['alice-pid', 2],
         ['bob-pid', 0],
       ]
+    )
+  })
+
+  it('filters members that only emit system message types even when their localized name is unknown', () => {
+    raw.exec(`
+      INSERT INTO member (id, platform_id, account_name, group_nickname, aliases, avatar)
+      VALUES (100, 'line-event', 'LINE event', NULL, '[]', NULL);
+    `)
+    const owner = resolveOwnerMember(db)
+    assert.ok(owner)
+    const insert = raw.prepare(
+      'INSERT INTO message (id, sender_id, ts, type, content, platform_message_id) VALUES (?, ?, ?, ?, ?, ?)'
+    )
+    insert.run(1, 1, 1704103200, 0, 'owner', 'owner-1')
+    insert.run(2, 2, 1704103260, 0, 'alice', 'alice-1')
+    insert.run(3, 100, 1704103320, SYSTEM_MESSAGE_TYPE, 'unknown localized system event', 'sys-1')
+
+    const facts = getGroupContactFacts(db, owner.id)
+
+    assert.equal(
+      facts.find((fact) => fact.contact.platformId === 'line-event'),
+      undefined
     )
   })
 
@@ -260,5 +331,6 @@ describe('contact query helpers', () => {
     assert.ok(bob)
     assert.ok(alice.coOccurrenceCount > bob.coOccurrenceCount)
     assert.ok(alice.coOccurrenceRawScore > bob.coOccurrenceRawScore)
+    assert.equal(alice.lastInteractionTs, 1704103203)
   })
 })

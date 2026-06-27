@@ -13,6 +13,9 @@ export function registerContactsRoutes(server: FastifyInstance, ctx: HttpRouteCo
       runtimeIdentity: ctx.runtimeIdentity,
       nativeBinding: ctx.nativeBinding,
     })
+  server.addHook('onClose', async () => {
+    await service.close()
+  })
 
   server.get<{ Querystring: ContactsQuery }>('/_web/contacts', async (request) => {
     return service.getContacts({ acceptStale: isTruthy(request.query.acceptStale) })
