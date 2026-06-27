@@ -12,7 +12,7 @@ import {
   updateSessionOwnerId as coreUpdateOwnerId,
   renameSession as coreRenameSession,
 } from '@openchatlab/core'
-import { BetterSqliteAdapter, writeParseResultToDb } from '@openchatlab/node-runtime'
+import { BetterSqliteAdapter, writeParseResultToDb, contactsService } from '@openchatlab/node-runtime'
 import type { RuntimeIdentity } from '@openchatlab/node-runtime/src/data-dir-compat'
 import type { ParseResult } from '../../../../src/types/base'
 import { migrateDatabase, needsMigration, CURRENT_SCHEMA_VERSION } from './migrations'
@@ -164,6 +164,7 @@ export function deleteSession(sessionId: string): boolean {
     const cacheDir = getPathProvider().getCacheDir()
     deleteSessionCache(sessionId, cacheDir)
     deleteSessionCache(sessionId, path.join(cacheDir, 'query'))
+    deleteSessionCache(sessionId, contactsService.getContactsFactsCacheDir(getPathProvider().getUserDataDir()))
     return true
   } catch (error) {
     console.error('[Database] Failed to delete session:', error)

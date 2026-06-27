@@ -20,8 +20,24 @@ import {
   resolveOwnerMember,
 } from '@openchatlab/core'
 import type { ContactMemberRef, SessionMeta } from '@openchatlab/core'
+import { getDbFileVersion } from '../../cache/analytics-cache'
 import { appLogger } from '../../logging/app-logger'
 import type { SessionRuntimeAdapter } from '../adapters'
+import {
+  buildContactsSessionFactsCacheKey,
+  buildContactsSessionLatestCacheKey,
+  createEmptyContactsFactsCacheStats,
+  readCachedContactsSessionFacts,
+  readCachedContactsSessionLatest,
+  writeCachedContactsSessionFacts,
+  writeCachedContactsSessionLatest,
+  type ContactsCachedGroupFacts,
+  type ContactsCachedPrivateFacts,
+  type ContactsFactsCacheStats,
+  type ContactsSessionFacts,
+  type ContactsSessionLatestFacts,
+  type ContactsSessionMetaFacts,
+} from './facts-cache'
 import { resolveContactsTimeRange } from './time-range'
 
 export const CONTACTS_ALGORITHM_VERSION = 'contacts-v1'
@@ -53,6 +69,7 @@ export interface ComputeContactsSnapshotOptions {
   adapter: SessionRuntimeAdapter
   signature: string
   timeRangePreset?: ContactsTimeRangePreset
+  factsCacheDir?: string
   now?: () => number
   onProgress?: (progress: ContactsComputeProgress) => void
 }
@@ -84,20 +101,31 @@ interface BuildContactsResult {
   diagnostics: ContactsDiagnostics
 }
 
+interface ContactsFactsCacheContext {
+  dir: string
+  latestKey: string
+  stats: ContactsFactsCacheStats
+}
+
 export function computeContactsSnapshot(options: ComputeContactsSnapshotOptions): ContactsSnapshot {
   const startedAt = options.now?.() ?? Date.now()
   const sessionIds = options.adapter.listSessionIds()
+  const factsCache = options.factsCacheDir ? createFactsCacheContext(options.factsCacheDir) : null
   const timeRange = resolveContactsTimeRange(
     options.timeRangePreset,
-    findGlobalLatestMessageTs(options.adapter, sessionIds)
+    findGlobalLatestMessageTs(options.adapter, sessionIds, factsCache)
   )
   const result = computeContacts({
     adapter: options.adapter,
     sessionIds,
     timeRange,
+    factsCache,
     onProgress: options.onProgress,
   })
   const finishedAt = options.now?.() ?? Date.now()
+  if (factsCache) {
+    appLogger.info('contacts', 'contacts session facts cache summary', factsCache.stats)
+  }
   return {
     ...result,
     algorithmVersion: CONTACTS_ALGORITHM_VERSION,
@@ -117,6 +145,7 @@ function computeContacts(options: {
   adapter: SessionRuntimeAdapter
   sessionIds: string[]
   timeRange: ContactsTimeRangeState
+  factsCache: ContactsFactsCacheContext | null
   onProgress?: (progress: ContactsComputeProgress) => void
 }): BuildContactsResult {
   const diagnostics = createEmptyDiagnostics()
@@ -126,29 +155,8 @@ function computeContacts(options: {
   for (const sessionId of options.sessionIds) {
     options.onProgress?.({ processedSessions, totalSessions: options.sessionIds.length, currentSessionId: sessionId })
     try {
-      const db = options.adapter.openReadonly(sessionId)
-      if (!db || !isChatSessionDb(db)) continue
-      const meta = getSessionMeta(db)
-      if (!meta) continue
-      if (meta.type === ChatType.PRIVATE) diagnostics.privateSessionCount++
-      if (meta.type !== ChatType.PRIVATE && meta.type !== ChatType.GROUP) continue
-
-      if (!meta.ownerId?.trim()) {
-        diagnostics.skippedMissingOwnerSessions++
-        continue
-      }
-
-      const owner = resolveOwnerMember(db)
-      if (!owner) {
-        diagnostics.skippedUnresolvedOwnerSessions++
-        continue
-      }
-
-      if (meta.type === ChatType.PRIVATE) {
-        collectPrivateSession(accumulators, diagnostics, sessionId, meta, owner.id, db, options.timeRange)
-      } else {
-        collectGroupSession(accumulators, sessionId, meta, owner.id, db, options.timeRange)
-      }
+      const facts = getSessionFacts(options.adapter, sessionId, options.timeRange, options.factsCache)
+      applySessionFacts(accumulators, diagnostics, sessionId, facts)
     } catch (error) {
       diagnostics.skippedFailedSessions++
       appLogger.error('contacts', `failed to process contact session: ${sessionId}`, error)
@@ -163,13 +171,22 @@ function computeContacts(options: {
   return { contacts, diagnostics }
 }
 
-function findGlobalLatestMessageTs(adapter: SessionRuntimeAdapter, sessionIds: string[]): number | null {
+function findGlobalLatestMessageTs(
+  adapter: SessionRuntimeAdapter,
+  sessionIds: string[],
+  factsCache: ContactsFactsCacheContext | null
+): number | null {
   let latest: number | null = null
   for (const sessionId of sessionIds) {
+    const cached = readLatestFacts(adapter, sessionId, factsCache)
+    if (cached) {
+      if (cached.latestMessageTs !== null) latest = Math.max(latest ?? 0, cached.latestMessageTs)
+      continue
+    }
     try {
       const db = adapter.openReadonly(sessionId)
-      if (!db || !isChatSessionDb(db)) continue
-      const ts = getLatestContactMessageTs(db)
+      const ts = db && isChatSessionDb(db) ? getLatestContactMessageTs(db) : null
+      writeLatestFacts(adapter, sessionId, factsCache, { latestMessageTs: ts })
       if (ts !== null) latest = Math.max(latest ?? 0, ts)
     } catch (error) {
       appLogger.error('contacts', `failed to inspect contact session range: ${sessionId}`, error)
@@ -178,21 +195,91 @@ function findGlobalLatestMessageTs(adapter: SessionRuntimeAdapter, sessionIds: s
   return latest
 }
 
-function collectPrivateSession(
+function getSessionFacts(
+  adapter: SessionRuntimeAdapter,
+  sessionId: string,
+  timeRange: ContactsTimeRangeState,
+  factsCache: ContactsFactsCacheContext | null
+): ContactsSessionFacts {
+  const cached = readSessionFacts(adapter, sessionId, timeRange, factsCache)
+  if (cached) return cached
+
+  const facts = computeSessionFacts(adapter, sessionId, timeRange)
+  writeSessionFacts(adapter, sessionId, timeRange, factsCache, facts)
+  return facts
+}
+
+function computeSessionFacts(
+  adapter: SessionRuntimeAdapter,
+  sessionId: string,
+  timeRange: ContactsTimeRangeState
+): ContactsSessionFacts {
+  const db = adapter.openReadonly(sessionId)
+  if (!db || !isChatSessionDb(db)) return { kind: 'not_chat_db', latestMessageTs: null }
+
+  const latestMessageTs = getLatestContactMessageTs(db)
+  const meta = getSessionMeta(db)
+  if (!meta) return { kind: 'missing_meta', latestMessageTs }
+  if (meta.type !== ChatType.PRIVATE && meta.type !== ChatType.GROUP)
+    return { kind: 'unsupported_type', latestMessageTs }
+
+  const cachedMeta = toContactsSessionMetaFacts(meta)
+  if (!meta.ownerId?.trim()) return { kind: 'missing_owner', meta: cachedMeta, latestMessageTs }
+
+  const owner = resolveOwnerMember(db)
+  if (!owner) return { kind: 'unresolved_owner', meta: cachedMeta, latestMessageTs }
+
+  if (meta.type === ChatType.PRIVATE) {
+    const facts = getPrivateContactFacts(db, owner.id, { startTs: timeRange.startTs })
+    if (facts.type === 'missing') return { kind: 'private_missing', meta: cachedMeta, latestMessageTs }
+    if (facts.type === 'ambiguous') return { kind: 'private_ambiguous', meta: cachedMeta, latestMessageTs }
+    return { kind: 'private', meta: cachedMeta, latestMessageTs, facts }
+  }
+
+  return {
+    kind: 'group',
+    meta: cachedMeta,
+    latestMessageTs,
+    facts: getGroupContactFacts(db, owner.id, { startTs: timeRange.startTs }),
+  }
+}
+
+function applySessionFacts(
   accumulators: Map<string, ContactAccumulator>,
   diagnostics: ContactsDiagnostics,
   sessionId: string,
-  meta: SessionMeta,
-  ownerMemberId: number,
-  db: Parameters<typeof getPrivateContactFacts>[0],
-  timeRange: ContactsTimeRangeState
+  sessionFacts: ContactsSessionFacts
 ): void {
-  const facts = getPrivateContactFacts(db, ownerMemberId, { startTs: timeRange.startTs })
-  if (facts.type === 'missing') return
-  if (facts.type === 'ambiguous') {
-    diagnostics.skippedAmbiguousPrivateSessions++
-    return
+  if ('meta' in sessionFacts && sessionFacts.meta.type === ChatType.PRIVATE) diagnostics.privateSessionCount++
+
+  switch (sessionFacts.kind) {
+    case 'missing_owner':
+      diagnostics.skippedMissingOwnerSessions++
+      return
+    case 'unresolved_owner':
+      diagnostics.skippedUnresolvedOwnerSessions++
+      return
+    case 'private_ambiguous':
+      diagnostics.skippedAmbiguousPrivateSessions++
+      return
+    case 'private':
+      applyPrivateFacts(accumulators, diagnostics, sessionId, sessionFacts.meta, sessionFacts.facts)
+      return
+    case 'group':
+      applyGroupFacts(accumulators, sessionId, sessionFacts.meta, sessionFacts.facts)
+      return
+    default:
+      return
   }
+}
+
+function applyPrivateFacts(
+  accumulators: Map<string, ContactAccumulator>,
+  diagnostics: ContactsDiagnostics,
+  sessionId: string,
+  meta: ContactsSessionMetaFacts,
+  facts: ContactsCachedPrivateFacts
+): void {
   if (facts.privateMessageCount <= 0) return
   diagnostics.activePrivateSessionCount++
 
@@ -212,15 +299,13 @@ function collectPrivateSession(
   })
 }
 
-function collectGroupSession(
+function applyGroupFacts(
   accumulators: Map<string, ContactAccumulator>,
   sessionId: string,
-  meta: SessionMeta,
-  ownerMemberId: number,
-  db: Parameters<typeof getGroupContactFacts>[0],
-  timeRange: ContactsTimeRangeState
+  meta: ContactsSessionMetaFacts,
+  sessionFacts: ContactsCachedGroupFacts[]
 ): void {
-  for (const facts of getGroupContactFacts(db, ownerMemberId, { startTs: timeRange.startTs })) {
+  for (const facts of sessionFacts) {
     if (!hasGroupContactSignal(facts)) continue
     const acc = getOrCreateAccumulator(accumulators, sessionId, meta, facts.contact)
     acc.commonGroupSessionIds.add(sessionId)
@@ -246,8 +331,109 @@ function collectGroupSession(
   }
 }
 
-function hasGroupContactSignal(facts: ReturnType<typeof getGroupContactFacts>[number]): boolean {
+function hasGroupContactSignal(facts: ContactsCachedGroupFacts): boolean {
   return facts.messageCount > 0 || facts.coOccurrenceCount > 0 || facts.replyInteractionCount > 0
+}
+
+function createFactsCacheContext(dir: string): ContactsFactsCacheContext {
+  return {
+    dir,
+    latestKey: buildContactsSessionLatestCacheKey(CONTACTS_ALGORITHM_VERSION),
+    stats: createEmptyContactsFactsCacheStats(),
+  }
+}
+
+function readLatestFacts(
+  adapter: SessionRuntimeAdapter,
+  sessionId: string,
+  factsCache: ContactsFactsCacheContext | null
+): ContactsSessionLatestFacts | null {
+  if (!factsCache) return null
+  const cached = readCachedContactsSessionLatest(
+    sessionId,
+    factsCache.dir,
+    factsCache.latestKey,
+    getSessionDbVersion(adapter, sessionId)
+  )
+  if (!cached.hit) {
+    factsCache.stats.latestMisses++
+    return null
+  }
+  factsCache.stats.latestHits++
+  return cached.data
+}
+
+function writeLatestFacts(
+  adapter: SessionRuntimeAdapter,
+  sessionId: string,
+  factsCache: ContactsFactsCacheContext | null,
+  data: ContactsSessionLatestFacts
+): void {
+  if (!factsCache) return
+  writeCachedContactsSessionLatest(
+    sessionId,
+    factsCache.dir,
+    factsCache.latestKey,
+    getSessionDbVersion(adapter, sessionId),
+    data
+  )
+  factsCache.stats.writes++
+}
+
+function readSessionFacts(
+  adapter: SessionRuntimeAdapter,
+  sessionId: string,
+  timeRange: ContactsTimeRangeState,
+  factsCache: ContactsFactsCacheContext | null
+): ContactsSessionFacts | null {
+  if (!factsCache) return null
+  const cached = readCachedContactsSessionFacts(
+    sessionId,
+    factsCache.dir,
+    buildContactsSessionFactsCacheKey(CONTACTS_ALGORITHM_VERSION, timeRange),
+    getSessionDbVersion(adapter, sessionId)
+  )
+  if (!cached.hit) {
+    factsCache.stats.factsMisses++
+    return null
+  }
+  factsCache.stats.factsHits++
+  return cached.data
+}
+
+function writeSessionFacts(
+  adapter: SessionRuntimeAdapter,
+  sessionId: string,
+  timeRange: ContactsTimeRangeState,
+  factsCache: ContactsFactsCacheContext | null,
+  facts: ContactsSessionFacts
+): void {
+  if (!factsCache) return
+  const dbVersion = getSessionDbVersion(adapter, sessionId)
+  writeCachedContactsSessionFacts(
+    sessionId,
+    factsCache.dir,
+    buildContactsSessionFactsCacheKey(CONTACTS_ALGORITHM_VERSION, timeRange),
+    dbVersion,
+    facts
+  )
+  writeCachedContactsSessionLatest(sessionId, factsCache.dir, factsCache.latestKey, dbVersion, {
+    latestMessageTs: facts.latestMessageTs,
+  })
+  factsCache.stats.writes += 2
+}
+
+function getSessionDbVersion(adapter: SessionRuntimeAdapter, sessionId: string): string {
+  return getDbFileVersion(adapter.getDbPath(sessionId))
+}
+
+function toContactsSessionMetaFacts(meta: SessionMeta): ContactsSessionMetaFacts {
+  return {
+    name: meta.name,
+    platform: meta.platform,
+    type: meta.type as ChatType.PRIVATE | ChatType.GROUP,
+    ownerId: meta.ownerId,
+  }
 }
 
 function buildContactItems(accumulators: ContactAccumulator[]): ContactItem[] {
@@ -346,7 +532,7 @@ function createEmptyDiagnostics(): ContactsDiagnostics {
 function getOrCreateAccumulator(
   accumulators: Map<string, ContactAccumulator>,
   sessionId: string,
-  meta: SessionMeta,
+  meta: ContactsSessionMetaFacts,
   contact: ContactMemberRef
 ): ContactAccumulator {
   const sessionScoped = shouldScopeContactToSession(meta.platform, contact)

@@ -1,4 +1,3 @@
-import path from 'node:path'
 import type { PathProvider } from '@openchatlab/core'
 import type {
   ContactItem,
@@ -30,8 +29,8 @@ import { buildContactsSignature } from './signature'
 import { cleanupContactsSnapshotTempFiles, readContactsSnapshot, writeContactsSnapshot } from './snapshot'
 import { normalizeContactsTimeRangePreset, resolveContactsTimeRange } from './time-range'
 import { createContactsWorkerRunner } from './worker-runner'
+import { getContactsDir } from './paths'
 
-const CONTACTS_SNAPSHOT_DIR_NAME = 'contacts'
 const DEFAULT_CONTACTS_PAGE_SIZE = 100
 const MAX_CONTACTS_PAGE_SIZE = 200
 
@@ -505,7 +504,7 @@ function requirePathProvider(deps: ContactsServiceDeps): PathProvider {
 }
 
 function resolveContactsSnapshotDir(deps: ContactsServiceDeps): string {
-  if (deps.pathProvider) return path.join(deps.pathProvider.getUserDataDir(), CONTACTS_SNAPSHOT_DIR_NAME)
+  if (deps.pathProvider) return getContactsDir(deps.pathProvider.getUserDataDir())
   if (deps.systemDir) return deps.systemDir
   throw new Error('contacts service requires systemDir or pathProvider')
 }

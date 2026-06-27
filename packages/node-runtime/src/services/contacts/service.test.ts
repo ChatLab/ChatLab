@@ -397,6 +397,59 @@ test('sorts non-friends by score with the public contacts response shape', (t) =
   ])
 })
 
+test('reuses cached contacts session facts for unchanged sessions during recompute', (t) => {
+  const env = new TestEnv()
+  t.after(() => env.cleanup())
+  const factsCacheDir = path.join(env.dir, 'contacts', 'facts')
+
+  env.seed({
+    id: 'private-a',
+    platform: 'weixin',
+    type: 'private',
+    ownerId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner' },
+      { id: 2, platformId: 'alice' },
+    ],
+    messages: privateMessages(20, 1, 1704103200),
+  })
+  env.seed({
+    id: 'group-a',
+    platform: 'weixin',
+    type: 'group',
+    ownerId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner' },
+      { id: 2, platformId: 'alice' },
+      { id: 3, platformId: 'bob' },
+    ],
+    messages: [
+      { id: 1, senderId: 1, ts: 1704103200, platformMessageId: 'owner-1' },
+      { id: 2, senderId: 3, ts: 1704103201, platformMessageId: 'bob-1' },
+    ],
+  })
+
+  computeContactsSnapshot({ adapter: env.adapter, signature: 'sig-1', factsCacheDir })
+
+  const future = new Date(Date.now() + 10_000)
+  fs.utimesSync(env.dbPath('private-a'), future, future)
+
+  const openedSessionIds: string[] = []
+  const countingAdapter: SessionRuntimeAdapter = {
+    ...env.adapter,
+    openReadonly: (sessionId) => {
+      openedSessionIds.push(sessionId)
+      return env.adapter.openReadonly(sessionId)
+    },
+  }
+
+  const result = computeContactsSnapshot({ adapter: countingAdapter, signature: 'sig-2', factsCacheDir })
+
+  assert.equal(openedSessionIds.includes('private-a'), true)
+  assert.equal(openedSessionIds.includes('group-a'), false)
+  assert.ok(result.contacts.some((contact) => contact.key === 'weixin:bob'))
+})
+
 function deferred<T>() {
   let resolve!: (value: T) => void
   let reject!: (error: Error) => void
