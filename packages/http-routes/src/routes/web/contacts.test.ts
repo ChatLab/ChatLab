@@ -5,143 +5,126 @@
  */
 
 import assert from 'node:assert/strict'
-import fs from 'node:fs'
-import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import Fastify from 'fastify'
-import { CHAT_DB_SCHEMA } from '@openchatlab/core'
 import type { PathProvider } from '@openchatlab/core'
 import type { ContactsResponse } from '@openchatlab/shared-types'
-import { openBetterSqliteDatabase } from '@openchatlab/node-runtime'
-import type { DatabaseManager, SessionRuntimeAdapter } from '@openchatlab/node-runtime'
+import type { ContactsService, DatabaseManager, SessionRuntimeAdapter } from '@openchatlab/node-runtime'
 import type { HttpRouteContext } from '../../context'
 import { registerContactsRoutes } from './contacts'
 
-const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
-
-function makeTempDir(): string {
-  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
-  return fs.mkdtempSync(path.join(baseDir, 'chatlab-contacts-routes-'))
-}
-
-class TestEnv {
-  readonly dir = makeTempDir()
-  private readonly dbPath = path.join(this.dir, 'private-a.db')
-
-  seed(): void {
-    const db = openBetterSqliteDatabase(this.dbPath, { nativeBinding })
-    db.exec(CHAT_DB_SCHEMA)
-    db.prepare(`INSERT INTO meta (name, platform, type, imported_at, owner_id) VALUES (?, ?, ?, ?, ?)`).run(
-      'private-a',
-      'weixin',
-      'private',
-      1780000000,
-      'owner'
-    )
-    db.prepare(`INSERT INTO member (id, platform_id, account_name) VALUES (?, ?, ?), (?, ?, ?)`).run(
-      1,
-      'owner',
-      'Me',
-      2,
-      'alice',
-      'Alice'
-    )
-    for (let i = 0; i < 60; i++) {
-      db.prepare(
-        `INSERT INTO message (id, sender_id, ts, type, content, platform_message_id) VALUES (?, ?, ?, 0, ?, ?)`
-      ).run(i + 1, i % 2 === 0 ? 1 : 2, 1704103200 + i, `message ${i + 1}`, `m-${i + 1}`)
-    }
-    db.close()
-  }
-
-  context(): HttpRouteContext {
-    const pathProvider: PathProvider = {
-      getSystemDir: () => this.dir,
-      getUserDataDir: () => this.dir,
-      getDatabaseDir: () => this.dir,
-      getVectorDir: () => path.join(this.dir, 'vector'),
-      getAiDataDir: () => path.join(this.dir, 'ai'),
-      getSettingsDir: () => path.join(this.dir, 'settings'),
-      getCacheDir: () => path.join(this.dir, 'cache'),
-      getTempDir: () => path.join(this.dir, 'temp'),
-      getLogsDir: () => path.join(this.dir, 'logs'),
-      getDownloadsDir: () => path.join(this.dir, 'downloads'),
-    }
-    const open = (readonly: boolean) => openBetterSqliteDatabase(this.dbPath, { readonly, nativeBinding })
-    const sessionAdapter: SessionRuntimeAdapter = {
-      listSessionIds: () => ['private-a'],
-      openReadonly: () => open(true),
-      openWritable: () => open(false),
-      closeSession: () => {},
-      getDbPath: () => this.dbPath,
-      deleteSessionFile: () => false,
-      ensureReadonly: () => open(true),
-      ensureWritable: () => open(false),
-    }
-
-    return {
-      sessionAdapter,
-      pathProvider,
-      dbManager: {} as DatabaseManager,
-      getVersion: () => 'test',
-    } as HttpRouteContext
-  }
-
-  touchDb(): void {
-    fs.utimesSync(this.dbPath, new Date(), new Date(Date.now() + 5000))
-  }
-
-  cleanup(): void {
-    fs.rmSync(this.dir, { recursive: true, force: true })
+function emptyContactsResponse(status: ContactsResponse['cache']['status'] = 'missing'): ContactsResponse {
+  return {
+    contacts: [],
+    diagnostics: {
+      privateSessionCount: 0,
+      contactsEnabled: false,
+      skippedMissingOwnerSessions: 0,
+      skippedUnresolvedOwnerSessions: 0,
+      skippedAmbiguousPrivateSessions: 0,
+      skippedInvalidPlatformIdMembers: 0,
+      skippedFailedSessions: 0,
+      hiddenLowSignalNonFriends: 0,
+      warnings: [],
+    },
+    cache: {
+      status,
+      computedAt: null,
+    },
+    algorithmVersion: 'contacts-v1',
+    task: {
+      id: 'task-1',
+      status: 'running',
+      startedAt: 1000,
+      finishedAt: null,
+      processedSessions: 0,
+      totalSessions: 1,
+    },
   }
 }
 
-test('contacts routes return contacts and recompute results', async (t) => {
-  const env = new TestEnv()
-  env.seed()
-  t.after(() => env.cleanup())
+class FakeContactsService implements ContactsService {
+  getCalls: Array<{ acceptStale?: boolean }> = []
+  recomputeCalls = 0
+
+  getContacts(options?: { acceptStale?: boolean }): ContactsResponse {
+    this.getCalls.push({ acceptStale: options?.acceptStale })
+    return emptyContactsResponse('missing')
+  }
+
+  startRecompute(): ContactsResponse {
+    this.recomputeCalls++
+    return emptyContactsResponse('stale')
+  }
+
+  invalidateContactsCache(): void {
+    throw new Error('not used in route contract tests')
+  }
+}
+
+function createMockContext(contactsService: ContactsService): HttpRouteContext {
+  const pathProvider: PathProvider = {
+    getSystemDir: () => path.join('/tmp', 'chatlab-contacts-route-test'),
+    getUserDataDir: () => path.join('/tmp', 'chatlab-contacts-route-test', 'data'),
+    getDatabaseDir: () => path.join('/tmp', 'chatlab-contacts-route-test', 'data', 'databases'),
+    getVectorDir: () => path.join('/tmp', 'chatlab-contacts-route-test', 'vector'),
+    getAiDataDir: () => path.join('/tmp', 'chatlab-contacts-route-test', 'ai'),
+    getSettingsDir: () => path.join('/tmp', 'chatlab-contacts-route-test', 'settings'),
+    getCacheDir: () => path.join('/tmp', 'chatlab-contacts-route-test', 'cache'),
+    getTempDir: () => path.join('/tmp', 'chatlab-contacts-route-test', 'temp'),
+    getLogsDir: () => path.join('/tmp', 'chatlab-contacts-route-test', 'logs'),
+    getDownloadsDir: () => path.join('/tmp', 'chatlab-contacts-route-test', 'downloads'),
+  }
+  const sessionAdapter = {
+    listSessionIds: () => [],
+  } as unknown as SessionRuntimeAdapter
+
+  return {
+    sessionAdapter,
+    pathProvider,
+    contactsService,
+    dbManager: {} as DatabaseManager,
+    getVersion: () => 'test',
+  } as HttpRouteContext
+}
+
+test('GET /_web/contacts returns contacts response with task state', async (t) => {
+  const service = new FakeContactsService()
   const app = Fastify()
   t.after(async () => app.close())
-  registerContactsRoutes(app, env.context())
+  registerContactsRoutes(app, createMockContext(service))
   await app.ready()
 
-  const first = await app.inject({ method: 'GET', url: '/_web/contacts' })
-  assert.equal(first.statusCode, 200)
-  const firstBody = first.json<ContactsResponse>()
-  assert.equal(firstBody.contacts[0].key, 'weixin:alice')
-  assert.equal(firstBody.cache.status, 'fresh')
+  const response = await app.inject({ method: 'GET', url: '/_web/contacts?acceptStale=1' })
 
-  const recomputed = await app.inject({ method: 'POST', url: '/_web/contacts/recompute' })
-  assert.equal(recomputed.statusCode, 200)
-  assert.equal(recomputed.json<ContactsResponse>().cache.status, 'fresh')
+  assert.equal(response.statusCode, 200)
+  const body = response.json<ContactsResponse>()
+  assert.equal(body.cache.status, 'missing')
+  assert.equal(body.task?.status, 'running')
+  assert.deepEqual(service.getCalls, [{ acceptStale: true }])
 })
 
-test('GET /_web/contacts supports acceptStale query', async (t) => {
-  const env = new TestEnv()
-  env.seed()
-  t.after(() => env.cleanup())
+test('POST /_web/contacts/recompute starts or reuses background recompute without waiting for completion', async (t) => {
+  const service = new FakeContactsService()
   const app = Fastify()
   t.after(async () => app.close())
-  registerContactsRoutes(app, env.context())
+  registerContactsRoutes(app, createMockContext(service))
   await app.ready()
 
-  const first = await app.inject({ method: 'GET', url: '/_web/contacts' })
-  assert.equal(first.statusCode, 200)
+  const response = await app.inject({ method: 'POST', url: '/_web/contacts/recompute' })
 
-  env.touchDb()
-  const stale = await app.inject({ method: 'GET', url: '/_web/contacts?acceptStale=1' })
-  assert.equal(stale.statusCode, 200)
-  assert.equal(stale.json<ContactsResponse>().cache.status, 'stale')
+  assert.equal(response.statusCode, 200)
+  const body = response.json<ContactsResponse>()
+  assert.equal(body.cache.status, 'stale')
+  assert.equal(body.task?.status, 'running')
+  assert.equal(service.recomputeCalls, 1)
 })
 
 test('override routes are not registered', async (t) => {
-  const env = new TestEnv()
-  env.seed()
-  t.after(() => env.cleanup())
   const app = Fastify()
   t.after(async () => app.close())
-  registerContactsRoutes(app, env.context())
+  registerContactsRoutes(app, createMockContext(new FakeContactsService()))
   await app.ready()
 
   const patched = await app.inject({

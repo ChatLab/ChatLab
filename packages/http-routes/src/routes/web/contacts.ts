@@ -5,16 +5,21 @@ import type { HttpRouteContext } from '../../context'
 type ContactsQuery = { acceptStale?: string }
 
 export function registerContactsRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
-  const service = createContactsService({
-    adapter: ctx.sessionAdapter,
-  })
+  const service =
+    ctx.contactsService ??
+    createContactsService({
+      adapter: ctx.sessionAdapter,
+      pathProvider: ctx.pathProvider,
+      runtimeIdentity: ctx.runtimeIdentity,
+      nativeBinding: ctx.nativeBinding,
+    })
 
   server.get<{ Querystring: ContactsQuery }>('/_web/contacts', async (request) => {
     return service.getContacts({ acceptStale: isTruthy(request.query.acceptStale) })
   })
 
   server.post('/_web/contacts/recompute', async () => {
-    return service.getContacts({ forceRecompute: true })
+    return service.startRecompute()
   })
 }
 

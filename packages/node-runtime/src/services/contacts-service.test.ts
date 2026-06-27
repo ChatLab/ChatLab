@@ -11,9 +11,13 @@ import path from 'node:path'
 import test from 'node:test'
 import { CHAT_DB_SCHEMA } from '@openchatlab/core'
 import type { DatabaseAdapter } from '@openchatlab/core'
+import { ChatType } from '@openchatlab/shared-types'
+import type { ContactsResponse } from '@openchatlab/shared-types'
 import { openBetterSqliteDatabase } from '../better-sqlite3-adapter'
 import type { SessionRuntimeAdapter } from './adapters'
+import { CONTACTS_ALGORITHM_VERSION, computeContactsSnapshot, type ContactsSnapshot } from './contacts-compute'
 import { createContactsService } from './contacts-service'
+import type { PathProvider } from '@openchatlab/core'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -129,6 +133,21 @@ class TestEnv {
     return dbPath
   }
 
+  pathProvider(): PathProvider {
+    return {
+      getSystemDir: () => this.dir,
+      getUserDataDir: () => this.dir,
+      getDatabaseDir: () => this.dir,
+      getVectorDir: () => path.join(this.dir, 'vector'),
+      getAiDataDir: () => path.join(this.dir, 'ai'),
+      getSettingsDir: () => path.join(this.dir, 'settings'),
+      getCacheDir: () => path.join(this.dir, 'cache'),
+      getTempDir: () => path.join(this.dir, 'temp'),
+      getLogsDir: () => path.join(this.dir, 'logs'),
+      getDownloadsDir: () => path.join(this.dir, 'downloads'),
+    }
+  }
+
   cleanup(): void {
     for (const db of this.openDbs) {
       try {
@@ -192,7 +211,7 @@ test('aggregates stable-id contacts across private and group sessions', (t) => {
     ],
   })
 
-  const result = createContactsService({ adapter: env.adapter }).getContacts()
+  const result = computeContactsSnapshot({ adapter: env.adapter, signature: 'sig-1' })
   const byKey = new Map(result.contacts.map((contact) => [contact.key, contact]))
   const alice = byKey.get('weixin:alice')
   const bob = byKey.get('weixin:bob')
@@ -214,7 +233,6 @@ test('aggregates stable-id contacts across private and group sessions', (t) => {
 
   assert.equal(result.diagnostics.privateSessionCount, 2)
   assert.equal(result.diagnostics.contactsEnabled, false)
-  assert.equal(result.cache.status, 'fresh')
 })
 
 test('records diagnostics for missing owner, unresolved owner, and ambiguous private sessions', (t) => {
@@ -247,7 +265,7 @@ test('records diagnostics for missing owner, unresolved owner, and ambiguous pri
     ],
   })
 
-  const result = createContactsService({ adapter: env.adapter }).getContacts()
+  const result = computeContactsSnapshot({ adapter: env.adapter, signature: 'sig-1' })
 
   assert.equal(result.contacts.length, 0)
   assert.equal(result.diagnostics.privateSessionCount, 3)
@@ -274,8 +292,7 @@ test('keeps name-match platform contacts session-scoped', (t) => {
     })
   }
 
-  const service = createContactsService({ adapter: env.adapter })
-  const result = service.getContacts()
+  const result = computeContactsSnapshot({ adapter: env.adapter, signature: 'sig-1' })
   const keys = result.contacts.map((contact) => contact.key).sort()
 
   assert.deepEqual(keys, ['whatsapp:whatsapp-a:Alice', 'whatsapp:whatsapp-b:Alice'])
@@ -312,8 +329,7 @@ test('sorts contacts by score and marks low-signal non-friends', (t) => {
     ],
   })
 
-  const service = createContactsService({ adapter: env.adapter })
-  const result = service.getContacts()
+  const result = computeContactsSnapshot({ adapter: env.adapter, signature: 'sig-1' })
 
   assert.deepEqual(
     result.contacts.map((contact) => contact.key),
@@ -323,7 +339,77 @@ test('sorts contacts by score and marks low-signal non-friends', (t) => {
   assert.equal(result.diagnostics.hiddenLowSignalNonFriends, 1)
 })
 
-test('returns stale cached contacts when signature changes and acceptStale is true', (t) => {
+function deferred<T>() {
+  let resolve!: (value: T) => void
+  let reject!: (error: Error) => void
+  const promise = new Promise<T>((res, rej) => {
+    resolve = res
+    reject = rej
+  })
+  return { promise, resolve, reject }
+}
+
+async function waitForTaskSettled(service: { getContacts: (options?: { acceptStale?: boolean }) => ContactsResponse }) {
+  for (let i = 0; i < 100; i++) {
+    const response = service.getContacts({ acceptStale: true })
+    if (response.task?.status !== 'running') return response
+    await new Promise((resolve) => setTimeout(resolve, 20))
+  }
+  return service.getContacts({ acceptStale: true })
+}
+
+function makeRuntimeSnapshot(signature: string, computedAt: number): ContactsSnapshot {
+  return {
+    contacts: [
+      {
+        key: 'weixin:alice',
+        platform: 'weixin',
+        platformId: 'alice',
+        sessionScoped: false,
+        displayName: 'Alice',
+        aliases: [],
+        avatar: null,
+        isFriend: true,
+        pool: 'friend',
+        isLowSignal: false,
+        score: 1,
+        scoreBreakdown: {},
+        sourceSessions: [
+          {
+            id: 'private-a',
+            name: 'private-a',
+            platform: 'weixin',
+            type: ChatType.PRIVATE,
+          },
+        ],
+        searchText: 'alice',
+        lastInteractionTs: null,
+      },
+    ],
+    diagnostics: {
+      privateSessionCount: 1,
+      contactsEnabled: false,
+      skippedMissingOwnerSessions: 0,
+      skippedUnresolvedOwnerSessions: 0,
+      skippedAmbiguousPrivateSessions: 0,
+      skippedInvalidPlatformIdMembers: 0,
+      skippedFailedSessions: 0,
+      hiddenLowSignalNonFriends: 0,
+      warnings: [],
+    },
+    algorithmVersion: CONTACTS_ALGORITHM_VERSION,
+    signature,
+    computedAt,
+    workerStats: {
+      durationMs: 10,
+      totalSessions: 1,
+      processedSessions: 1,
+      skippedFailedSessions: 0,
+    },
+  }
+}
+
+test('returns missing snapshot and starts a background contacts task without synchronous compute', async (t) => {
   const env = new TestEnv()
   t.after(() => env.cleanup())
   let now = 1000
@@ -340,31 +426,84 @@ test('returns stale cached contacts when signature changes and acceptStale is tr
     messages: privateMessages(5, 1, 1704103200),
   })
 
-  const service = createContactsService({ adapter: env.adapter, now: () => now })
-  const first = service.getContacts()
-  assert.equal(first.cache.status, 'fresh')
-  assert.equal(first.cache.computedAt, 1000)
+  const pending = deferred<ContactsSnapshot>()
+  let runCalls = 0
+  let runnerSignature = ''
+  const service = createContactsService({
+    adapter: env.adapter,
+    systemDir: env.dir,
+    now: () => now,
+    runner: ({ signature }) => {
+      runCalls++
+      runnerSignature = signature
+      return pending.promise
+    },
+  })
+
+  const first = service.getContacts({ acceptStale: true })
+
+  assert.equal(runCalls, 1)
+  assert.equal(first.cache.status, 'missing')
+  assert.equal(first.contacts.length, 0)
+  assert.equal(first.task?.status, 'running')
+
+  now = 2000
+  pending.resolve(makeRuntimeSnapshot(runnerSignature, now))
+  const finished = await waitForTaskSettled(service)
+
+  assert.equal(finished.cache.status, 'fresh')
+  assert.equal(finished.cache.computedAt, 2000)
+  assert.equal(finished.contacts[0].key, 'weixin:alice')
+  assert.equal(finished.task?.status, 'succeeded')
+})
+
+test('returns stale snapshot and reuses one in-flight task after signature changes', async (t) => {
+  const env = new TestEnv()
+  t.after(() => env.cleanup())
+  let now = 1000
+
+  env.seed({
+    id: 'private-a',
+    platform: 'weixin',
+    type: 'private',
+    ownerId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner' },
+      { id: 2, platformId: 'alice' },
+    ],
+    messages: privateMessages(5, 1, 1704103200),
+  })
+
+  const firstSnapshot = computeContactsSnapshot({ adapter: env.adapter, signature: 'old-signature', now: () => now })
+  const pending = deferred<ContactsSnapshot>()
+  let runCalls = 0
+  const service = createContactsService({
+    adapter: env.adapter,
+    systemDir: env.dir,
+    now: () => now,
+    runner: () => {
+      runCalls++
+      return pending.promise
+    },
+  })
+  service.replaceSnapshotForTests!(firstSnapshot)
 
   now = 2000
   fs.utimesSync(env.dbPath('private-a'), new Date(), new Date(Date.now() + 5000))
 
   const stale = service.getContacts({ acceptStale: true })
-  assert.equal(stale.cache.status, 'stale')
-  assert.equal(stale.cache.computedAt, 1000)
-  assert.deepEqual(
-    stale.contacts.map((contact) => contact.key),
-    first.contacts.map((contact) => contact.key)
-  )
+  const recompute = service.startRecompute()
 
-  const fresh = service.getContacts()
-  assert.equal(fresh.cache.status, 'fresh')
-  assert.equal(fresh.cache.computedAt, 2000)
+  assert.equal(runCalls, 1)
+  assert.equal(stale.cache.status, 'stale')
+  assert.equal(stale.contacts[0].key, 'weixin:alice')
+  assert.equal(stale.task?.status, 'running')
+  assert.equal(recompute.task?.status, 'running')
 })
 
-test('recomputes contacts after owner_id changes in a session database', (t) => {
+test('temporary contacts worker computes and persists a fresh snapshot', async (t) => {
   const env = new TestEnv()
   t.after(() => env.cleanup())
-  let now = 1000
 
   env.seed({
     id: 'private-a',
@@ -378,21 +517,19 @@ test('recomputes contacts after owner_id changes in a session database', (t) => 
     messages: privateMessages(5, 1, 1704103200),
   })
 
-  const service = createContactsService({ adapter: env.adapter, now: () => now })
-  const first = service.getContacts()
-  assert.deepEqual(
-    first.contacts.map((contact) => contact.key),
-    ['weixin:alice']
-  )
+  const service = createContactsService({
+    adapter: env.adapter,
+    pathProvider: env.pathProvider(),
+    nativeBinding,
+  })
 
-  now = 2000
-  env.adapter.ensureWritable('private-a').prepare('UPDATE meta SET owner_id = ?').run('alice')
+  const first = service.getContacts({ acceptStale: true })
+  assert.equal(first.cache.status, 'missing')
+  assert.equal(first.task?.status, 'running')
 
-  const second = service.getContacts()
-  assert.equal(second.cache.status, 'fresh')
-  assert.equal(second.cache.computedAt, 2000)
-  assert.deepEqual(
-    second.contacts.map((contact) => contact.key),
-    ['weixin:owner']
-  )
+  const finished = await waitForTaskSettled(service)
+  assert.equal(finished.cache.status, 'fresh')
+  assert.equal(finished.contacts[0].key, 'weixin:alice')
+  assert.equal(finished.task?.status, 'succeeded')
+  assert.ok(fs.existsSync(path.join(env.dir, 'contacts-snapshot.json')))
 })

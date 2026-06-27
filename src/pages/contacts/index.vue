@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import type { ContactItem, ContactsResponse } from '@openchatlab/shared-types'
@@ -23,10 +23,13 @@ const error = ref('')
 const searchQuery = ref('')
 const lowSignalExpanded = ref(false)
 const selectedKey = ref<string | null>(null)
-const showRecomputePrompt = ref(false)
+const pollTimer = ref<ReturnType<typeof setInterval> | null>(null)
 
 const contacts = computed(() => response.value?.contacts ?? [])
 const diagnostics = computed(() => response.value?.diagnostics)
+const task = computed(() => response.value?.task)
+const isTaskRunning = computed(() => task.value?.status === 'running')
+const taskFailed = computed(() => task.value?.status === 'failed')
 
 const stats = computed(() => {
   const all = contacts.value
@@ -119,8 +122,17 @@ watch(filteredContacts, () => {
   selectedKey.value = null
 })
 
+watch(
+  () => task.value?.status,
+  () => syncContactsPolling()
+)
+
 onMounted(() => {
   void loadContacts({ acceptStale: true })
+})
+
+onUnmounted(() => {
+  stopContactsPolling()
 })
 
 async function loadContacts(options?: { acceptStale?: boolean; force?: boolean }) {
@@ -134,7 +146,7 @@ async function loadContacts(options?: { acceptStale?: boolean; force?: boolean }
     if (selectedKey.value && !next.contacts.some((contact) => contact.key === selectedKey.value)) {
       selectedKey.value = null
     }
-    showRecomputePrompt.value = next.cache.status === 'stale'
+    syncContactsPolling()
   } catch (err) {
     error.value = String(err)
   } finally {
@@ -147,13 +159,34 @@ async function recomputeContacts() {
   try {
     const next = await dataService.recomputeContacts()
     response.value = next
-    showRecomputePrompt.value = false
-    toast.success(t('contacts.toast.recomputed'))
+    syncContactsPolling()
+    toast.success(t('contacts.toast.recomputeStarted'))
   } catch (err) {
     toast.fail(t('contacts.toast.recomputeFailed'), { description: String(err) })
   } finally {
     isRecomputing.value = false
   }
+}
+
+function syncContactsPolling() {
+  if (isTaskRunning.value) {
+    startContactsPolling()
+  } else {
+    stopContactsPolling()
+  }
+}
+
+function startContactsPolling() {
+  if (pollTimer.value) return
+  pollTimer.value = setInterval(() => {
+    void loadContacts({ acceptStale: true })
+  }, 1500)
+}
+
+function stopContactsPolling() {
+  if (!pollTimer.value) return
+  clearInterval(pollTimer.value)
+  pollTimer.value = null
 }
 
 function selectContact(contact: ContactItem) {
@@ -260,6 +293,7 @@ function syncScroll(pool: ContactPoolTab, e: Event) {
           size="sm"
           class="rounded-xl border border-pink-100 hover:border-pink-200 dark:border-pink-950/30 dark:hover:border-pink-900/50"
           :loading="isRecomputing"
+          :disabled="isTaskRunning"
           @click="recomputeContacts"
         >
           {{ t('contacts.actions.recompute') }}
@@ -333,17 +367,46 @@ function syncScroll(pool: ContactPoolTab, e: Event) {
             >
               <div class="flex items-center gap-3">
                 <UIcon name="i-lucide-info" class="h-5 w-5 shrink-0 text-sky-500" />
-                <span>{{ t('contacts.stale.inline') }}</span>
+                <span>{{ isTaskRunning ? t('contacts.task.updating') : t('contacts.stale.inline') }}</span>
               </div>
               <UButton
                 size="xs"
                 color="primary"
                 variant="solid"
                 class="rounded-xl"
-                :loading="isRecomputing"
+                :loading="isRecomputing || isTaskRunning"
+                :disabled="isTaskRunning"
                 @click="recomputeContacts"
               >
                 {{ t('contacts.actions.recompute') }}
+              </UButton>
+            </div>
+
+            <div
+              v-if="response?.cache.status === 'missing' && isTaskRunning"
+              class="flex items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50/50 px-4 py-3.5 text-sm text-sky-800 dark:border-sky-900/30 dark:bg-sky-950/20 dark:text-sky-200"
+            >
+              <UIcon name="i-lucide-loader-2" class="h-5 w-5 shrink-0 animate-spin text-sky-500" />
+              <span>
+                {{
+                  t('contacts.task.running', {
+                    current: task?.processedSessions ?? 0,
+                    total: task?.totalSessions ?? 0,
+                  })
+                }}
+              </span>
+            </div>
+
+            <div
+              v-if="taskFailed"
+              class="flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50/50 px-4 py-3.5 text-sm text-red-700 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300 sm:flex-row sm:items-center sm:justify-between"
+            >
+              <div class="flex min-w-0 items-center gap-3">
+                <UIcon name="i-lucide-alert-circle" class="h-5 w-5 shrink-0 text-red-500" />
+                <span class="truncate">{{ task?.lastError || t('contacts.task.failed') }}</span>
+              </div>
+              <UButton size="xs" color="error" variant="soft" class="rounded-xl" @click="recomputeContacts">
+                {{ t('contacts.task.retry') }}
               </UButton>
             </div>
 
@@ -633,21 +696,6 @@ function syncScroll(pool: ContactPoolTab, e: Event) {
         </Transition>
       </div>
     </div>
-
-    <UModal v-model:open="showRecomputePrompt" :ui="{ content: 'max-w-md' }">
-      <template #content>
-        <div class="p-4">
-          <h3 class="font-semibold text-gray-900 dark:text-white">{{ t('contacts.stale.title') }}</h3>
-          <p class="mt-2 text-sm text-gray-600 dark:text-gray-400">{{ t('contacts.stale.message') }}</p>
-          <div class="mt-4 flex justify-end gap-2">
-            <UButton variant="soft" @click="showRecomputePrompt = false">{{ t('contacts.stale.later') }}</UButton>
-            <UButton color="primary" :loading="isRecomputing" @click="recomputeContacts">
-              {{ t('contacts.actions.recompute') }}
-            </UButton>
-          </div>
-        </div>
-      </template>
-    </UModal>
   </div>
 </template>
 

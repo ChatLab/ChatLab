@@ -56,8 +56,14 @@ export type { LlmConfig, SummaryServiceDeps } from './summary-service'
 export { exportMarkdown } from './export-service'
 
 // Contacts service
-export { CONTACTS_ALGORITHM_VERSION, createContactsService } from './contacts-service'
-export type { ContactsService, ContactsServiceDeps, ContactsServiceOptions } from './contacts-service'
+export { CONTACTS_ALGORITHM_VERSION } from './contacts-compute'
+export { createContactsService } from './contacts-service'
+export type {
+  ContactsComputeRunner,
+  ContactsService,
+  ContactsServiceDeps,
+  ContactsServiceOptions,
+} from './contacts-service'
 
 // Merge cache
 export { MergeSessionCache } from './merge-cache'

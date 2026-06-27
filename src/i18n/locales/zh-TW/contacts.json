@@ -67,12 +67,19 @@
   },
   "stale": {
     "title": "聯絡人資料可能已過期",
-    "message": "偵測到聊天庫發生變化，是否立即重新計算聯絡人？",
+    "message": "偵測到聊天庫發生變化，正在背景更新聯絡人。",
     "inline": "聯絡人資料可能已過期。",
     "later": "稍後"
   },
+  "task": {
+    "running": "正在計算聯絡人：{current} / {total} 個會話",
+    "updating": "聯絡人資料可能已過期，正在背景更新。",
+    "failed": "聯絡人計算失敗",
+    "retry": "重試"
+  },
   "toast": {
     "recomputed": "聯絡人已重新計算",
+    "recomputeStarted": "已開始在背景計算聯絡人",
     "recomputeFailed": "重新計算失敗"
   }
 }

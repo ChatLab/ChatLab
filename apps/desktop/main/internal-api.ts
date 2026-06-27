@@ -161,6 +161,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
       dbManager: newDbManager,
       sessionAdapter,
       pathProvider,
+      runtimeIdentity: runtime,
       getVersion: () => getDesktopAppVersion(app.getVersion()),
       mergeSessionCache: newMergeCache,
       streamImport: electronStreamImport,

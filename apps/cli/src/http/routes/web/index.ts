@@ -30,6 +30,7 @@ import type {
   CustomProviderStore,
   CustomModelStore,
   PendingDataDirMigration,
+  RuntimeIdentity,
 } from '@openchatlab/node-runtime'
 import {
   createDatabaseManagerAdapter,
@@ -64,6 +65,7 @@ export function registerWebRoutes(
   options?: {
     pathProvider?: PathProvider
     nativeBinding?: string
+    runtimeIdentity?: RuntimeIdentity
     aiContext?: AiContextOptions
     /** 由 server 入口注入的共享语义索引运行时；传入时由调用方管理生命周期 */
     semanticIndexService?: SemanticIndexRuntime
@@ -114,6 +116,7 @@ export function registerWebRoutes(
       dbManager,
       sessionAdapter: adapter,
       pathProvider: resolvedPathProvider,
+      runtimeIdentity: options?.runtimeIdentity,
       getVersion,
       nativeBinding: options?.nativeBinding,
       semanticIndexService,

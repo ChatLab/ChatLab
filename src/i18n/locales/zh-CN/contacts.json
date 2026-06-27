@@ -67,12 +67,19 @@
   },
   "stale": {
     "title": "联系人数据可能已过期",
-    "message": "检测到聊天库发生变化，是否立即重新计算联系人？",
+    "message": "检测到聊天库发生变化，正在后台更新联系人。",
     "inline": "联系人数据可能已过期。",
     "later": "稍后"
   },
+  "task": {
+    "running": "正在计算联系人：{current} / {total} 个会话",
+    "updating": "联系人数据可能已过期，正在后台更新。",
+    "failed": "联系人计算失败",
+    "retry": "重试"
+  },
   "toast": {
     "recomputed": "联系人已重新计算",
+    "recomputeStarted": "已开始后台计算联系人",
     "recomputeFailed": "重新计算失败"
   }
 }

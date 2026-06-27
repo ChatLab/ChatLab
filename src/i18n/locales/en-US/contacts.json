@@ -67,12 +67,19 @@
   },
   "stale": {
     "title": "Contacts may be stale",
-    "message": "Chat data changed. Recompute contacts now?",
+    "message": "Chat data changed. Contacts are updating in the background.",
     "inline": "Contacts may be stale.",
     "later": "Later"
   },
+  "task": {
+    "running": "Computing contacts: {current} / {total} sessions",
+    "updating": "Contacts may be stale. Updating in the background.",
+    "failed": "Contact computation failed",
+    "retry": "Retry"
+  },
   "toast": {
     "recomputed": "Contacts recomputed",
+    "recomputeStarted": "Started computing contacts in the background",
     "recomputeFailed": "Recompute failed"
   }
 }

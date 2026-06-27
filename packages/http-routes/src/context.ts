@@ -25,7 +25,9 @@ import type {
   MergeSessionCache,
   AgentStreamChunk,
   SemanticIndexRuntime,
+  ContactsService,
 } from '@openchatlab/node-runtime'
+import type { RuntimeIdentity } from '@openchatlab/node-runtime'
 
 export interface HttpRouteContext {
   dbManager: DatabaseManager
@@ -33,9 +35,11 @@ export interface HttpRouteContext {
   pathProvider: PathProvider
 
   getVersion: () => string
+  runtimeIdentity?: RuntimeIdentity
 
   /** Native binding path for better-sqlite3 (CLI needs it, Electron does not) */
   nativeBinding?: string
+  contactsService?: ContactsService
 
   preferencesManager?: PreferencesManager
 

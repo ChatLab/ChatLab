@@ -206,6 +206,7 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
   registerWebRoutes(server, dbManager, {
     pathProvider,
     nativeBinding,
+    runtimeIdentity: runtime,
     semanticIndexService,
     aiContext: {
       aiDataDir,

@@ -232,6 +232,8 @@ export type ContactPool = 'friend' | 'non_friend'
 
 export type ContactsCacheStatus = 'fresh' | 'stale' | 'missing'
 
+export type ContactsTaskStatus = 'idle' | 'running' | 'succeeded' | 'failed' | 'superseded'
+
 export interface ContactScoreBreakdown {
   privateMessageScore?: number
   privateRegularityScore?: number
@@ -302,11 +304,23 @@ export interface ContactsCacheState {
   staleReason?: string
 }
 
+export interface ContactsTaskState {
+  id: string | null
+  status: ContactsTaskStatus
+  startedAt: number | null
+  finishedAt: number | null
+  processedSessions: number
+  totalSessions: number
+  currentSessionId?: string
+  lastError?: string
+}
+
 export interface ContactsResponse {
   contacts: ContactItem[]
   diagnostics: ContactsDiagnostics
   cache: ContactsCacheState
   algorithmVersion: string
+  task?: ContactsTaskState
 }
 
 export interface Preferences {

@@ -5,6 +5,7 @@ export default defineConfig({
     cli: 'src/cli.ts',
     index: 'src/index.ts',
     'semantic-index-worker': '../../packages/node-runtime/src/semantic-index/worker-thread-entry.ts',
+    'contacts-worker': '../../packages/node-runtime/src/services/contacts-worker-entry.ts',
   },
   format: ['esm'],
   outDir: 'dist',
