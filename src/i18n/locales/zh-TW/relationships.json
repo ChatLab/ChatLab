@@ -1,0 +1,63 @@
+{
+  "title": "互動關係",
+  "subtitle": "全景關係圖",
+  "nav": "關係子頁面",
+  "search": "搜尋聯絡人",
+  "empty": "暫無關係圖資料",
+  "privacy": "隱私模式",
+  "timeRange": {
+    "1y": "近1年",
+    "2y": "近2年",
+    "3y": "近3年",
+    "5y": "近5年",
+    "all": "全部"
+  },
+  "actions": {
+    "recompute": "重新計算",
+    "clearSearch": "清空搜尋",
+    "backToPanorama": "返回全景",
+    "fitView": "適應視圖"
+  },
+  "stats": {
+    "nodes": "節點",
+    "edges": "連線",
+    "communities": "圈層"
+  },
+  "pool": {
+    "friend": "好友",
+    "manualFriend": "好友 · 手動標記",
+    "nonFriend": "群友"
+  },
+  "task": {
+    "running": "正在計算互動關係：{current} / {total} 個會話",
+    "updating": "關係資料可能已更新，正在重新計算。",
+    "failed": "互動關係計算失敗",
+    "retry": "重試"
+  },
+  "searchResults": {
+    "title": "搜尋結果",
+    "offCore": "載入鄰域"
+  },
+  "detail": {
+    "title": "節點詳情",
+    "emptyTitle": "選擇一個節點",
+    "rank": "排名",
+    "score": "綜合分",
+    "type": "類型",
+    "community": "圈層",
+    "lastInteraction": "最近互動",
+    "privateMessages": "私聊訊息",
+    "groupMessages": "群聊訊息",
+    "commonGroups": "共同群",
+    "emptyValue": "暫無"
+  },
+  "toast": {
+    "recomputeStarted": "已開始背景計算互動關係",
+    "recomputeFailed": "重新計算失敗",
+    "loadFailed": "互動關係載入失敗",
+    "neighborhoodFailed": "鄰域載入失敗"
+  },
+  "canvas": {
+    "label": "互動關係星系圖"
+  }
+}

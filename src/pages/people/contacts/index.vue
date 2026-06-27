@@ -16,6 +16,7 @@ import { useToast } from '@/composables/useToast'
 import { useLayoutStore } from '@/stores/layout'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import { LoadingState, SubTabs } from '@/components/UI'
+import PeopleSubnav from '../components/PeopleSubnav.vue'
 import ContactDetailPanel from './components/ContactDetailPanel.vue'
 import ContactsStatusBlocks from './components/ContactsStatusBlocks.vue'
 import {
@@ -847,15 +848,7 @@ function getGroupSectionScrollTop(): number | null {
       </template>
 
       <div class="mt-3 flex items-center justify-between gap-3 pb-1.5">
-        <div class="flex shrink-0 items-center gap-0.5 overflow-x-auto scrollbar-hide">
-          <button
-            type="button"
-            class="flex items-center gap-1.5 rounded-lg bg-pink-500 px-2.5 py-1.5 text-xs font-semibold text-white transition-all dark:bg-pink-900/30 dark:text-pink-300"
-          >
-            <UIcon name="i-lucide-users" class="h-3.5 w-3.5" />
-            <span class="whitespace-nowrap">{{ t('contacts.title') }}</span>
-          </button>
-        </div>
+        <PeopleSubnav active="contacts" />
 
         <!-- 统计指标面板 -->
         <div class="hidden items-center gap-5 text-[11px] sm:flex">

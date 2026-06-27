@@ -11,6 +11,8 @@ import type {
   SetOwnerAndApplyProfileResult,
   ContactsResponse,
   ContactDetailResponse,
+  PeopleRelationshipsGraphResponse,
+  PeopleRelationshipsNeighborhoodResponse,
 } from '@openchatlab/shared-types'
 import type {
   MemberActivity,
@@ -43,6 +45,8 @@ import type {
   DataAdapter,
   ContactsFetchOptions,
   ContactsRecomputeOptions,
+  PeopleRelationshipsFetchOptions,
+  PeopleRelationshipsRecomputeOptions,
   PaginationParams,
   PaginatedResult,
   SQLResult,
@@ -156,6 +160,38 @@ export class FetchDataAdapter implements DataAdapter {
       `/contacts/${encodeURIComponent(key)}/mark-friend${qs ? `?${qs}` : ''}`
     )
     return result.success
+  }
+
+  // ==================== 关系图谱 ====================
+
+  getPeopleRelationships(options?: PeopleRelationshipsFetchOptions): Promise<PeopleRelationshipsGraphResponse> {
+    const params = new URLSearchParams()
+    if (options?.acceptStale) params.set('acceptStale', '1')
+    if (options?.timeRangePreset) params.set('timeRange', options.timeRangePreset)
+    if (options?.query) params.set('q', options.query)
+    const qs = params.toString()
+    return get(`/people/relationships${qs ? `?${qs}` : ''}`)
+  }
+
+  recomputePeopleRelationships(
+    options?: PeopleRelationshipsRecomputeOptions
+  ): Promise<PeopleRelationshipsGraphResponse> {
+    const params = new URLSearchParams()
+    if (options?.timeRangePreset) params.set('timeRange', options.timeRangePreset)
+    if (options?.query) params.set('q', options.query)
+    const qs = params.toString()
+    return post(`/people/relationships/recompute${qs ? `?${qs}` : ''}`, {})
+  }
+
+  getPeopleRelationshipNeighborhood(
+    key: string,
+    options?: PeopleRelationshipsFetchOptions
+  ): Promise<PeopleRelationshipsNeighborhoodResponse> {
+    const params = new URLSearchParams()
+    if (options?.acceptStale) params.set('acceptStale', '1')
+    if (options?.timeRangePreset) params.set('timeRange', options.timeRangePreset)
+    const qs = params.toString()
+    return get(`/people/relationships/${encodeURIComponent(key)}/neighborhood${qs ? `?${qs}` : ''}`)
   }
 
   // ==================== 时间范围 ====================

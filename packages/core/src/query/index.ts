@@ -77,13 +77,22 @@ export type {
 
 export {
   getGroupContactFacts,
+  getGroupRelationshipGraphFacts,
   getLatestContactMessageTs,
   getNonSystemMembersForContacts,
   getPrivateContactFacts,
   isValidContactPlatformId,
   resolveOwnerMember,
 } from './contact-queries'
-export type { ContactFactsOptions, ContactMemberRef, GroupContactFacts, PrivateContactFacts } from './contact-queries'
+export type {
+  ContactFactsOptions,
+  ContactMemberRef,
+  GroupContactFacts,
+  GroupRelationshipGraphFacts,
+  PrivateContactFacts,
+  RelationshipGraphEdgeFact,
+  RelationshipGraphMemberFact,
+} from './contact-queries'
 
 export {
   MIN_PRIVATE_SESSIONS_FOR_CONTACTS,

@@ -14,6 +14,7 @@ import { registerImportRoutes } from './routes/imports'
 import { registerSessionRoutes } from './routes/web/sessions'
 import { registerMemberRoutes } from './routes/web/members'
 import { registerContactsRoutes } from './routes/web/contacts'
+import { registerPeopleRelationshipsRoutes } from './routes/web/people-relationships'
 import { registerPreferencesRoutes } from './routes/web/preferences'
 import { registerAnalyticsRoutes } from './routes/web/analytics'
 import { registerSqlRoutes } from './routes/web/sql'
@@ -59,6 +60,7 @@ export function registerSharedRoutes(
   registerSessionRoutes(server, resolvedCtx)
   registerMemberRoutes(server, resolvedCtx)
   registerContactsRoutes(server, resolvedCtx)
+  registerPeopleRelationshipsRoutes(server, resolvedCtx)
   registerPreferencesRoutes(server, resolvedCtx)
   registerAnalyticsRoutes(server, resolvedCtx)
   registerSqlRoutes(server, resolvedCtx)

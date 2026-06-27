@@ -363,6 +363,134 @@ export interface ContactDetailResponse {
 
 export type ContactsResponse = ContactsListResponse
 
+// ==================== People Relationships (galaxy graph) ====================
+
+export type PeopleRelationshipsCacheStatus = ContactsCacheStatus
+export type PeopleRelationshipsTaskStatus = ContactsTaskStatus
+
+export interface PeopleRelationshipGraphNode {
+  key: string
+  platform: ChatPlatform
+  platformId: string
+  sessionScoped: boolean
+  sessionId?: string
+  displayName: string
+  aliases: string[]
+  avatar: string | null
+  pool: ContactPool
+  friendSource?: ContactFriendSource
+  score: number
+  rank: number
+  communityId: string
+  x: number
+  y: number
+  size: number
+  color: string
+  labelVisibility: 0 | 1 | 2
+  lastInteractionTs: number | null
+  privateMessageCount: number
+  groupMessageCount: number
+  commonGroupCount: number
+  searchText: string
+}
+
+export interface PeopleRelationshipGraphEdge {
+  id: string
+  sourceKey: string
+  targetKey: string
+  weight: number
+  coOccurrenceCount: number
+  coOccurrenceRawScore: number
+  replyInteractionCount: number
+  repliesFromSourceToTarget: number
+  repliesFromTargetToSource: number
+  sourceGroupCount: number
+  sourceSessionIds: string[]
+  lastInteractionTs: number | null
+  visibility: 0 | 1 | 2
+}
+
+export interface PeopleRelationshipCommunity {
+  id: string
+  label: string
+  size: number
+  x: number
+  y: number
+  color: string
+}
+
+export interface PeopleRelationshipsGraphData {
+  nodes: PeopleRelationshipGraphNode[]
+  edges: PeopleRelationshipGraphEdge[]
+  communities: PeopleRelationshipCommunity[]
+}
+
+export interface PeopleRelationshipsDiagnostics {
+  processedPrivateSessions: number
+  processedGroupSessions: number
+  skippedMissingOwnerSessions: number
+  skippedUnresolvedOwnerSessions: number
+  skippedAmbiguousPrivateSessions: number
+  skippedFailedSessions: number
+  totalNodes: number
+  totalEdges: number
+  coreNodeCount: number
+  coreEdgeCount: number
+  warnings: string[]
+}
+
+export interface PeopleRelationshipsCacheState {
+  status: PeopleRelationshipsCacheStatus
+  computedAt: number | null
+  signature?: string
+  staleReason?: string
+}
+
+export interface PeopleRelationshipsTaskState {
+  id: string | null
+  status: PeopleRelationshipsTaskStatus
+  startedAt: number | null
+  finishedAt: number | null
+  processedSessions: number
+  totalSessions: number
+  timeRangePreset?: ContactsTimeRangePreset
+  currentSessionId?: string
+  lastError?: string
+}
+
+export interface PeopleRelationshipsSearchResult {
+  key: string
+  displayName: string
+  platform: ChatPlatform
+  platformId: string
+  avatar: string | null
+  pool: ContactPool
+  score: number
+  rank: number
+  communityId: string
+  inCoreGraph: boolean
+}
+
+export interface PeopleRelationshipsGraphResponse {
+  graph: PeopleRelationshipsGraphData
+  searchResults: PeopleRelationshipsSearchResult[]
+  diagnostics: PeopleRelationshipsDiagnostics
+  cache: PeopleRelationshipsCacheState
+  timeRange: ContactsTimeRangeState
+  algorithmVersion: string
+  task?: PeopleRelationshipsTaskState
+}
+
+export interface PeopleRelationshipsNeighborhoodResponse {
+  contact: PeopleRelationshipGraphNode | null
+  graph: PeopleRelationshipsGraphData
+  diagnostics: PeopleRelationshipsDiagnostics
+  cache: PeopleRelationshipsCacheState
+  timeRange: ContactsTimeRangeState
+  algorithmVersion: string
+  task?: PeopleRelationshipsTaskState
+}
+
 export interface Preferences {
   pinnedSessionIds: string[]
   aiPreprocessConfig: AIPreprocessConfig

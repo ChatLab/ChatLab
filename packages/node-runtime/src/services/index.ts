@@ -59,6 +59,15 @@ export { exportMarkdown } from './export-service'
 export { CONTACTS_ALGORITHM_VERSION, createContactsService } from './contacts'
 export type { ContactsComputeRunner, ContactsService, ContactsServiceDeps, ContactsServiceOptions } from './contacts'
 
+// People relationships service
+export { PEOPLE_RELATIONSHIPS_ALGORITHM_VERSION, createPeopleRelationshipsService } from './people/relationships'
+export type {
+  PeopleRelationshipsComputeRunner,
+  PeopleRelationshipsService,
+  PeopleRelationshipsServiceDeps,
+  PeopleRelationshipsServiceOptions,
+} from './people/relationships'
+
 // Merge cache
 export { MergeSessionCache } from './merge-cache'
 

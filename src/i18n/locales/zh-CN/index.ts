@@ -12,6 +12,7 @@ import records from './records.json'
 import views from './views.json'
 import wordFilter from './wordFilter.json'
 import contacts from './contacts.json'
+import relationships from './relationships.json'
 
 export default {
   common,
@@ -28,4 +29,5 @@ export default {
   views,
   wordFilter,
   contacts,
+  relationships,
 }

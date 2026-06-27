@@ -26,6 +26,7 @@ import type {
   AgentStreamChunk,
   SemanticIndexRuntime,
   ContactsService,
+  PeopleRelationshipsService,
 } from '@openchatlab/node-runtime'
 import type { RuntimeIdentity } from '@openchatlab/node-runtime'
 
@@ -40,6 +41,7 @@ export interface HttpRouteContext {
   /** Native binding path for better-sqlite3 (CLI needs it, Electron does not) */
   nativeBinding?: string
   contactsService?: ContactsService
+  peopleRelationshipsService?: PeopleRelationshipsService
 
   preferencesManager?: PreferencesManager
 

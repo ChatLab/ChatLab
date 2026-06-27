@@ -1,0 +1,63 @@
+{
+  "title": "交流関係",
+  "subtitle": "パノラマ関係グラフ",
+  "nav": "関係サブページ",
+  "search": "連絡先を検索",
+  "empty": "関係グラフのデータがありません",
+  "privacy": "プライバシーモード",
+  "timeRange": {
+    "1y": "過去1年",
+    "2y": "過去2年",
+    "3y": "過去3年",
+    "5y": "過去5年",
+    "all": "すべて"
+  },
+  "actions": {
+    "recompute": "再計算",
+    "clearSearch": "検索をクリア",
+    "backToPanorama": "全景に戻る",
+    "fitView": "表示に合わせる"
+  },
+  "stats": {
+    "nodes": "ノード",
+    "edges": "リンク",
+    "communities": "コミュニティ"
+  },
+  "pool": {
+    "friend": "友だち",
+    "manualFriend": "友だち・手動",
+    "nonFriend": "グループメンバー"
+  },
+  "task": {
+    "running": "交流関係を計算中：{current} / {total} セッション",
+    "updating": "関係データが更新された可能性があります。再計算中です。",
+    "failed": "交流関係の計算に失敗しました",
+    "retry": "再試行"
+  },
+  "searchResults": {
+    "title": "検索結果",
+    "offCore": "近傍を読み込む"
+  },
+  "detail": {
+    "title": "ノード詳細",
+    "emptyTitle": "ノードを選択",
+    "rank": "順位",
+    "score": "スコア",
+    "type": "種類",
+    "community": "コミュニティ",
+    "lastInteraction": "最終交流",
+    "privateMessages": "個別メッセージ",
+    "groupMessages": "グループメッセージ",
+    "commonGroups": "共通グループ",
+    "emptyValue": "なし"
+  },
+  "toast": {
+    "recomputeStarted": "交流関係のバックグラウンド計算を開始しました",
+    "recomputeFailed": "再計算に失敗しました",
+    "loadFailed": "交流関係の読み込みに失敗しました",
+    "neighborhoodFailed": "近傍の読み込みに失敗しました"
+  },
+  "canvas": {
+    "label": "交流関係ギャラクシーグラフ"
+  }
+}

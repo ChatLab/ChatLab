@@ -14,6 +14,8 @@ import type {
   ContactDetailResponse,
   ContactPool,
   ContactsTimeRangePreset,
+  PeopleRelationshipsGraphResponse,
+  PeopleRelationshipsNeighborhoodResponse,
 } from '@openchatlab/shared-types'
 import type {
   MemberActivity,
@@ -103,6 +105,19 @@ export interface ContactFriendMarkOptions {
   timeRangePreset?: ContactsTimeRangePreset
 }
 
+// ==================== People Relationships ====================
+
+export interface PeopleRelationshipsFetchOptions {
+  acceptStale?: boolean
+  timeRangePreset?: ContactsTimeRangePreset
+  query?: string
+}
+
+export interface PeopleRelationshipsRecomputeOptions {
+  timeRangePreset?: ContactsTimeRangePreset
+  query?: string
+}
+
 // ==================== Mention Graph ====================
 
 export interface MentionGraphData {
@@ -139,6 +154,15 @@ export interface DataAdapter {
   recomputeContacts(options?: ContactsRecomputeOptions): Promise<ContactsResponse>
   markContactAsFriend(key: string, options?: ContactFriendMarkOptions): Promise<boolean>
   unmarkContactAsFriend(key: string, options?: ContactFriendMarkOptions): Promise<boolean>
+
+  // ==================== 关系图谱 ====================
+
+  getPeopleRelationships(options?: PeopleRelationshipsFetchOptions): Promise<PeopleRelationshipsGraphResponse>
+  recomputePeopleRelationships(options?: PeopleRelationshipsRecomputeOptions): Promise<PeopleRelationshipsGraphResponse>
+  getPeopleRelationshipNeighborhood(
+    key: string,
+    options?: PeopleRelationshipsFetchOptions
+  ): Promise<PeopleRelationshipsNeighborhoodResponse>
 
   // ==================== 时间范围 ====================
 

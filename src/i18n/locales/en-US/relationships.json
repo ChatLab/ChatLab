@@ -1,0 +1,63 @@
+{
+  "title": "Interaction Graph",
+  "subtitle": "Panoramic relationship graph",
+  "nav": "People subpages",
+  "search": "Search contacts",
+  "empty": "No relationship graph data",
+  "privacy": "Privacy mode",
+  "timeRange": {
+    "1y": "1 year",
+    "2y": "2 years",
+    "3y": "3 years",
+    "5y": "5 years",
+    "all": "All"
+  },
+  "actions": {
+    "recompute": "Recompute",
+    "clearSearch": "Clear search",
+    "backToPanorama": "Back to panorama",
+    "fitView": "Fit view"
+  },
+  "stats": {
+    "nodes": "Nodes",
+    "edges": "Edges",
+    "communities": "Communities"
+  },
+  "pool": {
+    "friend": "Friend",
+    "manualFriend": "Friend · Manual",
+    "nonFriend": "Groupmate"
+  },
+  "task": {
+    "running": "Computing interaction graph: {current} / {total} sessions",
+    "updating": "Relationship data may have changed. Recomputing.",
+    "failed": "Interaction graph computation failed",
+    "retry": "Retry"
+  },
+  "searchResults": {
+    "title": "Search results",
+    "offCore": "Load neighborhood"
+  },
+  "detail": {
+    "title": "Node details",
+    "emptyTitle": "Select a node",
+    "rank": "Rank",
+    "score": "Score",
+    "type": "Type",
+    "community": "Community",
+    "lastInteraction": "Last interaction",
+    "privateMessages": "Private messages",
+    "groupMessages": "Group messages",
+    "commonGroups": "Common groups",
+    "emptyValue": "None"
+  },
+  "toast": {
+    "recomputeStarted": "Started computing interaction graph",
+    "recomputeFailed": "Recompute failed",
+    "loadFailed": "Failed to load interaction graph",
+    "neighborhoodFailed": "Failed to load neighborhood"
+  },
+  "canvas": {
+    "label": "Interaction galaxy graph"
+  }
+}

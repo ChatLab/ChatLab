@@ -1,0 +1,63 @@
+{
+  "title": "互动关系",
+  "subtitle": "全景关系图",
+  "nav": "关系子页面",
+  "search": "搜索联系人",
+  "empty": "暂无关系图数据",
+  "privacy": "隐私模式",
+  "timeRange": {
+    "1y": "近1年",
+    "2y": "近2年",
+    "3y": "近3年",
+    "5y": "近5年",
+    "all": "全部"
+  },
+  "actions": {
+    "recompute": "重新计算",
+    "clearSearch": "清空搜索",
+    "backToPanorama": "返回全景",
+    "fitView": "适应视图"
+  },
+  "stats": {
+    "nodes": "节点",
+    "edges": "连线",
+    "communities": "圈层"
+  },
+  "pool": {
+    "friend": "好友",
+    "manualFriend": "好友 · 手动标记",
+    "nonFriend": "群友"
+  },
+  "task": {
+    "running": "正在计算互动关系：{current} / {total} 个会话",
+    "updating": "关系数据可能已更新，正在重新计算。",
+    "failed": "互动关系计算失败",
+    "retry": "重试"
+  },
+  "searchResults": {
+    "title": "搜索结果",
+    "offCore": "加载邻域"
+  },
+  "detail": {
+    "title": "节点详情",
+    "emptyTitle": "选择一个节点",
+    "rank": "排名",
+    "score": "综合分",
+    "type": "类型",
+    "community": "圈层",
+    "lastInteraction": "最近互动",
+    "privateMessages": "私聊消息",
+    "groupMessages": "群聊消息",
+    "commonGroups": "共同群",
+    "emptyValue": "暂无"
+  },
+  "toast": {
+    "recomputeStarted": "已开始后台计算互动关系",
+    "recomputeFailed": "重新计算失败",
+    "loadFailed": "互动关系加载失败",
+    "neighborhoodFailed": "邻域加载失败"
+  },
+  "canvas": {
+    "label": "互动关系星系图"
+  }
+}

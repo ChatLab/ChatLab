@@ -40,6 +40,28 @@ export interface GroupContactFacts {
   lastInteractionTs: number | null
 }
 
+export interface RelationshipGraphMemberFact {
+  contact: ContactMemberRef
+  messageCount: number
+  lastMessageTs: number | null
+}
+
+export interface RelationshipGraphEdgeFact {
+  source: ContactMemberRef
+  target: ContactMemberRef
+  coOccurrenceCount: number
+  coOccurrenceRawScore: number
+  replyInteractionCount: number
+  repliesFromSourceToTarget: number
+  repliesFromTargetToSource: number
+  lastInteractionTs: number | null
+}
+
+export interface GroupRelationshipGraphFacts {
+  members: RelationshipGraphMemberFact[]
+  edges: RelationshipGraphEdgeFact[]
+}
+
 export function isValidContactPlatformId(platformId: string | null | undefined): platformId is string {
   return typeof platformId === 'string' && platformId.trim().length > 0
 }
@@ -258,6 +280,140 @@ export function getGroupContactFacts(
       lastInteractionTs: stats.lastInteractionTs ?? coOccurrence?.lastOccurrenceTs ?? null,
     }
   })
+}
+
+export function getGroupRelationshipGraphFacts(
+  db: DatabaseAdapter,
+  ownerMemberId: number,
+  options: ContactFactsOptions = {}
+): GroupRelationshipGraphFacts {
+  const contacts = getNonSystemMembersForContacts(db).filter((member) => member.id !== ownerMemberId)
+  const contactById = new Map(contacts.map((contact) => [contact.id, contact]))
+  const messageTimeFilter = createMessageTimeFilter('msg', options.startTs)
+  const messageRows = db
+    .prepare(
+      `SELECT msg.sender_id as senderId, COUNT(*) as messageCount, MAX(msg.ts) as lastMessageTs
+       FROM message msg
+       JOIN member m ON msg.sender_id = m.id
+       WHERE ${nonSystemMessageCondition('msg', 'm')}${messageTimeFilter.sql}
+       GROUP BY msg.sender_id`
+    )
+    .all(...messageTimeFilter.params) as Array<{ senderId: number; messageCount: number; lastMessageTs: number | null }>
+
+  const memberStats = new Map<number, { messageCount: number; lastMessageTs: number | null }>()
+  for (const row of messageRows) {
+    if (!contactById.has(row.senderId)) continue
+    memberStats.set(row.senderId, {
+      messageCount: row.messageCount,
+      lastMessageTs: row.lastMessageTs ?? null,
+    })
+  }
+
+  const coOccurrenceRows = db
+    .prepare(
+      `SELECT msg.sender_id as senderId, msg.ts as ts
+       FROM message msg
+       JOIN member m ON msg.sender_id = m.id
+       WHERE ${nonSystemMessageCondition('msg', 'm')}${messageTimeFilter.sql}
+       ORDER BY msg.ts ASC, msg.id ASC`
+    )
+    .all(...messageTimeFilter.params) as Array<{ senderId: number; ts: number }>
+
+  const edgeStats = new Map<
+    string,
+    {
+      sourceId: number
+      targetId: number
+      coOccurrenceCount: number
+      coOccurrenceRawScore: number
+      repliesFromSourceToTarget: number
+      repliesFromTargetToSource: number
+      lastInteractionTs: number | null
+    }
+  >()
+
+  const ensureEdge = (aId: number, bId: number) => {
+    const sourceId = Math.min(aId, bId)
+    const targetId = Math.max(aId, bId)
+    const key = `${sourceId}:${targetId}`
+    const existing = edgeStats.get(key)
+    if (existing) return existing
+    const created = {
+      sourceId,
+      targetId,
+      coOccurrenceCount: 0,
+      coOccurrenceRawScore: 0,
+      repliesFromSourceToTarget: 0,
+      repliesFromTargetToSource: 0,
+      lastInteractionTs: null,
+    }
+    edgeStats.set(key, created)
+    return created
+  }
+
+  for (const pair of accumulateCoOccurrencePairs(coOccurrenceRows)) {
+    if (!contactById.has(pair.sourceId) || !contactById.has(pair.targetId)) continue
+    const edge = ensureEdge(pair.sourceId, pair.targetId)
+    edge.coOccurrenceCount += pair.coOccurrenceCount
+    edge.coOccurrenceRawScore += pair.rawScore
+    edge.lastInteractionTs = Math.max(edge.lastInteractionTs ?? 0, pair.lastOccurrenceTs)
+  }
+
+  const replyTimeFilter = createReplyTimeFilter(options.startTs)
+  const replyRows = db
+    .prepare(
+      `SELECT
+        msg.sender_id as replySenderId,
+        msg.ts as replyTs,
+        target.sender_id as targetSenderId
+       FROM message msg
+       JOIN message target ON msg.reply_to_message_id = target.platform_message_id
+       JOIN member sender ON msg.sender_id = sender.id
+       JOIN member targetMember ON target.sender_id = targetMember.id
+       WHERE msg.reply_to_message_id IS NOT NULL
+         AND ${nonSystemMessageCondition('msg', 'sender')}
+         AND ${nonSystemMessageCondition('target', 'targetMember')}${replyTimeFilter.sql}`
+    )
+    .all(...replyTimeFilter.params) as Array<{ replySenderId: number; replyTs: number; targetSenderId: number }>
+
+  for (const row of replyRows) {
+    if (!contactById.has(row.replySenderId) || !contactById.has(row.targetSenderId)) continue
+    if (row.replySenderId === row.targetSenderId) continue
+    const edge = ensureEdge(row.replySenderId, row.targetSenderId)
+    if (row.replySenderId === edge.sourceId) edge.repliesFromSourceToTarget++
+    else edge.repliesFromTargetToSource++
+    edge.lastInteractionTs = Math.max(edge.lastInteractionTs ?? 0, row.replyTs)
+  }
+
+  const members = contacts.map((contact) => {
+    const stats = memberStats.get(contact.id)
+    return {
+      contact,
+      messageCount: stats?.messageCount ?? 0,
+      lastMessageTs: stats?.lastMessageTs ?? null,
+    }
+  })
+
+  const edges: RelationshipGraphEdgeFact[] = []
+  for (const edge of edgeStats.values()) {
+    const source = contactById.get(edge.sourceId)
+    const target = contactById.get(edge.targetId)
+    if (!source || !target) continue
+    const replyInteractionCount = edge.repliesFromSourceToTarget + edge.repliesFromTargetToSource
+    if (edge.coOccurrenceCount <= 0 && replyInteractionCount <= 0) continue
+    edges.push({
+      source,
+      target,
+      coOccurrenceCount: edge.coOccurrenceCount,
+      coOccurrenceRawScore: edge.coOccurrenceRawScore,
+      replyInteractionCount,
+      repliesFromSourceToTarget: edge.repliesFromSourceToTarget,
+      repliesFromTargetToSource: edge.repliesFromTargetToSource,
+      lastInteractionTs: edge.lastInteractionTs,
+    })
+  }
+
+  return { members, edges }
 }
 
 function createMessageTimeFilter(

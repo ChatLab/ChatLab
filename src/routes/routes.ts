@@ -32,6 +32,11 @@ export const appRoutes: RouteRecordRaw[] = [
         name: 'people-contacts',
         component: () => import('@/pages/people/contacts/index.vue'),
       },
+      {
+        path: 'relationships',
+        name: 'people-relationships',
+        component: () => import('@/pages/people/relationships/index.vue'),
+      },
     ],
   },
 ]

@@ -51,12 +51,14 @@
     "echarts": "^6.0.0",
     "echarts-wordcloud": "^2.1.0",
     "markdown-it": "^14.1.0",
+    "pixi-viewport": "^6.0.3",
+    "pixi.js": "^8.19.0",
     "vue-i18n": "^11.2.8"
   },
   "devDependencies": {
+    "@electron-toolkit/tsconfig": "^1.0.1",
     "@nuxt/ui": "^4.2.1",
     "@tailwindcss/vite": "^4.0.0",
-    "@electron-toolkit/tsconfig": "^1.0.1",
     "@types/markdown-it": "^14.1.2",
     "@vitejs/plugin-vue": "^6.0.0",
     "@vue/eslint-config-prettier": "^10.2.0",
