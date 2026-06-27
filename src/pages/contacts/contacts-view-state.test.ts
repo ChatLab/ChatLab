@@ -12,6 +12,7 @@ import {
   shouldShowGroupmateSection,
   shouldShowContactsLoadingState,
   shouldHoldCompletedContactsTaskProgress,
+  shouldPreserveFriendActionRefreshRows,
 } from './contacts-view-state'
 
 function diagnostics(overrides: Partial<ContactsDiagnostics> = {}): ContactsDiagnostics {
@@ -90,6 +91,14 @@ test('preserves scroll position for friend section friend actions', () => {
     }),
     320
   )
+})
+
+test('replaces friend rows after a groupmate is marked as friend', () => {
+  assert.equal(shouldPreserveFriendActionRefreshRows('friend'), false)
+})
+
+test('keeps preserving groupmate rows after local removal during friend actions', () => {
+  assert.equal(shouldPreserveFriendActionRefreshRows('non_friend'), true)
 })
 
 test('shows groupmate section immediately when the groupmate tab is active', () => {

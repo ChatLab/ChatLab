@@ -22,6 +22,7 @@ import {
   resolveFriendActionScrollTop,
   resolveContactsPollingPools,
   shouldHoldCompletedContactsTaskProgress,
+  shouldPreserveFriendActionRefreshRows,
   shouldShowContactsDisabledNotice,
   shouldShowContactsLoadingState,
   shouldShowGroupmateSection,
@@ -649,13 +650,13 @@ async function refreshContactsPageMetadata() {
     loadContactsPage('friend', 1, {
       acceptStale: true,
       replace: true,
-      preserveExisting: true,
+      preserveExisting: shouldPreserveFriendActionRefreshRows('friend'),
       silent: true,
     }),
     loadContactsPage('non_friend', 1, {
       acceptStale: true,
       replace: true,
-      preserveExisting: true,
+      preserveExisting: shouldPreserveFriendActionRefreshRows('non_friend'),
       silent: true,
     }),
   ])

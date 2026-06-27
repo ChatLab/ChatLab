@@ -50,6 +50,10 @@ export function resolveFriendActionScrollTop(state: FriendActionScrollState): nu
   return state.previousScrollTop
 }
 
+export function shouldPreserveFriendActionRefreshRows(pool: ContactPoolTab): boolean {
+  return pool !== 'friend'
+}
+
 export function shouldShowGroupmateSection(state: GroupmateSectionVisibilityState): boolean {
   return state.activeSection === 'non_friend' || state.friendSectionReady
 }
