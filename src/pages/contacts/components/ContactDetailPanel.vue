@@ -13,6 +13,7 @@ const props = defineProps<{
 const emit = defineEmits<{
   clear: []
   openSource: [source: ContactItem['sourceSessions'][number]]
+  viewSourceRecords: [source: ContactItem['sourceSessions'][number]]
   markFriend: []
   unmarkFriend: []
 }>()
@@ -130,12 +131,10 @@ function avatarText(contact: ContactItem): string {
             {{ t('contacts.detail.sources') }}
           </h3>
           <div class="space-y-2.5">
-            <button
+            <div
               v-for="source in contact.sourceSessions"
               :key="source.id"
-              type="button"
-              class="group/item w-full rounded-2xl border border-gray-100 bg-white/40 px-3.5 py-3 text-left transition duration-300 hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-sm dark:border-white/5 dark:bg-gray-900/10 dark:hover:border-white/10"
-              @click="emit('openSource', source)"
+              class="w-full rounded-2xl border border-gray-100 bg-white/40 px-3.5 py-3 text-left transition duration-300 hover:border-gray-200 hover:shadow-sm dark:border-white/5 dark:bg-gray-900/10 dark:hover:border-white/10"
             >
               <div class="flex items-center justify-between gap-2">
                 <span class="truncate text-xs font-semibold text-gray-700 dark:text-gray-300">
@@ -149,10 +148,6 @@ function avatarText(contact: ContactItem): string {
                       ? t('contacts.detail.sourceType.private')
                       : t('contacts.detail.sourceType.group')
                   }}
-                  <UIcon
-                    name="i-lucide-arrow-up-right"
-                    class="h-3 w-3 transition-transform group-hover/item:translate-x-0.5 group-hover/item:-translate-y-0.5"
-                  />
                 </span>
               </div>
               <div class="mt-1.5 truncate text-[11px] font-medium text-gray-400 dark:text-gray-500">
@@ -162,7 +157,27 @@ function avatarText(contact: ContactItem): string {
                     : t('contacts.metrics.groupSignals', { count: source.coOccurrenceCount ?? 0 })
                 }}
               </div>
-            </button>
+              <div class="mt-2 flex flex-wrap gap-1.5">
+                <UButton
+                  icon="i-lucide-arrow-up-right"
+                  color="primary"
+                  variant="soft"
+                  size="xs"
+                  @click="emit('openSource', source)"
+                >
+                  {{ t('contacts.actions.openSourceSession') }}
+                </UButton>
+                <UButton
+                  icon="i-lucide-messages-square"
+                  color="primary"
+                  variant="soft"
+                  size="xs"
+                  @click="emit('viewSourceRecords', source)"
+                >
+                  {{ t('contacts.actions.viewSourceRecords') }}
+                </UButton>
+              </div>
+            </div>
           </div>
         </section>
       </div>

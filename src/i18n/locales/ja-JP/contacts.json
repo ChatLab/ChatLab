@@ -47,6 +47,8 @@
     "unmarkFriend": "マークを解除",
     "clearSearch": "検索をクリア",
     "clearSelection": "選択を解除",
+    "openSourceSession": "会話へ移動",
+    "viewSourceRecords": "チャット履歴を見る",
     "viewDetail": "{name} の詳細を表示"
   },
   "detail": {

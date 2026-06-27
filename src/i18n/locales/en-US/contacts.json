@@ -47,6 +47,8 @@
     "unmarkFriend": "Unmark friend",
     "clearSearch": "Clear search",
     "clearSelection": "Clear selection",
+    "openSourceSession": "Go to chat",
+    "viewSourceRecords": "View chat records",
     "viewDetail": "View details for {name}"
   },
   "detail": {

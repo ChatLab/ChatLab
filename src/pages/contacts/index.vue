@@ -13,6 +13,7 @@ import type {
 } from '@openchatlab/shared-types'
 import { useDataService } from '@/services'
 import { useToast } from '@/composables/useToast'
+import { useLayoutStore } from '@/stores/layout'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import { LoadingState, SubTabs } from '@/components/UI'
 import ContactDetailPanel from './components/ContactDetailPanel.vue'
@@ -47,6 +48,7 @@ const CONTACTS_LOAD_MORE_REMAINING = 20
 const { t } = useI18n()
 const toast = useToast()
 const dataService = useDataService()
+const layoutStore = useLayoutStore()
 const router = useRouter()
 
 const isRecomputing = ref(false)
@@ -732,6 +734,10 @@ function openSourceSession(source: ContactItem['sourceSessions'][number]) {
   })
 }
 
+function viewSourceSessionRecords(source: ContactItem['sourceSessions'][number]) {
+  layoutStore.openChatRecordDrawer({ sessionId: source.id })
+}
+
 function handleListScroll(event: Event) {
   const target = event.target as HTMLElement
   activeState.value.scrollOffset = target.scrollTop
@@ -1128,6 +1134,7 @@ function getGroupSectionScrollTop(): number | null {
           :is-friend-action-loading="isFriendActionSaving"
           @clear="clearSelectedContact"
           @open-source="openSourceSession"
+          @view-source-records="viewSourceSessionRecords"
           @mark-friend="markSelectedContactAsFriend"
           @unmark-friend="unmarkSelectedContactAsFriend"
         />

@@ -150,6 +150,9 @@ export interface MergeResult {
  * 支持组合查询：多个条件可同时生效
  */
 export interface ChatRecordQuery {
+  /** 指定要查看的会话；未提供时使用当前页面会话 */
+  sessionId?: string
+
   /** 定位到指定消息（初始加载时以此消息为中心） */
   scrollToMessageId?: number
 

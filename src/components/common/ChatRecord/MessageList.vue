@@ -11,6 +11,7 @@ import MessageItem from './MessageItem.vue'
 import type { ChatRecordMessage, ChatRecordQuery } from './types'
 import { useSessionStore } from '@/stores/session'
 import { useMessageService } from '@/services'
+import { resolveChatRecordSessionId } from './query-session'
 
 // 时间分隔阈值（秒）：消息间隔超过此值则显示时间分隔线
 const TIME_SEPARATOR_THRESHOLD = 5 * 60 // 5 分钟
@@ -51,6 +52,7 @@ const emit = defineEmits<{
 }>()
 
 const sessionStore = useSessionStore()
+const effectiveSessionId = computed(() => resolveChatRecordSessionId(props.query, sessionStore.currentSessionId))
 
 // 判断是否使用外部传入的消息
 const isExternalMode = computed(() => !!props.externalMessages?.length)
@@ -150,7 +152,7 @@ async function loadInitialMessages() {
     return
   }
 
-  const sessionId = sessionStore.currentSessionId
+  const sessionId = effectiveSessionId.value
   if (!sessionId) {
     messages.value = []
     emit('count-change', 0)
@@ -266,7 +268,7 @@ function scrollToBottom() {
 async function loadMoreBefore() {
   if (isLoadingMore.value || !hasMoreBefore.value || messages.value.length === 0) return
 
-  const sessionId = sessionStore.currentSessionId
+  const sessionId = effectiveSessionId.value
   if (!sessionId) return
 
   const firstMessage = messages.value[0]
@@ -320,7 +322,7 @@ async function loadMoreBefore() {
 async function loadMoreAfter() {
   if (isLoadingMore.value || !hasMoreAfter.value || messages.value.length === 0) return
 
-  const sessionId = sessionStore.currentSessionId
+  const sessionId = effectiveSessionId.value
   if (!sessionId) return
 
   isLoadingMore.value = true

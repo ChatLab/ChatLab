@@ -47,6 +47,8 @@
     "unmarkFriend": "取消标记",
     "clearSearch": "清空搜索",
     "clearSelection": "取消选中",
+    "openSourceSession": "前往对话",
+    "viewSourceRecords": "查看聊天记录",
     "viewDetail": "查看 {name} 的详情"
   },
   "detail": {

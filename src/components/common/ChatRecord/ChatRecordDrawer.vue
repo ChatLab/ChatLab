@@ -3,7 +3,7 @@
  * 聊天记录查看器 Drawer
  * 主组件，组合筛选面板、消息列表、会话时间线等子组件
  */
-import { ref, watch, toRaw, nextTick, onMounted } from 'vue'
+import { computed, ref, watch, toRaw, nextTick, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FilterPanel from './FilterPanel.vue'
 import MessageList from './MessageList.vue'
@@ -13,6 +13,7 @@ import { useLayoutStore } from '@/stores/layout'
 import { useSessionStore } from '@/stores/session'
 import { useSessionIndexService } from '@/services'
 import { storeToRefs } from 'pinia'
+import { preserveChatRecordSessionId, resolveChatRecordSessionId } from './query-session'
 
 const { t } = useI18n()
 const layoutStore = useLayoutStore()
@@ -31,6 +32,7 @@ const messageListRef = ref<InstanceType<typeof MessageList> | null>(null)
 
 // 本地查询条件（可编辑的副本）
 const localQuery = ref<ChatRecordQuery>({})
+const effectiveSessionId = computed(() => resolveChatRecordSessionId(localQuery.value, currentSessionId.value))
 
 // 消息数量
 const messageCount = ref(0)
@@ -49,12 +51,12 @@ const matchedSessionIds = ref<Set<number> | undefined>(undefined)
 
 // 应用筛选
 function handleApplyFilter(query: ChatRecordQuery) {
-  localQuery.value = query
+  localQuery.value = preserveChatRecordSessionId(query, localQuery.value)
 }
 
 // 重置筛选
 function handleResetFilter() {
-  localQuery.value = {}
+  localQuery.value = preserveChatRecordSessionId({}, localQuery.value)
   matchedSessionIds.value = undefined
 }
 
@@ -130,17 +132,16 @@ function handleSessionSelect(_sessionId: number, firstMessageId: number) {
 // 处理跳转到消息（查看上下文）
 function handleJumpToMessage(messageId: number) {
   // 清空筛选条件，只保留 scrollToMessageId
-  localQuery.value = {
-    scrollToMessageId: messageId,
-  }
+  localQuery.value = preserveChatRecordSessionId({ scrollToMessageId: messageId }, localQuery.value)
 }
 
 // 加载会话列表缓存
 async function loadSessionsCache() {
-  if (!currentSessionId.value) return
+  const sessionId = effectiveSessionId.value
+  if (!sessionId) return
 
   try {
-    const sessions = await useSessionIndexService().getSessions(currentSessionId.value)
+    const sessions = await useSessionIndexService().getSessions(sessionId)
     sessionsCache.value = sessions.map((s) => ({
       id: s.id,
       startTs: s.startTs,
@@ -206,9 +207,9 @@ watch(
         <div class="flex min-h-0 flex-1">
           <!-- 会话时间线 -->
           <SessionTimeline
-            v-if="currentSessionId"
+            v-if="effectiveSessionId"
             v-model:collapsed="timelineCollapsed"
-            :session-id="currentSessionId"
+            :session-id="effectiveSessionId"
             :active-session-id="activeSessionId"
             :filter-start-ts="localQuery.startTs"
             :filter-end-ts="localQuery.endTs"
