@@ -4,14 +4,27 @@ import { useI18n } from 'vue-i18n'
 import { useRouter } from 'vue-router'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { CONTACTS_TIME_RANGE_PRESETS } from '@openchatlab/shared-types'
-import type { ContactItem, ContactListItem, ContactsResponse, ContactsTimeRangePreset } from '@openchatlab/shared-types'
+import type {
+  ContactItem,
+  ContactListItem,
+  ContactsResponse,
+  ContactsTaskState,
+  ContactsTimeRangePreset,
+} from '@openchatlab/shared-types'
 import { useDataService } from '@/services'
 import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import { LoadingState, SubTabs } from '@/components/UI'
 import ContactDetailPanel from './components/ContactDetailPanel.vue'
 import ContactsStatusBlocks from './components/ContactsStatusBlocks.vue'
-import { shouldShowContactsDisabledNotice } from './contacts-view-state'
+import {
+  resolveFriendActionScrollTop,
+  resolveContactsPollingPools,
+  shouldHoldCompletedContactsTaskProgress,
+  shouldShowContactsDisabledNotice,
+  shouldShowContactsLoadingState,
+  shouldShowGroupmateSection,
+} from './contacts-view-state'
 import { buildContactVirtualRows, type ContactPoolTab, type ContactVirtualRow } from './contacts-virtual-list'
 
 interface ContactsTabState {
@@ -46,6 +59,9 @@ const selectedContact = ref<ContactItem | null>(null)
 const isDetailLoading = ref(false)
 const isFriendActionSaving = ref(false)
 const pollTimer = ref<ReturnType<typeof setInterval> | null>(null)
+const isPollingContacts = ref(false)
+const completedTaskForDisplay = ref<ContactsTaskState | null>(null)
+const completedTaskDisplayTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const searchTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const tabNavigationTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const isTabNavigationScrolling = ref(false)
@@ -80,12 +96,13 @@ const groupmateState = computed(() => tabStates.value.non_friend)
 const friendSectionReadyForGroupmates = computed(
   () => !!friendState.value.response && !friendState.value.hasMore && !friendState.value.isLoadingInitial
 )
-const showGroupSection = computed(
-  () =>
-    friendSectionReadyForGroupmates.value ||
-    groupmateState.value.items.length > 0 ||
-    groupmateState.value.isLoadingInitial ||
-    groupmateState.value.isLoadingMore
+const showGroupSection = computed(() =>
+  shouldShowGroupmateSection({
+    activeSection: activeContactSection.value,
+    friendSectionReady: friendSectionReadyForGroupmates.value,
+    groupmateHasItems: groupmateState.value.items.length > 0,
+    groupmateLoading: groupmateState.value.isLoadingInitial || groupmateState.value.isLoadingMore,
+  })
 )
 const virtualRows = computed(() =>
   buildContactVirtualRows({
@@ -98,6 +115,12 @@ const virtualRows = computed(() =>
 )
 const response = computed(
   () => activeState.value.response ?? friendState.value.response ?? groupmateState.value.response
+)
+const taskResponse = computed(
+  () =>
+    [activeState.value.response, friendState.value.response, groupmateState.value.response].find(
+      (next) => next?.task?.status === 'running'
+    ) ?? response.value
 )
 const hasAnyContacts = computed(() => friendState.value.items.length + groupmateState.value.items.length > 0)
 const showEmptyState = computed(
@@ -112,18 +135,32 @@ const showEmptyState = computed(
 )
 const pageError = computed(() => friendState.value.error || groupmateState.value.error)
 const diagnostics = computed(() => response.value?.diagnostics)
-const task = computed(() => response.value?.task)
+const task = computed(() => taskResponse.value?.task)
+const displayTask = computed(() => completedTaskForDisplay.value ?? task.value)
 const isTaskRunning = computed(() => task.value?.status === 'running')
 const taskFailed = computed(() => task.value?.status === 'failed')
-const showLoadingState = computed(
-  () => isTaskRunning.value || (friendState.value.isLoadingInitial && virtualRows.value.length <= 1)
+const showLoadingState = computed(() =>
+  shouldShowContactsLoadingState({
+    activeTaskStatus: activeState.value.response?.task?.status,
+    friendTaskStatus: friendState.value.response?.task?.status,
+    groupmateTaskStatus: groupmateState.value.response?.task?.status,
+    friendInitialLoading: friendState.value.isLoadingInitial,
+    groupmateInitialLoading: groupmateState.value.isLoadingInitial,
+    completionProgressVisible: completedTaskForDisplay.value !== null,
+  })
 )
 const loadingStateText = computed(() => {
-  if (response.value?.cache.status === 'stale' && isTaskRunning.value) return t('contacts.task.updating')
-  if (response.value?.cache.status === 'missing' && isTaskRunning.value) {
+  if (completedTaskForDisplay.value) {
     return t('contacts.task.running', {
-      current: task.value?.processedSessions ?? 0,
-      total: task.value?.totalSessions ?? 0,
+      current: displayTask.value?.processedSessions ?? 0,
+      total: displayTask.value?.totalSessions ?? 0,
+    })
+  }
+  if (taskResponse.value?.cache.status === 'stale' && isTaskRunning.value) return t('contacts.task.updating')
+  if (taskResponse.value?.cache.status === 'missing' && isTaskRunning.value) {
+    return t('contacts.task.running', {
+      current: displayTask.value?.processedSessions ?? 0,
+      total: displayTask.value?.totalSessions ?? 0,
     })
   }
   return t('common.loading')
@@ -191,9 +228,32 @@ watch(
   () => syncContactsPolling()
 )
 
+watch(
+  () => ({
+    status: task.value?.status,
+    processedSessions: task.value?.processedSessions ?? 0,
+    totalSessions: task.value?.totalSessions ?? 0,
+  }),
+  (next, previous) => {
+    if (next.status === 'running') clearCompletedContactsTaskProgress()
+    if (!task.value) return
+    if (
+      shouldHoldCompletedContactsTaskProgress({
+        previousStatus: previous?.status,
+        nextStatus: next.status,
+        previousProcessedSessions: previous?.processedSessions ?? 0,
+        nextProcessedSessions: next.processedSessions,
+        nextTotalSessions: next.totalSessions,
+      })
+    ) {
+      holdCompletedContactsTaskProgress(task.value)
+    }
+  }
+)
+
 watch([debouncedSearchQuery, timeRangePreset], () => {
   resetContactsState()
-  void loadFirstPage('friend')
+  void loadInitialContactsPages()
 })
 
 watch(
@@ -219,17 +279,22 @@ watch(virtualRows, () => {
 })
 
 onMounted(() => {
-  void loadFirstPage('friend')
+  void loadInitialContactsPages()
 })
 
 onUnmounted(() => {
   stopContactsPolling()
+  clearCompletedContactsTaskProgress()
   if (searchTimer.value) clearTimeout(searchTimer.value)
   if (tabNavigationTimer.value) clearTimeout(tabNavigationTimer.value)
 })
 
 async function loadFirstPage(pool: ContactPoolTab, options?: { acceptStale?: boolean; force?: boolean }) {
   await loadContactsPage(pool, 1, { ...options, replace: true })
+}
+
+async function loadInitialContactsPages() {
+  await Promise.all([loadFirstPage('friend'), loadFirstPage('non_friend')])
 }
 
 async function loadNextPageForPool(pool: ContactPoolTab) {
@@ -398,24 +463,15 @@ async function handleContactTabChange(pool: string) {
 }
 
 async function ensureGroupmateSectionVisible() {
-  if (!friendState.value.response && !friendState.value.isLoadingInitial) {
-    await loadFirstPage('friend', { acceptStale: true })
-  }
-  let guard = 0
-  while (friendState.value.hasMore && !friendState.value.isLoadingMore && guard < 50) {
-    guard++
-    await loadNextPageForPool('friend')
-  }
-  if (
-    friendSectionReadyForGroupmates.value &&
-    !groupmateState.value.response &&
-    !groupmateState.value.isLoadingInitial
-  ) {
+  if (!groupmateState.value.response && !groupmateState.value.isLoadingInitial) {
     await loadFirstPage('non_friend', { acceptStale: true })
   }
 }
 
 function resetContactsState() {
+  isTabNavigationScrolling.value = false
+  if (tabNavigationTimer.value) clearTimeout(tabNavigationTimer.value)
+  clearCompletedContactsTaskProgress()
   for (const pool of ['friend', 'non_friend'] as const) {
     tabStates.value[pool].requestId++
     tabStates.value[pool] = createTabState()
@@ -436,19 +492,58 @@ function syncContactsPolling() {
 function startContactsPolling() {
   if (pollTimer.value) return
   pollTimer.value = setInterval(() => {
-    void loadContactsPage(activeContactSection.value, 1, {
-      acceptStale: true,
-      replace: true,
-      preserveExisting: true,
-      silent: true,
-    })
+    void pollContactsPages()
   }, 1500)
+}
+
+async function pollContactsPages() {
+  if (isPollingContacts.value) return
+  isPollingContacts.value = true
+  try {
+    const pools = resolveContactsPollingPools({
+      activePool: activeContactSection.value,
+      friendTaskStatus: friendState.value.response?.task?.status,
+      groupmateTaskStatus: groupmateState.value.response?.task?.status,
+    })
+    await Promise.all(
+      pools.map((pool) =>
+        loadContactsPage(pool, 1, {
+          acceptStale: true,
+          replace: true,
+          preserveExisting: true,
+          silent: true,
+        })
+      )
+    )
+  } finally {
+    isPollingContacts.value = false
+  }
 }
 
 function stopContactsPolling() {
   if (!pollTimer.value) return
   clearInterval(pollTimer.value)
   pollTimer.value = null
+}
+
+function holdCompletedContactsTaskProgress(nextTask: ContactsTaskState) {
+  clearCompletedContactsTaskProgress()
+  completedTaskForDisplay.value = {
+    ...nextTask,
+    processedSessions: nextTask.totalSessions,
+  }
+  completedTaskDisplayTimer.value = setTimeout(() => {
+    completedTaskForDisplay.value = null
+    completedTaskDisplayTimer.value = null
+  }, 450)
+}
+
+function clearCompletedContactsTaskProgress() {
+  if (completedTaskDisplayTimer.value) {
+    clearTimeout(completedTaskDisplayTimer.value)
+    completedTaskDisplayTimer.value = null
+  }
+  completedTaskForDisplay.value = null
 }
 
 async function selectContact(contact: ContactListItem) {
@@ -517,13 +612,51 @@ async function unmarkSelectedContactAsFriend() {
 }
 
 async function refreshContactsAfterFriendAction(key: string) {
-  resetContactsState()
+  const previousSection = activeContactSection.value
+  const previousScrollTop = scrollContainerRef.value?.scrollTop ?? 0
+  const previousPool = selectedContact.value?.pool ?? previousSection
+  detailCache.value = {}
+  if (previousPool === 'non_friend') {
+    removeContactFromGroupmateList(key)
+    clearSelectedContact()
+    await restoreFriendActionScroll(previousSection, previousScrollTop)
+    await refreshContactsPageMetadata()
+    return
+  }
+
   await Promise.all([
     loadFirstPage('friend', { acceptStale: true }),
     loadFirstPage('non_friend', { acceptStale: true }),
   ])
   selectedKey.value = key
   await loadSelectedContactDetail(key, { skipCache: true })
+  await restoreFriendActionScroll(previousSection, previousScrollTop)
+}
+
+function removeContactFromGroupmateList(key: string) {
+  const state = groupmateState.value
+  const nextItems = state.items.filter((contact) => contact.key !== key)
+  if (nextItems.length === state.items.length) return
+  state.items = nextItems
+  state.total = Math.max(0, state.total - 1)
+  state.hasMore = state.items.length < state.total
+}
+
+async function refreshContactsPageMetadata() {
+  await Promise.all([
+    loadContactsPage('friend', 1, {
+      acceptStale: true,
+      replace: true,
+      preserveExisting: true,
+      silent: true,
+    }),
+    loadContactsPage('non_friend', 1, {
+      acceptStale: true,
+      replace: true,
+      preserveExisting: true,
+      silent: true,
+    }),
+  ])
 }
 
 function clearSelectedContact() {
@@ -621,6 +754,31 @@ function getPoolAtScrollPosition(scrollElement: HTMLElement): ContactPoolTab {
 
 function getGroupSectionStart(): number {
   return 1 + friendState.value.items.length * CONTACTS_ROW_ESTIMATE + (friendState.value.isLoadingMore ? 44 : 0)
+}
+
+async function restoreFriendActionScroll(previousSection: ContactPoolTab, previousScrollTop: number) {
+  activeContactSection.value = previousSection
+  await nextTick()
+  const scrollElement = scrollContainerRef.value
+  if (!scrollElement) return
+
+  isTabNavigationScrolling.value = true
+  if (tabNavigationTimer.value) clearTimeout(tabNavigationTimer.value)
+  scrollElement.scrollTop = resolveFriendActionScrollTop({
+    activeSection: previousSection,
+    previousScrollTop,
+    groupSectionScrollTop: getGroupSectionScrollTop(),
+  })
+  tabNavigationTimer.value = setTimeout(() => {
+    isTabNavigationScrolling.value = false
+    activeContactSection.value = previousSection
+  }, 150)
+}
+
+function getGroupSectionScrollTop(): number | null {
+  if (!showGroupSection.value || !tableBodyRef.value) return null
+  const stickyHeaderHeight = 42
+  return tableBodyRef.value.offsetTop + getGroupSectionStart() - stickyHeaderHeight
 }
 </script>
 
