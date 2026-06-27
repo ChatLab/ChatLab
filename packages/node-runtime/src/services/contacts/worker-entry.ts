@@ -6,6 +6,7 @@ import { initAppLogger } from '../../logging/app-logger'
 import { StaticPathProvider, type StaticPathProviderSnapshot } from '../../semantic-index/static-path-provider'
 import { createDatabaseManagerAdapter } from '../adapters'
 import { computeContactsSnapshot, type ContactsComputeProgress } from './compute'
+import { getContactsFactsCacheDir } from './paths'
 
 interface ContactsWorkerStartupOptions {
   paths: StaticPathProviderSnapshot
@@ -31,6 +32,7 @@ async function main(): Promise<void> {
     adapter,
     signature: options.signature,
     timeRangePreset: options.timeRangePreset,
+    factsCacheDir: getContactsFactsCacheDir(pathProvider.getUserDataDir()),
     onProgress,
   })
   parentPort.postMessage({ type: 'success', snapshot })
