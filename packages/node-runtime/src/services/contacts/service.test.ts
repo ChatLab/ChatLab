@@ -450,6 +450,56 @@ test('reuses cached contacts session facts for unchanged sessions during recompu
   assert.ok(result.contacts.some((contact) => contact.key === 'weixin:bob'))
 })
 
+test('does not cache contacts session facts under a db version that changed during compute', (t) => {
+  const env = new TestEnv()
+  t.after(() => env.cleanup())
+  const factsCacheDir = path.join(env.dir, 'contacts', 'facts')
+
+  env.seed({
+    id: 'group-a',
+    platform: 'weixin',
+    type: 'group',
+    ownerId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner' },
+      { id: 2, platformId: 'bob' },
+    ],
+    messages: [
+      { id: 1, senderId: 1, ts: 1704103200, platformMessageId: 'owner-1' },
+      { id: 2, senderId: 2, ts: 1704103201, platformMessageId: 'bob-1' },
+    ],
+  })
+
+  let getDbPathCalls = 0
+  const racingAdapter: SessionRuntimeAdapter = {
+    ...env.adapter,
+    getDbPath: (sessionId) => {
+      getDbPathCalls++
+      const dbPath = env.adapter.getDbPath(sessionId)
+      if (sessionId === 'group-a' && getDbPathCalls === 4) {
+        const future = new Date(Date.now() + 20_000)
+        fs.utimesSync(dbPath, future, future)
+      }
+      return dbPath
+    },
+  }
+
+  computeContactsSnapshot({ adapter: racingAdapter, signature: 'sig-1', factsCacheDir })
+
+  const openedSessionIds: string[] = []
+  const countingAdapter: SessionRuntimeAdapter = {
+    ...env.adapter,
+    openReadonly: (sessionId) => {
+      openedSessionIds.push(sessionId)
+      return env.adapter.openReadonly(sessionId)
+    },
+  }
+
+  computeContactsSnapshot({ adapter: countingAdapter, signature: 'sig-2', factsCacheDir })
+
+  assert.deepEqual(openedSessionIds, ['group-a', 'group-a'])
+})
+
 function deferred<T>() {
   let resolve!: (value: T) => void
   let reject!: (error: Error) => void

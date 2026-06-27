@@ -178,7 +178,8 @@ function findGlobalLatestMessageTs(
 ): number | null {
   let latest: number | null = null
   for (const sessionId of sessionIds) {
-    const cached = readLatestFacts(adapter, sessionId, factsCache)
+    const dbVersion = getSessionDbVersion(adapter, sessionId)
+    const cached = readLatestFacts(sessionId, factsCache, dbVersion)
     if (cached) {
       if (cached.latestMessageTs !== null) latest = Math.max(latest ?? 0, cached.latestMessageTs)
       continue
@@ -186,7 +187,7 @@ function findGlobalLatestMessageTs(
     try {
       const db = adapter.openReadonly(sessionId)
       const ts = db && isChatSessionDb(db) ? getLatestContactMessageTs(db) : null
-      writeLatestFacts(adapter, sessionId, factsCache, { latestMessageTs: ts })
+      writeLatestFacts(adapter, sessionId, factsCache, { latestMessageTs: ts }, dbVersion)
       if (ts !== null) latest = Math.max(latest ?? 0, ts)
     } catch (error) {
       appLogger.error('contacts', `failed to inspect contact session range: ${sessionId}`, error)
@@ -201,11 +202,12 @@ function getSessionFacts(
   timeRange: ContactsTimeRangeState,
   factsCache: ContactsFactsCacheContext | null
 ): ContactsSessionFacts {
-  const cached = readSessionFacts(adapter, sessionId, timeRange, factsCache)
+  const dbVersion = getSessionDbVersion(adapter, sessionId)
+  const cached = readSessionFacts(sessionId, timeRange, factsCache, dbVersion)
   if (cached) return cached
 
   const facts = computeSessionFacts(adapter, sessionId, timeRange)
-  writeSessionFacts(adapter, sessionId, timeRange, factsCache, facts)
+  writeSessionFacts(adapter, sessionId, timeRange, factsCache, facts, dbVersion)
   return facts
 }
 
@@ -344,17 +346,12 @@ function createFactsCacheContext(dir: string): ContactsFactsCacheContext {
 }
 
 function readLatestFacts(
-  adapter: SessionRuntimeAdapter,
   sessionId: string,
-  factsCache: ContactsFactsCacheContext | null
+  factsCache: ContactsFactsCacheContext | null,
+  dbVersion: string
 ): ContactsSessionLatestFacts | null {
   if (!factsCache) return null
-  const cached = readCachedContactsSessionLatest(
-    sessionId,
-    factsCache.dir,
-    factsCache.latestKey,
-    getSessionDbVersion(adapter, sessionId)
-  )
+  const cached = readCachedContactsSessionLatest(sessionId, factsCache.dir, factsCache.latestKey, dbVersion)
   if (!cached.hit) {
     factsCache.stats.latestMisses++
     return null
@@ -367,31 +364,33 @@ function writeLatestFacts(
   adapter: SessionRuntimeAdapter,
   sessionId: string,
   factsCache: ContactsFactsCacheContext | null,
-  data: ContactsSessionLatestFacts
+  data: ContactsSessionLatestFacts,
+  expectedDbVersion: string
 ): void {
   if (!factsCache) return
-  writeCachedContactsSessionLatest(
-    sessionId,
-    factsCache.dir,
-    factsCache.latestKey,
-    getSessionDbVersion(adapter, sessionId),
-    data
-  )
+  const dbVersion = getSessionDbVersion(adapter, sessionId)
+  if (dbVersion !== expectedDbVersion) {
+    appLogger.debug('contacts', 'skipped contacts latest facts cache write because db version changed', {
+      sessionId,
+    })
+    return
+  }
+  writeCachedContactsSessionLatest(sessionId, factsCache.dir, factsCache.latestKey, dbVersion, data)
   factsCache.stats.writes++
 }
 
 function readSessionFacts(
-  adapter: SessionRuntimeAdapter,
   sessionId: string,
   timeRange: ContactsTimeRangeState,
-  factsCache: ContactsFactsCacheContext | null
+  factsCache: ContactsFactsCacheContext | null,
+  dbVersion: string
 ): ContactsSessionFacts | null {
   if (!factsCache) return null
   const cached = readCachedContactsSessionFacts(
     sessionId,
     factsCache.dir,
     buildContactsSessionFactsCacheKey(CONTACTS_ALGORITHM_VERSION, timeRange),
-    getSessionDbVersion(adapter, sessionId)
+    dbVersion
   )
   if (!cached.hit) {
     factsCache.stats.factsMisses++
@@ -406,10 +405,17 @@ function writeSessionFacts(
   sessionId: string,
   timeRange: ContactsTimeRangeState,
   factsCache: ContactsFactsCacheContext | null,
-  facts: ContactsSessionFacts
+  facts: ContactsSessionFacts,
+  expectedDbVersion: string
 ): void {
   if (!factsCache) return
   const dbVersion = getSessionDbVersion(adapter, sessionId)
+  if (dbVersion !== expectedDbVersion) {
+    appLogger.debug('contacts', 'skipped contacts session facts cache write because db version changed', {
+      sessionId,
+    })
+    return
+  }
   writeCachedContactsSessionFacts(
     sessionId,
     factsCache.dir,

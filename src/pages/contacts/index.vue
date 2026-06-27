@@ -26,6 +26,7 @@ import {
   shouldShowContactsDisabledNotice,
   shouldShowContactsLoadingState,
   shouldShowGroupmateSection,
+  shouldWaitForStableContactNavigationRows,
 } from './contacts-view-state'
 import { buildContactVirtualRows, type ContactPoolTab, type ContactVirtualRow } from './contacts-virtual-list'
 
@@ -67,6 +68,10 @@ const completedTaskForDisplay = ref<ContactsTaskState | null>(null)
 const completedTaskDisplayTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const searchTimer = ref<ReturnType<typeof setTimeout> | null>(null)
 const tabNavigationTimer = ref<ReturnType<typeof setTimeout> | null>(null)
+const firstPageLoads: Record<ContactPoolTab, Promise<void> | null> = {
+  friend: null,
+  non_friend: null,
+}
 const isTabNavigationScrolling = ref(false)
 const scrollContainerRef = ref<HTMLElement | null>(null)
 const tableBodyRef = ref<HTMLElement | null>(null)
@@ -293,7 +298,13 @@ onUnmounted(() => {
 })
 
 async function loadFirstPage(pool: ContactPoolTab, options?: { acceptStale?: boolean; force?: boolean }) {
-  await loadContactsPage(pool, 1, { ...options, replace: true })
+  const promise = loadContactsPage(pool, 1, { ...options, replace: true })
+  firstPageLoads[pool] = promise
+  try {
+    await promise
+  } finally {
+    if (firstPageLoads[pool] === promise) firstPageLoads[pool] = null
+  }
 }
 
 async function loadInitialContactsPages() {
@@ -469,6 +480,25 @@ async function ensureGroupmateSectionVisible() {
   if (!groupmateState.value.response && !groupmateState.value.isLoadingInitial) {
     await loadFirstPage('non_friend', { acceptStale: true })
   }
+  await waitForStableContactNavigationRows('non_friend')
+}
+
+async function waitForStableContactNavigationRows(targetPool: ContactPoolTab) {
+  if (
+    !shouldWaitForStableContactNavigationRows({
+      targetPool,
+      friendInitialLoading: friendState.value.isLoadingInitial,
+      groupmateInitialLoading: groupmateState.value.isLoadingInitial,
+    })
+  ) {
+    return
+  }
+
+  const pendingLoads = [firstPageLoads.friend, firstPageLoads.non_friend].filter(
+    (promise): promise is Promise<void> => !!promise
+  )
+  if (pendingLoads.length === 0) return
+  await Promise.allSettled(pendingLoads)
 }
 
 function resetContactsState() {

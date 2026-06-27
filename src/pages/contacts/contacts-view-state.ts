@@ -42,6 +42,12 @@ export interface ContactsPollingPoolsState {
   groupmateTaskStatus?: ContactsTaskStatus
 }
 
+export interface ContactNavigationRowsStabilityState {
+  targetPool: ContactPoolTab
+  friendInitialLoading: boolean
+  groupmateInitialLoading: boolean
+}
+
 export function shouldShowContactsDisabledNotice(state: ContactsDisabledNoticeState): boolean {
   return !!state.diagnostics && !state.showLoadingState && !state.diagnostics.contactsEnabled
 }
@@ -52,6 +58,10 @@ export function resolveFriendActionScrollTop(state: FriendActionScrollState): nu
 
 export function shouldPreserveFriendActionRefreshRows(pool: ContactPoolTab): boolean {
   return pool !== 'friend'
+}
+
+export function shouldWaitForStableContactNavigationRows(state: ContactNavigationRowsStabilityState): boolean {
+  return state.targetPool === 'non_friend' && (state.friendInitialLoading || state.groupmateInitialLoading)
 }
 
 export function shouldShowGroupmateSection(state: GroupmateSectionVisibilityState): boolean {

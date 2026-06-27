@@ -13,6 +13,7 @@ import {
   shouldShowContactsLoadingState,
   shouldHoldCompletedContactsTaskProgress,
   shouldPreserveFriendActionRefreshRows,
+  shouldWaitForStableContactNavigationRows,
 } from './contacts-view-state'
 
 function diagnostics(overrides: Partial<ContactsDiagnostics> = {}): ContactsDiagnostics {
@@ -99,6 +100,44 @@ test('replaces friend rows after a groupmate is marked as friend', () => {
 
 test('keeps preserving groupmate rows after local removal during friend actions', () => {
   assert.equal(shouldPreserveFriendActionRefreshRows('non_friend'), true)
+})
+
+test('waits before navigating to groupmates while initial contact rows are loading', () => {
+  assert.equal(
+    shouldWaitForStableContactNavigationRows({
+      targetPool: 'non_friend',
+      friendInitialLoading: true,
+      groupmateInitialLoading: false,
+    }),
+    true
+  )
+  assert.equal(
+    shouldWaitForStableContactNavigationRows({
+      targetPool: 'non_friend',
+      friendInitialLoading: false,
+      groupmateInitialLoading: true,
+    }),
+    true
+  )
+})
+
+test('does not wait for contact navigation once target rows are stable', () => {
+  assert.equal(
+    shouldWaitForStableContactNavigationRows({
+      targetPool: 'non_friend',
+      friendInitialLoading: false,
+      groupmateInitialLoading: false,
+    }),
+    false
+  )
+  assert.equal(
+    shouldWaitForStableContactNavigationRows({
+      targetPool: 'friend',
+      friendInitialLoading: true,
+      groupmateInitialLoading: true,
+    }),
+    false
+  )
 })
 
 test('shows groupmate section immediately when the groupmate tab is active', () => {
