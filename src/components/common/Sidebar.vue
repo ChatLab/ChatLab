@@ -4,6 +4,7 @@ import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import type { AnalysisSession } from '@/types/base'
+import LazyAvatar from '@/components/common/avatar/LazyAvatar.vue'
 import SidebarButton from './sidebar/SidebarButton.vue'
 import SidebarFooter from './sidebar/SidebarFooter.vue'
 import SidebarSortPopover from './sidebar/SidebarSortPopover.vue'
@@ -543,22 +544,17 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
                 />
 
                 <!-- 会话头像 -->
-                <!-- 有头像图片时显示图片 -->
-                <img
-                  v-if="getSessionAvatar(session)"
-                  :src="getSessionAvatar(session)!"
+                <LazyAvatar
+                  :src="getSessionAvatar(session)"
                   :alt="session.name"
-                  class="h-7 w-7 min-w-7 shrink-0 rounded-lg object-cover"
-                  :class="[isCollapsed ? '' : 'mr-2.5']"
+                  :text="getSessionAvatarText(session)"
+                  :root-class="['h-7 w-7 min-w-7 shrink-0', isCollapsed ? '' : 'mr-2.5']"
+                  image-class="h-7 w-7 rounded-lg object-cover"
+                  :fallback-class="[
+                    'flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold select-none',
+                    getAvatarColorClass(session, route.params.id === session.id),
+                  ]"
                 />
-                <!-- 无头像时显示精致的首字母/缩写字头像 -->
-                <div
-                  v-else
-                  class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg text-xs font-semibold select-none"
-                  :class="[getAvatarColorClass(session, route.params.id === session.id), isCollapsed ? '' : 'mr-2.5']"
-                >
-                  {{ getSessionAvatarText(session) }}
-                </div>
 
                 <!-- Session Info -->
                 <div v-if="!isCollapsed" class="min-w-0 flex-1">

@@ -5,6 +5,7 @@ import { storeToRefs } from 'pinia'
 import { useToast } from '@/composables/useToast'
 import { useSessionStore } from '@/stores/session'
 import type { AnalysisSession } from '@/types/base'
+import LazyAvatar from '@/components/common/avatar/LazyAvatar.vue'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/zh-cn'
@@ -631,19 +632,15 @@ onMounted(() => {
 
         <!-- 头像 -->
         <div class="w-8">
-          <img
-            v-if="getSessionAvatar(session)"
-            :src="getSessionAvatar(session)!"
+          <LazyAvatar
+            :src="getSessionAvatar(session)"
             :alt="session.name"
-            class="h-8 w-8 shrink-0 rounded-full object-cover"
+            :text="getSessionAvatarText(session)"
+            :fallback-class="[
+              'flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold',
+              isPrivateChat(session) ? 'bg-pink-500 text-white' : 'bg-primary-500 text-white',
+            ]"
           />
-          <div
-            v-else
-            class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
-            :class="isPrivateChat(session) ? 'bg-pink-500 text-white' : 'bg-primary-500 text-white'"
-          >
-            {{ getSessionAvatarText(session) }}
-          </div>
         </div>
 
         <!-- 名称 -->
