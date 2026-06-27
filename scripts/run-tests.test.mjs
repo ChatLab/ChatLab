@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 
-import { buildNodeTestArgs, filterDefaultTestFiles } from './run-tests.mjs'
+import { buildNodeTestArgs, checkSupportedNodeVersion, filterDefaultTestFiles } from './run-tests.mjs'
 
 test('default test collection excludes e2e, smoke, and real external tests', () => {
   const files = [
@@ -29,4 +29,13 @@ test('explicit test arguments are passed through without default exclusions', ()
     '--test',
     'tests/e2e/helpers/app-launcher.test.js',
   ])
+})
+
+test('node version check rejects unsupported test runtimes before native modules load', () => {
+  assert.deepEqual(checkSupportedNodeVersion('24.2.0'), { ok: true })
+  assert.deepEqual(checkSupportedNodeVersion('22.20.0'), {
+    ok: false,
+    message:
+      'ChatLab tests require Node.js >=24 <25. Current Node.js is 22.20.0. Switch to Node 24 before running tests.',
+  })
 })

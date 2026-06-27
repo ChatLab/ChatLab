@@ -137,6 +137,8 @@ CHATLAB_ALLOW_INCOMPATIBLE_DATA_DIR=1
 - 修改 TypeScript 或 Vue 代码后，至少运行相关类型检查。
 - 修改公开文档后，运行 `pnpm docs:build` 或对修改的 Markdown/配置文件运行格式化检查。
 - 修改跨平台共享逻辑后，确认 Electron 和 CLI Web 两端入口没有产生行为分歧。
+- 修复会影响用户数据、业务逻辑、异步任务、缓存状态、跨端共享 service、公开 API 契约、导入解析、去重逻辑、权限认证、AI 工具 allowlist、配置/API key 迁移或数据库 schema/迁移的行为 bug 时，必须优先补能失败的回归测试。
+- 只改 UI 文案、i18n key/翻译、样式、类型声明、日志、注释、无行为变化的小重构，或修复低风险展示细节时，可以不新增测试，但仍需运行相关类型检查、lint 和 format；不要为了低价值页面文案或源码字符串扫描新增脆弱测试。
 - 日常默认运行 `pnpm test`；需要优先验证相关文件时运行 `pnpm test -- path/to/file.test.ts`。
 - `pnpm test` 默认只包含单元/集成测试，不应依赖真实 LLM、真实 Electron、真实浏览器、真实网络或长时间 E2E。
 - 与单个业务模块强相关的单元测试就近放在被测文件同目录，命名为 `*.test.ts` 或 `*.test.js`。

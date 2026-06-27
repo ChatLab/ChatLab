@@ -18,6 +18,7 @@ const SKIP_DIRS = new Set([
 ])
 
 const TEST_FILE_RE = /\.(?:test|spec)\.(?:ts|tsx|js|jsx|mjs|mts|cjs|cts)$/
+const SUPPORTED_NODE_MAJOR = 24
 
 function normalizePath(filePath) {
   return filePath.split(sep).join('/')
@@ -64,7 +65,22 @@ export function buildNodeTestArgs(testArgs) {
   return ['--experimental-test-module-mocks', '--import', 'tsx', '--test', ...testArgs]
 }
 
+export function checkSupportedNodeVersion(version = process.versions.node) {
+  const major = Number.parseInt(version.split('.')[0] ?? '', 10)
+  if (major === SUPPORTED_NODE_MAJOR) return { ok: true }
+  return {
+    ok: false,
+    message: `ChatLab tests require Node.js >=24 <25. Current Node.js is ${version}. Switch to Node 24 before running tests.`,
+  }
+}
+
 function run() {
+  const nodeVersion = checkSupportedNodeVersion()
+  if (!nodeVersion.ok) {
+    console.error(nodeVersion.message)
+    process.exit(1)
+  }
+
   const explicitArgs = process.argv.slice(2)
   const testArgs = explicitArgs.length > 0 ? explicitArgs : collectDefaultTestFiles()
 
