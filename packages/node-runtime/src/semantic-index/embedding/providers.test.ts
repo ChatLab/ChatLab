@@ -27,6 +27,20 @@ test('Qwen3 local provider embeds one text per call (batch=1)', async () => {
   assert.ok(calls.every((c) => c.length === 1))
 })
 
+test('local provider limits ONNX runtime threads by default', async () => {
+  let capturedSessionOptions: unknown
+  const provider = new LocalEmbeddingProvider(QWEN3_PROFILE, {
+    pipelineFactory: async (params) => {
+      capturedSessionOptions = params.sessionOptions
+      return async (texts) => texts.map(() => Array.from({ length: QWEN3_PROFILE.dim }, () => 0.1))
+    },
+  })
+
+  await provider.preload()
+
+  assert.deepEqual(capturedSessionOptions, { intraOpNumThreads: 1, interOpNumThreads: 1 })
+})
+
 test('local provider without maxBatchSize embeds all texts in a single call', async () => {
   const calls: string[][] = []
   const provider = new LocalEmbeddingProvider(NO_BATCH_PROFILE, { pipelineFactory: makeFakeFactory(8, calls) })
@@ -61,6 +75,22 @@ test('local provider throws when returned dim mismatches profile', async () => {
   await assert.rejects(() => provider.embedDocuments(['a']), /dim/i)
 })
 
+test('local provider retries pipeline creation after a failed preload', async () => {
+  let attempts = 0
+  const provider = new LocalEmbeddingProvider(QWEN3_PROFILE, {
+    pipelineFactory: async () => {
+      attempts++
+      if (attempts === 1) throw new Error('temporary network failure')
+      return async (texts) => texts.map(() => Array.from({ length: QWEN3_PROFILE.dim }, () => 0.1))
+    },
+  })
+
+  await assert.rejects(() => provider.preload(), /temporary network failure/)
+  await provider.preload()
+
+  assert.equal(attempts, 2)
+})
+
 test('local model download proxy rejects SOCKS URLs explicitly', async () => {
   await assert.rejects(() => createProxyFetch('socks5://127.0.0.1:1080'), /SOCKS proxy is not supported/)
 })
@@ -86,7 +116,7 @@ test('API provider posts OpenAI-compatible request and parses ordered embeddings
     { fetchFn }
   )
 
-  assert.equal(provider.documentBatchSize, 32)
+  assert.equal(provider.documentBatchSize, 8)
   const vectors = await provider.embedDocuments(['first', 'second'])
   assert.equal(captured!.url, 'https://api.example.com/v1/embeddings')
   assert.equal(captured!.headers.Authorization, 'Bearer sk-test')

@@ -15,6 +15,7 @@ import { applyQueryInstruction, clampTextChars } from './text'
 type UndiciFetch = (typeof import('undici'))['fetch']
 type UndiciRequestInit = NonNullable<Parameters<UndiciFetch>[1]>
 const SOCKS_PROXY_PROTOCOLS = new Set(['socks:', 'socks4:', 'socks5:'])
+export const LOCAL_ONNX_SESSION_OPTIONS = { intraOpNumThreads: 1, interOpNumThreads: 1 } as const
 
 /** 一次特征抽取调用：输入文本数组，返回每条文本的向量（number[][]） */
 export type FeatureExtractFn = (
@@ -28,6 +29,7 @@ export type LocalPipelineFactory = (params: {
   dtype?: 'fp32' | 'q8'
   cacheDir?: string
   modelDownloadProxyUrl?: string
+  sessionOptions?: typeof LOCAL_ONNX_SESSION_OPTIONS
 }) => Promise<FeatureExtractFn>
 
 export async function createProxyFetch(proxyUrl: string): Promise<typeof fetch> {
@@ -54,7 +56,10 @@ const defaultPipelineFactory: LocalPipelineFactory = async ({ modelId, dtype, ca
   if (modelDownloadProxyUrl) {
     transformers.env.fetch = await createProxyFetch(modelDownloadProxyUrl)
   }
-  const extractor = await transformers.pipeline('feature-extraction', modelId, dtype ? { dtype } : undefined)
+  const extractor = await transformers.pipeline('feature-extraction', modelId, {
+    ...(dtype ? { dtype } : {}),
+    session_options: LOCAL_ONNX_SESSION_OPTIONS,
+  })
   return async (texts, options) => {
     const out = await extractor(texts, { pooling: options.pooling, normalize: options.normalize })
     return out.tolist() as number[][]
@@ -94,6 +99,10 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
         dtype: this.profile.dtype,
         cacheDir: this.options.cacheDir,
         modelDownloadProxyUrl: this.options.modelDownloadProxyUrl,
+        sessionOptions: LOCAL_ONNX_SESSION_OPTIONS,
+      }).catch((error) => {
+        this.extractorPromise = null
+        throw error
       })
     }
     return this.extractorPromise
