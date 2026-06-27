@@ -1,10 +1,10 @@
 /**
- * Run: pnpm test -- src/pages/contacts/contacts-virtual-list.test.ts
+ * Run: pnpm test -- src/pages/people/contacts/contacts-virtual-rows.test.ts
  */
 
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { buildContactVirtualRows } from './contacts-virtual-list'
+import { buildContactVirtualRows } from './contacts-virtual-rows'
 import type { ContactListItem } from '@openchatlab/shared-types'
 
 function contact(key: string, pool: ContactListItem['pool']): ContactListItem {

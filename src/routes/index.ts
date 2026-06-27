@@ -1,36 +1,10 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { IS_ELECTRON } from '@/utils/platform'
 import { useAuthStore } from '@/stores/auth'
+import { appRoutes } from './routes'
 
 export const router = createRouter({
-  routes: [
-    {
-      path: '/login',
-      name: 'login',
-      component: () => import('@/pages/login/index.vue'),
-      meta: { public: true },
-    },
-    {
-      path: '/',
-      name: 'home',
-      component: () => import('@/pages/home/index.vue'),
-    },
-    {
-      path: '/group-chat/:id',
-      name: 'group-chat',
-      component: () => import('@/pages/group-chat/index.vue'),
-    },
-    {
-      path: '/private-chat/:id',
-      name: 'private-chat',
-      component: () => import('@/pages/private-chat/index.vue'),
-    },
-    {
-      path: '/contacts',
-      name: 'contacts',
-      component: () => import('@/pages/contacts/index.vue'),
-    },
-  ],
+  routes: appRoutes,
   history: createWebHashHistory(),
 })
 
@@ -61,7 +35,7 @@ function preloadCriticalRoutes() {
   requestIdleCallback(() => {
     import('@/pages/group-chat/index.vue')
     import('@/pages/private-chat/index.vue')
-    import('@/pages/contacts/index.vue')
+    import('@/pages/people/contacts/index.vue')
   })
 }
 

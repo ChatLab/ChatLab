@@ -1,5 +1,5 @@
 /**
- * Run: pnpm test -- src/pages/contacts/contacts-view-state.test.ts
+ * Run: pnpm test -- src/pages/people/contacts/contacts-state.test.ts
  */
 
 import assert from 'node:assert/strict'
@@ -14,7 +14,7 @@ import {
   shouldHoldCompletedContactsTaskProgress,
   shouldPreserveFriendActionRefreshRows,
   shouldWaitForStableContactNavigationRows,
-} from './contacts-view-state'
+} from './contacts-state'
 
 function diagnostics(overrides: Partial<ContactsDiagnostics> = {}): ContactsDiagnostics {
   return {

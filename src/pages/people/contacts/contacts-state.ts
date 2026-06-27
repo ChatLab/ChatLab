@@ -1,5 +1,5 @@
 import type { ContactsDiagnostics, ContactsTaskStatus } from '@openchatlab/shared-types'
-import type { ContactPoolTab } from './contacts-virtual-list'
+import type { ContactPoolTab } from './contacts-virtual-rows'
 
 export interface ContactsDisabledNoticeState {
   diagnostics: ContactsDiagnostics | null | undefined

@@ -37,7 +37,7 @@ const CONTACTS_PRIVATE_SESSION_THRESHOLD = 10
 
 // 是否在首页
 const isHomePage = computed(() => route.path === '/')
-const isContactsPage = computed(() => route.name === 'contacts')
+const isPeoplePage = computed(() => String(route.name ?? '').startsWith('people-'))
 const privateSessionCount = computed(() => sessions.value.filter((session) => session.type === 'private').length)
 const showContactsEntry = computed(() => privateSessionCount.value > CONTACTS_PRIVATE_SESSION_THRESHOLD)
 
@@ -114,7 +114,7 @@ function handleImport() {
 }
 
 function openContacts() {
-  router.push({ name: 'contacts' })
+  router.push({ name: 'people-contacts' })
 }
 
 function readUpdateCheckCache(): UpdateNoticeCache | null {
@@ -451,8 +451,8 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
         v-if="showContactsEntry"
         icon="i-lucide-users"
         icon-class="scale-90"
-        :title="t('layout.contacts')"
-        :active="isContactsPage"
+        :title="t('layout.relationships')"
+        :active="isPeoplePage"
         @click="openContacts"
       />
     </div>

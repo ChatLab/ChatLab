@@ -27,8 +27,8 @@ import {
   shouldShowContactsLoadingState,
   shouldShowGroupmateSection,
   shouldWaitForStableContactNavigationRows,
-} from './contacts-view-state'
-import { buildContactVirtualRows, type ContactPoolTab, type ContactVirtualRow } from './contacts-virtual-list'
+} from './contacts-state'
+import { buildContactVirtualRows, type ContactPoolTab, type ContactVirtualRow } from './contacts-virtual-rows'
 
 interface ContactsTabState {
   items: ContactListItem[]
@@ -825,7 +825,7 @@ function getGroupSectionScrollTop(): number | null {
     style="padding-top: var(--titlebar-area-height)"
   >
     <PageHeader
-      :title="t('contacts.title')"
+      :title="t('layout.relationships')"
       :description="t('contacts.subtitle', { count: diagnostics?.privateSessionCount ?? 0 })"
       size="compact"
       icon="i-lucide-users"
@@ -852,8 +852,8 @@ function getGroupSectionScrollTop(): number | null {
             type="button"
             class="flex items-center gap-1.5 rounded-lg bg-pink-500 px-2.5 py-1.5 text-xs font-semibold text-white transition-all dark:bg-pink-900/30 dark:text-pink-300"
           >
-            <UIcon name="i-heroicons-chart-pie" class="h-3.5 w-3.5" />
-            <span class="whitespace-nowrap">{{ t('analysis.tabs.overview') }}</span>
+            <UIcon name="i-lucide-users" class="h-3.5 w-3.5" />
+            <span class="whitespace-nowrap">{{ t('contacts.title') }}</span>
           </button>
         </div>
 
