@@ -8,7 +8,9 @@ import type { ContactItem, ContactListItem, ContactsResponse, ContactsTimeRangeP
 import { useDataService } from '@/services'
 import { useToast } from '@/composables/useToast'
 import PageHeader from '@/components/layout/PageHeader.vue'
-import { SubTabs } from '@/components/UI'
+import { LoadingState, SubTabs } from '@/components/UI'
+import ContactDetailPanel from './components/ContactDetailPanel.vue'
+import ContactsStatusBlocks from './components/ContactsStatusBlocks.vue'
 import { shouldShowContactsDisabledNotice } from './contacts-view-state'
 import { buildContactVirtualRows, type ContactPoolTab, type ContactVirtualRow } from './contacts-virtual-list'
 
@@ -113,10 +115,18 @@ const task = computed(() => response.value?.task)
 const isTaskRunning = computed(() => task.value?.status === 'running')
 const taskFailed = computed(() => task.value?.status === 'failed')
 const showLoadingState = computed(
-  () =>
-    (friendState.value.isLoadingInitial && virtualRows.value.length <= 1) ||
-    (response.value?.cache.status === 'missing' && isTaskRunning.value && virtualRows.value.length <= 1)
+  () => isTaskRunning.value || (friendState.value.isLoadingInitial && virtualRows.value.length <= 1)
 )
+const loadingStateText = computed(() => {
+  if (response.value?.cache.status === 'stale' && isTaskRunning.value) return t('contacts.task.updating')
+  if (response.value?.cache.status === 'missing' && isTaskRunning.value) {
+    return t('contacts.task.running', {
+      current: task.value?.processedSessions ?? 0,
+      total: task.value?.totalSessions ?? 0,
+    })
+  }
+  return t('common.loading')
+})
 const showDisabledNotice = computed(() =>
   shouldShowContactsDisabledNotice({
     diagnostics: diagnostics.value,
@@ -167,13 +177,6 @@ const virtualizer = useVirtualizer(
 
 const virtualItems = computed(() => virtualizer.value.getVirtualItems())
 const totalSize = computed(() => virtualizer.value.getTotalSize())
-
-const visibleSelectedContactAliases = computed(() => {
-  const contact = selectedContact.value
-  if (!contact) return []
-  const hidden = new Set([contact.displayName.trim().toLowerCase(), contact.platformId.trim().toLowerCase()])
-  return contact.aliases.filter((alias) => !hidden.has(alias.trim().toLowerCase()))
-})
 
 watch(searchQuery, (value) => {
   if (searchTimer.value) clearTimeout(searchTimer.value)
@@ -646,8 +649,19 @@ function getGroupSectionStart(): number {
               icon="i-lucide-search"
               :placeholder="t('contacts.search')"
               size="sm"
-              class="w-full sm:w-64"
-            />
+              class="w-full sm:w-32"
+            >
+              <template v-if="searchQuery" #trailing>
+                <UButton
+                  icon="i-heroicons-x-mark"
+                  variant="link"
+                  color="neutral"
+                  size="xs"
+                  :aria-label="t('contacts.actions.clearSearch')"
+                  @click="searchQuery = ''"
+                />
+              </template>
+            </UInput>
           </div>
         </template>
       </SubTabs>
@@ -655,83 +669,19 @@ function getGroupSectionStart(): number {
       <div class="flex min-h-0 flex-1 overflow-hidden">
         <main ref="scrollContainerRef" class="min-h-0 min-w-0 flex-1 overflow-y-auto" @scroll="handleListScroll">
           <div class="mx-auto flex w-full max-w-[1800px] flex-col gap-6 px-6 pb-6 pt-0 lg:px-8">
-            <div
-              v-if="showDisabledNotice"
-              class="flex items-center gap-3 rounded-2xl border border-amber-200 bg-amber-50/50 px-4 py-3.5 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/20 dark:text-amber-200"
-            >
-              <UIcon name="i-lucide-alert-triangle" class="h-5 w-5 shrink-0 text-amber-500" />
-              <span>{{ t('contacts.disabled', { count: diagnostics?.activePrivateSessionCount ?? 0 }) }}</span>
-            </div>
-
-            <div
-              v-if="response?.cache.status === 'stale'"
-              class="flex flex-col gap-3 rounded-2xl border border-sky-100 bg-sky-50/50 px-4 py-3.5 text-sm text-sky-800 dark:border-sky-900/30 dark:bg-sky-950/20 dark:text-sky-200 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div class="flex items-center gap-3">
-                <UIcon name="i-lucide-info" class="h-5 w-5 shrink-0 text-sky-500" />
-                <span>{{ isTaskRunning ? t('contacts.task.updating') : t('contacts.stale.inline') }}</span>
-              </div>
-              <UButton
-                size="xs"
-                color="primary"
-                variant="solid"
-                class="rounded-xl"
-                :loading="isRecomputing || isTaskRunning"
-                :disabled="isTaskRunning"
-                @click="recomputeContacts"
-              >
-                {{ t('contacts.actions.recompute') }}
-              </UButton>
-            </div>
-
-            <div
-              v-if="response?.cache.status === 'missing' && isTaskRunning"
-              class="flex items-center gap-3 rounded-2xl border border-sky-100 bg-sky-50/50 px-4 py-3.5 text-sm text-sky-800 dark:border-sky-900/30 dark:bg-sky-950/20 dark:text-sky-200"
-            >
-              <UIcon name="i-lucide-loader-2" class="h-5 w-5 shrink-0 animate-spin text-sky-500" />
-              <span>
-                {{
-                  t('contacts.task.running', {
-                    current: task?.processedSessions ?? 0,
-                    total: task?.totalSessions ?? 0,
-                  })
-                }}
-              </span>
-            </div>
-
-            <div
-              v-if="taskFailed"
-              class="flex flex-col gap-3 rounded-2xl border border-red-200 bg-red-50/50 px-4 py-3.5 text-sm text-red-700 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div class="flex min-w-0 items-center gap-3">
-                <UIcon name="i-lucide-alert-circle" class="h-5 w-5 shrink-0 text-red-500" />
-                <span class="truncate">{{ task?.lastError || t('contacts.task.failed') }}</span>
-              </div>
-              <UButton size="xs" color="error" variant="soft" class="rounded-xl" @click="recomputeContacts">
-                {{ t('contacts.task.retry') }}
-              </UButton>
-            </div>
+            <ContactsStatusBlocks
+              :show-disabled-notice="showDisabledNotice"
+              :active-private-session-count="diagnostics?.activePrivateSessionCount ?? 0"
+              :cache-status="response?.cache.status"
+              :task-failed="taskFailed"
+              :task-last-error="task?.lastError"
+              :is-task-running="isTaskRunning"
+              :is-recomputing="isRecomputing"
+              @recompute="recomputeContacts"
+            />
 
             <section class="flex flex-col gap-4">
-              <!-- 加载骨架 -->
-              <div v-if="showLoadingState" class="space-y-8">
-                <div v-for="g in 3" :key="g" class="space-y-4">
-                  <!-- 分组骨架标题 -->
-                  <div class="flex items-center gap-3">
-                    <div class="h-5 w-20 animate-pulse rounded-lg bg-gray-100 dark:bg-white/5" />
-                    <div class="h-4 w-10 animate-pulse rounded-lg bg-gray-50 dark:bg-white/5" />
-                    <div class="h-px flex-1 bg-gray-100 dark:bg-white/5" />
-                  </div>
-                  <!-- 列表骨架 -->
-                  <div class="space-y-2">
-                    <div
-                      v-for="i in 4"
-                      :key="i"
-                      class="h-[76px] animate-pulse rounded-2xl bg-gray-100 dark:bg-white/5"
-                    />
-                  </div>
-                </div>
-              </div>
+              <LoadingState v-if="showLoadingState" :text="loadingStateText" height="py-16" />
 
               <div
                 v-else-if="pageError"
@@ -775,7 +725,20 @@ function getGroupSectionStart(): number {
                         <span>{{ t('contacts.metrics.replies') }}</span>
                       </template>
                       <span>{{ t('contacts.metrics.lastInteractionShort') }}</span>
-                      <span class="text-right">{{ t('contacts.detail.score') }}</span>
+                      <span class="flex min-w-0 items-center justify-end gap-1 text-right">
+                        <span class="truncate">{{ t('contacts.detail.score') }}</span>
+                        <UTooltip :content="{ side: 'top' }" :ui="{ content: 'h-auto' }">
+                          <UIcon
+                            name="i-lucide-circle-help"
+                            class="h-3.5 w-3.5 shrink-0 text-gray-350 transition-colors hover:text-primary-500 dark:text-gray-600 dark:hover:text-primary-400"
+                          />
+                          <template #content>
+                            <div class="max-w-[280px] whitespace-normal break-words text-left text-xs leading-5">
+                              {{ t('contacts.detail.scoreHelp') }}
+                            </div>
+                          </template>
+                        </UTooltip>
+                      </span>
                     </div>
                   </div>
 
@@ -801,7 +764,20 @@ function getGroupSectionStart(): number {
                           <span>{{ t('contacts.metrics.coOccurrence') }}</span>
                           <span>{{ t('contacts.metrics.replies') }}</span>
                           <span>{{ t('contacts.metrics.lastInteractionShort') }}</span>
-                          <span class="text-right">{{ t('contacts.detail.score') }}</span>
+                          <span class="flex min-w-0 items-center justify-end gap-1 text-right">
+                            <span class="truncate">{{ t('contacts.detail.score') }}</span>
+                            <UTooltip :content="{ side: 'top' }" :ui="{ content: 'h-auto' }">
+                              <UIcon
+                                name="i-lucide-circle-help"
+                                class="h-3.5 w-3.5 shrink-0 text-gray-350 transition-colors hover:text-primary-500 dark:text-gray-600 dark:hover:text-primary-400"
+                              />
+                              <template #content>
+                                <div class="max-w-[280px] whitespace-normal break-words text-left text-xs leading-5">
+                                  {{ t('contacts.detail.scoreHelp') }}
+                                </div>
+                              </template>
+                            </UTooltip>
+                          </span>
                         </div>
 
                         <button
@@ -931,112 +907,13 @@ function getGroupSectionStart(): number {
           </div>
         </main>
 
-        <Transition name="contact-detail-panel">
-          <aside
-            v-if="selectedKey"
-            class="flex h-full w-[420px] max-w-[80vw] shrink-0 flex-col border-l border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
-            style="-webkit-app-region: no-drag"
-          >
-            <div class="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
-              <h3 class="text-base font-semibold text-gray-900 dark:text-white">{{ t('contacts.detail.title') }}</h3>
-              <UButton
-                :aria-label="t('contacts.actions.clearSelection')"
-                icon="i-heroicons-x-mark"
-                color="neutral"
-                variant="ghost"
-                size="sm"
-                @click="clearSelectedContact"
-              />
-            </div>
-
-            <div
-              v-if="isDetailLoading"
-              class="flex min-h-0 flex-1 items-center justify-center gap-2 text-sm text-gray-400 dark:text-gray-500"
-            >
-              <UIcon name="i-lucide-loader-2" class="h-4 w-4 animate-spin" />
-              <span>{{ t('common.loading') }}</span>
-            </div>
-
-            <div v-else-if="selectedContact" class="min-h-0 flex-1 overflow-y-auto">
-              <section class="px-5 py-5">
-                <div class="flex items-start gap-4">
-                  <div class="relative shrink-0">
-                    <img
-                      v-if="selectedContact.avatar"
-                      :src="selectedContact.avatar"
-                      :alt="selectedContact.displayName"
-                      class="h-16 w-16 rounded-2xl object-cover shadow-sm ring-2 ring-white dark:ring-gray-900"
-                    />
-                    <div
-                      v-else
-                      class="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-gray-155 to-gray-200 text-lg font-bold text-gray-700 dark:from-gray-800 dark:to-gray-900 dark:text-gray-200"
-                    >
-                      {{ avatarText(selectedContact) }}
-                    </div>
-                  </div>
-                  <div class="min-w-0 flex-1 pt-1">
-                    <h2 class="truncate text-lg font-bold tracking-tight text-gray-900 dark:text-white">
-                      {{ selectedContact.displayName }}
-                    </h2>
-                    <p class="mt-1 truncate font-mono text-xs text-gray-400 dark:text-gray-500">
-                      {{ selectedContact.platform }} · {{ selectedContact.platformId }}
-                    </p>
-                    <div v-if="visibleSelectedContactAliases.length > 0" class="mt-2 flex flex-wrap gap-1.5">
-                      <span
-                        v-for="alias in visibleSelectedContactAliases.slice(0, 4)"
-                        :key="alias"
-                        class="max-w-full truncate rounded-md bg-gray-100 px-2 py-0.5 text-[11px] font-medium text-gray-500 dark:bg-white/5 dark:text-gray-400"
-                      >
-                        {{ alias }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-              </section>
-
-              <section class="border-t border-gray-100 px-5 py-4 dark:border-white/5">
-                <h3 class="mb-3 text-[10px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500">
-                  {{ t('contacts.detail.sources') }}
-                </h3>
-                <div class="space-y-2.5">
-                  <button
-                    v-for="source in selectedContact.sourceSessions"
-                    :key="source.id"
-                    type="button"
-                    class="group/item w-full rounded-2xl border border-gray-100 bg-white/40 px-3.5 py-3 text-left transition duration-300 hover:-translate-y-0.5 hover:border-gray-200 hover:shadow-sm dark:border-white/5 dark:bg-gray-900/10 dark:hover:border-white/10"
-                    @click="openSourceSession(source)"
-                  >
-                    <div class="flex items-center justify-between gap-2">
-                      <span class="truncate text-xs font-semibold text-gray-700 dark:text-gray-300">
-                        {{ source.name }}
-                      </span>
-                      <span
-                        class="flex items-center gap-1 text-[10px] font-bold text-gray-400 transition group-hover/item:text-pink-500 dark:text-gray-500"
-                      >
-                        {{
-                          source.type === 'private'
-                            ? t('contacts.detail.sourceType.private')
-                            : t('contacts.detail.sourceType.group')
-                        }}
-                        <UIcon
-                          name="i-lucide-arrow-up-right"
-                          class="h-3 w-3 transition-transform group-hover/item:translate-x-0.5 group-hover/item:-translate-y-0.5"
-                        />
-                      </span>
-                    </div>
-                    <div class="mt-1.5 truncate text-[11px] font-medium text-gray-400 dark:text-gray-500">
-                      {{
-                        source.privateMessageCount != null
-                          ? t('contacts.metrics.privateMessages', { count: source.privateMessageCount })
-                          : t('contacts.metrics.groupSignals', { count: source.coOccurrenceCount ?? 0 })
-                      }}
-                    </div>
-                  </button>
-                </div>
-              </section>
-            </div>
-          </aside>
-        </Transition>
+        <ContactDetailPanel
+          :selected-key="selectedKey"
+          :contact="selectedContact"
+          :is-loading="isDetailLoading"
+          @clear="clearSelectedContact"
+          @open-source="openSourceSession"
+        />
       </div>
     </div>
   </div>
@@ -1072,28 +949,5 @@ function getGroupSectionStart(): number {
 
 .dark .contact-table-value {
   color: rgb(209, 213, 219);
-}
-
-.contact-detail-panel-enter-active,
-.contact-detail-panel-leave-active {
-  overflow: hidden;
-  transition:
-    width 0.22s ease,
-    opacity 0.18s ease,
-    transform 0.22s ease;
-}
-
-.contact-detail-panel-enter-from,
-.contact-detail-panel-leave-to {
-  width: 0 !important;
-  opacity: 0;
-  transform: translateX(16px);
-}
-
-.contact-detail-panel-enter-to,
-.contact-detail-panel-leave-from {
-  width: 420px;
-  opacity: 1;
-  transform: translateX(0);
 }
 </style>

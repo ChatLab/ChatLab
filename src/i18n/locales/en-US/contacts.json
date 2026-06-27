@@ -4,7 +4,7 @@
   "disabled": "Current active private chat count in this range is {count}. The sidebar entry appears after more than 10 active private chats.",
   "empty": "No matching contacts",
   "emptyValue": "None",
-  "search": "Search contacts, IDs, or aliases",
+  "search": "Search contacts",
   "score": "Score {value}",
   "timeRange": {
     "1y": "1Y",
@@ -42,12 +42,14 @@
   },
   "actions": {
     "recompute": "Recompute",
+    "clearSearch": "Clear search",
     "clearSelection": "Clear selection",
     "viewDetail": "View details for {name}"
   },
   "detail": {
     "title": "Contact details",
     "score": "Score",
+    "scoreHelp": "The score is used to sort contacts. A higher score means stronger interaction signals.",
     "lastInteraction": "Last interaction",
     "sources": "Source chats",
     "sourceType": {
@@ -78,7 +80,7 @@
   },
   "task": {
     "running": "Computing contacts: {current} / {total} sessions",
-    "updating": "Contacts may be stale. Updating in the background.",
+    "updating": "Contacts may have changed. Recomputing.",
     "failed": "Contact computation failed",
     "retry": "Retry"
   },

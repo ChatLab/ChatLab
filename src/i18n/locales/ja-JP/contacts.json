@@ -4,7 +4,7 @@
   "disabled": "現在の期間内の有効な個人チャット数は {count} 件です。サイドバー項目は有効な個人チャットが 10 件を超えると表示されます。",
   "empty": "一致する連絡先はありません",
   "emptyValue": "なし",
-  "search": "連絡先、ID、別名を検索",
+  "search": "連絡先を検索",
   "score": "スコア {value}",
   "timeRange": {
     "1y": "1年",
@@ -42,12 +42,14 @@
   },
   "actions": {
     "recompute": "再計算",
+    "clearSearch": "検索をクリア",
     "clearSelection": "選択を解除",
     "viewDetail": "{name} の詳細を表示"
   },
   "detail": {
     "title": "連絡先の詳細",
     "score": "総合スコア",
+    "scoreHelp": "総合スコアは連絡先の並び順に使われます。スコアが高いほど、やり取りのシグナルが強いことを示します。",
     "lastInteraction": "最終インタラクション",
     "sources": "元チャット",
     "sourceType": {
@@ -78,7 +80,7 @@
   },
   "task": {
     "running": "連絡先を計算中: {current} / {total} セッション",
-    "updating": "連絡先データが古い可能性があります。バックグラウンドで更新しています。",
+    "updating": "連絡先データが更新された可能性があります。再計算しています。",
     "failed": "連絡先の計算に失敗しました",
     "retry": "再試行"
   },

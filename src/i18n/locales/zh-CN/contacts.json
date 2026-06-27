@@ -4,7 +4,7 @@
   "disabled": "当前时间范围内有效私聊会话数为 {count}，联系人入口默认在有效私聊会话数超过 10 后显示。",
   "empty": "没有匹配的联系人",
   "emptyValue": "暂无",
-  "search": "搜索联系人、ID 或别名",
+  "search": "搜索联系人",
   "score": "分数 {value}",
   "timeRange": {
     "1y": "近1年",
@@ -42,12 +42,14 @@
   },
   "actions": {
     "recompute": "重新计算",
+    "clearSearch": "清空搜索",
     "clearSelection": "取消选中",
     "viewDetail": "查看 {name} 的详情"
   },
   "detail": {
     "title": "联系人详情",
     "score": "综合分",
+    "scoreHelp": "综合分用于联系人排序。分数越高，代表互动信号越强。",
     "lastInteraction": "最近互动",
     "sources": "来源会话",
     "sourceType": {
@@ -78,7 +80,7 @@
   },
   "task": {
     "running": "正在计算联系人：{current} / {total} 个会话",
-    "updating": "联系人数据可能已过期，正在后台更新。",
+    "updating": "联系人数据可能已更新，正在重新计算。",
     "failed": "联系人计算失败",
     "retry": "重试"
   },

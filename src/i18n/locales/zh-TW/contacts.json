@@ -4,7 +4,7 @@
   "disabled": "目前時間範圍內有效私聊會話數為 {count}，聯絡人入口預設在有效私聊會話數超過 10 後顯示。",
   "empty": "沒有符合的聯絡人",
   "emptyValue": "暫無",
-  "search": "搜尋聯絡人、ID 或別名",
+  "search": "搜尋聯絡人",
   "score": "分數 {value}",
   "timeRange": {
     "1y": "近1年",
@@ -42,12 +42,14 @@
   },
   "actions": {
     "recompute": "重新計算",
+    "clearSearch": "清空搜尋",
     "clearSelection": "取消選中",
     "viewDetail": "查看 {name} 的詳情"
   },
   "detail": {
     "title": "聯絡人詳情",
     "score": "綜合分",
+    "scoreHelp": "綜合分用於聯絡人排序。分數越高，代表互動訊號越強。",
     "lastInteraction": "最近互動",
     "sources": "來源會話",
     "sourceType": {
@@ -78,7 +80,7 @@
   },
   "task": {
     "running": "正在計算聯絡人：{current} / {total} 個會話",
-    "updating": "聯絡人資料可能已過期，正在背景更新。",
+    "updating": "聯絡人資料可能已更新，正在重新計算。",
     "failed": "聯絡人計算失敗",
     "retry": "重試"
   },
