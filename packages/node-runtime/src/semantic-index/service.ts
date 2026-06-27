@@ -823,7 +823,9 @@ export class SemanticIndexService {
     }
 
     const source = createChatDbMessageSource(db, this.resolveSource(db))
-    await runWarmup({
+    const startedAt = Date.now()
+    appLogger.info('semantic-index', 'warmup job started', { type: job.type, sessionId, dbPathHash: job.dbPathHash })
+    const result = await runWarmup({
       dbPathHash: job.dbPathHash,
       modelId: this.currentModelId(),
       embedder: this.getEmbedder(),
@@ -831,6 +833,15 @@ export class SemanticIndexService {
       stateStore: this.stateStore,
       source,
       checkStop,
+    })
+    appLogger.info('semantic-index', 'warmup job finished', {
+      type: job.type,
+      sessionId,
+      dbPathHash: job.dbPathHash,
+      status: result.status,
+      chunksWritten: result.chunksWritten,
+      elapsedMs: Date.now() - startedAt,
+      error: result.error,
     })
   }
 

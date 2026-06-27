@@ -10,8 +10,8 @@
 
 import type { EmbeddingProvider } from './types'
 
-/** API embedding 默认一次提交 32 个 chunk，保持 concurrency=1 以降低 429 风险。 */
-export const API_DOCUMENT_BATCH_SIZE = 32
+/** API embedding 默认一次提交 8 个 chunk，兼容更多 OpenAI-compatible 服务的批量上限。 */
+export const API_DOCUMENT_BATCH_SIZE = 8
 
 export interface OpenAICompatibleConfig {
   baseUrl: string
@@ -74,8 +74,8 @@ export class OpenAICompatibleEmbeddingProvider implements EmbeddingProvider {
     })
 
     if (!response.ok) {
-      const detail = await response.text().catch(() => '')
-      throw new Error(`Embedding API request failed: ${response.status} ${detail}`.trim())
+      await response.text().catch(() => '') // consume body to avoid connection leak
+      throw new Error(`Embedding API request failed: ${response.status}`)
     }
 
     const payload = (await response.json()) as EmbeddingResponse
