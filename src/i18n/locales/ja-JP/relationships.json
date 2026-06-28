@@ -5,6 +5,10 @@
   "search": "連絡先を検索",
   "empty": "関係グラフのデータがありません",
   "privacy": "プライバシーモード",
+  "viewMode": {
+    "3d": "3D",
+    "2d": "2D"
+  },
   "timeRange": {
     "1y": "過去1年",
     "2y": "過去2年",
@@ -69,9 +73,11 @@
     "recomputeStarted": "交流関係のバックグラウンド計算を開始しました",
     "recomputeFailed": "再計算に失敗しました",
     "loadFailed": "交流関係の読み込みに失敗しました",
-    "neighborhoodFailed": "近傍の読み込みに失敗しました"
+    "neighborhoodFailed": "近傍の読み込みに失敗しました",
+    "threeUnavailable": "3Dレンダリングを利用できないため、2Dに切り替えました。"
   },
   "canvas": {
-    "label": "交流関係ギャラクシーグラフ"
+    "label": "交流関係ギャラクシーグラフ",
+    "label3d": "3D交流関係ギャラクシーグラフ"
   }
 }

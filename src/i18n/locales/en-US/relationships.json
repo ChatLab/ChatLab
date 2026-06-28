@@ -5,6 +5,10 @@
   "search": "Search contacts",
   "empty": "No relationship graph data",
   "privacy": "Privacy mode",
+  "viewMode": {
+    "3d": "3D",
+    "2d": "2D"
+  },
   "timeRange": {
     "1y": "1 year",
     "2y": "2 years",
@@ -69,9 +73,11 @@
     "recomputeStarted": "Started computing interaction graph",
     "recomputeFailed": "Recompute failed",
     "loadFailed": "Failed to load interaction graph",
-    "neighborhoodFailed": "Failed to load neighborhood"
+    "neighborhoodFailed": "Failed to load neighborhood",
+    "threeUnavailable": "3D rendering is unavailable. Switched to 2D."
   },
   "canvas": {
-    "label": "Interaction galaxy graph"
+    "label": "Interaction galaxy graph",
+    "label3d": "3D interaction galaxy graph"
   }
 }

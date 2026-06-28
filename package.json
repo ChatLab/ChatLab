@@ -53,6 +53,7 @@
     "markdown-it": "^14.1.0",
     "pixi-viewport": "^6.0.3",
     "pixi.js": "^8.19.0",
+    "three": "^0.185.0",
     "vue-i18n": "^11.2.8"
   },
   "devDependencies": {

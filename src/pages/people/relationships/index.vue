@@ -20,8 +20,13 @@ import PeopleSubnav from '../components/PeopleSubnav.vue'
 import { buildRelationshipConnectionRanking } from './relationship-galaxy-connections'
 import { shouldShowFocusConnectionsAction } from './relationship-galaxy-state'
 import RelationshipGalaxyCanvas from './components/RelationshipGalaxyCanvas.vue'
+import RelationshipGalaxyThreeCanvas from './components/RelationshipGalaxyThreeCanvas.vue'
 
-type GalaxyCanvasInstance = InstanceType<typeof RelationshipGalaxyCanvas>
+type GalaxyCanvasInstance = {
+  focusNode: (key: string) => boolean
+  fitView: () => void
+}
+type GalaxyViewMode = '3d' | '2d'
 
 const EMPTY_GRAPH: PeopleRelationshipsGraphData = {
   nodes: [],
@@ -45,6 +50,7 @@ const isLoading = ref(false)
 const isRecomputing = ref(false)
 const isLoadingNeighborhood = ref(false)
 const privacyMode = ref(false)
+const viewMode = ref<GalaxyViewMode>('3d')
 const loadError = ref('')
 const graphRequestId = ref(0)
 const canvasRef = ref<GalaxyCanvasInstance | null>(null)
@@ -61,6 +67,16 @@ const timeRangeTabs = computed(() =>
     value: preset,
   }))
 )
+const viewModeTabs = computed(() => [
+  {
+    label: t('relationships.viewMode.3d'),
+    value: '3d' as const,
+  },
+  {
+    label: t('relationships.viewMode.2d'),
+    value: '2d' as const,
+  },
+])
 
 const activeGraph = computed(() => neighborhoodResponse.value?.graph ?? graphResponse.value?.graph ?? EMPTY_GRAPH)
 const isNeighborhoodMode = computed(() => Boolean(neighborhoodResponse.value))
@@ -267,6 +283,12 @@ async function selectNode(node: PeopleRelationshipGraphNode) {
   canvasRef.value?.focusNode(node.key)
 }
 
+function handleThreeCanvasFallback() {
+  if (viewMode.value !== '3d') return
+  viewMode.value = '2d'
+  toast.warn(t('relationships.toast.threeUnavailable'))
+}
+
 function backToPanorama() {
   const key = selectedKey.value
   neighborhoodResponse.value = null
@@ -299,6 +321,15 @@ watch(searchQuery, (value) => {
     debouncedSearchQuery.value = value
     void loadGraph({ silent: true, preserveNeighborhood: true })
   }, 260)
+})
+
+watch(viewMode, async () => {
+  await nextTick()
+  if (selectedKey.value) {
+    canvasRef.value?.focusNode(selectedKey.value)
+    return
+  }
+  canvasRef.value?.fitView()
 })
 
 onMounted(() => {
@@ -361,7 +392,19 @@ onBeforeUnmount(() => {
 
     <div class="flex min-h-0 flex-1 overflow-hidden">
       <main class="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[#05070d]">
+        <RelationshipGalaxyThreeCanvas
+          v-if="viewMode === '3d'"
+          ref="canvasRef"
+          :graph="activeGraph"
+          :selected-key="selectedKey"
+          :privacy-mode="privacyMode"
+          :label="t('relationships.canvas.label3d')"
+          :owner-label="t('relationships.owner.me')"
+          @fallback="handleThreeCanvasFallback"
+          @select-node="selectNode"
+        />
         <RelationshipGalaxyCanvas
+          v-else
           ref="canvasRef"
           :graph="activeGraph"
           :selected-key="selectedKey"
@@ -373,6 +416,7 @@ onBeforeUnmount(() => {
 
         <div class="absolute left-4 top-4 z-20 flex max-w-[calc(100%-2rem)] flex-wrap items-center gap-2">
           <UTabs v-model="timeRangePreset" :items="timeRangeTabs" :content="false" size="xs" class="min-w-max gap-0" />
+          <UTabs v-model="viewMode" :items="viewModeTabs" :content="false" size="xs" class="min-w-max gap-0" />
           <UButton
             icon="i-lucide-scan-line"
             color="neutral"

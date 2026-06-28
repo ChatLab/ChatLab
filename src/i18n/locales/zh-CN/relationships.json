@@ -5,6 +5,10 @@
   "search": "搜索联系人",
   "empty": "暂无关系图数据",
   "privacy": "隐私模式",
+  "viewMode": {
+    "3d": "3D",
+    "2d": "2D"
+  },
   "timeRange": {
     "1y": "近1年",
     "2y": "近2年",
@@ -69,9 +73,11 @@
     "recomputeStarted": "已开始后台计算互动关系",
     "recomputeFailed": "重新计算失败",
     "loadFailed": "互动关系加载失败",
-    "neighborhoodFailed": "邻域加载失败"
+    "neighborhoodFailed": "邻域加载失败",
+    "threeUnavailable": "3D 渲染不可用，已切换到 2D。"
   },
   "canvas": {
-    "label": "互动关系星系图"
+    "label": "互动关系星系图",
+    "label3d": "3D 互动关系星系图"
   }
 }
