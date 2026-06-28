@@ -16,7 +16,8 @@
     "recompute": "再計算",
     "clearSearch": "検索をクリア",
     "backToPanorama": "全景に戻る",
-    "fitView": "表示に合わせる"
+    "fitView": "表示に合わせる",
+    "focusConnections": "この人のつながりだけ表示"
   },
   "stats": {
     "nodes": "ノード",
@@ -28,6 +29,11 @@
     "manualFriend": "友だち・手動",
     "nonFriend": "グループメンバー"
   },
+  "owner": {
+    "me": "自分",
+    "type": "自分",
+    "avatarText": "自"
+  },
   "task": {
     "running": "交流関係を計算中：{current} / {total} セッション",
     "updating": "関係データが更新された可能性があります。再計算中です。",
@@ -37,6 +43,14 @@
   "searchResults": {
     "title": "検索結果",
     "offCore": "近傍を読み込む"
+  },
+  "connections": {
+    "title": "つながりが強い人",
+    "empty": "現在のグラフに直接のつながりがありません",
+    "weight": "強度 {value}",
+    "replies": "{count} 返信",
+    "showMore": "さらに {count} 人表示",
+    "showLess": "閉じる"
   },
   "detail": {
     "title": "ノード詳細",

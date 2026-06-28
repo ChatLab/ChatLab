@@ -174,16 +174,21 @@ test('computes a cropped relationship galaxy from private contacts and group int
     timeRangePreset: 'all',
     now: () => 1800000000,
     limits: {
-      coreNodeLimit: 2,
-      coreEdgeLimit: 1,
+      coreNodeLimit: 3,
+      coreEdgeLimit: 2,
       perNodeEdgeLimit: 1,
     },
   })
 
   assert.equal(snapshot.algorithmVersion, 'people-relationships-v1')
+  const owner = snapshot.nodes.find((node) => node.kind === 'owner')
+  assert.ok(owner)
+  assert.equal(owner.displayName, 'Me')
+  assert.equal(owner.searchText.includes('我'), true)
+  assert.equal(owner.searchText.includes('me'), true)
   assert.equal(
-    snapshot.graph.nodes.some((node) => node.platformId === 'owner'),
-    false
+    snapshot.graph.nodes.some((node) => node.key === owner.key),
+    true
   )
   assert.equal(
     snapshot.nodes.some((node) => node.platformId === 'carol'),
@@ -206,6 +211,10 @@ test('computes a cropped relationship galaxy from private contacts and group int
   assert.ok(edge)
   assert.ok(edge.coOccurrenceCount > 0)
   assert.equal(edge.replyInteractionCount, 1)
+  assert.equal(
+    snapshot.graph.edges.filter((item) => item.sourceKey === owner.key || item.targetKey === owner.key).length <= 1,
+    true
+  )
   assert.equal(snapshot.diagnostics.processedGroupSessions, 1)
   assert.equal(snapshot.diagnostics.processedPrivateSessions, 1)
 })

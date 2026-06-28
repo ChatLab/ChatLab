@@ -335,6 +335,7 @@ function buildSearchResults(
     .slice(0, snapshot.limits.searchResultLimit)
     .map((node) => ({
       key: node.key,
+      kind: node.kind,
       displayName: node.displayName,
       platform: node.platform,
       platformId: node.platformId,

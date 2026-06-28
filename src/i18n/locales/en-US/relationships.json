@@ -16,7 +16,8 @@
     "recompute": "Recompute",
     "clearSearch": "Clear search",
     "backToPanorama": "Back to panorama",
-    "fitView": "Fit view"
+    "fitView": "Fit view",
+    "focusConnections": "Show only its connections"
   },
   "stats": {
     "nodes": "Nodes",
@@ -28,6 +29,11 @@
     "manualFriend": "Friend · Manual",
     "nonFriend": "Groupmate"
   },
+  "owner": {
+    "me": "Me",
+    "type": "Me",
+    "avatarText": "Me"
+  },
   "task": {
     "running": "Computing interaction graph: {current} / {total} sessions",
     "updating": "Relationship data may have changed. Recomputing.",
@@ -37,6 +43,14 @@
   "searchResults": {
     "title": "Search results",
     "offCore": "Load neighborhood"
+  },
+  "connections": {
+    "title": "Closest connections",
+    "empty": "No direct connections in the current graph",
+    "weight": "Strength {value}",
+    "replies": "{count} replies",
+    "showMore": "Show {count} more",
+    "showLess": "Show less"
   },
   "detail": {
     "title": "Node details",

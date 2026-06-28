@@ -16,7 +16,8 @@
     "recompute": "重新計算",
     "clearSearch": "清空搜尋",
     "backToPanorama": "返回全景",
-    "fitView": "適應視圖"
+    "fitView": "適應視圖",
+    "focusConnections": "只看它的聯繫"
   },
   "stats": {
     "nodes": "節點",
@@ -28,6 +29,11 @@
     "manualFriend": "好友 · 手動標記",
     "nonFriend": "群友"
   },
+  "owner": {
+    "me": "我",
+    "type": "我自己",
+    "avatarText": "我"
+  },
   "task": {
     "running": "正在計算互動關係：{current} / {total} 個會話",
     "updating": "關係資料可能已更新，正在重新計算。",
@@ -37,6 +43,14 @@
   "searchResults": {
     "title": "搜尋結果",
     "offCore": "載入鄰域"
+  },
+  "connections": {
+    "title": "聯繫最緊密的人",
+    "empty": "目前圖中沒有直接聯繫",
+    "weight": "強度 {value}",
+    "replies": "{count} 回覆",
+    "showMore": "查看更多 {count} 個",
+    "showLess": "收起"
   },
   "detail": {
     "title": "節點詳情",

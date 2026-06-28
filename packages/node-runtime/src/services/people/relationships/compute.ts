@@ -10,6 +10,7 @@ import {
   type PeopleRelationshipsDiagnostics,
 } from '@openchatlab/shared-types'
 import {
+  getGroupContactFacts,
   getGroupRelationshipGraphFacts,
   getLatestContactMessageTs,
   getPrivateContactFacts,
@@ -42,6 +43,7 @@ import { resolvePeopleRelationshipsTimeRange } from './time-range'
 export const PEOPLE_RELATIONSHIPS_ALGORITHM_VERSION = 'people-relationships-v1'
 
 const PRIVATE_COMMUNITY_ID = 'private'
+const OWNER_KEY_PREFIX = 'owner'
 const REPLY_WEIGHT = 3
 const CO_OCCURRENCE_COUNT_WEIGHT = 0.05
 
@@ -106,6 +108,7 @@ export interface ComputePeopleRelationshipsSnapshotOptions {
 
 interface NodeAccumulator {
   key: string
+  kind: 'contact' | 'owner'
   platform: ChatPlatform
   platformId: string
   sessionScoped: boolean
@@ -312,19 +315,23 @@ function computeSessionFacts(
 
   const owner = resolveOwnerMember(db)
   if (!owner) return { kind: 'unresolved_owner', meta: cachedMeta, latestMessageTs }
+  const cachedMetaWithOwner = toPeopleRelationshipsSessionMetaFacts(meta, owner)
 
   if (meta.type === ChatType.PRIVATE) {
     const facts = getPrivateContactFacts(db, owner.id, { startTs: timeRange.startTs })
-    if (facts.type === 'missing') return { kind: 'private_missing', meta: cachedMeta, latestMessageTs }
-    if (facts.type === 'ambiguous') return { kind: 'private_ambiguous', meta: cachedMeta, latestMessageTs }
-    return { kind: 'private', meta: cachedMeta, latestMessageTs, facts }
+    if (facts.type === 'missing') return { kind: 'private_missing', meta: cachedMetaWithOwner, latestMessageTs }
+    if (facts.type === 'ambiguous') return { kind: 'private_ambiguous', meta: cachedMetaWithOwner, latestMessageTs }
+    return { kind: 'private', meta: cachedMetaWithOwner, latestMessageTs, facts }
   }
 
   return {
     kind: 'group',
-    meta: cachedMeta,
+    meta: cachedMetaWithOwner,
     latestMessageTs,
-    facts: getGroupRelationshipGraphFacts(db, owner.id, { startTs: timeRange.startTs }),
+    facts: {
+      ...getGroupRelationshipGraphFacts(db, owner.id, { startTs: timeRange.startTs }),
+      ownerEdges: getGroupContactFacts(db, owner.id, { startTs: timeRange.startTs }),
+    },
   }
 }
 
@@ -348,7 +355,7 @@ function applySessionFacts(
       return
     case 'private':
       diagnostics.processedPrivateSessions++
-      applyPrivateFacts(nodes, sessionId, sessionFacts.meta, sessionFacts.facts)
+      applyPrivateFacts(nodes, edges, sessionId, sessionFacts.meta, sessionFacts.facts)
       return
     case 'group':
       diagnostics.processedGroupSessions++
@@ -361,17 +368,34 @@ function applySessionFacts(
 
 function applyPrivateFacts(
   nodes: Map<string, NodeAccumulator>,
+  edges: Map<string, EdgeAccumulator>,
   sessionId: string,
   meta: PeopleRelationshipsSessionMetaFacts,
   facts: PeopleRelationshipsCachedPrivateFacts
 ): void {
   if (facts.privateMessageCount <= 0) return
+  const ownerNode = getOrCreateOwnerNode(nodes, meta)
   const node = getOrCreateNode(nodes, sessionId, meta, facts.contact)
   node.isFriend = true
   node.friendSource = 'private'
   node.privateMessageCount += facts.privateMessageCount
   node.communityWeights.set(PRIVATE_COMMUNITY_ID, (node.communityWeights.get(PRIVATE_COMMUNITY_ID) ?? 0) + 1)
   updateLastInteraction(node, facts.lastMessageTs)
+
+  if (!ownerNode) return
+  ownerNode.isFriend = true
+  ownerNode.privateMessageCount += facts.privateMessageCount
+  ownerNode.communityWeights.set(PRIVATE_COMMUNITY_ID, (ownerNode.communityWeights.get(PRIVATE_COMMUNITY_ID) ?? 0) + 1)
+  updateLastInteraction(ownerNode, facts.lastMessageTs)
+  applyOwnerContactEdge(edges, ownerNode, node, {
+    coOccurrenceCount: facts.privateMessageCount,
+    coOccurrenceRawScore: facts.privateMessageCount * 1.8,
+    replyInteractionCount: 0,
+    repliesFromOwnerToContact: 0,
+    repliesFromContactToOwner: 0,
+    lastInteractionTs: facts.lastMessageTs,
+    sessionId,
+  })
 }
 
 function applyGroupFacts(
@@ -384,6 +408,7 @@ function applyGroupFacts(
 ): void {
   const communityId = `group:${sessionId}`
   communityLabels.set(communityId, meta.name)
+  const ownerNode = getOrCreateOwnerNode(nodes, meta)
   for (const member of facts.members) {
     const node = getOrCreateNode(nodes, sessionId, meta, member.contact)
     node.groupMessageCount += member.messageCount
@@ -393,6 +418,25 @@ function applyGroupFacts(
       (node.communityWeights.get(communityId) ?? 0) + Math.max(1, member.messageCount)
     )
     updateLastInteraction(node, member.lastMessageTs)
+  }
+
+  if (ownerNode) {
+    for (const fact of facts.ownerEdges) {
+      if (fact.coOccurrenceCount <= 0 && fact.replyInteractionCount <= 0) continue
+      const contactNode = getOrCreateNode(nodes, sessionId, meta, fact.contact)
+      ownerNode.commonGroupSessionIds.add(sessionId)
+      ownerNode.communityWeights.set(communityId, (ownerNode.communityWeights.get(communityId) ?? 0) + 1)
+      updateLastInteraction(ownerNode, fact.lastInteractionTs)
+      applyOwnerContactEdge(edges, ownerNode, contactNode, {
+        coOccurrenceCount: fact.coOccurrenceCount,
+        coOccurrenceRawScore: fact.coOccurrenceRawScore,
+        replyInteractionCount: fact.replyInteractionCount,
+        repliesFromOwnerToContact: fact.repliesFromOwnerToContact,
+        repliesFromContactToOwner: fact.repliesFromContactToOwner,
+        lastInteractionTs: fact.lastInteractionTs,
+        sessionId,
+      })
+    }
   }
 
   for (const fact of facts.edges) {
@@ -454,6 +498,7 @@ function buildGraph(
     const color = colorForCommunity(communityId)
     nodeByKey.set(item.node.key, {
       key: item.node.key,
+      kind: item.node.kind,
       platform: item.node.platform,
       platformId: item.node.platformId,
       sessionScoped: item.node.sessionScoped,
@@ -470,12 +515,19 @@ function buildGraph(
       y: 0,
       size: roundNum(4 + Math.sqrt(item.score / maxScore) * 18, 2),
       color,
-      labelVisibility: index < 30 ? 2 : index < 160 ? 1 : 0,
+      labelVisibility: item.node.kind === 'owner' || index < 30 ? 2 : index < 160 ? 1 : 0,
       lastInteractionTs: item.node.lastInteractionTs,
       privateMessageCount: item.node.privateMessageCount,
       groupMessageCount: item.node.groupMessageCount,
       commonGroupCount: item.node.commonGroupSessionIds.size,
-      searchText: [item.node.displayName, item.node.platformId, ...item.node.aliases].join(' ').toLowerCase(),
+      searchText: [
+        item.node.displayName,
+        item.node.platformId,
+        ...item.node.aliases,
+        ...(item.node.kind === 'owner' ? ['我', 'me', 'myself', 'owner'] : []),
+      ]
+        .join(' ')
+        .toLowerCase(),
     })
   })
 
@@ -729,6 +781,7 @@ function getOrCreateNode(
 
   const created: NodeAccumulator = {
     key,
+    kind: 'contact',
     platform: meta.platform,
     platformId: contact.platformId,
     sessionScoped,
@@ -746,6 +799,73 @@ function getOrCreateNode(
   }
   nodes.set(key, created)
   return created
+}
+
+function getOrCreateOwnerNode(
+  nodes: Map<string, NodeAccumulator>,
+  meta: PeopleRelationshipsSessionMetaFacts
+): NodeAccumulator | null {
+  if (!meta.owner) return null
+  const key = buildOwnerKey(meta.platform)
+  const existing = nodes.get(key)
+  if (existing) {
+    mergeContactIdentity(existing, meta.owner)
+    return existing
+  }
+
+  const created: NodeAccumulator = {
+    key,
+    kind: 'owner',
+    platform: meta.platform,
+    platformId: meta.owner.platformId || meta.ownerId || OWNER_KEY_PREFIX,
+    sessionScoped: false,
+    displayName: meta.owner.name || meta.owner.platformId || 'Me',
+    aliases: new Set(
+      [meta.owner.platformId, meta.owner.name, ...meta.owner.aliases, '我', 'me', 'owner'].filter(Boolean)
+    ),
+    avatar: meta.owner.avatar,
+    isFriend: true,
+    privateMessageCount: 0,
+    groupMessageCount: 0,
+    commonGroupSessionIds: new Set(),
+    communityWeights: new Map(),
+    edgeWeight: 0,
+    lastInteractionTs: null,
+  }
+  nodes.set(key, created)
+  return created
+}
+
+function applyOwnerContactEdge(
+  edges: Map<string, EdgeAccumulator>,
+  ownerNode: NodeAccumulator,
+  contactNode: NodeAccumulator,
+  facts: {
+    coOccurrenceCount: number
+    coOccurrenceRawScore: number
+    replyInteractionCount: number
+    repliesFromOwnerToContact: number
+    repliesFromContactToOwner: number
+    lastInteractionTs: number | null
+    sessionId: string
+  }
+): void {
+  const sourceKey = ownerNode.key < contactNode.key ? ownerNode.key : contactNode.key
+  const targetKey = ownerNode.key < contactNode.key ? contactNode.key : ownerNode.key
+  const edge = getOrCreateEdge(edges, sourceKey, targetKey)
+  edge.coOccurrenceCount += facts.coOccurrenceCount
+  edge.coOccurrenceRawScore += facts.coOccurrenceRawScore
+  edge.replyInteractionCount += facts.replyInteractionCount
+  if (sourceKey === ownerNode.key) {
+    edge.repliesFromSourceToTarget += facts.repliesFromOwnerToContact
+    edge.repliesFromTargetToSource += facts.repliesFromContactToOwner
+  } else {
+    edge.repliesFromSourceToTarget += facts.repliesFromContactToOwner
+    edge.repliesFromTargetToSource += facts.repliesFromOwnerToContact
+  }
+  edge.sourceSessionIds.add(facts.sessionId)
+  edge.lastInteractionTs = maxNullableTs(edge.lastInteractionTs, facts.lastInteractionTs)
+  updateLastInteraction(contactNode, facts.lastInteractionTs)
 }
 
 function getOrCreateEdge(edges: Map<string, EdgeAccumulator>, sourceKey: string, targetKey: string): EdgeAccumulator {
@@ -767,12 +887,16 @@ function getOrCreateEdge(edges: Map<string, EdgeAccumulator>, sourceKey: string,
   return created
 }
 
-function toPeopleRelationshipsSessionMetaFacts(meta: SessionMeta): PeopleRelationshipsSessionMetaFacts {
+function toPeopleRelationshipsSessionMetaFacts(
+  meta: SessionMeta,
+  owner?: ContactMemberRef
+): PeopleRelationshipsSessionMetaFacts {
   return {
     name: meta.name,
     platform: meta.platform,
     type: meta.type as ChatType.PRIVATE | ChatType.GROUP,
     ownerId: meta.ownerId,
+    owner,
   }
 }
 
@@ -789,6 +913,12 @@ function buildContactKey(platform: ChatPlatform, platformId: string, sessionId?:
   return sessionId?.trim()
     ? `${normalizedPlatform}:${sessionId.trim()}:${normalizedPlatformId}`
     : `${normalizedPlatform}:${normalizedPlatformId}`
+}
+
+function buildOwnerKey(platform: ChatPlatform): string {
+  const normalizedPlatform = platform.trim()
+  if (!normalizedPlatform) throw new Error('platform is required')
+  return `${OWNER_KEY_PREFIX}:${normalizedPlatform}`
 }
 
 function mergeContactIdentity(acc: NodeAccumulator, contact: ContactMemberRef): void {

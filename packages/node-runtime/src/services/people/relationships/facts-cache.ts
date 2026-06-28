@@ -1,8 +1,13 @@
 import { ChatType, type ChatPlatform, type ContactsTimeRangeState } from '@openchatlab/shared-types'
-import type { ContactMemberRef, RelationshipGraphEdgeFact, RelationshipGraphMemberFact } from '@openchatlab/core'
+import type {
+  ContactMemberRef,
+  GroupContactFacts,
+  RelationshipGraphEdgeFact,
+  RelationshipGraphMemberFact,
+} from '@openchatlab/core'
 import { deleteSessionCache, getCache, setCache } from '../../../cache/session-cache'
 
-export const PEOPLE_RELATIONSHIPS_FACTS_FORMAT_VERSION = 1
+export const PEOPLE_RELATIONSHIPS_FACTS_FORMAT_VERSION = 2
 
 export interface PeopleRelationshipsFactsCacheStats {
   latestHits: number
@@ -17,6 +22,7 @@ export interface PeopleRelationshipsSessionMetaFacts {
   platform: ChatPlatform
   type: ChatType.PRIVATE | ChatType.GROUP
   ownerId: string | null
+  owner?: ContactMemberRef
 }
 
 export interface PeopleRelationshipsCachedPrivateFacts {
@@ -29,6 +35,7 @@ export interface PeopleRelationshipsCachedPrivateFacts {
 export interface PeopleRelationshipsCachedGroupFacts {
   members: RelationshipGraphMemberFact[]
   edges: RelationshipGraphEdgeFact[]
+  ownerEdges: GroupContactFacts[]
 }
 
 export type PeopleRelationshipsSessionFacts =
@@ -185,7 +192,8 @@ function isPeopleRelationshipsSessionMetaFacts(value: unknown): value is PeopleR
     typeof value.name === 'string' &&
     typeof value.platform === 'string' &&
     (value.type === ChatType.PRIVATE || value.type === ChatType.GROUP) &&
-    (typeof value.ownerId === 'string' || value.ownerId === null)
+    (typeof value.ownerId === 'string' || value.ownerId === null) &&
+    (value.owner === undefined || isContactMemberRef(value.owner))
   )
 }
 
@@ -206,7 +214,23 @@ function isPeopleRelationshipsCachedGroupFacts(value: unknown): value is PeopleR
     Array.isArray(value.members) &&
     value.members.every(isRelationshipGraphMemberFact) &&
     Array.isArray(value.edges) &&
-    value.edges.every(isRelationshipGraphEdgeFact)
+    value.edges.every(isRelationshipGraphEdgeFact) &&
+    Array.isArray(value.ownerEdges) &&
+    value.ownerEdges.every(isGroupContactFacts)
+  )
+}
+
+function isGroupContactFacts(value: unknown): value is GroupContactFacts {
+  return (
+    isObject(value) &&
+    isContactMemberRef(value.contact) &&
+    isFiniteNumber(value.messageCount) &&
+    isFiniteNumber(value.coOccurrenceCount) &&
+    isFiniteNumber(value.coOccurrenceRawScore) &&
+    isFiniteNumber(value.replyInteractionCount) &&
+    isFiniteNumber(value.repliesFromOwnerToContact) &&
+    isFiniteNumber(value.repliesFromContactToOwner) &&
+    isNullableNumber(value.lastInteractionTs)
   )
 }
 

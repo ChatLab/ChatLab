@@ -370,6 +370,7 @@ export type PeopleRelationshipsTaskStatus = ContactsTaskStatus
 
 export interface PeopleRelationshipGraphNode {
   key: string
+  kind?: 'contact' | 'owner'
   platform: ChatPlatform
   platformId: string
   sessionScoped: boolean
@@ -460,6 +461,7 @@ export interface PeopleRelationshipsTaskState {
 
 export interface PeopleRelationshipsSearchResult {
   key: string
+  kind?: 'contact' | 'owner'
   displayName: string
   platform: ChatPlatform
   platformId: string

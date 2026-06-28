@@ -21,6 +21,7 @@ function makeTempDir(): string {
 function makeNode(overrides: Partial<PeopleRelationshipGraphNode> & { key: string }): PeopleRelationshipGraphNode {
   return {
     key: overrides.key,
+    kind: overrides.kind,
     platform: 'weixin',
     platformId: overrides.platformId ?? overrides.key.split(':').at(-1) ?? overrides.key,
     sessionScoped: false,
@@ -47,17 +48,27 @@ function makeNode(overrides: Partial<PeopleRelationshipGraphNode> & { key: strin
 }
 
 function makeSnapshot(signature: string): PeopleRelationshipsSnapshot {
+  const owner = makeNode({
+    key: 'owner:weixin',
+    kind: 'owner',
+    platformId: 'owner',
+    displayName: 'Me',
+    pool: 'friend',
+    rank: 1,
+    score: 120,
+    searchText: 'me owner 我',
+  })
   const alice = makeNode({
     key: 'weixin:alice',
     platformId: 'alice',
     displayName: 'Alice',
     pool: 'friend',
     friendSource: 'private',
-    rank: 1,
+    rank: 2,
     score: 90,
   })
-  const bob = makeNode({ key: 'weixin:bob', platformId: 'bob', displayName: 'Bob', rank: 2, score: 70 })
-  const carol = makeNode({ key: 'weixin:carol', platformId: 'carol', displayName: 'Carol', rank: 3, score: 10 })
+  const bob = makeNode({ key: 'weixin:bob', platformId: 'bob', displayName: 'Bob', rank: 3, score: 70 })
+  const carol = makeNode({ key: 'weixin:carol', platformId: 'carol', displayName: 'Carol', rank: 4, score: 10 })
   const edge = {
     id: 'weixin:alice__weixin:bob',
     sourceKey: alice.key,
@@ -74,13 +85,13 @@ function makeSnapshot(signature: string): PeopleRelationshipsSnapshot {
     visibility: 2 as const,
   }
   return {
-    nodes: [alice, bob, carol],
+    nodes: [owner, alice, bob, carol],
     edges: [edge],
-    communities: [{ id: 'group:g1', label: 'Group', size: 3, x: 0, y: 0, color: '#7dd3fc' }],
+    communities: [{ id: 'group:g1', label: 'Group', size: 4, x: 0, y: 0, color: '#7dd3fc' }],
     graph: {
-      nodes: [alice, bob],
+      nodes: [owner, alice, bob],
       edges: [edge],
-      communities: [{ id: 'group:g1', label: 'Group', size: 3, x: 0, y: 0, color: '#7dd3fc' }],
+      communities: [{ id: 'group:g1', label: 'Group', size: 4, x: 0, y: 0, color: '#7dd3fc' }],
     },
     diagnostics: {
       processedPrivateSessions: 1,
@@ -89,9 +100,9 @@ function makeSnapshot(signature: string): PeopleRelationshipsSnapshot {
       skippedUnresolvedOwnerSessions: 0,
       skippedAmbiguousPrivateSessions: 0,
       skippedFailedSessions: 0,
-      totalNodes: 3,
+      totalNodes: 4,
       totalEdges: 1,
-      coreNodeCount: 2,
+      coreNodeCount: 3,
       coreEdgeCount: 1,
       warnings: [],
     },
@@ -101,7 +112,7 @@ function makeSnapshot(signature: string): PeopleRelationshipsSnapshot {
     computedAt: 1800000000,
     workerStats: { durationMs: 1, totalSessions: 2, processedSessions: 2, skippedFailedSessions: 0 },
     limits: {
-      coreNodeLimit: 2,
+      coreNodeLimit: 3,
       coreEdgeLimit: 1,
       perNodeEdgeLimit: 1,
       neighborhoodNodeLimit: 80,
@@ -149,6 +160,29 @@ test('returns search results from all snapshot nodes, including nodes outside th
     assert.deepEqual(
       response.searchResults.map((result) => [result.key, result.inCoreGraph]),
       [['weixin:carol', false]]
+    )
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('returns the owner node from full snapshot search', () => {
+  const dir = makeTempDir()
+  try {
+    const service = createPeopleRelationshipsService({
+      adapter: makeAdapter(),
+      systemDir: dir,
+      runner: async () => {
+        throw new Error('runner should not be called for fresh injected snapshot')
+      },
+    })
+    service.replaceSnapshotForTests?.(makeSnapshot('algorithm:people-relationships-v1|range:1y|session-a:missing'))
+
+    const response = service.getGraph({ acceptStale: true, query: '我' })
+
+    assert.deepEqual(
+      response.searchResults.map((result) => [result.key, result.kind, result.inCoreGraph]),
+      [['owner:weixin', 'owner', true]]
     )
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
