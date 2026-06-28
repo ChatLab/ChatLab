@@ -40,7 +40,7 @@ import {
 } from './facts-cache'
 import { resolveContactsTimeRange } from './time-range'
 
-export const CONTACTS_ALGORITHM_VERSION = 'contacts-v1'
+export const CONTACTS_ALGORITHM_VERSION = 'contacts-v2'
 
 export interface ContactsWorkerStats {
   durationMs: number

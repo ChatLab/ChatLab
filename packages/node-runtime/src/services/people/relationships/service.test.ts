@@ -9,7 +9,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import type { PeopleRelationshipGraphNode } from '@openchatlab/shared-types'
+import type { PeopleRelationshipGraphEdge, PeopleRelationshipGraphNode } from '@openchatlab/shared-types'
 import type { SessionRuntimeAdapter } from '../../adapters'
 import { PEOPLE_RELATIONSHIPS_ALGORITHM_VERSION, type PeopleRelationshipsSnapshot } from './compute'
 import { createPeopleRelationshipsService } from './service'
@@ -102,6 +102,12 @@ function makeSnapshot(signature: string): PeopleRelationshipsSnapshot {
       skippedFailedSessions: 0,
       totalNodes: 4,
       totalEdges: 1,
+      panoramaIncludedGroupSessions: 0,
+      panoramaExcludedLowValueGroupSessions: 0,
+      panoramaIncludedGroupMembers: 0,
+      panoramaExcludedGroupMembers: 0,
+      panoramaCandidateNodes: 3,
+      panoramaGroupInclusionReasons: {},
       coreNodeCount: 3,
       coreEdgeCount: 1,
       warnings: [],
@@ -119,6 +125,24 @@ function makeSnapshot(signature: string): PeopleRelationshipsSnapshot {
       neighborhoodEdgeLimit: 240,
       searchResultLimit: 20,
     },
+  }
+}
+
+function makeEdge(sourceKey: string, targetKey: string, weight: number): PeopleRelationshipGraphEdge {
+  return {
+    id: `${sourceKey}__${targetKey}`,
+    sourceKey,
+    targetKey,
+    weight,
+    coOccurrenceCount: Math.round(weight),
+    coOccurrenceRawScore: weight,
+    replyInteractionCount: 0,
+    repliesFromSourceToTarget: 0,
+    repliesFromTargetToSource: 0,
+    sourceGroupCount: 1,
+    sourceSessionIds: ['group-a'],
+    lastInteractionTs: 1704103202,
+    visibility: 1,
   }
 }
 
@@ -188,6 +212,58 @@ test('returns the owner node from full snapshot search', () => {
       response.searchResults.map((result) => [result.key, result.kind, result.inCoreGraph]),
       [['owner:weixin', 'owner', true]]
     )
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('returns a close relationships graph with owner, all friends, and top scored groupmates', () => {
+  const dir = makeTempDir()
+  try {
+    const service = createPeopleRelationshipsService({
+      adapter: makeAdapter(),
+      systemDir: dir,
+      runner: async () => {
+        throw new Error('runner should not be called for fresh injected snapshot')
+      },
+    })
+    const snapshot = makeSnapshot(makeFreshSignature())
+    const offCoreFriend = makeNode({
+      key: 'weixin:off-core-friend',
+      displayName: 'Off Core Friend',
+      pool: 'friend',
+      friendSource: 'manual',
+      rank: 80,
+      score: 45,
+    })
+    const groupmates = Array.from({ length: 55 }, (_, index) =>
+      makeNode({
+        key: `weixin:groupmate-${index + 1}`,
+        displayName: `Groupmate ${index + 1}`,
+        pool: 'non_friend',
+        rank: 100 + index,
+        score: 100 - index,
+      })
+    )
+    snapshot.nodes = [...snapshot.nodes, offCoreFriend, ...groupmates]
+    snapshot.edges = [
+      ...snapshot.edges,
+      makeEdge('owner:weixin', offCoreFriend.key, 9),
+      ...groupmates.map((node, index) => makeEdge('owner:weixin', node.key, 60 - index)),
+    ]
+    service.replaceSnapshotForTests?.(snapshot)
+
+    const response = service.getGraph({ acceptStale: true, graphScope: 'close' })
+    const keys = response.graph.nodes.map((node) => node.key)
+    const groupmateKeys = response.graph.nodes.filter((node) => node.pool === 'non_friend').map((node) => node.key)
+
+    assert.ok(keys.includes('owner:weixin'))
+    assert.ok(keys.includes('weixin:alice'))
+    assert.ok(keys.includes(offCoreFriend.key))
+    assert.equal(groupmateKeys.length, 50)
+    assert.ok(groupmateKeys.includes('weixin:groupmate-1'))
+    assert.ok(!groupmateKeys.includes('weixin:groupmate-55'))
+    assert.ok(response.graph.edges.every((edge) => keys.includes(edge.sourceKey) && keys.includes(edge.targetKey)))
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })
   }

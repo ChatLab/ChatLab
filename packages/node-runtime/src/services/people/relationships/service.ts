@@ -1,9 +1,11 @@
 import type { PathProvider } from '@openchatlab/core'
 import type {
   ContactsTimeRangePreset,
+  PeopleRelationshipCommunity,
   PeopleRelationshipsGraphData,
   PeopleRelationshipsCacheState,
   PeopleRelationshipsDiagnostics,
+  PeopleRelationshipsGraphScope,
   PeopleRelationshipsGraphResponse,
   PeopleRelationshipsNeighborhoodResponse,
   PeopleRelationshipsSearchResult,
@@ -33,6 +35,7 @@ export interface PeopleRelationshipsServiceOptions {
   forceRecompute?: boolean
   acceptStale?: boolean
   timeRangePreset?: ContactsTimeRangePreset
+  graphScope?: PeopleRelationshipsGraphScope
   query?: string
 }
 
@@ -73,6 +76,8 @@ interface InFlightTask {
   promise: Promise<PeopleRelationshipsSnapshot>
   abortController: AbortController
 }
+
+const CLOSE_GRAPH_NON_FRIEND_LIMIT = 50
 
 export function createPeopleRelationshipsService(deps: PeopleRelationshipsServiceDeps): PeopleRelationshipsService {
   return new DefaultPeopleRelationshipsService(deps)
@@ -273,12 +278,14 @@ class DefaultPeopleRelationshipsService implements PeopleRelationshipsService {
     options: PeopleRelationshipsServiceOptions = {}
   ): PeopleRelationshipsGraphResponse {
     const timeRangePreset = normalizePeopleRelationshipsTimeRangePreset(options.timeRangePreset)
+    const graphScope = normalizePeopleRelationshipsGraphScope(options.graphScope)
     const snapshot = this.getSnapshot(timeRangePreset)
     const status = this.getCacheStatus(signature, timeRangePreset)
     const includeSnapshot = shouldIncludeSnapshot(status, options.acceptStale)
+    const graph = includeSnapshot && snapshot ? buildGraphForScope(snapshot, graphScope) : emptyGraph()
     return {
-      graph: includeSnapshot ? (snapshot?.graph ?? emptyGraph()) : emptyGraph(),
-      searchResults: includeSnapshot && snapshot ? buildSearchResults(snapshot, options.query) : [],
+      graph,
+      searchResults: includeSnapshot && snapshot ? buildSearchResults(snapshot, options.query, graph) : [],
       diagnostics: includeSnapshot
         ? sanitizePeopleRelationshipsDiagnostics(snapshot?.diagnostics ?? createEmptyDiagnostics())
         : createEmptyDiagnostics(),
@@ -322,13 +329,71 @@ function shouldIncludeSnapshot(status: PeopleRelationshipsCacheState['status'], 
   return status === 'fresh' || (status === 'stale' && acceptStale === true)
 }
 
+function normalizePeopleRelationshipsGraphScope(
+  scope: PeopleRelationshipsGraphScope | undefined
+): PeopleRelationshipsGraphScope {
+  return scope === 'close' ? 'close' : 'panorama'
+}
+
+function buildGraphForScope(
+  snapshot: PeopleRelationshipsSnapshot,
+  scope: PeopleRelationshipsGraphScope
+): PeopleRelationshipsGraphData {
+  if (scope === 'close') return buildCloseRelationshipsGraph(snapshot)
+  return snapshot.graph
+}
+
+function buildCloseRelationshipsGraph(snapshot: PeopleRelationshipsSnapshot): PeopleRelationshipsGraphData {
+  const selectedKeys = new Set<string>()
+  for (const node of snapshot.nodes) {
+    if (node.kind === 'owner' || node.pool === 'friend') selectedKeys.add(node.key)
+  }
+
+  const topGroupmates = snapshot.nodes
+    .filter((node) => node.kind !== 'owner' && node.pool !== 'friend' && node.score > 0)
+    .sort(compareCloseGroupmates)
+    .slice(0, CLOSE_GRAPH_NON_FRIEND_LIMIT)
+  for (const node of topGroupmates) selectedKeys.add(node.key)
+
+  const nodes = snapshot.nodes.filter((node) => selectedKeys.has(node.key)).sort(compareNodes)
+  const edges = snapshot.edges.filter((edge) => selectedKeys.has(edge.sourceKey) && selectedKeys.has(edge.targetKey))
+
+  return {
+    nodes,
+    edges,
+    communities: filterCommunitiesForNodes(snapshot.communities, nodes),
+  }
+}
+
+function compareCloseGroupmates(
+  a: PeopleRelationshipsSnapshot['nodes'][number],
+  b: PeopleRelationshipsSnapshot['nodes'][number]
+): number {
+  return b.score - a.score || a.rank - b.rank || a.key.localeCompare(b.key)
+}
+
+function filterCommunitiesForNodes(
+  communities: PeopleRelationshipCommunity[],
+  nodes: PeopleRelationshipsGraphData['nodes']
+): PeopleRelationshipCommunity[] {
+  const communitySizes = new Map<string, number>()
+  for (const node of nodes) communitySizes.set(node.communityId, (communitySizes.get(node.communityId) ?? 0) + 1)
+  return communities
+    .filter((community) => communitySizes.has(community.id))
+    .map((community) => ({
+      ...community,
+      size: communitySizes.get(community.id) ?? community.size,
+    }))
+}
+
 function buildSearchResults(
   snapshot: PeopleRelationshipsSnapshot,
-  queryInput: string | undefined
+  queryInput: string | undefined,
+  graph: PeopleRelationshipsGraphData
 ): PeopleRelationshipsSearchResult[] {
   const query = queryInput?.trim().toLowerCase() ?? ''
   if (!query) return []
-  const coreKeys = new Set(snapshot.graph.nodes.map((node) => node.key))
+  const visibleKeys = new Set(graph.nodes.map((node) => node.key))
   return snapshot.nodes
     .filter((node) => node.searchText.includes(query))
     .sort(compareNodes)
@@ -344,7 +409,7 @@ function buildSearchResults(
       score: node.score,
       rank: node.rank,
       communityId: node.communityId,
-      inCoreGraph: coreKeys.has(node.key),
+      inCoreGraph: visibleKeys.has(node.key),
     }))
 }
 
@@ -362,6 +427,12 @@ function createEmptyDiagnostics(): PeopleRelationshipsDiagnostics {
     skippedFailedSessions: 0,
     totalNodes: 0,
     totalEdges: 0,
+    panoramaIncludedGroupSessions: 0,
+    panoramaExcludedLowValueGroupSessions: 0,
+    panoramaIncludedGroupMembers: 0,
+    panoramaExcludedGroupMembers: 0,
+    panoramaCandidateNodes: 0,
+    panoramaGroupInclusionReasons: {},
     coreNodeCount: 0,
     coreEdgeCount: 0,
     warnings: [],
@@ -380,6 +451,12 @@ function sanitizePeopleRelationshipsDiagnostics(
     skippedFailedSessions: diagnostics.skippedFailedSessions,
     totalNodes: diagnostics.totalNodes,
     totalEdges: diagnostics.totalEdges,
+    panoramaIncludedGroupSessions: diagnostics.panoramaIncludedGroupSessions ?? 0,
+    panoramaExcludedLowValueGroupSessions: diagnostics.panoramaExcludedLowValueGroupSessions ?? 0,
+    panoramaIncludedGroupMembers: diagnostics.panoramaIncludedGroupMembers ?? 0,
+    panoramaExcludedGroupMembers: diagnostics.panoramaExcludedGroupMembers ?? 0,
+    panoramaCandidateNodes: diagnostics.panoramaCandidateNodes ?? 0,
+    panoramaGroupInclusionReasons: diagnostics.panoramaGroupInclusionReasons ?? {},
     coreNodeCount: diagnostics.coreNodeCount,
     coreEdgeCount: diagnostics.coreEdgeCount,
     warnings: diagnostics.warnings,

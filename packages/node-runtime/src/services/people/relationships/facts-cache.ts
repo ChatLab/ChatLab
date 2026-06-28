@@ -7,7 +7,7 @@ import type {
 } from '@openchatlab/core'
 import { deleteSessionCache, getCache, setCache } from '../../../cache/session-cache'
 
-export const PEOPLE_RELATIONSHIPS_FACTS_FORMAT_VERSION = 2
+export const PEOPLE_RELATIONSHIPS_FACTS_FORMAT_VERSION = 3
 
 export interface PeopleRelationshipsFactsCacheStats {
   latestHits: number
@@ -36,6 +36,7 @@ export interface PeopleRelationshipsCachedGroupFacts {
   members: RelationshipGraphMemberFact[]
   edges: RelationshipGraphEdgeFact[]
   ownerEdges: GroupContactFacts[]
+  ownerMessageCount: number
 }
 
 export type PeopleRelationshipsSessionFacts =
@@ -216,7 +217,8 @@ function isPeopleRelationshipsCachedGroupFacts(value: unknown): value is PeopleR
     Array.isArray(value.edges) &&
     value.edges.every(isRelationshipGraphEdgeFact) &&
     Array.isArray(value.ownerEdges) &&
-    value.ownerEdges.every(isGroupContactFacts)
+    value.ownerEdges.every(isGroupContactFacts) &&
+    isFiniteNumber(value.ownerMessageCount)
   )
 }
 

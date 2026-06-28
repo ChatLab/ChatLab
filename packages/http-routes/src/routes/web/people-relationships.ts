@@ -1,11 +1,16 @@
 import type { FastifyInstance } from 'fastify'
-import { CONTACTS_TIME_RANGE_PRESETS, type ContactsTimeRangePreset } from '@openchatlab/shared-types'
+import {
+  CONTACTS_TIME_RANGE_PRESETS,
+  type ContactsTimeRangePreset,
+  type PeopleRelationshipsGraphScope,
+} from '@openchatlab/shared-types'
 import { createPeopleRelationshipsService } from '@openchatlab/node-runtime'
 import type { HttpRouteContext } from '../../context'
 
 type PeopleRelationshipsQuery = {
   acceptStale?: string
   timeRange?: string
+  scope?: string
   q?: string
 }
 
@@ -26,6 +31,7 @@ export function registerPeopleRelationshipsRoutes(server: FastifyInstance, ctx: 
     return service.getGraph({
       acceptStale: isTruthy(request.query.acceptStale),
       timeRangePreset: parseContactsTimeRangePreset(request.query.timeRange),
+      graphScope: parsePeopleRelationshipsGraphScope(request.query.scope),
       query: request.query.q,
     })
   })
@@ -33,6 +39,7 @@ export function registerPeopleRelationshipsRoutes(server: FastifyInstance, ctx: 
   server.post<{ Querystring: PeopleRelationshipsQuery }>('/_web/people/relationships/recompute', async (request) => {
     return service.startRecompute({
       timeRangePreset: parseContactsTimeRangePreset(request.query.timeRange),
+      graphScope: parsePeopleRelationshipsGraphScope(request.query.scope),
       query: request.query.q,
     })
   })
@@ -56,4 +63,8 @@ function parseContactsTimeRangePreset(value: string | undefined): ContactsTimeRa
   return CONTACTS_TIME_RANGE_PRESETS.includes(value as ContactsTimeRangePreset)
     ? (value as ContactsTimeRangePreset)
     : '1y'
+}
+
+function parsePeopleRelationshipsGraphScope(value: string | undefined): PeopleRelationshipsGraphScope {
+  return value === 'close' ? 'close' : 'panorama'
 }

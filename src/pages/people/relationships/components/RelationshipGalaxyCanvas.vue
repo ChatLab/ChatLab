@@ -32,6 +32,8 @@ interface AnimatedNode {
   color: number
   pool: string
   isOwner: boolean
+  selectedNeighbor: boolean
+  dimmedBySelection: boolean
   currentAlpha: number
   currentScale: number
 }
@@ -174,20 +176,26 @@ function drawBackground() {
   }
 }
 
-function shouldShowLabel(node: PeopleRelationshipGraphNode, totalNodes: number): boolean {
-  if (node.key === props.selectedKey) return true
+interface NodeSelectionState {
+  active: boolean
+  selected: boolean
+  neighbor: boolean
+}
+
+function shouldShowLabel(node: PeopleRelationshipGraphNode, totalNodes: number, state: NodeSelectionState): boolean {
+  if (state.active) return state.selected || state.neighbor
   if (node.labelVisibility === 2) return true
   return node.labelVisibility === 1 && totalNodes <= 500
 }
 
-function createLabel(node: PeopleRelationshipGraphNode, radius: number): Text {
+function createLabel(node: PeopleRelationshipGraphNode, radius: number, state: NodeSelectionState): Text {
   const label = new Text({
     text: shortName(node),
     style: {
       fontFamily: 'Inter, ui-sans-serif, system-ui, sans-serif',
-      fontSize: node.key === props.selectedKey ? 13 : 11,
-      fontWeight: node.key === props.selectedKey ? '700' : '600',
-      fill: node.key === props.selectedKey ? 0xffffff : 0xd7e2f1,
+      fontSize: state.selected ? 13 : state.neighbor ? 11.5 : 11,
+      fontWeight: state.selected ? '700' : '600',
+      fill: state.selected ? 0xffffff : state.neighbor ? 0xf7dfb4 : 0xd7e2f1,
       align: 'center',
       dropShadow: {
         color: 0x000000,
@@ -226,18 +234,18 @@ function drawHighlightEdges() {
   if (!highlightEdgeLayer || !viewport) return
   highlightEdgeLayer.clear()
 
-  const activeKey = hoveredKey.value || props.selectedKey
+  const nodes = props.graph.nodes
+  const nodeByKey = new Map(nodes.map((node) => [node.key, node]))
+  const hoveredKeyInGraph = hoveredKey.value && nodeByKey.has(hoveredKey.value) ? hoveredKey.value : null
+  const selectedKeyInGraph = props.selectedKey && nodeByKey.has(props.selectedKey) ? props.selectedKey : null
+  const activeKey = hoveredKeyInGraph || selectedKeyInGraph
   if (!activeKey) {
     if (edgeLayer) edgeLayer.alpha = 1.0
     return
   }
 
-  if (edgeLayer) {
-    edgeLayer.alpha = hoveredKey.value ? 0.12 : 1.0
-  }
+  if (edgeLayer) edgeLayer.alpha = hoveredKeyInGraph ? 0.12 : selectedKeyInGraph ? 0.2 : 1.0
 
-  const nodes = props.graph.nodes
-  const nodeByKey = new Map(nodes.map((node) => [node.key, node]))
   const bounds = getGraphBounds(nodes)
   const padding = 260
   const offsetX = -bounds.minX + padding
@@ -274,6 +282,7 @@ function renderGraph(shouldFit = false) {
   renderedNodePositions.clear()
   animatedNodes.length = 0
   neighborKeysOf.clear()
+  hoveredKey.value = null
   entranceProgress = 0
 
   const nodes = props.graph.nodes
@@ -314,6 +323,10 @@ function renderGraph(shouldFit = false) {
     edgeLayer.moveTo(sourceX, sourceY).lineTo(targetX, targetY).stroke({ color: edgeColor, width, alpha })
   }
 
+  const selectedKey = props.selectedKey
+  const hasActiveSelection = Boolean(selectedKey && nodeByKey.has(selectedKey))
+  const selectedNeighborKeys = selectedKey && hasActiveSelection ? neighborKeysOf.get(selectedKey) : null
+
   const communityCenters = new Map<string, { x: number; y: number }>()
   const communityCounts = new Map<string, number>()
   for (const node of nodes) {
@@ -338,7 +351,14 @@ function renderGraph(shouldFit = false) {
     const targetY = node.y + offsetY
     const radius = Math.max(3.6, node.size)
     const color = getNodeColor(node)
-    const selected = node.key === props.selectedKey
+    const selected = hasActiveSelection && node.key === selectedKey
+    const selectedNeighbor = Boolean(hasActiveSelection && selectedNeighborKeys?.has(node.key))
+    const dimmedBySelection = hasActiveSelection && !selected && !selectedNeighbor
+    const selectionState: NodeSelectionState = {
+      active: hasActiveSelection,
+      selected,
+      neighbor: selectedNeighbor,
+    }
     const isOwner = node.kind === 'owner'
     const nodeGraphic = new Graphics()
 
@@ -376,6 +396,8 @@ function renderGraph(shouldFit = false) {
       if (isOwner) {
         nodeGraphic.circle(0, 0, radius + 8).fill({ color: 0xf59e0b, alpha: 0.14 })
         nodeGraphic.circle(0, 0, radius + 4).stroke({ color: 0xf59e0b, width: 1.2, alpha: 0.45 })
+      } else if (selectedNeighbor) {
+        nodeGraphic.circle(0, 0, radius + 5).stroke({ color: 0xf7dfb4, width: 1.2, alpha: 0.42 })
       } else if (node.pool === 'friend') {
         nodeGraphic.circle(0, 0, radius + 4).fill({ color, alpha: 0.08 })
       }
@@ -385,15 +407,18 @@ function renderGraph(shouldFit = false) {
     }
 
     const coreColor = isOwner ? 0xf59e0b : color
-    nodeGraphic.circle(0, 0, radius).fill({ color: coreColor, alpha: selected ? 0.98 : 0.82 })
+    const coreAlpha = dimmedBySelection ? 0.36 : selected ? 0.98 : selectedNeighbor ? 0.88 : 0.82
+    nodeGraphic.circle(0, 0, radius).fill({ color: coreColor, alpha: coreAlpha })
 
     if (!selected) {
-      nodeGraphic.circle(0, 0, radius).stroke({ color: 0xffffff, width: 0.8, alpha: 0.22 })
+      nodeGraphic
+        .circle(0, 0, radius)
+        .stroke({ color: selectedNeighbor ? 0xf7dfb4 : 0xffffff, width: 0.8, alpha: selectedNeighbor ? 0.35 : 0.22 })
     }
 
     nodeGraphic.circle(-radius * 0.28, -radius * 0.32, Math.max(1.2, radius * 0.34)).fill({
       color: 0xffffff,
-      alpha: selected ? 0.55 : 0.28,
+      alpha: dimmedBySelection ? 0.1 : selected ? 0.55 : selectedNeighbor ? 0.34 : 0.28,
     })
 
     nodeGraphic.position.set(startX, startY)
@@ -430,13 +455,15 @@ function renderGraph(shouldFit = false) {
       color,
       pool: node.pool,
       isOwner,
-      currentAlpha: selected ? 0.98 : 0.82,
+      selectedNeighbor,
+      dimmedBySelection,
+      currentAlpha: dimmedBySelection ? 0.16 : selected ? 0.98 : selectedNeighbor ? 0.88 : 0.82,
       currentScale: 1.0,
     }
     animatedNodes.push(animatedNode)
 
-    if (shouldShowLabel(node, nodes.length)) {
-      const label = createLabel(node, radius)
+    if (shouldShowLabel(node, nodes.length, selectionState)) {
+      const label = createLabel(node, radius, selectionState)
 
       if (selected) {
         const labelBg = new Graphics()
@@ -523,8 +550,8 @@ function updateGalaxyAnimation() {
   for (const node of animatedNodes) {
     const motion = resolveGalaxyNodeMotion({ elapsedMs, seed: node.seed, selected: node.selected })
 
-    let targetAlpha = node.selected ? 0.98 : 0.82
-    let targetScale = motion.scale
+    let targetAlpha = node.dimmedBySelection ? 0.14 : node.selected ? 0.98 : node.selectedNeighbor ? 0.9 : 0.82
+    let targetScale = motion.scale * (node.dimmedBySelection ? 0.9 : node.selectedNeighbor ? 1.03 : 1)
 
     if (hoveredKey.value) {
       if (node.key === hoveredKey.value) {
@@ -544,11 +571,12 @@ function updateGalaxyAnimation() {
 
     node.graphic.position.set(node.baseX + motion.offsetX, node.baseY + motion.offsetY)
     node.graphic.scale.set(node.currentScale)
-    node.graphic.alpha = node.currentAlpha + motion.haloAlpha * 0.12
+    node.graphic.alpha = Math.min(1, node.currentAlpha + motion.haloAlpha * (node.dimmedBySelection ? 0.04 : 0.12))
 
     if (node.label) {
       node.label.position.set(node.baseX + motion.offsetX, node.labelBaseY + motion.offsetY)
-      node.label.alpha = node.selected ? 1 : 0.82 + motion.haloAlpha * 0.4
+      const labelAlpha = node.selected ? 1 : node.selectedNeighbor ? 0.9 : 0.82
+      node.label.alpha = Math.min(1, labelAlpha + motion.haloAlpha * 0.35)
     }
   }
 }

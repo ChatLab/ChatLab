@@ -9,6 +9,10 @@
     "3d": "3D",
     "2d": "2D"
   },
+  "graphScope": {
+    "panorama": "全景",
+    "close": "关系好的"
+  },
   "timeRange": {
     "1y": "近1年",
     "2y": "近2年",

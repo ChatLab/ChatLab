@@ -367,6 +367,7 @@ export type ContactsResponse = ContactsListResponse
 
 export type PeopleRelationshipsCacheStatus = ContactsCacheStatus
 export type PeopleRelationshipsTaskStatus = ContactsTaskStatus
+export type PeopleRelationshipsGraphScope = 'panorama' | 'close'
 
 export interface PeopleRelationshipGraphNode {
   key: string
@@ -435,6 +436,12 @@ export interface PeopleRelationshipsDiagnostics {
   skippedFailedSessions: number
   totalNodes: number
   totalEdges: number
+  panoramaIncludedGroupSessions: number
+  panoramaExcludedLowValueGroupSessions: number
+  panoramaIncludedGroupMembers: number
+  panoramaExcludedGroupMembers: number
+  panoramaCandidateNodes: number
+  panoramaGroupInclusionReasons: Record<string, number>
   coreNodeCount: number
   coreEdgeCount: number
   warnings: string[]

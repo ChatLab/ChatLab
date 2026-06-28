@@ -168,6 +168,7 @@ export class FetchDataAdapter implements DataAdapter {
     const params = new URLSearchParams()
     if (options?.acceptStale) params.set('acceptStale', '1')
     if (options?.timeRangePreset) params.set('timeRange', options.timeRangePreset)
+    if (options?.graphScope) params.set('scope', options.graphScope)
     if (options?.query) params.set('q', options.query)
     const qs = params.toString()
     return get(`/people/relationships${qs ? `?${qs}` : ''}`)
@@ -178,6 +179,7 @@ export class FetchDataAdapter implements DataAdapter {
   ): Promise<PeopleRelationshipsGraphResponse> {
     const params = new URLSearchParams()
     if (options?.timeRangePreset) params.set('timeRange', options.timeRangePreset)
+    if (options?.graphScope) params.set('scope', options.graphScope)
     if (options?.query) params.set('q', options.query)
     const qs = params.toString()
     return post(`/people/relationships/recompute${qs ? `?${qs}` : ''}`, {})

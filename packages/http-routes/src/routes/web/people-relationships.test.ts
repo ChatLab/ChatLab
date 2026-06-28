@@ -32,6 +32,12 @@ function emptyGraphResponse(
       skippedFailedSessions: 0,
       totalNodes: 0,
       totalEdges: 0,
+      panoramaIncludedGroupSessions: 0,
+      panoramaExcludedLowValueGroupSessions: 0,
+      panoramaIncludedGroupMembers: 0,
+      panoramaExcludedGroupMembers: 0,
+      panoramaCandidateNodes: 0,
+      panoramaGroupInclusionReasons: {},
       coreNodeCount: 0,
       coreEdgeCount: 0,
       warnings: [],
@@ -66,8 +72,8 @@ function emptyNeighborhoodResponse(
 }
 
 class FakePeopleRelationshipsService implements PeopleRelationshipsService {
-  graphCalls: Array<{ acceptStale?: boolean; timeRangePreset?: string; query?: string }> = []
-  recomputeCalls: Array<{ timeRangePreset?: string; query?: string }> = []
+  graphCalls: Array<{ acceptStale?: boolean; timeRangePreset?: string; query?: string; graphScope?: string }> = []
+  recomputeCalls: Array<{ timeRangePreset?: string; query?: string; graphScope?: string }> = []
   neighborhoodCalls: Array<{ key: string; acceptStale?: boolean; timeRangePreset?: string }> = []
   closeCalls = 0
 
@@ -75,11 +81,13 @@ class FakePeopleRelationshipsService implements PeopleRelationshipsService {
     acceptStale?: boolean
     timeRangePreset?: string
     query?: string
+    graphScope?: string
   }): PeopleRelationshipsGraphResponse {
     this.graphCalls.push({
       acceptStale: options?.acceptStale,
       timeRangePreset: options?.timeRangePreset,
       query: options?.query,
+      graphScope: options?.graphScope,
     })
     return emptyGraphResponse('missing')
   }
@@ -92,8 +100,16 @@ class FakePeopleRelationshipsService implements PeopleRelationshipsService {
     return emptyNeighborhoodResponse('missing')
   }
 
-  startRecompute(options?: { timeRangePreset?: string; query?: string }): PeopleRelationshipsGraphResponse {
-    this.recomputeCalls.push({ timeRangePreset: options?.timeRangePreset, query: options?.query })
+  startRecompute(options?: {
+    timeRangePreset?: string
+    query?: string
+    graphScope?: string
+  }): PeopleRelationshipsGraphResponse {
+    this.recomputeCalls.push({
+      timeRangePreset: options?.timeRangePreset,
+      query: options?.query,
+      graphScope: options?.graphScope,
+    })
     return emptyGraphResponse('stale')
   }
 
@@ -132,7 +148,7 @@ function createMockContext(relationshipsService: PeopleRelationshipsService): Ht
   } as HttpRouteContext
 }
 
-test('GET /_web/people/relationships forwards stale, time range, and search query', async (t) => {
+test('GET /_web/people/relationships forwards stale, time range, search query, and graph scope', async (t) => {
   const service = new FakePeopleRelationshipsService()
   const app = Fastify()
   t.after(async () => app.close())
@@ -141,14 +157,16 @@ test('GET /_web/people/relationships forwards stale, time range, and search quer
 
   const response = await app.inject({
     method: 'GET',
-    url: '/_web/people/relationships?acceptStale=1&timeRange=2y&q=Alice',
+    url: '/_web/people/relationships?acceptStale=1&timeRange=2y&q=Alice&scope=close',
   })
 
   assert.equal(response.statusCode, 200)
-  assert.deepEqual(service.graphCalls, [{ acceptStale: true, timeRangePreset: '2y', query: 'Alice' }])
+  assert.deepEqual(service.graphCalls, [
+    { acceptStale: true, timeRangePreset: '2y', query: 'Alice', graphScope: 'close' },
+  ])
 })
 
-test('POST /_web/people/relationships/recompute forwards time range and search query', async (t) => {
+test('POST /_web/people/relationships/recompute forwards time range, search query, and graph scope', async (t) => {
   const service = new FakePeopleRelationshipsService()
   const app = Fastify()
   t.after(async () => app.close())
@@ -157,11 +175,11 @@ test('POST /_web/people/relationships/recompute forwards time range and search q
 
   const response = await app.inject({
     method: 'POST',
-    url: '/_web/people/relationships/recompute?timeRange=3y&q=Bob',
+    url: '/_web/people/relationships/recompute?timeRange=3y&q=Bob&scope=close',
   })
 
   assert.equal(response.statusCode, 200)
-  assert.deepEqual(service.recomputeCalls, [{ timeRangePreset: '3y', query: 'Bob' }])
+  assert.deepEqual(service.recomputeCalls, [{ timeRangePreset: '3y', query: 'Bob', graphScope: 'close' }])
 })
 
 test('GET /_web/people/relationships/:key/neighborhood forwards decoded contact key', async (t) => {

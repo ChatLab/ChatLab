@@ -60,6 +60,7 @@ export interface RelationshipGraphEdgeFact {
 export interface GroupRelationshipGraphFacts {
   members: RelationshipGraphMemberFact[]
   edges: RelationshipGraphEdgeFact[]
+  ownerMessageCount: number
 }
 
 export function isValidContactPlatformId(platformId: string | null | undefined): platformId is string {
@@ -80,7 +81,7 @@ export function resolveOwnerMember(db: DatabaseAdapter): ContactMemberRef | null
         ${aliasesSelect},
         avatar
       FROM member m
-      WHERE platform_id = ? AND ${nonSystemContactMemberCondition('m')}
+      WHERE platform_id = ? AND ${nonSystemContactMemberCondition(db, 'm')}
       LIMIT 1`
     )
     .get(meta.owner_id) as ContactMemberRow | undefined
@@ -99,7 +100,7 @@ export function getNonSystemMembersForContacts(db: DatabaseAdapter): ContactMemb
         ${aliasesSelect},
         avatar
       FROM member m
-      WHERE ${nonSystemContactMemberCondition('m')}
+      WHERE ${nonSystemContactMemberCondition(db, 'm')}
       ORDER BY id ASC`
     )
     .all() as unknown as ContactMemberRow[]
@@ -113,7 +114,7 @@ export function getLatestContactMessageTs(db: DatabaseAdapter): number | null {
       `SELECT MAX(msg.ts) as ts
        FROM message msg
        JOIN member m ON msg.sender_id = m.id
-       WHERE ${nonSystemMessageCondition('msg', 'm')}`
+       WHERE ${nonSystemMessageCondition(db, 'msg', 'm')}`
     )
     .get() as { ts: number | null } | undefined
 
@@ -135,7 +136,7 @@ export function getPrivateContactFacts(
       `SELECT msg.sender_id as senderId
        FROM message msg
        JOIN member m ON msg.sender_id = m.id
-       WHERE ${nonSystemMessageCondition('msg', 'm')}
+       WHERE ${nonSystemMessageCondition(db, 'msg', 'm')}
          AND msg.sender_id <> ?${timeFilter.sql}
        GROUP BY msg.sender_id`
     )
@@ -151,7 +152,7 @@ export function getPrivateContactFacts(
       `SELECT COUNT(*) as count
        FROM message msg
        JOIN member m ON msg.sender_id = m.id
-       WHERE ${nonSystemMessageCondition('msg', 'm')}${timeFilter.sql}`
+       WHERE ${nonSystemMessageCondition(db, 'msg', 'm')}${timeFilter.sql}`
     )
     .get(...timeFilter.params) as { count: number } | undefined
 
@@ -160,7 +161,7 @@ export function getPrivateContactFacts(
       `SELECT DISTINCT strftime('%Y-%m', msg.ts, 'unixepoch', 'localtime') as month
        FROM message msg
        JOIN member m ON msg.sender_id = m.id
-       WHERE ${nonSystemMessageCondition('msg', 'm')}${timeFilter.sql}
+       WHERE ${nonSystemMessageCondition(db, 'msg', 'm')}${timeFilter.sql}
        ORDER BY month ASC`
     )
     .all(...timeFilter.params) as Array<{ month: string }>
@@ -170,7 +171,7 @@ export function getPrivateContactFacts(
       `SELECT MAX(msg.ts) as lastMessageTs
        FROM message msg
        JOIN member m ON msg.sender_id = m.id
-       WHERE ${nonSystemMessageCondition('msg', 'm')}${timeFilter.sql}`
+       WHERE ${nonSystemMessageCondition(db, 'msg', 'm')}${timeFilter.sql}`
     )
     .get(...timeFilter.params) as { lastMessageTs: number | null } | undefined
 
@@ -195,7 +196,7 @@ export function getGroupContactFacts(
       `SELECT msg.sender_id as senderId, COUNT(*) as messageCount
        FROM message msg
        JOIN member m ON msg.sender_id = m.id
-       WHERE ${nonSystemMessageCondition('msg', 'm')}${messageTimeFilter.sql}
+       WHERE ${nonSystemMessageCondition(db, 'msg', 'm')}${messageTimeFilter.sql}
        GROUP BY msg.sender_id`
     )
     .all(...messageTimeFilter.params) as Array<{ senderId: number; messageCount: number }>
@@ -207,7 +208,7 @@ export function getGroupContactFacts(
       `SELECT msg.sender_id as senderId, msg.ts as ts
        FROM message msg
        JOIN member m ON msg.sender_id = m.id
-       WHERE ${nonSystemMessageCondition('msg', 'm')}${messageTimeFilter.sql}
+       WHERE ${nonSystemMessageCondition(db, 'msg', 'm')}${messageTimeFilter.sql}
        ORDER BY msg.ts ASC, msg.id ASC`
     )
     .all(...messageTimeFilter.params) as Array<{ senderId: number; ts: number }>
@@ -252,8 +253,8 @@ export function getGroupContactFacts(
        JOIN member sender ON msg.sender_id = sender.id
        JOIN member targetMember ON target.sender_id = targetMember.id
        WHERE msg.reply_to_message_id IS NOT NULL
-         AND ${nonSystemMessageCondition('msg', 'sender')}
-         AND ${nonSystemMessageCondition('target', 'targetMember')}${replyTimeFilter.sql}`
+         AND ${nonSystemMessageCondition(db, 'msg', 'sender')}
+         AND ${nonSystemMessageCondition(db, 'target', 'targetMember')}${replyTimeFilter.sql}`
     )
     .all(...replyTimeFilter.params) as Array<{ replySenderId: number; replyTs: number; targetSenderId: number }>
 
@@ -311,13 +312,18 @@ export function getGroupRelationshipGraphFacts(
       `SELECT msg.sender_id as senderId, COUNT(*) as messageCount, MAX(msg.ts) as lastMessageTs
        FROM message msg
        JOIN member m ON msg.sender_id = m.id
-       WHERE ${nonSystemMessageCondition('msg', 'm')}${messageTimeFilter.sql}
+       WHERE ${nonSystemMessageCondition(db, 'msg', 'm')}${messageTimeFilter.sql}
        GROUP BY msg.sender_id`
     )
     .all(...messageTimeFilter.params) as Array<{ senderId: number; messageCount: number; lastMessageTs: number | null }>
 
   const memberStats = new Map<number, { messageCount: number; lastMessageTs: number | null }>()
+  let ownerMessageCount = 0
   for (const row of messageRows) {
+    if (row.senderId === ownerMemberId) {
+      ownerMessageCount = row.messageCount
+      continue
+    }
     if (!contactById.has(row.senderId)) continue
     memberStats.set(row.senderId, {
       messageCount: row.messageCount,
@@ -330,7 +336,7 @@ export function getGroupRelationshipGraphFacts(
       `SELECT msg.sender_id as senderId, msg.ts as ts
        FROM message msg
        JOIN member m ON msg.sender_id = m.id
-       WHERE ${nonSystemMessageCondition('msg', 'm')}${messageTimeFilter.sql}
+       WHERE ${nonSystemMessageCondition(db, 'msg', 'm')}${messageTimeFilter.sql}
        ORDER BY msg.ts ASC, msg.id ASC`
     )
     .all(...messageTimeFilter.params) as Array<{ senderId: number; ts: number }>
@@ -387,8 +393,8 @@ export function getGroupRelationshipGraphFacts(
        JOIN member sender ON msg.sender_id = sender.id
        JOIN member targetMember ON target.sender_id = targetMember.id
        WHERE msg.reply_to_message_id IS NOT NULL
-         AND ${nonSystemMessageCondition('msg', 'sender')}
-         AND ${nonSystemMessageCondition('target', 'targetMember')}${replyTimeFilter.sql}`
+         AND ${nonSystemMessageCondition(db, 'msg', 'sender')}
+         AND ${nonSystemMessageCondition(db, 'target', 'targetMember')}${replyTimeFilter.sql}`
     )
     .all(...replyTimeFilter.params) as Array<{ replySenderId: number; replyTs: number; targetSenderId: number }>
 
@@ -429,7 +435,7 @@ export function getGroupRelationshipGraphFacts(
     })
   }
 
-  return { members, edges }
+  return { members, edges, ownerMessageCount }
 }
 
 function createMessageTimeFilter(
@@ -474,9 +480,9 @@ function parseContactAliases(value: string | null): string[] {
     return []
   }
 }
-function nonSystemContactMemberCondition(memberAlias: string): string {
+function nonSystemContactMemberCondition(db: DatabaseAdapter, memberAlias: string): string {
   // 系统消息名称会随平台和导出语言变化；联系人候选优先用稳定 sender identity 和消息类型识别伪成员。
-  return `(${nonSystemMemberIdentityCondition(memberAlias)}
+  return `(${nonSystemMemberIdentityCondition(db, memberAlias)}
     AND (
       NOT EXISTS (
         SELECT 1 FROM message system_msg
@@ -491,12 +497,34 @@ function nonSystemContactMemberCondition(memberAlias: string): string {
     ))`
 }
 
-function nonSystemMessageCondition(messageAlias: string, memberAlias: string): string {
+function nonSystemMessageCondition(db: DatabaseAdapter, messageAlias: string, memberAlias: string): string {
   return `(${messageAlias}.type NOT IN (${SYSTEM_MESSAGE_TYPES_SQL})
-    AND ${nonSystemMemberIdentityCondition(memberAlias)})`
+    AND ${nonSystemMemberIdentityCondition(db, memberAlias)})`
 }
 
-function nonSystemMemberIdentityCondition(memberAlias: string): string {
+function nonSystemMemberIdentityCondition(db: DatabaseAdapter, memberAlias: string): string {
   return `(LOWER(COALESCE(${memberAlias}.platform_id, '')) != 'system'
-    AND COALESCE(${memberAlias}.account_name, '') != '${LEGACY_SYSTEM_ACCOUNT_NAME}')`
+    AND COALESCE(${memberAlias}.account_name, '') != '${LEGACY_SYSTEM_ACCOUNT_NAME}'
+    AND ${notGroupSelfMemberCondition(db, memberAlias)})`
+}
+
+function notGroupSelfMemberCondition(db: DatabaseAdapter, memberAlias: string): string {
+  const clauses = [
+    `(TRIM(COALESCE(session_meta.name, '')) != ''
+      AND LOWER(TRIM(COALESCE(${memberAlias}.platform_id, ''))) = LOWER(TRIM(session_meta.name))
+      AND LOWER(TRIM(COALESCE(${memberAlias}.account_name, ''))) = LOWER(TRIM(session_meta.name)))`,
+  ]
+
+  if (hasColumn(db, 'meta', 'group_id')) {
+    clauses.unshift(
+      `(TRIM(COALESCE(session_meta.group_id, '')) != ''
+        AND LOWER(TRIM(COALESCE(${memberAlias}.platform_id, ''))) = LOWER(TRIM(session_meta.group_id)))`
+    )
+  }
+
+  return `NOT EXISTS (
+    SELECT 1 FROM meta session_meta
+    WHERE LOWER(COALESCE(session_meta.type, '')) = 'group'
+      AND (${clauses.join(' OR ')})
+  )`
 }

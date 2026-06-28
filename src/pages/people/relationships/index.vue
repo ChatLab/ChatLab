@@ -6,6 +6,7 @@ import type {
   ContactsTimeRangePreset,
   PeopleRelationshipGraphNode,
   PeopleRelationshipsGraphData,
+  PeopleRelationshipsGraphScope,
   PeopleRelationshipsGraphResponse,
   PeopleRelationshipsNeighborhoodResponse,
   PeopleRelationshipsSearchResult,
@@ -41,6 +42,7 @@ const dataService = useDataService()
 const toast = useToast()
 
 const timeRangePreset = ref<ContactsTimeRangePreset>('1y')
+const graphScope = ref<PeopleRelationshipsGraphScope>('panorama')
 const searchQuery = ref('')
 const debouncedSearchQuery = ref('')
 const selectedKey = ref<string | null>(null)
@@ -53,6 +55,7 @@ const privacyMode = ref(false)
 const viewMode = ref<GalaxyViewMode>('3d')
 const loadError = ref('')
 const graphRequestId = ref(0)
+const neighborhoodRequestId = ref(0)
 const canvasRef = ref<GalaxyCanvasInstance | null>(null)
 const isConnectionRankingExpanded = ref(false)
 
@@ -77,11 +80,20 @@ const viewModeTabs = computed(() => [
     value: '2d' as const,
   },
 ])
+const graphScopeTabs = computed(() => [
+  {
+    label: t('relationships.graphScope.panorama'),
+    value: 'panorama' as const,
+  },
+  {
+    label: t('relationships.graphScope.close'),
+    value: 'close' as const,
+  },
+])
 
 const activeGraph = computed(() => neighborhoodResponse.value?.graph ?? graphResponse.value?.graph ?? EMPTY_GRAPH)
 const isNeighborhoodMode = computed(() => Boolean(neighborhoodResponse.value))
 const hasGraph = computed(() => activeGraph.value.nodes.length > 0)
-const diagnostics = computed(() => graphResponse.value?.diagnostics ?? neighborhoodResponse.value?.diagnostics ?? null)
 const task = computed(() => graphResponse.value?.task ?? neighborhoodResponse.value?.task ?? null)
 const isTaskRunning = computed(() => task.value?.status === 'running')
 const isTaskFailed = computed(() => task.value?.status === 'failed')
@@ -111,8 +123,8 @@ const connectionRanking = computed(() =>
 )
 
 const stats = computed(() => ({
-  nodes: diagnostics.value?.totalNodes ?? activeGraph.value.nodes.length,
-  edges: diagnostics.value?.totalEdges ?? activeGraph.value.edges.length,
+  nodes: activeGraph.value.nodes.length,
+  edges: activeGraph.value.edges.length,
   communities: activeGraph.value.communities.length,
 }))
 
@@ -173,6 +185,11 @@ function stopPolling() {
   pollTimer = null
 }
 
+function cancelNeighborhoodLoad() {
+  neighborhoodRequestId.value += 1
+  isLoadingNeighborhood.value = false
+}
+
 function syncPolling(nextTask: PeopleRelationshipsTaskState | undefined) {
   if (nextTask?.status === 'running') {
     if (!pollTimer) {
@@ -190,18 +207,22 @@ async function loadGraph(options: { silent?: boolean; preserveNeighborhood?: boo
   const requestId = graphRequestId.value + 1
   graphRequestId.value = requestId
   if (!options.silent) isLoading.value = true
+  if (!options.preserveNeighborhood) {
+    cancelNeighborhoodLoad()
+    neighborhoodResponse.value = null
+  }
   loadError.value = ''
 
   try {
     const next = await dataService.getPeopleRelationships({
       acceptStale: true,
       timeRangePreset: timeRangePreset.value,
+      graphScope: graphScope.value,
       query: debouncedSearchQuery.value.trim() || undefined,
     })
     if (requestId !== graphRequestId.value) return
 
     graphResponse.value = next
-    if (!options.preserveNeighborhood) neighborhoodResponse.value = null
     if (selectedKey.value && !activeGraph.value.nodes.some((node) => node.key === selectedKey.value)) {
       selectedKey.value = null
     }
@@ -223,9 +244,11 @@ async function recomputeRelationships() {
   try {
     const next = await dataService.recomputePeopleRelationships({
       timeRangePreset: timeRangePreset.value,
+      graphScope: graphScope.value,
       query: debouncedSearchQuery.value.trim() || undefined,
     })
     graphResponse.value = next
+    cancelNeighborhoodLoad()
     neighborhoodResponse.value = null
     selectedKey.value = null
     syncPolling(next.task)
@@ -238,6 +261,8 @@ async function recomputeRelationships() {
 }
 
 async function loadNeighborhood(key: string) {
+  const requestId = neighborhoodRequestId.value + 1
+  neighborhoodRequestId.value = requestId
   isLoadingNeighborhood.value = true
   loadError.value = ''
 
@@ -246,15 +271,18 @@ async function loadNeighborhood(key: string) {
       acceptStale: true,
       timeRangePreset: timeRangePreset.value,
     })
+    if (requestId !== neighborhoodRequestId.value) return
+
     neighborhoodResponse.value = next
     selectedKey.value = next.contact?.key ?? key
     syncPolling(next.task)
     await nextTick()
     canvasRef.value?.focusNode(selectedKey.value)
   } catch (error) {
+    if (requestId !== neighborhoodRequestId.value) return
     toast.fail(t('relationships.toast.neighborhoodFailed'), { description: String(error) })
   } finally {
-    isLoadingNeighborhood.value = false
+    if (requestId === neighborhoodRequestId.value) isLoadingNeighborhood.value = false
   }
 }
 
@@ -271,6 +299,7 @@ async function selectSearchResult(result: PeopleRelationshipsSearchResult) {
     return
   }
 
+  cancelNeighborhoodLoad()
   neighborhoodResponse.value = null
   await nextTick()
   canvasRef.value?.focusNode(result.key)
@@ -279,6 +308,11 @@ async function selectSearchResult(result: PeopleRelationshipsSearchResult) {
 async function selectNode(node: PeopleRelationshipGraphNode) {
   selectedKey.value = node.key
   isConnectionRankingExpanded.value = false
+  if (neighborhoodResponse.value?.contact?.key !== node.key) {
+    await loadNeighborhood(node.key)
+    return
+  }
+
   await nextTick()
   canvasRef.value?.focusNode(node.key)
 }
@@ -291,6 +325,7 @@ function handleThreeCanvasFallback() {
 
 function backToPanorama() {
   const key = selectedKey.value
+  cancelNeighborhoodLoad()
   neighborhoodResponse.value = null
   isConnectionRankingExpanded.value = false
   if (!key) return
@@ -311,6 +346,15 @@ function fitCanvas() {
 watch(timeRangePreset, () => {
   selectedKey.value = null
   isConnectionRankingExpanded.value = false
+  cancelNeighborhoodLoad()
+  neighborhoodResponse.value = null
+  void loadGraph()
+})
+
+watch(graphScope, () => {
+  selectedKey.value = null
+  isConnectionRankingExpanded.value = false
+  cancelNeighborhoodLoad()
   neighborhoodResponse.value = null
   void loadGraph()
 })
@@ -416,6 +460,7 @@ onBeforeUnmount(() => {
 
         <div class="absolute left-4 top-4 z-20 flex max-w-[calc(100%-2rem)] flex-wrap items-center gap-2">
           <UTabs v-model="timeRangePreset" :items="timeRangeTabs" :content="false" size="xs" class="min-w-max gap-0" />
+          <UTabs v-model="graphScope" :items="graphScopeTabs" :content="false" size="xs" class="min-w-max gap-0" />
           <UTabs v-model="viewMode" :items="viewModeTabs" :content="false" size="xs" class="min-w-max gap-0" />
           <UButton
             icon="i-lucide-scan-line"

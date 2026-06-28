@@ -14,6 +14,7 @@ import type {
   ContactDetailResponse,
   ContactPool,
   ContactsTimeRangePreset,
+  PeopleRelationshipsGraphScope,
   PeopleRelationshipsGraphResponse,
   PeopleRelationshipsNeighborhoodResponse,
 } from '@openchatlab/shared-types'
@@ -110,11 +111,13 @@ export interface ContactFriendMarkOptions {
 export interface PeopleRelationshipsFetchOptions {
   acceptStale?: boolean
   timeRangePreset?: ContactsTimeRangePreset
+  graphScope?: PeopleRelationshipsGraphScope
   query?: string
 }
 
 export interface PeopleRelationshipsRecomputeOptions {
   timeRangePreset?: ContactsTimeRangePreset
+  graphScope?: PeopleRelationshipsGraphScope
   query?: string
 }
 

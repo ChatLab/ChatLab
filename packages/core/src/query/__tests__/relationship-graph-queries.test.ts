@@ -121,6 +121,7 @@ describe('relationship graph query helpers', () => {
 
     const facts = getGroupRelationshipGraphFacts(db, owner.id)
 
+    assert.equal(facts.ownerMessageCount, 1)
     assert.deepEqual(
       facts.members.map((member) => member.contact.platformId),
       ['alice-pid', 'bob-pid', 'carol-pid']
@@ -153,6 +154,7 @@ describe('relationship graph query helpers', () => {
 
     const facts = getGroupRelationshipGraphFacts(db, owner.id, { startTs: 1700000000 })
 
+    assert.equal(facts.ownerMessageCount, 0)
     assert.deepEqual(
       facts.members.map((member) => [member.contact.platformId, member.messageCount]),
       [

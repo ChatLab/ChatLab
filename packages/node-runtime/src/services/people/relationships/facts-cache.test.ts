@@ -49,6 +49,7 @@ test('stores versioned relationship facts by DB version and time range', () => {
         members: [],
         edges: [],
         ownerEdges: [],
+        ownerMessageCount: 0,
       },
     }
 

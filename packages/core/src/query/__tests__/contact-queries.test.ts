@@ -10,6 +10,7 @@ import path from 'node:path'
 import Database from 'better-sqlite3'
 import {
   getGroupContactFacts,
+  getGroupRelationshipGraphFacts,
   getNonSystemMembersForContacts,
   getPrivateContactFacts,
   resolveOwnerMember,
@@ -159,6 +160,48 @@ describe('contact query helpers', () => {
     assert.equal(
       members.find((m) => m.platformId === 'system'),
       undefined
+    )
+  })
+
+  it('filters the group conversation itself from contact candidates and relationship facts', () => {
+    raw.exec(`
+      ALTER TABLE meta ADD COLUMN group_id TEXT;
+      UPDATE meta SET name = 'Project Group', group_id = 'group-pid';
+      INSERT INTO member (id, platform_id, account_name, group_nickname, aliases, avatar)
+      VALUES
+        (100, 'group-pid', 'Project Group', NULL, '[]', NULL),
+        (101, 'Project Group', 'Project Group', NULL, '[]', NULL);
+    `)
+    const insert = raw.prepare(
+      `INSERT INTO message
+        (id, sender_id, ts, type, content, platform_message_id, reply_to_message_id)
+       VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    insert.run(1, 1, 1704103200, 0, 'owner', 'owner-1', null)
+    insert.run(2, 2, 1704103260, 0, 'alice', 'alice-1', null)
+    insert.run(3, 100, 1704103320, 0, 'group pseudo sender', 'group-1', null)
+    insert.run(4, 101, 1704103380, 0, 'legacy group pseudo sender', 'group-legacy-1', null)
+
+    const owner = resolveOwnerMember(db)
+    assert.ok(owner)
+
+    assert.equal(
+      getNonSystemMembersForContacts(db).some(
+        (member) => member.platformId === 'group-pid' || member.platformId === 'Project Group'
+      ),
+      false
+    )
+    assert.equal(
+      getGroupContactFacts(db, owner.id).some(
+        (fact) => fact.contact.platformId === 'group-pid' || fact.contact.platformId === 'Project Group'
+      ),
+      false
+    )
+    assert.equal(
+      getGroupRelationshipGraphFacts(db, owner.id).members.some(
+        (member) => member.contact.platformId === 'group-pid' || member.contact.platformId === 'Project Group'
+      ),
+      false
     )
   })
 

@@ -9,6 +9,10 @@
     "3d": "3D",
     "2d": "2D"
   },
+  "graphScope": {
+    "panorama": "Panorama",
+    "close": "Close ties"
+  },
   "timeRange": {
     "1y": "1 year",
     "2y": "2 years",
