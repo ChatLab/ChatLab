@@ -236,6 +236,25 @@ describe('contact query helpers', () => {
     assert.equal(result.type === 'ok' ? result.lastMessageTs : null, 1704103200)
   })
 
+  it('does not mark private sessions ambiguous when extra members are inactive in the selected range', () => {
+    raw.exec("UPDATE meta SET type = 'private'")
+    const insert = raw.prepare(
+      'INSERT INTO message (id, sender_id, ts, type, content, platform_message_id) VALUES (?, ?, ?, ?, ?, ?)'
+    )
+    insert.run(1, 3, 1600000000, 0, 'old bob residue', 'old-bob')
+    insert.run(2, 1, 1704103200, 0, 'from owner', 'owner-1')
+    insert.run(3, 2, 1704103260, 0, 'from alice', 'alice-1')
+
+    const owner = resolveOwnerMember(db)
+    assert.ok(owner)
+
+    const result = getPrivateContactFacts(db, owner.id, { startTs: 1700000000 })
+
+    assert.equal(result.type, 'ok')
+    assert.equal(result.type === 'ok' ? result.contact.platformId : null, 'alice-pid')
+    assert.equal(result.type === 'ok' ? result.privateMessageCount : null, 2)
+  })
+
   it('marks private sessions with multiple non-owner members as ambiguous', () => {
     raw.exec("UPDATE meta SET type = 'private'")
     const owner = resolveOwnerMember(db)

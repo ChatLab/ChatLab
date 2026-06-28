@@ -94,6 +94,22 @@ test('builds selected node connection ranking by edge weight', () => {
   assert.equal(ranking.items[0]?.edge.weight, 12)
 })
 
+test('prefers recent selected-node connections over stale high-volume edges', () => {
+  const day = 24 * 60 * 60
+  const data: PeopleRelationshipsGraphData = {
+    nodes: [node('owner', 1), node('recent', 2), node('stale', 3)],
+    edges: [edge('owner', 'stale', 100, 100), edge('owner', 'recent', 60, 100 + day * 240)],
+    communities: [],
+  }
+
+  const ranking = buildRelationshipConnectionRanking(data, 'owner', { expanded: true })
+
+  assert.deepEqual(
+    ranking.items.map((item) => item.node.key),
+    ['recent', 'stale']
+  )
+})
+
 test('expands selected node connection ranking to all visible neighbors', () => {
   const ranking = buildRelationshipConnectionRanking(graph(), 'owner', { expanded: true })
 

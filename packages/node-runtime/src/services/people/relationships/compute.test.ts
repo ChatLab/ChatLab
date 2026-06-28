@@ -13,7 +13,7 @@ import { CHAT_DB_SCHEMA } from '@openchatlab/core'
 import type { DatabaseAdapter } from '@openchatlab/core'
 import { openBetterSqliteDatabase } from '../../../better-sqlite3-adapter'
 import type { SessionRuntimeAdapter } from '../../adapters'
-import { computePeopleRelationshipsSnapshot } from './compute'
+import { computePeopleRelationshipsSnapshot, PEOPLE_RELATIONSHIPS_ALGORITHM_VERSION } from './compute'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -180,7 +180,7 @@ test('computes a cropped relationship galaxy from private contacts and group int
     },
   })
 
-  assert.equal(snapshot.algorithmVersion, 'people-relationships-v1')
+  assert.equal(snapshot.algorithmVersion, PEOPLE_RELATIONSHIPS_ALGORITHM_VERSION)
   const owner = snapshot.nodes.find((node) => node.kind === 'owner')
   assert.ok(owner)
   assert.equal(owner.displayName, 'Me')
@@ -217,4 +217,98 @@ test('computes a cropped relationship galaxy from private contacts and group int
   )
   assert.equal(snapshot.diagnostics.processedGroupSessions, 1)
   assert.equal(snapshot.diagnostics.processedPrivateSessions, 1)
+})
+
+test('prefers recent owner edges when cropping dense relationship graph edges', (t) => {
+  const env = new TestEnv()
+  t.after(() => env.cleanup())
+  const day = 24 * 60 * 60
+  const staleTs = 1700000000
+  const recentTs = staleTs + day * 240
+
+  env.seed({
+    id: 'private-stale',
+    platform: 'weixin',
+    type: 'private',
+    ownerId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner', accountName: 'Me' },
+      { id: 2, platformId: 'stale', accountName: 'Stale' },
+    ],
+    messages: Array.from({ length: 100 }, (_, index) => ({
+      id: index + 1,
+      senderId: index % 2 === 0 ? 1 : 2,
+      ts: staleTs + index,
+    })),
+  })
+  env.seed({
+    id: 'private-recent',
+    platform: 'weixin',
+    type: 'private',
+    ownerId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner', accountName: 'Me' },
+      { id: 2, platformId: 'recent', accountName: 'Recent' },
+    ],
+    messages: Array.from({ length: 60 }, (_, index) => ({
+      id: index + 1,
+      senderId: index % 2 === 0 ? 1 : 2,
+      ts: recentTs + index,
+    })),
+  })
+
+  const snapshot = computePeopleRelationshipsSnapshot({
+    adapter: env.adapter,
+    signature: 'sig-1',
+    timeRangePreset: 'all',
+    limits: {
+      coreNodeLimit: 10,
+      coreEdgeLimit: 10,
+      perNodeEdgeLimit: 1,
+    },
+  })
+
+  const owner = snapshot.graph.nodes.find((node) => node.kind === 'owner')
+  assert.ok(owner)
+  const ownerEdges = snapshot.graph.edges.filter((edge) => edge.sourceKey === owner.key || edge.targetKey === owner.key)
+
+  assert.equal(ownerEdges.length, 1)
+  assert.equal(ownerEdges[0]?.targetKey, 'weixin:recent')
+})
+
+test('keeps enough owner edges for the collapsed connection ranking', (t) => {
+  const env = new TestEnv()
+  t.after(() => env.cleanup())
+
+  for (let index = 0; index < 11; index++) {
+    const contactId = `contact-${index + 1}`
+    env.seed({
+      id: `private-${contactId}`,
+      platform: 'weixin',
+      type: 'private',
+      ownerId: 'owner',
+      members: [
+        { id: 1, platformId: 'owner', accountName: 'Me' },
+        { id: 2, platformId: contactId, accountName: contactId },
+      ],
+      messages: [
+        { id: 1, senderId: 1, ts: 1704103200 + index * 100 },
+        { id: 2, senderId: 2, ts: 1704103201 + index * 100 },
+      ],
+    })
+  }
+
+  const snapshot = computePeopleRelationshipsSnapshot({
+    adapter: env.adapter,
+    signature: 'sig-1',
+    timeRangePreset: 'all',
+  })
+
+  const owner = snapshot.graph.nodes.find((node) => node.kind === 'owner')
+  assert.ok(owner)
+
+  assert.equal(
+    snapshot.graph.edges.filter((edge) => edge.sourceKey === owner.key || edge.targetKey === owner.key).length >= 10,
+    true
+  )
 })

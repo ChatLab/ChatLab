@@ -127,9 +127,25 @@ export function getPrivateContactFacts(
 ): PrivateContactFacts {
   const candidates = getNonSystemMembersForContacts(db).filter((member) => member.id !== ownerMemberId)
   if (candidates.length === 0) return { type: 'missing' }
-  if (candidates.length > 1) return { type: 'ambiguous', candidates }
 
   const timeFilter = createMessageTimeFilter('msg', options.startTs)
+  const candidateById = new Map(candidates.map((candidate) => [candidate.id, candidate]))
+  const activeCandidateRows = db
+    .prepare(
+      `SELECT msg.sender_id as senderId
+       FROM message msg
+       JOIN member m ON msg.sender_id = m.id
+       WHERE ${nonSystemMessageCondition('msg', 'm')}
+         AND msg.sender_id <> ?${timeFilter.sql}
+       GROUP BY msg.sender_id`
+    )
+    .all(ownerMemberId, ...timeFilter.params) as Array<{ senderId: number }>
+  const activeCandidates = activeCandidateRows
+    .map((row) => candidateById.get(row.senderId))
+    .filter((candidate): candidate is ContactMemberRef => Boolean(candidate))
+  const resolvedCandidates = activeCandidates.length > 0 ? activeCandidates : candidates
+  if (resolvedCandidates.length > 1) return { type: 'ambiguous', candidates: resolvedCandidates }
+
   const countRow = db
     .prepare(
       `SELECT COUNT(*) as count
@@ -160,7 +176,7 @@ export function getPrivateContactFacts(
 
   return {
     type: 'ok',
-    contact: candidates[0],
+    contact: resolvedCandidates[0],
     privateMessageCount: countRow?.count ?? 0,
     activeMonths: monthRows.map((row) => row.month).filter(Boolean),
     lastMessageTs: lastRow?.lastMessageTs ?? null,

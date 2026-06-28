@@ -46,6 +46,8 @@ const PRIVATE_COMMUNITY_ID = 'private'
 const OWNER_KEY_PREFIX = 'owner'
 const REPLY_WEIGHT = 3
 const CO_OCCURRENCE_COUNT_WEIGHT = 0.05
+const EDGE_RECENCY_HALF_LIFE_SECONDS = 120 * 24 * 60 * 60
+const EDGE_RECENCY_FLOOR = 0.1
 
 const COMMUNITY_COLORS = [
   '#7dd3fc',
@@ -200,19 +202,18 @@ export function buildPeopleRelationshipsNeighborhoodGraph(
   const center = snapshot.nodes.find((node) => node.key === contactKey)
   if (!center) return { nodes: [], edges: [], communities: [] }
 
-  const relatedEdges = snapshot.edges
-    .filter((edge) => edge.sourceKey === contactKey || edge.targetKey === contactKey)
-    .sort(compareEdges)
+  const relatedEdges = sortEdgesForDisplay(
+    snapshot.edges.filter((edge) => edge.sourceKey === contactKey || edge.targetKey === contactKey)
+  )
   const nodeKeys = new Set<string>([contactKey])
   for (const edge of relatedEdges) {
     if (nodeKeys.size >= normalizedLimits.neighborhoodNodeLimit) break
     nodeKeys.add(edge.sourceKey === contactKey ? edge.targetKey : edge.sourceKey)
   }
 
-  const edges = snapshot.edges
-    .filter((edge) => nodeKeys.has(edge.sourceKey) && nodeKeys.has(edge.targetKey))
-    .sort(compareEdges)
-    .slice(0, normalizedLimits.neighborhoodEdgeLimit)
+  const edges = sortEdgesForDisplay(
+    snapshot.edges.filter((edge) => nodeKeys.has(edge.sourceKey) && nodeKeys.has(edge.targetKey))
+  ).slice(0, normalizedLimits.neighborhoodEdgeLimit)
   const nodes = snapshot.nodes.filter((node) => nodeKeys.has(node.key)).sort(compareNodes)
   return {
     nodes,
@@ -564,7 +565,7 @@ function cropEdges(
 ): PeopleRelationshipGraphEdge[] {
   const counts = new Map<string, number>()
   const kept: PeopleRelationshipGraphEdge[] = []
-  for (const edge of edges) {
+  for (const edge of sortEdgesForDisplay(edges)) {
     if (kept.length >= limits.coreEdgeLimit) break
     const sourceCount = counts.get(edge.sourceKey) ?? 0
     const targetCount = counts.get(edge.targetKey) ?? 0
@@ -963,7 +964,7 @@ function normalizeLimits(limits: PeopleRelationshipsComputeLimits = {}): Require
   return {
     coreNodeLimit: normalizePositiveLimit(limits.coreNodeLimit, 1500),
     coreEdgeLimit: normalizePositiveLimit(limits.coreEdgeLimit, 6000),
-    perNodeEdgeLimit: normalizePositiveLimit(limits.perNodeEdgeLimit, 8),
+    perNodeEdgeLimit: normalizePositiveLimit(limits.perNodeEdgeLimit, 12),
     neighborhoodNodeLimit: normalizePositiveLimit(limits.neighborhoodNodeLimit, 80),
     neighborhoodEdgeLimit: normalizePositiveLimit(limits.neighborhoodEdgeLimit, 240),
     searchResultLimit: normalizePositiveLimit(limits.searchResultLimit, 20),
@@ -1023,6 +1024,30 @@ export function compareNodes(a: PeopleRelationshipGraphNode, b: PeopleRelationsh
 
 export function compareEdges(a: PeopleRelationshipGraphEdge, b: PeopleRelationshipGraphEdge): number {
   return b.weight - a.weight || a.id.localeCompare(b.id)
+}
+
+function sortEdgesForDisplay(edges: PeopleRelationshipGraphEdge[]): PeopleRelationshipGraphEdge[] {
+  const anchorTs = edges.reduce((max, edge) => Math.max(max, edge.lastInteractionTs ?? 0), 0)
+  return [...edges].sort((a, b) => compareEdgesForDisplay(a, b, anchorTs))
+}
+
+function compareEdgesForDisplay(
+  a: PeopleRelationshipGraphEdge,
+  b: PeopleRelationshipGraphEdge,
+  anchorTs: number
+): number {
+  const bRecentWeight = getRecentEdgeWeight(b, anchorTs)
+  const aRecentWeight = getRecentEdgeWeight(a, anchorTs)
+  if (bRecentWeight !== aRecentWeight) return bRecentWeight - aRecentWeight
+  return compareEdges(a, b)
+}
+
+function getRecentEdgeWeight(edge: PeopleRelationshipGraphEdge, anchorTs: number): number {
+  if (!edge.lastInteractionTs || anchorTs <= 0) return edge.weight
+  const ageSeconds = Math.max(0, anchorTs - edge.lastInteractionTs)
+  const recencyFactor =
+    EDGE_RECENCY_FLOOR + (1 - EDGE_RECENCY_FLOOR) * Math.pow(0.5, ageSeconds / EDGE_RECENCY_HALF_LIFE_SECONDS)
+  return edge.weight * recencyFactor
 }
 
 function roundNum(value: number, digits = 4): number {

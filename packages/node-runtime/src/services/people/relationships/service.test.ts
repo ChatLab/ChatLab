@@ -139,6 +139,10 @@ function makeAdapter(signatureSeed = 'stable'): SessionRuntimeAdapter {
   } as SessionRuntimeAdapter
 }
 
+function makeFreshSignature(): string {
+  return `algorithm:${PEOPLE_RELATIONSHIPS_ALGORITHM_VERSION}|range:1y|session-a:missing`
+}
+
 test('returns search results from all snapshot nodes, including nodes outside the core graph', () => {
   const dir = makeTempDir()
   try {
@@ -149,7 +153,7 @@ test('returns search results from all snapshot nodes, including nodes outside th
         throw new Error('runner should not be called for fresh injected snapshot')
       },
     })
-    service.replaceSnapshotForTests?.(makeSnapshot('algorithm:people-relationships-v1|range:1y|session-a:missing'))
+    service.replaceSnapshotForTests?.(makeSnapshot(makeFreshSignature()))
 
     const response = service.getGraph({ acceptStale: true, query: 'carol' })
 
@@ -176,7 +180,7 @@ test('returns the owner node from full snapshot search', () => {
         throw new Error('runner should not be called for fresh injected snapshot')
       },
     })
-    service.replaceSnapshotForTests?.(makeSnapshot('algorithm:people-relationships-v1|range:1y|session-a:missing'))
+    service.replaceSnapshotForTests?.(makeSnapshot(makeFreshSignature()))
 
     const response = service.getGraph({ acceptStale: true, query: '我' })
 
@@ -199,7 +203,7 @@ test('returns neighborhood graph for a searched node outside the core graph', ()
         throw new Error('runner should not be called for fresh injected snapshot')
       },
     })
-    service.replaceSnapshotForTests?.(makeSnapshot('algorithm:people-relationships-v1|range:1y|session-a:missing'))
+    service.replaceSnapshotForTests?.(makeSnapshot(makeFreshSignature()))
 
     const response = service.getNeighborhood('weixin:carol', { acceptStale: true })
 
@@ -235,7 +239,7 @@ test('starts a background task when snapshot is missing and returns task state i
     assert.equal(response.cache.status, 'missing')
     assert.equal(response.task?.status, 'running')
     assert.equal(runnerCalls, 1)
-    releaseRunner(makeSnapshot('algorithm:people-relationships-v1|range:1y|session-a:missing'))
+    releaseRunner(makeSnapshot(makeFreshSignature()))
     await new Promise((resolve) => setTimeout(resolve, 0))
     await service.close()
   } finally {
