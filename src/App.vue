@@ -22,6 +22,7 @@ import { useWindowsTitleBarOverlay } from '@/composables/useWindowsTitleBarOverl
 import { configureHttpClient } from '@/services/utils/http'
 import { IS_ELECTRON } from '@/utils/platform'
 import { usePlatformService } from '@/services'
+import { resolvePageTransitionKey } from '@/routes/page-transition-key'
 
 const { t } = useI18n()
 
@@ -36,6 +37,7 @@ const route = useRoute()
 const router = useRouter()
 
 const isLoginPage = computed(() => !IS_ELECTRON && route.name === 'login')
+const pageTransitionKey = computed(() => resolvePageTransitionKey(route))
 const initError = ref<string | null>(null)
 const colorMode = useColorMode({
   emitAuto: true,
@@ -186,7 +188,7 @@ onUnmounted(() => {
           <main class="relative flex-1 overflow-hidden">
             <router-view v-slot="{ Component }">
               <Transition name="page-fade" mode="out-in">
-                <component :is="Component" :key="route.path" />
+                <component :is="Component" :key="pageTransitionKey" />
               </Transition>
             </router-view>
           </main>

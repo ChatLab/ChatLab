@@ -14,9 +14,8 @@ import type {
 import { useDataService } from '@/services'
 import { useToast } from '@/composables/useToast'
 import { useLayoutStore } from '@/stores/layout'
-import PageHeader from '@/components/layout/PageHeader.vue'
 import { LoadingState, SubTabs } from '@/components/UI'
-import PeopleSubnav from '../components/PeopleSubnav.vue'
+import { usePeoplePageHeader } from '../people-page-header'
 import ContactDetailPanel from './components/ContactDetailPanel.vue'
 import ContactsStatusBlocks from './components/ContactsStatusBlocks.vue'
 import {
@@ -380,6 +379,41 @@ async function recomputeContacts() {
     isRecomputing.value = false
   }
 }
+
+const contactsHeader = computed(() => ({
+  title: t('layout.relationships'),
+  description: t('contacts.subtitle', { count: diagnostics.value?.privateSessionCount ?? 0 }),
+  icon: 'i-lucide-users',
+  iconClass: 'bg-primary-600 text-white dark:bg-primary-500 dark:text-white shadow-sm',
+  action: {
+    label: t('contacts.actions.recompute'),
+    icon: 'i-lucide-refresh-cw',
+    loading: isRecomputing.value,
+    disabled: isTaskRunning.value,
+    class: 'border border-pink-100 hover:border-pink-200 dark:border-pink-950/30 dark:hover:border-pink-900/50',
+    onClick: recomputeContacts,
+  },
+  stats: [
+    {
+      id: 'total',
+      label: t('contacts.stats.total'),
+      value: stats.value.total.toLocaleString(),
+    },
+    {
+      id: 'friends',
+      label: t('contacts.stats.friends'),
+      value: stats.value.friends.toLocaleString(),
+    },
+    {
+      id: 'nonFriends',
+      label: t('contacts.stats.nonFriends'),
+      value: stats.value.nonFriends.toLocaleString(),
+      dividerBefore: true,
+    },
+  ],
+}))
+
+usePeoplePageHeader(contactsHeader)
 
 function applyContactsPage(
   state: ContactsTabState,
@@ -821,348 +855,299 @@ function getGroupSectionScrollTop(): number | null {
 </script>
 
 <template>
-  <div
-    class="flex h-full flex-col bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100"
-    style="padding-top: var(--titlebar-area-height)"
-  >
-    <PageHeader
-      :title="t('layout.relationships')"
-      :description="t('contacts.subtitle', { count: diagnostics?.privateSessionCount ?? 0 })"
-      size="compact"
-      icon="i-lucide-users"
-      icon-class="bg-primary-600 text-white dark:bg-primary-500 dark:text-white shadow-sm"
+  <div class="flex min-h-0 flex-1 flex-col bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+    <SubTabs
+      v-model="activeContactSection"
+      :items="contactTabs"
+      persist-key="contactsTab"
+      @change="handleContactTabChange"
     >
-      <template #actions>
-        <UButton
-          icon="i-lucide-refresh-cw"
-          color="primary"
-          variant="soft"
-          size="sm"
-          class="rounded-xl border border-pink-100 hover:border-pink-200 dark:border-pink-950/30 dark:hover:border-pink-900/50"
-          :loading="isRecomputing"
-          :disabled="isTaskRunning"
-          @click="recomputeContacts"
-        >
-          {{ t('contacts.actions.recompute') }}
-        </UButton>
-      </template>
-
-      <div class="mt-3 flex items-center justify-between gap-3 pb-1.5">
-        <PeopleSubnav active="contacts" />
-
-        <!-- 统计指标面板 -->
-        <div class="hidden items-center gap-5 text-[11px] sm:flex">
-          <div class="flex items-center gap-1.5">
-            <span class="text-gray-400 dark:text-gray-500">{{ t('contacts.stats.total') }}</span>
-            <span class="font-mono font-bold text-gray-900 dark:text-white">{{ stats.total }}</span>
-          </div>
-          <div class="flex items-center gap-1.5">
-            <span class="text-gray-400 dark:text-gray-500">{{ t('contacts.stats.friends') }}</span>
-            <span class="font-mono font-bold text-gray-900 dark:text-white">{{ stats.friends }}</span>
-          </div>
-          <div class="h-3 w-px bg-gray-250 dark:bg-white/10"></div>
-          <div class="flex items-center gap-1.5">
-            <span class="text-gray-400 dark:text-gray-500">{{ t('contacts.stats.nonFriends') }}</span>
-            <span class="font-mono font-bold text-gray-900 dark:text-white">{{ stats.nonFriends }}</span>
-          </div>
+      <template #right>
+        <div class="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 px-3 py-2 lg:px-0 lg:py-0">
+          <UTabs
+            v-model="timeRangePreset"
+            :items="timeRangeTabs"
+            :content="false"
+            size="xs"
+            class="min-w-max gap-0"
+            :disabled="isTaskRunning"
+          />
+          <UInput
+            v-model="searchQuery"
+            icon="i-lucide-search"
+            :placeholder="t('contacts.search')"
+            size="sm"
+            class="w-full sm:w-32"
+          >
+            <template v-if="searchQuery" #trailing>
+              <UButton
+                icon="i-heroicons-x-mark"
+                variant="link"
+                color="neutral"
+                size="xs"
+                :aria-label="t('contacts.actions.clearSearch')"
+                @click="searchQuery = ''"
+              />
+            </template>
+          </UInput>
         </div>
-      </div>
-    </PageHeader>
+      </template>
+    </SubTabs>
 
-    <div class="flex min-h-0 flex-1 flex-col">
-      <SubTabs
-        v-model="activeContactSection"
-        :items="contactTabs"
-        persist-key="contactsTab"
-        @change="handleContactTabChange"
-      >
-        <template #right>
-          <div class="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 px-3 py-2 lg:px-0 lg:py-0">
-            <UTabs
-              v-model="timeRangePreset"
-              :items="timeRangeTabs"
-              :content="false"
-              size="xs"
-              class="min-w-max gap-0"
-              :disabled="isTaskRunning"
-            />
-            <UInput
-              v-model="searchQuery"
-              icon="i-lucide-search"
-              :placeholder="t('contacts.search')"
-              size="sm"
-              class="w-full sm:w-32"
+    <div class="flex min-h-0 flex-1 overflow-hidden">
+      <main ref="scrollContainerRef" class="min-h-0 min-w-0 flex-1 overflow-y-auto" @scroll="handleListScroll">
+        <div class="mx-auto flex w-full max-w-[1800px] flex-col gap-6 px-6 pb-6 pt-0 lg:px-8">
+          <ContactsStatusBlocks
+            :show-disabled-notice="showDisabledNotice"
+            :active-private-session-count="diagnostics?.activePrivateSessionCount ?? 0"
+            :cache-status="response?.cache.status"
+            :task-failed="taskFailed"
+            :task-last-error="task?.lastError"
+            :is-task-running="isTaskRunning"
+            :is-recomputing="isRecomputing"
+            @recompute="recomputeContacts"
+          />
+
+          <section class="flex flex-col gap-4">
+            <LoadingState v-if="showLoadingState" :text="loadingStateText" height="py-16" />
+
+            <div
+              v-else-if="pageError"
+              class="rounded-2xl border border-red-200 bg-red-50/50 p-4 text-sm text-red-700 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300"
             >
-              <template v-if="searchQuery" #trailing>
-                <UButton
-                  icon="i-heroicons-x-mark"
-                  variant="link"
-                  color="neutral"
-                  size="xs"
-                  :aria-label="t('contacts.actions.clearSearch')"
-                  @click="searchQuery = ''"
-                />
-              </template>
-            </UInput>
-          </div>
-        </template>
-      </SubTabs>
+              {{ pageError }}
+            </div>
 
-      <div class="flex min-h-0 flex-1 overflow-hidden">
-        <main ref="scrollContainerRef" class="min-h-0 min-w-0 flex-1 overflow-y-auto" @scroll="handleListScroll">
-          <div class="mx-auto flex w-full max-w-[1800px] flex-col gap-6 px-6 pb-6 pt-0 lg:px-8">
-            <ContactsStatusBlocks
-              :show-disabled-notice="showDisabledNotice"
-              :active-private-session-count="diagnostics?.activePrivateSessionCount ?? 0"
-              :cache-status="response?.cache.status"
-              :task-failed="taskFailed"
-              :task-last-error="task?.lastError"
-              :is-task-running="isTaskRunning"
-              :is-recomputing="isRecomputing"
-              @recompute="recomputeContacts"
-            />
-
-            <section class="flex flex-col gap-4">
-              <LoadingState v-if="showLoadingState" :text="loadingStateText" height="py-16" />
-
+            <div v-else class="min-h-0">
               <div
-                v-else-if="pageError"
-                class="rounded-2xl border border-red-200 bg-red-50/50 p-4 text-sm text-red-700 dark:border-red-900/30 dark:bg-red-950/20 dark:text-red-300"
+                v-if="showEmptyState"
+                class="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-250 p-16 text-center dark:border-white/5"
               >
-                {{ pageError }}
+                <div
+                  class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 text-gray-400 dark:bg-white/5 dark:text-gray-500"
+                >
+                  <UIcon name="i-lucide-users-2" class="h-6 w-6" />
+                </div>
+                <p class="mt-4 text-sm font-medium text-gray-400 dark:text-gray-500">{{ t('contacts.empty') }}</p>
               </div>
 
-              <div v-else class="min-h-0">
+              <div v-else class="min-w-0">
                 <div
-                  v-if="showEmptyState"
-                  class="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-250 p-16 text-center dark:border-white/5"
+                  class="sticky top-0 z-20 overflow-hidden border-b border-gray-100 bg-white dark:border-gray-800/40 dark:bg-gray-900"
                 >
                   <div
-                    class="flex h-12 w-12 items-center justify-center rounded-2xl bg-gray-50 text-gray-400 dark:bg-white/5 dark:text-gray-500"
+                    class="contact-table-grid min-w-[720px] px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500"
+                    :class="contactGridClass(activeContactSection)"
+                    :style="{ transform: `translateX(-${tableScrollLeft}px)` }"
                   >
-                    <UIcon name="i-lucide-users-2" class="h-6 w-6" />
+                    <span>{{ t('contacts.table.contact') }}</span>
+                    <span>{{ t('contacts.table.status') }}</span>
+                    <template v-if="activeContactSection === 'friend'">
+                      <span>{{ t('contacts.metrics.privateMessagesLabel') }}</span>
+                      <span>{{ t('contacts.metrics.activeMonths') }}</span>
+                      <span>{{ t('contacts.metrics.commonGroups') }}</span>
+                    </template>
+                    <template v-else>
+                      <span>{{ t('contacts.metrics.commonGroups') }}</span>
+                      <span>{{ t('contacts.metrics.coOccurrence') }}</span>
+                      <span>{{ t('contacts.metrics.replies') }}</span>
+                    </template>
+                    <span>{{ t('contacts.metrics.lastInteractionShort') }}</span>
+                    <span class="flex min-w-0 items-center justify-end gap-1 text-right">
+                      <span class="truncate">{{ t('contacts.detail.score') }}</span>
+                      <UTooltip :content="{ side: 'top' }" :ui="{ content: 'h-auto' }">
+                        <UIcon
+                          name="i-lucide-circle-help"
+                          class="h-3.5 w-3.5 shrink-0 text-gray-350 transition-colors hover:text-primary-500 dark:text-gray-600 dark:hover:text-primary-400"
+                        />
+                        <template #content>
+                          <div class="max-w-[280px] whitespace-normal break-words text-left text-xs leading-5">
+                            {{ t('contacts.detail.scoreHelp') }}
+                          </div>
+                        </template>
+                      </UTooltip>
+                    </span>
                   </div>
-                  <p class="mt-4 text-sm font-medium text-gray-400 dark:text-gray-500">{{ t('contacts.empty') }}</p>
                 </div>
 
-                <div v-else class="min-w-0">
-                  <div
-                    class="sticky top-0 z-20 overflow-hidden border-b border-gray-100 bg-white dark:border-gray-800/40 dark:bg-gray-900"
-                  >
-                    <div
-                      class="contact-table-grid min-w-[720px] px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500"
-                      :class="contactGridClass(activeContactSection)"
-                      :style="{ transform: `translateX(-${tableScrollLeft}px)` }"
-                    >
-                      <span>{{ t('contacts.table.contact') }}</span>
-                      <span>{{ t('contacts.table.status') }}</span>
-                      <template v-if="activeContactSection === 'friend'">
-                        <span>{{ t('contacts.metrics.privateMessagesLabel') }}</span>
-                        <span>{{ t('contacts.metrics.activeMonths') }}</span>
-                        <span>{{ t('contacts.metrics.commonGroups') }}</span>
-                      </template>
-                      <template v-else>
+                <div ref="tableBodyRef" class="overflow-x-auto scrollbar-hide" @scroll="handleTableHorizontalScroll">
+                  <div class="relative min-w-[720px]" :style="{ height: `${totalSize}px` }">
+                    <template v-for="virtualRow in virtualItems" :key="String(virtualRow.key)">
+                      <div
+                        v-if="rowAt(virtualRow.index).type === 'section' && rowAt(virtualRow.index).pool === 'friend'"
+                        class="absolute left-0 top-0 h-px w-full"
+                        :style="{ transform: `translateY(${virtualRow.start}px)` }"
+                        aria-hidden="true"
+                      ></div>
+
+                      <div
+                        v-else-if="rowAt(virtualRow.index).type === 'section'"
+                        class="contact-table-grid absolute left-0 top-0 w-full border-b border-gray-100 bg-white px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:border-gray-800/40 dark:bg-gray-900 dark:text-gray-500"
+                        :class="contactGridClass(rowAt(virtualRow.index).pool)"
+                        :style="{ transform: `translateY(${virtualRow.start}px)` }"
+                      >
+                        <span>{{ t('contacts.table.contact') }}</span>
+                        <span>{{ t('contacts.table.status') }}</span>
                         <span>{{ t('contacts.metrics.commonGroups') }}</span>
                         <span>{{ t('contacts.metrics.coOccurrence') }}</span>
                         <span>{{ t('contacts.metrics.replies') }}</span>
-                      </template>
-                      <span>{{ t('contacts.metrics.lastInteractionShort') }}</span>
-                      <span class="flex min-w-0 items-center justify-end gap-1 text-right">
-                        <span class="truncate">{{ t('contacts.detail.score') }}</span>
-                        <UTooltip :content="{ side: 'top' }" :ui="{ content: 'h-auto' }">
-                          <UIcon
-                            name="i-lucide-circle-help"
-                            class="h-3.5 w-3.5 shrink-0 text-gray-350 transition-colors hover:text-primary-500 dark:text-gray-600 dark:hover:text-primary-400"
-                          />
-                          <template #content>
-                            <div class="max-w-[280px] whitespace-normal break-words text-left text-xs leading-5">
-                              {{ t('contacts.detail.scoreHelp') }}
-                            </div>
-                          </template>
-                        </UTooltip>
-                      </span>
-                    </div>
-                  </div>
+                        <span>{{ t('contacts.metrics.lastInteractionShort') }}</span>
+                        <span class="flex min-w-0 items-center justify-end gap-1 text-right">
+                          <span class="truncate">{{ t('contacts.detail.score') }}</span>
+                          <UTooltip :content="{ side: 'top' }" :ui="{ content: 'h-auto' }">
+                            <UIcon
+                              name="i-lucide-circle-help"
+                              class="h-3.5 w-3.5 shrink-0 text-gray-350 transition-colors hover:text-primary-500 dark:text-gray-600 dark:hover:text-primary-400"
+                            />
+                            <template #content>
+                              <div class="max-w-[280px] whitespace-normal break-words text-left text-xs leading-5">
+                                {{ t('contacts.detail.scoreHelp') }}
+                              </div>
+                            </template>
+                          </UTooltip>
+                        </span>
+                      </div>
 
-                  <div ref="tableBodyRef" class="overflow-x-auto scrollbar-hide" @scroll="handleTableHorizontalScroll">
-                    <div class="relative min-w-[720px]" :style="{ height: `${totalSize}px` }">
-                      <template v-for="virtualRow in virtualItems" :key="String(virtualRow.key)">
+                      <button
+                        v-else-if="rowAt(virtualRow.index).type === 'contact'"
+                        type="button"
+                        class="contact-table-grid absolute left-0 top-0 w-full px-4 py-3.5 text-left outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
+                        :class="[
+                          contactGridClass(contactRowAt(virtualRow.index).pool),
+                          selectedKey === contactRowAt(virtualRow.index).contact.key
+                            ? 'border-b border-primary-500/20 bg-primary-500/[0.03] dark:bg-primary-500/[0.04]'
+                            : 'border-b border-gray-100/50 bg-transparent hover:bg-gray-50/50 dark:border-white/5 dark:hover:bg-gray-800/20',
+                        ]"
+                        :style="{ transform: `translateY(${virtualRow.start}px)` }"
+                        :aria-label="
+                          t('contacts.actions.viewDetail', {
+                            name: contactRowAt(virtualRow.index).contact.displayName,
+                          })
+                        "
+                        @click="selectContact(contactRowAt(virtualRow.index).contact)"
+                      >
                         <div
-                          v-if="rowAt(virtualRow.index).type === 'section' && rowAt(virtualRow.index).pool === 'friend'"
-                          class="absolute left-0 top-0 h-px w-full"
-                          :style="{ transform: `translateY(${virtualRow.start}px)` }"
-                          aria-hidden="true"
+                          class="absolute left-0 top-1/4 h-1/2 w-1 rounded-r-full bg-primary-500 transition-all duration-300"
+                          :class="
+                            selectedKey === contactRowAt(virtualRow.index).contact.key
+                              ? 'scale-100 opacity-100'
+                              : 'scale-75 opacity-0'
+                          "
                         ></div>
 
-                        <div
-                          v-else-if="rowAt(virtualRow.index).type === 'section'"
-                          class="contact-table-grid absolute left-0 top-0 w-full border-b border-gray-100 bg-white px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:border-gray-800/40 dark:bg-gray-900 dark:text-gray-500"
-                          :class="contactGridClass(rowAt(virtualRow.index).pool)"
-                          :style="{ transform: `translateY(${virtualRow.start}px)` }"
-                        >
-                          <span>{{ t('contacts.table.contact') }}</span>
-                          <span>{{ t('contacts.table.status') }}</span>
-                          <span>{{ t('contacts.metrics.commonGroups') }}</span>
-                          <span>{{ t('contacts.metrics.coOccurrence') }}</span>
-                          <span>{{ t('contacts.metrics.replies') }}</span>
-                          <span>{{ t('contacts.metrics.lastInteractionShort') }}</span>
-                          <span class="flex min-w-0 items-center justify-end gap-1 text-right">
-                            <span class="truncate">{{ t('contacts.detail.score') }}</span>
-                            <UTooltip :content="{ side: 'top' }" :ui="{ content: 'h-auto' }">
-                              <UIcon
-                                name="i-lucide-circle-help"
-                                class="h-3.5 w-3.5 shrink-0 text-gray-350 transition-colors hover:text-primary-500 dark:text-gray-600 dark:hover:text-primary-400"
-                              />
-                              <template #content>
-                                <div class="max-w-[280px] whitespace-normal break-words text-left text-xs leading-5">
-                                  {{ t('contacts.detail.scoreHelp') }}
-                                </div>
-                              </template>
-                            </UTooltip>
-                          </span>
-                        </div>
-
-                        <button
-                          v-else-if="rowAt(virtualRow.index).type === 'contact'"
-                          type="button"
-                          class="contact-table-grid absolute left-0 top-0 w-full px-4 py-3.5 text-left outline-none transition-colors duration-200 focus-visible:ring-2 focus-visible:ring-primary-500 focus-visible:ring-offset-2 focus-visible:ring-offset-white dark:focus-visible:ring-offset-gray-900"
-                          :class="[
-                            contactGridClass(contactRowAt(virtualRow.index).pool),
-                            selectedKey === contactRowAt(virtualRow.index).contact.key
-                              ? 'border-b border-primary-500/20 bg-primary-500/[0.03] dark:bg-primary-500/[0.04]'
-                              : 'border-b border-gray-100/50 bg-transparent hover:bg-gray-50/50 dark:border-white/5 dark:hover:bg-gray-800/20',
-                          ]"
-                          :style="{ transform: `translateY(${virtualRow.start}px)` }"
-                          :aria-label="
-                            t('contacts.actions.viewDetail', {
-                              name: contactRowAt(virtualRow.index).contact.displayName,
-                            })
-                          "
-                          @click="selectContact(contactRowAt(virtualRow.index).contact)"
-                        >
-                          <div
-                            class="absolute left-0 top-1/4 h-1/2 w-1 rounded-r-full bg-primary-500 transition-all duration-300"
-                            :class="
-                              selectedKey === contactRowAt(virtualRow.index).contact.key
-                                ? 'scale-100 opacity-100'
-                                : 'scale-75 opacity-0'
-                            "
-                          ></div>
-
-                          <div class="group flex min-w-0 w-full items-center gap-3">
-                            <div class="relative shrink-0 overflow-hidden rounded-lg">
-                              <img
-                                v-if="contactRowAt(virtualRow.index).contact.avatar"
-                                :src="contactRowAt(virtualRow.index).contact.avatar ?? ''"
-                                :alt="contactRowAt(virtualRow.index).contact.displayName"
-                                loading="lazy"
-                                decoding="async"
-                                class="h-10 w-10 object-cover transition-transform duration-300 group-hover:scale-105"
-                              />
-                              <div
-                                v-else
-                                class="flex h-10 w-10 items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 text-sm font-bold text-gray-500 transition-transform duration-300 group-hover:scale-105 dark:from-gray-800 dark:to-gray-800/60 dark:text-gray-400"
-                              >
-                                {{ avatarText(contactRowAt(virtualRow.index).contact) }}
-                              </div>
-                            </div>
-
-                            <div class="min-w-0 flex-1">
-                              <div class="flex min-w-0 items-center gap-1">
-                                <span
-                                  class="truncate text-sm font-semibold leading-tight tracking-tight text-gray-800 transition-colors group-hover:text-primary-600 group-focus-visible:text-primary-600 dark:text-gray-200 dark:group-hover:text-primary-400 dark:group-focus-visible:text-primary-400"
-                                  :class="
-                                    selectedKey === contactRowAt(virtualRow.index).contact.key
-                                      ? 'text-primary-600 dark:text-primary-400'
-                                      : ''
-                                  "
-                                >
-                                  {{ contactRowAt(virtualRow.index).contact.displayName }}
-                                </span>
-                              </div>
-                              <span
-                                class="mt-1 inline-flex items-center rounded bg-gray-50 px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-wider text-gray-400 dark:bg-white/5 dark:text-gray-500"
-                              >
-                                {{ contactRowAt(virtualRow.index).contact.platform }}
-                              </span>
+                        <div class="group flex min-w-0 w-full items-center gap-3">
+                          <div class="relative shrink-0 overflow-hidden rounded-lg">
+                            <img
+                              v-if="contactRowAt(virtualRow.index).contact.avatar"
+                              :src="contactRowAt(virtualRow.index).contact.avatar ?? ''"
+                              :alt="contactRowAt(virtualRow.index).contact.displayName"
+                              loading="lazy"
+                              decoding="async"
+                              class="h-10 w-10 object-cover transition-transform duration-300 group-hover:scale-105"
+                            />
+                            <div
+                              v-else
+                              class="flex h-10 w-10 items-center justify-center bg-gradient-to-br from-gray-50 to-gray-100 text-sm font-bold text-gray-500 transition-transform duration-300 group-hover:scale-105 dark:from-gray-800 dark:to-gray-800/60 dark:text-gray-400"
+                            >
+                              {{ avatarText(contactRowAt(virtualRow.index).contact) }}
                             </div>
                           </div>
 
-                          <span
-                            class="inline-flex w-fit justify-self-start rounded-lg px-2.5 py-1 text-xs font-semibold"
-                            :class="contactBadgeClasses(contactRowAt(virtualRow.index).contact)"
-                          >
-                            {{ contactBadgeLabel(contactRowAt(virtualRow.index).contact) }}
-                          </span>
-
-                          <span class="contact-table-value">
-                            {{
-                              contactFirstMetric(
-                                contactRowAt(virtualRow.index).pool,
-                                contactRowAt(virtualRow.index).contact
-                              )
-                            }}
-                          </span>
-                          <span class="contact-table-value">
-                            {{
-                              contactSecondMetric(
-                                contactRowAt(virtualRow.index).pool,
-                                contactRowAt(virtualRow.index).contact
-                              )
-                            }}
-                          </span>
-                          <span class="contact-table-value">
-                            {{
-                              contactThirdMetric(
-                                contactRowAt(virtualRow.index).pool,
-                                contactRowAt(virtualRow.index).contact
-                              )
-                            }}
-                          </span>
-                          <span class="contact-table-value">
-                            {{ formatTime(contactRowAt(virtualRow.index).contact.lastInteractionTs) }}
-                          </span>
-                          <span
-                            class="inline-flex h-7 w-12 items-center justify-center justify-self-end rounded-lg font-mono text-xs font-bold tabular-nums transition-colors duration-200"
-                            :class="
-                              selectedKey === contactRowAt(virtualRow.index).contact.key
-                                ? 'bg-primary-500 text-white'
-                                : 'bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-400'
-                            "
-                          >
-                            {{ formatContactScore(contactRowAt(virtualRow.index).contact) }}
-                          </span>
-                        </button>
-
-                        <div
-                          v-else
-                          class="absolute left-0 top-0 flex h-11 w-full items-center justify-center gap-2 border-b border-gray-100/50 text-xs font-semibold text-gray-500 dark:border-white/5 dark:text-gray-400"
-                          :style="{ transform: `translateY(${virtualRow.start}px)` }"
-                        >
-                          <UIcon name="i-lucide-loader-2" class="h-4 w-4 animate-spin" />
-                          <span>{{ t('common.loading') }}</span>
+                          <div class="min-w-0 flex-1">
+                            <div class="flex min-w-0 items-center gap-1">
+                              <span
+                                class="truncate text-sm font-semibold leading-tight tracking-tight text-gray-800 transition-colors group-hover:text-primary-600 group-focus-visible:text-primary-600 dark:text-gray-200 dark:group-hover:text-primary-400 dark:group-focus-visible:text-primary-400"
+                                :class="
+                                  selectedKey === contactRowAt(virtualRow.index).contact.key
+                                    ? 'text-primary-600 dark:text-primary-400'
+                                    : ''
+                                "
+                              >
+                                {{ contactRowAt(virtualRow.index).contact.displayName }}
+                              </span>
+                            </div>
+                            <span
+                              class="mt-1 inline-flex items-center rounded bg-gray-50 px-1.5 py-0.5 font-mono text-[9px] font-semibold uppercase tracking-wider text-gray-400 dark:bg-white/5 dark:text-gray-500"
+                            >
+                              {{ contactRowAt(virtualRow.index).contact.platform }}
+                            </span>
+                          </div>
                         </div>
-                      </template>
-                    </div>
+
+                        <span
+                          class="inline-flex w-fit justify-self-start rounded-lg px-2.5 py-1 text-xs font-semibold"
+                          :class="contactBadgeClasses(contactRowAt(virtualRow.index).contact)"
+                        >
+                          {{ contactBadgeLabel(contactRowAt(virtualRow.index).contact) }}
+                        </span>
+
+                        <span class="contact-table-value">
+                          {{
+                            contactFirstMetric(
+                              contactRowAt(virtualRow.index).pool,
+                              contactRowAt(virtualRow.index).contact
+                            )
+                          }}
+                        </span>
+                        <span class="contact-table-value">
+                          {{
+                            contactSecondMetric(
+                              contactRowAt(virtualRow.index).pool,
+                              contactRowAt(virtualRow.index).contact
+                            )
+                          }}
+                        </span>
+                        <span class="contact-table-value">
+                          {{
+                            contactThirdMetric(
+                              contactRowAt(virtualRow.index).pool,
+                              contactRowAt(virtualRow.index).contact
+                            )
+                          }}
+                        </span>
+                        <span class="contact-table-value">
+                          {{ formatTime(contactRowAt(virtualRow.index).contact.lastInteractionTs) }}
+                        </span>
+                        <span
+                          class="inline-flex h-7 w-12 items-center justify-center justify-self-end rounded-lg font-mono text-xs font-bold tabular-nums transition-colors duration-200"
+                          :class="
+                            selectedKey === contactRowAt(virtualRow.index).contact.key
+                              ? 'bg-primary-500 text-white'
+                              : 'bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-400'
+                          "
+                        >
+                          {{ formatContactScore(contactRowAt(virtualRow.index).contact) }}
+                        </span>
+                      </button>
+
+                      <div
+                        v-else
+                        class="absolute left-0 top-0 flex h-11 w-full items-center justify-center gap-2 border-b border-gray-100/50 text-xs font-semibold text-gray-500 dark:border-white/5 dark:text-gray-400"
+                        :style="{ transform: `translateY(${virtualRow.start}px)` }"
+                      >
+                        <UIcon name="i-lucide-loader-2" class="h-4 w-4 animate-spin" />
+                        <span>{{ t('common.loading') }}</span>
+                      </div>
+                    </template>
                   </div>
                 </div>
               </div>
-            </section>
-          </div>
-        </main>
+            </div>
+          </section>
+        </div>
+      </main>
 
-        <ContactDetailPanel
-          :selected-key="selectedKey"
-          :contact="selectedContact"
-          :is-loading="isDetailLoading"
-          :is-friend-action-loading="isFriendActionSaving"
-          @clear="clearSelectedContact"
-          @open-source="openSourceSession"
-          @view-source-records="viewSourceSessionRecords"
-          @mark-friend="markSelectedContactAsFriend"
-          @unmark-friend="unmarkSelectedContactAsFriend"
-        />
-      </div>
+      <ContactDetailPanel
+        :selected-key="selectedKey"
+        :contact="selectedContact"
+        :is-loading="isDetailLoading"
+        :is-friend-action-loading="isFriendActionSaving"
+        @clear="clearSelectedContact"
+        @open-source="openSourceSession"
+        @view-source-records="viewSourceSessionRecords"
+        @mark-friend="markSelectedContactAsFriend"
+        @unmark-friend="unmarkSelectedContactAsFriend"
+      />
     </div>
   </div>
 </template>
