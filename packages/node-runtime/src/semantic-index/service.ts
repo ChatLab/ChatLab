@@ -834,6 +834,10 @@ export class SemanticIndexService {
       source,
       checkStop,
     })
+    // warmup 已成功写入 chunk，说明本地 extractor 通过重试加载成功；清除此前 preload 失败状态。
+    if (result.status === 'completed' && result.chunksWritten > 0 && this.configStore.get().mode === 'local') {
+      this.modelPreloadStatus = 'ready'
+    }
     appLogger.info('semantic-index', 'warmup job finished', {
       type: job.type,
       sessionId,

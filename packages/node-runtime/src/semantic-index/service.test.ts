@@ -24,7 +24,7 @@ const SESSION_ID = 'sess1'
 // 暴露「毫秒被当作秒再 *1000」导致五位数年份（如 56150）的回归。
 const BASE_TS_SECONDS = 1_700_000_000
 
-function setup(opts?: { embedDelayMs?: number }) {
+function setup(opts?: { embedDelayMs?: number; failFirstPipelineCreation?: boolean }) {
   const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
   const dir = fs.mkdtempSync(path.join(baseDir, 'chatlab-si-svc-'))
   const chatDbPath = path.join(dir, `${SESSION_ID}.db`)
@@ -61,14 +61,21 @@ function setup(opts?: { embedDelayMs?: number }) {
   // 本地 pipeline 工厂：返回 Qwen3 维度向量，按文本长度给一点变化，避免零向量
   // embedTextCount 统计累计嵌入文本数，用于区分 rebuild(重新嵌入) 与 build 续跑(跳过不嵌入)
   let embedTextCount = 0
-  const localPipelineFactory: LocalPipelineFactory = async () => async (texts) => {
-    embedTextCount += texts.length
-    if (opts?.embedDelayMs) await new Promise((r) => setTimeout(r, opts.embedDelayMs))
-    return texts.map((t) => {
-      const v = new Array(QWEN3_PROFILE.dim).fill(0)
-      v[t.length % QWEN3_PROFILE.dim] = 1
-      return v
-    })
+  let pipelineCreateAttempts = 0
+  const localPipelineFactory: LocalPipelineFactory = async () => {
+    pipelineCreateAttempts++
+    if (opts?.failFirstPipelineCreation && pipelineCreateAttempts === 1) {
+      throw new Error('temporary preload failure')
+    }
+    return async (texts) => {
+      embedTextCount += texts.length
+      if (opts?.embedDelayMs) await new Promise((r) => setTimeout(r, opts.embedDelayMs))
+      return texts.map((t) => {
+        const v = new Array(QWEN3_PROFILE.dim).fill(0)
+        v[t.length % QWEN3_PROFILE.dim] = 1
+        return v
+      })
+    }
   }
 
   // 内存 auth profile 存储：避免测试写真实 ~/.chatlab/auth-profiles.json
@@ -94,6 +101,18 @@ async function enableAndBuild(service: SemanticIndexService): Promise<void> {
   service.enable(SESSION_ID)
   service.build(SESSION_ID)
   await service.whenIdle()
+}
+
+async function waitForModelStatus(
+  service: SemanticIndexService,
+  expected: ReturnType<SemanticIndexService['getModelStatus']>
+): Promise<void> {
+  const deadline = Date.now() + 1000
+  while (Date.now() < deadline) {
+    if (service.getModelStatus() === expected) return
+    await new Promise((resolve) => setTimeout(resolve, 10))
+  }
+  assert.equal(service.getModelStatus(), expected)
 }
 
 test('explicit build indexes an enabled session to completion and reports status', async () => {
@@ -135,6 +154,18 @@ test('search returns evidence blocks for an enabled completed index', async () =
   assert.equal(result.available, true)
   assert.ok(result.blocks.length > 0)
   assert.equal(result.partial, false)
+  service.close()
+  db.close()
+})
+
+test('successful warmup retry clears a previous local model preload error', async () => {
+  const { service, db } = setup({ failFirstPipelineCreation: true })
+
+  await waitForModelStatus(service, 'error')
+  await enableAndBuild(service)
+
+  assert.equal(service.status(SESSION_ID)!.indexStatus, 'completed')
+  assert.equal(service.getModelStatus(), 'ready')
   service.close()
   db.close()
 })
