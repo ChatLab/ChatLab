@@ -822,20 +822,30 @@ export class SemanticIndexService {
       })
     }
 
+    const jobConfig = this.configStore.get()
+    const jobModelId = this.currentModelId()
+    const jobEmbedder = this.getEmbedder()
     const source = createChatDbMessageSource(db, this.resolveSource(db))
     const startedAt = Date.now()
     appLogger.info('semantic-index', 'warmup job started', { type: job.type, sessionId, dbPathHash: job.dbPathHash })
     const result = await runWarmup({
       dbPathHash: job.dbPathHash,
-      modelId: this.currentModelId(),
-      embedder: this.getEmbedder(),
+      modelId: jobModelId,
+      embedder: jobEmbedder,
       store: this.store,
       stateStore: this.stateStore,
       source,
       checkStop,
     })
     // warmup 已成功写入 chunk，说明本地 extractor 通过重试加载成功；清除此前 preload 失败状态。
-    if (result.status === 'completed' && result.chunksWritten > 0 && this.configStore.get().mode === 'local') {
+    const currentConfig = this.configStore.get()
+    if (
+      result.status === 'completed' &&
+      result.chunksWritten > 0 &&
+      jobConfig.mode === 'local' &&
+      currentConfig.mode === 'local' &&
+      currentConfig.local.modelId === jobConfig.local.modelId
+    ) {
       this.modelPreloadStatus = 'ready'
     }
     appLogger.info('semantic-index', 'warmup job finished', {

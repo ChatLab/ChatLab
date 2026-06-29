@@ -15,7 +15,7 @@ import {
 import { SemanticIndexConfigStore } from './config'
 import { SemanticIndexStateStore } from './session-state-store'
 import { computeDbPathHash } from './chunker-config'
-import { QWEN3_PROFILE } from './embedding/profiles'
+import { BGE_BASE_PROFILE, QWEN3_PROFILE } from './embedding/profiles'
 import type { SessionRuntimeAdapter } from '../services/adapters'
 import type { LocalPipelineFactory } from './embedding/local'
 
@@ -24,7 +24,12 @@ const SESSION_ID = 'sess1'
 // 暴露「毫秒被当作秒再 *1000」导致五位数年份（如 56150）的回归。
 const BASE_TS_SECONDS = 1_700_000_000
 
-function setup(opts?: { embedDelayMs?: number; failFirstPipelineCreation?: boolean }) {
+function setup(opts?: {
+  embedDelayMs?: number
+  failFirstPipelineCreation?: boolean
+  failPipelineCreationForModelIds?: ReadonlySet<string>
+  onEmbedBatchStarted?: () => void
+}) {
   const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
   const dir = fs.mkdtempSync(path.join(baseDir, 'chatlab-si-svc-'))
   const chatDbPath = path.join(dir, `${SESSION_ID}.db`)
@@ -62,12 +67,16 @@ function setup(opts?: { embedDelayMs?: number; failFirstPipelineCreation?: boole
   // embedTextCount 统计累计嵌入文本数，用于区分 rebuild(重新嵌入) 与 build 续跑(跳过不嵌入)
   let embedTextCount = 0
   let pipelineCreateAttempts = 0
-  const localPipelineFactory: LocalPipelineFactory = async () => {
+  const localPipelineFactory: LocalPipelineFactory = async ({ modelId }) => {
     pipelineCreateAttempts++
     if (opts?.failFirstPipelineCreation && pipelineCreateAttempts === 1) {
       throw new Error('temporary preload failure')
     }
+    if (opts?.failPipelineCreationForModelIds?.has(modelId)) {
+      throw new Error(`temporary preload failure for ${modelId}`)
+    }
     return async (texts) => {
+      opts?.onEmbedBatchStarted?.()
       embedTextCount += texts.length
       if (opts?.embedDelayMs) await new Promise((r) => setTimeout(r, opts.embedDelayMs))
       return texts.map((t) => {
@@ -166,6 +175,30 @@ test('successful warmup retry clears a previous local model preload error', asyn
 
   assert.equal(service.status(SESSION_ID)!.indexStatus, 'completed')
   assert.equal(service.getModelStatus(), 'ready')
+  service.close()
+  db.close()
+})
+
+test('stale local warmup completion does not mark current local model ready', async () => {
+  let resolveFirstBatchStarted: () => void = () => {}
+  const firstBatchStarted = new Promise<void>((resolve) => {
+    resolveFirstBatchStarted = resolve
+  })
+  const { service, db } = setup({
+    embedDelayMs: 50,
+    failPipelineCreationForModelIds: new Set([BGE_BASE_PROFILE.modelId]),
+    onEmbedBatchStarted: resolveFirstBatchStarted,
+  })
+
+  service.enable(SESSION_ID)
+  service.build(SESSION_ID)
+  await firstBatchStarted
+
+  service.setConfig({ version: 1, mode: 'local', local: { modelId: BGE_BASE_PROFILE.modelId }, api: null })
+  await waitForModelStatus(service, 'error')
+  await service.whenIdle()
+
+  assert.equal(service.getModelStatus(), 'error')
   service.close()
   db.close()
 })
