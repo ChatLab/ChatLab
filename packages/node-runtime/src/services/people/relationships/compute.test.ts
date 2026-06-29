@@ -277,6 +277,38 @@ test('computes a cropped relationship galaxy from private contacts and group int
   assert.equal(snapshot.diagnostics.processedPrivateSessions, 1)
 })
 
+test('counts owner group messages on the owner relationship node', (t) => {
+  const env = new TestEnv()
+  t.after(() => env.cleanup())
+
+  env.seed({
+    id: 'group-owner-messages',
+    platform: 'weixin',
+    type: 'group',
+    ownerId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner', accountName: 'Me' },
+      { id: 2, platformId: 'alice', accountName: 'Alice' },
+    ],
+    messages: [
+      { id: 1, senderId: 1, ts: 1704103200, platformMessageId: 'owner-1' },
+      { id: 2, senderId: 1, ts: 1704103201, platformMessageId: 'owner-2' },
+      { id: 3, senderId: 1, ts: 1704103202, platformMessageId: 'owner-3' },
+      { id: 4, senderId: 2, ts: 1704103203, platformMessageId: 'alice-1' },
+    ],
+  })
+
+  const snapshot = computePeopleRelationshipsSnapshot({
+    adapter: env.adapter,
+    signature: 'sig-owner-group-count',
+    timeRangePreset: 'all',
+  })
+
+  const owner = snapshot.graph.nodes.find((node) => node.kind === 'owner')
+  assert.ok(owner)
+  assert.equal(owner.groupMessageCount, 3)
+})
+
 test('prefers recent owner edges when cropping dense relationship graph edges', (t) => {
   const env = new TestEnv()
   t.after(() => env.cleanup())
@@ -598,6 +630,68 @@ test('lays out the panorama around owner and pushes large noisy groups outward',
   assert.ok(distanceOf(smallPeer) < distanceOf(largePeer))
 })
 
+test('merges owner nodes across platforms into one relationship graph center', (t) => {
+  const env = new TestEnv()
+  t.after(() => env.cleanup())
+
+  env.seed({
+    id: 'weixin-private',
+    platform: 'weixin',
+    type: 'private',
+    ownerId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner', accountName: 'Me' },
+      { id: 2, platformId: 'wx-friend', accountName: 'Weixin Friend' },
+    ],
+    messages: [
+      { id: 1, senderId: 1, ts: 1704103200 },
+      { id: 2, senderId: 2, ts: 1704103201 },
+    ],
+  })
+  env.seed({
+    id: 'telegram-private',
+    platform: 'telegram',
+    type: 'private',
+    ownerId: 'owner',
+    members: [
+      { id: 1, platformId: 'owner', accountName: 'Me' },
+      { id: 2, platformId: 'tg-friend', accountName: 'Telegram Friend' },
+    ],
+    messages: [
+      { id: 1, senderId: 1, ts: 1704103300 },
+      { id: 2, senderId: 2, ts: 1704103301 },
+    ],
+  })
+
+  const snapshot = computePeopleRelationshipsSnapshot({
+    adapter: env.adapter,
+    signature: 'sig-1',
+    timeRangePreset: 'all',
+    limits: {
+      coreNodeLimit: 10,
+      coreEdgeLimit: 10,
+      perNodeEdgeLimit: 10,
+    },
+  })
+
+  const owners = snapshot.nodes.filter((node) => node.kind === 'owner')
+  assert.equal(owners.length, 1)
+  assert.equal(owners[0]?.key, 'owner')
+  assert.equal(owners[0]?.x, 0)
+  assert.equal(owners[0]?.y, 0)
+
+  const ownerEdges = snapshot.graph.edges.filter((edge) => edge.sourceKey === 'owner' || edge.targetKey === 'owner')
+  assert.equal(ownerEdges.length, 2)
+  assert.equal(
+    ownerEdges.some((edge) => edge.sourceKey === 'weixin:wx-friend' || edge.targetKey === 'weixin:wx-friend'),
+    true
+  )
+  assert.equal(
+    ownerEdges.some((edge) => edge.sourceKey === 'telegram:tg-friend' || edge.targetKey === 'telegram:tg-friend'),
+    true
+  )
+})
+
 test('excludes no-friend groups from the default panorama while keeping full relationship data', (t) => {
   const env = new TestEnv()
   t.after(() => env.cleanup())
@@ -752,7 +846,7 @@ test('relayouts neighborhood graphs around the focused contact', () => {
   assert.equal(center.y, 700)
 })
 
-test('keeps every direct relationship in neighborhood graphs even when display limits are small', () => {
+test('prioritizes direct relationships in neighborhood graphs while respecting display limits', () => {
   const center = makeGraphNode({
     key: 'weixin:center',
     platformId: 'center',
@@ -819,21 +913,25 @@ test('keeps every direct relationship in neighborhood graphs even when display l
       coreNodeLimit: 10,
       coreEdgeLimit: 10,
       perNodeEdgeLimit: 10,
-      neighborhoodNodeLimit: 3,
+      neighborhoodNodeLimit: 4,
       neighborhoodEdgeLimit: 3,
       searchResultLimit: 20,
     },
   } satisfies PeopleRelationshipsSnapshot
 
   const neighborhood = buildPeopleRelationshipsNeighborhoodGraph(snapshot, center.key)
-  const nodeKeys = new Set(neighborhood.nodes.map((node) => node.key))
+  const nodeKeys = neighborhood.nodes.map((node) => node.key)
   const directEdgeKeys = new Set(neighborhood.edges.map((edge) => [edge.sourceKey, edge.targetKey].sort().join(':')))
 
-  for (const peer of directPeers) {
-    assert.equal(nodeKeys.has(peer.key), true)
+  assert.deepEqual(nodeKeys, [center.key, directPeers[0]!.key, directPeers[1]!.key, directPeers[2]!.key])
+  assert.equal(neighborhood.edges.length, 3)
+  for (const peer of directPeers.slice(0, 3)) {
     assert.equal(directEdgeKeys.has([center.key, peer.key].sort().join(':')), true)
   }
-  assert.equal(nodeKeys.has(unrelated.key), false)
+  for (const peer of directPeers.slice(3)) {
+    assert.equal(directEdgeKeys.has([center.key, peer.key].sort().join(':')), false)
+  }
+  assert.equal(nodeKeys.includes(unrelated.key), false)
 })
 
 test('returns only focused contact source groups in neighborhood communities', () => {

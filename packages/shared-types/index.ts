@@ -474,6 +474,7 @@ export interface PeopleRelationshipsSearchResult {
   platformId: string
   avatar: string | null
   pool: ContactPool
+  friendSource?: ContactFriendSource
   score: number
   rank: number
   communityId: string

@@ -6,6 +6,7 @@ export default defineConfig({
     index: 'src/index.ts',
     'semantic-index-worker': '../../packages/node-runtime/src/semantic-index/worker-thread-entry.ts',
     'contacts-worker': '../../packages/node-runtime/src/services/contacts/worker-entry.ts',
+    'people-relationships-worker': '../../packages/node-runtime/src/services/people/relationships/worker-entry.ts',
   },
   format: ['esm'],
   outDir: 'dist',

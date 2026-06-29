@@ -2,6 +2,7 @@ import type { PathProvider } from '@openchatlab/core'
 import type {
   ContactsTimeRangePreset,
   PeopleRelationshipCommunity,
+  PeopleRelationshipGraphNode,
   PeopleRelationshipsGraphData,
   PeopleRelationshipsCacheState,
   PeopleRelationshipsDiagnostics,
@@ -14,8 +15,11 @@ import type {
 import type { RuntimeIdentity } from '../../../data-dir-compat'
 import { appLogger } from '../../../logging/app-logger'
 import type { SessionRuntimeAdapter } from '../../adapters'
+import { readContactOverrides } from '../../contacts/overrides'
+import { getContactsDir } from '../../contacts/paths'
 import {
   buildPeopleRelationshipsNeighborhoodGraph,
+  compareEdges,
   compareNodes,
   PEOPLE_RELATIONSHIPS_ALGORITHM_VERSION,
   type PeopleRelationshipsComputeProgress,
@@ -119,7 +123,7 @@ class DefaultPeopleRelationshipsService implements PeopleRelationshipsService {
     const signature = buildPeopleRelationshipsSignature(this.deps.adapter, timeRangePreset)
     const cacheStatus = this.getCacheStatus(signature, timeRangePreset)
     if (this.shouldStartTaskFromRead(options, cacheStatus)) this.ensureTaskStarted(signature, timeRangePreset)
-    const snapshot = this.getSnapshot(timeRangePreset)
+    const snapshot = this.getSnapshotForResponse(timeRangePreset)
     const status = this.getCacheStatus(signature, timeRangePreset)
     const includeSnapshot = shouldIncludeSnapshot(status, options.acceptStale)
     const graph = includeSnapshot && snapshot ? buildPeopleRelationshipsNeighborhoodGraph(snapshot, key) : emptyGraph()
@@ -279,7 +283,7 @@ class DefaultPeopleRelationshipsService implements PeopleRelationshipsService {
   ): PeopleRelationshipsGraphResponse {
     const timeRangePreset = normalizePeopleRelationshipsTimeRangePreset(options.timeRangePreset)
     const graphScope = normalizePeopleRelationshipsGraphScope(options.graphScope)
-    const snapshot = this.getSnapshot(timeRangePreset)
+    const snapshot = this.getSnapshotForResponse(timeRangePreset)
     const status = this.getCacheStatus(signature, timeRangePreset)
     const includeSnapshot = shouldIncludeSnapshot(status, options.acceptStale)
     const graph = includeSnapshot && snapshot ? buildGraphForScope(snapshot, graphScope) : emptyGraph()
@@ -318,6 +322,15 @@ class DefaultPeopleRelationshipsService implements PeopleRelationshipsService {
       )
     }
     return this.snapshots.get(timeRangePreset) ?? null
+  }
+
+  private getSnapshotForResponse(timeRangePreset: ContactsTimeRangePreset): PeopleRelationshipsSnapshot | null {
+    const snapshot = this.getSnapshot(timeRangePreset)
+    if (!snapshot || !this.deps.pathProvider) return snapshot
+    return applyManualFriendOverridesToSnapshot(
+      snapshot,
+      readContactOverrides(getContactsDir(this.deps.pathProvider.getUserDataDir()))
+    )
   }
 
   private now(): number {
@@ -362,8 +375,15 @@ function buildCloseRelationshipsGraph(snapshot: PeopleRelationshipsSnapshot): Pe
     if (node.kind === 'owner' || node.pool === 'friend') selectedKeys.add(node.key)
   }
 
+  const edgeConnectedKeys = buildEdgeConnectedNodeKeys(snapshot.edges)
   const topGroupmates = snapshot.nodes
-    .filter((node) => node.kind !== 'owner' && node.pool !== 'friend' && node.score > 0)
+    .filter(
+      (node) =>
+        node.kind !== 'owner' &&
+        node.pool !== 'friend' &&
+        node.score > 0 &&
+        hasCloseGraphNonFriendActivity(node, edgeConnectedKeys)
+    )
     .sort(compareCloseGroupmates)
     .slice(0, CLOSE_GRAPH_NON_FRIEND_LIMIT)
   for (const node of topGroupmates) selectedKeys.add(node.key)
@@ -376,6 +396,23 @@ function buildCloseRelationshipsGraph(snapshot: PeopleRelationshipsSnapshot): Pe
     edges,
     communities: filterCommunitiesForNodes(snapshot.communities, nodes),
   }
+}
+
+function buildEdgeConnectedNodeKeys(edges: PeopleRelationshipsSnapshot['edges']): Set<string> {
+  const keys = new Set<string>()
+  for (const edge of edges) {
+    keys.add(edge.sourceKey)
+    keys.add(edge.targetKey)
+  }
+  return keys
+}
+
+function hasCloseGraphNonFriendActivity(
+  node: PeopleRelationshipsSnapshot['nodes'][number],
+  edgeConnectedKeys: Set<string>
+): boolean {
+  // close 图只展示有真实互动的非好友：共同群 roster 本身不算互动信号。
+  return node.groupMessageCount > 0 || edgeConnectedKeys.has(node.key)
 }
 
 function compareCloseGroupmates(
@@ -419,11 +456,88 @@ function buildSearchResults(
       platformId: node.platformId,
       avatar: node.avatar,
       pool: node.pool,
+      friendSource: node.friendSource,
       score: node.score,
       rank: node.rank,
       communityId: node.communityId,
       inCoreGraph: visibleKeys.has(node.key),
     }))
+}
+
+function applyManualFriendOverridesToSnapshot(
+  snapshot: PeopleRelationshipsSnapshot,
+  overrides: ReturnType<typeof readContactOverrides>
+): PeopleRelationshipsSnapshot {
+  const manualFriendKeys = new Set(Object.keys(overrides.manualFriends))
+  if (manualFriendKeys.size === 0) return snapshot
+
+  // 手动好友是本机覆盖数据，不写入派生 snapshot；响应阶段克隆节点，确保各图谱 scope 即时生效。
+  const applyOverride = (node: PeopleRelationshipGraphNode): PeopleRelationshipGraphNode => {
+    if (node.kind === 'owner' || node.pool === 'friend' || !manualFriendKeys.has(node.key)) return node
+    return {
+      ...node,
+      pool: 'friend',
+      friendSource: 'manual',
+    }
+  }
+  const nodes = snapshot.nodes.map(applyOverride)
+  const nodeByKey = new Map(nodes.map((node) => [node.key, node]))
+  const graphNodes = includeManualFriendsInPanoramaGraphNodes(
+    snapshot.graph.nodes.map((node) => nodeByKey.get(node.key) ?? applyOverride(node)),
+    nodes,
+    manualFriendKeys
+  )
+  const graphNodeKeys = new Set(graphNodes.map((node) => node.key))
+  const graphEdges = includeManualFriendPanoramaEdges(
+    snapshot.graph.edges,
+    snapshot.edges,
+    graphNodeKeys,
+    manualFriendKeys
+  )
+  return {
+    ...snapshot,
+    nodes,
+    graph: {
+      ...snapshot.graph,
+      nodes: graphNodes,
+      edges: graphEdges,
+      communities: filterCommunitiesForNodes(snapshot.communities, graphNodes),
+    },
+  }
+}
+
+function includeManualFriendsInPanoramaGraphNodes(
+  graphNodes: PeopleRelationshipGraphNode[],
+  nodes: PeopleRelationshipGraphNode[],
+  manualFriendKeys: Set<string>
+): PeopleRelationshipGraphNode[] {
+  const graphNodeKeys = new Set(graphNodes.map((node) => node.key))
+  const result = [...graphNodes]
+  for (const node of nodes) {
+    if (!manualFriendKeys.has(node.key) || graphNodeKeys.has(node.key) || node.kind === 'owner') continue
+    result.push(node)
+    graphNodeKeys.add(node.key)
+  }
+  return result.sort(compareNodes)
+}
+
+function includeManualFriendPanoramaEdges(
+  graphEdges: PeopleRelationshipsGraphData['edges'],
+  edges: PeopleRelationshipsSnapshot['edges'],
+  graphNodeKeys: Set<string>,
+  manualFriendKeys: Set<string>
+): PeopleRelationshipsGraphData['edges'] {
+  // 手动好友是用户显式修正，只补它和当前全景节点之间的边，避免把被裁剪的全量图重新展开。
+  const edgeIds = new Set(graphEdges.map((edge) => edge.id))
+  const result = [...graphEdges]
+  for (const edge of edges) {
+    if (edgeIds.has(edge.id)) continue
+    if (!graphNodeKeys.has(edge.sourceKey) || !graphNodeKeys.has(edge.targetKey)) continue
+    if (!manualFriendKeys.has(edge.sourceKey) && !manualFriendKeys.has(edge.targetKey)) continue
+    result.push(edge)
+    edgeIds.add(edge.id)
+  }
+  return result.sort(compareEdges)
 }
 
 function emptyGraph(): PeopleRelationshipsGraphData {

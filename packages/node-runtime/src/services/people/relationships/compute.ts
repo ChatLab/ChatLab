@@ -247,29 +247,55 @@ export function buildPeopleRelationshipsNeighborhoodGraph(
   const relatedEdges = sortEdgesForDisplay(
     snapshot.edges.filter((edge) => edge.sourceKey === contactKey || edge.targetKey === contactKey)
   )
-  const nodeKeys = new Set<string>([contactKey])
-  for (const edge of relatedEdges) {
-    nodeKeys.add(edge.sourceKey === contactKey ? edge.targetKey : edge.sourceKey)
-  }
+  const { directEdges, nodeKeys } = selectNeighborhoodDirectEdges(relatedEdges, contactKey, normalizedLimits)
 
   const directEdgeIds = new Set(relatedEdges.map((edge) => edge.id))
-  const secondaryEdgeLimit = Math.max(0, normalizedLimits.neighborhoodEdgeLimit - relatedEdges.length)
+  const secondaryEdgeLimit = Math.max(0, normalizedLimits.neighborhoodEdgeLimit - directEdges.length)
   const secondaryEdges = sortEdgesForDisplay(
     snapshot.edges.filter(
       (edge) => !directEdgeIds.has(edge.id) && nodeKeys.has(edge.sourceKey) && nodeKeys.has(edge.targetKey)
     )
   ).slice(0, secondaryEdgeLimit)
-  const edges = sortEdgesForDisplay([...relatedEdges, ...secondaryEdges])
+  const edges = sortEdgesForDisplay([...directEdges, ...secondaryEdges])
   const nodes = layoutNeighborhoodNodes(
     snapshot.nodes.filter((node) => nodeKeys.has(node.key)),
-    relatedEdges,
+    directEdges,
     contactKey
   ).sort(compareNodes)
   return {
     nodes,
     edges,
-    communities: filterNeighborhoodCommunities(snapshot.communities, relatedEdges),
+    communities: filterNeighborhoodCommunities(snapshot.communities, directEdges),
   }
+}
+
+function selectNeighborhoodDirectEdges(
+  relatedEdges: PeopleRelationshipGraphEdge[],
+  contactKey: string,
+  limits: Required<PeopleRelationshipsComputeLimits>
+): { directEdges: PeopleRelationshipGraphEdge[]; nodeKeys: Set<string> } {
+  // 邻域图先按直接关系排序选择节点，避免高连接节点绕过节点/边上限。
+  const nodeKeys = new Set<string>([contactKey])
+  const directEdges: PeopleRelationshipGraphEdge[] = []
+
+  for (const edge of relatedEdges) {
+    if (directEdges.length >= limits.neighborhoodEdgeLimit) break
+    const neighborKey = getNeighborhoodNeighborKey(edge, contactKey)
+    if (!neighborKey) continue
+    if (!nodeKeys.has(neighborKey)) {
+      if (nodeKeys.size >= limits.neighborhoodNodeLimit) continue
+      nodeKeys.add(neighborKey)
+    }
+    directEdges.push(edge)
+  }
+
+  return { directEdges, nodeKeys }
+}
+
+function getNeighborhoodNeighborKey(edge: PeopleRelationshipGraphEdge, contactKey: string): string | null {
+  if (edge.sourceKey === contactKey) return edge.targetKey
+  if (edge.targetKey === contactKey) return edge.sourceKey
+  return null
 }
 
 function layoutNeighborhoodNodes(
@@ -624,6 +650,7 @@ function applyGroupFacts(
   }
 
   if (ownerNode) {
+    ownerNode.groupMessageCount += facts.ownerMessageCount
     for (const fact of facts.ownerEdges) {
       if (fact.coOccurrenceCount <= 0 && fact.replyInteractionCount <= 0) continue
       const contactNode = getOrCreateNode(nodes, sessionId, meta, fact.contact)
@@ -1145,7 +1172,7 @@ function incrementPanoramaReason(diagnostics: PeopleRelationshipsDiagnostics, re
 
 function buildOwnerKeyForContribution(nodeByKey: Map<string, NodeAccumulator>, contactKey: string): string {
   const contact = nodeByKey.get(contactKey)
-  return contact ? buildOwnerKey(contact.platform) : ''
+  return contact ? buildOwnerKey() : ''
 }
 
 function toGraphEdge(edge: EdgeAccumulator, weight: number): PeopleRelationshipGraphEdge {
@@ -1310,7 +1337,7 @@ function getOrCreateOwnerNode(
   meta: PeopleRelationshipsSessionMetaFacts
 ): NodeAccumulator | null {
   if (!meta.owner) return null
-  const key = buildOwnerKey(meta.platform)
+  const key = buildOwnerKey()
   const existing = nodes.get(key)
   if (existing) {
     mergeContactIdentity(existing, meta.owner)
@@ -1434,10 +1461,8 @@ function buildContactKey(platform: ChatPlatform, platformId: string, sessionId?:
     : `${normalizedPlatform}:${normalizedPlatformId}`
 }
 
-function buildOwnerKey(platform: ChatPlatform): string {
-  const normalizedPlatform = platform.trim()
-  if (!normalizedPlatform) throw new Error('platform is required')
-  return `${OWNER_KEY_PREFIX}:${normalizedPlatform}`
+function buildOwnerKey(): string {
+  return OWNER_KEY_PREFIX
 }
 
 function mergeContactIdentity(acc: NodeAccumulator, contact: ContactMemberRef): void {

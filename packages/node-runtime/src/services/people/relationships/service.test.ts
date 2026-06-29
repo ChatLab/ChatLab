@@ -9,13 +9,31 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+import type { PathProvider } from '@openchatlab/core'
 import type { PeopleRelationshipGraphEdge, PeopleRelationshipGraphNode } from '@openchatlab/shared-types'
 import type { SessionRuntimeAdapter } from '../../adapters'
+import { getContactsDir } from '../../contacts/paths'
+import { writeContactOverrides } from '../../contacts/overrides'
 import { PEOPLE_RELATIONSHIPS_ALGORITHM_VERSION, type PeopleRelationshipsSnapshot } from './compute'
 import { createPeopleRelationshipsService } from './service'
 
 function makeTempDir(): string {
   return fs.mkdtempSync(path.join(fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir(), 'chatlab-rel-service-'))
+}
+
+function makePathProvider(rootDir: string): PathProvider {
+  return {
+    getSystemDir: () => rootDir,
+    getUserDataDir: () => path.join(rootDir, 'data'),
+    getDatabaseDir: () => path.join(rootDir, 'data', 'databases'),
+    getVectorDir: () => path.join(rootDir, 'vector'),
+    getAiDataDir: () => path.join(rootDir, 'ai'),
+    getSettingsDir: () => path.join(rootDir, 'settings'),
+    getCacheDir: () => path.join(rootDir, 'cache'),
+    getTempDir: () => path.join(rootDir, 'temp'),
+    getLogsDir: () => path.join(rootDir, 'logs'),
+    getDownloadsDir: () => path.join(rootDir, 'downloads'),
+  }
 }
 
 function makeNode(overrides: Partial<PeopleRelationshipGraphNode> & { key: string }): PeopleRelationshipGraphNode {
@@ -269,6 +287,61 @@ test('returns a close relationships graph with owner, all friends, and top score
   }
 })
 
+test('excludes silent non-friend group roster members from the close relationships graph', () => {
+  const dir = makeTempDir()
+  try {
+    const service = createPeopleRelationshipsService({
+      adapter: makeAdapter(),
+      systemDir: dir,
+      runner: async () => {
+        throw new Error('runner should not be called for fresh injected snapshot')
+      },
+    })
+    const snapshot = makeSnapshot(makeFreshSignature())
+    const connectedGroupmate = makeNode({
+      key: 'weixin:connected-groupmate',
+      displayName: 'Connected Groupmate',
+      pool: 'non_friend',
+      rank: 70,
+      score: 20,
+      groupMessageCount: 0,
+      commonGroupCount: 1,
+    })
+    const activeGroupmate = makeNode({
+      key: 'weixin:active-groupmate',
+      displayName: 'Active Groupmate',
+      pool: 'non_friend',
+      rank: 71,
+      score: 15,
+      groupMessageCount: 3,
+      commonGroupCount: 1,
+    })
+    const silentGroupmates = Array.from({ length: 55 }, (_, index) =>
+      makeNode({
+        key: `weixin:silent-groupmate-${index + 1}`,
+        displayName: `Silent Groupmate ${index + 1}`,
+        pool: 'non_friend',
+        rank: 10 + index,
+        score: 100 - index,
+        groupMessageCount: 0,
+        commonGroupCount: 1,
+      })
+    )
+    snapshot.nodes = [...snapshot.nodes, connectedGroupmate, activeGroupmate, ...silentGroupmates]
+    snapshot.edges = [...snapshot.edges, makeEdge('owner:weixin', connectedGroupmate.key, 8)]
+    service.replaceSnapshotForTests?.(snapshot)
+
+    const response = service.getGraph({ acceptStale: true, graphScope: 'close' })
+    const keys = response.graph.nodes.map((node) => node.key)
+
+    assert.ok(keys.includes(connectedGroupmate.key))
+    assert.ok(keys.includes(activeGroupmate.key))
+    assert.ok(!keys.some((key) => key.startsWith('weixin:silent-groupmate-')))
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test('returns a friends relationships graph without groupmate nodes while keeping full search results', () => {
   const dir = makeTempDir()
   try {
@@ -322,6 +395,119 @@ test('returns a friends relationships graph without groupmate nodes while keepin
     )
     assert.equal(
       response.searchResults.some((result) => result.key === groupmate.key),
+      true
+    )
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('applies manual contact friend overrides to people relationships graph scopes', () => {
+  const dir = makeTempDir()
+  try {
+    const pathProvider = makePathProvider(dir)
+    const manualFriendKey = 'weixin:manual-groupmate'
+    writeContactOverrides(getContactsDir(pathProvider.getUserDataDir()), {
+      version: 1,
+      manualFriends: {
+        [manualFriendKey]: {
+          key: manualFriendKey,
+          createdAt: 1800000000,
+          updatedAt: 1800000000,
+        },
+      },
+    })
+    const service = createPeopleRelationshipsService({
+      adapter: makeAdapter(),
+      pathProvider,
+      runner: async () => {
+        throw new Error('runner should not be called for fresh injected snapshot')
+      },
+    })
+    const snapshot = makeSnapshot(makeFreshSignature())
+    const manualGroupmate = makeNode({
+      key: manualFriendKey,
+      displayName: 'Manual Groupmate',
+      pool: 'non_friend',
+      rank: 6,
+      score: 50,
+      searchText: 'manual groupmate',
+    })
+    snapshot.nodes = [...snapshot.nodes, manualGroupmate]
+    snapshot.edges = [...snapshot.edges, makeEdge('owner:weixin', manualGroupmate.key, 7)]
+    service.replaceSnapshotForTests?.(snapshot)
+
+    const response = service.getGraph({ acceptStale: true, graphScope: 'friends', query: 'manual' })
+    const manualNode = response.graph.nodes.find((node) => node.key === manualFriendKey)
+    const manualSearchResult = response.searchResults.find((node) => node.key === manualFriendKey)
+
+    assert.equal(manualNode?.pool, 'friend')
+    assert.equal(manualNode?.friendSource, 'manual')
+    assert.equal(manualSearchResult?.pool, 'friend')
+    assert.equal(
+      response.graph.edges.some((edge) => edge.sourceKey === manualFriendKey || edge.targetKey === manualFriendKey),
+      true
+    )
+
+    const neighborhood = service.getNeighborhood(manualFriendKey, { acceptStale: true })
+    assert.equal(neighborhood.contact?.pool, 'friend')
+    assert.equal(neighborhood.contact?.friendSource, 'manual')
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
+test('adds missing manual friends to the default panorama graph', () => {
+  const dir = makeTempDir()
+  try {
+    const pathProvider = makePathProvider(dir)
+    const manualFriendKey = 'weixin:manual-panorama'
+    writeContactOverrides(getContactsDir(pathProvider.getUserDataDir()), {
+      version: 1,
+      manualFriends: {
+        [manualFriendKey]: {
+          key: manualFriendKey,
+          createdAt: 1800000000,
+          updatedAt: 1800000000,
+        },
+      },
+    })
+    const service = createPeopleRelationshipsService({
+      adapter: makeAdapter(),
+      pathProvider,
+      runner: async () => {
+        throw new Error('runner should not be called for fresh injected snapshot')
+      },
+    })
+    const snapshot = makeSnapshot(makeFreshSignature())
+    const manualGroupmate = makeNode({
+      key: manualFriendKey,
+      displayName: 'Manual Panorama',
+      pool: 'non_friend',
+      rank: 6,
+      score: 50,
+      communityId: 'group:manual',
+      searchText: 'manual panorama',
+    })
+    snapshot.nodes = [...snapshot.nodes, manualGroupmate]
+    snapshot.edges = [...snapshot.edges, makeEdge('weixin:alice', manualGroupmate.key, 7)]
+    snapshot.communities = [
+      ...snapshot.communities,
+      { id: 'group:manual', label: 'Manual Group', size: 1, x: 0, y: 0, color: '#facc15' },
+    ]
+    service.replaceSnapshotForTests?.(snapshot)
+
+    const response = service.getGraph({ acceptStale: true })
+    const manualNode = response.graph.nodes.find((node) => node.key === manualFriendKey)
+
+    assert.equal(manualNode?.pool, 'friend')
+    assert.equal(manualNode?.friendSource, 'manual')
+    assert.equal(
+      response.graph.edges.some((edge) => edge.sourceKey === manualFriendKey || edge.targetKey === manualFriendKey),
+      true
+    )
+    assert.equal(
+      response.graph.communities.some((community) => community.id === 'group:manual'),
       true
     )
   } finally {

@@ -8,6 +8,7 @@ import {
   buildRelationshipVisibleGraphForSelection,
   buildRelationshipVisibleLabelKeys,
 } from '../relationship-galaxy-connections'
+import { destroyRemovedPixiChildren } from '../relationship-galaxy-pixi-layers'
 import {
   buildRelationshipGalaxy2DSafeCenter,
   buildRelationshipGalaxy2DSafeFitScale,
@@ -294,7 +295,8 @@ function drawHighlightEdges() {
 function renderGraph(shouldFit = false) {
   if (!viewport) return
 
-  viewport.removeChildren()
+  destroyRemovedPixiChildren(viewport)
+  activeRipples.length = 0
   renderedNodePositions.clear()
   animatedNodes.length = 0
   neighborKeysOf.clear()

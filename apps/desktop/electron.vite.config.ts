@@ -30,6 +30,10 @@ export default defineConfig({
           'worker/dbWorker': resolve(__dirname, 'main/worker/dbWorker.ts'),
           'semantic-index-worker': resolve(rootDir, 'packages/node-runtime/src/semantic-index/worker-thread-entry.ts'),
           'contacts-worker': resolve(rootDir, 'packages/node-runtime/src/services/contacts/worker-entry.ts'),
+          'people-relationships-worker': resolve(
+            rootDir,
+            'packages/node-runtime/src/services/people/relationships/worker-entry.ts'
+          ),
         },
       },
     },

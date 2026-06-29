@@ -19,7 +19,12 @@ import LazyAvatar from '@/components/common/avatar/LazyAvatar.vue'
 import { usePeoplePageHeader } from '../people-page-header'
 import { buildRelationshipConnectionRanking, RELATED_CONTACTS_VISIBLE_LIMIT } from './relationship-galaxy-connections'
 import { resolveRelationshipGalaxyCanvasSelectedKey } from './relationship-galaxy-selection'
-import { shouldShowFocusConnectionsAction } from './relationship-galaxy-state'
+import {
+  resolveRelationshipGalaxyActiveTask,
+  resolveRelationshipGalaxyEmptyText,
+  resolveRelationshipGalaxyPollingAction,
+  shouldShowFocusConnectionsAction,
+} from './relationship-galaxy-state'
 import RelationshipGalaxyCanvas from './components/RelationshipGalaxyCanvas.vue'
 import RelationshipGalaxyThreeCanvas from './components/RelationshipGalaxyThreeCanvas.vue'
 
@@ -105,7 +110,13 @@ const graphScopeTabs = computed(() => [
 const activeGraph = computed(() => neighborhoodResponse.value?.graph ?? graphResponse.value?.graph ?? EMPTY_GRAPH)
 const isNeighborhoodMode = computed(() => Boolean(neighborhoodResponse.value))
 const hasGraph = computed(() => activeGraph.value.nodes.length > 0)
-const task = computed(() => graphResponse.value?.task ?? neighborhoodResponse.value?.task ?? null)
+const task = computed(() =>
+  resolveRelationshipGalaxyActiveTask({
+    graphTask: graphResponse.value?.task ?? null,
+    neighborhoodTask: neighborhoodResponse.value?.task ?? null,
+    isNeighborhoodMode: isNeighborhoodMode.value,
+  })
+)
 const isTaskRunning = computed(() => task.value?.status === 'running')
 const isTaskFailed = computed(() => task.value?.status === 'failed')
 const cacheStatus = computed(() => graphResponse.value?.cache.status ?? neighborhoodResponse.value?.cache.status)
@@ -159,6 +170,14 @@ const statusText = computed(() => {
   if (isTaskFailed.value) return task.value?.lastError || t('relationships.task.failed')
   return ''
 })
+const emptyStateText = computed(() =>
+  resolveRelationshipGalaxyEmptyText({
+    loadError: loadError.value,
+    isTaskFailed: isTaskFailed.value,
+    statusText: statusText.value,
+    emptyText: t('relationships.empty'),
+  })
+)
 
 function formatNumber(value: number): string {
   return numberFormatter.value.format(value)
@@ -232,6 +251,10 @@ function syncPolling(nextTask: PeopleRelationshipsTaskState | undefined) {
 async function loadGraph(options: { silent?: boolean; preserveNeighborhood?: boolean } = {}) {
   const requestId = graphRequestId.value + 1
   graphRequestId.value = requestId
+  const previousTaskStatus = task.value?.status ?? null
+  const neighborhoodContactKey = options.preserveNeighborhood
+    ? (neighborhoodResponse.value?.contact?.key ?? null)
+    : null
   if (!options.silent) isLoading.value = true
   if (!options.preserveNeighborhood) {
     cancelNeighborhoodLoad()
@@ -255,7 +278,13 @@ async function loadGraph(options: { silent?: boolean; preserveNeighborhood?: boo
       canvasSelectedKey.value = null
       isDetailPanelOpen.value = false
     }
+    const pollingAction = resolveRelationshipGalaxyPollingAction({
+      previousTaskStatus,
+      nextTaskStatus: next.task?.status ?? null,
+      neighborhoodContactKey,
+    })
     syncPolling(next.task)
+    if (pollingAction.type === 'refresh-neighborhood') void loadNeighborhood(pollingAction.key)
   } catch (error) {
     if (requestId !== graphRequestId.value) return
     loadError.value = String(error)
@@ -651,7 +680,7 @@ onBeforeUnmount(() => {
         v-else-if="!hasGraph"
         class="absolute inset-0 flex items-center justify-center text-sm font-medium text-gray-400"
       >
-        {{ loadError || t('relationships.empty') }}
+        {{ emptyStateText }}
       </div>
 
       <aside
