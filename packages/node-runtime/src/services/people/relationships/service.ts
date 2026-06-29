@@ -332,15 +332,28 @@ function shouldIncludeSnapshot(status: PeopleRelationshipsCacheState['status'], 
 function normalizePeopleRelationshipsGraphScope(
   scope: PeopleRelationshipsGraphScope | undefined
 ): PeopleRelationshipsGraphScope {
-  return scope === 'close' ? 'close' : 'panorama'
+  return scope === 'close' || scope === 'friends' ? scope : 'panorama'
 }
 
 function buildGraphForScope(
   snapshot: PeopleRelationshipsSnapshot,
   scope: PeopleRelationshipsGraphScope
 ): PeopleRelationshipsGraphData {
+  if (scope === 'friends') return buildFriendsRelationshipsGraph(snapshot)
   if (scope === 'close') return buildCloseRelationshipsGraph(snapshot)
   return snapshot.graph
+}
+
+function buildFriendsRelationshipsGraph(snapshot: PeopleRelationshipsSnapshot): PeopleRelationshipsGraphData {
+  const nodes = snapshot.nodes.filter((node) => node.kind === 'owner' || node.pool === 'friend').sort(compareNodes)
+  const selectedKeys = new Set(nodes.map((node) => node.key))
+  const edges = snapshot.edges.filter((edge) => selectedKeys.has(edge.sourceKey) && selectedKeys.has(edge.targetKey))
+
+  return {
+    nodes,
+    edges,
+    communities: filterCommunitiesForNodes(snapshot.communities, nodes),
+  }
 }
 
 function buildCloseRelationshipsGraph(snapshot: PeopleRelationshipsSnapshot): PeopleRelationshipsGraphData {

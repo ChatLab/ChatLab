@@ -11,7 +11,8 @@
   },
   "graphScope": {
     "panorama": "全景",
-    "close": "強いつながり"
+    "close": "強いつながり",
+    "friends": "友だちのみ"
   },
   "timeRange": {
     "1y": "過去1年",
@@ -23,6 +24,7 @@
   "actions": {
     "recompute": "再計算",
     "clearSearch": "検索をクリア",
+    "closeDetail": "詳細を閉じる",
     "backToPanorama": "全景に戻る",
     "fitView": "表示に合わせる",
     "focusConnections": "この人のつながりだけ表示"
@@ -30,7 +32,8 @@
   "stats": {
     "nodes": "ノード",
     "edges": "リンク",
-    "communities": "コミュニティ"
+    "communities": "関連グループ",
+    "members": "人数"
   },
   "pool": {
     "friend": "友だち",
@@ -53,16 +56,11 @@
     "offCore": "近傍を読み込む"
   },
   "connections": {
-    "title": "つながりが強い人",
+    "title": "関連する連絡先",
     "empty": "現在のグラフに直接のつながりがありません",
-    "weight": "強度 {value}",
-    "replies": "{count} 返信",
-    "showMore": "さらに {count} 人表示",
-    "showLess": "閉じる"
+    "connectionScore": "関連度"
   },
   "detail": {
-    "title": "ノード詳細",
-    "emptyTitle": "ノードを選択",
     "rank": "順位",
     "score": "スコア",
     "type": "種類",

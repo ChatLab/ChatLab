@@ -66,5 +66,5 @@ function parseContactsTimeRangePreset(value: string | undefined): ContactsTimeRa
 }
 
 function parsePeopleRelationshipsGraphScope(value: string | undefined): PeopleRelationshipsGraphScope {
-  return value === 'close' ? 'close' : 'panorama'
+  return value === 'close' || value === 'friends' ? value : 'panorama'
 }

@@ -269,6 +269,66 @@ test('returns a close relationships graph with owner, all friends, and top score
   }
 })
 
+test('returns a friends relationships graph without groupmate nodes while keeping full search results', () => {
+  const dir = makeTempDir()
+  try {
+    const service = createPeopleRelationshipsService({
+      adapter: makeAdapter(),
+      systemDir: dir,
+      runner: async () => {
+        throw new Error('runner should not be called for fresh injected snapshot')
+      },
+    })
+    const snapshot = makeSnapshot(makeFreshSignature())
+    const manualFriend = makeNode({
+      key: 'weixin:manual-friend',
+      displayName: 'Manual Friend',
+      pool: 'friend',
+      friendSource: 'manual',
+      rank: 5,
+      score: 55,
+    })
+    const groupmate = makeNode({
+      key: 'weixin:groupmate',
+      displayName: 'Only Groupmate',
+      pool: 'non_friend',
+      rank: 6,
+      score: 50,
+      searchText: 'only groupmate',
+    })
+    snapshot.nodes = [...snapshot.nodes, manualFriend, groupmate]
+    snapshot.edges = [
+      ...snapshot.edges,
+      makeEdge('owner:weixin', manualFriend.key, 12),
+      makeEdge(manualFriend.key, groupmate.key, 10),
+      makeEdge('weixin:alice', manualFriend.key, 8),
+    ]
+    service.replaceSnapshotForTests?.(snapshot)
+
+    const response = service.getGraph({ acceptStale: true, graphScope: 'friends', query: 'groupmate' })
+    const keys = response.graph.nodes.map((node) => node.key)
+
+    assert.ok(keys.includes('owner:weixin'))
+    assert.ok(keys.includes('weixin:alice'))
+    assert.ok(keys.includes(manualFriend.key))
+    assert.equal(
+      response.graph.nodes.every((node) => node.kind === 'owner' || node.pool === 'friend'),
+      true
+    )
+    assert.equal(keys.includes(groupmate.key), false)
+    assert.equal(
+      response.graph.edges.every((edge) => keys.includes(edge.sourceKey) && keys.includes(edge.targetKey)),
+      true
+    )
+    assert.equal(
+      response.searchResults.some((result) => result.key === groupmate.key),
+      true
+    )
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test('returns neighborhood graph for a searched node outside the core graph', () => {
   const dir = makeTempDir()
   try {

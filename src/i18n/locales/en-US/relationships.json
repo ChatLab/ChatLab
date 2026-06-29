@@ -11,7 +11,8 @@
   },
   "graphScope": {
     "panorama": "Panorama",
-    "close": "Close ties"
+    "close": "Close ties",
+    "friends": "Friends only"
   },
   "timeRange": {
     "1y": "1 year",
@@ -23,6 +24,7 @@
   "actions": {
     "recompute": "Recompute",
     "clearSearch": "Clear search",
+    "closeDetail": "Close details",
     "backToPanorama": "Back to panorama",
     "fitView": "Fit view",
     "focusConnections": "Show only its connections"
@@ -30,7 +32,8 @@
   "stats": {
     "nodes": "Nodes",
     "edges": "Edges",
-    "communities": "Communities"
+    "communities": "Related groups",
+    "members": "Members"
   },
   "pool": {
     "friend": "Friend",
@@ -53,16 +56,11 @@
     "offCore": "Load neighborhood"
   },
   "connections": {
-    "title": "Closest connections",
+    "title": "Related contacts",
     "empty": "No direct connections in the current graph",
-    "weight": "Strength {value}",
-    "replies": "{count} replies",
-    "showMore": "Show {count} more",
-    "showLess": "Show less"
+    "connectionScore": "Affinity"
   },
   "detail": {
-    "title": "Node details",
-    "emptyTitle": "Select a node",
     "rank": "Rank",
     "score": "Score",
     "type": "Type",

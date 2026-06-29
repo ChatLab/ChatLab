@@ -3,6 +3,10 @@ import type {
   PeopleRelationshipGraphNode,
   PeopleRelationshipsGraphData,
 } from '@openchatlab/shared-types'
+import {
+  buildRelationshipVisibleGraphForSelection,
+  buildRelationshipVisibleLabelKeys,
+} from './relationship-galaxy-connections'
 
 export type RelationshipGalaxy3DNodeState = 'normal' | 'selected' | 'neighbor' | 'dimmed'
 
@@ -54,30 +58,36 @@ export interface RelationshipGalaxy3DSceneOptions {
 const OWNER_COLOR = 0xfff2a8
 const FRIEND_NODE_COLORS = [0xfff6da, 0xffdf9a, 0xdcecff, 0xffffff, 0xffb47a]
 const GROUPMATE_NODE_COLORS = [0xdbe9ff, 0xf8fbff, 0xffedc7, 0xcfe6ff, 0xffc49a]
-const MAX_DEPTH = 800
-const MAX_3D_HORIZONTAL_SPAN = 3600
+const MAX_3D_SCENE_RADIUS = 1700
+
+interface RelationshipGalaxy3DVector {
+  x: number
+  y: number
+  z: number
+}
 
 export function buildRelationshipGalaxy3DScene(
   graph: PeopleRelationshipsGraphData,
   options: RelationshipGalaxy3DSceneOptions = {}
 ): RelationshipGalaxy3DScene {
   const selectedKey = options.selectedKey ?? null
-  const selectedNeighborKeys = buildSelectedNeighborKeys(graph.edges, selectedKey)
-  const layout = deriveCompactLayout(graph.nodes, selectedKey)
+  const renderGraph = buildRelationshipVisibleGraphForSelection(graph, selectedKey)
+  const selectedNeighborKeys = buildSelectedNeighborKeys(renderGraph.edges, selectedKey)
+  const visibleLabelKeys = selectedKey ? buildRelationshipVisibleLabelKeys(renderGraph, selectedKey) : null
 
-  const nodes = graph.nodes.map((node) => {
+  const nodes = renderGraph.nodes.map((node) => {
     const state = resolveNodeState(node.key, selectedKey, selectedNeighborKeys)
     const seed = hashToUnit(node.key)
-    const z = deriveNodeDepth(node, selectedKey, seed)
+    const position = deriveSphericalNodePosition(node, state, selectedKey, seed)
     const radius = deriveNodeRadius(node, state)
-    const labelTier = deriveLabelTier(node, state, graph.nodes.length)
+    const labelTier = deriveLabelTier(node, state, renderGraph.nodes.length, visibleLabelKeys)
 
     return {
       key: node.key,
       node,
-      x: roundNum((node.x - layout.centerX) * layout.scale, 2),
-      y: roundNum((node.y - layout.centerY) * layout.scale, 2),
-      z,
+      x: position.x,
+      y: position.y,
+      z: position.z,
       radius,
       color: parseNodeColor(node),
       state,
@@ -88,7 +98,7 @@ export function buildRelationshipGalaxy3DScene(
   })
 
   const nodeByKey = new Map(nodes.map((node) => [node.key, node]))
-  const edges = graph.edges.flatMap((edge): RelationshipGalaxy3DEdge[] => {
+  const edges = renderGraph.edges.flatMap((edge): RelationshipGalaxy3DEdge[] => {
     const source = nodeByKey.get(edge.sourceKey)
     const target = nodeByKey.get(edge.targetKey)
     if (!source || !target) return []
@@ -124,38 +134,13 @@ export function buildRelationshipGalaxy3DScene(
   }
 }
 
-function deriveCompactLayout(
-  nodes: PeopleRelationshipGraphNode[],
-  selectedKey: string | null
-): {
-  centerX: number
-  centerY: number
-  scale: number
-} {
-  if (nodes.length === 0) return { centerX: 0, centerY: 0, scale: 1 }
-
-  const selected = selectedKey ? nodes.find((node) => node.key === selectedKey) : null
-  const owner = nodes.find((node) => node.kind === 'owner')
-  let minX = Number.POSITIVE_INFINITY
-  let maxX = Number.NEGATIVE_INFINITY
-  let minY = Number.POSITIVE_INFINITY
-  let maxY = Number.NEGATIVE_INFINITY
-
-  for (const node of nodes) {
-    minX = Math.min(minX, node.x)
-    maxX = Math.max(maxX, node.x)
-    minY = Math.min(minY, node.y)
-    maxY = Math.max(maxY, node.y)
-  }
-
-  const width = maxX - minX
-  const height = maxY - minY
-  const span = Math.max(width, height)
-  return {
-    centerX: selected?.x ?? owner?.x ?? (minX + maxX) / 2,
-    centerY: selected?.y ?? owner?.y ?? (minY + maxY) / 2,
-    scale: span > MAX_3D_HORIZONTAL_SPAN ? MAX_3D_HORIZONTAL_SPAN / span : 1,
-  }
+export function shouldRenderRelationshipGalaxy3DLabel(
+  sceneNode: RelationshipGalaxy3DNode,
+  selectedKey: string | null,
+  _selectedNeighbor: boolean
+): boolean {
+  if (!selectedKey) return sceneNode.labelTier > 0
+  return sceneNode.labelTier > 0
 }
 
 function buildSelectedNeighborKeys(edges: PeopleRelationshipGraphEdge[], selectedKey: string | null): Set<string> {
@@ -188,13 +173,78 @@ function resolveNodeState(
   return 'dimmed'
 }
 
-function deriveNodeDepth(node: PeopleRelationshipGraphNode, selectedKey: string | null, seed: number): number {
-  const communityDepth = hashToSignedUnit(node.communityId || 'default') * 280
-  const scoreLift = (Math.max(0, Math.min(1, node.score)) - 0.5) * 220
-  const rankLift = Math.max(0, 1 - (node.rank - 1) / 80) * 180
-  const selectedLift = node.key === selectedKey ? 150 : 0
-  const seededDepth = (seed - 0.5) * 350
-  return clamp(communityDepth + scoreLift + rankLift + selectedLift + seededDepth, -MAX_DEPTH, MAX_DEPTH)
+function deriveSphericalNodePosition(
+  node: PeopleRelationshipGraphNode,
+  state: RelationshipGalaxy3DNodeState,
+  selectedKey: string | null,
+  seed: number
+): RelationshipGalaxy3DVector {
+  if (state === 'selected') return { x: 0, y: 0, z: 0 }
+  if (!selectedKey && node.kind === 'owner') return { x: 0, y: 0, z: 0 }
+
+  const direction = deriveNodeDirection(node, selectedKey)
+  const orbitRadius = deriveNodeOrbitRadius(node, state, Boolean(selectedKey), seed)
+
+  return {
+    x: roundNum(direction.x * orbitRadius, 2),
+    y: roundNum(direction.y * orbitRadius, 2),
+    z: roundNum(direction.z * orbitRadius, 2),
+  }
+}
+
+function deriveNodeDirection(
+  node: PeopleRelationshipGraphNode,
+  selectedKey: string | null
+): RelationshipGalaxy3DVector {
+  const focusSeed = selectedKey ?? 'panorama'
+  const communityDirection = deriveUnitVector(`community:${focusSeed}:${node.communityId || 'default'}`)
+  const nodeDirection = deriveUnitVector(`node:${focusSeed}:${node.key}`)
+  const communityWeight = selectedKey ? 0.7 : 1.15
+  const nodeWeight = selectedKey ? 1.15 : 0.95
+
+  return normalizeVector({
+    x: communityDirection.x * communityWeight + nodeDirection.x * nodeWeight,
+    y: communityDirection.y * communityWeight + nodeDirection.y * nodeWeight,
+    z: communityDirection.z * communityWeight + nodeDirection.z * nodeWeight,
+  })
+}
+
+function deriveNodeOrbitRadius(
+  node: PeopleRelationshipGraphNode,
+  state: RelationshipGalaxy3DNodeState,
+  hasSelectedNode: boolean,
+  seed: number
+): number {
+  const importance = deriveNodeImportance(node)
+  const jitter = (seed - 0.5) * 120
+
+  if (hasSelectedNode && state === 'neighbor') {
+    return clamp(980 - importance * 650 + jitter, 220, 1050)
+  }
+
+  if (hasSelectedNode && state === 'dimmed') {
+    return clamp(1670 - importance * 260 + jitter, 1280, MAX_3D_SCENE_RADIUS)
+  }
+
+  const minRadius = node.pool === 'friend' ? 280 : 620
+  const maxRadius = node.pool === 'friend' ? 1180 : MAX_3D_SCENE_RADIUS
+  const rankNoisePush = node.pool === 'non_friend' ? Math.max(0, (node.rank - 80) / 220) * 160 : 0
+  return clamp(maxRadius - importance * (maxRadius - minRadius) + rankNoisePush + jitter, 180, MAX_3D_SCENE_RADIUS)
+}
+
+function deriveNodeImportance(node: PeopleRelationshipGraphNode): number {
+  if (node.kind === 'owner') return 1
+
+  const scoreImportance = clamp(node.score, 0, 1)
+  const rankImportance = clamp(1 - (node.rank - 1) / 120, 0, 1)
+  const privateSignal = clamp(Math.log10(node.privateMessageCount + 1) / 4, 0, 1)
+  const groupSignal = clamp(Math.log10(node.groupMessageCount + 1) / 4.5, 0, 1)
+  const friendBonus = node.pool === 'friend' ? 0.12 : 0
+  return clamp(
+    scoreImportance * 0.36 + rankImportance * 0.36 + privateSignal * 0.18 + groupSignal * 0.08 + friendBonus,
+    0,
+    1
+  )
 }
 
 function deriveNodeRadius(node: PeopleRelationshipGraphNode, state: RelationshipGalaxy3DNodeState): number {
@@ -212,8 +262,14 @@ function deriveNodeRadius(node: PeopleRelationshipGraphNode, state: Relationship
 function deriveLabelTier(
   node: PeopleRelationshipGraphNode,
   state: RelationshipGalaxy3DNodeState,
-  totalNodes: number
+  totalNodes: number,
+  visibleLabelKeys: Set<string> | null
 ): 0 | 1 | 2 {
+  if (visibleLabelKeys) {
+    if (!visibleLabelKeys.has(node.key)) return 0
+    return state === 'selected' || node.kind === 'owner' ? 2 : 1
+  }
+
   if (state === 'selected') return 2
   if (node.labelVisibility === 2) return 2
   if (node.kind === 'owner') return 2
@@ -237,40 +293,36 @@ function deriveBounds(nodes: RelationshipGalaxy3DNode[]): RelationshipGalaxy3DSc
       maxX: 500,
       minY: -500,
       maxY: 500,
-      minZ: -MAX_DEPTH,
-      maxZ: MAX_DEPTH,
+      minZ: -MAX_3D_SCENE_RADIUS,
+      maxZ: MAX_3D_SCENE_RADIUS,
       width: 1000,
       height: 1000,
-      depth: MAX_DEPTH * 2,
+      depth: MAX_3D_SCENE_RADIUS * 2,
     }
   }
 
-  let minX = Number.POSITIVE_INFINITY
-  let maxX = Number.NEGATIVE_INFINITY
-  let minY = Number.POSITIVE_INFINITY
-  let maxY = Number.NEGATIVE_INFINITY
-  let minZ = Number.POSITIVE_INFINITY
-  let maxZ = Number.NEGATIVE_INFINITY
+  let maxAbsX = 0
+  let maxAbsY = 0
+  let maxAbsZ = 0
 
   for (const node of nodes) {
-    minX = Math.min(minX, node.x)
-    maxX = Math.max(maxX, node.x)
-    minY = Math.min(minY, node.y)
-    maxY = Math.max(maxY, node.y)
-    minZ = Math.min(minZ, node.z)
-    maxZ = Math.max(maxZ, node.z)
+    maxAbsX = Math.max(maxAbsX, Math.abs(node.x))
+    maxAbsY = Math.max(maxAbsY, Math.abs(node.y))
+    maxAbsZ = Math.max(maxAbsZ, Math.abs(node.z))
   }
 
+  const radius = Math.max(400, maxAbsX, maxAbsY, maxAbsZ)
+
   return {
-    minX,
-    maxX,
-    minY,
-    maxY,
-    minZ,
-    maxZ,
-    width: Math.max(800, maxX - minX),
-    height: Math.max(800, maxY - minY),
-    depth: Math.max(400, maxZ - minZ),
+    minX: -radius,
+    maxX: radius,
+    minY: -radius,
+    maxY: radius,
+    minZ: -radius,
+    maxZ: radius,
+    width: radius * 2,
+    height: radius * 2,
+    depth: radius * 2,
   }
 }
 
@@ -285,8 +337,27 @@ function pickPaletteColor(node: PeopleRelationshipGraphNode): number {
   return palette[index] ?? palette[0]
 }
 
-function hashToSignedUnit(value: string): number {
-  return hashToUnit(value) * 2 - 1
+function deriveUnitVector(value: string): RelationshipGalaxy3DVector {
+  const azimuth = hashToUnit(`${value}:azimuth`) * Math.PI * 2
+  const z = hashToUnit(`${value}:z`) * 2 - 1
+  const planarRadius = Math.sqrt(Math.max(0, 1 - z * z))
+
+  return {
+    x: Math.cos(azimuth) * planarRadius,
+    y: Math.sin(azimuth) * planarRadius,
+    z,
+  }
+}
+
+function normalizeVector(vector: RelationshipGalaxy3DVector): RelationshipGalaxy3DVector {
+  const length = Math.hypot(vector.x, vector.y, vector.z)
+  if (length <= 0.0001) return { x: 1, y: 0, z: 0 }
+
+  return {
+    x: vector.x / length,
+    y: vector.y / length,
+    z: vector.z / length,
+  }
 }
 
 function hashToUnit(value: string): number {

@@ -752,6 +752,164 @@ test('relayouts neighborhood graphs around the focused contact', () => {
   assert.equal(center.y, 700)
 })
 
+test('keeps every direct relationship in neighborhood graphs even when display limits are small', () => {
+  const center = makeGraphNode({
+    key: 'weixin:center',
+    platformId: 'center',
+    displayName: 'Center',
+    pool: 'friend',
+    rank: 1,
+    score: 1,
+    communityId: 'group:core',
+  })
+  const directPeers = Array.from({ length: 6 }, (_, index) =>
+    makeGraphNode({
+      key: `weixin:peer-${index}`,
+      platformId: `peer-${index}`,
+      displayName: `Peer ${index}`,
+      rank: index + 2,
+      score: 0.8 - index * 0.05,
+      communityId: index % 2 === 0 ? 'group:core' : 'group:outer',
+    })
+  )
+  const unrelated = makeGraphNode({
+    key: 'weixin:unrelated',
+    platformId: 'unrelated',
+    displayName: 'Unrelated',
+    rank: 20,
+    score: 0.2,
+    communityId: 'group:outer',
+  })
+  const snapshot = {
+    nodes: [center, ...directPeers, unrelated],
+    edges: [
+      ...directPeers.map((peer, index) => makeGraphEdge(center.key, peer.key, 6 - index)),
+      makeGraphEdge(directPeers[0]!.key, unrelated.key, 20),
+    ],
+    communities: [
+      { id: 'group:core', label: 'Core Group', size: 4, x: 0, y: 0, color: '#7dd3fc' },
+      { id: 'group:outer', label: 'Outer Group', size: 4, x: 0, y: 0, color: '#f0abfc' },
+    ],
+    graph: { nodes: [], edges: [], communities: [] },
+    diagnostics: {
+      processedPrivateSessions: 0,
+      processedGroupSessions: 0,
+      skippedMissingOwnerSessions: 0,
+      skippedUnresolvedOwnerSessions: 0,
+      skippedAmbiguousPrivateSessions: 0,
+      skippedFailedSessions: 0,
+      totalNodes: 8,
+      totalEdges: 7,
+      panoramaIncludedGroupSessions: 0,
+      panoramaExcludedLowValueGroupSessions: 0,
+      panoramaIncludedGroupMembers: 0,
+      panoramaExcludedGroupMembers: 0,
+      panoramaCandidateNodes: 8,
+      panoramaGroupInclusionReasons: {},
+      coreNodeCount: 0,
+      coreEdgeCount: 0,
+      warnings: [],
+    },
+    algorithmVersion: PEOPLE_RELATIONSHIPS_ALGORITHM_VERSION,
+    signature: 'sig-complete-neighborhood',
+    timeRange: { preset: 'all', anchorTs: null, startTs: null },
+    computedAt: 1800000000,
+    workerStats: { durationMs: 1, totalSessions: 0, processedSessions: 0, skippedFailedSessions: 0 },
+    limits: {
+      coreNodeLimit: 10,
+      coreEdgeLimit: 10,
+      perNodeEdgeLimit: 10,
+      neighborhoodNodeLimit: 3,
+      neighborhoodEdgeLimit: 3,
+      searchResultLimit: 20,
+    },
+  } satisfies PeopleRelationshipsSnapshot
+
+  const neighborhood = buildPeopleRelationshipsNeighborhoodGraph(snapshot, center.key)
+  const nodeKeys = new Set(neighborhood.nodes.map((node) => node.key))
+  const directEdgeKeys = new Set(neighborhood.edges.map((edge) => [edge.sourceKey, edge.targetKey].sort().join(':')))
+
+  for (const peer of directPeers) {
+    assert.equal(nodeKeys.has(peer.key), true)
+    assert.equal(directEdgeKeys.has([center.key, peer.key].sort().join(':')), true)
+  }
+  assert.equal(nodeKeys.has(unrelated.key), false)
+})
+
+test('returns only focused contact source groups in neighborhood communities', () => {
+  const center = makeGraphNode({
+    key: 'weixin:center',
+    platformId: 'center',
+    displayName: 'Center',
+    pool: 'friend',
+    rank: 1,
+    score: 1,
+    communityId: 'group:direct-a',
+  })
+  const peer = makeGraphNode({
+    key: 'weixin:peer',
+    platformId: 'peer',
+    displayName: 'Peer',
+    rank: 2,
+    score: 0.8,
+    communityId: 'group:unrelated-primary',
+  })
+  const edge = {
+    ...makeGraphEdge(center.key, peer.key, 8),
+    sourceGroupCount: 2,
+    sourceSessionIds: ['direct-a', 'direct-b'],
+  }
+  const snapshot = {
+    nodes: [center, peer],
+    edges: [edge],
+    communities: [
+      { id: 'group:direct-a', label: 'Direct A', size: 10, x: 0, y: 0, color: '#7dd3fc' },
+      { id: 'group:direct-b', label: 'Direct B', size: 8, x: 0, y: 0, color: '#facc15' },
+      { id: 'group:unrelated-primary', label: 'Unrelated Primary', size: 20, x: 0, y: 0, color: '#f0abfc' },
+    ],
+    graph: { nodes: [], edges: [], communities: [] },
+    diagnostics: {
+      processedPrivateSessions: 0,
+      processedGroupSessions: 0,
+      skippedMissingOwnerSessions: 0,
+      skippedUnresolvedOwnerSessions: 0,
+      skippedAmbiguousPrivateSessions: 0,
+      skippedFailedSessions: 0,
+      totalNodes: 2,
+      totalEdges: 1,
+      panoramaIncludedGroupSessions: 0,
+      panoramaExcludedLowValueGroupSessions: 0,
+      panoramaIncludedGroupMembers: 0,
+      panoramaExcludedGroupMembers: 0,
+      panoramaCandidateNodes: 2,
+      panoramaGroupInclusionReasons: {},
+      coreNodeCount: 0,
+      coreEdgeCount: 0,
+      warnings: [],
+    },
+    algorithmVersion: PEOPLE_RELATIONSHIPS_ALGORITHM_VERSION,
+    signature: 'sig-neighborhood-communities',
+    timeRange: { preset: 'all', anchorTs: null, startTs: null },
+    computedAt: 1800000000,
+    workerStats: { durationMs: 1, totalSessions: 0, processedSessions: 0, skippedFailedSessions: 0 },
+    limits: {
+      coreNodeLimit: 10,
+      coreEdgeLimit: 10,
+      perNodeEdgeLimit: 10,
+      neighborhoodNodeLimit: 10,
+      neighborhoodEdgeLimit: 10,
+      searchResultLimit: 20,
+    },
+  } satisfies PeopleRelationshipsSnapshot
+
+  const neighborhood = buildPeopleRelationshipsNeighborhoodGraph(snapshot, center.key)
+
+  assert.deepEqual(
+    neighborhood.communities.map((community) => community.id),
+    ['group:direct-a', 'group:direct-b']
+  )
+})
+
 test('includes groups with few friends when owner activity is high but trims low-signal members', (t) => {
   const env = new TestEnv()
   t.after(() => env.cleanup())

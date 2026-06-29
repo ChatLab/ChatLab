@@ -10,7 +10,7 @@ import type {
   PeopleRelationshipGraphNode,
   PeopleRelationshipsGraphData,
 } from '@openchatlab/shared-types'
-import { buildRelationshipGalaxy3DScene } from './relationship-galaxy-3d-scene'
+import { buildRelationshipGalaxy3DScene, shouldRenderRelationshipGalaxy3DLabel } from './relationship-galaxy-3d-scene'
 
 function node(
   overrides: Partial<PeopleRelationshipGraphNode> & { key: string; rank: number }
@@ -61,7 +61,7 @@ function edge(
   }
 }
 
-test('derives stable shallow 3D depth from existing graph nodes', () => {
+test('derives stable volumetric 3D positions from existing graph nodes', () => {
   const graph: PeopleRelationshipsGraphData = {
     nodes: [
       node({ key: 'weixin:alice', rank: 1, score: 0.98, x: 10, y: 20, communityId: 'friends' }),
@@ -79,16 +79,41 @@ test('derives stable shallow 3D depth from existing graph nodes', () => {
   assert.deepEqual(scene.nodes.map((item) => item.key).sort(), graph.nodes.map((item) => item.key).sort())
 
   for (const item of scene.nodes) {
-    assert.ok(item.z >= -800 && item.z <= 800)
+    assert.ok(item.z >= -1800 && item.z <= 1800)
     assert.ok(item.radius >= 1.5)
   }
 
   const alice = scene.nodes.find((item) => item.key === 'weixin:alice')
   const reversedAlice = reversedScene.nodes.find((item) => item.key === 'weixin:alice')
-  assert.equal(alice?.z, reversedAlice?.z)
+  assert.deepEqual([alice?.x, alice?.y, alice?.z], [reversedAlice?.x, reversedAlice?.y, reversedAlice?.z])
 })
 
-test('highlights selected node neighbors and dims unrelated nodes', () => {
+test('fills a spherical volume instead of flattening the backend 2D layout', () => {
+  const nodes = Array.from({ length: 36 }, (_, index) =>
+    node({
+      key: `weixin:node-${index}`,
+      rank: index + 1,
+      score: Math.max(0.15, 1 - index / 42),
+      x: index % 2 === 0 ? -5000 : 5000,
+      y: index % 3 === 0 ? -2000 : 2000,
+      communityId: `community-${index % 8}`,
+      pool: index < 12 ? 'friend' : 'non_friend',
+    })
+  )
+
+  const scene = buildRelationshipGalaxy3DScene({ nodes, edges: [], communities: [] })
+  const actualWidth = Math.max(...scene.nodes.map((item) => item.x)) - Math.min(...scene.nodes.map((item) => item.x))
+  const actualHeight = Math.max(...scene.nodes.map((item) => item.y)) - Math.min(...scene.nodes.map((item) => item.y))
+  const actualDepth = Math.max(...scene.nodes.map((item) => item.z)) - Math.min(...scene.nodes.map((item) => item.z))
+
+  assert.ok(scene.bounds.width <= 3600)
+  assert.ok(scene.bounds.height <= 3600)
+  assert.ok(actualDepth > Math.max(actualWidth, actualHeight) * 0.55)
+  assert.ok(scene.bounds.depth > scene.bounds.width * 0.8)
+  assert.ok(scene.bounds.depth > scene.bounds.height * 0.8)
+})
+
+test('highlights selected node neighbors and omits unrelated nodes', () => {
   const graph: PeopleRelationshipsGraphData = {
     nodes: [
       node({ key: 'weixin:alice', rank: 1, score: 0.92 }),
@@ -106,7 +131,7 @@ test('highlights selected node neighbors and dims unrelated nodes', () => {
 
   assert.equal(alice?.state, 'selected')
   assert.equal(bob?.state, 'neighbor')
-  assert.equal(chen?.state, 'dimmed')
+  assert.equal(chen, undefined)
   assert.ok(scene.edges[0].highlighted)
   assert.ok(scene.edges[0].alpha > 0.3)
 })
@@ -161,6 +186,7 @@ test('keeps owner at the 3D panorama center when compacting asymmetric layouts',
 
   assert.equal(owner?.x, 0)
   assert.equal(owner?.y, 0)
+  assert.equal(owner?.z, 0)
   assert.ok(scene.bounds.width <= 3600)
 })
 
@@ -180,24 +206,157 @@ test('keeps selected contact at the 3D panorama center before owner when focusin
 
   assert.equal(selected?.x, 0)
   assert.equal(selected?.y, 0)
+  assert.equal(selected?.z, 0)
 })
 
-test('keeps labels sparse while preserving selected and high-visibility names', () => {
+test('keeps selected labels scoped to direct relationship contacts', () => {
   const graph: PeopleRelationshipsGraphData = {
     nodes: [
       node({ key: 'weixin:selected', rank: 18, labelVisibility: 0 }),
       node({ key: 'weixin:important', rank: 20, labelVisibility: 2 }),
       node({ key: 'weixin:quiet', rank: 240, labelVisibility: 0 }),
     ],
-    edges: [],
+    edges: [edge({ sourceKey: 'weixin:selected', targetKey: 'weixin:important', weight: 2 })],
     communities: [],
   }
 
   const scene = buildRelationshipGalaxy3DScene(graph, { selectedKey: 'weixin:selected' })
 
   assert.equal(scene.nodes.find((item) => item.key === 'weixin:selected')?.labelTier, 2)
-  assert.equal(scene.nodes.find((item) => item.key === 'weixin:important')?.labelTier, 2)
-  assert.equal(scene.nodes.find((item) => item.key === 'weixin:quiet')?.labelTier, 0)
+  assert.equal(scene.nodes.find((item) => item.key === 'weixin:important')?.labelTier, 1)
+  assert.equal(
+    scene.nodes.find((item) => item.key === 'weixin:quiet'),
+    undefined
+  )
+})
+
+test('limits selected relationship labels to the top eighty direct contacts', () => {
+  const nodes = [
+    node({ key: 'weixin:selected', rank: 1, labelVisibility: 0 }),
+    ...Array.from({ length: 100 }, (_, index) =>
+      node({
+        key: `weixin:peer-${index + 1}`,
+        rank: index + 100,
+        labelVisibility: 0,
+      })
+    ),
+  ]
+  const edges = Array.from({ length: 100 }, (_, index) =>
+    edge({
+      sourceKey: 'weixin:selected',
+      targetKey: `weixin:peer-${index + 1}`,
+      weight: index + 1,
+    })
+  )
+
+  const scene = buildRelationshipGalaxy3DScene({ nodes, edges, communities: [] }, { selectedKey: 'weixin:selected' })
+  const labeledPeerKeys = scene.nodes
+    .filter((item) => item.key !== 'weixin:selected' && item.labelTier > 0)
+    .map((item) => item.key)
+
+  assert.equal(labeledPeerKeys.length, 80)
+  assert.equal(labeledPeerKeys.includes('weixin:peer-100'), true)
+  assert.equal(labeledPeerKeys.includes('weixin:peer-20'), false)
+})
+
+test('renders only selected and visible related contacts in selected 3D scene', () => {
+  const nodes = [
+    node({ key: 'weixin:selected', rank: 1, labelVisibility: 0 }),
+    ...Array.from({ length: 100 }, (_, index) =>
+      node({
+        key: `weixin:peer-${index + 1}`,
+        rank: index + 100,
+        labelVisibility: 0,
+      })
+    ),
+  ]
+  const edges = [
+    ...Array.from({ length: 100 }, (_, index) =>
+      edge({
+        sourceKey: 'weixin:selected',
+        targetKey: `weixin:peer-${index + 1}`,
+        weight: index + 1,
+      })
+    ),
+    edge({ sourceKey: 'weixin:peer-100', targetKey: 'weixin:peer-99', weight: 500 }),
+    edge({ sourceKey: 'weixin:peer-20', targetKey: 'weixin:peer-19', weight: 500 }),
+  ]
+
+  const scene = buildRelationshipGalaxy3DScene({ nodes, edges, communities: [] }, { selectedKey: 'weixin:selected' })
+  const visibleKeys = new Set(scene.nodes.map((item) => item.key))
+
+  assert.equal(scene.nodes.length, 81)
+  assert.equal(visibleKeys.has('weixin:selected'), true)
+  assert.equal(visibleKeys.has('weixin:peer-100'), true)
+  assert.equal(visibleKeys.has('weixin:peer-20'), false)
+  assert.equal(
+    scene.edges.every((item) => visibleKeys.has(item.edge.sourceKey) && visibleKeys.has(item.edge.targetKey)),
+    true
+  )
+  assert.equal(
+    scene.edges.some((item) => item.edge.sourceKey === 'weixin:peer-100' && item.edge.targetKey === 'weixin:peer-99'),
+    true
+  )
+})
+
+test('keeps rendered selected relationship labels aligned with the scene label tier', () => {
+  const nodes = [
+    node({ key: 'weixin:selected', rank: 1, labelVisibility: 0 }),
+    ...Array.from({ length: 100 }, (_, index) =>
+      node({
+        key: `weixin:peer-${index + 1}`,
+        rank: index + 100,
+        labelVisibility: 2,
+      })
+    ),
+  ]
+  const edges = Array.from({ length: 100 }, (_, index) =>
+    edge({
+      sourceKey: 'weixin:selected',
+      targetKey: `weixin:peer-${index + 1}`,
+      weight: index + 1,
+    })
+  )
+
+  const scene = buildRelationshipGalaxy3DScene({ nodes, edges, communities: [] }, { selectedKey: 'weixin:selected' })
+
+  assert.equal(
+    shouldRenderRelationshipGalaxy3DLabel(
+      scene.nodes.find((item) => item.key === 'weixin:selected')!,
+      'weixin:selected',
+      false
+    ),
+    true
+  )
+  assert.equal(
+    shouldRenderRelationshipGalaxy3DLabel(
+      scene.nodes.find((item) => item.key === 'weixin:peer-100')!,
+      'weixin:selected',
+      true
+    ),
+    true
+  )
+  assert.equal(
+    scene.nodes.find((item) => item.key === 'weixin:peer-20'),
+    undefined
+  )
+})
+
+test('renders selected-scene related labels from label tier even without recomputed neighbor state', () => {
+  const graph: PeopleRelationshipsGraphData = {
+    nodes: [
+      node({ key: 'weixin:selected', rank: 1, labelVisibility: 0 }),
+      node({ key: 'weixin:peer', rank: 2, labelVisibility: 0 }),
+    ],
+    edges: [edge({ sourceKey: 'weixin:selected', targetKey: 'weixin:peer', weight: 2 })],
+    communities: [],
+  }
+
+  const scene = buildRelationshipGalaxy3DScene(graph, { selectedKey: 'weixin:selected' })
+  const peer = scene.nodes.find((item) => item.key === 'weixin:peer')!
+
+  assert.equal(peer.labelTier, 1)
+  assert.equal(shouldRenderRelationshipGalaxy3DLabel(peer, 'weixin:selected', false), true)
 })
 
 test('uses varied node colors, larger important nodes, and no glow field', () => {
@@ -211,7 +370,7 @@ test('uses varied node colors, larger important nodes, and no glow field', () =>
     communities: [],
   }
 
-  const scene = buildRelationshipGalaxy3DScene(graph, { selectedKey: 'weixin:owner' })
+  const scene = buildRelationshipGalaxy3DScene(graph)
   const owner = scene.nodes.find((item) => item.key === 'weixin:owner')
   const friend = scene.nodes.find((item) => item.key === 'weixin:friend')
   const groupmate = scene.nodes.find((item) => item.key === 'weixin:groupmate')

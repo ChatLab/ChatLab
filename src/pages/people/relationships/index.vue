@@ -17,7 +17,8 @@ import { useToast } from '@/composables/useToast'
 import { LoadingState } from '@/components/UI'
 import LazyAvatar from '@/components/common/avatar/LazyAvatar.vue'
 import { usePeoplePageHeader } from '../people-page-header'
-import { buildRelationshipConnectionRanking } from './relationship-galaxy-connections'
+import { buildRelationshipConnectionRanking, RELATED_CONTACTS_VISIBLE_LIMIT } from './relationship-galaxy-connections'
+import { resolveRelationshipGalaxyCanvasSelectedKey } from './relationship-galaxy-selection'
 import { shouldShowFocusConnectionsAction } from './relationship-galaxy-state'
 import RelationshipGalaxyCanvas from './components/RelationshipGalaxyCanvas.vue'
 import RelationshipGalaxyThreeCanvas from './components/RelationshipGalaxyThreeCanvas.vue'
@@ -35,6 +36,7 @@ const EMPTY_GRAPH: PeopleRelationshipsGraphData = {
 }
 
 const POLL_INTERVAL_MS = 1400
+const RELATIONSHIP_DETAIL_PANEL_SAFE_INSET_RIGHT = 392
 
 const { t, locale } = useI18n()
 const dataService = useDataService()
@@ -44,22 +46,28 @@ const timeRangePreset = ref<ContactsTimeRangePreset>('1y')
 const graphScope = ref<PeopleRelationshipsGraphScope>('panorama')
 const searchQuery = ref('')
 const debouncedSearchQuery = ref('')
+const isSearchResultsOpen = ref(false)
+const searchResultsQuery = ref('')
 const selectedKey = ref<string | null>(null)
+const isDetailPanelOpen = ref(false)
 const graphResponse = ref<PeopleRelationshipsGraphResponse | null>(null)
 const neighborhoodResponse = ref<PeopleRelationshipsNeighborhoodResponse | null>(null)
 const isLoading = ref(false)
 const isRecomputing = ref(false)
 const isLoadingNeighborhood = ref(false)
+const isDetailSidePanelLayout = ref(false)
+const loadingNeighborhoodKey = ref<string | null>(null)
+const canvasSelectedKey = ref<string | null>(null)
 const privacyMode = ref(false)
 const viewMode = ref<GalaxyViewMode>('3d')
 const loadError = ref('')
 const graphRequestId = ref(0)
 const neighborhoodRequestId = ref(0)
 const canvasRef = ref<GalaxyCanvasInstance | null>(null)
-const isConnectionRankingExpanded = ref(false)
 
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let searchTimer: ReturnType<typeof setTimeout> | null = null
+let detailPanelMediaQuery: MediaQueryList | null = null
 
 const numberFormatter = computed(() => new Intl.NumberFormat(locale.value))
 
@@ -88,6 +96,10 @@ const graphScopeTabs = computed(() => [
     label: t('relationships.graphScope.close'),
     value: 'close' as const,
   },
+  {
+    label: t('relationships.graphScope.friends'),
+    value: 'friends' as const,
+  },
 ])
 
 const activeGraph = computed(() => neighborhoodResponse.value?.graph ?? graphResponse.value?.graph ?? EMPTY_GRAPH)
@@ -98,6 +110,14 @@ const isTaskRunning = computed(() => task.value?.status === 'running')
 const isTaskFailed = computed(() => task.value?.status === 'failed')
 const cacheStatus = computed(() => graphResponse.value?.cache.status ?? neighborhoodResponse.value?.cache.status)
 const searchResults = computed(() => graphResponse.value?.searchResults ?? [])
+const hasSearchQuery = computed(() => searchQuery.value.trim().length > 0)
+const showSearchResults = computed(
+  () =>
+    hasSearchQuery.value &&
+    searchQuery.value.trim() === searchResultsQuery.value &&
+    isSearchResultsOpen.value &&
+    searchResults.value.length > 0
+)
 const showInitialLoading = computed(() => (isLoading.value || isTaskRunning.value) && !hasGraph.value)
 const showUpdatingBanner = computed(() => isTaskRunning.value && hasGraph.value)
 const selectedNode = computed(() => {
@@ -108,6 +128,10 @@ const selectedNode = computed(() => {
     null
   )
 })
+const showDetailPanel = computed(() => isDetailPanelOpen.value && Boolean(selectedNode.value))
+const detailPanelSafeInsetRight = computed(() =>
+  showDetailPanel.value && isDetailSidePanelLayout.value ? RELATIONSHIP_DETAIL_PANEL_SAFE_INSET_RIGHT : 0
+)
 const showFocusConnectionsAction = computed(() =>
   shouldShowFocusConnectionsAction({
     selectedKey: selectedKey.value,
@@ -117,7 +141,7 @@ const showFocusConnectionsAction = computed(() =>
 )
 const connectionRanking = computed(() =>
   buildRelationshipConnectionRanking(activeGraph.value, selectedKey.value, {
-    expanded: isConnectionRankingExpanded.value,
+    collapsedLimit: RELATED_CONTACTS_VISIBLE_LIMIT,
   })
 )
 
@@ -128,11 +152,6 @@ const stats = computed(() => ({
 }))
 
 const topCommunities = computed(() => [...activeGraph.value.communities].sort((a, b) => b.size - a.size).slice(0, 8))
-
-function getCommunityColor(communityId: string): string {
-  const community = activeGraph.value.communities.find((c) => c.id === communityId)
-  return community?.color ?? '#94a3b8'
-}
 
 const statusText = computed(() => {
   if (cacheStatus.value === 'stale' && isTaskRunning.value) return t('relationships.task.updating')
@@ -147,6 +166,13 @@ function formatNumber(value: number): string {
 
 function formatScore(score: number): string {
   return Math.round(score * 100).toString()
+}
+
+function formatConnectionRankingCount(): string {
+  const visible = connectionRanking.value.items.length
+  const total = connectionRanking.value.total
+  if (total <= visible) return formatNumber(total)
+  return `${formatNumber(visible)} / ${formatNumber(total)}`
 }
 
 function formatTime(ts: number | null | undefined): string {
@@ -187,6 +213,7 @@ function stopPolling() {
 function cancelNeighborhoodLoad() {
   neighborhoodRequestId.value += 1
   isLoadingNeighborhood.value = false
+  loadingNeighborhoodKey.value = null
 }
 
 function syncPolling(nextTask: PeopleRelationshipsTaskState | undefined) {
@@ -222,8 +249,11 @@ async function loadGraph(options: { silent?: boolean; preserveNeighborhood?: boo
     if (requestId !== graphRequestId.value) return
 
     graphResponse.value = next
+    searchResultsQuery.value = debouncedSearchQuery.value.trim()
     if (selectedKey.value && !activeGraph.value.nodes.some((node) => node.key === selectedKey.value)) {
       selectedKey.value = null
+      canvasSelectedKey.value = null
+      isDetailPanelOpen.value = false
     }
     syncPolling(next.task)
   } catch (error) {
@@ -247,9 +277,12 @@ async function recomputeRelationships() {
       query: debouncedSearchQuery.value.trim() || undefined,
     })
     graphResponse.value = next
+    searchResultsQuery.value = debouncedSearchQuery.value.trim()
     cancelNeighborhoodLoad()
     neighborhoodResponse.value = null
     selectedKey.value = null
+    canvasSelectedKey.value = null
+    isDetailPanelOpen.value = false
     syncPolling(next.task)
     toast.success(t('relationships.toast.recomputeStarted'))
   } catch (error) {
@@ -263,7 +296,7 @@ const relationshipsHeader = computed(() => ({
   title: t('layout.relationships'),
   description: t('relationships.subtitle'),
   icon: 'i-lucide-git-fork',
-  iconClass: 'bg-sky-600 text-white dark:bg-sky-500 dark:text-white shadow-sm',
+  iconClass: 'bg-primary-600 text-white dark:bg-primary-500 dark:text-white shadow-sm',
   action: {
     label: t('relationships.actions.recompute'),
     icon: 'i-lucide-refresh-cw',
@@ -298,6 +331,7 @@ async function loadNeighborhood(key: string) {
   const requestId = neighborhoodRequestId.value + 1
   neighborhoodRequestId.value = requestId
   isLoadingNeighborhood.value = true
+  loadingNeighborhoodKey.value = key
   loadError.value = ''
 
   try {
@@ -309,14 +343,18 @@ async function loadNeighborhood(key: string) {
 
     neighborhoodResponse.value = next
     selectedKey.value = next.contact?.key ?? key
+    canvasSelectedKey.value = selectedKey.value
     syncPolling(next.task)
     await nextTick()
-    canvasRef.value?.focusNode(selectedKey.value)
+    canvasRef.value?.fitView()
   } catch (error) {
     if (requestId !== neighborhoodRequestId.value) return
     toast.fail(t('relationships.toast.neighborhoodFailed'), { description: String(error) })
   } finally {
-    if (requestId === neighborhoodRequestId.value) isLoadingNeighborhood.value = false
+    if (requestId === neighborhoodRequestId.value) {
+      isLoadingNeighborhood.value = false
+      loadingNeighborhoodKey.value = null
+    }
   }
 }
 
@@ -326,8 +364,15 @@ async function focusSelectedConnections() {
 }
 
 async function selectSearchResult(result: PeopleRelationshipsSearchResult) {
+  isSearchResultsOpen.value = false
+  if (!result.inCoreGraph) loadingNeighborhoodKey.value = result.key
   selectedKey.value = result.key
-  isConnectionRankingExpanded.value = false
+  isDetailPanelOpen.value = true
+  canvasSelectedKey.value = resolveRelationshipGalaxyCanvasSelectedKey({
+    selectedKey: selectedKey.value,
+    loadingNeighborhoodKey: loadingNeighborhoodKey.value,
+    currentCanvasSelectedKey: canvasSelectedKey.value,
+  })
   if (!result.inCoreGraph) {
     await loadNeighborhood(result.key)
     return
@@ -340,15 +385,23 @@ async function selectSearchResult(result: PeopleRelationshipsSearchResult) {
 }
 
 async function selectNode(node: PeopleRelationshipGraphNode) {
+  const needsNeighborhood = neighborhoodResponse.value?.contact?.key !== node.key
+  if (needsNeighborhood) loadingNeighborhoodKey.value = node.key
   selectedKey.value = node.key
-  isConnectionRankingExpanded.value = false
-  if (neighborhoodResponse.value?.contact?.key !== node.key) {
+  isDetailPanelOpen.value = true
+  canvasSelectedKey.value = resolveRelationshipGalaxyCanvasSelectedKey({
+    selectedKey: selectedKey.value,
+    loadingNeighborhoodKey: loadingNeighborhoodKey.value,
+    currentCanvasSelectedKey: canvasSelectedKey.value,
+  })
+  await nextTick()
+  canvasRef.value?.focusNode(node.key)
+  if (needsNeighborhood) {
     await loadNeighborhood(node.key)
     return
   }
 
-  await nextTick()
-  canvasRef.value?.focusNode(node.key)
+  canvasSelectedKey.value = selectedKey.value
 }
 
 function handleThreeCanvasFallback() {
@@ -361,25 +414,39 @@ function backToPanorama() {
   const key = selectedKey.value
   cancelNeighborhoodLoad()
   neighborhoodResponse.value = null
-  isConnectionRankingExpanded.value = false
   if (!key) return
-  if (!graphResponse.value?.graph.nodes.some((node) => node.key === key)) selectedKey.value = null
+  if (!graphResponse.value?.graph.nodes.some((node) => node.key === key)) {
+    selectedKey.value = null
+    canvasSelectedKey.value = null
+    isDetailPanelOpen.value = false
+  }
   void nextTick(() => {
     if (selectedKey.value) canvasRef.value?.focusNode(selectedKey.value)
   })
 }
 
+function closeDetailPanel() {
+  isDetailPanelOpen.value = false
+}
+
 function clearSearch() {
   searchQuery.value = ''
+  searchResultsQuery.value = ''
+  isSearchResultsOpen.value = false
 }
 
 function fitCanvas() {
   canvasRef.value?.fitView()
 }
 
+function syncDetailPanelLayout() {
+  isDetailSidePanelLayout.value = detailPanelMediaQuery?.matches ?? false
+}
+
 watch(timeRangePreset, () => {
   selectedKey.value = null
-  isConnectionRankingExpanded.value = false
+  canvasSelectedKey.value = null
+  isDetailPanelOpen.value = false
   cancelNeighborhoodLoad()
   neighborhoodResponse.value = null
   void loadGraph()
@@ -387,7 +454,8 @@ watch(timeRangePreset, () => {
 
 watch(graphScope, () => {
   selectedKey.value = null
-  isConnectionRankingExpanded.value = false
+  canvasSelectedKey.value = null
+  isDetailPanelOpen.value = false
   cancelNeighborhoodLoad()
   neighborhoodResponse.value = null
   void loadGraph()
@@ -395,6 +463,7 @@ watch(graphScope, () => {
 
 watch(searchQuery, (value) => {
   if (searchTimer) clearTimeout(searchTimer)
+  isSearchResultsOpen.value = value.trim().length > 0
   searchTimer = setTimeout(() => {
     debouncedSearchQuery.value = value
     void loadGraph({ silent: true, preserveNeighborhood: true })
@@ -410,11 +479,26 @@ watch(viewMode, async () => {
   canvasRef.value?.fitView()
 })
 
+watch(detailPanelSafeInsetRight, async () => {
+  await nextTick()
+  if (selectedKey.value) {
+    canvasRef.value?.focusNode(selectedKey.value)
+    return
+  }
+  canvasRef.value?.fitView()
+})
+
 onMounted(() => {
+  if (typeof window !== 'undefined') {
+    detailPanelMediaQuery = window.matchMedia('(min-width: 768px)')
+    syncDetailPanelLayout()
+    detailPanelMediaQuery.addEventListener('change', syncDetailPanelLayout)
+  }
   void loadGraph()
 })
 
 onBeforeUnmount(() => {
+  detailPanelMediaQuery?.removeEventListener('change', syncDetailPanelLayout)
   stopPolling()
   if (searchTimer) clearTimeout(searchTimer)
 })
@@ -427,8 +511,9 @@ onBeforeUnmount(() => {
         v-if="viewMode === '3d'"
         ref="canvasRef"
         :graph="activeGraph"
-        :selected-key="selectedKey"
+        :selected-key="canvasSelectedKey"
         :privacy-mode="privacyMode"
+        :safe-inset-right="detailPanelSafeInsetRight"
         :label="t('relationships.canvas.label3d')"
         :owner-label="t('relationships.owner.me')"
         @fallback="handleThreeCanvasFallback"
@@ -438,8 +523,9 @@ onBeforeUnmount(() => {
         v-else
         ref="canvasRef"
         :graph="activeGraph"
-        :selected-key="selectedKey"
+        :selected-key="canvasSelectedKey"
         :privacy-mode="privacyMode"
+        :safe-inset-right="detailPanelSafeInsetRight"
         :label="t('relationships.canvas.label')"
         :owner-label="t('relationships.owner.me')"
         @select-node="selectNode"
@@ -449,6 +535,75 @@ onBeforeUnmount(() => {
         <UTabs v-model="timeRangePreset" :items="timeRangeTabs" :content="false" size="xs" class="min-w-max gap-0" />
         <UTabs v-model="graphScope" :items="graphScopeTabs" :content="false" size="xs" class="min-w-max gap-0" />
         <UTabs v-model="viewMode" :items="viewModeTabs" :content="false" size="xs" class="min-w-max gap-0" />
+        <div class="relative w-28 max-w-full sm:w-32 lg:w-36">
+          <UInput
+            v-model="searchQuery"
+            icon="i-lucide-search"
+            :placeholder="t('relationships.search')"
+            size="sm"
+            class="w-full"
+            @focus="isSearchResultsOpen = hasSearchQuery"
+            @keydown.esc="isSearchResultsOpen = false"
+          >
+            <template v-if="searchQuery" #trailing>
+              <UButton
+                icon="i-heroicons-x-mark"
+                variant="link"
+                color="neutral"
+                size="xs"
+                :aria-label="t('relationships.actions.clearSearch')"
+                @click="clearSearch"
+              />
+            </template>
+          </UInput>
+
+          <div
+            v-if="showSearchResults"
+            class="absolute left-0 top-full z-30 mt-2 max-h-80 w-72 overflow-y-auto rounded-2xl border border-gray-200/80 bg-white/95 p-2 shadow-2xl shadow-black/25 backdrop-blur-xl scrollbar-thin dark:border-white/10 dark:bg-gray-950/95"
+          >
+            <div
+              class="px-2 pb-1.5 pt-0.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400"
+            >
+              {{ t('relationships.searchResults.title') }}
+            </div>
+            <div class="space-y-1">
+              <button
+                v-for="result in searchResults"
+                :key="result.key"
+                type="button"
+                class="group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition hover:bg-gray-100/70 dark:hover:bg-white/5"
+                :class="selectedKey === result.key ? 'bg-sky-50 dark:bg-sky-500/10' : ''"
+                :disabled="isLoadingNeighborhood"
+                @click="selectSearchResult(result)"
+              >
+                <LazyAvatar
+                  :src="result.avatar"
+                  :alt="displayName(result)"
+                  :text="avatarText(result)"
+                  root-class="h-8 w-8 shrink-0 shadow-sm border border-gray-250/20 dark:border-white/10"
+                  image-class="h-8 w-8 rounded-full object-cover"
+                  fallback-class="flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-[10px] font-bold text-sky-700 dark:bg-sky-500/15 dark:text-sky-200"
+                />
+                <span class="min-w-0 flex-1">
+                  <span
+                    class="block truncate text-sm font-semibold text-gray-900 transition-colors group-hover:text-sky-600 dark:text-white dark:group-hover:text-sky-400"
+                  >
+                    {{ displayName(result) }}
+                  </span>
+                  <span class="block truncate text-[11px] text-gray-500 dark:text-gray-400">
+                    {{ poolLabel(result) }} · #{{ result.rank }}
+                  </span>
+                </span>
+                <span
+                  v-if="!result.inCoreGraph"
+                  class="shrink-0 rounded-md bg-sky-100/60 px-1.5 py-0.5 text-[10px] font-semibold text-sky-600 dark:bg-sky-500/15 dark:text-sky-400"
+                >
+                  {{ t('relationships.searchResults.offCore') }}
+                </span>
+              </button>
+            </div>
+          </div>
+        </div>
         <UButton
           icon="i-lucide-scan-line"
           color="neutral"
@@ -498,94 +653,44 @@ onBeforeUnmount(() => {
       >
         {{ loadError || t('relationships.empty') }}
       </div>
-    </main>
 
-    <aside
-      class="flex w-[340px] shrink-0 flex-col border-l border-gray-250/70 bg-white/80 backdrop-blur-md dark:border-white/10 dark:bg-gray-950/80"
-    >
-      <div class="border-b border-gray-200/80 p-4 dark:border-white/10">
-        <UInput
-          v-model="searchQuery"
-          icon="i-lucide-search"
-          :placeholder="t('relationships.search')"
-          size="sm"
-          class="w-full"
-        >
-          <template v-if="searchQuery" #trailing>
-            <UButton
-              icon="i-heroicons-x-mark"
-              variant="link"
-              color="neutral"
-              size="xs"
-              :aria-label="t('relationships.actions.clearSearch')"
-              @click="clearSearch"
-            />
-          </template>
-        </UInput>
-      </div>
+      <aside
+        v-if="showDetailPanel"
+        class="absolute inset-x-3 bottom-3 z-20 flex max-h-[70vh] flex-col overflow-hidden rounded-2xl border border-white/5 bg-white/10 shadow-2xl shadow-black/20 backdrop-blur-md dark:border-white/5 dark:bg-gray-950/10 md:inset-x-auto md:bottom-4 md:right-4 md:top-4 md:max-h-none md:w-[360px]"
+      >
+        <UButton
+          icon="i-lucide-x"
+          color="neutral"
+          variant="ghost"
+          size="xs"
+          class="absolute right-2.5 top-2.5 z-10 bg-white/35 backdrop-blur-sm hover:bg-white/55 dark:bg-white/5 dark:hover:bg-white/10"
+          :aria-label="t('relationships.actions.closeDetail')"
+          @click="closeDetailPanel"
+        />
 
-      <div class="min-h-0 flex-1 overflow-y-auto px-4 py-4 scrollbar-thin">
-        <section v-if="searchResults.length > 0" class="mb-6">
-          <h2 class="mb-2 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-            {{ t('relationships.searchResults.title') }}
-          </h2>
-          <div class="space-y-1">
-            <button
-              v-for="result in searchResults"
-              :key="result.key"
-              type="button"
-              class="group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition hover:bg-gray-100/50 dark:hover:bg-white/5"
-              :class="selectedKey === result.key ? 'bg-sky-50 dark:bg-sky-500/10' : ''"
-              :disabled="isLoadingNeighborhood"
-              @click="selectSearchResult(result)"
-            >
-              <LazyAvatar
-                :src="result.avatar"
-                :alt="displayName(result)"
-                :text="avatarText(result)"
-                root-class="h-8 w-8 shrink-0 shadow-sm border border-gray-250/20 dark:border-white/10"
-                image-class="h-8 w-8 rounded-full object-cover"
-                fallback-class="flex h-8 w-8 items-center justify-center rounded-full bg-sky-100 text-[10px] font-bold text-sky-700 dark:bg-sky-500/15 dark:text-sky-200"
-              />
-              <span class="min-w-0 flex-1">
-                <span
-                  class="block truncate text-sm font-semibold text-gray-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors"
-                >
-                  {{ displayName(result) }}
-                </span>
-                <span class="block truncate text-[11px] text-gray-500 dark:text-gray-400">
-                  {{ poolLabel(result) }} · #{{ result.rank }}
-                </span>
-              </span>
-              <span
-                v-if="!result.inCoreGraph"
-                class="text-[10px] font-semibold text-sky-600 dark:text-sky-400 bg-sky-100/60 dark:bg-sky-500/15 px-1.5 py-0.5 rounded-md shrink-0"
-              >
-                {{ t('relationships.searchResults.offCore') }}
-              </span>
-            </button>
-          </div>
-        </section>
-
-        <section class="mb-6">
-          <h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-            {{ t('relationships.detail.title') }}
-          </h2>
-
-          <div v-if="selectedNode" class="space-y-4">
-            <div class="flex items-center gap-3">
+        <div v-if="selectedNode" class="flex min-h-0 flex-1 flex-col gap-3 px-4 pb-4 pt-5">
+          <div class="shrink-0 space-y-2.5">
+            <div class="flex items-center gap-3 pr-8">
               <LazyAvatar
                 :src="selectedNode.avatar"
                 :alt="displayName(selectedNode)"
                 :text="avatarText(selectedNode)"
-                root-class="h-11 w-11 shrink-0 shadow-sm border border-gray-250/20 dark:border-white/10"
-                image-class="h-11 w-11 rounded-full object-cover"
-                fallback-class="flex h-11 w-11 items-center justify-center rounded-full bg-sky-100 text-sm font-bold text-sky-700 dark:bg-sky-500/15 dark:text-sky-200"
+                root-class="h-11 w-11 shrink-0 overflow-hidden rounded-lg shadow-sm border border-gray-250/20 dark:border-white/10"
+                image-class="h-11 w-11 rounded-lg object-cover"
+                fallback-class="flex h-11 w-11 items-center justify-center rounded-lg bg-sky-100 text-sm font-bold text-sky-700 dark:bg-sky-500/15 dark:text-sky-200"
               />
               <div class="min-w-0 flex-1">
-                <p class="truncate text-base font-bold text-gray-900 dark:text-white">
-                  {{ displayName(selectedNode) }}
-                </p>
+                <div class="flex min-w-0 items-center gap-1.5">
+                  <p class="truncate text-base font-bold text-gray-900 dark:text-white">
+                    {{ displayName(selectedNode) }}
+                  </p>
+                  <span
+                    class="shrink-0 rounded-full bg-white/45 px-1.5 py-0.5 font-mono text-[10px] font-bold text-gray-600 dark:bg-white/8 dark:text-gray-300"
+                    :class="selectedNode.rank <= 3 ? 'text-amber-600 dark:text-amber-300' : ''"
+                  >
+                    #{{ selectedNode.rank }}
+                  </span>
+                </div>
                 <p class="truncate text-xs text-gray-500 dark:text-gray-400">
                   {{ selectedNode.platform }} · {{ selectedNode.platformId }}
                 </p>
@@ -606,52 +711,37 @@ onBeforeUnmount(() => {
               {{ t('relationships.actions.focusConnections') }}
             </UButton>
 
-            <div class="grid grid-cols-2 gap-2 text-sm">
+            <div class="grid grid-cols-3 gap-1 text-xs">
               <div
-                class="rounded-xl border border-gray-100/80 bg-gray-50/50 p-3 dark:border-white/5 dark:bg-white/3 flex flex-col justify-between"
+                class="min-w-0 rounded-md border border-gray-100/60 bg-gray-50/35 p-1.5 dark:border-white/5 dark:bg-white/3"
               >
-                <p class="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">
-                  {{ t('relationships.detail.rank') }}
-                </p>
-                <div class="flex items-center gap-1.5">
-                  <p class="font-mono font-bold text-lg text-gray-900 dark:text-white">#{{ selectedNode.rank }}</p>
-                  <span
-                    v-if="selectedNode.rank <= 3"
-                    class="flex h-2 w-2 rounded-full bg-amber-500 animate-pulse shrink-0"
-                  ></span>
-                </div>
-              </div>
-
-              <div
-                class="rounded-xl border border-gray-100/80 bg-gray-50/50 p-3 dark:border-white/5 dark:bg-white/3 flex flex-col justify-between"
-              >
-                <p class="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">
+                <p
+                  class="mb-0.5 truncate text-[9px] font-semibold uppercase leading-3 tracking-wide text-gray-400 dark:text-gray-500"
+                >
                   {{ t('relationships.detail.score') }}
                 </p>
-                <div class="flex items-baseline gap-1">
-                  <p class="font-mono font-bold text-lg text-sky-600 dark:text-sky-400">
+                <div class="flex min-w-0 items-baseline gap-0.5">
+                  <p class="font-mono text-sm font-bold leading-4 text-sky-600 dark:text-sky-400">
                     {{ formatScore(selectedNode.score) }}
                   </p>
-                  <span class="text-[9px] text-gray-400">/100</span>
-                </div>
-                <div class="mt-1.5 h-1 w-full rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden">
-                  <div
-                    class="h-full rounded-full bg-gradient-to-r from-sky-400 to-sky-600 dark:from-sky-500 dark:to-sky-300"
-                    :style="{ width: `${formatScore(selectedNode.score)}%` }"
-                  ></div>
+                  <span class="text-[9px] leading-3 text-gray-400">/100</span>
                 </div>
               </div>
 
-              <div class="rounded-xl border border-gray-100/80 bg-gray-50/50 p-3 dark:border-white/5 dark:bg-white/3">
-                <p class="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1.5">
+              <div
+                class="min-w-0 rounded-md border border-gray-100/60 bg-gray-50/35 p-1.5 dark:border-white/5 dark:bg-white/3"
+              >
+                <p
+                  class="mb-0.5 truncate text-[9px] font-semibold uppercase leading-3 tracking-wide text-gray-400 dark:text-gray-500"
+                >
                   {{ t('relationships.detail.type') }}
                 </p>
                 <span
-                  class="inline-flex items-center rounded-md px-1.5 py-0.5 text-xs font-semibold"
+                  class="inline-flex max-w-full items-center truncate text-[10px] font-semibold leading-4"
                   :class="
                     selectedNode.pool === 'friend'
-                      ? 'bg-sky-50 text-sky-700 dark:bg-sky-500/10 dark:text-sky-300'
-                      : 'bg-amber-50 text-amber-700 dark:bg-amber-500/10 dark:text-amber-300'
+                      ? 'text-sky-700 dark:text-sky-300'
+                      : 'text-amber-700 dark:text-amber-300'
                   "
                 >
                   {{ poolLabel(selectedNode) }}
@@ -659,214 +749,166 @@ onBeforeUnmount(() => {
               </div>
 
               <div
-                class="rounded-xl border border-gray-100/80 bg-gray-50/50 p-3 dark:border-white/5 dark:bg-white/3 flex flex-col justify-between"
+                class="min-w-0 rounded-md border border-gray-100/60 bg-gray-50/35 p-1.5 dark:border-white/5 dark:bg-white/3"
               >
-                <p class="text-[11px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-wider mb-1">
-                  {{ t('relationships.detail.community') }}
-                </p>
-                <div class="flex items-center gap-1.5 min-w-0">
-                  <span
-                    class="h-2.5 w-2.5 rounded-full shrink-0 shadow-sm"
-                    :style="{ backgroundColor: getCommunityColor(selectedNode.communityId) }"
-                  ></span>
-                  <span class="font-mono text-sm font-semibold text-gray-900 dark:text-white truncate">
-                    {{ selectedNode.communityId }}
-                  </span>
-                </div>
-              </div>
-            </div>
-
-            <div
-              class="space-y-2.5 rounded-xl border border-gray-100/80 bg-gray-50/30 p-3.5 dark:border-white/5 dark:bg-white/2"
-            >
-              <div
-                class="flex items-center justify-between text-xs py-0.5 border-b border-gray-150/40 dark:border-white/5 pb-2"
-              >
-                <span class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                  <span class="i-lucide-message-square h-3.5 w-3.5 text-gray-400"></span>
+                <p
+                  class="mb-0.5 truncate text-[9px] font-semibold uppercase leading-3 tracking-wide text-gray-400 dark:text-gray-500"
+                >
                   {{ t('relationships.detail.privateMessages') }}
-                </span>
-                <span class="font-mono font-bold text-gray-900 dark:text-white">
+                </p>
+                <span class="block truncate font-mono text-sm font-bold leading-4 text-gray-900 dark:text-white">
                   {{ formatNumber(selectedNode.privateMessageCount) }}
                 </span>
               </div>
+
               <div
-                class="flex items-center justify-between text-xs py-0.5 border-b border-gray-150/40 dark:border-white/5 pb-2"
+                class="min-w-0 rounded-md border border-gray-100/60 bg-gray-50/35 p-1.5 dark:border-white/5 dark:bg-white/3"
               >
-                <span class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                  <span class="i-lucide-messages-square h-3.5 w-3.5 text-gray-400"></span>
+                <p
+                  class="mb-0.5 truncate text-[9px] font-semibold uppercase leading-3 tracking-wide text-gray-400 dark:text-gray-500"
+                >
                   {{ t('relationships.detail.groupMessages') }}
-                </span>
-                <span class="font-mono font-bold text-gray-900 dark:text-white">
+                </p>
+                <span class="block truncate font-mono text-sm font-bold leading-4 text-gray-900 dark:text-white">
                   {{ formatNumber(selectedNode.groupMessageCount) }}
                 </span>
               </div>
+
               <div
-                class="flex items-center justify-between text-xs py-0.5 border-b border-gray-150/40 dark:border-white/5 pb-2"
+                class="min-w-0 rounded-md border border-gray-100/60 bg-gray-50/35 p-1.5 dark:border-white/5 dark:bg-white/3"
               >
-                <span class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                  <span class="i-lucide-users-round h-3.5 w-3.5 text-gray-400"></span>
+                <p
+                  class="mb-0.5 truncate text-[9px] font-semibold uppercase leading-3 tracking-wide text-gray-400 dark:text-gray-500"
+                >
                   {{ t('relationships.detail.commonGroups') }}
-                </span>
-                <span class="font-mono font-bold text-gray-900 dark:text-white">
+                </p>
+                <span class="block truncate font-mono text-sm font-bold leading-4 text-gray-900 dark:text-white">
                   {{ formatNumber(selectedNode.commonGroupCount) }}
                 </span>
               </div>
-              <div class="flex items-center justify-between text-xs py-0.5 pb-0">
-                <span class="flex items-center gap-1.5 text-gray-500 dark:text-gray-400">
-                  <span class="i-lucide-clock h-3.5 w-3.5 text-gray-400"></span>
+
+              <div
+                class="min-w-0 rounded-md border border-gray-100/60 bg-gray-50/35 p-1.5 dark:border-white/5 dark:bg-white/3"
+              >
+                <p
+                  class="mb-0.5 truncate text-[9px] font-semibold uppercase leading-3 tracking-wide text-gray-400 dark:text-gray-500"
+                >
                   {{ t('relationships.detail.lastInteraction') }}
-                </span>
-                <span class="font-semibold text-gray-900 dark:text-white">
+                </p>
+                <span class="block truncate text-[11px] font-semibold leading-4 text-gray-900 dark:text-white">
                   {{ formatTime(selectedNode.lastInteractionTs) }}
                 </span>
               </div>
             </div>
+          </div>
 
+          <div class="flex min-h-0 flex-1 flex-col gap-2">
             <section
-              class="rounded-xl border border-gray-200/80 bg-gray-50/50 p-3 dark:border-white/5 dark:bg-white/3 shadow-sm"
+              class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-100/80 bg-gray-50/25 p-2.5 shadow-sm dark:border-white/5 dark:bg-white/2"
             >
-              <div class="mb-3 flex items-center justify-between gap-3 px-1">
-                <h3 class="text-xs font-bold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-                  {{ t('relationships.connections.title') }}
-                </h3>
+              <div class="mb-2 flex shrink-0 items-center justify-between gap-3 pl-1 pr-3">
+                <div class="flex min-w-0 items-center gap-2">
+                  <h3 class="truncate text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    {{ t('relationships.connections.title') }}
+                  </h3>
+                  <span class="shrink-0 font-mono text-[10px] font-bold text-gray-400 dark:text-gray-500">
+                    {{ formatConnectionRankingCount() }}
+                  </span>
+                </div>
                 <span
-                  class="font-mono text-xs font-bold text-gray-400 dark:text-gray-500 bg-gray-200/60 dark:bg-white/5 px-1.5 py-0.5 rounded"
+                  class="w-14 shrink-0 text-right text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500"
                 >
-                  {{ formatNumber(connectionRanking.total) }}
+                  {{ t('relationships.connections.connectionScore') }}
                 </span>
               </div>
 
-              <div v-if="connectionRanking.items.length > 0" class="space-y-1">
+              <div
+                v-if="connectionRanking.items.length > 0"
+                class="min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-1 scrollbar-thin"
+              >
                 <button
-                  v-for="(item, index) in connectionRanking.items"
+                  v-for="item in connectionRanking.items"
                   :key="item.node.key"
                   type="button"
-                  class="group flex w-full items-center gap-2.5 rounded-xl px-2.5 py-2 text-left transition-all duration-250 hover:bg-white dark:hover:bg-white/5"
+                  class="group flex h-9 w-full items-center gap-2 rounded-lg px-2 py-0 text-left transition-all duration-250 hover:bg-white dark:hover:bg-white/5"
                   @click="selectNode(item.node)"
                 >
-                  <!-- Top 1-3 序号圆圈高亮，其他序号保持低调 -->
-                  <span
-                    class="flex h-5 w-5 shrink-0 items-center justify-center rounded-full font-mono text-[10px] font-bold"
-                    :class="
-                      index === 0
-                        ? 'bg-amber-100 text-amber-700 dark:bg-amber-500/20 dark:text-amber-300'
-                        : index === 1
-                          ? 'bg-slate-200 text-slate-700 dark:bg-slate-300/20 dark:text-slate-300'
-                          : index === 2
-                            ? 'bg-amber-700/10 text-amber-800 dark:bg-amber-700/20 dark:text-amber-400'
-                            : 'text-gray-400 dark:text-gray-500'
-                    "
-                  >
-                    {{ index + 1 }}
-                  </span>
-
                   <LazyAvatar
                     :src="item.node.avatar"
                     :alt="displayName(item.node)"
                     :text="avatarText(item.node)"
-                    root-class="h-7 w-7 shrink-0 shadow-sm border border-gray-250/20 dark:border-white/10"
-                    image-class="h-7 w-7 rounded-full object-cover"
-                    fallback-class="flex h-7 w-7 items-center justify-center rounded-full bg-sky-100 text-[10px] font-bold text-sky-700 dark:bg-sky-500/15 dark:text-sky-200"
+                    root-class="h-6 w-6 shrink-0 overflow-hidden rounded-md shadow-sm border border-gray-250/20 dark:border-white/10"
+                    image-class="h-6 w-6 rounded-md object-cover"
+                    fallback-class="flex h-6 w-6 items-center justify-center rounded-md bg-sky-100 text-[9px] font-bold text-sky-700 dark:bg-sky-500/15 dark:text-sky-200"
                   />
 
-                  <div class="min-w-0 flex-1 space-y-0.5">
+                  <div class="min-w-0 flex-1">
                     <span
-                      class="block truncate text-sm font-semibold text-gray-900 dark:text-white group-hover:text-sky-600 dark:group-hover:text-sky-400 transition-colors"
+                      class="block truncate text-[13px] font-semibold leading-4 text-gray-900 transition-colors group-hover:text-sky-600 dark:text-white dark:group-hover:text-sky-400"
                     >
                       {{ displayName(item.node) }}
                     </span>
-                    <!-- 迷你引力强度进度条 -->
-                    <div class="flex items-center gap-1.5">
-                      <div class="h-0.5 w-10 rounded-full bg-gray-200 dark:bg-white/10 overflow-hidden shrink-0">
-                        <div
-                          class="h-full rounded-full bg-sky-500/80 dark:bg-sky-400/80"
-                          :style="{ width: `${formatScore(item.edge.weight)}%` }"
-                        ></div>
-                      </div>
-                      <span class="text-[9px] font-medium text-gray-400 dark:text-gray-500 shrink-0">
-                        {{ t('relationships.connections.weight', { value: formatScore(item.edge.weight) }) }}
-                      </span>
-                    </div>
                   </div>
 
-                  <div class="flex shrink-0 items-center gap-1">
-                    <span class="text-[11px] font-semibold text-gray-800 dark:text-gray-300">
-                      {{
-                        t('relationships.connections.replies', {
-                          count: formatNumber(item.edge.replyInteractionCount),
-                        })
-                      }}
+                  <span class="flex w-14 shrink-0 justify-end">
+                    <span class="font-mono text-[10px] font-bold text-gray-500 dark:text-gray-400">
+                      {{ formatNumber(item.connectionScore) }}
                     </span>
-                    <span
-                      class="i-lucide-chevron-right h-3.5 w-3.5 opacity-0 group-hover:opacity-100 transition-all duration-200 text-gray-400 -translate-x-1 group-hover:translate-x-0"
-                    ></span>
-                  </div>
+                  </span>
                 </button>
-
-                <UButton
-                  v-if="connectionRanking.hasMore || isConnectionRankingExpanded"
-                  color="neutral"
-                  variant="ghost"
-                  size="xs"
-                  block
-                  class="mt-2 rounded-lg font-medium hover:bg-gray-150/40 dark:hover:bg-white/5"
-                  @click="isConnectionRankingExpanded = !isConnectionRankingExpanded"
-                >
-                  {{
-                    isConnectionRankingExpanded
-                      ? t('relationships.connections.showLess')
-                      : t('relationships.connections.showMore', {
-                          count: formatNumber(connectionRanking.total - connectionRanking.items.length),
-                        })
-                  }}
-                </UButton>
               </div>
 
               <p v-else class="py-4 text-center text-xs text-gray-400 dark:text-gray-500">
                 {{ t('relationships.connections.empty') }}
               </p>
             </section>
-          </div>
 
-          <div
-            v-else
-            class="rounded-xl border border-dashed border-gray-200 px-3 py-10 text-center dark:border-white/10 bg-gray-50/20 dark:bg-white/2"
-          >
-            <p class="text-sm font-semibold text-gray-400 dark:text-gray-500">
-              {{ t('relationships.detail.emptyTitle') }}
-            </p>
-          </div>
-        </section>
-
-        <section v-if="topCommunities.length > 0">
-          <h2 class="mb-3 text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
-            {{ t('relationships.stats.communities') }}
-          </h2>
-          <div
-            class="space-y-2 rounded-xl border border-gray-100/80 bg-gray-50/20 p-3 dark:border-white/5 dark:bg-white/2"
-          >
-            <div
-              v-for="community in topCommunities"
-              :key="community.id"
-              class="flex items-center justify-between gap-3 text-sm py-1 border-b border-gray-150/20 dark:border-white/5 last:border-b-0 last:pb-0"
+            <section
+              v-if="topCommunities.length > 0"
+              class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-100/80 bg-gray-50/25 p-2.5 shadow-sm dark:border-white/5 dark:bg-white/2"
             >
-              <div class="flex min-w-0 items-center gap-2">
+              <div class="mb-2 flex shrink-0 items-center justify-between gap-3 pl-1 pr-3">
+                <div class="flex min-w-0 items-center gap-2">
+                  <h2 class="truncate text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
+                    {{ t('relationships.stats.communities') }}
+                  </h2>
+                  <span class="shrink-0 font-mono text-[10px] font-bold text-gray-400 dark:text-gray-500">
+                    {{ formatNumber(topCommunities.length) }}
+                  </span>
+                </div>
                 <span
-                  class="h-2.5 w-2.5 shrink-0 rounded-full shadow-sm"
-                  :style="{ backgroundColor: community.color }"
-                ></span>
-                <span class="truncate font-semibold text-gray-700 dark:text-gray-200">{{ community.label }}</span>
+                  class="w-14 shrink-0 text-right text-[10px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500"
+                >
+                  {{ t('relationships.stats.members') }}
+                </span>
               </div>
-              <span
-                class="font-mono text-[10px] font-bold text-gray-500 dark:text-gray-400 bg-gray-100 dark:bg-white/5 px-1.5 py-0.5 rounded shadow-sm shrink-0"
-              >
-                {{ formatNumber(community.size) }}
-              </span>
-            </div>
+              <div class="min-h-0 flex-1 space-y-0.5 overflow-y-auto pr-1 scrollbar-thin">
+                <div
+                  v-for="community in topCommunities"
+                  :key="community.id"
+                  class="flex h-9 items-center justify-between gap-2 rounded-lg px-2 py-0 text-[13px] leading-4"
+                >
+                  <div class="flex min-w-0 items-center gap-2">
+                    <span
+                      class="flex h-6 w-6 shrink-0 items-center justify-center rounded-md bg-white/45 shadow-sm dark:bg-white/5"
+                    >
+                      <span class="h-2 w-2 rounded-full shadow-sm" :style="{ backgroundColor: community.color }" />
+                    </span>
+                    <span class="truncate font-semibold leading-4 text-gray-700 dark:text-gray-200">
+                      {{ community.label }}
+                    </span>
+                  </div>
+                  <span class="flex w-14 shrink-0 justify-end">
+                    <span class="font-mono text-[10px] font-bold text-gray-500 dark:text-gray-400">
+                      {{ formatNumber(community.size) }}
+                    </span>
+                  </span>
+                </div>
+              </div>
+            </section>
           </div>
-        </section>
-      </div>
-    </aside>
+        </div>
+      </aside>
+    </main>
   </div>
 </template>

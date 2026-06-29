@@ -4,6 +4,14 @@ import { Application, Container, Graphics, Text } from 'pixi.js'
 import { Viewport } from 'pixi-viewport'
 import type { PeopleRelationshipGraphNode, PeopleRelationshipsGraphData } from '@openchatlab/shared-types'
 import { createGalaxyAnimationSeed, resolveGalaxyNodeMotion } from '../relationship-galaxy-animation'
+import {
+  buildRelationshipVisibleGraphForSelection,
+  buildRelationshipVisibleLabelKeys,
+} from '../relationship-galaxy-connections'
+import {
+  buildRelationshipGalaxy2DSafeCenter,
+  buildRelationshipGalaxy2DSafeFitScale,
+} from '../relationship-galaxy-viewport'
 
 interface Ripple {
   graphic: Graphics
@@ -43,12 +51,14 @@ const props = withDefaults(
     graph: PeopleRelationshipsGraphData
     selectedKey?: string | null
     privacyMode?: boolean
+    safeInsetRight?: number
     label: string
     ownerLabel: string
   }>(),
   {
     selectedKey: null,
     privacyMode: false,
+    safeInsetRight: 0,
   }
 )
 
@@ -182,8 +192,13 @@ interface NodeSelectionState {
   neighbor: boolean
 }
 
-function shouldShowLabel(node: PeopleRelationshipGraphNode, totalNodes: number, state: NodeSelectionState): boolean {
-  if (state.active) return state.selected || state.neighbor
+function shouldShowLabel(
+  node: PeopleRelationshipGraphNode,
+  totalNodes: number,
+  state: NodeSelectionState,
+  visibleLabelKeys: Set<string> | null
+): boolean {
+  if (state.active) return Boolean(visibleLabelKeys?.has(node.key))
   if (node.labelVisibility === 2) return true
   return node.labelVisibility === 1 && totalNodes <= 500
 }
@@ -234,7 +249,8 @@ function drawHighlightEdges() {
   if (!highlightEdgeLayer || !viewport) return
   highlightEdgeLayer.clear()
 
-  const nodes = props.graph.nodes
+  const visibleGraph = buildRelationshipVisibleGraphForSelection(props.graph, props.selectedKey)
+  const nodes = visibleGraph.nodes
   const nodeByKey = new Map(nodes.map((node) => [node.key, node]))
   const hoveredKeyInGraph = hoveredKey.value && nodeByKey.has(hoveredKey.value) ? hoveredKey.value : null
   const selectedKeyInGraph = props.selectedKey && nodeByKey.has(props.selectedKey) ? props.selectedKey : null
@@ -251,7 +267,7 @@ function drawHighlightEdges() {
   const offsetX = -bounds.minX + padding
   const offsetY = -bounds.minY + padding
 
-  for (const edge of props.graph.edges) {
+  for (const edge of visibleGraph.edges) {
     if (edge.sourceKey !== activeKey && edge.targetKey !== activeKey) continue
 
     const source = nodeByKey.get(edge.sourceKey)
@@ -285,7 +301,8 @@ function renderGraph(shouldFit = false) {
   hoveredKey.value = null
   entranceProgress = 0
 
-  const nodes = props.graph.nodes
+  const visibleGraph = buildRelationshipVisibleGraphForSelection(props.graph, props.selectedKey)
+  const nodes = visibleGraph.nodes
   const nodeByKey = new Map(nodes.map((node) => [node.key, node]))
   const bounds = getGraphBounds(nodes)
   const padding = 260
@@ -302,7 +319,7 @@ function renderGraph(shouldFit = false) {
   const nodeLayer = new Container()
   const labelLayer = new Container()
 
-  for (const edge of props.graph.edges) {
+  for (const edge of visibleGraph.edges) {
     if (!neighborKeysOf.has(edge.sourceKey)) neighborKeysOf.set(edge.sourceKey, new Set())
     if (!neighborKeysOf.has(edge.targetKey)) neighborKeysOf.set(edge.targetKey, new Set())
     neighborKeysOf.get(edge.sourceKey)!.add(edge.targetKey)
@@ -326,6 +343,8 @@ function renderGraph(shouldFit = false) {
   const selectedKey = props.selectedKey
   const hasActiveSelection = Boolean(selectedKey && nodeByKey.has(selectedKey))
   const selectedNeighborKeys = selectedKey && hasActiveSelection ? neighborKeysOf.get(selectedKey) : null
+  const visibleLabelKeys =
+    selectedKey && hasActiveSelection ? buildRelationshipVisibleLabelKeys(visibleGraph, selectedKey) : null
 
   const communityCenters = new Map<string, { x: number; y: number }>()
   const communityCounts = new Map<string, number>()
@@ -462,7 +481,7 @@ function renderGraph(shouldFit = false) {
     }
     animatedNodes.push(animatedNode)
 
-    if (shouldShowLabel(node, nodes.length, selectionState)) {
+    if (shouldShowLabel(node, nodes.length, selectionState, visibleLabelKeys)) {
       const label = createLabel(node, radius, selectionState)
 
       if (selected) {
@@ -505,6 +524,18 @@ function renderGraph(shouldFit = false) {
   if (shouldFit || !hasUserMovedViewport) {
     viewport.fitWorld(true)
     if (viewport.scaled > 1.18) viewport.setZoom(1.18, true)
+    const safeScale = buildRelationshipGalaxy2DSafeFitScale(viewport.scaled, {
+      viewportWidth: screen.width,
+      safeInsetRight: props.safeInsetRight,
+    })
+    if (safeScale < viewport.scaled) viewport.setZoom(safeScale, true)
+    viewport.moveCenter(
+      buildRelationshipGalaxy2DSafeCenter(viewport.center, {
+        viewportWidth: screen.width,
+        safeInsetRight: props.safeInsetRight,
+        scale: viewport.scaled,
+      })
+    )
   }
 
   resolvePendingFocus()
@@ -659,8 +690,14 @@ function focusNode(key: string): boolean {
   pendingFocusKey = null
   hasUserMovedViewport = true
   const nextScale = Math.min(Math.max(viewport.scaled, 0.45), 1.55)
+  const screen = getViewportSize()
+  const nextPosition = buildRelationshipGalaxy2DSafeCenter(position, {
+    viewportWidth: screen.width,
+    safeInsetRight: props.safeInsetRight,
+    scale: nextScale,
+  })
   viewport.animate({
-    position,
+    position: nextPosition,
     scale: nextScale,
     time: 420,
     ease: 'easeInOutSine',
@@ -680,7 +717,7 @@ onMounted(async () => {
 })
 
 watch(
-  () => [props.graph.nodes, props.graph.edges, props.selectedKey, props.privacyMode],
+  () => [props.graph.nodes, props.graph.edges, props.selectedKey, props.privacyMode, props.safeInsetRight],
   () => {
     renderGraph(false)
   },

@@ -166,6 +166,24 @@ test('GET /_web/people/relationships forwards stale, time range, search query, a
   ])
 })
 
+test('GET /_web/people/relationships forwards friends graph scope', async (t) => {
+  const service = new FakePeopleRelationshipsService()
+  const app = Fastify()
+  t.after(async () => app.close())
+  registerPeopleRelationshipsRoutes(app, createMockContext(service))
+  await app.ready()
+
+  const response = await app.inject({
+    method: 'GET',
+    url: '/_web/people/relationships?scope=friends',
+  })
+
+  assert.equal(response.statusCode, 200)
+  assert.deepEqual(service.graphCalls, [
+    { acceptStale: false, timeRangePreset: '1y', query: undefined, graphScope: 'friends' },
+  ])
+})
+
 test('POST /_web/people/relationships/recompute forwards time range, search query, and graph scope', async (t) => {
   const service = new FakePeopleRelationshipsService()
   const app = Fastify()

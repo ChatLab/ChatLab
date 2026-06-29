@@ -5,12 +5,17 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import type { PeopleRelationshipGraphNode, PeopleRelationshipsGraphData } from '@openchatlab/shared-types'
 import {
   buildRelationshipGalaxy3DScene,
+  shouldRenderRelationshipGalaxy3DLabel,
   type RelationshipGalaxy3DEdge,
   type RelationshipGalaxy3DNode,
   type RelationshipGalaxy3DScene,
 } from '../relationship-galaxy-3d-scene'
 import { buildRelationshipGalaxy3DEdgeCurvePoints } from '../relationship-galaxy-3d-edge-path'
-import { buildRelationshipGalaxy3DFitCameraPose } from '../relationship-galaxy-3d-camera'
+import {
+  applyRelationshipGalaxy3DSafeArea,
+  buildRelationshipGalaxy3DFitCameraPose,
+  type RelationshipGalaxy3DCameraPose,
+} from '../relationship-galaxy-3d-camera'
 
 interface NodeObject {
   group: THREE.Group
@@ -44,12 +49,14 @@ const props = withDefaults(
     graph: PeopleRelationshipsGraphData
     selectedKey?: string | null
     privacyMode?: boolean
+    safeInsetRight?: number
     label: string
     ownerLabel: string
   }>(),
   {
     selectedKey: null,
     privacyMode: false,
+    safeInsetRight: 0,
   }
 )
 
@@ -119,11 +126,11 @@ function renderGraph(shouldFit = false) {
   labels.value = []
 
   const model = sceneModel.value
-  for (const edge of props.graph.edges) {
-    if (!neighborKeysOf.has(edge.sourceKey)) neighborKeysOf.set(edge.sourceKey, new Set())
-    if (!neighborKeysOf.has(edge.targetKey)) neighborKeysOf.set(edge.targetKey, new Set())
-    neighborKeysOf.get(edge.sourceKey)!.add(edge.targetKey)
-    neighborKeysOf.get(edge.targetKey)!.add(edge.sourceKey)
+  for (const edge of model.edges) {
+    if (!neighborKeysOf.has(edge.edge.sourceKey)) neighborKeysOf.set(edge.edge.sourceKey, new Set())
+    if (!neighborKeysOf.has(edge.edge.targetKey)) neighborKeysOf.set(edge.edge.targetKey, new Set())
+    neighborKeysOf.get(edge.edge.sourceKey)!.add(edge.edge.targetKey)
+    neighborKeysOf.get(edge.edge.targetKey)!.add(edge.edge.sourceKey)
   }
 
   addEdgeLayer(model, 'dim')
@@ -324,11 +331,7 @@ function updateLabels() {
   for (const object of nodeObjects.values()) {
     const selected = object.sceneNode.key === selectedKey
     const selectedNeighbor = Boolean(selectedKey && selectedNeighborKeys?.has(object.sceneNode.key))
-    if (selectedKey) {
-      if (!selected && !selectedNeighbor) continue
-    } else if (object.sceneNode.labelTier === 0) {
-      continue
-    }
+    if (!shouldRenderRelationshipGalaxy3DLabel(object.sceneNode, selectedKey ?? null, selectedNeighbor)) continue
 
     object.group.getWorldPosition(tmpWorldPosition)
     const projected = tmpWorldPosition.clone().project(camera)
@@ -550,7 +553,15 @@ function focusNode(key: string): boolean {
   hasUserMovedCamera = true
   const target = object.basePosition.clone()
   const distance = Math.max(180, Math.min(600, sceneModel.value.bounds.width * 0.18))
-  startCameraFlight(target.clone().add(new THREE.Vector3(0, -distance * 0.25, distance)), target, 540)
+  const pose = applySafeAreaToCameraPose({
+    position: vectorToPose(target.clone().add(new THREE.Vector3(0, -distance * 0.25, distance))),
+    target: vectorToPose(target),
+  })
+  startCameraFlight(
+    new THREE.Vector3(pose.position.x, pose.position.y, pose.position.z),
+    new THREE.Vector3(pose.target.x, pose.target.y, pose.target.z),
+    540
+  )
   return true
 }
 
@@ -558,12 +569,26 @@ function fitView() {
   if (!camera || !controls) return
 
   hasUserMovedCamera = false
-  const pose = buildRelationshipGalaxy3DFitCameraPose(sceneModel.value.bounds)
+  const pose = applySafeAreaToCameraPose(buildRelationshipGalaxy3DFitCameraPose(sceneModel.value.bounds))
   startCameraFlight(
     new THREE.Vector3(pose.position.x, pose.position.y, pose.position.z),
     new THREE.Vector3(pose.target.x, pose.target.y, pose.target.z),
     620
   )
+}
+
+function applySafeAreaToCameraPose(pose: RelationshipGalaxy3DCameraPose): RelationshipGalaxy3DCameraPose {
+  const size = getViewportSize()
+  return applyRelationshipGalaxy3DSafeArea(pose, {
+    viewportWidth: size.width,
+    viewportHeight: size.height,
+    safeInsetRight: props.safeInsetRight,
+    fovDegrees: camera?.fov ?? 45,
+  })
+}
+
+function vectorToPose(vector: THREE.Vector3): RelationshipGalaxy3DCameraPose['position'] {
+  return { x: vector.x, y: vector.y, z: vector.z }
 }
 
 function startCameraFlight(toPosition: THREE.Vector3, toTarget: THREE.Vector3, duration: number) {
@@ -711,7 +736,7 @@ onMounted(async () => {
 })
 
 watch(
-  () => [props.graph.nodes, props.graph.edges, props.selectedKey, props.privacyMode],
+  () => [props.graph.nodes, props.graph.edges, props.selectedKey, props.privacyMode, props.safeInsetRight],
   () => {
     renderGraph(false)
   },

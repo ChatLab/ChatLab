@@ -249,13 +249,17 @@ export function buildPeopleRelationshipsNeighborhoodGraph(
   )
   const nodeKeys = new Set<string>([contactKey])
   for (const edge of relatedEdges) {
-    if (nodeKeys.size >= normalizedLimits.neighborhoodNodeLimit) break
     nodeKeys.add(edge.sourceKey === contactKey ? edge.targetKey : edge.sourceKey)
   }
 
-  const edges = sortEdgesForDisplay(
-    snapshot.edges.filter((edge) => nodeKeys.has(edge.sourceKey) && nodeKeys.has(edge.targetKey))
-  ).slice(0, normalizedLimits.neighborhoodEdgeLimit)
+  const directEdgeIds = new Set(relatedEdges.map((edge) => edge.id))
+  const secondaryEdgeLimit = Math.max(0, normalizedLimits.neighborhoodEdgeLimit - relatedEdges.length)
+  const secondaryEdges = sortEdgesForDisplay(
+    snapshot.edges.filter(
+      (edge) => !directEdgeIds.has(edge.id) && nodeKeys.has(edge.sourceKey) && nodeKeys.has(edge.targetKey)
+    )
+  ).slice(0, secondaryEdgeLimit)
+  const edges = sortEdgesForDisplay([...relatedEdges, ...secondaryEdges])
   const nodes = layoutNeighborhoodNodes(
     snapshot.nodes.filter((node) => nodeKeys.has(node.key)),
     relatedEdges,
@@ -264,7 +268,7 @@ export function buildPeopleRelationshipsNeighborhoodGraph(
   return {
     nodes,
     edges,
-    communities: filterCommunities(snapshot.communities, nodes),
+    communities: filterNeighborhoodCommunities(snapshot.communities, relatedEdges),
   }
 }
 
@@ -412,7 +416,14 @@ function computePeopleRelationships(options: {
   }
 
   applyPanoramaContributions([...nodes.values()], edges, groupContributions, diagnostics)
-  return buildGraph([...nodes.values()], [...edges.values()], communityLabels, options.limits, diagnostics)
+  return buildGraph(
+    [...nodes.values()],
+    [...edges.values()],
+    communityLabels,
+    groupContributions,
+    options.limits,
+    diagnostics
+  )
 }
 
 function findGlobalLatestMessageTs(
@@ -684,6 +695,7 @@ function buildGraph(
   nodeAccumulators: NodeAccumulator[],
   edgeAccumulators: EdgeAccumulator[],
   communityLabels: Map<string, string>,
+  groupContributions: GroupPanoramaContribution[],
   limits: Required<PeopleRelationshipsComputeLimits>,
   baseDiagnostics: PeopleRelationshipsDiagnostics
 ): BuildGraphResult {
@@ -761,7 +773,7 @@ function buildGraph(
     .map((edge) => toGraphEdge(edge, edgeWeights.get(edgeId(edge.sourceKey, edge.targetKey)) ?? 0))
     .filter((edge) => nodeByKey.has(edge.sourceKey) && nodeByKey.has(edge.targetKey))
     .sort(compareEdges)
-  const communities = buildCommunities(allNodes, communityLabels)
+  const communities = buildCommunities(allNodes, communityLabels, groupContributions)
   const coreNodeKeys = new Set(
     allNodes
       .filter((node) => panoramaCandidateKeys.has(node.key))
@@ -891,7 +903,8 @@ function egoNodeRadius(node: PeopleRelationshipGraphNode, communityId: string, c
 
 function buildCommunities(
   nodes: PeopleRelationshipGraphNode[],
-  communityLabels: Map<string, string>
+  communityLabels: Map<string, string>,
+  groupContributions: GroupPanoramaContribution[]
 ): PeopleRelationshipCommunity[] {
   const groups = new Map<string, PeopleRelationshipGraphNode[]>()
   for (const node of nodes) {
@@ -899,19 +912,49 @@ function buildCommunities(
     group.push(node)
     groups.set(node.communityId, group)
   }
-  return [...groups.entries()]
-    .map(([id, group]) => {
-      const x = group.reduce((sum, node) => sum + node.x, 0) / group.length
-      const y = group.reduce((sum, node) => sum + node.y, 0) / group.length
-      return {
-        id,
-        label: communityLabels.get(id) ?? id,
-        size: group.length,
-        x: roundNum(x, 2),
-        y: roundNum(y, 2),
-        color: colorForCommunity(id),
-      }
+  const groupMemberCounts = new Map(groupContributions.map((item) => [`group:${item.sessionId}`, item.memberKeys.size]))
+  const communitiesById = new Map<string, PeopleRelationshipCommunity>()
+
+  for (const [id, group] of groups) {
+    const x = group.reduce((sum, node) => sum + node.x, 0) / group.length
+    const y = group.reduce((sum, node) => sum + node.y, 0) / group.length
+    communitiesById.set(id, {
+      id,
+      label: communityLabels.get(id) ?? id,
+      size: groupMemberCounts.get(id) ?? group.length,
+      x: roundNum(x, 2),
+      y: roundNum(y, 2),
+      color: colorForCommunity(id),
     })
+  }
+
+  for (const [id, label] of communityLabels) {
+    if (communitiesById.has(id) || !id.startsWith('group:')) continue
+    communitiesById.set(id, {
+      id,
+      label,
+      size: groupMemberCounts.get(id) ?? 0,
+      x: 0,
+      y: 0,
+      color: colorForCommunity(id),
+    })
+  }
+
+  return [...communitiesById.values()].sort((a, b) => b.size - a.size || a.label.localeCompare(b.label))
+}
+
+function filterNeighborhoodCommunities(
+  communities: PeopleRelationshipCommunity[],
+  relatedEdges: PeopleRelationshipGraphEdge[]
+): PeopleRelationshipCommunity[] {
+  const communityById = new Map(communities.map((community) => [community.id, community]))
+  const sourceCommunityIds = new Set<string>()
+  for (const edge of relatedEdges) {
+    for (const sessionId of edge.sourceSessionIds) sourceCommunityIds.add(`group:${sessionId}`)
+  }
+  return [...sourceCommunityIds]
+    .map((id) => communityById.get(id))
+    .filter((community): community is PeopleRelationshipCommunity => Boolean(community))
     .sort((a, b) => b.size - a.size || a.label.localeCompare(b.label))
 }
 

@@ -19,7 +19,7 @@ const defaultHeader = computed<PeoplePageHeaderConfig>(() =>
         title: t('layout.relationships'),
         description: t('relationships.subtitle'),
         icon: 'i-lucide-git-fork',
-        iconClass: 'bg-sky-600 text-white dark:bg-sky-500 dark:text-white shadow-sm',
+        iconClass: 'bg-primary-600 text-white dark:bg-primary-500 dark:text-white shadow-sm',
       }
     : {
         title: t('layout.relationships'),

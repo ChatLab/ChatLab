@@ -11,7 +11,8 @@
   },
   "graphScope": {
     "panorama": "全景",
-    "close": "關係好的"
+    "close": "關係好的",
+    "friends": "僅好友"
   },
   "timeRange": {
     "1y": "近1年",
@@ -23,6 +24,7 @@
   "actions": {
     "recompute": "重新計算",
     "clearSearch": "清空搜尋",
+    "closeDetail": "關閉詳情",
     "backToPanorama": "返回全景",
     "fitView": "適應視圖",
     "focusConnections": "只看它的聯繫"
@@ -30,7 +32,8 @@
   "stats": {
     "nodes": "節點",
     "edges": "連線",
-    "communities": "圈層"
+    "communities": "相關群組",
+    "members": "人數"
   },
   "pool": {
     "friend": "好友",
@@ -53,16 +56,11 @@
     "offCore": "載入鄰域"
   },
   "connections": {
-    "title": "聯繫最緊密的人",
+    "title": "相關聯繫人",
     "empty": "目前圖中沒有直接聯繫",
-    "weight": "強度 {value}",
-    "replies": "{count} 回覆",
-    "showMore": "查看更多 {count} 個",
-    "showLess": "收起"
+    "connectionScore": "關聯度"
   },
   "detail": {
-    "title": "節點詳情",
-    "emptyTitle": "選擇一個節點",
     "rank": "排名",
     "score": "綜合分",
     "type": "類型",

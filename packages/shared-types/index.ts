@@ -367,7 +367,7 @@ export type ContactsResponse = ContactsListResponse
 
 export type PeopleRelationshipsCacheStatus = ContactsCacheStatus
 export type PeopleRelationshipsTaskStatus = ContactsTaskStatus
-export type PeopleRelationshipsGraphScope = 'panorama' | 'close'
+export type PeopleRelationshipsGraphScope = 'panorama' | 'close' | 'friends'
 
 export interface PeopleRelationshipGraphNode {
   key: string
