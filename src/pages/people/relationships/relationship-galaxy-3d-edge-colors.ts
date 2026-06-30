@@ -30,7 +30,7 @@ function getEdgeTintMix(bucket: RelationshipGalaxy3DEdgeRenderBucket): number {
 }
 
 function getEdgeBrightness(bucket: RelationshipGalaxy3DEdgeRenderBucket): number {
-  if (bucket === 'highlight') return 0.95
-  if (bucket === 'normal') return 0.5
-  return 0.34
+  if (bucket === 'highlight') return 1
+  if (bucket === 'normal') return 0.56
+  return 0.38
 }
