@@ -31,4 +31,18 @@ describe('people relationships page source', () => {
       'returning to panorama must not keep the selected node focused'
     )
   })
+
+  it('defaults to 3D while hiding the manual 3D and 2D switcher', () => {
+    const source = readPageSource()
+    const template = source.slice(source.indexOf('<template>'))
+    const fallback = source.slice(
+      source.indexOf('function handleThreeCanvasFallback()'),
+      source.indexOf('function backToPanorama()')
+    )
+
+    assert.ok(source.includes("const viewMode = ref<GalaxyViewMode>('3d')"))
+    assert.equal(source.includes('const viewModeTabs = computed'), false)
+    assert.equal(template.includes('v-model="viewMode"'), false)
+    assert.ok(fallback.includes("viewMode.value = '2d'"), '2D should remain as automatic fallback for 3D failures')
+  })
 })

@@ -90,16 +90,6 @@ const timeRangeTabs = computed(() =>
     value: preset,
   }))
 )
-const viewModeTabs = computed(() => [
-  {
-    label: t('relationships.viewMode.3d'),
-    value: '3d' as const,
-  },
-  {
-    label: t('relationships.viewMode.2d'),
-    value: '2d' as const,
-  },
-])
 const graphScopeTabs = computed(() => [
   {
     label: t('relationships.graphScope.panorama'),
@@ -648,7 +638,6 @@ onBeforeUnmount(() => {
       <div class="absolute left-4 top-4 z-20 flex max-w-[calc(100%-2rem)] flex-wrap items-center gap-2">
         <UTabs v-model="timeRangePreset" :items="timeRangeTabs" :content="false" size="xs" class="min-w-max gap-0" />
         <UTabs v-model="graphScope" :items="graphScopeTabs" :content="false" size="xs" class="min-w-max gap-0" />
-        <UTabs v-model="viewMode" :items="viewModeTabs" :content="false" size="xs" class="min-w-max gap-0" />
         <div class="relative w-28 max-w-full sm:w-32 lg:w-36">
           <UInput
             v-model="searchQuery"
