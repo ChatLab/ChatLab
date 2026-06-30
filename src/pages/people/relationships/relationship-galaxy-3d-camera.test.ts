@@ -25,9 +25,9 @@ test('fits the panorama with enough padding for a selected relationship network'
 
   const distance = Math.hypot(pose.position.x, pose.position.y, pose.position.z)
 
-  assert.ok(distance >= 8700)
-  assert.ok(distance <= 9800)
-  assert.ok(Math.abs(pose.position.x) > 1000)
+  assert.ok(distance >= 6200)
+  assert.ok(distance <= 6600)
+  assert.equal(pose.position.x, 0)
   assert.deepEqual(pose.target, { x: 0, y: 0, z: 0 })
 })
 

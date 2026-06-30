@@ -187,7 +187,7 @@ function addThinEdgePaths(
   const material = new THREE.LineBasicMaterial({
     vertexColors: true,
     transparent: true,
-    opacity: bucket === 'highlight' ? 0.56 : bucket === 'normal' ? 0.18 : 0.04,
+    opacity: bucket === 'highlight' ? 0.62 : bucket === 'normal' ? 0.21 : 0.05,
     linewidth,
     blending: THREE.NormalBlending,
     depthTest: true,
@@ -420,7 +420,7 @@ async function initCanvas() {
 
   const size = getViewportSize()
   scene = new THREE.Scene()
-  scene.fog = new THREE.FogExp2(0x080403, 0.00035)
+  scene.fog = new THREE.FogExp2(0x0a0503, 0.00032)
 
   camera = new THREE.PerspectiveCamera(45, size.width / size.height, 1, 30_000)
   camera.position.set(0, -150, 900)
@@ -863,7 +863,7 @@ defineExpose({
 <style scoped>
 .relationship-galaxy-3d {
   background: #000;
-  background: radial-gradient(circle at 50% 50%, rgba(18, 10, 6, 1) 0%, rgba(4, 2, 1, 1) 100%);
+  background: radial-gradient(circle at 50% 50%, rgba(23, 12, 7, 1) 0%, rgba(6, 3, 2, 1) 100%);
 }
 
 .relationship-galaxy-3d__label {

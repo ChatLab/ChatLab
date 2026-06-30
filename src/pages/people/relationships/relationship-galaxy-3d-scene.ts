@@ -63,6 +63,16 @@ const GROUPMATE_NODE_COLORS = [
   0xffb86b, 0x60a5fa, 0x34d399, 0xe879f9, 0xfacc15, 0x5eead4, 0xc084fc, 0xf472b6, 0xa3e635, 0x93c5fd,
 ]
 const MAX_3D_SCENE_RADIUS = 1700
+const PANORAMA_AXIS_SCALE = {
+  x: 1.42,
+  y: 0.84,
+  z: 1,
+}
+const SPHERICAL_AXIS_SCALE = {
+  x: 1,
+  y: 1,
+  z: 1,
+}
 
 interface RelationshipGalaxy3DVector {
   x: number
@@ -134,7 +144,7 @@ export function buildRelationshipGalaxy3DScene(
     nodes,
     edges,
     selectedNeighborKeys,
-    bounds: deriveBounds(nodes),
+    bounds: deriveBounds(nodes, Boolean(selectedKey)),
   }
 }
 
@@ -188,11 +198,12 @@ function deriveSphericalNodePosition(
 
   const direction = deriveNodeDirection(node, selectedKey)
   const orbitRadius = deriveNodeOrbitRadius(node, state, Boolean(selectedKey), seed)
+  const axisScale = selectedKey ? SPHERICAL_AXIS_SCALE : PANORAMA_AXIS_SCALE
 
   return {
-    x: roundNum(direction.x * orbitRadius, 2),
-    y: roundNum(direction.y * orbitRadius, 2),
-    z: roundNum(direction.z * orbitRadius, 2),
+    x: roundNum(direction.x * orbitRadius * axisScale.x, 2),
+    y: roundNum(direction.y * orbitRadius * axisScale.y, 2),
+    z: roundNum(direction.z * orbitRadius * axisScale.z, 2),
   }
 }
 
@@ -286,11 +297,11 @@ function deriveLabelTier(
 function deriveNodeOpacity(state: RelationshipGalaxy3DNodeState): number {
   if (state === 'selected') return 1
   if (state === 'neighbor') return 0.95
-  if (state === 'dimmed') return 0.08
-  return 0.75
+  if (state === 'dimmed') return 0.1
+  return 0.82
 }
 
-function deriveBounds(nodes: RelationshipGalaxy3DNode[]): RelationshipGalaxy3DScene['bounds'] {
+function deriveBounds(nodes: RelationshipGalaxy3DNode[], spherical: boolean): RelationshipGalaxy3DScene['bounds'] {
   if (nodes.length === 0) {
     return {
       minX: -500,
@@ -316,17 +327,34 @@ function deriveBounds(nodes: RelationshipGalaxy3DNode[]): RelationshipGalaxy3DSc
   }
 
   const radius = Math.max(400, maxAbsX, maxAbsY, maxAbsZ)
+  if (spherical) {
+    return {
+      minX: -radius,
+      maxX: radius,
+      minY: -radius,
+      maxY: radius,
+      minZ: -radius,
+      maxZ: radius,
+      width: radius * 2,
+      height: radius * 2,
+      depth: radius * 2,
+    }
+  }
+
+  const xRadius = Math.max(400, maxAbsX)
+  const yRadius = Math.max(400, maxAbsY)
+  const zRadius = Math.max(400, maxAbsZ)
 
   return {
-    minX: -radius,
-    maxX: radius,
-    minY: -radius,
-    maxY: radius,
-    minZ: -radius,
-    maxZ: radius,
-    width: radius * 2,
-    height: radius * 2,
-    depth: radius * 2,
+    minX: -xRadius,
+    maxX: xRadius,
+    minY: -yRadius,
+    maxY: yRadius,
+    minZ: -zRadius,
+    maxZ: zRadius,
+    width: xRadius * 2,
+    height: yRadius * 2,
+    depth: zRadius * 2,
   }
 }
 

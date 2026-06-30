@@ -88,7 +88,7 @@ test('derives stable volumetric 3D positions from existing graph nodes', () => {
   assert.deepEqual([alice?.x, alice?.y, alice?.z], [reversedAlice?.x, reversedAlice?.y, reversedAlice?.z])
 })
 
-test('fills a spherical volume instead of flattening the backend 2D layout', () => {
+test('fills a volumetric panorama instead of flattening the backend 2D layout', () => {
   const nodes = Array.from({ length: 36 }, (_, index) =>
     node({
       key: `weixin:node-${index}`,
@@ -106,11 +106,33 @@ test('fills a spherical volume instead of flattening the backend 2D layout', () 
   const actualHeight = Math.max(...scene.nodes.map((item) => item.y)) - Math.min(...scene.nodes.map((item) => item.y))
   const actualDepth = Math.max(...scene.nodes.map((item) => item.z)) - Math.min(...scene.nodes.map((item) => item.z))
 
-  assert.ok(scene.bounds.width <= 3600)
+  assert.ok(scene.bounds.width <= 5200)
   assert.ok(scene.bounds.height <= 3600)
   assert.ok(actualDepth > Math.max(actualWidth, actualHeight) * 0.55)
-  assert.ok(scene.bounds.depth > scene.bounds.width * 0.8)
+  assert.ok(scene.bounds.depth > scene.bounds.width * 0.5)
   assert.ok(scene.bounds.depth > scene.bounds.height * 0.8)
+})
+
+test('uses a horizontal panorama ellipsoid while keeping selected neighborhoods spherical', () => {
+  const nodes = Array.from({ length: 60 }, (_, index) =>
+    node({
+      key: `weixin:wide-${index}`,
+      rank: index + 1,
+      score: Math.max(0.18, 1 - index / 70),
+      communityId: `wide-community-${index % 9}`,
+      pool: index < 18 ? 'friend' : 'non_friend',
+    })
+  )
+  const edges = nodes.slice(1).map((item) => edge({ sourceKey: nodes[0].key, targetKey: item.key, weight: 1 }))
+  const graph: PeopleRelationshipsGraphData = { nodes, edges, communities: [] }
+
+  const panorama = buildRelationshipGalaxy3DScene(graph)
+  const selected = buildRelationshipGalaxy3DScene(graph, { selectedKey: nodes[0].key })
+
+  assert.ok(panorama.bounds.width > panorama.bounds.height * 1.25)
+  assert.ok(panorama.bounds.depth > panorama.bounds.height * 0.9)
+  assert.equal(selected.bounds.width, selected.bounds.height)
+  assert.equal(selected.bounds.height, selected.bounds.depth)
 })
 
 test('highlights selected node neighbors and omits unrelated nodes', () => {

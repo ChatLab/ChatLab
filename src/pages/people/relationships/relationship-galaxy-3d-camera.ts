@@ -28,7 +28,7 @@ export interface RelationshipGalaxy3DViewOffset {
   height: number
 }
 
-const FIT_CAMERA_PADDING_SCALE = 1.3
+const FIT_CAMERA_PADDING_SCALE = 0.9
 
 export function buildRelationshipGalaxy3DFitCameraPose(
   bounds: RelationshipGalaxy3DScene['bounds']
@@ -37,9 +37,9 @@ export function buildRelationshipGalaxy3DFitCameraPose(
 
   return {
     position: {
-      x: span * 0.3 * FIT_CAMERA_PADDING_SCALE,
-      y: -span * 0.44 * FIT_CAMERA_PADDING_SCALE,
-      z: span * 0.45 * FIT_CAMERA_PADDING_SCALE,
+      x: 0,
+      y: -span * 0.5 * FIT_CAMERA_PADDING_SCALE,
+      z: span * 0.5 * FIT_CAMERA_PADDING_SCALE,
     },
     target: { x: 0, y: 0, z: 0 },
   }
