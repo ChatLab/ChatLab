@@ -357,7 +357,7 @@ function formatDuration(seconds: number): string {
                     </div>
 
                     <div
-                      class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 font-black text-[10px] italic text-gray-400 shadow-inner dark:bg-gray-900/80 dark:text-gray-500"
+                      class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-100 font-black text-[10px] italic text-gray-400 shadow-inner dark:bg-page-dark/80 dark:text-gray-500"
                     >
                       VS
                     </div>
@@ -490,7 +490,7 @@ function formatDuration(seconds: number): string {
               <div v-for="(month, idx) in stats.months" :key="month.month" class="relative pb-12 pl-10 last:pb-0">
                 <!-- Timeline Dot -->
                 <div
-                  class="absolute -left-[11px] top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white ring-4 ring-white dark:bg-gray-900 dark:ring-gray-900"
+                  class="absolute -left-[11px] top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white ring-4 ring-white dark:bg-page-dark dark:ring-page-dark"
                 >
                   <div
                     class="h-2.5 w-2.5 rounded-full shadow-sm"

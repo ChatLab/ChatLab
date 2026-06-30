@@ -162,7 +162,7 @@ const mainContentClass = computed(() => RANKING_LAYOUTS[widthMode.value].content
       <div class="mt-4 border-l border-gray-200 pl-4 dark:border-gray-800">
         <div class="mb-2 text-xs text-gray-400">榜单宽度</div>
         <div
-          class="flex rounded-lg border border-gray-200 bg-white p-0.5 text-xs dark:border-gray-700 dark:bg-gray-900"
+          class="flex rounded-lg border border-gray-200 bg-white p-0.5 text-xs dark:border-gray-700 dark:bg-page-dark"
         >
           <button
             v-for="option in widthModeOptions"

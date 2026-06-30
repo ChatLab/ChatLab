@@ -125,7 +125,7 @@ function handleCopyAll() {
               <!-- Code block -->
               <div
                 v-else-if="field.isCode"
-                class="rounded-md border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900"
+                class="rounded-md border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-page-dark"
               >
                 <pre
                   class="m-0 max-h-[300px] overflow-auto whitespace-pre-wrap break-words font-mono text-xs leading-relaxed text-gray-700 dark:text-gray-300"
@@ -136,7 +136,7 @@ function handleCopyAll() {
               <!-- Plain text -->
               <div
                 v-else
-                class="select-text break-words rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs text-gray-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300"
+                class="select-text break-words rounded-md border border-gray-200 bg-gray-50 px-3 py-2 font-mono text-xs text-gray-700 dark:border-gray-700 dark:bg-page-dark dark:text-gray-300"
               >
                 {{ field.value }}
               </div>

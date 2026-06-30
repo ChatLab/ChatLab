@@ -198,7 +198,7 @@ onMounted(() => {
       <div
         v-for="member in members"
         :key="member.id"
-        class="relative rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900"
+        class="relative rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-page-dark"
       >
         <div class="absolute right-4 top-4">
           <UCheckbox :model-value="selectedMergeIds.has(member.id)" @click.stop="toggleMergeSelection(member.id)" />

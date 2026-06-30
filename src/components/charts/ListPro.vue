@@ -44,7 +44,10 @@ const formattedCount = computed(() => {
 </script>
 
 <template>
-  <div ref="cardRef" class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
+  <div
+    ref="cardRef"
+    class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-page-dark"
+  >
     <div class="flex items-center justify-between border-b border-gray-200 px-5 py-3 dark:border-gray-800">
       <div>
         <h3 class="font-semibold text-gray-900 whitespace-nowrap dark:text-white">{{ title }}</h3>

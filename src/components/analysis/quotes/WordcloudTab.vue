@@ -499,7 +499,7 @@ onMounted(async () => {
                 <LoadingState
                   v-if="isLoading"
                   :text="t('quotes.wordcloud.loading')"
-                  class="absolute inset-0 z-10 rounded-lg bg-white/80 dark:bg-gray-900/80"
+                  class="absolute inset-0 z-10 rounded-lg bg-white/80 dark:bg-page-dark/80"
                 />
                 <div
                   v-else-if="topWords.length === 0"

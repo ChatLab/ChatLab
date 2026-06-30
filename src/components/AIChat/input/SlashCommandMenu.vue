@@ -108,7 +108,7 @@ watch(
   <Transition name="slash-menu">
     <div v-if="visible" class="absolute bottom-full left-0 z-20 mb-1.5 w-[240px] max-w-[calc(100vw-2rem)]">
       <div
-        class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-gray-900/10 dark:border-gray-700 dark:bg-gray-900"
+        class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-gray-900/10 dark:border-gray-700 dark:bg-page-dark"
       >
         <div class="flex items-center justify-between border-b border-gray-100 px-2.5 py-1.5 dark:border-gray-800">
           <div class="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">
@@ -180,7 +180,7 @@ watch(
       <!-- 让详情预览相对左侧菜单在 Y 轴居中，避免视觉上只偏向顶部或底部。 -->
       <div
         v-if="props.skills.length > 0 && previewSkill"
-        class="absolute top-1/2 left-full ml-1 flex max-h-[min(348px,calc(100vh-10rem))] w-[300px] -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-gray-900/10 dark:border-gray-700 dark:bg-gray-900"
+        class="absolute top-1/2 left-full ml-1 flex max-h-[min(348px,calc(100vh-10rem))] w-[300px] -translate-y-1/2 flex-col overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-gray-900/10 dark:border-gray-700 dark:bg-page-dark"
       >
         <div class="border-b border-gray-100 px-3 py-2 dark:border-gray-800">
           <p class="truncate text-sm font-medium text-gray-900 dark:text-gray-100">

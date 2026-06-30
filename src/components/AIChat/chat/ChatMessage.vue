@@ -616,7 +616,7 @@ async function handleCopyMarkdown() {
             ref="editTextareaRef"
             v-model="editContent"
             rows="2"
-            class="w-full resize-none rounded-xl border border-primary-200 bg-white/90 px-4 py-3 text-sm leading-relaxed outline-none focus:border-primary-400 dark:border-primary-400/40 dark:bg-gray-900/70"
+            class="w-full resize-none rounded-xl border border-primary-200 bg-white/90 px-4 py-3 text-sm leading-relaxed outline-none focus:border-primary-400 dark:border-primary-400/40 dark:bg-page-dark/70"
             @input="syncEditTextareaHeight"
             @keydown.esc.prevent="cancelEditing"
             @keydown.ctrl.enter.prevent="submitEditing"
@@ -892,7 +892,7 @@ async function handleCopyMarkdown() {
                       </div>
                     </summary>
                     <div
-                      class="mt-2 max-w-full rounded-lg border border-gray-200 bg-gray-50/80 dark:border-gray-700/70 dark:bg-gray-900/40"
+                      class="mt-2 max-w-full rounded-lg border border-gray-200 bg-gray-50/80 dark:border-gray-700/70 dark:bg-page-dark/40"
                     >
                       <div
                         class="flex items-center justify-between gap-2 border-b border-gray-200/70 px-3 py-2 dark:border-gray-700/70"

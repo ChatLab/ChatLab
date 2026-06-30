@@ -27,8 +27,8 @@ const { isSidebarCollapsed: isCollapsed } = storeToRefs(layoutStore)
       class="flex h-9 w-9 cursor-pointer items-center justify-center rounded-xl mx-auto transition-all duration-200"
       :class="[
         active
-          ? 'bg-gray-200/50 dark:bg-gray-800/80 text-gray-900 dark:text-white'
-          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/40 dark:hover:bg-gray-800/40',
+          ? 'bg-gray-200/50 text-gray-900 dark:bg-white/[0.07] dark:text-white dark:ring-1 dark:ring-white/10'
+          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/40 dark:hover:bg-white/[0.06]',
       ]"
     >
       <UIcon :name="icon" class="h-5 w-5 shrink-0" :class="iconClass" />
@@ -37,10 +37,10 @@ const { isSidebarCollapsed: isCollapsed } = storeToRefs(layoutStore)
   <!-- 展开状态：直接渲染 UButton，标题已可见，无需 tooltip -->
   <UButton
     v-else
-    class="transition-all duration-200 rounded-xl hover:bg-gray-200/40 dark:hover:bg-gray-800/40 h-10 cursor-pointer justify-start pl-1.5 w-[calc(100%-8px)]"
+    class="transition-all duration-200 rounded-xl hover:bg-gray-200/40 dark:hover:bg-white/[0.06] h-10 cursor-pointer justify-start pl-1.5 w-[calc(100%-8px)]"
     :class="[
       active
-        ? 'bg-gray-200/50 dark:bg-gray-800/80 text-gray-900 dark:text-white font-medium'
+        ? 'bg-gray-200/50 text-gray-900 font-medium dark:bg-white/[0.07] dark:text-white dark:ring-1 dark:ring-white/10'
         : 'text-gray-600 dark:text-gray-300',
     ]"
     color="gray"

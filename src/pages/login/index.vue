@@ -52,7 +52,7 @@ async function handleLogin() {
 </script>
 
 <template>
-  <div class="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-gray-900">
+  <div class="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-page-dark">
     <div class="w-full max-w-sm space-y-6 rounded-xl bg-white p-8 shadow-lg dark:bg-gray-800">
       <div class="text-center">
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">ChatLab</h1>

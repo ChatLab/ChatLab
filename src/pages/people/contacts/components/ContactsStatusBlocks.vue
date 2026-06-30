@@ -34,7 +34,7 @@ const { t } = useI18n()
 
   <div
     v-if="cacheStatus === 'stale' && !isTaskRunning"
-    class="flex flex-col gap-4 rounded-2xl border border-zinc-200/80 bg-zinc-50/60 p-4 text-sm text-zinc-700 dark:border-zinc-800/80 dark:bg-zinc-900/40 dark:text-zinc-300 sm:flex-row sm:items-center sm:justify-between backdrop-blur-sm shadow-sm"
+    class="flex flex-col gap-4 rounded-2xl border border-zinc-200/80 bg-zinc-50/60 p-4 text-sm text-zinc-700 dark:border-zinc-800/80 dark:bg-page-dark/40 dark:text-zinc-300 sm:flex-row sm:items-center sm:justify-between backdrop-blur-sm shadow-sm"
   >
     <div class="flex items-center gap-3.5">
       <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800/80">

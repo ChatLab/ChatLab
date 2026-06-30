@@ -315,7 +315,7 @@ watch(
   <!-- 折叠状态 -->
   <div
     v-if="isCollapsed"
-    class="flex h-full w-10 flex-col items-center border-r border-gray-200 bg-gray-50 py-2 dark:border-gray-700 dark:bg-gray-800/50"
+    class="flex h-full w-10 flex-col items-center border-r border-gray-200 bg-gray-50 py-2 dark:border-gray-700 dark:bg-page-dark/50"
   >
     <UButton icon="i-heroicons-chevron-right" variant="ghost" size="xs" @click="isCollapsed = false" />
     <div class="mt-2 flex flex-1 items-center">
@@ -326,7 +326,7 @@ watch(
   <!-- 展开状态 -->
   <div
     v-else
-    class="flex h-full w-56 flex-col border-r border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50"
+    class="flex h-full w-56 flex-col border-r border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-page-dark/50"
   >
     <!-- 头部 -->
     <div class="flex items-center justify-between border-b border-gray-200 px-2 py-1.5 dark:border-gray-700">

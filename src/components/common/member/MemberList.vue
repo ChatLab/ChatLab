@@ -307,7 +307,7 @@ onMounted(() => {
 
     <!-- 成员列表 -->
     <div
-      class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-gray-900"
+      class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-page-dark"
       :class="props.showHeader ? '' : 'flex min-h-0 flex-1 flex-col'"
     >
       <!-- 加载状态 -->
@@ -327,7 +327,7 @@ onMounted(() => {
       <div v-else class="flex min-h-0 flex-1 flex-col">
         <div class="max-h-[500px] overflow-y-auto" :class="props.showHeader ? '' : 'max-h-none min-h-0 flex-1'">
           <table class="w-full">
-            <thead class="sticky top-0 bg-gray-50 dark:bg-gray-800">
+            <thead class="sticky top-0 bg-gray-50 dark:bg-page-dark">
               <tr class="text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
                 <th class="w-12 px-4 py-4" />
                 <th class="px-4 py-4">{{ t('members.list.table.accountName') }}</th>

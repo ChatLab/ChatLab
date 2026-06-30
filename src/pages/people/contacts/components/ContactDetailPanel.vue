@@ -40,7 +40,7 @@ function avatarText(contact: ContactItem): string {
   <Transition name="contact-detail-panel">
     <aside
       v-if="selectedKey"
-      class="flex h-full w-[420px] max-w-[80vw] shrink-0 flex-col border-l border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900"
+      class="flex h-full w-[420px] max-w-[80vw] shrink-0 flex-col border-l border-gray-200 bg-white dark:border-gray-800 dark:bg-page-dark"
       style="-webkit-app-region: no-drag"
     >
       <div class="flex items-center justify-between border-b border-gray-200 px-4 py-3 dark:border-gray-800">
@@ -73,11 +73,11 @@ function avatarText(contact: ContactItem): string {
                 :alt="contact.displayName"
                 loading="lazy"
                 decoding="async"
-                class="h-16 w-16 rounded-2xl object-cover shadow-sm ring-2 ring-white dark:ring-gray-900"
+                class="h-16 w-16 rounded-2xl object-cover shadow-sm ring-2 ring-white dark:ring-page-dark"
               />
               <div
                 v-else
-                class="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-gray-155 to-gray-200 text-lg font-bold text-gray-700 dark:from-gray-800 dark:to-gray-900 dark:text-gray-200"
+                class="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-gray-155 to-gray-200 text-lg font-bold text-gray-700 dark:from-gray-800 dark:to-page-dark dark:text-gray-200"
               >
                 {{ avatarText(contact) }}
               </div>
@@ -134,7 +134,7 @@ function avatarText(contact: ContactItem): string {
             <div
               v-for="source in contact.sourceSessions"
               :key="source.id"
-              class="w-full rounded-2xl border border-gray-100 bg-white/40 px-3.5 py-3 text-left transition duration-300 hover:border-gray-200 hover:shadow-sm dark:border-white/5 dark:bg-gray-900/10 dark:hover:border-white/10"
+              class="w-full rounded-2xl border border-gray-100 bg-white/40 px-3.5 py-3 text-left transition duration-300 hover:border-gray-200 hover:shadow-sm dark:border-white/5 dark:bg-page-dark/10 dark:hover:border-white/10"
             >
               <div class="flex items-center justify-between gap-2">
                 <span class="truncate text-xs font-semibold text-gray-700 dark:text-gray-300">

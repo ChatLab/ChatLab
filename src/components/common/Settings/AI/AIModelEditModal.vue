@@ -120,7 +120,7 @@ function closeModal() {
                     :class="[
                       formData.provider === p.id
                         ? 'border-transparent bg-primary-500 text-white hover:bg-primary-600 dark:bg-primary-500 dark:text-white dark:hover:bg-primary-400'
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-400 dark:hover:border-gray-600',
+                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300 dark:border-gray-700 dark:bg-page-dark dark:text-gray-400 dark:hover:border-gray-600',
                     ]"
                     @click="selectProvider(p.id)"
                   >
@@ -134,7 +134,7 @@ function closeModal() {
                     :class="[
                       formData.provider === p.id
                         ? 'border-transparent bg-primary-500 text-white hover:bg-primary-600 dark:bg-primary-500 dark:text-white dark:hover:bg-primary-400'
-                        : 'border-dashed border-gray-300 bg-white text-gray-500 hover:border-gray-400 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-400',
+                        : 'border-dashed border-gray-300 bg-white text-gray-500 hover:border-gray-400 dark:border-gray-600 dark:bg-page-dark dark:text-gray-400',
                     ]"
                     @click="selectProvider(p.id)"
                   >
@@ -173,7 +173,11 @@ function closeModal() {
               <!-- API Key -->
               <ApiKeyInput
                 v-model="formData.apiKey"
-                :placeholder="mode === 'edit' && config?.apiKeySet ? t('settings.aiConfig.modal.apiKeyPlaceholderEdit') : t('settings.aiConfig.modal.apiKeyPlaceholder')"
+                :placeholder="
+                  mode === 'edit' && config?.apiKeySet
+                    ? t('settings.aiConfig.modal.apiKeyPlaceholderEdit')
+                    : t('settings.aiConfig.modal.apiKeyPlaceholder')
+                "
                 :validate-loading="isValidating"
                 :validate-disabled="!formData.apiKey && !canReuseStoredKey"
                 :validate-text="t('settings.aiConfig.modal.validate')"
@@ -403,7 +407,11 @@ function closeModal() {
               <!-- API Key -->
               <ApiKeyInput
                 v-model="formData.apiKey"
-                :placeholder="mode === 'edit' && config?.apiKeySet ? t('settings.aiConfig.modal.apiKeyPlaceholderEdit') : t('settings.aiConfig.modal.apiKeyPlaceholder')"
+                :placeholder="
+                  mode === 'edit' && config?.apiKeySet
+                    ? t('settings.aiConfig.modal.apiKeyPlaceholderEdit')
+                    : t('settings.aiConfig.modal.apiKeyPlaceholder')
+                "
                 :validate-loading="isValidating"
                 :validate-disabled="(!formData.apiKey && !canReuseStoredKey) || !formData.baseUrl"
                 :validate-text="t('settings.aiConfig.modal.validate')"
@@ -526,7 +534,6 @@ function closeModal() {
                 />
               </div>
             </template>
-
           </div>
         </div>
 

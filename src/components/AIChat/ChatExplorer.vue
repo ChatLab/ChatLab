@@ -525,7 +525,7 @@ watch(
       <Transition name="slide-fade">
         <div
           v-if="sourceMessages.length > 0 && !isSourcePanelCollapsed"
-          class="w-80 shrink-0 border-l border-gray-200 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-gray-900/50"
+          class="w-80 shrink-0 border-l border-gray-200 bg-gray-50/50 p-4 dark:border-gray-800 dark:bg-page-dark/50"
         >
           <DataSourcePanel
             :messages="sourceMessages"

@@ -28,7 +28,7 @@ const containerClass = computed(() => {
     case 'page':
       return `${base} h-full w-full`
     case 'overlay':
-      return `${base} absolute inset-0 z-10 bg-white/50 backdrop-blur-sm dark:bg-gray-950/50`
+      return `${base} absolute inset-0 z-10 bg-white/50 backdrop-blur-sm dark:bg-page-dark/50`
     default:
       return `${base} ${props.height || 'py-8'}`
   }

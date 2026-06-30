@@ -165,7 +165,7 @@ onUnmounted(() => {
     <template v-else>
       <!-- 自定义标题栏 - 拖拽区域 + 窗口控制按钮 -->
       <TitleBar />
-      <div class="relative flex h-screen w-full overflow-hidden bg-gray-50 dark:bg-gray-900">
+      <div class="relative flex h-screen w-full overflow-hidden bg-page-bg dark:bg-page-dark">
         <!-- 主内容区域 -->
         <template v-if="!isInitialized">
           <div class="flex h-full w-full items-center justify-center">

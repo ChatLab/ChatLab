@@ -131,7 +131,7 @@ const otherMemberAvatar = computed(() => {
 </script>
 
 <template>
-  <div class="flex h-full flex-col bg-white dark:bg-gray-900" style="padding-top: var(--titlebar-area-height)">
+  <div class="flex h-full flex-col bg-white dark:bg-page-dark" style="padding-top: var(--titlebar-area-height)">
     <!-- Loading State -->
     <LoadingState v-if="isInitialLoad" variant="page" :text="t('analysis.privateChat.loading')" />
 
@@ -273,7 +273,7 @@ const otherMemberAvatar = computed(() => {
     <!-- 成员管理弹窗 -->
     <UModal v-if="currentSessionId" v-model:open="showMemberManagementModal" :ui="{ content: 'max-w-6xl h-[85vh]' }">
       <template #content>
-        <div class="flex h-full flex-col overflow-hidden bg-white dark:bg-gray-900">
+        <div class="flex h-full flex-col overflow-hidden bg-white dark:bg-page-dark">
           <div
             class="flex flex-none items-center justify-between border-b border-gray-200 px-5 py-3 dark:border-gray-700"
           >

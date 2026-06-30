@@ -122,7 +122,7 @@ function viewSource(messageId: number): void {
         <div
           v-for="group in sortedGroups"
           :key="group.id"
-          class="rounded-md border border-gray-200/80 bg-white px-2.5 py-1.5 dark:border-gray-700/50 dark:bg-gray-900/30"
+          class="rounded-md border border-gray-200/80 bg-white px-2.5 py-1.5 dark:border-gray-700/50 dark:bg-page-dark/30"
         >
           <div class="flex items-center gap-2">
             <span class="rounded px-1.5 py-0.5 text-[11px] font-medium" :class="statusBadgeClass[group.status]">

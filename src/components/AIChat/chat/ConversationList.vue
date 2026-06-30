@@ -176,7 +176,7 @@ defineExpose({
 
 <template>
   <div
-    class="flex flex-col border-r border-gray-200 bg-white transition-all dark:border-gray-800 dark:bg-gray-900"
+    class="flex flex-col border-r border-gray-200 bg-white transition-all dark:border-gray-800 dark:bg-page-dark"
     :class="isCollapsed ? 'w-10' : 'w-64'"
   >
     <!-- 头部 -->
@@ -262,7 +262,7 @@ defineExpose({
               <template v-if="editingId === conv.id">
                 <input
                   v-model="editingTitle"
-                  class="w-full rounded border-none bg-white px-2 py-1 text-sm shadow-sm outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-primary-500 dark:bg-gray-900 dark:ring-gray-700"
+                  class="w-full rounded border-none bg-white px-2 py-1 text-sm shadow-sm outline-none ring-1 ring-gray-200 focus:ring-2 focus:ring-primary-500 dark:bg-page-dark dark:ring-gray-700"
                   :placeholder="t('ai.chat.conversation.titlePlaceholder')"
                   autoFocus
                   @blur="saveTitle(conv.id)"

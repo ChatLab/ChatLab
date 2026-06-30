@@ -34,7 +34,7 @@ const { header } = providePeoplePageHeader(defaultHeader)
 
 <template>
   <div
-    class="flex h-full flex-col bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100"
+    class="flex h-full flex-col bg-white text-gray-900 dark:bg-page-dark dark:text-gray-100"
     style="padding-top: var(--titlebar-area-height)"
   >
     <PageHeader

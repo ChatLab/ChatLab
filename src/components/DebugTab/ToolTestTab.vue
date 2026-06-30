@@ -162,7 +162,7 @@ async function cancel() {
   <div class="flex h-full">
     <!-- Left Sidebar: Tool List -->
     <div
-      class="w-56 shrink-0 overflow-y-auto border-r border-gray-200 bg-gray-50/50 dark:border-gray-700 dark:bg-gray-800/50"
+      class="w-56 shrink-0 overflow-y-auto border-r border-gray-200 bg-gray-50/50 dark:border-gray-700 dark:bg-page-dark/50"
     >
       <!-- Core Tools Group -->
       <div v-if="coreTools.length > 0" class="py-2">

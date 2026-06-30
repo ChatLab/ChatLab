@@ -361,8 +361,8 @@ function getSessionAvatar(session: AnalysisSession): string | null {
 function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
   if (isActive) {
     return isPrivateChat(session)
-      ? 'bg-pink-500 text-white dark:bg-pink-600'
-      : 'bg-primary-600 text-white dark:bg-primary-500'
+      ? 'bg-pink-500 text-white dark:bg-white/10 dark:text-white'
+      : 'bg-pink-600 text-white dark:bg-white/10 dark:text-white'
   }
 
   // 雅致的低饱和度配色方案，提升侧边栏的简洁感与品质感
@@ -387,7 +387,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
 <template>
   <div
     class="flex h-full flex-col border-r border-gray-200/50 transition-all duration-300 ease-in-out dark:border-gray-800/50"
-    :class="[isCollapsed ? 'w-20' : 'w-72', isHomePage ? '' : 'bg-gray-50 dark:bg-gray-900']"
+    :class="[isCollapsed ? 'w-20' : 'w-72', isHomePage ? '' : 'bg-page-bg dark:bg-page-dark']"
   >
     <div class="flex flex-col pt-5" :class="[isCollapsed ? 'px-3 pb-4' : 'p-4']">
       <!-- Header -->
@@ -414,7 +414,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
         </div>
         <div
           v-else
-          class="group relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-gray-800"
+          class="group relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-white/[0.06]"
           style="-webkit-app-region: no-drag"
           @click="toggleSidebar"
         >
@@ -428,10 +428,10 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
           style="-webkit-app-region: no-drag"
         >
           <UButton
-            color="gray"
+            color="neutral"
             variant="ghost"
             size="sm"
-            class="group flex h-9 w-9 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-gray-800"
+            class="group flex h-9 w-9 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-white/[0.06]"
             @click="toggleSidebar"
           >
             <UIcon name="i-lucide-panel-right" class="size-4 group-hover:hidden scale-x-[-1]" />
@@ -524,8 +524,8 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
                 class="group relative flex items-center text-left transition-all duration-200 cursor-pointer"
                 :class="[
                   route.params.id === session.id
-                    ? 'bg-gray-200/50 dark:bg-gray-800/80 text-gray-900 dark:text-white font-medium'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/30 dark:hover:bg-gray-800/30',
+                    ? 'bg-gray-200/50 text-gray-900 font-medium dark:bg-white/[0.07] dark:text-white dark:ring-1 dark:ring-white/10'
+                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/30 dark:hover:bg-white/[0.06]',
                   isCollapsed ? 'justify-center h-10 w-10 rounded-xl mx-auto' : 'w-full rounded-xl p-1.5 px-2.5 pl-1.5',
                 ]"
                 @click="
@@ -579,7 +579,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
       </div>
       <!-- 底部渐变蒙层 - 让列表消失更自然（固定在外层容器底部） -->
       <div
-        class="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-gray-50 to-transparent dark:from-gray-900"
+        class="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-page-bg to-transparent dark:from-page-dark"
       />
     </div>
 

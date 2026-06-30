@@ -126,7 +126,7 @@ async function handleSave() {
         <textarea
           v-else
           v-model="rawMd"
-          class="h-[400px] w-full resize-none rounded-lg border border-gray-300 bg-gray-50 p-3 font-mono text-xs text-gray-900 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-900 dark:text-gray-100"
+          class="h-[400px] w-full resize-none rounded-lg border border-gray-300 bg-gray-50 p-3 font-mono text-xs text-gray-900 focus:border-primary-500 focus:ring-1 focus:ring-primary-500 dark:border-gray-600 dark:bg-page-dark dark:text-gray-100"
           spellcheck="false"
         />
 

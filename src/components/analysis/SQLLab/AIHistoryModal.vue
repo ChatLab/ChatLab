@@ -46,7 +46,7 @@ function formatHistoryTime(timestamp: number): string {
           <div
             v-for="record in history"
             :key="record.id"
-            class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900"
+            class="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-page-dark"
           >
             <!-- 头部：用户输入 + 时间 -->
             <div class="mb-2 flex items-start justify-between gap-2">

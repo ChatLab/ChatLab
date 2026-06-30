@@ -391,7 +391,7 @@ onMounted(async () => {
       </div>
 
       <table v-else-if="result" class="w-full border-collapse text-xs">
-        <thead class="sticky top-0 bg-gray-50 dark:bg-gray-800">
+        <thead class="sticky top-0 bg-gray-50 dark:bg-page-dark">
           <tr>
             <th
               class="whitespace-nowrap border-b border-r border-gray-200 px-2 py-1.5 text-left font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400"

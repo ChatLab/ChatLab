@@ -75,7 +75,7 @@ watch(showSettings, async (visible) => {
     v-model:open="showSettings"
     :ui="{
       content: 'sm:max-w-[900px] z-[100]',
-      overlay: 'z-[99] bg-gray-200/80 backdrop-blur-sm dark:bg-gray-950/80',
+      overlay: 'z-[99] bg-gray-200/80 backdrop-blur-sm dark:bg-page-dark/80',
     }"
   >
     <template #content>

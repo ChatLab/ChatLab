@@ -534,8 +534,8 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="flex min-h-0 flex-1 overflow-hidden bg-white text-gray-900 dark:bg-gray-950 dark:text-gray-100">
-    <main class="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[#05070d]">
+  <div class="flex min-h-0 flex-1 overflow-hidden bg-white text-gray-900 dark:bg-page-dark dark:text-gray-100">
+    <main class="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[#05070d] dark:bg-page-dark">
       <RelationshipGalaxyThreeCanvas
         v-if="viewMode === '3d'"
         ref="canvasRef"
@@ -588,7 +588,7 @@ onBeforeUnmount(() => {
 
           <div
             v-if="showSearchResults"
-            class="absolute left-0 top-full z-30 mt-2 max-h-80 w-72 overflow-y-auto rounded-2xl border border-gray-200/80 bg-white/95 p-2 shadow-2xl shadow-black/25 backdrop-blur-xl scrollbar-thin dark:border-white/10 dark:bg-gray-950/95"
+            class="absolute left-0 top-full z-30 mt-2 max-h-80 w-72 overflow-y-auto rounded-2xl border border-gray-200/80 bg-white/95 p-2 shadow-2xl shadow-black/25 backdrop-blur-xl scrollbar-thin dark:border-white/10 dark:bg-page-dark/95"
           >
             <div
               class="px-2 pb-1.5 pt-0.5 text-[11px] font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400"
@@ -685,7 +685,7 @@ onBeforeUnmount(() => {
 
       <aside
         v-if="showDetailPanel"
-        class="absolute inset-x-3 bottom-3 z-20 flex max-h-[70vh] flex-col overflow-hidden rounded-2xl border border-white/5 bg-white/10 shadow-2xl shadow-black/20 backdrop-blur-md dark:border-white/5 dark:bg-gray-950/10 md:inset-x-auto md:bottom-4 md:right-4 md:top-4 md:max-h-none md:w-[360px]"
+        class="absolute inset-x-3 bottom-3 z-20 flex max-h-[70vh] flex-col overflow-hidden rounded-2xl border border-white/5 bg-white/10 shadow-2xl shadow-black/20 backdrop-blur-md dark:border-white/5 dark:bg-page-dark/10 md:inset-x-auto md:bottom-4 md:right-4 md:top-4 md:max-h-none md:w-[360px]"
       >
         <UButton
           icon="i-lucide-x"

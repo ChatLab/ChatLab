@@ -592,7 +592,7 @@ onMounted(() => {
     <div v-else class="flex-1 overflow-y-auto rounded-lg border border-gray-200/50 dark:border-gray-700/50">
       <!-- 表头 -->
       <div
-        class="sticky top-0 z-1 flex items-center gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-500 dark:border-gray-700 dark:bg-gray-800/80 dark:text-gray-400"
+        class="sticky top-0 z-1 flex items-center gap-3 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-500 dark:border-gray-700 dark:bg-page-dark/80 dark:text-gray-400"
       >
         <template v-for="column in headerColumns" :key="column.key">
           <div v-if="column.type === 'spacer'" :class="column.class" />

@@ -14,7 +14,7 @@ defineProps<{
 <template>
   <div class="main-content flex h-full items-center justify-center p-6">
     <div
-      class="flex h-full w-full items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-gray-900/50"
+      class="flex h-full w-full items-center justify-center rounded-xl border-2 border-dashed border-gray-300 bg-gray-50 dark:border-gray-700 dark:bg-page-dark/50"
     >
       <div class="text-center">
         <UIcon name="i-heroicons-chart-bar" class="mx-auto h-12 w-12 text-gray-400" />

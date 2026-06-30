@@ -77,7 +77,7 @@ function handleCopy() {
             {{ t('settings.mcp.overview.installHint') }}
           </p>
           <div class="mt-2">
-            <code class="inline-block rounded-md bg-gray-900 px-3 py-1.5 text-xs text-gray-100 dark:bg-gray-950">
+            <code class="inline-block rounded-md bg-gray-900 px-3 py-1.5 text-xs text-gray-100 dark:bg-page-dark">
               npm install -g chatlab-cli
             </code>
           </div>
@@ -110,7 +110,7 @@ function handleCopy() {
         <div class="p-4">
           <div class="relative">
             <pre
-              class="overflow-x-auto rounded-lg bg-gray-900 p-4 text-xs leading-relaxed text-gray-100 dark:bg-gray-950"
+              class="overflow-x-auto rounded-lg bg-gray-900 p-4 text-xs leading-relaxed text-gray-100 dark:bg-page-dark"
             ><code>{{ configText }}</code></pre>
             <UButton
               :icon="copied ? 'i-heroicons-check' : 'i-heroicons-clipboard'"

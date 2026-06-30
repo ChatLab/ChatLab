@@ -329,14 +329,14 @@ watch(
     <!-- 主内容区 -->
     <div class="flex flex-1 flex-col overflow-hidden">
       <!-- SQL 编辑器区域 -->
-      <div class="flex flex-col border-b border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-950">
+      <div class="flex flex-col border-b border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-page-dark">
         <div class="mx-auto w-full max-w-3xl">
           <!-- 输入区 -->
           <!-- 两种输入模式统一输入框高度，避免切换模式时界面跳动 -->
           <textarea
             v-if="inputMode === 'prompt'"
             v-model="promptInput"
-            class="h-32 w-full resize-none rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-800 focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+            class="h-32 w-full resize-none rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-800 focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500 dark:border-gray-700 dark:bg-page-dark dark:text-gray-200"
             :placeholder="t('ai.sqlLab.generate.placeholder')"
             spellcheck="false"
             @keydown="handleKeyDown($event, 'prompt')"
@@ -344,7 +344,7 @@ watch(
           <textarea
             v-else
             v-model="sql"
-            class="h-32 w-full resize-none rounded-lg border border-gray-300 bg-white p-3 font-mono text-sm text-gray-800 focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-200"
+            class="h-32 w-full resize-none rounded-lg border border-gray-300 bg-white p-3 font-mono text-sm text-gray-800 focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500 dark:border-gray-700 dark:bg-page-dark dark:text-gray-200"
             :placeholder="t('ai.sqlLab.editor.placeholder')"
             spellcheck="false"
             @keydown="handleKeyDown($event, 'sql')"
@@ -395,7 +395,7 @@ watch(
         class="flex-1 overflow-auto p-4"
       >
         <div
-          class="mx-auto w-full max-w-3xl rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-gray-900"
+          class="mx-auto w-full max-w-3xl rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-page-dark"
         >
           <p class="mb-2 flex items-center gap-1.5 text-sm font-medium text-gray-600 dark:text-gray-300">
             <UIcon name="i-heroicons-cpu-chip" class="h-4 w-4" />

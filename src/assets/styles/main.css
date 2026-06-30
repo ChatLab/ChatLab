@@ -19,7 +19,7 @@
 
   /* 页面背景 - 语义化主题 Token，未来可通过设置动态覆盖 */
   --color-page-bg: #f9fafb;
-  --color-page-dark: #18181b;
+  --color-page-dark: #181818;
 
   /* 卡片背景 - 语义化主题 Token，未来可通过设置动态覆盖 */
   --color-card-bg: #ffffff;

@@ -67,7 +67,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="flex flex-col border-r border-gray-200 bg-white transition-all dark:border-gray-800 dark:bg-gray-900"
+    class="flex flex-col border-r border-gray-200 bg-white transition-all dark:border-gray-800 dark:bg-page-dark"
     :class="isCollapsed ? 'w-10' : 'w-56'"
   >
     <!-- 面板头部 -->

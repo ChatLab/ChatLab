@@ -855,7 +855,7 @@ function getGroupSectionScrollTop(): number | null {
 </script>
 
 <template>
-  <div class="flex min-h-0 flex-1 flex-col bg-white text-gray-900 dark:bg-gray-900 dark:text-gray-100">
+  <div class="flex min-h-0 flex-1 flex-col bg-white text-gray-900 dark:bg-page-dark dark:text-gray-100">
     <SubTabs
       v-model="activeContactSection"
       :items="contactTabs"
@@ -933,7 +933,7 @@ function getGroupSectionScrollTop(): number | null {
 
               <div v-else class="min-w-0">
                 <div
-                  class="sticky top-0 z-20 overflow-hidden border-b border-gray-100 bg-white dark:border-gray-800/40 dark:bg-gray-900"
+                  class="sticky top-0 z-20 overflow-hidden border-b border-gray-100 bg-white dark:border-gray-800/40 dark:bg-page-dark"
                 >
                   <div
                     class="contact-table-grid min-w-[720px] px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500"
@@ -982,7 +982,7 @@ function getGroupSectionScrollTop(): number | null {
 
                       <div
                         v-else-if="rowAt(virtualRow.index).type === 'section'"
-                        class="contact-table-grid absolute left-0 top-0 w-full border-b border-gray-100 bg-white px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:border-gray-800/40 dark:bg-gray-900 dark:text-gray-500"
+                        class="contact-table-grid absolute left-0 top-0 w-full border-b border-gray-100 bg-white px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:border-gray-800/40 dark:bg-page-dark dark:text-gray-500"
                         :class="contactGridClass(rowAt(virtualRow.index).pool)"
                         :style="{ transform: `translateY(${virtualRow.start}px)` }"
                       >

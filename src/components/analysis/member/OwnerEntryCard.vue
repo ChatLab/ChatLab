@@ -39,7 +39,7 @@ const ownerDisplayName = computed(() => {
 </script>
 
 <template>
-  <div class="w-150 rounded-lg border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-gray-900">
+  <div class="w-150 rounded-lg border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-page-dark">
     <div class="flex items-center justify-between gap-3">
       <div class="flex items-center gap-2">
         <div

@@ -280,7 +280,7 @@ function removeCustomRule(ruleId: string) {
             <div
               v-for="group in builtinRuleGroups"
               :key="group.id"
-              class="rounded-md border border-gray-200 bg-white dark:border-gray-700 dark:bg-gray-900/40"
+              class="rounded-md border border-gray-200 bg-white dark:border-gray-700 dark:bg-page-dark/40"
             >
               <div class="flex items-center gap-2 px-2.5 py-2">
                 <UCheckbox

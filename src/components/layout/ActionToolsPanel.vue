@@ -131,7 +131,7 @@ onBeforeUnmount(() => {
   <!-- Mini 模式：常驻竖条，只有图标（仅 side 模式） -->
   <div v-if="!isHeaderMode && isToolsPanelMini" class="fixed right-0 top-1/3">
     <div
-      class="no-capture flex flex-col items-center gap-0.5 rounded-l-lg border border-r-0 border-gray-200/60 bg-white py-1.5 shadow-sm dark:border-white/5 dark:bg-gray-900"
+      class="no-capture flex flex-col items-center gap-0.5 rounded-l-lg border border-r-0 border-gray-200/60 bg-white py-1.5 shadow-sm dark:border-white/5 dark:bg-page-dark"
     >
       <UTooltip v-for="tool in tools" :key="tool.event" :text="t(tool.labelKey)" :popper="{ placement: 'left' }">
         <button
@@ -166,7 +166,7 @@ onBeforeUnmount(() => {
     >
       <div
         ref="panelRef"
-        class="no-capture flex w-40 flex-col rounded-l-xl border border-r-0 border-gray-200/60 bg-white p-3 shadow-lg dark:border-white/5 dark:bg-gray-900"
+        class="no-capture flex w-40 flex-col rounded-l-xl border border-r-0 border-gray-200/60 bg-white p-3 shadow-lg dark:border-white/5 dark:bg-page-dark"
       >
         <div class="mb-2 flex items-center justify-between">
           <span class="px-0.5 text-[9px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">

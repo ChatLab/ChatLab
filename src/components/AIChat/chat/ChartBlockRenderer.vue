@@ -78,7 +78,7 @@ const expandedMinWidth = computed(() => {
 
 <template>
   <div
-    class="my-2 w-full overflow-hidden rounded-lg border border-gray-200 bg-white/80 shadow-sm dark:border-gray-700/70 dark:bg-gray-900/70"
+    class="my-2 w-full overflow-hidden rounded-lg border border-gray-200 bg-white/80 shadow-sm dark:border-gray-700/70 dark:bg-page-dark/70"
   >
     <div class="border-b border-gray-100 px-3 py-2 dark:border-gray-800">
       <div class="flex min-w-0 items-start justify-between gap-3">
@@ -110,7 +110,7 @@ const expandedMinWidth = computed(() => {
               @click.stop
             />
             <template #content>
-              <div class="flex max-h-[92vh] flex-col overflow-hidden bg-white dark:bg-gray-950">
+              <div class="flex max-h-[92vh] flex-col overflow-hidden bg-white dark:bg-page-dark">
                 <div
                   class="flex items-start justify-between gap-4 border-b border-gray-200 px-5 py-4 dark:border-gray-800"
                 >
