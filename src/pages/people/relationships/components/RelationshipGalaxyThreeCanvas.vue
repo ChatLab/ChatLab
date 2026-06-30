@@ -68,7 +68,9 @@ const emit = defineEmits<{
 const canvasRoot = ref<HTMLElement | null>(null)
 const labels = shallowRef<VisibleLabel[]>([])
 const hoveredKey = ref<string | null>(null)
-const sceneModel = shallowRef<RelationshipGalaxy3DScene>(buildRelationshipGalaxy3DScene(props.graph))
+const sceneModel = shallowRef<RelationshipGalaxy3DScene>(
+  buildRelationshipGalaxy3DScene(props.graph, { selectedKey: props.selectedKey })
+)
 const selectedVisibleLabelKeys = shallowRef<Set<string> | null>(null)
 
 let renderer: THREE.WebGLRenderer | null = null
@@ -117,7 +119,7 @@ function scenePosition(node: RelationshipGalaxy3DNode, model: RelationshipGalaxy
 function renderGraph(shouldFit = false) {
   if (!scene || !camera || !renderer) return
 
-  const model = buildRelationshipGalaxy3DScene(props.graph)
+  const model = buildRelationshipGalaxy3DScene(props.graph, { selectedKey: props.selectedKey })
   sceneModel.value = model
   updateSelectedVisibleLabelKeys()
   clearGroup(edgeGroup)
@@ -778,9 +780,7 @@ watch(
 watch(
   () => props.selectedKey,
   () => {
-    updateSelectedVisibleLabelKeys()
-    labelFrame = 1
-    updateLabels()
+    renderGraph(false)
   },
   { flush: 'post' }
 )
