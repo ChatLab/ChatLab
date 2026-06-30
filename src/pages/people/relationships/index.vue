@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { CONTACTS_TIME_RANGE_PRESETS } from '@openchatlab/shared-types'
 import type {
@@ -25,14 +25,16 @@ import {
   resolveRelationshipGalaxyPollingAction,
   shouldShowFocusConnectionsAction,
 } from './relationship-galaxy-state'
-import RelationshipGalaxyCanvas from './components/RelationshipGalaxyCanvas.vue'
-import RelationshipGalaxyThreeCanvas from './components/RelationshipGalaxyThreeCanvas.vue'
 
 type GalaxyCanvasInstance = {
   focusNode: (key: string) => boolean
   fitView: () => void
 }
 type GalaxyViewMode = '3d' | '2d'
+type RelationshipGraphResponseWithGraph = Pick<
+  PeopleRelationshipsGraphResponse,
+  'algorithmVersion' | 'cache' | 'timeRange' | 'graph'
+>
 
 const EMPTY_GRAPH: PeopleRelationshipsGraphData = {
   nodes: [],
@@ -42,6 +44,10 @@ const EMPTY_GRAPH: PeopleRelationshipsGraphData = {
 
 const POLL_INTERVAL_MS = 1400
 const RELATIONSHIP_DETAIL_PANEL_SAFE_INSET_RIGHT = 392
+const RelationshipGalaxyThreeCanvas = defineAsyncComponent(
+  () => import('./components/RelationshipGalaxyThreeCanvas.vue')
+)
+const RelationshipGalaxyCanvas = defineAsyncComponent(() => import('./components/RelationshipGalaxyCanvas.vue'))
 
 const { t, locale } = useI18n()
 const dataService = useDataService()
@@ -70,6 +76,8 @@ const graphRequestId = ref(0)
 const neighborhoodRequestId = ref(0)
 const canvasRef = ref<GalaxyCanvasInstance | null>(null)
 
+let graphContentKey: string | null = null
+let neighborhoodGraphContentKey: string | null = null
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 let detailPanelMediaQuery: MediaQueryList | null = null
@@ -223,6 +231,87 @@ function formatTaskProgress(nextTask: PeopleRelationshipsTaskState | null): stri
   })
 }
 
+function applyGraphResponse(next: PeopleRelationshipsGraphResponse) {
+  const nextGraphContentKey = buildGraphContentKey(next, graphScope.value)
+  const previous = graphResponse.value
+  graphResponse.value =
+    previous && graphContentKey === nextGraphContentKey
+      ? {
+          ...next,
+          graph: previous.graph,
+        }
+      : next
+  graphContentKey = nextGraphContentKey
+}
+
+function applyNeighborhoodResponse(next: PeopleRelationshipsNeighborhoodResponse) {
+  const nextGraphContentKey = buildGraphContentKey(next, `neighborhood:${next.contact?.key ?? ''}`)
+  const previous = neighborhoodResponse.value
+  neighborhoodResponse.value =
+    previous && neighborhoodGraphContentKey === nextGraphContentKey
+      ? {
+          ...next,
+          graph: previous.graph,
+        }
+      : next
+  neighborhoodGraphContentKey = nextGraphContentKey
+}
+
+function clearNeighborhoodResponse() {
+  neighborhoodResponse.value = null
+  neighborhoodGraphContentKey = null
+}
+
+function buildGraphContentKey(response: RelationshipGraphResponseWithGraph, context: string): string {
+  const graph = response.graph
+  let hash = 2166136261
+  hash = hashString(hash, context)
+  hash = hashString(hash, response.algorithmVersion)
+  hash = hashString(hash, response.cache.signature ?? '')
+  hash = hashNumber(hash, response.timeRange.startTs ?? 0)
+  hash = hashString(hash, response.timeRange.preset)
+
+  for (const node of graph.nodes) {
+    hash = hashString(hash, node.key)
+    hash = hashString(hash, node.pool)
+    hash = hashString(hash, node.friendSource ?? '')
+    hash = hashNumber(hash, node.rank)
+    hash = hashNumber(hash, Math.round(node.score * 1_000_000))
+    hash = hashNumber(hash, node.labelVisibility)
+    hash = hashNumber(hash, Math.round(node.x * 100))
+    hash = hashNumber(hash, Math.round(node.y * 100))
+    hash = hashNumber(hash, Math.round(node.size * 100))
+  }
+
+  for (const edge of graph.edges) {
+    hash = hashString(hash, edge.id)
+    hash = hashString(hash, edge.sourceKey)
+    hash = hashString(hash, edge.targetKey)
+    hash = hashNumber(hash, Math.round(edge.weight * 1_000_000))
+    hash = hashNumber(hash, edge.visibility)
+  }
+
+  for (const community of graph.communities) {
+    hash = hashString(hash, community.id)
+    hash = hashNumber(hash, community.size)
+    hash = hashString(hash, community.color)
+  }
+
+  return `${context}:${graph.nodes.length}:${graph.edges.length}:${graph.communities.length}:${hash >>> 0}`
+}
+
+function hashString(hash: number, value: string): number {
+  for (let index = 0; index < value.length; index += 1) {
+    hash ^= value.charCodeAt(index)
+    hash = Math.imul(hash, 16777619)
+  }
+  return hash
+}
+
+function hashNumber(hash: number, value: number): number {
+  return hashString(hash, String(value))
+}
+
 function stopPolling() {
   if (!pollTimer) return
   clearInterval(pollTimer)
@@ -258,7 +347,7 @@ async function loadGraph(options: { silent?: boolean; preserveNeighborhood?: boo
   if (!options.silent) isLoading.value = true
   if (!options.preserveNeighborhood) {
     cancelNeighborhoodLoad()
-    neighborhoodResponse.value = null
+    clearNeighborhoodResponse()
   }
   loadError.value = ''
 
@@ -271,7 +360,7 @@ async function loadGraph(options: { silent?: boolean; preserveNeighborhood?: boo
     })
     if (requestId !== graphRequestId.value) return
 
-    graphResponse.value = next
+    applyGraphResponse(next)
     searchResultsQuery.value = debouncedSearchQuery.value.trim()
     if (selectedKey.value && !activeGraph.value.nodes.some((node) => node.key === selectedKey.value)) {
       selectedKey.value = null
@@ -305,10 +394,10 @@ async function recomputeRelationships() {
       graphScope: graphScope.value,
       query: debouncedSearchQuery.value.trim() || undefined,
     })
-    graphResponse.value = next
+    applyGraphResponse(next)
     searchResultsQuery.value = debouncedSearchQuery.value.trim()
     cancelNeighborhoodLoad()
-    neighborhoodResponse.value = null
+    clearNeighborhoodResponse()
     selectedKey.value = null
     canvasSelectedKey.value = null
     isDetailPanelOpen.value = false
@@ -370,7 +459,7 @@ async function loadNeighborhood(key: string) {
     })
     if (requestId !== neighborhoodRequestId.value) return
 
-    neighborhoodResponse.value = next
+    applyNeighborhoodResponse(next)
     selectedKey.value = next.contact?.key ?? key
     canvasSelectedKey.value = selectedKey.value
     syncPolling(next.task)
@@ -408,7 +497,7 @@ async function selectSearchResult(result: PeopleRelationshipsSearchResult) {
   }
 
   cancelNeighborhoodLoad()
-  neighborhoodResponse.value = null
+  clearNeighborhoodResponse()
   await nextTick()
   canvasRef.value?.focusNode(result.key)
 }
@@ -442,7 +531,7 @@ function handleThreeCanvasFallback() {
 function backToPanorama() {
   const key = selectedKey.value
   cancelNeighborhoodLoad()
-  neighborhoodResponse.value = null
+  clearNeighborhoodResponse()
   if (!key) return
   if (!graphResponse.value?.graph.nodes.some((node) => node.key === key)) {
     selectedKey.value = null
@@ -477,7 +566,7 @@ watch(timeRangePreset, () => {
   canvasSelectedKey.value = null
   isDetailPanelOpen.value = false
   cancelNeighborhoodLoad()
-  neighborhoodResponse.value = null
+  clearNeighborhoodResponse()
   void loadGraph()
 })
 
@@ -486,7 +575,7 @@ watch(graphScope, () => {
   canvasSelectedKey.value = null
   isDetailPanelOpen.value = false
   cancelNeighborhoodLoad()
-  neighborhoodResponse.value = null
+  clearNeighborhoodResponse()
   void loadGraph()
 })
 

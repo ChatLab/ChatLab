@@ -1,16 +1,16 @@
 <script setup lang="ts">
-import { computed, nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
+import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import type { PeopleRelationshipGraphNode, PeopleRelationshipsGraphData } from '@openchatlab/shared-types'
 import {
   buildRelationshipGalaxy3DScene,
-  shouldRenderRelationshipGalaxy3DLabel,
   type RelationshipGalaxy3DEdge,
   type RelationshipGalaxy3DNode,
   type RelationshipGalaxy3DScene,
 } from '../relationship-galaxy-3d-scene'
 import { buildRelationshipGalaxy3DEdgeCurvePoints } from '../relationship-galaxy-3d-edge-path'
+import { buildRelationshipVisibleLabelKeys } from '../relationship-galaxy-connections'
 import {
   applyRelationshipGalaxy3DSafeArea,
   buildRelationshipGalaxy3DFitCameraPose,
@@ -68,7 +68,8 @@ const emit = defineEmits<{
 const canvasRoot = ref<HTMLElement | null>(null)
 const labels = shallowRef<VisibleLabel[]>([])
 const hoveredKey = ref<string | null>(null)
-const sceneModel = computed(() => buildRelationshipGalaxy3DScene(props.graph, { selectedKey: props.selectedKey }))
+const sceneModel = shallowRef<RelationshipGalaxy3DScene>(buildRelationshipGalaxy3DScene(props.graph))
+const selectedVisibleLabelKeys = shallowRef<Set<string> | null>(null)
 
 let renderer: THREE.WebGLRenderer | null = null
 let scene: THREE.Scene | null = null
@@ -116,6 +117,9 @@ function scenePosition(node: RelationshipGalaxy3DNode, model: RelationshipGalaxy
 function renderGraph(shouldFit = false) {
   if (!scene || !camera || !renderer) return
 
+  const model = buildRelationshipGalaxy3DScene(props.graph)
+  sceneModel.value = model
+  updateSelectedVisibleLabelKeys()
   clearGroup(edgeGroup)
   clearGroup(nodeGroup)
   nodeObjects.clear()
@@ -125,7 +129,6 @@ function renderGraph(shouldFit = false) {
   labelFrame = 0
   labels.value = []
 
-  const model = sceneModel.value
   for (const edge of model.edges) {
     if (!neighborKeysOf.has(edge.edge.sourceKey)) neighborKeysOf.set(edge.edge.sourceKey, new Set())
     if (!neighborKeysOf.has(edge.edge.targetKey)) neighborKeysOf.set(edge.edge.targetKey, new Set())
@@ -147,6 +150,12 @@ function renderGraph(shouldFit = false) {
 
   if (shouldFit || !hasUserMovedCamera) fitView()
   resolvePendingFocus()
+}
+
+function updateSelectedVisibleLabelKeys() {
+  selectedVisibleLabelKeys.value = props.selectedKey
+    ? buildRelationshipVisibleLabelKeys(props.graph, props.selectedKey)
+    : null
 }
 
 function addEdgeLayer(model: RelationshipGalaxy3DScene, bucket: 'dim' | 'normal' | 'highlight') {
@@ -180,6 +189,8 @@ function addThinEdgePaths(
 
   const color = new THREE.Color()
   const edgeTint = new THREE.Color(0xc4a16a)
+  const positions: number[] = []
+  const colors: number[] = []
 
   for (const edge of edges) {
     const source = scenePosition(edge.source, model)
@@ -189,20 +200,26 @@ function addThinEdgePaths(
     color.lerp(edgeTint, bucket === 'highlight' ? 0.18 : bucket === 'normal' ? 0.38 : 0.5)
     color.multiplyScalar(bucket === 'highlight' ? 0.95 : 0.48)
 
-    const geometry = new THREE.BufferGeometry()
-    geometry.setFromPoints(points)
-    geometry.setAttribute('color', new THREE.Float32BufferAttribute(buildEdgeCurveColors(color, points.length), 3))
-
-    const line = new THREE.Line(geometry, material)
-    line.frustumCulled = false
-    edgeGroup.add(line)
+    for (let index = 0; index < points.length - 1; index += 1) {
+      const current = points[index]
+      const next = points[index + 1]
+      positions.push(current.x, current.y, current.z, next.x, next.y, next.z)
+      colors.push(color.r, color.g, color.b, color.r, color.g, color.b)
+    }
   }
-}
 
-function buildEdgeCurveColors(color: THREE.Color, pointCount: number): number[] {
-  const colors: number[] = []
-  for (let i = 0; i < pointCount; i++) colors.push(color.r, color.g, color.b)
-  return colors
+  if (positions.length === 0) {
+    material.dispose()
+    return
+  }
+
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
+  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
+
+  const line = new THREE.LineSegments(geometry, material)
+  line.frustumCulled = false
+  edgeGroup.add(line)
 }
 
 function groupEdgesByWidth(edges: RelationshipGalaxy3DEdge[], bucket: 'dim' | 'normal' | 'highlight') {
@@ -270,28 +287,32 @@ function updateAnimation() {
   graphGroup.rotation.y = Math.sin(elapsedMs / 25_000) * autoDrift
   graphGroup.rotation.x = Math.cos(elapsedMs / 30_000) * autoDrift * 0.4
   starGroup.rotation.y = elapsedMs / 200_000
+  const activeKey = hoveredKey.value || props.selectedKey
 
   for (const object of nodeObjects.values()) {
     const t = elapsedMs / 1000 + object.phase
-    const motionScale = object.sceneNode.state === 'selected' ? 0.3 : 0.8
+    const isSelected = object.sceneNode.key === props.selectedKey
+    const isActive = object.sceneNode.key === activeKey
+    const isActiveNeighbor = Boolean(activeKey && neighborKeysOf.get(activeKey)?.has(object.sceneNode.key))
+    const motionScale = isSelected ? 0.3 : 0.8
     const hoverScale = hoveredKey.value === object.sceneNode.key ? 1.28 : 1
-    const neighborScale = hoveredKey.value && neighborKeysOf.get(hoveredKey.value)?.has(object.sceneNode.key) ? 1.08 : 1
+    const selectedScale = isSelected ? 1.22 : 1
+    const neighborScale = isActiveNeighbor ? 1.08 : 1
 
     object.group.position.set(
       object.basePosition.x + Math.sin(t * 0.3) * 2.0 * motionScale,
       object.basePosition.y + Math.cos(t * 0.25) * 1.5 * motionScale,
       object.basePosition.z + Math.sin(t * 0.2) * 4.0 * motionScale
     )
-    object.group.scale.setScalar((1 + Math.sin(t * 0.8) * 0.006) * hoverScale * neighborScale)
+    object.group.scale.setScalar((1 + Math.sin(t * 0.8) * 0.006) * hoverScale * selectedScale * neighborScale)
 
-    const activeKey = hoveredKey.value || props.selectedKey
     const material = object.core.material
     let opacity = object.sceneNode.opacity
 
-    if (activeKey && hoveredKey.value) {
-      if (object.sceneNode.key === activeKey) {
+    if (activeKey) {
+      if (isActive) {
         opacity = 1
-      } else if (neighborKeysOf.get(activeKey)?.has(object.sceneNode.key)) {
+      } else if (isActiveNeighbor) {
         opacity = 0.85
       } else {
         opacity = 0.1
@@ -331,7 +352,8 @@ function updateLabels() {
   for (const object of nodeObjects.values()) {
     const selected = object.sceneNode.key === selectedKey
     const selectedNeighbor = Boolean(selectedKey && selectedNeighborKeys?.has(object.sceneNode.key))
-    if (!shouldRenderRelationshipGalaxy3DLabel(object.sceneNode, selectedKey ?? null, selectedNeighbor)) continue
+    const labelTier = getDynamicLabelTier(object.sceneNode, selectedKey ?? null)
+    if (labelTier === 0) continue
 
     object.group.getWorldPosition(tmpWorldPosition)
     const projected = tmpWorldPosition.clone().project(camera)
@@ -348,17 +370,27 @@ function updateLabels() {
       y: y + object.sceneNode.radius + 8,
       opacity: selected ? 1 : Math.max(0.42, object.core.material.opacity),
       selected,
-      emphasis: getLabelEmphasis(object.sceneNode, selectedNeighbor),
+      emphasis: getLabelEmphasis(object.sceneNode, selectedNeighbor, labelTier),
     })
   }
 
   labels.value = nextLabels
 }
 
-function getLabelEmphasis(sceneNode: RelationshipGalaxy3DNode, selectedNeighbor = false): VisibleLabel['emphasis'] {
-  if (sceneNode.state === 'selected' || sceneNode.node.kind === 'owner' || sceneNode.node.rank <= 5) return 'major'
+function getDynamicLabelTier(sceneNode: RelationshipGalaxy3DNode, selectedKey: string | null): 0 | 1 | 2 {
+  if (!selectedKey) return sceneNode.labelTier
+  if (!selectedVisibleLabelKeys.value?.has(sceneNode.key)) return 0
+  return sceneNode.key === selectedKey || sceneNode.node.kind === 'owner' ? 2 : 1
+}
+
+function getLabelEmphasis(
+  sceneNode: RelationshipGalaxy3DNode,
+  selectedNeighbor = false,
+  labelTier = sceneNode.labelTier
+): VisibleLabel['emphasis'] {
+  if (labelTier === 2 || sceneNode.node.kind === 'owner' || sceneNode.node.rank <= 5) return 'major'
   if (selectedNeighbor) return 'medium'
-  if (sceneNode.node.rank <= 30 || sceneNode.labelTier === 2) return 'medium'
+  if (sceneNode.node.rank <= 30) return 'medium'
   return 'minor'
 }
 
@@ -736,9 +768,28 @@ onMounted(async () => {
 })
 
 watch(
-  () => [props.graph.nodes, props.graph.edges, props.selectedKey, props.privacyMode, props.safeInsetRight],
+  () => props.graph,
   () => {
     renderGraph(false)
+  },
+  { flush: 'post' }
+)
+
+watch(
+  () => props.selectedKey,
+  () => {
+    updateSelectedVisibleLabelKeys()
+    labelFrame = 1
+    updateLabels()
+  },
+  { flush: 'post' }
+)
+
+watch(
+  () => props.privacyMode,
+  () => {
+    labelFrame = 1
+    updateLabels()
   },
   { flush: 'post' }
 )

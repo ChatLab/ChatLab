@@ -36,7 +36,6 @@ function preloadCriticalRoutes() {
     import('@/pages/group-chat/index.vue')
     import('@/pages/private-chat/index.vue')
     import('@/pages/people/contacts/index.vue')
-    import('@/pages/people/relationships/index.vue')
   })
 }
 
