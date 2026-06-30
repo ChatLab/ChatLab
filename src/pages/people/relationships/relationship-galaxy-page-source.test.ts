@@ -11,19 +11,40 @@ function readPageSource(): string {
 }
 
 describe('people relationships page source', () => {
-  it('clears canvas selection when returning to the panorama', () => {
+  it('restores the saved panorama view when returning from a selected node', () => {
     const source = readPageSource()
     const backToPanorama = source.slice(
       source.indexOf('function backToPanorama()'),
       source.indexOf('function closeDetailPanel()')
+    )
+    const closeDetailPanel = source.slice(
+      source.indexOf('function closeDetailPanel()'),
+      source.indexOf('function clearSearch()')
+    )
+    const selectNode = source.slice(
+      source.indexOf('async function selectNode'),
+      source.indexOf('function handleThreeCanvasFallback')
     )
 
     assert.ok(backToPanorama.includes('selectedKey.value = null'))
     assert.ok(backToPanorama.includes('canvasSelectedKey.value = null'))
     assert.ok(backToPanorama.includes('isDetailPanelOpen.value = false'))
     assert.ok(
+      selectNode.includes('rememberPanoramaViewBeforeSelection()'),
+      'selecting a node should capture the current panorama camera before focusing the node'
+    )
+    assert.ok(
+      backToPanorama.includes('restorePanoramaView()'),
+      'returning to panorama should restore the previous browsing view instead of forcing a new fit'
+    )
+    assert.ok(
+      closeDetailPanel.includes('backToPanorama()'),
+      'closing the detail panel should exit node focus and restore the panorama view'
+    )
+    assert.equal(
       backToPanorama.includes('canvasRef.value?.fitView()'),
-      'returning to panorama should fit the full graph instead of refocusing the selected node'
+      false,
+      'returning to panorama should not always refit and lose the previous camera angle'
     )
     assert.equal(
       backToPanorama.includes('canvasRef.value?.focusNode(selectedKey.value)'),

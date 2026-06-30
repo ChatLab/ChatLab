@@ -48,6 +48,13 @@ interface AnimatedNode {
   currentScale: number
 }
 
+interface RelationshipGalaxy2DViewState {
+  kind: '2d'
+  center: { x: number; y: number }
+  scale: number
+  hasUserMovedViewport: boolean
+}
+
 const props = withDefaults(
   defineProps<{
     graph: PeopleRelationshipsGraphData
@@ -708,10 +715,56 @@ function focusNode(key: string): boolean {
   return true
 }
 
+function captureView(): RelationshipGalaxy2DViewState | null {
+  if (!viewport) return null
+  return {
+    kind: '2d',
+    center: { x: viewport.center.x, y: viewport.center.y },
+    scale: viewport.scaled,
+    hasUserMovedViewport,
+  }
+}
+
+function restoreView(view: unknown): boolean {
+  if (!is2DViewState(view) || !viewport) return false
+
+  pendingFocusKey = null
+  hasUserMovedViewport = view.hasUserMovedViewport
+  viewport.animate({
+    position: view.center,
+    scale: view.scale,
+    time: 420,
+    ease: 'easeInOutSine',
+  })
+  return true
+}
+
 function fitView() {
   if (!viewport) return
   hasUserMovedViewport = false
   renderGraph(true)
+}
+
+function is2DViewState(value: unknown): value is RelationshipGalaxy2DViewState {
+  if (!isRecord(value)) return false
+  return (
+    value.kind === '2d' &&
+    is2DPoint(value.center) &&
+    typeof value.scale === 'number' &&
+    Number.isFinite(value.scale) &&
+    typeof value.hasUserMovedViewport === 'boolean'
+  )
+}
+
+function is2DPoint(value: unknown): value is RelationshipGalaxy2DViewState['center'] {
+  if (!isRecord(value)) return false
+  return (
+    typeof value.x === 'number' && Number.isFinite(value.x) && typeof value.y === 'number' && Number.isFinite(value.y)
+  )
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
 }
 
 onMounted(async () => {
@@ -753,6 +806,8 @@ onBeforeUnmount(() => {
 defineExpose({
   focusNode,
   fitView,
+  captureView,
+  restoreView,
 })
 </script>
 

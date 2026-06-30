@@ -30,6 +30,8 @@ import { maskRelationshipGalaxyPrivateText, relationshipGalaxyPrivateAvatarText 
 type GalaxyCanvasInstance = {
   focusNode: (key: string) => boolean
   fitView: () => void
+  captureView: () => unknown | null
+  restoreView: (view: unknown) => boolean
 }
 type GalaxyViewMode = '3d' | '2d'
 type RelationshipGraphResponseWithGraph = Pick<
@@ -76,12 +78,14 @@ const loadError = ref('')
 const graphRequestId = ref(0)
 const neighborhoodRequestId = ref(0)
 const canvasRef = ref<GalaxyCanvasInstance | null>(null)
+const savedPanoramaView = ref<unknown | null>(null)
 
 let graphContentKey: string | null = null
 let neighborhoodGraphContentKey: string | null = null
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 let detailPanelMediaQuery: MediaQueryList | null = null
+let isRestoringPanoramaView = false
 
 const numberFormatter = computed(() => new Intl.NumberFormat(locale.value))
 
@@ -235,6 +239,7 @@ function formatTaskProgress(nextTask: PeopleRelationshipsTaskState | null): stri
 
 function applyGraphResponse(next: PeopleRelationshipsGraphResponse) {
   const nextGraphContentKey = buildGraphContentKey(next, graphScope.value)
+  if (graphContentKey && graphContentKey !== nextGraphContentKey) clearSavedPanoramaView()
   const previous = graphResponse.value
   graphResponse.value =
     previous && graphContentKey === nextGraphContentKey
@@ -324,6 +329,28 @@ function cancelNeighborhoodLoad() {
   neighborhoodRequestId.value += 1
   isLoadingNeighborhood.value = false
   loadingNeighborhoodKey.value = null
+}
+
+function rememberPanoramaViewBeforeSelection() {
+  if (selectedKey.value || savedPanoramaView.value) return
+  savedPanoramaView.value = canvasRef.value?.captureView() ?? null
+}
+
+function clearSavedPanoramaView() {
+  savedPanoramaView.value = null
+}
+
+function restorePanoramaView() {
+  const view = savedPanoramaView.value
+  clearSavedPanoramaView()
+
+  void nextTick(() => {
+    const restored = view ? canvasRef.value?.restoreView(view) === true : false
+    if (!restored) canvasRef.value?.fitView()
+    void nextTick(() => {
+      isRestoringPanoramaView = false
+    })
+  })
 }
 
 function syncPolling(nextTask: PeopleRelationshipsTaskState | undefined) {
@@ -484,6 +511,7 @@ async function focusSelectedConnections() {
 }
 
 async function selectSearchResult(result: PeopleRelationshipsSearchResult) {
+  rememberPanoramaViewBeforeSelection()
   isSearchResultsOpen.value = false
   if (!result.inCoreGraph) loadingNeighborhoodKey.value = result.key
   selectedKey.value = result.key
@@ -505,6 +533,7 @@ async function selectSearchResult(result: PeopleRelationshipsSearchResult) {
 }
 
 async function selectNode(node: PeopleRelationshipGraphNode) {
+  rememberPanoramaViewBeforeSelection()
   const needsNeighborhood = neighborhoodResponse.value?.contact?.key !== node.key
   if (needsNeighborhood) loadingNeighborhoodKey.value = node.key
   selectedKey.value = node.key
@@ -531,18 +560,17 @@ function handleThreeCanvasFallback() {
 }
 
 function backToPanorama() {
+  isRestoringPanoramaView = true
   cancelNeighborhoodLoad()
   clearNeighborhoodResponse()
   selectedKey.value = null
   canvasSelectedKey.value = null
   isDetailPanelOpen.value = false
-  void nextTick(() => {
-    canvasRef.value?.fitView()
-  })
+  restorePanoramaView()
 }
 
 function closeDetailPanel() {
-  isDetailPanelOpen.value = false
+  backToPanorama()
 }
 
 function clearSearch() {
@@ -560,6 +588,7 @@ function syncDetailPanelLayout() {
 }
 
 watch(timeRangePreset, () => {
+  clearSavedPanoramaView()
   selectedKey.value = null
   canvasSelectedKey.value = null
   isDetailPanelOpen.value = false
@@ -569,6 +598,7 @@ watch(timeRangePreset, () => {
 })
 
 watch(graphScope, () => {
+  clearSavedPanoramaView()
   selectedKey.value = null
   canvasSelectedKey.value = null
   isDetailPanelOpen.value = false
@@ -597,6 +627,7 @@ watch(viewMode, async () => {
 
 watch(detailPanelSafeInsetRight, async () => {
   await nextTick()
+  if (isRestoringPanoramaView) return
   if (selectedKey.value) {
     canvasRef.value?.focusNode(selectedKey.value)
     return

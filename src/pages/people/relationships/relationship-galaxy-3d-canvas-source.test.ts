@@ -75,4 +75,30 @@ describe('RelationshipGalaxyThreeCanvas scene wiring', () => {
     assert.ok(shortName.includes('maskRelationshipGalaxyPrivateText(name)'))
     assert.equal(shortName.includes('`#${node.rank}`'), false)
   })
+
+  it('shows a temporary 3D label when hovering nodes without persistent labels', () => {
+    const source = readCanvasSource()
+    const updateLabels = source.slice(
+      source.indexOf('function updateLabels'),
+      source.indexOf('function getDynamicLabelTier')
+    )
+    const getDynamicLabelTier = source.slice(
+      source.indexOf('function getDynamicLabelTier'),
+      source.indexOf('function getLabelEmphasis')
+    )
+
+    assert.ok(updateLabels.includes('getDynamicLabelTier(object.sceneNode, selectedKey ?? null, hoveredKey.value)'))
+    assert.ok(getDynamicLabelTier.includes('hoveredKey: string | null'))
+    assert.ok(getDynamicLabelTier.includes('sceneNode.key === hoveredKey'))
+  })
+
+  it('exposes 3D camera capture and restore methods for returning to the previous panorama view', () => {
+    const source = readCanvasSource()
+    const exposed = source.slice(source.indexOf('defineExpose({'), source.indexOf('</script>'))
+
+    assert.ok(source.includes('function captureView()'))
+    assert.ok(source.includes('function restoreView(view: unknown): boolean'))
+    assert.ok(exposed.includes('captureView'))
+    assert.ok(exposed.includes('restoreView'))
+  })
 })

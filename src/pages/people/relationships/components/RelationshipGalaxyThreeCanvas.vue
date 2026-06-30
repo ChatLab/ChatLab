@@ -50,6 +50,13 @@ interface CameraFlight {
   toTarget: THREE.Vector3
 }
 
+interface RelationshipGalaxy3DCameraViewState {
+  kind: '3d'
+  position: RelationshipGalaxy3DCameraPose['position']
+  target: RelationshipGalaxy3DCameraPose['position']
+  hasUserMovedCamera: boolean
+}
+
 const props = withDefaults(
   defineProps<{
     graph: PeopleRelationshipsGraphData
@@ -372,7 +379,7 @@ function updateLabels() {
   for (const object of nodeObjects.values()) {
     const selected = object.sceneNode.key === selectedKey
     const selectedNeighbor = Boolean(selectedKey && selectedNeighborKeys?.has(object.sceneNode.key))
-    const labelTier = getDynamicLabelTier(object.sceneNode, selectedKey ?? null)
+    const labelTier = getDynamicLabelTier(object.sceneNode, selectedKey ?? null, hoveredKey.value)
     if (labelTier === 0) continue
 
     object.group.getWorldPosition(tmpWorldPosition)
@@ -397,7 +404,12 @@ function updateLabels() {
   labels.value = nextLabels
 }
 
-function getDynamicLabelTier(sceneNode: RelationshipGalaxy3DNode, selectedKey: string | null): 0 | 1 | 2 {
+function getDynamicLabelTier(
+  sceneNode: RelationshipGalaxy3DNode,
+  selectedKey: string | null,
+  hoveredKey: string | null
+): 0 | 1 | 2 {
+  if (sceneNode.key === hoveredKey) return sceneNode.labelTier === 2 ? 2 : 1
   if (!selectedKey) return sceneNode.labelTier
   if (!selectedVisibleLabelKeys.value?.has(sceneNode.key)) return 0
   return sceneNode.key === selectedKey || sceneNode.node.kind === 'owner' ? 2 : 1
@@ -575,6 +587,30 @@ function focusNode(key: string): boolean {
   return true
 }
 
+function captureView(): RelationshipGalaxy3DCameraViewState | null {
+  if (!camera || !controls) return null
+  return {
+    kind: '3d',
+    position: vectorToPose(camera.position),
+    target: vectorToPose(controls.target),
+    hasUserMovedCamera,
+  }
+}
+
+function restoreView(view: unknown): boolean {
+  if (!isCameraViewState(view) || !camera || !controls) return false
+
+  pendingFocusKey = null
+  hasUserMovedCamera = view.hasUserMovedCamera
+  applyCameraSafeAreaProjection()
+  startCameraFlight(
+    new THREE.Vector3(view.position.x, view.position.y, view.position.z),
+    new THREE.Vector3(view.target.x, view.target.y, view.target.z),
+    620
+  )
+  return true
+}
+
 function fitView() {
   if (!camera || !controls) return
 
@@ -622,6 +658,32 @@ function applyCameraSafeAreaProjection(size = getViewportSize()) {
 
 function vectorToPose(vector: THREE.Vector3): RelationshipGalaxy3DCameraPose['position'] {
   return { x: vector.x, y: vector.y, z: vector.z }
+}
+
+function isCameraViewState(value: unknown): value is RelationshipGalaxy3DCameraViewState {
+  if (!isRecord(value)) return false
+  return (
+    value.kind === '3d' &&
+    isCameraVector(value.position) &&
+    isCameraVector(value.target) &&
+    typeof value.hasUserMovedCamera === 'boolean'
+  )
+}
+
+function isCameraVector(value: unknown): value is RelationshipGalaxy3DCameraPose['position'] {
+  if (!isRecord(value)) return false
+  return (
+    typeof value.x === 'number' &&
+    Number.isFinite(value.x) &&
+    typeof value.y === 'number' &&
+    Number.isFinite(value.y) &&
+    typeof value.z === 'number' &&
+    Number.isFinite(value.z)
+  )
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null
 }
 
 function startCameraFlight(toPosition: THREE.Vector3, toTarget: THREE.Vector3, duration: number) {
@@ -825,6 +887,8 @@ onBeforeUnmount(() => {
 defineExpose({
   focusNode,
   fitView,
+  captureView,
+  restoreView,
 })
 </script>
 
@@ -856,7 +920,6 @@ defineExpose({
         {{ item.text }}
       </button>
     </div>
-    <div class="relationship-galaxy-3d__crosshair pointer-events-none absolute left-1/2 top-1/2 z-10"></div>
   </div>
 </template>
 
@@ -915,32 +978,5 @@ defineExpose({
 .relationship-galaxy-3d__label--selected {
   font-size: 13px;
   font-weight: 900;
-}
-
-.relationship-galaxy-3d__crosshair {
-  height: 13px;
-  width: 13px;
-  transform: translate(-50%, -50%);
-}
-
-.relationship-galaxy-3d__crosshair::before,
-.relationship-galaxy-3d__crosshair::after {
-  position: absolute;
-  background: rgba(255, 214, 166, 0.42);
-  content: '';
-}
-
-.relationship-galaxy-3d__crosshair::before {
-  left: 6px;
-  top: 0;
-  height: 13px;
-  width: 1px;
-}
-
-.relationship-galaxy-3d__crosshair::after {
-  left: 0;
-  top: 6px;
-  height: 1px;
-  width: 13px;
 }
 </style>
