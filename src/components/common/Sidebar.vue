@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { storeToRefs } from 'pinia'
 import { ref, computed, onMounted, onUnmounted, nextTick } from 'vue'
+import { useVirtualizer } from '@tanstack/vue-virtual'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import type { AnalysisSession } from '@/types/base'
@@ -34,6 +35,8 @@ const { toggleSidebar } = layoutStore
 const router = useRouter()
 const route = useRoute()
 const CONTACTS_PRIVATE_SESSION_THRESHOLD = 10
+const SESSION_ROW_SIZE = 44
+const SESSION_LIST_BOTTOM_PADDING = 32
 
 // 是否在首页
 const isHomePage = computed(() => route.path === '/')
@@ -61,6 +64,7 @@ const isStartingUpdate = ref(false)
 // 搜索相关状态
 const showSearch = ref(false)
 const searchQuery = ref('')
+const sessionListRef = ref<HTMLElement | null>(null)
 
 // 筛选 Tab 配置
 const filterTabItems = computed(() => [
@@ -77,6 +81,23 @@ const filteredSortedSessions = computed(() => {
   const query = searchQuery.value.toLowerCase().trim()
   return sortedSessions.value.filter((s) => s.name.toLowerCase().includes(query))
 })
+
+const sessionVirtualizer = useVirtualizer(
+  computed(() => ({
+    count: filteredSortedSessions.value.length,
+    getScrollElement: () => sessionListRef.value,
+    estimateSize: () => SESSION_ROW_SIZE,
+    overscan: 8,
+    getItemKey: (index: number) => filteredSortedSessions.value[index]?.id ?? index,
+  }))
+)
+
+const virtualSessionItems = computed(() => sessionVirtualizer.value.getVirtualItems())
+const virtualSessionListHeight = computed(() => sessionVirtualizer.value.getTotalSize() + SESSION_LIST_BOTTOM_PADDING)
+
+function virtualSessionAt(index: number): AnalysisSession {
+  return filteredSortedSessions.value[index]!
+}
 
 // 切换搜索框显示
 function toggleSearch() {
@@ -499,7 +520,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
       </div>
 
       <!-- 聊天记录列表 - 可滚动区域，滚动条贴边 -->
-      <div class="session-list flex-1 overflow-y-auto">
+      <div ref="sessionListRef" class="session-list flex-1 overflow-y-auto">
         <div v-if="sessions.length === 0 && !isCollapsed" class="py-8 text-center text-sm text-gray-500">
           {{ t('layout.noRecords') }}
         </div>
@@ -512,69 +533,86 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
           {{ t('layout.noSearchResult') }}
         </div>
 
-        <div class="space-y-1 pb-8" :class="[isCollapsed ? 'px-3' : 'px-4']">
-          <UContextMenu
-            v-for="session in filteredSortedSessions"
-            :key="session.id"
-            :items="getContextMenuItems(session)"
+        <div v-else class="relative" :style="{ height: `${virtualSessionListHeight}px` }">
+          <div
+            v-for="virtualItem in virtualSessionItems"
+            :key="String(virtualItem.key)"
+            class="absolute"
+            :class="[isCollapsed ? 'left-3 right-3' : 'left-4 right-4']"
+            :style="{ transform: `translateY(${virtualItem.start}px)` }"
           >
-            <!-- 侧边栏折叠时，hover 显示完整会话名称（Tooltip 需绑定到真实 DOM） -->
-            <UTooltip :text="session.name" :disabled="!isCollapsed || !session.name" :content="{ side: 'right' }">
-              <div
-                class="group relative flex items-center text-left transition-all duration-200 cursor-pointer"
-                :class="[
-                  route.params.id === session.id
-                    ? 'bg-gray-200/50 text-gray-900 font-medium dark:bg-white/[0.07] dark:text-white dark:ring-1 dark:ring-white/10'
-                    : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/30 dark:hover:bg-white/[0.06]',
-                  isCollapsed ? 'justify-center h-10 w-10 rounded-xl mx-auto' : 'w-full rounded-xl p-1.5 px-2.5 pl-1.5',
-                ]"
-                @click="
-                  router.push({ name: getSessionRouteName(session), params: { id: session.id }, query: route.query })
-                "
+            <UContextMenu :items="getContextMenuItems(virtualSessionAt(virtualItem.index))">
+              <!-- 侧边栏折叠时，hover 显示完整会话名称（Tooltip 需绑定到真实 DOM） -->
+              <UTooltip
+                :text="virtualSessionAt(virtualItem.index).name"
+                :disabled="!isCollapsed || !virtualSessionAt(virtualItem.index).name"
+                :content="{ side: 'right' }"
               >
-                <!-- 激活指示器：在展开和折叠下，都优雅地贴在侧边栏最左侧边缘 -->
                 <div
-                  class="absolute top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-pink-500 dark:bg-pink-400 transition-all duration-200"
+                  class="group relative flex items-center text-left transition-all duration-200 cursor-pointer"
                   :class="[
-                    isCollapsed ? '-left-3' : '-left-4',
-                    route.params.id === session.id
-                      ? 'h-4.5 opacity-100'
-                      : 'h-0 opacity-0 group-hover:h-2.5 group-hover:opacity-40',
+                    route.params.id === virtualSessionAt(virtualItem.index).id
+                      ? 'bg-gray-200/50 text-gray-900 font-medium dark:bg-white/[0.07] dark:text-white dark:ring-1 dark:ring-white/10'
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/30 dark:hover:bg-white/[0.06]',
+                    isCollapsed
+                      ? 'justify-center h-10 w-10 rounded-xl mx-auto'
+                      : 'h-10 w-full rounded-xl p-1.5 px-2.5 pl-1.5',
                   ]"
-                />
+                  @click="
+                    router.push({
+                      name: getSessionRouteName(virtualSessionAt(virtualItem.index)),
+                      params: { id: virtualSessionAt(virtualItem.index).id },
+                      query: route.query,
+                    })
+                  "
+                >
+                  <!-- 激活指示器：在展开和折叠下，都优雅地贴在侧边栏最左侧边缘 -->
+                  <div
+                    class="absolute top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-pink-500 dark:bg-pink-400 transition-all duration-200"
+                    :class="[
+                      isCollapsed ? '-left-3' : '-left-4',
+                      route.params.id === virtualSessionAt(virtualItem.index).id
+                        ? 'h-4.5 opacity-100'
+                        : 'h-0 opacity-0 group-hover:h-2.5 group-hover:opacity-40',
+                    ]"
+                  />
 
-                <!-- 会话头像 -->
-                <LazyAvatar
-                  :src="getSessionAvatar(session)"
-                  :alt="session.name"
-                  :text="getSessionAvatarText(session)"
-                  :root-class="['h-7 w-7 min-w-7 shrink-0', isCollapsed ? '' : 'mr-2.5']"
-                  image-class="h-7 w-7 rounded-lg object-cover"
-                  :fallback-class="[
-                    'flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold select-none',
-                    getAvatarColorClass(session, route.params.id === session.id),
-                  ]"
-                />
+                  <!-- 会话头像 -->
+                  <LazyAvatar
+                    :src="getSessionAvatar(virtualSessionAt(virtualItem.index))"
+                    :alt="virtualSessionAt(virtualItem.index).name"
+                    :text="getSessionAvatarText(virtualSessionAt(virtualItem.index))"
+                    :root-class="['h-7 w-7 min-w-7 shrink-0', isCollapsed ? '' : 'mr-2.5']"
+                    image-class="h-7 w-7 rounded-lg object-cover"
+                    :fallback-class="[
+                      'flex h-7 w-7 items-center justify-center rounded-lg text-xs font-semibold select-none',
+                      getAvatarColorClass(
+                        virtualSessionAt(virtualItem.index),
+                        route.params.id === virtualSessionAt(virtualItem.index).id
+                      ),
+                    ]"
+                  />
 
-                <!-- Session Info -->
-                <div v-if="!isCollapsed" class="min-w-0 flex-1">
-                  <div class="flex items-center justify-between gap-1.5">
-                    <p class="truncate text-xs font-medium">
-                      {{ session.name }}
+                  <!-- Session Info -->
+                  <div v-if="!isCollapsed" class="min-w-0 flex-1">
+                    <div class="flex items-center justify-between gap-1.5">
+                      <p class="truncate text-xs font-medium">
+                        {{ virtualSessionAt(virtualItem.index).name }}
+                      </p>
+                      <UIcon
+                        v-if="sessionStore.isPinned(virtualSessionAt(virtualItem.index).id)"
+                        name="i-lucide-pin"
+                        class="h-3 w-3 shrink-0 text-gray-400/80 rotate-45"
+                      />
+                    </div>
+                    <p class="truncate text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 leading-none">
+                      {{ t('layout.sessionInfo', { count: virtualSessionAt(virtualItem.index).messageCount }) }}
                     </p>
-                    <UIcon
-                      v-if="sessionStore.isPinned(session.id)"
-                      name="i-lucide-pin"
-                      class="h-3 w-3 shrink-0 text-gray-400/80 rotate-45"
-                    />
                   </div>
-                  <p class="truncate text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 leading-none">
-                    {{ t('layout.sessionInfo', { count: session.messageCount }) }}
-                  </p>
                 </div>
-              </div>
-            </UTooltip>
-          </UContextMenu>
+              </UTooltip>
+            </UContextMenu>
+          </div>
         </div>
       </div>
       <!-- 底部渐变蒙层 - 让列表消失更自然（固定在外层容器底部） -->
