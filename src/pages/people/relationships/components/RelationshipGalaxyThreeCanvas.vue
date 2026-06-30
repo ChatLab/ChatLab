@@ -18,7 +18,7 @@ import { buildRelationshipVisibleLabelKeys } from '../relationship-galaxy-connec
 import {
   applyRelationshipGalaxy3DSafeArea,
   buildRelationshipGalaxy3DViewOffset,
-  buildRelationshipGalaxy3DFitCameraPose,
+  buildRelationshipGalaxy3DImmersiveCameraPose,
   type RelationshipGalaxy3DCameraPose,
 } from '../relationship-galaxy-3d-camera'
 import { maskRelationshipGalaxyPrivateText } from '../relationship-galaxy-privacy'
@@ -615,7 +615,7 @@ function fitView() {
   if (!camera || !controls) return
 
   hasUserMovedCamera = false
-  const pose = applySafeAreaToCameraPose(buildRelationshipGalaxy3DFitCameraPose(sceneModel.value.bounds))
+  const pose = applySafeAreaToCameraPose(buildRelationshipGalaxy3DImmersiveCameraPose(sceneModel.value.bounds))
   startCameraFlight(
     new THREE.Vector3(pose.position.x, pose.position.y, pose.position.z),
     new THREE.Vector3(pose.target.x, pose.target.y, pose.target.z),

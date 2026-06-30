@@ -28,9 +28,11 @@ export interface RelationshipGalaxy3DViewOffset {
   height: number
 }
 
-const FIT_CAMERA_PADDING_SCALE = 0.9
+// The default 3D galaxy view intentionally uses tight, immersive framing.
+// Edge nodes may sit near or slightly beyond the viewport instead of always being fully contained.
+const IMMERSIVE_CAMERA_PADDING_SCALE = 0.9
 
-export function buildRelationshipGalaxy3DFitCameraPose(
+export function buildRelationshipGalaxy3DImmersiveCameraPose(
   bounds: RelationshipGalaxy3DScene['bounds']
 ): RelationshipGalaxy3DCameraPose {
   const span = Math.max(bounds.width, bounds.height, bounds.depth, 900)
@@ -38,8 +40,8 @@ export function buildRelationshipGalaxy3DFitCameraPose(
   return {
     position: {
       x: 0,
-      y: -span * 0.5 * FIT_CAMERA_PADDING_SCALE,
-      z: span * 0.5 * FIT_CAMERA_PADDING_SCALE,
+      y: -span * 0.5 * IMMERSIVE_CAMERA_PADDING_SCALE,
+      z: span * 0.5 * IMMERSIVE_CAMERA_PADDING_SCALE,
     },
     target: { x: 0, y: 0, z: 0 },
   }

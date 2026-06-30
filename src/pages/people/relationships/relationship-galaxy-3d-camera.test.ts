@@ -7,11 +7,11 @@ import test from 'node:test'
 import {
   applyRelationshipGalaxy3DSafeArea,
   buildRelationshipGalaxy3DViewOffset,
-  buildRelationshipGalaxy3DFitCameraPose,
+  buildRelationshipGalaxy3DImmersiveCameraPose,
 } from './relationship-galaxy-3d-camera'
 
-test('fits the panorama with enough padding for a selected relationship network', () => {
-  const pose = buildRelationshipGalaxy3DFitCameraPose({
+test('frames the 3D panorama tightly for an immersive default view', () => {
+  const pose = buildRelationshipGalaxy3DImmersiveCameraPose({
     minX: -5000,
     maxX: 5000,
     minY: -3600,
