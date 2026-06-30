@@ -17,6 +17,7 @@ import {
 import { buildRelationshipVisibleLabelKeys } from '../relationship-galaxy-connections'
 import {
   applyRelationshipGalaxy3DSafeArea,
+  buildRelationshipGalaxy3DViewOffset,
   buildRelationshipGalaxy3DFitCameraPose,
   type RelationshipGalaxy3DCameraPose,
 } from '../relationship-galaxy-3d-camera'
@@ -513,8 +514,8 @@ function resizeCanvas() {
   if (!renderer || !camera) return
   const size = getViewportSize()
   camera.aspect = size.width / size.height
-  camera.updateProjectionMatrix()
   renderer.setSize(size.width, size.height)
+  applyCameraSafeAreaProjection(size)
 }
 
 function handlePointerMove(event: PointerEvent) {
@@ -631,12 +632,35 @@ function fitView() {
 
 function applySafeAreaToCameraPose(pose: RelationshipGalaxy3DCameraPose): RelationshipGalaxy3DCameraPose {
   const size = getViewportSize()
+  applyCameraSafeAreaProjection(size)
   return applyRelationshipGalaxy3DSafeArea(pose, {
     viewportWidth: size.width,
     viewportHeight: size.height,
     safeInsetRight: props.safeInsetRight,
     fovDegrees: camera?.fov ?? 45,
   })
+}
+
+function applyCameraSafeAreaProjection(size = getViewportSize()) {
+  if (!camera) return
+  const viewOffset = buildRelationshipGalaxy3DViewOffset({
+    viewportWidth: size.width,
+    viewportHeight: size.height,
+    safeInsetRight: props.safeInsetRight,
+  })
+  if (!viewOffset) {
+    camera.clearViewOffset()
+    return
+  }
+
+  camera.setViewOffset(
+    viewOffset.fullWidth,
+    viewOffset.fullHeight,
+    viewOffset.offsetX,
+    viewOffset.offsetY,
+    viewOffset.width,
+    viewOffset.height
+  )
 }
 
 function vectorToPose(vector: THREE.Vector3): RelationshipGalaxy3DCameraPose['position'] {

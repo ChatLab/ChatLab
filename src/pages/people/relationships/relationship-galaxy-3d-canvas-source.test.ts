@@ -44,4 +44,27 @@ describe('RelationshipGalaxyThreeCanvas scene wiring', () => {
       'selectedKey changes affect 3D topology and must not be handled as a label-only update'
     )
   })
+
+  it('uses camera view offset for right panel safe area instead of moving the orbit target', () => {
+    const source = readCanvasSource()
+    const resizeCanvas = source.slice(
+      source.indexOf('function resizeCanvas'),
+      source.indexOf('function handlePointerMove')
+    )
+    const applySafeArea = source.slice(
+      source.indexOf('function applySafeAreaToCameraPose'),
+      source.indexOf('function vectorToPose')
+    )
+
+    assert.ok(source.includes('camera.setViewOffset('), '3D safe area should use projection view offset')
+    assert.ok(source.includes('camera.clearViewOffset()'), '3D safe area should clear projection offset when closed')
+    assert.ok(
+      resizeCanvas.includes('applyCameraSafeAreaProjection(size)'),
+      'resizing the canvas must preserve the current safe-area projection'
+    )
+    assert.ok(
+      applySafeArea.includes('applyCameraSafeAreaProjection(size)'),
+      'focus and fit camera poses must apply the safe-area projection separately from the orbit target'
+    )
+  })
 })

@@ -6,6 +6,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import {
   applyRelationshipGalaxy3DSafeArea,
+  buildRelationshipGalaxy3DViewOffset,
   buildRelationshipGalaxy3DFitCameraPose,
 } from './relationship-galaxy-3d-camera'
 
@@ -30,7 +31,7 @@ test('fits the panorama with enough padding for a selected relationship network'
   assert.deepEqual(pose.target, { x: 0, y: 0, z: 0 })
 })
 
-test('shifts and expands 3D camera pose so the focused node network fits left of a right-side panel', () => {
+test('keeps the 3D orbit target fixed while expanding camera distance for a right-side panel', () => {
   const pose = applyRelationshipGalaxy3DSafeArea(
     {
       position: { x: 0, y: 0, z: 1000 },
@@ -44,10 +45,36 @@ test('shifts and expands 3D camera pose so the focused node network fits left of
     }
   )
 
-  assert.ok(pose.position.x > 769)
-  assert.ok(pose.position.x < 771)
+  assert.equal(pose.position.x, 0)
   assert.equal(pose.position.y, 0)
   assert.ok(pose.position.z > 1650)
   assert.ok(pose.position.z < 1670)
-  assert.deepEqual(pose.target, { x: pose.position.x, y: 0, z: 0 })
+  assert.deepEqual(pose.target, { x: 0, y: 0, z: 0 })
+})
+
+test('builds a 3D camera view offset that moves the focus into the visible area', () => {
+  assert.deepEqual(
+    buildRelationshipGalaxy3DViewOffset({
+      viewportWidth: 1000,
+      viewportHeight: 500,
+      safeInsetRight: 400,
+    }),
+    {
+      fullWidth: 1400,
+      fullHeight: 500,
+      offsetX: 400,
+      offsetY: 0,
+      width: 1000,
+      height: 500,
+    }
+  )
+
+  assert.equal(
+    buildRelationshipGalaxy3DViewOffset({
+      viewportWidth: 1000,
+      viewportHeight: 500,
+      safeInsetRight: 0,
+    }),
+    null
+  )
 })

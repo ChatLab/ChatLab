@@ -19,6 +19,15 @@ export interface RelationshipGalaxy3DSafeAreaOptions {
   fovDegrees: number
 }
 
+export interface RelationshipGalaxy3DViewOffset {
+  fullWidth: number
+  fullHeight: number
+  offsetX: number
+  offsetY: number
+  width: number
+  height: number
+}
+
 const FIT_CAMERA_PADDING_SCALE = 1.3
 
 export function buildRelationshipGalaxy3DFitCameraPose(
@@ -42,7 +51,6 @@ export function applyRelationshipGalaxy3DSafeArea(
 ): RelationshipGalaxy3DCameraPose {
   const inset = normalizeRelationshipGalaxySafeInsetRight(options)
   const viewportWidth = Math.max(1, options.viewportWidth)
-  const viewportHeight = Math.max(1, options.viewportHeight)
   if (inset <= 0) return pose
 
   const forward = normalizeVector({
@@ -50,26 +58,39 @@ export function applyRelationshipGalaxy3DSafeArea(
     y: pose.target.y - pose.position.y,
     z: pose.target.z - pose.position.z,
   })
-  const right = normalizeVector(crossVector(forward, { x: 0, y: 1, z: 0 }))
   const distance = Math.max(1, distanceBetween(pose.position, pose.target))
-  // The side panel reduces usable width, so move back before shifting the target into the visible area.
+  // The side panel reduces usable width. Move the camera back, but keep the orbit target fixed.
   const visibleWidthRatio = Math.max(0.001, (viewportWidth - inset) / viewportWidth)
   const expandedDistance = distance / visibleWidthRatio
-  const visibleHeight = 2 * expandedDistance * Math.tan((Math.max(1, options.fovDegrees) * Math.PI) / 360)
-  const visibleWidth = visibleHeight * (viewportWidth / viewportHeight)
-  const offset = (inset / 2 / viewportWidth) * visibleWidth
-  const shift = {
-    x: right.x * offset,
-    y: right.y * offset,
-    z: right.z * offset,
-  }
-  const shiftedTarget = addVector(pose.target, shift)
 
   return {
-    position: addVector(shiftedTarget, multiplyVector(forward, -expandedDistance)),
-    target: shiftedTarget,
+    position: addVector(pose.target, multiplyVector(forward, -expandedDistance)),
+    target: pose.target,
   }
 }
+
+export function buildRelationshipGalaxy3DViewOffset(
+  options: RelationshipGalaxyViewportViewOffsetOptions
+): RelationshipGalaxy3DViewOffset | null {
+  const viewportWidth = Math.max(1, Math.floor(options.viewportWidth))
+  const viewportHeight = Math.max(1, Math.floor(options.viewportHeight))
+  const inset = Math.floor(normalizeRelationshipGalaxySafeInsetRight(options))
+  if (inset <= 0) return null
+
+  return {
+    fullWidth: viewportWidth + inset,
+    fullHeight: viewportHeight,
+    offsetX: inset,
+    offsetY: 0,
+    width: viewportWidth,
+    height: viewportHeight,
+  }
+}
+
+type RelationshipGalaxyViewportViewOffsetOptions = Pick<
+  RelationshipGalaxy3DSafeAreaOptions,
+  'viewportWidth' | 'viewportHeight' | 'safeInsetRight'
+>
 
 function addVector(a: RelationshipGalaxy3DVector, b: RelationshipGalaxy3DVector): RelationshipGalaxy3DVector {
   return {
@@ -98,13 +119,5 @@ function normalizeVector(vector: RelationshipGalaxy3DVector): RelationshipGalaxy
     x: vector.x / length,
     y: vector.y / length,
     z: vector.z / length,
-  }
-}
-
-function crossVector(a: RelationshipGalaxy3DVector, b: RelationshipGalaxy3DVector): RelationshipGalaxy3DVector {
-  return {
-    x: a.y * b.z - a.z * b.y,
-    y: a.z * b.x - a.x * b.z,
-    z: a.x * b.y - a.y * b.x,
   }
 }
