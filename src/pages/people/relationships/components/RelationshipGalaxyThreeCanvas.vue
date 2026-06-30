@@ -21,6 +21,7 @@ import {
   buildRelationshipGalaxy3DFitCameraPose,
   type RelationshipGalaxy3DCameraPose,
 } from '../relationship-galaxy-3d-camera'
+import { maskRelationshipGalaxyPrivateText } from '../relationship-galaxy-privacy'
 
 interface NodeObject {
   group: THREE.Group
@@ -93,7 +94,6 @@ let cameraFlight: CameraFlight | null = null
 const graphGroup = new THREE.Group()
 const edgeGroup = new THREE.Group()
 const nodeGroup = new THREE.Group()
-const starGroup = new THREE.Group()
 const nodeObjects = new Map<string, NodeObject>()
 const nodePickObjects: THREE.Object3D[] = []
 const neighborKeysOf = new Map<string, Set<string>>()
@@ -103,8 +103,8 @@ const tmpWorldPosition = new THREE.Vector3()
 
 function shortName(node: PeopleRelationshipGraphNode): string {
   if (node.kind === 'owner') return props.ownerLabel
-  if (props.privacyMode) return `#${node.rank}`
-  return node.displayName || node.platformId || node.key
+  const name = node.displayName || node.platformId || node.key
+  return props.privacyMode ? maskRelationshipGalaxyPrivateText(name) : name
 }
 
 function getViewportSize(): { width: number; height: number } {
@@ -307,7 +307,6 @@ function updateAnimation() {
   const autoDrift = hasUserMovedCamera ? 0.003 : 0.008
   graphGroup.rotation.y = Math.sin(elapsedMs / 25_000) * autoDrift
   graphGroup.rotation.x = Math.cos(elapsedMs / 30_000) * autoDrift * 0.4
-  starGroup.rotation.y = elapsedMs / 200_000
   const activeKey = hoveredKey.value || props.selectedKey
 
   for (const object of nodeObjects.values()) {
@@ -454,9 +453,7 @@ async function initCanvas() {
 
   graphGroup.add(edgeGroup)
   graphGroup.add(nodeGroup)
-  scene.add(starGroup)
   scene.add(graphGroup)
-  addStarField()
 
   renderer.domElement.addEventListener('pointermove', handlePointerMove)
   renderer.domElement.addEventListener('pointerleave', handlePointerLeave)
@@ -468,46 +465,6 @@ async function initCanvas() {
   renderGraph(true)
   animationStartedAt = performance.now()
   animationFrame = requestAnimationFrame(updateAnimation)
-}
-
-function addStarField() {
-  clearGroup(starGroup)
-
-  const positions: number[] = []
-  const colors: number[] = []
-  const color = new THREE.Color()
-  const count = 4000
-
-  for (let i = 0; i < count; i++) {
-    const seed = i * 97.317
-    const x = pseudoRandom(seed) * 12000 - 6000
-    const y = pseudoRandom(seed + 13.1) * 8000 - 4000
-    const z = pseudoRandom(seed + 29.7) * 8000 - 4000
-    positions.push(x, y, z)
-
-    const huePick = pseudoRandom(seed + 8.8)
-    if (huePick < 0.24) color.setHex(0xfff2d4)
-    else if (huePick < 0.5) color.setHex(0xffd1a3)
-    else if (huePick < 0.72) color.setHex(0xffb17a)
-    else color.setHex(0xffffff)
-    const intensity = 0.12 + pseudoRandom(seed + 19.2) * 0.3
-    colors.push(color.r * intensity, color.g * intensity, color.b * intensity)
-  }
-
-  const geometry = new THREE.BufferGeometry()
-  geometry.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3))
-  geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3))
-
-  const material = new THREE.PointsMaterial({
-    size: 1.2,
-    sizeAttenuation: true,
-    vertexColors: true,
-    transparent: true,
-    opacity: 0.6,
-    depthWrite: false,
-  })
-
-  starGroup.add(new THREE.Points(geometry, material))
 }
 
 function resizeCanvas() {
@@ -850,7 +807,6 @@ onBeforeUnmount(() => {
 
   clearGroup(edgeGroup)
   clearGroup(nodeGroup)
-  clearGroup(starGroup)
   for (const texture of textureCache.values()) texture.dispose()
   textureCache.clear()
   graphGroup.clear()

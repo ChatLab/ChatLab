@@ -45,4 +45,24 @@ describe('people relationships page source', () => {
     assert.equal(template.includes('v-model="viewMode"'), false)
     assert.ok(fallback.includes("viewMode.value = '2d'"), '2D should remain as automatic fallback for 3D failures')
   })
+
+  it('uses masked relationship names instead of rank-only privacy labels', () => {
+    const source = readPageSource()
+    const displayName = source.slice(
+      source.indexOf('function displayName'),
+      source.indexOf('function platformIdentity')
+    )
+    const avatarText = source.slice(source.indexOf('function avatarText'), source.indexOf('function avatarSrc'))
+    const avatarSrc = source.slice(source.indexOf('function avatarSrc'), source.indexOf('function displayName'))
+    const platformIdentity = source.slice(
+      source.indexOf('function platformIdentity'),
+      source.indexOf('function poolLabel')
+    )
+
+    assert.ok(displayName.includes('maskRelationshipGalaxyPrivateText(name)'))
+    assert.ok(avatarText.includes('relationshipGalaxyPrivateAvatarText()'))
+    assert.ok(avatarSrc.includes('privacyMode.value ? null : node.avatar'))
+    assert.ok(platformIdentity.includes('maskRelationshipGalaxyPrivateText(identity)'))
+    assert.equal(displayName.includes('`#${node.rank}`'), false)
+  })
 })

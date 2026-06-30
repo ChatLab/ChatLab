@@ -13,6 +13,7 @@ import {
   buildRelationshipGalaxy2DSafeCenter,
   buildRelationshipGalaxy2DSafeFitScale,
 } from '../relationship-galaxy-viewport'
+import { maskRelationshipGalaxyPrivateText } from '../relationship-galaxy-privacy'
 
 interface Ripple {
   graphic: Graphics
@@ -97,8 +98,8 @@ function colorToNumber(color: string | null | undefined, fallback: number): numb
 
 function shortName(node: PeopleRelationshipGraphNode): string {
   if (node.kind === 'owner') return props.ownerLabel
-  if (props.privacyMode) return `#${node.rank}`
-  return node.displayName || node.platformId || node.key
+  const name = node.displayName || node.platformId || node.key
+  return props.privacyMode ? maskRelationshipGalaxyPrivateText(name) : name
 }
 
 function getNodeColor(node: PeopleRelationshipGraphNode): number {

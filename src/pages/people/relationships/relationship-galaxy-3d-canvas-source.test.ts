@@ -67,4 +67,12 @@ describe('RelationshipGalaxyThreeCanvas scene wiring', () => {
       'focus and fit camera poses must apply the safe-area projection separately from the orbit target'
     )
   })
+
+  it('uses masked relationship names for 3D privacy labels instead of rank-only labels', () => {
+    const source = readCanvasSource()
+    const shortName = source.slice(source.indexOf('function shortName'), source.indexOf('function getViewportSize'))
+
+    assert.ok(shortName.includes('maskRelationshipGalaxyPrivateText(name)'))
+    assert.equal(shortName.includes('`#${node.rank}`'), false)
+  })
 })

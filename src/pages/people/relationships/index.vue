@@ -25,6 +25,7 @@ import {
   resolveRelationshipGalaxyPollingAction,
   shouldShowFocusConnectionsAction,
 } from './relationship-galaxy-state'
+import { maskRelationshipGalaxyPrivateText, relationshipGalaxyPrivateAvatarText } from './relationship-galaxy-privacy'
 
 type GalaxyCanvasInstance = {
   focusNode: (key: string) => boolean
@@ -199,13 +200,24 @@ function formatTime(ts: number | null | undefined): string {
 
 function avatarText(node: PeopleRelationshipGraphNode | PeopleRelationshipsSearchResult): string {
   if (node.kind === 'owner') return t('relationships.owner.avatarText')
+  if (privacyMode.value) return relationshipGalaxyPrivateAvatarText()
   return (node.displayName || node.platformId || '?').slice(0, 1)
+}
+
+function avatarSrc(node: PeopleRelationshipGraphNode | PeopleRelationshipsSearchResult): string | null {
+  if (node.kind === 'owner') return node.avatar
+  return privacyMode.value ? null : node.avatar
 }
 
 function displayName(node: PeopleRelationshipGraphNode | PeopleRelationshipsSearchResult): string {
   if (node.kind === 'owner') return t('relationships.owner.me')
-  if (privacyMode.value) return `#${node.rank}`
-  return node.displayName || node.platformId || node.key
+  const name = node.displayName || node.platformId || node.key
+  return privacyMode.value ? maskRelationshipGalaxyPrivateText(name) : name
+}
+
+function platformIdentity(node: PeopleRelationshipGraphNode): string {
+  const identity = node.platformId || node.key
+  return privacyMode.value ? maskRelationshipGalaxyPrivateText(identity) : identity
 }
 
 function poolLabel(node: Pick<PeopleRelationshipGraphNode, 'pool' | 'friendSource' | 'kind'>): string {
@@ -680,7 +692,7 @@ onBeforeUnmount(() => {
                 @click="selectSearchResult(result)"
               >
                 <LazyAvatar
-                  :src="result.avatar"
+                  :src="avatarSrc(result)"
                   :alt="displayName(result)"
                   :text="avatarText(result)"
                   root-class="h-8 w-8 shrink-0 shadow-sm border border-gray-250/20 dark:border-white/10"
@@ -775,7 +787,7 @@ onBeforeUnmount(() => {
           <div class="shrink-0 space-y-2.5">
             <div class="flex items-center gap-3 pr-8">
               <LazyAvatar
-                :src="selectedNode.avatar"
+                :src="avatarSrc(selectedNode)"
                 :alt="displayName(selectedNode)"
                 :text="avatarText(selectedNode)"
                 root-class="h-11 w-11 shrink-0 overflow-hidden rounded-lg shadow-sm border border-gray-250/20 dark:border-white/10"
@@ -795,7 +807,7 @@ onBeforeUnmount(() => {
                   </span>
                 </div>
                 <p class="truncate text-xs text-gray-500 dark:text-gray-400">
-                  {{ selectedNode.platform }} · {{ selectedNode.platformId }}
+                  {{ selectedNode.platform }} · {{ platformIdentity(selectedNode) }}
                 </p>
               </div>
             </div>
@@ -937,7 +949,7 @@ onBeforeUnmount(() => {
                   @click="selectNode(item.node)"
                 >
                   <LazyAvatar
-                    :src="item.node.avatar"
+                    :src="avatarSrc(item.node)"
                     :alt="displayName(item.node)"
                     :text="avatarText(item.node)"
                     root-class="h-6 w-6 shrink-0 overflow-hidden rounded-md shadow-sm border border-gray-250/20 dark:border-white/10"
