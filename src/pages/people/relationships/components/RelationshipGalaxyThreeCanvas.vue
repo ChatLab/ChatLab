@@ -10,6 +10,10 @@ import {
   type RelationshipGalaxy3DScene,
 } from '../relationship-galaxy-3d-scene'
 import { buildRelationshipGalaxy3DEdgeCurvePoints } from '../relationship-galaxy-3d-edge-path'
+import {
+  setRelationshipGalaxy3DEdgeGradientColor,
+  type RelationshipGalaxy3DEdgeRenderBucket,
+} from '../relationship-galaxy-3d-edge-colors'
 import { buildRelationshipVisibleLabelKeys } from '../relationship-galaxy-connections'
 import {
   applyRelationshipGalaxy3DSafeArea,
@@ -189,8 +193,9 @@ function addThinEdgePaths(
     depthWrite: false,
   })
 
-  const color = new THREE.Color()
-  const edgeTint = new THREE.Color(0xc4a16a)
+  const sourceColor = new THREE.Color()
+  const targetColor = new THREE.Color()
+  const vertexColor = new THREE.Color()
   const positions: number[] = []
   const colors: number[] = []
 
@@ -198,15 +203,16 @@ function addThinEdgePaths(
     const source = scenePosition(edge.source, model)
     const target = scenePosition(edge.target, model)
     const points = buildRelationshipGalaxy3DEdgeCurvePoints(source, target, edge.source.seed + edge.target.seed)
-    color.setHex(edge.color)
-    color.lerp(edgeTint, bucket === 'highlight' ? 0.18 : bucket === 'normal' ? 0.38 : 0.5)
-    color.multiplyScalar(bucket === 'highlight' ? 0.95 : 0.48)
+    const stepCount = Math.max(1, points.length - 1)
+    sourceColor.setHex(edge.source.color)
+    targetColor.setHex(edge.target.color)
 
     for (let index = 0; index < points.length - 1; index += 1) {
       const current = points[index]
       const next = points[index + 1]
       positions.push(current.x, current.y, current.z, next.x, next.y, next.z)
-      colors.push(color.r, color.g, color.b, color.r, color.g, color.b)
+      pushEdgeGradientColor(colors, vertexColor, sourceColor, targetColor, bucket, index / stepCount)
+      pushEdgeGradientColor(colors, vertexColor, sourceColor, targetColor, bucket, (index + 1) / stepCount)
     }
   }
 
@@ -222,6 +228,18 @@ function addThinEdgePaths(
   const line = new THREE.LineSegments(geometry, material)
   line.frustumCulled = false
   edgeGroup.add(line)
+}
+
+function pushEdgeGradientColor(
+  colors: number[],
+  vertexColor: THREE.Color,
+  sourceColor: THREE.Color,
+  targetColor: THREE.Color,
+  bucket: RelationshipGalaxy3DEdgeRenderBucket,
+  progress: number
+) {
+  setRelationshipGalaxy3DEdgeGradientColor(vertexColor, sourceColor, targetColor, bucket, progress)
+  colors.push(vertexColor.r, vertexColor.g, vertexColor.b)
 }
 
 function groupEdgesByWidth(edges: RelationshipGalaxy3DEdge[], bucket: 'dim' | 'normal' | 'highlight') {
@@ -690,9 +708,9 @@ function getStarTexture(colorValue: number, variant: number): THREE.CanvasTextur
   const rayAlpha = 0.18 + pseudoRandom(variant + 21.7) * 0.12
 
   drawEllipticDisc(context, xScale, yScale, rotation, 38, [
-    [0, 'rgba(255,255,255,0.16)'],
-    [0.26, toRgb(edgeColor, 0.2)],
-    [0.58, toRgb(edgeColor, 0.06)],
+    [0, 'rgba(255,255,255,0.1)'],
+    [0.26, toRgb(edgeColor, 0.16)],
+    [0.58, toRgb(edgeColor, 0.04)],
     [1, 'rgba(255,255,255,0)'],
   ])
 
@@ -702,8 +720,9 @@ function getStarTexture(colorValue: number, variant: number): THREE.CanvasTextur
 
   drawEllipticDisc(context, xScale, yScale, rotation, 18, [
     [0, 'rgba(255,255,255,1)'],
-    [0.36, 'rgba(255,255,248,0.98)'],
-    [0.68, toRgb(edgeColor, 0.74)],
+    [0.28, 'rgba(255,255,255,0.94)'],
+    [0.54, toRgb(edgeColor, 0.95)],
+    [0.78, toRgb(edgeColor, 0.38)],
     [1, 'rgba(255,255,255,0)'],
   ])
 
