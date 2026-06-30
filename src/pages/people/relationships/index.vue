@@ -529,17 +529,13 @@ function handleThreeCanvasFallback() {
 }
 
 function backToPanorama() {
-  const key = selectedKey.value
   cancelNeighborhoodLoad()
   clearNeighborhoodResponse()
-  if (!key) return
-  if (!graphResponse.value?.graph.nodes.some((node) => node.key === key)) {
-    selectedKey.value = null
-    canvasSelectedKey.value = null
-    isDetailPanelOpen.value = false
-  }
+  selectedKey.value = null
+  canvasSelectedKey.value = null
+  isDetailPanelOpen.value = false
   void nextTick(() => {
-    if (selectedKey.value) canvasRef.value?.focusNode(selectedKey.value)
+    canvasRef.value?.fitView()
   })
 }
 
