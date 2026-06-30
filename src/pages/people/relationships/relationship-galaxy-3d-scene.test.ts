@@ -375,7 +375,7 @@ test('uses varied node colors, larger important nodes, and no glow field', () =>
   const friend = scene.nodes.find((item) => item.key === 'weixin:friend')
   const groupmate = scene.nodes.find((item) => item.key === 'weixin:groupmate')
 
-  assert.equal(owner?.color, 0xfff2a8)
+  assert.equal(owner?.color, 0xf8fbff)
   assert.ok((friend?.color ?? 0) !== 0x2563eb)
   assert.ok((groupmate?.color ?? 0) !== 0x22d3ee)
   assert.ok(new Set(scene.nodes.map((item) => item.color)).size >= 3)
@@ -384,22 +384,52 @@ test('uses varied node colors, larger important nodes, and no glow field', () =>
   assert.equal(Object.hasOwn(groupmate ?? {}, 'glow'), false)
 })
 
-test('uses stellar temperature colors instead of saturated rainbow node colors', () => {
+test('uses a broad deterministic multi-color palette for contact stars', () => {
   const graph: PeopleRelationshipsGraphData = {
     nodes: [
       node({ key: 'weixin:owner', kind: 'owner', rank: 1, pool: 'friend', score: 1 }),
-      node({ key: 'weixin:warm', rank: 2, pool: 'friend', score: 0.9 }),
-      node({ key: 'weixin:cool', rank: 30, pool: 'non_friend', score: 0.45 }),
+      ...Array.from({ length: 120 }, (_, index) =>
+        node({
+          key: `weixin:colorful-${index}`,
+          rank: index + 2,
+          pool: index % 3 === 0 ? 'friend' : 'non_friend',
+          score: Math.max(0.2, 1 - index / 80),
+        })
+      ),
     ],
     edges: [],
     communities: [],
   }
 
   const scene = buildRelationshipGalaxy3DScene(graph)
-  const oldRainbowColors = new Set([0xb7ff72, 0xff9bd8, 0x67f4a8, 0xb9b4ff, 0xd7ff8a])
-
-  assert.equal(
-    scene.nodes.some((item) => oldRainbowColors.has(item.color)),
-    false
+  const contactColorFamilies = new Set(
+    scene.nodes
+      .filter((item) => item.node.kind !== 'owner')
+      .map((item) => colorFamily(item.color))
+      .filter(Boolean)
   )
+
+  assert.ok(contactColorFamilies.size >= 6)
 })
+
+function colorFamily(color: number): string | null {
+  const red = ((color >> 16) & 255) / 255
+  const green = ((color >> 8) & 255) / 255
+  const blue = (color & 255) / 255
+  const max = Math.max(red, green, blue)
+  const min = Math.min(red, green, blue)
+  const delta = max - min
+  if (delta < 0.18) return null
+
+  let hue = 0
+  if (max === red) hue = ((green - blue) / delta + (green < blue ? 6 : 0)) * 60
+  else if (max === green) hue = ((blue - red) / delta + 2) * 60
+  else hue = ((red - green) / delta + 4) * 60
+
+  if (hue < 30 || hue >= 330) return 'rose'
+  if (hue < 90) return 'gold'
+  if (hue < 150) return 'green'
+  if (hue < 210) return 'cyan'
+  if (hue < 270) return 'blue'
+  return 'violet'
+}

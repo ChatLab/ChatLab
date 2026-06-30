@@ -55,9 +55,13 @@ export interface RelationshipGalaxy3DSceneOptions {
   selectedKey?: string | null
 }
 
-const OWNER_COLOR = 0xfff2a8
-const FRIEND_NODE_COLORS = [0xfff6da, 0xffdf9a, 0xdcecff, 0xffffff, 0xffb47a]
-const GROUPMATE_NODE_COLORS = [0xdbe9ff, 0xf8fbff, 0xffedc7, 0xcfe6ff, 0xffc49a]
+const OWNER_COLOR = 0xf8fbff
+const FRIEND_NODE_COLORS = [
+  0xff8fb3, 0xffc857, 0x7dd3fc, 0xa78bfa, 0x86efac, 0xfb7185, 0x38bdf8, 0xf0abfc, 0xfde68a, 0x5eead4,
+]
+const GROUPMATE_NODE_COLORS = [
+  0xffb86b, 0x60a5fa, 0x34d399, 0xe879f9, 0xfacc15, 0x5eead4, 0xc084fc, 0xf472b6, 0xa3e635, 0x93c5fd,
+]
 const MAX_3D_SCENE_RADIUS = 1700
 
 interface RelationshipGalaxy3DVector {
