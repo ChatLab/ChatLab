@@ -165,7 +165,7 @@ watch(
 watch(
   () => props.memberName,
   (name) => {
-    if (props.modelValue !== null && name !== searchText.value) {
+    if ((props.modelValue !== null || name === '') && name !== searchText.value) {
       searchText.value = name || ''
     }
   }
