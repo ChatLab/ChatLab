@@ -40,7 +40,6 @@
   },
   "tooltip": {
     "viewChatRecord": "View Chat History",
-    "sessionIndex": "Session Index",
     "semanticIndex": "Semantic Index",
     "incrementalImport": "Import More",
     "memberManagement": "Manage Member",

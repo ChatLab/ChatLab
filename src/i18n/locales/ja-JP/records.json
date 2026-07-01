@@ -69,22 +69,5 @@
     "replyTo": "返信",
     "expandMessyContent": "全文を表示",
     "collapseMessyContent": "折りたたむ"
-  },
-  "sessionIndex": {
-    "title": "セッションインデックス",
-    "subtitle": "チャット履歴をタイムラインでたどれます",
-    "notGenerated": "セッションインデックスが未生成です",
-    "notGeneratedHint": "セッションインデックスを生成すると、チャット履歴ビューアーのタイムラインから各セッションにすばやくジャンプできます。",
-    "whatIsIt": "セッションインデックスの役割：",
-    "benefit1": "メッセージの時間間隔に基づいてセッション境界を自動識別",
-    "benefit2": "チャット履歴ビューアーにタイムラインナビゲーションを提供",
-    "benefit3": "AI が会話の文脈を理解しやすくなる",
-    "generated": "セッションインデックス生成済み",
-    "sessionCount": "全 {count} セッションを識別しました",
-    "regenerateHint": "セッション間隔のしきい値を調整した場合は、インデックスを再生成できます。",
-    "generate": "インデックスを生成",
-    "regenerate": "再生成",
-    "generating": "生成中...",
-    "cancel": "キャンセル"
   }
 }

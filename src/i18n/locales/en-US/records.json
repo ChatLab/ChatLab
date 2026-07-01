@@ -69,22 +69,5 @@
     "replyTo": "Reply to",
     "expandMessyContent": "Show full content",
     "collapseMessyContent": "Collapse"
-  },
-  "sessionIndex": {
-    "title": "Session Index",
-    "subtitle": "For timeline navigation in chat records",
-    "notGenerated": "Session index not generated",
-    "notGeneratedHint": "After generating session index, you can use timeline navigation in the chat record viewer to quickly jump to different sessions.",
-    "whatIsIt": "What session index does:",
-    "benefit1": "Identify conversation boundaries based on message time gaps",
-    "benefit2": "Provide timeline navigation in chat record viewer",
-    "benefit3": "Enable AI analysis to understand conversation context",
-    "generated": "Session index generated",
-    "sessionCount": "{count} sessions identified",
-    "regenerateHint": "You can regenerate the index if you've adjusted the session gap threshold.",
-    "generate": "Generate Index",
-    "regenerate": "Regenerate",
-    "generating": "Generating...",
-    "cancel": "Cancel"
   }
 }

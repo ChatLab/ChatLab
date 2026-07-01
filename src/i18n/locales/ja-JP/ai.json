@@ -121,10 +121,6 @@
       "model": {
         "notConfigured": "AI 未設定"
       },
-      "messageLimit": {
-        "label": "メッセージ上限：",
-        "title": "1回の送信で含む最大メッセージ数。クリックして設定"
-      },
       "agent": {
         "label": "Agent",
         "contextTokens": "コンテキスト",

@@ -69,22 +69,5 @@
     "replyTo": "回复",
     "expandMessyContent": "展开完整内容",
     "collapseMessyContent": "收起"
-  },
-  "sessionIndex": {
-    "title": "会话索引",
-    "subtitle": "用于聊天记录的时间线导航",
-    "notGenerated": "尚未生成会话索引",
-    "notGeneratedHint": "生成会话索引后，您可以在聊天记录查看器中使用时间线快速导航到不同的会话。",
-    "whatIsIt": "会话索引的作用：",
-    "benefit1": "根据消息时间间隔自动识别会话边界",
-    "benefit2": "在聊天记录查看器中提供时间线导航",
-    "benefit3": "为 AI 分析提供对话上下文理解能力",
-    "generated": "会话索引已生成",
-    "sessionCount": "共识别出 {count} 个会话",
-    "regenerateHint": "如果您调整了会话间隔阈值，可以重新生成索引。",
-    "generate": "生成索引",
-    "regenerate": "重新生成",
-    "generating": "生成中...",
-    "cancel": "取消"
   }
 }

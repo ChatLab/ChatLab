@@ -128,10 +128,6 @@ const agentCompactTitle = computed(() => {
   ].join('\n')
 })
 
-function openChatSettings() {
-  layoutStore.openSettings('ai', 'chat')
-}
-
 function openModelSettings() {
   layoutStore.openSettings('ai', 'defaultModel')
 }
@@ -376,16 +372,6 @@ const thinkingLevelLabel = computed(() => {
         </template>
       </UTooltip>
 
-      <!-- 消息条数限制（点击跳转设置） -->
-      <button
-        class="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-xs text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
-        :title="t('ai.chat.statusBar.messageLimit.title')"
-        @click="openChatSettings"
-      >
-        <UIcon name="i-heroicons-adjustments-horizontal" class="h-3.5 w-3.5" />
-        <span class="hidden lg:inline">{{ t('ai.chat.statusBar.messageLimit.label') }}</span>
-        <span>{{ aiGlobalSettings.maxMessagesPerRequest }}</span>
-      </button>
       <!-- 导出按钮 -->
       <button
         class="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-xs text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-gray-800 dark:hover:text-gray-300"

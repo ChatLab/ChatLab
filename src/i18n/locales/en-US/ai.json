@@ -121,10 +121,6 @@
       "model": {
         "notConfigured": "AI Not Configured"
       },
-      "messageLimit": {
-        "label": "Limit: ",
-        "title": "Max messages per request, click to configure"
-      },
       "agent": {
         "label": "Agent",
         "contextTokens": "Context",

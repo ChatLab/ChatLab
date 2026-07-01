@@ -12,7 +12,6 @@ import ViewTab from './components/ViewTab.vue'
 import MemberList from '@/components/common/member/MemberList.vue'
 import NicknameHistoryEntry from './components/member/NicknameHistoryEntry.vue'
 import SessionAnalysisHeader from '@/components/layout/session/SessionAnalysisHeader.vue'
-import SessionIndexModal from '@/components/analysis/SessionIndexModal.vue'
 import SemanticIndexSessionModal from '@/components/analysis/SemanticIndexSessionModal.vue'
 import OwnerPromptModal from '@/components/analysis/member/OwnerPromptModal.vue'
 import IncrementalImportModal from '@/components/analysis/IncrementalImportModal.vue'
@@ -34,8 +33,6 @@ const layoutStore = useLayoutStore()
 const settingsStore = useSettingsStore()
 const { currentSessionId } = storeToRefs(sessionStore)
 
-// 会话索引弹窗状态
-const showSessionIndexModal = ref(false)
 const showSemanticIndexModal = ref(false)
 
 // "我是谁"提示弹窗状态
@@ -204,7 +201,6 @@ const filteredMemberCount = computed(() => {
 
       <ActionToolsPanel
         @open-incremental-import="showIncrementalImportModal = true"
-        @open-session-index="showSessionIndexModal = true"
         @open-semantic-index="showSemanticIndexModal = true"
         @open-member-management="showMemberManagementModal = true"
         @open-chat-record="openChatRecordViewer"
@@ -218,14 +214,6 @@ const filteredMemberCount = computed(() => {
       <p class="text-gray-500">{{ t('analysis.groupChat.loadError') }}</p>
     </div>
 
-    <!-- 会话索引弹窗（内部自动检测并弹出） -->
-    <SessionIndexModal
-      v-if="currentSessionId && session && session.messageCount > 0"
-      v-model="showSessionIndexModal"
-      :session-id="currentSessionId"
-      :message-count="session.messageCount"
-    />
-
     <!-- 语义索引弹窗（当前对话） -->
     <SemanticIndexSessionModal
       v-if="currentSessionId && session"
@@ -234,9 +222,9 @@ const filteredMemberCount = computed(() => {
       :message-count="session.messageCount"
     />
 
-    <!-- "我是谁"提示弹窗（内部自动检测并弹出；避免与索引弹窗叠加） -->
+    <!-- "我是谁"提示弹窗（内部自动检测并弹出） -->
     <OwnerPromptModal
-      v-if="currentSessionId && session && !showSessionIndexModal"
+      v-if="currentSessionId && session"
       v-model="showOwnerPromptModal"
       :session-id="currentSessionId"
       chat-type="group"

@@ -121,10 +121,6 @@
       "model": {
         "notConfigured": "AI 尚未設定"
       },
-      "messageLimit": {
-        "label": "訊息上限：",
-        "title": "設定每次送出的最大訊息數"
-      },
       "agent": {
         "label": "Agent",
         "contextTokens": "上下文",
