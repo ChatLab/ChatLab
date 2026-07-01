@@ -13,7 +13,7 @@
   },
   "filter": {
     "messageId": "メッセージ ID",
-    "memberNotSupported": "メンバー（未対応）",
+    "memberPlaceholder": "メンバー",
     "keywordsPlaceholder": "キーワード（複数はカンマ区切り、Enter で検索）",
     "startDate": "開始日",
     "endDate": "終了日",

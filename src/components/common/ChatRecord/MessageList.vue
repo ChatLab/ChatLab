@@ -187,15 +187,15 @@ async function loadInitialMessages() {
 
       // 设置待滚动的目标
       pendingScrollToId.value = targetId
-    } else if (keywords && keywords.length > 0) {
-      // 有关键词，使用搜索功能
+    } else if ((keywords && keywords.length > 0) || senderId != null) {
+      // 有关键词或成员筛选时，统一走搜索分页；底层支持空关键词 + senderId。
       isSearchMode.value = true
       searchOffset.value = 0
-      const result = await useMessageService().searchMessages(sessionId, keywords, filter, 100, 0, senderId)
+      const result = await useMessageService().searchMessages(sessionId, keywords ?? [], filter, 100, 0, senderId)
       messages.value = mapMessages(result.messages)
       hasMoreBefore.value = false // 搜索结果从最新开始，没有更早的
-      hasMoreAfter.value = result.messages.length >= 100
       searchOffset.value = result.messages.length
+      hasMoreAfter.value = searchOffset.value < result.total
 
       // 滚动到顶部
       await nextTick()
@@ -331,11 +331,11 @@ async function loadMoreAfter() {
     const query = toRaw(props.query)
     const { filter, senderId, keywords } = buildFilterParams(query)
 
-    if (isSearchMode.value && keywords && keywords.length > 0) {
+    if (isSearchMode.value) {
       // 搜索模式：使用分页加载
       const result = await useMessageService().searchMessages(
         sessionId,
-        keywords,
+        keywords ?? [],
         filter,
         50,
         searchOffset.value,
@@ -352,7 +352,7 @@ async function loadMoreAfter() {
         )
       }
 
-      hasMoreAfter.value = result.messages.length >= 50
+      hasMoreAfter.value = searchOffset.value < result.total
     } else {
       // 普通模式：使用消息 ID 加载
       const lastMessage = messages.value[messages.value.length - 1]

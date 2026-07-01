@@ -13,7 +13,7 @@
   },
   "filter": {
     "messageId": "消息 ID",
-    "memberNotSupported": "成员（暂不支持）",
+    "memberPlaceholder": "成员",
     "keywordsPlaceholder": "关键词，多个用逗号分隔，回车搜索",
     "startDate": "起始日期",
     "endDate": "结束日期",

@@ -13,6 +13,8 @@ export type { ChatRecordQuery, ChatRecordMessage }
 export interface FilterFormData {
   /** 消息 ID */
   messageId: string
+  /** 成员 ID */
+  memberId: number | null
   /** 成员名称 */
   memberName: string
   /** 关键词（逗号分隔） */

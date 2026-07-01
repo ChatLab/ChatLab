@@ -4,8 +4,10 @@ import { useI18n } from 'vue-i18n'
 import type { MemberWithStats } from '@/types/analysis'
 import OwnerEntryCard from '@/components/analysis/member/OwnerEntryCard.vue'
 import { useDataService } from '@/services'
+import { useLayoutStore } from '@/stores/layout'
 
 const { t } = useI18n()
+const layoutStore = useLayoutStore()
 
 // Props
 const props = withDefaults(
@@ -39,6 +41,14 @@ function getDisplayName(member: MemberWithStats): string {
 function getFirstChar(member: MemberWithStats): string {
   const name = getDisplayName(member)
   return name.slice(0, 1)
+}
+
+function viewMemberChatRecords(member: MemberWithStats) {
+  layoutStore.openChatRecordDrawer({
+    sessionId: props.sessionId,
+    memberId: member.id,
+    memberName: getDisplayName(member),
+  })
 }
 
 const selectedMergeMembers = computed(() => members.value.filter((member) => selectedMergeIds.value.has(member.id)))
@@ -200,7 +210,15 @@ onMounted(() => {
         :key="member.id"
         class="relative rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-page-dark"
       >
-        <div class="absolute right-4 top-4">
+        <div class="absolute right-4 top-4 flex items-center gap-2">
+          <UButton
+            icon="i-heroicons-chat-bubble-left-ellipsis"
+            size="xs"
+            color="neutral"
+            variant="ghost"
+            :title="t('common.viewChatRecords')"
+            @click="viewMemberChatRecords(member)"
+          />
           <UCheckbox :model-value="selectedMergeIds.has(member.id)" @click.stop="toggleMergeSelection(member.id)" />
         </div>
 

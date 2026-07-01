@@ -13,7 +13,7 @@
   },
   "filter": {
     "messageId": "Message ID",
-    "memberNotSupported": "Member (not supported)",
+    "memberPlaceholder": "Member",
     "keywordsPlaceholder": "Keywords, comma separated, Enter to search",
     "startDate": "Start Date",
     "endDate": "End Date",

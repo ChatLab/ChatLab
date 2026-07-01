@@ -20,6 +20,7 @@
   "generating": "產生中...",
   "regenerate": "重新產生",
   "openFolder": "開啟資料夾",
+  "viewChatRecords": "檢視聊天紀錄",
   "errorNoAIConfig": "請先在設定中設定 AI 服務",
   "error": {
     "unknown": "未知錯誤"
@@ -112,6 +113,10 @@
   },
   "userSelect": {
     "allMembers": "全部成員"
+  },
+  "memberSearchSelect": {
+    "placeholder": "搜尋成員",
+    "noSecondary": "無其他名稱"
   },
   "login": {
     "description": "此服務已開啟認證保護，請輸入 API Token 登入",

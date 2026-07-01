@@ -13,7 +13,7 @@
   },
   "filter": {
     "messageId": "訊息 ID",
-    "memberNotSupported": "成員（暫不支援）",
+    "memberPlaceholder": "成員",
     "keywordsPlaceholder": "關鍵字（多個請用逗號分隔，按 Enter 搜尋）",
     "startDate": "起始日期",
     "endDate": "結束日期",

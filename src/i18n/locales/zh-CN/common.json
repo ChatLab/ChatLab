@@ -20,6 +20,7 @@
   "generating": "生成中...",
   "regenerate": "重新生成",
   "openFolder": "打开目录",
+  "viewChatRecords": "查看聊天记录",
   "errorNoAIConfig": "请先在设置中配置 AI 服务",
   "error": {
     "unknown": "未知错误"
@@ -112,6 +113,10 @@
   },
   "userSelect": {
     "allMembers": "全部成员"
+  },
+  "memberSearchSelect": {
+    "placeholder": "搜索成员",
+    "noSecondary": "无其他名称"
   },
   "login": {
     "description": "此服务已开启认证保护，请输入 API Token 登录",

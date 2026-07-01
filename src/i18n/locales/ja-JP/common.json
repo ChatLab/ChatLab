@@ -20,6 +20,7 @@
   "generating": "生成中...",
   "regenerate": "再生成",
   "openFolder": "フォルダーを開く",
+  "viewChatRecords": "チャット履歴を表示",
   "errorNoAIConfig": "先に設定でAIサービスを構成してください",
   "error": {
     "unknown": "不明なエラー"
@@ -112,6 +113,10 @@
   },
   "userSelect": {
     "allMembers": "すべてのメンバー"
+  },
+  "memberSearchSelect": {
+    "placeholder": "メンバーを検索",
+    "noSecondary": "他の名前はありません"
   },
   "login": {
     "description": "このサービスは認証が必要です。API Tokenを入力してください。",

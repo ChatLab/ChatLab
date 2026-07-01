@@ -20,6 +20,7 @@
   "generating": "Generating...",
   "regenerate": "Regenerate",
   "openFolder": "Open Folder",
+  "viewChatRecords": "View chat records",
   "errorNoAIConfig": "Please configure AI service in Settings first",
   "error": {
     "unknown": "Unknown error"
@@ -112,6 +113,10 @@
   },
   "userSelect": {
     "allMembers": "All Members"
+  },
+  "memberSearchSelect": {
+    "placeholder": "Search members",
+    "noSecondary": "No other names"
   },
   "login": {
     "description": "This service requires authentication. Enter your API Token to continue.",

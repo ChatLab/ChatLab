@@ -211,7 +211,12 @@ watch(
         </div>
 
         <!-- 筛选面板 -->
-        <FilterPanel :query="localQuery" @apply="handleApplyFilter" @reset="handleResetFilter" />
+        <FilterPanel
+          :query="localQuery"
+          :session-id="effectiveSessionId || undefined"
+          @apply="handleApplyFilter"
+          @reset="handleResetFilter"
+        />
 
         <!-- 主内容区：时间线 + 消息列表 -->
         <div class="flex min-h-0 flex-1">
