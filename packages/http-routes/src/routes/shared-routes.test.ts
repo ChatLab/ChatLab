@@ -262,6 +262,33 @@ describe('registerSharedRoutes smoke tests', () => {
     assert.equal(countRow.count, 3)
   })
 
+  it('POST /_web/sessions/:id/sql returns rows in the SQL Lab columnar shape', async () => {
+    const db = createSessionDb()
+    const routeApp = Fastify()
+    registerSharedRoutes(routeApp, createTestContext(new Map([['chat-1', db]])))
+    await routeApp.ready()
+
+    const resp = await routeApp.inject({
+      method: 'POST',
+      url: '/_web/sessions/chat-1/sql',
+      payload: { sql: 'SELECT id, content FROM message ORDER BY id LIMIT 2' },
+    })
+
+    await routeApp.close()
+    db.close()
+
+    assert.equal(resp.statusCode, 200)
+    const body = resp.json()
+    assert.deepEqual(body.columns, ['id', 'content'])
+    assert.deepEqual(body.rows, [
+      [1, 'alpha first'],
+      [2, 'alpha from bob'],
+    ])
+    assert.equal(body.rowCount, 2)
+    assert.equal(body.limited, false)
+    assert.equal(typeof body.duration, 'number')
+  })
+
   it('PATCH /_web/sessions/:id/name updates the shared session metadata', async () => {
     const db = createSessionDb()
     const routeApp = Fastify()

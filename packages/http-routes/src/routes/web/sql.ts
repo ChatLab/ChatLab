@@ -12,7 +12,14 @@ export function registerSqlRoutes(server: FastifyInstance, ctx: HttpRouteContext
       return reply.code(400).send({ error: 'Missing sql parameter' })
     }
     try {
-      return executeSql(db, sql, { timing: true })
+      const result = executeSql(db, sql, { columnar: true, timing: true, maxRows: 0 })
+      return {
+        columns: result.columns,
+        rows: result.rows,
+        rowCount: result.rowCount,
+        duration: result.duration ?? 0,
+        limited: result.truncated,
+      }
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'SQL execution error'
       return reply.code(400).send({ error: message })
