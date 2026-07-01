@@ -24,6 +24,8 @@ import type { DataSourceManager } from './data-source-manager'
 
 const MAX_PAGES_PER_PULL = 5000
 const PULL_OVERLAP_SECONDS = 60
+const SOURCE_UNAVAILABLE_LOG_COOLDOWN_MS = 5 * 60 * 1000
+const SOURCE_UNAVAILABLE_ERROR_CODES = new Set(['ECONNREFUSED', 'ENOTFOUND', 'ECONNRESET', 'ETIMEDOUT', 'ABORT_ERR'])
 
 // ==================== Helpers ====================
 
@@ -148,6 +150,35 @@ function cleanupTempFile(filePath: string): void {
   }
 }
 
+function getErrorProp(error: unknown, prop: string): unknown {
+  return error && typeof error === 'object' ? (error as Record<string, unknown>)[prop] : undefined
+}
+
+function getErrorMessage(error: unknown): string {
+  return error instanceof Error ? error.message : String(error || 'Pull failed')
+}
+
+// 只把连接级网络错误归为数据源不可达；导入/解析/HTTP 状态码仍按单会话失败处理。
+function describeSourceUnavailableError(error: unknown): string | null {
+  let current: unknown = error
+  while (current && typeof current === 'object') {
+    const code = getErrorProp(current, 'code')
+    const name = getErrorProp(current, 'name')
+    if (typeof code === 'string' && SOURCE_UNAVAILABLE_ERROR_CODES.has(code)) {
+      const address = getErrorProp(current, 'address')
+      const port = getErrorProp(current, 'port')
+      if (typeof address === 'string' && (typeof port === 'number' || typeof port === 'string')) {
+        return `${code} ${address}:${port}`
+      }
+      const host = getErrorProp(current, 'hostname') ?? getErrorProp(current, 'host')
+      return typeof host === 'string' ? `${code} ${host}` : code
+    }
+    if (name === 'AbortError') return 'Request timeout'
+    current = getErrorProp(current, 'cause')
+  }
+  return null
+}
+
 // ==================== Pull Engine ====================
 
 export interface PullEngineOptions {
@@ -176,6 +207,7 @@ export class PullEngine {
   private onSessionImported?: (localSessionId: string) => void
   private pullingSourceIds = new Set<string>()
   private progressMap = new Map<string, PullProgress>()
+  private sourceUnavailableLogs = new Map<string, { detail: string; lastLoggedAt: number }>()
 
   constructor(options: PullEngineOptions) {
     this.fetcher = options.fetcher
@@ -227,8 +259,6 @@ export class PullEngine {
       this.logger.info(`[Pull] Skipping "${sess.name}": import in progress`)
       return { success: false, newMessageCount: 0, error: 'Import in progress' }
     }
-
-    this.logger.info(`[Pull] Pulling "${sess.name}" from ${ds.baseUrl}`)
 
     let totalNewMessages = 0
     let since = sess.lastPullAt
@@ -461,8 +491,11 @@ export class PullEngine {
       }
       return { success: true, newMessageCount: totalNewMessages }
     } catch (error: any) {
-      const errMsg = error.message || 'Pull failed'
-      this.logger.error(`[Pull] Pull failed for "${sess.name}"`, error)
+      const sourceUnavailable = describeSourceUnavailableError(error)
+      const errMsg = sourceUnavailable ?? getErrorMessage(error)
+      if (!sourceUnavailable) {
+        this.logger.error(`[Pull] Pull failed for "${sess.name}": ${errMsg}`)
+      }
       this.dsManager.updateSession(sourceId, sess.id, {
         lastPullAt: Math.floor(Date.now() / 1000),
         lastStatus: 'error',
@@ -470,7 +503,7 @@ export class PullEngine {
       })
       this.notifier.onPullResult(sourceId, sess.id, 'error', errMsg)
       this.markProgressDone(sess.id)
-      return { success: false, newMessageCount: 0, error: errMsg }
+      return { success: false, newMessageCount: 0, error: errMsg, sourceUnavailable: !!sourceUnavailable }
     }
   }
 
@@ -489,12 +522,44 @@ export class PullEngine {
     }
     this.pullingSourceIds.add(ds.id)
     try {
-      for (const sess of ds.sessions) {
-        await this.executePullSession(ds.id, ds, sess)
+      let sourceUnavailable = false
+      for (let index = 0; index < ds.sessions.length; index++) {
+        const sess = ds.sessions[index]
+        const result = await this.executePullSession(ds.id, ds, sess)
+        if (result.sourceUnavailable && result.error) {
+          sourceUnavailable = true
+          this.markRemainingSessionsSourceUnavailable(ds, index + 1, result.error)
+          this.logSourceUnavailable(ds, result.error, ds.sessions.length - index)
+          break
+        }
       }
+      if (!sourceUnavailable) this.sourceUnavailableLogs.delete(ds.id)
     } finally {
       this.pullingSourceIds.delete(ds.id)
     }
+  }
+
+  private markRemainingSessionsSourceUnavailable(ds: DataSource, startIndex: number, detail: string): void {
+    const now = Math.floor(Date.now() / 1000)
+    for (const sess of ds.sessions.slice(startIndex)) {
+      this.dsManager.updateSession(ds.id, sess.id, {
+        lastPullAt: now,
+        lastStatus: 'error',
+        lastError: detail,
+      })
+      this.notifier.onPullResult(ds.id, sess.id, 'error', detail)
+      this.markProgressDone(sess.id)
+    }
+  }
+
+  private logSourceUnavailable(ds: DataSource, detail: string, affectedSessions: number): void {
+    const now = Date.now()
+    const previous = this.sourceUnavailableLogs.get(ds.id)
+    if (previous && previous.detail === detail && now - previous.lastLoggedAt < SOURCE_UNAVAILABLE_LOG_COOLDOWN_MS) {
+      return
+    }
+    this.sourceUnavailableLogs.set(ds.id, { detail, lastLoggedAt: now })
+    this.logger.warn(`[Pull] Source ${ds.baseUrl} unavailable: ${detail}, skipped ${affectedSessions} sessions`)
   }
 
   async triggerPull(sourceId: string, sessionId?: string): Promise<{ success: boolean; error?: string }> {
@@ -505,6 +570,8 @@ export class PullEngine {
       const sess = ds.sessions.find((s) => s.id === sessionId)
       if (!sess) return { success: false, error: 'Session not found' }
       const result = await this.executePullSession(sourceId, ds, sess)
+      if (result.sourceUnavailable && result.error) this.logSourceUnavailable(ds, result.error, 1)
+      if (result.success) this.sourceUnavailableLogs.delete(ds.id)
       return { success: result.success, error: result.error }
     }
 
@@ -515,10 +582,19 @@ export class PullEngine {
     this.pullingSourceIds.add(sourceId)
     try {
       const errors: string[] = []
-      for (const sess of ds.sessions) {
+      let sourceUnavailable = false
+      for (let index = 0; index < ds.sessions.length; index++) {
+        const sess = ds.sessions[index]
         const result = await this.executePullSession(sourceId, ds, sess)
         if (!result.success && result.error) errors.push(`${sess.name}: ${result.error}`)
+        if (result.sourceUnavailable && result.error) {
+          sourceUnavailable = true
+          this.markRemainingSessionsSourceUnavailable(ds, index + 1, result.error)
+          this.logSourceUnavailable(ds, result.error, ds.sessions.length - index)
+          break
+        }
       }
+      if (!sourceUnavailable) this.sourceUnavailableLogs.delete(ds.id)
       if (errors.length > 0) {
         return { success: false, error: errors.join('; ') }
       }

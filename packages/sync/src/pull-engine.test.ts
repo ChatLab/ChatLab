@@ -4,7 +4,15 @@ import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 import { PullEngine } from './pull-engine'
-import type { DataSource, DataImporter, FetchParams, HttpFetcher, ImportSession, SyncNotifier } from './types'
+import type {
+  DataSource,
+  DataImporter,
+  FetchParams,
+  HttpFetcher,
+  ImportSession,
+  SyncLogger,
+  SyncNotifier,
+} from './types'
 
 const tempFiles: string[] = []
 
@@ -65,14 +73,36 @@ function createSession(): ImportSession {
   }
 }
 
+function createSessionWithId(id: string): ImportSession {
+  return {
+    ...createSession(),
+    id,
+    name: `Test Session ${id}`,
+    remoteSessionId: `remote_${id}`,
+    targetSessionId: `local_${id}`,
+  }
+}
+
+function createFetchFailedError(code = 'ECONNREFUSED'): Error {
+  const cause = Object.assign(new Error(`connect ${code} 127.0.0.1:5031`), {
+    code,
+    address: '127.0.0.1',
+    port: 5031,
+  })
+  return Object.assign(new TypeError('fetch failed'), { cause })
+}
+
 function createEngine(options: {
   files: string[]
   importResult: Awaited<ReturnType<DataImporter['importFile']>>
   dataSource: DataSource
+  fetchError?: Error
+  fetchCalls?: string[]
   isImporting?: (sessionId: string | undefined) => boolean
   fetchParams?: FetchParams[]
   sessionUpdates?: Array<{ sessionId: string; updates: Partial<ImportSession> }>
   pullResults?: Array<{ status: 'success' | 'error'; detail: string }>
+  logger?: SyncLogger
 }): PullEngine {
   const files = [...options.files]
   const fetcher: HttpFetcher = {
@@ -82,6 +112,8 @@ function createEngine(options: {
       _token: string,
       params: FetchParams
     ): Promise<string> {
+      options.fetchCalls?.push(_remoteSessionId)
+      if (options.fetchError) throw options.fetchError
       options.fetchParams?.push({ ...params })
       const file = files.shift()
       if (!file) throw new Error('Unexpected retry fetch')
@@ -111,6 +143,7 @@ function createEngine(options: {
     notifier,
     dsManager: dsManager as any,
     isImporting: options.isImporting,
+    logger: options.logger,
   })
 }
 
@@ -430,5 +463,81 @@ describe('PullEngine', () => {
     assert.equal(result.success, true)
     assert.equal(result.newMessageCount, 0)
     assert.equal(sessionUpdates.at(-1)?.updates.lastPullAt, 100)
+  })
+
+  it('stops the source pull after a network failure and marks remaining sessions failed', async () => {
+    const dataSource = createDataSource()
+    dataSource.sessions = ['a', 'b', 'c'].map(createSessionWithId)
+    const sessionUpdates: Array<{ sessionId: string; updates: Partial<ImportSession> }> = []
+    const pullResults: Array<{ status: 'success' | 'error'; detail: string }> = []
+    const fetchCalls: string[] = []
+    const warns: string[] = []
+    const errors: Array<{ message: string; err?: unknown }> = []
+    const engine = createEngine({
+      files: [],
+      dataSource,
+      fetchError: createFetchFailedError(),
+      fetchCalls,
+      sessionUpdates,
+      pullResults,
+      logger: {
+        info: () => {},
+        warn: (message) => warns.push(message),
+        error: (message, err) => errors.push({ message, err }),
+      },
+      importResult: {
+        success: true,
+        newMessageCount: 0,
+      },
+    })
+
+    await engine.pullAllSessions(dataSource)
+
+    assert.deepEqual(fetchCalls, ['remote_a'])
+    assert.equal(warns.length, 1)
+    assert.match(warns[0], /Source http:\/\/example\.test\/api\/v1 unavailable: ECONNREFUSED 127\.0\.0\.1:5031/)
+    assert.match(warns[0], /skipped 3 sessions/)
+    assert.deepEqual(errors, [])
+    assert.deepEqual(
+      sessionUpdates.map((item) => [item.sessionId, item.updates.lastStatus, item.updates.lastError]),
+      [
+        ['a', 'error', 'ECONNREFUSED 127.0.0.1:5031'],
+        ['b', 'error', 'ECONNREFUSED 127.0.0.1:5031'],
+        ['c', 'error', 'ECONNREFUSED 127.0.0.1:5031'],
+      ]
+    )
+    assert.deepEqual(
+      pullResults.map((item) => [item.status, item.detail]),
+      [
+        ['error', 'ECONNREFUSED 127.0.0.1:5031'],
+        ['error', 'ECONNREFUSED 127.0.0.1:5031'],
+        ['error', 'ECONNREFUSED 127.0.0.1:5031'],
+      ]
+    )
+  })
+
+  it('suppresses repeated source unavailable logs during the cooldown window', async () => {
+    const dataSource = createDataSource()
+    dataSource.sessions = ['a', 'b'].map(createSessionWithId)
+    const warns: string[] = []
+    const engine = createEngine({
+      files: [],
+      dataSource,
+      fetchError: createFetchFailedError(),
+      logger: {
+        info: () => {},
+        warn: (message) => warns.push(message),
+        error: () => {},
+      },
+      importResult: {
+        success: true,
+        newMessageCount: 0,
+      },
+    })
+
+    await engine.pullAllSessions(dataSource)
+    await engine.pullAllSessions(dataSource)
+
+    assert.equal(warns.length, 1)
   })
 })

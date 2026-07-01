@@ -99,6 +99,7 @@ export interface PullSessionResult {
   success: boolean
   newMessageCount: number
   error?: string
+  sourceUnavailable?: boolean
 }
 
 export interface PullProgress {
