@@ -225,8 +225,11 @@ export class FetchAIAdapter implements AIAdapter {
     }
   }
 
-  // ===== 日志 =====
   async showAiLogFile(): Promise<{ success: boolean; path?: string; error?: string }> {
-    return { success: false, error: NOT_AVAILABLE_WEB }
+    try {
+      return await post<{ success: boolean; path?: string; error?: string }>('/ai/logs/show')
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : NOT_AVAILABLE_WEB }
+    }
   }
 }

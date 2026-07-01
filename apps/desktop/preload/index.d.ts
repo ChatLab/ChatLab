@@ -136,7 +136,7 @@ interface Api {
  * AiApi — IPC-only subset
  *
  * Most AI functionality has been migrated to HTTP shared routes.
- * Only export (fs write + progress push) and native shell remain on IPC.
+ * Only export (fs write + progress push) remains on IPC.
  */
 interface AiApi {
   exportFilterResultToFile: (params: {
@@ -147,7 +147,6 @@ interface AiApi {
     timeFilter?: TimeFilter
   }) => Promise<{ success: boolean; filePath?: string; error?: string }>
   onExportProgress: (callback: (progress: ExportProgress) => void) => () => void
-  showAiLogFile: () => Promise<{ success: boolean; path?: string; error?: string }>
 }
 
 // ==================== 新模型系统类型 ====================

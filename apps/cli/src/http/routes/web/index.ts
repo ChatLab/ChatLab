@@ -47,6 +47,7 @@ import { registerImportRoutes } from './import'
 import { openDirectoryPath, showPathInFolder } from './cache'
 import { getVersion } from '../../../version'
 import { buildWebUpdateCheckResult } from './update-check'
+import { getServerAiLogger } from '../../../ai/logger'
 
 export interface AiContextOptions {
   aiDataDir: string
@@ -121,6 +122,7 @@ export function registerWebRoutes(
       nativeBinding: options?.nativeBinding,
       semanticIndexService,
       analyticsService,
+      getCurrentAiLogPath: () => getServerAiLogger()?.getExistingLogPath() ?? null,
       openDirectory: openDirectoryPath,
       showInFolder: showPathInFolder,
       downloadsDir: resolvedPathProvider.getDownloadsDir(),

@@ -61,6 +61,7 @@ export interface HttpRouteContext {
   llmConfigStore?: LLMConfigStore
   customProviderStore?: CustomProviderStore
   customModelStore?: CustomModelStore
+  getCurrentAiLogPath?: () => string | null
 
   /** 语义索引共享 service — 可选，路由在缺失时优雅跳过 */
   semanticIndexService?: SemanticIndexRuntime

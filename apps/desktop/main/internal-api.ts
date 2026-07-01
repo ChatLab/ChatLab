@@ -43,6 +43,7 @@ import { resolveApiKey, writeAuthProfile, deleteAuthProfile } from '@openchatlab
 import { getManager as getAIChatManager } from './ai/chats'
 import { getManager as getAssistantManager } from './ai/assistant/manager'
 import { getManager as getSkillManager } from './ai/skills/manager'
+import { aiLogger } from './ai/logger'
 import { createElectronRunAgentStream } from './ai/agent-stream-runner'
 import { createExecuteElectronAiTool } from './ai/tools/debug-executor'
 import { assertDesktopDataDirCompatible, getDesktopAppVersion } from './runtime-compat'
@@ -172,6 +173,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
       llmConfigStore,
       customProviderStore: new CustomProviderStore(configStorage),
       customModelStore: new CustomModelStore(configStorage),
+      getCurrentAiLogPath: () => aiLogger.getExistingLogPath(),
       semanticIndexService: newSemanticIndexService ?? undefined,
       openDirectory: (dirPath) => shell.openPath(dirPath).then(() => {}),
       showInFolder: (filePath) => {

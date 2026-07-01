@@ -5,8 +5,8 @@ import { FetchAIAdapter } from './fetch'
  * Electron AI Adapter
  *
  * Extends FetchAIAdapter so most queries go through the Internal HTTP Server
- * (shared routes). Only features that require IPC (filesystem export with
- * progress push, native shell) are overridden here.
+ * (shared routes). Only filesystem export with progress push still requires
+ * IPC; native shell operations are exposed by shared HTTP routes.
  */
 export class ElectronAIAdapter extends FetchAIAdapter {
   override async exportFilterResultToFile(
@@ -17,9 +17,5 @@ export class ElectronAIAdapter extends FetchAIAdapter {
 
   override onExportProgress(callback: (progress: ExportProgress) => void): () => void {
     return window.aiApi.onExportProgress(callback)
-  }
-
-  override async showAiLogFile(): Promise<{ success: boolean; path?: string; error?: string }> {
-    return window.aiApi.showAiLogFile()
   }
 }

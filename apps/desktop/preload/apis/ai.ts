@@ -57,11 +57,5 @@ export const aiApi = {
     }
   },
 
-  // ===== 日志（native shell） =====
-
-  showAiLogFile: (): Promise<{ success: boolean; path?: string; error?: string }> => {
-    return ipcRenderer.invoke('ai:showLogFile')
-  },
-
   // Desensitize rules, tool testing, estimateContextTokens have been migrated to shared HTTP routes.
 }

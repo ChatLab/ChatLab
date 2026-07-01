@@ -289,6 +289,63 @@ describe('registerSharedRoutes smoke tests', () => {
     assert.equal(typeof body.duration, 'number')
   })
 
+  it('POST /_web/ai/logs/show reveals the current AI log file through the host shell', async () => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-ai-log-route-'))
+    const currentLogPath = path.join(dir, 'logs', 'ai', 'ai_current.log')
+    fs.mkdirSync(path.dirname(currentLogPath), { recursive: true })
+    fs.writeFileSync(currentLogPath, 'current log')
+
+    const ctx = createTestContext()
+    ctx.pathProvider = { ...ctx.pathProvider, getLogsDir: () => path.join(dir, 'logs') }
+    ctx.getCurrentAiLogPath = () => currentLogPath
+    let shownPath: string | null = null
+    ctx.showInFolder = async (filePath) => {
+      shownPath = filePath
+    }
+
+    const routeApp = Fastify()
+    registerSharedRoutes(routeApp, ctx)
+    await routeApp.ready()
+
+    try {
+      const resp = await routeApp.inject({ method: 'POST', url: '/_web/ai/logs/show' })
+
+      assert.equal(resp.statusCode, 200)
+      assert.deepEqual(resp.json(), { success: true, path: currentLogPath })
+      assert.equal(shownPath, currentLogPath)
+    } finally {
+      await routeApp.close()
+      fs.rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
+  it('POST /_web/ai/logs/show does not open files for remote web clients', async () => {
+    const ctx = createTestContext()
+    ctx.getCurrentAiLogPath = () => '/tmp/chatlab-test/logs/ai/ai_current.log'
+    let didOpen = false
+    ctx.showInFolder = async () => {
+      didOpen = true
+    }
+
+    const routeApp = Fastify()
+    registerSharedRoutes(routeApp, ctx)
+    await routeApp.ready()
+
+    try {
+      const resp = await routeApp.inject({
+        method: 'POST',
+        url: '/_web/ai/logs/show',
+        remoteAddress: '192.168.1.50',
+      })
+
+      assert.equal(resp.statusCode, 200)
+      assert.deepEqual(resp.json(), { success: false, error: 'Opening AI logs is only supported on this device' })
+      assert.equal(didOpen, false)
+    } finally {
+      await routeApp.close()
+    }
+  })
+
   it('PATCH /_web/sessions/:id/name updates the shared session metadata', async () => {
     const db = createSessionDb()
     const routeApp = Fastify()
