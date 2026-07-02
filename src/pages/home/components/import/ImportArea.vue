@@ -741,6 +741,8 @@ function getProgressText(): string {
       return t('home.import.progress.parsing')
     case 'saving':
       return t('home.import.progress.saving')
+    case 'indexing':
+      return t('home.import.progress.indexing')
     case 'done':
       return t('home.import.progress.done')
     case 'error':

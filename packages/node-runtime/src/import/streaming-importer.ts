@@ -84,6 +84,13 @@ export interface StreamImportDeps {
 const BATCH_COMMIT_SIZE = 50000
 const CHECKPOINT_INTERVAL = 200000
 
+/**
+ * Let the event loop process pending I/O before a long synchronous step.
+ * Without this, progress events written to an SSE socket stay buffered
+ * until the blocking work (index/FTS build) finishes.
+ */
+const yieldToEventLoop = () => new Promise<void>((resolve) => setImmediate(resolve))
+
 function defaultGenerateSessionId(): string {
   const ts = Date.now()
   const rand = Math.random().toString(36).substring(2, 8)
@@ -268,7 +275,7 @@ async function streamImportSingle(
       }
 
       onProgress({
-        stage: 'importing',
+        stage: 'saving',
         bytesRead: 0,
         totalBytes: 0,
         messagesProcessed: totalMessageCount,
@@ -466,13 +473,14 @@ async function streamImportSingle(
 
     // Flush nickname history in batch
     onProgress({
-      stage: 'importing',
+      stage: 'saving',
       bytesRead: 0,
       totalBytes: 0,
       messagesProcessed: totalMessageCount,
       percentage: 100,
       message: '',
     })
+    await yieldToEventLoop()
     logger?.perf('Writing nickname history', totalMessageCount)
 
     db.exec('BEGIN TRANSACTION')
@@ -493,13 +501,14 @@ async function streamImportSingle(
 
     // Create indexes (deferred for performance)
     onProgress({
-      stage: 'importing',
+      stage: 'indexing',
       bytesRead: 0,
       totalBytes: 0,
       messagesProcessed: totalMessageCount,
       percentage: 100,
       message: '',
     })
+    await yieldToEventLoop()
     logger?.perf('Creating indexes', totalMessageCount)
     db.exec(CHAT_DB_INDEXES)
     logger?.perf('Indexes created', totalMessageCount)
@@ -512,15 +521,16 @@ async function streamImportSingle(
       logger?.error('FTS index build failed (non-fatal)', ftsError instanceof Error ? ftsError : undefined)
     }
 
-    // Final WAL checkpoint
+    // Final WAL checkpoint + session index + post-import hook
     onProgress({
-      stage: 'importing',
+      stage: 'indexing',
       bytesRead: 0,
       totalBytes: 0,
       messagesProcessed: totalMessageCount,
       percentage: 100,
       message: '',
     })
+    await yieldToEventLoop()
     doCheckpoint()
     logger?.perf('WAL checkpoint done', totalMessageCount)
 

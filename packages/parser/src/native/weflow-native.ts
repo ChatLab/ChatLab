@@ -99,6 +99,10 @@ async function* parseWeFlowNative(
     if (!batch) break
     messagesProcessed += batch.length
     yield { type: 'messages', data: batch.map(toParsedMessage) }
+    // The consumer typically does synchronous DB writes per batch; yield a
+    // macrotask so the event loop can flush pending I/O (e.g. SSE progress
+    // events) instead of being starved until all batches are delivered.
+    await new Promise((resolve) => setImmediate(resolve))
   }
 
   const doneProgress = createProgress('done', totalBytes, totalBytes, messagesProcessed, '')

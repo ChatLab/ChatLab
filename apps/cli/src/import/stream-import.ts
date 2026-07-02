@@ -108,10 +108,13 @@ export async function streamImport(
             stage = 'parsing'
             pct = Math.min(Math.round(progress.percentage * 0.7), 70)
             break
-          case 'importing':
           case 'saving':
             stage = 'saving'
             pct = 80
+            break
+          case 'indexing':
+            stage = 'indexing'
+            pct = 90
             break
           case 'done':
             stage = 'done'

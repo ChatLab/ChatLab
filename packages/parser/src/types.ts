@@ -24,8 +24,9 @@ export interface ParsedMeta {
  */
 export interface ParseProgress {
   /** 阶段 */
-  // 导入流程会复用解析进度结构，因此这里补充导入阶段枚举。
-  stage: 'detecting' | 'parsing' | 'importing' | 'saving' | 'done' | 'error'
+  // 导入流程会复用解析进度结构，因此这里补充导入阶段枚举：
+  // saving = 消息批量写库，indexing = 建索引/FTS/会话分段等后处理。
+  stage: 'detecting' | 'parsing' | 'saving' | 'indexing' | 'done' | 'error'
   /** 已读取字节数 */
   bytesRead: number
   /** 文件总字节数 */

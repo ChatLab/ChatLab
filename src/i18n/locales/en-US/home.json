@@ -23,6 +23,7 @@
       "reading": "Reading file...",
       "parsing": "Parsing messages...",
       "saving": "Saving to database...",
+      "indexing": "Building search index...",
       "done": "Import complete",
       "error": "Import interrupted"
     },
