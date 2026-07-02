@@ -23,8 +23,14 @@ interface JiebaInstance {
   tag: (text: string) => Array<{ tag: string; word: string }>
 }
 
+interface JiebaCacheEntry {
+  instance: JiebaInstance
+  /** Whether the instance was built from a custom dict file on disk. */
+  fromDiskDict: boolean
+}
+
 let _nlpDir: string | null = null
-const jiebaInstances = new Map<DictType, JiebaInstance>()
+const jiebaInstances = new Map<DictType, JiebaCacheEntry>()
 const require = createRequire(import.meta.url)
 
 /**
@@ -61,9 +67,13 @@ export function getJieba(dictType: DictType = 'default'): JiebaInstance {
   const effectiveType = dictType === 'default' ? 'zh-CN' : dictType
   const cached = jiebaInstances.get(effectiveType)
   if (cached) {
-    if (existsDictOnDisk(effectiveType)) return cached
+    // Only invalidate when the on-disk dict state changed since the instance
+    // was built (dict added or removed). Instances built without a disk dict
+    // must stay cached, otherwise hot paths (e.g. FTS indexing) would rebuild
+    // a Jieba instance per call.
+    if (cached.fromDiskDict === existsDictOnDisk(effectiveType)) return cached.instance
     jiebaInstances.delete(effectiveType)
-    console.error(`[NLP] jieba cache invalidated (dict missing): ${effectiveType}`)
+    console.error(`[NLP] jieba cache invalidated (dict ${cached.fromDiskDict ? 'removed' : 'added'}): ${effectiveType}`)
   }
 
   try {
@@ -77,7 +87,7 @@ export function getJieba(dictType: DictType = 'default'): JiebaInstance {
       instance = new Jieba()
       console.warn(`[NLP] jieba dict missing: ${effectiveType}, fallback to built-in tokenizer`)
     }
-    jiebaInstances.set(effectiveType, instance)
+    jiebaInstances.set(effectiveType, { instance, fromDiskDict: !!diskDict })
     return instance
   } catch (error) {
     console.error(`[NLP] Failed to load jieba module (dict=${effectiveType}):`, error)
