@@ -40,6 +40,7 @@ asarUnpack:
   - node_modules/sqlite-vec*/**
   - node_modules/onnxruntime-node/**
   - node_modules/@img/**
+  - node_modules/@openchatlab/parser-native/**
 
 # Windows 平台配置
 win:

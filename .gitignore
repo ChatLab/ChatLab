@@ -42,3 +42,6 @@ yarn.lock
 .docs
 
 .playwright-mcp/
+
+# Local real-chat samples for manual testing (privacy: never commit)
+weixin-demo.json

@@ -1,0 +1,19 @@
+{
+  "name": "@openchatlab/parser-native",
+  "version": "0.0.0",
+  "private": true,
+  "description": "ChatLab Rust 原生解析内核（napi-rs，一期覆盖 WeFlow 格式）",
+  "main": "index.js",
+  "types": "index.d.ts",
+  "napi": {
+    "binaryName": "chatlab-parser-native"
+  },
+  "scripts": {
+    "build": "napi build --platform --release",
+    "build:debug": "napi build --platform",
+    "test": "cargo test"
+  },
+  "devDependencies": {
+    "@napi-rs/cli": "^3.0.0"
+  }
+}

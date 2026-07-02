@@ -19,6 +19,7 @@
     "@fastify/multipart": "^10.0.0",
     "@huggingface/transformers": "^4.2.0",
     "@node-rs/jieba": "^2.0.1",
+    "@openchatlab/parser-native": "workspace:*",
     "better-sqlite3": "^12.4.6",
     "electron-updater": "^6.6.2",
     "i18next": "^25.8.5",

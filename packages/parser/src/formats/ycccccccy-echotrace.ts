@@ -14,7 +14,7 @@
 
 import { KNOWN_PLATFORMS } from '@openchatlab/shared-types'
 import type { FormatFeature, FormatModule, Parser } from '../types'
-import { parseWeFlow } from './weflow'
+import { parseWeFlowAccelerated } from './weflow'
 import { weflowPreprocessor } from './weflow-preprocessor'
 
 // ==================== 特征定义 ====================
@@ -37,7 +37,7 @@ export const feature: FormatFeature = {
 // 复用 WeFlow 的解析逻辑（两种格式的数据结构相同）
 export const parser_: Parser = {
   feature,
-  parse: parseWeFlow,
+  parse: parseWeFlowAccelerated,
 }
 
 // ==================== 预处理器（复用 WeFlow） ====================

@@ -19,8 +19,10 @@ export default defineConfig({
   define: {
     'process.env.APTABASE_APP_KEY': JSON.stringify(process.env.APTABASE_APP_KEY || ''),
   },
-  noExternal: [/^@openchatlab\//, 'chatlab-mcp', 'stream-json'],
-  external: ['better-sqlite3', '@node-rs/jieba'],
+  noExternal: [/^@openchatlab\/(?!parser-native)/, 'chatlab-mcp', 'stream-json'],
+  // parser-native 是本地构建的可选 Rust 内核：不打包也不声明依赖，
+  // 运行时 require 失败会自动回退 TS 解析器。
+  external: ['better-sqlite3', '@node-rs/jieba', '@openchatlab/parser-native'],
   banner: {
     js: [
       "import { createRequire as __createRequire } from 'module';",

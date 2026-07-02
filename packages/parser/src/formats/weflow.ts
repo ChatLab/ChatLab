@@ -606,12 +606,16 @@ async function* parseWeFlow(options: ParseOptions): AsyncGenerator<ParseEvent, v
 
 // ==================== 导出解析器 ====================
 
+import { withNativeWeflow } from '../native/weflow-native'
+
 // 导出解析函数供其他格式复用（如 ycccccccy-echotrace）
+// parseWeFlowAccelerated：优先走 Rust 内核，native 不可用/失败时自动回退本文件的 TS 实现
 export { parseWeFlow }
+export const parseWeFlowAccelerated = withNativeWeflow(parseWeFlow)
 
 export const parser_: Parser = {
   feature,
-  parse: parseWeFlow,
+  parse: parseWeFlowAccelerated,
 }
 
 // ==================== 预处理器（预留） ====================

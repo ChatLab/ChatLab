@@ -22,6 +22,7 @@
   "scripts": {
     "dev": "node scripts/dev-select.mjs",
     "dev:desktop": "pnpm --filter @openchatlab/desktop dev",
+    "build:native": "pnpm --filter @openchatlab/parser-native build",
     "build:desktop": "pnpm --filter @openchatlab/desktop build",
     "build:mac": "pnpm --filter @openchatlab/desktop build:mac",
     "build:win": "pnpm --filter @openchatlab/desktop build:win",

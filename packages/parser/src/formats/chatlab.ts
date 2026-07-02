@@ -276,9 +276,15 @@ async function* parseChatLab(options: ParseOptions): AsyncGenerator<ParseEvent, 
 
 // ==================== 导出解析器 ====================
 
+import { withNativeChatlab } from '../native/chatlab-native'
+
+// parseChatLabAccelerated：优先走 Rust 内核，native 不可用/失败时自动回退本文件的 TS 实现
+export { parseChatLab }
+export const parseChatLabAccelerated = withNativeChatlab(parseChatLab)
+
 export const parser_: Parser = {
   feature,
-  parse: parseChatLab,
+  parse: parseChatLabAccelerated,
 }
 
 // ==================== 导出格式模块 ====================

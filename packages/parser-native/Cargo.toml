@@ -1,0 +1,23 @@
+[package]
+name = "chatlab-parser-native"
+version = "0.1.0"
+edition = "2021"
+license = "AGPL-3.0"
+description = "ChatLab native chat-export parsing kernels (napi-rs)"
+
+[lib]
+crate-type = ["cdylib"]
+
+[dependencies]
+napi = { version = "3", features = ["napi8"] }
+napi-derive = "3"
+serde = { version = "1", features = ["derive"] }
+serde_json = { version = "1", features = ["preserve_order", "raw_value"] }
+memchr = "2"
+
+[build-dependencies]
+napi-build = "2"
+
+[profile.release]
+lto = true
+strip = "symbols"

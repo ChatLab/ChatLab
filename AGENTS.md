@@ -21,6 +21,7 @@
 - `packages/node-runtime/`：Node.js 运行时能力，包括 SQLite 适配、数据库迁移、AI 管理、导出、缓存和数据目录
 - `packages/tools/`：AI 工具定义、工具 registry 和数据访问 provider
 - `packages/parser/`：聊天导出格式解析器和格式识别
+- `packages/parser-native/`：napi-rs Rust 原生解析内核（可选本地构建，未构建时 parser 自动回退 TS 实现）
 - `packages/http-routes/`：Electron 和 CLI Web 复用的 HTTP route
 - `docs/`：公开文档站源码；`.docs/`：私有开发上下文和任务记录，不作为公开 PR 理解前提
 - 更细的架构说明继续以 `docs/cn/contributing/development.md` 和 `.docs/README.md` 为准，不在根 `AGENTS.md` 里重复维护

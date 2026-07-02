@@ -7,6 +7,7 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "dependencies": {
+    "@openchatlab/parser-native": "workspace:*",
     "@openchatlab/shared-types": "workspace:*",
     "stream-json": "^1.9.1"
   },
