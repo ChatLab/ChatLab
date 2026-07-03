@@ -80,6 +80,7 @@ function loadConfigFile(): Record<string, unknown> {
  * - CHATLAB_LLM_MODEL      -> llm.model
  * - CHATLAB_LLM_BASE_URL   -> llm.base_url
  * - CHATLAB_LOCALE_LANG    -> locale.lang
+ * - CHATLAB_CLI_ALLOW_RAW  -> cli.allow_raw ('1'/'true' enables)
  */
 function loadEnvConfig(): Record<string, unknown> {
   const result: Record<string, Record<string, unknown>> = {}
@@ -92,6 +93,7 @@ function loadEnvConfig(): Record<string, unknown> {
     { env: 'CHATLAB_LLM_MODEL', section: 'llm', key: 'model' },
     { env: 'CHATLAB_LLM_BASE_URL', section: 'llm', key: 'base_url' },
     { env: 'CHATLAB_LOCALE_LANG', section: 'locale', key: 'lang' },
+    { env: 'CHATLAB_CLI_ALLOW_RAW', section: 'cli', key: 'allow_raw', transform: (v) => v === '1' || v === 'true' },
   ]
 
   for (const { env, section, key, transform } of envMap) {

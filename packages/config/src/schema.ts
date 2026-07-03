@@ -36,12 +36,20 @@ export const uiConfigSchema = z.object({
   summary_strategy: z.enum(['brief', 'standard']).default('standard'),
 })
 
+export const cliConfigSchema = z.object({
+  /** Allow --raw output that bypasses privacy preprocessing (user-side opt-in). */
+  allow_raw: z.boolean().default(false),
+  /** Allow the read-only `sql` query command. */
+  allow_sql: z.boolean().default(true),
+})
+
 export const configSchema = z.object({
   llm: llmConfigSchema.default({}),
   data: dataConfigSchema.default({}),
   api: apiConfigSchema.default({}),
   locale: localeConfigSchema.default({}),
   ui: uiConfigSchema.default({}),
+  cli: cliConfigSchema.default({}),
 })
 
 export type ChatLabConfig = z.infer<typeof configSchema>
@@ -50,3 +58,4 @@ export type DataConfig = z.infer<typeof dataConfigSchema>
 export type ApiConfig = z.infer<typeof apiConfigSchema>
 export type LocaleConfig = z.infer<typeof localeConfigSchema>
 export type UiConfig = z.infer<typeof uiConfigSchema>
+export type CliConfig = z.infer<typeof cliConfigSchema>
