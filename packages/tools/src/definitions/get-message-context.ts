@@ -18,8 +18,17 @@ const inputSchema: JsonSchema = {
 
 async function handler(params: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {
   const { locale } = context
-  const messageIds = params.message_ids as number[]
-  const contextSize = (params.context_size as number) || 20
+  const maxMessagesLimit = context.maxMessagesLimit
+  const requestedMessageIds = params.message_ids as number[]
+  const messageIds =
+    maxMessagesLimit && maxMessagesLimit > 0 ? requestedMessageIds.slice(0, maxMessagesLimit) : requestedMessageIds
+  let contextSize = (params.context_size as number) || 20
+
+  if (maxMessagesLimit && maxMessagesLimit > 0 && messageIds.length > 0) {
+    const maxMessagesPerId = Math.max(1, Math.floor(maxMessagesLimit / messageIds.length))
+    const maxContextSize = Math.max(0, Math.floor((maxMessagesPerId - 1) / 2))
+    contextSize = Math.min(contextSize, maxContextSize)
+  }
 
   const messages = await context.dataProvider!.getMessageContext(messageIds, contextSize)
 

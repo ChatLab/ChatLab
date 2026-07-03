@@ -4,6 +4,7 @@
  * 基于参数化 SQL + JS 聚合的启发式回复延迟统计。
  */
 
+import { computeResponseTimeStats } from '@openchatlab/core'
 import type { ToolDefinition, ToolExecutionContext, ToolResult, JsonSchema } from '../types'
 import { isChineseLocale } from '../utils/format'
 
@@ -43,32 +44,10 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
     return { content: text, data: null }
   }
 
-  const responseTimes = new Map<number, { name: string; times: number[] }>()
-
-  for (let i = 1; i < rows.length; i++) {
-    const prev = rows[i - 1]
-    const curr = rows[i]
-    if (curr.sender_id === prev.sender_id) continue
-
-    const gap = curr.ts - prev.ts
-    if (gap < 5 || gap > 1800) continue
-
-    if (!responseTimes.has(curr.sender_id)) {
-      responseTimes.set(curr.sender_id, { name: curr.name, times: [] })
-    }
-    responseTimes.get(curr.sender_id)!.times.push(gap)
-  }
-
-  const stats = [...responseTimes.entries()]
-    .map(([id, { name, times }]) => {
-      times.sort((a, b) => a - b)
-      const avg = Math.round(times.reduce((s, t) => s + t, 0) / times.length)
-      const median = times[Math.floor(times.length / 2)]
-      return { id, name, avgSeconds: avg, medianSeconds: median, responseCount: times.length }
-    })
-    .filter((s) => s.responseCount >= 3)
-    .sort((a, b) => a.medianSeconds - b.medianSeconds)
-    .slice(0, topN)
+  const stats = computeResponseTimeStats(
+    rows.map((r) => ({ senderId: r.sender_id, name: r.name, ts: r.ts })),
+    topN
+  )
 
   if (stats.length === 0) {
     const text = isZh ? '没有足够的响应数据进行分析' : 'Not enough response data for analysis'

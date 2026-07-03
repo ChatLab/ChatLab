@@ -156,8 +156,14 @@ export {
   TEXT_ONLY_FILTER,
   mapMessageRow,
   buildMsgConditions,
+  escapeLikePattern,
+  buildExcludeKeywordsConditions,
 } from './message-sql'
 export type { FullMessageRow, MappedMessage, MsgQueryConditions } from './message-sql'
+
+// Response time analysis (shared by AI tool and CLI stats response)
+export { computeResponseTimeStats } from './response-time'
+export type { ResponseTimeMessage, ResponseTimeStat } from './response-time'
 
 // Shared async message query functions (platform-agnostic)
 export {

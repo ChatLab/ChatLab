@@ -55,6 +55,8 @@ export interface WordFrequencyParams {
   enableStopwords?: boolean
   dictType?: DictType
   excludeWords?: string[]
+  /** Blacklist pushdown: messages containing any keyword are excluded from segmentation entirely. */
+  excludeKeywords?: string[]
 }
 
 /** 分词选项 */

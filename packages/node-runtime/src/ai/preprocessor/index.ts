@@ -5,8 +5,8 @@
  */
 
 export type { PreprocessConfig, PreprocessableMessage, DesensitizeRule, TruncationStrategy } from './types'
-export { preprocessMessages } from './pipeline'
-export type { PreprocessLogger } from './pipeline'
+export { preprocessMessages, preprocessMessagesWithStats, desensitizeText, matchesBlacklist } from './pipeline'
+export type { PreprocessLogger, PreprocessStats } from './pipeline'
 export {
   BUILTIN_DESENSITIZE_RULES,
   DESENSITIZE_RULES_SCHEMA_VERSION,
@@ -26,7 +26,8 @@ export {
   i18nTexts,
   t,
 } from './format'
+export type { FormatMessageOptions } from './format'
 
 // Preprocessing pipeline
-export type { PreprocessingPipelineOptions, PreprocessingPipelineResult } from './preprocessing-pipeline'
+export type { PreprocessingPipelineOptions, PreprocessingPipelineResult, PipelineStats } from './preprocessing-pipeline'
 export { applyPreprocessingPipeline } from './preprocessing-pipeline'

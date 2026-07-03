@@ -63,7 +63,7 @@ export function getJieba(dictType: DictType = 'default'): JiebaInstance {
   if (cached) {
     if (existsDictOnDisk(effectiveType)) return cached
     jiebaInstances.delete(effectiveType)
-    console.log(`[NLP] jieba cache invalidated (dict missing): ${effectiveType}`)
+    console.error(`[NLP] jieba cache invalidated (dict missing): ${effectiveType}`)
   }
 
   try {
@@ -72,7 +72,7 @@ export function getJieba(dictType: DictType = 'default'): JiebaInstance {
     const diskDict = tryLoadDictFromDisk(effectiveType)
     if (diskDict) {
       instance = Jieba.withDict(diskDict)
-      console.log(`[NLP] jieba dict loaded: ${effectiveType} (${diskDict.length} bytes)`)
+      console.error(`[NLP] jieba dict loaded: ${effectiveType} (${diskDict.length} bytes)`)
     } else {
       instance = new Jieba()
       console.warn(`[NLP] jieba dict missing: ${effectiveType}, fallback to built-in tokenizer`)
@@ -90,7 +90,7 @@ export function getJieba(dictType: DictType = 'default'): JiebaInstance {
  */
 export function clearJiebaInstance(dictType: DictType): void {
   jiebaInstances.delete(dictType)
-  console.log(`[NLP] jieba instance cleared: ${dictType}`)
+  console.error(`[NLP] jieba instance cleared: ${dictType}`)
 }
 
 function segmentChinese(

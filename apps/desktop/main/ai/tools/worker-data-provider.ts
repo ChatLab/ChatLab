@@ -138,7 +138,7 @@ export class WorkerDataProvider implements ToolDataProvider {
   }
 
   async getTimeStats(
-    type: 'hourly' | 'weekday' | 'daily',
+    type: 'hourly' | 'weekday' | 'daily' | 'monthly',
     options?: { timeFilter?: ToolTimeRange }
   ): Promise<unknown[]> {
     const filter = options?.timeFilter
@@ -147,6 +147,8 @@ export class WorkerDataProvider implements ToolDataProvider {
         return this.run(() => workerManager.getWeekdayActivity(this.sessionId, filter))
       case 'daily':
         return this.run(() => workerManager.getDailyActivity(this.sessionId, filter))
+      case 'monthly':
+        return this.run(() => workerManager.getMonthlyActivity(this.sessionId, filter))
       case 'hourly':
       default:
         return this.run(() => workerManager.getHourlyActivity(this.sessionId, filter))
@@ -183,8 +185,8 @@ export class WorkerDataProvider implements ToolDataProvider {
     }
   }
 
-  async executeSql(sql: string): Promise<unknown> {
-    return this.run(() => workerManager.executeRawSQL(this.sessionId, sql))
+  async executeSql(sql: string, options?: { maxRows?: number }): Promise<unknown> {
+    return this.run(() => workerManager.executeRawSQL(this.sessionId, sql, options?.maxRows))
   }
 
   async executeParameterizedSql<T = Record<string, unknown>>(

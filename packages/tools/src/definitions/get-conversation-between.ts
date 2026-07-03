@@ -6,6 +6,7 @@ import type { ToolDefinition, ToolExecutionContext, ToolResult, JsonSchema } fro
 import { parseExtendedTimeParams } from '../utils/time-params'
 import { formatTimeRange, t } from '../utils/format'
 import { timeParamProperties } from '../utils/schemas'
+import { resolveMessageLimit } from '../utils/limits'
 
 const inputSchema: JsonSchema = {
   type: 'object',
@@ -20,7 +21,7 @@ const inputSchema: JsonSchema = {
 
 async function handler(params: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {
   const { locale, timeFilter: contextTimeFilter, maxMessagesLimit } = context
-  const limit = maxMessagesLimit || (params.limit as number) || 100
+  const limit = resolveMessageLimit(params.limit, 100, maxMessagesLimit)
   const effectiveTimeFilter = parseExtendedTimeParams(params as any, contextTimeFilter)
 
   const result = await context.dataProvider!.getConversationBetween(

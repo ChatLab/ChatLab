@@ -12,6 +12,7 @@ import {
   FULL_MSG_SELECT,
   mapMessageRow,
   buildMsgConditions,
+  buildExcludeKeywordsConditions,
   type FullMessageRow,
   type MappedMessage,
 } from './message-sql'
@@ -205,10 +206,23 @@ export function searchMessagesLike(
 export function searchMessagesByKeywords(
   db: DatabaseAdapter,
   keywords: string[],
-  options?: { startTs?: number; endTs?: number; senderId?: number; limit?: number; offset?: number }
+  options?: {
+    startTs?: number
+    endTs?: number
+    senderId?: number
+    limit?: number
+    offset?: number
+    /** Keyword join mode: 'any' (OR, default) or 'all' (AND). */
+    matchMode?: 'any' | 'all'
+    /** Blacklist pushdown: rows containing any keyword are excluded from results and total. */
+    excludeKeywords?: string[]
+    /** Timestamp ordering, default 'desc' (most recent first). */
+    sort?: 'asc' | 'desc'
+  }
 ): PaginatedMessages {
   const limit = options?.limit ?? 50
   const offset = options?.offset ?? 0
+  const order = options?.sort === 'asc' ? 'ASC' : 'DESC'
   const cleaned = keywords.map((k) => k.trim()).filter((k) => k.length > 0)
 
   const { clause, params } = buildMsgConditions({
@@ -216,6 +230,8 @@ export function searchMessagesByKeywords(
     endTs: options?.endTs,
     senderId: options?.senderId,
     keywords: cleaned.length > 0 ? cleaned : undefined,
+    matchMode: options?.matchMode,
+    excludeKeywords: options?.excludeKeywords,
     systemFilter: true,
   })
 
@@ -224,7 +240,7 @@ export function searchMessagesByKeywords(
     .get(...params) as { total: number }
 
   const rows = db
-    .prepare(`${FULL_MSG_SELECT} WHERE 1=1 ${clause} ORDER BY msg.ts DESC LIMIT ? OFFSET ?`)
+    .prepare(`${FULL_MSG_SELECT} WHERE 1=1 ${clause} ORDER BY msg.ts ${order} LIMIT ? OFFSET ?`)
     .all(...params, limit + 1, offset) as unknown as FullMessageRow[]
 
   const hasMore = rows.length > limit
@@ -682,7 +698,13 @@ export function getConversationBetween(
   memberId1: number,
   memberId2: number,
   filter?: TimeFilter,
-  limit: number = 100
+  limit: number = 100,
+  options?: {
+    /** Pagination offset over the recency-ordered (ts DESC) sequence. */
+    offset?: number
+    /** Blacklist pushdown: rows containing any keyword are excluded from results and total. */
+    excludeKeywords?: string[]
+  }
 ): ConversationData {
   const member1 = db
     .prepare('SELECT COALESCE(group_nickname, account_name, platform_id) as name FROM member WHERE id = ?')
@@ -699,12 +721,25 @@ export function getConversationBetween(
   const { clause: timeClause, params: timeParams } = buildTimeFilter(filter, 'msg')
   const timeCondition = timeClause ? timeClause.replace('WHERE', 'AND') : ''
 
+  let excludeCondition = ''
+  const excludeParams: unknown[] = []
+  if (options?.excludeKeywords && options.excludeKeywords.length > 0) {
+    const exclude = buildExcludeKeywordsConditions(options.excludeKeywords)
+    excludeCondition = 'AND ' + exclude.conditions.join(' AND ')
+    excludeParams.push(...exclude.params)
+  }
+
+  const offset = options?.offset ?? 0
+
   const countSql = `
     SELECT COUNT(*) as total FROM message msg
     WHERE msg.sender_id IN (?, ?) ${timeCondition}
     AND msg.content IS NOT NULL AND msg.content != ''
+    ${excludeCondition}
   `
-  const totalRow = db.prepare(countSql).get(memberId1, memberId2, ...timeParams) as { total: number }
+  const totalRow = db.prepare(countSql).get(memberId1, memberId2, ...timeParams, ...excludeParams) as {
+    total: number
+  }
 
   const sql = `
     SELECT
@@ -716,9 +751,12 @@ export function getConversationBetween(
     JOIN member m ON msg.sender_id = m.id
     WHERE msg.sender_id IN (?, ?) ${timeCondition}
     AND msg.content IS NOT NULL AND msg.content != ''
-    ORDER BY msg.ts DESC LIMIT ?
+    ${excludeCondition}
+    ORDER BY msg.ts DESC LIMIT ? OFFSET ?
   `
-  const rows = db.prepare(sql).all(memberId1, memberId2, ...timeParams, limit) as unknown as ContextMessage[]
+  const rows = db
+    .prepare(sql)
+    .all(memberId1, memberId2, ...timeParams, ...excludeParams, limit, offset) as unknown as ContextMessage[]
 
   return {
     messages: rows.reverse(),

@@ -152,17 +152,25 @@ export interface SqlToolDef {
  * - CoreDataProvider: 通过 @openchatlab/core 查询函数 + DatabaseAdapter
  * - WorkerDataProvider: 通过 workerManager IPC 调用 Worker 线程
  */
+export interface SearchMessagesOptions {
+  timeFilter?: ToolTimeRange
+  limit?: number
+  senderId?: number
+  /** Pagination offset (CLI cursor paging). */
+  offset?: number
+  /** Keyword join mode: 'any' (OR, default) or 'all' (AND). */
+  matchMode?: 'any' | 'all'
+  /** Blacklist pushdown: rows containing any keyword are excluded from results and total. */
+  excludeKeywords?: string[]
+  /** Timestamp ordering, default 'desc'. */
+  sort?: 'asc' | 'desc'
+}
+
 export interface ToolDataProvider {
   // === 基础查询 ===
-  searchMessages(
-    keywords: string[],
-    options?: { timeFilter?: ToolTimeRange; limit?: number; senderId?: number }
-  ): Promise<SearchMessagesResult>
+  searchMessages(keywords: string[], options?: SearchMessagesOptions): Promise<SearchMessagesResult>
 
-  deepSearchMessages(
-    keywords: string[],
-    options?: { timeFilter?: ToolTimeRange; limit?: number; senderId?: number }
-  ): Promise<SearchMessagesResult>
+  deepSearchMessages(keywords: string[], options?: SearchMessagesOptions): Promise<SearchMessagesResult>
 
   getSearchMessageContext(messageIds: number[], contextBefore: number, contextAfter: number): Promise<RawMessage[]>
 
@@ -181,7 +189,10 @@ export interface ToolDataProvider {
   getMemberNameHistory(memberId: number): Promise<NameHistoryItem[]>
 
   // === 时间统计 ===
-  getTimeStats(type: 'hourly' | 'weekday' | 'daily', options?: { timeFilter?: ToolTimeRange }): Promise<unknown[]>
+  getTimeStats(
+    type: 'hourly' | 'weekday' | 'daily' | 'monthly',
+    options?: { timeFilter?: ToolTimeRange }
+  ): Promise<unknown[]>
 
   // === 段落相关 ===
   getSegmentMessages(segmentId: number, limit?: number): Promise<SegmentMessagesResult | null>
@@ -197,7 +208,7 @@ export interface ToolDataProvider {
   ): Promise<ConversationResult>
 
   // === SQL ===
-  executeSql(sql: string): Promise<unknown>
+  executeSql(sql: string, options?: { maxRows?: number }): Promise<unknown>
 
   executeParameterizedSql<T = Record<string, unknown>>(query: string, params: Record<string, unknown>): Promise<T[]>
 

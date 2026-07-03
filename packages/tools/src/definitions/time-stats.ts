@@ -5,6 +5,8 @@
  */
 
 import type { ToolDefinition, ToolExecutionContext, ToolResult, JsonSchema } from '../types'
+import { parseExtendedTimeParams } from '../utils/time-params'
+import { timeParamProperties } from '../utils/schemas'
 
 const inputSchema: JsonSchema = {
   type: 'object',
@@ -15,12 +17,14 @@ const inputSchema: JsonSchema = {
       enum: ['hourly', 'weekday', 'daily'],
       default: 'hourly',
     },
+    ...timeParamProperties,
   },
 }
 
 async function handler(params: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {
   const type = (params.type as 'hourly' | 'weekday' | 'daily') || 'hourly'
-  const data = await context.dataProvider!.getTimeStats(type, { timeFilter: context.timeFilter })
+  const effectiveTimeFilter = parseExtendedTimeParams(params as any, context.timeFilter)
+  const data = await context.dataProvider!.getTimeStats(type, { timeFilter: effectiveTimeFilter })
 
   return {
     content: JSON.stringify({ type, data }),

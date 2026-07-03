@@ -55,11 +55,11 @@ export function executePluginQuery<T = Record<string, unknown>>(
  * Execute user SQL (SQL Lab).
  * Returns columnar format with timing for the legacy IPC contract.
  */
-export function executeRawSQL(sessionId: string, sql: string): SQLResult {
+export function executeRawSQL(sessionId: string, sql: string, maxRows: number = 0): SQLResult {
   const adapter = ensureAdapter(sessionId)
 
   try {
-    const result = executeSql(adapter, sql, { columnar: true, timing: true, maxRows: 0 })
+    const result = executeSql(adapter, sql, { columnar: true, timing: true, maxRows })
     return {
       columns: result.columns,
       rows: result.rows as unknown[][],

@@ -5,7 +5,7 @@
  * 供 Electron worker 和 Server HTTP 路由共用。
  */
 
-import type { DatabaseAdapter } from '@openchatlab/core'
+import { buildExcludeKeywordsConditions, type DatabaseAdapter } from '@openchatlab/core'
 import type {
   SupportedLocale,
   DictType,
@@ -18,7 +18,8 @@ import { segment, batchSegmentWithFrequency, batchSegmentChineseWithStats, colle
 
 function buildMessageQuery(
   timeFilter?: { startTs?: number; endTs?: number },
-  memberId?: number
+  memberId?: number,
+  excludeKeywords?: string[]
 ): { clause: string; params: unknown[] } {
   const conditions: string[] = []
   const params: unknown[] = []
@@ -34,6 +35,12 @@ function buildMessageQuery(
   if (memberId !== undefined && memberId !== null) {
     conditions.push('msg.sender_id = ?')
     params.push(memberId)
+  }
+
+  if (excludeKeywords && excludeKeywords.length > 0) {
+    const exclude = buildExcludeKeywordsConditions(excludeKeywords)
+    conditions.push(...exclude.conditions)
+    params.push(...exclude.params)
   }
 
   conditions.push("COALESCE(m.account_name, '') != '系统消息'")
@@ -63,9 +70,10 @@ export function computeWordFrequency(db: DatabaseAdapter, params: WordFrequencyP
     enableStopwords = true,
     dictType = 'default',
     excludeWords,
+    excludeKeywords,
   } = params
 
-  const { clause, params: filterParams } = buildMessageQuery(timeFilter, memberId)
+  const { clause, params: filterParams } = buildMessageQuery(timeFilter, memberId, excludeKeywords)
 
   const messages = db
     .prepare(`SELECT msg.content FROM message msg JOIN member m ON msg.sender_id = m.id${clause}`)

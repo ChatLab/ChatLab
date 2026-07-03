@@ -200,6 +200,9 @@ export type {
 } from './ai'
 export {
   preprocessMessages,
+  preprocessMessagesWithStats,
+  desensitizeText,
+  matchesBlacklist,
   BUILTIN_DESENSITIZE_RULES,
   DESENSITIZE_RULES_SCHEMA_VERSION,
   applyDesensitizeRuleOverrides,
@@ -216,7 +219,13 @@ export {
   t,
   applyPreprocessingPipeline,
 } from './ai'
-export type { PreprocessingPipelineOptions, PreprocessingPipelineResult } from './ai'
+export type {
+  PreprocessingPipelineOptions,
+  PreprocessingPipelineResult,
+  PipelineStats,
+  PreprocessStats,
+  FormatMessageOptions,
+} from './ai'
 
 export type { AIChat, AIMessage, AIMessageRole, ContentBlock, TokenUsageData, AIChatManagerLogger } from './ai'
 

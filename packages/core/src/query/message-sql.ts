@@ -101,12 +101,44 @@ export interface MsgQueryConditions {
   params: unknown[]
 }
 
+/** Escape LIKE wildcards (%, _, \) so user keywords match literally with ESCAPE '\'. */
+export function escapeLikePattern(keyword: string): string {
+  return keyword.replace(/[\\%_]/g, (ch) => `\\${ch}`)
+}
+
+/**
+ * Build blacklist exclusion conditions (parameterized NOT LIKE ... ESCAPE, ASCII
+ * case-insensitive, wildcards escaped). NULL content is kept, matching the
+ * preprocessing pipeline's blacklist behavior. Returns bare conditions without
+ * an AND prefix so callers can embed them in any WHERE clause.
+ */
+export function buildExcludeKeywordsConditions(
+  excludeKeywords: string[],
+  column = 'msg.content'
+): { conditions: string[]; params: unknown[] } {
+  const conditions: string[] = []
+  const params: unknown[] = []
+  for (const keyword of excludeKeywords) {
+    conditions.push(`(${column} IS NULL OR lower(${column}) NOT LIKE ? ESCAPE '\\')`)
+    params.push(`%${escapeLikePattern(keyword.toLowerCase())}%`)
+  }
+  return { conditions, params }
+}
+
 export function buildMsgConditions(options?: {
   startTs?: number
   endTs?: number
   senderId?: number
   memberId?: number | null
   keywords?: string[]
+  /** Keyword join mode: 'any' (OR, default) or 'all' (AND). */
+  matchMode?: 'any' | 'all'
+  /**
+   * Blacklist pushdown: rows whose content contains any keyword are excluded
+   * (case-insensitive for ASCII, wildcards escaped). NULL content is kept,
+   * matching the preprocessing pipeline's blacklist behavior.
+   */
+  excludeKeywords?: string[]
   systemFilter?: boolean
   textOnlyFilter?: boolean
 }): MsgQueryConditions {
@@ -130,9 +162,15 @@ export function buildMsgConditions(options?: {
     params.push(options.memberId)
   }
   if (options?.keywords && options.keywords.length > 0) {
+    const joiner = options.matchMode === 'all' ? ' AND ' : ' OR '
     const kwConds = options.keywords.map(() => 'msg.content LIKE ?')
-    conds.push(`(${kwConds.join(' OR ')})`)
+    conds.push(`(${kwConds.join(joiner)})`)
     params.push(...options.keywords.map((k) => `%${k}%`))
+  }
+  if (options?.excludeKeywords && options.excludeKeywords.length > 0) {
+    const exclude = buildExcludeKeywordsConditions(options.excludeKeywords)
+    conds.push(...exclude.conditions)
+    params.push(...exclude.params)
   }
   if (options?.systemFilter) {
     conds.push(SYSTEM_MSG_FILTER)

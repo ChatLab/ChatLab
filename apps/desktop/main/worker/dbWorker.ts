@@ -213,7 +213,7 @@ const syncHandlers: Record<string, (payload: any) => any> = {
   getMessagesAfter: (p) => getMessagesAfter(p.sessionId, p.afterId, p.limit, p.filter, p.senderId, p.keywords),
 
   // SQL 实验室
-  executeRawSQL: (p) => executeRawSQL(p.sessionId, p.sql),
+  executeRawSQL: (p) => executeRawSQL(p.sessionId, p.sql, p.maxRows),
   getSchema: (p) => getSchema(p.sessionId),
 
   // 通用 SQL 查询

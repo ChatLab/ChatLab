@@ -8,11 +8,12 @@
 import type { DatabaseAdapter } from '@openchatlab/core'
 import {
   searchMessagesByKeywords,
-  getRecentMessages as coreGetRecentMessages,
+  queryMessages,
   getMemberActivity,
   getHourlyActivity,
   getWeekdayActivity,
   getDailyActivity,
+  getMonthlyActivity,
   executeReadonlySql,
   getDatabaseSchema,
   getMessageContext as coreGetMessageContext,
@@ -27,6 +28,7 @@ import {
 } from '@openchatlab/core'
 import type {
   ToolDataProvider,
+  SearchMessagesOptions,
   SearchMessagesResult,
   MemberStatItem,
   SchemaTableInfo,
@@ -43,15 +45,16 @@ import type {
 export class CoreDataProvider implements ToolDataProvider {
   constructor(private db: DatabaseAdapter) {}
 
-  async searchMessages(
-    keywords: string[],
-    options?: { timeFilter?: ToolTimeRange; limit?: number; senderId?: number }
-  ): Promise<SearchMessagesResult> {
+  async searchMessages(keywords: string[], options?: SearchMessagesOptions): Promise<SearchMessagesResult> {
     const result = searchMessagesByKeywords(this.db, keywords, {
       startTs: options?.timeFilter?.startTs,
       endTs: options?.timeFilter?.endTs,
       senderId: options?.senderId,
       limit: options?.limit ?? 50,
+      offset: options?.offset,
+      matchMode: options?.matchMode,
+      excludeKeywords: options?.excludeKeywords,
+      sort: options?.sort,
     })
     return {
       messages: result.messages.map((m) => ({
@@ -66,10 +69,7 @@ export class CoreDataProvider implements ToolDataProvider {
     }
   }
 
-  async deepSearchMessages(
-    keywords: string[],
-    options?: { timeFilter?: ToolTimeRange; limit?: number; senderId?: number }
-  ): Promise<SearchMessagesResult> {
+  async deepSearchMessages(keywords: string[], options?: SearchMessagesOptions): Promise<SearchMessagesResult> {
     return this.searchMessages(keywords, options)
   }
 
@@ -82,9 +82,13 @@ export class CoreDataProvider implements ToolDataProvider {
   }
 
   async getRecentMessages(options?: { timeFilter?: ToolTimeRange; limit?: number }): Promise<SearchMessagesResult> {
-    const messages = coreGetRecentMessages(this.db, { limit: options?.limit ?? 50 })
+    const result = queryMessages(this.db, {
+      limit: options?.limit ?? 50,
+      startTs: options?.timeFilter?.startTs,
+      endTs: options?.timeFilter?.endTs,
+    })
     return {
-      messages: messages.map((m) => ({
+      messages: result.messages.map((m) => ({
         id: m.id,
         senderId: m.senderId,
         senderName: m.senderName,
@@ -92,7 +96,7 @@ export class CoreDataProvider implements ToolDataProvider {
         content: m.content,
         timestamp: m.timestamp,
       })),
-      total: messages.length,
+      total: result.total,
     }
   }
 
@@ -123,7 +127,7 @@ export class CoreDataProvider implements ToolDataProvider {
   }
 
   async getTimeStats(
-    type: 'hourly' | 'weekday' | 'daily',
+    type: 'hourly' | 'weekday' | 'daily' | 'monthly',
     options?: { timeFilter?: ToolTimeRange }
   ): Promise<unknown[]> {
     const filter = options?.timeFilter
@@ -132,6 +136,8 @@ export class CoreDataProvider implements ToolDataProvider {
         return getWeekdayActivity(this.db, filter)
       case 'daily':
         return getDailyActivity(this.db, filter)
+      case 'monthly':
+        return getMonthlyActivity(this.db, filter)
       case 'hourly':
       default:
         return getHourlyActivity(this.db, filter)
@@ -155,8 +161,8 @@ export class CoreDataProvider implements ToolDataProvider {
     return coreGetConversationBetween(this.db, memberId1, memberId2, timeFilter, limit)
   }
 
-  async executeSql(sql: string): Promise<unknown> {
-    return executeReadonlySql(this.db, sql)
+  async executeSql(sql: string, options?: { maxRows?: number }): Promise<unknown> {
+    return executeReadonlySql(this.db, sql, options?.maxRows)
   }
 
   async executeParameterizedSql<T = Record<string, unknown>>(

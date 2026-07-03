@@ -125,4 +125,57 @@ describe('CoreDataProvider keyword search', () => {
     const r = await provider.deepSearchMessages(['麻将', '扑克'])
     assert.equal(r.total, 3)
   })
+
+  it('getRecentMessages honors timeFilter', async () => {
+    const r = await provider.getRecentMessages({
+      timeFilter: { startTs: T0 + 50, endTs: T0 + 200 },
+      limit: 10,
+    })
+
+    assert.equal(r.total, 1)
+    assert.deepEqual(
+      r.messages.map((m) => m.id),
+      [4]
+    )
+  })
+
+  it('getRecentMessages reports total independently from returned limit', async () => {
+    const r = await provider.getRecentMessages({ limit: 1 })
+
+    assert.equal(r.total, 4)
+    assert.equal(r.messages.length, 1)
+  })
+
+  it('passes sort asc through to the core query (default stays desc)', async () => {
+    const asc = await provider.searchMessages(['麻将'], { sort: 'asc' })
+    assert.deepEqual(
+      asc.messages.map((m) => m.id),
+      [1, 4]
+    )
+
+    const desc = await provider.searchMessages(['麻将'])
+    assert.deepEqual(
+      desc.messages.map((m) => m.id),
+      [4, 1]
+    )
+  })
+
+  it('passes matchMode and excludeKeywords through to the core query', async () => {
+    const all = await provider.searchMessages(['麻将', '周末'], { matchMode: 'all' })
+    assert.equal(all.total, 1)
+    assert.equal(all.messages[0].id, 4)
+
+    const excluded = await provider.searchMessages(['麻将'], { excludeKeywords: ['周末'] })
+    assert.equal(excluded.total, 1)
+    assert.equal(excluded.messages[0].id, 1)
+  })
+
+  it('getTimeStats supports monthly via core getMonthlyActivity', async () => {
+    const rows = (await provider.getTimeStats('monthly')) as Array<{ month: number; messageCount: number }>
+    assert.equal(rows.length, 12)
+    assert.equal(
+      rows.reduce((sum, r) => sum + r.messageCount, 0),
+      4
+    )
+  })
 })

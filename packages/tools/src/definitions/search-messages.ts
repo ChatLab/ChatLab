@@ -8,6 +8,7 @@ import type { ToolDefinition, ToolExecutionContext, ToolResult, JsonSchema } fro
 import { parseExtendedTimeParams } from '../utils/time-params'
 import { formatTimeRange } from '../utils/format'
 import { timeParamProperties } from '../utils/schemas'
+import { resolveMessageLimit } from '../utils/limits'
 
 const inputSchema: JsonSchema = {
   type: 'object',
@@ -23,7 +24,7 @@ const inputSchema: JsonSchema = {
 async function handler(params: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {
   const { locale, timeFilter: contextTimeFilter, maxMessagesLimit } = context
   const keywords = params.keywords as string[]
-  const limit = Math.min(maxMessagesLimit || (params.limit as number) || 1000, 50000)
+  const limit = Math.min(resolveMessageLimit(params.limit, 1000, maxMessagesLimit), 50000)
   const effectiveTimeFilter = parseExtendedTimeParams(params as any, contextTimeFilter)
 
   const result = await context.dataProvider!.searchMessages(keywords, {
@@ -42,6 +43,7 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
       finalMessages = await context.dataProvider!.getSearchMessageContext(hitIds, contextBefore, contextAfter)
     }
   }
+  finalMessages = finalMessages.slice(0, limit)
 
   const data = {
     total: result.total,

@@ -17,15 +17,47 @@ const defaultLogger: PreprocessLogger = {
   warn: () => {},
 }
 
+/** 各预处理步骤的统计信息（供 CLI meta.preprocess / --verbose 输出） */
+export interface PreprocessStats {
+  input: number
+  output: number
+  cleaned: number
+  blacklistRemoved: number
+  denoiseRemoved: number
+  /** 合并连续发言吸收掉的消息数（before - after） */
+  mergeCombined: number
+  desensitizeRulesApplied: number
+}
+
+function emptyStats(count: number): PreprocessStats {
+  return {
+    input: count,
+    output: count,
+    cleaned: 0,
+    blacklistRemoved: 0,
+    denoiseRemoved: 0,
+    mergeCombined: 0,
+    desensitizeRulesApplied: 0,
+  }
+}
+
 export function preprocessMessages<T extends PreprocessableMessage>(
   messages: T[],
   config?: PreprocessConfig,
   logger: PreprocessLogger = defaultLogger
 ): T[] {
-  if (!config || !hasAnyEnabled(config)) return messages
-  if (messages.length === 0) return messages
+  return preprocessMessagesWithStats(messages, config, logger).messages
+}
 
-  const inputCount = messages.length
+export function preprocessMessagesWithStats<T extends PreprocessableMessage>(
+  messages: T[],
+  config?: PreprocessConfig,
+  logger: PreprocessLogger = defaultLogger
+): { messages: T[]; stats: PreprocessStats } {
+  if (!config || !hasAnyEnabled(config)) return { messages, stats: emptyStats(messages.length) }
+  if (messages.length === 0) return { messages, stats: emptyStats(0) }
+
+  const stats = emptyStats(messages.length)
   let result: T[] = [...messages]
   const applied: string[] = []
 
@@ -33,6 +65,7 @@ export function preprocessMessages<T extends PreprocessableMessage>(
     const cleaned = applyDataCleaning(result)
     if (cleaned.changed > 0) {
       result = cleaned.messages
+      stats.cleaned = cleaned.changed
       applied.push(`dataCleaning: ${cleaned.changed} messages cleaned`)
     }
   }
@@ -40,18 +73,21 @@ export function preprocessMessages<T extends PreprocessableMessage>(
   if (config.blacklistKeywords.length > 0) {
     const before = result.length
     result = applyBlacklistFilter(result, config.blacklistKeywords)
+    stats.blacklistRemoved = before - result.length
     applied.push(`blacklist: ${before} → ${result.length} (-${before - result.length})`)
   }
 
   if (config.denoise) {
     const before = result.length
     result = applyDenoise(result)
+    stats.denoiseRemoved = before - result.length
     applied.push(`denoise: ${before} → ${result.length} (-${before - result.length})`)
   }
 
   if (config.mergeConsecutive) {
     const before = result.length
     result = applyMergeConsecutive(result, config.mergeWindowSeconds ?? MERGE_WINDOW_DEFAULT)
+    stats.mergeCombined = before - result.length
     applied.push(`merge: ${before} → ${result.length} (-${before - result.length})`)
   }
 
@@ -59,15 +95,18 @@ export function preprocessMessages<T extends PreprocessableMessage>(
     const enabledRules = (config.desensitizeRules || []).filter((r) => r.enabled)
     if (enabledRules.length > 0) {
       result = applyDesensitize(result, enabledRules, logger)
+      stats.desensitizeRulesApplied = enabledRules.length
       applied.push(`desensitize: ${enabledRules.length} rules applied`)
     }
   }
 
-  logger.info('Preprocess', `Pipeline: ${inputCount} → ${result.length} messages`, {
+  stats.output = result.length
+
+  logger.info('Preprocess', `Pipeline: ${stats.input} → ${result.length} messages`, {
     strategies: applied,
   })
 
-  return result
+  return { messages: result, stats }
 }
 
 function hasAnyEnabled(config: PreprocessConfig): boolean {
@@ -195,6 +234,8 @@ function applyMergeConsecutive<T extends PreprocessableMessage>(messages: T[], w
       current = {
         ...current,
         content: [current.content, msg.content].filter(Boolean).join('\n'),
+        // keep first message's id, track last id for [#start-end] range citations
+        mergedEndId: msg.id ?? current.mergedEndId,
       }
     } else {
       merged.push(current)
@@ -223,14 +264,43 @@ function applyDesensitize<T extends PreprocessableMessage>(
 
   return messages.map((msg) => {
     if (!msg.content) return msg
-    let content = msg.content
-    for (const { regex, replacement } of compiledRules) {
-      regex.lastIndex = 0
-      content = content.replace(regex, replacement)
-    }
+    const content = applyCompiledRules(msg.content, compiledRules)
     if (content === msg.content) return msg
     return { ...msg, content }
   })
+}
+
+function applyCompiledRules(text: string, compiledRules: Array<{ regex: RegExp; replacement: string }>): string {
+  let result = text
+  for (const { regex, replacement } of compiledRules) {
+    regex.lastIndex = 0
+    result = result.replace(regex, replacement)
+  }
+  return result
+}
+
+/**
+ * String-level desensitize API for derived text (topic summaries, SQL cells).
+ * Applies enabled rules only; invalid regex patterns are skipped.
+ */
+export function desensitizeText(
+  text: string,
+  rules: DesensitizeRule[],
+  logger: PreprocessLogger = defaultLogger
+): string {
+  const enabledRules = rules.filter((r) => r.enabled)
+  if (enabledRules.length === 0 || !text) return text
+  return applyCompiledRules(text, compileRules(enabledRules, logger))
+}
+
+/**
+ * String-level blacklist check (case-insensitive substring), matching the
+ * message-level blacklist semantics of the preprocessing pipeline.
+ */
+export function matchesBlacklist(text: string, keywords: string[]): boolean {
+  if (keywords.length === 0 || !text) return false
+  const lower = text.toLowerCase()
+  return keywords.some((kw) => lower.includes(kw.toLowerCase()))
 }
 
 const regexCache = new Map<string, RegExp | null>()

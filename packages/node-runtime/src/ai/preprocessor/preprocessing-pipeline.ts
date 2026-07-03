@@ -6,7 +6,7 @@
  */
 
 import type { PreprocessConfig, PreprocessableMessage, TruncationStrategy } from './types'
-import { preprocessMessages, type PreprocessLogger } from './pipeline'
+import { preprocessMessagesWithStats, type PreprocessLogger, type PreprocessStats } from './pipeline'
 import {
   formatMessageCompact,
   anonymizeMessageNames,
@@ -27,11 +27,25 @@ export interface PreprocessingPipelineOptions {
   extraDetails?: Record<string, unknown>
   /** 可选的日志记录器，Electron 端注入 aiLogger 以记录管道统计信息 */
   logger?: PreprocessLogger
+  /** 渲染 [#id] 引用前缀（CLI agent 格式）；默认关闭，不影响桌面 AI 输出 */
+  includeMessageIds?: boolean
+  /** 搜索命中 id 集合，命中条渲染为 [#id*]（需 includeMessageIds） */
+  hitIds?: Iterable<number>
+  /** 单条消息内容字符上限（对接 --max-chars）；0 关闭截断；缺省用管道默认 200 */
+  maxContentChars?: number
+}
+
+/** 管道执行统计（预处理各步骤 + 渲染/截断结果） */
+export interface PipelineStats extends PreprocessStats {
+  /** 最终 text 中的可读条目数（合并/截断后） */
+  renderedBlocks: number
+  truncated: boolean
 }
 
 export interface PreprocessingPipelineResult {
   text: string
   details: Record<string, unknown>
+  stats: PipelineStats
 }
 
 export function applyPreprocessingPipeline(options: PreprocessingPipelineOptions): PreprocessingPipelineResult {
@@ -45,16 +59,32 @@ export function applyPreprocessingPipeline(options: PreprocessingPipelineOptions
     truncationStrategy = 'keep_last',
     extraDetails = {},
     logger,
+    includeMessageIds = false,
+    hitIds,
+    maxContentChars,
   } = options
 
-  const processed = preprocessMessages(rawMessages, preprocessConfig, logger)
+  const { messages: processed, stats: preprocessStats } = preprocessMessagesWithStats(
+    rawMessages,
+    preprocessConfig,
+    logger
+  )
 
   let nameMapLine = ''
   if (anonymizeNames) {
     nameMapLine = anonymizeMessageNames(processed, ownerPlatformId)
   }
 
-  let formatted = processed.map((m) => formatMessageCompact(m, locale))
+  const formatOptions =
+    includeMessageIds || maxContentChars != null
+      ? {
+          includeMessageId: includeMessageIds,
+          hitIds: hitIds ? new Set(hitIds) : undefined,
+          maxContentLength: maxContentChars,
+        }
+      : undefined
+
+  let formatted = processed.map((m) => formatMessageCompact(m, locale, formatOptions))
 
   let wasTruncated = false
   const originalCount = formatted.length
@@ -81,5 +111,11 @@ export function applyPreprocessingPipeline(options: PreprocessingPipelineOptions
     textContent = nameMapLine + '\n' + textContent
   }
 
-  return { text: textContent, details: finalDetails }
+  const stats: PipelineStats = {
+    ...preprocessStats,
+    renderedBlocks: formatted.length,
+    truncated: wasTruncated,
+  }
+
+  return { text: textContent, details: finalDetails, stats }
 }

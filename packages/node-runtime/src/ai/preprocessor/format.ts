@@ -38,9 +38,19 @@ export function t(key: TextEntryKey, locale?: string): string | string[] {
 
 const MAX_MESSAGE_CONTENT_LENGTH = 200
 
+export interface FormatMessageOptions {
+  /** Render an [#id] prefix for message citations (CLI agent format). */
+  includeMessageId?: boolean
+  /** Message ids that are search hits; rendered as [#id*]. */
+  hitIds?: Set<number>
+  /** Per-message content char limit; 0 disables truncation. Default 200. */
+  maxContentLength?: number
+}
+
 /**
  * 格式化消息为简洁文本格式
  * 输出格式: "2025/3/3 07:25:04 张三: 消息内容"
+ * includeMessageId 开启时: "[#1021] 2025/3/3 07:25:04 张三: 消息内容"（合并块为 [#start-end]）
  */
 export function formatMessageCompact(
   msg: {
@@ -48,18 +58,28 @@ export function formatMessageCompact(
     senderName: string
     content: string | null
     timestamp: number
+    mergedEndId?: number
   },
-  locale?: string
+  locale?: string,
+  options?: FormatMessageOptions
 ): string {
   const localeStr = isChineseLocale(locale) ? 'zh-CN' : 'en-US'
   const time = new Date(msg.timestamp * 1000).toLocaleString(localeStr)
   let content = msg.content || (t('noContent', locale) as string)
 
-  if (content.length > MAX_MESSAGE_CONTENT_LENGTH) {
-    content = content.slice(0, MAX_MESSAGE_CONTENT_LENGTH) + '...'
+  const maxLength = options?.maxContentLength ?? MAX_MESSAGE_CONTENT_LENGTH
+  if (maxLength > 0 && content.length > maxLength) {
+    content = content.slice(0, maxLength) + '...'
   }
 
-  return `${time} ${msg.senderName}: ${content}`
+  let idPrefix = ''
+  if (options?.includeMessageId && msg.id != null) {
+    const range = msg.mergedEndId != null && msg.mergedEndId !== msg.id ? `${msg.id}-${msg.mergedEndId}` : `${msg.id}`
+    const hitMark = options.hitIds?.has(msg.id) ? '*' : ''
+    idPrefix = `[#${range}${hitMark}] `
+  }
+
+  return `${idPrefix}${time} ${msg.senderName}: ${content}`
 }
 
 /**
@@ -109,16 +129,20 @@ export function formatToolResultAsText(details: Record<string, unknown>): string
     lines.push('')
     let lastDate = ''
     for (const msg of messages) {
-      const spaceIdx = msg.indexOf(' ')
-      const secondSpaceIdx = msg.indexOf(' ', spaceIdx + 1)
+      // [#id] citation prefixes (CLI agent format) must survive date grouping at line start
+      const prefixMatch = /^(\[#[^\]]+\] )/.exec(msg)
+      const prefix = prefixMatch ? prefixMatch[1] : ''
+      const body = prefix ? msg.slice(prefix.length) : msg
+      const spaceIdx = body.indexOf(' ')
+      const secondSpaceIdx = body.indexOf(' ', spaceIdx + 1)
       if (spaceIdx > 0 && secondSpaceIdx > 0) {
-        const date = msg.slice(0, spaceIdx)
-        const rest = msg.slice(spaceIdx + 1)
+        const date = body.slice(0, spaceIdx)
+        const rest = body.slice(spaceIdx + 1)
         if (date !== lastDate) {
           lines.push(`--- ${date} ---`)
           lastDate = date
         }
-        lines.push(rest)
+        lines.push(prefix + rest)
       } else {
         lines.push(msg)
       }

@@ -721,8 +721,8 @@ export interface TableSchema {
 /**
  * 执行用户 SQL 查询
  */
-export async function executeRawSQL(sessionId: string, sql: string): Promise<SQLResult> {
-  return sendToWorker('executeRawSQL', { sessionId, sql })
+export async function executeRawSQL(sessionId: string, sql: string, maxRows?: number): Promise<SQLResult> {
+  return sendToWorker('executeRawSQL', { sessionId, sql, maxRows })
 }
 
 /**

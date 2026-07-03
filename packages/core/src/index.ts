@@ -105,6 +105,9 @@ export {
   TEXT_ONLY_FILTER,
   mapMessageRow,
   buildMsgConditions,
+  escapeLikePattern,
+  buildExcludeKeywordsConditions,
+  computeResponseTimeStats,
   fetchMessagesBefore,
   fetchMessagesAfter,
   searchMessagesLikeAsync,
@@ -222,7 +225,12 @@ export type {
   SqlExecutionOptions,
   SqlExecutionResult,
   TableSchema,
+  ResponseTimeMessage,
+  ResponseTimeStat,
 } from './query'
+
+// 消息类型语义映射
+export { messageTypeToString } from './message-type'
 
 // 版本比较
 export { isNewerStableVersion, isStableVersion } from './version'

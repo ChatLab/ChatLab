@@ -4,6 +4,7 @@
 
 import type { ToolDefinition, ToolExecutionContext, ToolResult, JsonSchema } from '../types'
 import { isChineseLocale } from '../utils/format'
+import { resolveMessageLimit } from '../utils/limits'
 
 const inputSchema: JsonSchema = {
   type: 'object',
@@ -16,7 +17,7 @@ const inputSchema: JsonSchema = {
 
 async function handler(params: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {
   const { locale, maxMessagesLimit } = context
-  const limit = maxMessagesLimit || (params.limit as number) || 1000
+  const limit = resolveMessageLimit(params.limit, 1000, maxMessagesLimit)
 
   const result = await context.dataProvider!.getSegmentMessages(params.segment_id as number, limit)
 

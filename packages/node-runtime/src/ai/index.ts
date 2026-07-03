@@ -79,6 +79,9 @@ export type {
 } from './preprocessor'
 export {
   preprocessMessages,
+  preprocessMessagesWithStats,
+  desensitizeText,
+  matchesBlacklist,
   BUILTIN_DESENSITIZE_RULES,
   DESENSITIZE_RULES_SCHEMA_VERSION,
   applyDesensitizeRuleOverrides,
@@ -95,7 +98,13 @@ export {
   t,
   applyPreprocessingPipeline,
 } from './preprocessor'
-export type { PreprocessingPipelineOptions, PreprocessingPipelineResult } from './preprocessor'
+export type {
+  PreprocessingPipelineOptions,
+  PreprocessingPipelineResult,
+  PipelineStats,
+  PreprocessStats,
+  FormatMessageOptions,
+} from './preprocessor'
 
 // Agent Core
 export type { AgentCoreOptions, AgentCoreEvent, AgentCoreResult, AgentTokenUsage, SimpleHistoryMessage } from './agent'
