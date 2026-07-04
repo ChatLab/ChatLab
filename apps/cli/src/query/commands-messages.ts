@@ -64,6 +64,11 @@ export function capExpandedSearchMessages(
   return capped.sort((a, b) => messages.indexOf(a) - messages.indexOf(b))
 }
 
+export function appendUniqueTailMessages(expanded: MessageLike[], tail: MessageLike[]): MessageLike[] {
+  const expandedIds = new Set(expanded.map((message) => message.id))
+  return [...expanded, ...tail.filter((message) => !expandedIds.has(message.id))]
+}
+
 export function parseContextIds(value: string): number[] {
   const tokens = value.split(',').map((token) => token.trim())
   const ids = tokens.map((token) => (token.length > 0 ? Number(token) : Number.NaN))
@@ -281,7 +286,7 @@ export function registerMessageCommands(program: Command): void {
             )
             const keptHits = new Set(expandableHits.map((m) => m.id))
             const tail = hits.filter((m) => !keptHits.has(m.id))
-            pipelineMessages = [...expanded, ...tail]
+            pipelineMessages = appendUniqueTailMessages(expanded, tail)
             if (pipelineMessages.length > maxMessages) {
               pipelineMessages = capExpandedSearchMessages(pipelineMessages, hitIds, maxMessages)
               warnings.push(`response capped at ${maxMessages} messages`)

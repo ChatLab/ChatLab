@@ -2,6 +2,7 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 
 import {
+  appendUniqueTailMessages,
   assertContextAnchorsPresent,
   capExpandedSearchMessages,
   parseContextIds,
@@ -23,6 +24,24 @@ describe('capExpandedSearchMessages', () => {
     assert.deepEqual(
       capped.map((message) => message.id),
       [12]
+    )
+  })
+})
+
+describe('appendUniqueTailMessages', () => {
+  it('does not append tail hits already included by expanded context', () => {
+    const expanded: MessageLike[] = [
+      { id: 10, senderName: 'Alice', content: 'alpha hit', timestamp: 1710000000 },
+      { id: 11, senderName: 'Bob', content: 'beta hit as context', timestamp: 1710000001 },
+    ]
+    const tail: MessageLike[] = [
+      { id: 11, senderName: 'Bob', content: 'beta hit as context', timestamp: 1710000001 },
+      { id: 12, senderName: 'Carol', content: 'tail hit', timestamp: 1710000002 },
+    ]
+
+    assert.deepEqual(
+      appendUniqueTailMessages(expanded, tail).map((message) => message.id),
+      [10, 11, 12]
     )
   })
 })
