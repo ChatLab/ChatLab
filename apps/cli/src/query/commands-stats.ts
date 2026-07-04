@@ -51,6 +51,14 @@ function toTimeFilter(time: ReturnType<typeof parseTimeOptions>): { startTs: num
   return { startTs: time.startTs ?? 0, endTs: time.endTs ?? Math.floor(Date.now() / 1000) }
 }
 
+export function responseStatsMessagesSql(): string {
+  return `SELECT msg.id, msg.sender_id, COALESCE(m.group_nickname, m.account_name) AS name, msg.ts
+           FROM message msg
+           JOIN member m ON msg.sender_id = m.id
+           WHERE msg.type = 0 AND msg.ts >= @startTs
+           ORDER BY msg.ts ASC, msg.id ASC`
+}
+
 export function registerStatsCommands(program: Command): void {
   const statsCmd = program
     .command('stats')
@@ -259,11 +267,7 @@ export function registerStatsCommands(program: Command): void {
         const top = parseLimit(options.top, 10, 100, '--top')
         const rows = executeParameterizedSql<{ sender_id: number; name: string; ts: number }>(
           ctx.db,
-          `SELECT msg.sender_id, COALESCE(m.group_nickname, m.account_name) AS name, msg.ts
-           FROM message msg
-           JOIN member m ON msg.sender_id = m.id
-           WHERE msg.type = 0 AND msg.ts >= @startTs
-           ORDER BY msg.ts ASC`,
+          responseStatsMessagesSql(),
           { startTs: time.startTs ?? 0 }
         )
         const items = computeResponseTimeStats(

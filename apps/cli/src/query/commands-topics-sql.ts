@@ -24,6 +24,17 @@ export function parseSqlRowLimit(value: string | undefined): number {
   return parseLimit(value, 100, 1000, '--limit', 1)
 }
 
+export function clampSqlRows(
+  rows: Record<string, unknown>[],
+  maxRows: number,
+  alreadyTruncated: boolean
+): { rows: Record<string, unknown>[]; truncated: boolean } {
+  if (maxRows <= 0 || rows.length <= maxRows) {
+    return { rows, truncated: alreadyTruncated }
+  }
+  return { rows: rows.slice(0, maxRows), truncated: true }
+}
+
 function escapeRegExp(value: string): string {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
 }
@@ -335,7 +346,8 @@ export function registerSqlCommands(program: Command): void {
           }
           assertSqlResultPrivacyAllowed(result.columns, !!options.raw)
 
-          let rows = result.rows
+          const clamped = clampSqlRows(result.rows, limit, result.truncated)
+          let rows = clamped.rows
           let removed = 0
           if (!options.raw) {
             const rules = enabledRules(ctx)
@@ -362,7 +374,7 @@ export function registerSqlCommands(program: Command): void {
           }
 
           return {
-            data: { columns: result.columns, rows, rowCount: rows.length, truncated: result.truncated },
+            data: { columns: result.columns, rows, rowCount: rows.length, truncated: clamped.truncated },
             meta: {
               session: ctx.session,
               ...(options.raw ? { preprocess: { raw: true } } : {}),
@@ -372,7 +384,7 @@ export function registerSqlCommands(program: Command): void {
               rows.length === 0
                 ? 'No results.'
                 : rows.map((r) => JSON.stringify(r)).join('\n') +
-                  `\n${rows.length} row(s)${result.truncated ? ' (truncated)' : ''}`,
+                  `\n${rows.length} row(s)${clamped.truncated ? ' (truncated)' : ''}`,
           }
         } finally {
           ctx.close()

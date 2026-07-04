@@ -9,6 +9,7 @@ import assert from 'node:assert/strict'
 import {
   assertSqlPrivacyAllowed,
   assertSqlResultPrivacyAllowed,
+  clampSqlRows,
   parseSqlRowLimit,
   topicsAgentText,
   type TopicListItem,
@@ -55,6 +56,16 @@ describe('parseSqlRowLimit', () => {
       () => parseSqlRowLimit('0'),
       (err: unknown) => err instanceof QueryError && err.code === 'INVALID_ARGUMENT'
     )
+  })
+})
+
+describe('clampSqlRows', () => {
+  it('clamps SQL rows even when the executed SQL already had a LIMIT', () => {
+    const rows = [{ id: 1 }, { id: 2 }, { id: 3 }]
+    const result = clampSqlRows(rows, 2, false)
+
+    assert.deepEqual(result.rows, [{ id: 1 }, { id: 2 }])
+    assert.equal(result.truncated, true)
   })
 })
 
