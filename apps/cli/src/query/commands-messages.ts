@@ -109,12 +109,15 @@ export function assertContextAnchorsPresent(ids: number[], messages: MessageLike
   }
 }
 
-function addSharedOptions(cmd: Command): Command {
-  return cmd
-    .option('--session <ref>', 'Session id or unique name (auto-selected when only one exists)')
-    .option('--since <t>', 'Start time: YYYY-MM-DD, "YYYY-MM-DD HH:mm", ISO 8601, today, yesterday')
-    .option('--until <t>', 'End time (date-only values include the whole day)')
-    .option('--last <dur>', 'Relative window: <N>h|d|w (mutually exclusive with --since/--until)')
+function addSharedOptions(cmd: Command, options: { includeTime?: boolean } = {}): Command {
+  const shared = cmd.option('--session <ref>', 'Session id or unique name (auto-selected when only one exists)')
+  if (options.includeTime !== false) {
+    shared
+      .option('--since <t>', 'Start time: YYYY-MM-DD, "YYYY-MM-DD HH:mm", ISO 8601, today, yesterday')
+      .option('--until <t>', 'End time (date-only values include the whole day)')
+      .option('--last <dur>', 'Relative window: <N>h|d|w (mutually exclusive with --since/--until)')
+  }
+  return shared
     .option('--format <format>', 'Output format: agent|json|text (agents should pass agent explicitly)')
     .option('--max-tokens <n>', 'Token budget for agent text (default 4000)')
     .option('--max-chars <n>', 'Per-message content char limit')
@@ -325,7 +328,7 @@ export function registerMessageCommands(program: Command): void {
     .description('Show messages around specific numeric message ids')
     .requiredOption('--id <ids>', 'Message id(s), comma-separated')
     .option('--window <n>', 'Messages before/after each id (default 10, max 100)')
-  addSharedOptions(contextCmd)
+  addSharedOptions(contextCmd, { includeTime: false })
   contextCmd.action(async (options: CommonMessageOptions & { id: string; window?: string }) => {
     await runQuery('messages.context', options, async (format) => {
       assertRawFormatCompatible(format, options)

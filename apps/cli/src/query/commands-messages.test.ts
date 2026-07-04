@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import { Command } from 'commander'
 
 import {
   appendUniqueTailMessages,
@@ -8,7 +9,9 @@ import {
   parseContextIds,
   parseSearchKeywords,
   searchTruncationStrategy,
+  registerMessageCommands,
 } from './commands-messages'
+import { buildManifest } from './manifest'
 import type { MessageLike } from './messages-output'
 
 describe('capExpandedSearchMessages', () => {
@@ -86,5 +89,17 @@ describe('assertContextAnchorsPresent', () => {
         ),
       /No messages found/
     )
+  })
+})
+
+describe('registerMessageCommands', () => {
+  it('does not advertise time filters on messages context', () => {
+    const program = new Command()
+    registerMessageCommands(program)
+
+    const manifest = buildManifest(program, '0.0.0')
+    const context = manifest.commands.find((command) => command.name === 'messages context')
+    assert.ok(context)
+    assert.ok(!context.options.some((option) => ['--since <t>', '--until <t>', '--last <dur>'].includes(option.flags)))
   })
 })
