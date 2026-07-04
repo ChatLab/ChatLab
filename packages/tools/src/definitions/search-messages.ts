@@ -9,6 +9,7 @@ import { parseExtendedTimeParams } from '../utils/time-params'
 import { formatTimeRange } from '../utils/format'
 import { timeParamProperties } from '../utils/schemas'
 import { resolveMessageLimit } from '../utils/limits'
+import { trimMessagesPreservingHits } from './search-context'
 
 const inputSchema: JsonSchema = {
   type: 'object',
@@ -36,14 +37,14 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
   const contextBefore = context.searchContextBefore ?? 2
   const contextAfter = context.searchContextAfter ?? 2
   let finalMessages = result.messages
+  const hitIds = result.messages.map((m) => m.id).filter((id): id is number => id != null)
 
   if ((contextBefore > 0 || contextAfter > 0) && result.messages.length > 0) {
-    const hitIds = result.messages.map((m) => m.id).filter((id): id is number => id != null)
     if (hitIds.length > 0) {
       finalMessages = await context.dataProvider!.getSearchMessageContext(hitIds, contextBefore, contextAfter)
     }
   }
-  finalMessages = finalMessages.slice(0, limit)
+  finalMessages = trimMessagesPreservingHits(finalMessages, hitIds, limit)
 
   const data = {
     total: result.total,

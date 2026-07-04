@@ -126,6 +126,13 @@ export function writeConfigField(section: string, key: string, value: string | n
     } catch {
       // 解析失败时从空开始，旧文件会被覆盖
     }
+  } else if (fs.existsSync(CONFIG_JSON)) {
+    try {
+      const content = fs.readFileSync(CONFIG_JSON, 'utf-8')
+      existing = JSON.parse(content) as Record<string, Record<string, unknown>>
+    } catch {
+      // Match loadConfigFile: unreadable legacy JSON does not seed TOML writes.
+    }
   }
 
   if (!existing[section] || typeof existing[section] !== 'object') {

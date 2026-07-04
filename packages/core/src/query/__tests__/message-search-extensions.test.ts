@@ -118,6 +118,26 @@ describe('search extensions (in-memory SQLite)', () => {
     assert.equal(wildcard.total, 2)
   })
 
+  it('search keywords escape SQL wildcards instead of expanding them', () => {
+    raw
+      .prepare('INSERT INTO message (id, sender_id, ts, type, content) VALUES (?, ?, ?, ?, ?)')
+      .run(6, 1, 6000, 0, '包含_下划线和 100% 符号')
+
+    const underscore = searchMessagesByKeywords(db, ['_'], { sort: 'asc' })
+    assert.equal(underscore.total, 1)
+    assert.deepEqual(
+      underscore.messages.map((m) => m.id),
+      [6]
+    )
+
+    const percent = searchMessagesByKeywords(db, ['%'], { sort: 'asc' })
+    assert.equal(percent.total, 2)
+    assert.deepEqual(
+      percent.messages.map((m) => m.id),
+      [4, 6]
+    )
+  })
+
   it('excludeKeywords keeps NULL-content rows (parity with pipeline blacklist)', () => {
     const { clause, params } = buildMsgConditions({ excludeKeywords: ['机密'] })
     const row = db
@@ -137,6 +157,24 @@ describe('search extensions (in-memory SQLite)', () => {
     assert.deepEqual(
       desc.messages.map((m) => m.id),
       [3, 2]
+    )
+  })
+
+  it('uses id as a tie-breaker for same-second search paging', () => {
+    const insert = raw.prepare('INSERT INTO message (id, sender_id, ts, type, content) VALUES (?, ?, ?, ?, ?)')
+    insert.run(6, 1, 7000, 0, '同秒消息')
+    insert.run(7, 2, 7000, 0, '同秒消息')
+
+    const asc = searchMessagesByKeywords(db, ['同秒'], { sort: 'asc' })
+    assert.deepEqual(
+      asc.messages.map((m) => m.id),
+      [6, 7]
+    )
+
+    const desc = searchMessagesByKeywords(db, ['同秒'])
+    assert.deepEqual(
+      desc.messages.map((m) => m.id),
+      [7, 6]
     )
   })
 })
@@ -178,6 +216,18 @@ describe('getConversationBetween pagination and blacklist (in-memory SQLite)', (
     assert.deepEqual(
       page2.messages.map((m) => m.id),
       [2, 3]
+    )
+  })
+
+  it('uses id as a tie-breaker for same-second between paging', () => {
+    const insert = raw.prepare('INSERT INTO message (id, sender_id, ts, type, content) VALUES (?, ?, ?, ?, ?)')
+    insert.run(7, 1, 6000, 0, '同秒 A')
+    insert.run(8, 2, 6000, 0, '同秒 B')
+
+    const page = getConversationBetween(db, 1, 2, undefined, 2)
+    assert.deepEqual(
+      page.messages.map((m) => m.id),
+      [7, 8]
     )
   })
 

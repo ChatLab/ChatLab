@@ -10,7 +10,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { parse as parseToml } from 'smol-toml'
 import { configSchema } from './schema'
-import { loadConfig, writeConfigField, getConfigDir } from './loader'
+import { writeConfigField, getConfigDir } from './loader'
 
 export type ConfigSetErrorReason = 'unknown_key' | 'invalid_value' | 'invalid_config' | 'unreadable_config'
 
@@ -70,7 +70,7 @@ export function setConfigField(fieldPath: string, rawValue: string): ConfigSetRe
   writeConfigField(section, key, value)
 
   try {
-    loadConfig()
+    validateConfigFile(tomlPath)
   } catch (err) {
     if (original === null) {
       fs.unlinkSync(tomlPath)
@@ -85,6 +85,12 @@ export function setConfigField(fieldPath: string, rawValue: string): ConfigSetRe
   }
 
   return { section, key, value }
+}
+
+function validateConfigFile(tomlPath: string): void {
+  const written = fs.readFileSync(tomlPath, 'utf-8')
+  const parsed = parseToml(written) as Record<string, unknown>
+  configSchema.parse(parsed)
 }
 
 function parseValueByType(

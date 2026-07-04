@@ -231,11 +231,16 @@ function applyMergeConsecutive<T extends PreprocessableMessage>(messages: T[], w
     const withinWindow = Math.abs(msg.timestamp - current.timestamp) <= windowSeconds
 
     if (sameSender && withinWindow) {
+      const mergedIds = [
+        ...(current.mergedIds ?? (current.id != null ? [current.id] : [])),
+        ...(msg.mergedIds ?? (msg.id != null ? [msg.id] : [])),
+      ]
       current = {
         ...current,
         content: [current.content, msg.content].filter(Boolean).join('\n'),
         // keep first message's id, track last id for [#start-end] range citations
         mergedEndId: msg.id ?? current.mergedEndId,
+        ...(mergedIds.length > 0 ? { mergedIds } : {}),
       }
     } else {
       merged.push(current)

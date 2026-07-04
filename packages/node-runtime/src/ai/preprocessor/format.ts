@@ -39,7 +39,7 @@ export function t(key: TextEntryKey, locale?: string): string | string[] {
 const MAX_MESSAGE_CONTENT_LENGTH = 200
 
 export interface FormatMessageOptions {
-  /** Render an [#id] prefix for message citations (CLI agent format). */
+  /** Render [#id] / [#id*] prefixes, or display-only [#a-b] ranges for merged blocks. */
   includeMessageId?: boolean
   /** Message ids that are search hits; rendered as [#id*]. */
   hitIds?: Set<number>
@@ -50,7 +50,7 @@ export interface FormatMessageOptions {
 /**
  * 格式化消息为简洁文本格式
  * 输出格式: "2025/3/3 07:25:04 张三: 消息内容"
- * includeMessageId 开启时: "[#1021] 2025/3/3 07:25:04 张三: 消息内容"（合并块为 [#start-end]）
+ * includeMessageId 开启时: "[#1021] 2025/3/3 07:25:04 张三: 消息内容"（合并块显示为 [#start-end]）
  */
 export function formatMessageCompact(
   msg: {
@@ -59,6 +59,7 @@ export function formatMessageCompact(
     content: string | null
     timestamp: number
     mergedEndId?: number
+    mergedIds?: number[]
   },
   locale?: string,
   options?: FormatMessageOptions
@@ -75,11 +76,17 @@ export function formatMessageCompact(
   let idPrefix = ''
   if (options?.includeMessageId && msg.id != null) {
     const range = msg.mergedEndId != null && msg.mergedEndId !== msg.id ? `${msg.id}-${msg.mergedEndId}` : `${msg.id}`
-    const hitMark = options.hitIds?.has(msg.id) ? '*' : ''
+    const hitMark = isHitMessage(msg, options.hitIds) ? '*' : ''
     idPrefix = `[#${range}${hitMark}] `
   }
 
   return `${idPrefix}${time} ${msg.senderName}: ${content}`
+}
+
+function isHitMessage(msg: { id?: number; mergedIds?: number[] }, hitIds?: Set<number>): boolean {
+  if (!hitIds) return false
+  if (msg.id != null && hitIds.has(msg.id)) return true
+  return msg.mergedIds?.some((id) => hitIds.has(id)) ?? false
 }
 
 /**
@@ -129,7 +136,7 @@ export function formatToolResultAsText(details: Record<string, unknown>): string
     lines.push('')
     let lastDate = ''
     for (const msg of messages) {
-      // [#id] citation prefixes (CLI agent format) must survive date grouping at line start
+      // [#id] prefixes (CLI agent format) must survive date grouping at line start.
       const prefixMatch = /^(\[#[^\]]+\] )/.exec(msg)
       const prefix = prefixMatch ? prefixMatch[1] : ''
       const body = prefix ? msg.slice(prefix.length) : msg

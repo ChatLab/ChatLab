@@ -42,6 +42,8 @@ import type {
   RawMessage,
 } from '../types'
 
+const TOOL_MESSAGE_LIMIT_CAP = 50000
+
 export class CoreDataProvider implements ToolDataProvider {
   constructor(private db: DatabaseAdapter) {}
 
@@ -84,6 +86,7 @@ export class CoreDataProvider implements ToolDataProvider {
   async getRecentMessages(options?: { timeFilter?: ToolTimeRange; limit?: number }): Promise<SearchMessagesResult> {
     const result = queryMessages(this.db, {
       limit: options?.limit ?? 50,
+      maxLimit: TOOL_MESSAGE_LIMIT_CAP,
       startTs: options?.timeFilter?.startTs,
       endTs: options?.timeFilter?.endTs,
     })

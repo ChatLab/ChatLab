@@ -146,6 +146,18 @@ describe('CoreDataProvider keyword search', () => {
     assert.equal(r.messages.length, 1)
   })
 
+  it('getRecentMessages honors limits above the default queryMessages cap', async () => {
+    const ins = raw.prepare('INSERT INTO message (id, sender_id, ts, type, content) VALUES (?, ?, ?, ?, ?)')
+    for (let i = 0; i < 1005; i++) {
+      ins.run(1000 + i, 1, T0 + 1000 + i, 0, `bulk recent ${i}`)
+    }
+
+    const r = await provider.getRecentMessages({ limit: 1005 })
+
+    assert.equal(r.total, 1009)
+    assert.equal(r.messages.length, 1005)
+  })
+
   it('passes sort asc through to the core query (default stays desc)', async () => {
     const asc = await provider.searchMessages(['麻将'], { sort: 'asc' })
     assert.deepEqual(

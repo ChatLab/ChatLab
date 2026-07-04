@@ -53,6 +53,8 @@ export interface PreprocessableMessage {
   replyToMessageId?: string | null
   /** 合并连续发言后，块内最后一条消息的 id（用于 [#start-end] 区间引用） */
   mergedEndId?: number
+  /** 合并连续发言后，块内所有消息 id（用于判断搜索命中标记） */
+  mergedIds?: number[]
 }
 
 export type TruncationStrategy = 'keep_first' | 'keep_last'

@@ -16,7 +16,7 @@ import {
 import { runQuery } from './runner'
 import { createQueryContext, assertRawAllowed } from './context'
 import { resolveMember } from './resolve'
-import { parseTimeOptions, parseLimit, queryFingerprint, encodeCursor, decodeCursor } from './parse'
+import { parseLimit, queryFingerprint, encodeCursor, decodeCursor, resolveTimeOptionsForCursor } from './parse'
 import { QueryError } from './envelope'
 import { buildMessagesResult, assertRawFormatCompatible, type MessageLike } from './messages-output'
 
@@ -35,6 +35,73 @@ interface CommonMessageOptions {
   content?: boolean
   raw?: boolean
   verbose?: boolean
+}
+
+export function capExpandedSearchMessages(
+  messages: MessageLike[],
+  hitIds: ReadonlySet<number>,
+  maxMessages: number
+): MessageLike[] {
+  if (maxMessages <= 0) return []
+  if (messages.length <= maxMessages) return messages
+
+  const capped = messages.slice(0, maxMessages)
+  const includedIds = new Set(capped.map((message) => message.id))
+  const missingHits = messages.filter((message) => hitIds.has(message.id) && !includedIds.has(message.id))
+
+  for (const hit of missingHits) {
+    let replaceIndex = -1
+    for (let i = capped.length - 1; i >= 0; i--) {
+      if (!hitIds.has(capped[i].id)) {
+        replaceIndex = i
+        break
+      }
+    }
+    if (replaceIndex === -1) break
+    capped[replaceIndex] = hit
+  }
+
+  return capped.sort((a, b) => messages.indexOf(a) - messages.indexOf(b))
+}
+
+export function parseContextIds(value: string): number[] {
+  const tokens = value.split(',').map((token) => token.trim())
+  const ids = tokens.map((token) => (token.length > 0 ? Number(token) : Number.NaN))
+  if (ids.length === 0 || ids.some((id) => !Number.isInteger(id) || id <= 0)) {
+    throw new QueryError({
+      code: 'INVALID_ARGUMENT',
+      message: `Invalid --id value: ${value}`,
+      hint: 'Pass positive numeric message ids, e.g. --id 1021 or --id 1021,1058',
+    })
+  }
+  return ids
+}
+
+export function parseSearchKeywords(values: string[]): string[] {
+  const keywords = values.map((value) => value.trim()).filter(Boolean)
+  if (keywords.length === 0) {
+    throw new QueryError({
+      code: 'INVALID_ARGUMENT',
+      message: 'Invalid search keywords',
+      hint: 'Pass at least one non-empty search keyword',
+    })
+  }
+  return keywords
+}
+
+export function searchTruncationStrategy(sort: string | undefined): 'keep_first' | 'keep_last' {
+  return sort === 'desc' ? 'keep_last' : 'keep_first'
+}
+
+export function assertContextAnchorsPresent(ids: number[], messages: MessageLike[], rawValue: string): void {
+  const returnedIds = new Set(messages.map((message) => message.id))
+  if (ids.some((id) => !returnedIds.has(id))) {
+    throw new QueryError({
+      code: 'MESSAGE_NOT_FOUND',
+      message: `No messages found for id(s) ${rawValue}`,
+      hint: 'Use a single numeric id from [#id]/[#id*] markers; merged [#a-b] ranges are display-only',
+    })
+  }
 }
 
 function addSharedOptions(cmd: Command): Command {
@@ -70,9 +137,9 @@ export function registerMessageCommands(program: Command): void {
       const ctx = createQueryContext(options)
       try {
         assertRawAllowed(ctx, options)
-        const time = parseTimeOptions(options)
+        const time = resolveTimeOptionsForCursor(options)
         const member = options.member ? resolveMember(ctx.db, options.member) : undefined
-        const limit = parseLimit(options.limit, 50, 500, '--limit')
+        const limit = parseLimit(options.limit, 50, 500, '--limit', 1)
         const excludeKeywords = options.raw ? undefined : ctx.preprocessConfig.blacklistKeywords
 
         const fingerprint = queryFingerprint({
@@ -104,7 +171,7 @@ export function registerMessageCommands(program: Command): void {
           totalHits: total,
           returnedHits: result.messages.length,
           hasMore,
-          ...(hasMore ? { nextCursor: encodeCursor(offset + result.messages.length, fingerprint) } : {}),
+          ...(hasMore ? { nextCursor: encodeCursor(offset + result.messages.length, fingerprint, { time }) } : {}),
         }
 
         return buildMessagesResult(format, ctx, options, result.messages, meta, {
@@ -142,6 +209,7 @@ export function registerMessageCommands(program: Command): void {
     ) => {
       await runQuery('messages.search', options, async (format) => {
         assertRawFormatCompatible(format, options)
+        const searchKeywords = parseSearchKeywords(keywords)
         if (options.match !== 'any' && options.match !== 'all') {
           throw new QueryError({
             code: 'INVALID_ARGUMENT',
@@ -159,9 +227,9 @@ export function registerMessageCommands(program: Command): void {
         const ctx = createQueryContext(options)
         try {
           assertRawAllowed(ctx, options)
-          const time = parseTimeOptions(options)
+          const time = resolveTimeOptionsForCursor(options)
           const member = options.member ? resolveMember(ctx.db, options.member) : undefined
-          const limit = parseLimit(options.limit, 20, 500, '--limit')
+          const limit = parseLimit(options.limit, 20, 500, '--limit', 1)
           const context = parseLimit(options.context, 0, 50, '--context')
           const maxMessages = parseLimit(options.maxMessages, 200, 2000, '--max-messages')
           const excludeKeywords = options.raw ? undefined : ctx.preprocessConfig.blacklistKeywords
@@ -169,7 +237,7 @@ export function registerMessageCommands(program: Command): void {
           const fingerprint = queryFingerprint({
             command: 'messages.search',
             session: ctx.session.id,
-            keywords,
+            keywords: searchKeywords,
             match: options.match,
             sort: options.sort,
             startTs: time.startTs ?? null,
@@ -179,7 +247,7 @@ export function registerMessageCommands(program: Command): void {
           })
           const offset = options.cursor ? decodeCursor(options.cursor, fingerprint) : 0
 
-          const result = searchMessagesByKeywords(ctx.db, keywords, {
+          const result = searchMessagesByKeywords(ctx.db, searchKeywords, {
             startTs: time.startTs,
             endTs: time.endTs,
             senderId: member?.id,
@@ -215,7 +283,7 @@ export function registerMessageCommands(program: Command): void {
             const tail = hits.filter((m) => !keptHits.has(m.id))
             pipelineMessages = [...expanded, ...tail]
             if (pipelineMessages.length > maxMessages) {
-              pipelineMessages = pipelineMessages.slice(0, maxMessages)
+              pipelineMessages = capExpandedSearchMessages(pipelineMessages, hitIds, maxMessages)
               warnings.push(`response capped at ${maxMessages} messages`)
             }
           }
@@ -225,18 +293,18 @@ export function registerMessageCommands(program: Command): void {
           const meta: Record<string, unknown> = {
             session: ctx.session,
             timeRange: time.meta,
-            query: { keywords, match: options.match, engine: 'like', sort: options.sort, context },
+            query: { keywords: searchKeywords, match: options.match, engine: 'like', sort: options.sort, context },
             ...(member ? { member } : {}),
             totalHits: total,
             returnedHits: hits.length,
             hasMore,
-            ...(hasMore ? { nextCursor: encodeCursor(offset + hits.length, fingerprint) } : {}),
+            ...(hasMore ? { nextCursor: encodeCursor(offset + hits.length, fingerprint, { time }) } : {}),
             ...(warnings.length > 0 ? { warnings } : {}),
           }
 
           return buildMessagesResult(format, ctx, options, pipelineMessages, meta, {
             hitIds,
-            strategy: 'keep_first',
+            strategy: searchTruncationStrategy(options.sort),
             defaultMaxChars: 120,
           })
         } finally {
@@ -249,33 +317,20 @@ export function registerMessageCommands(program: Command): void {
   // ---------- messages context ----------
   const contextCmd = messagesCmd
     .command('context')
-    .description('Show messages around specific message ids (evidence follow-up)')
+    .description('Show messages around specific numeric message ids')
     .requiredOption('--id <ids>', 'Message id(s), comma-separated')
     .option('--window <n>', 'Messages before/after each id (default 10, max 100)')
   addSharedOptions(contextCmd)
   contextCmd.action(async (options: CommonMessageOptions & { id: string; window?: string }) => {
     await runQuery('messages.context', options, async (format) => {
       assertRawFormatCompatible(format, options)
-      const ids = options.id.split(',').map((s) => Number(s.trim()))
-      if (ids.length === 0 || ids.some((n) => !Number.isInteger(n) || n < 0)) {
-        throw new QueryError({
-          code: 'INVALID_ARGUMENT',
-          message: `Invalid --id value: ${options.id}`,
-          hint: 'Pass numeric message ids, e.g. --id 1021 or --id 1021,1058',
-        })
-      }
+      const ids = parseContextIds(options.id)
       const ctx = createQueryContext(options)
       try {
         assertRawAllowed(ctx, options)
         const window = parseLimit(options.window, 10, 100, '--window')
         const messages = getMessageContext(ctx.db, ids, window)
-        if (messages.length === 0) {
-          throw new QueryError({
-            code: 'MESSAGE_NOT_FOUND',
-            message: `No messages found for id(s) ${options.id}`,
-            hint: 'Message ids come from [#id] markers in search results',
-          })
-        }
+        assertContextAnchorsPresent(ids, messages, options.id)
         const meta: Record<string, unknown> = {
           session: ctx.session,
           anchorIds: ids,
@@ -312,10 +367,10 @@ export function registerMessageCommands(program: Command): void {
       const ctx = createQueryContext(options)
       try {
         assertRawAllowed(ctx, options)
-        const time = parseTimeOptions(options)
+        const time = resolveTimeOptionsForCursor(options)
         const memberA = resolveMember(ctx.db, options.member[0])
         const memberB = resolveMember(ctx.db, options.member[1])
-        const limit = parseLimit(options.limit, 50, 500, '--limit')
+        const limit = parseLimit(options.limit, 50, 500, '--limit', 1)
         const excludeKeywords = options.raw ? undefined : ctx.preprocessConfig.blacklistKeywords
 
         const fingerprint = queryFingerprint({
@@ -346,7 +401,7 @@ export function registerMessageCommands(program: Command): void {
           totalHits: result.total,
           returnedHits: returned,
           hasMore,
-          ...(hasMore ? { nextCursor: encodeCursor(offset + returned, fingerprint) } : {}),
+          ...(hasMore ? { nextCursor: encodeCursor(offset + returned, fingerprint, { time }) } : {}),
         }
 
         return buildMessagesResult(format, ctx, options, result.messages, meta, {

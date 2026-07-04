@@ -6,7 +6,15 @@
 
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { parseTimeOptions, parseLimit, queryFingerprint, encodeCursor, decodeCursor, epochToIso } from './parse'
+import {
+  parseTimeOptions,
+  parseLimit,
+  queryFingerprint,
+  encodeCursor,
+  decodeCursor,
+  epochToIso,
+  resolveTimeOptionsForCursor,
+} from './parse'
 import { QueryError } from './envelope'
 
 // Fixed reference: 2026-07-03 15:30:00 local time
@@ -60,6 +68,22 @@ describe('parseTimeOptions', () => {
     }
   })
 
+  it('rejects invalid calendar dates instead of normalizing them', () => {
+    for (const bad of [
+      { since: '2026-02-31' },
+      { until: '2026-13-01' },
+      { since: '2026-02-31 08:30' },
+      { since: '2026-06-01 25:00' },
+      { until: '2026-02-31T10:00:00+08:00' },
+    ]) {
+      assert.throws(
+        () => parseTimeOptions(bad, NOW),
+        (err: unknown) => err instanceof QueryError && err.code === 'INVALID_ARGUMENT',
+        JSON.stringify(bad)
+      )
+    }
+  })
+
   it('rejects inverted ranges', () => {
     assert.throws(
       () => parseTimeOptions({ since: '2026-07-01', until: '2026-06-01' }, NOW),
@@ -90,6 +114,14 @@ describe('parseLimit', () => {
       )
     }
   })
+
+  it('can reject zero for cursor-paginated page sizes', () => {
+    assert.equal(parseLimit('0', 0, 50, '--context'), 0)
+    assert.throws(
+      () => parseLimit('0', 50, 500, '--limit', 1),
+      (err: unknown) => err instanceof QueryError && err.code === 'INVALID_ARGUMENT'
+    )
+  })
 })
 
 describe('cursor', () => {
@@ -115,5 +147,20 @@ describe('cursor', () => {
       () => decodeCursor('not-a-cursor', fp),
       (err: unknown) => err instanceof QueryError && err.code === 'CURSOR_INVALID'
     )
+  })
+
+  it('reuses frozen time bounds embedded in cursor tokens', () => {
+    const firstRange = resolveTimeOptionsForCursor({ last: '7d' }, NOW)
+    const fp = queryFingerprint({
+      command: 'messages.list',
+      startTs: firstRange.startTs ?? null,
+      endTs: firstRange.endTs ?? null,
+    })
+    const token = encodeCursor(50, fp, { time: firstRange })
+
+    const later = new Date(NOW.getTime() + 60_000)
+    const secondRange = resolveTimeOptionsForCursor({ last: '7d', cursor: token }, later)
+    assert.deepEqual(secondRange, firstRange)
+    assert.equal(decodeCursor(token, fp), 50)
   })
 })

@@ -20,6 +20,7 @@ import type {
   SegmentSummaryItem,
   RawMessage,
 } from '@openchatlab/tools'
+import { adaptWorkerSqlResult } from './worker-sql-result'
 
 function mapSearchMessages(messages: workerManager.SearchMessageResult[]): RawMessage[] {
   return messages.map((m) => ({
@@ -186,7 +187,8 @@ export class WorkerDataProvider implements ToolDataProvider {
   }
 
   async executeSql(sql: string, options?: { maxRows?: number }): Promise<unknown> {
-    return this.run(() => workerManager.executeRawSQL(this.sessionId, sql, options?.maxRows))
+    const result = await this.run(() => workerManager.executeRawSQL(this.sessionId, sql, options?.maxRows))
+    return adaptWorkerSqlResult(result)
   }
 
   async executeParameterizedSql<T = Record<string, unknown>>(

@@ -23,6 +23,10 @@ export interface ResolvedTimeRange {
   meta: { since: string | null; until: string | null }
 }
 
+export interface CursorSnapshot {
+  time?: ResolvedTimeRange
+}
+
 /** Format a Date as ISO 8601 with the local UTC offset (sortable, self-describing). */
 export function toIsoWithOffset(date: Date): string {
   const pad = (n: number, w = 2) => String(Math.abs(n)).padStart(w, '0')
@@ -43,6 +47,7 @@ export function epochToIso(ts: number): string {
 
 const DATE_ONLY = /^(\d{4})-(\d{2})-(\d{2})$/
 const DATE_TIME = /^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?$/
+const ISO_DATE_PREFIX = /^(\d{4})-(\d{2})-(\d{2})T/
 const LAST_DURATION = /^(\d+)([hdw])$/
 
 function startOfDay(base: Date, dayOffset = 0): Date {
@@ -55,6 +60,14 @@ function invalidTime(flag: string, value: string): QueryError {
     message: `Invalid ${flag} value: ${value}`,
     hint: 'Use YYYY-MM-DD, "YYYY-MM-DD HH:mm", ISO 8601, or the keywords today/yesterday',
   })
+}
+
+function isSameLocalDate(date: Date, y: number, m: number, d: number): boolean {
+  return date.getFullYear() === y && date.getMonth() === m - 1 && date.getDate() === d
+}
+
+function isSameLocalDateTime(date: Date, y: number, m: number, d: number, h: number, min: number, s: number): boolean {
+  return isSameLocalDate(date, y, m, d) && date.getHours() === h && date.getMinutes() === min && date.getSeconds() === s
 }
 
 /**
@@ -71,23 +84,43 @@ function parseTimeValue(value: string, boundary: 'start' | 'end', flag: string, 
   const dateOnly = DATE_ONLY.exec(value)
   if (dateOnly) {
     const [, y, m, d] = dateOnly
-    const base = new Date(Number(y), Number(m) - 1, Number(d))
-    if (Number.isNaN(base.getTime())) throw invalidTime(flag, value)
+    const year = Number(y)
+    const month = Number(m)
+    const day = Number(d)
+    const base = new Date(year, month - 1, day)
+    if (Number.isNaN(base.getTime()) || !isSameLocalDate(base, year, month, day)) throw invalidTime(flag, value)
     if (boundary === 'start') return base
-    return new Date(new Date(Number(y), Number(m) - 1, Number(d) + 1).getTime() - 1000)
+    return new Date(new Date(year, month - 1, day + 1).getTime() - 1000)
   }
 
   const dateTime = DATE_TIME.exec(value)
   if (dateTime) {
     const [, y, m, d, h, min, s] = dateTime
-    const parsed = new Date(Number(y), Number(m) - 1, Number(d), Number(h), Number(min), Number(s ?? 0))
-    if (Number.isNaN(parsed.getTime())) throw invalidTime(flag, value)
+    const year = Number(y)
+    const month = Number(m)
+    const day = Number(d)
+    const hour = Number(h)
+    const minute = Number(min)
+    const second = Number(s ?? 0)
+    const parsed = new Date(year, month - 1, day, hour, minute, second)
+    if (Number.isNaN(parsed.getTime()) || !isSameLocalDateTime(parsed, year, month, day, hour, minute, second)) {
+      throw invalidTime(flag, value)
+    }
     return parsed
   }
 
   // full ISO 8601 (with timezone offset or Z)
   const parsed = new Date(value)
   if (!Number.isNaN(parsed.getTime()) && /\d{4}-\d{2}-\d{2}T/.test(value)) {
+    const isoDate = ISO_DATE_PREFIX.exec(value)
+    if (isoDate) {
+      const [, y, m, d] = isoDate
+      const year = Number(y)
+      const month = Number(m)
+      const day = Number(d)
+      const localDate = new Date(year, month - 1, day)
+      if (!isSameLocalDate(localDate, year, month, day)) throw invalidTime(flag, value)
+    }
     return parsed
   }
 
@@ -161,15 +194,19 @@ export function parseLimit(
   value: string | number | undefined,
   defaultValue: number,
   cap: number,
-  flag: string
+  flag: string,
+  min = 0
 ): number {
   if (value === undefined) return Math.min(defaultValue, cap)
   const n = typeof value === 'number' ? value : Number(value)
-  if (!Number.isInteger(n) || n < 0) {
+  if (!Number.isInteger(n) || n < min) {
     throw new QueryError({
       code: 'INVALID_ARGUMENT',
       message: `Invalid ${flag} value: ${value}`,
-      hint: `${flag} must be a non-negative integer (max ${cap})`,
+      hint:
+        min > 0
+          ? `${flag} must be an integer from ${min} to ${cap}`
+          : `${flag} must be a non-negative integer (max ${cap})`,
     })
   }
   return Math.min(n, cap)
@@ -183,12 +220,111 @@ export function queryFingerprint(conditions: Record<string, unknown>): string {
   return createHash('sha256').update(canonical).digest('hex').slice(0, 12)
 }
 
-export function encodeCursor(offset: number, fingerprint: string): string {
+export function freezeTimeRangeForCursor(time: ResolvedTimeRange): ResolvedTimeRange {
+  if (time.endTs !== undefined || time.meta.until === null) return time
+  const endMs = new Date(time.meta.until).getTime()
+  if (Number.isNaN(endMs)) return time
+  return { ...time, endTs: Math.floor(endMs / 1000) }
+}
+
+export function resolveTimeOptionsForCursor(
+  options: TimeCliOptions & { cursor?: string },
+  now = new Date()
+): ResolvedTimeRange {
+  const snapshot = options.cursor ? getCursorSnapshot(options.cursor) : undefined
+  return snapshot?.time ?? freezeTimeRangeForCursor(parseTimeOptions(options, now))
+}
+
+export function encodeCursor(offset: number, fingerprint: string, snapshot?: CursorSnapshot): string {
+  if (snapshot?.time) {
+    return Buffer.from(JSON.stringify({ v: 2, fp: fingerprint, offset, time: snapshot.time }), 'utf8').toString(
+      'base64url'
+    )
+  }
   return Buffer.from(`${fingerprint}:${offset}`, 'utf8').toString('base64url')
+}
+
+function asObject(value: unknown): Record<string, unknown> | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? (value as Record<string, unknown>)
+    : null
+}
+
+function decodeCursorEnvelope(
+  token: string
+): { fingerprint: string; offset: number; snapshot?: CursorSnapshot } | null {
+  let decoded = ''
+  try {
+    decoded = Buffer.from(token, 'base64url').toString('utf8')
+  } catch {
+    return null
+  }
+
+  let payload: unknown
+  try {
+    payload = JSON.parse(decoded)
+  } catch {
+    return null
+  }
+
+  const object = asObject(payload)
+  if (
+    !object ||
+    object.v !== 2 ||
+    typeof object.fp !== 'string' ||
+    typeof object.offset !== 'number' ||
+    !Number.isInteger(object.offset) ||
+    object.offset < 0
+  ) {
+    return null
+  }
+
+  const snapshot = decodeCursorSnapshot(object)
+  return { fingerprint: object.fp, offset: object.offset, ...(snapshot ? { snapshot } : {}) }
+}
+
+function decodeCursorSnapshot(payload: Record<string, unknown>): CursorSnapshot | undefined {
+  const timeObject = asObject(payload.time)
+  if (!timeObject) return undefined
+  const metaObject = asObject(timeObject.meta)
+  if (!metaObject) return undefined
+
+  const startTs = timeObject.startTs
+  const endTs = timeObject.endTs
+  const since = metaObject.since
+  const until = metaObject.until
+  if (startTs !== undefined && typeof startTs !== 'number') return undefined
+  if (endTs !== undefined && typeof endTs !== 'number') return undefined
+  if (since !== null && typeof since !== 'string') return undefined
+  if (until !== null && typeof until !== 'string') return undefined
+
+  return {
+    time: {
+      ...(startTs !== undefined ? { startTs } : {}),
+      ...(endTs !== undefined ? { endTs } : {}),
+      meta: { since, until },
+    },
+  }
+}
+
+export function getCursorSnapshot(token: string): CursorSnapshot | undefined {
+  return decodeCursorEnvelope(token)?.snapshot
 }
 
 /** Decode a cursor and validate it against the current query fingerprint. */
 export function decodeCursor(token: string, fingerprint: string): number {
+  const envelope = decodeCursorEnvelope(token)
+  if (envelope) {
+    if (envelope.fingerprint !== fingerprint) {
+      throw new QueryError({
+        code: 'CURSOR_INVALID',
+        message: 'Cursor does not match the current query conditions',
+        hint: 'Cursors are only valid for the exact query that produced them; re-run the query without --cursor',
+      })
+    }
+    return envelope.offset
+  }
+
   let decoded = ''
   try {
     decoded = Buffer.from(token, 'base64url').toString('utf8')

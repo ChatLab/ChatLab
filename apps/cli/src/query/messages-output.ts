@@ -2,7 +2,8 @@
  * Shared output shaping for message-carrying query commands.
  *
  * agent format: AI-facing text from the shared preprocessing pipeline with
- * [#id] citations (design §6.2). json format: structured items with privacy
+ * [#id] / [#id*] message markers and display-only [#a-b] merged ranges.
+ * json format: structured items with privacy
  * steps applied (cleaning/blacklist/desensitize) but no merging/denoising.
  */
 

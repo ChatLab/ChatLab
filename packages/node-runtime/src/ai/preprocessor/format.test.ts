@@ -13,7 +13,7 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { formatToolResultAsText, formatMessageCompact } from './format'
 import { applyPreprocessingPipeline } from './preprocessing-pipeline'
-import type { PreprocessableMessage } from './types'
+import type { PreprocessConfig, PreprocessableMessage } from './types'
 
 const rawMessages: PreprocessableMessage[] = [
   { id: 1, senderName: 'Alice', content: 'hello world', timestamp: 1710000000 },
@@ -103,6 +103,16 @@ describe('applyPreprocessingPipeline CLI extensions', () => {
     { id: 1021, senderName: '老王', content: '报销流程是不是改了？', timestamp: 1710000000 },
     { id: 1022, senderName: '小红', content: '对，三月起走新系统', timestamp: 1710000060 },
   ]
+  const mergeConfig: PreprocessConfig = {
+    dataCleaning: false,
+    mergeConsecutive: true,
+    mergeWindowSeconds: 180,
+    blacklistKeywords: [],
+    denoise: false,
+    desensitize: false,
+    desensitizeRules: [],
+    anonymizeNames: false,
+  }
 
   it('threads includeMessageIds and hitIds into the rendered text', () => {
     const result = applyPreprocessingPipeline({
@@ -112,6 +122,21 @@ describe('applyPreprocessingPipeline CLI extensions', () => {
     })
     assert.ok(result.text.includes('[#1021*]'))
     assert.ok(result.text.includes('[#1022]'))
+  })
+
+  it('marks merged ranges when the later merged message is a search hit', () => {
+    const result = applyPreprocessingPipeline({
+      rawMessages: [
+        { id: 1021, senderName: '老王', content: '先看下旧流程', timestamp: 1710000000 },
+        { id: 1022, senderName: '老王', content: '新流程在哪里？', timestamp: 1710000060 },
+      ],
+      preprocessConfig: mergeConfig,
+      includeMessageIds: true,
+      hitIds: [1022],
+    })
+
+    assert.ok(result.text.includes('[#1021-1022*]'), result.text)
+    assert.equal(result.stats.mergeCombined, 1)
   })
 
   it('keeps default output free of id markers and exposes pipeline stats', () => {

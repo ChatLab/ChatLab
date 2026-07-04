@@ -39,6 +39,7 @@ export interface QueryMessagesOptions {
   endTs?: number
   senderId?: number
   limit?: number
+  maxLimit?: number
   offset?: number
 }
 
@@ -55,7 +56,8 @@ export interface QueryMessagesResult {
  * 支持关键词、时间范围、发送者过滤
  */
 export function queryMessages(db: DatabaseAdapter, options?: QueryMessagesOptions): QueryMessagesResult {
-  const limit = Math.min(1000, Math.max(1, options?.limit ?? 100))
+  const maxLimit = Math.max(1, options?.maxLimit ?? 1000)
+  const limit = Math.min(maxLimit, Math.max(1, options?.limit ?? 100))
   const offset = options?.offset ?? 0
   const page = Math.floor(offset / limit) + 1
 
@@ -240,7 +242,7 @@ export function searchMessagesByKeywords(
     .get(...params) as { total: number }
 
   const rows = db
-    .prepare(`${FULL_MSG_SELECT} WHERE 1=1 ${clause} ORDER BY msg.ts ${order} LIMIT ? OFFSET ?`)
+    .prepare(`${FULL_MSG_SELECT} WHERE 1=1 ${clause} ORDER BY msg.ts ${order}, msg.id ${order} LIMIT ? OFFSET ?`)
     .all(...params, limit + 1, offset) as unknown as FullMessageRow[]
 
   const hasMore = rows.length > limit
@@ -752,7 +754,7 @@ export function getConversationBetween(
     WHERE msg.sender_id IN (?, ?) ${timeCondition}
     AND msg.content IS NOT NULL AND msg.content != ''
     ${excludeCondition}
-    ORDER BY msg.ts DESC LIMIT ? OFFSET ?
+    ORDER BY msg.ts DESC, msg.id DESC LIMIT ? OFFSET ?
   `
   const rows = db
     .prepare(sql)

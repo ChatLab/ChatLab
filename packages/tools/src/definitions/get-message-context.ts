@@ -22,7 +22,11 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
   const requestedMessageIds = params.message_ids as number[]
   const messageIds =
     maxMessagesLimit && maxMessagesLimit > 0 ? requestedMessageIds.slice(0, maxMessagesLimit) : requestedMessageIds
-  let contextSize = (params.context_size as number) || 20
+  const requestedContextSize = params.context_size
+  let contextSize =
+    typeof requestedContextSize === 'number' && Number.isFinite(requestedContextSize)
+      ? Math.max(0, Math.floor(requestedContextSize))
+      : 20
 
   if (maxMessagesLimit && maxMessagesLimit > 0 && messageIds.length > 0) {
     const maxMessagesPerId = Math.max(1, Math.floor(maxMessagesLimit / messageIds.length))

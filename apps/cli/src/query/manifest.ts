@@ -66,11 +66,11 @@ const EXAMPLES: ManifestExample[] = [
     command: 'chatlab messages search 旅游 --since 2026-01-01 --limit 20 --format agent',
   },
   {
-    task: 'Who mentioned it first (evidence ids)?',
+    task: 'Who mentioned it first (message ids)?',
     command: 'chatlab messages search 报销 --sort asc --limit 5 --format agent',
   },
   {
-    task: 'Follow up a [#id] citation with context',
+    task: 'Follow up a single [#id] marker with context',
     command: 'chatlab messages context --id 1021 --window 10 --format agent',
   },
   {
@@ -92,7 +92,7 @@ const NOTES: string[] = [
   'stdout carries exactly one JSON envelope in agent/json mode; logs go to stderr.',
   'Success envelope: { ok, command, data, meta }; failure: { ok: false, command, error }.',
   'Pagination: follow meta.nextCursor with --cursor; cursors are bound to the exact query.',
-  '[#id] markers in agent text are message ids usable with `messages context --id`.',
+  'Single-message [#id] and [#id*] markers are usable with `messages context --id`; merged [#a-b] ranges are display-only.',
   'Privacy preprocessing (desensitize/blacklist) is always on by default.',
 ]
 

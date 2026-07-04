@@ -4,12 +4,19 @@
  */
 
 import type { Command } from 'commander'
+import type { ChatLabConfig } from '@openchatlab/config'
 import { searchMessagesLike, executeReadonlySql } from '@openchatlab/core'
 import { initRuntime } from '../runtime'
 import { registerSessionCommands, registerMemberCommands } from './commands-sessions-members'
 import { registerMessageCommands } from './commands-messages'
 import { registerStatsCommands } from './commands-stats'
-import { registerTopicCommands, registerSqlCommands } from './commands-topics-sql'
+import {
+  registerTopicCommands,
+  registerSqlCommands,
+  assertSqlPrivacyAllowed,
+  assertSqlResultPrivacyAllowed,
+} from './commands-topics-sql'
+import { QueryError } from './envelope'
 
 export function registerQueryCommands(program: Command): void {
   registerSessionCommands(program)
@@ -19,6 +26,17 @@ export function registerQueryCommands(program: Command): void {
   registerTopicCommands(program)
   registerSqlCommands(program)
   registerLegacyAliases(program)
+}
+
+export function assertLegacySqlAllowed(config: Pick<ChatLabConfig, 'cli'>, sql?: string): void {
+  if (!config.cli.allow_sql) {
+    throw new QueryError({
+      code: 'SQL_DISABLED',
+      message: 'The sql command is disabled by configuration',
+      hint: 'The user can re-enable it with `chatlab config set cli.allow_sql true`',
+    })
+  }
+  if (sql) assertSqlPrivacyAllowed(sql, false)
 }
 
 // ==================== Hidden legacy aliases (output kept byte-compatible) ====================
@@ -67,7 +85,7 @@ function registerLegacyAliases(program: Command): void {
       console.error(
         '[Deprecated] `chatlab query` — use `chatlab sql "<SELECT ...>" --session <id>`; alias kept for one major version'
       )
-      const { dbManager } = initRuntime()
+      const { config, dbManager } = initRuntime()
       const db = dbManager.open(sessionId)
       if (!db) {
         console.error(`Session ${sessionId} not found`)
@@ -75,7 +93,9 @@ function registerLegacyAliases(program: Command): void {
       }
 
       try {
+        assertLegacySqlAllowed(config, options.sql)
         const result = executeReadonlySql(db, options.sql)
+        assertSqlResultPrivacyAllowed(result.columns, false)
         if (options.format === 'json') {
           console.log(JSON.stringify(result, null, 2))
         } else {
@@ -87,6 +107,11 @@ function registerLegacyAliases(program: Command): void {
           }
         }
       } catch (err) {
+        if (err instanceof QueryError) {
+          console.error(`${err.code}: ${err.message}`)
+          if (err.hint) console.error(`Hint: ${err.hint}`)
+          process.exit(2)
+        }
         console.error(`SQL error: ${err instanceof Error ? err.message : err}`)
         process.exit(1)
       }

@@ -2,9 +2,9 @@
  * topics / sql / schema query commands.
  *
  * Derived-text privacy (design §6.2): topic summaries are LLM-generated from raw
- * content, and SQL results can carry message bodies — both are desensitized by
- * default, with blacklist-matching rows dropped and counted into meta.warnings.
- * --raw (user-gated) and cli.allow_sql are the only escape hatches.
+ * content and are desensitized by default. SQL string cells are desensitized,
+ * but reading the message content column requires --raw so SQL expressions
+ * cannot encode raw bodies before the sanitizer sees them.
  */
 
 import type { Command } from 'commander'
@@ -18,6 +18,99 @@ import { buildMessagesResult, assertRawFormatCompatible } from './messages-outpu
 
 function enabledRules(ctx: QueryContext): DesensitizeRule[] {
   return ctx.preprocessConfig.desensitize ? ctx.preprocessConfig.desensitizeRules.filter((r) => r.enabled) : []
+}
+
+export function parseSqlRowLimit(value: string | undefined): number {
+  return parseLimit(value, 100, 1000, '--limit', 1)
+}
+
+function escapeRegExp(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+const SQL_IDENTIFIER = String.raw`(?:"[^"]+"|'[^']+'|` + '`[^`]+`' + String.raw`|\[[^\]]+\]|[A-Za-z_][A-Za-z0-9_]*)`
+const SQL_TABLE_REF_END = String.raw`(?=\s|$|[,;])`
+const SQL_KEYWORDS = new Set([
+  'where',
+  'join',
+  'left',
+  'right',
+  'inner',
+  'outer',
+  'cross',
+  'order',
+  'group',
+  'limit',
+  'on',
+  'using',
+])
+
+function sqlNamePattern(name: string): string {
+  const escaped = escapeRegExp(name)
+  return String.raw`(?:"${escaped}"|'${escaped}'|` + '`' + escaped + '`' + String.raw`|\[${escaped}\]|${escaped})`
+}
+
+function unquoteSqlIdentifier(value: string): string {
+  const trimmed = value.trim()
+  if (trimmed.startsWith('[') && trimmed.endsWith(']')) return trimmed.slice(1, -1)
+  const quote = trimmed[0]
+  if ((quote === '"' || quote === "'" || quote === '`') && trimmed.endsWith(quote)) {
+    return trimmed.slice(1, -1)
+  }
+  return trimmed
+}
+
+function messageTablePattern(): string {
+  const schemaPrefix = String.raw`(?:${SQL_IDENTIFIER}\s*\.\s*)?`
+  return `${schemaPrefix}${sqlNamePattern('message')}`
+}
+
+function selectsMessageStar(query: string): boolean {
+  const selectMatch = query.match(/\bselect\b([\s\S]+?)\bfrom\b/i)
+  if (!selectMatch) return false
+
+  const projection = selectMatch[1]
+  const messageTable = messageTablePattern()
+  if (/(^|[,\s])\*(?=$|[,\s])/i.test(projection)) {
+    return new RegExp(String.raw`\b(?:from|join)\s+${messageTable}${SQL_TABLE_REF_END}`, 'i').test(query)
+  }
+
+  const aliasMatches = query.matchAll(
+    new RegExp(String.raw`\b(?:from|join)\s+${messageTable}(?:\s+(?:as\s+)?(${SQL_IDENTIFIER}))?`, 'gi')
+  )
+  const aliases = new Set(['message'])
+  for (const match of aliasMatches) {
+    const alias = match[1] ? unquoteSqlIdentifier(match[1]).toLowerCase() : undefined
+    if (alias && !SQL_KEYWORDS.has(alias)) aliases.add(alias)
+  }
+
+  return [...aliases].some((alias) =>
+    new RegExp(`${sqlNamePattern(alias)}\\s*\\.\\s*\\*(?=$|[\\s,])`, 'i').test(projection)
+  )
+}
+
+export function assertSqlPrivacyAllowed(query: string, raw: boolean): void {
+  if (raw) return
+  if (!/(^|[^A-Za-z0-9_])["'`[]?content["'`\]]?(?![A-Za-z0-9_])/i.test(query) && !selectsMessageStar(query)) {
+    return
+  }
+
+  throw new QueryError({
+    code: 'INVALID_ARGUMENT',
+    message: 'SQL queries that read message content require --raw',
+    hint: 'Use dedicated message commands for privacy-processed content, or enable raw mode and pass --raw for debugging',
+  })
+}
+
+export function assertSqlResultPrivacyAllowed(columns: readonly string[], raw: boolean): void {
+  if (raw) return
+  if (!columns.some((column) => unquoteSqlIdentifier(column).toLowerCase() === 'content')) return
+
+  throw new QueryError({
+    code: 'INVALID_ARGUMENT',
+    message: 'SQL results that include message content require --raw',
+    hint: 'Use dedicated message commands for privacy-processed content, or enable raw mode and pass --raw for debugging',
+  })
 }
 
 export interface TopicListItem {
@@ -209,7 +302,7 @@ export function registerTopicCommands(program: Command): void {
 export function registerSqlCommands(program: Command): void {
   program
     .command('sql')
-    .description('Read-only SQL fallback (string cells are desensitized by default)')
+    .description('Read-only SQL fallback (string cells are desensitized; message content requires --raw)')
     .argument('<query>', 'SELECT / WITH statement')
     .option('--session <ref>', 'Session id or unique name')
     .option('--limit <n>', 'Max rows (default 100, max 1000)')
@@ -227,7 +320,8 @@ export function registerSqlCommands(program: Command): void {
             })
           }
           assertRawAllowed(ctx, options)
-          const limit = parseLimit(options.limit, 100, 1000, '--limit')
+          assertSqlPrivacyAllowed(query, !!options.raw)
+          const limit = parseSqlRowLimit(options.limit)
 
           let result
           try {
@@ -239,6 +333,7 @@ export function registerSqlCommands(program: Command): void {
               hint: 'Run `chatlab schema` to inspect available tables and columns',
             })
           }
+          assertSqlResultPrivacyAllowed(result.columns, !!options.raw)
 
           let rows = result.rows
           let removed = 0

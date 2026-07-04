@@ -163,9 +163,9 @@ export function buildMsgConditions(options?: {
   }
   if (options?.keywords && options.keywords.length > 0) {
     const joiner = options.matchMode === 'all' ? ' AND ' : ' OR '
-    const kwConds = options.keywords.map(() => 'msg.content LIKE ?')
+    const kwConds = options.keywords.map(() => "msg.content LIKE ? ESCAPE '\\'")
     conds.push(`(${kwConds.join(joiner)})`)
-    params.push(...options.keywords.map((k) => `%${k}%`))
+    params.push(...options.keywords.map((k) => `%${escapeLikePattern(k)}%`))
   }
   if (options?.excludeKeywords && options.excludeKeywords.length > 0) {
     const exclude = buildExcludeKeywordsConditions(options.excludeKeywords)
