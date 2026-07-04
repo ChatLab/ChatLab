@@ -13,6 +13,7 @@ import type { DailyActivity, HourlyActivity, WeekdayActivity } from '@/types/ana
 import { formatDateRange } from '@/utils'
 import { ThemeCard } from '@/components/UI'
 import { useOverviewStatistics } from '@/composables/analysis/useOverviewStatistics'
+import { getOverviewCalendarRange, resolveOverviewTimeRange } from '@/composables/analysis/overviewTimeRange'
 import OverviewStatCards from './OverviewStatCards.vue'
 
 echarts.use([HeatmapChart, CustomChart, CalendarComponent, TooltipComponent, VisualMapComponent, CanvasRenderer])
@@ -26,8 +27,8 @@ const props = defineProps<{
   messageTypes: Array<{ type: MessageType; count: number }>
   hourlyActivity: HourlyActivity[]
   timeRange: { start: number; end: number } | null
-  selectedYear: number | null
   filteredMessageCount: number
+  filteredMemberCount?: number
   timeFilter?: { startTs?: number; endTs?: number }
 }>()
 
@@ -72,18 +73,21 @@ const {
 const chartRef = ref<HTMLElement | null>(null)
 let chartInstance: echarts.ECharts | null = null
 
-const fullTimeRangeText = computed(() => {
-  if (!props.timeRange) return ''
-  return formatDateRange(props.timeRange.start, props.timeRange.end, 'YYYY/MM/DD')
+const effectiveTimeRange = computed(() => resolveOverviewTimeRange(props.timeRange, props.timeFilter))
+
+const timeRangeText = computed(() => {
+  if (!effectiveTimeRange.value) return ''
+  return formatDateRange(effectiveTimeRange.value.start, effectiveTimeRange.value.end, 'YYYY/MM/DD')
 })
 
-const calendarRange = computed(() => {
+const calendarRange = computed<[string, string]>(() => {
+  const range = getOverviewCalendarRange(effectiveTimeRange.value)
+  if (range) return range
+
   const today = new Date()
-  const yearAgo = new Date(today)
-  yearAgo.setFullYear(yearAgo.getFullYear() - 1)
-  yearAgo.setDate(yearAgo.getDate() + 1)
   const fmt = (d: Date) => d.toISOString().slice(0, 10)
-  return [fmt(yearAgo), fmt(today)]
+  const todayStr = fmt(today)
+  return [todayStr, todayStr]
 })
 
 const chartData = computed(() => {
@@ -249,7 +253,7 @@ function handleResize() {
   chartInstance?.resize()
 }
 
-watch([() => props.dailyActivity, locale], () => updateChart())
+watch([() => props.dailyActivity, locale, calendarRange], () => updateChart())
 
 watch(isDark, () => {
   chartInstance?.dispose()
@@ -293,11 +297,11 @@ onUnmounted(() => {
             </span>
           </div>
 
-          <div v-if="fullTimeRangeText" class="flex items-center gap-2">
+          <div v-if="timeRangeText" class="flex items-center gap-2">
             <div class="flex h-6 w-6 shrink-0 items-center justify-center">
               <UIcon name="i-heroicons-calendar" class="h-4 w-4 opacity-70" />
             </div>
-            <span class="font-mono text-xs opacity-90 whitespace-nowrap">{{ fullTimeRangeText }}</span>
+            <span class="font-mono text-xs opacity-90 whitespace-nowrap">{{ timeRangeText }}</span>
           </div>
         </div>
 

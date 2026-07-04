@@ -57,13 +57,6 @@ export function useTimeSelect(route: RouteLocationNormalizedLoaded, router: Rout
     return `${v.startTs}-${v.endTs}`
   })
 
-  /** 用于 OverviewTab / ViewTab 的 selectedYear（null=全部，number=指定年份） */
-  const selectedYearForOverview = computed(() => {
-    const v = timeRangeValue.value
-    if (!v || v.isFullRange) return null
-    return new Date(v.startTs * 1000).getFullYear()
-  })
-
   /**
    * 从 URL query 构建 TimeSelect 初始状态。
    * 优先级：URL 参数 > 缓存（上次用户设置）> 默认值（最近一年）
@@ -153,7 +146,6 @@ export function useTimeSelect(route: RouteLocationNormalizedLoaded, router: Rout
     // 派生计算
     timeFilter,
     timeFilterKey,
-    selectedYearForOverview,
     initialTimeState,
     // 方法
     resetTimeRange,

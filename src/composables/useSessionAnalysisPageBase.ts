@@ -44,13 +44,12 @@ export function useSessionAnalysisPageBase(options: UseSessionAnalysisPageBaseOp
 
   const activeTab = ref(resolveActiveTabFromRoute())
 
-  const { timeRangeValue, fullTimeRange, availableYears, timeFilter, selectedYearForOverview, initialTimeState } =
-    useTimeSelect(route, router, {
-      activeTab,
-      isInitialLoad,
-      currentSessionId,
-      onTimeRangeChange: () => loadAnalysisData(),
-    })
+  const { timeRangeValue, fullTimeRange, availableYears, timeFilter, initialTimeState } = useTimeSelect(route, router, {
+    activeTab,
+    isInitialLoad,
+    currentSessionId,
+    onTimeRangeChange: () => loadAnalysisData(),
+  })
 
   function syncSession() {
     const id = route.params.id as string
@@ -150,7 +149,6 @@ export function useSessionAnalysisPageBase(options: UseSessionAnalysisPageBaseOp
     fullTimeRange,
     availableYears,
     timeFilter,
-    selectedYearForOverview,
     initialTimeState,
     syncSession,
     loadData,

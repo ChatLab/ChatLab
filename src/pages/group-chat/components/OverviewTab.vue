@@ -22,7 +22,6 @@ const props = defineProps<{
   hourlyActivity: HourlyActivity[]
   dailyActivity: DailyActivity[]
   timeRange: { start: number; end: number } | null
-  selectedYear: number | null
   filteredMessageCount: number
   filteredMemberCount: number
   timeFilter?: { startTs?: number; endTs?: number }
@@ -68,8 +67,8 @@ const memberChartData = computed<EChartPieData>(() => {
       :message-types="messageTypes"
       :hourly-activity="hourlyActivity"
       :time-range="timeRange"
-      :selected-year="selectedYear"
       :filtered-message-count="filteredMessageCount"
+      :filtered-member-count="filteredMemberCount"
       :time-filter="timeFilter"
     />
 

@@ -84,7 +84,6 @@ const {
   fullTimeRange,
   availableYears,
   timeFilter,
-  selectedYearForOverview,
   initialTimeState,
   loadData,
 } = useSessionAnalysisPageBase({
@@ -156,7 +155,6 @@ const filteredMemberCount = computed(() => {
               :hourly-activity="hourlyActivity"
               :daily-activity="dailyActivity"
               :time-range="fullTimeRange"
-              :selected-year="selectedYearForOverview"
               :filtered-message-count="filteredMessageCount"
               :filtered-member-count="filteredMemberCount"
               :time-filter="timeFilter"

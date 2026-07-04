@@ -80,7 +80,6 @@ const {
   timeRangeValue,
   fullTimeRange,
   timeFilter,
-  selectedYearForOverview,
   initialTimeState,
   loadAnalysisData,
 } = useSessionAnalysisPageBase({
@@ -166,7 +165,6 @@ const otherMemberAvatar = computed(() => {
               :hourly-activity="hourlyActivity"
               :daily-activity="dailyActivity"
               :time-range="fullTimeRange"
-              :selected-year="selectedYearForOverview"
               :filtered-message-count="filteredMessageCount"
               :filtered-member-count="filteredMemberCount"
               :time-filter="timeFilter"
