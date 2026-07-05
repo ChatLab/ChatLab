@@ -8,6 +8,14 @@
 
 use memchr::memchr2;
 
+fn is_digit(byte: u8) -> bool {
+    byte.is_ascii_digit()
+}
+
+fn is_hex_digit(byte: u8) -> bool {
+    byte.is_ascii_hexdigit()
+}
+
 #[derive(Debug)]
 pub struct ScanError {
     pub message: String,
@@ -104,15 +112,36 @@ impl<'a> JsonScanner<'a> {
             match memchr2(b'"', b'\\', &self.buf[self.pos..]) {
                 Some(offset) => {
                     let at = self.pos + offset;
+                    if let Some(control_offset) =
+                        self.buf[self.pos..at].iter().position(|b| *b < 0x20)
+                    {
+                        return Err(ScanError::new(
+                            "unescaped control character in string",
+                            self.pos + control_offset,
+                        ));
+                    }
                     if self.buf[at] == b'"' {
                         self.pos = at + 1;
                         return Ok(&self.buf[start..at]);
                     }
-                    // Escape sequence: skip backslash + escaped byte.
                     if at + 1 >= self.buf.len() {
                         return Err(ScanError::new("unterminated escape sequence", at));
                     }
-                    self.pos = at + 2;
+                    match self.buf[at + 1] {
+                        b'"' | b'\\' | b'/' | b'b' | b'f' | b'n' | b'r' | b't' => {
+                            self.pos = at + 2;
+                        }
+                        b'u' => {
+                            if at + 6 > self.buf.len() {
+                                return Err(ScanError::new("unterminated unicode escape", at));
+                            }
+                            if self.buf[at + 2..at + 6].iter().any(|b| !is_hex_digit(*b)) {
+                                return Err(ScanError::new("invalid unicode escape", at));
+                            }
+                            self.pos = at + 6;
+                        }
+                        _ => return Err(ScanError::new("invalid escape sequence", at)),
+                    }
                 }
                 None => return Err(ScanError::new("unterminated string", start)),
             }
@@ -127,21 +156,26 @@ impl<'a> JsonScanner<'a> {
             Some(b'"') => {
                 self.scan_string()?;
             }
-            Some(b'{') | Some(b'[') => {
-                self.scan_container()?;
+            Some(b'{') => {
+                self.scan_object()?;
+            }
+            Some(b'[') => {
+                self.scan_array()?;
+            }
+            Some(b't') => {
+                self.scan_literal(b"true")?;
+            }
+            Some(b'f') => {
+                self.scan_literal(b"false")?;
+            }
+            Some(b'n') => {
+                self.scan_literal(b"null")?;
+            }
+            Some(b'-') | Some(b'0'..=b'9') => {
+                self.scan_number()?;
             }
             Some(_) => {
-                // Scalar: number / true / false / null. Scan until a structural
-                // delimiter or whitespace.
-                while self.pos < self.buf.len() {
-                    match self.buf[self.pos] {
-                        b',' | b'}' | b']' | b' ' | b'\t' | b'\n' | b'\r' => break,
-                        _ => self.pos += 1,
-                    }
-                }
-                if self.pos == start {
-                    return Err(ScanError::new("expected a JSON value", start));
-                }
+                return Err(ScanError::new("expected a JSON value", start));
             }
             None => {
                 return Err(ScanError::new(
@@ -153,34 +187,123 @@ impl<'a> JsonScanner<'a> {
         Ok(&self.buf[start..self.pos])
     }
 
-    /// Scan a `{...}` or `[...]` container assuming the opener is at `pos`.
-    ///
-    /// Structural bytes are walked one at a time (containers are mostly small),
-    /// while string contents — the bulk of large payloads such as base64
-    /// avatars — are skipped via the memchr fast path in `scan_string`.
-    fn scan_container(&mut self) -> ScanResult<()> {
+    fn scan_literal(&mut self, literal: &[u8]) -> ScanResult<()> {
+        if self.buf.get(self.pos..self.pos + literal.len()) == Some(literal) {
+            self.pos += literal.len();
+            Ok(())
+        } else {
+            Err(ScanError::new("invalid JSON literal", self.pos))
+        }
+    }
+
+    fn scan_number(&mut self) -> ScanResult<()> {
         let start = self.pos;
-        let mut depth: usize = 0;
-        while self.pos < self.buf.len() {
-            match self.buf[self.pos] {
-                b'"' => {
-                    self.scan_string()?;
+        self.consume(b'-');
+
+        match self.peek() {
+            Some(b'0') => {
+                self.pos += 1;
+                if self.peek().is_some_and(is_digit) {
+                    return Err(ScanError::new("invalid leading zero in number", start));
                 }
-                b'{' | b'[' => {
-                    depth += 1;
+            }
+            Some(b'1'..=b'9') => {
+                self.pos += 1;
+                while self.peek().is_some_and(is_digit) {
                     self.pos += 1;
                 }
-                b'}' | b']' => {
-                    depth -= 1;
-                    self.pos += 1;
-                    if depth == 0 {
-                        return Ok(());
-                    }
-                }
-                _ => self.pos += 1,
+            }
+            _ => return Err(ScanError::new("invalid JSON number", start)),
+        }
+
+        if self.consume(b'.') {
+            if !self.peek().is_some_and(is_digit) {
+                return Err(ScanError::new("invalid JSON number fraction", self.pos));
+            }
+            while self.peek().is_some_and(is_digit) {
+                self.pos += 1;
             }
         }
-        Err(ScanError::new("unterminated container", start))
+
+        if matches!(self.peek(), Some(b'e' | b'E')) {
+            self.pos += 1;
+            if matches!(self.peek(), Some(b'+' | b'-')) {
+                self.pos += 1;
+            }
+            if !self.peek().is_some_and(is_digit) {
+                return Err(ScanError::new("invalid JSON number exponent", self.pos));
+            }
+            while self.peek().is_some_and(is_digit) {
+                self.pos += 1;
+            }
+        }
+
+        Ok(())
+    }
+
+    fn scan_object(&mut self) -> ScanResult<()> {
+        self.expect(b'{')?;
+        self.skip_ws();
+        if self.consume(b'}') {
+            return Ok(());
+        }
+
+        loop {
+            self.skip_ws();
+            if !self.peek_is(b'"') {
+                return Err(ScanError::new("expected object key", self.pos));
+            }
+            self.scan_string()?;
+            self.skip_ws();
+            self.expect(b':')?;
+            self.scan_value()?;
+            self.skip_ws();
+
+            if self.consume(b',') {
+                self.skip_ws();
+                if self.peek_is(b'}') {
+                    return Err(ScanError::new("trailing comma in object", self.pos));
+                }
+                continue;
+            }
+            self.expect(b'}')?;
+            return Ok(());
+        }
+    }
+
+    fn scan_array(&mut self) -> ScanResult<()> {
+        self.expect(b'[')?;
+        self.skip_ws();
+        if self.consume(b']') {
+            return Ok(());
+        }
+
+        loop {
+            self.scan_value()?;
+            self.skip_ws();
+
+            if self.consume(b',') {
+                self.skip_ws();
+                if self.peek_is(b']') {
+                    return Err(ScanError::new("trailing comma in array", self.pos));
+                }
+                continue;
+            }
+            self.expect(b']')?;
+            return Ok(());
+        }
+    }
+}
+
+fn expect_eof(scanner: &mut JsonScanner<'_>) -> ScanResult<()> {
+    scanner.skip_ws();
+    if scanner.pos() == scanner.buf.len() {
+        Ok(())
+    } else {
+        Err(ScanError::new(
+            "unexpected trailing characters after root JSON object",
+            scanner.pos(),
+        ))
     }
 }
 
@@ -196,7 +319,7 @@ pub fn walk_top_level<'a>(
     scanner.expect(b'{')?;
     scanner.skip_ws();
     if scanner.consume(b'}') {
-        return Ok(());
+        return expect_eof(&mut scanner);
     }
 
     loop {
@@ -212,7 +335,7 @@ pub fn walk_top_level<'a>(
             continue;
         }
         scanner.expect(b'}')?;
-        return Ok(());
+        return expect_eof(&mut scanner);
     }
 }
 
@@ -316,11 +439,47 @@ mod tests {
     }
 
     #[test]
+    fn errors_on_invalid_object_container_grammar() {
+        let result = walk_top_level(br#"{"chatlab": {bad}, "meta": {}}"#, |_, _| Ok(()));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn errors_on_invalid_array_element_grammar() {
+        let result = walk_top_level(br#"{"messages": [{bad}]}"#, |_, _| Ok(()));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn errors_on_invalid_scalar_token() {
+        let result = walk_top_level(br#"{"a": nope}"#, |_, _| Ok(()));
+        assert!(result.is_err());
+    }
+
+    #[test]
     fn skips_bom() {
         let doc = "\u{FEFF}{\"messages\": [3]}";
         let entries = collect_entries(doc);
         assert_eq!(entries[0].0, "messages");
         assert_eq!(collect_elements(&entries[0].1), vec!["3".to_string()]);
+    }
+
+    #[test]
+    fn allows_trailing_whitespace_after_root_object() {
+        let entries = collect_entries("{\"a\": 1}\n\t ");
+        assert_eq!(entries, vec![("a".to_string(), "1".to_string())]);
+    }
+
+    #[test]
+    fn errors_on_trailing_bytes_after_root_object() {
+        let result = walk_top_level(br#"{"a": 1} {"b": 2}"#, |_, _| Ok(()));
+        assert!(result.is_err());
+    }
+
+    #[test]
+    fn errors_on_trailing_bytes_after_empty_root_object() {
+        let result = walk_top_level(br#"{}[]"#, |_, _| Ok(()));
+        assert!(result.is_err());
     }
 
     #[test]

@@ -198,14 +198,10 @@ pub fn parse_weflow(
     if let Some(raw) = messages_raw {
         let base_offset = raw.as_ptr() as usize - buf.as_ptr() as usize;
         for_each_array_element(raw, base_offset, |element, end_offset| {
-            let value: Value = match serde_json::from_slice(element) {
-                Ok(v) => v,
-                Err(_) => {
-                    // Structurally valid JSON always deserializes into Value; this arm
-                    // is unreachable in practice but must not abort the whole import.
-                    return Ok(());
-                }
-            };
+            let value: Value = serde_json::from_slice(element).map_err(|err| ScanError {
+                message: format!("invalid message: {err}"),
+                offset: end_offset.saturating_sub(element.len()),
+            })?;
             let obj = match value.as_object() {
                 Some(o) => o,
                 None => return Ok(()),
@@ -249,6 +245,13 @@ pub fn parse_weflow(
 
             let timestamp = match obj.get("createTime") {
                 Some(Value::Number(n)) => n.as_f64(),
+                Some(Value::String(_)) => {
+                    return Err(ScanError {
+                        message: "unsupported createTime string; falling back to TS parser"
+                            .to_string(),
+                        offset: end_offset.saturating_sub(element.len()),
+                    });
+                }
                 _ => None,
             };
 
@@ -393,6 +396,41 @@ mod tests {
             out.messages[0].platform_message_id.as_deref(),
             Some("undefined")
         );
+    }
+
+    #[test]
+    fn string_create_time_errors_to_preserve_ts_fallback() {
+        let input = KernelInput {
+            primary_path: "/tmp/测试聊天.json".to_string(),
+            options_json: None,
+        };
+        let result = parse_weflow(
+            br#"{"messages": [{"senderUsername": "wxid_a", "createTime": "1704164645", "content": "hi"}]}"#,
+            &input,
+            |_, _| {},
+        );
+        match result {
+            Ok(_) => panic!("string createTime must fall back to the TS parser"),
+            Err(err) => assert!(
+                err.message.contains("createTime string"),
+                "unexpected error: {}",
+                err.message
+            ),
+        }
+    }
+
+    #[test]
+    fn malformed_message_object_errors_instead_of_skipping() {
+        let input = KernelInput {
+            primary_path: "/tmp/测试聊天.json".to_string(),
+            options_json: None,
+        };
+        let result = parse_weflow(
+            br#"{"messages": [{bad}, {"senderUsername": "a", "createTime": 1}]}"#,
+            &input,
+            |_, _| {},
+        );
+        assert!(result.is_err());
     }
 
     #[test]

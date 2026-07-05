@@ -59,6 +59,14 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Prepare better-sqlite3 for Node tests
+        run: |
+          pnpm --filter chatlab-cli run rebuild-sqlite
+          pnpm --filter chatlab-cli run ensure-native
+
+      - name: Build MCP package for workspace imports
+        run: pnpm --filter chatlab-mcp build
+
       - name: Rust unit tests (parser-native)
         working-directory: packages/parser-native
         run: cargo test

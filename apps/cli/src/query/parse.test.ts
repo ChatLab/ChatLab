@@ -38,8 +38,8 @@ describe('parseTimeOptions', () => {
   })
 
   it('accepts "YYYY-MM-DD HH:mm" and full ISO 8601', () => {
-    const range = parseTimeOptions({ since: '2026-06-01 08:30', until: '2026-06-01T10:00:00+08:00' }, NOW)
-    assert.equal(range.startTs, localEpoch(2026, 6, 1, 8, 30))
+    const range = parseTimeOptions({ since: '2026-05-31 08:30', until: '2026-06-01T10:00:00+08:00' }, NOW)
+    assert.equal(range.startTs, localEpoch(2026, 5, 31, 8, 30))
     assert.equal(range.endTs, Math.floor(new Date('2026-06-01T10:00:00+08:00').getTime() / 1000))
   })
 
