@@ -1,0 +1,75 @@
+name: Test
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - 'dev-*'
+
+permissions:
+  contents: read
+
+# 同一分支的旧运行自动取消，避免排队浪费
+concurrency:
+  group: test-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v5
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v5
+        with:
+          node-version: '24'
+          package-manager-cache: false
+
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Get pnpm store directory
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
+
+      - name: Setup pnpm cache
+        uses: actions/cache@v5
+        with:
+          path: ${{ env.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/parser-native
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Rust unit tests (parser-native)
+        working-directory: packages/parser-native
+        run: cargo test
+
+      # Debug 构建足够触发 TS 侧 parity 测试（native 缺失时这些测试会自动 skip，
+      # 构建后即可在 CI 上真实覆盖 Rust/TS 双路径一致性）。
+      - name: Build native parser (debug)
+        run: pnpm --filter @openchatlab/parser-native build:debug
+
+      - name: Unit & integration tests
+        run: pnpm test
+
+      - name: Type check (node)
+        run: pnpm run type-check:node

@@ -27,6 +27,7 @@ import {
 } from './database/startup-migration'
 import { initLocale } from './i18n'
 import { MigrationRunner, ALL_MIGRATIONS } from '@openchatlab/config'
+import { logNativeParserStatus } from '@openchatlab/node-runtime'
 import { assertDesktopDataDirCompatible, getDesktopAppVersion } from './runtime-compat'
 import type { RuntimeIdentity } from '@openchatlab/node-runtime/src/data-dir-compat'
 import {
@@ -99,6 +100,8 @@ class MainProcess {
   async init() {
     initAnalytics()
     logger.info('Desktop app starting')
+    // 记录 Rust native parser 可用性（导入是否走 Rust 内核），便于按日志排查回退原因
+    logNativeParserStatus()
 
     // E2E 测试模式：跳过遗留数据迁移
     // 遗留迁移会删除 Documents/ChatLab，在本地测试时可能破坏用户数据

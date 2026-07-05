@@ -9,22 +9,39 @@
 
 import { createRequire } from 'node:module'
 
-import type { ChatlabParser, WeflowParser } from '@openchatlab/parser-native'
+import type { NativeParser } from '@openchatlab/parser-native'
 
 export interface NativeParserModule {
-  WeflowParser: typeof WeflowParser
-  ChatlabParser: typeof ChatlabParser
+  NativeParser: typeof NativeParser
+}
+
+/** Load-state snapshot for startup observability (see node-runtime logNativeParserStatus). */
+export interface NativeParserStatus {
+  available: boolean
+  /** true when CHATLAB_DISABLE_NATIVE_PERF=1 forces the TS parsers. */
+  disabled: boolean
+  /** Load failure reason when unavailable (e.g. module not shipped, ABI mismatch). */
+  error?: string
 }
 
 let cachedModule: NativeParserModule | null | undefined
+let cachedLoadError: string | undefined
 
 function isNativeDisabled(): boolean {
   return process.env.CHATLAB_DISABLE_NATIVE_PERF === '1'
 }
 
+function isNativeParserModule(value: unknown): value is NativeParserModule {
+  return typeof (value as { NativeParser?: unknown } | null)?.NativeParser === 'function'
+}
+
 function requireNativeModule(): NativeParserModule {
   const requireFn = createRequire(import.meta.url)
-  return requireFn('@openchatlab/parser-native') as NativeParserModule
+  const module = requireFn('@openchatlab/parser-native') as unknown
+  if (!isNativeParserModule(module)) {
+    throw new Error('Native parser module missing NativeParser export')
+  }
+  return module
 }
 
 /**
@@ -37,8 +54,16 @@ export function loadNativeParser(): NativeParserModule | null {
   if (cachedModule !== undefined) return cachedModule
   try {
     cachedModule = requireNativeModule()
-  } catch {
+  } catch (error) {
     cachedModule = null
+    cachedLoadError = error instanceof Error ? error.message : String(error)
   }
   return cachedModule
+}
+
+/** Report whether the Rust kernels can load in this process, without throwing. */
+export function getNativeParserStatus(): NativeParserStatus {
+  if (isNativeDisabled()) return { available: false, disabled: true }
+  const module = loadNativeParser()
+  return { available: module !== null, disabled: false, error: module ? undefined : cachedLoadError }
 }

@@ -587,5 +587,4 @@ if (!nativeBinding) {
 }
 
 module.exports = nativeBinding
-module.exports.ChatlabParser = nativeBinding.ChatlabParser
-module.exports.WeflowParser = nativeBinding.WeflowParser
+module.exports.NativeParser = nativeBinding.NativeParser

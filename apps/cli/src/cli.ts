@@ -8,7 +8,13 @@ import * as fs from 'fs'
 import { execSync } from 'child_process'
 import { Command } from 'commander'
 import { DEFAULT_API_PORT, loadConfig, getConfigPath, setConfigField, ConfigSetError } from '@openchatlab/config'
-import { AIChatManager, initAppLogger, appLogger, getSystemLogsDir } from '@openchatlab/node-runtime'
+import {
+  AIChatManager,
+  initAppLogger,
+  appLogger,
+  getSystemLogsDir,
+  logNativeParserStatus,
+} from '@openchatlab/node-runtime'
 import { getVersion } from './version'
 import { resolveCliPath } from './paths'
 import { isPortAvailable, formatPortInUseError } from './http/port'
@@ -63,6 +69,8 @@ program
     const { streamImport, detectFormat } = await import('./import')
     const { dbManager, pathProvider } = initRuntime()
     const nativeBinding = resolveNativeBinding()
+    // 记录 Rust native parser 可用性（本次导入是否走 Rust 内核）
+    logNativeParserStatus()
 
     const format = detectFormat(file)
     if (!format && !options.format) {

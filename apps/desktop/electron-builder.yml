@@ -29,6 +29,10 @@ files:
   # ${platform} -> darwin/linux/win32，${arch} -> x64/arm64，正好匹配该包目录结构。
   - '!node_modules/onnxruntime-node/bin/napi-v6/**'
   - 'node_modules/onnxruntime-node/bin/napi-v6/${platform}/${arch}/**'
+  # parser-native 是 workspace 内的 Rust 包：只需要 index.js/index.d.ts/package.json 和 *.node，
+  # 排除 Rust 源码与构建中间产物（CI 上 target/ 可达数百 MB）。
+  - '!node_modules/@openchatlab/parser-native/{target,src,node_modules}/**'
+  - '!node_modules/@openchatlab/parser-native/{Cargo.toml,Cargo.lock,build.rs,.gitignore}'
 # 哪些文件将不会被压缩，而是解压到构建目录
 # 仅含 .dylib（无 .node）的原生包不会被 electron-builder 自动解包，必须显式列出，
 # 否则 dlopen 无法从 asar 内加载：

@@ -105,6 +105,31 @@ jobs:
           echo "node-linker=hoisted" >> .npmrc
           pnpm install --frozen-lockfile
 
+      # Rust native parser：目标架构与 electron-builder --x64/--arm64 保持一致
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.arch == 'x64' && 'x86_64-apple-darwin' || 'aarch64-apple-darwin' }}
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/parser-native
+          key: ${{ matrix.arch }}
+
+      - name: Build native parser (${{ matrix.arch }})
+        shell: bash
+        run: |
+          if [ "${{ matrix.arch }}" == "x64" ]; then
+            pnpm --filter @openchatlab/parser-native build -- --target x86_64-apple-darwin
+          else
+            pnpm --filter @openchatlab/parser-native build
+          fi
+
+      - name: Verify native parser artifact
+        shell: bash
+        run: ls -la packages/parser-native/chatlab-parser-native.darwin-${{ matrix.arch }}.node
+
       - name: Inject version into app package.json
         shell: bash
         run: |
@@ -150,6 +175,10 @@ jobs:
           APTABASE_APP_KEY: ${{ secrets.APTABASE_APP_KEY }}
         working-directory: apps/desktop
         run: pnpm run build && pnpm exec electron-builder --mac --${{ matrix.arch }} --config electron-builder.yml -p never
+
+      - name: Verify native parser in packaged app (${{ matrix.arch }})
+        shell: bash
+        run: node scripts/check-desktop-native.mjs darwin-${{ matrix.arch }}
 
       - name: Upload macOS artifacts (${{ matrix.arch }})
         uses: actions/upload-artifact@v6
@@ -202,6 +231,22 @@ jobs:
           echo "node-linker=hoisted" >> .npmrc
           pnpm install --frozen-lockfile
 
+      # Rust native parser：Windows release 仅构建 x64（与 electron-builder --win 默认一致）
+      - name: Setup Rust toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Setup Rust cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: packages/parser-native
+
+      - name: Build native parser (win x64)
+        run: pnpm --filter @openchatlab/parser-native build
+
+      - name: Verify native parser artifact
+        shell: bash
+        run: ls -la packages/parser-native/chatlab-parser-native.win32-x64-msvc.node
+
       - name: Inject version into app package.json
         shell: pwsh
         run: |
@@ -235,6 +280,10 @@ jobs:
           APTABASE_APP_KEY: ${{ secrets.APTABASE_APP_KEY }}
         working-directory: apps/desktop
         run: pnpm run build && pnpm exec electron-builder --win --config electron-builder.yml -p never
+
+      - name: Verify native parser in packaged app (win x64)
+        shell: bash
+        run: node scripts/check-desktop-native.mjs win32-x64-msvc
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v6

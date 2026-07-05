@@ -11,50 +11,28 @@
 
 use std::collections::HashMap;
 
+use serde::Serialize;
 use serde_json::Value;
 
+use crate::input::KernelInput;
 use crate::jsutil::{extract_name_from_file_path, non_empty_str};
+use crate::protocol::{KernelOutput, NativeMember, NativeMemberRole, NativeMessage};
 use crate::scanner::{for_each_array_element, walk_top_level, ScanError, ScanResult};
 
-pub struct RoleOut {
-    pub id: String,
-    pub name: Option<String>,
-}
-
-pub struct ChatlabMemberOut {
-    pub platform_id: String,
-    pub account_name: String,
-    pub group_nickname: Option<String>,
-    pub avatar: Option<String>,
-    pub roles: Option<Vec<RoleOut>>,
-}
-
-#[derive(Default)]
-pub struct ChatlabMessageOut {
-    pub platform_message_id: Option<String>,
-    pub sender_platform_id: String,
-    pub sender_account_name: String,
-    pub sender_group_nickname: Option<String>,
-    pub timestamp: f64,
-    pub message_type: u32,
-    /// None means the source `content` was JSON null.
-    pub content: Option<String>,
-    pub reply_to_message_id: Option<String>,
-}
-
-pub struct ChatlabOutput {
-    pub name: String,
+/// Shape of `metaJson()` for the chatlab kernel (consumed by the TS adapter).
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ChatlabMeta {
+    name: String,
     /// Passthrough of `meta.type` ("group" when missing/empty), like the TS parser.
-    pub chat_type: String,
+    chat_type: String,
     /// Passthrough of `meta.platform` ("unknown" when missing/empty).
-    pub platform: String,
-    pub group_id: Option<String>,
-    pub group_avatar: Option<String>,
+    platform: String,
+    group_id: Option<String>,
+    group_avatar: Option<String>,
     /// true: members came from the top-level `members` array (full shape);
     /// false: collected from messages (id/name/nickname only), as in TS.
-    pub members_from_head: bool,
-    pub members: Vec<ChatlabMemberOut>,
-    pub messages: Vec<ChatlabMessageOut>,
+    members_from_head: bool,
 }
 
 fn strict(msg: impl Into<String>) -> ScanError {
@@ -176,7 +154,7 @@ fn parse_meta(meta_raw: Option<&[u8]>, file_path: &str) -> ScanResult<MetaOut> {
     })
 }
 
-fn parse_member(element: &[u8]) -> ScanResult<ChatlabMemberOut> {
+fn parse_member(element: &[u8]) -> ScanResult<NativeMember> {
     let value: Value =
         serde_json::from_slice(element).map_err(|err| strict(format!("invalid member: {err}")))?;
     let obj = value
@@ -196,7 +174,7 @@ fn parse_member(element: &[u8]) -> ScanResult<ChatlabMemberOut> {
                 if role.keys().any(|k| k != "id" && k != "name") {
                     return Err(strict("member role has unsupported keys"));
                 }
-                out.push(RoleOut {
+                out.push(NativeMemberRole {
                     id: require_str(role, "id", "member role")?,
                     name: optional_str(role, "name", "member role")?,
                 });
@@ -211,7 +189,7 @@ fn parse_member(element: &[u8]) -> ScanResult<ChatlabMemberOut> {
         }
     };
 
-    Ok(ChatlabMemberOut {
+    Ok(NativeMember {
         platform_id: require_str(obj, "platformId", "member")?,
         account_name: require_str(obj, "accountName", "member")?,
         group_nickname: optional_str(obj, "groupNickname", "member")?,
@@ -255,9 +233,9 @@ impl CollectedMembers {
 
 pub fn parse_chatlab(
     buf: &[u8],
-    file_path: &str,
+    input: &KernelInput,
     mut on_progress: impl FnMut(u64, u64),
-) -> ScanResult<ChatlabOutput> {
+) -> ScanResult<KernelOutput> {
     let mut meta_raw: Option<&[u8]> = None;
     let mut members_raw: Option<&[u8]> = None;
     let mut messages_raw: Option<&[u8]> = None;
@@ -272,9 +250,9 @@ pub fn parse_chatlab(
         Ok(())
     })?;
 
-    let meta = parse_meta(meta_raw, file_path)?;
+    let meta = parse_meta(meta_raw, &input.primary_path)?;
 
-    let mut head_members: Vec<ChatlabMemberOut> = Vec::new();
+    let mut head_members: Vec<NativeMember> = Vec::new();
     if let Some(raw) = members_raw {
         let base_offset = raw.as_ptr() as usize - buf.as_ptr() as usize;
         for_each_array_element(raw, base_offset, |element, _| {
@@ -285,7 +263,7 @@ pub fn parse_chatlab(
     let members_from_head = !head_members.is_empty();
 
     let mut collected = CollectedMembers::new();
-    let mut messages: Vec<ChatlabMessageOut> = Vec::new();
+    let mut messages: Vec<NativeMessage> = Vec::new();
 
     if let Some(raw) = messages_raw {
         let base_offset = raw.as_ptr() as usize - buf.as_ptr() as usize;
@@ -338,12 +316,12 @@ pub fn parse_chatlab(
                 collected.observe(&sender, &account_name, group_nickname.as_ref());
             }
 
-            messages.push(ChatlabMessageOut {
+            messages.push(NativeMessage {
                 platform_message_id: optional_str(obj, "platformMessageId", "message")?,
                 sender_platform_id: sender,
                 sender_account_name: account_name,
                 sender_group_nickname: group_nickname,
-                timestamp,
+                timestamp: Some(timestamp),
                 message_type,
                 content,
                 reply_to_message_id: optional_str(obj, "replyToMessageId", "message")?,
@@ -360,25 +338,28 @@ pub fn parse_chatlab(
         collected
             .order
             .into_iter()
-            .map(
-                |(platform_id, account_name, group_nickname)| ChatlabMemberOut {
-                    platform_id,
-                    account_name,
-                    group_nickname,
-                    avatar: None,
-                    roles: None,
-                },
-            )
+            .map(|(platform_id, account_name, group_nickname)| NativeMember {
+                platform_id,
+                account_name,
+                group_nickname,
+                avatar: None,
+                roles: None,
+            })
             .collect()
     };
 
-    Ok(ChatlabOutput {
+    let meta_json = serde_json::to_string(&ChatlabMeta {
         name: meta.name,
         chat_type: meta.chat_type,
         platform: meta.platform,
         group_id: meta.group_id,
         group_avatar: meta.group_avatar,
         members_from_head,
+    })
+    .map_err(|err| strict(format!("meta serialization failed: {err}")))?;
+
+    Ok(KernelOutput {
+        meta_json,
         members,
         messages,
     })
@@ -388,8 +369,16 @@ pub fn parse_chatlab(
 mod tests {
     use super::*;
 
-    fn parse(doc: &str) -> ScanResult<ChatlabOutput> {
-        parse_chatlab(doc.as_bytes(), "/tmp/示例群.json", |_, _| {})
+    fn parse(doc: &str) -> ScanResult<KernelOutput> {
+        let input = KernelInput {
+            primary_path: "/tmp/示例群.json".to_string(),
+            options_json: None,
+        };
+        parse_chatlab(doc.as_bytes(), &input, |_, _| {})
+    }
+
+    fn meta(out: &KernelOutput) -> Value {
+        serde_json::from_str(&out.meta_json).expect("meta_json should be valid JSON")
     }
 
     #[test]
@@ -408,11 +397,12 @@ mod tests {
       ]
     }"#;
         let out = parse(doc).expect("should parse");
-        assert_eq!(out.name, "测试群");
-        assert_eq!(out.platform, "weixin");
-        assert_eq!(out.chat_type, "group");
-        assert_eq!(out.group_id.as_deref(), Some("g1@chatroom"));
-        assert!(out.members_from_head);
+        let m = meta(&out);
+        assert_eq!(m["name"], "测试群");
+        assert_eq!(m["platform"], "weixin");
+        assert_eq!(m["chatType"], "group");
+        assert_eq!(m["groupId"], "g1@chatroom");
+        assert_eq!(m["membersFromHead"], true);
         assert_eq!(out.members.len(), 2);
         let roles = out.members[0].roles.as_ref().unwrap();
         assert_eq!(roles[0].id, "owner");
@@ -422,6 +412,7 @@ mod tests {
 
         assert_eq!(out.messages.len(), 3);
         assert_eq!(out.messages[0].platform_message_id.as_deref(), Some("m1"));
+        assert_eq!(out.messages[0].timestamp, Some(100.0));
         assert_eq!(out.messages[1].reply_to_message_id.as_deref(), Some("m1"));
         assert_eq!(out.messages[2].content, None);
         assert_eq!(out.messages[2].platform_message_id, None);
@@ -438,7 +429,7 @@ mod tests {
         ]}}"#
             );
             let out = parse(&doc).expect("should parse");
-            assert!(!out.members_from_head);
+            assert_eq!(meta(&out)["membersFromHead"], false);
             assert_eq!(out.members.len(), 2);
             // Whole entry replaced by the later message (JS Map.set semantics):
             // groupNickname reset to None even though the first message had one.
@@ -450,16 +441,18 @@ mod tests {
     #[test]
     fn meta_defaults_and_filename_fallback() {
         let out = parse(r#"{"meta": {}, "messages": []}"#).expect("should parse");
-        assert_eq!(out.name, "示例群");
-        assert_eq!(out.platform, "unknown");
-        assert_eq!(out.chat_type, "group");
-        assert_eq!(out.group_id, None);
+        let m = meta(&out);
+        assert_eq!(m["name"], "示例群");
+        assert_eq!(m["platform"], "unknown");
+        assert_eq!(m["chatType"], "group");
+        assert_eq!(m["groupId"], Value::Null);
 
         // Explicit default name also falls back to the filename.
         let out2 = parse(r#"{"meta": {"name": "未知群聊", "platform": "qq"}, "messages": []}"#)
             .expect("should parse");
-        assert_eq!(out2.name, "示例群");
-        assert_eq!(out2.platform, "qq");
+        let m2 = meta(&out2);
+        assert_eq!(m2["name"], "示例群");
+        assert_eq!(m2["platform"], "qq");
 
         // Missing meta -> strict error (TS emits a differently-shaped default
         // meta object, so that path must go through the fallback).
@@ -493,11 +486,12 @@ mod tests {
       {"sender": "", "accountName": "", "timestamp": 1, "type": 0, "content": ""}
     ]}"#;
         let out = parse(doc).expect("should parse");
+        let m = meta(&out);
         // Empty name is falsy -> default -> filename fallback; empty type -> group.
-        assert_eq!(out.name, "示例群");
-        assert_eq!(out.chat_type, "group");
+        assert_eq!(m["name"], "示例群");
+        assert_eq!(m["chatType"], "group");
         // groupId passes through verbatim, including empty string.
-        assert_eq!(out.group_id.as_deref(), Some(""));
+        assert_eq!(m["groupId"], "");
         assert_eq!(out.messages[0].sender_platform_id, "");
         assert_eq!(out.messages[0].content.as_deref(), Some(""));
     }

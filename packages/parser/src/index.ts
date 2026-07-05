@@ -310,6 +310,11 @@ export { FormatSniffer, createSniffer }
 
 export { getFileSize, formatFileSize, parseTimestamp, isValidYear, createProgress, readFileHeadBytes } from './utils'
 
+// ==================== 导出 native 加载状态（供运行时启动日志使用） ====================
+
+export { getNativeParserStatus } from './native/loader'
+export type { NativeParserStatus } from './native/loader'
+
 // ==================== 回调模式 API ====================
 
 /**

@@ -6,36 +6,24 @@
 
 use std::collections::HashMap;
 
+use serde::Serialize;
 use serde_json::Value;
 
+use crate::input::KernelInput;
 use crate::jsutil::{extract_name_from_file_path, non_empty_str};
-use crate::scanner::{for_each_array_element, walk_top_level, ScanResult};
+use crate::protocol::{KernelOutput, NativeMember, NativeMessage};
+use crate::scanner::{for_each_array_element, walk_top_level, ScanError, ScanResult};
 
-pub struct MemberOut {
-    pub platform_id: String,
-    pub account_name: String,
-    pub avatar: Option<String>,
-}
-
-#[derive(Default)]
-pub struct MessageOut {
-    pub platform_message_id: String,
-    pub sender_platform_id: String,
-    pub sender_account_name: String,
-    pub timestamp: Option<f64>,
-    pub message_type: u32,
-    pub content: Option<String>,
-}
-
-pub struct WeflowOutput {
-    pub name: String,
+/// Shape of `metaJson()` for the weflow kernel (consumed by the TS adapter).
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct WeflowMeta {
+    name: String,
     /// "group" | "private" — matches the ChatType enum string values.
-    pub chat_type: &'static str,
-    pub group_id: Option<String>,
-    pub group_avatar: Option<String>,
-    pub owner_id: Option<String>,
-    pub members: Vec<MemberOut>,
-    pub messages: Vec<MessageOut>,
+    chat_type: &'static str,
+    group_id: Option<String>,
+    group_avatar: Option<String>,
+    owner_id: Option<String>,
 }
 
 /// Message type mapping, mirroring `convertMessageType` in weflow.ts.
@@ -86,7 +74,7 @@ fn is_send_equals_one(value: Option<&Value>) -> bool {
 }
 
 struct MemberTracker {
-    order: Vec<MemberOut>,
+    order: Vec<NativeMember>,
     index: HashMap<String, usize>,
 }
 
@@ -110,10 +98,12 @@ impl MemberTracker {
             }
             None => {
                 self.index.insert(platform_id.to_string(), self.order.len());
-                self.order.push(MemberOut {
+                self.order.push(NativeMember {
                     platform_id: platform_id.to_string(),
                     account_name: account_name.to_string(),
+                    group_nickname: None,
                     avatar: avatar.cloned(),
+                    roles: None,
                 });
             }
         }
@@ -122,9 +112,9 @@ impl MemberTracker {
 
 pub fn parse_weflow(
     buf: &[u8],
-    file_path: &str,
+    input: &KernelInput,
     mut on_progress: impl FnMut(u64, u64),
-) -> ScanResult<WeflowOutput> {
+) -> ScanResult<KernelOutput> {
     // Pass 1: structural walk of the top-level object to locate the raw spans
     // we care about. `scan_value` skims containers at memchr speed, so this is
     // cheap even when `messages` is hundreds of MB.
@@ -186,7 +176,7 @@ pub fn parse_weflow(
                 .and_then(|s| non_empty_str(s.get("nickname")))
         })
         .map(|s| s.to_string())
-        .unwrap_or_else(|| extract_name_from_file_path(file_path, "未知聊天"));
+        .unwrap_or_else(|| extract_name_from_file_path(&input.primary_path, "未知聊天"));
 
     let group_id: Option<String> = if chat_type == "group" {
         session_wxid.map(|s| s.to_string())
@@ -202,7 +192,7 @@ pub fn parse_weflow(
 
     // Pass 2: stream the messages array element by element.
     let mut members = MemberTracker::new();
-    let mut messages: Vec<MessageOut> = Vec::new();
+    let mut messages: Vec<NativeMessage> = Vec::new();
     let mut owner_id: Option<String> = None;
 
     if let Some(raw) = messages_raw {
@@ -283,13 +273,16 @@ pub fn parse_weflow(
                 }
             };
 
-            messages.push(MessageOut {
-                platform_message_id: js_string(obj.get("localId")),
+            messages.push(NativeMessage {
+                // WeFlow always emits an id string (String(localId), JS semantics).
+                platform_message_id: Some(js_string(obj.get("localId"))),
                 sender_platform_id: sender.to_string(),
                 sender_account_name: account_name.to_string(),
+                sender_group_nickname: None,
                 timestamp,
                 message_type: convert_message_type(obj.get("type").and_then(|v| v.as_str())),
                 content,
+                reply_to_message_id: None,
             });
 
             on_progress(end_offset as u64, messages.len() as u64);
@@ -297,12 +290,20 @@ pub fn parse_weflow(
         })?;
     }
 
-    Ok(WeflowOutput {
+    let meta_json = serde_json::to_string(&WeflowMeta {
         name,
         chat_type,
         group_id,
         group_avatar,
         owner_id,
+    })
+    .map_err(|err| ScanError {
+        message: format!("meta serialization failed: {err}"),
+        offset: 0,
+    })?;
+
+    Ok(KernelOutput {
+        meta_json,
         members: members.order,
         messages,
     })
@@ -312,8 +313,16 @@ pub fn parse_weflow(
 mod tests {
     use super::*;
 
-    fn parse(doc: &str) -> WeflowOutput {
-        parse_weflow(doc.as_bytes(), "/tmp/测试聊天.json", |_, _| {}).expect("parse should succeed")
+    fn parse(doc: &str) -> KernelOutput {
+        let input = KernelInput {
+            primary_path: "/tmp/测试聊天.json".to_string(),
+            options_json: None,
+        };
+        parse_weflow(doc.as_bytes(), &input, |_, _| {}).expect("parse should succeed")
+    }
+
+    fn meta(out: &KernelOutput) -> Value {
+        serde_json::from_str(&out.meta_json).expect("meta_json should be valid JSON")
     }
 
     #[test]
@@ -330,21 +339,19 @@ mod tests {
       ]
     }"#;
         let out = parse(doc);
-        assert_eq!(out.name, "群显示名");
-        assert_eq!(out.chat_type, "group");
-        assert_eq!(out.group_id.as_deref(), Some("room@chatroom"));
+        let meta = meta(&out);
+        assert_eq!(meta["name"], "群显示名");
+        assert_eq!(meta["chatType"], "group");
+        assert_eq!(meta["groupId"], "room@chatroom");
         // session.avatar is empty (falsy) -> falls back to avatars[groupId].
-        assert_eq!(
-            out.group_avatar.as_deref(),
-            Some("data:image/jpeg;base64,ROOM")
-        );
-        assert_eq!(out.owner_id.as_deref(), Some("wxid_b"));
+        assert_eq!(meta["groupAvatar"], "data:image/jpeg;base64,ROOM");
+        assert_eq!(meta["ownerId"], "wxid_b");
 
         // room@chatroom sender is skipped entirely.
         assert_eq!(out.messages.len(), 3);
         assert_eq!(out.messages[0].content.as_deref(), Some("hello"));
         assert_eq!(out.messages[0].message_type, 0);
-        assert_eq!(out.messages[0].platform_message_id, "1");
+        assert_eq!(out.messages[0].platform_message_id.as_deref(), Some("1"));
         assert_eq!(out.messages[1].message_type, 1);
         assert_eq!(out.messages[2].message_type, 99);
         assert_eq!(out.messages[2].content, None);
@@ -382,7 +389,10 @@ mod tests {
         // Whitespace-only content is normalized to null.
         assert_eq!(out.messages[1].content, None);
         // localId missing -> String(undefined).
-        assert_eq!(out.messages[0].platform_message_id, "undefined");
+        assert_eq!(
+            out.messages[0].platform_message_id.as_deref(),
+            Some("undefined")
+        );
     }
 
     #[test]
@@ -403,13 +413,15 @@ mod tests {
     fn private_chat_and_filename_fallback() {
         let doc = r#"{"session": {"wxid": "wxid_friend", "type": "其他"}, "messages": []}"#;
         let out = parse(doc);
-        assert_eq!(out.chat_type, "private");
-        assert_eq!(out.group_id, None);
-        assert_eq!(out.name, "测试聊天");
+        let m = meta(&out);
+        assert_eq!(m["chatType"], "private");
+        assert_eq!(m["groupId"], Value::Null);
+        assert_eq!(m["name"], "测试聊天");
 
         let out2 = parse(r#"{"messages": []}"#);
-        assert_eq!(out2.chat_type, "group");
-        assert_eq!(out2.name, "测试聊天");
+        let m2 = meta(&out2);
+        assert_eq!(m2["chatType"], "group");
+        assert_eq!(m2["name"], "测试聊天");
     }
 
     #[test]

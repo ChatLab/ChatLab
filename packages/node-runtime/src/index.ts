@@ -15,6 +15,7 @@ export {
   streamParseFileInfo,
   analyzeIncrementalImport,
   incrementalImport,
+  logNativeParserStatus,
   ZipArchiveReader,
   validateArchiveEntryName,
   ArchiveImportError,
