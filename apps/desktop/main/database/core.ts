@@ -82,7 +82,7 @@ export function openDatabase(sessionId: string, readonly = true): Database.Datab
     return null
   }
   const db = new Database(dbPath, { readonly, nativeBinding: resolveDesktopNativeBinding() })
-  db.pragma('journal_mode = WAL')
+  if (!readonly) db.pragma('journal_mode = WAL')
   return db
 }
 
