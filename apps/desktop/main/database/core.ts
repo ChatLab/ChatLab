@@ -24,6 +24,7 @@ import { migrateDatabase, needsMigration, CURRENT_SCHEMA_VERSION } from './migra
 import { getPathProvider } from '../path-context'
 import { ensureDir } from '../paths'
 import { deleteSessionCache } from '@openchatlab/node-runtime'
+import { resolveDesktopNativeBinding } from '../native-sqlite'
 
 /**
  * 获取数据库目录
@@ -61,7 +62,7 @@ export function getDbPath(sessionId: string): string {
 function createDatabase(sessionId: string): Database.Database {
   ensureDbDir()
   const dbPath = getDbPath(sessionId)
-  const db = new Database(dbPath)
+  const db = new Database(dbPath, { nativeBinding: resolveDesktopNativeBinding() })
 
   db.pragma('journal_mode = WAL')
 
@@ -80,7 +81,7 @@ export function openDatabase(sessionId: string, readonly = true): Database.Datab
   if (!fs.existsSync(dbPath)) {
     return null
   }
-  const db = new Database(dbPath, { readonly })
+  const db = new Database(dbPath, { readonly, nativeBinding: resolveDesktopNativeBinding() })
   db.pragma('journal_mode = WAL')
   return db
 }
@@ -101,7 +102,7 @@ export function openDatabaseWithMigration(
     return null
   }
 
-  const db = new Database(dbPath)
+  const db = new Database(dbPath, { nativeBinding: resolveDesktopNativeBinding() })
   db.pragma('journal_mode = WAL')
 
   // 执行迁移
@@ -188,7 +189,7 @@ export function renameSession(sessionId: string, newName: string): boolean {
   const dbPath = getDbPath(sessionId)
   if (!fs.existsSync(dbPath)) return false
 
-  const db = new Database(dbPath)
+  const db = new Database(dbPath, { nativeBinding: resolveDesktopNativeBinding() })
   db.pragma('journal_mode = WAL')
   try {
     coreRenameSession(new BetterSqliteAdapter(db), newName)
@@ -231,7 +232,7 @@ export function checkMigrationNeeded(): {
     const dbPath = getDbPath(sessionId)
 
     try {
-      const db = new Database(dbPath, { readonly: true })
+      const db = new Database(dbPath, { readonly: true, nativeBinding: resolveDesktopNativeBinding() })
       db.pragma('journal_mode = WAL')
 
       // 仅迁移聊天会话数据库：这里最小依赖是 meta + message

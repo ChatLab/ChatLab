@@ -26,6 +26,7 @@ dist-web/
 docs/.vitepress/cache/
 docs/.vitepress/dist/
 apps/cli/native/
+apps/desktop/native/
 .history/
 out
 release-config.json

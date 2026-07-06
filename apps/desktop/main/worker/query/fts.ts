@@ -5,7 +5,7 @@
  * This module adds session-level DB connection management.
  */
 
-import Database from 'better-sqlite3'
+import type Database from 'better-sqlite3'
 import { BetterSqliteAdapter } from '@openchatlab/node-runtime'
 import {
   hasFtsTable,
@@ -15,14 +15,11 @@ import {
   insertFtsEntries as coreInsertFtsEntries,
   searchByFts as coreSearchByFts,
 } from '@openchatlab/node-runtime'
-import { getDbPath, openDatabase } from '../core'
+import { getDbPath, openRawDatabase, openDatabase } from '../core'
 
 function openWritableDb(sessionId: string): Database.Database | null {
-  const dbPath = getDbPath(sessionId)
   try {
-    const db = new Database(dbPath)
-    db.pragma('journal_mode = WAL')
-    return db
+    return openRawDatabase(getDbPath(sessionId))
   } catch {
     return null
   }

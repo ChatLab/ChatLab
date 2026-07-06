@@ -38,7 +38,7 @@ export interface HttpRouteContext {
   getVersion: () => string
   runtimeIdentity?: RuntimeIdentity
 
-  /** Native binding path for better-sqlite3 (CLI needs it, Electron does not) */
+  /** Native binding path for better-sqlite3 (CLI native copy / Electron-ABI desktop copy) */
   nativeBinding?: string
   contactsService?: ContactsService
   peopleRelationshipsService?: PeopleRelationshipsService

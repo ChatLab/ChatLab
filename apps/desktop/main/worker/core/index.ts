@@ -7,6 +7,7 @@ export {
   initDbDir,
   getDbPath,
   openDatabase,
+  openRawDatabase,
   closeDatabase,
   closeAllDatabases,
   getDbDir,

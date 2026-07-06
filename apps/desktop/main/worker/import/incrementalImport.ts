@@ -7,7 +7,6 @@
  */
 
 import * as path from 'path'
-import Database from 'better-sqlite3'
 import {
   BetterSqliteAdapter,
   analyzeIncrementalImport as sharedAnalyze,
@@ -22,7 +21,7 @@ import type {
   ImportOptions,
 } from '@openchatlab/node-runtime'
 import { sendProgress, getDbPath } from './utils'
-import { getCacheDir } from '../core'
+import { getCacheDir, openRawDatabase } from '../core'
 import * as fs from 'fs'
 
 export type { ImportOptions, IncrementalAnalyzeResult, IncrementalImportResult }
@@ -34,8 +33,7 @@ function buildDeps(requestId: string): IncrementalImportDeps {
       if (!fs.existsSync(dbPath)) {
         throw new Error(`Session database not found: ${sessionId}`)
       }
-      const db = new Database(dbPath, { readonly })
-      db.pragma('journal_mode = WAL')
+      const db = openRawDatabase(dbPath, { readonly })
       if (!readonly) db.pragma('synchronous = NORMAL')
       return new BetterSqliteAdapter(db)
     },
@@ -45,8 +43,7 @@ function buildDeps(requestId: string): IncrementalImportDeps {
     postImportHook(_db, sessionId) {
       const cacheDir = getCacheDir()
       try {
-        const dbPath = getDbPath(sessionId)
-        const rawDb = new Database(dbPath)
+        const rawDb = openRawDatabase(getDbPath(sessionId))
         computeAndSetOverviewCache(new BetterSqliteAdapter(rawDb), sessionId, cacheDir)
         rawDb.close()
       } catch (err) {

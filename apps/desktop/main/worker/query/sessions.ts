@@ -7,11 +7,11 @@
  * dbPath, aiConversationCount, and the getChatOverview cache-first pattern.
  */
 
-import Database from 'better-sqlite3'
+import type Database from 'better-sqlite3'
 import { BetterSqliteAdapter } from '@openchatlab/node-runtime'
 import * as fs from 'fs'
 import * as path from 'path'
-import { openDatabase, getDbDir, getDbPath, getCacheDir } from '../core'
+import { openDatabase, openRawDatabase, getDbDir, getDbPath, getCacheDir } from '../core'
 import {
   getCache,
   getValidatedOverviewCache,
@@ -82,8 +82,7 @@ export function getAllSessions(): any[] {
     const dbPath = path.join(dbDir, file)
 
     try {
-      const db = new Database(dbPath)
-      db.pragma('journal_mode = WAL')
+      const db = openRawDatabase(dbPath)
 
       if (!isChatSessionDb(db)) {
         db.close()

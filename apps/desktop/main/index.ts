@@ -26,6 +26,7 @@ import {
   repairDesktopStartupCompatibilityGate,
 } from './database/startup-migration'
 import { initLocale } from './i18n'
+import { resolveDesktopNativeBinding } from './native-sqlite'
 import { MigrationRunner, ALL_MIGRATIONS } from '@openchatlab/config'
 import { logNativeParserStatus } from '@openchatlab/node-runtime'
 import { assertDesktopDataDirCompatible, getDesktopAppVersion } from './runtime-compat'
@@ -231,7 +232,10 @@ class MainProcess {
       assertDesktopStartupMigrationSucceeded(migrateAllDatabases(runtime))
     }
 
-    repairDesktopStartupCompatibilityGate(runtime, { pathProvider: getPathProvider() })
+    repairDesktopStartupCompatibilityGate(runtime, {
+      pathProvider: getPathProvider(),
+      nativeBinding: resolveDesktopNativeBinding(),
+    })
   }
 
   // 创建主窗口

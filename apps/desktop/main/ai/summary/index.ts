@@ -5,11 +5,10 @@
  * then delegates all logic to the shared @openchatlab/node-runtime module.
  */
 
-import Database from 'better-sqlite3'
 import { completeSimple, type PiTextContent } from '@openchatlab/node-runtime'
 import { loadSegmentMessages, getSegmentSummary, saveSegmentSummary } from '@openchatlab/core'
 import { getFastModelConfig, buildPiModel } from '../llm'
-import { getDbPath, openDatabase } from '../../database/core'
+import { openDatabase } from '../../database/core'
 import { wrapAsDatabaseAdapter } from '../../worker/core'
 import { aiLogger } from '../logger'
 import { t } from '../../i18n'
@@ -34,8 +33,9 @@ function buildDeps(dbSessionId: string): SummaryDeps {
     },
 
     saveSummary(segmentId, summary) {
-      const dbPath = getDbPath(dbSessionId)
-      const db = new Database(dbPath)
+      // 可写打开；文件不存在时返回 null（不再隐式创建空库）
+      const db = openDatabase(dbSessionId, false)
+      if (!db) return
       try {
         saveSegmentSummary(wrapAsDatabaseAdapter(db), segmentId, summary)
       } finally {

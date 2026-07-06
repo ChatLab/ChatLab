@@ -3,9 +3,12 @@
  * 用于合并导入时的临时文件处理
  */
 
-import Database from 'better-sqlite3'
+import type Database from 'better-sqlite3'
 import * as fs from 'fs'
 import * as path from 'path'
+// 直接从 dbCore 导入：core/index 会连带 perfLogger → @openchatlab/node-runtime，
+// 而本模块被纯 Node 单测导入，需保持依赖面最小。
+import { openRawDatabase } from '../core/dbCore'
 
 // 在 Worker 线程中，无法直接使用 electron 的 app 模块
 // 需要通过其他方式获取临时目录
@@ -25,9 +28,8 @@ function getTempDir(): string {
 export function createTempDatabase(): { db: Database.Database; path: string } {
   const tempDir = getTempDir()
   const tempPath = path.join(tempDir, `merge_${Date.now()}_${Math.random().toString(36).slice(2)}.db`)
-  const db = new Database(tempPath)
+  const db = openRawDatabase(tempPath)
 
-  db.pragma('journal_mode = WAL')
   db.pragma('synchronous = NORMAL')
   db.pragma('cache_size = -64000')
 

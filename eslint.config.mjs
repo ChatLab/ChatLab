@@ -67,5 +67,23 @@ export default defineConfigWithVueTs(
     rules: {
       '@typescript-eslint/no-require-imports': 'off',
     },
+  },
+
+  // desktop 侧 better-sqlite3 必须显式携带 Electron-ABI nativeBinding，
+  // 否则 dev 环境会加载 node_modules 的 Node ABI 绑定并触发 NODE_MODULE_VERSION 报错。
+  // 新代码请优先走统一入口：worker 用 dbCore openRawDatabase()/openDatabase()，
+  // 主进程用 database/core 的 openDatabase()/createDatabase()。
+  {
+    files: ['apps/desktop/**/*.ts'],
+    rules: {
+      'no-restricted-syntax': [
+        'error',
+        {
+          selector: "NewExpression[callee.name='Database']:not(:has(Property[key.name='nativeBinding']))",
+          message:
+            'Desktop new Database() must pass nativeBinding. Use dbCore openRawDatabase()/openDatabase() in workers, or database/core helpers (resolveDesktopNativeBinding()) in the main process.',
+        },
+      ],
+    },
   }
 )

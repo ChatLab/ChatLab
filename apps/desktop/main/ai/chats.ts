@@ -7,6 +7,7 @@
 
 import { AIChatManager } from '@openchatlab/node-runtime'
 import { getPathProvider } from '../path-context'
+import { resolveDesktopNativeBinding } from '../native-sqlite'
 import { aiLogger } from './logger'
 
 export type { AIChat, AIMessage, AIMessageRole, ContentBlock, TokenUsageData } from '@openchatlab/node-runtime'
@@ -21,6 +22,7 @@ export function getManager(): AIChatManager {
           aiLogger.warn(category, message, extra)
         },
       },
+      nativeBinding: resolveDesktopNativeBinding(),
     })
   }
   return manager
@@ -74,15 +76,7 @@ export function addMessage(
   contentBlocks?: import('@openchatlab/node-runtime').ContentBlock[],
   tokenUsage?: import('@openchatlab/node-runtime').TokenUsageData
 ) {
-  return getManager().addMessage(
-    aiChatId,
-    role,
-    content,
-    dataKeywords,
-    dataMessageCount,
-    contentBlocks,
-    tokenUsage
-  )
+  return getManager().addMessage(aiChatId, role, content, dataKeywords, dataMessageCount, contentBlocks, tokenUsage)
 }
 
 export function getMessages(aiChatId: string) {

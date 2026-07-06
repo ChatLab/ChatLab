@@ -83,7 +83,7 @@ import {
 } from './import'
 import { initNlpDir } from '@openchatlab/node-runtime'
 
-initDbDir(workerData.dbDir, workerData.cacheDir, workerData.tempDir)
+initDbDir(workerData.dbDir, workerData.cacheDir, workerData.tempDir, workerData.nativeBinding)
 
 // 初始化 NLP 词库目录
 if (workerData.nlpDir) {

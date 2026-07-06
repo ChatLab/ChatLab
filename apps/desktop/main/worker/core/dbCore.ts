@@ -11,14 +11,30 @@ import type { DatabaseAdapter, PreparedStatement, RunResult } from '@openchatlab
 let DB_DIR: string = ''
 let CACHE_DIR: string = ''
 let TEMP_DIR: string = ''
+// Electron-ABI better-sqlite3 绑定路径（由主进程经 workerData 注入；测试/生产为 undefined）
+let NATIVE_BINDING: string | undefined
 
 // 数据库连接缓存
 const dbCache = new Map<string, Database.Database>()
 
-export function initDbDir(dir: string, cacheDir?: string, tempDir?: string): void {
+export function initDbDir(dir: string, cacheDir?: string, tempDir?: string, nativeBinding?: string): void {
   DB_DIR = dir
   if (cacheDir) CACHE_DIR = cacheDir
   if (tempDir) TEMP_DIR = tempDir
+  NATIVE_BINDING = nativeBinding
+}
+
+/**
+ * 打开一个非缓存的数据库连接 —— worker 内唯一合法的 better-sqlite3 构造入口。
+ *
+ * 统一携带主进程注入的 Electron-ABI nativeBinding（否则 dev 环境会加载
+ * node_modules 里的 Node ABI 绑定并触发 NODE_MODULE_VERSION 报错）并启用 WAL；
+ * 额外的写优化 pragma（synchronous / cache_size）由调用方按需设置。
+ */
+export function openRawDatabase(dbPath: string, options: { readonly?: boolean } = {}): Database.Database {
+  const db = new Database(dbPath, { ...options, nativeBinding: NATIVE_BINDING })
+  db.pragma('journal_mode = WAL')
+  return db
 }
 
 /**
@@ -42,8 +58,7 @@ export function openDatabase(sessionId: string): Database.Database | null {
     return null
   }
 
-  const db = new Database(dbPath, { readonly: true })
-  db.pragma('journal_mode = WAL')
+  const db = openRawDatabase(dbPath, { readonly: true })
 
   // 缓存连接
   dbCache.set(sessionId, db)

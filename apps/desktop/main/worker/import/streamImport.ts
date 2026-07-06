@@ -8,7 +8,7 @@
 
 import * as fs from 'fs'
 import * as path from 'path'
-import Database from 'better-sqlite3'
+import type Database from 'better-sqlite3'
 import {
   BetterSqliteAdapter,
   streamingImport,
@@ -23,6 +23,7 @@ import { sendProgress, generateSessionId, getDbPath, createDatabaseWithoutIndexe
 import {
   getCacheDir,
   getTempDir,
+  openRawDatabase,
   initPerfLog,
   logPerf,
   logPerfDetail,
@@ -48,8 +49,7 @@ function generateTempDbPath(sourceFilePath: string): string {
 }
 
 function createTempDatabase(dbPath: string): Database.Database {
-  const db = new Database(dbPath)
-  db.pragma('journal_mode = WAL')
+  const db = openRawDatabase(dbPath)
   db.pragma('synchronous = NORMAL')
   db.exec(TEMP_DB_SCHEMA)
   return db
@@ -92,8 +92,7 @@ function buildStreamImportDeps(requestId: string): StreamImportDeps {
     postImportHook(_db, sessionId) {
       const cacheDir = getCacheDir()
       try {
-        const dbPath = getDbPath(sessionId)
-        const rawDb = new Database(dbPath)
+        const rawDb = openRawDatabase(getDbPath(sessionId))
         computeAndSetOverviewCache(new BetterSqliteAdapter(rawDb), sessionId, cacheDir)
         rawDb.close()
       } catch (err) {

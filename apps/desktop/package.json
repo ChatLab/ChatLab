@@ -6,12 +6,13 @@
   "description": "ChatLab Desktop — Electron 桌面客户端",
   "main": "./out/main/index.js",
   "scripts": {
-    "postinstall": "electron-rebuild -f -w better-sqlite3",
-    "dev": "electron-vite dev",
-    "preview": "electron-vite preview",
+    "ensure-native": "node scripts/ensure-native.mjs",
+    "restore-node-abi": "node scripts/restore-node-abi.mjs",
+    "dev": "node scripts/ensure-native.mjs && electron-vite dev",
+    "preview": "node scripts/ensure-native.mjs && electron-vite preview",
     "build": "electron-vite build",
-    "build:mac": "pnpm run build && electron-builder --mac --config electron-builder.yml -p never",
-    "build:win": "pnpm run build && electron-builder --win --config electron-builder.yml -p never"
+    "build:mac": "node scripts/ensure-native.mjs && pnpm run build && node scripts/build-app.mjs --mac",
+    "build:win": "node scripts/ensure-native.mjs && pnpm run build && node scripts/build-app.mjs --win"
   },
   "dependencies": {
     "@electron-toolkit/preload": "^3.0.1",

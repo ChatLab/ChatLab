@@ -49,6 +49,7 @@ import { aiLogger } from './ai/logger'
 import { createElectronRunAgentStream } from './ai/agent-stream-runner'
 import { createExecuteElectronAiTool } from './ai/tools/debug-executor'
 import { assertDesktopDataDirCompatible, getDesktopAppVersion } from './runtime-compat'
+import { resolveDesktopNativeBinding } from './native-sqlite'
 import { resolveModelDownloadProxyUrl } from './network/proxy'
 
 export interface InternalEndpoint {
@@ -95,8 +96,9 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
     const token = `int_${randomBytes(32).toString('hex')}`
     const { app } = await import('electron')
     const runtime = assertDesktopDataDirCompatible(pathProvider, getDesktopAppVersion(app.getVersion()))
+    const nativeBinding = resolveDesktopNativeBinding()
 
-    newDbManager = new DatabaseManager(pathProvider, { runtime })
+    newDbManager = new DatabaseManager(pathProvider, { runtime, nativeBinding })
     const sessionAdapter = createDatabaseManagerAdapter(newDbManager)
 
     const aiDataDir = pathProvider.getAiDataDir()
@@ -115,7 +117,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
 
     const configStorage = createFileConfigStorage(aiDataDir)
 
-    const newMergeCache = new MergeSessionCache(pathProvider)
+    const newMergeCache = new MergeSessionCache(pathProvider, { nativeBinding })
     newMergeCache.cleanupOrphans()
 
     // 语义索引 worker client：启动 internal server 时不拉起 worker；状态/构建/检索按需 lazy start。
@@ -123,6 +125,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
       newSemanticIndexService = createSemanticIndexWorkerRuntimeClient({
         pathProvider,
         runtime,
+        nativeBinding,
         sqliteVecLoadablePath: getSqliteVecLoadablePath().replace('app.asar', 'app.asar.unpacked'),
         getModelDownloadProxyUrl: resolveModelDownloadProxyUrl,
         workerEntryUrl: import.meta.url.endsWith('.ts')
@@ -167,6 +170,7 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
       sessionAdapter,
       pathProvider,
       runtimeIdentity: runtime,
+      nativeBinding,
       getVersion: () => getDesktopAppVersion(app.getVersion()),
       mergeSessionCache: newMergeCache,
       streamImport: electronStreamImport,

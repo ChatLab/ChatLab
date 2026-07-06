@@ -9,9 +9,9 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import * as crypto from 'crypto'
-import Database from 'better-sqlite3'
 import { net, BrowserWindow, app } from 'electron'
 import { getTempDir } from '../paths'
+import { openDatabase } from '../database/core'
 import * as worker from '../worker/workerManager'
 import { getPathProvider } from '../path-context'
 import { assertDesktopDataDirCompatible, getDesktopAppVersion } from '../runtime-compat'
@@ -91,7 +91,8 @@ export class WorkerImporter implements DataImporter {
     const dbPath = path.join(worker.getDbDirectory(), `${sessionId}.db`)
     if (!fs.existsSync(dbPath)) return false
     try {
-      const db = new Database(dbPath, { readonly: true })
+      const db = openDatabase(sessionId, true)
+      if (!db) return false
       const row = db
         .prepare("SELECT COUNT(*) as cnt FROM sqlite_master WHERE type='table' AND name='message'")
         .get() as { cnt: number }

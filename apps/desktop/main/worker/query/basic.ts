@@ -3,9 +3,8 @@
  * 查询逻辑委托给 @openchatlab/core，本模块负责数据库连接管理和成员 DDL 迁移
  */
 
-import Database from 'better-sqlite3'
 import * as fs from 'fs'
-import { closeDatabase, getDbPath, getCacheDir, openDatabaseAdapter, type TimeFilter } from '../core'
+import { closeDatabase, getDbPath, getCacheDir, openRawDatabase, openDatabaseAdapter, type TimeFilter } from '../core'
 import { getCache, CACHE_KEY_OVERVIEW, type OverviewCache } from '@openchatlab/node-runtime'
 import {
   getAvailableYears as coreGetAvailableYears,
@@ -122,8 +121,7 @@ function ensureAliasesColumn(sessionId: string): void {
   const dbPath = getDbPath(sessionId)
   if (!fs.existsSync(dbPath)) return
   closeDatabase(sessionId)
-  const db = new Database(dbPath)
-  db.pragma('journal_mode = WAL')
+  const db = openRawDatabase(dbPath)
   try {
     const adapter = new BetterSqliteAdapter(db)
     if (coreEnsureAliasesColumn(adapter)) {
@@ -140,8 +138,7 @@ export function ensureAvatarColumn(sessionId: string): void {
   const dbPath = getDbPath(sessionId)
   if (!fs.existsSync(dbPath)) return
   closeDatabase(sessionId)
-  const db = new Database(dbPath)
-  db.pragma('journal_mode = WAL')
+  const db = openRawDatabase(dbPath)
   try {
     const adapter = new BetterSqliteAdapter(db)
     if (coreEnsureAvatarColumn(adapter)) {
@@ -189,8 +186,7 @@ export function updateMemberAliases(sessionId: string, memberId: number, aliases
   const dbPath = getDbPath(sessionId)
   if (!fs.existsSync(dbPath)) return false
   try {
-    const db = new Database(dbPath)
-    db.pragma('journal_mode = WAL')
+    const db = openRawDatabase(dbPath)
     const adapter = new BetterSqliteAdapter(db)
     const result = coreUpdateMemberAliases(adapter, memberId, aliases)
     db.close()
@@ -205,8 +201,7 @@ export function mergeMembers(sessionId: string, memberId1: number, memberId2: nu
   const dbPath = getDbPath(sessionId)
   if (!fs.existsSync(dbPath)) return false
   try {
-    const db = new Database(dbPath)
-    db.pragma('journal_mode = WAL')
+    const db = openRawDatabase(dbPath)
     const adapter = new BetterSqliteAdapter(db)
     const result = coreMergeMembers(adapter, memberId1, memberId2)
     db.close()
@@ -221,8 +216,7 @@ export function deleteMember(sessionId: string, memberId: number): boolean {
   const dbPath = getDbPath(sessionId)
   if (!fs.existsSync(dbPath)) return false
   try {
-    const db = new Database(dbPath)
-    db.pragma('journal_mode = WAL')
+    const db = openRawDatabase(dbPath)
     const adapter = new BetterSqliteAdapter(db)
     const result = coreDeleteMember(adapter, memberId)
     db.close()

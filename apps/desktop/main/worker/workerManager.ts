@@ -12,6 +12,7 @@ import type { StreamImportResult } from './import'
 
 import { getDatabaseDir, getCacheDir, getTempDir, ensureDir } from '../paths'
 import { getNlpDir } from '../nlp/dictManager'
+import { resolveDesktopNativeBinding } from '../native-sqlite'
 import { assertDesktopDataDirCompatible, getDesktopAppVersion } from '../runtime-compat'
 import { getPathProvider } from '../path-context'
 import { raiseChatDbCompatibilityGate } from '@openchatlab/node-runtime'
@@ -133,6 +134,8 @@ export function initWorker(): void {
         tempDir: getTempDir(),
         nlpDir: getNlpDir(),
         appVersion: getDesktopAppVersion(app.getVersion()),
+        // Worker threads cannot resolve the Electron-ABI binding themselves; hand it over.
+        nativeBinding: resolveDesktopNativeBinding(),
       },
     })
     worker = initializedWorker

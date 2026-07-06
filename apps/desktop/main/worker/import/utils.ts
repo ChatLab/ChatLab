@@ -2,11 +2,11 @@
  * Import module utilities shared across stream/incremental import.
  */
 
-import Database from 'better-sqlite3'
+import type Database from 'better-sqlite3'
 import * as fs from 'fs'
 import * as path from 'path'
 import { parentPort } from 'worker_threads'
-import { getDbDir } from '../core'
+import { getDbDir, openRawDatabase } from '../core'
 import { CHAT_DB_TABLES, CHAT_DB_INDEXES } from '@openchatlab/core'
 import type { ParseProgress } from '../../parser'
 
@@ -39,9 +39,8 @@ export function createDatabaseWithoutIndexes(sessionId: string): Database.Databa
   }
 
   const dbPath = getDbPath(sessionId)
-  const db = new Database(dbPath)
+  const db = openRawDatabase(dbPath)
 
-  db.pragma('journal_mode = WAL')
   db.pragma('synchronous = NORMAL')
   db.pragma('cache_size = -64000') // 64MB cache for write performance
 
