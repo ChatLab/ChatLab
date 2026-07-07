@@ -370,9 +370,15 @@ export function applyPendingNodeDataDirMigration(
   if (!pending) return { success: true, skipped: true }
   const writeConfig = deps.writeConfigField ?? writeConfigField
 
-  const userScopedCopy = copyUserScopedSystemDirs(systemDir, pending.from)
-  if (userScopedCopy.errors.length > 0) {
-    return { success: false, error: userScopedCopy.errors.join('; ') }
+  if (pending.migrate && path.resolve(pending.from) !== path.resolve(pending.to)) {
+    if (!fs.existsSync(pending.from)) {
+      return { success: false, error: `源数据目录不存在: ${pending.from}` }
+    }
+
+    const userScopedCopy = copyUserScopedSystemDirs(systemDir, pending.from)
+    if (userScopedCopy.errors.length > 0) {
+      return { success: false, error: userScopedCopy.errors.join('; ') }
+    }
   }
 
   const result = runPendingDataDirMigration(pending, {

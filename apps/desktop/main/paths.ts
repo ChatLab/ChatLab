@@ -399,7 +399,10 @@ export function ensureDir(dirPath: string): void {
 export function ensureAppDirs(): void {
   ensureDir(getSystemDataDir())
   ensureDir(getUserDataDir())
-  copyLegacyUserScopedSystemDirs(getUserDataDir())
+  const userScopedCopy = copyLegacyUserScopedSystemDirs(getUserDataDir())
+  if (userScopedCopy.errors.length > 0) {
+    throw new Error(`Failed to copy legacy user-scoped system directories: ${userScopedCopy.errors.join('; ')}`)
+  }
   ensureDir(getDatabaseDir())
   ensureDir(getVectorDir())
   ensureDir(getAiDataDir())

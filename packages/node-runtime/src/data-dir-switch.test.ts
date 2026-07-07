@@ -261,6 +261,34 @@ test('applyPendingNodeDataDirMigration deletes old data directory after successf
   ])
 })
 
+test('applyPendingNodeDataDirMigration preserves missing-source failures before copying legacy dirs', () => {
+  const root = makeTempDir()
+  const systemDir = path.join(root, 'system')
+  const currentDir = path.join(root, 'missing-current')
+  const targetDir = path.join(root, 'target')
+  writeFile(path.join(systemDir, 'ai', 'ai-chats.db'), 'ai')
+
+  const switchResult = createNodeDataDirSwitch({
+    systemDir,
+    currentDir,
+    targetDir,
+    migrate: true,
+    defaultDir: targetDir,
+  })
+  assert.equal(switchResult.success, true)
+
+  const result = applyPendingNodeDataDirMigration(systemDir, {
+    writeConfigField() {
+      throw new Error('writeConfigField should not be called')
+    },
+  })
+
+  assert.equal(result.success, false)
+  assert.match(result.error ?? '', /源数据目录不存在/)
+  assert.equal(fs.existsSync(currentDir), false)
+  assert.equal(fs.existsSync(targetDir), false)
+})
+
 test('applyPendingNodeDataDirMigration includes legacy AI data, cache, and logs in the switched data directory', () => {
   const root = makeTempDir()
   const systemDir = path.join(root, 'system')

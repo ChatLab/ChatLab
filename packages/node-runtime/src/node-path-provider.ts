@@ -92,7 +92,10 @@ export class NodePathProvider implements PathProvider {
    * 确保系统目录和用户数据目录都存在
    */
   ensureAllDirs(): void {
-    copyUserScopedSystemDirs(this.systemDir, this.userDataDir)
+    const userScopedCopy = copyUserScopedSystemDirs(this.systemDir, this.userDataDir)
+    if (userScopedCopy.errors.length > 0) {
+      throw new Error(`Failed to copy legacy user-scoped system directories: ${userScopedCopy.errors.join('; ')}`)
+    }
 
     const dirs = [
       this.systemDir,
