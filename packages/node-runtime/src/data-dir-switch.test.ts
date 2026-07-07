@@ -5,6 +5,7 @@ import path from 'node:path'
 import test from 'node:test'
 import {
   applyPendingNodeDataDirMigration,
+  copyUserScopedSystemDirs,
   createPendingDataDirMigration,
   createNodeDataDirSwitch,
   getPendingNodeDataDirMigration,
@@ -163,6 +164,59 @@ test('NodePathProvider marks CLI-created data directories', () => {
   assert.equal(fs.readFileSync(path.join(dataDir, '.chatlab'), 'utf-8'), 'ChatLab Data Directory')
 })
 
+test('NodePathProvider keeps AI data, cache, and logs under the configured data directory', () => {
+  const root = makeTempDir()
+  const dataDir = path.join(root, 'data')
+  const provider = new NodePathProvider(dataDir)
+
+  assert.equal(provider.getAiDataDir(), path.join(dataDir, 'ai'))
+  assert.equal(provider.getCacheDir(), path.join(dataDir, 'cache'))
+  assert.equal(provider.getLogsDir(), path.join(dataDir, 'logs'))
+})
+
+test('copyUserScopedSystemDirs copies legacy AI data, cache, and logs into the user data directory', () => {
+  const root = makeTempDir()
+  const systemDir = path.join(root, 'system')
+  const dataDir = path.join(root, 'data')
+  writeFile(path.join(systemDir, 'ai', 'ai-chats.db'), 'ai')
+  writeFile(path.join(systemDir, 'cache', 'cache.db'), 'cache')
+  writeFile(path.join(systemDir, 'logs', 'app.log'), 'log')
+
+  const result = copyUserScopedSystemDirs(systemDir, dataDir)
+
+  assert.equal(result.errors.length, 0)
+  assert.equal(fs.readFileSync(path.join(dataDir, 'ai', 'ai-chats.db'), 'utf-8'), 'ai')
+  assert.equal(fs.readFileSync(path.join(dataDir, 'cache', 'cache.db'), 'utf-8'), 'cache')
+  assert.equal(fs.readFileSync(path.join(dataDir, 'logs', 'app.log'), 'utf-8'), 'log')
+})
+
+test('copyUserScopedSystemDirs is a no-op when legacy system dirs are missing', () => {
+  const root = makeTempDir()
+  const systemDir = path.join(root, 'system')
+  const dataDir = path.join(root, 'data')
+
+  const result = copyUserScopedSystemDirs(systemDir, dataDir)
+
+  assert.deepEqual(result, { copied: 0, skipped: 0, errors: [] })
+  assert.equal(fs.existsSync(dataDir), false)
+})
+
+test('copyUserScopedSystemDirs is idempotent', () => {
+  const root = makeTempDir()
+  const systemDir = path.join(root, 'system')
+  const dataDir = path.join(root, 'data')
+  writeFile(path.join(systemDir, 'ai', 'ai-chats.db'), 'ai')
+  writeFile(path.join(systemDir, 'cache', 'cache.db'), 'cache')
+  writeFile(path.join(systemDir, 'logs', 'app.log'), 'log')
+
+  const first = copyUserScopedSystemDirs(systemDir, dataDir)
+  const second = copyUserScopedSystemDirs(systemDir, dataDir)
+
+  assert.equal(first.errors.length, 0)
+  assert.equal(first.copied, 3)
+  assert.deepEqual(second, { copied: 0, skipped: 3, errors: [] })
+})
+
 test('createNodeDataDirSwitch writes pending migration under the system settings directory', () => {
   const root = makeTempDir()
   const systemDir = path.join(root, 'system')
@@ -205,6 +259,34 @@ test('applyPendingNodeDataDirMigration deletes old data directory after successf
     { section: 'data', key: 'user_data_dir', value: targetDir },
     { section: 'data', key: 'electron_migration_done', value: true },
   ])
+})
+
+test('applyPendingNodeDataDirMigration includes legacy AI data, cache, and logs in the switched data directory', () => {
+  const root = makeTempDir()
+  const systemDir = path.join(root, 'system')
+  const currentDir = path.join(root, 'current')
+  const targetDir = path.join(root, 'target')
+  writeFile(path.join(currentDir, '.chatlab'), 'ChatLab Data Directory')
+  writeFile(path.join(currentDir, 'databases', 'session.db'), 'sqlite')
+  writeFile(path.join(systemDir, 'ai', 'ai-chats.db'), 'ai')
+  writeFile(path.join(systemDir, 'cache', 'cache.db'), 'cache')
+  writeFile(path.join(systemDir, 'logs', 'app.log'), 'log')
+
+  const switchResult = createNodeDataDirSwitch({ systemDir, currentDir, targetDir, migrate: true })
+  assert.equal(switchResult.success, true)
+
+  const writes: Array<{ section: string; key: string; value: unknown }> = []
+  const result = applyPendingNodeDataDirMigration(systemDir, {
+    writeConfigField(section, key, value) {
+      writes.push({ section, key, value })
+    },
+  })
+
+  assert.equal(result.success, true)
+  assert.equal(fs.readFileSync(path.join(targetDir, 'databases', 'session.db'), 'utf-8'), 'sqlite')
+  assert.equal(fs.readFileSync(path.join(targetDir, 'ai', 'ai-chats.db'), 'utf-8'), 'ai')
+  assert.equal(fs.readFileSync(path.join(targetDir, 'cache', 'cache.db'), 'utf-8'), 'cache')
+  assert.equal(fs.readFileSync(path.join(targetDir, 'logs', 'app.log'), 'utf-8'), 'log')
 })
 
 test('createNodeDataDirSwitch rejects data directory changes while CHATLAB_DATA_DIR is active', () => {

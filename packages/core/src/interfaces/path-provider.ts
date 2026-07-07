@@ -10,16 +10,16 @@
  * 1. 系统数据（固定在 ~/.chatlab/，不可更改）：
  *    ~/.chatlab/
  *      ├── config.toml
- *      ├── ai/            AI 对话历史、助手/技能/LLM 配置
  *      ├── settings/      用户界面偏好
- *      ├── cache/         派生数据缓存（可再生）
- *      ├── temp/          临时文件
- *      └── logs/          日志
+ *      └── temp/          临时文件
  *
  * 2. 用户核心数据（可配置位置）：
  *    {userDataDir}/
  *      ├── databases/     聊天记录 SQLite 文件（{uuid}.db）
  *      ├── vector/        向量数据库（预留）
+ *      ├── ai/            AI 对话历史、助手/技能/LLM 配置
+ *      ├── cache/         派生数据缓存（可再生）
+ *      ├── logs/          日志
  *      └── media/         媒体文件（预留）
  */
 export interface PathProvider {
@@ -35,19 +35,19 @@ export interface PathProvider {
   /** 向量库目录（存放 embedding_index.db 等可再生派生索引），基于 userDataDir */
   getVectorDir(): string
 
-  /** AI 数据目录（对话历史、LLM 配置），基于 systemDir */
+  /** AI 数据目录（对话历史、LLM 配置），基于 userDataDir */
   getAiDataDir(): string
 
   /** 设置目录，基于 systemDir */
   getSettingsDir(): string
 
-  /** 缓存目录（存放可再生的派生数据），基于 systemDir */
+  /** 缓存目录（存放可再生的派生数据），基于 userDataDir */
   getCacheDir(): string
 
   /** 临时文件目录，基于 systemDir */
   getTempDir(): string
 
-  /** 日志目录，基于 systemDir */
+  /** 日志目录，基于 userDataDir */
   getLogsDir(): string
 
   /** 下载目录（导出文件的默认保存位置） */

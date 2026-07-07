@@ -4,6 +4,7 @@ import { writeConfigField } from '@openchatlab/config'
 
 const CHATLAB_MARKER_FILE = '.chatlab'
 const USER_DATA_REQUIRED_DIRS = ['databases']
+const USER_SCOPED_SYSTEM_DIRS = ['ai', 'cache', 'logs']
 const PENDING_MIGRATION_FILE = 'data-dir-migration.json'
 
 const DANGEROUS_PATHS = [
@@ -186,6 +187,19 @@ export function copyDirMerge(
   return stats
 }
 
+export function copyUserScopedSystemDirs(systemDir: string, userDataDir: string): CopyStats {
+  const stats: CopyStats = { copied: 0, skipped: 0, errors: [] }
+
+  for (const dirName of USER_SCOPED_SYSTEM_DIRS) {
+    const src = path.join(systemDir, dirName)
+    const dest = path.join(userDataDir, dirName)
+    if (path.resolve(src) === path.resolve(dest)) continue
+    copyDirMerge(src, dest, ensureDir, stats)
+  }
+
+  return stats
+}
+
 export function createPendingDataDirMigration(input: {
   from: string
   to: string
@@ -355,6 +369,11 @@ export function applyPendingNodeDataDirMigration(
   const pending = getPendingNodeDataDirMigration(systemDir)
   if (!pending) return { success: true, skipped: true }
   const writeConfig = deps.writeConfigField ?? writeConfigField
+
+  const userScopedCopy = copyUserScopedSystemDirs(systemDir, pending.from)
+  if (userScopedCopy.errors.length > 0) {
+    return { success: false, error: userScopedCopy.errors.join('; ') }
+  }
 
   const result = runPendingDataDirMigration(pending, {
     writeUserDataDir(dir) {

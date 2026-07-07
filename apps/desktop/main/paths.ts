@@ -3,9 +3,9 @@
  *
  * 目录分为两类：
  * 1. 系统数据（~/.chatlab/）— 固定位置，不可更改
- *    配置、日志、缓存、AI 数据、设置偏好等
+ *    配置、设置偏好等
  * 2. 用户核心数据（userDataDir）— 可通过 config.toml 配置
- *    聊天记录数据库、向量库（未来）
+ *    聊天记录数据库、向量库（未来）、AI 数据、缓存、日志
  *
  * userDataDir 解析优先级：
  *   CHATLAB_DATA_DIR 环境变量 > config.toml [data] user_data_dir > 平台默认
@@ -236,6 +236,11 @@ export function applyPendingDataDirMigration(): { success: boolean; skipped?: bo
   const pending = config.pendingDataDirMigration
   if (!pending) return { success: true, skipped: true }
 
+  const userScopedCopy = copyLegacyUserScopedSystemDirs(getUserDataDir())
+  if (userScopedCopy.errors.length > 0) {
+    return { success: false, error: userScopedCopy.errors.join('; ') }
+  }
+
   const result = runPendingDataDirMigration(pending, {
     writeUserDataDir(dir) {
       writeConfigField('data', 'user_data_dir', dir)
@@ -360,7 +365,7 @@ export function getVectorDir(): string {
 }
 
 export function getAiDataDir(): string {
-  return path.join(getSystemDataDir(), 'ai')
+  return path.join(getUserDataDir(), 'ai')
 }
 
 export function getSettingsDir(): string {
@@ -368,7 +373,7 @@ export function getSettingsDir(): string {
 }
 
 export function getCacheDir(): string {
-  return path.join(getSystemDataDir(), 'cache')
+  return path.join(getUserDataDir(), 'cache')
 }
 
 export function getTempDir(): string {
@@ -376,7 +381,7 @@ export function getTempDir(): string {
 }
 
 export function getLogsDir(): string {
-  return path.join(getSystemDataDir(), 'logs')
+  return path.join(getUserDataDir(), 'logs')
 }
 
 /**
@@ -394,6 +399,7 @@ export function ensureDir(dirPath: string): void {
 export function ensureAppDirs(): void {
   ensureDir(getSystemDataDir())
   ensureDir(getUserDataDir())
+  copyLegacyUserScopedSystemDirs(getUserDataDir())
   ensureDir(getDatabaseDir())
   ensureDir(getVectorDir())
   ensureDir(getAiDataDir())
@@ -572,7 +578,29 @@ export function removeLegacyDir(): boolean {
 
 // ==================== Electron 旧目录结构 → 新目录结构迁移 ====================
 
-const SYSTEM_SUBDIRS = ['ai', 'settings', 'cache', 'logs', 'temp', 'nlp']
+const SYSTEM_SUBDIRS = ['settings', 'temp', 'nlp']
+const USER_SCOPED_LEGACY_SYSTEM_SUBDIRS = ['ai', 'cache', 'logs']
+
+function copyLegacyUserScopedSystemDirs(userDataDir: string): { errors: string[] } {
+  const systemDir = getSystemDataDir()
+  const errors: string[] = []
+
+  for (const subDir of USER_SCOPED_LEGACY_SYSTEM_SUBDIRS) {
+    const srcDir = path.join(systemDir, subDir)
+    const destDir = path.join(userDataDir, subDir)
+    if (!fs.existsSync(srcDir) || path.resolve(srcDir) === path.resolve(destDir)) continue
+
+    try {
+      ensureDir(destDir)
+      errors.push(...copyDirMerge(srcDir, destDir, ensureDir).errors)
+    } catch (error) {
+      errors.push(error instanceof Error ? error.message : String(error))
+      console.warn(`[Paths] Failed to copy legacy ${subDir} into user data dir:`, error)
+    }
+  }
+
+  return { errors }
+}
 
 /**
  * 检测是否需要从 Electron 旧目录结构迁移到新的双根目录结构

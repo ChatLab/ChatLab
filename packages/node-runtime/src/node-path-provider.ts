@@ -4,8 +4,8 @@
  * 为 CLI / npm 服务版提供路径管理，不依赖 Electron。
  *
  * 目录分为两类：
- * - 系统数据：固定在 ~/.chatlab/，存放配置、日志、缓存、AI 数据等
- * - 用户数据：可配置位置，存放聊天记录数据库等核心资产
+ * - 系统数据：固定在 ~/.chatlab/，存放配置、设置等
+ * - 用户数据：可配置位置，存放聊天记录数据库、AI 数据、缓存、日志等核心资产
  *
  * 用户数据目录（userDataDir）解析优先级：
  * 1. 构造函数传入的 userDataDir 参数
@@ -20,7 +20,7 @@ import * as path from 'path'
 import type { PathProvider } from '@openchatlab/core'
 import { writeConfigField, loadConfig } from '@openchatlab/config'
 import { migrateFromElectronIfNeeded } from './migrations/electron-data-migration'
-import { applyPendingNodeDataDirMigration } from './data-dir-switch'
+import { applyPendingNodeDataDirMigration, copyUserScopedSystemDirs } from './data-dir-switch'
 
 const SYSTEM_DIR = path.join(os.homedir(), '.chatlab')
 
@@ -65,7 +65,7 @@ export class NodePathProvider implements PathProvider {
   }
 
   getAiDataDir(): string {
-    return path.join(this.systemDir, 'ai')
+    return path.join(this.userDataDir, 'ai')
   }
 
   getSettingsDir(): string {
@@ -73,7 +73,7 @@ export class NodePathProvider implements PathProvider {
   }
 
   getCacheDir(): string {
-    return path.join(this.systemDir, 'cache')
+    return path.join(this.userDataDir, 'cache')
   }
 
   getTempDir(): string {
@@ -81,7 +81,7 @@ export class NodePathProvider implements PathProvider {
   }
 
   getLogsDir(): string {
-    return path.join(this.systemDir, 'logs')
+    return path.join(this.userDataDir, 'logs')
   }
 
   getDownloadsDir(): string {
@@ -92,6 +92,8 @@ export class NodePathProvider implements PathProvider {
    * 确保系统目录和用户数据目录都存在
    */
   ensureAllDirs(): void {
+    copyUserScopedSystemDirs(this.systemDir, this.userDataDir)
+
     const dirs = [
       this.systemDir,
       this.userDataDir,

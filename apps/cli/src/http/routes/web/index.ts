@@ -84,11 +84,11 @@ export function registerWebRoutes(
     getUserDataDir: () => path.join(os.homedir(), '.chatlab', 'data'),
     getDatabaseDir: () => path.join(os.homedir(), '.chatlab', 'data', 'databases'),
     getVectorDir: () => path.join(os.homedir(), '.chatlab', 'data', 'vector'),
-    getAiDataDir: () => path.join(os.homedir(), '.chatlab', 'ai'),
+    getAiDataDir: () => path.join(os.homedir(), '.chatlab', 'data', 'ai'),
     getSettingsDir: () => path.join(os.homedir(), '.chatlab', 'settings'),
-    getCacheDir: () => path.join(os.homedir(), '.chatlab', 'cache'),
+    getCacheDir: () => path.join(os.homedir(), '.chatlab', 'data', 'cache'),
     getTempDir: () => path.join(os.homedir(), '.chatlab', 'temp'),
-    getLogsDir: () => path.join(os.homedir(), '.chatlab', 'logs'),
+    getLogsDir: () => path.join(os.homedir(), '.chatlab', 'data', 'logs'),
     getDownloadsDir: () => path.join(os.homedir(), 'Downloads'),
   }
   const resolvedPathProvider = options?.pathProvider ?? fallbackPathProvider
