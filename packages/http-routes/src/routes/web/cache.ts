@@ -65,6 +65,8 @@ export function registerCacheRoutes(server: FastifyInstance, ctx: HttpRouteConte
         name: 'settings.storage.cache.databases.name',
         description: 'settings.storage.cache.databases.description',
         path: pp.getDatabaseDir(),
+        scope: 'user-data',
+        rootPath: pp.getUserDataDir(),
         icon: 'i-heroicons-circle-stack',
         canClear: false,
       },
@@ -73,6 +75,8 @@ export function registerCacheRoutes(server: FastifyInstance, ctx: HttpRouteConte
         name: 'settings.storage.cache.ai.name',
         description: 'settings.storage.cache.ai.description',
         path: pp.getAiDataDir(),
+        scope: 'system-data',
+        rootPath: pp.getSystemDir(),
         icon: 'i-heroicons-sparkles',
         canClear: false,
       },
@@ -81,6 +85,8 @@ export function registerCacheRoutes(server: FastifyInstance, ctx: HttpRouteConte
         name: 'settings.storage.cache.statsCache.name',
         description: 'settings.storage.cache.statsCache.description',
         path: pp.getCacheDir(),
+        scope: 'system-data',
+        rootPath: pp.getSystemDir(),
         icon: 'i-heroicons-bolt',
         canClear: true,
       },
@@ -89,6 +95,8 @@ export function registerCacheRoutes(server: FastifyInstance, ctx: HttpRouteConte
         name: 'settings.storage.cache.logs.name',
         description: 'settings.storage.cache.logs.description',
         path: pp.getLogsDir(),
+        scope: 'system-data',
+        rootPath: pp.getSystemDir(),
         icon: 'i-heroicons-document-text',
         canClear: true,
       },
@@ -102,7 +110,7 @@ export function registerCacheRoutes(server: FastifyInstance, ctx: HttpRouteConte
     )
 
     return {
-      baseDir: pp.getUserDataDir(),
+      baseDir: pp.getSystemDir(),
       directories: results,
       totalSize: results.reduce((sum, d) => sum + d.size, 0),
     }
@@ -139,6 +147,8 @@ export function registerCacheRoutes(server: FastifyInstance, ctx: HttpRouteConte
       defaultPath: ctx.defaultUserDataDir,
       isCustom: ctx.isCustomDataDir ?? false,
       canSetDataDir: ctx.canSetDataDir ?? Boolean(ctx.setDataDir),
+      managedScope: 'chat-databases',
+      managedDescription: 'settings.storage.dataLocation.managedDescription',
       hasLegacyDataAtDefaultDir:
         Boolean(ctx.defaultUserDataDir) &&
         path.resolve(pp.getUserDataDir()) !== path.resolve(ctx.defaultUserDataDir ?? '') &&
@@ -222,7 +232,8 @@ export function registerCacheRoutes(server: FastifyInstance, ctx: HttpRouteConte
 
     const { cacheId } = request.body
     const dirPaths: Record<string, string> = {
-      base: pp.getUserDataDir(),
+      base: pp.getSystemDir(),
+      userData: pp.getUserDataDir(),
       databases: pp.getDatabaseDir(),
       cache: pp.getCacheDir(),
       ai: pp.getAiDataDir(),

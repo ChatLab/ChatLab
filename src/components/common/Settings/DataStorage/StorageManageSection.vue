@@ -20,6 +20,7 @@ const clearingId = ref<string | null>(null)
 const dataDir = ref('')
 const dataDirInput = ref('')
 const defaultDataDir = ref('')
+const dataDirManagedDescription = ref('settings.storage.dataLocation.managedDescription')
 const hasLegacyDataAtDefaultDir = ref(false)
 const isCustomDataDir = ref(false)
 const canSetDataDir = ref(false)
@@ -97,6 +98,7 @@ async function loadDataDir() {
     dataDir.value = info.path
     dataDirInput.value = info.pendingMigration?.to || info.path
     defaultDataDir.value = info.defaultPath || ''
+    dataDirManagedDescription.value = info.managedDescription || 'settings.storage.dataLocation.managedDescription'
     hasLegacyDataAtDefaultDir.value = Boolean(info.hasLegacyDataAtDefaultDir)
     isCustomDataDir.value = info.isCustom
     canSetDataDir.value = IS_ELECTRON || Boolean(info.canSetDataDir)
@@ -136,6 +138,10 @@ async function openDirectory(cacheId: string) {
 // 打开数据根目录
 async function openBaseDir() {
   await openDirectory('base')
+}
+
+async function openUserDataDir() {
+  await openDirectory('userData')
 }
 
 // 选择数据目录
@@ -335,6 +341,15 @@ defineExpose({
             <div>
               <div class="flex items-center gap-2">
                 <h4 class="text-sm font-medium text-gray-900 dark:text-white">{{ t(dir.name) }}</h4>
+                <UBadge variant="soft" color="gray" size="xs">
+                  {{
+                    t(
+                      dir.scope === 'user-data'
+                        ? 'settings.storage.scope.userData'
+                        : 'settings.storage.scope.systemData'
+                    )
+                  }}
+                </UBadge>
                 <UBadge v-if="!dir.exists" variant="soft" color="gray" size="xs">
                   {{ t('settings.storage.notExist') }}
                 </UBadge>
@@ -384,9 +399,12 @@ defineExpose({
             <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
               {{ t('settings.storage.dataLocation.description') }}
             </p>
+            <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {{ t(dataDirManagedDescription) }}
+            </p>
           </div>
           <div class="shrink-0">
-            <UButton icon="i-heroicons-folder-open" variant="ghost" size="xs" @click="openBaseDir">
+            <UButton icon="i-heroicons-folder-open" variant="ghost" size="xs" @click="openUserDataDir">
               {{ t('settings.storage.dataLocation.open') }}
             </UButton>
           </div>

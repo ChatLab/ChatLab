@@ -30,6 +30,63 @@ function makeTempDir(): string {
 }
 
 describe('registerCacheRoutes data directory routes', () => {
+  it('marks storage directories by canonical scope', async () => {
+    const app = Fastify()
+    registerCacheRoutes(app, { pathProvider: createPathProvider() } as unknown as HttpRouteContext)
+    await app.ready()
+
+    const response = await app.inject({ method: 'GET', url: '/_web/cache/info' })
+    assert.equal(response.statusCode, 200)
+    assert.deepEqual(
+      response.json().directories.map((dir: { id: string; scope: string; rootPath: string }) => ({
+        id: dir.id,
+        scope: dir.scope,
+        rootPath: dir.rootPath,
+      })),
+      [
+        { id: 'databases', scope: 'user-data', rootPath: '/tmp/chatlab-test/data' },
+        { id: 'ai', scope: 'system-data', rootPath: '/tmp/chatlab-test' },
+        { id: 'cache', scope: 'system-data', rootPath: '/tmp/chatlab-test' },
+        { id: 'logs', scope: 'system-data', rootPath: '/tmp/chatlab-test' },
+      ]
+    )
+
+    await app.close()
+  })
+
+  it('opens the storage root and chat data directory separately', async () => {
+    const app = Fastify()
+    const openedDirs: string[] = []
+    registerCacheRoutes(app, {
+      pathProvider: createPathProvider(),
+      openDirectory: (dirPath: string) => {
+        openedDirs.push(dirPath)
+      },
+    } as unknown as HttpRouteContext)
+    await app.ready()
+
+    const infoResponse = await app.inject({ method: 'GET', url: '/_web/cache/info' })
+    assert.equal(infoResponse.statusCode, 200)
+    assert.equal(infoResponse.json().baseDir, '/tmp/chatlab-test')
+
+    const baseResponse = await app.inject({
+      method: 'POST',
+      url: '/_web/cache/open-dir',
+      payload: { cacheId: 'base' },
+    })
+    assert.equal(baseResponse.statusCode, 200)
+
+    const userDataResponse = await app.inject({
+      method: 'POST',
+      url: '/_web/cache/open-dir',
+      payload: { cacheId: 'userData' },
+    })
+    assert.equal(userDataResponse.statusCode, 200)
+    assert.deepEqual(openedDirs, ['/tmp/chatlab-test', '/tmp/chatlab-test/data'])
+
+    await app.close()
+  })
+
   it('returns data directory capability and pending migration', async () => {
     const app = Fastify()
     const ctx = {
@@ -55,6 +112,8 @@ describe('registerCacheRoutes data directory routes', () => {
       defaultPath: '/tmp/chatlab-test/default-data',
       isCustom: true,
       canSetDataDir: true,
+      managedScope: 'chat-databases',
+      managedDescription: 'settings.storage.dataLocation.managedDescription',
       hasLegacyDataAtDefaultDir: false,
       pendingMigration: {
         from: '/tmp/chatlab-test/data',

@@ -11,16 +11,24 @@ import type { DatabaseAdapter, PreparedStatement, RunResult } from '@openchatlab
 let DB_DIR: string = ''
 let CACHE_DIR: string = ''
 let TEMP_DIR: string = ''
+let LOGS_DIR: string = ''
 // Electron-ABI better-sqlite3 绑定路径（由主进程经 workerData 注入；测试/生产为 undefined）
 let NATIVE_BINDING: string | undefined
 
 // 数据库连接缓存
 const dbCache = new Map<string, Database.Database>()
 
-export function initDbDir(dir: string, cacheDir?: string, tempDir?: string, nativeBinding?: string): void {
+export function initDbDir(
+  dir: string,
+  cacheDir?: string,
+  tempDir?: string,
+  nativeBinding?: string,
+  logsDir?: string
+): void {
   DB_DIR = dir
   if (cacheDir) CACHE_DIR = cacheDir
   if (tempDir) TEMP_DIR = tempDir
+  if (logsDir) LOGS_DIR = logsDir
   NATIVE_BINDING = nativeBinding
 }
 
@@ -99,6 +107,10 @@ export function getCacheDir(): string {
 
 export function getTempDir(): string {
   return TEMP_DIR
+}
+
+export function getLogsDir(): string {
+  return LOGS_DIR
 }
 
 // ==================== 时间过滤工具 ====================
