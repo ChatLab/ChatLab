@@ -5,9 +5,9 @@
  * Provides the log directory from Electron's path system.
  */
 
-import * as path from 'path'
 import { initPerfLog as coreInitPerfLog } from '@openchatlab/node-runtime'
-import { getDbDir } from './dbCore'
+import { getLogsDir } from './dbCore'
+import { getImportLogDir } from './perfLogPath'
 
 export {
   LogLevel,
@@ -22,7 +22,7 @@ export {
 } from '@openchatlab/node-runtime'
 
 export function initPerfLog(sessionId: string): void {
-  const dbDir = getDbDir()
-  const logDir = path.join(path.dirname(dbDir), 'logs', 'import')
+  const logsDir = getLogsDir()
+  const logDir = logsDir ? getImportLogDir(logsDir) : ''
   coreInitPerfLog(sessionId, logDir)
 }

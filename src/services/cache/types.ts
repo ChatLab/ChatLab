@@ -3,6 +3,8 @@ export interface CacheDirectoryInfo {
   name: string
   description: string
   path: string
+  scope: 'user-data' | 'system-data'
+  rootPath: string
   icon: string
   canClear: boolean
   size: number
@@ -21,6 +23,8 @@ export interface DataDirInfo {
   defaultPath?: string
   isCustom: boolean
   canSetDataDir?: boolean
+  managedScope?: 'chat-databases'
+  managedDescription?: string
   hasLegacyDataAtDefaultDir?: boolean
   pendingMigration?: {
     from: string

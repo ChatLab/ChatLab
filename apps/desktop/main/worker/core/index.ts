@@ -13,6 +13,7 @@ export {
   getDbDir,
   getCacheDir,
   getTempDir,
+  getLogsDir,
   buildTimeFilter,
   buildSystemMessageFilter,
   wrapAsDatabaseAdapter,

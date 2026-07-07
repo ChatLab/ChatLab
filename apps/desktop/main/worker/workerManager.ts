@@ -10,7 +10,7 @@ import * as fs from 'fs'
 import type { ParseProgress } from '../parser'
 import type { StreamImportResult } from './import'
 
-import { getDatabaseDir, getCacheDir, getTempDir, ensureDir } from '../paths'
+import { getDatabaseDir, getCacheDir, getTempDir, getLogsDir, ensureDir } from '../paths'
 import { getNlpDir } from '../nlp/dictManager'
 import { resolveDesktopNativeBinding } from '../native-sqlite'
 import { assertDesktopDataDirCompatible, getDesktopAppVersion } from '../runtime-compat'
@@ -132,6 +132,7 @@ export function initWorker(): void {
         dbDir: getDbDir(),
         cacheDir: getCacheDir(),
         tempDir: getTempDir(),
+        logsDir: getLogsDir(),
         nlpDir: getNlpDir(),
         appVersion: getDesktopAppVersion(app.getVersion()),
         // Worker threads cannot resolve the Electron-ABI binding themselves; hand it over.
