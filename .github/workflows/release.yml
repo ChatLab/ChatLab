@@ -117,11 +117,13 @@ jobs:
           workspaces: packages/parser-native
           key: ${{ matrix.arch }}
 
+      # --target 必须直接传给 napi（不能用 -- 透传给 cargo），
+      # 否则 napi 感知不到交叉编译，会按宿主架构（arm64）命名并构建产物
       - name: Build native parser (${{ matrix.arch }})
         shell: bash
         run: |
           if [ "${{ matrix.arch }}" == "x64" ]; then
-            pnpm --filter @openchatlab/parser-native build -- --target x86_64-apple-darwin
+            pnpm --filter @openchatlab/parser-native build --target x86_64-apple-darwin
           else
             pnpm --filter @openchatlab/parser-native build
           fi
@@ -214,9 +216,16 @@ jobs:
         run: |
           echo "STORE_PATH=$(pnpm store path --silent)" >> $GITHUB_ENV
 
+      # 只暴露 System32 的 tar.exe 到 PATH。不能把整个 System32 置前：
+      # 那会让 WSL 的 bash.EXE 遮蔽 Git Bash，导致后续所有 shell: bash 步骤
+      # （含 dtolnay/rust-toolchain 内部脚本）在无 WSL 发行版的 runner 上失败
       - name: Use Windows system tar (fix zstd cache issue)
-        shell: cmd
-        run: echo C:\Windows\System32>>%GITHUB_PATH%
+        shell: pwsh
+        run: |
+          $tarDir = Join-Path $env:RUNNER_TEMP 'system-tar'
+          New-Item -ItemType Directory -Force -Path $tarDir | Out-Null
+          Copy-Item "$env:SystemRoot\System32\tar.exe" -Destination $tarDir
+          Add-Content -Path $env:GITHUB_PATH -Value $tarDir
 
       - name: Setup pnpm cache
         uses: actions/cache@v5
