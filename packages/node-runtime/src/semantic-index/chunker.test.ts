@@ -212,6 +212,57 @@ test('repeated oversized sender names share one metadata budget across the body'
   assert.ok(result.chunks[0].embeddingInput.includes(marker))
 })
 
+test('sender names within the shared budget are kept intact', () => {
+  const cfg: ChunkerConfig = {
+    ...DEFAULT_CHUNKER_CONFIG,
+    parentGapSeconds: 100000,
+    parentMaxTokens: 100000,
+    childTargetMinChars: 100000,
+    childTargetMaxChars: 100000,
+    childSoftMaxMessages: 100,
+    childHardMaxMessages: 100,
+    childHardMaxTokens: 1200,
+    overlapMessages: 0,
+    semanticVoidSkipThreshold: 1,
+  }
+  // 20 条消息时逐名均分上限只有 4 token，但名字总占用远低于共享预算，长昵称应完整保留
+  const longName = '张三-北京-产品经理'
+  const messages = Array.from({ length: 20 }, (_, index) =>
+    msg(index + 1, `讨论装修进度安排第${index}条`, 0, index === 19 ? longName : '李四')
+  )
+  const result = chunkMessages({ messages, source: privateSource, config: cfg })
+
+  assert.equal(result.chunks.length, 1)
+  assert.ok(result.chunks[0].embeddingInput.includes(`${longName}: `))
+})
+
+test('over-budget clamp shrinks only the oversized name and keeps short names intact', () => {
+  const cfg: ChunkerConfig = {
+    ...DEFAULT_CHUNKER_CONFIG,
+    parentGapSeconds: 100000,
+    parentMaxTokens: 100000,
+    childTargetMinChars: 100000,
+    childTargetMaxChars: 100000,
+    childSoftMaxMessages: 100,
+    childHardMaxMessages: 100,
+    childHardMaxTokens: 1200,
+    overlapMessages: 0,
+    semanticVoidSkipThreshold: 1,
+  }
+  const oversizedName = '超长昵称'.repeat(250)
+  const messages = Array.from({ length: 20 }, (_, index) =>
+    msg(index + 1, `讨论报销流程第${index}条`, 0, index === 19 ? oversizedName : '李四')
+  )
+  const result = chunkMessages({ messages, source: privateSource, config: cfg })
+
+  const embeddingInput = result.chunks[0].embeddingInput
+  assert.ok(embeddingInput.includes('李四: '), 'short names should stay intact')
+  // 超长名字拿到扣除短名后的全部剩余预算，而不是被均分上限截到只剩几个字
+  assert.ok(embeddingInput.includes(oversizedName.slice(0, 40)))
+  assert.ok(!embeddingInput.includes(oversizedName))
+  assert.ok(estimateTokens(embeddingInput) <= cfg.childHardMaxTokens)
+})
+
 test('semantic void messages are excluded from embedding body, header and effective chars', () => {
   const messages = [
     msg(1, '我们讨论一下下周的装修进度安排', 0, '张三'),

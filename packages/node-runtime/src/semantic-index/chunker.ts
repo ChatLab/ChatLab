@@ -212,6 +212,26 @@ function formatTimeRange(startTs: number, endTs: number): string {
 }
 
 /**
+ * 正文发送者名共享总预算的两段式收缩：总占用不超预算时不截断任何名字；
+ * 超预算时求最大的统一 token 上限（水位线），短名字保持原样，只收缩超出水位线的长名字。
+ * 返回 null 表示预算充足、无需截断。
+ */
+function resolveSenderNameTokenCap(nameTokenCounts: number[], totalLimit: number): number | null {
+  const total = nameTokenCounts.reduce((sum, count) => sum + count, 0)
+  if (total <= totalLimit) return null
+
+  const sorted = [...nameTokenCounts].sort((a, b) => a - b)
+  let consumed = 0
+  for (let i = 0; i < sorted.length; i++) {
+    const cap = Math.floor((totalLimit - consumed) / (sorted.length - i))
+    if (sorted[i] > cap) return cap
+    consumed += sorted[i]
+  }
+  // 循环走完意味着总占用未超预算，与上面的提前返回矛盾，仅为类型完整性保留
+  return null
+}
+
+/**
  * 在 token/字节总护栏内组装 embedding 文本。
  * header 最多占四分之一预算，异常长的来源名或发送者名只截断派生文本，正文始终优先保留。
  */
@@ -227,10 +247,15 @@ function buildEmbeddingInput(source: ChunkSource, messages: ChunkMessageInput[],
   const bodyFloor = Math.max(1, limit - headerLimit)
   const sourceTitleLimit = Math.max(1, Math.floor(headerLimit * SOURCE_TITLE_HEADER_SHARE))
   const senderNamesTotalLimit = Math.floor(bodyFloor * SENDER_NAMES_BODY_BUDGET_RATIO)
-  const bodySenderNameLimit = effective.length > 0 ? Math.floor(senderNamesTotalLimit / effective.length) : 0
+  // 所有发送者名共享正文总预算：预算内保持原样，超预算时只收缩长名字，
+  // 避免多条异常长名称累计挤掉后半段正文，同时不影响正常长度的昵称。
+  const bodySenderNameCap = resolveSenderNameTokenCap(
+    effective.map((m) => estimateTokens(m.senderName)),
+    senderNamesTotalLimit
+  )
   const clampHeaderSenderName = (name: string) => clampEstimatedTokens(name, sourceTitleLimit)
-  // 所有发送者名共享正文总预算，按有效消息数均分，避免多条异常长名称累计挤掉后半段正文。
-  const clampBodySenderName = (name: string) => clampEstimatedTokens(name, bodySenderNameLimit)
+  const clampBodySenderName = (name: string) =>
+    bodySenderNameCap === null ? name : clampEstimatedTokens(name, bodySenderNameCap)
 
   const headerLines: string[] = []
   const kindLabel = source.kind === 'group' ? '群聊' : '私聊'
