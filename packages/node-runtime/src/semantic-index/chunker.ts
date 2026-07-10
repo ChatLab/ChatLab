@@ -183,6 +183,10 @@ function sha256Hex(input: string): string {
 
 // ==================== header / body ====================
 
+const EMBEDDING_HEADER_BUDGET_RATIO = 0.25
+const SOURCE_TITLE_HEADER_SHARE = 1 / 3
+const SENDER_NAMES_BODY_BUDGET_RATIO = 0.1
+
 function pad2(n: number): string {
   return String(n).padStart(2, '0')
 }
@@ -207,24 +211,45 @@ function formatTimeRange(startTs: number, endTs: number): string {
   return `${formatDateTime(startTs)} - ${sameDay ? formatTime(endTs) : formatDateTime(endTs)}`
 }
 
-function buildEmbeddingInput(source: ChunkSource, messages: ChunkMessageInput[]): string {
+/**
+ * 在 token/字节总护栏内组装 embedding 文本。
+ * header 最多占四分之一预算，异常长的来源名或发送者名只截断派生文本，正文始终优先保留。
+ */
+function buildEmbeddingInput(source: ChunkSource, messages: ChunkMessageInput[], maxTokens: number): string {
+  const limit = Math.max(0, Math.floor(maxTokens))
+  if (limit === 0) return ''
+
   const effective = messages.filter((m) => !isSemanticVoid(m))
   const startTs = messages[0].ts
   const endTs = messages[messages.length - 1].ts
 
-  const lines: string[] = []
+  const headerLimit = Math.max(1, Math.floor(limit * EMBEDDING_HEADER_BUDGET_RATIO))
+  const bodyFloor = Math.max(1, limit - headerLimit)
+  const sourceTitleLimit = Math.max(1, Math.floor(headerLimit * SOURCE_TITLE_HEADER_SHARE))
+  const senderNamesTotalLimit = Math.floor(bodyFloor * SENDER_NAMES_BODY_BUDGET_RATIO)
+  const bodySenderNameLimit = effective.length > 0 ? Math.floor(senderNamesTotalLimit / effective.length) : 0
+  const clampHeaderSenderName = (name: string) => clampEstimatedTokens(name, sourceTitleLimit)
+  // 所有发送者名共享正文总预算，按有效消息数均分，避免多条异常长名称累计挤掉后半段正文。
+  const clampBodySenderName = (name: string) => clampEstimatedTokens(name, bodySenderNameLimit)
+
+  const headerLines: string[] = []
   const kindLabel = source.kind === 'group' ? '群聊' : '私聊'
-  lines.push(`[来源] ${source.title}（${kindLabel}）`)
-  lines.push(`[时间范围] ${formatTimeRange(startTs, endTs)}`)
+  headerLines.push(`[来源] ${clampEstimatedTokens(source.title, sourceTitleLimit)}（${kindLabel}）`)
+  headerLines.push(`[时间范围] ${formatTimeRange(startTs, endTs)}`)
   if (source.kind === 'group') {
-    const participants = [...new Set(effective.map((m) => m.senderName))]
-    lines.push(`[参与者] ${participants.join('、')}`)
+    const participants = [...new Set(effective.map((m) => clampHeaderSenderName(m.senderName)))]
+    headerLines.push(`[参与者] ${participants.join('、')}`)
   }
-  lines.push('')
-  for (const m of effective) {
-    lines.push(`${m.senderName}: ${(m.content ?? '').trim()}`)
-  }
-  return lines.join('\n')
+  const header = clampEstimatedTokens(headerLines.join('\n'), headerLimit)
+
+  const separator = '\n\n'
+  const remaining = Math.max(0, limit - estimateTokens(header) - estimateTokens(separator))
+  const body = clampEstimatedTokens(
+    effective.map((m) => `${clampBodySenderName(m.senderName)}: ${(m.content ?? '').trim()}`).join('\n'),
+    remaining
+  )
+  const combined = body ? `${header}${separator}${body}` : header
+  return clampEstimatedTokens(combined, limit)
 }
 
 function rawContentHashOf(messages: ChunkMessageInput[]): string {
@@ -316,7 +341,7 @@ export function chunkMessages(input: ChunkMessagesInput): ChunkResult {
       const startMessageId = draft[0].id
       const endMessageId = draft[draft.length - 1].id
       // 单条超长消息无法在消息边界上继续切分，因此在派生的 embedding 文本上执行最终硬限制。
-      const embeddingInput = clampEstimatedTokens(buildEmbeddingInput(input.source, draft), config.childHardMaxTokens)
+      const embeddingInput = buildEmbeddingInput(input.source, draft, config.childHardMaxTokens)
       chunks.push({
         localChunkId: `${parentId}#${startMessageId}-${endMessageId}`,
         parentId,

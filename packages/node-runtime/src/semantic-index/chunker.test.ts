@@ -132,6 +132,86 @@ test('single oversized message is clamped to the child token hard limit', () => 
   assert.ok(estimateTokens(result.chunks[0].embeddingInput) <= cfg.childHardMaxTokens)
 })
 
+test('single oversized non-CJK input also respects the UTF-8 byte safety ceiling', () => {
+  const cfg: ChunkerConfig = {
+    ...DEFAULT_CHUNKER_CONFIG,
+    parentGapSeconds: 100000,
+    parentMaxTokens: 100000,
+    childTargetMaxChars: 100000,
+    childHardMaxTokens: 120,
+    semanticVoidSkipThreshold: 1,
+  }
+  const result = chunkMessages({
+    messages: [msg(1, '😀'.repeat(1000), 0)],
+    source: privateSource,
+    config: cfg,
+  })
+
+  const embeddingInput = result.chunks[0].embeddingInput
+  assert.ok(Buffer.byteLength(embeddingInput, 'utf8') <= cfg.childHardMaxTokens * 4)
+})
+
+test('oversized source title cannot consume the message body budget', () => {
+  const cfg: ChunkerConfig = {
+    ...DEFAULT_CHUNKER_CONFIG,
+    parentGapSeconds: 100000,
+    parentMaxTokens: 100000,
+    childTargetMaxChars: 100000,
+    childHardMaxTokens: 120,
+    semanticVoidSkipThreshold: 1,
+  }
+  const marker = '正文唯一标记内容'
+  const result = chunkMessages({
+    messages: [msg(1, marker.repeat(10), 0)],
+    source: { title: '群'.repeat(1000), kind: 'private' },
+    config: cfg,
+  })
+
+  assert.ok(result.chunks[0].embeddingInput.includes(marker))
+})
+
+test('oversized sender name cannot consume the message content budget', () => {
+  const cfg: ChunkerConfig = {
+    ...DEFAULT_CHUNKER_CONFIG,
+    parentGapSeconds: 100000,
+    parentMaxTokens: 100000,
+    childTargetMaxChars: 100000,
+    childHardMaxTokens: 120,
+    semanticVoidSkipThreshold: 1,
+  }
+  const marker = '消息正文唯一标记'
+  const result = chunkMessages({
+    messages: [msg(1, marker.repeat(10), 0, '成员'.repeat(1000))],
+    source: privateSource,
+    config: cfg,
+  })
+
+  assert.ok(result.chunks[0].embeddingInput.includes(marker))
+})
+
+test('repeated oversized sender names share one metadata budget across the body', () => {
+  const cfg: ChunkerConfig = {
+    ...DEFAULT_CHUNKER_CONFIG,
+    parentGapSeconds: 100000,
+    parentMaxTokens: 100000,
+    childTargetMinChars: 100000,
+    childTargetMaxChars: 100000,
+    childSoftMaxMessages: 100,
+    childHardMaxMessages: 100,
+    childHardMaxTokens: 1200,
+    overlapMessages: 0,
+    semanticVoidSkipThreshold: 1,
+  }
+  const marker = '末条消息正文唯一标记'
+  const messages = Array.from({ length: 20 }, (_, index) =>
+    msg(index + 1, index === 19 ? marker : `前置正文${index}`, 0, '成员'.repeat(1000))
+  )
+  const result = chunkMessages({ messages, source: privateSource, config: cfg })
+
+  assert.equal(result.chunks.length, 1)
+  assert.ok(result.chunks[0].embeddingInput.includes(marker))
+})
+
 test('semantic void messages are excluded from embedding body, header and effective chars', () => {
   const messages = [
     msg(1, '我们讨论一下下周的装修进度安排', 0, '张三'),
