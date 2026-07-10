@@ -24,8 +24,9 @@ npm init -y > /dev/null 2>&1
 npm install "better-sqlite3@${BS3_VERSION}" --ignore-scripts > /dev/null 2>&1
 
 cd "node_modules/better-sqlite3"
-# better-sqlite3 按 Node ABI 发布预编译（无 napi 变体），与其自身 install 脚本保持一致
-npx --yes prebuild-install || npm run build-release 2>/dev/null || npx --yes node-gyp rebuild --release
+# better-sqlite3 按 Node ABI 发布预编译（无 napi 变体）。显式钉死 runtime/target 到系统 Node，
+# 避免环境残留的 npm_config_runtime=electron 等配置让它"成功"下载 Electron ABI 产物
+npx --yes prebuild-install -r node -t "$(node --version)" || npm run build-release 2>/dev/null || npx --yes node-gyp rebuild --release
 
 BUILT="$TEMP_DIR/node_modules/better-sqlite3/build/Release/better_sqlite3.node"
 if [ ! -f "$BUILT" ]; then
