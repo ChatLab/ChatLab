@@ -210,6 +210,40 @@ const fixtures: ParserFixture[] = [
     },
   },
   {
+    filename: '_chat.txt',
+    content: [
+      '[2026/7/9 23:39:03] Messages and calls are end-to-end encrypted.',
+      '[2026/7/9 02:28:09] Alice: Hey',
+      '[2026/7/9 02:28:37] Bob:Hi without sender-space',
+      '',
+    ].join('\n'),
+    formatId: 'whatsapp-native-txt',
+    expected: {
+      meta: { name: 'Alice', platform: KNOWN_PLATFORMS.WHATSAPP, type: ChatType.PRIVATE },
+      memberIds: ['Alice', 'Bob'],
+      messages: [
+        {
+          senderPlatformId: 'system',
+          timestamp: localTs('2026-07-09T23:39:03'),
+          type: MessageType.SYSTEM,
+          content: 'Messages and calls are end-to-end encrypted.',
+        },
+        {
+          senderPlatformId: 'Alice',
+          timestamp: localTs('2026-07-09T02:28:09'),
+          type: MessageType.TEXT,
+          content: 'Hey',
+        },
+        {
+          senderPlatformId: 'Bob',
+          timestamp: localTs('2026-07-09T02:28:37'),
+          type: MessageType.TEXT,
+          content: 'Hi without sender-space',
+        },
+      ],
+    },
+  },
+  {
     filename: 'chatlab.json',
     content: json({
       chatlab: { version: '1.0.0', exportedAt: 1704164645 },
