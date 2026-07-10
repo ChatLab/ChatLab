@@ -58,7 +58,7 @@ export function verifyPackagedSqlite({
   })
 
   if (result.status !== 0) {
-    throw new Error(`Packaged better-sqlite3 failed to load: ${safeChildError(result)}`)
+    throw new Error(`Packaged better-sqlite3 failed to load (${bindingPath}): ${safeChildError(result)}`)
   }
 
   let parsed
@@ -75,8 +75,11 @@ export function verifyPackagedSqlite({
 
 function main() {
   try {
+    const { bindingPath } = getPackagedSqlitePaths(defaultDistDir)
     const result = verifyPackagedSqlite()
-    console.log(`[check-packaged-sqlite] OK: Electron ABI ${result.abi}, SELECT 1 = ${result.value}`)
+    console.log(
+      `[check-packaged-sqlite] OK: binding ${bindingPath}; Electron ABI ${result.abi}; SELECT 1 = ${result.value}`
+    )
   } catch (error) {
     console.error(`[check-packaged-sqlite] FAILED: ${error instanceof Error ? error.message : String(error)}`)
     process.exitCode = 1

@@ -50,6 +50,11 @@ asarUnpack:
 win:
   executableName: ChatLab
   target: nsis
+  # Windows 构建显式携带 ensure-native 生成的 Electron ABI binding，避免
+  # electron-builder 在 workspace 中误判 appDir 时打入共享 Node ABI 产物。
+  extraResources:
+    - from: native/better_sqlite3.node
+      to: native/better_sqlite3.node
 
 # NSIS 安装器配置
 nsis:
@@ -87,7 +92,7 @@ dmg:
   artifactName: ChatLab-${version}-${arch}.${ext}
 
 # 是否在构建之前重新编译原生模块。
-# better-sqlite3 非 NAPI，打包必须使用 Electron ABI：electron-builder 会在共享
-# node_modules 里原地重建（CI 一次性环境无影响）。本地 build:mac/build:win 通过
-# scripts/build-app.mjs 在打包结束后自动把共享绑定恢复为 Node ABI，保证 pnpm test 不被破坏。
+# macOS 继续由 electron-builder 重建共享 better-sqlite3；Windows 最终运行时使用
+# win.extraResources 中 desktop 自有的 Electron ABI binding。本地 build:mac/build:win
+# 仍通过 scripts/build-app.mjs 恢复共享 Node ABI，保证 pnpm test 不被破坏。
 npmRebuild: true
