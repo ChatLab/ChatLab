@@ -7,9 +7,9 @@
  * copy at apps/desktop/native/better_sqlite3.node (prepared by
  * scripts/ensure-native.mjs).
  *
- * In the packaged app this resolver returns undefined: electron-builder
- * (npmRebuild: true) rebuilds the bundled node_modules copy for Electron, so
- * the default resolution is already correct there.
+ * Windows packaged apps ship the desktop-owned binding at
+ * resources/native/better_sqlite3.node and load it explicitly. Other packaged
+ * platforms can still fall back to electron-builder's rebuilt node_modules copy.
  *
  * Worker threads cannot compute this reliably from their own __dirname, so the
  * main process resolves once and passes the path through workerData.
@@ -41,12 +41,29 @@ export function findDesktopNativeBinding(
   return undefined
 }
 
+interface ElectronNativeBindingPathOptions {
+  startDir: string
+  resourcesPath: string
+  exists?: (candidate: string) => boolean
+}
+
+/**
+ * 优先解析成品包 resources/native，其次回退到 dev 工作区 native 目录。
+ * 这里只选择 nativeBinding 路径，不加载数据库，也不接触用户数据。
+ */
+export function resolveElectronNativeBindingPath(options: ElectronNativeBindingPathOptions): string | undefined {
+  const exists = options.exists ?? fs.existsSync
+  const packagedCandidate = path.join(options.resourcesPath, NATIVE_RELATIVE_PATH)
+  if (exists(packagedCandidate)) return packagedCandidate
+  return findDesktopNativeBinding(options.startDir, exists)
+}
+
 let cachedBinding: string | undefined
 let resolved = false
 
 /**
  * Resolve the Electron-ABI better-sqlite3 binding for the current process.
- * Returns undefined under plain Node (tests/tools) and in the packaged app.
+ * Returns undefined under plain Node (tests/tools).
  */
 export function resolveDesktopNativeBinding(): string | undefined {
   if (resolved) return cachedBinding
@@ -57,7 +74,10 @@ export function resolveDesktopNativeBinding(): string | undefined {
     return cachedBinding
   }
 
-  cachedBinding = findDesktopNativeBinding(__dirname)
+  cachedBinding = resolveElectronNativeBindingPath({
+    startDir: __dirname,
+    resourcesPath: process.resourcesPath,
+  })
   if (!cachedBinding && !__dirname.includes('app.asar')) {
     console.warn(
       '[native-sqlite] Electron-ABI better-sqlite3 binding not found; ' +

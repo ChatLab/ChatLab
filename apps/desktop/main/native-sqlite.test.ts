@@ -2,7 +2,11 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import * as path from 'node:path'
 
-import { findDesktopNativeBinding, resolveDesktopNativeBinding } from './native-sqlite'
+import {
+  findDesktopNativeBinding,
+  resolveDesktopNativeBinding,
+  resolveElectronNativeBindingPath,
+} from './native-sqlite'
 
 const BINDING = path.join('native', 'better_sqlite3.node')
 
@@ -33,6 +37,37 @@ test('findDesktopNativeBinding stops at the filesystem root without hanging', ()
   }
   assert.equal(findDesktopNativeBinding(path.parse(process.cwd()).root, exists), undefined)
   assert.ok(calls <= 5)
+})
+
+test('resolveElectronNativeBindingPath prefers packaged resources binding', () => {
+  const resourcesPath = path.join('/package', 'resources')
+  const packaged = path.join(resourcesPath, BINDING)
+  const desktopRoot = path.join('/repo', 'apps', 'desktop')
+  const dev = path.join(desktopRoot, BINDING)
+  const exists = (candidate: string) => candidate === packaged || candidate === dev
+
+  assert.equal(
+    resolveElectronNativeBindingPath({
+      startDir: path.join(desktopRoot, 'out', 'main'),
+      resourcesPath,
+      exists,
+    }),
+    packaged
+  )
+})
+
+test('resolveElectronNativeBindingPath falls back to the dev binding', () => {
+  const desktopRoot = path.join('/repo', 'apps', 'desktop')
+  const dev = path.join(desktopRoot, BINDING)
+
+  assert.equal(
+    resolveElectronNativeBindingPath({
+      startDir: path.join(desktopRoot, 'out', 'main'),
+      resourcesPath: path.join('/Electron.app', 'Contents', 'Resources'),
+      exists: (candidate) => candidate === dev,
+    }),
+    dev
+  )
 })
 
 test('resolveDesktopNativeBinding returns undefined under plain Node', () => {
