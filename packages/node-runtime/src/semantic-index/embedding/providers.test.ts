@@ -163,16 +163,27 @@ test('API provider embedQuery does not add instruction', async () => {
   assert.deepEqual(capturedInput, ['原始查询'])
 })
 
-test('API provider throws on non-ok response', async () => {
+test('API provider reports safe request diagnostics on non-ok response', async () => {
   const fetchFn: FetchFn = async () => ({
     ok: false,
-    status: 429,
-    text: async () => 'rate limited',
+    status: 400,
+    headers: {
+      get: (name) => (name === 'x-siliconcloud-trace-id' ? 'trace-safe-123' : null),
+    },
+    text: async () => '{"message":"input is too long"}',
     json: async () => ({}),
   })
   const provider = new OpenAICompatibleEmbeddingProvider(
     { baseUrl: 'https://api.example.com', apiKey: 'k', model: 'm' },
     { fetchFn }
   )
-  await assert.rejects(() => provider.embedDocuments(['x']), /429/)
+  await assert.rejects(
+    () => provider.embedDocuments(['一二三', 'abcd']),
+    (error: Error) => {
+      assert.match(error.message, /400.*model=m.*batchSize=2.*maxInputTokens=3.*totalInputTokens=4/)
+      assert.match(error.message, /traceId=trace-safe-123/)
+      assert.doesNotMatch(error.message, /input is too long/)
+      return true
+    }
+  )
 })

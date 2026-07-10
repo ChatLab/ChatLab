@@ -2,6 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { chunkMessages, isSemanticVoid, type ChunkMessageInput, type ChunkSource } from './chunker'
 import { DEFAULT_CHUNKER_CONFIG, type ChunkerConfig } from './chunker-config'
+import { estimateTokens } from './tokens'
 
 const MINUTE = 60_000
 
@@ -106,6 +107,29 @@ test('child force-closes at hard message cap even below min effective chars', ()
     result.chunks.every((c) => c.messageCount === 6),
     'each child should be force-closed at the hard message cap'
   )
+})
+
+test('single oversized message is clamped to the child token hard limit', () => {
+  const cfg: ChunkerConfig = {
+    ...DEFAULT_CHUNKER_CONFIG,
+    parentGapSeconds: 100000,
+    parentMaxTokens: 100000,
+    childTargetMaxChars: 100000,
+    childHardMaxTokens: 120,
+    semanticVoidSkipThreshold: 1,
+  }
+  const oversizedContent = '超长语义内容'.repeat(1000)
+  const result = chunkMessages({
+    messages: [msg(1, oversizedContent, 0)],
+    source: privateSource,
+    config: cfg,
+  })
+
+  assert.equal(result.chunks.length, 1)
+  assert.equal(result.chunks[0].startMessageId, 1)
+  assert.equal(result.chunks[0].endMessageId, 1)
+  assert.equal(result.chunks[0].effectiveChars, oversizedContent.length)
+  assert.ok(estimateTokens(result.chunks[0].embeddingInput) <= cfg.childHardMaxTokens)
 })
 
 test('semantic void messages are excluded from embedding body, header and effective chars', () => {

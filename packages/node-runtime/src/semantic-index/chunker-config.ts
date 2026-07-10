@@ -18,7 +18,7 @@ import { createHash } from 'crypto'
  * - 切片算法语义变化。
  * - 语义真空过滤规则本身变化。
  */
-export const CHUNKER_VERSION = 'v1.2'
+export const CHUNKER_VERSION = 'v1.3'
 
 /** Phase 1 固定策略标识 */
 export const STRATEGY_ID = 'balanced'

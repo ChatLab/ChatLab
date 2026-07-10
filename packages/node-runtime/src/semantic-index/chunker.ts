@@ -21,7 +21,7 @@ import {
   deriveParentId,
   type ChunkerConfig,
 } from './chunker-config'
-import { estimateTokens } from './tokens'
+import { clampEstimatedTokens, estimateTokens } from './tokens'
 
 export interface ChunkMessageInput {
   id: number
@@ -315,7 +315,8 @@ export function chunkMessages(input: ChunkMessagesInput): ChunkResult {
       }
       const startMessageId = draft[0].id
       const endMessageId = draft[draft.length - 1].id
-      const embeddingInput = buildEmbeddingInput(input.source, draft)
+      // 单条超长消息无法在消息边界上继续切分，因此在派生的 embedding 文本上执行最终硬限制。
+      const embeddingInput = clampEstimatedTokens(buildEmbeddingInput(input.source, draft), config.childHardMaxTokens)
       chunks.push({
         localChunkId: `${parentId}#${startMessageId}-${endMessageId}`,
         parentId,

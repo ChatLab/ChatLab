@@ -8,6 +8,8 @@
  * fetch 可注入，单元测试验证请求结构与响应解析，不联网。
  */
 
+import { appLogger } from '../../logging/app-logger'
+import { estimateTokens } from '../tokens'
 import type { EmbeddingProvider } from './types'
 
 /** API embedding 默认一次提交 8 个 chunk，兼容更多 OpenAI-compatible 服务的批量上限。 */
@@ -28,7 +30,13 @@ interface EmbeddingResponse {
 export type FetchFn = (
   url: string,
   init: { method: string; headers: Record<string, string>; body: string }
-) => Promise<{ ok: boolean; status: number; text(): Promise<string>; json(): Promise<unknown> }>
+) => Promise<{
+  ok: boolean
+  status: number
+  headers?: { get(name: string): string | null }
+  text(): Promise<string>
+  json(): Promise<unknown>
+}>
 
 const defaultFetchFn: FetchFn = (url, init) => fetch(url, init) as unknown as ReturnType<FetchFn>
 
@@ -75,7 +83,20 @@ export class OpenAICompatibleEmbeddingProvider implements EmbeddingProvider {
 
     if (!response.ok) {
       await response.text().catch(() => '') // consume body to avoid connection leak
-      throw new Error(`Embedding API request failed: ${response.status}`)
+      const estimatedTokens = texts.map(estimateTokens)
+      const traceId = response.headers?.get('x-siliconcloud-trace-id')?.trim()
+      const diagnostics = [
+        `model=${this.config.model}`,
+        `batchSize=${texts.length}`,
+        `maxInputTokens=${Math.max(...estimatedTokens)}`,
+        `totalInputTokens=${estimatedTokens.reduce((sum, count) => sum + count, 0)}`,
+        `maxInputChars=${Math.max(...texts.map((text) => text.length))}`,
+      ]
+      if (traceId) diagnostics.push(`traceId=${traceId}`)
+
+      const error = new Error(`Embedding API request failed: ${response.status} (${diagnostics.join(', ')})`)
+      appLogger.error('semantic-index', 'embedding API request failed', error)
+      throw error
     }
 
     const payload = (await response.json()) as EmbeddingResponse
