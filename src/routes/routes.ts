@@ -1,5 +1,10 @@
 import type { RouteRecordRaw } from 'vue-router'
 
+/** 开发模式按需加载页面，避免失败的预加载请求污染后续动态路由导航。 */
+export function shouldPreloadCriticalRoutes(isProduction: boolean): boolean {
+  return isProduction
+}
+
 export const appRoutes: RouteRecordRaw[] = [
   {
     path: '/login',

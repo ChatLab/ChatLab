@@ -1,7 +1,7 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import { IS_ELECTRON } from '@/utils/platform'
 import { useAuthStore } from '@/stores/auth'
-import { appRoutes } from './routes'
+import { appRoutes, shouldPreloadCriticalRoutes } from './routes'
 
 export const router = createRouter({
   routes: appRoutes,
@@ -39,4 +39,6 @@ function preloadCriticalRoutes() {
   })
 }
 
-router.isReady().then(preloadCriticalRoutes)
+if (shouldPreloadCriticalRoutes(import.meta.env.PROD)) {
+  router.isReady().then(preloadCriticalRoutes)
+}
