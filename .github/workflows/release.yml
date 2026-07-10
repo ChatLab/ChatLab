@@ -288,11 +288,14 @@ jobs:
           # 分析服务
           APTABASE_APP_KEY: ${{ secrets.APTABASE_APP_KEY }}
         working-directory: apps/desktop
-        run: pnpm run build && pnpm exec electron-builder --win --config electron-builder.yml -p never
+        run: pnpm run build:win
 
       - name: Verify native parser in packaged app (win x64)
         shell: bash
         run: node scripts/check-desktop-native.mjs win32-x64-msvc
+
+      - name: Verify packaged SQLite runtime (win x64)
+        run: node scripts/check-packaged-sqlite.mjs
 
       - name: Upload Windows artifacts
         uses: actions/upload-artifact@v6
