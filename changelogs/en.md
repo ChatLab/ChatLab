@@ -1,5 +1,22 @@
 # Changelog
 
+## v0.30.1 (2026-07-10)
+
+> Further improve import performance and refine semantic indexing, local model downloads, and related workflows.
+
+### ✨ Features
+
+- Add a Rust native parser kernel for ChatLab JSON, making imports more than 10x faster
+- Add more local model download sources for semantic indexing to improve model retrieval reliability
+- Relax the relationship entry threshold so more sessions can open contacts and relationship analysis
+
+### 🐛 Bug Fixes
+
+- Fix repeated Jieba tokenizer rebuilds when no custom dictionary is configured, speeding up imports and full-text indexing
+- Parse ChatLab JSON member data structurally to avoid losing avatars or roles in complex member arrays
+- Clamp oversized semantic indexing content and sender names within the shared budget to reduce embedding input failures
+- Clarify that storage management only applies to managed data directories to avoid treating unmanaged paths as automatically managed
+
 ## v0.30.0 (2026-07-05)
 
 > Add an Agent-oriented entry point and improve chat record filtering, export, avatar import, and sync behavior.

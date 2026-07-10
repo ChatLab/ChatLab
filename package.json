@@ -1,6 +1,6 @@
 {
   "name": "ChatLab",
-  "version": "0.30.0",
+  "version": "0.30.1",
   "private": true,
   "description": "本地化的聊天记录分析工具，通过 SQL 和 AI Agent 回顾你的社交记忆",
   "repository": {
