@@ -71,4 +71,35 @@ describe('WebPlatformAdapter', () => {
       globalThis.fetch = originalFetch
     }
   })
+
+  it('parses markdown skill bodies as text instead of JSON', async () => {
+    // Regression: importing a skill from the cloud market failed with
+    // "SyntaxError: No number after minus sign in JSON..." because
+    // fetchRemoteConfig hard-coded res.json() for every response.
+    const originalFetch = globalThis.fetch
+    const md = `---\nid: skill_md\nname: Markdown Skill\ndescription: desc\n---\nbody text`
+    globalThis.fetch = (() =>
+      Promise.resolve(new Response(md, { headers: { 'content-type': 'text/markdown' } }))) as typeof fetch
+
+    try {
+      const result = await new WebPlatformAdapter().fetchRemoteConfig('https://example.com/skills/skill_md.md')
+      assert.equal(result.success, true)
+      assert.equal(result.data, md)
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
+  it('parses .json URLs as JSON even without an application/json content-type', async () => {
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = (() =>
+      Promise.resolve(new Response('[1,2,3]', { headers: { 'content-type': 'text/plain' } }))) as typeof fetch
+
+    try {
+      const result = await new WebPlatformAdapter().fetchRemoteConfig('https://example.com/cn/skill.json')
+      assert.deepEqual(result.data, [1, 2, 3])
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
 })

@@ -25,7 +25,9 @@ export class WebPlatformAdapter implements PlatformAdapter {
     try {
       const res = await fetch(url)
       if (!res.ok) return { success: false, error: `HTTP ${res.status}` }
-      const data = await res.json()
+      const contentType = res.headers.get('content-type') || ''
+      const isJson = contentType.includes('application/json') || url.split('?')[0].endsWith('.json')
+      const data = isJson ? await res.json() : await res.text()
       return { success: true, data }
     } catch (e) {
       return { success: false, error: String(e) }
