@@ -1,8 +1,9 @@
 #!/bin/bash
 #
-# 在隔离目录中编译 better-sqlite3 的系统 Node.js 原生模块，
+# 在隔离目录中准备 better-sqlite3 的系统 Node.js 原生模块，
 # 避免与 electron-rebuild 产生冲突。
 #
+# 优先下载官方 Node ABI 预编译包（秒级），无可用预编译时回退源码编译。
 # 产物：apps/cli/native/better_sqlite3.node
 #
 set -e
@@ -23,7 +24,8 @@ npm init -y > /dev/null 2>&1
 npm install "better-sqlite3@${BS3_VERSION}" --ignore-scripts > /dev/null 2>&1
 
 cd "node_modules/better-sqlite3"
-npx --yes prebuild-install -r napi || npm run build-release 2>/dev/null || npx --yes node-gyp rebuild --release
+# better-sqlite3 按 Node ABI 发布预编译（无 napi 变体），与其自身 install 脚本保持一致
+npx --yes prebuild-install || npm run build-release 2>/dev/null || npx --yes node-gyp rebuild --release
 
 BUILT="$TEMP_DIR/node_modules/better-sqlite3/build/Release/better_sqlite3.node"
 if [ ! -f "$BUILT" ]; then
