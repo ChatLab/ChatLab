@@ -49,6 +49,16 @@ function extractNameFromFilePath(filePath: string): string {
   return basename.replace(/\.txt$/i, '') || '未知聊天'
 }
 
+function shouldInferPrivateChatName(filePath: string, fallbackName: string): boolean {
+  const basename = path.basename(filePath)
+  return /^_chat\.txt$/i.test(basename) || /^whatsapp(?:[-_\s].*)?$/i.test(fallbackName)
+}
+
+function inferPrivateChatName(memberMap: Map<string, MemberInfo>, fallbackName: string): string {
+  const member = Array.from(memberMap.values()).find((item) => item.platformId !== 'system')
+  return member?.nickname || fallbackName
+}
+
 // ==================== 特征定义 ====================
 
 export const feature: FormatFeature = {
@@ -65,8 +75,8 @@ export const feature: FormatFeature = {
       /訊息與通話已受端對端加密保護/, // 繁体中文加密提示（WhatsApp 独有）
       /Messages and calls are end-to-end encrypted/i, // 英文加密提示（WhatsApp 独有）
       /你发送给自己的消息已进行端到端加密/, // 简体中文自己对话提示（WhatsApp 独有）
-      /\d{1,4}\/\d{1,2}\/\d{2,4},?\s+\d{1,2}:\d{2} - /, // 消息行格式特征（无方括号，含 " - " 分隔符，WhatsApp 独有）
-      /\[\d{1,4}\/\d{1,2}\/\d{2,4}[\s,].*\d{1,2}:\d{2}:\d{2}.*\] /, // 消息行格式特征（方括号 + 含日期和时间的时间戳，兼容各地区变体）
+      /\d{1,4}\/\d{1,2}\/\d{2,4},?\s+\d{1,2}:\d{2}(?::\d{2})?(?:[\s\u2009\u202F]*(?:AM|PM|A\.M\.|P\.M\.|上午|下午|午前|午後|오전|오후))?\s+- /i, // 消息行格式特征（无方括号，含 " - " 分隔符，WhatsApp 独有）
+      /\[\d{1,4}\/\d{1,2}\/\d{1,4}[\s,].*\d{1,2}:\d{2}(?::\d{2})?.*\] /, // 消息行格式特征（方括号 + 含日期和时间的时间戳，兼容各地区变体）
     ],
     // 文件名特征：与xxx的 WhatsApp 聊天.txt
     filename: [/^与.+的\s*WhatsApp\s*聊天\.txt$/i, /^與.+的\s*WhatsApp\s*對話\.txt$/i, /WhatsApp/i],
@@ -88,7 +98,8 @@ function cleanLine(line: string): string {
 
 // 格式1（无方括号）：日期/日期/日期[,] 时:分 - 内容
 // 兼容各地区变体：YYYY/MM/DD HH:MM | DD/MM/YYYY, HH:MM | M/D/YY, HH:MM
-const MESSAGE_LINE_REGEX_V1 = /^(\d{1,4}\/\d{1,2}\/\d{2,4},?\s+\d{1,2}:\d{2}) - (.+)$/
+const MESSAGE_LINE_REGEX_V1 =
+  /^(\d{1,4}\/\d{1,2}\/\d{2,4},?\s+\d{1,2}:\d{2}(?::\d{2})?(?:[\s\u2009\u202F]*(?:AM|PM|A\.M\.|P\.M\.|上午|下午|午前|午後|오전|오후))?) - (.+)$/i
 
 // 格式2（方括号格式）：宽松捕获 [时间戳] 后的内容
 // 时间戳的地区变体由 parseFlexibleV2Timestamp() 弹性解析器处理
@@ -97,7 +108,7 @@ const MESSAGE_LINE_REGEX_V2 = /^\[([^\]]+)\] (.+)$/
 
 // 从消息内容中分离昵称和实际内容
 // 格式：昵称: 内容（冒号后可能是空格、U+200E LTR Mark 或两者组合）
-const SENDER_CONTENT_REGEX = /^(.+?):[\s\u200E]+(.*)$/
+const SENDER_CONTENT_REGEX = /^(.+?):[\s\u200E]*(.*)$/
 
 // ==================== 系统消息识别 ====================
 
@@ -212,7 +223,7 @@ function parseFlexibleV2Timestamp(raw: string): number | null {
   str = str.replace(/,/g, ' ').replace(/\s+/g, ' ').trim()
 
   // 4. 提取日期部分（含 /）和时间部分（含 :）
-  const match = str.match(/^(\d{1,4}\/\d{1,2}\/\d{2,4})\s+(\d{1,2}:\d{2}(?::\d{2})?)$/)
+  const match = str.match(/^(\d{1,4}\/\d{1,2}\/\d{1,4})\s+(\d{1,2}:\d{2}(?::\d{2})?)$/)
   if (!match) return null
 
   const [, datePart, timePart] = match
@@ -257,36 +268,7 @@ function parseFlexibleV2Timestamp(raw: string): number | null {
  * 支持：YYYY/M/D H:MM | DD/MM/YYYY, HH:MM | M/D/YY, HH:MM
  */
 function parseV1Timestamp(timeStr: string): number {
-  // 移除逗号，规范化空格
-  const str = timeStr.replace(/,/g, '').replace(/\s+/g, ' ').trim()
-  const match = str.match(/^(\d{1,4})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2})$/)
-  if (!match) {
-    const normalized = timeStr.replace(/,/g, '').replace(/\//g, '-').replace(/\s+/, 'T') + ':00'
-    return Math.floor(new Date(normalized).getTime() / 1000)
-  }
-
-  const parts = [parseInt(match[1], 10), parseInt(match[2], 10), parseInt(match[3], 10)]
-  const hour = parseInt(match[4], 10)
-  const minute = parseInt(match[5], 10)
-
-  let year: number, month: number, day: number
-  if (parts[0] > 31) {
-    year = parts[0]
-    month = parts[1]
-    day = parts[2]
-  } else if (parts[2] > 31) {
-    day = parts[0]
-    month = parts[1]
-    year = parts[2]
-  } else {
-    month = parts[0]
-    day = parts[1]
-    year = 2000 + parts[2]
-  }
-
-  const date = new Date(year, month - 1, day, hour, minute, 0)
-  const ts = Math.floor(date.getTime() / 1000)
-  return isNaN(ts) ? 0 : ts
+  return parseFlexibleV2Timestamp(timeStr) ?? 0
 }
 
 // ==================== 成员信息 ====================
@@ -315,7 +297,7 @@ async function* parseWhatsApp(options: ParseOptions): AsyncGenerator<ParseEvent,
   onLog?.('info', `开始解析 WhatsApp TXT 文件，大小: ${(totalBytes / 1024 / 1024).toFixed(2)} MB`)
 
   // 收集数据
-  const chatName = extractNameFromFilePath(filePath)
+  const fileChatName = extractNameFromFilePath(filePath)
   const memberMap = new Map<string, MemberInfo>()
   const messages: ParsedMessage[] = []
 
@@ -448,6 +430,10 @@ async function* parseWhatsApp(options: ParseOptions): AsyncGenerator<ParseEvent,
   const realMemberCount = hasSystemMember ? memberMap.size - 1 : memberMap.size
 
   const chatType = realMemberCount > 2 ? ChatType.GROUP : ChatType.PRIVATE
+  const chatName =
+    chatType === ChatType.PRIVATE && shouldInferPrivateChatName(filePath, fileChatName)
+      ? inferPrivateChatName(memberMap, fileChatName)
+      : fileChatName
 
   // 发送 meta
   const meta: ParsedMeta = {

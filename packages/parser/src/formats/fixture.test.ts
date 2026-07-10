@@ -186,7 +186,7 @@ const fixtures: ParserFixture[] = [
     content: [
       'Messages and calls are end-to-end encrypted.',
       '2024/01/02 03:04 - Alice: hello whatsapp',
-      '2024/01/02 03:05 - Bob: image omitted',
+      '2024/01/02 03:05:06 PM - Bob: image omitted',
       '',
     ].join('\n'),
     formatId: 'whatsapp-native-txt',
@@ -202,9 +202,43 @@ const fixtures: ParserFixture[] = [
         },
         {
           senderPlatformId: 'Bob',
-          timestamp: localTs('2024-01-02T03:05:00'),
+          timestamp: localTs('2024-01-02T15:05:06'),
           type: MessageType.IMAGE,
           content: 'image omitted',
+        },
+      ],
+    },
+  },
+  {
+    filename: '_chat.txt',
+    content: [
+      '[2026/7/9 23:39:03] Messages and calls are end-to-end encrypted.',
+      '[2026/7/9 02:28:09] Alice: Hey',
+      '[2026/7/9 02:28:37] Bob:Hi without sender-space',
+      '',
+    ].join('\n'),
+    formatId: 'whatsapp-native-txt',
+    expected: {
+      meta: { name: 'Alice', platform: KNOWN_PLATFORMS.WHATSAPP, type: ChatType.PRIVATE },
+      memberIds: ['Alice', 'Bob'],
+      messages: [
+        {
+          senderPlatformId: 'system',
+          timestamp: localTs('2026-07-09T23:39:03'),
+          type: MessageType.SYSTEM,
+          content: 'Messages and calls are end-to-end encrypted.',
+        },
+        {
+          senderPlatformId: 'Alice',
+          timestamp: localTs('2026-07-09T02:28:09'),
+          type: MessageType.TEXT,
+          content: 'Hey',
+        },
+        {
+          senderPlatformId: 'Bob',
+          timestamp: localTs('2026-07-09T02:28:37'),
+          type: MessageType.TEXT,
+          content: 'Hi without sender-space',
         },
       ],
     },
