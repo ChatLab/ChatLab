@@ -53,6 +53,7 @@ export {
   SEARCH_MAX_RESULTS_DEFAULT,
   SEARCH_MAX_RESULTS_MIN,
   SEARCH_MAX_RESULTS_MAX,
+  DEFAULT_SEMANTIC_INDEX_MODEL_DOWNLOAD_SOURCE,
 } from './config'
 export type {
   SemanticIndexConfig,
@@ -60,6 +61,7 @@ export type {
   SemanticIndexMode,
   SemanticIndexLocalConfig,
   SemanticIndexApiConfig,
+  SemanticIndexModelDownloadSource,
 } from './config'
 export { createEmbedder } from './embedder-factory'
 export type { EmbedderFactoryDeps } from './embedder-factory'

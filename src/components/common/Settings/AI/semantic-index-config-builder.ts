@@ -43,7 +43,7 @@ export function buildSemanticIndexModelConfig(
     version: savedConfig?.version ?? 1,
     enabled: savedConfig?.enabled ?? true,
     mode: payload.mode,
-    local: { modelId: payload.localModelId },
+    local: { modelId: payload.localModelId, downloadSource: payload.localDownloadSource },
     api:
       payload.mode === 'api'
         ? {

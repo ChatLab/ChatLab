@@ -23,6 +23,7 @@ test('default config is enabled with no model preselected', () => {
   assert.equal(config.mode, 'local')
   assert.equal(config.enabled, true)
   assert.equal(config.local.modelId, '')
+  assert.equal(config.local.downloadSource, 'huggingface')
   assert.equal(config.api, null)
 })
 
@@ -73,6 +74,7 @@ test('old config without enabled field defaults to enabled', () => {
   const store = new SemanticIndexConfigStore(filePath)
   assert.equal(store.isEnabled(), true)
   assert.equal(store.isConfigured(), true)
+  assert.equal(store.get().local.downloadSource, 'huggingface')
 })
 
 test('set then get roundtrips and creates directory', () => {
@@ -91,6 +93,23 @@ test('set then get roundtrips and creates directory', () => {
   assert.equal(loaded.api?.baseUrl, 'https://api.example.com/v1')
   assert.equal(loaded.api?.model, 'text-embed')
   assert.equal(loaded.api?.authProfile, 'p1')
+})
+
+test('local model download source roundtrips without changing model identity', () => {
+  const store = new SemanticIndexConfigStore(tempConfigPath())
+  const official = {
+    ...defaultSemanticIndexConfig(),
+    local: { modelId: 'local-test', downloadSource: 'huggingface' as const },
+  }
+  const mirror = {
+    ...official,
+    local: { ...official.local, downloadSource: 'hf-mirror' as const },
+  }
+
+  store.set(mirror)
+
+  assert.equal(store.get().local.downloadSource, 'hf-mirror')
+  assert.equal(resolveModelId(official), resolveModelId(mirror))
 })
 
 test('resolveModelId reflects local model id', () => {

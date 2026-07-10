@@ -6,6 +6,7 @@
  */
 
 export type SemanticIndexMode = 'local' | 'api'
+export type SemanticIndexModelDownloadSource = 'huggingface' | 'hf-mirror'
 
 export interface SemanticIndexApiConfig {
   baseUrl: string
@@ -19,7 +20,7 @@ export interface SemanticIndexConfig {
   /** 全局功能开关：关闭后不暴露 AI 检索工具、不建立/检索索引（已有索引数据保留） */
   enabled: boolean
   mode: SemanticIndexMode
-  local: { modelId: string }
+  local: { modelId: string; downloadSource?: SemanticIndexModelDownloadSource }
   api: SemanticIndexApiConfig | null
   /** AI 单次语义检索默认返回片段数（范围 5-15，默认 10） */
   searchMaxResults: number

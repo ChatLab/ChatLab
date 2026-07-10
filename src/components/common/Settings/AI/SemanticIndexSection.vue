@@ -65,7 +65,12 @@ const currentModel = computed(() => {
   if (!configured.value || !c) return null
   if (c.mode === 'local') {
     const m = LOCAL_MODELS.find((x) => x.modelId === c.local.modelId)
-    return { type: t('settings.ai.semanticIndex.modeLocal'), name: m?.name ?? c.local.modelId, sub: '' }
+    const sourceKey = c.local.downloadSource === 'hf-mirror' ? 'downloadSourceMirror' : 'downloadSourceOfficial'
+    return {
+      type: t('settings.ai.semanticIndex.modeLocal'),
+      name: m?.name ?? c.local.modelId,
+      sub: t(`settings.ai.semanticIndex.${sourceKey}`),
+    }
   }
   let host = c.api?.baseUrl ?? ''
   try {

@@ -17,7 +17,7 @@ import { SemanticIndexStateStore } from './session-state-store'
 import { computeDbPathHash } from './chunker-config'
 import { BGE_BASE_PROFILE, QWEN3_PROFILE } from './embedding/profiles'
 import type { SessionRuntimeAdapter } from '../services/adapters'
-import type { LocalPipelineFactory } from './embedding/local'
+import type { FeatureExtractFn, LocalPipelineFactory } from './embedding/local'
 
 const SESSION_ID = 'sess1'
 // 真实秒级基准时间（2023-11-14），用于让证据 snippet 渲染出真实年份，
@@ -29,6 +29,7 @@ function setup(opts?: {
   failFirstPipelineCreation?: boolean
   failPipelineCreationForModelIds?: ReadonlySet<string>
   onEmbedBatchStarted?: () => void
+  localPipelineFactory?: LocalPipelineFactory
 }) {
   const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
   const dir = fs.mkdtempSync(path.join(baseDir, 'chatlab-si-svc-'))
@@ -67,25 +68,27 @@ function setup(opts?: {
   // embedTextCount 统计累计嵌入文本数，用于区分 rebuild(重新嵌入) 与 build 续跑(跳过不嵌入)
   let embedTextCount = 0
   let pipelineCreateAttempts = 0
-  const localPipelineFactory: LocalPipelineFactory = async ({ modelId }) => {
-    pipelineCreateAttempts++
-    if (opts?.failFirstPipelineCreation && pipelineCreateAttempts === 1) {
-      throw new Error('temporary preload failure')
-    }
-    if (opts?.failPipelineCreationForModelIds?.has(modelId)) {
-      throw new Error(`temporary preload failure for ${modelId}`)
-    }
-    return async (texts) => {
-      opts?.onEmbedBatchStarted?.()
-      embedTextCount += texts.length
-      if (opts?.embedDelayMs) await new Promise((r) => setTimeout(r, opts.embedDelayMs))
-      return texts.map((t) => {
-        const v = new Array(QWEN3_PROFILE.dim).fill(0)
-        v[t.length % QWEN3_PROFILE.dim] = 1
-        return v
-      })
-    }
-  }
+  const localPipelineFactory: LocalPipelineFactory =
+    opts?.localPipelineFactory ??
+    (async ({ modelId }) => {
+      pipelineCreateAttempts++
+      if (opts?.failFirstPipelineCreation && pipelineCreateAttempts === 1) {
+        throw new Error('temporary preload failure')
+      }
+      if (opts?.failPipelineCreationForModelIds?.has(modelId)) {
+        throw new Error(`temporary preload failure for ${modelId}`)
+      }
+      return async (texts) => {
+        opts?.onEmbedBatchStarted?.()
+        embedTextCount += texts.length
+        if (opts?.embedDelayMs) await new Promise((r) => setTimeout(r, opts.embedDelayMs))
+        return texts.map((t) => {
+          const v = new Array(QWEN3_PROFILE.dim).fill(0)
+          v[t.length % QWEN3_PROFILE.dim] = 1
+          return v
+        })
+      }
+    })
 
   // 内存 auth profile 存储：避免测试写真实 ~/.chatlab/auth-profiles.json
   const authProfiles = new Map<string, { key: string }>()
@@ -197,6 +200,66 @@ test('stale local warmup completion does not mark current local model ready', as
   service.setConfig({ version: 1, mode: 'local', local: { modelId: BGE_BASE_PROFILE.modelId }, api: null })
   await waitForModelStatus(service, 'error')
   await service.whenIdle()
+
+  assert.equal(service.getModelStatus(), 'error')
+  service.close()
+  db.close()
+})
+
+test('stale model preload failure does not overwrite the current download source status', async () => {
+  let resolveMirrorPreload: (extractor: FeatureExtractFn) => void = () => {}
+  let rejectOfficialPreload: (reason?: unknown) => void = () => {}
+  const officialPreload = new Promise<FeatureExtractFn>((_resolve, reject) => {
+    rejectOfficialPreload = reject
+  })
+  const mirrorPreload = new Promise<FeatureExtractFn>((resolve) => {
+    resolveMirrorPreload = resolve
+  })
+  const localPipelineFactory: LocalPipelineFactory = ({ modelDownloadSource }) =>
+    modelDownloadSource === 'hf-mirror' ? mirrorPreload : officialPreload
+  const { service, db } = setup({ localPipelineFactory })
+
+  service.setConfig({
+    version: 1,
+    mode: 'local',
+    local: { modelId: QWEN3_PROFILE.modelId, downloadSource: 'hf-mirror' },
+    api: null,
+  })
+  resolveMirrorPreload(async () => [])
+  await waitForModelStatus(service, 'ready')
+
+  rejectOfficialPreload(new Error('stale official source failure'))
+  await new Promise((resolve) => setImmediate(resolve))
+
+  assert.equal(service.getModelStatus(), 'ready')
+  service.close()
+  db.close()
+})
+
+test('stale model preload success does not overwrite the current download source status', async () => {
+  let resolveOfficialPreload: (extractor: FeatureExtractFn) => void = () => {}
+  let rejectMirrorPreload: (reason?: unknown) => void = () => {}
+  const officialPreload = new Promise<FeatureExtractFn>((resolve) => {
+    resolveOfficialPreload = resolve
+  })
+  const mirrorPreload = new Promise<FeatureExtractFn>((_resolve, reject) => {
+    rejectMirrorPreload = reject
+  })
+  const localPipelineFactory: LocalPipelineFactory = ({ modelDownloadSource }) =>
+    modelDownloadSource === 'hf-mirror' ? mirrorPreload : officialPreload
+  const { service, db } = setup({ localPipelineFactory })
+
+  service.setConfig({
+    version: 1,
+    mode: 'local',
+    local: { modelId: QWEN3_PROFILE.modelId, downloadSource: 'hf-mirror' },
+    api: null,
+  })
+  rejectMirrorPreload(new Error('current mirror source failure'))
+  await waitForModelStatus(service, 'error')
+
+  resolveOfficialPreload(async () => [])
+  await new Promise((resolve) => setImmediate(resolve))
 
   assert.equal(service.getModelStatus(), 'error')
   service.close()

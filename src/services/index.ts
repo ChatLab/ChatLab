@@ -41,6 +41,7 @@ export { SEARCH_MAX_RESULTS_MIN, SEARCH_MAX_RESULTS_MAX, SEARCH_MAX_RESULTS_DEFA
 export type {
   SemanticIndexConfig,
   SemanticIndexMode,
+  SemanticIndexModelDownloadSource,
   SemanticIndexApiConfig,
   SemanticIndexSessionStatus,
   SemanticIndexStatusValue,

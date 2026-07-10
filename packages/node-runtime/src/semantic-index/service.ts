@@ -31,6 +31,7 @@ import {
   isKeylessSemanticIndexApiBaseUrl,
   isSemanticIndexConfigured,
   SemanticIndexConfigStore,
+  DEFAULT_SEMANTIC_INDEX_MODEL_DOWNLOAD_SOURCE,
   type SemanticIndexConfig,
   type SemanticIndexConfigInput,
 } from './config'
@@ -235,6 +236,7 @@ export class SemanticIndexService {
   private embedder: EmbeddingProvider | null = null
   private embedderModelId: string | null = null
   private modelPreloadStatus: 'idle' | 'downloading' | 'ready' | 'error' = 'idle'
+  private modelPreloadGeneration = 0
 
   /** 当前激活的 chunker 身份（version + 参数 hash），随索引记录用于重建判定 */
   private readonly chunkerVersion = CHUNKER_VERSION
@@ -293,6 +295,8 @@ export class SemanticIndexService {
       apiKey: options?.apiKey,
       writeAuthProfile: this.options.writeAuthProfile,
     })
+    // 每次保存配置都使旧 preload 回调失效，避免切换下载源后旧请求乱序覆盖新状态。
+    const preloadGeneration = ++this.modelPreloadGeneration
     this.embedder = null
     this.embedderModelId = null
     this.modelPreloadStatus = 'idle'
@@ -303,18 +307,29 @@ export class SemanticIndexService {
     // 本地模式已配置且功能已开启时，立即在后台触发模型下载，让用户在建索引前完成等待
     if (saved.enabled && isSemanticIndexConfigured(saved) && saved.mode === 'local') {
       const modelId = saved.local.modelId
+      const downloadSource = saved.local.downloadSource ?? DEFAULT_SEMANTIC_INDEX_MODEL_DOWNLOAD_SOURCE
       const cacheDir = this.options.modelsCacheDir
       this.modelPreloadStatus = 'downloading'
-      appLogger.info('semantic-index', 'local embedding model preload started', { modelId, cacheDir })
+      appLogger.info('semantic-index', 'local embedding model preload started', { modelId, downloadSource, cacheDir })
       void this.getEmbedder()
         .preload?.()
         .then(() => {
+          if (preloadGeneration !== this.modelPreloadGeneration) return
           this.modelPreloadStatus = 'ready'
-          appLogger.info('semantic-index', 'local embedding model preload completed', { modelId, cacheDir })
+          appLogger.info('semantic-index', 'local embedding model preload completed', {
+            modelId,
+            downloadSource,
+            cacheDir,
+          })
         })
         .catch((error) => {
+          if (preloadGeneration !== this.modelPreloadGeneration) return
           this.modelPreloadStatus = 'error'
-          appLogger.error('semantic-index', `local embedding model preload failed: ${modelId}`, error)
+          appLogger.error(
+            'semantic-index',
+            `local embedding model preload failed: ${modelId} via ${downloadSource}`,
+            error
+          )
         })
     }
     return saved
@@ -839,12 +854,21 @@ export class SemanticIndexService {
     })
     // warmup 已成功写入 chunk，说明本地 extractor 通过重试加载成功；清除此前 preload 失败状态。
     const currentConfig = this.configStore.get()
+    const jobDownloadSource =
+      jobConfig.mode === 'local'
+        ? (jobConfig.local.downloadSource ?? DEFAULT_SEMANTIC_INDEX_MODEL_DOWNLOAD_SOURCE)
+        : null
+    const currentDownloadSource =
+      currentConfig.mode === 'local'
+        ? (currentConfig.local.downloadSource ?? DEFAULT_SEMANTIC_INDEX_MODEL_DOWNLOAD_SOURCE)
+        : null
     if (
       result.status === 'completed' &&
       result.chunksWritten > 0 &&
       jobConfig.mode === 'local' &&
       currentConfig.mode === 'local' &&
-      currentConfig.local.modelId === jobConfig.local.modelId
+      currentConfig.local.modelId === jobConfig.local.modelId &&
+      currentDownloadSource === jobDownloadSource
     ) {
       this.modelPreloadStatus = 'ready'
     }

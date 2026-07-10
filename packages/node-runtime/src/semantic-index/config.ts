@@ -16,10 +16,15 @@ import fs from 'node:fs'
 import path from 'node:path'
 
 export type SemanticIndexMode = 'local' | 'api'
+export type SemanticIndexModelDownloadSource = 'huggingface' | 'hf-mirror'
+
+export const DEFAULT_SEMANTIC_INDEX_MODEL_DOWNLOAD_SOURCE: SemanticIndexModelDownloadSource = 'huggingface'
 
 export interface SemanticIndexLocalConfig {
   /** 本地模型 profile 的 modelId */
   modelId: string
+  /** 模型文件下载源；旧配置缺失时归一化为 Hugging Face 官方源 */
+  downloadSource?: SemanticIndexModelDownloadSource
 }
 
 export interface SemanticIndexApiConfig {
@@ -71,7 +76,7 @@ export function defaultSemanticIndexConfig(): SemanticIndexConfig {
     version: SEMANTIC_INDEX_CONFIG_VERSION,
     enabled: true,
     mode: 'local',
-    local: { modelId: '' },
+    local: { modelId: '', downloadSource: DEFAULT_SEMANTIC_INDEX_MODEL_DOWNLOAD_SOURCE },
     api: null,
     searchMaxResults: SEARCH_MAX_RESULTS_DEFAULT,
   }
@@ -129,7 +134,11 @@ function normalizeConfig(raw: Partial<SemanticIndexConfig> | null | undefined): 
     // 旧配置无 enabled 字段时默认开启，保证既有用户功能不被意外关闭
     enabled: raw.enabled ?? true,
     mode,
-    local: { modelId: raw.local?.modelId ?? base.local.modelId },
+    local: {
+      modelId: raw.local?.modelId ?? base.local.modelId,
+      downloadSource:
+        raw.local?.downloadSource === 'hf-mirror' ? 'hf-mirror' : DEFAULT_SEMANTIC_INDEX_MODEL_DOWNLOAD_SOURCE,
+    },
     api,
     searchMaxResults: SEARCH_MAX_RESULTS_DEFAULT,
   }

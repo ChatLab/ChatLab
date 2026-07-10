@@ -401,6 +401,7 @@ export type {
   SemanticSearchToolOptions,
   SemanticIndexConfig,
   SemanticIndexMode,
+  SemanticIndexModelDownloadSource,
 } from './semantic-index'
 
 export {

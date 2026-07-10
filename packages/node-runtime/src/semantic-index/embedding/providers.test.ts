@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createProxyFetch, LocalEmbeddingProvider, type LocalPipelineFactory } from './local'
+import {
+  createProxyFetch,
+  LocalEmbeddingProvider,
+  resolveModelDownloadRemoteHost,
+  type LocalPipelineFactory,
+} from './local'
 import { OpenAICompatibleEmbeddingProvider, type FetchFn } from './api'
 import { QWEN3_PROFILE, type LocalEmbeddingProfile } from './profiles'
 
@@ -93,6 +98,12 @@ test('local provider retries pipeline creation after a failed preload', async ()
 
 test('local model download proxy rejects SOCKS URLs explicitly', async () => {
   await assert.rejects(() => createProxyFetch('socks5://127.0.0.1:1080'), /SOCKS proxy is not supported/)
+})
+
+test('local model download source resolves to the selected remote host', () => {
+  assert.equal(resolveModelDownloadRemoteHost('huggingface'), 'https://huggingface.co/')
+  assert.equal(resolveModelDownloadRemoteHost('hf-mirror'), 'https://hf-mirror.com/')
+  assert.equal(resolveModelDownloadRemoteHost(undefined), 'https://huggingface.co/')
 })
 
 test('API provider posts OpenAI-compatible request and parses ordered embeddings', async () => {

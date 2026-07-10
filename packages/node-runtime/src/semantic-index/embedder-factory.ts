@@ -48,6 +48,7 @@ export function createEmbedder(config: SemanticIndexConfig, deps: EmbedderFactor
   return new LocalEmbeddingProvider(profile, {
     cacheDir: deps.modelsCacheDir,
     modelDownloadProxyUrl: deps.modelDownloadProxyUrl,
+    modelDownloadSource: config.local.downloadSource,
     pipelineFactory: deps.localPipelineFactory,
   })
 }

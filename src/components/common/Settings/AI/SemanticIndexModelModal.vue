@@ -12,7 +12,7 @@ import UITabs from '@/components/UI/Tabs.vue'
 import ApiKeyInput from './ApiKeyInput.vue'
 import { LOCAL_MODELS, API_TEMPLATES, type ModelConfigDraft } from './semantic-index-models'
 import { canReuseSemanticIndexApiAuthProfile, isSemanticIndexApiKeyRequired } from './semantic-index-config-builder'
-import type { SemanticIndexConfig } from '@/services'
+import type { SemanticIndexConfig, SemanticIndexModelDownloadSource } from '@/services'
 
 const props = defineProps<{
   open: boolean
@@ -30,6 +30,7 @@ const { t, locale } = useI18n()
 
 const mode = ref<'local' | 'api'>('local')
 const localModelId = ref(LOCAL_MODELS[0].modelId)
+const localDownloadSource = ref<SemanticIndexModelDownloadSource>('huggingface')
 const apiTemplate = ref('openai-compatible')
 const apiBaseUrl = ref('')
 const apiModel = ref('')
@@ -44,6 +45,10 @@ const apiTemplates = computed(() =>
 const modeItems = computed(() => [
   { label: t('settings.ai.semanticIndex.modeLocal'), value: 'local' },
   { label: t('settings.ai.semanticIndex.modeApi'), value: 'api' },
+])
+const downloadSourceItems = computed(() => [
+  { label: t('settings.ai.semanticIndex.downloadSourceOfficial'), value: 'huggingface' },
+  { label: t('settings.ai.semanticIndex.downloadSourceMirror'), value: 'hf-mirror' },
 ])
 const canReuseApiKey = computed(() =>
   canReuseSemanticIndexApiAuthProfile(props.config, apiBaseUrl.value, props.apiKeySet)
@@ -64,6 +69,7 @@ function initDraft() {
   const c = props.config
   mode.value = c?.mode ?? 'local'
   localModelId.value = c?.local.modelId ?? ''
+  localDownloadSource.value = c?.local.downloadSource ?? 'huggingface'
   apiBaseUrl.value = c?.api?.baseUrl ?? ''
   apiModel.value = c?.api?.model ?? ''
   apiKey.value = ''
@@ -96,6 +102,7 @@ function confirm() {
   emit('confirm', {
     mode: mode.value,
     localModelId: localModelId.value,
+    localDownloadSource: localDownloadSource.value,
     apiBaseUrl: apiBaseUrl.value,
     apiModel: apiModel.value,
     apiKey: apiKey.value,
@@ -148,6 +155,20 @@ function confirm() {
                 {{ t('settings.ai.semanticIndex.approxSize', { mb: m.approxMB }) }}
               </span>
             </button>
+          </div>
+          <div class="space-y-1.5 rounded-lg border border-gray-200 p-3 dark:border-gray-700">
+            <label class="block text-xs font-medium text-gray-600 dark:text-gray-400">
+              {{ t('settings.ai.semanticIndex.modelDownloadSource') }}
+            </label>
+            <UITabs
+              :model-value="localDownloadSource"
+              :items="downloadSourceItems"
+              size="xs"
+              @update:model-value="(v) => (localDownloadSource = v as SemanticIndexModelDownloadSource)"
+            />
+            <p v-if="localDownloadSource === 'hf-mirror'" class="text-xs text-amber-600 dark:text-amber-400">
+              {{ t('settings.ai.semanticIndex.mirrorSourceHint') }}
+            </p>
           </div>
           <p class="text-xs text-gray-400">{{ t('settings.ai.semanticIndex.localDownloadHint') }}</p>
         </div>

@@ -11,11 +11,18 @@
 import type { EmbeddingProvider } from './types'
 import type { LocalEmbeddingProfile } from './profiles'
 import { applyQueryInstruction, clampTextChars } from './text'
+import type { SemanticIndexModelDownloadSource } from '../config'
 
 type UndiciFetch = (typeof import('undici'))['fetch']
 type UndiciRequestInit = NonNullable<Parameters<UndiciFetch>[1]>
 const SOCKS_PROXY_PROTOCOLS = new Set(['socks:', 'socks4:', 'socks5:'])
 export const LOCAL_ONNX_SESSION_OPTIONS = { intraOpNumThreads: 1, interOpNumThreads: 1 } as const
+export const HUGGING_FACE_MODEL_HOST = 'https://huggingface.co/'
+export const HF_MIRROR_MODEL_HOST = 'https://hf-mirror.com/'
+
+export function resolveModelDownloadRemoteHost(source?: SemanticIndexModelDownloadSource): string {
+  return source === 'hf-mirror' ? HF_MIRROR_MODEL_HOST : HUGGING_FACE_MODEL_HOST
+}
 
 /** 一次特征抽取调用：输入文本数组，返回每条文本的向量（number[][]） */
 export type FeatureExtractFn = (
@@ -29,6 +36,7 @@ export type LocalPipelineFactory = (params: {
   dtype?: 'fp32' | 'q8'
   cacheDir?: string
   modelDownloadProxyUrl?: string
+  modelDownloadSource?: SemanticIndexModelDownloadSource
   sessionOptions?: typeof LOCAL_ONNX_SESSION_OPTIONS
 }) => Promise<FeatureExtractFn>
 
@@ -47,8 +55,17 @@ export async function createProxyFetch(proxyUrl: string): Promise<typeof fetch> 
   }) as typeof fetch
 }
 
-const defaultPipelineFactory: LocalPipelineFactory = async ({ modelId, dtype, cacheDir, modelDownloadProxyUrl }) => {
+const defaultPipelineFactory: LocalPipelineFactory = async ({
+  modelId,
+  dtype,
+  cacheDir,
+  modelDownloadProxyUrl,
+  modelDownloadSource,
+}) => {
   const transformers = await import('@huggingface/transformers')
+  // Transformers.js 的 env 是 worker 进程级全局对象，因此每次创建 pipeline 都显式覆盖 host，
+  // 避免用户从镜像切回官方源后继续复用旧的 remoteHost。
+  transformers.env.remoteHost = resolveModelDownloadRemoteHost(modelDownloadSource)
   if (cacheDir) {
     transformers.env.cacheDir = cacheDir
     transformers.env.allowRemoteModels = true
@@ -69,6 +86,7 @@ const defaultPipelineFactory: LocalPipelineFactory = async ({ modelId, dtype, ca
 export interface LocalEmbeddingProviderOptions {
   cacheDir?: string
   modelDownloadProxyUrl?: string
+  modelDownloadSource?: SemanticIndexModelDownloadSource
   pipelineFactory?: LocalPipelineFactory
 }
 
@@ -99,6 +117,7 @@ export class LocalEmbeddingProvider implements EmbeddingProvider {
         dtype: this.profile.dtype,
         cacheDir: this.options.cacheDir,
         modelDownloadProxyUrl: this.options.modelDownloadProxyUrl,
+        modelDownloadSource: this.options.modelDownloadSource,
         sessionOptions: LOCAL_ONNX_SESSION_OPTIONS,
       }).catch((error) => {
         this.extractorPromise = null

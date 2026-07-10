@@ -25,6 +25,7 @@ describe('buildSemanticIndexModelConfig', () => {
     const next = buildSemanticIndexModelConfig(savedApiConfig, {
       mode: 'api',
       localModelId: '',
+      localDownloadSource: 'huggingface',
       apiBaseUrl: 'https://api.example.com/v1',
       apiModel: 'new-embed',
       apiKey: '',
@@ -38,6 +39,7 @@ describe('buildSemanticIndexModelConfig', () => {
     const next = buildSemanticIndexModelConfig(savedApiConfig, {
       mode: 'api',
       localModelId: '',
+      localDownloadSource: 'huggingface',
       apiBaseUrl: 'https://other.example.com/v1',
       apiModel: 'new-embed',
       apiKey: '',
@@ -48,6 +50,19 @@ describe('buildSemanticIndexModelConfig', () => {
 
   it('does not allow UI key reuse when backend reports no saved key', () => {
     assert.equal(canReuseSemanticIndexApiAuthProfile(savedApiConfig, savedApiConfig.api!.baseUrl, false), false)
+  })
+
+  it('persists the explicitly selected local model download source', () => {
+    const next = buildSemanticIndexModelConfig(null, {
+      mode: 'local',
+      localModelId: 'local-model',
+      localDownloadSource: 'hf-mirror',
+      apiBaseUrl: '',
+      apiModel: '',
+      apiKey: '',
+    })
+
+    assert.equal(next.local.downloadSource, 'hf-mirror')
   })
 
   it('does not require an API key for local Ollama endpoints', () => {

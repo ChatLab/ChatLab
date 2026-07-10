@@ -50,6 +50,7 @@ export const API_TEMPLATES: ApiTemplate[] = [
 export interface ModelConfigDraft {
   mode: 'local' | 'api'
   localModelId: string
+  localDownloadSource: 'huggingface' | 'hf-mirror'
   apiBaseUrl: string
   apiModel: string
   apiKey: string

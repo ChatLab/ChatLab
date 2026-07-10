@@ -10,17 +10,19 @@ const localConfig: SemanticIndexConfig = {
   version: 1,
   enabled: true,
   mode: 'local',
-  local: { modelId: QWEN3_PROFILE.modelId },
+  local: { modelId: QWEN3_PROFILE.modelId, downloadSource: 'hf-mirror' },
   api: null,
   searchMaxResults: 5,
 }
 
 test('builds local provider from profile with injected pipeline factory', async () => {
   let seenProxyUrl: string | undefined
+  let seenDownloadSource: string | undefined
   const fakeFactory: LocalPipelineFactory = async () => async (texts) =>
     texts.map(() => new Array(QWEN3_PROFILE.dim).fill(0.1))
   const fakeFactoryWithCapture: LocalPipelineFactory = async (params) => {
     seenProxyUrl = params.modelDownloadProxyUrl
+    seenDownloadSource = params.modelDownloadSource
     return fakeFactory(params)
   }
   const embedder = createEmbedder(localConfig, {
@@ -32,6 +34,7 @@ test('builds local provider from profile with injected pipeline factory', async 
   const [vector] = await embedder.embedDocuments(['hello'])
   assert.equal(vector.length, QWEN3_PROFILE.dim)
   assert.equal(seenProxyUrl, 'http://127.0.0.1:7890')
+  assert.equal(seenDownloadSource, 'hf-mirror')
 })
 
 test('throws for unknown local model', () => {
