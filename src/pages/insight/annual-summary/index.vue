@@ -42,6 +42,12 @@ const hasNoAnalyzableOwner = computed(
 const selectedYear = computed(() =>
   timeRange.modelValue.value?.state.mode === 'year' ? timeRange.modelValue.value.state.year : undefined
 )
+const latestYearSuggestion = computed(() => {
+  const year = selectedYear.value
+  const latestYear = response.value?.latestDataYear
+  if (year === undefined || latestYear === null || latestYear === undefined || year === latestYear) return null
+  return { year, latestYear }
+})
 
 watch(
   requestKey,
@@ -141,8 +147,8 @@ function openSessions(): void {
           class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-150 bg-white p-4 text-xs text-gray-600 dark:border-zinc-850 dark:bg-zinc-900/50 dark:text-zinc-300"
         >
           <span v-if="hasNoAnalyzableOwner">{{ t('insight.status.noAnalyzableOwner') }}</span>
-          <span v-else-if="response.latestDataYear && selectedYear !== response.latestDataYear">
-            {{ t('insight.status.noDataWithLatest', { year: selectedYear, latestYear: response.latestDataYear }) }}
+          <span v-else-if="latestYearSuggestion">
+            {{ t('insight.status.noDataWithLatest', latestYearSuggestion) }}
           </span>
           <span v-else>{{ t('insight.noData') }}</span>
           <UButton
@@ -156,14 +162,14 @@ function openSessions(): void {
             {{ t('insight.actions.openSessions') }}
           </UButton>
           <UButton
-            v-else-if="response.latestDataYear && selectedYear !== response.latestDataYear"
+            v-else-if="latestYearSuggestion"
             size="xs"
             variant="soft"
             color="neutral"
             icon="i-heroicons-arrow-right"
             @click="switchToLatestYear"
           >
-            {{ t('insight.actions.switchYear', { year: response.latestDataYear }) }}
+            {{ t('insight.actions.switchYear', { year: latestYearSuggestion.latestYear }) }}
           </UButton>
         </div>
 
