@@ -1,10 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import RankList from './RankList.vue'
 import type { RankItem } from './RankList.vue'
-import CaptureButton from '@/components/common/CaptureButton.vue'
-import { SectionCard } from '@/components/UI'
+import ExpandableListCard from './ExpandableListCard.vue'
 
 const { t } = useI18n()
 
@@ -25,12 +24,6 @@ const props = withDefaults(defineProps<Props>(), {
   topN: 10,
 })
 
-// 控制弹窗
-const isOpen = ref(false)
-
-// 截屏相关 ref
-const modalBodyRef = ref<HTMLElement | null>(null)
-
 // Top N 数据
 const topNData = computed(() => {
   return props.members.slice(0, props.topN)
@@ -43,38 +36,17 @@ const showViewAll = computed(() => {
 </script>
 
 <template>
-  <SectionCard :title="title" :description="description">
-    <template #headerRight>
-      <div class="no-capture flex items-center gap-1">
-        <!-- 完整排行榜 Dialog -->
-        <UModal v-model:open="isOpen" :ui="{ content: 'md:w-full max-w-3xl' }">
-          <UButton v-if="showViewAll" icon="i-heroicons-list-bullet" variant="ghost">
-            {{ t('views.charts.rankListPro.fullRanking') }}
-          </UButton>
-          <template #content>
-            <div ref="modalBodyRef" class="section-content flex flex-col">
-              <!-- Header -->
-              <div
-                class="flex w-full items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700"
-              >
-                <div class="flex items-center gap-2">
-                  <h3 class="text-lg font-semibold text-gray-900 whitespace-nowrap dark:text-white">{{ title }}</h3>
-                  <span class="text-sm text-gray-500">
-                    （{{ t('views.charts.rankListPro.memberCount', { count: members.length }) }}）
-                  </span>
-                </div>
-                <CaptureButton size="xs" type="element" :target-element="modalBodyRef" />
-              </div>
-              <!-- Body -->
-              <div class="max-h-[60vh] p-4 overflow-y-auto">
-                <RankList :members="members" :unit="unit" />
-              </div>
-            </div>
-          </template>
-        </UModal>
-      </div>
+  <ExpandableListCard
+    :title="title"
+    :description="description"
+    :show-view-all="showViewAll"
+    :view-all-label="t('views.charts.rankListPro.fullRanking')"
+    :count-label="t('views.charts.rankListPro.memberCount', { count: members.length })"
+  >
+    <template #full>
+      <RankList :members="members" :unit="unit" />
     </template>
 
     <RankList :members="topNData" :unit="unit" />
-  </SectionCard>
+  </ExpandableListCard>
 </template>
