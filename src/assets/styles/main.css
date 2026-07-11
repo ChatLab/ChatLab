@@ -25,6 +25,9 @@
   --color-card-bg: #ffffff;
   --color-card-dark: rgba(255, 255, 255, 0.03);
 
+  /* 悬浮侧栏背景 */
+  --color-sidebar-dark: #202024;
+
   /* 悬浮表面阴影 - 减少向下偏移，避免底边过重 */
   --shadow-elevated: 0 10px 28px -12px rgb(15 23 42 / 0.22), 0 3px 10px -4px rgb(15 23 42 / 0.1);
 

@@ -326,7 +326,6 @@ watch(
       :session-id="sessionId"
       :active-id="currentAIChatId"
       :disabled="isAIThinking"
-      class="h-full shrink-0"
       @select="handleSelectAIChat"
       @create="handleCreateAIChat"
       @delete="handleDeleteAIChat"
@@ -481,7 +480,7 @@ watch(
 
           <!-- 预设问题气泡（仅在对话为空时显示） -->
           <div v-if="messages.length === 0 && !isAIThinking" class="px-4 pb-2">
-            <div class="mx-auto max-w-3xl">
+            <div class="mx-auto max-w-[740px]">
               <PresetQuestions
                 :questions="currentPresetQuestions"
                 :leading-action-label="t('ai.chat.input.useSkill')"

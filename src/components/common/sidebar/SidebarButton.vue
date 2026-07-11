@@ -50,9 +50,9 @@ const { isSidebarCollapsed: isCollapsed } = storeToRefs(layoutStore)
     :class="[
       active
         ? 'bg-gray-200/50 text-primary-600 font-medium dark:bg-white/[0.07] dark:text-primary-400 dark:ring-1 dark:ring-white/10'
-        : 'text-gray-600 dark:text-gray-300',
+        : 'text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white',
     ]"
-    color="gray"
+    color="neutral"
     variant="ghost"
   >
     <UIcon :name="icon" class="mr-2.5 h-5 w-5 shrink-0" :class="iconClass" />
