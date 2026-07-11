@@ -13,6 +13,7 @@ import type {
   ContactDetailResponse,
   PeopleRelationshipsGraphResponse,
   PeopleRelationshipsNeighborhoodResponse,
+  AnnualSummaryResponse,
 } from '@openchatlab/shared-types'
 import type {
   MemberActivity,
@@ -47,6 +48,7 @@ import type {
   ContactsRecomputeOptions,
   PeopleRelationshipsFetchOptions,
   PeopleRelationshipsRecomputeOptions,
+  AnnualSummaryFetchOptions,
   PaginationParams,
   PaginatedResult,
   SQLResult,
@@ -64,6 +66,16 @@ function buildFilterParams(filter?: TimeFilter): string {
   if (filter.memberId) params.set('memberId', String(filter.memberId))
   const qs = params.toString()
   return qs ? `?${qs}` : ''
+}
+
+function buildAnnualSummaryParams(options?: AnnualSummaryFetchOptions): string {
+  const params = new URLSearchParams()
+  if (options?.mode) params.set('mode', options.mode)
+  if (options?.year) params.set('year', String(options.year))
+  if (options?.days) params.set('days', String(options.days))
+  if (options?.acceptStale) params.set('acceptStale', '1')
+  const query = params.toString()
+  return query ? `?${query}` : ''
 }
 
 export class FetchDataAdapter implements DataAdapter {
@@ -194,6 +206,16 @@ export class FetchDataAdapter implements DataAdapter {
     if (options?.timeRangePreset) params.set('timeRange', options.timeRangePreset)
     const qs = params.toString()
     return get(`/people/relationships/${encodeURIComponent(key)}/neighborhood${qs ? `?${qs}` : ''}`)
+  }
+
+  // ==================== 全局洞察 ====================
+
+  getAnnualSummary(options?: AnnualSummaryFetchOptions): Promise<AnnualSummaryResponse> {
+    return get(`/global-insight/annual-summary${buildAnnualSummaryParams(options)}`)
+  }
+
+  recomputeAnnualSummary(options?: AnnualSummaryFetchOptions): Promise<AnnualSummaryResponse> {
+    return post(`/global-insight/annual-summary/recompute${buildAnnualSummaryParams(options)}`, {})
   }
 
   // ==================== 时间范围 ====================

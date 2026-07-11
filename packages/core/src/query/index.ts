@@ -84,6 +84,16 @@ export {
   isValidContactPlatformId,
   resolveOwnerMember,
 } from './contact-queries'
+
+export { buildContactKey, shouldScopeContactToSession } from './contact-identity'
+
+export { aggregateAnnualSummaryFacts, getAnnualSummarySessionFacts } from './global-insight'
+export type {
+  AnnualSummaryAggregatedData,
+  AnnualSummaryAnalyzedFacts,
+  AnnualSummaryRange,
+  AnnualSummarySessionFacts,
+} from './global-insight'
 export type {
   ContactFactsOptions,
   ContactMemberRef,

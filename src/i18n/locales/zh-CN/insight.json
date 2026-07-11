@@ -1,9 +1,68 @@
 {
   "title": "洞察",
-  "placeholder": "全局洞察功能正在建设中，敬请期待",
+  "reserved": "该视图将在后续版本开放",
   "tabs": {
-    "overview": "总览",
-    "trends": "趋势",
-    "ranking": "排行"
+    "nav": "洞察视图",
+    "annualSummary": "关于我",
+    "timeInvestment": "时间投入",
+    "relationshipChanges": "关系变化"
+  },
+  "messages": "消息数",
+  "monthLabel": "{month}月",
+  "noData": "当前时间范围内暂无可分析数据",
+  "noTextData": "当前时间范围内没有文本消息",
+  "kpis": {
+    "messages": "发出消息",
+    "activeDays": "活跃天数",
+    "contacts": "直接互动人数",
+    "dailyMessages": "日均消息",
+    "dailyContacts": "日均互动人数"
+  },
+  "overviewCard": {
+    "yearTitle": "{year} 年的我",
+    "recentTitle": "最近一年的我",
+    "activity": "活跃日历",
+    "activeRate": "覆盖 {rate}% 日期",
+    "keyMetrics": "关键指标",
+    "perDay": "平均每天",
+    "messagesCount": "{count} 条消息",
+    "characters": "{count} 字",
+    "textLengthDetail": "文本消息字符数",
+    "dailyContacts": "日均互动人数",
+    "peakMonth": "最活跃月份",
+    "peakDay": "最活跃日期",
+    "textRatio": "文字消息占比",
+    "medianLength": "文本长度中位数",
+    "p90Length": "文本长度 P90"
+  },
+  "sections": {
+    "overview": "年度概览",
+    "overviewDescription": "按月统计我发出的非系统消息，缺失月份按零计算",
+    "activity": "活跃节奏",
+    "activityDescription": "每天发出的消息数量，颜色越深代表当天越活跃",
+    "messageTypes": "消息类型构成",
+    "messageTypesDescription": "仅统计我发出的消息",
+    "textLength": "文本长度分布",
+    "textLengthDescription": "仅统计非空文本消息的字符数",
+    "habitsTitle": "表达习惯",
+    "habitsDescription": "我发送的消息类型构成与文本字符长度分布"
+  },
+  "length": {
+    "median": "中位数"
+  },
+  "status": {
+    "loading": "正在读取年度总结…",
+    "computingProgress": "正在分析会话 {processed}/{total}…",
+    "updating": "数据发生变化，正在后台更新当前结果",
+    "failed": "年度总结计算失败，可以重试",
+    "coverage": "已分析 {analyzed}/{total} 个会话",
+    "ownerIssues": "{count} 个会话尚未正确设置“我是谁”",
+    "noAnalyzableOwner": "还没有可用于全局洞察的身份，请先在会话中设置“我是谁”",
+    "noDataWithLatest": "{year} 年暂无可分析数据，最近有效数据为 {latestYear} 年"
+  },
+  "actions": {
+    "retry": "重试",
+    "openSessions": "前往会话列表",
+    "switchYear": "查看 {year} 年"
   }
 }

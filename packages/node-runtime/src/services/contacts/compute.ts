@@ -8,6 +8,7 @@ import type {
   ContactSourceSession,
 } from '@openchatlab/shared-types'
 import {
+  buildContactKey,
   computeFriendScores,
   computeNonFriendScores,
   getGroupContactFacts,
@@ -15,8 +16,8 @@ import {
   getPrivateContactFacts,
   getSessionMeta,
   isChatSessionDb,
-  isNameMatchPlatform,
   resolveOwnerMember,
+  shouldScopeContactToSession,
   shouldEnableContactsEntry,
 } from '@openchatlab/core'
 import type { ContactMemberRef, SessionMeta } from '@openchatlab/core'
@@ -576,21 +577,6 @@ function getOrCreateAccumulator(
   }
   accumulators.set(key, created)
   return created
-}
-
-function shouldScopeContactToSession(platform: ChatPlatform, contact: ContactMemberRef): boolean {
-  if (isNameMatchPlatform(platform)) return true
-  return platform.trim().toLowerCase() === 'qq' && contact.platformId.trim() === contact.name.trim()
-}
-
-function buildContactKey(platform: ChatPlatform, platformId: string, sessionId?: string): string {
-  const normalizedPlatform = platform.trim()
-  const normalizedPlatformId = platformId.trim()
-  if (!normalizedPlatform) throw new Error('platform is required')
-  if (!normalizedPlatformId) throw new Error('platformId is required')
-  return sessionId?.trim()
-    ? `${normalizedPlatform}:${sessionId.trim()}:${normalizedPlatformId}`
-    : `${normalizedPlatform}:${normalizedPlatformId}`
 }
 
 function mergeContactIdentity(acc: ContactAccumulator, contact: ContactMemberRef): void {

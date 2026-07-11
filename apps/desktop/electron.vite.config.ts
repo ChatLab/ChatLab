@@ -34,6 +34,10 @@ export default defineConfig({
             rootDir,
             'packages/node-runtime/src/services/people/relationships/worker-entry.ts'
           ),
+          'global-insight-worker': resolve(
+            rootDir,
+            'packages/node-runtime/src/services/global-insight/worker-entry.ts'
+          ),
         },
       },
     },

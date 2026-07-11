@@ -363,6 +363,75 @@ export interface ContactDetailResponse {
 
 export type ContactsResponse = ContactsListResponse
 
+// ==================== Global Insight ====================
+
+export type AnnualSummaryMode = 'year' | 'recent'
+export type AnnualSummaryCacheStatus = 'missing' | 'fresh' | 'stale'
+export type AnnualSummaryTaskStatus = 'idle' | 'running' | 'succeeded' | 'failed' | 'superseded'
+
+export interface AnnualSummaryRange {
+  mode: AnnualSummaryMode
+  year?: number
+  days?: 365
+  startTs: number
+  endTs: number
+}
+
+export interface AnnualSummaryMetrics {
+  sentMessageCount: number
+  activeDayCount: number
+  directContactCount: number
+  averageMessagesPerDay: number
+  averageDirectContactsPerDay: number
+}
+
+export interface AnnualSummaryCoverage {
+  totalSessions: number
+  analyzedSessions: number
+  missingOwnerSessions: number
+  unresolvedOwnerSessions: number
+  failedSessions: number
+}
+
+export interface AnnualSummaryTextLength {
+  textMessageCount: number
+  median: number | null
+  p90: number | null
+  buckets: Array<{ key: string; count: number }>
+}
+
+export interface AnnualSummaryCacheState {
+  status: AnnualSummaryCacheStatus
+  computedAt: number | null
+  signature?: string
+  staleReason?: string
+}
+
+export interface AnnualSummaryTaskState {
+  id: string | null
+  status: AnnualSummaryTaskStatus
+  startedAt: number | null
+  finishedAt: number | null
+  processedSessions: number
+  totalSessions: number
+  currentSessionId?: string
+  lastError?: string
+}
+
+export interface AnnualSummaryResponse {
+  range: AnnualSummaryRange
+  availableDataYears: number[]
+  latestDataYear: number | null
+  metrics: AnnualSummaryMetrics | null
+  monthlyActivity: Array<{ month: string; messageCount: number }>
+  dailyActivity: Array<{ date: string; messageCount: number }>
+  messageTypes: Array<{ type: number; count: number }>
+  textLength: AnnualSummaryTextLength | null
+  coverage: AnnualSummaryCoverage
+  cache: AnnualSummaryCacheState
+  task: AnnualSummaryTaskState
+}
+
 // ==================== People Relationships (galaxy graph) ====================
 
 export type PeopleRelationshipsCacheStatus = ContactsCacheStatus

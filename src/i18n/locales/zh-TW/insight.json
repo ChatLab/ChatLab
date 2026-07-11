@@ -1,9 +1,68 @@
 {
   "title": "洞察",
-  "placeholder": "全域洞察功能正在建設中，敬請期待",
+  "reserved": "此檢視將於後續版本開放",
   "tabs": {
-    "overview": "總覽",
-    "trends": "趨勢",
-    "ranking": "排行"
+    "nav": "洞察檢視",
+    "annualSummary": "關於我",
+    "timeInvestment": "時間投入",
+    "relationshipChanges": "關係變化"
+  },
+  "messages": "訊息數",
+  "monthLabel": "{month}月",
+  "noData": "目前時間範圍內沒有可分析資料",
+  "noTextData": "目前時間範圍內沒有文字訊息",
+  "kpis": {
+    "messages": "發出訊息",
+    "activeDays": "活躍天數",
+    "contacts": "直接互動人數",
+    "dailyMessages": "日均訊息",
+    "dailyContacts": "日均互動人數"
+  },
+  "overviewCard": {
+    "yearTitle": "{year} 年的我",
+    "recentTitle": "最近一年的我",
+    "activity": "活躍日曆",
+    "activeRate": "涵蓋 {rate}% 日期",
+    "keyMetrics": "關鍵指標",
+    "perDay": "平均每天",
+    "messagesCount": "{count} 條訊息",
+    "characters": "{count} 字",
+    "textLengthDetail": "文字訊息字元數",
+    "dailyContacts": "日均互動人數",
+    "peakMonth": "最活躍月份",
+    "peakDay": "最活躍日期",
+    "textRatio": "文字訊息占比",
+    "medianLength": "文字長度中位數",
+    "p90Length": "文字長度 P90"
+  },
+  "sections": {
+    "overview": "年度概覽",
+    "overviewDescription": "按月統計我發出的非系統訊息，缺少月份以零計算",
+    "activity": "活躍節奏",
+    "activityDescription": "每天發出的訊息數量，顏色越深代表當天越活躍",
+    "messageTypes": "訊息類型構成",
+    "messageTypesDescription": "只統計我發出的訊息",
+    "textLength": "文字長度分佈",
+    "textLengthDescription": "只統計非空文字訊息的字元數",
+    "habitsTitle": "表達習慣",
+    "habitsDescription": "我發送的訊息類型構成與文字字元長度分佈"
+  },
+  "length": {
+    "median": "中位數"
+  },
+  "status": {
+    "loading": "正在讀取年度總結…",
+    "computingProgress": "正在分析會話 {processed}/{total}…",
+    "updating": "資料已變更，正在背景更新目前結果",
+    "failed": "年度總結計算失敗，可以重試",
+    "coverage": "已分析 {analyzed}/{total} 個會話",
+    "ownerIssues": "{count} 個會話尚未正確設定「我是誰」",
+    "noAnalyzableOwner": "尚無可用於全域洞察的身分，請先在會話中設定「我是誰」",
+    "noDataWithLatest": "{year} 年沒有可分析資料，最近有效資料為 {latestYear} 年"
+  },
+  "actions": {
+    "retry": "重試",
+    "openSessions": "前往會話列表",
+    "switchYear": "查看 {year} 年"
   }
 }

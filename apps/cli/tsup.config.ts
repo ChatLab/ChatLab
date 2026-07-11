@@ -7,6 +7,7 @@ export default defineConfig({
     'semantic-index-worker': '../../packages/node-runtime/src/semantic-index/worker-thread-entry.ts',
     'contacts-worker': '../../packages/node-runtime/src/services/contacts/worker-entry.ts',
     'people-relationships-worker': '../../packages/node-runtime/src/services/people/relationships/worker-entry.ts',
+    'global-insight-worker': '../../packages/node-runtime/src/services/global-insight/worker-entry.ts',
   },
   format: ['esm'],
   outDir: 'dist',
