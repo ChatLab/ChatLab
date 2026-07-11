@@ -189,12 +189,12 @@ function detectMessageType(content: string): MessageType {
 // 多语言 AM/PM 标记映射（值为 true 表示 PM，false 表示 AM）
 const AMPM_MARKERS: [RegExp, boolean][] = [
   [/\bPM\b/i, true],
-  [/\bP\.M\.\b/i, true],
+  [/\bP\.M\.(?!\w)/i, true],
   [/下午/, true],
   [/午後/, true],
   [/오후/, true],
   [/\bAM\b/i, false],
-  [/\bA\.M\.\b/i, false],
+  [/\bA\.M\.(?!\w)/i, false],
   [/上午/, false],
   [/午前/, false],
   [/오전/, false],

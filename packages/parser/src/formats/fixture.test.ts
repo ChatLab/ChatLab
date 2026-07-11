@@ -187,6 +187,7 @@ const fixtures: ParserFixture[] = [
       'Messages and calls are end-to-end encrypted.',
       '2024/01/02 03:04 - Alice: hello whatsapp',
       '2024/01/02 03:05:06 PM - Bob: image omitted',
+      '2024/01/02 03:06:07 P.M. - Bob: image omitted',
       '',
     ].join('\n'),
     formatId: 'whatsapp-native-txt',
@@ -203,6 +204,12 @@ const fixtures: ParserFixture[] = [
         {
           senderPlatformId: 'Bob',
           timestamp: localTs('2024-01-02T15:05:06'),
+          type: MessageType.IMAGE,
+          content: 'image omitted',
+        },
+        {
+          senderPlatformId: 'Bob',
+          timestamp: localTs('2024-01-02T15:06:07'),
           type: MessageType.IMAGE,
           content: 'image omitted',
         },
