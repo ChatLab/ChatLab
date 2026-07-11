@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { SubTabs } from '@/components/UI'
+import { SectionTabs } from '@/components/navigation'
 import UserSelect from '@/components/common/UserSelect.vue'
 import TypeAnalysisView from '@/components/analysis/message/TypeAnalysisView.vue'
 import TimeAnalysisView from '@/components/analysis/message/TimeAnalysisView.vue'
@@ -38,14 +38,7 @@ const viewTimeFilter = computed(() => ({
 
 <template>
   <div class="flex h-full flex-col">
-    <SubTabs
-      v-model="activeSubTab"
-      :items="subTabs"
-      persist-key="privateViewTab"
-      size="sm"
-      variant="page"
-      :bordered="false"
-    >
+    <SectionTabs v-model="activeSubTab" :items="subTabs" persist-key="privateViewTab">
       <template #right>
         <UserSelect
           v-if="activeSubTab === 'type-analysis' || activeSubTab === 'time-analysis'"
@@ -53,7 +46,7 @@ const viewTimeFilter = computed(() => ({
           :session-id="props.sessionId"
         />
       </template>
-    </SubTabs>
+    </SectionTabs>
 
     <div class="flex-1 min-h-0 overflow-auto">
       <Transition name="fade" mode="out-in">

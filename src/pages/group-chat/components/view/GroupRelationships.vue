@@ -5,7 +5,7 @@
  */
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { SubTabs } from '@/components/UI'
+import { SectionTabs } from '@/components/navigation'
 import InteractionView from '@/components/analysis/relationships/InteractionView.vue'
 import Relationships from './Relationships.vue'
 import ClusterView from '@/components/analysis/relationships/ClusterView.vue'
@@ -33,7 +33,7 @@ const subTabs = computed(() => [
 
 <template>
   <div class="flex h-full flex-col">
-    <SubTabs v-model="activeSubTab" :items="subTabs" persist-key="groupRelationshipsTab" size="sm" />
+    <SectionTabs v-model="activeSubTab" :items="subTabs" persist-key="groupRelationshipsTab" />
 
     <div class="min-h-0 flex-1 overflow-y-auto">
       <Transition name="fade" mode="out-in">

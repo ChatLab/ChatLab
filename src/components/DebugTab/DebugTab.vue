@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { SubTabs } from '@/components/UI'
+import { SectionTabs } from '@/components/navigation'
 import TableBrowser from './TableBrowser.vue'
 import ToolTestTab from './ToolTestTab.vue'
 
@@ -21,7 +21,7 @@ const activeSubTab = ref('sql-tables')
 
 <template>
   <div class="flex h-full flex-col">
-    <SubTabs v-model="activeSubTab" :items="subTabs" persist-key="debugTab" />
+    <SectionTabs v-model="activeSubTab" :items="subTabs" persist-key="debugTab" />
 
     <div class="min-h-0 flex-1 overflow-hidden">
       <Transition name="fade" mode="out-in">

@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import PageHeader from '@/components/layout/PageHeader.vue'
-import PageNavigation from '@/components/navigation/PageNavigation.vue'
+import { PageTabs } from '@/components/navigation'
 import { providePeoplePageHeader, type PeoplePageHeaderConfig, type PeopleSubpage } from './people-page-header'
 
 const { t } = useI18n()
@@ -75,7 +75,7 @@ const { header } = providePeoplePageHeader(defaultHeader)
         </UButton>
       </template>
 
-      <PageNavigation
+      <PageTabs
         class="mt-3 pb-1.5"
         :model-value="activeSubpage"
         :items="navigationItems"
@@ -92,7 +92,7 @@ const { header } = providePeoplePageHeader(defaultHeader)
             </template>
           </div>
         </template>
-      </PageNavigation>
+      </PageTabs>
     </PageHeader>
 
     <RouterView v-slot="{ Component }">

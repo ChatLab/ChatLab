@@ -14,7 +14,8 @@ import type {
 import { useDataService } from '@/services'
 import { useToast } from '@/composables/useToast'
 import { useLayoutStore } from '@/stores/layout'
-import { LoadingState, SubTabs, ThemeCard } from '@/components/UI'
+import { LoadingState, ThemeCard } from '@/components/UI'
+import { SectionTabs } from '@/components/navigation'
 import { usePeoplePageHeader } from '../people-page-header'
 import ContactDetailPanel from './components/ContactDetailPanel.vue'
 import ContactsStatusBlocks from './components/ContactsStatusBlocks.vue'
@@ -848,13 +849,10 @@ function getGroupSectionScrollTop(): number | null {
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col text-gray-900 dark:bg-page-dark dark:text-gray-100">
-    <SubTabs
+    <SectionTabs
       v-model="activeContactSection"
       :items="contactTabs"
       persist-key="contactsTab"
-      size="sm"
-      variant="page"
-      :bordered="false"
       @change="handleContactTabChange"
     >
       <template #right>
@@ -887,11 +885,11 @@ function getGroupSectionScrollTop(): number | null {
           </UInput>
         </div>
       </template>
-    </SubTabs>
+    </SectionTabs>
 
     <div class="flex min-h-0 flex-1 overflow-hidden">
       <main class="min-h-0 min-w-0 flex-1 overflow-hidden">
-        <div class="flex h-full min-h-0 w-full flex-col gap-6 px-6 pb-6 pt-4">
+        <div class="flex h-full min-h-0 w-full flex-col gap-6 px-6 pb-3 pt-4">
           <ContactsStatusBlocks
             :show-disabled-notice="showDisabledNotice"
             :active-private-session-count="diagnostics?.activePrivateSessionCount ?? 0"

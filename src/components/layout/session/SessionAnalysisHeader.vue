@@ -5,7 +5,7 @@ import { useLayoutStore } from '@/stores/layout'
 import CaptureButton from '@/components/common/CaptureButton.vue'
 import TimeSelect from '@/components/common/TimeSelect.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
-import PageNavigation from '@/components/navigation/PageNavigation.vue'
+import { PageTabs } from '@/components/navigation'
 import type { TimeRangeValue, TimeSelectState } from '@/components/common/TimeSelect.vue'
 
 interface SessionAnalysisTab {
@@ -99,7 +99,7 @@ const navigationItems = computed(() =>
     </template>
 
     <div class="mt-3 flex items-center justify-between gap-3">
-      <PageNavigation v-model="activeTab" class="min-w-0 shrink" :items="navigationItems" />
+      <PageTabs v-model="activeTab" class="min-w-0 shrink" :items="navigationItems" />
       <!-- AI 对话和实验室都不使用这里的时间范围筛选，因此在这些一级 Tab 下隐藏。 -->
       <TimeSelect
         v-model="timeRangeValue"

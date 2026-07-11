@@ -8,6 +8,7 @@ import BatchManageTab from './Settings/BatchManageTab.vue'
 import StorageTab from './Settings/StorageTab.vue'
 import AboutTab from './Settings/AboutTab.vue'
 import ApiSettingsTab from './Settings/ApiSettingsTab.vue'
+import { PageTabs } from '@/components/navigation'
 import { usePromptStore } from '@/stores/prompt'
 import { useLayoutStore } from '@/stores/layout'
 
@@ -100,22 +101,7 @@ watch(showSettings, async (visible) => {
             />
           </div>
           <!-- Tabs -->
-          <div class="mt-4 flex items-center gap-1 overflow-x-auto pb-3 scrollbar-hide">
-            <button
-              v-for="tab in tabs"
-              :key="tab.id"
-              class="flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-medium transition-all"
-              :class="[
-                activeTab === tab.id
-                  ? 'bg-pink-500 text-white dark:bg-pink-900/30 dark:text-pink-300'
-                  : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800',
-              ]"
-              @click="switchTab(tab.id)"
-            >
-              <UIcon :name="tab.icon" class="h-4 w-4" />
-              <span class="whitespace-nowrap">{{ tab.label }}</span>
-            </button>
-          </div>
+          <PageTabs v-model="activeTab" class="mt-4 pb-3" :items="tabs" @change="switchTab" />
         </div>
 
         <div class="relative flex-1">
