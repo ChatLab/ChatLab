@@ -10,6 +10,7 @@ import DatePicker from '@/components/UI/DatePicker.vue'
 // ==================== 类型定义（导出供父组件使用） ====================
 
 export type TimeSelectMode = 'recent' | 'quarter' | 'year' | 'custom'
+export type TimeSelectSize = 'sm' | 'md'
 
 /** 组件内部状态快照，用于父组件 URL 序列化 */
 export interface TimeSelectState {
@@ -42,10 +43,13 @@ interface Props {
   visible?: boolean
   /** 初始状态（通常从 URL query 构建） */
   initialState?: Partial<TimeSelectState>
+  /** 复合筛选器尺寸；sm 与页面内紧凑筛选器保持一致。 */
+  size?: TimeSelectSize
 }
 
 const props = withDefaults(defineProps<Props>(), {
   visible: true,
+  size: 'md',
 })
 
 const emit = defineEmits<{
@@ -61,6 +65,8 @@ const { t } = useI18n()
 const isLoaded = ref(false)
 const availableYears = ref<number[]>([])
 const fullTimeRange = ref<{ start: number; end: number } | null>(null)
+const secondaryControlSize = computed(() => (props.size === 'sm' ? 'xs' : 'sm'))
+const labelClass = computed(() => (props.size === 'sm' ? 'text-xs' : 'text-sm'))
 
 // 模式
 const mode = ref<TimeSelectMode>('recent')
@@ -458,14 +464,14 @@ watch(
 <template>
   <div v-if="isLoaded" class="flex items-center gap-2" :class="{ invisible: !visible }">
     <!-- 模式选择器 -->
-    <USelect v-model="modeModel" :items="modeOptions" size="md" class="w-28 shrink-0" />
+    <USelect v-model="modeModel" :items="modeOptions" :size="size" class="w-28 shrink-0" />
 
     <!-- 最近模式：UITabs 选择时间段 -->
     <UITabs
       v-if="mode === 'recent'"
       v-model="recentPeriodModel"
       :items="recentOptions"
-      size="sm"
+      :size="secondaryControlSize"
       class="min-w-0 shrink"
     />
 
@@ -473,18 +479,18 @@ watch(
     <div v-else-if="mode === 'quarter'" class="flex items-center">
       <UButton
         icon="i-heroicons-chevron-left"
-        size="sm"
+        :size="secondaryControlSize"
         variant="ghost"
         color="neutral"
         :disabled="!canPrevQuarter"
         @click="navigateQuarter(-1)"
       />
-      <span class="whitespace-nowrap px-0.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+      <span class="whitespace-nowrap px-0.5 font-medium text-gray-700 dark:text-gray-300" :class="labelClass">
         {{ quarterDisplayLabel }}
       </span>
       <UButton
         icon="i-heroicons-chevron-right"
-        size="sm"
+        :size="secondaryControlSize"
         variant="ghost"
         color="neutral"
         :disabled="!canNextQuarter"
@@ -496,18 +502,18 @@ watch(
     <div v-else-if="mode === 'year'" class="flex items-center">
       <UButton
         icon="i-heroicons-chevron-left"
-        size="sm"
+        :size="secondaryControlSize"
         variant="ghost"
         color="neutral"
         :disabled="!canPrevYear"
         @click="navigateYear(-1)"
       />
-      <span class="whitespace-nowrap px-0.5 text-sm font-medium text-gray-700 dark:text-gray-300">
+      <span class="whitespace-nowrap px-0.5 font-medium text-gray-700 dark:text-gray-300" :class="labelClass">
         {{ yearDisplayLabel }}
       </span>
       <UButton
         icon="i-heroicons-chevron-right"
-        size="sm"
+        :size="secondaryControlSize"
         variant="ghost"
         color="neutral"
         :disabled="!canNextYear"
@@ -517,9 +523,9 @@ watch(
 
     <!-- 自定义模式：双日期选择器 -->
     <div v-else-if="mode === 'custom'" class="flex items-center gap-1">
-      <DatePicker v-model="customStartModel" width-class="w-28" :clearable="false" />
+      <DatePicker v-model="customStartModel" width-class="w-28" :clearable="false" :size="size" />
       <span class="text-xs text-gray-400">-</span>
-      <DatePicker v-model="customEndModel" width-class="w-28" :clearable="false" />
+      <DatePicker v-model="customEndModel" width-class="w-28" :clearable="false" :size="size" />
     </div>
   </div>
 </template>

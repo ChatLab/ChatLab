@@ -20,11 +20,14 @@ const props = withDefaults(
     clearable?: boolean
     /** 按钮宽度类 */
     widthClass?: string
+    /** 触发按钮尺寸 */
+    size?: 'xs' | 'sm' | 'md'
   }>(),
   {
     placeholder: '',
     clearable: true,
     widthClass: 'w-32',
+    size: 'sm',
   }
 )
 
@@ -81,7 +84,7 @@ function clearDate() {
       icon="i-heroicons-calendar-days"
       variant="outline"
       color="neutral"
-      size="sm"
+      :size="size"
       :class="[widthClass, 'justify-start', { 'text-gray-400': !dateDisplay }]"
     />
     <template #content>
