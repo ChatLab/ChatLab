@@ -40,7 +40,7 @@ const iconBgMap: Record<string, string> = {
 </script>
 
 <template>
-  <ThemeCard class="overflow-hidden p-5">
+  <ThemeCard class="p-5">
     <div class="flex items-start justify-between">
       <div class="min-w-0 flex-1">
         <p class="text-sm font-medium text-gray-500 dark:text-gray-400">{{ label }}</p>

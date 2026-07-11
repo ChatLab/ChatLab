@@ -206,7 +206,7 @@ onMounted(() => {
 
     <!-- 成员卡片列表 -->
     <div v-if="!isLoading" class="grid gap-4 md:grid-cols-2">
-      <ThemeCard v-for="member in members" :key="member.id" class="relative overflow-hidden p-5">
+      <ThemeCard v-for="member in members" :key="member.id" class="relative p-5">
         <div class="absolute right-4 top-4 flex items-center gap-2">
           <UButton
             icon="i-heroicons-chat-bubble-left-ellipsis"

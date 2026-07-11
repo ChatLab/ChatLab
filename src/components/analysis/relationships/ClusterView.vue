@@ -281,7 +281,7 @@ onUnmounted(() => {
 
 <template>
   <div class="mx-auto max-w-[920px] p-4 h-full">
-    <ThemeCard class="flex h-full flex-col overflow-hidden">
+    <ThemeCard class="flex h-full flex-col">
       <!-- 顶部工具栏 -->
       <div
         class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-page-dark/50"

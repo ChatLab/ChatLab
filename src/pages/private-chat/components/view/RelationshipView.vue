@@ -295,11 +295,7 @@ function formatDuration(seconds: number): string {
       <template v-else-if="stats && hasData">
         <div class="space-y-6">
           <!-- 关系卡片 -->
-          <ThemeCard
-            id="shareable-poster"
-            data-capturable-card
-            class="group/card relative isolate flex flex-col overflow-hidden"
-          >
+          <ThemeCard id="shareable-poster" data-capturable-card class="group/card relative isolate flex flex-col">
             <CardDecoration />
             <CardCaptureOverlay />
             <!-- 1. 主视觉区域 (Primary Module) -->

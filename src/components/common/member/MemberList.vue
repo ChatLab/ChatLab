@@ -317,7 +317,7 @@ onMounted(() => {
     </div>
 
     <!-- 成员列表 -->
-    <ThemeCard class="overflow-hidden" :class="props.showHeader ? '' : 'flex min-h-0 flex-1 flex-col'">
+    <ThemeCard :class="props.showHeader ? '' : 'flex min-h-0 flex-1 flex-col'">
       <!-- 加载状态 -->
       <div v-if="isLoading" class="flex h-60 items-center justify-center">
         <UIcon name="i-heroicons-arrow-path" class="h-8 w-8 animate-spin text-pink-500" />

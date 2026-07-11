@@ -283,7 +283,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <ThemeCard data-capturable-card class="group/card relative isolate flex flex-col overflow-hidden">
+  <ThemeCard data-capturable-card class="group/card relative isolate flex flex-col">
     <CardDecoration />
     <CardCaptureOverlay />
     <div v-if="memberA && memberB" class="relative z-10 flex flex-col h-full">

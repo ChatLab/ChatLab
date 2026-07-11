@@ -40,7 +40,7 @@ const ownerDisplayName = computed(() => {
 </script>
 
 <template>
-  <ThemeCard class="w-150 overflow-hidden p-3">
+  <ThemeCard class="w-150 p-3">
     <div class="flex items-center justify-between gap-3">
       <div class="flex items-center gap-2">
         <div

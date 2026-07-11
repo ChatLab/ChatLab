@@ -214,7 +214,7 @@ const KEYWORD_COLORS = ['#6366f1', '#ec4899', '#f97316', '#22c55e', '#3b82f6', '
 </script>
 
 <template>
-  <ThemeCard data-capturable-card class="group/card relative isolate flex flex-col overflow-hidden">
+  <ThemeCard data-capturable-card class="group/card relative isolate flex flex-col">
     <CardDecoration />
     <CardCaptureOverlay />
     <!-- 主视觉区域 -->
