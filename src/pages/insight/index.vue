@@ -4,7 +4,7 @@ import { RouterView, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import TimeSelect from '@/components/common/TimeSelect.vue'
-import PageNavigation from '@/components/navigation/PageNavigation.vue'
+import { PageTabs } from '@/components/navigation'
 import { provideAnnualSummaryTimeRange } from './annual-summary-time-range'
 
 type InsightSubpage = 'annual-summary' | 'time-investment' | 'relationship-changes'
@@ -51,7 +51,7 @@ const navigationItems = computed(() => [
       icon-class="bg-pink-600 text-white dark:bg-pink-500 dark:text-white"
       size="compact"
     >
-      <PageNavigation
+      <PageTabs
         class="mt-3 pb-1.5"
         :model-value="activeSubpage"
         :items="navigationItems"
@@ -67,7 +67,7 @@ const navigationItems = computed(() => [
             :initial-state="initialState"
           />
         </template>
-      </PageNavigation>
+      </PageTabs>
     </PageHeader>
 
     <RouterView v-slot="{ Component }">
