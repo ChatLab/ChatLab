@@ -1,32 +1,16 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-
-/**
- * 轻量级子标签页组件
- * 适用于页面内部的二级导航,使用原生样式
- * 支持通过 persistKey 将选中状态同步到 URL 查询参数
- * 支持水平和垂直两种方向
- */
-interface TabItem {
-  id: string
-  label: string
-  icon?: string
-}
+import type { NavigationTabItem } from './types'
 
 interface Props {
   modelValue: string
-  items: TabItem[]
-  /** 持久化 key，设置后会将当前 tab 状态同步到 URL 查询参数 */
+  items: NavigationTabItem[]
   persistKey?: string
-  /** 方向：horizontal（水平）或 vertical（垂直） */
   orientation?: 'horizontal' | 'vertical'
-  /** 尺寸：sm 适用于侧边栏等紧凑场景 */
   size?: 'sm' | 'md'
-  /** 是否显示底部边框线 */
   bordered?: boolean
-  /** 页面级二级导航使用 page，嵌入式 Tab 保持 default */
-  variant?: 'default' | 'page'
+  mode: 'section' | 'compact'
 }
 
 interface Emits {
@@ -37,24 +21,16 @@ interface Emits {
 const props = withDefaults(defineProps<Props>(), {
   orientation: 'horizontal',
   size: 'md',
-  variant: 'default',
 })
 const emit = defineEmits<Emits>()
 
 const route = useRoute()
 const router = useRouter()
-
-// 是否为垂直模式
 const isVertical = computed(() => props.orientation === 'vertical')
-
-// Tab 按钮引用
 const tabRefs = ref<Record<string, HTMLElement | null>>({})
 const containerRef = ref<HTMLElement | null>(null)
-
-// 激活指示器的样式
 const indicatorStyle = ref<Record<string, string>>({})
 
-// 计算内部值
 const activeTab = computed({
   get: () => props.modelValue,
   set: (value) => {
@@ -63,64 +39,45 @@ const activeTab = computed({
   },
 })
 
-// 更新指示器位置
 function updateIndicator() {
   const activeButton = tabRefs.value[activeTab.value]
-  if (activeButton && containerRef.value) {
-    const containerRect = containerRef.value.getBoundingClientRect()
-    const buttonRect = activeButton.getBoundingClientRect()
+  if (!activeButton || !containerRef.value) return
 
-    if (isVertical.value) {
-      // 垂直模式：指示器在右侧
-      indicatorStyle.value = {
+  const containerRect = containerRef.value.getBoundingClientRect()
+  const buttonRect = activeButton.getBoundingClientRect()
+  indicatorStyle.value = isVertical.value
+    ? {
         top: `${buttonRect.top - containerRect.top}px`,
         height: `${buttonRect.height}px`,
         right: '0px',
         width: '2px',
       }
-    } else {
-      // 水平模式：指示器在底部
-      indicatorStyle.value = {
+    : {
         left: `${buttonRect.left - containerRect.left}px`,
         width: `${buttonRect.width}px`,
         bottom: '0px',
         height: '2px',
       }
-    }
-  }
 }
 
-// 点击标签
-const handleTabClick = (tabId: string) => {
-  activeTab.value = tabId
-}
-
-// 设置 tab 引用
 function setTabRef(id: string, el: HTMLElement | null) {
   tabRefs.value[id] = el
 }
 
-// 从 URL 查询参数恢复 tab 状态
 onMounted(() => {
   if (props.persistKey) {
     const savedTab = route.query[props.persistKey] as string
-    // 验证 savedTab 是否在 items 中存在
     if (savedTab && props.items.some((item) => item.id === savedTab)) {
       activeTab.value = savedTab
     }
   }
-  // 初始更新指示器位置
-  nextTick(() => {
-    updateIndicator()
-  })
+  nextTick(updateIndicator)
 })
 
-// 监听 tab 变化，同步到 URL 查询参数并更新指示器
 watch(
   () => props.modelValue,
   (newValue) => {
     if (props.persistKey && newValue) {
-      // 使用 replace 而不是 push，避免产生大量历史记录
       router.replace({
         query: {
           ...route.query,
@@ -128,21 +85,13 @@ watch(
         },
       })
     }
-    // 更新指示器位置
-    nextTick(() => {
-      updateIndicator()
-    })
+    nextTick(updateIndicator)
   }
 )
 
-// 监听 items 变化，更新指示器位置
 watch(
   () => props.items,
-  () => {
-    nextTick(() => {
-      updateIndicator()
-    })
-  },
+  () => nextTick(updateIndicator),
   { deep: true }
 )
 </script>
@@ -155,7 +104,7 @@ watch(
         : [
             'flex justify-between overflow-x-auto',
             bordered !== false ? 'border-b border-gray-200/50 dark:border-gray-800/50' : '',
-            variant === 'page'
+            mode === 'section'
               ? 'flex-col items-stretch gap-2 pl-7 pr-6 pt-3 xl:flex-row xl:items-center'
               : ['items-center', size === 'sm' ? 'px-3' : 'px-6'],
           ],
@@ -166,6 +115,7 @@ watch(
         v-for="tab in items"
         :key="tab.id"
         :ref="(el) => setTabRef(tab.id, el as HTMLElement)"
+        type="button"
         class="flex shrink-0 items-center whitespace-nowrap font-medium transition-colors"
         :class="[
           isVertical
@@ -177,17 +127,16 @@ watch(
             ? 'text-primary-600 dark:text-primary-400'
             : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
         ]"
-        @click="handleTabClick(tab.id)"
+        @click="activeTab = tab.id"
       >
         <UIcon v-if="tab.icon" :name="tab.icon" :class="size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4'" />
         {{ tab.label }}
       </button>
-      <!-- 滑动指示器 -->
       <div class="absolute bg-primary-500 transition-all duration-300 ease-out" :style="indicatorStyle" />
     </div>
-    <!-- 右侧插槽（水平模式可用） -->
-    <template v-if="!isVertical">
-      <div v-if="variant === 'page'" class="flex w-full min-w-0 items-center xl:w-auto xl:justify-end">
+
+    <template v-if="!isVertical && $slots.right">
+      <div v-if="mode === 'section'" class="flex w-full min-w-0 items-center xl:w-auto xl:justify-end">
         <slot name="right" />
       </div>
       <slot v-else name="right" />

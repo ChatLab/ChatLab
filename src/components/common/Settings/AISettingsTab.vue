@@ -8,8 +8,8 @@ import AIPreprocessTab from './AI/AIPreprocessTab.vue'
 import AIExportSettingsTab from './AI/AIExportSettingsTab.vue'
 import SessionIndexSection from './AI/SessionIndexSection.vue'
 import SemanticIndexSection from './AI/SemanticIndexSection.vue'
-import SubTabs from '@/components/UI/SubTabs.vue'
-import { useSubTabsScroll } from '@/composables/useSubTabsScroll'
+import { CompactTabs } from '@/components/navigation'
+import { useAnchorNavigation } from '@/composables/useAnchorNavigation'
 
 const { t } = useI18n()
 
@@ -31,8 +31,8 @@ const navItems = computed(() => [
   { id: 'export', label: t('settings.aiPrompt.exportSettings.title') },
 ])
 
-// 使用二级导航滚动联动 composable
-const { activeNav, scrollContainerRef, setSectionRef, handleNavChange, scrollToId } = useSubTabsScroll(navItems)
+// 使用锚点导航滚动联动 composable
+const { activeNav, scrollContainerRef, setSectionRef, handleNavChange, scrollToId } = useAnchorNavigation(navItems)
 void scrollContainerRef // 在模板中通过 ref="scrollContainerRef" 使用
 
 // AI 配置变更回调
@@ -61,7 +61,7 @@ void aiModelConfigRef.value
   <div class="flex h-full gap-6">
     <!-- 左侧锚点导航 -->
     <div class="w-36 shrink-0">
-      <SubTabs v-model="activeNav" :items="navItems" orientation="vertical" @change="handleNavChange" />
+      <CompactTabs v-model="activeNav" :items="navItems" orientation="vertical" @change="handleNavChange" />
     </div>
 
     <!-- 右侧内容区域 -->

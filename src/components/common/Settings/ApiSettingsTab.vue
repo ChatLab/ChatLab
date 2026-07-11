@@ -3,7 +3,7 @@ import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useApiServerStore, type DataSource, type ImportSession } from '@/stores/apiServer'
 import { storeToRefs } from 'pinia'
-import { SubTabs } from '@/components/UI'
+import { CompactTabs } from '@/components/navigation'
 import { useLayoutStore } from '@/stores/layout'
 import DataSourceAddModal from './API/DataSourceAddModal.vue'
 import DataSourceEditModal from './API/DataSourceEditModal.vue'
@@ -230,7 +230,7 @@ function subscribedRemoteIds(ds: DataSource): Set<string> {
 
 <template>
   <div class="flex h-full flex-col -mx-6 -mt-6">
-    <SubTabs v-model="activeSubTab" :items="subTabs" persist-key="apiSubTab" />
+    <CompactTabs v-model="activeSubTab" :items="subTabs" persist-key="apiSubTab" />
 
     <div class="flex-1 min-h-0 overflow-auto">
       <div class="space-y-6 px-6 pt-4 pb-6">

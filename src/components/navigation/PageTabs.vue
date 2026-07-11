@@ -1,17 +1,15 @@
 <script setup lang="ts">
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
+import type { NavigationTabItem } from './types'
 
-interface PageNavItem {
-  id: string
-  label: string
-  icon?: string
+interface PageTabItem extends NavigationTabItem {
   to?: RouteLocationRaw
 }
 
 const props = withDefaults(
   defineProps<{
     modelValue: string
-    items: PageNavItem[]
+    items: PageTabItem[]
     ariaLabel?: string
   }>(),
   {
@@ -24,7 +22,7 @@ const emit = defineEmits<{
   change: [value: string]
 }>()
 
-function selectItem(item: PageNavItem): void {
+function selectItem(item: PageTabItem): void {
   if (item.to || item.id === props.modelValue) return
   emit('update:modelValue', item.id)
   emit('change', item.id)

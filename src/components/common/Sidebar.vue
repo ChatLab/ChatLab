@@ -17,7 +17,7 @@ import {
   type UpdateNoticeCache,
   type UpdateNoticeState,
 } from './sidebar/updateNotice'
-import SubTabs from '@/components/UI/SubTabs.vue'
+import { CompactTabs } from '@/components/navigation'
 import { useSessionStore } from '@/stores/session'
 import { useLayoutStore } from '@/stores/layout'
 import { usePlatformService } from '@/services'
@@ -481,7 +481,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
     <div class="flex-1 relative min-h-0 flex flex-col">
       <!-- 筛选与排序 - 固定在顶部，不随列表滚动 -->
       <div v-if="!isCollapsed && sessions.length > 0" class="mb-2">
-        <SubTabs v-model="filterType" :items="filterTabItems" size="sm" :bordered="false">
+        <CompactTabs v-model="filterType" :items="filterTabItems" size="sm" :bordered="false">
           <template #right>
             <div class="flex items-center gap-0.5">
               <UTooltip :text="t('layout.tooltip.search')" :content="{ side: 'bottom' }">
@@ -505,7 +505,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
               </UTooltip>
             </div>
           </template>
-        </SubTabs>
+        </CompactTabs>
         <!-- 搜索框 -->
         <div v-if="showSearch" class="mt-2 px-4">
           <UInput
