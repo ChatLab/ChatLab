@@ -11,7 +11,7 @@ import type { EChartsOption } from 'echarts'
 import type { AnalysisSession, MessageType } from '@/types/base'
 import type { DailyActivity, HourlyActivity, WeekdayActivity } from '@/types/analysis'
 import { formatDateRange } from '@/utils'
-import { CardCaptureOverlay, CardDecoration, ThemeCard } from '@/components/UI'
+import { ReportCard } from '@/components/UI'
 import { useOverviewStatistics } from '@/composables/analysis/useOverviewStatistics'
 import { getOverviewCalendarRange, resolveOverviewTimeRange } from '@/composables/analysis/overviewTimeRange'
 import OverviewStatCards from './OverviewStatCards.vue'
@@ -272,9 +272,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <ThemeCard data-capturable-card class="group/card relative isolate flex flex-col">
-    <CardDecoration />
-    <CardCaptureOverlay />
+  <ReportCard>
     <!-- 身份信息 + 基础统计 -->
     <div class="relative z-10 px-6 pt-8 pb-4 sm:px-8">
       <h2 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
@@ -377,5 +375,5 @@ onUnmounted(() => {
       :late-night-ratio="lateNightChat.ratio"
       :max-consecutive-days="maxConsecutiveDays"
     />
-  </ThemeCard>
+  </ReportCard>
 </template>

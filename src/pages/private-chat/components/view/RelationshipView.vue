@@ -3,7 +3,7 @@ import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { RelationshipStats, RelationshipMonthStats } from '@/types/analysis'
 import { useDataService } from '@/services'
-import { CardCaptureOverlay, CardDecoration, ThemeCard, SectionCard, EmptyState, LoadingState } from '@/components/UI'
+import { ReportCard, SectionCard, EmptyState, LoadingState } from '@/components/UI'
 import { EChart } from '@/components/charts'
 import RelationshipMetricCard from './RelationshipMetricCard.vue'
 import type { EChartsOption } from 'echarts'
@@ -295,9 +295,7 @@ function formatDuration(seconds: number): string {
       <template v-else-if="stats && hasData">
         <div class="space-y-6">
           <!-- 关系卡片 -->
-          <ThemeCard id="shareable-poster" data-capturable-card class="group/card relative isolate flex flex-col">
-            <CardDecoration />
-            <CardCaptureOverlay />
+          <ReportCard id="shareable-poster">
             <!-- 1. 主视觉区域 (Primary Module) -->
             <div
               class="relative z-10 flex flex-col items-center justify-center gap-10 px-6 pt-10 pb-6 sm:px-8 lg:flex-row lg:items-start lg:justify-between lg:gap-8 xl:gap-12"
@@ -482,7 +480,7 @@ function formatDuration(seconds: number): string {
                 {{ t('views.relationship.watermarkReport') }}
               </span>
             </div>
-          </ThemeCard>
+          </ReportCard>
         </div>
 
         <!-- 月度时间线 -->

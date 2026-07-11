@@ -2,7 +2,7 @@
 import { computed, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import dayjs from 'dayjs'
-import { CardCaptureOverlay, CardDecoration, ThemeCard } from '@/components/UI'
+import { ReportCard } from '@/components/UI'
 import type { WordFrequencyItem, PosTagStat } from './topicProfileTypes'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
@@ -214,9 +214,7 @@ const KEYWORD_COLORS = ['#6366f1', '#ec4899', '#f97316', '#22c55e', '#3b82f6', '
 </script>
 
 <template>
-  <ThemeCard data-capturable-card class="group/card relative isolate flex flex-col">
-    <CardDecoration />
-    <CardCaptureOverlay />
+  <ReportCard>
     <!-- 主视觉区域 -->
     <div class="relative z-10 px-6 pt-8 pb-4 sm:px-8">
       <div class="flex items-center gap-6 sm:gap-10">
@@ -327,5 +325,5 @@ const KEYWORD_COLORS = ['#6366f1', '#ec4899', '#f97316', '#22c55e', '#3b82f6', '
         {{ t('quotes.topicProfile.watermark') }}
       </span>
     </div>
-  </ThemeCard>
+  </ReportCard>
 </template>

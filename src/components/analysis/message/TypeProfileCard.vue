@@ -6,7 +6,7 @@ import * as echarts from 'echarts/core'
 import { PieChart } from 'echarts/charts'
 import { TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
-import { CardCaptureOverlay, CardDecoration, ThemeCard } from '@/components/UI'
+import { ReportCard } from '@/components/UI'
 import { useDataService } from '@/services/data/service'
 import { MessageType, getMessageTypeName } from '@/types/base'
 import type { MessageTypeStats, TextStats } from '@openchatlab/core'
@@ -276,9 +276,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <ThemeCard data-capturable-card class="group/card relative isolate flex flex-col">
-    <CardDecoration />
-    <CardCaptureOverlay />
+  <ReportCard>
     <!-- 主视觉区域 -->
     <div class="relative z-10 px-6 pt-8 pb-4 sm:px-8">
       <div class="flex items-center gap-6 sm:gap-10">
@@ -388,5 +386,5 @@ onUnmounted(() => {
         {{ t('views.message.typeCard.watermark') }}
       </span>
     </div>
-  </ThemeCard>
+  </ReportCard>
 </template>

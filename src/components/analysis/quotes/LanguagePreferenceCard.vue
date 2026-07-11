@@ -6,7 +6,7 @@ import * as echarts from 'echarts/core'
 import { RadarChart } from 'echarts/charts'
 import { TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
-import { CardCaptureOverlay, CardDecoration, ThemeCard } from '@/components/UI'
+import { ReportCard } from '@/components/UI'
 import type {
   LanguagePreferenceResult,
   MemberLanguageProfile,
@@ -283,9 +283,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <ThemeCard data-capturable-card class="group/card relative isolate flex flex-col">
-    <CardDecoration />
-    <CardCaptureOverlay />
+  <ReportCard>
     <div v-if="memberA && memberB" class="relative z-10 flex flex-col h-full">
       <!-- 1. 主视觉区域：对比与口头禅 / 右侧雷达图 -->
       <div class="flex flex-col sm:flex-row items-center sm:items-start gap-6 px-6 pt-8 pb-4 sm:px-8">
@@ -453,5 +451,5 @@ onUnmounted(() => {
         </span>
       </div>
     </div>
-  </ThemeCard>
+  </ReportCard>
 </template>
