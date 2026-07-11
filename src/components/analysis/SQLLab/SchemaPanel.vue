@@ -67,19 +67,39 @@ onMounted(() => {
 
 <template>
   <div
-    class="flex flex-col border-r border-gray-200 bg-white transition-all dark:border-gray-800 dark:bg-page-dark"
-    :class="isCollapsed ? 'w-10' : 'w-56'"
+    class="m-3 flex h-[calc(100%-1.5rem)] shrink-0 flex-col overflow-hidden rounded-lg bg-white shadow-elevated transition-all duration-300 ease-in-out dark:bg-sidebar-dark"
+    :class="isCollapsed ? 'w-14' : 'w-56'"
   >
     <!-- 面板头部 -->
-    <div class="flex items-center justify-between border-b border-gray-200 p-2 dark:border-gray-800">
+    <div
+      class="flex items-center"
+      :class="
+        isCollapsed
+          ? 'justify-center px-2 pb-2 pt-5'
+          : 'justify-between border-b border-gray-200 py-2 pl-3 pr-2 dark:border-gray-800'
+      "
+    >
       <span v-if="!isCollapsed" class="text-xs font-medium text-gray-500 dark:text-gray-400">
         {{ t('ai.sqlLab.schema.tables') }}
       </span>
-      <button
-        class="rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 dark:hover:bg-gray-800 dark:hover:text-gray-300"
+      <UButton
+        v-if="!isCollapsed"
+        color="neutral"
+        variant="ghost"
+        size="sm"
+        class="group flex h-9 w-9 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-white/[0.06]"
         @click="isCollapsed = !isCollapsed"
       >
-        <UIcon :name="isCollapsed ? 'i-heroicons-chevron-right' : 'i-heroicons-chevron-left'" class="h-4 w-4" />
+        <UIcon name="i-lucide-panel-right" class="size-4 scale-x-[-1] group-hover:hidden" />
+        <UIcon name="i-lucide-panel-right-close" class="size-4 hidden scale-x-[-1] group-hover:block" />
+      </UButton>
+      <button
+        v-else
+        type="button"
+        class="group relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-white/[0.06]"
+        @click="isCollapsed = !isCollapsed"
+      >
+        <UIcon name="i-lucide-panel-right-open" class="size-4 scale-x-[-1]" />
       </button>
     </div>
 
@@ -127,15 +147,15 @@ onMounted(() => {
     </div>
 
     <!-- 折叠时显示图标列表 -->
-    <div v-else class="flex flex-1 flex-col items-center gap-2 overflow-y-auto py-2">
+    <div v-else class="flex flex-1 flex-col items-center gap-1 overflow-y-auto px-2 pb-2">
       <button
         v-for="table in schema"
         :key="table.name"
-        class="rounded p-1 text-gray-400 transition-colors hover:bg-gray-100 hover:text-pink-500 dark:hover:bg-gray-800"
+        class="flex h-10 w-10 items-center justify-center rounded-lg text-gray-600 transition-colors hover:bg-gray-200/40 hover:text-primary-600 dark:text-gray-300 dark:hover:bg-white/[0.06] dark:hover:text-primary-400"
         :title="`${getTableLabel(table.name, locale as LocaleType)} (${table.name})`"
         @click="expandTable(table.name)"
       >
-        <UIcon name="i-heroicons-table-cells" class="h-4 w-4" />
+        <UIcon name="i-heroicons-table-cells" class="h-5 w-5" />
       </button>
     </div>
   </div>

@@ -5,7 +5,7 @@ import type { TableSchema, SQLResult } from '@/components/analysis/SQLLab'
 import { useDataService, useAIService } from '@/services'
 import { getColumnLabel } from '@/components/analysis/SQLLab'
 import type { LocaleType } from '@/i18n/types'
-import { UITabs } from '@/components/UI'
+import { ThemeCard, UITabs } from '@/components/UI'
 
 const PRIORITY_TABLES = ['member', 'meta', 'message', 'message_context', 'member_name_history']
 
@@ -333,165 +333,167 @@ onMounted(async () => {
 </script>
 
 <template>
-  <div class="flex h-full flex-col">
-    <!-- Toolbar -->
-    <div class="relative z-20 flex items-center gap-2 border-b border-gray-200 px-4 py-2 dark:border-gray-700">
-      <!-- DB Source Tabs -->
-      <UITabs v-model="dbSource" :items="dbTabs" size="xs" />
+  <div class="h-full p-3">
+    <ThemeCard class="flex h-full min-w-0 flex-col">
+      <!-- Toolbar -->
+      <div class="relative z-20 flex items-center gap-2 border-b border-gray-200 px-4 py-2 dark:border-gray-700">
+        <!-- DB Source Tabs -->
+        <UITabs v-model="dbSource" :items="dbTabs" size="xs" />
 
-      <div class="mx-1 h-4 w-px bg-gray-200 dark:bg-gray-700" />
+        <div class="mx-1 h-4 w-px bg-gray-200 dark:bg-gray-700" />
 
-      <!-- Table Tabs -->
-      <div :class="isAiDb ? 'max-w-[50%]' : 'flex-1'" class="min-w-0">
-        <UITabs v-model="selectedTable" :items="tableItems" size="xs" />
+        <!-- Table Tabs -->
+        <div :class="isAiDb ? 'max-w-[50%]' : 'flex-1'" class="min-w-0">
+          <UITabs v-model="selectedTable" :items="tableItems" size="xs" />
+        </div>
+
+        <!-- Conversation Filter Dropdown (AI DB + ai_message) -->
+        <USelectMenu
+          v-if="showConversationFilter"
+          v-model="selectedAIChat"
+          :items="conversationItems"
+          value-key="value"
+          class="w-48"
+          size="xs"
+          :ui="{ content: 'z-50' }"
+        />
+
+        <div class="flex-1" />
+
+        <UButton
+          v-if="isAiDb && selectedTable === 'ai_message'"
+          variant="ghost"
+          size="xs"
+          color="error"
+          icon="i-heroicons-trash"
+          :loading="isClearingDebug"
+          @click="handleClearDebugContext"
+        >
+          {{ t('analysis.debug.tableBrowser.clearDebugContext') }}
+        </UButton>
+
+        <UButton variant="ghost" size="xs" icon="i-heroicons-arrow-path" :loading="isLoading" @click="loadTableData">
+          {{ t('analysis.debug.tableBrowser.refresh') }}
+        </UButton>
       </div>
 
-      <!-- Conversation Filter Dropdown (AI DB + ai_message) -->
-      <USelectMenu
-        v-if="showConversationFilter"
-        v-model="selectedAIChat"
-        :items="conversationItems"
-        value-key="value"
-        class="w-48"
-        size="xs"
-        :ui="{ content: 'z-50' }"
-      />
-
-      <div class="flex-1" />
-
-      <UButton
-        v-if="isAiDb && selectedTable === 'ai_message'"
-        variant="ghost"
-        size="xs"
-        color="error"
-        icon="i-heroicons-trash"
-        :loading="isClearingDebug"
-        @click="handleClearDebugContext"
+      <!-- Error -->
+      <div
+        v-if="error"
+        class="mx-4 mt-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
       >
-        {{ t('analysis.debug.tableBrowser.clearDebugContext') }}
-      </UButton>
-
-      <UButton variant="ghost" size="xs" icon="i-heroicons-arrow-path" :loading="isLoading" @click="loadTableData">
-        {{ t('analysis.debug.tableBrowser.refresh') }}
-      </UButton>
-    </div>
-
-    <!-- Error -->
-    <div
-      v-if="error"
-      class="mx-4 mt-2 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
-    >
-      {{ error }}
-    </div>
-
-    <!-- Table Content -->
-    <div class="flex-1 overflow-auto">
-      <div v-if="!result && !isLoading" class="flex h-full items-center justify-center">
-        <p class="text-sm text-gray-400">{{ t('analysis.debug.tableBrowser.noData') }}</p>
+        {{ error }}
       </div>
 
-      <table v-else-if="result" class="w-full border-collapse text-xs">
-        <thead class="sticky top-0 bg-gray-50 dark:bg-page-dark">
-          <tr>
-            <th
-              class="whitespace-nowrap border-b border-r border-gray-200 px-2 py-1.5 text-left font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400"
-            >
-              #
-            </th>
-            <th
-              v-for="col in result.columns"
-              :key="col"
-              class="border-b border-r border-gray-200 px-2 py-1.5 text-left dark:border-gray-700"
-            >
-              <div class="font-mono text-xs font-medium text-gray-700 dark:text-gray-300">{{ col }}</div>
-              <div class="text-[10px] leading-tight text-gray-400">
-                {{ getColumnLabel(selectedTable, col, locale as LocaleType) }}
-              </div>
-            </th>
-            <th
-              class="whitespace-nowrap border-b border-gray-200 px-2 py-1.5 text-center font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400"
-            >
-              操作
-            </th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr
-            v-for="(row, rowIdx) in result.rows"
-            :key="rowIdx"
-            class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
-          >
-            <td class="border-b border-r border-gray-100 px-2 py-1.5 text-gray-400 dark:border-gray-800">
-              {{ (currentPage - 1) * pageSize + rowIdx + 1 }}
-            </td>
-            <td
-              v-for="(cell, colIdx) in row"
-              :key="colIdx"
-              class="max-w-[300px] border-b border-r border-gray-100 p-0 text-gray-700 dark:border-gray-800 dark:text-gray-300"
-              :title="cell == null ? 'NULL' : String(cell)"
-            >
-              <template v-if="editingRowIndex === rowIdx">
-                <input
-                  v-model="editingValues[result.columns[colIdx]]"
-                  class="w-full px-2 py-1.5 rounded border border-gray-300 bg-white text-xs dark:border-gray-600 dark:bg-gray-800"
-                />
-              </template>
-              <UContextMenu v-else :items="getCellContextMenu(cell, colIdx, rowIdx)">
-                <div class="w-full truncate px-2 py-1.5">
-                  <span v-if="cell == null" class="italic text-gray-400">NULL</span>
-                  <span v-else>{{ String(cell).slice(0, 200) }}</span>
+      <!-- Table Content -->
+      <div class="flex-1 overflow-auto">
+        <div v-if="!result && !isLoading" class="flex h-full items-center justify-center">
+          <p class="text-sm text-gray-400">{{ t('analysis.debug.tableBrowser.noData') }}</p>
+        </div>
+
+        <table v-else-if="result" class="w-full border-collapse text-xs">
+          <thead class="sticky top-0 bg-gray-50 dark:bg-page-dark">
+            <tr>
+              <th
+                class="whitespace-nowrap border-b border-r border-gray-200 px-2 py-1.5 text-left font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400"
+              >
+                #
+              </th>
+              <th
+                v-for="col in result.columns"
+                :key="col"
+                class="border-b border-r border-gray-200 px-2 py-1.5 text-left dark:border-gray-700"
+              >
+                <div class="font-mono text-xs font-medium text-gray-700 dark:text-gray-300">{{ col }}</div>
+                <div class="text-[10px] leading-tight text-gray-400">
+                  {{ getColumnLabel(selectedTable, col, locale as LocaleType) }}
                 </div>
-              </UContextMenu>
-            </td>
-            <td class="border-b border-gray-100 px-2 py-1.5 text-center dark:border-gray-800">
-              <template v-if="editingRowIndex === rowIdx">
-                <div class="flex items-center justify-center gap-1">
-                  <UButton size="xs" color="primary" variant="ghost" icon="i-heroicons-check" @click="saveEdit" />
-                  <UButton size="xs" color="neutral" variant="ghost" icon="i-heroicons-x-mark" @click="cancelEdit" />
-                </div>
-              </template>
-              <template v-else>
-                <div class="flex items-center justify-center gap-1">
-                  <UButton size="xs" variant="ghost" icon="i-heroicons-pencil-square" @click="startEdit(rowIdx)" />
-                  <UButton
-                    size="xs"
-                    variant="ghost"
-                    color="error"
-                    icon="i-heroicons-trash"
-                    @click="confirmDelete(rowIdx)"
+              </th>
+              <th
+                class="whitespace-nowrap border-b border-gray-200 px-2 py-1.5 text-center font-medium text-gray-500 dark:border-gray-700 dark:text-gray-400"
+              >
+                操作
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr
+              v-for="(row, rowIdx) in result.rows"
+              :key="rowIdx"
+              class="transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
+            >
+              <td class="border-b border-r border-gray-100 px-2 py-1.5 text-gray-400 dark:border-gray-800">
+                {{ (currentPage - 1) * pageSize + rowIdx + 1 }}
+              </td>
+              <td
+                v-for="(cell, colIdx) in row"
+                :key="colIdx"
+                class="max-w-[300px] border-b border-r border-gray-100 p-0 text-gray-700 dark:border-gray-800 dark:text-gray-300"
+                :title="cell == null ? 'NULL' : String(cell)"
+              >
+                <template v-if="editingRowIndex === rowIdx">
+                  <input
+                    v-model="editingValues[result.columns[colIdx]]"
+                    class="w-full px-2 py-1.5 rounded border border-gray-300 bg-white text-xs dark:border-gray-600 dark:bg-gray-800"
                   />
-                </div>
-              </template>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </div>
-
-    <!-- Footer: Row Count + Pagination -->
-    <div class="flex items-center justify-between border-t border-gray-200 px-4 py-2 dark:border-gray-700">
-      <span class="text-xs text-gray-500 dark:text-gray-400">
-        {{ totalRows > 0 ? t('analysis.debug.tableBrowser.rowCount', { count: totalRows }) : '' }}
-      </span>
-      <div v-if="totalPages > 1" class="flex items-center gap-3">
-        <UButton
-          size="xs"
-          variant="ghost"
-          :disabled="currentPage <= 1"
-          icon="i-heroicons-chevron-left"
-          @click="currentPage--"
-        />
-        <span class="text-xs text-gray-500 dark:text-gray-400">
-          {{ t('analysis.debug.tableBrowser.page', { current: currentPage, total: totalPages }) }}
-        </span>
-        <UButton
-          size="xs"
-          variant="ghost"
-          :disabled="currentPage >= totalPages"
-          icon="i-heroicons-chevron-right"
-          @click="currentPage++"
-        />
+                </template>
+                <UContextMenu v-else :items="getCellContextMenu(cell, colIdx, rowIdx)">
+                  <div class="w-full truncate px-2 py-1.5">
+                    <span v-if="cell == null" class="italic text-gray-400">NULL</span>
+                    <span v-else>{{ String(cell).slice(0, 200) }}</span>
+                  </div>
+                </UContextMenu>
+              </td>
+              <td class="border-b border-gray-100 px-2 py-1.5 text-center dark:border-gray-800">
+                <template v-if="editingRowIndex === rowIdx">
+                  <div class="flex items-center justify-center gap-1">
+                    <UButton size="xs" color="primary" variant="ghost" icon="i-heroicons-check" @click="saveEdit" />
+                    <UButton size="xs" color="neutral" variant="ghost" icon="i-heroicons-x-mark" @click="cancelEdit" />
+                  </div>
+                </template>
+                <template v-else>
+                  <div class="flex items-center justify-center gap-1">
+                    <UButton size="xs" variant="ghost" icon="i-heroicons-pencil-square" @click="startEdit(rowIdx)" />
+                    <UButton
+                      size="xs"
+                      variant="ghost"
+                      color="error"
+                      icon="i-heroicons-trash"
+                      @click="confirmDelete(rowIdx)"
+                    />
+                  </div>
+                </template>
+              </td>
+            </tr>
+          </tbody>
+        </table>
       </div>
-    </div>
+
+      <!-- Footer: Row Count + Pagination -->
+      <div class="flex items-center justify-between border-t border-gray-200 px-4 py-2 dark:border-gray-700">
+        <span class="text-xs text-gray-500 dark:text-gray-400">
+          {{ totalRows > 0 ? t('analysis.debug.tableBrowser.rowCount', { count: totalRows }) : '' }}
+        </span>
+        <div v-if="totalPages > 1" class="flex items-center gap-3">
+          <UButton
+            size="xs"
+            variant="ghost"
+            :disabled="currentPage <= 1"
+            icon="i-heroicons-chevron-left"
+            @click="currentPage--"
+          />
+          <span class="text-xs text-gray-500 dark:text-gray-400">
+            {{ t('analysis.debug.tableBrowser.page', { current: currentPage, total: totalPages }) }}
+          </span>
+          <UButton
+            size="xs"
+            variant="ghost"
+            :disabled="currentPage >= totalPages"
+            icon="i-heroicons-chevron-right"
+            @click="currentPage++"
+          />
+        </div>
+      </div>
+    </ThemeCard>
   </div>
 </template>
