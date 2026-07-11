@@ -1,8 +1,7 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import CaptureButton from '@/components/common/CaptureButton.vue'
-import { SectionCard } from '@/components/UI'
+import ExpandableListCard from './ExpandableListCard.vue'
 
 const { t } = useI18n()
 
@@ -24,12 +23,6 @@ const props = withDefaults(
   }
 )
 
-// 控制弹窗
-const isOpen = ref(false)
-
-// 截屏相关 ref
-const modalBodyRef = ref<HTMLElement | null>(null)
-
 // Top N 数据
 const topNData = computed(() => props.items.slice(0, props.topN))
 
@@ -44,38 +37,22 @@ const formattedCount = computed(() => {
 </script>
 
 <template>
-  <SectionCard :title="title" :description="description">
+  <ExpandableListCard
+    :title="title"
+    :description="description"
+    :show-view-all="showViewAll"
+    :view-all-label="t('views.charts.listPro.fullRanking')"
+    :count-label="formattedCount"
+  >
     <template #headerRight>
-      <div class="no-capture flex items-center gap-2">
-        <!-- 自定义头部右侧内容 -->
-        <slot name="headerRight" />
+      <slot name="headerRight" />
+    </template>
 
-        <!-- 完整列表弹窗 -->
-        <UModal v-model:open="isOpen" :ui="{ content: 'md:w-full max-w-3xl' }">
-          <UButton v-if="showViewAll" icon="i-heroicons-list-bullet" variant="ghost">
-            {{ t('views.charts.listPro.fullRanking') }}
-          </UButton>
-          <template #content>
-            <div ref="modalBodyRef" class="section-content flex flex-col">
-              <!-- Header -->
-              <div
-                class="flex w-full items-center justify-between border-b border-gray-200 px-6 py-4 dark:border-gray-700"
-              >
-                <div class="flex items-center gap-2">
-                  <h3 class="text-lg font-semibold text-gray-900 whitespace-nowrap dark:text-white">{{ title }}</h3>
-                  <span class="text-sm text-gray-500">（{{ formattedCount }}）</span>
-                </div>
-                <CaptureButton size="xs" type="element" :target-element="modalBodyRef" />
-              </div>
-              <!-- Body -->
-              <div class="max-h-[60vh] p-4 divide-y divide-gray-100 overflow-y-auto dark:divide-gray-800">
-                <div v-for="(item, index) in items" :key="index" class="px-5 py-3">
-                  <slot name="item" :item="item" :index="index" />
-                </div>
-              </div>
-            </div>
-          </template>
-        </UModal>
+    <template #full>
+      <div class="divide-y divide-gray-100 dark:divide-gray-800">
+        <div v-for="(item, index) in items" :key="index" class="px-5 py-3">
+          <slot name="item" :item="item" :index="index" />
+        </div>
       </div>
     </template>
 
@@ -95,5 +72,5 @@ const formattedCount = computed(() => {
         <div class="px-5 py-8 text-center text-sm text-gray-400">{{ t('views.charts.listPro.empty') }}</div>
       </slot>
     </div>
-  </SectionCard>
+  </ExpandableListCard>
 </template>
