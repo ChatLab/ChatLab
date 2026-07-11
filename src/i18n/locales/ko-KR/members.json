@@ -1,0 +1,105 @@
+{
+  "ownerPrompt": {
+    "title": "당신은 누구인가요?",
+    "subtitle": "이 대화에서 본인의 신원을 선택하세요",
+    "description": "선택한 신원의 메시지는 대화 뷰어 오른쪽에 표시되며, AI 대화에서도 본인을 인식해 더 정확한 분석을 제공합니다. 같은 플랫폼의 다른 대화에도 자동으로 적용됩니다.",
+    "searchPlaceholder": "멤버 검색",
+    "noMatch": "일치하는 멤버가 없습니다",
+    "empty": "멤버 데이터가 없습니다",
+    "later": "나중에",
+    "dontRemind": "이 대화에서는 다시 묻지 않기",
+    "save": "저장",
+    "clear": "현재 선택 지우기",
+    "saved": "신원이 설정되었습니다",
+    "appliedToOthers": "같은 플랫폼의 대화 {count}개에 자동으로 적용되었습니다",
+    "saveFailed": "신원 설정에 실패했습니다",
+    "currentOwner": "나: {name}",
+    "choose": "내 신원 선택",
+    "change": "변경",
+    "helper": "AI가 대화에서 당신을 인식해 더 정확한 분석을 제공하는 데 도움이 됩니다"
+  },
+  "list": {
+    "title": "그룹 멤버 관리",
+    "description": "멤버 {count}명. 별칭을 추가하거나 멤버를 제거할 수 있습니다",
+    "searchPlaceholder": "닉네임, 계정명, ID 또는 별칭 검색",
+    "noMatch": "일치하는 멤버가 없습니다",
+    "empty": "사용 가능한 멤버 데이터가 없습니다",
+    "table": {
+      "accountName": "계정명",
+      "groupNickname": "그룹 닉네임",
+      "messageCount": "메시지 수",
+      "customAlias": "사용자 지정 별칭",
+      "actions": "작업"
+    },
+    "aliasPlaceholder": "Enter를 눌러 추가",
+    "delete": "삭제",
+    "mergeSelected": "선택 항목 병합",
+    "mergeSelectedCount": "멤버 {count}명 선택됨",
+    "pagination": "전체 {total}명 중 {start} - {end}명 표시",
+    "tip": "팁: 별칭을 추가하면 대화 참여자를 더 쉽게 구분하고 검색 및 AI 분석 정확도를 높일 수 있습니다.",
+    "mergeModal": {
+      "title": "멤버를 병합할까요?",
+      "content": "{source}(메시지 {sourceCount}개)를 {target}(메시지 {targetCount}개)으로 병합합니다. 기본적으로 메시지가 더 많은 멤버의 이름이 유지됩니다.",
+      "hint": "이 작업은 되돌릴 수 없습니다. 병합된 멤버의 모든 메시지는 유지되는 멤버에게 재할당됩니다.",
+      "cancel": "취소",
+      "confirm": "병합 확인"
+    },
+    "modal": {
+      "title": "멤버를 삭제할까요?",
+      "content": "멤버 {name}과(와) 관련 메시지 {count}개가 삭제됩니다. 이 작업은 되돌릴 수 없습니다.",
+      "cancel": "취소",
+      "confirm": "삭제 확인"
+    }
+  },
+  "nicknameHistory": {
+    "note": "참고: QQ의 예전 클라이언트는 대화 기록을 txt 형식으로 내보낼 수 있으며, 이 방식이 닉네임 이력을 가장 정확하게 담고 있습니다",
+    "title": "닉네임 변경 이력",
+    "loading": "불러오는 중...",
+    "hasChanges": "멤버 {count}명의 닉네임이 변경되었습니다",
+    "noChanges": "닉네임 변경 이력이 없습니다",
+    "current": "현재",
+    "empty": "닉네임을 변경한 멤버가 없습니다",
+    "loadingText": "닉네임 이력을 불러오는 중..."
+  },
+  "relationships": {
+    "loading": "{'@'} 상호작용 데이터를 분석하는 중...",
+    "topMentioners": "📢 {'@'} 최다 언급자",
+    "totalMentions": "총 {'@'} {count}회",
+    "topMentioned": "🎯 {'@'} 최다 피언급자",
+    "popularMember": "그룹 내 인기 멤버",
+    "times": "회",
+    "oneWay": {
+      "title": "🐕 짝사랑 탐지",
+      "description": "일방향 관계 {count}건 발견 (한쪽이 상대를 {'@'}하는 비율 80% 이상)",
+      "neverRespond": "한 번도 응답 안 함",
+      "reverse": "역방향 {count}회",
+      "ratio": "일방향 비율 {value}%"
+    },
+    "twoWay": {
+      "title": "💕 케미 탐지",
+      "description": "자주 티키타카하는 커플 {count}쌍 발견(상호 {'@'} 균형도 30% 이상)",
+      "interactions": "상호작용",
+      "balance": "균형도 {value}%"
+    },
+    "emptyTitle": "📱 {'@'} 상호작용 분석",
+    "empty": "{'@'} 상호작용 데이터가 없습니다",
+    "modal": {
+      "title": "{name}의 {'@'} 관계",
+      "topMentioned": "가장 자주 {'@'}한 멤버",
+      "topMentioners": "가장 자주 {'@'}받은 멤버",
+      "timesCount": "{count}회",
+      "close": "닫기"
+    }
+  },
+  "private": {
+    "title": "대화 멤버",
+    "description": "멤버 {count}명. 검색과 AI 분석을 위해 별칭을 추가하세요",
+    "messageCount": "메시지 수",
+    "percentage": "전체의 {value}%",
+    "customAlias": "사용자 지정 별칭",
+    "aliasPlaceholder": "Enter를 눌러 별칭 추가",
+    "empty": "사용 가능한 멤버 데이터가 없습니다",
+    "tipTitle": "팁",
+    "tipContent": "별칭을 추가하면 대화 참여자를 더 쉽게 구분하고 검색 및 AI 분석 정확도를 높일 수 있습니다."
+  }
+}

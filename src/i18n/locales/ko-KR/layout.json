@@ -1,0 +1,53 @@
+{
+  "brand": "ChatLab",
+  "newAnalysis": "새 분석",
+  "contacts": "인맥",
+  "relationships": "관계도",
+  "manage": "관리",
+  "noRecords": "기록 없음",
+  "searchPlaceholder": "대화 이름 검색",
+  "noSearchResult": "일치하는 대화 기록이 없습니다",
+  "contextMenu": {
+    "rename": "이름 변경",
+    "pin": "고정",
+    "unpin": "고정 해제",
+    "copyId": "ID 복사",
+    "delete": "삭제"
+  },
+  "renameModal": {
+    "title": "이름 변경",
+    "placeholder": "새 이름 입력"
+  },
+  "deleteModal": {
+    "title": "삭제 확인",
+    "message": "\"{name}\"을(를) 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다."
+  },
+  "updateNotice": {
+    "tag": "신규",
+    "title": "업데이트 가능",
+    "message": "최신 버전은 v{version}입니다.",
+    "desktopHint": "지금 업데이트를 클릭하면 데스크톱 업데이트 확인 및 다운로드가 시작됩니다.",
+    "cliHint": "터미널에서 아래 명령어를 실행한 뒤 서비스를 다시 시작하세요.",
+    "updateNow": "지금 업데이트",
+    "later": "나중에"
+  },
+  "filter": {
+    "all": "전체",
+    "private": "개인",
+    "group": "그룹"
+  },
+  "sort": {
+    "importedAt": "가져온 시간",
+    "lastMessageTs": "최근 메시지",
+    "messageCount": "메시지 수"
+  },
+  "tooltip": {
+    "collapse": "사이드바 접기",
+    "search": "대화 기록 검색",
+    "sort": "정렬"
+  },
+  "sessionInfo": "메시지 {count}개",
+  "footer": {
+    "settings": "설정"
+  }
+}

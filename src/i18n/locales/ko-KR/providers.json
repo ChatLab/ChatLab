@@ -1,0 +1,38 @@
+{
+  "deepseek": {
+    "name": "DeepSeek"
+  },
+  "qwen": {
+    "name": "Qwen"
+  },
+  "gemini": {
+    "name": "Gemini"
+  },
+  "minimax": {
+    "name": "MiniMax"
+  },
+  "glm": {
+    "name": "GLM"
+  },
+  "kimi": {
+    "name": "Kimi"
+  },
+  "doubao": {
+    "name": "Doubao"
+  },
+  "siliconflow": {
+    "name": "SiliconFlow"
+  },
+  "groq": {
+    "name": "Groq"
+  },
+  "openrouter": {
+    "name": "OpenRouter"
+  },
+  "xai": {
+    "name": "xAI"
+  },
+  "openai-compatible": {
+    "name": "타사 서비스"
+  }
+}

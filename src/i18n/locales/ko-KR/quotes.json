@@ -1,0 +1,231 @@
+{
+  "wordcloud": {
+    "loading": "단어 빈도를 분석하는 중...",
+    "stats": {
+      "wordsLabel": "전체 단어 수",
+      "clickHint": "참고: 워드클라우드의 단어를 클릭하면 관련 메시지를 볼 수 있습니다"
+    },
+    "config": {
+      "maxWords": "최대 단어 수",
+      "sizeScale": "글자 크기",
+      "userFilter": "사용자 필터",
+      "posFilter": "품사 필터",
+      "enableStopwords": "불용어 제외",
+      "dict": "사전"
+    },
+    "size": {
+      "small": "S",
+      "medium": "M",
+      "large": "L",
+      "xlarge": "XL"
+    },
+    "posFilter": {
+      "all": "전체",
+      "meaningful": "의미 있는 단어",
+      "custom": "사용자 지정",
+      "customHint": "사용자 지정 품사",
+      "selectMeaningful": "의미 있는 단어",
+      "selectAll": "전체",
+      "clearAll": "모두 지우기"
+    },
+    "empty": {
+      "title": "워드클라우드 데이터가 없습니다",
+      "description": "현재 필터 조건으로 워드클라우드를 생성하기에 텍스트 메시지가 충분하지 않습니다"
+    },
+    "dict": {
+      "zhCN": "중국어 간체",
+      "zhTW": "중국어 번체",
+      "download": "사전 다운로드",
+      "download_zh-CN": "중국어 간체 사전 다운로드",
+      "download_zh-TW": "중국어 번체 사전 다운로드",
+      "needDownload": "현재 워드클라우드는 내장 토크나이저로 표시됩니다. 더 정확한 분석을 원하면 중국어 사전을 다운로드하세요.",
+      "downloadHint": "약 8MB",
+      "downloadSuccess": "사전을 성공적으로 다운로드했습니다",
+      "downloadFailed": "사전 다운로드에 실패했습니다",
+      "promptTitle": "중국어 번체 사전",
+      "promptDescription": "중국어 번체를 사용 중인 것으로 감지되었습니다. 더 나은 워드클라우드 결과를 위해 번체 사전을 권장합니다. 지금 다운로드할까요? (약 8MB)",
+      "promptDownload": "지금 다운로드",
+      "promptLater": "나중에"
+    }
+  },
+  "keywords": {
+    "title": "🔍 키워드 순위",
+    "description": "대화 속 키워드 사용 순위를 분석하고 나만의 목록을 만들어 보세요",
+    "countTemplate": "멤버 {count}명",
+    "templateLabel": "템플릿:",
+    "newTemplate": "+ 새로 만들기",
+    "searchPlaceholder": "입력하여 검색",
+    "clear": "지우기",
+    "templateHint": "* 템플릿을 우클릭하면 편집 또는 삭제할 수 있습니다",
+    "keyword": "키워드",
+    "ranking": " 순위",
+    "multiColorMode": "다색 모드",
+    "times": "{count}회",
+    "timesWithPercent": "회 ({percent}%)",
+    "loading": "데이터를 분석하는 중...",
+    "empty": "데이터가 없습니다. 키워드를 추가하거나 템플릿을 바꿔보세요.",
+    "contextMenu": {
+      "edit": "편집",
+      "delete": "삭제"
+    },
+    "modal": {
+      "createTitle": "템플릿 만들기",
+      "editTitle": "템플릿 편집",
+      "templateName": "템플릿 이름",
+      "templateNamePlaceholder": "예: 긍정적",
+      "keywords": "키워드",
+      "keywordPlaceholder": "Enter를 눌러 추가",
+      "update": "업데이트"
+    },
+    "templates": {
+      "laugh": {
+        "name": "웃음",
+        "keywords": "ㅋㅋ,ㅎㅎ,웃겨,대박,빵터짐,개웃김,ㅋㅋㅋ",
+        "description": "그룹 내 즐거움 지수를 확인해 보세요"
+      },
+      "sad": {
+        "name": "우울함",
+        "keywords": "슬퍼,우울,피곤,지침,힘들다,최악,싫어",
+        "description": "그룹 내 부정적인 감정을 확인해 보세요"
+      },
+      "praise": {
+        "name": "칭찬",
+        "keywords": "최고,대단해,멋져,좋아,쩐다,인정,와우,갓",
+        "description": "가장 칭찬을 많이 하는 멤버를 찾아보세요"
+      },
+      "slacker": {
+        "name": "농땡이",
+        "keywords": "심심해,농땡이,배고파,졸려,불금,오늘도끝,월요일싫어",
+        "description": "가장 퇴근하고 싶어하는 멤버를 찾아보세요"
+      },
+      "gossip": {
+        "name": "가십",
+        "keywords": "헐,대박,진짜,말해봐,찐,미쳤다,실화냐",
+        "description": "가십을 가장 좋아하는 멤버를 찾아보세요"
+      },
+      "polite": {
+        "name": "예의",
+        "keywords": "감사,부탁,죄송,고마워,천만에,실례,고맙습니다",
+        "description": "가장 예의 바른 멤버를 찾아보세요"
+      },
+      "curious": {
+        "name": "질문",
+        "keywords": "왜,어떻게,뭐야,헷갈려,도와줘,아시는분",
+        "description": "가장 질문을 많이 하는 멤버를 찾아보세요"
+      }
+    }
+  },
+  "hotRepeat": {
+    "title": "🔥 인기 도배",
+    "loading": "도배 데이터를 불러오는 중...",
+    "description": "가장 많은 참여자가 이어간 연속 도배 콘텐츠",
+    "countTemplate": "인기 도배 {count}건",
+    "people": "{count}명",
+    "times": "{count}회",
+    "colon": ": ",
+    "viewChat": "대화 기록 보기",
+    "empty": "도배 데이터가 없습니다"
+  },
+  "topicProfile": {
+    "heroPrefix": "메시지",
+    "heroMiddle": "개를 분석해",
+    "heroMiddleSecond": "총",
+    "heroSuffix": "개의 고유 단어를 찾았어요",
+    "topTopicsPrefix": "가장 즐겨 이야기하는 주제:",
+    "hotTopic": "인기 주제",
+    "hotTopicDesc": "{count}회 등장",
+    "richness": "어휘 다양성",
+    "richnessValue": "{value}%",
+    "richnessDesc": "고유 {unique} / 전체 {total}",
+    "chatStyle": "대화 스타일",
+    "styleEncyclopedia": "백과사전형",
+    "styleEncyclopediaDesc": "명사 위주, 사람·장소·사물 이야기를 즐겨함",
+    "styleAction": "행동 지향형",
+    "styleActionDesc": "동사 위주, 할 일에 대한 이야기를 즐겨함",
+    "styleExpressive": "표현적",
+    "styleExpressiveDesc": "형용사 위주, 감정 표현이 풍부함",
+    "styleBalanced": "균형형",
+    "styleBalancedDesc": "다양한 주제를 고르게 다룸",
+    "expressionStyle": "표현 스타일",
+    "expressionCasual": "캐주얼",
+    "expressionCasualDesc": "짧은 단어, 편안하고 격식 없는 표현",
+    "expressionFormal": "격식체",
+    "expressionFormalDesc": "정교한 단어, 정확한 표현",
+    "expressionMixed": "혼합형",
+    "expressionMixedDesc": "캐주얼함과 격식체가 섞여 있음",
+    "watermark": "주제 프로필",
+    "sharedTopics": "공통 관심 주제"
+  },
+  "catchphrase": {
+    "loading": "말버릇을 분석하는 중...",
+    "times": "{count}회",
+    "empty": {
+      "title": "말버릇 데이터가 없습니다"
+    },
+    "stats": {
+      "clickHint": "팁: 말버릇을 클릭하면 관련 메시지를 볼 수 있습니다"
+    },
+    "viewMode": {
+      "list": "목록",
+      "wordcloud": "워드클라우드"
+    },
+    "topN": "표시 개수"
+  },
+  "languagePreference": {
+    "loading": "언어 취향을 분석하는 중...",
+    "empty": "언어 분석을 하기에 텍스트 메시지가 충분하지 않습니다",
+    "card": {
+      "diversityTitle": "어휘 깊이",
+      "diversityDesc": "고유 단어 비율",
+      "styleTitle": "대화 스타일",
+      "styleDesc": "품사 분포 기반 표현 스타일",
+      "punctTitle": "문장부호 스타일",
+      "punctDesc": "가장 많이 사용하는 문장부호 성향",
+      "watermark": "언어 취향",
+      "radarFactual": "사실적",
+      "radarActive": "활동적",
+      "radarDescriptive": "묘사적",
+      "radarAffable": "다정함",
+      "radarIntense": "강렬함",
+      "radarNoun": "명사",
+      "radarVerb": "동사",
+      "radarAdj": "형용사",
+      "radarModal": "어미",
+      "radarAdv": "부사",
+      "topCatchphrases": "인기 말버릇",
+      "languageProfiles": "언어 프로필"
+    },
+    "catchphrasePK": {
+      "title": "말버릇 대결",
+      "sharedCount": "공통 말버릇 {count}개",
+      "hint": "클릭하면 메시지를 볼 수 있어요. 분홍색 테두리는 공통 말버릇을 나타냅니다."
+    },
+    "pos": {
+      "title": "품사 프로필",
+      "styleEncyclopedia": "백과사전형",
+      "styleAction": "행동 지향형",
+      "styleExpressive": "표현적",
+      "styleBalanced": "균형형"
+    },
+    "modal": {
+      "title": "어미·감탄사",
+      "toneSoft": "부드럽고 다정함",
+      "toneCurious": "호기심 많음",
+      "toneCasual": "캐주얼함",
+      "toneCalm": "차분하고 안정적",
+      "toneMixed": "혼합형",
+      "empty": "어미·감탄사 데이터가 없습니다"
+    },
+    "punctuation": {
+      "title": "문장부호 성향",
+      "none": "부호 없음",
+      "personalityDeep": "깊은 사색가",
+      "personalityPassionate": "열정적",
+      "personalityCurious": "호기심 많음",
+      "personalityCheerful": "발랄함",
+      "personalityFreeflow": "자유분방함",
+      "personalityPrecise": "정확함",
+      "empty": "문장부호 데이터가 없습니다"
+    }
+  }
+}

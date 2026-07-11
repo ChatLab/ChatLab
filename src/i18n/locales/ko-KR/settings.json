@@ -1,0 +1,617 @@
+{
+  "title": "설정",
+  "tabs": {
+    "basic": "일반",
+    "ai": "AI 설정",
+    "aiConfig": "모델 서비스",
+    "aiDefaultModel": "기본 모델",
+    "semanticIndex": "시맨틱 색인",
+    "chatPreferences": "환경 설정",
+    "compression": "압축",
+    "aiPreprocess": "전처리",
+    "dataManage": "데이터 관리",
+    "storage": "저장 공간",
+    "sessionManage": "세션 색인",
+    "about": "정보",
+    "api": "자동화",
+    "apiSubTabs": {
+      "autoSync": "자동 동기화",
+      "apiService": "API 서비스",
+      "mcp": "MCP"
+    }
+  },
+  "basic": {
+    "general": {
+      "title": "일반"
+    },
+    "preferences": {
+      "title": "환경 설정"
+    },
+    "language": {
+      "description": "언어 선택"
+    },
+    "appearance": {
+      "title": "화면 모드",
+      "themeMode": "테마 모드",
+      "auto": "시스템 설정",
+      "light": "라이트 모드",
+      "dark": "다크 모드"
+    },
+    "defaultTab": {
+      "description": "대화에 들어갔을 때 표시할 기본 페이지",
+      "overview": "개요",
+      "aiChat": "AI 대화"
+    },
+    "autoLaunch": {
+      "openAtLogin": "로그인 시 자동 실행",
+      "openAtLoginDesc": "시스템이 부팅될 때 ChatLab을 자동으로 시작합니다",
+      "devModeHint": "개발 모드에서는 사용할 수 없습니다"
+    },
+    "toolsPanel": {
+      "positionLabel": "빠른 도구 패널 위치",
+      "positionDesc": "빠른 도구 패널이 표시될 위치를 선택하세요",
+      "positionSide": "사이드",
+      "positionHeader": "헤더"
+    },
+    "screenshot": {
+      "mobileAdapt": "모바일 최적화",
+      "mobileAdaptDesc": "모바일 화면용 스크린샷을 찍을 때 너비를 자동으로 조정합니다"
+    },
+    "network": {
+      "title": "네트워크",
+      "proxyMode": "프록시 모드",
+      "proxyModeDesc": "외부 서비스에 접속할 때 사용할 연결 방식",
+      "modeOff": "사용 안 함",
+      "modeSystem": "시스템 설정",
+      "modeManual": "직접 입력",
+      "proxyAddress": "프록시 주소",
+      "proxyPlaceholder": "http://127.0.0.1:7890",
+      "proxyHelp": "HTTP/HTTPS 프록시를 지원합니다. 예: http://127.0.0.1:7890",
+      "testConnection": "연결 테스트",
+      "testing": "테스트하는 중...",
+      "connectionSuccess": "프록시 연결에 성공했습니다!",
+      "connectionFailed": "연결 실패",
+      "enterProxyFirst": "먼저 프록시 주소를 입력해 주세요",
+      "invalidProxyUrl": "올바른 프록시 주소를 입력해 주세요. 예: http://127.0.0.1:7890",
+      "onlyHttpSupported": "http:// 또는 https:// 프로토콜만 지원합니다",
+      "saveFailed": "저장 실패"
+    }
+  },
+  "defaultModel": {
+    "title": "기본 모델",
+    "noConfigs": "먼저 \"모델 서비스\"에서 모델 설정을 추가해 주세요",
+    "selectProvider": "제공자 선택",
+    "selectModel": "모델 선택",
+    "assistantModel": {
+      "label": "기본 어시스턴트 모델",
+      "description": "AI 대화, 도구 호출, SQL 어시스턴트, 컨텍스트 압축에 사용됩니다"
+    },
+    "fastModel": {
+      "label": "고속 모델",
+      "description": "세션 요약 생성에 사용됩니다. 설정하지 않으면 기본 어시스턴트 모델을 사용합니다",
+      "followAssistant": "기본 어시스턴트 모델 따르기"
+    }
+  },
+  "aiConfig": {
+    "title": "모델 서비스",
+    "defaultModel": "기본 모델",
+    "empty": {
+      "title": "설정된 AI 서비스가 없습니다",
+      "description": "AI 기능을 사용하려면 설정을 추가하세요"
+    },
+    "addConfig": "새 서비스 추가",
+    "maxConfigs": "최대 설정 수(10개)에 도달했습니다",
+    "modal": {
+      "addConfig": "새 서비스 추가",
+      "editConfig": "서비스 편집",
+      "localService": "로컬 서비스",
+      "configName": "설정 이름",
+      "optional": " (선택)",
+      "configNamePlaceholderPreset": "비워두면 제공자 이름을 사용합니다",
+      "configNamePlaceholderCustom": "비워두면 API 엔드포인트를 사용합니다",
+      "aiProvider": "AI 제공자",
+      "apiKeyPlaceholder": "API 키를 입력하세요",
+      "apiKeyPlaceholderEdit": "새 API 키를 입력하세요(비워두면 현재 값 유지)",
+      "apiKeyPlaceholderLocal": "로컬 서비스는 보통 필요하지 않습니다",
+      "apiKeyHintLocal": "서비스에 인증이 필요한 경우 입력하세요",
+      "validate": "검증",
+      "validationSuccess": "연결 검증에 성공했습니다",
+      "validationFailed": "연결 검증에 실패했습니다",
+      "validationFailedTitle": "API 연결 검증 실패",
+      "saveAnywayHint": "검증에 실패했습니다. 설정이 올바르지 않을 수 있습니다. 그래도 저장할까요?",
+      "saveAnyway": "그래도 저장",
+      "validationError": "검증 실패: ",
+      "model": "모델",
+      "apiEndpoint": "API 주소",
+      "apiEndpointHint": "OpenAI 호환 API 엔드포인트",
+      "resolvedUrl": "최종 URL:",
+      "fetchModels": "API에서 가져오기",
+      "fetchModelsTitle": "원격 모델 둘러보기",
+      "fetchModelsLoading": "모델 목록을 가져오는 중...",
+      "fetchModelsEmpty": "모델을 찾을 수 없습니다",
+      "fetchModelsError": "모델을 가져오지 못했습니다",
+      "fetchModelsCount": "총 {total}개 모델 중 {shown}개 표시",
+      "modelAdded": "추가됨",
+      "addAllModels": "모두 추가",
+      "searchModels": "모델 검색...",
+      "apiEndpointOverrideHint": "기본 URL이 미리 입력되어 있습니다. 필요하면 바꾸세요",
+      "customService": "사용자 지정 서비스",
+      "visitWebsite": "웹사이트 방문",
+      "getApiKey": "API 키 받기",
+      "presetService": "기본 제공",
+      "thirdPartyService": "타사",
+      "addCustomModel": "모델 추가",
+      "deleteCustomModel": "선택 삭제",
+      "customModelId": "모델 엔드포인트 이름",
+      "customModelIdHint": "API 호출에 사용되는 모델 식별자입니다",
+      "customModelDisplayName": "표시 이름",
+      "customModelDisplayNamePlaceholder": "사용자 지정 표시 이름",
+      "editModel": "모델 편집",
+      "contextWindow": "컨텍스트 윈도우",
+      "contextWindowPlaceholder": "예: 128000",
+      "contextWindowHint": "이 모델이 지원하는 최대 컨텍스트 토큰 수입니다(컨텍스트 압축에 사용됨)",
+      "contextWindowMissing": "컨텍스트 윈도우가 설정되지 않아 기본값을 사용합니다. \"모델 편집\"에서 직접 설정할 수 있습니다",
+      "modelRequired": "저장하려면 모델을 하나 이상 추가하세요",
+      "apiFormat": "API 형식",
+      "apiFormatOpenAI": "OpenAI Completions",
+      "apiFormatAnthropic": "Anthropic",
+      "apiFormatGemini": "Gemini",
+      "apiFormatOpenAIResponses": "OpenAI Responses"
+    },
+    "providerKind": {
+      "aggregator": "애그리게이터",
+      "custom": "사용자 지정"
+    }
+  },
+  "storage": {
+    "title": "로컬 저장소 관리",
+    "description": "ChatLab이 로컬에 저장하는 데이터 파일을 관리합니다",
+    "dataLocation": {
+      "title": "데이터 디렉터리",
+      "description": "대화 데이터베이스와 벡터 색인이 저장될 위치를 지정합니다",
+      "managedDescription": "이 설정은 대화 데이터베이스와 벡터 색인만 관리합니다. AI 대화, 캐시, 로그는 고정된 시스템 데이터 디렉터리에 남아 있습니다.",
+      "choose": "선택",
+      "applyPath": "적용",
+      "reset": "초기화",
+      "open": "열기",
+      "serverPathHint": "CLI 서버를 실행하는 컴퓨터에서 접근 가능한 절대 경로를 입력하세요.",
+      "migrateHint": "대화 데이터베이스가 아직 이전 위치에 있습니다. 통합 디렉터리로 마이그레이션하세요:",
+      "ignoreMigrateHint": "무시",
+      "migrateAction": "지금 마이그레이션",
+      "restartTip": "변경 후 앱을 다시 시작해 주세요. 선택에 따라 대화 데이터베이스가 마이그레이션됩니다.",
+      "cliRestartTip": "변경 후 CLI 서버를 다시 시작해 주세요. 서버가 시작되기 전에 대화 데이터베이스가 마이그레이션됩니다.",
+      "confirmTitle": "디렉터리 변경 확인",
+      "confirmMessage": "대화 데이터베이스 디렉터리를 변경하려고 합니다. 마이그레이션을 선택하면 기존 대화 데이터베이스가 새 디렉터리로 복사됩니다.",
+      "newPath": "새 디렉터리 경로",
+      "defaultPath": "기본 위치",
+      "confirmWarning": "다시 시작한 후 기존 대화 데이터베이스 디렉터리가 자동으로 삭제될 수 있습니다. 새 경로가 올바른지 확인해 주세요.",
+      "cliConfirmWarning": "CLI 서버를 다시 시작하면 대화 데이터베이스가 새 위치로 마이그레이션됩니다. 경로가 올바르고 서버 프로세스가 쓸 수 있는지 확인해 주세요.",
+      "pathRequired": "데이터 디렉터리 경로를 입력해 주세요",
+      "installDirForbidden": "데이터 디렉터리는 앱 설치 디렉터리 안에 둘 수 없습니다. 업데이트 시 삭제될 수 있습니다",
+      "cancel": "취소",
+      "confirm": "확인",
+      "migrationQueuedTitle": "마이그레이션 예약됨",
+      "migrationSuccessMessage": "변경 사항을 적용하려면 앱을 다시 시작해야 합니다.",
+      "cliMigrationSuccessMessage": "현재 CLI 서버를 중지했다가 다시 시작하세요. 서버가 시작되기 전에 마이그레이션이 실행됩니다. 완료 후 페이지를 다시 열어 새 디렉터리를 확인하세요.",
+      "relaunchNow": "지금 다시 시작",
+      "acknowledge": "확인했습니다"
+    },
+    "openRootDir": "루트 디렉터리 열기",
+    "scope": {
+      "userData": "대화 데이터",
+      "systemData": "시스템 데이터"
+    },
+    "totalUsage": "총 용량: ",
+    "loading": "불러오는 중...",
+    "files": "개 파일",
+    "notExist": "존재하지 않음",
+    "clear": "지우기",
+    "open": "열기",
+    "cache": {
+      "databases": {
+        "name": "대화 데이터베이스",
+        "description": "가져온 대화 분석 데이터"
+      },
+      "ai": {
+        "name": "AI 대화 데이터베이스",
+        "description": "AI 대화 기록 및 설정 파일"
+      },
+      "statsCache": {
+        "name": "캐시 데이터",
+        "description": "대화 기록 통계 캐시, 삭제 후 자동으로 다시 만들어집니다"
+      },
+      "logs": {
+        "name": "로그 파일",
+        "description": "가져오기, AI, 오류 로그 등 앱 로그"
+      }
+    }
+  },
+  "ai": {
+    "session": {
+      "title": "세션 색인 설정",
+      "description": "세션 색인은 시간 간격을 기준으로 대화 기록을 대화 단위로 나누어 AI 분석 정확도를 높입니다",
+      "defaultThreshold": "기본 간격 기준",
+      "thresholdUnit": "분",
+      "thresholdHelp": "이 시간 간격을 초과하면 새로운 세션으로 나뉩니다",
+      "generating": "생성하는 중",
+      "batchTitle": "일괄 색인 생성",
+      "totalSessions": "총 {count}개 대화",
+      "generatedCount": "{count}개 생성됨",
+      "notGeneratedCount": "{count}개 미생성",
+      "loadingStatus": "불러오는 중...",
+      "batchGenerate": "누락분 생성",
+      "batchRegenerate": "전체 다시 생성",
+      "batchRegenerateConfirmTitle": "재생성 확인",
+      "batchRegenerateConfirmMessage": "기존 AI 요약을 모두 지우고 세션 색인을 처음부터 다시 생성합니다.",
+      "batchRegenerateConfirmWarning": "기존 요약이 덮어쓰여집니다. 이 작업은 되돌릴 수 없습니다.",
+      "summaryStrategy": "요약 상세도",
+      "summaryStrategyHelp": "AI가 생성하는 요약의 상세 수준을 조절합니다",
+      "summaryBrief": "간략히",
+      "summaryStandard": "표준"
+    },
+    "semanticIndex": {
+      "title": "시맨틱 색인",
+      "description": "선택한 벡터 모델로 대화의 색인을 만듭니다. 활성화하면 AI가 관련된 과거 대화 발췌를 근거로 시맨틱 검색을 할 수 있습니다.",
+      "vectorModel": "벡터 모델",
+      "selectModel": "벡터 모델 선택",
+      "switchModel": "모델 변경",
+      "noModelSelected": "선택된 벡터 모델이 없습니다",
+      "modelModalTitle": "벡터 모델 설정",
+      "modeLocal": "로컬 모델",
+      "modeApi": "API",
+      "recommended": "추천",
+      "approxSize": "약 {mb}MB",
+      "modelDownloadSource": "모델 다운로드 소스",
+      "downloadSourceOfficial": "Hugging Face 공식",
+      "downloadSourceMirror": "HF-Mirror(중국)",
+      "mirrorSourceHint": "HF-Mirror는 중국 본토 네트워크를 위한 타사 공개 미러입니다. 모델 파일은 hf-mirror.com에서 다운로드됩니다.",
+      "localDownloadHint": "저장 후 모델이 자동으로 다운로드됩니다. 처음 다운로드할 때는 시간이 걸릴 수 있습니다.",
+      "apiTemplate": "서비스 템플릿",
+      "modelName": "모델 이름",
+      "apiKeySaved": "저장됨, 유지하려면 비워두세요",
+      "apiKeyHint": "API 키는 별도로 안전하게 저장되며, 설정에는 참조 정보만 남습니다.",
+      "apiCostWarning": "API 모드는 제공자 비용이 발생할 수 있습니다. 모델 요금을 확인해 주세요.",
+      "changeRebuildHint": "모델이나 API를 변경하면 활성화된 대화의 색인을 다시 만들어야 합니다.",
+      "modelError": "모델 다운로드에 실패했습니다. 색인을 만들 때 다시 시도됩니다.",
+      "modelDownloading": "모델을 다운로드하는 중입니다. 처음 사용 시 몇 분 정도 걸릴 수 있습니다…",
+      "searchMaxResults": {
+        "label": "검색당 발췌 수",
+        "hint": "AI가 시맨틱 검색을 실행할 때 반환하는 기본 발췌 개수입니다(5~15). AI가 필요에 따라 늘릴 수 있습니다."
+      },
+      "overview": "색인 개요",
+      "enabledCount": "{count}개 대화 활성화됨",
+      "coverage": "적용률 {percent}%",
+      "buildPending": "대기 중인 색인 만들기",
+      "cleanup": "사용하지 않는 색인 정리",
+      "cleanupConfirm": "비활성화된 대화와 이전 모델의 색인 데이터가 삭제됩니다. 대화 기록 자체는 삭제되지 않습니다.",
+      "configFirst": "먼저 벡터 모델을 설정하세요",
+      "selectConversations": "대화 선택",
+      "enabledSessions": "활성화된 대화",
+      "state": {
+        "completed": "완료",
+        "building": "만드는 중",
+        "pending": "대기 중",
+        "needsRebuild": "재생성 필요",
+        "failed": "실패",
+        "paused": "일시중지됨"
+      },
+      "action": {
+        "build": "색인 만들기",
+        "pause": "일시중지",
+        "cancel": "취소",
+        "rebuild": "다시 만들기",
+        "remove": "제거"
+      },
+      "session": {
+        "statusLabel": "상태",
+        "notEnabled": "비활성화됨",
+        "coverageLabel": "적용률",
+        "progressLabel": "생성 진행률",
+        "enableHint": "활성화하면 이 대화에 대한 질문에 답할 때 AI가 과거 대화 발췌를 조회할 수 있습니다.",
+        "configFirst": "활성화하기 전에 설정 > AI > 시맨틱 색인에서 벡터 모델을 먼저 설정하세요.",
+        "enable": "색인 활성화",
+        "buildVsEnable": "색인 활성화: 이 대화를 시맨틱 검색 대상에 포함합니다. 색인 만들기: 모든 메시지를 읽고 벡터를 생성하며 로컬 연산이나 API 할당량을 사용할 수 있습니다.",
+        "retry": "재시도",
+        "continue": "계속"
+      },
+      "picker": {
+        "title": "대화 선택",
+        "all": "전체",
+        "group": "그룹",
+        "private": "개인",
+        "searchPlaceholder": "이름으로 검색",
+        "messages": "메시지 {count}개",
+        "enabled": "활성화됨",
+        "selectedSummary": "대화 {count}개 선택됨, 약 {messages}개 메시지",
+        "confirmRemoveTitle": "제거 확인",
+        "confirmRemoveMessage": "선택한 대화의 시맨틱 색인이 완전히 삭제됩니다."
+      }
+    }
+  },
+  "aiPrompt": {
+    "chatSettings": {
+      "title": "도구 설정"
+    },
+    "exportSettings": {
+      "title": "내보내기 설정"
+    },
+    "chatPreferences": {
+      "title": "대화 환경 설정",
+      "enableAutoSkill": "AI 자동 스킬 선택",
+      "enableAutoSkillDesc": "활성화하면 AI가 사용자 질문에 맞는 분석 스킬을 자동으로 찾아 실행합니다. 비활성화하면 수동으로 선택했을 때만 스킬이 적용됩니다",
+      "chartAutoMode": {
+        "title": "자동 차트 생성",
+        "description": "차트 어시스턴트를 수동으로 선택하지 않았을 때 AI가 차트를 얼마나 적극적으로 생성할지 제어합니다",
+        "explicit": "명시적 요청 시에만",
+        "explicitHint": "명확히 요청했을 때만 AI가 차트를 생성합니다.",
+        "suggest": "스마트 생성",
+        "suggestHint": "보수적인 전략: 분석 설명에 확실히 도움이 될 때만 AI가 차트를 생성합니다.",
+        "aggressive": "적극적 생성",
+        "aggressiveHint": "데이터 분석 상황에서 AI가 차트를 더 적극적으로 추가합니다."
+      }
+    },
+    "maxMessages": {
+      "title": "요청당 최대 메시지 수",
+      "description": "AI에 보낼 요청당 최대 메시지 수입니다. 값이 클수록 토큰을 더 많이 소모하지만 맥락이 더 정확해집니다(권장값: 2000)."
+    },
+    "searchContext": {
+      "title": "검색 컨텍스트 범위",
+      "description": "각 검색 결과 주변 메시지를 자동으로 포함해 AI가 맥락을 이해하도록 돕습니다. 0으로 설정하면 비활성화됩니다",
+      "before": "이전",
+      "after": "이후"
+    },
+    "exportFormat": {
+      "title": "내보내기 형식",
+      "description": "AI 대화를 내보낼 파일 형식",
+      "txtLabel": "TXT"
+    },
+    "sqlExportFormat": {
+      "title": "SQL 랩 내보내기 형식",
+      "description": "SQL 쿼리 결과를 내보낼 파일 형식"
+    },
+    "compression": {
+      "title": "컨텍스트 압축",
+      "enable": "컨텍스트 자동 압축",
+      "enableDesc": "긴 대화 기록을 자동으로 요약해 토큰 사용량을 줄입니다",
+      "threshold": "압축 기준값",
+      "thresholdDesc": "컨텍스트 토큰이 모델 컨텍스트 윈도우의 이 비율에 도달하면 압축을 시작합니다",
+      "buffer": "버퍼 크기",
+      "bufferDesc": "압축하지 않고 유지할 최근 메시지의 비율",
+      "maxToolResultPercent": "도구 결과 제한",
+      "maxToolResultPercentDesc": "도구 호출당 AI에 전달되는 최대 데이터 비율입니다(모델 컨텍스트 윈도우 기준). 초과분은 지능적으로 잘립니다"
+    }
+  },
+  "about": {
+    "title": "ChatLab 정보",
+    "description": "대화 기록 분석 도구",
+    "version": "버전",
+    "checkUpdate": "업데이트 확인",
+    "checking": "확인하는 중...",
+    "upToDate": "최신 버전을 사용하고 있습니다",
+    "newVersionAvailable": "새 버전 {version}을 사용할 수 있습니다",
+    "webUpdateHint": "터미널에서 clb update를 실행한 뒤 서비스를 다시 시작하세요.",
+    "updateCheckFailed": "업데이트 확인 실패: {error}",
+    "unknown": "알 수 없음",
+    "privacy": {
+      "title": "개인정보 설정",
+      "analytics": "익명 사용 통계",
+      "analyticsDesc": "활성화하면 버전 번호, OS 버전 등 민감하지 않은 데이터를 수집해 제품 개선에 활용합니다"
+    },
+    "developer": {
+      "title": "개발자 옵션",
+      "debugMode": "디버그 모드",
+      "debugModeDesc": "활성화하면 디버그 패널과 빠른 디버깅 도구가 표시됩니다. 데이터베이스를 확인하거나 테스트 도구를 실행하고, 더 자세한 디버그 로그를 기록할 수 있습니다."
+    }
+  },
+  "aiPreprocess": {
+    "title": "대화 전처리",
+    "description": "AI로 전송하기 전에 대화 기록을 전처리해 토큰을 절약하고 노이즈를 걸러냅니다. 원본 데이터는 변경되지 않습니다.",
+    "dataCleaning": "데이터 정제",
+    "dataCleaningDesc": "공유 링크, 미니프로그램 등 XML 카드 메시지를 자동으로 정리해 유용한 내용만 추출하고 토큰을 크게 절약합니다. 활성화 상태를 유지하는 것을 권장합니다.",
+    "mergeConsecutive": "연속 메시지 병합",
+    "mergeConsecutiveDesc": "짧은 시간 안에 같은 발신자가 보낸 연속 메시지를 병합합니다",
+    "mergeWindow": "병합 시간 범위(초)",
+    "denoise": "스마트 노이즈 제거",
+    "denoiseDesc": "감탄사, 이모티콘, 시스템 자리표시자([이미지] 등) 같은 의미 없는 메시지를 걸러냅니다",
+    "desensitize": "데이터 마스킹",
+    "desensitizeDesc": "규칙에 따라 민감한 정보(전화번호, 이메일, 주민등록번호 등)를 대체합니다",
+    "desensitizeBuiltin": "기본 규칙",
+    "desensitizeResetBuiltin": "기본값으로 복원",
+    "desensitizeCustom": "사용자 지정 규칙",
+    "desensitizeAddCustom": "사용자 지정 규칙 추가",
+    "desensitizeRuleName": "규칙 이름",
+    "desensitizeRulePattern": "정규식 패턴",
+    "desensitizeRuleReplacement": "대체 텍스트",
+    "desensitizeRuleAdd": "추가",
+    "desensitizeRuleInvalidRegex": "올바르지 않은 정규식 문법입니다",
+    "desensitizeRuleNamePlaceholder": "예: 사번",
+    "desensitizeRulePatternPlaceholder": "예: EMP-\\d+",
+    "desensitizeRuleReplacementPlaceholder": "대체 텍스트, 예: [사번]",
+    "anonymizeNames": "닉네임 익명화",
+    "anonymizeNamesDesc": "AI로 전송할 때 실제 닉네임을 ID(U1, U2…)로 대체해 환각을 줄이고 토큰을 절약합니다",
+    "blacklist": "차단 키워드",
+    "blacklistDesc": "다음 키워드가 포함된 메시지는 완전히 제외됩니다",
+    "blacklistPlaceholder": "키워드를 입력하고 Enter를 눌러 추가",
+    "blacklistAdd": "추가"
+  },
+  "desensitize": {
+    "groups": {
+      "credentials": "비밀번호 및 토큰",
+      "credentials_desc": "API 키, Bearer 토큰 같은 인증 정보",
+      "global_contact": "전역 연락처 정보",
+      "global_contact_desc": "이메일 주소 등 지역에 상관없는 연락처 정보",
+      "global_financial": "전역 금융 정보",
+      "global_financial_desc": "신용카드 번호 같은 금융 식별자",
+      "global_network": "전역 네트워크 정보",
+      "global_network_desc": "URL, IP 주소 같은 네트워크 식별자",
+      "region_cn": "중국 본토",
+      "region_cn_desc": "중국 본토의 전화번호, 신분증, 은행카드 규칙",
+      "region_us": "미국",
+      "region_us_desc": "미국의 전화번호 및 신분 정보 규칙",
+      "region_jp": "일본",
+      "region_jp_desc": "일본의 전화번호 및 마이넘버 규칙",
+      "region_kr": "대한민국",
+      "region_kr_desc": "대한민국의 전화번호 및 주민등록번호 규칙"
+    },
+    "rules": {
+      "cn_phone": "중국 휴대폰 번호",
+      "cn_phone_desc": "1로 시작하는 11자리",
+      "cn_id_card": "중국 신분증 번호",
+      "cn_id_card_desc": "18자리, 마지막이 X일 수 있음",
+      "cn_bank_card": "중국 은행카드 번호",
+      "cn_bank_card_desc": "16~19자리 연속 숫자",
+      "cn_landline": "중국 유선전화 번호",
+      "cn_landline_desc": "지역번호 + 번호, 예: 010-12345678",
+      "us_ssn": "미국 사회보장번호(SSN)",
+      "us_ssn_desc": "XXX-XX-XXXX 형식",
+      "us_phone": "미국 전화번호",
+      "us_phone_desc": "+1 (XXX) XXX-XXXX 형식",
+      "us_drivers_license": "미국 운전면허 번호",
+      "us_drivers_license_desc": "문자 1개 + 숫자 7~8자리",
+      "jp_phone": "일본 전화번호",
+      "jp_phone_desc": "0X0-XXXX-XXXX 형식",
+      "jp_my_number": "일본 마이넘버",
+      "jp_my_number_desc": "12자리 숫자(マイナンバー)",
+      "kr_phone": "한국 전화번호",
+      "kr_phone_desc": "01X-XXXX-XXXX 형식",
+      "kr_rrn": "한국 주민등록번호",
+      "kr_rrn_desc": "XXXXXX-XXXXXXX 형식(주민번호)",
+      "api_key_prefix": "API 키 / 토큰(알려진 접두사)",
+      "api_key_prefix_desc": "sk-, ghp_, AKIA 등으로 시작하는 문자열",
+      "bearer_token": "Bearer 토큰",
+      "bearer_token_desc": "Bearer 뒤에 오는 인증 토큰",
+      "email": "이메일 주소",
+      "email_desc": "일반적인 user{'@'}domain.com 형식",
+      "credit_card": "신용카드 번호",
+      "credit_card_desc": "Visa / MasterCard / AmEx 카드 번호",
+      "ipv4": "IPv4 주소",
+      "ipv4_desc": "예: 192.168.1.1",
+      "url": "URL 링크",
+      "url_desc": "http:// 또는 https://로 시작하는 링크"
+    }
+  },
+  "api": {
+    "service": {
+      "title": "API 서비스",
+      "enable": "API 서비스 활성화",
+      "enableDesc": "활성화하면 외부 도구가 HTTP API를 통해 대화 데이터를 조회, 내보내기, 가져오기할 수 있습니다. 로컬(127.0.0.1)에서만 허용됩니다",
+      "portInUseHint": "포트가 사용 중입니다. 아래에서 포트를 변경하거나 해당 포트를 사용 중인 프로그램을 종료하세요"
+    },
+    "status": {
+      "running": "실행 중",
+      "stopped": "중지됨",
+      "starting": "시작하는 중...",
+      "portInUse": "포트 사용 중",
+      "error": "시작 실패"
+    },
+    "port": {
+      "title": "포트 설정",
+      "label": "대기 포트",
+      "desc": "API 서비스가 사용할 로컬 포트입니다(1024~65535)",
+      "edit": "편집",
+      "save": "저장",
+      "cancel": "취소"
+    },
+    "token": {
+      "title": "접근 토큰",
+      "label": "Bearer 토큰",
+      "desc": "모든 API 요청은 Authorization 헤더에 이 토큰을 포함해야 합니다",
+      "noToken": "아직 생성된 토큰이 없습니다. 먼저 서비스를 활성화해 주세요",
+      "regenerate": "재생성"
+    },
+    "dataSources": {
+      "title": "데이터 소스",
+      "desc": "외부 데이터 소스 URL을 설정하세요. ChatLab이 지정한 주기마다 자동으로 대화 데이터를 가져옵니다.",
+      "empty": "데이터 소스가 없습니다",
+      "noSessions": "가져오기 세션이 없습니다. 위의 \"세션 관리\"를 눌러 추가하세요.",
+      "disabled": "일시중지됨",
+      "every": "주기",
+      "minutes": "분",
+      "lastSync": "마지막 동기화",
+      "syncing": "동기화하는 중",
+      "messages": "메시지",
+      "addBtn": "데이터 소스 추가",
+      "form": {
+        "modalTitle": "데이터 소스 추가",
+        "name": "이름",
+        "namePlaceholder": "예: 내 대화 서버",
+        "token": "접근 토큰",
+        "tokenPlaceholder": "원격 API의 Bearer 토큰",
+        "interval": "가져오기 주기(분)",
+        "pullLimit": "한 번에 가져올 메시지 수",
+        "pullLimitPlaceholder": "기본값 1000"
+      },
+      "discovery": {
+        "baseUrl": "서버 URL",
+        "baseUrlPlaceholder": "예: http://127.0.0.1:2333/api/v1",
+        "found": "{count}개 세션을 찾았습니다",
+        "search": "검색",
+        "searchPlaceholder": "세션 이름으로 검색",
+        "selectAll": "전체 선택",
+        "deselectAll": "전체 해제",
+        "selectByType": "세션 유형",
+        "typeAll": "전체",
+        "typePrivate": "개인",
+        "typeGroup": "그룹",
+        "loadMore": "더 보기",
+        "subscribe": "{count}개 세션 구독",
+        "messages": "메시지",
+        "error": "원격 서버에 연결하지 못했습니다",
+        "connectionCheckFailed": "원격 서버에 연결할 수 없습니다. URL과 토큰을 확인해 주세요."
+      },
+      "edit": {
+        "title": "데이터 소스 편집",
+        "save": "저장",
+        "cancel": "취소",
+        "editSource": "설정 편집",
+        "manageSessions": "구독 관리",
+        "subscribed": "구독됨"
+      },
+      "deleteConfirm": {
+        "title": "데이터 소스 삭제",
+        "message": "\"{name}\"을(를) 삭제하시겠습니까? 이 데이터 소스에 속한 모든 가져오기 설정이 제거됩니다. 이미 가져온 로컬 대화는 삭제되지 않습니다."
+      },
+      "deleteSessionConfirm": {
+        "title": "구독 삭제",
+        "message": "\"{name}\"을(를) 삭제하시겠습니까?",
+        "keepData": "구독만 제거",
+        "deleteData": "가져온 대화도 함께 삭제"
+      }
+    },
+    "usage": {
+      "title": "사용 가이드",
+      "desc": "서비스를 활성화하면 외부 도구가 API를 통해 데이터를 조회하거나 대화 기록을 ChatLab으로 전송할 수 있습니다. 모든 요청에는 Bearer 토큰 인증이 필요합니다.",
+      "authHint": "헤더 예시:",
+      "docLink": "전체 API 문서 보기"
+    }
+  },
+  "mcp": {
+    "overview": {
+      "title": "MCP 개요",
+      "description": "MCP를 사용하면 AI 어시스턴트가 대화 기록을 직접 조회할 수 있습니다. 세션 탐색, 키워드 검색, 멤버 통계, 시간 분포 등을 지원합니다.",
+      "toolCount": "도구 {count}개",
+      "resourceCount": "리소스 {count}개",
+      "installHint": "chatlab-cli를 설치한 뒤 아래 설정을 AI 클라이언트에 추가하세요:"
+    },
+    "clients": {
+      "other": "기타"
+    },
+    "config": {
+      "title": "클라이언트 설정",
+      "clientLabel": "MCP 클라이언트",
+      "copy": "복사",
+      "copied": "복사됨",
+      "claudeHint": "이 설정을 ClaudeCode의 MCP 설정에 추가하세요.",
+      "codexHint": "이 TOML 설정을 ~/.codex/config.toml 파일에 추가하세요.",
+      "openclawHint": "이 설정을 프로젝트의 openclaw.json 파일에 추가하세요.",
+      "otherHint": "이 JSON 설정을 MCP 클라이언트 설정 파일에 추가하세요."
+    },
+    "tips": {
+      "title": "팁",
+      "dataDir": "MCP 서버는 ~/.chatlab/에서 대화 데이터를 읽으며, 데스크톱 앱과 동일한 데이터를 공유합니다.",
+      "readOnly": "모든 작업은 읽기 전용이며 대화 기록을 변경하지 않습니다.",
+      "nodeRequired": "npx 및 CLI 모드는 Node.js 20 이상이 필요합니다.",
+      "docs": "자세한 문서는 docs.chatlab.fun에서 확인하세요."
+    }
+  }
+}

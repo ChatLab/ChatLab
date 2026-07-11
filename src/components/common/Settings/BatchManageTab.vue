@@ -290,7 +290,10 @@ function isSelected(id: string): boolean {
 function formatTime(timestamp: number): string {
   return dayjs
     .unix(timestamp)
-    .locale(({ 'zh-CN': 'zh-cn', 'zh-TW': 'zh-tw', 'ja-JP': 'ja' } as Record<string, string>)[locale.value] ?? 'en')
+    .locale(
+      ({ 'zh-CN': 'zh-cn', 'zh-TW': 'zh-tw', 'ja-JP': 'ja', 'ko-KR': 'ko' } as Record<string, string>)[locale.value] ??
+        'en'
+    )
     .fromNow()
 }
 

@@ -39,6 +39,7 @@ const popoverOpen = ref(false)
 const calendarLocale = computed(() => {
   if (locale.value.startsWith('zh')) return 'zh-CN'
   if (locale.value === 'ja-JP') return 'ja-JP'
+  if (locale.value === 'ko-KR') return 'ko-KR'
   return 'en-US'
 })
 

@@ -1,0 +1,85 @@
+{
+  "title": "상호작용 그래프",
+  "subtitle": "전체 관계 파노라마",
+  "nav": "인물별 하위 페이지",
+  "search": "연락처 검색",
+  "empty": "관계 그래프 데이터가 없습니다",
+  "privacy": "프라이버시 모드",
+  "viewMode": {
+    "3d": "3D",
+    "2d": "2D"
+  },
+  "graphScope": {
+    "panorama": "전체 보기",
+    "close": "높은 친밀도",
+    "friends": "친구만"
+  },
+  "timeRange": {
+    "1y": "1년",
+    "2y": "2년",
+    "3y": "3년",
+    "5y": "5년",
+    "all": "전체"
+  },
+  "actions": {
+    "recompute": "다시 계산",
+    "clearSearch": "검색 지우기",
+    "closeDetail": "상세 정보 닫기",
+    "backToPanorama": "전체 보기로 돌아가기",
+    "fitView": "화면에 맞추기",
+    "focusConnections": "관련 관계만 표시"
+  },
+  "stats": {
+    "nodes": "노드",
+    "edges": "연결선",
+    "communities": "관련 그룹",
+    "members": "멤버"
+  },
+  "pool": {
+    "friend": "친구",
+    "manualFriend": "친구 · 수동 지정",
+    "nonFriend": "그룹 지인"
+  },
+  "owner": {
+    "me": "나",
+    "type": "나",
+    "avatarText": "나"
+  },
+  "task": {
+    "running": "상호작용 그래프 계산 중: {current} / {total} 세션",
+    "updating": "관계 데이터가 변경되었을 수 있습니다. 다시 계산하는 중입니다.",
+    "failed": "상호작용 그래프 계산에 실패했습니다",
+    "retry": "재시도"
+  },
+  "searchResults": {
+    "title": "검색 결과",
+    "offCore": "주변 노드 불러오기"
+  },
+  "connections": {
+    "title": "관련 연락처",
+    "empty": "현재 그래프에 직접적인 연결이 없습니다",
+    "connectionScore": "친밀도"
+  },
+  "detail": {
+    "rank": "순위",
+    "score": "점수",
+    "type": "유형",
+    "community": "커뮤니티",
+    "lastInteraction": "마지막 상호작용",
+    "privateMessages": "개인 메시지",
+    "groupMessages": "그룹 메시지",
+    "commonGroups": "공통 그룹",
+    "emptyValue": "없음"
+  },
+  "toast": {
+    "recomputeStarted": "상호작용 그래프 계산을 시작했습니다",
+    "recomputeFailed": "다시 계산에 실패했습니다",
+    "loadFailed": "상호작용 그래프를 불러오지 못했습니다",
+    "neighborhoodFailed": "주변 노드를 불러오지 못했습니다",
+    "threeUnavailable": "3D 렌더링을 사용할 수 없어 2D로 전환했습니다."
+  },
+  "canvas": {
+    "label": "상호작용 은하 그래프",
+    "label3d": "3D 상호작용 은하 그래프"
+  }
+}

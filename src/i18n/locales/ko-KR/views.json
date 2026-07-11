@@ -1,0 +1,200 @@
+{
+  "cluster": {
+    "rankingView": "순위",
+    "memberView": "멤버 보기",
+    "matrixView": "매트릭스 보기",
+    "modelSettings": "모델 설정",
+    "lookAhead": "선행 범위",
+    "lookAheadDesc": "발신자별로 미리 살펴볼 메시지 수",
+    "decaySeconds": "시간 감쇠(초)",
+    "decaySecondsDesc": "값이 클수록 시간이 지난 메시지의 영향력이 커집니다",
+    "applySettings": "적용",
+    "noData": "데이터 없음",
+    "selectMember": "멤버 선택",
+    "selectMemberHint": "왼쪽에서 멤버를 선택하세요",
+    "msgCount": "메시지",
+    "relationCount": "관계 수",
+    "relationsByIntimacy": "친밀도 순위",
+    "noRelations": "관계 없음",
+    "intimacy": "친밀도",
+    "interactionRanking": "상호작용 순위",
+    "score": "친밀도",
+    "coOccurrence": "동시 출현",
+    "times": "회",
+    "totalMembers": "전체 멤버",
+    "totalMessages": "전체 메시지",
+    "involvedMembers": "관련 멤버",
+    "edgeCount": "관계 수"
+  },
+  "message": {
+    "typeDistribution": "메시지 유형 분포",
+    "hourlyDistribution": "시간대별 분포",
+    "weekdayDistribution": "요일별 분포",
+    "monthlyDistribution": "월별 분포",
+    "yearlyDistribution": "연도별 분포",
+    "timeHeatmap": "시간 히트맵",
+    "heatmapHint": "대화 시간 패턴을 보여줍니다",
+    "calendarHeatmap": "메시지 캘린더",
+    "calendarHint": "일별 메시지 분포",
+    "calendarTooltipMessages": "메시지",
+    "lengthDetailTitle": "짧은 메시지(1~25자)",
+    "lengthDetailHint": "글자 수 기준",
+    "lengthGroupedTitle": "길이 구간별 분포",
+    "lengthGroupedHint": "5자 단위로 묶음",
+    "noTextMessages": "텍스트 메시지가 없습니다",
+    "noData": "데이터 없음",
+    "profile": {
+      "avgLengthUnit": "메시지당 {count}자",
+      "textExpression": "텍스트 표현력",
+      "textExpressionDesc": "가장 긴 메시지 {count}자",
+      "mediaRichness": "미디어 활용도",
+      "shortMaster": "단문 장인",
+      "shortMasterDesc": "5자 이하 메시지 {count}개",
+      "essayLover": "장문 애호가",
+      "essayLoverDesc": "{threshold}자 이상 메시지",
+      "typeDistribution": "메시지 유형",
+      "heroLine1Prefix": "지금까지 총",
+      "heroLine1Suffix": "개의 메시지를 주고받았어요"
+    },
+    "typeCard": {
+      "watermark": "유형 리포트",
+      "nonTextPrefix": "텍스트 외에도",
+      "nonTextImage": "개의 이미지",
+      "nonTextEmoji": "개의 이모티콘",
+      "nonTextVoice": "개의 음성 메시지",
+      "nonTextVideo": "개의 동영상",
+      "nonTextFile": "개의 파일",
+      "nonTextLink": "개의 링크",
+      "unitImage": "이미지",
+      "unitEmoji": "이모티콘",
+      "unitVoice": "음성 메시지",
+      "unitVideo": "동영상",
+      "unitFile": "파일",
+      "unitLink": "링크"
+    },
+    "timeCard": {
+      "hourlyDistribution": "24시간 분포",
+      "watermark": "시간 리포트",
+      "heroDaysIn": "일 동안,",
+      "heroDaysActive": "일 활동",
+      "heroAvgPrefix": "평균",
+      "heroAvgSuffix": "개/일",
+      "personalityNightOwl": "올빼미형",
+      "personalityEarlyBird": "얼리버드형",
+      "personalityLunchChat": "점심 수다형",
+      "personalityEveningChat": "저녁 대화형",
+      "personalityDaytime": "낮 활동형",
+      "personalityEveryday": "항상 접속형",
+      "personalityWeekend": "주말 활동형",
+      "personalityWeekday": "평일 활동형",
+      "peakRecord": "최고 기록",
+      "peakRecordDesc": "하루 최대 {count}개",
+      "topHoursLabel": "가장 활발한 시간대",
+      "peakWeekdayLabel": "가장 활발한 요일",
+      "weekendRatio": "주말 비율",
+      "weekendRatioDesc": "주말 메시지 비율"
+    },
+    "timeAnalysis": {
+      "memberTrendTitle": "메시지 추이",
+      "memberTrendHint": "멤버별 월간 메시지량"
+    },
+    "typeAnalysis": {
+      "textDepthTitle": "텍스트 심층 분석",
+      "textTotal": "텍스트 메시지",
+      "avgLength": "평균 글자 수",
+      "medianLength": "중앙값 길이",
+      "maxLength": "최대 길이",
+      "percentiles": "길이 백분위수",
+      "shortMessages": "짧은 메시지(5자 이하)",
+      "essayMessages": "긴 메시지(30자 이상)"
+    }
+  },
+  "interaction": {
+    "layout": "레이아웃",
+    "circular": "원형",
+    "force": "포스 다이어그램",
+    "directed": "방향 표시",
+    "reset": "초기화",
+    "graphHint": "멤버 {nodes}명, 상호작용 {links}건",
+    "noInteraction": "멘션 상호작용 데이터가 없습니다"
+  },
+  "relationship": {
+    "empty": {
+      "title": "관계 데이터 없음",
+      "description": "선택한 기간에 세션이 없습니다."
+    },
+    "monthly": {
+      "title": "월별 내역",
+      "totalSessionsPrefix": "총",
+      "totalSessionsSuffix": "세션"
+    },
+    "trend": {
+      "title": "대화 주도권 추이",
+      "hint": "파란 선은 {name}의 월별 대화 시작 비율을 나타내며, 50% 선은 균형 기준선입니다"
+    },
+    "hero": {
+      "totalSessionsPrefix": "총",
+      "totalSessionsSuffix": "번 대화를 나눴어요",
+      "initiativePrefix": "",
+      "initiativeByPrefix": "의 대화 시작 메시지 비율은",
+      "initiativeBySuffix": "이 시작했어요",
+      "initiateTimes": "번 시작"
+    },
+    "initiator": "대화 시작",
+    "closer": "대화 마무리",
+    "closerTitle": "대화 마무리형",
+    "closerHint": "화제가 끝날 때 마지막 메시지를 보내는 사람을 보여줍니다.",
+    "noActivity": "이번 달 활동 없음",
+    "watermarkReport": "관계 리포트",
+    "monthFormat": "{year}년 {month}월",
+    "monthShortFormat": "{month}월",
+    "iceBreaker": {
+      "title": "침묵 깨기",
+      "hint": "24시간 이상 조용했다가 대화를 다시 시작한 횟수"
+    },
+    "responseLatency": {
+      "title": "응답 속도",
+      "hint": "상대방 메시지에 답장하기까지 걸린 평균 시간",
+      "seconds": "{n}초",
+      "minutesSeconds": "{m}분 {s}초",
+      "hours": "{n}시간",
+      "hoursMinutes": "{h}시간 {m}분"
+    },
+    "perseverance": {
+      "title": "끈기",
+      "hintWithThreshold": "상대방이 {threshold} 동안 답장하지 않았을 때 다시 메시지를 보낸 횟수",
+      "thresholdMinutes": "{n}분"
+    },
+    "labels": {
+      "wellMatched": "환상의 케미",
+      "missingYou": "{name}이(가) 당신을 그리워해요",
+      "monologue": "{name}의 독백",
+      "peacefulSilence": "평화로운 침묵",
+      "fleetingThoughts": "스쳐가는 생각들"
+    }
+  },
+  "timeline": {
+    "title": "타임라인 보기",
+    "description": "메시지 시간 분포, 활동 기간 추이 등 다양한 시각화를 제공합니다"
+  },
+  "charts": {
+    "rankListPro": {
+      "fullRanking": "전체 순위",
+      "memberCount": "멤버 {count}명"
+    },
+    "rankList": {
+      "unit": ""
+    },
+    "nicknameHistory": {
+      "periodToNow": "{start} ~ 현재",
+      "periodRange": "{start} ~ {end}",
+      "current": "현재",
+      "empty": "닉네임 변경 이력이 없습니다"
+    },
+    "listPro": {
+      "countTemplate": "{count}개 항목",
+      "fullRanking": "전체 순위",
+      "empty": "데이터 없음"
+    }
+  }
+}

@@ -1,0 +1,101 @@
+{
+  "title": "인맥",
+  "subtitle": "가져온 개인 대화 {count}개",
+  "disabled": "이 기간의 현재 활성 개인 대화 수는 {count}개입니다. 그룹 대화를 1개 이상 가져오거나 활성 개인 대화가 5개 이상이 되면 인맥 기능이 활성화됩니다.",
+  "empty": "일치하는 연락처가 없습니다",
+  "emptyValue": "없음",
+  "search": "연락처 검색",
+  "score": "점수 {value}",
+  "timeRange": {
+    "1y": "1년",
+    "2y": "2년",
+    "3y": "3년",
+    "5y": "5년",
+    "all": "전체"
+  },
+  "stats": {
+    "total": "연락처",
+    "friends": "친구",
+    "nonFriends": "그룹 지인"
+  },
+  "filters": {
+    "allPools": "모든 출처",
+    "friends": "친구",
+    "nonFriends": "그룹 지인"
+  },
+  "tabs": {
+    "friends": "친구",
+    "groupContacts": "그룹 지인"
+  },
+  "pool": {
+    "friend": "친구",
+    "manualFriend": "친구 · 수동 지정",
+    "nonFriend": "그룹 지인"
+  },
+  "group": {
+    "pinned": "고정된 연락처",
+    "friends": "친구",
+    "group_contacts": "그룹 지인"
+  },
+  "table": {
+    "contact": "연락처",
+    "status": "유형"
+  },
+  "actions": {
+    "recompute": "다시 계산",
+    "markFriend": "친구로 표시",
+    "unmarkFriend": "친구 표시 해제",
+    "clearSearch": "검색 지우기",
+    "clearSelection": "선택 해제",
+    "openSourceSession": "대화로 이동",
+    "viewSourceRecords": "대화 기록 보기",
+    "viewDetail": "{name} 상세 정보 보기"
+  },
+  "detail": {
+    "title": "연락처 상세 정보",
+    "score": "점수",
+    "scoreHelp": "점수는 연락처 정렬에 사용됩니다. 점수가 높을수록 상호작용 신호가 강함을 의미합니다.",
+    "lastInteraction": "마지막 상호작용",
+    "sources": "출처 대화",
+    "sourceType": {
+      "private": "개인",
+      "group": "그룹"
+    },
+    "aliases": "별칭",
+    "signals": "상호작용 신호",
+    "emptyTitle": "연락처를 선택하세요",
+    "emptyDescription": "왼쪽에서 연락처를 선택하면 상호작용 지표와 출처 대화를 볼 수 있습니다."
+  },
+  "metrics": {
+    "privateMessages": "개인 메시지 {count}개",
+    "privateMessagesLabel": "개인 메시지",
+    "activeMonths": "활동 개월 수",
+    "commonGroups": "공통 그룹",
+    "lastInteractionShort": "최근",
+    "groups": "공통 그룹 {count}개",
+    "coOccurrence": "동시 출현",
+    "replies": "답장",
+    "groupSignals": "동시 출현 {count}회"
+  },
+  "stale": {
+    "title": "연락처 정보가 오래되었을 수 있습니다",
+    "message": "대화 데이터가 변경되었습니다. 백그라운드에서 연락처를 업데이트하는 중입니다.",
+    "inline": "연락처 정보가 오래되었을 수 있습니다.",
+    "later": "나중에"
+  },
+  "task": {
+    "running": "연락처 계산 중: {current} / {total} 세션",
+    "updating": "관계 데이터가 변경되었을 수 있습니다. 다시 계산하는 중입니다.",
+    "failed": "연락처 계산에 실패했습니다",
+    "retry": "재시도"
+  },
+  "toast": {
+    "recomputed": "연락처를 다시 계산했습니다",
+    "recomputeStarted": "백그라운드에서 연락처 계산을 시작했습니다",
+    "recomputeFailed": "다시 계산에 실패했습니다",
+    "markFriendSucceeded": "친구로 표시했습니다",
+    "markFriendFailed": "친구 표시에 실패했습니다",
+    "unmarkFriendSucceeded": "친구 표시를 해제했습니다",
+    "unmarkFriendFailed": "친구 표시 해제에 실패했습니다"
+  }
+}

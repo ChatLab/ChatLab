@@ -1,7 +1,7 @@
 /**
  * 支持的语言类型
  */
-export type LocaleType = 'zh-CN' | 'en-US' | 'zh-TW' | 'ja-JP'
+export type LocaleType = 'zh-CN' | 'en-US' | 'zh-TW' | 'ja-JP' | 'ko-KR'
 
 /**
  * 语言配置项
@@ -20,6 +20,7 @@ export const availableLocales: LocaleOption[] = [
   { code: 'zh-CN', name: 'Chinese (Simplified)', nativeName: '简体中文' },
   { code: 'zh-TW', name: 'Chinese (Traditional)', nativeName: '繁體中文' },
   { code: 'ja-JP', name: 'Japanese', nativeName: '日本語' },
+  { code: 'ko-KR', name: 'Korean', nativeName: '한국어' },
 ]
 
 /**
@@ -53,6 +54,9 @@ export function detectSystemLocale(): LocaleType {
   if (systemLocale.startsWith('ja')) {
     return 'ja-JP'
   }
+  if (systemLocale.startsWith('ko')) {
+    return 'ko-KR'
+  }
   return 'en-US'
 }
 
@@ -74,6 +78,7 @@ const dayjsLocaleMap: Record<LocaleType, string> = {
   'zh-TW': 'zh-tw',
   'en-US': 'en',
   'ja-JP': 'ja',
+  'ko-KR': 'ko',
 }
 
 export function getDayjsLocale(locale: LocaleType): string {

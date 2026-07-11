@@ -32,7 +32,7 @@ const emit = defineEmits<{
   wordClick: [word: string]
 }>()
 
-const locale = computed(() => settingsStore.locale as 'zh-CN' | 'en-US' | 'zh-TW' | 'ja-JP')
+const locale = computed(() => settingsStore.locale as 'zh-CN' | 'en-US' | 'zh-TW' | 'ja-JP' | 'ko-KR')
 
 const sharedWords = ref<SharedWord[]>([])
 const memberList = ref<MemberWithStats[]>([])

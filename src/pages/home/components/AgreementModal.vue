@@ -8,6 +8,7 @@ import agreementZh from '@/assets/docs/agreement_zh.md?raw'
 import agreementEn from '@/assets/docs/agreement_en.md?raw'
 import agreementZhTw from '@/assets/docs/agreement_zh_tw.md?raw'
 import agreementJa from '@/assets/docs/agreement_ja.md?raw'
+import agreementKo from '@/assets/docs/agreement_ko.md?raw'
 
 const { t } = useI18n()
 const settingsStore = useSettingsStore()
@@ -39,6 +40,7 @@ const agreementMap: Record<string, string> = {
   'zh-TW': agreementZhTw,
   'en-US': agreementEn,
   'ja-JP': agreementJa,
+  'ko-KR': agreementKo,
 }
 
 const agreementText = computed(() => {

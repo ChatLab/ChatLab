@@ -1,0 +1,73 @@
+{
+  "drawer": {
+    "title": "대화 기록 뷰어",
+    "loadedCount": "메시지 {count}개 불러옴"
+  },
+  "messageList": {
+    "loading": "불러오는 중...",
+    "noMessages": "메시지가 없습니다",
+    "tryAdjustFilter": "필터 조건을 조정해 보세요",
+    "loadingMore": "더 불러오는 중...",
+    "scrollUpForMore": "↑ 위로 스크롤하면 더 불러옵니다",
+    "scrollDownForMore": "↓ 아래로 스크롤하면 더 불러옵니다"
+  },
+  "filter": {
+    "messageId": "메시지 ID",
+    "memberPlaceholder": "멤버",
+    "keywordsPlaceholder": "키워드, 쉼표로 구분, Enter로 검색",
+    "startDate": "시작일",
+    "endDate": "종료일",
+    "reset": "초기화",
+    "filter": "필터"
+  },
+  "timeline": {
+    "timeline": "요약",
+    "noSessions": "요약이 없습니다",
+    "generateSummary": "요약 생성",
+    "tooFewMessages": "메시지 부족"
+  },
+  "summaryFailed": "요약 생성 실패",
+  "summaryUnknownError": "알 수 없는 오류",
+  "batchSummary": {
+    "title": "일괄 요약 생성",
+    "trigger": "일괄 처리",
+    "byRange": "범위로 선택",
+    "byTime": "시간으로 선택",
+    "selectRange": "범위 선택",
+    "rangeStart": "가장 이전",
+    "rangeInfo": "약",
+    "sessionsUnit": "개 세션",
+    "rangeEnd": "가장 최근",
+    "timeRange": "기간 선택",
+    "today": "오늘",
+    "yesterday": "어제",
+    "week": "최근 7일",
+    "month": "최근 30일",
+    "custom": "사용자 지정",
+    "found": "검색됨",
+    "hasSummary": "이미 요약됨",
+    "tooFewMessages": "메시지 부족",
+    "pending": "대기 중:",
+    "unit": "",
+    "noPending": "생성할 세션이 없습니다",
+    "noSessions": "해당 기간에 세션이 없습니다",
+    "checking": "확인하는 중...",
+    "loading": "불러오는 중...",
+    "progress": "진행률",
+    "session": "세션",
+    "statusSuccess": "성공",
+    "statusSkipped": "건너뜀",
+    "statusFailed": "실패",
+    "success": "성공:",
+    "failed": "실패:",
+    "skipped": "건너뜀:",
+    "start": "시작",
+    "stop": "중지"
+  },
+  "messageItem": {
+    "viewContext": "맥락 보기",
+    "replyTo": "답장 대상",
+    "expandMessyContent": "전체 내용 보기",
+    "collapseMessyContent": "접기"
+  }
+}

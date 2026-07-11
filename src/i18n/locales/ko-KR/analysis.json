@@ -1,0 +1,147 @@
+{
+  "groupChat": {
+    "loading": "분석 데이터를 불러오는 중...",
+    "loadError": "세션 데이터를 불러올 수 없습니다"
+  },
+  "privateChat": {
+    "loading": "분석 데이터를 불러오는 중...",
+    "loadError": "세션 데이터를 불러올 수 없습니다"
+  },
+  "tabs": {
+    "overview": "개요",
+    "view": "인사이트",
+    "aiChat": "AI 대화",
+    "memory": "메모리",
+    "lab": "실험실",
+    "debug": "디버그"
+  },
+  "debug": {
+    "sqlTables": "SQL 테이블",
+    "basicTools": "기본 도구",
+    "tableBrowser": {
+      "chatDb": "대화 DB",
+      "aiDb": "AI 대화 DB",
+      "rowCount": "{count}개 행",
+      "page": "{current} / {total} 페이지",
+      "refresh": "새로고침",
+      "noData": "데이터 없음",
+      "editRow": "편집",
+      "deleteRow": "행 삭제",
+      "confirmDelete": "이 행을 삭제하시겠습니까?",
+      "allConversations": "모든 대화",
+      "copyCell": "선택 항목 복사",
+      "copyRow": "행 복사(JSON)",
+      "clearDebugContext": "디버그 컨텍스트 지우기",
+      "confirmClearDebug": "모든 메시지의 debug_context를 지우시겠습니까? 되돌릴 수 없습니다."
+    }
+  },
+  "memory": {
+    "comingSoon": "메모리 기능은 준비 중입니다. 조금만 기다려 주세요"
+  },
+  "tooltip": {
+    "viewChatRecord": "대화 기록 보기",
+    "semanticIndex": "시맨틱 색인",
+    "incrementalImport": "추가로 가져오기",
+    "memberManagement": "멤버 관리",
+    "more": "더 보기"
+  },
+  "incremental": {
+    "title": "대화 기록 추가",
+    "description": "\"{name}\"에 추가할 대화 기록 파일을 선택하세요. 중복된 내용은 자동으로 제거됩니다.",
+    "dropHint": "클릭하거나 파일을 여기로 끌어다 놓으세요",
+    "analyzing": "파일을 분석하는 중...",
+    "totalInFile": "파일 내 전체",
+    "newMessages": "새 메시지",
+    "duplicates": "중복",
+    "noNewMessages": "새 메시지가 없습니다. 이미 모두 존재하는 메시지입니다",
+    "importing": "가져오는 중...",
+    "import": "메시지 {count}개 가져오기",
+    "success": "가져오기 성공",
+    "successDetail": "새 메시지 {count}개를 성공적으로 추가했습니다",
+    "failed": "가져오기 실패"
+  },
+  "subTabs": {
+    "view": {
+      "typeAnalysis": "유형",
+      "timeAnalysis": "시간",
+      "topic": "주제",
+      "groupRelationships": "관계",
+      "ranking": "순위",
+      "relationship": "관계",
+      "languagePreference": "언어 취향"
+    },
+    "quotes": {
+      "hotRepeat": "인기 도배",
+      "catchphrase": "말버릇",
+      "keywordAnalysis": "키워드 분석"
+    },
+    "groupRelationships": {
+      "mentionGraph": "멘션 그래프",
+      "mentionRanking": "멘션 순위",
+      "proximity": "친밀도"
+    },
+    "member": {
+      "nicknameHistory": "닉네임 변경 이력"
+    }
+  },
+  "overview": {
+    "messageTypeDistribution": "메시지 유형 분포",
+    "memberDistribution": "멤버 활동 분포",
+    "others": "기타",
+    "memberComparison": "멤버 비교",
+    "statCards": {
+      "dailyAvgMessages": "일일 평균 메시지",
+      "messagesCount": "{count}개",
+      "daysCount": "총 {count}일",
+      "imageMessages": "이미지 메시지",
+      "imagesCount": "이미지 {count}개",
+      "peakHour": "가장 활발한 시간대:",
+      "mostActiveWeekday": "가장 활발한 요일",
+      "messagesOnDay": "메시지 {count}개",
+      "weekendActivity": "주말 활동",
+      "weekendRatio": "주말 메시지 비율",
+      "mostActiveDate": "가장 활발한 날짜",
+      "consecutiveStreak": "연속 기록",
+      "daysStreak": "{count}일 연속",
+      "longestStreak": "최장 연속 활동",
+      "activityRate": "활동률",
+      "activeDaysRatio": "메시지가 있는 일수",
+      "lateNightChat": "심야 대화",
+      "lateNightRatio": "전체 메시지의 {ratio}%"
+    },
+    "dailyTrend": {
+      "title": "일별 메시지 추이"
+    },
+    "identity": {
+      "privateChat": "개인",
+      "groupChat": "그룹",
+      "totalMessages": "총 메시지",
+      "durationDays": "기간(일)",
+      "activeDays": "활동 일수",
+      "dailyAvgMessages": "일 평균"
+    },
+    "tools": "빠른 도구"
+  },
+  "toolsPanel": {
+    "miniMode": "미니 모드",
+    "exitMini": "미니 모드 종료"
+  },
+  "messageExport": {
+    "title": "기록 내보내기",
+    "selectOutputDir": "저장 위치 선택",
+    "format": "형식"
+  },
+  "filter": {
+    "timeRange": "기간",
+    "allTime": "전체 기간",
+    "today": "오늘",
+    "lastWeek": "최근 7일",
+    "lastMonth": "지난달",
+    "last3Months": "최근 3개월",
+    "lastYear": "지난 1년",
+    "customTime": "사용자 지정",
+    "exportSuccess": "내보내기 성공",
+    "exportFailed": "내보내기 실패",
+    "exportPreparing": "내보내기를 준비하는 중..."
+  }
+}

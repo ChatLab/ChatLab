@@ -1,0 +1,136 @@
+{
+  "confirm": "확인",
+  "cancel": "취소",
+  "delete": "삭제",
+  "save": "저장",
+  "edit": "편집",
+  "add": "추가",
+  "capture": "캡처",
+  "close": "닫기",
+  "back": "뒤로",
+  "done": "완료",
+  "retry": "재시도",
+  "initFailed": "앱 초기화에 실패했습니다",
+  "loading": "불러오는 중...",
+  "initializing": "초기화하는 중...",
+  "noResults": "검색 결과가 없습니다",
+  "export": "내보내기",
+  "exportSuccess": "내보내기 성공",
+  "exportFailed": "내보내기 실패",
+  "generating": "생성하는 중...",
+  "regenerate": "다시 생성",
+  "openFolder": "폴더 열기",
+  "viewChatRecords": "대화 기록 보기",
+  "errorNoAIConfig": "먼저 설정에서 AI 서비스를 구성해 주세요",
+  "error": {
+    "unknown": "알 수 없는 오류"
+  },
+  "messageType": {
+    "text": "텍스트",
+    "image": "이미지",
+    "voice": "음성",
+    "video": "동영상",
+    "file": "파일",
+    "emoji": "이모티콘",
+    "link": "링크",
+    "location": "위치",
+    "redPacket": "홍바오",
+    "transfer": "송금",
+    "poke": "콕 찌르기",
+    "call": "통화",
+    "share": "공유",
+    "reply": "답장",
+    "forward": "전달",
+    "contact": "연락처",
+    "system": "시스템",
+    "recall": "메시지 삭제됨",
+    "other": "기타",
+    "unknown": "알 수 없음"
+  },
+  "weekday": {
+    "mon": "월",
+    "tue": "화",
+    "wed": "수",
+    "thu": "목",
+    "fri": "금",
+    "sat": "토",
+    "sun": "일"
+  },
+  "month": {
+    "jan": "1월",
+    "feb": "2월",
+    "mar": "3월",
+    "apr": "4월",
+    "may": "5월",
+    "jun": "6월",
+    "jul": "7월",
+    "aug": "8월",
+    "sep": "9월",
+    "oct": "10월",
+    "nov": "11월",
+    "dec": "12월"
+  },
+  "languageSelect": {
+    "title": "언어 선택",
+    "subtitle": "사용할 인터페이스 언어를 선택하세요",
+    "next": "다음"
+  },
+  "agreement": {
+    "title": "개인정보 처리방침 및 이용약관",
+    "subtitle": "사용 전 꼼꼼히 읽어주세요",
+    "disagree": "동의하지 않음",
+    "agree": "읽었으며 동의합니다",
+    "updateNotice": "약관에 중요한 변경 사항이 있습니다. 다시 읽고 확인해 주세요."
+  },
+  "datePicker": {
+    "selectDate": "날짜 선택",
+    "clearDate": "지우기"
+  },
+  "timeSelect": {
+    "mode": {
+      "recent": "최근",
+      "quarter": "분기",
+      "year": "연도",
+      "custom": "사용자 지정"
+    },
+    "recent": {
+      "oneYear": "최근 1년",
+      "twoYears": "최근 2년",
+      "fiveYears": "최근 5년",
+      "all": "전체"
+    },
+    "display": {
+      "recent365": "최근 1년",
+      "recent730": "최근 2년",
+      "recent1825": "최근 5년"
+    },
+    "quarter": {
+      "label": "{year}년 {quarter}분기"
+    },
+    "year": {
+      "label": "{year}년"
+    }
+  },
+  "userSelect": {
+    "allMembers": "전체 멤버"
+  },
+  "memberSearchSelect": {
+    "placeholder": "멤버 검색",
+    "noSecondary": "다른 이름 없음"
+  },
+  "login": {
+    "description": "이 서비스는 인증이 필요합니다. 계속하려면 API 토큰을 입력하세요.",
+    "tokenLabel": "API 토큰",
+    "tokenPlaceholder": "clb_xxxxxxxx",
+    "submit": "로그인",
+    "hint": "시작 로그, config.toml 또는 --token 플래그에서 토큰을 확인할 수 있습니다",
+    "errorEmpty": "토큰을 입력해 주세요",
+    "errorInvalid": "토큰이 올바르지 않습니다. 확인 후 다시 시도해 주세요",
+    "errorNetwork": "네트워크 연결에 실패했습니다",
+    "rememberDevice": "이 기기 기억하기",
+    "rememberWarning": "신뢰할 수 있는 기기에서만 선택하세요. 토큰이 브라우저에 저장됩니다",
+    "logoutTitle": "계정",
+    "logoutDesc": "현재 세션에서 로그아웃",
+    "logout": "로그아웃"
+  }
+}

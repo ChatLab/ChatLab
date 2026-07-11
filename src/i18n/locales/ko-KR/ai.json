@@ -1,0 +1,454 @@
+{
+  "tab": {
+    "chatExplorer": "대화 탐색기",
+    "sqlLab": "SQL 랩"
+  },
+  "chat": {
+    "scrollToBottom": "맨 아래로",
+    "input": {
+      "placeholderWithSlash": "질문을 입력하거나 /로 스킬, {'@'}로 멤버를 선택하세요...",
+      "placeholderWithActiveSkill": "/{name} 선택됨. 구체적인 질문을 입력하세요...",
+      "slashHint": "/를 입력해 스킬 선택",
+      "useSkill": "스킬 선택",
+      "mentionHint": "{'@'}를 입력해 멤버 선택",
+      "mentionEmpty": "일치하는 멤버가 없습니다",
+      "mentionEmptyHint": "닉네임, 별칭, 계정으로 검색하세요",
+      "slashEmpty": "일치하는 스킬이 없습니다",
+      "slashEmptyHint": "스킬 관리자를 열어 기본 제공 스킬을 가져오거나 직접 만들어 보세요",
+      "manageSkills": "스킬 관리",
+      "previewTagsLabel": "태그",
+      "previewToolsLabel": "도구",
+      "previewUnavailable": "미리 볼 수 있는 스킬 프롬프트가 없습니다",
+      "quickAsk": "빠른 질문",
+      "editQuickAsk": "빠른 질문 편집",
+      "send": "보내기",
+      "needMoreThanSkill": "스킬만 선택해서는 부족합니다. 구체적인 질문을 입력하세요.",
+      "needQuestion": "보내기 전에 질문을 입력하세요"
+    },
+    "fork": {
+      "success": "대화를 분기했습니다",
+      "failed": "대화 분기에 실패했습니다"
+    },
+    "backgroundTask": {
+      "runningShort": "실행 중",
+      "runningTitle": "AI가 아직 생각하는 중입니다",
+      "runningDescription": "이전 질문이 아직 처리 중입니다. 완료를 기다리거나 먼저 중지해 주세요.",
+      "blockedAction": "현재 답변을 생성하는 중입니다. 완료를 기다리거나 먼저 중지해 주세요.",
+      "return": "돌아가기"
+    },
+    "message": {
+      "copy": {
+        "tooltip": "마크다운 복사",
+        "success": "마크다운을 클립보드에 복사했습니다",
+        "failed": "마크다운 복사에 실패했습니다"
+      },
+      "process": {
+        "label": "처리",
+        "processing": "처리하는 중",
+        "processed": "처리됨"
+      },
+      "toolResult": {
+        "view": "결과 보기",
+        "title": "AI에 전달된 도구 실행 결과",
+        "copy": "결과 복사",
+        "copySuccess": "도구 실행 결과를 복사했습니다",
+        "copyFailed": "도구 실행 결과 복사에 실패했습니다",
+        "displayTruncated": "저장된 것은 축약된 결과입니다. AI는 원래 턴에서 더 많은 내용을 봤을 수 있습니다."
+      },
+      "edit": {
+        "tooltip": "편집 후 다시 생성",
+        "submit": "보내기",
+        "overwriteSubsequent": "이후의 모든 메시지 덮어쓰기"
+      },
+      "fork": {
+        "tooltip": "여기서부터 대화 분기"
+      },
+      "chart": {
+        "expand": "차트 크게 보기",
+        "empty": "데이터 없음",
+        "rows": "{count}행",
+        "truncated": "일부 생략됨"
+      },
+      "generating": "응답을 생성하는 중...",
+      "summary": {
+        "label": "맥락 요약",
+        "info": "컨텍스트 공간을 절약하기 위해 이전 대화가 요약으로 압축되었습니다"
+      },
+      "plan": {
+        "label": "분석 계획",
+        "evidenceNeeded": "필요한 근거",
+        "suggestedTools": "제안 도구",
+        "successCriteria": "성공 기준",
+        "noTools": "없음"
+      },
+      "think": {
+        "labels": {
+          "think": "생각 중",
+          "analysis": "분석",
+          "reasoning": "추론",
+          "reflection": "성찰",
+          "planValidation": "계획 생성",
+          "other": "생각 중 ({tag})"
+        },
+        "loading": "생각하는 중",
+        "duration": "{seconds}초 소요"
+      },
+      "toolParams": {
+        "keywords": "키워드",
+        "time": "시간",
+        "getMessages": "메시지 {count}개 가져오기",
+        "limit": "최대 {count}개",
+        "contextWithMessages": "메시지 {msgCount}개 주변의 컨텍스트 {contextSize}개",
+        "context": "컨텍스트 메시지 {size}개",
+        "topMembers": "상위 멤버 {count}명",
+        "search": "검색",
+        "getMemberList": "멤버 목록 가져오기",
+        "memberId": "멤버 ID",
+        "timeStats": {
+          "hourly": "시간대별",
+          "weekday": "요일별",
+          "daily": "일별"
+        }
+      }
+    },
+    "thinking": {
+      "processingResult": "결과 처리하는 중",
+      "called": "호출됨:",
+      "analyzing": "질문을 분석하는 중...",
+      "compressing": "컨텍스트를 압축하는 중..."
+    },
+    "statusBar": {
+      "model": {
+        "notConfigured": "AI가 설정되지 않음"
+      },
+      "agent": {
+        "label": "에이전트",
+        "contextTokens": "컨텍스트",
+        "phase": {
+          "compressing": "압축 중",
+          "preparing": "준비 중",
+          "thinking": "생각 중",
+          "tool_running": "도구 실행 중",
+          "responding": "응답 중",
+          "completed": "완료",
+          "aborted": "중지됨",
+          "error": "오류"
+        },
+        "phaseShort": {
+          "compressing": "압축",
+          "preparing": "준비",
+          "thinking": "생각",
+          "tool_running": "도구",
+          "responding": "응답",
+          "completed": "완료",
+          "aborted": "중지",
+          "error": "오류"
+        }
+      },
+      "thinking": {
+        "title": "생각 수준",
+        "tooltip": "이 모델의 사고 강도를 설정합니다",
+        "level": {
+          "default": "기본값",
+          "off": "끄기",
+          "minimal": "최소",
+          "low": "낮음",
+          "medium": "중간",
+          "high": "높음",
+          "xhigh": "최대",
+          "auto": "자동"
+        }
+      },
+      "tokenUsageTitle": "총 토큰 사용량",
+      "cacheHit": "캐시 적중",
+      "export": {
+        "label": "내보내기",
+        "title": "현재 대화 내보내기"
+      },
+      "log": {
+        "label": "로그",
+        "title": "현재 AI 로그 파일 열기",
+        "openFailed": "로그 열기에 실패했습니다",
+        "openFailedDesc": "잠시 후 다시 시도해 주세요"
+      }
+    },
+    "conversation": {
+      "newChat": "새 대화",
+      "newConversation": "새 대화",
+      "empty": "아직 기록이 없습니다",
+      "startNew": "새 대화 시작",
+      "titlePlaceholder": "제목 입력...",
+      "group": {
+        "last7Days": "최근 7일",
+        "last30Days": "최근 30일"
+      },
+      "rename": "이름 변경",
+      "copyId": "ID 복사",
+      "delete": "삭제",
+      "export": {
+        "createdAt": "생성일",
+        "user": "사용자",
+        "assistant": "AI 어시스턴트",
+        "noMessages": "내보낼 메시지가 없습니다"
+      }
+    },
+    "error": {
+      "title": "처리 실패",
+      "detail": "오류 세부 정보",
+      "viewDetail": "세부 정보 보기",
+      "requestUrl": "요청 URL",
+      "statusCode": "상태 코드",
+      "responseBody": "응답 본문",
+      "responseHeaders": "응답 헤더",
+      "requestBody": "요청 본문",
+      "name": "오류 이름",
+      "message": "오류 메시지",
+      "stack": "스택 트레이스",
+      "cause": "오류 원인",
+      "provider": "제공자",
+      "copyAll": "모두 복사",
+      "copied": "클립보드에 복사했습니다",
+      "unknown": "알 수 없는 오류"
+    },
+    "dataSource": {
+      "title": "데이터 소스",
+      "keywords": "키워드:",
+      "empty": "데이터 없음",
+      "emptyHint": "질문을 하면 관련 기록이 여기에 표시됩니다",
+      "totalRecords": "{count}건",
+      "loadMore": "더 보기"
+    },
+    "evidence": {
+      "title": "근거",
+      "query": "질문",
+      "criteria": "기준",
+      "empty": "확실한 근거를 찾지 못했습니다",
+      "totalSources": "출처 {count}건",
+      "mode": {
+        "auto": "자동",
+        "hybrid": "시맨틱 + 키워드",
+        "semantic": "시맨틱",
+        "keyword": "키워드"
+      },
+      "group": {
+        "included": "포함됨",
+        "excluded": "제외됨",
+        "uncertain": "불확실함"
+      },
+      "warning": {
+        "criteria_missing": "기준이 제공되지 않아 보수적으로 분류합니다",
+        "keywords_missing_for_hybrid": "키워드가 제공되지 않아 시맨틱 검색만 사용했습니다",
+        "keywords_required_for_keyword_mode": "키워드 모드에는 키워드가 필요합니다",
+        "semantic_unavailable": "시맨틱 색인을 사용할 수 없어 키워드 검색으로 대체했습니다",
+        "keyword_unavailable": "키워드 검색을 사용할 수 없습니다",
+        "semantic_partial": "시맨틱 검색 결과가 불완전할 수 있습니다"
+      }
+    }
+  },
+  "sqlLab": {
+    "editor": {
+      "errorEmptySQL": "SQL 문을 입력해 주세요",
+      "placeholder": "SQL 쿼리 입력...",
+      "tip": "팁: 컬럼 이름을 더블 클릭하면 SQL에 삽입됩니다",
+      "history": "기록",
+      "generateAndRun": "생성 후 실행",
+      "switchToSQLMode": "SQL 모드로 전환",
+      "switchToPromptMode": "프롬프트 모드로 전환",
+      "run": "실행"
+    },
+    "schema": {
+      "tables": "테이블",
+      "doubleClickToInsert": "더블 클릭하면 SQL에 삽입됩니다",
+      "primaryKey": "기본 키"
+    },
+    "result": {
+      "queryError": "쿼리 오류",
+      "rows": "{count}행",
+      "readableTime": "읽기 쉬운 시간",
+      "viewChat": "대화 기록 보기",
+      "summarize": "요약",
+      "pageSize": "페이지당 개수",
+      "emptyResult": "쿼리 결과가 없습니다",
+      "initialState": "SQL을 입력하고 실행하면 결과가 표시됩니다",
+      "initialHint": "읽기 전용 쿼리만 지원합니다(SELECT / WITH). 성능을 위해 LIMIT을 추가하세요",
+      "summaryTitle": "AI 결과 요약",
+      "analyzing": "AI가 결과를 분석하는 중...",
+      "errorSummary": "요약 실패"
+    },
+    "generate": {
+      "placeholder": "예: 메시지 수 상위 10명을 찾고, 일별 메시지 수를 집계하고, '키워드'가 포함된 메시지를 찾아줘...",
+      "errorEmptyPrompt": "원하는 쿼리 내용을 입력해 주세요",
+      "errorGenerate": "AI 생성에 실패했습니다",
+      "errorTokenLimit": "모델이 토큰 한도에 도달해 완전한 응답을 생성하지 못했습니다(사고 과정에서 토큰을 많이 소모했을 수 있습니다)",
+      "aiOutput": "AI 출력",
+      "thinking": "생각하는 중…",
+      "thinkingProcess": "생각 과정",
+      "waitingAI": "AI 응답을 기다리는 중...",
+      "defaultPromptPrivate": "이 개인 대화의 최근 1년 데이터를 기준으로 두 참여자의 총 메시지 수, 메시지 비율, 활동 일수, 활동일 평균 메시지 수, 첫 메시지 시각, 최근 메시지 시각을 비교하고 총 메시지 수 내림차순으로 정렬해줘.",
+      "defaultPromptGroup": "이 그룹 대화의 최근 1년 데이터를 기준으로 멤버별 총 메시지 수, 메시지 비율, 활동 일수, 활동일 평균 메시지 수, 텍스트 메시지 비율을 표시명과 함께 순위로 매기고, 총 메시지 수 기준 상위 20명을 내림차순으로 보여줘."
+    },
+    "history": {
+      "title": "AI 생성 기록",
+      "execute": "실행",
+      "empty": "기록이 없습니다",
+      "justNow": "방금 전",
+      "minutesAgo": "{count}분 전",
+      "hoursAgo": "{count}시간 전",
+      "today": "오늘"
+    }
+  },
+  "assistant": {
+    "selector": {
+      "title": "시작할 어시스턴트를 선택하세요",
+      "heroTitlePrefix": "대화 상대:",
+      "heroTitleSuffix": "",
+      "subtitle": "각 어시스턴트는 서로 다른 분석 작업에 특화되어 있습니다. 필요에 맞는 것을 선택하세요.",
+      "noAssistants": "이 화면에서 사용할 수 있는 어시스턴트가 없습니다",
+      "manage": "어시스턴트 관리",
+      "addNew": "새 어시스턴트"
+    },
+    "config": {
+      "viewTitle": "설정 보기",
+      "createTitle": "새 어시스턴트",
+      "editTitle": "어시스턴트 설정",
+      "betaWarning": "이 기능은 베타 버전입니다. 설정 방식이 바뀔 수 있으니 프롬프트를 백업해 두세요.",
+      "tabs": {
+        "basic": "기본",
+        "tools": "도구"
+      },
+      "name": "이름",
+      "systemPrompt": "시스템 프롬프트",
+      "chatType": "대화 유형",
+      "chatTypeAll": "전체",
+      "chatTypeGroup": "그룹",
+      "chatTypePrivate": "개인",
+      "locale": "언어",
+      "localeHint": "선택 안 함 = 모든 언어",
+      "presetQuestions": "미리 준비된 질문",
+      "addQuestion": "질문 추가...",
+      "coreTools": "핵심 도구",
+      "coreToolsHint": "필수 데이터 조회 도구, 항상 활성화됨",
+      "analysisTools": "분석 도구",
+      "analysisToolsHint": "필요에 따라 활성화하세요. 체크한 도구만 AI가 사용할 수 있습니다",
+      "selectAll": "전체 선택",
+      "deselectAll": "전체 해제",
+      "resetDefault": "기본값으로 초기화",
+      "create": "만들기"
+    },
+    "market": {
+      "title": "어시스턴트 관리자",
+      "tabs": {
+        "local": "내 어시스턴트",
+        "market": "마켓"
+      },
+      "localHint": "가져온 어시스턴트를 관리, 설정 또는 삭제하세요",
+      "marketHint": "어시스턴트 마켓을 둘러보고 가져와서 사용해 보세요",
+      "default": "기본",
+      "reimport": "다시 가져오기",
+      "imported": "가져옴",
+      "import": "가져오기",
+      "importing": "가져오는 중...",
+      "importSuccess": "가져오기 성공",
+      "importFailed": "가져오기 실패",
+      "viewConfig": "설정 보기",
+      "duplicate": "복제",
+      "addAssistant": "어시스턴트 추가",
+      "noLocal": "아직 가져온 어시스턴트가 없습니다",
+      "noCatalog": "사용 가능한 어시스턴트가 없습니다. 네트워크를 확인해 주세요",
+      "loading": "불러오는 중...",
+      "loadFailed": "불러오기에 실패했습니다. 네트워크를 확인해 주세요",
+      "retry": "재시도"
+    },
+    "fallbackName": "어시스턴트",
+    "duplicateSuffix": " (사본)",
+    "toast": {
+      "loadFailed": "불러오기 실패",
+      "createSuccess": "생성 성공",
+      "createFailed": "생성 실패",
+      "saveSuccess": "저장 성공",
+      "saveFailed": "저장 실패",
+      "resetSuccess": "기본값으로 초기화했습니다",
+      "resetFailed": "초기화 실패",
+      "unknownError": "알 수 없는 오류"
+    },
+    "builtinToolDesc": {
+      "get_chat_overview": "대화 개요 정보 가져오기",
+      "search_messages": "대화 메시지 검색",
+      "deep_search_messages": "대화 메시지 심층 검색",
+      "get_recent_messages": "최근 메시지 가져오기",
+      "get_message_context": "메시지 맥락 가져오기",
+      "get_conversation_between": "두 멤버 간 대화 가져오기",
+      "get_members": "멤버 목록 가져오기",
+      "get_schema": "데이터베이스 스키마 조회",
+      "get_member_stats": "멤버 통계 가져오기",
+      "get_member_name_history": "멤버 이름 이력 가져오기",
+      "get_time_stats": "시간 통계 가져오기",
+      "get_segment_messages": "세그먼트 메시지 가져오기",
+      "get_segment_summaries": "세그먼트 요약 가져오기",
+      "message_type_breakdown": "메시지 유형 분포",
+      "peak_chat_hours_by_member": "멤버별 피크 시간대",
+      "member_activity_trend": "멤버 활동 추이",
+      "silent_members": "잠수 멤버 탐지",
+      "reply_interaction_ranking": "답장 상호작용 순위",
+      "mutual_interaction_pairs": "상호작용 페어",
+      "member_message_length_stats": "메시지 길이 통계",
+      "unanswered_messages": "답장 없는 메시지",
+      "daily_active_members": "일별 활성 멤버",
+      "conversation_initiator_stats": "대화 시작자 통계",
+      "activity_heatmap": "활동 히트맵",
+      "response_time_analysis": "응답 시간 분석",
+      "keyword_frequency": "키워드 빈도",
+      "render_chart": "동적 차트 생성",
+      "semantic_search_current_chat": "대화 기록 검색"
+    }
+  },
+  "skill": {
+    "config": {
+      "createTitle": "새 스킬",
+      "editTitle": "스킬 설정",
+      "chatScopeAll": "전체",
+      "chatScopeGroup": "그룹",
+      "chatScopePrivate": "개인",
+      "rawEditorHint": "전체 스킬 마크다운 파일을 편집합니다(YAML 프런트매터 포함)",
+      "create": "만들기",
+      "save": "저장"
+    },
+    "market": {
+      "title": "스킬 관리자",
+      "tabs": {
+        "local": "내 스킬",
+        "market": "마켓"
+      },
+      "localHint": "가져온 스킬을 관리, 설정 또는 삭제하세요",
+      "marketHint": "스킬 마켓을 둘러보고 가져와서 사용해 보세요",
+      "reimport": "다시 가져오기",
+      "imported": "가져옴",
+      "import": "가져오기",
+      "importing": "가져오는 중...",
+      "importSuccess": "가져오기 성공",
+      "importFailed": "가져오기 실패",
+      "noLocal": "아직 가져온 스킬이 없습니다",
+      "noCatalog": "사용 가능한 스킬이 없습니다. 네트워크를 확인해 주세요",
+      "addSkill": "사용자 지정 스킬 만들기",
+      "loading": "불러오는 중...",
+      "loadFailed": "불러오기에 실패했습니다. 네트워크를 확인해 주세요",
+      "retry": "재시도"
+    },
+    "active": {
+      "label": "수동 실행된 스킬: {name}"
+    }
+  },
+  "lab": {
+    "toolTest": {
+      "coreTools": "핵심 도구",
+      "analysisTools": "분석 도구",
+      "parameters": "매개변수",
+      "arrayPlaceholder": "쉼표로 값을 구분하세요",
+      "execute": "실행",
+      "cancel": "취소",
+      "elapsed": "{ms}ms 소요",
+      "result": "결과",
+      "truncated": "결과가 너무 커서 잘렸습니다. limit 매개변수를 줄이면 전체 데이터를 볼 수 있습니다."
+    }
+  }
+}

@@ -1,0 +1,147 @@
+{
+  "tagline": "새로운 대화의 추억을 탐색해 보세요",
+  "tabs": {
+    "file": "파일 가져오기",
+    "api": "자동 동기화",
+    "push": "API 푸시",
+    "apiDescription": "외부 플랫폼 데이터 소스를 연결해 일정에 따라 대화 기록을 ChatLab으로 자동 동기화합니다.",
+    "apiButton": "자동 동기화 설정",
+    "pushDescription": "로컬 API 서버를 실행하면 외부 도구, 플러그인, 스크립트에서 대화 기록을 ChatLab으로 직접 전송할 수 있습니다.",
+    "pushButton": "API 서버 설정"
+  },
+  "import": {
+    "dropHint": "파일을 놓아 가져오기",
+    "clickHint": "클릭하거나 대화 기록을 끌어다 놓아 가져오기",
+    "multipleHint": "여러 파일을 한 번에 선택하거나 끌어다 놓을 수 있습니다",
+    "selectFiles": "대화 기록 파일 선택",
+    "selectFolder": "내보내기 폴더 선택",
+    "importFolder": "폴더 가져오기",
+    "chatRecords": "대화 기록",
+    "allFiles": "모든 파일",
+    "progress": {
+      "detecting": "형식을 감지하는 중...",
+      "reading": "파일을 읽는 중...",
+      "parsing": "메시지를 분석하는 중...",
+      "saving": "데이터베이스에 저장하는 중...",
+      "indexing": "검색 색인을 만드는 중...",
+      "done": "가져오기 완료",
+      "error": "가져오기가 중단되었습니다"
+    },
+    "processed": "메시지 {count}개 처리됨",
+    "viewLog": "가져오기 로그 보기",
+    "cannotReadPath": "파일 경로를 읽을 수 없습니다",
+    "errors": {
+      "no_file_selected": "선택한 파일이 없습니다",
+      "import_failed": "가져오기 실패",
+      "unrecognized_format": "인식할 수 없는 파일 형식입니다",
+      "no_messages": "분석된 메시지가 없습니다. 파일 형식이 올바른지 확인해 주세요.",
+      "no_chat_selected": "선택한 대화가 없습니다",
+      "archive_single_file_required": "압축 파일은 한 번에 하나씩 가져와야 합니다",
+      "archive_unsupported": "지원하지 않는 압축 형식입니다",
+      "archive_encrypted": "암호화된 압축 파일은 지원하지 않습니다",
+      "archive_corrupt": "압축 파일이 손상되었거나 불완전합니다",
+      "archive_unsafe_path": "압축 파일에 안전하지 않은 경로가 포함되어 있습니다",
+      "archive_limit_exceeded": "압축 파일이 안전 처리 한도를 초과했습니다",
+      "google_chat_structure_not_found": "Google Chat 내보내기 데이터를 찾을 수 없습니다",
+      "google_chat_conversation_incomplete": "Google Chat 대화에 필요한 파일이 누락되었습니다",
+      "import_source_not_found": "가져오기 소스가 더 이상 존재하지 않습니다. 압축 파일을 다시 선택해 주세요.",
+      "import_source_expired": "가져오기 소스가 만료되었습니다. 압축 파일을 다시 선택해 주세요.",
+      "actionHint": "수동으로 형식을 지정하거나 아래 로그를 확인해 보세요:"
+    },
+    "diagnostics": {
+      "format": "형식: ",
+      "received": "받음: ",
+      "written": " / 저장됨: ",
+      "skipped": " / 건너뜀: "
+    },
+    "batch": {
+      "importing": "일괄 가져오는 중",
+      "progressCount": "{total} 중 {current}",
+      "cancel": "가져오기 취소",
+      "waiting": "대기 중",
+      "skipped": "건너뜀",
+      "success": "가져오기 성공",
+      "completed": "일괄 가져오기 완료",
+      "summary": "성공 {success}건, 실패 {failed}건, 건너뜀 {cancelled}건",
+      "view": "보기"
+    },
+    "options": {
+      "mergeImport": "병합하여 가져오기",
+      "mergeImportHint": "여러 파일이 하나의 대화 기록으로 병합됩니다"
+    },
+    "merge": {
+      "importing": "병합하는 중",
+      "parsing": "파일을 분석하는 중...",
+      "merging": "메시지를 병합하는 중...",
+      "completed": "병합 완료",
+      "completedHint": "파일 {count}개 병합됨",
+      "messageCount": "메시지 {count}개",
+      "failed": "병합 실패"
+    }
+  },
+  "demo": {
+    "viewExample": "데모 체험하기",
+    "downloading": "데모 데이터를 다운로드하는 중...",
+    "importing": "데모 데이터를 가져오는 중...",
+    "failed": "데모 데이터를 불러오지 못했습니다. 네트워크를 확인한 뒤 다시 시도해 주세요."
+  },
+  "migration": {
+    "title": "데이터베이스 업그레이드가 필요합니다",
+    "description": "새로운 기능을 사용하려면 데이터베이스 {count}개를 업그레이드해야 합니다.",
+    "note": "업그레이드는 보통 몇 초밖에 걸리지 않으며 데이터가 손실되지 않습니다.",
+    "upgradeContent": "업그레이드 내용:",
+    "upgradeNow": "지금 업그레이드",
+    "upgrading": "업그레이드하는 중...",
+    "failed": "마이그레이션 실패",
+    "partialFailed": "일부 데이터베이스 업그레이드에 실패했습니다",
+    "errorHint": "데이터베이스 파일이 손상되었을 가능성이 있습니다. 사이드바에서 실패한 세션을 삭제한 뒤 다시 가져와 주세요.",
+    "close": "닫기",
+    "retry": "재시도"
+  },
+  "chatSelector": {
+    "title": "가져올 대화 선택",
+    "scanning": "대화 목록을 스캔하는 중...",
+    "scanFailed": "스캔 실패",
+    "retry": "재시도",
+    "selectAll": "전체 선택",
+    "chatCount": "대화 {count}개",
+    "selected": "{count}개 선택됨",
+    "messageCount": "메시지 {count}개",
+    "memberCount": "멤버 {count}명",
+    "empty": "빈 대화",
+    "import": "가져오기 ({count})",
+    "noChats": "대화를 찾을 수 없습니다"
+  },
+  "formatSelector": {
+    "title": "대화 형식 선택",
+    "hint": "파일 형식을 자동으로 감지하지 못했습니다. 해당하는 대화 형식을 직접 선택해 주세요.",
+    "manualSelect": "직접 형식 선택",
+    "confirm": "이 형식으로 가져오기"
+  },
+  "quickStart": {
+    "export": "시작하기"
+  },
+  "footer": {
+    "website": "웹사이트",
+    "terms": "이용약관"
+  },
+  "changelog": {
+    "title": "변경 이력",
+    "subtitle": "모든 버전 업데이트 보기",
+    "latest": "최신",
+    "current": "현재",
+    "total": "총 {count}개 버전",
+    "close": "닫기",
+    "loadError": "변경 이력을 불러오지 못했습니다",
+    "retry": "재시도",
+    "types": {
+      "feat": "새 기능",
+      "fix": "버그 수정",
+      "refactor": "리팩터링",
+      "docs": "문서",
+      "chore": "기타",
+      "style": "스타일",
+      "ci": "CI"
+    }
+  }
+}

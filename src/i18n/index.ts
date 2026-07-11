@@ -3,6 +3,7 @@ import zhCN from './locales/zh-CN'
 import enUS from './locales/en-US'
 import zhTW from './locales/zh-TW'
 import jaJP from './locales/ja-JP'
+import koKR from './locales/ko-KR'
 import { detectSystemLocale, type LocaleType } from './types'
 
 export type { LocaleType } from './types'
@@ -37,6 +38,7 @@ export const i18n = createI18n({
     'en-US': enUS,
     'zh-TW': zhTW,
     'ja-JP': jaJP,
+    'ko-KR': koKR,
   },
 })
 

@@ -145,7 +145,7 @@ const showDictPromptModal = ref(false)
 const dictListInitialized = ref(false)
 const DICT_PROMPT_DISMISSED_KEY = 'chatlab_zhTW_dict_prompt_dismissed'
 
-const locale = computed(() => settingsStore.locale as 'zh-CN' | 'en-US' | 'zh-TW' | 'ja-JP')
+const locale = computed(() => settingsStore.locale as 'zh-CN' | 'en-US' | 'zh-TW' | 'ja-JP' | 'ko-KR')
 const isTraditionalChinese = computed(() => settingsStore.locale === 'zh-TW')
 const requiresChineseDict = computed(() => locale.value.startsWith('zh'))
 

@@ -32,7 +32,7 @@ export async function initPreferencesSync(): Promise<void> {
       settingsStore.defaultSessionTab = uiConfig.default_session_tab
     }
     if (locale) {
-      settingsStore.$patch({ locale: locale as 'zh-CN' | 'en-US' | 'zh-TW' | 'ja-JP' })
+      settingsStore.$patch({ locale: locale as 'zh-CN' | 'en-US' | 'zh-TW' | 'ja-JP' | 'ko-KR' })
     }
 
     // preferences.json fields — plugin handles field-level hydration

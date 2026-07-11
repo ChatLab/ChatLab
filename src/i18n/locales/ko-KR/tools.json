@@ -1,0 +1,40 @@
+{
+  "batchManage": {
+    "searchPlaceholder": "대화 이름 검색",
+    "searchResult": "{count} / {total}개 찾음",
+    "noSearchResult": "일치하는 대화 기록이 없습니다",
+    "selectAll": "전체 선택",
+    "shiftClickHint": "Shift 키를 누른 채 클릭하면 범위를 선택할 수 있습니다",
+    "selected": "{count}개 선택됨",
+    "empty": "대화 기록이 없습니다",
+    "delete": "선택 삭제",
+    "confirmTitle": "삭제 확인",
+    "confirmMessage": "선택한 대화 기록 {count}개를 삭제하시겠습니까? 이 작업은 되돌릴 수 없습니다.",
+    "deleting": "삭제하는 중...",
+    "columns": {
+      "name": "이름",
+      "platform": "플랫폼",
+      "messages": "메시지",
+      "summaries": "AI 요약",
+      "aiChats": "AI 대화",
+      "importedAt": "가져온 시간"
+    },
+    "clickToEdit": "클릭하여 이름 편집",
+    "merge": "선택 항목 병합",
+    "mergeHint": "같은 대화 유형을 2개 이상 선택해야 병합할 수 있습니다",
+    "mergeConfirmTitle": "대화 기록 병합",
+    "mergeConfirmMessage": "선택한 대화 기록 {count}개를 새로운 병합 기록으로 합칩니다.",
+    "deleteOriginalsLabel": "병합 후 원본 기록 삭제",
+    "mergeRiskWarning": "중요 경고: 삭제 후에는 복구할 수 없으며, 플랫폼 간 맥락 차이로 의미가 뒤섞일 수 있습니다. 계속하기 전에 원본 데이터를 백업하세요.",
+    "mergeSteps": {
+      "exporting": "대화 기록 내보내는 중...",
+      "parsing": "파일 분석하는 중...",
+      "checking": "충돌 확인하는 중...",
+      "merging": "데이터 병합하는 중...",
+      "cleaning": "임시 파일 정리하는 중..."
+    },
+    "mergeSuccess": "대화 기록 {count}개를 성공적으로 병합했습니다",
+    "mergeError": "병합 실패: {error}",
+    "mergedSuffix": "병합됨"
+  }
+}
