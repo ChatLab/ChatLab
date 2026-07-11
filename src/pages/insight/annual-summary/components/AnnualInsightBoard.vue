@@ -101,7 +101,7 @@ function percentage(value: number, total: number): number {
 
 <template>
   <div class="grid gap-4 lg:grid-cols-12">
-    <ThemeCard class="relative isolate overflow-hidden lg:col-span-8">
+    <ThemeCard class="relative isolate lg:col-span-8">
       <CardDecoration />
       <section class="relative z-10 min-w-0 p-5 sm:p-6">
         <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
@@ -160,7 +160,7 @@ function percentage(value: number, total: number): number {
       </section>
     </ThemeCard>
 
-    <ThemeCard class="overflow-hidden lg:col-span-4">
+    <ThemeCard class="lg:col-span-4">
       <section class="min-w-0 p-5 sm:p-6">
         <div class="flex items-start justify-between gap-4">
           <div>
@@ -186,7 +186,7 @@ function percentage(value: number, total: number): number {
       </section>
     </ThemeCard>
 
-    <ThemeCard class="overflow-hidden lg:col-span-5">
+    <ThemeCard class="lg:col-span-5">
       <section class="min-w-0 p-5 sm:p-6">
         <h3 class="text-[11px] font-bold uppercase text-pink-600 dark:text-pink-400">
           {{ t('insight.sections.messageTypes') }}
@@ -221,7 +221,7 @@ function percentage(value: number, total: number): number {
       </section>
     </ThemeCard>
 
-    <ThemeCard class="overflow-hidden lg:col-span-3">
+    <ThemeCard class="lg:col-span-3">
       <section class="min-w-0 p-5 sm:p-6">
         <div class="flex items-start justify-between gap-3">
           <div>
@@ -269,7 +269,7 @@ function percentage(value: number, total: number): number {
       </section>
     </ThemeCard>
 
-    <ThemeCard class="overflow-hidden lg:col-span-4">
+    <ThemeCard class="lg:col-span-4">
       <section class="min-w-0 p-5 sm:p-6">
         <h3 class="text-[11px] font-bold uppercase text-pink-600 dark:text-pink-400">
           {{ t('insight.overviewCard.keyMetrics') }}
