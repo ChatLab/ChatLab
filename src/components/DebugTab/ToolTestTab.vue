@@ -2,6 +2,7 @@
 import { ref, computed, watch, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAIService } from '@/services'
+import { ThemeCard } from '@/components/UI'
 
 const { t } = useI18n()
 
@@ -162,7 +163,7 @@ async function cancel() {
   <div class="flex h-full">
     <!-- Left Sidebar: Tool List -->
     <div
-      class="w-56 shrink-0 overflow-y-auto border-r border-gray-200 bg-gray-50/50 dark:border-gray-700 dark:bg-page-dark/50"
+      class="m-3 h-[calc(100%-1.5rem)] w-56 shrink-0 overflow-y-auto rounded-lg bg-white shadow-elevated dark:bg-sidebar-dark"
     >
       <!-- Core Tools Group -->
       <div v-if="coreTools.length > 0" class="py-2">
@@ -210,101 +211,103 @@ async function cancel() {
     </div>
 
     <!-- Right Content: Parameters + Result -->
-    <div class="flex flex-1 flex-col gap-4 overflow-y-auto p-4">
-      <!-- Tool Description -->
-      <div
-        v-if="selectedTool"
-        class="rounded-lg border border-primary-200 bg-primary-50/50 px-4 py-3 dark:border-primary-800 dark:bg-primary-900/20"
-      >
-        <div class="text-sm font-medium text-primary-700 dark:text-primary-300">
-          {{ toolLabel(selectedTool.name) }}
-        </div>
-        <div class="mt-1 text-xs text-primary-600/70 dark:text-primary-400/70">
-          {{ selectedTool.description }}
-        </div>
-      </div>
-
-      <!-- Parameters Form -->
-      <div v-if="paramFields.length > 0" class="flex flex-col gap-3">
-        <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">
-          {{ t('ai.lab.toolTest.parameters') }}
-        </h3>
-        <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          <div v-for="field in paramFields" :key="field.name" class="flex flex-col gap-1">
-            <label class="text-xs font-medium text-gray-600 dark:text-gray-400">
-              {{ field.name }}
-              <span v-if="field.required" class="text-red-500">*</span>
-              <span v-if="field.type === 'number'" class="ml-1 text-gray-400">(number)</span>
-              <span v-if="field.isArray" class="ml-1 text-gray-400">({{ field.arrayItemType }}[])</span>
-            </label>
-            <USelectMenu
-              v-if="field.enumValues"
-              v-model="paramValues[field.name]"
-              :items="field.enumValues"
-              :placeholder="field.description"
-              size="sm"
-            />
-            <UInput
-              v-else
-              v-model="paramValues[field.name]"
-              :placeholder="
-                field.isArray
-                  ? t('ai.lab.toolTest.arrayPlaceholder')
-                  : field.defaultValue !== undefined
-                    ? String(field.defaultValue)
-                    : field.description
-              "
-              :type="field.type === 'number' ? 'number' : 'text'"
-              size="sm"
-            />
-          </div>
-        </div>
-      </div>
-
-      <!-- Execute / Cancel Button -->
-      <div class="flex items-center gap-3">
-        <UButton
-          v-if="!isExecuting"
-          color="primary"
-          :disabled="!selectedToolName"
-          icon="i-heroicons-play"
-          @click="execute"
-        >
-          {{ t('ai.lab.toolTest.execute') }}
-        </UButton>
-        <UButton v-else color="error" icon="i-heroicons-stop" @click="cancel">
-          {{ t('ai.lab.toolTest.cancel') }}
-        </UButton>
-        <UIcon v-if="isExecuting" name="i-heroicons-arrow-path" class="h-4 w-4 animate-spin text-gray-400" />
-        <span v-if="elapsed !== null" class="text-xs text-gray-500 dark:text-gray-400">
-          {{ t('ai.lab.toolTest.elapsed', { ms: elapsed }) }}
-        </span>
-      </div>
-
-      <!-- Result -->
-      <div v-if="resultJson || resultError" class="flex-1 min-h-0">
-        <h3 class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
-          {{ t('ai.lab.toolTest.result') }}
-        </h3>
+    <ThemeCard class="my-3 mr-3 flex min-w-0 flex-1 flex-col">
+      <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-y-auto p-4">
+        <!-- Tool Description -->
         <div
-          v-if="resultError"
-          class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
+          v-if="selectedTool"
+          class="rounded-lg border border-primary-200 bg-primary-50/50 px-4 py-3 dark:border-primary-800 dark:bg-primary-900/20"
         >
-          {{ resultError }}
-        </div>
-        <template v-else>
-          <div
-            v-if="resultTruncated"
-            class="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
-          >
-            {{ t('ai.lab.toolTest.truncated') }}
+          <div class="text-sm font-medium text-primary-700 dark:text-primary-300">
+            {{ toolLabel(selectedTool.name) }}
           </div>
-          <pre
-            class="max-h-[60vh] overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs leading-relaxed text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
-            >{{ resultJson }}</pre
+          <div class="mt-1 text-xs text-primary-600/70 dark:text-primary-400/70">
+            {{ selectedTool.description }}
+          </div>
+        </div>
+
+        <!-- Parameters Form -->
+        <div v-if="paramFields.length > 0" class="flex flex-col gap-3">
+          <h3 class="text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ t('ai.lab.toolTest.parameters') }}
+          </h3>
+          <div class="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div v-for="field in paramFields" :key="field.name" class="flex flex-col gap-1">
+              <label class="text-xs font-medium text-gray-600 dark:text-gray-400">
+                {{ field.name }}
+                <span v-if="field.required" class="text-red-500">*</span>
+                <span v-if="field.type === 'number'" class="ml-1 text-gray-400">(number)</span>
+                <span v-if="field.isArray" class="ml-1 text-gray-400">({{ field.arrayItemType }}[])</span>
+              </label>
+              <USelectMenu
+                v-if="field.enumValues"
+                v-model="paramValues[field.name]"
+                :items="field.enumValues"
+                :placeholder="field.description"
+                size="sm"
+              />
+              <UInput
+                v-else
+                v-model="paramValues[field.name]"
+                :placeholder="
+                  field.isArray
+                    ? t('ai.lab.toolTest.arrayPlaceholder')
+                    : field.defaultValue !== undefined
+                      ? String(field.defaultValue)
+                      : field.description
+                "
+                :type="field.type === 'number' ? 'number' : 'text'"
+                size="sm"
+              />
+            </div>
+          </div>
+        </div>
+
+        <!-- Execute / Cancel Button -->
+        <div class="flex items-center gap-3">
+          <UButton
+            v-if="!isExecuting"
+            color="primary"
+            :disabled="!selectedToolName"
+            icon="i-heroicons-play"
+            @click="execute"
           >
-        </template>
+            {{ t('ai.lab.toolTest.execute') }}
+          </UButton>
+          <UButton v-else color="error" icon="i-heroicons-stop" @click="cancel">
+            {{ t('ai.lab.toolTest.cancel') }}
+          </UButton>
+          <UIcon v-if="isExecuting" name="i-heroicons-arrow-path" class="h-4 w-4 animate-spin text-gray-400" />
+          <span v-if="elapsed !== null" class="text-xs text-gray-500 dark:text-gray-400">
+            {{ t('ai.lab.toolTest.elapsed', { ms: elapsed }) }}
+          </span>
+        </div>
+
+        <!-- Result -->
+        <div v-if="resultJson || resultError" class="flex-1 min-h-0">
+          <h3 class="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">
+            {{ t('ai.lab.toolTest.result') }}
+          </h3>
+          <div
+            v-if="resultError"
+            class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-800 dark:bg-red-900/20 dark:text-red-400"
+          >
+            {{ resultError }}
+          </div>
+          <template v-else>
+            <div
+              v-if="resultTruncated"
+              class="mb-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800 dark:bg-amber-900/20 dark:text-amber-400"
+            >
+              {{ t('ai.lab.toolTest.truncated') }}
+            </div>
+            <pre
+              class="max-h-[60vh] overflow-auto rounded-lg border border-gray-200 bg-gray-50 p-3 text-xs leading-relaxed text-gray-800 dark:border-gray-700 dark:bg-gray-800 dark:text-gray-200"
+              >{{ resultJson }}</pre
+            >
+          </template>
+        </div>
       </div>
-    </div>
+    </ThemeCard>
   </div>
 </template>
