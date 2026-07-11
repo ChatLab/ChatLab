@@ -106,6 +106,7 @@ const navigationItems = computed(() =>
         :session-id="currentSessionId ?? undefined"
         :visible="timeSelectVisible"
         :initial-state="initialTimeState"
+        size="sm"
         @update:full-range="emit('update:fullRange', $event)"
         @update:available-years="emit('update:availableYears', $event)"
       />
