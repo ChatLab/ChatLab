@@ -3,7 +3,7 @@ import { computed } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import PageHeader from '@/components/layout/PageHeader.vue'
-import PeopleSubnav from './components/PeopleSubnav.vue'
+import PageNavigation from '@/components/navigation/PageNavigation.vue'
 import { providePeoplePageHeader, type PeoplePageHeaderConfig, type PeopleSubpage } from './people-page-header'
 
 const { t } = useI18n()
@@ -12,6 +12,20 @@ const route = useRoute()
 const activeSubpage = computed<PeopleSubpage>(() =>
   route.name === 'people-relationships' ? 'relationships' : 'contacts'
 )
+const navigationItems = computed(() => [
+  {
+    id: 'contacts',
+    label: t('contacts.title'),
+    icon: 'i-lucide-users',
+    to: { name: 'people-contacts' },
+  },
+  {
+    id: 'relationships',
+    label: t('relationships.title'),
+    icon: 'i-lucide-git-fork',
+    to: { name: 'people-relationships' },
+  },
+])
 
 const defaultHeader = computed<PeoplePageHeaderConfig>(() =>
   activeSubpage.value === 'relationships'
@@ -34,7 +48,7 @@ const { header } = providePeoplePageHeader(defaultHeader)
 
 <template>
   <div
-    class="flex h-full flex-col bg-white text-gray-900 dark:bg-page-dark dark:text-gray-100"
+    class="flex h-full flex-col text-gray-900 dark:bg-page-dark dark:text-gray-100"
     style="padding-top: var(--titlebar-area-height)"
   >
     <PageHeader
@@ -61,19 +75,26 @@ const { header } = providePeoplePageHeader(defaultHeader)
         </UButton>
       </template>
 
-      <div class="mt-3 flex items-center justify-between gap-3 pb-1.5">
-        <PeopleSubnav :active="activeSubpage" />
-
-        <div v-if="header.stats?.length" class="hidden items-center gap-5 text-[11px] sm:flex">
-          <template v-for="stat in header.stats" :key="stat.id">
-            <div v-if="stat.dividerBefore" class="h-3 w-px bg-gray-250 dark:bg-white/10"></div>
-            <div class="flex items-center gap-1.5">
-              <span class="text-gray-400 dark:text-gray-500">{{ stat.label }}</span>
-              <span class="font-mono font-bold text-gray-900 dark:text-white">{{ stat.value }}</span>
-            </div>
-          </template>
-        </div>
-      </div>
+      <PageNavigation
+        class="mt-3 pb-1.5"
+        level="primary"
+        variant="pills"
+        :model-value="activeSubpage"
+        :items="navigationItems"
+        :aria-label="t('relationships.nav')"
+      >
+        <template #right>
+          <div v-if="header.stats?.length" class="hidden items-center gap-5 text-[11px] sm:flex">
+            <template v-for="stat in header.stats" :key="stat.id">
+              <div v-if="stat.dividerBefore" class="h-3 w-px bg-gray-250 dark:bg-white/10"></div>
+              <div class="flex items-center gap-1.5">
+                <span class="text-gray-400 dark:text-gray-500">{{ stat.label }}</span>
+                <span class="font-mono font-bold text-gray-900 dark:text-white">{{ stat.value }}</span>
+              </div>
+            </template>
+          </div>
+        </template>
+      </PageNavigation>
     </PageHeader>
 
     <RouterView v-slot="{ Component }">

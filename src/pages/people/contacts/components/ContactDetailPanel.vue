@@ -134,7 +134,7 @@ function avatarText(contact: ContactItem): string {
             <div
               v-for="source in contact.sourceSessions"
               :key="source.id"
-              class="w-full rounded-2xl border border-gray-100 bg-white/40 px-3.5 py-3 text-left transition duration-300 hover:border-gray-200 hover:shadow-sm dark:border-white/5 dark:bg-page-dark/10 dark:hover:border-white/10"
+              class="w-full rounded-2xl border border-gray-100 bg-white/40 px-3.5 py-3 text-left transition duration-300 hover:border-gray-200 dark:border-white/5 dark:bg-page-dark/10 dark:hover:border-white/10"
             >
               <div class="flex items-center justify-between gap-2">
                 <span class="truncate text-xs font-semibold text-gray-700 dark:text-gray-300">

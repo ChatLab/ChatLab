@@ -3,6 +3,7 @@ import { ref } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import { useAuthStore } from '@/stores/auth'
+import { ThemeCard } from '@/components/UI'
 
 const { t } = useI18n()
 const router = useRouter()
@@ -53,7 +54,7 @@ async function handleLogin() {
 
 <template>
   <div class="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-page-dark">
-    <div class="w-full max-w-sm space-y-6 rounded-xl bg-white p-8 shadow-lg dark:bg-gray-800">
+    <ThemeCard class="w-full max-w-sm space-y-6 overflow-hidden p-8">
       <div class="text-center">
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">ChatLab</h1>
         <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">
@@ -90,6 +91,6 @@ async function handleLogin() {
       <p v-if="rememberMe" class="text-center text-xs text-amber-500 dark:text-amber-400">
         {{ t('common.login.rememberWarning') }}
       </p>
-    </div>
+    </ThemeCard>
   </div>
 </template>

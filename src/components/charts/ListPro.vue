@@ -2,6 +2,7 @@
 import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import CaptureButton from '@/components/common/CaptureButton.vue'
+import { SectionCard } from '@/components/UI'
 
 const { t } = useI18n()
 
@@ -27,7 +28,6 @@ const props = withDefaults(
 const isOpen = ref(false)
 
 // 截屏相关 ref
-const cardRef = ref<HTMLElement | null>(null)
 const modalBodyRef = ref<HTMLElement | null>(null)
 
 // Top N 数据
@@ -44,22 +44,11 @@ const formattedCount = computed(() => {
 </script>
 
 <template>
-  <div
-    ref="cardRef"
-    class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-page-dark"
-  >
-    <div class="flex items-center justify-between border-b border-gray-200 px-5 py-3 dark:border-gray-800">
-      <div>
-        <h3 class="font-semibold text-gray-900 whitespace-nowrap dark:text-white">{{ title }}</h3>
-        <p v-if="description" class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ description }}</p>
-      </div>
-
+  <SectionCard :title="title" :description="description">
+    <template #headerRight>
       <div class="no-capture flex items-center gap-2">
         <!-- 自定义头部右侧内容 -->
         <slot name="headerRight" />
-
-        <!-- 卡片截屏按钮 -->
-        <CaptureButton size="xs" type="element" :target-element="cardRef" />
 
         <!-- 完整列表弹窗 -->
         <UModal v-model:open="isOpen" :ui="{ content: 'md:w-full max-w-3xl' }">
@@ -88,7 +77,7 @@ const formattedCount = computed(() => {
           </template>
         </UModal>
       </div>
-    </div>
+    </template>
 
     <!-- 配置区（可选） -->
     <slot name="config" />
@@ -106,5 +95,5 @@ const formattedCount = computed(() => {
         <div class="px-5 py-8 text-center text-sm text-gray-400">{{ t('views.charts.listPro.empty') }}</div>
       </slot>
     </div>
-  </div>
+  </SectionCard>
 </template>

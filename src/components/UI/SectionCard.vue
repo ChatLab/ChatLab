@@ -4,6 +4,7 @@
  * 基于 ThemeCard 的组合封装，提供标题、描述、分隔线等布局能力
  */
 import { computed } from 'vue'
+import CaptureButton from '@/components/common/CaptureButton.vue'
 import ThemeCard from './ThemeCard.vue'
 
 const props = withDefaults(
@@ -12,6 +13,8 @@ const props = withDefaults(
     title: string
     /** 可选的描述文字 */
     description?: string
+    /** hover 时是否显示当前区块的截图按钮 */
+    capturable?: boolean
     /** 是否显示边框分隔线（默认 true） */
     showDivider?: boolean
     /** 是否启用内容滚动 */
@@ -20,6 +23,7 @@ const props = withDefaults(
     maxHeightVh?: number
   }>(),
   {
+    capturable: true,
     showDivider: true,
     scrollable: false,
     maxHeightVh: 60,
@@ -36,7 +40,7 @@ const contentStyle = computed(() => {
 </script>
 
 <template>
-  <ThemeCard variant="section">
+  <ThemeCard class="group/card overflow-hidden" data-section-card>
     <!-- 标题区域 -->
     <div class="px-5 py-3" :class="{ 'border-b border-gray-200 dark:border-white/5': showDivider && $slots.default }">
       <div class="flex items-center justify-between">
@@ -46,7 +50,15 @@ const contentStyle = computed(() => {
             {{ description }}
           </p>
         </div>
-        <slot name="headerRight" />
+        <div class="flex items-center gap-2">
+          <slot name="headerRight" />
+          <div
+            v-if="capturable"
+            class="pointer-events-none opacity-0 transition-opacity duration-200 group-hover/card:pointer-events-auto group-hover/card:opacity-100"
+          >
+            <CaptureButton type="element" target-selector="[data-section-card]" size="xs" />
+          </div>
+        </div>
       </div>
     </div>
 

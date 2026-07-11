@@ -14,7 +14,7 @@ import type {
 import { useDataService } from '@/services'
 import { useToast } from '@/composables/useToast'
 import { useLayoutStore } from '@/stores/layout'
-import { LoadingState, SubTabs } from '@/components/UI'
+import { LoadingState, SubTabs, ThemeCard } from '@/components/UI'
 import { usePeoplePageHeader } from '../people-page-header'
 import ContactDetailPanel from './components/ContactDetailPanel.vue'
 import ContactsStatusBlocks from './components/ContactsStatusBlocks.vue'
@@ -74,7 +74,6 @@ const firstPageLoads: Record<ContactPoolTab, Promise<void> | null> = {
 }
 const isTabNavigationScrolling = ref(false)
 const scrollContainerRef = ref<HTMLElement | null>(null)
-const tableBodyRef = ref<HTMLElement | null>(null)
 const tableScrollLeft = ref(0)
 const detailCache = ref<Record<string, ContactItem>>({})
 
@@ -807,21 +806,15 @@ function viewSourceSessionRecords(source: ContactItem['sourceSessions'][number])
 function handleListScroll(event: Event) {
   const target = event.target as HTMLElement
   activeState.value.scrollOffset = target.scrollTop
+  tableScrollLeft.value = target.scrollLeft
   if (isTabNavigationScrolling.value) return
   const pool = getPoolAtScrollPosition(target)
   if (activeContactSection.value !== pool) activeContactSection.value = pool
 }
 
-function handleTableHorizontalScroll(event: Event) {
-  tableScrollLeft.value = (event.target as HTMLElement).scrollLeft
-}
-
 function getPoolAtScrollPosition(scrollElement: HTMLElement): ContactPoolTab {
-  if (!showGroupSection.value || !tableBodyRef.value) return 'friend'
-  const stickyHeaderHeight = 42
-  return scrollElement.scrollTop + stickyHeaderHeight >= tableBodyRef.value.offsetTop + getGroupSectionStart()
-    ? 'non_friend'
-    : 'friend'
+  if (!showGroupSection.value) return 'friend'
+  return scrollElement.scrollTop >= getGroupSectionStart() ? 'non_friend' : 'friend'
 }
 
 function getGroupSectionStart(): number {
@@ -848,28 +841,30 @@ async function restoreFriendActionScroll(previousSection: ContactPoolTab, previo
 }
 
 function getGroupSectionScrollTop(): number | null {
-  if (!showGroupSection.value || !tableBodyRef.value) return null
-  const stickyHeaderHeight = 42
-  return tableBodyRef.value.offsetTop + getGroupSectionStart() - stickyHeaderHeight
+  if (!showGroupSection.value) return null
+  return getGroupSectionStart()
 }
 </script>
 
 <template>
-  <div class="flex min-h-0 flex-1 flex-col bg-white text-gray-900 dark:bg-page-dark dark:text-gray-100">
+  <div class="flex min-h-0 flex-1 flex-col text-gray-900 dark:bg-page-dark dark:text-gray-100">
     <SubTabs
       v-model="activeContactSection"
       :items="contactTabs"
       persist-key="contactsTab"
+      size="sm"
+      variant="page"
+      :bordered="false"
       @change="handleContactTabChange"
     >
       <template #right>
-        <div class="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 px-3 py-2 lg:px-0 lg:py-0">
+        <div class="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-2 py-1.5 xl:py-0">
           <UTabs
             v-model="timeRangePreset"
             :items="timeRangeTabs"
             :content="false"
             size="xs"
-            class="min-w-max gap-0"
+            class="min-w-max gap-0 bg-transparent dark:bg-transparent shadow-none"
             :disabled="isTaskRunning"
           />
           <UInput
@@ -877,7 +872,7 @@ function getGroupSectionScrollTop(): number | null {
             icon="i-lucide-search"
             :placeholder="t('contacts.search')"
             size="sm"
-            class="w-full sm:w-32"
+            class="w-full sm:w-36"
           >
             <template v-if="searchQuery" #trailing>
               <UButton
@@ -895,8 +890,8 @@ function getGroupSectionScrollTop(): number | null {
     </SubTabs>
 
     <div class="flex min-h-0 flex-1 overflow-hidden">
-      <main ref="scrollContainerRef" class="min-h-0 min-w-0 flex-1 overflow-y-auto" @scroll="handleListScroll">
-        <div class="mx-auto flex w-full max-w-[1800px] flex-col gap-6 px-6 pb-6 pt-0 lg:px-8">
+      <main class="min-h-0 min-w-0 flex-1 overflow-hidden">
+        <div class="flex h-full min-h-0 w-full flex-col gap-6 px-6 pb-6 pt-4">
           <ContactsStatusBlocks
             :show-disabled-notice="showDisabledNotice"
             :active-private-session-count="diagnostics?.activePrivateSessionCount ?? 0"
@@ -908,7 +903,7 @@ function getGroupSectionScrollTop(): number | null {
             @recompute="recomputeContacts"
           />
 
-          <section class="flex flex-col gap-4">
+          <section class="flex min-h-0 flex-1 flex-col gap-4">
             <LoadingState v-if="showLoadingState" :text="loadingStateText" height="py-16" />
 
             <div
@@ -918,7 +913,7 @@ function getGroupSectionScrollTop(): number | null {
               {{ pageError }}
             </div>
 
-            <div v-else class="min-h-0">
+            <div v-else class="min-h-0 flex-1">
               <div
                 v-if="showEmptyState"
                 class="flex flex-col items-center justify-center rounded-3xl border border-dashed border-gray-250 p-16 text-center dark:border-white/5"
@@ -931,9 +926,9 @@ function getGroupSectionScrollTop(): number | null {
                 <p class="mt-4 text-sm font-medium text-gray-400 dark:text-gray-500">{{ t('contacts.empty') }}</p>
               </div>
 
-              <div v-else class="min-w-0">
+              <ThemeCard v-else class="flex h-full min-w-0 flex-col overflow-hidden">
                 <div
-                  class="sticky top-0 z-20 overflow-hidden border-b border-gray-100 bg-white dark:border-gray-800/40 dark:bg-page-dark"
+                  class="shrink-0 overflow-hidden border-b border-gray-100 bg-white dark:border-white/5 dark:bg-[#202024]"
                 >
                   <div
                     class="contact-table-grid min-w-[720px] px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:text-gray-500"
@@ -970,7 +965,11 @@ function getGroupSectionScrollTop(): number | null {
                   </div>
                 </div>
 
-                <div ref="tableBodyRef" class="overflow-x-auto scrollbar-hide" @scroll="handleTableHorizontalScroll">
+                <div
+                  ref="scrollContainerRef"
+                  class="min-h-0 flex-1 overflow-auto scrollbar-hide"
+                  @scroll="handleListScroll"
+                >
                   <div class="relative min-w-[720px]" :style="{ height: `${totalSize}px` }">
                     <template v-for="virtualRow in virtualItems" :key="String(virtualRow.key)">
                       <div
@@ -982,7 +981,7 @@ function getGroupSectionScrollTop(): number | null {
 
                       <div
                         v-else-if="rowAt(virtualRow.index).type === 'section'"
-                        class="contact-table-grid absolute left-0 top-0 w-full border-b border-gray-100 bg-white px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:border-gray-800/40 dark:bg-page-dark dark:text-gray-500"
+                        class="contact-table-grid absolute left-0 top-0 w-full border-b border-gray-100 bg-white px-4 py-3 text-[11px] font-bold uppercase tracking-wider text-gray-400 dark:border-white/5 dark:bg-[#202024] dark:text-gray-500"
                         :class="contactGridClass(rowAt(virtualRow.index).pool)"
                         :style="{ transform: `translateY(${virtualRow.start}px)` }"
                       >
@@ -1131,7 +1130,7 @@ function getGroupSectionScrollTop(): number | null {
                     </template>
                   </div>
                 </div>
-              </div>
+              </ThemeCard>
             </div>
           </section>
         </div>

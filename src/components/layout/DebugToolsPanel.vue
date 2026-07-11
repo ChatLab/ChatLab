@@ -55,7 +55,7 @@ const localeItems = availableLocales.map((l) => ({
       :class="isVisible ? 'translate-x-0 opacity-100' : 'pointer-events-none translate-x-full opacity-0'"
     >
       <div
-        class="no-capture flex w-28 flex-col items-center rounded-l-xl border border-r-0 border-amber-200/60 bg-white p-3 shadow-lg dark:border-amber-500/10 dark:bg-page-dark"
+        class="no-capture flex w-28 flex-col items-center rounded-l-xl border border-r-0 border-amber-200/60 bg-white p-3 shadow-overlay dark:border-amber-500/10 dark:bg-page-dark"
       >
         <div class="mb-2">
           <span class="px-0.5 text-[9px] font-bold uppercase tracking-widest text-amber-500 dark:text-amber-400">

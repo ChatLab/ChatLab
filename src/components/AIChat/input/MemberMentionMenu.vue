@@ -46,7 +46,7 @@ watch(
   <Transition name="mention-menu">
     <div v-if="visible" class="absolute bottom-full left-0 z-20 mb-1.5 w-[240px] max-w-[calc(100vw-2rem)]">
       <div
-        class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-2xl shadow-gray-900/10 dark:border-gray-700 dark:bg-page-dark"
+        class="overflow-hidden rounded-2xl border border-gray-200 bg-white shadow-overlay dark:border-gray-700 dark:bg-page-dark"
       >
         <div class="flex items-center justify-between border-b border-gray-100 px-2.5 py-1.5 dark:border-gray-800">
           <div class="flex items-center gap-1.5 text-[11px] text-gray-500 dark:text-gray-400">

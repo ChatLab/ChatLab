@@ -42,7 +42,6 @@
     "messageCount": "メッセージ数"
   },
   "tooltip": {
-    "collapse": "サイドバーを折りたたむ",
     "search": "チャット記録を検索",
     "sort": "並べ替え"
   },

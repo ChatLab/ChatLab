@@ -50,7 +50,14 @@ const viewTimeFilter = computed(() => ({
 
 <template>
   <div class="flex h-full flex-col">
-    <SubTabs v-model="activeSubTab" :items="subTabs" persist-key="groupViewTab">
+    <SubTabs
+      v-model="activeSubTab"
+      :items="subTabs"
+      persist-key="groupViewTab"
+      size="sm"
+      variant="page"
+      :bordered="false"
+    >
       <template #right>
         <UserSelect v-if="activeSubTab !== 'topic'" v-model="selectedMemberId" :session-id="props.sessionId" />
       </template>

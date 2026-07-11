@@ -5,6 +5,7 @@ import type { MemberWithStats } from '@/types/analysis'
 import OwnerEntryCard from '@/components/analysis/member/OwnerEntryCard.vue'
 import { useDataService } from '@/services'
 import { useLayoutStore } from '@/stores/layout'
+import { ThemeCard } from '@/components/UI'
 
 const { t } = useI18n()
 const layoutStore = useLayoutStore()
@@ -205,11 +206,7 @@ onMounted(() => {
 
     <!-- 成员卡片列表 -->
     <div v-if="!isLoading" class="grid gap-4 md:grid-cols-2">
-      <div
-        v-for="member in members"
-        :key="member.id"
-        class="relative rounded-xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-page-dark"
-      >
+      <ThemeCard v-for="member in members" :key="member.id" class="relative overflow-hidden p-5">
         <div class="absolute right-4 top-4 flex items-center gap-2">
           <UButton
             icon="i-heroicons-chat-bubble-left-ellipsis"
@@ -287,7 +284,7 @@ onMounted(() => {
             </div>
           </div>
         </div>
-      </div>
+      </ThemeCard>
     </div>
 
     <!-- 空状态 -->

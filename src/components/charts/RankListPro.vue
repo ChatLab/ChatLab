@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import RankList from './RankList.vue'
 import type { RankItem } from './RankList.vue'
 import CaptureButton from '@/components/common/CaptureButton.vue'
+import { SectionCard } from '@/components/UI'
 
 const { t } = useI18n()
 
@@ -28,7 +29,6 @@ const props = withDefaults(defineProps<Props>(), {
 const isOpen = ref(false)
 
 // 截屏相关 ref
-const cardRef = ref<HTMLElement | null>(null)
 const modalBodyRef = ref<HTMLElement | null>(null)
 
 // Top N 数据
@@ -43,20 +43,9 @@ const showViewAll = computed(() => {
 </script>
 
 <template>
-  <div
-    ref="cardRef"
-    class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-800 dark:bg-page-dark"
-  >
-    <div class="flex items-center justify-between border-b border-gray-200 px-5 py-3 dark:border-gray-800">
-      <div>
-        <h3 class="font-semibold text-gray-900 whitespace-nowrap dark:text-white">{{ title }}</h3>
-        <p v-if="description" class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ description }}</p>
-      </div>
-
+  <SectionCard :title="title" :description="description">
+    <template #headerRight>
       <div class="no-capture flex items-center gap-1">
-        <!-- 卡片截屏按钮 -->
-        <CaptureButton size="xs" type="element" :target-element="cardRef" />
-
         <!-- 完整排行榜 Dialog -->
         <UModal v-model:open="isOpen" :ui="{ content: 'md:w-full max-w-3xl' }">
           <UButton v-if="showViewAll" icon="i-heroicons-list-bullet" variant="ghost">
@@ -84,8 +73,8 @@ const showViewAll = computed(() => {
           </template>
         </UModal>
       </div>
-    </div>
+    </template>
 
     <RankList :members="topNData" :unit="unit" />
-  </div>
+  </SectionCard>
 </template>
