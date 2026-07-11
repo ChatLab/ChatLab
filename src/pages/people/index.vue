@@ -77,8 +77,6 @@ const { header } = providePeoplePageHeader(defaultHeader)
 
       <PageNavigation
         class="mt-3 pb-1.5"
-        level="primary"
-        variant="pills"
         :model-value="activeSubpage"
         :items="navigationItems"
         :aria-label="t('relationships.nav')"

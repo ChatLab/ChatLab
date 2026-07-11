@@ -99,13 +99,7 @@ const navigationItems = computed(() =>
     </template>
 
     <div class="mt-3 flex items-center justify-between gap-3">
-      <PageNavigation
-        v-model="activeTab"
-        class="min-w-0 shrink"
-        level="primary"
-        variant="pills"
-        :items="navigationItems"
-      />
+      <PageNavigation v-model="activeTab" class="min-w-0 shrink" :items="navigationItems" />
       <!-- AI 对话和实验室都不使用这里的时间范围筛选，因此在这些一级 Tab 下隐藏。 -->
       <TimeSelect
         v-model="timeRangeValue"
