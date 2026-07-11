@@ -54,7 +54,7 @@ async function handleLogin() {
 
 <template>
   <div class="flex min-h-screen items-center justify-center bg-gray-50 dark:bg-page-dark">
-    <ThemeCard class="w-full max-w-sm space-y-6 overflow-hidden p-8">
+    <ThemeCard class="w-full max-w-sm space-y-6 p-8">
       <div class="text-center">
         <h1 class="text-2xl font-bold text-gray-900 dark:text-white">ChatLab</h1>
         <p class="mt-2 text-sm text-gray-500 dark:text-gray-400">

@@ -272,7 +272,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <ThemeCard data-capturable-card class="group/card relative isolate flex flex-col overflow-hidden">
+  <ThemeCard data-capturable-card class="group/card relative isolate flex flex-col">
     <CardDecoration />
     <CardCaptureOverlay />
     <!-- 身份信息 + 基础统计 -->

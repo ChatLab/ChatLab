@@ -67,7 +67,7 @@ function truncateContent(content: string, maxLength = 20): string {
 </script>
 
 <template>
-  <ThemeCard class="overflow-hidden">
+  <ThemeCard>
     <div class="px-5 py-4 sm:px-6">
       <div class="mb-4 flex items-center justify-between">
         <div class="flex items-center gap-2">

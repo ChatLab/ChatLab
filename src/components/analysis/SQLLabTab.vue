@@ -395,7 +395,7 @@ watch(
         v-if="inputMode === 'prompt' && !result && !error && (streamingOutput || thinkingOutput || isGenerating)"
         class="flex-1 overflow-auto p-4"
       >
-        <ThemeCard class="mx-auto w-full max-w-3xl overflow-hidden p-4">
+        <ThemeCard class="mx-auto w-full max-w-3xl p-4">
           <p class="mb-2 flex items-center gap-1.5 text-sm font-medium text-gray-600 dark:text-gray-300">
             <UIcon name="i-heroicons-cpu-chip" class="h-4 w-4" />
             {{ t('ai.sqlLab.generate.aiOutput') }}

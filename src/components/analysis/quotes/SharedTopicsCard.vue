@@ -115,7 +115,7 @@ watch(
 </script>
 
 <template>
-  <ThemeCard v-if="displayWords.length > 0" class="overflow-hidden">
+  <ThemeCard v-if="displayWords.length > 0">
     <div class="px-5 py-4 sm:px-6">
       <div class="mb-4 flex items-center gap-2">
         <UIcon name="i-heroicons-link" class="h-4 w-4 text-emerald-500" />

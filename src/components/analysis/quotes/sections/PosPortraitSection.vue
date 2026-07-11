@@ -148,7 +148,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <ThemeCard class="overflow-hidden">
+  <ThemeCard>
     <div class="px-5 py-4 sm:px-6">
       <div class="mb-4 flex items-center gap-2">
         <UIcon name="i-heroicons-chart-bar" class="h-4 w-4 text-violet-500" />

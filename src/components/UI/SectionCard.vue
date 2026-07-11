@@ -40,7 +40,7 @@ const contentStyle = computed(() => {
 </script>
 
 <template>
-  <ThemeCard class="group/card overflow-hidden" data-section-card>
+  <ThemeCard class="group/card" data-section-card>
     <!-- 标题区域 -->
     <div class="px-5 py-3" :class="{ 'border-b border-gray-200 dark:border-white/5': showDivider && $slots.default }">
       <div class="flex items-center justify-between">

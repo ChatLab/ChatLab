@@ -156,7 +156,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <ThemeCard class="overflow-hidden">
+  <ThemeCard>
     <div class="px-5 py-4 sm:px-6">
       <div class="mb-4 flex items-center gap-2">
         <UIcon name="i-heroicons-chat-bubble-oval-left-ellipsis" class="h-4 w-4 text-pink-500" />
