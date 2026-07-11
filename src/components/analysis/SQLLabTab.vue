@@ -5,6 +5,7 @@ import { SchemaPanel, AIHistoryModal, ResultTable, getTableLabel, getColumnLabel
 import type { AIHistory, SQLResult, TableSchema } from './SQLLab'
 import { useDataService, useLLMService } from '@/services'
 import { useLlmStreamService } from '@/services/ai-stream/service'
+import { ThemeCard } from '@/components/UI'
 
 const { t, locale } = useI18n()
 
@@ -394,9 +395,7 @@ watch(
         v-if="inputMode === 'prompt' && !result && !error && (streamingOutput || thinkingOutput || isGenerating)"
         class="flex-1 overflow-auto p-4"
       >
-        <div
-          class="mx-auto w-full max-w-3xl rounded-lg border border-gray-200 bg-white p-4 dark:border-gray-800 dark:bg-page-dark"
-        >
+        <ThemeCard class="mx-auto w-full max-w-3xl overflow-hidden p-4">
           <p class="mb-2 flex items-center gap-1.5 text-sm font-medium text-gray-600 dark:text-gray-300">
             <UIcon name="i-heroicons-cpu-chip" class="h-4 w-4" />
             {{ t('ai.sqlLab.generate.aiOutput') }}
@@ -424,7 +423,7 @@ watch(
           <p v-else-if="!thinkingOutput" class="font-mono text-xs text-gray-400">
             {{ t('ai.sqlLab.generate.waitingAI') }}
           </p>
-        </div>
+        </ThemeCard>
       </div>
       <ResultTable v-else ref="resultTableRef" :result="result" :error="error" :sql="sql" :prompt="lastPrompt" />
     </div>

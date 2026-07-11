@@ -11,6 +11,7 @@ import { HeatmapChart } from 'echarts/charts'
 import { TooltipComponent, GridComponent, VisualMapComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { EChartsOption } from 'echarts'
+import { ThemeCard } from '@/components/UI'
 import { useDataService } from '@/services/data/service'
 import type { ClusterGraphData, ClusterGraphOptions } from '@/types/analysis'
 import type { TimeFilter } from '@openchatlab/shared-types'
@@ -280,9 +281,7 @@ onUnmounted(() => {
 
 <template>
   <div class="mx-auto max-w-[920px] p-4 h-full">
-    <div
-      class="flex h-full flex-col rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-page-dark shadow-sm overflow-hidden"
-    >
+    <ThemeCard class="flex h-full flex-col overflow-hidden">
       <!-- 顶部工具栏 -->
       <div
         class="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-page-dark/50"
@@ -534,6 +533,6 @@ onUnmounted(() => {
         <span>{{ t('views.cluster.involvedMembers') }}: {{ graphData.stats.involvedMembers }}</span>
         <span>{{ t('views.cluster.edgeCount') }}: {{ graphData.stats.edgeCount }}</span>
       </div>
-    </div>
+    </ThemeCard>
   </div>
 </template>

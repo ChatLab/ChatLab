@@ -42,7 +42,6 @@
     "messageCount": "消息数量"
   },
   "tooltip": {
-    "collapse": "收起侧边栏",
     "search": "搜索聊天记录",
     "sort": "排序"
   },

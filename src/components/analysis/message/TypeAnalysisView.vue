@@ -168,25 +168,25 @@ watch(
       <SectionCard :title="t('views.message.typeAnalysis.textDepthTitle')" :show-divider="false">
         <div class="p-5">
           <div class="mb-5 grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <div class="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/50">
+            <div class="p-3">
               <div class="font-mono text-xl font-bold text-gray-900 dark:text-white">
                 {{ textStats.textCount.toLocaleString() }}
               </div>
               <div class="mt-1 text-xs text-gray-500">{{ t('views.message.typeAnalysis.textTotal') }}</div>
             </div>
-            <div class="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/50">
+            <div class="p-3">
               <div class="font-mono text-xl font-bold text-indigo-600 dark:text-indigo-400">
                 {{ textStats.avgLength || 0 }}
               </div>
               <div class="mt-1 text-xs text-gray-500">{{ t('views.message.typeAnalysis.avgLength') }}</div>
             </div>
-            <div class="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/50">
+            <div class="p-3">
               <div class="font-mono text-xl font-bold text-pink-600 dark:text-pink-400">
                 {{ percentiles.p50 }}
               </div>
               <div class="mt-1 text-xs text-gray-500">{{ t('views.message.typeAnalysis.medianLength') }}</div>
             </div>
-            <div class="rounded-lg bg-gray-50 p-3 dark:bg-gray-800/50">
+            <div class="p-3">
               <div class="font-mono text-xl font-bold text-emerald-600 dark:text-emerald-400">
                 {{ textStats.maxLength }}
               </div>

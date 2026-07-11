@@ -25,6 +25,8 @@ interface Props {
   size?: 'sm' | 'md'
   /** 是否显示底部边框线 */
   bordered?: boolean
+  /** 页面级二级导航使用 page，嵌入式 Tab 保持 default */
+  variant?: 'default' | 'page'
 }
 
 interface Emits {
@@ -35,6 +37,7 @@ interface Emits {
 const props = withDefaults(defineProps<Props>(), {
   orientation: 'horizontal',
   size: 'md',
+  variant: 'default',
 })
 const emit = defineEmits<Emits>()
 
@@ -150,14 +153,15 @@ watch(
       isVertical
         ? ['h-full', bordered !== false ? 'border-r border-gray-200/50 dark:border-gray-700/50' : '']
         : [
-            'flex items-center justify-between',
+            'flex justify-between overflow-x-auto',
             bordered !== false ? 'border-b border-gray-200/50 dark:border-gray-800/50' : '',
-            size === 'sm' ? 'px-3' : 'px-6',
-            'overflow-x-auto',
+            variant === 'page'
+              ? 'flex-col items-stretch gap-2 pl-7 pr-6 pt-3 xl:flex-row xl:items-center'
+              : ['items-center', size === 'sm' ? 'px-3' : 'px-6'],
           ],
     ]"
   >
-    <div ref="containerRef" class="relative" :class="[isVertical ? 'flex flex-col gap-1' : 'flex gap-1']">
+    <div ref="containerRef" class="relative" :class="[isVertical ? 'flex flex-col gap-1' : 'flex gap-4 pb-1']">
       <button
         v-for="tab in items"
         :key="tab.id"
@@ -167,8 +171,8 @@ watch(
           isVertical
             ? 'justify-start gap-2 px-3 py-2 text-sm'
             : size === 'sm'
-              ? 'gap-1.5 px-2 py-1.5 text-xs'
-              : 'gap-2 px-4 py-3 text-sm',
+              ? 'gap-1.5 px-1 py-1.5 text-xs'
+              : 'gap-2 px-1 py-3 text-sm',
           activeTab === tab.id
             ? 'text-primary-600 dark:text-primary-400'
             : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300',
@@ -182,6 +186,11 @@ watch(
       <div class="absolute bg-primary-500 transition-all duration-300 ease-out" :style="indicatorStyle" />
     </div>
     <!-- 右侧插槽（水平模式可用） -->
-    <slot v-if="!isVertical" name="right" />
+    <template v-if="!isVertical">
+      <div v-if="variant === 'page'" class="flex w-full min-w-0 items-center xl:w-auto xl:justify-end">
+        <slot name="right" />
+      </div>
+      <slot v-else name="right" />
+    </template>
   </div>
 </template>

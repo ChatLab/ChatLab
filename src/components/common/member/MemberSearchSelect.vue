@@ -211,7 +211,7 @@ watch(
 
     <div
       v-if="open"
-      class="absolute top-full left-0 z-[100] mt-1 w-80 rounded-md border border-gray-200 bg-white shadow-lg dark:border-gray-800 dark:bg-gray-950"
+      class="absolute top-full left-0 z-[100] mt-1 w-80 rounded-md border border-gray-200 bg-white shadow-overlay dark:border-gray-800 dark:bg-gray-950"
     >
       <div ref="listRef" class="max-h-80 overflow-y-auto py-1" @scroll="handleListScroll">
         <div v-if="isLoading && options.length === 0" class="px-3 py-3 text-sm text-gray-500">

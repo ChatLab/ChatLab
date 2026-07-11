@@ -24,6 +24,12 @@
   /* 卡片背景 - 语义化主题 Token，未来可通过设置动态覆盖 */
   --color-card-bg: #ffffff;
   --color-card-dark: rgba(255, 255, 255, 0.03);
+
+  /* 悬浮表面阴影 - 减少向下偏移，避免底边过重 */
+  --shadow-elevated: 0 10px 28px -12px rgb(15 23 42 / 0.22), 0 3px 10px -4px rgb(15 23 42 / 0.1);
+
+  /* 浮层阴影 - 用于弹窗、菜单和场景面板，不与内容卡混用 */
+  --shadow-overlay: 0 18px 48px -20px rgb(15 23 42 / 0.32), 0 8px 20px -12px rgb(15 23 42 / 0.16);
 }
 
 /* 全局滚动条样式 */

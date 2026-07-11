@@ -10,13 +10,13 @@ const { showSettings, isSidebarCollapsed: isCollapsed } = storeToRefs(layoutStor
 </script>
 
 <template>
-  <div class="py-2 dark:border-gray-800 space-y-2 mb-2" :class="[isCollapsed ? 'px-3' : 'px-4']">
+  <div class="mb-2 space-y-2 py-2 dark:border-gray-800" :class="[isCollapsed ? 'px-2' : 'px-4']">
     <!-- 设置 -->
     <SidebarButton
       icon="i-heroicons-cog-6-tooth"
       :title="t('layout.footer.settings')"
       :active="showSettings"
-      :tooltip="t('layout.footer.settings')"
+      :tooltip="false"
       @click="layoutStore.openSettings()"
     />
   </div>

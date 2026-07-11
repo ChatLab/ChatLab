@@ -12,17 +12,22 @@ const props = withDefaults(
     iconClass?: string // 图标背景样式类
     avatar?: string | null // 头像图片（base64 Data URL），优先级高于 icon
     size?: 'default' | 'compact' // 紧凑模式用于需要更小头部高度的页面
+    bordered?: boolean
   }>(),
   {
     size: 'default',
+    bordered: true,
   }
 )
 </script>
 
 <template>
   <div
-    class="relative border-b border-gray-200/50 dark:border-gray-800/50"
-    :class="props.size === 'compact' ? 'px-5 pb-1.5' : 'px-6 pb-2'"
+    class="relative px-6"
+    :class="[
+      props.bordered ? 'border-b border-gray-200/50 dark:border-gray-800/50' : '',
+      props.size === 'compact' ? 'pb-1.5' : 'pb-2',
+    ]"
   >
     <!-- 拖拽区域 - 覆盖顶部安全区域（平台自适应）
          macOS: 16px padding + 16px = 32px | Windows/Linux: 32px padding + 16px = 48px -->

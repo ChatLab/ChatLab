@@ -148,7 +148,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <ThemeCard variant="section">
+  <ThemeCard class="overflow-hidden">
     <div class="px-5 py-4 sm:px-6">
       <div class="mb-4 flex items-center gap-2">
         <UIcon name="i-heroicons-chart-bar" class="h-4 w-4 text-violet-500" />
@@ -165,11 +165,7 @@ onUnmounted(() => {
 
         <!-- 聊天气质标签 -->
         <div v-if="memberA && memberB" class="flex shrink-0 flex-col gap-3 lg:w-48">
-          <div
-            v-for="m in [memberA, memberB]"
-            :key="m.memberId"
-            class="flex items-center gap-3 rounded-xl bg-white/60 p-3 ring-1 ring-gray-900/5 backdrop-blur-sm dark:bg-white/5 dark:ring-white/10"
-          >
+          <div v-for="m in [memberA, memberB]" :key="m.memberId" class="flex min-w-0 items-center gap-3 px-1 py-3">
             <UIcon :name="getChatStyle(m).icon" class="h-5 w-5 shrink-0" :class="getChatStyle(m).colorClass" />
             <div class="min-w-0">
               <div class="truncate text-xs font-semibold text-gray-500 dark:text-gray-400">{{ m.name }}</div>

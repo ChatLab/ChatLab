@@ -42,7 +42,6 @@
     "messageCount": "Message Count"
   },
   "tooltip": {
-    "collapse": "Collapse sidebar",
     "search": "Search chat records",
     "sort": "Sort"
   },

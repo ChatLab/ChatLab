@@ -387,9 +387,7 @@ function getSessionAvatar(session: AnalysisSession): string | null {
 // 根据会话 ID 生成雅致的莫兰迪色系头像背景和文字颜色
 function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
   if (isActive) {
-    return isPrivateChat(session)
-      ? 'bg-pink-500 text-white dark:bg-white/10 dark:text-white'
-      : 'bg-pink-600 text-white dark:bg-white/10 dark:text-white'
+    return 'bg-primary-50 text-primary-600 dark:bg-primary-500/10 dark:text-primary-400'
   }
 
   // 雅致的低饱和度配色方案，提升侧边栏的简洁感与品质感
@@ -413,10 +411,10 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
 
 <template>
   <div
-    class="flex h-full flex-col border-r border-gray-200/50 transition-all duration-300 ease-in-out dark:border-gray-800/50"
-    :class="[isCollapsed ? 'w-20' : 'w-72', isHomePage ? '' : 'bg-page-bg dark:bg-page-dark']"
+    class="m-3 flex h-[calc(100%-1.5rem)] shrink-0 flex-col overflow-hidden rounded-lg bg-white shadow-elevated transition-all duration-300 ease-in-out dark:bg-[#202024]"
+    :class="isCollapsed ? 'w-14' : 'w-72'"
   >
-    <div class="flex flex-col pt-5" :class="[isCollapsed ? 'px-3 pb-4' : 'p-4']">
+    <div class="flex flex-col pt-5" :class="[isCollapsed ? 'px-2 pb-4' : 'p-4']">
       <!-- Header -->
       <div
         class="mb-2 flex items-center"
@@ -448,23 +446,18 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
           <img :src="logoSvg" alt="ChatLab" class="size-5 select-none pointer-events-none group-hover:hidden" />
           <UIcon name="i-lucide-panel-right-open" class="size-4 hidden group-hover:block scale-x-[-1]" />
         </div>
-        <UTooltip
+        <UButton
           v-if="!isCollapsed"
-          :text="t('layout.tooltip.collapse')"
-          :content="{ side: 'bottom' }"
+          color="neutral"
+          variant="ghost"
+          size="sm"
+          class="group flex h-9 w-9 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-white/[0.06]"
           style="-webkit-app-region: no-drag"
+          @click="toggleSidebar"
         >
-          <UButton
-            color="neutral"
-            variant="ghost"
-            size="sm"
-            class="group flex h-9 w-9 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-white/[0.06]"
-            @click="toggleSidebar"
-          >
-            <UIcon name="i-lucide-panel-right" class="size-4 group-hover:hidden scale-x-[-1]" />
-            <UIcon name="i-lucide-panel-right-close" class="size-4 hidden group-hover:block scale-x-[-1]" />
-          </UButton>
-        </UTooltip>
+          <UIcon name="i-lucide-panel-right" class="size-4 group-hover:hidden scale-x-[-1]" />
+          <UIcon name="i-lucide-panel-right-close" class="size-4 hidden group-hover:block scale-x-[-1]" />
+        </UButton>
       </div>
 
       <!-- 新建分析 -->
@@ -544,7 +537,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
             v-for="virtualItem in virtualSessionItems"
             :key="String(virtualItem.key)"
             class="absolute"
-            :class="[isCollapsed ? 'left-3 right-3' : 'left-4 right-4']"
+            :class="[isCollapsed ? 'left-2 right-2' : 'left-4 right-4']"
             :style="{ transform: `translateY(${virtualItem.start}px)` }"
           >
             <UContextMenu :items="getContextMenuItems(virtualSessionAt(virtualItem.index))">
@@ -558,10 +551,10 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
                   class="group relative flex items-center text-left transition-all duration-200 cursor-pointer"
                   :class="[
                     route.params.id === virtualSessionAt(virtualItem.index).id
-                      ? 'bg-gray-200/50 text-gray-900 font-medium dark:bg-white/[0.07] dark:text-white dark:ring-1 dark:ring-white/10'
+                      ? 'bg-gray-200/50 text-primary-600 font-medium dark:bg-white/[0.07] dark:text-primary-400 dark:ring-1 dark:ring-white/10'
                       : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/30 dark:hover:bg-white/[0.06]',
                     isCollapsed
-                      ? 'justify-center h-10 w-10 rounded-xl mx-auto'
+                      ? 'justify-center h-10 w-10 rounded-lg mx-auto'
                       : 'h-10 w-full rounded-xl p-1.5 px-2.5 pl-1.5',
                   ]"
                   @click="
@@ -574,9 +567,9 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
                 >
                   <!-- 激活指示器：在展开和折叠下，都优雅地贴在侧边栏最左侧边缘 -->
                   <div
-                    class="absolute top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-pink-500 dark:bg-pink-400 transition-all duration-200"
+                    class="absolute top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-primary-500 transition-all duration-200"
                     :class="[
-                      isCollapsed ? '-left-3' : '-left-4',
+                      isCollapsed ? '-left-2' : '-left-4',
                       route.params.id === virtualSessionAt(virtualItem.index).id
                         ? 'h-4.5 opacity-100'
                         : 'h-0 opacity-0 group-hover:h-2.5 group-hover:opacity-40',
@@ -623,7 +616,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
       </div>
       <!-- 底部渐变蒙层 - 让列表消失更自然（固定在外层容器底部） -->
       <div
-        class="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-page-bg to-transparent dark:from-page-dark"
+        class="pointer-events-none absolute bottom-0 left-0 right-0 h-12 bg-gradient-to-t from-white to-transparent dark:from-[#202024]"
       />
     </div>
 

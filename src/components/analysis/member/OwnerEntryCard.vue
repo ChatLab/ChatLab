@@ -8,6 +8,7 @@ import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { MemberWithStats } from '@/types/analysis'
 import { useSessionStore } from '@/stores/session'
+import { ThemeCard } from '@/components/UI'
 import OwnerPromptModal from './OwnerPromptModal.vue'
 
 const { t } = useI18n()
@@ -39,7 +40,7 @@ const ownerDisplayName = computed(() => {
 </script>
 
 <template>
-  <div class="w-150 rounded-lg border border-gray-200 bg-white p-3 shadow-sm dark:border-gray-700 dark:bg-page-dark">
+  <ThemeCard class="w-150 overflow-hidden p-3">
     <div class="flex items-center justify-between gap-3">
       <div class="flex items-center gap-2">
         <div
@@ -65,5 +66,5 @@ const ownerDisplayName = computed(() => {
     </div>
 
     <OwnerPromptModal v-model="showModal" :session-id="sessionId" :chat-type="chatType" />
-  </div>
+  </ThemeCard>
 </template>

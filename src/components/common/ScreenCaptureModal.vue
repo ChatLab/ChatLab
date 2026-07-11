@@ -45,7 +45,7 @@ function closeModal() {
 
         <!-- Image Preview -->
         <div class="bg-gray-100 p-4 dark:bg-gray-800">
-          <div class="mx-auto max-h-[60vh] overflow-auto rounded-lg bg-white shadow-lg dark:bg-page-dark">
+          <div class="mx-auto max-h-[60vh] overflow-auto rounded-lg bg-white shadow-overlay dark:bg-page-dark">
             <img v-if="imageData" :src="imageData" alt="截图预览" class="block w-full" />
           </div>
         </div>

@@ -22,7 +22,7 @@ const { t } = useI18n()
 <template>
   <div
     v-if="showDisabledNotice"
-    class="flex items-center gap-3.5 rounded-2xl border border-amber-200/60 bg-amber-50/40 p-4 text-sm text-amber-800 dark:border-amber-900/40 dark:bg-amber-950/10 dark:text-amber-200 backdrop-blur-sm shadow-sm"
+    class="flex items-center gap-3.5 rounded-2xl border border-amber-200/60 bg-amber-50/40 p-4 text-sm text-amber-800 backdrop-blur-sm dark:border-amber-900/40 dark:bg-amber-950/10 dark:text-amber-200"
   >
     <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-amber-100/80 dark:bg-amber-950/50">
       <UIcon name="i-lucide-alert-triangle" class="h-5 w-5 text-amber-500" />
@@ -34,7 +34,7 @@ const { t } = useI18n()
 
   <div
     v-if="cacheStatus === 'stale' && !isTaskRunning"
-    class="flex flex-col gap-4 rounded-2xl border border-zinc-200/80 bg-zinc-50/60 p-4 text-sm text-zinc-700 dark:border-zinc-800/80 dark:bg-page-dark/40 dark:text-zinc-300 sm:flex-row sm:items-center sm:justify-between backdrop-blur-sm shadow-sm"
+    class="flex flex-col gap-4 rounded-2xl border border-zinc-200/80 bg-zinc-50/60 p-4 text-sm text-zinc-700 backdrop-blur-sm dark:border-zinc-800/80 dark:bg-page-dark/40 dark:text-zinc-300 sm:flex-row sm:items-center sm:justify-between"
   >
     <div class="flex items-center gap-3.5">
       <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-zinc-100 dark:bg-zinc-800/80">
@@ -61,7 +61,7 @@ const { t } = useI18n()
 
   <div
     v-if="taskFailed"
-    class="flex flex-col gap-4 rounded-2xl border border-red-200/60 bg-red-50/40 p-4 text-sm text-red-700 dark:border-red-900/40 dark:bg-red-950/10 dark:text-red-300 sm:flex-row sm:items-center sm:justify-between backdrop-blur-sm shadow-sm"
+    class="flex flex-col gap-4 rounded-2xl border border-red-200/60 bg-red-50/40 p-4 text-sm text-red-700 backdrop-blur-sm dark:border-red-900/40 dark:bg-red-950/10 dark:text-red-300 sm:flex-row sm:items-center sm:justify-between"
   >
     <div class="flex min-w-0 items-center gap-3.5">
       <div class="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-red-100/80 dark:bg-red-950/50">

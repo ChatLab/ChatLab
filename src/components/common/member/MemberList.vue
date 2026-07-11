@@ -5,6 +5,7 @@ import type { MemberWithStats } from '@/types/analysis'
 import OwnerEntryCard from '@/components/analysis/member/OwnerEntryCard.vue'
 import { useDataService } from '@/services'
 import { useLayoutStore } from '@/stores/layout'
+import { ThemeCard } from '@/components/UI'
 
 const { t } = useI18n()
 const layoutStore = useLayoutStore()
@@ -316,10 +317,7 @@ onMounted(() => {
     </div>
 
     <!-- 成员列表 -->
-    <div
-      class="rounded-xl border border-gray-200 bg-white shadow-sm dark:border-gray-700 dark:bg-page-dark"
-      :class="props.showHeader ? '' : 'flex min-h-0 flex-1 flex-col'"
-    >
+    <ThemeCard class="overflow-hidden" :class="props.showHeader ? '' : 'flex min-h-0 flex-1 flex-col'">
       <!-- 加载状态 -->
       <div v-if="isLoading" class="flex h-60 items-center justify-center">
         <UIcon name="i-heroicons-arrow-path" class="h-8 w-8 animate-spin text-pink-500" />
@@ -485,7 +483,7 @@ onMounted(() => {
           </div>
         </div>
       </div>
-    </div>
+    </ThemeCard>
 
     <!-- 删除确认弹窗 -->
     <UModal :open="!!deletingMember" :ui="{ content: 'max-w-sm' }" @update:open="deletingMember = null">

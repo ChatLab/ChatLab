@@ -31,7 +31,7 @@ const TAG_CLASSES = [
 </script>
 
 <template>
-  <ThemeCard variant="section">
+  <ThemeCard class="overflow-hidden">
     <div class="px-5 py-4 sm:px-6">
       <div class="mb-4 flex items-center gap-2">
         <UIcon name="i-heroicons-link" class="h-4 w-4 text-emerald-500" />

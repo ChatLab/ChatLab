@@ -114,7 +114,7 @@ const filteredMemberCount = computed(() => {
 </script>
 
 <template>
-  <div class="flex h-full flex-col bg-white dark:bg-page-dark" style="padding-top: var(--titlebar-area-height)">
+  <div class="flex h-full flex-col dark:bg-page-dark" style="padding-top: var(--titlebar-area-height)">
     <!-- Loading State -->
     <LoadingState v-if="isInitialLoad" variant="page" :text="t('analysis.groupChat.loading')" />
 

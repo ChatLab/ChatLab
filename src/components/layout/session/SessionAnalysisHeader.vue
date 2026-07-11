@@ -5,6 +5,7 @@ import { useLayoutStore } from '@/stores/layout'
 import CaptureButton from '@/components/common/CaptureButton.vue'
 import TimeSelect from '@/components/common/TimeSelect.vue'
 import PageHeader from '@/components/layout/PageHeader.vue'
+import PageNavigation from '@/components/navigation/PageNavigation.vue'
 import type { TimeRangeValue, TimeSelectState } from '@/components/common/TimeSelect.vue'
 
 interface SessionAnalysisTab {
@@ -38,6 +39,13 @@ const { t } = useI18n()
 const layoutStore = useLayoutStore()
 
 const timeSelectVisible = computed(() => !['ai-chat', 'memory', 'lab', 'debug'].includes(activeTab.value))
+const navigationItems = computed(() =>
+  props.tabs.map((tab) => ({
+    id: tab.id,
+    label: t(tab.labelKey),
+    icon: tab.icon,
+  }))
+)
 </script>
 
 <template>
@@ -91,22 +99,13 @@ const timeSelectVisible = computed(() => !['ai-chat', 'memory', 'lab', 'debug'].
     </template>
 
     <div class="mt-3 flex items-center justify-between gap-3">
-      <div class="flex shrink-0 items-center gap-0.5 overflow-x-auto scrollbar-hide">
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold transition-all"
-          :class="[
-            activeTab === tab.id
-              ? 'bg-pink-500 text-white dark:bg-pink-900/30 dark:text-pink-300'
-              : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800',
-          ]"
-          @click="activeTab = tab.id"
-        >
-          <UIcon :name="tab.icon" class="h-3.5 w-3.5" />
-          <span class="whitespace-nowrap">{{ t(tab.labelKey) }}</span>
-        </button>
-      </div>
+      <PageNavigation
+        v-model="activeTab"
+        class="min-w-0 shrink"
+        level="primary"
+        variant="pills"
+        :items="navigationItems"
+      />
       <!-- AI 对话和实验室都不使用这里的时间范围筛选，因此在这些一级 Tab 下隐藏。 -->
       <TimeSelect
         v-model="timeRangeValue"

@@ -188,7 +188,7 @@ onUnmounted(() => {
 
         <div
           v-if="overflowPopoverOpen"
-          class="absolute right-0 top-full z-30 mt-2 w-56 overflow-hidden rounded-xl border border-gray-200/80 bg-white/95 p-1 shadow-lg backdrop-blur-md dark:border-gray-700 dark:bg-page-dark/95"
+          class="absolute right-0 top-full z-30 mt-2 w-56 overflow-hidden rounded-xl border border-gray-200/80 bg-white/95 p-1 shadow-overlay backdrop-blur-md dark:border-gray-700 dark:bg-page-dark/95"
         >
           <div class="custom-scrollbar max-h-60 space-y-0.5 overflow-y-auto">
             <p class="px-2 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-500">

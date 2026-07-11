@@ -39,7 +39,7 @@ function highlightKeywords(text: string): string {
 
 <template>
   <div
-    class="relative flex flex-col rounded-xl bg-white shadow-sm transition-all duration-300 dark:bg-page-dark"
+    class="relative flex flex-col rounded-xl bg-white transition-all duration-300 dark:bg-page-dark"
     :class="[isCollapsed ? 'w-12' : 'w-full']"
   >
     <!-- 折叠状态 -->

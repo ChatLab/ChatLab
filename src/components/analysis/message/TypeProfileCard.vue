@@ -6,7 +6,7 @@ import * as echarts from 'echarts/core'
 import { PieChart } from 'echarts/charts'
 import { TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
-import { ThemeCard } from '@/components/UI'
+import { CardCaptureOverlay, CardDecoration, ThemeCard } from '@/components/UI'
 import { useDataService } from '@/services/data/service'
 import { MessageType, getMessageTypeName } from '@/types/base'
 import type { MessageTypeStats, TextStats } from '@openchatlab/core'
@@ -276,7 +276,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <ThemeCard variant="elevated" decorative class="flex flex-col">
+  <ThemeCard data-capturable-card class="group/card relative isolate flex flex-col overflow-hidden">
+    <CardDecoration />
+    <CardCaptureOverlay />
     <!-- 主视觉区域 -->
     <div class="relative z-10 px-6 pt-8 pb-4 sm:px-8">
       <div class="flex items-center gap-6 sm:gap-10">
@@ -344,7 +346,7 @@ onUnmounted(() => {
         <div
           v-for="item in metricItems"
           :key="item.icon + item.label"
-          class="flex items-start gap-2 rounded-lg bg-white/60 p-2.5 ring-1 ring-gray-900/5 dark:bg-white/5 dark:ring-white/10"
+          class="flex min-w-0 items-start gap-2 px-2.5 py-2"
         >
           <UIcon :name="item.icon" class="mt-0.5 h-3.5 w-3.5 shrink-0" :class="item.colorClass" />
           <div class="min-w-0 flex-1">

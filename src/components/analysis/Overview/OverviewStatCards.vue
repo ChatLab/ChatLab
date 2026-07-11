@@ -104,11 +104,7 @@ const flatItems = computed<FlatStatItem[]>(() => [
       <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Key Metrics</span>
     </div>
     <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-      <div
-        v-for="item in flatItems"
-        :key="item.icon + item.label"
-        class="flex items-start gap-2 rounded-lg bg-white/60 p-2.5 ring-1 ring-gray-900/5 dark:bg-white/5 dark:ring-white/10"
-      >
+      <div v-for="item in flatItems" :key="item.icon + item.label" class="flex min-w-0 items-start gap-2 px-2.5 py-2">
         <UIcon :name="item.icon" class="mt-0.5 h-3.5 w-3.5 shrink-0" :class="item.colorClass" />
         <div class="min-w-0">
           <div class="truncate font-mono text-sm font-black leading-tight tabular-nums" :class="item.colorClass">

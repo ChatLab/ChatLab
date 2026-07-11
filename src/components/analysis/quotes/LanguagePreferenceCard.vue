@@ -6,7 +6,7 @@ import * as echarts from 'echarts/core'
 import { RadarChart } from 'echarts/charts'
 import { TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
-import { ThemeCard } from '@/components/UI'
+import { CardCaptureOverlay, CardDecoration, ThemeCard } from '@/components/UI'
 import type {
   LanguagePreferenceResult,
   MemberLanguageProfile,
@@ -283,7 +283,9 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <ThemeCard variant="elevated" decorative class="flex flex-col">
+  <ThemeCard data-capturable-card class="group/card relative isolate flex flex-col overflow-hidden">
+    <CardDecoration />
+    <CardCaptureOverlay />
     <div v-if="memberA && memberB" class="relative z-10 flex flex-col h-full">
       <!-- 1. 主视觉区域：对比与口头禅 / 右侧雷达图 -->
       <div class="flex flex-col sm:flex-row items-center sm:items-start gap-6 px-6 pt-8 pb-4 sm:px-8">
@@ -349,11 +351,7 @@ onUnmounted(() => {
           </span>
         </div>
         <div class="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div
-            v-for="card in mergedCards"
-            :key="card.title"
-            class="flex flex-col rounded-xl bg-white/60 p-4 ring-1 ring-gray-900/5 backdrop-blur-sm dark:bg-white/5 dark:ring-white/10"
-          >
+          <div v-for="card in mergedCards" :key="card.title" class="flex min-w-0 flex-col p-4">
             <!-- Header -->
             <div class="mb-4 flex items-center gap-2.5">
               <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" :class="card.iconBgClass">

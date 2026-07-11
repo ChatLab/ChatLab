@@ -2,7 +2,7 @@
 import { computed, defineAsyncComponent } from 'vue'
 import { useI18n } from 'vue-i18n'
 import dayjs from 'dayjs'
-import { ThemeCard } from '@/components/UI'
+import { CardCaptureOverlay, CardDecoration, ThemeCard } from '@/components/UI'
 import type { WordFrequencyItem, PosTagStat } from './topicProfileTypes'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
@@ -214,7 +214,9 @@ const KEYWORD_COLORS = ['#6366f1', '#ec4899', '#f97316', '#22c55e', '#3b82f6', '
 </script>
 
 <template>
-  <ThemeCard variant="elevated" decorative class="flex flex-col">
+  <ThemeCard data-capturable-card class="group/card relative isolate flex flex-col overflow-hidden">
+    <CardDecoration />
+    <CardCaptureOverlay />
     <!-- 主视觉区域 -->
     <div class="relative z-10 px-6 pt-8 pb-4 sm:px-8">
       <div class="flex items-center gap-6 sm:gap-10">
@@ -296,11 +298,7 @@ const KEYWORD_COLORS = ['#6366f1', '#ec4899', '#f97316', '#22c55e', '#3b82f6', '
         </span>
       </div>
       <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-        <div
-          v-for="item in metricItems"
-          :key="item.label"
-          class="flex items-start gap-2 rounded-lg bg-white/60 p-2.5 ring-1 ring-gray-900/5 dark:bg-white/5 dark:ring-white/10"
-        >
+        <div v-for="item in metricItems" :key="item.label" class="flex min-w-0 items-start gap-2 px-2.5 py-2">
           <UIcon :name="item.icon" class="mt-0.5 h-3.5 w-3.5 shrink-0" :class="item.colorClass" />
           <div class="min-w-0 flex-1">
             <div class="truncate font-mono text-sm font-black leading-tight tabular-nums" :class="item.colorClass">
