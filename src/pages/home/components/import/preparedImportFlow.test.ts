@@ -20,7 +20,14 @@ describe('prepared import batch flow', () => {
         importCalls.push(chatId)
         return chatId === 'chat-b'
           ? { success: false, error: 'failed' }
-          : { success: true, sessionId: `session-${chatId}` }
+          : {
+              success: true,
+              sessionId: `session-${chatId}`,
+              importMode: 'incremental' as const,
+              matchedBy: 'stable-id' as const,
+              newMessageCount: 2,
+              duplicateCount: 5,
+            }
       },
       releaseSource: async () => {
         releaseCalls++
@@ -32,6 +39,20 @@ describe('prepared import batch flow', () => {
     assert.equal(result.failed, 1)
     assert.equal(result.cancelled, 0)
     assert.equal(releaseCalls, 1)
+    assert.deepEqual(
+      {
+        importMode: result.items[0].importMode,
+        matchedBy: result.items[0].matchedBy,
+        newMessageCount: result.items[0].newMessageCount,
+        duplicateCount: result.items[0].duplicateCount,
+      },
+      {
+        importMode: 'incremental',
+        matchedBy: 'stable-id',
+        newMessageCount: 2,
+        duplicateCount: 5,
+      }
+    )
   })
 
   it('does not start remaining chats after cancellation', async () => {

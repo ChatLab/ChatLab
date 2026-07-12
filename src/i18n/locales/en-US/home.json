@@ -54,6 +54,11 @@
       "written": " / Written: ",
       "skipped": " / Skipped: "
     },
+    "outcome": {
+      "created": "New session created",
+      "incremental": "Added {newCount} messages and skipped {duplicateCount} duplicates",
+      "unchanged": "Already imported; no new messages"
+    },
     "batch": {
       "importing": "Batch importing",
       "progressCount": "{current} of {total}",
@@ -61,6 +66,9 @@
       "waiting": "Waiting",
       "skipped": "Skipped",
       "success": "Import successful",
+      "created": "New session created",
+      "incremental": "Added {newCount}; skipped {duplicateCount} duplicates",
+      "unchanged": "Already imported; no new messages",
       "completed": "Batch import completed",
       "summary": "{success} succeeded, {failed} failed, {cancelled} skipped",
       "view": "View"

@@ -2,6 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AnalysisSession, ImportProgress, ChatType } from '@/types/base'
 import { useDataService, useImportService, useSessionIndexService, usePlatformService } from '@/services'
+import type { AutoImportMatchMethod, AutoImportMode } from '@/services'
 import { IS_ELECTRON } from '@/utils/platform'
 
 /** 侧边栏筛选类型 */
@@ -41,6 +42,10 @@ export interface BatchFileInfo {
   progress?: ImportProgress
   error?: string
   sessionId?: string
+  importMode?: AutoImportMode
+  matchedBy?: AutoImportMatchMethod
+  newMessageCount?: number
+  duplicateCount?: number
 }
 
 /** 批量导入结果 */
@@ -184,6 +189,10 @@ export const useSessionStore = defineStore(
     async function importFile(): Promise<{
       success: boolean
       error?: string
+      importMode?: AutoImportMode
+      matchedBy?: AutoImportMatchMethod
+      newMessageCount?: number
+      duplicateCount?: number
     }> {
       try {
         const dialogResult = await usePlatformService().showOpenDialog({
@@ -224,6 +233,10 @@ export const useSessionStore = defineStore(
       success: boolean
       error?: string
       diagnostics?: ImportDiagnosticsInfo
+      importMode?: AutoImportMode
+      matchedBy?: AutoImportMatchMethod
+      newMessageCount?: number
+      duplicateCount?: number
     }> {
       try {
         isImporting.value = true
@@ -284,15 +297,24 @@ export const useSessionStore = defineStore(
           await loadSessions()
           currentSessionId.value = importResult.sessionId
 
-          try {
-            await useSessionIndexService().generate(importResult.sessionId, getSessionGapThreshold())
-          } catch (error) {
-            console.error('自动生成会话索引失败:', error)
+          if (importResult.importMode === 'created') {
+            try {
+              await useSessionIndexService().generate(importResult.sessionId, getSessionGapThreshold())
+            } catch (error) {
+              console.error('自动生成会话索引失败:', error)
+            }
           }
 
           await applyOwnerProfileAfterImport(importResult.sessionId)
 
-          return { success: true, diagnostics: importResult.diagnostics }
+          return {
+            success: true,
+            diagnostics: importResult.diagnostics,
+            importMode: importResult.importMode,
+            matchedBy: importResult.matchedBy,
+            newMessageCount: importResult.newMessageCount,
+            duplicateCount: importResult.duplicateCount,
+          }
         } else {
           return {
             success: false,
@@ -414,13 +436,19 @@ export const useSessionStore = defineStore(
             if (importResult.success && importResult.sessionId) {
               file.status = 'success'
               file.sessionId = importResult.sessionId
+              file.importMode = importResult.importMode
+              file.matchedBy = importResult.matchedBy
+              file.newMessageCount = importResult.newMessageCount
+              file.duplicateCount = importResult.duplicateCount
               successCount++
 
               // 即使取消了也要为已导入成功的文件生成会话索引
-              try {
-                await useSessionIndexService().generate(importResult.sessionId, getSessionGapThreshold())
-              } catch (error) {
-                console.error('自动生成会话索引失败:', error)
+              if (importResult.importMode === 'created') {
+                try {
+                  await useSessionIndexService().generate(importResult.sessionId, getSessionGapThreshold())
+                } catch (error) {
+                  console.error('自动生成会话索引失败:', error)
+                }
               }
               await applyOwnerProfileAfterImport(importResult.sessionId)
             } else {
@@ -436,10 +464,14 @@ export const useSessionStore = defineStore(
           if (importResult.success && importResult.sessionId) {
             file.status = 'success'
             file.sessionId = importResult.sessionId
+            file.importMode = importResult.importMode
+            file.matchedBy = importResult.matchedBy
+            file.newMessageCount = importResult.newMessageCount
+            file.duplicateCount = importResult.duplicateCount
             successCount++
 
             // 自动生成会话索引（跳过如果已取消）
-            if (!batchImportCancelled.value) {
+            if (!batchImportCancelled.value && importResult.importMode === 'created') {
               try {
                 await useSessionIndexService().generate(importResult.sessionId, getSessionGapThreshold())
               } catch (error) {

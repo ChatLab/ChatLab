@@ -23,6 +23,8 @@ export type {
   ImportAdapter,
   ImportOptions,
   ImportResult,
+  AutoImportMode,
+  AutoImportMatchMethod,
   ImportDiagnosticsInfo,
   FormatInfo,
   MultiChatEntry,

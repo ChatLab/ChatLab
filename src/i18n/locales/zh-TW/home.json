@@ -54,6 +54,11 @@
       "written": " / 寫入：",
       "skipped": " / 跳過："
     },
+    "outcome": {
+      "created": "已建立新會話",
+      "incremental": "已增量匯入 {newCount} 則訊息，略過 {duplicateCount} 則重複訊息",
+      "unchanged": "內容已匯入，沒有新增訊息"
+    },
     "batch": {
       "importing": "批次匯入中",
       "progressCount": "第 {current} / {total} 個",
@@ -61,6 +66,9 @@
       "waiting": "等待中",
       "skipped": "已跳過",
       "success": "匯入成功",
+      "created": "已建立新會話",
+      "incremental": "新增 {newCount} 則，略過 {duplicateCount} 則重複訊息",
+      "unchanged": "內容已匯入，無新增訊息",
       "completed": "批次匯入完成",
       "summary": "成功 {success} 個，失敗 {failed} 個，跳過 {cancelled} 個",
       "view": "檢視"

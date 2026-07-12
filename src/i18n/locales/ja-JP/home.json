@@ -54,6 +54,11 @@
       "written": " / 書き込み：",
       "skipped": " / スキップ："
     },
+    "outcome": {
+      "created": "新しいセッションを作成しました",
+      "incremental": "{newCount} 件を追加し、重複 {duplicateCount} 件をスキップしました",
+      "unchanged": "インポート済みのため、新しいメッセージはありません"
+    },
     "batch": {
       "importing": "一括インポート中",
       "progressCount": "{current} / {total} 件目",
@@ -61,6 +66,9 @@
       "waiting": "待機中",
       "skipped": "スキップ済み",
       "success": "インポート成功",
+      "created": "新しいセッションを作成しました",
+      "incremental": "{newCount} 件追加、重複 {duplicateCount} 件スキップ",
+      "unchanged": "インポート済み、新規メッセージなし",
       "completed": "一括インポート完了",
       "summary": "成功 {success} 件、失敗 {failed} 件、スキップ {cancelled} 件",
       "view": "表示"

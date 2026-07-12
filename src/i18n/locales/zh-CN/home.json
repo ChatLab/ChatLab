@@ -54,6 +54,11 @@
       "written": " / 写入：",
       "skipped": " / 跳过："
     },
+    "outcome": {
+      "created": "已创建新会话",
+      "incremental": "已增量导入 {newCount} 条消息，跳过 {duplicateCount} 条重复消息",
+      "unchanged": "内容已导入，没有新增消息"
+    },
     "batch": {
       "importing": "正在批量导入",
       "progressCount": "第 {current} 个 / 共 {total} 个",
@@ -61,6 +66,9 @@
       "waiting": "等待中",
       "skipped": "已跳过",
       "success": "导入成功",
+      "created": "已创建新会话",
+      "incremental": "新增 {newCount} 条，跳过 {duplicateCount} 条重复消息",
+      "unchanged": "内容已导入，无新增消息",
       "completed": "批量导入完成",
       "summary": "成功 {success} 个，失败 {failed} 个，跳过 {cancelled} 个",
       "view": "查看"

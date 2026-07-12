@@ -15,12 +15,15 @@ import {
   useSessionIndexService,
   usePlatformService,
   type PreparedImportSource,
+  type ImportResult,
 } from '@/services'
 import { IS_ELECTRON } from '@/utils/platform'
 import { useCacheService } from '@/services/cache/service'
 import { getSessionGapThreshold } from '@/composables/useUiConfig'
+import { useToast } from '@/composables/useToast'
 
 const { t } = useI18n()
+const toast = useToast()
 const sessionStore = useSessionStore()
 const {
   isImporting,
@@ -49,13 +52,35 @@ const preparedImportSource = ref<PreparedImportSource | null>(null)
 const showFormatSelector = ref(false)
 const formatSelectorFilePath = ref('')
 
-async function autoGenerateSessionIndex(sessionId: string) {
+async function autoGenerateSessionIndex(sessionId: string, importMode?: ImportResult['importMode']) {
+  if (importMode === 'incremental') return
   try {
     const gapThreshold = getSessionGapThreshold()
     await useSessionIndexService().generate(sessionId, gapThreshold)
   } catch (error) {
     console.error('自动生成会话索引失败:', error)
   }
+}
+
+function showImportOutcome(result: ImportResult) {
+  if (result.importMode !== 'incremental') {
+    toast.success(t('home.import.outcome.created'))
+    return
+  }
+
+  const newMessageCount = result.newMessageCount ?? 0
+  const duplicateCount = result.duplicateCount ?? 0
+  if (newMessageCount === 0) {
+    toast.info(t('home.import.outcome.unchanged'))
+    return
+  }
+
+  toast.success(
+    t('home.import.outcome.incremental', {
+      newCount: newMessageCount.toLocaleString(),
+      duplicateCount: duplicateCount.toLocaleString(),
+    })
+  )
 }
 
 const importError = ref<string | null>(null)
@@ -292,6 +317,7 @@ async function importSingleWebFile(file: File, options?: { formatId?: string; ch
     if (result.success && result.sessionId) {
       await sessionStore.loadSessions()
       sessionStore.selectSession(result.sessionId)
+      showImportOutcome(result)
       await navigateToSession(result.sessionId)
     } else {
       importError.value = translateError(result.error || 'error.import_failed')
@@ -359,6 +385,7 @@ async function importDirectory(source: File[] | string) {
     if (result.success && result.sessionId) {
       await sessionStore.loadSessions()
       sessionStore.selectSession(result.sessionId)
+      showImportOutcome(result)
       await navigateToSession(result.sessionId)
     } else {
       importError.value = translateError(result.error || 'error.import_failed')
@@ -424,6 +451,7 @@ async function processFilePaths(paths: string[]) {
           await checkImportLog()
         }
       } else if (result.success && sessionStore.currentSessionId) {
+        showImportOutcome(result)
         await navigateToSession(sessionStore.currentSessionId)
       }
     } else {
@@ -470,7 +498,8 @@ async function handleFormatSelect(formatId: string) {
     if (result.success && result.sessionId) {
       await sessionStore.loadSessions()
       sessionStore.selectSession(result.sessionId)
-      await autoGenerateSessionIndex(result.sessionId)
+      await autoGenerateSessionIndex(result.sessionId, result.importMode)
+      showImportOutcome(result)
       await navigateToSession(result.sessionId)
     } else {
       importError.value = translateError(result.error || 'error.import_failed')
@@ -508,7 +537,8 @@ async function handleChatSelect(selectedChats: ChatInfo[]) {
         if (result.success && result.sessionId) {
           await sessionStore.loadSessions()
           sessionStore.selectSession(result.sessionId)
-          await autoGenerateSessionIndex(result.sessionId)
+          await autoGenerateSessionIndex(result.sessionId, result.importMode)
+          showImportOutcome(result)
           await navigateToSession(result.sessionId)
         } else {
           importError.value = translateError(result.error || 'error.import_failed')
@@ -550,7 +580,7 @@ async function handleChatSelect(selectedChats: ChatInfo[]) {
           if (progress.stage !== 'done' && index >= 0) batchFiles.value[index].progress = progress
         })
         if (result.success && result.sessionId) {
-          await autoGenerateSessionIndex(result.sessionId)
+          await autoGenerateSessionIndex(result.sessionId, result.importMode)
         }
         return result
       },
@@ -559,6 +589,10 @@ async function handleChatSelect(selectedChats: ChatInfo[]) {
         file.status = result.success ? 'success' : 'failed'
         file.sessionId = result.sessionId
         file.error = result.error
+        file.importMode = result.importMode
+        file.matchedBy = result.matchedBy
+        file.newMessageCount = result.newMessageCount
+        file.duplicateCount = result.duplicateCount
       },
     })
 
@@ -620,7 +654,8 @@ async function handleChatSelect(selectedChats: ChatInfo[]) {
       if (result.success && result.sessionId) {
         await sessionStore.loadSessions()
         sessionStore.selectSession(result.sessionId)
-        await autoGenerateSessionIndex(result.sessionId)
+        await autoGenerateSessionIndex(result.sessionId, result.importMode)
+        showImportOutcome(result)
         await navigateToSession(result.sessionId)
       } else {
         importError.value = translateError(result.error || 'error.import_failed')
@@ -657,8 +692,12 @@ async function handleChatSelect(selectedChats: ChatInfo[]) {
         if (result.success && result.sessionId) {
           batchFiles.value[i].status = 'success'
           batchFiles.value[i].sessionId = result.sessionId
+          batchFiles.value[i].importMode = result.importMode
+          batchFiles.value[i].matchedBy = result.matchedBy
+          batchFiles.value[i].newMessageCount = result.newMessageCount
+          batchFiles.value[i].duplicateCount = result.duplicateCount
           successCount++
-          await autoGenerateSessionIndex(result.sessionId)
+          await autoGenerateSessionIndex(result.sessionId, result.importMode)
         } else {
           batchFiles.value[i].status = 'failed'
           batchFiles.value[i].error = result.error
@@ -685,6 +724,10 @@ async function handleChatSelect(selectedChats: ChatInfo[]) {
         status: f.status,
         sessionId: f.sessionId,
         error: f.error,
+        importMode: f.importMode,
+        matchedBy: f.matchedBy,
+        newMessageCount: f.newMessageCount,
+        duplicateCount: f.duplicateCount,
       })),
     }
   }
@@ -788,7 +831,7 @@ const getStatusClass = (status: string) => STATUS_CONFIG[status]?.class ?? 'text
 function getBatchFileProgressText(file: BatchFileInfo): string {
   if (file.status === 'pending') return t('home.import.batch.waiting')
   if (file.status === 'cancelled') return t('home.import.batch.skipped')
-  if (file.status === 'success') return t('home.import.batch.success')
+  if (file.status === 'success') return getBatchFileOutcomeText(file)
   if (file.status === 'failed') return translateError(file.error || 'error.import_failed')
   // importing 状态
   if (file.progress) {
@@ -799,6 +842,15 @@ function getBatchFileProgressText(file: BatchFileInfo): string {
     return t(`home.import.progress.${stage}`)
   }
   return ''
+}
+
+function getBatchFileOutcomeText(file: BatchFileInfo): string {
+  if (file.importMode !== 'incremental') return t('home.import.batch.created')
+  if ((file.newMessageCount ?? 0) === 0) return t('home.import.batch.unchanged')
+  return t('home.import.batch.incremental', {
+    newCount: (file.newMessageCount ?? 0).toLocaleString(),
+    duplicateCount: (file.duplicateCount ?? 0).toLocaleString(),
+  })
 }
 
 // 获取合并文件进度描述
@@ -994,6 +1046,9 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
             </p>
             <p v-else-if="file.status === 'cancelled'" class="text-xs text-gray-500">
               {{ t('home.import.batch.skipped') }}
+            </p>
+            <p v-else-if="file.status === 'success'" class="text-xs text-gray-500 dark:text-gray-400">
+              {{ getBatchFileOutcomeText(file) }}
             </p>
           </template>
           <template v-if="file.status === 'success' && file.sessionId" #action>

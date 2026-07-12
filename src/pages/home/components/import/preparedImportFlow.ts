@@ -1,3 +1,5 @@
+import type { ImportResult } from '@/services'
+
 export interface PreparedBatchChat {
   chatId: string
   name: string
@@ -13,21 +15,26 @@ export interface PreparedBatchImportResult {
     status: 'success' | 'failed' | 'cancelled'
     sessionId?: string
     error?: string
+    importMode?: ImportResult['importMode']
+    matchedBy?: ImportResult['matchedBy']
+    newMessageCount?: number
+    duplicateCount?: number
   }>
 }
+
+type PreparedChatImportResult = Pick<
+  ImportResult,
+  'success' | 'sessionId' | 'error' | 'importMode' | 'matchedBy' | 'newMessageCount' | 'duplicateCount'
+>
 
 export async function runPreparedImportBatch(options: {
   sourceId: string
   chats: PreparedBatchChat[]
-  importChat: (sourceId: string, chatId: string) => Promise<{ success: boolean; sessionId?: string; error?: string }>
+  importChat: (sourceId: string, chatId: string) => Promise<PreparedChatImportResult>
   releaseSource: (sourceId: string) => Promise<void>
   isCancelled?: () => boolean
   onItemStart?: (chat: PreparedBatchChat, index: number) => void
-  onItemComplete?: (
-    chat: PreparedBatchChat,
-    index: number,
-    result: { success: boolean; sessionId?: string; error?: string }
-  ) => void
+  onItemComplete?: (chat: PreparedBatchChat, index: number, result: PreparedChatImportResult) => void
 }): Promise<PreparedBatchImportResult> {
   const items: PreparedBatchImportResult['items'] = []
 
@@ -50,6 +57,10 @@ export async function runPreparedImportBatch(options: {
           status: result.success ? 'success' : 'failed',
           sessionId: result.sessionId,
           error: result.error,
+          importMode: result.importMode,
+          matchedBy: result.matchedBy,
+          newMessageCount: result.newMessageCount,
+          duplicateCount: result.duplicateCount,
         })
       } catch (error) {
         const result = { success: false, error: error instanceof Error ? error.message : String(error) }
