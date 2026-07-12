@@ -84,6 +84,9 @@ export {
   isValidContactPlatformId,
   resolveOwnerMember,
 } from './contact-queries'
+
+export { buildContactKey, shouldScopeContactToSession } from './contact-identity'
+
 export type {
   ContactFactsOptions,
   ContactMemberRef,
