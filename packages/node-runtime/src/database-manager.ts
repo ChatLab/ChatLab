@@ -28,7 +28,8 @@ import {
 } from './migrations'
 import { tokenizeForFts } from './nlp/fts-tokenizer'
 import { getContactsFactsCacheDir } from './services/contacts/paths'
-import { getGlobalInsightFactsCacheDir } from './services/global-insight/paths'
+import { getGlobalInsightDir, getGlobalInsightFactsCacheDir } from './services/global-insight/paths'
+import { deleteAnnualSummarySnapshots } from './services/global-insight/snapshot'
 import { getPeopleRelationshipsFactsCacheDir } from './services/people/relationships/paths'
 
 function createMigrationDeps(overrides?: MigrationDeps): MigrationDeps {
@@ -251,6 +252,7 @@ export class DatabaseManager {
     deleteSessionCache(sessionId, path.join(cacheDir, 'query'))
     deleteSessionCache(sessionId, getContactsFactsCacheDir(this.pathProvider.getUserDataDir()))
     deleteSessionCache(sessionId, getGlobalInsightFactsCacheDir(this.pathProvider.getUserDataDir()))
+    deleteAnnualSummarySnapshots(getGlobalInsightDir(this.pathProvider.getUserDataDir()))
     deleteSessionCache(sessionId, getPeopleRelationshipsFactsCacheDir(this.pathProvider.getUserDataDir()))
     return existed
   }

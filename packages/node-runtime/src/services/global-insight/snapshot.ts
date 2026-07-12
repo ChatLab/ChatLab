@@ -50,3 +50,15 @@ export function cleanupAnnualSummarySnapshotTempFiles(snapshotDir: string): void
     }
   }
 }
+
+export function deleteAnnualSummarySnapshots(snapshotDir: string): void {
+  if (!fs.existsSync(snapshotDir)) return
+  for (const name of fs.readdirSync(snapshotDir)) {
+    if (!name.startsWith('annual-summary-') && !name.startsWith('annual-summary.')) continue
+    try {
+      fs.rmSync(path.join(snapshotDir, name), { force: true })
+    } catch (error) {
+      appLogger.warn('global-insight', 'failed to remove annual summary snapshot', error)
+    }
+  }
+}

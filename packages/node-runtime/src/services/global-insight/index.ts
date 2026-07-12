@@ -3,3 +3,4 @@ export type { GlobalInsightService, GlobalInsightServiceDeps, GlobalInsightServi
 export { ANNUAL_SUMMARY_ALGORITHM_VERSION } from './types'
 export type { AnnualSummaryComputeRunner, AnnualSummaryRunnerOptions } from './worker-runner'
 export { getGlobalInsightDir, getGlobalInsightFactsCacheDir } from './paths'
+export { deleteAnnualSummarySnapshots } from './snapshot'

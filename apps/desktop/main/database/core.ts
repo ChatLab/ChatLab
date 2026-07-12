@@ -176,6 +176,9 @@ export function deleteSession(sessionId: string): boolean {
       sessionId,
       globalInsightService.getGlobalInsightFactsCacheDir(getPathProvider().getUserDataDir())
     )
+    globalInsightService.deleteAnnualSummarySnapshots(
+      globalInsightService.getGlobalInsightDir(getPathProvider().getUserDataDir())
+    )
     deleteSessionCache(
       sessionId,
       peopleRelationshipsService.getPeopleRelationshipsFactsCacheDir(getPathProvider().getUserDataDir())
