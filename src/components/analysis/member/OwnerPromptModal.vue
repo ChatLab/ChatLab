@@ -54,7 +54,9 @@ const isDismissing = ref(false)
 const searchQuery = ref('')
 const selectedPlatformId = ref<string | null>(null)
 
-const currentOwnerId = computed(() => sessionStore.currentSession?.ownerId ?? null)
+const currentOwnerId = computed(
+  () => sessionStore.sessions.find((session) => session.id === props.sessionId)?.ownerId ?? null
+)
 
 function getDisplayName(member: MemberWithStats): string {
   return member.groupNickname || member.accountName || member.platformId
@@ -154,18 +156,26 @@ function later() {
   isOpen.value = false
 }
 
-// 打开时加载成员并默认选中当前 owner
-watch(isOpen, (open) => {
-  if (open) {
-    searchQuery.value = ''
-    selectedPlatformId.value = currentOwnerId.value
-    loadMembers()
-  }
-})
+function prepareOwnerSelection() {
+  searchQuery.value = ''
+  selectedPlatformId.value = currentOwnerId.value
+  members.value = []
+  void loadMembers()
+}
+
+// 打开时加载成员并默认选中当前 owner。immediate 覆盖以打开状态首次挂载的场景。
+watch(
+  isOpen,
+  (open) => {
+    if (open) prepareOwnerSelection()
+  },
+  { immediate: true }
+)
 
 watch(
   () => props.sessionId,
   () => {
+    if (isOpen.value) prepareOwnerSelection()
     checkAndAutoOpen()
   }
 )
@@ -176,7 +186,7 @@ onMounted(() => {
 </script>
 
 <template>
-  <UModal v-model:open="isOpen" :ui="{ content: 'max-w-md' }">
+  <UModal v-model:open="isOpen" :ui="{ content: 'max-w-md z-[111]', overlay: 'z-[110]' }">
     <template #content>
       <div class="p-6">
         <!-- 头部 -->
@@ -270,8 +280,8 @@ onMounted(() => {
         <div class="mt-5 flex items-center justify-between gap-2">
           <UButton
             v-if="!currentOwnerId"
-            variant="ghost"
-            color="neutral"
+            variant="soft"
+            color="primary"
             size="sm"
             :loading="isDismissing"
             @click="dismissForever"

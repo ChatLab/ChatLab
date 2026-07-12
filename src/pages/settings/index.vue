@@ -119,7 +119,11 @@ onMounted(async () => {
             :ref="(el) => setTabRef('ai', el)"
             @config-changed="handleAIConfigChanged"
           />
-          <BatchManageTab v-else-if="activeTab === 'data'" key="data" />
+          <BatchManageTab
+            v-else-if="activeTab === 'data'"
+            key="data"
+            :focus-owner-issues="route.query.subTab === 'missing-owner'"
+          />
           <ApiSettingsTab v-else-if="activeTab === 'api'" key="api" />
           <StorageTab v-else-if="activeTab === 'storage'" key="storage" :ref="(el) => setTabRef('storage', el)" />
           <AboutTab v-else-if="activeTab === 'about'" key="about" />

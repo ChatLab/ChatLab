@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { useRouter } from 'vue-router'
+import { useLayoutStore } from '@/stores/layout'
 import type { AnnualSummaryFetchOptions } from '@/services/data/types'
 import type { AnnualSummaryResponse } from '@openchatlab/shared-types'
 import LoadingState from '@/components/UI/LoadingState.vue'
@@ -11,7 +11,7 @@ import { useAnnualSummaryTimeRange } from '../annual-summary-time-range'
 import AnnualInsightBoard from './components/AnnualInsightBoard.vue'
 
 const { t } = useI18n()
-const router = useRouter()
+const layoutStore = useLayoutStore()
 const currentYear = new Date().getFullYear()
 const timeRange = useAnnualSummaryTimeRange()
 const response = ref<AnnualSummaryResponse | null>(null)
@@ -103,7 +103,7 @@ function switchToLatestYear(): void {
 }
 
 function openSessions(): void {
-  void router.push('/')
+  layoutStore.openSettings('data', 'missing-owner')
 }
 </script>
 

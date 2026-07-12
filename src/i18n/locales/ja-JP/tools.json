@@ -2,6 +2,11 @@
   "batchManage": {
     "searchPlaceholder": "チャット名を検索",
     "searchResult": "{count} / {total} 件を検出",
+    "ownerIssues": "{count} 件の会話で自分が未設定です",
+    "ownerStatus": {
+      "missing": "未設定",
+      "unresolved": "要確認"
+    },
     "noSearchResult": "一致するチャット履歴が見つかりません",
     "selectAll": "すべて選択",
     "shiftClickHint": "Shiftキーを押しながらクリックで範囲選択できます",
@@ -14,6 +19,7 @@
     "columns": {
       "name": "名前",
       "platform": "プラットフォーム",
+      "owner": "自分",
       "messages": "メッセージ数",
       "summaries": "AI要約",
       "aiChats": "AI チャット",

@@ -679,6 +679,8 @@ export const useSessionStore = defineStore(
           const session = sessions.value.find((s) => s.id === id)
           if (session) {
             session.ownerId = ownerId
+            session.ownerName = null
+            session.ownerStatus = ownerId ? 'unresolved' : 'missing'
           }
         }
         return success
@@ -698,6 +700,8 @@ export const useSessionStore = defineStore(
         const session = sessions.value.find((s) => s.id === sessionId)
         if (session) {
           session.ownerId = result.updatedSessionOwnerIds[sessionId] ?? result.ownerId
+          session.ownerName = session.ownerId
+          session.ownerStatus = 'resolved'
         }
       }
       return result
@@ -712,6 +716,8 @@ export const useSessionStore = defineStore(
         const session = sessions.value.find((s) => s.id === id)
         if (session) {
           session.ownerId = result.ownerId
+          session.ownerName = result.ownerId
+          session.ownerStatus = 'resolved'
         }
       }
       return result

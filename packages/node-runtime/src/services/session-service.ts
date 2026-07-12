@@ -24,6 +24,8 @@ export interface AnalysisSessionDTO extends CoreSessionInfo {
   dbPath: string
   memberAvatar: string | null
   aiConversationCount: number
+  ownerName: string | null
+  ownerStatus: 'resolved' | 'missing' | 'unresolved'
 }
 
 /**
@@ -64,7 +66,26 @@ function buildSession(
     memberAvatar = getPrivateChatMemberAvatar(db, meta.name, meta.ownerId)
   }
 
-  let dto: AnalysisSessionDTO = { ...info, id, dbPath, memberAvatar, aiConversationCount: 0 }
+  const ownerMember = meta.ownerId
+    ? (db
+        .prepare(
+          `SELECT COALESCE(NULLIF(group_nickname, ''), NULLIF(account_name, ''), platform_id) as displayName
+           FROM member
+           WHERE platform_id = ?
+           LIMIT 1`
+        )
+        .get(meta.ownerId) as { displayName: string } | undefined)
+    : undefined
+
+  let dto: AnalysisSessionDTO = {
+    ...info,
+    id,
+    dbPath,
+    memberAvatar,
+    aiConversationCount: 0,
+    ownerName: ownerMember?.displayName ?? null,
+    ownerStatus: !meta.ownerId ? 'missing' : ownerMember ? 'resolved' : 'unresolved',
+  }
   if (options?.enrichSession) {
     dto = options.enrichSession(dto)
   }
