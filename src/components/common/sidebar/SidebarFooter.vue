@@ -6,11 +6,11 @@ import SidebarButton from './SidebarButton.vue'
 
 const { t } = useI18n()
 const layoutStore = useLayoutStore()
-const { showSettings, isSidebarCollapsed: isCollapsed } = storeToRefs(layoutStore)
+const { showSettings } = storeToRefs(layoutStore)
 </script>
 
 <template>
-  <div class="mb-2 space-y-2 py-2 dark:border-gray-800" :class="[isCollapsed ? 'px-2' : 'px-4']">
+  <div class="mb-2 space-y-2 px-2 py-2 dark:border-gray-800">
     <!-- 设置 -->
     <SidebarButton
       icon="i-heroicons-cog-6-tooth"
