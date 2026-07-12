@@ -334,7 +334,7 @@ onMounted(async () => {
 
 <template>
   <div class="h-full p-3">
-    <ThemeCard class="flex h-full min-w-0 flex-col">
+    <ThemeCard :shadow="false" class="flex h-full min-w-0 flex-col">
       <!-- Toolbar -->
       <div class="relative z-20 flex items-center gap-2 border-b border-gray-200 px-4 py-2 dark:border-gray-700">
         <!-- DB Source Tabs -->

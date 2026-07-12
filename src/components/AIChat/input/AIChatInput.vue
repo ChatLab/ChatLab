@@ -688,11 +688,11 @@ defineExpose({
       />
 
       <div
-        class="flex flex-col overflow-hidden rounded-2xl bg-white shadow-[0_2px_14px_rgba(0,0,0,0.04)] ring-1 ring-gray-200 transition-all dark:bg-page-dark dark:ring-gray-800"
+        class="flex flex-col overflow-hidden rounded-2xl bg-white shadow-[0_2px_14px_rgba(0,0,0,0.04)] ring-1 ring-gray-200/60 transition-all dark:bg-page-dark dark:ring-white/5"
         :class="
           props.disabled
             ? 'bg-gray-50/50 dark:bg-page-dark/50'
-            : 'focus-within:ring-primary-500/50 focus-within:shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:focus-within:ring-primary-500/50'
+            : 'focus-within:ring-primary-500/40 focus-within:shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:focus-within:ring-primary-500/40'
         "
       >
         <div class="relative px-4 pt-2.5 pb-2.5">

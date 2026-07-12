@@ -411,7 +411,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
 
 <template>
   <div
-    class="m-3 flex h-[calc(100%-1.5rem)] shrink-0 flex-col overflow-hidden rounded-lg bg-white shadow-elevated transition-all duration-300 ease-in-out dark:bg-sidebar-dark"
+    class="m-3 flex h-[calc(100%-1.5rem)] shrink-0 flex-col overflow-hidden rounded-lg bg-white transition-all duration-300 ease-in-out dark:bg-sidebar-dark"
     :class="isCollapsed ? 'w-14' : 'w-72'"
   >
     <div class="flex flex-col pt-5" :class="[isCollapsed ? 'px-2 pb-4' : 'p-4']">
@@ -423,10 +423,12 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
       >
         <div v-if="!isCollapsed" class="ml-2 flex items-center">
           <img :src="logoSvg" alt="ChatLab" class="h-6 w-6 select-none pointer-events-none" />
-          <div class="ml-2 text-2xl font-black tracking-tight text-pink-500">
-            {{ t('layout.brand') }}
+          <div class="ml-2 flex items-baseline gap-2">
+            <div class="text-2xl font-black tracking-tight text-pink-500">
+              {{ t('layout.brand') }}
+            </div>
+            <span class="text-xs text-gray-400">v{{ version }}</span>
           </div>
-          <span class="ml-2 text-xs text-gray-400">v{{ version }}</span>
           <button
             v-if="hasUpdate"
             type="button"
@@ -551,7 +553,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
                   class="group relative flex items-center text-left transition-all duration-200 cursor-pointer"
                   :class="[
                     route.params.id === virtualSessionAt(virtualItem.index).id
-                      ? 'bg-gray-200/50 text-primary-600 font-medium dark:bg-white/[0.07] dark:text-primary-400 dark:ring-1 dark:ring-white/10'
+                      ? 'text-primary-600 font-medium dark:text-primary-400'
                       : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/30 dark:hover:bg-white/[0.06]',
                     isCollapsed
                       ? 'justify-center h-10 w-10 rounded-lg mx-auto'

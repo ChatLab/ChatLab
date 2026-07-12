@@ -337,7 +337,7 @@ watch(
           <textarea
             v-if="inputMode === 'prompt'"
             v-model="promptInput"
-            class="h-32 w-full resize-none rounded-lg border border-gray-300 bg-white p-3 text-sm text-gray-800 focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500 dark:border-gray-700 dark:bg-page-dark dark:text-gray-200"
+            class="h-32 w-full resize-none rounded-2xl border-0 bg-white p-3 text-sm text-gray-800 shadow-[0_2px_14px_rgba(0,0,0,0.04)] outline-none ring-1 ring-gray-200/60 transition-all placeholder:text-gray-400 focus:ring-primary-500/40 focus:shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:bg-page-dark dark:text-gray-200 dark:ring-white/5 dark:placeholder:text-gray-500 dark:focus:ring-primary-500/40"
             :placeholder="t('ai.sqlLab.generate.placeholder')"
             spellcheck="false"
             @keydown="handleKeyDown($event, 'prompt')"
@@ -345,7 +345,7 @@ watch(
           <textarea
             v-else
             v-model="sql"
-            class="h-32 w-full resize-none rounded-lg border border-gray-300 bg-white p-3 font-mono text-sm text-gray-800 focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500 dark:border-gray-700 dark:bg-page-dark dark:text-gray-200"
+            class="h-32 w-full resize-none rounded-2xl border-0 bg-white p-3 font-mono text-sm text-gray-800 shadow-[0_2px_14px_rgba(0,0,0,0.04)] outline-none ring-1 ring-gray-200/60 transition-all placeholder:text-gray-400 focus:ring-primary-500/40 focus:shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:bg-page-dark dark:text-gray-200 dark:ring-white/5 dark:placeholder:text-gray-500 dark:focus:ring-primary-500/40"
             :placeholder="t('ai.sqlLab.editor.placeholder')"
             spellcheck="false"
             @keydown="handleKeyDown($event, 'sql')"

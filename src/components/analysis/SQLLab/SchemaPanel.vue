@@ -67,7 +67,7 @@ onMounted(() => {
 
 <template>
   <div
-    class="m-3 flex h-[calc(100%-1.5rem)] shrink-0 flex-col overflow-hidden rounded-lg bg-white shadow-elevated transition-all duration-300 ease-in-out dark:bg-sidebar-dark"
+    class="m-3 flex h-[calc(100%-1.5rem)] shrink-0 flex-col overflow-hidden rounded-lg bg-white transition-all duration-300 ease-in-out dark:bg-sidebar-dark"
     :class="isCollapsed ? 'w-14' : 'w-56'"
   >
     <!-- 面板头部 -->

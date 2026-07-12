@@ -924,7 +924,7 @@ function getGroupSectionScrollTop(): number | null {
                 <p class="mt-4 text-sm font-medium text-gray-400 dark:text-gray-500">{{ t('contacts.empty') }}</p>
               </div>
 
-              <ThemeCard v-else class="flex h-full min-w-0 flex-col">
+              <ThemeCard v-else :shadow="false" class="flex h-full min-w-0 flex-col">
                 <div
                   class="shrink-0 overflow-hidden border-b border-gray-100 bg-white dark:border-white/5 dark:bg-[#202024]"
                 >
