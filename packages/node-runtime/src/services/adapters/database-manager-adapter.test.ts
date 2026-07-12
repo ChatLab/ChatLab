@@ -7,6 +7,7 @@ import type { PathProvider } from '@openchatlab/core'
 import { DatabaseManager } from '../../database-manager'
 import { createDatabaseManagerAdapter } from './database-manager-adapter'
 import { getContactsFactsCacheDir } from '../contacts/paths'
+import { getGlobalInsightFactsCacheDir } from '../global-insight/paths'
 
 function makeTempDir(): string {
   const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
@@ -47,12 +48,18 @@ test('DatabaseManager adapter deletes session database sidecar files and caches'
     getContactsFactsCacheDir(pathProvider.getUserDataDir()),
     `${sessionId}.cache.json`
   )
+  const globalInsightFactsCachePath = path.join(
+    getGlobalInsightFactsCacheDir(pathProvider.getUserDataDir()),
+    `${sessionId}.cache.json`
+  )
   fs.mkdirSync(path.dirname(cachePath), { recursive: true })
   fs.mkdirSync(path.dirname(queryCachePath), { recursive: true })
   fs.mkdirSync(path.dirname(contactsFactsCachePath), { recursive: true })
+  fs.mkdirSync(path.dirname(globalInsightFactsCachePath), { recursive: true })
   fs.writeFileSync(cachePath, '{}', 'utf-8')
   fs.writeFileSync(queryCachePath, '{}', 'utf-8')
   fs.writeFileSync(contactsFactsCachePath, '{}', 'utf-8')
+  fs.writeFileSync(globalInsightFactsCachePath, '{}', 'utf-8')
 
   assert.equal(adapter.deleteSessionFile(sessionId), true)
   assert.equal(fs.existsSync(dbPath), false)
@@ -61,4 +68,5 @@ test('DatabaseManager adapter deletes session database sidecar files and caches'
   assert.equal(fs.existsSync(cachePath), false)
   assert.equal(fs.existsSync(queryCachePath), false)
   assert.equal(fs.existsSync(contactsFactsCachePath), false)
+  assert.equal(fs.existsSync(globalInsightFactsCachePath), false)
 })
