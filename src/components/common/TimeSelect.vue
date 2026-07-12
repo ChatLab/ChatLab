@@ -464,7 +464,15 @@ watch(
 <template>
   <div v-if="isLoaded" class="flex items-center gap-2" :class="{ invisible: !visible }">
     <!-- 模式选择器 -->
-    <USelect v-model="modeModel" :items="modeOptions" :size="size" class="w-28 shrink-0" />
+    <USelect
+      v-model="modeModel"
+      :items="modeOptions"
+      :size="secondaryControlSize"
+      color="neutral"
+      variant="soft"
+      :ui="{ item: 'py-1.5' }"
+      class="h-8 w-[88px] shrink-0 rounded-lg bg-elevated focus-visible:ring-1 focus-visible:ring-gray-300/60 dark:focus-visible:ring-white/15"
+    />
 
     <!-- 最近模式：UITabs 选择时间段 -->
     <UITabs
