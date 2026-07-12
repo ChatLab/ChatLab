@@ -42,8 +42,8 @@ function selectItem(item: PageTabItem): void {
           class="flex shrink-0 items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors"
           :class="
             modelValue === item.id
-              ? 'bg-primary-500 text-white dark:bg-primary-900/30 dark:text-primary-300'
-              : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800'
+              ? 'bg-primary-500 text-white dark:bg-primary-900/30 dark:text-primary-400'
+              : 'text-gray-600 hover:bg-primary-50 dark:text-gray-400 dark:hover:bg-primary-900/20'
           "
           :aria-pressed="item.to ? undefined : modelValue === item.id"
           @click="selectItem(item)"

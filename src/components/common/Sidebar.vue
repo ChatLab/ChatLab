@@ -414,7 +414,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
     class="m-3 flex h-[calc(100%-1.5rem)] shrink-0 flex-col overflow-hidden rounded-lg bg-white transition-all duration-300 ease-in-out dark:bg-sidebar-dark"
     :class="isCollapsed ? 'w-14' : 'w-72'"
   >
-    <div class="flex flex-col pt-5" :class="[isCollapsed ? 'px-2 pb-4' : 'p-4']">
+    <div class="flex flex-col px-2 pb-4 pt-5">
       <!-- Header -->
       <div
         class="mb-2 flex items-center"
@@ -538,8 +538,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
           <div
             v-for="virtualItem in virtualSessionItems"
             :key="String(virtualItem.key)"
-            class="absolute"
-            :class="[isCollapsed ? 'left-2 right-2' : 'left-4 right-4']"
+            class="absolute left-2 right-2"
             :style="{ transform: `translateY(${virtualItem.start}px)` }"
           >
             <UContextMenu :items="getContextMenuItems(virtualSessionAt(virtualItem.index))">
@@ -554,7 +553,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
                   :class="[
                     route.params.id === virtualSessionAt(virtualItem.index).id
                       ? 'text-primary-600 font-medium dark:text-primary-400'
-                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/30 dark:hover:bg-white/[0.06]',
+                      : 'text-gray-600 dark:text-gray-300 hover:bg-gray-200/20 dark:hover:bg-white/[0.04]',
                     isCollapsed
                       ? 'justify-center h-10 w-10 rounded-lg mx-auto'
                       : 'h-10 w-full rounded-xl p-1.5 px-2.5 pl-1.5',
@@ -569,9 +568,8 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
                 >
                   <!-- 激活指示器：在展开和折叠下，都优雅地贴在侧边栏最左侧边缘 -->
                   <div
-                    class="absolute top-1/2 -translate-y-1/2 w-[3px] rounded-r-full bg-primary-500 transition-all duration-200"
+                    class="absolute -left-2 top-1/2 w-[3px] -translate-y-1/2 rounded-r-full bg-primary-500 transition-all duration-200"
                     :class="[
-                      isCollapsed ? '-left-2' : '-left-4',
                       route.params.id === virtualSessionAt(virtualItem.index).id
                         ? 'h-4.5 opacity-100'
                         : 'h-0 opacity-0 group-hover:h-2.5 group-hover:opacity-40',
