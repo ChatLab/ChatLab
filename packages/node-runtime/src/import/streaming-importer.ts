@@ -25,7 +25,7 @@ import {
 } from '@openchatlab/parser'
 import * as fs from 'fs'
 import { buildFtsIndex } from '../fts'
-import { createMessageDedupState, registerMessageAndCheckDuplicate } from './message-deduplicator'
+import { createMessageDedupState, registerMessageAndCheckDuplicate, type DedupMessage } from './message-deduplicator'
 
 // ==================== Public interfaces ====================
 
@@ -97,6 +97,39 @@ function defaultGenerateSessionId(): string {
   const ts = Date.now()
   const rand = Math.random().toString(36).substring(2, 8)
   return `chat_${ts}_${rand}`
+}
+
+type CreateMessageSkipCounter =
+  | 'skippedNoSenderId'
+  | 'skippedNoAccountName'
+  | 'skippedInvalidTimestamp'
+  | 'skippedNoType'
+
+type PreparedCreateMessage = { message: DedupMessage } | { skipCounter: CreateMessageSkipCounter }
+
+function prepareMessageForCreate(message: ParsedMessage): PreparedCreateMessage {
+  if (!message.senderPlatformId) return { skipCounter: 'skippedNoSenderId' }
+  if (!message.senderAccountName) return { skipCounter: 'skippedNoAccountName' }
+  if (message.timestamp === undefined || message.timestamp === null || isNaN(message.timestamp)) {
+    return { skipCounter: 'skippedInvalidTimestamp' }
+  }
+  if (message.type === undefined || message.type === null) return { skipCounter: 'skippedNoType' }
+
+  let content: string | null = null
+  if (message.content != null) {
+    content = typeof message.content === 'string' ? message.content : JSON.stringify(message.content)
+  }
+
+  return {
+    message: {
+      platformMessageId: message.platformMessageId,
+      timestamp: message.timestamp,
+      senderPlatformId: message.senderPlatformId,
+      type: message.type,
+      content,
+      replyToMessageId: message.replyToMessageId,
+    },
+  }
 }
 
 /**
@@ -384,41 +417,15 @@ async function streamImportSingle(
           let nicknameChangeCount = 0
 
           for (const msg of messages) {
-            if (!msg.senderPlatformId) {
-              callbackStats.skippedNoSenderId++
-              continue
-            }
-            if (!msg.senderAccountName) {
-              callbackStats.skippedNoAccountName++
-              continue
-            }
-            if (msg.timestamp === undefined || msg.timestamp === null || isNaN(msg.timestamp)) {
-              callbackStats.skippedInvalidTimestamp++
-              continue
-            }
-            if (msg.type === undefined || msg.type === null) {
-              callbackStats.skippedNoType++
+            const prepared = prepareMessageForCreate(msg)
+            if ('skipCounter' in prepared) {
+              callbackStats[prepared.skipCounter]++
               continue
             }
 
-            let safeContent: string | null = null
-            if (msg.content != null) {
-              safeContent = typeof msg.content === 'string' ? msg.content : JSON.stringify(msg.content)
-            }
+            const dedupMessage = prepared.message
 
-            if (
-              registerMessageAndCheckDuplicate(
-                {
-                  platformMessageId: msg.platformMessageId,
-                  timestamp: msg.timestamp,
-                  senderPlatformId: msg.senderPlatformId,
-                  type: msg.type,
-                  content: safeContent,
-                  replyToMessageId: msg.replyToMessageId,
-                },
-                dedupState
-              )
-            ) {
+            if (registerMessageAndCheckDuplicate(dedupMessage, dedupState)) {
               duplicateCount++
               continue
             }
@@ -450,9 +457,9 @@ async function streamImportSingle(
               senderId,
               msg.senderAccountName || null,
               msg.senderGroupNickname || null,
-              msg.timestamp,
-              msg.type,
-              safeContent,
+              dedupMessage.timestamp,
+              dedupMessage.type,
+              dedupMessage.content,
               msg.replyToMessageId || null,
               msg.platformMessageId || null
             )
@@ -665,6 +672,8 @@ async function streamImportSingle(
 
 export interface AnalyzeNewImportResult {
   totalMessages: number
+  newMessageCount: number
+  duplicateCount: number
   totalMembers: number
   meta: { name: string; platform: string; type: string } | null
   error?: string
@@ -676,12 +685,22 @@ export async function analyzeNewImport(
 ): Promise<AnalyzeNewImportResult> {
   const formatFeature = detectFormat(filePath)
   if (!formatFeature) {
-    return { totalMessages: 0, totalMembers: 0, meta: null, error: 'error.unrecognized_format' }
+    return {
+      totalMessages: 0,
+      newMessageCount: 0,
+      duplicateCount: 0,
+      totalMembers: 0,
+      meta: null,
+      error: 'error.unrecognized_format',
+    }
   }
 
   let meta: { name: string; platform: string; type: string } | null = null
   const memberSet = new Set<string>()
+  const dedupState = createMessageDedupState()
   let totalMessages = 0
+  let newMessageCount = 0
+  let duplicateCount = 0
 
   await streamParseFile(filePath, {
     onMeta: (parsedMeta: ParsedMeta) => {
@@ -697,11 +716,19 @@ export async function analyzeNewImport(
       for (const msg of batch) {
         totalMessages++
         if (!memberSet.has(msg.senderPlatformId)) memberSet.add(msg.senderPlatformId)
+
+        const prepared = prepareMessageForCreate(msg)
+        if ('skipCounter' in prepared) continue
+        if (registerMessageAndCheckDuplicate(prepared.message, dedupState)) {
+          duplicateCount++
+        } else {
+          newMessageCount++
+        }
       }
     },
   })
 
-  return { totalMessages, totalMembers: memberSet.size, meta }
+  return { totalMessages, newMessageCount, duplicateCount, totalMembers: memberSet.size, meta }
 }
 
 // ==================== Temp DB for merge preview ====================

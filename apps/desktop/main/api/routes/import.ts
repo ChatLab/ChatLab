@@ -33,7 +33,7 @@ import {
   errorResponse,
 } from '../errors'
 import { apiLogger } from '../logger'
-import { apiErrorFromImportResult, batchFromStreamDiagnostics } from './import-helpers'
+import { analysisFromNewImport, apiErrorFromImportResult, batchFromStreamDiagnostics } from './import-helpers'
 
 // Per-session lock: different sessionIds can import in parallel.
 const isImporting = new Set<string>()
@@ -252,12 +252,7 @@ async function handleUnifiedImport(request: FastifyRequest, reply: FastifyReply,
           sessionId,
           created: true,
           dryRun: true,
-          analysis: {
-            totalInFile: result.totalMessages,
-            newMessageCount: result.totalMessages,
-            duplicateCount: 0,
-            newMemberCount: result.totalMembers,
-          },
+          analysis: analysisFromNewImport(result),
         })
       }
       idempotencySuccess(cacheKey, responsePayload)

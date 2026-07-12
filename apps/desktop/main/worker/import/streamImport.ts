@@ -161,6 +161,8 @@ export async function analyzeNewImport(
   requestId: string
 ): Promise<{
   totalMessages: number
+  newMessageCount: number
+  duplicateCount: number
   totalMembers: number
   meta: { name: string; platform: string; type: string } | null
   error?: string

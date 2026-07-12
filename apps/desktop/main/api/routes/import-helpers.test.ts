@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import { IMPORT_IN_PROGRESS_ERROR_KEY } from '@openchatlab/node-runtime/src/import/import-lock'
 import { ApiErrorCode } from '../errors'
-import { apiErrorFromImportResult, batchFromStreamDiagnostics } from './import-helpers'
+import { analysisFromNewImport, apiErrorFromImportResult, batchFromStreamDiagnostics } from './import-helpers'
 
 test('maps an import lock result to the documented 409 API error', () => {
   const error = apiErrorFromImportResult(IMPORT_IN_PROGRESS_ERROR_KEY, 'Import failed')
@@ -39,6 +39,24 @@ test('maps stream duplicate and invalid-row counts to their distinct API fields'
       receivedCount: 12,
       writtenCount: 7,
       duplicateCount: 3,
+    }
+  )
+})
+
+test('maps new-import analysis counts without assuming every parsed message is new', () => {
+  assert.deepEqual(
+    analysisFromNewImport({
+      totalMessages: 12,
+      newMessageCount: 7,
+      duplicateCount: 3,
+      totalMembers: 4,
+      meta: { name: 'Fixture', platform: 'wechat', type: 'private' },
+    }),
+    {
+      totalInFile: 12,
+      newMessageCount: 7,
+      duplicateCount: 3,
+      newMemberCount: 4,
     }
   )
 })

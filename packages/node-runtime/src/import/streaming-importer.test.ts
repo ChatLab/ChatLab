@@ -6,7 +6,7 @@ import test from 'node:test'
 import Database from 'better-sqlite3'
 import { CHAT_DB_TABLES } from '@openchatlab/core'
 import { BetterSqliteAdapter } from '../better-sqlite3-adapter'
-import { streamingImport } from './streaming-importer'
+import { analyzeNewImport, streamingImport } from './streaming-importer'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -174,6 +174,11 @@ test('streamingImport applies incremental-equivalent deduplication on first impo
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   const filePath = writeDuplicateChatLabExport(root)
   const dbPath = path.join(root, 'duplicate-test.db')
+
+  const analysis = await analyzeNewImport(filePath, () => {})
+  assert.equal(analysis.totalMessages, 5)
+  assert.equal(analysis.newMessageCount, 3)
+  assert.equal(analysis.duplicateCount, 2)
 
   const result = await streamingImport(
     filePath,
