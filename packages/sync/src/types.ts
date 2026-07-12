@@ -93,6 +93,8 @@ export interface ImportResult {
   sessionId?: string
   error?: string
   needFullResync?: boolean
+  /** The source page was not imported and should be retried without advancing the pull cursor. */
+  retryable?: boolean
 }
 
 export interface PullSessionResult {
