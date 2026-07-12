@@ -102,6 +102,7 @@ impl MemberTracker {
                     platform_id: platform_id.to_string(),
                     account_name: account_name.to_string(),
                     group_nickname: None,
+                    aliases: None,
                     avatar: avatar.cloned(),
                     roles: None,
                 });

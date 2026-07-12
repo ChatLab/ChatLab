@@ -8,6 +8,8 @@ import { detectFormat, parseFileSync } from '@openchatlab/parser'
 import { CHAT_DB_SCHEMA } from '../packages/core/src/schema/tables'
 import { BetterSqliteAdapter } from '../packages/node-runtime/src/better-sqlite3-adapter'
 import { exportWithFormat } from '../packages/node-runtime/src/export/format-exporter'
+import { streamingImport } from '../packages/node-runtime/src/import/streaming-importer'
+import { writeParseResultToDb } from '../packages/node-runtime/src/import/write-parse-result'
 
 test('exports JSON as ChatLab format that can be parsed for re-import', async () => {
   const tempDir = mkdtempSync(join(tmpdir(), 'chatlab-json-export-'))
@@ -84,12 +86,14 @@ test('exports JSON as ChatLab format that can be parsed for re-import', async ()
       type: 'group',
       groupId: 'group-1',
       groupAvatar: 'group-avatar',
+      ownerId: 'alice',
     })
     assert.deepEqual(
       parsed.members.map((member) => ({
         platformId: member.platformId,
         accountName: member.accountName,
         groupNickname: member.groupNickname,
+        aliases: member.aliases,
         roles: member.roles,
       })),
       [
@@ -97,12 +101,14 @@ test('exports JSON as ChatLab format that can be parsed for re-import', async ()
           platformId: 'alice',
           accountName: 'Alice Account',
           groupNickname: '爱丽丝',
+          aliases: ['Alice'],
           roles: [{ id: 'owner' }],
         },
         {
           platformId: 'bob',
           accountName: 'Bob Account',
           groupNickname: '鲍勃',
+          aliases: undefined,
           roles: undefined,
         },
       ]
@@ -129,6 +135,51 @@ test('exports JSON as ChatLab format that can be parsed for re-import', async ()
         replyToMessageId: 'msg-2',
       },
     ])
+
+    const sharedWriterDb = new Database(':memory:')
+    try {
+      sharedWriterDb.exec(CHAT_DB_SCHEMA)
+      writeParseResultToDb(new BetterSqliteAdapter(sharedWriterDb), parsed.meta, parsed.members, parsed.messages)
+      const sharedWriterAlice = sharedWriterDb
+        .prepare("SELECT aliases FROM member WHERE platform_id = 'alice'")
+        .get() as { aliases: string }
+      assert.deepEqual(JSON.parse(sharedWriterAlice.aliases), ['Alice'])
+    } finally {
+      sharedWriterDb.close()
+    }
+
+    const importedDbPath = join(tempDir, 'imported.db')
+    const importResult = await streamingImport(
+      filePath,
+      {
+        openDatabase() {
+          const db = new Database(importedDbPath)
+          db.exec(CHAT_DB_SCHEMA)
+          return new BetterSqliteAdapter(db)
+        },
+        deleteDatabase() {
+          /* temp directory cleanup is handled by the outer finally */
+        },
+        onProgress() {
+          /* progress is outside this round-trip assertion */
+        },
+      },
+      undefined,
+      'imported-session'
+    )
+    assert.equal(importResult.success, true)
+
+    const importedDb = new Database(importedDbPath)
+    try {
+      const importedMeta = importedDb.prepare('SELECT owner_id FROM meta').get() as { owner_id: string | null }
+      const importedAlice = importedDb.prepare("SELECT aliases FROM member WHERE platform_id = 'alice'").get() as {
+        aliases: string
+      }
+      assert.equal(importedMeta.owner_id, 'alice')
+      assert.deepEqual(JSON.parse(importedAlice.aliases), ['Alice'])
+    } finally {
+      importedDb.close()
+    }
   } finally {
     rawDb.close()
     rmSync(tempDir, { recursive: true, force: true })

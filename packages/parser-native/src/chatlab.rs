@@ -4,10 +4,8 @@
 //! Contract: this kernel is strict — any field that deviates from the ChatLab
 //! format spec (wrong type, unexpected null) returns an error, and the TS
 //! wrapper falls back to the pure-TS parser which replicates all passthrough
-//! quirks. Known intentional improvements over the TS reference (only reachable
-//! on degenerate inputs): meta/members are parsed structurally instead of via
-//! the TS 200KB-head regex heuristic, so files whose meta exceeds the head
-//! window or whose members contain nested arrays keep their real data here.
+//! quirks. Meta and members are parsed structurally while preserving the same
+//! output contract as the TS parser.
 
 use std::collections::HashMap;
 
@@ -30,6 +28,7 @@ struct ChatlabMeta {
     platform: String,
     group_id: Option<String>,
     group_avatar: Option<String>,
+    owner_id: Option<String>,
     /// true: members came from the top-level `members` array (full shape);
     /// false: collected from messages (id/name/nickname only), as in TS.
     members_from_head: bool,
@@ -87,6 +86,7 @@ struct MetaOut {
     chat_type: String,
     group_id: Option<String>,
     group_avatar: Option<String>,
+    owner_id: Option<String>,
 }
 
 fn parse_meta(meta_raw: Option<&[u8]>, file_path: &str) -> ScanResult<MetaOut> {
@@ -138,6 +138,7 @@ fn parse_meta(meta_raw: Option<&[u8]>, file_path: &str) -> ScanResult<MetaOut> {
     }
     let group_id = optional_str(&meta, "groupId", "meta")?;
     let group_avatar = optional_str(&meta, "groupAvatar", "meta")?;
+    let owner_id = optional_str(&meta, "ownerId", "meta")?;
 
     // Filename fallback fires whenever the name resolved to the default,
     // mirroring `if (meta.name === '未知群聊')` in the TS parser.
@@ -151,6 +152,7 @@ fn parse_meta(meta_raw: Option<&[u8]>, file_path: &str) -> ScanResult<MetaOut> {
         chat_type,
         group_id,
         group_avatar,
+        owner_id,
     })
 }
 
@@ -160,6 +162,26 @@ fn parse_member(element: &[u8]) -> ScanResult<NativeMember> {
     let obj = value
         .as_object()
         .ok_or_else(|| strict("member must be an object"))?;
+
+    let aliases = match obj.get("aliases") {
+        None => None,
+        Some(Value::Array(items)) => Some(
+            items
+                .iter()
+                .map(|item| {
+                    item.as_str()
+                        .map(str::to_string)
+                        .ok_or_else(|| strict("member alias must be a string"))
+                })
+                .collect::<ScanResult<Vec<_>>>()?,
+        ),
+        other => {
+            return Err(strict(format!(
+                "member.aliases must be an array when present, got {}",
+                type_name(other)
+            )))
+        }
+    };
 
     let roles = match obj.get("roles") {
         None => None,
@@ -193,6 +215,7 @@ fn parse_member(element: &[u8]) -> ScanResult<NativeMember> {
         platform_id: require_str(obj, "platformId", "member")?,
         account_name: require_str(obj, "accountName", "member")?,
         group_nickname: optional_str(obj, "groupNickname", "member")?,
+        aliases,
         avatar: optional_str(obj, "avatar", "member")?,
         roles,
     })
@@ -342,6 +365,7 @@ pub fn parse_chatlab(
                 platform_id,
                 account_name,
                 group_nickname,
+                aliases: None,
                 avatar: None,
                 roles: None,
             })
@@ -354,6 +378,7 @@ pub fn parse_chatlab(
         platform: meta.platform,
         group_id: meta.group_id,
         group_avatar: meta.group_avatar,
+        owner_id: meta.owner_id,
         members_from_head,
     })
     .map_err(|err| strict(format!("meta serialization failed: {err}")))?;
@@ -385,9 +410,9 @@ mod tests {
     fn parses_full_document() {
         let doc = r#"{
       "chatlab": {"version": "0.0.2", "exportedAt": 1700000000},
-      "meta": {"name": "测试群", "platform": "weixin", "type": "group", "groupId": "g1@chatroom", "groupAvatar": "https://x/y.jpg"},
+      "meta": {"name": "测试群", "platform": "weixin", "type": "group", "groupId": "g1@chatroom", "groupAvatar": "https://x/y.jpg", "ownerId": "u1"},
       "members": [
-        {"platformId": "u1", "accountName": "Alice", "groupNickname": "小A", "avatar": "https://a", "roles": [{"id": "owner"}, {"id": "admin", "name": "管理"}]},
+        {"platformId": "u1", "accountName": "Alice", "groupNickname": "小A", "aliases": ["Ally"], "avatar": "https://a", "roles": [{"id": "owner"}, {"id": "admin", "name": "管理"}]},
         {"platformId": "u2", "accountName": "Bob"}
       ],
       "messages": [
@@ -402,8 +427,13 @@ mod tests {
         assert_eq!(m["platform"], "weixin");
         assert_eq!(m["chatType"], "group");
         assert_eq!(m["groupId"], "g1@chatroom");
+        assert_eq!(m["ownerId"], "u1");
         assert_eq!(m["membersFromHead"], true);
         assert_eq!(out.members.len(), 2);
+        assert_eq!(
+            out.members[0].aliases.as_ref().unwrap(),
+            &["Ally".to_string()]
+        );
         let roles = out.members[0].roles.as_ref().unwrap();
         assert_eq!(roles[0].id, "owner");
         assert_eq!(roles[0].name, None);

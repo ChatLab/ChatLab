@@ -99,7 +99,7 @@ async function* parseChatLab(options: ParseOptions): AsyncGenerator<ParseEvent, 
   // 记录解析开始
   onLog?.('info', `开始解析 ChatLab 格式文件，大小: ${(totalBytes / 1024 / 1024).toFixed(2)} MB`)
 
-  // 读取文件头获取 meta 和 members 信息
+  // 读取文件头获取 meta 信息
   const headContent = readFileHeadBytes(filePath, 200000)
 
   // 解析 meta
@@ -140,6 +140,7 @@ async function* parseChatLab(options: ParseOptions): AsyncGenerator<ParseEvent, 
           type: (metaObj.type as ChatType) || ChatType.GROUP,
           groupId: metaObj.groupId,
           groupAvatar: metaObj.groupAvatar,
+          ownerId: metaObj.ownerId,
         }
       }
     }
@@ -179,6 +180,7 @@ async function* parseChatLab(options: ParseOptions): AsyncGenerator<ParseEvent, 
           platformId: value.platformId,
           accountName: value.accountName,
           groupNickname: value.groupNickname,
+          aliases: value.aliases,
           avatar: value.avatar,
           roles: value.roles,
         })

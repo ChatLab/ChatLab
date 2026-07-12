@@ -96,6 +96,7 @@ export interface ParsedMember {
   platformId: string
   accountName: string
   groupNickname?: string
+  aliases?: string[]
   avatar?: string
   roles?: MemberRole[]
 }

@@ -62,7 +62,7 @@ export function writeParseResultToDb(
     )
 
     const insertMember = db.prepare(
-      `INSERT OR IGNORE INTO member (platform_id, account_name, group_nickname, avatar, roles) VALUES (?, ?, ?, ?, ?)`
+      `INSERT OR IGNORE INTO member (platform_id, account_name, group_nickname, aliases, avatar, roles) VALUES (?, ?, ?, ?, ?, ?)`
     )
     const getMemberId = db.prepare(`SELECT id FROM member WHERE platform_id = ?`)
 
@@ -73,6 +73,7 @@ export function writeParseResultToDb(
         member.platformId,
         member.accountName || null,
         member.groupNickname || null,
+        member.aliases ? JSON.stringify(member.aliases) : '[]',
         member.avatar || null,
         member.roles ? JSON.stringify(member.roles) : '[]'
       )

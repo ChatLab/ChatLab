@@ -212,11 +212,12 @@ async function streamImportSingle(
     `INSERT INTO meta (name, platform, type, imported_at, group_id, group_avatar, owner_id) VALUES (?, ?, ?, ?, ?, ?, ?)`
   )
   const insertMember = db.prepare(
-    `INSERT INTO member (platform_id, account_name, group_nickname, avatar, roles)
-     VALUES (?, ?, ?, ?, ?)
+    `INSERT INTO member (platform_id, account_name, group_nickname, aliases, avatar, roles)
+     VALUES (?, ?, ?, ?, ?, ?)
      ON CONFLICT(platform_id) DO UPDATE SET
        account_name = COALESCE(NULLIF(excluded.account_name, ''), account_name),
        group_nickname = COALESCE(NULLIF(excluded.group_nickname, ''), group_nickname),
+       aliases = CASE WHEN excluded.aliases != '[]' THEN excluded.aliases ELSE aliases END,
        avatar = COALESCE(NULLIF(excluded.avatar, ''), avatar),
        roles = CASE WHEN excluded.roles != '[]' THEN excluded.roles ELSE roles END`
   )
@@ -354,6 +355,7 @@ async function streamImportSingle(
               member.platformId,
               member.accountName || null,
               member.groupNickname || null,
+              member.aliases ? JSON.stringify(member.aliases) : '[]',
               member.avatar || null,
               member.roles ? JSON.stringify(member.roles) : '[]'
             )
@@ -401,6 +403,7 @@ async function streamImportSingle(
                 msg.senderPlatformId,
                 msg.senderAccountName || null,
                 msg.senderGroupNickname || null,
+                '[]',
                 null,
                 '[]'
               )

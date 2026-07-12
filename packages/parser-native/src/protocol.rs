@@ -25,6 +25,7 @@ pub struct NativeMember {
     pub platform_id: String,
     pub account_name: String,
     pub group_nickname: Option<String>,
+    pub aliases: Option<Vec<String>>,
     pub avatar: Option<String>,
     pub roles: Option<Vec<NativeMemberRole>>,
 }

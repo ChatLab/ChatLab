@@ -204,11 +204,12 @@ export async function incrementalImport(
     }
 
     const upsertMember = db.prepare(`
-      INSERT INTO member (platform_id, account_name, group_nickname, avatar, roles)
-      VALUES (?, ?, ?, ?, ?)
+      INSERT INTO member (platform_id, account_name, group_nickname, aliases, avatar, roles)
+      VALUES (?, ?, ?, ?, ?, ?)
       ON CONFLICT(platform_id) DO UPDATE SET
         account_name = COALESCE(NULLIF(excluded.account_name, ''), account_name),
         group_nickname = COALESCE(NULLIF(excluded.group_nickname, ''), group_nickname),
+        aliases = CASE WHEN excluded.aliases != '[]' THEN excluded.aliases ELSE aliases END,
         avatar = COALESCE(NULLIF(excluded.avatar, ''), avatar),
         roles = CASE WHEN excluded.roles != '[]' THEN excluded.roles ELSE roles END
     `)
@@ -282,6 +283,7 @@ export async function incrementalImport(
             m.platformId,
             m.accountName || null,
             m.groupNickname || null,
+            m.aliases ? JSON.stringify(m.aliases) : '[]',
             m.avatar || null,
             m.roles ? JSON.stringify(m.roles) : '[]'
           )

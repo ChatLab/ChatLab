@@ -29,6 +29,7 @@ export interface NativeMember {
   platformId: string
   accountName: string
   groupNickname?: string
+  aliases?: Array<string>
   avatar?: string
   roles?: Array<NativeMemberRole>
 }

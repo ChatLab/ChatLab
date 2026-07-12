@@ -39,6 +39,27 @@ function writeChatLabJsonl(filePath: string): void {
   fs.writeFileSync(filePath, `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`, 'utf8')
 }
 
+function writeChatLabJson(filePath: string): void {
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify({
+      chatlab: { version: '0.0.2', exportedAt: 1780330900 },
+      meta: { name: 'ChatLab Export', platform: 'wechat', type: 'private' },
+      members: [{ platformId: 'wxid_alice', accountName: 'Alice', aliases: ['Ally'] }],
+      messages: [
+        {
+          sender: 'wxid_alice',
+          accountName: 'Alice',
+          timestamp: 1780330832,
+          type: 0,
+          content: 'hello from ChatLab',
+        },
+      ],
+    }),
+    'utf8'
+  )
+}
+
 function seedSessionDb(dbPath: string): void {
   const db = openBetterSqliteDatabase(dbPath, { nativeBinding })
   db.exec(CHAT_DB_SCHEMA)
@@ -88,4 +109,25 @@ test('imports ChatLab JSONL messages with numeric string timestamps consistently
     ts: 1780330832,
     content: 'hello from CipherTalk',
   })
+})
+
+test('preserves ChatLab JSON member aliases during incremental import', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const dbPath = path.join(tempDir, 'session.db')
+  const filePath = path.join(tempDir, 'chatlab.json')
+  seedSessionDb(dbPath)
+  writeChatLabJson(filePath)
+
+  const result = await incrementalImport('session', filePath, createDeps(dbPath))
+  assert.equal(result.success, true)
+
+  const db = openBetterSqliteDatabase(dbPath, { readonly: true, nativeBinding })
+  const row = db.prepare("SELECT aliases FROM member WHERE platform_id = 'wxid_alice'").get() as
+    | { aliases: string }
+    | undefined
+  db.close()
+
+  assert.deepEqual(JSON.parse(row?.aliases ?? '[]'), ['Ally'])
 })

@@ -20,6 +20,7 @@ interface ChatlabMetaJson {
   platform: string
   groupId: string | null
   groupAvatar: string | null
+  ownerId: string | null
   /**
    * true when members came from the top-level `members` array;
    * false when collected from messages (TS emits different object shapes).
@@ -41,6 +42,7 @@ function toParsedMember(member: NativeMember, fromHead: boolean): ParsedMember {
     platformId: member.platformId,
     accountName: member.accountName,
     groupNickname: member.groupNickname,
+    aliases: member.aliases,
     avatar: member.avatar,
     // Role objects pass through with their original key set ({id} or {id, name}).
     roles: member.roles?.map((role) => (role.name !== undefined ? { id: role.id, name: role.name } : { id: role.id })),
@@ -59,6 +61,7 @@ const chatlabAdapter: NativeFormatAdapter = {
       type: meta.chatType as ChatType,
       groupId: meta.groupId ?? undefined,
       groupAvatar: meta.groupAvatar ?? undefined,
+      ownerId: meta.ownerId ?? undefined,
     }
   },
 

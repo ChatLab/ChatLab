@@ -74,8 +74,7 @@ function assertParity(nativeResult: ParseResult, tsResult: ParseResult) {
   }
 }
 
-// Canonical fixture without member roles (the TS head-regex parses this
-// members array successfully, so both implementations use the head members).
+// Canonical fixture used to verify native and TS parser parity.
 const CANONICAL_FIXTURE = {
   chatlab: { version: '0.0.2', exportedAt: 1700000000, generator: 'ChatLab' },
   meta: {
@@ -84,9 +83,16 @@ const CANONICAL_FIXTURE = {
     type: 'group',
     groupId: 'g1@chatroom',
     groupAvatar: 'https://example.com/g.jpg',
+    ownerId: 'u1',
   },
   members: [
-    { platformId: 'u1', accountName: 'Alice', groupNickname: '小A', avatar: 'https://example.com/a.jpg' },
+    {
+      platformId: 'u1',
+      accountName: 'Alice',
+      groupNickname: '小A',
+      aliases: ['Ally'],
+      avatar: 'https://example.com/a.jpg',
+    },
     { platformId: 'u2', accountName: 'Bob' },
   ],
   messages: [
@@ -123,7 +129,9 @@ describe('chatlab native parser parity', { skip: !nativeAvailable() && 'native m
     assert.equal(nativeResult.meta.name, '测试群')
     assert.equal(nativeResult.meta.platform, 'weixin')
     assert.equal(nativeResult.meta.groupId, 'g1@chatroom')
+    assert.equal(nativeResult.meta.ownerId, 'u1')
     assert.equal(nativeResult.members.length, 2)
+    assert.deepEqual(nativeResult.members[0].aliases, ['Ally'])
     assert.equal(nativeResult.members[0].avatar, 'https://example.com/a.jpg')
     assert.equal(nativeResult.messages.length, 4)
     assert.equal(nativeResult.messages[1].replyToMessageId, 'm1')
