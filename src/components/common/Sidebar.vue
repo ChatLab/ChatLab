@@ -427,7 +427,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
         <div v-if="!isCollapsed" class="ml-2 flex items-center">
           <img :src="logoSvg" alt="ChatLab" class="h-6 w-6 select-none pointer-events-none" />
           <div class="ml-2 flex items-baseline gap-2">
-            <div class="text-2xl font-black tracking-tight text-pink-500">
+            <div class="text-xl font-black tracking-tight text-pink-500">
               {{ t('layout.brand') }}
             </div>
             <span class="text-xs text-gray-400">v{{ version }}</span>
