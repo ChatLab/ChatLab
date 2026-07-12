@@ -6,6 +6,7 @@ import test from 'node:test'
 import type { AnnualSummaryRange } from '@openchatlab/shared-types'
 import type { SessionRuntimeAdapter } from '../adapters'
 import { createGlobalInsightService } from './service'
+import { getAnnualSummarySnapshotPath, writeAnnualSummarySnapshot } from './snapshot'
 import type { AnnualSummarySnapshot } from './types'
 import type { AnnualSummaryComputeRunner } from './worker-runner'
 
@@ -99,6 +100,25 @@ test('serves stale data while recomputing after the DB signature changes', async
   assert.equal(stale.task.status, 'running')
 
   resolveRunner?.(makeSnapshot(range, stale.cache.signature ?? '', 9))
+})
+
+test('drops an in-memory stale snapshot after its persisted file is deleted', async (t) => {
+  const env = createEnv(async ({ signature, range }) => makeSnapshot(range, signature, 9))
+  t.after(async () => {
+    await env.service.close()
+    fs.rmSync(env.dir, { recursive: true, force: true })
+  })
+  const range = env.service.normalizeRange({ mode: 'year', year: 2026 })
+  const snapshotDir = path.join(env.dir, 'insight', 'annual-summary')
+  const staleSnapshot = makeSnapshot(range, 'old-signature')
+  writeAnnualSummarySnapshot(snapshotDir, staleSnapshot)
+  env.service.replaceSnapshotForTests(staleSnapshot)
+  fs.rmSync(getAnnualSummarySnapshotPath(snapshotDir, range))
+
+  const response = env.service.getAnnualSummary({ mode: 'year', year: 2026, acceptStale: true })
+
+  assert.equal(response.cache.status, 'missing')
+  assert.equal(response.metrics, null)
 })
 
 test('preserves failed state until explicit recompute', async (t) => {

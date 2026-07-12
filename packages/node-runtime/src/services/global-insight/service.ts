@@ -1,3 +1,4 @@
+import fs from 'node:fs'
 import type { PathProvider } from '@openchatlab/core'
 import type { AnnualSummaryRange, AnnualSummaryResponse, AnnualSummaryTaskState } from '@openchatlab/shared-types'
 import type { RuntimeIdentity } from '../../data-dir-compat'
@@ -7,6 +8,7 @@ import { getGlobalInsightDir } from './paths'
 import { buildAnnualSummarySignature } from './signature'
 import {
   cleanupAnnualSummarySnapshotTempFiles,
+  getAnnualSummarySnapshotPath,
   readAnnualSummarySnapshot,
   writeAnnualSummarySnapshot,
 } from './snapshot'
@@ -96,6 +98,7 @@ class DefaultGlobalInsightService implements GlobalInsightService {
   }
 
   replaceSnapshotForTests(snapshot: AnnualSummarySnapshot): void {
+    writeAnnualSummarySnapshot(this.snapshotDir, snapshot)
     this.snapshots.set(toAnnualSummaryRangeKey(snapshot.range), snapshot)
   }
 
@@ -224,6 +227,9 @@ class DefaultGlobalInsightService implements GlobalInsightService {
 
   private getSnapshot(range: AnnualSummaryRange): AnnualSummarySnapshot | null {
     const key = toAnnualSummaryRangeKey(range)
+    if (this.snapshots.has(key) && !fs.existsSync(getAnnualSummarySnapshotPath(this.snapshotDir, range))) {
+      this.snapshots.delete(key)
+    }
     if (!this.snapshots.has(key)) {
       this.snapshots.set(key, readAnnualSummarySnapshot(this.snapshotDir, range, { now: this.deps.now }))
     }
