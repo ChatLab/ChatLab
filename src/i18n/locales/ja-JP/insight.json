@@ -1,0 +1,9 @@
+{
+  "title": "インサイト",
+  "placeholder": "グローバルインサイト機能は近日公開予定です",
+  "tabs": {
+    "overview": "概要",
+    "trends": "トレンド",
+    "ranking": "ランキング"
+  }
+}

@@ -28,6 +28,11 @@ export const appRoutes: RouteRecordRaw[] = [
     component: () => import('@/pages/private-chat/index.vue'),
   },
   {
+    path: '/insight',
+    name: 'insight',
+    component: () => import('@/pages/insight/index.vue'),
+  },
+  {
     path: '/people',
     component: () => import('@/pages/people/index.vue'),
     redirect: { name: 'people-contacts' },
