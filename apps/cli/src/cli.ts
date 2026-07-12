@@ -58,7 +58,7 @@ registerManifestCommand(program, getVersion())
 program
   .command('import <file>')
   .description('Import a chat history file (14+ formats: QQ/WeChat/Telegram/WhatsApp/LINE/Discord/Instagram, etc.)')
-  .option('--session-id <id>', 'Specify session ID (auto-generated if omitted)')
+  .option('--session-id <id>', 'Force an existing session target, or create with this ID if missing')
   .option('--format <id>', 'Specify format ID (skip auto-detection)')
   .action(async (file, options) => {
     if (!fs.existsSync(file)) {
@@ -66,7 +66,7 @@ program
       process.exit(1)
     }
 
-    const { streamImport, detectFormat } = await import('./import')
+    const { autoImport, detectFormat } = await import('./import')
     const { dbManager, pathProvider } = initRuntime()
     const nativeBinding = resolveNativeBinding()
     // 记录 Rust native parser 可用性（本次导入是否走 Rust 内核）
@@ -83,8 +83,9 @@ program
     if (format) console.log(`  Format: ${format.name} (${format.platform})`)
 
     try {
-      const result = await streamImport(dbManager, file, {
+      const result = await autoImport(dbManager, file, {
         formatId: options.format,
+        sessionId: options.sessionId,
         nativeBinding,
         onProgress: (p) => {
           process.stdout.write(`\r  ${p.stage}: ${p.progress}%`)
@@ -94,8 +95,10 @@ program
       if (result.success) {
         console.log(`\n\nImport succeeded!`)
         console.log(`  Session ID: ${result.sessionId}`)
-        console.log(`  Messages written: ${result.diagnostics?.messagesWritten ?? 0}`)
-        console.log(`  Messages skipped: ${result.diagnostics?.messagesSkipped ?? 0}`)
+        console.log(`  Mode: ${result.importMode === 'incremental' ? 'incremental' : 'created'}`)
+        if (result.matchedBy) console.log(`  Matched by: ${result.matchedBy}`)
+        console.log(`  New messages: ${result.newMessageCount ?? 0}`)
+        console.log(`  Duplicates skipped: ${result.duplicateCount ?? 0}`)
 
         if (result.sessionId) {
           try {
@@ -115,11 +118,11 @@ program
         }
       } else {
         console.error(`\n\nImport failed: ${result.error}`)
-        process.exit(1)
+        process.exitCode = 1
       }
     } catch (err) {
       console.error(`\n\nImport error: ${err instanceof Error ? err.message : err}`)
-      process.exit(1)
+      process.exitCode = 1
     } finally {
       dbManager.closeAll()
     }

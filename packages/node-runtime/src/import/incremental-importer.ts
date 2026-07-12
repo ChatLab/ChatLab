@@ -10,7 +10,7 @@
 
 import type { DatabaseAdapter } from '@openchatlab/core'
 import { generateMessageKey, generateSessionIndex, generateIncrementalSessionIndex } from '@openchatlab/core'
-import { streamParseFile, detectFormat, type ParseProgress } from '@openchatlab/parser'
+import { streamParseFile, detectFormat, getFormatFeatureById, type ParseProgress } from '@openchatlab/parser'
 import { insertFtsEntries, hasFtsTable } from '../fts'
 import type { ImportProgressCallback } from './streaming-importer'
 
@@ -19,6 +19,8 @@ import type { ImportProgressCallback } from './streaming-importer'
 export interface ImportOptions {
   metaUpdateMode?: 'patch' | 'none'
   memberUpdateMode?: 'upsert' | 'none'
+  formatId?: string
+  chatIndex?: number
 }
 
 export interface IncrementalAnalyzeResult {
@@ -176,7 +178,7 @@ export async function incrementalImport(
   deps: IncrementalImportDeps,
   options?: ImportOptions
 ): Promise<IncrementalImportResult> {
-  const formatFeature = detectFormat(filePath)
+  const formatFeature = options?.formatId ? getFormatFeatureById(options.formatId) : detectFormat(filePath)
   if (!formatFeature) {
     return { success: false, newMessageCount: 0, error: 'error.unrecognized_format' }
   }
@@ -263,113 +265,118 @@ export async function incrementalImport(
 
     const newFtsEntries: Array<{ id: number; content: string | null }> = []
 
-    await streamParseFile(filePath, {
-      onMeta: (meta) => {
-        if (metaUpdateMode === 'none') return
-        updateMeta.run(
-          meta.name || '',
-          meta.groupId || '',
-          meta.groupAvatar || '',
-          meta.ownerId || '',
-          Math.floor(Date.now() / 1000)
-        )
-        metaUpdated = true
-      },
-      onMembers: (members) => {
-        if (memberUpdateMode === 'none') return
-        for (const m of members) {
-          const existed = memberIdMap.has(m.platformId)
-          upsertMember.run(
-            m.platformId,
-            m.accountName || null,
-            m.groupNickname || null,
-            m.aliases ? JSON.stringify(m.aliases) : '[]',
-            m.avatar || null,
-            m.roles ? JSON.stringify(m.roles) : '[]'
+    await streamParseFile(
+      filePath,
+      {
+        formatOptions: options?.chatIndex === undefined ? undefined : { chatIndex: options.chatIndex },
+        onMeta: (meta) => {
+          if (metaUpdateMode === 'none') return
+          updateMeta.run(
+            meta.name || '',
+            meta.groupId || '',
+            meta.groupAvatar || '',
+            meta.ownerId || '',
+            Math.floor(Date.now() / 1000)
           )
-          if (!existed) {
-            const row = getMemberId.get(m.platformId) as { id: number } | undefined
-            if (row) memberIdMap.set(m.platformId, row.id)
-            membersAdded++
-          } else {
-            membersUpdated++
-          }
-        }
-      },
-      onProgress: (progress: ParseProgress) => {
-        deps.onProgress(progress)
-      },
-      onMessageBatch: (batch) => {
-        for (const msg of batch) {
-          processedCount++
-
-          if (!msg.senderPlatformId) {
-            trackError(processedCount, 'MISSING_SENDER', 'sender field is empty')
-            continue
-          }
-          if (msg.timestamp === undefined || msg.timestamp === null) {
-            trackError(processedCount, 'MISSING_TIMESTAMP', 'timestamp field is missing')
-            continue
-          }
-          const timestamp = normalizeImportTimestamp(msg.timestamp)
-          if (timestamp === null) {
-            trackError(processedCount, 'INVALID_TIMESTAMP', `timestamp value: ${msg.timestamp}`)
-            continue
-          }
-
-          if (isDuplicate({ ...msg, timestamp }, existingPlatformMsgIds, existingKeys)) {
-            duplicateCount++
-            continue
-          }
-
-          let memberId = memberIdMap.get(msg.senderPlatformId)
-          if (!memberId) {
-            insertMemberMinimal.run(
-              msg.senderPlatformId,
-              msg.senderAccountName || null,
-              msg.senderGroupNickname || null,
-              null
+          metaUpdated = true
+        },
+        onMembers: (members) => {
+          if (memberUpdateMode === 'none') return
+          for (const m of members) {
+            const existed = memberIdMap.has(m.platformId)
+            upsertMember.run(
+              m.platformId,
+              m.accountName || null,
+              m.groupNickname || null,
+              m.aliases ? JSON.stringify(m.aliases) : '[]',
+              m.avatar || null,
+              m.roles ? JSON.stringify(m.roles) : '[]'
             )
-            const row = getMemberId.get(msg.senderPlatformId) as { id: number } | undefined
-            if (row) {
-              memberId = row.id
-              memberIdMap.set(msg.senderPlatformId, memberId)
+            if (!existed) {
+              const row = getMemberId.get(m.platformId) as { id: number } | undefined
+              if (row) memberIdMap.set(m.platformId, row.id)
               membersAdded++
+            } else {
+              membersUpdated++
             }
           }
-          if (!memberId) continue
+        },
+        onProgress: (progress: ParseProgress) => {
+          deps.onProgress(progress)
+        },
+        onMessageBatch: (batch) => {
+          for (const msg of batch) {
+            processedCount++
 
-          const msgResult = insertMessage.run(
-            memberId,
-            msg.senderAccountName || null,
-            msg.senderGroupNickname || null,
-            timestamp,
-            msg.type,
-            msg.content || null,
-            msg.replyToMessageId || null,
-            msg.platformMessageId || null
-          )
+            if (!msg.senderPlatformId) {
+              trackError(processedCount, 'MISSING_SENDER', 'sender field is empty')
+              continue
+            }
+            if (msg.timestamp === undefined || msg.timestamp === null) {
+              trackError(processedCount, 'MISSING_TIMESTAMP', 'timestamp field is missing')
+              continue
+            }
+            const timestamp = normalizeImportTimestamp(msg.timestamp)
+            if (timestamp === null) {
+              trackError(processedCount, 'INVALID_TIMESTAMP', `timestamp value: ${msg.timestamp}`)
+              continue
+            }
 
-          newFtsEntries.push({
-            id: Number((msgResult as any).lastInsertRowid ?? 0),
-            content: msg.content || null,
-          })
-          if (timestamp < minWrittenTs) minWrittenTs = timestamp
-          newMessageCount++
-        }
+            if (isDuplicate({ ...msg, timestamp }, existingPlatformMsgIds, existingKeys)) {
+              duplicateCount++
+              continue
+            }
 
-        if (processedCount % BATCH_SIZE === 0) {
-          deps.onProgress({
-            stage: 'saving',
-            bytesRead: 0,
-            totalBytes: 0,
-            messagesProcessed: processedCount,
-            percentage: 50,
-            message: `Processed ${processedCount}, added ${newMessageCount}`,
-          })
-        }
+            let memberId = memberIdMap.get(msg.senderPlatformId)
+            if (!memberId) {
+              insertMemberMinimal.run(
+                msg.senderPlatformId,
+                msg.senderAccountName || null,
+                msg.senderGroupNickname || null,
+                null
+              )
+              const row = getMemberId.get(msg.senderPlatformId) as { id: number } | undefined
+              if (row) {
+                memberId = row.id
+                memberIdMap.set(msg.senderPlatformId, memberId)
+                membersAdded++
+              }
+            }
+            if (!memberId) continue
+
+            const msgResult = insertMessage.run(
+              memberId,
+              msg.senderAccountName || null,
+              msg.senderGroupNickname || null,
+              timestamp,
+              msg.type,
+              msg.content || null,
+              msg.replyToMessageId || null,
+              msg.platformMessageId || null
+            )
+
+            newFtsEntries.push({
+              id: Number((msgResult as any).lastInsertRowid ?? 0),
+              content: msg.content || null,
+            })
+            if (timestamp < minWrittenTs) minWrittenTs = timestamp
+            newMessageCount++
+          }
+
+          if (processedCount % BATCH_SIZE === 0) {
+            deps.onProgress({
+              stage: 'saving',
+              bytesRead: 0,
+              totalBytes: 0,
+              messagesProcessed: processedCount,
+              percentage: 50,
+              message: `Processed ${processedCount}, added ${newMessageCount}`,
+            })
+          }
+        },
       },
-    })
+      options?.formatId
+    )
 
     db.exec('COMMIT')
 

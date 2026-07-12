@@ -5,7 +5,7 @@ import path from 'node:path'
 import test from 'node:test'
 import type { PathProvider } from '@openchatlab/core'
 import { DatabaseManager, raiseDataDirMinRuntimeVersion, readDataDirCompatibilityMeta } from '@openchatlab/node-runtime'
-import { streamImport } from './stream-import'
+import { autoImport, streamImport } from './stream-import'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -36,7 +36,7 @@ function writeTempChatFile(dir: string): string {
     filePath,
     JSON.stringify({
       chatlab: { version: '0.0.2', exportedAt: 1711468800 },
-      meta: { name: 'Test Chat', platform: 'qq', type: 'group' },
+      meta: { name: 'Test Chat', platform: 'qq', type: 'group', groupId: 'group-42' },
       members: [{ platformId: 'u1', accountName: 'Alice' }],
       // accountName is required by streaming-importer (skipped otherwise)
       messages: [{ sender: 'u1', accountName: 'Alice', timestamp: 1711468800, type: 0, content: 'hello' }],
@@ -90,4 +90,49 @@ test('streamImport re-checks data directory compatibility before raw database wr
   assert.equal(result.success, false)
   assert.match(result.error ?? '', /requires runtime version 0\.26\.0 or newer/)
   assert.equal(fs.readdirSync(path.join(root, 'data', 'databases')).filter((name) => name.endsWith('.db')).length, 0)
+})
+
+test('autoImport creates once and then incrementally imports the same stable chat', async () => {
+  const root = makeTempDir()
+  fs.mkdirSync(path.join(root, 'data', 'databases'), { recursive: true })
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+  const chatFile = writeTempChatFile(root)
+
+  const created = await autoImport(manager, chatFile, { nativeBinding })
+  const incremental = await autoImport(manager, chatFile, { nativeBinding })
+
+  assert.equal(created.success, true)
+  assert.equal(created.importMode, 'created')
+  assert.equal(incremental.success, true)
+  assert.equal(incremental.sessionId, created.sessionId)
+  assert.equal(incremental.importMode, 'incremental')
+  assert.equal(incremental.matchedBy, 'stable-id')
+  assert.equal(incremental.newMessageCount, 0)
+  assert.equal(incremental.duplicateCount, 1)
+  assert.equal(manager.listSessionIds().length, 1)
+})
+
+test('autoImport uses an explicit id for create and then forces incremental import', async () => {
+  const root = makeTempDir()
+  fs.mkdirSync(path.join(root, 'data', 'databases'), { recursive: true })
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+  const chatFile = writeTempChatFile(root)
+
+  const created = await autoImport(manager, chatFile, { sessionId: 'explicit', nativeBinding })
+  const incremental = await autoImport(manager, chatFile, { sessionId: 'explicit', nativeBinding })
+
+  assert.equal(created.success, true)
+  assert.equal(created.sessionId, 'explicit')
+  assert.equal(created.importMode, 'created')
+  assert.equal(incremental.success, true)
+  assert.equal(incremental.sessionId, 'explicit')
+  assert.equal(incremental.importMode, 'incremental')
+  assert.equal(incremental.newMessageCount, 0)
+  assert.equal(manager.listSessionIds().length, 1)
 })

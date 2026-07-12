@@ -111,3 +111,27 @@ test('analyzeIncrementalImport propagates data directory compatibility errors', 
     (error) => error instanceof DataDirCompatibilityError && error.code === 'DATA_DIR_REQUIRES_NEWER_RUNTIME'
   )
 })
+
+test('incrementalImport honors an explicitly selected parser format', async () => {
+  const root = makeTempDir()
+  const pathProvider = createPathProvider(root)
+  const manager = new DatabaseManager(pathProvider, {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+  const db = manager.openRawSessionDatabase('existing', { create: true, initializeChatTables: true })
+  db.prepare('INSERT INTO meta (name, platform, type, imported_at) VALUES (?, ?, ?, ?)').run(
+    'Existing Chat',
+    'qq',
+    'group',
+    1000
+  )
+  db.close()
+
+  const filePath = path.join(root, 'explicit-format.txt')
+  writeIncrementalJsonl(filePath)
+  const result = await incrementalImport(manager, 'existing', filePath, { formatId: 'chatlab-jsonl' })
+
+  assert.equal(result.success, true)
+  assert.equal(result.newMessageCount, 1)
+})

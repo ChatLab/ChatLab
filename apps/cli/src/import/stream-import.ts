@@ -9,6 +9,7 @@
 import type { DatabaseManager } from '@openchatlab/node-runtime'
 import {
   DataDirCompatibilityError,
+  autoImportFile as sharedAutoImportFile,
   streamingImport,
   analyzeNewImport as sharedAnalyzeNewImport,
   analyzeIncrementalImport as sharedAnalyzeIncremental,
@@ -23,6 +24,7 @@ import type {
   IncrementalImportDeps,
   ImportOptions,
   AnalyzeNewImportResult,
+  AutoImportResult,
 } from '@openchatlab/node-runtime'
 import {
   detectFormat as parserDetectFormat,
@@ -76,6 +78,48 @@ function buildStreamImportDeps(dbManager: DatabaseManager, onProgress?: ImportPr
   }
 }
 
+function createProgressAdapter(onProgress?: (progress: StreamImportProgress) => void): ImportProgressCallback {
+  if (!onProgress) return () => {}
+  return (progress) => {
+    let stage: StreamImportProgress['stage'] = 'parsing'
+    let pct = 0
+    switch (progress.stage) {
+      case 'detecting':
+        stage = 'detecting'
+        pct = 5
+        break
+      case 'parsing':
+        stage = 'parsing'
+        pct = Math.min(Math.round(progress.percentage * 0.7), 70)
+        break
+      case 'saving':
+        stage = 'saving'
+        pct = 80
+        break
+      case 'indexing':
+        stage = 'indexing'
+        pct = 90
+        break
+      case 'done':
+        stage = 'done'
+        pct = 100
+        break
+      case 'error':
+        stage = 'error'
+        pct = 0
+        break
+    }
+    onProgress({
+      stage,
+      progress: pct,
+      message: progress.message || '',
+      bytesRead: progress.bytesRead,
+      totalBytes: progress.totalBytes,
+      messagesProcessed: progress.messagesProcessed,
+    })
+  }
+}
+
 function deleteSessionDatabase(dbManager: DatabaseManager, sessionId: string): void {
   dbManager.deleteSessionDatabaseFiles(sessionId)
 }
@@ -95,46 +139,7 @@ export async function streamImport(
   if (formatId) formatOptions.formatId = formatId
   if (chatIndex !== undefined) formatOptions.chatIndex = chatIndex
 
-  const progressAdapter: ImportProgressCallback = onProgress
-    ? (progress) => {
-        let stage: StreamImportProgress['stage'] = 'parsing'
-        let pct = 0
-        switch (progress.stage) {
-          case 'detecting':
-            stage = 'detecting'
-            pct = 5
-            break
-          case 'parsing':
-            stage = 'parsing'
-            pct = Math.min(Math.round(progress.percentage * 0.7), 70)
-            break
-          case 'saving':
-            stage = 'saving'
-            pct = 80
-            break
-          case 'indexing':
-            stage = 'indexing'
-            pct = 90
-            break
-          case 'done':
-            stage = 'done'
-            pct = 100
-            break
-          case 'error':
-            stage = 'error'
-            pct = 0
-            break
-        }
-        onProgress({
-          stage,
-          progress: pct,
-          message: progress.message || '',
-          bytesRead: progress.bytesRead,
-          totalBytes: progress.totalBytes,
-          messagesProcessed: progress.messagesProcessed,
-        })
-      }
-    : () => {}
+  const progressAdapter = createProgressAdapter(onProgress)
 
   const deps = buildStreamImportDeps(dbManager, progressAdapter)
   const result = await streamingImport(filePath, deps, formatOptions, sessionId)
@@ -152,6 +157,43 @@ export async function streamImport(
   }
 
   return result
+}
+
+export async function autoImport(
+  dbManager: DatabaseManager,
+  filePath: string,
+  options?: StreamImportOptions
+): Promise<AutoImportResult> {
+  const { formatId, chatIndex, onProgress, sessionId } = options ?? {}
+  const formatOptions: Record<string, unknown> = {}
+  if (formatId) formatOptions.formatId = formatId
+  if (chatIndex !== undefined) formatOptions.chatIndex = chatIndex
+  const progressAdapter = createProgressAdapter(onProgress)
+
+  return sharedAutoImportFile(
+    filePath,
+    {
+      listSessionIds: () => dbManager.listSessionIds(),
+      openReadonly: (candidateSessionId) => dbManager.openRawSessionDatabase(candidateSessionId, { readonly: true }),
+      onProgress: progressAdapter,
+      sessionExists: (candidateSessionId) => dbManager.listSessionIds().includes(candidateSessionId),
+      createSession: (sourcePath, sourceFormatOptions, explicitSessionId) =>
+        streamImport(dbManager, sourcePath, {
+          ...options,
+          ...sourceFormatOptions,
+          sessionId: explicitSessionId,
+        }),
+      appendSession: (targetSessionId, sourcePath, sourceFormatOptions) =>
+        incrementalImport(dbManager, targetSessionId, sourcePath, {
+          ...sourceFormatOptions,
+          onProgress: progressAdapter,
+        }),
+    },
+    {
+      explicitSessionId: sessionId,
+      formatOptions,
+    }
+  )
 }
 
 // ==================== Incremental import ====================
@@ -249,4 +291,5 @@ export type {
   IncrementalAnalyzeResult,
   AnalyzeNewImportResult,
   ImportOptions,
+  AutoImportResult,
 }
