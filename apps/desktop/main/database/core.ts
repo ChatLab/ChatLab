@@ -16,6 +16,7 @@ import {
   BetterSqliteAdapter,
   writeParseResultToDb,
   contactsService,
+  globalInsightService,
   peopleRelationshipsService,
 } from '@openchatlab/node-runtime'
 import type { RuntimeIdentity } from '@openchatlab/node-runtime/src/data-dir-compat'
@@ -171,6 +172,10 @@ export function deleteSession(sessionId: string): boolean {
     deleteSessionCache(sessionId, cacheDir)
     deleteSessionCache(sessionId, path.join(cacheDir, 'query'))
     deleteSessionCache(sessionId, contactsService.getContactsFactsCacheDir(getPathProvider().getUserDataDir()))
+    deleteSessionCache(
+      sessionId,
+      globalInsightService.getGlobalInsightFactsCacheDir(getPathProvider().getUserDataDir())
+    )
     deleteSessionCache(
       sessionId,
       peopleRelationshipsService.getPeopleRelationshipsFactsCacheDir(getPathProvider().getUserDataDir())

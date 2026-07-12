@@ -376,6 +376,7 @@ export * as exportService from './services/export-service'
 export * as ownerProfileService from './services/owner-profile-service'
 export * as contactsService from './services/contacts'
 export * as peopleRelationshipsService from './services/people/relationships'
+export * as globalInsightService from './services/global-insight'
 // Semantic index (Phase 1 vector search) — independent of legacy ai/rag
 export * as semanticIndex from './semantic-index'
 export {
@@ -407,9 +408,11 @@ export type {
 export {
   CONTACTS_ALGORITHM_VERSION,
   PEOPLE_RELATIONSHIPS_ALGORITHM_VERSION,
+  ANNUAL_SUMMARY_ALGORITHM_VERSION,
   MergeSessionCache,
   createContactsService,
   createPeopleRelationshipsService,
+  createGlobalInsightService,
   createDatabaseManagerAdapter,
   pushImport,
 } from './services'
@@ -429,6 +432,10 @@ export type {
   PeopleRelationshipsService,
   PeopleRelationshipsServiceDeps,
   PeopleRelationshipsServiceOptions,
+  AnnualSummaryComputeRunner,
+  GlobalInsightService,
+  GlobalInsightServiceDeps,
+  GlobalInsightServiceOptions,
   PushImportPayload,
   PushImportResult,
   PushImportOutcome,

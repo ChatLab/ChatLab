@@ -44,6 +44,9 @@ test('openDatabase keeps readonly validation read-only for DELETE journal databa
         contactsService: {
           getContactsFactsCacheDir: () => path.join(root, 'cache', 'contacts'),
         },
+        globalInsightService: {
+          getGlobalInsightFactsCacheDir: () => path.join(root, 'cache', 'global-insight'),
+        },
         peopleRelationshipsService: {
           getPeopleRelationshipsFactsCacheDir: () => path.join(root, 'cache', 'people-relationships'),
         },

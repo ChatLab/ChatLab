@@ -68,6 +68,15 @@ export type {
   PeopleRelationshipsServiceOptions,
 } from './people/relationships'
 
+// Global insight service
+export { ANNUAL_SUMMARY_ALGORITHM_VERSION, createGlobalInsightService } from './global-insight'
+export type {
+  AnnualSummaryComputeRunner,
+  GlobalInsightService,
+  GlobalInsightServiceDeps,
+  GlobalInsightServiceOptions,
+} from './global-insight'
+
 // Merge cache
 export { MergeSessionCache } from './merge-cache'
 
