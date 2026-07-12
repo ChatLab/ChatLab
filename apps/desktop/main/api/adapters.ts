@@ -15,6 +15,7 @@ import { openDatabase } from '../database/core'
 import * as worker from '../worker/workerManager'
 import { getPathProvider } from '../path-context'
 import { assertDesktopDataDirCompatible, getDesktopAppVersion } from '../runtime-compat'
+import { IMPORT_IN_PROGRESS_ERROR_KEY } from '@openchatlab/node-runtime'
 import type { HttpFetcher, DataImporter, SyncNotifier, ImportResult, FetchParams, SyncLogger } from '@openchatlab/sync'
 import { buildPullUrl, NOOP_LOGGER } from '@openchatlab/sync'
 
@@ -136,6 +137,10 @@ export class WorkerImporter implements DataImporter {
       this.logger.warn(`[Pull] Session ${sessionId} not found or schema invalid, need full resync`)
       return { success: false, newMessageCount: 0, sessionId, needFullResync: true }
     }
+    if (result.error === IMPORT_IN_PROGRESS_ERROR_KEY) {
+      this.logger.info(`[Pull] Incremental import deferred: another import is in progress`)
+      return { success: false, newMessageCount: 0, sessionId, error: result.error, retryable: true }
+    }
     this.logger.error(`[Pull] Incremental import failed: ${result.error}`)
     return { success: false, newMessageCount: 0, sessionId, error: result.error }
   }
@@ -147,6 +152,10 @@ export class WorkerImporter implements DataImporter {
       const msgCount = result.diagnostics?.messagesWritten ?? 0
       this.logger.info(`[Pull] streamImport OK: session=${result.sessionId}, messages=${msgCount}`)
       return { success: true, newMessageCount: msgCount, sessionId: result.sessionId }
+    }
+    if (result.error === IMPORT_IN_PROGRESS_ERROR_KEY) {
+      this.logger.info(`[Pull] Full import deferred: another import is in progress`)
+      return { success: false, newMessageCount: 0, error: result.error, retryable: true }
     }
     this.logger.error(`[Pull] streamImport failed: ${result.error}`)
     return { success: false, newMessageCount: 0, error: result.error }

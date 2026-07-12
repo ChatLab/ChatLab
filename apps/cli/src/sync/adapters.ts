@@ -14,7 +14,7 @@ import type { HttpFetcher, DataImporter, SyncNotifier, ImportResult, FetchParams
 import { NOOP_LOGGER } from '@openchatlab/sync'
 import { buildPullUrl } from '@openchatlab/sync'
 import type { DatabaseManager } from '@openchatlab/node-runtime'
-import { DataDirCompatibilityError } from '@openchatlab/node-runtime'
+import { DataDirCompatibilityError, IMPORT_IN_PROGRESS_ERROR_KEY } from '@openchatlab/node-runtime'
 import { streamImport, incrementalImport } from '../import/stream-import'
 
 function getTempFilePath(ext: string): string {
@@ -120,6 +120,10 @@ export class DirectImporter implements DataImporter {
       if (result.error === 'error.session_not_found' || result.error?.includes('no such table')) {
         return { success: false, newMessageCount: 0, sessionId, needFullResync: true }
       }
+      if (result.error === IMPORT_IN_PROGRESS_ERROR_KEY) {
+        this.logger.info(`[DirectImporter] Incremental import deferred: another import is in progress`)
+        return { success: false, newMessageCount: 0, sessionId, error: result.error, retryable: true }
+      }
 
       return { success: false, newMessageCount: 0, sessionId, error: result.error }
     } catch (err: any) {
@@ -136,6 +140,10 @@ export class DirectImporter implements DataImporter {
         const newMessageCount = result.diagnostics?.messagesWritten ?? 0
         this.logger.info(`[DirectImporter] Full import OK: +${newMessageCount} messages`)
         return { success: true, newMessageCount, sessionId: result.sessionId ?? externalId }
+      }
+      if (result.error === IMPORT_IN_PROGRESS_ERROR_KEY) {
+        this.logger.info(`[DirectImporter] Full import deferred: another import is in progress`)
+        return { success: false, newMessageCount: 0, error: result.error, retryable: true }
       }
 
       return { success: false, newMessageCount: 0, error: result.error }

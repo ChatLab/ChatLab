@@ -215,6 +215,75 @@ describe('PullEngine', () => {
     assert.deepEqual(checkedSessionIds, ['local_session_b'])
   })
 
+  it('keeps the pull cursor stable when an import is deferred by another writer', async () => {
+    const session = createSession()
+    const dataSource = createDataSource()
+    dataSource.sessions = [session]
+    const page = writeTempJson({
+      chatlab: { version: '0.0.2', exportedAt: 100 },
+      meta: { name: 'Test Session', platform: 'test', type: 'group' },
+      members: [{ platformId: 'u1', accountName: 'Alice' }],
+      messages: [{ sender: 'u1', timestamp: 101, type: 0, content: 'hi' }],
+      sync: { hasMore: false, nextSince: 101 },
+    })
+    const sessionUpdates: Array<{ sessionId: string; updates: Partial<ImportSession> }> = []
+    const engine = createEngine({
+      files: [page],
+      dataSource,
+      sessionUpdates,
+      importResult: {
+        success: false,
+        newMessageCount: 0,
+        error: 'error.import_in_progress',
+        retryable: true,
+      },
+    })
+
+    const result = await withImmediateTimers(() => engine.executePullSession(dataSource.id, dataSource, session))
+
+    assert.equal(result.success, false)
+    assert.equal(result.error, 'error.import_in_progress')
+    assert.deepEqual(sessionUpdates, [])
+  })
+
+  it('keeps the pull cursor stable when a retry-page import is deferred', async () => {
+    const session = createSession()
+    const dataSource = createDataSource()
+    dataSource.sessions = [session]
+    const emptyInitialPage = writeTempJson({
+      chatlab: { version: '0.0.2', exportedAt: 100 },
+      meta: { name: 'Test Session', platform: 'test', type: 'group' },
+      members: [],
+      messages: [],
+      sync: { hasMore: false, nextSince: 100 },
+    })
+    const retryPage = writeTempJson({
+      chatlab: { version: '0.0.2', exportedAt: 100 },
+      meta: { name: 'Test Session', platform: 'test', type: 'group' },
+      members: [{ platformId: 'u1', accountName: 'Alice' }],
+      messages: [{ sender: 'u1', timestamp: 101, type: 0, content: 'x'.repeat(1200) }],
+      sync: { hasMore: false, nextSince: 101 },
+    })
+    const sessionUpdates: Array<{ sessionId: string; updates: Partial<ImportSession> }> = []
+    const engine = createEngine({
+      files: [emptyInitialPage, retryPage],
+      dataSource,
+      sessionUpdates,
+      importResult: {
+        success: false,
+        newMessageCount: 0,
+        error: 'error.import_in_progress',
+        retryable: true,
+      },
+    })
+
+    const result = await withImmediateTimers(() => engine.executePullSession(dataSource.id, dataSource, session))
+
+    assert.equal(result.success, false)
+    assert.equal(result.error, 'error.import_in_progress')
+    assert.deepEqual(sessionUpdates, [])
+  })
+
   it('reports retry import failure instead of marking the pull successful', async () => {
     const session = createSession()
     const dataSource = createDataSource()

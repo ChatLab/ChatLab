@@ -4,7 +4,14 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import type { PathProvider } from '@openchatlab/core'
-import { DatabaseManager, DataDirCompatibilityError, raiseDataDirMinRuntimeVersion } from '@openchatlab/node-runtime'
+import {
+  DatabaseManager,
+  DataDirCompatibilityError,
+  IMPORT_IN_PROGRESS_ERROR_KEY,
+  raiseDataDirMinRuntimeVersion,
+  withDataDirImportLock,
+} from '@openchatlab/node-runtime'
+import { streamImport } from '../import/stream-import'
 import { DirectImporter } from './adapters'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
@@ -56,4 +63,41 @@ test('DirectImporter.sessionExists preserves session DBs when compatibility gate
     (error) => error instanceof DataDirCompatibilityError && error.code === 'DATA_DIR_REQUIRES_NEWER_RUNTIME'
   )
   assert.equal(fs.existsSync(dbPath), true)
+})
+
+test('DirectImporter marks an incremental import lock conflict as retryable', async (t) => {
+  const root = makeTempDir()
+  const pathProvider = createPathProvider(root)
+  const manager = new DatabaseManager(pathProvider, {
+    nativeBinding,
+    runtime: { version: '0.30.2', kind: 'cli' },
+  })
+  t.after(() => {
+    manager.closeAll()
+    fs.rmSync(root, { recursive: true, force: true })
+  })
+
+  const chatFile = path.join(root, 'chatlab.json')
+  fs.writeFileSync(
+    chatFile,
+    JSON.stringify({
+      chatlab: { version: '0.0.2', exportedAt: 100 },
+      meta: { name: 'Test Session', platform: 'instagram', type: 'private', ownerId: 'u1' },
+      members: [{ platformId: 'u1', accountName: 'Alice' }],
+      messages: [{ sender: 'u1', accountName: 'Alice', timestamp: 101, type: 0, content: 'hi' }],
+    }),
+    'utf-8'
+  )
+
+  const seeded = await streamImport(manager, chatFile, { sessionId: 'local_session' })
+  assert.equal(seeded.success, true)
+
+  const importer = new DirectImporter(manager)
+  const result = await withDataDirImportLock(manager.getUserDataDir(), () =>
+    importer.importFile(chatFile, 'local_session', 'external_session')
+  )
+
+  assert.equal(result.success, false)
+  assert.equal(result.error, IMPORT_IN_PROGRESS_ERROR_KEY)
+  assert.equal(result.retryable, true)
 })

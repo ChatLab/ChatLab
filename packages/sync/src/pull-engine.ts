@@ -17,6 +17,7 @@ import type {
   SyncLogger,
   FetchParams,
   SyncMeta,
+  ImportResult,
   PullSessionResult,
   PullProgress,
 } from './types'
@@ -223,17 +224,7 @@ export class PullEngine {
     return Array.from(this.progressMap.values())
   }
 
-  private async importTempFile(
-    baseUrl: string,
-    sess: ImportSession,
-    tempFile: string
-  ): Promise<{
-    success: boolean
-    newMessageCount: number
-    sessionId?: string
-    error?: string
-    needFullResync?: boolean
-  }> {
+  private async importTempFile(baseUrl: string, sess: ImportSession, tempFile: string): Promise<ImportResult> {
     let targetId = sess.targetSessionId
     if (!targetId) {
       const derived = deriveLocalSessionId(baseUrl, sess.remoteSessionId)
@@ -245,6 +236,13 @@ export class PullEngine {
 
     const externalId = deriveLocalSessionId(baseUrl, sess.remoteSessionId)
     return this.importer.importFile(tempFile, targetId || undefined, externalId)
+  }
+
+  private deferRetryableImport(sess: ImportSession, error?: string): PullSessionResult {
+    const errMsg = error || 'Import deferred'
+    this.logger.info(`[Pull] Deferring "${sess.name}": ${errMsg}`)
+    this.markProgressDone(sess.id)
+    return { success: false, newMessageCount: 0, error: errMsg }
   }
 
   async executePullSession(sourceId: string, ds: DataSource, sess: ImportSession): Promise<PullSessionResult> {
@@ -342,6 +340,8 @@ export class PullEngine {
                 }
 
                 if (!retryResult.success) {
+                  if (retryResult.retryable) return this.deferRetryableImport(sess, retryResult.error)
+
                   const errMsg = retryResult.error || 'Import failed'
                   this.dsManager.updateSession(sourceId, sess.id, {
                     lastPullAt: Math.floor(Date.now() / 1000),
@@ -421,6 +421,8 @@ export class PullEngine {
           }
 
           if (!result.success) {
+            if (result.retryable) return this.deferRetryableImport(sess, result.error)
+
             const errMsg = result.error || 'Import failed'
             this.dsManager.updateSession(sourceId, sess.id, {
               lastPullAt: Math.floor(Date.now() / 1000),
