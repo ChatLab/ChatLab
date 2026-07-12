@@ -4,6 +4,7 @@
  */
 
 import type { DatabaseAdapter } from '@openchatlab/core'
+import { appLogger } from '../logging/app-logger'
 
 export type ExportFormat = 'txt' | 'json' | 'markdown'
 
@@ -26,7 +27,31 @@ export interface FormatExportResult {
 interface MessageRow {
   ts: number
   senderName: string
+  sender: string
+  accountName: string
+  groupNickname: string | null
+  type: number
   content: string | null
+  platformMessageId: string | null
+  replyToMessageId: string | null
+}
+
+interface MetaRow {
+  name: string
+  platform: string
+  type: string
+  groupId: string | null
+  groupAvatar: string | null
+  ownerId: string | null
+}
+
+interface MemberRow {
+  platformId: string
+  accountName: string | null
+  groupNickname: string | null
+  aliases: string | null
+  avatar: string | null
+  roles: string | null
 }
 
 function queryMessages(db: DatabaseAdapter, timeFilter?: { startTs: number; endTs: number }): MessageRow[] {
@@ -34,7 +59,13 @@ function queryMessages(db: DatabaseAdapter, timeFilter?: { startTs: number; endT
   const sql = `
     SELECT msg.ts,
            COALESCE(m.group_nickname, m.account_name, m.platform_id) as senderName,
-           msg.content
+           m.platform_id as sender,
+           COALESCE(msg.sender_account_name, m.account_name, m.platform_id) as accountName,
+           COALESCE(msg.sender_group_nickname, m.group_nickname) as groupNickname,
+           msg.type,
+           msg.content,
+           msg.platform_message_id as platformMessageId,
+           msg.reply_to_message_id as replyToMessageId
     FROM message msg
     JOIN member m ON msg.sender_id = m.id
     ${hasFilter ? 'WHERE msg.ts >= ? AND msg.ts <= ?' : ''}
@@ -45,10 +76,6 @@ function queryMessages(db: DatabaseAdapter, timeFilter?: { startTs: number; endT
     params.push(timeFilter!.startTs, timeFilter!.endTs)
   }
   return db.prepare(sql).all(...params) as unknown as MessageRow[]
-}
-
-function formatTime(ts: number): string {
-  return new Date(ts * 1000).toLocaleString()
 }
 
 function formatTimeShort(ts: number): string {
@@ -69,16 +96,75 @@ function exportAsTxt(messages: MessageRow[], sessionName: string): string {
   return lines.join('\n')
 }
 
-function exportAsJson(messages: MessageRow[], sessionName: string): string {
+function parseOptionalArray<T>(value: string | null): T[] | undefined {
+  if (!value) return undefined
+  try {
+    const parsed = JSON.parse(value)
+    return Array.isArray(parsed) && parsed.length > 0 ? (parsed as T[]) : undefined
+  } catch {
+    return undefined
+  }
+}
+
+function exportAsJson(db: DatabaseAdapter, messages: MessageRow[], sessionName: string): string {
+  const meta = db
+    .prepare(
+      `SELECT name,
+              platform,
+              type,
+              group_id as groupId,
+              group_avatar as groupAvatar,
+              owner_id as ownerId
+       FROM meta
+       LIMIT 1`
+    )
+    .get() as unknown as MetaRow | undefined
+  if (!meta) throw new Error('Cannot read session metadata')
+
+  const members = db
+    .prepare(
+      `SELECT platform_id as platformId,
+              account_name as accountName,
+              group_nickname as groupNickname,
+              aliases,
+              avatar,
+              roles
+       FROM member
+       ORDER BY id ASC`
+    )
+    .all() as unknown as MemberRow[]
+
   const data = {
-    sessionName,
-    exportTime: new Date().toISOString(),
-    totalMessages: messages.length,
+    chatlab: {
+      version: '0.0.2',
+      exportedAt: Math.floor(Date.now() / 1000),
+      generator: 'ChatLab',
+    },
+    meta: {
+      name: meta.name || sessionName,
+      platform: meta.platform,
+      type: meta.type,
+      groupId: meta.groupId || undefined,
+      groupAvatar: meta.groupAvatar || undefined,
+      ownerId: meta.ownerId || undefined,
+    },
+    members: members.map((member) => ({
+      platformId: member.platformId,
+      accountName: member.accountName || member.platformId,
+      groupNickname: member.groupNickname || undefined,
+      aliases: parseOptionalArray<string>(member.aliases),
+      avatar: member.avatar || undefined,
+      roles: parseOptionalArray<{ id: string; name?: string }>(member.roles),
+    })),
     messages: messages.map((msg) => ({
+      sender: msg.sender,
+      accountName: msg.accountName,
+      groupNickname: msg.groupNickname || undefined,
       timestamp: msg.ts,
-      time: formatTime(msg.ts),
-      sender: msg.senderName,
-      content: msg.content || '',
+      type: msg.type,
+      content: msg.content,
+      platformMessageId: msg.platformMessageId || undefined,
+      replyToMessageId: msg.replyToMessageId || undefined,
     })),
   }
   return JSON.stringify(data, null, 2)
@@ -133,7 +219,7 @@ export function exportWithFormat(
         content = exportAsTxt(messages, params.sessionName)
         break
       case 'json':
-        content = exportAsJson(messages, params.sessionName)
+        content = exportAsJson(db, messages, params.sessionName)
         break
       case 'markdown':
         content = exportAsMarkdown(messages, params.sessionName)
@@ -142,8 +228,15 @@ export function exportWithFormat(
 
     const timestamp = Date.now()
     const filename = `${params.sessionName}_export_${timestamp}.${ext}`
+    appLogger.info('export', 'chat export generated', {
+      sessionId: params.sessionId,
+      format: params.format,
+      totalMessages: messages.length,
+      filteredByTime: !!params.timeFilter,
+    })
     return { success: true, totalMessages: messages.length, content, filename, mimeType: mime }
   } catch (error) {
+    appLogger.error('export', 'chat export failed', error)
     return {
       success: false,
       error: String(error),

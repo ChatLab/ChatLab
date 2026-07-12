@@ -11,7 +11,7 @@ const exportFormat = defineModel<ExportFormat>('exportFormat', { default: 'txt' 
 
 const formatTabItems = computed(() => [
   { label: 'TXT', value: 'txt' },
-  { label: 'JSON', value: 'json' },
+  { label: 'ChatLab JSON', value: 'json' },
   { label: 'Markdown', value: 'markdown' },
 ])
 
