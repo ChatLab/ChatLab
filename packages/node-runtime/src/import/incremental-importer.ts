@@ -75,9 +75,11 @@ export interface IncrementalImportDeps {
 function loadExistingDedup(db: DatabaseAdapter): {
   existingPlatformMsgIds: Set<string>
   existingKeys: Set<string>
+  existingFallbackOnlyKeys: Set<string>
 } {
   const existingPlatformMsgIds = new Set<string>()
   const existingKeys = new Set<string>()
+  const existingFallbackOnlyKeys = new Set<string>()
 
   const pmidRows = db
     .prepare('SELECT platform_message_id FROM message WHERE platform_message_id IS NOT NULL')
@@ -88,7 +90,8 @@ function loadExistingDedup(db: DatabaseAdapter): {
 
   const hashRows = db
     .prepare(
-      `SELECT ts, m.platform_id as sender_platform_id, msg.type, content, reply_to_message_id
+      `SELECT ts, m.platform_id as sender_platform_id, msg.type, content, reply_to_message_id,
+              platform_message_id
        FROM message msg
        JOIN member m ON msg.sender_id = m.id`
     )
@@ -98,20 +101,21 @@ function loadExistingDedup(db: DatabaseAdapter): {
     type: number
     content: string | null
     reply_to_message_id: string | null
+    platform_message_id: string | null
   }>
   for (const row of hashRows) {
-    existingKeys.add(
-      generateFallbackMessageKey({
-        timestamp: row.ts,
-        senderPlatformId: row.sender_platform_id,
-        type: row.type,
-        content: row.content,
-        replyToMessageId: row.reply_to_message_id ?? undefined,
-      })
-    )
+    const key = generateFallbackMessageKey({
+      timestamp: row.ts,
+      senderPlatformId: row.sender_platform_id,
+      type: row.type,
+      content: row.content,
+      replyToMessageId: row.reply_to_message_id ?? undefined,
+    })
+    existingKeys.add(key)
+    if (!row.platform_message_id) existingFallbackOnlyKeys.add(key)
   }
 
-  return { existingPlatformMsgIds, existingKeys }
+  return { existingPlatformMsgIds, existingKeys, existingFallbackOnlyKeys }
 }
 
 function isDuplicate(
@@ -124,11 +128,13 @@ function isDuplicate(
     replyToMessageId?: string
   },
   existingPlatformMsgIds: Set<string>,
-  existingKeys: Set<string>
+  existingKeys: Set<string>,
+  existingFallbackOnlyKeys: Set<string>
 ): boolean {
   return registerMessageAndCheckDuplicate(msg, {
     platformMessageIds: existingPlatformMsgIds,
     fallbackKeys: existingKeys,
+    fallbackOnlyKeys: existingFallbackOnlyKeys,
   })
 }
 
@@ -156,7 +162,7 @@ export async function analyzeIncrementalImport(
     return { error: 'error.session_not_found', newMessageCount: 0, duplicateCount: 0, totalInFile: 0 }
   }
 
-  const { existingPlatformMsgIds, existingKeys } = loadExistingDedup(db)
+  const { existingPlatformMsgIds, existingKeys, existingFallbackOnlyKeys } = loadExistingDedup(db)
   db.close()
 
   let totalInFile = 0
@@ -175,7 +181,7 @@ export async function analyzeIncrementalImport(
         const timestamp = normalizeImportTimestamp(msg.timestamp)
         if (timestamp === null) continue
 
-        if (isDuplicate({ ...msg, timestamp }, existingPlatformMsgIds, existingKeys)) {
+        if (isDuplicate({ ...msg, timestamp }, existingPlatformMsgIds, existingKeys, existingFallbackOnlyKeys)) {
           duplicateCount++
         } else {
           newMessageCount++
@@ -211,7 +217,7 @@ export async function incrementalImport(
   const memberUpdateMode = options?.memberUpdateMode ?? 'upsert'
 
   try {
-    const { existingPlatformMsgIds, existingKeys } = loadExistingDedup(db)
+    const { existingPlatformMsgIds, existingKeys, existingFallbackOnlyKeys } = loadExistingDedup(db)
 
     const memberIdMap = new Map<string, number>()
     const existingMembers = db.prepare('SELECT id, platform_id FROM member').all() as Array<{
@@ -339,7 +345,7 @@ export async function incrementalImport(
               continue
             }
 
-            if (isDuplicate({ ...msg, timestamp }, existingPlatformMsgIds, existingKeys)) {
+            if (isDuplicate({ ...msg, timestamp }, existingPlatformMsgIds, existingKeys, existingFallbackOnlyKeys)) {
               duplicateCount++
               continue
             }

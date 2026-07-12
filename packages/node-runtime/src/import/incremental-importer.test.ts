@@ -176,3 +176,60 @@ test('does not deduplicate messages that only share timestamp, sender and conten
   assert.equal(result.newMessageCount, 1)
   assert.equal(result.batch?.duplicateCount, 0)
 })
+
+test('deduplicates an ID-bearing copy of an existing fallback-only message', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const dbPath = path.join(tempDir, 'session.db')
+  const filePath = path.join(tempDir, 'mixed-id.json')
+  seedSessionDb(dbPath)
+
+  const db = openBetterSqliteDatabase(dbPath, { nativeBinding })
+  db.prepare('INSERT INTO member (platform_id, account_name) VALUES (?, ?)').run('wxid_alice', 'Alice')
+  const member = db.prepare('SELECT id FROM member WHERE platform_id = ?').get('wxid_alice') as { id: number }
+  db.prepare('INSERT INTO message (sender_id, ts, type, content) VALUES (?, ?, ?, ?)').run(
+    member.id,
+    1780330832,
+    0,
+    'same message'
+  )
+  db.close()
+
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify({
+      chatlab: { version: '0.0.2', exportedAt: 1780330900 },
+      meta: { name: 'Mixed ID', platform: 'wechat', type: 'private' },
+      members: [{ platformId: 'wxid_alice', accountName: 'Alice' }],
+      messages: [
+        {
+          sender: 'wxid_alice',
+          accountName: 'Alice',
+          timestamp: 1780330832,
+          type: 0,
+          content: 'same message',
+          platformMessageId: 'msg-1',
+        },
+      ],
+    }),
+    'utf8'
+  )
+
+  const deps = createDeps(dbPath)
+  assert.deepEqual(await analyzeIncrementalImport('session', filePath, deps), {
+    newMessageCount: 0,
+    duplicateCount: 1,
+    totalInFile: 1,
+  })
+
+  const result = await incrementalImport('session', filePath, deps)
+  assert.equal(result.success, true)
+  assert.equal(result.newMessageCount, 0)
+  assert.equal(result.batch?.duplicateCount, 1)
+
+  const readonlyDb = openBetterSqliteDatabase(dbPath, { readonly: true, nativeBinding })
+  const row = readonlyDb.prepare('SELECT COUNT(*) AS count FROM message').get() as { count: number }
+  readonlyDb.close()
+  assert.equal(row.count, 1)
+})
