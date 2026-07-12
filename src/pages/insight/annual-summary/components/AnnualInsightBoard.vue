@@ -17,15 +17,10 @@ const props = defineProps<{
   range: AnnualSummaryRange
   metrics: AnnualSummaryMetrics
   coverage: AnnualSummaryCoverage
-  ownerIssueCount: number
   monthlyActivity: Array<{ month: string; messageCount: number }>
   dailyActivity: Array<{ date: string; messageCount: number }>
   messageTypes: Array<{ type: number; count: number }>
   textLength: AnnualSummaryTextLength
-}>()
-
-const emit = defineEmits<{
-  openSessions: []
 }>()
 
 const { t } = useI18n()
@@ -122,14 +117,6 @@ function percentage(value: number, total: number): number {
                     })
                   }}
                 </span>
-                <button
-                  v-if="ownerIssueCount > 0"
-                  type="button"
-                  class="text-pink-600 hover:underline dark:text-pink-400"
-                  @click="emit('openSessions')"
-                >
-                  {{ t('insight.status.ownerIssues', { count: ownerIssueCount }) }}
-                </button>
               </div>
             </div>
           </div>

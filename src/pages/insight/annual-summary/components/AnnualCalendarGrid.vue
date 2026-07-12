@@ -34,8 +34,9 @@ const months = computed<CalendarMonth[]>(() => {
   const start = startDate.value
   const end = endDate.value
   const result: CalendarMonth[] = []
-  const cursor = new Date(start.getFullYear(), start.getMonth(), 1)
-  const lastMonth = new Date(end.getFullYear(), end.getMonth(), 1)
+  const year = props.range.year ?? start.getFullYear()
+  const cursor = props.range.mode === 'year' ? new Date(year, 0, 1) : new Date(start.getFullYear(), start.getMonth(), 1)
+  const lastMonth = props.range.mode === 'year' ? new Date(year, 11, 1) : new Date(end.getFullYear(), end.getMonth(), 1)
 
   while (cursor <= lastMonth) {
     const year = cursor.getFullYear()
@@ -76,12 +77,12 @@ function startOfDay(date: Date): Date {
 </script>
 
 <template>
-  <div class="grid grid-cols-2 gap-x-4 gap-y-4 sm:grid-cols-3 lg:grid-cols-2 xl:grid-cols-3">
+  <div class="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 lg:grid-cols-4">
     <div v-for="month in months" :key="month.key" class="min-w-0">
       <div class="mb-1.5 text-[10px] font-semibold text-gray-500 dark:text-zinc-400">
         {{ month.label }}
       </div>
-      <div class="grid grid-cols-7 gap-1" aria-hidden="true">
+      <div class="grid grid-cols-7 gap-0.5" aria-hidden="true">
         <span v-for="index in month.leadingDays" :key="`blank-${index}`" class="aspect-square" />
         <span
           v-for="day in month.days"

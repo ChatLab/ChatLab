@@ -110,6 +110,17 @@ function openSessions(): void {
 <template>
   <main class="min-h-0 flex-1 overflow-y-auto">
     <div class="mx-auto w-full max-w-[1120px] space-y-6 px-4 py-5 sm:px-6 sm:py-6">
+      <button
+        v-if="ownerIssueCount > 0"
+        type="button"
+        class="inline-flex w-fit max-w-full items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-left text-xs text-amber-800 transition-colors hover:bg-amber-100 dark:bg-amber-950/20 dark:text-amber-300 dark:hover:bg-amber-950/30"
+        @click="openSessions"
+      >
+        <UIcon name="i-heroicons-user-circle" class="h-4 w-4 shrink-0" />
+        <span class="min-w-0">{{ t('insight.status.ownerIssues', { count: ownerIssueCount }) }}</span>
+        <UIcon name="i-heroicons-arrow-right" class="h-3.5 w-3.5 shrink-0 opacity-70" />
+      </button>
+
       <div
         v-if="response?.cache.status === 'stale' || (isUpdating && hasSnapshot)"
         class="flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50/50 px-4 py-2.5 text-xs text-amber-800 backdrop-blur-sm dark:border-amber-950/40 dark:bg-amber-950/20 dark:text-amber-300"
@@ -143,26 +154,15 @@ function openSessions(): void {
 
       <template v-else-if="response?.metrics && response.textLength">
         <div
-          v-if="isZeroData"
+          v-if="isZeroData && !hasNoAnalyzableOwner"
           class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-150 bg-white p-4 text-xs text-gray-600 dark:border-zinc-850 dark:bg-zinc-900/50 dark:text-zinc-300"
         >
-          <span v-if="hasNoAnalyzableOwner">{{ t('insight.status.noAnalyzableOwner') }}</span>
-          <span v-else-if="latestYearSuggestion">
+          <span v-if="latestYearSuggestion">
             {{ t('insight.status.noDataWithLatest', latestYearSuggestion) }}
           </span>
           <span v-else>{{ t('insight.noData') }}</span>
           <UButton
-            v-if="hasNoAnalyzableOwner"
-            size="xs"
-            variant="soft"
-            color="neutral"
-            icon="i-heroicons-user-circle"
-            @click="openSessions"
-          >
-            {{ t('insight.actions.openSessions') }}
-          </UButton>
-          <UButton
-            v-else-if="latestYearSuggestion"
+            v-if="latestYearSuggestion"
             size="xs"
             variant="soft"
             color="neutral"
@@ -177,12 +177,10 @@ function openSessions(): void {
           :range="response.range"
           :metrics="response.metrics"
           :coverage="response.coverage"
-          :owner-issue-count="ownerIssueCount"
           :monthly-activity="response.monthlyActivity"
           :daily-activity="response.dailyActivity"
           :message-types="response.messageTypes"
           :text-length="response.textLength"
-          @open-sessions="openSessions"
         />
       </template>
     </div>
