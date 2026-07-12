@@ -1,4 +1,4 @@
-import { computed, inject, provide, ref, type ComputedRef, type InjectionKey, type Ref } from 'vue'
+import { computed, inject, provide, ref, watch, type ComputedRef, type InjectionKey, type Ref } from 'vue'
 import type { TimeRangeValue, TimeSelectRangeSource, TimeSelectState } from '@/components/common/TimeSelect.vue'
 
 interface AnnualSummaryTimeRangeContext {
@@ -51,4 +51,13 @@ export function useAnnualSummaryTimeRange(): AnnualSummaryTimeRangeContext {
   const context = inject(ANNUAL_SUMMARY_TIME_RANGE_KEY)
   if (!context) throw new Error('Annual summary time range context is unavailable')
   return context
+}
+
+export function watchAnnualSummarySettingsClose(
+  showSettings: Ref<boolean>,
+  refresh: () => void
+): ReturnType<typeof watch> {
+  return watch(showSettings, (visible, wasVisible) => {
+    if (wasVisible && !visible) refresh()
+  })
 }

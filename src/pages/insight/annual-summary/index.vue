@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useLayoutStore } from '@/stores/layout'
 import type { AnnualSummaryFetchOptions } from '@/services/data/types'
@@ -7,11 +8,12 @@ import type { AnnualSummaryResponse } from '@openchatlab/shared-types'
 import LoadingState from '@/components/UI/LoadingState.vue'
 import { useDataService } from '@/services'
 import { reportError } from '@/services/log-report'
-import { useAnnualSummaryTimeRange } from '../annual-summary-time-range'
+import { useAnnualSummaryTimeRange, watchAnnualSummarySettingsClose } from '../annual-summary-time-range'
 import AnnualInsightBoard from './components/AnnualInsightBoard.vue'
 
 const { t } = useI18n()
 const layoutStore = useLayoutStore()
+const { showSettings } = storeToRefs(layoutStore)
 const currentYear = new Date().getFullYear()
 const timeRange = useAnnualSummaryTimeRange()
 const response = ref<AnnualSummaryResponse | null>(null)
@@ -59,6 +61,7 @@ watch(
   },
   { immediate: true }
 )
+watchAnnualSummarySettingsClose(showSettings, () => void loadSummary(false))
 
 onBeforeUnmount(clearPoll)
 
@@ -131,7 +134,7 @@ function openSessions(): void {
 
       <div
         v-if="errorMessage || response?.task.status === 'failed'"
-        class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-150 bg-red-50/50 px-4 py-2.5 text-xs text-red-800 backdrop-blur-sm dark:border-red-950/40 dark:bg-red-950/20 dark:text-red-300"
+        class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50/50 px-4 py-2.5 text-xs text-red-800 backdrop-blur-sm dark:border-red-950/40 dark:bg-red-950/20 dark:text-red-300"
       >
         <span>{{ t('insight.status.failed') }}</span>
         <UButton size="xs" color="error" variant="soft" icon="i-heroicons-arrow-path" @click="loadSummary(true)">
@@ -155,7 +158,7 @@ function openSessions(): void {
       <template v-else-if="response?.metrics && response.textLength">
         <div
           v-if="isZeroData && !hasNoAnalyzableOwner"
-          class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-150 bg-white p-4 text-xs text-gray-600 dark:border-zinc-850 dark:bg-zinc-900/50 dark:text-zinc-300"
+          class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 text-xs text-gray-600 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-300"
         >
           <span v-if="latestYearSuggestion">
             {{ t('insight.status.noDataWithLatest', latestYearSuggestion) }}

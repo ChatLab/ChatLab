@@ -133,7 +133,7 @@ export function getAnnualSummarySessionFacts(
     ownerMessagesByDay,
     directContactKeysByDay:
       meta.type === ChatType.PRIVATE && privateContact
-        ? getPrivateDirectContactsByDay(db, sessionId, meta.platform, privateContact, range)
+        ? getPrivateDirectContactsByDay(db, sessionId, meta.platform, owner.id, privateContact, range)
         : getGroupDirectContactsByDay(db, sessionId, meta.platform, owner.id, contacts, range),
     messageTypeCounts,
     textLengthCounts,
@@ -237,6 +237,7 @@ function getPrivateDirectContactsByDay(
   db: DatabaseAdapter,
   sessionId: string,
   platform: ChatPlatform,
+  ownerId: number,
   contact: ContactMemberRef,
   range: AnnualSummaryRange
 ): Record<string, string[]> {
@@ -244,10 +245,11 @@ function getPrivateDirectContactsByDay(
     .prepare(
       `SELECT DISTINCT strftime('%Y-%m-%d', msg.ts, 'unixepoch', 'localtime') as date
        FROM message msg
-       WHERE msg.ts >= ? AND msg.ts <= ? AND msg.type NOT IN (${SYSTEM_MESSAGE_TYPES.join(', ')})
+       WHERE msg.sender_id IN (?, ?) AND msg.ts >= ? AND msg.ts <= ?
+         AND msg.type NOT IN (${SYSTEM_MESSAGE_TYPES.join(', ')})
        ORDER BY date`
     )
-    .all(range.startTs, range.endTs) as Array<{ date: string }>
+    .all(ownerId, contact.id, range.startTs, range.endTs) as Array<{ date: string }>
   const key = buildContactKey(
     platform,
     contact.platformId,

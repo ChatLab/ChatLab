@@ -31,9 +31,7 @@ const { sessions } = storeToRefs(sessionStore)
 
 // 搜索关键词
 const searchQuery = ref('')
-const ownerIssueCount = computed(
-  () => sessions.value.filter((session) => session.ownerStatus !== 'resolved').length
-)
+const ownerIssueCount = computed(() => sessions.value.filter((session) => session.ownerStatus !== 'resolved').length)
 
 // 过滤后的会话列表
 const filteredSessions = computed(() => {
@@ -798,12 +796,18 @@ onMounted(() => {
             <button
               type="button"
               class="flex w-28 min-w-0 items-center gap-1.5 text-left text-xs transition-colors hover:text-primary-600 dark:hover:text-primary-400"
-              :class="session.ownerStatus === 'resolved' ? 'text-gray-600 dark:text-gray-300' : 'text-amber-600 dark:text-amber-400'"
+              :class="
+                session.ownerStatus === 'resolved'
+                  ? 'text-gray-600 dark:text-gray-300'
+                  : 'text-amber-600 dark:text-amber-400'
+              "
               :title="session.ownerId || t('tools.batchManage.ownerStatus.missing')"
               @click="openOwnerModal(session, $event)"
             >
               <UIcon
-                :name="session.ownerStatus === 'resolved' ? 'i-heroicons-user-circle' : 'i-heroicons-exclamation-circle'"
+                :name="
+                  session.ownerStatus === 'resolved' ? 'i-heroicons-user-circle' : 'i-heroicons-exclamation-circle'
+                "
                 class="h-3.5 w-3.5 shrink-0"
               />
               <span class="truncate">

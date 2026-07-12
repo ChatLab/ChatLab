@@ -124,6 +124,29 @@ test('preserves failed state until explicit recompute', async (t) => {
   assert.equal(env.service.getAnnualSummary({ mode: 'year', year: 2026 }).cache.status, 'fresh')
 })
 
+test('reports snapshot persistence failures without restarting the task', async (t) => {
+  let calls = 0
+  const env = createEnv(async ({ signature, range }) => {
+    calls++
+    return makeSnapshot(range, signature)
+  })
+  t.after(async () => {
+    await env.service.close()
+    fs.rmSync(env.dir, { recursive: true, force: true })
+  })
+  const insightDir = path.join(env.dir, 'insight')
+  fs.mkdirSync(insightDir)
+  fs.writeFileSync(path.join(insightDir, 'annual-summary'), 'not a directory')
+
+  env.service.getAnnualSummary({ mode: 'year', year: 2026 })
+  await flushTasks()
+  const failed = env.service.getAnnualSummary({ mode: 'year', year: 2026 })
+
+  assert.equal(failed.task.status, 'failed')
+  assert.ok(failed.task.lastError)
+  assert.equal(calls, 1)
+})
+
 test('discards a worker result when the DB signature changes during compute', async (t) => {
   let finish: (() => void) | undefined
   const env = createEnv(

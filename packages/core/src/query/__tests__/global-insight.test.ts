@@ -204,6 +204,25 @@ test('counts an active private counterpart on each day and scopes name-match ide
   db.close()
 })
 
+test('ignores legacy system messages when counting private direct-contact days', () => {
+  const db = createSession({ id: 'private-system', type: ChatType.PRIVATE })
+  db.raw.prepare('INSERT INTO member VALUES (?, ?, ?, ?, ?, ?)').run(3, 'system', '系统消息', null, '[]', null)
+  addMessage(db, {
+    id: 1,
+    senderId: 3,
+    ts: localTs(2024, 2, 1),
+    content: 'notification',
+    platformMessageId: 'system-1',
+  })
+
+  const facts = getAnnualSummarySessionFacts(db, 'private-system', range2024)
+
+  assert.equal(facts.kind, 'analyzed')
+  if (facts.kind !== 'analyzed') return
+  assert.deepEqual(facts.directContactKeysByDay, {})
+  db.close()
+})
+
 test('reports missing and unresolved owners instead of guessing', () => {
   const missing = createSession({ id: 'missing', type: ChatType.PRIVATE, ownerId: null })
   const unresolved = createSession({ id: 'unresolved', type: ChatType.GROUP, ownerId: 'unknown' })

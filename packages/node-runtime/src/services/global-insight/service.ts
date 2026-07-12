@@ -150,16 +150,17 @@ class DefaultGlobalInsightService implements GlobalInsightService {
 
   private handleTaskSuccess(id: string, inputSignature: string, snapshot: AnnualSummarySnapshot): void {
     if (this.inFlight?.id !== id) return
-    this.inFlight = null
     const latestSignature = buildAnnualSummarySignature(this.deps.adapter, snapshot.range)
     const finishedAt = this.now()
     if (inputSignature !== latestSignature || snapshot.signature !== latestSignature) {
+      this.inFlight = null
       this.task = { ...this.task, status: 'superseded', finishedAt, currentSessionId: undefined }
       appLogger.info('global-insight', 'annual summary worker result discarded because signature changed')
       return
     }
     try {
       writeAnnualSummarySnapshot(this.snapshotDir, snapshot)
+      this.inFlight = null
       this.snapshots.set(toAnnualSummaryRangeKey(snapshot.range), snapshot)
       this.task = {
         ...this.task,

@@ -261,7 +261,7 @@ function percentage(value: number, total: number): number {
         <h3 class="text-[11px] font-bold uppercase text-pink-600 dark:text-pink-400">
           {{ t('insight.overviewCard.keyMetrics') }}
         </h3>
-        <div class="mt-4 grid grid-cols-3 divide-x divide-gray-150 dark:divide-white/10">
+        <div class="mt-4 grid grid-cols-3 divide-x divide-gray-200 dark:divide-white/10">
           <div v-for="item in highlights" :key="item.key" class="min-w-0 px-3 first:pl-0 last:pr-0">
             <div class="truncate font-mono text-sm font-black tabular-nums text-gray-900 dark:text-white">
               {{ item.value }}
