@@ -61,6 +61,8 @@ export {
   getPrivateContactFacts,
   isValidContactPlatformId,
   resolveOwnerMember,
+  buildContactKey,
+  shouldScopeContactToSession,
   MIN_GROUP_SESSIONS_FOR_CONTACTS,
   MIN_PRIVATE_SESSIONS_FOR_CONTACTS,
   shouldEnableContactsEntry,
