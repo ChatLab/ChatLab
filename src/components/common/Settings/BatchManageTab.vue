@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useVirtualizer } from '@tanstack/vue-virtual'
@@ -7,6 +7,7 @@ import { useToast } from '@/composables/useToast'
 import { useSessionStore } from '@/stores/session'
 import type { AnalysisSession } from '@/types/base'
 import LazyAvatar from '@/components/common/avatar/LazyAvatar.vue'
+import OwnerPromptModal from '@/components/analysis/member/OwnerPromptModal.vue'
 import dayjs from 'dayjs'
 import relativeTime from 'dayjs/plugin/relativeTime'
 import 'dayjs/locale/zh-cn'
@@ -15,12 +16,24 @@ dayjs.extend(relativeTime)
 const toast = useToast()
 const SESSION_ROW_HEIGHT = 48
 
+const props = withDefaults(
+  defineProps<{
+    focusOwnerIssues?: boolean
+  }>(),
+  {
+    focusOwnerIssues: false,
+  }
+)
+
 const { t, locale } = useI18n()
 const sessionStore = useSessionStore()
 const { sessions } = storeToRefs(sessionStore)
 
 // 搜索关键词
 const searchQuery = ref('')
+const ownerIssueCount = computed(
+  () => sessions.value.filter((session) => session.ownerStatus !== 'resolved').length
+)
 
 // 过滤后的会话列表
 const filteredSessions = computed(() => {
@@ -28,10 +41,12 @@ const filteredSessions = computed(() => {
     return sessions.value
   }
   const query = searchQuery.value.toLowerCase().trim()
-  return sessions.value.filter((s) => s.name.toLowerCase().includes(query) || s.platform.toLowerCase().includes(query))
+  return sessions.value.filter(
+    (session) => session.name.toLowerCase().includes(query) || session.platform.toLowerCase().includes(query)
+  )
 })
 
-type SortField = 'name' | 'platform' | 'messageCount' | 'importedAt'
+type SortField = 'name' | 'platform' | 'owner' | 'messageCount' | 'importedAt'
 type SortDirection = 'asc' | 'desc'
 type HeaderAlign = 'left' | 'center' | 'right'
 type HeaderColumn =
@@ -76,6 +91,14 @@ const headerColumns: HeaderColumn[] = [
     align: 'center',
   },
   {
+    key: 'owner',
+    type: 'sortable',
+    field: 'owner',
+    labelKey: 'tools.batchManage.columns.owner',
+    class: 'w-28',
+    align: 'left',
+  },
+  {
     key: 'messages',
     type: 'sortable',
     field: 'messageCount',
@@ -108,8 +131,8 @@ const headerColumns: HeaderColumn[] = [
 ]
 
 const sortState = ref<{ field: SortField | null; direction: SortDirection | null }>({
-  field: null,
-  direction: null,
+  field: 'importedAt',
+  direction: 'desc',
 })
 
 function getDefaultDirection(_field: SortField): SortDirection {
@@ -173,6 +196,13 @@ const sortedSessions = computed(() => {
     if (field === 'platform') {
       return getPlatformLabel(a.platform).localeCompare(getPlatformLabel(b.platform), locale.value) * multiplier
     }
+    if (field === 'owner') {
+      const ownerValue = (session: AnalysisSession) => {
+        if (session.ownerStatus === 'resolved') return `0:${session.ownerName || session.ownerId || ''}`
+        return session.ownerStatus === 'unresolved' ? '1:' : '2:'
+      }
+      return ownerValue(a).localeCompare(ownerValue(b), locale.value) * multiplier
+    }
     if (field === 'messageCount') {
       return (a.messageCount - b.messageCount) * multiplier
     }
@@ -183,6 +213,20 @@ const sortedSessions = computed(() => {
 })
 
 const listScrollRef = ref<HTMLElement | null>(null)
+
+function prioritizeOwnerIssues() {
+  sortState.value = { field: 'owner', direction: 'desc' }
+  nextTick(() => listScrollRef.value?.scrollTo({ top: 0 }))
+}
+
+watch(
+  () => props.focusOwnerIssues,
+  (focus) => {
+    if (focus) prioritizeOwnerIssues()
+  },
+  { immediate: true }
+)
+
 const sessionVirtualizer = useVirtualizer(
   computed(() => ({
     count: sortedSessions.value.length,
@@ -214,6 +258,32 @@ const editingId = ref<string | null>(null)
 
 // 编辑中的名称
 const editingName = ref('')
+
+const ownerSessionId = ref<string | null>(null)
+const showOwnerModal = ref(false)
+const continueOwnerSetup = ref(false)
+const ownerSession = computed(() => sessions.value.find((session) => session.id === ownerSessionId.value) ?? null)
+
+function openOwnerModal(session: AnalysisSession, event: Event) {
+  event.stopPropagation()
+  ownerSessionId.value = session.id
+  continueOwnerSetup.value = session.ownerStatus !== 'resolved'
+  showOwnerModal.value = true
+}
+
+async function refreshAfterOwnerChange() {
+  await sessionStore.loadSessions()
+  if (!continueOwnerSetup.value) return
+
+  await nextTick()
+  const nextSession = sortedSessions.value.find((session) => session.ownerStatus !== 'resolved')
+  if (nextSession) {
+    ownerSessionId.value = nextSession.id
+    showOwnerModal.value = true
+  } else {
+    continueOwnerSetup.value = false
+  }
+}
 
 const selectedMergeSessions = computed(() => sessions.value.filter((s) => selectedIds.value.has(s.id)))
 const selectedMergeTypes = computed(() => new Set(selectedMergeSessions.value.map((s) => s.type)))
@@ -538,6 +608,17 @@ onMounted(() => {
 
 <template>
   <div class="flex h-full flex-col">
+    <button
+      v-if="ownerIssueCount > 0"
+      type="button"
+      class="mb-3 inline-flex w-fit max-w-full items-center gap-2 rounded-lg bg-amber-50 px-3 py-2 text-left text-xs text-amber-800 transition-colors hover:bg-amber-100 dark:bg-amber-950/20 dark:text-amber-300 dark:hover:bg-amber-950/30"
+      @click="prioritizeOwnerIssues"
+    >
+      <UIcon name="i-heroicons-user-circle" class="h-4 w-4 shrink-0" />
+      <span>{{ t('tools.batchManage.ownerIssues', { count: ownerIssueCount }) }}</span>
+      <UIcon name="i-heroicons-arrow-right" class="h-3.5 w-3.5 shrink-0 opacity-70" />
+    </button>
+
     <!-- 搜索栏 -->
     <div class="mb-4">
       <UInput
@@ -713,6 +794,28 @@ onMounted(() => {
               </span>
             </div>
 
+            <!-- 我是谁 -->
+            <button
+              type="button"
+              class="flex w-28 min-w-0 items-center gap-1.5 text-left text-xs transition-colors hover:text-primary-600 dark:hover:text-primary-400"
+              :class="session.ownerStatus === 'resolved' ? 'text-gray-600 dark:text-gray-300' : 'text-amber-600 dark:text-amber-400'"
+              :title="session.ownerId || t('tools.batchManage.ownerStatus.missing')"
+              @click="openOwnerModal(session, $event)"
+            >
+              <UIcon
+                :name="session.ownerStatus === 'resolved' ? 'i-heroicons-user-circle' : 'i-heroicons-exclamation-circle'"
+                class="h-3.5 w-3.5 shrink-0"
+              />
+              <span class="truncate">
+                {{
+                  session.ownerStatus === 'resolved'
+                    ? session.ownerName || session.ownerId
+                    : t(`tools.batchManage.ownerStatus.${session.ownerStatus}`)
+                }}
+              </span>
+              <UIcon name="i-heroicons-chevron-right" class="h-3 w-3 shrink-0 opacity-60" />
+            </button>
+
             <!-- 消息数 -->
             <div class="w-24 text-right text-sm text-gray-600 dark:text-gray-300">
               {{ session.messageCount.toLocaleString() }}
@@ -736,6 +839,15 @@ onMounted(() => {
         </div>
       </div>
     </div>
+
+    <OwnerPromptModal
+      v-if="ownerSession"
+      v-model="showOwnerModal"
+      :session-id="ownerSession.id"
+      :chat-type="ownerSession.type"
+      @saved="refreshAfterOwnerChange"
+      @cleared="refreshAfterOwnerChange"
+    />
 
     <!-- 合并确认弹窗 -->
     <UModal v-model:open="showMergeModal" :ui="{ content: 'z-[101]', overlay: 'z-[100]' }">

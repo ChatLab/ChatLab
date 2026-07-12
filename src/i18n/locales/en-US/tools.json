@@ -2,6 +2,11 @@
   "batchManage": {
     "searchPlaceholder": "Search conversation name",
     "searchResult": "Found {count} / {total}",
+    "ownerIssues": "{count} conversations have not set who you are",
+    "ownerStatus": {
+      "missing": "Not set",
+      "unresolved": "Needs review"
+    },
     "noSearchResult": "No matching chat records found",
     "selectAll": "Select All",
     "shiftClickHint": "Hold Shift to select a range",
@@ -14,6 +19,7 @@
     "columns": {
       "name": "Name",
       "platform": "Platform",
+      "owner": "Me",
       "messages": "Messages",
       "summaries": "AI Summaries",
       "aiChats": "AI Chats",

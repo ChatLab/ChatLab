@@ -116,7 +116,11 @@ watch(showSettings, async (visible) => {
                 :ref="(el: unknown) => setTabRef('ai', el)"
                 @config-changed="handleAIConfigChanged"
               />
-              <BatchManageTab v-else-if="activeTab === 'data'" key="data" />
+              <BatchManageTab
+                v-else-if="activeTab === 'data'"
+                key="data"
+                :focus-owner-issues="settingsSubTab === 'missing-owner'"
+              />
               <ApiSettingsTab v-else-if="activeTab === 'api'" key="api" />
               <StorageTab
                 v-else-if="activeTab === 'storage'"

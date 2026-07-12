@@ -2,6 +2,11 @@
   "batchManage": {
     "searchPlaceholder": "搜索对话名称",
     "searchResult": "找到 {count} / {total} 个",
+    "ownerIssues": "{count} 个会话尚未设置“我是谁”",
+    "ownerStatus": {
+      "missing": "未设置",
+      "unresolved": "需确认"
+    },
     "noSearchResult": "未找到匹配的聊天记录",
     "selectAll": "全选",
     "shiftClickHint": "按住 Shift 点击可范围多选",
@@ -14,6 +19,7 @@
     "columns": {
       "name": "名称",
       "platform": "平台",
+      "owner": "我是谁",
       "messages": "消息数",
       "summaries": "AI摘要",
       "aiChats": "AI 对话",

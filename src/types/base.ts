@@ -128,6 +128,8 @@ export interface AnalysisSession {
   groupId: string | null // 群ID（群聊类型有值，私聊为空）
   groupAvatar: string | null // 群头像（base64 Data URL）
   ownerId: string | null // 所有者/导出者的 platformId
+  ownerName: string | null // 所有者在当前会话中的显示名称
+  ownerStatus: 'resolved' | 'missing' | 'unresolved' // 所有者是否能匹配当前会话成员
   memberAvatar: string | null // 私聊对方头像（base64 Data URL）
   lastMessageTs: number | null // 最后一条消息时间戳（秒）
   summaryCount: number // 已生成摘要的会话片段数
