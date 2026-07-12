@@ -17,6 +17,8 @@ import type {
   PeopleRelationshipsGraphScope,
   PeopleRelationshipsGraphResponse,
   PeopleRelationshipsNeighborhoodResponse,
+  AnnualSummaryMode,
+  AnnualSummaryResponse,
 } from '@openchatlab/shared-types'
 import type {
   MemberActivity,
@@ -121,6 +123,15 @@ export interface PeopleRelationshipsRecomputeOptions {
   query?: string
 }
 
+// ==================== Global Insight ====================
+
+export interface AnnualSummaryFetchOptions {
+  mode?: AnnualSummaryMode
+  year?: number
+  days?: 365
+  acceptStale?: boolean
+}
+
 // ==================== Mention Graph ====================
 
 export interface MentionGraphData {
@@ -166,6 +177,11 @@ export interface DataAdapter {
     key: string,
     options?: PeopleRelationshipsFetchOptions
   ): Promise<PeopleRelationshipsNeighborhoodResponse>
+
+  // ==================== 全局洞察 ====================
+
+  getAnnualSummary(options?: AnnualSummaryFetchOptions): Promise<AnnualSummaryResponse>
+  recomputeAnnualSummary(options?: AnnualSummaryFetchOptions): Promise<AnnualSummaryResponse>
 
   // ==================== 时间范围 ====================
 

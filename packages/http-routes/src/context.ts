@@ -27,6 +27,7 @@ import type {
   SemanticIndexRuntime,
   ContactsService,
   PeopleRelationshipsService,
+  GlobalInsightService,
 } from '@openchatlab/node-runtime'
 import type { RuntimeIdentity } from '@openchatlab/node-runtime'
 
@@ -42,6 +43,7 @@ export interface HttpRouteContext {
   nativeBinding?: string
   contactsService?: ContactsService
   peopleRelationshipsService?: PeopleRelationshipsService
+  globalInsightService?: GlobalInsightService
 
   preferencesManager?: PreferencesManager
 
