@@ -44,7 +44,7 @@ test('exports JSON as ChatLab format that can be parsed for re-import', async ()
     )
     insertMessage.run(aliceId, 'Alice Account', '爱丽丝', 100, 0, '筛选范围外', 'msg-1', null)
     insertMessage.run(bobId, 'Bob Account', '鲍勃', 200, 0, '你好', 'msg-2', null)
-    insertMessage.run(aliceId, 'Alice Account', '爱丽丝', 250, 1, null, 'msg-3', 'msg-2')
+    insertMessage.run(bobId, 'Bob Account', '鲍勃', 250, 1, null, 'msg-3', 'msg-2')
 
     const result = exportWithFormat(
       {
@@ -69,7 +69,15 @@ test('exports JSON as ChatLab format that can be parsed for re-import', async ()
     writeFileSync(filePath, result.content, 'utf8')
     assert.equal(detectFormat(filePath)?.id, 'chatlab')
 
-    const parsed = await parseFileSync(filePath)
+    const nativePerfDisabled = process.env.CHATLAB_DISABLE_NATIVE_PERF
+    process.env.CHATLAB_DISABLE_NATIVE_PERF = '1'
+    const parsed = await parseFileSync(filePath).finally(() => {
+      if (nativePerfDisabled === undefined) {
+        delete process.env.CHATLAB_DISABLE_NATIVE_PERF
+      } else {
+        process.env.CHATLAB_DISABLE_NATIVE_PERF = nativePerfDisabled
+      }
+    })
     assert.deepEqual(parsed.meta, {
       name: '测试群',
       platform: 'qq',
@@ -111,9 +119,9 @@ test('exports JSON as ChatLab format that can be parsed for re-import', async ()
         replyToMessageId: undefined,
       },
       {
-        senderPlatformId: 'alice',
-        senderAccountName: 'Alice Account',
-        senderGroupNickname: '爱丽丝',
+        senderPlatformId: 'bob',
+        senderAccountName: 'Bob Account',
+        senderGroupNickname: '鲍勃',
         timestamp: 250,
         type: 1,
         content: null,

@@ -154,27 +154,8 @@ async function* parseChatLab(options: ParseOptions): AsyncGenerator<ParseEvent, 
 
   yield { type: 'meta', data: meta }
 
-  // 解析 members（如果在文件开头能找到）
-  const members: ParsedMember[] = []
-  try {
-    const membersMatch = headContent.match(/"members"\s*:\s*\[([\s\S]*?)\]/)
-    if (membersMatch) {
-      const membersJson = JSON.parse(`[${membersMatch[1]}]`) as ChatLabMember[]
-      for (const m of membersJson) {
-        members.push({
-          platformId: m.platformId,
-          accountName: m.accountName,
-          groupNickname: m.groupNickname,
-          avatar: m.avatar,
-          roles: m.roles,
-        })
-      }
-    }
-  } catch {
-    // members 可能太大，稍后从消息中收集
-  }
-
   // 收集成员和消息
+  const members: ParsedMember[] = []
   const memberMapFromMessages = new Map<string, ParsedMember>()
   const messageBatch: ParsedMessage[] = []
 
@@ -186,12 +167,24 @@ async function* parseChatLab(options: ParseOptions): AsyncGenerator<ParseEvent, 
       bytesRead += typeof chunk === 'string' ? Buffer.byteLength(chunk) : chunk.length
     })
 
-    const pipeline = chain([readStream, parser(), pick({ filter: /^messages\.\d+$/ }), streamValues()])
+    // 单次流式遍历同时读取成员和消息，避免用正则截断含嵌套数组的 members。
+    const pipeline = chain([readStream, parser(), pick({ filter: /^(?:members|messages)\.\d+$/ }), streamValues()])
 
     // 用于收集批次的临时数组
     const batchCollector: ParsedMessage[] = []
 
-    pipeline.on('data', ({ value }: { value: ChatLabMessage }) => {
+    pipeline.on('data', ({ value }: { value: ChatLabMember | ChatLabMessage }) => {
+      if (!('sender' in value)) {
+        members.push({
+          platformId: value.platformId,
+          accountName: value.accountName,
+          groupNickname: value.groupNickname,
+          avatar: value.avatar,
+          roles: value.roles,
+        })
+        return
+      }
+
       const msg = value
 
       // 如果前面没解析到 members，从消息中收集

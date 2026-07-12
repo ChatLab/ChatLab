@@ -163,11 +163,7 @@ describe('chatlab native parser parity', { skip: !nativeAvailable() && 'native m
     assert.deepEqual(nativeResult.messages, [])
   })
 
-  it('keeps member roles and avatars where the TS head-regex heuristic loses them', async () => {
-    // The TS parser extracts head members with a non-greedy regex that breaks
-    // on nested arrays (roles), silently degrading to message-collected
-    // members. The Rust kernel parses the members array structurally, so this
-    // is a deliberate improvement over TS behavior, not a parity case.
+  it('keeps member roles and avatars in both parsers', async () => {
     const withRoles = {
       chatlab: { version: '0.0.2' },
       meta: { name: '带角色群', platform: 'qq', type: 'group' },
@@ -184,18 +180,10 @@ describe('chatlab native parser parity', { skip: !nativeAvailable() && 'native m
     }
     const { nativeResult, tsResult } = await parseBothWays('带角色群.json', JSON.stringify(withRoles))
 
-    // TS loses the head members entirely (only u1 appears, from messages).
-    assert.equal(tsResult.members.length, 1)
-    assert.equal(tsResult.members[0].avatar, undefined)
-
-    // Native keeps the full member list including roles and avatars.
-    assert.equal(nativeResult.members.length, 2)
-    assert.equal(nativeResult.members[0].avatar, 'https://example.com/a.jpg')
-    assert.deepEqual(nativeResult.members[0].roles, [{ id: 'owner' }, { id: 'admin', name: '管理员' }])
-
-    // Meta and messages still match exactly.
-    assert.deepEqual(nativeResult.meta, tsResult.meta)
-    assert.deepEqual(nativeResult.messages, tsResult.messages)
+    assertParity(nativeResult, tsResult)
+    assert.equal(tsResult.members.length, 2)
+    assert.equal(tsResult.members[0].avatar, 'https://example.com/a.jpg')
+    assert.deepEqual(tsResult.members[0].roles, [{ id: 'owner' }, { id: 'admin', name: '管理员' }])
   })
 
   it('falls back to the TS parser for off-spec files', async () => {
