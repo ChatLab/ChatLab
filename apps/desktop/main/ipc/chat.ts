@@ -19,6 +19,26 @@ import { getArchiveImportSourceManager, importPreparedChatWithSource } from '../
 export function registerChatHandlers(ctx: IpcContext): void {
   const { win } = ctx
 
+  const forwardImportProgress = (progress: ParseProgress) => {
+    win.webContents.send('chat:importProgress', {
+      stage: progress.stage,
+      progress: progress.percentage,
+      message: progress.message,
+      bytesRead: progress.bytesRead,
+      totalBytes: progress.totalBytes,
+      messagesProcessed: progress.messagesProcessed,
+    })
+  }
+
+  const finishAutoImport = (result: Awaited<ReturnType<typeof worker.autoImport>>) => {
+    if (result.success) {
+      if (result.importMode === 'incremental') win.webContents.send('api:importCompleted')
+    } else {
+      win.webContents.send('chat:importProgress', { stage: 'error', progress: 0, message: result.error })
+    }
+    return result
+  }
+
   // ==================== 数据库迁移 ====================
 
   ipcMain.handle('chat:checkMigration', async () => {
@@ -127,28 +147,9 @@ export function registerChatHandlers(ctx: IpcContext): void {
         getArchiveImportSourceManager(),
         sourceId,
         chatId,
-        (manifestPath) =>
-          worker.streamImport(
-            manifestPath,
-            (progress: ParseProgress) => {
-              win.webContents.send('chat:importProgress', {
-                stage: progress.stage,
-                progress: progress.percentage,
-                message: progress.message,
-                bytesRead: progress.bytesRead,
-                totalBytes: progress.totalBytes,
-                messagesProcessed: progress.messagesProcessed,
-              })
-            },
-            { formatId: 'google-chat-takeout' }
-          )
+        (manifestPath) => worker.autoImport(manifestPath, forwardImportProgress, { formatId: 'google-chat-takeout' })
       )
-      return {
-        success: result.success,
-        sessionId: result.sessionId,
-        error: result.error,
-        diagnostics: result.diagnostics,
-      }
+      return finishAutoImport(result)
     } catch (error) {
       return {
         success: false,
@@ -173,23 +174,8 @@ export function registerChatHandlers(ctx: IpcContext): void {
     try {
       win.webContents.send('chat:importProgress', { stage: 'detecting', progress: 5, message: '' })
 
-      const result = await worker.streamImport(filePath, (progress: ParseProgress) => {
-        win.webContents.send('chat:importProgress', {
-          stage: progress.stage,
-          progress: progress.percentage,
-          message: progress.message,
-          bytesRead: progress.bytesRead,
-          totalBytes: progress.totalBytes,
-          messagesProcessed: progress.messagesProcessed,
-        })
-      })
-
-      if (result.success) {
-        return { success: true, sessionId: result.sessionId, diagnostics: result.diagnostics }
-      } else {
-        win.webContents.send('chat:importProgress', { stage: 'error', progress: 0, message: result.error })
-        return { success: false, error: result.error, diagnostics: result.diagnostics }
-      }
+      const result = await worker.autoImport(filePath, forwardImportProgress)
+      return finishAutoImport(result)
     } catch (error) {
       win.webContents.send('chat:importProgress', { stage: 'error', progress: 0, message: String(error) })
       return { success: false, error: String(error) }
@@ -203,23 +189,8 @@ export function registerChatHandlers(ctx: IpcContext): void {
 
       win.webContents.send('chat:importProgress', { stage: 'detecting', progress: 5, message: '' })
 
-      const result = await worker.streamImport(entryPath, (progress: ParseProgress) => {
-        win.webContents.send('chat:importProgress', {
-          stage: progress.stage,
-          progress: progress.percentage,
-          message: progress.message,
-          bytesRead: progress.bytesRead,
-          totalBytes: progress.totalBytes,
-          messagesProcessed: progress.messagesProcessed,
-        })
-      })
-
-      if (result.success) {
-        return { success: true, sessionId: result.sessionId, diagnostics: result.diagnostics }
-      } else {
-        win.webContents.send('chat:importProgress', { stage: 'error', progress: 0, message: result.error })
-        return { success: false, error: result.error, diagnostics: result.diagnostics }
-      }
+      const result = await worker.autoImport(entryPath, forwardImportProgress)
+      return finishAutoImport(result)
     } catch (error) {
       win.webContents.send('chat:importProgress', { stage: 'error', progress: 0, message: String(error) })
       return { success: false, error: String(error) }
@@ -230,27 +201,8 @@ export function registerChatHandlers(ctx: IpcContext): void {
     try {
       win.webContents.send('chat:importProgress', { stage: 'detecting', progress: 5, message: '' })
 
-      const result = await worker.streamImport(
-        filePath,
-        (progress: ParseProgress) => {
-          win.webContents.send('chat:importProgress', {
-            stage: progress.stage,
-            progress: progress.percentage,
-            message: progress.message,
-            bytesRead: progress.bytesRead,
-            totalBytes: progress.totalBytes,
-            messagesProcessed: progress.messagesProcessed,
-          })
-        },
-        formatOptions
-      )
-
-      if (result.success) {
-        return { success: true, sessionId: result.sessionId, diagnostics: result.diagnostics }
-      } else {
-        win.webContents.send('chat:importProgress', { stage: 'error', progress: 0, message: result.error })
-        return { success: false, error: result.error, diagnostics: result.diagnostics }
-      }
+      const result = await worker.autoImport(filePath, forwardImportProgress, formatOptions)
+      return finishAutoImport(result)
     } catch (error) {
       win.webContents.send('chat:importProgress', { stage: 'error', progress: 0, message: String(error) })
       return { success: false, error: String(error) }

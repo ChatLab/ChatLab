@@ -11,6 +11,7 @@ import * as path from 'path'
 import type Database from 'better-sqlite3'
 import {
   BetterSqliteAdapter,
+  autoImportFile as sharedAutoImportFile,
   streamingImport,
   analyzeNewImport as sharedAnalyzeNewImport,
   streamParseFileInfo as sharedStreamParseFileInfo,
@@ -18,10 +19,12 @@ import {
   computeAndSetOverviewCache,
   deleteSessionCache,
 } from '@openchatlab/node-runtime'
-import type { StreamImportDeps, StreamImportResult, ImportLogger } from '@openchatlab/node-runtime'
+import type { AutoImportResult, StreamImportDeps, StreamImportResult, ImportLogger } from '@openchatlab/node-runtime'
 import { sendProgress, generateSessionId, getDbPath, createDatabaseWithoutIndexes } from './utils'
+import { incrementalImport } from './incrementalImport'
 import {
   getCacheDir,
+  getDbDir,
   getTempDir,
   openRawDatabase,
   initPerfLog,
@@ -35,6 +38,7 @@ import {
 } from '../core'
 
 export type { StreamImportResult }
+export type { AutoImportResult }
 export type { AnalyzeNewImportResult, StreamParseFileInfoResult } from '@openchatlab/node-runtime'
 export type { SkipReasons, ImportDiagnostics } from '@openchatlab/node-runtime'
 
@@ -116,6 +120,37 @@ export async function streamImport(
   externalSessionId?: string
 ): Promise<StreamImportResult> {
   return streamingImport(filePath, buildStreamImportDeps(requestId), formatOptions, externalSessionId)
+}
+
+export async function autoImport(
+  filePath: string,
+  requestId: string,
+  formatOptions?: Record<string, unknown>,
+  explicitSessionId?: string
+): Promise<AutoImportResult> {
+  return sharedAutoImportFile(
+    filePath,
+    {
+      listSessionIds: () =>
+        fs.existsSync(getDbDir())
+          ? fs
+              .readdirSync(getDbDir())
+              .filter((name) => name.endsWith('.db'))
+              .map((name) => name.slice(0, -3))
+          : [],
+      openReadonly: (sessionId) => new BetterSqliteAdapter(openRawDatabase(getDbPath(sessionId), { readonly: true })),
+      onProgress: (progress) => sendProgress(requestId, progress),
+      sessionExists: (sessionId) => fs.existsSync(getDbPath(sessionId)),
+      createSession: (sourcePath, sourceFormatOptions, sessionId) =>
+        streamImport(sourcePath, requestId, sourceFormatOptions, sessionId),
+      appendSession: (sessionId, sourcePath, sourceFormatOptions) =>
+        incrementalImport(sessionId, sourcePath, requestId, {
+          formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,
+          chatIndex: typeof sourceFormatOptions?.chatIndex === 'number' ? sourceFormatOptions.chatIndex : undefined,
+        }),
+    },
+    { explicitSessionId, formatOptions }
+  )
 }
 
 /**

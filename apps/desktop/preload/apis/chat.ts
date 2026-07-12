@@ -7,6 +7,24 @@
 import { ipcRenderer } from 'electron'
 import type { ImportProgress } from '../../../../src/types/base'
 
+interface ChatImportResult {
+  success: boolean
+  sessionId?: string
+  error?: string
+  importMode?: 'created' | 'incremental'
+  matchedBy?: 'stable-id' | 'trailing-messages'
+  newMessageCount?: number
+  duplicateCount?: number
+  diagnostics?: {
+    logFile: string | null
+    detectedFormat: string | null
+    messagesReceived: number
+    messagesWritten: number
+    messagesSkipped: number
+    skipReasons: { noSenderId: number; noAccountName: number; invalidTimestamp: number; noType: number }
+  }
+}
+
 export const chatApi = {
   // ==================== 数据库迁移 ====================
 
@@ -25,21 +43,16 @@ export const chatApi = {
   selectFile: (): Promise<{ filePath?: string; format?: string; error?: string } | null> =>
     ipcRenderer.invoke('chat:selectFile'),
 
-  import: (filePath: string): Promise<{ success: boolean; sessionId?: string; error?: string }> =>
-    ipcRenderer.invoke('chat:import', filePath),
+  import: (filePath: string): Promise<ChatImportResult> => ipcRenderer.invoke('chat:import', filePath),
 
-  importDirectory: (dirPath: string): Promise<{ success: boolean; sessionId?: string; error?: string }> =>
-    ipcRenderer.invoke('chat:importDirectory', dirPath),
+  importDirectory: (dirPath: string): Promise<ChatImportResult> => ipcRenderer.invoke('chat:importDirectory', dirPath),
 
   detectFormat: (
     filePath: string
   ): Promise<{ id: string; name: string; platform: string; multiChat: boolean } | null> =>
     ipcRenderer.invoke('chat:detectFormat', filePath),
 
-  importWithOptions: (
-    filePath: string,
-    formatOptions: Record<string, unknown>
-  ): Promise<{ success: boolean; sessionId?: string; error?: string }> =>
+  importWithOptions: (filePath: string, formatOptions: Record<string, unknown>): Promise<ChatImportResult> =>
     ipcRenderer.invoke('chat:importWithOptions', filePath, formatOptions),
 
   scanMultiChatFile: (
@@ -52,7 +65,7 @@ export const chatApi = {
 
   prepareImportSource: (filePath: string) => ipcRenderer.invoke('chat:prepareImportSource', filePath),
 
-  importPreparedChat: (sourceId: string, chatId: string) =>
+  importPreparedChat: (sourceId: string, chatId: string): Promise<ChatImportResult> =>
     ipcRenderer.invoke('chat:importPreparedChat', sourceId, chatId),
 
   releaseImportSource: (sourceId: string) => ipcRenderer.invoke('chat:releaseImportSource', sourceId),

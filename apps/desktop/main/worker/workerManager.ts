@@ -8,7 +8,7 @@ import { app } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs'
 import type { ParseProgress } from '../parser'
-import type { StreamImportResult } from './import'
+import type { AutoImportResult, StreamImportResult } from './import'
 
 import { getDatabaseDir, getCacheDir, getTempDir, getLogsDir, ensureDir } from '../paths'
 import { getNlpDir } from '../nlp/dictManager'
@@ -533,6 +533,38 @@ export async function streamImport(
     onProgress
   )
   if (!result.success || !result.sessionId) return result
+
+  try {
+    raiseChatDbCompatibilityGate(getPathProvider(), {
+      version: getDesktopAppVersion(app.getVersion()),
+      kind: 'desktop',
+    })
+  } catch (error) {
+    deleteImportedSessionFiles(result.sessionId)
+    return {
+      success: false,
+      error: error instanceof Error ? error.message : String(error),
+      diagnostics: result.diagnostics,
+    }
+  }
+
+  return result
+}
+
+export async function autoImport(
+  filePath: string,
+  onProgress?: (progress: ParseProgress) => void,
+  formatOptions?: Record<string, unknown>,
+  explicitSessionId?: string
+): Promise<AutoImportResult> {
+  assertDataDirCompatibleNow()
+
+  const result = await sendToWorkerWithProgress<AutoImportResult>(
+    'autoImport',
+    { filePath, formatOptions, explicitSessionId },
+    onProgress
+  )
+  if (!result.success || !result.sessionId || result.importMode !== 'created') return result
 
   try {
     raiseChatDbCompatibilityGate(getPathProvider(), {

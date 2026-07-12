@@ -76,6 +76,7 @@ import {
 } from './query'
 import {
   streamImport,
+  autoImport,
   streamParseFileInfo,
   analyzeIncrementalImport,
   incrementalImport,
@@ -246,6 +247,7 @@ const syncHandlers: Record<string, (payload: any) => any> = {
 const asyncHandlers: Record<string, (payload: any, requestId: string) => Promise<any>> = {
   // 流式导入
   streamImport: (p, id) => streamImport(p.filePath, id, p.formatOptions, p.externalSessionId),
+  autoImport: (p, id) => autoImport(p.filePath, id, p.formatOptions, p.explicitSessionId),
   // 流式解析文件信息（用于合并预览）
   streamParseFileInfo: (p, id) => streamParseFileInfo(p.filePath, id),
   // 增量导入

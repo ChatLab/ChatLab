@@ -38,18 +38,26 @@ interface ImportDiagnostics {
   }
 }
 
+interface ChatImportResult {
+  success: boolean
+  sessionId?: string
+  error?: string
+  importMode?: 'created' | 'incremental'
+  matchedBy?: 'stable-id' | 'trailing-messages'
+  newMessageCount?: number
+  duplicateCount?: number
+  diagnostics?: ImportDiagnostics
+}
+
 /**
  * ChatApi — 导入、迁移、Demo（数据查询/分析/成员/SQL 已迁移到 HTTP）
  */
 interface ChatApi {
   selectFile: () => Promise<{ filePath?: string; format?: string; error?: string } | null>
   detectFormat: (filePath: string) => Promise<{ id: string; name: string; platform: string; multiChat: boolean } | null>
-  import: (filePath: string) => Promise<{ success: boolean; sessionId?: string; error?: string }>
-  importDirectory: (dirPath: string) => Promise<{ success: boolean; sessionId?: string; error?: string }>
-  importWithOptions: (
-    filePath: string,
-    formatOptions: Record<string, unknown>
-  ) => Promise<{ success: boolean; sessionId?: string; error?: string }>
+  import: (filePath: string) => Promise<ChatImportResult>
+  importDirectory: (dirPath: string) => Promise<ChatImportResult>
+  importWithOptions: (filePath: string, formatOptions: Record<string, unknown>) => Promise<ChatImportResult>
   scanMultiChatFile: (filePath: string) => Promise<{
     success: boolean
     chats: Array<{ index: number; name: string; type: string; id: number; messageCount: number }>
@@ -72,10 +80,7 @@ interface ChatApi {
     }
     error?: string
   }>
-  importPreparedChat: (
-    sourceId: string,
-    chatId: string
-  ) => Promise<{ success: boolean; sessionId?: string; error?: string; diagnostics?: ImportDiagnosticsInfo }>
+  importPreparedChat: (sourceId: string, chatId: string) => Promise<ChatImportResult>
   releaseImportSource: (sourceId: string) => Promise<{ success: boolean }>
   checkMigration: () => Promise<MigrationCheckResult>
   runMigration: () => Promise<{ success: boolean; error?: string }>

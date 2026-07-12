@@ -6,9 +6,11 @@
 // 流式导入（核心导入功能）
 export {
   streamImport,
+  autoImport,
   streamParseFileInfo,
   analyzeNewImport,
   type StreamImportResult,
+  type AutoImportResult,
   type StreamParseFileInfoResult,
   type AnalyzeNewImportResult,
 } from './streamImport'
