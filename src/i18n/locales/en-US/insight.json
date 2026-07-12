@@ -1,9 +1,68 @@
 {
   "title": "Insights",
-  "placeholder": "Global insights are coming soon, stay tuned",
+  "reserved": "This view will be available in a future release",
   "tabs": {
-    "overview": "Overview",
-    "trends": "Trends",
-    "ranking": "Ranking"
+    "nav": "Insight views",
+    "annualSummary": "About Me",
+    "timeInvestment": "Time Investment",
+    "relationshipChanges": "Relationship Changes"
+  },
+  "messages": "Messages",
+  "monthLabel": "Month {month}",
+  "noData": "No analyzable data in this time range",
+  "noTextData": "No text messages in this time range",
+  "kpis": {
+    "messages": "Messages sent",
+    "activeDays": "Active days",
+    "contacts": "Direct contacts",
+    "dailyMessages": "Messages per day",
+    "dailyContacts": "Contacts per day"
+  },
+  "overviewCard": {
+    "yearTitle": "Me in {year}",
+    "recentTitle": "My Last 12 Months",
+    "activity": "Activity Calendar",
+    "activeRate": "{rate}% of days",
+    "keyMetrics": "Key Metrics",
+    "perDay": "Daily average",
+    "messagesCount": "{count} messages",
+    "characters": "{count} chars",
+    "textLengthDetail": "Text message length",
+    "dailyContacts": "Contacts per day",
+    "peakMonth": "Most active month",
+    "peakDay": "Most active day",
+    "textRatio": "Text message share",
+    "medianLength": "Median text length",
+    "p90Length": "P90 text length"
+  },
+  "sections": {
+    "overview": "Annual overview",
+    "overviewDescription": "Non-system messages I sent each month; missing months count as zero",
+    "activity": "Activity rhythm",
+    "activityDescription": "Daily sent messages; darker days were more active",
+    "messageTypes": "Message types",
+    "messageTypesDescription": "Only messages sent by me",
+    "textLength": "Text length",
+    "textLengthDescription": "Character counts for non-empty text messages only",
+    "habitsTitle": "Expression Habits",
+    "habitsDescription": "The composition of message types and character length distribution of text messages I sent"
+  },
+  "length": {
+    "median": "Median"
+  },
+  "status": {
+    "loading": "Loading annual summary…",
+    "computingProgress": "Analyzing conversations {processed}/{total}…",
+    "updating": "Data changed; this result is being refreshed in the background",
+    "failed": "Annual summary calculation failed. You can retry it.",
+    "coverage": "Analyzed {analyzed} of {total} conversations",
+    "ownerIssues": "{count} conversations still need a valid “me” identity",
+    "noAnalyzableOwner": "No conversation has a usable identity yet. Set who “me” is in a conversation first.",
+    "noDataWithLatest": "No analyzable data for {year}; the latest available year is {latestYear}"
+  },
+  "actions": {
+    "retry": "Retry",
+    "openSessions": "Open conversations",
+    "switchYear": "View {year}"
   }
 }

@@ -29,8 +29,25 @@ export const appRoutes: RouteRecordRaw[] = [
   },
   {
     path: '/insight',
-    name: 'insight',
     component: () => import('@/pages/insight/index.vue'),
+    redirect: { name: 'insight-annual-summary' },
+    children: [
+      {
+        path: 'annual-summary',
+        name: 'insight-annual-summary',
+        component: () => import('@/pages/insight/annual-summary/index.vue'),
+      },
+      {
+        path: 'time-investment',
+        name: 'insight-time-investment',
+        component: () => import('@/pages/insight/time-investment/index.vue'),
+      },
+      {
+        path: 'relationship-changes',
+        name: 'insight-relationship-changes',
+        component: () => import('@/pages/insight/relationship-changes/index.vue'),
+      },
+    ],
   },
   {
     path: '/people',

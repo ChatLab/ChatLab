@@ -51,7 +51,7 @@ const showContactsEntry = computed(() =>
 )
 
 // 是否在洞察页
-const isInsightPage = computed(() => route.path === '/insight')
+const isInsightPage = computed(() => String(route.name ?? '').startsWith('insight-'))
 
 // 重命名相关状态
 const showRenameModal = ref(false)
@@ -474,6 +474,14 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
           @click="handleImport"
         />
 
+        <!-- 洞察 -->
+        <SidebarButton
+          icon="i-heroicons-presentation-chart-bar"
+          :title="t('layout.insight')"
+          :active="isInsightPage"
+          @click="router.push('/insight')"
+        />
+
         <SidebarButton
           v-if="showContactsEntry"
           icon="i-lucide-users"
@@ -481,14 +489,6 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
           :title="t('layout.relationships')"
           :active="isPeoplePage"
           @click="openContacts"
-        />
-
-        <!-- 洞察 -->
-        <SidebarButton
-          icon="i-heroicons-presentation-chart-bar"
-          :title="t('layout.insight')"
-          :active="isInsightPage"
-          @click="router.push('/insight')"
         />
       </div>
     </div>

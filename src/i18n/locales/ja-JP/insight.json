@@ -1,9 +1,68 @@
 {
   "title": "インサイト",
-  "placeholder": "グローバルインサイト機能は近日公開予定です",
+  "reserved": "このビューは今後のバージョンで公開予定です",
   "tabs": {
-    "overview": "概要",
-    "trends": "トレンド",
-    "ranking": "ランキング"
+    "nav": "インサイトビュー",
+    "annualSummary": "私について",
+    "timeInvestment": "時間の投入",
+    "relationshipChanges": "関係の変化"
+  },
+  "messages": "メッセージ数",
+  "monthLabel": "{month}月",
+  "noData": "この期間には分析可能なデータがありません",
+  "noTextData": "この期間にはテキストメッセージがありません",
+  "kpis": {
+    "messages": "送信メッセージ",
+    "activeDays": "アクティブ日数",
+    "contacts": "直接交流した人数",
+    "dailyMessages": "1日平均メッセージ",
+    "dailyContacts": "1日平均交流人数"
+  },
+  "overviewCard": {
+    "yearTitle": "{year} 年の私",
+    "recentTitle": "直近1年間の私",
+    "activity": "アクティビティカレンダー",
+    "activeRate": "日数の {rate}%",
+    "keyMetrics": "主要指標",
+    "perDay": "1日平均",
+    "messagesCount": "{count} 件のメッセージ",
+    "characters": "{count} 文字",
+    "textLengthDetail": "テキストメッセージの文字数",
+    "dailyContacts": "1日平均交流人数",
+    "peakMonth": "最も活発な月",
+    "peakDay": "最も活発な日",
+    "textRatio": "テキストメッセージ比率",
+    "medianLength": "テキスト長の中央値",
+    "p90Length": "テキスト長 P90"
+  },
+  "sections": {
+    "overview": "年間概要",
+    "overviewDescription": "自分が送信したシステム以外のメッセージを月別に集計します",
+    "activity": "活動リズム",
+    "activityDescription": "日別の送信数。色が濃いほど活発な日です",
+    "messageTypes": "メッセージタイプ",
+    "messageTypesDescription": "自分が送信したメッセージのみを集計します",
+    "textLength": "テキスト長の分布",
+    "textLengthDescription": "空でないテキストメッセージの文字数のみを集计します",
+    "habitsTitle": "表現習慣",
+    "habitsDescription": "自分が送信したメッセージタイプの構成とテキスト文字数分布"
+  },
+  "length": {
+    "median": "中央値"
+  },
+  "status": {
+    "loading": "年間まとめを読み込んでいます…",
+    "computingProgress": "会話を分析しています {processed}/{total}…",
+    "updating": "データが変更されたため、バックグラウンドで更新しています",
+    "failed": "年間まとめの計算に失敗しました。再試行できます。",
+    "coverage": "{total} 件中 {analyzed} 件の会話を分析済み",
+    "ownerIssues": "{count} 件の会話で「自分」の設定が必要です",
+    "noAnalyzableOwner": "インサイトに使用できる本人情報がありません。先に会話で「自分」を設定してください。",
+    "noDataWithLatest": "{year} 年の分析データはありません。最新の有効年は {latestYear} 年です"
+  },
+  "actions": {
+    "retry": "再試行",
+    "openSessions": "会話一覧を開く",
+    "switchYear": "{year} 年を見る"
   }
 }

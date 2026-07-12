@@ -6,6 +6,7 @@ import { formatDateRange } from '@/utils'
 import { useDataService } from '@/services'
 import UITabs from '@/components/UI/Tabs.vue'
 import DatePicker from '@/components/UI/DatePicker.vue'
+import { buildTimeSelectSourceKey, normalizeAllowedModes, normalizeAllowedRecentDays } from './timeSelectOptions'
 
 // ==================== 类型定义（导出供父组件使用） ====================
 
@@ -35,14 +36,23 @@ export interface TimeRangeValue {
   state: TimeSelectState
 }
 
+export interface TimeSelectRangeSource {
+  availableYears: number[]
+  fullRange: { start: number; end: number } | null
+}
+
 // ==================== Props & Emits ====================
 
 interface Props {
-  sessionId: string | undefined
+  sessionId?: string
   modelValue: TimeRangeValue | null
   visible?: boolean
   /** 初始状态（通常从 URL query 构建） */
   initialState?: Partial<TimeSelectState>
+  /** 全局页面可直接提供时间边界，避免绑定到单个 session。 */
+  rangeSource?: TimeSelectRangeSource
+  allowedModes?: TimeSelectMode[]
+  allowedRecentDays?: number[]
   /** 复合筛选器尺寸；sm 与页面内紧凑筛选器保持一致。 */
   size?: TimeSelectSize
 }
@@ -65,6 +75,8 @@ const { t } = useI18n()
 const isLoaded = ref(false)
 const availableYears = ref<number[]>([])
 const fullTimeRange = ref<{ start: number; end: number } | null>(null)
+const allowedModes = computed(() => normalizeAllowedModes(props.allowedModes))
+const allowedRecentDays = computed(() => normalizeAllowedRecentDays(props.allowedRecentDays))
 const secondaryControlSize = computed(() => (props.size === 'sm' ? 'xs' : 'sm'))
 const labelClass = computed(() => (props.size === 'sm' ? 'text-xs' : 'text-sm'))
 
@@ -115,19 +127,24 @@ function getYearRange(year: number): { startTs: number; endTs: number } {
 
 // ==================== 选项配置 ====================
 
-const modeOptions = computed(() => [
-  { label: t('common.timeSelect.mode.recent'), value: 'recent' as const },
-  { label: t('common.timeSelect.mode.quarter'), value: 'quarter' as const },
-  { label: t('common.timeSelect.mode.year'), value: 'year' as const },
-  { label: t('common.timeSelect.mode.custom'), value: 'custom' as const },
-])
+const modeOptions = computed(() =>
+  [
+    { label: t('common.timeSelect.mode.recent'), value: 'recent' as const },
+    { label: t('common.timeSelect.mode.quarter'), value: 'quarter' as const },
+    { label: t('common.timeSelect.mode.year'), value: 'year' as const },
+    { label: t('common.timeSelect.mode.custom'), value: 'custom' as const },
+  ].filter((option) => allowedModes.value.includes(option.value))
+)
 
-const recentOptions = computed(() => [
-  { label: t('common.timeSelect.recent.oneYear'), value: 365 },
-  { label: t('common.timeSelect.recent.twoYears'), value: 730 },
-  { label: t('common.timeSelect.recent.fiveYears'), value: 1825 },
-  { label: t('common.timeSelect.recent.all'), value: 0 },
-])
+const recentOptions = computed(() => {
+  const labels = new Map([
+    [365, t('common.timeSelect.recent.oneYear')],
+    [730, t('common.timeSelect.recent.twoYears')],
+    [1825, t('common.timeSelect.recent.fiveYears')],
+    [0, t('common.timeSelect.recent.all')],
+  ])
+  return allowedRecentDays.value.map((value) => ({ label: labels.get(value) ?? String(value), value }))
+})
 
 // ==================== 导航边界 ====================
 
@@ -195,7 +212,7 @@ function getRecentDisplayLabel(days: number): string {
 }
 
 function normalizeRecentDays(days: number): number {
-  return [365, 730, 1825, 0].includes(days) ? days : 365
+  return allowedRecentDays.value.includes(days) ? days : (allowedRecentDays.value[0] ?? 365)
 }
 
 function buildValue(): TimeRangeValue | null {
@@ -375,7 +392,7 @@ const customEndModel = computed({
 // ==================== 数据加载 ====================
 
 async function loadData() {
-  if (!props.sessionId) {
+  if (!props.rangeSource && !props.sessionId) {
     availableYears.value = []
     fullTimeRange.value = null
     emit('update:fullRange', null)
@@ -385,11 +402,18 @@ async function loadData() {
   }
 
   try {
-    const adapter = useDataService()
-    const [years, range] = await Promise.all([
-      adapter.getAvailableYears(props.sessionId),
-      adapter.getTimeRange(props.sessionId),
-    ])
+    let years: number[]
+    let range: { start: number; end: number } | null
+    if (props.rangeSource) {
+      years = props.rangeSource.availableYears
+      range = props.rangeSource.fullRange
+    } else {
+      const adapter = useDataService()
+      ;[years, range] = await Promise.all([
+        adapter.getAvailableYears(props.sessionId!),
+        adapter.getTimeRange(props.sessionId!),
+      ])
+    }
     availableYears.value = years
     fullTimeRange.value = range
     emit('update:fullRange', range)
@@ -397,7 +421,8 @@ async function loadData() {
 
     // 从 initialState 或默认值初始化
     const init = props.initialState
-    const initMode = init?.mode ?? 'recent'
+    const requestedMode = init?.mode ?? allowedModes.value[0] ?? 'recent'
+    const initMode = allowedModes.value.includes(requestedMode) ? requestedMode : (allowedModes.value[0] ?? 'recent')
     mode.value = initMode
 
     isInitializing.value = true
@@ -453,7 +478,7 @@ async function loadData() {
 
 onMounted(() => loadData())
 watch(
-  () => props.sessionId,
+  () => buildTimeSelectSourceKey(props.sessionId, props.rangeSource),
   () => {
     isLoaded.value = false
     loadData()
@@ -467,6 +492,7 @@ watch(
     <USelect
       v-model="modeModel"
       :items="modeOptions"
+      value-key="value"
       :size="secondaryControlSize"
       color="neutral"
       variant="soft"

@@ -1,74 +1,97 @@
 <script setup lang="ts">
-import { ref } from 'vue'
+import { computed } from 'vue'
+import { RouterView, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import PageHeader from '@/components/layout/PageHeader.vue'
-import EmptyState from '@/components/UI/EmptyState.vue'
+import TimeSelect from '@/components/common/TimeSelect.vue'
+import { PageTabs } from '@/components/navigation'
+import { provideAnnualSummaryTimeRange } from './annual-summary-time-range'
+
+type InsightSubpage = 'annual-summary' | 'time-investment' | 'relationship-changes'
 
 const { t } = useI18n()
-
-const tabs = [
-  { id: 'overview', labelKey: 'insight.tabs.overview', icon: 'i-heroicons-chart-pie' },
-  { id: 'trends', labelKey: 'insight.tabs.trends', icon: 'i-heroicons-presentation-chart-line' },
-  { id: 'ranking', labelKey: 'insight.tabs.ranking', icon: 'i-heroicons-trophy' },
-]
-
-const activeTab = ref('overview')
+const route = useRoute()
+const timeRange = provideAnnualSummaryTimeRange()
+const { modelValue, componentKey, initialState, rangeSource } = timeRange
+const activeSubpage = computed<InsightSubpage>(() => {
+  if (route.name === 'insight-time-investment') return 'time-investment'
+  if (route.name === 'insight-relationship-changes') return 'relationship-changes'
+  return 'annual-summary'
+})
+const navigationItems = computed(() => [
+  {
+    id: 'annual-summary',
+    label: t('insight.tabs.annualSummary'),
+    icon: 'i-lucide-calendar-range',
+    to: { name: 'insight-annual-summary' },
+  },
+  {
+    id: 'time-investment',
+    label: t('insight.tabs.timeInvestment'),
+    icon: 'i-lucide-clock-3',
+    to: { name: 'insight-time-investment' },
+  },
+  {
+    id: 'relationship-changes',
+    label: t('insight.tabs.relationshipChanges'),
+    icon: 'i-lucide-git-compare-arrows',
+    to: { name: 'insight-relationship-changes' },
+  },
+])
 </script>
 
 <template>
-  <div class="flex h-full flex-col bg-white dark:bg-gray-900" style="padding-top: var(--titlebar-area-height)">
+  <div
+    class="flex h-full flex-col text-gray-900 dark:bg-page-dark dark:text-gray-100"
+    style="padding-top: var(--titlebar-area-height)"
+  >
     <PageHeader
       :title="t('insight.title')"
       icon="i-heroicons-presentation-chart-bar"
       icon-class="bg-pink-600 text-white dark:bg-pink-500 dark:text-white"
       size="compact"
     >
-      <!-- Tab 栏 -->
-      <div class="mt-3 flex items-center gap-0.5 overflow-x-auto scrollbar-hide">
-        <button
-          v-for="tab in tabs"
-          :key="tab.id"
-          class="flex items-center gap-1.5 rounded-lg px-2.5 py-1.5 text-sm font-medium transition-all"
-          :class="[
-            activeTab === tab.id
-              ? 'bg-pink-500 text-white dark:bg-pink-900/30 dark:text-pink-300'
-              : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800',
-          ]"
-          @click="activeTab = tab.id"
-        >
-          <UIcon :name="tab.icon" class="h-4 w-4" />
-          <span class="whitespace-nowrap">{{ t(tab.labelKey) }}</span>
-        </button>
-      </div>
+      <PageTabs
+        class="mt-3 pb-1.5"
+        :model-value="activeSubpage"
+        :items="navigationItems"
+        :aria-label="t('insight.tabs.nav')"
+      >
+        <template v-if="activeSubpage === 'annual-summary'" #right>
+          <TimeSelect
+            :key="componentKey"
+            v-model="modelValue"
+            :range-source="rangeSource"
+            :allowed-modes="['recent', 'year']"
+            :allowed-recent-days="[365]"
+            :initial-state="initialState"
+          />
+        </template>
+      </PageTabs>
     </PageHeader>
 
-    <!-- Tab 内容区 -->
-    <div class="relative flex-1 overflow-y-auto">
-      <div class="h-full">
-        <Transition name="tab-slide" mode="out-in">
-          <div :key="activeTab" class="flex h-full items-center justify-center">
-            <EmptyState :text="t('insight.placeholder')" icon="✨" padding="lg" />
-          </div>
-        </Transition>
-      </div>
-    </div>
+    <RouterView v-slot="{ Component }">
+      <Transition name="insight-tab-slide" mode="out-in">
+        <component :is="Component" :key="activeSubpage" />
+      </Transition>
+    </RouterView>
   </div>
 </template>
 
 <style scoped>
-.tab-slide-enter-active,
-.tab-slide-leave-active {
+.insight-tab-slide-enter-active,
+.insight-tab-slide-leave-active {
   transition:
     opacity 0.2s ease,
     transform 0.2s ease;
 }
 
-.tab-slide-enter-from {
+.insight-tab-slide-enter-from {
   opacity: 0;
   transform: translateY(10px);
 }
 
-.tab-slide-leave-to {
+.insight-tab-slide-leave-to {
   opacity: 0;
   transform: translateY(-10px);
 }
