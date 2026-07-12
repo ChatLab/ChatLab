@@ -10,6 +10,7 @@ import ScreenCaptureModal from '@/components/common/ScreenCaptureModal.vue'
 import SettingsModal from '@/components/common/SettingsModal.vue'
 import { ChatRecordDrawer } from '@/components/common/ChatRecord'
 import GlobalTaskBar from '@/components/AIChat/GlobalTaskBar.vue'
+import DebugToolsPanel from '@/components/layout/DebugToolsPanel.vue'
 import { useSessionStore } from '@/stores/session'
 import { useLayoutStore } from '@/stores/layout'
 import { useSettingsStore } from '@/stores/settings'
@@ -192,6 +193,7 @@ onUnmounted(() => {
               </Transition>
             </router-view>
           </main>
+          <DebugToolsPanel v-if="settingsStore.debugMode" />
         </template>
       </div>
     </template>
