@@ -36,7 +36,7 @@ import {
   errorResponse,
 } from '../errors'
 import { apiLogger } from '../logger'
-import { analysisFromNewImport, apiErrorFromImportResult } from './import-helpers'
+import { analysisFromNewImport, analysisFromPushImport, apiErrorFromImportResult } from './import-helpers'
 
 // Tracks active External API requests; the shared data-directory lock enforces writer exclusion.
 const isImporting = new Set<string>()
@@ -152,9 +152,9 @@ async function handleUnifiedImport(request: FastifyRequest, reply: FastifyReply,
   let idempotencyOwned = false
 
   try {
-    // JSON writes now go straight through the shared push service. JSON dry-runs
-    // and JSONL still need a temp file because their analyzers consume a file path.
-    if (isJsonl || isDryRun) {
+    // JSON writes and dry-runs go straight through the shared push service.
+    // JSONL still needs a temp file because its analyzer and importer consume a file path.
+    if (isJsonl) {
       const writeResult = await writeTempFile(request, isJson)
       if (writeResult.error) {
         const err = invalidFormat(writeResult.error)
@@ -197,6 +197,28 @@ async function handleUnifiedImport(request: FastifyRequest, reply: FastifyReply,
 
     // X-Dry-Run: analyze only, no writes
     if (isDryRun) {
+      if (isJson) {
+        const outcome = await worker.analyzePushImport(sessionId, (request.body ?? {}) as PushImportPayload)
+        if (!outcome.ok) {
+          idempotencyFail(cacheKey)
+          const err =
+            outcome.reason === 'invalid_payload' ? invalidPayload(outcome.message) : importFailed(outcome.message)
+          reply.code(err.statusCode).send(errorResponse(err))
+          return
+        }
+
+        const responsePayload = successResponse({
+          sessionId,
+          created: outcome.result.created,
+          dryRun: true,
+          analysis: analysisFromPushImport(outcome.result),
+        })
+        idempotencySuccess(cacheKey, responsePayload)
+        idempotencyOwned = false
+        reply.send(responsePayload)
+        return
+      }
+
       const exists = sessionExists(sessionId)
       let responsePayload: ImportSuccessResponse
       if (exists) {

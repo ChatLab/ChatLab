@@ -76,11 +76,26 @@ export type PushImportOutcome =
   | { ok: true; result: PushImportResult }
   | { ok: false; reason: 'import_in_progress' | 'invalid_payload' | 'import_failed'; message: string }
 
+export interface PushImportAnalysisResult {
+  sessionId: string
+  created: boolean
+  totalInFile: number
+  newMessageCount: number
+  duplicateCount: number
+  newMemberCount: number
+}
+
+export type PushImportAnalysisOutcome =
+  | { ok: true; result: PushImportAnalysisResult }
+  | { ok: false; reason: 'invalid_payload' | 'import_failed'; message: string }
+
 export interface PushImportExecutionDeps {
   getDbPath(sessionId: string): string
   openDatabase(sessionId: string, options: { readonly?: boolean; create?: boolean }): DatabaseAdapter
   deleteDatabase(sessionId: string): void
 }
+
+export type PushImportAnalysisExecutionDeps = Pick<PushImportExecutionDeps, 'getDbPath' | 'openDatabase'>
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
@@ -200,6 +215,77 @@ function isCountedMember(platformId: string): boolean {
   return platformId !== SYSTEM_SENDER_ID
 }
 
+function registerPushMessageAndCheckDuplicate(message: PushImportMessage, dedupState: MessageDedupState): boolean {
+  return registerMessageAndCheckDuplicate(
+    {
+      platformMessageId: message.platformMessageId,
+      timestamp: message.timestamp,
+      senderPlatformId: message.sender,
+      type: message.type,
+      content: message.content ?? null,
+      replyToMessageId: message.replyToMessageId,
+    },
+    dedupState
+  )
+}
+
+function createExistingMessageDedupState(db: DatabaseAdapter): MessageDedupState {
+  const existingPmids = new Set<string>()
+  const existingKeys = new Set<string>()
+  const existingFallbackOnlyKeys = new Set<string>()
+  const existingMessages = db
+    .prepare(
+      `SELECT msg.ts, m.platform_id, msg.type, msg.content, msg.reply_to_message_id, msg.platform_message_id
+       FROM message msg
+       JOIN member m ON msg.sender_id = m.id`
+    )
+    .all() as Array<{
+    ts: number
+    platform_id: string
+    type: number
+    content: string | null
+    reply_to_message_id: string | null
+    platform_message_id: string | null
+  }>
+
+  for (const message of existingMessages) {
+    if (message.platform_message_id) existingPmids.add(message.platform_message_id)
+    const key = generateFallbackMessageKey({
+      timestamp: message.ts,
+      senderPlatformId: message.platform_id,
+      type: message.type,
+      content: message.content,
+      replyToMessageId: message.reply_to_message_id ?? undefined,
+    })
+    existingKeys.add(key)
+    if (!message.platform_message_id) existingFallbackOnlyKeys.add(key)
+  }
+
+  return createMessageDedupState(existingPmids, existingKeys, existingFallbackOnlyKeys)
+}
+
+function analyzePushMessages(
+  messages: PushImportMessage[],
+  dedupState: MessageDedupState,
+  sortByTimestamp: boolean
+): { newMessageCount: number; duplicateCount: number; writableSenders: Set<string> } {
+  const orderedMessages = sortByTimestamp ? [...messages].sort((a, b) => a.timestamp - b.timestamp) : messages
+  const writableSenders = new Set<string>()
+  let newMessageCount = 0
+  let duplicateCount = 0
+
+  for (const message of orderedMessages) {
+    if (registerPushMessageAndCheckDuplicate(message, dedupState)) {
+      duplicateCount++
+      continue
+    }
+    newMessageCount++
+    writableSenders.add(message.sender)
+  }
+
+  return { newMessageCount, duplicateCount, writableSenders }
+}
+
 function writeMessages(
   db: DatabaseAdapter,
   messages: PushImportMessage[],
@@ -231,19 +317,7 @@ function writeMessages(
 
   db.transaction(() => {
     for (const msg of sorted) {
-      if (
-        registerMessageAndCheckDuplicate(
-          {
-            platformMessageId: msg.platformMessageId,
-            timestamp: msg.timestamp,
-            senderPlatformId: msg.sender,
-            type: msg.type,
-            content: msg.content ?? null,
-            replyToMessageId: msg.replyToMessageId,
-          },
-          dedupState
-        )
-      ) {
+      if (registerPushMessageAndCheckDuplicate(msg, dedupState)) {
         duplicateCount++
         continue
       }
@@ -312,19 +386,7 @@ function fullImport(
   let duplicateCount = 0
   const dedupedMessages: PushImportMessage[] = []
   for (const msg of messages) {
-    if (
-      registerMessageAndCheckDuplicate(
-        {
-          platformMessageId: msg.platformMessageId,
-          timestamp: msg.timestamp,
-          senderPlatformId: msg.sender,
-          type: msg.type,
-          content: msg.content ?? null,
-          replyToMessageId: msg.replyToMessageId,
-        },
-        dedupState
-      )
-    ) {
+    if (registerPushMessageAndCheckDuplicate(msg, dedupState)) {
       duplicateCount++
       continue
     }
@@ -376,37 +438,7 @@ function writeIncrementalImport(db: DatabaseAdapter, payload: PushImportPayload)
   const metaUpdateMode = payload.options?.metaUpdateMode ?? 'patch'
   const memberUpdateMode = payload.options?.memberUpdateMode ?? 'upsert'
 
-  // Load dedup keys
-  const existingPmids = new Set<string>()
-  const existingKeys = new Set<string>()
-  const existingFallbackOnlyKeys = new Set<string>()
-  const existingMessages = db
-    .prepare(
-      `SELECT msg.ts, m.platform_id, msg.type, msg.content, msg.reply_to_message_id, msg.platform_message_id
-       FROM message msg
-       JOIN member m ON msg.sender_id = m.id`
-    )
-    .all() as Array<{
-    ts: number
-    platform_id: string
-    type: number
-    content: string | null
-    reply_to_message_id: string | null
-    platform_message_id: string | null
-  }>
-  for (const message of existingMessages) {
-    if (message.platform_message_id) existingPmids.add(message.platform_message_id)
-    const key = generateFallbackMessageKey({
-      timestamp: message.ts,
-      senderPlatformId: message.platform_id,
-      type: message.type,
-      content: message.content,
-      replyToMessageId: message.reply_to_message_id ?? undefined,
-    })
-    existingKeys.add(key)
-    if (!message.platform_message_id) existingFallbackOnlyKeys.add(key)
-  }
-  const dedupState = createMessageDedupState(existingPmids, existingKeys, existingFallbackOnlyKeys)
+  const dedupState = createExistingMessageDedupState(db)
 
   let metaUpdated = false
   let membersAdded = 0
@@ -506,6 +538,119 @@ function writeIncrementalImport(db: DatabaseAdapter, payload: PushImportPayload)
 
 function incrementalImport(db: DatabaseAdapter, payload: PushImportPayload): IncrementalImportStats {
   return db.transaction(() => writeIncrementalImport(db, payload))
+}
+
+function countNewSessionMembers(payload: PushImportPayload): number {
+  const memberIds = new Set<string>()
+  for (const member of payload.members ?? []) {
+    if (isCountedMember(member.platformId)) memberIds.add(member.platformId)
+  }
+  for (const message of payload.messages ?? []) {
+    if (isCountedMember(message.sender)) memberIds.add(message.sender)
+  }
+  return memberIds.size
+}
+
+function countIncrementalMembersAdded(
+  db: DatabaseAdapter,
+  payload: PushImportPayload,
+  writableSenders: Set<string>
+): number {
+  const knownMemberIds = new Set(
+    (db.prepare('SELECT platform_id FROM member').all() as Array<{ platform_id: string }>).map(
+      (member) => member.platform_id
+    )
+  )
+  let membersAdded = 0
+
+  if ((payload.options?.memberUpdateMode ?? 'upsert') === 'upsert') {
+    for (const member of payload.members ?? []) {
+      if (!isCountedMember(member.platformId) || knownMemberIds.has(member.platformId)) continue
+      knownMemberIds.add(member.platformId)
+      membersAdded++
+    }
+  }
+
+  for (const sender of writableSenders) {
+    if (!isCountedMember(sender) || knownMemberIds.has(sender)) continue
+    knownMemberIds.add(sender)
+    membersAdded++
+  }
+
+  return membersAdded
+}
+
+/**
+ * 只读分析 JSON Push 请求。新会话按首次导入的批内去重顺序计算；已有会话则加载
+ * 当前消息去重键，并按增量写入的时间顺序计算，确保 dry-run 与正式写入共享同一语义。
+ */
+export async function executeAnalyzePushImport(
+  deps: PushImportAnalysisExecutionDeps,
+  sessionId: string,
+  payload: PushImportPayload
+): Promise<PushImportAnalysisOutcome> {
+  if (!isValidImportSessionId(sessionId)) {
+    return { ok: false, reason: 'invalid_payload', message: 'sessionId contains invalid characters' }
+  }
+
+  const isNew = !fs.existsSync(deps.getDbPath(sessionId))
+  const validationError = validatePayload(payload, isNew)
+  if (validationError) {
+    return { ok: false, reason: 'invalid_payload', message: validationError }
+  }
+
+  try {
+    let newMessageCount: number
+    let duplicateCount: number
+    let newMemberCount: number
+
+    if (isNew) {
+      const analysis = analyzePushMessages(payload.messages!, createMessageDedupState(), false)
+      newMessageCount = analysis.newMessageCount
+      duplicateCount = analysis.duplicateCount
+      newMemberCount = countNewSessionMembers(payload)
+    } else {
+      const db = deps.openDatabase(sessionId, { readonly: true })
+      try {
+        const analysis = analyzePushMessages(payload.messages!, createExistingMessageDedupState(db), true)
+        newMessageCount = analysis.newMessageCount
+        duplicateCount = analysis.duplicateCount
+        newMemberCount = countIncrementalMembersAdded(db, payload, analysis.writableSenders)
+      } finally {
+        db.close()
+      }
+    }
+
+    const result: PushImportAnalysisResult = {
+      sessionId,
+      created: isNew,
+      totalInFile: payload.messages!.length,
+      newMessageCount,
+      duplicateCount,
+      newMemberCount,
+    }
+    appLogger.info('push-import', 'Push import analysis completed', result)
+    return { ok: true, result }
+  } catch (err: unknown) {
+    if (err instanceof DataDirCompatibilityError) throw err
+    appLogger.error('push-import', 'Push import analysis failed', err)
+    return { ok: false, reason: 'import_failed', message: err instanceof Error ? err.message : String(err) }
+  }
+}
+
+export async function analyzePushImport(
+  dbManager: DatabaseManager,
+  sessionId: string,
+  payload: PushImportPayload
+): Promise<PushImportAnalysisOutcome> {
+  return executeAnalyzePushImport(
+    {
+      getDbPath: (id) => dbManager.getDbPath(id),
+      openDatabase: (id, options) => dbManager.openRawSessionDatabase(id, options),
+    },
+    sessionId,
+    payload
+  )
 }
 
 export async function pushImport(

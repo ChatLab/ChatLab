@@ -10,6 +10,7 @@ describe('worker timeout policy', () => {
     assert.equal(isRestartableReadOnlyRequestType('getChatOverview'), true)
     assert.equal(isRestartableReadOnlyRequestType('searchMessages'), true)
     assert.equal(isRestartableReadOnlyRequestType('getSegmentSummaries'), true)
+    assert.equal(isRestartableReadOnlyRequestType('analyzePushImport'), true)
   })
 
   it('keeps mutating, indexing, import, export, and unknown requests non-restartable', () => {

@@ -7,7 +7,7 @@ import { DatabaseManager } from '../database-manager'
 import { raiseDataDirMinRuntimeVersion, readDataDirCompatibilityMeta, type RuntimeIdentity } from '../data-dir-compat'
 import { withDataDirImportLock } from '../import/import-lock'
 import type { PushImportPayload } from './push-importer'
-import { pushImport } from './push-importer'
+import { analyzePushImport, pushImport } from './push-importer'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -33,6 +33,105 @@ function createDatabaseManager(rootDir: string, runtime?: RuntimeIdentity): Data
     runtime ? { nativeBinding, runtime } : { nativeBinding, allowMissingRuntimeForTests: true }
   )
 }
+
+test('analyzes a new push payload with the same optional-account and member semantics as the writer', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const manager = createDatabaseManager(tempDir)
+  const payload: PushImportPayload = {
+    chatlab: { version: '0.0.2', exportedAt: 1780330900 },
+    meta: { name: 'Push Import Analysis', platform: 'wechat', type: 'group' },
+    members: [{ platformId: 'wxid_alice', accountName: 'Alice' }],
+    messages: [{ sender: 'wxid_bob', timestamp: 1780330832, type: 0, content: 'hello' }],
+  }
+
+  const analysis = await analyzePushImport(manager, 'push-analysis', payload)
+
+  assert.deepEqual(analysis, {
+    ok: true,
+    result: {
+      sessionId: 'push-analysis',
+      created: true,
+      totalInFile: 1,
+      newMessageCount: 1,
+      duplicateCount: 0,
+      newMemberCount: 2,
+    },
+  })
+  assert.equal(fs.existsSync(manager.getDbPath('push-analysis')), false)
+
+  const outcome = await pushImport(manager, 'push-analysis', payload)
+  assert.equal(outcome.ok, true)
+  if (!outcome.ok || !analysis.ok) return
+  assert.equal(outcome.result.batch.writtenCount, analysis.result.newMessageCount)
+  assert.equal(outcome.result.batch.duplicateCount, analysis.result.duplicateCount)
+  assert.equal(outcome.result.updates.membersAdded, analysis.result.newMemberCount)
+})
+
+test('analyzes incremental push deduplication and member creation without writing', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const manager = createDatabaseManager(tempDir)
+  const initialOutcome = await pushImport(manager, 'incremental-analysis', {
+    chatlab: { version: '0.0.2', exportedAt: 1780330900 },
+    meta: { name: 'Incremental Analysis', platform: 'wechat', type: 'group' },
+    members: [{ platformId: 'wxid_alice', accountName: 'Alice' }],
+    messages: [
+      {
+        platformMessageId: 'msg-1',
+        sender: 'wxid_alice',
+        timestamp: 1780330832,
+        type: 0,
+        content: 'hello',
+      },
+    ],
+  })
+  assert.equal(initialOutcome.ok, true)
+
+  const payload: PushImportPayload = {
+    members: [{ platformId: 'wxid_charlie', accountName: 'Charlie' }],
+    messages: [
+      {
+        platformMessageId: 'msg-1',
+        sender: 'wxid_alice',
+        timestamp: 1780330832,
+        type: 0,
+        content: 'hello',
+      },
+      { sender: 'wxid_bob', timestamp: 1780330833, type: 0, content: 'new message' },
+    ],
+  }
+
+  const analysis = await analyzePushImport(manager, 'incremental-analysis', payload)
+  assert.deepEqual(analysis, {
+    ok: true,
+    result: {
+      sessionId: 'incremental-analysis',
+      created: false,
+      totalInFile: 2,
+      newMessageCount: 1,
+      duplicateCount: 1,
+      newMemberCount: 2,
+    },
+  })
+
+  const beforeWrite = manager.openRawSessionDatabase('incremental-analysis', { readonly: true })
+  try {
+    assert.equal((beforeWrite.prepare('SELECT COUNT(*) as count FROM message').get() as { count: number }).count, 1)
+    assert.equal((beforeWrite.prepare('SELECT COUNT(*) as count FROM member').get() as { count: number }).count, 1)
+  } finally {
+    beforeWrite.close()
+  }
+
+  const outcome = await pushImport(manager, 'incremental-analysis', payload)
+  assert.equal(outcome.ok, true)
+  if (!outcome.ok || !analysis.ok) return
+  assert.equal(outcome.result.batch.writtenCount, analysis.result.newMessageCount)
+  assert.equal(outcome.result.batch.duplicateCount, analysis.result.duplicateCount)
+  assert.equal(outcome.result.updates.membersAdded, analysis.result.newMemberCount)
+})
 
 test('rejects push imports while any writer holds the data-directory import lock', async (t) => {
   const root = makeTempDir()

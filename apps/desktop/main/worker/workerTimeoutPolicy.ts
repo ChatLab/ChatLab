@@ -40,6 +40,7 @@ const RESTARTABLE_READ_ONLY_REQUEST_TYPES = new Set([
   'getRecentChatSessions',
   'getSegmentMessages',
   'getSegmentSummaries',
+  'analyzePushImport',
 ])
 
 const DEFAULT_WORKER_REQUEST_TIMEOUT_MS = 60 * 1000

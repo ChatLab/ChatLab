@@ -10,9 +10,38 @@ import {
   type MembersCache,
 } from '@openchatlab/node-runtime/src/cache/session-cache'
 import { initDbDir } from '../core/dbCore'
-import { pushImport } from './pushImport'
+import { analyzePushImport, pushImport } from './pushImport'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
+
+test('Desktop worker push analysis uses shared semantics without creating a database', async (t) => {
+  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+  const root = fs.mkdtempSync(path.join(baseDir, 'chatlab-worker-push-analysis-'))
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+
+  const dbDir = path.join(root, 'databases')
+  initDbDir(dbDir, path.join(root, 'cache'), path.join(root, 'temp'), nativeBinding, path.join(root, 'logs'))
+
+  const outcome = await analyzePushImport('worker-analysis', {
+    chatlab: { version: '0.0.2', exportedAt: 1780330900 },
+    meta: { name: 'Worker Push Analysis', platform: 'wechat', type: 'group' },
+    members: [{ platformId: 'wxid_alice', accountName: 'Alice' }],
+    messages: [{ sender: 'wxid_bob', timestamp: 1780330832, type: 0, content: 'hello' }],
+  })
+
+  assert.deepEqual(outcome, {
+    ok: true,
+    result: {
+      sessionId: 'worker-analysis',
+      created: true,
+      totalInFile: 1,
+      newMessageCount: 1,
+      duplicateCount: 0,
+      newMemberCount: 2,
+    },
+  })
+  assert.equal(fs.existsSync(path.join(dbDir, 'worker-analysis.db')), false)
+})
 
 test('Desktop worker push import uses the shared writer and canonical database directory', async (t) => {
   const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()

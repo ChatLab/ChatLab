@@ -21,7 +21,7 @@ import {
   raiseChatDbCompatibilityGate,
   withDataDirImportLock,
 } from '@openchatlab/node-runtime'
-import type { PushImportOutcome, PushImportPayload } from '@openchatlab/node-runtime'
+import type { PushImportAnalysisOutcome, PushImportOutcome, PushImportPayload } from '@openchatlab/node-runtime'
 import { getWorkerRequestTimeoutMs, isRestartableReadOnlyRequestType } from './workerTimeoutPolicy'
 
 interface WorkerRequestOptions {
@@ -648,6 +648,17 @@ export async function pushImport(sessionId: string, payload: PushImportPayload):
     }
     throw error
   }
+}
+
+/**
+ * 在 worker 中只读分析 JSON Push 请求，确保 Desktop dry-run 与正式写入使用同一套语义。
+ */
+export async function analyzePushImport(
+  sessionId: string,
+  payload: PushImportPayload
+): Promise<PushImportAnalysisOutcome> {
+  assertDataDirCompatibleNow()
+  return sendToWorker<PushImportAnalysisOutcome>('analyzePushImport', { sessionId, payload })
 }
 
 function deleteImportedSessionFiles(sessionId: string): void {

@@ -3,7 +3,10 @@ import * as path from 'node:path'
 import { BetterSqliteAdapter } from '@openchatlab/node-runtime/src/better-sqlite3-adapter'
 import { computeAndSetOverviewCache, deleteSessionCache } from '@openchatlab/node-runtime/src/cache/session-cache'
 import {
+  executeAnalyzePushImport,
   executePushImportUnlocked,
+  type PushImportAnalysisOutcome,
+  type PushImportExecutionDeps,
   type PushImportOutcome,
   type PushImportPayload,
 } from '@openchatlab/node-runtime/src/services/push-importer'
@@ -11,6 +14,32 @@ import { closeDatabase, getCacheDir, getDbDir, openRawDatabase } from '../core/d
 
 function getDbPath(sessionId: string): string {
   return path.join(getDbDir(), `${sessionId}.db`)
+}
+
+function createPushImportExecutionDeps(): PushImportExecutionDeps {
+  return {
+    getDbPath,
+    openDatabase(id, options) {
+      const dbPath = getDbPath(id)
+      if (!options.create && !fs.existsSync(dbPath)) throw new Error(`Session database not found: ${id}`)
+      closeDatabase(id)
+      fs.mkdirSync(path.dirname(dbPath), { recursive: true })
+      const db = options.readonly === undefined ? openRawDatabase(dbPath) : openRawDatabase(dbPath, options)
+      return new BetterSqliteAdapter(db)
+    },
+    deleteDatabase(id) {
+      closeDatabase(id)
+      const dbPath = getDbPath(id)
+      for (const suffix of ['', '-wal', '-shm']) {
+        try {
+          const filePath = dbPath + suffix
+          if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
+        } catch {
+          /* best-effort cleanup */
+        }
+      }
+    },
+  }
 }
 
 function refreshImportCaches(sessionId: string): void {
@@ -33,34 +62,16 @@ function refreshImportCaches(sessionId: string): void {
 }
 
 export async function pushImport(sessionId: string, payload: PushImportPayload): Promise<PushImportOutcome> {
-  const outcome = await executePushImportUnlocked(
-    {
-      getDbPath,
-      openDatabase(id, options) {
-        const dbPath = getDbPath(id)
-        if (!options.create && !fs.existsSync(dbPath)) throw new Error(`Session database not found: ${id}`)
-        closeDatabase(id)
-        fs.mkdirSync(path.dirname(dbPath), { recursive: true })
-        const db = options.readonly === undefined ? openRawDatabase(dbPath) : openRawDatabase(dbPath, options)
-        return new BetterSqliteAdapter(db)
-      },
-      deleteDatabase(id) {
-        closeDatabase(id)
-        const dbPath = getDbPath(id)
-        for (const suffix of ['', '-wal', '-shm']) {
-          try {
-            const filePath = dbPath + suffix
-            if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
-          } catch {
-            /* best-effort cleanup */
-          }
-        }
-      },
-    },
-    sessionId,
-    payload
-  )
+  const outcome = await executePushImportUnlocked(createPushImportExecutionDeps(), sessionId, payload)
 
   if (outcome.ok) refreshImportCaches(sessionId)
   return outcome
+}
+
+/** 只读复用 Push Import 的校验、去重和成员推断，不刷新缓存也不创建数据库。 */
+export async function analyzePushImport(
+  sessionId: string,
+  payload: PushImportPayload
+): Promise<PushImportAnalysisOutcome> {
+  return executeAnalyzePushImport(createPushImportExecutionDeps(), sessionId, payload)
 }
