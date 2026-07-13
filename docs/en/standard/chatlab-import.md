@@ -21,7 +21,7 @@ Both modes share the same underlying import pipeline (deduplication, meta/member
 
 1. **Single endpoint**: Initial and incremental imports use the same endpoint — callers don't need to distinguish.
 2. **Minimal surface**: 1 import endpoint + 2 query endpoints cover all Push scenarios.
-3. **Two-layer idempotency**: Request-level (`Idempotency-Key`) + record-level dedup (`platformMessageId` / content hash), guaranteeing **at-least-once + deterministic dedupe**.
+3. **Two-layer idempotency**: Request-level (`Idempotency-Key`) + record-level dedup (`platformMessageId` / deterministic fallback key), guaranteeing **at-least-once + deterministic dedupe**.
 4. **Synchronous by default**: Small batches return `200 OK` with write results synchronously.
 5. **Auto-update by default**: `meta` and `members` are updated automatically with each import request; controllable via `options`.
 
@@ -320,17 +320,19 @@ Deduplication is scoped to a single session and does not cross sessions.
 **Priority:**
 
 1. If `platformMessageId` is provided, it is used as the unique key (high precision, recommended).
-2. If `platformMessageId` is absent, falls back to content hash: `sha256(timestamp + '\0' + sender + '\0' + contentTag + '\0' + normalizedContent)`
+2. If `platformMessageId` is absent, a deterministic fallback key is generated from
+   `timestamp + sender + type + normalizedContent + replyToMessageId`.
 
 | Layer | Mechanism | Scope | Precision |
 | --- | --- | --- | --- |
 | Request-level idempotency | `Idempotency-Key` | Retries of the same HTTP request | Exact |
 | Message-level dedup (primary) | `platformMessageId` | Same message across batches/windows | Exact |
-| Message-level dedup (fallback) | Content hash | Fallback when `platformMessageId` is absent | Best effort |
+| Message-level dedup (fallback) | Deterministic key from the fields above | Fallback when `platformMessageId` is absent | Best effort |
 
 ::: warning
 - A message with the same `platformMessageId` will not be written again, even if `content` differs (first write wins).
-- Content hash dedup treats "same sender, same second, identical content" as a duplicate; there is a very small false positive rate.
+- Two different `platformMessageId` values are preserved as different messages even when every other field matches.
+- Fallback dedup treats "same sender, same second, same type, normalized content, and reply target" as a duplicate; there is a very small false positive rate.
 - **Strongly recommended**: provide `platformMessageId` — it is the most reliable deduplication key.
 :::
 
@@ -442,6 +444,7 @@ See [ChatLab Format Specification](./chatlab-format.md) for the reserved field s
 | `BODY_TOO_LARGE` | 413 | JSON body exceeds 50MB | No |
 | `IMPORT_IN_PROGRESS` | 409 | Another import is currently running | Yes |
 | `IDEMPOTENCY_CONFLICT` | 409 | Same idempotency key but different request body | No |
+| `IDEMPOTENCY_PENDING` | 409 | The first request with this idempotency key is still running | Yes |
 | `IMPORT_FAILED` | 500 | Internal error during import | Yes |
 | `SERVER_ERROR` | 500 | Internal server error | Yes |
 

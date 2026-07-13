@@ -17,6 +17,8 @@ export enum ApiErrorCode {
   EXPORT_TOO_LARGE = 'EXPORT_TOO_LARGE',
   BODY_TOO_LARGE = 'BODY_TOO_LARGE',
   IMPORT_IN_PROGRESS = 'IMPORT_IN_PROGRESS',
+  IDEMPOTENCY_CONFLICT = 'IDEMPOTENCY_CONFLICT',
+  IDEMPOTENCY_PENDING = 'IDEMPOTENCY_PENDING',
   IMPORT_FAILED = 'IMPORT_FAILED',
   DATA_DIR_INCOMPATIBLE = 'DATA_DIR_INCOMPATIBLE',
   SERVER_ERROR = 'SERVER_ERROR',
@@ -32,6 +34,8 @@ const HTTP_STATUS: Record<ApiErrorCode, number> = {
   [ApiErrorCode.EXPORT_TOO_LARGE]: 400,
   [ApiErrorCode.BODY_TOO_LARGE]: 413,
   [ApiErrorCode.IMPORT_IN_PROGRESS]: 409,
+  [ApiErrorCode.IDEMPOTENCY_CONFLICT]: 409,
+  [ApiErrorCode.IDEMPOTENCY_PENDING]: 409,
   [ApiErrorCode.IMPORT_FAILED]: 500,
   [ApiErrorCode.DATA_DIR_INCOMPATIBLE]: 409,
   [ApiErrorCode.SERVER_ERROR]: 500,
@@ -82,6 +86,17 @@ export function serverError(message = 'Internal server error'): ApiError {
 
 export function importInProgress(): ApiError {
   return new ApiError(ApiErrorCode.IMPORT_IN_PROGRESS, 'Another import is already in progress')
+}
+
+export function idempotencyConflict(): ApiError {
+  return new ApiError(ApiErrorCode.IDEMPOTENCY_CONFLICT, 'Same Idempotency-Key with different request body hash')
+}
+
+export function idempotencyPending(): ApiError {
+  return new ApiError(
+    ApiErrorCode.IDEMPOTENCY_PENDING,
+    'A request with this Idempotency-Key is still in progress. Please retry later.'
+  )
 }
 
 export function importFailed(message: string): ApiError {

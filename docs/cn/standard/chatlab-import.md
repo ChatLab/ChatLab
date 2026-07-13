@@ -21,7 +21,7 @@ outline: deep
 
 1. **统一入口**：首次导入和增量导入使用同一个端点，调用方无需区分。
 2. **接口最小化**：1 个导入接口 + 2 个查询接口覆盖全部 Push 场景。
-3. **双层幂等**：请求级幂等（Idempotency-Key）+ 记录级去重（platformMessageId / 内容哈希），承诺 **at-least-once + deterministic dedupe**。
+3. **双层幂等**：请求级幂等（Idempotency-Key）+ 记录级去重（platformMessageId / 确定性 fallback key），承诺 **at-least-once + deterministic dedupe**。
 4. **同步优先**：小批量导入同步返回 `200 OK` 和写入结果。
 5. **默认自动更新**：meta 和 members 默认随导入请求自动更新，可通过 `options` 控制。
 
@@ -320,17 +320,19 @@ curl http://127.0.0.1:3110/api/v1/imports/group_abc123 \
 **优先级：**
 
 1. 若消息提供了 `platformMessageId`，以此作为唯一键去重（高精度，推荐）。
-2. 若未提供 `platformMessageId`，退化为内容哈希去重：`sha256(timestamp + '\0' + sender + '\0' + contentTag + '\0' + normalizedContent)`
+2. 若未提供 `platformMessageId`，退化为确定性 fallback key：
+   `timestamp + sender + type + normalizedContent + replyToMessageId`。
 
 | 层次               | 机制                                            | 适用范围                      | 精度     |
 | ------------------ | ----------------------------------------------- | ----------------------------- | -------- |
 | 请求级幂等         | `Idempotency-Key`                               | 同一 HTTP 请求的重试          | 精确     |
 | 消息级去重（主键） | `platformMessageId`                             | 跨批次、跨窗口的同一条消息    | 精确     |
-| 消息级去重（降级） | 内容哈希 `sha256(timestamp + sender + content)` | 无 platformMessageId 时的兜底 | 最大努力 |
+| 消息级去重（降级） | 上述字段生成的确定性 fallback key                 | 无 platformMessageId 时的兜底 | 最大努力 |
 
 ::: warning 注意
 - 同一 `platformMessageId` 的消息不会被重复写入，即使 content 不同（以首次写入为准）
-- 内容哈希去重在"同一人、同一秒、完全相同内容"时判定为重复，存在极小概率误判
+- 两个不同的 `platformMessageId` 即使其他字段完全相同，也会保留为两条消息
+- fallback 去重在"同一人、同一秒、相同类型、相同规范化内容和相同回复目标"时判定为重复，存在极小概率误判
 - **强烈建议**外部数据源提供 `platformMessageId`，这是最可靠的去重依据
 :::
 
@@ -442,6 +444,7 @@ ChatLab 不为调用方维护游标。推荐结构：
 | `BODY_TOO_LARGE` | 413 | JSON body 超过 50MB | 否 |
 | `IMPORT_IN_PROGRESS` | 409 | 当前有其他导入正在执行 | 是 |
 | `IDEMPOTENCY_CONFLICT` | 409 | 相同幂等键但请求体不一致 | 否 |
+| `IDEMPOTENCY_PENDING` | 409 | 相同幂等键的首次请求仍在执行 | 是 |
 | `IMPORT_FAILED` | 500 | 导入过程内部错误 | 是 |
 | `SERVER_ERROR` | 500 | 服务内部错误 | 是 |
 
