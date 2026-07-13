@@ -1,5 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import { BUILTIN_TOOL_CATALOG } from '@openchatlab/core'
 import {
   AGENT_TOOL_REGISTRY,
   MCP_TOOL_REGISTRY,
@@ -7,6 +8,18 @@ import {
   RETRIEVE_CHAT_EVIDENCE_TOOL_NAME,
   getToolByName,
 } from './registry'
+
+describe('agent tool registry metadata', () => {
+  it('keeps agent registry categories aligned with the builtin catalog allowlist metadata', () => {
+    const registeredCategories = new Map(AGENT_TOOL_REGISTRY.map((tool) => [tool.name, tool.category ?? 'core']))
+    const mismatches = BUILTIN_TOOL_CATALOG.filter((tool) => registeredCategories.get(tool.name) !== tool.category).map(
+      (tool) =>
+        `${tool.name} (expected category=${tool.category}, got ${registeredCategories.get(tool.name) ?? 'missing'})`
+    )
+
+    assert.deepEqual(mismatches, [])
+  })
+})
 
 describe('semantic_search_current_chat registry placement', () => {
   it('is registered in AGENT registry only, not MCP (privacy: no external semantic access in Phase 1)', () => {

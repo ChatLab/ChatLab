@@ -110,9 +110,16 @@ describe('ai tool debug routes', () => {
     assert.deepEqual(executeResp.json(), { success: false, error: 'cancelled' })
   })
 
-  it('keeps the CoreDataProvider fallback when no platform hook is provided', async () => {
+  it('keeps the shared executor fallback and missing-session response when no platform hook is provided', async () => {
     app = Fastify()
-    registerAiToolRoutes(app, createContext())
+    registerAiToolRoutes(
+      app,
+      createContext({
+        dbManager: {
+          open: (sessionId: string) => (sessionId === 'existing-session' ? ({} as never) : null),
+        } as HttpRouteContext['dbManager'],
+      })
+    )
     await app.ready()
 
     const resp = await app.inject({
@@ -128,5 +135,20 @@ describe('ai tool debug routes', () => {
 
     assert.equal(resp.statusCode, 404)
     assert.deepEqual(resp.json(), { success: false, error: 'Session not found: missing-session' })
+
+    const fallbackResp = await app.inject({
+      method: 'POST',
+      url: '/_web/ai/tools/execute',
+      payload: {
+        testId: 'test-fallback',
+        toolName: 'semantic_search_current_chat',
+        sessionId: 'existing-session',
+        params: { query: 'release plan' },
+      },
+    })
+
+    assert.equal(fallbackResp.statusCode, 200)
+    assert.equal(fallbackResp.json().success, true)
+    assert.match(fallbackResp.json().content[0].text, /not available/i)
   })
 })

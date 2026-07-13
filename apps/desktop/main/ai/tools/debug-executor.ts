@@ -1,10 +1,9 @@
 import type { BatchSegmentOptions, SupportedLocale } from '@openchatlab/core'
-import type { AiToolExecuteRequest, AiToolExecuteResult } from '@openchatlab/http-routes'
+import { executeRegistryTool, type AiToolExecuteRequest, type AiToolExecuteResult } from '@openchatlab/http-routes'
 import { batchSegmentWithFrequency } from '@openchatlab/node-runtime'
 import type { SemanticSearchToolService } from '@openchatlab/tools'
 import { t as i18nT } from '../../i18n'
 import { WorkerDataProvider } from './worker-data-provider'
-import { executeRegistryTool } from './tool-executor-core'
 
 /**
  * 构造 Electron 手动调试用的 AI 工具执行器。

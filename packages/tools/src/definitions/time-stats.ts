@@ -37,5 +37,5 @@ export const timeStatsTool: ToolDefinition = {
   description: '获取聊天活跃时段分布（按小时/星期/每日趋势）',
   inputSchema,
   handler,
-  category: 'core',
+  category: 'analysis',
 }

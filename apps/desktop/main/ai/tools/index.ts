@@ -7,7 +7,6 @@
 
 import type { AgentTool } from '@openchatlab/node-runtime'
 import type { ToolContext, TruncationStrategy } from './types'
-import { TOOL_REGISTRY } from './definitions'
 import { isAnalysisToolAllowed } from './tool-filter'
 import { t as i18nT } from '../../i18n'
 import { applyPreprocessingPipeline, type PreprocessableMessage } from '@openchatlab/node-runtime'
@@ -19,18 +18,24 @@ import {
   getSkillConfigWithBuiltinChart,
   wrapWithChartSchemaGate,
 } from '@openchatlab/node-runtime'
-import { semanticSearchCurrentChatTool, retrieveChatEvidenceTool } from '@openchatlab/tools'
+import {
+  AGENT_TOOL_REGISTRY,
+  RETRIEVE_CHAT_EVIDENCE_TOOL_NAME,
+  SEMANTIC_SEARCH_TOOL_NAME,
+  semanticSearchCurrentChatTool,
+  retrieveChatEvidenceTool,
+} from '@openchatlab/tools'
 import { adaptSharedTool } from './shared-tool-adapter'
 
+const runtimeManagedTools = new Set([SEMANTIC_SEARCH_TOOL_NAME, RETRIEVE_CHAT_EVIDENCE_TOOL_NAME])
+const TOOL_REGISTRY = AGENT_TOOL_REGISTRY.filter((tool) => !runtimeManagedTools.has(tool.name)).map(adaptSharedTool)
+
 // 语义检索工具按需暴露：仅当前会话可检索时追加，不进 TOOL_REGISTRY（避免被当作始终加载的 core 工具）
-const semanticSearchEntry = adaptSharedTool(semanticSearchCurrentChatTool, { category: 'core' })
+const semanticSearchEntry = adaptSharedTool(semanticSearchCurrentChatTool)
 
 // 证据检索工具始终暴露（语义不可用时可降级到关键词路径）。
 // 不进 TOOL_REGISTRY / 工具目录：它是始终加载、用户不可切换的特殊 core 工具，行为同语义工具一样特殊处理。
-const retrieveChatEvidenceEntry = adaptSharedTool(retrieveChatEvidenceTool, {
-  category: 'core',
-  truncationStrategy: 'keep_first',
-})
+const retrieveChatEvidenceEntry = adaptSharedTool(retrieveChatEvidenceTool)
 
 const CORE_TOOL_NAMES = new Set(TOOL_REGISTRY.filter((e) => e.category === 'core').map((e) => e.name))
 

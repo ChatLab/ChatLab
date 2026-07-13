@@ -17,6 +17,9 @@ export {
 // === Providers ===
 export { CoreDataProvider } from './providers/core-data-provider'
 
+// === Agent Adapter ===
+export { executeToolForAgent, toAgentToolParameters } from './agent-adapter'
+
 // === Tool Definitions ===
 export { memberStatsTool } from './definitions/member-stats'
 export { timeStatsTool } from './definitions/time-stats'

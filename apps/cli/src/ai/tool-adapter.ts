@@ -12,14 +12,13 @@ import type {
   RawMessage,
   ToolTimeRange,
 } from '@openchatlab/tools'
-import { CoreDataProvider } from '@openchatlab/tools'
+import { CoreDataProvider, executeToolForAgent, toAgentToolParameters } from '@openchatlab/tools'
 import type { DatabaseAdapter } from '@openchatlab/core'
 import {
   applyPreprocessingPipeline,
   batchSegmentWithFrequency,
   preprocessMessages,
   type AgentTool,
-  type AgentToolResult,
   type PreprocessableMessage,
   type PreprocessConfig,
   type TruncationStrategy,
@@ -55,18 +54,6 @@ export interface ServerToolContext {
   maxMessagesLimit?: number
 }
 
-function convertJsonSchemaToParameters(schema: ToolDefinition['inputSchema']) {
-  const properties: Record<string, unknown> = {}
-  for (const [key, prop] of Object.entries(schema.properties)) {
-    properties[key] = { ...prop }
-  }
-  return {
-    type: 'object' as const,
-    properties,
-    required: schema.required || [],
-  }
-}
-
 export interface AdaptToolsOptions {
   maxToolResultTokens?: number
 }
@@ -85,9 +72,8 @@ export function adaptToolsForAgent(
         name: tool.name,
         label: tool.name,
         description: tool.description,
-        parameters: convertJsonSchemaToParameters(tool.inputSchema) as any,
-        async execute(_toolCallId: string, params: unknown): Promise<AgentToolResult<unknown>> {
-          const toolParams = (params && typeof params === 'object' ? params : {}) as Record<string, unknown>
+        parameters: toAgentToolParameters(tool.inputSchema) as any,
+        async execute(_toolCallId: string, params: unknown) {
           const ctx = getContext()
           const execCtx: ToolExecutionContext = {
             db: ctx.db,
@@ -107,52 +93,27 @@ export function adaptToolsForAgent(
                 ctx.preprocessConfig as PreprocessConfig | undefined
               ) as RawMessage[],
           }
-          try {
-            const result = await tool.handler(toolParams, execCtx)
-            const chartDetails =
-              result.chart || result.charts
-                ? {
-                    ...(result.chart ? { chart: result.chart } : {}),
-                    ...(result.charts ? { charts: result.charts } : {}),
-                  }
-                : {}
+          const result = await executeToolForAgent(tool, params, execCtx)
+          const details = result.details as Record<string, unknown> | null
+          if (!Array.isArray(details?.rawMessages)) return result
 
-            if (result.rawMessages && result.rawMessages.length > 0) {
-              // tools may mirror rawMessages inside data; keep it out of extraDetails
-              // so the pipeline only renders scalar metadata (same as the desktop adapter)
-              const { rawMessages: _rawInData, ...extraDetails } = (result.data ?? {}) as Record<string, unknown>
-              const preprocessCfg = ctx.preprocessConfig as PreprocessConfig | undefined
-              const pipelineResult = applyPreprocessingPipeline({
-                rawMessages: result.rawMessages as PreprocessableMessage[],
-                preprocessConfig: preprocessCfg,
-                anonymizeNames: preprocessCfg?.anonymizeNames ?? false,
-                ownerPlatformId: ctx.ownerPlatformId,
-                locale: ctx.locale,
-                maxToolResultTokens: tokenBudget,
-                truncationStrategy: TOOL_TRUNCATION_STRATEGY[tool.name] ?? 'keep_last',
-                extraDetails,
-                logger: getServerAiLogger() ?? undefined,
-              })
-              return {
-                content: [{ type: 'text', text: pipelineResult.text }],
-                details: Object.keys(chartDetails).length > 0 ? chartDetails : null,
-              }
-            }
-
-            const baseDetails =
-              typeof result.data === 'object' && result.data !== null
-                ? (result.data as Record<string, unknown>)
-                : result.data === undefined
-                  ? null
-                  : { value: result.data }
-
-            return {
-              content: [{ type: 'text', text: result.content }],
-              details: Object.keys(chartDetails).length > 0 ? { ...(baseDetails ?? {}), ...chartDetails } : baseDetails,
-            }
-          } catch (error) {
-            const msg = error instanceof Error ? error.message : String(error)
-            return { content: [{ type: 'text', text: `Error: ${msg}` }], details: null }
+          const { rawMessages, chart, charts, ...extraDetails } = details
+          const preprocessCfg = ctx.preprocessConfig as PreprocessConfig | undefined
+          const pipelineResult = applyPreprocessingPipeline({
+            rawMessages: rawMessages as PreprocessableMessage[],
+            preprocessConfig: preprocessCfg,
+            anonymizeNames: preprocessCfg?.anonymizeNames ?? false,
+            ownerPlatformId: ctx.ownerPlatformId,
+            locale: ctx.locale,
+            maxToolResultTokens: tokenBudget,
+            truncationStrategy: TOOL_TRUNCATION_STRATEGY[tool.name] ?? 'keep_last',
+            extraDetails,
+            logger: getServerAiLogger() ?? undefined,
+          })
+          const chartDetails = { ...(chart ? { chart } : {}), ...(charts ? { charts } : {}) }
+          return {
+            content: [{ type: 'text', text: pipelineResult.text }],
+            details: Object.keys(chartDetails).length > 0 ? chartDetails : null,
           }
         },
       },

@@ -41,5 +41,5 @@ export const memberStatsTool: ToolDefinition = {
   description: '获取成员活跃度排行，包括消息数量和占比',
   inputSchema,
   handler,
-  category: 'core',
+  category: 'analysis',
 }

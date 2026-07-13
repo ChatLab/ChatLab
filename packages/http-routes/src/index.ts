@@ -26,6 +26,8 @@ export {
 } from './errors'
 export { parseTimeFilter } from './helpers'
 export { buildAnalyticsCacheKey, withAnalyticsCache } from './analytics-cache'
+export { executeRegistryTool } from './ai/tool-executor'
+export type { AiToolExecutionDeps } from './ai/tool-executor'
 
 // Individual route registration for granular testing or selective registration
 export { registerSystemRoutes } from './routes/system'

@@ -1,9 +1,9 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 
-import type { SemanticSearchToolResult, SemanticSearchToolService } from '@openchatlab/tools'
-import type { AiToolExecuteRequest } from '@openchatlab/http-routes'
-import { buildToolExecutionContext, executeRegistryTool } from './tool-executor-core'
+import type { SemanticSearchToolService } from '@openchatlab/tools'
+import type { AiToolExecuteRequest } from '../context'
+import { executeRegistryTool } from './tool-executor'
 
 function makeRequest(overrides: Partial<AiToolExecuteRequest> = {}): AiToolExecuteRequest {
   return {
@@ -16,19 +16,7 @@ function makeRequest(overrides: Partial<AiToolExecuteRequest> = {}): AiToolExecu
   }
 }
 
-describe('tool-executor-core context injection', () => {
-  it('buildToolExecutionContext forwards semanticIndexService and request identity', () => {
-    const service = {
-      canSearch: () => true,
-      searchForTool: async () => ({}) as unknown as SemanticSearchToolResult,
-    } satisfies SemanticSearchToolService
-    const params = makeRequest()
-    const ctx = buildToolExecutionContext(params, { semanticIndexService: service })
-    assert.equal(ctx.sessionId, 'sess-1')
-    assert.equal(ctx.abortSignal, params.abortSignal)
-    assert.equal(ctx.semanticIndexService, service)
-  })
-
+describe('shared tool executor context injection', () => {
   it('manual execution reaches the injected semanticIndexService', async () => {
     const calls: Array<{ sessionId: string; query: string }> = []
     const service: SemanticSearchToolService = {
