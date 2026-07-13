@@ -17,6 +17,7 @@ export {
   incrementalImport,
   resolveAutoImportTarget,
   autoImportFile,
+  isValidImportSessionId,
   IMPORT_IN_PROGRESS_ERROR_KEY,
   IMPORT_LOCK_FILENAME,
   ImportInProgressError,
@@ -427,6 +428,10 @@ export {
   createPeopleRelationshipsService,
   createGlobalInsightService,
   createDatabaseManagerAdapter,
+  executePushImportUnlocked,
+  DEFAULT_IMPORT_IDEMPOTENCY_TTL_MS,
+  hashImportBody,
+  ImportIdempotencyCache,
   pushImport,
 } from './services'
 export type {
@@ -448,6 +453,8 @@ export type {
   AnnualSummaryComputeRunner,
   GlobalInsightService,
   GlobalInsightServiceDeps,
+  ImportIdempotencyStartResult,
+  PushImportExecutionDeps,
   GlobalInsightServiceOptions,
   PushImportPayload,
   PushImportResult,

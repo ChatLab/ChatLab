@@ -81,8 +81,9 @@ export type {
 export { MergeSessionCache } from './merge-cache'
 
 // Push import (POST /api/v1/imports/:sessionId)
-export { pushImport } from './push-importer'
+export { executePushImportUnlocked, pushImport } from './push-importer'
 export type {
+  PushImportExecutionDeps,
   PushImportPayload,
   PushImportResult,
   PushImportOutcome,
@@ -90,3 +91,6 @@ export type {
   PushImportMember,
   PushImportMeta,
 } from './push-importer'
+
+export { DEFAULT_IMPORT_IDEMPOTENCY_TTL_MS, hashImportBody, ImportIdempotencyCache } from './import-idempotency'
+export type { ImportIdempotencyStartResult } from './import-idempotency'

@@ -59,6 +59,17 @@ function createDeps(options?: {
           errorReasonCounts: {},
           errorSample: [],
         },
+        session: {
+          totalCount: 12,
+          memberCount: 2,
+          firstTimestamp: 100,
+          lastTimestamp: 200,
+        },
+        updates: {
+          metaUpdated: true,
+          membersAdded: 1,
+          membersUpdated: 1,
+        },
       }
     },
   }
@@ -77,6 +88,25 @@ test('explicit existing session forces incremental import without matching', asy
     importMode: 'incremental',
     newMessageCount: 3,
     duplicateCount: 5,
+    batch: {
+      receivedCount: 8,
+      writtenCount: 3,
+      duplicateCount: 5,
+      errorCount: 0,
+      errorReasonCounts: {},
+      errorSample: [],
+    },
+    session: {
+      totalCount: 12,
+      memberCount: 2,
+      firstTimestamp: 100,
+      lastTimestamp: 200,
+    },
+    updates: {
+      metaUpdated: true,
+      membersAdded: 1,
+      membersUpdated: 1,
+    },
   })
   assert.equal(calls.match, 0)
   assert.deepEqual(calls.create, [])
@@ -93,8 +123,25 @@ test('explicit missing session creates with the requested id without matching', 
   assert.equal(result.importMode, 'created')
   assert.equal(result.newMessageCount, 10)
   assert.equal(result.duplicateCount, 0)
+  assert.deepEqual(result.batch, {
+    receivedCount: 12,
+    writtenCount: 10,
+    duplicateCount: 0,
+  })
   assert.equal(calls.match, 0)
   assert.deepEqual(calls.create, [{ filePath: 'source.json', sessionId: 'requested' }])
+})
+
+test('explicit session IDs reject path-like or overlong values before opening a database', async () => {
+  const { deps, calls } = createDeps()
+
+  const traversal = await autoImportFile('source.json', deps, { explicitSessionId: '../outside' })
+  const overlong = await autoImportFile('source.json', deps, { explicitSessionId: 'a'.repeat(129) })
+
+  assert.deepEqual(traversal, { success: false, error: 'sessionId contains invalid characters' })
+  assert.deepEqual(overlong, { success: false, error: 'sessionId contains invalid characters' })
+  assert.deepEqual(calls.create, [])
+  assert.deepEqual(calls.append, [])
 })
 
 test('automatic unique match preserves incremental mode when every message is duplicate', async () => {
@@ -113,6 +160,25 @@ test('automatic unique match preserves incremental mode when every message is du
     matchedBy: 'trailing-messages',
     newMessageCount: 0,
     duplicateCount: 500,
+    batch: {
+      receivedCount: 500,
+      writtenCount: 0,
+      duplicateCount: 500,
+      errorCount: 0,
+      errorReasonCounts: {},
+      errorSample: [],
+    },
+    session: {
+      totalCount: 12,
+      memberCount: 2,
+      firstTimestamp: 100,
+      lastTimestamp: 200,
+    },
+    updates: {
+      metaUpdated: true,
+      membersAdded: 1,
+      membersUpdated: 1,
+    },
   })
   assert.equal(calls.match, 1)
   assert.deepEqual(calls.create, [])
