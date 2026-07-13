@@ -76,14 +76,15 @@ export type PushImportOutcome =
   | { ok: true; result: PushImportResult }
   | { ok: false; reason: 'import_in_progress' | 'invalid_payload' | 'import_failed'; message: string }
 
-export interface PushImportAnalysisResult {
+interface PushImportAnalysisResultBase {
   sessionId: string
-  created: boolean
   totalInFile: number
   newMessageCount: number
   duplicateCount: number
-  newMemberCount: number
 }
+
+export type PushImportAnalysisResult = PushImportAnalysisResultBase &
+  ({ created: true; newMemberCount: number } | { created: false })
 
 export type PushImportAnalysisOutcome =
   | { ok: true; result: PushImportAnalysisResult }
@@ -268,9 +269,8 @@ function analyzePushMessages(
   messages: PushImportMessage[],
   dedupState: MessageDedupState,
   sortByTimestamp: boolean
-): { newMessageCount: number; duplicateCount: number; writableSenders: Set<string> } {
+): { newMessageCount: number; duplicateCount: number } {
   const orderedMessages = sortByTimestamp ? [...messages].sort((a, b) => a.timestamp - b.timestamp) : messages
-  const writableSenders = new Set<string>()
   let newMessageCount = 0
   let duplicateCount = 0
 
@@ -280,10 +280,9 @@ function analyzePushMessages(
       continue
     }
     newMessageCount++
-    writableSenders.add(message.sender)
   }
 
-  return { newMessageCount, duplicateCount, writableSenders }
+  return { newMessageCount, duplicateCount }
 }
 
 function writeMessages(
@@ -551,35 +550,6 @@ function countNewSessionMembers(payload: PushImportPayload): number {
   return memberIds.size
 }
 
-function countIncrementalMembersAdded(
-  db: DatabaseAdapter,
-  payload: PushImportPayload,
-  writableSenders: Set<string>
-): number {
-  const knownMemberIds = new Set(
-    (db.prepare('SELECT platform_id FROM member').all() as Array<{ platform_id: string }>).map(
-      (member) => member.platform_id
-    )
-  )
-  let membersAdded = 0
-
-  if ((payload.options?.memberUpdateMode ?? 'upsert') === 'upsert') {
-    for (const member of payload.members ?? []) {
-      if (!isCountedMember(member.platformId) || knownMemberIds.has(member.platformId)) continue
-      knownMemberIds.add(member.platformId)
-      membersAdded++
-    }
-  }
-
-  for (const sender of writableSenders) {
-    if (!isCountedMember(sender) || knownMemberIds.has(sender)) continue
-    knownMemberIds.add(sender)
-    membersAdded++
-  }
-
-  return membersAdded
-}
-
 /**
  * 只读分析 JSON Push 请求。新会话按首次导入的批内去重顺序计算；已有会话则加载
  * 当前消息去重键，并按增量写入的时间顺序计算，确保 dry-run 与正式写入共享同一语义。
@@ -600,35 +570,27 @@ export async function executeAnalyzePushImport(
   }
 
   try {
-    let newMessageCount: number
-    let duplicateCount: number
-    let newMemberCount: number
+    let analysis: { newMessageCount: number; duplicateCount: number }
 
     if (isNew) {
-      const analysis = analyzePushMessages(payload.messages!, createMessageDedupState(), false)
-      newMessageCount = analysis.newMessageCount
-      duplicateCount = analysis.duplicateCount
-      newMemberCount = countNewSessionMembers(payload)
+      analysis = analyzePushMessages(payload.messages!, createMessageDedupState(), false)
     } else {
       const db = deps.openDatabase(sessionId, { readonly: true })
       try {
-        const analysis = analyzePushMessages(payload.messages!, createExistingMessageDedupState(db), true)
-        newMessageCount = analysis.newMessageCount
-        duplicateCount = analysis.duplicateCount
-        newMemberCount = countIncrementalMembersAdded(db, payload, analysis.writableSenders)
+        analysis = analyzePushMessages(payload.messages!, createExistingMessageDedupState(db), true)
       } finally {
         db.close()
       }
     }
 
-    const result: PushImportAnalysisResult = {
+    const baseResult: PushImportAnalysisResultBase = {
       sessionId,
-      created: isNew,
       totalInFile: payload.messages!.length,
-      newMessageCount,
-      duplicateCount,
-      newMemberCount,
+      ...analysis,
     }
+    const result: PushImportAnalysisResult = isNew
+      ? { ...baseResult, created: true, newMemberCount: countNewSessionMembers(payload) }
+      : { ...baseResult, created: false }
     appLogger.info('push-import', 'Push import analysis completed', result)
     return { ok: true, result }
   } catch (err: unknown) {
@@ -636,21 +598,6 @@ export async function executeAnalyzePushImport(
     appLogger.error('push-import', 'Push import analysis failed', err)
     return { ok: false, reason: 'import_failed', message: err instanceof Error ? err.message : String(err) }
   }
-}
-
-export async function analyzePushImport(
-  dbManager: DatabaseManager,
-  sessionId: string,
-  payload: PushImportPayload
-): Promise<PushImportAnalysisOutcome> {
-  return executeAnalyzePushImport(
-    {
-      getDbPath: (id) => dbManager.getDbPath(id),
-      openDatabase: (id, options) => dbManager.openRawSessionDatabase(id, options),
-    },
-    sessionId,
-    payload
-  )
 }
 
 export async function pushImport(

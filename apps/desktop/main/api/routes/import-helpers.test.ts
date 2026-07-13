@@ -43,10 +43,9 @@ test('preserves the Desktop dry-run response shape for new and existing push imp
     totalInFile: 3,
     newMessageCount: 2,
     duplicateCount: 1,
-    newMemberCount: 4,
   }
 
-  assert.deepEqual(analysisFromPushImport({ ...base, created: true }), {
+  assert.deepEqual(analysisFromPushImport({ ...base, created: true, newMemberCount: 4 }), {
     totalInFile: 3,
     newMessageCount: 2,
     duplicateCount: 1,

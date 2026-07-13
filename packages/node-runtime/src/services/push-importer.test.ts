@@ -7,7 +7,7 @@ import { DatabaseManager } from '../database-manager'
 import { raiseDataDirMinRuntimeVersion, readDataDirCompatibilityMeta, type RuntimeIdentity } from '../data-dir-compat'
 import { withDataDirImportLock } from '../import/import-lock'
 import type { PushImportPayload } from './push-importer'
-import { analyzePushImport, pushImport } from './push-importer'
+import { executeAnalyzePushImport, pushImport } from './push-importer'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -31,6 +31,17 @@ function createDatabaseManager(rootDir: string, runtime?: RuntimeIdentity): Data
       getDownloadsDir: () => rootDir,
     },
     runtime ? { nativeBinding, runtime } : { nativeBinding, allowMissingRuntimeForTests: true }
+  )
+}
+
+function analyzePushImport(manager: DatabaseManager, sessionId: string, payload: PushImportPayload) {
+  return executeAnalyzePushImport(
+    {
+      getDbPath: (id) => manager.getDbPath(id),
+      openDatabase: (id, options) => manager.openRawSessionDatabase(id, options),
+    },
+    sessionId,
+    payload
   )
 }
 
@@ -63,13 +74,13 @@ test('analyzes a new push payload with the same optional-account and member sema
 
   const outcome = await pushImport(manager, 'push-analysis', payload)
   assert.equal(outcome.ok, true)
-  if (!outcome.ok || !analysis.ok) return
+  if (!outcome.ok || !analysis.ok || !analysis.result.created) return
   assert.equal(outcome.result.batch.writtenCount, analysis.result.newMessageCount)
   assert.equal(outcome.result.batch.duplicateCount, analysis.result.duplicateCount)
   assert.equal(outcome.result.updates.membersAdded, analysis.result.newMemberCount)
 })
 
-test('analyzes incremental push deduplication and member creation without writing', async (t) => {
+test('analyzes incremental push deduplication without writing', async (t) => {
   const tempDir = makeTempDir()
   t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
 
@@ -113,7 +124,6 @@ test('analyzes incremental push deduplication and member creation without writin
       totalInFile: 2,
       newMessageCount: 1,
       duplicateCount: 1,
-      newMemberCount: 2,
     },
   })
 
@@ -130,7 +140,6 @@ test('analyzes incremental push deduplication and member creation without writin
   if (!outcome.ok || !analysis.ok) return
   assert.equal(outcome.result.batch.writtenCount, analysis.result.newMessageCount)
   assert.equal(outcome.result.batch.duplicateCount, analysis.result.duplicateCount)
-  assert.equal(outcome.result.updates.membersAdded, analysis.result.newMemberCount)
 })
 
 test('rejects push imports while any writer holds the data-directory import lock', async (t) => {
@@ -528,253 +537,13 @@ test('creates push-import databases only inside the canonical databases director
   assert.equal(fs.existsSync(path.join(tempDir, 'canonical-path.db')), false)
 })
 
-test('rejects non-array messages before applying incremental metadata updates', async (t) => {
+test('rejects malformed incremental fields before applying updates', async (t) => {
   const tempDir = makeTempDir()
   t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
 
   const manager = createDatabaseManager(tempDir)
-  const initialPayload: PushImportPayload = {
-    chatlab: { version: '0.0.2', exportedAt: 1780330900 },
-    meta: { name: 'Original Session', platform: 'wechat', type: 'private' },
-    members: [{ platformId: 'wxid_alice', accountName: 'Alice' }],
-    messages: [
-      {
-        sender: 'wxid_alice',
-        accountName: 'Alice',
-        timestamp: 1780330832,
-        type: 0,
-        content: 'hello',
-      },
-    ],
-  }
-
-  const initialOutcome = await pushImport(manager, 'invalid-messages', initialPayload)
-  assert.equal(initialOutcome.ok, true)
-
-  const malformedPayload = {
-    meta: { name: 'Renamed Session', platform: 'wechat', type: 'private' },
-    messages: {},
-  } as unknown as PushImportPayload
-
-  const outcome = await pushImport(manager, 'invalid-messages', malformedPayload)
-  assert.equal(outcome.ok, false)
-  if (outcome.ok) return
-  assert.equal(outcome.reason, 'invalid_payload')
-
-  const db = manager.openRawSessionDatabase('invalid-messages', { readonly: true })
-  try {
-    const row = db.prepare('SELECT name FROM meta').get() as { name: string }
-    assert.equal(row.name, 'Original Session')
-  } finally {
-    db.close()
-  }
-})
-
-test('rejects non-array members before applying incremental metadata updates', async (t) => {
-  const tempDir = makeTempDir()
-  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
-
-  const manager = createDatabaseManager(tempDir)
-  const initialPayload: PushImportPayload = {
-    chatlab: { version: '0.0.2', exportedAt: 1780330900 },
-    meta: { name: 'Original Session', platform: 'wechat', type: 'private' },
-    members: [{ platformId: 'wxid_alice', accountName: 'Alice' }],
-    messages: [
-      {
-        sender: 'wxid_alice',
-        accountName: 'Alice',
-        timestamp: 1780330832,
-        type: 0,
-        content: 'hello',
-      },
-    ],
-  }
-
-  const initialOutcome = await pushImport(manager, 'invalid-members', initialPayload)
-  assert.equal(initialOutcome.ok, true)
-
-  const malformedPayload = {
-    meta: { name: 'Renamed Session', platform: 'wechat', type: 'private' },
-    members: {},
-    messages: [
-      {
-        sender: 'wxid_alice',
-        timestamp: 1780330833,
-        type: 0,
-        content: 'still valid',
-      },
-    ],
-  } as unknown as PushImportPayload
-
-  const outcome = await pushImport(manager, 'invalid-members', malformedPayload)
-  assert.equal(outcome.ok, false)
-  if (outcome.ok) return
-  assert.equal(outcome.reason, 'invalid_payload')
-
-  const db = manager.openRawSessionDatabase('invalid-members', { readonly: true })
-  try {
-    const row = db.prepare('SELECT name FROM meta').get() as { name: string }
-    assert.equal(row.name, 'Original Session')
-  } finally {
-    db.close()
-  }
-})
-
-test('rejects non-string member platform IDs before applying incremental metadata updates', async (t) => {
-  const tempDir = makeTempDir()
-  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
-
-  const manager = createDatabaseManager(tempDir)
-  const initialPayload: PushImportPayload = {
-    chatlab: { version: '0.0.2', exportedAt: 1780330900 },
-    meta: { name: 'Original Session', platform: 'wechat', type: 'private' },
-    members: [{ platformId: 'wxid_alice', accountName: 'Alice' }],
-    messages: [
-      {
-        sender: 'wxid_alice',
-        accountName: 'Alice',
-        timestamp: 1780330832,
-        type: 0,
-        content: 'hello',
-      },
-    ],
-  }
-
-  const initialOutcome = await pushImport(manager, 'invalid-member-platform-id', initialPayload)
-  assert.equal(initialOutcome.ok, true)
-
-  const malformedPayload = {
-    meta: { name: 'Renamed Session', platform: 'wechat', type: 'private' },
-    members: [{ platformId: { id: 'wxid_alice' }, accountName: 'Alice' }],
-    messages: [
-      {
-        sender: 'wxid_alice',
-        timestamp: 1780330833,
-        type: 0,
-        content: 'still valid',
-      },
-    ],
-  } as unknown as PushImportPayload
-
-  const outcome = await pushImport(manager, 'invalid-member-platform-id', malformedPayload)
-  assert.equal(outcome.ok, false)
-  if (outcome.ok) return
-  assert.equal(outcome.reason, 'invalid_payload')
-
-  const db = manager.openRawSessionDatabase('invalid-member-platform-id', { readonly: true })
-  try {
-    const row = db.prepare('SELECT name FROM meta').get() as { name: string }
-    assert.equal(row.name, 'Original Session')
-  } finally {
-    db.close()
-  }
-})
-
-test('rejects non-string message senders before applying incremental metadata updates', async (t) => {
-  const tempDir = makeTempDir()
-  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
-
-  const manager = createDatabaseManager(tempDir)
-  const initialPayload: PushImportPayload = {
-    chatlab: { version: '0.0.2', exportedAt: 1780330900 },
-    meta: { name: 'Original Session', platform: 'wechat', type: 'private' },
-    members: [{ platformId: 'wxid_alice', accountName: 'Alice' }],
-    messages: [
-      {
-        sender: 'wxid_alice',
-        accountName: 'Alice',
-        timestamp: 1780330832,
-        type: 0,
-        content: 'hello',
-      },
-    ],
-  }
-
-  const initialOutcome = await pushImport(manager, 'invalid-sender', initialPayload)
-  assert.equal(initialOutcome.ok, true)
-
-  const malformedPayload = {
-    meta: { name: 'Renamed Session', platform: 'wechat', type: 'private' },
-    messages: [
-      {
-        sender: { id: 'wxid_alice' },
-        timestamp: 1780330833,
-        type: 0,
-        content: 'still valid',
-      },
-    ],
-  } as unknown as PushImportPayload
-
-  const outcome = await pushImport(manager, 'invalid-sender', malformedPayload)
-  assert.equal(outcome.ok, false)
-  if (outcome.ok) return
-  assert.equal(outcome.reason, 'invalid_payload')
-
-  const db = manager.openRawSessionDatabase('invalid-sender', { readonly: true })
-  try {
-    const row = db.prepare('SELECT name FROM meta').get() as { name: string }
-    assert.equal(row.name, 'Original Session')
-  } finally {
-    db.close()
-  }
-})
-
-test('rejects non-string reply targets before applying incremental metadata updates', async (t) => {
-  const tempDir = makeTempDir()
-  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
-
-  const manager = createDatabaseManager(tempDir)
-  const initialPayload: PushImportPayload = {
-    chatlab: { version: '0.0.2', exportedAt: 1780330900 },
-    meta: { name: 'Original Session', platform: 'wechat', type: 'private' },
-    members: [{ platformId: 'wxid_alice', accountName: 'Alice' }],
-    messages: [
-      {
-        sender: 'wxid_alice',
-        accountName: 'Alice',
-        timestamp: 1780330832,
-        type: 0,
-        content: 'hello',
-      },
-    ],
-  }
-
-  const initialOutcome = await pushImport(manager, 'invalid-reply-target', initialPayload)
-  assert.equal(initialOutcome.ok, true)
-
-  const malformedPayload = {
-    meta: { name: 'Renamed Session', platform: 'wechat', type: 'private' },
-    messages: [
-      {
-        sender: 'wxid_alice',
-        timestamp: 1780330833,
-        type: 0,
-        content: 'still valid',
-        replyToMessageId: { id: 'msg-1' },
-      },
-    ],
-  } as unknown as PushImportPayload
-
-  const outcome = await pushImport(manager, 'invalid-reply-target', malformedPayload)
-  assert.equal(outcome.ok, false)
-  if (outcome.ok) return
-  assert.equal(outcome.reason, 'invalid_payload')
-
-  const db = manager.openRawSessionDatabase('invalid-reply-target', { readonly: true })
-  try {
-    const row = db.prepare('SELECT name FROM meta').get() as { name: string }
-    assert.equal(row.name, 'Original Session')
-  } finally {
-    db.close()
-  }
-})
-
-test('rejects malformed message metadata without partially applying incremental updates', async (t) => {
-  const tempDir = makeTempDir()
-  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
-
-  const manager = createDatabaseManager(tempDir)
-  const initialOutcome = await pushImport(manager, 'invalid-message-metadata', {
+  const sessionId = 'invalid-incremental-payload'
+  const initialOutcome = await pushImport(manager, sessionId, {
     chatlab: { version: '0.0.2', exportedAt: 1780330900 },
     meta: { name: 'Original Session', platform: 'wechat', type: 'private' },
     members: [{ platformId: 'wxid_alice', accountName: 'Alice', groupNickname: 'Original Member' }],
@@ -790,22 +559,60 @@ test('rejects malformed message metadata without partially applying incremental 
   })
   assert.equal(initialOutcome.ok, true)
 
-  const malformedPayload = {
-    meta: { name: 'Renamed Session', platform: 'wechat', type: 'private' },
-    members: [{ platformId: 'wxid_alice', groupNickname: 'Updated Member' }],
-    messages: [
-      {
-        sender: 'wxid_alice',
-        accountName: { invalid: true },
-        timestamp: 1780330833,
-        type: 0,
-        content: 'should fail',
+  const validMessage = {
+    sender: 'wxid_alice',
+    timestamp: 1780330833,
+    type: 0,
+    content: 'still valid',
+  }
+  const invalidPayloads: Array<{ name: string; payload: unknown }> = [
+    {
+      name: 'messages must be an array',
+      payload: { meta: { name: 'Renamed Session' }, messages: {} },
+    },
+    {
+      name: 'members must be an array',
+      payload: { meta: { name: 'Renamed Session' }, members: {}, messages: [validMessage] },
+    },
+    {
+      name: 'member platform IDs must be strings',
+      payload: {
+        meta: { name: 'Renamed Session' },
+        members: [{ platformId: { id: 'wxid_alice' }, accountName: 'Alice' }],
+        messages: [validMessage],
       },
-    ],
-  } as unknown as PushImportPayload
+    },
+    {
+      name: 'message senders must be strings',
+      payload: {
+        meta: { name: 'Renamed Session' },
+        messages: [{ ...validMessage, sender: { id: 'wxid_alice' } }],
+      },
+    },
+    {
+      name: 'reply targets must be strings',
+      payload: {
+        meta: { name: 'Renamed Session' },
+        messages: [{ ...validMessage, replyToMessageId: { id: 'msg-1' } }],
+      },
+    },
+    {
+      name: 'message metadata must have the documented types',
+      payload: {
+        meta: { name: 'Renamed Session' },
+        members: [{ platformId: 'wxid_alice', groupNickname: 'Updated Member' }],
+        messages: [{ ...validMessage, accountName: { invalid: true } }],
+      },
+    },
+  ]
 
-  const outcome = await pushImport(manager, 'invalid-message-metadata', malformedPayload)
-  const db = manager.openRawSessionDatabase('invalid-message-metadata', { readonly: true })
+  for (const { name, payload } of invalidPayloads) {
+    const outcome = await pushImport(manager, sessionId, payload as PushImportPayload)
+    assert.equal(outcome.ok, false, name)
+    if (!outcome.ok) assert.equal(outcome.reason, 'invalid_payload', name)
+  }
+
+  const db = manager.openRawSessionDatabase(sessionId, { readonly: true })
   try {
     const meta = db.prepare('SELECT name FROM meta').get() as { name: string }
     const member = db.prepare('SELECT group_nickname FROM member WHERE platform_id = ?').get('wxid_alice') as {
@@ -815,13 +622,11 @@ test('rejects malformed message metadata without partially applying incremental 
 
     assert.deepEqual(
       {
-        reason: outcome.ok ? 'ok' : outcome.reason,
         metaName: meta.name,
         memberName: member.group_nickname,
         messageCount: messages.count,
       },
       {
-        reason: 'invalid_payload',
         metaName: 'Original Session',
         memberName: 'Original Member',
         messageCount: 1,
