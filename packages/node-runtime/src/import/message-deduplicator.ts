@@ -35,8 +35,8 @@ export function createMessageDedupState(
 }
 
 /**
- * Canonical file-import dedup rule: prefer stable platform message IDs and
- * fall back to timestamp + sender platform ID + type + normalized content + reply target.
+ * Canonical import dedup rule shared by file imports and JSON Push: prefer stable platform
+ * message IDs and fall back to timestamp + sender platform ID + type + normalized content + reply target.
  */
 export function registerMessageAndCheckDuplicate(message: DedupMessage, state: MessageDedupState): boolean {
   const key = generateFallbackMessageKey(message)

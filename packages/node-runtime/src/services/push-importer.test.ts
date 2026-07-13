@@ -4,6 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import { DatabaseManager } from '../database-manager'
+import { raiseDataDirMinRuntimeVersion, readDataDirCompatibilityMeta, type RuntimeIdentity } from '../data-dir-compat'
 import { withDataDirImportLock } from '../import/import-lock'
 import type { PushImportPayload } from './push-importer'
 import { pushImport } from './push-importer'
@@ -15,7 +16,7 @@ function makeTempDir(): string {
   return fs.mkdtempSync(path.join(baseDir, 'chatlab-push-import-'))
 }
 
-function createDatabaseManager(rootDir: string): DatabaseManager {
+function createDatabaseManager(rootDir: string, runtime?: RuntimeIdentity): DatabaseManager {
   return new DatabaseManager(
     {
       getSystemDir: () => rootDir,
@@ -29,7 +30,7 @@ function createDatabaseManager(rootDir: string): DatabaseManager {
       getLogsDir: () => path.join(rootDir, 'logs'),
       getDownloadsDir: () => rootDir,
     },
-    { nativeBinding, allowMissingRuntimeForTests: true }
+    runtime ? { nativeBinding, runtime } : { nativeBinding, allowMissingRuntimeForTests: true }
   )
 }
 
@@ -52,6 +53,81 @@ test('rejects push imports while any writer holds the data-directory import lock
     message: 'Another import is already in progress',
   })
   assert.equal(fs.existsSync(manager.getDbPath('different-session')), false)
+})
+
+test('rejects unsafe session IDs before resolving or opening a database path', async (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const manager = createDatabaseManager(root)
+
+  const outcome = await pushImport(manager, '../escape', {
+    chatlab: { version: '0.0.2', exportedAt: 1780330900 },
+    meta: { name: 'Unsafe Session', platform: 'wechat', type: 'private' },
+    messages: [{ sender: 'wxid_alice', timestamp: 1780330832, type: 0, content: 'hello' }],
+  })
+
+  assert.deepEqual(outcome, {
+    ok: false,
+    reason: 'invalid_payload',
+    message: 'sessionId contains invalid characters',
+  })
+  assert.equal(fs.existsSync(path.join(root, 'escape.db')), false)
+})
+
+test('raises the data directory compatibility gate after a successful push import', async (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const manager = createDatabaseManager(root, { version: '0.25.1', kind: 'cli' })
+
+  const outcome = await pushImport(manager, 'compatibility-gate', {
+    chatlab: { version: '0.0.2', exportedAt: 1780330900 },
+    meta: { name: 'Compatibility Gate', platform: 'wechat', type: 'private' },
+    messages: [{ sender: 'wxid_alice', timestamp: 1780330832, type: 0, content: 'hello' }],
+  })
+
+  assert.equal(outcome.ok, true)
+  const meta = readDataDirCompatibilityMeta(root)
+  assert.equal(meta?.minRuntimeVersion, '0.25.1')
+  assert.equal(meta?.dataCompatibilityVersion, 1)
+  assert.deepEqual(meta?.reasons, ['segment-schema'])
+})
+
+test('checks data directory compatibility before creating a push-import database', async (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  raiseDataDirMinRuntimeVersion(
+    {
+      getSystemDir: () => root,
+      getUserDataDir: () => root,
+      getDatabaseDir: () => path.join(root, 'databases'),
+      getVectorDir: () => path.join(root, 'vector'),
+      getAiDataDir: () => path.join(root, 'ai'),
+      getSettingsDir: () => path.join(root, 'settings'),
+      getCacheDir: () => path.join(root, 'cache'),
+      getTempDir: () => path.join(root, 'temp'),
+      getLogsDir: () => path.join(root, 'logs'),
+      getDownloadsDir: () => root,
+    },
+    {
+      minRuntimeVersion: '0.26.0',
+      dataCompatibilityVersion: 2,
+      reason: 'future-schema',
+      runtime: { version: '0.26.0', kind: 'desktop' },
+      module: 'future-migration',
+    }
+  )
+  const manager = createDatabaseManager(root, { version: '0.25.1', kind: 'cli' })
+
+  await assert.rejects(
+    () =>
+      pushImport(manager, 'incompatible-data-dir', {
+        chatlab: { version: '0.0.2', exportedAt: 1780330900 },
+        meta: { name: 'Incompatible', platform: 'wechat', type: 'private' },
+        messages: [{ sender: 'wxid_alice', timestamp: 1780330832, type: 0, content: 'hello' }],
+      }),
+    /requires runtime version 0\.26\.0 or newer/
+  )
+  assert.equal(fs.existsSync(path.join(root, 'databases', 'incompatible-data-dir.db')), false)
 })
 
 test('deduplicates initial push batch when a platform-id message is repeated without platform id', async (t) => {
@@ -198,6 +274,76 @@ test('deduplicates incremental push when a later platform-id message matches an 
   } finally {
     db.close()
   }
+})
+
+test('keeps distinct platform messages even when timestamp, sender and content match', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const manager = createDatabaseManager(tempDir)
+  const initialPayload: PushImportPayload = {
+    chatlab: { version: '0.0.2', exportedAt: 1780330900 },
+    meta: { name: 'Distinct Platform Messages', platform: 'wechat', type: 'private' },
+    members: [{ platformId: 'wxid_alice', accountName: 'Alice' }],
+    messages: [
+      {
+        platformMessageId: 'msg-1',
+        sender: 'wxid_alice',
+        accountName: 'Alice',
+        timestamp: 1780330832,
+        type: 0,
+        content: 'same content',
+      },
+    ],
+  }
+
+  const initialOutcome = await pushImport(manager, 'distinct-platform-messages', initialPayload)
+  assert.equal(initialOutcome.ok, true)
+
+  const outcome = await pushImport(manager, 'distinct-platform-messages', {
+    messages: [
+      {
+        platformMessageId: 'msg-2',
+        sender: 'wxid_alice',
+        accountName: 'Alice',
+        timestamp: 1780330832,
+        type: 0,
+        content: 'same content',
+      },
+    ],
+  })
+
+  assert.equal(outcome.ok, true)
+  if (!outcome.ok) return
+  assert.deepEqual(outcome.result.batch, {
+    receivedCount: 1,
+    writtenCount: 1,
+    duplicateCount: 0,
+  })
+
+  const db = manager.openRawSessionDatabase('distinct-platform-messages', { readonly: true })
+  try {
+    const row = db.prepare('SELECT COUNT(*) as count FROM message').get() as { count: number }
+    assert.equal(row.count, 2)
+  } finally {
+    db.close()
+  }
+})
+
+test('creates push-import databases only inside the canonical databases directory', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const manager = createDatabaseManager(tempDir)
+  const outcome = await pushImport(manager, 'canonical-path', {
+    chatlab: { version: '0.0.2', exportedAt: 1780330900 },
+    meta: { name: 'Canonical Path', platform: 'wechat', type: 'private' },
+    messages: [{ sender: 'wxid_alice', timestamp: 1780330832, type: 0, content: 'hello' }],
+  })
+
+  assert.equal(outcome.ok, true)
+  assert.equal(fs.existsSync(path.join(tempDir, 'databases', 'canonical-path.db')), true)
+  assert.equal(fs.existsSync(path.join(tempDir, 'canonical-path.db')), false)
 })
 
 test('rejects non-array messages before applying incremental metadata updates', async (t) => {

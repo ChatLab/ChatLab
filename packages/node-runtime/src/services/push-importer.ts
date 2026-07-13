@@ -2,22 +2,25 @@
  * Push import service — handles POST /api/v1/imports/:sessionId
  *
  * Accepts a ChatLab Format JSON payload, creates or appends to a session.
- * Dedup: platformMessageId (preferred) or content hash (fallback).
+ * Dedup: platformMessageId (preferred) or deterministic fallback key.
  */
 
 import * as fs from 'fs'
 import { DataDirCompatibilityError } from '../data-dir-compat'
-import {
-  CHAT_DB_SCHEMA,
-  generateMessageKey,
-  generateSessionIndex,
-  generateIncrementalSessionIndex,
-} from '@openchatlab/core'
+import { CHAT_DB_SCHEMA, generateSessionIndex, generateIncrementalSessionIndex } from '@openchatlab/core'
 import type { DatabaseAdapter } from '@openchatlab/core'
 import type { DatabaseManager } from '../database-manager'
 import { buildFtsIndex, insertFtsEntries } from '../fts'
 import { writeParseResultToDb } from '../import'
 import { ImportInProgressError, withDataDirImportLock } from '../import/import-lock'
+import {
+  createMessageDedupState,
+  generateFallbackMessageKey,
+  registerMessageAndCheckDuplicate,
+  type MessageDedupState,
+} from '../import/message-deduplicator'
+import { appLogger } from '../logging/app-logger'
+import { isValidImportSessionId } from '../import/session-id'
 
 const SYSTEM_SENDER_ID = 'SYSTEM'
 const SYSTEM_MEMBER_NAME = '系统消息'
@@ -72,6 +75,12 @@ export interface PushImportResult {
 export type PushImportOutcome =
   | { ok: true; result: PushImportResult }
   | { ok: false; reason: 'import_in_progress' | 'invalid_payload' | 'import_failed'; message: string }
+
+export interface PushImportExecutionDeps {
+  getDbPath(sessionId: string): string
+  openDatabase(sessionId: string, options: { readonly?: boolean; create?: boolean }): DatabaseAdapter
+  deleteDatabase(sessionId: string): void
+}
 
 function validatePayload(payload: PushImportPayload, isNew: boolean): string | null {
   const messages = payload.messages
@@ -142,8 +151,7 @@ function normalizeSenderGroupNickname(sender: string, groupNickname: string | un
 function writeMessages(
   db: DatabaseAdapter,
   messages: PushImportMessage[],
-  existingPmids: Set<string>,
-  existingKeys: Set<string>
+  dedupState: MessageDedupState
 ): {
   writtenCount: number
   duplicateCount: number
@@ -167,26 +175,21 @@ function writeMessages(
 
   db.transaction(() => {
     for (const msg of sorted) {
-      const key = generateMessageKey(msg.timestamp, msg.sender, msg.content ?? null)
-      if (msg.platformMessageId) {
-        if (existingPmids.has(msg.platformMessageId)) {
-          duplicateCount++
-          continue
-        }
-        if (existingKeys.has(key)) {
-          duplicateCount++
-          continue
-        }
-        existingPmids.add(msg.platformMessageId)
-        // Also register the content hash so a same-content no-pmid copy later
-        // in this batch is caught by the fallback dedup path.
-        existingKeys.add(key)
-      } else {
-        if (existingKeys.has(key)) {
-          duplicateCount++
-          continue
-        }
-        existingKeys.add(key)
+      if (
+        registerMessageAndCheckDuplicate(
+          {
+            platformMessageId: msg.platformMessageId,
+            timestamp: msg.timestamp,
+            senderPlatformId: msg.sender,
+            type: msg.type,
+            content: msg.content ?? null,
+            replyToMessageId: msg.replyToMessageId,
+          },
+          dedupState
+        )
+      ) {
+        duplicateCount++
+        continue
       }
 
       let memberId = memberIdCache.get(msg.sender)
@@ -244,29 +247,25 @@ function fullImport(
   const allMembers = extraMembers.length > 0 ? [...members, ...extraMembers] : members
 
   // Deduplicate within the batch using the same pmid/hash logic as incremental imports.
-  const pmids = new Set<string>()
-  const hashKeys = new Set<string>()
+  const dedupState = createMessageDedupState()
   let duplicateCount = 0
   const dedupedMessages: PushImportMessage[] = []
   for (const msg of messages) {
-    const key = generateMessageKey(msg.timestamp, msg.sender, msg.content ?? null)
-    if (msg.platformMessageId) {
-      if (pmids.has(msg.platformMessageId)) {
-        duplicateCount++
-        continue
-      }
-      if (hashKeys.has(key)) {
-        duplicateCount++
-        continue
-      }
-      pmids.add(msg.platformMessageId)
-      hashKeys.add(key)
-    } else {
-      if (hashKeys.has(key)) {
-        duplicateCount++
-        continue
-      }
-      hashKeys.add(key)
+    if (
+      registerMessageAndCheckDuplicate(
+        {
+          platformMessageId: msg.platformMessageId,
+          timestamp: msg.timestamp,
+          senderPlatformId: msg.sender,
+          type: msg.type,
+          content: msg.content ?? null,
+          replyToMessageId: msg.replyToMessageId,
+        },
+        dedupState
+      )
+    ) {
+      duplicateCount++
+      continue
     }
     dedupedMessages.push(msg)
   }
@@ -320,19 +319,34 @@ function incrementalImport(
   // Load dedup keys
   const existingPmids = new Set<string>()
   const existingKeys = new Set<string>()
-  ;(
-    db.prepare('SELECT platform_message_id FROM message WHERE platform_message_id IS NOT NULL').all() as Array<{
-      platform_message_id: string
-    }>
-  ).forEach((r) => existingPmids.add(r.platform_message_id))
-  // Load hashes for ALL existing messages (not just those without pmid) so that
-  // messages previously imported with a platformMessageId are still caught by
-  // content-hash dedup when the same content arrives without one.
-  ;(
-    db
-      .prepare(`SELECT msg.ts, m.platform_id, msg.content FROM message msg JOIN member m ON msg.sender_id = m.id`)
-      .all() as Array<{ ts: number; platform_id: string; content: string | null }>
-  ).forEach((r) => existingKeys.add(generateMessageKey(r.ts, r.platform_id, r.content)))
+  const existingFallbackOnlyKeys = new Set<string>()
+  const existingMessages = db
+    .prepare(
+      `SELECT msg.ts, m.platform_id, msg.type, msg.content, msg.reply_to_message_id, msg.platform_message_id
+       FROM message msg
+       JOIN member m ON msg.sender_id = m.id`
+    )
+    .all() as Array<{
+    ts: number
+    platform_id: string
+    type: number
+    content: string | null
+    reply_to_message_id: string | null
+    platform_message_id: string | null
+  }>
+  for (const message of existingMessages) {
+    if (message.platform_message_id) existingPmids.add(message.platform_message_id)
+    const key = generateFallbackMessageKey({
+      timestamp: message.ts,
+      senderPlatformId: message.platform_id,
+      type: message.type,
+      content: message.content,
+      replyToMessageId: message.reply_to_message_id ?? undefined,
+    })
+    existingKeys.add(key)
+    if (!message.platform_message_id) existingFallbackOnlyKeys.add(key)
+  }
+  const dedupState = createMessageDedupState(existingPmids, existingKeys, existingFallbackOnlyKeys)
 
   let metaUpdated = false
   let membersAdded = 0
@@ -387,12 +401,7 @@ function incrementalImport(
   const preWriteMaxTs =
     (db.prepare('SELECT MAX(ts) as max_ts FROM message').get() as { max_ts: number | null })?.max_ts ?? 0
 
-  const { writtenCount, duplicateCount, minWrittenTs, ftsEntries } = writeMessages(
-    db,
-    payload.messages!,
-    existingPmids,
-    existingKeys
-  )
+  const { writtenCount, duplicateCount, minWrittenTs, ftsEntries } = writeMessages(db, payload.messages!, dedupState)
 
   if (ftsEntries.length > 0) {
     try {
@@ -423,23 +432,34 @@ function incrementalImport(
   return { writtenCount, duplicateCount, metaUpdated, membersAdded, membersUpdated }
 }
 
-// Only allow characters that are safe as a bare filename component.
-// Rejects path separators (/ \), dots-only sequences (..), and control chars.
-const SAFE_SESSION_ID_RE = /^[a-zA-Z0-9_@-][a-zA-Z0-9_@.-]*$/
-
 export async function pushImport(
   dbManager: DatabaseManager,
   sessionId: string,
   payload: PushImportPayload
 ): Promise<PushImportOutcome> {
-  if (!SAFE_SESSION_ID_RE.test(sessionId) || sessionId.includes('..')) {
-    return { ok: false, reason: 'invalid_payload', message: 'sessionId contains invalid characters' }
-  }
-
   try {
-    return await withDataDirImportLock(dbManager.getUserDataDir(), () =>
-      pushImportUnlocked(dbManager, sessionId, payload)
-    )
+    return await withDataDirImportLock(dbManager.getUserDataDir(), async () => {
+      const outcome = await executePushImportUnlocked(
+        {
+          getDbPath: (id) => dbManager.getDbPath(id),
+          openDatabase: (id, options) => dbManager.openRawSessionDatabase(id, options),
+          deleteDatabase: (id) => {
+            dbManager.deleteSessionDatabaseFiles(id)
+          },
+        },
+        sessionId,
+        payload
+      )
+      if (!outcome.ok) return outcome
+
+      try {
+        dbManager.raiseCurrentChatDbCompatibilityGate()
+      } catch (error) {
+        if (outcome.result.created) dbManager.deleteSessionDatabaseFiles(sessionId)
+        throw error
+      }
+      return outcome
+    })
   } catch (error) {
     if (error instanceof ImportInProgressError) {
       return {
@@ -452,12 +472,20 @@ export async function pushImport(
   }
 }
 
-async function pushImportUnlocked(
-  dbManager: DatabaseManager,
+/**
+ * 执行已加锁的 Push Import 写库流程。调用方必须负责数据目录导入锁和兼容门禁，
+ * 这样 CLI/Internal 可使用 DatabaseManager，Desktop 则可安全地在 worker 中执行写库。
+ */
+export async function executePushImportUnlocked(
+  deps: PushImportExecutionDeps,
   sessionId: string,
   payload: PushImportPayload
 ): Promise<PushImportOutcome> {
-  const dbPath = dbManager.getDbPath(sessionId)
+  if (!isValidImportSessionId(sessionId)) {
+    return { ok: false, reason: 'invalid_payload', message: 'sessionId contains invalid characters' }
+  }
+
+  const dbPath = deps.getDbPath(sessionId)
   const isNew = !fs.existsSync(dbPath)
 
   const validationError = validatePayload(payload, isNew)
@@ -467,7 +495,7 @@ async function pushImportUnlocked(
 
   try {
     if (isNew) {
-      const db = dbManager.openRawSessionDatabase(sessionId, { create: true })
+      const db = deps.openDatabase(sessionId, { create: true })
       try {
         const { writtenCount, duplicateCount, membersAdded } = fullImport(
           db,
@@ -476,8 +504,7 @@ async function pushImportUnlocked(
           payload.messages!
         )
         const session = queryStats(db)
-        dbManager.raiseCurrentChatDbCompatibilityGate()
-        return {
+        const outcome: PushImportOutcome = {
           ok: true,
           result: {
             sessionId,
@@ -487,17 +514,18 @@ async function pushImportUnlocked(
             updates: { metaUpdated: true, membersAdded, membersUpdated: 0 },
           },
         }
+        appLogger.info('push-import', 'Push import completed', outcome.result)
+        return outcome
       } finally {
         db.close()
       }
     }
 
-    const db = dbManager.openRawSessionDatabase(sessionId, { readonly: false })
+    const db = deps.openDatabase(sessionId, { readonly: false })
     try {
       const { writtenCount, duplicateCount, metaUpdated, membersAdded, membersUpdated } = incrementalImport(db, payload)
       const session = queryStats(db)
-      dbManager.raiseCurrentChatDbCompatibilityGate()
-      return {
+      const outcome: PushImportOutcome = {
         ok: true,
         result: {
           sessionId,
@@ -507,6 +535,8 @@ async function pushImportUnlocked(
           updates: { metaUpdated, membersAdded, membersUpdated },
         },
       }
+      appLogger.info('push-import', 'Push import completed', outcome.result)
+      return outcome
     } finally {
       db.close()
     }
@@ -517,11 +547,12 @@ async function pushImportUnlocked(
 
     if (isNew) {
       try {
-        dbManager.deleteSessionDatabaseFiles(sessionId)
+        deps.deleteDatabase(sessionId)
       } catch {
         /* cleanup best-effort */
       }
     }
+    appLogger.error('push-import', 'Push import failed', err)
     return { ok: false, reason: 'import_failed', message: err instanceof Error ? err.message : String(err) }
   }
 }

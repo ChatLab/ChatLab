@@ -21,6 +21,7 @@ describe('worker timeout policy', () => {
     assert.equal(isRestartableReadOnlyRequestType('deleteMember'), false)
     assert.equal(isRestartableReadOnlyRequestType('streamImport'), false)
     assert.equal(isRestartableReadOnlyRequestType('autoImport'), false)
+    assert.equal(isRestartableReadOnlyRequestType('pushImport'), false)
     assert.equal(isRestartableReadOnlyRequestType('incrementalImport'), false)
     assert.equal(isRestartableReadOnlyRequestType('exportFilterResultToFile'), false)
     assert.equal(isRestartableReadOnlyRequestType('unknownFutureWorkerRequest'), false)

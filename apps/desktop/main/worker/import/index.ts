@@ -24,6 +24,8 @@ export {
   type IncrementalImportResult,
 } from './incrementalImport'
 
+export { pushImport } from './pushImport'
+
 // 工具函数（供其他模块使用）
 export { sendProgress, generateSessionId, getDbPath, createDatabaseWithoutIndexes, createIndexes } from './utils'
 

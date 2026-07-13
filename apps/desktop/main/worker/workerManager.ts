@@ -21,6 +21,7 @@ import {
   raiseChatDbCompatibilityGate,
   withDataDirImportLock,
 } from '@openchatlab/node-runtime'
+import type { PushImportOutcome, PushImportPayload } from '@openchatlab/node-runtime'
 import { isRestartableReadOnlyRequestType } from './workerTimeoutPolicy'
 
 interface WorkerRequestOptions {
@@ -610,6 +611,40 @@ export async function autoImport(
   } catch (error) {
     if (error instanceof ImportInProgressError) {
       return { success: false, error: IMPORT_IN_PROGRESS_ERROR_KEY }
+    }
+    throw error
+  }
+}
+
+/**
+ * 在 worker 中执行共享 Push Import 写库语义；主进程持有全局导入锁，
+ * 并在 worker 成功后完成数据目录兼容门禁更新。
+ */
+export async function pushImport(sessionId: string, payload: PushImportPayload): Promise<PushImportOutcome> {
+  try {
+    return await withDataDirImportLock(getPathProvider().getUserDataDir(), async () => {
+      assertDataDirCompatibleNow()
+      const outcome = await sendToWorker<PushImportOutcome>('pushImport', { sessionId, payload })
+      if (!outcome.ok) return outcome
+
+      try {
+        raiseChatDbCompatibilityGate(getPathProvider(), {
+          version: getDesktopAppVersion(app.getVersion()),
+          kind: 'desktop',
+        })
+      } catch (error) {
+        if (outcome.result.created) deleteImportedSessionFiles(sessionId)
+        throw error
+      }
+      return outcome
+    })
+  } catch (error) {
+    if (error instanceof ImportInProgressError) {
+      return {
+        ok: false,
+        reason: 'import_in_progress',
+        message: 'Another import is already in progress',
+      }
     }
     throw error
   }

@@ -81,6 +81,7 @@ import {
   analyzeIncrementalImport,
   incrementalImport,
   analyzeNewImport,
+  pushImport,
 } from './import'
 import { initNlpDir } from '@openchatlab/node-runtime'
 
@@ -248,6 +249,7 @@ const asyncHandlers: Record<string, (payload: any, requestId: string) => Promise
   // 流式导入
   streamImport: (p, id) => streamImport(p.filePath, id, p.formatOptions, p.externalSessionId),
   autoImport: (p, id) => autoImport(p.filePath, id, p.formatOptions, p.explicitSessionId),
+  pushImport: (p) => pushImport(p.sessionId, p.payload),
   // 流式解析文件信息（用于合并预览）
   streamParseFileInfo: (p, id) => streamParseFileInfo(p.filePath, id),
   // 增量导入
