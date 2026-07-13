@@ -82,19 +82,48 @@ export interface PushImportExecutionDeps {
   deleteDatabase(sessionId: string): void
 }
 
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}
+
+function validateOptionalString(value: unknown, field: string): string | null {
+  return value !== undefined && typeof value !== 'string' ? `${field} must be a string` : null
+}
+
 function validatePayload(payload: PushImportPayload, isNew: boolean): string | null {
+  if (!isRecord(payload)) return 'payload must be an object'
+
   const messages = payload.messages
   if (!Array.isArray(messages) || messages.length === 0) return 'messages is required and must be a non-empty array'
+
+  if (payload.chatlab !== undefined) {
+    if (!isRecord(payload.chatlab)) return 'chatlab must be an object'
+    if (typeof payload.chatlab.version !== 'string' || payload.chatlab.version.length === 0)
+      return 'chatlab.version must be a string'
+    if (typeof payload.chatlab.exportedAt !== 'number' || !Number.isFinite(payload.chatlab.exportedAt))
+      return 'chatlab.exportedAt must be a number'
+    const generatorError = validateOptionalString(payload.chatlab.generator, 'chatlab.generator')
+    if (generatorError) return generatorError
+  }
 
   if (isNew) {
     if (!payload.chatlab) return 'chatlab is required for new sessions'
     if (!payload.meta) return 'meta is required for new sessions'
-    const m = payload.meta
-    if (!m.name) return 'meta.name is required'
-    if (!m.platform) return 'meta.platform is required'
-    if (!m.type) return 'meta.type is required'
   }
 
+  if (payload.meta !== undefined) {
+    if (!isRecord(payload.meta)) return 'meta must be an object'
+    const metaFields = ['name', 'platform', 'type', 'groupId', 'groupAvatar', 'ownerId'] as const
+    for (const field of metaFields) {
+      const error = validateOptionalString(payload.meta[field], `meta.${field}`)
+      if (error) return error
+    }
+    if (isNew && !payload.meta.name) return 'meta.name is required'
+    if (isNew && !payload.meta.platform) return 'meta.platform is required'
+    if (isNew && !payload.meta.type) return 'meta.type is required'
+  }
+
+  if (payload.options !== undefined && !isRecord(payload.options)) return 'options must be an object'
   const { metaUpdateMode, memberUpdateMode } = payload.options ?? {}
   if (metaUpdateMode !== undefined && metaUpdateMode !== 'patch' && metaUpdateMode !== 'none') {
     return `options.metaUpdateMode must be 'patch' or 'none'`
@@ -106,17 +135,36 @@ function validatePayload(payload: PushImportPayload, isNew: boolean): string | n
   if (payload.members !== undefined && !Array.isArray(payload.members)) return 'members must be an array'
   if (payload.members) {
     for (let i = 0; i < payload.members.length; i++) {
-      if (typeof payload.members[i].platformId !== 'string' || payload.members[i].platformId.length === 0)
+      const member = payload.members[i]
+      if (!isRecord(member)) return `members[${i}] must be an object`
+      if (typeof member.platformId !== 'string' || member.platformId.length === 0)
         return `members[${i}].platformId must be a string`
+      for (const field of ['accountName', 'groupNickname', 'avatar'] as const) {
+        const error = validateOptionalString(member[field], `members[${i}].${field}`)
+        if (error) return error
+      }
+      if (member.roles !== undefined) {
+        if (!Array.isArray(member.roles)) return `members[${i}].roles must be an array`
+        for (let j = 0; j < member.roles.length; j++) {
+          const role = member.roles[j]
+          if (!isRecord(role) || typeof role.id !== 'string' || role.id.length === 0)
+            return `members[${i}].roles[${j}].id must be a string`
+        }
+      }
     }
   }
 
   for (let i = 0; i < messages.length; i++) {
     const msg = messages[i]
+    if (!isRecord(msg)) return `messages[${i}] must be an object`
     if (typeof msg.sender !== 'string' || msg.sender.length === 0) return `messages[${i}].sender must be a string`
-    if (typeof msg.timestamp !== 'number' || msg.timestamp <= 0)
+    if (typeof msg.timestamp !== 'number' || !Number.isFinite(msg.timestamp) || msg.timestamp <= 0)
       return `messages[${i}].timestamp must be a positive number`
-    if (typeof msg.type !== 'number') return `messages[${i}].type must be a number`
+    if (typeof msg.type !== 'number' || !Number.isFinite(msg.type)) return `messages[${i}].type must be a number`
+    for (const field of ['accountName', 'groupNickname'] as const) {
+      const error = validateOptionalString(msg[field], `messages[${i}].${field}`)
+      if (error) return error
+    }
     if (msg.content !== undefined && msg.content !== null && typeof msg.content !== 'string')
       return `messages[${i}].content must be a string or null`
     if (msg.platformMessageId !== undefined && typeof msg.platformMessageId !== 'string')
@@ -148,6 +196,10 @@ function normalizeSenderGroupNickname(sender: string, groupNickname: string | un
   return sender === SYSTEM_SENDER_ID ? SYSTEM_MEMBER_NAME : groupNickname
 }
 
+function isCountedMember(platformId: string): boolean {
+  return platformId !== SYSTEM_SENDER_ID
+}
+
 function writeMessages(
   db: DatabaseAdapter,
   messages: PushImportMessage[],
@@ -155,6 +207,7 @@ function writeMessages(
 ): {
   writtenCount: number
   duplicateCount: number
+  membersAdded: number
   minWrittenTs: number
   ftsEntries: Array<{ id: number; content: string | null }>
 } {
@@ -163,11 +216,14 @@ function writeMessages(
      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   )
   const getMemberId = db.prepare('SELECT id FROM member WHERE platform_id = ?')
-  const insertMinimalMember = db.prepare('INSERT OR IGNORE INTO member (platform_id, account_name) VALUES (?, ?)')
+  const insertMinimalMember = db.prepare(
+    'INSERT OR IGNORE INTO member (platform_id, account_name, group_nickname) VALUES (?, ?, ?)'
+  )
 
   const memberIdCache = new Map<string, number>()
   let writtenCount = 0
   let duplicateCount = 0
+  let membersAdded = 0
   let minWrittenTs = Infinity
   const ftsEntries: Array<{ id: number; content: string | null }> = []
 
@@ -194,11 +250,16 @@ function writeMessages(
 
       let memberId = memberIdCache.get(msg.sender)
       if (!memberId) {
-        insertMinimalMember.run(msg.sender, normalizeSenderAccountName(msg.sender, msg.accountName) || null)
+        const insertResult = insertMinimalMember.run(
+          msg.sender,
+          normalizeSenderAccountName(msg.sender, msg.accountName) || null,
+          normalizeSenderGroupNickname(msg.sender, msg.groupNickname) || null
+        )
         const row = getMemberId.get(msg.sender) as { id: number } | undefined
         if (row) {
           memberId = row.id
           memberIdCache.set(msg.sender, memberId)
+          if (isCountedMember(msg.sender)) membersAdded += insertResult.changes
         }
       }
       if (!memberId) continue
@@ -219,7 +280,7 @@ function writeMessages(
     }
   })
 
-  return { writtenCount, duplicateCount, minWrittenTs, ftsEntries }
+  return { writtenCount, duplicateCount, membersAdded, minWrittenTs, ftsEntries }
 }
 
 function fullImport(
@@ -227,7 +288,7 @@ function fullImport(
   meta: PushImportMeta,
   members: PushImportMember[],
   messages: PushImportMessage[]
-): { writtenCount: number; duplicateCount: number; membersAdded: number } {
+): { writtenCount: number; duplicateCount: number } {
   db.exec(CHAT_DB_SCHEMA)
 
   // Auto-create minimal member entries for senders not listed in members,
@@ -300,19 +361,18 @@ function fullImport(
     /* non-fatal */
   }
 
-  return { writtenCount: stats.messageCount, duplicateCount, membersAdded: members.length }
+  return { writtenCount: stats.messageCount, duplicateCount }
 }
 
-function incrementalImport(
-  db: DatabaseAdapter,
-  payload: PushImportPayload
-): {
+interface IncrementalImportStats {
   writtenCount: number
   duplicateCount: number
   metaUpdated: boolean
   membersAdded: number
   membersUpdated: number
-} {
+}
+
+function writeIncrementalImport(db: DatabaseAdapter, payload: PushImportPayload): IncrementalImportStats {
   const metaUpdateMode = payload.options?.metaUpdateMode ?? 'patch'
   const memberUpdateMode = payload.options?.memberUpdateMode ?? 'upsert'
 
@@ -387,10 +447,10 @@ function incrementalImport(
           m.roles ? JSON.stringify(m.roles) : '[]'
         )
         if (!existed) {
-          membersAdded++
+          if (isCountedMember(m.platformId)) membersAdded++
           const row = getMemberId.get(m.platformId) as { id: number } | undefined
           if (row) existingMemberIds.add(m.platformId)
-        } else {
+        } else if (isCountedMember(m.platformId)) {
           membersUpdated++
         }
       }
@@ -401,7 +461,13 @@ function incrementalImport(
   const preWriteMaxTs =
     (db.prepare('SELECT MAX(ts) as max_ts FROM message').get() as { max_ts: number | null })?.max_ts ?? 0
 
-  const { writtenCount, duplicateCount, minWrittenTs, ftsEntries } = writeMessages(db, payload.messages!, dedupState)
+  const {
+    writtenCount,
+    duplicateCount,
+    membersAdded: autoCreatedMembersAdded,
+    minWrittenTs,
+    ftsEntries,
+  } = writeMessages(db, payload.messages!, dedupState)
 
   if (ftsEntries.length > 0) {
     try {
@@ -429,7 +495,17 @@ function incrementalImport(
     db.prepare('UPDATE meta SET imported_at = ?').run(Math.floor(Date.now() / 1000))
   }
 
-  return { writtenCount, duplicateCount, metaUpdated, membersAdded, membersUpdated }
+  return {
+    writtenCount,
+    duplicateCount,
+    metaUpdated,
+    membersAdded: membersAdded + autoCreatedMembersAdded,
+    membersUpdated,
+  }
+}
+
+function incrementalImport(db: DatabaseAdapter, payload: PushImportPayload): IncrementalImportStats {
+  return db.transaction(() => writeIncrementalImport(db, payload))
 }
 
 export async function pushImport(
@@ -497,13 +573,11 @@ export async function executePushImportUnlocked(
     if (isNew) {
       const db = deps.openDatabase(sessionId, { create: true })
       try {
-        const { writtenCount, duplicateCount, membersAdded } = fullImport(
-          db,
-          payload.meta!,
-          payload.members ?? [],
-          payload.messages!
-        )
+        const { writtenCount, duplicateCount } = fullImport(db, payload.meta!, payload.members ?? [], payload.messages!)
         const session = queryStats(db)
+        // Every non-system member in a new database was inserted by this request,
+        // including senders that were omitted from the submitted members array.
+        const membersAdded = session.memberCount
         const outcome: PushImportOutcome = {
           ok: true,
           result: {

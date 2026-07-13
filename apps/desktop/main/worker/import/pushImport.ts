@@ -1,19 +1,39 @@
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { BetterSqliteAdapter } from '@openchatlab/node-runtime/src/better-sqlite3-adapter'
+import { computeAndSetOverviewCache, deleteSessionCache } from '@openchatlab/node-runtime/src/cache/session-cache'
 import {
   executePushImportUnlocked,
   type PushImportOutcome,
   type PushImportPayload,
 } from '@openchatlab/node-runtime/src/services/push-importer'
-import { closeDatabase, getDbDir, openRawDatabase } from '../core/dbCore'
+import { closeDatabase, getCacheDir, getDbDir, openRawDatabase } from '../core/dbCore'
 
 function getDbPath(sessionId: string): string {
   return path.join(getDbDir(), `${sessionId}.db`)
 }
 
+function refreshImportCaches(sessionId: string): void {
+  const cacheDir = getCacheDir()
+  try {
+    const rawDb = openRawDatabase(getDbPath(sessionId))
+    try {
+      computeAndSetOverviewCache(new BetterSqliteAdapter(rawDb), sessionId, cacheDir)
+    } finally {
+      rawDb.close()
+    }
+  } catch (error) {
+    // Cache refresh is best-effort and must not turn a successful import into a failure.
+    console.warn('[Worker] pushImport: failed to refresh overview cache', error)
+  }
+
+  if (cacheDir) {
+    deleteSessionCache(sessionId, path.join(cacheDir, 'query'))
+  }
+}
+
 export async function pushImport(sessionId: string, payload: PushImportPayload): Promise<PushImportOutcome> {
-  return executePushImportUnlocked(
+  const outcome = await executePushImportUnlocked(
     {
       getDbPath,
       openDatabase(id, options) {
@@ -40,4 +60,7 @@ export async function pushImport(sessionId: string, payload: PushImportPayload):
     sessionId,
     payload
   )
+
+  if (outcome.ok) refreshImportCaches(sessionId)
+  return outcome
 }

@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { isRestartableReadOnlyRequestType } from './workerTimeoutPolicy'
+import { getWorkerRequestTimeoutMs, isRestartableReadOnlyRequestType } from './workerTimeoutPolicy'
 
 describe('worker timeout policy', () => {
   it('allows timed-out read-only AI/debug requests to restart the worker', () => {
@@ -25,5 +25,10 @@ describe('worker timeout policy', () => {
     assert.equal(isRestartableReadOnlyRequestType('incrementalImport'), false)
     assert.equal(isRestartableReadOnlyRequestType('exportFilterResultToFile'), false)
     assert.equal(isRestartableReadOnlyRequestType('unknownFutureWorkerRequest'), false)
+  })
+
+  it('gives push imports the long-running worker timeout', () => {
+    assert.equal(getWorkerRequestTimeoutMs('pushImport'), 10 * 60 * 1000)
+    assert.equal(getWorkerRequestTimeoutMs('getSession'), 60 * 1000)
   })
 })

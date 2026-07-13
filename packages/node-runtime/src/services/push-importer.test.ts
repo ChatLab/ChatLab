@@ -222,6 +222,40 @@ test('deduplicates initial push batch when a no-platform-id message is repeated 
   }
 })
 
+test('counts explicit and auto-created members in initial push import results', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const manager = createDatabaseManager(tempDir)
+  const outcome = await pushImport(manager, 'initial-auto-member-count', {
+    chatlab: { version: '0.0.2', exportedAt: 1780330900 },
+    meta: { name: 'Initial Auto Member Count', platform: 'wechat', type: 'group' },
+    members: [{ platformId: 'wxid_alice', accountName: 'Alice' }],
+    messages: [
+      { sender: 'wxid_alice', timestamp: 1780330832, type: 0, content: 'hello' },
+      { sender: 'wxid_bob', accountName: 'Bob', timestamp: 1780330833, type: 0, content: 'hi' },
+      { sender: 'SYSTEM', timestamp: 1780330834, type: 80, content: 'Bob joined the group' },
+    ],
+  })
+
+  assert.equal(outcome.ok, true)
+  if (!outcome.ok) return
+  assert.equal(outcome.result.session.memberCount, 2)
+  assert.deepEqual(outcome.result.updates, {
+    metaUpdated: true,
+    membersAdded: 2,
+    membersUpdated: 0,
+  })
+
+  const db = manager.openRawSessionDatabase('initial-auto-member-count', { readonly: true })
+  try {
+    const row = db.prepare('SELECT COUNT(*) as count FROM member').get() as { count: number }
+    assert.equal(row.count, 3)
+  } finally {
+    db.close()
+  }
+})
+
 test('deduplicates incremental push when a later platform-id message matches an existing content hash', async (t) => {
   const tempDir = makeTempDir()
   t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
@@ -325,6 +359,55 @@ test('keeps distinct platform messages even when timestamp, sender and content m
   try {
     const row = db.prepare('SELECT COUNT(*) as count FROM message').get() as { count: number }
     assert.equal(row.count, 2)
+  } finally {
+    db.close()
+  }
+})
+
+test('preserves metadata and counts senders auto-created by incremental push imports', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const manager = createDatabaseManager(tempDir)
+  const initialOutcome = await pushImport(manager, 'incremental-auto-member', {
+    chatlab: { version: '0.0.2', exportedAt: 1780330900 },
+    meta: { name: 'Incremental Auto Member', platform: 'wechat', type: 'group' },
+    members: [{ platformId: 'wxid_alice', accountName: 'Alice' }],
+    messages: [{ sender: 'wxid_alice', timestamp: 1780330832, type: 0, content: 'hello' }],
+  })
+  assert.equal(initialOutcome.ok, true)
+
+  const outcome = await pushImport(manager, 'incremental-auto-member', {
+    messages: [
+      {
+        sender: 'wxid_bob',
+        accountName: 'Bob',
+        groupNickname: 'Product',
+        timestamp: 1780330833,
+        type: 0,
+        content: 'hi',
+      },
+    ],
+  })
+
+  assert.equal(outcome.ok, true)
+  if (!outcome.ok) return
+  assert.deepEqual(outcome.result.updates, {
+    metaUpdated: false,
+    membersAdded: 1,
+    membersUpdated: 0,
+  })
+
+  const db = manager.openRawSessionDatabase('incremental-auto-member', { readonly: true })
+  try {
+    const member = db
+      .prepare('SELECT platform_id, account_name, group_nickname FROM member WHERE platform_id = ?')
+      .get('wxid_bob') as { platform_id: string; account_name: string; group_nickname: string }
+    assert.deepEqual(member, {
+      platform_id: 'wxid_bob',
+      account_name: 'Bob',
+      group_nickname: 'Product',
+    })
   } finally {
     db.close()
   }
@@ -587,6 +670,144 @@ test('rejects non-string reply targets before applying incremental metadata upda
   }
 })
 
+test('rejects malformed message metadata without partially applying incremental updates', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const manager = createDatabaseManager(tempDir)
+  const initialOutcome = await pushImport(manager, 'invalid-message-metadata', {
+    chatlab: { version: '0.0.2', exportedAt: 1780330900 },
+    meta: { name: 'Original Session', platform: 'wechat', type: 'private' },
+    members: [{ platformId: 'wxid_alice', accountName: 'Alice', groupNickname: 'Original Member' }],
+    messages: [
+      {
+        sender: 'wxid_alice',
+        accountName: 'Alice',
+        timestamp: 1780330832,
+        type: 0,
+        content: 'hello',
+      },
+    ],
+  })
+  assert.equal(initialOutcome.ok, true)
+
+  const malformedPayload = {
+    meta: { name: 'Renamed Session', platform: 'wechat', type: 'private' },
+    members: [{ platformId: 'wxid_alice', groupNickname: 'Updated Member' }],
+    messages: [
+      {
+        sender: 'wxid_alice',
+        accountName: { invalid: true },
+        timestamp: 1780330833,
+        type: 0,
+        content: 'should fail',
+      },
+    ],
+  } as unknown as PushImportPayload
+
+  const outcome = await pushImport(manager, 'invalid-message-metadata', malformedPayload)
+  const db = manager.openRawSessionDatabase('invalid-message-metadata', { readonly: true })
+  try {
+    const meta = db.prepare('SELECT name FROM meta').get() as { name: string }
+    const member = db.prepare('SELECT group_nickname FROM member WHERE platform_id = ?').get('wxid_alice') as {
+      group_nickname: string
+    }
+    const messages = db.prepare('SELECT COUNT(*) AS count FROM message').get() as { count: number }
+
+    assert.deepEqual(
+      {
+        reason: outcome.ok ? 'ok' : outcome.reason,
+        metaName: meta.name,
+        memberName: member.group_nickname,
+        messageCount: messages.count,
+      },
+      {
+        reason: 'invalid_payload',
+        metaName: 'Original Session',
+        memberName: 'Original Member',
+        messageCount: 1,
+      }
+    )
+  } finally {
+    db.close()
+  }
+})
+
+test('rolls back metadata and member updates when incremental message writes fail', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const manager = createDatabaseManager(tempDir)
+  const initialOutcome = await pushImport(manager, 'atomic-message-write', {
+    chatlab: { version: '0.0.2', exportedAt: 1780330900 },
+    meta: { name: 'Original Session', platform: 'wechat', type: 'private' },
+    members: [{ platformId: 'wxid_alice', accountName: 'Alice', groupNickname: 'Original Member' }],
+    messages: [
+      {
+        sender: 'wxid_alice',
+        accountName: 'Alice',
+        timestamp: 1780330832,
+        type: 0,
+        content: 'hello',
+      },
+    ],
+  })
+  assert.equal(initialOutcome.ok, true)
+
+  const writableDb = manager.openRawSessionDatabase('atomic-message-write', { readonly: false })
+  try {
+    writableDb.exec(`
+      CREATE TRIGGER fail_incremental_message_insert
+      BEFORE INSERT ON message
+      BEGIN
+        SELECT RAISE(ABORT, 'forced message write failure');
+      END
+    `)
+  } finally {
+    writableDb.close()
+  }
+
+  const outcome = await pushImport(manager, 'atomic-message-write', {
+    meta: { name: 'Renamed Session', platform: 'wechat', type: 'private' },
+    members: [{ platformId: 'wxid_alice', groupNickname: 'Updated Member' }],
+    messages: [
+      {
+        sender: 'wxid_alice',
+        accountName: 'Alice',
+        timestamp: 1780330833,
+        type: 0,
+        content: 'should fail',
+      },
+    ],
+  })
+
+  const db = manager.openRawSessionDatabase('atomic-message-write', { readonly: true })
+  try {
+    const meta = db.prepare('SELECT name FROM meta').get() as { name: string }
+    const member = db.prepare('SELECT group_nickname FROM member WHERE platform_id = ?').get('wxid_alice') as {
+      group_nickname: string
+    }
+    const messages = db.prepare('SELECT COUNT(*) AS count FROM message').get() as { count: number }
+
+    assert.deepEqual(
+      {
+        reason: outcome.ok ? 'ok' : outcome.reason,
+        metaName: meta.name,
+        memberName: member.group_nickname,
+        messageCount: messages.count,
+      },
+      {
+        reason: 'import_failed',
+        metaName: 'Original Session',
+        memberName: 'Original Member',
+        messageCount: 1,
+      }
+    )
+  } finally {
+    db.close()
+  }
+})
+
 test('treats auto-created SYSTEM sender as a system member during initial import', async (t) => {
   const tempDir = makeTempDir()
   t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
@@ -609,6 +830,7 @@ test('treats auto-created SYSTEM sender as a system member during initial import
   assert.equal(outcome.ok, true)
   if (!outcome.ok) return
   assert.equal(outcome.result.session.memberCount, 0)
+  assert.equal(outcome.result.updates.membersAdded, 0)
 
   const db = manager.openRawSessionDatabase('system-sender', { readonly: true })
   try {
@@ -620,6 +842,44 @@ test('treats auto-created SYSTEM sender as a system member during initial import
       platform_id: 'SYSTEM',
       account_name: '系统消息',
     })
+  } finally {
+    db.close()
+  }
+})
+
+test('excludes an auto-created SYSTEM sender from incremental member counts', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const manager = createDatabaseManager(tempDir)
+  const initialOutcome = await pushImport(manager, 'incremental-system-count', {
+    chatlab: { version: '0.0.2', exportedAt: 1780330900 },
+    meta: { name: 'System Count', platform: 'wechat', type: 'group' },
+    members: [{ platformId: 'wxid_alice', accountName: 'Alice' }],
+    messages: [{ sender: 'wxid_alice', accountName: 'Alice', timestamp: 1780330832, type: 0, content: 'hello' }],
+  })
+  assert.equal(initialOutcome.ok, true)
+
+  const outcome = await pushImport(manager, 'incremental-system-count', {
+    messages: [{ sender: 'SYSTEM', timestamp: 1780330833, type: 80, content: 'Bob joined the group' }],
+  })
+
+  assert.equal(outcome.ok, true)
+  if (!outcome.ok) return
+  assert.equal(outcome.result.session.memberCount, 1)
+  assert.deepEqual(outcome.result.updates, {
+    metaUpdated: false,
+    membersAdded: 0,
+    membersUpdated: 0,
+  })
+
+  const db = manager.openRawSessionDatabase('incremental-system-count', { readonly: true })
+  try {
+    const members = db.prepare('SELECT platform_id, account_name FROM member ORDER BY platform_id').all()
+    assert.deepEqual(members, [
+      { platform_id: 'SYSTEM', account_name: '系统消息' },
+      { platform_id: 'wxid_alice', account_name: 'Alice' },
+    ])
   } finally {
     db.close()
   }
@@ -662,6 +922,11 @@ test('keeps SYSTEM member canonical during incremental member upserts', async (t
   assert.equal(outcome.ok, true)
   if (!outcome.ok) return
   assert.equal(outcome.result.session.memberCount, 0)
+  assert.deepEqual(outcome.result.updates, {
+    metaUpdated: false,
+    membersAdded: 0,
+    membersUpdated: 0,
+  })
 
   const db = manager.openRawSessionDatabase('system-member-upsert', { readonly: true })
   try {

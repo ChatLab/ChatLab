@@ -22,7 +22,7 @@ import {
   withDataDirImportLock,
 } from '@openchatlab/node-runtime'
 import type { PushImportOutcome, PushImportPayload } from '@openchatlab/node-runtime'
-import { isRestartableReadOnlyRequestType } from './workerTimeoutPolicy'
+import { getWorkerRequestTimeoutMs, isRestartableReadOnlyRequestType } from './workerTimeoutPolicy'
 
 interface WorkerRequestOptions {
   timeoutMs?: number
@@ -212,7 +212,7 @@ function sendToWorker<T>(type: string, payload: any, options: number | WorkerReq
       }
     }
 
-    const timeoutMs = typeof options === 'number' ? options : (options.timeoutMs ?? 60000)
+    const timeoutMs = typeof options === 'number' ? options : (options.timeoutMs ?? getWorkerRequestTimeoutMs(type))
     const restartOnTimeout =
       typeof options === 'number'
         ? isRestartableReadOnlyRequestType(type)
