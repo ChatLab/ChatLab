@@ -8,8 +8,8 @@
  * POST /api/v1/sessions/:id/import Incremental import to existing session
  *
  * Content-Type dispatch:
- *   application/json     → parse body → temp .json → chatlab parser
- *   application/x-ndjson → pipe raw stream → temp .jsonl → chatlab-jsonl parser
+ *   application/json     → shared pushImport service in the Desktop worker
+ *   application/x-ndjson → raw stream → temp .jsonl → shared auto-import orchestration
  */
 
 import type { FastifyInstance, FastifyRequest, FastifyReply } from 'fastify'
@@ -18,6 +18,8 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as crypto from 'crypto'
 import { pipeline } from 'stream/promises'
+import { hashImportBody, ImportIdempotencyCache, isValidImportSessionId } from '@openchatlab/node-runtime'
+import type { PushImportPayload } from '@openchatlab/node-runtime'
 import { getTempDir } from '../../paths'
 import * as worker from '../../worker/workerManager'
 import {
@@ -30,45 +32,22 @@ import {
   invalidFormat,
   invalidPayload,
   idempotencyConflict,
+  idempotencyPending,
   errorResponse,
 } from '../errors'
 import { apiLogger } from '../logger'
-import { analysisFromNewImport, apiErrorFromImportResult, batchFromStreamDiagnostics } from './import-helpers'
+import { analysisFromNewImport, apiErrorFromImportResult } from './import-helpers'
 
-// Per-session lock: different sessionIds can import in parallel.
+// Tracks active External API requests; the shared data-directory lock enforces writer exclusion.
 const isImporting = new Set<string>()
 
-// ==================== Idempotency cache ====================
+type ImportSuccessResponse = ReturnType<typeof successResponse>
 
-interface IdempotencyCacheEntry {
-  bodyHash: string
-  status: 'pending' | 'success'
-  response: any
-  timestamp: number
-}
+const idempotencyCache = new ImportIdempotencyCache<ImportSuccessResponse>()
 
-const IDEMPOTENCY_TTL_MS = 60 * 60 * 1000 // 1 hour
-const IDEMPOTENCY_CLEANUP_INTERVAL_MS = 10 * 60 * 1000 // 10 minutes
-const idempotencyCache = new Map<string, IdempotencyCacheEntry>()
-
-setInterval(() => {
-  const now = Date.now()
-  for (const [key, entry] of idempotencyCache) {
-    if (now - entry.timestamp > IDEMPOTENCY_TTL_MS) {
-      idempotencyCache.delete(key)
-    }
-  }
-}, IDEMPOTENCY_CLEANUP_INTERVAL_MS)
-
-function computeBodyHash(body: unknown, tempFile?: string): string {
-  if (tempFile && fs.existsSync(tempFile)) {
-    const content = fs.readFileSync(tempFile)
-    return crypto.createHash('sha256').update(content).digest('hex')
-  }
-  return crypto
-    .createHash('sha256')
-    .update(JSON.stringify(body ?? ''))
-    .digest('hex')
+function computeTempFileHash(tempFile: string): string {
+  const content = fs.readFileSync(tempFile)
+  return crypto.createHash('sha256').update(content).digest('hex')
 }
 
 function getTempFilePath(ext: string): string {
@@ -97,18 +76,14 @@ function notifySessionListChanged(): void {
   }
 }
 
-function idempotencySuccess(key: string | undefined, response: any): void {
+function idempotencySuccess(key: string | undefined, response: ImportSuccessResponse): void {
   if (!key) return
-  const entry = idempotencyCache.get(key)
-  if (entry) {
-    entry.status = 'success'
-    entry.response = response
-  }
+  idempotencyCache.success(key, response)
 }
 
 function idempotencyFail(key: string | undefined): void {
   if (!key) return
-  idempotencyCache.delete(key)
+  idempotencyCache.fail(key)
 }
 
 export function getImportingStatus(sessionId?: string): boolean {
@@ -157,12 +132,6 @@ async function writeTempFile(
  * v3 统一导入处理：自动判断新建或增量
  */
 async function handleUnifiedImport(request: FastifyRequest, reply: FastifyReply, sessionId: string): Promise<void> {
-  if (isImporting.has(sessionId)) {
-    const err = importInProgress()
-    reply.code(err.statusCode).send(errorResponse(err))
-    return
-  }
-
   const contentType = (request.headers['content-type'] || '').toLowerCase()
   const isJsonl = contentType.includes('application/x-ndjson')
   const isJson = contentType.includes('application/json')
@@ -178,50 +147,58 @@ async function handleUnifiedImport(request: FastifyRequest, reply: FastifyReply,
 
   const cacheKey = idempotencyKey ? `${idempotencyKey}:${sessionId}:${isDryRun}` : undefined
 
-  isImporting.add(sessionId)
   let tempFile = ''
+  let activeRequestRegistered = false
+  let idempotencyOwned = false
 
   try {
-    const writeResult = await writeTempFile(request, isJson)
-    if (writeResult.error) {
-      const err = invalidFormat(writeResult.error)
+    // JSON writes now go straight through the shared push service. JSON dry-runs
+    // and JSONL still need a temp file because their analyzers consume a file path.
+    if (isJsonl || isDryRun) {
+      const writeResult = await writeTempFile(request, isJson)
+      if (writeResult.error) {
+        const err = invalidFormat(writeResult.error)
+        reply.code(err.statusCode).send(errorResponse(err))
+        return
+      }
+      tempFile = writeResult.tempFile!
+    }
+
+    if (cacheKey) {
+      const bodyHash = isJsonl ? computeTempFileHash(tempFile) : hashImportBody(request.body)
+      const start = idempotencyCache.start(cacheKey, bodyHash)
+      if (start.status === 'conflict') {
+        const err = idempotencyConflict()
+        reply.code(err.statusCode).send(errorResponse(err))
+        return
+      }
+      if (start.status === 'pending') {
+        const err = idempotencyPending()
+        reply.code(err.statusCode).send(errorResponse(err))
+        return
+      }
+      if (start.status === 'success') {
+        reply.send(start.response)
+        return
+      }
+      idempotencyOwned = true
+    }
+
+    // 幂等状态必须先于本地活跃请求检查，确保同 key 并发重试返回
+    // IDEMPOTENCY_PENDING；只有本次新占位的 key 才会在锁冲突时释放。
+    if (isImporting.has(sessionId)) {
+      idempotencyFail(cacheKey)
+      const err = importInProgress()
       reply.code(err.statusCode).send(errorResponse(err))
       return
     }
-    tempFile = writeResult.tempFile!
-
-    // Idempotency-Key check (after tempFile is written so we can hash JSONL content)
-    if (cacheKey) {
-      const bodyHash = isJsonl ? computeBodyHash(null, tempFile) : computeBodyHash(request.body)
-      const cached = idempotencyCache.get(cacheKey)
-      if (cached) {
-        if (cached.bodyHash !== bodyHash) {
-          const err = idempotencyConflict()
-          reply.code(err.statusCode).send(errorResponse(err))
-          return
-        }
-        if (cached.status === 'pending') {
-          const pendingErr = new ApiError(
-            ApiErrorCode.IDEMPOTENCY_PENDING,
-            'A request with this Idempotency-Key is still in progress. Please retry later.'
-          )
-          reply.code(pendingErr.statusCode).send(errorResponse(pendingErr))
-          return
-        }
-        reply.send(cached.response)
-        return
-      }
-      idempotencyCache.set(cacheKey, { bodyHash, status: 'pending', response: null, timestamp: Date.now() })
-    }
-
-    const importOptions =
-      isJson && request.body && typeof request.body === 'object' ? (request.body as any).options : undefined
-
-    const exists = sessionExists(sessionId)
+    isImporting.add(sessionId)
+    activeRequestRegistered = true
 
     // X-Dry-Run: analyze only, no writes
     if (isDryRun) {
-      let responsePayload: any
+      const exists = sessionExists(sessionId)
+      let responsePayload: ImportSuccessResponse
       if (exists) {
         const result = await worker.analyzeIncrementalImport(sessionId, tempFile)
         if (result.error) {
@@ -256,67 +233,70 @@ async function handleUnifiedImport(request: FastifyRequest, reply: FastifyReply,
         })
       }
       idempotencySuccess(cacheKey, responsePayload)
+      idempotencyOwned = false
       reply.send(responsePayload)
       return
     }
 
-    if (exists) {
-      const result = await worker.incrementalImport(sessionId, tempFile, undefined, importOptions)
-
-      if (result.success) {
-        notifySessionListChanged()
-        const responsePayload = successResponse({
-          sessionId,
-          created: false,
-          batch: result.batch,
-          session: result.session,
-          updates: result.updates,
-        })
-        idempotencySuccess(cacheKey, responsePayload)
-        reply.send(responsePayload)
-      } else {
+    if (isJson) {
+      const outcome = await worker.pushImport(sessionId, (request.body ?? {}) as PushImportPayload)
+      if (!outcome.ok) {
         idempotencyFail(cacheKey)
-        const err = apiErrorFromImportResult(result.error, 'Incremental import failed')
+        const err =
+          outcome.reason === 'import_in_progress'
+            ? importInProgress()
+            : outcome.reason === 'invalid_payload'
+              ? invalidPayload(outcome.message)
+              : importFailed(outcome.message)
         reply.code(err.statusCode).send(errorResponse(err))
+        return
       }
-    } else {
-      const result = await worker.streamImport(tempFile, undefined, undefined, sessionId)
+      notifySessionListChanged()
+      const responsePayload = successResponse(outcome.result)
+      idempotencySuccess(cacheKey, responsePayload)
+      idempotencyOwned = false
+      reply.send(responsePayload)
+      return
+    }
 
-      if (result.success) {
-        notifySessionListChanged()
+    const result = await worker.autoImport(tempFile, undefined, undefined, sessionId)
+    if (!result.success || !result.sessionId || !result.importMode) {
+      idempotencyFail(cacheKey)
+      const err = apiErrorFromImportResult(result.error, 'Import failed')
+      reply.code(err.statusCode).send(errorResponse(err))
+      return
+    }
 
-        const diag = result.diagnostics
-        let sessionInfo: any = undefined
-        try {
-          const s = await worker.getSession(result.sessionId!)
-          if (s) {
-            sessionInfo = {
-              totalCount: s.totalCount,
-              memberCount: s.memberCount,
-              firstTimestamp: s.firstTimestamp,
-              lastTimestamp: s.lastTimestamp,
-            }
+    let sessionInfo = result.session
+    if (!sessionInfo) {
+      try {
+        const session = await worker.getSession(result.sessionId)
+        if (session) {
+          sessionInfo = {
+            totalCount: session.totalCount,
+            memberCount: session.memberCount,
+            firstTimestamp: session.firstTimestamp,
+            lastTimestamp: session.lastTimestamp,
           }
-        } catch {
-          // non-blocking
         }
-
-        const responsePayload = successResponse({
-          sessionId: result.sessionId,
-          created: true,
-          batch: batchFromStreamDiagnostics(diag),
-          session: sessionInfo,
-        })
-        idempotencySuccess(cacheKey, responsePayload)
-        reply.send(responsePayload)
-      } else {
-        idempotencyFail(cacheKey)
-        const err = apiErrorFromImportResult(result.error, 'Import failed')
-        reply.code(err.statusCode).send(errorResponse(err))
+      } catch {
+        // Session statistics are informative and must not turn a successful import into a failure.
       }
     }
+
+    notifySessionListChanged()
+    const responsePayload = successResponse({
+      sessionId: result.sessionId,
+      created: result.importMode === 'created',
+      batch: result.batch,
+      session: sessionInfo,
+      updates: result.updates,
+    })
+    idempotencySuccess(cacheKey, responsePayload)
+    idempotencyOwned = false
+    reply.send(responsePayload)
   } catch (error: any) {
-    idempotencyFail(cacheKey)
+    if (idempotencyOwned) idempotencyFail(cacheKey)
     apiLogger.error('Import error', error)
     const apiError = apiErrorFromUnknown(error)
     if (apiError) {
@@ -326,7 +306,7 @@ async function handleUnifiedImport(request: FastifyRequest, reply: FastifyReply,
     const err = importFailed(error.message || 'Import process error')
     reply.code(err.statusCode).send(errorResponse(err))
   } finally {
-    isImporting.delete(sessionId)
+    if (activeRequestRegistered) isImporting.delete(sessionId)
     if (tempFile) {
       cleanupTempFile(tempFile)
     }
@@ -433,13 +413,13 @@ export function registerImportRoutes(server: FastifyInstance): void {
     done(null, undefined)
   })
 
-  const SESSION_ID_RE = /^[A-Za-z0-9._@-]{1,128}$/
-
   // v3 unified endpoint
   server.post<{ Params: { sessionId: string } }>('/api/v1/imports/:sessionId', async (request, reply) => {
     const { sessionId } = request.params
-    if (!SESSION_ID_RE.test(sessionId)) {
-      const err = invalidPayload('sessionId must be 1-128 characters of [A-Za-z0-9._@-]')
+    if (!isValidImportSessionId(sessionId)) {
+      const err = invalidPayload(
+        "sessionId must be 1-128 safe characters, start with [A-Za-z0-9_@-], and not contain '..'"
+      )
       reply.code(err.statusCode).send(errorResponse(err))
       return
     }

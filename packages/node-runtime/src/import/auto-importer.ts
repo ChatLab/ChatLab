@@ -8,6 +8,7 @@ import {
 } from './auto-import-matcher'
 import type { IncrementalImportResult } from './incremental-importer'
 import type { ImportDiagnostics, StreamImportResult } from './streaming-importer'
+import { isValidImportSessionId } from './session-id'
 
 export interface AutoImportOptions {
   explicitSessionId?: string
@@ -37,6 +38,11 @@ export interface AutoImportResult {
   createReason?: AutoImportCreateReason
   newMessageCount?: number
   duplicateCount?: number
+  batch?:
+    | NonNullable<IncrementalImportResult['batch']>
+    | { receivedCount: number; writtenCount: number; duplicateCount: number }
+  session?: IncrementalImportResult['session']
+  updates?: IncrementalImportResult['updates']
   diagnostics?: ImportDiagnostics
   error?: string
 }
@@ -52,6 +58,13 @@ function mapCreateResult(result: StreamImportResult, createReason?: AutoImportCr
     ...(createReason ? { createReason } : {}),
     newMessageCount: result.diagnostics?.messagesWritten ?? 0,
     duplicateCount: result.diagnostics?.duplicateCount ?? 0,
+    batch: result.diagnostics
+      ? {
+          receivedCount: result.diagnostics.messagesReceived,
+          writtenCount: result.diagnostics.messagesWritten,
+          duplicateCount: result.diagnostics.duplicateCount,
+        }
+      : undefined,
     diagnostics: result.diagnostics,
   }
 }
@@ -69,6 +82,9 @@ function mapIncrementalResult(
     ...(matchedBy ? { matchedBy } : {}),
     newMessageCount: result.newMessageCount,
     duplicateCount: result.batch?.duplicateCount ?? 0,
+    batch: result.batch,
+    session: result.session,
+    updates: result.updates,
   }
 }
 
@@ -79,6 +95,9 @@ export async function autoImportFile(
 ): Promise<AutoImportResult> {
   try {
     if (options.explicitSessionId) {
+      if (!isValidImportSessionId(options.explicitSessionId)) {
+        return { success: false, error: 'sessionId contains invalid characters' }
+      }
       if (deps.sessionExists(options.explicitSessionId)) {
         const result = mapIncrementalResult(
           options.explicitSessionId,

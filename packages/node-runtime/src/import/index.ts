@@ -32,6 +32,8 @@ export type {
   IncrementalImportResult,
   IncrementalImportDeps,
 } from './incremental-importer'
+
+export { isValidImportSessionId } from './session-id'
 export { resolveAutoImportTarget } from './auto-import-matcher'
 export type {
   AutoImportCreateReason,

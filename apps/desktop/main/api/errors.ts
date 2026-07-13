@@ -71,6 +71,13 @@ export function idempotencyConflict(): ApiError {
   return new ApiError(ApiErrorCode.IDEMPOTENCY_CONFLICT, 'Same Idempotency-Key with different request body hash')
 }
 
+export function idempotencyPending(): ApiError {
+  return new ApiError(
+    ApiErrorCode.IDEMPOTENCY_PENDING,
+    'A request with this Idempotency-Key is still in progress. Please retry later.'
+  )
+}
+
 export function sqlReadonlyViolation(): ApiError {
   return new ApiError(ApiErrorCode.SQL_READONLY_VIOLATION, 'Only SELECT queries are allowed')
 }
