@@ -5,13 +5,15 @@ description: Analyze local ChatLab chat records through the chatlab CLI. Use whe
 
 # ChatLab Analyze
 
-Use this skill when the user asks you to analyze local ChatLab chat records, especially when they explicitly write `chatlab-analyze`, ask about a person or group in their chat history, or want evidence from imported conversations.
+Query and analyze records already imported into ChatLab through the read-only `chatlab` CLI.
 
-Example user request:
+## Good Fit
 
-```text
-chatlab-analyze 帮我分析我和小红的聊天记录
-```
+- Find conversations or determine who mentioned something first.
+- Summarize recent topics or inspect a named relationship.
+- Compare member activity, keywords, or response patterns.
+
+For importing a new chat export, use `chatlab-import` instead.
 
 Install this skill with:
 
@@ -19,109 +21,56 @@ Install this skill with:
 npx skills add ChatLab/ChatLab --skill chatlab-analyze -g
 ```
 
-## What ChatLab Provides
+## Workflow
 
-`chatlab` is a local CLI for querying chat records imported into ChatLab. Treat it as the source of truth for sessions, members, messages, statistics, topics, and read-only SQL fallback.
+### 1. Prepare the Query
 
-The CLI is read-only for this skill. Do not modify ChatLab data, import files, change config, or start long-running services unless the user explicitly asks.
-
-## First Steps
-
-1. Check that the CLI is available:
+Check the CLI, load its current command contract, and list sessions:
 
 ```bash
 chatlab --help
-```
-
-2. Load the command contract before deeper work:
-
-```bash
 chatlab manifest
-```
-
-3. List sessions. If exactly one session is relevant, use it. If multiple sessions may match the user's wording, ask a short clarification or show the likely candidates.
-
-```bash
 chatlab sessions list --format json
 ```
 
-## Privacy Rules
+Use the only relevant session. If multiple sessions or members match the request, ask the user to choose from the returned candidates.
 
-- Always pass `--format` explicitly.
-- Use `--format agent` when reading message bodies.
-- Use `--format json` for structural scouting such as session lists, member lists, counts, fields, and `--no-content` searches.
-- Do not use `--raw`. ChatLab disables raw output by default because the safe path applies the user's desensitization and blacklist rules.
-- Do not reveal full chat dumps. Retrieve only the context needed for the user's question.
-- Cite evidence with ChatLab message markers such as `[#1021]`, `[#1021*]`, or merged ranges like `[#1021-1024]` when available.
+### 2. Start with a Dedicated Command
 
-## Common Workflows
-
-### Analyze a One-To-One Relationship
-
-Use this when the user asks about themselves and another person, for example "我和小红".
+Use the simplest command that directly answers the question:
 
 ```bash
-chatlab members list --session <session-id> --format json
+chatlab messages search "<keyword>" --session <session-id> --format agent
 chatlab messages between --member me --member <member> --session <session-id> --last 90d --format agent
-chatlab stats keywords --session <session-id> --member me --last 90d --top 20 --format json
+chatlab topics list --session <session-id> --last 30d --format agent
+```
+
+Use `--format agent` for message text and `--format json` for structural scouting such as sessions, members, counts, and `--no-content` searches.
+
+### 3. Add Context or Statistics
+
+Only deepen the query when the first result is insufficient:
+
+```bash
+chatlab messages context --id 1021 --session <session-id> --window 10 --format agent
 chatlab stats keywords --session <session-id> --member <member> --last 90d --top 20 --format json
 ```
 
-Then answer with patterns, concrete examples, and limits. If the retrieved time range is narrow, say so and offer the next query you would run.
+When `meta.hasMore` is true, continue with `--cursor <meta.nextCursor>` and the same query conditions. Use limits and token controls to retrieve only the context needed.
 
-### Find Who Mentioned Something First
+### 4. Use SQL Only as a Fallback
 
-```bash
-chatlab messages search "<keyword>" --session <session-id> --sort asc --limit 5 --context 3 --format agent
-chatlab messages context --id 1021 --session <session-id> --window 10 --format agent
-```
-
-Use the earliest hit and its surrounding context as evidence. The `[#1021*]` marker identifies the matching message.
-
-### Summarize Recent Topics
-
-```bash
-chatlab topics list --session <session-id> --last 30d --format agent
-chatlab stats keywords --session <session-id> --last 30d --top 20 --format json
-chatlab messages list --session <session-id> --last 7d --limit 80 --max-tokens 3000 --format agent
-```
-
-Prefer topic summaries first. Use keywords and recent messages to verify or fill gaps.
-
-### Scout Before Pulling Message Bodies
-
-Use JSON scouting before retrieving many message bodies.
-
-```bash
-chatlab messages search "<keyword>" --session <session-id> --since 2026-01-01 --no-content --limit 100 --format json
-chatlab messages search "<keyword>" --session <session-id> --cursor <meta.nextCursor> --format agent
-```
-
-When `meta.hasMore` is true, continue with `--cursor <meta.nextCursor>` using the same query conditions.
-
-### Read-Only SQL Fallback
-
-Only use SQL when dedicated commands cannot answer the question.
+Use read-only SQL only when no dedicated command can answer the question:
 
 ```bash
 chatlab schema --session <session-id> --format json
 chatlab sql "SELECT COUNT(*) AS n FROM message" --session <session-id> --format json
 ```
 
-SQL output still goes through ChatLab's privacy preprocessing for string values.
+## Privacy and Answers
 
-## Answering Style
-
-- Start with the direct answer, then give evidence and caveats.
-- Name the session and time range you actually queried.
-- Separate observed facts from interpretation.
-- For relationship analysis, avoid overclaiming emotional intent. Use language like "从这些记录看..." and ground claims in message evidence.
-- If member names are ambiguous, stop and ask the user to choose from the candidate ids.
-- If ChatLab returns an error envelope, follow `error.hint` and retry only when the correction is clear.
-
-## Useful Command Hints
-
-- Time supports ISO dates, `today`, `yesterday`, and `--last 30d`.
-- Members can be ids, exact display names, aliases, or `me`.
-- Pagination uses `meta.hasMore` and `meta.nextCursor`.
-- Token controls: `--limit`, `--max-messages`, `--max-tokens`, and `--max-chars`.
+- Never use `--raw`, modify ChatLab data, import files, change config, or start long-running services.
+- Never reveal full chat dumps. ChatLab's safe output applies the user's privacy preprocessing.
+- Cite available message evidence with markers such as `[#1021]`, `[#1021*]`, or `[#1021-1024]`.
+- Start with the answer, name the queried session and time range, then separate observed facts from interpretation.
+- Avoid overclaiming emotional intent in relationship analysis. Follow `error.hint` only when the correction is clear.

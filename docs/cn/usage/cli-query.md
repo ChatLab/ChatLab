@@ -79,19 +79,21 @@ agent/json 模式下 stdout 只包含一个 JSON 响应信封，日志一律走 
 
 ## 给 Agent 的使用指南
 
-推荐通过通用 Agent Skills CLI 安装官方 `chatlab-analyze` 技能：
+推荐通过通用 Agent Skills CLI 安装官方中文 `chatlab-analyze-cn` 技能：
 
 ```bash
-npx skills add ChatLab/ChatLab --skill chatlab-analyze -g
+npx skills add ChatLab/ChatLab --skill chatlab-analyze-cn -g
 ```
 
 安装后，可以在 Codex、Claude Code、Cursor 等外部 Agent 中直接说：
 
 ```text
-chatlab-analyze 帮我分析我和小红的聊天记录
+chatlab-analyze-cn 帮我分析我和小红的聊天记录
 ```
 
 这个技能会引导 Agent 先执行 `chatlab manifest` 获取机读命令清单，再用安全的 `--format agent/json` 查询聊天记录。
+
+`chatlab-analyze-cn` 始终只读。如果你希望 Agent 导入新的聊天导出文件，请改用独立的 `chatlab-import-cn` Skill；它会先预览导入计划，再自动新建或增量导入，详见[导入聊天记录指南](./how-to-import.md)。
 
 典型配方——"谁最早提到某个问题？查看现场"：
 

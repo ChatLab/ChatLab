@@ -1,0 +1,4 @@
+interface:
+  display_name: 'ChatLab 聊天导入'
+  short_description: '通过 ChatLab CLI 安全预览并导入本地聊天记录'
+  default_prompt: '使用 $chatlab-import-cn 安全预览并将这个聊天导出文件导入 ChatLab。'

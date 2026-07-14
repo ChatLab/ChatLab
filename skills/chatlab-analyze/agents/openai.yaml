@@ -1,0 +1,4 @@
+interface:
+  display_name: 'ChatLab Analyze'
+  short_description: 'Safely query and analyze local chats with ChatLab CLI'
+  default_prompt: 'Use $chatlab-analyze to analyze my local ChatLab chat records.'

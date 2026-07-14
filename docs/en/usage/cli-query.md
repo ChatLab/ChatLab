@@ -93,6 +93,8 @@ chatlab-analyze help me analyze my chat history with Alice
 
 The skill tells the agent to run `chatlab manifest` first, then query chat records safely with explicit `--format agent/json` commands.
 
+`chatlab-analyze` always remains read-only. To let an agent import a new chat export, use the separate `chatlab-import` skill; it previews the import, then automatically creates or incrementally updates a session. See the [Import Chat Records Guide](./how-to-import.md).
+
 A typical recipe — "who mentioned this first? inspect the surrounding context":
 
 ```bash

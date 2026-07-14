@@ -1,0 +1,4 @@
+interface:
+  display_name: 'ChatLab 聊天分析'
+  short_description: '通过 ChatLab CLI 安全查询并分析本地聊天记录'
+  default_prompt: '使用 $chatlab-analyze-cn 分析我在 ChatLab 中的本地聊天记录。'
