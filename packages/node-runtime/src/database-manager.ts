@@ -198,6 +198,29 @@ export class DatabaseManager {
       })
   }
 
+  /**
+   * 只读列举聊天会话 ID，不触发数据库迁移或兼容门禁提升。
+   */
+  listSessionIdsReadonly(): string[] {
+    this.assertCompatible()
+
+    const dbDir = this.pathProvider.getDatabaseDir()
+    if (!fs.existsSync(dbDir)) return []
+
+    return fs
+      .readdirSync(dbDir)
+      .filter((fileName) => fileName.endsWith('.db'))
+      .map((fileName) => fileName.replace('.db', ''))
+      .filter((sessionId) => {
+        const db = this.openRawSessionDatabase(sessionId, { readonly: true })
+        try {
+          return isChatSessionDb(db)
+        } finally {
+          db.close()
+        }
+      })
+  }
+
   getUserDataDir(): string {
     return this.pathProvider.getUserDataDir()
   }

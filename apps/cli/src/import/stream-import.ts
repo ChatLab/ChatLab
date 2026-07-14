@@ -238,14 +238,16 @@ export async function analyzeAutoImport(
   if (formatId) formatOptions.formatId = formatId
   if (chatIndex !== undefined) formatOptions.chatIndex = chatIndex
   const progressAdapter = createProgressAdapter(onProgress)
+  let readonlySessionIds: string[] | undefined
+  const listSessionIdsReadonly = (): string[] => (readonlySessionIds ??= dbManager.listSessionIdsReadonly())
 
   return sharedAnalyzeAutoImportFile(
     filePath,
     {
-      listSessionIds: () => dbManager.listSessionIds(),
+      listSessionIds: listSessionIdsReadonly,
       openReadonly: (candidateSessionId) => dbManager.openRawSessionDatabase(candidateSessionId, { readonly: true }),
       onProgress: progressAdapter,
-      sessionExists: (candidateSessionId) => dbManager.listSessionIds().includes(candidateSessionId),
+      sessionExists: (candidateSessionId) => listSessionIdsReadonly().includes(candidateSessionId),
       analyzeCreateSession: (sourcePath, sourceFormatOptions) =>
         sharedAnalyzeNewImport(sourcePath, progressAdapter, {
           formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,

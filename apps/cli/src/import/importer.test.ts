@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+import Database from 'better-sqlite3'
 import type { PathProvider } from '@openchatlab/core'
 import {
   DatabaseManager,
@@ -159,6 +160,61 @@ test('analyzeAutoImport previews a new session without writing a database', asyn
     meta: { name: 'Test Chat', platform: 'qq', type: 'group' },
   })
   assert.deepEqual(manager.listSessionIds(), [])
+})
+
+test('analyzeAutoImport does not migrate legacy session databases', async (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const dbDir = path.join(root, 'data', 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+  const dbPath = path.join(dbDir, 'legacy.db')
+  const legacyDb = new Database(dbPath, { nativeBinding })
+  legacyDb.exec(`
+    CREATE TABLE meta (
+      name TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      type TEXT NOT NULL,
+      imported_at INTEGER NOT NULL,
+      schema_version INTEGER DEFAULT 4
+    );
+    INSERT INTO meta (name, platform, type, imported_at, schema_version)
+    VALUES ('Legacy Chat', 'qq', 'group', 1000, 4);
+
+    CREATE TABLE member (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform_id TEXT NOT NULL UNIQUE,
+      name TEXT NOT NULL,
+      nickname TEXT
+    );
+
+    CREATE TABLE message (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER NOT NULL,
+      ts INTEGER NOT NULL,
+      type INTEGER NOT NULL,
+      content TEXT
+    );
+  `)
+  legacyDb.close()
+
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+  const result = await analyzeAutoImport(manager, writeTempChatFile(root), { nativeBinding })
+
+  assert.equal(result.success, true)
+  const unchangedDb = new Database(dbPath, { readonly: true, nativeBinding })
+  const schemaVersion = unchangedDb.prepare('SELECT schema_version FROM meta').pluck().get()
+  const memberColumns = unchangedDb.pragma('table_info(member)') as Array<{ name: string }>
+  unchangedDb.close()
+
+  assert.equal(schemaVersion, 4)
+  assert.equal(
+    memberColumns.some((column) => column.name === 'account_name'),
+    false
+  )
+  assert.equal(readDataDirCompatibilityMeta(path.join(root, 'data')), null)
 })
 
 test('autoImport reports the same exact-message deduplication on create and incremental paths', async (t) => {
