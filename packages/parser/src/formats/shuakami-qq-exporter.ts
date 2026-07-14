@@ -73,8 +73,14 @@ interface V4Message {
     name: string
   }
   messageType?: number
+  /** Legacy field name (pre-V6 exports). */
   isSystemMessage?: boolean
+  /** Legacy field name (pre-V6 exports). */
   isRecalled?: boolean
+  /** Current field name (V6+ exports). */
+  system?: boolean
+  /** Current field name (V6+ exports). */
+  recalled?: boolean
   content: {
     text: string
     resources?: Array<{ type: string }>
@@ -163,7 +169,14 @@ function extractNameFromFilePath(filePath: string): string {
 }
 
 /**
- * 计算 senders 数量以判断聊天类型
+ * 判断发送者 ID 是否是系统消息占位符（无真实发送者）
+ */
+function isPlaceholderSenderId(id: string): boolean {
+  return id === '0' || id === '未知'
+}
+
+/**
+ * 计算真实 senders 数量以判断聊天类型（排除系统消息占位发送者）
  */
 function countSenders(content: string): number {
   const sendersStart = content.indexOf('"senders"')
@@ -184,8 +197,24 @@ function countSenders(content: string): number {
   if (depth !== 0) return 0
 
   const sendersContent = content.slice(arrayStart + 1, i - 1)
-  const uidMatches = sendersContent.match(/"uid"\s*:/g)
-  return uidMatches ? uidMatches.length : 0
+  const uidMatches = sendersContent.matchAll(/"uid"\s*:\s*"([^"]*)"/g)
+  let count = 0
+  for (const match of uidMatches) {
+    const uid = match[1]
+    if (uid && !isPlaceholderSenderId(uid)) count++
+  }
+  return count
+}
+
+/**
+ * 判断聊天类型：优先使用 chatInfo.type，senders 计数仅作兜底
+ */
+function resolveChatType(chatInfoType: string | undefined, headContent: string): ChatType {
+  if (chatInfoType === 'private') return ChatType.PRIVATE
+  if (chatInfoType === 'group') return ChatType.GROUP
+
+  const sendersCount = countSenders(headContent)
+  return sendersCount > 2 ? ChatType.GROUP : sendersCount > 0 ? ChatType.PRIVATE : ChatType.GROUP
 }
 
 // ==================== 消息类型转换 ====================
@@ -268,9 +297,8 @@ async function* parseV4(options: ParseOptions): AsyncGenerator<ParseEvent, void,
     // 使用默认值
   }
 
-  // 根据 senders 数量判断聊天类型
-  const sendersCount = countSenders(headContent)
-  const chatType = sendersCount > 2 ? ChatType.GROUP : sendersCount > 0 ? ChatType.PRIVATE : ChatType.GROUP
+  // 判断聊天类型（优先 chatInfo.type，senders 计数兜底）
+  const chatType = resolveChatType(chatInfo.type, headContent)
 
   // 发送 meta（包含群头像）
   const meta: ParsedMeta = {
@@ -299,7 +327,7 @@ async function* parseV4(options: ParseOptions): AsyncGenerator<ParseEvent, void,
       // 获取 platformId
       const platformId =
         value.sender.uin || value.sender.uid || value.rawMessage?.senderUin || value.rawMessage?.senderUid
-      if (!platformId) {
+      if (!platformId || isPlaceholderSenderId(platformId)) {
         skippedMessages++
         return
       }
@@ -325,14 +353,14 @@ async function* parseV4(options: ParseOptions): AsyncGenerator<ParseEvent, void,
         return
       }
 
-      // 消息类型
-      const type = value.isSystemMessage
-        ? MessageType.SYSTEM
-        : convertMessageType(value.messageType, value.content, value.isRecalled)
+      // 消息类型（system/recalled 为当前字段名，isSystemMessage/isRecalled 为旧字段名）
+      const isSystem = value.system ?? value.isSystemMessage
+      const isRecalled = value.recalled ?? value.isRecalled
+      const type = isSystem ? MessageType.SYSTEM : convertMessageType(value.messageType, value.content, isRecalled)
 
       // 文本内容
       let textContent = value.content?.text || ''
-      if (value.isRecalled) textContent = '[已撤回] ' + textContent
+      if (isRecalled) textContent = '[已撤回] ' + textContent
 
       messageBatch.push({
         platformMessageId: value.messageId, // 消息的平台原始 ID
