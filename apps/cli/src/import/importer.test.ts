@@ -11,7 +11,7 @@ import {
   readDataDirCompatibilityMeta,
   withDataDirImportLock,
 } from '@openchatlab/node-runtime'
-import { autoImport, streamImport } from './stream-import'
+import { analyzeAutoImport, autoImport, streamImport } from './stream-import'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -134,6 +134,31 @@ test('autoImport creates once and then incrementally imports the same stable cha
   assert.equal(incremental.newMessageCount, 0)
   assert.equal(incremental.duplicateCount, 1)
   assert.equal(manager.listSessionIds().length, 1)
+})
+
+test('analyzeAutoImport previews a new session without writing a database', async (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  fs.mkdirSync(path.join(root, 'data', 'databases'), { recursive: true })
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+  const chatFile = writeTempChatFile(root)
+
+  const result = await analyzeAutoImport(manager, chatFile, { nativeBinding })
+
+  assert.deepEqual(result, {
+    success: true,
+    importMode: 'created',
+    createReason: 'no-match',
+    totalMessageCount: 1,
+    newMessageCount: 1,
+    duplicateCount: 0,
+    totalMemberCount: 1,
+    meta: { name: 'Test Chat', platform: 'qq', type: 'group' },
+  })
+  assert.deepEqual(manager.listSessionIds(), [])
 })
 
 test('autoImport reports the same exact-message deduplication on create and incremental paths', async (t) => {

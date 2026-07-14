@@ -679,11 +679,17 @@ export interface AnalyzeNewImportResult {
   error?: string
 }
 
+export interface AnalyzeNewImportOptions {
+  formatId?: string
+  chatIndex?: number
+}
+
 export async function analyzeNewImport(
   filePath: string,
-  onProgress: ImportProgressCallback
+  onProgress: ImportProgressCallback,
+  options?: AnalyzeNewImportOptions
 ): Promise<AnalyzeNewImportResult> {
-  const formatFeature = detectFormat(filePath)
+  const formatFeature = options?.formatId ? getFormatFeatureById(options.formatId) : detectFormat(filePath)
   if (!formatFeature) {
     return {
       totalMessages: 0,
@@ -702,31 +708,36 @@ export async function analyzeNewImport(
   let newMessageCount = 0
   let duplicateCount = 0
 
-  await streamParseFile(filePath, {
-    onMeta: (parsedMeta: ParsedMeta) => {
-      meta = { name: parsedMeta.name, platform: parsedMeta.platform, type: parsedMeta.type }
-    },
-    onMembers: (members: ParsedMember[]) => {
-      for (const m of members) memberSet.add(m.platformId)
-    },
-    onProgress: (progress: ParseProgress) => {
-      onProgress(progress)
-    },
-    onMessageBatch: (batch: ParsedMessage[]) => {
-      for (const msg of batch) {
-        totalMessages++
-        if (!memberSet.has(msg.senderPlatformId)) memberSet.add(msg.senderPlatformId)
+  await streamParseFile(
+    filePath,
+    {
+      formatOptions: options?.chatIndex === undefined ? undefined : { chatIndex: options.chatIndex },
+      onMeta: (parsedMeta: ParsedMeta) => {
+        meta = { name: parsedMeta.name, platform: parsedMeta.platform, type: parsedMeta.type }
+      },
+      onMembers: (members: ParsedMember[]) => {
+        for (const m of members) memberSet.add(m.platformId)
+      },
+      onProgress: (progress: ParseProgress) => {
+        onProgress(progress)
+      },
+      onMessageBatch: (batch: ParsedMessage[]) => {
+        for (const msg of batch) {
+          totalMessages++
+          if (!memberSet.has(msg.senderPlatformId)) memberSet.add(msg.senderPlatformId)
 
-        const prepared = prepareMessageForCreate(msg)
-        if ('skipCounter' in prepared) continue
-        if (registerMessageAndCheckDuplicate(prepared.message, dedupState)) {
-          duplicateCount++
-        } else {
-          newMessageCount++
+          const prepared = prepareMessageForCreate(msg)
+          if ('skipCounter' in prepared) continue
+          if (registerMessageAndCheckDuplicate(prepared.message, dedupState)) {
+            duplicateCount++
+          } else {
+            newMessageCount++
+          }
         }
-      }
+      },
     },
-  })
+    options?.formatId
+  )
 
   return { totalMessages, newMessageCount, duplicateCount, totalMembers: memberSet.size, meta }
 }

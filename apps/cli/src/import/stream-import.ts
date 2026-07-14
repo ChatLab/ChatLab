@@ -11,6 +11,7 @@ import {
   DataDirCompatibilityError,
   IMPORT_IN_PROGRESS_ERROR_KEY,
   ImportInProgressError,
+  analyzeAutoImportFile as sharedAnalyzeAutoImportFile,
   autoImportFile as sharedAutoImportFile,
   streamingImport,
   analyzeNewImport as sharedAnalyzeNewImport,
@@ -27,6 +28,7 @@ import type {
   IncrementalImportDeps,
   ImportOptions,
   AnalyzeNewImportResult,
+  AutoImportAnalysisResult,
   AutoImportResult,
 } from '@openchatlab/node-runtime'
 import {
@@ -226,6 +228,42 @@ export async function autoImport(
   }
 }
 
+export async function analyzeAutoImport(
+  dbManager: DatabaseManager,
+  filePath: string,
+  options?: StreamImportOptions
+): Promise<AutoImportAnalysisResult> {
+  const { formatId, chatIndex, onProgress, sessionId } = options ?? {}
+  const formatOptions: Record<string, unknown> = {}
+  if (formatId) formatOptions.formatId = formatId
+  if (chatIndex !== undefined) formatOptions.chatIndex = chatIndex
+  const progressAdapter = createProgressAdapter(onProgress)
+
+  return sharedAnalyzeAutoImportFile(
+    filePath,
+    {
+      listSessionIds: () => dbManager.listSessionIds(),
+      openReadonly: (candidateSessionId) => dbManager.openRawSessionDatabase(candidateSessionId, { readonly: true }),
+      onProgress: progressAdapter,
+      sessionExists: (candidateSessionId) => dbManager.listSessionIds().includes(candidateSessionId),
+      analyzeCreateSession: (sourcePath, sourceFormatOptions) =>
+        sharedAnalyzeNewImport(sourcePath, progressAdapter, {
+          formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,
+          chatIndex: typeof sourceFormatOptions?.chatIndex === 'number' ? sourceFormatOptions.chatIndex : undefined,
+        }),
+      analyzeAppendSession: (targetSessionId, sourcePath, sourceFormatOptions) =>
+        sharedAnalyzeIncremental(targetSessionId, sourcePath, buildIncrementalDeps(dbManager, progressAdapter), {
+          formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,
+          chatIndex: typeof sourceFormatOptions?.chatIndex === 'number' ? sourceFormatOptions.chatIndex : undefined,
+        }),
+    },
+    {
+      explicitSessionId: sessionId,
+      formatOptions,
+    }
+  )
+}
+
 // ==================== Incremental import ====================
 
 function buildIncrementalDeps(
@@ -301,7 +339,8 @@ export async function analyzeIncrementalImport(
   dbManager: DatabaseManager,
   sessionId: string,
   filePath: string,
-  onProgress?: ImportProgressCallback
+  onProgress?: ImportProgressCallback,
+  options?: ImportOptions
 ): Promise<IncrementalAnalyzeResult> {
   let compatibilityError: DataDirCompatibilityError | null = null
   const result = await sharedAnalyzeIncremental(
@@ -309,7 +348,8 @@ export async function analyzeIncrementalImport(
     filePath,
     buildIncrementalDeps(dbManager, onProgress, (error) => {
       compatibilityError = error
-    })
+    }),
+    options
   )
   if (compatibilityError) throw compatibilityError
   return result
@@ -317,9 +357,10 @@ export async function analyzeIncrementalImport(
 
 export async function analyzeNewImport(
   filePath: string,
-  onProgress?: ImportProgressCallback
+  onProgress?: ImportProgressCallback,
+  options?: Pick<ImportOptions, 'formatId' | 'chatIndex'>
 ): Promise<AnalyzeNewImportResult> {
-  return sharedAnalyzeNewImport(filePath, onProgress ?? (() => {}))
+  return sharedAnalyzeNewImport(filePath, onProgress ?? (() => {}), options)
 }
 
 // ==================== Re-exports from parser ====================
@@ -338,6 +379,7 @@ export type {
   IncrementalImportResult,
   IncrementalAnalyzeResult,
   AnalyzeNewImportResult,
+  AutoImportAnalysisResult,
   ImportOptions,
   AutoImportResult,
 }

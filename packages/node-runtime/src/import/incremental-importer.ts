@@ -148,9 +148,10 @@ export function normalizeImportTimestamp(timestamp: unknown): number | null {
 export async function analyzeIncrementalImport(
   sessionId: string,
   filePath: string,
-  deps: IncrementalImportDeps
+  deps: IncrementalImportDeps,
+  options?: ImportOptions
 ): Promise<IncrementalAnalyzeResult> {
-  const formatFeature = detectFormat(filePath)
+  const formatFeature = options?.formatId ? getFormatFeatureById(options.formatId) : detectFormat(filePath)
   if (!formatFeature) {
     return { error: 'error.unrecognized_format', newMessageCount: 0, duplicateCount: 0, totalInFile: 0 }
   }
@@ -169,26 +170,31 @@ export async function analyzeIncrementalImport(
   let newMessageCount = 0
   let duplicateCount = 0
 
-  await streamParseFile(filePath, {
-    onMeta: () => {},
-    onMembers: () => {},
-    onProgress: (progress: ParseProgress) => {
-      deps.onProgress(progress)
-    },
-    onMessageBatch: (batch) => {
-      for (const msg of batch) {
-        totalInFile++
-        const timestamp = normalizeImportTimestamp(msg.timestamp)
-        if (timestamp === null) continue
+  await streamParseFile(
+    filePath,
+    {
+      formatOptions: options?.chatIndex === undefined ? undefined : { chatIndex: options.chatIndex },
+      onMeta: () => {},
+      onMembers: () => {},
+      onProgress: (progress: ParseProgress) => {
+        deps.onProgress(progress)
+      },
+      onMessageBatch: (batch) => {
+        for (const msg of batch) {
+          totalInFile++
+          const timestamp = normalizeImportTimestamp(msg.timestamp)
+          if (timestamp === null) continue
 
-        if (isDuplicate({ ...msg, timestamp }, existingPlatformMsgIds, existingKeys, existingFallbackOnlyKeys)) {
-          duplicateCount++
-        } else {
-          newMessageCount++
+          if (isDuplicate({ ...msg, timestamp }, existingPlatformMsgIds, existingKeys, existingFallbackOnlyKeys)) {
+            duplicateCount++
+          } else {
+            newMessageCount++
+          }
         }
-      }
+      },
     },
-  })
+    options?.formatId
+  )
 
   return { newMessageCount, duplicateCount, totalInFile }
 }

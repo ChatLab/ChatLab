@@ -215,3 +215,18 @@ test('streamingImport applies incremental-equivalent deduplication on first impo
   db.close()
   assert.equal(row.count, 3)
 })
+
+test('analyzeNewImport honors an explicitly selected parser format', async (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const detectedPath = writeDuplicateChatLabExport(root)
+  const filePath = path.join(root, 'explicit-format.txt')
+  fs.renameSync(detectedPath, filePath)
+
+  const analysis = await analyzeNewImport(filePath, () => {}, { formatId: 'chatlab' })
+
+  assert.equal(analysis.error, undefined)
+  assert.equal(analysis.totalMessages, 5)
+  assert.equal(analysis.newMessageCount, 3)
+  assert.equal(analysis.duplicateCount, 2)
+})

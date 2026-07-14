@@ -112,7 +112,7 @@ test('analyzeIncrementalImport propagates data directory compatibility errors', 
   )
 })
 
-test('incrementalImport honors an explicitly selected parser format', async () => {
+test('incremental analysis and import honor an explicitly selected parser format', async () => {
   const root = makeTempDir()
   const pathProvider = createPathProvider(root)
   const manager = new DatabaseManager(pathProvider, {
@@ -130,8 +130,12 @@ test('incrementalImport honors an explicitly selected parser format', async () =
 
   const filePath = path.join(root, 'explicit-format.txt')
   writeIncrementalJsonl(filePath)
+  const analysis = await analyzeIncrementalImport(manager, 'existing', filePath, undefined, {
+    formatId: 'chatlab-jsonl',
+  })
   const result = await incrementalImport(manager, 'existing', filePath, { formatId: 'chatlab-jsonl' })
 
+  assert.deepEqual(analysis, { newMessageCount: 1, duplicateCount: 0, totalInFile: 1 })
   assert.equal(result.success, true)
   assert.equal(result.newMessageCount, 1)
 })

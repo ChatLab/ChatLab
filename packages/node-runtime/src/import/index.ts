@@ -21,6 +21,7 @@ export type {
   ImportProgressCallback,
   ImportLogger,
   StreamImportDeps,
+  AnalyzeNewImportOptions,
   AnalyzeNewImportResult,
   StreamParseFileInfoResult,
   StreamParseFileInfoDeps,
@@ -41,8 +42,14 @@ export type {
   AutoImportMatcherDeps,
   AutoImportMatchMethod,
 } from './auto-import-matcher'
-export { autoImportFile } from './auto-importer'
-export type { AutoImportDeps, AutoImportOptions, AutoImportResult } from './auto-importer'
+export { analyzeAutoImportFile, autoImportFile } from './auto-importer'
+export type {
+  AutoImportAnalysisDeps,
+  AutoImportAnalysisResult,
+  AutoImportDeps,
+  AutoImportOptions,
+  AutoImportResult,
+} from './auto-importer'
 export {
   IMPORT_IN_PROGRESS_ERROR_KEY,
   IMPORT_LOCK_FILENAME,

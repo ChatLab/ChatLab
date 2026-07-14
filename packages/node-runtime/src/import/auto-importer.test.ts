@@ -1,6 +1,11 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { autoImportFile, type AutoImportDeps } from './auto-importer'
+import {
+  analyzeAutoImportFile,
+  autoImportFile,
+  type AutoImportAnalysisDeps,
+  type AutoImportDeps,
+} from './auto-importer'
 import type { AutoImportDecision } from './auto-import-matcher'
 
 function createDeps(options?: {
@@ -206,6 +211,104 @@ test('matcher failure stops import instead of silently creating a session', asyn
 
   assert.equal(result.success, false)
   assert.match(result.error ?? '', /candidate database failed/)
+  assert.deepEqual(calls.create, [])
+  assert.deepEqual(calls.append, [])
+})
+
+function createAnalysisDeps(options?: {
+  existingSessionIds?: string[]
+  decision?: AutoImportDecision
+  incrementalNewCount?: number
+  incrementalDuplicateCount?: number
+}) {
+  const existing = new Set(options?.existingSessionIds ?? [])
+  const calls = {
+    create: [] as Array<{ filePath: string; formatOptions?: Record<string, unknown> }>,
+    append: [] as Array<{ sessionId: string; filePath: string; formatOptions?: Record<string, unknown> }>,
+  }
+  const deps: AutoImportAnalysisDeps = {
+    listSessionIds: () => [...existing],
+    openReadonly: () => {
+      throw new Error('not used by fake matcher')
+    },
+    sessionExists: (sessionId) => existing.has(sessionId),
+    resolveTarget: async () => options?.decision ?? { action: 'create', reason: 'no-match' },
+    analyzeCreateSession: async (filePath, formatOptions) => {
+      calls.create.push({ filePath, formatOptions })
+      return {
+        totalMessages: 12,
+        newMessageCount: 10,
+        duplicateCount: 2,
+        totalMembers: 3,
+        meta: { name: 'Fixture', platform: 'qq', type: 'group' },
+      }
+    },
+    analyzeAppendSession: async (sessionId, filePath, formatOptions) => {
+      calls.append.push({ sessionId, filePath, formatOptions })
+      return {
+        totalInFile: 12,
+        newMessageCount: options?.incrementalNewCount ?? 4,
+        duplicateCount: options?.incrementalDuplicateCount ?? 8,
+      }
+    },
+  }
+  return { deps, calls }
+}
+
+test('dry-run analysis reuses the automatic incremental target without writing', async () => {
+  const { deps, calls } = createAnalysisDeps({
+    existingSessionIds: ['existing'],
+    decision: { action: 'incremental', sessionId: 'existing', matchedBy: 'stable-id' },
+  })
+
+  const result = await analyzeAutoImportFile('source.json', deps, {
+    formatOptions: { formatId: 'chatlab', chatIndex: 1 },
+  })
+
+  assert.deepEqual(result, {
+    success: true,
+    importMode: 'incremental',
+    sessionId: 'existing',
+    matchedBy: 'stable-id',
+    totalMessageCount: 12,
+    newMessageCount: 4,
+    duplicateCount: 8,
+  })
+  assert.deepEqual(calls.create, [])
+  assert.deepEqual(calls.append, [
+    {
+      sessionId: 'existing',
+      filePath: 'source.json',
+      formatOptions: { formatId: 'chatlab', chatIndex: 1 },
+    },
+  ])
+})
+
+test('dry-run analysis reports a new-session plan without creating a database', async () => {
+  const { deps, calls } = createAnalysisDeps({ decision: { action: 'create', reason: 'ambiguous' } })
+
+  const result = await analyzeAutoImportFile('source.json', deps)
+
+  assert.deepEqual(result, {
+    success: true,
+    importMode: 'created',
+    createReason: 'ambiguous',
+    totalMessageCount: 12,
+    newMessageCount: 10,
+    duplicateCount: 2,
+    totalMemberCount: 3,
+    meta: { name: 'Fixture', platform: 'qq', type: 'group' },
+  })
+  assert.deepEqual(calls.append, [])
+  assert.deepEqual(calls.create, [{ filePath: 'source.json', formatOptions: undefined }])
+})
+
+test('dry-run analysis rejects an unsafe explicit session id before parsing', async () => {
+  const { deps, calls } = createAnalysisDeps()
+
+  const result = await analyzeAutoImportFile('source.json', deps, { explicitSessionId: '../outside' })
+
+  assert.deepEqual(result, { success: false, error: 'sessionId contains invalid characters' })
   assert.deepEqual(calls.create, [])
   assert.deepEqual(calls.append, [])
 })

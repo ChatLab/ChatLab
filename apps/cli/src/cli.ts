@@ -8,20 +8,14 @@ import * as fs from 'fs'
 import { execSync } from 'child_process'
 import { Command } from 'commander'
 import { DEFAULT_API_PORT, loadConfig, getConfigPath, setConfigField, ConfigSetError } from '@openchatlab/config'
-import {
-  AIChatManager,
-  initAppLogger,
-  appLogger,
-  getSystemLogsDir,
-  IMPORT_IN_PROGRESS_ERROR_KEY,
-  logNativeParserStatus,
-} from '@openchatlab/node-runtime'
+import { AIChatManager, initAppLogger, appLogger, getSystemLogsDir } from '@openchatlab/node-runtime'
 import { getVersion } from './version'
 import { resolveCliPath } from './paths'
 import { isPortAvailable, formatPortInUseError } from './http/port'
 import { initRuntime, resolveNativeBinding } from './runtime'
 import { registerQueryCommands } from './query/register'
 import { registerManifestCommand } from './query/manifest'
+import { registerImportCommand } from './import/command'
 
 const program = new Command()
 
@@ -56,86 +50,7 @@ program
 registerQueryCommands(program)
 registerManifestCommand(program, getVersion())
 
-program
-  .command('import <file>')
-  .description('Import a chat history file (14+ formats: QQ/WeChat/Telegram/WhatsApp/LINE/Discord/Instagram, etc.)')
-  .option('--session-id <id>', 'Force an existing session target, or create with this ID if missing')
-  .option('--format <id>', 'Specify format ID (skip auto-detection)')
-  .action(async (file, options) => {
-    if (!fs.existsSync(file)) {
-      console.error(`File not found: ${file}`)
-      process.exit(1)
-    }
-
-    const { autoImport, detectFormat } = await import('./import')
-    const { dbManager, pathProvider } = initRuntime()
-    const nativeBinding = resolveNativeBinding()
-    // 记录 Rust native parser 可用性（本次导入是否走 Rust 内核）
-    logNativeParserStatus()
-
-    const format = detectFormat(file)
-    if (!format && !options.format) {
-      console.error(`Unrecognized file format: ${file}`)
-      console.error('Use --format <id> to specify manually, or run "chatlab formats" to see supported formats')
-      process.exit(1)
-    }
-
-    console.log(`Importing: ${file}`)
-    if (format) console.log(`  Format: ${format.name} (${format.platform})`)
-
-    try {
-      const result = await autoImport(dbManager, file, {
-        formatId: options.format,
-        sessionId: options.sessionId,
-        nativeBinding,
-        onProgress: (p) => {
-          process.stdout.write(`\r  ${p.stage}: ${p.progress}%`)
-        },
-      })
-
-      if (result.success) {
-        console.log(`\n\nImport succeeded!`)
-        console.log(`  Session ID: ${result.sessionId}`)
-        console.log(`  Mode: ${result.importMode ?? 'unknown'}`)
-        if (result.matchedBy) console.log(`  Matched by: ${result.matchedBy}`)
-        if (result.createReason) console.log(`  Create reason: ${result.createReason}`)
-        if (result.createReason === 'ambiguous') {
-          console.warn('  Warning: multiple existing sessions matched, so a new session was created.')
-        }
-        console.log(`  New messages: ${result.newMessageCount ?? 0}`)
-        console.log(`  Duplicates skipped: ${result.duplicateCount ?? 0}`)
-
-        if (result.sessionId) {
-          try {
-            const { PreferencesManager, createDatabaseManagerAdapter, ownerProfileService } =
-              await import('@openchatlab/node-runtime')
-            const applied = ownerProfileService.tryApplyOwnerProfile(
-              createDatabaseManagerAdapter(dbManager),
-              new PreferencesManager(pathProvider.getSystemDir()),
-              result.sessionId
-            )
-            if (applied.applied) {
-              console.log(`  Owner auto-detected: ${applied.ownerId}`)
-            }
-          } catch (ownerErr) {
-            console.warn(`  Owner profile apply skipped: ${ownerErr instanceof Error ? ownerErr.message : ownerErr}`)
-          }
-        }
-      } else {
-        const errorMessage =
-          result.error === IMPORT_IN_PROGRESS_ERROR_KEY
-            ? 'Another import is already in progress. Please retry later.'
-            : result.error
-        console.error(`\n\nImport failed: ${errorMessage}`)
-        process.exitCode = 1
-      }
-    } catch (err) {
-      console.error(`\n\nImport error: ${err instanceof Error ? err.message : err}`)
-      process.exitCode = 1
-    } finally {
-      dbManager.closeAll()
-    }
-  })
+registerImportCommand(program)
 
 program
   .command('formats')
