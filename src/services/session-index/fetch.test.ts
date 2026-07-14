@@ -29,12 +29,23 @@ function createDb(): Database.Database {
       segment_id INTEGER,
       topic_id INTEGER
     );
+    CREATE TABLE message (
+      id INTEGER PRIMARY KEY,
+      ts INTEGER NOT NULL
+    );
   `)
   const insSeg = db.prepare('INSERT INTO segment (id, start_ts, end_ts, message_count, summary) VALUES (?, ?, ?, ?, ?)')
   insSeg.run(1, 100, 200, 3, null)
   insSeg.run(2, 300, 400, 2, 'summary-2')
 
-  // 故意打乱插入顺序，验证 firstMessageId 取的是 message_id 最小值
+  // 模拟先导入新消息、再回填旧消息，验证首条消息按时间而不是按自增 ID 选择。
+  const insMsg = db.prepare('INSERT INTO message (id, ts) VALUES (?, ?)')
+  insMsg.run(10, 150)
+  insMsg.run(11, 100)
+  insMsg.run(12, 200)
+  insMsg.run(30, 400)
+  insMsg.run(31, 300)
+
   const insCtx = db.prepare('INSERT INTO message_context (message_id, segment_id, topic_id) VALUES (?, ?, NULL)')
   insCtx.run(11, 1)
   insCtx.run(10, 1)
@@ -60,9 +71,9 @@ describe('FetchSessionIndexAdapter firstMessageId', () => {
       const sessions = await new FetchSessionIndexAdapter().getSessions('s')
       assert.equal(sessions.length, 2)
       assert.equal(sessions[0].id, 1)
-      assert.equal(sessions[0].firstMessageId, 10)
+      assert.equal(sessions[0].firstMessageId, 11)
       assert.equal(sessions[1].id, 2)
-      assert.equal(sessions[1].firstMessageId, 30)
+      assert.equal(sessions[1].firstMessageId, 31)
     } finally {
       db.close()
     }
@@ -73,7 +84,7 @@ describe('FetchSessionIndexAdapter firstMessageId', () => {
     registerSqliteDataAdapter(db)
     try {
       const sessions = await new FetchSessionIndexAdapter().getRecent('s', 10)
-      assert.equal(sessions[0].firstMessageId, 30)
+      assert.equal(sessions[0].firstMessageId, 31)
       assert.ok(sessions.every((s) => typeof s.firstMessageId === 'number'))
     } finally {
       db.close()
@@ -86,8 +97,8 @@ describe('FetchSessionIndexAdapter firstMessageId', () => {
     try {
       const sessions = await new FetchSessionIndexAdapter().getByTimeRange('s', 0, 1000)
       assert.equal(sessions.length, 2)
-      assert.equal(sessions[0].firstMessageId, 10)
-      assert.equal(sessions[1].firstMessageId, 30)
+      assert.equal(sessions[0].firstMessageId, 11)
+      assert.equal(sessions[1].firstMessageId, 31)
     } finally {
       db.close()
     }

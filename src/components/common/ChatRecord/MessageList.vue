@@ -354,7 +354,7 @@ async function loadMoreAfter() {
 
       hasMoreAfter.value = searchOffset.value < result.total
     } else {
-      // 普通模式：使用消息 ID 加载
+      // 普通模式：服务端会根据末条消息 ID 解析 (timestamp, id) 复合时间游标。
       const lastMessage = messages.value[messages.value.length - 1]
       if (!lastMessage) return
 
