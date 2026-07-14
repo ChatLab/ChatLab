@@ -74,7 +74,11 @@ export async function fetchMessagesBefore(
   keywords?: string[]
 ): Promise<AsyncPaginatedMessages> {
   const { clause, params } = filterConditions(filter, senderId, keywords)
-  const sql = `${FULL_MSG_SELECT} WHERE msg.id < ? ${clause} ORDER BY msg.id DESC LIMIT ?`
+  const sql = `${FULL_MSG_SELECT}
+    JOIN message anchor ON anchor.id = ?
+    WHERE (msg.ts < anchor.ts OR (msg.ts = anchor.ts AND msg.id < anchor.id))
+    ${clause}
+    ORDER BY msg.ts DESC, msg.id DESC LIMIT ?`
   const rows = await executor.all<FullMessageRow>(sql, [beforeId, ...params, limit + 1])
   const hasMore = rows.length > limit
   const sliced = hasMore ? rows.slice(0, limit) : rows
@@ -94,7 +98,11 @@ export async function fetchMessagesAfter(
   keywords?: string[]
 ): Promise<AsyncPaginatedMessages> {
   const { clause, params } = filterConditions(filter, senderId, keywords)
-  const sql = `${FULL_MSG_SELECT} WHERE msg.id > ? ${clause} ORDER BY msg.id ASC LIMIT ?`
+  const sql = `${FULL_MSG_SELECT}
+    JOIN message anchor ON anchor.id = ?
+    WHERE (msg.ts > anchor.ts OR (msg.ts = anchor.ts AND msg.id > anchor.id))
+    ${clause}
+    ORDER BY msg.ts ASC, msg.id ASC LIMIT ?`
   const rows = await executor.all<FullMessageRow>(sql, [afterId, ...params, limit + 1])
   const hasMore = rows.length > limit
   const sliced = hasMore ? rows.slice(0, limit) : rows
@@ -149,7 +157,7 @@ export async function searchMessagesLikeAsync(
 
 /**
  * Get surrounding context messages for given message IDs.
- * Uses simple id-based ordering (not session-aware).
+ * Neighbor selection and output use chronological (timestamp, id) ordering.
  */
 export async function fetchMessageContext(
   executor: AsyncSqlExecutor,
@@ -165,15 +173,21 @@ export async function fetchMessageContext(
     allIds.add(id)
     if (contextSize > 0) {
       const before = await executor.all<{ id: number }>(
-        'SELECT id FROM message WHERE id < ? ORDER BY id DESC LIMIT ?',
+        `SELECT msg.id FROM message msg
+         JOIN message anchor ON anchor.id = ?
+         WHERE msg.ts < anchor.ts OR (msg.ts = anchor.ts AND msg.id < anchor.id)
+         ORDER BY msg.ts DESC, msg.id DESC LIMIT ?`,
         [id, contextSize]
       )
       before.forEach((r) => allIds.add(r.id))
 
-      const after = await executor.all<{ id: number }>('SELECT id FROM message WHERE id > ? ORDER BY id ASC LIMIT ?', [
-        id,
-        contextSize,
-      ])
+      const after = await executor.all<{ id: number }>(
+        `SELECT msg.id FROM message msg
+         JOIN message anchor ON anchor.id = ?
+         WHERE msg.ts > anchor.ts OR (msg.ts = anchor.ts AND msg.id > anchor.id)
+         ORDER BY msg.ts ASC, msg.id ASC LIMIT ?`,
+        [id, contextSize]
+      )
       after.forEach((r) => allIds.add(r.id))
     }
   }
@@ -182,7 +196,7 @@ export async function fetchMessageContext(
   if (idList.length === 0) return []
 
   const placeholders = idList.map(() => '?').join(', ')
-  const sql = `${FULL_MSG_SELECT} WHERE msg.id IN (${placeholders}) ORDER BY msg.id ASC`
+  const sql = `${FULL_MSG_SELECT} WHERE msg.id IN (${placeholders}) ORDER BY msg.ts ASC, msg.id ASC`
   const rows = await executor.all<FullMessageRow>(sql, idList)
   return rows.map(mapMessageRow)
 }
@@ -283,7 +297,7 @@ export async function fetchAllRecentMessages(
   const countRow = await executor.get<{ total: number }>(countSql, params)
   const total = countRow?.total ?? 0
 
-  const sql = `${FULL_MSG_SELECT} WHERE 1=1 ${clause} ORDER BY msg.ts DESC LIMIT ?`
+  const sql = `${FULL_MSG_SELECT} WHERE 1=1 ${clause} ORDER BY msg.ts DESC, msg.id DESC LIMIT ?`
   const rows = await executor.all<FullMessageRow>(sql, [...params, limit])
   return { messages: rows.map(mapMessageRow).reverse(), total }
 }

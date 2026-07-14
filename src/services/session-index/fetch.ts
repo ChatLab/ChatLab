@@ -25,7 +25,8 @@ function getDataAdapter(): DataAdapter {
 
 // 取会话首条消息 ID，供时间线点击跳转到对应消息位置使用（与 core getChatSessionList 保持一致）
 const FIRST_MESSAGE_ID_SUBQUERY = `(SELECT mc.message_id FROM message_context mc
-   WHERE mc.segment_id = segment.id ORDER BY mc.message_id LIMIT 1) as firstMessageId`
+   JOIN message first_msg ON first_msg.id = mc.message_id
+   WHERE mc.segment_id = segment.id ORDER BY first_msg.ts ASC, first_msg.id ASC LIMIT 1) as firstMessageId`
 
 export class FetchSessionIndexAdapter implements SessionIndexAdapter {
   async generate(sessionId: string, gapThreshold: number = 1800): Promise<number> {

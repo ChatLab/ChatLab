@@ -234,15 +234,15 @@ describe('getChatSessionList', () => {
   it('returns sessions with firstMessageId', () => {
     const db = createSqliteDb()
     seedMessages(db, [
-      { id: 10, ts: 1000 },
-      { id: 20, ts: 1100 },
+      { id: 10, ts: 1100 },
+      { id: 20, ts: 1000 },
       { id: 30, ts: 5000 },
     ])
     generateSessionIndex(db, 2000)
 
     const list = getChatSessionList(db)
     assert.equal(list.length, 2)
-    assert.equal(list[0].firstMessageId, 10)
+    assert.equal(list[0].firstMessageId, 20)
     assert.equal(list[0].messageCount, 2)
     assert.equal(list[1].firstMessageId, 30)
   })

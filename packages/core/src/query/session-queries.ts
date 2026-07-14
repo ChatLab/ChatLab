@@ -439,7 +439,8 @@ export function getSessionsByTimeRange(db: DatabaseAdapter, startTs: number, end
           id, start_ts as startTs, end_ts as endTs,
           message_count as messageCount, summary,
           (SELECT mc.message_id FROM message_context mc
-           WHERE mc.segment_id = cs.id ORDER BY mc.message_id LIMIT 1) as firstMessageId
+           JOIN message first_msg ON first_msg.id = mc.message_id
+           WHERE mc.segment_id = cs.id ORDER BY first_msg.ts ASC, first_msg.id ASC LIMIT 1) as firstMessageId
         FROM segment cs
         WHERE start_ts >= ? AND start_ts <= ?
         ORDER BY start_ts DESC`
@@ -462,7 +463,8 @@ export function getRecentChatSessions(db: DatabaseAdapter, limit: number): ChatS
           id, start_ts as startTs, end_ts as endTs,
           message_count as messageCount, summary,
           (SELECT mc.message_id FROM message_context mc
-           WHERE mc.segment_id = cs.id ORDER BY mc.message_id LIMIT 1) as firstMessageId
+           JOIN message first_msg ON first_msg.id = mc.message_id
+           WHERE mc.segment_id = cs.id ORDER BY first_msg.ts ASC, first_msg.id ASC LIMIT 1) as firstMessageId
         FROM segment cs
         ORDER BY start_ts DESC
         LIMIT ?`
@@ -488,7 +490,8 @@ export function getChatSessionList(db: DatabaseAdapter): ChatSessionItem[] {
           cs.message_count as messageCount,
           cs.summary,
           (SELECT mc.message_id FROM message_context mc
-           WHERE mc.segment_id = cs.id ORDER BY mc.message_id LIMIT 1) as firstMessageId
+           JOIN message first_msg ON first_msg.id = mc.message_id
+           WHERE mc.segment_id = cs.id ORDER BY first_msg.ts ASC, first_msg.id ASC LIMIT 1) as firstMessageId
         FROM segment cs
         ORDER BY cs.start_ts ASC`
       )

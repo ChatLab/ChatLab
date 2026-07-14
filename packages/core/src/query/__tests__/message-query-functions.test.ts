@@ -9,6 +9,7 @@
 
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import Database from 'better-sqlite3'
 import type { AsyncSqlExecutor } from '../message-query-functions'
 import type { FullMessageRow } from '../message-sql'
 import {
@@ -87,6 +88,49 @@ function createAsyncExecutor(store: Map<string, unknown[]>): AsyncSqlExecutor {
   }
 }
 
+function createSqliteExecutor(db: Database.Database): AsyncSqlExecutor {
+  return {
+    all<T>(sql: string, params: unknown[] = []): Promise<T[]> {
+      return Promise.resolve(db.prepare(sql).all(...params) as T[])
+    },
+    get<T>(sql: string, params: unknown[] = []): Promise<T | undefined> {
+      return Promise.resolve(db.prepare(sql).get(...params) as T | undefined)
+    },
+  }
+}
+
+function createBackfilledMessageDb(): Database.Database {
+  const db = new Database(':memory:')
+  db.exec(`
+    CREATE TABLE member (
+      id INTEGER PRIMARY KEY,
+      platform_id TEXT NOT NULL,
+      account_name TEXT,
+      group_nickname TEXT,
+      aliases TEXT DEFAULT '[]',
+      avatar TEXT
+    );
+    CREATE TABLE message (
+      id INTEGER PRIMARY KEY,
+      sender_id INTEGER NOT NULL,
+      ts INTEGER NOT NULL,
+      type INTEGER NOT NULL,
+      content TEXT,
+      reply_to_message_id TEXT,
+      platform_message_id TEXT
+    );
+    INSERT INTO member (id, platform_id, account_name) VALUES (1, 'alice', 'Alice');
+
+    -- 较新的消息先入库，随后增量回填较早的消息，因此 id 与时间顺序不同。
+    INSERT INTO message (id, sender_id, ts, type, content) VALUES
+      (1, 1, 300, 0, 'newer-first'),
+      (2, 1, 400, 0, 'newest-first'),
+      (3, 1, 100, 0, 'oldest-backfill'),
+      (4, 1, 200, 0, 'older-backfill');
+  `)
+  return db
+}
+
 // ==================== Tests ====================
 
 describe('fetchMessagesBefore', () => {
@@ -132,6 +176,41 @@ describe('fetchMessagesAfter', () => {
       syncResult.messages.map((m) => m.id),
       asyncResult.messages.map((m) => m.id)
     )
+  })
+})
+
+describe('timestamp cursor ordering after historical backfill', () => {
+  it('paginates before and after an anchor by timestamp then id', async () => {
+    const db = createBackfilledMessageDb()
+    try {
+      const executor = createSqliteExecutor(db)
+      const before = await fetchMessagesBefore(executor, 1, 10)
+      const after = await fetchMessagesAfter(executor, 1, 10)
+
+      assert.deepEqual(
+        before.messages.map((message) => message.id),
+        [3, 4]
+      )
+      assert.deepEqual(
+        after.messages.map((message) => message.id),
+        [2]
+      )
+    } finally {
+      db.close()
+    }
+  })
+
+  it('loads message context in chronological order instead of insertion order', async () => {
+    const db = createBackfilledMessageDb()
+    try {
+      const messages = await fetchMessageContext(createSqliteExecutor(db), 1, 2)
+      assert.deepEqual(
+        messages.map((message) => message.id),
+        [3, 4, 1, 2]
+      )
+    } finally {
+      db.close()
+    }
   })
 })
 
