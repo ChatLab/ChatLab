@@ -27,8 +27,6 @@ import logoSvg from '@/assets/images/logo.svg'
 const { t } = useI18n()
 const LATEST_VERSION_URL = 'https://chatlab.fun/latest-version'
 const UPDATE_CHECK_CACHE_KEY = 'chatlab:latest-version-check:v2'
-const hasMacTitlebarInset =
-  IS_ELECTRON && typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('mac')
 
 const sessionStore = useSessionStore()
 const layoutStore = useLayoutStore()
@@ -419,7 +417,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
     class="flex h-full shrink-0 flex-col overflow-hidden rounded-lg bg-white transition-all duration-300 ease-in-out dark:bg-sidebar-dark"
     :class="isCollapsed ? 'w-14' : 'w-72'"
   >
-    <div class="flex flex-col px-2 pb-4" :class="hasMacTitlebarInset ? 'pt-8' : 'pt-5'">
+    <div class="flex flex-col px-2 pb-4 pt-8">
       <!-- Header -->
       <div
         class="mb-2 flex items-center"
