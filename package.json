@@ -53,7 +53,7 @@
   },
   "dependencies": {
     "@tanstack/vue-virtual": "^3.13.18",
-    "@zumer/snapdom": "^2.0.1",
+    "@zumer/snapdom": "^2.16.0",
     "echarts": "^6.0.0",
     "echarts-wordcloud": "^2.1.0",
     "markdown-it": "^14.1.0",

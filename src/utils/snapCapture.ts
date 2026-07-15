@@ -1,4 +1,4 @@
-import { snapdom } from '@zumer/snapdom'
+import { snapdom, type CaptureResult, type SnapdomOptions } from '@zumer/snapdom'
 
 export interface CaptureOptions {
   maxExportWidth?: number
@@ -104,6 +104,52 @@ function triggerDownload(href: string, filename: string) {
   a.remove()
 }
 
+function canvasToPngBlob(canvas: HTMLCanvasElement): Promise<Blob> {
+  return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) {
+        resolve(blob)
+      } else {
+        reject(new Error('Canvas PNG encoding returned an empty result'))
+      }
+    }, 'image/png')
+  })
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader()
+    reader.onload = () => resolve(reader.result as string)
+    reader.onerror = () => reject(reader.error ?? new Error('Failed to serialize captured image'))
+    reader.readAsDataURL(blob)
+  })
+}
+
+async function renderCaptureToBlob(
+  result: CaptureResult,
+  maxExportWidth: number,
+  backgroundColor: string
+): Promise<Blob> {
+  const sourceCanvas = await result.toCanvas()
+  let exportCanvas = sourceCanvas
+
+  // 大部分截图无需缩放，直接复用 SnapDOM 的 Canvas，避免一次全尺寸绘制和内存分配。
+  if (sourceCanvas.width > maxExportWidth) {
+    const scale = maxExportWidth / sourceCanvas.width
+    const resizedCanvas = document.createElement('canvas')
+    resizedCanvas.width = Math.round(sourceCanvas.width * scale)
+    resizedCanvas.height = Math.round(sourceCanvas.height * scale)
+    const context = resizedCanvas.getContext('2d')
+    if (!context) throw new Error('Failed to create capture resize context')
+
+    context.fillStyle = backgroundColor
+    context.fillRect(0, 0, resizedCanvas.width, resizedCanvas.height)
+    context.drawImage(sourceCanvas, 0, 0, resizedCanvas.width, resizedCanvas.height)
+    exportCanvas = resizedCanvas
+  }
+  return canvasToPngBlob(exportCanvas)
+}
+
 /**
  * 捕获元素为图片数据，返回 base64 字符串
  * @param rootEl 要捕获的 DOM 元素
@@ -124,73 +170,38 @@ export async function captureAsImageData(rootEl: HTMLElement, options?: CaptureO
   let captureScale = Math.min(1, maxExportWidth / Math.max(1, elementWidth))
   captureScale = Math.max(minScale, captureScale)
 
-  const snapOptions: Record<string, unknown> = {
+  const snapOptions: SnapdomOptions = {
     scale: captureScale,
     // 禁用字体嵌入可以避免某些 Unicode 字符导致的 encodeURIComponent 错误
     embedFonts: options?.embedFonts ?? false,
     compress: options?.compress ?? true,
     backgroundColor: bgColor,
-    crossOrigin: options?.crossOrigin ?? 'anonymous',
   }
 
-  const result = await (
-    snapdom as (
-      element: Element,
-      options: Record<string, unknown>
-    ) => Promise<{
-      toCanvas: () => Promise<unknown>
-      toPng: (options?: Record<string, unknown>) => Promise<unknown>
-      toImg: () => Promise<HTMLImageElement>
-    }>
-  )(rootEl, snapOptions)
+  const result = await snapdom(rootEl, snapOptions)
 
-  // Preferred: Canvas path, apply background and scale again if needed, return data URL
+  // 首选 Canvas + 异步 Blob 编码，避免 toDataURL 同步阻塞渲染线程。
   try {
-    const canvas: unknown = await result.toCanvas()
-    if (canvas && (canvas as HTMLCanvasElement).toDataURL) {
-      const srcCanvas = canvas as HTMLCanvasElement
-      const outCanvas = document.createElement('canvas')
-      const scale2 = srcCanvas.width > maxExportWidth ? maxExportWidth / srcCanvas.width : 1
-      outCanvas.width = Math.round(srcCanvas.width * scale2)
-      outCanvas.height = Math.round(srcCanvas.height * scale2)
-      const ctx = outCanvas.getContext('2d')
-      if (ctx) {
-        ctx.fillStyle = bgColor
-        ctx.fillRect(0, 0, outCanvas.width, outCanvas.height)
-        ctx.drawImage(srcCanvas, 0, 0, outCanvas.width, outCanvas.height)
-        return outCanvas.toDataURL('image/png')
-      }
-    }
+    const blob = await renderCaptureToBlob(result, maxExportWidth, bgColor)
+    return blobToDataUrl(blob)
   } catch {
     // fallback below
   }
 
-  // Fallback: direct PNG export with background
+  // Fallback: use SnapDOM's Blob exporter while retaining asynchronous PNG encoding.
   try {
-    const png: unknown = await result.toPng({ backgroundColor: bgColor })
-
-    if (png instanceof HTMLImageElement) {
-      return png.src
-    }
-    if (png instanceof Blob) {
-      return new Promise((resolve, reject) => {
-        const reader = new FileReader()
-        reader.onload = () => resolve(reader.result as string)
-        reader.onerror = reject
-        reader.readAsDataURL(png)
-      })
-    }
-    if (typeof png === 'string') {
-      return png
-    }
+    const blob = await result.toBlob({ type: 'png', backgroundColor: bgColor })
+    return blobToDataUrl(blob)
   } catch {
     // swallow
   }
 
-  // Last Fallback: toImg
+  // Last fallback: convert SnapDOM's PNG image result back into a Blob.
   try {
-    const img: HTMLImageElement = await result.toImg()
-    return img.src
+    const image = await result.toPng({ backgroundColor: bgColor })
+    const response = await fetch(image.src)
+    const blob = await response.blob()
+    return blobToDataUrl(blob)
   } catch (e) {
     console.error('captureAsImageData: all export paths failed', e)
     throw new Error('Failed to capture image data')
@@ -198,94 +209,11 @@ export async function captureAsImageData(rootEl: HTMLElement, options?: CaptureO
 }
 
 export async function captureAndDownloadPng(rootEl: HTMLElement, options?: CaptureOptions): Promise<void> {
-  // 提高默认清晰度：maxExportWidth 2160（2K），minScale 1（不缩小）
-  const maxExportWidth = options?.maxExportWidth ?? 2160
-  const minScale = options?.minScale ?? 1
-  const fullContent = options?.fullContent !== false // 默认为 true
-
-  // 获取元素的实际背景色（优先用户指定，否则自动检测）
-  const bgColor = options?.backgroundColor ?? getEffectiveBackground(rootEl)
-
-  // 计算元素尺寸：如果需要完整内容，使用 scrollWidth/scrollHeight
-  const elementWidth = fullContent ? rootEl.scrollWidth : rootEl.getBoundingClientRect().width
-  let captureScale = Math.min(1, maxExportWidth / Math.max(1, elementWidth))
-  captureScale = Math.max(minScale, captureScale)
-
-  const snapOptions: Record<string, unknown> = {
-    scale: captureScale,
-    // 禁用字体嵌入可以避免某些 Unicode 字符导致的 encodeURIComponent 错误
-    embedFonts: options?.embedFonts ?? false,
-    compress: options?.compress ?? true,
-    backgroundColor: bgColor,
-    crossOrigin: options?.crossOrigin ?? 'anonymous',
-  }
-
-  const result = await (
-    snapdom as (
-      element: Element,
-      options: Record<string, unknown>
-    ) => Promise<{
-      toCanvas: () => Promise<unknown>
-      toPng: (options?: Record<string, unknown>) => Promise<unknown>
-      toImg: () => Promise<HTMLImageElement>
-    }>
-  )(rootEl, snapOptions)
-
-  // Preferred: Canvas path, apply background and scale again if needed, export PNG
   try {
-    const canvas: unknown = await result.toCanvas()
-    if (canvas && (canvas as HTMLCanvasElement).toDataURL) {
-      const srcCanvas = canvas as HTMLCanvasElement
-      const outCanvas = document.createElement('canvas')
-      const scale2 = srcCanvas.width > maxExportWidth ? maxExportWidth / srcCanvas.width : 1
-      outCanvas.width = Math.round(srcCanvas.width * scale2)
-      outCanvas.height = Math.round(srcCanvas.height * scale2)
-      const ctx = outCanvas.getContext('2d')
-      if (ctx) {
-        ctx.fillStyle = bgColor
-        ctx.fillRect(0, 0, outCanvas.width, outCanvas.height)
-        ctx.drawImage(srcCanvas, 0, 0, outCanvas.width, outCanvas.height)
-        const url = outCanvas.toDataURL('image/png')
-        const ts = new Date().toISOString().replace(/[:.]/g, '-')
-        triggerDownload(url, options?.filename ?? `wlb-report-${ts}.png`)
-        return
-      }
-    }
-  } catch {
-    // fallback below
-  }
-
-  // Fallback: direct PNG export with background
-  try {
-    const png: unknown = await result.toPng({ backgroundColor: bgColor })
+    const dataUrl = await captureAsImageData(rootEl, options)
     const ts = new Date().toISOString().replace(/[:.]/g, '-')
-    const name = options?.filename ?? `wlb-report-${ts}.png`
-
-    if (png instanceof HTMLImageElement) {
-      triggerDownload(png.src, name)
-      return
-    }
-    if (png instanceof Blob) {
-      const url = URL.createObjectURL(png)
-      triggerDownload(url, name)
-      URL.revokeObjectURL(url)
-      return
-    }
-    if (typeof png === 'string') {
-      triggerDownload(png, name)
-      return
-    }
-  } catch {
-    // swallow
-  }
-
-  // Last Fallback: toImg
-  try {
-    const img: HTMLImageElement = await result.toImg()
-    const ts = new Date().toISOString().replace(/[:.]/g, '-')
-    triggerDownload(img.src, options?.filename ?? `wlb-report-${ts}.png`)
+    triggerDownload(dataUrl, options?.filename ?? `wlb-report-${ts}.png`)
   } catch (e) {
-    // As a last resort, do nothing but log
     console.error('captureAndDownloadPng: all export paths failed', e)
   }
 }

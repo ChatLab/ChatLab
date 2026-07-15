@@ -26,6 +26,8 @@ const props = withDefaults(
     markdownFix?: boolean
     /** 是否对截图内容进行渐进式缩窄；传入数字时作为基准宽度 */
     progressiveNarrowing?: number | boolean
+    /** 是否为截图增加外框留白 */
+    captureFrame?: boolean
     /** 按钮颜色，默认 primary */
     color?: string
   }>(),
@@ -50,6 +52,7 @@ async function handleCapture(event: Event) {
   const defaultOptions = {
     hideSelectors: [`#${buttonId.value}`],
     progressiveNarrowing: props.progressiveNarrowing,
+    captureFrame: props.captureFrame,
     markdownFix: props.markdownFix || undefined,
   }
 

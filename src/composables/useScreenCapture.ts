@@ -4,14 +4,14 @@
  */
 import { ref } from 'vue'
 import { captureAsImageData } from '@/utils/snapCapture'
-import { waitForCaptureLayoutStabilization } from '@/utils/captureLayout'
+import { resolveCaptureBoxSizing, waitForCaptureLayoutStabilization } from '@/utils/captureLayout'
 import { useToast } from '@/composables/useToast'
 import { useLayoutStore } from '@/stores/layout'
 import { usePlatformService } from '@/services'
 import { useCacheService } from '@/services/cache/service'
 
-/** 渐进式缩窄的默认基准宽度 */
-const DEFAULT_NARROWING_BASE_WIDTH = 525
+const CAPTURE_FRAME_HORIZONTAL_PADDING = 40
+const CAPTURE_FRAME_VERTICAL_PADDING = 16
 
 export interface ScreenCaptureOptions {
   /** 截屏时要隐藏的元素选择器列表 */
@@ -29,6 +29,8 @@ export interface ScreenCaptureOptions {
    * - 传入 false 或不传：不进行缩窄
    */
   progressiveNarrowing?: number | boolean
+  /** 是否为截图增加外框留白；留白不会额外压缩内容宽度 */
+  captureFrame?: boolean
   /** 是否应用 Markdown 列表渲染兼容修复（仅截取 Markdown 内容时需要，默认 false） */
   markdownFix?: boolean
 }
@@ -134,40 +136,37 @@ export function useScreenCapture() {
     isCapturing.value = true
     captureError.value = null
 
-    // 只在底部预留水印空间，避免横向 padding 改变卡片内容宽度并触发图表重排。
+    // 截图外框只由显式选项开启，普通卡片截图不改变原布局。
+    const originalPadding = element.style.padding
     const originalPaddingBottom = element.style.paddingBottom
+    const originalBoxSizing = element.style.boxSizing
     const originalPosition = element.style.position
     const originalWidth = element.style.width
     const originalMinWidth = element.style.minWidth
     const originalMaxWidth = element.style.maxWidth
 
+    const currentWidth = element.getBoundingClientRect().width
+    const captureBoxSizing = resolveCaptureBoxSizing({
+      currentWidth,
+      progressiveNarrowing: options?.progressiveNarrowing,
+      frameHorizontalPadding: options?.captureFrame ? CAPTURE_FRAME_HORIZONTAL_PADDING : 0,
+    })
+
+    if (options?.captureFrame) {
+      element.style.padding = `${CAPTURE_FRAME_VERTICAL_PADDING}px ${CAPTURE_FRAME_HORIZONTAL_PADDING}px`
+    }
     element.style.paddingBottom = '48px' // 为水印留出空间
     const computedPosition = window.getComputedStyle(element).position
     if (computedPosition === 'static') {
       element.style.position = 'relative'
     }
 
-    // 渐进式缩窄：只压缩超出基准宽度的部分，避免截图突然变得过窄。
-    let didChangeWidth = false
-    if (options?.progressiveNarrowing) {
-      const baseWidth =
-        typeof options.progressiveNarrowing === 'number' ? options.progressiveNarrowing : DEFAULT_NARROWING_BASE_WIDTH
-
-      // 获取元素当前的实际宽度
-      const currentWidth = element.getBoundingClientRect().width
-
-      // 只有当原始宽度大于基准宽度时才缩放
-      if (currentWidth > baseWidth) {
-        // 渐进式缩放：目标宽度 = 基准宽度 + (原始宽度 - 基准宽度) × 缩放因子
-        // 缩放因子 0.3 表示超出部分保留 30%
-        const scaleFactor = 0.3
-        const targetWidth = Math.round(baseWidth + (currentWidth - baseWidth) * scaleFactor)
-
-        element.style.width = `${targetWidth}px`
-        element.style.minWidth = `${targetWidth}px`
-        element.style.maxWidth = `${targetWidth}px`
-        didChangeWidth = true
-      }
+    // 外框使用额外的根元素宽度承载，避免 40px 横向留白再次压缩正文和图表。
+    if (options?.captureFrame || captureBoxSizing.didChangeContentWidth) {
+      element.style.boxSizing = 'border-box'
+      element.style.width = `${captureBoxSizing.outerWidth}px`
+      element.style.minWidth = `${captureBoxSizing.outerWidth}px`
+      element.style.maxWidth = `${captureBoxSizing.outerWidth}px`
     }
 
     // 添加底部水印标识（绝对定位）
@@ -402,7 +401,7 @@ export function useScreenCapture() {
     }
 
     try {
-      await waitForCaptureLayoutStabilization({ resizeCharts: didChangeWidth })
+      await waitForCaptureLayoutStabilization({ resizeCharts: captureBoxSizing.didChangeContentWidth })
 
       const imageData = await captureAsImageData(element, {
         maxExportWidth: options?.maxExportWidth,
@@ -440,7 +439,9 @@ export function useScreenCapture() {
       watermark.remove()
 
       // 恢复元素样式
+      element.style.padding = originalPadding
       element.style.paddingBottom = originalPaddingBottom
+      element.style.boxSizing = originalBoxSizing
       element.style.position = originalPosition
       element.style.width = originalWidth
       element.style.minWidth = originalMinWidth
@@ -484,7 +485,7 @@ export function useScreenCapture() {
       for (const el of hiddenElements) {
         el.classList.remove('__capture-hidden__')
       }
-      await waitForCaptureLayoutStabilization({ resizeCharts: didChangeWidth })
+      await waitForCaptureLayoutStabilization({ resizeCharts: captureBoxSizing.didChangeContentWidth })
       isCapturing.value = false
     }
   }
