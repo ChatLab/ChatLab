@@ -65,4 +65,4 @@ ChatLab 提供三種匯入方式，適用於不同場景：
 
 ChatLab 內建 AI Agent 功能，接入 AI 模型後即可透過自然語言探索你的聊天歷史。
 
-詳細配置步驟請查看 [如何配置 AI 模型](/tw/usage/how-to-config-ai)。
+詳細配置步驟請查看 [使用內建 AI 分析](/tw/ai/chatlab-ai)。

@@ -12,7 +12,7 @@ ChatLab 是一款免费、开源、本地优先的聊天记录分析工具，支
 - [ChatLab 介绍](/cn/intro) — 了解 ChatLab 是什么，以及它的核心功能。
 - [快速开始](/cn/usage/quick-start) — 安装 ChatLab 并完成第一次聊天记录导入的步骤指南。
 - [导出与导入](/cn/usage/how-to-export) — 从 WhatsApp、QQ、LINE 等平台导出聊天记录并导入 ChatLab 分析。
-- [配置 AI](/cn/usage/how-to-config-ai) — 接入 OpenAI、Claude、DeepSeek 等 AI 模型，用自然语言分析聊天内容。
+- [使用内置 AI 分析](/cn/ai/chatlab-ai) — 接入 OpenAI、Claude、DeepSeek 等 AI 模型，用自然语言分析聊天内容。
 - [故障排查](/cn/usage/troubleshooting) — 解决导入失败、格式不支持、AI 配置报错等常见问题。
 
 ## 开发者：对接 ChatLab

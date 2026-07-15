@@ -69,4 +69,4 @@ If you're a developer looking to integrate **auto sync** or **API push**, see:
 
 ChatLab comes with a built-in AI Agent. Connect a model and start asking questions about your chat history in natural language.
 
-See [How to Configure AI](/usage/how-to-config-ai) for detailed setup steps.
+See [Analyze with built-in AI](/ai/chatlab-ai) for detailed setup steps.

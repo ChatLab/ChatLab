@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "dev": "vitepress dev .",
+    "dev": "vitepress dev . --port 3120",
     "build": "vitepress build .",
     "preview": "vitepress preview ."
   },

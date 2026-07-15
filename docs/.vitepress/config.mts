@@ -9,13 +9,19 @@ const enSidebar: DefaultTheme.SidebarItem[] = [
       { text: 'Quick Start', link: '/usage/quick-start' },
       { text: 'Export Chat Records', link: '/usage/how-to-export' },
       { text: 'Import Chat Records', link: '/usage/how-to-import' },
-      { text: 'Configure AI', link: '/usage/how-to-config-ai' },
-      { text: 'External Agent Calls', link: '/usage/cli-query' },
       { text: 'Troubleshooting', link: '/usage/troubleshooting' },
     ],
   },
   {
-    text: 'Standards',
+    text: 'AI Analysis',
+    items: [
+      { text: 'Why ChatLab', link: '/ai/why-chatlab' },
+      { text: 'Analyze with Built-in AI', link: '/ai/chatlab-ai' },
+      { text: 'Analyze with an External AI Agent', link: '/ai/external-agent' },
+    ],
+  },
+  {
+    text: 'Integrate with ChatLab',
     items: [
       { text: 'ChatLab Format', link: '/standard/chatlab-format' },
       { text: 'AI Conversion Guide', link: '/standard/ai-converter' },
@@ -37,14 +43,20 @@ const cnSidebar: DefaultTheme.SidebarItem[] = [
       { text: '快速开始', link: '/cn/usage/quick-start' },
       { text: '导出聊天记录', link: '/cn/usage/how-to-export' },
       { text: '导入聊天记录', link: '/cn/usage/how-to-import' },
-      { text: '配置 AI', link: '/cn/usage/how-to-config-ai' },
-      { text: '外部 Agent 调用', link: '/cn/usage/cli-query' },
       { text: '故障排查', link: '/cn/usage/troubleshooting' },
       { text: '常见问题', link: '/cn/usage/faq' },
     ],
   },
   {
-    text: '适配 ChatLab',
+    text: 'AI 分析',
+    items: [
+      { text: '为什么选择 ChatLab', link: '/cn/ai/why-chatlab' },
+      { text: '使用内置 AI 分析', link: '/cn/ai/chatlab-ai' },
+      { text: '使用外部 AI Agent 分析', link: '/cn/ai/external-agent' },
+    ],
+  },
+  {
+    text: '对接 ChatLab',
     items: [
       { text: 'ChatLab Format', link: '/cn/standard/chatlab-format' },
       { text: 'AI 辅助转换', link: '/cn/standard/ai-converter' },
@@ -68,13 +80,19 @@ const twSidebar: DefaultTheme.SidebarItem[] = [
       { text: '快速開始', link: '/tw/usage/quick-start' },
       { text: '匯出聊天記錄', link: '/tw/usage/how-to-export' },
       { text: '匯入聊天記錄', link: '/tw/usage/how-to-import' },
-      { text: '配置 AI', link: '/tw/usage/how-to-config-ai' },
       { text: '故障排除', link: '/tw/usage/troubleshooting' },
       { text: '常見問題', link: '/tw/usage/faq' },
     ],
   },
   {
-    text: '適配 ChatLab',
+    text: 'AI 分析',
+    items: [
+      { text: '為什麼選擇 ChatLab', link: '/tw/ai/why-chatlab' },
+      { text: '使用內建 AI 分析', link: '/tw/ai/chatlab-ai' },
+    ],
+  },
+  {
+    text: '對接 ChatLab',
     items: [
       { text: 'ChatLab Format', link: '/tw/standard/chatlab-format' },
       { text: 'AI 輔助轉換', link: '/tw/standard/ai-converter' },
@@ -145,6 +163,7 @@ export default defineConfig({
         sidebar: {
           '/': enSidebar,
           '/usage/': enSidebar,
+          '/ai/': enSidebar,
           '/standard/': enSidebar,
           '/contributing/': enSidebar,
         },
@@ -184,6 +203,7 @@ export default defineConfig({
         sidebar: {
           '/cn/': cnSidebar,
           '/cn/usage/': cnSidebar,
+          '/cn/ai/': cnSidebar,
           '/cn/standard/': cnSidebar,
           '/cn/contributing/': cnSidebar,
         },
@@ -226,6 +246,7 @@ export default defineConfig({
         sidebar: {
           '/tw/': twSidebar,
           '/tw/usage/': twSidebar,
+          '/tw/ai/': twSidebar,
           '/tw/standard/': twSidebar,
         },
         outline: {

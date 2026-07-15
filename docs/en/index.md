@@ -12,7 +12,7 @@ ChatLab is a free, open-source, local-first chat history analysis tool. It suppo
 - [Introduction](/intro) — Learn what ChatLab is and what it can do.
 - [Quick Start](/usage/quick-start) — Step-by-step guide to installing ChatLab and importing your first chat records.
 - [Export & Import](/usage/how-to-export) — Export chat records from WhatsApp, QQ, LINE, and other platforms and import them into ChatLab.
-- [Configure AI](/usage/how-to-config-ai) — Connect OpenAI, Claude, DeepSeek, or other AI models to analyze your chat history in natural language.
+- [Analyze with built-in AI](/ai/chatlab-ai) — Connect OpenAI, Claude, DeepSeek, or another AI model to analyze your chat history in natural language.
 - [Troubleshooting](/usage/troubleshooting) — Fix common issues with failed imports, unsupported formats, and AI configuration errors.
 
 ## For Developers: Integrating with ChatLab

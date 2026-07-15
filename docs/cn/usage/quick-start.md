@@ -71,4 +71,4 @@ ChatLab 提供三种导入方式，适用于不同场景：
 
 ChatLab 内置 AI Agent 功能，接入 AI 模型后即可通过自然语言探索你的聊天历史。
 
-详细配置步骤请查看 [如何配置 AI 模型](/cn/usage/how-to-config-ai)。
+详细配置步骤请查看 [使用内置 AI 分析](/cn/ai/chatlab-ai)。

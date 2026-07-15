@@ -14,7 +14,7 @@ title: ChatLab 文件
 
 - [快速開始](/tw/usage/quick-start) — 匯入第一份聊天記錄，了解 ChatLab 的基礎使用流程。
 - [匯出與匯入](/tw/usage/how-to-export) — 準備來自不同平台的聊天記錄，並匯入 ChatLab 分析。
-- [配置 AI](/tw/usage/how-to-config-ai) — 連接 AI 模型，透過 Agent 工具探索聊天歷史。
+- [使用內建 AI 分析](/tw/ai/chatlab-ai) — 連接 AI 模型，透過 Agent 工具探索聊天歷史。
 - [故障排除](/tw/usage/troubleshooting) — 處理匯入、解析和 AI 配置中的常見問題。
 
 ## 標準
