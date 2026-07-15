@@ -8,8 +8,5 @@
     }
   },
   "files": [],
-  "references": [
-    { "path": "./tsconfig.node.json" },
-    { "path": "./apps/desktop/tsconfig.node.json" }
-  ]
+  "references": [{ "path": "./tsconfig.node.json" }, { "path": "./apps/desktop/tsconfig.node.json" }]
 }

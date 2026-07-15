@@ -2,6 +2,4 @@ out
 dist
 pnpm-lock.yaml
 LICENSE
-tsconfig.json
-tsconfig.*.json
 docs/**/*.md

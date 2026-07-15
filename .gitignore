@@ -19,6 +19,7 @@ error-log-*.txt
 .vscode/*
 !.vscode/settings.json
 !.vscode/snippets.code-snippets
+!.vscode/extensions.json
 
 # Project
 dist/

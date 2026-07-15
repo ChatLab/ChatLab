@@ -10,10 +10,5 @@
     "../../packages/core/src/**/*.ts",
     "../../packages/tools/src/**/*.ts"
   ],
-  "exclude": [
-    "**/__tests__/**",
-    "**/*.test.ts",
-    "**/*.spec.ts",
-    "src/bin.ts"
-  ]
+  "exclude": ["**/__tests__/**", "**/*.test.ts", "**/*.spec.ts", "src/bin.ts"]
 }
