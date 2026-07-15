@@ -1,6 +1,56 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { resolveCaptureBoxSizing, waitForCaptureLayoutStabilization } from './captureLayout'
+import {
+  restoreCapturePadding,
+  resolveCaptureBoxSizing,
+  snapshotCapturePadding,
+  waitForCaptureLayoutStabilization,
+} from './captureLayout'
+
+describe('inline padding restoration', () => {
+  it('preserves unrelated padding longhands after an unframed capture', () => {
+    const style = {
+      paddingTop: '',
+      paddingRight: '',
+      paddingBottom: '',
+      paddingLeft: '12px',
+    }
+    const originalPadding = snapshotCapturePadding(style, false)
+
+    style.paddingBottom = '48px'
+    restoreCapturePadding(style, originalPadding)
+
+    assert.deepEqual(style, {
+      paddingTop: '',
+      paddingRight: '',
+      paddingBottom: '',
+      paddingLeft: '12px',
+    })
+  })
+
+  it('restores every padding longhand after a framed capture', () => {
+    const style = {
+      paddingTop: '',
+      paddingRight: '',
+      paddingBottom: '',
+      paddingLeft: '12px',
+    }
+    const originalPadding = snapshotCapturePadding(style, true)
+
+    style.paddingTop = '16px'
+    style.paddingRight = '40px'
+    style.paddingBottom = '48px'
+    style.paddingLeft = '40px'
+    restoreCapturePadding(style, originalPadding)
+
+    assert.deepEqual(style, {
+      paddingTop: '',
+      paddingRight: '',
+      paddingBottom: '',
+      paddingLeft: '12px',
+    })
+  })
+})
 
 describe('resolveCaptureBoxSizing', () => {
   it('adds frame width without narrowing the captured content', () => {

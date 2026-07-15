@@ -1,6 +1,37 @@
 const DEFAULT_NARROWING_BASE_WIDTH = 525
 const NARROWING_SCALE_FACTOR = 0.3
 
+interface CapturePaddingStyle {
+  paddingTop: string
+  paddingRight: string
+  paddingBottom: string
+  paddingLeft: string
+}
+
+interface CapturePaddingSnapshot extends CapturePaddingStyle {
+  restoreAll: boolean
+}
+
+export function snapshotCapturePadding(style: CapturePaddingStyle, captureFrame: boolean): CapturePaddingSnapshot {
+  return {
+    paddingTop: style.paddingTop,
+    paddingRight: style.paddingRight,
+    paddingBottom: style.paddingBottom,
+    paddingLeft: style.paddingLeft,
+    restoreAll: captureFrame,
+  }
+}
+
+export function restoreCapturePadding(style: CapturePaddingStyle, snapshot: CapturePaddingSnapshot): void {
+  // 普通截图只改动底部水印留白；外框截图覆盖了整个 padding，才需要逐项恢复。
+  if (snapshot.restoreAll) {
+    style.paddingTop = snapshot.paddingTop
+    style.paddingRight = snapshot.paddingRight
+    style.paddingLeft = snapshot.paddingLeft
+  }
+  style.paddingBottom = snapshot.paddingBottom
+}
+
 interface CaptureBoxSizingOptions {
   currentWidth: number
   progressiveNarrowing?: number | boolean

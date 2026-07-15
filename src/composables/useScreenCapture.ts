@@ -4,7 +4,12 @@
  */
 import { ref } from 'vue'
 import { captureAsImageData } from '@/utils/snapCapture'
-import { resolveCaptureBoxSizing, waitForCaptureLayoutStabilization } from '@/utils/captureLayout'
+import {
+  restoreCapturePadding,
+  resolveCaptureBoxSizing,
+  snapshotCapturePadding,
+  waitForCaptureLayoutStabilization,
+} from '@/utils/captureLayout'
 import { useToast } from '@/composables/useToast'
 import { useLayoutStore } from '@/stores/layout'
 import { usePlatformService } from '@/services'
@@ -137,8 +142,7 @@ export function useScreenCapture() {
     captureError.value = null
 
     // 截图外框只由显式选项开启，普通卡片截图不改变原布局。
-    const originalPadding = element.style.padding
-    const originalPaddingBottom = element.style.paddingBottom
+    const originalPadding = snapshotCapturePadding(element.style, options?.captureFrame === true)
     const originalBoxSizing = element.style.boxSizing
     const originalPosition = element.style.position
     const originalWidth = element.style.width
@@ -439,8 +443,7 @@ export function useScreenCapture() {
       watermark.remove()
 
       // 恢复元素样式
-      element.style.padding = originalPadding
-      element.style.paddingBottom = originalPaddingBottom
+      restoreCapturePadding(element.style, originalPadding)
       element.style.boxSizing = originalBoxSizing
       element.style.position = originalPosition
       element.style.width = originalWidth
