@@ -49,6 +49,7 @@
   "incremental": {
     "title": "追加聊天记录",
     "description": "选择要追加到「{name}」的聊天记录文件，系统会自动去重。",
+    "homeAutoImportHint": "现在首页已支持自动增量导入，有新的聊天记录时，直接拖拽新的聊天记录到首页即可。",
     "dropHint": "点击选择或拖拽文件到此处",
     "analyzing": "正在分析文件...",
     "totalInFile": "文件消息数",

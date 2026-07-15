@@ -195,6 +195,12 @@ function translateError(error: string): string {
           <p class="text-sm text-gray-600 dark:text-gray-400">
             {{ t('analysis.incremental.description', { name: sessionName }) }}
           </p>
+          <UAlert
+            color="info"
+            variant="soft"
+            icon="i-heroicons-information-circle"
+            :description="t('analysis.incremental.homeAutoImportHint')"
+          />
 
           <FileDropZone ref="dropZoneRef" :accept="['.json', '.jsonl', '.txt']" class="w-full" @files="handleFileDrop">
             <template #default="{ isDragOver }">

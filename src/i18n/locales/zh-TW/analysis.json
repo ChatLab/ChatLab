@@ -48,6 +48,7 @@
   "incremental": {
     "title": "新增聊天紀錄",
     "description": "選擇要加入「{name}」的聊天紀錄檔案，系統會自動排除重複內容。",
+    "homeAutoImportHint": "現在首頁已支援自動增量匯入，有新的聊天紀錄時，直接將新的聊天紀錄拖曳到首頁即可。",
     "dropHint": "點擊選擇或拖曳檔案到此處",
     "analyzing": "正在分析檔案...",
     "totalInFile": "檔案訊息數",

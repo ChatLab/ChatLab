@@ -48,6 +48,7 @@
   "incremental": {
     "title": "Append Chat Records",
     "description": "Select chat record file to append to \"{name}\". Duplicates will be automatically removed.",
+    "homeAutoImportHint": "The home page now supports automatic incremental imports. When you have new chat records, simply drag them onto the home page.",
     "dropHint": "Click to select or drop file here",
     "analyzing": "Analyzing file...",
     "totalInFile": "Total in file",
