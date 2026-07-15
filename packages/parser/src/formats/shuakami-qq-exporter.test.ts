@@ -106,6 +106,25 @@ describe('shuakami-qq-exporter parser', () => {
     assert.equal(result.meta.type, ChatType.PRIVATE)
   })
 
+  it('overrides an incorrect private type when more than two real senders exist', async () => {
+    const content = makeExport({
+      chatInfoType: 'private',
+      senders: [
+        { uid: 'u_100', name: 'Alice' },
+        { uid: 'u_200', name: 'Bob' },
+        { uid: 'u_300', name: 'Carol' },
+      ],
+      messages: [
+        textMessage('100', 'Alice', 'hello'),
+        textMessage('200', 'Bob', 'hi'),
+        textMessage('300', 'Carol', 'welcome'),
+      ],
+    })
+
+    const result = await parseContent(content)
+    assert.equal(result.meta.type, ChatType.GROUP)
+  })
+
   it('supports current system/recalled field names alongside legacy ones', async () => {
     const content = makeExport({
       chatInfoType: 'group',
