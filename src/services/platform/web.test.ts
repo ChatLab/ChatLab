@@ -2,6 +2,15 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { WebPlatformAdapter } from './web'
 
+function replaceGlobal(name: string, value: unknown): () => void {
+  const descriptor = Object.getOwnPropertyDescriptor(globalThis, name)
+  Object.defineProperty(globalThis, name, { configurable: true, value })
+  return () => {
+    if (descriptor) Object.defineProperty(globalThis, name, descriptor)
+    else delete (globalThis as Record<string, unknown>)[name]
+  }
+}
+
 describe('WebPlatformAdapter', () => {
   it('uses the bundled web version for display without querying the CLI server', async () => {
     const originalFetch = globalThis.fetch
@@ -69,6 +78,77 @@ describe('WebPlatformAdapter', () => {
       assert.equal(requests[0].init?.body, JSON.stringify({ enabled: false }))
     } finally {
       globalThis.fetch = originalFetch
+    }
+  })
+
+  it('writes a PNG data URL to the browser image clipboard', async () => {
+    const originalFetch = globalThis.fetch
+    let clipboardItems: unknown[] = []
+
+    class MockClipboardItem {
+      constructor(readonly data: Record<string, Blob | Promise<Blob>>) {}
+    }
+
+    const restoreNavigator = replaceGlobal('navigator', {
+      clipboard: {
+        write: async (items: unknown[]) => {
+          clipboardItems = items
+        },
+      },
+    })
+    const restoreClipboardItem = replaceGlobal('ClipboardItem', MockClipboardItem)
+    const restoreSecureContext = replaceGlobal('isSecureContext', true)
+    globalThis.fetch = ((input: RequestInfo | URL) => {
+      assert.equal(String(input), 'data:image/png;base64,aGVsbG8=')
+      return Promise.resolve(new Response(new Blob(['hello'], { type: 'image/png' })))
+    }) as typeof fetch
+
+    try {
+      const result = await new WebPlatformAdapter().copyImageToClipboard('data:image/png;base64,aGVsbG8=')
+
+      assert.deepEqual(result, { success: true })
+      assert.equal(clipboardItems.length, 1)
+      const item = clipboardItems[0] as MockClipboardItem
+      const png = await item.data['image/png']
+      assert.equal(png.type, 'image/png')
+      assert.equal(await png.text(), 'hello')
+    } finally {
+      globalThis.fetch = originalFetch
+      restoreSecureContext()
+      restoreClipboardItem()
+      restoreNavigator()
+    }
+  })
+
+  it('reports unsupported image clipboard APIs without attempting a write', async () => {
+    const restoreNavigator = replaceGlobal('navigator', { clipboard: {} })
+    const restoreClipboardItem = replaceGlobal('ClipboardItem', undefined)
+    const restoreSecureContext = replaceGlobal('isSecureContext', true)
+
+    try {
+      const result = await new WebPlatformAdapter().copyImageToClipboard('data:image/png;base64,aGVsbG8=')
+      assert.deepEqual(result, {
+        success: false,
+        error: 'Image clipboard is not supported by this browser',
+      })
+    } finally {
+      restoreSecureContext()
+      restoreClipboardItem()
+      restoreNavigator()
+    }
+  })
+
+  it('rejects image clipboard writes outside a secure context', async () => {
+    const restoreSecureContext = replaceGlobal('isSecureContext', false)
+
+    try {
+      const result = await new WebPlatformAdapter().copyImageToClipboard('data:image/png;base64,aGVsbG8=')
+      assert.deepEqual(result, {
+        success: false,
+        error: 'Image clipboard requires HTTPS or localhost',
+      })
+    } finally {
+      restoreSecureContext()
     }
   })
 

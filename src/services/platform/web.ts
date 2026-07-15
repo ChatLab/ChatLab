@@ -13,6 +13,7 @@ import type {
   PerformUpdateResult,
 } from './types'
 import { fetchWithAuth } from '../utils/http'
+import { reportError } from '../log-report'
 
 declare const __APP_VERSION__: string
 
@@ -81,8 +82,35 @@ export class WebPlatformAdapter implements PlatformAdapter {
     return { canceled: true, filePaths: [] }
   }
 
-  async copyImageToClipboard(_dataUrl: string): Promise<{ success: boolean; error?: string }> {
-    return { success: false, error: 'Not available in web mode' }
+  async copyImageToClipboard(dataUrl: string): Promise<{ success: boolean; error?: string }> {
+    if (globalThis.isSecureContext === false) {
+      return { success: false, error: 'Image clipboard requires HTTPS or localhost' }
+    }
+
+    if (
+      typeof navigator === 'undefined' ||
+      typeof navigator.clipboard?.write !== 'function' ||
+      typeof ClipboardItem === 'undefined'
+    ) {
+      return { success: false, error: 'Image clipboard is not supported by this browser' }
+    }
+
+    try {
+      // Keep the Blob conversion inside ClipboardItem so the write starts within the user's click activation.
+      const pngBlob = fetch(dataUrl).then(async (response) => {
+        if (!response.ok) throw new Error(`Failed to read screenshot data: HTTP ${response.status}`)
+        const blob = await response.blob()
+        if (blob.type !== 'image/png') throw new Error(`Unsupported screenshot MIME type: ${blob.type || 'unknown'}`)
+        return blob
+      })
+
+      await navigator.clipboard.write([new ClipboardItem({ 'image/png': pngBlob })])
+      return { success: true }
+    } catch (error) {
+      const detail = error instanceof Error ? `${error.name}: ${error.message}` : String(error)
+      reportError(`Image clipboard write failed: ${detail}`, error instanceof Error ? error.stack : undefined)
+      return { success: false, error: detail }
+    }
   }
 
   async checkUpdate(): Promise<CheckUpdateResult> {
