@@ -2,12 +2,20 @@
   "tagline": "探索新的聊天记忆",
   "tabs": {
     "file": "文件导入",
-    "api": "自动同步",
-    "push": "API推送",
-    "apiDescription": "配置外部平台的数据源，让聊天记录定期自动同步到ChatLab。",
-    "apiButton": "去配置自动同步",
-    "pushDescription": "开启本地API服务，允许第三方工具/插件或脚本将聊天记录主动推送至ChatLab。",
-    "pushButton": "去开启 API 服务"
+    "api": "API 导入",
+    "cli": "CLI 导入",
+    "autoSyncTitle": "自动同步",
+    "autoSyncDescription": "由 ChatLab 定时从外部数据源拉取新增聊天记录。",
+    "autoSyncButton": "配置自动同步",
+    "apiPushTitle": "API 推送",
+    "apiPushDescription": "让第三方工具、插件或脚本通过本地 API 主动写入。",
+    "apiPushButton": "配置 API 服务",
+    "agentImportTitle": "使用 AI Agent 导入",
+    "agentImportDescription": "安装官方Skill，使用Skill自动导入聊天记录。",
+    "manualCliTitle": "手动使用 CLI",
+    "manualCliDescription": "适合终端操作、批处理脚本和可重复的自动化流程。",
+    "copyCommand": "复制命令",
+    "viewDocs": "查看文档"
   },
   "import": {
     "dropHint": "松开鼠标导入文件",

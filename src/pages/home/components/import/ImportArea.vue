@@ -878,7 +878,7 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
     <!-- 批量导入进度（导入中） -->
     <div
       v-if="isBatchImporting && batchFiles.length > 0"
-      class="w-full max-w-4xl rounded-3xl border border-gray-200/50 bg-gray-100/50 px-8 py-6 backdrop-blur-md dark:border-white/10 dark:bg-gray-800/40"
+      class="w-full max-w-4xl rounded-3xl bg-white/80 px-8 py-6 shadow-elevated ring-1 ring-gray-900/[0.04] backdrop-blur-md dark:bg-card-dark dark:ring-white/[0.06]"
     >
       <!-- 标题和进度 -->
       <div class="mb-4 flex items-center justify-between">
@@ -924,7 +924,7 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
     <!-- 合并导入进度 -->
     <div
       v-else-if="isMergeImporting && mergeStage !== 'done'"
-      class="w-full max-w-4xl rounded-3xl border border-gray-200/50 bg-gray-100/50 px-8 py-6 backdrop-blur-md dark:border-white/10 dark:bg-gray-800/40"
+      class="w-full max-w-4xl rounded-3xl bg-white/80 px-8 py-6 shadow-elevated ring-1 ring-gray-900/[0.04] backdrop-blur-md dark:bg-card-dark dark:ring-white/[0.06]"
     >
       <!-- 标题 -->
       <div class="mb-4 flex items-center justify-between">
@@ -977,7 +977,7 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
     <!-- 合并导入完成 -->
     <div
       v-else-if="isMergeImporting && mergeStage === 'done' && mergeResult"
-      class="w-full max-w-4xl rounded-3xl border border-gray-200/50 bg-gray-100/50 px-8 py-6 backdrop-blur-md dark:border-white/10 dark:bg-gray-800/40"
+      class="w-full max-w-4xl rounded-3xl bg-white/80 px-8 py-6 shadow-elevated ring-1 ring-gray-900/[0.04] backdrop-blur-md dark:bg-card-dark dark:ring-white/[0.06]"
     >
       <div class="flex items-center justify-between">
         <div class="flex items-center gap-3">
@@ -1005,7 +1005,7 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
     <!-- 批量导入结果摘要 -->
     <div
       v-else-if="batchImportResult"
-      class="w-full max-w-4xl rounded-3xl border border-gray-200/50 bg-gray-100/50 px-8 py-6 backdrop-blur-md dark:border-white/10 dark:bg-gray-800/40"
+      class="w-full max-w-4xl rounded-3xl bg-white/80 px-8 py-6 shadow-elevated ring-1 ring-gray-900/[0.04] backdrop-blur-md dark:bg-card-dark dark:ring-white/[0.06]"
     >
       <!-- 标题 -->
       <div class="mb-4 flex items-center justify-between">
@@ -1088,9 +1088,9 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
     >
       <template #default="{ isDragOver }">
         <div
-          class="group relative flex w-full cursor-pointer flex-col items-center justify-center rounded-3xl border border-gray-200/50 bg-gray-100/50 px-8 h-[190px] sm:h-[220px] backdrop-blur-md transition-all duration-300 hover:border-pink-500/30 hover:bg-gray-100/80 hover:shadow-2xl hover:shadow-pink-500/10 focus:outline-none focus:ring-4 focus:ring-pink-500/20 sm:px-12 dark:border-white/10 dark:bg-gray-800/40 dark:hover:border-pink-500/30 dark:hover:bg-gray-800/60"
+          class="group relative flex w-full cursor-pointer flex-col items-center justify-center rounded-3xl bg-white/80 px-8 h-[190px] sm:h-[220px] shadow-elevated ring-1 ring-gray-900/[0.04] backdrop-blur-md transition-all duration-300 hover:bg-white hover:ring-primary-500/30 hover:shadow-2xl hover:shadow-primary-500/10 focus:outline-none focus:ring-4 focus:ring-primary-500/20 sm:px-12 dark:bg-card-dark dark:ring-white/[0.06] dark:hover:bg-card-dark dark:hover:ring-primary-500/30"
           :class="{
-            'border-pink-500/50 bg-pink-50/50 dark:border-pink-400/50 dark:bg-pink-500/10':
+            'bg-primary-50/50 ring-primary-500/50 dark:bg-primary-500/10 dark:ring-primary-400/50':
               isDragOver && !isAnyImporting,
             'cursor-not-allowed opacity-70': isAnyImporting,
           }"
@@ -1098,15 +1098,19 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
         >
           <!-- 上传图标容器 -->
           <div
-            class="mb-5 flex h-16 w-16 items-center justify-center rounded-2xl transition-transform duration-300 group-hover:scale-105"
+            class="mb-4 flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 transition-transform duration-300 group-hover:scale-105 dark:bg-primary-500/10"
             :class="{ 'scale-105': isDragOver && !isAnyImporting, 'animate-pulse': isImporting }"
           >
             <UIcon
               v-if="!isImporting"
               name="i-heroicons-arrow-up-tray"
-              class="h-8 w-8 text-pink-600 transition-transform duration-200 group-hover:-translate-y-1 dark:text-pink-400"
+              class="h-5 w-5 text-primary-600 dark:text-primary-400"
             />
-            <UIcon v-else name="i-heroicons-arrow-path" class="h-8 w-8 animate-spin text-pink-600 dark:text-pink-400" />
+            <UIcon
+              v-else
+              name="i-heroicons-arrow-path"
+              class="h-5 w-5 animate-spin text-primary-600 dark:text-primary-400"
+            />
           </div>
 
           <!-- Text -->

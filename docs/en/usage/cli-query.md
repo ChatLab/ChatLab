@@ -18,6 +18,24 @@ The `chatlab` CLI ships a set of query commands optimized for AI agents while st
 
 Install with `npm i chatlab-cli -g` (Node.js ≥ 20) and import chat records in ChatLab first.
 
+## Use it with an AI agent
+
+Install the official `chatlab-analyze` skill through the general Agent Skills CLI:
+
+```bash
+npx skills add ChatLab/ChatLab --skill chatlab-analyze -g
+```
+
+After installation, ask Codex, Claude Code, Cursor, or another external agent:
+
+```text
+chatlab-analyze help me analyze my chat history with Alice
+```
+
+The skill tells the agent to run `chatlab manifest` first, then query chat records safely with explicit `--format agent/json` commands.
+
+`chatlab-analyze` always remains read-only. To let an agent import a new chat export, use the separate `chatlab-import` skill; it previews the import, then automatically creates or incrementally updates a session. See the [Import Chat Records Guide](./how-to-import.md).
+
 ## Command overview
 
 ```bash
@@ -77,23 +95,7 @@ Failures return `{ "ok": false, "error": { "code", "message", "hint", "candidate
 - `--raw` (bypassing preprocessing) is disabled by default; it only works after you explicitly run `chatlab config set cli.allow_raw true` or set `CHATLAB_CLI_ALLOW_RAW=1`.
 - If you don't need the SQL fallback, disable it with `chatlab config set cli.allow_sql false`.
 
-## Agent usage guide
-
-Install the official `chatlab-analyze` skill through the general Agent Skills CLI:
-
-```bash
-npx skills add ChatLab/ChatLab --skill chatlab-analyze -g
-```
-
-After installation, ask Codex, Claude Code, Cursor, or another external agent:
-
-```text
-chatlab-analyze help me analyze my chat history with Alice
-```
-
-The skill tells the agent to run `chatlab manifest` first, then query chat records safely with explicit `--format agent/json` commands.
-
-`chatlab-analyze` always remains read-only. To let an agent import a new chat export, use the separate `chatlab-import` skill; it previews the import, then automatically creates or incrementally updates a session. See the [Import Chat Records Guide](./how-to-import.md).
+## Query example
 
 A typical recipe — "who mentioned this first? inspect the surrounding context":
 

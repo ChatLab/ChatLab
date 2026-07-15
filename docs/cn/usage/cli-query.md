@@ -18,6 +18,24 @@ ChatLab 可以作为 Codex、Claude Code、HermesAgent 等外部 Agent 的本地
 
 安装：`npm i chatlab-cli -g`（需要 Node.js ≥ 20），并先在 ChatLab 中导入聊天记录。
 
+## 使用 AI Agent
+
+推荐通过通用 Agent Skills CLI 安装官方中文 `chatlab-analyze-cn` 技能：
+
+```bash
+npx skills add ChatLab/ChatLab --skill chatlab-analyze-cn -g
+```
+
+安装后，可以在 Codex、Claude Code、Cursor 等外部 Agent 中直接说：
+
+```text
+chatlab-analyze-cn 帮我分析我和小红的聊天记录
+```
+
+这个技能会引导 Agent 先执行 `chatlab manifest` 获取机读命令清单，再用安全的 `--format agent/json` 查询聊天记录。
+
+`chatlab-analyze-cn` 始终只读。如果你希望 Agent 导入新的聊天导出文件，请改用独立的 `chatlab-import-cn` Skill；它会先预览导入计划，再自动新建或增量导入，详见[导入聊天记录指南](./how-to-import.md)。
+
 ## 命令总览
 
 ```bash
@@ -77,23 +95,7 @@ agent/json 模式下 stdout 只包含一个 JSON 响应信封，日志一律走 
 - `--raw`（绕过预处理）默认禁用，仅当你显式执行 `chatlab config set cli.allow_raw true` 或设置 `CHATLAB_CLI_ALLOW_RAW=1` 后可用。
 - 不需要 SQL 兜底能力时，可用 `chatlab config set cli.allow_sql false` 关闭 `sql` 命令。
 
-## 给 Agent 的使用指南
-
-推荐通过通用 Agent Skills CLI 安装官方中文 `chatlab-analyze-cn` 技能：
-
-```bash
-npx skills add ChatLab/ChatLab --skill chatlab-analyze-cn -g
-```
-
-安装后，可以在 Codex、Claude Code、Cursor 等外部 Agent 中直接说：
-
-```text
-chatlab-analyze-cn 帮我分析我和小红的聊天记录
-```
-
-这个技能会引导 Agent 先执行 `chatlab manifest` 获取机读命令清单，再用安全的 `--format agent/json` 查询聊天记录。
-
-`chatlab-analyze-cn` 始终只读。如果你希望 Agent 导入新的聊天导出文件，请改用独立的 `chatlab-import-cn` Skill；它会先预览导入计划，再自动新建或增量导入，详见[导入聊天记录指南](./how-to-import.md)。
+## 查询示例
 
 典型配方——"谁最早提到某个问题？查看现场"：
 

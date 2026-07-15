@@ -2,12 +2,20 @@
   "tagline": "Explore New Chat Memories",
   "tabs": {
     "file": "File Import",
-    "api": "Auto Sync",
-    "push": "API Push",
-    "apiDescription": "Connect external platform data sources to automatically sync chat records to ChatLab on a schedule.",
-    "apiButton": "Configure Auto Sync",
-    "pushDescription": "Start the local API server to let third-party tools, plugins, or scripts push chat records directly into ChatLab.",
-    "pushButton": "Configure API Server"
+    "api": "API Import",
+    "cli": "CLI Import",
+    "autoSyncTitle": "Automatic Sync",
+    "autoSyncDescription": "Let ChatLab periodically pull new chat records from an external data source.",
+    "autoSyncButton": "Configure Sync",
+    "apiPushTitle": "API Push",
+    "apiPushDescription": "Let third-party tools, plugins, or scripts write through the local API.",
+    "apiPushButton": "Configure API",
+    "agentImportTitle": "Import with an AI Agent",
+    "agentImportDescription": "Install the official Skill to import chat records automatically.",
+    "manualCliTitle": "Use the CLI Manually",
+    "manualCliDescription": "Ideal for terminal workflows, batch scripts, and repeatable automation.",
+    "copyCommand": "Copy command",
+    "viewDocs": "View documentation"
   },
   "import": {
     "dropHint": "Drop to import files",

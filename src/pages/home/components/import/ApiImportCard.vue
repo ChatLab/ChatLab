@@ -5,34 +5,67 @@ import { useLayoutStore } from '@/stores/layout'
 const { t } = useI18n()
 const layoutStore = useLayoutStore()
 
-// 打开设置弹窗并定位到 API 服务子 Tab
+// Pull 与 Push 共用“API 导入”入口，但继续进入各自独立的配置子页。
+function openSyncSettings() {
+  layoutStore.openSettings('api', 'sync')
+}
+
 function openApiSettings() {
   layoutStore.openSettings('api', 'api')
 }
 </script>
 
 <template>
-  <div class="w-full flex flex-col items-center space-y-6">
-    <div
-      class="flex h-[190px] sm:h-[220px] w-full max-w-md flex-col items-center justify-center rounded-3xl border border-gray-200/50 bg-gray-100/50 px-8 backdrop-blur-md dark:border-white/10 dark:bg-gray-800/40 select-none text-center sm:px-12"
-    >
-      <div class="mb-2 flex h-10 w-10 sm:h-12 sm:w-12 items-center justify-center">
-        <UIcon name="i-heroicons-cpu-chip" class="h-6 w-6 sm:h-8 sm:w-8 text-pink-600 dark:text-pink-400" />
-      </div>
-      <p class="text-sm text-gray-500 dark:text-gray-400 leading-relaxed">
-        {{ t('home.tabs.pushDescription') }}
-      </p>
-      <UButton
-        class="mt-3 font-semibold cursor-pointer"
-        color="primary"
-        variant="solid"
-        icon="i-heroicons-cog-6-tooth"
-        @click="openApiSettings"
+  <div class="flex w-full flex-col items-center space-y-6">
+    <div class="grid w-full max-w-2xl gap-3 sm:h-[220px] sm:grid-cols-2">
+      <section
+        class="flex min-h-[210px] flex-col rounded-3xl bg-white/80 p-5 shadow-elevated ring-1 ring-gray-900/[0.04] backdrop-blur-md dark:bg-card-dark dark:ring-white/[0.06]"
       >
-        {{ t('home.tabs.pushButton') }}
-      </UButton>
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-500/10">
+            <UIcon name="i-heroicons-cloud-arrow-down" class="h-5 w-5 text-primary-600 dark:text-primary-400" />
+          </div>
+          <span
+            class="rounded-full bg-primary-50 px-2 py-1 text-[10px] font-bold uppercase text-primary-600 dark:bg-primary-500/10 dark:text-primary-400"
+          >
+            Pull
+          </span>
+        </div>
+        <div class="mt-3">
+          <h2 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('home.tabs.autoSyncTitle') }}</h2>
+          <p class="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+            {{ t('home.tabs.autoSyncDescription') }}
+          </p>
+        </div>
+        <UButton class="mt-auto self-start" color="primary" variant="soft" size="sm" @click="openSyncSettings">
+          {{ t('home.tabs.autoSyncButton') }}
+        </UButton>
+      </section>
+
+      <section
+        class="flex min-h-[210px] flex-col rounded-3xl bg-white/80 p-5 shadow-elevated ring-1 ring-gray-900/[0.04] backdrop-blur-md dark:bg-card-dark dark:ring-white/[0.06]"
+      >
+        <div class="flex items-start justify-between gap-3">
+          <div class="flex h-10 w-10 items-center justify-center rounded-xl bg-primary-50 dark:bg-primary-500/10">
+            <UIcon name="i-heroicons-paper-airplane" class="h-5 w-5 text-primary-600 dark:text-primary-400" />
+          </div>
+          <span
+            class="rounded-full bg-primary-50 px-2 py-1 text-[10px] font-bold uppercase text-primary-600 dark:bg-primary-500/10 dark:text-primary-400"
+          >
+            Push
+          </span>
+        </div>
+        <div class="mt-3">
+          <h2 class="text-sm font-semibold text-gray-900 dark:text-white">{{ t('home.tabs.apiPushTitle') }}</h2>
+          <p class="mt-1 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+            {{ t('home.tabs.apiPushDescription') }}
+          </p>
+        </div>
+        <UButton class="mt-auto self-start" color="primary" variant="soft" size="sm" @click="openApiSettings">
+          {{ t('home.tabs.apiPushButton') }}
+        </UButton>
+      </section>
     </div>
-    <!-- 占位符以对齐文件导入底部的复选框高度，保持 Tab 切换时下方元素位置稳定 -->
     <div class="h-6 w-full opacity-0 pointer-events-none" />
   </div>
 </template>

@@ -9,8 +9,8 @@ import AgreementModal from './components/AgreementModal.vue'
 import MigrationModal from './components/MigrationModal.vue'
 import ImportArea from './components/import/ImportArea.vue'
 import ImportTabSelector from './components/import/ImportTabSelector.vue'
-import AutoSyncCard from './components/import/AutoSyncCard.vue'
 import ApiImportCard from './components/import/ApiImportCard.vue'
+import CliImportCard from './components/import/CliImportCard.vue'
 import ChangelogModal from './components/ChangelogModal.vue'
 import HomeFooter from './components/HomeFooter.vue'
 import DemoImportButton from './components/DemoImportButton.vue'
@@ -19,7 +19,7 @@ const { t, locale } = useI18n()
 const sessionStore = useSessionStore()
 
 // 导入方式选中的 Tab 状态
-const activeTab = ref<'file' | 'api' | 'push'>('file')
+const activeTab = ref<'file' | 'api' | 'cli'>('file')
 
 // 首页入场动效：挂载后通过 requestAnimationFrame 触发，确保初始透明态已完成渲染
 const isMounted = ref(false)
@@ -94,11 +94,11 @@ const tutorialExportUrl = computed(() => {
           <!-- 文件导入区域 -->
           <ImportArea v-if="activeTab === 'file'" />
 
-          <!-- 自动同步区域 -->
-          <AutoSyncCard v-else-if="activeTab === 'api'" />
+          <!-- API 导入区域：统一承载自动拉取与 API 推送 -->
+          <ApiImportCard v-else-if="activeTab === 'api'" />
 
-          <!-- API 推送区域 -->
-          <ApiImportCard v-else-if="activeTab === 'push'" />
+          <!-- CLI 导入区域：Agent Skill 与手动 CLI -->
+          <CliImportCard v-else-if="activeTab === 'cli'" />
         </div>
 
         <div

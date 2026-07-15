@@ -3,11 +3,11 @@ import { ref, onMounted, onUnmounted, watch, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 
 const props = defineProps<{
-  modelValue: 'file' | 'api' | 'push'
+  modelValue: 'file' | 'api' | 'cli'
 }>()
 
 const emit = defineEmits<{
-  'update:modelValue': [value: 'file' | 'api' | 'push']
+  'update:modelValue': [value: 'file' | 'api' | 'cli']
 }>()
 
 const { t } = useI18n()
@@ -15,8 +15,8 @@ const { t } = useI18n()
 // 定义切换栏的三个固定选项
 const tabs = [
   { id: 'file', labelKey: 'home.tabs.file' },
+  { id: 'cli', labelKey: 'home.tabs.cli' },
   { id: 'api', labelKey: 'home.tabs.api' },
-  { id: 'push', labelKey: 'home.tabs.push' },
 ] as const
 
 // 缓存按钮引用以计算滑动偏移
