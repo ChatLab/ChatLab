@@ -22,7 +22,6 @@
     "composite": true,
     "types": ["electron-vite/node"],
     "moduleResolution": "bundler",
-    "baseUrl": ".",
     "paths": {
       "@/*": ["../../src/*"],
       "@electron/*": ["./*"],

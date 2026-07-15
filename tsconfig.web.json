@@ -3,7 +3,6 @@
   "include": ["src/env.d.ts", "src/**/*", "apps/desktop/preload/**/*.d.ts", "packages/**/*"],
   "exclude": ["**/dist/**", "packages/*/bin/**"],
   "compilerOptions": {
-    "baseUrl": ".",
     "target": "ESNext",
     "useDefineForClassFields": true,
     "module": "ESNext",
@@ -22,9 +21,9 @@
     "allowImportingTsExtensions": true,
     "forceConsistentCasingInFileNames": true,
     "paths": {
-      "@/*": ["src/*"],
-      "@electron/*": ["apps/desktop/*"],
-      "@openchatlab/*": ["packages/*"]
+      "@/*": ["./src/*"],
+      "@electron/*": ["./apps/desktop/*"],
+      "@openchatlab/*": ["./packages/*"]
     }
   }
 }

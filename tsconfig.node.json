@@ -3,10 +3,9 @@
   "compilerOptions": {
     "composite": true,
     "moduleResolution": "bundler",
-    "baseUrl": ".",
     "paths": {
-      "@openchatlab/*": ["packages/*"],
-      "chatlab-mcp": ["packages/mcp-server/src"]
+      "@openchatlab/*": ["./packages/*"],
+      "chatlab-mcp": ["./packages/mcp-server/src"]
     }
   },
   "include": ["apps/cli/src/**/*.ts", "packages/**/*.ts"],

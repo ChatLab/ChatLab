@@ -1,10 +1,9 @@
 {
   "compilerOptions": {
-    "baseUrl": ".",
     "paths": {
-      "@/*": ["src/*"],
-      "@electron/*": ["apps/desktop/*"],
-      "@openchatlab/*": ["packages/*"]
+      "@/*": ["./src/*"],
+      "@electron/*": ["./apps/desktop/*"],
+      "@openchatlab/*": ["./packages/*"]
     }
   },
   "files": [],

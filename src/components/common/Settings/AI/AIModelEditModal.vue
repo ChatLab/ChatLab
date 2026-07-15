@@ -628,11 +628,10 @@ function closeModal() {
             </label>
             <div class="flex items-center gap-2">
               <UInput
-                :model-value="newModelContextWindow ?? ''"
+                v-model.number.optional="newModelContextWindow"
                 class="flex-1"
                 type="number"
                 :placeholder="t('settings.aiConfig.modal.contextWindowPlaceholder')"
-                @update:model-value="newModelContextWindow = $event ? Number($event) : undefined"
               />
             </div>
             <div class="mt-1.5 flex flex-wrap gap-1">
@@ -705,11 +704,10 @@ function closeModal() {
             </label>
             <div class="flex items-center gap-2">
               <UInput
-                :model-value="editModelContextWindow ?? ''"
+                v-model.number.optional="editModelContextWindow"
                 class="flex-1"
                 type="number"
                 :placeholder="t('settings.aiConfig.modal.contextWindowPlaceholder')"
-                @update:model-value="editModelContextWindow = $event ? Number($event) : undefined"
               />
             </div>
             <div class="mt-1.5 flex flex-wrap gap-1">

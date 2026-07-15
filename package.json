@@ -17,7 +17,12 @@
     "onlyBuiltDependencies": [
       "better-sqlite3",
       "electron"
-    ]
+    ],
+    "peerDependencyRules": {
+      "allowedVersions": {
+        "echarts-wordcloud@2.1.0>echarts": "6"
+      }
+    }
   },
   "scripts": {
     "dev": "node scripts/dev-select.mjs",
@@ -59,12 +64,12 @@
   },
   "devDependencies": {
     "@electron-toolkit/tsconfig": "^1.0.1",
-    "@nuxt/ui": "^4.2.1",
+    "@nuxt/ui": "^4.9.0",
     "@tailwindcss/vite": "^4.0.0",
     "@types/markdown-it": "^14.1.2",
     "@vitejs/plugin-vue": "^6.0.0",
     "@vue/eslint-config-prettier": "^10.2.0",
-    "@vue/eslint-config-typescript": "^14.6.0",
+    "@vue/eslint-config-typescript": "^14.9.0",
     "@vueuse/core": "^13.9.0",
     "dayjs": "^1.11.19",
     "eslint": "^9.39.1",
@@ -73,10 +78,10 @@
     "pinia-plugin-persistedstate": "^4.7.1",
     "prettier": "^3.5.3",
     "tailwindcss": "^4.0.0",
-    "typescript": "^5.8.3",
+    "typescript": "^6.0.3",
     "vite": "^7.0.0",
     "vue": "^3.5.25",
     "vue-router": "^4.6.3",
-    "vue-tsc": "^3.1.1"
+    "vue-tsc": "3.2.6"
   }
 }
