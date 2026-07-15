@@ -207,13 +207,15 @@ function countSenders(content: string): number {
 }
 
 /**
- * 判断聊天类型：优先使用 chatInfo.type，senders 计数仅作兜底
+ * 判断聊天类型：优先使用可信的 chatInfo.type，并用真实发送者数量纠正冲突的私聊标记。
  */
 function resolveChatType(chatInfoType: string | undefined, headContent: string): ChatType {
-  if (chatInfoType === 'private') return ChatType.PRIVATE
   if (chatInfoType === 'group') return ChatType.GROUP
 
   const sendersCount = countSenders(headContent)
+  // QQ 私聊最多只有两个真实发送者；出现更多发送者时，显式 private 标记不可信。
+  if (chatInfoType === 'private') return sendersCount > 2 ? ChatType.GROUP : ChatType.PRIVATE
+
   return sendersCount > 2 ? ChatType.GROUP : sendersCount > 0 ? ChatType.PRIVATE : ChatType.GROUP
 }
 
