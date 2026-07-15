@@ -608,10 +608,7 @@ async function handleCopyMarkdown() {
 
       <!-- 用户消息：简单气泡 -->
       <template v-else-if="isUser">
-        <div
-          v-if="isEditing"
-          class="rounded-2xl bg-primary-50 p-4 text-gray-900 dark:bg-primary-500/50 dark:text-gray-100"
-        >
+        <div v-if="isEditing" class="rounded-2xl bg-gray-100 p-4 text-gray-900 dark:bg-gray-800 dark:text-gray-100">
           <textarea
             ref="editTextareaRef"
             v-model="editContent"
@@ -641,7 +638,7 @@ async function handleCopyMarkdown() {
             </div>
           </div>
         </div>
-        <div v-else class="rounded-3xl bg-primary-50 px-5 py-3 text-gray-900 dark:bg-primary-500/50 dark:text-gray-100">
+        <div v-else class="rounded-3xl bg-gray-100 px-5 py-3 text-gray-900 dark:bg-gray-800 dark:text-gray-100">
           <div class="prose prose-sm dark:prose-invert max-w-none leading-relaxed" v-html="renderedContent" />
         </div>
       </template>
