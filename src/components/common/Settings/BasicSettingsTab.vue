@@ -16,7 +16,7 @@ const { t } = useI18n()
 // Store
 const layoutStore = useLayoutStore()
 const settingsStore = useSettingsStore()
-const { screenshotMobileAdapt, toolsPanelPosition } = storeToRefs(layoutStore)
+const { toolsPanelPosition } = storeToRefs(layoutStore)
 const { locale, defaultSessionTab } = storeToRefs(settingsStore)
 
 // Auto Launch
@@ -145,7 +145,7 @@ const toolsPanelPositionOptions = computed(() => [
       </div>
     </div>
 
-    <!-- 偏好设置：默认标签页 + 截图 -->
+    <!-- 偏好设置 -->
     <div>
       <h3 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
         <UIcon name="i-heroicons-adjustments-horizontal" class="h-4 w-4 text-purple-500" />
@@ -175,16 +175,6 @@ const toolsPanelPositionOptions = computed(() => [
           <div class="w-64">
             <UTabs v-model="toolsPanelPosition" size="sm" class="gap-0" :items="toolsPanelPositionOptions"></UTabs>
           </div>
-        </div>
-        <div class="border-t border-gray-200 dark:border-gray-700"></div>
-        <div class="flex items-center justify-between p-4">
-          <div class="flex-1 pr-4">
-            <p class="text-sm font-medium text-gray-900 dark:text-white">
-              {{ t('settings.basic.screenshot.mobileAdapt') }}
-            </p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">{{ t('settings.basic.screenshot.mobileAdaptDesc') }}</p>
-          </div>
-          <USwitch v-model="screenshotMobileAdapt" />
         </div>
       </div>
     </div>

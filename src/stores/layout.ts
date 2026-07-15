@@ -19,9 +19,6 @@ export const useLayoutStore = defineStore(
     const toolsPanelPosition = ref<'side' | 'header'>('header')
     const isToolsPanelOpen = ref(false)
 
-    // 截图设置
-    const screenshotMobileAdapt = ref(false) // 截图时开启移动端适配，默认关闭
-
     // 设置弹窗
     const showSettings = ref(false)
     const settingsTab = ref<string>('settings')
@@ -108,7 +105,6 @@ export const useLayoutStore = defineStore(
       screenCaptureImage,
       showChatRecordDrawer,
       chatRecordQuery,
-      screenshotMobileAdapt,
       showSettings,
       settingsTab,
       settingsSubTab,
@@ -127,7 +123,7 @@ export const useLayoutStore = defineStore(
   {
     persist: [
       {
-        pick: ['isSidebarCollapsed', 'screenshotMobileAdapt', 'isToolsPanelLocked', 'isToolsPanelMini', 'toolsPanelPosition'],
+        pick: ['isSidebarCollapsed', 'isToolsPanelLocked', 'isToolsPanelMini', 'toolsPanelPosition'],
         storage: localStorage,
       },
     ],

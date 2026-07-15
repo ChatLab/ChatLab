@@ -1031,6 +1031,7 @@ async function handleCopyMarkdown() {
           type="element"
           target-selector=".qa-pair"
           markdown-fix
+          :progressive-narrowing="true"
         />
       </div>
     </div>

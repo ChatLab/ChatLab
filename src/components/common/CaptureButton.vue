@@ -1,8 +1,6 @@
 <script setup lang="ts">
 import { useScreenCapture } from '@/composables'
 import { ref, onMounted } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useLayoutStore } from '@/stores/layout'
 import { useI18n } from 'vue-i18n'
 
 /**
@@ -26,6 +24,8 @@ const props = withDefaults(
     targetSelector?: string
     /** 是否应用 Markdown 列表渲染兼容修复（仅截取 Markdown 内容时传 true） */
     markdownFix?: boolean
+    /** 是否对截图内容进行渐进式缩窄；传入数字时作为基准宽度 */
+    progressiveNarrowing?: number | boolean
     /** 按钮颜色，默认 primary */
     color?: string
   }>(),
@@ -37,8 +37,6 @@ const props = withDefaults(
 )
 
 const { isCapturing, capturePage, captureElement } = useScreenCapture()
-const layoutStore = useLayoutStore()
-const { screenshotMobileAdapt } = storeToRefs(layoutStore)
 
 // 生成唯一 ID 用于隐藏按钮自身
 const buttonId = ref('')
@@ -49,10 +47,9 @@ onMounted(() => {
 async function handleCapture(event: Event) {
   const btn = event.currentTarget as HTMLElement
 
-  // 根据用户设置决定是否启用移动端适配
   const defaultOptions = {
     hideSelectors: [`#${buttonId.value}`],
-    mobileWidth: screenshotMobileAdapt.value ? true : undefined,
+    progressiveNarrowing: props.progressiveNarrowing,
     markdownFix: props.markdownFix || undefined,
   }
 

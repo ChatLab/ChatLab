@@ -53,10 +53,6 @@
       "positionSide": "サイド",
       "positionHeader": "ヘッダー"
     },
-    "screenshot": {
-      "mobileAdapt": "モバイル対応",
-      "mobileAdaptDesc": "スクリーンショット時に幅を自動調整し、モバイル端末での閲覧に最適化します"
-    },
     "network": {
       "title": "ネットワーク設定",
       "proxyMode": "プロキシモード",

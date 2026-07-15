@@ -53,10 +53,6 @@
       "positionSide": "Side",
       "positionHeader": "Header"
     },
-    "screenshot": {
-      "mobileAdapt": "Mobile Adaptation",
-      "mobileAdaptDesc": "Auto-scale width when taking screenshots for mobile viewing"
-    },
     "network": {
       "title": "Network",
       "proxyMode": "Proxy Mode",

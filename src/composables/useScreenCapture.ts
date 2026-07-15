@@ -10,8 +10,8 @@ import { useLayoutStore } from '@/stores/layout'
 import { usePlatformService } from '@/services'
 import { useCacheService } from '@/services/cache/service'
 
-/** 默认移动端最大宽度 */
-const DEFAULT_MOBILE_MAX_WIDTH = 525
+/** 渐进式缩窄的默认基准宽度 */
+const DEFAULT_NARROWING_BASE_WIDTH = 525
 
 export interface ScreenCaptureOptions {
   /** 截屏时要隐藏的元素选择器列表 */
@@ -23,12 +23,12 @@ export interface ScreenCaptureOptions {
   /** 是否捕获完整的可滚动内容（默认 true） */
   fullContent?: boolean
   /**
-   * 移动端适配宽度，设置后会临时改变元素宽度以适配移动端布局
-   * - 传入数字：使用指定宽度
-   * - 传入 true：使用默认值 525px（自动适配，仅当原始宽度超过时才缩放）
-   * - 传入 false 或不传：不进行移动端适配
+   * 渐进式缩窄，设置后会临时收窄截图元素
+   * - 传入数字：使用指定的基准宽度
+   * - 传入 true：使用默认基准宽度 525px（仅当原始宽度超过时才缩窄）
+   * - 传入 false 或不传：不进行缩窄
    */
-  mobileWidth?: number | boolean
+  progressiveNarrowing?: number | boolean
   /** 是否应用 Markdown 列表渲染兼容修复（仅截取 Markdown 内容时需要，默认 false） */
   markdownFix?: boolean
 }
@@ -149,9 +149,10 @@ export function useScreenCapture() {
       element.style.position = 'relative'
     }
 
-    // 移动端宽度适配（渐进式缩放）
-    if (options?.mobileWidth) {
-      const baseWidth = typeof options.mobileWidth === 'number' ? options.mobileWidth : DEFAULT_MOBILE_MAX_WIDTH
+    // 渐进式缩窄：只压缩超出基准宽度的部分，避免截图突然变得过窄。
+    if (options?.progressiveNarrowing) {
+      const baseWidth =
+        typeof options.progressiveNarrowing === 'number' ? options.progressiveNarrowing : DEFAULT_NARROWING_BASE_WIDTH
 
       // 获取元素当前的实际宽度
       const currentWidth = element.getBoundingClientRect().width

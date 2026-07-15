@@ -53,10 +53,6 @@
       "positionSide": "右側",
       "positionHeader": "頂部"
     },
-    "screenshot": {
-      "mobileAdapt": "行動畫面適配",
-      "mobileAdaptDesc": "截圖時會自動縮放寬度，方便在行動裝置上查看"
-    },
     "network": {
       "title": "網路設定",
       "proxyMode": "代理模式",
