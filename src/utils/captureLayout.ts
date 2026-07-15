@@ -1,4 +1,6 @@
 interface CaptureLayoutStabilizationOptions {
+  /** 仅当截图过程确实改变图表容器宽度时广播 resize */
+  resizeCharts?: boolean
   waitFrame?: () => Promise<void>
   dispatchResize?: () => void
 }
@@ -17,8 +19,10 @@ export async function waitForCaptureLayoutStabilization(options?: CaptureLayoutS
   const waitFrame = options?.waitFrame ?? waitAnimationFrame
   const dispatchResize = options?.dispatchResize ?? dispatchWindowResize
 
-  // 截图前会临时修改 padding/overflow，先等一次布局完成，再通知 ECharts 按新容器宽度重绘。
+  // 始终等待两帧让临时样式稳定；只有宽度变化时才通知 ECharts，避免词云无意义重排。
   await waitFrame()
-  dispatchResize()
+  if (options?.resizeCharts) {
+    dispatchResize()
+  }
   await waitFrame()
 }

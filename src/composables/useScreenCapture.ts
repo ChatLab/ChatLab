@@ -134,15 +134,13 @@ export function useScreenCapture() {
     isCapturing.value = true
     captureError.value = null
 
-    // 临时给元素添加边距和 position: relative（用于水印定位）
-    const originalPadding = element.style.padding
+    // 只在底部预留水印空间，避免横向 padding 改变卡片内容宽度并触发图表重排。
     const originalPaddingBottom = element.style.paddingBottom
     const originalPosition = element.style.position
     const originalWidth = element.style.width
     const originalMinWidth = element.style.minWidth
     const originalMaxWidth = element.style.maxWidth
 
-    element.style.padding = '16px 40px'
     element.style.paddingBottom = '48px' // 为水印留出空间
     const computedPosition = window.getComputedStyle(element).position
     if (computedPosition === 'static') {
@@ -150,6 +148,7 @@ export function useScreenCapture() {
     }
 
     // 渐进式缩窄：只压缩超出基准宽度的部分，避免截图突然变得过窄。
+    let didChangeWidth = false
     if (options?.progressiveNarrowing) {
       const baseWidth =
         typeof options.progressiveNarrowing === 'number' ? options.progressiveNarrowing : DEFAULT_NARROWING_BASE_WIDTH
@@ -167,6 +166,7 @@ export function useScreenCapture() {
         element.style.width = `${targetWidth}px`
         element.style.minWidth = `${targetWidth}px`
         element.style.maxWidth = `${targetWidth}px`
+        didChangeWidth = true
       }
     }
 
@@ -402,7 +402,7 @@ export function useScreenCapture() {
     }
 
     try {
-      await waitForCaptureLayoutStabilization()
+      await waitForCaptureLayoutStabilization({ resizeCharts: didChangeWidth })
 
       const imageData = await captureAsImageData(element, {
         maxExportWidth: options?.maxExportWidth,
@@ -440,7 +440,6 @@ export function useScreenCapture() {
       watermark.remove()
 
       // 恢复元素样式
-      element.style.padding = originalPadding
       element.style.paddingBottom = originalPaddingBottom
       element.style.position = originalPosition
       element.style.width = originalWidth
@@ -485,7 +484,7 @@ export function useScreenCapture() {
       for (const el of hiddenElements) {
         el.classList.remove('__capture-hidden__')
       }
-      await waitForCaptureLayoutStabilization()
+      await waitForCaptureLayoutStabilization({ resizeCharts: didChangeWidth })
       isCapturing.value = false
     }
   }
