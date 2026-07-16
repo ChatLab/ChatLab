@@ -6,12 +6,14 @@
  */
 
 import type { FastifyInstance } from 'fastify'
+import { app } from 'electron'
+import { registerSystemRoutes, registerRestSessionRoutes } from '@openchatlab/http-routes/rest'
 import { createServer } from './server'
-import { registerSystemRoutes } from './routes/system'
-import { registerSessionRoutes } from './routes/sessions'
 import { registerImportRoutes } from './routes/import'
+import { createDesktopRestSessionProvider } from './rest-session-provider'
 import { apiLogger } from './logger'
 import type { ConfigManager, ApiServerConfig } from '@openchatlab/sync'
+import { getDesktopAppVersion } from '../runtime/compat'
 
 let server: FastifyInstance | null = null
 let startedAt: number | null = null
@@ -64,8 +66,12 @@ export async function start(): Promise<void> {
     const port = preferredPort + offset
     try {
       server = createServer()
-      registerSystemRoutes(server)
-      registerSessionRoutes(server)
+      const restSessionProvider = createDesktopRestSessionProvider()
+      registerSystemRoutes(server, {
+        getVersion: () => getDesktopAppVersion(app.getVersion()),
+        countSessions: restSessionProvider.countSessions,
+      })
+      registerRestSessionRoutes(server, restSessionProvider)
       registerImportRoutes(server)
 
       await server.listen({ port, host: '127.0.0.1' })

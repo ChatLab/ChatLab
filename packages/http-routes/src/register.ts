@@ -10,6 +10,7 @@ import type { HttpRouteContext } from './context'
 import { PreferencesManager } from '@openchatlab/node-runtime'
 import { registerSystemRoutes } from './routes/system'
 import { registerRestSessionRoutes } from './routes/sessions'
+import { createDatabaseRestSessionProvider } from './routes/rest-session-provider'
 import { registerImportRoutes } from './routes/imports'
 import { registerSessionRoutes } from './routes/web/sessions'
 import { registerMemberRoutes } from './routes/web/members'
@@ -54,8 +55,13 @@ export function registerSharedRoutes(
     : { ...ctx, preferencesManager: new PreferencesManager(ctx.pathProvider.getSystemDir()) }
 
   // REST API (/api/v1/*)
-  registerSystemRoutes(server, resolvedCtx)
-  registerRestSessionRoutes(server, resolvedCtx)
+  const restSessionProvider =
+    resolvedCtx.restSessionProvider ?? createDatabaseRestSessionProvider(resolvedCtx.dbManager)
+  registerSystemRoutes(server, {
+    getVersion: resolvedCtx.getVersion,
+    countSessions: restSessionProvider.countSessions,
+  })
+  registerRestSessionRoutes(server, restSessionProvider)
   registerImportRoutes(server, resolvedCtx)
 
   // Web UI API (/_web/*)

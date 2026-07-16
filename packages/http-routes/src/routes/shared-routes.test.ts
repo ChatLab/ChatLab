@@ -17,6 +17,7 @@ import { PreferencesManager, type DatabaseManager, type SessionRuntimeAdapter } 
 import type { HttpRouteContext } from '../context'
 import { registerSharedRoutes } from '../register'
 import { registerRestSessionRoutes } from './sessions'
+import { createDatabaseRestSessionProvider } from './rest-session-provider'
 import { registerAutomationRoutes } from './web/automation'
 import { registerSessionRoutes } from './web/sessions'
 
@@ -231,7 +232,8 @@ describe('registerSharedRoutes smoke tests', () => {
   it('GET /api/v1/sessions/:id/messages applies query filters and pagination', async () => {
     const db = createSessionDb()
     const routeApp = Fastify()
-    registerRestSessionRoutes(routeApp, createTestContext(new Map([['chat-1', db]])))
+    const ctx = createTestContext(new Map([['chat-1', db]]))
+    registerRestSessionRoutes(routeApp, createDatabaseRestSessionProvider(ctx.dbManager))
     await routeApp.ready()
 
     const resp = await routeApp.inject({
@@ -255,7 +257,8 @@ describe('registerSharedRoutes smoke tests', () => {
   it('POST /api/v1/sessions/:id/sql rejects write statements and keeps data unchanged', async () => {
     const db = createSessionDb()
     const routeApp = Fastify()
-    registerRestSessionRoutes(routeApp, createTestContext(new Map([['chat-1', db]])))
+    const ctx = createTestContext(new Map([['chat-1', db]]))
+    registerRestSessionRoutes(routeApp, createDatabaseRestSessionProvider(ctx.dbManager))
     await routeApp.ready()
 
     const resp = await routeApp.inject({
