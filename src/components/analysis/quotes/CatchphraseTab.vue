@@ -8,6 +8,7 @@ import { EmptyState, LoadingState, SectionCard } from '@/components/UI'
 import { useLayoutStore } from '@/stores/layout'
 import { formatRankNumber, getRankNumberClass } from '@/utils'
 import type { TimeFilter } from '@openchatlab/shared-types'
+import { buildCatchphraseRecordQuery } from './catchphrase-record-query'
 
 const { t } = useI18n()
 const layoutStore = useLayoutStore()
@@ -45,9 +46,7 @@ async function loadCatchphraseAnalysis() {
 }
 
 function handlePhraseClick(content: string) {
-  layoutStore.openChatRecordDrawer({
-    keywords: [content],
-  })
+  layoutStore.openChatRecordDrawer(buildCatchphraseRecordQuery(content, props.timeFilter))
 }
 
 function getOverviewPhrases(member: MemberCatchphrase) {
