@@ -30,13 +30,19 @@ interface StorageConfig {
  * - Windows: %APPDATA%/ChatLab/
  * - Linux:   ~/.config/ChatLab/
  */
-function getElectronUserDataDir(): string {
-  const home = os.homedir()
-  switch (process.platform) {
+export function getElectronUserDataDir(
+  options: {
+    platform?: NodeJS.Platform
+    homeDir?: string
+    appDataDir?: string
+  } = {}
+): string {
+  const home = options.homeDir ?? os.homedir()
+  switch (options.platform ?? process.platform) {
     case 'darwin':
       return path.join(home, 'Library', 'Application Support', 'ChatLab')
     case 'win32': {
-      const appData = process.env.APPDATA || path.join(home, 'AppData', 'Roaming')
+      const appData = options.appDataDir ?? process.env.APPDATA ?? path.join(home, 'AppData', 'Roaming')
       return path.join(appData, 'ChatLab')
     }
     default:
