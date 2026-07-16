@@ -188,6 +188,7 @@ const otherMemberAvatar = computed(() => {
               :session-id="currentSessionId!"
               :session-name="session.name"
             />
+            <!-- Product decision: private-chat Lab only exposes SQL; keyword ranking remains group-chat only. -->
             <LabTab
               v-else-if="activeTab === 'lab'"
               :key="'lab-' + currentSessionId"
