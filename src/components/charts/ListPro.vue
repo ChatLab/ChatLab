@@ -15,9 +15,7 @@ const props = withDefaults(
     description?: string
     /** 默认显示数量，默认 10 */
     topN?: number
-    /** 弹窗中的总数描述模板，如 "共 {count} 位成员" */
-    countTemplate?: string
-    /** 已完成国际化插值的总数描述，优先于 countTemplate */
+    /** 已完成国际化插值的总数描述 */
     countLabel?: string
   }>(),
   {
@@ -34,8 +32,7 @@ const showViewAll = computed(() => props.items.length > props.topN)
 // 格式化总数描述
 const formattedCount = computed(() => {
   if (props.countLabel) return props.countLabel
-  const template = props.countTemplate || t('views.charts.listPro.countTemplate')
-  return template.replace('{count}', String(props.items.length))
+  return t('views.charts.listPro.countTemplate', { count: props.items.length })
 })
 </script>
 

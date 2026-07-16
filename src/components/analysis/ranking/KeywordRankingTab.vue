@@ -373,7 +373,7 @@ watch(
     :title="t('quotes.keywords.title')"
     :description="t('quotes.keywords.description')"
     :top-n="10"
-    :count-template="t('quotes.keywords.countTemplate')"
+    :count-label="t('quotes.keywords.countTemplate', { count: rankData.length })"
   >
     <!-- 配置区 -->
     <template #config>

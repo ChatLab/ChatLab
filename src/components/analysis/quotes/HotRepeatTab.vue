@@ -66,7 +66,7 @@ watch(
       :title="t('quotes.hotRepeat.title')"
       :description="t('quotes.hotRepeat.description')"
       :top-n="10"
-      :count-template="t('quotes.hotRepeat.countTemplate')"
+      :count-label="t('quotes.hotRepeat.countTemplate', { count: repeatAnalysis.hotContents.length })"
     >
       <template #item="{ item, index }">
         <button
