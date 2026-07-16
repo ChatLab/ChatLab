@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useToast } from '@/composables/useToast'
 import ConversationList from './chat/ConversationList.vue'
@@ -13,6 +13,7 @@ import { useAIService, useLLMService } from '@/services'
 import AssistantInlineBar from './assistant/AssistantInlineBar.vue'
 import AssistantConfigModal from './assistant/AssistantConfigModal.vue'
 import AssistantMarketModal from './assistant/AssistantMarketModal.vue'
+import AssistantUpgradeModal from './assistant/AssistantUpgradeModal.vue'
 import SkillMarketModal from './skill/SkillMarketModal.vue'
 import SkillConfigModal from './skill/SkillConfigModal.vue'
 import PresetQuestions from './input/PresetQuestions.vue'
@@ -24,6 +25,7 @@ import { useChatScroll } from './composables/useChatScroll'
 import { useChatModals } from './composables/useChatModals'
 import { groupMessagesToQAPairs } from './utils/chatMessages'
 import type { MentionedMemberContext } from '@/composables/useAIChat'
+import type { AssistantUpgradeInfo } from '@openchatlab/shared-types'
 
 const { t } = useI18n()
 const toast = useToast()
@@ -132,6 +134,15 @@ const chatInputRef = ref<{
   fillInput: (content: string) => void
   openSkillSelector: () => void
 } | null>(null)
+const assistantUpgradeInfo = ref<AssistantUpgradeInfo | null>(null)
+const assistantUpgradeModalVisible = ref(false)
+const isUpgradingAssistant = ref(false)
+const isSkippingAssistantUpgrade = ref(false)
+
+const assistantBackupName = computed(() => {
+  const name = assistantUpgradeInfo.value?.name || t('ai.assistant.fallbackName')
+  return t('ai.assistant.upgrade.backupName', { name })
+})
 
 // QA 对
 const qaPairs = computed(() => groupMessagesToQAPairs(messages.value))
@@ -228,6 +239,59 @@ function handleSkillActivated() {
   scrollToBottom(true)
 }
 
+async function checkAssistantUpgrade(): Promise<void> {
+  const info = await assistantStore.checkDefaultAssistantUpgrade(settingsStore.locale)
+  if (!info) return
+
+  assistantUpgradeInfo.value = info
+  assistantUpgradeModalVisible.value = true
+}
+
+async function handleAssistantUpgradeSkip(): Promise<void> {
+  const info = assistantUpgradeInfo.value
+  if (!info || isUpgradingAssistant.value || isSkippingAssistantUpgrade.value) return
+
+  isSkippingAssistantUpgrade.value = true
+  try {
+    const result = await assistantStore.skipAssistantUpgrade(info)
+    if (!result.success) {
+      toast.fail(t('ai.assistant.upgrade.skipFailed'), {
+        description: result.error || t('ai.assistant.toast.unknownError'),
+      })
+      return
+    }
+    assistantUpgradeModalVisible.value = false
+    assistantUpgradeInfo.value = null
+  } finally {
+    isSkippingAssistantUpgrade.value = false
+  }
+}
+
+async function handleAssistantUpgradeConfirm(): Promise<void> {
+  const info = assistantUpgradeInfo.value
+  if (!info || isUpgradingAssistant.value || isSkippingAssistantUpgrade.value) return
+
+  isUpgradingAssistant.value = true
+  try {
+    const backupName = assistantBackupName.value
+    const result = await assistantStore.upgradeAssistantWithBackup(info, backupName)
+    if (!result.success) {
+      toast.fail(t('ai.assistant.upgrade.failed'), {
+        description: result.error || t('ai.assistant.toast.unknownError'),
+      })
+      return
+    }
+
+    assistantUpgradeModalVisible.value = false
+    assistantUpgradeInfo.value = null
+    toast.success(t('ai.assistant.upgrade.success'), {
+      description: t('ai.assistant.upgrade.successDescription', { name: backupName }),
+    })
+  } finally {
+    isUpgradingAssistant.value = false
+  }
+}
+
 // 发送消息
 async function handleSend(payload: { content: string; mentionedMembers: MentionedMemberContext[] }) {
   const result = await sendMessage(payload.content, { mentionedMembers: payload.mentionedMembers })
@@ -308,6 +372,12 @@ function handleStop() {
 // 初始化
 checkLLMConfig()
 updateMaxMessages()
+onMounted(() => void checkAssistantUpgrade())
+
+watch(
+  () => settingsStore.locale,
+  () => void checkAssistantUpgrade()
+)
 
 // 监听全局 AI 配置变化（从设置弹窗保存时触发）
 watch(
@@ -548,6 +618,15 @@ watch(
       @update:open="handleConfigModalOpenUpdate"
       @saved="handleAssistantConfigSaved"
       @created="handleAssistantCreated"
+    />
+
+    <AssistantUpgradeModal
+      :open="assistantUpgradeModalVisible"
+      :backup-name="assistantBackupName"
+      :upgrading="isUpgradingAssistant"
+      :skipping="isSkippingAssistantUpgrade"
+      @skip="handleAssistantUpgradeSkip"
+      @confirm="handleAssistantUpgradeConfirm"
     />
 
     <!-- 助手管理弹窗 -->

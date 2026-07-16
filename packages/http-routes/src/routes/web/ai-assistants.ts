@@ -18,6 +18,10 @@ export function registerAiAssistantRoutes(server: FastifyInstance, ctx: AiAssist
     return mgr.getAllAssistants()
   })
 
+  server.get<{ Params: { id: string } }>('/_web/ai/assistants/:id/upgrade-status', async (request) => {
+    return mgr.getAssistantUpgradeInfo(request.params.id)
+  })
+
   server.get<{ Params: { id: string } }>('/_web/ai/assistants/:id', async (request, reply) => {
     const config = mgr.getAssistantConfig(request.params.id)
     if (!config) return reply.code(404).send({ error: 'Not found' })
@@ -47,6 +51,18 @@ export function registerAiAssistantRoutes(server: FastifyInstance, ctx: AiAssist
 
   server.post<{ Params: { id: string } }>('/_web/ai/assistants/:id/reset', async (request, reply) => {
     const result = mgr.resetAssistant(request.params.id)
+    if (!result.success) return reply.code(400).send(result)
+    return result
+  })
+
+  server.post<{
+    Params: { id: string }
+    Body: { backupName?: unknown }
+  }>('/_web/ai/assistants/:id/upgrade', async (request, reply) => {
+    if (typeof request.body?.backupName !== 'string') {
+      return reply.code(400).send({ success: false, error: 'backupName must be a string' })
+    }
+    const result = mgr.upgradeAssistantWithBackup(request.params.id, request.body.backupName)
     if (!result.success) return reply.code(400).send(result)
     return result
   })

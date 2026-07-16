@@ -131,6 +131,20 @@ export interface BuiltinAssistantInfo {
   imported: boolean
 }
 
+export interface AssistantUpgradeInfo {
+  assistantId: string
+  builtinId: string
+  name: string
+  currentVersion: number | null
+  latestVersion: number | null
+}
+
+export interface AssistantUpgradeResult {
+  success: boolean
+  backupId?: string
+  error?: string
+}
+
 // ==================== 成员角色 ====================
 
 export interface MemberRole {
@@ -626,6 +640,8 @@ export interface PeopleRelationshipsNeighborhoodResponse {
 
 export interface Preferences {
   pinnedSessionIds: string[]
+  /** Builtin assistant versions the user chose to skip, keyed by builtin assistant ID. */
+  assistantUpgradeSkippedVersions: Record<string, number>
   aiPreprocessConfig: AIPreprocessConfig
   aiGlobalSettings: AIGlobalSettings
   customKeywordTemplates: KeywordTemplate[]

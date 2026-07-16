@@ -7,7 +7,7 @@
 import { parseAssistantFile, serializeAssistant } from './assistant-parser'
 import type { AssistantConfig, AssistantSummary } from './types'
 import { GENERAL_ASSISTANT_IDS } from '@openchatlab/shared-types'
-import type { BuiltinAssistantInfo } from '@openchatlab/shared-types'
+import type { AssistantUpgradeInfo, AssistantUpgradeResult, BuiltinAssistantInfo } from '@openchatlab/shared-types'
 
 // ==================== Result types ====================
 
@@ -178,6 +178,17 @@ export class AssistantManager {
   }
 
   private shouldUpgradeBuiltin(existing: AssistantConfig, builtin: AssistantConfig): boolean {
+    const comparison = this.compareBuiltin(existing, builtin)
+    return comparison.isUnmodified && comparison.isOutdated
+  }
+
+  private compareBuiltin(
+    existing: AssistantConfig,
+    builtin: AssistantConfig
+  ): {
+    isUnmodified: boolean
+    isOutdated: boolean
+  } {
     const builtinDigest = this.builtinDigestCache.get(builtin.id) ?? this.getConfigDigest(builtin)
     const existingDigest = this.getConfigDigest(existing)
     const knownBaseDigests = existing.builtinDigest
@@ -186,7 +197,7 @@ export class AssistantManager {
     const isUnmodified = existingDigest === builtinDigest || knownBaseDigests.includes(existingDigest)
     const isOutdated = existing.builtinDigest !== builtinDigest || existing.builtinVersion !== builtin.builtinVersion
 
-    return isUnmodified && isOutdated
+    return { isUnmodified, isOutdated }
   }
 
   private loadAll(): void {
@@ -222,6 +233,28 @@ export class AssistantManager {
   getAssistantConfig(id: string): AssistantConfig | null {
     this.ensureInitialized()
     return this.cache.get(id) ?? null
+  }
+
+  getAssistantUpgradeInfo(id: string): AssistantUpgradeInfo | null {
+    this.ensureInitialized()
+    if (!this.generalIds.includes(id)) return null
+
+    const existing = this.cache.get(id)
+    if (!existing?.builtinId) return null
+
+    const builtin = this.getBuiltinConfig(existing.builtinId)
+    if (!builtin) return null
+
+    const comparison = this.compareBuiltin(existing, builtin)
+    if (!comparison.isOutdated || comparison.isUnmodified) return null
+
+    return {
+      assistantId: existing.id,
+      builtinId: existing.builtinId,
+      name: existing.name,
+      currentVersion: existing.builtinVersion ?? null,
+      latestVersion: builtin.builtinVersion ?? null,
+    }
   }
 
   hasAssistant(id: string): boolean {
@@ -333,6 +366,54 @@ export class AssistantManager {
       })
     }
     return result
+  }
+
+  upgradeAssistantWithBackup(id: string, backupName: string): AssistantUpgradeResult {
+    this.ensureInitialized()
+
+    const upgradeInfo = this.getAssistantUpgradeInfo(id)
+    if (!upgradeInfo) return { success: false, error: `No assistant upgrade available: ${id}` }
+
+    const existing = this.cache.get(id)!
+    const builtin = this.getBuiltinConfig(upgradeInfo.builtinId)!
+    const normalizedBackupName = backupName.trim() || `${existing.name} (Legacy Backup)`
+    const backupConfig: AssistantConfig = {
+      ...existing,
+      id: this.deps.generateId?.() || `custom_${Date.now().toString(36)}`,
+      name: normalizedBackupName,
+      builtinId: undefined,
+      builtinVersion: undefined,
+      builtinDigest: undefined,
+    }
+
+    const existingBackup = Array.from(this.cache.values()).find(
+      (config) => !config.builtinId && this.getConfigDigest(config) === this.getConfigDigest(backupConfig)
+    )
+    const backupId = existingBackup?.id ?? backupConfig.id
+
+    if (!existingBackup) {
+      const backupResult = this.saveToDisk(backupConfig)
+      if (!backupResult.success) return backupResult
+    }
+
+    const upgradeResult = this.saveToDisk(this.withBuiltinTracking(builtin, existing.id))
+    if (!upgradeResult.success) {
+      this.deps.logger?.warn('AssistantManager', 'Default assistant upgrade failed after backup', {
+        id: existing.id,
+        builtinId: existing.builtinId,
+        backupId,
+      })
+      return { ...upgradeResult, backupId }
+    }
+
+    this.deps.logger?.info('AssistantManager', 'Backed up and upgraded default assistant', {
+      id: existing.id,
+      builtinId: existing.builtinId,
+      backupId,
+      fromVersion: existing.builtinVersion,
+      toVersion: builtin.builtinVersion,
+    })
+    return { success: true, backupId }
   }
 
   // ==================== Internal ====================

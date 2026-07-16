@@ -361,6 +361,18 @@
     },
     "fallbackName": "アシスタント",
     "duplicateSuffix": "（コピー）",
+    "upgrade": {
+      "title": "デフォルトアシスタントを更新できます",
+      "message": "現在のデフォルトアシスタントは古いテンプレートを元にしており、カスタマイズが含まれています。ChatLab は「{backupName}」として保存してから最新版へ切り替えます。",
+      "backupName": "{name}（旧版バックアップ）",
+      "skipHint": "スキップすると、テンプレートが次に更新されるまで表示されません。",
+      "skip": "スキップ",
+      "skipFailed": "更新をスキップできませんでした",
+      "confirm": "バックアップして更新",
+      "success": "デフォルトアシスタントを更新しました",
+      "successDescription": "以前の設定を「{name}」として保存しました",
+      "failed": "更新に失敗しました"
+    },
     "toast": {
       "loadFailed": "読み込みに失敗しました",
       "createSuccess": "作成しました",

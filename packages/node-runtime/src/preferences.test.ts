@@ -181,9 +181,45 @@ test('loads thinkingLevels as empty object when field is absent in legacy prefer
 
     const loaded = new PreferencesManager(systemDir).load()
     assert.deepEqual(loaded.thinkingLevels, {})
+    assert.deepEqual(loaded.assistantUpgradeSkippedVersions, {})
     // Existing fields must survive the migration
     assert.equal(loaded.aiGlobalSettings.maxMessagesPerRequest, 500)
     assert.equal(loaded.aiGlobalSettings.chartAutoMode, 'suggest')
+  } finally {
+    rmSync(systemDir, { recursive: true, force: true })
+  }
+})
+
+test('persists and normalizes skipped assistant upgrade versions', () => {
+  const systemDir = createTempSystemDir()
+  try {
+    writeFileSync(
+      join(systemDir, 'preferences.json'),
+      JSON.stringify({
+        assistantUpgradeSkippedVersions: {
+          general_cn: 2,
+          invalid_zero: 0,
+          invalid_string: '3',
+        },
+      })
+    )
+
+    const manager = new PreferencesManager(systemDir)
+    assert.deepEqual(manager.load().assistantUpgradeSkippedVersions, { general_cn: 2 })
+
+    const result = manager.save({
+      assistantUpgradeSkippedVersions: {
+        general_cn: 2,
+        general_en: 3,
+      },
+    })
+    assert.equal(result.success, true)
+
+    manager.invalidateCache()
+    assert.deepEqual(manager.load().assistantUpgradeSkippedVersions, {
+      general_cn: 2,
+      general_en: 3,
+    })
   } finally {
     rmSync(systemDir, { recursive: true, force: true })
   }

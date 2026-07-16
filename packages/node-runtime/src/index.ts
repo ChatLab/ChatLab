@@ -162,7 +162,14 @@ export {
 } from './nlp'
 
 // AI 助手/技能解析器 + 对话管理
-export type { AssistantConfig, AssistantSummary, SkillDef, SkillSummary } from './ai'
+export type {
+  AssistantConfig,
+  AssistantSummary,
+  AssistantUpgradeInfo,
+  AssistantUpgradeResult,
+  SkillDef,
+  SkillSummary,
+} from './ai'
 export {
   parseAssistantFile,
   serializeAssistant,

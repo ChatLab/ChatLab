@@ -1,4 +1,11 @@
-import type { AssistantServiceAdapter, AssistantSummary, AssistantConfig, BuiltinAssistantInfo } from './types'
+import type {
+  AssistantServiceAdapter,
+  AssistantSummary,
+  AssistantConfig,
+  AssistantUpgradeInfo,
+  AssistantUpgradeResult,
+  BuiltinAssistantInfo,
+} from './types'
 import { get, post, put, del } from '../utils/http'
 
 export class FetchAssistantAdapter implements AssistantServiceAdapter {
@@ -28,6 +35,14 @@ export class FetchAssistantAdapter implements AssistantServiceAdapter {
 
   async reset(id: string) {
     return post<{ success: boolean; error?: string }>(`/ai/assistants/${id}/reset`, {})
+  }
+
+  async getUpgradeInfo(id: string): Promise<AssistantUpgradeInfo | null> {
+    return get<AssistantUpgradeInfo | null>(`/ai/assistants/${id}/upgrade-status`)
+  }
+
+  async upgradeWithBackup(id: string, backupName: string): Promise<AssistantUpgradeResult> {
+    return post<AssistantUpgradeResult>(`/ai/assistants/${id}/upgrade`, { backupName })
   }
 
   async importFromMd(rawMd: string) {

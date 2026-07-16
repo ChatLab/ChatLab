@@ -6,10 +6,18 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { i18n } from '@/i18n'
-import { usePlatformService, useAssistantService } from '@/services'
-import type { AssistantConfig, AssistantSummary, BuiltinAssistantInfo } from '@openchatlab/shared-types'
+import { usePlatformService, useAssistantService, usePreferencesService } from '@/services'
+import {
+  getDefaultGeneralAssistantId,
+  type AssistantConfig,
+  type AssistantSummary,
+  type AssistantUpgradeInfo,
+  type AssistantUpgradeResult,
+  type BuiltinAssistantInfo,
+} from '@openchatlab/shared-types'
 
 import { CHATLAB_SITE_BASE } from '@/utils/chatlabSiteLocale'
+import { isAssistantUpgradeSkipped } from './assistantUpgradePreference'
 const CLOUD_MARKET_BASE_URL = CHATLAB_SITE_BASE
 const LOCALE_PATH_MAP: Record<string, string> = { 'zh-CN': 'cn', 'zh-TW': 'cn', 'en-US': 'en', 'ja-JP': 'ja' }
 
@@ -28,6 +36,8 @@ export const useAssistantStore = defineStore('assistant', () => {
   const assistants = ref<AssistantSummary[]>([])
   const selectedAssistantId = ref<string | null>(null)
   const isLoaded = ref(false)
+  const checkedUpgradeAssistantIds = new Set<string>()
+  let assistantUpgradeSkippedVersions: Record<string, number> | null = null
 
   /** @deprecated 本地内置目录已清空，保留兼容 */
   const builtinCatalog = ref<BuiltinAssistantInfo[]>([])
@@ -206,6 +216,72 @@ export const useAssistantStore = defineStore('assistant', () => {
     }
   }
 
+  async function checkDefaultAssistantUpgrade(locale: string): Promise<AssistantUpgradeInfo | null> {
+    const assistantId = getDefaultGeneralAssistantId(locale)
+    if (checkedUpgradeAssistantIds.has(assistantId)) return null
+
+    // 同一默认助手每次启动只提示一次；请求失败时撤销标记，允许下次进入页面重试。
+    checkedUpgradeAssistantIds.add(assistantId)
+    try {
+      const info = await useAssistantService().getUpgradeInfo(assistantId)
+      if (!info) return null
+
+      try {
+        if (!assistantUpgradeSkippedVersions) {
+          const preferences = await usePreferencesService().getPreferences()
+          assistantUpgradeSkippedVersions = { ...preferences.assistantUpgradeSkippedVersions }
+        }
+        if (isAssistantUpgradeSkipped(assistantUpgradeSkippedVersions, info)) return null
+      } catch (error) {
+        // 偏好读取失败时仍展示升级提示，避免把真实可用的升级静默吞掉。
+        console.error('[AssistantStore] Failed to load skipped assistant upgrades:', error)
+      }
+
+      return info
+    } catch (error) {
+      checkedUpgradeAssistantIds.delete(assistantId)
+      console.error('[AssistantStore] Failed to check assistant upgrade:', error)
+      return null
+    }
+  }
+
+  async function skipAssistantUpgrade(info: AssistantUpgradeInfo): Promise<{ success: boolean; error?: string }> {
+    if (info.latestVersion === null) {
+      return { success: false, error: 'Assistant template version is unavailable' }
+    }
+
+    try {
+      if (!assistantUpgradeSkippedVersions) {
+        const preferences = await usePreferencesService().getPreferences()
+        assistantUpgradeSkippedVersions = { ...preferences.assistantUpgradeSkippedVersions }
+      }
+      const nextSkippedVersions = {
+        ...assistantUpgradeSkippedVersions,
+        [info.builtinId]: info.latestVersion,
+      }
+      const result = await usePreferencesService().savePreferences({
+        assistantUpgradeSkippedVersions: nextSkippedVersions,
+      })
+      if (result.success) assistantUpgradeSkippedVersions = nextSkippedVersions
+      return result
+    } catch (error) {
+      return { success: false, error: String(error) }
+    }
+  }
+
+  async function upgradeAssistantWithBackup(
+    info: AssistantUpgradeInfo,
+    backupName: string
+  ): Promise<AssistantUpgradeResult> {
+    try {
+      const result = await useAssistantService().upgradeWithBackup(info.assistantId, backupName)
+      if (result.success) await loadAssistants()
+      return result
+    } catch (error) {
+      return { success: false, error: String(error) }
+    }
+  }
+
   async function importAssistant(builtinId: string): Promise<{ success: boolean; error?: string }> {
     try {
       const result = await useAssistantService().importBuiltin(builtinId)
@@ -302,6 +378,9 @@ export const useAssistantStore = defineStore('assistant', () => {
     createAssistant,
     duplicateAssistant,
     resetAssistant,
+    checkDefaultAssistantUpgrade,
+    skipAssistantUpgrade,
+    upgradeAssistantWithBackup,
     importAssistant,
     reimportAssistant,
     deleteAssistant,

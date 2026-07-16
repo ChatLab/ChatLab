@@ -361,6 +361,18 @@
     },
     "fallbackName": "Assistant",
     "duplicateSuffix": " (Copy)",
+    "upgrade": {
+      "title": "Default assistant update available",
+      "message": "Your current default assistant is based on an older template and contains custom changes. ChatLab will save it as “{backupName}” before switching to the latest version.",
+      "backupName": "{name} (Legacy Backup)",
+      "skipHint": "If skipped, ChatLab will not remind you again until the template is updated.",
+      "skip": "Skip",
+      "skipFailed": "Failed to skip update",
+      "confirm": "Back Up and Update",
+      "success": "Default assistant updated",
+      "successDescription": "The previous configuration was saved as “{name}”.",
+      "failed": "Update failed"
+    },
     "toast": {
       "loadFailed": "Failed to load",
       "createSuccess": "Created successfully",

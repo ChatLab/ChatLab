@@ -361,6 +361,18 @@
     },
     "fallbackName": "助手",
     "duplicateSuffix": "（副本）",
+    "upgrade": {
+      "title": "默认助手有新版本",
+      "message": "当前默认助手基于旧版模板，并且包含你的自定义内容。ChatLab 会先将它保存为“{backupName}”，再切换到最新版本。",
+      "backupName": "{name}（旧版备份）",
+      "skipHint": "跳过后，当前模板版本将不再提醒。",
+      "skip": "跳过",
+      "skipFailed": "跳过失败",
+      "confirm": "备份并升级",
+      "success": "默认助手已升级",
+      "successDescription": "旧配置已保存为“{name}”",
+      "failed": "升级失败"
+    },
     "toast": {
       "loadFailed": "加载失败",
       "createSuccess": "创建成功",

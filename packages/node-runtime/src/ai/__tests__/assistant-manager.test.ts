@@ -36,6 +36,15 @@ presetQuestions:
 ---
 你是一个通用助手。`
 
+const SAMPLE_BUILTIN_V2 = `---
+id: general_cn
+name: 通用助手
+builtinVersion: 2
+presetQuestions:
+  - 你好
+---
+你是更自然的分析搭档。`
+
 const hashContent = (content: string) => createHash('sha256').update(content).digest('hex')
 
 function getConfigDigest(config: AssistantConfig): string {
@@ -72,6 +81,20 @@ function createManager(opts?: {
     generateId: () => `custom_${++idCounter}`,
   }
   return { manager: new AssistantManager(deps), fs: memFs }
+}
+
+function createCustomizedLegacyUpgradeManager(): ReturnType<typeof createManager> {
+  const legacyConfig = parseAssistantFile(SAMPLE_BUILTIN, 'general_cn.md')!
+  const fs = createMemoryFs()
+  fs.files.set(
+    '/data/assistants/general_cn.md',
+    serializeAssistant({ ...legacyConfig, builtinId: 'general_cn', systemPrompt: '保留我的自定义提示词。' })
+  )
+  return createManager({
+    fs,
+    builtins: [{ id: 'general_cn', content: SAMPLE_BUILTIN_V2 }],
+    legacyBuiltinDigests: { general_cn: [getConfigDigest(legacyConfig)] },
+  })
 }
 
 describe('AssistantManager', () => {
@@ -148,6 +171,78 @@ presetQuestions:
 
     assert.equal(result.generalUpdated, false)
     assert.equal(ctx.manager.getAssistantConfig('general_cn')!.systemPrompt, '保留我的自定义提示词。')
+  })
+
+  it('reports an upgrade only for a customized outdated default assistant', () => {
+    const ctx = createCustomizedLegacyUpgradeManager()
+    ctx.manager.init()
+
+    assert.deepEqual(ctx.manager.getAssistantUpgradeInfo('general_cn'), {
+      assistantId: 'general_cn',
+      builtinId: 'general_cn',
+      name: '通用助手',
+      currentVersion: null,
+      latestVersion: 2,
+    })
+
+    manager.init()
+    manager.updateAssistant('general_cn', { systemPrompt: '当前模板上的自定义提示词。' })
+    assert.equal(manager.getAssistantUpgradeInfo('general_cn'), null)
+  })
+
+  it('backs up a customized outdated default before upgrading it', () => {
+    const ctx = createCustomizedLegacyUpgradeManager()
+    ctx.manager.init()
+
+    const result = ctx.manager.upgradeAssistantWithBackup('general_cn', '通用助手（旧版备份）')
+
+    assert.deepEqual(result, { success: true, backupId: 'custom_1' })
+    assert.equal(ctx.manager.getAssistantConfig('general_cn')!.systemPrompt, '你是更自然的分析搭档。')
+    assert.equal(ctx.manager.getAssistantConfig('general_cn')!.builtinVersion, 2)
+    const backup = ctx.manager.getAssistantConfig('custom_1')!
+    assert.equal(backup.name, '通用助手（旧版备份）')
+    assert.equal(backup.systemPrompt, '保留我的自定义提示词。')
+    assert.equal(backup.builtinId, undefined)
+    assert.equal(backup.builtinVersion, undefined)
+    assert.equal(backup.builtinDigest, undefined)
+    assert.equal(ctx.manager.getAssistantUpgradeInfo('general_cn'), null)
+  })
+
+  it('keeps the old default untouched when its backup cannot be written', () => {
+    const ctx = createCustomizedLegacyUpgradeManager()
+    ctx.manager.init()
+    const writeFile = ctx.fs.writeFile
+    ctx.fs.writeFile = (filePath, content) => {
+      if (filePath.endsWith('/custom_1.md')) throw new Error('Backup write failed')
+      writeFile(filePath, content)
+    }
+
+    const result = ctx.manager.upgradeAssistantWithBackup('general_cn', '通用助手（旧版备份）')
+
+    assert.equal(result.success, false)
+    assert.equal(ctx.manager.getAssistantConfig('general_cn')!.systemPrompt, '保留我的自定义提示词。')
+    assert.equal(ctx.manager.hasAssistant('custom_1'), false)
+  })
+
+  it('reuses the backup when replacing the default is retried', () => {
+    const ctx = createCustomizedLegacyUpgradeManager()
+    ctx.manager.init()
+    const writeFile = ctx.fs.writeFile
+    ctx.fs.writeFile = (filePath, content) => {
+      if (filePath.endsWith('/general_cn.md')) throw new Error('Default write failed')
+      writeFile(filePath, content)
+    }
+
+    const failed = ctx.manager.upgradeAssistantWithBackup('general_cn', '通用助手（旧版备份）')
+    assert.deepEqual(failed, { success: false, backupId: 'custom_1', error: 'Error: Default write failed' })
+    assert.equal(ctx.manager.getAssistantConfig('general_cn')!.systemPrompt, '保留我的自定义提示词。')
+
+    ctx.fs.writeFile = writeFile
+    const retried = ctx.manager.upgradeAssistantWithBackup('general_cn', '通用助手（旧版备份）')
+
+    assert.deepEqual(retried, { success: true, backupId: 'custom_1' })
+    assert.equal(ctx.manager.getAllAssistants().length, 2)
+    assert.equal(ctx.manager.getAssistantConfig('general_cn')!.systemPrompt, '你是更自然的分析搭档。')
   })
 
   it('uses the stored digest to preserve later customizations', () => {

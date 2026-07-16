@@ -361,6 +361,18 @@
     },
     "fallbackName": "助手",
     "duplicateSuffix": "（副本）",
+    "upgrade": {
+      "title": "預設助手有新版本",
+      "message": "目前的預設助手來自舊版範本，且包含自訂內容。ChatLab 會先將它儲存為「{backupName}」，再切換到最新版本。",
+      "backupName": "{name}（舊版備份）",
+      "skipHint": "跳過後，目前的範本版本將不再提醒。",
+      "skip": "跳過",
+      "skipFailed": "跳過失敗",
+      "confirm": "備份並升級",
+      "success": "預設助手已升級",
+      "successDescription": "舊設定已儲存為「{name}」",
+      "failed": "升級失敗"
+    },
     "toast": {
       "loadFailed": "載入失敗",
       "createSuccess": "建立成功",

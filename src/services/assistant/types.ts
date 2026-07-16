@@ -1,6 +1,18 @@
-import type { AssistantConfig, AssistantSummary, BuiltinAssistantInfo } from '@openchatlab/shared-types'
+import type {
+  AssistantConfig,
+  AssistantSummary,
+  AssistantUpgradeInfo,
+  AssistantUpgradeResult,
+  BuiltinAssistantInfo,
+} from '@openchatlab/shared-types'
 
-export type { AssistantConfig, AssistantSummary, BuiltinAssistantInfo } from '@openchatlab/shared-types'
+export type {
+  AssistantConfig,
+  AssistantSummary,
+  AssistantUpgradeInfo,
+  AssistantUpgradeResult,
+  BuiltinAssistantInfo,
+} from '@openchatlab/shared-types'
 
 export interface AssistantServiceAdapter {
   getAll(): Promise<AssistantSummary[]>
@@ -9,6 +21,8 @@ export interface AssistantServiceAdapter {
   update(id: string, updates: Partial<AssistantConfig>): Promise<{ success: boolean; error?: string }>
   delete(id: string): Promise<{ success: boolean; error?: string }>
   reset(id: string): Promise<{ success: boolean; error?: string }>
+  getUpgradeInfo(id: string): Promise<AssistantUpgradeInfo | null>
+  upgradeWithBackup(id: string, backupName: string): Promise<AssistantUpgradeResult>
   importFromMd(rawMd: string): Promise<{ success: boolean; error?: string }>
   importBuiltin(builtinId: string): Promise<{ success: boolean; error?: string }>
   reimport(id: string): Promise<{ success: boolean; error?: string }>

@@ -32,6 +32,7 @@ export type {
 
 const DEFAULTS: Preferences = {
   pinnedSessionIds: [],
+  assistantUpgradeSkippedVersions: {},
   aiPreprocessConfig: {
     dataCleaning: true,
     mergeConsecutive: true,
@@ -136,6 +137,7 @@ export class PreferencesManager {
   private mergeDefaults(partial: Partial<Preferences>): Preferences {
     return {
       pinnedSessionIds: partial.pinnedSessionIds ?? DEFAULTS.pinnedSessionIds,
+      assistantUpgradeSkippedVersions: this.normalizePositiveIntegerMap(partial.assistantUpgradeSkippedVersions),
       aiPreprocessConfig: partial.aiPreprocessConfig
         ? this.normalizeAiPreprocessConfig(partial.aiPreprocessConfig)
         : { ...DEFAULTS.aiPreprocessConfig },
@@ -182,6 +184,17 @@ export class PreferencesManager {
     const result: Record<string, boolean> = {}
     for (const [key, flag] of Object.entries(value as Record<string, unknown>)) {
       if (typeof flag === 'boolean') result[key] = flag
+    }
+    return result
+  }
+
+  private normalizePositiveIntegerMap(value: unknown): Record<string, number> {
+    if (!value || typeof value !== 'object' || Array.isArray(value)) return {}
+    const result: Record<string, number> = {}
+    for (const [key, version] of Object.entries(value as Record<string, unknown>)) {
+      if (typeof version === 'number' && Number.isInteger(version) && version > 0) {
+        result[key] = version
+      }
     }
     return result
   }
