@@ -42,6 +42,18 @@ importers:
       '@nuxt/ui':
         specifier: ^4.9.0
         version: 4.9.0(s6g7ddwkwqprfo6zxngcqjtvte)
+      '@openchatlab/core':
+        specifier: workspace:*
+        version: link:packages/core
+      '@openchatlab/parser':
+        specifier: workspace:*
+        version: link:packages/parser
+      '@openchatlab/shared-types':
+        specifier: workspace:*
+        version: link:packages/shared-types
+      '@openchatlab/tools':
+        specifier: workspace:*
+        version: link:packages/tools
       '@tailwindcss/vite':
         specifier: ^4.0.0
         version: 4.1.18(vite@7.3.3(@types/node@25.2.2)(jiti@2.7.0)(lightningcss@1.32.0)(tsx@4.21.0)(yaml@2.8.2))
@@ -231,6 +243,30 @@ importers:
       '@electron/rebuild':
         specifier: ^4.0.4
         version: 4.0.4
+      '@openchatlab/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@openchatlab/core':
+        specifier: workspace:*
+        version: link:../../packages/core
+      '@openchatlab/http-routes':
+        specifier: workspace:*
+        version: link:../../packages/http-routes
+      '@openchatlab/node-runtime':
+        specifier: workspace:*
+        version: link:../../packages/node-runtime
+      '@openchatlab/parser':
+        specifier: workspace:*
+        version: link:../../packages/parser
+      '@openchatlab/shared-types':
+        specifier: workspace:*
+        version: link:../../packages/shared-types
+      '@openchatlab/sync':
+        specifier: workspace:*
+        version: link:../../packages/sync
+      '@openchatlab/tools':
+        specifier: workspace:*
+        version: link:../../packages/tools
       '@types/better-sqlite3':
         specifier: ^7.6.13
         version: 7.6.13
@@ -262,7 +298,11 @@ importers:
         specifier: ^3.24.4
         version: 3.25.76
 
-  packages/core: {}
+  packages/core:
+    dependencies:
+      '@openchatlab/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
 
   packages/http-routes:
     dependencies:
@@ -337,6 +377,12 @@ importers:
       '@openchatlab/core':
         specifier: workspace:*
         version: link:../core
+      '@openchatlab/parser':
+        specifier: workspace:*
+        version: link:../parser
+      '@openchatlab/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
       better-sqlite3:
         specifier: ^12.4.6
         version: 12.6.2

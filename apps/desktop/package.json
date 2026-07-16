@@ -31,6 +31,14 @@
     "undici": "^6.25.0"
   },
   "devDependencies": {
+    "@openchatlab/config": "workspace:*",
+    "@openchatlab/core": "workspace:*",
+    "@openchatlab/http-routes": "workspace:*",
+    "@openchatlab/node-runtime": "workspace:*",
+    "@openchatlab/parser": "workspace:*",
+    "@openchatlab/shared-types": "workspace:*",
+    "@openchatlab/sync": "workspace:*",
+    "@openchatlab/tools": "workspace:*",
     "@electron-toolkit/tsconfig": "^1.0.1",
     "@electron/rebuild": "^4.0.4",
     "@types/better-sqlite3": "^7.6.13",

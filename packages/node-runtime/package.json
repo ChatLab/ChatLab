@@ -19,6 +19,8 @@
     "@huggingface/transformers": "^4.2.0",
     "@openchatlab/config": "workspace:*",
     "@openchatlab/core": "workspace:*",
+    "@openchatlab/parser": "workspace:*",
+    "@openchatlab/shared-types": "workspace:*",
     "better-sqlite3": "^12.4.6",
     "gray-matter": "^4.0.3",
     "js-tiktoken": "^1.0.21",

@@ -58,6 +58,9 @@ jobs:
       - name: Install dependencies
         run: pnpm install --frozen-lockfile
 
+      - name: Check workspace dependency declarations
+        run: pnpm run check:workspace-deps
+
       # 共享 node_modules 的 better-sqlite3 由 pnpm install 保持 Node ABI
       # （desktop 不再有 electron-rebuild postinstall），这里只需准备 CLI 专属副本。
       - name: Prepare better-sqlite3 for Node tests

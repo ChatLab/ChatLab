@@ -44,6 +44,7 @@
     "type-check:node": "tsc --noEmit -p tsconfig.node.json && tsc --noEmit -p apps/desktop/tsconfig.node.json",
     "type-check:all": "pnpm run type-check:web && pnpm run type-check:node",
     "type-check": "vue-tsc --noEmit -p tsconfig.web.json",
+    "check:workspace-deps": "node scripts/check-workspace-dependencies.mjs",
     "test": "node scripts/run-tests.mjs",
     "test:unit": "node scripts/run-tests.mjs",
     "test:auth": "tsx --test apps/cli/src/http/auth.test.ts src/services/utils/http.test.ts",
@@ -63,6 +64,10 @@
     "vue-i18n": "^11.2.8"
   },
   "devDependencies": {
+    "@openchatlab/core": "workspace:*",
+    "@openchatlab/parser": "workspace:*",
+    "@openchatlab/shared-types": "workspace:*",
+    "@openchatlab/tools": "workspace:*",
     "@electron-toolkit/tsconfig": "^1.0.1",
     "@nuxt/ui": "^4.9.0",
     "@tailwindcss/vite": "^4.0.0",
