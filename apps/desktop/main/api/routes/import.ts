@@ -8,7 +8,7 @@
  * POST /api/v1/sessions/:id/import Incremental import to existing session
  *
  * Content-Type dispatch:
- *   application/json     → shared pushImport service in the Desktop worker
+ *   application/json     → shared JSON Push HTTP handler → Desktop worker
  *   application/x-ndjson → raw stream → temp .jsonl → shared auto-import orchestration
  */
 
@@ -18,8 +18,12 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as crypto from 'crypto'
 import { pipeline } from 'stream/promises'
-import { hashImportBody, ImportIdempotencyCache, isValidImportSessionId } from '@openchatlab/node-runtime'
-import type { PushImportPayload } from '@openchatlab/node-runtime'
+import { ImportIdempotencyCache, isValidImportSessionId } from '@openchatlab/node-runtime'
+import {
+  buildImportIdempotencyCacheKey,
+  createJsonPushImportHandler,
+  type ImportSuccessResponse,
+} from '@openchatlab/http-routes/import'
 import {
   ApiError,
   ApiErrorCode,
@@ -36,8 +40,8 @@ import { getTempDir } from '../../paths/locations'
 import * as worker from '../../worker/workerManager'
 import { apiLogger } from '../logger'
 import {
+  DESKTOP_IMPORT_IN_PROGRESS_MESSAGE,
   analysisFromNewImport,
-  analysisFromPushImport,
   apiErrorFromImportResult,
   desktopImportInProgressError,
 } from './import-helpers'
@@ -45,9 +49,25 @@ import {
 // Tracks active External API requests; the shared data-directory lock enforces writer exclusion.
 const isImporting = new Set<string>()
 
-type ImportSuccessResponse = ReturnType<typeof successResponse>
-
 const idempotencyCache = new ImportIdempotencyCache<ImportSuccessResponse>()
+
+const handleJsonPushImport = createJsonPushImportHandler({
+  execute: worker.pushImport,
+  analyze: worker.analyzePushImport,
+  idempotencyCache,
+  includeDryRunInIdempotencyKey: true,
+  importInProgressMessage: DESKTOP_IMPORT_IN_PROGRESS_MESSAGE,
+  acquire: (sessionId) => {
+    if (isImporting.has(sessionId)) return false
+    isImporting.add(sessionId)
+    return true
+  },
+  release: (sessionId) => {
+    isImporting.delete(sessionId)
+  },
+  onSuccess: () => notifySessionListChanged(),
+  onError: (error) => apiLogger.error('Import error', error),
+})
 
 function computeTempFileHash(tempFile: string): string {
   const content = fs.readFileSync(tempFile)
@@ -80,12 +100,12 @@ function notifySessionListChanged(): void {
   }
 }
 
-function idempotencySuccess(key: string | undefined, response: ImportSuccessResponse): void {
+function idempotencySuccess(key: string | null, response: ImportSuccessResponse): void {
   if (!key) return
   idempotencyCache.success(key, response)
 }
 
-function idempotencyFail(key: string | undefined): void {
+function idempotencyFail(key: string | null): void {
   if (!key) return
   idempotencyCache.fail(key)
 }
@@ -149,27 +169,43 @@ async function handleUnifiedImport(request: FastifyRequest, reply: FastifyReply,
   const idempotencyKey = request.headers['idempotency-key'] as string | undefined
   const isDryRun = (request.headers['x-dry-run'] as string)?.toLowerCase() === 'true'
 
-  const cacheKey = idempotencyKey ? `${idempotencyKey}:${sessionId}:${isDryRun}` : undefined
+  if (isJson) {
+    const result = await handleJsonPushImport({
+      sessionId,
+      body: request.body,
+      contentType,
+      idempotencyKey,
+      dryRun: isDryRun,
+    })
+    reply.code(result.statusCode).send(result.response)
+    return
+  }
+
+  if (!isValidImportSessionId(sessionId)) {
+    const err = invalidPayload(
+      "sessionId must be 1-128 safe characters, start with [A-Za-z0-9_@-], and not contain '..'"
+    )
+    reply.code(err.statusCode).send(errorResponse(err))
+    return
+  }
+
+  const cacheKey = buildImportIdempotencyCacheKey(idempotencyKey, sessionId, isDryRun, true)
 
   let tempFile = ''
   let activeRequestRegistered = false
   let idempotencyOwned = false
 
   try {
-    // JSON writes and dry-runs go straight through the shared push service.
-    // JSONL still needs a temp file because its analyzer and importer consume a file path.
-    if (isJsonl) {
-      const writeResult = await writeTempFile(request, isJson)
-      if (writeResult.error) {
-        const err = invalidFormat(writeResult.error)
-        reply.code(err.statusCode).send(errorResponse(err))
-        return
-      }
-      tempFile = writeResult.tempFile!
+    const writeResult = await writeTempFile(request, false)
+    if (writeResult.error) {
+      const err = invalidFormat(writeResult.error)
+      reply.code(err.statusCode).send(errorResponse(err))
+      return
     }
+    tempFile = writeResult.tempFile!
 
     if (cacheKey) {
-      const bodyHash = isJsonl ? computeTempFileHash(tempFile) : hashImportBody(request.body)
+      const bodyHash = computeTempFileHash(tempFile)
       const start = idempotencyCache.start(cacheKey, bodyHash)
       if (start.status === 'conflict') {
         const err = idempotencyConflict()
@@ -201,28 +237,6 @@ async function handleUnifiedImport(request: FastifyRequest, reply: FastifyReply,
 
     // X-Dry-Run: analyze only, no writes
     if (isDryRun) {
-      if (isJson) {
-        const outcome = await worker.analyzePushImport(sessionId, (request.body ?? {}) as PushImportPayload)
-        if (!outcome.ok) {
-          idempotencyFail(cacheKey)
-          const err =
-            outcome.reason === 'invalid_payload' ? invalidPayload(outcome.message) : importFailed(outcome.message)
-          reply.code(err.statusCode).send(errorResponse(err))
-          return
-        }
-
-        const responsePayload = successResponse({
-          sessionId,
-          created: outcome.result.created,
-          dryRun: true,
-          analysis: analysisFromPushImport(outcome.result),
-        })
-        idempotencySuccess(cacheKey, responsePayload)
-        idempotencyOwned = false
-        reply.send(responsePayload)
-        return
-      }
-
       const exists = sessionExists(sessionId)
       let responsePayload: ImportSuccessResponse
       if (exists) {
@@ -258,27 +272,6 @@ async function handleUnifiedImport(request: FastifyRequest, reply: FastifyReply,
           analysis: analysisFromNewImport(result),
         })
       }
-      idempotencySuccess(cacheKey, responsePayload)
-      idempotencyOwned = false
-      reply.send(responsePayload)
-      return
-    }
-
-    if (isJson) {
-      const outcome = await worker.pushImport(sessionId, (request.body ?? {}) as PushImportPayload)
-      if (!outcome.ok) {
-        idempotencyFail(cacheKey)
-        const err =
-          outcome.reason === 'import_in_progress'
-            ? desktopImportInProgressError()
-            : outcome.reason === 'invalid_payload'
-              ? invalidPayload(outcome.message)
-              : importFailed(outcome.message)
-        reply.code(err.statusCode).send(errorResponse(err))
-        return
-      }
-      notifySessionListChanged()
-      const responsePayload = successResponse(outcome.result)
       idempotencySuccess(cacheKey, responsePayload)
       idempotencyOwned = false
       reply.send(responsePayload)
@@ -441,15 +434,7 @@ export function registerImportRoutes(server: FastifyInstance): void {
 
   // v3 unified endpoint
   server.post<{ Params: { sessionId: string } }>('/api/v1/imports/:sessionId', async (request, reply) => {
-    const { sessionId } = request.params
-    if (!isValidImportSessionId(sessionId)) {
-      const err = invalidPayload(
-        "sessionId must be 1-128 safe characters, start with [A-Za-z0-9_@-], and not contain '..'"
-      )
-      reply.code(err.statusCode).send(errorResponse(err))
-      return
-    }
-    await handleUnifiedImport(request, reply, sessionId)
+    await handleUnifiedImport(request, reply, request.params.sessionId)
   })
 
   // Legacy endpoints (deprecated, kept for backward compatibility)

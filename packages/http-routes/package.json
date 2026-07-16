@@ -10,6 +10,7 @@
     ".": "./src/index.ts",
     "./auth": "./src/auth.ts",
     "./errors": "./src/errors.ts",
+    "./import": "./src/import.ts",
     "./rest": "./src/rest.ts"
   },
   "dependencies": {
