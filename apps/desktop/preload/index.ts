@@ -12,6 +12,7 @@ import { aiApi } from './apis/ai'
 import { networkApi, cacheApi } from './apis/utils'
 import { apiServerApi } from './apis/api-server'
 import { internalApi } from './apis/internal-api'
+import { securityApi } from './apis/security'
 
 // 为渲染进程提供统一的类型入口，避免 type-only import 指向无导出的运行时代码。
 export type { PreprocessConfig } from './apis/ai'
@@ -41,6 +42,7 @@ if (process.contextIsolated) {
     contextBridge.exposeInMainWorld('networkApi', networkApi)
     contextBridge.exposeInMainWorld('apiServerApi', apiServerApi)
     contextBridge.exposeInMainWorld('internalApi', internalApi)
+    contextBridge.exposeInMainWorld('securityApi', securityApi)
   } catch (error) {
     console.error(error)
   }
@@ -61,4 +63,6 @@ if (process.contextIsolated) {
   window.apiServerApi = apiServerApi
   // @ts-ignore (define in dts)
   window.internalApi = internalApi
+  // @ts-ignore (define in dts)
+  window.securityApi = securityApi
 }

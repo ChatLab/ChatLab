@@ -8,6 +8,7 @@ import BatchManageTab from './Settings/BatchManageTab.vue'
 import StorageTab from './Settings/StorageTab.vue'
 import AboutTab from './Settings/AboutTab.vue'
 import ApiSettingsTab from './Settings/ApiSettingsTab.vue'
+import SecuritySettingsTab from './Settings/SecuritySettingsTab.vue'
 import { PageTabs } from '@/components/navigation'
 import { usePromptStore } from '@/stores/prompt'
 import { useLayoutStore } from '@/stores/layout'
@@ -28,6 +29,7 @@ const tabs = computed(() => [
   { id: 'api', label: t('settings.tabs.api'), icon: 'i-heroicons-server-stack' },
   { id: 'data', label: t('settings.tabs.dataManage'), icon: 'i-heroicons-rectangle-stack' },
   { id: 'storage', label: t('settings.tabs.storage'), icon: 'i-heroicons-folder-open' },
+  { id: 'security', label: t('settings.tabs.security'), icon: 'i-heroicons-shield-check' },
   { id: 'about', label: t('settings.tabs.about'), icon: 'i-heroicons-information-circle' },
 ])
 
@@ -105,9 +107,9 @@ watch(showSettings, async (visible) => {
         </div>
 
         <div class="relative flex-1">
-          <div class="absolute inset-0 p-6">
+          <div class="absolute inset-0 overflow-y-auto p-6">
             <Transition name="tab-slide" mode="out-in">
-              <div v-if="activeTab === 'settings'" key="settings" class="h-full overflow-y-auto">
+              <div v-if="activeTab === 'settings'" key="settings" class="h-full">
                 <BasicSettingsTab />
               </div>
               <AISettingsTab
@@ -127,6 +129,7 @@ watch(showSettings, async (visible) => {
                 key="storage"
                 :ref="(el: unknown) => setTabRef('storage', el)"
               />
+              <SecuritySettingsTab v-else-if="activeTab === 'security'" key="security" />
               <div v-else-if="activeTab === 'about'" key="about" class="h-full overflow-y-auto">
                 <AboutTab />
               </div>

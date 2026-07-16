@@ -11,6 +11,7 @@
     "aiPreprocess": "前處理",
     "dataManage": "資料管理",
     "storage": "儲存管理",
+    "security": "安全",
     "sessionManage": "會話索引",
     "about": "關於 ChatLab",
     "api": "自動化",
@@ -608,6 +609,83 @@
       "readOnly": "所有操作均為唯讀，不會修改你的聊天記錄。",
       "nodeRequired": "npx 和 CLI 方式需要 Node.js 20 或更高版本。",
       "docs": "詳細文件請造訪 docs.chatlab.fun。"
+    }
+  },
+  "security": {
+    "loading": "載入中...",
+    "electronOnly": {
+      "title": "應用鎖功能僅限桌面用戶端",
+      "desc": "請使用 ChatLab 桌面版來設定應用鎖"
+    },
+    "lock": {
+      "title": "應用鎖",
+      "desc": "啟用後，啟動時、閒置逾時或視窗失焦時須驗證身分。",
+      "statusOn": "已開啟",
+      "statusOnDesc": "應用鎖正在保護你的資料",
+      "statusOff": "未開啟",
+      "statusOffDesc": "請設定密碼以開啟",
+      "disableBtn": "關閉應用鎖",
+      "disableConfirm": "確定要關閉應用鎖嗎？關閉後不再需要密碼即可使用。",
+      "manualLock": "立即鎖定"
+    },
+    "password": {
+      "titleSetup": "設定密碼並開啟應用鎖",
+      "titleChange": "修改密碼",
+      "descSetup": "設定密碼後自動開啟應用鎖，密碼不會被明文儲存",
+      "descChange": "請輸入舊密碼並設定新密碼以更新解鎖金鑰",
+      "btnSetup": "設定密碼",
+      "btnChange": "修改密碼",
+      "labelOld": "舊密碼",
+      "placeholderOld": "輸入目前密碼",
+      "labelNew": "新密碼（至少 4 位）",
+      "placeholderNew": "輸入新密碼",
+      "labelConfirm": "確認新密碼",
+      "placeholderConfirm": "再次輸入新密碼",
+      "cancel": "取消",
+      "submitting": "處理中...",
+      "btnSave": "更新",
+      "btnEnable": "開啟",
+      "errorTooShort": "密碼長度不能少於 4 位",
+      "errorTooLong": "密碼長度不能超過 128 位",
+      "errorMismatch": "兩次輸入的密碼不一致",
+      "errorSameAsOld": "新密碼不能與舊密碼相同",
+      "errorNeedOld": "請輸入舊密碼",
+      "success": "密碼設定成功",
+      "errorGeneric": "操作失敗",
+      "errorRetry": "操作失敗，請重試"
+    },
+    "hello": {
+      "title": "Windows Hello 快速解鎖",
+      "desc": "使用系統人臉、指紋或 PIN 快速解鎖，無需每次輸入密碼。",
+      "notAvailable": "請先在Windows系統設定PIN碼以使用Windows Hello",
+      "enabled": "Windows Hello 已啟用 — 鎖定螢幕時可選擇使用 PIN 或生物辨識解鎖",
+      "disabledLock": "請先開啟應用鎖",
+      "btnEnable": "開啟 Windows Hello",
+      "btnDisable": "關閉",
+      "placeholderPassword": "輸入目前密碼以驗證身分",
+      "verifying": "驗證中...",
+      "success": "Windows Hello 已開啟",
+      "disabled": "Windows Hello 已關閉",
+      "errorPassword": "請輸入目前密碼",
+      "errorAppPassword": "應用程式密碼驗證失敗",
+      "errorService": "驗證服務異常，請重試",
+      "errorCancelled": "系統驗證已取消",
+      "errorNotAvailable": "此裝置不支援 Windows Hello",
+      "errorVerifyFailed": "系統驗證失敗，請重試",
+      "errorConfig": "設定儲存失敗"
+    },
+    "autoLock": {
+      "title": "自動鎖定",
+      "idleLabel": "閒置逾時自動鎖定",
+      "idleDesc": "當你一段時間沒有操作時，自動鎖定 ChatLab",
+      "blurLabel": "視窗失焦時自動鎖定",
+      "blurDesc": "切換到其他視窗時立即鎖定",
+      "startupLabel": "啟動時要求解鎖",
+      "startupDesc": "應用程式啟動後立即顯示鎖定畫面"
+    },
+    "toast": {
+      "saved": "儲存成功",
+      "failed": "儲存失敗"
     }
   }
 }

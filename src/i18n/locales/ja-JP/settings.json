@@ -11,6 +11,7 @@
     "aiPreprocess": "前処理",
     "dataManage": "データ管理",
     "storage": "ストレージ管理",
+    "security": "セキュリティ",
     "sessionManage": "セッションインデックス",
     "about": "ChatLabについて",
     "api": "オートメーション",
@@ -608,6 +609,83 @@
       "readOnly": "すべての操作は読み取り専用で、チャット記録は変更されません。",
       "nodeRequired": "npx および CLI モードには Node.js 20 以上が必要です。",
       "docs": "詳細なドキュメントは docs.chatlab.fun をご覧ください。"
+    }
+  },
+  "security": {
+    "loading": "読み込み中...",
+    "electronOnly": {
+      "title": "アプリロックはデスクトップ版のみ対応",
+      "desc": "ChatLab デスクトップ版で設定してください"
+    },
+    "lock": {
+      "title": "アプリロック",
+      "desc": "起動時、アイドル時、ウィンドウフォーカス喪失時に本人確認が必要です。",
+      "statusOn": "有効",
+      "statusOnDesc": "アプリロックがデータを保護しています",
+      "statusOff": "無効",
+      "statusOffDesc": "パスワードを設定して有効にしてください",
+      "disableBtn": "アプリロックを無効にする",
+      "disableConfirm": "アプリロックを無効にしますか？パスワードなしで使用できるようになります。",
+      "manualLock": "今すぐロック"
+    },
+    "password": {
+      "titleSetup": "パスワード設定とアプリロック有効化",
+      "titleChange": "パスワード変更",
+      "descSetup": "パスワード設定後、自動的にアプリロックが有効になります。パスワードは平文で保存されません。",
+      "descChange": "現在のパスワードを入力し、新しいパスワードを設定してください。",
+      "btnSetup": "パスワード設定",
+      "btnChange": "パスワード変更",
+      "labelOld": "現在のパスワード",
+      "placeholderOld": "現在のパスワードを入力",
+      "labelNew": "新しいパスワード（4文字以上）",
+      "placeholderNew": "新しいパスワードを入力",
+      "labelConfirm": "新しいパスワード（確認）",
+      "placeholderConfirm": "もう一度入力",
+      "cancel": "キャンセル",
+      "submitting": "処理中...",
+      "btnSave": "更新",
+      "btnEnable": "有効にする",
+      "errorTooShort": "パスワードは4文字以上必要です",
+      "errorTooLong": "パスワードは128文字以内にしてください",
+      "errorMismatch": "パスワードが一致しません",
+      "errorSameAsOld": "新しいパスワードを現在のものと同じにしないでください",
+      "errorNeedOld": "現在のパスワードを入力してください",
+      "success": "パスワードを設定しました",
+      "errorGeneric": "操作に失敗しました",
+      "errorRetry": "操作に失敗しました。再試行してください"
+    },
+    "hello": {
+      "title": "Windows Hello クイックアンロック",
+      "desc": "顔認証、指紋、PINを使用して素早くロック解除できます。",
+      "notAvailable": "Windowsの設定でPINを設定してください",
+      "enabled": "Windows Hello 有効 — ロック画面で生体認証またはPINで解除できます",
+      "disabledLock": "先にアプリロックを有効にしてください",
+      "btnEnable": "Windows Hello を有効にする",
+      "btnDisable": "無効にする",
+      "placeholderPassword": "現在のパスワードを入力して確認",
+      "verifying": "検証中...",
+      "success": "Windows Hello を有効にしました",
+      "disabled": "Windows Hello を無効にしました",
+      "errorPassword": "現在のパスワードを入力してください",
+      "errorAppPassword": "アプリパスワードの検証に失敗しました",
+      "errorService": "検証サービスエラー、再試行してください",
+      "errorCancelled": "システム検証がキャンセルされました",
+      "errorNotAvailable": "このデバイスではWindows Helloを利用できません",
+      "errorVerifyFailed": "システム検証に失敗しました。再試行してください",
+      "errorConfig": "設定の保存に失敗しました"
+    },
+    "autoLock": {
+      "title": "自動ロック",
+      "idleLabel": "アイドル時に自動ロック",
+      "idleDesc": "一定時間操作がない場合、自動的にChatLabをロックします",
+      "blurLabel": "ウィンドウフォーカス喪失時にロック",
+      "blurDesc": "他のウィンドウに切り替えた時に即座にロックします",
+      "startupLabel": "起動時にロック解除を要求",
+      "startupDesc": "アプリ起動後すぐにロック画面を表示します"
+    },
+    "toast": {
+      "saved": "保存しました",
+      "failed": "保存に失敗しました"
     }
   }
 }

@@ -10,6 +10,10 @@ import { initAnalytics } from './analytics'
 import { logger } from './logger'
 import { prepareDesktopRuntime } from './app/bootstrap'
 import { createMainWindow, markAppQuitting } from './window/main-window'
+import { initLockManager, cleanupLockManager } from './security/lock-manager'
+
+type AppWithQuitFlag = typeof app & { isQuiting?: boolean }
+const appWithQuitFlag = app as AppWithQuitFlag
 
 class MainProcess {
   mainWindow: BrowserWindow | null
@@ -104,6 +108,11 @@ class MainProcess {
         console.log('[Main] Registering IPC handlers...')
         mainIpcMain(this.mainWindow)
         console.log('[Main] IPC handlers registered')
+
+        // 初始化应用锁（在 IPC 注册之后）
+        console.log('[Main] Initializing app lock...')
+        initLockManager(this.mainWindow)
+        console.log('[Main] App lock initialized')
       }
 
       app.on('browser-window-created', (_, window) => {
@@ -144,6 +153,7 @@ class MainProcess {
       app.on('will-quit', () => {
         stopInternalServer().catch(() => {})
         cleanup()
+        cleanupLockManager()
       })
     })
   }

@@ -311,6 +311,78 @@ interface InternalApi {
   getEndpoint: () => Promise<InternalEndpoint | null>
 }
 
+// ==================== 应用锁安全 API 类型 ====================
+
+interface LockConfig {
+  enabled: boolean
+  unlockMode: 'password' | 'windows-hello'
+  idleTimeoutMinutes: number
+  lockOnBlur: boolean
+  lockOnStartup: boolean
+  hasPassword: boolean
+  windowsHelloAvailable: boolean
+}
+
+interface WindowsHelloAvailability {
+  available: boolean
+  tipText: string
+}
+
+interface UnlockResult {
+  success: boolean
+  needsSetup?: boolean
+  wrongPassword?: boolean
+  cooldown?: boolean
+  cooldownRemaining?: number
+  remainingRetries?: number
+  windowsHelloUnavailable?: boolean
+  cancelled?: boolean
+  error?: string
+}
+
+interface PasswordChangeResult {
+  success: boolean
+  error?: string
+  strength?: 'weak' | 'medium' | 'strong'
+}
+
+interface SecurityApi {
+  getConfig: () => Promise<LockConfig>
+  getState: () => Promise<{ state: 'unlocked' | 'locked' | 'configuring' }>
+  checkWindowsHello: () => Promise<WindowsHelloAvailability>
+  verifyHello: (message: string) => Promise<{ success: boolean; verified: boolean; cancelled: boolean; notAvailable: boolean; error?: string }>
+  lock: () => Promise<{ success: boolean; error?: string }>
+  unlock: (credentials?: { password?: string; useWindowsHello?: boolean }) => Promise<UnlockResult>
+  setPassword: (newPassword: string) => Promise<PasswordChangeResult>
+  changePassword: (oldPassword: string, newPassword: string) => Promise<PasswordChangeResult>
+  resetPassword: () => Promise<{ success: boolean; error?: string }>
+  updateConfig: (
+    updates: Partial<{
+      enabled: boolean
+      unlockMode: 'password' | 'windows-hello'
+      idleTimeoutMinutes: number
+      lockOnBlur: boolean
+      lockOnStartup: boolean
+    }>
+  ) => Promise<{ success: boolean; config?: LockConfig; error?: string }>
+  reportActivity: () => void
+  onLockStateChanged: (callback: (data: { locked: boolean }) => void) => () => void
+}
+
+declare global {
+  interface Window {
+    electron: ElectronAPI
+    api: Api
+    chatApi: ChatApi
+    aiApi: AiApi
+    cacheApi: CacheApi
+    networkApi: NetworkApi
+    apiServerApi: ApiServerApi
+    internalApi: InternalApi
+    securityApi: SecurityApi
+  }
+}
+
 export {
   ChatApi,
   Api,

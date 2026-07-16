@@ -20,9 +20,11 @@ import { useApiServerStore } from '@/stores/apiServer'
 import { initServices } from '@/services'
 import { initPreferencesSync } from '@/composables/usePreferencesSync'
 import { useWindowsTitleBarOverlay } from '@/composables/useWindowsTitleBarOverlay'
+import { useActivityTracker } from '@/composables/useActivityTracker'
 import { configureHttpClient } from '@/services/utils/http'
 import { IS_ELECTRON } from '@/utils/platform'
 import { usePlatformService } from '@/services'
+import LockScreen from '@/components/lock-screen/LockScreen.vue'
 import { resolvePageTransitionKey } from '@/routes/page-transition-key'
 
 const { t } = useI18n()
@@ -38,6 +40,7 @@ const route = useRoute()
 const router = useRouter()
 
 const isLoginPage = computed(() => !IS_ELECTRON && route.name === 'login')
+const isLockScreenPage = computed(() => route.name === 'lock-screen')
 const pageTransitionKey = computed(() => resolvePageTransitionKey(route))
 const initError = ref<string | null>(null)
 const colorMode = useColorMode({
@@ -54,6 +57,9 @@ const toaster = {
   progress: false,
   duration: 2000,
 }
+
+// 启动用户活动追踪（用于应用锁闲置检测）
+useActivityTracker()
 
 let initInProgress = false
 let unlistenPullResult: (() => void) | null = null
@@ -82,11 +88,22 @@ async function initializeApp() {
 
 function handleGlobalKeydown(e: KeyboardEvent) {
   const isMeta = navigator.platform.toLowerCase().includes('mac') ? e.metaKey : e.ctrlKey
+  // Ctrl+, → 打开设置
   if (isMeta && e.key === ',') {
     e.preventDefault()
     e.stopPropagation()
     if (!layoutStore.showSettings) {
       layoutStore.openSettings()
+    }
+    return
+  }
+  // Ctrl+L → 立即锁屏（输入框内屏蔽，避免误触）
+  if (isMeta && (e.key === 'l' || e.key === 'L')) {
+    const tag = (e.target as HTMLElement)?.tagName
+    const isInput = tag === 'INPUT' || tag === 'TEXTAREA' || (e.target as HTMLElement)?.isContentEditable
+    if (!isInput) {
+      e.preventDefault()
+      try { window.securityApi?.lock() } catch { /* ignore */ }
     }
   }
 }
@@ -94,6 +111,13 @@ function handleGlobalKeydown(e: KeyboardEvent) {
 // After login success, route changes from login → app; trigger init
 watch(isLoginPage, (isLogin) => {
   if (!isLogin) initializeApp()
+})
+
+// Lock screen page: do NOT run full app initialization
+watch(isLockScreenPage, (isLockScreen) => {
+  if (isLockScreen) {
+    initInProgress = false
+  }
 })
 
 watch(
@@ -146,7 +170,7 @@ onMounted(async () => {
     configureHttpClient({ getToken: () => authStore.token, on401 })
   }
 
-  if (isLoginPage.value) return
+  if (isLoginPage.value || isLockScreenPage.value) return
 
   await initializeApp()
 })
@@ -160,7 +184,11 @@ onUnmounted(() => {
 
 <template>
   <UApp :tooltip="tooltip" :toaster="toaster">
-    <template v-if="isLoginPage">
+    <!-- 锁屏页面：独立渲染，无布局 -->
+    <template v-if="isLockScreenPage">
+      <router-view />
+    </template>
+    <template v-else-if="isLoginPage">
       <router-view />
     </template>
     <template v-else>
@@ -208,6 +236,8 @@ onUnmounted(() => {
     <ChatRecordDrawer />
     <!-- 全局 AI 后台任务条：允许用户离开当前页面后仍然快速返回进行中的对话。 -->
     <GlobalTaskBar />
+    <!-- 应用锁覆盖层：最高 z-index，锁定后拦截全部底层操作 -->
+    <LockScreen v-if="IS_ELECTRON" />
   </UApp>
 </template>
 

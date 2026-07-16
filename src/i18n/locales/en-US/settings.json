@@ -11,6 +11,7 @@
     "aiPreprocess": "Preprocess",
     "dataManage": "Data Management",
     "storage": "Storage",
+    "security": "Security",
     "sessionManage": "Session Index",
     "about": "About",
     "api": "Automation",
@@ -608,6 +609,83 @@
       "readOnly": "All operations are read-only and will not modify your chat records.",
       "nodeRequired": "npx and CLI modes require Node.js 20 or higher.",
       "docs": "For detailed documentation, visit docs.chatlab.fun."
+    }
+  },
+  "security": {
+    "loading": "Loading...",
+    "electronOnly": {
+      "title": "App lock is only available in the desktop client",
+      "desc": "Please use ChatLab Desktop to configure app lock"
+    },
+    "lock": {
+      "title": "App Lock",
+      "desc": "When enabled, identity verification is required on startup, idle timeout, or window blur.",
+      "statusOn": "Enabled",
+      "statusOnDesc": "App lock is protecting your data",
+      "statusOff": "Disabled",
+      "statusOffDesc": "Set a password to enable",
+      "disableBtn": "Disable App Lock",
+      "disableConfirm": "Are you sure you want to disable app lock? You will no longer need a password to use the app.",
+      "manualLock": "Lock Now"
+    },
+    "password": {
+      "titleSetup": "Set Password & Enable App Lock",
+      "titleChange": "Change Password",
+      "descSetup": "App lock will be enabled automatically after setting a password. The password will not be stored in plain text.",
+      "descChange": "Enter your current password and set a new one to update the unlock key.",
+      "btnSetup": "Set Password",
+      "btnChange": "Change Password",
+      "labelOld": "Current Password",
+      "placeholderOld": "Enter current password",
+      "labelNew": "New Password (min 4 characters)",
+      "placeholderNew": "Enter new password",
+      "labelConfirm": "Confirm New Password",
+      "placeholderConfirm": "Re-enter new password",
+      "cancel": "Cancel",
+      "submitting": "Processing...",
+      "btnSave": "Update",
+      "btnEnable": "Enable",
+      "errorTooShort": "Password must be at least 4 characters",
+      "errorTooLong": "Password must not exceed 128 characters",
+      "errorMismatch": "Passwords do not match",
+      "errorSameAsOld": "New password must differ from current password",
+      "errorNeedOld": "Please enter current password",
+      "success": "Password set successfully",
+      "errorGeneric": "Operation failed",
+      "errorRetry": "Operation failed, please try again"
+    },
+    "hello": {
+      "title": "Windows Hello Quick Unlock",
+      "desc": "Use facial recognition, fingerprint, or PIN to unlock quickly without entering your password each time.",
+      "notAvailable": "Please set up a PIN in Windows Settings to use Windows Hello",
+      "enabled": "Windows Hello is enabled — you can use biometrics or PIN to unlock on the lock screen",
+      "disabledLock": "Please enable app lock first",
+      "btnEnable": "Enable Windows Hello",
+      "btnDisable": "Disable",
+      "placeholderPassword": "Enter current password to verify",
+      "verifying": "Verifying...",
+      "success": "Windows Hello enabled",
+      "disabled": "Windows Hello disabled",
+      "errorPassword": "Please enter current password",
+      "errorAppPassword": "App password verification failed",
+      "errorService": "Verification service error, please try again",
+      "errorCancelled": "System verification cancelled",
+      "errorNotAvailable": "Windows Hello is not available on this device",
+      "errorVerifyFailed": "System verification failed, please try again",
+      "errorConfig": "Configuration save failed"
+    },
+    "autoLock": {
+      "title": "Auto Lock",
+      "idleLabel": "Auto lock after idle timeout",
+      "idleDesc": "Automatically lock ChatLab when inactive for a period of time",
+      "blurLabel": "Auto lock on window blur",
+      "blurDesc": "Lock immediately when switching to another window",
+      "startupLabel": "Require unlock on startup",
+      "startupDesc": "Show lock screen immediately after app launch"
+    },
+    "toast": {
+      "saved": "Saved successfully",
+      "failed": "Save failed"
     }
   }
 }

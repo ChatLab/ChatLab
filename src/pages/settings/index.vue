@@ -9,6 +9,7 @@ import BatchManageTab from '@/components/common/Settings/BatchManageTab.vue'
 import StorageTab from '@/components/common/Settings/StorageTab.vue'
 import AboutTab from '@/components/common/Settings/AboutTab.vue'
 import ApiSettingsTab from '@/components/common/Settings/ApiSettingsTab.vue'
+import SecuritySettingsTab from '@/components/common/Settings/SecuritySettingsTab.vue'
 import { usePromptStore } from '@/stores/prompt'
 
 const { t } = useI18n()
@@ -27,6 +28,7 @@ const tabs = computed(() => [
   { id: 'data', label: t('settings.tabs.dataManage'), icon: 'i-heroicons-rectangle-stack' },
   { id: 'api', label: t('settings.tabs.api'), icon: 'i-heroicons-server-stack' },
   { id: 'storage', label: t('settings.tabs.storage'), icon: 'i-heroicons-folder-open' },
+  { id: 'security', label: t('settings.tabs.security'), icon: 'i-heroicons-shield-check' },
   { id: 'about', label: t('settings.tabs.about'), icon: 'i-heroicons-information-circle' },
 ])
 
@@ -126,6 +128,7 @@ onMounted(async () => {
           />
           <ApiSettingsTab v-else-if="activeTab === 'api'" key="api" />
           <StorageTab v-else-if="activeTab === 'storage'" key="storage" :ref="(el) => setTabRef('storage', el)" />
+          <SecuritySettingsTab v-else-if="activeTab === 'security'" key="security" />
           <AboutTab v-else-if="activeTab === 'about'" key="about" />
         </Transition>
       </div>

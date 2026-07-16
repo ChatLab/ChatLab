@@ -66,4 +66,10 @@ export const appRoutes: RouteRecordRaw[] = [
       },
     ],
   },
+  {
+    path: '/lock-screen',
+    name: 'lock-screen',
+    component: () => import('@/pages/lock-screen/index.vue'),
+    meta: { public: true },
+  },
 ]

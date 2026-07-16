@@ -53,6 +53,8 @@
     "test:e2e:smoke": "node tests/e2e/run-smoke.js"
   },
   "dependencies": {
+    "@opentelemetry/api": "^1.9.1",
+    "@opentelemetry/semantic-conventions": "^1.43.0",
     "@tanstack/vue-virtual": "^3.13.18",
     "@zumer/snapdom": "^2.16.0",
     "echarts": "^6.0.0",
