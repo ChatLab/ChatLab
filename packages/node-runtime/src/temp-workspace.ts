@@ -22,6 +22,8 @@ export function resolveChatLabTempRoot(options: ChatLabTempRootOptions = {}): st
   const envRoot = optionsEnv(options)[CHATLAB_TEMP_ROOT_ENV]?.trim()
   if (envRoot) return path.resolve(envRoot)
 
+  // Product boundary: ChatLab runs as a single OS user. The single private 0700 root is intentional;
+  // multi-UID hosts are unsupported, while isolated tests and CI must override CHATLAB_TEMP_ROOT.
   const platform = options.platform ?? process.platform
   const systemTempDir = options.systemTempDir ?? os.tmpdir()
   return path.resolve(platform === 'darwin' ? '/private/tmp/chatlab' : path.join(systemTempDir, 'chatlab'))
