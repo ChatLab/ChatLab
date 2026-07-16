@@ -129,8 +129,8 @@ async function handleEnableHello() {
   try {
     const helloStatus = await window.securityApi?.checkWindowsHello()
     if (!helloStatus?.available) { helloError.value = helloTipText.value || t('settings.security.hello.notAvailable'); return }
-    const pwdOk = await window.securityApi?.unlock({ password: helloPassword.value })
-    if (!pwdOk?.success) { helloError.value = pwdOk?.error || t('settings.security.hello.errorAppPassword'); return }
+    const pwdOk = await window.securityApi?.verifyAppPassword(helloPassword.value)
+    if (!pwdOk?.success) { helloError.value = t('settings.security.hello.errorAppPassword'); return }
     helloPassword.value = ''
     const verifyResult = await window.securityApi?.verifyHello(t('settings.security.hello.verifyMessage', { defaultValue: '请验证您的身份以开启 Windows Hello' }))
     if (!verifyResult) { helloError.value = t('settings.security.hello.errorService'); return }

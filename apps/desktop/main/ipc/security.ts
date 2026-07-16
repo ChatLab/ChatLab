@@ -17,6 +17,7 @@ import {
   getLockConfigAsync,
   getLockState,
   getWindowsHelloStatus,
+  verifyAppPassword,
   verifyHelloForEnroll,
   updateLockConfig,
   reportUserActivity,
@@ -183,6 +184,20 @@ export function registerSecurityHandlers(_ctx: IpcContext): void {
     } catch {
       logger.error(`IPC app-lock:requestUnlock failed`)
       return { success: false, error: '解锁失败' }
+    }
+  })
+
+  // ==================== 纯密码校验 ====================
+
+  /**
+   * 纯密码校验：仅比对哈希，不依赖锁屏解锁状态。
+   * 用于 Windows Hello 开户等场景，无论软件是否解锁都完整校验密码。
+   */
+  ipcMain.handle('app-lock:verifyAppPassword', (_event, rawPassword: string) => {
+    try {
+      return { success: verifyAppPassword(rawPassword) }
+    } catch {
+      return { success: false }
     }
   })
 

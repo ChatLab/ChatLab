@@ -351,6 +351,7 @@ interface SecurityApi {
   getState: () => Promise<{ state: 'unlocked' | 'locked' | 'configuring' }>
   checkWindowsHello: () => Promise<WindowsHelloAvailability>
   verifyHello: (message: string) => Promise<{ success: boolean; verified: boolean; cancelled: boolean; notAvailable: boolean; error?: string }>
+  verifyAppPassword: (rawPassword: string) => Promise<{ success: boolean }>
   lock: () => Promise<{ success: boolean; error?: string }>
   unlock: (credentials?: { password?: string; useWindowsHello?: boolean }) => Promise<UnlockResult>
   setPassword: (newPassword: string) => Promise<PasswordChangeResult>

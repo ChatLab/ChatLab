@@ -70,6 +70,11 @@ export const securityApi = {
     return ipcRenderer.invoke('app-lock:verifyHello', message)
   },
 
+  /** 纯密码校验：仅比对哈希，不依赖锁屏解锁状态 */
+  verifyAppPassword: (rawPassword: string): Promise<{ success: boolean }> => {
+    return ipcRenderer.invoke('app-lock:verifyAppPassword', rawPassword)
+  },
+
   // ==================== 锁操作 ====================
 
   /** 锁定应用（手动触发） */

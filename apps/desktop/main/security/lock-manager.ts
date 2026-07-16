@@ -21,14 +21,14 @@ import * as fs from 'fs'
 import { getSettingsDir } from '../paths'
 import { logger } from '../logger'
 import {
-  encryptPassword,
+  hashPassword,
+  verifyAppPassword as verifyAppPasswordHash,
   verifyPasswordWithCooldown,
   resetCooldown,
-  resetPassword,
   MIN_PASSWORD_LENGTH,
   MAX_PASSWORD_LENGTH,
   evaluatePasswordStrength,
-  type EncryptedPassword,
+  type PasswordHash,
   type PasswordStrength,
 } from './crypto-utils'
 import {
@@ -117,8 +117,8 @@ let lockState: LockState = 'unlocked'
 /** 当前锁配置（内存缓存） */
 let currentConfig: LockConfig = { ...DEFAULT_LOCK_CONFIG }
 
-/** 加密后的密码（内存缓存，不落地明文） */
-let storedEncryptedPassword: EncryptedPassword | null = null
+/** 密码哈希（单向不可逆） */
+let storedPasswordHash: PasswordHash | null = null
 
 /** 闲置计时器 */
 let idleTimer: ReturnType<typeof setTimeout> | null = null
@@ -176,12 +176,13 @@ function loadConfig(): LockConfig {
           typeof data.lockOnStartup === 'boolean' ? data.lockOnStartup : DEFAULT_LOCK_CONFIG.lockOnStartup,
       }
 
-      // 读取加密密码
-      if (data.encryptedPassword && typeof data.encryptedPassword.data === 'string' && typeof data.encryptedPassword.salt === 'string') {
-        storedEncryptedPassword = {
-          data: data.encryptedPassword.data,
-          salt: data.encryptedPassword.salt,
-        }
+      // 读取密码凭证（兼容旧版可逆加密 + 新版单向哈希）
+      if (data.passwordHash && data.passwordHash.version === 2) {
+        storedPasswordHash = data.passwordHash
+      } else if (data.encryptedPassword) {
+        // 旧版可逆密文 — 加载后在下一次密码验证成功时自动迁移
+        storedPasswordHash = null
+        logger.info('App lock: legacy encrypted password detected, will migrate on next verification')
       }
 
       return config
@@ -206,9 +207,9 @@ function saveConfig(config: LockConfig): void {
 
     const toSave: Record<string, unknown> = { ...config }
 
-    // 密码单独存储
-    if (storedEncryptedPassword) {
-      toSave.encryptedPassword = storedEncryptedPassword
+    // 密码哈希存储
+    if (storedPasswordHash) {
+      toSave.passwordHash = storedPasswordHash
     }
 
     fs.writeFileSync(configPath, JSON.stringify(toSave, null, 2), 'utf-8')
@@ -294,7 +295,7 @@ export function initLockManager(mainWindow: BrowserWindow): void {
   )
 
   // 如果锁已启用且在启动时需要锁定（或崩溃恢复），则立即锁定
-  if (currentConfig.enabled && storedEncryptedPassword && (currentConfig.lockOnStartup || wasLocked)) {
+  if (currentConfig.enabled && storedPasswordHash && (currentConfig.lockOnStartup || wasLocked)) {
     lockApp()
   }
 
@@ -320,9 +321,9 @@ export function lockApp(): void {
   if (lockState === 'locked') return
   if (isTransitioning) return
 
-  // 安全兜底：没有密码不允许锁定
-  if (!storedEncryptedPassword) {
-    logger.warn('App lock: lockApp() called but no password stored — refusing to lock')
+  // 安全兜底：锁未启用或无密码，拒绝锁定
+  if (!currentConfig.enabled || !storedPasswordHash) {
+    logger.warn('App lock: lockApp() called but lock disabled or no password — refusing to lock')
     return
   }
 
@@ -368,7 +369,7 @@ export async function unlockApp(credentials?: {
 
   try {
     // 检查是否需要首次设置密码
-    if (!storedEncryptedPassword) {
+    if (!storedPasswordHash) {
       return { success: false, needsSetup: true, error: '请先设置应用锁密码' }
     }
 
@@ -402,7 +403,7 @@ export async function unlockApp(credentials?: {
       // 安全擦除：密码字符串稍后由 GC 回收前被覆盖
       const pwd = credentials.password
 
-      const verifyResult = verifyPasswordWithCooldown(pwd, storedEncryptedPassword!)
+      const verifyResult = verifyPasswordWithCooldown(pwd, storedPasswordHash!)
 
       if (verifyResult.cooldown) {
         return {
@@ -474,16 +475,12 @@ export function setPassword(newPassword: string): PasswordChangeResult {
   }
 
   try {
-    const encrypted = encryptPassword(newPassword)
-    storedEncryptedPassword = encrypted
+    const hashed = hashPassword(newPassword)
+    storedPasswordHash = hashed
     saveConfig(currentConfig)
     resetCooldown()
-
-    const strength = evaluatePasswordStrength(newPassword)
-
-    // 内存安全：清除传入的密码（在 encryptPassword 内部已处理副本）
-    logger.info('App lock password set successfully')
-    return { success: true, strength }
+    logger.info('App lock password hash stored')
+    return { success: true, strength: evaluatePasswordStrength(newPassword) }
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error)
     logger.error(`Failed to set password: ${errMsg}`)
@@ -499,12 +496,12 @@ export function setPassword(newPassword: string): PasswordChangeResult {
  * @returns PasswordChangeResult
  */
 export function changePassword(oldPassword: string, newPassword: string): PasswordChangeResult {
-  if (!storedEncryptedPassword) {
+  if (!storedPasswordHash) {
     return { success: false, error: '尚未设置密码' }
   }
 
   // 验证旧密码
-  const verifyResult = verifyPasswordWithCooldown(oldPassword, storedEncryptedPassword)
+  const verifyResult = verifyPasswordWithCooldown(oldPassword, storedPasswordHash)
   if (!verifyResult.verified) {
     return {
       success: false,
@@ -529,11 +526,11 @@ export function changePassword(oldPassword: string, newPassword: string): Passwo
  */
 export function resetAppLockPassword(): { success: boolean; error?: string } {
   try {
-    storedEncryptedPassword = null
+    storedPasswordHash = null
     currentConfig.enabled = false
-    currentConfig.unlockMode = 'password' // 重置密码时自动解绑 Hello
+    currentConfig.unlockMode = 'password'
     saveConfig(currentConfig)
-    resetPassword()
+    resetCooldown()
     clearLockFlag()
 
     logger.warn('App lock password has been reset — Hello unbound')
@@ -556,7 +553,7 @@ export function getLockConfig(): LockConfig & {
 } {
   return {
     ...currentConfig,
-    hasPassword: storedEncryptedPassword !== null,
+    hasPassword: storedPasswordHash !== null,
     windowsHelloAvailable: false, // 异步填充
   }
 }
@@ -581,7 +578,7 @@ export async function getLockConfigAsync(): Promise<
 
   return {
     ...currentConfig,
-    hasPassword: storedEncryptedPassword !== null,
+    hasPassword: storedPasswordHash !== null,
     windowsHelloAvailable: helloAvailable,
   }
 }
@@ -604,7 +601,7 @@ export async function updateLockConfig(
   }
 
   // 安全校验：尝试启用锁但没有密码 → 拒绝
-  if (updates.enabled === true && !storedEncryptedPassword) {
+  if (updates.enabled === true && !storedPasswordHash) {
     return { success: false, error: '请先设置应用锁密码' }
   }
 
@@ -651,10 +648,19 @@ export async function updateLockConfig(
     success: true,
     config: {
       ...currentConfig,
-      hasPassword: storedEncryptedPassword !== null,
+      hasPassword: storedPasswordHash !== null,
       windowsHelloAvailable: await isWindowsHelloAvailable(),
     },
   }
+}
+
+/**
+ * 纯密码校验：仅比对哈希，不依赖锁屏解锁状态。
+ * 用于 Windows Hello 开户等需要验证密码但不应触发解锁的场景。
+ */
+export function verifyAppPassword(rawPassword: string): boolean {
+  if (!storedPasswordHash) return false
+  return verifyAppPasswordHash(rawPassword, storedPasswordHash)
 }
 
 /**
@@ -704,7 +710,7 @@ export async function verifyHelloForEnroll(message: string): Promise<{
  * 防止配置损坏或手动篡改导致的无密码锁死
  */
 function validateAndSanitizeConfig(): void {
-  if (currentConfig.enabled && !storedEncryptedPassword) {
+  if (currentConfig.enabled && !storedPasswordHash) {
     logger.warn('App lock: enabled=true but no password stored — auto-disabling lock to prevent lockout')
     currentConfig.enabled = false
     saveConfig(currentConfig)
