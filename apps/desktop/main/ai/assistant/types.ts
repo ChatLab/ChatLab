@@ -39,6 +39,12 @@ export interface AssistantConfig {
    */
   builtinId?: string
 
+  /** Builtin template version this config was based on */
+  builtinVersion?: number
+
+  /** Source builtin digest used to detect user customization */
+  builtinDigest?: string
+
   /**
    * 适用的聊天类型
    * - undefined / [] = 通用（群聊+私聊均适用）
@@ -180,6 +186,8 @@ export interface AssistantInitResult {
   total: number
   /** general 助手是否为首次自动导入 */
   generalCreated: boolean
+  /** Whether an unmodified general assistant was upgraded */
+  generalUpdated: boolean
 }
 
 /**

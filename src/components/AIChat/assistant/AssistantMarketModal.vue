@@ -48,7 +48,7 @@ watch(
 )
 
 function isGeneral(id: string): boolean {
-  return id === 'general_cn' || id === 'general_en' || id === 'general_ja'
+  return id === 'general_cn' || id === 'general_tw' || id === 'general_en' || id === 'general_ja'
 }
 
 function handleConfigure(id: string) {

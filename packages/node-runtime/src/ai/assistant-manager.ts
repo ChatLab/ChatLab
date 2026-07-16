@@ -12,6 +12,7 @@ import type { AssistantConfig, AssistantSummary } from './types'
 export interface AssistantInitResult {
   total: number
   generalCreated: boolean
+  generalUpdated: boolean
 }
 
 export interface AssistantSaveResult {
@@ -45,6 +46,9 @@ export interface AssistantManagerDeps {
   assistantsDir: string
   builtinRawConfigs?: Array<{ id: string; content: string }>
   generalIds?: string[]
+  contentHash: (content: string) => string
+  /** Legacy template digests used to identify untouched defaults created before tracking existed. */
+  legacyBuiltinDigests?: Record<string, string[]>
   generateId?: () => string
   logger?: {
     info: (category: string, message: string, data?: unknown) => void
@@ -71,12 +75,13 @@ export class AssistantManager {
   private deps: AssistantManagerDeps
   private generalIds: string[]
   private builtinCache = new Map<string, AssistantConfig>()
+  private builtinDigestCache = new Map<string, string>()
   private cache = new Map<string, AssistantConfig>()
   private initialized = false
 
   constructor(deps: AssistantManagerDeps) {
     this.deps = deps
-    this.generalIds = deps.generalIds || ['general_cn', 'general_en', 'general_ja']
+    this.generalIds = deps.generalIds || ['general_cn', 'general_tw', 'general_en', 'general_ja']
     this.initBuiltinCache()
   }
 
@@ -84,7 +89,10 @@ export class AssistantManager {
     if (!this.deps.builtinRawConfigs) return
     for (const { id, content } of this.deps.builtinRawConfigs) {
       const config = parseAssistantFile(content, `${id}.md`)
-      if (config) this.builtinCache.set(config.id, config)
+      if (config) {
+        this.builtinCache.set(config.id, config)
+        this.builtinDigestCache.set(config.id, this.getConfigDigest(config))
+      }
     }
   }
 
@@ -102,32 +110,90 @@ export class AssistantManager {
     const { fs, assistantsDir } = this.deps
     fs.ensureDir(assistantsDir)
 
-    const generalCreated = this.ensureGeneralAssistants()
+    const { generalCreated, generalUpdated } = this.syncGeneralAssistants()
     this.loadAll()
 
     this.initialized = true
     this.deps.logger?.info('AssistantManager', 'Initialized', {
       total: this.cache.size,
       generalCreated,
+      generalUpdated,
     })
 
-    return { total: this.cache.size, generalCreated }
+    return { total: this.cache.size, generalCreated, generalUpdated }
   }
 
-  private ensureGeneralAssistants(): boolean {
+  private syncGeneralAssistants(): { generalCreated: boolean; generalUpdated: boolean } {
     const { fs, assistantsDir } = this.deps
-    let anyCreated = false
+    let generalCreated = false
+    let generalUpdated = false
+
     for (const id of this.generalIds) {
       const config = this.getBuiltinConfig(id)
       if (!config) continue
 
       const filePath = fs.joinPath(assistantsDir, `${id}.md`)
-      if (fs.fileExists(filePath)) continue
+      if (!fs.fileExists(filePath)) {
+        fs.writeFile(filePath, serializeAssistant(this.withBuiltinTracking(config)))
+        generalCreated = true
+        continue
+      }
 
-      fs.writeFile(filePath, serializeAssistant({ ...config, builtinId: config.id }))
-      anyCreated = true
+      try {
+        const existing = parseAssistantFile(fs.readFile(filePath), filePath)
+        if (!existing || existing.builtinId !== id || !this.shouldUpgradeBuiltin(existing, config)) continue
+
+        fs.writeFile(filePath, serializeAssistant(this.withBuiltinTracking(config, existing.id)))
+        generalUpdated = true
+        this.deps.logger?.info('AssistantManager', 'Updated unmodified default assistant template', {
+          id,
+          fromVersion: existing.builtinVersion,
+          toVersion: config.builtinVersion,
+        })
+      } catch (error) {
+        this.deps.logger?.warn('AssistantManager', `Failed to inspect default assistant: ${id}`, {
+          error: String(error),
+        })
+      }
     }
-    return anyCreated
+
+    return { generalCreated, generalUpdated }
+  }
+
+  private getConfigDigest(config: AssistantConfig): string {
+    // Hash only user-editable template content; tracking metadata must not affect comparison.
+    return this.deps.contentHash(
+      JSON.stringify({
+        name: config.name,
+        systemPrompt: config.systemPrompt,
+        presetQuestions: config.presetQuestions,
+        allowedBuiltinTools: config.allowedBuiltinTools ?? [],
+        applicableChatTypes: config.applicableChatTypes ?? [],
+        supportedLocales: config.supportedLocales ?? [],
+      })
+    )
+  }
+
+  private withBuiltinTracking(config: AssistantConfig, id = config.id): AssistantConfig {
+    return {
+      ...config,
+      id,
+      builtinId: config.id,
+      builtinVersion: config.builtinVersion,
+      builtinDigest: this.builtinDigestCache.get(config.id) ?? this.getConfigDigest(config),
+    }
+  }
+
+  private shouldUpgradeBuiltin(existing: AssistantConfig, builtin: AssistantConfig): boolean {
+    const builtinDigest = this.builtinDigestCache.get(builtin.id) ?? this.getConfigDigest(builtin)
+    const existingDigest = this.getConfigDigest(existing)
+    const knownBaseDigests = existing.builtinDigest
+      ? [existing.builtinDigest]
+      : (this.deps.legacyBuiltinDigests?.[builtin.id] ?? [])
+    const isUnmodified = existingDigest === builtinDigest || knownBaseDigests.includes(existingDigest)
+    const isOutdated = existing.builtinDigest !== builtinDigest || existing.builtinVersion !== builtin.builtinVersion
+
+    return isUnmodified && isOutdated
   }
 
   private loadAll(): void {
@@ -190,7 +256,7 @@ export class AssistantManager {
     const existing = this.findByBuiltinId(builtinId)
     if (existing) return { success: false, error: `Assistant already imported: ${builtinId}` }
 
-    return this.saveToDisk({ ...builtinConfig, builtinId: builtinConfig.id })
+    return this.saveToDisk(this.withBuiltinTracking(builtinConfig))
   }
 
   reimportAssistant(id: string): AssistantSaveResult {
@@ -203,7 +269,7 @@ export class AssistantManager {
     const builtinConfig = this.getBuiltinConfig(existing.builtinId)
     if (!builtinConfig) return { success: false, error: `Builtin template not found: ${existing.builtinId}` }
 
-    return this.saveToDisk({ ...builtinConfig, id: existing.id, builtinId: existing.builtinId })
+    return this.saveToDisk(this.withBuiltinTracking(builtinConfig, existing.id))
   }
 
   importAssistantFromMd(rawMd: string): AssistantSaveResult & { id?: string } {
@@ -266,7 +332,7 @@ export class AssistantManager {
     const builtinConfig = this.getBuiltinConfig(existing.builtinId)
     if (!builtinConfig) return { success: false, error: `Builtin config not found: ${existing.builtinId}` }
 
-    return this.saveToDisk({ ...builtinConfig, id: existing.id, builtinId: existing.builtinId })
+    return this.saveToDisk(this.withBuiltinTracking(builtinConfig, existing.id))
   }
 
   // ==================== Internal ====================

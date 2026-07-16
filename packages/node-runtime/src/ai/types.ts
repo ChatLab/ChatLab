@@ -11,6 +11,10 @@ export interface AssistantConfig {
   presetQuestions: string[]
   allowedBuiltinTools?: string[]
   builtinId?: string
+  /** Builtin template version this config was based on, used only for safe upgrades. */
+  builtinVersion?: number
+  /** Digest of the source builtin template; remains unchanged after user edits. */
+  builtinDigest?: string
   applicableChatTypes?: ('group' | 'private')[]
   supportedLocales?: string[]
 }

@@ -200,7 +200,8 @@ const DRAFT_AI_CHAT_KEY = '__draft__'
 /**
  * 创建对话时前端已经知道 locale，因此默认助手在这里选择即可。
  */
-function getDefaultGeneralAssistantId(locale: string): 'general_cn' | 'general_en' | 'general_ja' {
+function getDefaultGeneralAssistantId(locale: string): 'general_cn' | 'general_tw' | 'general_en' | 'general_ja' {
+  if (locale.startsWith('zh-TW')) return 'general_tw'
   if (locale.startsWith('en')) return 'general_en'
   if (locale.startsWith('ja')) return 'general_ja'
   return 'general_cn'

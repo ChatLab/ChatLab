@@ -23,6 +23,7 @@ const { filteredAssistants, isLoaded } = storeToRefs(assistantStore)
 const rememberSelection = ref(true)
 
 function getLocaleGeneralId(locale: string): string {
+  if (locale.startsWith('zh-TW')) return 'general_tw'
   if (locale.startsWith('ja')) return 'general_ja'
   if (locale.startsWith('en')) return 'general_en'
   return 'general_cn'

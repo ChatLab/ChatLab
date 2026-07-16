@@ -50,6 +50,7 @@ export function getAssistantManager(aiDataDir: string): AssistantManager {
         fs: nodeFs,
         assistantsDir: path.join(aiDataDir, 'assistants'),
         builtinRawConfigs: [],
+        contentHash: (content: string) => createHash('sha256').update(content).digest('hex'),
         generateId: () => `custom_${randomUUID().replace(/-/g, '').slice(0, 12)}`,
       }),
       skill: new SkillManagerCore({

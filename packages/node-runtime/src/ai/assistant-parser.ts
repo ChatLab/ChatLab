@@ -22,6 +22,8 @@ export function parseAssistantFile(content: string, filePath: string): Assistant
       presetQuestions: parseStringArray(fm.presetQuestions),
       allowedBuiltinTools: normalizeBuiltinToolNames(parseStringArray(fm.allowedBuiltinTools)),
       builtinId: typeof fm.builtinId === 'string' ? fm.builtinId : undefined,
+      builtinVersion: parsePositiveInteger(fm.builtinVersion),
+      builtinDigest: typeof fm.builtinDigest === 'string' ? fm.builtinDigest : undefined,
       applicableChatTypes: parseChatTypes(fm.applicableChatTypes),
       supportedLocales: parseStringArray(fm.supportedLocales),
     }
@@ -37,6 +39,8 @@ export function serializeAssistant(config: AssistantConfig): string {
   }
 
   if (config.builtinId) fm.builtinId = config.builtinId
+  if (config.builtinVersion) fm.builtinVersion = config.builtinVersion
+  if (config.builtinDigest) fm.builtinDigest = config.builtinDigest
   if (config.applicableChatTypes?.length) fm.applicableChatTypes = config.applicableChatTypes
   if (config.supportedLocales?.length) fm.supportedLocales = config.supportedLocales
   if (config.allowedBuiltinTools?.length) fm.allowedBuiltinTools = normalizeBuiltinToolNames(config.allowedBuiltinTools)
@@ -48,6 +52,10 @@ export function serializeAssistant(config: AssistantConfig): string {
 function parseStringArray(raw: unknown): string[] {
   if (Array.isArray(raw)) return raw.map(String).filter(Boolean)
   return []
+}
+
+function parsePositiveInteger(raw: unknown): number | undefined {
+  return typeof raw === 'number' && Number.isInteger(raw) && raw > 0 ? raw : undefined
 }
 
 function parseChatTypes(raw: unknown): ('group' | 'private')[] | undefined {

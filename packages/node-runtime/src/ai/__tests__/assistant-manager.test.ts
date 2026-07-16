@@ -1,6 +1,9 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
+import { createHash } from 'node:crypto'
 import { AssistantManager, type AssistantManagerFs, type AssistantManagerDeps } from '../assistant-manager'
+import { parseAssistantFile, serializeAssistant } from '../assistant-parser'
+import type { AssistantConfig } from '../types'
 
 function createMemoryFs(): AssistantManagerFs & { files: Map<string, string> } {
   const files = new Map<string, string>()
@@ -33,17 +36,39 @@ presetQuestions:
 ---
 你是一个通用助手。`
 
-function createManager(opts?: { builtins?: Array<{ id: string; content: string }>; generalIds?: string[] }): {
+const hashContent = (content: string) => createHash('sha256').update(content).digest('hex')
+
+function getConfigDigest(config: AssistantConfig): string {
+  return hashContent(
+    JSON.stringify({
+      name: config.name,
+      systemPrompt: config.systemPrompt,
+      presetQuestions: config.presetQuestions,
+      allowedBuiltinTools: config.allowedBuiltinTools ?? [],
+      applicableChatTypes: config.applicableChatTypes ?? [],
+      supportedLocales: config.supportedLocales ?? [],
+    })
+  )
+}
+
+function createManager(opts?: {
+  builtins?: Array<{ id: string; content: string }>
+  generalIds?: string[]
+  legacyBuiltinDigests?: Record<string, string[]>
+  fs?: ReturnType<typeof createMemoryFs>
+}): {
   manager: AssistantManager
   fs: ReturnType<typeof createMemoryFs>
 } {
-  const memFs = createMemoryFs()
+  const memFs = opts?.fs ?? createMemoryFs()
   let idCounter = 0
   const deps: AssistantManagerDeps = {
     fs: memFs,
     assistantsDir: '/data/assistants',
     builtinRawConfigs: opts?.builtins || [{ id: 'general_cn', content: SAMPLE_BUILTIN }],
     generalIds: opts?.generalIds || ['general_cn'],
+    contentHash: hashContent,
+    legacyBuiltinDigests: opts?.legacyBuiltinDigests,
     generateId: () => `custom_${++idCounter}`,
   }
   return { manager: new AssistantManager(deps), fs: memFs }
@@ -62,14 +87,103 @@ describe('AssistantManager', () => {
   it('initializes and creates general assistants', () => {
     const result = manager.init()
     assert.ok(result.generalCreated)
+    assert.equal(result.generalUpdated, false)
     assert.equal(result.total, 1)
     assert.ok(memFs.files.has('/data/assistants/general_cn.md'))
+    assert.ok(manager.getAssistantConfig('general_cn')?.builtinDigest)
   })
 
   it('does not recreate general if already exists', () => {
     manager.init()
     const result2 = manager.init()
     assert.equal(result2.generalCreated, false)
+    assert.equal(result2.generalUpdated, false)
+  })
+
+  it('upgrades an unmodified legacy general assistant', () => {
+    const legacyConfig = parseAssistantFile(SAMPLE_BUILTIN, 'general_cn.md')!
+    const nextBuiltin = `---
+id: general_cn
+name: 通用助手
+builtinVersion: 2
+presetQuestions:
+  - 你好
+---
+你是更自然的分析搭档。`
+    const fs = createMemoryFs()
+    fs.files.set('/data/assistants/general_cn.md', serializeAssistant({ ...legacyConfig, builtinId: 'general_cn' }))
+    const ctx = createManager({
+      fs,
+      builtins: [{ id: 'general_cn', content: nextBuiltin }],
+      legacyBuiltinDigests: { general_cn: [getConfigDigest(legacyConfig)] },
+    })
+
+    const result = ctx.manager.init()
+    const upgraded = ctx.manager.getAssistantConfig('general_cn')!
+
+    assert.equal(result.generalUpdated, true)
+    assert.equal(upgraded.builtinVersion, 2)
+    assert.equal(upgraded.systemPrompt, '你是更自然的分析搭档。')
+    assert.equal(upgraded.builtinDigest, getConfigDigest(parseAssistantFile(nextBuiltin, 'general_cn.md')!))
+  })
+
+  it('preserves a customized legacy general assistant', () => {
+    const legacyConfig = parseAssistantFile(SAMPLE_BUILTIN, 'general_cn.md')!
+    const nextBuiltin = SAMPLE_BUILTIN.replace('你是一个通用助手。', '你是更自然的分析搭档。').replace(
+      'name: 通用助手',
+      'name: 通用助手\nbuiltinVersion: 2'
+    )
+    const fs = createMemoryFs()
+    fs.files.set(
+      '/data/assistants/general_cn.md',
+      serializeAssistant({ ...legacyConfig, builtinId: 'general_cn', systemPrompt: '保留我的自定义提示词。' })
+    )
+    const ctx = createManager({
+      fs,
+      builtins: [{ id: 'general_cn', content: nextBuiltin }],
+      legacyBuiltinDigests: { general_cn: [getConfigDigest(legacyConfig)] },
+    })
+
+    const result = ctx.manager.init()
+
+    assert.equal(result.generalUpdated, false)
+    assert.equal(ctx.manager.getAssistantConfig('general_cn')!.systemPrompt, '保留我的自定义提示词。')
+  })
+
+  it('uses the stored digest to preserve later customizations', () => {
+    manager.init()
+    manager.updateAssistant('general_cn', { systemPrompt: '用户修改后的提示词。' })
+    const nextBuiltin = SAMPLE_BUILTIN.replace('你是一个通用助手。', '新版内置提示词。').replace(
+      'name: 通用助手',
+      'name: 通用助手\nbuiltinVersion: 2'
+    )
+    const next = createManager({
+      fs: memFs,
+      builtins: [{ id: 'general_cn', content: nextBuiltin }],
+    })
+
+    const result = next.manager.init()
+
+    assert.equal(result.generalUpdated, false)
+    assert.equal(next.manager.getAssistantConfig('general_cn')!.systemPrompt, '用户修改后的提示词。')
+  })
+
+  it('uses the stored digest to upgrade an untouched tracked assistant', () => {
+    manager.init()
+    const nextBuiltin = SAMPLE_BUILTIN.replace('你是一个通用助手。', '新版内置提示词。').replace(
+      'name: 通用助手',
+      'name: 通用助手\nbuiltinVersion: 2'
+    )
+    const next = createManager({
+      fs: memFs,
+      builtins: [{ id: 'general_cn', content: nextBuiltin }],
+    })
+
+    const result = next.manager.init()
+
+    assert.equal(result.generalUpdated, true)
+    assert.equal(next.manager.getAssistantConfig('general_cn')!.systemPrompt, '新版内置提示词。')
+    assert.equal(next.manager.getAssistantConfig('general_cn')!.builtinVersion, 2)
   })
 
   it('getAllAssistants returns summaries', () => {
@@ -129,6 +243,7 @@ describe('AssistantManager', () => {
     const result = manager.resetAssistant('general_cn')
     assert.ok(result.success)
     assert.equal(manager.getAssistantConfig('general_cn')!.name, '通用助手')
+    assert.ok(manager.getAssistantConfig('general_cn')!.builtinDigest)
   })
 
   it('imports from raw markdown', () => {
