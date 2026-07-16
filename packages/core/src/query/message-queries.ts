@@ -803,7 +803,7 @@ export function getMembersWithAliases(db: DatabaseAdapter): MemberWithAliases[] 
       FROM member m
       LEFT JOIN message msg ON m.id = msg.sender_id
       WHERE COALESCE(m.group_nickname, m.account_name, m.platform_id) != '系统消息'
-      GROUP BY m.id ORDER BY messageCount DESC`
+      GROUP BY m.id ORDER BY messageCount DESC, m.id ASC`
     )
     .all() as Array<{
     id: number
@@ -873,7 +873,7 @@ export function getMembersPaginated(db: DatabaseAdapter, params: MembersPaginati
       LEFT JOIN message msg ON m.id = msg.sender_id
       WHERE ${systemFilter} ${searchClause}
       GROUP BY m.id
-      ORDER BY messageCount ${sortDirection}
+      ORDER BY messageCount ${sortDirection}, m.id ASC
       LIMIT ? OFFSET ?`
     )
     .all(...searchParams, pageSize, offset) as Array<{

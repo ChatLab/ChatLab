@@ -1,5 +1,7 @@
 import type { MemberWithStats } from '@/types/analysis'
 
+export type MemberSortOrder = 'desc' | 'asc' | null
+
 export interface MemberSelectOption {
   id: number
   label: string
@@ -39,4 +41,34 @@ export function mergeMemberPages(current: MemberWithStats[], incoming: MemberWit
     merged.set(member.id, member)
   }
   return [...merged.values()]
+}
+
+export function nextMemberSortOrder(current: MemberSortOrder): MemberSortOrder {
+  if (current === 'asc') return 'desc'
+  if (current === 'desc') return null
+  return 'asc'
+}
+
+export function filterAndSortMembers(
+  members: MemberWithStats[],
+  searchQuery: string,
+  sortOrder: MemberSortOrder
+): MemberWithStats[] {
+  const query = searchQuery.trim().toLocaleLowerCase()
+  const filtered = query
+    ? members.filter((member) =>
+        [member.accountName, member.groupNickname, member.platformId, ...member.aliases].some((value) =>
+          value?.toLocaleLowerCase().includes(query)
+        )
+      )
+    : members
+
+  if (sortOrder === null) return [...filtered]
+
+  const direction = sortOrder === 'asc' ? 1 : -1
+
+  return [...filtered].sort((memberA, memberB) => {
+    const countDifference = (memberA.messageCount - memberB.messageCount) * direction
+    return countDifference || memberA.id - memberB.id
+  })
 }

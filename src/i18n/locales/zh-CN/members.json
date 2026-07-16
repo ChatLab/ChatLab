@@ -6,6 +6,7 @@
     "searchPlaceholder": "搜索成员",
     "noMatch": "没有找到匹配的成员",
     "empty": "暂无成员数据",
+    "loadError": "成员数据加载失败，请重试",
     "later": "稍后",
     "dontRemind": "本会话不再提醒",
     "save": "保存",

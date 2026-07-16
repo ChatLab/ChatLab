@@ -1,13 +1,18 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { computed, nextTick, onUnmounted, ref, watch } from 'vue'
+import { useVirtualizer } from '@tanstack/vue-virtual'
 import { useI18n } from 'vue-i18n'
 import type { MemberWithStats } from '@/types/analysis'
 import OwnerEntryCard from '@/components/analysis/member/OwnerEntryCard.vue'
+import LazyAvatar from '@/components/common/avatar/LazyAvatar.vue'
+import { filterAndSortMembers, nextMemberSortOrder, type MemberSortOrder } from './member-select-utils'
 import { useDataService } from '@/services'
+import { reportError } from '@/services/log-report'
 import { useLayoutStore } from '@/stores/layout'
-import { ThemeCard } from '@/components/UI'
 
+const MEMBER_ROW_ESTIMATE = 64
 const { t } = useI18n()
+const dataService = useDataService()
 const layoutStore = useLayoutStore()
 
 // Props
@@ -26,10 +31,10 @@ const emit = defineEmits<{
   'data-changed': []
 }>()
 
-// 成员列表（当前页）
+// 成员列表
 const members = ref<MemberWithStats[]>([])
-const allMembers = ref<MemberWithStats[]>([]) // 用于 OwnerEntryCard（仅加载一次）
 const isLoading = ref(false)
+const loadFailed = ref(false)
 const searchQuery = ref('')
 
 // 删除确认状态
@@ -41,20 +46,19 @@ const selectedMergeIds = ref<Set<number>>(new Set())
 const showMergeModal = ref(false)
 const isMerging = ref(false)
 
-// 分页配置
-const pageSize = 20
-const currentPage = ref(1)
-const total = ref(0)
-const totalPages = ref(0)
-
 // 排序配置
-const sortOrder = ref<'desc' | 'asc'>('desc') // desc = 发言多在前
+const sortOrder = ref<MemberSortOrder>('desc')
 
-// 正在保存别名的成员ID（用于显示加载状态）
-const savingAliasesId = ref<number | null>(null)
+// 正在保存别名的成员 ID
+const savingAliasIds = ref<Set<number>>(new Set())
 
-// 搜索防抖定时器
-let searchDebounceTimer: ReturnType<typeof setTimeout> | null = null
+let loadRequestSeq = 0
+
+function reportMemberManagementError(message: string, error: unknown) {
+  const cause = error instanceof Error ? error : new Error(String(error))
+  console.error(message, cause)
+  reportError(`${message} ${cause.message}`, cause.stack)
+}
 
 // 获取成员显示名称
 function getDisplayName(member: MemberWithStats): string {
@@ -75,7 +79,8 @@ function viewMemberChatRecords(member: MemberWithStats) {
   })
 }
 
-const selectedMergeMembers = computed(() => allMembers.value.filter((member) => selectedMergeIds.value.has(member.id)))
+const filteredSortedMembers = computed(() => filterAndSortMembers(members.value, searchQuery.value, sortOrder.value))
+const selectedMergeMembers = computed(() => members.value.filter((member) => selectedMergeIds.value.has(member.id)))
 const canMergeSelected = computed(() => selectedMergeMembers.value.length === 2)
 
 const mergePlan = computed(() => {
@@ -92,44 +97,80 @@ const mergePlan = computed(() => {
 
 // 切换排序
 function toggleSort() {
-  sortOrder.value = sortOrder.value === 'desc' ? 'asc' : 'desc'
-  currentPage.value = 1
-  loadMembers()
+  sortOrder.value = nextMemberSortOrder(sortOrder.value)
 }
 
-// 加载成员列表（分页）
+function getSortIconClass(direction: Exclude<MemberSortOrder, null>): string {
+  return sortOrder.value === direction ? 'text-primary-500 dark:text-primary-400' : 'text-gray-300 dark:text-gray-600'
+}
+
+const listScrollRef = ref<HTMLElement | null>(null)
+const memberVirtualizer = useVirtualizer(
+  computed(() => ({
+    count: filteredSortedMembers.value.length,
+    getScrollElement: () => listScrollRef.value,
+    estimateSize: () => MEMBER_ROW_ESTIMATE,
+    overscan: 8,
+    getItemKey: (index: number) => filteredSortedMembers.value[index]?.id ?? index,
+  }))
+)
+const virtualMemberRows = computed(() =>
+  memberVirtualizer.value.getVirtualItems().map((virtualItem) => ({
+    virtualItem,
+    member: filteredSortedMembers.value[virtualItem.index]!,
+  }))
+)
+const virtualListHeight = computed(() => memberVirtualizer.value.getTotalSize())
+
+function measureVirtualRow(element: unknown) {
+  if (element instanceof HTMLElement) {
+    memberVirtualizer.value.measureElement(element)
+  }
+}
+
+async function resetVirtualScroll() {
+  await nextTick()
+  listScrollRef.value?.scrollTo({ top: 0 })
+  memberVirtualizer.value.measure()
+}
+
+// 加载完整成员列表；搜索、排序和渲染均在前端完成。
 async function loadMembers() {
-  if (!props.sessionId) return
+  const sessionId = props.sessionId
+  if (!sessionId) return
+
+  const requestSeq = ++loadRequestSeq
   isLoading.value = true
+  loadFailed.value = false
   try {
-    const result = await useDataService().getMembersPaginated(props.sessionId, {
-      page: currentPage.value,
-      pageSize,
-      search: searchQuery.value.trim(),
-      sortOrder: sortOrder.value,
-    })
-    members.value = result.items
-    total.value = result.total
-    totalPages.value = result.totalPages
+    const result = await dataService.getMembers(sessionId)
+    if (requestSeq !== loadRequestSeq || sessionId !== props.sessionId) return
+
+    members.value = result
+    await nextTick()
+    memberVirtualizer.value.measure()
   } catch (error) {
-    console.error('加载成员列表失败:', error)
+    if (requestSeq === loadRequestSeq) {
+      loadFailed.value = true
+    }
+    reportMemberManagementError('Failed to load member list:', error)
   } finally {
-    isLoading.value = false
+    if (requestSeq === loadRequestSeq) {
+      isLoading.value = false
+    }
   }
 }
 
-// 加载所有成员（用于 OwnerEntryCard）
-async function loadAllMembers() {
-  if (!props.sessionId) return
-  try {
-    allMembers.value = await useDataService().getMembers(props.sessionId)
-  } catch (error) {
-    console.error('加载所有成员失败:', error)
-  }
+function setAliasSaving(memberId: number, saving: boolean) {
+  const next = new Set(savingAliasIds.value)
+  if (saving) next.add(memberId)
+  else next.delete(memberId)
+  savingAliasIds.value = next
 }
 
 // 直接更新别名（输入框失焦或回车时触发）
 async function updateAliases(member: MemberWithStats, newAliases: string[]) {
+  const sessionId = props.sessionId
   // 将 Vue 响应式数组转换为普通数组，避免 IPC 序列化问题
   const aliasesToSave = JSON.parse(JSON.stringify(newAliases)) as string[]
 
@@ -138,23 +179,24 @@ async function updateAliases(member: MemberWithStats, newAliases: string[]) {
   const newAliasesStr = JSON.stringify(aliasesToSave)
   if (currentAliases === newAliasesStr) return
 
-  savingAliasesId.value = member.id
+  setAliasSaving(member.id, true)
   try {
-    const success = await useDataService().updateMemberAliases(props.sessionId, member.id, aliasesToSave)
-    if (success) {
-      // 更新本地数据 - 找到对应成员并更新
+    const success = await dataService.updateMemberAliases(sessionId, member.id, aliasesToSave)
+    if (success && sessionId === props.sessionId) {
       const idx = members.value.findIndex((m) => m.id === member.id)
       if (idx !== -1) {
         members.value[idx] = {
           ...members.value[idx],
           aliases: aliasesToSave,
         }
+        await nextTick()
+        memberVirtualizer.value.measure()
       }
     }
   } catch (error) {
-    console.error('保存别名失败:', error)
+    reportMemberManagementError('Failed to save member aliases:', error)
   } finally {
-    savingAliasesId.value = null
+    setAliasSaving(member.id, false)
   }
 }
 
@@ -173,17 +215,17 @@ async function confirmDelete() {
   if (!deletingMember.value) return
   isDeleting.value = true
   try {
-    const success = await useDataService().deleteMember(props.sessionId, deletingMember.value.id)
+    const memberId = deletingMember.value.id
+    const success = await dataService.deleteMember(props.sessionId, memberId)
     if (success) {
-      // 重新加载当前页数据
+      const nextSelection = new Set(selectedMergeIds.value)
+      nextSelection.delete(memberId)
+      selectedMergeIds.value = nextSelection
       await loadMembers()
-      // 同时更新 allMembers（用于 OwnerEntryCard）
-      await loadAllMembers()
-      // 通知父组件刷新数据
       emit('data-changed')
     }
   } catch (error) {
-    console.error('删除成员失败:', error)
+    reportMemberManagementError('Failed to delete member:', error)
   } finally {
     isDeleting.value = false
     deletingMember.value = null
@@ -213,7 +255,7 @@ async function confirmMerge() {
   if (!mergePlan.value) return
   isMerging.value = true
   try {
-    const success = await useDataService().mergeMembers(
+    const success = await dataService.mergeMembers(
       props.sessionId,
       mergePlan.value.primary.id,
       mergePlan.value.secondary.id
@@ -222,49 +264,36 @@ async function confirmMerge() {
       showMergeModal.value = false
       clearMergeSelection()
       await loadMembers()
-      await loadAllMembers()
       emit('data-changed')
     }
   } catch (error) {
-    console.error('合并成员失败:', error)
+    reportMemberManagementError('Failed to merge members:', error)
   } finally {
     isMerging.value = false
   }
 }
 
-// 搜索时重置页码并防抖加载
-watch(searchQuery, () => {
-  currentPage.value = 1
-  // 防抖：延迟 300ms 后执行搜索
-  if (searchDebounceTimer) {
-    clearTimeout(searchDebounceTimer)
-  }
-  searchDebounceTimer = setTimeout(() => {
-    loadMembers()
-  }, 300)
-})
-
-// 监听页码变化
-watch(currentPage, () => {
-  loadMembers()
-})
+watch([searchQuery, sortOrder], resetVirtualScroll)
 
 // 监听 sessionId 变化
 watch(
   () => props.sessionId,
   () => {
+    loadRequestSeq += 1
+    members.value = []
+    loadFailed.value = false
+    savingAliasIds.value = new Set()
     searchQuery.value = ''
-    currentPage.value = 1
+    sortOrder.value = 'desc'
     clearMergeSelection()
-    loadMembers()
-    loadAllMembers()
+    void resetVirtualScroll()
+    void loadMembers()
   },
   { immediate: true }
 )
 
-onMounted(() => {
-  loadMembers()
-  loadAllMembers()
+onUnmounted(() => {
+  loadRequestSeq += 1
 })
 </script>
 
@@ -279,14 +308,14 @@ onMounted(() => {
         <div>
           <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ t('members.list.title') }}</h2>
           <p class="text-sm text-gray-500 dark:text-gray-400">
-            {{ t('members.list.description', { count: total }) }}
+            {{ t('members.list.description', { count: members.length }) }}
           </p>
         </div>
       </div>
     </div>
 
     <!-- Owner配置 -->
-    <OwnerEntryCard class="mb-6" :session-id="sessionId" :members="allMembers" chat-type="group" />
+    <OwnerEntryCard class="mb-6" :session-id="sessionId" :members="members" chat-type="group" />
 
     <!-- 搜索框 -->
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -301,6 +330,11 @@ onMounted(() => {
         </template>
       </UInput>
       <div class="flex items-center gap-2">
+        <UIcon
+          v-if="isLoading && members.length > 0"
+          name="i-heroicons-arrow-path"
+          class="h-4 w-4 animate-spin text-primary-500"
+        />
         <span class="text-xs text-gray-500 dark:text-gray-400">
           {{ t('members.list.mergeSelectedCount', { count: selectedMergeIds.size }) }}
         </span>
@@ -317,14 +351,29 @@ onMounted(() => {
     </div>
 
     <!-- 成员列表 -->
-    <ThemeCard :class="props.showHeader ? '' : 'flex min-h-0 flex-1 flex-col'">
+    <div
+      class="flex min-h-[240px] flex-col overflow-hidden rounded-lg border border-gray-200/60 bg-card-bg dark:border-white/5 dark:bg-card-dark"
+      :class="props.showHeader ? 'h-[500px]' : 'min-h-0 flex-1'"
+    >
       <!-- 加载状态 -->
-      <div v-if="isLoading" class="flex h-60 items-center justify-center">
-        <UIcon name="i-heroicons-arrow-path" class="h-8 w-8 animate-spin text-pink-500" />
+      <div v-if="isLoading && members.length === 0" class="flex flex-1 items-center justify-center">
+        <UIcon name="i-heroicons-arrow-path" class="h-8 w-8 animate-spin text-primary-500" />
+      </div>
+
+      <!-- 失败状态 -->
+      <div
+        v-else-if="loadFailed && members.length === 0"
+        class="flex flex-1 flex-col items-center justify-center gap-3"
+      >
+        <UIcon name="i-heroicons-exclamation-circle" class="h-10 w-10 text-red-400" />
+        <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('members.list.loadError') }}</p>
+        <UButton size="sm" variant="outline" icon="i-heroicons-arrow-path" @click="loadMembers">
+          {{ t('common.retry') }}
+        </UButton>
       </div>
 
       <!-- 空状态 -->
-      <div v-else-if="members.length === 0" class="flex h-60 flex-col items-center justify-center">
+      <div v-else-if="filteredSortedMembers.length === 0" class="flex flex-1 flex-col items-center justify-center">
         <UIcon name="i-heroicons-user-group" class="mb-3 h-12 w-12 text-gray-300 dark:text-gray-600" />
         <p class="text-gray-500 dark:text-gray-400">
           {{ searchQuery ? t('members.list.noMatch') : t('members.list.empty') }}
@@ -332,158 +381,122 @@ onMounted(() => {
       </div>
 
       <!-- 成员表格 -->
-      <div v-else class="flex min-h-0 flex-1 flex-col">
-        <div class="max-h-[500px] overflow-y-auto" :class="props.showHeader ? '' : 'max-h-none min-h-0 flex-1'">
-          <table class="w-full">
-            <thead class="sticky top-0 bg-gray-50 dark:bg-page-dark">
-              <tr class="text-left text-xs font-medium uppercase text-gray-500 dark:text-gray-400">
-                <th class="w-12 px-4 py-4" />
-                <th class="px-4 py-4">{{ t('members.list.table.accountName') }}</th>
-                <th class="px-4 py-4">{{ t('members.list.table.groupNickname') }}</th>
-                <th class="px-4 py-4">
-                  <button
-                    class="flex items-center gap-1.5 hover:text-gray-700 dark:hover:text-gray-200"
-                    @click="toggleSort"
-                  >
-                    {{ t('members.list.table.messageCount') }}
-                    <UIcon
-                      :name="sortOrder === 'desc' ? 'i-heroicons-arrow-down' : 'i-heroicons-arrow-up'"
-                      class="h-3.5 w-3.5"
-                    />
-                  </button>
-                </th>
-                <th class="w-64 px-4 py-4">
-                  <div class="inline-flex items-center gap-1.5">
-                    <span>{{ t('members.list.table.customAlias') }}</span>
-                    <UTooltip :text="t('members.list.tip')" :popper="{ placement: 'top' }">
-                      <UIcon name="i-heroicons-question-mark-circle" class="h-4 w-4 text-gray-400 dark:text-gray-500" />
-                    </UTooltip>
-                  </div>
-                </th>
-                <th class="px-4 py-4 text-right">{{ t('members.list.table.actions') }}</th>
-              </tr>
-            </thead>
-            <tbody class="divide-y divide-gray-200 dark:divide-gray-700">
-              <tr v-for="member in members" :key="member.id" class="hover:bg-gray-50 dark:hover:bg-gray-800/50">
-                <!-- 选择 -->
-                <td class="px-4 py-4">
+      <div v-else class="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
+        <div class="flex h-full min-w-[980px] flex-col">
+          <!-- 固定表头：只让数据区纵向滚动 -->
+          <div
+            class="member-table-grid shrink-0 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-500 dark:border-white/5 dark:bg-page-dark/80 dark:text-gray-400"
+          >
+            <span aria-hidden="true" />
+            <span>{{ t('members.list.table.accountName') }}</span>
+            <span>{{ t('members.list.table.groupNickname') }}</span>
+            <button
+              type="button"
+              class="flex items-center justify-end gap-1.5 text-right transition-colors hover:text-gray-700 dark:hover:text-gray-200"
+              @click="toggleSort"
+            >
+              {{ t('members.list.table.messageCount') }}
+              <span class="flex shrink-0 flex-col leading-none">
+                <UIcon name="i-heroicons-chevron-up" class="h-2.5 w-2.5" :class="getSortIconClass('asc')" />
+                <UIcon name="i-heroicons-chevron-down" class="-mt-0.5 h-2.5 w-2.5" :class="getSortIconClass('desc')" />
+              </span>
+            </button>
+            <span class="inline-flex items-center gap-1.5">
+              <span>{{ t('members.list.table.customAlias') }}</span>
+              <UTooltip :text="t('members.list.tip')" :popper="{ placement: 'top' }">
+                <UIcon name="i-heroicons-question-mark-circle" class="h-4 w-4 text-gray-400 dark:text-gray-500" />
+              </UTooltip>
+            </span>
+            <span class="text-right">{{ t('members.list.table.actions') }}</span>
+          </div>
+
+          <!-- 虚拟列表内容 -->
+          <div ref="listScrollRef" class="min-h-0 flex-1 overflow-y-auto">
+            <div class="relative" :style="{ height: `${virtualListHeight}px` }">
+              <div
+                v-for="{ virtualItem, member } in virtualMemberRows"
+                :key="String(virtualItem.key)"
+                :ref="measureVirtualRow"
+                :data-index="virtualItem.index"
+                class="member-table-grid absolute left-0 top-0 w-full min-h-16 border-b border-gray-100/80 px-3 py-2 transition-colors hover:bg-gray-50 dark:border-white/5 dark:hover:bg-gray-800/30"
+                :class="selectedMergeIds.has(member.id) ? 'bg-primary-50/70 dark:bg-primary-950/20' : ''"
+                :style="{ transform: `translateY(${virtualItem.start}px)` }"
+              >
+                <div class="flex justify-center">
                   <UCheckbox
                     :model-value="selectedMergeIds.has(member.id)"
                     @click.stop="toggleMergeSelection(member.id)"
                   />
-                </td>
+                </div>
 
-                <!-- 账号名称 (ID) -->
-                <td class="px-4 py-4">
-                  <div class="flex items-center gap-2">
-                    <!-- 头像：优先显示真实头像，否则显示首字母 -->
-                    <img
-                      v-if="member.avatar"
-                      :src="member.avatar"
-                      :alt="getDisplayName(member)"
-                      class="h-8 w-8 shrink-0 rounded-full object-cover"
-                    />
-                    <div
-                      v-else
-                      class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-gradient-to-br from-pink-400 to-pink-600 text-xs font-medium text-white"
+                <div class="flex min-w-0 items-center gap-2.5">
+                  <LazyAvatar
+                    :src="member.avatar"
+                    :alt="getDisplayName(member)"
+                    :text="getFirstChar(member)"
+                    :fallback-class="[
+                      'flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold',
+                      'bg-primary-500 text-white',
+                    ]"
+                  />
+                  <div class="min-w-0">
+                    <p
+                      class="truncate text-sm font-medium text-gray-900 dark:text-white"
+                      :title="member.accountName || '-'"
                     >
-                      {{ getFirstChar(member) }}
-                    </div>
-                    <div>
-                      <span class="text-sm font-medium text-gray-900 dark:text-white">
-                        {{ member.accountName || '-' }}
-                      </span>
-                      <span class="ml-1 text-sm text-gray-500 dark:text-gray-400">({{ member.platformId }})</span>
-                    </div>
+                      {{ member.accountName || '-' }}
+                    </p>
+                    <p class="truncate text-xs text-gray-400 dark:text-gray-500" :title="member.platformId">
+                      {{ member.platformId }}
+                    </p>
                   </div>
-                </td>
+                </div>
 
-                <!-- 群昵称 -->
-                <td class="px-4 py-4">
-                  <span v-if="member.groupNickname" class="text-sm font-medium text-gray-900 dark:text-white">
-                    {{ member.groupNickname }}
-                  </span>
-                  <span v-else class="text-sm text-gray-400 dark:text-gray-500">-</span>
-                </td>
+                <p
+                  class="truncate text-sm text-gray-700 dark:text-gray-300"
+                  :class="member.groupNickname ? 'font-medium' : 'text-gray-400 dark:text-gray-500'"
+                  :title="member.groupNickname || '-'"
+                >
+                  {{ member.groupNickname || '-' }}
+                </p>
 
-                <!-- 消息数 -->
-                <td class="px-4 py-4">
-                  <span class="text-sm font-semibold text-gray-900 dark:text-white">
-                    {{ member.messageCount.toLocaleString() }}
-                  </span>
-                </td>
+                <span class="text-right font-mono text-sm font-semibold tabular-nums text-gray-900 dark:text-white">
+                  {{ member.messageCount.toLocaleString() }}
+                </span>
 
-                <!-- 别名 - 直接编辑 -->
-                <td class="px-4 py-4">
-                  <div class="max-w-xs">
-                    <UInputTags
-                      :model-value="member.aliases"
-                      :placeholder="t('members.list.aliasPlaceholder')"
-                      class="w-80"
-                      @update:model-value="(val) => updateAliases(member, val)"
-                    />
-                    <!-- 保存中指示器 -->
-                    <div v-if="savingAliasesId === member.id" class="absolute right-2 top-1/2 -translate-y-1/2">
-                      <UIcon name="i-heroicons-arrow-path" class="h-4 w-4 animate-spin text-pink-500" />
-                    </div>
-                  </div>
-                </td>
+                <UInputTags
+                  :model-value="member.aliases"
+                  :placeholder="t('members.list.aliasPlaceholder')"
+                  :loading="savingAliasIds.has(member.id)"
+                  size="xs"
+                  class="w-full"
+                  @update:model-value="(val) => updateAliases(member, val)"
+                />
 
-                <!-- 操作 -->
-                <td class="px-4 py-4 text-right">
-                  <div class="flex justify-end gap-2">
-                    <UButton
-                      icon="i-heroicons-chat-bubble-left-ellipsis"
-                      size="xs"
-                      color="neutral"
-                      variant="ghost"
-                      :title="t('common.viewChatRecords')"
-                      @click="viewMemberChatRecords(member)"
-                    />
-                    <UButton :label="t('members.list.delete')" size="xs" @click="showDeleteConfirm(member)" />
-                  </div>
-                </td>
-              </tr>
-            </tbody>
-          </table>
-        </div>
-
-        <!-- 分页 -->
-        <div
-          v-if="totalPages > 1"
-          class="flex items-center justify-between border-t border-gray-200 px-6 py-4 dark:border-gray-700"
-        >
-          <p class="text-sm text-gray-500 dark:text-gray-400">
-            {{
-              t('members.list.pagination', {
-                start: (currentPage - 1) * pageSize + 1,
-                end: Math.min(currentPage * pageSize, total),
-                total: total,
-              })
-            }}
-          </p>
-          <div class="flex items-center gap-2">
-            <UButton
-              icon="i-heroicons-chevron-left"
-              variant="outline"
-              size="sm"
-              :disabled="currentPage === 1 || isLoading"
-              @click="currentPage--"
-            />
-            <span class="text-sm font-medium text-gray-600 dark:text-gray-300">
-              {{ currentPage }} / {{ totalPages }}
-            </span>
-            <UButton
-              icon="i-heroicons-chevron-right"
-              variant="outline"
-              size="sm"
-              :disabled="currentPage >= totalPages || isLoading"
-              @click="currentPage++"
-            />
+                <div class="flex justify-end gap-1">
+                  <UButton
+                    icon="i-heroicons-chat-bubble-left-ellipsis"
+                    size="xs"
+                    color="neutral"
+                    variant="ghost"
+                    :title="t('common.viewChatRecords')"
+                    @click="viewMemberChatRecords(member)"
+                  />
+                  <UButton
+                    icon="i-heroicons-trash"
+                    size="xs"
+                    color="error"
+                    variant="ghost"
+                    :title="t('members.list.delete')"
+                    @click="showDeleteConfirm(member)"
+                  />
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
-    </ThemeCard>
+    </div>
 
     <!-- 删除确认弹窗 -->
     <UModal :open="!!deletingMember" :ui="{ content: 'max-w-sm' }" @update:open="deletingMember = null">
@@ -549,3 +562,12 @@ onMounted(() => {
     </UModal>
   </div>
 </template>
+
+<style scoped>
+.member-table-grid {
+  display: grid;
+  grid-template-columns: 40px minmax(220px, 1.45fr) minmax(140px, 0.9fr) 96px minmax(280px, 1.35fr) 80px;
+  column-gap: 12px;
+  align-items: center;
+}
+</style>

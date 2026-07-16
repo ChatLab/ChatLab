@@ -24,6 +24,7 @@
     "searchPlaceholder": "Search nickname, account name, ID or alias",
     "noMatch": "No matching members found",
     "empty": "No member data available",
+    "loadError": "Failed to load members. Please try again",
     "table": {
       "accountName": "Account Name",
       "groupNickname": "Group Nickname",

@@ -57,8 +57,10 @@ const SAMPLE_MEMBERS: MockMember[] = [
   },
 ]
 
-function createMockDb(opts: { hasAliases?: boolean; hasAvatar?: boolean } = {}): DatabaseAdapter {
-  const { hasAliases = true, hasAvatar = true } = opts
+function createMockDb(
+  opts: { hasAliases?: boolean; hasAvatar?: boolean; onPrepare?: (sql: string) => void } = {}
+): DatabaseAdapter {
+  const { hasAliases = true, hasAvatar = true, onPrepare } = opts
 
   const nonSystemMembers = SAMPLE_MEMBERS.filter((m) => {
     const displayName = m.groupNickname || m.accountName || m.platformId
@@ -67,6 +69,7 @@ function createMockDb(opts: { hasAliases?: boolean; hasAvatar?: boolean } = {}):
 
   return {
     prepare(sql: string): PreparedStatement {
+      onPrepare?.(sql)
       return {
         get(...params: unknown[]) {
           if (sql.includes('PRAGMA table_info')) {
@@ -229,6 +232,16 @@ describe('getMembersWithAliases', () => {
       assert.ok(result[i - 1].messageCount >= result[i].messageCount)
     }
   })
+
+  it('adds a deterministic member id tie-breaker to full-list ordering', () => {
+    const preparedSql: string[] = []
+    const db = createMockDb({ onPrepare: (sql) => preparedSql.push(sql) })
+
+    getMembersWithAliases(db)
+
+    const listSql = preparedSql.find((sql) => sql.includes('ORDER BY messageCount'))
+    assert.match(listSql ?? '', /ORDER BY messageCount DESC,\s*m\.id ASC/)
+  })
 })
 
 // ==================== getMemberNameHistory ====================
@@ -301,6 +314,16 @@ describe('getMembersPaginated', () => {
     for (let i = 1; i < result.members.length; i++) {
       assert.ok(result.members[i - 1].messageCount >= result.members[i].messageCount)
     }
+  })
+
+  it('adds a deterministic member id tie-breaker to paginated ordering', () => {
+    const preparedSql: string[] = []
+    const db = createMockDb({ onPrepare: (sql) => preparedSql.push(sql) })
+
+    getMembersPaginated(db, { sortOrder: 'desc' })
+
+    const listSql = preparedSql.find((sql) => sql.includes('ORDER BY messageCount'))
+    assert.match(listSql ?? '', /ORDER BY messageCount DESC,\s*m\.id ASC/)
   })
 
   it('works when aliases/avatar columns are missing', () => {
