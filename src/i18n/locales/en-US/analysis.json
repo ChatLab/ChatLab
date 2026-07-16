@@ -72,12 +72,12 @@
       "languagePreference": "Language Preference"
     },
     "ranking": {
-      "overall": "Overall"
+      "overall": "Overall",
+      "keyword": "Keywords"
     },
     "quotes": {
       "hotRepeat": "Hot Repeats",
-      "catchphrase": "Catchphrases",
-      "keywordAnalysis": "Keyword Analysis"
+      "catchphrase": "Catchphrases"
     },
     "groupRelationships": {
       "mentionGraph": "Mention Graph",

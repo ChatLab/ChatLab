@@ -6,6 +6,7 @@ import UserSelect from '@/components/common/UserSelect.vue'
 import { CatchphraseTab, HotRepeatTab } from '@/components/analysis/quotes'
 import { isFeatureSupported, type LocaleType } from '@/i18n'
 import type { TimeFilter } from '@openchatlab/shared-types'
+import KeywordRankingTab from './KeywordRankingTab.vue'
 import OverallRankingTab from './OverallRankingTab.vue'
 
 const props = defineProps<{
@@ -32,6 +33,11 @@ const subTabs = computed(() => {
       id: 'catchphrase',
       label: t('analysis.subTabs.quotes.catchphrase'),
       icon: 'i-heroicons-chat-bubble-bottom-center-text',
+    },
+    {
+      id: 'keyword',
+      label: t('analysis.subTabs.ranking.keyword'),
+      icon: 'i-heroicons-magnifying-glass',
     },
   ]
 })
@@ -73,6 +79,9 @@ watch(
           :session-id="props.sessionId"
           :time-filter="rankingTimeFilter"
         />
+        <div v-else-if="activeSubTab === 'keyword'" class="main-content mx-auto w-full max-w-3xl p-6">
+          <KeywordRankingTab :session-id="props.sessionId" :time-filter="rankingTimeFilter" />
+        </div>
         <HotRepeatTab
           v-else-if="activeSubTab === 'hot-repeat'"
           :session-id="props.sessionId"

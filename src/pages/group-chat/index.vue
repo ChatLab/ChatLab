@@ -3,7 +3,7 @@ import { ref, computed, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
-import AITab from '@/components/analysis/AITab.vue'
+import LabTab from '@/components/analysis/LabTab.vue'
 import MemoryTab from '@/components/analysis/MemoryTab.vue'
 import { DebugTab } from '@/components/DebugTab'
 import { ChatExplorer } from '@/components/AIChat'
@@ -186,14 +186,11 @@ const filteredMemberCount = computed(() => {
               :session-id="currentSessionId!"
               :session-name="session.name"
             />
-            <AITab
+            <LabTab
               v-else-if="activeTab === 'lab'"
               :key="'lab-' + currentSessionId"
               :session-id="currentSessionId!"
-              :session-name="session.name"
-              :time-filter="timeFilter"
               chat-type="group"
-              mode="sql-only"
             />
             <DebugTab
               v-else-if="activeTab === 'debug'"

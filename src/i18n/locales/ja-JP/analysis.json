@@ -72,12 +72,12 @@
       "languagePreference": "言語傾向"
     },
     "ranking": {
-      "overall": "総合ランキング"
+      "overall": "総合ランキング",
+      "keyword": "キーワード"
     },
     "quotes": {
       "hotRepeat": "盛り上がった復唱",
-      "catchphrase": "口癖",
-      "keywordAnalysis": "キーワード分析"
+      "catchphrase": "口癖"
     },
     "groupRelationships": {
       "mentionGraph": "{'@'} 関係図",

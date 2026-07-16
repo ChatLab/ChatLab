@@ -3,7 +3,7 @@ import { ref, computed, defineAsyncComponent } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
-import AITab from '@/components/analysis/AITab.vue'
+import LabTab from '@/components/analysis/LabTab.vue'
 import MemoryTab from '@/components/analysis/MemoryTab.vue'
 import { DebugTab } from '@/components/DebugTab'
 import { ChatExplorer } from '@/components/AIChat'
@@ -50,7 +50,7 @@ function openChatRecordViewer() {
   layoutStore.openChatRecordDrawer({})
 }
 
-// Tab 配置 - 私聊包含总览、视图、AI 对话和实验室（关键词分析已移至实验室）
+// Tab 配置 - 私聊包含总览、洞察、AI 对话和实验室
 const baseTabs = [
   { id: 'overview', labelKey: 'analysis.tabs.overview', icon: 'i-heroicons-chart-pie' },
   { id: 'view', labelKey: 'analysis.tabs.view', icon: 'i-heroicons-presentation-chart-bar' },
@@ -188,14 +188,11 @@ const otherMemberAvatar = computed(() => {
               :session-id="currentSessionId!"
               :session-name="session.name"
             />
-            <AITab
+            <LabTab
               v-else-if="activeTab === 'lab'"
               :key="'lab-' + currentSessionId"
               :session-id="currentSessionId!"
-              :session-name="session.name"
-              :time-filter="timeFilter"
               chat-type="private"
-              mode="sql-only"
             />
             <DebugTab
               v-else-if="activeTab === 'debug'"

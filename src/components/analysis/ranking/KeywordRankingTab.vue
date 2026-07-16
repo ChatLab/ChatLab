@@ -309,7 +309,7 @@ async function loadAnalysis() {
       ...currentKeywords.value,
     ])
   } catch (error) {
-    console.error('加载词频分析失败:', error)
+    console.error('Failed to load keyword ranking:', error)
     analysis.value = null
   } finally {
     isLoading.value = false

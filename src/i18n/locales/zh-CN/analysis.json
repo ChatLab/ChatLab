@@ -73,12 +73,12 @@
       "languagePreference": "语言偏好"
     },
     "ranking": {
-      "overall": "总榜单"
+      "overall": "总榜单",
+      "keyword": "关键词"
     },
     "quotes": {
       "hotRepeat": "最火复读",
-      "catchphrase": "口头禅",
-      "keywordAnalysis": "关键词分析"
+      "catchphrase": "口头禅"
     },
     "groupRelationships": {
       "mentionGraph": "{'@'} 关系图",
