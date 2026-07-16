@@ -39,6 +39,7 @@ const helloTipText = ref('')
 const isEnablingHello = ref(false)
 
 const isEnabled = computed(() => config.value?.enabled ?? false)
+const hasPassword = computed(() => config.value?.hasPassword ?? false)
 const helloAvailable = computed(() => config.value?.windowsHelloAvailable ?? false)
 const helloEnabled = computed(() => config.value?.unlockMode === 'windows-hello')
 
@@ -99,9 +100,19 @@ async function handleSetOrChangePassword() {
   try {
     let result
     if (isEnabled.value) {
+      // 锁已开启 → 修改密码
       if (!oldPassword.value) { passwordError.value = t('settings.security.password.errorNeedOld'); isSubmitting.value = false; return }
       result = await window.securityApi?.changePassword(oldPassword.value, newPassword.value)
+    } else if (hasPassword.value) {
+      // 有密码但锁关闭 → 重新启用（可能同时改密码）
+      if (!oldPassword.value) { passwordError.value = t('settings.security.password.errorNeedOld'); isSubmitting.value = false; return }
+      if (newPassword.value) {
+        result = await window.securityApi?.changePassword(oldPassword.value, newPassword.value)
+      } else {
+        result = await window.securityApi?.reEnableLock(oldPassword.value)
+      }
     } else {
+      // 首次设置密码
       result = await window.securityApi?.setPassword(newPassword.value)
     }
     if (result?.success) {
@@ -225,7 +236,7 @@ async function handleManualLock() { try { await window.securityApi?.lock() } cat
           </button>
         </div>
         <div v-else class="space-y-3 border-t border-gray-100 pt-4 dark:border-gray-700">
-          <div v-if="isEnabled">
+          <div v-if="isEnabled || hasPassword">
             <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('settings.security.password.labelOld') }}</label>
             <input v-model="oldPassword" type="password" :placeholder="t('settings.security.password.placeholderOld')" class="w-full rounded-lg border px-3 py-2.5 text-sm placeholder-gray-400 focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500 bg-white border-gray-300 text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-500" maxlength="128" />
           </div>

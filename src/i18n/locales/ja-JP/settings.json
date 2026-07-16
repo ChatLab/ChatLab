@@ -686,6 +686,34 @@
     "toast": {
       "saved": "保存しました",
       "failed": "保存に失敗しました"
+    },
+    "lockScreen": {
+      "loading": "読み込み中...",
+      "titleLocked": "ChatLab はロックされています",
+      "subtitleLocked": "パスワードを入力してロック解除",
+      "titleSetup": "アプリロックパスワード設定",
+      "subtitleSetup": "初回設定、解除用パスワードを作成してください",
+      "titleSuccess": "パスワード設定完了",
+      "subtitleSuccess": "ロック解除されました...",
+      "placeholderPassword": "パスワードを入力",
+      "placeholderSetup": "パスワードを設定（4文字以上）",
+      "placeholderConfirm": "パスワードを再入力",
+      "btnUnlock": "ロック解除",
+      "btnContinue": "次へ",
+      "btnConfirm": "確認",
+      "btnBack": "戻る",
+      "btnHello": "Windows Hello",
+      "verifying": "検証中...",
+      "settingUp": "設定中...",
+      "errorLoadConfig": "ロック設定の読み込みに失敗しました",
+      "errorTooShort": "パスワードは4文字以上必要です",
+      "errorTooLong": "パスワードは128文字以内にしてください",
+      "errorMismatch": "パスワードが一致しません",
+      "errorService": "ロック解除に失敗しました。再試行してください",
+      "errorHelloFail": "Windows Hello に失敗しました。パスワードを使用してください",
+      "errorHelloUnavailable": "Windows Hello は利用できません。パスワードを使用してください",
+      "cooldownPrefix": "秒後に再試行可能",
+      "retriesLeft": "あと {n} 回試行できます"
     }
   }
 }

@@ -660,6 +660,13 @@ export async function updateLockConfig(
     return { success: false, error: '请先设置应用锁密码' }
   }
 
+  // 安全校验：锁定状态下禁止修改解锁模式或 Hello 配置，防止绕过密码
+  if (lockState === 'locked') {
+    if (updates.unlockMode !== undefined || updates.enabled !== undefined) {
+      return { success: false, error: '请先解锁应用' }
+    }
+  }
+
   // 合并配置（临时变量，写盘成功后再更新 currentConfig）
   const newConfig: LockConfig = { ...currentConfig, ...updates }
 
@@ -721,6 +728,37 @@ export function verifyAppPassword(rawPassword: string): boolean {
  */
 export function getLockState(): LockState {
   return lockState
+}
+
+/**
+ * 全局锁定状态查询 — 供其他 IPC 模块校验是否拦截数据访问
+ */
+export function isAppLocked(): boolean {
+  return lockState === 'locked'
+}
+
+/**
+ * 重新启用已关闭的锁（密码未变，仅恢复 enabled=true）
+ * 用于关闭锁后再次开启的场景，不修改密码哈希与 Hello 配置
+ */
+export function reEnableLock(oldPassword: string): { success: boolean; error?: string } {
+  if (!storedPasswordHash) {
+    return { success: false, error: '尚未设置密码' }
+  }
+  if (lockState === 'locked') {
+    return { success: false, error: '请先解锁应用' }
+  }
+  if (!verifyAppPasswordHash(oldPassword, storedPasswordHash)) {
+    return { success: false, error: '密码错误' }
+  }
+  const newConfig: LockConfig = { ...currentConfig, enabled: true }
+  if (!saveConfig(newConfig, storedPasswordHash)) {
+    return { success: false, error: '配置保存失败' }
+  }
+  currentConfig = newConfig
+  if (currentConfig.idleTimeoutMinutes > 0) startIdleTimer()
+  logger.info('App lock re-enabled')
+  return { success: true }
 }
 
 /**

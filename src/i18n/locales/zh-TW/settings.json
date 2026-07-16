@@ -686,6 +686,34 @@
     "toast": {
       "saved": "儲存成功",
       "failed": "儲存失敗"
+    },
+    "lockScreen": {
+      "loading": "載入中...",
+      "titleLocked": "ChatLab 已鎖定",
+      "subtitleLocked": "請輸入密碼以解鎖應用程式",
+      "titleSetup": "設定應用鎖密碼",
+      "subtitleSetup": "首次使用，請設定解鎖密碼",
+      "titleSuccess": "密碼設定成功",
+      "subtitleSuccess": "應用程式已解鎖，即將進入...",
+      "placeholderPassword": "輸入密碼",
+      "placeholderSetup": "設定解鎖密碼（至少 4 位）",
+      "placeholderConfirm": "再次輸入密碼確認",
+      "btnUnlock": "解鎖",
+      "btnContinue": "繼續",
+      "btnConfirm": "確認設定",
+      "btnBack": "返回",
+      "btnHello": "Windows Hello",
+      "verifying": "驗證中...",
+      "settingUp": "設定中...",
+      "errorLoadConfig": "載入鎖定設定失敗",
+      "errorTooShort": "密碼長度不能少於 4 位",
+      "errorTooLong": "密碼長度不能超過 128 位",
+      "errorMismatch": "兩次輸入的密碼不一致",
+      "errorService": "解鎖失敗，請重試",
+      "errorHelloFail": "Windows Hello 驗證失敗，請使用密碼解鎖",
+      "errorHelloUnavailable": "Windows Hello 不可用，請使用密碼解鎖",
+      "cooldownPrefix": "秒後可重試",
+      "retriesLeft": "還剩 {n} 次嘗試機會"
     }
   }
 }

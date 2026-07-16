@@ -75,6 +75,11 @@ export const securityApi = {
     return ipcRenderer.invoke('app-lock:verifyAppPassword', rawPassword)
   },
 
+  /** 重新启用已关闭的锁（密码不变，仅恢复 enabled=true） */
+  reEnableLock: (oldPassword: string): Promise<{ success: boolean; error?: string }> => {
+    return ipcRenderer.invoke('app-lock:reEnableLock', oldPassword)
+  },
+
   // ==================== 锁操作 ====================
 
   /** 锁定应用（手动触发） */

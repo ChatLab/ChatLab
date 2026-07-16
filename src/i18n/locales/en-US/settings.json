@@ -686,6 +686,34 @@
     "toast": {
       "saved": "Saved successfully",
       "failed": "Save failed"
+    },
+    "lockScreen": {
+      "loading": "Loading...",
+      "titleLocked": "ChatLab is Locked",
+      "subtitleLocked": "Enter your password to unlock",
+      "titleSetup": "Set App Lock Password",
+      "subtitleSetup": "First time setup, create an unlock password",
+      "titleSuccess": "Password Set",
+      "subtitleSuccess": "App unlocked, entering...",
+      "placeholderPassword": "Enter password",
+      "placeholderSetup": "Set password (min 4 characters)",
+      "placeholderConfirm": "Confirm password",
+      "btnUnlock": "Unlock",
+      "btnContinue": "Continue",
+      "btnConfirm": "Confirm",
+      "btnBack": "Back",
+      "btnHello": "Windows Hello",
+      "verifying": "Verifying...",
+      "settingUp": "Setting up...",
+      "errorLoadConfig": "Failed to load lock configuration",
+      "errorTooShort": "Password must be at least 4 characters",
+      "errorTooLong": "Password must not exceed 128 characters",
+      "errorMismatch": "Passwords do not match",
+      "errorService": "Unlock failed, please try again",
+      "errorHelloFail": "Windows Hello failed, please use password",
+      "errorHelloUnavailable": "Windows Hello unavailable, please use password",
+      "cooldownPrefix": "seconds until retry",
+      "retriesLeft": "{n} attempts remaining"
     }
   }
 }

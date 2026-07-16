@@ -686,6 +686,34 @@
     "toast": {
       "saved": "保存成功",
       "failed": "保存失败"
+    },
+    "lockScreen": {
+      "loading": "正在加载...",
+      "titleLocked": "ChatLab 已锁定",
+      "subtitleLocked": "请输入密码以解锁应用",
+      "titleSetup": "设置应用锁密码",
+      "subtitleSetup": "首次使用，请设置解锁密码",
+      "titleSuccess": "密码设置成功",
+      "subtitleSuccess": "应用已解锁，即将进入...",
+      "placeholderPassword": "输入密码",
+      "placeholderSetup": "设置解锁密码（至少 4 位）",
+      "placeholderConfirm": "再次输入密码确认",
+      "btnUnlock": "解锁",
+      "btnContinue": "继续",
+      "btnConfirm": "确认设置",
+      "btnBack": "返回",
+      "btnHello": "Windows Hello",
+      "verifying": "验证中...",
+      "settingUp": "设置中...",
+      "errorLoadConfig": "加载锁配置失败",
+      "errorTooShort": "密码长度不能少于 4 位",
+      "errorTooLong": "密码长度不能超过 128 位",
+      "errorMismatch": "两次输入的密码不一致",
+      "errorService": "解锁失败，请重试",
+      "errorHelloFail": "Windows Hello 验证失败，请使用密码解锁",
+      "errorHelloUnavailable": "Windows Hello 不可用，请使用密码解锁",
+      "cooldownPrefix": "秒后可重试",
+      "retriesLeft": "还剩 {n} 次尝试机会"
     }
   }
 }

@@ -13,6 +13,7 @@ import {
   setPassword,
   changePassword,
   resetAppLockPassword,
+  reEnableLock,
   getLockConfig,
   getLockConfigAsync,
   getLockState,
@@ -184,6 +185,16 @@ export function registerSecurityHandlers(_ctx: IpcContext): void {
     } catch {
       logger.error(`IPC app-lock:requestUnlock failed`)
       return { success: false, error: '解锁失败' }
+    }
+  })
+
+  // ==================== 重新启用锁 ====================
+
+  ipcMain.handle('app-lock:reEnableLock', (_event, oldPassword: string) => {
+    try {
+      return reEnableLock(oldPassword)
+    } catch {
+      return { success: false, error: '操作失败' }
     }
   })
 
