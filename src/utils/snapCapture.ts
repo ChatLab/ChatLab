@@ -6,7 +6,6 @@ export interface CaptureOptions {
   backgroundColor?: string
   crossOrigin?: string
   embedFonts?: boolean
-  compress?: boolean
   filename?: string
   /** 是否捕获完整的可滚动内容（默认 true） */
   fullContent?: boolean
@@ -174,7 +173,6 @@ export async function captureAsImageData(rootEl: HTMLElement, options?: CaptureO
     scale: captureScale,
     // 禁用字体嵌入可以避免某些 Unicode 字符导致的 encodeURIComponent 错误
     embedFonts: options?.embedFonts ?? false,
-    compress: options?.compress ?? true,
     backgroundColor: bgColor,
   }
 
