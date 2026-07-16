@@ -15,7 +15,7 @@ import { analyzePushImport, pushImport } from './pushImport'
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
 test('Desktop worker push analysis uses shared semantics without creating a database', async (t) => {
-  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+  const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
   const root = fs.mkdtempSync(path.join(baseDir, 'chatlab-worker-push-analysis-'))
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
 
@@ -34,7 +34,7 @@ test('Desktop worker push analysis uses shared semantics without creating a data
 })
 
 test('Desktop worker push import uses the shared writer and canonical database directory', async (t) => {
-  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+  const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
   const root = fs.mkdtempSync(path.join(baseDir, 'chatlab-worker-push-import-'))
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
 
@@ -62,7 +62,7 @@ test('Desktop worker push import uses the shared writer and canonical database d
 })
 
 test('Desktop worker push import refreshes caches after duplicate-only member updates', async (t) => {
-  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+  const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
   const root = fs.mkdtempSync(path.join(baseDir, 'chatlab-worker-push-cache-'))
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
 

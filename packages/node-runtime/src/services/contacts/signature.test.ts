@@ -12,7 +12,7 @@ import { CONTACTS_ALGORITHM_VERSION } from './compute'
 import { buildContactsSignature } from './signature'
 
 function makeTempDir(): string {
-  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+  const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
   return fs.mkdtempSync(path.join(baseDir, 'chatlab-contacts-signature-'))
 }
 

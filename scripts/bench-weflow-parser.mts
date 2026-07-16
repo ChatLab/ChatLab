@@ -9,10 +9,10 @@
  * Requires the native module to be built first: pnpm build:native
  */
 
-import { createWriteStream, mkdtempSync, rmSync, statSync } from 'node:fs'
+import { createWriteStream, rmSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { tmpdir } from 'node:os'
 import { once } from 'node:events'
+import { createChatLabTempDir } from './chatlab-temp.mjs'
 
 import { parseFileSync } from '../packages/parser/src/index'
 import { loadNativeParser } from '../packages/parser/src/native/loader'
@@ -115,7 +115,7 @@ async function main() {
     process.exit(1)
   }
 
-  const dir = mkdtempSync(join(tmpdir(), 'chatlab-weflow-bench-'))
+  const dir = createChatLabTempDir('bench', 'weflow-')
   const filePath = join(dir, 'bench.json')
   try {
     console.log(`Generating fixture with ${messageCount.toLocaleString()} messages...`)

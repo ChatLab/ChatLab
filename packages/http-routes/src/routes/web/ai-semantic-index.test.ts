@@ -149,7 +149,7 @@ describe('semantic-index routes (degraded: service absent, aiDataDir present)', 
   let aiDataDir: string
 
   before(async () => {
-    const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+    const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
     aiDataDir = fs.mkdtempSync(path.join(baseDir, 'chatlab-si-route-'))
     app = Fastify()
     const ctx = {

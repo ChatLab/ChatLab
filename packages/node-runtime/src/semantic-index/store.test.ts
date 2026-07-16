@@ -8,7 +8,7 @@ import { EmbeddingIndexStore } from './store'
 import type { ChunkRecord } from './types'
 
 function makeTempDbPath(): string {
-  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+  const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
   const dir = fs.mkdtempSync(path.join(baseDir, 'chatlab-embidx-'))
   return path.join(dir, 'embedding_index.db')
 }

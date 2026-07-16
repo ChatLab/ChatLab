@@ -11,7 +11,7 @@ import { createChatDbMessageRangeReader } from './message-range-reader'
 import { createChatDbFtsSearcher, extractFtsKeywords } from './fts-searcher'
 
 function makeChatDb(): { db: BetterSqliteAdapter; dir: string } {
-  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+  const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
   const dir = fs.mkdtempSync(path.join(baseDir, 'chatlab-chatdb-'))
   const db = openBetterSqliteDatabase(path.join(dir, 'chat.db'))
   db.exec(CHAT_DB_SCHEMA)

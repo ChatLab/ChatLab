@@ -149,6 +149,7 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
 
   initAppLogger(pathProvider.getLogsDir())
   initServerAiLogger(pathProvider.getLogsDir())
+  appLogger.info('temp-workspace', 'Temporary workspace initialized', { root: pathProvider.getTempDir() })
   appLogger.info('server', `HTTP server starting on ${host}:${port}`)
   // 记录 Rust native parser 可用性（导入是否走 Rust 内核），便于按日志排查回退原因
   logNativeParserStatus()

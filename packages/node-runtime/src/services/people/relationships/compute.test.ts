@@ -51,7 +51,12 @@ interface SeedSession {
 }
 
 class TestEnv {
-  readonly dir = fs.mkdtempSync(path.join(fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir(), 'chatlab-rel-'))
+  readonly dir = fs.mkdtempSync(
+    path.join(
+      process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()),
+      'chatlab-rel-'
+    )
+  )
   readonly adapter: SessionRuntimeAdapter
   private dbPaths = new Map<string, string>()
   private openDbs: DatabaseAdapter[] = []

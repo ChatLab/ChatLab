@@ -1,15 +1,10 @@
-import * as os from 'node:os'
-import * as path from 'node:path'
-import * as fs from 'node:fs'
 import { ArchiveImportSourceManager } from '@openchatlab/node-runtime/import/archive/source-manager'
 
 let sourceManager: ArchiveImportSourceManager | null = null
 
 export function getArchiveImportSourceManager(): ArchiveImportSourceManager {
   if (!sourceManager) {
-    sourceManager = new ArchiveImportSourceManager({
-      tempRoot: fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-desktop-import-sources-')),
-    })
+    sourceManager = new ArchiveImportSourceManager()
   }
   return sourceManager
 }

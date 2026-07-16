@@ -2,7 +2,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import test from 'node:test'
+import test, { type TestContext } from 'node:test'
 import { CHAT_DB_SCHEMA, FTS_TABLE_SCHEMA } from '@openchatlab/core'
 import { openBetterSqliteDatabase } from '../better-sqlite3-adapter'
 import { buildFtsIndex } from '../fts'
@@ -20,21 +20,82 @@ import type { SessionRuntimeAdapter } from '../services/adapters'
 import type { FeatureExtractFn, LocalPipelineFactory } from './embedding/local'
 
 const SESSION_ID = 'sess1'
+const SERVICE_TEMP_DIR_PREFIX = 'chatlab-si-svc-'
 // 真实秒级基准时间（2023-11-14），用于让证据 snippet 渲染出真实年份，
 // 暴露「毫秒被当作秒再 *1000」导致五位数年份（如 56150）的回归。
 const BASE_TS_SECONDS = 1_700_000_000
 
-function setup(opts?: {
+interface SetupOptions {
   embedDelayMs?: number
   failFirstPipelineCreation?: boolean
   failPipelineCreationForModelIds?: ReadonlySet<string>
   onEmbedBatchStarted?: () => void
   localPipelineFactory?: LocalPipelineFactory
-}) {
-  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
-  const dir = fs.mkdtempSync(path.join(baseDir, 'chatlab-si-svc-'))
+}
+
+interface ServiceFixture {
+  service: SemanticIndexService
+  chatDbPath: string
+  dir: string
+  db: ReturnType<typeof openBetterSqliteDatabase>
+  authProfiles: Map<string, { key: string }>
+  getEmbedCount: () => number
+  cleanup: ServiceFixtureCleanup
+}
+
+interface ServiceFixtureCleanup {
+  dir: string
+  service?: SemanticIndexService
+  db?: ReturnType<typeof openBetterSqliteDatabase>
+  disposePromise?: Promise<void>
+}
+
+function serviceTempBaseDir(): string {
+  return process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
+}
+
+function removeOwnedServiceTempDir(dir: string): void {
+  const baseDir = path.resolve(serviceTempBaseDir())
+  const resolvedDir = path.resolve(dir)
+  if (path.dirname(resolvedDir) !== baseDir || !path.basename(resolvedDir).startsWith(SERVICE_TEMP_DIR_PREFIX)) {
+    throw new Error(`Refusing to remove non-owned semantic-index test directory: ${resolvedDir}`)
+  }
+  fs.rmSync(resolvedDir, { recursive: true, force: true })
+}
+
+async function disposeFixture(cleanup: ServiceFixtureCleanup): Promise<void> {
+  if (cleanup.disposePromise) return cleanup.disposePromise
+  cleanup.disposePromise = (async () => {
+    try {
+      // Stop queued/running work first so SQLite files are no longer used when the directory is removed.
+      if (cleanup.service) {
+        cleanup.service.setConfig({ ...cleanup.service.getConfig(), enabled: false })
+        await cleanup.service.whenIdle()
+      }
+    } finally {
+      try {
+        cleanup.service?.close()
+      } finally {
+        try {
+          if (cleanup.db?.open) cleanup.db.close()
+        } finally {
+          removeOwnedServiceTempDir(cleanup.dir)
+        }
+      }
+    }
+  })()
+  return cleanup.disposePromise
+}
+
+function setup(t: TestContext, opts?: SetupOptions): ServiceFixture {
+  const baseDir = serviceTempBaseDir()
+  const dir = fs.mkdtempSync(path.join(baseDir, SERVICE_TEMP_DIR_PREFIX))
+  const cleanup: ServiceFixtureCleanup = { dir }
+  t.after(() => disposeFixture(cleanup))
+
   const chatDbPath = path.join(dir, `${SESSION_ID}.db`)
   const db = openBetterSqliteDatabase(chatDbPath)
+  cleanup.db = db
   db.exec(CHAT_DB_SCHEMA)
   db.exec(FTS_TABLE_SCHEMA)
   db.exec(`
@@ -103,10 +164,11 @@ function setup(opts?: {
       resolveApiKey: (_provider, authProfile) => (authProfile ? (authProfiles.get(authProfile)?.key ?? '') : ''),
     },
   })
+  cleanup.service = service
   // 默认配置不再预选模型；测试显式选择 Qwen3 本地模型，使建索引可执行
   service.setConfig({ version: 1, mode: 'local', local: { modelId: QWEN3_PROFILE.modelId }, api: null })
 
-  return { service, chatDbPath, dir, db, authProfiles, getEmbedCount: () => embedTextCount }
+  return { service, chatDbPath, dir, db, authProfiles, getEmbedCount: () => embedTextCount, cleanup }
 }
 
 async function enableAndBuild(service: SemanticIndexService): Promise<void> {
@@ -127,8 +189,71 @@ async function waitForModelStatus(
   assert.equal(service.getModelStatus(), expected)
 }
 
-test('explicit build indexes an enabled session to completion and reports status', async () => {
-  const { service, db } = setup()
+test('service fixture removes its owned temporary directory after successful teardown', async (t) => {
+  const fixture = setup(t)
+
+  assert.equal(fs.existsSync(fixture.dir), true)
+  await disposeFixture(fixture.cleanup)
+
+  assert.equal(fs.existsSync(fixture.dir), false)
+})
+
+test('service fixture removes its owned temporary directory when the test body throws', async (t) => {
+  const fixture = setup(t)
+
+  await assert.rejects(async () => {
+    try {
+      throw new Error('simulated test failure')
+    } finally {
+      await disposeFixture(fixture.cleanup)
+    }
+  }, /simulated test failure/)
+
+  assert.equal(fs.existsSync(fixture.dir), false)
+})
+
+test('service fixture stops active work before cleanup after a timeout', async (t) => {
+  const fixture = setup(t, { embedDelayMs: 50 })
+
+  await assert.rejects(async () => {
+    try {
+      fixture.service.enable(SESSION_ID)
+      fixture.service.build(SESSION_ID)
+      await Promise.race([
+        fixture.service.whenIdle(),
+        new Promise<never>((_resolve, reject) => {
+          setTimeout(() => reject(new Error('simulated timeout')), 1)
+        }),
+      ])
+    } finally {
+      await disposeFixture(fixture.cleanup)
+    }
+  }, /simulated timeout/)
+
+  assert.equal(fs.existsSync(fixture.dir), false)
+})
+
+test('parallel service fixtures only remove their own temporary directories', async (t) => {
+  const first = setup(t, { embedDelayMs: 10 })
+  const second = setup(t, { embedDelayMs: 10 })
+  assert.notEqual(first.dir, second.dir)
+
+  for (const fixture of [first, second]) {
+    fixture.service.enable(SESSION_ID)
+    fixture.service.build(SESSION_ID)
+  }
+  await Promise.all([first.service.whenIdle(), second.service.whenIdle()])
+
+  await disposeFixture(first.cleanup)
+  assert.equal(fs.existsSync(first.dir), false)
+  assert.equal(fs.existsSync(second.dir), true)
+
+  await disposeFixture(second.cleanup)
+  assert.equal(fs.existsSync(second.dir), false)
+})
+
+test('explicit build indexes an enabled session to completion and reports status', async (t) => {
+  const { service } = setup(t)
   await enableAndBuild(service)
 
   const status = service.status(SESSION_ID)!
@@ -138,12 +263,10 @@ test('explicit build indexes an enabled session to completion and reports status
   assert.equal(status.totalMessages, 40)
   assert.equal(status.needsRebuild, false)
   assert.ok(status.coverage > 0)
-  service.close()
-  db.close()
 })
 
-test('enable only marks a session enabled without starting a build', async () => {
-  const { service, db } = setup({ embedDelayMs: 25 })
+test('enable only marks a session enabled without starting a build', async (t) => {
+  const { service } = setup(t, { embedDelayMs: 25 })
 
   service.enable(SESSION_ID)
 
@@ -153,41 +276,34 @@ test('enable only marks a session enabled without starting a build', async () =>
   assert.equal(status.queued, false)
   assert.equal(status.running, false)
   assert.equal(status.chunkCount, 0)
-
-  service.close()
-  db.close()
 })
 
-test('search returns evidence blocks for an enabled completed index', async () => {
-  const { service, db } = setup()
+test('search returns evidence blocks for an enabled completed index', async (t) => {
+  const { service } = setup(t)
   await enableAndBuild(service)
 
   const result = await service.search(SESSION_ID, '项目排期')
   assert.equal(result.available, true)
   assert.ok(result.blocks.length > 0)
   assert.equal(result.partial, false)
-  service.close()
-  db.close()
 })
 
-test('successful warmup retry clears a previous local model preload error', async () => {
-  const { service, db } = setup({ failFirstPipelineCreation: true })
+test('successful warmup retry clears a previous local model preload error', async (t) => {
+  const { service } = setup(t, { failFirstPipelineCreation: true })
 
   await waitForModelStatus(service, 'error')
   await enableAndBuild(service)
 
   assert.equal(service.status(SESSION_ID)!.indexStatus, 'completed')
   assert.equal(service.getModelStatus(), 'ready')
-  service.close()
-  db.close()
 })
 
-test('stale local warmup completion does not mark current local model ready', async () => {
+test('stale local warmup completion does not mark current local model ready', async (t) => {
   let resolveFirstBatchStarted: () => void = () => {}
   const firstBatchStarted = new Promise<void>((resolve) => {
     resolveFirstBatchStarted = resolve
   })
-  const { service, db } = setup({
+  const { service } = setup(t, {
     embedDelayMs: 50,
     failPipelineCreationForModelIds: new Set([BGE_BASE_PROFILE.modelId]),
     onEmbedBatchStarted: resolveFirstBatchStarted,
@@ -202,11 +318,9 @@ test('stale local warmup completion does not mark current local model ready', as
   await service.whenIdle()
 
   assert.equal(service.getModelStatus(), 'error')
-  service.close()
-  db.close()
 })
 
-test('stale model preload failure does not overwrite the current download source status', async () => {
+test('stale model preload failure does not overwrite the current download source status', async (t) => {
   let resolveMirrorPreload: (extractor: FeatureExtractFn) => void = () => {}
   let rejectOfficialPreload: (reason?: unknown) => void = () => {}
   const officialPreload = new Promise<FeatureExtractFn>((_resolve, reject) => {
@@ -217,7 +331,7 @@ test('stale model preload failure does not overwrite the current download source
   })
   const localPipelineFactory: LocalPipelineFactory = ({ modelDownloadSource }) =>
     modelDownloadSource === 'hf-mirror' ? mirrorPreload : officialPreload
-  const { service, db } = setup({ localPipelineFactory })
+  const { service } = setup(t, { localPipelineFactory })
 
   service.setConfig({
     version: 1,
@@ -232,11 +346,9 @@ test('stale model preload failure does not overwrite the current download source
   await new Promise((resolve) => setImmediate(resolve))
 
   assert.equal(service.getModelStatus(), 'ready')
-  service.close()
-  db.close()
 })
 
-test('stale model preload success does not overwrite the current download source status', async () => {
+test('stale model preload success does not overwrite the current download source status', async (t) => {
   let resolveOfficialPreload: (extractor: FeatureExtractFn) => void = () => {}
   let rejectMirrorPreload: (reason?: unknown) => void = () => {}
   const officialPreload = new Promise<FeatureExtractFn>((resolve) => {
@@ -247,7 +359,7 @@ test('stale model preload success does not overwrite the current download source
   })
   const localPipelineFactory: LocalPipelineFactory = ({ modelDownloadSource }) =>
     modelDownloadSource === 'hf-mirror' ? mirrorPreload : officialPreload
-  const { service, db } = setup({ localPipelineFactory })
+  const { service } = setup(t, { localPipelineFactory })
 
   service.setConfig({
     version: 1,
@@ -262,12 +374,10 @@ test('stale model preload success does not overwrite the current download source
   await new Promise((resolve) => setImmediate(resolve))
 
   assert.equal(service.getModelStatus(), 'error')
-  service.close()
-  db.close()
 })
 
-test('changing model identity marks needsRebuild and blocks search until rebuilt', async () => {
-  const { service, db } = setup()
+test('changing model identity marks needsRebuild and blocks search until rebuilt', async (t) => {
+  const { service } = setup(t)
   await enableAndBuild(service)
 
   // 切换到不同模型身份（改用 API）-> 身份变化 -> 需重建
@@ -290,12 +400,10 @@ test('changing model identity marks needsRebuild and blocks search until rebuilt
   assert.equal(service.status(SESSION_ID)!.needsRebuild, false)
   const restored = await service.search(SESSION_ID, '项目排期')
   assert.equal(restored.available, true)
-  service.close()
-  db.close()
 })
 
-test('changing chunker identity marks needsRebuild and blocks search until rebuilt', async () => {
-  const { service, dir, db } = setup()
+test('changing chunker identity marks needsRebuild and blocks search until rebuilt', async (t) => {
+  const { service, dir } = setup(t)
   await enableAndBuild(service)
   assert.equal(service.status(SESSION_ID)!.needsRebuild, false)
   assert.equal(service.canSearch(SESSION_ID), true)
@@ -319,12 +427,10 @@ test('changing chunker identity marks needsRebuild and blocks search until rebui
   assert.equal(service.status(SESSION_ID)!.needsRebuild, false)
   const restored = await service.search(SESSION_ID, '项目排期')
   assert.equal(restored.available, true)
-  service.close()
-  db.close()
 })
 
-test('buildAllPending rebuilds a stale index back to searchable', async () => {
-  const { service, dir, db, getEmbedCount } = setup()
+test('buildAllPending rebuilds a stale index back to searchable', async (t) => {
+  const { service, dir, getEmbedCount } = setup(t)
   await enableAndBuild(service)
   const afterFirstBuild = getEmbedCount()
   assert.ok(afterFirstBuild > 0)
@@ -346,12 +452,10 @@ test('buildAllPending rebuilds a stale index back to searchable', async () => {
   assert.equal(service.canSearch(SESSION_ID), true)
   const result = await service.search(SESSION_ID, '项目排期')
   assert.equal(result.available, true)
-  service.close()
-  db.close()
 })
 
-test('re-enabling a stale index keeps it pending until explicit rebuild', async () => {
-  const { service, dir, db, getEmbedCount } = setup()
+test('re-enabling a stale index keeps it pending until explicit rebuild', async (t) => {
+  const { service, dir, getEmbedCount } = setup(t)
   await enableAndBuild(service)
   const afterFirstBuild = getEmbedCount()
 
@@ -374,12 +478,10 @@ test('re-enabling a stale index keeps it pending until explicit rebuild', async 
   assert.ok(getEmbedCount() > afterFirstBuild, 'explicit pending rebuild should re-embed chunks')
   assert.equal(service.status(SESSION_ID)!.needsRebuild, false)
   assert.equal(service.canSearch(SESSION_ID), true)
-  service.close()
-  db.close()
 })
 
-test('remove clears index immediately and blocks search', async () => {
-  const { service, db } = setup()
+test('remove clears index immediately and blocks search', async (t) => {
+  const { service } = setup(t)
   await enableAndBuild(service)
 
   service.remove(SESSION_ID)
@@ -388,12 +490,10 @@ test('remove clears index immediately and blocks search', async () => {
   const blocked = await service.search(SESSION_ID, '排期')
   assert.equal(blocked.available, false)
   // cleanupUnused not needed; remove() is already immediate
-  service.close()
-  db.close()
 })
 
-test('re-enabling after remove rebuilds from scratch', async () => {
-  const { service, db, getEmbedCount } = setup()
+test('re-enabling after remove rebuilds from scratch', async (t) => {
+  const { service, getEmbedCount } = setup(t)
   await enableAndBuild(service)
   const afterFirstBuild = getEmbedCount()
 
@@ -406,12 +506,10 @@ test('re-enabling after remove rebuilds from scratch', async () => {
   assert.equal(service.canSearch(SESSION_ID), true)
   const result = await service.search(SESSION_ID, '项目排期')
   assert.equal(result.available, true)
-  service.close()
-  db.close()
 })
 
-test('rebuild wipes and rebuilds the index', async () => {
-  const { service, db } = setup()
+test('rebuild wipes and rebuilds the index', async (t) => {
+  const { service } = setup(t)
   await enableAndBuild(service)
   const before = service.status(SESSION_ID)!.chunkCount
 
@@ -420,12 +518,10 @@ test('rebuild wipes and rebuilds the index', async () => {
   const after = service.status(SESSION_ID)!
   assert.equal(after.indexStatus, 'completed')
   assert.equal(after.chunkCount, before)
-  service.close()
-  db.close()
 })
 
-test('setConfig stores API key by reference only and hasApiKey reflects it', async () => {
-  const { service, authProfiles, db } = setup()
+test('setConfig stores API key by reference only and hasApiKey reflects it', async (t) => {
+  const { service, authProfiles } = setup(t)
 
   assert.equal(service.hasApiKey(), false)
 
@@ -440,12 +536,10 @@ test('setConfig stores API key by reference only and hasApiKey reflects it', asy
   // 明文写入 auth profile 存储
   assert.equal(authProfiles.get('semantic-index-embedding')?.key, 'sk-secret-123')
   assert.equal(service.hasApiKey(), true)
-  service.close()
-  db.close()
 })
 
-test('keyless local Ollama API config can run without an auth profile', async () => {
-  const { service, db } = setup()
+test('keyless local Ollama API config can run without an auth profile', async (t) => {
+  const { service } = setup(t)
 
   service.setConfig({
     version: 1,
@@ -457,12 +551,10 @@ test('keyless local Ollama API config can run without an auth profile', async ()
   assert.equal(service.hasApiKey(), false)
   assert.equal(service.isConfigured(), true)
   assert.equal(service.canRun(), true)
-  service.close()
-  db.close()
 })
 
-test('canSearch reflects availability: disabled/needs-rebuild/empty are false', async () => {
-  const { service, db } = setup()
+test('canSearch reflects availability: disabled/needs-rebuild/empty are false', async (t) => {
+  const { service } = setup(t)
 
   // 未启用
   assert.equal(service.canSearch(SESSION_ID), false)
@@ -494,12 +586,10 @@ test('canSearch reflects availability: disabled/needs-rebuild/empty are false', 
     searchMaxResults: 5,
   })
   assert.equal(service.canSearch(SESSION_ID), true)
-  service.close()
-  db.close()
 })
 
-test('searchForTool desensitizes + anonymizes via pipeline, never leaks raw', async () => {
-  const { service, db } = setup()
+test('searchForTool desensitizes + anonymizes via pipeline, never leaks raw', async (t) => {
+  const { service } = setup(t)
   await enableAndBuild(service)
 
   const result = await service.searchForTool(SESSION_ID, '项目排期', {
@@ -552,13 +642,10 @@ test('searchForTool desensitizes + anonymizes via pipeline, never leaks raw', as
   const fiveDigitYear = /\b\d{5}\/\d{1,2}\/\d{1,2}/
   assert.equal(fiveDigitYear.test(result.text), false)
   assert.ok(result.text.includes('2023/'))
-
-  service.close()
-  db.close()
 })
 
-test('disabling the global switch blocks search and re-enabling keeps data usable', async () => {
-  const { service, db } = setup()
+test('disabling the global switch blocks search and re-enabling keeps data usable', async (t) => {
+  const { service } = setup(t)
   await enableAndBuild(service)
   assert.equal(service.canSearch(SESSION_ID), true)
 
@@ -573,12 +660,10 @@ test('disabling the global switch blocks search and re-enabling keeps data usabl
   // 重新开启后可直接使用保留的索引
   service.setConfig({ version: 1, enabled: true, mode: 'local', local: { modelId: QWEN3_PROFILE.modelId }, api: null })
   assert.equal(service.canSearch(SESSION_ID), true)
-  service.close()
-  db.close()
 })
 
-test('searchForTool is unavailable when disabled or empty query', async () => {
-  const { service, db } = setup()
+test('searchForTool is unavailable when disabled or empty query', async (t) => {
+  const { service } = setup(t)
 
   const disabled = await service.searchForTool(SESSION_ID, '项目排期')
   assert.equal(disabled.available, false)
@@ -588,12 +673,10 @@ test('searchForTool is unavailable when disabled or empty query', async () => {
   const empty = await service.searchForTool(SESSION_ID, '   ')
   assert.equal(empty.available, false)
   assert.equal(empty.reason, 'empty-query')
-  service.close()
-  db.close()
 })
 
-test('searchForTool uses configured default max results when caller omits it', async () => {
-  const { service, db } = setup()
+test('searchForTool uses configured default max results when caller omits it', async (t) => {
+  const { service } = setup(t)
   await enableAndBuild(service)
   service.setConfig({
     version: 1,
@@ -606,12 +689,10 @@ test('searchForTool uses configured default max results when caller omits it', a
   const result = await service.searchForTool(SESSION_ID, '项目排期')
   assert.equal(result.available, true)
   assert.ok(result.returned <= 5)
-  service.close()
-  db.close()
 })
 
-test('searchForTool honors maxResultTokens as evidence budget ceiling', async () => {
-  const { service, db } = setup()
+test('searchForTool honors maxResultTokens as evidence budget ceiling', async (t) => {
+  const { service } = setup(t)
   await enableAndBuild(service)
 
   const tiny = await service.searchForTool(SESSION_ID, '项目排期', { maxResults: 10, maxResultTokens: 10 })
@@ -622,12 +703,10 @@ test('searchForTool honors maxResultTokens as evidence budget ceiling', async ()
   // 小预算必须显著截断证据文本，证明 maxResultTokens 被服务层消费
   assert.ok(tiny.text.length < big.text.length)
   assert.ok(tiny.returned <= big.returned)
-  service.close()
-  db.close()
 })
 
-test('searchForTool applies timeFilter to exclude out-of-range chunks', async () => {
-  const { service, db } = setup()
+test('searchForTool applies timeFilter to exclude out-of-range chunks', async (t) => {
+  const { service } = setup(t)
   await enableAndBuild(service)
 
   // 不带时间过滤：应有命中
@@ -643,12 +722,10 @@ test('searchForTool applies timeFilter to exclude out-of-range chunks', async ()
   })
   assert.equal(future.sources.length, 0)
   assert.equal(future.returned, 0)
-  service.close()
-  db.close()
 })
 
 function tempPersistStore(prefix: string): SemanticIndexConfigStore {
-  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+  const baseDir = serviceTempBaseDir()
   const dir = fs.mkdtempSync(path.join(baseDir, prefix))
   return new SemanticIndexConfigStore(path.join(dir, 'ai', 'semantic-index-config.json'))
 }
@@ -690,8 +767,8 @@ test('persistSemanticIndexConfig ignores apiKey in local mode (no auth profile w
   assert.equal(resolveSemanticIndexApiKeySet(saved), false)
 })
 
-test('recover marks stale running as paused without auto-resuming', async () => {
-  const { service, dir, db } = setup()
+test('recover marks stale running as paused without auto-resuming', async (t) => {
+  const { service, dir } = setup(t)
   await enableAndBuild(service)
 
   // 模拟崩溃：另一连接把状态置为 running
@@ -701,6 +778,4 @@ test('recover marks stale running as paused without auto-resuming', async () => 
 
   service.recover()
   assert.equal(service.status(SESSION_ID)!.indexStatus, 'paused')
-  service.close()
-  db.close()
 })

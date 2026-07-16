@@ -15,7 +15,7 @@ const DB_HASH = 'dbA'
 const MODEL = 'fake'
 
 function makeTempDir(): string {
-  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+  const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
   return fs.mkdtempSync(path.join(baseDir, 'chatlab-warmup-'))
 }
 

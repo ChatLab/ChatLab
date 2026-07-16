@@ -7,19 +7,22 @@
  */
 
 import * as fs from 'fs'
-import * as os from 'os'
 import * as path from 'path'
 import * as crypto from 'crypto'
 import type { HttpFetcher, DataImporter, SyncNotifier, ImportResult, FetchParams, SyncLogger } from '@openchatlab/sync'
 import { NOOP_LOGGER } from '@openchatlab/sync'
 import { buildPullUrl } from '@openchatlab/sync'
 import type { DatabaseManager } from '@openchatlab/node-runtime'
-import { DataDirCompatibilityError, IMPORT_IN_PROGRESS_ERROR_KEY } from '@openchatlab/node-runtime'
+import {
+  DataDirCompatibilityError,
+  getChatLabTempScopeDir,
+  IMPORT_IN_PROGRESS_ERROR_KEY,
+} from '@openchatlab/node-runtime'
 import { streamImport, incrementalImport } from '../import/stream-import'
 
 function getTempFilePath(ext: string): string {
   const id = crypto.randomBytes(8).toString('hex')
-  return path.join(os.tmpdir(), `chatlab-pull-${id}${ext}`)
+  return path.join(getChatLabTempScopeDir('sync'), `pull-${id}${ext}`)
 }
 
 // ==================== NodeFetcher ====================

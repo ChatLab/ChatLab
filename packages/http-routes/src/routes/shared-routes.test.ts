@@ -22,6 +22,7 @@ import { registerAutomationRoutes } from './web/automation'
 import { registerSessionRoutes } from './web/sessions'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
+const testSystemDir = path.join(process.env.CHATLAB_TEST_TMPDIR ?? os.tmpdir(), `chatlab-shared-routes-${process.pid}`)
 
 class SqlitePreparedStatement implements PreparedStatement {
   readonly?: boolean
@@ -131,16 +132,16 @@ function createSessionDb(): TestSqliteDb {
 
 function createTestContext(dbs: Map<string, DatabaseAdapter> = new Map()): HttpRouteContext {
   const pathProvider: PathProvider = {
-    getSystemDir: () => '/tmp/chatlab-test',
-    getUserDataDir: () => '/tmp/chatlab-test/data',
-    getDatabaseDir: () => '/tmp/chatlab-test/databases',
-    getVectorDir: () => '/tmp/chatlab-test/vector',
-    getAiDataDir: () => '/tmp/chatlab-test/ai',
-    getSettingsDir: () => '/tmp/chatlab-test/settings',
-    getCacheDir: () => '/tmp/chatlab-test/cache',
-    getTempDir: () => '/tmp/chatlab-test/temp',
-    getLogsDir: () => '/tmp/chatlab-test/logs',
-    getDownloadsDir: () => '/tmp/chatlab-test/downloads',
+    getSystemDir: () => testSystemDir,
+    getUserDataDir: () => path.join(testSystemDir, 'data'),
+    getDatabaseDir: () => path.join(testSystemDir, 'databases'),
+    getVectorDir: () => path.join(testSystemDir, 'vector'),
+    getAiDataDir: () => path.join(testSystemDir, 'ai'),
+    getSettingsDir: () => path.join(testSystemDir, 'settings'),
+    getCacheDir: () => path.join(testSystemDir, 'cache'),
+    getTempDir: () => path.join(testSystemDir, 'temp'),
+    getLogsDir: () => path.join(testSystemDir, 'logs'),
+    getDownloadsDir: () => path.join(testSystemDir, 'downloads'),
   }
 
   const dbManager = {
@@ -184,7 +185,11 @@ describe('registerSharedRoutes smoke tests', () => {
   })
 
   after(async () => {
-    await app.close()
+    try {
+      await app.close()
+    } finally {
+      fs.rmSync(testSystemDir, { recursive: true, force: true })
+    }
   })
 
   it('GET /api/v1/status returns 200 with version', async () => {
@@ -426,7 +431,7 @@ describe('registerSharedRoutes smoke tests', () => {
 
   it('POST /_web/ai/logs/show does not open files for remote web clients', async () => {
     const ctx = createTestContext()
-    ctx.getCurrentAiLogPath = () => '/tmp/chatlab-test/logs/ai/ai_current.log'
+    ctx.getCurrentAiLogPath = () => path.join(testSystemDir, 'logs', 'ai', 'ai_current.log')
     let didOpen = false
     ctx.showInFolder = async () => {
       didOpen = true

@@ -6,6 +6,15 @@
  */
 
 export { BetterSqliteAdapter, openBetterSqliteDatabase } from './better-sqlite3-adapter'
+export {
+  CHATLAB_TEMP_ROOT_ENV,
+  createChatLabTempDir,
+  ensureChatLabTempRoot,
+  getChatLabTempScopeDir,
+  removeChatLabTempDir,
+  resolveChatLabTempRoot,
+} from './temp-workspace'
+export type { ChatLabTempRootOptions, ChatLabTempScope } from './temp-workspace'
 
 // Import data writing + perf logging + streaming importer + incremental importer
 export {

@@ -28,7 +28,11 @@ const PREPROCESS_THRESHOLD = 50 * 1024 * 1024
  * 获取临时目录
  */
 function getTempDir(): string {
-  return path.join(os.tmpdir(), 'chatlab')
+  const configuredRoot = process.env.CHATLAB_TEMP_ROOT?.trim()
+  const root = configuredRoot
+    ? path.resolve(configuredRoot)
+    : path.resolve(process.platform === 'darwin' ? '/private/tmp/chatlab' : path.join(os.tmpdir(), 'chatlab'))
+  return path.join(root, 'parser')
 }
 
 /**
@@ -36,7 +40,7 @@ function getTempDir(): string {
  */
 function ensureDir(dir: string): void {
   if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true })
+    fs.mkdirSync(dir, { recursive: true, mode: 0o700 })
   }
 }
 
@@ -355,7 +359,7 @@ async function preprocessQQJson(inputPath: string, onProgress?: (progress: Parse
  */
 function cleanupTempFile(filePath: string): void {
   try {
-    if (fs.existsSync(filePath) && filePath.includes(getTempDir())) {
+    if (fs.existsSync(filePath) && path.dirname(path.resolve(filePath)) === path.resolve(getTempDir())) {
       fs.unlinkSync(filePath)
     }
   } catch {

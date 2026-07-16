@@ -7,6 +7,7 @@ import * as fs from 'node:fs'
 import * as os from 'node:os'
 import * as path from 'node:path'
 import { loadConfig, writeConfigField } from '@openchatlab/config'
+import { getChatLabTempScopeDir } from '@openchatlab/node-runtime/temp-workspace'
 import { ensureMarkerFile } from '../utils/pathUtils'
 
 let _systemDataDir: string | null = null
@@ -104,7 +105,7 @@ export function getCacheDir(): string {
 }
 
 export function getTempDir(): string {
-  return path.join(getSystemDataDir(), 'temp')
+  return getChatLabTempScopeDir('runtime')
 }
 
 export function getLogsDir(): string {

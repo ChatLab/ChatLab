@@ -6,20 +6,13 @@
 import type Database from 'better-sqlite3'
 import * as fs from 'fs'
 import * as path from 'path'
+import { getChatLabTempScopeDir } from '@openchatlab/node-runtime/temp-workspace'
 // 直接从 dbCore 导入：core/index 会连带 perfLogger → @openchatlab/node-runtime，
 // 而本模块被纯 Node 单测导入，需保持依赖面最小。
 import { openRawDatabase } from '../core/dbCore'
 
-// 在 Worker 线程中，无法直接使用 electron 的 app 模块
-// 需要通过其他方式获取临时目录
 function getTempDir(): string {
-  // 在 worker 中，使用系统临时目录
-  const tmpDir = process.env.TMPDIR || process.env.TMP || '/tmp'
-  const chatLabTmp = path.join(tmpDir, 'chatlab-temp')
-  if (!fs.existsSync(chatLabTmp)) {
-    fs.mkdirSync(chatLabTmp, { recursive: true })
-  }
-  return chatLabTmp
+  return getChatLabTempScopeDir('merge')
 }
 
 /**

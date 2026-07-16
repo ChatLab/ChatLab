@@ -13,11 +13,11 @@
  */
 
 import { createRequire } from 'node:module'
-import { existsSync, mkdirSync, mkdtempSync, rmSync, copyFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { existsSync, mkdirSync, rmSync, copyFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
+import { createChatLabTempDir } from '../../../scripts/chatlab-temp.mjs'
 
 const currentFile = fileURLToPath(import.meta.url)
 const desktopDir = dirname(dirname(currentFile))
@@ -67,7 +67,7 @@ function rebuild(electronVersion) {
   const sqliteVersion = desktopRequire('better-sqlite3/package.json').version
   log(`Fetching better-sqlite3@${sqliteVersion} for Electron ${electronVersion}...`)
 
-  const tempDir = mkdtempSync(join(tmpdir(), 'chatlab-desktop-native-'))
+  const tempDir = createChatLabTempDir('build', 'desktop-native-')
   try {
     const installOk = run(
       'npm',

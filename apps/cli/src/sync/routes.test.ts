@@ -8,7 +8,7 @@ import { DataSourceManager } from '@openchatlab/sync'
 import { registerAutomationRoutes, type AutomationRouteContext } from '@openchatlab/http-routes'
 
 function makeTempDir(): string {
-  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+  const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
   return fs.mkdtempSync(path.join(baseDir, 'chatlab-sync-routes-'))
 }
 

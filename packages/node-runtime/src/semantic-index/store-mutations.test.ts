@@ -8,7 +8,7 @@ import { STRATEGY_ID } from './chunker-config'
 import type { ChunkRecord } from './types'
 
 function makeStore() {
-  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+  const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
   const dir = fs.mkdtempSync(path.join(baseDir, 'chatlab-store-mut-'))
   return new EmbeddingIndexStore(path.join(dir, 'embedding_index.db'))
 }

@@ -7,6 +7,7 @@ import { describe, it } from 'node:test'
 import { ArchiveImportError } from './errors'
 import { ArchiveImportSourceManager } from './source-manager'
 import { writeZipFixture } from './test-utils'
+import { resolveChatLabTempRoot } from '../../temp-workspace'
 
 function createMinimalTakeout(zipPath: string): void {
   writeZipFixture(zipPath, [
@@ -33,6 +34,28 @@ function createMinimalTakeout(zipPath: string): void {
 }
 
 describe('ArchiveImportSourceManager', () => {
+  it('uses the centralized imports scope by default and removes its owned root on close', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'chatlab-source-default-root-'))
+    try {
+      const zipPath = join(dir, 'takeout.zip')
+      createMinimalTakeout(zipPath)
+      const manager = new ArchiveImportSourceManager()
+      const source = await manager.prepareLocalArchive(zipPath)
+      let managerRoot = ''
+
+      await manager.withMaterializedChat(source.sourceId, 'Groups/DM sample', async (manifestPath) => {
+        managerRoot = dirname(dirname(manifestPath))
+        assert.equal(dirname(managerRoot), join(resolveChatLabTempRoot(), 'imports'))
+      })
+
+      assert.equal(existsSync(managerRoot), true)
+      await manager.close()
+      assert.equal(existsSync(managerRoot), false)
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
+  })
+
   it('keeps local archives and deletes owned archives on release', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'chatlab-source-ownership-'))
     try {

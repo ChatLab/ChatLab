@@ -2,9 +2,10 @@
  * Demo 示例数据下载与导入 IPC 处理器
  */
 
-import { ipcMain, app } from 'electron'
+import { ipcMain } from 'electron'
 import * as fs from 'fs'
 import * as path from 'path'
+import { createChatLabTempDir } from '@openchatlab/node-runtime/temp-workspace'
 import * as worker from '../worker/workerManager'
 import type { IpcContext } from './types'
 
@@ -19,9 +20,7 @@ interface DemoProgress {
 }
 
 function getDemoTempDir(): string {
-  const tempDir = path.join(app.getPath('userData'), 'temp', 'demo')
-  fs.mkdirSync(tempDir, { recursive: true })
-  return tempDir
+  return createChatLabTempDir('imports', 'desktop-demo-')
 }
 
 async function downloadFile(url: string, destPath: string): Promise<void> {
@@ -42,12 +41,7 @@ async function downloadFile(url: string, destPath: string): Promise<void> {
 
 function cleanupDemoTemp(tempDir: string): void {
   try {
-    if (fs.existsSync(tempDir)) {
-      for (const file of fs.readdirSync(tempDir)) {
-        fs.unlinkSync(path.join(tempDir, file))
-      }
-      fs.rmdirSync(tempDir)
-    }
+    fs.rmSync(tempDir, { recursive: true, force: true })
   } catch {
     // best-effort cleanup
   }

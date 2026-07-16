@@ -5,6 +5,7 @@ import { ZipArchiveReader } from './archive-reader'
 import { ArchiveImportError } from './errors'
 import { GoogleChatTakeoutResolver } from './google-chat-resolver'
 import type { ArchiveResolver, PreparedImportSource } from './types'
+import { createChatLabTempDir } from '../../temp-workspace'
 
 const DEFAULT_TTL_MS = 30 * 60 * 1000
 
@@ -32,7 +33,7 @@ export class ArchiveImportSourceManager {
   private readonly resolvers: ArchiveResolver[]
 
   constructor(options: ArchiveImportSourceManagerOptions = {}) {
-    this.tempRoot = options.tempRoot ?? path.join(process.cwd(), '.chatlab-import-sources')
+    this.tempRoot = options.tempRoot ?? createChatLabTempDir('imports', 'sources-')
     this.ttlMs = options.ttlMs ?? DEFAULT_TTL_MS
     this.now = options.now ?? Date.now
     this.resolvers = options.resolvers ?? [new GoogleChatTakeoutResolver()]

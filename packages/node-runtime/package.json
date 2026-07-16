@@ -10,6 +10,7 @@
     ".": "./src/index.ts",
     "./data-dir-compat": "./src/data-dir-compat.ts",
     "./data-dir-switch": "./src/data-dir-switch.ts",
+    "./temp-workspace": "./src/temp-workspace.ts",
     "./import/archive/source-manager": "./src/import/archive/source-manager.ts",
     "./src/*": "./src/*.ts"
   },

@@ -7,7 +7,7 @@ import type { PathProvider } from '@openchatlab/core'
 import { assertDesktopDataDirCompatible, resolveDesktopAppVersion } from './compat'
 
 function makeTempDir(): string {
-  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+  const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
   return fs.mkdtempSync(path.join(baseDir, 'chatlab-desktop-compat-'))
 }
 

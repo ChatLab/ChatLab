@@ -1,9 +1,10 @@
 #!/usr/bin/env node
 
-import { readdirSync, statSync } from 'node:fs'
-import { join, relative, sep } from 'node:path'
+import { mkdtempSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { basename, dirname, join, relative, resolve, sep } from 'node:path'
 import { spawnSync } from 'node:child_process'
 import { fileURLToPath } from 'node:url'
+import { CHATLAB_TEMP_ROOT_ENV, getChatLabTempScopeDir } from './chatlab-temp.mjs'
 
 const SKIP_DIRS = new Set([
   '.git',
@@ -19,6 +20,8 @@ const SKIP_DIRS = new Set([
 
 const TEST_FILE_RE = /\.(?:test|spec)\.(?:ts|tsx|js|jsx|mjs|mts|cjs|cts)$/
 const SUPPORTED_NODE_MAJOR = 24
+const TEST_RUN_TEMP_PREFIX = 'run-'
+export const TEST_RUN_TEMP_ENV = 'CHATLAB_TEST_TMPDIR'
 
 function normalizePath(filePath) {
   return filePath.split(sep).join('/')
@@ -74,6 +77,24 @@ export function checkSupportedNodeVersion(version = process.versions.node) {
   }
 }
 
+export function buildTestEnvironment(tempRoot, env = process.env) {
+  return { ...env, TMPDIR: tempRoot, [TEST_RUN_TEMP_ENV]: tempRoot, [CHATLAB_TEMP_ROOT_ENV]: tempRoot }
+}
+
+export function withTestRunTempRoot(callback, parentDir = getChatLabTempScopeDir('tests')) {
+  const resolvedParent = resolve(parentDir)
+  const tempRoot = mkdtempSync(join(resolvedParent, TEST_RUN_TEMP_PREFIX))
+  const resolvedRoot = resolve(tempRoot)
+  if (dirname(resolvedRoot) !== resolvedParent || !basename(resolvedRoot).startsWith(TEST_RUN_TEMP_PREFIX)) {
+    throw new Error(`Refusing to use non-owned test run temp root: ${resolvedRoot}`)
+  }
+  try {
+    return callback(tempRoot)
+  } finally {
+    rmSync(resolvedRoot, { recursive: true, force: true })
+  }
+}
+
 function run() {
   const nodeVersion = checkSupportedNodeVersion()
   if (!nodeVersion.ok) {
@@ -93,9 +114,12 @@ function run() {
     console.log(`Running ${testArgs.length} default test files.`)
   }
 
-  const result = spawnSync(process.execPath, buildNodeTestArgs(testArgs), {
-    stdio: 'inherit',
-  })
+  const result = withTestRunTempRoot((tempRoot) =>
+    spawnSync(process.execPath, buildNodeTestArgs(testArgs), {
+      stdio: 'inherit',
+      env: buildTestEnvironment(tempRoot),
+    })
+  )
 
   if (result.error) {
     throw result.error

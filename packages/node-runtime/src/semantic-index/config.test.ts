@@ -12,7 +12,7 @@ import {
 } from './config'
 
 function tempConfigPath(): string {
-  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+  const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
   const dir = fs.mkdtempSync(path.join(baseDir, 'chatlab-si-config-'))
   return path.join(dir, 'ai', 'semantic-index-config.json')
 }

@@ -60,7 +60,7 @@ describe('withAnalyticsCache', () => {
   }
 
   beforeEach(() => {
-    const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+    const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
     root = fs.mkdtempSync(path.join(baseDir, 'chatlab-analytics-cache-'))
     dbPath = path.join(root, 'session.db')
     fs.writeFileSync(dbPath, 'db-v1')

@@ -7,7 +7,6 @@
  */
 
 import * as fs from 'fs'
-import * as os from 'os'
 import * as path from 'path'
 import type { FastifyInstance } from 'fastify'
 import type { MergeRouteContext } from '../../context/merge'
@@ -20,6 +19,7 @@ import {
   exportSessionToJson,
   TempDbReader,
   TempDbWriter,
+  createChatLabTempDir,
 } from '@openchatlab/node-runtime'
 import type { MergerDataSource } from '@openchatlab/node-runtime'
 import { sessionNotFound } from '../../errors'
@@ -48,7 +48,7 @@ export function registerMergeRoutes(server: FastifyInstance, ctx: MergeRoutesCon
       const data = await (request as any).file()
       if (!data) return reply.code(400).send({ error: 'No file uploaded' })
 
-      const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-merge-'))
+      const tmpDir = createChatLabTempDir('merge', 'upload-')
       const tmpPath = path.join(tmpDir, data.filename || 'upload')
       const chunks: Buffer[] = []
       for await (const chunk of data.file) {
@@ -159,7 +159,7 @@ export function registerMergeRoutes(server: FastifyInstance, ctx: MergeRoutesCon
           return reply.code(501).send({ error: 'Import not available on this server' })
         }
         const jsonData = JSON.stringify(merged.chatLabData)
-        const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-merged-'))
+        const tmpDir = createChatLabTempDir('merge', 'import-')
         const safeName = path.basename(outputName).replace(/[/\\?%*:|"<>]/g, '_') || 'merged'
         const tmpPath = path.join(tmpDir, `${safeName}.json`)
         fs.writeFileSync(tmpPath, jsonData, 'utf-8')

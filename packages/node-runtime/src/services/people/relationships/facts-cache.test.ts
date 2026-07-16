@@ -17,7 +17,12 @@ import {
 } from './facts-cache'
 
 function makeTempDir(): string {
-  return fs.mkdtempSync(path.join(fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir(), 'chatlab-rel-cache-'))
+  return fs.mkdtempSync(
+    path.join(
+      process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()),
+      'chatlab-rel-cache-'
+    )
+  )
 }
 
 const range1y: ContactsTimeRangeState = {

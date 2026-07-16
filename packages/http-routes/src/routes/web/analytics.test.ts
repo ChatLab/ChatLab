@@ -68,7 +68,7 @@ describe('analytics routes caching', () => {
   let app: FastifyInstance
 
   beforeEach(async () => {
-    const base = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+    const base = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
     root = fs.mkdtempSync(path.join(base, 'chatlab-analytics-routes-'))
     dbFile = path.join(root, `${SESSION_ID}.db`)
     raw = new Database(dbFile, { nativeBinding })

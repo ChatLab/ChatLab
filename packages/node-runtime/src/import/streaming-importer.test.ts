@@ -11,7 +11,7 @@ import { analyzeNewImport, streamingImport } from './streaming-importer'
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
 function makeTempDir(): string {
-  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+  const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
   return fs.mkdtempSync(path.join(baseDir, 'chatlab-streaming-import-'))
 }
 

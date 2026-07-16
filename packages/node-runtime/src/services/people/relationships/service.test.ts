@@ -18,7 +18,12 @@ import { PEOPLE_RELATIONSHIPS_ALGORITHM_VERSION, type PeopleRelationshipsSnapsho
 import { createPeopleRelationshipsService } from './service'
 
 function makeTempDir(): string {
-  return fs.mkdtempSync(path.join(fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir(), 'chatlab-rel-service-'))
+  return fs.mkdtempSync(
+    path.join(
+      process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()),
+      'chatlab-rel-service-'
+    )
+  )
 }
 
 function makePathProvider(rootDir: string): PathProvider {

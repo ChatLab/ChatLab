@@ -1,4 +1,4 @@
-import { describe, it } from 'node:test'
+import { after, describe, it, type TestContext } from 'node:test'
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
@@ -9,25 +9,36 @@ import { registerCacheRoutes } from './cache'
 
 type CacheRouteContext = Parameters<typeof registerCacheRoutes>[1]
 
+const testSystemDir = fs.mkdtempSync(
+  path.join(process.env.CHATLAB_TEST_TMPDIR ?? os.tmpdir(), 'chatlab-cache-routes-suite-')
+)
+const testUserDataDir = path.join(testSystemDir, 'data')
+const testDefaultDataDir = path.join(testSystemDir, 'default-data')
+const testNewDataDir = path.join(testSystemDir, 'new-data')
+
+after(() => fs.rmSync(testSystemDir, { recursive: true, force: true }))
+
 function createPathProvider(overrides: Partial<PathProvider> = {}): PathProvider {
   return {
-    getSystemDir: () => '/tmp/chatlab-test',
-    getUserDataDir: () => '/tmp/chatlab-test/data',
-    getDatabaseDir: () => '/tmp/chatlab-test/databases',
-    getVectorDir: () => '/tmp/chatlab-test/vector',
-    getAiDataDir: () => '/tmp/chatlab-test/ai',
-    getSettingsDir: () => '/tmp/chatlab-test/settings',
-    getCacheDir: () => '/tmp/chatlab-test/cache',
-    getTempDir: () => '/tmp/chatlab-test/temp',
-    getLogsDir: () => '/tmp/chatlab-test/logs',
-    getDownloadsDir: () => '/tmp/chatlab-test/downloads',
+    getSystemDir: () => testSystemDir,
+    getUserDataDir: () => testUserDataDir,
+    getDatabaseDir: () => path.join(testSystemDir, 'databases'),
+    getVectorDir: () => path.join(testSystemDir, 'vector'),
+    getAiDataDir: () => path.join(testSystemDir, 'ai'),
+    getSettingsDir: () => path.join(testSystemDir, 'settings'),
+    getCacheDir: () => path.join(testSystemDir, 'cache'),
+    getTempDir: () => path.join(testSystemDir, 'temp'),
+    getLogsDir: () => path.join(testSystemDir, 'logs'),
+    getDownloadsDir: () => path.join(testSystemDir, 'downloads'),
     ...overrides,
   }
 }
 
-function makeTempDir(): string {
-  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
-  return fs.mkdtempSync(path.join(baseDir, 'chatlab-cache-routes-'))
+function makeTempDir(t: TestContext): string {
+  const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
+  const dir = fs.mkdtempSync(path.join(baseDir, 'chatlab-cache-routes-'))
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }))
+  return dir
 }
 
 describe('registerCacheRoutes data directory routes', () => {
@@ -45,10 +56,10 @@ describe('registerCacheRoutes data directory routes', () => {
         rootPath: dir.rootPath,
       })),
       [
-        { id: 'databases', scope: 'user-data', rootPath: '/tmp/chatlab-test/data' },
-        { id: 'ai', scope: 'system-data', rootPath: '/tmp/chatlab-test' },
-        { id: 'cache', scope: 'system-data', rootPath: '/tmp/chatlab-test' },
-        { id: 'logs', scope: 'system-data', rootPath: '/tmp/chatlab-test' },
+        { id: 'databases', scope: 'user-data', rootPath: testUserDataDir },
+        { id: 'ai', scope: 'system-data', rootPath: testSystemDir },
+        { id: 'cache', scope: 'system-data', rootPath: testSystemDir },
+        { id: 'logs', scope: 'system-data', rootPath: testSystemDir },
       ]
     )
 
@@ -69,7 +80,7 @@ describe('registerCacheRoutes data directory routes', () => {
 
     const infoResponse = await app.inject({ method: 'GET', url: '/_web/cache/info' })
     assert.equal(infoResponse.statusCode, 200)
-    assert.equal(infoResponse.json().baseDir, '/tmp/chatlab-test')
+    assert.equal(infoResponse.json().baseDir, testSystemDir)
 
     const baseResponse = await app.inject({
       method: 'POST',
@@ -84,7 +95,7 @@ describe('registerCacheRoutes data directory routes', () => {
       payload: { cacheId: 'userData' },
     })
     assert.equal(userDataResponse.statusCode, 200)
-    assert.deepEqual(openedDirs, ['/tmp/chatlab-test', '/tmp/chatlab-test/data'])
+    assert.deepEqual(openedDirs, [testSystemDir, testUserDataDir])
 
     await app.close()
   })
@@ -93,12 +104,12 @@ describe('registerCacheRoutes data directory routes', () => {
     const app = Fastify()
     const ctx: CacheRouteContext = {
       pathProvider: createPathProvider(),
-      defaultUserDataDir: '/tmp/chatlab-test/default-data',
+      defaultUserDataDir: testDefaultDataDir,
       isCustomDataDir: true,
       canSetDataDir: true,
       getPendingDataDirMigration: () => ({
-        from: '/tmp/chatlab-test/data',
-        to: '/tmp/chatlab-test/new-data',
+        from: testUserDataDir,
+        to: testNewDataDir,
         migrate: true,
         deleteSourceOnSuccess: false,
         createdAt: '2026-06-02T00:00:00.000Z',
@@ -111,16 +122,16 @@ describe('registerCacheRoutes data directory routes', () => {
     const response = await app.inject({ method: 'GET', url: '/_web/cache/data-dir' })
     assert.equal(response.statusCode, 200)
     assert.deepEqual(response.json(), {
-      path: '/tmp/chatlab-test/data',
-      defaultPath: '/tmp/chatlab-test/default-data',
+      path: testUserDataDir,
+      defaultPath: testDefaultDataDir,
       isCustom: true,
       canSetDataDir: true,
       managedScope: 'chat-databases',
       managedDescription: 'settings.storage.dataLocation.managedDescription',
       hasLegacyDataAtDefaultDir: false,
       pendingMigration: {
-        from: '/tmp/chatlab-test/data',
-        to: '/tmp/chatlab-test/new-data',
+        from: testUserDataDir,
+        to: testNewDataDir,
         createdAt: '2026-06-02T00:00:00.000Z',
       },
     })
@@ -128,8 +139,8 @@ describe('registerCacheRoutes data directory routes', () => {
     await app.close()
   })
 
-  it('reports legacy data at default directory only when default databases contain db files', async () => {
-    const root = makeTempDir()
+  it('reports legacy data at default directory only when default databases contain db files', async (t) => {
+    const root = makeTempDir(t)
     const currentDir = path.join(root, 'custom-data')
     const defaultDir = path.join(root, 'default-data')
     fs.mkdirSync(path.join(defaultDir, 'databases'), { recursive: true })
@@ -173,8 +184,8 @@ describe('registerCacheRoutes data directory routes', () => {
         calls.push({ path: dirPath, migrate })
         return {
           success: true,
-          from: '/tmp/chatlab-test/data',
-          to: dirPath ?? '/tmp/chatlab-test/default-data',
+          from: testUserDataDir,
+          to: dirPath ?? testDefaultDataDir,
           requiresRelaunch: true,
         }
       },
@@ -186,15 +197,15 @@ describe('registerCacheRoutes data directory routes', () => {
     const response = await app.inject({
       method: 'POST',
       url: '/_web/cache/data-dir',
-      payload: { path: '/tmp/chatlab-test/new-data', migrate: true },
+      payload: { path: testNewDataDir, migrate: true },
     })
 
     assert.equal(response.statusCode, 200)
-    assert.deepEqual(calls, [{ path: '/tmp/chatlab-test/new-data', migrate: true }])
+    assert.deepEqual(calls, [{ path: testNewDataDir, migrate: true }])
     assert.deepEqual(response.json(), {
       success: true,
-      from: '/tmp/chatlab-test/data',
-      to: '/tmp/chatlab-test/new-data',
+      from: testUserDataDir,
+      to: testNewDataDir,
       requiresRelaunch: true,
     })
 
@@ -209,7 +220,7 @@ describe('registerCacheRoutes data directory routes', () => {
     const response = await app.inject({
       method: 'POST',
       url: '/_web/cache/data-dir',
-      payload: { path: '/tmp/chatlab-test/new-data', migrate: true },
+      payload: { path: testNewDataDir, migrate: true },
     })
 
     assert.equal(response.statusCode, 501)

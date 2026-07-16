@@ -1,6 +1,6 @@
 import { app, dialog } from 'electron'
 import { MigrationRunner, ALL_MIGRATIONS } from '@openchatlab/config'
-import { logNativeParserStatus } from '@openchatlab/node-runtime'
+import { appLogger, logNativeParserStatus } from '@openchatlab/node-runtime'
 import type { RuntimeIdentity } from '@openchatlab/node-runtime/data-dir-compat'
 import { migrateAllDatabases, checkMigrationNeeded } from '../database/core'
 import {
@@ -18,7 +18,7 @@ import {
   needsLegacyMigration,
   migrateFromLegacyDir,
 } from '../paths/legacy-migration'
-import { ensureAppDirs, getSystemDataDir, getAiDataDir } from '../paths/locations'
+import { ensureAppDirs, getSystemDataDir, getAiDataDir, getTempDir } from '../paths/locations'
 import { getPathProvider } from '../paths/provider'
 import { assertDesktopDataDirCompatible, getDesktopAppVersion } from '../runtime/compat'
 
@@ -35,6 +35,7 @@ export async function prepareDesktopRuntime(isTestMode: boolean): Promise<boolea
 
   verifyDataPath()
   ensureAppDirs()
+  appLogger.info('temp-workspace', 'Temporary workspace initialized', { root: getTempDir() })
 
   let runtime: RuntimeIdentity
   try {

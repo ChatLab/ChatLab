@@ -1,10 +1,15 @@
 import * as fs from 'fs'
-import * as os from 'os'
 import * as path from 'path'
 import { randomUUID } from 'node:crypto'
 import { pipeline } from 'node:stream/promises'
 import type { FastifyInstance } from 'fastify'
-import { ArchiveImportError, ArchiveImportSourceManager, type DatabaseManager } from '@openchatlab/node-runtime'
+import {
+  ArchiveImportError,
+  ArchiveImportSourceManager,
+  createChatLabTempDir,
+  getChatLabTempScopeDir,
+  type DatabaseManager,
+} from '@openchatlab/node-runtime'
 import {
   autoImport,
   streamImport,
@@ -52,11 +57,7 @@ export function registerImportRoutes(
   dbManager: DatabaseManager,
   options: ImportRouteOptions = {}
 ): void {
-  const sourceManager =
-    options.sourceManager ??
-    new ArchiveImportSourceManager({
-      tempRoot: fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-import-sources-')),
-    })
+  const sourceManager = options.sourceManager ?? new ArchiveImportSourceManager()
   const runAutoImport = options.runAutoImport ?? autoImport.bind(null, dbManager)
   const runPreparedImport =
     options.runPreparedImport ??
@@ -79,7 +80,7 @@ export function registerImportRoutes(
     })
     if (!data) return reply.code(400).send({ success: false, error: 'error.no_file_selected' })
 
-    const uploadPath = path.join(os.tmpdir(), `chatlab-archive-${randomUUID()}.zip`)
+    const uploadPath = path.join(getChatLabTempScopeDir('imports'), `archive-${randomUUID()}.zip`)
     try {
       await pipeline(data.file, fs.createWriteStream(uploadPath, { flags: 'wx' }))
       if (data.file.truncated) {
@@ -151,7 +152,7 @@ export function registerImportRoutes(
     const data = await (request as any).file()
     if (!data) return reply.code(400).send({ error: 'No file uploaded' })
 
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-detect-'))
+    const tmpDir = createChatLabTempDir('imports', 'detect-')
     const tmpPath = path.join(tmpDir, data.filename || 'upload')
 
     try {
@@ -173,7 +174,7 @@ export function registerImportRoutes(
     const data = await (request as any).file()
     if (!data) return reply.code(400).send({ error: 'No file uploaded' })
 
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-scan-'))
+    const tmpDir = createChatLabTempDir('imports', 'scan-')
     const tmpPath = path.join(tmpDir, data.filename || 'upload')
 
     try {
@@ -194,7 +195,7 @@ export function registerImportRoutes(
     const data = await (request as any).file()
     if (!data) return reply.code(400).send({ error: 'No file uploaded' })
 
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-import-'))
+    const tmpDir = createChatLabTempDir('imports', 'upload-')
     const tmpPath = path.join(tmpDir, data.filename || 'upload')
 
     const chunks: Buffer[] = []
@@ -245,7 +246,7 @@ export function registerImportRoutes(
     const parts = (request as any).parts()
     if (!parts) return reply.code(400).send({ error: 'No files uploaded' })
 
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-dir-import-'))
+    const tmpDir = createChatLabTempDir('imports', 'directory-')
     const relativePaths: string[] = []
     const fileBuffers: { data: Buffer; filename: string }[] = []
 
@@ -320,7 +321,7 @@ export function registerImportRoutes(
     const data = await (request as any).file()
     if (!data) return reply.code(400).send({ error: 'No file uploaded' })
 
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-inc-'))
+    const tmpDir = createChatLabTempDir('imports', 'incremental-')
     const tmpPath = path.join(tmpDir, data.filename || 'upload')
 
     const chunks: Buffer[] = []
@@ -362,7 +363,7 @@ export function registerImportRoutes(
     const data = await (request as any).file()
     if (!data) return reply.code(400).send({ error: 'No file uploaded' })
 
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-analyze-'))
+    const tmpDir = createChatLabTempDir('imports', 'analyze-')
     const tmpPath = path.join(tmpDir, data.filename || 'upload')
 
     const chunks: Buffer[] = []
@@ -386,7 +387,7 @@ export function registerImportRoutes(
     const data = await (request as any).file()
     if (!data) return reply.code(400).send({ error: 'No file uploaded' })
 
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-analyze-'))
+    const tmpDir = createChatLabTempDir('imports', 'analyze-')
     const tmpPath = path.join(tmpDir, data.filename || 'upload')
 
     const chunks: Buffer[] = []
@@ -428,7 +429,7 @@ export function registerImportRoutes(
       reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(eventData)}\n\n`)
     }
 
-    const tmpDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-demo-'))
+    const tmpDir = createChatLabTempDir('imports', 'cli-demo-')
 
     try {
       const localPaths: string[] = []

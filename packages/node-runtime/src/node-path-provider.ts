@@ -21,6 +21,7 @@ import type { PathProvider } from '@openchatlab/core'
 import { writeConfigField, loadConfig } from '@openchatlab/config'
 import { migrateFromElectronIfNeeded } from './migrations/electron-data-migration'
 import { applyPendingNodeDataDirMigration } from './data-dir-switch'
+import { getChatLabTempScopeDir } from './temp-workspace'
 
 const SYSTEM_DIR = path.join(os.homedir(), '.chatlab')
 
@@ -77,7 +78,7 @@ export class NodePathProvider implements PathProvider {
   }
 
   getTempDir(): string {
-    return path.join(this.systemDir, 'temp')
+    return getChatLabTempScopeDir('runtime')
   }
 
   getLogsDir(): string {

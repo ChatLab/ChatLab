@@ -8,7 +8,7 @@
  * Migration behavior:
  * 1. Detect Electron legacy data directory (platform-specific)
  * 2. If databases exist there, write user_data_dir to config.toml pointing to old path
- * 3. Copy system data (ai, settings, cache, logs, temp, nlp) from old path to ~/.chatlab/
+ * 3. Copy persistent system data (ai, settings, cache, logs, nlp) from old path to ~/.chatlab/
  */
 
 import * as fs from 'fs'
@@ -16,7 +16,7 @@ import * as os from 'os'
 import * as path from 'path'
 import { writeConfigField } from '@openchatlab/config'
 
-const SYSTEM_SUBDIRS = ['ai', 'settings', 'cache', 'logs', 'temp', 'nlp']
+const SYSTEM_SUBDIRS = ['ai', 'settings', 'cache', 'logs', 'nlp']
 const STORAGE_CONFIG_FILE = 'storage.json'
 
 interface StorageConfig {

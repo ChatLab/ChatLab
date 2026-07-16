@@ -6,7 +6,7 @@ import test from 'node:test'
 import { initAppLogger, appLogger } from './app-logger'
 
 function makeTempDir(): string {
-  const base = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+  const base = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
   return fs.mkdtempSync(path.join(base, 'applog-'))
 }
 

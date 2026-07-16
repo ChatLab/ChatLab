@@ -37,6 +37,7 @@ import {
   createNodeDataDirSwitch,
   getDefaultNodeUserDataDir,
   getPendingNodeDataDirMigration,
+  getChatLabTempScopeDir,
   AnalyticsService,
   MergeSessionCache,
   type SemanticIndexRuntime,
@@ -87,7 +88,7 @@ export function registerWebRoutes(
     getAiDataDir: () => path.join(os.homedir(), '.chatlab', 'ai'),
     getSettingsDir: () => path.join(os.homedir(), '.chatlab', 'settings'),
     getCacheDir: () => path.join(os.homedir(), '.chatlab', 'cache'),
-    getTempDir: () => path.join(os.homedir(), '.chatlab', 'temp'),
+    getTempDir: () => getChatLabTempScopeDir('runtime'),
     getLogsDir: () => path.join(os.homedir(), '.chatlab', 'logs'),
     getDownloadsDir: () => path.join(os.homedir(), 'Downloads'),
   }

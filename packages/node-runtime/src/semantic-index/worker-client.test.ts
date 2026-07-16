@@ -13,7 +13,10 @@ import {
 
 function makeConfigStore(): SemanticIndexConfigStore {
   const dir = fs.mkdtempSync(
-    path.join(fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir(), 'chatlab-si-client-')
+    path.join(
+      process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()),
+      'chatlab-si-client-'
+    )
   )
   return new SemanticIndexConfigStore(path.join(dir, 'semantic-index-config.json'))
 }

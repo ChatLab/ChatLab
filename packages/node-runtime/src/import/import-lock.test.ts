@@ -6,7 +6,7 @@ import test from 'node:test'
 import { ImportInProgressError, withDataDirImportLock } from './import-lock'
 
 function makeTempDir(): string {
-  const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+  const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
   return fs.mkdtempSync(path.join(baseDir, 'chatlab-import-lock-'))
 }
 

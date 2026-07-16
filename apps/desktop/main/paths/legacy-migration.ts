@@ -125,7 +125,8 @@ function migrateDirectory(
 
 /**
  * 执行从 Documents/ChatLab 到新目录的数据迁移
- * 迁移整个目录的所有内容，采用合并策略：只复制不存在的文件，不覆盖已存在的文件
+ * 迁移整个目录的持久内容，采用合并策略：只复制不存在的文件，不覆盖已存在的文件。
+ * 旧 temp 目录只包含可重建的临时数据，不复制到新的正式数据目录。
  * 只有在所有数据都成功迁移后才删除旧目录
  */
 export function migrateFromLegacyDir(): { success: boolean; migratedDirs: string[]; error?: string } {
@@ -139,7 +140,9 @@ export function migrateFromLegacyDir(): { success: boolean; migratedDirs: string
 
     // 获取旧目录下的所有子目录和文件
     const entries = fs.readdirSync(legacyDir, { withFileTypes: true })
-    const dirsToMigrate = entries.filter((e) => e.isDirectory() && !e.name.startsWith('.')).map((e) => e.name)
+    const dirsToMigrate = entries
+      .filter((e) => e.isDirectory() && !e.name.startsWith('.') && e.name !== 'temp')
+      .map((e) => e.name)
     const filesToMigrate = entries.filter((e) => e.isFile() && !e.name.startsWith('.')).map((e) => e.name)
 
     const result = migrateDirectory(legacyDir, newDir, dirsToMigrate)
@@ -207,7 +210,7 @@ export function removeLegacyDir(): boolean {
 
 // ==================== Electron 旧目录结构 → 新目录结构迁移 ====================
 
-const SYSTEM_SUBDIRS = ['ai', 'settings', 'cache', 'logs', 'temp', 'nlp']
+const SYSTEM_SUBDIRS = ['ai', 'settings', 'cache', 'logs', 'nlp']
 
 /**
  * 检测是否需要从 Electron 旧目录结构迁移到新的双根目录结构

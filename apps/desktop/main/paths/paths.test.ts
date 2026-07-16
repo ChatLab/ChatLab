@@ -6,7 +6,7 @@ import { mock, test } from 'node:test'
 import * as dataDirSwitch from '../../../../packages/node-runtime/src/data-dir-switch'
 
 test('desktop paths preserve data across configured and legacy directory migrations', async () => {
-  const tempRoot = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()
+  const tempRoot = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
   const root = fs.mkdtempSync(path.join(tempRoot, 'chatlab-desktop-paths-'))
   const originalHome = process.env.HOME
   const originalDataDir = process.env.CHATLAB_DATA_DIR
@@ -44,6 +44,9 @@ test('desktop paths preserve data across configured and legacy directory migrati
     },
   })
   await mock.module('@openchatlab/node-runtime', { namedExports: dataDirSwitch })
+  await mock.module('@openchatlab/node-runtime/temp-workspace', {
+    namedExports: { getChatLabTempScopeDir: () => path.join(root, 'chatlab-temp', 'runtime') },
+  })
 
   try {
     const paths = {
@@ -56,6 +59,7 @@ test('desktop paths preserve data across configured and legacy directory migrati
     assert.equal(paths.getUserDataDir(), currentDir)
     assert.equal(fs.existsSync(path.join(currentDir, '.chatlab')), true)
     assert.equal(fs.existsSync(path.join(root, '.chatlab', 'logs')), true)
+    assert.equal(fs.existsSync(path.join(root, 'chatlab-temp', 'runtime')), true)
 
     const switchResult = paths.setCustomDataDir(targetDir, true)
     assert.deepEqual(switchResult, {
@@ -75,13 +79,30 @@ test('desktop paths preserve data across configured and legacy directory migrati
 
     const legacyDir = path.join(documentsDir, 'ChatLab')
     fs.mkdirSync(path.join(legacyDir, 'databases'), { recursive: true })
+    fs.mkdirSync(path.join(legacyDir, 'temp'), { recursive: true })
     fs.writeFileSync(path.join(legacyDir, 'databases', 'legacy.db'), 'legacy', 'utf-8')
+    fs.writeFileSync(path.join(legacyDir, 'temp', 'stale.tmp'), 'temporary', 'utf-8')
 
     assert.equal(paths.needsLegacyMigration(), true)
     const legacyResult = paths.migrateFromLegacyDir()
     assert.equal(legacyResult.success, true)
     assert.equal(fs.readFileSync(path.join(targetDir, 'databases', 'legacy.db'), 'utf-8'), 'legacy')
+    assert.equal(fs.existsSync(path.join(targetDir, 'temp', 'stale.tmp')), false)
     assert.equal(fs.existsSync(legacyDir), false)
+
+    const oldElectronDataDir = path.join(electronUserDataDir, 'data')
+    fs.mkdirSync(path.join(oldElectronDataDir, 'databases'), { recursive: true })
+    fs.mkdirSync(path.join(oldElectronDataDir, 'ai'), { recursive: true })
+    fs.mkdirSync(path.join(oldElectronDataDir, 'temp'), { recursive: true })
+    fs.writeFileSync(path.join(oldElectronDataDir, 'databases', 'desktop.db'), 'sqlite', 'utf-8')
+    fs.writeFileSync(path.join(oldElectronDataDir, 'ai', 'assistant.json'), '{}', 'utf-8')
+    fs.writeFileSync(path.join(oldElectronDataDir, 'temp', 'stale.tmp'), 'temporary', 'utf-8')
+
+    assert.equal(paths.needsUnifiedDirMigration(), true)
+    assert.equal(paths.migrateToUnifiedDirs().success, true)
+    assert.equal(fs.readFileSync(path.join(root, '.chatlab', 'ai', 'assistant.json'), 'utf-8'), '{}')
+    assert.equal(fs.existsSync(path.join(root, '.chatlab', 'temp', 'stale.tmp')), false)
+    assert.equal(fs.readFileSync(path.join(oldElectronDataDir, 'temp', 'stale.tmp'), 'utf-8'), 'temporary')
   } finally {
     if (originalHome === undefined) delete process.env.HOME
     else process.env.HOME = originalHome
