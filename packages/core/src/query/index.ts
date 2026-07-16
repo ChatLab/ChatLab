@@ -201,7 +201,14 @@ export type {
 } from './message-query-functions'
 
 // Member write operations (merge, delete, update aliases, DDL migration)
-export { updateMemberAliases, mergeMembers, deleteMember, ensureAliasesColumn, ensureAvatarColumn } from './member-ops'
+export {
+  updateMemberAliases,
+  mergeMembers,
+  deleteMember,
+  deleteMembers,
+  ensureAliasesColumn,
+  ensureAvatarColumn,
+} from './member-ops'
 
 // Advanced analytics
 export {

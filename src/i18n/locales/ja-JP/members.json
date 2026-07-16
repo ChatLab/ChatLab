@@ -35,8 +35,9 @@
     },
     "aliasPlaceholder": "入力して Enter で追加",
     "delete": "削除",
+    "deleteSelected": "選択項目を削除",
     "mergeSelected": "選択を結合",
-    "mergeSelectedCount": "{count} 名を選択中",
+    "selectedCount": "{count} 名を選択中",
     "pagination": "{start} - {end} 件表示、全 {total} 名のメンバー",
     "tip": "ヒント：別名を追加すると、チャット履歴の相手をより正確に識別できます。別名は検索や AI 分析で使用されます。",
     "mergeModal": {
@@ -45,6 +46,10 @@
       "hint": "この操作は元に戻せません。結合される側のメッセージはすべて保持側に移動します。",
       "cancel": "キャンセル",
       "confirm": "結合を確認"
+    },
+    "batchDeleteModal": {
+      "title": "選択したメンバーを削除しますか？",
+      "content": "選択した {count} 名のメンバーと、その {messageCount} 件のメッセージを削除します。この操作は元に戻せません。"
     },
     "modal": {
       "title": "メンバーを削除しますか？",

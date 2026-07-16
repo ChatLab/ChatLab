@@ -220,6 +220,7 @@ export interface DataAdapter {
   updateMemberAliases(sessionId: string, memberId: number, aliases: string[]): Promise<boolean>
   mergeMembers(sessionId: string, memberId1: number, memberId2: number): Promise<boolean>
   deleteMember(sessionId: string, memberId: number): Promise<boolean>
+  deleteMembers(sessionId: string, memberIds: number[]): Promise<boolean>
 
   // ==================== 社交分析 ====================
 

@@ -351,6 +351,11 @@ export class FetchDataAdapter implements DataAdapter {
     return result.success
   }
 
+  async deleteMembers(sessionId: string, memberIds: number[]): Promise<boolean> {
+    const result = await post<{ success: boolean }>(`/sessions/${sessionId}/members/batch-delete`, { memberIds })
+    return result.success
+  }
+
   // ==================== 社交分析 ====================
 
   getCatchphraseAnalysis(sessionId: string, filter?: TimeFilter): Promise<CatchphraseAnalysis> {

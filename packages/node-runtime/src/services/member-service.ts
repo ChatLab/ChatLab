@@ -13,6 +13,7 @@ import {
   updateMemberAliases as coreUpdateMemberAliases,
   mergeMembers as coreMergeMembers,
   deleteMember as coreDeleteMember,
+  deleteMembers as coreDeleteMembers,
 } from '@openchatlab/core'
 import type { MemberWithAliases, MembersPaginationParams, MembersPaginatedResult } from '@openchatlab/core'
 import type { SessionRuntimeAdapter } from './adapters'
@@ -93,6 +94,18 @@ export function mergeMembers(
 export function deleteMember(adapter: SessionRuntimeAdapter, sessionId: string, memberId: number): boolean {
   const db = adapter.ensureWritable(sessionId)
   return coreDeleteMember(db, memberId)
+}
+
+/**
+ * Delete multiple members and all associated data atomically.
+ */
+export function deleteMembers(
+  adapter: SessionRuntimeAdapter,
+  sessionId: string,
+  memberIds: readonly number[]
+): boolean {
+  const db = adapter.ensureWritable(sessionId)
+  return coreDeleteMembers(db, memberIds)
 }
 
 /**

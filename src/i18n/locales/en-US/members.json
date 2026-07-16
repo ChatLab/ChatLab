@@ -35,8 +35,9 @@
     },
     "aliasPlaceholder": "Press Enter to add",
     "delete": "Delete",
+    "deleteSelected": "Delete Selected",
     "mergeSelected": "Merge Selected",
-    "mergeSelectedCount": "{count} members selected",
+    "selectedCount": "{count} members selected",
     "pagination": "Showing {start} - {end} of {total} members",
     "tip": "Tip: Adding aliases helps identify chat participants and improves search and AI analysis accuracy.",
     "mergeModal": {
@@ -45,6 +46,10 @@
       "hint": "This action cannot be undone. All messages from the merged member will be reassigned to the kept member.",
       "cancel": "Cancel",
       "confirm": "Confirm Merge"
+    },
+    "batchDeleteModal": {
+      "title": "Delete Selected Members?",
+      "content": "This will delete {count} selected members and their {messageCount} messages. This action cannot be undone."
     },
     "modal": {
       "title": "Delete Member?",

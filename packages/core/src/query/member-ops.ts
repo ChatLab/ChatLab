@@ -108,16 +108,27 @@ export function mergeMembers(db: DatabaseAdapter, memberId1: number, memberId2: 
 }
 
 /**
+ * Delete members and all their messages / name history in one transaction.
+ */
+export function deleteMembers(db: DatabaseAdapter, memberIds: readonly number[]): boolean {
+  const uniqueMemberIds = Array.from(new Set(memberIds))
+  if (uniqueMemberIds.length === 0) return false
+
+  const placeholders = uniqueMemberIds.map(() => '?').join(', ')
+  db.transaction(() => {
+    db.prepare(`DELETE FROM message WHERE sender_id IN (${placeholders})`).run(...uniqueMemberIds)
+    db.prepare(`DELETE FROM member_name_history WHERE member_id IN (${placeholders})`).run(...uniqueMemberIds)
+    db.prepare(`DELETE FROM member WHERE id IN (${placeholders})`).run(...uniqueMemberIds)
+  })
+  return true
+}
+
+/**
  * Delete a member and all their messages / name history.
  */
 export function deleteMember(db: DatabaseAdapter, memberId: number): boolean {
   try {
-    db.transaction(() => {
-      db.prepare('DELETE FROM message WHERE sender_id = ?').run(memberId)
-      db.prepare('DELETE FROM member_name_history WHERE member_id = ?').run(memberId)
-      db.prepare('DELETE FROM member WHERE id = ?').run(memberId)
-    })
-    return true
+    return deleteMembers(db, [memberId])
   } catch {
     return false
   }

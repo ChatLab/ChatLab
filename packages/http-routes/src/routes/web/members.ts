@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import type { HttpRouteContext } from '../../context'
-import { memberService } from '@openchatlab/node-runtime'
+import { appLogger, memberService } from '@openchatlab/node-runtime'
+import { apiErrorFromUnknown } from '../../errors'
 
 export function registerMemberRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
   const { sessionAdapter: adapter } = ctx
@@ -36,6 +37,41 @@ export function registerMemberRoutes(server: FastifyInstance, ctx: HttpRouteCont
       const memberId = parseInt(request.params.memberId, 10)
       memberService.deleteMember(adapter, request.params.id, memberId)
       return { success: true }
+    }
+  )
+
+  server.post<{ Params: { id: string }; Body: { memberIds?: unknown } }>(
+    '/_web/sessions/:id/members/batch-delete',
+    async (request, reply) => {
+      const memberIds = request.body?.memberIds
+      if (
+        !Array.isArray(memberIds) ||
+        memberIds.length === 0 ||
+        memberIds.some((memberId) => !Number.isSafeInteger(memberId) || Number(memberId) <= 0)
+      ) {
+        return reply.code(400).send({
+          success: false,
+          error: 'memberIds must contain at least one positive integer',
+        })
+      }
+
+      const uniqueMemberIds = Array.from(new Set(memberIds as number[]))
+      try {
+        const success = memberService.deleteMembers(adapter, request.params.id, uniqueMemberIds)
+        if (!success) {
+          throw new Error('Member deletion transaction returned no result')
+        }
+      } catch (error) {
+        if (apiErrorFromUnknown(error)) throw error
+        appLogger.error('members', 'Batch member deletion failed', error)
+        return reply.code(500).send({ success: false, error: 'Failed to delete selected members' })
+      }
+
+      appLogger.info('members', 'Batch member deletion completed', {
+        sessionId: request.params.id,
+        memberCount: uniqueMemberIds.length,
+      })
+      return { success: true, deletedCount: uniqueMemberIds.length }
     }
   )
 

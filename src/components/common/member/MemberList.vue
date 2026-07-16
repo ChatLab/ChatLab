@@ -40,15 +40,17 @@ const members = ref<MemberWithStats[]>([])
 const isLoading = ref(false)
 const loadFailed = ref(false)
 const searchQuery = ref('')
-const showMergeControls = computed(() => shouldShowMemberMergeControls(props.chatType, members.value.length))
+const showSelectionControls = computed(() => shouldShowMemberMergeControls(props.chatType, members.value.length))
 const memberTableGridClass = computed(() => {
   if (props.chatType === 'group') return ''
-  return showMergeControls.value ? 'member-table-grid--private' : 'member-table-grid--private-without-selection'
+  return showSelectionControls.value ? 'member-table-grid--private' : 'member-table-grid--private-without-selection'
 })
 
 // 删除确认状态
 const deletingMember = ref<MemberWithStats | null>(null)
 const isDeleting = ref(false)
+const showBatchDeleteModal = ref(false)
+const isBatchDeleting = ref(false)
 
 // 合并确认状态
 const showMergeModal = ref(false)
@@ -91,31 +93,34 @@ function viewMemberChatRecords(member: MemberWithStats) {
 
 const filteredSortedMembers = computed(() => filterAndSortMembers(members.value, searchQuery.value, sortState.value))
 const {
-  selectedIds: selectedMergeIds,
-  setSelection: setSelectedMergeIds,
-  clearSelection: clearMergeSelection,
+  selectedIds: selectedMemberIds,
+  setSelection: setSelectedMemberIds,
+  clearSelection: clearMemberSelection,
   handleRowClick: handleSelectionRowClick,
   handleRowMouseDown: handleSelectionRowMouseDown,
 } = useTableRowSelection({
   rows: filteredSortedMembers,
   getRowId: (member) => member.id,
 })
-const selectedMergeMembers = computed(() => members.value.filter((member) => selectedMergeIds.value.has(member.id)))
-const canMergeSelected = computed(() => selectedMergeMembers.value.length === 2)
+const selectedMembers = computed(() => members.value.filter((member) => selectedMemberIds.value.has(member.id)))
+const canMergeSelected = computed(() => selectedMembers.value.length === 2)
+const selectedMessageCount = computed(() =>
+  selectedMembers.value.reduce((total, member) => total + member.messageCount, 0)
+)
 
 function handleMemberRowClick(index: number, memberId: number, event: MouseEvent) {
-  if (!showMergeControls.value) return
+  if (!showSelectionControls.value) return
   handleSelectionRowClick(index, memberId, event)
 }
 
 function handleMemberRowMouseDown(event: MouseEvent) {
-  if (!showMergeControls.value) return
+  if (!showSelectionControls.value) return
   handleSelectionRowMouseDown(event)
 }
 
 const mergePlan = computed(() => {
-  if (selectedMergeMembers.value.length !== 2) return null
-  const [memberA, memberB] = selectedMergeMembers.value
+  if (selectedMembers.value.length !== 2) return null
+  const [memberA, memberB] = selectedMembers.value
   if (
     memberB.messageCount > memberA.messageCount ||
     (memberB.messageCount === memberA.messageCount && memberB.id < memberA.id)
@@ -243,9 +248,9 @@ async function confirmDelete() {
     const memberId = deletingMember.value.id
     const success = await dataService.deleteMember(props.sessionId, memberId)
     if (success) {
-      const nextSelection = new Set(selectedMergeIds.value)
+      const nextSelection = new Set(selectedMemberIds.value)
       nextSelection.delete(memberId)
-      setSelectedMergeIds(nextSelection)
+      setSelectedMemberIds(nextSelection)
       await loadMembers()
       emit('data-changed')
     }
@@ -254,6 +259,32 @@ async function confirmDelete() {
   } finally {
     isDeleting.value = false
     deletingMember.value = null
+  }
+}
+
+function openBatchDeleteModal() {
+  if (selectedMemberIds.value.size === 0) return
+  showBatchDeleteModal.value = true
+}
+
+async function confirmBatchDelete() {
+  const sessionId = props.sessionId
+  const memberIds = Array.from(selectedMemberIds.value)
+  if (memberIds.length === 0) return
+
+  isBatchDeleting.value = true
+  try {
+    const success = await dataService.deleteMembers(sessionId, memberIds)
+    if (success && sessionId === props.sessionId) {
+      showBatchDeleteModal.value = false
+      clearMemberSelection()
+      await loadMembers()
+      emit('data-changed')
+    }
+  } catch (error) {
+    reportMemberManagementError('Failed to delete selected members:', error)
+  } finally {
+    isBatchDeleting.value = false
   }
 }
 
@@ -273,7 +304,7 @@ async function confirmMerge() {
     )
     if (success) {
       showMergeModal.value = false
-      clearMergeSelection()
+      clearMemberSelection()
       await loadMembers()
       emit('data-changed')
     }
@@ -285,8 +316,8 @@ async function confirmMerge() {
 }
 
 watch([searchQuery, sortState], resetVirtualScroll)
-watch(showMergeControls, (show) => {
-  if (!show) clearMergeSelection()
+watch(showSelectionControls, (show) => {
+  if (!show) clearMemberSelection()
 })
 
 // 监听 sessionId 变化
@@ -299,7 +330,7 @@ watch(
     savingAliasIds.value = new Set()
     searchQuery.value = ''
     resetSort()
-    clearMergeSelection()
+    clearMemberSelection()
     void resetVirtualScroll()
     void loadMembers()
   },
@@ -349,14 +380,14 @@ onUnmounted(() => {
           <UButton icon="i-heroicons-x-mark" variant="link" color="neutral" size="xs" @click="searchQuery = ''" />
         </template>
       </UInput>
-      <div v-if="showMergeControls" class="flex items-center gap-2">
+      <div v-if="showSelectionControls" class="flex items-center gap-2">
         <UIcon
           v-if="isLoading && members.length > 0"
           name="i-heroicons-arrow-path"
           class="h-4 w-4 animate-spin text-primary-500"
         />
         <span class="text-xs text-gray-500 dark:text-gray-400">
-          {{ t('members.list.mergeSelectedCount', { count: selectedMergeIds.size }) }}
+          {{ t('members.list.selectedCount', { count: selectedMemberIds.size }) }}
         </span>
         <UButton
           icon="i-heroicons-link"
@@ -366,6 +397,16 @@ onUnmounted(() => {
           @click="openMergeModal"
         >
           {{ t('members.list.mergeSelected') }}
+        </UButton>
+        <UButton
+          icon="i-heroicons-trash"
+          size="sm"
+          color="error"
+          variant="outline"
+          :disabled="selectedMemberIds.size === 0"
+          @click="openBatchDeleteModal"
+        >
+          {{ t('members.list.deleteSelected') }}
         </UButton>
       </div>
     </div>
@@ -408,7 +449,7 @@ onUnmounted(() => {
             class="member-table-grid shrink-0 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-500 dark:border-white/5 dark:bg-page-dark/80 dark:text-gray-400"
             :class="memberTableGridClass"
           >
-            <span v-if="showMergeControls" aria-hidden="true" />
+            <span v-if="showSelectionControls" aria-hidden="true" />
             <span>{{ t('members.list.table.accountName') }}</span>
             <button
               v-if="props.chatType === 'group'"
@@ -488,16 +529,18 @@ onUnmounted(() => {
                 class="member-table-grid absolute left-0 top-0 w-full min-h-16 border-b border-gray-100/80 px-3 py-2 transition-colors hover:bg-gray-50 dark:border-white/5 dark:hover:bg-gray-800/30"
                 :class="[
                   memberTableGridClass,
-                  showMergeControls ? 'cursor-pointer' : '',
-                  showMergeControls && selectedMergeIds.has(member.id) ? 'bg-primary-50/70 dark:bg-primary-950/20' : '',
+                  showSelectionControls ? 'cursor-pointer' : '',
+                  showSelectionControls && selectedMemberIds.has(member.id)
+                    ? 'bg-primary-50/70 dark:bg-primary-950/20'
+                    : '',
                 ]"
                 :style="{ transform: `translateY(${virtualItem.start}px)` }"
                 @mousedown="handleMemberRowMouseDown"
                 @click="handleMemberRowClick(virtualItem.index, member.id, $event)"
               >
-                <div v-if="showMergeControls" class="flex justify-center">
+                <div v-if="showSelectionControls" class="flex justify-center">
                   <UCheckbox
-                    :model-value="selectedMergeIds.has(member.id)"
+                    :model-value="selectedMemberIds.has(member.id)"
                     @click.stop="handleMemberRowClick(virtualItem.index, member.id, $event)"
                   />
                 </div>
@@ -601,6 +644,38 @@ onUnmounted(() => {
           <div class="flex justify-center gap-3">
             <UButton variant="outline" @click="cancelDelete">{{ t('members.list.modal.cancel') }}</UButton>
             <UButton color="error" :loading="isDeleting" @click="confirmDelete">
+              {{ t('members.list.modal.confirm') }}
+            </UButton>
+          </div>
+        </div>
+      </template>
+    </UModal>
+
+    <!-- 批量删除确认弹窗 -->
+    <UModal :open="showBatchDeleteModal" :ui="{ content: 'max-w-sm' }" @update:open="showBatchDeleteModal = $event">
+      <template #content>
+        <div class="p-6 text-center">
+          <div
+            class="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-full bg-red-100 dark:bg-red-900/30"
+          >
+            <UIcon name="i-heroicons-exclamation-triangle" class="h-7 w-7 text-red-500" />
+          </div>
+          <h3 class="mb-2 text-lg font-semibold text-gray-900 dark:text-white">
+            {{ t('members.list.batchDeleteModal.title') }}
+          </h3>
+          <p class="mb-6 text-sm text-gray-500 dark:text-gray-400">
+            {{
+              t('members.list.batchDeleteModal.content', {
+                count: selectedMembers.length,
+                messageCount: selectedMessageCount.toLocaleString(),
+              })
+            }}
+          </p>
+          <div class="flex justify-center gap-3">
+            <UButton variant="outline" :disabled="isBatchDeleting" @click="showBatchDeleteModal = false">
+              {{ t('members.list.modal.cancel') }}
+            </UButton>
+            <UButton color="error" :loading="isBatchDeleting" @click="confirmBatchDelete">
               {{ t('members.list.modal.confirm') }}
             </UButton>
           </div>

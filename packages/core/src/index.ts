@@ -126,6 +126,7 @@ export {
   updateMemberAliases,
   mergeMembers,
   deleteMember,
+  deleteMembers,
   ensureAliasesColumn,
   ensureAvatarColumn,
   updateSessionOwnerId,

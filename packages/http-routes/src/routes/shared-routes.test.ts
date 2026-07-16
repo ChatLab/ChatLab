@@ -95,6 +95,13 @@ function createSessionDb(): TestSqliteDb {
       content TEXT,
       platform_message_id TEXT
     );
+    CREATE TABLE member_name_history (
+      id INTEGER PRIMARY KEY,
+      member_id INTEGER,
+      name TEXT,
+      start_time INTEGER,
+      end_time INTEGER
+    );
     CREATE TABLE segment (
       id INTEGER PRIMARY KEY,
       start_ts INTEGER,
@@ -114,6 +121,9 @@ function createSessionDb(): TestSqliteDb {
       (1, 1, 100, 0, 'alpha first', 'm-1'),
       (2, 2, 200, 0, 'alpha from bob', 'm-2'),
       (3, 1, 300, 0, 'alpha later', 'm-3');
+    INSERT INTO member_name_history (id, member_id, name, start_time, end_time) VALUES
+      (1, 1, 'Alice', 100, 300),
+      (2, 2, 'Bob', 200, 200);
   `)
   return db
 }
@@ -288,6 +298,93 @@ describe('registerSharedRoutes smoke tests', () => {
     assert.equal(body.rowCount, 2)
     assert.equal(body.limited, false)
     assert.equal(typeof body.duration, 'number')
+  })
+
+  it('POST /_web/sessions/:id/members/batch-delete deletes selected member data in one request', async () => {
+    const db = createSessionDb()
+    db.exec(`
+      INSERT INTO member (id, platform_id, account_name, group_nickname, avatar)
+      VALUES (3, 'carol', 'Carol', NULL, NULL);
+      INSERT INTO message (id, sender_id, ts, type, content, platform_message_id)
+      VALUES (4, 3, 400, 0, 'carol stays', 'm-4');
+      INSERT INTO member_name_history (id, member_id, name, start_time, end_time)
+      VALUES (3, 3, 'Carol', 400, 400);
+    `)
+    const routeApp = Fastify()
+    registerSharedRoutes(routeApp, createTestContext(new Map([['chat-1', db]])))
+    await routeApp.ready()
+
+    const resp = await routeApp.inject({
+      method: 'POST',
+      url: '/_web/sessions/chat-1/members/batch-delete',
+      payload: { memberIds: [1, 2] },
+    })
+    const remainingMembers = db.prepare('SELECT id FROM member ORDER BY id').all()
+    const remainingMessages = db.prepare('SELECT sender_id AS senderId FROM message ORDER BY id').all()
+    const remainingHistory = db.prepare('SELECT member_id AS memberId FROM member_name_history ORDER BY id').all()
+
+    await routeApp.close()
+    db.close()
+
+    assert.equal(resp.statusCode, 200)
+    assert.deepEqual(resp.json(), { success: true, deletedCount: 2 })
+    assert.deepEqual(remainingMembers, [{ id: 3 }])
+    assert.deepEqual(remainingMessages, [{ senderId: 3 }])
+    assert.deepEqual(remainingHistory, [{ memberId: 3 }])
+  })
+
+  it('POST /_web/sessions/:id/members/batch-delete rejects an empty selection', async () => {
+    const db = createSessionDb()
+    const routeApp = Fastify()
+    registerSharedRoutes(routeApp, createTestContext(new Map([['chat-1', db]])))
+    await routeApp.ready()
+
+    const resp = await routeApp.inject({
+      method: 'POST',
+      url: '/_web/sessions/chat-1/members/batch-delete',
+      payload: { memberIds: [] },
+    })
+    const memberCount = db.prepare('SELECT COUNT(*) AS count FROM member').get() as { count: number }
+
+    await routeApp.close()
+    db.close()
+
+    assert.equal(resp.statusCode, 400)
+    assert.deepEqual(resp.json(), { success: false, error: 'memberIds must contain at least one positive integer' })
+    assert.equal(memberCount.count, 2)
+  })
+
+  it('POST /_web/sessions/:id/members/batch-delete rolls back every deletion when one member fails', async () => {
+    const db = createSessionDb()
+    db.exec(`
+      CREATE TRIGGER prevent_bob_delete
+      BEFORE DELETE ON member
+      WHEN OLD.id = 2
+      BEGIN
+        SELECT RAISE(ABORT, 'Bob cannot be deleted');
+      END;
+    `)
+    const routeApp = Fastify()
+    registerSharedRoutes(routeApp, createTestContext(new Map([['chat-1', db]])))
+    await routeApp.ready()
+
+    const resp = await routeApp.inject({
+      method: 'POST',
+      url: '/_web/sessions/chat-1/members/batch-delete',
+      payload: { memberIds: [1, 2] },
+    })
+    const memberCount = db.prepare('SELECT COUNT(*) AS count FROM member').get() as { count: number }
+    const messageCount = db.prepare('SELECT COUNT(*) AS count FROM message').get() as { count: number }
+    const historyCount = db.prepare('SELECT COUNT(*) AS count FROM member_name_history').get() as { count: number }
+
+    await routeApp.close()
+    db.close()
+
+    assert.equal(resp.statusCode, 500)
+    assert.deepEqual(resp.json(), { success: false, error: 'Failed to delete selected members' })
+    assert.equal(memberCount.count, 2)
+    assert.equal(messageCount.count, 3)
+    assert.equal(historyCount.count, 2)
   })
 
   it('POST /_web/ai/logs/show reveals the current AI log file through the host shell', async () => {
