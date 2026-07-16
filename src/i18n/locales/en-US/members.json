@@ -70,33 +70,16 @@
   },
   "relationships": {
     "loading": "Analyzing {'@'} interaction data...",
-    "topMentioners": "📢 Top {'@'} Initiators",
-    "totalMentions": "{count} total {'@'}s",
-    "topMentioned": "🎯 Most {'@'} Mentioned",
-    "popularMember": "Most popular in the group",
+    "rankingTitle": "{'@'} Interaction Ranking",
+    "rankModes": {
+      "mentioners": "Sent {'@'}",
+      "mentioned": "Received {'@'}"
+    },
+    "topMentionersDescription": "Ranked by {'@'} mentions sent",
+    "topMentionedDescription": "Ranked by {'@'} mentions received",
     "times": "times",
-    "oneWay": {
-      "title": "🐕 One-way Detection",
-      "description": "Found {count} one-way relationships (one party {'@'} another ≥80%)",
-      "neverRespond": "Never responds",
-      "reverse": "{count}x reverse",
-      "ratio": "{value}% one-way"
-    },
-    "twoWay": {
-      "title": "💕 Mutual Detection",
-      "description": "Found {count} frequent CP pairs (mutual {'@'} with ≥30% balance)",
-      "interactions": "interactions",
-      "balance": "{value}% balanced"
-    },
     "emptyTitle": "📱 {'@'} Interaction Analysis",
-    "empty": "No {'@'} interaction data available",
-    "modal": {
-      "title": "{name}'s {'@'} Relationships",
-      "topMentioned": "Most frequently {'@'}s",
-      "topMentioners": "Most frequently {'@'}d by",
-      "timesCount": "{count}x",
-      "close": "Close"
-    }
+    "empty": "No {'@'} interaction data available"
   },
   "private": {
     "title": "Chat Members",

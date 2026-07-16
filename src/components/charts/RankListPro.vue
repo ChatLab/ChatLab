@@ -43,6 +43,10 @@ const showViewAll = computed(() => {
     :view-all-label="t('views.charts.rankListPro.fullRanking')"
     :count-label="t('views.charts.rankListPro.memberCount', { count: members.length })"
   >
+    <template #headerRight>
+      <slot name="headerRight" />
+    </template>
+
     <template #full>
       <RankList :members="members" :unit="unit" />
     </template>

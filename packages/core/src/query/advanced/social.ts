@@ -13,10 +13,7 @@ export function getMentionAnalysis(db: DatabaseAdapter, filter?: TimeFilter): an
   const emptyResult = {
     topMentioners: [],
     topMentioned: [],
-    oneWay: [],
-    twoWay: [],
     totalMentions: 0,
-    memberDetails: [],
   }
 
   const members = db
@@ -63,7 +60,6 @@ export function getMentionAnalysis(db: DatabaseAdapter, filter?: TimeFilter): an
     )
     .all(...params) as Array<{ senderId: number; content: string }>
 
-  const mentionMatrix = new Map<number, Map<number, number>>()
   const mentionedCount = new Map<number, number>()
   const mentionerCount = new Map<number, number>()
   let totalMentions = 0
@@ -78,10 +74,6 @@ export function getMentionAnalysis(db: DatabaseAdapter, filter?: TimeFilter): an
       if (mentionedId && mentionedId !== msg.senderId && !mentionedInThisMsg.has(mentionedId)) {
         mentionedInThisMsg.add(mentionedId)
         totalMentions++
-
-        if (!mentionMatrix.has(msg.senderId)) mentionMatrix.set(msg.senderId, new Map())
-        const fromMap = mentionMatrix.get(msg.senderId)!
-        fromMap.set(mentionedId, (fromMap.get(mentionedId) || 0) + 1)
 
         mentionerCount.set(msg.senderId, (mentionerCount.get(msg.senderId) || 0) + 1)
         mentionedCount.set(mentionedId, (mentionedCount.get(mentionedId) || 0) + 1)
@@ -117,119 +109,7 @@ export function getMentionAnalysis(db: DatabaseAdapter, filter?: TimeFilter): an
   }
   topMentioned.sort((a, b) => b.count - a.count)
 
-  const oneWay: any[] = []
-  const processedPairs = new Set<string>()
-  for (const [fromId, toMap] of mentionMatrix.entries()) {
-    for (const [toId, fromToCount] of toMap.entries()) {
-      const pairKey = `${Math.min(fromId, toId)}-${Math.max(fromId, toId)}`
-      if (processedPairs.has(pairKey)) continue
-      processedPairs.add(pairKey)
-      const toFromCount = mentionMatrix.get(toId)?.get(fromId) || 0
-      const total = fromToCount + toFromCount
-      if (total < 3) continue
-      const ratio = fromToCount / total
-      if (ratio >= 0.8) {
-        const fromInfo = memberIdToInfo.get(fromId)!
-        const toInfo = memberIdToInfo.get(toId)!
-        oneWay.push({
-          fromMemberId: fromId,
-          fromName: fromInfo.name,
-          toMemberId: toId,
-          toName: toInfo.name,
-          fromToCount,
-          toFromCount,
-          ratio: Math.round(ratio * 100) / 100,
-        })
-      } else if (ratio <= 0.2) {
-        const fromInfo = memberIdToInfo.get(fromId)!
-        const toInfo = memberIdToInfo.get(toId)!
-        oneWay.push({
-          fromMemberId: toId,
-          fromName: toInfo.name,
-          toMemberId: fromId,
-          toName: fromInfo.name,
-          fromToCount: toFromCount,
-          toFromCount: fromToCount,
-          ratio: Math.round((1 - ratio) * 100) / 100,
-        })
-      }
-    }
-  }
-  oneWay.sort((a, b) => b.fromToCount - a.fromToCount)
-
-  const twoWay: any[] = []
-  processedPairs.clear()
-  for (const [fromId, toMap] of mentionMatrix.entries()) {
-    for (const [toId, fromToCount] of toMap.entries()) {
-      const pairKey = `${Math.min(fromId, toId)}-${Math.max(fromId, toId)}`
-      if (processedPairs.has(pairKey)) continue
-      processedPairs.add(pairKey)
-      const toFromCount = mentionMatrix.get(toId)?.get(fromId) || 0
-      const total = fromToCount + toFromCount
-      if (total < 5 || toFromCount === 0 || fromToCount === 0) continue
-      const ratio = Math.min(fromToCount, toFromCount) / Math.max(fromToCount, toFromCount)
-      if (ratio >= 0.3) {
-        const m1Info = memberIdToInfo.get(fromId)!
-        const m2Info = memberIdToInfo.get(toId)!
-        twoWay.push({
-          member1Id: fromId,
-          member1Name: m1Info.name,
-          member2Id: toId,
-          member2Name: m2Info.name,
-          member1To2: fromToCount,
-          member2To1: toFromCount,
-          total,
-          balance: Math.round(ratio * 100) / 100,
-        })
-      }
-    }
-  }
-  twoWay.sort((a, b) => b.total - a.total)
-
-  const memberDetails: any[] = []
-  for (const member of members) {
-    const info = memberIdToInfo.get(member.id)!
-    const topMentionedByThis: any[] = []
-    const toMap = mentionMatrix.get(member.id)
-    if (toMap) {
-      for (const [toId, count] of toMap.entries()) {
-        const toInfo = memberIdToInfo.get(toId)!
-        topMentionedByThis.push({
-          fromMemberId: member.id,
-          fromName: info.name,
-          toMemberId: toId,
-          toName: toInfo.name,
-          count,
-        })
-      }
-      topMentionedByThis.sort((a, b) => b.count - a.count)
-    }
-    const topMentionersOfThis: any[] = []
-    for (const [fromId, fToMap] of mentionMatrix.entries()) {
-      const count = fToMap.get(member.id)
-      if (count) {
-        const fromInfo = memberIdToInfo.get(fromId)!
-        topMentionersOfThis.push({
-          fromMemberId: fromId,
-          fromName: fromInfo.name,
-          toMemberId: member.id,
-          toName: info.name,
-          count,
-        })
-      }
-    }
-    topMentionersOfThis.sort((a, b) => b.count - a.count)
-    if (topMentionedByThis.length > 0 || topMentionersOfThis.length > 0) {
-      memberDetails.push({
-        memberId: member.id,
-        name: info.name,
-        topMentioned: topMentionedByThis.slice(0, 5),
-        topMentioners: topMentionersOfThis.slice(0, 5),
-      })
-    }
-  }
-
-  return { topMentioners, topMentioned, oneWay, twoWay, totalMentions, memberDetails }
+  return { topMentioners, topMentioned, totalMentions }
 }
 
 // ==================== @ 互动关系图数据 ====================

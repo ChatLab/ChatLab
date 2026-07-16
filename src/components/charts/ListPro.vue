@@ -49,8 +49,12 @@ const formattedCount = computed(() => {
     </template>
 
     <template #full>
-      <div class="divide-y divide-gray-100 dark:divide-gray-800">
-        <div v-for="(item, index) in items" :key="index" class="px-5 py-3">
+      <div>
+        <div
+          v-for="(item, index) in items"
+          :key="index"
+          class="group/list-row px-5 py-3.5 transition-colors hover:bg-gray-50/70 dark:hover:bg-white/5"
+        >
           <slot name="item" :item="item" :index="index" />
         </div>
       </div>
@@ -60,8 +64,12 @@ const formattedCount = computed(() => {
     <slot name="config" />
 
     <!-- 默认显示 Top N -->
-    <div class="divide-y divide-gray-100 dark:divide-gray-800">
-      <div v-for="(item, index) in topNData" :key="index" class="px-5 py-3">
+    <div>
+      <div
+        v-for="(item, index) in topNData"
+        :key="index"
+        class="group/list-row px-5 py-3.5 transition-colors hover:bg-gray-50/70 dark:hover:bg-white/5"
+      >
         <slot name="item" :item="item" :index="index" />
       </div>
     </div>

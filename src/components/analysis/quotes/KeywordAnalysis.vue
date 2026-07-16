@@ -6,7 +6,7 @@ import { useDataService } from '@/services'
 import { ListPro } from '@/components/charts'
 import type { RankItem } from '@/components/charts'
 import { LoadingState } from '@/components/UI'
-import { getRankBadgeClass } from '@/utils'
+import { formatRankNumber, getRankNumberClass } from '@/utils'
 import { usePromptStore } from '@/stores/prompt'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
@@ -541,12 +541,12 @@ watch(
     <template #item="{ item: member, index }">
       <div class="flex items-center gap-3">
         <!-- 排名 -->
-        <div
-          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold"
-          :class="getRankBadgeClass(index)"
+        <span
+          class="w-8 shrink-0 text-center font-mono text-sm font-black tabular-nums"
+          :class="getRankNumberClass(index)"
         >
-          {{ index + 1 }}
-        </div>
+          {{ formatRankNumber(index) }}
+        </span>
 
         <!-- 名字 -->
         <div class="w-32 shrink-0">
@@ -557,7 +557,7 @@ watch(
 
         <!-- 堆叠进度条 -->
         <div class="flex flex-1 items-center">
-          <div class="flex h-2.5 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+          <div class="flex h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-white/5">
             <div
               v-for="segment in getStackedWidths(member, index)"
               :key="segment.keyword"
@@ -571,8 +571,10 @@ watch(
 
         <!-- 数值和百分比 -->
         <div class="flex shrink-0 items-baseline gap-2">
-          <span class="text-lg font-bold text-gray-900 dark:text-white">{{ member.value }}</span>
-          <span class="text-sm text-gray-500">
+          <span class="font-mono text-base font-black tabular-nums text-gray-900 dark:text-white">
+            {{ member.value }}
+          </span>
+          <span class="text-xs text-gray-500">
             {{ t('quotes.keywords.timesWithPercent', { count: member.value, percent: member.percentage }) }}
           </span>
         </div>

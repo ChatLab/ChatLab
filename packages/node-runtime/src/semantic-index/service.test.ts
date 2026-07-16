@@ -77,7 +77,7 @@ async function disposeFixture(cleanup: ServiceFixtureCleanup): Promise<void> {
         cleanup.service?.close()
       } finally {
         try {
-          if (cleanup.db?.open) cleanup.db.close()
+          cleanup.db?.close()
         } finally {
           removeOwnedServiceTempDir(cleanup.dir)
         }

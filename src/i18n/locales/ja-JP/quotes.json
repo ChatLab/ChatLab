@@ -49,7 +49,7 @@
     }
   },
   "keywords": {
-    "title": "🔍 キーワードランキング",
+    "title": "キーワードランキング",
     "description": "グループチャットのキーワード使用ランキングを分析します。カスタムランキングも作成できます",
     "countTemplate": "全 {count} 名のメンバー",
     "templateLabel": "テンプレート:",
@@ -116,13 +116,12 @@
     }
   },
   "hotRepeat": {
-    "title": "🔥 盛り上がった復唱",
+    "title": "盛り上がった復唱",
     "loading": "リピートデータを読み込み中...",
     "description": "1 回の復唱で最も多くの人が参加したフレーズ",
     "countTemplate": "全 {count} 件の復唱",
     "people": "{count}人",
     "times": "{count} 回",
-    "colon": "：",
     "viewChat": "チャット履歴を見る",
     "empty": "リピートデータがありません"
   },
