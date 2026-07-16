@@ -36,7 +36,18 @@ export type { AiToolExecutionDeps } from './ai/tool-executor'
 
 // Individual route registration for granular testing or selective registration
 export { registerSystemRoutes } from './routes/system'
+export type { SystemRouteContext } from './routes/system'
 export { registerRestSessionRoutes } from './routes/sessions'
+export { createDatabaseRestSessionProvider } from './routes/rest-session-provider'
+export type {
+  RestMessageQuery,
+  RestMessagePage,
+  RestSessionDetail,
+  RestSessionExportData,
+  RestSessionOverview,
+  RestSessionProvider,
+  RestSessionSummary,
+} from './routes/rest-session-provider'
 export { registerSessionRoutes } from './routes/web/sessions'
 export { registerMemberRoutes } from './routes/web/members'
 export { registerPreferencesRoutes } from './routes/web/preferences'

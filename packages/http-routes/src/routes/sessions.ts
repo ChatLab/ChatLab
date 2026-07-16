@@ -2,75 +2,24 @@
  * ChatLab HTTP API — REST Session routes (/api/v1/sessions/*)
  *
  * Public REST API for external tools, scripts, and integrations.
- * Uses DatabaseManager + @openchatlab/core for data access.
+ * Uses an injected provider so Electron can keep database work in its Worker.
  */
 
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../context'
-import {
-  getSessionInfo,
-  getSessionMeta,
-  getSessionOverview,
-  queryMessages,
-  getMembers,
-  getMembersDetailed,
-  getMemberActivity,
-  getMessageTypeStats,
-  executeReadonlySql,
-  getLastPlatformMessageId,
-} from '@openchatlab/core'
 import { successResponse, errorResponse, sessionNotFound, exportTooLarge, sqlExecutionError, ApiError } from '../errors'
+import type { RestSessionProvider } from './rest-session-provider'
 
 const EXPORT_MESSAGE_LIMIT = 100_000
 
-function ensureDb(ctx: HttpRouteContext, sessionId: string) {
-  const db = ctx.dbManager.open(sessionId)
-  if (!db) throw sessionNotFound(sessionId)
-  return db
-}
-
-export function registerRestSessionRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+export function registerRestSessionRoutes(server: FastifyInstance, provider: RestSessionProvider): void {
   server.get('/api/v1/sessions', async () => {
-    const sessionIds = ctx.dbManager.listSessionIds()
-    const sessions = sessionIds
-      .map((id) => {
-        const db = ctx.dbManager.open(id)
-        if (!db) return null
-        const info = getSessionInfo(db)
-        if (!info) return null
-        return {
-          id,
-          name: info.name,
-          platform: info.platform,
-          type: info.type,
-          groupId: info.groupId || undefined,
-          messageCount: info.messageCount,
-          memberCount: info.memberCount,
-          firstTimestamp: info.firstMessageTs,
-          lastTimestamp: info.lastMessageTs,
-        }
-      })
-      .filter(Boolean)
-    return successResponse(sessions)
+    return successResponse(await provider.listSessions())
   })
 
   server.get<{ Params: { id: string } }>('/api/v1/sessions/:id', async (request) => {
-    const db = ensureDb(ctx, request.params.id)
-    const info = getSessionInfo(db)
-    if (!info) throw sessionNotFound(request.params.id)
-    return successResponse({
-      id: request.params.id,
-      name: info.name,
-      platform: info.platform,
-      type: info.type,
-      groupId: info.groupId || undefined,
-      messageCount: info.messageCount,
-      memberCount: info.memberCount,
-      firstTimestamp: info.firstMessageTs,
-      lastTimestamp: info.lastMessageTs,
-      lastPlatformMessageId: getLastPlatformMessageId(db),
-      importedAt: info.importedAt,
-    })
+    const session = await provider.getSession(request.params.id)
+    if (!session) throw sessionNotFound(request.params.id)
+    return successResponse(session)
   })
 
   server.get<{
@@ -85,7 +34,6 @@ export function registerRestSessionRoutes(server: FastifyInstance, ctx: HttpRout
     }
   }>('/api/v1/sessions/:id/messages', async (request) => {
     const { id } = request.params
-    const db = ensureDb(ctx, id)
 
     const page = Math.max(1, parseInt(request.query.page || '1', 10) || 1)
     const limit = Math.min(1000, Math.max(1, parseInt(request.query.limit || '100', 10) || 100))
@@ -93,65 +41,39 @@ export function registerRestSessionRoutes(server: FastifyInstance, ctx: HttpRout
 
     const { startTime, endTime, keyword, senderId } = request.query
 
-    const result = queryMessages(db, {
+    const result = await provider.queryMessages(id, {
       keyword: keyword || undefined,
-      startTs: startTime ? parseInt(startTime, 10) : undefined,
-      endTs: endTime ? parseInt(endTime, 10) : undefined,
+      startTime: startTime ? parseInt(startTime, 10) : undefined,
+      endTime: endTime ? parseInt(endTime, 10) : undefined,
       senderId: senderId ? parseInt(senderId, 10) : undefined,
       limit,
       offset,
     })
+    if (!result) throw sessionNotFound(id)
 
     return successResponse({
       messages: result.messages,
       total: result.total,
       page,
       limit,
-      totalPages: result.totalPages,
+      totalPages: result.totalPages ?? Math.ceil(result.total / limit),
     })
   })
 
   server.get<{ Params: { id: string } }>('/api/v1/sessions/:id/members', async (request) => {
-    const db = ensureDb(ctx, request.params.id)
-    const members = getMembers(db)
+    const members = await provider.getMembers(request.params.id)
+    if (!members) throw sessionNotFound(request.params.id)
     return successResponse(members)
   })
 
   server.get<{ Params: { id: string } }>('/api/v1/sessions/:id/stats/overview', async (request) => {
-    const { id } = request.params
-    const db = ensureDb(ctx, id)
-
-    const overview = getSessionOverview(db)
-    const memberActivity = getMemberActivity(db)
-    const typeDistribution = getMessageTypeStats(db)
-
-    const typeMap: Record<string, number> = {}
-    for (const item of typeDistribution) {
-      typeMap[String(item.type)] = item.count
-    }
-
-    const topMembers = memberActivity.slice(0, 10).map((m) => ({
-      platformId: m.platformId,
-      name: m.name,
-      messageCount: m.messageCount,
-      percentage: m.percentage,
-    }))
-
-    return successResponse({
-      messageCount: overview.totalMessages,
-      memberCount: overview.totalMembers,
-      timeRange: {
-        start: overview.firstMessageTs ?? 0,
-        end: overview.lastMessageTs ?? 0,
-      },
-      messageTypeDistribution: typeMap,
-      topMembers,
-    })
+    const overview = await provider.getOverview(request.params.id)
+    if (!overview) throw sessionNotFound(request.params.id)
+    return successResponse(overview)
   })
 
   server.post<{ Params: { id: string }; Body: { sql: string } }>('/api/v1/sessions/:id/sql', async (request, reply) => {
     const { id } = request.params
-    const db = ensureDb(ctx, id)
 
     const { sql } = request.body || {}
     if (!sql || typeof sql !== 'string') {
@@ -160,7 +82,11 @@ export function registerRestSessionRoutes(server: FastifyInstance, ctx: HttpRout
     }
 
     try {
-      const result = executeReadonlySql(db, sql)
+      const result = await provider.executeReadonlySql(id, sql)
+      if (result === null) {
+        const err = sessionNotFound(id)
+        return reply.code(err.statusCode).send(errorResponse(err))
+      }
       return successResponse(result)
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'SQL execution error'
@@ -176,18 +102,16 @@ export function registerRestSessionRoutes(server: FastifyInstance, ctx: HttpRout
 
   server.get<{ Params: { id: string } }>('/api/v1/sessions/:id/export', async (request, reply) => {
     const { id } = request.params
-    const db = ensureDb(ctx, id)
-    const meta = getSessionMeta(db)
-    if (!meta) throw sessionNotFound(id)
-    const overview = getSessionOverview(db)
+    const session = await provider.getSession(id)
+    if (!session) throw sessionNotFound(id)
 
-    if (overview.totalMessages > EXPORT_MESSAGE_LIMIT) {
-      const err = exportTooLarge(overview.totalMessages, EXPORT_MESSAGE_LIMIT)
+    if (session.messageCount > EXPORT_MESSAGE_LIMIT) {
+      const err = exportTooLarge(session.messageCount, EXPORT_MESSAGE_LIMIT)
       return reply.code(err.statusCode).send(errorResponse(err))
     }
 
-    const members = getMembersDetailed(db)
-    const allMessages = queryMessages(db, { limit: EXPORT_MESSAGE_LIMIT, offset: 0 })
+    const exportData = await provider.getExportData(id, EXPORT_MESSAGE_LIMIT)
+    if (!exportData) throw sessionNotFound(id)
 
     const chatLabFormat = {
       chatlab: {
@@ -196,17 +120,18 @@ export function registerRestSessionRoutes(server: FastifyInstance, ctx: HttpRout
         generator: 'ChatLab API',
       },
       meta: {
-        name: meta.name,
-        platform: meta.platform,
-        type: meta.type,
-        groupId: meta.groupId || undefined,
+        name: session.name,
+        platform: session.platform,
+        type: session.type,
+        groupId: session.groupId || undefined,
       },
-      members: members.map((m) => ({
+      members: exportData.members.map((m) => ({
         platformId: m.platformId,
         accountName: m.accountName || m.platformId,
         groupNickname: m.groupNickname || undefined,
+        aliases: Array.isArray(m.aliases) && m.aliases.length > 0 ? m.aliases : undefined,
       })),
-      messages: allMessages.messages.map((msg) => ({
+      messages: exportData.messages.map((msg) => ({
         sender: msg.senderPlatformId,
         accountName: msg.senderName || undefined,
         timestamp: msg.timestamp,

@@ -6,14 +6,18 @@
  */
 
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../context'
 import { successResponse } from '../errors'
 
-export function registerSystemRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+export interface SystemRouteContext {
+  getVersion: () => string
+  countSessions: () => number | Promise<number>
+}
+
+export function registerSystemRoutes(server: FastifyInstance, ctx: SystemRouteContext): void {
   server.get('/api/v1/status', async () => {
     let sessionCount = 0
     try {
-      sessionCount = ctx.dbManager.listSessionIds().length
+      sessionCount = await ctx.countSessions()
     } catch {
       // ignore
     }

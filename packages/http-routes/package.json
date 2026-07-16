@@ -9,7 +9,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./auth": "./src/auth.ts",
-    "./errors": "./src/errors.ts"
+    "./errors": "./src/errors.ts",
+    "./rest": "./src/rest.ts"
   },
   "dependencies": {
     "@openchatlab/config": "workspace:*",

@@ -30,6 +30,7 @@ import type {
   GlobalInsightService,
 } from '@openchatlab/node-runtime'
 import type { RuntimeIdentity } from '@openchatlab/node-runtime'
+import type { RestSessionProvider } from './routes/rest-session-provider'
 
 export interface HttpRouteContext {
   dbManager: DatabaseManager
@@ -38,6 +39,8 @@ export interface HttpRouteContext {
 
   getVersion: () => string
   runtimeIdentity?: RuntimeIdentity
+  /** Public REST session data access. Electron External API injects a Worker-backed provider. */
+  restSessionProvider?: RestSessionProvider
 
   /** Native binding path for better-sqlite3 (CLI native copy / Electron-ABI desktop copy) */
   nativeBinding?: string
