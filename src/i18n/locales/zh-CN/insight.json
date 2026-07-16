@@ -1,8 +1,8 @@
 {
-  "title": "洞察",
+  "title": "足迹",
   "reserved": "该视图将在后续版本开放",
   "tabs": {
-    "nav": "洞察视图",
+    "nav": "足迹视图",
     "annualSummary": "关于我",
     "timeInvestment": "时间投入",
     "relationshipChanges": "关系变化"
@@ -57,7 +57,7 @@
     "failed": "年度总结计算失败，可以重试",
     "coverage": "已分析 {analyzed}/{total} 个会话",
     "ownerIssues": "{count} 个会话尚未正确设置“我是谁”",
-    "noAnalyzableOwner": "还没有可用于全局洞察的身份，请先在会话中设置“我是谁”",
+    "noAnalyzableOwner": "还没有可用于足迹分析的身份，请先在会话中设置“我是谁”",
     "noDataWithLatest": "{year} 年暂无可分析数据，最近有效数据为 {latestYear} 年"
   },
   "actions": {

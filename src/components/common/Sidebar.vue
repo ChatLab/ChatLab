@@ -52,7 +52,7 @@ const showContactsEntry = computed(() =>
   })
 )
 
-// 是否在洞察页
+// 是否在足迹页
 const isInsightPage = computed(() => String(route.name ?? '').startsWith('insight-'))
 
 // 重命名相关状态
@@ -476,7 +476,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
           @click="handleImport"
         />
 
-        <!-- 洞察 -->
+        <!-- 足迹 -->
         <SidebarButton
           icon="i-heroicons-presentation-chart-bar"
           :title="t('layout.insight')"

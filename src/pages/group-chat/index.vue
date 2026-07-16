@@ -9,6 +9,7 @@ import { DebugTab } from '@/components/DebugTab'
 import { ChatExplorer } from '@/components/AIChat'
 import OverviewTab from './components/OverviewTab.vue'
 import ViewTab from './components/ViewTab.vue'
+import RankingView from '@/components/analysis/ranking/RankingView.vue'
 import MemberList from '@/components/common/member/MemberList.vue'
 import NicknameHistoryEntry from './components/member/NicknameHistoryEntry.vue'
 import SessionAnalysisHeader from '@/components/layout/session/SessionAnalysisHeader.vue'
@@ -55,6 +56,7 @@ function openChatRecordViewer() {
 const baseTabs = [
   { id: 'overview', labelKey: 'analysis.tabs.overview', icon: 'i-heroicons-chart-pie' },
   { id: 'view', labelKey: 'analysis.tabs.view', icon: 'i-heroicons-presentation-chart-bar' },
+  { id: 'ranking', labelKey: 'analysis.tabs.ranking', icon: 'i-heroicons-trophy' },
   { id: 'ai-chat', labelKey: 'analysis.tabs.aiChat', icon: 'i-heroicons-chat-bubble-left-ellipsis' },
   // { id: 'memory', labelKey: 'analysis.tabs.memory', icon: 'i-heroicons-light-bulb' },
   { id: 'lab', labelKey: 'analysis.tabs.lab', icon: 'i-heroicons-beaker' },
@@ -163,6 +165,12 @@ const filteredMemberCount = computed(() => {
               :key="'view-' + currentSessionId"
               :session-id="currentSessionId!"
               :session-name="session.name"
+              :time-filter="timeFilter"
+            />
+            <RankingView
+              v-else-if="activeTab === 'ranking'"
+              :key="'ranking-' + currentSessionId"
+              :session-id="currentSessionId!"
               :time-filter="timeFilter"
             />
             <ChatExplorer

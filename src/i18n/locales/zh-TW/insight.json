@@ -1,8 +1,8 @@
 {
-  "title": "洞察",
+  "title": "足跡",
   "reserved": "此檢視將於後續版本開放",
   "tabs": {
-    "nav": "洞察檢視",
+    "nav": "足跡檢視",
     "annualSummary": "關於我",
     "timeInvestment": "時間投入",
     "relationshipChanges": "關係變化"
@@ -57,7 +57,7 @@
     "failed": "年度總結計算失敗，可以重試",
     "coverage": "已分析 {analyzed}/{total} 個會話",
     "ownerIssues": "{count} 個會話尚未正確設定「我是誰」",
-    "noAnalyzableOwner": "尚無可用於全域洞察的身分，請先在會話中設定「我是誰」",
+    "noAnalyzableOwner": "尚無可用於足跡分析的身分，請先在會話中設定「我是誰」",
     "noDataWithLatest": "{year} 年沒有可分析資料，最近有效資料為 {latestYear} 年"
   },
   "actions": {

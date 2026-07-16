@@ -9,7 +9,8 @@
   },
   "tabs": {
     "overview": "總覽",
-    "view": "分析",
+    "view": "洞察",
+    "ranking": "榜單",
     "aiChat": "AI 對話",
     "memory": "記憶",
     "lab": "實驗室",
@@ -67,9 +68,11 @@
       "timeAnalysis": "時間",
       "topic": "話題",
       "groupRelationships": "群關係",
-      "ranking": "榜單",
       "relationship": "關係",
       "languagePreference": "語言偏好"
+    },
+    "ranking": {
+      "overall": "總榜單"
     },
     "quotes": {
       "hotRepeat": "熱門複讀",

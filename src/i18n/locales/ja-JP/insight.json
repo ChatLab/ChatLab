@@ -1,8 +1,8 @@
 {
-  "title": "インサイト",
+  "title": "足跡",
   "reserved": "このビューは今後のバージョンで公開予定です",
   "tabs": {
-    "nav": "インサイトビュー",
+    "nav": "足跡ビュー",
     "annualSummary": "私について",
     "timeInvestment": "時間の投入",
     "relationshipChanges": "関係の変化"
@@ -57,7 +57,7 @@
     "failed": "年間まとめの計算に失敗しました。再試行できます。",
     "coverage": "{total} 件中 {analyzed} 件の会話を分析済み",
     "ownerIssues": "{count} 件の会話で「自分」の設定が必要です",
-    "noAnalyzableOwner": "インサイトに使用できる本人情報がありません。先に会話で「自分」を設定してください。",
+    "noAnalyzableOwner": "足跡の分析に使用できる本人情報がありません。先に会話で「自分」を設定してください。",
     "noDataWithLatest": "{year} 年の分析データはありません。最新の有効年は {latestYear} 年です"
   },
   "actions": {

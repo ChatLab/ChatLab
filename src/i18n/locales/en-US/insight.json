@@ -1,8 +1,8 @@
 {
-  "title": "Insights",
+  "title": "Footprint",
   "reserved": "This view will be available in a future release",
   "tabs": {
-    "nav": "Insight views",
+    "nav": "Footprint views",
     "annualSummary": "About Me",
     "timeInvestment": "Time Investment",
     "relationshipChanges": "Relationship Changes"

@@ -9,7 +9,8 @@
   },
   "tabs": {
     "overview": "总览",
-    "view": "分析",
+    "view": "洞察",
+    "ranking": "榜单",
     "aiChat": "AI对话",
     "memory": "记忆",
     "lab": "实验室",
@@ -68,9 +69,11 @@
       "timeAnalysis": "时间",
       "topic": "话题",
       "groupRelationships": "群关系",
-      "ranking": "榜单",
       "relationship": "关系",
       "languagePreference": "语言偏好"
+    },
+    "ranking": {
+      "overall": "总榜单"
     },
     "quotes": {
       "hotRepeat": "最火复读",

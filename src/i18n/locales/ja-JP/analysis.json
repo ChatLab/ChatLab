@@ -9,7 +9,8 @@
   },
   "tabs": {
     "overview": "概要",
-    "view": "分析",
+    "view": "インサイト",
+    "ranking": "ランキング",
     "aiChat": "AIチャット",
     "memory": "メモリー",
     "lab": "ラボ",
@@ -67,9 +68,11 @@
       "timeAnalysis": "時間",
       "topic": "トピック",
       "groupRelationships": "グループ関係",
-      "ranking": "ランキング",
       "relationship": "関係",
       "languagePreference": "言語傾向"
+    },
+    "ranking": {
+      "overall": "総合ランキング"
     },
     "quotes": {
       "hotRepeat": "盛り上がった復唱",

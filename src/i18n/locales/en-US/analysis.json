@@ -9,7 +9,8 @@
   },
   "tabs": {
     "overview": "Overview",
-    "view": "Analysis",
+    "view": "Insights",
+    "ranking": "Rankings",
     "aiChat": "AI Chat",
     "memory": "Memory",
     "lab": "Lab",
@@ -67,9 +68,11 @@
       "timeAnalysis": "Time",
       "topic": "Topics",
       "groupRelationships": "Relationships",
-      "ranking": "Rankings",
       "relationship": "Relationship",
       "languagePreference": "Language Preference"
+    },
+    "ranking": {
+      "overall": "Overall"
     },
     "quotes": {
       "hotRepeat": "Hot Repeats",
