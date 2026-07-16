@@ -10,8 +10,9 @@
  *
  * 安全设计：
  * - 配置存储在 ~/.chatlab/settings/app-lock.json
- * - 密码 AES-256-GCM 加密存储
+ * - 密码 PBKDF2-SHA512 单向哈希存储，不可逆
  * - 锁定状态用 Flag 文件 + 内存状态双重保证
+ * - 配置写入：先写盘成功再更新内存，磁盘异常不污染内存状态
  * - 崩溃恢复：启动时检测 Flag 文件，若存在则强制锁屏
  */
 
@@ -195,9 +196,10 @@ function loadConfig(): LockConfig {
 }
 
 /**
- * 保存锁配置到磁盘
+ * 保存锁配置到磁盘（先写盘，成功后才更新内存）
+ * @returns true 写入成功，false 写入失败（内存状态未修改）
  */
-function saveConfig(config: LockConfig): void {
+function saveConfig(config: LockConfig, passwordHash: PasswordHash | null): boolean {
   try {
     const configPath = getLockConfigPath()
     const dir = getSettingsDir()
@@ -206,15 +208,16 @@ function saveConfig(config: LockConfig): void {
     }
 
     const toSave: Record<string, unknown> = { ...config }
-
-    // 密码哈希存储
-    if (storedPasswordHash) {
-      toSave.passwordHash = storedPasswordHash
+    if (passwordHash) {
+      toSave.passwordHash = passwordHash
     }
 
     fs.writeFileSync(configPath, JSON.stringify(toSave, null, 2), 'utf-8')
+    return true
   } catch (error) {
-    logger.error(`Failed to save lock config: ${error instanceof Error ? error.message : String(error)}`)
+    const errMsg = error instanceof Error ? error.message : String(error)
+    logger.error(`Failed to save lock config: ${errMsg}`)
+    return false
   }
 }
 
@@ -373,8 +376,8 @@ export async function unlockApp(credentials?: {
       return { success: false, needsSetup: true, error: '请先设置应用锁密码' }
     }
 
-    // Windows Hello 模式
-    if (credentials?.useWindowsHello) {
+    // Windows Hello 模式：必须用户配置中已启用 Hello，不允许调用方强制覆盖
+    if (credentials?.useWindowsHello && currentConfig.unlockMode === 'windows-hello') {
       const helloResult = await verifyWithWindowsHello('请验证您的身份以解锁 ChatLab')
 
       if (helloResult.notAvailable) {
@@ -460,12 +463,19 @@ function doUnlock(): void {
 // ==================== 密码管理 ====================
 
 /**
- * 设置新密码
+ * 设置新密码（仅用于首次初始化，无历史密码场景）
  *
- * @param newPassword 新密码（明文）
- * @returns PasswordChangeResult
+ * 安全规则：
+ * - 锁屏状态下禁止修改密码
+ * - 已有密码时拒绝直接覆盖，必须走 changePassword 校验旧密码
+ * - 先写盘成功，再更新内存状态
  */
 export function setPassword(newPassword: string): PasswordChangeResult {
+  // 锁屏状态下禁止修改密码
+  if (lockState === 'locked') {
+    return { success: false, error: '请先解锁应用' }
+  }
+
   if (newPassword.length < MIN_PASSWORD_LENGTH) {
     return { success: false, error: `密码长度不能少于 ${MIN_PASSWORD_LENGTH} 位` }
   }
@@ -474,10 +484,19 @@ export function setPassword(newPassword: string): PasswordChangeResult {
     return { success: false, error: `密码长度不能超过 ${MAX_PASSWORD_LENGTH} 位` }
   }
 
+  // 已有密码时拒绝直接覆盖，必须走 changePassword
+  if (storedPasswordHash) {
+    return { success: false, error: '已有密码，请使用修改密码功能' }
+  }
+
   try {
     const hashed = hashPassword(newPassword)
+    // 先写盘
+    if (!saveConfig(currentConfig, hashed)) {
+      return { success: false, error: '密码保存失败' }
+    }
+    // 写盘成功才更新内存
     storedPasswordHash = hashed
-    saveConfig(currentConfig)
     resetCooldown()
     logger.info('App lock password hash stored')
     return { success: true, strength: evaluatePasswordStrength(newPassword) }
@@ -514,8 +533,33 @@ export function changePassword(oldPassword: string, newPassword: string): Passwo
     return { success: false, error: '新密码不能与旧密码相同' }
   }
 
-  // 设置新密码
-  return setPassword(newPassword)
+  // 锁屏状态下禁止修改密码
+  if (lockState === 'locked') {
+    return { success: false, error: '请先解锁应用' }
+  }
+
+  // 设置新密码（先写盘，成功后再更新内存）
+  if (newPassword.length < MIN_PASSWORD_LENGTH) {
+    return { success: false, error: `密码长度不能少于 ${MIN_PASSWORD_LENGTH} 位` }
+  }
+  if (newPassword.length > MAX_PASSWORD_LENGTH) {
+    return { success: false, error: `密码长度不能超过 ${MAX_PASSWORD_LENGTH} 位` }
+  }
+
+  try {
+    const hashed = hashPassword(newPassword)
+    if (!saveConfig(currentConfig, hashed)) {
+      return { success: false, error: '密码保存失败' }
+    }
+    storedPasswordHash = hashed
+    resetCooldown()
+    logger.info('App lock password changed')
+    return { success: true, strength: evaluatePasswordStrength(newPassword) }
+  } catch (error) {
+    const errMsg = error instanceof Error ? error.message : String(error)
+    logger.error(`Failed to change password: ${errMsg}`)
+    return { success: false, error: '密码修改失败' }
+  }
 }
 
 /**
@@ -525,15 +569,24 @@ export function changePassword(oldPassword: string, newPassword: string): Passwo
  * 如果用户在锁屏状态忘记了密码，需要通过其他方式处理。
  */
 export function resetAppLockPassword(): { success: boolean; error?: string } {
+  // 锁屏状态下禁止重置
+  if (lockState === 'locked') {
+    return { success: false, error: '请先解锁应用' }
+  }
+
   try {
+    const newConfig = { ...currentConfig, enabled: false, unlockMode: 'password' as const }
+    // 先写盘
+    if (!saveConfig(newConfig, null)) {
+      return { success: false, error: '配置保存失败' }
+    }
+    // 写盘成功才更新内存
     storedPasswordHash = null
-    currentConfig.enabled = false
-    currentConfig.unlockMode = 'password'
-    saveConfig(currentConfig)
+    currentConfig = newConfig
     resetCooldown()
     clearLockFlag()
 
-    logger.warn('App lock password has been reset — Hello unbound')
+    logger.warn('App lock password reset — Hello unbound')
     return { success: true }
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error)
@@ -571,9 +624,11 @@ export async function getLockConfigAsync(): Promise<
 
   // 如果 Windows Hello 不可用但当前模式设为 windows-hello，自动降级
   if (!helloAvailable && currentConfig.unlockMode === 'windows-hello') {
-    currentConfig.unlockMode = 'password'
-    saveConfig(currentConfig)
-    logger.info('Windows Hello unavailable, auto-fallback to password mode')
+    const fallbackConfig = { ...currentConfig, unlockMode: 'password' as const }
+    if (saveConfig(fallbackConfig, storedPasswordHash)) {
+      currentConfig = fallbackConfig
+      logger.info('Windows Hello unavailable, auto-fallback to password mode')
+    }
   }
 
   return {
@@ -605,30 +660,28 @@ export async function updateLockConfig(
     return { success: false, error: '请先设置应用锁密码' }
   }
 
-  // 合并配置
-  currentConfig = {
-    ...currentConfig,
-    ...updates,
-  }
+  // 合并配置（临时变量，写盘成功后再更新 currentConfig）
+  const newConfig: LockConfig = { ...currentConfig, ...updates }
 
   // 如果关闭了应用锁，清除锁定状态
   if (updates.enabled === false) {
-    if (lockState === 'locked') {
-      // 注意：关闭锁之前应该先验证，此处仅用于已解锁状态下关闭
-    }
     stopIdleTimer()
   }
 
-  // 保存配置
-  saveConfig(currentConfig)
+  // 先写盘
+  if (!saveConfig(newConfig, storedPasswordHash)) {
+    return { success: false, error: '配置保存失败' }
+  }
+  // 写盘成功才更新内存
+  currentConfig = newConfig
 
   // 回读校验：若启用 Hello，确认配置已落盘
   if (currentConfig.unlockMode === 'windows-hello') {
     const reRead = loadConfig()
     if (reRead.unlockMode !== 'windows-hello') {
       logger.error('Lock config: Failed to persist Hello enable — readback mismatch')
-      currentConfig.unlockMode = 'password'
-      saveConfig(currentConfig)
+      currentConfig = { ...currentConfig, unlockMode: 'password' }
+      saveConfig(currentConfig, storedPasswordHash)
       return { success: false, error: '配置保存失败，请重试' }
     }
     logger.info('Lock config: Hello enable verified via readback')
@@ -711,9 +764,11 @@ export async function verifyHelloForEnroll(message: string): Promise<{
  */
 function validateAndSanitizeConfig(): void {
   if (currentConfig.enabled && !storedPasswordHash) {
-    logger.warn('App lock: enabled=true but no password stored — auto-disabling lock to prevent lockout')
-    currentConfig.enabled = false
-    saveConfig(currentConfig)
+    logger.warn('App lock: enabled=true but no password hash — auto-disabling lock')
+    const sanitized = { ...currentConfig, enabled: false }
+    if (saveConfig(sanitized, null)) {
+      currentConfig = sanitized
+    }
   }
 }
 
