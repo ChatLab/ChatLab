@@ -48,6 +48,7 @@ export function getCatchphraseAnalysis(db: DatabaseAdapter, filter?: TimeFilter)
       JOIN member m ON msg.sender_id = m.id
       ${whereClause}
       GROUP BY m.id, TRIM(msg.content)
+      HAVING COUNT(*) >= 2
       ORDER BY m.id, count DESC
       `
     )
@@ -81,9 +82,8 @@ export function getCatchphraseAnalysis(db: DatabaseAdapter, filter?: TimeFilter)
 
   const members = Array.from(memberMap.values())
   members.sort((a, b) => {
-    const aTotal = a.catchphrases.reduce((sum, c) => sum + c.count, 0)
-    const bTotal = b.catchphrases.reduce((sum, c) => sum + c.count, 0)
-    return bTotal - aTotal
+    const countDifference = (b.catchphrases[0]?.count ?? 0) - (a.catchphrases[0]?.count ?? 0)
+    return countDifference || a.memberId - b.memberId
   })
 
   return { members }

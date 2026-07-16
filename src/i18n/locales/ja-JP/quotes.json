@@ -156,19 +156,18 @@
     "sharedTopics": "共通のトピック"
   },
   "catchphrase": {
+    "title": "グループメンバーの口癖",
+    "description": "各メンバーを象徴する繰り返しフレーズを確認できます",
+    "memberTitle": "{name}の口癖",
+    "memberDescription": "このメンバーがよく使うフレーズを回数順に表示します",
     "loading": "口癖データを分析中...",
     "times": "{count}回",
+    "memberCount": "全{count}人",
+    "phraseCount": "全{count}件の口癖",
+    "viewChat": "関連メッセージを表示",
     "empty": {
       "title": "口癖データがありません"
-    },
-    "stats": {
-      "clickHint": "ヒント：クリックすると関連メッセージを表示できます"
-    },
-    "viewMode": {
-      "list": "リスト",
-      "wordcloud": "ワードクラウド"
-    },
-    "topN": "表示数"
+    }
   },
   "languagePreference": {
     "loading": "言語傾向を分析中...",

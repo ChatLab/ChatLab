@@ -93,7 +93,7 @@ const viewTimeFilter = computed(() => ({
         <CatchphraseTab
           v-else-if="activeSubTab === 'catchphrase'"
           :session-id="props.sessionId"
-          :time-filter="props.timeFilter"
+          :time-filter="viewTimeFilter"
         />
       </Transition>
     </div>

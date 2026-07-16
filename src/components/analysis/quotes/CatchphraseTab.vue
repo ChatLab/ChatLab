@@ -1,12 +1,12 @@
 <script setup lang="ts">
-import { ref, watch, computed, defineAsyncComponent } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { CatchphraseAnalysis } from '@/types/analysis'
+import type { CatchphraseAnalysis, MemberCatchphrase } from '@/types/analysis'
 import { useDataService } from '@/services'
-const EChartWordcloud = defineAsyncComponent(() => import('@/components/charts/EChartWordcloud.vue'))
-import type { EChartWordcloudData } from '@/components/charts'
-import { LoadingState, EmptyState, UITabs } from '@/components/UI'
+import { ListPro } from '@/components/charts'
+import { EmptyState, LoadingState, SectionCard } from '@/components/UI'
 import { useLayoutStore } from '@/stores/layout'
+import { formatRankNumber, getRankNumberClass } from '@/utils'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
 const { t } = useI18n()
@@ -19,91 +19,24 @@ const props = defineProps<{
 
 const catchphraseAnalysis = ref<CatchphraseAnalysis | null>(null)
 const isLoading = ref(false)
-const viewMode = ref<'list' | 'wordcloud'>('list')
-const topN = ref(30)
 
-const viewModeOptions = computed(() => [
-  { label: t('quotes.catchphrase.viewMode.list'), value: 'list' },
-  { label: t('quotes.catchphrase.viewMode.wordcloud'), value: 'wordcloud' },
-])
-
-const topNOptions = [
-  { label: '10', value: 10 },
-  { label: '30', value: 30 },
-  { label: '50', value: 50 },
-  { label: '100', value: 100 },
-]
-
-const hasData = computed(() => catchphraseAnalysis.value && catchphraseAnalysis.value.members.length > 0)
-
-// 按 topN 截取后的成员数据
-const displayMembers = computed(() => {
-  if (!catchphraseAnalysis.value) return []
-  const n = topN.value
-  console.log('[CatchphraseTab] displayMembers recompute, topN:', n, 'type:', typeof n)
-  return catchphraseAnalysis.value.members.map((member) => {
-    const sliced = member.catchphrases.slice(0, n)
-    console.log('[CatchphraseTab]', member.name, 'total:', member.catchphrases.length, 'display:', sliced.length)
-    return { ...member, catchphrases: sliced }
-  })
-})
-
-// 每个成员独立的词云数据
-const memberWordclouds = computed(() =>
-  displayMembers.value.map((member) => ({
-    name: member.name,
-    data: {
-      words: member.catchphrases.map((p) => ({
-        word: p.content,
-        count: p.count,
-      })),
-    } as EChartWordcloudData,
-  }))
+const members = computed(() => catchphraseAnalysis.value?.members ?? [])
+const isMemberView = computed(() => props.timeFilter?.memberId != null)
+const selectedMember = computed(() => (isMemberView.value ? (members.value[0] ?? null) : null))
+const cardTitle = computed(() =>
+  selectedMember.value
+    ? t('quotes.catchphrase.memberTitle', { name: selectedMember.value.name })
+    : t('quotes.catchphrase.title')
 )
-
-const rankStyles = [
-  {
-    bg: 'bg-amber-50 dark:bg-amber-900/20',
-    text: 'text-amber-700 dark:text-amber-400',
-    badge: 'bg-amber-100 dark:bg-amber-800/40 text-amber-600 dark:text-amber-300',
-  },
-  {
-    bg: 'bg-slate-50 dark:bg-slate-800/40',
-    text: 'text-slate-600 dark:text-slate-300',
-    badge: 'bg-slate-100 dark:bg-slate-700/60 text-slate-500 dark:text-slate-400',
-  },
-  {
-    bg: 'bg-orange-50 dark:bg-orange-900/15',
-    text: 'text-orange-600 dark:text-orange-400',
-    badge: 'bg-orange-100 dark:bg-orange-800/30 text-orange-500 dark:text-orange-300',
-  },
-]
-
-function getRankStyle(index: number) {
-  if (index < rankStyles.length) return rankStyles[index]
-  return {
-    bg: 'bg-gray-50 dark:bg-gray-800/30',
-    text: 'text-gray-600 dark:text-gray-400',
-    badge: 'bg-gray-100 dark:bg-gray-700/40 text-gray-500 dark:text-gray-400',
-  }
-}
-
-function truncateContent(content: string, maxLength = 20): string {
-  if (content.length <= maxLength) return content
-  return content.slice(0, maxLength) + '...'
-}
+const cardDescription = computed(() =>
+  isMemberView.value ? t('quotes.catchphrase.memberDescription') : t('quotes.catchphrase.description')
+)
 
 async function loadCatchphraseAnalysis() {
   if (!props.sessionId) return
   isLoading.value = true
   try {
     catchphraseAnalysis.value = await useDataService().getCatchphraseAnalysis(props.sessionId, props.timeFilter)
-    console.log(
-      '[CatchphraseTab] API result: members:',
-      catchphraseAnalysis.value?.members.length,
-      'per-member catchphrases:',
-      catchphraseAnalysis.value?.members.map((m) => ({ name: m.name, count: m.catchphrases.length }))
-    )
   } catch (error) {
     console.error('Failed to load catchphrase analysis:', error)
   } finally {
@@ -111,15 +44,15 @@ async function loadCatchphraseAnalysis() {
   }
 }
 
-function handleWordClick(word: string) {
+function handlePhraseClick(content: string) {
   layoutStore.openChatRecordDrawer({
-    keywords: [word],
+    keywords: [content],
   })
 }
 
-watch(topN, (newVal, oldVal) => {
-  console.log('[CatchphraseTab] topN changed:', oldVal, '->', newVal, 'type:', typeof newVal)
-})
+function getOverviewPhrases(member: MemberCatchphrase) {
+  return member.catchphrases.slice(0, 5)
+}
 
 watch(
   () => [props.sessionId, props.timeFilter],
@@ -131,85 +64,103 @@ watch(
 </script>
 
 <template>
-  <div class="main-content mx-auto max-w-6xl py-6">
-    <!-- 加载中 -->
+  <div class="main-content mx-auto max-w-3xl p-6">
     <LoadingState v-if="isLoading" :text="t('quotes.catchphrase.loading')" />
 
-    <!-- 空状态 -->
-    <EmptyState v-else-if="!hasData" :text="t('quotes.catchphrase.empty.title')" />
-
-    <!-- 主内容 -->
-    <template v-else>
-      <!-- 工具栏（全部靠右） -->
-      <div class="mb-4 flex items-center justify-end gap-4">
-        <span class="text-xs text-gray-500 dark:text-gray-400">{{ t('quotes.catchphrase.topN') }}</span>
-        <UITabs v-model="topN" size="xs" :items="topNOptions" />
-        <div class="h-4 w-px bg-gray-200 dark:bg-gray-700" />
-        <UITabs v-model="viewMode" size="xs" :items="viewModeOptions" />
-      </div>
-
-      <!-- 列表视图 -->
-      <div v-if="viewMode === 'list'" class="grid grid-cols-2 gap-6">
-        <div v-for="member in displayMembers" :key="member.memberId">
-          <div class="mb-3 text-center">
-            <span class="text-base font-semibold text-gray-900 dark:text-white">{{ member.name }}</span>
+    <ListPro
+      v-else-if="selectedMember"
+      :items="selectedMember.catchphrases"
+      :title="cardTitle"
+      :description="cardDescription"
+      :top-n="10"
+      :count-label="t('quotes.catchphrase.phraseCount', { count: selectedMember.catchphrases.length })"
+    >
+      <template #item="{ item, index }">
+        <button
+          type="button"
+          class="group/item grid w-full grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
+          :aria-label="`${t('quotes.catchphrase.viewChat')}: ${item.content}`"
+          @click="handlePhraseClick(item.content)"
+        >
+          <span
+            class="w-8 shrink-0 text-center font-mono text-sm font-black tabular-nums"
+            :class="getRankNumberClass(index)"
+          >
+            {{ formatRankNumber(index) }}
+          </span>
+          <p
+            class="line-clamp-2 min-w-0 text-sm font-medium leading-5 text-gray-900 dark:text-white"
+            :title="item.content"
+          >
+            {{ item.content }}
+          </p>
+          <div class="flex shrink-0 items-center gap-3 pl-2">
+            <span class="font-mono text-sm font-black tabular-nums text-primary-600 dark:text-primary-400">
+              {{ t('quotes.catchphrase.times', { count: item.count }) }}
+            </span>
+            <UIcon
+              name="i-heroicons-chevron-right"
+              class="h-4 w-4 text-gray-300 transition-colors group-hover/item:text-gray-500 dark:text-gray-600 dark:group-hover/item:text-gray-400"
+            />
           </div>
-          <div class="flex flex-wrap gap-2">
-            <div
-              v-for="(phrase, index) in member.catchphrases"
-              :key="index"
-              class="inline-flex cursor-pointer items-center gap-1.5 rounded-full px-3 py-1.5 transition-opacity hover:opacity-75"
-              :class="getRankStyle(index).bg"
+        </button>
+      </template>
+    </ListPro>
+
+    <ListPro
+      v-else-if="members.length > 0"
+      :items="members"
+      :title="cardTitle"
+      :description="cardDescription"
+      :top-n="10"
+      :count-label="t('quotes.catchphrase.memberCount', { count: members.length })"
+    >
+      <template #item="{ item: member, index }">
+        <div
+          class="grid w-full grid-cols-[2rem_minmax(0,1fr)] items-start gap-x-3 sm:grid-cols-[2rem_minmax(7.5rem,0.65fr)_minmax(0,1.35fr)]"
+        >
+          <span
+            class="row-span-2 w-8 shrink-0 pt-0.5 text-center font-mono text-sm font-black tabular-nums sm:row-span-1"
+            :class="getRankNumberClass(index)"
+          >
+            {{ formatRankNumber(index) }}
+          </span>
+
+          <p
+            class="col-start-2 row-start-1 min-w-0 truncate pt-0.5 text-sm font-semibold text-gray-900 dark:text-white"
+            :title="member.name"
+          >
+            {{ member.name }}
+          </p>
+
+          <div
+            class="col-start-2 row-start-2 mt-1.5 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 sm:col-start-3 sm:row-start-1 sm:mt-0"
+          >
+            <button
+              v-for="phrase in getOverviewPhrases(member)"
+              :key="phrase.content"
+              type="button"
+              class="group/phrase inline-flex max-w-full items-baseline gap-1 rounded text-left outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
               :title="phrase.content"
-              @click="handleWordClick(phrase.content)"
+              :aria-label="`${t('quotes.catchphrase.viewChat')}: ${phrase.content}`"
+              @click="handlePhraseClick(phrase.content)"
             >
               <span
-                v-if="index < 3"
-                class="flex h-4 w-4 shrink-0 items-center justify-center rounded-full text-[10px] font-bold"
-                :class="getRankStyle(index).badge"
+                class="max-w-40 truncate text-sm text-gray-700 transition-colors group-hover/phrase:text-primary-600 dark:text-gray-200 dark:group-hover/phrase:text-primary-400"
               >
-                {{ index + 1 }}
+                “{{ phrase.content }}”
               </span>
-              <span class="text-sm font-medium" :class="getRankStyle(index).text">
-                {{ truncateContent(phrase.content) }}
-              </span>
-              <span class="text-xs opacity-50">
+              <span class="shrink-0 font-mono text-[11px] tabular-nums text-gray-400 dark:text-gray-500">
                 {{ t('quotes.catchphrase.times', { count: phrase.count }) }}
               </span>
-            </div>
+            </button>
           </div>
         </div>
-      </div>
+      </template>
+    </ListPro>
 
-      <!-- 词云视图 -->
-      <div v-else class="grid grid-cols-2 gap-6">
-        <div v-for="member in memberWordclouds" :key="member.name">
-          <div class="mb-3 text-center">
-            <span class="text-base font-semibold text-gray-900 dark:text-white">{{ member.name }}</span>
-          </div>
-          <div class="relative w-full" style="aspect-ratio: 4 / 3">
-            <EmptyState
-              v-if="member.data.words.length === 0"
-              :text="t('quotes.catchphrase.empty.title')"
-              class="h-full"
-            />
-            <EChartWordcloud
-              v-else
-              :data="member.data"
-              height="100%"
-              :max-words="topN"
-              color-scheme="default"
-              :size-scale="1"
-              :loading="isLoading"
-              @word-click="handleWordClick"
-            />
-          </div>
-        </div>
-      </div>
-
-      <p class="mt-4 text-center text-xs text-gray-500 dark:text-gray-400">
-        {{ t('quotes.catchphrase.stats.clickHint') }}
-      </p>
-    </template>
+    <SectionCard v-else :title="cardTitle" :description="cardDescription" :show-divider="false">
+      <EmptyState :text="t('quotes.catchphrase.empty.title')" />
+    </SectionCard>
   </div>
 </template>

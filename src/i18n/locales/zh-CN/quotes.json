@@ -156,19 +156,18 @@
     "sharedTopics": "共同话题"
   },
   "catchphrase": {
+    "title": "群成员口头禅",
+    "description": "看看每位成员最有代表性的重复短句",
+    "memberTitle": "{name}的口头禅",
+    "memberDescription": "按出现次数查看这位成员最常说的话",
     "loading": "正在分析口头禅数据...",
     "times": "{count}次",
+    "memberCount": "共 {count} 位成员",
+    "phraseCount": "共 {count} 条口头禅",
+    "viewChat": "查看相关消息",
     "empty": {
       "title": "暂无口头禅数据"
-    },
-    "stats": {
-      "clickHint": "提示：点击可查看相关消息"
-    },
-    "viewMode": {
-      "list": "列表",
-      "wordcloud": "词云"
-    },
-    "topN": "显示数量"
+    }
   },
   "languagePreference": {
     "loading": "正在分析语言偏好...",

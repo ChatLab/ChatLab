@@ -156,19 +156,18 @@
     "sharedTopics": "共同話題"
   },
   "catchphrase": {
+    "title": "群成員口頭禪",
+    "description": "看看每位成員最具代表性的重複短句",
+    "memberTitle": "{name}的口頭禪",
+    "memberDescription": "依出現次數查看這位成員最常說的話",
     "loading": "正在分析口頭禪資料...",
     "times": "{count} 次",
+    "memberCount": "共 {count} 位成員",
+    "phraseCount": "共 {count} 條口頭禪",
+    "viewChat": "查看相關訊息",
     "empty": {
       "title": "暫無口頭禪資料"
-    },
-    "stats": {
-      "clickHint": "提示：點擊可查看相關訊息"
-    },
-    "viewMode": {
-      "list": "列表",
-      "wordcloud": "詞雲"
-    },
-    "topN": "顯示數量"
+    }
   },
   "languagePreference": {
     "loading": "正在分析語言偏好...",

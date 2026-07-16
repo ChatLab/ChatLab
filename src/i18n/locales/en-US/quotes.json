@@ -156,19 +156,18 @@
     "sharedTopics": "Shared Topics"
   },
   "catchphrase": {
+    "title": "Group Catchphrases",
+    "description": "See each member's most characteristic repeated phrases",
+    "memberTitle": "{name}'s Catchphrases",
+    "memberDescription": "Rank this member's most repeated phrases by frequency",
     "loading": "Analyzing catchphrases...",
     "times": "{count}x",
+    "memberCount": "{count} members",
+    "phraseCount": "{count} catchphrases",
+    "viewChat": "View related messages",
     "empty": {
       "title": "No catchphrase data"
-    },
-    "stats": {
-      "clickHint": "Tip: Click a phrase to view related messages"
-    },
-    "viewMode": {
-      "list": "List",
-      "wordcloud": "Word Cloud"
-    },
-    "topN": "Show count"
+    }
   },
   "languagePreference": {
     "loading": "Analyzing language preferences...",
