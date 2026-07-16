@@ -49,7 +49,7 @@
     }
   },
   "keywords": {
-    "title": "🔍 Keyword Ranking",
+    "title": "Keyword Ranking",
     "description": "Analyze keyword usage rankings in chats, customize your own lists",
     "countTemplate": "{count} members",
     "templateLabel": "Templates:",
@@ -116,13 +116,12 @@
     }
   },
   "hotRepeat": {
-    "title": "🔥 Hot Repeats",
+    "title": "Hot Repeats",
     "loading": "Loading repeat data...",
     "description": "Content with most participants in single repeat chain",
     "countTemplate": "{count} hot repeats",
     "people": "{count} ppl",
     "times": "{count}x",
-    "colon": ": ",
     "viewChat": "View chat history",
     "empty": "No repeat data available"
   },

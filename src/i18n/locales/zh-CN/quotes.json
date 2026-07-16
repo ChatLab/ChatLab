@@ -49,7 +49,7 @@
     }
   },
   "keywords": {
-    "title": "🔍 关键词排行",
+    "title": "关键词排行",
     "description": "分析群聊关键词使用排行，这里可以自定义多种榜单",
     "countTemplate": "共 {count} 位成员",
     "templateLabel": "模板:",
@@ -116,13 +116,12 @@
     }
   },
   "hotRepeat": {
-    "title": "🔥 最火复读内容",
+    "title": "最火复读内容",
     "loading": "正在加载复读数据...",
     "description": "单次复读参与人数最多的内容",
     "countTemplate": "共 {count} 条热门复读",
     "people": "{count}人",
     "times": "{count} 次",
-    "colon": "：",
     "viewChat": "查看聊天记录",
     "empty": "暂无复读数据"
   },

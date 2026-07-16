@@ -31,7 +31,7 @@ export type {
 
 export function getMentionAnalysis(sessionId: string, filter?: TimeFilter): any {
   const db = openDatabaseAdapter(sessionId)
-  if (!db) return { topMentioners: [], topMentioned: [], oneWay: [], twoWay: [], totalMentions: 0, memberDetails: [] }
+  if (!db) return { topMentioners: [], topMentioned: [], totalMentions: 0 }
   return coreGetMentionAnalysis(db, filter)
 }
 

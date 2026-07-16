@@ -70,33 +70,16 @@
   },
   "relationships": {
     "loading": "正在分析 {'@'} 互動資料...",
-    "topMentioners": "📢 誰最喜歡 {'@'} 別人",
-    "totalMentions": "共 {count} 次 {'@'}",
-    "topMentioned": "🎯 誰最常被 {'@'}",
-    "popularMember": "群裡的人氣王",
+    "rankingTitle": "{'@'} 互動排行",
+    "rankModes": {
+      "mentioners": "主動 {'@'}",
+      "mentioned": "被 {'@'}"
+    },
+    "topMentionersDescription": "依主動 {'@'} 次數排序",
+    "topMentionedDescription": "依被 {'@'} 次數排序",
     "times": "次",
-    "oneWay": {
-      "title": "🐕 單向關注偵測",
-      "description": "發現 {count} 對單向關注關係（一方 {'@'} 另一方佔比 ≥80%）",
-      "neverRespond": "從不回應",
-      "reverse": "反向 {count} 次",
-      "ratio": "{value}% 單向"
-    },
-    "twoWay": {
-      "title": "💕 雙向奔赴偵測",
-      "description": "發現 {count} 對互動頻繁的 CP（互相 {'@'} 且平衡度 ≥30%）",
-      "interactions": "次互動",
-      "balance": "{value}% 平衡"
-    },
     "emptyTitle": "📱 {'@'} 互動分析",
-    "empty": "暫無 {'@'} 互動資料",
-    "modal": {
-      "title": "{name} 的 {'@'} 關係",
-      "topMentioned": "最常 {'@'} 的人",
-      "topMentioners": "最常 {'@'} TA 的人",
-      "timesCount": "{count} 次",
-      "close": "關閉"
-    }
+    "empty": "暫無 {'@'} 互動資料"
   },
   "private": {
     "title": "對話成員",

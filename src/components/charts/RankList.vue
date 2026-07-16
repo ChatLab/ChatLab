@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
-import { getRankBadgeClass, getRankBarColor } from '@/utils'
+import { formatRankNumber, getRankBarColor, getRankNumberClass } from '@/utils'
 
 const { t } = useI18n()
 
@@ -41,19 +41,19 @@ function getRelativePercentage(index: number): number {
 </script>
 
 <template>
-  <div class="divide-y divide-gray-100 dark:divide-gray-800">
+  <div>
     <div
       v-for="(member, index) in displayMembers"
       :key="member.id"
-      class="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-gray-50 dark:hover:bg-gray-800/50"
+      class="flex items-start gap-3 px-5 py-3.5 transition-colors hover:bg-gray-50/70 dark:hover:bg-white/5"
     >
       <!-- 排名 -->
-      <div
-        class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-sm font-bold"
-        :class="getRankBadgeClass(index)"
+      <span
+        class="w-8 shrink-0 pt-0.5 text-center font-mono text-sm font-black tabular-nums"
+        :class="getRankNumberClass(index)"
       >
-        {{ index + 1 }}
-      </div>
+        {{ formatRankNumber(index) }}
+      </span>
 
       <!-- 头像占位 -->
       <div
@@ -63,28 +63,31 @@ function getRelativePercentage(index: number): number {
         {{ member.name.slice(0, 1) }}
       </div>
 
-      <!-- 名字 -->
-      <div class="w-32 shrink-0">
-        <p class="wrap-break-word font-medium text-gray-900 dark:text-white">
-          {{ member.name }}
-        </p>
-      </div>
-
-      <!-- 进度条 -->
-      <div class="flex flex-1 items-center">
-        <div class="h-2 w-full overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
-          <div
-            class="h-full rounded-full bg-linear-to-r transition-all"
-            :class="getRankBarColor(index)"
-            :style="{ width: `${getRelativePercentage(index)}%` }"
-          />
+      <div class="min-w-0 flex-1">
+        <div class="flex items-baseline justify-between gap-3">
+          <p class="truncate text-sm font-medium text-gray-900 dark:text-white" :title="member.name">
+            {{ member.name }}
+          </p>
+          <div class="flex shrink-0 items-baseline gap-1.5 whitespace-nowrap">
+            <span class="font-mono text-base font-black tabular-nums text-gray-900 dark:text-white">
+              {{ member.value }}
+            </span>
+            <span class="text-xs text-gray-500 dark:text-gray-400">{{ displayUnit }}</span>
+          </div>
         </div>
-      </div>
 
-      <!-- 数值和百分比 -->
-      <div class="flex shrink-0 items-baseline gap-2 whitespace-nowrap">
-        <span class="text-lg font-bold text-gray-900 dark:text-white">{{ member.value }}</span>
-        <span class="text-sm text-gray-500">{{ displayUnit }} ({{ member.percentage }}%)</span>
+        <div class="mt-2 flex items-center gap-2.5">
+          <div class="h-1.5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-white/5">
+            <div
+              class="h-full rounded-full bg-linear-to-r transition-all"
+              :class="getRankBarColor(index)"
+              :style="{ width: `${getRelativePercentage(index)}%` }"
+            />
+          </div>
+          <span class="w-10 shrink-0 text-right font-mono text-[11px] tabular-nums text-gray-400 dark:text-gray-500">
+            {{ member.percentage }}%
+          </span>
+        </div>
       </div>
     </div>
   </div>

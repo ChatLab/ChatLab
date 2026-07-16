@@ -70,33 +70,16 @@
   },
   "relationships": {
     "loading": "正在分析 {'@'} 互动数据...",
-    "topMentioners": "📢 谁最喜欢 {'@'} 别人",
-    "totalMentions": "共 {count} 次 {'@'}",
-    "topMentioned": "🎯 谁最常被 {'@'}",
-    "popularMember": "群里的人气王",
+    "rankingTitle": "{'@'} 互动排行",
+    "rankModes": {
+      "mentioners": "主动 {'@'}",
+      "mentioned": "被 {'@'}"
+    },
+    "topMentionersDescription": "按主动 {'@'} 次数排序",
+    "topMentionedDescription": "按被 {'@'} 次数排序",
     "times": "次",
-    "oneWay": {
-      "title": "🐕 单向关注检测",
-      "description": "发现 {count} 对单向关注关系（一方 {'@'} 另一方占比 ≥80%）",
-      "neverRespond": "从不回应",
-      "reverse": "反向 {count} 次",
-      "ratio": "{value}% 单向"
-    },
-    "twoWay": {
-      "title": "💕 双向奔赴检测",
-      "description": "发现 {count} 对互动频繁的 CP（互相 {'@'} 且平衡度 ≥30%）",
-      "interactions": "次互动",
-      "balance": "{value}% 平衡"
-    },
     "emptyTitle": "📱 {'@'} 互动分析",
-    "empty": "暂无 {'@'} 互动数据",
-    "modal": {
-      "title": "{name} 的 {'@'} 关系",
-      "topMentioned": "最常 {'@'} 的人",
-      "topMentioners": "最常 {'@'} TA 的人",
-      "timesCount": "{count} 次",
-      "close": "关闭"
-    }
+    "empty": "暂无 {'@'} 互动数据"
   },
   "private": {
     "title": "对话成员",

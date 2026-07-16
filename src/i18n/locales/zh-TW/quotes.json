@@ -49,7 +49,7 @@
     }
   },
   "keywords": {
-    "title": "🔍 關鍵字排行榜",
+    "title": "關鍵字排行榜",
     "description": "分析群聊中的關鍵字使用情況，也能自訂不同榜單",
     "countTemplate": "共 {count} 位成員",
     "templateLabel": "範本：",
@@ -116,13 +116,12 @@
     }
   },
   "hotRepeat": {
-    "title": "🔥 熱門複讀",
+    "title": "熱門複讀",
     "loading": "正在載入複讀資料...",
     "description": "單次複讀參與人數最多的內容",
     "countTemplate": "共 {count} 筆熱門複讀",
     "people": "{count}人",
     "times": "{count} 次",
-    "colon": "：",
     "viewChat": "檢視聊天紀錄",
     "empty": "暫無複讀資料"
   },
