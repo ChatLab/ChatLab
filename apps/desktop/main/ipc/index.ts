@@ -15,7 +15,7 @@ import { registerNetworkHandlers } from './network'
 import { registerAnalyticsHandlers } from '../analytics'
 import { registerApiHandlers, initApiServer, cleanupApiServer } from './api'
 import { registerDemoHandlers } from './demo'
-import { cleanupArchiveImportSources } from '../import-source-runtime'
+import { cleanupArchiveImportSources } from '../import/archive-source-runtime'
 // 导入 Worker 模块（用于异步分析查询和流式导入）
 import * as worker from '../worker/workerManager'
 

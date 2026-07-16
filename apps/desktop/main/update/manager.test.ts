@@ -58,7 +58,7 @@ async function loadUpdaterModule() {
   await mock.module('@electron-toolkit/utils', {
     namedExports: { platform: { isWindows: false } },
   })
-  await mock.module('./logger', {
+  await mock.module('../logger', {
     namedExports: {
       logger: {
         info(message: string) {
@@ -70,23 +70,23 @@ async function loadUpdaterModule() {
       },
     },
   })
-  await mock.module('./network/proxy', {
+  await mock.module('../network/proxy', {
     namedExports: {
       getActiveProxyUrl: () => undefined,
     },
   })
-  await mock.module('./worker/workerManager', {
+  await mock.module('../worker/workerManager', {
     namedExports: {
       closeWorkerAsync: async () => undefined,
     },
   })
-  await mock.module('./i18n', {
+  await mock.module('../i18n', {
     namedExports: {
       t: (key: string, params?: Record<string, string>) => `${key}${params?.version ? `:${params.version}` : ''}`,
     },
   })
 
-  const mod = await import('./update.js')
+  const mod = await import('./manager.js')
   return {
     autoUpdater,
     dialogCalls,

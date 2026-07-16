@@ -5,14 +5,14 @@
 import { ipcMain, app, dialog, clipboard, shell, nativeTheme } from 'electron'
 import * as fs from 'fs/promises'
 import type { IpcContext } from './types'
-import { simulateUpdateDialog, manualCheckForUpdates } from '../update'
+import { simulateUpdateDialog, manualCheckForUpdates } from '../update/manager'
 import { t } from '../i18n'
 import {
   applyCurrentTitleBarOverlay,
   applyTitleBarOverlayColor,
   resetCurrentTitleBarOverlayColor,
 } from '../window/titlebar'
-import { getDesktopAppVersion } from '../runtime-compat'
+import { getDesktopAppVersion } from '../runtime/compat'
 
 type AppWithQuitFlag = typeof app & { isQuiting?: boolean }
 // 通过类型扩展记录应用退出意图，避免使用 @ts-ignore。

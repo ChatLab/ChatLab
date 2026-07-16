@@ -9,7 +9,7 @@ import {
 } from '../database/startup-migration'
 import { initLocale } from '../i18n'
 import { initProxy } from '../network/proxy'
-import { resolveDesktopNativeBinding } from '../native-sqlite'
+import { resolveDesktopNativeBinding } from '../runtime/native-sqlite'
 import { cleanupPendingDeleteDir, applyPendingDataDirMigration } from '../paths/data-dir-switch'
 import {
   needsUnifiedDirMigration,
@@ -20,7 +20,7 @@ import {
 } from '../paths/legacy-migration'
 import { ensureAppDirs, getSystemDataDir, getAiDataDir } from '../paths/locations'
 import { getPathProvider } from '../paths/provider'
-import { assertDesktopDataDirCompatible, getDesktopAppVersion } from '../runtime-compat'
+import { assertDesktopDataDirCompatible, getDesktopAppVersion } from '../runtime/compat'
 
 export async function prepareDesktopRuntime(isTestMode: boolean): Promise<boolean> {
   logNativeParserStatus()

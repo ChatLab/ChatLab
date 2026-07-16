@@ -7,7 +7,7 @@
 
 import { AIChatManager } from '@openchatlab/node-runtime'
 import { getPathProvider } from '../paths/provider'
-import { resolveDesktopNativeBinding } from '../native-sqlite'
+import { resolveDesktopNativeBinding } from '../runtime/native-sqlite'
 import { aiLogger } from './logger'
 
 export type { AIChat, AIMessage, AIMessageRole, ContentBlock, TokenUsageData } from '@openchatlab/node-runtime'

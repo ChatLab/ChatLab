@@ -25,7 +25,7 @@ import { migrateDatabase, needsMigration, CURRENT_SCHEMA_VERSION } from './migra
 import { getPathProvider } from '../paths/provider'
 import { ensureDir } from '../paths/locations'
 import { deleteSessionCache } from '@openchatlab/node-runtime'
-import { resolveDesktopNativeBinding } from '../native-sqlite'
+import { resolveDesktopNativeBinding } from '../runtime/native-sqlite'
 
 /**
  * 获取数据库目录

@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import type { PathProvider } from '@openchatlab/core'
-import { assertDesktopDataDirCompatible, resolveDesktopAppVersion } from './runtime-compat'
+import { assertDesktopDataDirCompatible, resolveDesktopAppVersion } from './compat'
 
 function makeTempDir(): string {
   const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()

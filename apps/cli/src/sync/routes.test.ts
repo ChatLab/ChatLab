@@ -5,8 +5,7 @@ import path from 'node:path'
 import test from 'node:test'
 import Fastify from 'fastify'
 import { DataSourceManager } from '@openchatlab/sync'
-import { registerAutomationRoutes } from './routes'
-import type { AutomationRouteContext } from '@openchatlab/http-routes'
+import { registerAutomationRoutes, type AutomationRouteContext } from '@openchatlab/http-routes'
 
 function makeTempDir(): string {
   const baseDir = fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir()

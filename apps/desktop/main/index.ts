@@ -1,9 +1,10 @@
 import { app, BrowserWindow, protocol, dialog } from 'electron'
 import { join } from 'path'
 import { optimizer, platform } from '@electron-toolkit/utils'
-import { checkUpdate } from './update'
+import { checkUpdate } from './update/manager'
 import mainIpcMain, { cleanup } from './ipc'
-import { startInternalServer, stopInternalServer, registerInternalApiIpc } from './internal-api'
+import { startInternalServer, stopInternalServer, registerInternalApiIpc } from './internal-api/server'
+import { getDataSourceManager, getPullEngine } from './ipc/api'
 import { getPathProvider } from './paths/provider'
 import { initAnalytics } from './analytics'
 import { logger } from './logger'
@@ -79,7 +80,7 @@ class MainProcess {
       if (process.platform === 'win32') app.setAppUserModelId(app.getName())
 
       try {
-        await startInternalServer(getPathProvider())
+        await startInternalServer(getPathProvider(), { getDataSourceManager, getPullEngine })
         registerInternalApiIpc()
         console.log('[Main] Internal API Server ready')
       } catch (error) {
@@ -98,9 +99,8 @@ class MainProcess {
       await this.createWindow()
       console.log('[Main] Window created')
 
-      checkUpdate(this.mainWindow)
-
       if (this.mainWindow) {
+        checkUpdate(this.mainWindow)
         console.log('[Main] Registering IPC handlers...')
         mainIpcMain(this.mainWindow)
         console.log('[Main] IPC handlers registered')

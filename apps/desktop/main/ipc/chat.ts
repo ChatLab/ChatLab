@@ -19,7 +19,7 @@ import {
 import type { IpcContext } from './types'
 import { CURRENT_SCHEMA_VERSION, getPendingMigrationInfos } from '../database/migrations'
 import { t } from '../i18n'
-import { getArchiveImportSourceManager, importPreparedChatWithSource } from '../import-source-runtime'
+import { getArchiveImportSourceManager, importPreparedChatWithSource } from '../import/archive-source-runtime'
 
 export function registerChatHandlers(ctx: IpcContext): void {
   const { win } = ctx

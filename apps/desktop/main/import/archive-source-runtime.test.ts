@@ -4,8 +4,8 @@ import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it } from 'node:test'
 import { ArchiveImportSourceManager } from '@openchatlab/node-runtime/import/archive/source-manager'
-import { writeZipFixture } from '../../../packages/node-runtime/src/import/archive/test-utils'
-import { importPreparedChatWithSource } from './import-source-runtime'
+import { writeZipFixture } from '../../../../packages/node-runtime/src/import/archive/test-utils'
+import { importPreparedChatWithSource } from './archive-source-runtime'
 
 function createTakeout(zipPath: string): void {
   writeZipFixture(zipPath, [
