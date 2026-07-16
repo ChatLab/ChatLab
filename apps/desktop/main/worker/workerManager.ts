@@ -10,11 +10,11 @@ import * as fs from 'fs'
 import type { ParseProgress } from '@openchatlab/parser'
 import type { AutoImportResult, StreamImportResult } from './import'
 
-import { getDatabaseDir, getCacheDir, getTempDir, getLogsDir, ensureDir } from '../paths'
+import { getDatabaseDir, getCacheDir, getTempDir, getLogsDir, ensureDir } from '../paths/locations'
 import { getNlpDir } from '../nlp/dictManager'
 import { resolveDesktopNativeBinding } from '../native-sqlite'
 import { assertDesktopDataDirCompatible, getDesktopAppVersion } from '../runtime-compat'
-import { getPathProvider } from '../path-context'
+import { getPathProvider } from '../paths/provider'
 import {
   IMPORT_IN_PROGRESS_ERROR_KEY,
   ImportInProgressError,

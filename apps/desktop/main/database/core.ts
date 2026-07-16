@@ -22,8 +22,8 @@ import {
 import type { RuntimeIdentity } from '@openchatlab/node-runtime/src/data-dir-compat'
 import type { ParseResult } from '../../../../src/types/base'
 import { migrateDatabase, needsMigration, CURRENT_SCHEMA_VERSION } from './migrations'
-import { getPathProvider } from '../path-context'
-import { ensureDir } from '../paths'
+import { getPathProvider } from '../paths/provider'
+import { ensureDir } from '../paths/locations'
 import { deleteSessionCache } from '@openchatlab/node-runtime'
 import { resolveDesktopNativeBinding } from '../native-sqlite'
 

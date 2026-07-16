@@ -6,7 +6,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { app, session } from 'electron'
-import { getSettingsDir } from '../paths'
+import { getSettingsDir } from '../paths/locations'
 import { ProxyApplyQueue } from './proxy-apply-queue'
 import { proxyUrlFromElectronResolvedProxy } from './proxy-resolver'
 

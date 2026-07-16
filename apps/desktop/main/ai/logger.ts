@@ -6,7 +6,7 @@
  */
 
 import { AiLogger } from '@openchatlab/node-runtime'
-import { getPathProvider } from '../path-context'
+import { getPathProvider } from '../paths/provider'
 
 export { extractErrorInfo, extractErrorStack } from '@openchatlab/node-runtime'
 

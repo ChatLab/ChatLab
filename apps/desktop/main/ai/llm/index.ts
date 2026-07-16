@@ -6,7 +6,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { randomUUID } from 'crypto'
-import { getPathProvider } from '../../path-context'
+import { getPathProvider } from '../../paths/provider'
 import type { LLMProvider, ProviderInfo, AIServiceConfig, AIConfigStore } from './types'
 import { MAX_CONFIG_COUNT } from './types'
 import { aiLogger } from '../logger'

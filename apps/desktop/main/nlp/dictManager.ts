@@ -15,7 +15,7 @@ import {
   ensureDefaultDict as _ensureDefaultDict,
 } from '@openchatlab/node-runtime'
 import type { DictInfo } from '@openchatlab/core'
-import { getSystemDataDir } from '../paths'
+import { getSystemDataDir } from '../paths/locations'
 
 export type { DictInfo }
 

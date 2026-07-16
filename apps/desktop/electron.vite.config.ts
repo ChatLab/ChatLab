@@ -13,6 +13,7 @@ const openChatLabAliases = {
     'packages/node-runtime/src/import/archive/source-manager.ts'
   ),
   '@openchatlab/node-runtime/data-dir-compat': resolve(rootDir, 'packages/node-runtime/src/data-dir-compat.ts'),
+  '@openchatlab/node-runtime/data-dir-switch': resolve(rootDir, 'packages/node-runtime/src/data-dir-switch.ts'),
   '@openchatlab': resolve(rootDir, 'packages'),
 }
 

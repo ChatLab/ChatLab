@@ -9,7 +9,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { createHash } from 'crypto'
 import { SkillManagerCore, type SkillManagerFs } from '@openchatlab/node-runtime'
-import { getPathProvider } from '../../path-context'
+import { getPathProvider } from '../../paths/provider'
 import { aiLogger } from '../logger'
 import type { SkillDef, SkillSummary, SkillInitResult, SkillSaveResult, BuiltinSkillInfo } from './types'
 

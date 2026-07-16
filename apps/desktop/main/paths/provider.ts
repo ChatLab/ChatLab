@@ -1,21 +1,20 @@
 /**
- * Electron implementation of PathProvider.
- * Wraps the existing paths.ts functions to satisfy the shared interface.
+ * Electron PathProvider implementation and main-process singleton.
  */
 
 import type { PathProvider } from '@openchatlab/core'
 import {
-  getSystemDataDir,
-  getUserDataDir,
-  getDatabaseDir,
-  getVectorDir,
   getAiDataDir,
-  getSettingsDir,
   getCacheDir,
-  getTempDir,
-  getLogsDir,
+  getDatabaseDir,
   getDownloadsDir,
-} from './paths'
+  getLogsDir,
+  getSettingsDir,
+  getSystemDataDir,
+  getTempDir,
+  getUserDataDir,
+  getVectorDir,
+} from './locations'
 
 export class ElectronPathProvider implements PathProvider {
   getSystemDir(): string {
@@ -48,4 +47,11 @@ export class ElectronPathProvider implements PathProvider {
   getDownloadsDir(): string {
     return getDownloadsDir()
   }
+}
+
+let provider: PathProvider | null = null
+
+export function getPathProvider(): PathProvider {
+  if (!provider) provider = new ElectronPathProvider()
+  return provider
 }

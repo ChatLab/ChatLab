@@ -6,7 +6,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { randomUUID } from 'crypto'
-import { getPathProvider } from '../../path-context'
+import { getPathProvider } from '../../paths/provider'
 import { aiLogger } from '../logger'
 import type { ProviderDefinition } from './model-types'
 

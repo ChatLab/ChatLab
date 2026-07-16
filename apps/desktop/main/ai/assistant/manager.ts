@@ -9,7 +9,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { randomUUID } from 'crypto'
 import { AssistantManager as SharedAssistantManager, type AssistantManagerFs } from '@openchatlab/node-runtime'
-import { getPathProvider } from '../../path-context'
+import { getPathProvider } from '../../paths/provider'
 import { aiLogger } from '../logger'
 import type {
   AssistantConfig,

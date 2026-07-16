@@ -1,6 +1,6 @@
 import { app, ipcMain } from 'electron'
 import { AnalyticsService } from '@openchatlab/node-runtime'
-import { getSystemDataDir } from './paths'
+import { getSystemDataDir } from './paths/locations'
 
 const APTABASE_APP_KEY = process.env.APTABASE_APP_KEY
 

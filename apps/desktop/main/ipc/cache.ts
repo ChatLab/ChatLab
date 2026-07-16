@@ -8,7 +8,8 @@
  */
 import { ipcMain, dialog, app } from 'electron'
 import type { IpcContext } from './types'
-import { getUserDataDir, setCustomDataDir, ensureAppDirs } from '../paths'
+import { ensureAppDirs, getUserDataDir } from '../paths/locations'
+import { setCustomDataDir } from '../paths/data-dir-switch'
 import { isInsideAppInstallDir } from '../utils/pathUtils'
 
 export function registerCacheHandlers(_context: IpcContext): void {

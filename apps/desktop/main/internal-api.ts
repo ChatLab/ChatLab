@@ -52,6 +52,7 @@ import { createExecuteElectronAiTool } from './ai/tools/debug-executor'
 import { assertDesktopDataDirCompatible, getDesktopAppVersion } from './runtime-compat'
 import { resolveDesktopNativeBinding } from './native-sqlite'
 import { resolveModelDownloadProxyUrl } from './network/proxy'
+import { getDefaultUserDataDir, getDownloadsDir, getUserDataDir } from './paths/locations'
 
 export interface InternalEndpoint {
   baseUrl: string
@@ -165,7 +166,6 @@ export async function startInternalServer(pathProvider: PathProvider): Promise<I
     }
 
     const { shell } = await import('electron')
-    const { getDefaultUserDataDir, getUserDataDir, getDownloadsDir } = await import('./paths')
     const { getDataSourceManager, getPullEngine } = await import('./ipc/api')
     const routeDbManager = newDbManager
 

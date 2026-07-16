@@ -9,6 +9,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./data-dir-compat": "./src/data-dir-compat.ts",
+    "./data-dir-switch": "./src/data-dir-switch.ts",
     "./import/archive/source-manager": "./src/import/archive/source-manager.ts",
     "./src/*": "./src/*.ts"
   },

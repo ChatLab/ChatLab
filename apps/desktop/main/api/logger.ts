@@ -6,7 +6,7 @@
  */
 
 import { initAppLogger, appLogger } from '@openchatlab/node-runtime'
-import { getLogsDir } from '../paths'
+import { getLogsDir } from '../paths/locations'
 
 let initialized = false
 

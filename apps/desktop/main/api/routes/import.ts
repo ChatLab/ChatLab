@@ -20,7 +20,7 @@ import * as crypto from 'crypto'
 import { pipeline } from 'stream/promises'
 import { hashImportBody, ImportIdempotencyCache, isValidImportSessionId } from '@openchatlab/node-runtime'
 import type { PushImportPayload } from '@openchatlab/node-runtime'
-import { getTempDir } from '../../paths'
+import { getTempDir } from '../../paths/locations'
 import * as worker from '../../worker/workerManager'
 import {
   ApiError,

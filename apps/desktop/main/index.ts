@@ -4,22 +4,19 @@ import { optimizer, is, platform } from '@electron-toolkit/utils'
 import { checkUpdate } from './update'
 import mainIpcMain, { cleanup } from './ipcMain'
 import { startInternalServer, stopInternalServer, registerInternalApiIpc } from './internal-api'
-import { getPathProvider } from './path-context'
+import { getPathProvider } from './paths/provider'
 import { initAnalytics } from './analytics'
 import { logger } from './logger'
 import { initProxy } from './network/proxy'
 import {
-  needsLegacyMigration,
-  migrateFromLegacyDir,
-  ensureAppDirs,
-  cleanupPendingDeleteDir,
-  applyPendingDataDirMigration,
   needsUnifiedDirMigration,
   migrateToUnifiedDirs,
   verifyDataPath,
-  getSystemDataDir,
-  getAiDataDir,
-} from './paths'
+  needsLegacyMigration,
+  migrateFromLegacyDir,
+} from './paths/legacy-migration'
+import { ensureAppDirs, getSystemDataDir, getAiDataDir } from './paths/locations'
+import { cleanupPendingDeleteDir, applyPendingDataDirMigration } from './paths/data-dir-switch'
 import { migrateAllDatabases, checkMigrationNeeded } from './database/core'
 import {
   assertDesktopStartupMigrationSucceeded,
