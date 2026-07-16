@@ -95,13 +95,6 @@
   },
   "private": {
     "title": "对话成员",
-    "description": "共 {count} 位成员，可为成员添加别名备注用于搜索和 AI 分析",
-    "messageCount": "消息数",
-    "percentage": "占比 {value}%",
-    "customAlias": "自定义别名",
-    "aliasPlaceholder": "输入后回车添加别名",
-    "empty": "暂无成员数据",
-    "tipTitle": "提示",
-    "tipContent": "添加别名可以更好地识别聊天记录中的对话对象，别名将用于搜索和 AI 分析中。"
+    "description": "共 {count} 位成员，可为成员添加别名备注用于搜索和 AI 分析"
   }
 }

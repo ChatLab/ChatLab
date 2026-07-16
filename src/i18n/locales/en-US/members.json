@@ -95,13 +95,6 @@
   },
   "private": {
     "title": "Chat Members",
-    "description": "{count} members. Add aliases for search and AI analysis",
-    "messageCount": "Messages",
-    "percentage": "{value}% of total",
-    "customAlias": "Custom Aliases",
-    "aliasPlaceholder": "Press Enter to add alias",
-    "empty": "No member data available",
-    "tipTitle": "Tip",
-    "tipContent": "Adding aliases helps identify chat participants and improves search and AI analysis accuracy."
+    "description": "{count} members. Add aliases for search and AI analysis"
   }
 }

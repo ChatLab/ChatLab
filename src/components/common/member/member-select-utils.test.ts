@@ -1,7 +1,12 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 
-import { filterAndSortMembers, formatMemberOption, mergeMemberPages } from './member-select-utils'
+import {
+  filterAndSortMembers,
+  formatMemberOption,
+  mergeMemberPages,
+  shouldShowMemberMergeControls,
+} from './member-select-utils'
 import type { MemberWithStats } from '@/types/analysis'
 
 function member(overrides: Partial<MemberWithStats>): MemberWithStats {
@@ -49,6 +54,13 @@ describe('member select utils', () => {
         [3, 'C'],
       ]
     )
+  })
+
+  it('only shows private-chat merge controls when duplicate member identities may exist', () => {
+    assert.equal(shouldShowMemberMergeControls('group', 2), true)
+    assert.equal(shouldShowMemberMergeControls('private', 1), false)
+    assert.equal(shouldShowMemberMergeControls('private', 2), false)
+    assert.equal(shouldShowMemberMergeControls('private', 3), true)
   })
 
   it('filters every searchable member field and keeps tied counts in a deterministic order', () => {

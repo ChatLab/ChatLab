@@ -44,6 +44,10 @@ export function mergeMemberPages(current: MemberWithStats[], incoming: MemberWit
   return [...merged.values()]
 }
 
+export function shouldShowMemberMergeControls(chatType: 'group' | 'private', memberCount: number): boolean {
+  return chatType === 'group' || memberCount > 2
+}
+
 function normalizeMemberSortValue(value: number | string | null): number | string | null {
   if (typeof value !== 'string') return value
   return value.trim() || null

@@ -265,7 +265,12 @@ const filteredMemberCount = computed(() => {
             </div>
           </div>
           <div class="flex-1 overflow-hidden">
-            <MemberList :session-id="currentSessionId" :show-header="false" @data-changed="loadData" />
+            <MemberList
+              :session-id="currentSessionId"
+              :show-header="false"
+              chat-type="group"
+              @data-changed="loadData"
+            />
           </div>
         </div>
       </template>

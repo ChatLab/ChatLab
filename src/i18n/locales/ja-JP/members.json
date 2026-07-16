@@ -95,13 +95,6 @@
   },
   "private": {
     "title": "会話メンバー",
-    "description": "全 {count} 名のメンバー。検索や AI 分析に使用する別名を追加できます",
-    "messageCount": "メッセージ数",
-    "percentage": "割合 {value}%",
-    "customAlias": "カスタム別名",
-    "aliasPlaceholder": "入力して Enter で別名を追加",
-    "empty": "メンバーデータがありません",
-    "tipTitle": "ヒント",
-    "tipContent": "別名を追加すると、チャット履歴の相手をより正確に識別できます。別名は検索や AI 分析で使用されます。"
+    "description": "全 {count} 名のメンバー。検索や AI 分析に使用する別名を追加できます"
   }
 }

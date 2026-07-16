@@ -95,13 +95,6 @@
   },
   "private": {
     "title": "對話成員",
-    "description": "共 {count} 位成員，可為成員新增別名備註用於搜尋和 AI 分析",
-    "messageCount": "訊息數",
-    "percentage": "佔比 {value}%",
-    "customAlias": "自訂別名",
-    "aliasPlaceholder": "輸入後按 Enter 新增別名",
-    "empty": "暫無成員資料",
-    "tipTitle": "提示",
-    "tipContent": "新增別名可以更好地識別聊天紀錄中的對話對象，別名將用於搜尋和 AI 分析中。"
+    "description": "共 {count} 位成員，可為成員新增別名備註用於搜尋和 AI 分析"
   }
 }

@@ -9,7 +9,7 @@ import { DebugTab } from '@/components/DebugTab'
 import { ChatExplorer } from '@/components/AIChat'
 import OverviewTab from './components/OverviewTab.vue'
 import ViewTab from './components/ViewTab.vue'
-import MemberManagementPanel from './components/MemberTab.vue'
+import MemberList from '@/components/common/member/MemberList.vue'
 import SessionAnalysisHeader from '@/components/layout/session/SessionAnalysisHeader.vue'
 import SemanticIndexSessionModal from '@/components/analysis/SemanticIndexSessionModal.vue'
 import OwnerPromptModal from '@/components/analysis/member/OwnerPromptModal.vue'
@@ -271,8 +271,13 @@ const otherMemberAvatar = computed(() => {
             </div>
             <UButton variant="ghost" icon="i-heroicons-x-mark" size="sm" @click="showMemberManagementModal = false" />
           </div>
-          <div class="flex-1 overflow-auto">
-            <MemberManagementPanel :session-id="currentSessionId" :show-header="false" />
+          <div class="flex-1 overflow-hidden">
+            <MemberList
+              :session-id="currentSessionId"
+              :show-header="false"
+              chat-type="private"
+              @data-changed="loadAnalysisData"
+            />
           </div>
         </div>
       </template>

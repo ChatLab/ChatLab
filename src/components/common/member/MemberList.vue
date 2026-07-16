@@ -5,7 +5,7 @@ import { useI18n } from 'vue-i18n'
 import type { MemberWithStats } from '@/types/analysis'
 import OwnerEntryCard from '@/components/analysis/member/OwnerEntryCard.vue'
 import LazyAvatar from '@/components/common/avatar/LazyAvatar.vue'
-import { filterAndSortMembers, type MemberSortField } from './member-select-utils'
+import { filterAndSortMembers, shouldShowMemberMergeControls, type MemberSortField } from './member-select-utils'
 import { useDataService } from '@/services'
 import { useTableRowSelection, useTableSort, type TableSortDirection } from '@/composables/useTable'
 import { reportError } from '@/services/log-report'
@@ -22,9 +22,11 @@ const props = withDefaults(
   defineProps<{
     sessionId: string
     showHeader?: boolean
+    chatType?: 'group' | 'private'
   }>(),
   {
     showHeader: true,
+    chatType: 'group',
   }
 )
 
@@ -38,6 +40,11 @@ const members = ref<MemberWithStats[]>([])
 const isLoading = ref(false)
 const loadFailed = ref(false)
 const searchQuery = ref('')
+const showMergeControls = computed(() => shouldShowMemberMergeControls(props.chatType, members.value.length))
+const memberTableGridClass = computed(() => {
+  if (props.chatType === 'group') return ''
+  return showMergeControls.value ? 'member-table-grid--private' : 'member-table-grid--private-without-selection'
+})
 
 // 删除确认状态
 const deletingMember = ref<MemberWithStats | null>(null)
@@ -87,14 +94,24 @@ const {
   selectedIds: selectedMergeIds,
   setSelection: setSelectedMergeIds,
   clearSelection: clearMergeSelection,
-  handleRowClick: handleMemberRowClick,
-  handleRowMouseDown: handleMemberRowMouseDown,
+  handleRowClick: handleSelectionRowClick,
+  handleRowMouseDown: handleSelectionRowMouseDown,
 } = useTableRowSelection({
   rows: filteredSortedMembers,
   getRowId: (member) => member.id,
 })
 const selectedMergeMembers = computed(() => members.value.filter((member) => selectedMergeIds.value.has(member.id)))
 const canMergeSelected = computed(() => selectedMergeMembers.value.length === 2)
+
+function handleMemberRowClick(index: number, memberId: number, event: MouseEvent) {
+  if (!showMergeControls.value) return
+  handleSelectionRowClick(index, memberId, event)
+}
+
+function handleMemberRowMouseDown(event: MouseEvent) {
+  if (!showMergeControls.value) return
+  handleSelectionRowMouseDown(event)
+}
 
 const mergePlan = computed(() => {
   if (selectedMergeMembers.value.length !== 2) return null
@@ -268,6 +285,9 @@ async function confirmMerge() {
 }
 
 watch([searchQuery, sortState], resetVirtualScroll)
+watch(showMergeControls, (show) => {
+  if (!show) clearMergeSelection()
+})
 
 // 监听 sessionId 变化
 watch(
@@ -300,16 +320,22 @@ onUnmounted(() => {
     <div v-if="props.showHeader" class="mb-6">
       <div class="flex items-center gap-3">
         <div>
-          <h2 class="text-xl font-bold text-gray-900 dark:text-white">{{ t('members.list.title') }}</h2>
+          <h2 class="text-xl font-bold text-gray-900 dark:text-white">
+            {{ t(props.chatType === 'private' ? 'members.private.title' : 'members.list.title') }}
+          </h2>
           <p class="text-sm text-gray-500 dark:text-gray-400">
-            {{ t('members.list.description', { count: members.length }) }}
+            {{
+              t(props.chatType === 'private' ? 'members.private.description' : 'members.list.description', {
+                count: members.length,
+              })
+            }}
           </p>
         </div>
       </div>
     </div>
 
     <!-- Owner配置 -->
-    <OwnerEntryCard class="mb-6" :session-id="sessionId" :members="members" chat-type="group" />
+    <OwnerEntryCard class="mb-6" :session-id="sessionId" :members="members" :chat-type="props.chatType" />
 
     <!-- 搜索框 -->
     <div class="mb-4 flex flex-wrap items-center justify-between gap-3">
@@ -323,7 +349,7 @@ onUnmounted(() => {
           <UButton icon="i-heroicons-x-mark" variant="link" color="neutral" size="xs" @click="searchQuery = ''" />
         </template>
       </UInput>
-      <div class="flex items-center gap-2">
+      <div v-if="showMergeControls" class="flex items-center gap-2">
         <UIcon
           v-if="isLoading && members.length > 0"
           name="i-heroicons-arrow-path"
@@ -376,14 +402,16 @@ onUnmounted(() => {
 
       <!-- 成员表格 -->
       <div v-else class="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
-        <div class="flex h-full min-w-[1120px] flex-col">
+        <div class="flex h-full flex-col" :class="props.chatType === 'private' ? 'min-w-[920px]' : 'min-w-[1120px]'">
           <!-- 固定表头：只让数据区纵向滚动 -->
           <div
             class="member-table-grid shrink-0 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-500 dark:border-white/5 dark:bg-page-dark/80 dark:text-gray-400"
+            :class="memberTableGridClass"
           >
-            <span aria-hidden="true" />
+            <span v-if="showMergeControls" aria-hidden="true" />
             <span>{{ t('members.list.table.accountName') }}</span>
             <button
+              v-if="props.chatType === 'group'"
               type="button"
               class="flex items-center justify-start gap-1.5 text-left transition-colors hover:text-gray-700 dark:hover:text-gray-200"
               @click="toggleSort('groupNickname')"
@@ -457,13 +485,17 @@ onUnmounted(() => {
                 :key="String(virtualItem.key)"
                 :ref="measureVirtualRow"
                 :data-index="virtualItem.index"
-                class="member-table-grid absolute left-0 top-0 w-full min-h-16 cursor-pointer border-b border-gray-100/80 px-3 py-2 transition-colors hover:bg-gray-50 dark:border-white/5 dark:hover:bg-gray-800/30"
-                :class="selectedMergeIds.has(member.id) ? 'bg-primary-50/70 dark:bg-primary-950/20' : ''"
+                class="member-table-grid absolute left-0 top-0 w-full min-h-16 border-b border-gray-100/80 px-3 py-2 transition-colors hover:bg-gray-50 dark:border-white/5 dark:hover:bg-gray-800/30"
+                :class="[
+                  memberTableGridClass,
+                  showMergeControls ? 'cursor-pointer' : '',
+                  showMergeControls && selectedMergeIds.has(member.id) ? 'bg-primary-50/70 dark:bg-primary-950/20' : '',
+                ]"
                 :style="{ transform: `translateY(${virtualItem.start}px)` }"
                 @mousedown="handleMemberRowMouseDown"
                 @click="handleMemberRowClick(virtualItem.index, member.id, $event)"
               >
-                <div class="flex justify-center">
+                <div v-if="showMergeControls" class="flex justify-center">
                   <UCheckbox
                     :model-value="selectedMergeIds.has(member.id)"
                     @click.stop="handleMemberRowClick(virtualItem.index, member.id, $event)"
@@ -494,6 +526,7 @@ onUnmounted(() => {
                 </div>
 
                 <p
+                  v-if="props.chatType === 'group'"
                   class="truncate text-sm text-gray-700 dark:text-gray-300"
                   :class="member.groupNickname ? 'font-medium' : 'text-gray-400 dark:text-gray-500'"
                   :title="member.groupNickname || '-'"
@@ -620,5 +653,13 @@ onUnmounted(() => {
     80px;
   column-gap: 12px;
   align-items: center;
+}
+
+.member-table-grid--private {
+  grid-template-columns: 40px minmax(220px, 1.45fr) 96px 148px minmax(280px, 1.35fr) 80px;
+}
+
+.member-table-grid--private-without-selection {
+  grid-template-columns: minmax(220px, 1.45fr) 96px 148px minmax(280px, 1.35fr) 80px;
 }
 </style>
