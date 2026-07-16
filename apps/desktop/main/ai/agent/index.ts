@@ -26,9 +26,9 @@ import {
   type PiModel,
   type PiApi,
 } from '@openchatlab/node-runtime'
+import type { AssistantConfig } from '@openchatlab/node-runtime'
 
 import type { AgentConfig, AgentStreamChunk, AgentResult, SkillContext } from './types'
-import type { AssistantConfig } from '../assistant/types'
 import { buildSystemPrompt } from './prompt-builder'
 import { extractThinkingContent, stripToolCallTags } from '@openchatlab/core'
 import { AgentEventHandler } from '@openchatlab/node-runtime'

@@ -78,6 +78,59 @@ export enum ChatType {
   PRIVATE = 'private',
 }
 
+// ==================== AI Assistants ====================
+
+export const GENERAL_ASSISTANT_IDS = ['general_cn', 'general_tw', 'general_en', 'general_ja'] as const
+
+export type GeneralAssistantId = (typeof GENERAL_ASSISTANT_IDS)[number]
+
+export const DEFAULT_GENERAL_ASSISTANT_ID: GeneralAssistantId = 'general_cn'
+
+export function getDefaultGeneralAssistantId(locale?: string): GeneralAssistantId {
+  if (locale?.startsWith('zh-TW')) return 'general_tw'
+  if (locale?.startsWith('en')) return 'general_en'
+  if (locale?.startsWith('ja')) return 'general_ja'
+  return DEFAULT_GENERAL_ASSISTANT_ID
+}
+
+export function isGeneralAssistantId(id: string): id is GeneralAssistantId {
+  return GENERAL_ASSISTANT_IDS.some((generalId) => generalId === id)
+}
+
+export interface AssistantConfig {
+  id: string
+  name: string
+  systemPrompt: string
+  presetQuestions: string[]
+  allowedBuiltinTools?: string[]
+  builtinId?: string
+  /** Builtin template version this config was based on, used only for safe upgrades. */
+  builtinVersion?: number
+  /** Digest of the source builtin template; remains unchanged after user edits. */
+  builtinDigest?: string
+  applicableChatTypes?: ('group' | 'private')[]
+  supportedLocales?: string[]
+}
+
+export interface AssistantSummary {
+  id: string
+  name: string
+  systemPrompt: string
+  presetQuestions: string[]
+  builtinId?: string
+  applicableChatTypes?: ('group' | 'private')[]
+  supportedLocales?: string[]
+}
+
+export interface BuiltinAssistantInfo {
+  id: string
+  name: string
+  systemPrompt: string
+  applicableChatTypes?: ('group' | 'private')[]
+  supportedLocales?: string[]
+  imported: boolean
+}
+
 // ==================== 成员角色 ====================
 
 export interface MemberRole {

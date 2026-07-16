@@ -10,6 +10,7 @@ import type {
   TokenUsageData,
 } from '@openchatlab/node-runtime'
 import type { ChartPayload, PathProvider } from '@openchatlab/core'
+import { getDefaultGeneralAssistantId } from '@openchatlab/shared-types'
 import { createCliRunAgentStream } from './agent-stream-runner'
 
 export interface ChatCommandOptions {
@@ -125,7 +126,7 @@ function assertSessionExists(dbManager: DatabaseManager, sessionId: string): voi
 }
 
 export function resolveAIChatTarget(
-  options: Pick<ChatCommandOptions, 'sessionId' | 'aiChatId' | 'question'>,
+  options: Pick<ChatCommandOptions, 'sessionId' | 'aiChatId' | 'question' | 'locale'>,
   deps: Pick<ChatCommandDeps, 'dbManager' | 'aiChatManager'>
 ): ResolvedAIChatTarget {
   if (options.aiChatId) {
@@ -142,7 +143,11 @@ export function resolveAIChatTarget(
 
   const sessionId = options.sessionId ?? resolveSingleSessionId(deps.dbManager)
   assertSessionExists(deps.dbManager, sessionId)
-  const aiChat = deps.aiChatManager.createAIChat(sessionId, buildTitle(options.question), 'general_cn')
+  const aiChat = deps.aiChatManager.createAIChat(
+    sessionId,
+    buildTitle(options.question),
+    getDefaultGeneralAssistantId(options.locale)
+  )
   return { sessionId, aiChatId: aiChat.id, assistantId: aiChat.assistantId, created: true }
 }
 

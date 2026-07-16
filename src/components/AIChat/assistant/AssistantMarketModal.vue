@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useAssistantStore, type CloudAssistantItem } from '@/stores/assistant'
 import { useToast } from '@/composables/useToast'
+import { isGeneralAssistantId } from '@openchatlab/shared-types'
 
 const { t, locale } = useI18n()
 const toast = useToast()
@@ -47,16 +48,12 @@ watch(
   { immediate: true }
 )
 
-function isGeneral(id: string): boolean {
-  return id === 'general_cn' || id === 'general_tw' || id === 'general_en' || id === 'general_ja'
-}
-
 function handleConfigure(id: string) {
   emit('configure', id)
 }
 
 async function handleDelete(id: string) {
-  if (isGeneral(id)) return
+  if (isGeneralAssistantId(id)) return
   await assistantStore.deleteAssistant(id)
 }
 
@@ -192,7 +189,7 @@ function getChatTypeLabel(types?: ('group' | 'private')[]): string | null {
                     {{ getChatTypeLabel(assistant.applicableChatTypes) }}
                   </span>
                   <span
-                    v-if="isGeneral(assistant.id)"
+                    v-if="isGeneralAssistantId(assistant.id)"
                     class="inline-flex shrink-0 items-center rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400"
                   >
                     {{ t('ai.assistant.market.default') }}
@@ -219,7 +216,7 @@ function getChatTypeLabel(types?: ('group' | 'private')[]): string | null {
                   <UIcon name="i-heroicons-document-duplicate" class="h-4 w-4" />
                 </button>
                 <button
-                  v-if="!isGeneral(assistant.id)"
+                  v-if="!isGeneralAssistantId(assistant.id)"
                   class="rounded-lg p-1.5 text-gray-400 transition-colors hover:bg-red-50 hover:text-red-500 dark:hover:bg-red-900/20 dark:hover:text-red-400"
                   :title="t('common.delete')"
                   @click.stop="handleDelete(assistant.id)"
@@ -282,7 +279,7 @@ function getChatTypeLabel(types?: ('group' | 'private')[]): string | null {
                     {{ getChatTypeLabel(item.applicableChatTypes) }}
                   </span>
                   <span
-                    v-if="isGeneral(item.id)"
+                    v-if="isGeneralAssistantId(item.id)"
                     class="inline-flex shrink-0 items-center rounded-full bg-green-100 px-2 py-0.5 text-[10px] font-medium text-green-700 dark:bg-green-900/30 dark:text-green-400"
                   >
                     {{ t('ai.assistant.market.default') }}

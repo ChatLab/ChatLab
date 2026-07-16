@@ -6,6 +6,8 @@
 
 import { parseAssistantFile, serializeAssistant } from './assistant-parser'
 import type { AssistantConfig, AssistantSummary } from './types'
+import { GENERAL_ASSISTANT_IDS } from '@openchatlab/shared-types'
+import type { BuiltinAssistantInfo } from '@openchatlab/shared-types'
 
 // ==================== Result types ====================
 
@@ -18,15 +20,6 @@ export interface AssistantInitResult {
 export interface AssistantSaveResult {
   success: boolean
   error?: string
-}
-
-export interface BuiltinAssistantInfo {
-  id: string
-  name: string
-  systemPrompt: string
-  applicableChatTypes?: ('group' | 'private')[]
-  supportedLocales?: string[]
-  imported: boolean
 }
 
 // ==================== Dependency abstraction ====================
@@ -44,11 +37,11 @@ export interface AssistantManagerFs {
 export interface AssistantManagerDeps {
   fs: AssistantManagerFs
   assistantsDir: string
-  builtinRawConfigs?: Array<{ id: string; content: string }>
-  generalIds?: string[]
+  builtinRawConfigs?: ReadonlyArray<{ id: string; content: string }>
+  generalIds?: readonly string[]
   contentHash: (content: string) => string
   /** Legacy template digests used to identify untouched defaults created before tracking existed. */
-  legacyBuiltinDigests?: Record<string, string[]>
+  legacyBuiltinDigests?: Readonly<Record<string, readonly string[]>>
   generateId?: () => string
   logger?: {
     info: (category: string, message: string, data?: unknown) => void
@@ -81,7 +74,7 @@ export class AssistantManager {
 
   constructor(deps: AssistantManagerDeps) {
     this.deps = deps
-    this.generalIds = deps.generalIds || ['general_cn', 'general_tw', 'general_en', 'general_ja']
+    this.generalIds = [...(deps.generalIds ?? GENERAL_ASSISTANT_IDS)]
     this.initBuiltinCache()
   }
 
@@ -332,7 +325,14 @@ export class AssistantManager {
     const builtinConfig = this.getBuiltinConfig(existing.builtinId)
     if (!builtinConfig) return { success: false, error: `Builtin config not found: ${existing.builtinId}` }
 
-    return this.saveToDisk(this.withBuiltinTracking(builtinConfig, existing.id))
+    const result = this.saveToDisk(this.withBuiltinTracking(builtinConfig, existing.id))
+    if (result.success) {
+      this.deps.logger?.info('AssistantManager', 'Reset builtin assistant to default template', {
+        id: existing.id,
+        builtinId: existing.builtinId,
+      })
+    }
+    return result
   }
 
   // ==================== Internal ====================

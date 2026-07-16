@@ -163,7 +163,15 @@ export {
 
 // AI 助手/技能解析器 + 对话管理
 export type { AssistantConfig, AssistantSummary, SkillDef, SkillSummary } from './ai'
-export { parseAssistantFile, serializeAssistant, parseSkillFile, extractSkillId } from './ai'
+export {
+  parseAssistantFile,
+  serializeAssistant,
+  parseSkillFile,
+  extractSkillId,
+  DEFAULT_GENERAL_ASSISTANT_CONFIGS,
+  DEFAULT_GENERAL_ASSISTANT_RAW_CONFIGS,
+  LEGACY_GENERAL_ASSISTANT_DIGESTS,
+} from './ai'
 export { AIChatManager } from './ai'
 export { countTokens, countMessagesTokens, initTokenizer } from './ai'
 export { createFileConfigStorage, createAuthProfileLlmConfigStore } from './ai'

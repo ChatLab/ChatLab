@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, onMounted, onUnmounted, ref, watch, nextTick } from 'vue'
 import { storeToRefs } from 'pinia'
+import { getDefaultGeneralAssistantId } from '@openchatlab/shared-types'
 import { useAssistantStore, type AssistantSummary } from '@/stores/assistant'
 
 const props = defineProps<{
@@ -41,15 +42,8 @@ function handleDocumentMouseDown(event: MouseEvent) {
 const assistantStore = useAssistantStore()
 const { filteredAssistants, isLoaded } = storeToRefs(assistantStore)
 
-function getLocaleGeneralId(locale: string): string {
-  if (locale.startsWith('zh-TW')) return 'general_tw'
-  if (locale.startsWith('ja')) return 'general_ja'
-  if (locale.startsWith('en')) return 'general_en'
-  return 'general_cn'
-}
-
 const sortedAssistants = computed<AssistantSummary[]>(() => {
-  const preferredGeneralId = getLocaleGeneralId(props.locale)
+  const preferredGeneralId = getDefaultGeneralAssistantId(props.locale)
   return [...filteredAssistants.value].sort((a, b) => {
     if (a.id === preferredGeneralId) return -1
     if (b.id === preferredGeneralId) return 1

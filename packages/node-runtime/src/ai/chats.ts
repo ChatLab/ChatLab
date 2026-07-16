@@ -9,9 +9,10 @@ import Database from 'better-sqlite3'
 import * as fs from 'fs'
 import * as path from 'path'
 import type { ChartPayload, ChatEvidencePayload } from '@openchatlab/core'
+import { DEFAULT_GENERAL_ASSISTANT_ID } from '@openchatlab/shared-types'
 import type { PlanContentBlock, PlanDraftContentBlock } from './agent'
 
-const DEFAULT_GENERAL_ID = 'general_cn'
+const DEFAULT_GENERAL_ID = DEFAULT_GENERAL_ASSISTANT_ID
 
 // ==================== 类型定义 ====================
 

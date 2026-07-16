@@ -7,40 +7,14 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import { i18n } from '@/i18n'
 import { usePlatformService, useAssistantService } from '@/services'
+import type { AssistantConfig, AssistantSummary, BuiltinAssistantInfo } from '@openchatlab/shared-types'
 
 import { CHATLAB_SITE_BASE } from '@/utils/chatlabSiteLocale'
 const CLOUD_MARKET_BASE_URL = CHATLAB_SITE_BASE
 const LOCALE_PATH_MAP: Record<string, string> = { 'zh-CN': 'cn', 'zh-TW': 'cn', 'en-US': 'en', 'ja-JP': 'ja' }
 
-export interface AssistantSummary {
-  id: string
-  name: string
-  systemPrompt: string
-  presetQuestions: string[]
-  builtinId?: string
-  applicableChatTypes?: ('group' | 'private')[]
-  supportedLocales?: string[]
-}
-
-export interface AssistantConfigFull {
-  id: string
-  name: string
-  systemPrompt: string
-  presetQuestions: string[]
-  allowedBuiltinTools?: string[]
-  builtinId?: string
-  applicableChatTypes?: ('group' | 'private')[]
-  supportedLocales?: string[]
-}
-
-export interface BuiltinAssistantInfo {
-  id: string
-  name: string
-  systemPrompt: string
-  applicableChatTypes?: ('group' | 'private')[]
-  supportedLocales?: string[]
-  imported: boolean
-}
+export type { AssistantSummary, BuiltinAssistantInfo } from '@openchatlab/shared-types'
+export type AssistantConfigFull = AssistantConfig
 
 export interface CloudAssistantItem {
   id: string

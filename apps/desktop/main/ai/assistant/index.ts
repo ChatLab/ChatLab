@@ -2,7 +2,13 @@
  * 助手模块入口
  */
 
-export * from './types'
+export type {
+  AssistantConfig,
+  AssistantSummary,
+  AssistantInitResult,
+  AssistantSaveResult,
+  BuiltinAssistantInfo,
+} from '@openchatlab/node-runtime'
 export {
   initAssistantManager,
   getAllAssistants,

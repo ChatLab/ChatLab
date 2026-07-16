@@ -11,15 +11,20 @@ export { AiLogger, extractErrorInfo, extractErrorStack } from './ai-logger'
 export { formatAIError } from './error-formatter'
 export type { FormatAIErrorOptions } from './error-formatter'
 
-export type { AssistantConfig, AssistantSummary, SkillDef, SkillSummary } from './types'
+export type { AssistantConfig, AssistantSummary, BuiltinAssistantInfo } from '@openchatlab/shared-types'
+export type { SkillDef, SkillSummary } from './types'
 export { parseAssistantFile, serializeAssistant } from './assistant-parser'
+export {
+  DEFAULT_GENERAL_ASSISTANT_CONFIGS,
+  DEFAULT_GENERAL_ASSISTANT_RAW_CONFIGS,
+  LEGACY_GENERAL_ASSISTANT_DIGESTS,
+} from './default-assistants'
 
 // Assistant Manager
 export { AssistantManager } from './assistant-manager'
 export type {
   AssistantInitResult,
   AssistantSaveResult,
-  BuiltinAssistantInfo,
   AssistantManagerFs,
   AssistantManagerDeps,
 } from './assistant-manager'

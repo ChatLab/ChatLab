@@ -8,28 +8,19 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { createHash, randomUUID } from 'crypto'
-import { AssistantManager as SharedAssistantManager, type AssistantManagerFs } from '@openchatlab/node-runtime'
+import {
+  AssistantManager as SharedAssistantManager,
+  DEFAULT_GENERAL_ASSISTANT_RAW_CONFIGS,
+  LEGACY_GENERAL_ASSISTANT_DIGESTS,
+  type AssistantConfig,
+  type AssistantSummary,
+  type AssistantInitResult,
+  type AssistantSaveResult,
+  type BuiltinAssistantInfo,
+  type AssistantManagerFs,
+} from '@openchatlab/node-runtime'
 import { getPathProvider } from '../../paths/provider'
 import { aiLogger } from '../logger'
-import type {
-  AssistantConfig,
-  AssistantSummary,
-  AssistantInitResult,
-  AssistantSaveResult,
-  BuiltinAssistantInfo,
-} from './types'
-
-import builtinGeneralZhRaw from './builtins/general_cn.md?raw'
-import builtinGeneralEnRaw from './builtins/general_en.md?raw'
-import builtinGeneralJaRaw from './builtins/general_ja.md?raw'
-import builtinGeneralTwRaw from './builtins/general_tw.md?raw'
-
-// Version 0.31.2 and earlier lacked tracking metadata, so legacy digests identify untouched defaults.
-const LEGACY_GENERAL_DIGESTS = {
-  general_cn: ['42989d512b8eca58839e838639f17d04413bf67c0253f7b5998f46b89ad0d330'],
-  general_en: ['3c6d223362dfc8bc863427768090c8794e0b1f8d1ec5f17068949ad728b3f9f6'],
-  general_ja: ['729a52d6ab4bd23f5ed5f84913b24c82e862246abc0ee70caec2244297a91d63'],
-}
 
 const nodeFs: AssistantManagerFs = {
   ensureDir(dir: string) {
@@ -63,14 +54,9 @@ export function getManager(): SharedAssistantManager {
     _manager = new SharedAssistantManager({
       fs: nodeFs,
       assistantsDir: path.join(getPathProvider().getAiDataDir(), 'assistants'),
-      builtinRawConfigs: [
-        { id: 'general_cn', content: builtinGeneralZhRaw },
-        { id: 'general_tw', content: builtinGeneralTwRaw },
-        { id: 'general_en', content: builtinGeneralEnRaw },
-        { id: 'general_ja', content: builtinGeneralJaRaw },
-      ],
+      builtinRawConfigs: DEFAULT_GENERAL_ASSISTANT_RAW_CONFIGS,
       contentHash: (content) => createHash('sha256').update(content).digest('hex'),
-      legacyBuiltinDigests: LEGACY_GENERAL_DIGESTS,
+      legacyBuiltinDigests: LEGACY_GENERAL_ASSISTANT_DIGESTS,
       logger: aiLogger,
       generateId: () => `custom_${randomUUID().replace(/-/g, '').slice(0, 12)}`,
     })

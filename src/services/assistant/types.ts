@@ -1,32 +1,6 @@
-export interface AssistantSummary {
-  id: string
-  name: string
-  systemPrompt: string
-  presetQuestions: string[]
-  builtinId?: string
-  applicableChatTypes?: ('group' | 'private')[]
-  supportedLocales?: string[]
-}
+import type { AssistantConfig, AssistantSummary, BuiltinAssistantInfo } from '@openchatlab/shared-types'
 
-export interface AssistantConfig {
-  id: string
-  name: string
-  systemPrompt: string
-  presetQuestions: string[]
-  allowedBuiltinTools?: string[]
-  builtinId?: string
-  applicableChatTypes?: ('group' | 'private')[]
-  supportedLocales?: string[]
-}
-
-export interface BuiltinAssistantInfo {
-  id: string
-  name: string
-  systemPrompt: string
-  applicableChatTypes?: ('group' | 'private')[]
-  supportedLocales?: string[]
-  imported: boolean
-}
+export type { AssistantConfig, AssistantSummary, BuiltinAssistantInfo } from '@openchatlab/shared-types'
 
 export interface AssistantServiceAdapter {
   getAll(): Promise<AssistantSummary[]>

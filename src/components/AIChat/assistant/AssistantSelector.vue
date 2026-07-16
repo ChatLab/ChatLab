@@ -2,6 +2,7 @@
 import { computed, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
+import { getDefaultGeneralAssistantId } from '@openchatlab/shared-types'
 import { useAssistantStore } from '@/stores/assistant'
 import AssistantCard from './AssistantCard.vue'
 
@@ -22,15 +23,8 @@ const assistantStore = useAssistantStore()
 const { filteredAssistants, isLoaded } = storeToRefs(assistantStore)
 const rememberSelection = ref(true)
 
-function getLocaleGeneralId(locale: string): string {
-  if (locale.startsWith('zh-TW')) return 'general_tw'
-  if (locale.startsWith('ja')) return 'general_ja'
-  if (locale.startsWith('en')) return 'general_en'
-  return 'general_cn'
-}
-
 const sortedVisibleAssistants = computed(() => {
-  const preferredGeneralId = getLocaleGeneralId(props.locale)
+  const preferredGeneralId = getDefaultGeneralAssistantId(props.locale)
   return [...filteredAssistants.value].sort((a, b) => {
     if (a.id === preferredGeneralId) return -1
     if (b.id === preferredGeneralId) return 1

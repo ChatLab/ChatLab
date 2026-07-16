@@ -9,7 +9,10 @@ import * as fs from 'fs'
 import * as path from 'path'
 import { createHash, randomUUID } from 'crypto'
 import {
+  appLogger,
   AssistantManager,
+  DEFAULT_GENERAL_ASSISTANT_RAW_CONFIGS,
+  LEGACY_GENERAL_ASSISTANT_DIGESTS,
   SkillManagerCore,
   type AssistantManagerFs,
   type SkillManagerFs,
@@ -49,9 +52,11 @@ export function getAssistantManager(aiDataDir: string): AssistantManager {
       assistant: new AssistantManager({
         fs: nodeFs,
         assistantsDir: path.join(aiDataDir, 'assistants'),
-        builtinRawConfigs: [],
+        builtinRawConfigs: DEFAULT_GENERAL_ASSISTANT_RAW_CONFIGS,
         contentHash: (content: string) => createHash('sha256').update(content).digest('hex'),
+        legacyBuiltinDigests: LEGACY_GENERAL_ASSISTANT_DIGESTS,
         generateId: () => `custom_${randomUUID().replace(/-/g, '').slice(0, 12)}`,
+        logger: appLogger,
       }),
       skill: new SkillManagerCore({
         fs: nodeFs,

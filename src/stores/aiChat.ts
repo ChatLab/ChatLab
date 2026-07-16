@@ -20,6 +20,7 @@ import { useAgentStreamService } from '@/services/ai-stream/service'
 import { buildSerializablePreprocessConfig, shouldEnsureDesensitizeRulesBeforeSerialize } from './aiPreprocessConfig'
 import type { ChartPayload, ChatEvidencePayload } from '@openchatlab/core'
 import { extractToolResultText, truncateToolResultText } from '@openchatlab/core'
+import { getDefaultGeneralAssistantId } from '@openchatlab/shared-types'
 import {
   createRenderOnlyToolPendingBlock,
   extractChartPayloads,
@@ -196,16 +197,6 @@ export interface SendMessageResult {
 }
 
 const DRAFT_AI_CHAT_KEY = '__draft__'
-
-/**
- * 创建对话时前端已经知道 locale，因此默认助手在这里选择即可。
- */
-function getDefaultGeneralAssistantId(locale: string): 'general_cn' | 'general_tw' | 'general_en' | 'general_ja' {
-  if (locale.startsWith('zh-TW')) return 'general_tw'
-  if (locale.startsWith('en')) return 'general_en'
-  if (locale.startsWith('ja')) return 'general_ja'
-  return 'general_cn'
-}
 
 function buildTimeFilterKey(timeFilter?: { startTs: number; endTs: number }): string {
   if (!timeFilter) return 'all'

@@ -8,7 +8,7 @@
 
 import type { AgentStreamChunk as SharedAgentStreamChunk, SemanticIndexRuntime } from '@openchatlab/node-runtime'
 import type { AgentStreamRequest } from '@openchatlab/http-routes'
-import type { ChartAutoMode } from '@openchatlab/shared-types'
+import { getDefaultGeneralAssistantId, type ChartAutoMode } from '@openchatlab/shared-types'
 import {
   buildSkillMenuWithBuiltinChart,
   CHART_CAPABILITY_ANALYSIS_TOOLS,
@@ -27,9 +27,8 @@ import { Agent, type AgentStreamChunk, type SkillContext } from './agent'
 import type { ToolContext } from './tools/types'
 import { getDefaultAssistantConfig, buildPiModel, findModelDefinition } from './llm'
 import type { AIServiceConfig } from './llm/types'
-import { getDefaultGeneralAssistantId } from './assistant/defaultGeneral'
 import * as assistantManager from './assistant'
-import type { AssistantConfig } from './assistant/types'
+import type { AssistantConfig } from '@openchatlab/node-runtime'
 import * as skillManager from './skills'
 import { aiLogger } from './logger'
 import { serializeError } from './serialize-error'

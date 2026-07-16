@@ -106,6 +106,15 @@ describe('resolveAIChatTarget', () => {
     assert.equal(target.created, true)
   })
 
+  it('selects the locale-specific default assistant for a new AI chat', () => {
+    const target = resolveAIChatTarget(
+      { sessionId: 'session-1', question: 'hello', locale: 'en-US' },
+      { dbManager: createDbManager(['session-1']), aiChatManager: createAIChatManager() }
+    )
+
+    assert.equal(target.assistantId, 'general_en')
+  })
+
   it('recovers session id from a globally unique aiChatId', () => {
     const target = resolveAIChatTarget(
       { aiChatId: 'ai-chat-1' },
