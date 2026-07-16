@@ -6,6 +6,7 @@ import type {
   RestSessionProvider,
   RestSessionSummary,
 } from '@openchatlab/http-routes/rest'
+import { normalizeRestSessionMember } from '@openchatlab/http-routes/rest'
 import * as worker from '../worker/workerManager'
 
 interface DesktopSessionData {
@@ -91,7 +92,7 @@ export function createDesktopRestSessionProvider(): RestSessionProvider {
     queryMessages: getMessages,
     getMembers: async (sessionId) => {
       if (!(await getSession(sessionId))) return null
-      return worker.getMembers(sessionId)
+      return (await worker.getMembers(sessionId)).map(normalizeRestSessionMember)
     },
     getOverview: async (sessionId): Promise<RestSessionOverview | null> => {
       const session = await getSession(sessionId)

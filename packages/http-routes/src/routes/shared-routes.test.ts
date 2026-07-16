@@ -263,6 +263,28 @@ describe('registerSharedRoutes smoke tests', () => {
     assert.equal(body.data.limit, 10)
   })
 
+  it('GET /api/v1/sessions/:id/members preserves the legacy name field with detailed member data', async () => {
+    const db = createSessionDb()
+    const routeApp = Fastify()
+    const ctx = createTestContext(new Map([['chat-1', db]]))
+    registerRestSessionRoutes(routeApp, createDatabaseRestSessionProvider(ctx.dbManager))
+    await routeApp.ready()
+
+    const resp = await routeApp.inject({
+      method: 'GET',
+      url: '/api/v1/sessions/chat-1/members',
+    })
+
+    await routeApp.close()
+    db.close()
+
+    assert.equal(resp.statusCode, 200)
+    const [member] = resp.json().data
+    assert.equal(member.name, 'Alice')
+    assert.equal(member.accountName, 'Alice')
+    assert.deepEqual(member.aliases, [])
+  })
+
   it('POST /api/v1/sessions/:id/sql rejects write statements and keeps data unchanged', async () => {
     const db = createSessionDb()
     const routeApp = Fastify()

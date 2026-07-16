@@ -60,6 +60,27 @@ export interface RestSessionOverview {
   }>
 }
 
+export interface RestSessionMember {
+  id: number
+  platformId: string
+  name: string
+  messageCount: number
+  accountName?: string | null
+  groupNickname?: string | null
+  aliases?: string[]
+  avatar?: string | null
+  lastMessageTs?: number | null
+}
+
+export type RestSessionMemberInput = Omit<RestSessionMember, 'name'> & { name?: string | null }
+
+export function normalizeRestSessionMember(member: RestSessionMemberInput): RestSessionMember {
+  return {
+    ...member,
+    name: member.name || member.groupNickname || member.accountName || member.platformId,
+  }
+}
+
 export interface RestExportMember {
   platformId: string
   accountName?: string | null
@@ -85,7 +106,7 @@ export interface RestSessionProvider {
   listSessions(): Awaitable<RestSessionSummary[]>
   getSession(sessionId: string): Awaitable<RestSessionDetail | null>
   queryMessages(sessionId: string, query: RestMessageQuery): Awaitable<RestMessagePage | null>
-  getMembers(sessionId: string): Awaitable<unknown[] | null>
+  getMembers(sessionId: string): Awaitable<RestSessionMember[] | null>
   getOverview(sessionId: string): Awaitable<RestSessionOverview | null>
   executeReadonlySql(sessionId: string, sql: string): Awaitable<unknown | null>
   getExportData(sessionId: string, limit: number): Awaitable<RestSessionExportData | null>
@@ -147,7 +168,7 @@ export function createDatabaseRestSessionProvider(dbManager: DatabaseManager): R
     },
     getMembers: (sessionId) => {
       const db = dbManager.open(sessionId)
-      return db ? getMembersWithAliases(db) : null
+      return db ? getMembersWithAliases(db).map(normalizeRestSessionMember) : null
     },
     getOverview: (sessionId) => {
       const db = dbManager.open(sessionId)

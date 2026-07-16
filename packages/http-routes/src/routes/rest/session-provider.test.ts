@@ -31,7 +31,10 @@ function createAsyncProvider(): RestSessionProvider {
             total: 2,
           }
         : null,
-    getMembers: async (sessionId) => (sessionId === session.id ? [{ platformId: 'alice', aliases: ['Alice'] }] : null),
+    getMembers: async (sessionId) =>
+      sessionId === session.id
+        ? [{ id: 1, platformId: 'alice', name: 'Alice', accountName: 'Alice', aliases: ['Alice'], messageCount: 2 }]
+        : null,
     getOverview: async (sessionId) =>
       sessionId === session.id
         ? {
@@ -83,6 +86,7 @@ test('REST routes share one contract with an async Worker-backed provider', asyn
   assert.deepEqual(sessions.json().data, [session])
   assert.deepEqual(detail.json().data, session)
   assert.equal(messages.json().data.totalPages, 2)
+  assert.equal(members.json().data[0].name, 'Alice')
   assert.deepEqual(members.json().data[0].aliases, ['Alice'])
   assert.equal(overview.json().data.messageCount, 2)
   assert.deepEqual(sql.json().data.rows, [[2]])
