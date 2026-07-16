@@ -229,6 +229,10 @@ describe('registerSharedRoutes smoke tests', () => {
     assert.ok([200, 500].includes(resp.statusCode), `Expected 200 or 500, got ${resp.statusCode}`)
   })
 
+  it('leaves lifecycle-owned automation routes to the host initializer', () => {
+    assert.equal(app.hasRoute({ method: 'GET', url: '/_web/automation/config' }), false)
+  })
+
   it('GET /api/v1/sessions/:id/messages applies query filters and pagination', async () => {
     const db = createSessionDb()
     const routeApp = Fastify()

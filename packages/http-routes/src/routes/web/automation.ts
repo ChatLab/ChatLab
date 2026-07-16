@@ -1,9 +1,7 @@
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../../context'
+import type { AutomationRouteHostContext } from '../../context/automation'
 
-type AutomationRouteHost = Pick<HttpRouteContext, 'automation'>
-
-function requireAutomation(ctx: AutomationRouteHost) {
+function requireAutomation(ctx: AutomationRouteHostContext) {
   return ctx.automation ?? null
 }
 
@@ -63,7 +61,7 @@ function parseRemoteSessionsResponse(body: string): {
   }
 }
 
-export function registerAutomationRoutes(server: FastifyInstance, ctx: AutomationRouteHost): void {
+export function registerAutomationRoutes(server: FastifyInstance, ctx: AutomationRouteHostContext): void {
   server.get('/_web/automation/config', async (_request, reply) => {
     const automation = requireAutomation(ctx)
     if (!automation?.serverInfo) return reply.code(404).send({ error: 'Automation is not enabled' })

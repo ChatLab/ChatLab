@@ -13,9 +13,10 @@ import type {
   PeopleRelationshipsGraphResponse,
   PeopleRelationshipsNeighborhoodResponse,
 } from '@openchatlab/shared-types'
-import type { DatabaseManager, PeopleRelationshipsService, SessionRuntimeAdapter } from '@openchatlab/node-runtime'
-import type { HttpRouteContext } from '../../context'
+import type { PeopleRelationshipsService, SessionRuntimeAdapter } from '@openchatlab/node-runtime'
 import { registerPeopleRelationshipsRoutes } from './people-relationships'
+
+type PeopleRelationshipsRouteContext = Parameters<typeof registerPeopleRelationshipsRoutes>[1]
 
 function emptyGraphResponse(
   status: PeopleRelationshipsGraphResponse['cache']['status'] = 'missing'
@@ -122,7 +123,7 @@ class FakePeopleRelationshipsService implements PeopleRelationshipsService {
   }
 }
 
-function createMockContext(relationshipsService: PeopleRelationshipsService): HttpRouteContext {
+function createMockContext(relationshipsService: PeopleRelationshipsService): PeopleRelationshipsRouteContext {
   const pathProvider: PathProvider = {
     getSystemDir: () => path.join('/tmp', 'chatlab-relationships-route-test'),
     getUserDataDir: () => path.join('/tmp', 'chatlab-relationships-route-test', 'data'),
@@ -143,9 +144,7 @@ function createMockContext(relationshipsService: PeopleRelationshipsService): Ht
     sessionAdapter,
     pathProvider,
     peopleRelationshipsService: relationshipsService,
-    dbManager: {} as DatabaseManager,
-    getVersion: () => 'test',
-  } as HttpRouteContext
+  }
 }
 
 test('GET /_web/people/relationships forwards stale, time range, search query, and graph scope', async (t) => {

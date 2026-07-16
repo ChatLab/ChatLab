@@ -1,7 +1,11 @@
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../../context'
+import type { AnalyticsService } from '@openchatlab/node-runtime'
 
-export function registerTelemetryRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+interface TelemetryRouteContext {
+  analyticsService?: Pick<AnalyticsService, 'getEnabled' | 'setEnabled' | 'trackDailyActive' | 'track'>
+}
+
+export function registerTelemetryRoutes(server: FastifyInstance, ctx: TelemetryRouteContext): void {
   server.get('/_web/telemetry/enabled', async () => {
     return { enabled: ctx.analyticsService?.getEnabled() ?? false }
   })

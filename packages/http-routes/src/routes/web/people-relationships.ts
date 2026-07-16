@@ -5,7 +5,8 @@ import {
   type PeopleRelationshipsGraphScope,
 } from '@openchatlab/shared-types'
 import { createPeopleRelationshipsService } from '@openchatlab/node-runtime'
-import type { HttpRouteContext } from '../../context'
+import type { RuntimeRouteContext } from '../../context/runtime'
+import type { ServiceRouteContext } from '../../context/services'
 
 type PeopleRelationshipsQuery = {
   acceptStale?: string
@@ -14,7 +15,13 @@ type PeopleRelationshipsQuery = {
   q?: string
 }
 
-export function registerPeopleRelationshipsRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+type PeopleRelationshipsRouteContext = Pick<
+  RuntimeRouteContext,
+  'sessionAdapter' | 'pathProvider' | 'runtimeIdentity' | 'nativeBinding'
+> &
+  Pick<ServiceRouteContext, 'peopleRelationshipsService'>
+
+export function registerPeopleRelationshipsRoutes(server: FastifyInstance, ctx: PeopleRelationshipsRouteContext): void {
   const service =
     ctx.peopleRelationshipsService ??
     createPeopleRelationshipsService({

@@ -1,7 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import Fastify from 'fastify'
-import type { HttpRouteContext } from '../../context'
 import { registerTelemetryRoutes } from './telemetry'
 
 describe('telemetry routes', () => {
@@ -14,8 +13,10 @@ describe('telemetry routes', () => {
         setEnabled: (next: boolean) => {
           enabled = next
         },
+        trackDailyActive: async () => {},
+        track: async () => true,
       },
-    } as unknown as HttpRouteContext)
+    })
 
     await app.ready()
     try {

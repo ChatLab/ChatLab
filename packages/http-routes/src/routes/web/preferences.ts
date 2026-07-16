@@ -5,11 +5,15 @@
  */
 
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../../context'
+import type { RuntimeRouteContext } from '../../context/runtime'
+import type { ServiceRouteContext } from '../../context/services'
 import { PreferencesManager, type Preferences } from '@openchatlab/node-runtime'
 import { loadConfig, writeConfigField, type UiConfig } from '@openchatlab/config'
 
-export function registerPreferencesRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+type PreferencesRouteContext = Pick<RuntimeRouteContext, 'pathProvider'> &
+  Pick<ServiceRouteContext, 'preferencesManager'>
+
+export function registerPreferencesRoutes(server: FastifyInstance, ctx: PreferencesRouteContext): void {
   const prefManager = ctx.preferencesManager ?? new PreferencesManager(ctx.pathProvider.getSystemDir())
 
   server.get('/_web/preferences', async () => {

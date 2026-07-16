@@ -8,8 +8,9 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../../context'
-import { withAnalyticsCache } from './analytics-cache'
+import type { PathProvider } from '@openchatlab/core'
+import type { DatabaseManager } from '@openchatlab/node-runtime'
+import { withAnalyticsCache, type AnalyticsCacheContext } from './analytics-cache'
 import type { WordFrequencyParams, SupportedLocale } from '@openchatlab/core'
 import { POS_TAG_DEFINITIONS } from '@openchatlab/core'
 import {
@@ -23,7 +24,12 @@ import {
   ensureDefaultDict,
 } from '@openchatlab/node-runtime'
 
-export function registerNlpRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+type NlpRouteContext = AnalyticsCacheContext & {
+  pathProvider: Pick<PathProvider, 'getCacheDir' | 'getSystemDir'>
+  dbManager: Pick<DatabaseManager, 'open'>
+}
+
+export function registerNlpRoutes(server: FastifyInstance, ctx: NlpRouteContext): void {
   const nlpDir = path.join(ctx.pathProvider.getSystemDir(), 'nlp')
   initNlpDir(nlpDir)
   ensureDefaultDict(nlpDir).catch((err) => console.warn('[NLP] Auto-download zh-CN dict failed:', err))

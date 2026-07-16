@@ -1,7 +1,8 @@
 import type { FastifyInstance } from 'fastify'
 import { createContactsService } from '@openchatlab/node-runtime'
 import { CONTACTS_TIME_RANGE_PRESETS, type ContactPool, type ContactsTimeRangePreset } from '@openchatlab/shared-types'
-import type { HttpRouteContext } from '../../context'
+import type { RuntimeRouteContext } from '../../context/runtime'
+import type { ServiceRouteContext } from '../../context/services'
 
 type ContactsQuery = {
   acceptStale?: string
@@ -12,7 +13,13 @@ type ContactsQuery = {
   q?: string
 }
 
-export function registerContactsRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+type ContactsRouteContext = Pick<
+  RuntimeRouteContext,
+  'sessionAdapter' | 'pathProvider' | 'runtimeIdentity' | 'nativeBinding'
+> &
+  Pick<ServiceRouteContext, 'contactsService'>
+
+export function registerContactsRoutes(server: FastifyInstance, ctx: ContactsRouteContext): void {
   const service =
     ctx.contactsService ??
     createContactsService({

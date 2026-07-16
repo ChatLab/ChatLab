@@ -1,9 +1,11 @@
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext, AgentStreamRequest } from '../../context'
+import type { AgentStreamRequest, AiRouteContext } from '../../context/ai'
 
 const activeAgentAborts = new Map<string, AbortController>()
 
-export function registerAiAgentStreamRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+type AiAgentStreamRouteContext = Pick<AiRouteContext, 'runAgentStream'>
+
+export function registerAiAgentStreamRoutes(server: FastifyInstance, ctx: AiAgentStreamRouteContext): void {
   if (!ctx.runAgentStream) return
 
   const runAgentStream = ctx.runAgentStream

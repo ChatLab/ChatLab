@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../../context'
+import type { AiRouteContext } from '../../context/ai'
 import { BUILTIN_PROVIDERS, BUILTIN_MODELS, getBuiltinModelsByProvider } from '@openchatlab/core'
 import {
   validateApiKey,
@@ -21,7 +21,12 @@ function toConfigDisplay(config: Record<string, unknown>): Record<string, unknow
 
 // ==================== Route registration ====================
 
-export function registerAiLlmRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+type AiLlmRouteContext = Pick<
+  AiRouteContext,
+  'llmConfigStore' | 'aiDataDir' | 'customProviderStore' | 'customModelStore'
+>
+
+export function registerAiLlmRoutes(server: FastifyInstance, ctx: AiLlmRouteContext): void {
   const store = ctx.llmConfigStore
   const aiDataDir = ctx.aiDataDir
   if (!store || !aiDataDir) return

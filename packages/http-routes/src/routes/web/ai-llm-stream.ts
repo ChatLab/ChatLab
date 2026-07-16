@@ -1,8 +1,10 @@
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../../context'
+import type { AiRouteContext } from '../../context/ai'
 import { buildPiModel, runSimpleLlmStream } from '@openchatlab/node-runtime'
 
-export function registerAiLlmStreamRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+type AiLlmStreamRouteContext = Pick<AiRouteContext, 'llmConfigStore'>
+
+export function registerAiLlmStreamRoutes(server: FastifyInstance, ctx: AiLlmStreamRouteContext): void {
   const store = ctx.llmConfigStore
   if (!store) return
 

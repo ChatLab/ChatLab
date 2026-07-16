@@ -1,8 +1,14 @@
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../../context'
+import type { AiRouteContext } from '../../context/ai'
+import type { RuntimeRouteContext } from '../../context/runtime'
+import type { ServiceRouteContext } from '../../context/services'
 import { sessionService, ownerProfileService, PreferencesManager } from '@openchatlab/node-runtime'
 
-export function registerSessionRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+type SessionRouteContext = Pick<RuntimeRouteContext, 'sessionAdapter' | 'pathProvider'> &
+  Pick<ServiceRouteContext, 'preferencesManager'> &
+  Pick<AiRouteContext, 'aiChatManager'>
+
+export function registerSessionRoutes(server: FastifyInstance, ctx: SessionRouteContext): void {
   const { sessionAdapter: adapter } = ctx
 
   // Lazy: only owner-profile routes need preferences.json access

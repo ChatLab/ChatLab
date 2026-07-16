@@ -8,7 +8,7 @@
 import { stripAvatarFields } from '@openchatlab/core'
 import { AGENT_TOOL_REGISTRY } from '@openchatlab/tools'
 import type { ToolDataProvider, ToolExecutionContext, SemanticSearchToolService } from '@openchatlab/tools'
-import type { AiToolExecuteRequest, AiToolExecuteResult } from '../context'
+import type { AiToolExecuteRequest, AiToolExecuteResult } from '../context/ai'
 
 const MAX_RESULT_CHARS = 500_000
 

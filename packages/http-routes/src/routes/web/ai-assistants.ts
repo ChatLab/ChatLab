@@ -1,9 +1,11 @@
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../../context'
+import type { AiRouteContext } from '../../context/ai'
 import type { AssistantConfig } from '@openchatlab/node-runtime'
 import { BUILTIN_TOOL_CATALOG } from '@openchatlab/core'
 
-export function registerAiAssistantRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+type AiAssistantRouteContext = Pick<AiRouteContext, 'assistantManager'>
+
+export function registerAiAssistantRoutes(server: FastifyInstance, ctx: AiAssistantRouteContext): void {
   // Tool catalog is static data — always available regardless of AI context
   server.get('/_web/ai/tools/catalog', async () => {
     return BUILTIN_TOOL_CATALOG

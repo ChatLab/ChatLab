@@ -2,9 +2,15 @@ import assert from 'node:assert/strict'
 import test from 'node:test'
 import Fastify from 'fastify'
 import type { AnnualSummaryResponse } from '@openchatlab/shared-types'
-import type { GlobalInsightService, GlobalInsightServiceOptions } from '@openchatlab/node-runtime'
-import type { HttpRouteContext } from '../../context'
+import type {
+  GlobalInsightService,
+  GlobalInsightServiceOptions,
+  SessionRuntimeAdapter,
+} from '@openchatlab/node-runtime'
+import type { PathProvider } from '@openchatlab/core'
 import { registerGlobalInsightRoutes } from './global-insight'
+
+type GlobalInsightRouteContext = Parameters<typeof registerGlobalInsightRoutes>[1]
 
 function emptyResponse(): AnnualSummaryResponse {
   return {
@@ -61,8 +67,12 @@ class FakeService implements GlobalInsightService {
   }
 }
 
-function context(service: GlobalInsightService): HttpRouteContext {
-  return { globalInsightService: service } as unknown as HttpRouteContext
+function context(service: GlobalInsightService): GlobalInsightRouteContext {
+  return {
+    globalInsightService: service,
+    sessionAdapter: {} as SessionRuntimeAdapter,
+    pathProvider: {} as PathProvider,
+  }
 }
 
 test('GET forwards year mode and stale preference', async (t) => {

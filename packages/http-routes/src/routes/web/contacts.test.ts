@@ -10,9 +10,10 @@ import test from 'node:test'
 import Fastify from 'fastify'
 import type { PathProvider } from '@openchatlab/core'
 import type { ContactsResponse } from '@openchatlab/shared-types'
-import type { ContactsService, DatabaseManager, SessionRuntimeAdapter } from '@openchatlab/node-runtime'
-import type { HttpRouteContext } from '../../context'
+import type { ContactsService, SessionRuntimeAdapter } from '@openchatlab/node-runtime'
 import { registerContactsRoutes } from './contacts'
+
+type ContactsRouteContext = Parameters<typeof registerContactsRoutes>[1]
 
 function emptyContactsResponse(status: ContactsResponse['cache']['status'] = 'missing'): ContactsResponse {
   return {
@@ -139,7 +140,7 @@ class FakeContactsService implements ContactsService {
   }
 }
 
-function createMockContext(contactsService: ContactsService): HttpRouteContext {
+function createMockContext(contactsService: ContactsService): ContactsRouteContext {
   const pathProvider: PathProvider = {
     getSystemDir: () => path.join('/tmp', 'chatlab-contacts-route-test'),
     getUserDataDir: () => path.join('/tmp', 'chatlab-contacts-route-test', 'data'),
@@ -160,9 +161,7 @@ function createMockContext(contactsService: ContactsService): HttpRouteContext {
     sessionAdapter,
     pathProvider,
     contactsService,
-    dbManager: {} as DatabaseManager,
-    getVersion: () => 'test',
-  } as HttpRouteContext
+  }
 }
 
 test('GET /_web/contacts returns contacts response with task state', async (t) => {

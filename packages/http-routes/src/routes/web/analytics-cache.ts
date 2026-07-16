@@ -11,7 +11,14 @@
 
 import * as path from 'path'
 import { getDbFileVersion, getOrComputeAnalysisCache } from '@openchatlab/node-runtime'
-import type { HttpRouteContext } from '../../context'
+import type { PathProvider } from '@openchatlab/core'
+import type { SessionRuntimeAdapter } from '@openchatlab/node-runtime'
+
+export interface AnalyticsCacheContext {
+  pathProvider: Pick<PathProvider, 'getCacheDir'>
+  sessionAdapter: Pick<SessionRuntimeAdapter, 'getDbPath'>
+  getVersion: () => string
+}
 
 /** Deterministic stringify: sorts object keys recursively and drops `undefined`. */
 function canonical(value: unknown): string {
@@ -49,7 +56,7 @@ export function buildAnalyticsCacheKey(namespace: string, params: Record<string,
  * that resource changes independently of the DB or app version.
  */
 export function withAnalyticsCache<T>(
-  ctx: HttpRouteContext,
+  ctx: AnalyticsCacheContext,
   sessionId: string,
   namespace: string,
   params: Record<string, unknown>,

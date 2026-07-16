@@ -10,7 +10,8 @@ import * as fs from 'fs'
 import * as os from 'os'
 import * as path from 'path'
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../../context'
+import type { MergeRouteContext } from '../../context/merge'
+import type { RuntimeRouteContext } from '../../context/runtime'
 import {
   streamParseFileInfo,
   checkConflictsFromSources,
@@ -23,13 +24,15 @@ import {
 import type { MergerDataSource } from '@openchatlab/node-runtime'
 import { sessionNotFound } from '../../errors'
 
-function ensureDb(ctx: HttpRouteContext, sessionId: string) {
+type MergeRoutesContext = Pick<RuntimeRouteContext, 'dbManager'> & MergeRouteContext
+
+function ensureDb(ctx: MergeRoutesContext, sessionId: string) {
   const db = ctx.dbManager.open(sessionId)
   if (!db) throw sessionNotFound(sessionId)
   return db
 }
 
-export function registerMergeRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+export function registerMergeRoutes(server: FastifyInstance, ctx: MergeRoutesContext): void {
   const { dbManager, mergeSessionCache: mergeCache, streamImport } = ctx
   if (!mergeCache) return
 

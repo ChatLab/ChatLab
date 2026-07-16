@@ -1,8 +1,10 @@
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../../context'
+import type { AiRouteContext } from '../../context/ai'
 import { countMessagesTokens } from '@openchatlab/node-runtime'
 
-export function registerAiChatRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+type AiChatRouteContext = Pick<AiRouteContext, 'aiChatManager'>
+
+export function registerAiChatRoutes(server: FastifyInstance, ctx: AiChatRouteContext): void {
   const cm = ctx.aiChatManager
   if (!cm) return
 

@@ -1,9 +1,11 @@
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../../context'
+import type { RuntimeRouteContext } from '../../context/runtime'
 import { appLogger, memberService } from '@openchatlab/node-runtime'
 import { apiErrorFromUnknown } from '../../errors'
 
-export function registerMemberRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+type MemberRouteContext = Pick<RuntimeRouteContext, 'sessionAdapter'>
+
+export function registerMemberRoutes(server: FastifyInstance, ctx: MemberRouteContext): void {
   const { sessionAdapter: adapter } = ctx
 
   server.get<{ Params: { id: string } }>('/_web/sessions/:id/members', async (request) => {

@@ -2,7 +2,8 @@ import * as fs from 'fs'
 import * as fsp from 'fs/promises'
 import * as path from 'path'
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../../context'
+import type { RuntimeRouteContext } from '../../context/runtime'
+import type { StorageRouteContext } from '../../context/storage'
 
 async function getDirSize(dirPath: string): Promise<number> {
   let totalSize = 0
@@ -54,7 +55,9 @@ function hasChatLabDatabases(dirPath: string): boolean {
   }
 }
 
-export function registerCacheRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+type CacheRouteContext = Pick<RuntimeRouteContext, 'pathProvider'> & StorageRouteContext
+
+export function registerCacheRoutes(server: FastifyInstance, ctx: CacheRouteContext): void {
   const pp = ctx.pathProvider
   const downloadsDir = ctx.downloadsDir ?? pp.getDownloadsDir()
 

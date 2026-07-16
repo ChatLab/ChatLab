@@ -6,8 +6,9 @@ import test from 'node:test'
 import Fastify from 'fastify'
 import type { PathProvider } from '@openchatlab/core'
 import { DatabaseManager } from '@openchatlab/node-runtime'
-import type { HttpRouteContext } from '../../context'
 import { registerImportRoutes } from './imports'
+
+type ImportRouteContext = Parameters<typeof registerImportRoutes>[1]
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -16,7 +17,7 @@ function makeTempDir(): string {
   return fs.mkdtempSync(path.join(baseDir, 'chatlab-import-route-'))
 }
 
-function createContext(rootDir: string): HttpRouteContext {
+function createContext(rootDir: string): ImportRouteContext {
   const pathProvider: PathProvider = {
     getSystemDir: () => rootDir,
     getUserDataDir: () => rootDir,
@@ -31,11 +32,7 @@ function createContext(rootDir: string): HttpRouteContext {
   }
   const dbManager = new DatabaseManager(pathProvider, { nativeBinding, allowMissingRuntimeForTests: true })
 
-  return {
-    dbManager,
-    pathProvider,
-    getVersion: () => '0.0.0-test',
-  } as HttpRouteContext
+  return { dbManager }
 }
 
 function createPayload(content: string) {

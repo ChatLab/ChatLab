@@ -1,16 +1,17 @@
 import { describe, it, afterEach } from 'node:test'
 import assert from 'node:assert/strict'
 import Fastify, { type FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../../context'
 import { registerAiToolRoutes } from './ai-tools'
 
-function createContext(overrides: Partial<HttpRouteContext> = {}): HttpRouteContext {
+type AiToolRouteContext = Parameters<typeof registerAiToolRoutes>[1]
+
+function createContext(overrides: Partial<AiToolRouteContext> = {}): AiToolRouteContext {
   return {
     dbManager: {
       open: () => null,
     },
     ...overrides,
-  } as unknown as HttpRouteContext
+  }
 }
 
 describe('ai tool debug routes', () => {
@@ -117,7 +118,7 @@ describe('ai tool debug routes', () => {
       createContext({
         dbManager: {
           open: (sessionId: string) => (sessionId === 'existing-session' ? ({} as never) : null),
-        } as HttpRouteContext['dbManager'],
+        },
       })
     )
     await app.ready()

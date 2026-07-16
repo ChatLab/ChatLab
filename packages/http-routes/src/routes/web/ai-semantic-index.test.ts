@@ -7,7 +7,6 @@ import Fastify, { type FastifyInstance } from 'fastify'
 import type { SemanticIndexService } from '@openchatlab/node-runtime'
 import { SEMANTIC_INDEX_CONFIG_FILE } from '@openchatlab/node-runtime'
 import type { AuthProfile } from '@openchatlab/config'
-import type { HttpRouteContext } from '../../context'
 import { registerSemanticIndexRoutes } from './ai-semantic-index'
 
 type Call = [string, ...unknown[]]
@@ -64,7 +63,7 @@ describe('semantic-index routes', () => {
 
   before(async () => {
     app = Fastify()
-    const ctx = { semanticIndexService: makeFakeService(calls) } as unknown as HttpRouteContext
+    const ctx = { semanticIndexService: makeFakeService(calls) }
     registerSemanticIndexRoutes(app, ctx)
     await app.ready()
   })
@@ -132,7 +131,7 @@ describe('semantic-index routes', () => {
 
   it('routes are skipped when service is absent', async () => {
     const bare = Fastify()
-    registerSemanticIndexRoutes(bare, {} as unknown as HttpRouteContext)
+    registerSemanticIndexRoutes(bare, {})
     await bare.ready()
     const resp = await bare.inject({ method: 'GET', url: '/_web/ai/semantic-index/config' })
     assert.equal(resp.statusCode, 404)
@@ -159,7 +158,7 @@ describe('semantic-index routes (degraded: service absent, aiDataDir present)', 
       resolveApiKey: (_provider: string, authProfile?: string) =>
         authProfile ? (authProfiles.get(authProfile)?.key ?? '') : '',
       writeAuthProfile: (name: string, profile: AuthProfile) => authProfiles.set(name, profile),
-    } as unknown as HttpRouteContext
+    }
     registerSemanticIndexRoutes(app, ctx)
     await app.ready()
   })

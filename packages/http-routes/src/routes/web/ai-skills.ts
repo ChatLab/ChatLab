@@ -1,7 +1,9 @@
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../../context'
+import type { AiRouteContext } from '../../context/ai'
 
-export function registerAiSkillRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+type AiSkillRouteContext = Pick<AiRouteContext, 'skillManagerCore'>
+
+export function registerAiSkillRoutes(server: FastifyInstance, ctx: AiSkillRouteContext): void {
   const mgr = ctx.skillManagerCore
   if (!mgr) return
 

@@ -1,9 +1,12 @@
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../../context'
+import type { AiRouteContext } from '../../context/ai'
+import type { RuntimeRouteContext } from '../../context/runtime'
 import { summaryService, buildPiModel } from '@openchatlab/node-runtime'
 import type { SummaryServiceDeps, LlmConfig, PiModelConfig } from '@openchatlab/node-runtime'
 
-function createSummaryDeps(ctx: HttpRouteContext): SummaryServiceDeps | null {
+type AiSummaryRouteContext = Pick<RuntimeRouteContext, 'sessionAdapter'> & Pick<AiRouteContext, 'llmConfigStore'>
+
+function createSummaryDeps(ctx: AiSummaryRouteContext): SummaryServiceDeps | null {
   const store = ctx.llmConfigStore
   if (!store) return null
   return {
@@ -18,7 +21,7 @@ function createSummaryDeps(ctx: HttpRouteContext): SummaryServiceDeps | null {
   }
 }
 
-export function registerAiSummaryRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+export function registerAiSummaryRoutes(server: FastifyInstance, ctx: AiSummaryRouteContext): void {
   const deps = createSummaryDeps(ctx)
   if (!deps) return
 

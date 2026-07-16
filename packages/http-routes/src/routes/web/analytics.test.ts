@@ -16,9 +16,10 @@ import path from 'node:path'
 import Database from 'better-sqlite3'
 import Fastify, { type FastifyInstance } from 'fastify'
 import type { DatabaseAdapter, PathProvider, PreparedStatement, RunResult } from '@openchatlab/core'
-import type { SessionRuntimeAdapter, DatabaseManager } from '@openchatlab/node-runtime'
-import type { HttpRouteContext } from '../../context'
+import type { SessionRuntimeAdapter } from '@openchatlab/node-runtime'
 import { registerAnalyticsRoutes } from './analytics'
+
+type AnalyticsRouteContext = Parameters<typeof registerAnalyticsRoutes>[1]
 
 class Stmt implements PreparedStatement {
   readonly?: boolean
@@ -87,12 +88,11 @@ describe('analytics routes caching', () => {
       ensureReadonly: () => adapter,
       getDbPath: () => dbFile,
     } as unknown as SessionRuntimeAdapter
-    const ctx = {
+    const ctx: AnalyticsRouteContext = {
       sessionAdapter,
       pathProvider,
-      dbManager: {} as unknown as DatabaseManager,
       getVersion: () => 'test',
-    } as HttpRouteContext
+    }
 
     app = Fastify()
     registerAnalyticsRoutes(app, ctx)

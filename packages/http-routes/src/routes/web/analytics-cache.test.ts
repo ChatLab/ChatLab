@@ -11,8 +11,7 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
-import { buildAnalyticsCacheKey, withAnalyticsCache } from './analytics-cache'
-import type { HttpRouteContext } from '../../context'
+import { buildAnalyticsCacheKey, withAnalyticsCache, type AnalyticsCacheContext } from './analytics-cache'
 
 describe('buildAnalyticsCacheKey', () => {
   it('is independent of param key order', () => {
@@ -52,12 +51,12 @@ describe('withAnalyticsCache', () => {
   let root: string
   let dbPath: string
 
-  function makeCtx(): HttpRouteContext {
+  function makeCtx(): AnalyticsCacheContext {
     return {
       pathProvider: { getCacheDir: () => path.join(root, 'cache') },
       sessionAdapter: { getDbPath: () => dbPath },
       getVersion: () => '0.0.0-test',
-    } as unknown as HttpRouteContext
+    }
   }
 
   beforeEach(() => {

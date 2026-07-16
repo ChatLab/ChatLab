@@ -1,7 +1,13 @@
 import fs from 'node:fs'
 import path from 'node:path'
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../../context'
+import type { AiRouteContext } from '../../context/ai'
+import type { RuntimeRouteContext } from '../../context/runtime'
+import type { StorageRouteContext } from '../../context/storage'
+
+type AiLogRouteContext = Pick<RuntimeRouteContext, 'pathProvider'> &
+  Pick<AiRouteContext, 'getCurrentAiLogPath'> &
+  Pick<StorageRouteContext, 'showInFolder'>
 
 function findLatestAiLogPath(logsDir: string): string | null {
   const aiLogDir = path.join(logsDir, 'ai')
@@ -20,7 +26,7 @@ function findLatestAiLogPath(logsDir: string): string | null {
   return latest?.path ?? null
 }
 
-function resolveAiLogPath(ctx: HttpRouteContext): string | null {
+function resolveAiLogPath(ctx: AiLogRouteContext): string | null {
   const currentPath = ctx.getCurrentAiLogPath?.()
   if (currentPath && fs.existsSync(currentPath)) return currentPath
   return findLatestAiLogPath(ctx.pathProvider.getLogsDir())
@@ -37,7 +43,7 @@ function isLoopbackAddress(address?: string): boolean {
   )
 }
 
-export function registerAiLogRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+export function registerAiLogRoutes(server: FastifyInstance, ctx: AiLogRouteContext): void {
   server.post('/_web/ai/logs/show', async (request, reply) => {
     if (!ctx.showInFolder) return reply.code(501).send({ success: false, error: 'Not supported' })
     if (!isLoopbackAddress(request.ip)) {

@@ -1,12 +1,17 @@
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../../context'
+import type { AiRouteContext } from '../../context/ai'
+import type { DatabaseManager } from '@openchatlab/node-runtime'
 import { appLogger } from '@openchatlab/node-runtime'
 import { AGENT_TOOL_REGISTRY, CoreDataProvider } from '@openchatlab/tools'
 import { executeRegistryTool } from '../../ai/tool-executor'
 
 const activeToolTests = new Map<string, AbortController>()
 
-export function registerAiToolRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+interface AiToolRouteContext extends Pick<AiRouteContext, 'executeAiTool'> {
+  dbManager: Pick<DatabaseManager, 'open'>
+}
+
+export function registerAiToolRoutes(server: FastifyInstance, ctx: AiToolRouteContext): void {
   server.get('/_web/ai/tools/full-catalog', async () => {
     return AGENT_TOOL_REGISTRY.map((tool) => ({
       name: tool.name,

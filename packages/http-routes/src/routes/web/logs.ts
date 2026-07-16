@@ -1,6 +1,5 @@
 import type { FastifyInstance } from 'fastify'
 import { appLogger } from '@openchatlab/node-runtime'
-import type { HttpRouteContext } from '../../context'
 
 interface LogReportBody {
   level?: 'error' | 'warn'
@@ -13,7 +12,7 @@ interface LogReportBody {
  * Front-end error report sink. The browser can't write files, so uncaught
  * front-end errors are POSTed here and appended to logs/app.log (scope 'web').
  */
-export function registerLogRoutes(server: FastifyInstance, _ctx: HttpRouteContext): void {
+export function registerLogRoutes(server: FastifyInstance): void {
   server.post<{ Body: LogReportBody }>('/_web/logs/report', async (req, reply) => {
     const { level, message, stack, url } = req.body ?? ({} as LogReportBody)
     if (!message) return reply.code(400).send({ error: 'message required' })

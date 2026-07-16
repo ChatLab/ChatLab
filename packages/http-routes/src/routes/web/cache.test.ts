@@ -5,8 +5,9 @@ import os from 'node:os'
 import path from 'node:path'
 import Fastify from 'fastify'
 import type { PathProvider } from '@openchatlab/core'
-import type { HttpRouteContext } from '../../context'
 import { registerCacheRoutes } from './cache'
+
+type CacheRouteContext = Parameters<typeof registerCacheRoutes>[1]
 
 function createPathProvider(overrides: Partial<PathProvider> = {}): PathProvider {
   return {
@@ -32,7 +33,7 @@ function makeTempDir(): string {
 describe('registerCacheRoutes data directory routes', () => {
   it('marks storage directories by canonical scope', async () => {
     const app = Fastify()
-    registerCacheRoutes(app, { pathProvider: createPathProvider() } as unknown as HttpRouteContext)
+    registerCacheRoutes(app, { pathProvider: createPathProvider() })
     await app.ready()
 
     const response = await app.inject({ method: 'GET', url: '/_web/cache/info' })
@@ -57,12 +58,13 @@ describe('registerCacheRoutes data directory routes', () => {
   it('opens the storage root and chat data directory separately', async () => {
     const app = Fastify()
     const openedDirs: string[] = []
-    registerCacheRoutes(app, {
+    const ctx: CacheRouteContext = {
       pathProvider: createPathProvider(),
-      openDirectory: (dirPath: string) => {
+      openDirectory: async (dirPath: string) => {
         openedDirs.push(dirPath)
       },
-    } as unknown as HttpRouteContext)
+    }
+    registerCacheRoutes(app, ctx)
     await app.ready()
 
     const infoResponse = await app.inject({ method: 'GET', url: '/_web/cache/info' })
@@ -89,7 +91,7 @@ describe('registerCacheRoutes data directory routes', () => {
 
   it('returns data directory capability and pending migration', async () => {
     const app = Fastify()
-    const ctx = {
+    const ctx: CacheRouteContext = {
       pathProvider: createPathProvider(),
       defaultUserDataDir: '/tmp/chatlab-test/default-data',
       isCustomDataDir: true,
@@ -98,9 +100,10 @@ describe('registerCacheRoutes data directory routes', () => {
         from: '/tmp/chatlab-test/data',
         to: '/tmp/chatlab-test/new-data',
         migrate: true,
+        deleteSourceOnSuccess: false,
         createdAt: '2026-06-02T00:00:00.000Z',
       }),
-    } as unknown as HttpRouteContext
+    }
 
     registerCacheRoutes(app, ctx)
     await app.ready()
@@ -137,7 +140,7 @@ describe('registerCacheRoutes data directory routes', () => {
       pathProvider: createPathProvider({ getUserDataDir: () => currentDir }),
       defaultUserDataDir: defaultDir,
       isCustomDataDir: true,
-    } as unknown as HttpRouteContext)
+    })
     await appWithoutDb.ready()
 
     const emptyResponse = await appWithoutDb.inject({ method: 'GET', url: '/_web/cache/data-dir' })
@@ -152,7 +155,7 @@ describe('registerCacheRoutes data directory routes', () => {
       pathProvider: createPathProvider({ getUserDataDir: () => currentDir }),
       defaultUserDataDir: defaultDir,
       isCustomDataDir: true,
-    } as unknown as HttpRouteContext)
+    })
     await appWithDb.ready()
 
     const response = await appWithDb.inject({ method: 'GET', url: '/_web/cache/data-dir' })
@@ -164,7 +167,7 @@ describe('registerCacheRoutes data directory routes', () => {
   it('delegates data directory changes to context callback', async () => {
     const app = Fastify()
     const calls: Array<{ path: string | null; migrate?: boolean }> = []
-    const ctx = {
+    const ctx: CacheRouteContext = {
       pathProvider: createPathProvider(),
       setDataDir: (dirPath: string | null, migrate?: boolean) => {
         calls.push({ path: dirPath, migrate })
@@ -175,7 +178,7 @@ describe('registerCacheRoutes data directory routes', () => {
           requiresRelaunch: true,
         }
       },
-    } as unknown as HttpRouteContext
+    }
 
     registerCacheRoutes(app, ctx)
     await app.ready()
@@ -200,7 +203,7 @@ describe('registerCacheRoutes data directory routes', () => {
 
   it('returns 501 when data directory changes are unsupported', async () => {
     const app = Fastify()
-    registerCacheRoutes(app, { pathProvider: createPathProvider() } as unknown as HttpRouteContext)
+    registerCacheRoutes(app, { pathProvider: createPathProvider() })
     await app.ready()
 
     const response = await app.inject({

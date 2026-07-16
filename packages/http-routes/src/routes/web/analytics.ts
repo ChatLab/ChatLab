@@ -1,7 +1,8 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../../context'
+import type { PathProvider } from '@openchatlab/core'
+import type { SessionRuntimeAdapter } from '@openchatlab/node-runtime'
 import { createJiebaNlpProvider } from '@openchatlab/node-runtime'
 import {
   getTimeRange,
@@ -34,11 +35,16 @@ import {
 } from '@openchatlab/core'
 import type { ClusterGraphOptions } from '@openchatlab/core'
 import { parseTimeFilter } from './time-filter'
-import { withAnalyticsCache } from './analytics-cache'
+import { withAnalyticsCache, type AnalyticsCacheContext } from './analytics-cache'
 
 type FilteredQuery = { startTs?: string; endTs?: string; memberId?: string }
 
-export function registerAnalyticsRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+type AnalyticsRouteContext = AnalyticsCacheContext & {
+  pathProvider: Pick<PathProvider, 'getCacheDir' | 'getSystemDir'>
+  sessionAdapter: Pick<SessionRuntimeAdapter, 'getDbPath' | 'ensureReadonly'>
+}
+
+export function registerAnalyticsRoutes(server: FastifyInstance, ctx: AnalyticsRouteContext): void {
   const { sessionAdapter: adapter } = ctx
 
   /** Cache-first wrapper bound to this context; `params` must capture all inputs that affect the result. */

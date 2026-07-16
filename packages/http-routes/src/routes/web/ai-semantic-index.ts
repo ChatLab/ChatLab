@@ -7,7 +7,7 @@
 
 import path from 'node:path'
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../../context'
+import type { AiRouteContext } from '../../context/ai'
 import type { SemanticIndexConfig } from '@openchatlab/node-runtime'
 import {
   SemanticIndexConfigStore,
@@ -17,7 +17,12 @@ import {
   resolveSemanticIndexApiKeySet,
 } from '@openchatlab/node-runtime'
 
-export function registerSemanticIndexRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+type SemanticIndexRouteContext = Pick<
+  AiRouteContext,
+  'semanticIndexService' | 'aiDataDir' | 'resolveApiKey' | 'writeAuthProfile'
+>
+
+export function registerSemanticIndexRoutes(server: FastifyInstance, ctx: SemanticIndexRouteContext): void {
   const service = ctx.semanticIndexService
 
   // When the vector service is unavailable (e.g. sqlite-vec failed to load), register config

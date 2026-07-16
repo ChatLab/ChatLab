@@ -1,6 +1,7 @@
 import type { FastifyInstance } from 'fastify'
 import { createGlobalInsightService } from '@openchatlab/node-runtime'
-import type { HttpRouteContext } from '../../context'
+import type { RuntimeRouteContext } from '../../context/runtime'
+import type { ServiceRouteContext } from '../../context/services'
 
 interface GlobalInsightQuery {
   mode?: string
@@ -9,7 +10,13 @@ interface GlobalInsightQuery {
   acceptStale?: string
 }
 
-export function registerGlobalInsightRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
+type GlobalInsightRouteContext = Pick<
+  RuntimeRouteContext,
+  'sessionAdapter' | 'pathProvider' | 'runtimeIdentity' | 'nativeBinding'
+> &
+  Pick<ServiceRouteContext, 'globalInsightService'>
+
+export function registerGlobalInsightRoutes(server: FastifyInstance, ctx: GlobalInsightRouteContext): void {
   const service =
     ctx.globalInsightService ??
     createGlobalInsightService({

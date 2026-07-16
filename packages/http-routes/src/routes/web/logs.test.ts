@@ -5,19 +5,14 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import Fastify from 'fastify'
 import { initAppLogger } from '@openchatlab/node-runtime'
-import type { HttpRouteContext } from '../../context'
 import { registerLogRoutes } from './logs'
-
-function ctxWith(logsDir: string): HttpRouteContext {
-  return { pathProvider: { getLogsDir: () => logsDir } } as unknown as HttpRouteContext
-}
 
 describe('logs routes', () => {
   it('appends front-end error report to app.log', async () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'logsroute-'))
     initAppLogger(dir)
     const app = Fastify()
-    registerLogRoutes(app, ctxWith(dir))
+    registerLogRoutes(app)
     await app.ready()
     try {
       const res = await app.inject({
@@ -39,7 +34,7 @@ describe('logs routes', () => {
     const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'logsroute-'))
     initAppLogger(dir)
     const app = Fastify()
-    registerLogRoutes(app, ctxWith(dir))
+    registerLogRoutes(app)
     await app.ready()
     try {
       const res = await app.inject({ method: 'POST', url: '/_web/logs/report', payload: {} })
