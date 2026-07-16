@@ -17,7 +17,6 @@ import {
 } from '@openchatlab/shared-types'
 
 import { CHATLAB_SITE_BASE } from '@/utils/chatlabSiteLocale'
-import { isAssistantUpgradeSkipped } from './assistantUpgradePreference'
 const CLOUD_MARKET_BASE_URL = CHATLAB_SITE_BASE
 const LOCALE_PATH_MAP: Record<string, string> = { 'zh-CN': 'cn', 'zh-TW': 'cn', 'en-US': 'en', 'ja-JP': 'ja' }
 
@@ -231,7 +230,9 @@ export const useAssistantStore = defineStore('assistant', () => {
           const preferences = await usePreferencesService().getPreferences()
           assistantUpgradeSkippedVersions = { ...preferences.assistantUpgradeSkippedVersions }
         }
-        if (isAssistantUpgradeSkipped(assistantUpgradeSkippedVersions, info)) return null
+        if (info.latestVersion !== null && assistantUpgradeSkippedVersions[info.builtinId] === info.latestVersion) {
+          return null
+        }
       } catch (error) {
         // 偏好读取失败时仍展示升级提示，避免把真实可用的升级静默吞掉。
         console.error('[AssistantStore] Failed to load skipped assistant upgrades:', error)
