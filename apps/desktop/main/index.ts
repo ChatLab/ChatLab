@@ -1,55 +1,24 @@
-import { app, shell, BrowserWindow, protocol, nativeTheme, dialog } from 'electron'
+import { app, BrowserWindow, protocol, dialog } from 'electron'
 import { join } from 'path'
-import { optimizer, is, platform } from '@electron-toolkit/utils'
+import { optimizer, platform } from '@electron-toolkit/utils'
 import { checkUpdate } from './update'
-import mainIpcMain, { cleanup } from './ipcMain'
+import mainIpcMain, { cleanup } from './ipc'
 import { startInternalServer, stopInternalServer, registerInternalApiIpc } from './internal-api'
 import { getPathProvider } from './paths/provider'
 import { initAnalytics } from './analytics'
 import { logger } from './logger'
-import { initProxy } from './network/proxy'
-import {
-  needsUnifiedDirMigration,
-  migrateToUnifiedDirs,
-  verifyDataPath,
-  needsLegacyMigration,
-  migrateFromLegacyDir,
-} from './paths/legacy-migration'
-import { ensureAppDirs, getSystemDataDir, getAiDataDir } from './paths/locations'
-import { cleanupPendingDeleteDir, applyPendingDataDirMigration } from './paths/data-dir-switch'
-import { migrateAllDatabases, checkMigrationNeeded } from './database/core'
-import {
-  assertDesktopStartupMigrationSucceeded,
-  repairDesktopStartupCompatibilityGate,
-} from './database/startup-migration'
-import { initLocale } from './i18n'
-import { resolveDesktopNativeBinding } from './native-sqlite'
-import { MigrationRunner, ALL_MIGRATIONS } from '@openchatlab/config'
-import { logNativeParserStatus } from '@openchatlab/node-runtime'
-import type { RuntimeIdentity } from '@openchatlab/node-runtime/data-dir-compat'
-import { assertDesktopDataDirCompatible, getDesktopAppVersion } from './runtime-compat'
-import {
-  applyCurrentTitleBarOverlay,
-  getTitleBarOverlayOptions,
-  resetCurrentTitleBarOverlayColor,
-} from './window-titlebar'
-
-type AppWithQuitFlag = typeof app & { isQuiting?: boolean }
-// 统一通过扩展类型访问退出标记，避免使用 @ts-ignore。
-const appWithQuitFlag = app as AppWithQuitFlag
+import { prepareDesktopRuntime } from './app/bootstrap'
+import { createMainWindow, markAppQuitting } from './window/main-window'
 
 class MainProcess {
   mainWindow: BrowserWindow | null
   isTestMode: boolean
-  constructor() {
-    // 主窗口
-    this.mainWindow = null
 
-    // E2E 测试模式检查：跳过遗留数据迁移和其他测试无关的初始化
+  constructor() {
+    this.mainWindow = null
     this.isTestMode = process.env.TEST_MODE === 'true'
 
-    // E2E 测试隔离：为并行测试实例设置独立的用户数据目录
-    // 这防止了并发进程的状态泄漏、死锁和数据库冲突
+    // Isolate E2E instances to avoid sharing state, locks, and databases.
     const e2eUserDataDir = process.env.CHATLAB_E2E_USER_DATA_DIR
     if (this.isTestMode && e2eUserDataDir) {
       app.setPath('userData', e2eUserDataDir)
@@ -57,9 +26,7 @@ class MainProcess {
       console.warn('[Main] Ignored CHATLAB_E2E_USER_DATA_DIR because TEST_MODE is not enabled')
     }
 
-    // 设置应用程序名称
     if (process.platform === 'win32') app.setAppUserModelId(app.getName())
-    // 初始化
     this.checkApp().then(async (lockObtained) => {
       if (lockObtained) {
         await this.init()
@@ -67,290 +34,85 @@ class MainProcess {
     })
   }
 
-  // 单例锁
-  async checkApp() {
-    // E2E 测试模式：绕过单实例锁以支持并行实例
-    const isTestMode = process.env.TEST_MODE === 'true'
-    if (isTestMode) {
+  async checkApp(): Promise<boolean> {
+    if (this.isTestMode) {
       return true
     }
 
     if (!app.requestSingleInstanceLock()) {
       app.quit()
-      // 未获得锁
       return false
     }
-    // 聚焦到当前程序
-    else {
-      app.on('second-instance', () => {
-        if (this.mainWindow) {
-          this.mainWindow.show()
-          if (this.mainWindow.isMinimized()) this.mainWindow.restore()
-          this.mainWindow.focus()
-        }
-      })
-      // 获得锁
-      return true
-    }
+
+    app.on('second-instance', () => {
+      if (this.mainWindow) {
+        this.mainWindow.show()
+        if (this.mainWindow.isMinimized()) this.mainWindow.restore()
+        this.mainWindow.focus()
+      }
+    })
+    return true
   }
 
-  // 初始化程序
-  async init() {
+  async init(): Promise<void> {
     initAnalytics()
     logger.info('Desktop app starting')
-    // 记录 Rust native parser 可用性（导入是否走 Rust 内核），便于按日志排查回退原因
-    logNativeParserStatus()
 
-    // E2E 测试模式：跳过遗留数据迁移
-    // 遗留迁移会删除 Documents/ChatLab，在本地测试时可能破坏用户数据
-    if (!this.isTestMode) {
-      // 应用上次设置页登记的数据目录切换；必须早于任何数据库连接初始化
-      this.applyPendingDataDirMigrationIfNeeded()
-
-      // 清理上次切换目录后的旧数据目录
-      cleanupPendingDeleteDir()
-
-      // 执行数据目录迁移（从 Documents/ChatLab 迁移到 userData）
-      this.migrateDataIfNeeded()
-
-      // 执行统一目录结构迁移（Electron 旧布局 → 双根目录）
-      this.migrateToUnifiedDirsIfNeeded()
-    }
-
-    // 验证数据路径是否正确（安全网：防止 config.toml 指向空目录）
-    verifyDataPath()
-
-    // 确保应用目录存在
-    ensureAppDirs()
-
-    let runtime: RuntimeIdentity
-    try {
-      runtime = assertDesktopDataDirCompatible(getPathProvider(), getDesktopAppVersion(app.getVersion()))
-    } catch (error) {
-      console.error('[Main] Data directory compatibility check failed:', error)
-      dialog.showErrorBox(
-        'ChatLab Data Directory Incompatible',
-        `ChatLab cannot open this data directory with the current desktop version.\n\n${
-          error instanceof Error ? error.message : String(error)
-        }`
-      )
-      app.quit()
+    if (!(await prepareDesktopRuntime(this.isTestMode))) {
       return
     }
 
-    // 执行配置数据迁移（Migration Runner，Electron 和 CLI 共享）
-    await new MigrationRunner(ALL_MIGRATIONS, {
-      dataDir: getSystemDataDir(),
-      aiDataDir: getAiDataDir(),
-      logger: {
-        info: (_cat: string, msg: string) => console.log(`[Migration] ${msg}`),
-        warn: (_cat: string, msg: string) => console.warn(`[Migration] ${msg}`),
-        error: (_cat: string, msg: string, ...args: unknown[]) => console.error(`[Migration] ${msg}`, ...args),
-      },
-    }).run()
-
-    // 初始化主进程国际化（在 ensureAppDirs 之后，确保 settings 目录存在）
-    await initLocale()
-
-    // 执行数据库 schema 迁移（确保所有数据库在 Worker 查询前已是最新 schema）
-    try {
-      this.migrateDatabasesIfNeeded(runtime)
-    } catch (error) {
-      console.error('[Main] Database schema migration failed:', error)
-      dialog.showErrorBox(
-        'ChatLab Database Migration Failed',
-        `ChatLab cannot start because database migration did not complete safely.\n\n${
-          error instanceof Error ? error.message : String(error)
-        }`
-      )
-      app.quit()
-      return
-    }
-
-    initProxy() // 初始化代理配置
-
-    // 暂不注册自定义协议，避免触发系统 URL 协议关联提示
-
-    // 应用程序准备好之前注册
     protocol.registerSchemesAsPrivileged([{ scheme: 'app', privileges: { secure: true, standard: true } }])
-
-    // 主应用程序事件
-    this.mainAppEvents()
+    this.registerAppEvents()
   }
 
-  // 应用设置页登记的数据目录切换（重启期执行）
-  applyPendingDataDirMigrationIfNeeded() {
-    const result = applyPendingDataDirMigration()
-    if (result.skipped) {
-      console.log('[Main] No pending data directory migration')
-      return
-    }
-    if (result.success) {
-      console.log('[Main] Pending data directory migration completed')
-    } else {
-      console.error('[Main] Pending data directory migration failed:', result.error)
-    }
-  }
-
-  // 从旧目录迁移数据（Documents/ChatLab → userData/data）
-  migrateDataIfNeeded() {
-    if (needsLegacyMigration()) {
-      console.log('[Main] Legacy data migration needed, starting migration...')
-      const result = migrateFromLegacyDir()
-      if (result.success) {
-        console.log(`[Main] Migration completed. Migrated: ${result.migratedDirs.join(', ')}`)
-      } else {
-        console.error('[Main] Migration failed:', result.error)
-      }
-    } else {
-      console.log('[Main] No legacy data migration needed')
-    }
-  }
-
-  // 从 Electron 旧目录结构迁移到新的双根目录结构
-  migrateToUnifiedDirsIfNeeded() {
-    if (needsUnifiedDirMigration()) {
-      console.log('[Main] Unified directory migration needed, starting...')
-      const result = migrateToUnifiedDirs()
-      if (result.success) {
-        console.log('[Main] Unified directory migration completed')
-      } else {
-        console.error('[Main] Unified directory migration failed:', result.error)
-      }
-    } else {
-      console.log('[Main] No unified directory migration needed')
-    }
-  }
-
-  // 执行启动期数据库 schema 迁移；失败时必须中断，避免 schema 已升级但兼容门禁未落盘。
-  migrateDatabasesIfNeeded(runtime: RuntimeIdentity) {
-    const { count } = checkMigrationNeeded()
-    if (count > 0) {
-      assertDesktopStartupMigrationSucceeded(migrateAllDatabases(runtime))
-    }
-
-    repairDesktopStartupCompatibilityGate(runtime, {
-      pathProvider: getPathProvider(),
-      nativeBinding: resolveDesktopNativeBinding(),
+  async createWindow(): Promise<void> {
+    this.mainWindow = await createMainWindow({
+      preloadPath: join(__dirname, '../preload/index.js'),
+      rendererHtmlPath: join(__dirname, '../../out/renderer/index.html'),
     })
   }
 
-  // 创建主窗口
-  async createWindow() {
-    // 平台差异化窗口配置
-    const windowOptions: Electron.BrowserWindowConstructorOptions = {
-      width: 1180,
-      height: 752,
-      minWidth: 1180,
-      minHeight: 752,
-      show: false,
-      autoHideMenuBar: true,
-      webPreferences: {
-        preload: join(__dirname, '../preload/index.js'),
-        sandbox: false,
-        devTools: true,
-      },
-    }
-
-    // macOS: 使用 hiddenInset 保留红绿灯按钮
-    // Windows: 使用 titleBarOverlay，在自定义标题栏区域右侧显示原生窗口按钮
-    // Linux: 使用自定义标题栏和自定义按钮
-    if (platform.isMacOS) {
-      windowOptions.titleBarStyle = 'hiddenInset'
-    } else if (platform.isWindows) {
-      // 保留系统框架，只隐藏标题栏内容，把内容区域顶到最上方
-      windowOptions.titleBarStyle = 'hidden'
-      // 获取当前主题状态
-      const isDark = nativeTheme.shouldUseDarkColors
-      windowOptions.titleBarOverlay = getTitleBarOverlayOptions(isDark)
-      windowOptions.backgroundColor = isDark ? '#111827' : '#f9fafb'
-    } else {
-      // Linux 继续使用无边框 + 自定义按钮
-      windowOptions.frame = false
-    }
-
-    this.mainWindow = new BrowserWindow(windowOptions)
-
-    this.mainWindow.once('ready-to-show', () => {
-      this.mainWindow?.show()
-
-      // Windows 上根据当前主题设置 titleBarOverlay 颜色
-      if (platform.isWindows) {
-        applyCurrentTitleBarOverlay(this.mainWindow, nativeTheme.shouldUseDarkColors)
-
-        // 监听主题变化，动态更新颜色
-        nativeTheme.on('updated', () => {
-          if (this.mainWindow && platform.isWindows) {
-            resetCurrentTitleBarOverlayColor()
-            applyCurrentTitleBarOverlay(this.mainWindow, nativeTheme.shouldUseDarkColors)
-          }
-        })
-      }
-    })
-
-    // 主窗口事件
-    this.mainWindowEvents()
-
-    this.mainWindow.webContents.setWindowOpenHandler((details) => {
-      shell.openExternal(details.url)
-      return { action: 'deny' }
-    })
-
-    // HMR for renderer base on electron-vite cli.
-    // Load the remote URL for development or the local html file for production.
-    if (is.dev && process.env['ELECTRON_RENDERER_URL']) {
-      this.mainWindow.loadURL(process.env['ELECTRON_RENDERER_URL'])
-    } else {
-      this.mainWindow.loadFile(join(__dirname, '../../out/renderer/index.html'))
-    }
-  }
-
-  // 主应用程序事件
-  mainAppEvents() {
+  registerAppEvents(): void {
     app.whenReady().then(async () => {
       console.log('[Main] App is ready')
-      // 设置Windows应用程序用户模型id
       if (process.platform === 'win32') app.setAppUserModelId(app.getName())
 
-      // 启动 Internal API Server（硬依赖：失败则退出应用）
       try {
         await startInternalServer(getPathProvider())
         registerInternalApiIpc()
         console.log('[Main] Internal API Server ready')
-      } catch (err) {
-        console.error('[Main] Internal API Server failed to start:', err)
+      } catch (error) {
+        console.error('[Main] Internal API Server failed to start:', error)
         dialog.showErrorBox(
           'ChatLab Internal Server Error',
-          `Internal API Server failed to start. The application cannot continue.\n\n${err instanceof Error ? err.message : String(err)}`
+          `Internal API Server failed to start. The application cannot continue.\n\n${
+            error instanceof Error ? error.message : String(error)
+          }`
         )
         app.quit()
         return
       }
 
-      // 创建主窗口
       console.log('[Main] Creating window...')
       await this.createWindow()
       console.log('[Main] Window created')
 
-      // 检查更新逻辑
       checkUpdate(this.mainWindow)
 
-      // 引入主进程ipcMain
       if (this.mainWindow) {
         console.log('[Main] Registering IPC handlers...')
         mainIpcMain(this.mainWindow)
         console.log('[Main] IPC handlers registered')
       }
 
-      // 开发环境下 F12 打开控制台
       app.on('browser-window-created', (_, window) => {
         optimizer.watchWindowShortcuts(window)
       })
 
       app.on('activate', () => {
-        // 在 macOS 上，当单击 Dock 图标且没有其他窗口时，通常会重新创建窗口
         if (BrowserWindow.getAllWindows().length === 0) {
-          this.createWindow()
+          void this.createWindow()
           return
         }
 
@@ -359,75 +121,34 @@ class MainProcess {
         }
       })
 
-      // 监听渲染进程崩溃
-      app.on('render-process-gone', (_event, w, d) => {
-        if (d.reason == 'crashed') {
-          w.reload()
+      app.on('render-process-gone', (_event, webContents, details) => {
+        if (details.reason === 'crashed') {
+          webContents.reload()
         }
-        // fs.appendFile(`./error-log-${+new Date()}.txt`, `${new Date()}渲染进程被杀死${d.reason}\n`)
       })
 
-      // 自定义协议
       app.on('open-url', (_, url) => {
         console.log('Received custom protocol URL:', url)
       })
 
-      // 当所有窗口都关闭时退出应用，macOS 除外
       app.on('window-all-closed', () => {
         if (!platform.isMacOS) {
           app.quit()
         }
       })
 
-      // 只有显式调用quit才退出系统，区分MAC系统程序坞退出和点击X隐藏
       app.on('before-quit', () => {
-        appWithQuitFlag.isQuiting = true
+        markAppQuitting()
       })
 
-      // 退出前清理资源
       app.on('will-quit', () => {
         stopInternalServer().catch(() => {})
         cleanup()
       })
     })
   }
-
-  // 主窗口事件
-  mainWindowEvents() {
-    if (!this.mainWindow) {
-      return
-    }
-    this.mainWindow.webContents.on('did-finish-load', () => {
-      setTimeout(() => {
-        if (this.mainWindow) {
-          this.mainWindow.webContents.send('app-started')
-        }
-      }, 500)
-    })
-
-    this.mainWindow.on('maximize', () => {
-      this.mainWindow?.webContents.send('windowState', true)
-    })
-
-    this.mainWindow.on('unmaximize', () => {
-      this.mainWindow?.webContents.send('windowState', false)
-    })
-
-    // 窗口关闭
-    this.mainWindow.on('close', (event) => {
-      if (platform.isMacOS) {
-        // macOS: 只有明确退出时才真正关闭，否则只隐藏窗口（符合 macOS 用户习惯）
-        if (!appWithQuitFlag.isQuiting) {
-          event.preventDefault()
-          this.mainWindow?.hide()
-        }
-      }
-      // Windows/Linux: 不阻止关闭，正常触发 window-all-closed → app.quit() → cleanup()
-    })
-  }
 }
 
-// 捕获未捕获的异常与未处理的 Promise 拒绝，落盘到 logs/app.log 便于排查
 process.on('uncaughtException', (error) => {
   console.error('Uncaught Exception:', error)
   logger.error(
@@ -435,6 +156,7 @@ process.on('uncaughtException', (error) => {
   )
   process.exit(1)
 })
+
 process.on('unhandledRejection', (reason) => {
   console.error('Unhandled Rejection:', reason)
   logger.error(

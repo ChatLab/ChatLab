@@ -11,7 +11,7 @@ import {
   applyCurrentTitleBarOverlay,
   applyTitleBarOverlayColor,
   resetCurrentTitleBarOverlayColor,
-} from '../window-titlebar'
+} from '../window/titlebar'
 import { getDesktopAppVersion } from '../runtime-compat'
 
 type AppWithQuitFlag = typeof app & { isQuiting?: boolean }

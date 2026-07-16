@@ -3,21 +3,21 @@
  * 模块化结构，各功能模块位于 ./ipc/ 目录下
  */
 import { BrowserWindow } from 'electron'
-import type { IpcContext } from './ipc/types'
+import type { IpcContext } from './types'
 
 // 导入各功能模块
-import { registerWindowHandlers } from './ipc/window'
-import { registerChatHandlers } from './ipc/chat'
-import { registerAIHandlers } from './ipc/ai'
-import { registerMessagesHandlers } from './ipc/messages'
-import { registerCacheHandlers } from './ipc/cache'
-import { registerNetworkHandlers } from './ipc/network'
-import { registerAnalyticsHandlers } from './analytics'
-import { registerApiHandlers, initApiServer, cleanupApiServer } from './ipc/api'
-import { registerDemoHandlers } from './ipc/demo'
-import { cleanupArchiveImportSources } from './import-source-runtime'
+import { registerWindowHandlers } from './window'
+import { registerChatHandlers } from './chat'
+import { registerAIHandlers } from './ai'
+import { registerMessagesHandlers } from './messages'
+import { registerCacheHandlers } from './cache'
+import { registerNetworkHandlers } from './network'
+import { registerAnalyticsHandlers } from '../analytics'
+import { registerApiHandlers, initApiServer, cleanupApiServer } from './api'
+import { registerDemoHandlers } from './demo'
+import { cleanupArchiveImportSources } from '../import-source-runtime'
 // 导入 Worker 模块（用于异步分析查询和流式导入）
-import * as worker from './worker/workerManager'
+import * as worker from '../worker/workerManager'
 
 /**
  * 初始化所有 IPC 处理器

@@ -7,7 +7,7 @@ import {
   getTitleBarOverlayOptionsForColor,
   getTitleBarOverlayOptions,
   resetCurrentTitleBarOverlayColor,
-} from './window-titlebar'
+} from './titlebar'
 
 describe('Windows title bar overlay options', () => {
   it('keeps the native overlay background transparent in normal mode', () => {
