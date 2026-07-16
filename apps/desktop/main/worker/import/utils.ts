@@ -8,7 +8,7 @@ import * as path from 'path'
 import { parentPort } from 'worker_threads'
 import { getDbDir, openRawDatabase } from '../core'
 import { CHAT_DB_TABLES, CHAT_DB_INDEXES } from '@openchatlab/core'
-import type { ParseProgress } from '../../parser'
+import type { ParseProgress } from '@openchatlab/parser'
 
 export function sendProgress(requestId: string, progress: ParseProgress): void {
   parentPort?.postMessage({

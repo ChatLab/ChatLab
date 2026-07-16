@@ -3,10 +3,9 @@
  * 提供会话索引管理、AI 工具查询、自定义筛选和导出等功能
  */
 
-// Types — core types re-exported via ./types, Electron-only types kept there
-export type { ChatSessionItem, SessionIndexStats, SessionMessagesResult } from './types'
-
-export { DEFAULT_SESSION_GAP_THRESHOLD } from './types'
+export type { ChatSessionItem, SessionIndexStats } from './sessionIndex'
+export type { SessionMessagesResult } from './aiTools'
+export { DEFAULT_SESSION_GAP_THRESHOLD } from '@openchatlab/core'
 
 // 会话索引管理
 export {

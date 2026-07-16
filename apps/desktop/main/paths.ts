@@ -27,6 +27,14 @@ import * as os from 'os'
 import * as path from 'path'
 import { loadConfig, writeConfigField } from '@openchatlab/config'
 import {
+  createPendingDataDirMigration,
+  isDirectoryEmptyOrMissing,
+  isExistingUserDataDir,
+  isUserDataDirSafeToUse,
+  runPendingDataDirMigration,
+  type PendingDataDirMigration,
+} from '@openchatlab/node-runtime'
+import {
   copyDirMerge,
   copyDirRecursive,
   ensureMarkerFile,
@@ -36,14 +44,6 @@ import {
   writeMigrationLog,
 } from './utils/pathUtils'
 import { shouldMarkUnifiedDirMigrationDone } from './utils/unifiedDirMigration'
-import {
-  createPendingDataDirMigration,
-  isDirectoryEmptyOrMissing,
-  isExistingUserDataDir,
-  isUserDataDirSafeToUse,
-  runPendingDataDirMigration,
-  type PendingDataDirMigration,
-} from './utils/dataDirSwitch'
 
 // 缓存路径，避免重复计算
 let _systemDataDir: string | null = null

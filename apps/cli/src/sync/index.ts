@@ -10,9 +10,9 @@ import { PreferencesManager, createDatabaseManagerAdapter, ownerProfileService }
 import type { PathProvider } from '@openchatlab/core'
 import { DataSourceManager, PullEngine, initScheduler, stopAllTimers, reloadTimer, stopTimer } from '@openchatlab/sync'
 import type { SyncLogger } from '@openchatlab/sync'
-import { NodeFetcher, DirectImporter, NoopNotifier } from './adapters'
-import { registerAutomationRoutes } from './routes'
+import { registerAutomationRoutes } from '@openchatlab/http-routes'
 import type { AutomationRouteContext } from '@openchatlab/http-routes'
+import { NodeFetcher, DirectImporter, NoopNotifier } from './adapters'
 
 export interface SyncRouteContext {
   automation: AutomationRouteContext

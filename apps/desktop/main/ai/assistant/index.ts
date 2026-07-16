@@ -19,4 +19,3 @@ export {
   isGeneralAssistant,
 } from './manager'
 export { parseAssistantFile, serializeAssistant } from '@openchatlab/node-runtime'
-export { getBuiltinToolCatalog, type BuiltinToolCatalogEntry } from './builtinTools'

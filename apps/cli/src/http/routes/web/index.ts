@@ -38,11 +38,11 @@ import {
   getDefaultNodeUserDataDir,
   getPendingNodeDataDirMigration,
   AnalyticsService,
+  MergeSessionCache,
   type SemanticIndexRuntime,
 } from '@openchatlab/node-runtime'
 import { registerSharedRoutes } from '@openchatlab/http-routes'
 import type { HttpRouteContext } from '@openchatlab/http-routes'
-import { MergeSessionCache } from '../../../merger/merge-cache'
 import { registerImportRoutes } from './import'
 import { openDirectoryPath, showPathInFolder } from './cache'
 import { getVersion } from '../../../version'

@@ -2,7 +2,7 @@ import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import { CHART_CAPABILITY_SKILL_ID } from '@openchatlab/core'
 
-import { buildSkillMenuWithBuiltinChart, getSkillConfigWithBuiltinChart } from '../builtin-chart-skill'
+import { buildSkillMenuWithBuiltinChart, getSkillConfigWithBuiltinChart } from '../chart-runtime'
 import { buildSkillMenuText, formatSkillMenuLine } from '../skill-menu'
 
 function requireMenu(menu: string | null): string {

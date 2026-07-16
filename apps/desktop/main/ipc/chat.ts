@@ -9,8 +9,13 @@
 import { ipcMain, app, dialog } from 'electron'
 import * as databaseCore from '../database/core'
 import * as worker from '../worker/workerManager'
-import { detectFormat, findEntryFileInDirectory, scanMultiChatFile, type ParseProgress } from '../parser'
-import * as parser from '../parser'
+import {
+  detectFormat,
+  findEntryFileInDirectory,
+  getSupportedFormats,
+  scanMultiChatFile,
+  type ParseProgress,
+} from '@openchatlab/parser'
 import type { IpcContext } from './types'
 import { CURRENT_SCHEMA_VERSION, getPendingMigrationInfos } from '../database/migrations'
 import { t } from '../i18n'
@@ -121,7 +126,7 @@ export function registerChatHandlers(ctx: IpcContext): void {
   })
 
   ipcMain.handle('chat:getSupportedFormats', async () => {
-    return parser.getSupportedFormats()
+    return getSupportedFormats()
   })
 
   ipcMain.handle('chat:prepareImportSource', async (_, filePath: string) => {

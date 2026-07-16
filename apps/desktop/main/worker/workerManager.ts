@@ -7,7 +7,7 @@ import { Worker } from 'worker_threads'
 import { app } from 'electron'
 import * as path from 'path'
 import * as fs from 'fs'
-import type { ParseProgress } from '../parser'
+import type { ParseProgress } from '@openchatlab/parser'
 import type { AutoImportResult, StreamImportResult } from './import'
 
 import { getDatabaseDir, getCacheDir, getTempDir, getLogsDir, ensureDir } from '../paths'
