@@ -64,7 +64,7 @@ export function registerMemberRoutes(server: FastifyInstance, ctx: MemberRouteCo
           throw new Error('Member deletion transaction returned no result')
         }
       } catch (error) {
-        if (apiErrorFromUnknown(error)) throw error
+        if (apiErrorFromUnknown(error) || isHttpClientError(error)) throw error
         appLogger.error('members', 'Batch member deletion failed', error)
         return reply.code(500).send({ success: false, error: 'Failed to delete selected members' })
       }
@@ -92,5 +92,15 @@ export function registerMemberRoutes(server: FastifyInstance, ctx: MemberRouteCo
       const memberId = parseInt(request.params.memberId, 10)
       return memberService.getMemberNameHistory(adapter, request.params.id, memberId)
     }
+  )
+}
+
+function isHttpClientError(error: unknown): error is Error & { statusCode: number } {
+  return (
+    error instanceof Error &&
+    'statusCode' in error &&
+    typeof error.statusCode === 'number' &&
+    error.statusCode >= 400 &&
+    error.statusCode < 500
   )
 }

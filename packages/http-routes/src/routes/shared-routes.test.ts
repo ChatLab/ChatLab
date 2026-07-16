@@ -388,6 +388,22 @@ describe('registerSharedRoutes smoke tests', () => {
     assert.equal(memberCount.count, 2)
   })
 
+  it('POST /_web/sessions/:id/members/batch-delete preserves missing-session errors', async () => {
+    const routeApp = Fastify()
+    registerSharedRoutes(routeApp, createTestContext())
+    await routeApp.ready()
+
+    const resp = await routeApp.inject({
+      method: 'POST',
+      url: '/_web/sessions/missing/members/batch-delete',
+      payload: { memberIds: [1] },
+    })
+
+    await routeApp.close()
+
+    assert.equal(resp.statusCode, 404)
+  })
+
   it('POST /_web/sessions/:id/members/batch-delete rolls back every deletion when one member fails', async () => {
     const db = createSessionDb()
     db.exec(`
