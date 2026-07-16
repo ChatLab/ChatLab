@@ -7,13 +7,19 @@ import ui from '@nuxt/ui/vite'
 const rootDir = resolve(__dirname, '../..')
 const rootPkg = JSON.parse(readFileSync(resolve(rootDir, 'package.json'), 'utf-8'))
 const appVersion: string = rootPkg.version
+const openChatLabAliases = {
+  '@openchatlab/node-runtime/import/archive/source-manager': resolve(
+    rootDir,
+    'packages/node-runtime/src/import/archive/source-manager.ts'
+  ),
+  '@openchatlab/node-runtime/data-dir-compat': resolve(rootDir, 'packages/node-runtime/src/data-dir-compat.ts'),
+  '@openchatlab': resolve(rootDir, 'packages'),
+}
 
 export default defineConfig({
   main: {
     resolve: {
-      alias: {
-        '@openchatlab': resolve(rootDir, 'packages'),
-      },
+      alias: openChatLabAliases,
     },
     define: {
       __APP_VERSION__: JSON.stringify(appVersion),
@@ -44,9 +50,7 @@ export default defineConfig({
   },
   preload: {
     resolve: {
-      alias: {
-        '@openchatlab': resolve(rootDir, 'packages'),
-      },
+      alias: openChatLabAliases,
     },
     build: {
       minify: 'esbuild',
@@ -62,7 +66,7 @@ export default defineConfig({
       alias: {
         '@': resolve(rootDir, 'src/'),
         '~': resolve(rootDir, 'src/'),
-        '@openchatlab': resolve(rootDir, 'packages'),
+        ...openChatLabAliases,
         '@electron': resolve(__dirname),
       },
     },

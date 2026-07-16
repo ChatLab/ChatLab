@@ -1,7 +1,7 @@
 import * as os from 'node:os'
 import * as path from 'node:path'
 import * as fs from 'node:fs'
-import { ArchiveImportSourceManager } from '../../../packages/node-runtime/src/import/archive/source-manager'
+import { ArchiveImportSourceManager } from '@openchatlab/node-runtime/import/archive/source-manager'
 
 let sourceManager: ArchiveImportSourceManager | null = null
 

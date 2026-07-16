@@ -3,8 +3,8 @@ import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { join } from 'node:path'
 import { tmpdir } from 'node:os'
 import { describe, it } from 'node:test'
+import { ArchiveImportSourceManager } from '@openchatlab/node-runtime/import/archive/source-manager'
 import { writeZipFixture } from '../../../packages/node-runtime/src/import/archive/test-utils'
-import { ArchiveImportSourceManager } from '../../../packages/node-runtime/src/import/archive/source-manager'
 import { importPreparedChatWithSource } from './import-source-runtime'
 
 function createTakeout(zipPath: string): void {

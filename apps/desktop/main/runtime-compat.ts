@@ -3,7 +3,7 @@ import {
   assertDataDirCompatible,
   DataDirCompatibilityError,
   type RuntimeIdentity,
-} from '@openchatlab/node-runtime/src/data-dir-compat'
+} from '@openchatlab/node-runtime/data-dir-compat'
 
 export function resolveDesktopAppVersion(electronVersion: string | null | undefined, bundledVersion?: string): string {
   const normalizedElectronVersion = normalizeVersion(electronVersion)

@@ -29,8 +29,8 @@ import { initLocale } from './i18n'
 import { resolveDesktopNativeBinding } from './native-sqlite'
 import { MigrationRunner, ALL_MIGRATIONS } from '@openchatlab/config'
 import { logNativeParserStatus } from '@openchatlab/node-runtime'
+import type { RuntimeIdentity } from '@openchatlab/node-runtime/data-dir-compat'
 import { assertDesktopDataDirCompatible, getDesktopAppVersion } from './runtime-compat'
-import type { RuntimeIdentity } from '@openchatlab/node-runtime/src/data-dir-compat'
 import {
   applyCurrentTitleBarOverlay,
   getTitleBarOverlayOptions,
