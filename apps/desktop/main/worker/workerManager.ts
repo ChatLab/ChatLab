@@ -448,6 +448,7 @@ export interface MemberWithStats {
   groupNickname: string | null
   aliases: string[]
   messageCount: number
+  lastMessageTs: number | null
   avatar?: string | null
 }
 

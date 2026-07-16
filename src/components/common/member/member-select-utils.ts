@@ -1,6 +1,7 @@
 import type { MemberWithStats } from '@/types/analysis'
+import type { TableSortState } from '@/composables/useTable'
 
-export type MemberSortOrder = 'desc' | 'asc' | null
+export type MemberSortField = 'groupNickname' | 'messageCount' | 'lastMessageTs'
 
 export interface MemberSelectOption {
   id: number
@@ -43,16 +44,20 @@ export function mergeMemberPages(current: MemberWithStats[], incoming: MemberWit
   return [...merged.values()]
 }
 
-export function nextMemberSortOrder(current: MemberSortOrder): MemberSortOrder {
-  if (current === 'asc') return 'desc'
-  if (current === 'desc') return null
-  return 'asc'
+function normalizeMemberSortValue(value: number | string | null): number | string | null {
+  if (typeof value !== 'string') return value
+  return value.trim() || null
+}
+
+function compareMemberSortValues(valueA: number | string, valueB: number | string): number {
+  if (typeof valueA === 'number' && typeof valueB === 'number') return valueA - valueB
+  return String(valueA).localeCompare(String(valueB), undefined, { numeric: true, sensitivity: 'base' })
 }
 
 export function filterAndSortMembers(
   members: MemberWithStats[],
   searchQuery: string,
-  sortOrder: MemberSortOrder
+  sortState: TableSortState<MemberSortField>
 ): MemberWithStats[] {
   const query = searchQuery.trim().toLocaleLowerCase()
   const filtered = query
@@ -63,12 +68,20 @@ export function filterAndSortMembers(
       )
     : members
 
-  if (sortOrder === null) return [...filtered]
+  if (sortState.field === null || sortState.direction === null) return [...filtered]
 
-  const direction = sortOrder === 'asc' ? 1 : -1
+  const direction = sortState.direction === 'asc' ? 1 : -1
+  const field = sortState.field
 
   return [...filtered].sort((memberA, memberB) => {
-    const countDifference = (memberA.messageCount - memberB.messageCount) * direction
-    return countDifference || memberA.id - memberB.id
+    const valueA = normalizeMemberSortValue(memberA[field])
+    const valueB = normalizeMemberSortValue(memberB[field])
+
+    if (valueA === null && valueB === null) return memberA.id - memberB.id
+    if (valueA === null) return 1
+    if (valueB === null) return -1
+
+    const difference = compareMemberSortValues(valueA, valueB) * direction
+    return difference || memberA.id - memberB.id
   })
 }

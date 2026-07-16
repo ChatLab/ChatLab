@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { useToast } from '@/composables/useToast'
+import { useTableRowSelection, useTableSort, type TableSortDirection } from '@/composables/useTable'
 import { useSessionStore } from '@/stores/session'
 import type { AnalysisSession } from '@/types/base'
 import LazyAvatar from '@/components/common/avatar/LazyAvatar.vue'
@@ -45,7 +46,6 @@ const filteredSessions = computed(() => {
 })
 
 type SortField = 'name' | 'platform' | 'owner' | 'messageCount' | 'importedAt'
-type SortDirection = 'asc' | 'desc'
 type HeaderAlign = 'left' | 'center' | 'right'
 type HeaderColumn =
   | {
@@ -128,41 +128,12 @@ const headerColumns: HeaderColumn[] = [
   },
 ]
 
-const sortState = ref<{ field: SortField | null; direction: SortDirection | null }>({
-  field: 'importedAt',
-  direction: 'desc',
+const { sortState, toggleSort, setSort, isSortActive } = useTableSort<SortField>({
+  initialState: { field: 'importedAt', direction: 'desc' },
 })
 
-function getDefaultDirection(_field: SortField): SortDirection {
-  return 'asc'
-}
-
-function toggleSort(field: SortField) {
-  if (sortState.value.field === field) {
-    if (sortState.value.direction === 'asc') {
-      sortState.value.direction = 'desc'
-    } else if (sortState.value.direction === 'desc') {
-      sortState.value = { field: null, direction: null }
-    } else {
-      sortState.value.direction = 'asc'
-    }
-    return
-  }
-  sortState.value = {
-    field,
-    direction: getDefaultDirection(field),
-  }
-}
-
-function getSortDirection(field: SortField): SortDirection | null {
-  if (sortState.value.field !== field) return null
-  return sortState.value.direction
-}
-
-function getSortIconClass(field: SortField, direction: SortDirection): string {
-  return getSortDirection(field) === direction
-    ? 'text-primary-500 dark:text-primary-400'
-    : 'text-gray-300 dark:text-gray-600'
+function getSortIconClass(field: SortField, direction: TableSortDirection): string {
+  return isSortActive(field, direction) ? 'text-primary-500 dark:text-primary-400' : 'text-gray-300 dark:text-gray-600'
 }
 
 function getAlignClass(align: HeaderAlign): string {
@@ -213,7 +184,7 @@ const sortedSessions = computed(() => {
 const listScrollRef = ref<HTMLElement | null>(null)
 
 function prioritizeOwnerIssues() {
-  sortState.value = { field: 'owner', direction: 'desc' }
+  setSort('owner', 'desc')
   nextTick(() => listScrollRef.value?.scrollTo({ top: 0 }))
 }
 
@@ -242,8 +213,17 @@ const virtualSessionRows = computed(() =>
 )
 const virtualListHeight = computed(() => sessionVirtualizer.value.getTotalSize())
 
-// 选中的会话 ID 集合
-const selectedIds = ref<Set<string>>(new Set())
+const {
+  selectedIds,
+  setSelection: setSelectedSessionIds,
+  clearSelection: clearSessionSelection,
+  isSelected,
+  handleRowClick,
+  handleRowMouseDown,
+} = useTableRowSelection({
+  rows: sortedSessions,
+  getRowId: (session) => session.id,
+})
 
 // 删除确认弹窗
 const showDeleteModal = ref(false)
@@ -308,70 +288,15 @@ function toggleSelectAll() {
   if (isAllSelected.value) {
     // 取消选中过滤列表中的所有项
     const filteredIds = new Set(sortedSessions.value.map((s) => s.id))
-    selectedIds.value = new Set([...selectedIds.value].filter((id) => !filteredIds.has(id)))
+    setSelectedSessionIds([...selectedIds.value].filter((id) => !filteredIds.has(id)))
   } else {
     // 选中过滤列表中的所有项
     const newSet = new Set(selectedIds.value)
     for (const s of sortedSessions.value) {
       newSet.add(s.id)
     }
-    selectedIds.value = newSet
+    setSelectedSessionIds(newSet)
   }
-}
-
-// 上次点击的索引（基于排序后的列表），用于 Shift+Click 范围选择
-const lastClickedIndex = ref<number | null>(null)
-
-watch(sortedSessions, () => {
-  lastClickedIndex.value = null
-})
-
-// 切换单个选择
-function toggleSelect(id: string) {
-  const newSet = new Set(selectedIds.value)
-  if (newSet.has(id)) {
-    newSet.delete(id)
-  } else {
-    newSet.add(id)
-  }
-  selectedIds.value = newSet
-}
-
-// 处理行点击（支持 Shift+Click 范围多选）
-function handleRowClick(index: number, id: string, event: MouseEvent) {
-  if (event.shiftKey && lastClickedIndex.value !== null) {
-    // Shift+Click：选中 lastClickedIndex 到 index 之间的所有项
-    const start = Math.min(lastClickedIndex.value, index)
-    const end = Math.max(lastClickedIndex.value, index)
-    const newSet = new Set(selectedIds.value)
-    for (let i = start; i <= end; i++) {
-      const session = sortedSessions.value[i]
-      if (session) {
-        newSet.add(session.id)
-      }
-    }
-    selectedIds.value = newSet
-  } else {
-    // 普通点击：切换选中状态
-    toggleSelect(id)
-  }
-  // 始终更新 lastClickedIndex
-  lastClickedIndex.value = index
-}
-
-function handleRowMouseDown(event: MouseEvent) {
-  if (!event.shiftKey) return
-
-  const target = event.target as HTMLElement | null
-  if (target?.closest('input, textarea, [contenteditable="true"]')) return
-
-  // 避免浏览器默认的 Shift 文本范围选择，防止误选中行内文字
-  event.preventDefault()
-}
-
-// 判断是否选中
-function isSelected(id: string): boolean {
-  return selectedIds.value.has(id)
 }
 
 // 格式化时间
@@ -551,7 +476,7 @@ async function executeMerge() {
     await sessionStore.loadSessions()
 
     // 清空选择
-    selectedIds.value = new Set()
+    clearSessionSelection()
     showMergeModal.value = false
 
     // 提示成功
@@ -584,7 +509,7 @@ async function confirmBatchDelete() {
     }
 
     // 清空选择
-    selectedIds.value = new Set()
+    clearSessionSelection()
     showDeleteModal.value = false
   } catch (error) {
     console.error('Batch delete failed:', error)

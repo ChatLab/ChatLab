@@ -24,6 +24,7 @@ interface MockMember {
   aliases: string | null
   avatar: string | null
   messageCount: number
+  lastMessageTs: number | null
 }
 
 const SAMPLE_MEMBERS: MockMember[] = [
@@ -35,8 +36,18 @@ const SAMPLE_MEMBERS: MockMember[] = [
     aliases: '["小A"]',
     avatar: 'data:img1',
     messageCount: 100,
+    lastMessageTs: 3000,
   },
-  { id: 2, platformId: 'u2', accountName: 'Bob', groupNickname: null, aliases: '[]', avatar: null, messageCount: 50 },
+  {
+    id: 2,
+    platformId: 'u2',
+    accountName: 'Bob',
+    groupNickname: null,
+    aliases: '[]',
+    avatar: null,
+    messageCount: 50,
+    lastMessageTs: 2000,
+  },
   {
     id: 3,
     platformId: 'u3',
@@ -44,7 +55,8 @@ const SAMPLE_MEMBERS: MockMember[] = [
     groupNickname: 'C',
     aliases: null,
     avatar: 'data:img3',
-    messageCount: 30,
+    messageCount: 0,
+    lastMessageTs: null,
   },
   {
     id: 4,
@@ -54,6 +66,7 @@ const SAMPLE_MEMBERS: MockMember[] = [
     aliases: null,
     avatar: null,
     messageCount: 999,
+    lastMessageTs: null,
   },
 ]
 
@@ -140,6 +153,7 @@ function createMockDb(
             aliases: hasAliases ? m.aliases : null,
             avatar: hasAvatar ? m.avatar : null,
             messageCount: m.messageCount,
+            lastMessageTs: m.lastMessageTs,
           }))
         },
         run() {
@@ -205,6 +219,8 @@ describe('getMembersWithAliases', () => {
     assert.equal(result[0].avatar, 'data:img1')
     assert.equal(result[0].accountName, 'Alice')
     assert.equal(result[0].messageCount, 100)
+    assert.equal(result[0].lastMessageTs, 3000)
+    assert.equal(result.at(-1)?.lastMessageTs, null)
   })
 
   it('returns empty aliases and null avatar when columns do not exist', () => {
@@ -241,6 +257,16 @@ describe('getMembersWithAliases', () => {
 
     const listSql = preparedSql.find((sql) => sql.includes('ORDER BY messageCount'))
     assert.match(listSql ?? '', /ORDER BY messageCount DESC,\s*m\.id ASC/)
+  })
+
+  it('loads the latest message timestamp in the member aggregation', () => {
+    const preparedSql: string[] = []
+    const db = createMockDb({ onPrepare: (sql) => preparedSql.push(sql) })
+
+    getMembersWithAliases(db)
+
+    const listSql = preparedSql.find((sql) => sql.includes('COUNT(msg.id) as messageCount'))
+    assert.match(listSql ?? '', /MAX\(msg\.ts\) as lastMessageTs/)
   })
 })
 
@@ -324,6 +350,17 @@ describe('getMembersPaginated', () => {
 
     const listSql = preparedSql.find((sql) => sql.includes('ORDER BY messageCount'))
     assert.match(listSql ?? '', /ORDER BY messageCount DESC,\s*m\.id ASC/)
+  })
+
+  it('includes the latest message timestamp in paginated results', () => {
+    const preparedSql: string[] = []
+    const db = createMockDb({ onPrepare: (sql) => preparedSql.push(sql) })
+
+    const result = getMembersPaginated(db, {})
+
+    const listSql = preparedSql.find((sql) => sql.includes('LIMIT ? OFFSET ?'))
+    assert.match(listSql ?? '', /MAX\(msg\.ts\) as lastMessageTs/)
+    assert.equal(result.members[0].lastMessageTs, 3000)
   })
 
   it('works when aliases/avatar columns are missing', () => {

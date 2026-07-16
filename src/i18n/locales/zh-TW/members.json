@@ -29,6 +29,7 @@
       "accountName": "帳號名稱",
       "groupNickname": "群暱稱",
       "messageCount": "訊息數",
+      "lastMessageTime": "最後發言",
       "customAlias": "自訂別名",
       "actions": "操作"
     },

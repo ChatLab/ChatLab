@@ -27,6 +27,7 @@ export interface MemberWithStats {
   groupNickname: string | null // 群昵称
   aliases: string[] // 用户自定义别名
   messageCount: number
+  lastMessageTs: number | null // 最后发言时间（Unix 秒级时间戳）
   avatar: string | null // 头像（base64 Data URL）
 }
 

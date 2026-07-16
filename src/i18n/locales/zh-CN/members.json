@@ -29,6 +29,7 @@
       "accountName": "账号名称",
       "groupNickname": "群昵称",
       "messageCount": "消息数",
+      "lastMessageTime": "最后发言",
       "customAlias": "自定义别名",
       "actions": "操作"
     },

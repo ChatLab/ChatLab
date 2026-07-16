@@ -565,6 +565,7 @@ export interface MemberWithAliases {
   aliases: string[]
   avatar: string | null
   messageCount: number
+  lastMessageTs: number | null
 }
 
 export interface MembersPaginationParams {
@@ -799,7 +800,8 @@ export function getMembersWithAliases(db: DatabaseAdapter): MemberWithAliases[] 
         m.id, m.platform_id as platformId,
         m.account_name as accountName, m.group_nickname as groupNickname,
         ${aliasesSelect}, ${avatarSelect},
-        COUNT(msg.id) as messageCount
+        COUNT(msg.id) as messageCount,
+        MAX(msg.ts) as lastMessageTs
       FROM member m
       LEFT JOIN message msg ON m.id = msg.sender_id
       WHERE COALESCE(m.group_nickname, m.account_name, m.platform_id) != '系统消息'
@@ -813,6 +815,7 @@ export function getMembersWithAliases(db: DatabaseAdapter): MemberWithAliases[] 
     aliases: string | null
     avatar: string | null
     messageCount: number
+    lastMessageTs: number | null
   }>
 
   return rows.map(mapMemberRow)
@@ -868,7 +871,8 @@ export function getMembersPaginated(db: DatabaseAdapter, params: MembersPaginati
         m.id, m.platform_id as platformId,
         m.account_name as accountName, m.group_nickname as groupNickname,
         ${aliasesSelect}, ${avatarSelect},
-        COUNT(msg.id) as messageCount
+        COUNT(msg.id) as messageCount,
+        MAX(msg.ts) as lastMessageTs
       FROM member m
       LEFT JOIN message msg ON m.id = msg.sender_id
       WHERE ${systemFilter} ${searchClause}
@@ -884,6 +888,7 @@ export function getMembersPaginated(db: DatabaseAdapter, params: MembersPaginati
     aliases: string | null
     avatar: string | null
     messageCount: number
+    lastMessageTs: number | null
   }>
 
   return { members: rows.map(mapMemberRow), total, page, pageSize, totalPages }
@@ -897,6 +902,7 @@ function mapMemberRow(row: {
   aliases: string | null
   avatar: string | null
   messageCount: number
+  lastMessageTs: number | null
 }): MemberWithAliases {
   return {
     id: row.id,
@@ -906,6 +912,7 @@ function mapMemberRow(row: {
     aliases: row.aliases ? JSON.parse(row.aliases) : [],
     avatar: row.avatar ?? null,
     messageCount: row.messageCount,
+    lastMessageTs: row.lastMessageTs == null ? null : Number(row.lastMessageTs),
   }
 }
 

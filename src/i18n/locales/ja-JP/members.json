@@ -29,6 +29,7 @@
       "accountName": "アカウント名",
       "groupNickname": "グループニックネーム",
       "messageCount": "メッセージ数",
+      "lastMessageTime": "最終発言",
       "customAlias": "カスタム別名",
       "actions": "操作"
     },

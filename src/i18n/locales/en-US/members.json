@@ -29,6 +29,7 @@
       "accountName": "Account Name",
       "groupNickname": "Group Nickname",
       "messageCount": "Messages",
+      "lastMessageTime": "Last Message",
       "customAlias": "Custom Aliases",
       "actions": "Actions"
     },

@@ -5,10 +5,12 @@ import { useI18n } from 'vue-i18n'
 import type { MemberWithStats } from '@/types/analysis'
 import OwnerEntryCard from '@/components/analysis/member/OwnerEntryCard.vue'
 import LazyAvatar from '@/components/common/avatar/LazyAvatar.vue'
-import { filterAndSortMembers, nextMemberSortOrder, type MemberSortOrder } from './member-select-utils'
+import { filterAndSortMembers, type MemberSortField } from './member-select-utils'
 import { useDataService } from '@/services'
+import { useTableRowSelection, useTableSort, type TableSortDirection } from '@/composables/useTable'
 import { reportError } from '@/services/log-report'
 import { useLayoutStore } from '@/stores/layout'
+import { formatDateTime } from '@/utils/dateFormat'
 
 const MEMBER_ROW_ESTIMATE = 64
 const { t } = useI18n()
@@ -42,12 +44,13 @@ const deletingMember = ref<MemberWithStats | null>(null)
 const isDeleting = ref(false)
 
 // 合并确认状态
-const selectedMergeIds = ref<Set<number>>(new Set())
 const showMergeModal = ref(false)
 const isMerging = ref(false)
 
 // 排序配置
-const sortOrder = ref<MemberSortOrder>('desc')
+const { sortState, toggleSort, resetSort, isSortActive } = useTableSort<MemberSortField>({
+  initialState: { field: 'messageCount', direction: 'desc' },
+})
 
 // 正在保存别名的成员 ID
 const savingAliasIds = ref<Set<number>>(new Set())
@@ -79,7 +82,17 @@ function viewMemberChatRecords(member: MemberWithStats) {
   })
 }
 
-const filteredSortedMembers = computed(() => filterAndSortMembers(members.value, searchQuery.value, sortOrder.value))
+const filteredSortedMembers = computed(() => filterAndSortMembers(members.value, searchQuery.value, sortState.value))
+const {
+  selectedIds: selectedMergeIds,
+  setSelection: setSelectedMergeIds,
+  clearSelection: clearMergeSelection,
+  handleRowClick: handleMemberRowClick,
+  handleRowMouseDown: handleMemberRowMouseDown,
+} = useTableRowSelection({
+  rows: filteredSortedMembers,
+  getRowId: (member) => member.id,
+})
 const selectedMergeMembers = computed(() => members.value.filter((member) => selectedMergeIds.value.has(member.id)))
 const canMergeSelected = computed(() => selectedMergeMembers.value.length === 2)
 
@@ -95,13 +108,8 @@ const mergePlan = computed(() => {
   return { primary: memberA, secondary: memberB }
 })
 
-// 切换排序
-function toggleSort() {
-  sortOrder.value = nextMemberSortOrder(sortOrder.value)
-}
-
-function getSortIconClass(direction: Exclude<MemberSortOrder, null>): string {
-  return sortOrder.value === direction ? 'text-primary-500 dark:text-primary-400' : 'text-gray-300 dark:text-gray-600'
+function getSortIconClass(field: MemberSortField, direction: TableSortDirection): string {
+  return isSortActive(field, direction) ? 'text-primary-500 dark:text-primary-400' : 'text-gray-300 dark:text-gray-600'
 }
 
 const listScrollRef = ref<HTMLElement | null>(null)
@@ -220,7 +228,7 @@ async function confirmDelete() {
     if (success) {
       const nextSelection = new Set(selectedMergeIds.value)
       nextSelection.delete(memberId)
-      selectedMergeIds.value = nextSelection
+      setSelectedMergeIds(nextSelection)
       await loadMembers()
       emit('data-changed')
     }
@@ -232,23 +240,9 @@ async function confirmDelete() {
   }
 }
 
-function toggleMergeSelection(memberId: number) {
-  const next = new Set(selectedMergeIds.value)
-  if (next.has(memberId)) {
-    next.delete(memberId)
-  } else {
-    next.add(memberId)
-  }
-  selectedMergeIds.value = next
-}
-
 function openMergeModal() {
   if (!canMergeSelected.value) return
   showMergeModal.value = true
-}
-
-function clearMergeSelection() {
-  selectedMergeIds.value = new Set()
 }
 
 async function confirmMerge() {
@@ -273,7 +267,7 @@ async function confirmMerge() {
   }
 }
 
-watch([searchQuery, sortOrder], resetVirtualScroll)
+watch([searchQuery, sortState], resetVirtualScroll)
 
 // 监听 sessionId 变化
 watch(
@@ -284,7 +278,7 @@ watch(
     loadFailed.value = false
     savingAliasIds.value = new Set()
     searchQuery.value = ''
-    sortOrder.value = 'desc'
+    resetSort()
     clearMergeSelection()
     void resetVirtualScroll()
     void loadMembers()
@@ -382,23 +376,68 @@ onUnmounted(() => {
 
       <!-- 成员表格 -->
       <div v-else class="min-h-0 flex-1 overflow-x-auto overflow-y-hidden">
-        <div class="flex h-full min-w-[980px] flex-col">
+        <div class="flex h-full min-w-[1120px] flex-col">
           <!-- 固定表头：只让数据区纵向滚动 -->
           <div
             class="member-table-grid shrink-0 border-b border-gray-200 bg-gray-50 px-3 py-2 text-xs font-medium text-gray-500 dark:border-white/5 dark:bg-page-dark/80 dark:text-gray-400"
           >
             <span aria-hidden="true" />
             <span>{{ t('members.list.table.accountName') }}</span>
-            <span>{{ t('members.list.table.groupNickname') }}</span>
+            <button
+              type="button"
+              class="flex items-center justify-start gap-1.5 text-left transition-colors hover:text-gray-700 dark:hover:text-gray-200"
+              @click="toggleSort('groupNickname')"
+            >
+              {{ t('members.list.table.groupNickname') }}
+              <span class="flex shrink-0 flex-col leading-none">
+                <UIcon
+                  name="i-heroicons-chevron-up"
+                  class="h-2.5 w-2.5"
+                  :class="getSortIconClass('groupNickname', 'asc')"
+                />
+                <UIcon
+                  name="i-heroicons-chevron-down"
+                  class="-mt-0.5 h-2.5 w-2.5"
+                  :class="getSortIconClass('groupNickname', 'desc')"
+                />
+              </span>
+            </button>
             <button
               type="button"
               class="flex items-center justify-end gap-1.5 text-right transition-colors hover:text-gray-700 dark:hover:text-gray-200"
-              @click="toggleSort"
+              @click="toggleSort('messageCount')"
             >
               {{ t('members.list.table.messageCount') }}
               <span class="flex shrink-0 flex-col leading-none">
-                <UIcon name="i-heroicons-chevron-up" class="h-2.5 w-2.5" :class="getSortIconClass('asc')" />
-                <UIcon name="i-heroicons-chevron-down" class="-mt-0.5 h-2.5 w-2.5" :class="getSortIconClass('desc')" />
+                <UIcon
+                  name="i-heroicons-chevron-up"
+                  class="h-2.5 w-2.5"
+                  :class="getSortIconClass('messageCount', 'asc')"
+                />
+                <UIcon
+                  name="i-heroicons-chevron-down"
+                  class="-mt-0.5 h-2.5 w-2.5"
+                  :class="getSortIconClass('messageCount', 'desc')"
+                />
+              </span>
+            </button>
+            <button
+              type="button"
+              class="flex items-center justify-end gap-1.5 text-right transition-colors hover:text-gray-700 dark:hover:text-gray-200"
+              @click="toggleSort('lastMessageTs')"
+            >
+              {{ t('members.list.table.lastMessageTime') }}
+              <span class="flex shrink-0 flex-col leading-none">
+                <UIcon
+                  name="i-heroicons-chevron-up"
+                  class="h-2.5 w-2.5"
+                  :class="getSortIconClass('lastMessageTs', 'asc')"
+                />
+                <UIcon
+                  name="i-heroicons-chevron-down"
+                  class="-mt-0.5 h-2.5 w-2.5"
+                  :class="getSortIconClass('lastMessageTs', 'desc')"
+                />
               </span>
             </button>
             <span class="inline-flex items-center gap-1.5">
@@ -418,14 +457,16 @@ onUnmounted(() => {
                 :key="String(virtualItem.key)"
                 :ref="measureVirtualRow"
                 :data-index="virtualItem.index"
-                class="member-table-grid absolute left-0 top-0 w-full min-h-16 border-b border-gray-100/80 px-3 py-2 transition-colors hover:bg-gray-50 dark:border-white/5 dark:hover:bg-gray-800/30"
+                class="member-table-grid absolute left-0 top-0 w-full min-h-16 cursor-pointer border-b border-gray-100/80 px-3 py-2 transition-colors hover:bg-gray-50 dark:border-white/5 dark:hover:bg-gray-800/30"
                 :class="selectedMergeIds.has(member.id) ? 'bg-primary-50/70 dark:bg-primary-950/20' : ''"
                 :style="{ transform: `translateY(${virtualItem.start}px)` }"
+                @mousedown="handleMemberRowMouseDown"
+                @click="handleMemberRowClick(virtualItem.index, member.id, $event)"
               >
                 <div class="flex justify-center">
                   <UCheckbox
                     :model-value="selectedMergeIds.has(member.id)"
-                    @click.stop="toggleMergeSelection(member.id)"
+                    @click.stop="handleMemberRowClick(virtualItem.index, member.id, $event)"
                   />
                 </div>
 
@@ -464,12 +505,20 @@ onUnmounted(() => {
                   {{ member.messageCount.toLocaleString() }}
                 </span>
 
+                <span
+                  class="text-right font-mono text-xs tabular-nums text-gray-600 dark:text-gray-400"
+                  :title="member.lastMessageTs === null ? '-' : formatDateTime(member.lastMessageTs)"
+                >
+                  {{ member.lastMessageTs === null ? '-' : formatDateTime(member.lastMessageTs) }}
+                </span>
+
                 <UInputTags
                   :model-value="member.aliases"
                   :placeholder="t('members.list.aliasPlaceholder')"
                   :loading="savingAliasIds.has(member.id)"
                   size="xs"
                   class="w-full"
+                  @click.stop
                   @update:model-value="(val) => updateAliases(member, val)"
                 />
 
@@ -480,7 +529,7 @@ onUnmounted(() => {
                     color="neutral"
                     variant="ghost"
                     :title="t('common.viewChatRecords')"
-                    @click="viewMemberChatRecords(member)"
+                    @click.stop="viewMemberChatRecords(member)"
                   />
                   <UButton
                     icon="i-heroicons-trash"
@@ -488,7 +537,7 @@ onUnmounted(() => {
                     color="error"
                     variant="ghost"
                     :title="t('members.list.delete')"
-                    @click="showDeleteConfirm(member)"
+                    @click.stop="showDeleteConfirm(member)"
                   />
                 </div>
               </div>
@@ -566,7 +615,9 @@ onUnmounted(() => {
 <style scoped>
 .member-table-grid {
   display: grid;
-  grid-template-columns: 40px minmax(220px, 1.45fr) minmax(140px, 0.9fr) 96px minmax(280px, 1.35fr) 80px;
+  grid-template-columns:
+    40px minmax(220px, 1.45fr) minmax(120px, auto) 96px 148px minmax(280px, 1.35fr)
+    80px;
   column-gap: 12px;
   align-items: center;
 }
