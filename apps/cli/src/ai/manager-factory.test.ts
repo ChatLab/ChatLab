@@ -5,6 +5,7 @@ import * as os from 'node:os'
 import * as path from 'node:path'
 import { GENERAL_ASSISTANT_IDS } from '@openchatlab/shared-types'
 import { getAssistantManager } from './manager-factory'
+import { loadAssistantConfig } from './assistant-loader'
 
 const tempDirs: string[] = []
 
@@ -22,6 +23,16 @@ afterEach(() => {
 })
 
 describe('CLI assistant manager', () => {
+  it('lazily initializes shared defaults when standalone chat loads an assistant', () => {
+    const aiDataDir = createTempDir()
+
+    const assistant = loadAssistantConfig(aiDataDir, 'general_en')
+
+    assert.equal(assistant?.id, 'general_en')
+    assert.ok(assistant?.systemPrompt)
+    assert.equal(fs.existsSync(path.join(aiDataDir, 'assistants', 'general_en.md')), true)
+  })
+
   it('initializes all shared defaults and can reset a customized default', () => {
     const manager = getAssistantManager(createTempDir())
 

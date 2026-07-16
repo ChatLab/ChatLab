@@ -134,7 +134,29 @@ export class AssistantManager {
 
       try {
         const existing = parseAssistantFile(fs.readFile(filePath), filePath)
-        if (!existing || existing.builtinId !== id || !this.shouldUpgradeBuiltin(existing, config)) continue
+        if (!existing) continue
+
+        if (existing.builtinId !== id) {
+          try {
+            const backupId = this.backupAssistantOccupyingReservedId(existing)
+            fs.writeFile(filePath, serializeAssistant(this.withBuiltinTracking(config)))
+            generalCreated = true
+            this.deps.logger?.info('AssistantManager', 'Backed up assistant occupying reserved default ID', {
+              reservedId: id,
+              backupId,
+            })
+          } catch (error) {
+            // 先写备份再替换默认助手；任一步失败都中止本次迁移，避免静默丢失用户配置。
+            this.deps.logger?.error(
+              'AssistantManager',
+              `Failed to migrate assistant occupying reserved default ID: ${id}`,
+              error
+            )
+          }
+          continue
+        }
+
+        if (!this.shouldUpgradeBuiltin(existing, config)) continue
 
         fs.writeFile(filePath, serializeAssistant(this.withBuiltinTracking(config, existing.id)))
         generalUpdated = true
@@ -151,6 +173,20 @@ export class AssistantManager {
     }
 
     return { generalCreated, generalUpdated }
+  }
+
+  private backupAssistantOccupyingReservedId(config: AssistantConfig): string {
+    const { fs, assistantsDir } = this.deps
+    const baseId = this.deps.generateId?.() || `custom_${Date.now().toString(36)}`
+    let backupId = baseId
+    let suffix = 2
+
+    while (this.generalIds.includes(backupId) || fs.fileExists(fs.joinPath(assistantsDir, `${backupId}.md`))) {
+      backupId = `${baseId}_${suffix++}`
+    }
+
+    fs.writeFile(fs.joinPath(assistantsDir, `${backupId}.md`), serializeAssistant({ ...config, id: backupId }))
+    return backupId
   }
 
   private getConfigDigest(config: AssistantConfig): string {

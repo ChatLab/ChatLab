@@ -1,22 +1,13 @@
 /**
  * 助手配置加载器
  *
- * 从 ~/.chatlab/ai/assistants/*.md 加载助手系统提示词。
+ * 通过共享 AssistantManager 加载配置，确保 standalone CLI 在首次使用时
+ * 也会创建默认助手，而不是绕过初始化直接读取磁盘。
  */
 
-import * as fs from 'fs'
-import * as path from 'path'
-import { parseAssistantFile } from '@openchatlab/node-runtime'
 import type { AssistantConfig } from '@openchatlab/node-runtime'
+import { getAssistantManager } from './manager-factory'
 
 export function loadAssistantConfig(aiDataDir: string, assistantId: string): AssistantConfig | null {
-  const filePath = path.join(aiDataDir, 'assistants', `${assistantId}.md`)
-  if (!fs.existsSync(filePath)) return null
-
-  try {
-    const content = fs.readFileSync(filePath, 'utf-8')
-    return parseAssistantFile(content, filePath)
-  } catch {
-    return null
-  }
+  return getAssistantManager(aiDataDir).getAssistantConfig(assistantId)
 }

@@ -123,6 +123,64 @@ describe('AssistantManager', () => {
     assert.equal(result2.generalUpdated, false)
   })
 
+  it('backs up a custom assistant before reserving a newly introduced general id', () => {
+    const fs = createMemoryFs()
+    fs.files.set(
+      '/data/assistants/general_tw.md',
+      serializeAssistant({
+        id: 'general_tw',
+        name: 'My Traditional Chinese Assistant',
+        systemPrompt: 'Keep this custom prompt.',
+        presetQuestions: ['Custom question'],
+      })
+    )
+    const traditionalChineseBuiltin = SAMPLE_BUILTIN.replaceAll('general_cn', 'general_tw')
+    const ctx = createManager({
+      fs,
+      builtins: [{ id: 'general_tw', content: traditionalChineseBuiltin }],
+      generalIds: ['general_tw'],
+    })
+
+    const result = ctx.manager.init()
+
+    assert.equal(result.generalCreated, true)
+    assert.equal(ctx.manager.getAssistantConfig('general_tw')?.builtinId, 'general_tw')
+    assert.equal(ctx.manager.getAssistantConfig('general_tw')?.systemPrompt, '你是一个通用助手。')
+    assert.equal(ctx.manager.getAssistantConfig('custom_1')?.systemPrompt, 'Keep this custom prompt.')
+    assert.equal(ctx.manager.getAssistantConfig('custom_1')?.builtinId, undefined)
+    assert.equal(ctx.manager.deleteAssistant('custom_1').success, true)
+  })
+
+  it('keeps the custom assistant backup if writing the reserved default fails', () => {
+    const fs = createMemoryFs()
+    const reservedPath = '/data/assistants/general_tw.md'
+    fs.files.set(
+      reservedPath,
+      serializeAssistant({
+        id: 'general_tw',
+        name: 'My Traditional Chinese Assistant',
+        systemPrompt: 'Keep this custom prompt.',
+        presetQuestions: [],
+      })
+    )
+    const writeFile = fs.writeFile
+    fs.writeFile = (filePath, content) => {
+      if (filePath === reservedPath) throw new Error('Default write failed')
+      writeFile(filePath, content)
+    }
+    const ctx = createManager({
+      fs,
+      builtins: [{ id: 'general_tw', content: SAMPLE_BUILTIN.replaceAll('general_cn', 'general_tw') }],
+      generalIds: ['general_tw'],
+    })
+
+    const result = ctx.manager.init()
+
+    assert.equal(result.generalCreated, false)
+    assert.equal(ctx.manager.getAssistantConfig('general_tw')?.systemPrompt, 'Keep this custom prompt.')
+    assert.equal(ctx.manager.getAssistantConfig('custom_1')?.systemPrompt, 'Keep this custom prompt.')
+  })
+
   it('upgrades an unmodified legacy general assistant', () => {
     const legacyConfig = parseAssistantFile(SAMPLE_BUILTIN, 'general_cn.md')!
     const nextBuiltin = `---
