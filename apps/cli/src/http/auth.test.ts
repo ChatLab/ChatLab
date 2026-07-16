@@ -1,6 +1,6 @@
 import { describe, it, beforeEach } from 'node:test'
 import assert from 'node:assert/strict'
-import { setAuthToken, setRequireAuth, authHook } from '@openchatlab/http-routes'
+import { setAuthToken, setRequireAuth, authHook } from '@openchatlab/http-routes/auth'
 
 function fakeRequest(url: string, authorization?: string) {
   return { url, headers: { authorization } } as never

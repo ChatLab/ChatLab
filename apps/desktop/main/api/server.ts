@@ -2,49 +2,18 @@
  * ChatLab API — Fastify server instance
  */
 
-import Fastify, { type FastifyInstance, type FastifyError } from 'fastify'
-import {
-  ApiError,
-  ApiErrorCode,
-  apiErrorFromUnknown,
-  errorResponse,
-  serverError,
-} from '@openchatlab/http-routes/errors'
-import { authHook } from './auth'
+import type { FastifyInstance } from 'fastify'
+import { createBearerAuthHook } from '@openchatlab/http-routes/auth'
+import { createApiServer } from '@openchatlab/http-routes/server'
+import { getConfig } from './index'
 import { apiLogger } from './logger'
 
-const JSON_BODY_LIMIT = 50 * 1024 * 1024 // 50MB
-
 export function createServer(): FastifyInstance {
-  const server = Fastify({
-    logger: false,
-    bodyLimit: JSON_BODY_LIMIT,
+  return createApiServer({
+    authHook: createBearerAuthHook({
+      getToken: () => getConfig().token,
+      allowMissingToken: false,
+    }),
+    onUnhandledError: (request, error) => apiLogger.error(`${request.method} ${request.url} -> 500`, error),
   })
-
-  server.addHook('onRequest', authHook)
-
-  server.setErrorHandler((error: FastifyError, _request, reply) => {
-    if (error instanceof ApiError) {
-      reply.code(error.statusCode).send(errorResponse(error))
-      return
-    }
-
-    const apiError = apiErrorFromUnknown(error)
-    if (apiError) {
-      reply.code(apiError.statusCode).send(errorResponse(apiError))
-      return
-    }
-
-    if (error.statusCode === 413) {
-      const bodyErr = new ApiError(ApiErrorCode.BODY_TOO_LARGE, 'Request body exceeds 50MB limit')
-      reply.code(413).send(errorResponse(bodyErr))
-      return
-    }
-
-    apiLogger.error('Unhandled error', error)
-    const err = serverError(error.message)
-    reply.code(err.statusCode).send(errorResponse(err))
-  })
-
-  return server
 }

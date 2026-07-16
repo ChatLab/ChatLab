@@ -157,6 +157,7 @@ export type { AssistantConfig, AssistantSummary, SkillDef, SkillSummary } from '
 export { parseAssistantFile, serializeAssistant, parseSkillFile, extractSkillId } from './ai'
 export { AIChatManager } from './ai'
 export { countTokens, countMessagesTokens, initTokenizer } from './ai'
+export { createFileConfigStorage } from './ai'
 
 // Assistant Manager
 export { AssistantManager } from './ai'

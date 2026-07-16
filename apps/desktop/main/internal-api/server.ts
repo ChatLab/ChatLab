@@ -11,27 +11,29 @@
 import * as path from 'node:path'
 import { randomBytes } from 'node:crypto'
 import { app, ipcMain, shell } from 'electron'
-import Fastify, { type FastifyInstance } from 'fastify'
+import type { FastifyInstance } from 'fastify'
 import type { PathProvider } from '@openchatlab/core'
 import {
   DatabaseManager,
   createDatabaseManagerAdapter,
-  LLMConfigStore,
   CustomProviderStore,
   CustomModelStore,
+  createFileConfigStorage,
   MergeSessionCache,
   withDataDirImportLock,
   raiseChatDbCompatibilityGate,
   streamingImport,
   createSemanticIndexWorkerRuntimeClient,
+  appLogger,
 } from '@openchatlab/node-runtime'
 import type { StreamImportDeps, SemanticIndexRuntime } from '@openchatlab/node-runtime'
 import { getLoadablePath as getSqliteVecLoadablePath } from 'sqlite-vec'
 import multipart from '@fastify/multipart'
 import { registerSharedRoutes, registerAutomationRoutes } from '@openchatlab/http-routes'
+import { createAuthProfileLlmConfigStore } from '@openchatlab/http-routes/ai-config'
+import { createApiServer } from '@openchatlab/http-routes/server'
 import type { HttpRouteContext } from '@openchatlab/http-routes'
 import { reloadTimer, stopTimer, type DataSourceManager, type PullEngine } from '@openchatlab/sync'
-import { resolveApiKey, writeAuthProfile, deleteAuthProfile } from '@openchatlab/config'
 import { getManager as getAIChatManager } from '../ai/chats'
 import { getManager as getAssistantManager } from '../ai/assistant/manager'
 import { getManager as getSkillManager } from '../ai/skills/manager'
@@ -42,7 +44,6 @@ import { assertDesktopDataDirCompatible, getDesktopAppVersion } from '../runtime
 import { resolveDesktopNativeBinding } from '../runtime/native-sqlite'
 import { resolveModelDownloadProxyUrl } from '../network/proxy'
 import { getDefaultUserDataDir, getDownloadsDir, getUserDataDir } from '../paths/locations'
-import { createFileConfigStorage } from './config-storage'
 import { configureInternalHttpServer } from './http'
 
 export interface InternalEndpoint {
@@ -86,20 +87,8 @@ export async function startInternalServer(
     const sessionAdapter = createDatabaseManagerAdapter(newDbManager)
 
     const aiDataDir = pathProvider.getAiDataDir()
-    const llmConfigStore = new LLMConfigStore(createFileConfigStorage(aiDataDir), {
-      resolveApiKey: (provider, authProfile) => resolveApiKey(provider, authProfile) || undefined,
-      onApiKeyCreated: (config, apiKey) => {
-        const profileName = config.name?.toLowerCase().replace(/\s+/g, '-') || config.provider
-        writeAuthProfile(profileName, { type: 'api_key', provider: config.provider, key: apiKey })
-        return profileName
-      },
-      onApiKeyDeleted: (config) => {
-        const profileName = (config as unknown as Record<string, unknown>).authProfile as string | undefined
-        if (profileName) deleteAuthProfile(profileName)
-      },
-    })
-
     const configStorage = createFileConfigStorage(aiDataDir)
+    const llmConfigStore = createAuthProfileLlmConfigStore(configStorage)
 
     const newMergeCache = new MergeSessionCache(pathProvider, { nativeBinding })
     newMergeCache.cleanupOrphans()
@@ -186,7 +175,12 @@ export async function startInternalServer(
       executeAiTool: createExecuteElectronAiTool(newSemanticIndexService ?? undefined),
     }
 
-    newServer = Fastify({ logger: false, bodyLimit: JSON_BODY_LIMIT })
+    newServer = createApiServer({
+      bodyLimit: JSON_BODY_LIMIT,
+      onUnhandledError: (request, error) => {
+        appLogger.error('http', `${request.method} ${request.url} -> 500`, error)
+      },
+    })
 
     await newServer.register(multipart, { limits: { fileSize: 1024 * 1024 * 1024 } })
     configureInternalHttpServer(newServer, {

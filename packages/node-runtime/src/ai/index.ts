@@ -163,6 +163,7 @@ export type { SummaryDeps, SummaryMessage, SummaryOptions, SummaryResult, Summar
 // LLM Config Store
 export { LLMConfigStore, MAX_CONFIG_COUNT } from './llm-config-store'
 export type { AIServiceConfig, AIConfigStore, ConfigStorage, LLMConfigStoreDeps } from './llm-config-store'
+export { createFileConfigStorage } from './file-config-storage'
 
 // Custom Provider/Model Store
 export { CustomProviderStore, CustomModelStore } from './custom-store'

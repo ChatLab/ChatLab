@@ -1,7 +1,7 @@
 /**
  * ChatLab HTTP API — Bearer Token authentication hook
  *
- * Shared auth middleware for CLI Server and Electron Internal Server.
+ * Shared auth middleware for CLI Server and Electron APIs.
  * URL classification: /api/* always requires token, /_web/* conditionally,
  * static files and SPA fallback are public.
  */
@@ -12,6 +12,14 @@ import { unauthorized, errorResponse } from './errors'
 
 let cachedToken: string | null = null
 let requireAuthEnabled = false
+
+export interface BearerAuthOptions {
+  getToken: () => string | null | undefined
+  shouldAuthenticate?: (request: FastifyRequest) => boolean
+  allowMissingToken?: boolean
+  missingTokenMessage?: string
+  invalidTokenMessage?: string
+}
 
 export function setAuthToken(token: string): void {
   cachedToken = token
@@ -25,47 +33,38 @@ export function setRequireAuth(enabled: boolean): void {
   requireAuthEnabled = enabled
 }
 
-// Compare via HMAC digests (fixed 32-byte length) to avoid leaking token length
-const hmacKey = randomBytes(32)
-
-function safeTokenCompare(a: string, b: string): boolean {
-  const hashA = createHmac('sha256', hmacKey).update(a).digest()
-  const hashB = createHmac('sha256', hmacKey).update(b).digest()
-  return timingSafeEqual(hashA, hashB)
-}
-
-export async function authHook(request: FastifyRequest, reply: FastifyReply): Promise<void> {
-  if (!cachedToken) return
-
-  const url = request.url
-
-  if (url.startsWith('/api/')) {
-    return requireBearerToken(request, reply)
+export function createBearerAuthHook(options: BearerAuthOptions) {
+  // Compare via HMAC digests (fixed 32-byte length) to avoid leaking token length.
+  const hmacKey = randomBytes(32)
+  const safeTokenCompare = (provided: string, expected: string): boolean => {
+    const providedHash = createHmac('sha256', hmacKey).update(provided).digest()
+    const expectedHash = createHmac('sha256', hmacKey).update(expected).digest()
+    return timingSafeEqual(providedHash, expectedHash)
   }
 
-  if (url.startsWith('/_web/')) {
-    if (requireAuthEnabled) return requireBearerToken(request, reply)
-    return
-  }
+  return async function bearerAuthHook(request: FastifyRequest, reply: FastifyReply): Promise<void> {
+    if (options.shouldAuthenticate && !options.shouldAuthenticate(request)) return
 
-  // Static files and SPA fallback are public
-}
+    const expectedToken = options.getToken()
+    if (!expectedToken && options.allowMissingToken !== false) return
 
-function requireBearerToken(request: FastifyRequest, reply: FastifyReply): void {
-  if (!cachedToken) return
+    const authHeader = request.headers.authorization
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      const err = unauthorized(options.missingTokenMessage)
+      reply.code(err.statusCode).send(errorResponse(err))
+      return
+    }
 
-  const authHeader = request.headers.authorization
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
-    const err = unauthorized()
-    reply.code(err.statusCode).send(errorResponse(err))
-    return
-  }
-
-  const token = authHeader.slice(7)
-
-  if (!safeTokenCompare(token, cachedToken)) {
-    const err = unauthorized()
-    reply.code(err.statusCode).send(errorResponse(err))
-    return
+    const providedToken = authHeader.slice(7)
+    if (!expectedToken || !safeTokenCompare(providedToken, expectedToken)) {
+      const err = unauthorized(options.invalidTokenMessage)
+      reply.code(err.statusCode).send(errorResponse(err))
+    }
   }
 }
+
+export const authHook = createBearerAuthHook({
+  getToken: () => cachedToken,
+  shouldAuthenticate: (request) =>
+    request.url.startsWith('/api/') || (requireAuthEnabled && request.url.startsWith('/_web/')),
+})

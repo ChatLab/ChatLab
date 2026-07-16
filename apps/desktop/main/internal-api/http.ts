@@ -1,13 +1,5 @@
-import type { FastifyError, FastifyInstance, FastifyReply } from 'fastify'
-import {
-  ApiError,
-  ApiErrorCode,
-  apiErrorFromUnknown,
-  errorResponse,
-  serverError,
-} from '@openchatlab/http-routes/errors'
-import { appLogger } from '@openchatlab/node-runtime'
-import { createInternalAuthHook } from './auth'
+import type { FastifyInstance, FastifyReply } from 'fastify'
+import { createBearerAuthHook } from '@openchatlab/http-routes/auth'
 
 interface InternalHttpOptions {
   token: string
@@ -51,26 +43,14 @@ export function configureInternalHttpServer(server: FastifyInstance, options: In
     done()
   })
 
-  server.addHook('onRequest', createInternalAuthHook(options.token))
-
-  server.setErrorHandler((error: FastifyError, request, reply) => {
-    const apiError = apiErrorFromUnknown(error)
-    if (apiError) {
-      reply.code(apiError.statusCode).send(errorResponse(apiError))
-      return
-    }
-    if (error.statusCode === 413) {
-      const bodyError = new ApiError(ApiErrorCode.BODY_TOO_LARGE, 'Request body exceeds 50MB limit')
-      reply.code(413).send(errorResponse(bodyError))
-      return
-    }
-    const statusCode = (error as { statusCode?: number }).statusCode
-    if (statusCode && statusCode >= 400 && statusCode < 600) {
-      reply.code(statusCode).send({ success: false, error: { code: 'CLIENT_ERROR', message: error.message } })
-      return
-    }
-    appLogger.error('http', `${request.method} ${request.url} -> 500`, error)
-    const internalError = serverError(error.message)
-    reply.code(internalError.statusCode).send(errorResponse(internalError))
-  })
+  server.addHook(
+    'onRequest',
+    createBearerAuthHook({
+      getToken: () => options.token,
+      allowMissingToken: false,
+      shouldAuthenticate: (request) => request.method !== 'OPTIONS',
+      missingTokenMessage: 'Missing or invalid token',
+      invalidTokenMessage: 'Invalid token',
+    })
+  )
 }

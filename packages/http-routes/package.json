@@ -8,10 +8,12 @@
   "types": "./src/index.ts",
   "exports": {
     ".": "./src/index.ts",
+    "./ai-config": "./src/ai-config.ts",
     "./auth": "./src/auth.ts",
     "./errors": "./src/errors.ts",
     "./import": "./src/import.ts",
-    "./rest": "./src/rest.ts"
+    "./rest": "./src/rest.ts",
+    "./server": "./src/server.ts"
   },
   "dependencies": {
     "@openchatlab/config": "workspace:*",
