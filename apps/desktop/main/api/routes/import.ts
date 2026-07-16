@@ -20,23 +20,27 @@ import * as crypto from 'crypto'
 import { pipeline } from 'stream/promises'
 import { hashImportBody, ImportIdempotencyCache, isValidImportSessionId } from '@openchatlab/node-runtime'
 import type { PushImportPayload } from '@openchatlab/node-runtime'
-import { getTempDir } from '../../paths/locations'
-import * as worker from '../../worker/workerManager'
 import {
   ApiError,
   ApiErrorCode,
   successResponse,
   apiErrorFromUnknown,
-  importInProgress,
   importFailed,
   invalidFormat,
   invalidPayload,
   idempotencyConflict,
   idempotencyPending,
   errorResponse,
-} from '../errors'
+} from '@openchatlab/http-routes/errors'
+import { getTempDir } from '../../paths/locations'
+import * as worker from '../../worker/workerManager'
 import { apiLogger } from '../logger'
-import { analysisFromNewImport, analysisFromPushImport, apiErrorFromImportResult } from './import-helpers'
+import {
+  analysisFromNewImport,
+  analysisFromPushImport,
+  apiErrorFromImportResult,
+  desktopImportInProgressError,
+} from './import-helpers'
 
 // Tracks active External API requests; the shared data-directory lock enforces writer exclusion.
 const isImporting = new Set<string>()
@@ -188,7 +192,7 @@ async function handleUnifiedImport(request: FastifyRequest, reply: FastifyReply,
     // IDEMPOTENCY_PENDING；只有本次新占位的 key 才会在锁冲突时释放。
     if (isImporting.has(sessionId)) {
       idempotencyFail(cacheKey)
-      const err = importInProgress()
+      const err = desktopImportInProgressError()
       reply.code(err.statusCode).send(errorResponse(err))
       return
     }
@@ -266,7 +270,7 @@ async function handleUnifiedImport(request: FastifyRequest, reply: FastifyReply,
         idempotencyFail(cacheKey)
         const err =
           outcome.reason === 'import_in_progress'
-            ? importInProgress()
+            ? desktopImportInProgressError()
             : outcome.reason === 'invalid_payload'
               ? invalidPayload(outcome.message)
               : importFailed(outcome.message)
@@ -341,7 +345,7 @@ async function handleUnifiedImport(request: FastifyRequest, reply: FastifyReply,
 async function handleLegacyImport(request: FastifyRequest, reply: FastifyReply, sessionId?: string): Promise<void> {
   const lockKey = sessionId ?? '__legacy__'
   if (isImporting.has(lockKey)) {
-    const err = importInProgress()
+    const err = desktopImportInProgressError()
     reply.code(err.statusCode).send(errorResponse(err))
     return
   }

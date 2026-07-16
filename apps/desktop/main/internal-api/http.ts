@@ -1,5 +1,11 @@
 import type { FastifyError, FastifyInstance, FastifyReply } from 'fastify'
-import { ApiError, ApiErrorCode, apiErrorFromUnknown, errorResponse, serverError } from '@openchatlab/http-routes'
+import {
+  ApiError,
+  ApiErrorCode,
+  apiErrorFromUnknown,
+  errorResponse,
+  serverError,
+} from '@openchatlab/http-routes/errors'
 import { appLogger } from '@openchatlab/node-runtime'
 import { createInternalAuthHook } from './auth'
 

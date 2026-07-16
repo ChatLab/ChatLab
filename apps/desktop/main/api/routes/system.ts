@@ -6,7 +6,7 @@
 
 import type { FastifyInstance } from 'fastify'
 import { app } from 'electron'
-import { successResponse } from '../errors'
+import { successResponse } from '@openchatlab/http-routes/errors'
 import * as worker from '../../worker/workerManager'
 import { getDesktopAppVersion } from '../../runtime/compat'
 

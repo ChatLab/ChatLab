@@ -4,8 +4,8 @@
 
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import { timingSafeEqual } from 'crypto'
+import { unauthorized, errorResponse } from '@openchatlab/http-routes/errors'
 import { getConfig } from './index'
-import { unauthorized, errorResponse } from './errors'
 
 function safeTokenCompare(a: string, b: string): boolean {
   const bufA = Buffer.from(a)

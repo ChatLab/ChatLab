@@ -4,7 +4,7 @@
  * Platform-agnostic error handling shared by CLI Server and Electron Internal Server.
  */
 
-import { DataDirCompatibilityError } from '@openchatlab/node-runtime/src/data-dir-compat'
+import { DataDirCompatibilityError } from '@openchatlab/node-runtime/data-dir-compat'
 import { ImportInProgressError } from '@openchatlab/node-runtime/src/import/import-lock'
 
 export enum ApiErrorCode {
@@ -61,6 +61,10 @@ export function sessionNotFound(id: string): ApiError {
   return new ApiError(ApiErrorCode.SESSION_NOT_FOUND, `Session not found: ${id}`)
 }
 
+export function invalidFormat(message: string): ApiError {
+  return new ApiError(ApiErrorCode.INVALID_FORMAT, message)
+}
+
 export function invalidPayload(message: string): ApiError {
   return new ApiError(ApiErrorCode.INVALID_PAYLOAD, message)
 }
@@ -84,8 +88,8 @@ export function serverError(message = 'Internal server error'): ApiError {
   return new ApiError(ApiErrorCode.SERVER_ERROR, message)
 }
 
-export function importInProgress(): ApiError {
-  return new ApiError(ApiErrorCode.IMPORT_IN_PROGRESS, 'Another import is already in progress')
+export function importInProgress(message = 'Another import is already in progress'): ApiError {
+  return new ApiError(ApiErrorCode.IMPORT_IN_PROGRESS, message)
 }
 
 export function idempotencyConflict(): ApiError {
@@ -110,7 +114,21 @@ export function dataDirIncompatible(message: string): ApiError {
 export function apiErrorFromUnknown(error: unknown): ApiError | null {
   if (error instanceof ApiError) return error
   if (error instanceof ImportInProgressError) return importInProgress()
-  if (error instanceof DataDirCompatibilityError) return dataDirIncompatible(error.message)
+  const compatibilityError = findDataDirCompatibilityError(error)
+  if (compatibilityError) return dataDirIncompatible(compatibilityError.message)
+  return null
+}
+
+function findDataDirCompatibilityError(error: unknown): DataDirCompatibilityError | null {
+  const seen = new Set<unknown>()
+  let current = error
+
+  while (current instanceof Error && !seen.has(current)) {
+    if (current instanceof DataDirCompatibilityError) return current
+    seen.add(current)
+    current = current.cause
+  }
+
   return null
 }
 

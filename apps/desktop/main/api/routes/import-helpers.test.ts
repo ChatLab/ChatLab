@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { IMPORT_IN_PROGRESS_ERROR_KEY } from '@openchatlab/node-runtime/src/import/import-lock'
-import { ApiErrorCode } from '../errors'
+import { ApiErrorCode } from '@openchatlab/http-routes/errors'
 import { analysisFromNewImport, analysisFromPushImport, apiErrorFromImportResult } from './import-helpers'
 
 test('maps an import lock result to the documented 409 API error', () => {
@@ -9,6 +9,7 @@ test('maps an import lock result to the documented 409 API error', () => {
 
   assert.equal(error.code, ApiErrorCode.IMPORT_IN_PROGRESS)
   assert.equal(error.statusCode, 409)
+  assert.equal(error.message, 'An import operation is already in progress')
 })
 
 test('keeps ordinary import failures as IMPORT_FAILED', () => {

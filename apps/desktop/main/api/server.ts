@@ -3,8 +3,14 @@
  */
 
 import Fastify, { type FastifyInstance, type FastifyError } from 'fastify'
+import {
+  ApiError,
+  ApiErrorCode,
+  apiErrorFromUnknown,
+  errorResponse,
+  serverError,
+} from '@openchatlab/http-routes/errors'
 import { authHook } from './auth'
-import { ApiError, ApiErrorCode, apiErrorFromUnknown, errorResponse, serverError } from './errors'
 import { apiLogger } from './logger'
 
 const JSON_BODY_LIMIT = 50 * 1024 * 1024 // 50MB
