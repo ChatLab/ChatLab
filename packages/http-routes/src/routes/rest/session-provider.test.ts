@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import Fastify from 'fastify'
-import type { RestSessionProvider } from './rest-session-provider'
+import type { RestSessionProvider } from './session-provider'
 import { registerRestSessionRoutes } from './sessions'
 import { registerSystemRoutes } from './system'
 

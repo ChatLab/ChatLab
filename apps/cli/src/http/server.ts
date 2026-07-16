@@ -5,9 +5,9 @@
  */
 
 import type { FastifyInstance } from 'fastify'
-import { authHook } from '@openchatlab/http-routes/auth'
 import { createApiServer } from '@openchatlab/http-routes/server'
 import { appLogger } from '@openchatlab/node-runtime'
+import { authHook } from './auth'
 
 export function createServer(): FastifyInstance {
   return createApiServer({

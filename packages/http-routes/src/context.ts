@@ -30,7 +30,7 @@ import type {
   GlobalInsightService,
 } from '@openchatlab/node-runtime'
 import type { RuntimeIdentity } from '@openchatlab/node-runtime'
-import type { RestSessionProvider } from './routes/rest-session-provider'
+import type { RestSessionProvider } from './routes/rest/session-provider'
 
 export interface HttpRouteContext {
   dbManager: DatabaseManager

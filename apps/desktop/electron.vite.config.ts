@@ -8,11 +8,10 @@ const rootDir = resolve(__dirname, '../..')
 const rootPkg = JSON.parse(readFileSync(resolve(rootDir, 'package.json'), 'utf-8'))
 const appVersion: string = rootPkg.version
 const openChatLabAliases = {
-  '@openchatlab/http-routes/ai-config': resolve(rootDir, 'packages/http-routes/src/ai-config.ts'),
   '@openchatlab/http-routes/auth': resolve(rootDir, 'packages/http-routes/src/auth.ts'),
   '@openchatlab/http-routes/errors': resolve(rootDir, 'packages/http-routes/src/errors.ts'),
-  '@openchatlab/http-routes/import': resolve(rootDir, 'packages/http-routes/src/import.ts'),
-  '@openchatlab/http-routes/rest': resolve(rootDir, 'packages/http-routes/src/rest.ts'),
+  '@openchatlab/http-routes/import': resolve(rootDir, 'packages/http-routes/src/import/json-push-handler.ts'),
+  '@openchatlab/http-routes/rest': resolve(rootDir, 'packages/http-routes/src/routes/rest/index.ts'),
   '@openchatlab/http-routes/server': resolve(rootDir, 'packages/http-routes/src/server.ts'),
   '@openchatlab/node-runtime/import/archive/source-manager': resolve(
     rootDir,

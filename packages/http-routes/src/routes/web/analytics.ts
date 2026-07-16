@@ -33,8 +33,8 @@ import {
   getRepeatAnalysis,
 } from '@openchatlab/core'
 import type { ClusterGraphOptions } from '@openchatlab/core'
-import { parseTimeFilter } from '../../helpers'
-import { withAnalyticsCache } from '../../analytics-cache'
+import { parseTimeFilter } from './time-filter'
+import { withAnalyticsCache } from './analytics-cache'
 
 type FilteredQuery = { startTs?: string; endTs?: string; memberId?: string }
 

@@ -7,10 +7,10 @@
  */
 
 import type { FastifyInstance } from 'fastify'
-import type { HttpRouteContext } from '../context'
+import type { HttpRouteContext } from '../../context'
 import { appLogger, pushImport } from '@openchatlab/node-runtime'
 import type { PushImportPayload } from '@openchatlab/node-runtime'
-import { createJsonPushImportHandler } from '../import/json-push-handler'
+import { createJsonPushImportHandler } from '../../import/json-push-handler'
 
 export function registerImportRoutes(server: FastifyInstance, ctx: HttpRouteContext): void {
   const handleJsonPushImport = createJsonPushImportHandler({

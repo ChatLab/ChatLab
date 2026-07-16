@@ -6,7 +6,7 @@ import test from 'node:test'
 import Fastify from 'fastify'
 import type { PathProvider } from '@openchatlab/core'
 import { DatabaseManager } from '@openchatlab/node-runtime'
-import type { HttpRouteContext } from '../context'
+import type { HttpRouteContext } from '../../context'
 import { registerImportRoutes } from './imports'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')

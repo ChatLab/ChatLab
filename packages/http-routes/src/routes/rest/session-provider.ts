@@ -1,3 +1,4 @@
+/** Data access contract for the public REST session routes. */
 import {
   executeReadonlySql,
   getLastPlatformMessageId,

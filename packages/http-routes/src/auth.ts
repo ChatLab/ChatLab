@@ -1,17 +1,12 @@
 /**
  * ChatLab HTTP API — Bearer Token authentication hook
  *
- * Shared auth middleware for CLI Server and Electron APIs.
- * URL classification: /api/* always requires token, /_web/* conditionally,
- * static files and SPA fallback are public.
+ * Shared auth middleware factory for CLI and Electron APIs.
  */
 
 import type { FastifyRequest, FastifyReply } from 'fastify'
 import { timingSafeEqual, createHmac, randomBytes } from 'crypto'
 import { unauthorized, errorResponse } from './errors'
-
-let cachedToken: string | null = null
-let requireAuthEnabled = false
 
 export interface BearerAuthOptions {
   getToken: () => string | null | undefined
@@ -19,18 +14,6 @@ export interface BearerAuthOptions {
   allowMissingToken?: boolean
   missingTokenMessage?: string
   invalidTokenMessage?: string
-}
-
-export function setAuthToken(token: string): void {
-  cachedToken = token
-}
-
-/**
- * When enabled, /_web/* routes also require Bearer token (same as /api/*).
- * Used for server/headless deployments where same-origin assumption doesn't hold.
- */
-export function setRequireAuth(enabled: boolean): void {
-  requireAuthEnabled = enabled
 }
 
 export function createBearerAuthHook(options: BearerAuthOptions) {
@@ -62,9 +45,3 @@ export function createBearerAuthHook(options: BearerAuthOptions) {
     }
   }
 }
-
-export const authHook = createBearerAuthHook({
-  getToken: () => cachedToken,
-  shouldAuthenticate: (request) =>
-    request.url.startsWith('/api/') || (requireAuthEnabled && request.url.startsWith('/_web/')),
-})

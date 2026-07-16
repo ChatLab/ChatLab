@@ -331,6 +331,9 @@ importers:
       '@huggingface/transformers':
         specifier: ^4.2.0
         version: 4.2.0
+      '@openchatlab/config':
+        specifier: workspace:*
+        version: link:../config
       '@openchatlab/core':
         specifier: workspace:*
         version: link:../core

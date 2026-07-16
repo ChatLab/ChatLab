@@ -19,6 +19,7 @@ import {
   CustomProviderStore,
   CustomModelStore,
   createFileConfigStorage,
+  createAuthProfileLlmConfigStore,
   MergeSessionCache,
   withDataDirImportLock,
   raiseChatDbCompatibilityGate,
@@ -30,7 +31,6 @@ import type { StreamImportDeps, SemanticIndexRuntime } from '@openchatlab/node-r
 import { getLoadablePath as getSqliteVecLoadablePath } from 'sqlite-vec'
 import multipart from '@fastify/multipart'
 import { registerSharedRoutes, registerAutomationRoutes } from '@openchatlab/http-routes'
-import { createAuthProfileLlmConfigStore } from '@openchatlab/http-routes/ai-config'
 import { createApiServer } from '@openchatlab/http-routes/server'
 import type { HttpRouteContext } from '@openchatlab/http-routes'
 import { reloadTimer, stopTimer, type DataSourceManager, type PullEngine } from '@openchatlab/sync'

@@ -1,5 +1,5 @@
 import { deleteAuthProfile, resolveApiKey, writeAuthProfile, type AuthProfile } from '@openchatlab/config'
-import { LLMConfigStore, type AIServiceConfig, type ConfigStorage } from '@openchatlab/node-runtime'
+import { LLMConfigStore, type AIServiceConfig, type ConfigStorage } from './llm-config-store'
 
 export interface AuthProfileLlmConfigStoreDeps {
   resolveApiKey: (provider: string, authProfile?: string) => string | undefined

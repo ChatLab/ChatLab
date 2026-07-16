@@ -16,8 +16,8 @@ import type { DatabaseAdapter, PathProvider, PreparedStatement, RunResult } from
 import { PreferencesManager, type DatabaseManager, type SessionRuntimeAdapter } from '@openchatlab/node-runtime'
 import type { HttpRouteContext } from '../context'
 import { registerSharedRoutes } from '../register'
-import { registerRestSessionRoutes } from './sessions'
-import { createDatabaseRestSessionProvider } from './rest-session-provider'
+import { registerRestSessionRoutes } from './rest/sessions'
+import { createDatabaseRestSessionProvider } from './rest/session-provider'
 import { registerAutomationRoutes } from './web/automation'
 import { registerSessionRoutes } from './web/sessions'
 

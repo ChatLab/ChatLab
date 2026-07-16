@@ -17,6 +17,7 @@ import {
   CustomProviderStore,
   CustomModelStore,
   createFileConfigStorage,
+  createAuthProfileLlmConfigStore,
   applyPendingNodeDataDirMigrationIfNeeded,
   hasPendingElectronDataWarning,
   verifyCliDataPath,
@@ -27,8 +28,7 @@ import {
 } from '@openchatlab/node-runtime'
 import type { SemanticIndexRuntime } from '@openchatlab/node-runtime'
 import { createServer } from './server'
-import { setAuthToken, setRequireAuth } from '@openchatlab/http-routes/auth'
-import { createAuthProfileLlmConfigStore } from '@openchatlab/http-routes/ai-config'
+import { setAuthToken, setRequireAuth } from './auth'
 import { registerWebRoutes } from './routes/web'
 import { registerProxyRoutes } from './routes/proxy'
 import { initServerAiLogger, closeServerAiLogger } from '../ai/logger'

@@ -17,6 +17,7 @@
     "@earendil-works/pi-agent-core": "0.74.2",
     "@earendil-works/pi-ai": "0.74.2",
     "@huggingface/transformers": "^4.2.0",
+    "@openchatlab/config": "workspace:*",
     "@openchatlab/core": "workspace:*",
     "better-sqlite3": "^12.4.6",
     "gray-matter": "^4.0.3",

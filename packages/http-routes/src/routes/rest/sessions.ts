@@ -6,8 +6,15 @@
  */
 
 import type { FastifyInstance } from 'fastify'
-import { successResponse, errorResponse, sessionNotFound, exportTooLarge, sqlExecutionError, ApiError } from '../errors'
-import type { RestSessionProvider } from './rest-session-provider'
+import {
+  successResponse,
+  errorResponse,
+  sessionNotFound,
+  exportTooLarge,
+  sqlExecutionError,
+  ApiError,
+} from '../../errors'
+import type { RestSessionProvider } from './session-provider'
 
 const EXPORT_MESSAGE_LIMIT = 100_000
 

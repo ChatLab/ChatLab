@@ -11,7 +11,7 @@
 
 import * as path from 'path'
 import { getDbFileVersion, getOrComputeAnalysisCache } from '@openchatlab/node-runtime'
-import type { HttpRouteContext } from './context'
+import type { HttpRouteContext } from '../../context'
 
 /** Deterministic stringify: sorts object keys recursively and drops `undefined`. */
 function canonical(value: unknown): string {

@@ -1,5 +1,5 @@
 /**
- * Shared helpers for route modules.
+ * Time-filter query parsing for Web analytics routes.
  */
 
 import type { TimeFilter } from '@openchatlab/shared-types'

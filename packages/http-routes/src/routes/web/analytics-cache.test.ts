@@ -1,7 +1,7 @@
 /**
  * buildAnalyticsCacheKey tests.
  *
- * 运行：node --import tsx --test packages/http-routes/src/analytics-cache.test.ts
+ * Run: pnpm test -- packages/http-routes/src/routes/web/analytics-cache.test.ts
  *
  * 键的确定性直接决定缓存命中率与正确性：等价请求必须同键，不同请求必须异键。
  */
@@ -12,7 +12,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import { buildAnalyticsCacheKey, withAnalyticsCache } from './analytics-cache'
-import type { HttpRouteContext } from './context'
+import type { HttpRouteContext } from '../../context'
 
 describe('buildAnalyticsCacheKey', () => {
   it('is independent of param key order', () => {

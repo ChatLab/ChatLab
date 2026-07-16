@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import type { ConfigStorage } from '@openchatlab/node-runtime'
+import type { ConfigStorage } from './llm-config-store'
 import { createAuthProfileLlmConfigStore } from './auth-profile-llm-config-store'
 
 function createMemoryStorage(): ConfigStorage & { data: Map<string, unknown> } {

@@ -6,7 +6,7 @@
  */
 
 import type { FastifyInstance } from 'fastify'
-import { successResponse } from '../errors'
+import { successResponse } from '../../errors'
 
 export interface SystemRouteContext {
   getVersion: () => string

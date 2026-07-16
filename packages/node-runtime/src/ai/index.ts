@@ -164,6 +164,8 @@ export type { SummaryDeps, SummaryMessage, SummaryOptions, SummaryResult, Summar
 export { LLMConfigStore, MAX_CONFIG_COUNT } from './llm-config-store'
 export type { AIServiceConfig, AIConfigStore, ConfigStorage, LLMConfigStoreDeps } from './llm-config-store'
 export { createFileConfigStorage } from './file-config-storage'
+export { createAuthProfileLlmConfigStore } from './auth-profile-llm-config-store'
+export type { AuthProfileLlmConfigStoreDeps } from './auth-profile-llm-config-store'
 
 // Custom Provider/Model Store
 export { CustomProviderStore, CustomModelStore } from './custom-store'

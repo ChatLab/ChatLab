@@ -9,7 +9,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import type { FastifyInstance } from 'fastify'
 import type { HttpRouteContext } from '../../context'
-import { withAnalyticsCache } from '../../analytics-cache'
+import { withAnalyticsCache } from './analytics-cache'
 import type { WordFrequencyParams, SupportedLocale } from '@openchatlab/core'
 import { POS_TAG_DEFINITIONS } from '@openchatlab/core'
 import {
