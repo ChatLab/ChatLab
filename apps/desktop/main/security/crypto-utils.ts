@@ -142,7 +142,27 @@ export function verifyAppPassword(plainPassword: string, stored: PasswordHash): 
 
 // ==================== 带冷却的校验 ====================
 
-const cooldownState = { failureCount: 0, cooldownUntil: 0, lastAttempt: 0 }
+export interface PersistedCooldown {
+  failureCount: number
+  cooldownUntil: number
+  lastAttempt: number
+}
+
+const cooldownState: PersistedCooldown = { failureCount: 0, cooldownUntil: 0, lastAttempt: 0 }
+
+/** 从持久化配置恢复冷却状态（进程重启后保留爆破限制） */
+export function loadCooldownState(persisted: PersistedCooldown | null | undefined): void {
+  if (persisted && typeof persisted.failureCount === 'number' && typeof persisted.cooldownUntil === 'number') {
+    cooldownState.failureCount = persisted.failureCount
+    cooldownState.cooldownUntil = persisted.cooldownUntil
+    cooldownState.lastAttempt = persisted.lastAttempt || 0
+  }
+}
+
+/** 导出当前冷却状态供持久化存储 */
+export function getCooldownState(): PersistedCooldown {
+  return { ...cooldownState }
+}
 
 function isInCooldown(): boolean {
   if (cooldownState.failureCount < MAX_RETRY_COUNT) return false

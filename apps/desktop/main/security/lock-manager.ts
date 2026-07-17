@@ -26,6 +26,8 @@ import {
   verifyAppPassword as verifyAppPasswordHash,
   verifyPasswordWithCooldown,
   resetCooldown,
+  loadCooldownState,
+  getCooldownState,
   MIN_PASSWORD_LENGTH,
   MAX_PASSWORD_LENGTH,
   evaluatePasswordStrength,
@@ -155,7 +157,7 @@ function getLockFlagPath(): string {
 /**
  * 加载锁配置
  */
-function loadConfig(): LockConfig {
+function loadConfig(): LockConfig | null {
   try {
     const configPath = getLockConfigPath()
     if (fs.existsSync(configPath)) {
@@ -180,46 +182,51 @@ function loadConfig(): LockConfig {
           typeof data.lockOnStartup === 'boolean' ? data.lockOnStartup : DEFAULT_LOCK_CONFIG.lockOnStartup,
       }
 
-      // 读取密码凭证（兼容旧版可逆加密 + 新版单向哈希）
+      // 读取密码凭证
       if (data.passwordHash && data.passwordHash.version === 2) {
         storedPasswordHash = data.passwordHash
       } else if (data.encryptedPassword) {
-        // 旧版可逆密文 — 加载后在下一次密码验证成功时自动迁移
         storedPasswordHash = null
-        logger.info('App lock: legacy encrypted password detected, will migrate on next verification')
+        logger.info('App lock: legacy encrypted password detected')
       }
+
+      // 恢复持久化冷却状态（进程重启后保留爆破限制）
+      loadCooldownState(data.cooldown)
 
       return config
     }
   } catch (error) {
     logger.error(`Failed to load lock config: ${error instanceof Error ? error.message : String(error)}`)
+    // 配置损坏时保持上次已知状态，拒绝降级为无锁
+    return null
   }
-
-  return { ...DEFAULT_LOCK_CONFIG }
+  return null
 }
 
 /**
- * 保存锁配置到磁盘（先写盘，成功后才更新内存）
- * @returns true 写入成功，false 写入失败（内存状态未修改）
+ * 原子写入锁配置：先写临时文件，成功后再重命名覆盖原文件。
+ * 防止写入中途崩溃/断电导致配置文件损坏。
+ * @returns true 写入成功，false 写入失败（原文件未被修改）
  */
 function saveConfig(config: LockConfig, passwordHash: PasswordHash | null): boolean {
   try {
     const configPath = getLockConfigPath()
+    const tmpPath = configPath + '.tmp'
     const dir = getSettingsDir()
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true })
-    }
+    if (!fs.existsSync(dir)) { fs.mkdirSync(dir, { recursive: true }) }
 
     const toSave: Record<string, unknown> = { ...config }
-    if (passwordHash) {
-      toSave.passwordHash = passwordHash
-    }
+    if (passwordHash) { toSave.passwordHash = passwordHash }
+    toSave.cooldown = getCooldownState()
 
-    fs.writeFileSync(configPath, JSON.stringify(toSave, null, 2), 'utf-8')
+    fs.writeFileSync(tmpPath, JSON.stringify(toSave, null, 2), 'utf-8')
+    fs.renameSync(tmpPath, configPath)
     return true
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error)
     logger.error(`Failed to save lock config: ${errMsg}`)
+    // 清理可能残留的临时文件
+    try { fs.unlinkSync(getLockConfigPath() + '.tmp') } catch { /* ignore */ }
     return false
   }
 }
@@ -287,10 +294,16 @@ function sendOverlayCommand(command: 'show' | 'hide'): void {
 export function initLockManager(mainWindow: BrowserWindow): void {
   mainWindowRef = mainWindow
 
-  // 加载配置
-  currentConfig = loadConfig()
+  // 加载配置（损坏时保持上次状态，拒绝降级为无锁）
+  const loaded = loadConfig()
+  if (loaded) {
+    currentConfig = loaded
+  } else {
+    logger.warn('App lock: config corrupted, keeping previous lock state')
+    // 保持 currentConfig (DEFAULT_LOCK_CONFIG 默认启用 lockOnStartup)
+  }
 
-  // 兜底校验：锁已启用但没有密码 → 自动回滚禁用
+  // 兜底校验
   validateAndSanitizeConfig()
 
   // 崩溃恢复检测
@@ -417,25 +430,20 @@ export async function unlockApp(credentials?: {
 
       const verifyResult = verifyPasswordWithCooldown(pwd, storedPasswordHash!)
 
+      // 持久化冷却状态（防止重启绕过爆破限制）
+      if (!verifyResult.verified) {
+        saveConfig(currentConfig, storedPasswordHash) // 写入计数
+      }
+
       if (verifyResult.cooldown) {
-        return {
-          success: false,
-          cooldown: true,
-          cooldownRemaining: verifyResult.cooldownRemaining,
-          error: verifyResult.error,
-        }
+        return { success: false, cooldown: true, cooldownRemaining: verifyResult.cooldownRemaining, error: verifyResult.error }
       }
 
       if (!verifyResult.verified) {
-        return {
-          success: false,
-          wrongPassword: true,
-          remainingRetries: verifyResult.remainingRetries,
-          error: verifyResult.error,
-        }
+        return { success: false, wrongPassword: true, remainingRetries: verifyResult.remainingRetries, error: verifyResult.error }
       }
 
-      // 密码验证通过
+      // 密码验证通过 → 清除冷却
       doUnlock()
       return { success: true }
     }
@@ -631,13 +639,12 @@ export async function getLockConfigAsync(): Promise<
 > {
   const helloAvailable = await isWindowsHelloAvailable()
 
-  // 如果 Windows Hello 不可用但当前模式设为 windows-hello，自动降级
-  if (!helloAvailable && currentConfig.unlockMode === 'windows-hello') {
-    const fallbackConfig = { ...currentConfig, unlockMode: 'password' as const }
-    if (saveConfig(fallbackConfig, storedPasswordHash)) {
-      currentConfig = fallbackConfig
-      logger.info('Windows Hello unavailable, auto-fallback to password mode')
-    }
+  // Hello 临时不可用仅运行时降级，不持久化修改用户配置
+  const effectiveUnlockMode = (!helloAvailable && currentConfig.unlockMode === 'windows-hello')
+    ? 'password' as const
+    : currentConfig.unlockMode
+  if (effectiveUnlockMode !== currentConfig.unlockMode) {
+    logger.info('Windows Hello temporarily unavailable, runtime fallback to password')
   }
 
   return {
@@ -694,7 +701,7 @@ export async function updateLockConfig(
   // 回读校验：若启用 Hello，确认配置已落盘
   if (currentConfig.unlockMode === 'windows-hello') {
     const reRead = loadConfig()
-    if (reRead.unlockMode !== 'windows-hello') {
+    if (!reRead || reRead.unlockMode !== 'windows-hello') {
       logger.error('Lock config: Failed to persist Hello enable — readback mismatch')
       currentConfig = { ...currentConfig, unlockMode: 'password' }
       saveConfig(currentConfig, storedPasswordHash)
@@ -733,6 +740,8 @@ export function verifyAppPassword(rawPassword: string): { success: boolean; cool
   if (lockState === 'locked') return { success: false, error: '请先解锁应用' }
   // 复用与解锁相同的 5 次 / 30 秒冷却机制
   const result = verifyPasswordWithCooldown(rawPassword, storedPasswordHash)
+  // 持久化冷却/失败计数
+  if (!result.verified) { saveConfig(currentConfig, storedPasswordHash) }
   return {
     success: result.verified,
     cooldown: result.cooldown,
