@@ -206,9 +206,9 @@ export function registerSecurityHandlers(_ctx: IpcContext): void {
    */
   ipcMain.handle('app-lock:verifyAppPassword', (_event, rawPassword: string) => {
     try {
-      return { success: verifyAppPassword(rawPassword) }
+      return verifyAppPassword(rawPassword)
     } catch {
-      return { success: false }
+      return { success: false, error: '验证失败' }
     }
   })
 

@@ -130,6 +130,9 @@ let lastActivityTime = Date.now()
 /** 是否正在锁定/解锁中（防止并发） */
 let isTransitioning = false
 
+/** Hello 验证进行中 — 抑制失焦自动锁屏 */
+let isHelloVerificationInProgress = false
+
 /** 主窗口引用 */
 let mainWindowRef: BrowserWindow | null = null
 
@@ -378,7 +381,13 @@ export async function unlockApp(credentials?: {
 
     // Windows Hello 模式：必须用户配置中已启用 Hello，不允许调用方强制覆盖
     if (credentials?.useWindowsHello && currentConfig.unlockMode === 'windows-hello') {
-      const helloResult = await verifyWithWindowsHello('请验证您的身份以解锁 ChatLab')
+      isHelloVerificationInProgress = true
+      let helloResult
+      try {
+        helloResult = await verifyWithWindowsHello('请验证您的身份以解锁 ChatLab')
+      } finally {
+        isHelloVerificationInProgress = false
+      }
 
       if (helloResult.notAvailable) {
         return {
@@ -718,9 +727,19 @@ export async function updateLockConfig(
  * 纯密码校验：仅比对哈希，不依赖锁屏解锁状态。
  * 用于 Windows Hello 开户等需要验证密码但不应触发解锁的场景。
  */
-export function verifyAppPassword(rawPassword: string): boolean {
-  if (!storedPasswordHash) return false
-  return verifyAppPasswordHash(rawPassword, storedPasswordHash)
+export function verifyAppPassword(rawPassword: string): { success: boolean; cooldown?: boolean; cooldownRemaining?: number; remainingRetries?: number; error?: string } {
+  if (!storedPasswordHash) return { success: false, error: '尚未设置密码' }
+  // 锁屏状态下直接拒绝，防止暴力枚举
+  if (lockState === 'locked') return { success: false, error: '请先解锁应用' }
+  // 复用与解锁相同的 5 次 / 30 秒冷却机制
+  const result = verifyPasswordWithCooldown(rawPassword, storedPasswordHash)
+  return {
+    success: result.verified,
+    cooldown: result.cooldown,
+    cooldownRemaining: result.cooldownRemaining,
+    remainingRetries: result.remainingRetries,
+    error: result.error,
+  }
 }
 
 /**
@@ -780,19 +799,23 @@ export async function getWindowsHelloStatus(): Promise<WindowsHelloAvailability>
 export async function verifyHelloForEnroll(message: string): Promise<{
   success: boolean; verified: boolean; cancelled: boolean; notAvailable: boolean; error?: string
 }> {
-  const result = await verifyWithWindowsHello(message)
+  isHelloVerificationInProgress = true
+  try {
+    const result = await verifyWithWindowsHello(message)
 
-  // 系统验证成功 → 强制刷新缓存为 available，确保后续配置写入不因缓存失效被拦截
-  if (result.verified) {
-    await isWindowsHelloAvailable() // 触发 checkWindowsHelloAvailability 并缓存结果
-  }
+    if (result.verified) {
+      await isWindowsHelloAvailable()
+    }
 
-  return {
-    success: result.success,
-    verified: result.verified,
-    cancelled: result.cancelled ?? false,
-    notAvailable: result.notAvailable ?? false,
-    error: result.error,
+    return {
+      success: result.success,
+      verified: result.verified,
+      cancelled: result.cancelled ?? false,
+      notAvailable: result.notAvailable ?? false,
+      error: result.error,
+    }
+  } finally {
+    isHelloVerificationInProgress = false
   }
 }
 
@@ -823,9 +846,10 @@ function registerActivityListeners(): void {
     lastActivityTime = Date.now()
   })
 
-  // 失焦锁定
+  // 失焦锁定（Hello 验证进行中时抑制，避免系统 PIN 弹窗触发误锁）
   mainWindowRef.on('blur', () => {
     lastActivityTime = Date.now()
+    if (isHelloVerificationInProgress) return
     if (currentConfig.enabled && currentConfig.lockOnBlur && lockState === 'unlocked') {
       lockApp()
     }
