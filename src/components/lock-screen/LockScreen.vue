@@ -10,10 +10,15 @@ const isUnlocking = ref(false)
 const password = ref('')
 const showPassword = ref(false)
 const errorMessage = ref('')
+const retryAfterSeconds = ref(0)
 const passwordInputRef = ref<HTMLInputElement | null>(null)
-const canUnlock = computed(() => /^\d{4}$/.test(password.value))
+const canUnlock = computed(() => /^\d{4}$/.test(password.value) && retryAfterSeconds.value === 0)
+const cooldownMessage = computed(() =>
+  t('settings.security.lockScreen.errorTooManyAttempts', { seconds: retryAfterSeconds.value })
+)
 
 let removeLockListener: (() => void) | null = null
+let cooldownTimer: ReturnType<typeof setInterval> | null = null
 
 onMounted(async () => {
   removeLockListener = window.securityApi.onLockStateChanged((locked) => {
@@ -27,7 +32,10 @@ onMounted(async () => {
   }
 })
 
-onUnmounted(() => removeLockListener?.())
+onUnmounted(() => {
+  removeLockListener?.()
+  clearCooldownTimer()
+})
 
 async function showOverlay(): Promise<void> {
   visible.value = true
@@ -46,6 +54,8 @@ function resetForm(): void {
   password.value = ''
   showPassword.value = false
   errorMessage.value = ''
+  retryAfterSeconds.value = 0
+  clearCooldownTimer()
 }
 
 async function handleUnlock(): Promise<void> {
@@ -55,6 +65,11 @@ async function handleUnlock(): Promise<void> {
   try {
     const result = await window.securityApi.unlock(password.value)
     if (result.success) return
+    if (result.retryAfterSeconds && result.retryAfterSeconds > 0) {
+      password.value = ''
+      startCooldownTimer(result.retryAfterSeconds)
+      return
+    }
     errorMessage.value = result.wrongPassword
       ? t('settings.security.lockScreen.errorWrongPassword')
       : t('settings.security.lockScreen.errorService')
@@ -64,6 +79,24 @@ async function handleUnlock(): Promise<void> {
   } finally {
     isUnlocking.value = false
   }
+}
+
+function startCooldownTimer(seconds: number): void {
+  clearCooldownTimer()
+  retryAfterSeconds.value = seconds
+  cooldownTimer = setInterval(() => {
+    retryAfterSeconds.value = Math.max(0, retryAfterSeconds.value - 1)
+    if (retryAfterSeconds.value > 0) return
+
+    clearCooldownTimer()
+    nextTick(() => passwordInputRef.value?.focus())
+  }, 1000)
+}
+
+function clearCooldownTimer(): void {
+  if (!cooldownTimer) return
+  clearInterval(cooldownTimer)
+  cooldownTimer = null
 }
 
 function handlePasswordInput(event: Event): void {
@@ -100,7 +133,7 @@ function handlePasswordInput(event: Event): void {
             autocomplete="current-password"
             :placeholder="t('settings.security.lockScreen.placeholderPassword')"
             class="w-full rounded-xl border border-gray-200 bg-gray-100 py-3 pl-4 pr-12 text-sm text-gray-900 placeholder-gray-400 outline-none transition focus:border-primary-500 focus:ring-1 focus:ring-primary-500 disabled:opacity-40 dark:border-gray-700 dark:bg-gray-900 dark:text-white dark:placeholder-gray-500"
-            :disabled="isUnlocking"
+            :disabled="isUnlocking || retryAfterSeconds > 0"
             maxlength="4"
             @input="handlePasswordInput"
           />
@@ -108,13 +141,16 @@ function handlePasswordInput(event: Event): void {
             type="button"
             class="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 transition-colors hover:text-gray-600 dark:hover:text-gray-300"
             :aria-label="t('settings.security.lockScreen.placeholderPassword')"
-            :disabled="isUnlocking"
+            :disabled="isUnlocking || retryAfterSeconds > 0"
             @click="showPassword = !showPassword"
           >
             <UIcon :name="showPassword ? 'i-heroicons-eye-slash' : 'i-heroicons-eye'" class="h-5 w-5" />
           </button>
         </div>
-        <p v-if="errorMessage" class="text-center text-xs text-red-500">
+        <p v-if="retryAfterSeconds > 0" class="text-center text-xs text-amber-500">
+          {{ cooldownMessage }}
+        </p>
+        <p v-else-if="errorMessage" class="text-center text-xs text-red-500">
           {{ errorMessage }}
         </p>
         <UButton

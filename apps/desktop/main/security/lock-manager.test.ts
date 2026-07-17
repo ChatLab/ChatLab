@@ -95,11 +95,39 @@ test('desktop app lock persists its canonical config and handles manual, idle, a
 
     assert.deepEqual(lockManager.lockApp(), { success: true })
     assert.equal(lockManager.getLockState(), 'locked')
-    assert.deepEqual(await lockManager.unlockApp('0000'), {
-      success: false,
-      error: 'wrong-password',
-      wrongPassword: true,
-    })
+    for (let attempt = 1; attempt < 5; attempt++) {
+      assert.deepEqual(await lockManager.unlockApp('0000'), {
+        success: false,
+        error: 'wrong-password',
+        wrongPassword: true,
+      })
+    }
+
+    const blockedResult = await lockManager.unlockApp('0000')
+    assert.equal(blockedResult.success, false)
+    assert.equal(blockedResult.error, 'too-many-attempts')
+    assert.equal(blockedResult.wrongPassword, true)
+    assert.ok(blockedResult.retryAfterSeconds && blockedResult.retryAfterSeconds > 0)
+
+    const blockedFlag = JSON.parse(fs.readFileSync(path.join(settingsDir, '.app-lock-flag'), 'utf-8')) as {
+      failureCount: number
+      cooldownUntil: number
+    }
+    assert.equal(blockedFlag.failureCount, 5)
+    assert.ok(blockedFlag.cooldownUntil > Date.now())
+
+    lockManager.cleanupLockManager()
+    lockManager.initLockManager(mainWindow as never)
+    assert.equal(lockManager.getLockState(), 'locked')
+
+    const blockedAfterRestart = await lockManager.unlockApp('1234')
+    assert.equal(blockedAfterRestart.error, 'too-many-attempts')
+    assert.ok(blockedAfterRestart.retryAfterSeconds && blockedAfterRestart.retryAfterSeconds > 0)
+
+    blockedFlag.cooldownUntil = Date.now() - 1
+    fs.writeFileSync(path.join(settingsDir, '.app-lock-flag'), JSON.stringify(blockedFlag), 'utf-8')
+    lockManager.cleanupLockManager()
+    lockManager.initLockManager(mainWindow as never)
     assert.deepEqual(await lockManager.unlockApp('1234'), { success: true })
     assert.deepEqual(mainWindow.sentMessages.slice(-2), [
       ['app-lock-state-changed', true],

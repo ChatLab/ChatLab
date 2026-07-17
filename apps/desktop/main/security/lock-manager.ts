@@ -17,19 +17,31 @@ interface LockSettings {
   lockOnStartup: boolean
 }
 
+interface UnlockAttemptState {
+  failureCount: number
+  cooldownUntil: number
+}
+
 const LOCK_CONFIG_FILE = 'app-lock.json'
 const LOCK_FLAG_FILE = '.app-lock-flag'
 const PIN_PATTERN = /^\d{4}$/
 const IDLE_CHECK_INTERVAL_MS = 10000
+const MAX_UNLOCK_FAILURES = 5
+const UNLOCK_COOLDOWN_MS = 30000
 const IDLE_TIMEOUT_OPTIONS = new Set([0, 1, 3, 5, 10, 15, 30, 60])
 const DEFAULT_LOCK_SETTINGS: LockSettings = {
   idleTimeoutMinutes: 0,
   lockOnStartup: false,
 }
+const DEFAULT_UNLOCK_ATTEMPTS: UnlockAttemptState = {
+  failureCount: 0,
+  cooldownUntil: 0,
+}
 
 let lockState: AppLockState = 'unlocked'
 let currentSettings: LockSettings = { ...DEFAULT_LOCK_SETTINGS }
 let storedPasswordHash: PasswordHash | null = null
+let unlockAttempts: UnlockAttemptState = { ...DEFAULT_UNLOCK_ATTEMPTS }
 let idleTimer: ReturnType<typeof setInterval> | null = null
 let isTransitioning = false
 let mainWindowRef: BrowserWindow | null = null
@@ -113,12 +125,35 @@ function saveConfig(settings: LockSettings, passwordHash: PasswordHash | null): 
   }
 }
 
-function setLockFlag(): boolean {
+function isUnlockAttemptState(value: unknown): value is UnlockAttemptState {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return false
+  const record = value as Record<string, unknown>
+  return (
+    Object.keys(record).every((key) => key === 'failureCount' || key === 'cooldownUntil') &&
+    Number.isInteger(record.failureCount) &&
+    (record.failureCount as number) >= 0 &&
+    (record.failureCount as number) <= MAX_UNLOCK_FAILURES &&
+    Number.isSafeInteger(record.cooldownUntil) &&
+    (record.cooldownUntil as number) >= 0
+  )
+}
+
+function saveLockFlag(attemptState: UnlockAttemptState = unlockAttempts): boolean {
+  const flagPath = getLockFlagPath()
+  const tempPath = `${flagPath}.tmp`
+
   try {
-    fs.writeFileSync(getLockFlagPath(), Date.now().toString(), 'utf-8')
+    fs.mkdirSync(getSettingsDir(), { recursive: true })
+    fs.writeFileSync(tempPath, JSON.stringify(attemptState), 'utf-8')
+    fs.renameSync(tempPath, flagPath)
     return true
   } catch (error) {
     logger.error(`Failed to write app lock flag: ${error instanceof Error ? error.message : error}`)
+    try {
+      fs.unlinkSync(tempPath)
+    } catch {
+      // 临时文件可能尚未创建。
+    }
     return false
   }
 }
@@ -134,10 +169,23 @@ function clearLockFlag(): boolean {
   }
 }
 
-function hasLockFlag(): boolean {
+function loadLockFlag(): boolean {
+  unlockAttempts = { ...DEFAULT_UNLOCK_ATTEMPTS }
+
   try {
-    return fs.existsSync(getLockFlagPath())
-  } catch {
+    const flagPath = getLockFlagPath()
+    if (!fs.existsSync(flagPath)) return false
+
+    try {
+      const data = JSON.parse(fs.readFileSync(flagPath, 'utf-8')) as unknown
+      if (isUnlockAttemptState(data)) unlockAttempts = data
+      else logger.warn('App lock flag contains invalid unlock attempt state')
+    } catch (error) {
+      logger.warn(`App lock flag contains invalid JSON: ${error instanceof Error ? error.message : error}`)
+    }
+    return true
+  } catch (error) {
+    logger.error(`Failed to read app lock flag: ${error instanceof Error ? error.message : error}`)
     return false
   }
 }
@@ -156,14 +204,17 @@ export function initLockManager(mainWindow: BrowserWindow): void {
   mainWindowRef = mainWindow
   lockState = 'unlocked'
   isTransitioning = false
+  unlockAttempts = { ...DEFAULT_UNLOCK_ATTEMPTS }
 
   const loaded = loadConfig()
   if (!loaded || !isEnabled()) clearLockFlag()
-  const wasLocked = isEnabled() && hasLockFlag()
+  const wasLocked = isEnabled() && loadLockFlag()
 
   logger.info(`App lock initialized: enabled=${isEnabled()}, wasLocked=${wasLocked}`)
 
-  if (isEnabled() && (currentSettings.lockOnStartup || wasLocked)) {
+  if (wasLocked) {
+    enterLockedState()
+  } else if (isEnabled() && currentSettings.lockOnStartup) {
     lockApp()
   } else if (isEnabled() && currentSettings.idleTimeoutMinutes > 0) {
     startIdleTimer()
@@ -177,21 +228,34 @@ export function lockApp(): AppLockResult {
 
   isTransitioning = true
   try {
-    if (!setLockFlag()) return { success: false, error: 'save-failed' }
-    lockState = 'locked'
-    stopIdleTimer()
-    logger.info('App locked')
-    notifyLockState()
+    unlockAttempts = { ...DEFAULT_UNLOCK_ATTEMPTS }
+    if (!saveLockFlag()) return { success: false, error: 'save-failed' }
+    enterLockedState()
     return { success: true }
   } finally {
     isTransitioning = false
   }
 }
 
+function enterLockedState(): void {
+  lockState = 'locked'
+  stopIdleTimer()
+  logger.info('App locked')
+  notifyLockState()
+}
+
 export async function unlockApp(password: unknown): Promise<AppLockUnlockResult> {
   if (lockState === 'unlocked') return { success: true }
   if (isTransitioning) return { success: false, error: 'busy' }
   if (!storedPasswordHash) return { success: false, error: 'password-not-set' }
+
+  const cooldownRemaining = getUnlockCooldownRemaining()
+  if (cooldownRemaining > 0) {
+    return { success: false, error: 'too-many-attempts', retryAfterSeconds: cooldownRemaining }
+  }
+  if (unlockAttempts.cooldownUntil > 0 && !resetUnlockAttempts()) {
+    return { success: false, error: 'save-failed' }
+  }
   if (typeof password !== 'string' || !PIN_PATTERN.test(password)) {
     return { success: false, error: 'wrong-password', wrongPassword: true }
   }
@@ -199,9 +263,20 @@ export async function unlockApp(password: unknown): Promise<AppLockUnlockResult>
   isTransitioning = true
   try {
     if (!(await verifyPasswordHash(password, storedPasswordHash))) {
+      const retryAfterSeconds = recordUnlockFailure()
+      if (retryAfterSeconds === null) return { success: false, error: 'save-failed' }
+      if (retryAfterSeconds > 0) {
+        return {
+          success: false,
+          error: 'too-many-attempts',
+          wrongPassword: true,
+          retryAfterSeconds,
+        }
+      }
       return { success: false, error: 'wrong-password', wrongPassword: true }
     }
 
+    if (!resetUnlockAttempts()) return { success: false, error: 'save-failed' }
     clearLockFlag()
     lockState = 'unlocked'
     logger.info('App unlocked')
@@ -211,6 +286,35 @@ export async function unlockApp(password: unknown): Promise<AppLockUnlockResult>
   } finally {
     isTransitioning = false
   }
+}
+
+function getUnlockCooldownRemaining(): number {
+  if (unlockAttempts.cooldownUntil <= Date.now()) return 0
+  return Math.ceil((unlockAttempts.cooldownUntil - Date.now()) / 1000)
+}
+
+function recordUnlockFailure(): number | null {
+  const failureCount = Math.min(unlockAttempts.failureCount + 1, MAX_UNLOCK_FAILURES)
+  const nextAttempts: UnlockAttemptState = {
+    failureCount,
+    cooldownUntil: failureCount >= MAX_UNLOCK_FAILURES ? Date.now() + UNLOCK_COOLDOWN_MS : 0,
+  }
+  unlockAttempts = nextAttempts
+
+  if (!saveLockFlag(nextAttempts)) return null
+  if (nextAttempts.cooldownUntil > 0) {
+    logger.warn('App unlock temporarily blocked after repeated PIN failures')
+  }
+  return getUnlockCooldownRemaining()
+}
+
+function resetUnlockAttempts(): boolean {
+  if (unlockAttempts.failureCount === 0 && unlockAttempts.cooldownUntil === 0) return true
+
+  const nextAttempts = { ...DEFAULT_UNLOCK_ATTEMPTS }
+  if (!saveLockFlag(nextAttempts)) return false
+  unlockAttempts = nextAttempts
+  return true
 }
 
 export async function setPassword(newPassword: unknown): Promise<AppLockResult> {
@@ -226,6 +330,7 @@ export async function setPassword(newPassword: unknown): Promise<AppLockResult> 
     const passwordHash = await hashPassword(newPassword)
     if (!saveConfig(currentSettings, passwordHash)) return { success: false, error: 'save-failed' }
     storedPasswordHash = passwordHash
+    unlockAttempts = { ...DEFAULT_UNLOCK_ATTEMPTS }
     if (currentSettings.idleTimeoutMinutes > 0) startIdleTimer()
     logger.info('App lock password initialized')
     return { success: true }
@@ -254,6 +359,7 @@ export async function changePassword(oldPassword: unknown, newPassword: unknown)
     const passwordHash = await hashPassword(newPassword)
     if (!saveConfig(currentSettings, passwordHash)) return { success: false, error: 'save-failed' }
     storedPasswordHash = passwordHash
+    unlockAttempts = { ...DEFAULT_UNLOCK_ATTEMPTS }
     logger.info('App lock password changed')
     return { success: true }
   } catch (error) {
@@ -270,6 +376,7 @@ export function resetAppLockPassword(): AppLockResult {
   if (!saveConfig(currentSettings, null)) return { success: false, error: 'save-failed' }
 
   storedPasswordHash = null
+  unlockAttempts = { ...DEFAULT_UNLOCK_ATTEMPTS }
   stopIdleTimer()
   clearLockFlag()
   logger.info('App lock disabled and password cleared')
