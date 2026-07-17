@@ -44,6 +44,9 @@ const helloAvailable = computed(() => config.value?.windowsHelloAvailable ?? fal
 const helloEnabled = computed(() => config.value?.unlockMode === 'windows-hello')
 
 const canSubmitPassword = computed(() => {
+  // 场景B：有密码但锁关闭，仅重新启用锁 — 只需 oldPassword，不校验 newPassword
+  if (!isEnabled.value && hasPassword.value) return !!oldPassword.value
+  // 场景A：修改密码 / 首次设置 → 强制校验新密码
   if (newPassword.value.length < 4) return false
   if (newPassword.value !== newPasswordConfirm.value) return false
   if (isEnabled.value && !oldPassword.value) return false
