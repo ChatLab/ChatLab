@@ -65,15 +65,25 @@ function loadConfig(): boolean {
     }
 
     const record = data as Record<string, unknown>
+    const allowedKeys = new Set(['idleTimeoutMinutes', 'lockOnStartup', 'passwordHash'])
+    if (Object.keys(record).some((key) => !allowedKeys.has(key))) {
+      logger.warn('App lock config ignored because it contains unsupported fields')
+      return false
+    }
+    if (!isValidIdleTimeout(record.idleTimeoutMinutes) || typeof record.lockOnStartup !== 'boolean') {
+      logger.warn('App lock config ignored because its settings are invalid')
+      return false
+    }
+    if (record.passwordHash !== undefined && !isPasswordHash(record.passwordHash)) {
+      logger.warn('App lock config ignored because its password format is invalid')
+      return false
+    }
 
     currentSettings = {
-      idleTimeoutMinutes: isValidIdleTimeout(record.idleTimeoutMinutes)
-        ? record.idleTimeoutMinutes
-        : DEFAULT_LOCK_SETTINGS.idleTimeoutMinutes,
-      lockOnStartup:
-        typeof record.lockOnStartup === 'boolean' ? record.lockOnStartup : DEFAULT_LOCK_SETTINGS.lockOnStartup,
+      idleTimeoutMinutes: record.idleTimeoutMinutes,
+      lockOnStartup: record.lockOnStartup,
     }
-    storedPasswordHash = isPasswordHash(record.passwordHash) ? record.passwordHash : null
+    storedPasswordHash = record.passwordHash ?? null
     return true
   } catch (error) {
     logger.error(`App lock config ignored because it is invalid: ${error instanceof Error ? error.message : error}`)
@@ -83,15 +93,22 @@ function loadConfig(): boolean {
 
 function saveConfig(settings: LockSettings, passwordHash: PasswordHash | null): boolean {
   const configPath = getLockConfigPath()
+  const tempPath = `${configPath}.tmp`
 
   try {
     fs.mkdirSync(getSettingsDir(), { recursive: true })
     const record: Record<string, unknown> = { ...settings }
     if (passwordHash) record.passwordHash = passwordHash
-    fs.writeFileSync(configPath, JSON.stringify(record, null, 2), 'utf-8')
+    fs.writeFileSync(tempPath, JSON.stringify(record, null, 2), 'utf-8')
+    fs.renameSync(tempPath, configPath)
     return true
   } catch (error) {
     logger.error(`Failed to save app lock config: ${error instanceof Error ? error.message : error}`)
+    try {
+      fs.unlinkSync(tempPath)
+    } catch {
+      // 临时文件可能尚未创建。
+    }
     return false
   }
 }
