@@ -1,5 +1,10 @@
 import type { AssistantConfig } from '@openchatlab/shared-types'
+import { BUILTIN_TOOL_CATALOG } from '@openchatlab/core'
 import { serializeAssistant } from './assistant-parser'
+
+const ALL_ANALYSIS_TOOL_NAMES = BUILTIN_TOOL_CATALOG.filter((tool) => tool.category === 'analysis').map(
+  (tool) => tool.name
+)
 
 /** Canonical built-in assistant templates shared by Desktop, CLI and CLI Web. */
 export const DEFAULT_GENERAL_ASSISTANT_CONFIGS: readonly AssistantConfig[] = [
@@ -8,6 +13,7 @@ export const DEFAULT_GENERAL_ASSISTANT_CONFIGS: readonly AssistantConfig[] = [
     name: '通用分析助手',
     builtinVersion: 2,
     supportedLocales: ['zh-CN'],
+    allowedBuiltinTools: [...ALL_ANALYSIS_TOOL_NAMES],
     presetQuestions: [
       '最近都在聊什么？',
       '谁是最活跃的人？',
@@ -36,6 +42,7 @@ export const DEFAULT_GENERAL_ASSISTANT_CONFIGS: readonly AssistantConfig[] = [
     name: '通用分析助手',
     builtinVersion: 2,
     supportedLocales: ['zh-TW'],
+    allowedBuiltinTools: [...ALL_ANALYSIS_TOOL_NAMES],
     presetQuestions: [
       '最近都在聊什麼？',
       '誰是最活躍的人？',
@@ -64,6 +71,7 @@ export const DEFAULT_GENERAL_ASSISTANT_CONFIGS: readonly AssistantConfig[] = [
     name: 'General Analysis Assistant',
     builtinVersion: 2,
     supportedLocales: ['en'],
+    allowedBuiltinTools: [...ALL_ANALYSIS_TOOL_NAMES],
     presetQuestions: [
       'What have people been chatting about recently?',
       'Who are the most active members?',
@@ -91,6 +99,7 @@ export const DEFAULT_GENERAL_ASSISTANT_CONFIGS: readonly AssistantConfig[] = [
     name: '汎用分析アシスタント',
     builtinVersion: 2,
     supportedLocales: ['ja'],
+    allowedBuiltinTools: [...ALL_ANALYSIS_TOOL_NAMES],
     presetQuestions: [
       '最近みんな何を話してる？',
       '一番アクティブなメンバーは誰？',
