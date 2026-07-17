@@ -131,8 +131,8 @@ async function handleSetOrChangePassword() {
 
 async function handleDisableLock() {
   if (!confirm(t('settings.security.lock.disableConfirm'))) return
-  const ok = await applyConfig({ enabled: false, unlockMode: 'password' })
-  if (ok) await loadConfig()
+  const result = await window.securityApi?.resetPassword()
+  if (result?.success) await loadConfig()
 }
 
 async function handleEnableHello() {
@@ -242,7 +242,8 @@ async function handleManualLock() { try { await window.securityApi?.lock() } cat
           </button>
         </div>
         <div v-else class="space-y-3 border-t border-gray-100 pt-4 dark:border-gray-700">
-          <div v-if="isEnabled || hasPassword">
+          <!-- 首次初始化隐藏旧密码 -->
+          <div v-if="hasPassword">
             <label class="mb-1 block text-xs font-medium text-gray-500 dark:text-gray-400">{{ t('settings.security.password.labelOld') }}</label>
             <input v-model="oldPassword" type="password" :placeholder="t('settings.security.password.placeholderOld')" class="w-full rounded-lg border px-3 py-2.5 text-sm placeholder-gray-400 focus:border-pink-500 focus:outline-none focus:ring-1 focus:ring-pink-500 bg-white border-gray-300 text-gray-900 dark:bg-gray-700 dark:border-gray-600 dark:text-white dark:placeholder-gray-500" maxlength="128" />
           </div>

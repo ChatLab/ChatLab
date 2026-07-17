@@ -19,7 +19,11 @@
 import { BrowserWindow } from 'electron'
 import { join } from 'path'
 import * as fs from 'fs'
-import { getSettingsDir } from '../paths'
+import { getPathProvider } from '../paths/provider'
+
+function getSettingsDir(): string {
+  return getPathProvider().getSettingsDir()
+}
 import { logger } from '../logger'
 import {
   hashPassword,
