@@ -70,7 +70,8 @@ onMounted(async () => {
   } catch { /* ignore */ }
   try {
     const state = await window.securityApi?.getState()
-    if (state?.state === 'locked') showOverlay()
+    // locked / recovery-locked 均需展示锁屏遮罩（fail-closed）
+    if (state?.state === 'locked' || state?.state === 'recovery-locked') showOverlay()
   } catch { /* ignore */ }
 })
 

@@ -54,7 +54,7 @@ export const securityApi = {
   },
 
   /** 获取当前锁状态 */
-  getState: (): Promise<{ state: 'unlocked' | 'locked' | 'configuring' }> => {
+  getState: (): Promise<{ state: 'unlocked' | 'locked' | 'recovery-locked' | 'configuring' }> => {
     return ipcRenderer.invoke('app-lock:getState')
   },
 

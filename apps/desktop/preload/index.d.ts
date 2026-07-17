@@ -348,7 +348,7 @@ interface PasswordChangeResult {
 
 interface SecurityApi {
   getConfig: () => Promise<LockConfig>
-  getState: () => Promise<{ state: 'unlocked' | 'locked' | 'configuring' }>
+  getState: () => Promise<{ state: 'unlocked' | 'locked' | 'recovery-locked' | 'configuring' }>
   checkWindowsHello: () => Promise<WindowsHelloAvailability>
   verifyHello: (message: string) => Promise<{ success: boolean; verified: boolean; cancelled: boolean; notAvailable: boolean; error?: string }>
   verifyAppPassword: (rawPassword: string) => Promise<{ success: boolean; cooldown?: boolean; cooldownRemaining?: number; remainingRetries?: number; error?: string }>
