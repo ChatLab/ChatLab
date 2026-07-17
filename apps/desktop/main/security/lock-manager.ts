@@ -63,8 +63,8 @@ export interface LockConfig {
   lockOnStartup: boolean
 }
 
-/** 锁状态 */
-export type LockState = 'unlocked' | 'locked' | 'configuring'
+/** 锁状态（recovery-locked 专用于配置文件损坏的故障闭环保护） */
+export type LockState = 'unlocked' | 'locked' | 'recovery-locked' | 'configuring'
 
 /** 解锁请求结果 */
 export interface UnlockResult {
@@ -308,10 +308,9 @@ export function initLockManager(mainWindow: BrowserWindow): void {
   if (loaded) {
     currentConfig = loaded
   } else if (configFileExists) {
-    // 文件存在但损坏 → 故障闭环 fail-closed，强制锁定
-    logger.error('CRITICAL: Lock config file corrupted — forcing lock for safety')
-    currentConfig = { ...DEFAULT_LOCK_CONFIG, enabled: false }
-    lockApp()
+    // 文件存在但损坏 → 进入恢复锁定（fail-closed），不依赖密码哈希
+    logger.error('CRITICAL: Lock config file corrupted — entering recovery lock')
+    enterRecoveryLock()
     return
   }
   // 文件不存在 → 首次初始化，使用默认配置正常启动
@@ -384,6 +383,51 @@ export function lockApp(): void {
   }
 
   isTransitioning = false
+}
+
+/**
+ * 进入恢复锁定状态（配置文件损坏时专用，fail-closed 安全闭环）
+ * 不依赖密码哈希，直接锁定并阻止所有敏感数据访问
+ */
+function enterRecoveryLock(): void {
+  if (lockState !== 'unlocked') return
+  if (!setLockFlag()) {
+    logger.error('CRITICAL: Failed to write recovery lock flag')
+  }
+  lockState = 'recovery-locked'
+  sendOverlayCommand('show')
+  if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+    mainWindowRef.webContents.send('app-lock-state-changed', { locked: true, recovery: true })
+  }
+  logger.warn('App entered recovery lock — config file corrupted')
+}
+
+/**
+ * 恢复模式下重置锁配置（删除损坏配置，重新初始化）
+ */
+export function recoveryResetLock(): { success: boolean; error?: string } {
+  if (lockState !== 'recovery-locked') {
+    return { success: false, error: '当前不在恢复锁定状态' }
+  }
+  try {
+    const configPath = getLockConfigPath()
+    if (fs.existsSync(configPath)) { fs.unlinkSync(configPath) }
+    storedPasswordHash = null
+    currentConfig = { ...DEFAULT_LOCK_CONFIG }
+    clearLockFlag()
+    lockState = 'unlocked'
+    resetCooldown()
+    sendOverlayCommand('hide')
+    if (mainWindowRef && !mainWindowRef.isDestroyed()) {
+      mainWindowRef.webContents.send('app-lock-state-changed', { locked: false })
+    }
+    logger.warn('Recovery lock reset — config cleared')
+    return { success: true }
+  } catch (error) {
+    const msg = error instanceof Error ? error.message : String(error)
+    logger.error(`Failed to reset recovery lock: ${msg}`)
+    return { success: false, error: '重置失败，请检查磁盘空间和权限' }
+  }
 }
 
 /**
@@ -777,7 +821,7 @@ export function getLockState(): LockState {
  * 全局锁定状态查询 — 供其他 IPC 模块校验是否拦截数据访问
  */
 export function isAppLocked(): boolean {
-  return lockState === 'locked'
+  return lockState === 'locked' || lockState === 'recovery-locked'
 }
 
 /**

@@ -14,6 +14,7 @@ import {
   changePassword,
   resetAppLockPassword,
   reEnableLock,
+  recoveryResetLock,
   getLockConfig,
   getLockConfigAsync,
   getLockState,
@@ -185,6 +186,16 @@ export function registerSecurityHandlers(_ctx: IpcContext): void {
     } catch {
       logger.error(`IPC app-lock:requestUnlock failed`)
       return { success: false, error: '解锁失败' }
+    }
+  })
+
+  // ==================== 恢复模式 ====================
+
+  ipcMain.handle('app-lock:recoveryReset', () => {
+    try {
+      return recoveryResetLock()
+    } catch {
+      return { success: false, error: '操作失败' }
     }
   })
 

@@ -353,6 +353,7 @@ interface SecurityApi {
   verifyHello: (message: string) => Promise<{ success: boolean; verified: boolean; cancelled: boolean; notAvailable: boolean; error?: string }>
   verifyAppPassword: (rawPassword: string) => Promise<{ success: boolean; cooldown?: boolean; cooldownRemaining?: number; remainingRetries?: number; error?: string }>
   reEnableLock: (oldPassword: string) => Promise<{ success: boolean; error?: string }>
+  recoveryReset: () => Promise<{ success: boolean; error?: string }>
   lock: () => Promise<{ success: boolean; error?: string }>
   unlock: (credentials?: { password?: string; useWindowsHello?: boolean }) => Promise<UnlockResult>
   setPassword: (newPassword: string) => Promise<PasswordChangeResult>

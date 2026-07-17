@@ -80,6 +80,11 @@ export const securityApi = {
     return ipcRenderer.invoke('app-lock:reEnableLock', oldPassword)
   },
 
+  /** 恢复模式：重置损坏配置，重新初始化应用锁 */
+  recoveryReset: (): Promise<{ success: boolean; error?: string }> => {
+    return ipcRenderer.invoke('app-lock:recoveryReset')
+  },
+
   // ==================== 锁操作 ====================
 
   /** 锁定应用（手动触发） */
