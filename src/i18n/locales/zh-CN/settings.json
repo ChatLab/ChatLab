@@ -644,7 +644,8 @@
       "btnUnlock": "解锁",
       "verifying": "验证中...",
       "errorService": "解锁失败，请重试",
-      "errorWrongPassword": "密码错误"
+      "errorWrongPassword": "密码错误",
+      "errorTooManyAttempts": "尝试次数过多，请在 {seconds} 秒后重试"
     }
   }
 }

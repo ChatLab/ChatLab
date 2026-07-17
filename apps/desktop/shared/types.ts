@@ -53,6 +53,7 @@ export type AppLockErrorCode =
   | 'password-not-set'
   | 'same-password'
   | 'wrong-password'
+  | 'too-many-attempts'
   | 'save-failed'
   | 'invalid-config'
   | 'internal-error'
@@ -75,6 +76,7 @@ export interface AppLockResult {
 
 export interface AppLockUnlockResult extends AppLockResult {
   wrongPassword?: boolean
+  retryAfterSeconds?: number
 }
 
 export interface SecurityApi {

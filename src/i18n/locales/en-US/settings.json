@@ -644,7 +644,8 @@
       "btnUnlock": "Unlock",
       "verifying": "Verifying...",
       "errorService": "Unlock failed, please try again",
-      "errorWrongPassword": "Incorrect PIN"
+      "errorWrongPassword": "Incorrect PIN",
+      "errorTooManyAttempts": "Too many attempts. Try again in {seconds} seconds"
     }
   }
 }
