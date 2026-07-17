@@ -461,6 +461,8 @@ function doUnlock(): void {
   clearLockFlag()
   lockState = 'unlocked'
   resetCooldown()
+  // 立即持久化冷却重置，防止下次启动使用旧计数误限流
+  saveConfig(currentConfig, storedPasswordHash)
   stopIdleTimer()
   sendOverlayCommand('hide')
 
@@ -532,27 +534,23 @@ export function setPassword(newPassword: string): PasswordChangeResult {
  * @returns PasswordChangeResult
  */
 export function changePassword(oldPassword: string, newPassword: string): PasswordChangeResult {
+  // 锁屏状态下禁止任何密码操作，不进入校验逻辑防止暴力试探
+  if (lockState === 'locked') {
+    return { success: false, error: '应用已锁定，请先完成解锁再修改密码' }
+  }
+
   if (!storedPasswordHash) {
     return { success: false, error: '尚未设置密码' }
+  }
+
+  if (oldPassword === newPassword) {
+    return { success: false, error: '新密码不能与旧密码相同' }
   }
 
   // 验证旧密码
   const verifyResult = verifyPasswordWithCooldown(oldPassword, storedPasswordHash)
   if (!verifyResult.verified) {
-    return {
-      success: false,
-      error: verifyResult.error || '旧密码错误',
-    }
-  }
-
-  // 新密码不得等于旧密码
-  if (oldPassword === newPassword) {
-    return { success: false, error: '新密码不能与旧密码相同' }
-  }
-
-  // 锁屏状态下禁止修改密码
-  if (lockState === 'locked') {
-    return { success: false, error: '请先解锁应用' }
+    return { success: false, error: verifyResult.error || '旧密码错误' }
   }
 
   // 设置新密码（先写盘，成功后再更新内存）
@@ -686,17 +684,15 @@ export async function updateLockConfig(
   // 合并配置（临时变量，写盘成功后再更新 currentConfig）
   const newConfig: LockConfig = { ...currentConfig, ...updates }
 
-  // 如果关闭了应用锁，清除锁定状态
-  if (updates.enabled === false) {
-    stopIdleTimer()
-  }
-
-  // 先写盘
+  // 先写盘（持久化成功后才操作计时器，避免状态撕裂）
   if (!saveConfig(newConfig, storedPasswordHash)) {
     return { success: false, error: '配置保存失败' }
   }
-  // 写盘成功才更新内存
+  // 写盘成功才更新内存 + 停止计时器
   currentConfig = newConfig
+  if (updates.enabled === false) {
+    stopIdleTimer()
+  }
 
   // 回读校验：若启用 Hello，确认配置已落盘
   if (currentConfig.unlockMode === 'windows-hello') {
