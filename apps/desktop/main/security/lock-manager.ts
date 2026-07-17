@@ -236,27 +236,33 @@ function saveConfig(config: LockConfig, passwordHash: PasswordHash | null): bool
 
 /**
  * 写入锁定 Flag 文件（崩溃恢复用）
+ * @returns true 写入成功，false 失败（磁盘满/权限不足等）
  */
-function setLockFlag(): void {
+function setLockFlag(): boolean {
   try {
     const flagPath = getLockFlagPath()
     fs.writeFileSync(flagPath, Date.now().toString(), 'utf-8')
+    return true
   } catch (error) {
     logger.error(`Failed to write lock flag: ${error instanceof Error ? error.message : String(error)}`)
+    return false
   }
 }
 
 /**
  * 清除锁定 Flag 文件
+ * @returns true 清除成功（或文件本就不存在），false 失败
  */
-function clearLockFlag(): void {
+function clearLockFlag(): boolean {
   try {
     const flagPath = getLockFlagPath()
     if (fs.existsSync(flagPath)) {
       fs.unlinkSync(flagPath)
     }
+    return true
   } catch (error) {
     logger.error(`Failed to clear lock flag: ${error instanceof Error ? error.message : String(error)}`)
+    return false
   }
 }
 
@@ -354,7 +360,13 @@ export function lockApp(): void {
   }
 
   isTransitioning = true
-  setLockFlag()
+
+  // 优先持久化 Flag 文件——仅写入成功后才修改内存状态
+  if (!setLockFlag()) {
+    logger.error('App lock: failed to write lock flag — aborting lock')
+    isTransitioning = false
+    return
+  }
   lockState = 'locked'
 
   logger.info('App locked')
