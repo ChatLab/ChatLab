@@ -88,6 +88,17 @@ export const useLayoutStore = defineStore(
       showSettings.value = false
     }
 
+    /**
+     * 应用锁显示前关闭会拦截鼠标和键盘焦点的全局浮层。
+     */
+    function closeOverlaysForAppLock() {
+      showSettings.value = false
+      showScreenCaptureModal.value = false
+      screenCaptureImage.value = null
+      showChatRecordDrawer.value = false
+      chatRecordQuery.value = null
+    }
+
     function toggleToolsPanelMini() {
       isToolsPanelMini.value = !isToolsPanelMini.value
       if (isToolsPanelMini.value) {
@@ -118,6 +129,7 @@ export const useLayoutStore = defineStore(
       closeChatRecordDrawer,
       openSettings,
       closeSettings,
+      closeOverlaysForAppLock,
     }
   },
   {

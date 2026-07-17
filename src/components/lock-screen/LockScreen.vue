@@ -1,8 +1,10 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useLayoutStore } from '@/stores/layout'
 
 const { t } = useI18n()
+const layoutStore = useLayoutStore()
 const visible = ref(false)
 const isUnlocking = ref(false)
 const password = ref('')
@@ -30,6 +32,7 @@ onUnmounted(() => removeLockListener?.())
 async function showOverlay(): Promise<void> {
   visible.value = true
   resetForm()
+  layoutStore.closeOverlaysForAppLock()
   await nextTick()
   passwordInputRef.value?.focus()
 }
