@@ -323,9 +323,9 @@ presetQuestions:
 
   it('uses the stored digest to upgrade an untouched tracked assistant', () => {
     manager.init()
-    const nextBuiltin = SAMPLE_BUILTIN.replace('你是一个通用助手。', '新版内置提示词。').replace(
+    const nextBuiltin = SAMPLE_BUILTIN.replace(
       'name: 通用助手',
-      'name: 通用助手\nbuiltinVersion: 2'
+      'name: 通用助手\nbuiltinVersion: 2\nallowedBuiltinTools:\n  - keyword_frequency\n  - execute_sql'
     )
     const next = createManager({
       fs: memFs,
@@ -335,7 +335,10 @@ presetQuestions:
     const result = next.manager.init()
 
     assert.equal(result.generalUpdated, true)
-    assert.equal(next.manager.getAssistantConfig('general_cn')!.systemPrompt, '新版内置提示词。')
+    assert.deepEqual(next.manager.getAssistantConfig('general_cn')!.allowedBuiltinTools, [
+      'keyword_frequency',
+      'execute_sql',
+    ])
     assert.equal(next.manager.getAssistantConfig('general_cn')!.builtinVersion, 2)
   })
 
