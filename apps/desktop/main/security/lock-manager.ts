@@ -188,7 +188,13 @@ function loadConfig(): LockConfig | null {
       }
 
       if (data.passwordHash && data.passwordHash.version === 2) {
-        storedPasswordHash = data.passwordHash
+        if (isValidPasswordHashRecord(data.passwordHash)) {
+          storedPasswordHash = data.passwordHash
+        } else {
+          logger.error('App lock: password hash fields corrupted — entering recovery lock')
+          configFileExists = true
+          return null
+        }
       } else if (data.encryptedPassword) {
         storedPasswordHash = null
         logger.info('App lock: legacy encrypted password detected')
@@ -546,14 +552,10 @@ function doUnlock(): void {
 
 /**
  * 设置新密码（仅用于首次初始化，无历史密码场景）
- *
- * 安全规则：
- * - 锁屏状态下禁止修改密码
- * - 已有密码时拒绝直接覆盖，必须走 changePassword 校验旧密码
- * - 先写盘成功，再更新内存状态
+ * @param newPassword 新密码
+ * @param enableLock  是否同时启用锁（首次初始化传 true，原子事务避免中间态）
  */
-export function setPassword(newPassword: string): PasswordChangeResult {
-  // 锁屏状态下禁止修改密码
+export function setPassword(newPassword: string, enableLock: boolean = false): PasswordChangeResult {
   if (lockState === 'locked') {
     return { success: false, error: '请先解锁应用' }
   }
@@ -566,21 +568,23 @@ export function setPassword(newPassword: string): PasswordChangeResult {
     return { success: false, error: `密码长度不能超过 ${MAX_PASSWORD_LENGTH} 位` }
   }
 
-  // 已有密码时拒绝直接覆盖，必须走 changePassword
   if (storedPasswordHash) {
     return { success: false, error: '已有密码，请使用修改密码功能' }
   }
 
   try {
     const hashed = hashPassword(newPassword)
-    // 先写盘
-    if (!saveConfig(currentConfig, hashed)) {
+    const configToSave = enableLock
+      ? { ...currentConfig, enabled: true }
+      : currentConfig
+    // 单原子事务：密码哈希 + 启用锁一步写入，避免中间态崩溃导致锁永久关闭
+    if (!saveConfig(configToSave, hashed)) {
       return { success: false, error: '密码保存失败' }
     }
-    // 写盘成功才更新内存
     storedPasswordHash = hashed
+    if (enableLock) { currentConfig = configToSave }
     resetCooldown()
-    logger.info('App lock password hash stored')
+    logger.info('App lock password initialized')
     return { success: true, strength: evaluatePasswordStrength(newPassword) }
   } catch (error) {
     const errMsg = error instanceof Error ? error.message : String(error)
@@ -891,13 +895,20 @@ export async function verifyHelloForEnroll(message: string): Promise<{
  * 安全兜底校验：锁已启用但没有密码 → 自动回滚禁用
  * 防止配置损坏或手动篡改导致的无密码锁死
  */
+/** 校验 passwordHash 对象字段完整性（hash/salt 非空、长度合规） */
+function isValidPasswordHashRecord(hash: unknown): boolean {
+  if (!hash || typeof hash !== 'object') return false
+  const h = hash as Record<string, unknown>
+  return typeof h.hash === 'string' && h.hash.length >= 96
+    && typeof h.salt === 'string' && h.salt.length >= 64
+    && h.version === 2
+}
+
 function validateAndSanitizeConfig(): void {
   if (currentConfig.enabled && !storedPasswordHash) {
-    logger.warn('App lock: enabled=true but no password hash — auto-disabling lock')
-    const sanitized = { ...currentConfig, enabled: false }
-    if (saveConfig(sanitized, null)) {
-      currentConfig = sanitized
-    }
+    // 语义损坏：锁开启但无密码 → fail-closed，进入恢复锁定
+    logger.error('App lock: enabled=true but no password hash — entering recovery lock')
+    enterRecoveryLock()
   }
 }
 

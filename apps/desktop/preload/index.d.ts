@@ -356,7 +356,7 @@ interface SecurityApi {
   recoveryReset: () => Promise<{ success: boolean; error?: string }>
   lock: () => Promise<{ success: boolean; error?: string }>
   unlock: (credentials?: { password?: string; useWindowsHello?: boolean }) => Promise<UnlockResult>
-  setPassword: (newPassword: string) => Promise<PasswordChangeResult>
+  setPassword: (newPassword: string, enableLock?: boolean) => Promise<PasswordChangeResult>
   changePassword: (oldPassword: string, newPassword: string) => Promise<PasswordChangeResult>
   resetPassword: () => Promise<{ success: boolean; error?: string }>
   updateConfig: (

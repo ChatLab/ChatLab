@@ -115,12 +115,12 @@ async function handleSetOrChangePassword() {
         result = await window.securityApi?.reEnableLock(oldPassword.value)
       }
     } else {
-      // 首次设置密码
-      result = await window.securityApi?.setPassword(newPassword.value)
+      // 首次设置密码 → 原子事务一步完成（密码哈希 + 启用锁）
+      result = await window.securityApi?.setPassword(newPassword.value, true)
     }
     if (result?.success) {
       closePasswordForm()
-      if (!isEnabled.value) { await applyConfig({ enabled: true }) }
+      // setPassword 已原子写入 enabled=true，只需刷新配置
       await loadConfig()
       saveMessage.value = t('settings.security.password.success'); saveError.value = false
       setTimeout(() => (saveMessage.value = ''), 3000)

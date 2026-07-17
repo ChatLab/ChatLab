@@ -103,12 +103,12 @@ export function registerSecurityHandlers(_ctx: IpcContext): void {
   /**
    * 设置密码（首次或重置后）
    */
-  ipcMain.handle('app-lock:setPassword', (_event, newPassword: string) => {
+  ipcMain.handle('app-lock:setPassword', (_event, newPassword: string, enableLock?: boolean) => {
     try {
       if (typeof newPassword !== 'string') {
         return { success: false, error: '参数错误' }
       }
-      const result = setPassword(newPassword)
+      const result = setPassword(newPassword, enableLock ?? false)
       return result
     } catch {
       logger.error(`IPC app-lock:setPassword failed`)

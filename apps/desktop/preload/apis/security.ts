@@ -99,9 +99,9 @@ export const securityApi = {
 
   // ==================== 密码管理 ====================
 
-  /** 设置密码（首次或重置后） */
-  setPassword: (newPassword: string): Promise<PasswordChangeResult> => {
-    return ipcRenderer.invoke('app-lock:setPassword', newPassword)
+  /** 设置密码（首次或重置后），enableLock=true 原子写入密码+启用锁 */
+  setPassword: (newPassword: string, enableLock?: boolean): Promise<PasswordChangeResult> => {
+    return ipcRenderer.invoke('app-lock:setPassword', newPassword, enableLock ?? false)
   },
 
   /** 修改密码 */
