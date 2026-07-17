@@ -154,17 +154,22 @@ function getLockFlagPath(): string {
   return join(getSettingsDir(), LOCK_FLAG_FILE)
 }
 
+/** 标记配置文件是否存在（用于区分首次启动 vs 文件损坏） */
+let configFileExists = false
+
 /**
  * 加载锁配置
+ * - 文件不存在 → 返回 null（首次初始化，正常流程）
+ * - 文件存在但解析失败 → 标记损坏，返回 null（故障闭环 fail-closed）
  */
 function loadConfig(): LockConfig | null {
   try {
     const configPath = getLockConfigPath()
     if (fs.existsSync(configPath)) {
+      configFileExists = true
       const raw = fs.readFileSync(configPath, 'utf-8')
       const data = JSON.parse(raw)
 
-      // 合并默认值（防御性：防止配置文件被手动编辑后缺少字段）
       const config: LockConfig = {
         ...DEFAULT_LOCK_CONFIG,
         enabled: typeof data.enabled === 'boolean' ? data.enabled : DEFAULT_LOCK_CONFIG.enabled,
@@ -182,7 +187,6 @@ function loadConfig(): LockConfig | null {
           typeof data.lockOnStartup === 'boolean' ? data.lockOnStartup : DEFAULT_LOCK_CONFIG.lockOnStartup,
       }
 
-      // 读取密码凭证
       if (data.passwordHash && data.passwordHash.version === 2) {
         storedPasswordHash = data.passwordHash
       } else if (data.encryptedPassword) {
@@ -190,15 +194,14 @@ function loadConfig(): LockConfig | null {
         logger.info('App lock: legacy encrypted password detected')
       }
 
-      // 恢复持久化冷却状态（进程重启后保留爆破限制）
       loadCooldownState(data.cooldown)
-
       return config
     }
+    // 文件不存在：首次启动
+    configFileExists = false
   } catch (error) {
-    logger.error(`Failed to load lock config: ${error instanceof Error ? error.message : String(error)}`)
-    // 配置损坏时保持上次已知状态，拒绝降级为无锁
-    return null
+    configFileExists = true // 文件存在但损坏
+    logger.error(`CRITICAL: Lock config file corrupted — ${error instanceof Error ? error.message : String(error)}`)
   }
   return null
 }
@@ -294,14 +297,18 @@ function sendOverlayCommand(command: 'show' | 'hide'): void {
 export function initLockManager(mainWindow: BrowserWindow): void {
   mainWindowRef = mainWindow
 
-  // 加载配置（损坏时保持上次状态，拒绝降级为无锁）
+  // 加载配置
   const loaded = loadConfig()
   if (loaded) {
     currentConfig = loaded
-  } else {
-    logger.warn('App lock: config corrupted, keeping previous lock state')
-    // 保持 currentConfig (DEFAULT_LOCK_CONFIG 默认启用 lockOnStartup)
+  } else if (configFileExists) {
+    // 文件存在但损坏 → 故障闭环 fail-closed，强制锁定
+    logger.error('CRITICAL: Lock config file corrupted — forcing lock for safety')
+    currentConfig = { ...DEFAULT_LOCK_CONFIG, enabled: false }
+    lockApp()
+    return
   }
+  // 文件不存在 → 首次初始化，使用默认配置正常启动
 
   // 兜底校验
   validateAndSanitizeConfig()

@@ -79,13 +79,13 @@ async function loadConfig() {
   try { const hello = await window.securityApi?.checkWindowsHello(); if (hello) helloTipText.value = hello.tipText } catch { /* ignore */ }
 }
 
-async function applyConfig(updates: Partial<{ enabled: boolean; unlockMode: 'password' | 'windows-hello'; idleTimeoutMinutes: number; lockOnBlur: boolean; lockOnStartup: boolean }>) {
+async function applyConfig(updates: Partial<{ enabled: boolean; unlockMode: 'password' | 'windows-hello'; idleTimeoutMinutes: number; lockOnBlur: boolean; lockOnStartup: boolean }>): Promise<boolean> {
   isSaving.value = true; saveMessage.value = ''; saveError.value = false
   try {
     const result = await window.securityApi?.updateConfig(updates)
-    if (result?.success) { if (result.config) config.value = result.config; saveMessage.value = t('settings.security.toast.saved') }
-    else { saveError.value = true; saveMessage.value = result?.error || t('settings.security.toast.failed') }
-  } catch { saveError.value = true; saveMessage.value = t('settings.security.toast.failed') }
+    if (result?.success) { if (result.config) config.value = result.config; saveMessage.value = t('settings.security.toast.saved'); return true }
+    else { saveError.value = true; saveMessage.value = result?.error || t('settings.security.toast.failed'); return false }
+  } catch { saveError.value = true; saveMessage.value = t('settings.security.toast.failed'); return false }
   finally { isSaving.value = false; setTimeout(() => { saveMessage.value = ''; saveError.value = false }, 3000) }
 }
 
@@ -131,8 +131,8 @@ async function handleSetOrChangePassword() {
 
 async function handleDisableLock() {
   if (!confirm(t('settings.security.lock.disableConfirm'))) return
-  await applyConfig({ enabled: false, unlockMode: 'password' })
-  await loadConfig()
+  const ok = await applyConfig({ enabled: false, unlockMode: 'password' })
+  if (ok) await loadConfig()
 }
 
 async function handleEnableHello() {
@@ -165,9 +165,12 @@ async function handleEnableHello() {
 }
 
 async function handleDisableHello() {
-  await applyConfig({ unlockMode: 'password' }); await loadConfig()
-  saveMessage.value = t('settings.security.hello.disabled'); saveError.value = false
-  setTimeout(() => (saveMessage.value = ''), 3000)
+  const ok = await applyConfig({ unlockMode: 'password' })
+  if (ok) {
+    await loadConfig()
+    saveMessage.value = t('settings.security.hello.disabled'); saveError.value = false
+    setTimeout(() => (saveMessage.value = ''), 3000)
+  }
 }
 
 async function handleTimeoutChange(minutes: number) { await applyConfig({ idleTimeoutMinutes: minutes }) }
