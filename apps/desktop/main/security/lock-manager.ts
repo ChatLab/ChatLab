@@ -178,7 +178,7 @@ function loadConfig(): LockConfig | null {
             ? data.unlockMode
             : DEFAULT_LOCK_CONFIG.unlockMode,
         idleTimeoutMinutes:
-          typeof data.idleTimeoutMinutes === 'number' && data.idleTimeoutMinutes > 0
+          typeof data.idleTimeoutMinutes === 'number' && data.idleTimeoutMinutes >= 0
             ? data.idleTimeoutMinutes
             : DEFAULT_LOCK_CONFIG.idleTimeoutMinutes,
         lockOnBlur:
@@ -582,7 +582,10 @@ export function setPassword(newPassword: string, enableLock: boolean = false): P
       return { success: false, error: '密码保存失败' }
     }
     storedPasswordHash = hashed
-    if (enableLock) { currentConfig = configToSave }
+    if (enableLock) {
+      currentConfig = configToSave
+      if (configToSave.idleTimeoutMinutes > 0) startIdleTimer()
+    }
     resetCooldown()
     logger.info('App lock password initialized')
     return { success: true, strength: evaluatePasswordStrength(newPassword) }
