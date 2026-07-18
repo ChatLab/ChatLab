@@ -339,6 +339,67 @@ defineExpose({
       </div>
     </div>
 
+    <!-- 迁移后的旧目录需要用户确认清理，置顶展示以避免被普通存储项淹没。 -->
+    <div
+      v-if="pendingCleanups.length > 0"
+      class="rounded-lg border border-gray-200 border-l-2 border-l-primary-400 bg-gray-50 px-3 py-3 dark:border-gray-700 dark:border-l-primary-500 dark:bg-gray-800/50"
+    >
+      <div class="flex items-start gap-3">
+        <div
+          class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-primary-100 text-primary-600 dark:bg-primary-900/50 dark:text-primary-300"
+        >
+          <UIcon name="i-heroicons-archive-box" class="h-4 w-4" />
+        </div>
+        <div class="min-w-0 flex-1">
+          <p class="text-sm font-semibold text-gray-900 dark:text-white">
+            {{ t('settings.storage.dataLocation.cleanupTitle') }}
+          </p>
+          <p class="mt-0.5 text-xs leading-5 text-gray-600 dark:text-gray-400">
+            {{ t('settings.storage.dataLocation.cleanupDescription') }}
+          </p>
+        </div>
+      </div>
+
+      <div class="mt-2.5 divide-y divide-gray-200 pl-11 dark:divide-gray-700">
+        <div
+          v-for="cleanup in pendingCleanups"
+          :key="cleanup.id"
+          class="flex items-center gap-3 py-2.5 first:pt-0 last:pb-0"
+        >
+          <div class="min-w-0 flex-1">
+            <p class="truncate font-mono text-xs text-gray-700 dark:text-gray-300" :title="cleanup.sourceDir">
+              {{ cleanup.sourceDir }}
+            </p>
+            <p class="mt-0.5 text-xs text-gray-400">
+              {{ cleanup.exists ? formatSize(cleanup.size) : t('settings.storage.notExist') }}
+            </p>
+          </div>
+          <div class="flex shrink-0 items-center gap-1">
+            <UButton
+              icon="i-heroicons-folder-open"
+              variant="ghost"
+              size="xs"
+              :disabled="!cleanup.exists || deletingCleanupId !== null"
+              @click="openCleanupDir(cleanup.id)"
+            >
+              {{ t('settings.storage.dataLocation.open') }}
+            </UButton>
+            <UButton
+              icon="i-heroicons-trash"
+              color="red"
+              variant="soft"
+              size="xs"
+              :loading="deletingCleanupId === cleanup.id"
+              :disabled="deletingCleanupId !== null"
+              @click="requestCleanupDelete(cleanup)"
+            >
+              {{ t('settings.storage.dataLocation.cleanupDeleteAction') }}
+            </UButton>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <!-- 加载状态 -->
     <div v-if="isLoading && !cacheInfo" class="flex items-center justify-center py-8">
       <UIcon name="i-heroicons-arrow-path" class="h-5 w-5 animate-spin text-gray-400" />
@@ -346,81 +407,64 @@ defineExpose({
     </div>
 
     <!-- 缓存目录列表 -->
-    <div v-else-if="cacheInfo" class="space-y-2">
-      <div
-        v-for="dir in cacheInfo.directories"
-        :key="dir.id"
-        class="rounded-lg border border-gray-200 bg-gray-50 px-3 py-2.5 transition-colors hover:bg-gray-100 dark:border-gray-700 dark:bg-gray-800/50 dark:hover:bg-gray-800"
-      >
-        <div class="flex items-center justify-between">
-          <!-- 左侧信息 -->
-          <div class="flex items-center gap-3">
+    <div
+      v-else-if="cacheInfo"
+      class="rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50"
+    >
+      <div class="divide-y divide-gray-200 dark:divide-gray-700">
+        <div
+          v-for="dir in cacheInfo.directories"
+          :key="dir.id"
+          class="group flex items-center justify-between px-4 py-2.5 transition-colors hover:bg-gray-100/50 dark:hover:bg-gray-700/30"
+        >
+          <div class="flex min-w-0 items-center gap-3">
             <div
-              class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg"
-              :class="{
-                'bg-green-100 dark:bg-green-900/30': dir.id === 'databases',
-                'bg-violet-100 dark:bg-violet-900/30': dir.id === 'ai',
-                'bg-cyan-100 dark:bg-cyan-900/30': dir.id === 'cache',
-                'bg-amber-100 dark:bg-amber-900/30': dir.id === 'downloads',
-                'bg-blue-100 dark:bg-blue-900/30': dir.id === 'logs',
-              }"
+              class="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-gray-200 text-gray-500 dark:bg-gray-700 dark:text-gray-400"
             >
-              <UIcon
-                :name="dir.icon"
-                class="h-4 w-4"
-                :class="{
-                  'text-green-600 dark:text-green-400': dir.id === 'databases',
-                  'text-violet-600 dark:text-violet-400': dir.id === 'ai',
-                  'text-cyan-600 dark:text-cyan-400': dir.id === 'cache',
-                  'text-amber-600 dark:text-amber-400': dir.id === 'downloads',
-                  'text-blue-600 dark:text-blue-400': dir.id === 'logs',
-                }"
-              />
+              <UIcon :name="dir.icon" class="h-3.5 w-3.5" />
             </div>
-            <div>
-              <div class="flex items-center gap-2">
-                <h4 class="text-sm font-medium text-gray-900 dark:text-white">{{ t(dir.name) }}</h4>
-                <UBadge variant="soft" color="gray" size="xs">
-                  {{
-                    t(
-                      dir.scope === 'user-data'
-                        ? 'settings.storage.scope.userData'
-                        : 'settings.storage.scope.systemData'
-                    )
-                  }}
-                </UBadge>
-                <UBadge v-if="!dir.exists" variant="soft" color="gray" size="xs">
+            <div class="flex min-w-0 items-center gap-2">
+              <span class="w-32 shrink-0 truncate text-sm font-medium text-gray-900 dark:text-white">
+                {{ t(dir.name) }}
+              </span>
+              <span class="flex min-w-0 items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400">
+                <span class="truncate">{{ t(dir.description) }}</span>
+                <UBadge v-if="!dir.exists" color="neutral" variant="subtle" size="xs">
                   {{ t('settings.storage.notExist') }}
                 </UBadge>
-              </div>
-              <p class="text-xs text-gray-500 dark:text-gray-400">{{ t(dir.description) }}</p>
+              </span>
             </div>
           </div>
 
-          <!-- 右侧信息和操作按钮 -->
-          <div class="flex items-center">
-            <!-- 文件数和大小（固定宽度对齐） -->
-            <div class="flex items-center gap-2 text-xs text-gray-400">
-              <span class="w-14 text-right">{{ dir.fileCount }} {{ t('settings.storage.files') }}</span>
+          <div class="ml-4 flex shrink-0 items-center gap-3">
+            <div class="flex items-center gap-1.5 text-xs text-gray-400 tabular-nums">
+              <span class="w-20 text-right">{{ dir.fileCount }} {{ t('settings.storage.files') }}</span>
+              <span>·</span>
               <span class="w-16 text-right">{{ formatSize(dir.size) }}</span>
             </div>
-            <!-- 操作按钮（固定宽度） -->
-            <div class="ml-4 flex w-36 shrink-0 items-center justify-end gap-1">
+            <div class="flex w-16 shrink-0 items-center justify-end gap-1">
+              <UButton
+                icon="i-heroicons-folder-open"
+                color="neutral"
+                variant="ghost"
+                size="xs"
+                class="hover:bg-gray-200/80 dark:hover:bg-gray-700"
+                :aria-label="t('settings.storage.open')"
+                :title="t('settings.storage.open')"
+                @click="openDirectory(dir.id)"
+              />
               <UButton
                 v-if="dir.canClear && dir.size > 0"
                 icon="i-heroicons-trash"
-                variant="soft"
-                color="red"
+                color="error"
+                variant="ghost"
                 size="xs"
                 :loading="clearingId === dir.id"
                 :disabled="clearingId !== null"
+                :aria-label="t('settings.storage.clear')"
+                :title="t('settings.storage.clear')"
                 @click="clearCache(dir.id)"
-              >
-                {{ t('settings.storage.clear') }}
-              </UButton>
-              <UButton icon="i-heroicons-folder-open" variant="ghost" size="xs" @click="openDirectory(dir.id)">
-                {{ t('settings.storage.open') }}
-              </UButton>
+              />
             </div>
           </div>
         </div>
@@ -506,62 +550,6 @@ defineExpose({
             >
               {{ t('settings.storage.dataLocation.migrateAction') }}
             </UButton>
-          </div>
-        </div>
-
-        <div
-          v-if="pendingCleanups.length > 0"
-          class="mt-3 rounded-lg border border-amber-200 bg-amber-50/70 p-3 dark:border-amber-900/60 dark:bg-amber-950/20"
-        >
-          <div class="flex items-start gap-2.5">
-            <UIcon name="i-heroicons-archive-box" class="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
-            <div class="min-w-0 flex-1">
-              <p class="text-sm font-medium text-gray-900 dark:text-white">
-                {{ t('settings.storage.dataLocation.cleanupTitle') }}
-              </p>
-              <p class="mt-0.5 text-xs leading-5 text-gray-600 dark:text-gray-400">
-                {{ t('settings.storage.dataLocation.cleanupDescription') }}
-              </p>
-            </div>
-          </div>
-
-          <div class="mt-3 space-y-2">
-            <div
-              v-for="cleanup in pendingCleanups"
-              :key="cleanup.id"
-              class="flex items-center gap-3 rounded-lg border border-amber-200/80 bg-white px-3 py-2.5 dark:border-amber-900/50 dark:bg-gray-900/60"
-            >
-              <div class="min-w-0 flex-1">
-                <p class="truncate font-mono text-xs text-gray-700 dark:text-gray-300" :title="cleanup.sourceDir">
-                  {{ cleanup.sourceDir }}
-                </p>
-                <p class="mt-0.5 text-xs text-gray-400">
-                  {{ cleanup.exists ? formatSize(cleanup.size) : t('settings.storage.notExist') }}
-                </p>
-              </div>
-              <div class="flex shrink-0 items-center gap-1">
-                <UButton
-                  icon="i-heroicons-folder-open"
-                  variant="ghost"
-                  size="xs"
-                  :disabled="!cleanup.exists || deletingCleanupId !== null"
-                  @click="openCleanupDir(cleanup.id)"
-                >
-                  {{ t('settings.storage.dataLocation.open') }}
-                </UButton>
-                <UButton
-                  icon="i-heroicons-trash"
-                  color="red"
-                  variant="soft"
-                  size="xs"
-                  :loading="deletingCleanupId === cleanup.id"
-                  :disabled="deletingCleanupId !== null"
-                  @click="requestCleanupDelete(cleanup)"
-                >
-                  {{ t('settings.storage.dataLocation.cleanupDeleteAction') }}
-                </UButton>
-              </div>
-            </div>
           </div>
         </div>
 

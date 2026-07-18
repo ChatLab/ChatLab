@@ -206,10 +206,6 @@
       "cleanupDeleteFailed": "Failed to delete old data"
     },
     "openRootDir": "Open Root",
-    "scope": {
-      "userData": "Chat data",
-      "systemData": "System data"
-    },
     "totalUsage": "Total: ",
     "loading": "Loading...",
     "files": "files",

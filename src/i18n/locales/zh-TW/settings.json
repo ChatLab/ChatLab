@@ -206,10 +206,6 @@
       "cleanupDeleteFailed": "舊資料刪除失敗"
     },
     "openRootDir": "開啟根目錄",
-    "scope": {
-      "userData": "聊天資料目錄",
-      "systemData": "系統資料目錄"
-    },
     "totalUsage": "總佔用：",
     "loading": "載入中...",
     "files": "檔案",

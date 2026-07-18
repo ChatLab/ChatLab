@@ -206,10 +206,6 @@
       "cleanupDeleteFailed": "旧数据删除失败"
     },
     "openRootDir": "打开根目录",
-    "scope": {
-      "userData": "聊天数据目录",
-      "systemData": "系统数据目录"
-    },
     "totalUsage": "总占用：",
     "loading": "加载中...",
     "files": "文件",
