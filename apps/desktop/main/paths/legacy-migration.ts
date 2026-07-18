@@ -6,7 +6,7 @@ import { app } from 'electron'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { loadConfig, writeConfigField } from '@openchatlab/config'
-import { copyDirMerge, copyDirRecursive, writeMigrationLog } from '../utils/pathUtils'
+import { arePathsEqual, copyDirMerge, copyDirRecursive, writeMigrationLog } from '../utils/pathUtils'
 import { shouldMarkUnifiedDirMigrationDone } from '../utils/unifiedDirMigration'
 import {
   ensureDir,
@@ -47,12 +47,8 @@ export function getLegacyDataDir(): string {
 export function needsLegacyMigration(): boolean {
   const legacyDir = getLegacyDataDir()
 
-  // 检查 Documents/ChatLab 是否存在
-  if (fs.existsSync(legacyDir)) {
-    return true
-  }
-
-  return false
+  // 用户可以主动将 Documents/ChatLab 设为当前数据目录，此时它不是待迁移的旧目录。
+  return fs.existsSync(legacyDir) && !arePathsEqual(legacyDir, getUserDataDir())
 }
 
 /**
@@ -138,6 +134,14 @@ export function migrateFromLegacyDir(): { success: boolean; migratedDirs: string
       return { success: true, migratedDirs: [] }
     }
 
+    // 迁移函数包含递归删除，必须在执行层再次阻止源目录与当前数据目录相同。
+    if (arePathsEqual(legacyDir, newDir)) {
+      const message = `Legacy migration skipped because source is the active data directory: ${legacyDir}`
+      console.warn(`[Paths] ${message}`)
+      writeMigrationLog(getLogsDir(), message, ensureDir)
+      return { success: true, migratedDirs: [] }
+    }
+
     // 获取旧目录下的所有子目录和文件
     const entries = fs.readdirSync(legacyDir, { withFileTypes: true })
     const dirsToMigrate = entries
@@ -196,6 +200,13 @@ export function removeLegacyDir(): boolean {
 
   if (!fs.existsSync(legacyDir)) {
     return true
+  }
+
+  if (arePathsEqual(legacyDir, getUserDataDir())) {
+    const message = `Legacy directory removal blocked because it is the active data directory: ${legacyDir}`
+    console.error(`[Paths] ${message}`)
+    writeMigrationLog(getLogsDir(), message, ensureDir)
+    return false
   }
 
   try {
