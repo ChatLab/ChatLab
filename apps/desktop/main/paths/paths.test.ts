@@ -102,17 +102,36 @@ test('desktop paths preserve data across configured and legacy directory migrati
     fs.writeFileSync(path.join(legacyDir, 'databases', 'legacy.db'), 'legacy', 'utf-8')
     fs.writeFileSync(path.join(legacyDir, 'temp', 'stale.tmp'), 'temporary', 'utf-8')
 
-    configuredUserDataDir = legacyDir
-    paths.setCachedUserDataDir(legacyDir)
-    assert.equal(paths.needsLegacyMigration(), false)
-    const sameDirResult = paths.migrateFromLegacyDir()
-    assert.equal(sameDirResult.success, true)
-    assert.equal(fs.readFileSync(path.join(legacyDir, 'databases', 'legacy.db'), 'utf-8'), 'legacy')
-    assert.equal(paths.removeLegacyDir(), false)
-    assert.equal(fs.readFileSync(path.join(legacyDir, 'databases', 'legacy.db'), 'utf-8'), 'legacy')
+    const assertLegacyMigrationBlocked = (activeDir: string) => {
+      configuredUserDataDir = activeDir
+      paths.setCachedUserDataDir(activeDir)
+      assert.equal(paths.needsLegacyMigration(), false)
+      assert.equal(paths.migrateFromLegacyDir().success, true)
+      assert.equal(paths.removeLegacyDir(), false)
+      assert.equal(fs.readFileSync(path.join(legacyDir, 'databases', 'legacy.db'), 'utf-8'), 'legacy')
+    }
+
+    assertLegacyMigrationBlocked(legacyDir)
 
     configuredUserDataDir = targetDir
     paths.setCachedUserDataDir(targetDir)
+    const nestedActiveDir = path.join(legacyDir, 'active-data')
+    assert.equal(paths.setCustomDataDir(nestedActiveDir, true).success, true)
+    assert.equal(paths.applyPendingDataDirMigration().success, true)
+    assert.equal(configuredUserDataDir, nestedActiveDir)
+    assertLegacyMigrationBlocked(nestedActiveDir)
+    assert.equal(fs.readFileSync(path.join(nestedActiveDir, 'databases', 'current.db'), 'utf-8'), 'sqlite')
+
+    assertLegacyMigrationBlocked(documentsDir)
+
+    const legacyAliasDir = path.join(root, 'legacy-alias')
+    fs.symlinkSync(legacyDir, legacyAliasDir, process.platform === 'win32' ? 'junction' : 'dir')
+    assertLegacyMigrationBlocked(legacyAliasDir)
+
+    configuredUserDataDir = targetDir
+    paths.setCachedUserDataDir(targetDir)
+    fs.unlinkSync(legacyAliasDir)
+    fs.rmSync(nestedActiveDir, { recursive: true, force: true })
     assert.equal(paths.needsLegacyMigration(), true)
     const legacyResult = paths.migrateFromLegacyDir()
     assert.equal(legacyResult.success, true)

@@ -6,7 +6,7 @@ import { app } from 'electron'
 import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { loadConfig, writeConfigField } from '@openchatlab/config'
-import { arePathsEqual, copyDirMerge, copyDirRecursive, writeMigrationLog } from '../utils/pathUtils'
+import { arePathsOverlapping, copyDirMerge, copyDirRecursive, writeMigrationLog } from '../utils/pathUtils'
 import { shouldMarkUnifiedDirMigrationDone } from '../utils/unifiedDirMigration'
 import {
   ensureDir,
@@ -47,8 +47,8 @@ export function getLegacyDataDir(): string {
 export function needsLegacyMigration(): boolean {
   const legacyDir = getLegacyDataDir()
 
-  // 用户可以主动将 Documents/ChatLab 设为当前数据目录，此时它不是待迁移的旧目录。
-  return fs.existsSync(legacyDir) && !arePathsEqual(legacyDir, getUserDataDir())
+  // 用户可以将 Documents/ChatLab 或其父子目录设为当前数据目录，此时它不是可安全删除的旧目录。
+  return fs.existsSync(legacyDir) && !arePathsOverlapping(legacyDir, getUserDataDir())
 }
 
 /**
@@ -134,9 +134,9 @@ export function migrateFromLegacyDir(): { success: boolean; migratedDirs: string
       return { success: true, migratedDirs: [] }
     }
 
-    // 迁移函数包含递归删除，必须在执行层再次阻止源目录与当前数据目录相同。
-    if (arePathsEqual(legacyDir, newDir)) {
-      const message = `Legacy migration skipped because source is the active data directory: ${legacyDir}`
+    // 迁移函数包含递归删除，必须在执行层再次阻止源目录与当前数据目录重叠。
+    if (arePathsOverlapping(legacyDir, newDir)) {
+      const message = `Legacy migration skipped because source overlaps the active data directory: ${legacyDir} -> ${newDir}`
       console.warn(`[Paths] ${message}`)
       writeMigrationLog(getLogsDir(), message, ensureDir)
       return { success: true, migratedDirs: [] }
@@ -202,8 +202,9 @@ export function removeLegacyDir(): boolean {
     return true
   }
 
-  if (arePathsEqual(legacyDir, getUserDataDir())) {
-    const message = `Legacy directory removal blocked because it is the active data directory: ${legacyDir}`
+  const currentDir = getUserDataDir()
+  if (arePathsOverlapping(legacyDir, currentDir)) {
+    const message = `Legacy directory removal blocked because it overlaps the active data directory: ${legacyDir} -> ${currentDir}`
     console.error(`[Paths] ${message}`)
     writeMigrationLog(getLogsDir(), message, ensureDir)
     return false

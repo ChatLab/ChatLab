@@ -21,18 +21,42 @@ const DANGEROUS_PATHS = [
   '/Library',
 ]
 
-// 统一路径标准化（兼容 Windows 大小写差异）
+// 统一路径标准化：解析已存在的真实父目录，同时兼容 Windows 大小写差异。
 function normalizePathForCompare(input: string): string {
   const resolved = path.resolve(input)
-  const normalized = path.normalize(resolved)
+  const missingSegments: string[] = []
+  let existingPath = resolved
+
+  // 目标目录可能尚未创建，因此从最近的已存在父目录解析符号链接或 Windows 目录别名。
+  while (!fs.existsSync(existingPath)) {
+    const parent = path.dirname(existingPath)
+    if (parent === existingPath) break
+    missingSegments.unshift(path.basename(existingPath))
+    existingPath = parent
+  }
+
+  try {
+    existingPath = fs.realpathSync.native(existingPath)
+  } catch {
+    // 无法解析真实路径时保留 path.resolve 的结果，仍可执行普通的路径重叠检查。
+  }
+
+  const normalized = path.normalize(path.join(existingPath, ...missingSegments))
   return process.platform === 'win32' ? normalized.toLowerCase() : normalized
 }
 
 /**
- * 判断两个路径是否指向同一个规范化位置
+ * 判断两个路径是否相同或存在父子目录重叠
  */
-export function arePathsEqual(first: string, second: string): boolean {
-  return normalizePathForCompare(first) === normalizePathForCompare(second)
+export function arePathsOverlapping(first: string, second: string): boolean {
+  const firstPath = normalizePathForCompare(first)
+  const secondPath = normalizePathForCompare(second)
+
+  return (
+    firstPath === secondPath ||
+    secondPath.startsWith(`${firstPath}${path.sep}`) ||
+    firstPath.startsWith(`${secondPath}${path.sep}`)
+  )
 }
 
 /**
