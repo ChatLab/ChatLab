@@ -31,6 +31,17 @@ export interface DataDirInfo {
     to: string
     createdAt: string
   }
+  pendingCleanups: DataDirCleanupInfo[]
+}
+
+export interface DataDirCleanupInfo {
+  id: string
+  sourceDir: string
+  targetDir: string
+  createdAt: string
+  noticeDismissed: boolean
+  exists: boolean
+  size: number
 }
 
 export interface CacheServiceAdapter {
@@ -41,6 +52,9 @@ export interface CacheServiceAdapter {
     path: string | null,
     migrate?: boolean
   ): Promise<{ success: boolean; error?: string; from?: string; to?: string; requiresRelaunch?: boolean }>
+  openDataDirCleanup(cleanupId: string): Promise<{ success: boolean; error?: string }>
+  dismissDataDirCleanupNotice(cleanupId: string): Promise<{ success: boolean; error?: string }>
+  deleteDataDirCleanup(cleanupId: string): Promise<{ success: boolean; error?: string }>
   getLatestImportLog(): Promise<{ success: boolean; path?: string; name?: string; error?: string }>
   saveToDownloads(filename: string, dataUrl: string): Promise<{ success: boolean; filePath?: string; error?: string }>
   openDir(cacheId: string): Promise<{ success: boolean; error?: string }>

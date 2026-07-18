@@ -129,12 +129,77 @@ describe('registerCacheRoutes data directory routes', () => {
       managedScope: 'chat-databases',
       managedDescription: 'settings.storage.dataLocation.managedDescription',
       hasLegacyDataAtDefaultDir: false,
+      pendingCleanups: [],
       pendingMigration: {
         from: testUserDataDir,
         to: testNewDataDir,
         createdAt: '2026-06-02T00:00:00.000Z',
       },
     })
+
+    await app.close()
+  })
+
+  it('exposes pending cleanup records and delegates manual cleanup actions', async (t) => {
+    const root = makeTempDir(t)
+    const oldDir = path.join(root, 'old-data')
+    fs.mkdirSync(path.join(oldDir, 'databases'), { recursive: true })
+    fs.writeFileSync(path.join(oldDir, 'databases', 'session.db'), 'sqlite')
+
+    const calls: string[] = []
+    const app = Fastify()
+    registerCacheRoutes(app, {
+      pathProvider: createPathProvider(),
+      getPendingDataDirCleanups: () => [
+        {
+          id: 'cleanup-1',
+          sourceDir: oldDir,
+          targetDir: testUserDataDir,
+          createdAt: '2026-07-18T00:00:00.000Z',
+          noticeDismissed: false,
+        },
+      ],
+      dismissPendingDataDirCleanupNotice: (cleanupId) => {
+        calls.push(`dismiss:${cleanupId}`)
+        return true
+      },
+      deletePendingDataDirCleanup: (cleanupId) => {
+        calls.push(`delete:${cleanupId}`)
+        return { success: true }
+      },
+      openDirectory: async (dirPath) => {
+        calls.push(`open:${dirPath}`)
+      },
+    })
+    await app.ready()
+
+    const infoResponse = await app.inject({ method: 'GET', url: '/_web/cache/data-dir' })
+    assert.equal(infoResponse.statusCode, 200)
+    assert.deepEqual(infoResponse.json().pendingCleanups, [
+      {
+        id: 'cleanup-1',
+        sourceDir: oldDir,
+        targetDir: testUserDataDir,
+        createdAt: '2026-07-18T00:00:00.000Z',
+        noticeDismissed: false,
+        exists: true,
+        size: 6,
+      },
+    ])
+
+    for (const [action, expectedCall] of [
+      ['open', `open:${oldDir}`],
+      ['dismiss', 'dismiss:cleanup-1'],
+      ['delete', 'delete:cleanup-1'],
+    ] as const) {
+      const response = await app.inject({
+        method: 'POST',
+        url: `/_web/cache/data-dir/cleanup/${action}`,
+        payload: { cleanupId: 'cleanup-1' },
+      })
+      assert.equal(response.statusCode, 200)
+      assert.equal(calls.at(-1), expectedCall)
+    }
 
     await app.close()
   })

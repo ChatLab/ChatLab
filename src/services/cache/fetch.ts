@@ -27,6 +27,18 @@ export class FetchCacheAdapter implements CacheServiceAdapter {
     )
   }
 
+  async openDataDirCleanup(cleanupId: string): Promise<{ success: boolean; error?: string }> {
+    return post<{ success: boolean; error?: string }>('/cache/data-dir/cleanup/open', { cleanupId })
+  }
+
+  async dismissDataDirCleanupNotice(cleanupId: string): Promise<{ success: boolean; error?: string }> {
+    return post<{ success: boolean; error?: string }>('/cache/data-dir/cleanup/dismiss', { cleanupId })
+  }
+
+  async deleteDataDirCleanup(cleanupId: string): Promise<{ success: boolean; error?: string }> {
+    return post<{ success: boolean; error?: string }>('/cache/data-dir/cleanup/delete', { cleanupId })
+  }
+
   async getLatestImportLog(): Promise<{ success: boolean; path?: string; name?: string; error?: string }> {
     return get<{ success: boolean; path?: string; name?: string; error?: string }>('/cache/latest-import-log')
   }

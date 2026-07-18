@@ -5,10 +5,15 @@ import path from 'node:path'
 import test from 'node:test'
 import {
   applyPendingNodeDataDirMigration,
+  copyDirMerge,
   createPendingDataDirMigration,
   createNodeDataDirSwitch,
+  deletePendingDataDirCleanup,
+  dismissPendingDataDirCleanupNotice,
+  getPendingDataDirCleanups,
   getPendingNodeDataDirMigration,
   isExistingUserDataDir,
+  registerPendingDataDirCleanup,
   runPendingDataDirMigration,
 } from './data-dir-switch'
 import { applyPendingNodeDataDirMigrationIfNeeded, NodePathProvider } from './node-path-provider'
@@ -34,7 +39,7 @@ test('createPendingDataDirMigration records a restart-time migration without mut
   assert.equal(pending.from, '/old/data')
   assert.equal(pending.to, '/new/data')
   assert.equal(pending.migrate, true)
-  assert.equal(pending.deleteSourceOnSuccess, true)
+  assert.equal(pending.deleteSourceOnSuccess, false)
   assert.match(pending.createdAt, /^\d{4}-\d{2}-\d{2}T/)
 })
 
@@ -46,7 +51,7 @@ test('runPendingDataDirMigration writes config only after copy succeeds', () => 
 
   let configuredDir = source
   let pendingCleared = false
-  let pendingDeleteDir: string | null = null
+  let pendingCleanup: { sourceDir: string; targetDir: string } | null = null
 
   const result = runPendingDataDirMigration(
     createPendingDataDirMigration({ from: source, to: target, migrate: true, targetWasEmpty: true }),
@@ -57,8 +62,8 @@ test('runPendingDataDirMigration writes config only after copy succeeds', () => 
       clearPendingMigration() {
         pendingCleared = true
       },
-      markPendingDeleteDir(dir) {
-        pendingDeleteDir = dir
+      recordPendingCleanup(sourceDir, targetDir) {
+        pendingCleanup = { sourceDir, targetDir }
       },
     }
   )
@@ -66,7 +71,7 @@ test('runPendingDataDirMigration writes config only after copy succeeds', () => 
   assert.equal(result.success, true)
   assert.equal(configuredDir, target)
   assert.equal(pendingCleared, true)
-  assert.equal(pendingDeleteDir, source)
+  assert.deepEqual(pendingCleanup, { sourceDir: source, targetDir: target })
   assert.equal(fs.readFileSync(path.join(target, 'databases', 'session.db'), 'utf-8'), 'sqlite')
 })
 
@@ -179,7 +184,7 @@ test('createNodeDataDirSwitch writes pending migration under the system settings
   assert.equal(pending?.to, targetDir)
 })
 
-test('applyPendingNodeDataDirMigration deletes old data directory after successful migration to empty target', () => {
+test('applyPendingNodeDataDirMigration preserves old data directory for manual cleanup', () => {
   const root = makeTempDir()
   const systemDir = path.join(root, 'system')
   const currentDir = path.join(root, 'current')
@@ -198,13 +203,124 @@ test('applyPendingNodeDataDirMigration deletes old data directory after successf
   })
 
   assert.equal(result.success, true)
-  assert.equal(fs.existsSync(currentDir), false)
+  assert.equal(fs.existsSync(currentDir), true)
   assert.equal(fs.readFileSync(path.join(targetDir, 'databases', 'session.db'), 'utf-8'), 'sqlite')
   assert.equal(getPendingNodeDataDirMigration(systemDir), null)
+  assert.deepEqual(
+    getPendingDataDirCleanups(systemDir).map(({ sourceDir, targetDir: cleanupTargetDir, noticeDismissed }) => ({
+      sourceDir,
+      targetDir: cleanupTargetDir,
+      noticeDismissed,
+    })),
+    [{ sourceDir: currentDir, targetDir, noticeDismissed: false }]
+  )
   assert.deepEqual(writes, [
     { section: 'data', key: 'user_data_dir', value: targetDir },
     { section: 'data', key: 'electron_migration_done', value: true },
   ])
+})
+
+test('retrying a partially failed migration never deletes the newer source database', () => {
+  const root = makeTempDir()
+  const systemDir = path.join(root, 'system')
+  const source = path.join(root, 'source')
+  const target = path.join(root, 'target')
+  const sourceDb = path.join(source, 'databases', 'session.db')
+  const targetDb = path.join(target, 'databases', 'session.db')
+  writeFile(sourceDb, 'before-first-attempt')
+
+  const pending = createPendingDataDirMigration({ from: source, to: target, migrate: true, targetWasEmpty: true })
+  const firstResult = runPendingDataDirMigration(pending, {
+    copyDirMerge(src, dest, mkdir) {
+      const stats = copyDirMerge(src, dest, mkdir)
+      stats.errors.push('simulated later-file failure')
+      return stats
+    },
+    writeUserDataDir() {
+      // The failed attempt must not commit the target path.
+    },
+    clearPendingMigration() {
+      // The failed attempt must keep the pending task.
+    },
+  })
+  assert.equal(firstResult.success, false)
+
+  writeFile(sourceDb, 'new-data-after-failed-attempt')
+  const secondResult = runPendingDataDirMigration(pending, {
+    writeUserDataDir() {
+      // Config persistence is covered by the adapter-level test.
+    },
+    clearPendingMigration() {
+      // Pending task persistence is covered by the adapter-level test.
+    },
+    recordPendingCleanup(sourceDir, targetDir) {
+      registerPendingDataDirCleanup(systemDir, { sourceDir, targetDir })
+    },
+  })
+
+  assert.equal(secondResult.success, true)
+  assert.equal(fs.readFileSync(sourceDb, 'utf-8'), 'new-data-after-failed-attempt')
+  assert.equal(fs.readFileSync(targetDb, 'utf-8'), 'before-first-attempt')
+  assert.equal(getPendingDataDirCleanups(systemDir)[0]?.sourceDir, source)
+})
+
+test('pending data directory cleanup can be dismissed and deleted explicitly', () => {
+  const root = makeTempDir()
+  const systemDir = path.join(root, 'system')
+  const currentDir = path.join(root, 'current')
+  const targetDir = path.join(root, 'target')
+  writeFile(path.join(currentDir, '.chatlab'), 'ChatLab Data Directory')
+  writeFile(path.join(currentDir, 'databases', 'session.db'), 'sqlite')
+
+  const switchResult = createNodeDataDirSwitch({ systemDir, currentDir, targetDir, migrate: true })
+  assert.equal(switchResult.success, true)
+  assert.equal(applyPendingNodeDataDirMigration(systemDir).success, true)
+
+  const [cleanup] = getPendingDataDirCleanups(systemDir)
+  assert.ok(cleanup)
+  assert.equal(dismissPendingDataDirCleanupNotice(systemDir, cleanup.id), true)
+  assert.equal(getPendingDataDirCleanups(systemDir)[0]?.noticeDismissed, true)
+
+  const deleteResult = deletePendingDataDirCleanup(systemDir, targetDir, cleanup.id)
+  assert.equal(deleteResult.success, true)
+  assert.equal(fs.existsSync(currentDir), false)
+  assert.deepEqual(getPendingDataDirCleanups(systemDir), [])
+})
+
+test('manual cleanup refuses directories that are still in use or no longer contain ChatLab data', () => {
+  const root = makeTempDir()
+  const systemDir = path.join(root, 'system')
+  const sourceDir = path.join(root, 'source')
+  const targetDir = path.join(root, 'target')
+  writeFile(path.join(sourceDir, '.chatlab'), 'ChatLab Data Directory')
+  writeFile(path.join(sourceDir, 'databases', 'session.db'), 'sqlite')
+
+  const inUse = registerPendingDataDirCleanup(systemDir, { sourceDir, targetDir })
+  assert.ok(inUse)
+  assert.equal(deletePendingDataDirCleanup(systemDir, sourceDir, inUse.id).success, false)
+  assert.equal(fs.existsSync(sourceDir), true)
+
+  fs.rmSync(path.join(sourceDir, '.chatlab'))
+  fs.rmSync(path.join(sourceDir, 'databases'), { recursive: true })
+  writeFile(path.join(sourceDir, 'personal.txt'), 'keep me')
+  const unrecognizedResult = deletePendingDataDirCleanup(systemDir, targetDir, inUse.id)
+  assert.equal(unrecognizedResult.success, false)
+  assert.equal(fs.readFileSync(path.join(sourceDir, 'personal.txt'), 'utf-8'), 'keep me')
+})
+
+test('switching back to a preserved directory removes it from cleanup candidates', () => {
+  const root = makeTempDir()
+  const systemDir = path.join(root, 'system')
+  const firstDir = path.join(root, 'first')
+  const secondDir = path.join(root, 'second')
+
+  registerPendingDataDirCleanup(systemDir, { sourceDir: firstDir, targetDir: secondDir })
+  registerPendingDataDirCleanup(systemDir, { sourceDir: secondDir, targetDir: firstDir })
+
+  assert.deepEqual(
+    getPendingDataDirCleanups(systemDir).map((cleanup) => cleanup.sourceDir),
+    [secondDir]
+  )
 })
 
 test('createNodeDataDirSwitch rejects data directory changes while CHATLAB_DATA_DIR is active', () => {

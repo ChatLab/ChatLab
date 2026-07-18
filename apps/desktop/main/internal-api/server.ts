@@ -20,6 +20,9 @@ import {
   CustomModelStore,
   createFileConfigStorage,
   createAuthProfileLlmConfigStore,
+  deletePendingDataDirCleanup,
+  dismissPendingDataDirCleanupNotice,
+  getPendingDataDirCleanups,
   MergeSessionCache,
   withDataDirImportLock,
   raiseChatDbCompatibilityGate,
@@ -171,6 +174,12 @@ export async function startInternalServer(
       downloadsDir: getDownloadsDir(),
       defaultUserDataDir: getDefaultUserDataDir(),
       isCustomDataDir: path.resolve(getUserDataDir()) !== path.resolve(getDefaultUserDataDir()),
+      getPendingDataDirCleanups: () => getPendingDataDirCleanups(pathProvider.getSystemDir()),
+      dismissPendingDataDirCleanupNotice: (cleanupId) =>
+        dismissPendingDataDirCleanupNotice(pathProvider.getSystemDir(), cleanupId),
+      deletePendingDataDirCleanup: (cleanupId) => {
+        return deletePendingDataDirCleanup(pathProvider.getSystemDir(), pathProvider.getUserDataDir(), cleanupId)
+      },
       runAgentStream: createElectronRunAgentStream(newSemanticIndexService ?? undefined),
       executeAiTool: createExecuteElectronAiTool(newSemanticIndexService ?? undefined),
     }

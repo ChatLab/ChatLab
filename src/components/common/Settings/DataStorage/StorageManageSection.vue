@@ -8,7 +8,7 @@ import { useI18n } from 'vue-i18n'
 import { usePlatformService } from '@/services'
 import { IS_ELECTRON } from '@/utils/platform'
 import { useCacheService } from '@/services/cache/service'
-import type { CacheInfo } from '@/services/cache/types'
+import type { CacheInfo, DataDirCleanupInfo } from '@/services/cache/types'
 import { clearMigrateHintIgnore, isMigrateHintIgnoredForDir, writeMigrateHintIgnore } from './migrateHintIgnore'
 
 const { t } = useI18n()
@@ -27,6 +27,10 @@ const canSetDataDir = ref(false)
 const isUpdatingDataDir = ref(false)
 const dataDirError = ref<string | null>(null)
 const isMigrateHintIgnored = ref(false)
+const pendingCleanups = ref<DataDirCleanupInfo[]>([])
+const cleanupToDelete = ref<DataDirCleanupInfo | null>(null)
+const deletingCleanupId = ref<string | null>(null)
+const showCleanupDeleteModal = ref(false)
 
 // 确认弹窗状态
 const showConfirmModal = ref(false)
@@ -102,6 +106,7 @@ async function loadDataDir() {
     hasLegacyDataAtDefaultDir.value = Boolean(info.hasLegacyDataAtDefaultDir)
     isCustomDataDir.value = info.isCustom
     canSetDataDir.value = IS_ELECTRON || Boolean(info.canSetDataDir)
+    pendingCleanups.value = info.pendingCleanups ?? []
     updateMigrateHintIgnored()
   } catch (error) {
     console.error('获取数据目录失败:', error)
@@ -142,6 +147,40 @@ async function openBaseDir() {
 
 async function openUserDataDir() {
   await openDirectory('userData')
+}
+
+async function openCleanupDir(cleanupId: string) {
+  try {
+    await useCacheService().openDataDirCleanup(cleanupId)
+  } catch (error) {
+    dataDirError.value = error instanceof Error ? error.message : String(error)
+  }
+}
+
+function requestCleanupDelete(cleanup: DataDirCleanupInfo) {
+  cleanupToDelete.value = cleanup
+  showCleanupDeleteModal.value = true
+}
+
+async function confirmCleanupDelete() {
+  const cleanup = cleanupToDelete.value
+  if (!cleanup) return
+
+  deletingCleanupId.value = cleanup.id
+  try {
+    const result = await useCacheService().deleteDataDirCleanup(cleanup.id)
+    if (!result.success) {
+      dataDirError.value = result.error || t('settings.storage.dataLocation.cleanupDeleteFailed')
+      return
+    }
+    showCleanupDeleteModal.value = false
+    cleanupToDelete.value = null
+    await Promise.all([loadDataDir(), loadCacheInfo()])
+  } catch (error) {
+    dataDirError.value = error instanceof Error ? error.message : String(error)
+  } finally {
+    deletingCleanupId.value = null
+  }
 }
 
 // 选择数据目录
@@ -470,6 +509,62 @@ defineExpose({
           </div>
         </div>
 
+        <div
+          v-if="pendingCleanups.length > 0"
+          class="mt-3 rounded-lg border border-amber-200 bg-amber-50/70 p-3 dark:border-amber-900/60 dark:bg-amber-950/20"
+        >
+          <div class="flex items-start gap-2.5">
+            <UIcon name="i-heroicons-archive-box" class="mt-0.5 h-4 w-4 shrink-0 text-amber-600 dark:text-amber-400" />
+            <div class="min-w-0 flex-1">
+              <p class="text-sm font-medium text-gray-900 dark:text-white">
+                {{ t('settings.storage.dataLocation.cleanupTitle') }}
+              </p>
+              <p class="mt-0.5 text-xs leading-5 text-gray-600 dark:text-gray-400">
+                {{ t('settings.storage.dataLocation.cleanupDescription') }}
+              </p>
+            </div>
+          </div>
+
+          <div class="mt-3 space-y-2">
+            <div
+              v-for="cleanup in pendingCleanups"
+              :key="cleanup.id"
+              class="flex items-center gap-3 rounded-lg border border-amber-200/80 bg-white px-3 py-2.5 dark:border-amber-900/50 dark:bg-gray-900/60"
+            >
+              <div class="min-w-0 flex-1">
+                <p class="truncate font-mono text-xs text-gray-700 dark:text-gray-300" :title="cleanup.sourceDir">
+                  {{ cleanup.sourceDir }}
+                </p>
+                <p class="mt-0.5 text-xs text-gray-400">
+                  {{ cleanup.exists ? formatSize(cleanup.size) : t('settings.storage.notExist') }}
+                </p>
+              </div>
+              <div class="flex shrink-0 items-center gap-1">
+                <UButton
+                  icon="i-heroicons-folder-open"
+                  variant="ghost"
+                  size="xs"
+                  :disabled="!cleanup.exists || deletingCleanupId !== null"
+                  @click="openCleanupDir(cleanup.id)"
+                >
+                  {{ t('settings.storage.dataLocation.open') }}
+                </UButton>
+                <UButton
+                  icon="i-heroicons-trash"
+                  color="red"
+                  variant="soft"
+                  size="xs"
+                  :loading="deletingCleanupId === cleanup.id"
+                  :disabled="deletingCleanupId !== null"
+                  @click="requestCleanupDelete(cleanup)"
+                >
+                  {{ t('settings.storage.dataLocation.cleanupDeleteAction') }}
+                </UButton>
+              </div>
+            </div>
+          </div>
+        </div>
+
         <p class="mt-2 text-xs text-amber-600 dark:text-amber-400">
           {{
             IS_ELECTRON
@@ -524,6 +619,43 @@ defineExpose({
               </UButton>
               <UButton color="primary" @click="confirmDataDirChange">
                 {{ t('settings.storage.dataLocation.confirm') }}
+              </UButton>
+            </div>
+          </div>
+        </template>
+      </UModal>
+
+      <UModal v-model:open="showCleanupDeleteModal" :ui="{ content: 'sm:max-w-[500px] z-[103]', overlay: 'z-[102]' }">
+        <template #content>
+          <div class="p-5">
+            <div class="flex items-start gap-3">
+              <div
+                class="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-red-50 text-red-600 dark:bg-red-950/40 dark:text-red-400"
+              >
+                <UIcon name="i-heroicons-trash" class="h-5 w-5" />
+              </div>
+              <div class="min-w-0 flex-1">
+                <h3 class="text-base font-semibold text-gray-900 dark:text-white">
+                  {{ t('settings.storage.dataLocation.cleanupDeleteConfirmTitle') }}
+                </h3>
+                <p class="mt-1 text-sm leading-6 text-gray-600 dark:text-gray-400">
+                  {{ t('settings.storage.dataLocation.cleanupDeleteConfirmDescription') }}
+                </p>
+              </div>
+            </div>
+
+            <div v-if="cleanupToDelete" class="mt-4 rounded-lg bg-gray-50 px-3 py-2.5 dark:bg-gray-800/60">
+              <p class="break-all font-mono text-xs text-gray-700 dark:text-gray-300">
+                {{ cleanupToDelete.sourceDir }}
+              </p>
+            </div>
+
+            <div class="mt-5 flex justify-end gap-2">
+              <UButton variant="ghost" :disabled="deletingCleanupId !== null" @click="showCleanupDeleteModal = false">
+                {{ t('common.cancel') }}
+              </UButton>
+              <UButton color="red" :loading="deletingCleanupId !== null" @click="confirmCleanupDelete">
+                {{ t('settings.storage.dataLocation.cleanupDeleteConfirmAction') }}
               </UButton>
             </div>
           </div>

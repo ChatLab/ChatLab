@@ -145,6 +145,13 @@ export function registerCacheRoutes(server: FastifyInstance, ctx: CacheRouteCont
 
   server.get('/_web/cache/data-dir', async () => {
     const pending = ctx.getPendingDataDirMigration?.()
+    const pendingCleanups = await Promise.all(
+      (ctx.getPendingDataDirCleanups?.() ?? []).map(async (cleanup) => ({
+        ...cleanup,
+        exists: fs.existsSync(cleanup.sourceDir),
+        size: await getDirSize(cleanup.sourceDir),
+      }))
+    )
     return {
       path: pp.getUserDataDir(),
       defaultPath: ctx.defaultUserDataDir,
@@ -156,6 +163,7 @@ export function registerCacheRoutes(server: FastifyInstance, ctx: CacheRouteCont
         Boolean(ctx.defaultUserDataDir) &&
         path.resolve(pp.getUserDataDir()) !== path.resolve(ctx.defaultUserDataDir ?? '') &&
         hasChatLabDatabases(ctx.defaultUserDataDir ?? ''),
+      pendingCleanups,
       pendingMigration: pending
         ? {
             from: pending.from,
@@ -174,6 +182,43 @@ export function registerCacheRoutes(server: FastifyInstance, ctx: CacheRouteCont
     const targetPath = typeof request.body?.path === 'string' ? request.body.path : null
     const migrate = request.body?.migrate !== false
     return ctx.setDataDir(targetPath, migrate)
+  })
+
+  server.post<{ Body: { cleanupId?: string } }>('/_web/cache/data-dir/cleanup/open', async (request, reply) => {
+    if (!ctx.openDirectory || !ctx.getPendingDataDirCleanups) {
+      return reply.code(501).send({ success: false, error: 'Opening old data directories is not supported' })
+    }
+
+    const cleanup = ctx.getPendingDataDirCleanups().find((entry) => entry.id === request.body?.cleanupId)
+    if (!cleanup) return reply.code(404).send({ success: false, error: 'Pending cleanup not found' })
+
+    await ctx.openDirectory(cleanup.sourceDir)
+    return { success: true }
+  })
+
+  server.post<{ Body: { cleanupId?: string } }>('/_web/cache/data-dir/cleanup/dismiss', async (request, reply) => {
+    if (!ctx.dismissPendingDataDirCleanupNotice) {
+      return reply.code(501).send({ success: false, error: 'Cleanup notices are not supported' })
+    }
+
+    const cleanupId = request.body?.cleanupId
+    if (!cleanupId || !ctx.dismissPendingDataDirCleanupNotice(cleanupId)) {
+      return reply.code(404).send({ success: false, error: 'Pending cleanup not found' })
+    }
+    return { success: true }
+  })
+
+  server.post<{ Body: { cleanupId?: string } }>('/_web/cache/data-dir/cleanup/delete', async (request, reply) => {
+    if (!ctx.deletePendingDataDirCleanup) {
+      return reply.code(501).send({ success: false, error: 'Manual data directory cleanup is not supported' })
+    }
+
+    const cleanupId = request.body?.cleanupId
+    if (!cleanupId) return reply.code(400).send({ success: false, error: 'cleanupId is required' })
+
+    const result = ctx.deletePendingDataDirCleanup(cleanupId)
+    if (!result.success) return reply.code(400).send(result)
+    return result
   })
 
   server.get('/_web/cache/latest-import-log', async () => {

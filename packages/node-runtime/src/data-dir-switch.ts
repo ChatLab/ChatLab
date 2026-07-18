@@ -1,10 +1,13 @@
 import * as fs from 'fs'
 import * as path from 'path'
+import { randomUUID } from 'node:crypto'
 import { writeConfigField } from '@openchatlab/config'
+import { appLogger } from './logging/app-logger'
 
 const CHATLAB_MARKER_FILE = '.chatlab'
 const USER_DATA_REQUIRED_DIRS = ['databases']
 const PENDING_MIGRATION_FILE = 'data-dir-migration.json'
+const PENDING_CLEANUPS_FILE = 'data-dir-cleanups.json'
 
 const DANGEROUS_PATHS = [
   'C:\\Windows',
@@ -33,6 +36,7 @@ export interface PendingDataDirMigration {
   from: string
   to: string
   migrate: boolean
+  /** Legacy field retained so older runtimes also leave the source directory untouched. */
   deleteSourceOnSuccess: boolean
   createdAt: string
 }
@@ -42,8 +46,21 @@ export interface RunPendingDataDirMigrationDeps {
   ensureDir?: (dirPath: string) => void
   writeUserDataDir: (dir: string) => void
   clearPendingMigration: () => void
-  markPendingDeleteDir?: (dir: string) => void
+  recordPendingCleanup?: (sourceDir: string, targetDir: string) => void
   log?: (message: string) => void
+}
+
+export interface PendingDataDirCleanup {
+  id: string
+  sourceDir: string
+  targetDir: string
+  createdAt: string
+  noticeDismissed: boolean
+}
+
+interface PendingDataDirCleanupFile {
+  version: 1
+  entries: PendingDataDirCleanup[]
 }
 
 export interface RunPendingDataDirMigrationResult {
@@ -65,6 +82,9 @@ export interface DataDirSwitchResult {
 
 export interface ApplyPendingNodeDataDirMigrationDeps {
   writeConfigField?: typeof writeConfigField
+}
+
+export interface DeletePendingDataDirCleanupDeps {
   removeDir?: (dir: string) => void
 }
 
@@ -196,7 +216,7 @@ export function createPendingDataDirMigration(input: {
     from: input.from,
     to: input.to,
     migrate: input.migrate,
-    deleteSourceOnSuccess: input.migrate && input.targetWasEmpty,
+    deleteSourceOnSuccess: false,
     createdAt: new Date().toISOString(),
   }
 }
@@ -240,11 +260,11 @@ export function runPendingDataDirMigration(
   }
 
   deps.writeUserDataDir(pending.to)
-  deps.clearPendingMigration()
 
-  if (pending.deleteSourceOnSuccess && path.resolve(pending.from) !== path.resolve(pending.to)) {
-    deps.markPendingDeleteDir?.(pending.from)
+  if (pending.migrate && path.resolve(pending.from) !== path.resolve(pending.to)) {
+    deps.recordPendingCleanup?.(pending.from, pending.to)
   }
+  deps.clearPendingMigration()
 
   return {
     success: true,
@@ -258,6 +278,141 @@ export function runPendingDataDirMigration(
 
 function getPendingMigrationPath(systemDir: string): string {
   return path.join(systemDir, 'settings', PENDING_MIGRATION_FILE)
+}
+
+function getPendingCleanupsPath(systemDir: string): string {
+  return path.join(systemDir, 'settings', PENDING_CLEANUPS_FILE)
+}
+
+function isPendingDataDirCleanup(value: unknown): value is PendingDataDirCleanup {
+  if (!value || typeof value !== 'object') return false
+  const entry = value as Partial<PendingDataDirCleanup>
+  return (
+    typeof entry.id === 'string' &&
+    typeof entry.sourceDir === 'string' &&
+    path.isAbsolute(entry.sourceDir) &&
+    typeof entry.targetDir === 'string' &&
+    path.isAbsolute(entry.targetDir) &&
+    typeof entry.createdAt === 'string' &&
+    typeof entry.noticeDismissed === 'boolean'
+  )
+}
+
+function writePendingDataDirCleanups(systemDir: string, entries: PendingDataDirCleanup[]): void {
+  const filePath = getPendingCleanupsPath(systemDir)
+  ensureDir(path.dirname(filePath))
+  const tempPath = `${filePath}.${process.pid}.${Date.now()}.tmp`
+  const payload: PendingDataDirCleanupFile = { version: 1, entries }
+
+  try {
+    fs.writeFileSync(tempPath, `${JSON.stringify(payload, null, 2)}\n`, 'utf-8')
+    fs.renameSync(tempPath, filePath)
+  } finally {
+    if (fs.existsSync(tempPath)) fs.rmSync(tempPath, { force: true })
+  }
+}
+
+export function getPendingDataDirCleanups(systemDir: string): PendingDataDirCleanup[] {
+  const filePath = getPendingCleanupsPath(systemDir)
+  if (!fs.existsSync(filePath)) return []
+
+  try {
+    const parsed = JSON.parse(fs.readFileSync(filePath, 'utf-8')) as Partial<PendingDataDirCleanupFile>
+    if (parsed.version !== 1 || !Array.isArray(parsed.entries)) return []
+    return parsed.entries.filter(isPendingDataDirCleanup)
+  } catch {
+    return []
+  }
+}
+
+export function registerPendingDataDirCleanup(
+  systemDir: string,
+  input: { sourceDir: string; targetDir: string; createdAt?: string }
+): PendingDataDirCleanup | null {
+  if (!path.isAbsolute(input.sourceDir) || !path.isAbsolute(input.targetDir)) return null
+  if (normalizePathForCompare(input.sourceDir) === normalizePathForCompare(input.targetDir)) return null
+
+  // A directory selected as the new active target is no longer an old backup candidate.
+  const entries = getPendingDataDirCleanups(systemDir).filter(
+    (entry) => normalizePathForCompare(entry.sourceDir) !== normalizePathForCompare(input.targetDir)
+  )
+  const existingIndex = entries.findIndex(
+    (entry) => normalizePathForCompare(entry.sourceDir) === normalizePathForCompare(input.sourceDir)
+  )
+  const cleanup: PendingDataDirCleanup = {
+    id: existingIndex >= 0 ? entries[existingIndex].id : randomUUID(),
+    sourceDir: input.sourceDir,
+    targetDir: input.targetDir,
+    createdAt: input.createdAt ?? new Date().toISOString(),
+    noticeDismissed: false,
+  }
+
+  if (existingIndex >= 0) entries.splice(existingIndex, 1, cleanup)
+  else entries.push(cleanup)
+  writePendingDataDirCleanups(systemDir, entries)
+  return cleanup
+}
+
+export function dismissPendingDataDirCleanupNotice(systemDir: string, cleanupId: string): boolean {
+  const entries = getPendingDataDirCleanups(systemDir)
+  const cleanup = entries.find((entry) => entry.id === cleanupId)
+  if (!cleanup) return false
+  if (cleanup.noticeDismissed) return true
+
+  cleanup.noticeDismissed = true
+  writePendingDataDirCleanups(systemDir, entries)
+  return true
+}
+
+export function deletePendingDataDirCleanup(
+  systemDir: string,
+  currentDir: string,
+  cleanupId: string,
+  deps: DeletePendingDataDirCleanupDeps = {}
+): { success: boolean; error?: string } {
+  const entries = getPendingDataDirCleanups(systemDir)
+  const cleanup = entries.find((entry) => entry.id === cleanupId)
+  if (!cleanup) return { success: false, error: 'Pending data directory cleanup not found' }
+
+  const sourceDir = cleanup.sourceDir
+  const overlapsCurrentDir =
+    normalizePathForCompare(sourceDir) === normalizePathForCompare(currentDir) ||
+    isSubPath(sourceDir, currentDir) ||
+    isSubPath(currentDir, sourceDir)
+  const overlapsSystemDir =
+    normalizePathForCompare(sourceDir) === normalizePathForCompare(systemDir) || isSubPath(sourceDir, systemDir)
+
+  if (overlapsCurrentDir || overlapsSystemDir) {
+    appLogger.warn('data-dir', 'Old data directory cleanup rejected because the path is still in use', { cleanupId })
+    return { success: false, error: 'Old data directory overlaps a directory still in use' }
+  }
+  if (!isPathSafe(sourceDir)) {
+    appLogger.warn('data-dir', 'Old data directory cleanup rejected because the path is unsafe', { cleanupId })
+    return { success: false, error: 'Old data directory is not safe to delete' }
+  }
+
+  try {
+    if (fs.existsSync(sourceDir)) {
+      if (!isExistingUserDataDir(sourceDir)) {
+        appLogger.warn('data-dir', 'Old data directory cleanup rejected because the path is unrecognized', {
+          cleanupId,
+        })
+        return { success: false, error: 'Old data directory is no longer recognized as ChatLab data' }
+      }
+      const remove = deps.removeDir ?? ((dir: string) => fs.rmSync(dir, { recursive: true, force: true }))
+      remove(sourceDir)
+    }
+
+    writePendingDataDirCleanups(
+      systemDir,
+      entries.filter((entry) => entry.id !== cleanupId)
+    )
+    appLogger.info('data-dir', 'Old data directory cleanup completed by user', { cleanupId })
+    return { success: true }
+  } catch (error) {
+    appLogger.error('data-dir', 'Failed to delete old data directory', error)
+    return { success: false, error: 'Failed to delete old data directory' }
+  }
 }
 
 export function getPendingNodeDataDirMigration(systemDir: string): PendingDataDirMigration | null {
@@ -278,22 +433,6 @@ export function clearPendingNodeDataDirMigration(systemDir: string): void {
   if (fs.existsSync(filePath)) {
     fs.unlinkSync(filePath)
   }
-}
-
-// 只删除确认仍是 ChatLab 用户数据目录的旧路径，避免误删用户选择的普通目录。
-export function deleteOldUserDataDirIfSafe(
-  dirPath: string,
-  currentDir: string,
-  removeDir?: (dir: string) => void
-): boolean {
-  if (path.resolve(dirPath) === path.resolve(currentDir)) return false
-  if (!isPathSafe(dirPath)) return false
-  if (!fs.existsSync(dirPath)) return false
-  if (!isExistingUserDataDir(dirPath)) return false
-
-  const remove = removeDir ?? ((dir: string) => fs.rmSync(dir, { recursive: true, force: true }))
-  remove(dirPath)
-  return true
 }
 
 function writePendingNodeDataDirMigration(systemDir: string, pending: PendingDataDirMigration): void {
@@ -364,8 +503,8 @@ export function applyPendingNodeDataDirMigration(
     clearPendingMigration() {
       clearPendingNodeDataDirMigration(systemDir)
     },
-    markPendingDeleteDir(dir) {
-      deleteOldUserDataDirIfSafe(dir, pending.to, deps.removeDir)
+    recordPendingCleanup(sourceDir, targetDir) {
+      registerPendingDataDirCleanup(systemDir, { sourceDir, targetDir })
     },
   })
 

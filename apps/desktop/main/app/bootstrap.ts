@@ -10,7 +10,7 @@ import {
 import { initLocale } from '../i18n'
 import { initProxy } from '../network/proxy'
 import { resolveDesktopNativeBinding } from '../runtime/native-sqlite'
-import { cleanupPendingDeleteDir, applyPendingDataDirMigration } from '../paths/data-dir-switch'
+import { applyPendingDataDirMigration, preserveLegacyPendingDeleteDir } from '../paths/data-dir-switch'
 import {
   needsUnifiedDirMigration,
   migrateToUnifiedDirs,
@@ -28,7 +28,7 @@ export async function prepareDesktopRuntime(isTestMode: boolean): Promise<boolea
   // Legacy migrations can delete Documents/ChatLab, so isolated E2E runs must skip them.
   if (!isTestMode) {
     applyPendingDataDirMigrationIfNeeded()
-    cleanupPendingDeleteDir()
+    preserveLegacyPendingDeleteDir()
     migrateDataIfNeeded()
     migrateToUnifiedDirsIfNeeded()
   }

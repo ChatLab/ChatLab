@@ -11,10 +11,18 @@ import {
   isDirectoryEmptyOrMissing,
   isExistingUserDataDir,
   isUserDataDirSafeToUse,
+  registerPendingDataDirCleanup,
   runPendingDataDirMigration,
 } from '@openchatlab/node-runtime/data-dir-switch'
 import { isInsideAppInstallDir, isPathSafe, isSubPath, writeMigrationLog } from '../utils/pathUtils'
-import { ensureDir, getDefaultUserDataDir, getLogsDir, getUserDataDir, setCachedUserDataDir } from './locations'
+import {
+  ensureDir,
+  getDefaultUserDataDir,
+  getLogsDir,
+  getSystemDataDir,
+  getUserDataDir,
+  setCachedUserDataDir,
+} from './locations'
 import { readStorageConfig, writeStorageConfig } from './storage-config'
 
 /**
@@ -98,9 +106,8 @@ export function applyPendingDataDirMigration(): { success: boolean; skipped?: bo
       const latest = readStorageConfig()
       writeStorageConfig({ ...latest, pendingDataDirMigration: undefined })
     },
-    markPendingDeleteDir(dir) {
-      const latest = readStorageConfig()
-      writeStorageConfig({ ...latest, pendingDeleteDir: dir })
+    recordPendingCleanup(sourceDir, targetDir) {
+      registerPendingDataDirCleanup(getSystemDataDir(), { sourceDir, targetDir })
     },
     log(message) {
       writeMigrationLog(getLogsDir(), message, ensureDir)
@@ -127,9 +134,10 @@ export function applyPendingDataDirMigration(): { success: boolean; skipped?: bo
 }
 
 /**
- * 清理待删除的旧数据目录（应用启动时调用）
+ * 将旧版本遗留的自动删除任务转换为人工清理记录。
+ * 旧目录只保留为备份，绝不在应用启动期间自动删除。
  */
-export function cleanupPendingDeleteDir(): void {
+export function preserveLegacyPendingDeleteDir(): void {
   try {
     const config = readStorageConfig()
     const pendingDir = config.pendingDeleteDir
@@ -138,36 +146,30 @@ export function cleanupPendingDeleteDir(): void {
 
     const currentDir = getUserDataDir()
 
-    if (pendingDir === currentDir) {
-      console.log('[Paths] Skipping cleanup: pending dir is same as current dir')
+    if (path.resolve(pendingDir) === path.resolve(currentDir)) {
       writeStorageConfig({ ...config, pendingDeleteDir: undefined })
       return
     }
 
     if (!isPathSafe(pendingDir)) {
-      console.log('[Paths] Skipping cleanup: pending dir is a system directory:', pendingDir)
       writeStorageConfig({ ...config, pendingDeleteDir: undefined })
       return
     }
 
     if (fs.existsSync(pendingDir) && !isExistingUserDataDir(pendingDir)) {
-      console.log('[Paths] Skipping cleanup: pending dir is not a ChatLab data dir:', pendingDir)
       writeStorageConfig({ ...config, pendingDeleteDir: undefined })
       return
     }
 
     if (!fs.existsSync(pendingDir)) {
-      console.log('[Paths] Pending dir does not exist, skipping cleanup:', pendingDir)
       writeStorageConfig({ ...config, pendingDeleteDir: undefined })
       return
     }
 
-    console.log('[Paths] Cleaning up old data directory:', pendingDir)
-    fs.rmSync(pendingDir, { recursive: true, force: true })
-    console.log('[Paths] Old data directory deleted:', pendingDir)
-
+    registerPendingDataDirCleanup(getSystemDataDir(), { sourceDir: pendingDir, targetDir: currentDir })
+    writeMigrationLog(getLogsDir(), `Old data directory preserved for manual cleanup: ${pendingDir}`, ensureDir)
     writeStorageConfig({ ...config, pendingDeleteDir: undefined })
   } catch (error) {
-    console.error('[Paths] Failed to clean up old directory:', error)
+    console.error('[Paths] Failed to preserve legacy cleanup record:', error)
   }
 }

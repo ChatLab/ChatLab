@@ -35,7 +35,10 @@ import type {
 import {
   createDatabaseManagerAdapter,
   createNodeDataDirSwitch,
+  deletePendingDataDirCleanup,
+  dismissPendingDataDirCleanupNotice,
   getDefaultNodeUserDataDir,
+  getPendingDataDirCleanups,
   getPendingNodeDataDirMigration,
   getChatLabTempScopeDir,
   AnalyticsService,
@@ -137,6 +140,16 @@ export function registerWebRoutes(
       canSetDataDir: !process.env.CHATLAB_DATA_DIR,
       getPendingDataDirMigration: (): PendingDataDirMigration | null =>
         getPendingNodeDataDirMigration(resolvedPathProvider.getSystemDir()),
+      getPendingDataDirCleanups: () => getPendingDataDirCleanups(resolvedPathProvider.getSystemDir()),
+      dismissPendingDataDirCleanupNotice: (cleanupId) =>
+        dismissPendingDataDirCleanupNotice(resolvedPathProvider.getSystemDir(), cleanupId),
+      deletePendingDataDirCleanup: (cleanupId) => {
+        return deletePendingDataDirCleanup(
+          resolvedPathProvider.getSystemDir(),
+          resolvedPathProvider.getUserDataDir(),
+          cleanupId
+        )
+      },
       setDataDir: (dirPath, migrate) =>
         createNodeDataDirSwitch({
           systemDir: resolvedPathProvider.getSystemDir(),

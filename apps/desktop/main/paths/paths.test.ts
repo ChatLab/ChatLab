@@ -74,8 +74,27 @@ test('desktop paths preserve data across configured and legacy directory migrati
     assert.equal(configuredUserDataDir, targetDir)
     assert.equal(fs.readFileSync(path.join(targetDir, 'databases', 'current.db'), 'utf-8'), 'sqlite')
 
-    paths.cleanupPendingDeleteDir()
-    assert.equal(fs.existsSync(currentDir), false)
+    paths.preserveLegacyPendingDeleteDir()
+    assert.equal(fs.existsSync(currentDir), true)
+    assert.equal(dataDirSwitch.getPendingDataDirCleanups(path.join(root, '.chatlab'))[0]?.sourceDir, currentDir)
+
+    const legacyCleanupDir = path.join(root, 'legacy-cleanup-data')
+    fs.mkdirSync(path.join(legacyCleanupDir, 'databases'), { recursive: true })
+    fs.writeFileSync(path.join(legacyCleanupDir, '.chatlab'), 'ChatLab Data Directory', 'utf-8')
+    fs.writeFileSync(path.join(legacyCleanupDir, 'databases', 'legacy-cleanup.db'), 'sqlite', 'utf-8')
+    fs.writeFileSync(
+      path.join(electronUserDataDir, 'storage.json'),
+      JSON.stringify({ pendingDeleteDir: legacyCleanupDir }),
+      'utf-8'
+    )
+    paths.preserveLegacyPendingDeleteDir()
+    assert.equal(fs.existsSync(legacyCleanupDir), true)
+    assert.equal(
+      dataDirSwitch
+        .getPendingDataDirCleanups(path.join(root, '.chatlab'))
+        .some((cleanup) => cleanup.sourceDir === legacyCleanupDir),
+      true
+    )
 
     const legacyDir = path.join(documentsDir, 'ChatLab')
     fs.mkdirSync(path.join(legacyDir, 'databases'), { recursive: true })
