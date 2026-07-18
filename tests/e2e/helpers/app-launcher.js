@@ -180,6 +180,7 @@ async function launchApp(options = {}, deps = {}) {
   if (!fsImpl.existsSync(userDataDir)) {
     fsImpl.mkdirSync(userDataDir, { recursive: true })
   }
+  const isolatedSystemDataDir = path.join(userDataDir, '.chatlab')
 
   const appPath = path.resolve(__dirname, '../../../apps/desktop')
   if (!fsImpl.existsSync(appPath)) {
@@ -206,6 +207,11 @@ async function launchApp(options = {}, deps = {}) {
       stdio: 'inherit',
       env: {
         ...process.env,
+        // ChatLab resolves canonical data from the OS home directory rather than Electron's userData path.
+        // Override both home variants and the configurable data root so E2E cannot read or mutate real user state.
+        HOME: userDataDir,
+        USERPROFILE: userDataDir,
+        CHATLAB_DATA_DIR: path.join(isolatedSystemDataDir, 'data'),
         TEST_MODE: 'true',
         CHATLAB_E2E_USER_DATA_DIR: userDataDir,
         ELECTRON_ENABLE_LOGGING: '1',

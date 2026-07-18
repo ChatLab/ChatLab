@@ -24,6 +24,7 @@ import { configureHttpClient } from '@/services/utils/http'
 import { IS_ELECTRON } from '@/utils/platform'
 import { usePlatformService } from '@/services'
 import { resolvePageTransitionKey } from '@/routes/page-transition-key'
+import { useLockScreenBootstrap } from '@/components/lock-screen/bootstrap'
 
 const LockScreen = IS_ELECTRON ? defineAsyncComponent(() => import('@/components/lock-screen/LockScreen.vue')) : null
 
@@ -38,10 +39,13 @@ const apiServerStore = useApiServerStore()
 const { isInitialized } = storeToRefs(sessionStore)
 const route = useRoute()
 const router = useRouter()
+const { isBootstrapMaskVisible, isApplicationInteractive, markLockScreenReady, syncBootstrapMask, updateLockState } =
+  useLockScreenBootstrap(IS_ELECTRON)
 
 const isLoginPage = computed(() => !IS_ELECTRON && route.name === 'login')
 const pageTransitionKey = computed(() => resolvePageTransitionKey(route))
 const initError = ref<string | null>(null)
+const bootstrapDialogRef = ref<HTMLDialogElement | null>(null)
 const colorMode = useColorMode({
   emitAuto: true,
   initialValue: 'light',
@@ -83,6 +87,7 @@ async function initializeApp() {
 }
 
 function handleGlobalKeydown(e: KeyboardEvent) {
+  if (!isApplicationInteractive.value) return
   const isMeta = navigator.platform.toLowerCase().includes('mac') ? e.metaKey : e.ctrlKey
   // Ctrl+, → 打开设置
   if (isMeta && e.key === ',') {
@@ -110,6 +115,8 @@ watch(
   { immediate: true }
 )
 
+watch(isBootstrapMaskVisible, () => syncBootstrapMask(bootstrapDialogRef.value), { flush: 'post' })
+
 useWindowsTitleBarOverlay([
   colorMode,
   () => route.fullPath,
@@ -119,6 +126,8 @@ useWindowsTitleBarOverlay([
 ])
 
 onMounted(async () => {
+  // 同步原生 modal 在异步锁屏就绪前保持底层文档 inert；chunk 加载失败时不会自动放行。
+  syncBootstrapMask(bootstrapDialogRef.value)
   window.addEventListener('keydown', handleGlobalKeydown)
   const platform = navigator.platform.toLowerCase()
   if (platform.includes('win')) {
@@ -212,8 +221,18 @@ onUnmounted(() => {
     <ChatRecordDrawer />
     <!-- 全局 AI 后台任务条：允许用户离开当前页面后仍然快速返回进行中的对话。 -->
     <GlobalTaskBar />
-    <!-- 应用锁覆盖层：最高 z-index，锁定后拦截全部底层操作 -->
-    <LockScreen v-if="IS_ELECTRON" />
+    <!-- 原生模态锁屏：锁定后由浏览器 top layer 隔离全部底层操作 -->
+    <LockScreen v-if="IS_ELECTRON" @ready="markLockScreenReady" @lock-state-change="updateLockState" />
+    <Teleport v-if="IS_ELECTRON" to="body">
+      <dialog
+        ref="bootstrapDialogRef"
+        :aria-label="t('common.initializing')"
+        aria-busy="true"
+        class="pointer-events-auto m-0 h-screen max-h-none w-screen max-w-none border-0 bg-white p-0 outline-none backdrop:bg-white dark:bg-page-dark dark:backdrop:bg-page-dark"
+        tabindex="-1"
+        @cancel.prevent
+      />
+    </Teleport>
   </UApp>
 </template>
 
