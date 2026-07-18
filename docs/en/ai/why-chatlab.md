@@ -10,19 +10,22 @@ ChatLab organizes your chat records into structured data first, then sends only 
 
 ## Why not send the file directly to an AI?
 
-Chat exports aren't built for AI, and uploading the whole file usually runs into three problems:
+Dropping the entire file into an AI for analysis usually creates three problems:
 
 - **Too large to read:** tens of thousands of messages exceed what a model can take in at once, and truncation drops important context.
 - **Carries unrelated content:** you only want to ask about one thing, but a heap of unrelated conversations goes along with it.
-- **No way to vet privacy:** chat records may contain passwords, bank card numbers, ID numbers, or addresses, and it's hard to check every message before uploading the whole file.
+- **No way to vet privacy:** chat records may contain passwords, bank card numbers, ID numbers, or addresses, and uploading the whole file may **expose that sensitive information to an external AI provider**.
 
-To find out "what have Alice and I discussed recently?", you don't need to upload your entire history every time.
+In short, handing an AI your entire chat history means **spending more tokens, getting results that may not be any better, and taking on more privacy risk**.
+
+Most questions only require a small, relevant slice of the record.
 
 ## How ChatLab solves it
 
 - **Organize, then analyze:** normalizes records from different platforms into sessions, members, and messages — structured and searchable.
-- **Fetch on demand:** retrieves only the part your current question needs, by time, member, keyword, or statistical condition.
-- **Local first:** your data stays on your own computer, and can be desensitized and blacklist-filtered before it reaches an AI.
+- **Purpose-built tools:** provides search, context, statistical analysis, member profiling, chart generation, and RAG retrieval. The AI calls them as needed and retrieves only the data required for the analysis.
+- **Privacy protection:** sensitive details such as phone numbers, ID numbers, bank card numbers, email addresses, and API keys are removed and replaced with placeholders before being sent to an AI.
+- **Local first:** your chat database stays on your own computer. Only the small amount of information needed for the current question is processed and sent to an AI.
 
 ## How to use ChatLab's AI features
 
