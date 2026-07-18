@@ -261,6 +261,7 @@ export function runPendingDataDirMigration(
 
   deps.writeUserDataDir(pending.to)
 
+  // Skipped files may leave unique data in either directory, so cleanup records stay unchanged; deletion revalidates active paths.
   if (pending.migrate && path.resolve(pending.from) !== path.resolve(pending.to) && stats.skipped === 0) {
     deps.recordPendingCleanup?.(pending.from, pending.to)
   } else if (stats.skipped > 0) {
