@@ -340,10 +340,26 @@ export const useSessionStore = defineStore(
     /**
      * 批量导入多个文件（串行执行）
      */
-    async function importFilesFromPaths(filePaths: string[]): Promise<BatchImportResult> {
-      if (filePaths.length === 0) {
+    async function importFiles(sources: Array<File | string>): Promise<BatchImportResult> {
+      if (sources.length === 0) {
         return { total: 0, success: 0, failed: 0, cancelled: 0, files: [] }
       }
+
+      const importSources = sources.map((source) => {
+        if (typeof source === 'string') {
+          return {
+            source,
+            path: source,
+            name: source.split('/').pop() || source.split('\\').pop() || source,
+          }
+        }
+
+        return {
+          source,
+          path: source.webkitRelativePath || source.name,
+          name: source.name,
+        }
+      })
 
       // 初始化批量导入状态
       isBatchImporting.value = true
@@ -351,9 +367,9 @@ export const useSessionStore = defineStore(
       batchImportResult.value = null
 
       // 初始化文件列表
-      batchFiles.value = filePaths.map((path) => ({
+      batchFiles.value = importSources.map(({ path, name }) => ({
         path,
-        name: path.split('/').pop() || path.split('\\').pop() || path,
+        name,
         status: 'pending' as BatchFileStatus,
       }))
 
@@ -422,7 +438,7 @@ export const useSessionStore = defineStore(
             isProcessing = false
           }
 
-          const importResult = await useImportService().importFile(file.path, undefined, (progress) => {
+          const importResult = await useImportService().importFile(importSources[i].source, undefined, (progress) => {
             if (progress.stage === 'done') return
             queue.push(progress)
             processQueue()
@@ -503,7 +519,7 @@ export const useSessionStore = defineStore(
 
       // 生成结果
       const result: BatchImportResult = {
-        total: filePaths.length,
+        total: sources.length,
         success: successCount,
         failed: failedCount,
         cancelled: cancelledCount,
@@ -880,7 +896,7 @@ export const useSessionStore = defineStore(
       batchFiles,
       batchImportCancelled,
       batchImportResult,
-      importFilesFromPaths,
+      importFiles,
       cancelBatchImport,
       clearBatchImportResult,
       // 合并导入

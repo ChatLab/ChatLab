@@ -260,6 +260,13 @@ export async function parseFileInfo(
  * @returns path to the entry file, or null if none found
  */
 export function findEntryFileInDirectory(dirPath: string, maxDepth = 1): string | null {
+  const supportedExtensions = new Set(
+    sniffer
+      .getSupportedFormats()
+      .flatMap((feature) => feature.extensions)
+      .map((extension) => extension.toLowerCase())
+  )
+
   function walk(current: string, depth: number): string | null {
     if (depth > maxDepth) return null
     let entries: fs.Dirent[]
@@ -270,7 +277,7 @@ export function findEntryFileInDirectory(dirPath: string, maxDepth = 1): string 
     }
     for (const entry of entries) {
       const full = path.join(current, entry.name)
-      if (entry.isFile() && entry.name.endsWith('.json')) {
+      if (entry.isFile() && supportedExtensions.has(path.extname(entry.name).toLowerCase())) {
         const format = detectFormat(full)
         if (format) return full
       }

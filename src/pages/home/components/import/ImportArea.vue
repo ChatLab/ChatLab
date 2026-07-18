@@ -300,9 +300,7 @@ async function processWebFiles(files: File[]) {
       importError.value = translateError('error.archive_single_file_required')
       return
     }
-    for (const file of files) {
-      await importSingleWebFile(file)
-    }
+    await sessionStore.importFiles(files)
   }
 }
 
@@ -465,7 +463,7 @@ async function processFilePaths(paths: string[]) {
       }
     } else {
       // 多文件批量导入（未启用合并）
-      await sessionStore.importFilesFromPaths(paths)
+      await sessionStore.importFiles(paths)
     }
     return
   }

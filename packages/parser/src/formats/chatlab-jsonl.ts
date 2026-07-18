@@ -225,8 +225,10 @@ async function* parseChatLabJsonl(options: ParseOptions): AsyncGenerator<ParseEv
         })
         messagesProcessed++
 
-        // 达到批次大小，发送进度
+        // Flush each batch immediately so large files do not retain every message or flood progress IPC.
         if (messageBatch.length >= batchSize) {
+          yield { type: 'messages', data: messageBatch.splice(0) }
+
           const progress = createProgress(
             'parsing',
             bytesRead,
@@ -234,6 +236,7 @@ async function* parseChatLabJsonl(options: ParseOptions): AsyncGenerator<ParseEv
             messagesProcessed,
             `已处理 ${messagesProcessed.toLocaleString()} 条消息...`
           )
+          yield { type: 'progress', data: progress }
           onProgress?.(progress)
         }
         break
@@ -257,10 +260,9 @@ async function* parseChatLabJsonl(options: ParseOptions): AsyncGenerator<ParseEv
     yield { type: 'members', data: Array.from(memberMap.values()) }
   }
 
-  // 分批发送消息
-  for (let i = 0; i < messageBatch.length; i += batchSize) {
-    const batch = messageBatch.slice(i, i + batchSize)
-    yield { type: 'messages', data: batch }
+  // 发送不足一个批次的剩余消息
+  if (messageBatch.length > 0) {
+    yield { type: 'messages', data: messageBatch }
   }
 
   // 完成
