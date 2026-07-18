@@ -3,6 +3,7 @@
 const test = require('node:test')
 const assert = require('node:assert/strict')
 const { EventEmitter } = require('node:events')
+const path = require('node:path')
 
 const { launchApp, __test__ } = require('./app-launcher')
 
@@ -136,6 +137,12 @@ test('launchApp 支持 startPort 并正确注入 TEST_MODE 环境', async () => 
   assert.deepEqual(captured.spawnArgs, ['--remote-debugging-port=9901', captured.spawnArgs[1]])
   assert.equal(captured.spawnEnv.TEST_MODE, 'true')
   assert.match(captured.spawnEnv.CHATLAB_E2E_USER_DATA_DIR, /chatlab-e2e-9901$/)
+  assert.equal(captured.spawnEnv.HOME, captured.spawnEnv.CHATLAB_E2E_USER_DATA_DIR)
+  assert.equal(captured.spawnEnv.USERPROFILE, captured.spawnEnv.CHATLAB_E2E_USER_DATA_DIR)
+  assert.equal(
+    captured.spawnEnv.CHATLAB_DATA_DIR,
+    path.join(captured.spawnEnv.CHATLAB_E2E_USER_DATA_DIR, '.chatlab', 'data')
+  )
 
   await app.close()
   assert.deepEqual(captured.killSignals, ['SIGTERM'])

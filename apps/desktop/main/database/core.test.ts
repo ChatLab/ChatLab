@@ -10,10 +10,15 @@ function makeTempDir(): string {
   return fs.mkdtempSync(path.join(baseDir, 'chatlab-desktop-db-core-'))
 }
 
-test('openDatabase keeps readonly validation read-only for DELETE journal databases', async () => {
+test('desktop database inspection keeps DELETE journal databases read-only', async () => {
   const root = makeTempDir()
   const previousDataDir = process.env.CHATLAB_DATA_DIR
+  const originalConsoleError = console.error
+  const consoleErrors: unknown[][] = []
   process.env.CHATLAB_DATA_DIR = root
+  console.error = (...args: unknown[]) => {
+    consoleErrors.push(args)
+  }
 
   const sessionId = 'legacy-delete-journal'
   const dbPath = path.join(root, 'databases', `${sessionId}.db`)
@@ -53,7 +58,7 @@ test('openDatabase keeps readonly validation read-only for DELETE journal databa
       },
     })
 
-    const { openDatabase } = await import('./core.js')
+    const { checkMigrationNeeded, openDatabase } = await import('./core.js')
     const db = openDatabase(sessionId, true)
     try {
       assert.ok(db)
@@ -65,7 +70,11 @@ test('openDatabase keeps readonly validation read-only for DELETE journal databa
     } finally {
       db?.close()
     }
+
+    assert.equal(checkMigrationNeeded().count, 0)
+    assert.deepEqual(consoleErrors, [])
   } finally {
+    console.error = originalConsoleError
     if (previousDataDir === undefined) {
       delete process.env.CHATLAB_DATA_DIR
     } else {

@@ -241,7 +241,6 @@ export function checkMigrationNeeded(): {
 
     try {
       const db = new Database(dbPath, { readonly: true, nativeBinding: resolveDesktopNativeBinding() })
-      db.pragma('journal_mode = WAL')
 
       // 仅迁移聊天会话数据库：这里最小依赖是 meta + message
       // 这样可跳过非聊天库，同时避免把 member 缺失的异常库直接误归为“非聊天库”
