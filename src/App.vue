@@ -21,15 +21,13 @@ import { initServices } from '@/services'
 import { initPreferencesSync } from '@/composables/usePreferencesSync'
 import { useWindowsTitleBarOverlay } from '@/composables/useWindowsTitleBarOverlay'
 import { configureHttpClient } from '@/services/utils/http'
-import { IS_ELECTRON } from '@/utils/platform'
+import { IS_BROWSER_STANDALONE, IS_ELECTRON } from '@/utils/platform'
 import { usePlatformService } from '@/services'
 import { resolvePageTransitionKey } from '@/routes/page-transition-key'
 import { useLockScreenBootstrap } from '@/components/lock-screen/bootstrap'
 
 const LockScreen = IS_ELECTRON ? defineAsyncComponent(() => import('@/components/lock-screen/LockScreen.vue')) : null
-const DataDirCleanupNotice = IS_ELECTRON
-  ? defineAsyncComponent(() => import('@/components/common/DataDirCleanupNotice.vue'))
-  : null
+const DataDirCleanupNotice = defineAsyncComponent(() => import('@/components/common/DataDirCleanupNotice.vue'))
 
 const { t } = useI18n()
 
@@ -224,8 +222,8 @@ onUnmounted(() => {
     <ChatRecordDrawer />
     <!-- 全局 AI 后台任务条：允许用户离开当前页面后仍然快速返回进行中的对话。 -->
     <GlobalTaskBar />
-    <!-- 数据目录迁移后只提醒人工清理，旧目录不会自动删除。 -->
-    <DataDirCleanupNotice v-if="IS_ELECTRON && isInitialized" />
+    <!-- Desktop 与 CLI Web 迁移后都提醒人工清理；纯浏览器版没有本地数据目录。 -->
+    <DataDirCleanupNotice v-if="!IS_BROWSER_STANDALONE && !isLoginPage && isInitialized" />
     <!-- 原生模态锁屏：锁定后由浏览器 top layer 隔离全部底层操作 -->
     <LockScreen v-if="IS_ELECTRON" @ready="markLockScreenReady" @lock-state-change="updateLockState" />
     <Teleport v-if="IS_ELECTRON" to="body">

@@ -274,7 +274,14 @@ test('pending data directory cleanup can be dismissed and deleted explicitly', (
 
   const switchResult = createNodeDataDirSwitch({ systemDir, currentDir, targetDir, migrate: true })
   assert.equal(switchResult.success, true)
-  assert.equal(applyPendingNodeDataDirMigration(systemDir).success, true)
+  assert.equal(
+    applyPendingNodeDataDirMigration(systemDir, {
+      writeConfigField() {
+        // Config persistence is covered by the preceding adapter-level test.
+      },
+    }).success,
+    true
+  )
 
   const [cleanup] = getPendingDataDirCleanups(systemDir)
   assert.ok(cleanup)
