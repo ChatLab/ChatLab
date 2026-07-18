@@ -261,8 +261,12 @@ export function runPendingDataDirMigration(
 
   deps.writeUserDataDir(pending.to)
 
-  if (pending.migrate && path.resolve(pending.from) !== path.resolve(pending.to)) {
+  if (pending.migrate && path.resolve(pending.from) !== path.resolve(pending.to) && stats.skipped === 0) {
     deps.recordPendingCleanup?.(pending.from, pending.to)
+  } else if (stats.skipped > 0) {
+    deps.log?.(
+      `Old data directory retained without cleanup registration because ${stats.skipped} target file(s) were skipped`
+    )
   }
   deps.clearPendingMigration()
 

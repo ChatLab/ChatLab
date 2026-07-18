@@ -220,7 +220,7 @@ test('applyPendingNodeDataDirMigration preserves old data directory for manual c
   ])
 })
 
-test('retrying a partially failed migration never deletes the newer source database', () => {
+test('retrying a partially failed migration never offers the newer source database for cleanup', () => {
   const root = makeTempDir()
   const systemDir = path.join(root, 'system')
   const source = path.join(root, 'source')
@@ -261,7 +261,7 @@ test('retrying a partially failed migration never deletes the newer source datab
   assert.equal(secondResult.success, true)
   assert.equal(fs.readFileSync(sourceDb, 'utf-8'), 'new-data-after-failed-attempt')
   assert.equal(fs.readFileSync(targetDb, 'utf-8'), 'before-first-attempt')
-  assert.equal(getPendingDataDirCleanups(systemDir)[0]?.sourceDir, source)
+  assert.deepEqual(getPendingDataDirCleanups(systemDir), [])
 })
 
 test('pending data directory cleanup can be dismissed and deleted explicitly', () => {
