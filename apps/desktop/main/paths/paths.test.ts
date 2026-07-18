@@ -102,6 +102,17 @@ test('desktop paths preserve data across configured and legacy directory migrati
     fs.writeFileSync(path.join(legacyDir, 'databases', 'legacy.db'), 'legacy', 'utf-8')
     fs.writeFileSync(path.join(legacyDir, 'temp', 'stale.tmp'), 'temporary', 'utf-8')
 
+    configuredUserDataDir = legacyDir
+    paths.setCachedUserDataDir(legacyDir)
+    assert.equal(paths.needsLegacyMigration(), false)
+    const sameDirResult = paths.migrateFromLegacyDir()
+    assert.equal(sameDirResult.success, true)
+    assert.equal(fs.readFileSync(path.join(legacyDir, 'databases', 'legacy.db'), 'utf-8'), 'legacy')
+    assert.equal(paths.removeLegacyDir(), false)
+    assert.equal(fs.readFileSync(path.join(legacyDir, 'databases', 'legacy.db'), 'utf-8'), 'legacy')
+
+    configuredUserDataDir = targetDir
+    paths.setCachedUserDataDir(targetDir)
     assert.equal(paths.needsLegacyMigration(), true)
     const legacyResult = paths.migrateFromLegacyDir()
     assert.equal(legacyResult.success, true)

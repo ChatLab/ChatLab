@@ -29,6 +29,13 @@ function normalizePathForCompare(input: string): string {
 }
 
 /**
+ * 判断两个路径是否指向同一个规范化位置
+ */
+export function arePathsEqual(first: string, second: string): boolean {
+  return normalizePathForCompare(first) === normalizePathForCompare(second)
+}
+
+/**
  * 判断 child 是否为 parent 的子目录
  */
 export function isSubPath(parent: string, child: string): boolean {
