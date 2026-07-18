@@ -6,7 +6,8 @@ import test from 'node:test'
 import Database from 'better-sqlite3'
 import { CHAT_DB_TABLES } from '@openchatlab/core'
 import { BetterSqliteAdapter } from '../better-sqlite3-adapter'
-import { analyzeNewImport, streamingImport } from './streaming-importer'
+import { TEMP_DB_SCHEMA } from '../merger/temp-db'
+import { analyzeNewImport, streamingImport, streamParseFileInfo } from './streaming-importer'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -126,6 +127,65 @@ function writeDuplicateChatLabExport(root: string): string {
   )
   return filePath
 }
+
+function writeLargeChatLabJsonl(root: string): string {
+  const filePath = path.join(root, 'large-chat.jsonl')
+  const lines = [
+    JSON.stringify({
+      _type: 'header',
+      chatlab: { version: '0.0.2', exportedAt: 1711468800 },
+      meta: { name: 'Large JSONL Test', platform: 'qq', type: 'group' },
+    }),
+    JSON.stringify({
+      _type: 'member',
+      platformId: 'member-1',
+      accountName: 'Alice',
+      avatar: 'data:image/png;base64,AAAA',
+    }),
+  ]
+
+  for (let index = 0; index < 5001; index++) {
+    lines.push(
+      JSON.stringify({
+        _type: 'message',
+        sender: 'member-1',
+        accountName: 'Alice',
+        timestamp: 1711468800 + index,
+        type: 0,
+        content: `message-${index}`,
+      })
+    )
+  }
+
+  fs.writeFileSync(filePath, `${lines.join('\n')}\n`, 'utf-8')
+  return filePath
+}
+
+test('streamParseFileInfo preserves member metadata from a batched ChatLab JSONL import', async (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const filePath = writeLargeChatLabJsonl(root)
+  const tempDbPath = path.join(root, 'merge-preview.db')
+
+  await streamParseFileInfo(filePath, {
+    createTempDatabase() {
+      const db = new Database(tempDbPath, { nativeBinding })
+      db.exec(TEMP_DB_SCHEMA)
+      return { db: new BetterSqliteAdapter(db), tempDbPath }
+    },
+    onProgress() {
+      /* noop for this focused merge-preview test */
+    },
+  })
+
+  const db = new Database(tempDbPath, { readonly: true, nativeBinding })
+  const row = db.prepare('SELECT avatar FROM member WHERE platform_id = ?').get('member-1') as
+    | { avatar: string | null }
+    | undefined
+  db.close()
+
+  assert.equal(row?.avatar, 'data:image/png;base64,AAAA')
+})
 
 test('streamingImport updates avatars for members first created from message batches', async () => {
   const root = makeTempDir()

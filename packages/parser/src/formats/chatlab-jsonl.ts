@@ -142,6 +142,7 @@ async function* parseChatLabJsonl(options: ParseOptions): AsyncGenerator<ParseEv
   const members: ParsedMember[] = []
   const memberMap = new Map<string, ParsedMember>()
   const messageBatch: ParsedMessage[] = []
+  let explicitMembersEmitted = false
   let meta: ParsedMeta | null = null
   let headerParsed = false
 
@@ -227,6 +228,11 @@ async function* parseChatLabJsonl(options: ParseOptions): AsyncGenerator<ParseEv
 
         // Flush each batch immediately so large files do not retain every message or flood progress IPC.
         if (messageBatch.length >= batchSize) {
+          // JSONL 规范要求成员行位于消息之前；先发送显式成员，避免下游创建缺少头像的占位成员。
+          if (members.length > 0 && !explicitMembersEmitted) {
+            yield { type: 'members', data: members.slice() }
+            explicitMembersEmitted = true
+          }
           yield { type: 'messages', data: messageBatch.splice(0) }
 
           const progress = createProgress(
@@ -255,7 +261,9 @@ async function* parseChatLabJsonl(options: ParseOptions): AsyncGenerator<ParseEv
 
   // 发送成员
   if (members.length > 0) {
-    yield { type: 'members', data: members }
+    if (!explicitMembersEmitted) {
+      yield { type: 'members', data: members }
+    }
   } else if (memberMap.size > 0) {
     yield { type: 'members', data: Array.from(memberMap.values()) }
   }
