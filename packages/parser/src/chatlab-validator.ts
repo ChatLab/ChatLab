@@ -357,12 +357,17 @@ function finalizeState(
     }
   }
 
-  if (state.memberIds.size > 0) {
+  const ownerMemberIds =
+    state.memberIds.size > 0 ? state.memberIds : requireExplicitMembers ? undefined : state.senderIds
+  if (ownerMemberIds) {
     for (const ownerId of state.ownerIds) {
-      if (!state.memberIds.has(ownerId)) {
-        addIssue(state, 'error', 'UNKNOWN_OWNER', 'meta.ownerId must reference an explicit member platformId.')
+      if (!ownerMemberIds.has(ownerId)) {
+        addIssue(state, 'error', 'UNKNOWN_OWNER', 'meta.ownerId must reference a member platformId.')
       }
     }
+  }
+
+  if (state.memberIds.size > 0) {
     for (const senderId of state.senderIds) {
       if (!state.memberIds.has(senderId)) {
         addIssue(

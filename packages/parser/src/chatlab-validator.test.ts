@@ -72,6 +72,34 @@ test('validates a complete ChatLab JSONL file without exposing message content',
   }
 })
 
+test('rejects an ownerId outside inferred JSONL members', async () => {
+  const root = makeTempDir()
+  const filePath = path.join(root, 'unknown-owner.jsonl')
+  writeJsonl(filePath, [
+    {
+      _type: 'header',
+      chatlab: { version: CHATLAB_FORMAT_VERSION, exportedAt: 1_711_468_800 },
+      meta: { name: 'Example', platform: 'custom', type: 'group', ownerId: 'missing' },
+    },
+    {
+      _type: 'message',
+      sender: 'alice',
+      accountName: 'Alice',
+      timestamp: 1_711_468_800,
+      type: 0,
+      content: 'Hello',
+    },
+  ])
+
+  try {
+    const report = await validateChatLabFile(filePath)
+    assert.equal(report.valid, false)
+    assert.ok(report.issues.some((issue) => issue.code === 'UNKNOWN_OWNER'))
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test('accepts the initial ChatLab JSON format version', async () => {
   const root = makeTempDir()
   const filePath = path.join(root, 'legacy.json')

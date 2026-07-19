@@ -100,7 +100,7 @@ try {
       '--target=node20',
       '--minify',
       `--outfile=${outputPath}`,
-      '--banner:js=#!/usr/bin/env node\n// Generated from the canonical ChatLab validator. Do not edit directly.',
+      '--banner:js=#!/usr/bin/env node\n// Generated from the canonical ChatLab validator. Do not edit directly.\n/* eslint-disable */',
     ],
     { cwd: rootDir, stdio: 'inherit' }
   )

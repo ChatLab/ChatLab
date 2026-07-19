@@ -117,8 +117,10 @@ export const feature: FormatFeature = {
   priority: 51, // 低优先级，让其他格式先匹配
   extensions: ['.jsonl'],
   signatures: {
-    // 第一行必须是 header 类型，包含 chatlab 信息
-    head: [/^\s*\{.*"_type"\s*:\s*"header".*"chatlab"/],
+    // 跳过格式允许的空行和注释后，分别匹配首条数据中的 header 类型和 chatlab 对象。
+    head: [
+      /^\uFEFF?(?:[ \t]*(?:#[^\r\n]*)?\r?\n)*[ \t]*\{(?=[^\r\n]*"_type"\s*:\s*"header")(?=[^\r\n]*"chatlab"\s*:)[^\r\n]*\}/,
+    ],
   },
 }
 

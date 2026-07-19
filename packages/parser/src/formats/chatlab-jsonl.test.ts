@@ -5,7 +5,7 @@ import path from 'node:path'
 import test from 'node:test'
 import { MessageType } from '@openchatlab/shared-types'
 
-import { findEntryFileInDirectory, parseFileWithFormat } from '../index'
+import { detectFormat, findEntryFileInDirectory, parseFileWithFormat } from '../index'
 
 function makeTempDir(): string {
   const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
@@ -92,6 +92,49 @@ test('directory entry detection accepts a top-level ChatLab JSONL file', () => {
 
   try {
     assert.equal(findEntryFileInDirectory(root), filePath)
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('auto-detects ChatLab JSONL after leading comments and blank lines', () => {
+  const root = makeTempDir()
+  const filePath = path.join(root, 'commented-chat.jsonl')
+  writeChatLabJsonl(filePath, 1)
+  fs.writeFileSync(filePath, `# generated locally\n\n${fs.readFileSync(filePath, 'utf8')}`, 'utf8')
+
+  try {
+    assert.equal(detectFormat(filePath)?.id, 'chatlab-jsonl')
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('auto-detects ChatLab JSONL regardless of header field order', () => {
+  const root = makeTempDir()
+  const filePath = path.join(root, 'reordered-header.jsonl')
+  writeChatLabJsonl(filePath, 1)
+
+  const [headerLine, ...remainingLines] = fs.readFileSync(filePath, 'utf8').trimEnd().split('\n')
+  const header = JSON.parse(headerLine) as Record<string, unknown>
+  const reorderedHeader = { chatlab: header.chatlab, meta: header.meta, _type: header._type }
+  fs.writeFileSync(filePath, `${JSON.stringify(reorderedHeader)}\n${remainingLines.join('\n')}\n`, 'utf8')
+
+  try {
+    assert.equal(detectFormat(filePath)?.id, 'chatlab-jsonl')
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('auto-detects ChatLab JSONL with a UTF-8 BOM', () => {
+  const root = makeTempDir()
+  const filePath = path.join(root, 'bom-chat.jsonl')
+  writeChatLabJsonl(filePath, 1)
+  fs.writeFileSync(filePath, `\uFEFF${fs.readFileSync(filePath, 'utf8')}`, 'utf8')
+
+  try {
+    assert.equal(detectFormat(filePath)?.id, 'chatlab-jsonl')
   } finally {
     fs.rmSync(root, { recursive: true, force: true })
   }
