@@ -78,6 +78,13 @@ export enum ChatType {
   PRIVATE = 'private',
 }
 
+export {
+  CHATLAB_FORMAT_VERSION,
+  CHATLAB_SUPPORTED_FORMAT_VERSIONS,
+  isSupportedChatLabFormatVersion,
+  type ChatLabFormatVersion,
+} from './chatlab-format'
+
 // ==================== AI Assistants ====================
 
 export const GENERAL_ASSISTANT_IDS = ['general_cn', 'general_tw', 'general_en', 'general_ja'] as const

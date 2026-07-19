@@ -17,6 +17,7 @@ import {
   type MergedMember,
   type MergedMessage,
 } from '@openchatlab/core'
+import { CHATLAB_FORMAT_VERSION } from '@openchatlab/shared-types'
 
 // ==================== Data source abstraction ====================
 
@@ -49,7 +50,7 @@ export interface MergeSourceInfo {
 }
 
 export interface ChatLabHeader {
-  version: string
+  version: typeof CHATLAB_FORMAT_VERSION
   exportedAt: number
   generator: string
   description: string
@@ -172,7 +173,7 @@ export function buildMergedOutput(
 
   const chatLabData: ChatLabOutput = {
     chatlab: {
-      version: '0.0.1',
+      version: CHATLAB_FORMAT_VERSION,
       exportedAt: Math.floor(Date.now() / 1000),
       generator: 'ChatLab Merge Tool',
       description: `Merged from ${dataSources.length} files`,

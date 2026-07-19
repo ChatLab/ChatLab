@@ -11,7 +11,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import type { DatabaseAdapter } from '@openchatlab/core'
-import type { ParsedMember, ParsedMessage } from '@openchatlab/shared-types'
+import { CHATLAB_FORMAT_VERSION, type ParsedMember, type ParsedMessage } from '@openchatlab/shared-types'
 import type { MergerDataSource, MergerSourceMeta } from './index'
 import type { MergerMember, MergerMessage } from '@openchatlab/core'
 
@@ -291,7 +291,7 @@ function createDataSourceFromReader(reader: TempDbReader): MergerDataSource {
 // ==================== Session export ====================
 
 export interface ExportedSession {
-  chatlab: { version: string; exportedAt: number; generator: string; description: string }
+  chatlab: { version: typeof CHATLAB_FORMAT_VERSION; exportedAt: number; generator: string; description: string }
   meta: { name: string; platform: string; type: string; groupId?: string; groupAvatar?: string }
   members: Array<{ platformId: string; accountName: string; groupNickname?: string; avatar?: string }>
   messages: Array<{
@@ -339,7 +339,7 @@ export function exportSessionToJson(db: DatabaseAdapter): ExportedSession {
 
   return {
     chatlab: {
-      version: '0.0.1',
+      version: CHATLAB_FORMAT_VERSION,
       exportedAt: Math.floor(Date.now() / 1000),
       generator: 'ChatLab Export',
       description: `Exported from session: ${meta.name}`,

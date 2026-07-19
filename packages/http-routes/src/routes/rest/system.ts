@@ -6,6 +6,7 @@
  */
 
 import type { FastifyInstance } from 'fastify'
+import { CHATLAB_FORMAT_VERSION } from '@openchatlab/shared-types'
 import { successResponse } from '../../errors'
 
 export interface SystemRouteContext {
@@ -33,7 +34,7 @@ export function registerSystemRoutes(server: FastifyInstance, ctx: SystemRouteCo
   server.get('/api/v1/schema', async () => {
     return successResponse({
       format: 'ChatLab Format',
-      version: '0.0.2',
+      version: CHATLAB_FORMAT_VERSION,
       spec: {
         chatlab: {
           type: 'object',

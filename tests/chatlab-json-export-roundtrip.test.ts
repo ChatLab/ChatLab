@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import test from 'node:test'
 import Database from 'better-sqlite3'
 import { detectFormat, parseFileSync } from '@openchatlab/parser'
+import { CHATLAB_FORMAT_VERSION } from '@openchatlab/shared-types'
 import { CHAT_DB_SCHEMA } from '../packages/core/src/schema/tables'
 import { BetterSqliteAdapter } from '../packages/node-runtime/src/better-sqlite3-adapter'
 import { exportWithFormat } from '../packages/node-runtime/src/export/format-exporter'
@@ -60,7 +61,7 @@ test('exports JSON as ChatLab format that can be parsed for re-import', async ()
 
     assert.equal(result.success, true)
     const exported = JSON.parse(result.content)
-    assert.equal(exported.chatlab.version, '0.0.2')
+    assert.equal(exported.chatlab.version, CHATLAB_FORMAT_VERSION)
     assert.equal(exported.meta.ownerId, 'alice')
     assert.equal(exported.meta.sourceSessionId, 'session-1')
     assert.deepEqual(exported.members[0].aliases, ['Alice'])

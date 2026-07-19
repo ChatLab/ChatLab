@@ -4,6 +4,7 @@
  */
 
 import type { DatabaseAdapter } from '@openchatlab/core'
+import { CHATLAB_FORMAT_VERSION } from '@openchatlab/shared-types'
 import { appLogger } from '../logging/app-logger'
 
 export type ExportFormat = 'txt' | 'json' | 'markdown'
@@ -141,7 +142,7 @@ function exportAsJson(
 
   const data = {
     chatlab: {
-      version: '0.0.2',
+      version: CHATLAB_FORMAT_VERSION,
       exportedAt: Math.floor(Date.now() / 1000),
       generator: 'ChatLab',
     },
