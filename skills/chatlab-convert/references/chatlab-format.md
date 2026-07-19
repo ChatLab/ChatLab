@@ -1,10 +1,13 @@
 # ChatLab conversion contract
 
-Use this contract when generating ChatLab Format `0.0.2`. It is intentionally limited to what a converter needs. The strict validator is authoritative for generated files:
+Use this contract when generating ChatLab Format `0.0.2`. It is intentionally limited to what a converter needs. The ChatLab CLI or this Skill's bundled strict validator is authoritative for generated files:
 
 ```bash
 chatlab validate "/absolute/path/to/output.jsonl" --json
+node "/absolute/path/to/chatlab-convert/scripts/validate-chatlab.mjs" "/absolute/path/to/output.jsonl"
 ```
+
+Choose one command based on the environment; running both is unnecessary. The bundled validator checks the format only and does not replace import validation with `chatlab import --dry-run --json`.
 
 ## Core invariants
 

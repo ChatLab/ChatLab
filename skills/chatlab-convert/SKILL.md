@@ -35,7 +35,18 @@ chatlab formats
 chatlab import "/absolute/path/to/source" --dry-run --json
 ```
 
-If the dry run recognizes the source, do not convert it. Use `chatlab-import` for the supported file. If `chatlab validate` is unavailable, ask the user to update `chatlab-cli`; do not replace the required validator with visual inspection.
+If the dry run recognizes the source, do not convert it. Use `chatlab-import` for the supported file.
+
+If `chatlab` is missing, or the installed version has no `validate` command:
+
+1. Tell the user that ChatLab CLI was not detected but conversion can continue with this Skill's bundled strict validator.
+2. Recommend installing or updating the CLI, and obtain permission before running `npm install -g chatlab-cli@latest`.
+3. If the user skips installation, installation fails, or the network is unavailable, continue with `scripts/validate-chatlab.mjs`.
+4. Skip `chatlab formats` and the source dry run, and state that native ChatLab support for the source format could not be checked.
+
+The bundled validator requires Node.js 20 or later. If `node --version` is also unavailable, the converter may still be written, but mark the result as “not yet validated” and guide the user to install Node.js and `chatlab-cli`. Do not install either without permission.
+
+Do not replace either the CLI validator or bundled strict validator with visual inspection.
 
 ### 2. Inspect without exposing content
 
@@ -90,24 +101,43 @@ Default `skipped` to zero. Mapping an unknown message to type `99` is preservati
 
 ### 5. Prove a small sample
 
-Run the converter on a bounded local sample or sample mode first. Validate that output:
+Run the converter on a bounded local sample or sample mode first. With the CLI available, validate that output with:
 
 ```bash
 chatlab validate "/absolute/path/to/sample.jsonl" --json
+```
+
+Without the CLI, locate the directory containing this `SKILL.md` and use the bundled validator:
+
+```bash
+node "/absolute/path/to/chatlab-convert/scripts/validate-chatlab.mjs" "/absolute/path/to/sample.jsonl"
 ```
 
 Fix every validation error before running the full conversion. Review warnings and explain why each is acceptable; do not ignore them automatically.
 
 ### 6. Convert and validate everything
 
-Run the full converter, then validate every generated file:
+Run the full converter, then validate every generated file with the CLI or bundled validator. With the CLI available, also run the import dry run:
 
 ```bash
 chatlab validate "/absolute/path/to/converted.jsonl" --json
 chatlab import "/absolute/path/to/converted.jsonl" --dry-run --json
 ```
 
-Require all of the following before calling conversion successful:
+Without the CLI, run:
+
+```bash
+node "/absolute/path/to/chatlab-convert/scripts/validate-chatlab.mjs" "/absolute/path/to/converted.jsonl"
+```
+
+Keep the result levels distinct:
+
+- **Format validated**: the CLI or bundled strict validator returns `ok: true`; converter and validator message counts match; source messages equal output messages plus explicitly accepted skipped records; and no source parse error was hidden.
+- **Import validated**: format validation passed and `chatlab import --dry-run --json` also returns `ok: true`.
+
+Without the CLI, report only “format validated.” Tell the user they can install the CLI later to run the dry-run or drag the result into ChatLab. Do not claim import validation passed.
+
+Require all of the following before calling the result fully import validated:
 
 - strict validation returns `ok: true`;
 - the import dry run returns `ok: true`;
@@ -117,12 +147,14 @@ Require all of the following before calling conversion successful:
 
 ### 7. Import only when requested
 
-If the user asked only to convert, stop after validation and dry-run preview. Report output and script paths, conversations, members, messages, skipped records, warnings, and mapping limitations without quoting messages.
+If the user asked only to convert, stop after all validation available in the current environment. Report output and script paths, conversations, members, messages, skipped records, warnings, mapping limitations, and the validation level actually reached without quoting messages.
 
 If the user explicitly asked to import, run the same validated file without `--dry-run`:
 
 ```bash
 chatlab import "/absolute/path/to/converted.jsonl" --json
 ```
+
+If the CLI is still unavailable, explain that automatic import requires `chatlab-cli`, recommend installation, and obtain permission before installing it. Never treat “format validated” as already imported.
 
 For multiple outputs, preview and import each independently. Report every resulting session ID and count; do not delete the converter or converted files.

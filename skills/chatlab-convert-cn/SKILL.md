@@ -35,7 +35,18 @@ chatlab formats
 chatlab import "/absolute/path/to/source" --dry-run --json
 ```
 
-如果 dry-run 已经识别源文件，不要重复转换，改用 `chatlab-import-cn` 完成导入。如果没有 `chatlab validate`，让用户更新 `chatlab-cli`；不能用肉眼检查替代必需的验证器。
+如果 dry-run 已经识别源文件，不要重复转换，改用 `chatlab-import-cn` 完成导入。
+
+如果 `chatlab` 不存在，或已有版本没有 `validate` 命令：
+
+1. 告诉用户未检测到可用的 ChatLab CLI，但仍可使用本 Skill 内置的严格验证器继续转换；
+2. 建议安装或更新 CLI，并在执行前征得用户同意：`npm install -g chatlab-cli@latest`；
+3. 用户跳过安装、安装失败或当前无法联网时，不要阻断转换，改用 `scripts/validate-chatlab.mjs`；
+4. 跳过 `chatlab formats` 和源文件 dry-run，并明确说明无法确认 ChatLab 是否已原生支持该源格式。
+
+内置验证器需要 Node.js 20 或更高版本。如果 `node --version` 也不可用，可以继续编写转换器，但必须把结果标记为“尚未验证”，并引导用户安装 Node.js 和 `chatlab-cli`；未经同意不要自行安装。
+
+不能用肉眼检查替代 CLI 或内置严格验证器。
 
 ### 2. 在不暴露正文的前提下检查结构
 
@@ -90,24 +101,43 @@ chatlab import "/absolute/path/to/source" --dry-run --json
 
 ### 5. 先证明小样本
 
-先对受限的本地样本或脚本的 sample 模式运行转换器，然后验证：
+先对受限的本地样本或脚本的 sample 模式运行转换器，然后验证。有 CLI 时运行：
 
 ```bash
 chatlab validate "/absolute/path/to/sample.jsonl" --json
+```
+
+没有 CLI 时，定位本 `SKILL.md` 所在目录，并使用随 Skill 分发的验证器：
+
+```bash
+node "/absolute/path/to/chatlab-convert-cn/scripts/validate-chatlab.mjs" "/absolute/path/to/sample.jsonl"
 ```
 
 修复全部 error 后才能全量转换。逐项检查 warning 并说明为什么可以接受，不能自动忽略。
 
 ### 6. 全量转换并双重验证
 
-运行完整转换，然后验证每一个输出文件：
+运行完整转换，然后使用 CLI 或内置验证器验证每一个输出文件。有 CLI 时继续执行导入 dry-run：
 
 ```bash
 chatlab validate "/absolute/path/to/converted.jsonl" --json
 chatlab import "/absolute/path/to/converted.jsonl" --dry-run --json
 ```
 
-只有同时满足以下条件，才能认为转换成功：
+没有 CLI 时运行：
+
+```bash
+node "/absolute/path/to/chatlab-convert-cn/scripts/validate-chatlab.mjs" "/absolute/path/to/converted.jsonl"
+```
+
+按验证能力区分结果，不能混用结论：
+
+- **格式验证通过**：CLI 或内置严格验证器返回 `ok: true`，转换器输出消息数等于验证器消息数，源消息数等于输出消息数加上用户明确接受的跳过数，且没有隐藏源解析错误；
+- **导入验证通过**：在格式验证通过的基础上，`chatlab import --dry-run --json` 也返回 `ok: true`。
+
+没有 CLI 时只能报告“格式验证通过”，并提醒用户之后可以安装 CLI 完成 dry-run，或将结果文件拖入 ChatLab；不能声称已经通过导入验证。
+
+只有同时满足以下条件，才能认为转换结果已经通过完整导入验证：
 
 - 严格验证返回 `ok: true`；
 - 导入 dry-run 返回 `ok: true`；
@@ -117,12 +147,14 @@ chatlab import "/absolute/path/to/converted.jsonl" --dry-run --json
 
 ### 7. 仅在用户要求时导入
 
-如果用户只要求转换，在验证和 dry-run 预览后停止。报告输出路径、脚本路径、会话数、成员数、消息数、跳过数、警告和映射限制，不要引用消息正文。
+如果用户只要求转换，在当前环境可完成的验证后停止。报告输出路径、脚本路径、会话数、成员数、消息数、跳过数、警告、映射限制和实际达到的验证级别，不要引用消息正文。
 
 如果用户明确要求导入，使用同一个已验证文件移除 `--dry-run`：
 
 ```bash
 chatlab import "/absolute/path/to/converted.jsonl" --json
 ```
+
+如果此时仍没有 CLI，说明自动导入需要 `chatlab-cli`，建议安装并征得用户同意；不能把“格式验证通过”当成已经导入。
 
 存在多个输出时，逐个预览并独立导入。报告每个结果的会话 ID 和数量；不要删除转换脚本或转换结果。

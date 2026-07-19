@@ -1,10 +1,13 @@
 # ChatLab 转换协议
 
-生成 ChatLab Format `0.0.2` 时遵循本协议。这里只保留转换器需要的内容；生成文件以严格验证器的结果为准：
+生成 ChatLab Format `0.0.2` 时遵循本协议。这里只保留转换器需要的内容；生成文件以 ChatLab CLI 或本 Skill 内置严格验证器的结果为准：
 
 ```bash
 chatlab validate "/absolute/path/to/output.jsonl" --json
+node "/absolute/path/to/chatlab-convert-cn/scripts/validate-chatlab.mjs" "/absolute/path/to/output.jsonl"
 ```
+
+两条命令按环境选择其一，不需要重复运行；内置验证器只验证格式，不代替 `chatlab import --dry-run --json` 的导入验证。
 
 ## 核心约束
 
