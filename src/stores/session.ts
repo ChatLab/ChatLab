@@ -169,7 +169,7 @@ export const useSessionStore = defineStore(
     /**
      * 从数据库加载会话列表
      */
-    async function loadSessions() {
+    async function loadSessions(options: { throwOnError?: boolean } = {}) {
       try {
         const list = await useDataService().getSessions()
         sessions.value = list
@@ -180,6 +180,10 @@ export const useSessionStore = defineStore(
         isInitialized.value = true
       } catch (error) {
         console.error('加载会话列表失败:', error)
+        if (options.throwOnError) {
+          isInitialized.value = false
+          throw error
+        }
         isInitialized.value = true
       }
     }

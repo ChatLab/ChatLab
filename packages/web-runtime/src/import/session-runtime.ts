@@ -2,8 +2,12 @@ import {
   CHAT_DB_INDEXES,
   CHAT_DB_TABLES,
   getHourlyActivity as queryHourlyActivity,
+  getMemberActivity as queryMemberActivity,
+  getMessageTypeStats as queryMessageTypeStats,
   writeParseResultToDb,
   type HourlyActivity,
+  type MemberActivity,
+  type MessageTypeStats,
 } from '@openchatlab/core'
 import { WebRuntimeError } from '../runtime-error'
 import type { WorkspaceDatabasePort, WorkspaceDatabaseStage } from '../storage/workspace-database'
@@ -241,6 +245,26 @@ export class BrowserSessionRuntime {
 
     return this.database.withDatabase(sessionDatabaseFilename(id), CHAT_DB_TABLES, (db) =>
       queryHourlyActivity(db, filter)
+    )
+  }
+
+  async getMemberActivity(id: string, filter?: BrowserTimeFilter): Promise<MemberActivity[]> {
+    validateSessionId(id)
+    const session = await this.catalog.get(id)
+    if (!session) throw new WebRuntimeError('SESSION_NOT_FOUND', `Session ${id} was not found`)
+
+    return this.database.withDatabase(sessionDatabaseFilename(id), CHAT_DB_TABLES, (db) =>
+      queryMemberActivity(db, filter)
+    )
+  }
+
+  async getMessageTypeDistribution(id: string, filter?: BrowserTimeFilter): Promise<MessageTypeStats[]> {
+    validateSessionId(id)
+    const session = await this.catalog.get(id)
+    if (!session) throw new WebRuntimeError('SESSION_NOT_FOUND', `Session ${id} was not found`)
+
+    return this.database.withDatabase(sessionDatabaseFilename(id), CHAT_DB_TABLES, (db) =>
+      queryMessageTypeStats(db, filter)
     )
   }
 }

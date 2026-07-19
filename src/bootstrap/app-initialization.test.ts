@@ -99,6 +99,7 @@ test('does not open Web WASM session storage when required browser capabilities 
         return unsupported
       },
       initializePreferences: async () => void calls.push('preferences'),
+      initializeLocale: async () => void calls.push('locale'),
       loadSessions: async () => void calls.push('sessions'),
     }),
     (error: unknown) =>

@@ -1,0 +1,115 @@
+<script setup lang="ts">
+import { computed, onMounted, ref } from 'vue'
+import { useColorMode } from '@vueuse/core'
+import { storeToRefs } from 'pinia'
+import { useRoute } from 'vue-router'
+import { useI18n } from 'vue-i18n'
+import Sidebar from '@/components/common/Sidebar.vue'
+import { initializeAppRuntime } from '@/bootstrap/app-initialization'
+import { initPreferencesSync } from '@/composables/usePreferencesSync'
+import { useBrowserRuntimeService } from '@/services/browser-runtime/service'
+import { initServices } from '@/services/registry'
+import { reportError } from '@/services/log-report'
+import { useSessionStore } from '@/stores/session'
+import { useSettingsStore } from '@/stores/settings'
+import { PLATFORM_CAPABILITIES } from '@/utils/platform-capabilities'
+
+const { t } = useI18n()
+const route = useRoute()
+const sessionStore = useSessionStore()
+const settingsStore = useSettingsStore()
+const { isInitialized } = storeToRefs(sessionStore)
+const initError = ref<string | null>(null)
+const pageTransitionKey = computed(() => route.fullPath)
+
+useColorMode({
+  emitAuto: true,
+  initialValue: 'light',
+})
+
+const tooltip = { delayDuration: 100 }
+const toaster = {
+  position: 'top-center' as const,
+  progress: false,
+  duration: 2000,
+}
+
+let initInProgress = false
+
+async function initializeApp() {
+  if (initInProgress || isInitialized.value) return
+  initInProgress = true
+  initError.value = null
+
+  try {
+    await initializeAppRuntime({
+      capabilities: PLATFORM_CAPABILITIES,
+      initializeServices: () => initServices(),
+      checkBrowserCapabilities: () => useBrowserRuntimeService().checkCapabilities(),
+      initializePreferences: () => initPreferencesSync(),
+      initializeLocale: () => settingsStore.initLocale(),
+      loadSessions: () => sessionStore.loadSessions({ throwOnError: true }),
+    })
+  } catch (error) {
+    console.error('Web WASM application initialization failed', error)
+    initError.value = error instanceof Error ? error.message : String(error)
+    reportError(initError.value, error instanceof Error ? error.stack : undefined)
+  } finally {
+    initInProgress = false
+  }
+}
+
+onMounted(initializeApp)
+</script>
+
+<template>
+  <UApp :tooltip="tooltip" :toaster="toaster">
+    <div class="relative flex h-screen w-full overflow-hidden bg-page-bg dark:bg-page-dark">
+      <template v-if="!isInitialized">
+        <div class="flex h-full w-full items-center justify-center">
+          <div v-if="initError" class="flex flex-col items-center justify-center gap-3 px-6 text-center">
+            <UIcon name="i-heroicons-exclamation-triangle" class="h-8 w-8 text-red-500" />
+            <p class="text-sm text-gray-700 dark:text-gray-300">{{ t('common.initFailed') }}</p>
+            <p class="max-w-sm text-xs text-gray-500">{{ initError }}</p>
+            <UButton size="sm" color="primary" variant="soft" @click="initializeApp">
+              {{ t('common.retry') }}
+            </UButton>
+          </div>
+          <div v-else class="flex flex-col items-center justify-center text-center">
+            <UIcon name="i-heroicons-arrow-path" class="h-8 w-8 animate-spin text-pink-500" />
+            <p class="mt-2 text-sm text-gray-500">{{ t('common.initializing') }}</p>
+          </div>
+        </div>
+      </template>
+      <template v-else>
+        <Sidebar :backend-features="false" />
+        <main class="relative flex-1 overflow-hidden">
+          <router-view v-slot="{ Component }">
+            <Transition name="page-fade" mode="out-in">
+              <component :is="Component" :key="pageTransitionKey" />
+            </Transition>
+          </router-view>
+        </main>
+      </template>
+    </div>
+  </UApp>
+</template>
+
+<style scoped>
+.page-fade-enter-active,
+.page-fade-leave-active {
+  transition:
+    opacity 0.2s ease,
+    transform 0.2s ease;
+}
+
+.page-fade-enter-from {
+  opacity: 0;
+  transform: translateY(10px);
+}
+
+.page-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-10px);
+}
+</style>

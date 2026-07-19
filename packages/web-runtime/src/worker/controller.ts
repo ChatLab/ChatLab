@@ -35,6 +35,8 @@ export type WorkerSessionRuntime = Pick<
   | 'deleteSession'
   | 'renameSession'
   | 'getHourlyActivity'
+  | 'getMemberActivity'
+  | 'getMessageTypeDistribution'
 >
 
 export class WebRuntimeWorkerController {
@@ -205,6 +207,33 @@ export class WebRuntimeWorkerController {
           level: 'debug',
           scope: 'web-runtime',
           message: 'Browser hourly activity query completed',
+          data: { sessionId: request.payload.sessionId, durationMs: Math.round(performance.now() - startedAt) },
+        })
+        return result
+      }
+      case 'analysis.members': {
+        this.assertSupportedBrowser()
+        const startedAt = performance.now()
+        const result = await this.sessionRuntime.getMemberActivity(request.payload.sessionId, request.payload.filter)
+        this.emitLog(request.id, {
+          level: 'debug',
+          scope: 'web-runtime',
+          message: 'Browser member activity query completed',
+          data: { sessionId: request.payload.sessionId, durationMs: Math.round(performance.now() - startedAt) },
+        })
+        return result
+      }
+      case 'analysis.messageTypes': {
+        this.assertSupportedBrowser()
+        const startedAt = performance.now()
+        const result = await this.sessionRuntime.getMessageTypeDistribution(
+          request.payload.sessionId,
+          request.payload.filter
+        )
+        this.emitLog(request.id, {
+          level: 'debug',
+          scope: 'web-runtime',
+          message: 'Browser message type distribution query completed',
           data: { sessionId: request.payload.sessionId, durationMs: Math.round(performance.now() - startedAt) },
         })
         return result

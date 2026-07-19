@@ -1,6 +1,6 @@
 import type { BrowserImportFormatId, BrowserParseSource } from '../import/browser-parser'
 import type { BrowserSessionCatalogItem } from '../import/session-catalog'
-import type { HourlyActivity } from '@openchatlab/core'
+import type { HourlyActivity, MemberActivity, MessageTypeStats } from '@openchatlab/core'
 import type {
   BrowserImportFormatInfo,
   BrowserMultiChatEntry,
@@ -76,6 +76,14 @@ export interface WebRuntimeTaskMap {
   'analysis.hourly': {
     payload: { sessionId: string; filter?: BrowserTimeFilter }
     result: HourlyActivity[]
+  }
+  'analysis.members': {
+    payload: { sessionId: string; filter?: BrowserTimeFilter }
+    result: MemberActivity[]
+  }
+  'analysis.messageTypes': {
+    payload: { sessionId: string; filter?: BrowserTimeFilter }
+    result: MessageTypeStats[]
   }
 }
 
@@ -173,4 +181,6 @@ const WEB_RUNTIME_TASK_TYPES: Record<WebRuntimeTaskType, true> = {
   'session.delete': true,
   'session.rename': true,
   'analysis.hourly': true,
+  'analysis.members': true,
+  'analysis.messageTypes': true,
 }

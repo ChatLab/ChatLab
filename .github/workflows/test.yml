@@ -100,3 +100,6 @@ jobs:
 
       - name: Type check (node)
         run: pnpm run type-check:node
+
+      - name: Build Web WASM
+        run: pnpm run build:web-wasm

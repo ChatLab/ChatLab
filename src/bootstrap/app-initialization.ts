@@ -13,7 +13,7 @@ export interface AppInitializationPorts {
   initializeServices(): Promise<void>
   checkBrowserCapabilities?: () => Promise<BrowserCapabilityReport>
   initializePreferences(): Promise<void>
-  initializeLocale?: () => Promise<void>
+  initializeLocale(): Promise<void>
   initializeLlm?: () => Promise<void>
   loadSessions(): Promise<void>
   listenForPullResults?: () => () => void

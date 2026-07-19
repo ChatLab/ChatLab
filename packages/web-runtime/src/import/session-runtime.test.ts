@@ -706,4 +706,85 @@ describe('BrowserSessionRuntime', () => {
     assert.deepEqual(await database.getDatabaseFilenames(), filenamesBeforeMissingQuery)
     database.dispose()
   })
+
+  it('runs the core member activity query with ranking and time-filter semantics', async () => {
+    const sqlite3 = await sqlite3InitModule()
+    const database = new MemoryWorkspaceDatabase(sqlite3)
+    const runtime = new BrowserSessionRuntime(database, {
+      createSessionId: () => 'member-query-session',
+      now: () => 100,
+    })
+    const timestamp = 1_700_000_000
+    const fixture = {
+      chatlab: { version: '1', exportedAt: timestamp },
+      meta: { name: 'Member Query', platform: 'wechat', type: 'group', ownerId: 'alice' },
+      members: [
+        { platformId: 'alice', accountName: 'Alice' },
+        { platformId: 'bob', accountName: 'Bob' },
+      ],
+      messages: [
+        { sender: 'alice', accountName: 'Alice', timestamp, type: 0, content: 'one' },
+        { sender: 'alice', accountName: 'Alice', timestamp: timestamp + 1, type: 0, content: 'two' },
+        { sender: 'bob', accountName: 'Bob', timestamp: timestamp + 2, type: 0, content: 'three' },
+      ],
+    }
+
+    await runtime.importSource(source('member-query.json', fixture), { formatId: 'chatlab' })
+
+    const ranking = await runtime.getMemberActivity('member-query-session')
+    assert.deepEqual(
+      ranking.map(({ name, messageCount, percentage }) => ({ name, messageCount, percentage })),
+      [
+        { name: 'Alice', messageCount: 2, percentage: 66.67 },
+        { name: 'Bob', messageCount: 1, percentage: 33.33 },
+      ]
+    )
+    assert.deepEqual(
+      (await runtime.getMemberActivity('member-query-session', { startTs: timestamp + 2 })).map(
+        ({ name, messageCount, percentage }) => ({ name, messageCount, percentage })
+      ),
+      [{ name: 'Bob', messageCount: 1, percentage: 100 }]
+    )
+
+    const filenamesBeforeMissingQuery = await database.getDatabaseFilenames()
+    await assert.rejects(runtime.getMemberActivity('missing-session'), /Session missing-session was not found/)
+    assert.deepEqual(await database.getDatabaseFilenames(), filenamesBeforeMissingQuery)
+    database.dispose()
+  })
+
+  it('runs the core message type query with filtering and without creating missing databases', async () => {
+    const sqlite3 = await sqlite3InitModule()
+    const database = new MemoryWorkspaceDatabase(sqlite3)
+    const runtime = new BrowserSessionRuntime(database, {
+      createSessionId: () => 'message-type-query-session',
+      now: () => 100,
+    })
+    const timestamp = 1_700_000_000
+    const fixture = {
+      chatlab: { version: '1', exportedAt: timestamp },
+      meta: { name: 'Message Type Query', platform: 'wechat', type: 'group', ownerId: 'alice' },
+      members: [{ platformId: 'alice', accountName: 'Alice' }],
+      messages: [
+        { sender: 'alice', accountName: 'Alice', timestamp, type: 0, content: 'one' },
+        { sender: 'alice', accountName: 'Alice', timestamp: timestamp + 1, type: 1, content: '[image]' },
+        { sender: 'alice', accountName: 'Alice', timestamp: timestamp + 2, type: 1, content: '[image]' },
+      ],
+    }
+
+    await runtime.importSource(source('message-type-query.json', fixture), { formatId: 'chatlab' })
+
+    assert.deepEqual(await runtime.getMessageTypeDistribution('message-type-query-session'), [
+      { type: 1, count: 2 },
+      { type: 0, count: 1 },
+    ])
+    assert.deepEqual(
+      await runtime.getMessageTypeDistribution('message-type-query-session', { startTs: timestamp + 2 }),
+      [{ type: 1, count: 1 }]
+    )
+
+    const filenamesBeforeMissingQuery = await database.getDatabaseFilenames()
+    await assert.rejects(runtime.getMessageTypeDistribution('missing-session'), /Session missing-session was not found/)
+    assert.deepEqual(await database.getDatabaseFilenames(), filenamesBeforeMissingQuery)
+    database.dispose()
+  })
 })

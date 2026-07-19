@@ -24,6 +24,7 @@ error-log-*.txt
 # Project
 dist/
 dist-web/
+dist-web-wasm/
 docs/.vitepress/cache/
 docs/.vitepress/dist/
 apps/cli/native/

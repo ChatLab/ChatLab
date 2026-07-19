@@ -1,6 +1,6 @@
 {
   "extends": "@electron-toolkit/tsconfig/tsconfig.web.json",
-  "include": ["src/env.d.ts", "src/**/*", "apps/desktop/preload/**/*.d.ts", "packages/**/*"],
+  "include": ["src/env.d.ts", "src/**/*", "apps/desktop/preload/**/*.d.ts", "apps/web-wasm/src/**/*", "packages/**/*"],
   "exclude": ["**/dist/**", "packages/*/bin/**"],
   "compilerOptions": {
     "target": "ESNext",

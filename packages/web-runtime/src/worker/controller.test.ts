@@ -71,6 +71,8 @@ class FakeDatabaseRuntime implements WorkerDatabaseRuntime {
 
 class FakeSessionRuntime implements WorkerSessionRuntime {
   readonly hourlyCalls: Array<{ id: string; filter?: BrowserTimeFilter }> = []
+  readonly memberCalls: Array<{ id: string; filter?: BrowserTimeFilter }> = []
+  readonly messageTypeCalls: Array<{ id: string; filter?: BrowserTimeFilter }> = []
   readonly importCalls: Array<{ chatIndex?: number }> = []
   readonly session = {
     id: 'session-one',
@@ -133,6 +135,32 @@ class FakeSessionRuntime implements WorkerSessionRuntime {
     this.hourlyCalls.push({ id, filter })
     return id === this.session.id
       ? Array.from({ length: 24 }, (_, hour) => ({ hour, messageCount: hour === 8 ? 2 : 0 }))
+      : []
+  }
+
+  async getMemberActivity(id: string, filter?: BrowserTimeFilter) {
+    this.memberCalls.push({ id, filter })
+    return id === this.session.id
+      ? [
+          {
+            memberId: 1,
+            platformId: 'alice',
+            name: 'Alice',
+            avatar: null,
+            messageCount: 2,
+            percentage: 100,
+          },
+        ]
+      : []
+  }
+
+  async getMessageTypeDistribution(id: string, filter?: BrowserTimeFilter) {
+    this.messageTypeCalls.push({ id, filter })
+    return id === this.session.id
+      ? [
+          { type: 1, count: 2 },
+          { type: 0, count: 1 },
+        ]
       : []
   }
 }
@@ -275,6 +303,16 @@ describe('WebRuntimeWorkerController', () => {
       payload: { sessionId: 'session-one', filter: { startTs: 1 } },
     })
     controller.handleMessage({
+      id: 'members-1',
+      type: 'analysis.members',
+      payload: { sessionId: 'session-one', filter: { endTs: 2 } },
+    })
+    controller.handleMessage({
+      id: 'message-types-1',
+      type: 'analysis.messageTypes',
+      payload: { sessionId: 'session-one', filter: { startTs: 1, endTs: 2 } },
+    })
+    controller.handleMessage({
       id: 'rename-1',
       type: 'session.rename',
       payload: { sessionId: 'session-one', name: 'New' },
@@ -285,6 +323,8 @@ describe('WebRuntimeWorkerController', () => {
     const imported = await waitForMessage(sink, 'import-1', 'result')
     const listed = await waitForMessage(sink, 'list-1', 'result')
     const hourly = await waitForMessage(sink, 'hourly-1', 'result')
+    const members = await waitForMessage(sink, 'members-1', 'result')
+    const messageTypes = await waitForMessage(sink, 'message-types-1', 'result')
     const renamed = await waitForMessage(sink, 'rename-1', 'result')
 
     assert.deepEqual(detected.type === 'result' ? detected.payload.result : null, sessions.getSupportedFormats()[0])
@@ -304,6 +344,25 @@ describe('WebRuntimeWorkerController', () => {
       Array.from({ length: 24 }, (_, hour) => ({ hour, messageCount: hour === 8 ? 2 : 0 }))
     )
     assert.deepEqual(sessions.hourlyCalls[0], { id: 'session-one', filter: { startTs: 1 } })
+    assert.deepEqual(members.type === 'result' ? members.payload.result : null, [
+      {
+        memberId: 1,
+        platformId: 'alice',
+        name: 'Alice',
+        avatar: null,
+        messageCount: 2,
+        percentage: 100,
+      },
+    ])
+    assert.deepEqual(sessions.memberCalls[0], { id: 'session-one', filter: { endTs: 2 } })
+    assert.deepEqual(messageTypes.type === 'result' ? messageTypes.payload.result : null, [
+      { type: 1, count: 2 },
+      { type: 0, count: 1 },
+    ])
+    assert.deepEqual(sessions.messageTypeCalls[0], {
+      id: 'session-one',
+      filter: { startTs: 1, endTs: 2 },
+    })
     assert.deepEqual(sessions.importCalls, [{ chatIndex: 1 }])
     assert.deepEqual(renamed.type === 'result' ? renamed.payload.result : null, { renamed: true })
     assert.equal(

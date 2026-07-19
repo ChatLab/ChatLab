@@ -39,9 +39,25 @@ describe('BrowserDataAdapter', () => {
               ? item
               : type === 'analysis.hourly'
                 ? Array.from({ length: 24 }, (_, hour) => ({ hour, messageCount: hour === 8 ? 2 : 0 }))
-                : type === 'session.delete'
-                  ? { deleted: true }
-                  : { renamed: true }
+                : type === 'analysis.members'
+                  ? [
+                      {
+                        memberId: 1,
+                        platformId: 'alice',
+                        name: 'Alice',
+                        avatar: null,
+                        messageCount: 2,
+                        percentage: 100,
+                      },
+                    ]
+                  : type === 'analysis.messageTypes'
+                    ? [
+                        { type: 1, count: 2 },
+                        { type: 0, count: 1 },
+                      ]
+                    : type === 'session.delete'
+                      ? { deleted: true }
+                      : { renamed: true }
         return result as WebRuntimeTaskResult<T>
       },
       dispose: () => undefined,
@@ -70,12 +86,22 @@ describe('BrowserDataAdapter', () => {
     })
     assert.equal((await adapter.getSession('session-one'))?.id, 'session-one')
     assert.equal((await adapter.getHourlyActivity('session-one', { startTs: 1 }))[8].messageCount, 2)
+    assert.equal((await adapter.getMemberActivity('session-one', { endTs: 2 }))[0].name, 'Alice')
+    assert.deepEqual(await adapter.getMessageTypeDistribution('session-one', { startTs: 1, endTs: 2 }), [
+      { type: 1, count: 2 },
+      { type: 0, count: 1 },
+    ])
     assert.equal(await adapter.renameSession('session-one', 'New name'), true)
     assert.equal(await adapter.deleteSession('session-one'), true)
     assert.deepEqual(requests, [
       { type: 'session.list', payload: undefined },
       { type: 'session.get', payload: { sessionId: 'session-one' } },
       { type: 'analysis.hourly', payload: { sessionId: 'session-one', filter: { startTs: 1 } } },
+      { type: 'analysis.members', payload: { sessionId: 'session-one', filter: { endTs: 2 } } },
+      {
+        type: 'analysis.messageTypes',
+        payload: { sessionId: 'session-one', filter: { startTs: 1, endTs: 2 } },
+      },
       { type: 'session.rename', payload: { sessionId: 'session-one', name: 'New name' } },
       { type: 'session.delete', payload: { sessionId: 'session-one' } },
     ])

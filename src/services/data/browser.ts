@@ -1,13 +1,19 @@
 import { sessionDatabaseFilename, type BrowserSessionCatalogItem } from '@openchatlab/web-runtime'
-import type { AnalysisSession } from '@/types/base'
-import type { HourlyActivity } from '@/types/analysis'
+import type { AnalysisSession, MessageType } from '@/types/base'
+import type { HourlyActivity, MemberActivity } from '@/types/analysis'
 import type { TimeFilter } from '@openchatlab/shared-types'
 import type { BrowserRuntimeRpcPort } from '../browser-runtime/types'
 import type { DataAdapter } from './types'
 
 type BrowserSessionDataAdapter = Pick<
   DataAdapter,
-  'getSessions' | 'getSession' | 'deleteSession' | 'renameSession' | 'getHourlyActivity'
+  | 'getSessions'
+  | 'getSession'
+  | 'deleteSession'
+  | 'renameSession'
+  | 'getHourlyActivity'
+  | 'getMemberActivity'
+  | 'getMessageTypeDistribution'
 >
 
 export class BrowserDataAdapter implements BrowserSessionDataAdapter {
@@ -32,6 +38,20 @@ export class BrowserDataAdapter implements BrowserSessionDataAdapter {
 
   getHourlyActivity(sessionId: string, filter?: TimeFilter): Promise<HourlyActivity[]> {
     return this.rpc.request('analysis.hourly', { sessionId, filter })
+  }
+
+  getMemberActivity(sessionId: string, filter?: TimeFilter): Promise<MemberActivity[]> {
+    return this.rpc.request('analysis.members', { sessionId, filter })
+  }
+
+  async getMessageTypeDistribution(
+    sessionId: string,
+    filter?: TimeFilter
+  ): Promise<Array<{ type: MessageType; count: number }>> {
+    return (await this.rpc.request('analysis.messageTypes', { sessionId, filter })).map((item) => ({
+      type: item.type as MessageType,
+      count: item.count,
+    }))
   }
 }
 
