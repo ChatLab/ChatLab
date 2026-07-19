@@ -41,6 +41,9 @@ const HTTP_STATUS: Record<ApiErrorCode, number> = {
   [ApiErrorCode.SERVER_ERROR]: 500,
 }
 
+// REST response envelope version; independent from the ChatLab file format version.
+const API_RESPONSE_VERSION = '0.0.2'
+
 export class ApiError extends Error {
   code: ApiErrorCode
   statusCode: number
@@ -138,7 +141,7 @@ export function successResponse<T>(data: T, meta?: Record<string, unknown>) {
     data,
     meta: {
       timestamp: Math.floor(Date.now() / 1000),
-      version: '0.0.2',
+      version: API_RESPONSE_VERSION,
       ...meta,
     },
   }

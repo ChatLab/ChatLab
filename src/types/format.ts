@@ -11,7 +11,7 @@ import type { ChatPlatform, ChatType, MessageType, MemberRole } from './base'
  * ChatLab 格式版本信息
  */
 export interface ChatLabHeader {
-  version: string // 格式版本，如 "0.0.1"
+  version: string // 格式版本，如 "0.0.2"
   exportedAt: number // 导出时间戳（秒）
   generator?: string // 生成工具名称（可选）
   description?: string // 描述信息（可选，自定义内容）

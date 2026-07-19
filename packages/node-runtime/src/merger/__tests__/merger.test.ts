@@ -1,8 +1,12 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import Database from 'better-sqlite3'
 import { checkConflictsFromSources, buildMergedOutput, serializeChatLabToJsonl } from '../index'
+import { exportSessionToJson } from '../temp-db'
 import type { MergerDataSource, MergerSourceMeta } from '../index'
 import type { MergerMember, MergerMessage } from '@openchatlab/core'
+import { CHATLAB_FORMAT_VERSION } from '@openchatlab/shared-types'
+import { BetterSqliteAdapter } from '../../better-sqlite3-adapter'
 
 function createMockSource(
   meta: MergerSourceMeta,
@@ -91,6 +95,7 @@ describe('buildMergedOutput', () => {
     )
 
     assert.ok(result.success)
+    assert.equal(result.chatLabData.chatlab.version, CHATLAB_FORMAT_VERSION)
     assert.equal(result.chatLabData.messages.length, 3)
     assert.equal(result.chatLabData.messages[0].timestamp, 100)
     assert.equal(result.chatLabData.messages[1].timestamp, 200)
@@ -145,7 +150,7 @@ describe('serializeChatLabToJsonl', () => {
 
     const header = JSON.parse(lines[0])
     assert.equal(header._type, 'header')
-    assert.ok(header.chatlab)
+    assert.equal(header.chatlab.version, CHATLAB_FORMAT_VERSION)
     assert.ok(header.meta)
 
     const member = JSON.parse(lines[1])
@@ -155,5 +160,46 @@ describe('serializeChatLabToJsonl', () => {
     const msg = JSON.parse(lines[2])
     assert.equal(msg._type, 'message')
     assert.equal(msg.content, 'hi')
+  })
+})
+
+describe('exportSessionToJson', () => {
+  it('uses the current ChatLab format version', () => {
+    const rawDb = new Database(':memory:')
+    rawDb.exec(`
+      CREATE TABLE meta (
+        name TEXT NOT NULL,
+        platform TEXT NOT NULL,
+        type TEXT NOT NULL,
+        group_id TEXT,
+        group_avatar TEXT
+      );
+      CREATE TABLE member (
+        id INTEGER PRIMARY KEY,
+        platform_id TEXT NOT NULL,
+        account_name TEXT,
+        group_nickname TEXT,
+        avatar TEXT
+      );
+      CREATE TABLE message (
+        sender_id INTEGER NOT NULL,
+        sender_account_name TEXT,
+        sender_group_nickname TEXT,
+        ts INTEGER NOT NULL,
+        type INTEGER NOT NULL,
+        content TEXT
+      );
+      INSERT INTO meta (name, platform, type) VALUES ('Test', 'qq', 'group');
+      INSERT INTO member (id, platform_id, account_name) VALUES (1, 'alice', 'Alice');
+      INSERT INTO message (sender_id, sender_account_name, ts, type, content)
+      VALUES (1, 'Alice', 100, 0, 'Hello');
+    `)
+
+    try {
+      const exported = exportSessionToJson(new BetterSqliteAdapter(rawDb))
+      assert.equal(exported.chatlab.version, CHATLAB_FORMAT_VERSION)
+    } finally {
+      rawDb.close()
+    }
   })
 })

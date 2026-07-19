@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import Fastify from 'fastify'
+import { CHATLAB_FORMAT_VERSION } from '@openchatlab/shared-types'
 import type { RestSessionProvider } from './session-provider'
 import { registerRestSessionRoutes } from './sessions'
 import { registerSystemRoutes } from './system'
@@ -71,8 +72,9 @@ test('REST routes share one contract with an async Worker-backed provider', asyn
   registerRestSessionRoutes(app, provider)
   await app.ready()
 
-  const [status, sessions, detail, messages, members, overview, sql, exported] = await Promise.all([
+  const [status, schema, sessions, detail, messages, members, overview, sql, exported] = await Promise.all([
     app.inject({ method: 'GET', url: '/api/v1/status' }),
+    app.inject({ method: 'GET', url: '/api/v1/schema' }),
     app.inject({ method: 'GET', url: '/api/v1/sessions' }),
     app.inject({ method: 'GET', url: `/api/v1/sessions/${session.id}` }),
     app.inject({ method: 'GET', url: `/api/v1/sessions/${session.id}/messages?limit=1` }),
@@ -83,6 +85,7 @@ test('REST routes share one contract with an async Worker-backed provider', asyn
   ])
 
   assert.equal(status.json().data.sessionCount, 1)
+  assert.equal(schema.json().data.version, CHATLAB_FORMAT_VERSION)
   assert.deepEqual(sessions.json().data, [session])
   assert.deepEqual(detail.json().data, session)
   assert.equal(messages.json().data.totalPages, 2)
@@ -91,6 +94,7 @@ test('REST routes share one contract with an async Worker-backed provider', asyn
   assert.equal(overview.json().data.messageCount, 2)
   assert.deepEqual(sql.json().data.rows, [[2]])
   assert.deepEqual(exported.json().data.members[0].aliases, ['A'])
+  assert.equal(exported.json().data.chatlab.version, CHATLAB_FORMAT_VERSION)
   assert.equal(exported.json().data.messages[0].sender, 'alice')
 
   const missingSql = await app.inject({

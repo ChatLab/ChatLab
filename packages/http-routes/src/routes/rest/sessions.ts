@@ -6,6 +6,7 @@
  */
 
 import type { FastifyInstance } from 'fastify'
+import { CHATLAB_FORMAT_VERSION } from '@openchatlab/shared-types'
 import {
   successResponse,
   errorResponse,
@@ -122,7 +123,7 @@ export function registerRestSessionRoutes(server: FastifyInstance, provider: Res
 
     const chatLabFormat = {
       chatlab: {
-        version: '0.0.2',
+        version: CHATLAB_FORMAT_VERSION,
         exportedAt: Math.floor(Date.now() / 1000),
         generator: 'ChatLab API',
       },
