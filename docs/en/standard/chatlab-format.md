@@ -2,7 +2,7 @@
 outline: deep
 ---
 
-# ChatLab Standard Format Specification v0.0.1
+# ChatLab Standard Format Specification v0.0.2
 
 ChatLab defines a standard chat record data exchange format to support unified import and analysis of multi-platform data.
 
@@ -39,7 +39,7 @@ Here's a **minimal** ChatLab format example with only required fields:
 ```json
 {
   "chatlab": {
-    "version": "0.0.1",
+    "version": "0.0.2",
     "exportedAt": 1703001600
   },
   "meta": {
@@ -73,7 +73,7 @@ Here's a **minimal** ChatLab format example with only required fields:
 
 | Field         | Type   | Required | Description                             |
 | ------------- | ------ | -------- | --------------------------------------- |
-| `version`     | string | ✅       | Format version, currently `"0.0.1"`     |
+| `version`     | string | ✅       | Format version, currently `"0.0.2"`     |
 | `exportedAt`  | number | ✅       | Export time (Unix timestamp in seconds) |
 | `generator`   | string | -        | Generator tool name                     |
 | `description` | string | -        | Description                             |
@@ -177,7 +177,7 @@ When exporting, we recommend compressing avatars to 100×100 pixels or less to r
 ```json
 {
   "chatlab": {
-    "version": "0.0.1",
+    "version": "0.0.2",
     "exportedAt": 1703001600,
     "generator": "My Converter Tool",
     "description": "2024 Tech Exchange Group Chat Backup"
@@ -229,7 +229,7 @@ When exporting, we recommend compressing avatars to 100×100 pixels or less to r
 ```json
 {
   "chatlab": {
-    "version": "0.0.1",
+    "version": "0.0.2",
     "exportedAt": 1703001600
   },
   "meta": {
@@ -283,7 +283,7 @@ JSONL (JSON Lines) format is suitable for **very large chat records** (>1 millio
 ### Complete Example
 
 ```jsonl
-{"_type":"header","chatlab":{"version":"0.0.1","exportedAt":1703001600},"meta":{"name":"Tech Exchange Group","platform":"qq","type":"group"}}
+{"_type":"header","chatlab":{"version":"0.0.2","exportedAt":1703001600},"meta":{"name":"Tech Exchange Group","platform":"qq","type":"group"}}
 {"_type":"member","platformId":"123456","accountName":"John","groupNickname":"Admin"}
 {"_type":"member","platformId":"789012","accountName":"Jane"}
 {"_type":"message","sender":"123456","accountName":"John","groupNickname":"Admin","timestamp":1703001600,"type":0,"content":"Hello everyone!"}
@@ -304,8 +304,19 @@ JSONL (JSON Lines) format is suitable for **very large chat records** (>1 millio
 - Each line must be **valid JSON** (cannot span lines)
 - Lines are separated by newline `\n` :::
 
+## Validate converted output
+
+The ChatLab CLI can strictly validate JSON/JSONL without importing or writing to the database. It checks malformed lines, protocol version, required fields, second-based timestamps, member references, message types, message IDs, and reply relationships without printing message bodies:
+
+```bash
+chatlab validate "/absolute/path/to/converted.jsonl" --json
+```
+
+After validation passes, use `chatlab import <file> --dry-run --json` to confirm ChatLab can fully recognize the file.
+
 ## Version History
 
 | Version | Date    | Changes         |
 | ------- | ------- | --------------- |
 | 0.0.1   | 2025-12 | Initial version |
+| 0.0.2   | 2026-01 | Added roles, owner and message identity fields; added JSONL format |

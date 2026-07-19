@@ -1,0 +1,4 @@
+interface:
+  display_name: 'ChatLab 聊天转换'
+  short_description: '将暂不支持的聊天记录转换并验证为 ChatLab 标准格式'
+  default_prompt: '使用 $chatlab-convert-cn 将这个不受支持的聊天导出转换为经过验证的 ChatLab JSONL 文件。'

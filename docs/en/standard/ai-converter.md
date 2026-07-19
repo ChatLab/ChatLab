@@ -2,81 +2,63 @@
 outline: deep
 ---
 
-# AI Conversion Guide
+# Convert Chat Exports with AI
 
-If your chat record format (such as CSV, HTML, TXT, or other database exports) is not directly supported by ChatLab, you can use AI (like ChatGPT, Claude, DeepSeek, etc.) to quickly write a conversion script to transform your data into ChatLab's standard format.
+If ChatLab cannot recognize your export yet, a local agent can use the official conversion skill to inspect its structure, write a converter, and produce the [ChatLab standard format](./chatlab-format.md).
 
-## Preparation
+The conversion runs locally. The skill limits inspection to required structural information, does not print complete message bodies, and never modifies the source export.
 
-1. **View the standard specification**: [ChatLab Standard Format Specification v0.0.1](./chatlab-format.md)
-2. **Prepare your data**: Have your exported original chat record file ready (if using online services, we recommend providing only a few hundred anonymized samples).
+## Prepare the tools
 
-## Choose Target Format
+Install the ChatLab CLI:
 
-Select the appropriate prompt based on your data size.
-
-### Scenario 1: Small to Medium Data (Recommended)
-
-- **Target Format**: JSON (`.json`)
-- **Use Case**: Less than 1 million records, file size < 100MB.
-- **Features**: Clear structure, best compatibility.
-
-#### Copy JSON Conversion Prompt
-
-```markdown
-**Role Setting**: You are an expert in data processing and script writing.
-
-**Task Objective**: Based on the [ChatLab Standard Format Specification] (chatlab-format.md) I provide, please write a script to convert my uploaded [original chat records] into the compliant **JSON format**.
-
-**Requirements**:
-
-1. **Analyze Structure**: Analyze the text patterns or data structure of the original chat records.
-2. **Field Mapping**:
-   - Map original fields to ChatLab standard fields (`timestamp`, `sender`, `content`, `type`, etc.).
-   - If the original data lacks `sender` (user ID), please automatically generate a unique hash or virtual ID based on `accountName` (username).
-   - Default `type` to 0 (text). If you can identify images, voice, or other types from the content, please try to map them.
-3. **Script Generation**:
-   - Please write a **complete, executable script** (Python or Node.js recommended).
-   - **Output Structure**: The script should build a complete JSON object containing `chatlab`, `meta`, `members`, `messages`, and write it to a file at once.
-   - The script should include necessary error handling and print progress.
-4. **Result Validation**:
-   - Ensure the generated JSON structure strictly conforms to the definitions in `chatlab-format.md`.
-
-**Output**: Please provide the code directly and briefly explain how to run the script.
+```bash
+npm install -g chatlab-cli
 ```
 
-### Scenario 2: Very Large Data
+Install the conversion skill in a skill-compatible agent environment:
 
-- **Target Format**: JSONL (`.jsonl`)
-- **Use Case**: More than 1 million records, or very large file size.
-- **Features**: Streaming read/write, extremely low memory usage, won't crash due to large data volumes.
-
-#### Copy JSONL Conversion Prompt
-
-```markdown
-**Role Setting**: You are an expert in big data processing and stream computing.
-
-**Task Objective**: Based on the [ChatLab Standard Format Specification] (chatlab-format.md) I provide, please write a script to convert my uploaded [original chat records] into the compliant **JSONL (JSON Lines) format**.
-
-**Requirements**:
-
-1. **Analyze Structure**: Analyze the text patterns of the original chat records.
-2. **Stream Processing**:
-   - **Must use streaming read/write** (Line-by-Line) approach; do not load all data into memory at once.
-   - Read the original file line by line, write to the target file line by line.
-3. **JSONL Structure Requirements**:
-   - **First line**: Must write the `_type: "header"` line (containing `chatlab` and `meta` information).
-   - **Member information**: If possible, scan once or collect member information during processing, write `_type: "member"` lines.
-   - **Message records**: Each chat record writes one `_type: "message"` line.
-4. **Script Generation**:
-   - Please write an **efficient Python script**.
-   - Ensure constant memory usage during processing, suitable for GB-level large files.
-
-**Output**: Please provide the code directly and briefly explain how to run the script.
+```bash
+npx skills add ChatLab/ChatLab --skill chatlab-convert -g
 ```
 
-## Next Steps
+## Convert an export
 
-1. **Run the script**: Run the AI-generated script in your local environment.
-2. **Check results**: Open the generated file and confirm the format is correct.
-3. **Import to ChatLab**: Import the generated file into ChatLab for analysis.
+Give the agent the exact export path:
+
+```text
+Use $chatlab-convert to convert and import "/absolute/path/to/chat-export" into ChatLab.
+```
+
+To create the converted files without importing them:
+
+```text
+Use $chatlab-convert to convert "/absolute/path/to/chat-export" to ChatLab format. Do not import it.
+```
+
+The skill uses the installed Node.js, Python, or shell tools to:
+
+1. check whether ChatLab already supports the source;
+2. inspect only required fields, types, and counts without dumping messages;
+3. resolve member, timestamp, conversation, and message-type mappings;
+4. write and run a reusable local converter;
+5. produce streaming JSONL by default;
+6. strictly validate the format and record counts, then preview the import;
+7. write to ChatLab only when import was explicitly requested.
+
+If one source contains multiple conversations, the skill creates one output per conversation instead of merging them.
+
+## Completion checks
+
+Before reporting success, the agent must run both commands:
+
+```bash
+chatlab validate "/absolute/path/to/converted.jsonl" --json
+chatlab import "/absolute/path/to/converted.jsonl" --dry-run --json
+```
+
+Success requires strict validation, a successful import preview, and matching source/output message counts. The converter and outputs remain available so a newer export can be converted again.
+
+::: warning Privacy
+Use an agent that can work with local files and a local terminal. Do not upload a complete chat export to an online chat box. When an unusual text format requires sampling, inspect the smallest possible range and mask message bodies.
+:::
