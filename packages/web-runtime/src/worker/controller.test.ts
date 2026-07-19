@@ -214,6 +214,46 @@ describe('WebRuntimeWorkerController', () => {
     assert.equal(failed.type === 'error' ? failed.payload.error.code : '', 'DB_CLOSE_FAILED')
   })
 
+  it('returns the result when a catalog mutation finishes after cancellation is requested', async () => {
+    const sink = new CapturingSink()
+    const database = new FakeDatabaseRuntime()
+    const sessions = new FakeSessionRuntime()
+    let markRenameStarted!: () => void
+    let releaseRename!: () => void
+    const renameStarted = new Promise<void>((resolve) => {
+      markRenameStarted = resolve
+    })
+    const renameGate = new Promise<void>((resolve) => {
+      releaseRename = resolve
+    })
+    sessions.renameSession = async () => {
+      markRenameStarted()
+      await renameGate
+      return true
+    }
+    const controller = new WebRuntimeWorkerController(sink, database, () => supportedCapabilities, sessions)
+
+    controller.handleMessage({
+      id: 'rename-cancelled-after-write',
+      type: 'session.rename',
+      payload: { sessionId: 'session-one', name: 'Renamed' },
+    })
+    await renameStarted
+    controller.handleMessage({
+      id: 'rename-cancelled-after-write',
+      type: 'cancel',
+      payload: { reason: 'cancelled' },
+    })
+    releaseRename()
+
+    const completed = await waitForMessage(sink, 'rename-cancelled-after-write', 'result')
+    assert.deepEqual(completed.type === 'result' ? completed.payload.result : null, { renamed: true })
+    assert.equal(
+      sink.messages.some((message) => message.id === 'rename-cancelled-after-write' && message.type === 'error'),
+      false
+    )
+  })
+
   it('routes import progress and session catalog tasks through the session runtime', async () => {
     const sink = new CapturingSink()
     const database = new FakeDatabaseRuntime()

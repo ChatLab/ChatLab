@@ -31,6 +31,8 @@ interface PendingRequest {
   reject(error: Error): void
   onProgress?: (event: RpcProgressPayload) => void
   removeAbortListener?: () => void
+  abortRequested?: boolean
+  abortReason?: unknown
 }
 
 export class WebRuntimeRpcError extends Error {
@@ -80,12 +82,17 @@ export class WebRuntimeRpcClient {
       if (options.signal) {
         const handleAbort = () => {
           if (!this.pending.has(id)) return
-          worker.postMessage({
-            id,
-            type: 'cancel',
-            payload: { reason: normalizeAbortReason(options.signal?.reason) },
-          })
-          this.settleRequest(id, 'reject', createAbortError(options.signal?.reason))
+          pending.abortRequested = true
+          pending.abortReason = options.signal?.reason
+          try {
+            worker.postMessage({
+              id,
+              type: 'cancel',
+              payload: { reason: normalizeAbortReason(pending.abortReason) },
+            })
+          } catch (error) {
+            this.settleRequest(id, 'reject', normalizeError(error, 'POST_MESSAGE_FAILED'))
+          }
         }
         options.signal.addEventListener('abort', handleAbort, { once: true })
         pending.removeAbortListener = () => options.signal?.removeEventListener('abort', handleAbort)
@@ -126,11 +133,15 @@ export class WebRuntimeRpcClient {
     if (!pending) return
 
     if (envelope.type === 'progress') {
-      pending.onProgress?.(envelope.payload)
+      if (!pending.abortRequested) pending.onProgress?.(envelope.payload)
       return
     }
     if (envelope.type === 'result') {
       this.settleRequest(envelope.id, 'resolve', envelope.payload.result)
+      return
+    }
+    if (pending.abortRequested && envelope.payload.error.code === 'REQUEST_CANCELLED') {
+      this.settleRequest(envelope.id, 'reject', createAbortError(pending.abortReason))
       return
     }
     this.settleRequest(envelope.id, 'reject', new WebRuntimeRpcError(envelope.payload.error))

@@ -64,7 +64,6 @@ export class WebRuntimeWorkerController {
     try {
       this.throwIfCancelled(request.id)
       const result = await this.dispatch(request)
-      this.throwIfCancelled(request.id)
       this.sink.postMessage({
         id: request.id,
         type: 'result',

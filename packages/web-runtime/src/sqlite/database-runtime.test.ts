@@ -4,7 +4,7 @@ import sqlite3InitModule, { type Database, type SAHPoolUtil } from '@sqlite.org/
 import { CURRENT_SCHEMA_VERSION, getHourlyActivity } from '@openchatlab/core'
 import { BrowserDatabaseRuntime } from './database-runtime'
 
-async function createMemoryRuntime(): Promise<{
+async function createMemoryRuntime(options: { initializationFailures?: number } = {}): Promise<{
   runtime: BrowserDatabaseRuntime
   openedDatabases: Database[]
   filenames: Set<string>
@@ -28,8 +28,13 @@ async function createMemoryRuntime(): Promise<{
     reserveMinimumCapacity: async (minimum: number) => minimum,
     getFileNames: () => [...filenames],
   } as unknown as SAHPoolUtil
+  let remainingInitializationFailures = options.initializationFailures ?? 0
   return {
     runtime: new BrowserDatabaseRuntime(async (onStage) => {
+      if (remainingInitializationFailures > 0) {
+        remainingInitializationFailures -= 1
+        throw new Error('simulated sqlite initialization failure')
+      }
       onStage?.('sqlite-initializing')
       onStage?.('sqlite-ready')
       onStage?.('opfs-pool-initializing')
@@ -42,6 +47,14 @@ async function createMemoryRuntime(): Promise<{
 }
 
 describe('BrowserDatabaseRuntime', () => {
+  it('retries SQLite initialization after a previous attempt fails', async () => {
+    const { runtime } = await createMemoryRuntime({ initializationFailures: 1 })
+
+    await assert.rejects(runtime.open('/session.db'), /simulated sqlite initialization failure/)
+    await assert.doesNotReject(runtime.open('/session.db'))
+    await runtime.close()
+  })
+
   it('opens one absolute database, initializes the core schema, and closes it', async () => {
     const { runtime, openedDatabases } = await createMemoryRuntime()
 

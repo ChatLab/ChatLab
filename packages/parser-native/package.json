@@ -2,7 +2,7 @@
   "name": "@openchatlab/parser-native",
   "version": "0.0.0",
   "private": true,
-  "description": "ChatLab Rust 原生解析内核（napi-rs，一期覆盖 WeFlow 格式）",
+  "description": "ChatLab Rust 解析内核（N-API 与浏览器 WASM）",
   "main": "index.js",
   "types": "index.d.ts",
   "napi": {
@@ -11,6 +11,7 @@
   "scripts": {
     "build": "napi build --platform --release",
     "build:debug": "napi build --platform",
+    "build:wasm": "node scripts/build-wasm.mjs",
     "test": "cargo test"
   },
   "devDependencies": {

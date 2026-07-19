@@ -13,6 +13,7 @@ import {
   scanBrowserMultiChatSource,
   type BrowserImportFormatId,
   type BrowserImportLogEvent,
+  type BrowserImportParseResult,
   type BrowserParseSource,
 } from './browser-parser'
 import { BrowserSessionCatalog, type BrowserSessionCatalogItem } from './session-catalog'
@@ -139,10 +140,25 @@ export class BrowserSessionRuntime {
       onProgress: (progress) => options.onProgress?.(progress),
       onLog: options.onLog,
     })
-    if (parsed.messages.length === 0) {
+    options.checkCancelled?.()
+    const messages: BrowserImportParseResult['messages'] = []
+    for (const message of parsed.messages) {
+      const timestamp = normalizeImportTimestamp(message.timestamp)
+      if (timestamp === null) continue
+      messages.push(timestamp === message.timestamp ? message : { ...message, timestamp })
+    }
+    const skippedInvalidTimestampCount = parsed.messages.length - messages.length
+    if (messages.length === 0) {
       throw new WebRuntimeError('EMPTY_IMPORT_FILE', 'The import file does not contain any messages')
     }
-    options.checkCancelled?.()
+    if (skippedInvalidTimestampCount > 0) {
+      options.onLog?.({
+        level: 'info',
+        message: 'Invalid browser import timestamps skipped',
+        data: { formatId, skippedCount: skippedInvalidTimestampCount },
+      })
+    }
+    const members = mergeInferredMembers(parsed.members, messages)
 
     const sessionId = this.createSessionId()
     validateSessionId(sessionId)
@@ -154,12 +170,12 @@ export class BrowserSessionRuntime {
       platform: parsed.meta.platform,
       type: parsed.meta.type,
       importedAt,
-      messageCount: parsed.messages.length,
-      memberCount: parsed.members.length,
+      messageCount: messages.length,
+      memberCount: members.length,
       groupId: parsed.meta.groupId ?? null,
       groupAvatar: parsed.meta.groupAvatar ?? null,
       ownerId: parsed.meta.ownerId ?? null,
-      lastMessageTs: parsed.messages.reduce<number | null>(
+      lastMessageTs: messages.reduce<number | null>(
         (latest, message) => (latest === null || message.timestamp > latest ? message.timestamp : latest),
         null
       ),
@@ -169,15 +185,18 @@ export class BrowserSessionRuntime {
     const existingCount = await this.catalog.count()
     await this.database.ensureCapacity(Math.max(8, (existingCount + 2) * 3))
     await this.catalog.beginImport(item)
-    options.onProgress?.({ stage: 'catalog', progress: 0.55, messagesProcessed: parsed.messages.length })
+    options.onProgress?.({ stage: 'catalog', progress: 0.55, messagesProcessed: messages.length })
 
     try {
       options.checkCancelled?.()
       options.onProgress?.({ stage: 'saving', progress: 0.6, messagesProcessed: 0 })
       const stats = await this.database.withDatabase(filename, CHAT_DB_TABLES, (db) => {
-        const result = writeParseResultToDb(db, parsed.meta, parsed.members, parsed.messages)
+        const result = writeParseResultToDb(db, parsed.meta, members, messages)
         db.exec(CHAT_DB_INDEXES)
-        return result
+        return {
+          ...result,
+          skippedCount: result.skippedCount + skippedInvalidTimestampCount,
+        }
       })
       options.checkCancelled?.()
       await this.catalog.completeImport(sessionId, stats)
@@ -224,6 +243,29 @@ export class BrowserSessionRuntime {
       queryHourlyActivity(db, filter)
     )
   }
+}
+
+function normalizeImportTimestamp(value: unknown): number | null {
+  if (typeof value === 'number') return Number.isFinite(value) ? value : null
+  if (typeof value !== 'string' || value.trim() === '') return null
+  const timestamp = Number(value)
+  return Number.isFinite(timestamp) ? timestamp : null
+}
+
+function mergeInferredMembers(
+  members: BrowserImportParseResult['members'],
+  messages: BrowserImportParseResult['messages']
+): BrowserImportParseResult['members'] {
+  const memberMap = new Map(members.map((member) => [member.platformId, member]))
+  for (const message of messages) {
+    if (memberMap.has(message.senderPlatformId)) continue
+    memberMap.set(message.senderPlatformId, {
+      platformId: message.senderPlatformId,
+      accountName: message.senderAccountName,
+      groupNickname: message.senderGroupNickname,
+    })
+  }
+  return Array.from(memberMap.values())
 }
 
 function defaultSessionId(): string {

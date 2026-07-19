@@ -152,6 +152,7 @@ describe('BrowserSessionRuntime', () => {
         'Messages and calls are end-to-end encrypted.',
         '2024/01/02 03:04 - Alice: hello whatsapp',
         '2024/01/02 03:05 - Bob: second message',
+        '2024/01/02 03:06 - Alice changed the group description',
         '',
       ].join('\n')
     )
@@ -172,8 +173,8 @@ describe('BrowserSessionRuntime', () => {
     assert.deepEqual(result, {
       sessionId: 'whatsapp-session',
       formatId: 'whatsapp-native-txt',
-      messageCount: 2,
-      memberCount: 2,
+      messageCount: 3,
+      memberCount: 3,
       skippedCount: 0,
     })
     assert.deepEqual(await runtime.listSessions(), [
@@ -183,12 +184,12 @@ describe('BrowserSessionRuntime', () => {
         platform: 'whatsapp',
         type: 'private',
         importedAt: 100,
-        messageCount: 2,
-        memberCount: 2,
+        messageCount: 3,
+        memberCount: 3,
         groupId: null,
         groupAvatar: null,
         ownerId: null,
-        lastMessageTs: Math.floor(new Date('2024-01-02T03:05:00').getTime() / 1000),
+        lastMessageTs: Math.floor(new Date('2024-01-02T03:06:00').getTime() / 1000),
         formatId: 'whatsapp-native-txt',
       },
     ])
@@ -196,6 +197,7 @@ describe('BrowserSessionRuntime', () => {
     assert.deepEqual(sessionDb?.prepare('SELECT sender_account_name, content FROM message ORDER BY id').all(), [
       { sender_account_name: 'Alice', content: 'hello whatsapp' },
       { sender_account_name: 'Bob', content: 'second message' },
+      { sender_account_name: '系统消息', content: 'Alice changed the group description' },
     ])
     database.dispose()
   })
@@ -231,13 +233,22 @@ describe('BrowserSessionRuntime', () => {
         },
         {
           localId: 2,
-          createTime: 1_704_164_646,
+          createTime: '1704164646',
           type: '图片消息',
           content: '[图片]',
           isSend: 0,
           senderUsername: 'bob',
           senderDisplayName: 'Bob',
           senderAvatarKey: 'bob',
+        },
+        {
+          localId: 3,
+          createTime: null,
+          type: '文本消息',
+          content: 'invalid timestamp',
+          isSend: 0,
+          senderUsername: 'alice',
+          senderDisplayName: 'Alice',
         },
       ],
     })
@@ -260,7 +271,7 @@ describe('BrowserSessionRuntime', () => {
       formatId: 'weflow',
       messageCount: 2,
       memberCount: 2,
-      skippedCount: 0,
+      skippedCount: 1,
     })
     assert.deepEqual(
       (await runtime.listSessions()).map((session) => ({
@@ -304,6 +315,7 @@ describe('BrowserSessionRuntime', () => {
         '2024.01.02 Tuesday',
         '03:04\tAlice\thello line',
         '03:05\tBob\t[Sticker]',
+        '03:06\t\tAlice joined the group',
         '',
       ].join('\n')
     )
@@ -324,8 +336,8 @@ describe('BrowserSessionRuntime', () => {
     assert.deepEqual(result, {
       sessionId: 'line-session',
       formatId: 'line-native-txt',
-      messageCount: 2,
-      memberCount: 2,
+      messageCount: 3,
+      memberCount: 3,
       skippedCount: 0,
     })
     assert.deepEqual(
@@ -341,6 +353,7 @@ describe('BrowserSessionRuntime', () => {
     assert.deepEqual(sessionDb?.prepare('SELECT sender_account_name, type, content FROM message ORDER BY id').all(), [
       { sender_account_name: 'Alice', type: 0, content: 'hello line' },
       { sender_account_name: 'Bob', type: 5, content: '[Sticker]' },
+      { sender_account_name: '系統', type: 80, content: 'Alice joined the group' },
     ])
     database.dispose()
   })

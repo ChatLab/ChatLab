@@ -117,12 +117,21 @@ describe('WebRuntimeRpcClient', () => {
     client.dispose()
   })
 
-  it('sends cancellation through the same channel and rejects locally', async () => {
+  it('waits for worker cancellation acknowledgement before rejecting', async () => {
     const worker = new FakeWorker()
     const client = new WebRuntimeRpcClient(() => worker)
     const controller = new AbortController()
     const resultPromise = client.request('db.open', { filename: '/cancelled.db' }, { signal: controller.signal })
     const request = worker.messages[0] as { id: string }
+    let settled = false
+    void resultPromise.then(
+      () => {
+        settled = true
+      },
+      () => {
+        settled = true
+      }
+    )
 
     controller.abort('user cancelled')
 
@@ -131,7 +140,40 @@ describe('WebRuntimeRpcClient', () => {
       type: 'cancel',
       payload: { reason: 'user cancelled' },
     })
+    await Promise.resolve()
+    assert.equal(settled, false)
+
+    worker.emitMessage({
+      id: request.id,
+      type: 'error',
+      payload: {
+        taskType: 'db.open',
+        error: { name: 'WebRuntimeError', code: 'REQUEST_CANCELLED', message: 'The Worker task was cancelled' },
+      },
+    })
     await assert.rejects(resultPromise, (error: unknown) => (error as Error).name === 'AbortError')
+    client.dispose()
+  })
+
+  it('returns a mutating task result when it completes before cancellation acknowledgement', async () => {
+    const worker = new FakeWorker()
+    const client = new WebRuntimeRpcClient(() => worker)
+    const controller = new AbortController()
+    const resultPromise = client.request(
+      'session.rename',
+      { sessionId: 'session-one', name: 'Renamed' },
+      { signal: controller.signal }
+    )
+    const request = worker.messages[0] as { id: string }
+
+    controller.abort('user cancelled')
+    worker.emitMessage({
+      id: request.id,
+      type: 'result',
+      payload: { taskType: 'session.rename', result: { renamed: true } },
+    })
+
+    assert.deepEqual(await resultPromise, { renamed: true })
     client.dispose()
   })
 

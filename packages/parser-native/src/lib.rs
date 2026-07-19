@@ -5,16 +5,24 @@ mod input;
 mod jsutil;
 mod protocol;
 mod scanner;
+#[cfg(feature = "wasm")]
+mod wasm;
 mod weflow;
 
+#[cfg(feature = "napi")]
 use std::sync::atomic::{AtomicU64, Ordering};
+#[cfg(feature = "napi")]
 use std::sync::{Arc, Mutex, MutexGuard};
 
+#[cfg(feature = "napi")]
 use napi::bindgen_prelude::*;
+#[cfg(feature = "napi")]
 use napi_derive::napi;
 
 use input::KernelInput;
-use protocol::{KernelOutput, NativeMember, NativeMessage, NativeParseProgress};
+use protocol::{KernelOutput, NativeMessage};
+#[cfg(feature = "napi")]
+use protocol::{NativeMember, NativeParseProgress};
 
 // ==================== Format registry ====================
 
@@ -27,7 +35,7 @@ enum FormatKind {
 }
 
 impl FormatKind {
-    fn from_id(id: &str) -> Option<Self> {
+    pub(crate) fn from_id(id: &str) -> Option<Self> {
         match id {
             "weflow" => Some(FormatKind::Weflow),
             "chatlab" => Some(FormatKind::Chatlab),
@@ -35,7 +43,7 @@ impl FormatKind {
         }
     }
 
-    fn run(
+    pub(crate) fn run(
         &self,
         buf: &[u8],
         input: &KernelInput,
@@ -50,7 +58,7 @@ impl FormatKind {
 
 // ==================== Shared parser state ====================
 
-struct ParsedState {
+pub(crate) struct ParsedState {
     output: KernelOutput,
     cursor: usize,
     /// Totals captured at parse completion; `take_*` drains the vectors, so
@@ -59,6 +67,7 @@ struct ParsedState {
     member_total: usize,
 }
 
+#[cfg(feature = "napi")]
 struct Shared {
     bytes_read: AtomicU64,
     total_bytes: AtomicU64,
@@ -66,6 +75,7 @@ struct Shared {
     parsed: Mutex<Option<ParsedState>>,
 }
 
+#[cfg(feature = "napi")]
 impl Shared {
     fn new() -> Arc<Self> {
         Arc::new(Shared {
@@ -118,7 +128,7 @@ impl Shared {
 }
 
 /// Take the next `size` messages, advancing the cursor; None when exhausted.
-fn take_batch_from(state: &mut ParsedState, size: u32) -> Option<Vec<NativeMessage>> {
+pub(crate) fn take_batch_from(state: &mut ParsedState, size: u32) -> Option<Vec<NativeMessage>> {
     let cursor = state.cursor;
     let total = state.output.messages.len();
     if cursor >= total {
@@ -135,12 +145,14 @@ fn take_batch_from(state: &mut ParsedState, size: u32) -> Option<Vec<NativeMessa
 
 // ==================== N-API surface ====================
 
+#[cfg(feature = "napi")]
 pub struct ParseFormatTask {
     format: FormatKind,
     input: KernelInput,
     shared: Arc<Shared>,
 }
 
+#[cfg(feature = "napi")]
 impl Task for ParseFormatTask {
     type Output = ();
     type JsValue = ();
@@ -158,6 +170,7 @@ impl Task for ParseFormatTask {
 /// `parse()` → `metaJson()` → `takeMembers()` → `takeBatch()` until null →
 /// `summaryJson()`. Constructing with an unknown format id throws, which the
 /// TS wrapper treats like any other native failure (falls back to TS).
+#[cfg(feature = "napi")]
 #[napi]
 pub struct NativeParser {
     format: FormatKind,
@@ -165,6 +178,7 @@ pub struct NativeParser {
     shared: Arc<Shared>,
 }
 
+#[cfg(feature = "napi")]
 #[napi]
 impl NativeParser {
     #[napi(constructor)]

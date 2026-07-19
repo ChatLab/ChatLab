@@ -4,6 +4,7 @@
 //! passed to the JS constructor. Multi-file formats (QQ chunked, Google Chat
 //! Takeout) will extend this struct with base-dir scoped file access.
 
+#[cfg(feature = "napi")]
 use std::io;
 
 #[derive(Clone)]
@@ -17,6 +18,7 @@ pub struct KernelInput {
 }
 
 impl KernelInput {
+    #[cfg(feature = "napi")]
     pub fn read_primary(&self) -> io::Result<Vec<u8>> {
         std::fs::read(&self.primary_path)
     }

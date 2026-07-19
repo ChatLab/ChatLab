@@ -4,23 +4,30 @@
 //! not produce stay `None`); the format-specific meta travels as a JSON string
 //! so adding formats never changes the N-API surface.
 
+#[cfg(feature = "napi")]
 use napi_derive::napi;
+use serde::Serialize;
 
-#[napi(object)]
+#[cfg(feature = "napi")]
+#[cfg_attr(feature = "napi", napi(object))]
 pub struct NativeParseProgress {
     pub bytes_read: f64,
     pub total_bytes: f64,
     pub messages_processed: f64,
 }
 
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeMemberRole {
     pub id: String,
     /// Present only when the source role object had a `name` key.
     pub name: Option<String>,
 }
 
-#[napi(object)]
+#[cfg_attr(feature = "napi", napi(object))]
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeMember {
     pub platform_id: String,
     pub account_name: String,
@@ -30,8 +37,9 @@ pub struct NativeMember {
     pub roles: Option<Vec<NativeMemberRole>>,
 }
 
-#[napi(object)]
-#[derive(Default)]
+#[cfg_attr(feature = "napi", napi(object))]
+#[derive(Default, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct NativeMessage {
     pub platform_message_id: Option<String>,
     pub sender_platform_id: String,

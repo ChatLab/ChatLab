@@ -24,12 +24,7 @@ import {
   type BrowserParseSource,
   type ChatLabBrowserFormatId,
 } from './chatlab-parser'
-
-export interface BrowserImportLogEvent {
-  level: 'debug' | 'info' | 'error'
-  message: string
-  data?: Record<string, unknown>
-}
+import { parseWithWasm, type BrowserImportLogEvent, type BrowserWasmParserLoader } from './wasm-parser'
 
 export type BrowserImportFormatId =
   | ChatLabBrowserFormatId
@@ -46,6 +41,7 @@ export interface ParseBrowserSourceOptions {
   checkCancelled?: () => void
   onProgress?: (progress: BrowserChatParseProgress) => void
   yieldEvery?: number
+  wasmLoader?: BrowserWasmParserLoader
   onLog?: (event: BrowserImportLogEvent) => void
 }
 
@@ -95,6 +91,16 @@ export async function parseBrowserImportSource(
       'UNSUPPORTED_IMPORT_FORMAT',
       'Unsupported file format; expected ChatLab JSON, ChatLab JSONL, WeFlow JSON, WhatsApp TXT, LINE TXT, QQ TXT, or Telegram JSON'
     )
+  }
+
+  if (formatId === 'chatlab' || formatId === 'weflow') {
+    const wasmResult = await parseWithWasm(source, formatId, {
+      checkCancelled: options.checkCancelled,
+      onProgress: options.onProgress,
+      onLog: options.onLog,
+      loader: options.wasmLoader,
+    })
+    if (wasmResult) return wasmResult
   }
 
   if (formatId === 'whatsapp-native-txt') {
@@ -211,3 +217,4 @@ export async function parseBrowserImportSource(
 }
 
 export type { BrowserParseSource } from './chatlab-parser'
+export type { BrowserImportLogEvent, BrowserWasmParserLoader } from './wasm-parser'

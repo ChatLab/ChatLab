@@ -133,11 +133,16 @@ export class BrowserDatabaseRuntime {
     return this.database
   }
 
-  private getInitializedRuntime(
+  private async getInitializedRuntime(
     onStage?: (stage: SqliteInitializationStage) => void
   ): Promise<InitializedSqliteRuntime> {
-    this.initialized ??= this.initializeSqlite(onStage)
-    return this.initialized
+    const initialized = (this.initialized ??= this.initializeSqlite(onStage))
+    try {
+      return await initialized
+    } catch (error) {
+      if (this.initialized === initialized) this.initialized = undefined
+      throw error
+    }
   }
 
   private buildOpenResult(filename: string, runtime: InitializedSqliteRuntime): OpenDatabaseResult {
