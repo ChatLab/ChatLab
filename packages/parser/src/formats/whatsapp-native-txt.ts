@@ -1,65 +1,10 @@
-/**
- * WhatsApp 官方导出 TXT 格式解析器
- * 适配 WhatsApp 聊天导出功能
- *
- * 格式特征：
- * - 文件头：消息和通话已进行端到端加密 / Messages and calls are end-to-end encrypted
- * - 消息格式（V1，无方括号）：YYYY/MM/DD HH:MM - 昵称: 内容
- * - 消息格式（V2，方括号）：[时间戳] 昵称: 内容
- *   时间戳由弹性解析器处理，自动适配各地区变体：
- *   - 日期顺序：YYYY/MM/DD | DD/MM/YYYY | M/D/YY
- *   - AM/PM 标记：24h 无标记 | AM/PM | 上午/下午 | 오전/오후 | 午前/午後
- *   - 分隔符：逗号 / 空格 / 特殊空格（U+2009, U+202F）
- * - 系统消息：时间戳 + 系统内容（无冒号分隔）
- * - 媒体占位：<省略影音内容> / 圖片已略去 等
- */
-
 import * as fs from 'fs'
-import * as path from 'path'
 import * as readline from 'readline'
-import { KNOWN_PLATFORMS, ChatType, MessageType } from '@openchatlab/shared-types'
-import type {
-  FormatFeature,
-  FormatModule,
-  Parser,
-  ParseOptions,
-  ParseEvent,
-  ParsedMeta,
-  ParsedMember,
-  ParsedMessage,
-} from '../types'
-import { getFileSize, createProgress } from '../utils'
+import { KNOWN_PLATFORMS, MessageType } from '@openchatlab/shared-types'
 
-// ==================== 辅助函数 ====================
-
-/**
- * 从文件名提取聊天名称
- * 例如：与开心每一天的 WhatsApp 聊天.txt → 开心每一天
- * 例如：与gaoberry37的 WhatsApp 聊天.txt → gaoberry37
- */
-function extractNameFromFilePath(filePath: string): string {
-  const basename = path.basename(filePath)
-  // 简体中文：与xxx的 WhatsApp 聊天.txt
-  const matchZhCn = basename.match(/^与(.+?)的\s*WhatsApp\s*聊天\.txt$/i)
-  if (matchZhCn) return matchZhCn[1].trim()
-  // 繁体中文：與xxx的WhatsApp對話.txt
-  const matchZhTw = basename.match(/^與(.+?)的\s*WhatsApp\s*對話\.txt$/i)
-  if (matchZhTw) return matchZhTw[1].trim()
-  // 兜底：移除扩展名
-  return basename.replace(/\.txt$/i, '') || '未知聊天'
-}
-
-function shouldInferPrivateChatName(filePath: string, fallbackName: string): boolean {
-  const basename = path.basename(filePath)
-  return /^_chat\.txt$/i.test(basename) || /^whatsapp(?:[-_\s].*)?$/i.test(fallbackName)
-}
-
-function inferPrivateChatName(memberMap: Map<string, MemberInfo>, fallbackName: string): string {
-  const member = Array.from(memberMap.values()).find((item) => item.platformId !== 'system')
-  return member?.nickname || fallbackName
-}
-
-// ==================== 特征定义 ====================
+import { WHATSAPP_FILENAME_SIGNATURES, WHATSAPP_HEAD_SIGNATURES, WhatsAppTextAccumulator } from '../browser/whatsapp'
+import type { FormatFeature, FormatModule, ParseEvent, ParseOptions, Parser } from '../types'
+import { createProgress, getFileSize } from '../utils'
 
 export const feature: FormatFeature = {
   id: 'whatsapp-native-txt',
@@ -68,436 +13,84 @@ export const feature: FormatFeature = {
   priority: 25,
   extensions: ['.txt'],
   signatures: {
-    // WhatsApp 导出文件的特征（中文/英文）
-    // 注意：仅保留 WhatsApp 独有的特征，避免误匹配其他 TXT 格式（如 LINE）
-    head: [
-      /消息和通话已进行端到端加密/, // 简体中文加密提示（WhatsApp 独有）
-      /訊息與通話已受端對端加密保護/, // 繁体中文加密提示（WhatsApp 独有）
-      /Messages and calls are end-to-end encrypted/i, // 英文加密提示（WhatsApp 独有）
-      /你发送给自己的消息已进行端到端加密/, // 简体中文自己对话提示（WhatsApp 独有）
-      /\d{1,4}\/\d{1,2}\/\d{2,4},?\s+\d{1,2}:\d{2}(?::\d{2})?(?:[\s\u2009\u202F]*(?:AM|PM|A\.M\.|P\.M\.|上午|下午|午前|午後|오전|오후))?\s+- /i, // 消息行格式特征（无方括号，含 " - " 分隔符，WhatsApp 独有）
-      /\[\d{1,4}\/\d{1,2}\/\d{1,4}[\s,].*\d{1,2}:\d{2}(?::\d{2})?.*\] /, // 消息行格式特征（方括号 + 含日期和时间的时间戳，兼容各地区变体）
-    ],
-    // 文件名特征：与xxx的 WhatsApp 聊天.txt
-    filename: [/^与.+的\s*WhatsApp\s*聊天\.txt$/i, /^與.+的\s*WhatsApp\s*對話\.txt$/i, /WhatsApp/i],
+    head: WHATSAPP_HEAD_SIGNATURES,
+    filename: WHATSAPP_FILENAME_SIGNATURES,
   },
 }
 
-// ==================== 辅助函数：清理不可见字符 ====================
-
-/**
- * 清理行首/行尾的不可见 Unicode 字符
- * WhatsApp 导出文件中可能包含 BOM、Left-to-Right Mark (U+200E) 等
- */
-function cleanLine(line: string): string {
-  // 移除常见的不可见字符：BOM、LTR Mark、RTL Mark、零宽字符等
-  return line.replace(/^(?:\uFEFF|\u200E|\u200F|\u200B|\u200C|\u200D|\u2060)+/, '').trim()
-}
-
-// ==================== 消息头正则 ====================
-
-// 格式1（无方括号）：日期/日期/日期[,] 时:分 - 内容
-// 兼容各地区变体：YYYY/MM/DD HH:MM | DD/MM/YYYY, HH:MM | M/D/YY, HH:MM
-const MESSAGE_LINE_REGEX_V1 =
-  /^(\d{1,4}\/\d{1,2}\/\d{2,4},?\s+\d{1,2}:\d{2}(?::\d{2})?(?:[\s\u2009\u202F]*(?:AM|PM|A\.M\.|P\.M\.|上午|下午|午前|午後|오전|오후))?) - (.+)$/i
-
-// 格式2（方括号格式）：宽松捕获 [时间戳] 后的内容
-// 时间戳的地区变体由 parseFlexibleV2Timestamp() 弹性解析器处理
-// 已知变体包括但不限于：中文 上午/下午、英文 AM/PM、韩文 오전/오후、各种日期顺序
-const MESSAGE_LINE_REGEX_V2 = /^\[([^\]]+)\] (.+)$/
-
-// 从消息内容中分离昵称和实际内容
-// 格式：昵称: 内容（冒号后可能是空格、U+200E LTR Mark 或两者组合）
-const SENDER_CONTENT_REGEX = /^(.+?):[\s\u200E]*(.*)$/
-
-// ==================== 系统消息识别 ====================
-
-const SYSTEM_MESSAGE_PATTERNS = [
-  // 简体中文系统消息
-  /消息和通话已进行端到端加密/,
-  /创建了此群组/,
-  /加入群组/,
-  /添加了/,
-  /退出了群组/,
-  /移除了/,
-  /更改了本群组/,
-  /已将此群组的设置更改为/,
-  /这条消息已删除/,
-  /限时消息功能/,
-  /正在等待此消息/,
-  // 繁体中文系统消息
-  /訊息與通話已受端對端加密保護/,
-  /建立了此群組/,
-  /加入了群組/,
-  /已新增/,
-  /已離開群組/,
-  /已移除/,
-  /已變更本群組/,
-  /此訊息已刪除/,
-  /限時訊息/,
-  // 英文系统消息
-  /Messages and calls are end-to-end encrypted/i,
-  /created this group/i,
-  /joined the group/i,
-  /added/i,
-  /left the group/i,
-  /removed/i,
-  /changed this group/i,
-  /This message was deleted/i,
-  /disappearing messages/i,
-]
-
-function isSystemMessage(content: string): boolean {
-  return SYSTEM_MESSAGE_PATTERNS.some((pattern) => pattern.test(content))
-}
-
-// ==================== 消息类型判断 ====================
-
-function detectMessageType(content: string): MessageType {
-  const trimmed = content.trim()
-
-  // 媒体消息（简体/繁体多种变体）
-  if (
-    trimmed === '<省略影音内容>' ||
-    trimmed === '<已省略多媒體檔案>' ||
-    trimmed === '圖片已略去' ||
-    trimmed === '影片已略去' ||
-    trimmed === '音訊已略去' ||
-    trimmed === 'image omitted' ||
-    trimmed === 'video omitted' ||
-    trimmed === 'audio omitted'
-  )
-    return MessageType.IMAGE
-  if (trimmed.includes('<已附加:') || trimmed.includes('<附件:') || trimmed.includes('<已附加：'))
-    return MessageType.FILE
-
-  // 贴图/贴纸（繁体中文导出标记）
-  if (trimmed === '貼圖已忽略' || trimmed === '貼圖已略去') return MessageType.EMOJI
-
-  // 删除消息（简体/繁体多种变体）
-  if (trimmed === '这条消息已删除' || trimmed.startsWith('此訊息已刪除') || trimmed.startsWith('你已刪除此訊息'))
-    return MessageType.RECALL
-
-  // 系统消息
-  if (isSystemMessage(trimmed)) return MessageType.SYSTEM
-
-  return MessageType.TEXT
-}
-
-// ==================== 时间解析 ====================
-
-// 多语言 AM/PM 标记映射（值为 true 表示 PM，false 表示 AM）
-const AMPM_MARKERS: [RegExp, boolean][] = [
-  [/\bPM\b/i, true],
-  [/\bP\.M\.(?!\w)/i, true],
-  [/下午/, true],
-  [/午後/, true],
-  [/오후/, true],
-  [/\bAM\b/i, false],
-  [/\bA\.M\.(?!\w)/i, false],
-  [/上午/, false],
-  [/午前/, false],
-  [/오전/, false],
-]
-
-/**
- * 弹性解析 V2（方括号）时间戳
- * 自动处理各地区变体：日期顺序、AM/PM 多语言标记、特殊空格等
- * @returns 秒级时间戳，解析失败返回 null
- */
-function parseFlexibleV2Timestamp(raw: string): number | null {
-  // 1. 规范化特殊空格和不可见字符
-  let str = raw.replace(/(?:\u2009|\u202F|\uFEFF|\u200E|\u200F|\u200B|\u200C|\u200D|\u2060)/g, ' ').trim()
-
-  // 2. 提取并移除 AM/PM 标记（任何语言）
-  let isPM: boolean | null = null
-  for (const [pattern, pm] of AMPM_MARKERS) {
-    if (pattern.test(str)) {
-      isPM = pm
-      str = str.replace(pattern, '').trim()
-      break
-    }
-  }
-
-  // 3. 移除逗号，规范化连续空格
-  str = str.replace(/,/g, ' ').replace(/\s+/g, ' ').trim()
-
-  // 4. 提取日期部分（含 /）和时间部分（含 :）
-  const match = str.match(/^(\d{1,4}\/\d{1,2}\/\d{1,4})\s+(\d{1,2}:\d{2}(?::\d{2})?)$/)
-  if (!match) return null
-
-  const [, datePart, timePart] = match
-  const dateParts = datePart.split('/').map((s) => parseInt(s, 10))
-  const timeParts = timePart.split(':').map((s) => parseInt(s, 10))
-
-  // 5. 推断日期顺序
-  let year: number, month: number, day: number
-  if (dateParts[0] > 31) {
-    // 第一段 > 31 → 一定是年份 → YYYY/MM/DD
-    year = dateParts[0]
-    month = dateParts[1]
-    day = dateParts[2]
-  } else if (dateParts[2] > 31) {
-    // 第三段 > 31 → 一定是年份 → DD/MM/YYYY
-    day = dateParts[0]
-    month = dateParts[1]
-    year = dateParts[2]
-  } else {
-    // 全部 ≤ 31 → M/D/YY（2 位年份，00-99 → 2000-2099）
-    month = dateParts[0]
-    day = dateParts[1]
-    year = 2000 + dateParts[2]
-  }
-
-  // 6. 解析时间
-  let hour = timeParts[0]
-  const minute = timeParts[1]
-  const second = timeParts[2] ?? 0
-
-  if (isPM === true && hour !== 12) hour += 12
-  if (isPM === false && hour === 12) hour = 0
-
-  // 7. 构造日期并校验
-  const date = new Date(year, month - 1, day, hour, minute, second)
-  const ts = Math.floor(date.getTime() / 1000)
-  return isNaN(ts) ? null : ts
-}
-
-/**
- * 解析 V1（无方括号）时间格式
- * 支持：YYYY/M/D H:MM | DD/MM/YYYY, HH:MM | M/D/YY, HH:MM
- */
-function parseV1Timestamp(timeStr: string): number {
-  return parseFlexibleV2Timestamp(timeStr) ?? 0
-}
-
-// ==================== 成员信息 ====================
-
-interface MemberInfo {
-  platformId: string
-  nickname: string
-}
-
-// ==================== 解析器实现 ====================
-
 async function* parseWhatsApp(options: ParseOptions): AsyncGenerator<ParseEvent, void, unknown> {
   const { filePath, batchSize = 5000, onProgress, onLog } = options
-
   const totalBytes = getFileSize(filePath)
+  const accumulator = new WhatsAppTextAccumulator(filePath)
   let bytesRead = 0
-  let messagesProcessed = 0
-  let skippedLines = 0
+  let lastReportedMessages = 0
 
-  // 发送初始进度
   const initialProgress = createProgress('parsing', 0, totalBytes, 0, '')
   yield { type: 'progress', data: initialProgress }
   onProgress?.(initialProgress)
+  onLog?.('info', `Starting WhatsApp TXT parsing (${(totalBytes / 1024 / 1024).toFixed(2)} MB)`)
 
-  // 记录解析开始
-  onLog?.('info', `开始解析 WhatsApp TXT 文件，大小: ${(totalBytes / 1024 / 1024).toFixed(2)} MB`)
-
-  // 收集数据
-  const fileChatName = extractNameFromFilePath(filePath)
-  const memberMap = new Map<string, MemberInfo>()
-  const messages: ParsedMessage[] = []
-
-  // 当前正在解析的消息（可能跨多行）
-  let currentMessage: {
-    timestamp: number
-    sender: string | null // null 表示系统消息
-    contentLines: string[]
-  } | null = null
-
-  // 保存当前消息
-  const saveCurrentMessage = () => {
-    if (currentMessage) {
-      const content = currentMessage.contentLines.join('\n').trim()
-      const type = detectMessageType(content)
-
-      // 系统消息使用特殊 ID 和统一名称
-      const senderPlatformId = currentMessage.sender || 'system'
-      const senderName = currentMessage.sender || '系统消息'
-
-      messages.push({
-        senderPlatformId,
-        senderAccountName: senderName,
-        timestamp: currentMessage.timestamp,
-        type,
-        content: content || null,
-      })
-
-      // 更新成员信息（跳过系统消息）
-      if (currentMessage.sender) {
-        memberMap.set(senderPlatformId, {
-          platformId: senderPlatformId,
-          nickname: senderName,
-        })
-      }
-
-      messagesProcessed++
-    }
-  }
-
-  // 逐行读取文件
   const fileStream = fs.createReadStream(filePath, { encoding: 'utf-8' })
-  const rl = readline.createInterface({
-    input: fileStream,
-    crlfDelay: Infinity,
-  })
-
+  const lines = readline.createInterface({ input: fileStream, crlfDelay: Infinity })
   fileStream.on('data', (chunk: string | Buffer) => {
     bytesRead += typeof chunk === 'string' ? Buffer.byteLength(chunk) : chunk.length
   })
 
-  for await (const line of rl) {
-    // 清理行首不可见字符
-    const cleanedLine = cleanLine(line)
-
-    // 尝试匹配消息行：优先 V1（严格），再 V2（宽松 + 弹性时间解析）
-    const v1Match = cleanedLine.match(MESSAGE_LINE_REGEX_V1)
-    if (v1Match) {
-      saveCurrentMessage()
-      const restContent = v1Match[2]
-      const senderMatch = restContent.match(SENDER_CONTENT_REGEX)
-      if (senderMatch && !isSystemMessage(restContent)) {
-        currentMessage = {
-          timestamp: parseV1Timestamp(v1Match[1]),
-          sender: senderMatch[1].trim(),
-          contentLines: [senderMatch[2]],
-        }
-      } else {
-        currentMessage = {
-          timestamp: parseV1Timestamp(v1Match[1]),
-          sender: null,
-          contentLines: [restContent],
-        }
-      }
-      if (messagesProcessed % 500 === 0) {
-        onProgress?.(
-          createProgress('parsing', bytesRead, totalBytes, messagesProcessed, `已处理 ${messagesProcessed} 条消息...`)
+  for await (const line of lines) {
+    accumulator.pushLine(line)
+    if (accumulator.messageCount >= lastReportedMessages + 500) {
+      lastReportedMessages = accumulator.messageCount
+      onProgress?.(
+        createProgress(
+          'parsing',
+          bytesRead,
+          totalBytes,
+          accumulator.messageCount,
+          `Processed ${accumulator.messageCount} messages`
         )
-      }
-      continue
-    }
-
-    const v2Match = cleanedLine.match(MESSAGE_LINE_REGEX_V2)
-    if (v2Match) {
-      const timestamp = parseFlexibleV2Timestamp(v2Match[1])
-      if (timestamp !== null) {
-        // 弹性解析成功 → 新消息
-        saveCurrentMessage()
-        const restContent = v2Match[2]
-        const senderMatch = restContent.match(SENDER_CONTENT_REGEX)
-        if (senderMatch && !isSystemMessage(restContent)) {
-          currentMessage = {
-            timestamp,
-            sender: senderMatch[1].trim(),
-            contentLines: [senderMatch[2]],
-          }
-        } else {
-          currentMessage = {
-            timestamp,
-            sender: null,
-            contentLines: [restContent],
-          }
-        }
-        if (messagesProcessed % 500 === 0) {
-          onProgress?.(
-            createProgress('parsing', bytesRead, totalBytes, messagesProcessed, `已处理 ${messagesProcessed} 条消息...`)
-          )
-        }
-        continue
-      }
-      // 弹性解析失败 → 方括号内容不是有效时间戳，降级为续行
-    }
-
-    // 非消息行：可能是多行消息的延续
-    if (currentMessage && cleanedLine) {
-      currentMessage.contentLines.push(cleanedLine)
-    } else if (cleanedLine) {
-      // 无法解析的非空行
-      skippedLines++
+      )
     }
   }
 
-  // 保存最后一条消息
-  saveCurrentMessage()
-
-  // 确定聊天类型：根据参与者数量判断
-  // - 排除系统成员后，2 人或更少：私聊
-  // - 超过 2 人：群聊
-  const hasSystemMember = memberMap.has('system')
-  const realMemberCount = hasSystemMember ? memberMap.size - 1 : memberMap.size
-
-  const chatType = realMemberCount > 2 ? ChatType.GROUP : ChatType.PRIVATE
-  const chatName =
-    chatType === ChatType.PRIVATE && shouldInferPrivateChatName(filePath, fileChatName)
-      ? inferPrivateChatName(memberMap, fileChatName)
-      : fileChatName
-
-  // 发送 meta
-  const meta: ParsedMeta = {
-    name: chatName,
-    platform: KNOWN_PLATFORMS.WHATSAPP,
-    type: chatType,
-  }
-  yield { type: 'meta', data: meta }
-
-  // 发送成员
-  const members: ParsedMember[] = Array.from(memberMap.values()).map((m) => ({
-    platformId: m.platformId,
-    accountName: m.nickname,
-  }))
-  yield { type: 'members', data: members }
-
-  // 分批发送消息
-  for (let i = 0; i < messages.length; i += batchSize) {
-    const batch = messages.slice(i, i + batchSize)
-    yield { type: 'messages', data: batch }
+  const result = accumulator.finish()
+  yield { type: 'meta', data: result.meta }
+  yield { type: 'members', data: result.members }
+  for (let index = 0; index < result.messages.length; index += batchSize) {
+    yield { type: 'messages', data: result.messages.slice(index, index + batchSize) }
   }
 
-  // 完成
-  const doneProgress = createProgress('done', totalBytes, totalBytes, messagesProcessed, '')
+  const doneProgress = createProgress('done', totalBytes, totalBytes, result.messages.length, '')
   yield { type: 'progress', data: doneProgress }
   onProgress?.(doneProgress)
 
-  // 统计消息类型
   const typeCounts = new Map<MessageType, number>()
-  for (const msg of messages) {
-    typeCounts.set(msg.type, (typeCounts.get(msg.type) || 0) + 1)
+  for (const message of result.messages) {
+    typeCounts.set(message.type, (typeCounts.get(message.type) ?? 0) + 1)
   }
-
-  // 记录解析摘要
-  onLog?.('info', `解析完成: ${messagesProcessed} 条消息, ${memberMap.size} 个成员, 类型: ${chatType}`)
   onLog?.(
     'info',
-    `消息类型统计: ${Array.from(typeCounts.entries())
-      .map(([type, count]) => `${type}=${count}`)
-      .join(', ')}`
+    `WhatsApp TXT parsing completed: ${result.messages.length} messages, ${result.members.length} members, type ${result.meta.type}`
   )
-  if (skippedLines > 0) {
-    onLog?.('info', `跳过 ${skippedLines} 行无法解析的内容`)
-  }
+  onLog?.(
+    'info',
+    `Message types: ${Array.from(typeCounts.entries(), ([type, count]) => `${type}=${count}`).join(', ')}`
+  )
+  if (result.skippedLines > 0) onLog?.('info', `Skipped ${result.skippedLines} unrecognized lines`)
 
   yield {
     type: 'done',
-    data: { messageCount: messagesProcessed, memberCount: memberMap.size },
+    data: { messageCount: result.messages.length, memberCount: result.members.length },
   }
 }
-
-// ==================== 导出解析器 ====================
 
 export const parser_: Parser = {
   feature,
   parse: parseWhatsApp,
 }
 
-// ==================== 导出格式模块 ====================
-
 const module_: FormatModule = {
   feature,
   parser: parser_,
-  // TXT 格式不需要预处理器
 }
 
 export default module_

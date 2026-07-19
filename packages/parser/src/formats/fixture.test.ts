@@ -251,6 +251,37 @@ const fixtures: ParserFixture[] = [
     },
   },
   {
+    filename: '[LINE] Project Team.txt',
+    content: [
+      '[LINE] Chat history in Project Team',
+      'Saved on: 2024/01/03 09:00',
+      '',
+      '2024.01.02 Tuesday',
+      '03:04\tAlice\thello line',
+      '03:05\tBob\t[Sticker]',
+      '',
+    ].join('\n'),
+    formatId: 'line-native-txt',
+    expected: {
+      meta: { name: 'Project Team', platform: KNOWN_PLATFORMS.LINE, type: ChatType.GROUP },
+      memberIds: ['Alice', 'Bob'],
+      messages: [
+        {
+          senderPlatformId: 'Alice',
+          timestamp: localTs('2024-01-02T03:04:00'),
+          type: MessageType.TEXT,
+          content: 'hello line',
+        },
+        {
+          senderPlatformId: 'Bob',
+          timestamp: localTs('2024-01-02T03:05:00'),
+          type: MessageType.EMOJI,
+          content: '[Sticker]',
+        },
+      ],
+    },
+  },
+  {
     filename: 'chatlab.json',
     content: json({
       chatlab: { version: '1.0.0', exportedAt: 1704164645 },
