@@ -347,7 +347,8 @@ export {
 export type { OwnerMatchCandidate, OwnerMatchResult } from './owner'
 
 // Import utilities
-export { generateMessageKey, buildMemberIdMap } from './import'
+export { generateMessageKey, buildMemberIdMap, writeParseResultToDb } from './import'
+export type { ImportMeta, WriteParseResultStats } from './import'
 
 // Merger algorithms
 export {
