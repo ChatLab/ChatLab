@@ -1,7 +1,7 @@
 /**
- * WebPlatformAdapter — Web 模式降级实现
+ * CliWebPlatformAdapter — CLI Web 平台能力实现
  *
- * 大部分平台能力在 Web 模式下不可用，提供安全的降级行为。
+ * 大部分原生平台能力在 CLI Web 下不可用，提供安全的降级行为。
  */
 
 import type {
@@ -17,9 +17,9 @@ import { reportError } from '../log-report'
 
 declare const __APP_VERSION__: string
 
-export class WebPlatformAdapter implements PlatformAdapter {
+export class CliWebPlatformAdapter implements PlatformAdapter {
   async getVersion(): Promise<string> {
-    return typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'web'
+    return typeof __APP_VERSION__ !== 'undefined' ? __APP_VERSION__ : 'cli-web'
   }
 
   async fetchRemoteConfig(url: string): Promise<RemoteConfigResult> {
@@ -44,7 +44,7 @@ export class WebPlatformAdapter implements PlatformAdapter {
   }
 
   async setOpenAtLogin(_enabled: boolean): Promise<{ success: boolean; error?: string }> {
-    return { success: false, error: 'Not available in web mode' }
+    return { success: false, error: 'Not available in CLI Web' }
   }
 
   async getAnalyticsEnabled(): Promise<boolean> {

@@ -4,6 +4,11 @@ import { useI18n } from 'vue-i18n'
 import { CHATLAB_SITE_BASE, getChatlabSiteLocalePath, getChatlabSiteLangQuery } from '@/utils/chatlabSiteLocale'
 import { IS_ELECTRON } from '@/utils/platform'
 import { usePlatformService } from '@/services'
+import { resolveHomeFooterConfigSource } from './home-footer-config'
+
+const props = defineProps<{
+  remoteConfigEnabled: boolean
+}>()
 
 const emit = defineEmits<{
   openChangelog: []
@@ -11,6 +16,9 @@ const emit = defineEmits<{
 }>()
 
 const { t, locale } = useI18n()
+const configSource = computed(() =>
+  resolveHomeFooterConfigSource({ remoteConfigEnabled: props.remoteConfigEnabled, isElectron: IS_ELECTRON })
+)
 
 const configUrl = computed(() => {
   const localePath = getChatlabSiteLocalePath(locale.value)
@@ -134,9 +142,11 @@ async function fetchConfig(): Promise<void> {
     socialData.value = cachedSocialData
   }
 
+  if (configSource.value === 'cache-only') return
+
   try {
     let config: Record<string, unknown>
-    if (IS_ELECTRON) {
+    if (configSource.value === 'platform') {
       const result = await usePlatformService().fetchRemoteConfig(configUrl.value)
       if (!result.success || !result.data) return
       config = result.data as Record<string, unknown>

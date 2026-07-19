@@ -1,0 +1,93 @@
+{
+  "eyebrow": "浏览器本地版",
+  "title": "把聊天记录，留在你的浏览器里",
+  "description": "导入 ChatLab JSON / JSONL、WhatsApp / LINE / QQ TXT 或 Telegram JSON，在本机建立独立会话库。文件与聊天内容不会上传。",
+  "localOnly": "仅在本机处理",
+  "localOnlyDetail": "数据保存在当前浏览器的站点存储中。清除站点数据会一并删除已导入会话。",
+  "initializing": "正在准备本地工作区",
+  "initializingDetail": "首次启动需要加载 SQLite 运行时并打开浏览器存储。",
+  "unsupported": {
+    "title": "当前浏览器无法运行本地版",
+    "description": "请使用最新版 Chrome、Edge 或其他支持 OPFS 的浏览器，并通过 localhost 或 HTTPS 打开。",
+    "missing": "缺少能力：{capabilities}"
+  },
+  "error": {
+    "title": "本地工作区遇到问题",
+    "unsupportedFile": "暂不支持这个文件。请选择 ChatLab JSON / JSONL、WhatsApp / LINE / QQ TXT 或 Telegram JSON。"
+  },
+  "import": {
+    "eyebrow": "导入",
+    "title": "添加一份聊天记录",
+    "description": "当前支持 ChatLab JSON / JSONL、WhatsApp / LINE / QQ TXT 和 Telegram JSON。每次导入会创建一个独立会话。",
+    "drop": "拖入文件，或从设备选择",
+    "dropActive": "松开即可选择这个文件",
+    "formats": ".json · .jsonl · .txt",
+    "choose": "选择文件",
+    "selected": "已选择",
+    "detecting": "正在识别格式…",
+    "detected": "识别为 {format}",
+    "start": "开始本地导入",
+    "working": "正在导入",
+    "cancel": "停止导入",
+    "processed": "已处理 {count} 条消息",
+    "multiChat": {
+      "title": "选择要导入的聊天",
+      "selected": "已选 {selected} / {total}",
+      "selectAll": "全选",
+      "clearAll": "清空",
+      "messages": "{count} 条消息",
+      "empty": "空聊天",
+      "current": "第 {current} / {total} 项：{name}",
+      "importSelected": "导入选中的 {count} 项",
+      "successDetail": "已创建 {sessions} / {total} 个会话，共保存 {messages} 条消息。",
+      "failed": "{count} 项导入失败",
+      "cancelledWithCompleted": "导入已停止；已完成的 {count} 个会话已保留。"
+    },
+    "stages": {
+      "detecting": "识别文件",
+      "reading": "读取文件",
+      "parsing": "解析消息",
+      "saving": "写入本地数据库",
+      "indexing": "建立索引",
+      "done": "完成"
+    },
+    "successTitle": "导入完成",
+    "successDetail": "已保存 {messages} 条消息和 {members} 位成员。",
+    "cancelled": "导入已停止，没有留下未完成的会话。",
+    "another": "继续导入"
+  },
+  "sessions": {
+    "eyebrow": "本地会话",
+    "title": "你的聊天档案",
+    "description": "会话彼此隔离保存在浏览器中，可以管理会话并查看 24 小时消息分布。",
+    "count": "{count} 个会话",
+    "refresh": "刷新",
+    "emptyTitle": "还没有本地会话",
+    "emptyDescription": "从左侧导入第一份聊天记录，它会在这里出现。",
+    "messages": "{count} 条消息",
+    "members": "{count} 位成员",
+    "lastMessage": "最后消息 {date}",
+    "importedAt": "导入于 {date}",
+    "group": "群聊",
+    "private": "私聊",
+    "rename": "重命名",
+    "renameLabel": "新的会话名称",
+    "deleteTitle": "删除“{name}”？",
+    "deleteDescription": "该会话的本地数据库会被永久删除，此操作无法撤销。",
+    "busy": "正在更新会话…"
+  },
+  "analysis": {
+    "open": "查看时间分布",
+    "eyebrow": "首个本地分析",
+    "title": "“{name}”的 24 小时分布",
+    "description": "统计在本地后台线程中完成，并按当前设备时区归入小时。",
+    "loading": "正在读取本地会话统计…",
+    "totalMessages": "统计消息",
+    "peakHour": "最活跃时段",
+    "activeHours": "有消息时段",
+    "hourValue": "{hour}:00",
+    "hourTooltip": "{hour}:00 · {count} 条消息",
+    "noData": "这个会话暂时没有可展示的小时数据。",
+    "runtimeNote": "本地计算 · 不上传"
+  }
+}

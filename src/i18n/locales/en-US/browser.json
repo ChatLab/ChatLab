@@ -1,0 +1,93 @@
+{
+  "eyebrow": "Local browser edition",
+  "title": "Keep your chat history in your browser",
+  "description": "Import ChatLab JSON / JSONL, WhatsApp TXT, LINE TXT, QQ TXT, or Telegram JSON into isolated local session databases. Files and chat content are never uploaded.",
+  "localOnly": "Processed on this device",
+  "localOnlyDetail": "Data is stored in this browser's site storage. Clearing site data also removes imported sessions.",
+  "initializing": "Preparing your local workspace",
+  "initializingDetail": "The first launch loads the SQLite runtime and opens browser storage.",
+  "unsupported": {
+    "title": "This browser cannot run the local edition",
+    "description": "Use the latest Chrome, Edge, or another OPFS-capable browser, and open ChatLab through localhost or HTTPS.",
+    "missing": "Missing capabilities: {capabilities}"
+  },
+  "error": {
+    "title": "The local workspace hit a problem",
+    "unsupportedFile": "This file is not supported yet. Choose ChatLab JSON / JSONL, WhatsApp TXT, LINE TXT, QQ TXT, or Telegram JSON."
+  },
+  "import": {
+    "eyebrow": "Import",
+    "title": "Add a chat archive",
+    "description": "ChatLab JSON / JSONL, WhatsApp TXT, LINE TXT, QQ TXT, and Telegram JSON are supported. Each import creates an isolated session.",
+    "drop": "Drop a file here, or choose from your device",
+    "dropActive": "Release to select this file",
+    "formats": ".json · .jsonl · .txt",
+    "choose": "Choose file",
+    "selected": "Selected",
+    "detecting": "Detecting format…",
+    "detected": "Detected as {format}",
+    "start": "Start local import",
+    "working": "Importing",
+    "cancel": "Stop import",
+    "processed": "Processed {count} messages",
+    "multiChat": {
+      "title": "Choose chats to import",
+      "selected": "{selected} of {total} selected",
+      "selectAll": "Select all",
+      "clearAll": "Clear",
+      "messages": "{count} messages",
+      "empty": "Empty chat",
+      "current": "Chat {current} of {total}: {name}",
+      "importSelected": "Import {count} selected",
+      "successDetail": "Created {sessions} of {total} sessions and saved {messages} messages.",
+      "failed": "{count} imports failed",
+      "cancelledWithCompleted": "Import stopped; {count} completed sessions were kept."
+    },
+    "stages": {
+      "detecting": "Detecting file",
+      "reading": "Reading file",
+      "parsing": "Parsing messages",
+      "saving": "Writing local database",
+      "indexing": "Building indexes",
+      "done": "Done"
+    },
+    "successTitle": "Import complete",
+    "successDetail": "Saved {messages} messages and {members} members.",
+    "cancelled": "Import stopped without leaving an incomplete session.",
+    "another": "Import another"
+  },
+  "sessions": {
+    "eyebrow": "Local sessions",
+    "title": "Your chat archive",
+    "description": "Sessions are stored separately in this browser. You can manage them and view their 24-hour message activity.",
+    "count": "{count} sessions",
+    "refresh": "Refresh",
+    "emptyTitle": "No local sessions yet",
+    "emptyDescription": "Import your first chat archive from the left and it will appear here.",
+    "messages": "{count} messages",
+    "members": "{count} members",
+    "lastMessage": "Last message {date}",
+    "importedAt": "Imported {date}",
+    "group": "Group",
+    "private": "Direct",
+    "rename": "Rename",
+    "renameLabel": "New session name",
+    "deleteTitle": "Delete “{name}”?",
+    "deleteDescription": "This session's local database will be permanently deleted. This cannot be undone.",
+    "busy": "Updating session…"
+  },
+  "analysis": {
+    "open": "View hourly activity",
+    "eyebrow": "First local analysis",
+    "title": "24-hour activity for “{name}”",
+    "description": "Statistics are computed in a local background thread and grouped in this device's time zone.",
+    "loading": "Reading local session statistics…",
+    "totalMessages": "Messages counted",
+    "peakHour": "Peak hour",
+    "activeHours": "Active hours",
+    "hourValue": "{hour}:00",
+    "hourTooltip": "{hour}:00 · {count} messages",
+    "noData": "This session has no hourly activity to display yet.",
+    "runtimeNote": "Computed locally · no upload"
+  }
+}

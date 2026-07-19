@@ -1,7 +1,7 @@
 /**
  * Auth Store — Server 模式下的 token 管理
  *
- * 仅在 CLI Web (web-serve) 模式下生效。
+ * 仅在 CLI Web 模式下生效。
  * Electron 模式不需要认证（通过 preload 获取 ephemeral token）。
  *
  * 默认使用 sessionStorage（关闭浏览器后清除）。

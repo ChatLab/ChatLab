@@ -145,6 +145,9 @@ export interface ImportAdapter {
     onProgress?: (p: ImportProgress) => void
   ): Promise<ImportResult>
 
+  /** Cancel the active import when the runtime supports cooperative cancellation. */
+  cancelActiveImport?(): void
+
   /** 检测文件格式 */
   detectFormat(file: File | string): Promise<FormatInfo | null>
 

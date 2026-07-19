@@ -1,0 +1,93 @@
+{
+  "eyebrow": "瀏覽器本機版",
+  "title": "把聊天記錄，留在你的瀏覽器裡",
+  "description": "匯入 ChatLab JSON / JSONL、WhatsApp / LINE / QQ TXT 或 Telegram JSON，在本機建立獨立對話資料庫。檔案與聊天內容不會上傳。",
+  "localOnly": "僅在本機處理",
+  "localOnlyDetail": "資料保存在目前瀏覽器的網站儲存空間。清除網站資料也會刪除已匯入的對話。",
+  "initializing": "正在準備本機工作區",
+  "initializingDetail": "首次啟動需要載入 SQLite 執行環境並開啟瀏覽器儲存空間。",
+  "unsupported": {
+    "title": "目前瀏覽器無法執行本機版",
+    "description": "請使用最新版 Chrome、Edge 或其他支援 OPFS 的瀏覽器，並透過 localhost 或 HTTPS 開啟。",
+    "missing": "缺少能力：{capabilities}"
+  },
+  "error": {
+    "title": "本機工作區發生問題",
+    "unsupportedFile": "暫不支援這個檔案。請選擇 ChatLab JSON / JSONL、WhatsApp / LINE / QQ TXT 或 Telegram JSON。"
+  },
+  "import": {
+    "eyebrow": "匯入",
+    "title": "加入一份聊天記錄",
+    "description": "目前支援 ChatLab JSON / JSONL、WhatsApp / LINE / QQ TXT 和 Telegram JSON。每次匯入會建立一個獨立對話。",
+    "drop": "拖入檔案，或從裝置選擇",
+    "dropActive": "放開即可選擇這個檔案",
+    "formats": ".json · .jsonl · .txt",
+    "choose": "選擇檔案",
+    "selected": "已選擇",
+    "detecting": "正在辨識格式…",
+    "detected": "辨識為 {format}",
+    "start": "開始本機匯入",
+    "working": "正在匯入",
+    "cancel": "停止匯入",
+    "processed": "已處理 {count} 則訊息",
+    "multiChat": {
+      "title": "選擇要匯入的聊天",
+      "selected": "已選 {selected} / {total}",
+      "selectAll": "全選",
+      "clearAll": "清除",
+      "messages": "{count} 則訊息",
+      "empty": "空聊天",
+      "current": "第 {current} / {total} 項：{name}",
+      "importSelected": "匯入選取的 {count} 項",
+      "successDetail": "已建立 {sessions} / {total} 個對話，共儲存 {messages} 則訊息。",
+      "failed": "{count} 項匯入失敗",
+      "cancelledWithCompleted": "匯入已停止；已完成的 {count} 個對話已保留。"
+    },
+    "stages": {
+      "detecting": "辨識檔案",
+      "reading": "讀取檔案",
+      "parsing": "解析訊息",
+      "saving": "寫入本機資料庫",
+      "indexing": "建立索引",
+      "done": "完成"
+    },
+    "successTitle": "匯入完成",
+    "successDetail": "已儲存 {messages} 則訊息和 {members} 位成員。",
+    "cancelled": "匯入已停止，沒有留下未完成的對話。",
+    "another": "繼續匯入"
+  },
+  "sessions": {
+    "eyebrow": "本機對話",
+    "title": "你的聊天檔案",
+    "description": "對話彼此隔離保存在瀏覽器中，可以管理對話並查看 24 小時訊息分布。",
+    "count": "{count} 個對話",
+    "refresh": "重新整理",
+    "emptyTitle": "還沒有本機對話",
+    "emptyDescription": "從左側匯入第一份聊天記錄，它會出現在這裡。",
+    "messages": "{count} 則訊息",
+    "members": "{count} 位成員",
+    "lastMessage": "最後訊息 {date}",
+    "importedAt": "匯入於 {date}",
+    "group": "群聊",
+    "private": "私聊",
+    "rename": "重新命名",
+    "renameLabel": "新的對話名稱",
+    "deleteTitle": "刪除「{name}」？",
+    "deleteDescription": "此對話的本機資料庫將被永久刪除，此操作無法復原。",
+    "busy": "正在更新對話…"
+  },
+  "analysis": {
+    "open": "查看時間分布",
+    "eyebrow": "首個本機分析",
+    "title": "「{name}」的 24 小時分布",
+    "description": "統計在本機背景執行緒中完成，並依目前裝置時區歸入小時。",
+    "loading": "正在讀取本機對話統計…",
+    "totalMessages": "統計訊息",
+    "peakHour": "最活躍時段",
+    "activeHours": "有訊息時段",
+    "hourValue": "{hour}:00",
+    "hourTooltip": "{hour}:00 · {count} 則訊息",
+    "noData": "這個對話暫時沒有可顯示的小時資料。",
+    "runtimeNote": "本機計算 · 不上傳"
+  }
+}

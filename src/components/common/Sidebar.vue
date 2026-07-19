@@ -23,6 +23,11 @@ import { useLayoutStore } from '@/stores/layout'
 import { usePlatformService } from '@/services'
 import { IS_ELECTRON } from '@/utils/platform'
 import logoSvg from '@/assets/images/logo.svg'
+import { focusExposedInput, type ExposedInputRef } from './sidebar/input-focus'
+
+const props = defineProps<{
+  backendFeatures: boolean
+}>()
 
 const { t } = useI18n()
 const LATEST_VERSION_URL = 'https://chatlab.fun/latest-version'
@@ -59,7 +64,7 @@ const isInsightPage = computed(() => String(route.name ?? '').startsWith('insigh
 const showRenameModal = ref(false)
 const renameTarget = ref<AnalysisSession | null>(null)
 const newName = ref('')
-const renameInputRef = ref<HTMLInputElement | null>(null)
+const renameInputRef = ref<ExposedInputRef | null>(null)
 
 // 删除确认相关状态
 const showDeleteModal = ref(false)
@@ -124,7 +129,7 @@ onMounted(async () => {
   sessionStore.loadSessions()
   try {
     version.value = await usePlatformService().getVersion()
-    void checkUpdateNotice()
+    if (props.backendFeatures) void checkUpdateNotice()
   } catch (e) {
     console.error('Failed to get version', e)
   }
@@ -147,6 +152,14 @@ function handleImport() {
 
 function openContacts() {
   router.push({ name: 'people-contacts' })
+}
+
+function openSession(session: AnalysisSession) {
+  router.push({
+    name: getSessionRouteName(session),
+    params: { id: session.id },
+    query: route.query,
+  })
 }
 
 function readUpdateCheckCache(): UpdateNoticeCache | null {
@@ -269,8 +282,7 @@ function openRenameModal(session: AnalysisSession) {
   showRenameModal.value = true
   // 等待 DOM 更新后聚焦输入框
   nextTick(() => {
-    renameInputRef.value?.focus()
-    renameInputRef.value?.select()
+    focusExposedInput(renameInputRef.value, { select: true })
   })
 }
 
@@ -478,6 +490,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
 
         <!-- 足迹 -->
         <SidebarButton
+          v-if="props.backendFeatures"
           icon="i-heroicons-presentation-chart-bar"
           :title="t('layout.insight')"
           :active="isInsightPage"
@@ -485,7 +498,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
         />
 
         <SidebarButton
-          v-if="showContactsEntry"
+          v-if="props.backendFeatures && showContactsEntry"
           icon="i-lucide-users"
           icon-class="scale-90"
           :title="t('layout.relationships')"
@@ -512,7 +525,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
                 />
               </UTooltip>
               <SidebarSortPopover />
-              <UTooltip :text="t('layout.manage')" :content="{ side: 'bottom' }">
+              <UTooltip v-if="props.backendFeatures" :text="t('layout.manage')" :content="{ side: 'bottom' }">
                 <UButton
                   icon="i-heroicons-rectangle-stack"
                   color="neutral"
@@ -574,13 +587,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
                       ? 'justify-center h-10 w-10 rounded-lg mx-auto'
                       : 'h-10 w-full rounded-xl p-1.5 px-2.5 pl-1.5',
                   ]"
-                  @click="
-                    router.push({
-                      name: getSessionRouteName(virtualSessionAt(virtualItem.index)),
-                      params: { id: virtualSessionAt(virtualItem.index).id },
-                      query: route.query,
-                    })
-                  "
+                  @click="openSession(virtualSessionAt(virtualItem.index))"
                 >
                   <!-- 激活指示器：在展开和折叠下，都优雅地贴在侧边栏最左侧边缘 -->
                   <div
@@ -711,7 +718,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
     </UModal>
 
     <!-- Footer -->
-    <SidebarFooter />
+    <SidebarFooter v-if="props.backendFeatures" />
   </div>
 </template>
 

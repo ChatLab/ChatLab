@@ -1,5 +1,6 @@
 @import 'tailwindcss';
-@source "../../packages";
+@source "../..";
+@source "../../../packages";
 @import '@nuxt/ui';
 @import './markdown.css';
 

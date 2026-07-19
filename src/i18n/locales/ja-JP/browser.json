@@ -1,0 +1,93 @@
+{
+  "eyebrow": "ブラウザローカル版",
+  "title": "チャット履歴を、ブラウザの中に",
+  "description": "ChatLab JSON / JSONL、WhatsApp TXT、LINE TXT、QQ TXT、Telegram JSON を、端末内の独立したセッションデータベースへ取り込みます。ファイルや会話内容はアップロードされません。",
+  "localOnly": "この端末内だけで処理",
+  "localOnlyDetail": "データはこのブラウザのサイトストレージに保存されます。サイトデータを消去すると、取り込んだセッションも削除されます。",
+  "initializing": "ローカルワークスペースを準備中",
+  "initializingDetail": "初回起動では SQLite ランタイムを読み込み、ブラウザストレージを開きます。",
+  "unsupported": {
+    "title": "このブラウザではローカル版を実行できません",
+    "description": "最新版の Chrome、Edge、または OPFS 対応ブラウザを使用し、localhost か HTTPS で開いてください。",
+    "missing": "不足している機能：{capabilities}"
+  },
+  "error": {
+    "title": "ローカルワークスペースで問題が発生しました",
+    "unsupportedFile": "このファイルにはまだ対応していません。ChatLab JSON / JSONL、WhatsApp TXT、LINE TXT、QQ TXT、Telegram JSON から選択してください。"
+  },
+  "import": {
+    "eyebrow": "インポート",
+    "title": "チャット記録を追加",
+    "description": "ChatLab JSON / JSONL、WhatsApp TXT、LINE TXT、QQ TXT、Telegram JSON に対応しています。インポートごとに独立したセッションを作成します。",
+    "drop": "ファイルをドロップ、または端末から選択",
+    "dropActive": "放すとこのファイルを選択します",
+    "formats": ".json · .jsonl · .txt",
+    "choose": "ファイルを選択",
+    "selected": "選択済み",
+    "detecting": "形式を確認中…",
+    "detected": "{format} として認識",
+    "start": "ローカルインポートを開始",
+    "working": "インポート中",
+    "cancel": "インポートを停止",
+    "processed": "{count} 件のメッセージを処理済み",
+    "multiChat": {
+      "title": "インポートするチャットを選択",
+      "selected": "{total} 件中 {selected} 件を選択",
+      "selectAll": "すべて選択",
+      "clearAll": "選択解除",
+      "messages": "{count} 件のメッセージ",
+      "empty": "空のチャット",
+      "current": "{current} / {total} 件目：{name}",
+      "importSelected": "選択した {count} 件をインポート",
+      "successDetail": "{total} 件中 {sessions} 件のセッションを作成し、{messages} 件のメッセージを保存しました。",
+      "failed": "{count} 件のインポートに失敗しました",
+      "cancelledWithCompleted": "インポートを停止しました。完了済みの {count} 件のセッションは保持されています。"
+    },
+    "stages": {
+      "detecting": "ファイルを確認",
+      "reading": "ファイルを読み込み",
+      "parsing": "メッセージを解析",
+      "saving": "ローカルDBへ書き込み",
+      "indexing": "インデックスを作成",
+      "done": "完了"
+    },
+    "successTitle": "インポート完了",
+    "successDetail": "{messages} 件のメッセージと {members} 人のメンバーを保存しました。",
+    "cancelled": "未完了のセッションを残さず、インポートを停止しました。",
+    "another": "続けてインポート"
+  },
+  "sessions": {
+    "eyebrow": "ローカルセッション",
+    "title": "チャットアーカイブ",
+    "description": "セッションはこのブラウザ内に分けて保存されます。セッションの管理と24時間のメッセージ分布を確認できます。",
+    "count": "{count} セッション",
+    "refresh": "更新",
+    "emptyTitle": "ローカルセッションはまだありません",
+    "emptyDescription": "左側から最初のチャットアーカイブを取り込むと、ここに表示されます。",
+    "messages": "{count} 件のメッセージ",
+    "members": "{count} 人のメンバー",
+    "lastMessage": "最終メッセージ {date}",
+    "importedAt": "インポート {date}",
+    "group": "グループ",
+    "private": "ダイレクト",
+    "rename": "名前を変更",
+    "renameLabel": "新しいセッション名",
+    "deleteTitle": "「{name}」を削除しますか？",
+    "deleteDescription": "このセッションのローカルデータベースは完全に削除されます。元に戻せません。",
+    "busy": "セッションを更新中…"
+  },
+  "analysis": {
+    "open": "時間帯分布を見る",
+    "eyebrow": "最初のローカル分析",
+    "title": "「{name}」の24時間分布",
+    "description": "統計は端末内のバックグラウンドスレッドで処理し、この端末のタイムゾーンで時間帯を集計します。",
+    "loading": "ローカルセッションの統計を読み込み中…",
+    "totalMessages": "集計メッセージ",
+    "peakHour": "最も活発な時間",
+    "activeHours": "活動時間帯",
+    "hourValue": "{hour}:00",
+    "hourTooltip": "{hour}:00 · {count} 件",
+    "noData": "このセッションには表示できる時間帯データがまだありません。",
+    "runtimeNote": "端末内で計算 · アップロードなし"
+  }
+}

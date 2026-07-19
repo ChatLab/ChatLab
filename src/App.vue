@@ -21,10 +21,12 @@ import { initServices } from '@/services'
 import { initPreferencesSync } from '@/composables/usePreferencesSync'
 import { useWindowsTitleBarOverlay } from '@/composables/useWindowsTitleBarOverlay'
 import { configureHttpClient } from '@/services/utils/http'
-import { IS_BROWSER_STANDALONE, IS_ELECTRON } from '@/utils/platform'
+import { IS_ELECTRON } from '@/utils/platform'
+import { PLATFORM_CAPABILITIES } from '@/utils/platform-capabilities'
 import { usePlatformService } from '@/services'
 import { resolvePageTransitionKey } from '@/routes/page-transition-key'
 import { useLockScreenBootstrap } from '@/components/lock-screen/bootstrap'
+import { initializeAppRuntime } from '@/bootstrap/app-initialization'
 
 const LockScreen = IS_ELECTRON ? defineAsyncComponent(() => import('@/components/lock-screen/LockScreen.vue')) : null
 const DataDirCleanupNotice = defineAsyncComponent(() => import('@/components/common/DataDirCleanupNotice.vue'))
@@ -43,7 +45,7 @@ const router = useRouter()
 const { isBootstrapMaskVisible, isApplicationInteractive, markLockScreenReady, syncBootstrapMask, updateLockState } =
   useLockScreenBootstrap(IS_ELECTRON)
 
-const isLoginPage = computed(() => !IS_ELECTRON && route.name === 'login')
+const isLoginPage = computed(() => PLATFORM_CAPABILITIES.requiresAuth && route.name === 'login')
 const pageTransitionKey = computed(() => resolvePageTransitionKey(route))
 const initError = ref<string | null>(null)
 const bootstrapDialogRef = ref<HTMLDialogElement | null>(null)
@@ -70,12 +72,16 @@ async function initializeApp() {
   initInProgress = true
   initError.value = null
   try {
-    await initServices()
-    await initPreferencesSync()
-    await settingsStore.initLocale()
-    llmStore.init()
-    await sessionStore.loadSessions()
-    unlistenPullResult ??= apiServerStore.listenPullResult()
+    const result = await initializeAppRuntime({
+      capabilities: PLATFORM_CAPABILITIES,
+      initializeServices: () => initServices(),
+      initializePreferences: () => initPreferencesSync(),
+      initializeLocale: () => settingsStore.initLocale(),
+      initializeLlm: () => llmStore.init(),
+      loadSessions: () => sessionStore.loadSessions(),
+      listenForPullResults: () => apiServerStore.listenPullResult(),
+    })
+    unlistenPullResult ??= result.stopListeningForPullResults
     usePlatformService()
       .trackDailyActive(settingsStore.locale)
       .catch(() => {})
@@ -143,7 +149,7 @@ onMounted(async () => {
     if (ep) {
       configureHttpClient({ baseUrl: `${ep.baseUrl}/_web`, token: ep.token })
     }
-  } else {
+  } else if (PLATFORM_CAPABILITIES.usesCliWebHttp) {
     // CLI Web: use relative paths + dynamic token from auth store
     let redirectingTo401 = false
     const on401 = () => {
@@ -199,7 +205,7 @@ onUnmounted(() => {
           </div>
         </template>
         <template v-else>
-          <Sidebar />
+          <Sidebar :backend-features="true" />
           <main class="relative flex-1 overflow-hidden">
             <router-view v-slot="{ Component }">
               <Transition name="page-fade" mode="out-in">
@@ -222,8 +228,8 @@ onUnmounted(() => {
     <ChatRecordDrawer />
     <!-- 全局 AI 后台任务条：允许用户离开当前页面后仍然快速返回进行中的对话。 -->
     <GlobalTaskBar />
-    <!-- Desktop 与 CLI Web 迁移后都提醒人工清理；纯浏览器版没有本地数据目录。 -->
-    <DataDirCleanupNotice v-if="!IS_BROWSER_STANDALONE && !isLoginPage && isInitialized" />
+    <!-- Desktop 与 CLI Web 迁移后都提醒人工清理。 -->
+    <DataDirCleanupNotice v-if="!isLoginPage && isInitialized" />
     <!-- 原生模态锁屏：锁定后由浏览器 top layer 隔离全部底层操作 -->
     <LockScreen v-if="IS_ELECTRON" @ready="markLockScreenReady" @lock-state-change="updateLockState" />
     <Teleport v-if="IS_ELECTRON" to="body">

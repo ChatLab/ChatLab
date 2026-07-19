@@ -4,15 +4,15 @@ import { useI18n } from 'vue-i18n'
 import { useSessionStore } from '@/stores/session'
 import { getChatlabSiteLocalePath } from '@/utils/chatlabSiteLocale'
 import logoSvg from '@/assets/images/logo.svg'
-import LanguageSelectModal from './components/LanguageSelectModal.vue'
-import AgreementModal from './components/AgreementModal.vue'
+import LanguageSelectModal from '@/components/home/LanguageSelectModal.vue'
+import AgreementModal from '@/components/home/AgreementModal.vue'
 import MigrationModal from './components/MigrationModal.vue'
-import ImportArea from './components/import/ImportArea.vue'
+import ImportArea from '@/components/import/ImportArea.vue'
 import ImportTabSelector from './components/import/ImportTabSelector.vue'
 import ApiImportCard from './components/import/ApiImportCard.vue'
 import CliImportCard from './components/import/CliImportCard.vue'
-import ChangelogModal from './components/ChangelogModal.vue'
-import HomeFooter from './components/HomeFooter.vue'
+import ChangelogModal from '@/components/home/ChangelogModal.vue'
+import HomeFooter from '@/components/home/HomeFooter.vue'
 import DemoImportButton from './components/DemoImportButton.vue'
 
 const { t, locale } = useI18n()
@@ -92,7 +92,7 @@ const tutorialExportUrl = computed(() => {
           :class="isMounted ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-3'"
         >
           <!-- 文件导入区域 -->
-          <ImportArea v-if="activeTab === 'file'" />
+          <ImportArea v-if="activeTab === 'file'" :backend-features="true" />
 
           <!-- API 导入区域：统一承载自动拉取与 API 推送 -->
           <ApiImportCard v-else-if="activeTab === 'api'" />
@@ -113,7 +113,7 @@ const tutorialExportUrl = computed(() => {
       </div>
 
       <!-- Footer - 固定在底部 -->
-      <HomeFooter @open-changelog="openChangelog" @open-terms="openTerms" />
+      <HomeFooter :remote-config-enabled="true" @open-changelog="openChangelog" @open-terms="openTerms" />
     </div>
 
     <!-- 新用户语言选择弹窗 -->

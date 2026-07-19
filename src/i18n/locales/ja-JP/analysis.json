@@ -91,6 +91,7 @@
   "overview": {
     "messageTypeDistribution": "メッセージタイプ分布",
     "memberDistribution": "メンバー別発言割合",
+    "memberRanking": "メンバーランキング",
     "others": "その他",
     "memberComparison": "双方のメッセージ割合",
     "statCards": {

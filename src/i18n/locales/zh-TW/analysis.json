@@ -91,6 +91,7 @@
   "overview": {
     "messageTypeDistribution": "訊息類型分佈",
     "memberDistribution": "成員訊息占比",
+    "memberRanking": "成員排行",
     "others": "其他人",
     "memberComparison": "雙方訊息佔比",
     "statCards": {

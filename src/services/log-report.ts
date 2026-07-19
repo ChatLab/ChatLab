@@ -7,6 +7,14 @@
  */
 
 import { post } from './utils/http'
+import { IS_WEB_WASM } from '@/utils/platform'
+
+export interface FrontendRuntimeLogEvent {
+  level: 'debug' | 'info' | 'error'
+  scope: string
+  message: string
+  data?: Record<string, unknown>
+}
 
 const recent = new Map<string, number>()
 const DEDUP_WINDOW_MS = 10_000
@@ -29,6 +37,7 @@ export function reportError(message: string, stack?: string): void {
   if (!message) return
   const key = `${message}::${stack?.split('\n')[1] ?? ''}`
   if (!shouldReport(key)) return
+  if (IS_WEB_WASM) return
   // Fire-and-forget; never let reporting throw or block the UI.
   void post('/logs/report', {
     level: 'error',
@@ -36,6 +45,14 @@ export function reportError(message: string, stack?: string): void {
     stack,
     url: typeof location !== 'undefined' ? location.href : undefined,
   }).catch(() => {})
+}
+
+export function reportRuntimeLog(event: FrontendRuntimeLogEvent): void {
+  const method = event.level === 'error' ? console.error : event.level === 'debug' ? console.debug : console.info
+  method(`[${event.scope}] ${event.message}`, event.data ?? '')
+  if (event.level === 'error') {
+    reportError(`[${event.scope}] ${event.message}${event.data ? ` ${JSON.stringify(event.data)}` : ''}`)
+  }
 }
 
 /** Install global handlers. Call once at app startup. */

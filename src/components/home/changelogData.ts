@@ -1,7 +1,7 @@
-import cnChangelogs from '../../../../changelogs/cn.json'
-import enChangelogs from '../../../../changelogs/en.json'
-import jaChangelogs from '../../../../changelogs/ja.json'
-import twChangelogs from '../../../../changelogs/tw.json'
+import cnChangelogs from '../../../changelogs/cn.json'
+import enChangelogs from '../../../changelogs/en.json'
+import jaChangelogs from '../../../changelogs/ja.json'
+import twChangelogs from '../../../changelogs/tw.json'
 
 export type ChangelogChangeType = 'feat' | 'fix' | 'refactor' | 'docs' | 'chore' | 'style' | 'ci'
 

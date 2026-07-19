@@ -1,0 +1,74 @@
+import { sessionDatabaseFilename, type BrowserSessionCatalogItem } from '@openchatlab/web-runtime'
+import type { AnalysisSession } from '@/types/base'
+import type { HourlyActivity } from '@/types/analysis'
+import type { TimeFilter } from '@openchatlab/shared-types'
+import type { BrowserRuntimeRpcPort } from '../browser-runtime/types'
+import type { DataAdapter } from './types'
+
+type BrowserSessionDataAdapter = Pick<
+  DataAdapter,
+  'getSessions' | 'getSession' | 'deleteSession' | 'renameSession' | 'getHourlyActivity'
+>
+
+export class BrowserDataAdapter implements BrowserSessionDataAdapter {
+  constructor(private readonly rpc: BrowserRuntimeRpcPort) {}
+
+  async getSessions(): Promise<AnalysisSession[]> {
+    return (await this.rpc.request('session.list', undefined)).map(mapSession)
+  }
+
+  async getSession(sessionId: string): Promise<AnalysisSession | null> {
+    const session = await this.rpc.request('session.get', { sessionId })
+    return session ? mapSession(session) : null
+  }
+
+  async deleteSession(sessionId: string): Promise<boolean> {
+    return (await this.rpc.request('session.delete', { sessionId })).deleted
+  }
+
+  async renameSession(sessionId: string, newName: string): Promise<boolean> {
+    return (await this.rpc.request('session.rename', { sessionId, name: newName })).renamed
+  }
+
+  getHourlyActivity(sessionId: string, filter?: TimeFilter): Promise<HourlyActivity[]> {
+    return this.rpc.request('analysis.hourly', { sessionId, filter })
+  }
+}
+
+export function createBrowserDataAdapter(rpc: BrowserRuntimeRpcPort): DataAdapter {
+  const adapter = new BrowserDataAdapter(rpc)
+  return new Proxy(adapter, {
+    get(target, property) {
+      if (property in target) {
+        const value = Reflect.get(target, property, target)
+        return typeof value === 'function' ? value.bind(target) : value
+      }
+      if (typeof property === 'string') {
+        return () => Promise.reject(new Error(`${property} is not available in Web WASM`))
+      }
+      return undefined
+    },
+  }) as unknown as DataAdapter
+}
+
+function mapSession(item: BrowserSessionCatalogItem): AnalysisSession {
+  return {
+    id: item.id,
+    name: item.name,
+    platform: item.platform as AnalysisSession['platform'],
+    type: item.type as AnalysisSession['type'],
+    importedAt: item.importedAt,
+    messageCount: item.messageCount,
+    memberCount: item.memberCount,
+    dbPath: sessionDatabaseFilename(item.id),
+    groupId: item.groupId,
+    groupAvatar: item.groupAvatar,
+    ownerId: item.ownerId,
+    ownerName: null,
+    ownerStatus: item.ownerId ? 'unresolved' : 'missing',
+    memberAvatar: null,
+    lastMessageTs: item.lastMessageTs,
+    summaryCount: 0,
+    aiConversationCount: 0,
+  }
+}

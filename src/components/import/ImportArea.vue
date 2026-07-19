@@ -22,9 +22,16 @@ import { useCacheService } from '@/services/cache/service'
 import { getSessionGapThreshold } from '@/composables/useUiConfig'
 import { useToast } from '@/composables/useToast'
 
+const props = defineProps<{
+  backendFeatures: boolean
+}>()
+
 const { t } = useI18n()
 const toast = useToast()
 const sessionStore = useSessionStore()
+const acceptedExtensions = computed(() =>
+  props.backendFeatures ? ['.json', '.jsonl', '.txt', '.zip'] : ['.json', '.jsonl', '.txt']
+)
 const {
   isImporting,
   importProgress,
@@ -53,7 +60,7 @@ const showFormatSelector = ref(false)
 const formatSelectorFilePath = ref('')
 
 async function autoGenerateSessionIndex(sessionId: string, importMode?: ImportResult['importMode']) {
-  if (importMode !== 'created') return
+  if (!props.backendFeatures || importMode !== 'created') return
   try {
     const gapThreshold = getSessionGapThreshold()
     await useSessionIndexService().generate(sessionId, gapThreshold)
@@ -363,6 +370,7 @@ async function handleDirectoryDrop({ files }: { files: File[]; paths: string[] }
 }
 
 async function handleDirectoryDropEvent({ files, dirPath }: { files: File[]; dirPath: string | null }) {
+  if (!props.backendFeatures) return
   importError.value = null
   hasImportLog.value = false
   importDiagnostics.value = null
@@ -1077,7 +1085,7 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
     <FileDropZone
       v-else
       ref="dropZoneRef"
-      :accept="['.json', '.jsonl', '.txt', '.zip']"
+      :accept="acceptedExtensions"
       :disabled="isAnyImporting"
       :multiple="true"
       class="w-full max-w-md"
@@ -1138,10 +1146,19 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
     </FileDropZone>
 
     <!-- 隐藏的目录选择 input -->
-    <FileDropZone ref="dirDropZoneRef" :directory="true" class="hidden" @files="handleDirectoryDrop" />
+    <FileDropZone
+      v-if="props.backendFeatures"
+      ref="dirDropZoneRef"
+      :directory="true"
+      class="hidden"
+      @files="handleDirectoryDrop"
+    />
 
     <!-- 导入选项 -->
-    <div v-if="!isAnyImporting && !batchImportResult" class="h-6 flex flex-wrap items-center justify-center gap-4">
+    <div
+      v-if="props.backendFeatures && !isAnyImporting && !batchImportResult"
+      class="h-6 flex flex-wrap items-center justify-center gap-4"
+    >
       <!-- 导入文件夹模式 -->
       <UCheckbox
         v-model="folderImportEnabled"

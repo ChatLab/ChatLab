@@ -6,15 +6,28 @@
  * getAdapter<T>(key) 获取已注册的实例。
  */
 
-import { IS_ELECTRON, IS_BROWSER_STANDALONE } from '@/utils/platform'
+import { IS_ELECTRON, IS_WEB_WASM } from '@/utils/platform'
 import { fetchWithAuth } from './utils/http'
 
-export type Platform = 'electron' | 'web-serve' | 'web-browser'
+export type Platform = 'electron' | 'cli-web' | 'web-wasm'
 
-export function detectPlatform(): Platform {
-  if (IS_ELECTRON) return 'electron'
-  if (IS_BROWSER_STANDALONE) return 'web-browser'
-  return 'web-serve'
+export interface PlatformFlags {
+  isElectron: boolean
+  isWebWasm: boolean
+}
+
+interface ServiceAdapterRegistrar {
+  register(key: string, adapter: unknown): void
+}
+
+export interface InitServicesOptions {
+  initializeWebWasm?: (registry: ServiceAdapterRegistrar) => void | Promise<void>
+}
+
+export function detectPlatform(flags: PlatformFlags = { isElectron: IS_ELECTRON, isWebWasm: IS_WEB_WASM }): Platform {
+  if (flags.isElectron) return 'electron'
+  if (flags.isWebWasm) return 'web-wasm'
+  return 'cli-web'
 }
 
 const adapters = new Map<string, unknown>()
@@ -40,24 +53,27 @@ export function isInitialized(): boolean {
  * 初始化所有 Service Adapter。
  * 应用启动时调用一次（App.vue 或 main.ts）。
  */
-export async function initServices(): Promise<void> {
+export async function initServices(options: InitServicesOptions = {}): Promise<void> {
   if (_initialized) return
 
-  const platform = detectPlatform()
-
-  switch (platform) {
-    case 'electron':
-      await initElectronAdapters()
-      break
-    case 'web-serve':
-      await initWebServeAdapters()
-      break
-    case 'web-browser':
-      await initWebBrowserAdapters()
-      break
+  // Keep compile-time flags in this branch so each build drops adapters for
+  // the other platforms instead of shipping their runtime dependencies.
+  if (IS_WEB_WASM) {
+    await initializeWebWasmServices(options.initializeWebWasm)
+  } else if (IS_ELECTRON) {
+    await initElectronAdapters()
+  } else {
+    await initCliWebAdapters()
   }
 
   _initialized = true
+}
+
+export async function initializeWebWasmServices(initialize: InitServicesOptions['initializeWebWasm']): Promise<void> {
+  if (!initialize) {
+    throw new Error('[services] Web WASM initializer is required')
+  }
+  await initialize({ register: registerAdapter })
 }
 
 /**
@@ -101,7 +117,7 @@ async function initElectronAdapters(): Promise<void> {
   installMergeShims('electron')
 }
 
-async function initWebServeAdapters(): Promise<void> {
+async function initCliWebAdapters(): Promise<void> {
   const { FetchDataAdapter } = await import('./data/fetch')
   registerAdapter('data', new FetchDataAdapter())
 
@@ -114,8 +130,8 @@ async function initWebServeAdapters(): Promise<void> {
   const { FetchMessageAdapter } = await import('./message/fetch')
   registerAdapter('message', new FetchMessageAdapter())
 
-  const { WebPlatformAdapter } = await import('./platform/web')
-  registerAdapter('platform', new WebPlatformAdapter())
+  const { CliWebPlatformAdapter } = await import('./platform/cli-web')
+  registerAdapter('platform', new CliWebPlatformAdapter())
 
   const { FetchAIAdapter } = await import('./ai/fetch')
   registerAdapter('ai', new FetchAIAdapter())
@@ -135,27 +151,27 @@ async function initWebServeAdapters(): Promise<void> {
   const { FetchCacheAdapter } = await import('./cache/fetch')
   registerAdapter('cache', new FetchCacheAdapter())
 
-  await installWebServeShims()
+  await installCliWebShims()
 }
 
 /**
- * Install remaining window shims for web-serve mode.
+ * Install remaining window shims for CLI Web.
  * AI streaming shims have been removed — the service layer now
  * uses fetchSSE directly via useAgentStreamService/useLlmStreamService.
  */
-async function installWebServeShims(): Promise<void> {
-  installMergeShims('web-serve')
+async function installCliWebShims(): Promise<void> {
+  installMergeShims('cli-web')
 }
 
 /**
  * Install merge-related window shims.
  *
- * Both Electron and web-serve use the same HTTP merge routes. The shim
+ * Both Electron and CLI Web use the same HTTP merge routes. The shim
  * maintains a filePath→handle Map so that existing frontend code
  * (session.ts, BatchManageTab.vue) can continue calling with filePaths
  * while the HTTP layer operates with UUID handles.
  */
-function installMergeShims(platform: 'electron' | 'web-serve'): void {
+function installMergeShims(platform: 'electron' | 'cli-web'): void {
   const pathToHandle = new Map<string, string>()
 
   const isHandle = (v: string) => /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(v)
@@ -282,9 +298,4 @@ function installMergeShims(platform: 'electron' | 'web-serve'): void {
       }
     },
   }
-}
-
-async function initWebBrowserAdapters(): Promise<void> {
-  // Phase 6+: BrowserSql Adapter
-  throw new Error('[services] web-browser platform not yet supported')
 }

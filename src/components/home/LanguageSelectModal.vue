@@ -5,7 +5,7 @@ import { useSettingsStore } from '@/stores/settings'
 import UITabs from '@/components/UI/Tabs.vue'
 import { availableLocales, type LocaleType } from '@/i18n'
 import { usePreferencesService } from '@/services'
-import { resolveLanguageBootstrap } from '../onboardingFlow'
+import { resolveLanguageBootstrap } from './onboardingFlow'
 
 const emit = defineEmits<{
   (e: 'done'): void

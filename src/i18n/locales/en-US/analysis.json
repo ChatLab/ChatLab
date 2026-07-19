@@ -91,6 +91,7 @@
   "overview": {
     "messageTypeDistribution": "Message Type Distribution",
     "memberDistribution": "Member Activity Distribution",
+    "memberRanking": "Member Ranking",
     "others": "Others",
     "memberComparison": "Member Comparison",
     "statCards": {

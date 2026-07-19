@@ -1,6 +1,6 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
-import { WebPlatformAdapter } from './web'
+import { CliWebPlatformAdapter } from './cli-web'
 
 function replaceGlobal(name: string, value: unknown): () => void {
   const descriptor = Object.getOwnPropertyDescriptor(globalThis, name)
@@ -11,7 +11,7 @@ function replaceGlobal(name: string, value: unknown): () => void {
   }
 }
 
-describe('WebPlatformAdapter', () => {
+describe('CliWebPlatformAdapter', () => {
   it('uses the bundled web version for display without querying the CLI server', async () => {
     const originalFetch = globalThis.fetch
     const requestedUrls: string[] = []
@@ -21,7 +21,7 @@ describe('WebPlatformAdapter', () => {
     }) as typeof fetch
 
     try {
-      assert.equal(await new WebPlatformAdapter().getVersion(), 'web')
+      assert.equal(await new CliWebPlatformAdapter().getVersion(), 'cli-web')
       assert.deepEqual(requestedUrls, [])
     } finally {
       globalThis.fetch = originalFetch
@@ -37,7 +37,7 @@ describe('WebPlatformAdapter', () => {
     }) as typeof fetch
 
     try {
-      const result = await new WebPlatformAdapter().performUpdate()
+      const result = await new CliWebPlatformAdapter().performUpdate()
 
       assert.equal(result.success, false)
       assert.equal(requestedUrls.length, 0)
@@ -55,7 +55,7 @@ describe('WebPlatformAdapter', () => {
     }) as typeof fetch
 
     try {
-      assert.equal(await new WebPlatformAdapter().getAnalyticsEnabled(), true)
+      assert.equal(await new CliWebPlatformAdapter().getAnalyticsEnabled(), true)
       assert.deepEqual(requestedUrls, ['/_web/telemetry/enabled'])
     } finally {
       globalThis.fetch = originalFetch
@@ -71,7 +71,7 @@ describe('WebPlatformAdapter', () => {
     }) as typeof fetch
 
     try {
-      const result = await new WebPlatformAdapter().setAnalyticsEnabled(false)
+      const result = await new CliWebPlatformAdapter().setAnalyticsEnabled(false)
       assert.deepEqual(result, { success: true })
       assert.equal(requests[0].url, '/_web/telemetry/enabled')
       assert.equal(requests[0].init?.method, 'POST')
@@ -104,7 +104,7 @@ describe('WebPlatformAdapter', () => {
     }) as typeof fetch
 
     try {
-      const result = await new WebPlatformAdapter().copyImageToClipboard('data:image/png;base64,aGVsbG8=')
+      const result = await new CliWebPlatformAdapter().copyImageToClipboard('data:image/png;base64,aGVsbG8=')
 
       assert.deepEqual(result, { success: true })
       assert.equal(clipboardItems.length, 1)
@@ -126,7 +126,7 @@ describe('WebPlatformAdapter', () => {
     const restoreSecureContext = replaceGlobal('isSecureContext', true)
 
     try {
-      const result = await new WebPlatformAdapter().copyImageToClipboard('data:image/png;base64,aGVsbG8=')
+      const result = await new CliWebPlatformAdapter().copyImageToClipboard('data:image/png;base64,aGVsbG8=')
       assert.deepEqual(result, {
         success: false,
         error: 'Image clipboard is not supported by this browser',
@@ -142,7 +142,7 @@ describe('WebPlatformAdapter', () => {
     const restoreSecureContext = replaceGlobal('isSecureContext', false)
 
     try {
-      const result = await new WebPlatformAdapter().copyImageToClipboard('data:image/png;base64,aGVsbG8=')
+      const result = await new CliWebPlatformAdapter().copyImageToClipboard('data:image/png;base64,aGVsbG8=')
       assert.deepEqual(result, {
         success: false,
         error: 'Image clipboard requires HTTPS or localhost',
@@ -162,7 +162,7 @@ describe('WebPlatformAdapter', () => {
       Promise.resolve(new Response(md, { headers: { 'content-type': 'text/markdown' } }))) as typeof fetch
 
     try {
-      const result = await new WebPlatformAdapter().fetchRemoteConfig('https://example.com/skills/skill_md.md')
+      const result = await new CliWebPlatformAdapter().fetchRemoteConfig('https://example.com/skills/skill_md.md')
       assert.equal(result.success, true)
       assert.equal(result.data, md)
     } finally {
@@ -176,7 +176,7 @@ describe('WebPlatformAdapter', () => {
       Promise.resolve(new Response('[1,2,3]', { headers: { 'content-type': 'text/plain' } }))) as typeof fetch
 
     try {
-      const result = await new WebPlatformAdapter().fetchRemoteConfig('https://example.com/cn/skill.json')
+      const result = await new CliWebPlatformAdapter().fetchRemoteConfig('https://example.com/cn/skill.json')
       assert.deepEqual(result.data, [1, 2, 3])
     } finally {
       globalThis.fetch = originalFetch
