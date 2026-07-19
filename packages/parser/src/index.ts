@@ -22,6 +22,15 @@ import type {
   MultiChatInfo,
 } from './types'
 
+export {
+  validateChatLabFile,
+  type ChatLabValidationFormat,
+  type ChatLabValidationIssue,
+  type ChatLabValidationReport,
+  type ChatLabValidationSeverity,
+  type ChatLabValidationStats,
+} from './chatlab-validator'
+
 // ==================== 全局嗅探器实例 ====================
 
 const sniffer = createSniffer()

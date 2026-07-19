@@ -23,7 +23,9 @@ function writeChatLabJsonl(filePath: string, messageCount: number): void {
       _type: 'member',
       platformId: 'member-1',
       accountName: 'Alice',
+      aliases: ['A'],
       avatar: 'data:image/png;base64,AAAA',
+      roles: [{ id: 'owner' }],
     }),
   ]
 
@@ -68,6 +70,8 @@ test('ChatLab JSONL emits message batches and progress while reading', async () 
       } else if (event.type === 'members') {
         dataEventTypes.push(event.type)
         assert.equal(event.data[0]?.avatar, 'data:image/png;base64,AAAA')
+        assert.deepEqual(event.data[0]?.aliases, ['A'])
+        assert.deepEqual(event.data[0]?.roles, [{ id: 'owner' }])
       }
     }
 

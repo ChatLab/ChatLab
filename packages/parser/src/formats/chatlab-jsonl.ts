@@ -61,6 +61,7 @@ interface JsonlMember {
   groupNickname?: string
   aliases?: string[]
   avatar?: string
+  roles?: Array<{ id: string; name?: string }>
 }
 
 /** Message 行结构 */
@@ -186,7 +187,9 @@ async function* parseChatLabJsonl(options: ParseOptions): AsyncGenerator<ParseEv
             platformId: parsed.platformId,
             accountName: parsed.accountName,
             groupNickname: parsed.groupNickname,
+            aliases: parsed.aliases,
             avatar: parsed.avatar,
+            roles: parsed.roles,
           }
           members.push(member)
           memberMap.set(parsed.platformId, member)

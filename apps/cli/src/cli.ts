@@ -16,6 +16,7 @@ import { initRuntime, resolveNativeBinding } from './runtime'
 import { registerQueryCommands } from './query/register'
 import { registerManifestCommand } from './query/manifest'
 import { registerImportCommand } from './import/command'
+import { registerValidateCommand } from './validate/command'
 
 const program = new Command()
 
@@ -51,6 +52,7 @@ registerQueryCommands(program)
 registerManifestCommand(program, getVersion())
 
 registerImportCommand(program)
+registerValidateCommand(program)
 
 program
   .command('formats')
