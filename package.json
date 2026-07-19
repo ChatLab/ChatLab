@@ -69,6 +69,7 @@
     "@openchatlab/parser": "workspace:*",
     "@openchatlab/shared-types": "workspace:*",
     "@openchatlab/tools": "workspace:*",
+    "@openchatlab/web-runtime": "workspace:*",
     "@electron-toolkit/tsconfig": "^1.0.1",
     "@nuxt/ui": "^4.9.0",
     "@tailwindcss/vite": "^4.0.0",
