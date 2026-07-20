@@ -1,9 +1,11 @@
 {
-  "eyebrow": "Local browser edition",
-  "title": "Keep your chat history in your browser",
-  "description": "Import ChatLab JSON / JSONL, WhatsApp TXT, LINE TXT, QQ TXT, or Telegram JSON into isolated local session databases. Files and chat content are never uploaded.",
+  "title": "Your Chat History, Finally Yours.",
+  "subtitle": "Local storage and privacy first, with AI agents and visual insights to help you revisit your chat memories.",
+  "noSignIn": "No sign-in",
   "localOnly": "Processed on this device",
+  "noUpload": "Nothing uploaded",
   "localOnlyDetail": "Data is stored in this browser's site storage. Clearing site data also removes imported sessions.",
+  "exportGuide": "How to export chat history",
   "initializing": "Preparing your local workspace",
   "initializingDetail": "The first launch loads the SQLite runtime and opens browser storage.",
   "unsupported": {

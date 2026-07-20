@@ -1,9 +1,11 @@
 {
-  "eyebrow": "浏览器本地版",
-  "title": "把聊天记录，留在你的浏览器里",
-  "description": "导入 ChatLab JSON / JSONL、WhatsApp / LINE / QQ TXT 或 Telegram JSON，在本机建立独立会话库。文件与聊天内容不会上传。",
+  "title": "让每一段对话，都有迹可循",
+  "subtitle": "本地存储、隐私优先，通过 AI Agent 和可视化图表，轻松回顾你的聊天记忆",
+  "noSignIn": "无需登录",
   "localOnly": "仅在本机处理",
+  "noUpload": "数据不上传",
   "localOnlyDetail": "数据保存在当前浏览器的站点存储中。清除站点数据会一并删除已导入会话。",
+  "exportGuide": "如何导出聊天记录",
   "initializing": "正在准备本地工作区",
   "initializingDetail": "首次启动需要加载 SQLite 运行时并打开浏览器存储。",
   "unsupported": {

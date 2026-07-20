@@ -1,9 +1,11 @@
 {
-  "eyebrow": "瀏覽器本機版",
-  "title": "把聊天記錄，留在你的瀏覽器裡",
-  "description": "匯入 ChatLab JSON / JSONL、WhatsApp / LINE / QQ TXT 或 Telegram JSON，在本機建立獨立對話資料庫。檔案與聊天內容不會上傳。",
+  "title": "讓每一段對話，都有跡可循",
+  "subtitle": "本機儲存、隱私優先，透過 AI Agent 和視覺化圖表，輕鬆回顧你的聊天記憶",
+  "noSignIn": "無需登入",
   "localOnly": "僅在本機處理",
+  "noUpload": "資料不上傳",
   "localOnlyDetail": "資料保存在目前瀏覽器的網站儲存空間。清除網站資料也會刪除已匯入的對話。",
+  "exportGuide": "如何匯出聊天記錄",
   "initializing": "正在準備本機工作區",
   "initializingDetail": "首次啟動需要載入 SQLite 執行環境並開啟瀏覽器儲存空間。",
   "unsupported": {

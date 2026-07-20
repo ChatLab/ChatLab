@@ -1136,7 +1136,13 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
               <p class="text-lg font-semibold text-gray-900 dark:text-white">
                 {{ isDragOver ? t('home.import.dropHint') : t('home.import.clickHint') }}
               </p>
-              <p class="mt-3 text-sm text-gray-500 dark:text-gray-400">
+              <p
+                class="mt-3 text-sm text-gray-500 dark:text-gray-400"
+                :class="{
+                  'opacity-0 transition-opacity duration-200 group-hover:opacity-100 group-focus-within:opacity-100':
+                    !props.backendFeatures,
+                }"
+              >
                 {{ t('home.import.multipleHint') }}
               </p>
             </template>

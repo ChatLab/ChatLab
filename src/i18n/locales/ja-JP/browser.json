@@ -1,9 +1,11 @@
 {
-  "eyebrow": "ブラウザローカル版",
-  "title": "チャット履歴を、ブラウザの中に",
-  "description": "ChatLab JSON / JSONL、WhatsApp TXT、LINE TXT、QQ TXT、Telegram JSON を、端末内の独立したセッションデータベースへ取り込みます。ファイルや会話内容はアップロードされません。",
+  "title": "一つひとつの会話を、たどれる形に",
+  "subtitle": "ローカル保存とプライバシーを最優先に、AI エージェントと可視化グラフでチャットの記憶を振り返れます",
+  "noSignIn": "ログイン不要",
   "localOnly": "この端末内だけで処理",
+  "noUpload": "アップロードなし",
   "localOnlyDetail": "データはこのブラウザのサイトストレージに保存されます。サイトデータを消去すると、取り込んだセッションも削除されます。",
+  "exportGuide": "チャット履歴のエクスポート方法",
   "initializing": "ローカルワークスペースを準備中",
   "initializingDetail": "初回起動では SQLite ランタイムを読み込み、ブラウザストレージを開きます。",
   "unsupported": {
