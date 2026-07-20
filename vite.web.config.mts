@@ -19,6 +19,7 @@ import vue from '@vitejs/plugin-vue'
 import ui from '@nuxt/ui/vite'
 import { DEFAULT_API_PORT } from './packages/config/src/schema'
 import { createChatlabStartCommand, terminateChatlabStartProcess } from './scripts/dev-server-command.mjs'
+import { chatlabIconBundle } from './vite.icon-bundle.config'
 
 const BACKEND_PORT = DEFAULT_API_PORT
 
@@ -167,6 +168,7 @@ export default defineConfig({
         },
       },
     }),
+    chatlabIconBundle(__dirname),
     chatlabServePlugin(),
   ],
   build: {
@@ -182,8 +184,6 @@ export default defineConfig({
           if (id.includes('node_modules/echarts-wordcloud')) return 'vendor-echarts-wordcloud'
           if (id.includes('node_modules/zrender')) return 'vendor-zrender'
           if (id.includes('node_modules/echarts')) return 'vendor-echarts'
-          if (id.includes('node_modules/@nuxt/ui')) return 'vendor-nuxt-ui'
-          if (id.includes('node_modules/reka-ui')) return 'vendor-reka-ui'
           if (id.includes('node_modules/@zumer/snapdom')) return 'vendor-snapdom'
           return undefined
         },

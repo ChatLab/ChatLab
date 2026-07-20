@@ -3,6 +3,7 @@ import { resolve } from 'node:path'
 import vue from '@vitejs/plugin-vue'
 import ui from '@nuxt/ui/vite'
 import { defineConfig } from 'vite'
+import { chatlabIconBundle } from './vite.icon-bundle.config'
 
 const rootDir = import.meta.dirname
 
@@ -20,6 +21,7 @@ export default defineConfig({
         },
       },
     }),
+    chatlabIconBundle(rootDir),
   ],
   resolve: {
     alias: {

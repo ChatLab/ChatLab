@@ -1,3 +1,6 @@
+import '@/icons/disable-iconify-api'
+import 'virtual:nuxt-icon-bundle/register'
+
 import { createApp } from 'vue'
 import { createPinia } from 'pinia'
 import piniaPluginPersistedstate from 'pinia-plugin-persistedstate'

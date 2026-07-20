@@ -3,6 +3,7 @@ import { readFileSync } from 'fs'
 import { defineConfig } from 'electron-vite'
 import vue from '@vitejs/plugin-vue'
 import ui from '@nuxt/ui/vite'
+import { chatlabIconBundle } from '../../vite.icon-bundle.config'
 
 const rootDir = resolve(__dirname, '../..')
 const rootPkg = JSON.parse(readFileSync(resolve(rootDir, 'package.json'), 'utf-8'))
@@ -107,6 +108,7 @@ export default defineConfig({
           },
         },
       }),
+      chatlabIconBundle(rootDir),
     ],
     root: resolve(rootDir, 'src/'),
     build: {
@@ -125,12 +127,6 @@ export default defineConfig({
             }
             if (id.includes('node_modules/echarts')) {
               return 'vendor-echarts'
-            }
-            if (id.includes('node_modules/@nuxt/ui')) {
-              return 'vendor-nuxt-ui'
-            }
-            if (id.includes('node_modules/reka-ui')) {
-              return 'vendor-reka-ui'
             }
             if (id.includes('node_modules/@zumer/snapdom')) {
               return 'vendor-snapdom'
