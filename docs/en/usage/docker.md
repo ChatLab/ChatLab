@@ -16,14 +16,15 @@ ghcr.io/chatlab/chatlab-cli
 ```bash
 docker run --name chatlab \
   -p 127.0.0.1:3110:3110 \
-  -v chatlab-data:/data \
+  -v chatlab-data:/home/node/.chatlab \
   ghcr.io/chatlab/chatlab-cli:latest
 ```
 
 Open <http://127.0.0.1:3110/> after the container starts.
 
-The image runs as the unprivileged `node` user and stores ChatLab data in
-`/data`. Keep the volume when replacing or upgrading the container.
+The image runs as the unprivileged `node` user. The volume preserves system
+state and user data under `/home/node/.chatlab`. Keep it when replacing or
+upgrading the container.
 
 ## Server options
 
@@ -51,7 +52,7 @@ Docker arguments replace the complete default command. Repeat `start`,
 ```bash
 docker run --rm \
   -p 8080:8080 \
-  -v chatlab-data:/data \
+  -v chatlab-data:/home/node/.chatlab \
   ghcr.io/chatlab/chatlab-cli:latest \
   start --port 8080 --host 0.0.0.0 --headless --no-open
 ```
@@ -61,7 +62,7 @@ Other CLI commands can be selected directly:
 ```bash
 docker run --rm ghcr.io/chatlab/chatlab-cli:latest --version
 docker run --rm ghcr.io/chatlab/chatlab-cli:latest formats
-docker run --rm -v chatlab-data:/data \
+docker run --rm -v chatlab-data:/home/node/.chatlab \
   ghcr.io/chatlab/chatlab-cli:latest sessions --format json
 ```
 
@@ -78,7 +79,7 @@ The configuration environment variables, in source declaration order, are:
 
 | Variable | Description |
 | --- | --- |
-| `CHATLAB_DATA_DIR` | Override the ChatLab data directory. The image sets it to `/data`. |
+| `CHATLAB_DATA_DIR` | Override the ChatLab user data directory. When set, mount the selected directory separately. |
 | `CHATLAB_API_PORT` | Set `api.port`. The `start` command supplies its own default, so use `--port` to configure the container server. |
 | `CHATLAB_API_HOST` | Set `api.host`. The `start` command supplies its own default, so use `--host` to configure the container server. |
 | `CHATLAB_LLM_PROVIDER` | Set `llm.provider`. |
@@ -112,7 +113,7 @@ services:
     ports:
       - "3110:3110"
     volumes:
-      - chatlab-data:/data
+      - chatlab-data:/home/node/.chatlab
     command:
       - start
       - --port

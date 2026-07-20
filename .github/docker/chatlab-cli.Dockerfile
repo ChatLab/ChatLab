@@ -12,11 +12,10 @@ RUN test -n "$CHATLAB_VERSION" \
     && apt-get purge --yes --auto-remove g++ make python3 \
     && rm -rf /var/lib/apt/lists/*
 
-ENV CHATLAB_DATA_DIR=/data
+WORKDIR /home/node
 
-RUN install -d -o node -g node /data
-
-WORKDIR /data
+RUN mkdir -p .chatlab \
+    && chown node:node .chatlab
 
 USER node
 
