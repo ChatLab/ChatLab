@@ -66,9 +66,17 @@ describe('BrowserDataAdapter', () => {
                                 { type: 1, count: 2 },
                                 { type: 0, count: 1 },
                               ]
-                            : type === 'session.delete'
-                              ? { deleted: true }
-                              : { renamed: true }
+                            : type === 'analysis.messageLengths'
+                              ? { detail: [{ len: 1, count: 2 }], grouped: [{ range: '1-5', count: 2 }] }
+                              : type === 'analysis.textStats'
+                                ? { textCount: 2, avgLength: 3.5, maxLength: 5, shortCount: 2 }
+                                : type === 'analysis.longMessages'
+                                  ? 1
+                                  : type === 'analysis.textPercentiles'
+                                    ? { p25: 1, p50: 3, p75: 5, p90: 5 }
+                                    : type === 'session.delete'
+                                      ? { deleted: true }
+                                      : { renamed: true }
         return result as WebRuntimeTaskResult<T>
       },
       dispose: () => undefined,
@@ -108,6 +116,23 @@ describe('BrowserDataAdapter', () => {
       { type: 1, count: 2 },
       { type: 0, count: 1 },
     ])
+    assert.deepEqual(await adapter.getMessageLengthDistribution('session-one', { startTs: 1 }), {
+      detail: [{ len: 1, count: 2 }],
+      grouped: [{ range: '1-5', count: 2 }],
+    })
+    assert.deepEqual(await adapter.getTextStats('session-one', { endTs: 2 }), {
+      textCount: 2,
+      avgLength: 3.5,
+      maxLength: 5,
+      shortCount: 2,
+    })
+    assert.equal(await adapter.getLongMessageCount('session-one', { startTs: 1 }, 30), 1)
+    assert.deepEqual(await adapter.getTextLengthPercentiles('session-one', { endTs: 2 }), {
+      p25: 1,
+      p50: 3,
+      p75: 5,
+      p90: 5,
+    })
     assert.equal(await adapter.renameSession('session-one', 'New name'), true)
     assert.equal(await adapter.deleteSession('session-one'), true)
     assert.deepEqual(requests, [
@@ -123,9 +148,88 @@ describe('BrowserDataAdapter', () => {
         type: 'analysis.messageTypes',
         payload: { sessionId: 'session-one', filter: { startTs: 1, endTs: 2 } },
       },
+      { type: 'analysis.messageLengths', payload: { sessionId: 'session-one', filter: { startTs: 1 } } },
+      { type: 'analysis.textStats', payload: { sessionId: 'session-one', filter: { endTs: 2 } } },
+      {
+        type: 'analysis.longMessages',
+        payload: { sessionId: 'session-one', filter: { startTs: 1 }, minLength: 30 },
+      },
+      { type: 'analysis.textPercentiles', payload: { sessionId: 'session-one', filter: { endTs: 2 } } },
       { type: 'session.rename', payload: { sessionId: 'session-one', name: 'New name' } },
       { type: 'session.delete', payload: { sessionId: 'session-one' } },
     ])
+  })
+
+  it('forwards the complete Insights adapter surface through typed RPC tasks', async () => {
+    const requests: Array<{ type: WebRuntimeTaskType; payload: unknown }> = []
+    const rpc = {
+      async request<T extends WebRuntimeTaskType>(
+        type: T,
+        payload: WebRuntimeTaskPayload<T>,
+        _options?: RpcRequestOptions
+      ): Promise<WebRuntimeTaskResult<T>> {
+        requests.push({ type, payload })
+        const results: Partial<Record<WebRuntimeTaskType, unknown>> = {
+          'analysis.monthly': [{ month: 1, messageCount: 2 }],
+          'analysis.yearly': [{ year: 2024, messageCount: 2 }],
+          'analysis.memberMonthlyTrend': [{ month: '2024-01', memberId: 1, memberName: 'Alice', count: 2 }],
+          'analysis.memberList': [
+            {
+              id: 1,
+              platformId: 'alice',
+              accountName: 'Alice',
+              groupNickname: null,
+              aliases: [],
+              avatar: null,
+              messageCount: 2,
+              lastMessageTs: 2,
+            },
+          ],
+          'analysis.mentions': { topMentioners: [], topMentioned: [], totalMentions: 0 },
+          'analysis.mentionGraph': { nodes: [], links: [], maxLinkValue: 0 },
+          'analysis.clusterGraph': {
+            nodes: [],
+            links: [],
+            maxLinkValue: 0,
+            communities: [],
+            stats: { totalMembers: 0, totalMessages: 0, involvedMembers: 0, edgeCount: 0, communityCount: 0 },
+          },
+          'analysis.relationship': { hasSessionIndex: true },
+          'analysis.languagePreference': { members: [], sharedWords: [], similarityScore: 0 },
+          'analysis.wordFrequency': { words: [], totalWords: 0, totalMessages: 0, uniqueWords: 0 },
+        }
+        return results[type] as WebRuntimeTaskResult<T>
+      },
+      dispose: () => undefined,
+    }
+    const adapter = createBrowserDataAdapter(rpc)
+
+    assert.equal((await adapter.getMonthlyActivity('session-one'))[0].messageCount, 2)
+    assert.equal((await adapter.getYearlyActivity('session-one'))[0].year, 2024)
+    assert.equal((await adapter.getMemberMonthlyTrend('session-one'))[0].memberName, 'Alice')
+    assert.equal((await adapter.getMembers('session-one'))[0].accountName, 'Alice')
+    assert.equal((await adapter.getMentionAnalysis('session-one')).totalMentions, 0)
+    assert.equal((await adapter.getMentionGraph('session-one')).links.length, 0)
+    assert.equal((await adapter.getClusterGraph('session-one')).stats.edgeCount, 0)
+    assert.equal((await adapter.getRelationshipStats('session-one')).hasSessionIndex, true)
+    assert.equal((await adapter.getLanguagePreferenceAnalysis('session-one', 'en-US')).members.length, 0)
+    assert.equal((await adapter.getWordFrequency('session-one', { locale: 'en-US' })).totalWords, 0)
+
+    assert.deepEqual(
+      requests.map(({ type }) => type),
+      [
+        'analysis.monthly',
+        'analysis.yearly',
+        'analysis.memberMonthlyTrend',
+        'analysis.memberList',
+        'analysis.mentions',
+        'analysis.mentionGraph',
+        'analysis.clusterGraph',
+        'analysis.relationship',
+        'analysis.languagePreference',
+        'analysis.wordFrequency',
+      ]
+    )
   })
 
   it('rejects unsupported DataAdapter capabilities instead of returning fake data', async () => {

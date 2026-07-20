@@ -4,8 +4,21 @@ import type {
   DailyActivity,
   HourlyActivity,
   MemberActivity,
+  MemberMonthlyTrend,
+  MemberWithAliases,
+  MessageLengthDistribution,
   MessageTypeStats,
+  MentionGraphData,
+  MonthlyActivity,
+  ClusterGraphData,
+  ClusterGraphOptions,
+  RelationshipStats,
+  TextLengthPercentiles,
+  TextStats,
   WeekdayActivity,
+  WordFrequencyParams,
+  WordFrequencyResult,
+  YearlyActivity,
 } from '@openchatlab/core'
 import type {
   BrowserImportFormatInfo,
@@ -106,6 +119,66 @@ export interface WebRuntimeTaskMap {
   'analysis.messageTypes': {
     payload: { sessionId: string; filter?: BrowserTimeFilter }
     result: MessageTypeStats[]
+  }
+  'analysis.messageLengths': {
+    payload: { sessionId: string; filter?: BrowserTimeFilter }
+    result: MessageLengthDistribution
+  }
+  'analysis.textStats': {
+    payload: { sessionId: string; filter?: BrowserTimeFilter }
+    result: TextStats
+  }
+  'analysis.longMessages': {
+    payload: { sessionId: string; filter?: BrowserTimeFilter; minLength?: number }
+    result: number
+  }
+  'analysis.textPercentiles': {
+    payload: { sessionId: string; filter?: BrowserTimeFilter }
+    result: TextLengthPercentiles
+  }
+  'analysis.monthly': {
+    payload: { sessionId: string; filter?: BrowserTimeFilter }
+    result: MonthlyActivity[]
+  }
+  'analysis.yearly': {
+    payload: { sessionId: string; filter?: BrowserTimeFilter }
+    result: YearlyActivity[]
+  }
+  'analysis.memberMonthlyTrend': {
+    payload: { sessionId: string; filter?: BrowserTimeFilter }
+    result: MemberMonthlyTrend[]
+  }
+  'analysis.memberList': {
+    payload: { sessionId: string }
+    result: MemberWithAliases[]
+  }
+  'analysis.mentions': {
+    payload: { sessionId: string; filter?: BrowserTimeFilter }
+    result: {
+      topMentioners: Array<{ memberId: number; platformId: string; name: string; count: number; percentage: number }>
+      topMentioned: Array<{ memberId: number; platformId: string; name: string; count: number; percentage: number }>
+      totalMentions: number
+    }
+  }
+  'analysis.mentionGraph': {
+    payload: { sessionId: string; filter?: BrowserTimeFilter }
+    result: MentionGraphData
+  }
+  'analysis.clusterGraph': {
+    payload: { sessionId: string; filter?: BrowserTimeFilter; options?: ClusterGraphOptions }
+    result: ClusterGraphData
+  }
+  'analysis.relationship': {
+    payload: { sessionId: string; filter?: BrowserTimeFilter; options?: { perseveranceThreshold?: number } }
+    result: RelationshipStats
+  }
+  'analysis.languagePreference': {
+    payload: { sessionId: string; locale: string; filter?: BrowserTimeFilter }
+    result: unknown
+  }
+  'analysis.wordFrequency': {
+    payload: { sessionId: string; params: Omit<WordFrequencyParams, 'sessionId'> }
+    result: WordFrequencyResult
   }
 }
 
@@ -209,4 +282,18 @@ const WEB_RUNTIME_TASK_TYPES: Record<WebRuntimeTaskType, true> = {
   'analysis.availableYears': true,
   'analysis.members': true,
   'analysis.messageTypes': true,
+  'analysis.messageLengths': true,
+  'analysis.textStats': true,
+  'analysis.longMessages': true,
+  'analysis.textPercentiles': true,
+  'analysis.monthly': true,
+  'analysis.yearly': true,
+  'analysis.memberMonthlyTrend': true,
+  'analysis.memberList': true,
+  'analysis.mentions': true,
+  'analysis.mentionGraph': true,
+  'analysis.clusterGraph': true,
+  'analysis.relationship': true,
+  'analysis.languagePreference': true,
+  'analysis.wordFrequency': true,
 }

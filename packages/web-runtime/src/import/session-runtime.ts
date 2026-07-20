@@ -1,19 +1,48 @@
 import {
   CHAT_DB_INDEXES,
   CHAT_DB_TABLES,
+  generateSessionIndex,
+  getBrowserWordFrequency as queryBrowserWordFrequency,
+  getClusterGraph as queryClusterGraph,
+  getLanguagePreferenceAnalysis as queryLanguagePreferenceAnalysis,
+  getMembersWithAliases as queryMembersWithAliases,
+  getMentionAnalysis as queryMentionAnalysis,
+  getMentionGraph as queryMentionGraph,
   getAvailableYears as queryAvailableYears,
   getDailyActivity as queryDailyActivity,
   getHourlyActivity as queryHourlyActivity,
+  getLongMessageCount as queryLongMessageCount,
   getMemberActivity as queryMemberActivity,
+  getMemberMonthlyTrend as queryMemberMonthlyTrend,
+  getMessageLengthDistribution as queryMessageLengthDistribution,
   getMessageTypeStats as queryMessageTypeStats,
+  getMonthlyActivity as queryMonthlyActivity,
+  getRelationshipStats as queryRelationshipStats,
+  getTextLengthPercentiles as queryTextLengthPercentiles,
+  getTextStats as queryTextStats,
   getTimeRange as queryTimeRange,
   getWeekdayActivity as queryWeekdayActivity,
+  getYearlyActivity as queryYearlyActivity,
+  hasSessionIndex,
   writeParseResultToDb,
+  type ClusterGraphData,
+  type ClusterGraphOptions,
   type DailyActivity,
   type HourlyActivity,
   type MemberActivity,
+  type MemberMonthlyTrend,
+  type MemberWithAliases,
+  type MessageLengthDistribution,
   type MessageTypeStats,
+  type MentionGraphData,
+  type MonthlyActivity,
+  type RelationshipStats,
+  type TextLengthPercentiles,
+  type TextStats,
   type WeekdayActivity,
+  type WordFrequencyParams,
+  type WordFrequencyResult,
+  type YearlyActivity,
 } from '@openchatlab/core'
 import { WebRuntimeError } from '../runtime-error'
 import type { WorkspaceDatabasePort, WorkspaceDatabaseStage } from '../storage/workspace-database'
@@ -308,6 +337,102 @@ export class BrowserSessionRuntime {
     return this.database.withDatabase(sessionDatabaseFilename(id), CHAT_DB_TABLES, (db) =>
       queryMessageTypeStats(db, filter)
     )
+  }
+
+  async getMessageLengthDistribution(id: string, filter?: BrowserTimeFilter): Promise<MessageLengthDistribution> {
+    validateSessionId(id)
+    const session = await this.catalog.get(id)
+    if (!session) throw new WebRuntimeError('SESSION_NOT_FOUND', `Session ${id} was not found`)
+
+    return this.database.withDatabase(sessionDatabaseFilename(id), CHAT_DB_TABLES, (db) =>
+      queryMessageLengthDistribution(db, filter)
+    )
+  }
+
+  async getTextStats(id: string, filter?: BrowserTimeFilter): Promise<TextStats> {
+    validateSessionId(id)
+    const session = await this.catalog.get(id)
+    if (!session) throw new WebRuntimeError('SESSION_NOT_FOUND', `Session ${id} was not found`)
+
+    return this.database.withDatabase(sessionDatabaseFilename(id), CHAT_DB_TABLES, (db) => queryTextStats(db, filter))
+  }
+
+  async getLongMessageCount(id: string, filter?: BrowserTimeFilter, minLength?: number): Promise<number> {
+    validateSessionId(id)
+    const session = await this.catalog.get(id)
+    if (!session) throw new WebRuntimeError('SESSION_NOT_FOUND', `Session ${id} was not found`)
+
+    return this.database.withDatabase(sessionDatabaseFilename(id), CHAT_DB_TABLES, (db) =>
+      queryLongMessageCount(db, filter, minLength)
+    )
+  }
+
+  async getTextLengthPercentiles(id: string, filter?: BrowserTimeFilter): Promise<TextLengthPercentiles> {
+    validateSessionId(id)
+    const session = await this.catalog.get(id)
+    if (!session) throw new WebRuntimeError('SESSION_NOT_FOUND', `Session ${id} was not found`)
+
+    return this.database.withDatabase(sessionDatabaseFilename(id), CHAT_DB_TABLES, (db) =>
+      queryTextLengthPercentiles(db, filter)
+    )
+  }
+
+  async getMonthlyActivity(id: string, filter?: BrowserTimeFilter): Promise<MonthlyActivity[]> {
+    return this.withSessionDatabase(id, (db) => queryMonthlyActivity(db, filter))
+  }
+
+  async getYearlyActivity(id: string, filter?: BrowserTimeFilter): Promise<YearlyActivity[]> {
+    return this.withSessionDatabase(id, (db) => queryYearlyActivity(db, filter))
+  }
+
+  async getMemberMonthlyTrend(id: string, filter?: BrowserTimeFilter): Promise<MemberMonthlyTrend[]> {
+    return this.withSessionDatabase(id, (db) => queryMemberMonthlyTrend(db, filter))
+  }
+
+  async getMembers(id: string): Promise<MemberWithAliases[]> {
+    return this.withSessionDatabase(id, queryMembersWithAliases)
+  }
+
+  async getMentionAnalysis(id: string, filter?: BrowserTimeFilter) {
+    return this.withSessionDatabase(id, (db) => queryMentionAnalysis(db, filter))
+  }
+
+  async getMentionGraph(id: string, filter?: BrowserTimeFilter): Promise<MentionGraphData> {
+    return this.withSessionDatabase(id, (db) => queryMentionGraph(db, filter))
+  }
+
+  async getClusterGraph(
+    id: string,
+    filter?: BrowserTimeFilter,
+    options?: ClusterGraphOptions
+  ): Promise<ClusterGraphData> {
+    return this.withSessionDatabase(id, (db) => queryClusterGraph(db, filter, options))
+  }
+
+  async getRelationshipStats(
+    id: string,
+    filter?: BrowserTimeFilter,
+    options?: { perseveranceThreshold?: number }
+  ): Promise<RelationshipStats> {
+    return this.withSessionDatabase(id, (db) => {
+      if (!hasSessionIndex(db)) generateSessionIndex(db)
+      return queryRelationshipStats(db, filter, options)
+    })
+  }
+
+  async getLanguagePreferenceAnalysis(id: string, locale: string, filter?: BrowserTimeFilter) {
+    return this.withSessionDatabase(id, (db) => queryLanguagePreferenceAnalysis(db, { locale, timeFilter: filter }))
+  }
+
+  async getWordFrequency(id: string, params: Omit<WordFrequencyParams, 'sessionId'>): Promise<WordFrequencyResult> {
+    return this.withSessionDatabase(id, (db) => queryBrowserWordFrequency(db, { ...params, sessionId: id }))
+  }
+
+  private async withSessionDatabase<T>(id: string, operation: (db: import('@openchatlab/core').DatabaseAdapter) => T) {
+    validateSessionId(id)
+    const session = await this.catalog.get(id)
+    if (!session) throw new WebRuntimeError('SESSION_NOT_FOUND', `Session ${id} was not found`)
+    return this.database.withDatabase(sessionDatabaseFilename(id), CHAT_DB_TABLES, operation)
   }
 }
 

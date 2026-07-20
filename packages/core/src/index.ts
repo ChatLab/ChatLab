@@ -54,6 +54,7 @@ export {
   getLongMessageCount,
   getMemberMonthlyTrend,
   getTextLengthPercentiles,
+  getBrowserWordFrequency,
   getGroupContactFacts,
   getGroupRelationshipGraphFacts,
   getLatestContactMessageTs,

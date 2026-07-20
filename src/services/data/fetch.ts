@@ -41,6 +41,8 @@ import type {
   MemeBattleAnalysis,
   NightOwlAnalysis,
   RepeatAnalysis,
+  WordFrequencyParams,
+  WordFrequencyResult,
 } from '@openchatlab/core'
 import type {
   DataAdapter,
@@ -56,7 +58,7 @@ import type {
   MentionGraphData,
   MessageLengthDistribution,
 } from './types'
-import { get, post, del, put, patch, analyticsGet } from '../utils/http'
+import { get, post, del, put, patch, analyticsGet, analyticsPost } from '../utils/http'
 
 function buildFilterParams(filter?: TimeFilter): string {
   if (!filter) return ''
@@ -285,6 +287,10 @@ export class FetchDataAdapter implements DataAdapter {
 
   getTextLengthPercentiles(sessionId: string, filter?: TimeFilter): Promise<TextLengthPercentiles> {
     return analyticsGet(`/sessions/${sessionId}/analytics/text-length-percentiles${buildFilterParams(filter)}`)
+  }
+
+  getWordFrequency(sessionId: string, params: Omit<WordFrequencyParams, 'sessionId'>): Promise<WordFrequencyResult> {
+    return analyticsPost('/nlp/word-frequency', { sessionId, ...params })
   }
 
   getDragonKingAnalysis(sessionId: string, filter?: TimeFilter): Promise<DragonKingAnalysis> {

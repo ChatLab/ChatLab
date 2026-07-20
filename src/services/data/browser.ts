@@ -1,6 +1,19 @@
 import { sessionDatabaseFilename, type BrowserSessionCatalogItem } from '@openchatlab/web-runtime'
 import type { AnalysisSession, MessageType } from '@/types/base'
-import type { DailyActivity, HourlyActivity, MemberActivity, WeekdayActivity } from '@/types/analysis'
+import type {
+  ClusterGraphData,
+  ClusterGraphOptions,
+  DailyActivity,
+  HourlyActivity,
+  MemberActivity,
+  MemberWithStats,
+  MentionAnalysis,
+  MonthlyActivity,
+  RelationshipStats,
+  WeekdayActivity,
+} from '@/types/analysis'
+import type { LanguagePreferenceResult } from '@/types/quotes/languagePreference'
+import type { MemberMonthlyTrend, WordFrequencyParams, WordFrequencyResult } from '@openchatlab/core'
 import type { TimeFilter } from '@openchatlab/shared-types'
 import type { BrowserRuntimeRpcPort } from '../browser-runtime/types'
 import type { DataAdapter } from './types'
@@ -18,6 +31,20 @@ type BrowserSessionDataAdapter = Pick<
   | 'getAvailableYears'
   | 'getMemberActivity'
   | 'getMessageTypeDistribution'
+  | 'getMessageLengthDistribution'
+  | 'getTextStats'
+  | 'getLongMessageCount'
+  | 'getTextLengthPercentiles'
+  | 'getMonthlyActivity'
+  | 'getYearlyActivity'
+  | 'getMemberMonthlyTrend'
+  | 'getMembers'
+  | 'getMentionAnalysis'
+  | 'getMentionGraph'
+  | 'getClusterGraph'
+  | 'getRelationshipStats'
+  | 'getLanguagePreferenceAnalysis'
+  | 'getWordFrequency'
 >
 
 export class BrowserDataAdapter implements BrowserSessionDataAdapter {
@@ -72,6 +99,74 @@ export class BrowserDataAdapter implements BrowserSessionDataAdapter {
       type: item.type as MessageType,
       count: item.count,
     }))
+  }
+
+  getMessageLengthDistribution(sessionId: string, filter?: TimeFilter) {
+    return this.rpc.request('analysis.messageLengths', { sessionId, filter })
+  }
+
+  getTextStats(sessionId: string, filter?: TimeFilter) {
+    return this.rpc.request('analysis.textStats', { sessionId, filter })
+  }
+
+  getLongMessageCount(sessionId: string, filter?: TimeFilter, minLength?: number) {
+    return this.rpc.request('analysis.longMessages', { sessionId, filter, minLength })
+  }
+
+  getTextLengthPercentiles(sessionId: string, filter?: TimeFilter) {
+    return this.rpc.request('analysis.textPercentiles', { sessionId, filter })
+  }
+
+  getMonthlyActivity(sessionId: string, filter?: TimeFilter): Promise<MonthlyActivity[]> {
+    return this.rpc.request('analysis.monthly', { sessionId, filter })
+  }
+
+  getYearlyActivity(sessionId: string, filter?: TimeFilter): Promise<Array<{ year: number; messageCount: number }>> {
+    return this.rpc.request('analysis.yearly', { sessionId, filter })
+  }
+
+  getMemberMonthlyTrend(sessionId: string, filter?: TimeFilter): Promise<MemberMonthlyTrend[]> {
+    return this.rpc.request('analysis.memberMonthlyTrend', { sessionId, filter })
+  }
+
+  getMembers(sessionId: string): Promise<MemberWithStats[]> {
+    return this.rpc.request('analysis.memberList', { sessionId })
+  }
+
+  getMentionAnalysis(sessionId: string, filter?: TimeFilter): Promise<MentionAnalysis> {
+    return this.rpc.request('analysis.mentions', { sessionId, filter })
+  }
+
+  getMentionGraph(sessionId: string, filter?: TimeFilter) {
+    return this.rpc.request('analysis.mentionGraph', { sessionId, filter })
+  }
+
+  getClusterGraph(sessionId: string, filter?: TimeFilter, options?: ClusterGraphOptions): Promise<ClusterGraphData> {
+    return this.rpc.request('analysis.clusterGraph', { sessionId, filter, options })
+  }
+
+  getRelationshipStats(
+    sessionId: string,
+    filter?: TimeFilter,
+    options?: { perseveranceThreshold?: number }
+  ): Promise<RelationshipStats> {
+    return this.rpc.request('analysis.relationship', { sessionId, filter, options })
+  }
+
+  async getLanguagePreferenceAnalysis(
+    sessionId: string,
+    locale: string,
+    filter?: TimeFilter
+  ): Promise<LanguagePreferenceResult> {
+    return (await this.rpc.request('analysis.languagePreference', {
+      sessionId,
+      locale,
+      filter,
+    })) as LanguagePreferenceResult
+  }
+
+  getWordFrequency(sessionId: string, params: Omit<WordFrequencyParams, 'sessionId'>): Promise<WordFrequencyResult> {
+    return this.rpc.request('analysis.wordFrequency', { sessionId, params })
   }
 }
 

@@ -41,6 +41,20 @@ export type WorkerSessionRuntime = Pick<
   | 'getAvailableYears'
   | 'getMemberActivity'
   | 'getMessageTypeDistribution'
+  | 'getMessageLengthDistribution'
+  | 'getTextStats'
+  | 'getLongMessageCount'
+  | 'getTextLengthPercentiles'
+  | 'getMonthlyActivity'
+  | 'getYearlyActivity'
+  | 'getMemberMonthlyTrend'
+  | 'getMembers'
+  | 'getMentionAnalysis'
+  | 'getMentionGraph'
+  | 'getClusterGraph'
+  | 'getRelationshipStats'
+  | 'getLanguagePreferenceAnalysis'
+  | 'getWordFrequency'
 >
 
 export class WebRuntimeWorkerController {
@@ -290,7 +304,163 @@ export class WebRuntimeWorkerController {
         })
         return result
       }
+      case 'analysis.messageLengths': {
+        this.assertSupportedBrowser()
+        const startedAt = performance.now()
+        const result = await this.sessionRuntime.getMessageLengthDistribution(
+          request.payload.sessionId,
+          request.payload.filter
+        )
+        this.emitLog(request.id, {
+          level: 'debug',
+          scope: 'web-runtime',
+          message: 'Browser message length distribution query completed',
+          data: { sessionId: request.payload.sessionId, durationMs: Math.round(performance.now() - startedAt) },
+        })
+        return result
+      }
+      case 'analysis.textStats': {
+        this.assertSupportedBrowser()
+        const startedAt = performance.now()
+        const result = await this.sessionRuntime.getTextStats(request.payload.sessionId, request.payload.filter)
+        this.emitLog(request.id, {
+          level: 'debug',
+          scope: 'web-runtime',
+          message: 'Browser text stats query completed',
+          data: { sessionId: request.payload.sessionId, durationMs: Math.round(performance.now() - startedAt) },
+        })
+        return result
+      }
+      case 'analysis.longMessages': {
+        this.assertSupportedBrowser()
+        const startedAt = performance.now()
+        const result = await this.sessionRuntime.getLongMessageCount(
+          request.payload.sessionId,
+          request.payload.filter,
+          request.payload.minLength
+        )
+        this.emitLog(request.id, {
+          level: 'debug',
+          scope: 'web-runtime',
+          message: 'Browser long message count query completed',
+          data: {
+            sessionId: request.payload.sessionId,
+            minLength: request.payload.minLength,
+            durationMs: Math.round(performance.now() - startedAt),
+          },
+        })
+        return result
+      }
+      case 'analysis.textPercentiles': {
+        this.assertSupportedBrowser()
+        const startedAt = performance.now()
+        const result = await this.sessionRuntime.getTextLengthPercentiles(
+          request.payload.sessionId,
+          request.payload.filter
+        )
+        this.emitLog(request.id, {
+          level: 'debug',
+          scope: 'web-runtime',
+          message: 'Browser text length percentile query completed',
+          data: { sessionId: request.payload.sessionId, durationMs: Math.round(performance.now() - startedAt) },
+        })
+        return result
+      }
+      case 'analysis.monthly': {
+        const startedAt = this.startAnalysisQuery()
+        const result = await this.sessionRuntime.getMonthlyActivity(request.payload.sessionId, request.payload.filter)
+        this.emitAnalysisQueryCompleted(request, startedAt)
+        return result
+      }
+      case 'analysis.yearly': {
+        const startedAt = this.startAnalysisQuery()
+        const result = await this.sessionRuntime.getYearlyActivity(request.payload.sessionId, request.payload.filter)
+        this.emitAnalysisQueryCompleted(request, startedAt)
+        return result
+      }
+      case 'analysis.memberMonthlyTrend': {
+        const startedAt = this.startAnalysisQuery()
+        const result = await this.sessionRuntime.getMemberMonthlyTrend(
+          request.payload.sessionId,
+          request.payload.filter
+        )
+        this.emitAnalysisQueryCompleted(request, startedAt)
+        return result
+      }
+      case 'analysis.memberList': {
+        const startedAt = this.startAnalysisQuery()
+        const result = await this.sessionRuntime.getMembers(request.payload.sessionId)
+        this.emitAnalysisQueryCompleted(request, startedAt)
+        return result
+      }
+      case 'analysis.mentions': {
+        const startedAt = this.startAnalysisQuery()
+        const result = await this.sessionRuntime.getMentionAnalysis(request.payload.sessionId, request.payload.filter)
+        this.emitAnalysisQueryCompleted(request, startedAt)
+        return result
+      }
+      case 'analysis.mentionGraph': {
+        const startedAt = this.startAnalysisQuery()
+        const result = await this.sessionRuntime.getMentionGraph(request.payload.sessionId, request.payload.filter)
+        this.emitAnalysisQueryCompleted(request, startedAt)
+        return result
+      }
+      case 'analysis.clusterGraph': {
+        const startedAt = this.startAnalysisQuery()
+        const result = await this.sessionRuntime.getClusterGraph(
+          request.payload.sessionId,
+          request.payload.filter,
+          request.payload.options
+        )
+        this.emitAnalysisQueryCompleted(request, startedAt)
+        return result
+      }
+      case 'analysis.relationship': {
+        const startedAt = this.startAnalysisQuery()
+        const result = await this.sessionRuntime.getRelationshipStats(
+          request.payload.sessionId,
+          request.payload.filter,
+          request.payload.options
+        )
+        this.emitAnalysisQueryCompleted(request, startedAt)
+        return result
+      }
+      case 'analysis.languagePreference': {
+        const startedAt = this.startAnalysisQuery()
+        const result = await this.sessionRuntime.getLanguagePreferenceAnalysis(
+          request.payload.sessionId,
+          request.payload.locale,
+          request.payload.filter
+        )
+        this.emitAnalysisQueryCompleted(request, startedAt)
+        return result
+      }
+      case 'analysis.wordFrequency': {
+        const startedAt = this.startAnalysisQuery()
+        const result = await this.sessionRuntime.getWordFrequency(request.payload.sessionId, request.payload.params)
+        this.emitAnalysisQueryCompleted(request, startedAt)
+        return result
+      }
     }
+  }
+
+  private startAnalysisQuery(): number {
+    this.assertSupportedBrowser()
+    return performance.now()
+  }
+
+  private emitAnalysisQueryCompleted(request: RpcRequestEnvelope, startedAt: number): void {
+    const payload = request.payload as { sessionId?: string } | undefined
+    this.emitLog(request.id, {
+      level: 'debug',
+      scope: 'web-runtime',
+      message: 'Browser insight query completed',
+      data: {
+        taskType: request.type,
+        sessionId: payload?.sessionId,
+        durationMs: Math.round(performance.now() - startedAt),
+      },
+    })
   }
 
   private handleDatabaseStage(request: RpcRequestEnvelope, stage: DatabaseOpenStage): void {

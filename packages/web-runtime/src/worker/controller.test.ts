@@ -75,6 +75,10 @@ class FakeSessionRuntime implements WorkerSessionRuntime {
   readonly weekdayCalls: Array<{ id: string; filter?: BrowserTimeFilter }> = []
   readonly memberCalls: Array<{ id: string; filter?: BrowserTimeFilter }> = []
   readonly messageTypeCalls: Array<{ id: string; filter?: BrowserTimeFilter }> = []
+  readonly messageLengthCalls: Array<{ id: string; filter?: BrowserTimeFilter }> = []
+  readonly textStatsCalls: Array<{ id: string; filter?: BrowserTimeFilter }> = []
+  readonly longMessageCalls: Array<{ id: string; filter?: BrowserTimeFilter; minLength?: number }> = []
+  readonly textPercentileCalls: Array<{ id: string; filter?: BrowserTimeFilter }> = []
   readonly timeRangeCalls: string[] = []
   readonly availableYearsCalls: string[] = []
   readonly importCalls: Array<{ chatIndex?: number }> = []
@@ -188,6 +192,100 @@ class FakeSessionRuntime implements WorkerSessionRuntime {
           { type: 0, count: 1 },
         ]
       : []
+  }
+
+  async getMessageLengthDistribution(id: string, filter?: BrowserTimeFilter) {
+    this.messageLengthCalls.push({ id, filter })
+    return id === this.session.id
+      ? { detail: [{ len: 1, count: 2 }], grouped: [{ range: '1-5', count: 2 }] }
+      : { detail: [], grouped: [] }
+  }
+
+  async getTextStats(id: string, filter?: BrowserTimeFilter) {
+    this.textStatsCalls.push({ id, filter })
+    return id === this.session.id
+      ? { textCount: 2, avgLength: 3.5, maxLength: 5, shortCount: 2 }
+      : { textCount: 0, avgLength: 0, maxLength: 0, shortCount: 0 }
+  }
+
+  async getLongMessageCount(id: string, filter?: BrowserTimeFilter, minLength?: number) {
+    this.longMessageCalls.push({ id, filter, minLength })
+    return id === this.session.id ? 1 : 0
+  }
+
+  async getTextLengthPercentiles(id: string, filter?: BrowserTimeFilter) {
+    this.textPercentileCalls.push({ id, filter })
+    return id === this.session.id ? { p25: 1, p50: 3, p75: 5, p90: 5 } : { p25: 0, p50: 0, p75: 0, p90: 0 }
+  }
+
+  async getMonthlyActivity(_id: string, _filter?: BrowserTimeFilter) {
+    return [{ month: 1, messageCount: 2 }]
+  }
+
+  async getYearlyActivity(_id: string, _filter?: BrowserTimeFilter) {
+    return [{ year: 2024, messageCount: 2 }]
+  }
+
+  async getMemberMonthlyTrend(_id: string, _filter?: BrowserTimeFilter) {
+    return [{ month: '2024-01', memberId: 1, memberName: 'Alice', count: 2 }]
+  }
+
+  async getMembers(_id: string) {
+    return [
+      {
+        id: 1,
+        platformId: 'alice',
+        accountName: 'Alice',
+        groupNickname: null,
+        aliases: [],
+        avatar: null,
+        messageCount: 2,
+        lastMessageTs: 2,
+      },
+    ]
+  }
+
+  async getMentionAnalysis(_id: string, _filter?: BrowserTimeFilter) {
+    return { topMentioners: [], topMentioned: [], totalMentions: 0 }
+  }
+
+  async getMentionGraph(_id: string, _filter?: BrowserTimeFilter) {
+    return { nodes: [], links: [], maxLinkValue: 0 }
+  }
+
+  async getClusterGraph(_id: string, _filter?: BrowserTimeFilter) {
+    return {
+      nodes: [],
+      links: [],
+      maxLinkValue: 0,
+      communities: [],
+      stats: { totalMembers: 0, totalMessages: 0, involvedMembers: 0, edgeCount: 0, communityCount: 0 },
+    }
+  }
+
+  async getRelationshipStats(_id: string, _filter?: BrowserTimeFilter) {
+    return {
+      months: [],
+      members: [],
+      totalSessions: 0,
+      hasSessionIndex: true,
+      iceBreakers: [],
+      totalIceBreaks: 0,
+      responseLatency: [],
+      perseverance: [],
+      totalDoubleTexts: 0,
+      monthlyResponseLatency: [],
+      monthlyPerseverance: [],
+      perseveranceThreshold: 300,
+    }
+  }
+
+  async getLanguagePreferenceAnalysis(_id: string, _locale: string, _filter?: BrowserTimeFilter) {
+    return { members: [], sharedWords: [], similarityScore: 0 }
+  }
+
+  async getWordFrequency(_id: string) {
+    return { words: [], totalWords: 0, totalMessages: 0, uniqueWords: 0 }
   }
 }
 
@@ -359,6 +457,26 @@ describe('WebRuntimeWorkerController', () => {
       payload: { sessionId: 'session-one', filter: { startTs: 1, endTs: 2 } },
     })
     controller.handleMessage({
+      id: 'message-lengths-1',
+      type: 'analysis.messageLengths',
+      payload: { sessionId: 'session-one', filter: { startTs: 1 } },
+    })
+    controller.handleMessage({
+      id: 'text-stats-1',
+      type: 'analysis.textStats',
+      payload: { sessionId: 'session-one', filter: { endTs: 2 } },
+    })
+    controller.handleMessage({
+      id: 'long-messages-1',
+      type: 'analysis.longMessages',
+      payload: { sessionId: 'session-one', filter: { startTs: 1 }, minLength: 30 },
+    })
+    controller.handleMessage({
+      id: 'text-percentiles-1',
+      type: 'analysis.textPercentiles',
+      payload: { sessionId: 'session-one', filter: { endTs: 2 } },
+    })
+    controller.handleMessage({
       id: 'rename-1',
       type: 'session.rename',
       payload: { sessionId: 'session-one', name: 'New' },
@@ -375,6 +493,10 @@ describe('WebRuntimeWorkerController', () => {
     const availableYears = await waitForMessage(sink, 'available-years-1', 'result')
     const members = await waitForMessage(sink, 'members-1', 'result')
     const messageTypes = await waitForMessage(sink, 'message-types-1', 'result')
+    const messageLengths = await waitForMessage(sink, 'message-lengths-1', 'result')
+    const textStats = await waitForMessage(sink, 'text-stats-1', 'result')
+    const longMessages = await waitForMessage(sink, 'long-messages-1', 'result')
+    const textPercentiles = await waitForMessage(sink, 'text-percentiles-1', 'result')
     const renamed = await waitForMessage(sink, 'rename-1', 'result')
 
     assert.deepEqual(detected.type === 'result' ? detected.payload.result : null, sessions.getSupportedFormats()[0])
@@ -424,6 +546,31 @@ describe('WebRuntimeWorkerController', () => {
       id: 'session-one',
       filter: { startTs: 1, endTs: 2 },
     })
+    assert.deepEqual(messageLengths.type === 'result' ? messageLengths.payload.result : null, {
+      detail: [{ len: 1, count: 2 }],
+      grouped: [{ range: '1-5', count: 2 }],
+    })
+    assert.deepEqual(sessions.messageLengthCalls[0], { id: 'session-one', filter: { startTs: 1 } })
+    assert.deepEqual(textStats.type === 'result' ? textStats.payload.result : null, {
+      textCount: 2,
+      avgLength: 3.5,
+      maxLength: 5,
+      shortCount: 2,
+    })
+    assert.deepEqual(sessions.textStatsCalls[0], { id: 'session-one', filter: { endTs: 2 } })
+    assert.equal(longMessages.type === 'result' ? longMessages.payload.result : null, 1)
+    assert.deepEqual(sessions.longMessageCalls[0], {
+      id: 'session-one',
+      filter: { startTs: 1 },
+      minLength: 30,
+    })
+    assert.deepEqual(textPercentiles.type === 'result' ? textPercentiles.payload.result : null, {
+      p25: 1,
+      p50: 3,
+      p75: 5,
+      p90: 5,
+    })
+    assert.deepEqual(sessions.textPercentileCalls[0], { id: 'session-one', filter: { endTs: 2 } })
     assert.deepEqual(sessions.importCalls, [{ chatIndex: 1 }])
     assert.deepEqual(renamed.type === 'result' ? renamed.payload.result : null, { renamed: true })
     assert.equal(
@@ -438,6 +585,46 @@ describe('WebRuntimeWorkerController', () => {
         .map((message) => (message.type === 'log' ? message.payload.message : '')),
       ['sqlite-ready', 'opfs-pool-ready', 'opfs-database-opened', 'schema-ready']
     )
+  })
+
+  it('routes the complete Insights query set through the Worker runtime', async () => {
+    const sink = new CapturingSink()
+    const controller = new WebRuntimeWorkerController(
+      sink,
+      new FakeDatabaseRuntime(),
+      () => supportedCapabilities,
+      new FakeSessionRuntime()
+    )
+    const requests = [
+      { id: 'monthly', type: 'analysis.monthly', payload: { sessionId: 'session-one' } },
+      { id: 'yearly', type: 'analysis.yearly', payload: { sessionId: 'session-one' } },
+      { id: 'trend', type: 'analysis.memberMonthlyTrend', payload: { sessionId: 'session-one' } },
+      { id: 'members', type: 'analysis.memberList', payload: { sessionId: 'session-one' } },
+      { id: 'mentions', type: 'analysis.mentions', payload: { sessionId: 'session-one' } },
+      { id: 'mention-graph', type: 'analysis.mentionGraph', payload: { sessionId: 'session-one' } },
+      { id: 'cluster', type: 'analysis.clusterGraph', payload: { sessionId: 'session-one' } },
+      { id: 'relationship', type: 'analysis.relationship', payload: { sessionId: 'session-one' } },
+      {
+        id: 'language',
+        type: 'analysis.languagePreference',
+        payload: { sessionId: 'session-one', locale: 'en-US' },
+      },
+      {
+        id: 'words',
+        type: 'analysis.wordFrequency',
+        payload: { sessionId: 'session-one', params: { locale: 'en-US' } },
+      },
+    ] as const
+
+    for (const request of requests) controller.handleMessage(request)
+    for (const request of requests) {
+      const result = await waitForMessage(sink, request.id, 'result')
+      assert.equal(result.type === 'result' ? result.payload.taskType : null, request.type)
+      assert.equal(
+        sink.messages.some((message) => message.id === request.id && message.type === 'log'),
+        true
+      )
+    }
   })
 })
 

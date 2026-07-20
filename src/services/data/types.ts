@@ -20,6 +20,7 @@ import type {
   AnnualSummaryMode,
   AnnualSummaryResponse,
 } from '@openchatlab/shared-types'
+import type { WordFrequencyParams, WordFrequencyResult } from '@openchatlab/core'
 import type {
   MemberActivity,
   MemberWithStats,
@@ -205,6 +206,7 @@ export interface DataAdapter {
   getLongMessageCount(sessionId: string, filter?: TimeFilter, minLength?: number): Promise<number>
   getMemberMonthlyTrend(sessionId: string, filter?: TimeFilter): Promise<MemberMonthlyTrend[]>
   getTextLengthPercentiles(sessionId: string, filter?: TimeFilter): Promise<TextLengthPercentiles>
+  getWordFrequency(sessionId: string, params: Omit<WordFrequencyParams, 'sessionId'>): Promise<WordFrequencyResult>
   getDragonKingAnalysis(sessionId: string, filter?: TimeFilter): Promise<DragonKingAnalysis>
   getDivingAnalysis(sessionId: string, filter?: TimeFilter): Promise<DivingAnalysis>
   getCheckInAnalysis(sessionId: string, filter?: TimeFilter): Promise<CheckInAnalysis>

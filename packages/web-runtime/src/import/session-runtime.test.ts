@@ -824,12 +824,130 @@ describe('BrowserSessionRuntime', () => {
       end: secondTimestamp,
     })
     assert.deepEqual(await runtime.getAvailableYears('overview-query-session'), [2024])
+    const lengthDistribution = await runtime.getMessageLengthDistribution('overview-query-session')
+    assert.deepEqual(
+      lengthDistribution.detail.find((item) => item.len === 3),
+      { len: 3, count: 2 }
+    )
+    assert.deepEqual(
+      lengthDistribution.grouped.find((item) => item.range === '1-5'),
+      { range: '1-5', count: 3 }
+    )
+    assert.deepEqual(await runtime.getTextStats('overview-query-session'), {
+      textCount: 3,
+      avgLength: 3.7,
+      maxLength: 5,
+      shortCount: 3,
+    })
+    assert.equal(await runtime.getLongMessageCount('overview-query-session', undefined, 4), 1)
+    assert.deepEqual(await runtime.getTextLengthPercentiles('overview-query-session'), {
+      p25: 3,
+      p50: 3,
+      p75: 5,
+      p90: 5,
+    })
 
     const filenamesBeforeMissingQuery = await database.getDatabaseFilenames()
     await assert.rejects(runtime.getDailyActivity('missing-session'), /Session missing-session was not found/)
     await assert.rejects(runtime.getWeekdayActivity('missing-session'), /Session missing-session was not found/)
     await assert.rejects(runtime.getTimeRange('missing-session'), /Session missing-session was not found/)
     await assert.rejects(runtime.getAvailableYears('missing-session'), /Session missing-session was not found/)
+    await assert.rejects(
+      runtime.getMessageLengthDistribution('missing-session'),
+      /Session missing-session was not found/
+    )
+    await assert.rejects(runtime.getTextStats('missing-session'), /Session missing-session was not found/)
+    await assert.rejects(runtime.getLongMessageCount('missing-session'), /Session missing-session was not found/)
+    await assert.rejects(runtime.getTextLengthPercentiles('missing-session'), /Session missing-session was not found/)
+    assert.deepEqual(await database.getDatabaseFilenames(), filenamesBeforeMissingQuery)
+    database.dispose()
+  })
+
+  it('runs every remaining insight query in the Worker database and builds relationship indexes on demand', async () => {
+    const sqlite3 = await sqlite3InitModule()
+    const database = new MemoryWorkspaceDatabase(sqlite3)
+    const runtime = new BrowserSessionRuntime(database, {
+      createSessionId: () => 'insight-query-session',
+      now: () => 100,
+    })
+    const firstTimestamp = Math.floor(new Date(2024, 0, 2, 10, 0, 0).getTime() / 1000)
+    const fixture = {
+      chatlab: { version: '1', exportedAt: firstTimestamp },
+      meta: { name: 'Insight Query', platform: 'wechat', type: 'private', ownerId: 'alice' },
+      members: [
+        { platformId: 'alice', accountName: 'Alice' },
+        { platformId: 'bob', accountName: 'Bob' },
+      ],
+      messages: [
+        { sender: 'alice', accountName: 'Alice', timestamp: firstTimestamp, type: 0, content: 'hello topic @Bob' },
+        {
+          sender: 'bob',
+          accountName: 'Bob',
+          timestamp: firstTimestamp + 60,
+          type: 0,
+          content: 'hello topic',
+        },
+        {
+          sender: 'alice',
+          accountName: 'Alice',
+          timestamp: firstTimestamp + 4_000,
+          type: 0,
+          content: 'hello project @Bob',
+        },
+        {
+          sender: 'bob',
+          accountName: 'Bob',
+          timestamp: firstTimestamp + 4_060,
+          type: 0,
+          content: 'hello project',
+        },
+      ],
+    }
+
+    await runtime.importSource(source('insight-query.json', fixture), { formatId: 'chatlab' })
+
+    assert.equal((await runtime.getMonthlyActivity('insight-query-session'))[0].messageCount, 4)
+    assert.deepEqual(await runtime.getYearlyActivity('insight-query-session'), [{ year: 2024, messageCount: 4 }])
+    assert.equal(
+      (await runtime.getMemberMonthlyTrend('insight-query-session')).reduce((sum, item) => sum + item.count, 0),
+      4
+    )
+    assert.deepEqual(
+      (await runtime.getMembers('insight-query-session')).map((member) => member.accountName),
+      ['Alice', 'Bob']
+    )
+    assert.equal((await runtime.getMentionAnalysis('insight-query-session')).totalMentions, 2)
+    assert.equal((await runtime.getMentionGraph('insight-query-session')).links.length, 1)
+    assert.ok((await runtime.getClusterGraph('insight-query-session')).links.length > 0)
+
+    const relationship = await runtime.getRelationshipStats('insight-query-session')
+    assert.equal(relationship.hasSessionIndex, true)
+    assert.equal(relationship.totalSessions, 2)
+
+    const language = await runtime.getLanguagePreferenceAnalysis('insight-query-session', 'en-US')
+    assert.equal(language.members.length, 2)
+
+    const wordFrequency = await runtime.getWordFrequency('insight-query-session', {
+      locale: 'en-US',
+      topN: 10,
+      minCount: 2,
+      posFilterMode: 'all',
+      enableStopwords: false,
+    })
+    assert.deepEqual(
+      wordFrequency.words.map(({ word, count }) => ({ word, count })),
+      [
+        { word: 'hello', count: 4 },
+        { word: 'project', count: 2 },
+        { word: 'topic', count: 2 },
+      ]
+    )
+
+    const filenamesBeforeMissingQuery = await database.getDatabaseFilenames()
+    await assert.rejects(runtime.getMonthlyActivity('missing-session'), /Session missing-session was not found/)
+    await assert.rejects(runtime.getMembers('missing-session'), /Session missing-session was not found/)
+    await assert.rejects(runtime.getRelationshipStats('missing-session'), /Session missing-session was not found/)
+    await assert.rejects(runtime.getWordFrequency('missing-session', { locale: 'en-US' }), /Session missing-session/)
     assert.deepEqual(await database.getDatabaseFilenames(), filenamesBeforeMissingQuery)
     database.dispose()
   })

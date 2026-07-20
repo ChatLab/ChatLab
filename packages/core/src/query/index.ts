@@ -61,6 +61,8 @@ export {
   getMemberMonthlyTrend,
   getTextLengthPercentiles,
 } from './basic-queries'
+
+export { getBrowserWordFrequency } from './browser-word-frequency'
 export type {
   MemberActivity,
   HourlyActivity,
