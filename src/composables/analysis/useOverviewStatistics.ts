@@ -28,8 +28,13 @@ export function useOverviewStatistics(props: UseOverviewStatisticsProps, weekday
   const effectiveTimeRange = computed(() => resolveOverviewTimeRange(props.timeRange, props.timeFilter))
   const hasTimeFilter = computed(() => hasOverviewTimeFilter(props.timeFilter))
 
+  // 活跃天数
+  const activeDays = computed(() => {
+    return props.dailyActivity.filter((d) => d.messageCount > 0).length
+  })
+
   // 时间跨度
-  const durationDays = computed(() => getOverviewDurationDays(effectiveTimeRange.value))
+  const durationDays = computed(() => getOverviewDurationDays(effectiveTimeRange.value, activeDays.value))
 
   // 显示的消息数
   const displayMessageCount = computed(() => {
@@ -113,11 +118,6 @@ export function useOverviewStatistics(props: UseOverviewStatisticsProps, weekday
   const peakDay = computed(() => {
     if (!props.dailyActivity.length) return null
     return props.dailyActivity.reduce((max, d) => (d.messageCount > max.messageCount ? d : max), props.dailyActivity[0])
-  })
-
-  // 活跃天数
-  const activeDays = computed(() => {
-    return props.dailyActivity.filter((d) => d.messageCount > 0).length
   })
 
   // 总天数（用于计算活跃率）

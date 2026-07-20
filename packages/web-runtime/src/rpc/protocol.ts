@@ -1,6 +1,12 @@
 import type { BrowserImportFormatId, BrowserParseSource } from '../import/browser-parser'
 import type { BrowserSessionCatalogItem } from '../import/session-catalog'
-import type { HourlyActivity, MemberActivity, MessageTypeStats } from '@openchatlab/core'
+import type {
+  DailyActivity,
+  HourlyActivity,
+  MemberActivity,
+  MessageTypeStats,
+  WeekdayActivity,
+} from '@openchatlab/core'
 import type {
   BrowserImportFormatInfo,
   BrowserMultiChatEntry,
@@ -76,6 +82,22 @@ export interface WebRuntimeTaskMap {
   'analysis.hourly': {
     payload: { sessionId: string; filter?: BrowserTimeFilter }
     result: HourlyActivity[]
+  }
+  'analysis.daily': {
+    payload: { sessionId: string; filter?: BrowserTimeFilter }
+    result: DailyActivity[]
+  }
+  'analysis.weekday': {
+    payload: { sessionId: string; filter?: BrowserTimeFilter }
+    result: WeekdayActivity[]
+  }
+  'analysis.timeRange': {
+    payload: { sessionId: string }
+    result: { start: number; end: number } | null
+  }
+  'analysis.availableYears': {
+    payload: { sessionId: string }
+    result: number[]
   }
   'analysis.members': {
     payload: { sessionId: string; filter?: BrowserTimeFilter }
@@ -181,6 +203,10 @@ const WEB_RUNTIME_TASK_TYPES: Record<WebRuntimeTaskType, true> = {
   'session.delete': true,
   'session.rename': true,
   'analysis.hourly': true,
+  'analysis.daily': true,
+  'analysis.weekday': true,
+  'analysis.timeRange': true,
+  'analysis.availableYears': true,
   'analysis.members': true,
   'analysis.messageTypes': true,
 }

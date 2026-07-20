@@ -1,6 +1,6 @@
 import { sessionDatabaseFilename, type BrowserSessionCatalogItem } from '@openchatlab/web-runtime'
 import type { AnalysisSession, MessageType } from '@/types/base'
-import type { HourlyActivity, MemberActivity } from '@/types/analysis'
+import type { DailyActivity, HourlyActivity, MemberActivity, WeekdayActivity } from '@/types/analysis'
 import type { TimeFilter } from '@openchatlab/shared-types'
 import type { BrowserRuntimeRpcPort } from '../browser-runtime/types'
 import type { DataAdapter } from './types'
@@ -12,6 +12,10 @@ type BrowserSessionDataAdapter = Pick<
   | 'deleteSession'
   | 'renameSession'
   | 'getHourlyActivity'
+  | 'getDailyActivity'
+  | 'getWeekdayActivity'
+  | 'getTimeRange'
+  | 'getAvailableYears'
   | 'getMemberActivity'
   | 'getMessageTypeDistribution'
 >
@@ -38,6 +42,22 @@ export class BrowserDataAdapter implements BrowserSessionDataAdapter {
 
   getHourlyActivity(sessionId: string, filter?: TimeFilter): Promise<HourlyActivity[]> {
     return this.rpc.request('analysis.hourly', { sessionId, filter })
+  }
+
+  getDailyActivity(sessionId: string, filter?: TimeFilter): Promise<DailyActivity[]> {
+    return this.rpc.request('analysis.daily', { sessionId, filter })
+  }
+
+  getWeekdayActivity(sessionId: string, filter?: TimeFilter): Promise<WeekdayActivity[]> {
+    return this.rpc.request('analysis.weekday', { sessionId, filter })
+  }
+
+  getTimeRange(sessionId: string): Promise<{ start: number; end: number } | null> {
+    return this.rpc.request('analysis.timeRange', { sessionId })
+  }
+
+  getAvailableYears(sessionId: string): Promise<number[]> {
+    return this.rpc.request('analysis.availableYears', { sessionId })
   }
 
   getMemberActivity(sessionId: string, filter?: TimeFilter): Promise<MemberActivity[]> {

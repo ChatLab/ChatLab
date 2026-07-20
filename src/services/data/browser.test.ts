@@ -39,25 +39,36 @@ describe('BrowserDataAdapter', () => {
               ? item
               : type === 'analysis.hourly'
                 ? Array.from({ length: 24 }, (_, hour) => ({ hour, messageCount: hour === 8 ? 2 : 0 }))
-                : type === 'analysis.members'
-                  ? [
-                      {
-                        memberId: 1,
-                        platformId: 'alice',
-                        name: 'Alice',
-                        avatar: null,
-                        messageCount: 2,
-                        percentage: 100,
-                      },
-                    ]
-                  : type === 'analysis.messageTypes'
-                    ? [
-                        { type: 1, count: 2 },
-                        { type: 0, count: 1 },
-                      ]
-                    : type === 'session.delete'
-                      ? { deleted: true }
-                      : { renamed: true }
+                : type === 'analysis.daily'
+                  ? [{ date: '2024-01-02', messageCount: 2 }]
+                  : type === 'analysis.weekday'
+                    ? Array.from({ length: 7 }, (_, index) => ({
+                        weekday: index + 1,
+                        messageCount: index === 1 ? 2 : 0,
+                      }))
+                    : type === 'analysis.timeRange'
+                      ? { start: 1, end: 2 }
+                      : type === 'analysis.availableYears'
+                        ? [2024]
+                        : type === 'analysis.members'
+                          ? [
+                              {
+                                memberId: 1,
+                                platformId: 'alice',
+                                name: 'Alice',
+                                avatar: null,
+                                messageCount: 2,
+                                percentage: 100,
+                              },
+                            ]
+                          : type === 'analysis.messageTypes'
+                            ? [
+                                { type: 1, count: 2 },
+                                { type: 0, count: 1 },
+                              ]
+                            : type === 'session.delete'
+                              ? { deleted: true }
+                              : { renamed: true }
         return result as WebRuntimeTaskResult<T>
       },
       dispose: () => undefined,
@@ -86,6 +97,12 @@ describe('BrowserDataAdapter', () => {
     })
     assert.equal((await adapter.getSession('session-one'))?.id, 'session-one')
     assert.equal((await adapter.getHourlyActivity('session-one', { startTs: 1 }))[8].messageCount, 2)
+    assert.deepEqual(await adapter.getDailyActivity('session-one', { startTs: 1 }), [
+      { date: '2024-01-02', messageCount: 2 },
+    ])
+    assert.equal((await adapter.getWeekdayActivity('session-one', { endTs: 2 }))[1].messageCount, 2)
+    assert.deepEqual(await adapter.getTimeRange('session-one'), { start: 1, end: 2 })
+    assert.deepEqual(await adapter.getAvailableYears('session-one'), [2024])
     assert.equal((await adapter.getMemberActivity('session-one', { endTs: 2 }))[0].name, 'Alice')
     assert.deepEqual(await adapter.getMessageTypeDistribution('session-one', { startTs: 1, endTs: 2 }), [
       { type: 1, count: 2 },
@@ -97,6 +114,10 @@ describe('BrowserDataAdapter', () => {
       { type: 'session.list', payload: undefined },
       { type: 'session.get', payload: { sessionId: 'session-one' } },
       { type: 'analysis.hourly', payload: { sessionId: 'session-one', filter: { startTs: 1 } } },
+      { type: 'analysis.daily', payload: { sessionId: 'session-one', filter: { startTs: 1 } } },
+      { type: 'analysis.weekday', payload: { sessionId: 'session-one', filter: { endTs: 2 } } },
+      { type: 'analysis.timeRange', payload: { sessionId: 'session-one' } },
+      { type: 'analysis.availableYears', payload: { sessionId: 'session-one' } },
       { type: 'analysis.members', payload: { sessionId: 'session-one', filter: { endTs: 2 } } },
       {
         type: 'analysis.messageTypes',

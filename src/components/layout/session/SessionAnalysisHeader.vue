@@ -17,15 +17,21 @@ interface SessionAnalysisTab {
 const activeTab = defineModel<string>('activeTab', { required: true })
 const timeRangeValue = defineModel<TimeRangeValue | null>('timeRangeValue', { required: true })
 
-const props = defineProps<{
-  title: string
-  avatar?: string | null
-  icon: string
-  iconClass: string
-  tabs: SessionAnalysisTab[]
-  currentSessionId: string | null
-  initialTimeState: Partial<TimeSelectState>
-}>()
+const props = withDefaults(
+  defineProps<{
+    title: string
+    avatar?: string | null
+    icon: string
+    iconClass: string
+    tabs: SessionAnalysisTab[]
+    currentSessionId: string | null
+    initialTimeState: Partial<TimeSelectState>
+    showSessionActions?: boolean
+  }>(),
+  {
+    showSessionActions: true,
+  }
+)
 
 const emit = defineEmits<{
   (e: 'openIncrementalImport'): void
@@ -51,7 +57,7 @@ const navigationItems = computed(() =>
 <template>
   <PageHeader :title="title" :avatar="avatar" size="compact" :icon="icon" :icon-class="iconClass">
     <template #actions>
-      <template v-if="layoutStore.toolsPanelPosition === 'header'">
+      <template v-if="showSessionActions && layoutStore.toolsPanelPosition === 'header'">
         <UTooltip :text="t('analysis.tooltip.viewChatRecord')">
           <UButton
             icon="i-heroicons-chat-bubble-bottom-center-text"
@@ -95,21 +101,23 @@ const navigationItems = computed(() =>
           />
         </UTooltip>
       </template>
-      <CaptureButton v-else color="gray" />
+      <CaptureButton v-else-if="showSessionActions" color="gray" />
     </template>
 
-    <div class="mt-3 flex items-center justify-between gap-3">
+    <div class="mt-3 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
       <PageTabs v-model="activeTab" class="min-w-0 shrink" :items="navigationItems" />
       <!-- AI 对话和实验室都不使用这里的时间范围筛选，因此在这些一级 Tab 下隐藏。 -->
-      <TimeSelect
-        v-model="timeRangeValue"
-        :session-id="currentSessionId ?? undefined"
-        :visible="timeSelectVisible"
-        :initial-state="initialTimeState"
-        size="sm"
-        @update:full-range="emit('update:fullRange', $event)"
-        @update:available-years="emit('update:availableYears', $event)"
-      />
+      <div class="max-w-full overflow-x-auto scrollbar-hide">
+        <TimeSelect
+          v-model="timeRangeValue"
+          :session-id="currentSessionId ?? undefined"
+          :visible="timeSelectVisible"
+          :initial-state="initialTimeState"
+          size="sm"
+          @update:full-range="emit('update:fullRange', $event)"
+          @update:available-years="emit('update:availableYears', $event)"
+        />
+      </div>
     </div>
   </PageHeader>
 </template>

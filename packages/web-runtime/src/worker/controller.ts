@@ -35,6 +35,10 @@ export type WorkerSessionRuntime = Pick<
   | 'deleteSession'
   | 'renameSession'
   | 'getHourlyActivity'
+  | 'getDailyActivity'
+  | 'getWeekdayActivity'
+  | 'getTimeRange'
+  | 'getAvailableYears'
   | 'getMemberActivity'
   | 'getMessageTypeDistribution'
 >
@@ -207,6 +211,54 @@ export class WebRuntimeWorkerController {
           level: 'debug',
           scope: 'web-runtime',
           message: 'Browser hourly activity query completed',
+          data: { sessionId: request.payload.sessionId, durationMs: Math.round(performance.now() - startedAt) },
+        })
+        return result
+      }
+      case 'analysis.daily': {
+        this.assertSupportedBrowser()
+        const startedAt = performance.now()
+        const result = await this.sessionRuntime.getDailyActivity(request.payload.sessionId, request.payload.filter)
+        this.emitLog(request.id, {
+          level: 'debug',
+          scope: 'web-runtime',
+          message: 'Browser daily activity query completed',
+          data: { sessionId: request.payload.sessionId, durationMs: Math.round(performance.now() - startedAt) },
+        })
+        return result
+      }
+      case 'analysis.weekday': {
+        this.assertSupportedBrowser()
+        const startedAt = performance.now()
+        const result = await this.sessionRuntime.getWeekdayActivity(request.payload.sessionId, request.payload.filter)
+        this.emitLog(request.id, {
+          level: 'debug',
+          scope: 'web-runtime',
+          message: 'Browser weekday activity query completed',
+          data: { sessionId: request.payload.sessionId, durationMs: Math.round(performance.now() - startedAt) },
+        })
+        return result
+      }
+      case 'analysis.timeRange': {
+        this.assertSupportedBrowser()
+        const startedAt = performance.now()
+        const result = await this.sessionRuntime.getTimeRange(request.payload.sessionId)
+        this.emitLog(request.id, {
+          level: 'debug',
+          scope: 'web-runtime',
+          message: 'Browser time range query completed',
+          data: { sessionId: request.payload.sessionId, durationMs: Math.round(performance.now() - startedAt) },
+        })
+        return result
+      }
+      case 'analysis.availableYears': {
+        this.assertSupportedBrowser()
+        const startedAt = performance.now()
+        const result = await this.sessionRuntime.getAvailableYears(request.payload.sessionId)
+        this.emitLog(request.id, {
+          level: 'debug',
+          scope: 'web-runtime',
+          message: 'Browser available years query completed',
           data: { sessionId: request.payload.sessionId, durationMs: Math.round(performance.now() - startedAt) },
         })
         return result

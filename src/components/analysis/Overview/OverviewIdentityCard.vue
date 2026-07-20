@@ -274,12 +274,12 @@ onUnmounted(() => {
 <template>
   <ReportCard>
     <!-- 身份信息 + 基础统计 -->
-    <div class="relative z-10 px-6 pt-8 pb-4 sm:px-8">
-      <h2 class="text-3xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
+    <div class="relative z-10 px-5 pt-6 pb-4 sm:px-8 sm:pt-8">
+      <h2 class="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl dark:text-gray-100">
         {{ session.name }}
       </h2>
 
-      <div class="mt-4 flex items-start gap-6 sm:gap-24">
+      <div class="mt-4 flex flex-col gap-5 sm:flex-row sm:items-start sm:gap-24">
         <div class="min-w-0 flex flex-col gap-2 text-sm font-medium text-gray-500 dark:text-gray-400">
           <div class="flex items-center gap-2">
             <div class="flex h-6 w-6 shrink-0 items-center justify-center">
@@ -305,7 +305,7 @@ onUnmounted(() => {
           </div>
         </div>
 
-        <div class="flex shrink-0 gap-6">
+        <div class="grid grid-cols-2 gap-x-8 gap-y-4 sm:flex sm:shrink-0 sm:gap-6">
           <div class="flex flex-col gap-1 text-center">
             <span class="text-2xl font-black font-mono tracking-tight text-gray-900 dark:text-white">
               {{ displayMessageCount.toLocaleString() }}
@@ -346,7 +346,7 @@ onUnmounted(() => {
     </div>
 
     <!-- 热力图区域 -->
-    <div class="relative z-10 px-6 pb-2 sm:px-8">
+    <div class="relative z-10 px-5 pb-2 sm:px-8">
       <div class="mb-2 flex items-center justify-between">
         <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">
           Activity Heatmap

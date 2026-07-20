@@ -787,4 +787,50 @@ describe('BrowserSessionRuntime', () => {
     assert.deepEqual(await database.getDatabaseFilenames(), filenamesBeforeMissingQuery)
     database.dispose()
   })
+
+  it('runs the core overview timeline queries with filtering and without creating missing databases', async () => {
+    const sqlite3 = await sqlite3InitModule()
+    const database = new MemoryWorkspaceDatabase(sqlite3)
+    const runtime = new BrowserSessionRuntime(database, {
+      createSessionId: () => 'overview-query-session',
+      now: () => 100,
+    })
+    const firstTimestamp = Math.floor(new Date(2024, 0, 2, 10, 0, 0).getTime() / 1000)
+    const secondTimestamp = Math.floor(new Date(2024, 0, 3, 10, 0, 0).getTime() / 1000)
+    const fixture = {
+      chatlab: { version: '1', exportedAt: firstTimestamp },
+      meta: { name: 'Overview Query', platform: 'wechat', type: 'private', ownerId: 'alice' },
+      members: [{ platformId: 'alice', accountName: 'Alice' }],
+      messages: [
+        { sender: 'alice', accountName: 'Alice', timestamp: firstTimestamp, type: 0, content: 'one' },
+        { sender: 'alice', accountName: 'Alice', timestamp: firstTimestamp + 1, type: 0, content: 'two' },
+        { sender: 'alice', accountName: 'Alice', timestamp: secondTimestamp, type: 0, content: 'three' },
+      ],
+    }
+
+    await runtime.importSource(source('overview-query.json', fixture), { formatId: 'chatlab' })
+
+    assert.deepEqual(await runtime.getDailyActivity('overview-query-session'), [
+      { date: '2024-01-02', messageCount: 2 },
+      { date: '2024-01-03', messageCount: 1 },
+    ])
+    assert.deepEqual(await runtime.getDailyActivity('overview-query-session', { startTs: secondTimestamp }), [
+      { date: '2024-01-03', messageCount: 1 },
+    ])
+    assert.equal((await runtime.getWeekdayActivity('overview-query-session'))[1].messageCount, 2)
+    assert.equal((await runtime.getWeekdayActivity('overview-query-session'))[2].messageCount, 1)
+    assert.deepEqual(await runtime.getTimeRange('overview-query-session'), {
+      start: firstTimestamp,
+      end: secondTimestamp,
+    })
+    assert.deepEqual(await runtime.getAvailableYears('overview-query-session'), [2024])
+
+    const filenamesBeforeMissingQuery = await database.getDatabaseFilenames()
+    await assert.rejects(runtime.getDailyActivity('missing-session'), /Session missing-session was not found/)
+    await assert.rejects(runtime.getWeekdayActivity('missing-session'), /Session missing-session was not found/)
+    await assert.rejects(runtime.getTimeRange('missing-session'), /Session missing-session was not found/)
+    await assert.rejects(runtime.getAvailableYears('missing-session'), /Session missing-session was not found/)
+    assert.deepEqual(await database.getDatabaseFilenames(), filenamesBeforeMissingQuery)
+    database.dispose()
+  })
 })

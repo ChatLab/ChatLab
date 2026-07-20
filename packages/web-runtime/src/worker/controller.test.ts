@@ -71,8 +71,12 @@ class FakeDatabaseRuntime implements WorkerDatabaseRuntime {
 
 class FakeSessionRuntime implements WorkerSessionRuntime {
   readonly hourlyCalls: Array<{ id: string; filter?: BrowserTimeFilter }> = []
+  readonly dailyCalls: Array<{ id: string; filter?: BrowserTimeFilter }> = []
+  readonly weekdayCalls: Array<{ id: string; filter?: BrowserTimeFilter }> = []
   readonly memberCalls: Array<{ id: string; filter?: BrowserTimeFilter }> = []
   readonly messageTypeCalls: Array<{ id: string; filter?: BrowserTimeFilter }> = []
+  readonly timeRangeCalls: string[] = []
+  readonly availableYearsCalls: string[] = []
   readonly importCalls: Array<{ chatIndex?: number }> = []
   readonly session = {
     id: 'session-one',
@@ -136,6 +140,28 @@ class FakeSessionRuntime implements WorkerSessionRuntime {
     return id === this.session.id
       ? Array.from({ length: 24 }, (_, hour) => ({ hour, messageCount: hour === 8 ? 2 : 0 }))
       : []
+  }
+
+  async getDailyActivity(id: string, filter?: BrowserTimeFilter) {
+    this.dailyCalls.push({ id, filter })
+    return id === this.session.id ? [{ date: '2024-01-02', messageCount: 2 }] : []
+  }
+
+  async getWeekdayActivity(id: string, filter?: BrowserTimeFilter) {
+    this.weekdayCalls.push({ id, filter })
+    return id === this.session.id
+      ? Array.from({ length: 7 }, (_, index) => ({ weekday: index + 1, messageCount: index === 1 ? 2 : 0 }))
+      : []
+  }
+
+  async getTimeRange(id: string) {
+    this.timeRangeCalls.push(id)
+    return id === this.session.id ? { start: 1, end: 2 } : null
+  }
+
+  async getAvailableYears(id: string) {
+    this.availableYearsCalls.push(id)
+    return id === this.session.id ? [2024] : []
   }
 
   async getMemberActivity(id: string, filter?: BrowserTimeFilter) {
@@ -303,6 +329,26 @@ describe('WebRuntimeWorkerController', () => {
       payload: { sessionId: 'session-one', filter: { startTs: 1 } },
     })
     controller.handleMessage({
+      id: 'daily-1',
+      type: 'analysis.daily',
+      payload: { sessionId: 'session-one', filter: { startTs: 1 } },
+    })
+    controller.handleMessage({
+      id: 'weekday-1',
+      type: 'analysis.weekday',
+      payload: { sessionId: 'session-one', filter: { endTs: 2 } },
+    })
+    controller.handleMessage({
+      id: 'time-range-1',
+      type: 'analysis.timeRange',
+      payload: { sessionId: 'session-one' },
+    })
+    controller.handleMessage({
+      id: 'available-years-1',
+      type: 'analysis.availableYears',
+      payload: { sessionId: 'session-one' },
+    })
+    controller.handleMessage({
       id: 'members-1',
       type: 'analysis.members',
       payload: { sessionId: 'session-one', filter: { endTs: 2 } },
@@ -323,6 +369,10 @@ describe('WebRuntimeWorkerController', () => {
     const imported = await waitForMessage(sink, 'import-1', 'result')
     const listed = await waitForMessage(sink, 'list-1', 'result')
     const hourly = await waitForMessage(sink, 'hourly-1', 'result')
+    const daily = await waitForMessage(sink, 'daily-1', 'result')
+    const weekday = await waitForMessage(sink, 'weekday-1', 'result')
+    const timeRange = await waitForMessage(sink, 'time-range-1', 'result')
+    const availableYears = await waitForMessage(sink, 'available-years-1', 'result')
     const members = await waitForMessage(sink, 'members-1', 'result')
     const messageTypes = await waitForMessage(sink, 'message-types-1', 'result')
     const renamed = await waitForMessage(sink, 'rename-1', 'result')
@@ -344,6 +394,17 @@ describe('WebRuntimeWorkerController', () => {
       Array.from({ length: 24 }, (_, hour) => ({ hour, messageCount: hour === 8 ? 2 : 0 }))
     )
     assert.deepEqual(sessions.hourlyCalls[0], { id: 'session-one', filter: { startTs: 1 } })
+    assert.deepEqual(daily.type === 'result' ? daily.payload.result : null, [{ date: '2024-01-02', messageCount: 2 }])
+    assert.deepEqual(sessions.dailyCalls[0], { id: 'session-one', filter: { startTs: 1 } })
+    assert.deepEqual(
+      weekday.type === 'result' ? weekday.payload.result : null,
+      Array.from({ length: 7 }, (_, index) => ({ weekday: index + 1, messageCount: index === 1 ? 2 : 0 }))
+    )
+    assert.deepEqual(sessions.weekdayCalls[0], { id: 'session-one', filter: { endTs: 2 } })
+    assert.deepEqual(timeRange.type === 'result' ? timeRange.payload.result : null, { start: 1, end: 2 })
+    assert.deepEqual(sessions.timeRangeCalls, ['session-one'])
+    assert.deepEqual(availableYears.type === 'result' ? availableYears.payload.result : null, [2024])
+    assert.deepEqual(sessions.availableYearsCalls, ['session-one'])
     assert.deepEqual(members.type === 'result' ? members.payload.result : null, [
       {
         memberId: 1,

@@ -34,9 +34,9 @@ export function resolveOverviewTimeRange(
   return { start, end }
 }
 
-export function getOverviewDurationDays(timeRange: OverviewTimeRange | null): number {
+export function getOverviewDurationDays(timeRange: OverviewTimeRange | null, minimumObservedDays = 0): number {
   if (!timeRange || timeRange.end < timeRange.start) return 0
-  return Math.max(Math.ceil((timeRange.end - timeRange.start) / SECONDS_PER_DAY), 1)
+  return Math.max(Math.ceil((timeRange.end - timeRange.start) / SECONDS_PER_DAY), minimumObservedDays, 1)
 }
 
 export function getOverviewCalendarRange(timeRange: OverviewTimeRange | null): [string, string] | null {

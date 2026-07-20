@@ -1,6 +1,6 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
-import { useColorMode } from '@vueuse/core'
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { useColorMode, useMediaQuery } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -10,6 +10,7 @@ import { initPreferencesSync } from '@/composables/usePreferencesSync'
 import { useBrowserRuntimeService } from '@/services/browser-runtime/service'
 import { initServices } from '@/services/registry'
 import { reportError } from '@/services/log-report'
+import { useLayoutStore } from '@/stores/layout'
 import { useSessionStore } from '@/stores/session'
 import { useSettingsStore } from '@/stores/settings'
 import { PLATFORM_CAPABILITIES } from '@/utils/platform-capabilities'
@@ -25,10 +26,21 @@ const { t } = useI18n()
 const route = useRoute()
 const sessionStore = useSessionStore()
 const settingsStore = useSettingsStore()
+const layoutStore = useLayoutStore()
 const { isInitialized, sessions } = storeToRefs(sessionStore)
 const initError = ref<string | null>(null)
 const pageTransitionKey = computed(() => route.fullPath)
 const shouldShowSidebar = computed(() => route.path !== '/' || sessions.value.length > 0)
+const isNarrowViewport = useMediaQuery('(max-width: 767px)')
+
+watch(
+  isNarrowViewport,
+  (isNarrow) => {
+    // Web WASM 的移动端保留会话导航入口，但默认折叠，避免侧栏挤占详情内容。
+    if (isNarrow) layoutStore.isSidebarCollapsed = true
+  },
+  { immediate: true }
+)
 
 useColorMode({
   emitAuto: true,

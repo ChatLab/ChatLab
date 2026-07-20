@@ -1,13 +1,19 @@
 import {
   CHAT_DB_INDEXES,
   CHAT_DB_TABLES,
+  getAvailableYears as queryAvailableYears,
+  getDailyActivity as queryDailyActivity,
   getHourlyActivity as queryHourlyActivity,
   getMemberActivity as queryMemberActivity,
   getMessageTypeStats as queryMessageTypeStats,
+  getTimeRange as queryTimeRange,
+  getWeekdayActivity as queryWeekdayActivity,
   writeParseResultToDb,
+  type DailyActivity,
   type HourlyActivity,
   type MemberActivity,
   type MessageTypeStats,
+  type WeekdayActivity,
 } from '@openchatlab/core'
 import { WebRuntimeError } from '../runtime-error'
 import type { WorkspaceDatabasePort, WorkspaceDatabaseStage } from '../storage/workspace-database'
@@ -246,6 +252,42 @@ export class BrowserSessionRuntime {
     return this.database.withDatabase(sessionDatabaseFilename(id), CHAT_DB_TABLES, (db) =>
       queryHourlyActivity(db, filter)
     )
+  }
+
+  async getDailyActivity(id: string, filter?: BrowserTimeFilter): Promise<DailyActivity[]> {
+    validateSessionId(id)
+    const session = await this.catalog.get(id)
+    if (!session) throw new WebRuntimeError('SESSION_NOT_FOUND', `Session ${id} was not found`)
+
+    return this.database.withDatabase(sessionDatabaseFilename(id), CHAT_DB_TABLES, (db) =>
+      queryDailyActivity(db, filter)
+    )
+  }
+
+  async getWeekdayActivity(id: string, filter?: BrowserTimeFilter): Promise<WeekdayActivity[]> {
+    validateSessionId(id)
+    const session = await this.catalog.get(id)
+    if (!session) throw new WebRuntimeError('SESSION_NOT_FOUND', `Session ${id} was not found`)
+
+    return this.database.withDatabase(sessionDatabaseFilename(id), CHAT_DB_TABLES, (db) =>
+      queryWeekdayActivity(db, filter)
+    )
+  }
+
+  async getTimeRange(id: string): Promise<{ start: number; end: number } | null> {
+    validateSessionId(id)
+    const session = await this.catalog.get(id)
+    if (!session) throw new WebRuntimeError('SESSION_NOT_FOUND', `Session ${id} was not found`)
+
+    return this.database.withDatabase(sessionDatabaseFilename(id), CHAT_DB_TABLES, (db) => queryTimeRange(db))
+  }
+
+  async getAvailableYears(id: string): Promise<number[]> {
+    validateSessionId(id)
+    const session = await this.catalog.get(id)
+    if (!session) throw new WebRuntimeError('SESSION_NOT_FOUND', `Session ${id} was not found`)
+
+    return this.database.withDatabase(sessionDatabaseFilename(id), CHAT_DB_TABLES, (db) => queryAvailableYears(db))
   }
 
   async getMemberActivity(id: string, filter?: BrowserTimeFilter): Promise<MemberActivity[]> {

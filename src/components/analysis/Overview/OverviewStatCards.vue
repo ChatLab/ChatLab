@@ -99,7 +99,7 @@ const flatItems = computed<FlatStatItem[]>(() => [
 
 <template>
   <!-- flat 模式：嵌入父级 ThemeCard 内的紧凑子卡片 -->
-  <div v-if="flat" class="relative z-10 px-6 pb-6 pt-2 sm:px-8">
+  <div v-if="flat" class="relative z-10 px-5 pb-5 pt-2 sm:px-8 sm:pb-6">
     <div class="mb-3 flex items-center justify-between">
       <span class="text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-gray-500">Key Metrics</span>
     </div>

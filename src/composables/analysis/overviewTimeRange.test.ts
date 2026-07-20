@@ -25,6 +25,13 @@ describe('overviewTimeRange', () => {
     assert.equal(getOverviewDurationDays({ start: 1000, end: 1000 }), 1)
   })
 
+  it('never reports fewer duration days than observed active calendar days', () => {
+    const start = Date.UTC(2026, 6, 18, 16, 0, 0) / 1000
+    const end = Date.UTC(2026, 6, 19, 16, 0, 0) / 1000
+
+    assert.equal(getOverviewDurationDays({ start, end }, 2), 2)
+  })
+
   it('returns 0 for empty or invalid ranges', () => {
     assert.equal(getOverviewDurationDays(null), 0)
     assert.equal(getOverviewDurationDays({ start: 2, end: 1 }), 0)
