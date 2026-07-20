@@ -6,7 +6,21 @@ import type {
   WebRuntimeTaskResult,
   WebRuntimeTaskType,
 } from '@openchatlab/web-runtime'
+import { abortAnalyticsRequests } from '../utils/http'
 import { createBrowserDataAdapter } from './browser'
+
+interface Deferred<T> {
+  promise: Promise<T>
+  resolve: (value: T) => void
+}
+
+function createDeferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void
+  const promise = new Promise<T>((resolvePromise) => {
+    resolve = resolvePromise
+  })
+  return { promise, resolve }
+}
 
 describe('BrowserDataAdapter', () => {
   it('maps catalog sessions and forwards session mutations through RPC', async () => {
@@ -230,6 +244,48 @@ describe('BrowserDataAdapter', () => {
         'analysis.wordFrequency',
       ]
     )
+  })
+
+  it('ignores stale Worker analysis results after the analytics epoch changes', async () => {
+    const loads = [createDeferred<unknown>(), createDeferred<unknown>()]
+    const requestOptions: Array<RpcRequestOptions | undefined> = []
+    let loadIndex = 0
+    const rpc = {
+      request<T extends WebRuntimeTaskType>(
+        type: T,
+        _payload: WebRuntimeTaskPayload<T>,
+        options?: RpcRequestOptions
+      ): Promise<WebRuntimeTaskResult<T>> {
+        assert.equal(type, 'analysis.hourly')
+        requestOptions.push(options)
+        return loads[loadIndex++]!.promise as Promise<WebRuntimeTaskResult<T>>
+      },
+      dispose: () => undefined,
+    }
+    const adapter = createBrowserDataAdapter(rpc)
+
+    let staleSettled = false
+    void adapter.getHourlyActivity('session-one', { startTs: 1 }).then(
+      () => {
+        staleSettled = true
+      },
+      () => {
+        staleSettled = true
+      }
+    )
+
+    abortAnalyticsRequests()
+    const latest = adapter.getHourlyActivity('session-one', { startTs: 2 })
+
+    assert.equal(requestOptions[0]?.signal?.aborted, true)
+    assert.equal(requestOptions[1]?.signal?.aborted, false)
+
+    loads[0]!.resolve([{ hour: 1, messageCount: 1 }])
+    await new Promise<void>((resolve) => setImmediate(resolve))
+    assert.equal(staleSettled, false)
+
+    loads[1]!.resolve([{ hour: 2, messageCount: 2 }])
+    assert.deepEqual(await latest, [{ hour: 2, messageCount: 2 }])
   })
 
   it('rejects unsupported DataAdapter capabilities instead of returning fake data', async () => {

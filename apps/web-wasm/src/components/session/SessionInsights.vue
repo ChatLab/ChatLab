@@ -74,12 +74,14 @@ const viewTimeFilter = computed(() => ({ ...props.timeFilter, memberId: selected
         />
         <TypeAnalysisView
           v-else-if="activeSubTab === 'type-analysis'"
+          :key="selectedMemberId ?? 'all'"
           :session-id="props.sessionId"
           :session-name="props.sessionName"
           :time-filter="viewTimeFilter"
         />
         <TimeAnalysisView
           v-else-if="activeSubTab === 'time-analysis'"
+          :key="selectedMemberId ?? 'all'"
           :session-id="props.sessionId"
           :session-name="props.sessionName"
           :time-filter="viewTimeFilter"
@@ -100,6 +102,7 @@ const viewTimeFilter = computed(() => ({ ...props.timeFilter, memberId: selected
         />
         <GroupRelationshipInsights
           v-else-if="activeSubTab === 'group-relationships'"
+          :key="selectedMemberId ?? 'all'"
           :session-id="props.sessionId"
           :time-filter="viewTimeFilter"
         />

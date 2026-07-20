@@ -6,6 +6,7 @@ import ClusterView from '@/components/analysis/relationships/ClusterView.vue'
 import InteractionView from '@/components/analysis/relationships/InteractionView.vue'
 import MentionRankingView from '@/components/analysis/relationships/MentionRankingView.vue'
 import type { TimeFilter } from '@openchatlab/shared-types'
+import { getProximityTimeFilter } from './group-relationship-filter'
 
 const props = defineProps<{
   sessionId: string
@@ -14,6 +15,7 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const activeSubTab = ref('mention-graph')
+const proximityTimeFilter = computed(() => getProximityTimeFilter(props.timeFilter))
 const subTabs = computed(() => [
   {
     id: 'mention-graph',
@@ -52,7 +54,7 @@ const subTabs = computed(() => [
         <ClusterView
           v-else-if="activeSubTab === 'proximity'"
           :session-id="props.sessionId"
-          :time-filter="props.timeFilter"
+          :time-filter="proximityTimeFilter"
         />
       </Transition>
     </div>

@@ -120,7 +120,7 @@ export function abortAnalyticsRequests(): void {
 }
 
 function isAbortError(err: unknown): boolean {
-  return err instanceof DOMException && err.name === 'AbortError'
+  return err instanceof Error && err.name === 'AbortError'
 }
 
 // 已作废的请求永不 settle：避免旧数据覆盖新数据，也避免在调用方触发无意义的错误处理与空态闪烁。
@@ -128,20 +128,30 @@ function neverSettle<T>(): Promise<T> {
   return new Promise<T>(() => {})
 }
 
+/**
+ * Bind an analysis request to the current epoch.
+ *
+ * Besides aborting queued work, the identity check also discards a result when
+ * the underlying runtime cannot interrupt a task that has already started.
+ */
+export function withAnalyticsRequestEpoch<T>(request: (signal: AbortSignal) => Promise<T>): Promise<T> {
+  const controller = _analyticsController
+  return request(controller.signal)
+    .then((result) => (controller === _analyticsController ? result : neverSettle<T>()))
+    .catch((err) => {
+      if (controller !== _analyticsController || isAbortError(err)) return neverSettle<T>()
+      throw err
+    })
+}
+
 /** 绑定当前 epoch 的 GET：被 abortAnalyticsRequests() 取消时静默作废。 */
 export function analyticsGet<T>(path: string): Promise<T> {
-  return get<T>(path, _analyticsController.signal).catch((err) => {
-    if (isAbortError(err)) return neverSettle<T>()
-    throw err
-  })
+  return withAnalyticsRequestEpoch((signal) => get<T>(path, signal))
 }
 
 /** 绑定当前 epoch 的 POST：被 abortAnalyticsRequests() 取消时静默作废。 */
 export function analyticsPost<T>(path: string, body?: unknown): Promise<T> {
-  return post<T>(path, body, _analyticsController.signal).catch((err) => {
-    if (isAbortError(err)) return neverSettle<T>()
-    throw err
-  })
+  return withAnalyticsRequestEpoch((signal) => post<T>(path, body, signal))
 }
 
 export async function del<T = boolean>(path: string): Promise<T> {

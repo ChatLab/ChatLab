@@ -1,4 +1,10 @@
-import { sessionDatabaseFilename, type BrowserSessionCatalogItem } from '@openchatlab/web-runtime'
+import {
+  sessionDatabaseFilename,
+  type BrowserSessionCatalogItem,
+  type WebRuntimeTaskPayload,
+  type WebRuntimeTaskResult,
+  type WebRuntimeTaskType,
+} from '@openchatlab/web-runtime'
 import type { AnalysisSession, MessageType } from '@/types/base'
 import type {
   ClusterGraphData,
@@ -16,6 +22,7 @@ import type { LanguagePreferenceResult } from '@/types/quotes/languagePreference
 import type { MemberMonthlyTrend, WordFrequencyParams, WordFrequencyResult } from '@openchatlab/core'
 import type { TimeFilter } from '@openchatlab/shared-types'
 import type { BrowserRuntimeRpcPort } from '../browser-runtime/types'
+import { withAnalyticsRequestEpoch } from '../utils/http'
 import type { DataAdapter } from './types'
 
 type BrowserSessionDataAdapter = Pick<
@@ -50,6 +57,13 @@ type BrowserSessionDataAdapter = Pick<
 export class BrowserDataAdapter implements BrowserSessionDataAdapter {
   constructor(private readonly rpc: BrowserRuntimeRpcPort) {}
 
+  private requestAnalysis<T extends WebRuntimeTaskType>(
+    type: T,
+    payload: WebRuntimeTaskPayload<T>
+  ): Promise<WebRuntimeTaskResult<T>> {
+    return withAnalyticsRequestEpoch((signal) => this.rpc.request(type, payload, { signal }))
+  }
+
   async getSessions(): Promise<AnalysisSession[]> {
     return (await this.rpc.request('session.list', undefined)).map(mapSession)
   }
@@ -68,15 +82,15 @@ export class BrowserDataAdapter implements BrowserSessionDataAdapter {
   }
 
   getHourlyActivity(sessionId: string, filter?: TimeFilter): Promise<HourlyActivity[]> {
-    return this.rpc.request('analysis.hourly', { sessionId, filter })
+    return this.requestAnalysis('analysis.hourly', { sessionId, filter })
   }
 
   getDailyActivity(sessionId: string, filter?: TimeFilter): Promise<DailyActivity[]> {
-    return this.rpc.request('analysis.daily', { sessionId, filter })
+    return this.requestAnalysis('analysis.daily', { sessionId, filter })
   }
 
   getWeekdayActivity(sessionId: string, filter?: TimeFilter): Promise<WeekdayActivity[]> {
-    return this.rpc.request('analysis.weekday', { sessionId, filter })
+    return this.requestAnalysis('analysis.weekday', { sessionId, filter })
   }
 
   getTimeRange(sessionId: string): Promise<{ start: number; end: number } | null> {
@@ -88,45 +102,45 @@ export class BrowserDataAdapter implements BrowserSessionDataAdapter {
   }
 
   getMemberActivity(sessionId: string, filter?: TimeFilter): Promise<MemberActivity[]> {
-    return this.rpc.request('analysis.members', { sessionId, filter })
+    return this.requestAnalysis('analysis.members', { sessionId, filter })
   }
 
   async getMessageTypeDistribution(
     sessionId: string,
     filter?: TimeFilter
   ): Promise<Array<{ type: MessageType; count: number }>> {
-    return (await this.rpc.request('analysis.messageTypes', { sessionId, filter })).map((item) => ({
+    return (await this.requestAnalysis('analysis.messageTypes', { sessionId, filter })).map((item) => ({
       type: item.type as MessageType,
       count: item.count,
     }))
   }
 
   getMessageLengthDistribution(sessionId: string, filter?: TimeFilter) {
-    return this.rpc.request('analysis.messageLengths', { sessionId, filter })
+    return this.requestAnalysis('analysis.messageLengths', { sessionId, filter })
   }
 
   getTextStats(sessionId: string, filter?: TimeFilter) {
-    return this.rpc.request('analysis.textStats', { sessionId, filter })
+    return this.requestAnalysis('analysis.textStats', { sessionId, filter })
   }
 
   getLongMessageCount(sessionId: string, filter?: TimeFilter, minLength?: number) {
-    return this.rpc.request('analysis.longMessages', { sessionId, filter, minLength })
+    return this.requestAnalysis('analysis.longMessages', { sessionId, filter, minLength })
   }
 
   getTextLengthPercentiles(sessionId: string, filter?: TimeFilter) {
-    return this.rpc.request('analysis.textPercentiles', { sessionId, filter })
+    return this.requestAnalysis('analysis.textPercentiles', { sessionId, filter })
   }
 
   getMonthlyActivity(sessionId: string, filter?: TimeFilter): Promise<MonthlyActivity[]> {
-    return this.rpc.request('analysis.monthly', { sessionId, filter })
+    return this.requestAnalysis('analysis.monthly', { sessionId, filter })
   }
 
   getYearlyActivity(sessionId: string, filter?: TimeFilter): Promise<Array<{ year: number; messageCount: number }>> {
-    return this.rpc.request('analysis.yearly', { sessionId, filter })
+    return this.requestAnalysis('analysis.yearly', { sessionId, filter })
   }
 
   getMemberMonthlyTrend(sessionId: string, filter?: TimeFilter): Promise<MemberMonthlyTrend[]> {
-    return this.rpc.request('analysis.memberMonthlyTrend', { sessionId, filter })
+    return this.requestAnalysis('analysis.memberMonthlyTrend', { sessionId, filter })
   }
 
   getMembers(sessionId: string): Promise<MemberWithStats[]> {
@@ -134,15 +148,15 @@ export class BrowserDataAdapter implements BrowserSessionDataAdapter {
   }
 
   getMentionAnalysis(sessionId: string, filter?: TimeFilter): Promise<MentionAnalysis> {
-    return this.rpc.request('analysis.mentions', { sessionId, filter })
+    return this.requestAnalysis('analysis.mentions', { sessionId, filter })
   }
 
   getMentionGraph(sessionId: string, filter?: TimeFilter) {
-    return this.rpc.request('analysis.mentionGraph', { sessionId, filter })
+    return this.requestAnalysis('analysis.mentionGraph', { sessionId, filter })
   }
 
   getClusterGraph(sessionId: string, filter?: TimeFilter, options?: ClusterGraphOptions): Promise<ClusterGraphData> {
-    return this.rpc.request('analysis.clusterGraph', { sessionId, filter, options })
+    return this.requestAnalysis('analysis.clusterGraph', { sessionId, filter, options })
   }
 
   getRelationshipStats(
@@ -150,7 +164,7 @@ export class BrowserDataAdapter implements BrowserSessionDataAdapter {
     filter?: TimeFilter,
     options?: { perseveranceThreshold?: number }
   ): Promise<RelationshipStats> {
-    return this.rpc.request('analysis.relationship', { sessionId, filter, options })
+    return this.requestAnalysis('analysis.relationship', { sessionId, filter, options })
   }
 
   async getLanguagePreferenceAnalysis(
@@ -158,7 +172,7 @@ export class BrowserDataAdapter implements BrowserSessionDataAdapter {
     locale: string,
     filter?: TimeFilter
   ): Promise<LanguagePreferenceResult> {
-    return (await this.rpc.request('analysis.languagePreference', {
+    return (await this.requestAnalysis('analysis.languagePreference', {
       sessionId,
       locale,
       filter,
@@ -166,7 +180,7 @@ export class BrowserDataAdapter implements BrowserSessionDataAdapter {
   }
 
   getWordFrequency(sessionId: string, params: Omit<WordFrequencyParams, 'sessionId'>): Promise<WordFrequencyResult> {
-    return this.rpc.request('analysis.wordFrequency', { sessionId, params })
+    return this.requestAnalysis('analysis.wordFrequency', { sessionId, params })
   }
 }
 
