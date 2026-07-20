@@ -1,13 +1,13 @@
 /**
- * Web 版 Vite 构建配置
+ * CLI Web Vite 构建配置
  *
  * 用于构建 CLI Web 的 SPA 前端（不含 Electron 依赖）。
- * 输出到 dist-web/，由 chatlab start 托管。
+ * 输出到 dist-cli-web/，由 chatlab start 托管。
  *
  * 与 Electron renderer 构建的关键区别：
  * - __IS_ELECTRON__ = false（使用 FetchAdapter 而非 window.chatApi）
  * - 不包含 apps/desktop/preload 和 apps/desktop/main
- * - 输出目录独立（dist-web/ vs out/renderer/）
+ * - 输出目录独立（dist-cli-web/ vs out/renderer/）
  */
 
 import { resolve } from 'path'
@@ -54,7 +54,7 @@ async function isChatlabBackendResponsive(port: number, timeoutMs = 800): Promis
 
 /**
  * 自动启动 chatlab start 后端的插件
- * 仅在 CHATLAB_AUTO_SERVE=1 时生效（由 dev:web 脚本设置）
+ * 仅在 CHATLAB_AUTO_SERVE=1 时生效（由 dev:cli-web 脚本设置）
  */
 function chatlabServePlugin(): Plugin {
   let serverProcess: ChildProcess | null = null
@@ -106,7 +106,7 @@ function chatlabServePlugin(): Plugin {
           return
         }
         throw new Error(
-          `[chatlab start] Port ${BACKEND_PORT} is in use, but ChatLab API did not respond. Stop the stale process and restart dev:web.`
+          `[chatlab start] Port ${BACKEND_PORT} is in use, but ChatLab API did not respond. Stop the stale process and restart dev:cli-web.`
         )
       }
 
@@ -155,7 +155,7 @@ export default defineConfig({
   },
   define: {
     __IS_ELECTRON__: JSON.stringify(false),
-    __IS_BROWSER_STANDALONE__: JSON.stringify(false),
+    __IS_WEB_WASM__: JSON.stringify(false),
     __APP_VERSION__: JSON.stringify(JSON.parse(readFileSync(resolve(__dirname, 'package.json'), 'utf-8')).version),
   },
   plugins: [
@@ -172,7 +172,7 @@ export default defineConfig({
     chatlabServePlugin(),
   ],
   build: {
-    outDir: resolve(__dirname, 'dist-web'),
+    outDir: resolve(__dirname, 'dist-cli-web'),
     emptyOutDir: true,
     sourcemap: false,
     rollupOptions: {
@@ -191,10 +191,11 @@ export default defineConfig({
     },
   },
   server: {
+    host: '127.0.0.1',
     port: 3100,
     proxy: {
-      '/_web': `http://localhost:${BACKEND_PORT}`,
-      '/api': `http://localhost:${BACKEND_PORT}`,
+      '/_web': `http://127.0.0.1:${BACKEND_PORT}`,
+      '/api': `http://127.0.0.1:${BACKEND_PORT}`,
       '/_proxy/chatlab.fun': {
         target: 'https://chatlab.fun',
         changeOrigin: true,

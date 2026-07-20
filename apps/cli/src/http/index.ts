@@ -46,7 +46,7 @@ export interface HttpServerOptions {
   port?: number
   host?: string
   token?: string
-  /** dist-web/ 目录路径，启用后托管 Web SPA 静态资源 */
+  /** dist-cli-web/ 目录路径，启用后托管 CLI Web SPA 静态资源 */
   webRoot?: string
   /** When true, /_web/* also requires Bearer token (for server/headless deployments) */
   requireAuth?: boolean
@@ -202,7 +202,7 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
 
   if (options?.webRoot && fs.existsSync(options.webRoot)) {
     // 注册反向代理：将 /_proxy/chatlab.fun/* 转发至 https://chatlab.fun，
-    // 行为与 vite dev proxy 一致，解决浏览器 CORS 问题（见 vite.web.config.mts:138-144）。
+    // 行为与 vite dev proxy 一致，解决浏览器 CORS 问题（见 vite.cli-web.config.mts）。
     // 必须在 @fastify/static 之前注册，确保显式路由优先于静态文件/SPA fallback。
     registerProxyRoutes(server)
     const fastifyStatic = await import('@fastify/static')

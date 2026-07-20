@@ -140,11 +140,11 @@ program
 
     let webRoot: string | undefined
     if (!options.headless) {
-      const webDir = resolveCliPath('dist-web')
+      const webDir = resolveCliPath('dist-cli-web')
       if (fs.existsSync(webDir)) {
         webRoot = webDir
       } else {
-        console.warn('Warning: dist-web/ not found, starting in API-only mode')
+        console.warn('Warning: dist-cli-web/ not found, starting in API-only mode')
       }
     }
 

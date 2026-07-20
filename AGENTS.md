@@ -50,6 +50,7 @@
 
 ## 代码规范
 
+- 平台术语：内部交流、开发菜单和平台级代码统一使用 `CLI Web`（Node 后端 + Web UI）与 `Web WASM`（纯浏览器运行）。只说 `Web` 且上下文无法区分时，默认指 `Web WASM`。浏览器 Worker、OPFS 和浏览器 adapter 等技术能力使用 `Browser Runtime` 命名，它不是独立平台。详细边界见 `.docs/rules/platform-naming.md`。
 - 多语言：代码中的日志、注释、AI 工具描述、错误消息等非 UI 文本默认使用英文。当有运行时 locale 可用时（如工具返回结果、AI 看到的文本），应通过 `isChineseLocale(locale)` 等机制支持中英双语。数据清洗中与聊天平台格式匹配的标签（如 `[分享]`、`[图片]`）保持原始语言不变。UI 文案的国际化遵循 `.docs/rules/i18n.md`
 - i18n 复用性：新增 UI 文案 key 前，先判断是否是通用动作、状态、提示或组件文案；能复用的优先放在 `common.*` 等共享命名空间，避免在具体业务模块（如 `members.*`、`records.*`）重复定义同义 key。只有明确绑定业务语境、无法自然复用的文案才放到模块命名空间。
 

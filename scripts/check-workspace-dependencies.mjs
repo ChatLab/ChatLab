@@ -8,7 +8,17 @@ import ts from 'typescript'
 
 const repoRoot = path.resolve(import.meta.dirname, '..')
 const sourceExtensions = new Set(['.cjs', '.cts', '.js', '.jsx', '.mjs', '.mts', '.ts', '.tsx', '.vue'])
-const ignoredDirectories = new Set(['.docs', '.git', 'coverage', 'dist', 'dist-web', 'node_modules', 'out', 'target'])
+const ignoredDirectories = new Set([
+  '.docs',
+  '.git',
+  'coverage',
+  'dist',
+  'dist-cli-web',
+  'dist-web-wasm',
+  'node_modules',
+  'out',
+  'target',
+])
 const ignoredPaths = new Set([
   path.join(repoRoot, 'apps', 'desktop', 'native'),
   path.join(repoRoot, 'docs', '.vitepress', 'cache'),

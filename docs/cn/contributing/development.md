@@ -28,18 +28,28 @@ pnpm install
 
 | 命令 | 用途 |
 | --- | --- |
-| `pnpm dev` | 交互式选择开发目标 |
+| `pnpm dev` | 交互式选择 Desktop、CLI Web、CLI Web 的 API Server、Web WASM 或文档站开发目标 |
 | `pnpm dev:desktop` | 启动 Electron 桌面端开发模式 |
-| `pnpm dev:web` | 启动 CLI Web UI 开发模式 |
+| `pnpm dev:cli-web` | 启动 CLI Web（Node 后端 + Web UI）开发模式，默认访问 `http://127.0.0.1:3100/` |
+| `pnpm dev:web-wasm` | 启动 Web WASM（纯浏览器运行），默认访问 `http://127.0.0.1:3130/` |
 | `pnpm docs:dev` | 启动公开文档站开发模式 |
 | `pnpm build:desktop` | 构建桌面端 |
-| `pnpm build:web` | 构建 Web UI |
+| `pnpm build:cli-web` | 构建 CLI Web UI |
+| `pnpm build:web-wasm` | 构建 Web WASM |
 | `pnpm docs:build` | 构建公开文档站 |
 | `pnpm run type-check:all` | 运行前端和 Node 侧类型检查 |
 | `pnpm lint` | 运行 ESLint 并自动修复 |
 | `pnpm format` | 运行 Prettier 格式化 |
 
 小范围改动优先对修改文件或相关子项目做定向检查；跨模块、发布或架构类改动再跑全量检查。
+
+## 平台术语
+
+- **CLI Web**：由 `chatlab start` 运行，包含 Node.js 后端和 Web UI。
+- **Web WASM**：无 Node.js 后端，解析、存储和查询均在浏览器内运行。
+- “Web”是两者的上位概念。上下文无法区分时，默认指 **Web WASM**。
+- “后端”或“API Server”只指 Node.js 进程，不等于完整的 CLI Web。
+- **Browser Runtime** 只表示 Worker、OPFS、SQLite WASM 和浏览器 adapter 等技术能力，不是另一个平台名称。
 
 ## 目录职责
 
@@ -58,7 +68,7 @@ pnpm install
 
 ## 架构边界
 
-ChatLab 同时维护 Electron 桌面端和 CLI Web 端。涉及共享业务逻辑时，优先把逻辑放到 `packages/node-runtime/src/services/` 或 `packages/core/`，入口层只做薄适配。
+ChatLab 同时维护 Electron 桌面端、CLI Web 和 Web WASM。涉及共享业务逻辑时，优先把逻辑放到 `packages/node-runtime/src/services/` 或 `packages/core/`，入口层只做薄适配。
 
 - 不要在 Electron IPC handler 或 CLI HTTP route 中重复实现复杂业务流程。
 - 不要在入口层绕过 `packages/core/` 直接写成员合并、删除、别名更新等核心 SQL 写操作。

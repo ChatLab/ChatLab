@@ -1,5 +1,5 @@
 /**
- * Merge routes — shared across CLI, Electron, and web-serve.
+ * Merge routes — shared across CLI, Electron, and CLI Web.
  *
  * Parse supports dual-mode:
  *   - multipart/form-data → file upload (web/CLI)

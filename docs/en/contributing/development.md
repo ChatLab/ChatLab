@@ -28,18 +28,28 @@ pnpm install
 
 | Command | Purpose |
 | --- | --- |
-| `pnpm dev` | Select a development target interactively |
+| `pnpm dev` | Select Desktop, CLI Web, Web WASM, API Server, or docs interactively |
 | `pnpm dev:desktop` | Start the Electron desktop app in development mode |
-| `pnpm dev:web` | Start the CLI Web UI in development mode |
+| `pnpm dev:cli-web` | Start CLI Web (Node backend + Web UI) in development mode at `http://127.0.0.1:3100/` by default |
+| `pnpm dev:web-wasm` | Start Web WASM (browser-only runtime) at `http://127.0.0.1:3130/` by default |
 | `pnpm docs:dev` | Start the public docs site locally |
 | `pnpm build:desktop` | Build the desktop app |
-| `pnpm build:web` | Build the Web UI |
+| `pnpm build:cli-web` | Build the CLI Web UI |
+| `pnpm build:web-wasm` | Build Web WASM |
 | `pnpm docs:build` | Build the public docs site |
 | `pnpm run type-check:all` | Run both web and Node type checks |
 | `pnpm lint` | Run ESLint with auto-fix |
 | `pnpm format` | Run Prettier formatting |
 
 For small changes, prefer targeted checks for the files or package you changed. For cross-module, release, or architecture changes, run the broader checks.
+
+## Platform Terminology
+
+- **CLI Web** runs through `chatlab start` and includes a Node.js backend plus the Web UI.
+- **Web WASM** has no Node.js backend; parsing, storage, and queries run in the browser.
+- "Web" is the umbrella term. When context cannot distinguish the platform, it defaults to **Web WASM**.
+- "Backend" and "API Server" refer only to the Node.js process, not the complete CLI Web platform.
+- **Browser Runtime** refers only to technical capabilities such as Workers, OPFS, SQLite WASM, and browser adapters; it is not another platform name.
 
 ## Repository Structure
 
@@ -58,7 +68,7 @@ For small changes, prefer targeted checks for the files or package you changed. 
 
 ## Architecture Boundaries
 
-ChatLab maintains both an Electron desktop app and a CLI Web app. When changing shared business behavior, put the logic in `packages/node-runtime/src/services/` or `packages/core/` first, and keep entry points thin.
+ChatLab maintains the Electron desktop app, CLI Web, and Web WASM. When changing shared business behavior, put the logic in `packages/node-runtime/src/services/` or `packages/core/` first, and keep entry points thin.
 
 - Do not duplicate complex business flows inside Electron IPC handlers or CLI HTTP routes.
 - Do not bypass `packages/core/` in entry points to write core SQL operations such as member merge, delete, or alias updates.

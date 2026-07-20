@@ -363,7 +363,7 @@ jobs:
           name: ChatLab-cli-build
           path: |
             apps/cli/dist
-            apps/cli/dist-web
+            apps/cli/dist-cli-web
           if-no-files-found: error
           retention-days: 1
 
