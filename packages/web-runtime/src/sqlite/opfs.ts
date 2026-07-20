@@ -36,8 +36,24 @@ export async function initializeOpfsSqlite(
     initialCapacity: 8,
     forceReinitIfPreviouslyFailed: true,
   }
-  const pool = await sqlite3.installOpfsSAHPoolVfs(poolOptions)
+  let pool: SAHPoolUtil
+  try {
+    pool = await sqlite3.installOpfsSAHPoolVfs(poolOptions)
+  } catch (error) {
+    throw normalizeOpfsPoolInitializationError(error)
+  }
   onStage?.('opfs-pool-ready')
 
   return { sqlite3, pool }
+}
+
+export function normalizeOpfsPoolInitializationError(error: unknown): unknown {
+  if (error instanceof Error && error.name === 'NoModificationAllowedError') {
+    return new WebRuntimeError(
+      'OPFS_WORKSPACE_BUSY',
+      'The Web WASM workspace is already open in another Web WASM tab. Close the other tab and retry.',
+      { cause: error }
+    )
+  }
+  return error
 }

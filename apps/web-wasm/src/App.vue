@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, ref } from 'vue'
+import { computed, onBeforeUnmount, onMounted, ref } from 'vue'
 import { useColorMode } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
@@ -13,6 +13,13 @@ import { reportError } from '@/services/log-report'
 import { useSessionStore } from '@/stores/session'
 import { useSettingsStore } from '@/stores/settings'
 import { PLATFORM_CAPABILITIES } from '@/utils/platform-capabilities'
+import {
+  WebWasmWorkspaceBusyError,
+  acquireWebWasmWorkspaceLease,
+  handleWebWasmWorkspacePageHide,
+  type WebWasmLockManager,
+  type WebWasmWorkspaceLease,
+} from './workspace-lock'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -35,6 +42,7 @@ const toaster = {
 }
 
 let initInProgress = false
+let workspaceLease: WebWasmWorkspaceLease | undefined
 
 async function initializeApp() {
   if (initInProgress || isInitialized.value) return
@@ -42,6 +50,7 @@ async function initializeApp() {
   initError.value = null
 
   try {
+    workspaceLease ??= await acquireWebWasmWorkspaceLease(navigator.locks as WebWasmLockManager | undefined)
     await initializeAppRuntime({
       capabilities: PLATFORM_CAPABILITIES,
       initializeServices: () => initServices(),
@@ -52,14 +61,35 @@ async function initializeApp() {
     })
   } catch (error) {
     console.error('Web WASM application initialization failed', error)
-    initError.value = error instanceof Error ? error.message : String(error)
+    initError.value =
+      error instanceof WebWasmWorkspaceBusyError
+        ? t('common.webWasmWorkspaceBusy')
+        : error instanceof Error
+          ? error.message
+          : String(error)
     reportError(initError.value, error instanceof Error ? error.stack : undefined)
   } finally {
     initInProgress = false
   }
 }
 
-onMounted(initializeApp)
+function releaseWorkspaceLease() {
+  workspaceLease?.release()
+  workspaceLease = undefined
+}
+
+function handlePageHide(event: PageTransitionEvent) {
+  workspaceLease = handleWebWasmWorkspacePageHide(event, workspaceLease)
+}
+
+onMounted(() => {
+  window.addEventListener('pagehide', handlePageHide)
+  void initializeApp()
+})
+onBeforeUnmount(() => {
+  window.removeEventListener('pagehide', handlePageHide)
+  releaseWorkspaceLease()
+})
 </script>
 
 <template>

@@ -11,6 +11,7 @@
   "done": "完了",
   "retry": "リトライ",
   "initFailed": "アプリの初期化に失敗しました",
+  "webWasmWorkspaceBusy": "Web WASM は別のタブで開かれています。もう一方の ChatLab Web WASM タブを閉じてから再試行してください。",
   "loading": "読み込み中...",
   "initializing": "初期化中...",
   "noResults": "結果が見つかりません",
