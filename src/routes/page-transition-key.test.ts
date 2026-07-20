@@ -29,3 +29,20 @@ test('keeps dynamic session id in page transition key', () => {
     '/private-chat/:id:session-a'
   )
 })
+
+test('keeps the same session page key when only time filter query changes', () => {
+  const baseRoute = {
+    matched: [{ path: '/private-chat/:id' }],
+    params: { id: 'session-a' },
+  }
+  const recentRoute = {
+    ...baseRoute,
+    query: { timeMode: 'recent', timeDays: '365' },
+  }
+  const yearRoute = {
+    ...baseRoute,
+    query: { timeMode: 'year', timeYear: '2026' },
+  }
+
+  assert.equal(resolvePageTransitionKey(recentRoute), resolvePageTransitionKey(yearRoute))
+})

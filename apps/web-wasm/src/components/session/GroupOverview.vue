@@ -57,22 +57,23 @@ const memberChartData = computed<EChartPieData>(() => {
       :filtered-message-count="filteredMessageCount"
       :filtered-member-count="filteredMemberCount"
       :time-filter="timeFilter"
+      :capturable="false"
     />
 
     <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <SectionCard :title="t('analysis.overview.messageTypeDistribution')" :show-divider="false">
+      <SectionCard :title="t('analysis.overview.messageTypeDistribution')" :capturable="false" :show-divider="false">
         <div class="p-3 sm:p-5">
           <EChartPie :data="typeChartData" :height="280" />
         </div>
       </SectionCard>
 
-      <SectionCard :title="t('analysis.overview.memberDistribution')" :show-divider="false">
+      <SectionCard :title="t('analysis.overview.memberDistribution')" :capturable="false" :show-divider="false">
         <div class="p-3 sm:p-5">
           <EChartPie :data="memberChartData" :height="280" />
         </div>
       </SectionCard>
     </div>
 
-    <DailyTrendCard :daily-activity="dailyActivity" :daily-chart-data="dailyChartData" />
+    <DailyTrendCard :daily-activity="dailyActivity" :daily-chart-data="dailyChartData" :capturable="false" />
   </div>
 </template>

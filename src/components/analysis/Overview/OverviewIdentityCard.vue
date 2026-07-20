@@ -2,18 +2,18 @@
 import { computed, ref, watch, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useDark } from '@vueuse/core'
-import { useDataService } from '@/services'
 import * as echarts from 'echarts/core'
 import { HeatmapChart, CustomChart } from 'echarts/charts'
 import { CalendarComponent, TooltipComponent, VisualMapComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import type { EChartsOption } from 'echarts'
 import type { AnalysisSession, MessageType } from '@/types/base'
-import type { DailyActivity, HourlyActivity, WeekdayActivity } from '@/types/analysis'
+import type { DailyActivity, HourlyActivity } from '@/types/analysis'
 import { formatDateRange } from '@/utils'
 import { ReportCard } from '@/components/UI'
 import { useOverviewStatistics } from '@/composables/analysis/useOverviewStatistics'
 import { getOverviewCalendarRange, resolveOverviewTimeRange } from '@/composables/analysis/overviewTimeRange'
+import { useWeekdayActivity } from '@/composables/analysis/useWeekdayActivity'
 import OverviewStatCards from './OverviewStatCards.vue'
 
 echarts.use([HeatmapChart, CustomChart, CalendarComponent, TooltipComponent, VisualMapComponent, CanvasRenderer])
@@ -21,35 +21,29 @@ echarts.use([HeatmapChart, CustomChart, CalendarComponent, TooltipComponent, Vis
 const { t, locale } = useI18n()
 const isDark = useDark()
 
-const props = defineProps<{
-  session: AnalysisSession
-  dailyActivity: DailyActivity[]
-  messageTypes: Array<{ type: MessageType; count: number }>
-  hourlyActivity: HourlyActivity[]
-  timeRange: { start: number; end: number } | null
-  filteredMessageCount: number
-  filteredMemberCount?: number
-  timeFilter?: { startTs?: number; endTs?: number }
-}>()
+const props = withDefaults(
+  defineProps<{
+    session: AnalysisSession
+    dailyActivity: DailyActivity[]
+    messageTypes: Array<{ type: MessageType; count: number }>
+    hourlyActivity: HourlyActivity[]
+    timeRange: { start: number; end: number } | null
+    filteredMessageCount: number
+    filteredMemberCount?: number
+    timeFilter?: { startTs?: number; endTs?: number }
+    capturable?: boolean
+  }>(),
+  {
+    capturable: true,
+  }
+)
 
 // ==================== 统计数据 ====================
 
-const weekdayActivity = ref<WeekdayActivity[]>([])
-
-async function loadWeekdayActivity() {
-  if (!props.session.id) return
-  try {
-    weekdayActivity.value = await useDataService().getWeekdayActivity(props.session.id, props.timeFilter)
-  } catch (error) {
-    console.error('加载星期活跃度失败:', error)
-  }
-}
-
-watch(
-  () => [props.session.id, props.timeFilter],
-  () => loadWeekdayActivity(),
-  { immediate: true, deep: true }
-)
+const { weekdayActivity } = useWeekdayActivity({
+  sessionId: () => props.session.id,
+  timeFilter: () => props.timeFilter,
+})
 
 const {
   durationDays,
@@ -272,7 +266,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <ReportCard>
+  <ReportCard :capturable="capturable">
     <!-- 身份信息 + 基础统计 -->
     <div class="relative z-10 px-5 pt-6 pb-4 sm:px-8 sm:pt-8">
       <h2 class="text-2xl font-bold tracking-tight text-gray-900 sm:text-3xl dark:text-gray-100">

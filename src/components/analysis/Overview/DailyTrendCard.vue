@@ -7,14 +7,25 @@ import type { DailyActivity } from '@/types/analysis'
 
 const { t } = useI18n()
 
-defineProps<{
-  dailyActivity: DailyActivity[]
-  dailyChartData: EChartLineData
-}>()
+withDefaults(
+  defineProps<{
+    dailyActivity: DailyActivity[]
+    dailyChartData: EChartLineData
+    capturable?: boolean
+  }>(),
+  {
+    capturable: true,
+  }
+)
 </script>
 
 <template>
-  <SectionCard v-if="dailyActivity.length > 0" :title="t('analysis.overview.dailyTrend.title')" :show-divider="false">
+  <SectionCard
+    v-if="dailyActivity.length > 0"
+    :title="t('analysis.overview.dailyTrend.title')"
+    :capturable="capturable"
+    :show-divider="false"
+  >
     <div class="p-3 sm:p-5">
       <EChartLine :data="dailyChartData" :height="288" />
     </div>

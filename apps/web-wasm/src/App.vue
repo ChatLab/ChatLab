@@ -7,6 +7,7 @@ import { useI18n } from 'vue-i18n'
 import Sidebar from '@/components/common/Sidebar.vue'
 import { initializeAppRuntime } from '@/bootstrap/app-initialization'
 import { initPreferencesSync } from '@/composables/usePreferencesSync'
+import { resolvePageTransitionKey } from '@/routes/page-transition-key'
 import { useBrowserRuntimeService } from '@/services/browser-runtime/service'
 import { initServices } from '@/services/registry'
 import { reportError } from '@/services/log-report'
@@ -29,7 +30,7 @@ const settingsStore = useSettingsStore()
 const layoutStore = useLayoutStore()
 const { isInitialized, sessions } = storeToRefs(sessionStore)
 const initError = ref<string | null>(null)
-const pageTransitionKey = computed(() => route.fullPath)
+const pageTransitionKey = computed(() => resolvePageTransitionKey(route))
 const shouldShowSidebar = computed(() => route.path !== '/' || sessions.value.length > 0)
 const isNarrowViewport = useMediaQuery('(max-width: 767px)')
 
