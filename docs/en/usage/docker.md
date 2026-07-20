@@ -51,7 +51,7 @@ Docker arguments replace the complete default command. Repeat `start`,
 
 ```bash
 docker run --rm \
-  -p 8080:8080 \
+  -p 127.0.0.1:8080:8080 \
   -v chatlab-data:/home/node/.chatlab \
   ghcr.io/chatlab/chatlab-cli:latest \
   start --port 8080 --host 0.0.0.0 --headless --no-open
@@ -111,7 +111,7 @@ services:
     image: ghcr.io/chatlab/chatlab-cli:latest
     restart: unless-stopped
     ports:
-      - "3110:3110"
+      - "127.0.0.1:3110:3110"
     volumes:
       - chatlab-data:/home/node/.chatlab
     command:
