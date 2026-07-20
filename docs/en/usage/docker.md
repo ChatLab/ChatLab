@@ -15,7 +15,7 @@ ghcr.io/chatlab/chatlab-cli
 
 ```bash
 docker run --name chatlab \
-  -p 3110:3110 \
+  -p 127.0.0.1:3110:3110 \
   -v chatlab-data:/data \
   ghcr.io/chatlab/chatlab-cli:latest
 ```
