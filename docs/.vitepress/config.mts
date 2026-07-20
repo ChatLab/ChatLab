@@ -7,6 +7,7 @@ const enSidebar: DefaultTheme.SidebarItem[] = [
     text: 'Usage',
     items: [
       { text: 'Quick Start', link: '/usage/quick-start' },
+      { text: 'Docker Deployment', link: '/usage/docker' },
       { text: 'Export Chat Records', link: '/usage/how-to-export' },
       { text: 'Import Chat Records', link: '/usage/how-to-import' },
       { text: 'Troubleshooting', link: '/usage/troubleshooting' },
@@ -41,6 +42,7 @@ const cnSidebar: DefaultTheme.SidebarItem[] = [
     text: '使用指南',
     items: [
       { text: '快速开始', link: '/cn/usage/quick-start' },
+      { text: 'Docker 部署', link: '/cn/usage/docker' },
       { text: '导出聊天记录', link: '/cn/usage/how-to-export' },
       { text: '导入聊天记录', link: '/cn/usage/how-to-import' },
       { text: '故障排查', link: '/cn/usage/troubleshooting' },
@@ -78,6 +80,7 @@ const twSidebar: DefaultTheme.SidebarItem[] = [
     text: '使用指南',
     items: [
       { text: '快速開始', link: '/tw/usage/quick-start' },
+      { text: 'Docker 部署', link: '/tw/usage/docker' },
       { text: '匯出聊天記錄', link: '/tw/usage/how-to-export' },
       { text: '匯入聊天記錄', link: '/tw/usage/how-to-import' },
       { text: '故障排除', link: '/tw/usage/troubleshooting' },
