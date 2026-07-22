@@ -7,8 +7,8 @@ import LabTab from '@/components/analysis/LabTab.vue'
 import MemoryTab from '@/components/analysis/MemoryTab.vue'
 import { DebugTab } from '@/components/DebugTab'
 import { ChatExplorer } from '@/components/AIChat'
-import OverviewTab from './components/OverviewTab.vue'
-import ViewTab from './components/ViewTab.vue'
+import GroupChatOverview from './components/insights/GroupChatOverview.vue'
+import GroupChatInsights from './components/insights/GroupChatInsights.vue'
 import RankingView from '@/components/analysis/ranking/RankingView.vue'
 import MemberList from '@/components/common/member/MemberList.vue'
 import NicknameHistoryEntry from './components/member/NicknameHistoryEntry.vue'
@@ -145,7 +145,7 @@ const filteredMemberCount = computed(() => {
 
         <div class="h-full">
           <Transition name="tab-slide" mode="out-in">
-            <OverviewTab
+            <GroupChatOverview
               v-if="activeTab === 'overview'"
               :key="'overview-' + currentSessionId"
               :session="session"
@@ -160,7 +160,7 @@ const filteredMemberCount = computed(() => {
               :filtered-member-count="filteredMemberCount"
               :time-filter="timeFilter"
             />
-            <ViewTab
+            <GroupChatInsights
               v-else-if="activeTab === 'view'"
               :key="'view-' + currentSessionId"
               :session-id="currentSessionId!"

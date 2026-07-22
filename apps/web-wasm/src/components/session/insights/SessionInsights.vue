@@ -8,7 +8,7 @@ import TypeAnalysisView from '@/components/analysis/message/TypeAnalysisView.vue
 import TimeAnalysisView from '@/components/analysis/message/TimeAnalysisView.vue'
 import { LanguagePreferenceTab, WordcloudTab } from '@/components/analysis/quotes'
 import type { TimeFilter } from '@openchatlab/shared-types'
-import GroupRelationshipInsights from './insights/GroupRelationshipInsights.vue'
+import GroupRelationshipInsights from './GroupRelationshipInsights.vue'
 
 const props = defineProps<{
   sessionId: string
