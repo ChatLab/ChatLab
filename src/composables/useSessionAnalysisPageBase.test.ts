@@ -67,8 +67,8 @@ test('only the latest analysis load may update results and loading state', async
       router,
       currentSessionId,
       selectSession: () => undefined,
-      defaultTab: 'overview',
-      validTabIds: ['overview'],
+      defaultTab: 'insights',
+      validTabIds: ['insights'],
     })
   )!
 

@@ -8,23 +8,34 @@ import TypeAnalysisView from '@/components/analysis/message/TypeAnalysisView.vue
 import TimeAnalysisView from '@/components/analysis/message/TimeAnalysisView.vue'
 import { LanguagePreferenceTab, WordcloudTab } from '@/components/analysis/quotes'
 import type { TimeFilter } from '@openchatlab/shared-types'
+import type { AnalysisSession, MessageType } from '@/types/base'
+import type { DailyActivity, HourlyActivity, MemberActivity } from '@/types/analysis'
 import GroupRelationshipInsights from './GroupRelationshipInsights.vue'
+import GroupOverview from './GroupOverview.vue'
+import PrivateOverview from './PrivateOverview.vue'
 
 const props = defineProps<{
   sessionId: string
-  sessionName?: string
-  sessionType: string
+  session: AnalysisSession
+  memberActivity: MemberActivity[]
+  messageTypes: Array<{ type: MessageType; count: number }>
+  hourlyActivity: HourlyActivity[]
+  dailyActivity: DailyActivity[]
+  timeRange: { start: number; end: number } | null
+  filteredMessageCount: number
+  filteredMemberCount: number
   timeFilter?: TimeFilter
 }>()
 
 const { t } = useI18n()
-const isPrivateChat = computed(() => props.sessionType === 'private')
-const activeSubTab = ref(isPrivateChat.value ? 'relationship' : 'type-analysis')
+const isPrivateChat = computed(() => props.session.type === 'private')
+const activeSubTab = ref('overview')
 const selectedMemberId = ref<number | null>(null)
 const persistKey = computed(() => (isPrivateChat.value ? 'webWasmPrivateInsightsTab' : 'webWasmGroupInsightsTab'))
 const subTabs = computed(() =>
   isPrivateChat.value
     ? [
+        { id: 'overview', label: t('analysis.tabs.overview'), icon: 'i-heroicons-squares-2x2' },
         { id: 'relationship', label: t('analysis.subTabs.insights.relationship'), icon: 'i-heroicons-heart' },
         { id: 'type-analysis', label: t('analysis.subTabs.insights.typeAnalysis'), icon: 'i-heroicons-chart-pie' },
         { id: 'time-analysis', label: t('analysis.subTabs.insights.timeAnalysis'), icon: 'i-heroicons-clock' },
@@ -36,6 +47,7 @@ const subTabs = computed(() =>
         },
       ]
     : [
+        { id: 'overview', label: t('analysis.tabs.overview'), icon: 'i-heroicons-squares-2x2' },
         { id: 'type-analysis', label: t('analysis.subTabs.insights.typeAnalysis'), icon: 'i-heroicons-chart-pie' },
         { id: 'time-analysis', label: t('analysis.subTabs.insights.timeAnalysis'), icon: 'i-heroicons-clock' },
         { id: 'topic', label: t('analysis.subTabs.insights.topic'), icon: 'i-heroicons-cloud' },
@@ -67,8 +79,32 @@ const viewTimeFilter = computed(() => ({ ...props.timeFilter, memberId: selected
 
     <div class="min-h-0 flex-1 overflow-auto">
       <Transition name="fade" mode="out-in">
+        <PrivateOverview
+          v-if="activeSubTab === 'overview' && isPrivateChat"
+          :session="props.session"
+          :member-activity="props.memberActivity"
+          :message-types="props.messageTypes"
+          :hourly-activity="props.hourlyActivity"
+          :daily-activity="props.dailyActivity"
+          :time-range="props.timeRange"
+          :filtered-message-count="props.filteredMessageCount"
+          :filtered-member-count="props.filteredMemberCount"
+          :time-filter="props.timeFilter"
+        />
+        <GroupOverview
+          v-else-if="activeSubTab === 'overview'"
+          :session="props.session"
+          :member-activity="props.memberActivity"
+          :message-types="props.messageTypes"
+          :hourly-activity="props.hourlyActivity"
+          :daily-activity="props.dailyActivity"
+          :time-range="props.timeRange"
+          :filtered-message-count="props.filteredMessageCount"
+          :filtered-member-count="props.filteredMemberCount"
+          :time-filter="props.timeFilter"
+        />
         <PrivateRelationshipView
-          v-if="activeSubTab === 'relationship'"
+          v-else-if="activeSubTab === 'relationship'"
           :session-id="props.sessionId"
           :time-filter="props.timeFilter"
         />
@@ -76,14 +112,14 @@ const viewTimeFilter = computed(() => ({ ...props.timeFilter, memberId: selected
           v-else-if="activeSubTab === 'type-analysis'"
           :key="selectedMemberId ?? 'all'"
           :session-id="props.sessionId"
-          :session-name="props.sessionName"
+          :session-name="props.session.name"
           :time-filter="viewTimeFilter"
         />
         <TimeAnalysisView
           v-else-if="activeSubTab === 'time-analysis'"
           :key="selectedMemberId ?? 'all'"
           :session-id="props.sessionId"
-          :session-name="props.sessionName"
+          :session-name="props.session.name"
           :time-filter="viewTimeFilter"
         />
         <WordcloudTab

@@ -7,8 +7,6 @@ import LoadingState from '@/components/UI/LoadingState.vue'
 import SessionAnalysisHeader from '@/components/layout/session/SessionAnalysisHeader.vue'
 import { useSessionAnalysisPageBase } from '@/composables'
 import { useSessionStore } from '@/stores/session'
-import GroupOverview from '../components/session/insights/GroupOverview.vue'
-import PrivateOverview from '../components/session/insights/PrivateOverview.vue'
 import SessionInsights from '../components/session/insights/SessionInsights.vue'
 
 const { t } = useI18n()
@@ -17,10 +15,7 @@ const router = useRouter()
 const sessionStore = useSessionStore()
 const { currentSessionId } = storeToRefs(sessionStore)
 
-const tabs = [
-  { id: 'overview', labelKey: 'analysis.tabs.overview', icon: 'i-heroicons-chart-pie' },
-  { id: 'view', labelKey: 'analysis.tabs.insights', icon: 'i-heroicons-presentation-chart-bar' },
-]
+const tabs = [{ id: 'insights', labelKey: 'analysis.tabs.insights', icon: 'i-heroicons-presentation-chart-bar' }]
 
 const {
   activeTab,
@@ -40,7 +35,7 @@ const {
   router,
   currentSessionId,
   selectSession: sessionStore.selectSession,
-  defaultTab: 'overview',
+  defaultTab: 'insights',
   validTabIds: tabs.map((tab) => tab.id),
 })
 
@@ -94,38 +89,18 @@ const loadErrorText = computed(() =>
       <div class="relative flex-1 overflow-y-auto">
         <LoadingState v-if="isLoading" variant="overlay" :text="t('common.loading')" />
 
-        <PrivateOverview
-          v-if="activeTab === 'overview' && isPrivateChat"
-          :key="'private-overview-' + currentSessionId"
-          :session="session"
-          :member-activity="memberActivity"
-          :message-types="messageTypes"
-          :hourly-activity="hourlyActivity"
-          :daily-activity="dailyActivity"
-          :time-range="fullTimeRange"
-          :filtered-message-count="filteredMessageCount"
-          :filtered-member-count="filteredMemberCount"
-          :time-filter="timeFilter"
-        />
-        <GroupOverview
-          v-else-if="activeTab === 'overview'"
-          :key="'group-overview-' + currentSessionId"
-          :session="session"
-          :member-activity="memberActivity"
-          :message-types="messageTypes"
-          :hourly-activity="hourlyActivity"
-          :daily-activity="dailyActivity"
-          :time-range="fullTimeRange"
-          :filtered-message-count="filteredMessageCount"
-          :filtered-member-count="filteredMemberCount"
-          :time-filter="timeFilter"
-        />
         <SessionInsights
-          v-else-if="activeTab === 'view'"
+          v-if="activeTab === 'insights'"
           :key="'insights-' + currentSessionId"
           :session-id="currentSessionId!"
-          :session-name="session.name"
-          :session-type="session.type"
+          :session="session"
+          :member-activity="memberActivity"
+          :message-types="messageTypes"
+          :hourly-activity="hourlyActivity"
+          :daily-activity="dailyActivity"
+          :time-range="fullTimeRange"
+          :filtered-message-count="filteredMessageCount"
+          :filtered-member-count="filteredMemberCount"
           :time-filter="timeFilter"
         />
       </div>
