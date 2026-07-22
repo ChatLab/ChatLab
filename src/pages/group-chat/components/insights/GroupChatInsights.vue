@@ -5,7 +5,7 @@ import { SectionTabs } from '@/components/navigation'
 import UserSelect from '@/components/common/UserSelect.vue'
 import TypeAnalysisView from '@/components/analysis/message/TypeAnalysisView.vue'
 import TimeAnalysisView from '@/components/analysis/message/TimeAnalysisView.vue'
-import GroupRelationships from './view/GroupRelationships.vue'
+import GroupRelationships from './GroupRelationships.vue'
 import { WordcloudTab } from '@/components/analysis/quotes'
 import type { TimeFilter } from '@openchatlab/shared-types'
 

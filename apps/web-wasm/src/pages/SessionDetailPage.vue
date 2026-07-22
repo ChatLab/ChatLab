@@ -7,9 +7,9 @@ import LoadingState from '@/components/UI/LoadingState.vue'
 import SessionAnalysisHeader from '@/components/layout/session/SessionAnalysisHeader.vue'
 import { useSessionAnalysisPageBase } from '@/composables'
 import { useSessionStore } from '@/stores/session'
-import GroupOverview from '../components/session/GroupOverview.vue'
-import PrivateOverview from '../components/session/PrivateOverview.vue'
-import SessionInsights from '../components/session/SessionInsights.vue'
+import GroupOverview from '../components/session/insights/GroupOverview.vue'
+import PrivateOverview from '../components/session/insights/PrivateOverview.vue'
+import SessionInsights from '../components/session/insights/SessionInsights.vue'
 
 const { t } = useI18n()
 const route = useRoute()

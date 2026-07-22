@@ -38,7 +38,7 @@ export function useTimeSelect(route: RouteLocationNormalizedLoaded, router: Rout
   /** 完整时间范围（由 TimeSelect 通过 emit 设置） */
   const fullTimeRange = ref<{ start: number; end: number } | null>(null)
 
-  /** 可选年份列表（由 TimeSelect 通过 emit 设置，group-chat 的 ViewTab 需要） */
+  /** 可选年份列表（由 TimeSelect 通过 emit 设置，群聊洞察视图需要） */
   const availableYears = ref<number[]>([])
 
   // ==================== 派生计算 ====================
