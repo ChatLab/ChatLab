@@ -19,7 +19,7 @@ const { currentSessionId } = storeToRefs(sessionStore)
 
 const tabs = [
   { id: 'overview', labelKey: 'analysis.tabs.overview', icon: 'i-heroicons-chart-pie' },
-  { id: 'view', labelKey: 'analysis.tabs.view', icon: 'i-heroicons-presentation-chart-bar' },
+  { id: 'view', labelKey: 'analysis.tabs.insights', icon: 'i-heroicons-presentation-chart-bar' },
 ]
 
 const {

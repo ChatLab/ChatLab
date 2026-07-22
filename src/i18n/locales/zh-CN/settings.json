@@ -40,7 +40,7 @@
     },
     "defaultTab": {
       "description": "进入聊天对话后默认显示的页面",
-      "overview": "总览",
+      "insights": "洞察",
       "aiChat": "AI 对话"
     },
     "autoLaunch": {

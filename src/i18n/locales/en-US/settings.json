@@ -40,7 +40,7 @@
     },
     "defaultTab": {
       "description": "Default page when entering a chat conversation",
-      "overview": "Overview",
+      "insights": "Insights",
       "aiChat": "AI Chat"
     },
     "autoLaunch": {

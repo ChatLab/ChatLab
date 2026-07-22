@@ -4,8 +4,12 @@ const PREFERENCES_KEY = 'chatlab:web-wasm:preferences'
 const UI_CONFIG_KEY = 'chatlab:web-wasm:ui-config'
 const LOCALE_KEY = 'chatlab:web-wasm:locale'
 
+type StoredUiConfig = Omit<UiConfig, 'default_session_tab'> & {
+  default_session_tab: UiConfig['default_session_tab'] | 'overview'
+}
+
 const DEFAULT_UI_CONFIG: UiConfig = {
-  default_session_tab: 'overview',
+  default_session_tab: 'insights',
   session_gap_threshold: 1800,
   summary_strategy: 'standard',
 }
@@ -26,7 +30,11 @@ export class BrowserPreferencesAdapter implements PreferencesAdapter {
   }
 
   async getUiConfig(): Promise<UiConfig> {
-    return this.readJson(UI_CONFIG_KEY, DEFAULT_UI_CONFIG)
+    const config = this.readJson<StoredUiConfig>(UI_CONFIG_KEY, DEFAULT_UI_CONFIG)
+    return {
+      ...config,
+      default_session_tab: config.default_session_tab === 'overview' ? 'insights' : config.default_session_tab,
+    }
   }
 
   async saveUiConfig(partial: Partial<UiConfig>): Promise<{ success: boolean; error?: string }> {

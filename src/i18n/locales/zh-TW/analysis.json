@@ -9,7 +9,7 @@
   },
   "tabs": {
     "overview": "總覽",
-    "view": "洞察",
+    "insights": "洞察",
     "ranking": "榜單",
     "aiChat": "AI 對話",
     "memory": "記憶",
@@ -63,7 +63,7 @@
     "failed": "匯入失敗"
   },
   "subTabs": {
-    "view": {
+    "insights": {
       "typeAnalysis": "類型",
       "timeAnalysis": "時間",
       "topic": "話題",

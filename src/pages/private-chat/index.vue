@@ -7,7 +7,6 @@ import LabTab from '@/components/analysis/LabTab.vue'
 import MemoryTab from '@/components/analysis/MemoryTab.vue'
 import { DebugTab } from '@/components/DebugTab'
 import { ChatExplorer } from '@/components/AIChat'
-import PrivateChatOverview from './components/insights/PrivateChatOverview.vue'
 import PrivateChatInsights from './components/insights/PrivateChatInsights.vue'
 import MemberList from '@/components/common/member/MemberList.vue'
 import SessionAnalysisHeader from '@/components/layout/session/SessionAnalysisHeader.vue'
@@ -50,10 +49,9 @@ function openChatRecordViewer() {
   layoutStore.openChatRecordDrawer({})
 }
 
-// Tab 配置 - 私聊包含总览、洞察、AI 对话和实验室
+// Tab 配置 - 私聊包含洞察、AI 对话和实验室
 const baseTabs = [
-  { id: 'overview', labelKey: 'analysis.tabs.overview', icon: 'i-heroicons-chart-pie' },
-  { id: 'view', labelKey: 'analysis.tabs.view', icon: 'i-heroicons-presentation-chart-bar' },
+  { id: 'insights', labelKey: 'analysis.tabs.insights', icon: 'i-heroicons-presentation-chart-bar' },
   { id: 'ai-chat', labelKey: 'analysis.tabs.aiChat', icon: 'i-heroicons-chat-bubble-left-ellipsis' },
   // { id: 'memory', labelKey: 'analysis.tabs.memory', icon: 'i-heroicons-light-bulb' },
   { id: 'lab', labelKey: 'analysis.tabs.lab', icon: 'i-heroicons-beaker' },
@@ -155,9 +153,10 @@ const otherMemberAvatar = computed(() => {
 
         <div class="h-full">
           <Transition name="tab-slide" mode="out-in">
-            <PrivateChatOverview
-              v-if="activeTab === 'overview'"
-              :key="'overview-' + currentSessionId"
+            <PrivateChatInsights
+              v-if="activeTab === 'insights'"
+              :key="'insights-' + currentSessionId"
+              :session-id="currentSessionId!"
               :session="session"
               :member-activity="memberActivity"
               :message-types="messageTypes"
@@ -166,13 +165,6 @@ const otherMemberAvatar = computed(() => {
               :time-range="fullTimeRange"
               :filtered-message-count="filteredMessageCount"
               :filtered-member-count="filteredMemberCount"
-              :time-filter="timeFilter"
-            />
-            <PrivateChatInsights
-              v-else-if="activeTab === 'view'"
-              :key="'view-' + currentSessionId"
-              :session-id="currentSessionId!"
-              :session-name="session.name"
               :time-filter="timeFilter"
             />
             <ChatExplorer

@@ -25,23 +25,23 @@ const persistKey = computed(() => (isPrivateChat.value ? 'webWasmPrivateInsights
 const subTabs = computed(() =>
   isPrivateChat.value
     ? [
-        { id: 'relationship', label: t('analysis.subTabs.view.relationship'), icon: 'i-heroicons-heart' },
-        { id: 'type-analysis', label: t('analysis.subTabs.view.typeAnalysis'), icon: 'i-heroicons-chart-pie' },
-        { id: 'time-analysis', label: t('analysis.subTabs.view.timeAnalysis'), icon: 'i-heroicons-clock' },
-        { id: 'topic', label: t('analysis.subTabs.view.topic'), icon: 'i-heroicons-cloud' },
+        { id: 'relationship', label: t('analysis.subTabs.insights.relationship'), icon: 'i-heroicons-heart' },
+        { id: 'type-analysis', label: t('analysis.subTabs.insights.typeAnalysis'), icon: 'i-heroicons-chart-pie' },
+        { id: 'time-analysis', label: t('analysis.subTabs.insights.timeAnalysis'), icon: 'i-heroicons-clock' },
+        { id: 'topic', label: t('analysis.subTabs.insights.topic'), icon: 'i-heroicons-cloud' },
         {
           id: 'language-preference',
-          label: t('analysis.subTabs.view.languagePreference'),
+          label: t('analysis.subTabs.insights.languagePreference'),
           icon: 'i-heroicons-language',
         },
       ]
     : [
-        { id: 'type-analysis', label: t('analysis.subTabs.view.typeAnalysis'), icon: 'i-heroicons-chart-pie' },
-        { id: 'time-analysis', label: t('analysis.subTabs.view.timeAnalysis'), icon: 'i-heroicons-clock' },
-        { id: 'topic', label: t('analysis.subTabs.view.topic'), icon: 'i-heroicons-cloud' },
+        { id: 'type-analysis', label: t('analysis.subTabs.insights.typeAnalysis'), icon: 'i-heroicons-chart-pie' },
+        { id: 'time-analysis', label: t('analysis.subTabs.insights.timeAnalysis'), icon: 'i-heroicons-clock' },
+        { id: 'topic', label: t('analysis.subTabs.insights.topic'), icon: 'i-heroicons-cloud' },
         {
           id: 'group-relationships',
-          label: t('analysis.subTabs.view.groupRelationships'),
+          label: t('analysis.subTabs.insights.groupRelationships'),
           icon: 'i-heroicons-heart',
         },
       ]

@@ -16,8 +16,6 @@ const { t } = useI18n()
 const props = defineProps<{
   session: AnalysisSession
   memberActivity: MemberActivity[]
-  topMembers: MemberActivity[]
-  bottomMembers: MemberActivity[]
   messageTypes: Array<{ type: MessageType; count: number }>
   hourlyActivity: HourlyActivity[]
   dailyActivity: DailyActivity[]

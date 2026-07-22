@@ -9,7 +9,7 @@
   },
   "tabs": {
     "overview": "概要",
-    "view": "インサイト",
+    "insights": "インサイト",
     "ranking": "ランキング",
     "aiChat": "AIチャット",
     "memory": "メモリー",
@@ -63,7 +63,7 @@
     "failed": "インポートに失敗しました"
   },
   "subTabs": {
-    "view": {
+    "insights": {
       "typeAnalysis": "タイプ",
       "timeAnalysis": "時間",
       "topic": "トピック",

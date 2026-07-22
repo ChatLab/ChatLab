@@ -40,7 +40,7 @@
     },
     "defaultTab": {
       "description": "進入聊天對話後預設顯示的頁面",
-      "overview": "總覽",
+      "insights": "洞察",
       "aiChat": "AI 對話"
     },
     "autoLaunch": {

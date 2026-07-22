@@ -10,7 +10,7 @@ import type { UiConfig } from '@/services/preferences/types'
 export type SummaryStrategy = 'brief' | 'standard'
 
 const _uiConfig = ref<UiConfig>({
-  default_session_tab: 'overview',
+  default_session_tab: 'insights',
   session_gap_threshold: 1800,
   summary_strategy: 'standard',
 })

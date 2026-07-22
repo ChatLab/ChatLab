@@ -40,7 +40,7 @@
     },
     "defaultTab": {
       "description": "チャットに入った時に表示するページ",
-      "overview": "概要",
+      "insights": "インサイト",
       "aiChat": "AI チャット"
     },
     "autoLaunch": {

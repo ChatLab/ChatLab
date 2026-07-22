@@ -9,7 +9,7 @@
   },
   "tabs": {
     "overview": "Overview",
-    "view": "Insights",
+    "insights": "Insights",
     "ranking": "Rankings",
     "aiChat": "AI Chat",
     "memory": "Memory",
@@ -63,7 +63,7 @@
     "failed": "Import failed"
   },
   "subTabs": {
-    "view": {
+    "insights": {
       "typeAnalysis": "Types",
       "timeAnalysis": "Time",
       "topic": "Topics",

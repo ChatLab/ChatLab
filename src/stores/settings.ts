@@ -33,7 +33,7 @@ export const useSettingsStore = defineStore(
   () => {
     const locale = ref<LocaleType>(getLocale())
 
-    const defaultSessionTab = ref<'overview' | 'ai-chat'>('overview')
+    const defaultSessionTab = ref<'insights' | 'ai-chat'>('insights')
 
     const debugMode = ref(false)
 

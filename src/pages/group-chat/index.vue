@@ -7,7 +7,6 @@ import LabTab from '@/components/analysis/LabTab.vue'
 import MemoryTab from '@/components/analysis/MemoryTab.vue'
 import { DebugTab } from '@/components/DebugTab'
 import { ChatExplorer } from '@/components/AIChat'
-import GroupChatOverview from './components/insights/GroupChatOverview.vue'
 import GroupChatInsights from './components/insights/GroupChatInsights.vue'
 import RankingView from '@/components/analysis/ranking/RankingView.vue'
 import MemberList from '@/components/common/member/MemberList.vue'
@@ -54,8 +53,7 @@ function openChatRecordViewer() {
 
 // Tab 配置
 const baseTabs = [
-  { id: 'overview', labelKey: 'analysis.tabs.overview', icon: 'i-heroicons-chart-pie' },
-  { id: 'view', labelKey: 'analysis.tabs.view', icon: 'i-heroicons-presentation-chart-bar' },
+  { id: 'insights', labelKey: 'analysis.tabs.insights', icon: 'i-heroicons-presentation-chart-bar' },
   { id: 'ranking', labelKey: 'analysis.tabs.ranking', icon: 'i-heroicons-trophy' },
   { id: 'ai-chat', labelKey: 'analysis.tabs.aiChat', icon: 'i-heroicons-chat-bubble-left-ellipsis' },
   // { id: 'memory', labelKey: 'analysis.tabs.memory', icon: 'i-heroicons-light-bulb' },
@@ -94,13 +92,6 @@ const {
   selectSession: sessionStore.selectSession,
   defaultTab: settingsStore.defaultSessionTab,
   validTabIds: allTabIds.value,
-})
-
-// 计算属性
-const topMembers = computed(() => memberActivity.value.slice(0, 3))
-const bottomMembers = computed(() => {
-  if (memberActivity.value.length <= 1) return []
-  return [...memberActivity.value].sort((a, b) => a.messageCount - b.messageCount).slice(0, 1)
 })
 
 // 当前筛选后的消息总数
@@ -145,26 +136,18 @@ const filteredMemberCount = computed(() => {
 
         <div class="h-full">
           <Transition name="tab-slide" mode="out-in">
-            <GroupChatOverview
-              v-if="activeTab === 'overview'"
-              :key="'overview-' + currentSessionId"
+            <GroupChatInsights
+              v-if="activeTab === 'insights'"
+              :key="'insights-' + currentSessionId"
+              :session-id="currentSessionId!"
               :session="session"
               :member-activity="memberActivity"
-              :top-members="topMembers"
-              :bottom-members="bottomMembers"
               :message-types="messageTypes"
               :hourly-activity="hourlyActivity"
               :daily-activity="dailyActivity"
               :time-range="fullTimeRange"
               :filtered-message-count="filteredMessageCount"
               :filtered-member-count="filteredMemberCount"
-              :time-filter="timeFilter"
-            />
-            <GroupChatInsights
-              v-else-if="activeTab === 'view'"
-              :key="'view-' + currentSessionId"
-              :session-id="currentSessionId!"
-              :session-name="session.name"
               :time-filter="timeFilter"
             />
             <RankingView

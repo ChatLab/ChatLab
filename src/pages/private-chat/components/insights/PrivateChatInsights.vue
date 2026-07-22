@@ -8,24 +8,39 @@ import TimeAnalysisView from '@/components/analysis/message/TimeAnalysisView.vue
 import PrivateRelationshipView from '@/components/analysis/relationships/PrivateRelationshipView.vue'
 import { WordcloudTab, LanguagePreferenceTab } from '@/components/analysis/quotes'
 import type { TimeFilter } from '@openchatlab/shared-types'
+import type { AnalysisSession, MessageType } from '@/types/base'
+import type { DailyActivity, HourlyActivity, MemberActivity } from '@/types/analysis'
+import PrivateChatOverview from './PrivateChatOverview.vue'
 
 const { t } = useI18n()
 
 const props = defineProps<{
   sessionId: string
-  sessionName?: string
+  session: AnalysisSession
+  memberActivity: MemberActivity[]
+  messageTypes: Array<{ type: MessageType; count: number }>
+  hourlyActivity: HourlyActivity[]
+  dailyActivity: DailyActivity[]
+  timeRange: { start: number; end: number } | null
+  filteredMessageCount: number
+  filteredMemberCount: number
   timeFilter?: TimeFilter
 }>()
 
 const subTabs = computed(() => [
-  { id: 'relationship', label: t('analysis.subTabs.view.relationship'), icon: 'i-heroicons-heart' },
-  { id: 'type-analysis', label: t('analysis.subTabs.view.typeAnalysis'), icon: 'i-heroicons-chart-pie' },
-  { id: 'time-analysis', label: t('analysis.subTabs.view.timeAnalysis'), icon: 'i-heroicons-clock' },
-  { id: 'topic', label: t('analysis.subTabs.view.topic'), icon: 'i-heroicons-cloud' },
-  { id: 'language-preference', label: t('analysis.subTabs.view.languagePreference'), icon: 'i-heroicons-language' },
+  { id: 'overview', label: t('analysis.tabs.overview'), icon: 'i-heroicons-squares-2x2' },
+  { id: 'relationship', label: t('analysis.subTabs.insights.relationship'), icon: 'i-heroicons-heart' },
+  { id: 'type-analysis', label: t('analysis.subTabs.insights.typeAnalysis'), icon: 'i-heroicons-chart-pie' },
+  { id: 'time-analysis', label: t('analysis.subTabs.insights.timeAnalysis'), icon: 'i-heroicons-clock' },
+  { id: 'topic', label: t('analysis.subTabs.insights.topic'), icon: 'i-heroicons-cloud' },
+  {
+    id: 'language-preference',
+    label: t('analysis.subTabs.insights.languagePreference'),
+    icon: 'i-heroicons-language',
+  },
 ])
 
-const activeSubTab = ref('relationship')
+const activeSubTab = ref('overview')
 
 // 成员筛选（用于类型/时间分析）
 const selectedMemberId = ref<number | null>(null)
@@ -38,7 +53,7 @@ const viewTimeFilter = computed(() => ({
 
 <template>
   <div class="flex h-full flex-col">
-    <SectionTabs v-model="activeSubTab" :items="subTabs" persist-key="privateViewTab">
+    <SectionTabs v-model="activeSubTab" :items="subTabs" persist-key="privateInsightsTab">
       <template #right>
         <UserSelect
           v-if="activeSubTab === 'type-analysis' || activeSubTab === 'time-analysis'"
@@ -50,16 +65,28 @@ const viewTimeFilter = computed(() => ({
 
     <div class="flex-1 min-h-0 overflow-auto">
       <Transition name="fade" mode="out-in">
+        <PrivateChatOverview
+          v-if="activeSubTab === 'overview'"
+          :session="props.session"
+          :member-activity="props.memberActivity"
+          :message-types="props.messageTypes"
+          :hourly-activity="props.hourlyActivity"
+          :daily-activity="props.dailyActivity"
+          :time-range="props.timeRange"
+          :filtered-message-count="props.filteredMessageCount"
+          :filtered-member-count="props.filteredMemberCount"
+          :time-filter="props.timeFilter"
+        />
         <TypeAnalysisView
-          v-if="activeSubTab === 'type-analysis'"
+          v-else-if="activeSubTab === 'type-analysis'"
           :session-id="props.sessionId"
-          :session-name="props.sessionName"
+          :session-name="props.session.name"
           :time-filter="viewTimeFilter"
         />
         <TimeAnalysisView
           v-else-if="activeSubTab === 'time-analysis'"
           :session-id="props.sessionId"
-          :session-name="props.sessionName"
+          :session-name="props.session.name"
           :time-filter="viewTimeFilter"
         />
         <PrivateRelationshipView

@@ -74,7 +74,7 @@ const currentLocale = computed({
 
 // Default session tab options
 const defaultTabOptions = computed(() => [
-  { label: t('settings.basic.defaultTab.overview'), value: 'overview' },
+  { label: t('settings.basic.defaultTab.insights'), value: 'insights' },
   { label: t('settings.basic.defaultTab.aiChat'), value: 'ai-chat' },
 ])
 

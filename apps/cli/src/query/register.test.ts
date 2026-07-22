@@ -11,7 +11,7 @@ function configWithSql(allowSql: boolean): ChatLabConfig {
     data: { user_data_dir: '', electron_migration_done: false },
     api: { port: 3110, host: '127.0.0.1', token: '', require_auth: false },
     locale: { lang: '' },
-    ui: { default_session_tab: 'overview', session_gap_threshold: 1800, summary_strategy: 'standard' },
+    ui: { default_session_tab: 'insights', session_gap_threshold: 1800, summary_strategy: 'standard' },
     cli: { allow_raw: false, allow_sql: allowSql },
   }
 }
