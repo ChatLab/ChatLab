@@ -5,28 +5,33 @@ title: ChatLab Docs | Open-Source Chat History Analysis Tool
 
 # ChatLab
 
-ChatLab is a free, open-source, local-first chat history analysis tool. It supports importing records from WhatsApp, QQ, LINE, Discord, Instagram, Telegram, and iMessage, and offers visual analytics and AI-powered conversation features — with all data stored locally, never uploaded to the cloud.
+ChatLab is a free, open-source, local-first chat history analysis tool.
 
-## How to Use ChatLab
+In the digital era, chat histories are no longer just plain text. They carry a decade of social connections, precious voice notes from loved ones, and the emotional memory we keep in the digital world.
 
-- [Introduction](/intro) — Learn what ChatLab is and what it can do.
-- [Quick Start](/usage/quick-start) — Step-by-step guide to installing ChatLab and importing your first chat records.
-- [Export & Import](/usage/how-to-export) — Export chat records from WhatsApp, QQ, LINE, and other platforms and import them into ChatLab.
-- [Analyze with built-in AI](/ai/chatlab-ai) — Connect OpenAI, Claude, DeepSeek, or another AI model to analyze your chat history in natural language.
-- [Troubleshooting](/usage/troubleshooting) — Fix common issues with failed imports, unsupported formats, and AI configuration errors.
+ChatLab was built to **give everyone a private, secure way to analyze and revisit their own conversations.**
 
-## For Developers: Integrating with ChatLab
+## What You Can Do with ChatLab
 
-- [API & Standards](/standard/chatlab-api) — ChatLab's local REST API for querying, importing, and analyzing chat data from external tools.
-- [ChatLab Format](/standard/chatlab-format) — The open chat data interchange format for cross-platform data compatibility.
-- [Push Import Protocol](/standard/chatlab-import) — Push external chat data into ChatLab via HTTP.
-- [Pull Data Source Protocol](/standard/chatlab-pull) — Expose standard HTTP endpoints so ChatLab can pull remote chat data on demand.
-- [AI Conversion Guide](/standard/ai-converter) — Use AI to convert unsupported chat export formats into ChatLab Format.
+- **Visual analytics**: Word frequency, word clouds, activity rankings, interaction heatmaps, and time-of-day breakdowns help you understand your chat history at a glance.
+- **AI chat**: Connect an AI model and use natural language to search, summarize, and analyze your conversations with an AI Agent.
+- **Privacy first**: Chat data is stored and analyzed locally by default. When you enable AI, only the processed content needed for the current question is sent to the model provider you configure.
+- **What's next**: ChatLab aims to become the standard infrastructure for social memory—preserving the story of each relationship and serving as a local interface through which AI Agents understand your social world. See the [Roadmap](https://chatlab.fun/roadmap/intro).
 
-## Contributing
+## Supported Chat Platforms
 
-- [Development Guide](/contributing/development) — Local development setup, repo structure, architecture boundaries, and PR guidelines for ChatLab.
+ChatLab currently supports importing chat records from QQ, WhatsApp, LINE, Discord, Instagram, Telegram, and iMessage. Prepare the files using the [Export Chat Records guide](/usage/how-to-export), then import them directly into ChatLab.
 
-## More
+If your platform is not yet supported, export the chat records first and use the official [AI Conversion Skill](/standard/ai-converter) to convert them into ChatLab Format. The converted files can then be imported normally.
 
-- [Website & Roadmap](https://chatlab.fun) — Download ChatLab desktop app or CLI, view the product roadmap, and find community links.
+## Get Started
+
+- **[Quick Start](/usage/quick-start)**: Import your first chat records and start using ChatLab.
+- **Installation & Deployment**: Choose [Install ChatLab](/usage/installation) or [Docker Deployment](/usage/docker).
+- **Usage Guide**: See how to [export](/usage/how-to-export) and [import](/usage/how-to-import) chat records, or visit [Troubleshooting](/usage/troubleshooting).
+
+## Explore More
+
+- **AI Analysis**: Learn [Why ChatLab](/ai/why-chatlab), or use the [built-in AI](/ai/chatlab-ai) and an [external AI Agent](/ai/external-agent).
+- **Integrate with ChatLab**: Explore [ChatLab Format](/standard/chatlab-format), the [ChatLab API](/standard/chatlab-api), and the [Push Import Protocol](/standard/chatlab-import).
+- **Contribute**: Read the [Development Guide](/contributing/development).

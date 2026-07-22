@@ -4,45 +4,9 @@ outline: deep
 
 # 快速开始
 
-## 第一步：安装 ChatLab
+尚未安装时，请先查看 [安装 ChatLab](/cn/usage/installation) 或 [Docker 部署](/cn/usage/docker)。
 
-ChatLab 提供两种安装方式：
-
-**方式一：官网下载安装包**
-
-前往 [ChatLab 官网](https://chatlab.fun) 或 [GitHub Releases](https://github.com/ChatLab/ChatLab/releases) 下载对应操作系统的安装包，双击安装即可。
-
-**方式二：CLI 安装**
-
-```bash
-npm i chatlab-cli -g
-```
-
-需要 Node.js ≥ 20。
-
-安装后运行以下命令启动 ChatLab：
-
-```bash
-chatlab start           # 启动 API + Web UI，并在浏览器中打开
-chatlab start --no-open # 启动 API + Web UI，但不自动打开浏览器
-chatlab start --headless  # 仅启动 API，不挂载 Web UI（供脚本 / AI Agent 调用）
-```
-
-常用选项：`--port <端口>`（默认 3110）、`--host <地址>`、`--token <令牌>`。
-
-如果希望服务常驻后台（开机自启），加上 `--daemon` 参数：
-
-```bash
-chatlab start --daemon   # 注册为系统服务，开机自启（macOS / Linux）
-chatlab status           # 查看常驻状态
-chatlab stop             # 停止并取消常驻
-```
-
-::: tip
-`clb` 是 `chatlab` 的简写，两者完全等价。
-:::
-
-## 第二步：导入聊天记录
+## 第一步：导入聊天记录
 
 ChatLab 提供三种导入方式，适用于不同场景：
 
@@ -67,8 +31,8 @@ ChatLab 提供三种导入方式，适用于不同场景：
 - [Pull 远程数据源协议](/cn/standard/chatlab-pull) — 对应「自动同步」
 - [ChatLab Format](/cn/standard/chatlab-format) — 了解数据格式规范
 
-## 第三步：配置 AI
+## 第二步：配置 AI
 
 ChatLab 内置 AI Agent 功能，接入 AI 模型后即可通过自然语言探索你的聊天历史。
 
-详细配置步骤请查看 [使用内置 AI 分析](/cn/ai/chatlab-ai)。
+进一步了解 ChatLab 如何使用 AI 分析聊天记录，请查看 [为什么选择 ChatLab](/cn/ai/why-chatlab)。

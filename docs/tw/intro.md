@@ -1,32 +1,17 @@
 ---
-outline: deep
+title: ChatLab 介紹已遷移
+head:
+  - - meta
+    - http-equiv: refresh
+      content: '0; url=/tw/'
+  - - link
+    - rel: canonical
+      href: https://docs.chatlab.fun/tw/
+  - - meta
+    - name: robots
+      content: noindex
 ---
 
-# ChatLab 介紹
+# ChatLab 介紹已遷移
 
-ChatLab 是一個免費、開源、本地化的聊天記錄分析軟體。
-
-在數位時代，聊天記錄早已不再是簡單的文字檔，它是長達十年的社交關係脈絡，是親人珍貴的語音片段，更是我們外掛在數位世界的情感大腦。
-
-ChatLab 的誕生，就是為了**讓每位使用者都能安全地分析、回顧屬於自己的社交記憶。**
-
-## 如何使用
-
-想要分析你的聊天記錄，你需要完成以下兩步：
-
-1. 匯出聊天記錄
-2. 匯入聊天記錄
-
-由於每個聊天軟體的匯出方式不同，具體步驟請參照 [匯出聊天記錄](./usage/how-to-export.md)。
-
-## 下一步
-
-<!-- 想要快速了解如何使用 ChatLab，請閱讀 [快速開始](./usage/quick-start.md) 指南。 -->
-
-遇到了匯入、AI 對話錯誤等問題，請參照 [常見問題](./usage/faq.md) 解決。
-
-如果您匯出的聊天記錄格式不在目前支援範圍，請參照 [AI 輔助轉換指南](./standard/ai-converter.md)。
-
-如果您是開發者，並支援了其他聊天應用的聊天記錄匯出，歡迎相容 [聊天資料交換標準化格式](./standard/chatlab-format.md)。
-
-如果還有其他問題，歡迎加入社群回饋與交流：[加入社群](https://chatlab.fun/tw/other/community)
+相關內容已經合併到 [ChatLab 文件首頁](/tw/)。

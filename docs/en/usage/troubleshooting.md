@@ -10,10 +10,10 @@ This document helps users and developers troubleshoot issues encountered when us
 
 **Access log files**: Bottom left corner **"Settings" > "Storage Management" > "Log Files" > Open Directory**
 
-Logs are stored in the `Documents/ChatLab/logs/` directory:
+Logs are stored in the `~/.chatlab/logs/` directory:
 
 ```
-ChatLab/logs/
+~/.chatlab/logs/
 ├── app.log                              # Main program log
 ├── ai/                                  # AI-related logs
 │   └── ai_YYYY-MM-DD_HH-mm.log

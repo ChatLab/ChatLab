@@ -10,10 +10,10 @@ outline: deep
 
 **获取日志文件**：软件左下角的 **「设置」 > 「存储管理」 > 「日志文件」 > 打开目录**
 
-日志存储在 `文档/ChatLab/logs/` 目录下：
+日誌儲存在 `~/.chatlab/logs/` 目錄下：
 
 ```
-ChatLab/logs/
+~/.chatlab/logs/
 ├── app.log                              # 主程序日志
 ├── ai/                                  # AI 相关日志
 │   └── ai_YYYY-MM-DD_HH-mm.log
