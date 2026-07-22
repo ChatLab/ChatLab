@@ -1,5 +1,31 @@
 # Changelog
 
+## v0.33.0 (2026-07-22)
+
+> Add Docker deployment and mobile-friendly local analysis in the browser, improve chat format conversion and validation, and strengthen local data safety.
+
+### ✨ Features
+
+- Add browser-based local analysis for importing, managing, and analyzing chat sessions entirely in the browser
+- Add Chinese and English chat conversion Skills that generate and validate the standard ChatLab format offline
+- 【CLI】Add a command to validate ChatLab format files
+
+### 🐛 Bug Fixes
+
+- Fix concurrent OPFS access, overview filter race conditions, word frequency totals, and relationship analysis filters in the browser app
+- Bundle frontend icons locally to remove the runtime dependency on external icon services
+- Align ChatLab JSONL auto-detection with format validation and reject unresolved owner metadata
+- 【Desktop】Prevent migrations from deleting the active data directory and reject nested or equivalent legacy and active data paths
+- 【CLI】Persist user data and system state in Docker deployments, and bind published ports to localhost by default
+
+### 📝 Documentation
+
+- Add a Docker deployment guide and clarify the benefits of AI analysis and local data privacy
+
+### 👷 CI
+
+- Publish ChatLab CLI Docker images for amd64 and arm64
+
 ## v0.32.0 (2026-07-18)
 
 > Add a desktop app lock, make data migration safer, and fix large-file and multi-file imports.
