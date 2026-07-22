@@ -123,11 +123,6 @@
       "title": "関係データがありません",
       "description": "選択した期間内にセッションが見つかりません。"
     },
-    "monthly": {
-      "title": "月別明細",
-      "totalSessionsPrefix": "会話",
-      "totalSessionsSuffix": "回"
-    },
     "trend": {
       "title": "主動性の推移",
       "hint": "青い線は {name} の月別主動発起率。50% 線がバランス基準です"
@@ -140,11 +135,8 @@
       "initiativeBySuffix": "から始まりました",
       "initiateTimes": "回発起"
     },
-    "initiator": "話題を始める",
-    "closer": "話題を終える",
     "closerTitle": "会話の締め役",
     "closerHint": "話題が終わるときに最後に発言した人を集計します。",
-    "noActivity": "今月はやり取りなし",
     "watermarkReport": "関係レポート",
     "monthFormat": "{year}年{month}月",
     "monthShortFormat": "{month}月",
@@ -165,12 +157,26 @@
       "hintWithThreshold": "相手が{threshold}以内に返信しないうちに、もう一通メッセージを送った回数",
       "thresholdMinutes": "{n}分"
     },
-    "labels": {
-      "wellMatched": "互角",
-      "missingYou": "{name} が恋しがっている",
-      "monologue": "{name} の独白",
-      "peacefulSilence": "穏やかな沈黙",
-      "fleetingThoughts": "ふとした思い出"
+    "trajectory": {
+      "title": "やり取りの推移",
+      "description": "月ごとの変化から2人のやり取りを振り返ります",
+      "metrics": {
+        "activity": "会話の頻度",
+        "response": "返信速度",
+        "perseverance": "連続送信"
+      },
+      "conversations": "会話回数",
+      "iceBreaks": "会話の再開",
+      "keyMoments": "注目の月",
+      "activityPeak": "会話が最も多い月",
+      "activityPeakDetail": "会話 {count} 回",
+      "iceBreakPeak": "会話の再開が最多",
+      "iceBreakPeakDetail": "会話の再開 {count} 回",
+      "fastestResponse": "返信が最速",
+      "fastestResponseDetail": "平均返信時間 {duration}",
+      "showAll": "すべての月を表示",
+      "hideAll": "月別データを閉じる",
+      "month": "月"
     }
   },
   "timeline": {

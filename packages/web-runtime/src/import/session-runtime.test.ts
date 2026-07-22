@@ -923,6 +923,15 @@ describe('BrowserSessionRuntime', () => {
     const relationship = await runtime.getRelationshipStats('insight-query-session')
     assert.equal(relationship.hasSessionIndex, true)
     assert.equal(relationship.totalSessions, 2)
+    assert.equal('totalIceBreaks' in relationship, false)
+    assert.equal('totalDoubleTexts' in relationship, false)
+    assert.equal('perseveranceThreshold' in relationship, false)
+    assert.deepEqual(Object.keys(relationship.months[0].members[0]).sort(), ['initiateCount', 'memberId'])
+    assert.ok(relationship.responseLatency.length > 0)
+    assert.equal(
+      relationship.responseLatency.some((member) => 'totalResponses' in member),
+      false
+    )
 
     const language = await runtime.getLanguagePreferenceAnalysis('insight-query-session', 'en-US')
     assert.equal(language.members.length, 2)

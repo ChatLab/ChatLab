@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref, computed, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { RelationshipStats, RelationshipMonthStats } from '@/types/analysis'
+import type { RelationshipStats } from '@/types/analysis'
 import { useDataService } from '@/services'
-import { ReportCard, SectionCard, EmptyState, LoadingState } from '@/components/UI'
+import { ReportCard, SectionCard, EmptyState, LoadingState, Tabs } from '@/components/UI'
 import { EChart } from '@/components/charts'
 import RelationshipMetricCard from './RelationshipMetricCard.vue'
 import type { EChartsOption } from 'echarts'
@@ -19,6 +19,8 @@ const props = defineProps<{
 const stats = ref<RelationshipStats | null>(null)
 const isLoading = ref(false)
 const isPerseveranceLoading = ref(false)
+const trajectoryMetric = ref<'activity' | 'response' | 'perseverance'>('activity')
+const showAllMonths = ref(false)
 
 // 锲而不舍阈值（秒），默认 300（5分钟）
 const perseveranceThreshold = ref(300)
@@ -106,13 +108,6 @@ const timeRangeString = computed(() => {
 
 const heroTextMaxWidthClass = computed(() => (locale.value.startsWith('en') ? 'max-w-[420px]' : 'max-w-[320px]'))
 
-// 确保进度条视觉上可区分（至少 5% 最小宽度）
-function clampBarWidth(ratio: number): number {
-  if (ratio <= 0) return 0
-  if (ratio >= 100) return 100
-  return Math.max(5, Math.min(95, ratio))
-}
-
 // ==================== 趋势折线图 ====================
 const trendChartOption = computed<EChartsOption>(() => {
   if (!stats.value || stats.value.months.length === 0 || !memberA.value) return {}
@@ -180,36 +175,7 @@ const trendChartOption = computed<EChartsOption>(() => {
   }
 })
 
-// ==================== 月度 helpers ====================
-function getMonthLabel(month: RelationshipMonthStats): string {
-  if (month.totalSessions === 0) return t('views.relationship.labels.peacefulSilence')
-  if (month.totalSessions <= 2) return t('views.relationship.labels.fleetingThoughts')
-
-  const sorted = [...month.members].sort((a, b) => b.initiateCount - a.initiateCount)
-  const top = sorted[0]
-  if (!top || month.totalSessions === 0) return ''
-
-  const ratio = Math.round((top.initiateCount / month.totalSessions) * 100)
-  if (ratio >= 40 && ratio <= 60) return t('views.relationship.labels.wellMatched')
-  if (ratio >= 80) return t('views.relationship.labels.monologue', { name: top.name })
-  return t('views.relationship.labels.missingYou', { name: top.name })
-}
-
-function getMonthInitiateRatio(month: RelationshipMonthStats): number {
-  if (!memberA.value || month.totalSessions === 0) return 50
-  const aStats = month.members.find((m) => m.memberId === memberA.value!.memberId)
-  return Math.round(((aStats?.initiateCount ?? 0) / month.totalSessions) * 100)
-}
-
-function getMonthCloseRatio(month: RelationshipMonthStats): number {
-  if (!memberA.value) return 50
-  const aStats = month.members.find((m) => m.memberId === memberA.value!.memberId)
-  const aClose = aStats?.closeCount ?? 0
-  const totalClose = month.members.reduce((sum, m) => sum + (m.closeCount ?? 0), 0)
-  if (totalClose === 0) return 50
-  return Math.round((aClose / totalClose) * 100)
-}
-
+// ==================== 月度互动轨迹 ====================
 function formatMonth(monthStr: string): string {
   const [year, month] = monthStr.split('-')
   return t('views.relationship.monthFormat', { year, month: Number.parseInt(month, 10) })
@@ -252,16 +218,34 @@ function getMonthPerseverance(month: string) {
   return stats.value?.monthlyPerseverance?.find((m) => m.month === month)?.members ?? []
 }
 
-function getMemberResponseLatencyText(month: string, memberId?: number): string {
-  if (!memberId) return '--'
+function getMemberResponseLatency(month: string, memberId?: number): number | null {
+  if (!memberId) return null
   const rl = getMonthResponseLatency(month).find((r) => r.memberId === memberId)
-  return rl ? formatDuration(rl.avgResponseTime) : '--'
+  return rl?.avgResponseTime ?? null
 }
 
-function getMemberPerseveranceText(month: string, memberId?: number): string {
-  if (!memberId) return '--'
+function formatMemberResponseLatency(month: string, memberId?: number): string {
+  const value = getMemberResponseLatency(month, memberId)
+  return value == null ? '—' : formatDuration(value)
+}
+
+function getMemberPerseverance(month: string, memberId?: number): number {
+  if (!memberId) return 0
   const p = getMonthPerseverance(month).find((p) => p.memberId === memberId)
-  return p ? p.doubleTextCount.toString() : '--'
+  return p?.doubleTextCount ?? 0
+}
+
+function getMonthIceBreakCount(month: string): number {
+  return (
+    stats.value?.iceBreakers?.filter((item) => item.month === month).reduce((sum, item) => sum + item.count, 0) ?? 0
+  )
+}
+
+function getMonthAverageResponse(month: string): number | null {
+  const responses = getMonthResponseLatency(month)
+  const totalResponses = responses.reduce((sum, item) => sum + item.responseCount, 0)
+  if (totalResponses === 0) return null
+  return responses.reduce((sum, item) => sum + item.avgResponseTime * item.responseCount, 0) / totalResponses
 }
 
 function formatDuration(seconds: number): string {
@@ -277,6 +261,176 @@ function formatDuration(seconds: number): string {
   if (mins === 0) return t('views.relationship.responseLatency.hours', { n: hours })
   return t('views.relationship.responseLatency.hoursMinutes', { h: hours, m: mins })
 }
+
+const sortedMonths = computed(() => [...(stats.value?.months ?? [])].sort((a, b) => a.month.localeCompare(b.month)))
+
+const trajectoryTabs = computed(() => [
+  { label: t('views.relationship.trajectory.metrics.activity'), value: 'activity' },
+  { label: t('views.relationship.trajectory.metrics.response'), value: 'response' },
+  { label: t('views.relationship.trajectory.metrics.perseverance'), value: 'perseverance' },
+])
+
+const trajectoryChartOption = computed<EChartsOption>(() => {
+  const months = sortedMonths.value
+  const spansMultipleYears = new Set(months.map((month) => month.month.slice(0, 4))).size > 1
+  const xData = months.map((month) =>
+    spansMultipleYears ? month.month.replace('-', '/') : formatMonthShort(month.month)
+  )
+  const baseOption: EChartsOption = {
+    color: ['#3b82f6', '#ec4899'],
+    tooltip: { trigger: 'axis' },
+    legend: { top: 4, textStyle: { fontSize: 11 } },
+    grid: { left: 52, right: 24, top: 44, bottom: 34 },
+    xAxis: {
+      type: 'category',
+      data: xData,
+      axisTick: { show: false },
+      axisLabel: { fontSize: 11 },
+    },
+    yAxis: {
+      type: 'value',
+      min: 0,
+      minInterval: 1,
+      axisLabel: { fontSize: 11 },
+      splitLine: { lineStyle: { type: 'dashed' } },
+    },
+  }
+
+  if (trajectoryMetric.value === 'activity') {
+    return {
+      ...baseOption,
+      series: [
+        {
+          name: t('views.relationship.trajectory.conversations'),
+          type: 'bar',
+          data: months.map((month) => month.totalSessions),
+          barMaxWidth: 32,
+          itemStyle: { borderRadius: [4, 4, 0, 0] },
+        },
+        {
+          name: t('views.relationship.trajectory.iceBreaks'),
+          type: 'line',
+          data: months.map((month) => getMonthIceBreakCount(month.month)),
+          smooth: true,
+          symbolSize: 7,
+          lineStyle: { width: 2 },
+        },
+      ],
+    }
+  }
+
+  if (trajectoryMetric.value === 'response') {
+    return {
+      ...baseOption,
+      tooltip: {
+        trigger: 'axis',
+        valueFormatter(value) {
+          return typeof value === 'number' ? formatDuration(value) : String(value ?? '—')
+        },
+      },
+      yAxis: {
+        type: 'value',
+        min: 0,
+        axisLabel: {
+          fontSize: 11,
+          formatter(value: number) {
+            return formatDuration(value)
+          },
+        },
+        splitLine: { lineStyle: { type: 'dashed' } },
+      },
+      series: [
+        {
+          name: memberA.value?.name ?? '—',
+          type: 'line',
+          data: months.map((month) => getMemberResponseLatency(month.month, memberA.value?.memberId)),
+          connectNulls: false,
+          smooth: true,
+          symbolSize: 7,
+          lineStyle: { width: 2 },
+        },
+        {
+          name: memberB.value?.name ?? '—',
+          type: 'line',
+          data: months.map((month) => getMemberResponseLatency(month.month, memberB.value?.memberId)),
+          connectNulls: false,
+          smooth: true,
+          symbolSize: 7,
+          lineStyle: { width: 2 },
+        },
+      ],
+    }
+  }
+
+  return {
+    ...baseOption,
+    series: [
+      {
+        name: memberA.value?.name ?? '—',
+        type: 'bar',
+        data: months.map((month) => getMemberPerseverance(month.month, memberA.value?.memberId)),
+        barMaxWidth: 24,
+        itemStyle: { borderRadius: [4, 4, 0, 0] },
+      },
+      {
+        name: memberB.value?.name ?? '—',
+        type: 'bar',
+        data: months.map((month) => getMemberPerseverance(month.month, memberB.value?.memberId)),
+        barMaxWidth: 24,
+        itemStyle: { borderRadius: [4, 4, 0, 0] },
+      },
+    ],
+  }
+})
+
+const keyMoments = computed(() => {
+  const activityPeak = sortedMonths.value.reduce<(typeof sortedMonths.value)[number] | null>(
+    (peak, month) => (!peak || month.totalSessions > peak.totalSessions ? month : peak),
+    null
+  )
+  const iceBreakPeak = sortedMonths.value
+    .map((month) => ({ month: month.month, count: getMonthIceBreakCount(month.month) }))
+    .filter((item) => item.count > 0)
+    .sort((a, b) => b.count - a.count)[0]
+  const responsePeak = sortedMonths.value
+    .map((month) => ({ month: month.month, value: getMonthAverageResponse(month.month) }))
+    .filter((item): item is { month: string; value: number } => item.value != null)
+    .sort((a, b) => a.value - b.value)[0]
+
+  return [
+    activityPeak && activityPeak.totalSessions > 0
+      ? {
+          icon: 'i-heroicons-chart-bar-square-solid',
+          iconClass: 'bg-blue-50 text-blue-500 dark:bg-blue-500/10 dark:text-blue-400',
+          title: t('views.relationship.trajectory.activityPeak'),
+          month: formatMonth(activityPeak.month),
+          detail: t('views.relationship.trajectory.activityPeakDetail', { count: activityPeak.totalSessions }),
+        }
+      : null,
+    iceBreakPeak
+      ? {
+          icon: 'i-heroicons-fire-solid',
+          iconClass: 'bg-pink-50 text-pink-500 dark:bg-pink-500/10 dark:text-pink-400',
+          title: t('views.relationship.trajectory.iceBreakPeak'),
+          month: formatMonth(iceBreakPeak.month),
+          detail: t('views.relationship.trajectory.iceBreakPeakDetail', {
+            count: iceBreakPeak.count,
+          }),
+        }
+      : null,
+    responsePeak
+      ? {
+          icon: 'i-heroicons-clock-solid',
+          iconClass: 'bg-blue-50 text-blue-500 dark:bg-blue-500/10 dark:text-blue-400',
+          title: t('views.relationship.trajectory.fastestResponse'),
+          month: formatMonth(responsePeak.month),
+          detail: t('views.relationship.trajectory.fastestResponseDetail', {
+            duration: formatDuration(responsePeak.value),
+          }),
+        }
+      : null,
+  ].filter((item): item is NonNullable<typeof item> => item != null)
+})
 </script>
 
 <template>
@@ -483,232 +637,122 @@ function formatDuration(seconds: number): string {
           </ReportCard>
         </div>
 
-        <!-- 月度时间线 -->
-        <SectionCard :title="t('views.relationship.monthly.title')" :show-divider="false">
-          <div class="p-6 sm:p-8">
-            <div class="relative ml-4 border-l-2 border-gray-100/80 py-4 dark:border-gray-800/80">
-              <div v-for="(month, idx) in stats.months" :key="month.month" class="relative pb-12 pl-10 last:pb-0">
-                <!-- Timeline Dot -->
-                <div
-                  class="absolute -left-[11px] top-1 flex h-5 w-5 items-center justify-center rounded-full bg-white ring-4 ring-white dark:bg-page-dark dark:ring-page-dark"
-                >
-                  <div
-                    class="h-2.5 w-2.5 rounded-full shadow-sm"
-                    :class="
-                      month.totalSessions > 0
-                        ? idx === 0
-                          ? 'bg-pink-500 animate-pulse'
-                          : 'bg-pink-400'
-                        : 'bg-gray-300 dark:bg-gray-600'
-                    "
-                  />
-                </div>
+        <!-- 互动轨迹：趋势优先，月度数值按需展开 -->
+        <SectionCard
+          :title="t('views.relationship.trajectory.title')"
+          :description="t('views.relationship.trajectory.description')"
+          :show-divider="false"
+        >
+          <template #headerRight>
+            <Tabs v-model="trajectoryMetric" :items="trajectoryTabs" size="sm" class="max-w-[58vw] sm:max-w-none" />
+          </template>
 
-                <!-- Month Content Card -->
-                <div class="group relative overflow-hidden border-b border-gray-200/60 dark:border-white/5">
-                  <!-- 装饰背景 -->
-                  <div
-                    v-if="month.totalSessions > 0"
-                    class="pointer-events-none absolute inset-0 overflow-hidden opacity-30 transition-opacity group-hover:opacity-50"
-                  >
-                    <div
-                      class="absolute -left-[10%] top-[20%] h-[60%] w-[40%] rounded-full bg-blue-400/10 blur-[40px] dark:bg-blue-500/20"
-                    />
-                    <div
-                      class="absolute -right-[10%] bottom-[20%] h-[60%] w-[40%] rounded-full bg-pink-400/10 blur-[40px] dark:bg-pink-500/20"
-                    />
+          <div class="px-4 pb-5 sm:px-6 sm:pb-6">
+            <EChart :option="trajectoryChartOption" :height="280" />
+
+            <div v-if="keyMoments.length > 0" class="mt-6">
+              <p class="mb-3 text-xs font-semibold tracking-wide text-gray-400 uppercase dark:text-gray-500">
+                {{ t('views.relationship.trajectory.keyMoments') }}
+              </p>
+              <div class="grid gap-x-8 gap-y-4 sm:grid-cols-3">
+                <div v-for="moment in keyMoments" :key="moment.title" class="flex min-w-0 items-start gap-3 py-1">
+                  <div class="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg" :class="moment.iconClass">
+                    <UIcon :name="moment.icon" class="h-4 w-4" />
                   </div>
-
-                  <div class="relative z-10 p-4 sm:p-5">
-                    <!-- 头部：月份与总次数 -->
-                    <div class="flex items-center justify-between" :class="month.totalSessions > 0 ? 'mb-4' : ''">
-                      <div class="flex items-center gap-3">
-                        <span class="text-xl font-bold tracking-tight text-gray-900 dark:text-white">
-                          {{ formatMonth(month.month) }}
-                        </span>
-                        <span
-                          class="rounded-lg px-2.5 py-1 text-xs font-semibold"
-                          :class="
-                            month.totalSessions === 0
-                              ? 'bg-gray-50 text-gray-500 dark:bg-gray-800/50 dark:text-gray-400'
-                              : 'bg-pink-50 text-pink-600 dark:bg-pink-500/10 dark:text-pink-400'
-                          "
-                        >
-                          {{ getMonthLabel(month) }}
-                        </span>
-                      </div>
-
-                      <div v-if="month.totalSessions > 0" class="flex items-baseline gap-1.5">
-                        <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                          {{ t('views.relationship.monthly.totalSessionsPrefix') }}
-                        </span>
-                        <span class="text-2xl font-black leading-none text-gray-900 dark:text-white">
-                          {{ month.totalSessions }}
-                        </span>
-                        <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                          {{ t('views.relationship.monthly.totalSessionsSuffix') }}
-                        </span>
-                      </div>
-                    </div>
-
-                    <template v-if="month.totalSessions > 0">
-                      <!-- 内容区：四列高度压缩卡片网格 -->
-                      <div class="grid grid-cols-2 gap-3 lg:grid-cols-4">
-                        <!-- 1. 发起者 -->
-                        <div class="flex min-w-0 flex-col p-3">
-                          <div class="mb-2.5 flex items-center gap-1.5">
-                            <UIcon
-                              name="i-heroicons-chat-bubble-bottom-center-text-solid"
-                              class="h-3.5 w-3.5 text-blue-500 dark:text-blue-400"
-                            />
-                            <span class="text-xs font-bold text-gray-700 dark:text-gray-300">
-                              {{ t('views.relationship.initiator') }}
-                            </span>
-                          </div>
-                          <div class="flex flex-col gap-1.5">
-                            <div class="flex items-center justify-between text-xs">
-                              <span class="w-12 truncate font-medium text-gray-500 dark:text-gray-400">
-                                {{ memberA?.name }}
-                              </span>
-                              <span class="font-black tabular-nums text-blue-600 dark:text-blue-400">
-                                {{ month.members.find((m) => m.memberId === memberA?.memberId)?.initiateCount ?? 0 }}
-                              </span>
-                            </div>
-                            <div class="flex items-center justify-between text-xs">
-                              <span class="w-12 truncate font-medium text-gray-500 dark:text-gray-400">
-                                {{ memberB?.name }}
-                              </span>
-                              <span class="font-black tabular-nums text-pink-500 dark:text-pink-400">
-                                {{ month.members.find((m) => m.memberId === memberB?.memberId)?.initiateCount ?? 0 }}
-                              </span>
-                            </div>
-                          </div>
-                          <div class="mt-3 flex h-1 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                            <div
-                              class="bg-blue-500 dark:bg-blue-400"
-                              :style="{ width: clampBarWidth(getMonthInitiateRatio(month)) + '%' }"
-                            />
-                            <div
-                              class="bg-pink-500 dark:bg-pink-400"
-                              :style="{ width: clampBarWidth(100 - getMonthInitiateRatio(month)) + '%' }"
-                            />
-                          </div>
-                        </div>
-
-                        <!-- 2. 终结者 -->
-                        <div class="flex min-w-0 flex-col p-3">
-                          <div class="mb-2.5 flex items-center gap-1.5">
-                            <UIcon
-                              name="i-heroicons-hand-raised-solid"
-                              class="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400"
-                            />
-                            <span class="text-xs font-bold text-gray-700 dark:text-gray-300">
-                              {{ t('views.relationship.closer') }}
-                            </span>
-                          </div>
-                          <div class="flex flex-col gap-1.5">
-                            <div class="flex items-center justify-between text-xs">
-                              <span class="w-12 truncate font-medium text-gray-500 dark:text-gray-400">
-                                {{ memberA?.name }}
-                              </span>
-                              <span class="font-black tabular-nums text-indigo-600 dark:text-indigo-400">
-                                {{ month.members.find((m) => m.memberId === memberA?.memberId)?.closeCount ?? 0 }}
-                              </span>
-                            </div>
-                            <div class="flex items-center justify-between text-xs">
-                              <span class="w-12 truncate font-medium text-gray-500 dark:text-gray-400">
-                                {{ memberB?.name }}
-                              </span>
-                              <span class="font-black tabular-nums text-pink-500 dark:text-pink-400">
-                                {{ month.members.find((m) => m.memberId === memberB?.memberId)?.closeCount ?? 0 }}
-                              </span>
-                            </div>
-                          </div>
-                          <div class="mt-3 flex h-1 w-full overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-                            <div
-                              class="bg-indigo-500 dark:bg-indigo-400"
-                              :style="{ width: clampBarWidth(getMonthCloseRatio(month)) + '%' }"
-                            />
-                            <div
-                              class="bg-pink-500 dark:bg-pink-400"
-                              :style="{ width: clampBarWidth(100 - getMonthCloseRatio(month)) + '%' }"
-                            />
-                          </div>
-                        </div>
-
-                        <!-- 3. 响应时延 -->
-                        <div class="flex min-w-0 flex-col p-3">
-                          <div class="mb-2.5 flex items-center gap-1.5">
-                            <UIcon
-                              name="i-heroicons-clock-solid"
-                              class="h-3.5 w-3.5 text-amber-500 dark:text-amber-400"
-                            />
-                            <span class="text-xs font-bold text-gray-700 dark:text-gray-300">
-                              {{ t('views.relationship.responseLatency.title') }}
-                            </span>
-                          </div>
-                          <div class="flex flex-col gap-1.5">
-                            <div class="flex items-center justify-between text-xs">
-                              <span class="w-12 truncate font-medium text-gray-500 dark:text-gray-400">
-                                {{ memberA?.name }}
-                              </span>
-                              <span class="font-black tabular-nums text-amber-600 dark:text-amber-500">
-                                {{ getMemberResponseLatencyText(month.month, memberA?.memberId) }}
-                              </span>
-                            </div>
-                            <div class="flex items-center justify-between text-xs">
-                              <span class="w-12 truncate font-medium text-gray-500 dark:text-gray-400">
-                                {{ memberB?.name }}
-                              </span>
-                              <span class="font-black tabular-nums text-amber-600 dark:text-amber-500">
-                                {{ getMemberResponseLatencyText(month.month, memberB?.memberId) }}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <!-- 4. 锲而不舍 -->
-                        <div class="flex min-w-0 flex-col p-3">
-                          <div class="mb-2.5 flex items-center gap-1.5">
-                            <UIcon
-                              name="i-heroicons-arrow-path-solid"
-                              class="h-3.5 w-3.5 text-purple-500 dark:text-purple-400"
-                            />
-                            <span class="text-xs font-bold text-gray-700 dark:text-gray-300">
-                              {{ t('views.relationship.perseverance.title') }}
-                            </span>
-                          </div>
-                          <div class="flex flex-col gap-1.5">
-                            <div class="flex items-center justify-between text-xs">
-                              <span class="w-12 truncate font-medium text-gray-500 dark:text-gray-400">
-                                {{ memberA?.name }}
-                              </span>
-                              <span class="font-black tabular-nums text-purple-600 dark:text-purple-400">
-                                {{ getMemberPerseveranceText(month.month, memberA?.memberId) }}
-                              </span>
-                            </div>
-                            <div class="flex items-center justify-between text-xs">
-                              <span class="w-12 truncate font-medium text-gray-500 dark:text-gray-400">
-                                {{ memberB?.name }}
-                              </span>
-                              <span class="font-black tabular-nums text-purple-600 dark:text-purple-400">
-                                {{ getMemberPerseveranceText(month.month, memberB?.memberId) }}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    </template>
-
-                    <div
-                      v-else
-                      class="flex h-24 items-center justify-center text-sm font-medium text-gray-400 dark:text-gray-500"
+                  <div class="min-w-0">
+                    <p class="text-xs font-medium text-gray-500 dark:text-gray-400">{{ moment.title }}</p>
+                    <p
+                      class="mt-0.5 truncate text-sm font-semibold text-gray-900 dark:text-white"
+                      :title="moment.month"
                     >
-                      {{ t('views.relationship.noActivity') }}
-                    </div>
+                      {{ moment.month }}
+                    </p>
+                    <p class="mt-0.5 text-xs text-gray-500 dark:text-gray-400">{{ moment.detail }}</p>
                   </div>
                 </div>
               </div>
+            </div>
+
+            <div class="mt-5 flex justify-center">
+              <UButton
+                color="neutral"
+                variant="ghost"
+                size="sm"
+                :icon="showAllMonths ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+                @click="showAllMonths = !showAllMonths"
+              >
+                {{
+                  showAllMonths
+                    ? t('views.relationship.trajectory.hideAll')
+                    : t('views.relationship.trajectory.showAll')
+                }}
+              </UButton>
+            </div>
+
+            <div
+              v-if="showAllMonths"
+              class="mt-3 overflow-x-auto rounded-lg border border-gray-200/80 dark:border-white/10"
+            >
+              <table class="min-w-full text-left text-sm">
+                <thead class="bg-gray-50/80 text-xs text-gray-500 dark:bg-white/[0.03] dark:text-gray-400">
+                  <tr>
+                    <th scope="col" class="px-4 py-2.5 font-medium">
+                      {{ t('views.relationship.trajectory.month') }}
+                    </th>
+                    <template v-if="trajectoryMetric === 'activity'">
+                      <th scope="col" class="px-4 py-2.5 text-right font-medium">
+                        {{ t('views.relationship.trajectory.conversations') }}
+                      </th>
+                      <th scope="col" class="px-4 py-2.5 text-right font-medium">
+                        {{ t('views.relationship.trajectory.iceBreaks') }}
+                      </th>
+                    </template>
+                    <template v-else>
+                      <th scope="col" class="max-w-[180px] truncate px-4 py-2.5 text-right font-medium">
+                        {{ memberA?.name }}
+                      </th>
+                      <th scope="col" class="max-w-[180px] truncate px-4 py-2.5 text-right font-medium">
+                        {{ memberB?.name }}
+                      </th>
+                    </template>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-gray-100 dark:divide-white/5">
+                  <tr v-for="month in [...sortedMonths].reverse()" :key="month.month">
+                    <td class="whitespace-nowrap px-4 py-2.5 font-medium text-gray-700 dark:text-gray-300">
+                      {{ formatMonth(month.month) }}
+                    </td>
+                    <template v-if="trajectoryMetric === 'activity'">
+                      <td class="px-4 py-2.5 text-right tabular-nums text-gray-600 dark:text-gray-400">
+                        {{ month.totalSessions }}
+                      </td>
+                      <td class="px-4 py-2.5 text-right tabular-nums text-gray-600 dark:text-gray-400">
+                        {{ getMonthIceBreakCount(month.month) }}
+                      </td>
+                    </template>
+                    <template v-else-if="trajectoryMetric === 'response'">
+                      <td
+                        class="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-gray-600 dark:text-gray-400"
+                      >
+                        {{ formatMemberResponseLatency(month.month, memberA?.memberId) }}
+                      </td>
+                      <td
+                        class="whitespace-nowrap px-4 py-2.5 text-right tabular-nums text-gray-600 dark:text-gray-400"
+                      >
+                        {{ formatMemberResponseLatency(month.month, memberB?.memberId) }}
+                      </td>
+                    </template>
+                    <template v-else>
+                      <td class="px-4 py-2.5 text-right tabular-nums text-gray-600 dark:text-gray-400">
+                        {{ getMemberPerseverance(month.month, memberA?.memberId) }}
+                      </td>
+                      <td class="px-4 py-2.5 text-right tabular-nums text-gray-600 dark:text-gray-400">
+                        {{ getMemberPerseverance(month.month, memberB?.memberId) }}
+                      </td>
+                    </template>
+                  </tr>
+                </tbody>
+              </table>
             </div>
           </div>
         </SectionCard>

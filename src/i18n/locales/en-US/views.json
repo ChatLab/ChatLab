@@ -123,11 +123,6 @@
       "title": "No Relationship Data",
       "description": "No sessions found in the selected time range."
     },
-    "monthly": {
-      "title": "Monthly Breakdown",
-      "totalSessionsPrefix": "Total",
-      "totalSessionsSuffix": "sessions"
-    },
     "trend": {
       "title": "Initiative Trend",
       "hint": "Blue line shows {name}'s monthly initiative ratio; 50% line is the balanced baseline"
@@ -140,11 +135,8 @@
       "initiativeBySuffix": "",
       "initiateTimes": "starts"
     },
-    "initiator": "Start Conversations",
-    "closer": "End Conversations",
     "closerTitle": "Conversation Closer",
     "closerHint": "Shows who sends the last message when a topic ends.",
-    "noActivity": "No activity this month",
     "watermarkReport": "Relationship Report",
     "monthFormat": "{month}/{year}",
     "monthShortFormat": "{month}",
@@ -165,12 +157,26 @@
       "hintWithThreshold": "Times sending another message when the other person hasn't replied within {threshold}",
       "thresholdMinutes": "{n} min"
     },
-    "labels": {
-      "wellMatched": "Well Matched",
-      "missingYou": "{name} Misses You",
-      "monologue": "{name}'s Monologue",
-      "peacefulSilence": "Peaceful Silence",
-      "fleetingThoughts": "Fleeting Thoughts"
+    "trajectory": {
+      "title": "Interaction Timeline",
+      "description": "See how your interactions changed month by month",
+      "metrics": {
+        "activity": "Conversation Frequency",
+        "response": "Reply Speed",
+        "perseverance": "Follow-up Messages"
+      },
+      "conversations": "Conversations",
+      "iceBreaks": "Restarts",
+      "keyMoments": "Key Months",
+      "activityPeak": "Busiest Month",
+      "activityPeakDetail": "{count} conversations",
+      "iceBreakPeak": "Most Restarts",
+      "iceBreakPeakDetail": "{count} conversation restarts",
+      "fastestResponse": "Fastest Replies",
+      "fastestResponseDetail": "{duration} average reply",
+      "showAll": "View All Months",
+      "hideAll": "Hide Monthly Data",
+      "month": "Month"
     }
   },
   "timeline": {

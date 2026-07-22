@@ -8,7 +8,7 @@ import type { DatabaseAdapter } from '../../interfaces'
 
 export interface RelationshipMonthStats {
   month: string
-  members: Array<{ memberId: number; name: string; initiateCount: number; closeCount: number }>
+  members: Array<{ memberId: number; initiateCount: number }>
   totalSessions: number
 }
 
@@ -23,7 +23,6 @@ export interface ResponseLatencyMember {
   memberId: number
   name: string
   avgResponseTime: number
-  totalResponses: number
 }
 
 export interface PerseveranceMember {
@@ -52,13 +51,10 @@ export interface RelationshipStats {
   totalSessions: number
   hasSessionIndex: boolean
   iceBreakers: IceBreakerItem[]
-  totalIceBreaks: number
   responseLatency: ResponseLatencyMember[]
   perseverance: PerseveranceMember[]
-  totalDoubleTexts: number
   monthlyResponseLatency: MonthlyResponseLatency[]
   monthlyPerseverance: MonthlyPerseverance[]
-  perseveranceThreshold: number
 }
 
 const ICE_BREAK_THRESHOLD = 24 * 60 * 60
@@ -76,13 +72,10 @@ export function getRelationshipStats(
     totalSessions: 0,
     hasSessionIndex: false,
     iceBreakers: [],
-    totalIceBreaks: 0,
     responseLatency: [],
     perseverance: [],
-    totalDoubleTexts: 0,
     monthlyResponseLatency: [],
     monthlyPerseverance: [],
-    perseveranceThreshold,
   }
 
   const sessionCount = db.prepare('SELECT COUNT(*) as count FROM segment').get() as { count: number } | undefined
@@ -125,19 +118,15 @@ export function getRelationshipStats(
     .all() as Array<{ id: number; name: string }>
   for (const row of memberRows) memberNames.set(row.id, row.name)
 
-  const monthMap = new Map<
-    string,
-    { initiateMap: Map<number, number>; closeMap: Map<number, number>; totalSessions: number }
-  >()
+  const monthMap = new Map<string, { initiateMap: Map<number, number>; totalSessions: number }>()
   const memberInitTotals = new Map<number, number>()
   const memberCloseTotals = new Map<number, number>()
   const iceBreakMap = new Map<string, Map<number, number>>()
-  let totalIceBreaks = 0
   let prevEndTs: number | null = null
 
   for (const row of segmentRows) {
     const month = toLocalMonth(row.start_ts)
-    if (!monthMap.has(month)) monthMap.set(month, { initiateMap: new Map(), closeMap: new Map(), totalSessions: 0 })
+    if (!monthMap.has(month)) monthMap.set(month, { initiateMap: new Map(), totalSessions: 0 })
     const ms = monthMap.get(month)!
     ms.totalSessions++
 
@@ -146,14 +135,12 @@ export function getRelationshipStats(
       memberInitTotals.set(row.initiator_id, (memberInitTotals.get(row.initiator_id) ?? 0) + 1)
     }
     if (row.closer_id !== null) {
-      ms.closeMap.set(row.closer_id, (ms.closeMap.get(row.closer_id) ?? 0) + 1)
       memberCloseTotals.set(row.closer_id, (memberCloseTotals.get(row.closer_id) ?? 0) + 1)
     }
     if (prevEndTs !== null && row.initiator_id !== null && row.start_ts - prevEndTs > ICE_BREAK_THRESHOLD) {
       if (!iceBreakMap.has(month)) iceBreakMap.set(month, new Map())
       const mMap = iceBreakMap.get(month)!
       mMap.set(row.initiator_id, (mMap.get(row.initiator_id) ?? 0) + 1)
-      totalIceBreaks++
     }
     prevEndTs = row.end_ts
   }
@@ -167,9 +154,7 @@ export function getRelationshipStats(
     const ms = monthMap.get(month)!
     const members = Array.from(allMemberIds).map((memberId) => ({
       memberId,
-      name: memberNames.get(memberId) ?? `Unknown(${memberId})`,
       initiateCount: ms.initiateMap.get(memberId) ?? 0,
-      closeCount: ms.closeMap.get(memberId) ?? 0,
     }))
     return { month, members, totalSessions: ms.totalSessions }
   })
@@ -201,9 +186,7 @@ export function getRelationshipStats(
     totalSessions: segmentRows.length,
     hasSessionIndex: true,
     iceBreakers,
-    totalIceBreaks,
     ...msgStats,
-    perseveranceThreshold,
   }
 }
 
@@ -215,14 +198,12 @@ function queryMessageLevelStats(
 ): {
   responseLatency: ResponseLatencyMember[]
   perseverance: PerseveranceMember[]
-  totalDoubleTexts: number
   monthlyResponseLatency: MonthlyResponseLatency[]
   monthlyPerseverance: MonthlyPerseverance[]
 } {
   const empty = {
     responseLatency: [],
     perseverance: [],
-    totalDoubleTexts: 0,
     monthlyResponseLatency: [],
     monthlyPerseverance: [],
   }
@@ -299,16 +280,15 @@ function queryMessageLevelStats(
       memberId,
       name: memberNames.get(memberId) ?? `Unknown(${memberId})`,
       avgResponseTime: Math.round(sum / count),
-      totalResponses: count,
     }))
     .sort((a, b) => a.avgResponseTime - b.avgResponseTime)
 
-  let totalDoubleTexts = 0
   const perseverance: PerseveranceMember[] = Array.from(dtTotals.entries())
-    .map(([memberId, count]) => {
-      totalDoubleTexts += count
-      return { memberId, name: memberNames.get(memberId) ?? `Unknown(${memberId})`, totalDoubleTexts: count }
-    })
+    .map(([memberId, count]) => ({
+      memberId,
+      name: memberNames.get(memberId) ?? `Unknown(${memberId})`,
+      totalDoubleTexts: count,
+    }))
     .sort((a, b) => b.totalDoubleTexts - a.totalDoubleTexts)
 
   const monthlyResponseLatency: MonthlyResponseLatency[] = Array.from(monthlyRespMap.entries())
@@ -338,7 +318,7 @@ function queryMessageLevelStats(
         .sort((a, b) => b.doubleTextCount - a.doubleTextCount),
     }))
 
-  return { responseLatency, perseverance, totalDoubleTexts, monthlyResponseLatency, monthlyPerseverance }
+  return { responseLatency, perseverance, monthlyResponseLatency, monthlyPerseverance }
 }
 
 function toLocalMonth(ts: number): string {

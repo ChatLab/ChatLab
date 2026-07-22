@@ -270,13 +270,10 @@ class FakeSessionRuntime implements WorkerSessionRuntime {
       totalSessions: 0,
       hasSessionIndex: true,
       iceBreakers: [],
-      totalIceBreaks: 0,
       responseLatency: [],
       perseverance: [],
-      totalDoubleTexts: 0,
       monthlyResponseLatency: [],
       monthlyPerseverance: [],
-      perseveranceThreshold: 300,
     }
   }
 

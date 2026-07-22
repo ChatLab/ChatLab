@@ -251,9 +251,7 @@ export interface RelationshipMonthStats {
   month: string
   members: Array<{
     memberId: number
-    name: string
     initiateCount: number
-    closeCount: number
   }>
   totalSessions: number
 }
@@ -269,7 +267,6 @@ export interface ResponseLatencyMember {
   memberId: number
   name: string
   avgResponseTime: number
-  totalResponses: number
 }
 
 export interface PerseveranceMember {
@@ -308,11 +305,8 @@ export interface RelationshipStats {
   totalSessions: number
   hasSessionIndex: boolean
   iceBreakers: IceBreakerItem[]
-  totalIceBreaks: number
   responseLatency: ResponseLatencyMember[]
   perseverance: PerseveranceMember[]
-  totalDoubleTexts: number
   monthlyResponseLatency: MonthlyResponseLatency[]
   monthlyPerseverance: MonthlyPerseverance[]
-  perseveranceThreshold: number
 }

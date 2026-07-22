@@ -123,11 +123,6 @@
       "title": "暂无关系数据",
       "description": "当前时间范围内没有会话记录。"
     },
-    "monthly": {
-      "title": "月度明细",
-      "totalSessionsPrefix": "共对话",
-      "totalSessionsSuffix": "次"
-    },
     "trend": {
       "title": "主动性趋势",
       "hint": "蓝色线为 {name} 的月度主动发起占比，50% 线为均衡基准"
@@ -140,11 +135,8 @@
       "initiativeBySuffix": "发起",
       "initiateTimes": "次发起"
     },
-    "initiator": "发起话题",
-    "closer": "结束话题",
     "closerTitle": "话题终结者",
     "closerHint": "统计话题结束时最后发言的人。",
-    "noActivity": "本月无互动",
     "watermarkReport": "关系报告",
     "monthFormat": "{year}年{month}月",
     "monthShortFormat": "{month}月",
@@ -165,12 +157,26 @@
       "hintWithThreshold": "对方{threshold}内还没回复就又发了一次消息的次数",
       "thresholdMinutes": "{n}分钟"
     },
-    "labels": {
-      "wellMatched": "势均力敌",
-      "missingYou": "{name} 在想念",
-      "monologue": "{name} 的独白",
-      "peacefulSilence": "各自安好",
-      "fleetingThoughts": "偶尔想起"
+    "trajectory": {
+      "title": "互动轨迹",
+      "description": "从月度趋势中查看你们的互动变化",
+      "metrics": {
+        "activity": "对话频率",
+        "response": "回复速度",
+        "perseverance": "连续发送"
+      },
+      "conversations": "对话次数",
+      "iceBreaks": "重新开口",
+      "keyMoments": "关键月份",
+      "activityPeak": "互动高峰",
+      "activityPeakDetail": "共 {count} 次对话",
+      "iceBreakPeak": "重新开口最多",
+      "iceBreakPeakDetail": "共重新开口 {count} 次",
+      "fastestResponse": "回复最快",
+      "fastestResponseDetail": "平均回复 {duration}",
+      "showAll": "查看全部月份",
+      "hideAll": "收起月度数据",
+      "month": "月份"
     }
   },
   "timeline": {

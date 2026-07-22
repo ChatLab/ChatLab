@@ -123,11 +123,6 @@
       "title": "暫無關係資料",
       "description": "目前時間範圍內沒有對話記錄。"
     },
-    "monthly": {
-      "title": "月度明細",
-      "totalSessionsPrefix": "共對話",
-      "totalSessionsSuffix": "次"
-    },
     "trend": {
       "title": "主動性趨勢",
       "hint": "藍色線為 {name} 的月度主動發起佔比，50% 線為均衡基準"
@@ -140,11 +135,8 @@
       "initiativeBySuffix": "發起",
       "initiateTimes": "次發起"
     },
-    "initiator": "發起話題",
-    "closer": "結束話題",
     "closerTitle": "話題終結者",
     "closerHint": "統計話題結束時最後發言的人。",
-    "noActivity": "本月無互動",
     "watermarkReport": "關係報告",
     "monthFormat": "{year}年{month}月",
     "monthShortFormat": "{month}月",
@@ -165,12 +157,26 @@
       "hintWithThreshold": "對方{threshold}內還沒回覆就又發了一次訊息的次數",
       "thresholdMinutes": "{n}分鐘"
     },
-    "labels": {
-      "wellMatched": "勢均力敵",
-      "missingYou": "{name} 在想念",
-      "monologue": "{name} 的獨白",
-      "peacefulSilence": "各自安好",
-      "fleetingThoughts": "偶爾想起"
+    "trajectory": {
+      "title": "互動軌跡",
+      "description": "從月度趨勢中查看你們的互動變化",
+      "metrics": {
+        "activity": "對話頻率",
+        "response": "回覆速度",
+        "perseverance": "連續傳送"
+      },
+      "conversations": "對話次數",
+      "iceBreaks": "重新開口",
+      "keyMoments": "關鍵月份",
+      "activityPeak": "互動高峰",
+      "activityPeakDetail": "共 {count} 次對話",
+      "iceBreakPeak": "重新開口最多",
+      "iceBreakPeakDetail": "共重新開口 {count} 次",
+      "fastestResponse": "回覆最快",
+      "fastestResponseDetail": "平均回覆 {duration}",
+      "showAll": "查看全部月份",
+      "hideAll": "收起月度資料",
+      "month": "月份"
     }
   },
   "timeline": {

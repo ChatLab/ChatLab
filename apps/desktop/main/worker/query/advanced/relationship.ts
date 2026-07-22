@@ -22,20 +22,16 @@ export function getRelationshipStats(
 ): RelationshipStats {
   const db = openDatabaseAdapter(sessionId)
   if (!db) {
-    const perseveranceThreshold = options?.perseveranceThreshold ?? 300
     return {
       months: [],
       members: [],
       totalSessions: 0,
       hasSessionIndex: false,
       iceBreakers: [],
-      totalIceBreaks: 0,
       responseLatency: [],
       perseverance: [],
-      totalDoubleTexts: 0,
       monthlyResponseLatency: [],
       monthlyPerseverance: [],
-      perseveranceThreshold,
     }
   }
   return coreGetRelationshipStats(db, filter, options)
