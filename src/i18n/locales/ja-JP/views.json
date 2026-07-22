@@ -179,6 +179,76 @@
       "month": "月"
     }
   },
+  "duoProfile": {
+    "hero": {
+      "eyebrow": "ふたりのチャットプロフィール",
+      "title": "同じ会話、ふたつの伝え方",
+      "filtered": "絞り込み中",
+      "owner": "自分",
+      "compare": "比較",
+      "counterpart": "相手",
+      "commonHours": "共通のアクティブ時間",
+      "noCommonHours": "共通のアクティブ時間はありません",
+      "sameDayOverlap": "同日アクティブ率",
+      "activeDayDetail": "{intersection} / {union} 日"
+    },
+    "sections": {
+      "interaction": {
+        "title": "やりとりの仕方",
+        "description": "会話の開始と終了、返信時間、連続送信の傾向を比較します"
+      },
+      "expression": {
+        "title": "表現の傾向",
+        "description": "メッセージ比率、文章の長さ、送信タイプから表現方法を比較します"
+      },
+      "schedule": {
+        "title": "アクティブ時間",
+        "description": "一日の活動分布を比較します。関係性の良し悪しは評価しません"
+      }
+    },
+    "metrics": {
+      "messageShare": "メッセージ比率",
+      "initiatedShare": "会話開始の比率",
+      "averageResponse": "平均返信時間",
+      "averageTextLength": "平均文字数",
+      "initiatedSegments": "会話を開始",
+      "closedSegments": "会話を終了",
+      "continuationRate": "連続送信率",
+      "messages": "メッセージ数",
+      "shortTextRate": "短文の比率",
+      "longTextRate": "長文の比率",
+      "nonTextRate": "テキスト以外の比率",
+      "topNonTextType": "よく使う非テキスト形式",
+      "peakHour": "ピーク",
+      "activeDays": "アクティブ日数",
+      "nightRate": "深夜の比率",
+      "weekendRate": "週末の比率",
+      "hourlyOverlap": "時間帯分布の重なり",
+      "sameDayOverlap": "同日アクティブ率"
+    },
+    "units": {
+      "characters": "{count} 文字",
+      "segments": "{count} 回",
+      "messages": "{count} 件",
+      "responseSamples": "返信 {count} 件"
+    },
+    "duration": {
+      "seconds": "{count} 秒",
+      "minutes": "{count} 分",
+      "hours": "{count} 時間",
+      "hoursMinutes": "{hours} 時間 {minutes} 分"
+    },
+    "states": {
+      "loadError": "ふたりのプロフィールを読み込めませんでした。もう一度お試しください。",
+      "owner_missing": "メンバー管理で自分を設定してからプロフィールを確認してください。",
+      "counterpart_missing": "比較できる相手が見つかりません。",
+      "ambiguous": "この個人チャットには相手候補が {count} 人います。重複メンバーを整理してください。",
+      "empty_range": "選択した期間にメッセージがありません。",
+      "not_private": "ふたりのプロフィールは個人チャットでのみ利用できます。",
+      "noIndex": "会話インデックスがないため、やりとりの指標は利用できません。その他の指標には影響しません。"
+    },
+    "watermark": "ふたりのプロフィール"
+  },
   "journey": {
     "loadError": "チャットの歩みを読み込めませんでした",
     "empty": "歩みを作成するためのメッセージがまだ十分にありません",

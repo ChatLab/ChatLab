@@ -210,6 +210,7 @@ describe('BrowserDataAdapter', () => {
           },
           'analysis.relationship': { hasSessionIndex: true },
           'analysis.journey': { range: null, hasSessionIndex: true, months: [], years: [] },
+          'analysis.duoProfile': { status: 'unavailable', reason: 'empty_range' },
           'analysis.languagePreference': { members: [], sharedWords: [], similarityScore: 0 },
           'analysis.wordFrequency': { words: [], totalWords: 0, totalMessages: 0, uniqueWords: 0 },
         }
@@ -228,6 +229,7 @@ describe('BrowserDataAdapter', () => {
     assert.equal((await adapter.getClusterGraph('session-one')).stats.edgeCount, 0)
     assert.equal((await adapter.getRelationshipStats('session-one')).hasSessionIndex, true)
     assert.equal((await adapter.getJourneyStats('session-one')).hasSessionIndex, true)
+    assert.equal((await adapter.getDuoProfileStats('session-one', { memberId: 9 })).status, 'unavailable')
     assert.equal((await adapter.getLanguagePreferenceAnalysis('session-one', 'en-US')).members.length, 0)
     assert.equal((await adapter.getWordFrequency('session-one', { locale: 'en-US' })).totalWords, 0)
 
@@ -243,6 +245,7 @@ describe('BrowserDataAdapter', () => {
         'analysis.clusterGraph',
         'analysis.relationship',
         'analysis.journey',
+        'analysis.duoProfile',
         'analysis.languagePreference',
         'analysis.wordFrequency',
       ]

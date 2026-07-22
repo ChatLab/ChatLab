@@ -179,6 +179,76 @@
       "month": "月份"
     }
   },
+  "duoProfile": {
+    "hero": {
+      "eyebrow": "雙人聊天畫像",
+      "title": "同一段聊天，兩種表達方式",
+      "filtered": "已篩選",
+      "owner": "我",
+      "compare": "左右對照",
+      "counterpart": "對方",
+      "commonHours": "共同活躍時段",
+      "noCommonHours": "暫無共同活躍時段",
+      "sameDayOverlap": "同日活躍重合",
+      "activeDayDetail": "{intersection} / {union} 天"
+    },
+    "sections": {
+      "interaction": {
+        "title": "互動方式",
+        "description": "對照誰更常開場、收尾，以及回覆和連續傳送的節奏"
+      },
+      "expression": {
+        "title": "表達習慣",
+        "description": "從文字長度、訊息形態和傳送占比觀察各自的表達方式"
+      },
+      "schedule": {
+        "title": "活躍時段",
+        "description": "比較雙方一天內的活躍分布，只描述時間習慣，不評價關係"
+      }
+    },
+    "metrics": {
+      "messageShare": "訊息占比",
+      "initiatedShare": "開場占比",
+      "averageResponse": "平均回覆",
+      "averageTextLength": "平均文字長度",
+      "initiatedSegments": "發起對話",
+      "closedSegments": "結束對話",
+      "continuationRate": "連續傳送占比",
+      "messages": "訊息數量",
+      "shortTextRate": "短訊息占比",
+      "longTextRate": "長訊息占比",
+      "nonTextRate": "非文字訊息占比",
+      "topNonTextType": "最常用非文字類型",
+      "peakHour": "高峰",
+      "activeDays": "活躍天數",
+      "nightRate": "深夜占比",
+      "weekendRate": "週末占比",
+      "hourlyOverlap": "小時分布重合",
+      "sameDayOverlap": "同日活躍重合"
+    },
+    "units": {
+      "characters": "{count} 字",
+      "segments": "{count} 次",
+      "messages": "{count} 則",
+      "responseSamples": "{count} 次回覆"
+    },
+    "duration": {
+      "seconds": "{count} 秒",
+      "minutes": "{count} 分鐘",
+      "hours": "{count} 小時",
+      "hoursMinutes": "{hours} 小時 {minutes} 分鐘"
+    },
+    "states": {
+      "loadError": "無法載入雙人畫像，請稍後再試",
+      "owner_missing": "請先在成員管理中設定「我是誰」，再查看雙方畫像",
+      "counterpart_missing": "未找到可用於對照的聊天對象",
+      "ambiguous": "這個私聊包含 {count} 位候選對象，請先整理重複成員",
+      "empty_range": "目前時間範圍內沒有聊天記錄",
+      "not_private": "雙人畫像僅適用於私聊",
+      "noIndex": "目前資料缺少會話索引，互動指標暫不可用，其他畫像不受影響"
+    },
+    "watermark": "雙人畫像"
+  },
   "journey": {
     "loadError": "無法載入聊天歷程",
     "empty": "暫無足夠的聊天記錄來產生歷程",

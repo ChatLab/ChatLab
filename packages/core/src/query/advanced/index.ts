@@ -41,6 +41,9 @@ export type {
   JourneySilence,
 } from './journey'
 
+export { getDuoProfileStats } from './duo-profile'
+export type { DuoProfileStats, DuoProfileMember, DuoProfileUnavailableReason } from './duo-profile'
+
 export { getLanguagePreferenceAnalysis } from './languagePreference'
 export type { NlpProvider, PosTagResult, LanguagePreferenceParams } from './languagePreference'
 

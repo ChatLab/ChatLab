@@ -19,6 +19,7 @@ import {
   getMonthlyActivity as queryMonthlyActivity,
   getRelationshipStats as queryRelationshipStats,
   getJourneyStats as queryJourneyStats,
+  getDuoProfileStats as queryDuoProfileStats,
   getTextLengthPercentiles as queryTextLengthPercentiles,
   getTextStats as queryTextStats,
   getTimeRange as queryTimeRange,
@@ -39,6 +40,7 @@ import {
   type MonthlyActivity,
   type RelationshipStats,
   type JourneyStats,
+  type DuoProfileStats,
   type TextLengthPercentiles,
   type TextStats,
   type WeekdayActivity,
@@ -426,6 +428,13 @@ export class BrowserSessionRuntime {
     return this.withSessionDatabase(id, (db) => {
       if (!hasSessionIndex(db)) generateSessionIndex(db)
       return queryJourneyStats(db, filter)
+    })
+  }
+
+  async getDuoProfileStats(id: string, filter?: BrowserTimeFilter): Promise<DuoProfileStats> {
+    return this.withSessionDatabase(id, (db) => {
+      if (!hasSessionIndex(db)) generateSessionIndex(db)
+      return queryDuoProfileStats(db, filter)
     })
   }
 

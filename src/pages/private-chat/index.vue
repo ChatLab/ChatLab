@@ -158,7 +158,6 @@ const otherMemberAvatar = computed(() => {
               :key="'insights-' + currentSessionId"
               :session-id="currentSessionId!"
               :session="session"
-              :member-activity="memberActivity"
               :message-types="messageTypes"
               :hourly-activity="hourlyActivity"
               :daily-activity="dailyActivity"

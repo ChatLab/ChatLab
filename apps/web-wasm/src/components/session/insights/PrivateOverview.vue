@@ -6,14 +6,13 @@ import OverviewIdentityCard from '@/components/analysis/Overview/OverviewIdentit
 import { EChartPie, type EChartPieData } from '@/components/charts'
 import { SectionCard } from '@/components/UI'
 import { useDailyTrend } from '@/composables/analysis/useDailyTrend'
-import type { DailyActivity, HourlyActivity, MemberActivity } from '@/types/analysis'
+import type { DailyActivity, HourlyActivity } from '@/types/analysis'
 import { getMessageTypeName, type AnalysisSession, type MessageType } from '@/types/base'
 
 const { t } = useI18n()
 
 const props = defineProps<{
   session: AnalysisSession
-  memberActivity: MemberActivity[]
   messageTypes: Array<{ type: MessageType; count: number }>
   hourlyActivity: HourlyActivity[]
   dailyActivity: DailyActivity[]
@@ -29,16 +28,6 @@ const typeChartData = computed<EChartPieData>(() => ({
   labels: props.messageTypes.map((item) => getMessageTypeName(item.type, t)),
   values: props.messageTypes.map((item) => item.count),
 }))
-
-const memberComparisonData = computed(() => {
-  if (props.memberActivity.length < 2) return null
-
-  const topMembers = [...props.memberActivity].sort((left, right) => right.messageCount - left.messageCount).slice(0, 2)
-  return {
-    labels: topMembers.map((member) => member.name),
-    values: topMembers.map((member) => member.messageCount),
-  }
-})
 </script>
 
 <template>
@@ -55,24 +44,11 @@ const memberComparisonData = computed(() => {
       :capturable="false"
     />
 
-    <div class="grid grid-cols-1 gap-6 lg:grid-cols-2">
-      <SectionCard :title="t('analysis.overview.messageTypeDistribution')" :capturable="false" :show-divider="false">
-        <div class="p-3 sm:p-5">
-          <EChartPie :data="typeChartData" :height="280" />
-        </div>
-      </SectionCard>
-
-      <SectionCard
-        v-if="memberComparisonData"
-        :title="t('analysis.overview.memberComparison')"
-        :capturable="false"
-        :show-divider="false"
-      >
-        <div class="p-3 sm:p-5">
-          <EChartPie :data="memberComparisonData" :height="280" />
-        </div>
-      </SectionCard>
-    </div>
+    <SectionCard :title="t('analysis.overview.messageTypeDistribution')" :capturable="false" :show-divider="false">
+      <div class="p-3 sm:p-5">
+        <EChartPie :data="typeChartData" :height="280" />
+      </div>
+    </SectionCard>
 
     <DailyTrendCard :daily-activity="dailyActivity" :daily-chart-data="dailyChartData" :capturable="false" />
   </div>

@@ -289,6 +289,10 @@ class FakeSessionRuntime implements WorkerSessionRuntime {
     }
   }
 
+  async getDuoProfileStats(_id: string, _filter?: BrowserTimeFilter) {
+    return { status: 'unavailable' as const, reason: 'empty_range' as const }
+  }
+
   async getLanguagePreferenceAnalysis(_id: string, _locale: string, _filter?: BrowserTimeFilter) {
     return { members: [], sharedWords: [], similarityScore: 0 }
   }
@@ -614,6 +618,7 @@ describe('WebRuntimeWorkerController', () => {
       { id: 'cluster', type: 'analysis.clusterGraph', payload: { sessionId: 'session-one' } },
       { id: 'relationship', type: 'analysis.relationship', payload: { sessionId: 'session-one' } },
       { id: 'journey', type: 'analysis.journey', payload: { sessionId: 'session-one' } },
+      { id: 'duo-profile', type: 'analysis.duoProfile', payload: { sessionId: 'session-one' } },
       {
         id: 'language',
         type: 'analysis.languagePreference',

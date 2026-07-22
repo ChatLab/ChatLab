@@ -42,6 +42,7 @@ import type {
   NightOwlAnalysis,
   RepeatAnalysis,
   JourneyStats,
+  DuoProfileStats,
   WordFrequencyParams,
   WordFrequencyResult,
 } from '@openchatlab/core'
@@ -418,6 +419,11 @@ export class FetchDataAdapter implements DataAdapter {
 
   getJourneyStats(sessionId: string, filter?: TimeFilter): Promise<JourneyStats> {
     return analyticsGet(`/sessions/${sessionId}/analytics/journey${buildFilterParams(filter)}`)
+  }
+
+  getDuoProfileStats(sessionId: string, filter?: TimeFilter): Promise<DuoProfileStats> {
+    const timeFilter = filter ? { startTs: filter.startTs, endTs: filter.endTs } : undefined
+    return analyticsGet(`/sessions/${sessionId}/analytics/duo-profile${buildFilterParams(timeFilter)}`)
   }
 
   // ==================== SQL Lab ====================

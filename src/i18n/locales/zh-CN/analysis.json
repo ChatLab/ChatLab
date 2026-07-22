@@ -69,6 +69,7 @@
       "timeAnalysis": "时间",
       "topic": "话题",
       "groupRelationships": "群关系",
+      "duoProfile": "画像",
       "relationship": "关系",
       "journey": "历程",
       "languagePreference": "语言偏好"
@@ -95,7 +96,6 @@
     "memberDistribution": "成员消息占比",
     "memberRanking": "成员排行",
     "others": "其他人",
-    "memberComparison": "双方消息占比",
     "statCards": {
       "dailyAvgMessages": "日均消息",
       "messagesCount": "{count} 条",

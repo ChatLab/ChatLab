@@ -21,6 +21,7 @@ import {
   getTextLengthPercentiles,
   getRelationshipStats,
   getJourneyStats,
+  getDuoProfileStats,
   getCatchphraseAnalysis,
   getMentionAnalysis,
   getMentionGraph,
@@ -127,6 +128,16 @@ export function registerAnalyticsRoutes(server: FastifyInstance, ctx: AnalyticsR
       const id = request.params.id
       const filter = parseTimeFilter(request.query)
       return cached('journey', id, { ...filter }, () => getJourneyStats(adapter.ensureReadonly(id), filter))
+    }
+  )
+
+  server.get<{ Params: { id: string }; Querystring: FilteredQuery }>(
+    '/_web/sessions/:id/analytics/duo-profile',
+    async (request) => {
+      const id = request.params.id
+      const parsedFilter = parseTimeFilter(request.query)
+      const filter = parsedFilter ? { startTs: parsedFilter.startTs, endTs: parsedFilter.endTs } : undefined
+      return cached('duo-profile', id, { ...filter }, () => getDuoProfileStats(adapter.ensureReadonly(id), filter))
     }
   )
 

@@ -68,6 +68,7 @@
       "timeAnalysis": "時間",
       "topic": "トピック",
       "groupRelationships": "グループ関係",
+      "duoProfile": "プロフィール",
       "relationship": "関係",
       "journey": "歩み",
       "languagePreference": "言語傾向"
@@ -94,7 +95,6 @@
     "memberDistribution": "メンバー別発言割合",
     "memberRanking": "メンバーランキング",
     "others": "その他",
-    "memberComparison": "双方のメッセージ割合",
     "statCards": {
       "dailyAvgMessages": "1日あたりのメッセージ",
       "messagesCount": "{count} 件",

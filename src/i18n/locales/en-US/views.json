@@ -179,6 +179,76 @@
       "month": "Month"
     }
   },
+  "duoProfile": {
+    "hero": {
+      "eyebrow": "Two-person chat profiles",
+      "title": "One conversation, two ways of communicating",
+      "filtered": "Filtered",
+      "owner": "You",
+      "compare": "Side by side",
+      "counterpart": "Them",
+      "commonHours": "Shared active hours",
+      "noCommonHours": "No shared active hours",
+      "sameDayOverlap": "Same-day activity overlap",
+      "activeDayDetail": "{intersection} of {union} days"
+    },
+    "sections": {
+      "interaction": {
+        "title": "Interaction",
+        "description": "Compare who starts and closes conversations, reply timing, and consecutive messages"
+      },
+      "expression": {
+        "title": "Expression",
+        "description": "Compare message share, text length, and the kinds of messages each person sends"
+      },
+      "schedule": {
+        "title": "Active hours",
+        "description": "Compare daily activity patterns without interpreting what they mean for the relationship"
+      }
+    },
+    "metrics": {
+      "messageShare": "Message share",
+      "initiatedShare": "Conversation starts",
+      "averageResponse": "Average reply",
+      "averageTextLength": "Average text length",
+      "initiatedSegments": "Started conversations",
+      "closedSegments": "Closed conversations",
+      "continuationRate": "Consecutive-message share",
+      "messages": "Messages",
+      "shortTextRate": "Short-message share",
+      "longTextRate": "Long-message share",
+      "nonTextRate": "Non-text share",
+      "topNonTextType": "Most-used non-text type",
+      "peakHour": "Peak",
+      "activeDays": "Active days",
+      "nightRate": "Late-night share",
+      "weekendRate": "Weekend share",
+      "hourlyOverlap": "Hourly-distribution overlap",
+      "sameDayOverlap": "Same-day activity overlap"
+    },
+    "units": {
+      "characters": "{count} chars",
+      "segments": "{count}",
+      "messages": "{count}",
+      "responseSamples": "{count} replies"
+    },
+    "duration": {
+      "seconds": "{count}s",
+      "minutes": "{count}m",
+      "hours": "{count}h",
+      "hoursMinutes": "{hours}h {minutes}m"
+    },
+    "states": {
+      "loadError": "Unable to load the two-person profiles. Please try again.",
+      "owner_missing": "Set who you are in Member Management before viewing the profiles.",
+      "counterpart_missing": "No conversation partner is available for comparison.",
+      "ambiguous": "This private chat has {count} possible partners. Merge duplicate members first.",
+      "empty_range": "There are no messages in the selected time range.",
+      "not_private": "Two-person profiles are only available for private chats.",
+      "noIndex": "Interaction metrics are unavailable because the session index is missing. Other profile metrics are unaffected."
+    },
+    "watermark": "Two-person profiles"
+  },
   "journey": {
     "loadError": "Unable to load the chat journey",
     "empty": "There are not enough messages to build a journey yet",

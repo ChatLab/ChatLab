@@ -12,6 +12,7 @@ import type {
   MonthlyActivity,
   ClusterGraphData,
   ClusterGraphOptions,
+  DuoProfileStats,
   JourneyStats,
   RelationshipStats,
   TextLengthPercentiles,
@@ -177,6 +178,10 @@ export interface WebRuntimeTaskMap {
     payload: { sessionId: string; filter?: BrowserTimeFilter }
     result: JourneyStats
   }
+  'analysis.duoProfile': {
+    payload: { sessionId: string; filter?: BrowserTimeFilter }
+    result: DuoProfileStats
+  }
   'analysis.languagePreference': {
     payload: { sessionId: string; locale: string; filter?: BrowserTimeFilter }
     result: unknown
@@ -300,6 +305,7 @@ const WEB_RUNTIME_TASK_TYPES: Record<WebRuntimeTaskType, true> = {
   'analysis.clusterGraph': true,
   'analysis.relationship': true,
   'analysis.journey': true,
+  'analysis.duoProfile': true,
   'analysis.languagePreference': true,
   'analysis.wordFrequency': true,
 }

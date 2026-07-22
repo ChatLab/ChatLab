@@ -940,6 +940,18 @@ describe('BrowserSessionRuntime', () => {
     assert.equal(journey.peakMonth?.messageCount, 4)
     assert.equal(journey.longestSegment?.messageCount, 2)
 
+    const duoProfile = await runtime.getDuoProfileStats('insight-query-session')
+    assert.equal(duoProfile.status, 'ready')
+    if (duoProfile.status === 'ready') {
+      assert.equal(duoProfile.hasSessionIndex, true)
+      assert.deepEqual(
+        duoProfile.members.map((member) => member.role),
+        ['owner', 'counterpart']
+      )
+      assert.equal(duoProfile.members[0].messageCount, 2)
+      assert.equal(duoProfile.members[1].messageCount, 2)
+    }
+
     const language = await runtime.getLanguagePreferenceAnalysis('insight-query-session', 'en-US')
     assert.equal(language.members.length, 2)
 
@@ -964,6 +976,7 @@ describe('BrowserSessionRuntime', () => {
     await assert.rejects(runtime.getMembers('missing-session'), /Session missing-session was not found/)
     await assert.rejects(runtime.getRelationshipStats('missing-session'), /Session missing-session was not found/)
     await assert.rejects(runtime.getJourneyStats('missing-session'), /Session missing-session was not found/)
+    await assert.rejects(runtime.getDuoProfileStats('missing-session'), /Session missing-session was not found/)
     await assert.rejects(runtime.getWordFrequency('missing-session', { locale: 'en-US' }), /Session missing-session/)
     assert.deepEqual(await database.getDatabaseFilenames(), filenamesBeforeMissingQuery)
     database.dispose()

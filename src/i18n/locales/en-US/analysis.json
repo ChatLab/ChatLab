@@ -68,6 +68,7 @@
       "timeAnalysis": "Time",
       "topic": "Topics",
       "groupRelationships": "Relationships",
+      "duoProfile": "Profiles",
       "relationship": "Relationship",
       "journey": "Journey",
       "languagePreference": "Language Preference"
@@ -94,7 +95,6 @@
     "memberDistribution": "Member Activity Distribution",
     "memberRanking": "Member Ranking",
     "others": "Others",
-    "memberComparison": "Member Comparison",
     "statCards": {
       "dailyAvgMessages": "Daily Avg Messages",
       "messagesCount": "{count} msgs",

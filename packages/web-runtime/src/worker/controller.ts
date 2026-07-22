@@ -54,6 +54,7 @@ export type WorkerSessionRuntime = Pick<
   | 'getClusterGraph'
   | 'getRelationshipStats'
   | 'getJourneyStats'
+  | 'getDuoProfileStats'
   | 'getLanguagePreferenceAnalysis'
   | 'getWordFrequency'
 >
@@ -429,6 +430,12 @@ export class WebRuntimeWorkerController {
       case 'analysis.journey': {
         const startedAt = this.startAnalysisQuery()
         const result = await this.sessionRuntime.getJourneyStats(request.payload.sessionId, request.payload.filter)
+        this.emitAnalysisQueryCompleted(request, startedAt)
+        return result
+      }
+      case 'analysis.duoProfile': {
+        const startedAt = this.startAnalysisQuery()
+        const result = await this.sessionRuntime.getDuoProfileStats(request.payload.sessionId, request.payload.filter)
         this.emitAnalysisQueryCompleted(request, startedAt)
         return result
       }

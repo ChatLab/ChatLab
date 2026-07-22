@@ -179,6 +179,76 @@
       "month": "月份"
     }
   },
+  "duoProfile": {
+    "hero": {
+      "eyebrow": "双人聊天画像",
+      "title": "同一段聊天，两种表达方式",
+      "filtered": "已筛选",
+      "owner": "我",
+      "compare": "左右对照",
+      "counterpart": "对方",
+      "commonHours": "共同活跃时段",
+      "noCommonHours": "暂无共同活跃时段",
+      "sameDayOverlap": "同日活跃重合",
+      "activeDayDetail": "{intersection} / {union} 天"
+    },
+    "sections": {
+      "interaction": {
+        "title": "互动方式",
+        "description": "对照谁更常开场、收尾，以及回复和连续发送的节奏"
+      },
+      "expression": {
+        "title": "表达习惯",
+        "description": "从文字长度、消息形态和发送占比观察各自的表达方式"
+      },
+      "schedule": {
+        "title": "活跃时段",
+        "description": "比较双方一天内的活跃分布，只描述时间习惯，不评价关系"
+      }
+    },
+    "metrics": {
+      "messageShare": "消息占比",
+      "initiatedShare": "开场占比",
+      "averageResponse": "平均回复",
+      "averageTextLength": "平均文字长度",
+      "initiatedSegments": "发起对话",
+      "closedSegments": "结束对话",
+      "continuationRate": "连续发送占比",
+      "messages": "消息数量",
+      "shortTextRate": "短消息占比",
+      "longTextRate": "长消息占比",
+      "nonTextRate": "非文字消息占比",
+      "topNonTextType": "最常用非文字类型",
+      "peakHour": "高峰",
+      "activeDays": "活跃天数",
+      "nightRate": "深夜占比",
+      "weekendRate": "周末占比",
+      "hourlyOverlap": "小时分布重合",
+      "sameDayOverlap": "同日活跃重合"
+    },
+    "units": {
+      "characters": "{count} 字",
+      "segments": "{count} 次",
+      "messages": "{count} 条",
+      "responseSamples": "{count} 次回复"
+    },
+    "duration": {
+      "seconds": "{count} 秒",
+      "minutes": "{count} 分钟",
+      "hours": "{count} 小时",
+      "hoursMinutes": "{hours} 小时 {minutes} 分钟"
+    },
+    "states": {
+      "loadError": "无法加载双人画像，请稍后重试",
+      "owner_missing": "请先在成员管理中设置“我是谁”，再查看双方画像",
+      "counterpart_missing": "未找到可用于对照的聊天对象",
+      "ambiguous": "这个私聊包含 {count} 位候选对象，请先整理重复成员",
+      "empty_range": "当前时间范围内没有聊天记录",
+      "not_private": "双人画像仅适用于私聊",
+      "noIndex": "当前数据缺少会话索引，互动指标暂不可用，其他画像不受影响"
+    },
+    "watermark": "双人画像"
+  },
   "journey": {
     "loadError": "无法加载聊天历程",
     "empty": "暂无足够的聊天记录来生成历程",

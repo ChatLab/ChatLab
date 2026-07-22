@@ -60,6 +60,7 @@ class Adapter implements DatabaseAdapter {
 const SESSION_ID = 'chat-1'
 const MEMBER_ACTIVITY_URL = `/_web/sessions/${SESSION_ID}/stats/member-activity`
 const JOURNEY_URL = `/_web/sessions/${SESSION_ID}/analytics/journey`
+const DUO_PROFILE_URL = `/_web/sessions/${SESSION_ID}/analytics/duo-profile`
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
 describe('analytics routes caching', () => {
@@ -76,9 +77,20 @@ describe('analytics routes caching', () => {
     raw.exec(`
       CREATE TABLE member (id INTEGER PRIMARY KEY, platform_id TEXT, account_name TEXT, group_nickname TEXT, avatar TEXT);
       CREATE TABLE message (id INTEGER PRIMARY KEY, sender_id INTEGER, ts INTEGER, type INTEGER, content TEXT, platform_message_id TEXT);
+      CREATE TABLE meta (
+        name TEXT,
+        platform TEXT,
+        type TEXT,
+        imported_at INTEGER,
+        group_id TEXT,
+        group_avatar TEXT,
+        owner_id TEXT
+      );
       INSERT INTO member (id, platform_id, account_name) VALUES (1, 'alice', 'Alice'), (2, 'bob', 'Bob');
       INSERT INTO message (id, sender_id, ts, type, content, platform_message_id) VALUES
         (1, 1, 100, 0, 'a', 'm-1'), (2, 2, 200, 0, 'b', 'm-2'), (3, 1, 300, 0, 'c', 'm-3');
+      INSERT INTO meta (name, platform, type, imported_at, owner_id)
+      VALUES ('Chat', 'wechat', 'private', 1, 'alice');
     `)
     const adapter = new Adapter(raw)
 
@@ -186,6 +198,28 @@ describe('analytics routes caching', () => {
     assert.deepEqual(same.json(), first.json())
 
     const differentRange = await app.inject({ method: 'GET', url: `${JOURNEY_URL}?startTs=200&endTs=300` })
+    assert.equal(differentRange.statusCode, 500)
+  })
+
+  it('serves duo profile analytics and ignores memberId in its cache key', async () => {
+    const first = await app.inject({
+      method: 'GET',
+      url: `${DUO_PROFILE_URL}?startTs=100&endTs=300&memberId=999`,
+    })
+    assert.equal(first.statusCode, 200)
+    assert.equal(first.json().status, 'ready')
+    assert.equal(first.json().members[0].memberId, 1)
+
+    raw.close()
+
+    const sameRange = await app.inject({
+      method: 'GET',
+      url: `${DUO_PROFILE_URL}?startTs=100&endTs=300&memberId=1`,
+    })
+    assert.equal(sameRange.statusCode, 200)
+    assert.deepEqual(sameRange.json(), first.json())
+
+    const differentRange = await app.inject({ method: 'GET', url: `${DUO_PROFILE_URL}?startTs=200&endTs=300` })
     assert.equal(differentRange.statusCode, 500)
   })
 })

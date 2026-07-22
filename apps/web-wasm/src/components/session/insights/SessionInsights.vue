@@ -5,6 +5,7 @@ import { SectionTabs } from '@/components/navigation'
 import UserSelect from '@/components/common/UserSelect.vue'
 import PrivateRelationshipView from '@/components/analysis/relationships/PrivateRelationshipView.vue'
 import JourneyView from '@/components/analysis/journey/JourneyView.vue'
+import DuoProfileView from '@/components/analysis/duo-profile/DuoProfileView.vue'
 import TypeAnalysisView from '@/components/analysis/message/TypeAnalysisView.vue'
 import TimeAnalysisView from '@/components/analysis/message/TimeAnalysisView.vue'
 import { LanguagePreferenceTab, WordcloudTab } from '@/components/analysis/quotes'
@@ -37,6 +38,7 @@ const subTabs = computed(() =>
   isPrivateChat.value
     ? [
         { id: 'overview', label: t('analysis.tabs.overview'), icon: 'i-heroicons-squares-2x2' },
+        { id: 'duo-profile', label: t('analysis.subTabs.insights.duoProfile'), icon: 'i-heroicons-user-group' },
         { id: 'relationship', label: t('analysis.subTabs.insights.relationship'), icon: 'i-heroicons-heart' },
         { id: 'journey', label: t('analysis.subTabs.insights.journey'), icon: 'i-heroicons-map' },
         { id: 'type-analysis', label: t('analysis.subTabs.insights.typeAnalysis'), icon: 'i-heroicons-chart-pie' },
@@ -84,7 +86,6 @@ const viewTimeFilter = computed(() => ({ ...props.timeFilter, memberId: selected
         <PrivateOverview
           v-if="activeSubTab === 'overview' && isPrivateChat"
           :session="props.session"
-          :member-activity="props.memberActivity"
           :message-types="props.messageTypes"
           :hourly-activity="props.hourlyActivity"
           :daily-activity="props.dailyActivity"
@@ -92,6 +93,12 @@ const viewTimeFilter = computed(() => ({ ...props.timeFilter, memberId: selected
           :filtered-message-count="props.filteredMessageCount"
           :filtered-member-count="props.filteredMemberCount"
           :time-filter="props.timeFilter"
+        />
+        <DuoProfileView
+          v-else-if="activeSubTab === 'duo-profile' && isPrivateChat"
+          :session-id="props.sessionId"
+          :time-filter="props.timeFilter"
+          :time-range="props.timeRange"
         />
         <GroupOverview
           v-else-if="activeSubTab === 'overview'"
