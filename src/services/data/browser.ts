@@ -19,7 +19,7 @@ import type {
   WeekdayActivity,
 } from '@/types/analysis'
 import type { LanguagePreferenceResult } from '@/types/quotes/languagePreference'
-import type { MemberMonthlyTrend, WordFrequencyParams, WordFrequencyResult } from '@openchatlab/core'
+import type { JourneyStats, MemberMonthlyTrend, WordFrequencyParams, WordFrequencyResult } from '@openchatlab/core'
 import type { TimeFilter } from '@openchatlab/shared-types'
 import type { BrowserRuntimeRpcPort } from '../browser-runtime/types'
 import { withAnalyticsRequestEpoch } from '../utils/http'
@@ -50,6 +50,7 @@ type BrowserSessionDataAdapter = Pick<
   | 'getMentionGraph'
   | 'getClusterGraph'
   | 'getRelationshipStats'
+  | 'getJourneyStats'
   | 'getLanguagePreferenceAnalysis'
   | 'getWordFrequency'
 >
@@ -165,6 +166,10 @@ export class BrowserDataAdapter implements BrowserSessionDataAdapter {
     options?: { perseveranceThreshold?: number }
   ): Promise<RelationshipStats> {
     return this.requestAnalysis('analysis.relationship', { sessionId, filter, options })
+  }
+
+  getJourneyStats(sessionId: string, filter?: TimeFilter): Promise<JourneyStats> {
+    return this.requestAnalysis('analysis.journey', { sessionId, filter })
   }
 
   async getLanguagePreferenceAnalysis(

@@ -179,6 +179,68 @@
       "month": "Month"
     }
   },
+  "journey": {
+    "loadError": "Unable to load the chat journey",
+    "empty": "There are not enough messages to build a journey yet",
+    "hero": {
+      "prefix": "Your chat history spans",
+      "summary": "Messages were exchanged across {activeMonths} months and {activeDays} active days.",
+      "filteredSummary": "Within this range, messages were exchanged across {activeMonths} months and {activeDays} active days.",
+      "footprint": "Conversation footprint",
+      "monthCount": "{count} months in view",
+      "monthTooltip": "{month} · {count} messages"
+    },
+    "metrics": {
+      "peakMonth": "Busiest month",
+      "activeMonths": "Active months",
+      "longestConversation": "Longest conversation",
+      "longestSilence": "Longest silence",
+      "messagesAndDays": "{messages} messages · {days} active days",
+      "monthsRatio": "{active} / {total} months",
+      "activeDays": "{count} active days in total",
+      "conversationDetail": "{date} · {count} messages",
+      "reopenedBy": "{name} spoke first afterward",
+      "reopened": "The conversation started again afterward",
+      "noIndex": "Conversation index unavailable",
+      "noSilence": "No silence longer than 24 hours"
+    },
+    "years": {
+      "title": "Year by year",
+      "description": "Turn through the chapters left by each year of conversation",
+      "summary": "{messages} messages · {days} active days · {months} active months",
+      "quiet": "No messages were left this year",
+      "peak": "Peak month · {count} messages"
+    },
+    "milestones": {
+      "title": "Key milestones",
+      "description": "Follow the moments that shaped this conversation",
+      "start": "Where it began",
+      "startDetail": "The first message in the available history",
+      "peak": "Busiest month",
+      "peakDetail": "{count} messages were exchanged this month",
+      "longestConversation": "Longest conversation",
+      "conversationDetail": "{duration} and {count} messages",
+      "longestSilence": "Longest silence",
+      "silenceRange": "{start} – {end}",
+      "silenceDetailWithMember": "After {duration}, {name} spoke first",
+      "silenceDetail": "The conversation resumed after {duration}",
+      "end": "Where the record stands",
+      "endDetail": "The latest message in the available history",
+      "filteredEndDetail": "The latest message within the selected range"
+    },
+    "duration": {
+      "lessThanMinute": "Under 1 minute",
+      "minutes": "{count} min",
+      "hours": "{count} hr",
+      "hoursMinutes": "{hours} hr {minutes} min",
+      "days": "{count} days",
+      "daysHours": "{days} days {hours} hr",
+      "months": "{count} months",
+      "years": "{count} years",
+      "yearsMonths": "{years} years {months} months"
+    },
+    "watermark": "Chat Journey"
+  },
   "timeline": {
     "title": "Timeline View",
     "description": "Message time distribution, active period trends and other visualizations"

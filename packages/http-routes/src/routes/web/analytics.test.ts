@@ -59,6 +59,7 @@ class Adapter implements DatabaseAdapter {
 
 const SESSION_ID = 'chat-1'
 const MEMBER_ACTIVITY_URL = `/_web/sessions/${SESSION_ID}/stats/member-activity`
+const JOURNEY_URL = `/_web/sessions/${SESSION_ID}/analytics/journey`
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
 describe('analytics routes caching', () => {
@@ -171,5 +172,20 @@ describe('analytics routes caching', () => {
     // 不同参数 => 缓存未命中、重算因 db 关闭而失败，证明 lookAhead 已进入缓存键
     const diff = await app.inject({ method: 'GET', url: `${base}?lookAhead=10&decaySeconds=120&topEdges=150` })
     assert.equal(diff.statusCode, 500)
+  })
+
+  it('serves journey analytics and keys its cache by time range', async () => {
+    const first = await app.inject({ method: 'GET', url: `${JOURNEY_URL}?startTs=100&endTs=300` })
+    assert.equal(first.statusCode, 200)
+    assert.equal(first.json().range.activeDays, 1)
+
+    raw.close()
+
+    const same = await app.inject({ method: 'GET', url: `${JOURNEY_URL}?startTs=100&endTs=300` })
+    assert.equal(same.statusCode, 200)
+    assert.deepEqual(same.json(), first.json())
+
+    const differentRange = await app.inject({ method: 'GET', url: `${JOURNEY_URL}?startTs=200&endTs=300` })
+    assert.equal(differentRange.statusCode, 500)
   })
 })

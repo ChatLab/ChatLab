@@ -179,6 +179,68 @@
       "month": "月份"
     }
   },
+  "journey": {
+    "loadError": "无法加载聊天历程",
+    "empty": "暂无足够的聊天记录来生成历程",
+    "hero": {
+      "prefix": "你们的聊天记录跨越",
+      "summary": "其中有 {activeMonths} 个月、{activeDays} 天留下了消息。",
+      "filteredSummary": "在当前筛选范围内，有 {activeMonths} 个月、{activeDays} 天留下了消息。",
+      "footprint": "聊天足迹",
+      "monthCount": "跨越 {count} 个月",
+      "monthTooltip": "{month} · {count} 条消息"
+    },
+    "metrics": {
+      "peakMonth": "最热闹的月份",
+      "activeMonths": "活跃月份",
+      "longestConversation": "最长一次畅聊",
+      "longestSilence": "最长一次沉默",
+      "messagesAndDays": "{messages} 条消息 · 活跃 {days} 天",
+      "monthsRatio": "{active} / {total} 个月",
+      "activeDays": "共活跃 {count} 天",
+      "conversationDetail": "{date} · {count} 条消息",
+      "reopenedBy": "由 {name} 再次开口",
+      "reopened": "随后重新开始聊天",
+      "noIndex": "暂无会话索引",
+      "noSilence": "没有超过 24 小时的沉默"
+    },
+    "years": {
+      "title": "一年一页",
+      "description": "按年份翻看聊天留下的篇章",
+      "summary": "{messages} 条消息 · {days} 个活跃日 · {months} 个活跃月",
+      "quiet": "这一年没有留下消息",
+      "peak": "高峰月 {count} 条"
+    },
+    "milestones": {
+      "title": "关键节点",
+      "description": "从开始、热闹到重逢，串起这段聊天历程",
+      "start": "从这里开始",
+      "startDetail": "现有记录中的第一条消息",
+      "peak": "最热闹的月份",
+      "peakDetail": "这个月留下了 {count} 条消息",
+      "longestConversation": "最长一次畅聊",
+      "conversationDetail": "持续 {duration}，共 {count} 条消息",
+      "longestSilence": "最长一次沉默",
+      "silenceRange": "{start} – {end}",
+      "silenceDetailWithMember": "相隔 {duration}，由 {name} 再次开口",
+      "silenceDetail": "相隔 {duration}，重新开始聊天",
+      "end": "记录来到这里",
+      "endDetail": "现有记录中的最后一条消息",
+      "filteredEndDetail": "当前筛选范围内的最后一条消息"
+    },
+    "duration": {
+      "lessThanMinute": "不到 1 分钟",
+      "minutes": "{count} 分钟",
+      "hours": "{count} 小时",
+      "hoursMinutes": "{hours} 小时 {minutes} 分钟",
+      "days": "{count} 天",
+      "daysHours": "{days} 天 {hours} 小时",
+      "months": "{count} 个月",
+      "years": "{count} 年",
+      "yearsMonths": "{years} 年 {months} 个月"
+    },
+    "watermark": "聊天历程"
+  },
   "timeline": {
     "title": "时间线视图",
     "description": "消息时间分布、活跃周期变化趋势等可视化内容"

@@ -20,7 +20,7 @@ import type {
   AnnualSummaryMode,
   AnnualSummaryResponse,
 } from '@openchatlab/shared-types'
-import type { WordFrequencyParams, WordFrequencyResult } from '@openchatlab/core'
+import type { JourneyStats, WordFrequencyParams, WordFrequencyResult } from '@openchatlab/core'
 import type {
   MemberActivity,
   MemberWithStats,
@@ -242,6 +242,7 @@ export interface DataAdapter {
     filter?: TimeFilter,
     options?: { perseveranceThreshold?: number }
   ): Promise<RelationshipStats>
+  getJourneyStats(sessionId: string, filter?: TimeFilter): Promise<JourneyStats>
 
   // ==================== SQL Lab ====================
 

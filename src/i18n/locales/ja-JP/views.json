@@ -179,6 +179,68 @@
       "month": "月"
     }
   },
+  "journey": {
+    "loadError": "チャットの歩みを読み込めませんでした",
+    "empty": "歩みを作成するためのメッセージがまだ十分にありません",
+    "hero": {
+      "prefix": "ふたりで歩んだ",
+      "summary": "{activeMonths}か月、{activeDays}日間にメッセージが残っています。",
+      "filteredSummary": "選択範囲では、{activeMonths}か月、{activeDays}日間にメッセージが残っています。",
+      "footprint": "会話の足跡",
+      "monthCount": "{count}か月の記録",
+      "monthTooltip": "{month} · {count}件のメッセージ"
+    },
+    "metrics": {
+      "peakMonth": "最もにぎやかな月",
+      "activeMonths": "会話した月",
+      "longestConversation": "最も長い会話",
+      "longestSilence": "最も長い沈黙",
+      "messagesAndDays": "{messages}件 · {days}日間アクティブ",
+      "monthsRatio": "{active} / {total}か月",
+      "activeDays": "合計{count}日間アクティブ",
+      "conversationDetail": "{date} · {count}件",
+      "reopenedBy": "その後、{name}から再開",
+      "reopened": "その後、会話が再開しました",
+      "noIndex": "会話インデックスがありません",
+      "noSilence": "24時間を超える沈黙はありません"
+    },
+    "years": {
+      "title": "一年ずつ振り返る",
+      "description": "年ごとに残された会話の章をたどります",
+      "summary": "{messages}件 · {days}日間 · {months}か月アクティブ",
+      "quiet": "この年にはメッセージがありません",
+      "peak": "ピーク月 · {count}件"
+    },
+    "milestones": {
+      "title": "大切な節目",
+      "description": "始まりから再会まで、会話の歩みをつなぎます",
+      "start": "ここから始まりました",
+      "startDetail": "現在の記録にある最初のメッセージ",
+      "peak": "最もにぎやかな月",
+      "peakDetail": "この月に{count}件のメッセージを交わしました",
+      "longestConversation": "最も長い会話",
+      "conversationDetail": "{duration}にわたり、{count}件のメッセージ",
+      "longestSilence": "最も長い沈黙",
+      "silenceRange": "{start} – {end}",
+      "silenceDetailWithMember": "{duration}後、{name}から再開",
+      "silenceDetail": "{duration}後に会話が再開しました",
+      "end": "記録はここまで",
+      "endDetail": "現在の記録にある最後のメッセージ",
+      "filteredEndDetail": "選択範囲にある最後のメッセージ"
+    },
+    "duration": {
+      "lessThanMinute": "1分未満",
+      "minutes": "{count}分",
+      "hours": "{count}時間",
+      "hoursMinutes": "{hours}時間{minutes}分",
+      "days": "{count}日",
+      "daysHours": "{days}日{hours}時間",
+      "months": "{count}か月",
+      "years": "{count}年",
+      "yearsMonths": "{years}年{months}か月"
+    },
+    "watermark": "チャットの歩み"
+  },
   "timeline": {
     "title": "タイムライン表示",
     "description": "メッセージの時間分布や活動周期の変化を可視化します"

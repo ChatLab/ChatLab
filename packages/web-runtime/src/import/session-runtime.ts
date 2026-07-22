@@ -18,6 +18,7 @@ import {
   getMessageTypeStats as queryMessageTypeStats,
   getMonthlyActivity as queryMonthlyActivity,
   getRelationshipStats as queryRelationshipStats,
+  getJourneyStats as queryJourneyStats,
   getTextLengthPercentiles as queryTextLengthPercentiles,
   getTextStats as queryTextStats,
   getTimeRange as queryTimeRange,
@@ -37,6 +38,7 @@ import {
   type MentionGraphData,
   type MonthlyActivity,
   type RelationshipStats,
+  type JourneyStats,
   type TextLengthPercentiles,
   type TextStats,
   type WeekdayActivity,
@@ -417,6 +419,13 @@ export class BrowserSessionRuntime {
     return this.withSessionDatabase(id, (db) => {
       if (!hasSessionIndex(db)) generateSessionIndex(db)
       return queryRelationshipStats(db, filter, options)
+    })
+  }
+
+  async getJourneyStats(id: string, filter?: BrowserTimeFilter): Promise<JourneyStats> {
+    return this.withSessionDatabase(id, (db) => {
+      if (!hasSessionIndex(db)) generateSessionIndex(db)
+      return queryJourneyStats(db, filter)
     })
   }
 

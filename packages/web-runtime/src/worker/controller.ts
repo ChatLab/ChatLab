@@ -53,6 +53,7 @@ export type WorkerSessionRuntime = Pick<
   | 'getMentionGraph'
   | 'getClusterGraph'
   | 'getRelationshipStats'
+  | 'getJourneyStats'
   | 'getLanguagePreferenceAnalysis'
   | 'getWordFrequency'
 >
@@ -422,6 +423,12 @@ export class WebRuntimeWorkerController {
           request.payload.filter,
           request.payload.options
         )
+        this.emitAnalysisQueryCompleted(request, startedAt)
+        return result
+      }
+      case 'analysis.journey': {
+        const startedAt = this.startAnalysisQuery()
+        const result = await this.sessionRuntime.getJourneyStats(request.payload.sessionId, request.payload.filter)
         this.emitAnalysisQueryCompleted(request, startedAt)
         return result
       }

@@ -12,6 +12,7 @@ import type {
   MonthlyActivity,
   ClusterGraphData,
   ClusterGraphOptions,
+  JourneyStats,
   RelationshipStats,
   TextLengthPercentiles,
   TextStats,
@@ -172,6 +173,10 @@ export interface WebRuntimeTaskMap {
     payload: { sessionId: string; filter?: BrowserTimeFilter; options?: { perseveranceThreshold?: number } }
     result: RelationshipStats
   }
+  'analysis.journey': {
+    payload: { sessionId: string; filter?: BrowserTimeFilter }
+    result: JourneyStats
+  }
   'analysis.languagePreference': {
     payload: { sessionId: string; locale: string; filter?: BrowserTimeFilter }
     result: unknown
@@ -294,6 +299,7 @@ const WEB_RUNTIME_TASK_TYPES: Record<WebRuntimeTaskType, true> = {
   'analysis.mentionGraph': true,
   'analysis.clusterGraph': true,
   'analysis.relationship': true,
+  'analysis.journey': true,
   'analysis.languagePreference': true,
   'analysis.wordFrequency': true,
 }

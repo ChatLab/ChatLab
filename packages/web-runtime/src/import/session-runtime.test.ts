@@ -933,6 +933,13 @@ describe('BrowserSessionRuntime', () => {
       false
     )
 
+    const journey = await runtime.getJourneyStats('insight-query-session')
+    assert.equal(journey.hasSessionIndex, true)
+    assert.equal(journey.range?.activeDays, 1)
+    assert.equal(journey.range?.activeMonths, 1)
+    assert.equal(journey.peakMonth?.messageCount, 4)
+    assert.equal(journey.longestSegment?.messageCount, 2)
+
     const language = await runtime.getLanguagePreferenceAnalysis('insight-query-session', 'en-US')
     assert.equal(language.members.length, 2)
 
@@ -956,6 +963,7 @@ describe('BrowserSessionRuntime', () => {
     await assert.rejects(runtime.getMonthlyActivity('missing-session'), /Session missing-session was not found/)
     await assert.rejects(runtime.getMembers('missing-session'), /Session missing-session was not found/)
     await assert.rejects(runtime.getRelationshipStats('missing-session'), /Session missing-session was not found/)
+    await assert.rejects(runtime.getJourneyStats('missing-session'), /Session missing-session was not found/)
     await assert.rejects(runtime.getWordFrequency('missing-session', { locale: 'en-US' }), /Session missing-session/)
     assert.deepEqual(await database.getDatabaseFilenames(), filenamesBeforeMissingQuery)
     database.dispose()

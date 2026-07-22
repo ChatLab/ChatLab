@@ -209,6 +209,7 @@ describe('BrowserDataAdapter', () => {
             stats: { totalMembers: 0, totalMessages: 0, involvedMembers: 0, edgeCount: 0, communityCount: 0 },
           },
           'analysis.relationship': { hasSessionIndex: true },
+          'analysis.journey': { range: null, hasSessionIndex: true, months: [], years: [] },
           'analysis.languagePreference': { members: [], sharedWords: [], similarityScore: 0 },
           'analysis.wordFrequency': { words: [], totalWords: 0, totalMessages: 0, uniqueWords: 0 },
         }
@@ -226,6 +227,7 @@ describe('BrowserDataAdapter', () => {
     assert.equal((await adapter.getMentionGraph('session-one')).links.length, 0)
     assert.equal((await adapter.getClusterGraph('session-one')).stats.edgeCount, 0)
     assert.equal((await adapter.getRelationshipStats('session-one')).hasSessionIndex, true)
+    assert.equal((await adapter.getJourneyStats('session-one')).hasSessionIndex, true)
     assert.equal((await adapter.getLanguagePreferenceAnalysis('session-one', 'en-US')).members.length, 0)
     assert.equal((await adapter.getWordFrequency('session-one', { locale: 'en-US' })).totalWords, 0)
 
@@ -240,6 +242,7 @@ describe('BrowserDataAdapter', () => {
         'analysis.mentionGraph',
         'analysis.clusterGraph',
         'analysis.relationship',
+        'analysis.journey',
         'analysis.languagePreference',
         'analysis.wordFrequency',
       ]

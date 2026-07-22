@@ -30,6 +30,17 @@ export type {
   RelationshipOptions,
 } from './relationship'
 
+export { getJourneyStats } from './journey'
+export type {
+  JourneyStats,
+  JourneyRange,
+  JourneyMonth,
+  JourneyYear,
+  JourneyMember,
+  JourneySegment,
+  JourneySilence,
+} from './journey'
+
 export { getLanguagePreferenceAnalysis } from './languagePreference'
 export type { NlpProvider, PosTagResult, LanguagePreferenceParams } from './languagePreference'
 

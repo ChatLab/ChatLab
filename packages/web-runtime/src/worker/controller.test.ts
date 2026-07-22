@@ -277,6 +277,18 @@ class FakeSessionRuntime implements WorkerSessionRuntime {
     }
   }
 
+  async getJourneyStats(_id: string, _filter?: BrowserTimeFilter) {
+    return {
+      range: null,
+      hasSessionIndex: true,
+      months: [],
+      years: [],
+      peakMonth: null,
+      longestSegment: null,
+      longestSilence: null,
+    }
+  }
+
   async getLanguagePreferenceAnalysis(_id: string, _locale: string, _filter?: BrowserTimeFilter) {
     return { members: [], sharedWords: [], similarityScore: 0 }
   }
@@ -601,6 +613,7 @@ describe('WebRuntimeWorkerController', () => {
       { id: 'mention-graph', type: 'analysis.mentionGraph', payload: { sessionId: 'session-one' } },
       { id: 'cluster', type: 'analysis.clusterGraph', payload: { sessionId: 'session-one' } },
       { id: 'relationship', type: 'analysis.relationship', payload: { sessionId: 'session-one' } },
+      { id: 'journey', type: 'analysis.journey', payload: { sessionId: 'session-one' } },
       {
         id: 'language',
         type: 'analysis.languagePreference',

@@ -20,6 +20,7 @@ import {
   getMemberMonthlyTrend,
   getTextLengthPercentiles,
   getRelationshipStats,
+  getJourneyStats,
   getCatchphraseAnalysis,
   getMentionAnalysis,
   getMentionGraph,
@@ -117,6 +118,15 @@ export function registerAnalyticsRoutes(server: FastifyInstance, ctx: AnalyticsR
       const id = request.params.id
       const filter = parseTimeFilter(request.query)
       return cached('relationship', id, { ...filter }, () => getRelationshipStats(adapter.ensureReadonly(id), filter))
+    }
+  )
+
+  server.get<{ Params: { id: string }; Querystring: FilteredQuery }>(
+    '/_web/sessions/:id/analytics/journey',
+    async (request) => {
+      const id = request.params.id
+      const filter = parseTimeFilter(request.query)
+      return cached('journey', id, { ...filter }, () => getJourneyStats(adapter.ensureReadonly(id), filter))
     }
   )
 

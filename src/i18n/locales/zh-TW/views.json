@@ -179,6 +179,68 @@
       "month": "月份"
     }
   },
+  "journey": {
+    "loadError": "無法載入聊天歷程",
+    "empty": "暫無足夠的聊天記錄來產生歷程",
+    "hero": {
+      "prefix": "你們的聊天記錄跨越",
+      "summary": "其中有 {activeMonths} 個月、{activeDays} 天留下了訊息。",
+      "filteredSummary": "在目前篩選範圍內，有 {activeMonths} 個月、{activeDays} 天留下了訊息。",
+      "footprint": "聊天足跡",
+      "monthCount": "跨越 {count} 個月",
+      "monthTooltip": "{month} · {count} 則訊息"
+    },
+    "metrics": {
+      "peakMonth": "最熱鬧的月份",
+      "activeMonths": "活躍月份",
+      "longestConversation": "最長一次暢聊",
+      "longestSilence": "最長一次沉默",
+      "messagesAndDays": "{messages} 則訊息 · 活躍 {days} 天",
+      "monthsRatio": "{active} / {total} 個月",
+      "activeDays": "共活躍 {count} 天",
+      "conversationDetail": "{date} · {count} 則訊息",
+      "reopenedBy": "由 {name} 再次開口",
+      "reopened": "隨後重新開始聊天",
+      "noIndex": "暫無對話索引",
+      "noSilence": "沒有超過 24 小時的沉默"
+    },
+    "years": {
+      "title": "一年一頁",
+      "description": "按年份翻看聊天留下的篇章",
+      "summary": "{messages} 則訊息 · {days} 個活躍日 · {months} 個活躍月",
+      "quiet": "這一年沒有留下訊息",
+      "peak": "高峰月 {count} 則"
+    },
+    "milestones": {
+      "title": "關鍵節點",
+      "description": "從開始、熱鬧到重逢，串起這段聊天歷程",
+      "start": "從這裡開始",
+      "startDetail": "現有記錄中的第一則訊息",
+      "peak": "最熱鬧的月份",
+      "peakDetail": "這個月留下了 {count} 則訊息",
+      "longestConversation": "最長一次暢聊",
+      "conversationDetail": "持續 {duration}，共 {count} 則訊息",
+      "longestSilence": "最長一次沉默",
+      "silenceRange": "{start} – {end}",
+      "silenceDetailWithMember": "相隔 {duration}，由 {name} 再次開口",
+      "silenceDetail": "相隔 {duration}，重新開始聊天",
+      "end": "記錄來到這裡",
+      "endDetail": "現有記錄中的最後一則訊息",
+      "filteredEndDetail": "目前篩選範圍內的最後一則訊息"
+    },
+    "duration": {
+      "lessThanMinute": "不到 1 分鐘",
+      "minutes": "{count} 分鐘",
+      "hours": "{count} 小時",
+      "hoursMinutes": "{hours} 小時 {minutes} 分鐘",
+      "days": "{count} 天",
+      "daysHours": "{days} 天 {hours} 小時",
+      "months": "{count} 個月",
+      "years": "{count} 年",
+      "yearsMonths": "{years} 年 {months} 個月"
+    },
+    "watermark": "聊天歷程"
+  },
   "timeline": {
     "title": "時間軸檢視",
     "description": "以視覺化方式呈現訊息時間分布與活躍週期變化"

@@ -41,6 +41,7 @@ import type {
   MemeBattleAnalysis,
   NightOwlAnalysis,
   RepeatAnalysis,
+  JourneyStats,
   WordFrequencyParams,
   WordFrequencyResult,
 } from '@openchatlab/core'
@@ -412,6 +413,10 @@ export class FetchDataAdapter implements DataAdapter {
     _options?: { perseveranceThreshold?: number }
   ): Promise<RelationshipStats> {
     return analyticsGet(`/sessions/${sessionId}/analytics/relationship${buildFilterParams(filter)}`)
+  }
+
+  getJourneyStats(sessionId: string, filter?: TimeFilter): Promise<JourneyStats> {
+    return analyticsGet(`/sessions/${sessionId}/analytics/journey${buildFilterParams(filter)}`)
   }
 
   // ==================== SQL Lab ====================

@@ -6,6 +6,7 @@ import UserSelect from '@/components/common/UserSelect.vue'
 import TypeAnalysisView from '@/components/analysis/message/TypeAnalysisView.vue'
 import TimeAnalysisView from '@/components/analysis/message/TimeAnalysisView.vue'
 import PrivateRelationshipView from '@/components/analysis/relationships/PrivateRelationshipView.vue'
+import JourneyView from '@/components/analysis/journey/JourneyView.vue'
 import { WordcloudTab, LanguagePreferenceTab } from '@/components/analysis/quotes'
 import type { TimeFilter } from '@openchatlab/shared-types'
 import type { AnalysisSession, MessageType } from '@/types/base'
@@ -30,6 +31,7 @@ const props = defineProps<{
 const subTabs = computed(() => [
   { id: 'overview', label: t('analysis.tabs.overview'), icon: 'i-heroicons-squares-2x2' },
   { id: 'relationship', label: t('analysis.subTabs.insights.relationship'), icon: 'i-heroicons-heart' },
+  { id: 'journey', label: t('analysis.subTabs.insights.journey'), icon: 'i-heroicons-map' },
   { id: 'type-analysis', label: t('analysis.subTabs.insights.typeAnalysis'), icon: 'i-heroicons-chart-pie' },
   { id: 'time-analysis', label: t('analysis.subTabs.insights.timeAnalysis'), icon: 'i-heroicons-clock' },
   { id: 'topic', label: t('analysis.subTabs.insights.topic'), icon: 'i-heroicons-cloud' },
@@ -93,6 +95,12 @@ const viewTimeFilter = computed(() => ({
           v-else-if="activeSubTab === 'relationship'"
           :session-id="props.sessionId"
           :time-filter="props.timeFilter"
+        />
+        <JourneyView
+          v-else-if="activeSubTab === 'journey'"
+          :session-id="props.sessionId"
+          :time-filter="props.timeFilter"
+          :time-range="props.timeRange"
         />
         <WordcloudTab
           v-else-if="activeSubTab === 'topic'"
