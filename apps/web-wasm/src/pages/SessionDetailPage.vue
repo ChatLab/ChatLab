@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -13,7 +13,7 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const sessionStore = useSessionStore()
-const { currentSessionId } = storeToRefs(sessionStore)
+const { currentSessionId, isInitialized, sessions } = storeToRefs(sessionStore)
 
 const tabs = [{ id: 'insights', labelKey: 'analysis.tabs.insights', icon: 'i-heroicons-presentation-chart-bar' }]
 
@@ -56,6 +56,20 @@ const otherMemberAvatar = computed(() => {
 })
 const loadErrorText = computed(() =>
   t(route.name === 'private-chat' ? 'analysis.privateChat.loadError' : 'analysis.groupChat.loadError')
+)
+
+watch(
+  () => sessions.value.find((item) => item.id === route.params.id),
+  (catalogSession) => {
+    if (!isInitialized.value) return
+    if (!catalogSession) {
+      session.value = null
+      void router.replace('/')
+      return
+    }
+    // 其他标签页重命名后，同步更新当前详情页标题，不必重新执行整组分析查询。
+    if (session.value) session.value = catalogSession
+  }
 )
 </script>
 

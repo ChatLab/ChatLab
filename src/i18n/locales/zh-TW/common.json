@@ -11,7 +11,7 @@
   "done": "完成",
   "retry": "重試",
   "initFailed": "應用程式初始化失敗",
-  "webWasmWorkspaceBusy": "Web WASM 已在另一個分頁中開啟。請關閉另一個 ChatLab Web WASM 分頁後重試。",
+  "webWasmWorkspaceBusy": "本機工作區暫時正由另一個分頁使用。請稍候後重試。",
   "loading": "載入中...",
   "initializing": "初始化中...",
   "noResults": "無匹配結果",

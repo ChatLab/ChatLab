@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 import { useColorMode, useMediaQuery } from '@vueuse/core'
 import { storeToRefs } from 'pinia'
 import { useRoute } from 'vue-router'
@@ -16,13 +16,6 @@ import { useSessionStore } from '@/stores/session'
 import { useSettingsStore } from '@/stores/settings'
 import { StartupLoading } from '@/components/UI'
 import { PLATFORM_CAPABILITIES } from '@/utils/platform-capabilities'
-import {
-  WebWasmWorkspaceBusyError,
-  acquireWebWasmWorkspaceLease,
-  handleWebWasmWorkspacePageHide,
-  type WebWasmLockManager,
-  type WebWasmWorkspaceLease,
-} from './workspace-lock'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -57,7 +50,6 @@ const toaster = {
 }
 
 let initInProgress = false
-let workspaceLease: WebWasmWorkspaceLease | undefined
 
 async function initializeApp() {
   if (initInProgress || isInitialized.value) return
@@ -65,7 +57,6 @@ async function initializeApp() {
   initError.value = null
 
   try {
-    workspaceLease ??= await acquireWebWasmWorkspaceLease(navigator.locks as WebWasmLockManager | undefined)
     await initializeAppRuntime({
       capabilities: PLATFORM_CAPABILITIES,
       initializeServices: () => initServices(),
@@ -77,7 +68,7 @@ async function initializeApp() {
   } catch (error) {
     console.error('Web WASM application initialization failed', error)
     initError.value =
-      error instanceof WebWasmWorkspaceBusyError
+      error instanceof Error && 'code' in error && error.code === 'OPFS_WORKSPACE_BUSY'
         ? t('common.webWasmWorkspaceBusy')
         : error instanceof Error
           ? error.message
@@ -88,22 +79,8 @@ async function initializeApp() {
   }
 }
 
-function releaseWorkspaceLease() {
-  workspaceLease?.release()
-  workspaceLease = undefined
-}
-
-function handlePageHide(event: PageTransitionEvent) {
-  workspaceLease = handleWebWasmWorkspacePageHide(event, workspaceLease)
-}
-
 onMounted(() => {
-  window.addEventListener('pagehide', handlePageHide)
   void initializeApp()
-})
-onBeforeUnmount(() => {
-  window.removeEventListener('pagehide', handlePageHide)
-  releaseWorkspaceLease()
 })
 </script>
 

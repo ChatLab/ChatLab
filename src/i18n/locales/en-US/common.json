@@ -11,7 +11,7 @@
   "done": "Done",
   "retry": "Retry",
   "initFailed": "App initialization failed",
-  "webWasmWorkspaceBusy": "Web WASM is already open in another tab. Close the other ChatLab Web WASM tab and retry.",
+  "webWasmWorkspaceBusy": "The local workspace is temporarily in use by another tab. Wait a moment and retry.",
   "loading": "Loading...",
   "initializing": "Initializing...",
   "noResults": "No results found",

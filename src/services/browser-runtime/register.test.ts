@@ -11,6 +11,7 @@ describe('registerWebWasmAdapters', () => {
   it('registers the browser runtime adapter and forwards Worker logs', () => {
     const registrations = new Map<string, unknown>()
     const logs: RuntimeLogEvent[] = []
+    const workspaceChanges: string[] = []
     let clientOptions: WebRuntimeRpcClientOptions | undefined
     const client = {
       request: () => Promise.reject(new Error('not used')),
@@ -24,6 +25,7 @@ describe('registerWebWasmAdapters', () => {
         return client
       },
       reportLog: (event) => logs.push(event),
+      onWorkspaceChanged: (event) => workspaceChanges.push(`${event.type}:${event.sessionId}`),
     })
 
     assert.deepEqual([...registrations.keys()], ['browser-runtime', 'import', 'data', 'platform', 'preferences'])
@@ -38,6 +40,8 @@ describe('registerWebWasmAdapters', () => {
       message: 'Worker initialized',
     }
     clientOptions?.onLog?.(event)
+    clientOptions?.onWorkspaceChanged?.({ type: 'rename', sessionId: 'session-one' })
     assert.deepEqual(logs, [event])
+    assert.deepEqual(workspaceChanges, ['rename:session-one'])
   })
 })

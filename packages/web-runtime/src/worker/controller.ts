@@ -20,8 +20,9 @@ export interface WorkerMessageSink {
 }
 
 export interface WorkerDatabaseRuntime extends WorkspaceDatabasePort {
+  withWorkspaceLease<T>(operation: () => Promise<T>, onStage?: (stage: DatabaseOpenStage) => void): Promise<T>
   open(filename: string, onStage?: (stage: DatabaseOpenStage) => void): Promise<OpenDatabaseResult>
-  close(): Promise<{ closed: boolean }>
+  close(onStage?: (stage: DatabaseOpenStage) => void): Promise<{ closed: boolean }>
 }
 
 export type WorkerSessionRuntime = Pick<
@@ -84,7 +85,12 @@ export class WebRuntimeWorkerController {
   private async execute(request: RpcRequestEnvelope): Promise<void> {
     try {
       this.throwIfCancelled(request.id)
-      const result = await this.dispatch(request)
+      const result = requiresWorkspaceLease(request.type)
+        ? await this.databaseRuntime.withWorkspaceLease(
+            () => this.dispatch(request),
+            (stage) => this.handleDatabaseStage(request, stage)
+          )
+        : await this.dispatch(request)
       this.sink.postMessage({
         id: request.id,
         type: 'result',
@@ -134,7 +140,7 @@ export class WebRuntimeWorkerController {
         return result
       }
       case 'db.close': {
-        const result = await this.databaseRuntime.close()
+        const result = await this.databaseRuntime.close((stage) => this.handleDatabaseStage(request, stage))
         if (result.closed) {
           this.emitLog(request.id, {
             level: 'info',
@@ -471,17 +477,26 @@ export class WebRuntimeWorkerController {
   }
 
   private handleDatabaseStage(request: RpcRequestEnvelope, stage: DatabaseOpenStage): void {
-    this.throwIfCancelled(request.id)
     const progressByStage: Record<DatabaseOpenStage, number> = {
+      'opfs-workspace-lock-waiting': 0.05,
+      'opfs-workspace-lock-acquired': 0.1,
       'sqlite-initializing': 0.2,
       'sqlite-ready': 0.35,
       'opfs-pool-initializing': 0.45,
       'opfs-pool-ready': 0.6,
+      'opfs-pool-resuming': 0.65,
+      'opfs-pool-resumed': 0.68,
       'opfs-database-opening': 0.7,
       'opfs-database-opened': 0.8,
       'schema-initializing': 0.9,
       'schema-ready': 1,
+      'opfs-pool-pausing': 1,
+      'opfs-pool-paused': 1,
+      'opfs-workspace-lock-released': 1,
     }
+    const isReleaseStage =
+      stage === 'opfs-pool-pausing' || stage === 'opfs-pool-paused' || stage === 'opfs-workspace-lock-released'
+    if (!isReleaseStage) this.throwIfCancelled(request.id)
     this.emitProgress(request, stage, progressByStage[stage])
     if (
       stage === 'sqlite-ready' ||
@@ -491,6 +506,13 @@ export class WebRuntimeWorkerController {
     ) {
       this.emitLog(request.id, {
         level: 'info',
+        scope: 'web-runtime',
+        message: stage,
+      })
+    }
+    if (stage === 'opfs-workspace-lock-acquired' || stage === 'opfs-pool-resumed' || stage === 'opfs-pool-paused') {
+      this.emitLog(request.id, {
+        level: 'debug',
         scope: 'web-runtime',
         message: stage,
       })
@@ -522,6 +544,15 @@ export class WebRuntimeWorkerController {
       )
     }
   }
+}
+
+function requiresWorkspaceLease(type: WebRuntimeTaskType): boolean {
+  return (
+    type !== 'capabilities.check' &&
+    type !== 'import.formats' &&
+    type !== 'import.detectFormat' &&
+    type !== 'import.scanChats'
+  )
 }
 
 function serializeRpcError(error: unknown): SerializedRpcError {

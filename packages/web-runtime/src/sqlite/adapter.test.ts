@@ -79,4 +79,27 @@ describe('SqliteWasmDatabaseAdapter', () => {
       db.close()
     }
   })
+
+  it('finalizes prepared statements before closing the database', async () => {
+    const sqlite3 = await sqlite3InitModule()
+    const rawDb = new sqlite3.oo1.DB(':memory:', 'c')
+    const originalPrepare = rawDb.prepare.bind(rawDb)
+    let finalizedStatements = 0
+
+    rawDb.prepare = ((sql) => {
+      const statement = originalPrepare(sql)
+      const originalFinalize = statement.finalize.bind(statement)
+      statement.finalize = () => {
+        finalizedStatements += 1
+        return originalFinalize()
+      }
+      return statement
+    }) as typeof rawDb.prepare
+
+    const db = new SqliteWasmDatabaseAdapter(sqlite3, rawDb)
+    db.prepare('SELECT 1 AS value').get()
+    db.close()
+
+    assert.equal(finalizedStatements, 1)
+  })
 })

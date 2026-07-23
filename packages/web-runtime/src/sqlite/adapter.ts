@@ -8,6 +8,7 @@ import type {
 
 class SqliteWasmPreparedStatement implements CorePreparedStatement {
   readonly?: boolean
+  private finalized = false
 
   constructor(
     private readonly sqlite3: Sqlite3Static,
@@ -44,6 +45,12 @@ class SqliteWasmPreparedStatement implements CorePreparedStatement {
     })
   }
 
+  finalize(): void {
+    if (this.finalized) return
+    this.finalized = true
+    this.statement.finalize()
+  }
+
   private withBindings<T>(params: unknown[], operation: () => T): T {
     try {
       if (params.length > 0) this.statement.bind(params as BindingSpec)
@@ -56,6 +63,7 @@ class SqliteWasmPreparedStatement implements CorePreparedStatement {
 
 export class SqliteWasmDatabaseAdapter implements DatabaseAdapter {
   readonly?: boolean
+  private readonly statements = new Set<SqliteWasmPreparedStatement>()
 
   constructor(
     private readonly sqlite3: Sqlite3Static,
@@ -69,7 +77,9 @@ export class SqliteWasmDatabaseAdapter implements DatabaseAdapter {
   }
 
   prepare(sql: string): CorePreparedStatement {
-    return new SqliteWasmPreparedStatement(this.sqlite3, this.db, this.db.prepare(sql))
+    const statement = new SqliteWasmPreparedStatement(this.sqlite3, this.db, this.db.prepare(sql))
+    this.statements.add(statement)
+    return statement
   }
 
   transaction<T>(fn: () => T): T {
@@ -93,6 +103,8 @@ export class SqliteWasmDatabaseAdapter implements DatabaseAdapter {
   }
 
   close(): void {
+    for (const statement of this.statements) statement.finalize()
+    this.statements.clear()
     this.db.close()
   }
 }

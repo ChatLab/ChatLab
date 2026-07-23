@@ -37,6 +37,12 @@ class FakeDatabaseRuntime implements WorkerDatabaseRuntime {
   openCalls: string[] = []
   closeCalls = 0
   closeGate: Promise<void> | undefined
+  workspaceLeaseCalls = 0
+
+  async withWorkspaceLease<T>(operation: () => Promise<T>): Promise<T> {
+    this.workspaceLeaseCalls += 1
+    return operation()
+  }
 
   async open(filename: string, onStage?: (stage: DatabaseOpenStage) => void) {
     this.openCalls.push(filename)
@@ -594,6 +600,7 @@ describe('WebRuntimeWorkerController', () => {
         .map((message) => (message.type === 'log' ? message.payload.message : '')),
       ['sqlite-ready', 'opfs-pool-ready', 'opfs-database-opened', 'schema-ready']
     )
+    assert.equal(database.workspaceLeaseCalls, 14)
   })
 
   it('routes the complete Insights query set through the Worker runtime', async () => {

@@ -3,6 +3,7 @@ import type {
   RpcResponseEnvelope,
   RuntimeLogEvent,
   SerializedRpcError,
+  WebRuntimeWorkspaceChangeEvent,
   WebRuntimeTaskPayload,
   WebRuntimeTaskResult,
   WebRuntimeTaskType,
@@ -24,9 +25,12 @@ export interface RpcRequestOptions {
 
 export interface WebRuntimeRpcClientOptions {
   onLog?: (event: RuntimeLogEvent) => void
+  onWorkspaceChanged?: (event: WebRuntimeWorkspaceChangeEvent) => void
 }
 
 interface PendingRequest {
+  taskType: WebRuntimeTaskType
+  payload: WebRuntimeTaskPayload<WebRuntimeTaskType>
   resolve(value: unknown): void
   reject(error: Error): void
   onProgress?: (event: RpcProgressPayload) => void
@@ -74,6 +78,8 @@ export class WebRuntimeRpcClient {
 
     return new Promise<WebRuntimeTaskResult<T>>((resolve, reject) => {
       const pending: PendingRequest = {
+        taskType: type,
+        payload: payload as WebRuntimeTaskPayload<WebRuntimeTaskType>,
         resolve: resolve as (value: unknown) => void,
         reject,
         onProgress: options.onProgress,
@@ -137,6 +143,14 @@ export class WebRuntimeRpcClient {
       return
     }
     if (envelope.type === 'result') {
+      const workspaceChange = getWorkspaceChange(envelope, pending)
+      if (workspaceChange) {
+        try {
+          this.options.onWorkspaceChanged?.(workspaceChange)
+        } catch (error) {
+          console.error('Web runtime workspace change callback failed', error)
+        }
+      }
       this.settleRequest(envelope.id, 'resolve', envelope.payload.result)
       return
     }
@@ -178,6 +192,29 @@ export class WebRuntimeRpcClient {
     this.worker.removeEventListener('error', this.handleWorkerError)
     this.worker.terminate()
     this.worker = undefined
+  }
+}
+
+function getWorkspaceChange(
+  envelope: Extract<RpcResponseEnvelope, { type: 'result' }>,
+  pending: Pick<PendingRequest, 'taskType' | 'payload'>
+): WebRuntimeWorkspaceChangeEvent | null {
+  const result = envelope.payload.result
+  switch (envelope.payload.taskType) {
+    case 'import.start':
+      return { type: 'import', sessionId: (result as WebRuntimeTaskResult<'import.start'>).sessionId }
+    case 'session.delete': {
+      const deleted = result as WebRuntimeTaskResult<'session.delete'>
+      const payload = pending.payload as WebRuntimeTaskPayload<'session.delete'>
+      return deleted.deleted ? { type: 'delete', sessionId: payload.sessionId } : null
+    }
+    case 'session.rename': {
+      const renamed = result as WebRuntimeTaskResult<'session.rename'>
+      const payload = pending.payload as WebRuntimeTaskPayload<'session.rename'>
+      return renamed.renamed ? { type: 'rename', sessionId: payload.sessionId } : null
+    }
+    default:
+      return null
   }
 }
 

@@ -229,6 +229,11 @@ export interface RuntimeLogEvent {
   data?: Record<string, unknown>
 }
 
+export interface WebRuntimeWorkspaceChangeEvent {
+  type: 'import' | 'delete' | 'rename'
+  sessionId: string
+}
+
 export interface RpcProgressEnvelope {
   id: string
   type: 'progress'

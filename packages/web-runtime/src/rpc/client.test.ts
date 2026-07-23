@@ -177,6 +177,90 @@ describe('WebRuntimeRpcClient', () => {
     client.dispose()
   })
 
+  it('reports successful workspace mutations after the Worker releases storage', async () => {
+    const worker = new FakeWorker()
+    const changes: Array<{ type: string; sessionId: string }> = []
+    const client = new WebRuntimeRpcClient(() => worker, {
+      onWorkspaceChanged: (event) => changes.push(event),
+    })
+
+    const renamed = client.request('session.rename', { sessionId: 'session-one', name: 'Renamed' })
+    const renameRequest = worker.messages[0] as { id: string }
+    worker.emitMessage({
+      id: renameRequest.id,
+      type: 'result',
+      payload: { taskType: 'session.rename', result: { renamed: true } },
+    })
+    await renamed
+
+    const missingDelete = client.request('session.delete', { sessionId: 'missing' })
+    const deleteRequest = worker.messages[1] as { id: string }
+    worker.emitMessage({
+      id: deleteRequest.id,
+      type: 'result',
+      payload: { taskType: 'session.delete', result: { deleted: false } },
+    })
+    await missingDelete
+
+    const imported = client.request('import.start', {
+      source: {
+        name: 'fixture.json',
+        size: 2,
+        text: async () => '{}',
+        arrayBuffer: async () => new ArrayBuffer(0),
+        slice: () => new Blob(),
+      },
+    })
+    const importRequest = worker.messages[2] as { id: string }
+    worker.emitMessage({
+      id: importRequest.id,
+      type: 'result',
+      payload: {
+        taskType: 'import.start',
+        result: {
+          sessionId: 'session-two',
+          formatId: 'chatlab',
+          messageCount: 1,
+          memberCount: 1,
+          skippedCount: 0,
+        },
+      },
+    })
+    await imported
+
+    assert.deepEqual(changes, [
+      { type: 'rename', sessionId: 'session-one' },
+      { type: 'import', sessionId: 'session-two' },
+    ])
+    client.dispose()
+  })
+
+  it('still resolves a mutation when the workspace change callback fails', async () => {
+    const worker = new FakeWorker()
+    const client = new WebRuntimeRpcClient(() => worker, {
+      onWorkspaceChanged: () => {
+        throw new Error('channel closed')
+      },
+    })
+    const originalError = console.error
+    console.error = () => undefined
+
+    try {
+      const renamed = client.request('session.rename', { sessionId: 'session-one', name: 'Renamed' })
+      const request = worker.messages[0] as { id: string }
+      worker.emitMessage({
+        id: request.id,
+        type: 'result',
+        payload: { taskType: 'session.rename', result: { renamed: true } },
+      })
+
+      assert.deepEqual(await renamed, { renamed: true })
+    } finally {
+      console.error = originalError
+      client.dispose()
+    }
+  })
+
   it('rejects pending work after a crash and creates a fresh worker for the next request', async () => {
     const workers: FakeWorker[] = []
     const client = new WebRuntimeRpcClient(() => {

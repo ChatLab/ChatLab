@@ -8,6 +8,7 @@ export type {
   OpenDatabaseResult,
   RpcProgressPayload,
   RuntimeLogEvent,
+  WebRuntimeWorkspaceChangeEvent,
   WebRuntimeTaskMap,
   WebRuntimeTaskPayload,
   WebRuntimeTaskResult,

@@ -14,15 +14,23 @@ import { installGlobalErrorReporting, reportError, reportRuntimeLog } from '@/se
 import { initServices } from '@/services/registry'
 import { registerWebWasmAdapters } from '@/services/browser-runtime/register'
 import { handleWebWasmPageHide } from './runtime-lifecycle'
+import { WebWasmSessionSync } from './session-sync'
+import { useSessionStore } from '@/stores/session'
 import '@/assets/styles/main.css'
 
 async function start(): Promise<void> {
   reportRuntimeLog({ level: 'info', scope: 'web-wasm-bootstrap', message: 'Initializing Web WASM services' })
   installGlobalErrorReporting()
-  await initServices({ initializeWebWasm: registerWebWasmAdapters })
+  const sessionSync = new WebWasmSessionSync()
+  await initServices({
+    initializeWebWasm: (registry) =>
+      registerWebWasmAdapters({
+        ...registry,
+        onWorkspaceChanged: (event) => sessionSync.publish(event),
+      }),
+  })
 
   const runtime = useBrowserRuntimeService()
-  window.addEventListener('pagehide', (event) => handleWebWasmPageHide(event, () => runtime.dispose()))
 
   const app = createApp(App)
   app.config.errorHandler = (error, _instance, info) => {
@@ -39,6 +47,35 @@ async function start(): Promise<void> {
   app.use(router)
   app.use(ui)
   app.use(i18n)
+
+  const sessionStore = useSessionStore(pinia)
+  let refreshRequested = false
+  let refreshInProgress = false
+  const refreshSessions = async () => {
+    refreshRequested = true
+    if (refreshInProgress) return
+    refreshInProgress = true
+    try {
+      // 连续收到多个标签页事件时至少执行到最后一次，避免导入/重命名紧邻发生时漏掉最新状态。
+      while (refreshRequested) {
+        refreshRequested = false
+        await sessionStore.loadSessions()
+      }
+    } finally {
+      refreshInProgress = false
+    }
+  }
+  const unsubscribeSessionSync = sessionSync.subscribe(() => {
+    void refreshSessions()
+  })
+
+  window.addEventListener('pagehide', (event) =>
+    handleWebWasmPageHide(event, () => {
+      unsubscribeSessionSync()
+      sessionSync.dispose()
+      runtime.dispose()
+    })
+  )
   app.mount('#app')
 }
 
