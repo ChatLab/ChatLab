@@ -10,6 +10,7 @@ import type {
 import { MessageType, getMessageTypeName } from '@/types/base'
 import { formatDateRange } from '@/utils'
 import { CardDecoration, ThemeCard } from '@/components/UI'
+import { deriveAnnualActivityRhythm } from '../annual-activity-rhythm'
 import AnnualCalendarGrid from './AnnualCalendarGrid.vue'
 import AnnualMessageTrend from './AnnualMessageTrend.vue'
 
@@ -58,23 +59,52 @@ const activeRate = computed(() => {
   const days = Math.max(1, Math.round((props.range.endTs - props.range.startTs) / 86400) + 1)
   return percentage(props.metrics.activeDayCount, days)
 })
-const highlights = computed(() => [
-  {
-    key: 'dailyContacts',
-    value: formatValue(props.metrics.averageDirectContactsPerDay),
-    detail: t('insight.overviewCard.perDay'),
-  },
-  {
-    key: 'peakMonth',
-    value: formatMonth(peakMonth.value?.month),
-    detail: t('insight.overviewCard.messagesCount', { count: formatValue(peakMonth.value?.messageCount ?? 0) }),
-  },
-  {
-    key: 'peakDay',
-    value: peakDay.value?.date.slice(5).replace('-', '/') ?? '-',
-    detail: t('insight.overviewCard.messagesCount', { count: formatValue(peakDay.value?.messageCount ?? 0) }),
-  },
+const activityRhythm = computed(() => deriveAnnualActivityRhythm(props.dailyActivity))
+const weekdayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
+const highlightRows = computed(() => [
+  [
+    {
+      key: 'dailyContacts',
+      value: formatValue(props.metrics.averageDirectContactsPerDay),
+      detail: t('insight.overviewCard.perDay'),
+    },
+    {
+      key: 'peakMonth',
+      value: formatMonth(peakMonth.value?.month),
+      detail: t('insight.overviewCard.messagesCount', { count: formatValue(peakMonth.value?.messageCount ?? 0) }),
+    },
+    {
+      key: 'peakDay',
+      value: peakDay.value?.date.slice(5).replace('-', '/') ?? '-',
+      detail: t('insight.overviewCard.messagesCount', { count: formatValue(peakDay.value?.messageCount ?? 0) }),
+    },
+  ],
+  [
+    {
+      key: 'longestActiveStreak',
+      value: formatValue(activityRhythm.value.longestActiveStreak),
+      detail: t('insight.overviewCard.consecutiveActiveDays'),
+    },
+    {
+      key: 'topWeekday',
+      value: formatWeekday(activityRhythm.value.topWeekday),
+      detail: t('insight.overviewCard.mostMessagesSent'),
+    },
+    {
+      key: 'weekendMessageRate',
+      value: activityRhythm.value.weekendMessageRate === null ? '-' : `${activityRhythm.value.weekendMessageRate}%`,
+      detail:
+        activityRhythm.value.weekdayMessageRate === null
+          ? t('insight.noData')
+          : t('insight.overviewCard.weekdayMessageRate', { rate: activityRhythm.value.weekdayMessageRate }),
+    },
+  ],
 ])
+
+function formatWeekday(weekday: number | null): string {
+  if (weekday === null) return '-'
+  return t(`common.weekday.${weekdayKeys[weekday - 1]}`)
+}
 
 function formatValue(value: number): string {
   return Number.isInteger(value)
@@ -261,15 +291,22 @@ function percentage(value: number, total: number): number {
         <h3 class="text-[11px] font-bold uppercase text-pink-600 dark:text-pink-400">
           {{ t('insight.overviewCard.keyMetrics') }}
         </h3>
-        <div class="mt-4 grid grid-cols-3 divide-x divide-gray-200 dark:divide-white/10">
-          <div v-for="item in highlights" :key="item.key" class="min-w-0 px-3 first:pl-0 last:pr-0">
-            <div class="truncate font-mono text-sm font-black tabular-nums text-gray-900 dark:text-white">
-              {{ item.value }}
+        <div class="mt-4 space-y-4">
+          <div
+            v-for="(row, rowIndex) in highlightRows"
+            :key="rowIndex"
+            class="grid grid-cols-3 divide-x divide-gray-200 dark:divide-white/10"
+            :class="{ 'border-t border-gray-200 pt-4 dark:border-white/10': rowIndex > 0 }"
+          >
+            <div v-for="item in row" :key="item.key" class="min-w-0 px-3 first:pl-0 last:pr-0">
+              <div class="truncate font-mono text-sm font-black tabular-nums text-gray-900 dark:text-white">
+                {{ item.value }}
+              </div>
+              <div class="mt-1 text-[9px] leading-tight font-medium text-gray-500 dark:text-zinc-400">
+                {{ t(`insight.overviewCard.${item.key}`) }}
+              </div>
+              <div class="mt-0.5 truncate text-[8px] text-gray-400 dark:text-zinc-500">{{ item.detail }}</div>
             </div>
-            <div class="mt-1 truncate text-[9px] font-medium text-gray-500 dark:text-zinc-400">
-              {{ t(`insight.overviewCard.${item.key}`) }}
-            </div>
-            <div class="mt-0.5 truncate text-[8px] text-gray-400 dark:text-zinc-500">{{ item.detail }}</div>
           </div>
         </div>
       </section>

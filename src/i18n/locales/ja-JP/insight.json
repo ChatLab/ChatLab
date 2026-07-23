@@ -31,6 +31,12 @@
     "dailyContacts": "1日平均交流人数",
     "peakMonth": "最も活発な月",
     "peakDay": "最も活発な日",
+    "longestActiveStreak": "最長連続アクティブ",
+    "consecutiveActiveDays": "連続してメッセージを送信した日数",
+    "topWeekday": "最も活発な曜日",
+    "mostMessagesSent": "送信数が最多",
+    "weekendMessageRate": "週末メッセージ比率",
+    "weekdayMessageRate": "平日 {rate}%",
     "textRatio": "テキストメッセージ比率",
     "medianLength": "テキスト長の中央値",
     "p90Length": "テキスト長 P90"

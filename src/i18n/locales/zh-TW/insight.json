@@ -31,6 +31,12 @@
     "dailyContacts": "日均互動人數",
     "peakMonth": "最活躍月份",
     "peakDay": "最活躍日期",
+    "longestActiveStreak": "最長連續活躍",
+    "consecutiveActiveDays": "連續發出訊息的天數",
+    "topWeekday": "最常活躍星期",
+    "mostMessagesSent": "發出訊息最多",
+    "weekendMessageRate": "週末訊息佔比",
+    "weekdayMessageRate": "工作日 {rate}%",
     "textRatio": "文字訊息占比",
     "medianLength": "文字長度中位數",
     "p90Length": "文字長度 P90"

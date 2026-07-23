@@ -31,6 +31,12 @@
     "dailyContacts": "Contacts per day",
     "peakMonth": "Most active month",
     "peakDay": "Most active day",
+    "longestActiveStreak": "Longest active streak",
+    "consecutiveActiveDays": "Consecutive days with sent messages",
+    "topWeekday": "Most active weekday",
+    "mostMessagesSent": "Most messages sent",
+    "weekendMessageRate": "Weekend message share",
+    "weekdayMessageRate": "Weekdays {rate}%",
     "textRatio": "Text message share",
     "medianLength": "Median text length",
     "p90Length": "P90 text length"
