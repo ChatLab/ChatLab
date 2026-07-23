@@ -30,8 +30,8 @@ function selectItem(item: PageTabItem): void {
 </script>
 
 <template>
-  <div class="flex min-w-0 flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
-    <nav class="min-w-0 overflow-x-auto scrollbar-hide" :aria-label="ariaLabel">
+  <div class="flex min-w-0 flex-wrap items-center justify-between gap-x-3 gap-y-3">
+    <nav class="max-w-full shrink-0 overflow-x-auto scrollbar-hide" :aria-label="ariaLabel">
       <div class="flex w-max items-center gap-0.5">
         <component
           :is="item.to ? RouterLink : 'button'"
@@ -54,7 +54,7 @@ function selectItem(item: PageTabItem): void {
       </div>
     </nav>
 
-    <div v-if="$slots.right" class="flex w-full min-w-0 shrink-0 flex-wrap items-center xl:w-auto xl:justify-end">
+    <div v-if="$slots.right" class="ml-auto flex max-w-full shrink-0 flex-wrap items-center justify-end">
       <slot name="right" />
     </div>
   </div>
