@@ -69,13 +69,3 @@ export async function initLocale(): Promise<void> {
  * @param options 插值参数，如 { version: '1.0.0' }
  */
 export const t = (key: string, options?: Record<string, unknown>): string => i18next.t(key, options)
-
-/**
- * 获取当前 locale
- */
-export const getLocale = (): string => i18next.language
-
-/**
- * 判断当前是否为中文环境（兼容现有 isChineseLocale 模式）
- */
-export const isChineseLocale = (): boolean => i18next.language.startsWith('zh')

@@ -89,14 +89,13 @@ export {
   saveSessionSummary,
   getSessionSummary,
   getSegmentMessages,
-  DEFAULT_SESSION_GAP_THRESHOLD,
   // 导出功能
   exportFilterResultToFile,
 } from './session'
 export type { ChatSessionItem, SessionMessagesResult } from './session'
 
 // NLP 查询
-export { getWordFrequency, segmentText, getPosTags } from './nlp'
+export { getWordFrequency } from './nlp'
 
 // FTS 索引管理
 export { hasFtsIndex, buildFtsIndex, rebuildFtsIndex } from './fts'

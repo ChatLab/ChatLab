@@ -6,8 +6,8 @@
  */
 import { ipcMain } from 'electron'
 import { aiLogger, setDebugMode } from '../ai/logger'
-import * as assistantManager from '../ai/assistant'
-import * as skillManager from '../ai/skills'
+import * as assistantManager from '../ai/assistant/manager'
+import * as skillManager from '../ai/skills/manager'
 import type { IpcContext } from './types'
 
 export function registerAIHandlers(_ctx: IpcContext): void {

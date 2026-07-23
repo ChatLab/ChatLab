@@ -12,7 +12,13 @@
 import * as path from 'path'
 import { parentPort, workerData } from 'worker_threads'
 import { initDbDir, closeDatabase, closeAllDatabases, getCacheDir, getDbPath } from './core'
-import { getDbFileVersion, getOrComputeAnalysisCache } from '@openchatlab/node-runtime'
+import {
+  getDbFileVersion,
+  getOrComputeAnalysisCache,
+  getPosTagDefinitions,
+  initNlpDir,
+  segmentText,
+} from '@openchatlab/node-runtime'
 import {
   getAvailableYears,
   getMemberActivity,
@@ -71,8 +77,6 @@ import {
   exportFilterResultToFile,
   // NLP 查询
   getWordFrequency,
-  segmentText,
-  getPosTags,
 } from './query'
 import {
   streamImport,
@@ -84,7 +88,6 @@ import {
   analyzePushImport,
   pushImport,
 } from './import'
-import { initNlpDir } from '@openchatlab/node-runtime'
 
 initDbDir(workerData.dbDir, workerData.cacheDir, workerData.tempDir, workerData.nativeBinding, workerData.logsDir)
 
@@ -239,7 +242,7 @@ const syncHandlers: Record<string, (payload: any) => any> = {
   // NLP 查询
   getWordFrequency: (p) => getWordFrequency(p),
   segmentText: (p) => segmentText(p.text, p.locale, p.minLength),
-  getPosTags: () => getPosTags(),
+  getPosTags: () => getPosTagDefinitions(),
 
   // 深度搜索（LIKE 子串匹配）
   deepSearchMessages: (p) => deepSearchMessages(p.sessionId, p.keywords, p.filter, p.limit, p.offset, p.senderId),

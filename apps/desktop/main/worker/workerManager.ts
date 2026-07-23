@@ -11,7 +11,6 @@ import type { ParseProgress } from '@openchatlab/parser'
 import type { AutoImportResult, StreamImportResult } from './import'
 
 import { getDatabaseDir, getCacheDir, getTempDir, getLogsDir, ensureDir } from '../paths/locations'
-import { getNlpDir } from '../nlp/dictManager'
 import { resolveDesktopNativeBinding } from '../runtime/native-sqlite'
 import { assertDesktopDataDirCompatible, getDesktopAppVersion } from '../runtime/compat'
 import { getPathProvider } from '../paths/provider'
@@ -139,7 +138,7 @@ export function initWorker(): void {
         cacheDir: getCacheDir(),
         tempDir: getTempDir(),
         logsDir: getLogsDir(),
-        nlpDir: getNlpDir(),
+        nlpDir: path.join(getPathProvider().getSystemDir(), 'nlp'),
         appVersion: getDesktopAppVersion(app.getVersion()),
         // Worker threads cannot resolve the Electron-ABI binding themselves; hand it over.
         nativeBinding: resolveDesktopNativeBinding(),

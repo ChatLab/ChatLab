@@ -22,9 +22,6 @@ import {
   type FetchRemoteModelsResult,
 } from '@openchatlab/node-runtime'
 
-// 新模型系统导出
-export { BUILTIN_PROVIDERS, getBuiltinProviderById } from '@openchatlab/core'
-export { BUILTIN_MODELS, getBuiltinModelsByProvider, getBuiltinModelById } from '@openchatlab/core'
 export {
   loadCustomProviders,
   addCustomProvider,
@@ -441,9 +438,6 @@ export function buildPiModel(config: AIServiceConfig): PiModel<PiApi> {
 }
 
 // ==================== Remote Model API ====================
-
-export type { RemoteModel } from '@openchatlab/node-runtime'
-export { type FetchRemoteModelsResult } from '@openchatlab/node-runtime'
 
 const electronRemoteApiOptions = () => ({
   headers: buildChatLabUserAgentHeaders(),

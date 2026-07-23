@@ -11,7 +11,7 @@ import { isAnalysisToolAllowed } from './tool-filter'
 import { t as i18nT } from '../../i18n'
 import { applyPreprocessingPipeline, type PreprocessableMessage } from '@openchatlab/node-runtime'
 import { aiLogger } from '../logger'
-import { getSkillConfig } from '../skills'
+import { getSkillConfig } from '../skills/manager'
 import {
   createActivateSkillTool as sharedCreateActivateSkillTool,
   createChartSchemaGateState,

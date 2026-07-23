@@ -21,15 +21,4 @@ export {
   type TimeFilter,
 } from './dbCore'
 
-export {
-  initPerfLog,
-  logPerf,
-  logPerfDetail,
-  resetPerfLog,
-  getCurrentLogFile,
-  logError,
-  logInfo,
-  logSummary,
-  getErrorCount,
-  LogLevel,
-} from './perfLogger'
+export { initPerfLog } from './perfLogger'

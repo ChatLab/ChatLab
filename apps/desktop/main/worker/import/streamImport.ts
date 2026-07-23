@@ -18,24 +18,18 @@ import {
   TEMP_DB_SCHEMA,
   computeAndSetOverviewCache,
   deleteSessionCache,
+  getCurrentLogFile,
+  logError,
+  logInfo,
+  logPerf,
+  logPerfDetail,
+  logSummary,
+  resetPerfLog,
 } from '@openchatlab/node-runtime'
 import type { AutoImportResult, StreamImportDeps, StreamImportResult, ImportLogger } from '@openchatlab/node-runtime'
 import { sendProgress, generateSessionId, getDbPath, createDatabaseWithoutIndexes } from './utils'
 import { incrementalImport } from './incrementalImport'
-import {
-  getCacheDir,
-  getDbDir,
-  getTempDir,
-  openRawDatabase,
-  initPerfLog,
-  logPerf,
-  logPerfDetail,
-  resetPerfLog,
-  getCurrentLogFile,
-  logError,
-  logInfo,
-  logSummary,
-} from '../core'
+import { getCacheDir, getDbDir, getTempDir, openRawDatabase, initPerfLog } from '../core'
 
 export type { StreamImportResult }
 export type { AutoImportResult }

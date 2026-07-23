@@ -28,6 +28,3 @@ export { analyzePushImport, pushImport } from './pushImport'
 
 // 工具函数（供其他模块使用）
 export { sendProgress, generateSessionId, getDbPath, createDatabaseWithoutIndexes, createIndexes } from './utils'
-
-// 临时数据库（供合并功能使用）
-export { createTempDatabase, cleanupTempDatabase, generateMessageKey } from './tempDb'

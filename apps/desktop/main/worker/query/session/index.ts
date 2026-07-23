@@ -5,7 +5,6 @@
 
 export type { ChatSessionItem, SessionIndexStats } from './sessionIndex'
 export type { SessionMessagesResult } from './aiTools'
-export { DEFAULT_SESSION_GAP_THRESHOLD } from '@openchatlab/core'
 
 // 会话索引管理
 export {
