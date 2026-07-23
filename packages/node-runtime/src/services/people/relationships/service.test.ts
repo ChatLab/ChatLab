@@ -347,7 +347,7 @@ test('excludes silent non-friend group roster members from the close relationshi
   }
 })
 
-test('returns a friends relationships graph without groupmate nodes while keeping full search results', () => {
+test('returns only friends in the friends graph and search results', () => {
   const dir = makeTempDir()
   try {
     const service = createPeopleRelationshipsService({
@@ -400,7 +400,7 @@ test('returns a friends relationships graph without groupmate nodes while keepin
     )
     assert.equal(
       response.searchResults.some((result) => result.key === groupmate.key),
-      true
+      false
     )
   } finally {
     fs.rmSync(dir, { recursive: true, force: true })

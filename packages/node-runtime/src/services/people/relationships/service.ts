@@ -292,7 +292,7 @@ class DefaultPeopleRelationshipsService implements PeopleRelationshipsService {
     const graph = includeSnapshot && snapshot ? buildGraphForScope(snapshot, graphScope) : emptyGraph()
     return {
       graph,
-      searchResults: includeSnapshot && snapshot ? buildSearchResults(snapshot, options.query, graph) : [],
+      searchResults: includeSnapshot && snapshot ? buildSearchResults(snapshot, options.query, graph, graphScope) : [],
       diagnostics: includeSnapshot
         ? sanitizePeopleRelationshipsDiagnostics(snapshot?.diagnostics ?? createEmptyDiagnostics())
         : createEmptyDiagnostics(),
@@ -457,12 +457,14 @@ function filterCommunitiesForNodes(
 function buildSearchResults(
   snapshot: PeopleRelationshipsSnapshot,
   queryInput: string | undefined,
-  graph: PeopleRelationshipsGraphData
+  graph: PeopleRelationshipsGraphData,
+  graphScope: PeopleRelationshipsGraphScope
 ): PeopleRelationshipsSearchResult[] {
   const query = queryInput?.trim().toLowerCase() ?? ''
   if (!query) return []
   const visibleKeys = new Set(graph.nodes.map((node) => node.key))
-  return snapshot.nodes
+  const searchableNodes = graphScope === 'friends' ? graph.nodes : snapshot.nodes
+  return searchableNodes
     .filter((node) => node.searchText.includes(query))
     .sort(compareNodes)
     .slice(0, snapshot.limits.searchResultLimit)
