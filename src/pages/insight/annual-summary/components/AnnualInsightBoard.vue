@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type {
   AnnualSummaryCoverage,
@@ -12,19 +12,21 @@ import { formatDateRange } from '@/utils'
 import { CardDecoration, ThemeCard } from '@/components/UI'
 import { deriveAnnualActivityRhythm } from '../annual-activity-rhythm'
 import AnnualCalendarGrid from './AnnualCalendarGrid.vue'
-import AnnualMessageTrend from './AnnualMessageTrend.vue'
+import AnnualMonthlyTrend from './AnnualMonthlyTrend.vue'
 
 const props = defineProps<{
   range: AnnualSummaryRange
   metrics: AnnualSummaryMetrics
   coverage: AnnualSummaryCoverage
   monthlyActivity: Array<{ month: string; messageCount: number }>
+  monthlyDirectContacts: Array<{ month: string; contactCount: number }>
   dailyActivity: Array<{ date: string; messageCount: number }>
   messageTypes: Array<{ type: number; count: number }>
   textLength: AnnualSummaryTextLength
 }>()
 
 const { t } = useI18n()
+const monthlyTrendMode = ref<'messages' | 'contacts'>('messages')
 
 const title = computed(() =>
   props.range.mode === 'year'
@@ -60,6 +62,18 @@ const activeRate = computed(() => {
   return percentage(props.metrics.activeDayCount, days)
 })
 const activityRhythm = computed(() => deriveAnnualActivityRhythm(props.dailyActivity))
+const monthlyTrendData = computed(() =>
+  monthlyTrendMode.value === 'messages'
+    ? props.monthlyActivity.map((item) => ({ month: item.month, value: item.messageCount }))
+    : props.monthlyDirectContacts.map((item) => ({ month: item.month, value: item.contactCount }))
+)
+const monthlyTrendDescription = computed(() =>
+  t(
+    monthlyTrendMode.value === 'messages'
+      ? 'insight.sections.overviewDescription'
+      : 'insight.sections.directContactsDescription'
+  )
+)
 const weekdayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
 const highlightRows = computed(() => [
   [
@@ -163,16 +177,31 @@ function percentage(value: number, total: number): number {
           </div>
         </div>
 
-        <div class="mt-7 flex items-center justify-between gap-3">
+        <div class="mt-7 flex flex-wrap items-center justify-between gap-3">
           <h3 class="text-[11px] font-bold uppercase text-pink-600 dark:text-pink-400">
             {{ t('insight.sections.overview') }}
           </h3>
-          <span class="text-[10px] text-gray-400 dark:text-zinc-500">
-            {{ t('insight.sections.overviewDescription') }}
-          </span>
+          <div class="flex rounded-lg bg-gray-100 p-0.5 dark:bg-zinc-800">
+            <button
+              v-for="mode in ['messages', 'contacts'] as const"
+              :key="mode"
+              type="button"
+              class="rounded-md px-2.5 py-1 text-[10px] font-medium transition-colors"
+              :class="
+                monthlyTrendMode === mode
+                  ? 'bg-white text-gray-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                  : 'text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+              "
+              :aria-pressed="monthlyTrendMode === mode"
+              @click="monthlyTrendMode = mode"
+            >
+              {{ t(`insight.overviewCard.monthlyTrend.${mode}`) }}
+            </button>
+          </div>
         </div>
+        <p class="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">{{ monthlyTrendDescription }}</p>
         <div class="mt-2">
-          <AnnualMessageTrend :range="range" :data="monthlyActivity" :height="210" />
+          <AnnualMonthlyTrend :range="range" :data="monthlyTrendData" :height="210" />
         </div>
       </section>
     </ThemeCard>

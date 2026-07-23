@@ -37,6 +37,10 @@
     "mostMessagesSent": "Most messages sent",
     "weekendMessageRate": "Weekend message share",
     "weekdayMessageRate": "Weekdays {rate}%",
+    "monthlyTrend": {
+      "messages": "Messages",
+      "contacts": "Direct contacts"
+    },
     "textRatio": "Text message share",
     "medianLength": "Median text length",
     "p90Length": "P90 text length"
@@ -44,6 +48,7 @@
   "sections": {
     "overview": "Annual overview",
     "overviewDescription": "Non-system messages I sent each month; missing months count as zero",
+    "directContactsDescription": "Unique people who directly interacted with me each month; missing months count as zero",
     "activity": "Activity rhythm",
     "activityDescription": "Daily sent messages; darker days were more active",
     "messageTypes": "Message types",

@@ -181,6 +181,7 @@ function openSessions(): void {
           :metrics="response.metrics"
           :coverage="response.coverage"
           :monthly-activity="response.monthlyActivity"
+          :monthly-direct-contacts="response.monthlyDirectContacts"
           :daily-activity="response.dailyActivity"
           :message-types="response.messageTypes"
           :text-length="response.textLength"

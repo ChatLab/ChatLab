@@ -19,6 +19,7 @@ function emptyResponse(): AnnualSummaryResponse {
     latestDataYear: null,
     metrics: null,
     monthlyActivity: [],
+    monthlyDirectContacts: [],
     dailyActivity: [],
     messageTypes: [],
     textLength: null,
@@ -89,6 +90,7 @@ test('GET forwards year mode and stale preference', async (t) => {
 
   assert.equal(response.statusCode, 200)
   assert.deepEqual(service.getCalls, [{ mode: 'year', year: 2024, days: undefined, acceptStale: true }])
+  assert.deepEqual(response.json().monthlyDirectContacts, [])
 })
 
 test('GET normalizes unsupported values before calling the service', async (t) => {

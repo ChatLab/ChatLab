@@ -499,6 +499,7 @@ export interface AnnualSummaryResponse {
   latestDataYear: number | null
   metrics: AnnualSummaryMetrics | null
   monthlyActivity: Array<{ month: string; messageCount: number }>
+  monthlyDirectContacts: Array<{ month: string; contactCount: number }>
   dailyActivity: Array<{ date: string; messageCount: number }>
   messageTypes: Array<{ type: number; count: number }>
   textLength: AnnualSummaryTextLength | null

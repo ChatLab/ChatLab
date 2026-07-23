@@ -25,6 +25,7 @@ const snapshot: AnnualSummarySnapshot = {
     averageDirectContactsPerDay: 0,
   },
   monthlyActivity: [],
+  monthlyDirectContacts: [],
   dailyActivity: [],
   messageTypes: [],
   textLength: { textMessageCount: 0, median: null, p90: null, buckets: [] },

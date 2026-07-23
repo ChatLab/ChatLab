@@ -12,7 +12,7 @@ import type { AnnualSummaryComputeRunner } from './worker-runner'
 
 function makeSnapshot(range: AnnualSummaryRange, signature: string, count = 3): AnnualSummarySnapshot {
   return {
-    algorithmVersion: 'annual-summary-v1',
+    algorithmVersion: 'annual-summary-v2',
     signature,
     computedAt: 100,
     range,
@@ -26,6 +26,7 @@ function makeSnapshot(range: AnnualSummaryRange, signature: string, count = 3): 
       averageDirectContactsPerDay: 1,
     },
     monthlyActivity: [],
+    monthlyDirectContacts: [{ month: '2026-01', contactCount: 1 }],
     dailyActivity: [],
     messageTypes: [],
     textLength: { textMessageCount: 0, median: null, p90: null, buckets: [] },
@@ -97,9 +98,34 @@ test('serves stale data while recomputing after the DB signature changes', async
   const stale = env.service.getAnnualSummary({ mode: 'year', year: 2026, acceptStale: true })
   assert.equal(stale.cache.status, 'stale')
   assert.equal(stale.metrics?.sentMessageCount, 3)
+  assert.deepEqual(stale.monthlyDirectContacts, [{ month: '2026-01', contactCount: 1 }])
   assert.equal(stale.task.status, 'running')
 
   resolveRunner?.(makeSnapshot(range, stale.cache.signature ?? '', 9))
+})
+
+test('serves an old stale snapshot without a monthly contact trend while recomputing it', async (t) => {
+  let resolveRunner: ((snapshot: AnnualSummarySnapshot) => void) | undefined
+  const runner: AnnualSummaryComputeRunner = ({ signature, range }) =>
+    new Promise((resolve) => {
+      resolveRunner = () => resolve(makeSnapshot(range, signature))
+    })
+  const env = createEnv(runner)
+  t.after(async () => {
+    resolveRunner?.(makeSnapshot(env.service.normalizeRange({ mode: 'year', year: 2026 }), 'ignored'))
+    await env.service.close()
+    fs.rmSync(env.dir, { recursive: true, force: true })
+  })
+  const range = env.service.normalizeRange({ mode: 'year', year: 2026 })
+  const legacySnapshot = makeSnapshot(range, 'old-signature')
+  delete (legacySnapshot as Partial<AnnualSummarySnapshot>).monthlyDirectContacts
+  env.service.replaceSnapshotForTests(legacySnapshot)
+
+  const stale = env.service.getAnnualSummary({ mode: 'year', year: 2026, acceptStale: true })
+
+  assert.equal(stale.cache.status, 'stale')
+  assert.deepEqual(stale.monthlyDirectContacts, [])
+  assert.equal(stale.task.status, 'running')
 })
 
 test('drops an in-memory stale snapshot after its persisted file is deleted', async (t) => {

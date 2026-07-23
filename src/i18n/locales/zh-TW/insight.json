@@ -37,6 +37,10 @@
     "mostMessagesSent": "發出訊息最多",
     "weekendMessageRate": "週末訊息佔比",
     "weekdayMessageRate": "工作日 {rate}%",
+    "monthlyTrend": {
+      "messages": "訊息量",
+      "contacts": "互動人數"
+    },
     "textRatio": "文字訊息占比",
     "medianLength": "文字長度中位數",
     "p90Length": "文字長度 P90"
@@ -44,6 +48,7 @@
   "sections": {
     "overview": "年度概覽",
     "overviewDescription": "按月統計我發出的非系統訊息，缺少月份以零計算",
+    "directContactsDescription": "按月統計與我直接互動的去重人數，缺少月份以零計算",
     "activity": "活躍節奏",
     "activityDescription": "每天發出的訊息數量，顏色越深代表當天越活躍",
     "messageTypes": "訊息類型構成",

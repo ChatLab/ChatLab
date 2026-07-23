@@ -41,6 +41,7 @@ export interface AnnualSummaryAggregatedData {
     averageDirectContactsPerDay: number
   }
   monthlyActivity: Array<{ month: string; messageCount: number }>
+  monthlyDirectContacts: Array<{ month: string; contactCount: number }>
   dailyActivity: Array<{ date: string; messageCount: number }>
   messageTypes: Array<{ type: number; count: number }>
   textLength: {
@@ -147,6 +148,7 @@ export function aggregateAnnualSummaryFacts(
 ): AnnualSummaryAggregatedData {
   const ownerMessagesByDay = new Map<string, number>()
   const directContactsByDay = new Map<string, Set<string>>()
+  const directContactsByMonth = new Map<string, Set<string>>()
   const directContacts = new Set<string>()
   const messageTypes = new Map<number, number>()
   const textLengths = new Map<number, number>()
@@ -182,11 +184,15 @@ export function aggregateAnnualSummaryFacts(
     mergeNumberRecord(textLengths, item.textLengthCounts, Number)
     for (const [date, keys] of Object.entries(item.directContactKeysByDay)) {
       const daily = directContactsByDay.get(date) ?? new Set<string>()
+      const month = date.slice(0, 7)
+      const monthly = directContactsByMonth.get(month) ?? new Set<string>()
       keys.forEach((key) => {
         daily.add(key)
+        monthly.add(key)
         directContacts.add(key)
       })
       directContactsByDay.set(date, daily)
+      directContactsByMonth.set(month, monthly)
     }
   }
 
@@ -208,6 +214,7 @@ export function aggregateAnnualSummaryFacts(
       averageDirectContactsPerDay: roundAverage(dailyDirectContactTotal, elapsedDayCount),
     },
     monthlyActivity: buildMonthlyActivity(range, ownerMessagesByDay),
+    monthlyDirectContacts: buildMonthlyDirectContacts(range, directContactsByMonth),
     dailyActivity,
     messageTypes: [...messageTypes.entries()].sort(([a], [b]) => a - b).map(([type, count]) => ({ type, count })),
     textLength: buildTextLengthSummary(textLengths),
@@ -308,6 +315,13 @@ function buildMonthlyActivity(
     counts.set(month, (counts.get(month) ?? 0) + count)
   }
   return listMonths(range).map((month) => ({ month, messageCount: counts.get(month) ?? 0 }))
+}
+
+function buildMonthlyDirectContacts(
+  range: AnnualSummaryRange,
+  directContactsByMonth: Map<string, Set<string>>
+): Array<{ month: string; contactCount: number }> {
+  return listMonths(range).map((month) => ({ month, contactCount: directContactsByMonth.get(month)?.size ?? 0 }))
 }
 
 function listMonths(range: AnnualSummaryRange): string[] {

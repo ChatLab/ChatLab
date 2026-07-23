@@ -37,6 +37,10 @@
     "mostMessagesSent": "送信数が最多",
     "weekendMessageRate": "週末メッセージ比率",
     "weekdayMessageRate": "平日 {rate}%",
+    "monthlyTrend": {
+      "messages": "メッセージ数",
+      "contacts": "交流人数"
+    },
     "textRatio": "テキストメッセージ比率",
     "medianLength": "テキスト長の中央値",
     "p90Length": "テキスト長 P90"
@@ -44,6 +48,7 @@
   "sections": {
     "overview": "年間概要",
     "overviewDescription": "自分が送信したシステム以外のメッセージを月別に集計します",
+    "directContactsDescription": "自分と直接交流した人数を月ごとに重複を除いて集計します",
     "activity": "活動リズム",
     "activityDescription": "日別の送信数。色が濃いほど活発な日です",
     "messageTypes": "メッセージタイプ",

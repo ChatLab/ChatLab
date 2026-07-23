@@ -37,6 +37,10 @@
     "mostMessagesSent": "发出消息最多",
     "weekendMessageRate": "周末消息占比",
     "weekdayMessageRate": "工作日 {rate}%",
+    "monthlyTrend": {
+      "messages": "消息量",
+      "contacts": "互动人数"
+    },
     "textRatio": "文字消息占比",
     "medianLength": "文本长度中位数",
     "p90Length": "文本长度 P90"
@@ -44,6 +48,7 @@
   "sections": {
     "overview": "年度概览",
     "overviewDescription": "按月统计我发出的非系统消息，缺失月份按零计算",
+    "directContactsDescription": "按月统计与我发生直接互动的去重人数，缺失月份按零计算",
     "activity": "活跃节奏",
     "activityDescription": "每天发出的消息数量，颜色越深代表当天越活跃",
     "messageTypes": "消息类型构成",

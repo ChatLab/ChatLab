@@ -239,7 +239,10 @@ test('aggregates sessions, de-duplicates contacts, fills months, and computes ex
       kind: 'analyzed' as const,
       availableDataYears: [2024, 2023],
       ownerMessagesByDay: { '2024-01-01': 2, '2024-01-03': 1 },
-      directContactKeysByDay: { '2024-01-01': ['weixin:alice'], '2024-01-03': ['weixin:bob'] },
+      directContactKeysByDay: {
+        '2024-01-01': ['weixin:alice'],
+        '2024-01-03': ['weixin:alice', 'weixin:bob'],
+      },
       messageTypeCounts: { '0': 2, '1': 1 },
       textLengthCounts: { '2': 1, '10': 1 },
     },
@@ -247,7 +250,10 @@ test('aggregates sessions, de-duplicates contacts, fills months, and computes ex
       kind: 'analyzed' as const,
       availableDataYears: [2024],
       ownerMessagesByDay: { '2024-01-01': 1, '2024-02-01': 1 },
-      directContactKeysByDay: { '2024-01-01': ['weixin:alice'], '2024-02-01': ['weixin:carol'] },
+      directContactKeysByDay: {
+        '2024-01-01': ['weixin:alice'],
+        '2024-02-01': ['weixin:alice', 'weixin:carol'],
+      },
       messageTypeCounts: { '0': 2 },
       textLengthCounts: { '50': 1, '400': 1 },
     },
@@ -270,6 +276,12 @@ test('aggregates sessions, de-duplicates contacts, fills months, and computes ex
     { month: '2024-03', messageCount: 0 },
   ])
   assert.equal(result.monthlyActivity.length, 12)
+  assert.deepEqual(result.monthlyDirectContacts.slice(0, 3), [
+    { month: '2024-01', contactCount: 2 },
+    { month: '2024-02', contactCount: 2 },
+    { month: '2024-03', contactCount: 0 },
+  ])
+  assert.equal(result.monthlyDirectContacts.length, 12)
   assert.deepEqual(result.dailyActivity, [
     { date: '2024-01-01', messageCount: 3 },
     { date: '2024-01-03', messageCount: 1 },
@@ -298,4 +310,31 @@ test('aggregates sessions, de-duplicates contacts, fills months, and computes ex
     unresolvedOwnerSessions: 0,
     failedSessions: 0,
   })
+})
+
+test('fills every calendar month in a recent-range contact trend', () => {
+  const range = {
+    mode: 'recent' as const,
+    days: 365 as const,
+    startTs: localTs(2025, 12, 15, 0),
+    endTs: localTs(2026, 2, 10, 23),
+  }
+  const facts: AnnualSummarySessionFacts[] = [
+    {
+      kind: 'analyzed',
+      availableDataYears: [2026],
+      ownerMessagesByDay: {},
+      directContactKeysByDay: { '2026-01-02': ['weixin:alice'] },
+      messageTypeCounts: {},
+      textLengthCounts: {},
+    },
+  ]
+
+  const result = aggregateAnnualSummaryFacts(facts, range, 58)
+
+  assert.deepEqual(result.monthlyDirectContacts, [
+    { month: '2025-12', contactCount: 0 },
+    { month: '2026-01', contactCount: 1 },
+    { month: '2026-02', contactCount: 0 },
+  ])
 })

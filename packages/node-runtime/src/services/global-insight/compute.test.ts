@@ -58,6 +58,11 @@ test('computes a snapshot across sessions and reuses versioned facts', (t) => {
   })
 
   assert.equal(first.metrics.sentMessageCount, 1)
+  assert.deepEqual(first.monthlyDirectContacts.slice(0, 2), [
+    { month: '2026-01', contactCount: 1 },
+    { month: '2026-02', contactCount: 0 },
+  ])
+  assert.equal(first.algorithmVersion, 'annual-summary-v2')
   assert.deepEqual(first.coverage, {
     totalSessions: 2,
     analyzedSessions: 1,

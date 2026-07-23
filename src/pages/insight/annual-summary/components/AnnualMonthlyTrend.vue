@@ -6,7 +6,7 @@ import { EChartBar } from '@/components/charts'
 
 const props = defineProps<{
   range: AnnualSummaryRange
-  data: Array<{ month: string; messageCount: number }>
+  data: Array<{ month: string; value: number }>
   height?: number
 }>()
 const { t } = useI18n()
@@ -17,7 +17,7 @@ const chartData = computed(() => ({
       ? t('insight.monthLabel', { month: Number(item.month.slice(5)) })
       : item.month.replace('-', '/')
   ),
-  values: props.data.map((item) => item.messageCount),
+  values: props.data.map((item) => item.value),
 }))
 </script>
 

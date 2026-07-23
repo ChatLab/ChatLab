@@ -5,6 +5,11 @@ import path from 'node:path'
 import test from 'node:test'
 import type { SessionRuntimeAdapter } from '../adapters'
 import { buildAnnualSummarySignature } from './signature'
+import { ANNUAL_SUMMARY_ALGORITHM_VERSION } from './types'
+
+test('uses the v2 annual summary algorithm after adding monthly direct contacts', () => {
+  assert.equal(ANNUAL_SUMMARY_ALGORITHM_VERSION, 'annual-summary-v2')
+})
 
 test('signature changes with range date, session list, and DB or WAL state', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-global-insight-signature-'))

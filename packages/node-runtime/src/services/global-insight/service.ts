@@ -205,6 +205,7 @@ class DefaultGlobalInsightService implements GlobalInsightService {
       latestDataYear: includeSnapshot ? (snapshot?.latestDataYear ?? null) : null,
       metrics: includeSnapshot ? (snapshot?.metrics ?? null) : null,
       monthlyActivity: includeSnapshot ? (snapshot?.monthlyActivity ?? []) : [],
+      monthlyDirectContacts: includeSnapshot ? (snapshot?.monthlyDirectContacts ?? []) : [],
       dailyActivity: includeSnapshot ? (snapshot?.dailyActivity ?? []) : [],
       messageTypes: includeSnapshot ? (snapshot?.messageTypes ?? []) : [],
       textLength: includeSnapshot ? (snapshot?.textLength ?? null) : null,

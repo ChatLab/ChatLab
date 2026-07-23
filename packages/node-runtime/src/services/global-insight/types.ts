@@ -5,7 +5,7 @@ import type {
   AnnualSummaryTextLength,
 } from '@openchatlab/shared-types'
 
-export const ANNUAL_SUMMARY_ALGORITHM_VERSION = 'annual-summary-v1'
+export const ANNUAL_SUMMARY_ALGORITHM_VERSION = 'annual-summary-v2'
 
 export interface AnnualSummaryWorkerStats {
   durationMs: number
@@ -24,6 +24,7 @@ export interface AnnualSummarySnapshot {
   latestDataYear: number | null
   metrics: AnnualSummaryMetrics
   monthlyActivity: Array<{ month: string; messageCount: number }>
+  monthlyDirectContacts: Array<{ month: string; contactCount: number }>
   dailyActivity: Array<{ date: string; messageCount: number }>
   messageTypes: Array<{ type: number; count: number }>
   textLength: AnnualSummaryTextLength
