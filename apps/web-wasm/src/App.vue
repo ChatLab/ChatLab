@@ -14,6 +14,7 @@ import { reportError } from '@/services/log-report'
 import { useLayoutStore } from '@/stores/layout'
 import { useSessionStore } from '@/stores/session'
 import { useSettingsStore } from '@/stores/settings'
+import { StartupLoading } from '@/components/UI'
 import { PLATFORM_CAPABILITIES } from '@/utils/platform-capabilities'
 import {
   WebWasmWorkspaceBusyError,
@@ -119,10 +120,7 @@ onBeforeUnmount(() => {
               {{ t('common.retry') }}
             </UButton>
           </div>
-          <div v-else class="flex flex-col items-center justify-center text-center">
-            <UIcon name="i-heroicons-arrow-path" class="h-8 w-8 animate-spin text-pink-500" />
-            <p class="mt-2 text-sm text-gray-500">{{ t('common.initializing') }}</p>
-          </div>
+          <StartupLoading v-else />
         </div>
       </template>
       <template v-else>

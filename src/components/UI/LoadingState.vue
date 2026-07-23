@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
  * 统一加载状态组件
- * 支持三种场景：行内加载、页面加载、蒙层覆盖
+ * 支持行内加载、页面加载和蒙层覆盖
  */
 
 import { computed } from 'vue'
@@ -36,7 +36,7 @@ const containerClass = computed(() => {
 </script>
 
 <template>
-  <div :class="containerClass">
+  <div :class="containerClass" role="status" aria-live="polite">
     <div class="flex flex-col items-center justify-center text-center">
       <UIcon name="i-heroicons-arrow-path" class="h-6 w-6 animate-spin text-pink-500" />
       <p v-if="text" class="mt-2 text-sm text-gray-500">{{ text }}</p>

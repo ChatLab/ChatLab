@@ -11,6 +11,7 @@ import SettingsModal from '@/components/common/SettingsModal.vue'
 import { ChatRecordDrawer } from '@/components/common/ChatRecord'
 import GlobalTaskBar from '@/components/AIChat/GlobalTaskBar.vue'
 import DebugToolsPanel from '@/components/layout/DebugToolsPanel.vue'
+import { StartupLoading } from '@/components/UI'
 import { useSessionStore } from '@/stores/session'
 import { useLayoutStore } from '@/stores/layout'
 import { useSettingsStore } from '@/stores/settings'
@@ -198,10 +199,7 @@ onUnmounted(() => {
                 {{ t('common.retry') }}
               </UButton>
             </div>
-            <div v-else class="flex flex-col items-center justify-center text-center">
-              <UIcon name="i-heroicons-arrow-path" class="h-8 w-8 animate-spin text-pink-500" />
-              <p class="mt-2 text-sm text-gray-500">{{ t('common.initializing') }}</p>
-            </div>
+            <StartupLoading v-else />
           </div>
         </template>
         <template v-else>
@@ -240,7 +238,9 @@ onUnmounted(() => {
         class="pointer-events-auto m-0 h-screen max-h-none w-screen max-w-none border-0 bg-white p-0 outline-none backdrop:bg-white dark:bg-page-dark dark:backdrop:bg-page-dark"
         tabindex="-1"
         @cancel.prevent
-      />
+      >
+        <StartupLoading v-if="isBootstrapMaskVisible" />
+      </dialog>
     </Teleport>
   </UApp>
 </template>
