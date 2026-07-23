@@ -72,7 +72,9 @@ export interface BrowserImportProgress {
 export interface BrowserSessionImportOptions {
   formatId?: BrowserImportFormatId
   chatIndex?: number
+  signal?: AbortSignal
   checkCancelled?: () => void
+  onDatabaseStage?: (stage: WorkspaceDatabaseStage) => void
   onProgress?: (progress: BrowserImportProgress) => void
   onLog?: (event: BrowserImportLogEvent) => void
 }
@@ -223,30 +225,36 @@ export class BrowserSessionRuntime {
       formatId,
     }
 
-    const existingCount = await this.catalog.count()
-    await this.database.ensureCapacity(Math.max(8, (existingCount + 2) * 3))
-    await this.catalog.beginImport(item)
-    options.onProgress?.({ stage: 'catalog', progress: 0.55, messagesProcessed: messages.length })
+    return this.database.withWorkspaceLease(
+      async () => {
+        const existingCount = await this.catalog.count()
+        await this.database.ensureCapacity(Math.max(8, (existingCount + 2) * 3))
+        await this.catalog.beginImport(item)
+        options.onProgress?.({ stage: 'catalog', progress: 0.55, messagesProcessed: messages.length })
 
-    try {
-      options.checkCancelled?.()
-      options.onProgress?.({ stage: 'saving', progress: 0.6, messagesProcessed: 0 })
-      const stats = await this.database.withDatabase(filename, CHAT_DB_TABLES, (db) => {
-        const result = writeParseResultToDb(db, parsed.meta, members, messages)
-        db.exec(CHAT_DB_INDEXES)
-        return {
-          ...result,
-          skippedCount: result.skippedCount + skippedInvalidTimestampCount,
+        try {
+          options.checkCancelled?.()
+          options.onProgress?.({ stage: 'saving', progress: 0.6, messagesProcessed: 0 })
+          const stats = await this.database.withDatabase(filename, CHAT_DB_TABLES, (db) => {
+            const result = writeParseResultToDb(db, parsed.meta, members, messages)
+            db.exec(CHAT_DB_INDEXES)
+            return {
+              ...result,
+              skippedCount: result.skippedCount + skippedInvalidTimestampCount,
+            }
+          })
+          options.checkCancelled?.()
+          await this.catalog.completeImport(sessionId, stats)
+          options.onProgress?.({ stage: 'done', progress: 1, messagesProcessed: stats.messageCount })
+          return { sessionId, formatId, ...stats }
+        } catch (error) {
+          await Promise.allSettled([this.database.deleteDatabase(filename), this.catalog.abortImport(sessionId)])
+          throw error
         }
-      })
-      options.checkCancelled?.()
-      await this.catalog.completeImport(sessionId, stats)
-      options.onProgress?.({ stage: 'done', progress: 1, messagesProcessed: stats.messageCount })
-      return { sessionId, formatId, ...stats }
-    } catch (error) {
-      await Promise.allSettled([this.database.deleteDatabase(filename), this.catalog.abortImport(sessionId)])
-      throw error
-    }
+      },
+      options.onDatabaseStage,
+      options.signal
+    )
   }
 
   listSessions(onStage?: (stage: WorkspaceDatabaseStage) => void): Promise<BrowserSessionCatalogItem[]> {

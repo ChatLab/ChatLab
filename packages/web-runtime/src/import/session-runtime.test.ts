@@ -4,6 +4,7 @@ import sqlite3InitModule, { type Database, type Sqlite3Static } from '@sqlite.or
 import type { DatabaseAdapter } from '@openchatlab/core'
 import { CHAT_DB_TABLES } from '@openchatlab/core'
 import { SqliteWasmDatabaseAdapter } from '../sqlite/adapter'
+import type { WorkspaceDatabaseStage } from '../storage/workspace-database'
 import type { BrowserParseSource } from './chatlab-parser'
 import { BrowserSessionCatalog } from './session-catalog'
 import { BrowserSessionRuntime, sessionDatabaseFilename, type WorkspaceDatabasePort } from './session-runtime'
@@ -12,10 +13,31 @@ class MemoryWorkspaceDatabase implements WorkspaceDatabasePort {
   private readonly databases = new Map<string, { raw: Database; adapter: SqliteWasmDatabaseAdapter }>()
   readonly deleted: string[] = []
   failOnFilename: string | undefined
+  requireWorkspaceLease = false
+  workspaceLeaseDepth = 0
+  workspaceLeaseEntries = 0
+  workspaceLeaseSignal: AbortSignal | undefined
 
   constructor(private readonly sqlite3: Sqlite3Static) {}
 
+  async withWorkspaceLease<T>(
+    operation: () => Promise<T>,
+    _onStage?: (stage: WorkspaceDatabaseStage) => void,
+    signal?: AbortSignal
+  ): Promise<T> {
+    const isOutermost = this.workspaceLeaseDepth === 0
+    if (isOutermost) this.workspaceLeaseEntries += 1
+    this.workspaceLeaseSignal = signal
+    this.workspaceLeaseDepth += 1
+    try {
+      return await operation()
+    } finally {
+      this.workspaceLeaseDepth -= 1
+    }
+  }
+
   async withDatabase<T>(filename: string, schemaSql: string, operation: (db: DatabaseAdapter) => T): Promise<T> {
+    this.assertWorkspaceLease()
     let entry = this.databases.get(filename)
     if (!entry) {
       const raw = new this.sqlite3.oo1.DB(':memory:', 'c')
@@ -28,6 +50,7 @@ class MemoryWorkspaceDatabase implements WorkspaceDatabasePort {
   }
 
   async deleteDatabase(filename: string): Promise<boolean> {
+    this.assertWorkspaceLease()
     const entry = this.databases.get(filename)
     if (!entry) return false
     entry.adapter.close()
@@ -37,10 +60,12 @@ class MemoryWorkspaceDatabase implements WorkspaceDatabasePort {
   }
 
   async ensureCapacity(_minimum: number): Promise<number> {
+    this.assertWorkspaceLease()
     return 32
   }
 
   async getDatabaseFilenames(): Promise<string[]> {
+    this.assertWorkspaceLease()
     return [...this.databases.keys()]
   }
 
@@ -51,6 +76,12 @@ class MemoryWorkspaceDatabase implements WorkspaceDatabasePort {
   dispose(): void {
     for (const entry of this.databases.values()) entry.adapter.close()
     this.databases.clear()
+  }
+
+  private assertWorkspaceLease(): void {
+    if (this.requireWorkspaceLease && this.workspaceLeaseDepth === 0) {
+      throw new Error('workspace database operation ran without a lease')
+    }
   }
 }
 
@@ -95,6 +126,42 @@ function chatJsonl(name: string, sender: string, timestamp: number): string {
 }
 
 describe('BrowserSessionRuntime', () => {
+  it('parses imports before acquiring the workspace lease and keeps persistence inside it', async () => {
+    const sqlite3 = await sqlite3InitModule()
+    const database = new MemoryWorkspaceDatabase(sqlite3)
+    database.requireWorkspaceLease = true
+    const runtime = new BrowserSessionRuntime(database, {
+      createSessionId: () => 'lease-scope-session',
+      now: () => 100,
+    })
+    const baseSource = source('lease-scope.jsonl', chatJsonl('Lease Scope', 'alice', 1))
+    const abortController = new AbortController()
+    let parsedWithoutLease = false
+    const fixture: BrowserParseSource = {
+      ...baseSource,
+      async text() {
+        assert.equal(database.workspaceLeaseDepth, 0)
+        parsedWithoutLease = true
+        return baseSource.text()
+      },
+    }
+
+    try {
+      const result = await runtime.importSource(fixture, {
+        formatId: 'chatlab-jsonl',
+        signal: abortController.signal,
+      })
+
+      assert.equal(result.sessionId, 'lease-scope-session')
+      assert.equal(parsedWithoutLease, true)
+      assert.equal(database.workspaceLeaseEntries, 1)
+      assert.equal(database.workspaceLeaseDepth, 0)
+      assert.equal(database.workspaceLeaseSignal, abortController.signal)
+    } finally {
+      database.dispose()
+    }
+  })
+
   it('imports isolated sessions, persists catalog data, renames one, and deletes only its database', async () => {
     const sqlite3 = await sqlite3InitModule()
     const database = new MemoryWorkspaceDatabase(sqlite3)

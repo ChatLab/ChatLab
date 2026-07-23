@@ -1,11 +1,13 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
+import type { SAHPoolUtil, Sqlite3Static } from '@sqlite.org/sqlite-wasm'
 import { CURRENT_SCHEMA_VERSION } from '@openchatlab/core'
 import type { BrowserCapabilityReport, RpcResponseEnvelope } from '../rpc/protocol'
-import type { BrowserImportProgress, BrowserTimeFilter } from '../import/session-runtime'
+import type { BrowserSessionImportOptions, BrowserTimeFilter } from '../import/session-runtime'
 import type { BrowserParseSource } from '../import/chatlab-parser'
 import { WebRuntimeError } from '../runtime-error'
-import type { DatabaseOpenStage } from '../sqlite/database-runtime'
+import { BrowserDatabaseRuntime, type DatabaseOpenStage } from '../sqlite/database-runtime'
+import type { WebRuntimeLockManager } from '../sqlite/workspace-lease'
 import {
   WebRuntimeWorkerController,
   type WorkerDatabaseRuntime,
@@ -38,9 +40,18 @@ class FakeDatabaseRuntime implements WorkerDatabaseRuntime {
   closeCalls = 0
   closeGate: Promise<void> | undefined
   workspaceLeaseCalls = 0
+  workspaceLeaseGate: Promise<void> | undefined
+  workspaceLeaseSignal: AbortSignal | undefined
 
-  async withWorkspaceLease<T>(operation: () => Promise<T>): Promise<T> {
+  async withWorkspaceLease<T>(
+    operation: () => Promise<T>,
+    _onStage?: (stage: DatabaseOpenStage) => void,
+    signal?: AbortSignal
+  ): Promise<T> {
     this.workspaceLeaseCalls += 1
+    this.workspaceLeaseSignal = signal
+    await this.workspaceLeaseGate
+    signal?.throwIfAborted()
     return operation()
   }
 
@@ -88,6 +99,7 @@ class FakeSessionRuntime implements WorkerSessionRuntime {
   readonly timeRangeCalls: string[] = []
   readonly availableYearsCalls: string[] = []
   readonly importCalls: Array<{ chatIndex?: number }> = []
+  readonly importSignals: Array<AbortSignal | undefined> = []
   readonly session = {
     id: 'session-one',
     name: 'One',
@@ -115,11 +127,9 @@ class FakeSessionRuntime implements WorkerSessionRuntime {
     return [{ index: 1, name: 'Project Team', type: 'private_group', id: 4242, messageCount: 2 }]
   }
 
-  async importSource(
-    _source: BrowserParseSource,
-    options: { chatIndex?: number; onProgress?: (progress: BrowserImportProgress) => void; checkCancelled?: () => void }
-  ) {
+  async importSource(_source: BrowserParseSource, options: BrowserSessionImportOptions) {
     this.importCalls.push({ chatIndex: options.chatIndex })
+    this.importSignals.push(options.signal)
     options.checkCancelled?.()
     options.onProgress?.({ stage: 'parsing', progress: 0.5, messagesProcessed: 1 })
     return { sessionId: 'session-one', formatId: 'chatlab' as const, messageCount: 2, memberCount: 1, skippedCount: 0 }
@@ -381,6 +391,143 @@ describe('WebRuntimeWorkerController', () => {
     assert.equal(failed.type === 'error' ? failed.payload.error.code : '', 'DB_CLOSE_FAILED')
   })
 
+  it('aborts the workspace lock request for active cancellable work', async () => {
+    const sink = new CapturingSink()
+    const runtime = new FakeDatabaseRuntime()
+    let releaseWorkspaceLease!: () => void
+    runtime.workspaceLeaseGate = new Promise<void>((resolve) => {
+      releaseWorkspaceLease = resolve
+    })
+    const controller = new WebRuntimeWorkerController(
+      sink,
+      runtime,
+      () => supportedCapabilities,
+      new FakeSessionRuntime()
+    )
+
+    controller.handleMessage({
+      id: 'hourly-cancelled-while-waiting',
+      type: 'analysis.hourly',
+      payload: { sessionId: 'session-one' },
+    })
+
+    try {
+      await new Promise<void>((resolve) => setImmediate(resolve))
+      assert.ok(runtime.workspaceLeaseSignal)
+
+      controller.handleMessage({
+        id: 'hourly-cancelled-while-waiting',
+        type: 'cancel',
+        payload: { reason: 'cancelled' },
+      })
+      await new Promise<void>((resolve) => setImmediate(resolve))
+
+      assert.equal(runtime.workspaceLeaseSignal.aborted, true)
+    } finally {
+      releaseWorkspaceLease()
+    }
+
+    const cancelled = await waitForMessage(sink, 'hourly-cancelled-while-waiting', 'error')
+    assert.equal(cancelled.type === 'error' ? cancelled.payload.error.code : '', 'REQUEST_CANCELLED')
+  })
+
+  for (const activationStage of ['opfs-pool-ready', 'opfs-pool-resumed'] as const) {
+    it(`pauses the active pool before releasing a cancelled ${activationStage} lease`, async () => {
+      const sink = new CapturingSink()
+      const lockManager = new TestWorkspaceLockManager()
+      const sqlite3 = { version: { libVersion: 'test' } } as unknown as Sqlite3Static
+      let activePool: string | undefined
+      let activationStarted!: () => void
+      let finishActivation!: () => void
+      const activationStartedPromise = new Promise<void>((resolve) => {
+        activationStarted = resolve
+      })
+      const activationGate = new Promise<void>((resolve) => {
+        finishActivation = resolve
+      })
+
+      const firstPool = createTestPool('first', activationStage === 'opfs-pool-resumed')
+      const firstRuntime = new BrowserDatabaseRuntime(async (onStage) => {
+        if (activationStage === 'opfs-pool-ready') {
+          activatePool('first')
+          activationStarted()
+          await activationGate
+          onStage?.('opfs-pool-ready')
+        }
+        return { sqlite3, pool: firstPool }
+      }, lockManager)
+      const sessions = new FakeSessionRuntime()
+      const controller = new WebRuntimeWorkerController(sink, firstRuntime, () => supportedCapabilities, sessions)
+
+      controller.handleMessage({
+        id: `cancelled-${activationStage}`,
+        type: 'analysis.hourly',
+        payload: { sessionId: 'session-one' },
+      })
+      await activationStartedPromise
+      controller.handleMessage({
+        id: `cancelled-${activationStage}`,
+        type: 'cancel',
+        payload: { reason: 'cancelled' },
+      })
+      finishActivation()
+
+      const cancelled = await waitForMessage(sink, `cancelled-${activationStage}`, 'error')
+      assert.equal(cancelled.type === 'error' ? cancelled.payload.error.code : '', 'REQUEST_CANCELLED')
+      assert.deepEqual(sessions.hourlyCalls, [])
+
+      const secondPool = createTestPool('second', false)
+      const secondRuntime = new BrowserDatabaseRuntime(async () => {
+        activatePool('second')
+        return { sqlite3, pool: secondPool }
+      }, lockManager)
+      await assert.doesNotReject(secondRuntime.withWorkspaceLease(async () => undefined))
+
+      function activatePool(name: string): void {
+        if (activePool) throw new DOMException(`Pool ${activePool} is active`, 'NoModificationAllowedError')
+        activePool = name
+      }
+
+      function createTestPool(name: string, initiallyPaused: boolean): SAHPoolUtil {
+        let paused = initiallyPaused
+        return {
+          isPaused: () => paused,
+          pauseVfs() {
+            paused = true
+            activePool = undefined
+            return this
+          },
+          async unpauseVfs() {
+            activatePool(name)
+            paused = false
+            if (name === 'first' && activationStage === 'opfs-pool-resumed') {
+              activationStarted()
+              await activationGate
+            }
+            return this
+          },
+        } as unknown as SAHPoolUtil
+      }
+    })
+  }
+
+  it('does not wrap import parsing in a controller-level workspace lease', async () => {
+    const sink = new CapturingSink()
+    const database = new FakeDatabaseRuntime()
+    const sessions = new FakeSessionRuntime()
+    const controller = new WebRuntimeWorkerController(sink, database, () => supportedCapabilities, sessions)
+
+    controller.handleMessage({
+      id: 'import-with-scoped-lease',
+      type: 'import.start',
+      payload: { source: createSource('fixture.json', '{}'), formatId: 'chatlab' },
+    })
+    await waitForMessage(sink, 'import-with-scoped-lease', 'result')
+
+    assert.equal(database.workspaceLeaseCalls, 0)
+    assert.ok(sessions.importSignals[0])
+  })
+
   it('returns the result when a catalog mutation finishes after cancellation is requested', async () => {
     const sink = new CapturingSink()
     const database = new FakeDatabaseRuntime()
@@ -600,7 +747,7 @@ describe('WebRuntimeWorkerController', () => {
         .map((message) => (message.type === 'log' ? message.payload.message : '')),
       ['sqlite-ready', 'opfs-pool-ready', 'opfs-database-opened', 'schema-ready']
     )
-    assert.equal(database.workspaceLeaseCalls, 14)
+    assert.equal(database.workspaceLeaseCalls, 13)
   })
 
   it('routes the complete Insights query set through the Worker runtime', async () => {
@@ -644,6 +791,34 @@ describe('WebRuntimeWorkerController', () => {
     }
   })
 })
+
+class TestWorkspaceLockManager implements WebRuntimeLockManager {
+  private active = false
+  private readonly queue: Array<() => void> = []
+
+  request(
+    _name: string,
+    _options: { mode: 'exclusive'; signal?: AbortSignal },
+    callback: (lock: object) => Promise<void>
+  ): Promise<void> {
+    return new Promise<void>((resolve, reject) => {
+      const run = () => {
+        this.active = true
+        void callback({})
+          .then(resolve, reject)
+          .finally(() => {
+            this.active = false
+            this.queue.shift()?.()
+          })
+      }
+      if (this.active) {
+        this.queue.push(run)
+      } else {
+        run()
+      }
+    })
+  }
+}
 
 function createSource(name: string, content: string): BrowserParseSource {
   const blob = new Blob([content])

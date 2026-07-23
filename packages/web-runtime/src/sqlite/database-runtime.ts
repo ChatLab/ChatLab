@@ -80,14 +80,19 @@ export class BrowserDatabaseRuntime {
     }, onStage)
   }
 
-  async withWorkspaceLease<T>(operation: () => Promise<T>, onStage?: (stage: DatabaseOpenStage) => void): Promise<T> {
-    await this.acquireWorkspaceLease(onStage)
+  async withWorkspaceLease<T>(
+    operation: () => Promise<T>,
+    onStage?: (stage: DatabaseOpenStage) => void,
+    signal?: AbortSignal
+  ): Promise<T> {
+    await this.acquireWorkspaceLease(onStage, signal)
     this.workspaceLeaseDepth += 1
     let operationFailed = false
     let operationError: unknown
     let result!: T
 
     try {
+      signal?.throwIfAborted()
       result = await operation()
     } catch (error) {
       operationFailed = true
@@ -197,11 +202,14 @@ export class BrowserDatabaseRuntime {
     }
   }
 
-  private async acquireWorkspaceLease(onStage?: (stage: DatabaseOpenStage) => void): Promise<void> {
+  private async acquireWorkspaceLease(
+    onStage?: (stage: DatabaseOpenStage) => void,
+    signal?: AbortSignal
+  ): Promise<void> {
     if (this.workspaceLease) return
 
     onStage?.('opfs-workspace-lock-waiting')
-    const lease = await acquireWebRuntimeWorkspaceLease(this.lockManager)
+    const lease = await acquireWebRuntimeWorkspaceLease(this.lockManager, signal)
 
     try {
       onStage?.('opfs-workspace-lock-acquired')

@@ -39,6 +39,10 @@ class MemoryWorkspaceDatabase implements WorkspaceDatabasePort {
 
   constructor(private readonly sqlite3: Sqlite3Static) {}
 
+  withWorkspaceLease<T>(operation: () => Promise<T>): Promise<T> {
+    return operation()
+  }
+
   async withDatabase<T>(filename: string, schemaSql: string, operation: (db: DatabaseAdapter) => T): Promise<T> {
     let entry = this.databases.get(filename)
     if (!entry) {

@@ -20,7 +20,6 @@ export interface WorkerMessageSink {
 }
 
 export interface WorkerDatabaseRuntime extends WorkspaceDatabasePort {
-  withWorkspaceLease<T>(operation: () => Promise<T>, onStage?: (stage: DatabaseOpenStage) => void): Promise<T>
   open(filename: string, onStage?: (stage: DatabaseOpenStage) => void): Promise<OpenDatabaseResult>
   close(onStage?: (stage: DatabaseOpenStage) => void): Promise<{ closed: boolean }>
 }
@@ -60,6 +59,7 @@ export type WorkerSessionRuntime = Pick<
 >
 
 export class WebRuntimeWorkerController {
+  private readonly abortControllers = new Map<string, AbortController>()
   private readonly cancelled = new Set<string>()
   private readonly pending = new Set<string>()
   private queue: Promise<void> = Promise.resolve()
@@ -74,7 +74,10 @@ export class WebRuntimeWorkerController {
   handleMessage(value: unknown): void {
     if (!isRpcWorkerRequestEnvelope(value)) return
     if (value.type === 'cancel') {
-      if (this.pending.has(value.id)) this.cancelled.add(value.id)
+      if (this.pending.has(value.id)) {
+        this.cancelled.add(value.id)
+        this.abortControllers.get(value.id)?.abort(createRequestCancelledError())
+      }
       return
     }
 
@@ -83,14 +86,17 @@ export class WebRuntimeWorkerController {
   }
 
   private async execute(request: RpcRequestEnvelope): Promise<void> {
+    const abortController = new AbortController()
+    this.abortControllers.set(request.id, abortController)
     try {
       this.throwIfCancelled(request.id)
       const result = requiresWorkspaceLease(request.type)
         ? await this.databaseRuntime.withWorkspaceLease(
-            () => this.dispatch(request),
-            (stage) => this.handleDatabaseStage(request, stage)
+            () => this.dispatch(request, abortController.signal),
+            (stage) => this.handleDatabaseStage(request, stage),
+            abortController.signal
           )
-        : await this.dispatch(request)
+        : await this.dispatch(request, abortController.signal)
       this.sink.postMessage({
         id: request.id,
         type: 'result',
@@ -110,12 +116,16 @@ export class WebRuntimeWorkerController {
         payload: { taskType: request.type, error: serialized },
       })
     } finally {
+      this.abortControllers.delete(request.id)
       this.pending.delete(request.id)
       this.cancelled.delete(request.id)
     }
   }
 
-  private async dispatch(request: RpcRequestEnvelope): Promise<WebRuntimeTaskResult<WebRuntimeTaskType>> {
+  private async dispatch(
+    request: RpcRequestEnvelope,
+    signal: AbortSignal
+  ): Promise<WebRuntimeTaskResult<WebRuntimeTaskType>> {
     switch (request.type) {
       case 'capabilities.check':
         return this.capabilityDetector()
@@ -190,7 +200,9 @@ export class WebRuntimeWorkerController {
         const result = await this.sessionRuntime.importSource(request.payload.source, {
           formatId: request.payload.formatId,
           chatIndex: request.payload.chatIndex,
+          signal,
           checkCancelled: () => this.throwIfCancelled(request.id),
+          onDatabaseStage: (stage) => this.handleDatabaseStage(request, stage),
           onProgress: (progress) =>
             this.emitProgress(request, progress.stage, progress.progress, progress.messagesProcessed),
           onLog: (event) =>
@@ -494,9 +506,13 @@ export class WebRuntimeWorkerController {
       'opfs-pool-paused': 1,
       'opfs-workspace-lock-released': 1,
     }
-    const isReleaseStage =
-      stage === 'opfs-pool-pausing' || stage === 'opfs-pool-paused' || stage === 'opfs-workspace-lock-released'
-    if (!isReleaseStage) this.throwIfCancelled(request.id)
+    const isPoolActiveOrReleasing =
+      stage === 'opfs-pool-ready' ||
+      stage === 'opfs-pool-resumed' ||
+      stage === 'opfs-pool-pausing' ||
+      stage === 'opfs-pool-paused' ||
+      stage === 'opfs-workspace-lock-released'
+    if (!isPoolActiveOrReleasing) this.throwIfCancelled(request.id)
     this.emitProgress(request, stage, progressByStage[stage])
     if (
       stage === 'sqlite-ready' ||
@@ -532,7 +548,7 @@ export class WebRuntimeWorkerController {
   }
 
   private throwIfCancelled(id: string): void {
-    if (this.cancelled.has(id)) throw new WebRuntimeError('REQUEST_CANCELLED', 'The Worker task was cancelled')
+    if (this.cancelled.has(id)) throw createRequestCancelledError()
   }
 
   private assertSupportedBrowser(): void {
@@ -546,12 +562,17 @@ export class WebRuntimeWorkerController {
   }
 }
 
+function createRequestCancelledError(): WebRuntimeError {
+  return new WebRuntimeError('REQUEST_CANCELLED', 'The Worker task was cancelled')
+}
+
 function requiresWorkspaceLease(type: WebRuntimeTaskType): boolean {
   return (
     type !== 'capabilities.check' &&
     type !== 'import.formats' &&
     type !== 'import.detectFormat' &&
-    type !== 'import.scanChats'
+    type !== 'import.scanChats' &&
+    type !== 'import.start'
   )
 }
 

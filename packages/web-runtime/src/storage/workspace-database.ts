@@ -18,6 +18,11 @@ export type WorkspaceDatabaseStage =
   | 'opfs-workspace-lock-released'
 
 export interface WorkspaceDatabasePort {
+  withWorkspaceLease<T>(
+    operation: () => Promise<T>,
+    onStage?: (stage: WorkspaceDatabaseStage) => void,
+    signal?: AbortSignal
+  ): Promise<T>
   withDatabase<T>(
     filename: string,
     schemaSql: string,

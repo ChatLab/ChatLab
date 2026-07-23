@@ -1,7 +1,11 @@
 export const WEB_RUNTIME_WORKSPACE_LOCK = 'chatlab-web-wasm-opfs-workspace'
 
 export interface WebRuntimeLockManager {
-  request(name: string, options: { mode: 'exclusive' }, callback: (lock: object) => Promise<void>): Promise<void>
+  request(
+    name: string,
+    options: { mode: 'exclusive'; signal?: AbortSignal },
+    callback: (lock: object) => Promise<void>
+  ): Promise<void>
 }
 
 export interface WebRuntimeWorkspaceLease {
@@ -14,7 +18,8 @@ export function getWebRuntimeLockManager(): WebRuntimeLockManager | undefined {
 }
 
 export async function acquireWebRuntimeWorkspaceLease(
-  lockManager: WebRuntimeLockManager | undefined = getWebRuntimeLockManager()
+  lockManager: WebRuntimeLockManager | undefined = getWebRuntimeLockManager(),
+  signal?: AbortSignal
 ): Promise<WebRuntimeWorkspaceLease> {
   if (!lockManager) return { release: () => undefined }
 
@@ -39,11 +44,11 @@ export async function acquireWebRuntimeWorkspaceLease(
   })
 
   void lockManager
-    .request(WEB_RUNTIME_WORKSPACE_LOCK, { mode: 'exclusive' }, async () => {
+    .request(WEB_RUNTIME_WORKSPACE_LOCK, { mode: 'exclusive', signal }, async () => {
       resolveAcquired(lease)
       await released
     })
-    .catch(rejectAcquired)
+    .catch((error) => rejectAcquired(signal?.aborted && signal.reason !== undefined ? signal.reason : error))
 
   return acquired
 }
