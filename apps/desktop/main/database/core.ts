@@ -1,30 +1,15 @@
 /**
  * 数据库核心模块
- * 负责数据库的创建、打开、关闭和数据导入
+ * 负责数据库的打开和迁移检查
  */
 
 import Database from 'better-sqlite3'
 import * as fs from 'fs'
 import * as path from 'path'
-import {
-  CHAT_DB_SCHEMA,
-  FTS_TABLE_SCHEMA,
-  updateSessionOwnerId as coreUpdateOwnerId,
-  renameSession as coreRenameSession,
-} from '@openchatlab/core'
-import {
-  BetterSqliteAdapter,
-  writeParseResultToDb,
-  contactsService,
-  globalInsightService,
-  peopleRelationshipsService,
-} from '@openchatlab/node-runtime'
 import type { RuntimeIdentity } from '@openchatlab/node-runtime/src/data-dir-compat'
-import type { ParseResult } from '../../../../src/types/base'
 import { migrateDatabase, needsMigration, CURRENT_SCHEMA_VERSION } from './migrations'
 import { getPathProvider } from '../paths/provider'
 import { ensureDir } from '../paths/locations'
-import { deleteSessionCache } from '@openchatlab/node-runtime'
 import { resolveDesktopNativeBinding } from '../runtime/native-sqlite'
 
 /**
@@ -42,35 +27,10 @@ function ensureDbDir(): void {
 }
 
 /**
- * 生成唯一的会话ID
- */
-function generateSessionId(): string {
-  const timestamp = Date.now()
-  const random = Math.random().toString(36).substring(2, 8)
-  return `chat_${timestamp}_${random}`
-}
-
-/**
  * 获取数据库文件路径
  */
-export function getDbPath(sessionId: string): string {
+function getDbPath(sessionId: string): string {
   return path.join(getDbDir(), `${sessionId}.db`)
-}
-
-/**
- * 创建新数据库并初始化表结构
- */
-function createDatabase(sessionId: string): Database.Database {
-  ensureDbDir()
-  const dbPath = getDbPath(sessionId)
-  const db = new Database(dbPath, { nativeBinding: resolveDesktopNativeBinding() })
-
-  db.pragma('journal_mode = WAL')
-
-  db.exec(CHAT_DB_SCHEMA)
-  db.exec(FTS_TABLE_SCHEMA)
-
-  return db
 }
 
 /**
@@ -93,7 +53,7 @@ export function openDatabase(sessionId: string, readonly = true): Database.Datab
  * @param sessionId 会话ID
  * @param forceRepair 是否强制修复（即使版本号已是最新也重新执行迁移脚本）
  */
-export function openDatabaseWithMigration(
+function openDatabaseWithMigration(
   sessionId: string,
   forceRepair = false,
   runtime?: RuntimeIdentity
@@ -110,112 +70,6 @@ export function openDatabaseWithMigration(
   migrateDatabase(db, forceRepair, { pathProvider: getPathProvider(), runtime })
 
   return db
-}
-
-/**
- * 导入解析后的数据到数据库
- * Core write logic delegated to @openchatlab/node-runtime writeParseResultToDb.
- */
-export function importData(parseResult: ParseResult): string {
-  const sessionId = generateSessionId()
-  const db = createDatabase(sessionId)
-
-  try {
-    const adapter = new BetterSqliteAdapter(db)
-    writeParseResultToDb(adapter, parseResult.meta, parseResult.members, parseResult.messages)
-    return sessionId
-  } catch (error) {
-    console.error('[Database] Error in importData:', error)
-    throw error
-  } finally {
-    db.close()
-  }
-}
-
-/**
- * 更新会话的 ownerId
- */
-export function updateSessionOwnerId(sessionId: string, ownerId: string | null): boolean {
-  const db = openDatabaseWithMigration(sessionId)
-  if (!db) return false
-
-  try {
-    coreUpdateOwnerId(new BetterSqliteAdapter(db), ownerId)
-    return true
-  } catch (error) {
-    console.error('[Database] Failed to update session ownerId:', error)
-    return false
-  } finally {
-    db.close()
-  }
-}
-
-/**
- * 删除会话
- */
-export function deleteSession(sessionId: string): boolean {
-  const dbPath = getDbPath(sessionId)
-  const walPath = dbPath + '-wal'
-  const shmPath = dbPath + '-shm'
-
-  try {
-    if (fs.existsSync(dbPath)) {
-      fs.unlinkSync(dbPath)
-    }
-    if (fs.existsSync(walPath)) {
-      fs.unlinkSync(walPath)
-    }
-    if (fs.existsSync(shmPath)) {
-      fs.unlinkSync(shmPath)
-    }
-    const cacheDir = getPathProvider().getCacheDir()
-    deleteSessionCache(sessionId, cacheDir)
-    deleteSessionCache(sessionId, path.join(cacheDir, 'query'))
-    deleteSessionCache(sessionId, contactsService.getContactsFactsCacheDir(getPathProvider().getUserDataDir()))
-    deleteSessionCache(
-      sessionId,
-      globalInsightService.getGlobalInsightFactsCacheDir(getPathProvider().getUserDataDir())
-    )
-    globalInsightService.deleteAnnualSummarySnapshots(
-      globalInsightService.getGlobalInsightDir(getPathProvider().getUserDataDir())
-    )
-    deleteSessionCache(
-      sessionId,
-      peopleRelationshipsService.getPeopleRelationshipsFactsCacheDir(getPathProvider().getUserDataDir())
-    )
-    return true
-  } catch (error) {
-    console.error('[Database] Failed to delete session:', error)
-    return false
-  }
-}
-
-/**
- * 重命名会话
- */
-export function renameSession(sessionId: string, newName: string): boolean {
-  const dbPath = getDbPath(sessionId)
-  if (!fs.existsSync(dbPath)) return false
-
-  const db = new Database(dbPath, { nativeBinding: resolveDesktopNativeBinding() })
-  db.pragma('journal_mode = WAL')
-  try {
-    coreRenameSession(new BetterSqliteAdapter(db), newName)
-    return true
-  } catch (error) {
-    console.error('[Database] Failed to rename session:', error)
-    return false
-  } finally {
-    db.close()
-  }
-}
-
-/**
- * 获取数据库存储目录
- */
-export function getDbDirectory(): string {
-  ensureDbDir()
-  return getDbDir()
 }
 
 /**

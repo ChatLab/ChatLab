@@ -39,25 +39,6 @@ test('desktop database inspection keeps DELETE journal databases read-only', asy
         },
       },
     })
-    await mock.module('@openchatlab/node-runtime', {
-      namedExports: {
-        BetterSqliteAdapter: class BetterSqliteAdapter {
-          constructor(readonly db: unknown) {}
-        },
-        writeParseResultToDb: () => undefined,
-        deleteSessionCache: () => undefined,
-        contactsService: {
-          getContactsFactsCacheDir: () => path.join(root, 'cache', 'contacts'),
-        },
-        globalInsightService: {
-          getGlobalInsightFactsCacheDir: () => path.join(root, 'cache', 'global-insight'),
-        },
-        peopleRelationshipsService: {
-          getPeopleRelationshipsFactsCacheDir: () => path.join(root, 'cache', 'people-relationships'),
-        },
-      },
-    })
-
     const { checkMigrationNeeded, openDatabase } = await import('./core.js')
     const db = openDatabase(sessionId, true)
     try {
