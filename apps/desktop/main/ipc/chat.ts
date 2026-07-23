@@ -19,7 +19,7 @@ import {
 import type { IpcContext } from './types'
 import { CURRENT_SCHEMA_VERSION, getPendingMigrationInfos } from '../database/migrations'
 import { t } from '../i18n'
-import { getArchiveImportSourceManager, importPreparedChatWithSource } from '../import/archive-source-runtime'
+import { getArchiveImportSourceManager } from '../import/archive-source-runtime'
 
 export function registerChatHandlers(ctx: IpcContext): void {
   const { win } = ctx
@@ -148,11 +148,8 @@ export function registerChatHandlers(ctx: IpcContext): void {
 
   ipcMain.handle('chat:importPreparedChat', async (_, sourceId: string, chatId: string) => {
     try {
-      const result = await importPreparedChatWithSource(
-        getArchiveImportSourceManager(),
-        sourceId,
-        chatId,
-        (manifestPath) => worker.autoImport(manifestPath, forwardImportProgress, { formatId: 'google-chat-takeout' })
+      const result = await getArchiveImportSourceManager().withMaterializedChat(sourceId, chatId, (manifestPath) =>
+        worker.autoImport(manifestPath, forwardImportProgress, { formatId: 'google-chat-takeout' })
       )
       return finishAutoImport(result)
     } catch (error) {

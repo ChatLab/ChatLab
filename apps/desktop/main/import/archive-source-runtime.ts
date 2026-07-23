@@ -9,15 +9,6 @@ export function getArchiveImportSourceManager(): ArchiveImportSourceManager {
   return sourceManager
 }
 
-export async function importPreparedChatWithSource<T>(
-  manager: ArchiveImportSourceManager,
-  sourceId: string,
-  chatId: string,
-  importer: (manifestPath: string) => Promise<T>
-): Promise<T> {
-  return manager.withMaterializedChat(sourceId, chatId, importer)
-}
-
 export async function cleanupArchiveImportSources(): Promise<void> {
   if (!sourceManager) return
   const manager = sourceManager
