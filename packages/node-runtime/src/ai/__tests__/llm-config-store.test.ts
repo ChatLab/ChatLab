@@ -34,6 +34,28 @@ describe('LLMConfigStore', () => {
     assert.equal(store.hasActiveConfig(), false)
   })
 
+  it('does not expose an unmigrated encrypted API key as a usable key', () => {
+    storage.data.set('llm-config', {
+      configs: [
+        {
+          id: 'legacy',
+          name: 'Legacy',
+          provider: 'openai',
+          apiKey: 'enc:iv:tag:ciphertext',
+          createdAt: 1,
+          updatedAt: 1,
+        },
+      ],
+      defaultAssistant: { configId: 'legacy', modelId: '' },
+      fastModel: null,
+    } satisfies AIConfigStore)
+    const storeWithAuthResolution = new LLMConfigStore(storage, {
+      resolveApiKey: () => undefined,
+    })
+
+    assert.equal(storeWithAuthResolution.getDefaultAssistantConfig()?.apiKey, '')
+  })
+
   it('adds a config', () => {
     const result = store.addConfig({
       name: 'Test',

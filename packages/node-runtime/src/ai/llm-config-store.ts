@@ -35,6 +35,7 @@ export const MAX_CONFIG_COUNT = 99
 export interface ConfigStorage {
   readJson<T>(key: string): T | null
   writeJson<T>(key: string, data: T): void
+  withLock?<T>(key: string, action: () => T): T
 }
 
 // ==================== Dependencies ====================
@@ -99,6 +100,10 @@ export class LLMConfigStore {
     this.onStoreLoaded = deps.onStoreLoaded
   }
 
+  private withStoreLock<T>(action: () => T): T {
+    return this.storage.withLock ? this.storage.withLock('llm-config', action) : action()
+  }
+
   loadStore(): AIConfigStore {
     const store = this.storage.readJson<AIConfigStore>('llm-config')
     if (!store) {
@@ -107,15 +112,19 @@ export class LLMConfigStore {
 
     this.onStoreLoaded?.(store.configs)
 
+    const sanitizedConfigs = store.configs.map((config) => ({
+      ...config,
+      apiKey: config.apiKey?.startsWith('enc:') ? '' : config.apiKey || '',
+    }))
     const resolvedConfigs = this.resolveApiKey
-      ? store.configs.map((config) => {
+      ? sanitizedConfigs.map((config) => {
           const profileKey = this.resolveApiKey!(
             config.provider,
             (config as unknown as Record<string, unknown>).authProfile as string | undefined
           )
-          return { ...config, apiKey: profileKey || config.apiKey || '' }
+          return { ...config, apiKey: profileKey || config.apiKey }
         })
-      : store.configs
+      : sanitizedConfigs
 
     return {
       ...store,
@@ -181,131 +190,141 @@ export class LLMConfigStore {
     config?: AIServiceConfig
     error?: string
   } {
-    const store = this.loadStore()
+    return this.withStoreLock(() => {
+      const store = this.loadStore()
 
-    if (store.configs.length >= MAX_CONFIG_COUNT) {
-      return { success: false, error: this.t('llm.maxConfigs', { count: MAX_CONFIG_COUNT }) }
-    }
-
-    const now = Date.now()
-    const newConfig: AIServiceConfig = {
-      ...config,
-      id: this.generateId(),
-      createdAt: now,
-      updatedAt: now,
-    }
-
-    store.configs.push(newConfig)
-
-    if (store.configs.length === 1) {
-      store.defaultAssistant = { configId: newConfig.id, modelId: newConfig.model || '' }
-    }
-
-    if (newConfig.apiKey && this.onApiKeyCreated) {
-      const profileName = this.onApiKeyCreated(newConfig, newConfig.apiKey)
-      if (profileName) {
-        ;(newConfig as unknown as Record<string, unknown>).authProfile = profileName
+      if (store.configs.length >= MAX_CONFIG_COUNT) {
+        return { success: false, error: this.t('llm.maxConfigs', { count: MAX_CONFIG_COUNT }) }
       }
-    }
 
-    this.saveStore(store)
-    return { success: true, config: { ...newConfig, apiKey: '' } }
+      const now = Date.now()
+      const newConfig: AIServiceConfig = {
+        ...config,
+        id: this.generateId(),
+        createdAt: now,
+        updatedAt: now,
+      }
+
+      store.configs.push(newConfig)
+
+      if (store.configs.length === 1) {
+        store.defaultAssistant = { configId: newConfig.id, modelId: newConfig.model || '' }
+      }
+
+      if (newConfig.apiKey && this.onApiKeyCreated) {
+        const profileName = this.onApiKeyCreated(newConfig, newConfig.apiKey)
+        if (profileName) {
+          ;(newConfig as unknown as Record<string, unknown>).authProfile = profileName
+        }
+      }
+
+      this.saveStore(store)
+      return { success: true, config: { ...newConfig, apiKey: '' } }
+    })
   }
 
   updateConfig(
     id: string,
     updates: Partial<Omit<AIServiceConfig, 'id' | 'createdAt' | 'updatedAt'>>
   ): { success: boolean; error?: string } {
-    const store = this.loadStore()
-    const index = store.configs.findIndex((c) => c.id === id)
+    return this.withStoreLock(() => {
+      const store = this.loadStore()
+      const index = store.configs.findIndex((c) => c.id === id)
 
-    if (index === -1) {
-      return { success: false, error: this.t('llm.configNotFound') }
-    }
+      if (index === -1) {
+        return { success: false, error: this.t('llm.configNotFound') }
+      }
 
-    const oldConfig = store.configs[index]
-    const oldProfileName = (oldConfig as unknown as Record<string, unknown>).authProfile as string | undefined
+      const oldConfig = store.configs[index]
+      const oldProfileName = (oldConfig as unknown as Record<string, unknown>).authProfile as string | undefined
 
-    const updated = {
-      ...oldConfig,
-      ...updates,
-      updatedAt: Date.now(),
-    }
-    store.configs[index] = updated
-    let oldProfileToDelete: AIServiceConfig | null = null
+      const updated = {
+        ...oldConfig,
+        ...updates,
+        updatedAt: Date.now(),
+      }
+      store.configs[index] = updated
+      let oldProfileToDelete: AIServiceConfig | null = null
 
-    if (updates.apiKey && this.onApiKeyCreated) {
-      const profileName = this.onApiKeyCreated(updated, updates.apiKey)
-      if (profileName) {
-        ;(store.configs[index] as unknown as Record<string, unknown>).authProfile = profileName
-        if (
-          oldProfileName &&
-          oldProfileName !== profileName &&
-          !isAuthProfileUsed(store.configs, oldProfileName, oldConfig.provider)
-        ) {
-          oldProfileToDelete = oldConfig
+      if (updates.apiKey && this.onApiKeyCreated) {
+        const profileName = this.onApiKeyCreated(updated, updates.apiKey)
+        if (profileName) {
+          ;(store.configs[index] as unknown as Record<string, unknown>).authProfile = profileName
+          if (
+            oldProfileName &&
+            oldProfileName !== profileName &&
+            !isAuthProfileUsed(store.configs, oldProfileName, oldConfig.provider)
+          ) {
+            oldProfileToDelete = oldConfig
+          }
         }
       }
-    }
 
-    this.saveStore(store)
-    if (oldProfileToDelete) this.onApiKeyDeleted?.(oldProfileToDelete)
-    return { success: true }
+      this.saveStore(store)
+      if (oldProfileToDelete) this.onApiKeyDeleted?.(oldProfileToDelete)
+      return { success: true }
+    })
   }
 
   deleteConfig(id: string): { success: boolean; error?: string } {
-    const store = this.loadStore()
-    const index = store.configs.findIndex((c) => c.id === id)
+    return this.withStoreLock(() => {
+      const store = this.loadStore()
+      const index = store.configs.findIndex((c) => c.id === id)
 
-    if (index === -1) {
-      return { success: false, error: this.t('llm.configNotFound') }
-    }
+      if (index === -1) {
+        return { success: false, error: this.t('llm.configNotFound') }
+      }
 
-    const deleted = store.configs[index]
-    store.configs.splice(index, 1)
+      const deleted = store.configs[index]
+      store.configs.splice(index, 1)
 
-    const fallback = store.configs[0]
-    if (store.defaultAssistant?.configId === id) {
-      store.defaultAssistant = fallback ? { configId: fallback.id, modelId: fallback.model || '' } : null
-    }
-    if (store.fastModel?.configId === id) {
-      store.fastModel = fallback ? { configId: fallback.id, modelId: fallback.model || '' } : null
-    }
+      const fallback = store.configs[0]
+      if (store.defaultAssistant?.configId === id) {
+        store.defaultAssistant = fallback ? { configId: fallback.id, modelId: fallback.model || '' } : null
+      }
+      if (store.fastModel?.configId === id) {
+        store.fastModel = fallback ? { configId: fallback.id, modelId: fallback.model || '' } : null
+      }
 
-    this.saveStore(store)
-    const deletedProfileName = getAuthProfile(deleted)
-    if (!deletedProfileName || !isAuthProfileUsed(store.configs, deletedProfileName, deleted.provider)) {
-      this.onApiKeyDeleted?.(deleted)
-    }
-    return { success: true }
+      this.saveStore(store)
+      const deletedProfileName = getAuthProfile(deleted)
+      if (!deletedProfileName || !isAuthProfileUsed(store.configs, deletedProfileName, deleted.provider)) {
+        this.onApiKeyDeleted?.(deleted)
+      }
+      return { success: true }
+    })
   }
 
   setDefaultAssistantModel(configId: string, modelId: string): { success: boolean; error?: string } {
-    const store = this.loadStore()
-    const config = store.configs.find((c) => c.id === configId)
+    return this.withStoreLock(() => {
+      const store = this.loadStore()
+      const config = store.configs.find((c) => c.id === configId)
 
-    if (!config) {
-      return { success: false, error: this.t('llm.configNotFound') }
-    }
-
-    store.defaultAssistant = { configId, modelId }
-    this.saveStore(store)
-    return { success: true }
-  }
-
-  setFastModel(slot: ModelSlot | null): { success: boolean; error?: string } {
-    const store = this.loadStore()
-
-    if (slot !== null) {
-      const config = store.configs.find((c) => c.id === slot.configId)
       if (!config) {
         return { success: false, error: this.t('llm.configNotFound') }
       }
-    }
 
-    store.fastModel = slot
-    this.saveStore(store)
-    return { success: true }
+      store.defaultAssistant = { configId, modelId }
+      this.saveStore(store)
+      return { success: true }
+    })
+  }
+
+  setFastModel(slot: ModelSlot | null): { success: boolean; error?: string } {
+    return this.withStoreLock(() => {
+      const store = this.loadStore()
+
+      if (slot !== null) {
+        const config = store.configs.find((c) => c.id === slot.configId)
+        if (!config) {
+          return { success: false, error: this.t('llm.configNotFound') }
+        }
+      }
+
+      store.fastModel = slot
+      this.saveStore(store)
+      return { success: true }
+    })
   }
 
   hasActiveConfig(): boolean {

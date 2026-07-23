@@ -5,9 +5,9 @@
  * 新格式：{ configs: [{ id, name, provider, apiKey, model, ... }], defaultAssistant, fastModel }
  */
 
-import * as fs from 'fs'
 import * as path from 'path'
 import { randomUUID } from 'crypto'
+import { readJsonFile, withFileLock, writeJsonFileAtomically } from '../atomic-json-file'
 import type { Migration, MigrationContext } from './types'
 
 interface LegacyFlatConfig {
@@ -31,40 +31,33 @@ export const m001LegacyToMultiConfig: Migration = {
 
   async up(ctx: MigrationContext) {
     const configPath = path.join(ctx.aiDataDir, 'llm-config.json')
-    if (!fs.existsSync(configPath)) return
+    withFileLock(configPath, () => {
+      const data = readJsonFile<unknown>(configPath)
+      if (!isLegacyFlatConfig(data)) return
 
-    const raw = fs.readFileSync(configPath, 'utf-8')
-    let data: unknown
-    try {
-      data = JSON.parse(raw)
-    } catch {
-      return
-    }
+      ctx.logger.info('Migration', 'Converting legacy flat config to multi-config format')
 
-    if (!isLegacyFlatConfig(data)) return
+      const now = Date.now()
+      const newConfig = {
+        id: randomUUID(),
+        name: data.provider,
+        provider: data.provider,
+        apiKey: data.apiKey || '',
+        model: data.model || '',
+        maxTokens: data.maxTokens,
+        createdAt: now,
+        updatedAt: now,
+      }
 
-    ctx.logger.info('Migration', 'Converting legacy flat config to multi-config format')
+      const migrated = {
+        schemaVersion: 1,
+        configs: [newConfig],
+        defaultAssistant: { configId: newConfig.id, modelId: newConfig.model },
+        fastModel: null,
+      }
 
-    const now = Date.now()
-    const newConfig = {
-      id: randomUUID(),
-      name: data.provider,
-      provider: data.provider,
-      apiKey: data.apiKey || '',
-      model: data.model || '',
-      maxTokens: data.maxTokens,
-      createdAt: now,
-      updatedAt: now,
-    }
-
-    const migrated = {
-      schemaVersion: 1,
-      configs: [newConfig],
-      defaultAssistant: { configId: newConfig.id, modelId: newConfig.model },
-      fastModel: null,
-    }
-
-    fs.writeFileSync(configPath, JSON.stringify(migrated, null, 2), 'utf-8')
-    ctx.logger.info('Migration', 'Legacy config migrated to multi-config format')
+      writeJsonFileAtomically(configPath, migrated)
+      ctx.logger.info('Migration', 'Legacy config migrated to multi-config format')
+    })
   },
 }

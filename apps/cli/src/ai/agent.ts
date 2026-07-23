@@ -7,6 +7,7 @@
 
 import {
   DEFAULT_MAX_TOOL_ROUNDS,
+  buildPiModel,
   buildPlanGuidance,
   createAnalysisPlanner,
   createLlmRouteDecider,
@@ -29,12 +30,12 @@ import {
   type CompressionConfig,
   type AgentTool,
   type DataSnapshot,
+  type AIServiceConfig,
   type OwnerInfo,
   type MentionedMember,
 } from '@openchatlab/node-runtime'
 import type { ChartAutoMode } from '@openchatlab/shared-types'
 
-import { getDefaultAssistantConfig, buildPiModel } from './llm-config'
 import { getServerAiLogger } from './logger'
 
 export type { AgentStreamChunk }
@@ -50,7 +51,7 @@ export interface RunAgentOptions {
   skillDef?: { name: string; prompt: string }
   compressionConfig?: CompressionConfig
   tools?: AgentTool[]
-  aiDataDir: string
+  llmConfig: AIServiceConfig | null
   aiChatManager: AIChatManager
   onEvent: (event: AgentStreamChunk) => void
   abortSignal?: AbortSignal
@@ -73,7 +74,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
     skillDef,
     compressionConfig,
     tools = [],
-    aiDataDir,
+    llmConfig,
     aiChatManager,
     onEvent,
     abortSignal,
@@ -89,7 +90,6 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
   // 确保 tokenizer rank 表已加载（compression + agent 路径均依赖）
   await initTokenizer()
 
-  const llmConfig = getDefaultAssistantConfig(aiDataDir)
   if (!llmConfig) {
     onEvent({ type: 'error', error: { name: 'ConfigError', message: 'LLM service not configured' } })
     onEvent({ type: 'done', isFinished: true })

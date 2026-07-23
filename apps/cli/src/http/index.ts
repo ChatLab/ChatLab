@@ -14,10 +14,7 @@ import {
   NodePathProvider,
   DatabaseManager,
   AIChatManager,
-  CustomProviderStore,
-  CustomModelStore,
-  createFileConfigStorage,
-  createAuthProfileLlmConfigStore,
+  createLlmRuntimeStores,
   applyPendingNodeDataDirMigrationIfNeeded,
   hasPendingElectronDataWarning,
   verifyCliDataPath,
@@ -144,11 +141,12 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
 
   const assistantManager = getAssistantManager(aiDataDir)
   const skillManagerCore = getSkillManagerCore(aiDataDir)
-  const configStorage = createFileConfigStorage(aiDataDir)
-  const llmConfigStore = createAuthProfileLlmConfigStore(configStorage)
+  const llmRuntimeStores = createLlmRuntimeStores(aiDataDir)
+  const { llmConfigStore, customProviderStore, customModelStore } = llmRuntimeStores
 
   initAppLogger(pathProvider.getLogsDir())
   initServerAiLogger(pathProvider.getLogsDir())
+  appLogger.info('ai-config', 'Shared LLM configuration store initialized', { aiDataDir })
   appLogger.info('temp-workspace', 'Temporary workspace initialized', { root: pathProvider.getTempDir() })
   appLogger.info('server', `HTTP server starting on ${host}:${port}`)
   // 记录 Rust native parser 可用性（导入是否走 Rust 内核），便于按日志排查回退原因
@@ -192,9 +190,12 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
       assistantManager,
       skillManagerCore,
       llmConfigStore,
-      customProviderStore: new CustomProviderStore(configStorage),
-      customModelStore: new CustomModelStore(configStorage),
-      runAgentStream: createCliRunAgentStream(dbManager, aiChatManager, semanticIndexService),
+      customProviderStore,
+      customModelStore,
+      runAgentStream: createCliRunAgentStream(dbManager, aiChatManager, {
+        llmConfigStore,
+        semanticIndexService,
+      }),
     },
   })
 

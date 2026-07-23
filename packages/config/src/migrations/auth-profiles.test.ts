@@ -106,6 +106,10 @@ describe('m004 encrypted keys to auth profiles migration', () => {
       readLlmConfig().configs.map((config) => config.apiKey),
       ['', '', '']
     )
+    assert.deepEqual(
+      readLlmConfig().configs.map((config) => config.authProfile),
+      ['deepseek', 'deepseek-2', 'api.example.com']
+    )
     assert.equal(readFileSync(join(chatlabDir, '.migration-version'), 'utf-8'), '4')
   })
 

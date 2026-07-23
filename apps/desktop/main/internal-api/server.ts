@@ -16,10 +16,6 @@ import type { PathProvider } from '@openchatlab/core'
 import {
   DatabaseManager,
   createDatabaseManagerAdapter,
-  CustomProviderStore,
-  CustomModelStore,
-  createFileConfigStorage,
-  createAuthProfileLlmConfigStore,
   deletePendingDataDirCleanup,
   dismissPendingDataDirCleanupNotice,
   getPendingDataDirCleanups,
@@ -42,6 +38,7 @@ import { getManager as getAssistantManager } from '../ai/assistant/manager'
 import { getManager as getSkillManager } from '../ai/skills/manager'
 import { aiLogger } from '../ai/logger'
 import { createElectronRunAgentStream } from '../ai/agent-stream-runner'
+import { getDesktopLlmRuntimeStores } from '../ai/llm'
 import { createExecuteElectronAiTool } from '../ai/tools/debug-executor'
 import { assertDesktopDataDirCompatible, getDesktopAppVersion } from '../runtime/compat'
 import { resolveDesktopNativeBinding } from '../runtime/native-sqlite'
@@ -90,8 +87,9 @@ export async function startInternalServer(
     const sessionAdapter = createDatabaseManagerAdapter(newDbManager)
 
     const aiDataDir = pathProvider.getAiDataDir()
-    const configStorage = createFileConfigStorage(aiDataDir)
-    const llmConfigStore = createAuthProfileLlmConfigStore(configStorage)
+    const llmRuntimeStores = getDesktopLlmRuntimeStores(aiDataDir)
+    const { llmConfigStore, customProviderStore, customModelStore } = llmRuntimeStores
+    appLogger.info('ai-config', 'Shared LLM configuration store initialized', { aiDataDir })
 
     const newMergeCache = new MergeSessionCache(pathProvider, { nativeBinding })
     newMergeCache.cleanupOrphans()
@@ -155,8 +153,8 @@ export async function startInternalServer(
       assistantManager: getAssistantManager(),
       skillManagerCore: getSkillManager(),
       llmConfigStore,
-      customProviderStore: new CustomProviderStore(configStorage),
-      customModelStore: new CustomModelStore(configStorage),
+      customProviderStore,
+      customModelStore,
       getCurrentAiLogPath: () => aiLogger.getExistingLogPath(),
       automation: {
         dsManager: dependencies.getDataSourceManager(),
@@ -180,7 +178,7 @@ export async function startInternalServer(
       deletePendingDataDirCleanup: (cleanupId) => {
         return deletePendingDataDirCleanup(pathProvider.getSystemDir(), pathProvider.getUserDataDir(), cleanupId)
       },
-      runAgentStream: createElectronRunAgentStream(newSemanticIndexService ?? undefined),
+      runAgentStream: createElectronRunAgentStream(llmConfigStore, newSemanticIndexService ?? undefined),
       executeAiTool: createExecuteElectronAiTool(newSemanticIndexService ?? undefined),
     }
 

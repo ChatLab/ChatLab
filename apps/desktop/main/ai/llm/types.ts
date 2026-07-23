@@ -1,6 +1,4 @@
-/**
- * LLM 服务类型定义
- */
+/** Desktop-only LLM presentation types. */
 
 export * from './model-types'
 
@@ -16,25 +14,3 @@ export interface ProviderInfo {
     description?: string
   }>
 }
-
-export interface AIServiceConfig {
-  id: string
-  name: string
-  provider: LLMProvider
-  apiKey: string
-  model?: string
-  baseUrl?: string
-  maxTokens?: number
-  apiFormat?: string
-  customModels?: Array<{ id: string; name: string }>
-  createdAt: number
-  updatedAt: number
-}
-
-export interface AIConfigStore {
-  configs: AIServiceConfig[]
-  defaultAssistant: import('./model-types').ModelSlot | null
-  fastModel: import('./model-types').ModelSlot | null
-}
-
-export const MAX_CONFIG_COUNT = 99

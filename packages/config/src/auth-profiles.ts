@@ -5,9 +5,9 @@
  * 用途：将 API Key 等敏感凭证与主配置文件分离
  */
 
-import * as fs from 'fs'
 import * as path from 'path'
 import { getConfigDir } from './loader'
+import { readJsonFile, withFileLock, writeJsonFileAtomically } from './atomic-json-file'
 
 export interface AuthProfile {
   type: 'api_key'
@@ -22,6 +22,26 @@ export interface AuthProfilesData {
 
 const AUTH_PROFILES_FILE = 'auth-profiles.json'
 
+export function deriveAuthProfileName(provider: string, config: { baseUrl?: unknown; name?: unknown }): string {
+  if (provider !== 'openai-compatible') {
+    return provider.toLowerCase().replace(/\s+/g, '-')
+  }
+
+  if (typeof config.baseUrl === 'string' && config.baseUrl) {
+    try {
+      return new URL(config.baseUrl).hostname.toLowerCase()
+    } catch {
+      // Invalid URLs fall back to the config name.
+    }
+  }
+
+  if (typeof config.name === 'string' && config.name) {
+    return config.name.toLowerCase().replace(/\s+/g, '-')
+  }
+
+  return 'custom'
+}
+
 function getAuthProfilesPath(): string {
   return path.join(getConfigDir(), AUTH_PROFILES_FILE)
 }
@@ -30,21 +50,11 @@ function getAuthProfilesPath(): string {
  * 加载 auth-profiles.json
  */
 export function loadAuthProfiles(): AuthProfilesData {
-  const filePath = getAuthProfilesPath()
-  if (!fs.existsSync(filePath)) {
+  const data = readJsonFile<AuthProfilesData>(getAuthProfilesPath())
+  if (!data?.profiles || typeof data.profiles !== 'object') {
     return { version: 1, profiles: {} }
   }
-
-  try {
-    const content = fs.readFileSync(filePath, 'utf-8')
-    const data = JSON.parse(content) as AuthProfilesData
-    if (!data.profiles || typeof data.profiles !== 'object') {
-      return { version: 1, profiles: {} }
-    }
-    return data
-  } catch {
-    return { version: 1, profiles: {} }
-  }
+  return data
 }
 
 /**
@@ -84,27 +94,25 @@ export function resolveApiKey(provider: string, authProfile?: string): string {
  * 写入/更新一个 auth profile
  */
 export function writeAuthProfile(name: string, profile: AuthProfile): void {
-  const configDir = getConfigDir()
-  if (!fs.existsSync(configDir)) {
-    fs.mkdirSync(configDir, { recursive: true })
-  }
-
-  const data = loadAuthProfiles()
-  data.profiles[name] = profile
-
   const filePath = getAuthProfilesPath()
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), { encoding: 'utf-8', mode: 0o600 })
+  withFileLock(filePath, () => {
+    const data = loadAuthProfiles()
+    data.profiles[name] = profile
+    writeJsonFileAtomically(filePath, data, 0o600)
+  })
 }
 
 /**
  * 删除一个 auth profile
  */
 export function deleteAuthProfile(name: string): boolean {
-  const data = loadAuthProfiles()
-  if (!(name in data.profiles)) return false
-
-  delete data.profiles[name]
   const filePath = getAuthProfilesPath()
-  fs.writeFileSync(filePath, JSON.stringify(data, null, 2), { encoding: 'utf-8', mode: 0o600 })
-  return true
+  return withFileLock(filePath, () => {
+    const data = loadAuthProfiles()
+    if (!(name in data.profiles)) return false
+
+    delete data.profiles[name]
+    writeJsonFileAtomically(filePath, data, 0o600)
+    return true
+  })
 }

@@ -3,7 +3,6 @@
  * 编排 runAgentCore 的对话流程（工具调用、流式输出、中止控制）
  */
 
-import { getDefaultAssistantConfig, buildPiModel } from '../llm'
 import { getAllTools, createActivateSkillTool } from '../tools'
 import type { ToolContext } from '../tools/types'
 import { getHistoryForAgent, setPendingDebugContext } from '../chats'
@@ -374,43 +373,4 @@ export class Agent {
       return []
     }
   }
-}
-
-/**
- * 创建 Agent 并执行对话（便捷函数）
- */
-export async function runAgent(
-  userMessage: string,
-  context: ToolContext,
-  config?: AgentConfig,
-  chatType?: 'group' | 'private',
-  locale?: string,
-  assistantConfig?: AssistantConfig,
-  skillCtx?: SkillContext
-): Promise<AgentResult> {
-  const activeConfig = getDefaultAssistantConfig()
-  if (!activeConfig) throw new Error('LLM service not configured')
-  const piModel = buildPiModel(activeConfig)
-  const agent = new Agent(context, piModel, activeConfig.apiKey, config, chatType, locale, assistantConfig, skillCtx)
-  return agent.execute(userMessage)
-}
-
-/**
- * 创建 Agent 并流式执行对话（便捷函数）
- */
-export async function runAgentStream(
-  userMessage: string,
-  context: ToolContext,
-  onChunk: (chunk: AgentStreamChunk) => void,
-  config?: AgentConfig,
-  chatType?: 'group' | 'private',
-  locale?: string,
-  assistantConfig?: AssistantConfig,
-  skillCtx?: SkillContext
-): Promise<AgentResult> {
-  const activeConfig = getDefaultAssistantConfig()
-  if (!activeConfig) throw new Error('LLM service not configured')
-  const piModel = buildPiModel(activeConfig)
-  const agent = new Agent(context, piModel, activeConfig.apiKey, config, chatType, locale, assistantConfig, skillCtx)
-  return agent.executeStream(userMessage, onChunk)
 }

@@ -187,8 +187,8 @@ export {
 } from './ai'
 export { AIChatManager } from './ai'
 export { countTokens, countMessagesTokens, initTokenizer } from './ai'
-export { createFileConfigStorage, createAuthProfileLlmConfigStore } from './ai'
-export type { AuthProfileLlmConfigStoreDeps } from './ai'
+export { createFileConfigStorage, createAuthProfileLlmConfigStore, createLlmRuntimeStores } from './ai'
+export type { AuthProfileLlmConfigStoreDeps, CreateLlmRuntimeStoresOptions, LlmRuntimeStores } from './ai'
 
 // Assistant Manager
 export { AssistantManager } from './ai'

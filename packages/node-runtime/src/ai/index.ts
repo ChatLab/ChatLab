@@ -177,6 +177,8 @@ export type { AIServiceConfig, AIConfigStore, ConfigStorage, LLMConfigStoreDeps 
 export { createFileConfigStorage } from './file-config-storage'
 export { createAuthProfileLlmConfigStore } from './auth-profile-llm-config-store'
 export type { AuthProfileLlmConfigStoreDeps } from './auth-profile-llm-config-store'
+export { createLlmRuntimeStores } from './llm-runtime-stores'
+export type { CreateLlmRuntimeStoresOptions, LlmRuntimeStores } from './llm-runtime-stores'
 
 // Custom Provider/Model Store
 export { CustomProviderStore, CustomModelStore } from './custom-store'

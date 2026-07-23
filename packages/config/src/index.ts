@@ -16,7 +16,9 @@ export {
   resolveApiKey,
   writeAuthProfile,
   deleteAuthProfile,
+  deriveAuthProfileName,
 } from './auth-profiles'
 export type { AuthProfile, AuthProfilesData } from './auth-profiles'
+export { readJsonFile, withFileLock, writeJsonFileAtomically } from './atomic-json-file'
 export { MigrationRunner, ALL_MIGRATIONS } from './migrations'
 export type { Migration, MigrationContext, Logger as MigrationLogger } from './migrations'

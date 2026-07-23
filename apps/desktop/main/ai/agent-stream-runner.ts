@@ -6,7 +6,12 @@
  * but outputs events via callback instead of IPC.
  */
 
-import type { AgentStreamChunk as SharedAgentStreamChunk, SemanticIndexRuntime } from '@openchatlab/node-runtime'
+import type {
+  AgentStreamChunk as SharedAgentStreamChunk,
+  AIServiceConfig,
+  LLMConfigStore,
+  SemanticIndexRuntime,
+} from '@openchatlab/node-runtime'
 import type { AgentStreamRequest } from '@openchatlab/http-routes'
 import { getDefaultGeneralAssistantId, type ChartAutoMode } from '@openchatlab/shared-types'
 import {
@@ -25,8 +30,7 @@ import {
 import type { CompressionConfig, CompressionLlmAdapter, AgentRuntimeStatus } from '@openchatlab/node-runtime'
 import { Agent, type AgentStreamChunk, type SkillContext } from './agent'
 import type { ToolContext } from './tools/types'
-import { getDefaultAssistantConfig, buildPiModel, findModelDefinition } from './llm'
-import type { AIServiceConfig } from './llm/types'
+import { buildPiModel, findModelDefinition } from './llm'
 import * as assistantManager from './assistant/manager'
 import type { AssistantConfig } from '@openchatlab/node-runtime'
 import * as skillManager from './skills/manager'
@@ -62,6 +66,7 @@ const compressionLogger = {
 }
 
 export function createElectronRunAgentStream(
+  llmConfigStore: LLMConfigStore,
   semanticIndexService?: SemanticIndexRuntime
 ): (
   params: AgentStreamRequest,
@@ -101,7 +106,7 @@ export function createElectronRunAgentStream(
       enableAutoSkill: enableAutoSkill ?? false,
     })
 
-    const activeAIConfig = getDefaultAssistantConfig()
+    const activeAIConfig = llmConfigStore.getDefaultAssistantConfig()
     if (!activeAIConfig) {
       onEvent({ type: 'error', error: { name: 'ConfigError', message: t('llm.notConfigured') } })
       return

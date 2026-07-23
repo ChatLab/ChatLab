@@ -3,11 +3,19 @@
  * for the shared HTTP route context.
  */
 
-import type { DatabaseManager, AIChatManager, AgentStreamChunk, SemanticIndexRuntime } from '@openchatlab/node-runtime'
+import type {
+  DatabaseManager,
+  AIChatManager,
+  AgentStreamChunk,
+  LLMConfigStore,
+  SemanticIndexRuntime,
+} from '@openchatlab/node-runtime'
 import {
   CHART_CAPABILITY_CORE_TOOLS,
   SkillManager,
+  buildPiModel,
   buildSkillMenuWithBuiltinChart,
+  createLlmRuntimeStores,
   createActivateSkillTool,
   createDataSnapshotFromOverview,
   getAllowedBuiltinToolsForChartAutoSkill,
@@ -22,7 +30,6 @@ import type { AgentStreamRequest } from '@openchatlab/http-routes'
 import { AGENT_TOOL_REGISTRY, SEMANTIC_SEARCH_TOOL_NAME } from '@openchatlab/tools'
 import { buildSemanticSearchGuidance } from '@openchatlab/node-runtime'
 import { adaptToolsForAgent } from './tool-adapter'
-import { getDefaultAssistantConfig, buildPiModel } from './llm-config'
 import { loadAssistantConfig } from './assistant-loader'
 import { runServerAgent } from './agent'
 
@@ -65,8 +72,15 @@ export function getAllowedToolSet(
 export function createCliRunAgentStream(
   dbManager: DatabaseManager,
   aiChatManager: AIChatManager,
-  semanticIndexService?: SemanticIndexRuntime
+  options: {
+    llmConfigStore?: LLMConfigStore
+    semanticIndexService?: SemanticIndexRuntime
+  } = {}
 ): (params: AgentStreamRequest, onEvent: (chunk: AgentStreamChunk) => void, abortSignal: AbortSignal) => Promise<void> {
+  const aiDataDir = getAiDir(dbManager)
+  const llmConfigStore = options.llmConfigStore ?? createLlmRuntimeStores(aiDataDir).llmConfigStore
+  const semanticIndexService = options.semanticIndexService
+
   return async (params, onEvent, abortSignal) => {
     const {
       userMessage,
@@ -85,8 +99,6 @@ export function createCliRunAgentStream(
       thinkingLevel,
     } = params
 
-    const aiDataDir = getAiDir(dbManager)
-
     let assistantSystemPrompt: string | undefined
     let assistantAllowedTools: string[] | undefined
     if (assistantId) {
@@ -97,7 +109,7 @@ export function createCliRunAgentStream(
       assistantAllowedTools = assistantConfig?.allowedBuiltinTools
     }
 
-    const llmConfig = getDefaultAssistantConfig(aiDataDir)
+    const llmConfig = llmConfigStore.getDefaultAssistantConfig()
     const maxToolResultPercent = compressionConfig?.maxToolResultPercent ?? 50
     const contextWindow = llmConfig ? (buildPiModel(llmConfig).contextWindow ?? 128000) : 128000
     const maxToolResultTokens = Math.floor(contextWindow * (maxToolResultPercent / 100))
@@ -213,7 +225,7 @@ export function createCliRunAgentStream(
       skillDef: resolvedSkillDef,
       compressionConfig: resolvedCompression,
       tools: agentTools,
-      aiDataDir,
+      llmConfig,
       aiChatManager,
       onEvent,
       abortSignal,
