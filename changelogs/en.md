@@ -1,5 +1,26 @@
 # Changelog
 
+## v0.34.0 (2026-07-23)
+
+> Add private chat journey and Footprints trend insights, reorganize session insight navigation, and fix the friends-only relationship graph.
+
+### ✨ Features
+
+- Add a Journey view to private chat insights, with yearly chapters, monthly milestones, and key moments
+- Add annual activity rhythms and monthly direct-contact trends to Footprints
+- Move session overviews into Insights and align analysis navigation across Desktop, CLI Web, and Web WASM
+- Redesign the interaction timeline in relationship insights around phase summaries and key moments instead of long detail lists
+
+### 🐛 Bug Fixes
+
+- Limit the friends-only relationship galaxy to friend nodes, relationships, and search results, with clearer connection lines
+
+### ♻️ Refactoring
+
+- Unify LLM configuration storage and migration to reduce cross-platform inconsistencies and concurrent write risks
+- Reorganize session insight components and remove obsolete import and database code
+- 【Desktop】Simplify redundant main-process and archive import implementations
+
 ## v0.33.0 (2026-07-22)
 
 > Add Docker deployment and mobile-friendly local analysis in the browser, improve chat format conversion and validation, and strengthen local data safety.
