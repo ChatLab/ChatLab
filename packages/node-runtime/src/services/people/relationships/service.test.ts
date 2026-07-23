@@ -407,6 +407,56 @@ test('returns a friends relationships graph without groupmate nodes while keepin
   }
 })
 
+test('keeps friend neighborhoods limited to friends and their relationships', () => {
+  const dir = makeTempDir()
+  try {
+    const service = createPeopleRelationshipsService({
+      adapter: makeAdapter(),
+      systemDir: dir,
+      runner: async () => {
+        throw new Error('runner should not be called for fresh injected snapshot')
+      },
+    })
+    const snapshot = makeSnapshot(makeFreshSignature())
+    const friend = makeNode({
+      key: 'weixin:friend',
+      displayName: 'Friend',
+      pool: 'friend',
+      friendSource: 'private',
+      rank: 5,
+      score: 60,
+    })
+    snapshot.nodes = [...snapshot.nodes, friend]
+    snapshot.edges = [...snapshot.edges, makeEdge('weixin:alice', friend.key, 10)]
+    service.replaceSnapshotForTests?.(snapshot)
+
+    const response = service.getNeighborhood('weixin:alice', {
+      acceptStale: true,
+      graphScope: 'friends',
+    })
+    const keys = response.graph.nodes.map((node) => node.key)
+
+    assert.deepEqual(keys, ['weixin:alice', friend.key])
+    assert.equal(
+      response.graph.nodes.every((node) => node.kind === 'owner' || node.pool === 'friend'),
+      true
+    )
+    assert.deepEqual(
+      response.graph.edges.map((edge) => [edge.sourceKey, edge.targetKey]),
+      [['weixin:alice', friend.key]]
+    )
+
+    const groupmateResponse = service.getNeighborhood('weixin:bob', {
+      acceptStale: true,
+      graphScope: 'friends',
+    })
+    assert.equal(groupmateResponse.contact, null)
+    assert.deepEqual(groupmateResponse.graph, { nodes: [], edges: [], communities: [] })
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true })
+  }
+})
+
 test('applies manual contact friend overrides to people relationships graph scopes', () => {
   const dir = makeTempDir()
   try {

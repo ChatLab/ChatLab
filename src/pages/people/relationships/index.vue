@@ -485,6 +485,7 @@ async function loadNeighborhood(key: string) {
     const next = await dataService.getPeopleRelationshipNeighborhood(key, {
       acceptStale: true,
       timeRangePreset: timeRangePreset.value,
+      graphScope: graphScope.value,
     })
     if (requestId !== neighborhoodRequestId.value) return
 
@@ -661,6 +662,7 @@ onBeforeUnmount(() => {
         :selected-key="canvasSelectedKey"
         :privacy-mode="privacyMode"
         :safe-inset-right="detailPanelSafeInsetRight"
+        :emphasize-edges="graphScope === 'friends'"
         :label="t('relationships.canvas.label3d')"
         :owner-label="t('relationships.owner.me')"
         @fallback="handleThreeCanvasFallback"
@@ -673,6 +675,7 @@ onBeforeUnmount(() => {
         :selected-key="canvasSelectedKey"
         :privacy-mode="privacyMode"
         :safe-inset-right="detailPanelSafeInsetRight"
+        :emphasize-edges="graphScope === 'friends'"
         :label="t('relationships.canvas.label')"
         :owner-label="t('relationships.owner.me')"
         @select-node="selectNode"

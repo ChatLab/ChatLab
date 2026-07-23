@@ -207,6 +207,7 @@ export class FetchDataAdapter implements DataAdapter {
     const params = new URLSearchParams()
     if (options?.acceptStale) params.set('acceptStale', '1')
     if (options?.timeRangePreset) params.set('timeRange', options.timeRangePreset)
+    if (options?.graphScope) params.set('scope', options.graphScope)
     const qs = params.toString()
     return get(`/people/relationships/${encodeURIComponent(key)}/neighborhood${qs ? `?${qs}` : ''}`)
   }

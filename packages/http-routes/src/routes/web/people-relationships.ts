@@ -57,6 +57,7 @@ export function registerPeopleRelationshipsRoutes(server: FastifyInstance, ctx: 
       return service.getNeighborhood(request.params.key, {
         acceptStale: isTruthy(request.query.acceptStale),
         timeRangePreset: parseContactsTimeRangePreset(request.query.timeRange),
+        graphScope: parsePeopleRelationshipsGraphScope(request.query.scope),
       })
     }
   )

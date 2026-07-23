@@ -63,6 +63,7 @@ const props = withDefaults(
     selectedKey?: string | null
     privacyMode?: boolean
     safeInsetRight?: number
+    emphasizeEdges?: boolean
     label: string
     ownerLabel: string
   }>(),
@@ -70,6 +71,7 @@ const props = withDefaults(
     selectedKey: null,
     privacyMode: false,
     safeInsetRight: 0,
+    emphasizeEdges: false,
   }
 )
 
@@ -194,7 +196,7 @@ function addThinEdgePaths(
   const material = new THREE.LineBasicMaterial({
     vertexColors: true,
     transparent: true,
-    opacity: bucket === 'highlight' ? 0.62 : bucket === 'normal' ? 0.21 : 0.05,
+    opacity: bucket === 'highlight' ? 0.62 : bucket === 'normal' ? (props.emphasizeEdges ? 0.27 : 0.21) : 0.05,
     linewidth,
     blending: THREE.NormalBlending,
     depthTest: true,
@@ -841,6 +843,14 @@ watch(
 
 watch(
   () => props.selectedKey,
+  () => {
+    renderGraph(false)
+  },
+  { flush: 'post' }
+)
+
+watch(
+  () => props.emphasizeEdges,
   () => {
     renderGraph(false)
   },

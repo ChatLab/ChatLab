@@ -126,8 +126,11 @@ class DefaultPeopleRelationshipsService implements PeopleRelationshipsService {
     const snapshot = this.getSnapshotForResponse(timeRangePreset)
     const status = this.getCacheStatus(signature, timeRangePreset)
     const includeSnapshot = shouldIncludeSnapshot(status, options.acceptStale)
-    const graph = includeSnapshot && snapshot ? buildPeopleRelationshipsNeighborhoodGraph(snapshot, key) : emptyGraph()
-    const contact = includeSnapshot ? (snapshot?.nodes.find((node) => node.key === key) ?? null) : null
+    const graphScope = normalizePeopleRelationshipsGraphScope(options.graphScope)
+    const scopedSnapshot = snapshot ? buildNeighborhoodSnapshotForScope(snapshot, graphScope) : null
+    const graph =
+      includeSnapshot && scopedSnapshot ? buildPeopleRelationshipsNeighborhoodGraph(scopedSnapshot, key) : emptyGraph()
+    const contact = includeSnapshot ? (scopedSnapshot?.nodes.find((node) => node.key === key) ?? null) : null
     return {
       contact,
       graph,
@@ -366,6 +369,21 @@ function buildFriendsRelationshipsGraph(snapshot: PeopleRelationshipsSnapshot): 
     nodes,
     edges,
     communities: filterCommunitiesForNodes(snapshot.communities, nodes),
+  }
+}
+
+function buildNeighborhoodSnapshotForScope(
+  snapshot: PeopleRelationshipsSnapshot,
+  scope: PeopleRelationshipsGraphScope
+): PeopleRelationshipsSnapshot {
+  if (scope !== 'friends') return snapshot
+
+  const graph = buildFriendsRelationshipsGraph(snapshot)
+  return {
+    ...snapshot,
+    nodes: graph.nodes,
+    edges: graph.edges,
+    communities: graph.communities,
   }
 }
 

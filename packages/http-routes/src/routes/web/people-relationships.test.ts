@@ -75,7 +75,7 @@ function emptyNeighborhoodResponse(
 class FakePeopleRelationshipsService implements PeopleRelationshipsService {
   graphCalls: Array<{ acceptStale?: boolean; timeRangePreset?: string; query?: string; graphScope?: string }> = []
   recomputeCalls: Array<{ timeRangePreset?: string; query?: string; graphScope?: string }> = []
-  neighborhoodCalls: Array<{ key: string; acceptStale?: boolean; timeRangePreset?: string }> = []
+  neighborhoodCalls: Array<{ key: string; acceptStale?: boolean; timeRangePreset?: string; graphScope?: string }> = []
   closeCalls = 0
 
   getGraph(options?: {
@@ -95,9 +95,14 @@ class FakePeopleRelationshipsService implements PeopleRelationshipsService {
 
   getNeighborhood(
     key: string,
-    options?: { acceptStale?: boolean; timeRangePreset?: string }
+    options?: { acceptStale?: boolean; timeRangePreset?: string; graphScope?: string }
   ): PeopleRelationshipsNeighborhoodResponse {
-    this.neighborhoodCalls.push({ key, acceptStale: options?.acceptStale, timeRangePreset: options?.timeRangePreset })
+    this.neighborhoodCalls.push({
+      key,
+      acceptStale: options?.acceptStale,
+      timeRangePreset: options?.timeRangePreset,
+      graphScope: options?.graphScope,
+    })
     return emptyNeighborhoodResponse('missing')
   }
 
@@ -199,7 +204,7 @@ test('POST /_web/people/relationships/recompute forwards time range, search quer
   assert.deepEqual(service.recomputeCalls, [{ timeRangePreset: '3y', query: 'Bob', graphScope: 'close' }])
 })
 
-test('GET /_web/people/relationships/:key/neighborhood forwards decoded contact key', async (t) => {
+test('GET /_web/people/relationships/:key/neighborhood forwards contact key and graph scope', async (t) => {
   const service = new FakePeopleRelationshipsService()
   const app = Fastify()
   t.after(async () => app.close())
@@ -208,11 +213,15 @@ test('GET /_web/people/relationships/:key/neighborhood forwards decoded contact 
 
   const response = await app.inject({
     method: 'GET',
-    url: `/_web/people/relationships/${encodeURIComponent('weixin:alice')}/neighborhood?acceptStale=1&timeRange=5y`,
+    url: `/_web/people/relationships/${encodeURIComponent(
+      'weixin:alice'
+    )}/neighborhood?acceptStale=1&timeRange=5y&scope=friends`,
   })
 
   assert.equal(response.statusCode, 200)
-  assert.deepEqual(service.neighborhoodCalls, [{ key: 'weixin:alice', acceptStale: true, timeRangePreset: '5y' }])
+  assert.deepEqual(service.neighborhoodCalls, [
+    { key: 'weixin:alice', acceptStale: true, timeRangePreset: '5y', graphScope: 'friends' },
+  ])
 })
 
 test('closes people relationships service when Fastify app closes', async () => {
