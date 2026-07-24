@@ -2,7 +2,7 @@ import type { Preferences, PreferencesAdapter, UiConfig } from './types'
 
 const PREFERENCES_KEY = 'chatlab:web-wasm:preferences'
 const UI_CONFIG_KEY = 'chatlab:web-wasm:ui-config'
-const LOCALE_KEY = 'chatlab:web-wasm:locale'
+export const WEB_WASM_LOCALE_STORAGE_KEY = 'chatlab:web-wasm:locale'
 
 type StoredUiConfig = Omit<UiConfig, 'default_session_tab'> & {
   default_session_tab: UiConfig['default_session_tab'] | 'overview'
@@ -42,12 +42,12 @@ export class BrowserPreferencesAdapter implements PreferencesAdapter {
   }
 
   async getLocale(): Promise<string> {
-    return this.storage.getItem(LOCALE_KEY) ?? ''
+    return this.storage.getItem(WEB_WASM_LOCALE_STORAGE_KEY) ?? ''
   }
 
   async saveLocale(lang: string): Promise<{ success: boolean; error?: string }> {
     try {
-      this.storage.setItem(LOCALE_KEY, lang)
+      this.storage.setItem(WEB_WASM_LOCALE_STORAGE_KEY, lang)
       return { success: true }
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : String(error) }

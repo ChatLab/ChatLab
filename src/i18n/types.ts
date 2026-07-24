@@ -42,18 +42,35 @@ export const defaultLocale: LocaleType = 'zh-CN'
 /**
  * 检测系统语言
  */
-export function detectSystemLocale(): LocaleType {
-  const systemLocale = navigator.language
-  if (systemLocale === 'zh-TW' || systemLocale === 'zh-Hant') {
-    return 'zh-TW'
-  }
-  if (systemLocale.startsWith('zh')) {
-    return 'zh-CN'
-  }
-  if (systemLocale.startsWith('ja')) {
-    return 'ja-JP'
+export function detectSystemLocale(languages: readonly string[] = getBrowserLanguages()): LocaleType {
+  for (const language of languages) {
+    const locale = matchSupportedLocale(language)
+    if (locale) return locale
   }
   return 'en-US'
+}
+
+function getBrowserLanguages(): readonly string[] {
+  if (typeof navigator === 'undefined') return []
+  return navigator.languages.length > 0 ? navigator.languages : [navigator.language]
+}
+
+function matchSupportedLocale(language: string): LocaleType | null {
+  const normalized = language.trim().replaceAll('_', '-').toLowerCase()
+  if (!normalized) return null
+  if (
+    normalized === 'zh-tw' ||
+    normalized.startsWith('zh-hant') ||
+    normalized.startsWith('zh-hk') ||
+    normalized.startsWith('zh-mo') ||
+    normalized.startsWith('zh-cht')
+  ) {
+    return 'zh-TW'
+  }
+  if (normalized.startsWith('zh')) return 'zh-CN'
+  if (normalized.startsWith('ja')) return 'ja-JP'
+  if (normalized.startsWith('en')) return 'en-US'
+  return null
 }
 
 // ========== Locale 辅助函数 ==========

@@ -25,12 +25,19 @@ function getInitialLocale(): LocaleType {
   return detectSystemLocale()
 }
 
+function setDocumentLocale(locale: LocaleType): void {
+  if (typeof document !== 'undefined') document.documentElement.lang = locale
+}
+
+const initialLocale = getInitialLocale()
+setDocumentLocale(initialLocale)
+
 /**
  * 创建 i18n 实例
  */
 export const i18n = createI18n({
   legacy: false,
-  locale: getInitialLocale(),
+  locale: initialLocale,
   fallbackLocale: 'en-US',
   messages: {
     'zh-CN': zhCN,
@@ -45,6 +52,7 @@ export const i18n = createI18n({
  */
 export function setLocale(locale: LocaleType) {
   i18n.global.locale.value = locale
+  setDocumentLocale(locale)
 }
 
 /**

@@ -4,11 +4,17 @@ import { useI18n } from 'vue-i18n'
 import { CHATLAB_SITE_BASE, getChatlabSiteLocalePath, getChatlabSiteLangQuery } from '@/utils/chatlabSiteLocale'
 import { IS_ELECTRON } from '@/utils/platform'
 import { usePlatformService } from '@/services'
-import { resolveHomeFooterConfigSource } from './home-footer-config'
+import { filterHomeFooterLinks, resolveHomeFooterConfigSource } from './home-footer-config'
 
-const props = defineProps<{
-  remoteConfigEnabled: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    remoteConfigEnabled: boolean
+    showChangelog?: boolean
+  }>(),
+  {
+    showChangelog: true,
+  }
+)
 
 const emit = defineEmits<{
   openChangelog: []
@@ -69,6 +75,7 @@ function getDefaultLinks(): FooterLink[] {
 }
 
 const footerLinks = ref<FooterLink[]>(getDefaultLinks())
+const visibleFooterLinks = computed(() => filterHomeFooterLinks(footerLinks.value, props.showChangelog))
 
 // 社交链接配置（由远程配置 socialData 直接提供）
 interface SocialData {
@@ -210,7 +217,7 @@ watch(locale, () => {
 <template>
   <div class="absolute bottom-4 left-0 right-0">
     <div class="flex items-center justify-center">
-      <template v-for="(link, index) in footerLinks" :key="link.id">
+      <template v-for="(link, index) in visibleFooterLinks" :key="link.id">
         <!-- 分隔点 -->
         <span v-if="index > 0" class="mx-2 text-gray-300 dark:text-gray-600">·</span>
         <!-- 链接按钮 -->

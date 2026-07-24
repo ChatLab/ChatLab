@@ -5,10 +5,8 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import logoSvg from '@/assets/images/logo.svg'
 import AgreementModal from '@/components/home/AgreementModal.vue'
-import ChangelogModal from '@/components/home/ChangelogModal.vue'
 import HomeFooter from '@/components/home/HomeFooter.vue'
 import ImportArea from '@/components/import/ImportArea.vue'
-import LanguageSelectModal from '@/components/home/LanguageSelectModal.vue'
 import { availableLocales, type LocaleType } from '@/i18n'
 import { useSettingsStore } from '@/stores/settings'
 import { useSessionStore } from '@/stores/session'
@@ -20,7 +18,6 @@ const sessionStore = useSessionStore()
 const { sessions } = storeToRefs(sessionStore)
 const isMounted = ref(false)
 const languageMenuOpen = ref(false)
-const changelogModalRef = ref<InstanceType<typeof ChangelogModal> | null>(null)
 const agreementModalRef = ref<InstanceType<typeof AgreementModal> | null>(null)
 const isDark = useDark()
 const toggleDark = useToggle(isDark)
@@ -170,20 +167,10 @@ onMounted(() => {
         </section>
       </main>
 
-      <HomeFooter
-        :remote-config-enabled="false"
-        @open-changelog="changelogModalRef?.open()"
-        @open-terms="agreementModalRef?.open()"
-      />
+      <HomeFooter :remote-config-enabled="false" :show-changelog="false" @open-terms="agreementModalRef?.open()" />
     </div>
 
-    <!--
-      Web WASM intentionally does not gate its fully local import flow on agreement acceptance.
-      Keep the agreement available from HomeFooter only; do not open it from LanguageSelectModal's done event.
-    -->
-    <LanguageSelectModal />
     <AgreementModal ref="agreementModalRef" />
-    <ChangelogModal ref="changelogModalRef" />
   </div>
 </template>
 
