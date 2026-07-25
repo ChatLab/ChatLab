@@ -36,9 +36,15 @@ export interface ImportDemoSessionsOptions {
   locale: 'cn' | 'en'
   tempPrefix: string
   importFile: (filePath: string) => Promise<DemoImportFileResult>
+  /**
+   * Rolls back a completed session. Platform cleanup intentionally keeps its established
+   * best-effort semantics for rare OS-level unlink failures and only surfaces errors its API exposes.
+   */
+  deleteSession: (sessionId: string) => Promise<void> | void
   onProgress?: (progress: DemoImportProgress) => void
   fetchImpl?: typeof fetch
   now?: () => Date
+  targetTimeZone?: string
 }
 
 /**
@@ -48,12 +54,17 @@ export interface ImportDemoSessionsOptions {
 export async function importDemoSessions(options: ImportDemoSessionsOptions): Promise<DemoImportResult> {
   const total = DEMO_FILES.length
   const fetchImpl = options.fetchImpl ?? fetch
+  const sessionIds: string[] = []
   let tempDir: string | undefined
 
   try {
     const createdTempDir = createChatLabTempDir('imports', options.tempPrefix)
     tempDir = createdTempDir
-    appLogger.info('demo-import', 'Demo import started', { locale: options.locale, sessionCount: total })
+    appLogger.info('demo-import', 'Demo import started', {
+      locale: options.locale,
+      sessionCount: total,
+      targetTimeZone: options.targetTimeZone ?? 'runtime-local',
+    })
 
     const downloaded: string[] = []
     for (let index = 0; index < total; index++) {
@@ -71,7 +82,7 @@ export async function importDemoSessions(options: ImportDemoSessionsOptions): Pr
       downloaded.push(content.toString('utf8'))
     }
 
-    const rebased = rebaseChatLabDemoDocuments(downloaded, options.now?.() ?? new Date())
+    const rebased = rebaseChatLabDemoDocuments(downloaded, options.now?.() ?? new Date(), options.targetTimeZone)
     const localPaths = rebased.documents.map((document, index) => {
       const localPath = path.join(createdTempDir, DEMO_FILES[index])
       fs.writeFileSync(localPath, document, 'utf8')
@@ -84,7 +95,6 @@ export async function importDemoSessions(options: ImportDemoSessionsOptions): Pr
       latestTimestamp: rebased.latestTimestamp,
     })
 
-    const sessionIds: string[] = []
     for (let index = 0; index < localPaths.length; index++) {
       options.onProgress?.({ stage: 'importing', current: index + 1, total })
       const result = await options.importFile(localPaths[index])
@@ -99,7 +109,27 @@ export async function importDemoSessions(options: ImportDemoSessionsOptions): Pr
     appLogger.info('demo-import', 'Demo import completed', { sessionCount: sessionIds.length })
     return { success: true, groupSessionId, privateSessionIds }
   } catch (error) {
-    const message = error instanceof Error ? error.message : String(error)
+    const rollbackFailures: unknown[] = []
+    for (const sessionId of sessionIds.toReversed()) {
+      try {
+        await options.deleteSession(sessionId)
+      } catch (rollbackError) {
+        rollbackFailures.push(rollbackError)
+        appLogger.error('demo-import', `Failed to roll back Demo session ${sessionId}`, rollbackError)
+      }
+    }
+
+    if (sessionIds.length > 0 && rollbackFailures.length === 0) {
+      appLogger.info('demo-import', 'Rolled back partially imported Demo sessions', {
+        sessionCount: sessionIds.length,
+      })
+    }
+
+    const originalMessage = error instanceof Error ? error.message : String(error)
+    const message =
+      rollbackFailures.length === 0
+        ? originalMessage
+        : `${originalMessage} (${rollbackFailures.length} Demo session(s) could not be rolled back.)`
     options.onProgress?.({ stage: 'error', current: 0, total, message })
     appLogger.error('demo-import', 'Demo import failed', error)
     return { success: false, error: message }

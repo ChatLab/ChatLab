@@ -407,8 +407,9 @@ export function registerImportRoutes(
 
   // ==================== Demo Import ====================
 
-  server.post<{ Body: { locale?: string } }>('/_web/demo/import', async (request, reply) => {
-    const locale = (request.body as any)?.locale === 'cn' ? 'cn' : 'en'
+  server.post<{ Body: { locale?: string; timeZone?: string } }>('/_web/demo/import', async (request, reply) => {
+    const locale = request.body?.locale === 'cn' ? 'cn' : 'en'
+    const targetTimeZone = typeof request.body?.timeZone === 'string' ? request.body.timeZone : undefined
     const nativeBinding = resolveNativeBinding()
 
     reply.raw.writeHead(200, {
@@ -424,7 +425,11 @@ export function registerImportRoutes(
     const result = await importDemoSessions({
       locale,
       tempPrefix: 'cli-demo-',
+      targetTimeZone,
       importFile: (filePath) => streamImport(dbManager, filePath, { nativeBinding }),
+      deleteSession: (sessionId) => {
+        dbManager.deleteSessionDatabaseFiles(sessionId)
+      },
       onProgress: (progress) => sendEvent('progress', progress),
     })
     sendEvent('result', result)

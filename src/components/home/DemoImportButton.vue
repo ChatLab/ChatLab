@@ -29,7 +29,7 @@ async function navigateToSession(sessionId: string) {
 }
 
 async function handleImportViaService() {
-  // 当前示例数据只提供中、英文；其他界面语言使用英文示例。
+  // Demo assets are available in Chinese and English; other interface locales use the English version.
   const demoLocale = getChatlabSiteLocalePath(settingsStore.locale) === 'cn' ? 'cn' : 'en'
   return useImportService().importDemo(demoLocale, (progress) => {
     stage.value = progress.stage

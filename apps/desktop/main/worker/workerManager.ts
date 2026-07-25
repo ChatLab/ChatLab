@@ -17,6 +17,10 @@ import { getPathProvider } from '../paths/provider'
 import {
   IMPORT_IN_PROGRESS_ERROR_KEY,
   ImportInProgressError,
+  contactsService,
+  deleteSessionCache,
+  globalInsightService,
+  peopleRelationshipsService,
   raiseChatDbCompatibilityGate,
   withDataDirImportLock,
 } from '@openchatlab/node-runtime'
@@ -546,7 +550,7 @@ async function streamImportUnlocked(
       kind: 'desktop',
     })
   } catch (error) {
-    deleteImportedSessionFiles(result.sessionId)
+    deleteImportedSession(result.sessionId)
     return {
       success: false,
       error: error instanceof Error ? error.message : String(error),
@@ -598,7 +602,7 @@ export async function autoImport(
           kind: 'desktop',
         })
       } catch (error) {
-        deleteImportedSessionFiles(result.sessionId)
+        deleteImportedSession(result.sessionId)
         return {
           success: false,
           error: error instanceof Error ? error.message : String(error),
@@ -633,7 +637,7 @@ export async function pushImport(sessionId: string, payload: PushImportPayload):
           kind: 'desktop',
         })
       } catch (error) {
-        if (outcome.result.created) deleteImportedSessionFiles(sessionId)
+        if (outcome.result.created) deleteImportedSession(sessionId)
         throw error
       }
       return outcome
@@ -661,7 +665,7 @@ export async function analyzePushImport(
   return sendToWorker<PushImportAnalysisOutcome>('analyzePushImport', { sessionId, payload })
 }
 
-function deleteImportedSessionFiles(sessionId: string): void {
+export function deleteImportedSession(sessionId: string): void {
   const dbPath = path.join(getDbDir(), `${sessionId}.db`)
   for (const suffix of ['', '-wal', '-shm']) {
     try {
@@ -671,6 +675,15 @@ function deleteImportedSessionFiles(sessionId: string): void {
       /* ignore */
     }
   }
+
+  const cacheDir = getCacheDir()
+  const userDataDir = getPathProvider().getUserDataDir()
+  deleteSessionCache(sessionId, cacheDir)
+  deleteSessionCache(sessionId, path.join(cacheDir, 'query'))
+  deleteSessionCache(sessionId, contactsService.getContactsFactsCacheDir(userDataDir))
+  deleteSessionCache(sessionId, globalInsightService.getGlobalInsightFactsCacheDir(userDataDir))
+  globalInsightService.deleteAnnualSummarySnapshots(globalInsightService.getGlobalInsightDir(userDataDir))
+  deleteSessionCache(sessionId, peopleRelationshipsService.getPeopleRelationshipsFactsCacheDir(userDataDir))
 }
 
 /**

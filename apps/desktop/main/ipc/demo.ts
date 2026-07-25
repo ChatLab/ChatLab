@@ -33,6 +33,7 @@ export function registerDemoHandlers(ctx: IpcContext): void {
         locale: locale === 'cn' ? 'cn' : 'en',
         tempPrefix: 'desktop-demo-',
         importFile: (filePath) => worker.streamImport(filePath),
+        deleteSession: (sessionId) => worker.deleteImportedSession(sessionId),
         onProgress: sendProgress,
       })
     }

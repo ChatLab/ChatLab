@@ -104,4 +104,23 @@ describe('archive import source adapters', () => {
     assert.equal(requests[1].init?.body, JSON.stringify({ chatId: 'Groups/DM sample' }))
     assert.equal(requests[2].init?.method, 'DELETE')
   })
+
+  it('sends the browser timezone when importing Demo sessions through CLI Web', async () => {
+    let requestBody: string | undefined
+    globalThis.fetch = (async (_input: RequestInfo | URL, init?: RequestInit) => {
+      requestBody = init?.body as string | undefined
+      return new Response('event: result\ndata: {"success":true,"groupSessionId":"group"}\n\n', {
+        headers: { 'Content-Type': 'text/event-stream' },
+      })
+    }) as typeof fetch
+
+    const adapter = new FetchImportAdapter()
+    const result = await adapter.importDemo('cn')
+
+    assert.equal(result.success, true)
+    assert.deepEqual(JSON.parse(requestBody ?? ''), {
+      locale: 'cn',
+      timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+    })
+  })
 })

@@ -78,6 +78,15 @@ describe('rebaseChatLabDemoDocuments', () => {
     assert.ok(result.latestTimestamp < Math.floor(now.getTime() / 1000))
   })
 
+  it('uses an explicit importing-user timezone instead of the runtime timezone', () => {
+    const source = sourceTimestamp('2000-12-10', '22:30:00')
+    const now = new Date('2026-07-25T04:00:00.000Z')
+
+    const result = rebaseChatLabDemoDocuments([createDocument([source])], now, 'America/Los_Angeles')
+
+    assert.equal(result.latestTimestamp, Math.floor(new Date('2026-07-24T05:30:00.000Z').getTime() / 1000))
+  })
+
   it('rejects inconsistent or malformed Demo timelines before import', () => {
     const timestamp = sourceTimestamp('2000-12-10', '22:30:00')
 

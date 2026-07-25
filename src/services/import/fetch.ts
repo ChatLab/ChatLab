@@ -151,7 +151,10 @@ export class FetchImportAdapter implements ImportAdapter {
       fetchWithAuth(`${getBaseUrl()}/demo/import`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ locale }),
+        body: JSON.stringify({
+          locale,
+          timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+        }),
       })
         .then(async (resp) => {
           if (!resp.ok || !resp.body) {

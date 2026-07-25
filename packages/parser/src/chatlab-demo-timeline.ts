@@ -36,7 +36,8 @@ export interface RebasedChatLabDemoDocuments {
  */
 export function rebaseChatLabDemoDocuments(
   jsonDocuments: readonly string[],
-  now: Date = new Date()
+  now: Date = new Date(),
+  targetTimeZone?: string
 ): RebasedChatLabDemoDocuments {
   if (jsonDocuments.length === 0) throw new Error('Demo timeline requires at least one document')
   if (!Number.isFinite(now.getTime())) throw new Error('Demo timeline requires a valid import time')
@@ -47,18 +48,9 @@ export function rebaseChatLabDemoDocuments(
     ...documents.flatMap((document) => document.messages.map((message) => message.timestamp))
   )
 
-  // 源时间戳使用固定时区生成；先还原其中的墙上时间，再映射到用户本地的昨天。
+  // Restore the source wall-clock time before mapping it to yesterday in the user's local calendar.
   const sourceLatestWallTime = new Date((sourceLatestTimestamp + timeZoneOffsetMinutes * SECONDS_PER_MINUTE) * 1000)
-  const targetLatestTime = new Date(now)
-  targetLatestTime.setDate(targetLatestTime.getDate() - 1)
-  targetLatestTime.setHours(
-    sourceLatestWallTime.getUTCHours(),
-    sourceLatestWallTime.getUTCMinutes(),
-    sourceLatestWallTime.getUTCSeconds(),
-    0
-  )
-
-  const latestTimestamp = Math.floor(targetLatestTime.getTime() / 1000)
+  const latestTimestamp = resolveTargetLatestTimestamp(now, sourceLatestWallTime, targetTimeZone)
   const offsetSeconds = latestTimestamp - sourceLatestTimestamp
   const exportedAt = Math.floor(now.getTime() / 1000)
 
@@ -75,6 +67,98 @@ export function rebaseChatLabDemoDocuments(
     sourceLatestTimestamp,
     latestTimestamp,
   }
+}
+
+function resolveTargetLatestTimestamp(now: Date, sourceWallTime: Date, targetTimeZone?: string): number {
+  if (!targetTimeZone) {
+    const targetLatestTime = new Date(now)
+    targetLatestTime.setDate(targetLatestTime.getDate() - 1)
+    targetLatestTime.setHours(
+      sourceWallTime.getUTCHours(),
+      sourceWallTime.getUTCMinutes(),
+      sourceWallTime.getUTCSeconds(),
+      0
+    )
+    return Math.floor(targetLatestTime.getTime() / 1000)
+  }
+
+  let formatter: Intl.DateTimeFormat
+  try {
+    formatter = new Intl.DateTimeFormat('en-US-u-ca-gregory-nu-latn', {
+      timeZone: targetTimeZone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hourCycle: 'h23',
+    })
+  } catch {
+    throw new Error('Demo timeline has an invalid target time zone')
+  }
+
+  const currentDate = getZonedDateTimeParts(now, formatter)
+  const yesterday = new Date(Date.UTC(currentDate.year, currentDate.month - 1, currentDate.day - 1))
+  const targetParts: ZonedDateTimeParts = {
+    year: yesterday.getUTCFullYear(),
+    month: yesterday.getUTCMonth() + 1,
+    day: yesterday.getUTCDate(),
+    hour: sourceWallTime.getUTCHours(),
+    minute: sourceWallTime.getUTCMinutes(),
+    second: sourceWallTime.getUTCSeconds(),
+  }
+
+  return Math.floor(zonedWallTimeToUnixMillis(targetParts, formatter) / 1000)
+}
+
+interface ZonedDateTimeParts {
+  year: number
+  month: number
+  day: number
+  hour: number
+  minute: number
+  second: number
+}
+
+function getZonedDateTimeParts(date: Date, formatter: Intl.DateTimeFormat): ZonedDateTimeParts {
+  const values = new Map(formatter.formatToParts(date).map((part) => [part.type, part.value]))
+  const read = (type: keyof ZonedDateTimeParts) => Number(values.get(type))
+  const parts: ZonedDateTimeParts = {
+    year: read('year'),
+    month: read('month'),
+    day: read('day'),
+    hour: read('hour'),
+    minute: read('minute'),
+    second: read('second'),
+  }
+  if (Object.values(parts).some((value) => !Number.isInteger(value))) {
+    throw new Error('Demo timeline could not resolve the target time zone')
+  }
+  return parts
+}
+
+function zonedWallTimeToUnixMillis(target: ZonedDateTimeParts, formatter: Intl.DateTimeFormat): number {
+  const targetAsUtc = dateTimePartsToUtcMillis(target)
+  let candidate = targetAsUtc
+
+  // Intl maps timestamps to zoned wall-clock time; iterative corrections resolve the inverse mapping.
+  for (let attempt = 0; attempt < 3; attempt++) {
+    const actual = getZonedDateTimeParts(new Date(candidate), formatter)
+    const correction = targetAsUtc - dateTimePartsToUtcMillis(actual)
+    candidate += correction
+    if (correction === 0) return candidate
+  }
+
+  const actual = getZonedDateTimeParts(new Date(candidate), formatter)
+  if (dateTimePartsToUtcMillis(actual) !== targetAsUtc) {
+    throw new Error('Demo timeline target wall time does not exist in the selected time zone')
+  }
+  return candidate
+}
+
+function dateTimePartsToUtcMillis(parts: ZonedDateTimeParts): number {
+  return Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second)
 }
 
 function parseDemoDocument(json: string, index: number): ChatLabDemoDocument {

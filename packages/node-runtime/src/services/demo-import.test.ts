@@ -52,6 +52,7 @@ describe('importDemoSessions', () => {
     const result = await importDemoSessions({
       locale: 'cn',
       tempPrefix: 'demo-service-test-',
+      targetTimeZone: 'America/Los_Angeles',
       fetchImpl: async function (this: unknown) {
         assert.equal(this, globalThis)
         return new Response(documents[downloadIndex++], { status: 200 })
@@ -63,12 +64,10 @@ describe('importDemoSessions', () => {
         imported.push({ name: filePath, document })
         return { success: true, sessionId: `session-${imported.length}` }
       },
+      deleteSession: async () => {},
     })
 
-    const expectedLatest = new Date(now)
-    expectedLatest.setDate(expectedLatest.getDate() - 1)
-    expectedLatest.setHours(22, 30, 0, 0)
-    const latestTimestamp = Math.floor(expectedLatest.getTime() / 1000)
+    const latestTimestamp = Math.floor(new Date('2026-07-24T05:30:00.000Z').getTime() / 1000)
     const offset = latestTimestamp - sourceLatest
 
     assert.deepEqual(result, {
@@ -117,11 +116,42 @@ describe('importDemoSessions', () => {
         importCount += 1
         return { success: true, sessionId: 'unexpected' }
       },
+      deleteSession: async () => {},
     })
 
     assert.equal(result.success, false)
     assert.match(result.error ?? '', /not valid JSON/)
     assert.equal(importCount, 0)
     assert.equal(progress.at(-1)?.stage, 'error')
+  })
+
+  it('rolls back sessions imported before a later session fails', async () => {
+    let downloadIndex = 0
+    let importCount = 0
+    const rolledBackSessionIds: string[] = []
+    const documents = [
+      createDemoDocument('group', [sourceTimestamp('2000-12-10', '22:30:00')]),
+      createDemoDocument('private-a', [sourceTimestamp('2000-12-09', '21:00:00')]),
+      createDemoDocument('private-b', [sourceTimestamp('2000-12-08', '21:00:00')]),
+      createDemoDocument('private-c', [sourceTimestamp('2000-12-07', '21:00:00')]),
+    ]
+
+    const result = await importDemoSessions({
+      locale: 'cn',
+      tempPrefix: 'demo-service-rollback-test-',
+      fetchImpl: async () => new Response(documents[downloadIndex++], { status: 200 }),
+      importFile: async () => {
+        importCount += 1
+        if (importCount === 3) return { success: false, error: 'third import failed' }
+        return { success: true, sessionId: `session-${importCount}` }
+      },
+      deleteSession: async (sessionId) => {
+        rolledBackSessionIds.push(sessionId)
+      },
+    })
+
+    assert.equal(result.success, false)
+    assert.match(result.error ?? '', /third import failed/)
+    assert.deepEqual(rolledBackSessionIds, ['session-2', 'session-1'])
   })
 })

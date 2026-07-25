@@ -225,6 +225,107 @@ describe('BrowserImportAdapter', () => {
     assert.equal(importRequests, 0)
   })
 
+  it('times out a stalled demo response body and releases the active import', async () => {
+    let importRequests = 0
+    const rpc = {
+      async request<T extends WebRuntimeTaskType>(): Promise<WebRuntimeTaskResult<T>> {
+        importRequests += 1
+        throw new Error('Import should not start')
+      },
+      dispose: () => undefined,
+    }
+    const fetchDemo: typeof fetch = async (_input, init) => {
+      const signal = init?.signal
+      return new Response(
+        new ReadableStream({
+          start(controller) {
+            signal?.addEventListener('abort', () => controller.error(signal.reason), { once: true })
+          },
+        })
+      )
+    }
+    const adapter = new BrowserImportAdapter(rpc, fetchDemo, () => new Date(), 10)
+    const pending = adapter.importDemo('en')
+    let watchdog: ReturnType<typeof setTimeout> | undefined
+
+    try {
+      const result = await Promise.race([
+        pending,
+        new Promise<'still-pending'>((resolve) => {
+          watchdog = setTimeout(() => resolve('still-pending'), 100)
+        }),
+      ])
+      if (result === 'still-pending') assert.fail('Demo download did not time out')
+
+      assert.equal(result.success, false)
+      assert.match(result.error ?? '', /timed out/i)
+      assert.equal(importRequests, 0)
+
+      const retry = await adapter.importDemo('en')
+      assert.match(retry.error ?? '', /timed out/i)
+    } finally {
+      if (watchdog) clearTimeout(watchdog)
+      adapter.cancelActiveImport()
+      await pending
+    }
+  })
+
+  it('deletes sessions created earlier in the batch when a later demo import fails', async () => {
+    const deletedSessionIds: string[] = []
+    const reportedErrors: unknown[] = []
+    const importError = new Error('third import failed')
+    let importCount = 0
+    const documents = [
+      createDemoDocument('group', [demoTimestamp('2000-12-10', '22:30:00')]),
+      createDemoDocument('private-a', [demoTimestamp('2000-12-09', '21:00:00')]),
+      createDemoDocument('private-b', [demoTimestamp('2000-12-08', '20:00:00')]),
+      createDemoDocument('private-c', [demoTimestamp('2000-12-07', '19:00:00')]),
+    ]
+    let downloadIndex = 0
+    const rpc = {
+      async request<T extends WebRuntimeTaskType>(
+        type: T,
+        payload: WebRuntimeTaskPayload<T>
+      ): Promise<WebRuntimeTaskResult<T>> {
+        if (type === 'import.start') {
+          importCount += 1
+          if (importCount === 3) throw importError
+          return {
+            sessionId: `session-${importCount}`,
+            formatId: 'chatlab',
+            messageCount: 1,
+            memberCount: 1,
+            skippedCount: 0,
+          } as WebRuntimeTaskResult<T>
+        }
+        if (type === 'session.delete') {
+          deletedSessionIds.push((payload as WebRuntimeTaskPayload<'session.delete'>).sessionId)
+          return { deleted: true } as WebRuntimeTaskResult<T>
+        }
+        throw new Error(`Unexpected task: ${type}`)
+      },
+      dispose: () => undefined,
+    }
+    const adapter = new BrowserImportAdapter(
+      rpc,
+      async () => new Response(documents[downloadIndex++], { status: 200 }),
+      () => new Date('2026-07-25T04:00:00.000Z'),
+      60_000,
+      (event) => {
+        if (event.level === 'error' && event.message === 'Demo import failed') {
+          reportedErrors.push(event.data?.error)
+        }
+      }
+    )
+
+    const result = await adapter.importDemo('en')
+
+    assert.equal(result.success, false)
+    assert.match(result.error ?? '', /third import failed/)
+    assert.deepEqual(deletedSessionIds, ['session-2', 'session-1'])
+    assert.deepEqual(reportedErrors, [importError])
+  })
+
   it('forwards browser-safe format identifiers to the worker runtime', async () => {
     const requestedFormats: string[] = []
     const rpc = {
