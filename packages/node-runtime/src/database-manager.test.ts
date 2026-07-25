@@ -290,6 +290,95 @@ test('open migrates v2 chat_session schema to current segment schema', () => {
   manager.closeAll()
 })
 
+test('open migrates a v4 database that already uses segment terminology', () => {
+  const root = makeTempDir()
+  const dbDir = path.join(root, 'data', 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+  const dbPath = path.join(dbDir, 'early-segment-schema.db')
+
+  const rawDb = new Database(dbPath, { nativeBinding })
+  rawDb.exec(`
+    CREATE TABLE meta (
+      name TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      type TEXT NOT NULL,
+      imported_at INTEGER NOT NULL,
+      schema_version INTEGER DEFAULT 4
+    );
+    INSERT INTO meta (name, platform, type, imported_at, schema_version)
+    VALUES ('Early Segment Schema', 'qq', 'group', 1000, 4);
+
+    CREATE TABLE member (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform_id TEXT NOT NULL UNIQUE,
+      account_name TEXT
+    );
+    INSERT INTO member (id, platform_id, account_name) VALUES (1, 'u1', 'Alice');
+
+    CREATE TABLE message (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER NOT NULL,
+      ts INTEGER NOT NULL,
+      type INTEGER NOT NULL,
+      content TEXT
+    );
+    INSERT INTO message (id, sender_id, ts, type, content) VALUES (1, 1, 1000, 0, 'hello segment');
+
+    CREATE TABLE segment (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      start_ts INTEGER NOT NULL,
+      end_ts INTEGER NOT NULL,
+      message_count INTEGER DEFAULT 0,
+      is_manual INTEGER DEFAULT 0,
+      summary TEXT
+    );
+    INSERT INTO segment (id, start_ts, end_ts, message_count, is_manual, summary)
+    VALUES (7, 1000, 1010, 1, 0, 'existing summary');
+
+    CREATE TABLE message_context (
+      message_id INTEGER PRIMARY KEY,
+      segment_id INTEGER NOT NULL,
+      topic_id INTEGER
+    );
+    INSERT INTO message_context (message_id, segment_id, topic_id) VALUES (1, 7, 3);
+  `)
+  rawDb.close()
+
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.34.0', kind: 'cli' },
+  })
+  const db = manager.open('early-segment-schema')
+  assert.ok(db)
+
+  const version = db.prepare('SELECT schema_version FROM meta LIMIT 1').get() as { schema_version: number }
+  assert.equal(version.schema_version, CURRENT_SCHEMA_VERSION)
+
+  const legacyTable = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'chat_session'").get()
+  assert.equal(legacyTable, undefined)
+
+  const segment = db.prepare('SELECT id, start_ts, end_ts, message_count, summary FROM segment').get() as
+    | { id: number; start_ts: number; end_ts: number; message_count: number; summary: string | null }
+    | undefined
+  assert.deepEqual(segment, {
+    id: 7,
+    start_ts: 1000,
+    end_ts: 1010,
+    message_count: 1,
+    summary: 'existing summary',
+  })
+
+  const context = db.prepare('SELECT message_id, segment_id, topic_id FROM message_context').get() as {
+    message_id: number
+    segment_id: number
+    topic_id: number
+  }
+  assert.deepEqual(context, { message_id: 1, segment_id: 7, topic_id: 3 })
+  assert.ok(db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'index' AND name = 'idx_context_segment'").get())
+
+  manager.closeAll()
+})
+
 test('open migrates legacy chat_session rows into segment after v5 creates segment table', () => {
   const root = makeTempDir()
   const dbDir = path.join(root, 'data', 'databases')

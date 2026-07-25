@@ -254,7 +254,10 @@ export function getChatDbMigrations(deps?: MigrationDeps): CoreMigration[] {
         db.exec('CREATE INDEX IF NOT EXISTS idx_message_platform_id ON message(platform_message_id)')
         db.exec('CREATE INDEX IF NOT EXISTS idx_member_name_history_member_id ON member_name_history(member_id)')
         db.exec('CREATE INDEX IF NOT EXISTS idx_session_time ON chat_session(start_ts, end_ts)')
-        db.exec('CREATE INDEX IF NOT EXISTS idx_context_session ON message_context(session_id)')
+        // Some released v4 databases already used segment_id before v5 restored the legacy migration schema.
+        if (hasColumn(db, 'message_context', 'session_id')) {
+          db.exec('CREATE INDEX IF NOT EXISTS idx_context_session ON message_context(session_id)')
+        }
       },
     },
     {
