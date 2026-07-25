@@ -32,8 +32,7 @@ export class BrowserImportAdapter implements ImportAdapter {
     private readonly rpc: BrowserRuntimeRpcPort,
     private readonly fetchDemo: typeof fetch = fetch,
     private readonly now: () => Date = () => new Date(),
-    private readonly demoDownloadTimeoutMs = DEMO_DOWNLOAD_TIMEOUT_MS,
-    private readonly reportLog: typeof reportRuntimeLog = reportRuntimeLog
+    private readonly demoDownloadTimeoutMs = DEMO_DOWNLOAD_TIMEOUT_MS
   ) {}
 
   async importFile(
@@ -101,27 +100,20 @@ export class BrowserImportAdapter implements ImportAdapter {
 
     const controller = new AbortController()
     this.activeImport = controller
-    this.reportLog({ level: 'info', scope: 'web-wasm-demo', message: 'Demo import started' })
+    reportRuntimeLog({ level: 'info', scope: 'web-wasm-demo', message: 'Demo import started' })
     const sessionIds: string[] = []
 
     try {
-      const downloaded: Array<{ filename: string; contentType: string; json: string }> = []
+      const downloaded: string[] = []
       for (const filename of DEMO_FILES) {
         onProgress?.({ stage: 'downloading' })
-        const { content, contentType } = await this.downloadDemoFile(locale, filename, controller)
-        downloaded.push({
-          filename,
-          contentType,
-          json: new TextDecoder().decode(content),
-        })
+        const content = await this.downloadDemoFile(locale, filename, controller)
+        downloaded.push(new TextDecoder().decode(content))
       }
 
-      const rebased = rebaseChatLabDemoDocuments(
-        downloaded.map(({ json }) => json),
-        this.now()
-      )
+      const rebased = rebaseChatLabDemoDocuments(downloaded, this.now())
       const files = rebased.documents.map(
-        (json, index) => new File([json], downloaded[index].filename, { type: downloaded[index].contentType })
+        (json, index) => new File([json], DEMO_FILES[index], { type: 'application/json' })
       )
 
       for (const file of files) {
@@ -134,7 +126,7 @@ export class BrowserImportAdapter implements ImportAdapter {
       }
 
       const [groupSessionId, ...privateSessionIds] = sessionIds
-      this.reportLog({
+      reportRuntimeLog({
         level: 'info',
         scope: 'web-wasm-demo',
         message: 'Demo import completed',
@@ -148,7 +140,7 @@ export class BrowserImportAdapter implements ImportAdapter {
     } catch (error) {
       const message = error instanceof Error ? error.message : String(error)
       const rollbackFailureCount = await this.rollbackDemoSessions(sessionIds)
-      this.reportLog({
+      reportRuntimeLog({
         level: 'error',
         scope: 'web-wasm-demo',
         message: 'Demo import failed',
@@ -170,7 +162,7 @@ export class BrowserImportAdapter implements ImportAdapter {
     locale: string,
     filename: (typeof DEMO_FILES)[number],
     controller: AbortController
-  ): Promise<{ content: ArrayBuffer; contentType: string }> {
+  ): Promise<ArrayBuffer> {
     // Use one controller for user cancellation and per-file timeout so response-body reads are also abortable.
     const timeout = setTimeout(() => {
       controller.abort(new Error(`Download demo timed out (${filename})`))
@@ -184,10 +176,7 @@ export class BrowserImportAdapter implements ImportAdapter {
 
       const content = await response.arrayBuffer()
       if (content.byteLength < 100) throw new Error(`Downloaded demo file is too small (${filename})`)
-      return {
-        content,
-        contentType: response.headers.get('content-type') || 'application/json',
-      }
+      return content
     } finally {
       clearTimeout(timeout)
     }
@@ -250,7 +239,7 @@ export class BrowserImportAdapter implements ImportAdapter {
     }
 
     if (sessionIds.length > 0) {
-      this.reportLog({
+      reportRuntimeLog({
         level: failureCount > 0 ? 'error' : 'info',
         scope: 'web-wasm-demo',
         message: failureCount > 0 ? 'Demo import rollback incomplete' : 'Demo import rolled back',

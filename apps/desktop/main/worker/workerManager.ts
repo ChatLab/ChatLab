@@ -6,21 +6,17 @@
 import { Worker } from 'worker_threads'
 import { app } from 'electron'
 import * as path from 'path'
-import * as fs from 'fs'
 import type { ParseProgress } from '@openchatlab/parser'
 import type { AutoImportResult, StreamImportResult } from './import'
 
 import { getDatabaseDir, getCacheDir, getTempDir, getLogsDir, ensureDir } from '../paths/locations'
 import { resolveDesktopNativeBinding } from '../runtime/native-sqlite'
-import { assertDesktopDataDirCompatible, getDesktopAppVersion } from '../runtime/compat'
+import { assertDesktopDataDirCompatible, createDesktopRuntimeIdentity, getDesktopAppVersion } from '../runtime/compat'
 import { getPathProvider } from '../paths/provider'
 import {
+  DatabaseManager,
   IMPORT_IN_PROGRESS_ERROR_KEY,
   ImportInProgressError,
-  contactsService,
-  deleteSessionCache,
-  globalInsightService,
-  peopleRelationshipsService,
   raiseChatDbCompatibilityGate,
   withDataDirImportLock,
 } from '@openchatlab/node-runtime'
@@ -666,24 +662,8 @@ export async function analyzePushImport(
 }
 
 export function deleteImportedSession(sessionId: string): void {
-  const dbPath = path.join(getDbDir(), `${sessionId}.db`)
-  for (const suffix of ['', '-wal', '-shm']) {
-    try {
-      const p = dbPath + suffix
-      if (fs.existsSync(p)) fs.unlinkSync(p)
-    } catch {
-      /* ignore */
-    }
-  }
-
-  const cacheDir = getCacheDir()
-  const userDataDir = getPathProvider().getUserDataDir()
-  deleteSessionCache(sessionId, cacheDir)
-  deleteSessionCache(sessionId, path.join(cacheDir, 'query'))
-  deleteSessionCache(sessionId, contactsService.getContactsFactsCacheDir(userDataDir))
-  deleteSessionCache(sessionId, globalInsightService.getGlobalInsightFactsCacheDir(userDataDir))
-  globalInsightService.deleteAnnualSummarySnapshots(globalInsightService.getGlobalInsightDir(userDataDir))
-  deleteSessionCache(sessionId, peopleRelationshipsService.getPeopleRelationshipsFactsCacheDir(userDataDir))
+  const runtime = createDesktopRuntimeIdentity(getDesktopAppVersion(app.getVersion()))
+  new DatabaseManager(getPathProvider(), { runtime }).deleteSessionDatabaseFiles(sessionId)
 }
 
 /**

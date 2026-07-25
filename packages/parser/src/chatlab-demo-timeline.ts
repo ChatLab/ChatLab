@@ -23,7 +23,6 @@ interface ChatLabDemoDocument extends Record<string, unknown> {
 export interface RebasedChatLabDemoDocuments {
   documents: string[]
   offsetSeconds: number
-  sourceLatestTimestamp: number
   latestTimestamp: number
 }
 
@@ -64,7 +63,6 @@ export function rebaseChatLabDemoDocuments(
   return {
     documents: documents.map((document) => JSON.stringify(document)),
     offsetSeconds,
-    sourceLatestTimestamp,
     latestTimestamp,
   }
 }

@@ -272,7 +272,6 @@ describe('BrowserImportAdapter', () => {
 
   it('deletes sessions created earlier in the batch when a later demo import fails', async () => {
     const deletedSessionIds: string[] = []
-    const reportedErrors: unknown[] = []
     const importError = new Error('third import failed')
     let importCount = 0
     const documents = [
@@ -309,13 +308,7 @@ describe('BrowserImportAdapter', () => {
     const adapter = new BrowserImportAdapter(
       rpc,
       async () => new Response(documents[downloadIndex++], { status: 200 }),
-      () => new Date('2026-07-25T04:00:00.000Z'),
-      60_000,
-      (event) => {
-        if (event.level === 'error' && event.message === 'Demo import failed') {
-          reportedErrors.push(event.data?.error)
-        }
-      }
+      () => new Date('2026-07-25T04:00:00.000Z')
     )
 
     const result = await adapter.importDemo('en')
@@ -323,7 +316,6 @@ describe('BrowserImportAdapter', () => {
     assert.equal(result.success, false)
     assert.match(result.error ?? '', /third import failed/)
     assert.deepEqual(deletedSessionIds, ['session-2', 'session-1'])
-    assert.deepEqual(reportedErrors, [importError])
   })
 
   it('forwards browser-safe format identifiers to the worker runtime', async () => {

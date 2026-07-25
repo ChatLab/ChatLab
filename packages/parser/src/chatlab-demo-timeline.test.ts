@@ -51,9 +51,8 @@ describe('rebaseChatLabDemoDocuments', () => {
     expectedLatest.setDate(expectedLatest.getDate() - 1)
     expectedLatest.setHours(22, 30, 0, 0)
 
-    assert.equal(result.sourceLatestTimestamp, groupTimestamps[1])
     assert.equal(result.latestTimestamp, Math.floor(expectedLatest.getTime() / 1000))
-    assert.equal(result.offsetSeconds, result.latestTimestamp - result.sourceLatestTimestamp)
+    assert.equal(result.offsetSeconds, result.latestTimestamp - groupTimestamps[1])
     assert.deepEqual(
       rebased[0].messages.map((message: { timestamp: number }) => message.timestamp),
       groupTimestamps.map((timestamp) => timestamp + result.offsetSeconds)

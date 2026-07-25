@@ -8,13 +8,35 @@ import { CHAT_DB_TABLES } from '@openchatlab/core'
 import { BetterSqliteAdapter } from '../better-sqlite3-adapter'
 import { computeAndSetOverviewCache } from '../cache/session-cache'
 import { TEMP_DB_SCHEMA } from '../merger/temp-db'
-import { analyzeNewImport, streamingImport, streamParseFileInfo } from './streaming-importer'
+import { analyzeNewImport, streamingImport, streamParseFileInfo, type StreamImportDeps } from './streaming-importer'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
 function makeTempDir(): string {
   const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
   return fs.mkdtempSync(path.join(baseDir, 'chatlab-streaming-import-'))
+}
+
+function createImportDeps(dbPath: string): StreamImportDeps {
+  return {
+    openDatabase() {
+      const db = new Database(dbPath, { nativeBinding })
+      db.exec(CHAT_DB_TABLES)
+      return new BetterSqliteAdapter(db)
+    },
+    deleteDatabase() {
+      for (const suffix of ['', '-wal', '-shm']) {
+        try {
+          fs.unlinkSync(dbPath + suffix)
+        } catch {
+          /* ignore */
+        }
+      }
+    },
+    onProgress() {
+      /* noop for focused importer tests */
+    },
+  }
 }
 
 function writeChunkedQqExport(root: string): string {
@@ -223,30 +245,7 @@ test('streamingImport updates avatars for members first created from message bat
   const manifestPath = writeChunkedQqExport(root)
   const dbPath = path.join(root, 'avatar-test.db')
 
-  const result = await streamingImport(
-    manifestPath,
-    {
-      openDatabase() {
-        const db = new Database(dbPath, { nativeBinding })
-        db.exec(CHAT_DB_TABLES)
-        return new BetterSqliteAdapter(db)
-      },
-      deleteDatabase() {
-        for (const suffix of ['', '-wal', '-shm']) {
-          try {
-            fs.unlinkSync(dbPath + suffix)
-          } catch {
-            /* ignore */
-          }
-        }
-      },
-      onProgress() {
-        /* noop for this focused importer test */
-      },
-    },
-    undefined,
-    'avatar-test'
-  )
+  const result = await streamingImport(manifestPath, createImportDeps(dbPath), undefined, 'avatar-test')
 
   assert.equal(result.success, true)
 
@@ -271,30 +270,7 @@ test('streamingImport applies incremental-equivalent deduplication on first impo
   assert.equal(analysis.newMessageCount, 3)
   assert.equal(analysis.duplicateCount, 2)
 
-  const result = await streamingImport(
-    filePath,
-    {
-      openDatabase() {
-        const db = new Database(dbPath, { nativeBinding })
-        db.exec(CHAT_DB_TABLES)
-        return new BetterSqliteAdapter(db)
-      },
-      deleteDatabase() {
-        for (const suffix of ['', '-wal', '-shm']) {
-          try {
-            fs.unlinkSync(dbPath + suffix)
-          } catch {
-            /* ignore */
-          }
-        }
-      },
-      onProgress() {
-        /* noop for this focused importer test */
-      },
-    },
-    undefined,
-    'duplicate-test'
-  )
+  const result = await streamingImport(filePath, createImportDeps(dbPath), undefined, 'duplicate-test')
 
   assert.equal(result.success, true)
   assert.equal(result.diagnostics?.messagesReceived, 5)
@@ -313,30 +289,7 @@ test('streamingImport canonicalizes reserved SYSTEM senders and excludes them fr
   const filePath = writeSystemChatLabExport(root)
   const dbPath = path.join(root, 'system-test.db')
 
-  const result = await streamingImport(
-    filePath,
-    {
-      openDatabase() {
-        const db = new Database(dbPath, { nativeBinding })
-        db.exec(CHAT_DB_TABLES)
-        return new BetterSqliteAdapter(db)
-      },
-      deleteDatabase() {
-        for (const suffix of ['', '-wal', '-shm']) {
-          try {
-            fs.unlinkSync(dbPath + suffix)
-          } catch {
-            /* ignore */
-          }
-        }
-      },
-      onProgress() {
-        /* noop for this focused importer test */
-      },
-    },
-    undefined,
-    'system-test'
-  )
+  const result = await streamingImport(filePath, createImportDeps(dbPath), undefined, 'system-test')
 
   assert.equal(result.success, true)
 
@@ -368,30 +321,7 @@ test('streamingImport preserves an ordinary WhatsApp participant named SYSTEM', 
   const filePath = writeWhatsAppSystemParticipantExport(root)
   const dbPath = path.join(root, 'whatsapp-system-participant.db')
 
-  const result = await streamingImport(
-    filePath,
-    {
-      openDatabase() {
-        const db = new Database(dbPath, { nativeBinding })
-        db.exec(CHAT_DB_TABLES)
-        return new BetterSqliteAdapter(db)
-      },
-      deleteDatabase() {
-        for (const suffix of ['', '-wal', '-shm']) {
-          try {
-            fs.unlinkSync(dbPath + suffix)
-          } catch {
-            /* ignore */
-          }
-        }
-      },
-      onProgress() {
-        /* noop for this focused importer test */
-      },
-    },
-    undefined,
-    'whatsapp-system-participant'
-  )
+  const result = await streamingImport(filePath, createImportDeps(dbPath), undefined, 'whatsapp-system-participant')
 
   assert.equal(result.success, true)
 
