@@ -224,6 +224,37 @@ test('validates ChatLab JSON members and messages', async () => {
   }
 })
 
+test('accepts the reserved SYSTEM sender without a member entry', async () => {
+  const root = makeTempDir()
+  const filePath = path.join(root, 'system-message.json')
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify({
+      chatlab: { version: CHATLAB_FORMAT_VERSION, exportedAt: 1_711_468_800 },
+      meta: { name: 'Group chat', platform: 'custom', type: 'group' },
+      members: [{ platformId: 'alice', accountName: 'Alice' }],
+      messages: [
+        {
+          sender: 'SYSTEM',
+          accountName: 'System',
+          timestamp: 1_711_468_800,
+          type: 80,
+          content: 'Alice joined the group',
+        },
+      ],
+    }),
+    'utf8'
+  )
+
+  try {
+    const report = await validateChatLabFile(filePath)
+    assert.equal(report.valid, true)
+    assert.equal(report.errorCount, 0)
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
 test('requires explicit members in ChatLab JSON', async () => {
   const root = makeTempDir()
   const filePath = path.join(root, 'missing-members.json')

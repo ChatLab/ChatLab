@@ -13,7 +13,7 @@ import ApiImportCard from './components/import/ApiImportCard.vue'
 import CliImportCard from './components/import/CliImportCard.vue'
 import ChangelogModal from '@/components/home/ChangelogModal.vue'
 import HomeFooter from '@/components/home/HomeFooter.vue'
-import DemoImportButton from './components/DemoImportButton.vue'
+import DemoImportButton from '@/components/home/DemoImportButton.vue'
 
 const { t, locale } = useI18n()
 const sessionStore = useSessionStore()

@@ -1,0 +1,133 @@
+const SECONDS_PER_MINUTE = 60
+const DEFAULT_DEMO_TIME_ZONE_OFFSET_MINUTES = 8 * 60
+const MAX_TIME_ZONE_OFFSET_MINUTES = 14 * 60
+
+interface ChatLabDemoTimeline {
+  timeZoneOffsetMinutes?: unknown
+}
+
+interface ChatLabDemoHeader extends Record<string, unknown> {
+  exportedAt: number
+  demoTimeline?: ChatLabDemoTimeline
+}
+
+interface ChatLabDemoMessage extends Record<string, unknown> {
+  timestamp: number
+}
+
+interface ChatLabDemoDocument extends Record<string, unknown> {
+  chatlab: ChatLabDemoHeader
+  messages: ChatLabDemoMessage[]
+}
+
+export interface RebasedChatLabDemoDocuments {
+  documents: string[]
+  offsetSeconds: number
+  sourceLatestTimestamp: number
+  latestTimestamp: number
+}
+
+/**
+ * Rebase official Demo documents as one timeline so their latest message falls
+ * on yesterday in the importing user's local calendar.
+ *
+ * The same offset is applied to every document. This preserves message
+ * intervals and keeps the group/private story lines aligned.
+ */
+export function rebaseChatLabDemoDocuments(
+  jsonDocuments: readonly string[],
+  now: Date = new Date()
+): RebasedChatLabDemoDocuments {
+  if (jsonDocuments.length === 0) throw new Error('Demo timeline requires at least one document')
+  if (!Number.isFinite(now.getTime())) throw new Error('Demo timeline requires a valid import time')
+
+  const documents = jsonDocuments.map((json, index) => parseDemoDocument(json, index))
+  const timeZoneOffsetMinutes = resolveTimeZoneOffsetMinutes(documents)
+  const sourceLatestTimestamp = Math.max(
+    ...documents.flatMap((document) => document.messages.map((message) => message.timestamp))
+  )
+
+  // 源时间戳使用固定时区生成；先还原其中的墙上时间，再映射到用户本地的昨天。
+  const sourceLatestWallTime = new Date((sourceLatestTimestamp + timeZoneOffsetMinutes * SECONDS_PER_MINUTE) * 1000)
+  const targetLatestTime = new Date(now)
+  targetLatestTime.setDate(targetLatestTime.getDate() - 1)
+  targetLatestTime.setHours(
+    sourceLatestWallTime.getUTCHours(),
+    sourceLatestWallTime.getUTCMinutes(),
+    sourceLatestWallTime.getUTCSeconds(),
+    0
+  )
+
+  const latestTimestamp = Math.floor(targetLatestTime.getTime() / 1000)
+  const offsetSeconds = latestTimestamp - sourceLatestTimestamp
+  const exportedAt = Math.floor(now.getTime() / 1000)
+
+  for (const document of documents) {
+    document.chatlab.exportedAt = exportedAt
+    for (const message of document.messages) {
+      message.timestamp += offsetSeconds
+    }
+  }
+
+  return {
+    documents: documents.map((document) => JSON.stringify(document)),
+    offsetSeconds,
+    sourceLatestTimestamp,
+    latestTimestamp,
+  }
+}
+
+function parseDemoDocument(json: string, index: number): ChatLabDemoDocument {
+  let value: unknown
+  try {
+    value = JSON.parse(json)
+  } catch {
+    throw new Error(`Demo document ${index + 1} is not valid JSON`)
+  }
+
+  if (!isRecord(value) || !isRecord(value.chatlab) || !Array.isArray(value.messages)) {
+    throw new Error(`Demo document ${index + 1} is not a ChatLab JSON document`)
+  }
+  if (value.messages.length === 0) {
+    throw new Error(`Demo document ${index + 1} has no messages`)
+  }
+
+  const messages = value.messages.map((message, messageIndex) => {
+    if (!isRecord(message) || !isUnixSeconds(message.timestamp)) {
+      throw new Error(`Demo document ${index + 1} has an invalid timestamp at message ${messageIndex + 1}`)
+    }
+    return message as ChatLabDemoMessage
+  })
+
+  return {
+    ...value,
+    chatlab: value.chatlab as ChatLabDemoHeader,
+    messages,
+  }
+}
+
+function resolveTimeZoneOffsetMinutes(documents: readonly ChatLabDemoDocument[]): number {
+  const offsets = new Set<number>()
+
+  for (const document of documents) {
+    const configured = document.chatlab.demoTimeline?.timeZoneOffsetMinutes
+    const offset = configured ?? DEFAULT_DEMO_TIME_ZONE_OFFSET_MINUTES
+    if (typeof offset !== 'number' || !Number.isInteger(offset) || Math.abs(offset) > MAX_TIME_ZONE_OFFSET_MINUTES) {
+      throw new Error('Demo timeline has an invalid time zone offset')
+    }
+    offsets.add(offset)
+  }
+
+  if (offsets.size !== 1) {
+    throw new Error('Demo documents must use the same time zone offset')
+  }
+  return offsets.values().next().value as number
+}
+
+function isUnixSeconds(value: unknown): value is number {
+  return typeof value === 'number' && Number.isInteger(value) && value >= 0
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value)
+}

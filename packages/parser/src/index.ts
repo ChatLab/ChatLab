@@ -30,6 +30,7 @@ export {
   type ChatLabValidationSeverity,
   type ChatLabValidationStats,
 } from './chatlab-validator'
+export { rebaseChatLabDemoDocuments, type RebasedChatLabDemoDocuments } from './chatlab-demo-timeline'
 
 // ==================== 全局嗅探器实例 ====================
 

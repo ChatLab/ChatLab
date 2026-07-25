@@ -24,3 +24,4 @@ export {
   type WeFlowJsonParseOptions,
   type WeFlowJsonParseResult,
 } from './src/browser/weflow'
+export { rebaseChatLabDemoDocuments, type RebasedChatLabDemoDocuments } from './src/chatlab-demo-timeline'

@@ -20,6 +20,37 @@ function createFile(name = 'fixture.json', content = '{}', type = 'application/j
   } as File
 }
 
+function demoTimestamp(date: string, time: string): number {
+  return Math.floor(new Date(`${date}T${time}+08:00`).getTime() / 1000)
+}
+
+function createDemoDocument(name: string, timestamps: number[]): string {
+  return JSON.stringify({
+    chatlab: {
+      version: '0.0.2',
+      exportedAt: demoTimestamp('2000-01-01', '00:00:00'),
+      generator: 'ChatLab Demo',
+      description: 'x'.repeat(128),
+      demoTimeline: {
+        version: 1,
+        mode: 'relative',
+        referenceYear: 2000,
+        timeZoneOffsetMinutes: 480,
+      },
+    },
+    meta: { name, platform: 'qq', type: 'private' },
+    members: [],
+    messages: timestamps.map((timestamp, index) => ({
+      sender: '1',
+      accountName: 'Demo',
+      timestamp,
+      type: 0,
+      platformMessageId: `${name}-${index}`,
+      content: 'demo',
+    })),
+  })
+}
+
 describe('BrowserImportAdapter', () => {
   it('forwards detection, supported formats, import progress, and the result through RPC', async () => {
     const requests: WebRuntimeTaskType[] = []
@@ -92,6 +123,106 @@ describe('BrowserImportAdapter', () => {
     assert.deepEqual(await pending, { success: false, error: 'cancelled' })
     await assert.rejects(adapter.scanMultiChatFile('fixture.json'), /File path import is not available/i)
     await assert.rejects(adapter.incrementalImport('session-one', createFile()), /not available in Web WASM/i)
+  })
+
+  it('downloads and imports the four localized demo files through the browser runtime', async () => {
+    const requestedUrls: string[] = []
+    const importedFiles: string[] = []
+    const importedDocuments: any[] = []
+    const sourceLatest = demoTimestamp('2000-12-10', '22:30:00')
+    const documents = [
+      createDemoDocument('group', [demoTimestamp('2000-02-01', '09:00:00'), sourceLatest]),
+      createDemoDocument('private-a', [demoTimestamp('2000-02-01', '08:30:00')]),
+      createDemoDocument('private-b', [demoTimestamp('2000-06-01', '10:00:00')]),
+      createDemoDocument('private-c', [demoTimestamp('2000-12-09', '21:00:00')]),
+    ]
+    const now = new Date('2026-07-25T04:00:00.000Z')
+    let downloadIndex = 0
+    const fetchDemo: typeof fetch = async function (this: unknown, input) {
+      assert.equal(this, globalThis)
+      requestedUrls.push(String(input))
+      return new Response(documents[downloadIndex++], {
+        status: 200,
+        headers: { 'content-type': 'application/json' },
+      })
+    }
+    const rpc = {
+      async request<T extends WebRuntimeTaskType>(
+        type: T,
+        payload: WebRuntimeTaskPayload<T>
+      ): Promise<WebRuntimeTaskResult<T>> {
+        if (type !== 'import.start') throw new Error(`Unexpected task: ${type}`)
+        const source = (payload as WebRuntimeTaskPayload<'import.start'>).source as File
+        importedFiles.push(source.name)
+        importedDocuments.push(JSON.parse(await source.text()))
+        return {
+          sessionId: `session-${importedFiles.length}`,
+          formatId: 'chatlab',
+          messageCount: 10,
+          memberCount: 2,
+          skippedCount: 0,
+        } as WebRuntimeTaskResult<T>
+      },
+      dispose: () => undefined,
+    }
+    const adapter = new BrowserImportAdapter(rpc, fetchDemo, () => now)
+    const progress: string[] = []
+
+    const result = await adapter.importDemo('cn', (event) => progress.push(event.stage))
+
+    assert.deepEqual(requestedUrls, [
+      '/api/demo/cn/demo-group.json',
+      '/api/demo/cn/demo-private-A-cuilan.json',
+      '/api/demo/cn/demo-private-B-wukong.json',
+      '/api/demo/cn/demo-private-C-spider.json',
+    ])
+    assert.deepEqual(importedFiles, [
+      'demo-group.json',
+      'demo-private-A-cuilan.json',
+      'demo-private-B-wukong.json',
+      'demo-private-C-spider.json',
+    ])
+    const expectedLatest = new Date(now)
+    expectedLatest.setDate(expectedLatest.getDate() - 1)
+    expectedLatest.setHours(22, 30, 0, 0)
+    const latestTimestamp = Math.floor(expectedLatest.getTime() / 1000)
+    const offset = latestTimestamp - sourceLatest
+    assert.equal(importedDocuments[0].messages[1].timestamp, latestTimestamp)
+    assert.equal(importedDocuments[1].messages[0].timestamp, demoTimestamp('2000-02-01', '08:30:00') + offset)
+    assert.ok(importedDocuments.every((document) => document.chatlab.exportedAt === Math.floor(now.getTime() / 1000)))
+    assert.deepEqual(progress, [
+      'downloading',
+      'downloading',
+      'downloading',
+      'downloading',
+      'importing',
+      'importing',
+      'importing',
+      'importing',
+    ])
+    assert.deepEqual(result, {
+      success: true,
+      groupSessionId: 'session-1',
+      privateSessionIds: ['session-2', 'session-3', 'session-4'],
+    })
+  })
+
+  it('returns a failed demo result without importing when a download fails', async () => {
+    let importRequests = 0
+    const rpc = {
+      async request<T extends WebRuntimeTaskType>(): Promise<WebRuntimeTaskResult<T>> {
+        importRequests += 1
+        throw new Error('Import should not start')
+      },
+      dispose: () => undefined,
+    }
+    const adapter = new BrowserImportAdapter(rpc, async () => new Response(null, { status: 503 }))
+
+    const result = await adapter.importDemo('en')
+
+    assert.equal(result.success, false)
+    assert.match(result.error ?? '', /HTTP 503/)
+    assert.equal(importRequests, 0)
   })
 
   it('forwards browser-safe format identifiers to the worker runtime', async () => {

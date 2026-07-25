@@ -13,6 +13,7 @@ const MAX_UNIX_SECONDS = 100_000_000_000
 const KNOWN_MESSAGE_TYPES = new Set<number>(
   Object.values(MessageType).filter((value): value is number => typeof value === 'number')
 )
+const SYSTEM_SENDER_ID = 'SYSTEM'
 
 export type ChatLabValidationFormat = 'json' | 'jsonl' | 'unknown'
 export type ChatLabValidationSeverity = 'error' | 'warning'
@@ -369,7 +370,7 @@ function finalizeState(
 
   if (state.memberIds.size > 0) {
     for (const senderId of state.senderIds) {
-      if (!state.memberIds.has(senderId)) {
+      if (senderId !== SYSTEM_SENDER_ID && !state.memberIds.has(senderId)) {
         addIssue(
           state,
           'error',

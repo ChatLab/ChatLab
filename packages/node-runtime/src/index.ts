@@ -423,6 +423,13 @@ export * as sessionIndexService from './services/session-index-service'
 export * as summaryService from './services/summary-service'
 export * as exportService from './services/export-service'
 export * as ownerProfileService from './services/owner-profile-service'
+export {
+  importDemoSessions,
+  type DemoImportFileResult,
+  type DemoImportProgress,
+  type DemoImportResult,
+  type ImportDemoSessionsOptions,
+} from './services/demo-import'
 export * as contactsService from './services/contacts'
 export * as peopleRelationshipsService from './services/people/relationships'
 export * as globalInsightService from './services/global-insight'

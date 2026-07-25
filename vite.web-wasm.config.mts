@@ -53,5 +53,12 @@ export default defineConfig({
     host: '127.0.0.1',
     port: 3130,
     open: true,
+    proxy: {
+      '/api/demo': {
+        target: 'https://chatlab.fun',
+        changeOrigin: true,
+        rewrite: (path) => path.replace(/^\/api\/demo/, '/assets/demo'),
+      },
+    },
   },
 })

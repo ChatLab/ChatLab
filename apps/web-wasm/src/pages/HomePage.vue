@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import logoSvg from '@/assets/images/logo.svg'
 import AgreementModal from '@/components/home/AgreementModal.vue'
+import DemoImportButton from '@/components/home/DemoImportButton.vue'
 import HomeFooter from '@/components/home/HomeFooter.vue'
 import ImportArea from '@/components/import/ImportArea.vue'
 import { availableLocales, type LocaleType } from '@/i18n'
@@ -150,9 +151,10 @@ onMounted(() => {
           </div>
 
           <div
-            class="landing-reveal mt-4 flex justify-center transition-all delay-200 duration-500 ease-out"
+            class="landing-reveal mt-4 flex flex-wrap items-center justify-center gap-2 transition-all delay-200 duration-500 ease-out"
             :class="isMounted ? 'translate-y-0 opacity-100' : 'translate-y-3 opacity-0'"
           >
+            <DemoImportButton v-if="sessions.length === 0" :generate-session-indexes="false" />
             <UButton
               :href="tutorialExportUrl"
               target="_blank"

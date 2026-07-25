@@ -8,6 +8,7 @@ import {
   ArchiveImportSourceManager,
   createChatLabTempDir,
   getChatLabTempScopeDir,
+  importDemoSessions,
   type DatabaseManager,
 } from '@openchatlab/node-runtime'
 import {
@@ -25,7 +26,6 @@ import {
 import type { AutoImportResult, StreamImportOptions } from '../../../import'
 import { resolveNativeBinding } from './helpers'
 
-const DEMO_BASE_URL = 'https://chatlab.fun/assets/demo'
 const ARCHIVE_UPLOAD_LIMIT = 50 * 1024 * 1024 * 1024
 
 interface ImportRouteOptions {
@@ -407,17 +407,9 @@ export function registerImportRoutes(
 
   // ==================== Demo Import ====================
 
-  const DEMO_FILES = [
-    'demo-group.json',
-    'demo-private-A-cuilan.json',
-    'demo-private-B-wukong.json',
-    'demo-private-C-spider.json',
-  ]
-
   server.post<{ Body: { locale?: string } }>('/_web/demo/import', async (request, reply) => {
-    const locale = (request.body as any)?.locale || 'en'
+    const locale = (request.body as any)?.locale === 'cn' ? 'cn' : 'en'
     const nativeBinding = resolveNativeBinding()
-    const total = DEMO_FILES.length
 
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -429,46 +421,13 @@ export function registerImportRoutes(
       reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(eventData)}\n\n`)
     }
 
-    const tmpDir = createChatLabTempDir('imports', 'cli-demo-')
-
-    try {
-      const localPaths: string[] = []
-      for (let i = 0; i < total; i++) {
-        sendEvent('progress', { stage: 'downloading', current: i + 1, total })
-        const localPath = path.join(tmpDir, DEMO_FILES[i])
-        const resp = await fetch(`${DEMO_BASE_URL}/${locale}/${DEMO_FILES[i]}`, {
-          signal: AbortSignal.timeout(60_000),
-        })
-        if (!resp.ok) throw new Error(`Download demo failed (${DEMO_FILES[i]}): ${resp.status}`)
-        fs.writeFileSync(localPath, Buffer.from(await resp.arrayBuffer()))
-        localPaths.push(localPath)
-      }
-
-      sendEvent('progress', { stage: 'importing', current: 1, total })
-      const groupResult = await streamImport(dbManager, localPaths[0], { nativeBinding })
-      if (!groupResult.success) throw new Error(groupResult.error || 'Failed to import group demo')
-
-      const privateSessionIds: string[] = []
-      for (let i = 1; i < localPaths.length; i++) {
-        sendEvent('progress', { stage: 'importing', current: i + 1, total })
-        const result = await streamImport(dbManager, localPaths[i], { nativeBinding })
-        if (!result.success) throw new Error(result.error || `Failed to import private demo: ${DEMO_FILES[i]}`)
-        if (result.sessionId) privateSessionIds.push(result.sessionId)
-      }
-
-      sendEvent('progress', { stage: 'done', current: total, total })
-      sendEvent('result', {
-        success: true,
-        groupSessionId: groupResult.sessionId,
-        privateSessionIds,
-      })
-    } catch (err) {
-      const message = err instanceof Error ? err.message : String(err)
-      sendEvent('progress', { stage: 'error', current: 0, total, message })
-      sendEvent('result', { success: false, error: message })
-    } finally {
-      reply.raw.end()
-      cleanupTemp(tmpDir)
-    }
+    const result = await importDemoSessions({
+      locale,
+      tempPrefix: 'cli-demo-',
+      importFile: (filePath) => streamImport(dbManager, filePath, { nativeBinding }),
+      onProgress: (progress) => sendEvent('progress', progress),
+    })
+    sendEvent('result', result)
+    reply.raw.end()
   })
 }

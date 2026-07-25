@@ -12,6 +12,9 @@ const { t } = useI18n()
 const router = useRouter()
 const sessionStore = useSessionStore()
 const settingsStore = useSettingsStore()
+const props = withDefaults(defineProps<{ generateSessionIndexes?: boolean }>(), {
+  generateSessionIndexes: true,
+})
 
 const isImporting = ref(false)
 const stage = ref<'downloading' | 'importing'>('downloading')
@@ -26,7 +29,8 @@ async function navigateToSession(sessionId: string) {
 }
 
 async function handleImportViaService() {
-  const demoLocale = getChatlabSiteLocalePath(settingsStore.locale) || 'en'
+  // 当前示例数据只提供中、英文；其他界面语言使用英文示例。
+  const demoLocale = getChatlabSiteLocalePath(settingsStore.locale) === 'cn' ? 'cn' : 'en'
   return useImportService().importDemo(demoLocale, (progress) => {
     stage.value = progress.stage
   })
@@ -44,15 +48,17 @@ async function handleImport() {
       await sessionStore.loadSessions()
       sessionStore.selectSession(result.groupSessionId)
 
-      try {
-        const gapThreshold = getSessionGapThreshold()
-        const sessionIndexService = useSessionIndexService()
-        await sessionIndexService.generate(result.groupSessionId, gapThreshold)
-        if (result.privateSessionIds?.length) {
-          await Promise.all(result.privateSessionIds.map((id) => sessionIndexService.generate(id, gapThreshold)))
+      if (props.generateSessionIndexes) {
+        try {
+          const gapThreshold = getSessionGapThreshold()
+          const sessionIndexService = useSessionIndexService()
+          await sessionIndexService.generate(result.groupSessionId, gapThreshold)
+          if (result.privateSessionIds?.length) {
+            await Promise.all(result.privateSessionIds.map((id) => sessionIndexService.generate(id, gapThreshold)))
+          }
+        } catch (e) {
+          console.error('自动生成会话索引失败:', e)
         }
-      } catch (e) {
-        console.error('自动生成会话索引失败:', e)
       }
 
       await navigateToSession(result.groupSessionId)
