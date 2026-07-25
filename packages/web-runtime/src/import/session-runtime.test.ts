@@ -125,6 +125,24 @@ function chatJsonl(name: string, sender: string, timestamp: number): string {
   ].join('\n')
 }
 
+function chatWithSystemMessage() {
+  return {
+    chatlab: { version: '0.0.2', exportedAt: 1 },
+    meta: { name: 'System Test', platform: 'custom', type: 'group', ownerId: 'alice' },
+    members: [{ platformId: 'alice', accountName: 'Alice' }],
+    messages: [
+      { sender: 'alice', accountName: 'Alice', timestamp: 1, type: 0, content: 'hello' },
+      {
+        sender: 'SYSTEM',
+        accountName: 'System',
+        timestamp: 2,
+        type: 80,
+        content: 'Bob joined the group',
+      },
+    ],
+  }
+}
+
 describe('BrowserSessionRuntime', () => {
   it('parses imports before acquiring the workspace lease and keeps persistence inside it', async () => {
     const sqlite3 = await sqlite3InitModule()
@@ -203,6 +221,85 @@ describe('BrowserSessionRuntime', () => {
 
     const secondDb = database.getDatabase(sessionDatabaseFilename('session-two'))
     assert.deepEqual(secondDb?.prepare('SELECT content FROM message').get(), { content: 'message-2' })
+    database.dispose()
+  })
+
+  it('canonicalizes reserved SYSTEM senders and excludes them from catalog member counts', async () => {
+    const sqlite3 = await sqlite3InitModule()
+    const database = new MemoryWorkspaceDatabase(sqlite3)
+    const runtime = new BrowserSessionRuntime(database, {
+      createSessionId: () => 'system-session',
+      now: () => 100,
+    })
+
+    const result = await runtime.importSource(source('system.json', chatWithSystemMessage()), {
+      formatId: 'chatlab',
+    })
+
+    assert.deepEqual(result, {
+      sessionId: 'system-session',
+      formatId: 'chatlab',
+      messageCount: 2,
+      memberCount: 1,
+      skippedCount: 0,
+    })
+    assert.equal((await runtime.getSession('system-session'))?.memberCount, 1)
+
+    const sessionDb = database.getDatabase(sessionDatabaseFilename('system-session'))
+    assert.deepEqual(
+      sessionDb?.prepare('SELECT account_name, group_nickname FROM member WHERE platform_id = ?').get('SYSTEM'),
+      { account_name: '系统消息', group_nickname: '系统消息' }
+    )
+    assert.deepEqual(
+      sessionDb
+        ?.prepare(
+          `SELECT msg.sender_account_name, msg.sender_group_nickname
+           FROM message msg
+           JOIN member m ON m.id = msg.sender_id
+           WHERE m.platform_id = ?`
+        )
+        .get('SYSTEM'),
+      { sender_account_name: '系统消息', sender_group_nickname: '系统消息' }
+    )
+    database.dispose()
+  })
+
+  it('preserves an ordinary WhatsApp participant named SYSTEM', async () => {
+    const sqlite3 = await sqlite3InitModule()
+    const database = new MemoryWorkspaceDatabase(sqlite3)
+    const runtime = new BrowserSessionRuntime(database, {
+      createSessionId: () => 'whatsapp-system-participant',
+      now: () => 100,
+    })
+    const fixture = source('WhatsApp-SYSTEM.txt', '2024/01/02 03:04 - SYSTEM: hello\n')
+
+    const result = await runtime.importSource(fixture)
+
+    assert.deepEqual(result, {
+      sessionId: 'whatsapp-system-participant',
+      formatId: 'whatsapp-native-txt',
+      messageCount: 1,
+      memberCount: 1,
+      skippedCount: 0,
+    })
+    assert.equal((await runtime.getSession('whatsapp-system-participant'))?.memberCount, 1)
+
+    const sessionDb = database.getDatabase(sessionDatabaseFilename('whatsapp-system-participant'))
+    assert.deepEqual(
+      sessionDb?.prepare('SELECT account_name, group_nickname FROM member WHERE platform_id = ?').get('SYSTEM'),
+      { account_name: 'SYSTEM', group_nickname: null }
+    )
+    assert.deepEqual(
+      sessionDb
+        ?.prepare(
+          `SELECT msg.sender_account_name, msg.sender_group_nickname, msg.type
+           FROM message msg
+           JOIN member m ON m.id = msg.sender_id
+           WHERE m.platform_id = ?`
+        )
+        .get('SYSTEM'),
+      { sender_account_name: 'SYSTEM', sender_group_nickname: null, type: 0 }
+    )
     database.dispose()
   })
 

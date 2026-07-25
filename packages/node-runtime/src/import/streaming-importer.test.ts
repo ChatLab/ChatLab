@@ -6,6 +6,7 @@ import test from 'node:test'
 import Database from 'better-sqlite3'
 import { CHAT_DB_TABLES } from '@openchatlab/core'
 import { BetterSqliteAdapter } from '../better-sqlite3-adapter'
+import { computeAndSetOverviewCache } from '../cache/session-cache'
 import { TEMP_DB_SCHEMA } from '../merger/temp-db'
 import { analyzeNewImport, streamingImport, streamParseFileInfo } from './streaming-importer'
 
@@ -125,6 +126,36 @@ function writeDuplicateChatLabExport(root: string): string {
     }),
     'utf-8'
   )
+  return filePath
+}
+
+function writeSystemChatLabExport(root: string): string {
+  const filePath = path.join(root, 'system-chat.json')
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify({
+      chatlab: { version: '0.0.2', exportedAt: 1_711_468_800 },
+      meta: { name: 'System Test', platform: 'custom', type: 'group', ownerId: 'alice' },
+      members: [{ platformId: 'alice', accountName: 'Alice' }],
+      messages: [
+        { sender: 'alice', accountName: 'Alice', timestamp: 1_711_468_800, type: 0, content: 'hello' },
+        {
+          sender: 'SYSTEM',
+          accountName: 'System',
+          timestamp: 1_711_468_801,
+          type: 80,
+          content: 'Bob joined the group',
+        },
+      ],
+    }),
+    'utf8'
+  )
+  return filePath
+}
+
+function writeWhatsAppSystemParticipantExport(root: string): string {
+  const filePath = path.join(root, 'WhatsApp-SYSTEM.txt')
+  fs.writeFileSync(filePath, '2024/01/02 03:04 - SYSTEM: hello\n', 'utf8')
   return filePath
 }
 
@@ -274,6 +305,114 @@ test('streamingImport applies incremental-equivalent deduplication on first impo
   const row = db.prepare('SELECT COUNT(*) AS count FROM message').get() as { count: number }
   db.close()
   assert.equal(row.count, 3)
+})
+
+test('streamingImport canonicalizes reserved SYSTEM senders and excludes them from overview counts', async (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const filePath = writeSystemChatLabExport(root)
+  const dbPath = path.join(root, 'system-test.db')
+
+  const result = await streamingImport(
+    filePath,
+    {
+      openDatabase() {
+        const db = new Database(dbPath, { nativeBinding })
+        db.exec(CHAT_DB_TABLES)
+        return new BetterSqliteAdapter(db)
+      },
+      deleteDatabase() {
+        for (const suffix of ['', '-wal', '-shm']) {
+          try {
+            fs.unlinkSync(dbPath + suffix)
+          } catch {
+            /* ignore */
+          }
+        }
+      },
+      onProgress() {
+        /* noop for this focused importer test */
+      },
+    },
+    undefined,
+    'system-test'
+  )
+
+  assert.equal(result.success, true)
+
+  const rawDb = new Database(dbPath, { nativeBinding })
+  const db = new BetterSqliteAdapter(rawDb)
+  const systemMember = db
+    .prepare('SELECT account_name, group_nickname FROM member WHERE platform_id = ?')
+    .get('SYSTEM') as { account_name: string | null; group_nickname: string | null } | undefined
+  const systemMessage = db
+    .prepare(
+      `SELECT msg.sender_account_name, msg.sender_group_nickname
+       FROM message msg
+       JOIN member m ON m.id = msg.sender_id
+       WHERE m.platform_id = ?`
+    )
+    .get('SYSTEM') as { sender_account_name: string | null; sender_group_nickname: string | null } | undefined
+  const overview = computeAndSetOverviewCache(db, 'system-test', path.join(root, 'cache'))
+  rawDb.close()
+
+  assert.deepEqual(systemMember, { account_name: '系统消息', group_nickname: '系统消息' })
+  assert.deepEqual(systemMessage, { sender_account_name: '系统消息', sender_group_nickname: '系统消息' })
+  assert.equal(overview.totalMembers, 1)
+  assert.equal(overview.totalMessages, 1)
+})
+
+test('streamingImport preserves an ordinary WhatsApp participant named SYSTEM', async (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const filePath = writeWhatsAppSystemParticipantExport(root)
+  const dbPath = path.join(root, 'whatsapp-system-participant.db')
+
+  const result = await streamingImport(
+    filePath,
+    {
+      openDatabase() {
+        const db = new Database(dbPath, { nativeBinding })
+        db.exec(CHAT_DB_TABLES)
+        return new BetterSqliteAdapter(db)
+      },
+      deleteDatabase() {
+        for (const suffix of ['', '-wal', '-shm']) {
+          try {
+            fs.unlinkSync(dbPath + suffix)
+          } catch {
+            /* ignore */
+          }
+        }
+      },
+      onProgress() {
+        /* noop for this focused importer test */
+      },
+    },
+    undefined,
+    'whatsapp-system-participant'
+  )
+
+  assert.equal(result.success, true)
+
+  const rawDb = new Database(dbPath, { readonly: true, nativeBinding })
+  const member = rawDb
+    .prepare('SELECT account_name, group_nickname FROM member WHERE platform_id = ?')
+    .get('SYSTEM') as { account_name: string | null; group_nickname: string | null } | undefined
+  const message = rawDb
+    .prepare(
+      `SELECT msg.sender_account_name, msg.sender_group_nickname, msg.type
+       FROM message msg
+       JOIN member m ON m.id = msg.sender_id
+       WHERE m.platform_id = ?`
+    )
+    .get('SYSTEM') as
+    | { sender_account_name: string | null; sender_group_nickname: string | null; type: number }
+    | undefined
+  rawDb.close()
+
+  assert.deepEqual(member, { account_name: 'SYSTEM', group_nickname: null })
+  assert.deepEqual(message, { sender_account_name: 'SYSTEM', sender_group_nickname: null, type: 0 })
 })
 
 test('analyzeNewImport honors an explicitly selected parser format', async (t) => {

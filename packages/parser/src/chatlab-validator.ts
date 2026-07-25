@@ -14,6 +14,7 @@ const KNOWN_MESSAGE_TYPES = new Set<number>(
   Object.values(MessageType).filter((value): value is number => typeof value === 'number')
 )
 const SYSTEM_SENDER_ID = 'SYSTEM'
+const SYSTEM_SENDER_MESSAGE_TYPES = new Set<number>([MessageType.SYSTEM, MessageType.RECALL])
 
 export type ChatLabValidationFormat = 'json' | 'jsonl' | 'unknown'
 export type ChatLabValidationSeverity = 'error' | 'warning'
@@ -288,8 +289,9 @@ function validateMessage(state: ValidationState, value: unknown, path: string, l
     return
   }
 
-  if (validateRequiredString(state, value.sender, `${path}.sender`, location)) {
-    state.senderIds.add(value.sender)
+  const sender = validateRequiredString(state, value.sender, `${path}.sender`, location) ? value.sender : undefined
+  if (sender !== undefined) {
+    state.senderIds.add(sender)
   }
   validateRequiredString(state, value.accountName, `${path}.accountName`, location)
 
@@ -306,11 +308,23 @@ function validateMessage(state: ValidationState, value: unknown, path: string, l
     state.lastTimestamp = value.timestamp
   }
 
-  if (typeof value.type !== 'number' || !Number.isInteger(value.type) || !KNOWN_MESSAGE_TYPES.has(value.type)) {
+  const messageType =
+    typeof value.type === 'number' && Number.isInteger(value.type) && KNOWN_MESSAGE_TYPES.has(value.type)
+      ? value.type
+      : undefined
+  if (messageType === undefined) {
     addIssue(state, 'error', 'INVALID_MESSAGE_TYPE', 'Expected a supported numeric ChatLab message type.', {
       ...location,
       path: `${path}.type`,
     })
+  } else if (sender === SYSTEM_SENDER_ID && !SYSTEM_SENDER_MESSAGE_TYPES.has(messageType)) {
+    addIssue(
+      state,
+      'error',
+      'INVALID_SYSTEM_SENDER_TYPE',
+      'The reserved SYSTEM sender is only valid for system and recall messages.',
+      childLocation(location, `${path}.sender`)
+    )
   }
 
   if (!hasOwn(value, 'content') || (typeof value.content !== 'string' && value.content !== null)) {

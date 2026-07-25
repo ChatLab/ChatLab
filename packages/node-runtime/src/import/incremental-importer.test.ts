@@ -39,6 +39,39 @@ function writeChatLabJsonl(filePath: string): void {
   fs.writeFileSync(filePath, `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`, 'utf8')
 }
 
+function writeSystemChatLabJsonl(filePath: string): void {
+  const lines = [
+    {
+      _type: 'header',
+      chatlab: { version: '0.0.2', exportedAt: 1780330900 },
+      meta: { name: 'System Events', platform: 'custom', type: 'group' },
+    },
+    {
+      _type: 'member',
+      platformId: 'alice',
+      accountName: 'Alice',
+    },
+    {
+      _type: 'message',
+      sender: 'alice',
+      accountName: 'Alice',
+      timestamp: 1780330832,
+      type: 0,
+      content: 'hello',
+    },
+    {
+      _type: 'message',
+      sender: 'SYSTEM',
+      accountName: 'System',
+      timestamp: 1780330833,
+      type: 80,
+      content: 'Bob joined the group',
+    },
+  ]
+
+  fs.writeFileSync(filePath, `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`, 'utf8')
+}
+
 function writeChatLabJson(filePath: string): void {
   fs.writeFileSync(
     filePath,
@@ -130,6 +163,39 @@ test('preserves ChatLab JSON member aliases during incremental import', async (t
   db.close()
 
   assert.deepEqual(JSON.parse(row?.aliases ?? '[]'), ['Ally'])
+})
+
+test('canonicalizes reserved SYSTEM senders during incremental ChatLab imports', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const dbPath = path.join(tempDir, 'session.db')
+  const filePath = path.join(tempDir, 'system-events.jsonl')
+  seedSessionDb(dbPath)
+  writeSystemChatLabJsonl(filePath)
+
+  const result = await incrementalImport('session', filePath, createDeps(dbPath))
+
+  assert.equal(result.success, true)
+  assert.equal(result.newMessageCount, 2)
+  assert.equal(result.session?.memberCount, 1)
+
+  const db = openBetterSqliteDatabase(dbPath, { readonly: true, nativeBinding })
+  const member = db.prepare('SELECT account_name, group_nickname FROM member WHERE platform_id = ?').get('SYSTEM') as
+    | { account_name: string | null; group_nickname: string | null }
+    | undefined
+  const message = db
+    .prepare(
+      `SELECT msg.sender_account_name, msg.sender_group_nickname
+       FROM message msg
+       JOIN member m ON m.id = msg.sender_id
+       WHERE m.platform_id = ?`
+    )
+    .get('SYSTEM') as { sender_account_name: string | null; sender_group_nickname: string | null } | undefined
+  db.close()
+
+  assert.deepEqual(member, { account_name: '系统消息', group_nickname: '系统消息' })
+  assert.deepEqual(message, { sender_account_name: '系统消息', sender_group_nickname: '系统消息' })
 })
 
 test('does not deduplicate messages that only share timestamp, sender and content', async (t) => {

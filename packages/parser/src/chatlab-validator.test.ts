@@ -241,6 +241,13 @@ test('accepts the reserved SYSTEM sender without a member entry', async () => {
           type: 80,
           content: 'Alice joined the group',
         },
+        {
+          sender: 'SYSTEM',
+          accountName: 'System',
+          timestamp: 1_711_468_801,
+          type: 81,
+          content: 'Alice recalled a message',
+        },
       ],
     }),
     'utf8'
@@ -250,6 +257,37 @@ test('accepts the reserved SYSTEM sender without a member entry', async () => {
     const report = await validateChatLabFile(filePath)
     assert.equal(report.valid, true)
     assert.equal(report.errorCount, 0)
+  } finally {
+    fs.rmSync(root, { recursive: true, force: true })
+  }
+})
+
+test('rejects the reserved SYSTEM sender on a regular member message', async () => {
+  const root = makeTempDir()
+  const filePath = path.join(root, 'invalid-system-sender.json')
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify({
+      chatlab: { version: CHATLAB_FORMAT_VERSION, exportedAt: 1_711_468_800 },
+      meta: { name: 'Group chat', platform: 'custom', type: 'group' },
+      members: [{ platformId: 'alice', accountName: 'Alice' }],
+      messages: [
+        {
+          sender: 'SYSTEM',
+          accountName: 'Alice',
+          timestamp: 1_711_468_800,
+          type: 0,
+          content: 'This message belongs to a real member',
+        },
+      ],
+    }),
+    'utf8'
+  )
+
+  try {
+    const report = await validateChatLabFile(filePath)
+    assert.equal(report.valid, false)
+    assert.ok(report.issues.some((issue) => issue.code === 'INVALID_SYSTEM_SENDER_TYPE'))
   } finally {
     fs.rmSync(root, { recursive: true, force: true })
   }

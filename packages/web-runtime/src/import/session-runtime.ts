@@ -135,6 +135,9 @@ const SUPPORTED_FORMATS: BrowserImportFormatInfo[] = [
     extensions: ['.json'],
   },
 ]
+const SYSTEM_SENDER_ID = 'SYSTEM'
+const SYSTEM_MEMBER_NAME = '系统消息'
+const RESERVED_SYSTEM_SENDER_FORMATS = new Set(['chatlab', 'chatlab-jsonl'])
 
 export class BrowserSessionRuntime {
   private readonly catalog: BrowserSessionCatalog
@@ -184,11 +187,13 @@ export class BrowserSessionRuntime {
       onLog: options.onLog,
     })
     options.checkCancelled?.()
+    const usesReservedSystemSender = RESERVED_SYSTEM_SENDER_FORMATS.has(formatId)
     const messages: BrowserImportParseResult['messages'] = []
     for (const message of parsed.messages) {
       const timestamp = normalizeImportTimestamp(message.timestamp)
       if (timestamp === null) continue
-      messages.push(timestamp === message.timestamp ? message : { ...message, timestamp })
+      const normalizedMessage = usesReservedSystemSender ? normalizeSystemMessage(message) : message
+      messages.push(timestamp === normalizedMessage.timestamp ? normalizedMessage : { ...normalizedMessage, timestamp })
     }
     const skippedInvalidTimestampCount = parsed.messages.length - messages.length
     if (messages.length === 0) {
@@ -201,7 +206,11 @@ export class BrowserSessionRuntime {
         data: { formatId, skippedCount: skippedInvalidTimestampCount },
       })
     }
-    const members = mergeInferredMembers(parsed.members, messages)
+    const parsedMembers = usesReservedSystemSender ? parsed.members.map(normalizeSystemMember) : parsed.members
+    const members = mergeInferredMembers(parsedMembers, messages)
+    const memberCount = usesReservedSystemSender
+      ? members.filter((member) => member.platformId !== SYSTEM_SENDER_ID).length
+      : members.length
 
     const sessionId = this.createSessionId()
     validateSessionId(sessionId)
@@ -214,7 +223,7 @@ export class BrowserSessionRuntime {
       type: parsed.meta.type,
       importedAt,
       messageCount: messages.length,
-      memberCount: members.length,
+      memberCount,
       groupId: parsed.meta.groupId ?? null,
       groupAvatar: parsed.meta.groupAvatar ?? null,
       ownerId: parsed.meta.ownerId ?? null,
@@ -240,6 +249,7 @@ export class BrowserSessionRuntime {
             db.exec(CHAT_DB_INDEXES)
             return {
               ...result,
+              memberCount,
               skippedCount: result.skippedCount + skippedInvalidTimestampCount,
             }
           })
@@ -458,6 +468,24 @@ function normalizeImportTimestamp(value: unknown): number | null {
   if (typeof value !== 'string' || value.trim() === '') return null
   const timestamp = Number(value)
   return Number.isFinite(timestamp) ? timestamp : null
+}
+
+function normalizeSystemMember(
+  member: BrowserImportParseResult['members'][number]
+): BrowserImportParseResult['members'][number] {
+  if (member.platformId !== SYSTEM_SENDER_ID) return member
+  return { ...member, accountName: SYSTEM_MEMBER_NAME, groupNickname: SYSTEM_MEMBER_NAME }
+}
+
+function normalizeSystemMessage(
+  message: BrowserImportParseResult['messages'][number]
+): BrowserImportParseResult['messages'][number] {
+  if (message.senderPlatformId !== SYSTEM_SENDER_ID) return message
+  return {
+    ...message,
+    senderAccountName: SYSTEM_MEMBER_NAME,
+    senderGroupNickname: SYSTEM_MEMBER_NAME,
+  }
 }
 
 function mergeInferredMembers(

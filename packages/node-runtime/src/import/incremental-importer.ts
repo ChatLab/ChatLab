@@ -13,7 +13,7 @@ import { generateSessionIndex, generateIncrementalSessionIndex } from '@openchat
 import { streamParseFile, detectFormat, getFormatFeatureById, type ParseProgress } from '@openchatlab/parser'
 import { insertFtsEntries, hasFtsTable } from '../fts'
 import { generateFallbackMessageKey, registerMessageAndCheckDuplicate } from './message-deduplicator'
-import type { ImportProgressCallback } from './streaming-importer'
+import { normalizeSystemMemberName, SYSTEM_MEMBER_NAME, type ImportProgressCallback } from './streaming-importer'
 
 // ==================== Public interfaces ====================
 
@@ -313,10 +313,12 @@ export async function incrementalImport(
           if (memberUpdateMode === 'none') return
           for (const m of members) {
             const existed = memberIdMap.has(m.platformId)
+            const accountName = normalizeSystemMemberName(formatFeature.id, m.platformId, m.accountName)
+            const groupNickname = normalizeSystemMemberName(formatFeature.id, m.platformId, m.groupNickname)
             upsertMember.run(
               m.platformId,
-              m.accountName || null,
-              m.groupNickname || null,
+              accountName || null,
+              groupNickname || null,
               m.aliases ? JSON.stringify(m.aliases) : '[]',
               m.avatar || null,
               m.roles ? JSON.stringify(m.roles) : '[]'
@@ -356,12 +358,22 @@ export async function incrementalImport(
               continue
             }
 
+            const senderAccountName = normalizeSystemMemberName(
+              formatFeature.id,
+              msg.senderPlatformId,
+              msg.senderAccountName
+            )
+            const senderGroupNickname = normalizeSystemMemberName(
+              formatFeature.id,
+              msg.senderPlatformId,
+              msg.senderGroupNickname
+            )
             let memberId = memberIdMap.get(msg.senderPlatformId)
             if (!memberId) {
               insertMemberMinimal.run(
                 msg.senderPlatformId,
-                msg.senderAccountName || null,
-                msg.senderGroupNickname || null,
+                senderAccountName || null,
+                senderGroupNickname || null,
                 null
               )
               const row = getMemberId.get(msg.senderPlatformId) as { id: number } | undefined
@@ -375,8 +387,8 @@ export async function incrementalImport(
 
             const msgResult = insertMessage.run(
               memberId,
-              msg.senderAccountName || null,
-              msg.senderGroupNickname || null,
+              senderAccountName || null,
+              senderGroupNickname || null,
               timestamp,
               msg.type,
               msg.content || null,
@@ -447,7 +459,9 @@ export async function incrementalImport(
          FROM message`
       )
       .get() as { totalCount: number; firstTimestamp: number; lastTimestamp: number }
-    const memberCountRow = db.prepare('SELECT COUNT(*) as count FROM member').get() as { count: number }
+    const memberCountRow = db
+      .prepare(`SELECT COUNT(*) as count FROM member WHERE COALESCE(account_name, '') != ?`)
+      .get(SYSTEM_MEMBER_NAME) as { count: number }
 
     // Post-import hook (e.g. overview cache)
     try {

@@ -85,6 +85,9 @@ export interface StreamImportDeps {
 
 const BATCH_COMMIT_SIZE = 50000
 const CHECKPOINT_INTERVAL = 200000
+const SYSTEM_SENDER_ID = 'SYSTEM'
+export const SYSTEM_MEMBER_NAME = '系统消息'
+const RESERVED_SYSTEM_SENDER_FORMATS = new Set(['chatlab', 'chatlab-jsonl'])
 
 /**
  * Let the event loop process pending I/O before a long synchronous step.
@@ -107,9 +110,20 @@ type CreateMessageSkipCounter =
 
 type PreparedCreateMessage = { message: DedupMessage } | { skipCounter: CreateMessageSkipCounter }
 
-function prepareMessageForCreate(message: ParsedMessage): PreparedCreateMessage {
+export function normalizeSystemMemberName(
+  formatId: string,
+  platformId: string,
+  name: string | undefined
+): string | undefined {
+  return RESERVED_SYSTEM_SENDER_FORMATS.has(formatId) && platformId === SYSTEM_SENDER_ID ? SYSTEM_MEMBER_NAME : name
+}
+
+function prepareMessageForCreate(
+  message: ParsedMessage,
+  senderAccountName = message.senderAccountName
+): PreparedCreateMessage {
   if (!message.senderPlatformId) return { skipCounter: 'skippedNoSenderId' }
-  if (!message.senderAccountName) return { skipCounter: 'skippedNoAccountName' }
+  if (!senderAccountName) return { skipCounter: 'skippedNoAccountName' }
   if (message.timestamp === undefined || message.timestamp === null || isNaN(message.timestamp)) {
     return { skipCounter: 'skippedInvalidTimestamp' }
   }
@@ -388,10 +402,12 @@ async function streamImportSingle(
           callbackStats.totalMembersReceived += members.length
           logger?.info(`Received member batch: ${members.length} members`)
           for (const member of members) {
+            const accountName = normalizeSystemMemberName(formatFeature.id, member.platformId, member.accountName)
+            const groupNickname = normalizeSystemMemberName(formatFeature.id, member.platformId, member.groupNickname)
             insertMember.run(
               member.platformId,
-              member.accountName || null,
-              member.groupNickname || null,
+              accountName || null,
+              groupNickname || null,
               member.aliases ? JSON.stringify(member.aliases) : '[]',
               member.avatar || null,
               member.roles ? JSON.stringify(member.roles) : '[]'
@@ -417,7 +433,17 @@ async function streamImportSingle(
           let nicknameChangeCount = 0
 
           for (const msg of messages) {
-            const prepared = prepareMessageForCreate(msg)
+            const senderAccountName = normalizeSystemMemberName(
+              formatFeature.id,
+              msg.senderPlatformId,
+              msg.senderAccountName
+            )
+            const senderGroupNickname = normalizeSystemMemberName(
+              formatFeature.id,
+              msg.senderPlatformId,
+              msg.senderGroupNickname
+            )
+            const prepared = prepareMessageForCreate(msg, senderAccountName)
             if ('skipCounter' in prepared) {
               callbackStats[prepared.skipCounter]++
               continue
@@ -434,8 +460,8 @@ async function streamImportSingle(
             if (!memberIdMap.has(msg.senderPlatformId)) {
               insertMember.run(
                 msg.senderPlatformId,
-                msg.senderAccountName || null,
-                msg.senderGroupNickname || null,
+                senderAccountName || null,
+                senderGroupNickname || null,
                 '[]',
                 null,
                 '[]'
@@ -455,8 +481,8 @@ async function streamImportSingle(
             t0 = Date.now()
             insertMessage.run(
               senderId,
-              msg.senderAccountName || null,
-              msg.senderGroupNickname || null,
+              senderAccountName || null,
+              senderGroupNickname || null,
               dedupMessage.timestamp,
               dedupMessage.type,
               dedupMessage.content,
@@ -468,8 +494,8 @@ async function streamImportSingle(
             totalMessageCount++
 
             t0 = Date.now()
-            trackNickname(accountNameTracker, msg.senderPlatformId, msg.senderAccountName, msg.timestamp)
-            trackNickname(groupNicknameTracker, msg.senderPlatformId, msg.senderGroupNickname, msg.timestamp)
+            trackNickname(accountNameTracker, msg.senderPlatformId, senderAccountName, msg.timestamp)
+            trackNickname(groupNicknameTracker, msg.senderPlatformId, senderGroupNickname, msg.timestamp)
             nicknameTrackTime += Date.now() - t0
             // nicknameChangeCount is approximate but sufficient for logging
             nicknameChangeCount += accountNameTracker.get(msg.senderPlatformId)?.history.length === 1 ? 0 : 0
