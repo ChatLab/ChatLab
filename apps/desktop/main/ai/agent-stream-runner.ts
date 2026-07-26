@@ -97,7 +97,7 @@ export function createElectronRunAgentStream(
     const requestId = `internal_${Date.now()}`
 
     aiLogger.info('AgentStream', `Agent stream request: ${requestId}`, {
-      userMessage: userMessage.slice(0, 100),
+      userMessageLength: userMessage.length,
       sessionId,
       aiChatId,
       chatType: chatType ?? 'group',

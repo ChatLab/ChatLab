@@ -86,7 +86,7 @@ export class Agent {
   }
 
   async executeStream(userMessage: string, onChunk: (chunk: AgentStreamChunk) => void): Promise<AgentResult> {
-    aiLogger.info('Agent', 'User question', userMessage)
+    aiLogger.info('Agent', 'Agent execution started', { userMessageLength: userMessage.length })
 
     const maxToolRounds = Math.max(0, this.config.maxToolRounds ?? 0)
 
