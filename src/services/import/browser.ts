@@ -18,12 +18,7 @@ import type {
 
 const DEMO_BASE_URL = '/api/demo'
 const DEMO_DOWNLOAD_TIMEOUT_MS = 60_000
-const DEMO_FILES = [
-  'demo-group.json',
-  'demo-private-A-cuilan.json',
-  'demo-private-B-wukong.json',
-  'demo-private-C-spider.json',
-] as const
+const DEMO_FILES = ['demo-group.json', 'demo-private-B-wukong.json'] as const
 
 export class BrowserImportAdapter implements ImportAdapter {
   private activeImport: AbortController | undefined

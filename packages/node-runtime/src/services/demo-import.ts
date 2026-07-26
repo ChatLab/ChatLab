@@ -5,12 +5,7 @@ import { appLogger } from '../logging/app-logger'
 import { createChatLabTempDir, removeChatLabTempDir } from '../temp-workspace'
 
 const DEMO_BASE_URL = 'https://chatlab.fun/assets/demo'
-const DEMO_FILES = [
-  'demo-group.json',
-  'demo-private-A-cuilan.json',
-  'demo-private-B-wukong.json',
-  'demo-private-C-spider.json',
-] as const
+const DEMO_FILES = ['demo-group.json', 'demo-private-B-wukong.json'] as const
 
 export interface DemoImportProgress {
   stage: 'downloading' | 'importing' | 'done' | 'error'

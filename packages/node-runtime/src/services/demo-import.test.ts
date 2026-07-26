@@ -40,11 +40,10 @@ describe('importDemoSessions', () => {
     const sourceLatest = sourceTimestamp('2000-12-10', '22:30:00')
     const documents = [
       createDemoDocument('group', [sourceTimestamp('2000-02-01', '09:00:00'), sourceLatest]),
-      createDemoDocument('private-a', [sourceTimestamp('2000-02-01', '08:30:00')]),
-      createDemoDocument('private-b', [sourceTimestamp('2000-06-01', '10:00:00')]),
-      createDemoDocument('private-c', [sourceTimestamp('2000-12-09', '21:00:00')]),
+      createDemoDocument('private-wukong', [sourceTimestamp('2000-06-01', '10:00:00')]),
     ]
     let downloadIndex = 0
+    const requestedUrls: string[] = []
     const imported: Array<{ name: string; document: any }> = []
     const progress: DemoImportProgress[] = []
     const now = new Date('2026-07-25T04:00:00.000Z')
@@ -53,8 +52,9 @@ describe('importDemoSessions', () => {
       locale: 'cn',
       tempPrefix: 'demo-service-test-',
       targetTimeZone: 'America/Los_Angeles',
-      fetchImpl: async function (this: unknown) {
+      fetchImpl: async function (this: unknown, input) {
         assert.equal(this, globalThis)
+        requestedUrls.push(String(input))
         return new Response(documents[downloadIndex++], { status: 200 })
       },
       now: () => now,
@@ -73,25 +73,19 @@ describe('importDemoSessions', () => {
     assert.deepEqual(result, {
       success: true,
       groupSessionId: 'session-1',
-      privateSessionIds: ['session-2', 'session-3', 'session-4'],
+      privateSessionIds: ['session-2'],
     })
-    assert.equal(imported.length, 4)
+    assert.deepEqual(requestedUrls, [
+      'https://chatlab.fun/assets/demo/cn/demo-group.json',
+      'https://chatlab.fun/assets/demo/cn/demo-private-B-wukong.json',
+    ])
+    assert.equal(imported.length, 2)
     assert.equal(imported[0].document.messages[1].timestamp, latestTimestamp)
-    assert.equal(imported[1].document.messages[0].timestamp, sourceTimestamp('2000-02-01', '08:30:00') + offset)
+    assert.equal(imported[1].document.messages[0].timestamp, sourceTimestamp('2000-06-01', '10:00:00') + offset)
     assert.ok(imported.every(({ document }) => document.chatlab.exportedAt === Math.floor(now.getTime() / 1000)))
     assert.deepEqual(
       progress.map(({ stage, current }) => `${stage}:${current}`),
-      [
-        'downloading:1',
-        'downloading:2',
-        'downloading:3',
-        'downloading:4',
-        'importing:1',
-        'importing:2',
-        'importing:3',
-        'importing:4',
-        'done:4',
-      ]
+      ['downloading:1', 'downloading:2', 'importing:1', 'importing:2', 'done:2']
     )
     assert.ok(imported.every(({ name }) => !fs.existsSync(name)))
   })
@@ -100,12 +94,7 @@ describe('importDemoSessions', () => {
     let importCount = 0
     let downloadIndex = 0
     const progress: DemoImportProgress[] = []
-    const responses = [
-      createDemoDocument('group', [sourceTimestamp('2000-12-10', '22:30:00')]),
-      'x'.repeat(128),
-      createDemoDocument('private-b', [sourceTimestamp('2000-12-09', '21:00:00')]),
-      createDemoDocument('private-c', [sourceTimestamp('2000-12-08', '21:00:00')]),
-    ]
+    const responses = [createDemoDocument('group', [sourceTimestamp('2000-12-10', '22:30:00')]), 'x'.repeat(128)]
 
     const result = await importDemoSessions({
       locale: 'en',
@@ -131,9 +120,7 @@ describe('importDemoSessions', () => {
     const rolledBackSessionIds: string[] = []
     const documents = [
       createDemoDocument('group', [sourceTimestamp('2000-12-10', '22:30:00')]),
-      createDemoDocument('private-a', [sourceTimestamp('2000-12-09', '21:00:00')]),
-      createDemoDocument('private-b', [sourceTimestamp('2000-12-08', '21:00:00')]),
-      createDemoDocument('private-c', [sourceTimestamp('2000-12-07', '21:00:00')]),
+      createDemoDocument('private-wukong', [sourceTimestamp('2000-12-08', '21:00:00')]),
     ]
 
     const result = await importDemoSessions({
@@ -142,7 +129,7 @@ describe('importDemoSessions', () => {
       fetchImpl: async () => new Response(documents[downloadIndex++], { status: 200 }),
       importFile: async () => {
         importCount += 1
-        if (importCount === 3) return { success: false, error: 'third import failed' }
+        if (importCount === 2) return { success: false, error: 'second import failed' }
         return { success: true, sessionId: `session-${importCount}` }
       },
       deleteSession: async (sessionId) => {
@@ -151,7 +138,7 @@ describe('importDemoSessions', () => {
     })
 
     assert.equal(result.success, false)
-    assert.match(result.error ?? '', /third import failed/)
-    assert.deepEqual(rolledBackSessionIds, ['session-2', 'session-1'])
+    assert.match(result.error ?? '', /second import failed/)
+    assert.deepEqual(rolledBackSessionIds, ['session-1'])
   })
 })

@@ -125,16 +125,14 @@ describe('BrowserImportAdapter', () => {
     await assert.rejects(adapter.incrementalImport('session-one', createFile()), /not available in Web WASM/i)
   })
 
-  it('downloads and imports the four localized demo files through the browser runtime', async () => {
+  it('downloads and imports the group and Wukong demo files through the browser runtime', async () => {
     const requestedUrls: string[] = []
     const importedFiles: string[] = []
     const importedDocuments: any[] = []
     const sourceLatest = demoTimestamp('2000-12-10', '22:30:00')
     const documents = [
       createDemoDocument('group', [demoTimestamp('2000-02-01', '09:00:00'), sourceLatest]),
-      createDemoDocument('private-a', [demoTimestamp('2000-02-01', '08:30:00')]),
-      createDemoDocument('private-b', [demoTimestamp('2000-06-01', '10:00:00')]),
-      createDemoDocument('private-c', [demoTimestamp('2000-12-09', '21:00:00')]),
+      createDemoDocument('private-wukong', [demoTimestamp('2000-06-01', '10:00:00')]),
     ]
     const now = new Date('2026-07-25T04:00:00.000Z')
     let downloadIndex = 0
@@ -170,40 +168,21 @@ describe('BrowserImportAdapter', () => {
 
     const result = await adapter.importDemo('cn', (event) => progress.push(event.stage))
 
-    assert.deepEqual(requestedUrls, [
-      '/api/demo/cn/demo-group.json',
-      '/api/demo/cn/demo-private-A-cuilan.json',
-      '/api/demo/cn/demo-private-B-wukong.json',
-      '/api/demo/cn/demo-private-C-spider.json',
-    ])
-    assert.deepEqual(importedFiles, [
-      'demo-group.json',
-      'demo-private-A-cuilan.json',
-      'demo-private-B-wukong.json',
-      'demo-private-C-spider.json',
-    ])
+    assert.deepEqual(requestedUrls, ['/api/demo/cn/demo-group.json', '/api/demo/cn/demo-private-B-wukong.json'])
+    assert.deepEqual(importedFiles, ['demo-group.json', 'demo-private-B-wukong.json'])
     const expectedLatest = new Date(now)
     expectedLatest.setDate(expectedLatest.getDate() - 1)
     expectedLatest.setHours(22, 30, 0, 0)
     const latestTimestamp = Math.floor(expectedLatest.getTime() / 1000)
     const offset = latestTimestamp - sourceLatest
     assert.equal(importedDocuments[0].messages[1].timestamp, latestTimestamp)
-    assert.equal(importedDocuments[1].messages[0].timestamp, demoTimestamp('2000-02-01', '08:30:00') + offset)
+    assert.equal(importedDocuments[1].messages[0].timestamp, demoTimestamp('2000-06-01', '10:00:00') + offset)
     assert.ok(importedDocuments.every((document) => document.chatlab.exportedAt === Math.floor(now.getTime() / 1000)))
-    assert.deepEqual(progress, [
-      'downloading',
-      'downloading',
-      'downloading',
-      'downloading',
-      'importing',
-      'importing',
-      'importing',
-      'importing',
-    ])
+    assert.deepEqual(progress, ['downloading', 'downloading', 'importing', 'importing'])
     assert.deepEqual(result, {
       success: true,
       groupSessionId: 'session-1',
-      privateSessionIds: ['session-2', 'session-3', 'session-4'],
+      privateSessionIds: ['session-2'],
     })
   })
 
@@ -272,13 +251,11 @@ describe('BrowserImportAdapter', () => {
 
   it('deletes sessions created earlier in the batch when a later demo import fails', async () => {
     const deletedSessionIds: string[] = []
-    const importError = new Error('third import failed')
+    const importError = new Error('second import failed')
     let importCount = 0
     const documents = [
       createDemoDocument('group', [demoTimestamp('2000-12-10', '22:30:00')]),
-      createDemoDocument('private-a', [demoTimestamp('2000-12-09', '21:00:00')]),
-      createDemoDocument('private-b', [demoTimestamp('2000-12-08', '20:00:00')]),
-      createDemoDocument('private-c', [demoTimestamp('2000-12-07', '19:00:00')]),
+      createDemoDocument('private-wukong', [demoTimestamp('2000-12-08', '20:00:00')]),
     ]
     let downloadIndex = 0
     const rpc = {
@@ -288,7 +265,7 @@ describe('BrowserImportAdapter', () => {
       ): Promise<WebRuntimeTaskResult<T>> {
         if (type === 'import.start') {
           importCount += 1
-          if (importCount === 3) throw importError
+          if (importCount === 2) throw importError
           return {
             sessionId: `session-${importCount}`,
             formatId: 'chatlab',
@@ -314,8 +291,8 @@ describe('BrowserImportAdapter', () => {
     const result = await adapter.importDemo('en')
 
     assert.equal(result.success, false)
-    assert.match(result.error ?? '', /third import failed/)
-    assert.deepEqual(deletedSessionIds, ['session-2', 'session-1'])
+    assert.match(result.error ?? '', /second import failed/)
+    assert.deepEqual(deletedSessionIds, ['session-1'])
   })
 
   it('forwards browser-safe format identifiers to the worker runtime', async () => {
