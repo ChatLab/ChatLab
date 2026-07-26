@@ -115,7 +115,7 @@ export class BrowserDatabaseRuntime {
   async withDatabase<T>(
     filename: string,
     schemaSql: string,
-    operation: (db: DatabaseAdapter) => T,
+    operation: (db: DatabaseAdapter) => T | Promise<T>,
     onStage?: (stage: WorkspaceDatabaseStage) => void
   ): Promise<T> {
     return this.withWorkspaceLease(async () => {
@@ -141,7 +141,7 @@ export class BrowserDatabaseRuntime {
         onStage?.('schema-initializing')
         database.exec(schemaSql)
         onStage?.('schema-ready')
-        result = operation(database)
+        result = await operation(database)
       } catch (error) {
         operationFailed = true
         operationError = error

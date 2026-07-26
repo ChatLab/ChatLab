@@ -88,7 +88,7 @@ export default defineConfigWithVueTs(
   },
 
   // Standalone browser runtime and browser service adapters must not pull in
-  // Electron, Node-only runtimes, AI runtimes, or CLI backend implementation.
+  // Electron, Node-only runtimes, or CLI backend implementation.
   {
     files: ['packages/web-runtime/src/**/*.ts', 'src/services/**/browser.ts'],
     ignores: ['**/*.test.ts', '**/*.spec.ts'],
@@ -108,10 +108,6 @@ export default defineConfigWithVueTs(
             {
               name: '@openchatlab/http-routes',
               message: 'Standalone browser code cannot depend on HTTP server routes.',
-            },
-            {
-              name: '@openchatlab/tools',
-              message: 'Standalone browser MVP does not include the AI tool runtime.',
             },
             {
               name: '@openchatlab/config',

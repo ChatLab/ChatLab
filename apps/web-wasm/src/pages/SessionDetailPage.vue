@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, watch } from 'vue'
+import { computed, defineAsyncComponent, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -9,13 +9,18 @@ import { useSessionAnalysisPageBase } from '@/composables'
 import { useSessionStore } from '@/stores/session'
 import SessionInsights from '../components/session/insights/SessionInsights.vue'
 
+const WebAIChat = defineAsyncComponent(() => import('../components/ai/WebAIChat.vue'))
+
 const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const sessionStore = useSessionStore()
 const { currentSessionId, isInitialized, sessions } = storeToRefs(sessionStore)
 
-const tabs = [{ id: 'insights', labelKey: 'analysis.tabs.insights', icon: 'i-heroicons-presentation-chart-bar' }]
+const tabs = [
+  { id: 'insights', labelKey: 'analysis.tabs.insights', icon: 'i-heroicons-presentation-chart-bar' },
+  { id: 'ai-chat', labelKey: 'analysis.tabs.aiChat', icon: 'i-heroicons-sparkles' },
+]
 
 const {
   activeTab,
@@ -100,8 +105,8 @@ watch(
         @update:full-range="fullTimeRange = $event"
       />
 
-      <div class="relative flex-1 overflow-y-auto">
-        <LoadingState v-if="isLoading" variant="overlay" :text="t('common.loading')" />
+      <div class="relative min-h-0 flex-1" :class="activeTab === 'ai-chat' ? 'overflow-hidden' : 'overflow-y-auto'">
+        <LoadingState v-if="isLoading && activeTab !== 'ai-chat'" variant="overlay" :text="t('common.loading')" />
 
         <SessionInsights
           v-if="activeTab === 'insights'"
@@ -116,6 +121,13 @@ watch(
           :filtered-message-count="filteredMessageCount"
           :filtered-member-count="filteredMemberCount"
           :time-filter="timeFilter"
+        />
+
+        <WebAIChat
+          v-else-if="activeTab === 'ai-chat' && currentSessionId"
+          :key="'ai-chat-' + currentSessionId"
+          :session-id="currentSessionId"
+          :session-name="session.name"
         />
       </div>
     </template>

@@ -1,0 +1,51 @@
+{
+  "defaultAssistant": "デフォルトアシスタント",
+  "emptyTitle": "チャット履歴から答えを探す",
+  "emptyDescription": "AI は必要に応じてローカル分析ツールを呼び出し、現在の質問に必要な匿名化済みデータだけをモデル提供元へ送信します。",
+  "inputPlaceholder": "このチャットについて質問…",
+  "send": "送信",
+  "stop": "停止",
+  "regenerate": "再生成",
+  "footer": "AI は誤ることがあります。重要な結論は確認してください。",
+  "usingTool": "{name} を使用中",
+  "compressing": "会話コンテキストを圧縮中",
+  "presets": {
+    "overview": "このチャットの主な内容を要約して",
+    "topics": "最近は何について話している？",
+    "activity": "チャット活動の変化を分析して"
+  },
+  "conversations": {
+    "title": "会話",
+    "empty": "AI 会話はまだありません",
+    "new": "新しい会話",
+    "rename": "名前を変更",
+    "delete": "削除",
+    "untitled": "新しい会話",
+    "deleteConfirm": "この AI 会話を削除しますか？",
+    "renamePrompt": "会話名を変更"
+  },
+  "config": {
+    "title": "Web AI を設定",
+    "description": "Web WASM はブラウザからモデル提供元へ直接接続します。ChatLab サーバーは経由しません。",
+    "provider": "モデルサービス",
+    "openAICompatible": "OpenAI 互換 API",
+    "baseURL": "API URL",
+    "model": "モデル",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "API Key を入力",
+    "apiKeyReplace": "保存済みの Key を置き換えるには再入力",
+    "required": "API URL、モデル、API Key を入力してください",
+    "keyStorageWarning": "API Key は暗号化してこのブラウザに保存され、更新後も使用されます。ブラウザ内の暗号化では、このページを制御する悪意あるスクリプトからは保護できません。",
+    "corsWarning": "ブラウザの CORS アクセスを許可する OpenAI 互換サービスだけを利用できます。接続失敗は提供元がブラウザ直結を禁止している場合もあります。",
+    "test": "接続テスト",
+    "testSuccess": "接続成功（{ms}ms）",
+    "saved": "モデル設定を保存しました"
+  },
+  "errors": {
+    "AUTH": "API Key が無効か、権限がありません。",
+    "RATE_LIMIT": "リクエスト制限または残高不足です。しばらくしてから再試行してください。",
+    "MODEL_NOT_FOUND": "モデルが見つかりません。モデル名を確認してください。",
+    "TIMEOUT": "モデルへのリクエストがタイムアウトしました。",
+    "NETWORK_OR_CORS": "ネットワークまたはブラウザの CORS ポリシーによりブロックされました。ブラウザ直結に対応しているか確認してください。"
+  }
+}

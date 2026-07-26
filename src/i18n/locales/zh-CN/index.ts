@@ -15,6 +15,7 @@ import contacts from './contacts.json'
 import relationships from './relationships.json'
 import insight from './insight.json'
 import browser from './browser.json'
+import webAI from './webAI.json'
 
 export default {
   common,
@@ -34,4 +35,5 @@ export default {
   relationships,
   insight,
   browser,
+  webAI,
 }

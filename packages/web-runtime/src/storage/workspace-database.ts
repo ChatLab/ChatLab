@@ -26,7 +26,7 @@ export interface WorkspaceDatabasePort {
   withDatabase<T>(
     filename: string,
     schemaSql: string,
-    operation: (db: DatabaseAdapter) => T,
+    operation: (db: DatabaseAdapter) => T | Promise<T>,
     onStage?: (stage: WorkspaceDatabaseStage) => void
   ): Promise<T>
   deleteDatabase(filename: string): Promise<boolean>

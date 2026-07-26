@@ -1,0 +1,51 @@
+{
+  "defaultAssistant": "默认助手",
+  "emptyTitle": "从聊天记录中寻找答案",
+  "emptyDescription": "AI 会按需调用本地分析工具，只将当前问题所需且已脱敏的数据发送给模型服务商。",
+  "inputPlaceholder": "询问这段聊天记录…",
+  "send": "发送",
+  "stop": "停止",
+  "regenerate": "重新生成",
+  "footer": "AI 可能会犯错，请核对重要结论",
+  "usingTool": "正在调用 {name}",
+  "compressing": "正在整理对话上下文",
+  "presets": {
+    "overview": "概括这段聊天的主要内容",
+    "topics": "最近大家在聊什么？",
+    "activity": "分析聊天活跃度的变化"
+  },
+  "conversations": {
+    "title": "对话",
+    "empty": "还没有 AI 对话",
+    "new": "新建对话",
+    "rename": "重命名",
+    "delete": "删除",
+    "untitled": "新对话",
+    "deleteConfirm": "确定删除这条 AI 对话吗？",
+    "renamePrompt": "修改对话名称"
+  },
+  "config": {
+    "title": "配置 Web AI",
+    "description": "Web WASM 会直接从浏览器请求模型服务，不经过 ChatLab 服务器。",
+    "provider": "模型服务",
+    "openAICompatible": "OpenAI 兼容接口",
+    "baseURL": "API 地址",
+    "model": "模型",
+    "apiKey": "API Key",
+    "apiKeyPlaceholder": "输入 API Key",
+    "apiKeyReplace": "重新输入以替换已保存的 Key",
+    "required": "请完整填写 API 地址、模型和 API Key",
+    "keyStorageWarning": "API Key 会加密后保存在当前浏览器中，并在刷新后继续使用。浏览器本地加密无法防御已获得当前页面权限的恶意脚本。",
+    "corsWarning": "仅支持允许浏览器跨域访问（CORS）的 OpenAI 兼容服务。连接失败也可能是服务商禁止浏览器直连。",
+    "test": "测试连接",
+    "testSuccess": "连接成功（{ms}ms）",
+    "saved": "模型配置已保存"
+  },
+  "errors": {
+    "AUTH": "API Key 无效或没有访问权限。",
+    "RATE_LIMIT": "请求过于频繁或额度不足，请稍后重试。",
+    "MODEL_NOT_FOUND": "找不到这个模型，请检查模型名称。",
+    "TIMEOUT": "模型请求超时，请重试。",
+    "NETWORK_OR_CORS": "请求被网络或浏览器跨域策略阻止，请确认服务商支持浏览器直连。"
+  }
+}

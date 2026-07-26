@@ -28,7 +28,11 @@ describe('registerWebWasmAdapters', () => {
       onWorkspaceChanged: (event) => workspaceChanges.push(`${event.type}:${event.sessionId}`),
     })
 
-    assert.deepEqual([...registrations.keys()], ['browser-runtime', 'import', 'data', 'platform', 'preferences'])
+    assert.deepEqual(
+      [...registrations.keys()],
+      ['browser-runtime-rpc', 'browser-runtime', 'import', 'data', 'platform', 'preferences']
+    )
+    assert.equal(registrations.get('browser-runtime-rpc'), client)
     assert.ok(registrations.get('browser-runtime') instanceof BrowserRuntimeAdapter)
     assert.ok(registrations.get('import') instanceof BrowserImportAdapter)
     assert.ok(registrations.get('platform') instanceof BrowserPlatformAdapter)

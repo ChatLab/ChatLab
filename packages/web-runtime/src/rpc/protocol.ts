@@ -1,6 +1,13 @@
 import type { BrowserImportFormatId, BrowserParseSource } from '../import/browser-parser'
 import type { BrowserSessionCatalogItem } from '../import/session-catalog'
 import type {
+  AppendRuntimeMessageInput,
+  RuntimeConversation,
+  RuntimeMessage,
+  RuntimeToolDefinition,
+  RuntimeToolResult,
+} from '@openchatlab/ai-runtime'
+import type {
   DailyActivity,
   HourlyActivity,
   MemberActivity,
@@ -92,6 +99,54 @@ export interface WebRuntimeTaskMap {
   'session.rename': {
     payload: { sessionId: string; name: string }
     result: { renamed: boolean }
+  }
+  'ai.conversation.create': {
+    payload: { sessionId: string; title?: string | null }
+    result: RuntimeConversation
+  }
+  'ai.conversation.list': {
+    payload: { sessionId: string }
+    result: RuntimeConversation[]
+  }
+  'ai.conversation.get': {
+    payload: { conversationId: string }
+    result: RuntimeConversation | null
+  }
+  'ai.conversation.rename': {
+    payload: { conversationId: string; title: string }
+    result: { renamed: boolean }
+  }
+  'ai.conversation.delete': {
+    payload: { conversationId: string }
+    result: { deleted: boolean }
+  }
+  'ai.message.list': {
+    payload: { conversationId: string }
+    result: RuntimeMessage[]
+  }
+  'ai.message.append': {
+    payload: AppendRuntimeMessageInput
+    result: RuntimeMessage
+  }
+  'ai.message.update': {
+    payload: { messageId: string; patch: Pick<RuntimeMessage, 'content' | 'blocks' | 'usage'> }
+    result: { updated: true }
+  }
+  'ai.message.delete': {
+    payload: { messageId: string }
+    result: { deleted: boolean }
+  }
+  'ai.summary.replace': {
+    payload: { conversationId: string; content: string; boundaryMessageId: string }
+    result: RuntimeMessage
+  }
+  'ai.tool.list': {
+    payload: undefined
+    result: RuntimeToolDefinition[]
+  }
+  'ai.tool.execute': {
+    payload: { sessionId: string; name: string; input: unknown; locale?: string }
+    result: RuntimeToolResult
   }
   'analysis.hourly': {
     payload: { sessionId: string; filter?: BrowserTimeFilter }
@@ -285,6 +340,18 @@ const WEB_RUNTIME_TASK_TYPES: Record<WebRuntimeTaskType, true> = {
   'session.get': true,
   'session.delete': true,
   'session.rename': true,
+  'ai.conversation.create': true,
+  'ai.conversation.list': true,
+  'ai.conversation.get': true,
+  'ai.conversation.rename': true,
+  'ai.conversation.delete': true,
+  'ai.message.list': true,
+  'ai.message.append': true,
+  'ai.message.update': true,
+  'ai.message.delete': true,
+  'ai.summary.replace': true,
+  'ai.tool.list': true,
+  'ai.tool.execute': true,
   'analysis.hourly': true,
   'analysis.daily': true,
   'analysis.weekday': true,

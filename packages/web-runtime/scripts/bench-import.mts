@@ -43,7 +43,11 @@ class MemoryWorkspaceDatabase implements WorkspaceDatabasePort {
     return operation()
   }
 
-  async withDatabase<T>(filename: string, schemaSql: string, operation: (db: DatabaseAdapter) => T): Promise<T> {
+  async withDatabase<T>(
+    filename: string,
+    schemaSql: string,
+    operation: (db: DatabaseAdapter) => T | Promise<T>
+  ): Promise<T> {
     let entry = this.databases.get(filename)
     if (!entry) {
       const raw = new this.sqlite3.oo1.DB(':memory:', 'c')

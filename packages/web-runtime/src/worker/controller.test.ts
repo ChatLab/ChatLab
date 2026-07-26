@@ -69,7 +69,11 @@ class FakeDatabaseRuntime implements WorkerDatabaseRuntime {
     return { closed: true }
   }
 
-  async withDatabase<T>(_filename: string, _schemaSql: string, _operation: never): Promise<T> {
+  async withDatabase<T>(
+    _filename: string,
+    _schemaSql: string,
+    _operation: (db: import('@openchatlab/core').DatabaseAdapter) => T | Promise<T>
+  ): Promise<T> {
     throw new Error('not used')
   }
 

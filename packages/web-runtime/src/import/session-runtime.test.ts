@@ -36,7 +36,11 @@ class MemoryWorkspaceDatabase implements WorkspaceDatabasePort {
     }
   }
 
-  async withDatabase<T>(filename: string, schemaSql: string, operation: (db: DatabaseAdapter) => T): Promise<T> {
+  async withDatabase<T>(
+    filename: string,
+    schemaSql: string,
+    operation: (db: DatabaseAdapter) => T | Promise<T>
+  ): Promise<T> {
     this.assertWorkspaceLease()
     let entry = this.databases.get(filename)
     if (!entry) {
