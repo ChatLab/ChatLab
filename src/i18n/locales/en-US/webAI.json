@@ -8,7 +8,6 @@
   "regenerate": "Regenerate",
   "footer": "AI can make mistakes. Verify important conclusions.",
   "usingTool": "Using {name}",
-  "compressing": "Compressing conversation context",
   "presets": {
     "overview": "Summarize the main topics in this chat",
     "topics": "What has everyone discussed recently?",
@@ -39,13 +38,20 @@
     "corsWarning": "Only OpenAI-compatible services that allow browser CORS requests are supported. A connection failure may mean the provider blocks direct browser access.",
     "test": "Test connection",
     "testSuccess": "Connected ({ms}ms)",
-    "saved": "Model configuration saved"
+    "saved": "Model configuration saved",
+    "remove": "Remove configuration",
+    "removeConfirm": "Remove the model configuration and saved API Key?",
+    "removed": "Model configuration and API Key removed"
   },
   "errors": {
     "AUTH": "The API Key is invalid or lacks permission.",
     "RATE_LIMIT": "The request was rate-limited or has insufficient quota. Try again later.",
     "MODEL_NOT_FOUND": "The model was not found. Check the model name.",
     "TIMEOUT": "The model request timed out. Try again.",
-    "NETWORK_OR_CORS": "The request was blocked by the network or browser CORS policy. Confirm that the provider supports direct browser access."
+    "NETWORK_OR_CORS": "The request was blocked by the network or browser CORS policy. Confirm that the provider supports direct browser access.",
+    "FINISH_LENGTH": "The response reached its length limit and may be incomplete. Continue the conversation or regenerate it.",
+    "FINISH_CONTENT_FILTER": "The model provider stopped the response because of its content policy. The response may be incomplete.",
+    "FINISH_TOOL_CALLS": "This turn reached its tool-call limit and may be incomplete. Try again.",
+    "FINISH_UNKNOWN": "The model did not finish normally. The response may be incomplete; try again."
   }
 }

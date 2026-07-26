@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { reactive, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type {
   SaveWebModelConfigInput,
@@ -7,18 +7,21 @@ import type {
   WebModelConfig,
   WebAIProvider,
 } from '@openchatlab/web-ai-runtime'
+import { resetProviderFields } from './model-config-form'
 
 const props = defineProps<{
   open: boolean
   config: WebModelConfig | null
   testing?: boolean
   saving?: boolean
+  removing?: boolean
 }>()
 
 const emit = defineEmits<{
   'update:open': [value: boolean]
   test: [input: SaveWebModelConfigInput]
   save: [input: SaveWebModelConfigInput]
+  remove: []
 }>()
 
 const { t } = useI18n()
@@ -34,30 +37,33 @@ const providerOptions = [
   { label: 'DeepSeek', value: 'deepseek' },
   { label: t('webAI.config.openAICompatible'), value: 'openai-compatible' },
 ]
+const localizedErrorCodes = new Set(['AUTH', 'RATE_LIMIT', 'MODEL_NOT_FOUND', 'TIMEOUT', 'NETWORK_OR_CORS'])
+const resultText = computed(() => {
+  if (result.value?.ok) return t('webAI.config.testSuccess', { ms: result.value.latencyMs })
+  const error = result.value?.error
+  if (error && localizedErrorCodes.has(error.code)) return t(`webAI.errors.${error.code}`)
+  return error?.message ?? ''
+})
 
 watch(
-  () => props.open,
-  (open) => {
+  [() => props.open, () => props.config] as const,
+  ([open]) => {
     if (!open) return
     result.value = null
     form.provider = props.config?.provider ?? 'deepseek'
     form.baseURL = props.config?.baseURL ?? 'https://api.deepseek.com'
     form.model = props.config?.model ?? 'deepseek-v4-flash'
-    form.contextWindow = props.config?.contextWindow
     form.apiKey = ''
   },
   { immediate: true }
 )
 
-watch(
-  () => form.provider,
-  (provider) => {
-    if (provider === 'deepseek' && (!form.baseURL || form.baseURL.includes('example'))) {
-      form.baseURL = 'https://api.deepseek.com'
-      form.model = 'deepseek-v4-flash'
-    }
-  }
-)
+function updateProvider(provider: string) {
+  if (provider !== 'deepseek' && provider !== 'openai-compatible') return
+  form.provider = provider
+  resetProviderFields(form, provider)
+  result.value = null
+}
 
 function getInput(): SaveWebModelConfigInput | null {
   if (!form.apiKey.trim() || !form.model.trim() || !form.baseURL?.trim()) {
@@ -71,7 +77,6 @@ function getInput(): SaveWebModelConfigInput | null {
     provider: form.provider as WebAIProvider,
     baseURL: form.baseURL.trim(),
     model: form.model.trim(),
-    contextWindow: form.contextWindow,
     apiKey: form.apiKey.trim(),
   }
 }
@@ -114,7 +119,13 @@ defineExpose({
 
         <div class="mt-5 space-y-4">
           <UFormField :label="t('webAI.config.provider')">
-            <USelect v-model="form.provider" class="w-full" :items="providerOptions" value-key="value" />
+            <USelect
+              :model-value="form.provider"
+              class="w-full"
+              :items="providerOptions"
+              value-key="value"
+              @update:model-value="updateProvider"
+            />
           </UFormField>
           <UFormField :label="t('webAI.config.baseURL')">
             <UInput v-model="form.baseURL" class="w-full" autocomplete="url" />
@@ -148,15 +159,36 @@ defineExpose({
                 : 'bg-red-50 text-red-700 dark:bg-red-900/20 dark:text-red-300'
             "
           >
-            {{ result.ok ? t('webAI.config.testSuccess', { ms: result.latencyMs }) : result.error?.message }}
+            {{ resultText }}
           </div>
         </div>
 
-        <div class="mt-5 flex justify-end gap-2">
-          <UButton color="neutral" variant="soft" :loading="testing" @click="testConnection">
-            {{ t('webAI.config.test') }}
+        <div class="mt-5 flex items-center justify-between gap-3">
+          <UButton
+            v-if="config"
+            color="error"
+            variant="ghost"
+            :disabled="testing || saving"
+            :loading="removing"
+            @click="emit('remove')"
+          >
+            {{ t('webAI.config.remove') }}
           </UButton>
-          <UButton color="primary" :loading="saving" @click="save">{{ t('common.save') }}</UButton>
+          <span v-else />
+          <div class="flex justify-end gap-2">
+            <UButton
+              color="neutral"
+              variant="soft"
+              :disabled="saving || removing"
+              :loading="testing"
+              @click="testConnection"
+            >
+              {{ t('webAI.config.test') }}
+            </UButton>
+            <UButton color="primary" :disabled="testing || removing" :loading="saving" @click="save">
+              {{ t('common.save') }}
+            </UButton>
+          </div>
         </div>
       </div>
     </template>

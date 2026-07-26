@@ -24,18 +24,15 @@ export const WEB_AI_SCHEMA = `
   CREATE TABLE IF NOT EXISTS ai_message (
     id TEXT PRIMARY KEY,
     conversation_id TEXT NOT NULL,
-    role TEXT NOT NULL CHECK (role IN ('user', 'assistant', 'summary')),
+    role TEXT NOT NULL CHECK (role IN ('user', 'assistant')),
     content TEXT NOT NULL,
     created_at INTEGER NOT NULL,
     blocks_json TEXT,
     usage_json TEXT,
-    summary_boundary_message_id TEXT,
     FOREIGN KEY(conversation_id) REFERENCES ai_conversation(id) ON DELETE CASCADE
   );
   CREATE INDEX IF NOT EXISTS idx_ai_message_conversation_created
     ON ai_message(conversation_id, created_at ASC, id ASC);
-  CREATE UNIQUE INDEX IF NOT EXISTS idx_ai_message_single_summary
-    ON ai_message(conversation_id) WHERE role = 'summary';
 `
 
 interface ConversationRow {
@@ -152,8 +149,8 @@ export class BrowserAIConversationRepository implements ConversationRepository {
         db
           .prepare(
             `SELECT * FROM ai_message
-             WHERE conversation_id = ?
-             ORDER BY CASE WHEN role = 'summary' THEN 0 ELSE 1 END, created_at ASC, id ASC`
+             WHERE conversation_id = ? AND role IN ('user', 'assistant')
+             ORDER BY created_at ASC, id ASC`
           )
           .all(conversationId) as unknown as MessageRow[]
       ).map(mapMessage)
@@ -204,38 +201,6 @@ export class BrowserAIConversationRepository implements ConversationRepository {
 
   deleteMessage(id: string): Promise<boolean> {
     return this.withDatabase((db) => db.prepare('DELETE FROM ai_message WHERE id = ?').run(id).changes > 0)
-  }
-
-  replaceSummary(
-    conversationId: string,
-    input: { content: string; boundaryMessageId: string }
-  ): Promise<RuntimeMessage> {
-    return this.withDatabase((db) => {
-      const existing = db
-        .prepare("SELECT * FROM ai_message WHERE conversation_id = ? AND role = 'summary'")
-        .get(conversationId) as MessageRow | undefined
-      const message: RuntimeMessage = {
-        id: existing?.id ?? createId('summary'),
-        conversationId,
-        role: 'summary',
-        content: input.content,
-        createdAt: Date.now(),
-      }
-      if (existing) {
-        db.prepare(
-          `UPDATE ai_message
-           SET content = ?, created_at = ?, blocks_json = NULL, usage_json = NULL, summary_boundary_message_id = ?
-           WHERE id = ?`
-        ).run(message.content, message.createdAt, input.boundaryMessageId, message.id)
-      } else {
-        db.prepare(
-          `INSERT INTO ai_message (
-             id, conversation_id, role, content, created_at, summary_boundary_message_id
-           ) VALUES (?, ?, 'summary', ?, ?, ?)`
-        ).run(message.id, conversationId, message.content, message.createdAt, input.boundaryMessageId)
-      }
-      return message
-    })
   }
 
   private withDatabase<T>(operation: (db: DatabaseAdapter) => T): Promise<T> {

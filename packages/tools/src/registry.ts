@@ -26,7 +26,6 @@ import { recentMessagesTool } from './definitions/recent-messages'
 import { getMemberNameHistoryTool } from './definitions/get-member-name-history'
 import { getConversationBetweenTool } from './definitions/get-conversation-between'
 import { getSegmentSummariesTool } from './definitions/get-segment-summaries'
-import { searchSegmentsTool } from './definitions/search-segments'
 import { responseTimeAnalysisTool } from './definitions/response-time-analysis'
 import { keywordFrequencyTool } from './definitions/keyword-frequency'
 import { semanticSearchCurrentChatTool } from './definitions/semantic-search-current-chat'
@@ -54,7 +53,6 @@ const SHARED_TOOLS: ToolDefinition[] = [
   getMemberNameHistoryTool,
   getConversationBetweenTool,
   getSegmentSummariesTool,
-  searchSegmentsTool,
   responseTimeAnalysisTool,
   keywordFrequencyTool,
   renderChartTool,

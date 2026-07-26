@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { RuntimeContentBlock, RuntimeMessage } from '@openchatlab/ai-runtime'
+import type { FinishReason, RuntimeContentBlock, RuntimeMessage } from '@openchatlab/ai-runtime'
 import {
+  normalizeWebAIError,
   WebAIChatRuntime,
   type AgentStreamEvent,
   type RuntimeConversation,
@@ -16,6 +17,8 @@ import { reportRuntimeLog } from '@/services/log-report'
 import { useToast } from '@/composables/useToast'
 import WebAIModelSetupModal from './WebAIModelSetupModal.vue'
 import { toWebAIChatMessage } from './message-mapper'
+import { runWithSavingState } from './save-state'
+import { isAbortError, resolveSendTarget } from './send-lifecycle'
 
 const props = defineProps<{
   sessionId: string
@@ -29,6 +32,7 @@ const setupModal = ref<InstanceType<typeof WebAIModelSetupModal> | null>(null)
 const setupOpen = ref(false)
 const testing = ref(false)
 const saving = ref(false)
+const removing = ref(false)
 const config = ref<WebModelConfig | null>(null)
 const conversations = ref<RuntimeConversation[]>([])
 const conversationId = ref<string | null>(null)
@@ -41,12 +45,15 @@ const errorText = ref('')
 const processText = ref('')
 const listOpen = ref(false)
 const messagesContainer = ref<HTMLElement | null>(null)
+let activeSendController: AbortController | null = null
 
 const displayMessages = computed(() => {
   const result = messages.value.map((message) => toWebAIChatMessage(message))
   if (streamingMessage.value) result.push(toWebAIChatMessage(streamingMessage.value, true))
   return result
 })
+const canRetry = computed(() => messages.value.at(-1)?.role === 'user')
+const canRegenerate = computed(() => messages.value.at(-1)?.role === 'assistant')
 
 const presetQuestions = computed(() => [
   t('webAI.presets.overview'),
@@ -64,6 +71,11 @@ onMounted(async () => {
   } finally {
     loading.value = false
   }
+})
+
+onBeforeUnmount(() => {
+  activeSendController?.abort()
+  if (conversationId.value) runtime.stop(conversationId.value)
 })
 
 watch(
@@ -120,10 +132,12 @@ async function renameConversation(conversation: RuntimeConversation) {
   await loadConversations(conversation.id)
 }
 
-async function ensureConversation(question: string): Promise<string> {
+async function ensureConversation(question: string, signal: AbortSignal): Promise<string> {
   if (conversationId.value) return conversationId.value
   const title = question.replace(/\s+/g, ' ').slice(0, 36)
-  const conversation = await runtime.conversations.createConversation(props.sessionId, title)
+  const conversation = await runtime.conversations.createConversation(props.sessionId, title, signal)
+  // RPC mutations report committed results even if cancellation arrives immediately afterward. Keep the
+  // empty conversation visible instead of racing navigation with a compensating delete.
   conversationId.value = conversation.id
   conversations.value = [conversation, ...conversations.value]
   return conversation.id
@@ -140,6 +154,8 @@ async function send(content = prompt.value) {
   errorText.value = ''
   processText.value = ''
   generating.value = true
+  const sendController = new AbortController()
+  activeSendController = sendController
   reportRuntimeLog({
     level: 'info',
     scope: 'web-ai',
@@ -147,7 +163,7 @@ async function send(content = prompt.value) {
     data: { sessionId: props.sessionId, conversationId: conversationId.value },
   })
   try {
-    const id = await ensureConversation(question)
+    const id = await resolveSendTarget(sendController.signal, (signal) => ensureConversation(question, signal))
     messages.value.push({
       id: `optimistic-${Date.now()}`,
       conversationId: id,
@@ -155,20 +171,21 @@ async function send(content = prompt.value) {
       content: question,
       createdAt: Date.now(),
     })
-    await runtime.run({
+    const result = await runtime.run({
       sessionId: props.sessionId,
       conversationId: id,
       locale: locale.value,
       userMessage: question,
       onEvent: handleEvent,
     })
+    errorText.value = getFinishReasonWarning(result.finishReason)
     await refreshCurrentConversation()
     await loadConversationListOnly()
     reportRuntimeLog({
       level: 'info',
       scope: 'web-ai',
-      message: 'AI generation completed',
-      data: { sessionId: props.sessionId, conversationId: id },
+      message: 'AI generation finished',
+      data: { sessionId: props.sessionId, conversationId: id, finishReason: result.finishReason },
     })
   } catch (error) {
     const aborted = isAbortError(error)
@@ -183,6 +200,7 @@ async function send(content = prompt.value) {
     })
     await refreshCurrentConversation()
   } finally {
+    if (activeSendController === sendController) activeSendController = null
     generating.value = false
     streamingMessage.value = null
     processText.value = ''
@@ -190,7 +208,10 @@ async function send(content = prompt.value) {
 }
 
 function stop() {
-  if (conversationId.value && runtime.stop(conversationId.value)) {
+  const pendingSend = activeSendController
+  if (pendingSend && !pendingSend.signal.aborted) pendingSend.abort()
+  const generationStopped = conversationId.value ? runtime.stop(conversationId.value) : false
+  if (pendingSend || generationStopped) {
     reportRuntimeLog({
       level: 'info',
       scope: 'web-ai',
@@ -210,15 +231,63 @@ async function regenerate() {
   generating.value = true
   errorText.value = ''
   try {
-    await runtime.regenerateLast({
+    const result = await runtime.regenerateLast({
       sessionId: props.sessionId,
       conversationId: conversationId.value,
       locale: locale.value,
       onEvent: handleEvent,
     })
+    errorText.value = getFinishReasonWarning(result.finishReason)
   } catch (error) {
     messages.value = previousMessages
     if (!isAbortError(error)) errorText.value = getFriendlyError(error)
+  } finally {
+    generating.value = false
+    streamingMessage.value = null
+    processText.value = ''
+    await refreshCurrentConversation()
+  }
+}
+
+async function retry() {
+  if (!conversationId.value || generating.value || !config.value || !canRetry.value) return
+  generating.value = true
+  errorText.value = ''
+  processText.value = ''
+  reportRuntimeLog({
+    level: 'info',
+    scope: 'web-ai',
+    message: 'AI generation retry started',
+    data: { sessionId: props.sessionId, conversationId: conversationId.value },
+  })
+  try {
+    const result = await runtime.retryLast({
+      sessionId: props.sessionId,
+      conversationId: conversationId.value,
+      locale: locale.value,
+      onEvent: handleEvent,
+    })
+    errorText.value = getFinishReasonWarning(result.finishReason)
+    await loadConversationListOnly()
+    reportRuntimeLog({
+      level: 'info',
+      scope: 'web-ai',
+      message: 'AI generation retry finished',
+      data: {
+        sessionId: props.sessionId,
+        conversationId: conversationId.value,
+        finishReason: result.finishReason,
+      },
+    })
+  } catch (error) {
+    const aborted = isAbortError(error)
+    if (!aborted) errorText.value = getFriendlyError(error)
+    reportRuntimeLog({
+      level: aborted ? 'info' : 'error',
+      scope: 'web-ai',
+      message: aborted ? 'AI generation retry aborted' : 'AI generation retry failed',
+      data: { code: getErrorCode(error), aborted },
+    })
   } finally {
     generating.value = false
     streamingMessage.value = null
@@ -257,14 +326,8 @@ function handleEvent(event: AgentStreamEvent) {
       block.result = event.result
       block.isError = event.isError
     }
-  } else if (event.type === 'chart') {
-    message.blocks?.push({ type: 'chart', payload: event.payload })
   } else if (event.type === 'evidence') {
     message.blocks?.push({ type: 'evidence', payload: event.payload })
-  } else if (event.type === 'compression-start') {
-    processText.value = t('webAI.compressing')
-  } else if (event.type === 'compression-done') {
-    processText.value = ''
   }
 }
 
@@ -290,21 +353,67 @@ async function testConnection(input: SaveWebModelConfigInput) {
 }
 
 async function saveConfig(input: SaveWebModelConfigInput) {
-  saving.value = true
-  const result: WebAIConnectionTestResult = await runtime.testConnection(input)
-  setupModal.value?.setTestResult(result)
-  if (result.ok) {
-    config.value = await runtime.saveConfig(input)
+  try {
+    await runWithSavingState(
+      (value) => {
+        saving.value = value
+      },
+      async () => {
+        const result: WebAIConnectionTestResult = await runtime.testConnection(input)
+        setupModal.value?.setTestResult(result)
+        if (!result.ok) return
+
+        config.value = await runtime.saveConfig(input)
+        reportRuntimeLog({
+          level: 'info',
+          scope: 'web-ai',
+          message: 'Browser model configuration saved',
+          data: { provider: input.provider, model: input.model },
+        })
+        setupOpen.value = false
+        toast.success(t('webAI.config.saved'))
+      }
+    )
+  } catch (error) {
+    const normalized = normalizeWebAIError(error)
+    setupModal.value?.setTestResult({ ok: false, error: normalized.data })
     reportRuntimeLog({
-      level: 'info',
+      level: 'error',
       scope: 'web-ai',
-      message: 'Browser model configuration saved',
-      data: { provider: input.provider, model: input.model },
+      message: 'Browser model configuration save failed',
+      data: { code: normalized.data.code },
     })
-    setupOpen.value = false
-    toast.success(t('webAI.config.saved'))
   }
-  saving.value = false
+}
+
+async function removeConfig() {
+  if (!window.confirm(t('webAI.config.removeConfirm'))) return
+  try {
+    await runWithSavingState(
+      (value) => {
+        removing.value = value
+      },
+      async () => {
+        await runtime.clearConfig()
+        config.value = null
+        reportRuntimeLog({
+          level: 'info',
+          scope: 'web-ai',
+          message: 'Browser model configuration removed',
+        })
+        toast.success(t('webAI.config.removed'))
+      }
+    )
+  } catch (error) {
+    const normalized = normalizeWebAIError(error)
+    setupModal.value?.setTestResult({ ok: false, error: normalized.data })
+    reportRuntimeLog({
+      level: 'error',
+      scope: 'web-ai',
+      message: 'Browser model configuration removal failed',
+      data: { code: normalized.data.code },
+    })
+  }
 }
 
 function getFriendlyError(error: unknown): string {
@@ -317,18 +426,19 @@ function getFriendlyError(error: unknown): string {
   return error instanceof Error ? error.message : String(error)
 }
 
+function getFinishReasonWarning(reason: FinishReason): string {
+  if (reason === 'length') return t('webAI.errors.FINISH_LENGTH')
+  if (reason === 'content-filter') return t('webAI.errors.FINISH_CONTENT_FILTER')
+  if (reason === 'tool-calls') return t('webAI.errors.FINISH_TOOL_CALLS')
+  if (reason === 'unknown' || reason === 'error') return t('webAI.errors.FINISH_UNKNOWN')
+  return ''
+}
+
 function getErrorCode(error: unknown): string {
   if (error && typeof error === 'object' && 'data' in error) {
     return String((error as { data?: { code?: unknown } }).data?.code ?? 'UNKNOWN')
   }
   return isAbortError(error) ? 'ABORTED' : 'UNKNOWN'
-}
-
-function isAbortError(error: unknown): boolean {
-  if (error instanceof DOMException && error.name === 'AbortError') return true
-  if (!error || typeof error !== 'object') return false
-  const candidate = error as { code?: unknown; data?: { code?: unknown } }
-  return candidate.code === 'ABORTED' || candidate.data?.code === 'ABORTED'
 }
 
 async function scrollToBottom() {
@@ -503,7 +613,15 @@ function handleInputKeydown(event: KeyboardEvent) {
             />
             <div class="flex items-center justify-between gap-2 px-1">
               <button
-                v-if="messages.some((message) => message.role === 'assistant') && !generating"
+                v-if="canRetry && !generating"
+                type="button"
+                class="rounded-md px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+                @click="retry"
+              >
+                {{ t('common.retry') }}
+              </button>
+              <button
+                v-else-if="canRegenerate && !generating"
                 type="button"
                 class="rounded-md px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
                 @click="regenerate"
@@ -544,8 +662,10 @@ function handleInputKeydown(event: KeyboardEvent) {
       :config="config"
       :testing="testing"
       :saving="saving"
+      :removing="removing"
       @test="testConnection"
       @save="saveConfig"
+      @remove="removeConfig"
     />
   </div>
 </template>

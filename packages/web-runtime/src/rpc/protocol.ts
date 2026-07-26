@@ -136,12 +136,8 @@ export interface WebRuntimeTaskMap {
     payload: { messageId: string }
     result: { deleted: boolean }
   }
-  'ai.summary.replace': {
-    payload: { conversationId: string; content: string; boundaryMessageId: string }
-    result: RuntimeMessage
-  }
   'ai.tool.list': {
-    payload: undefined
+    payload: { locale?: string }
     result: RuntimeToolDefinition[]
   }
   'ai.tool.execute': {
@@ -349,7 +345,6 @@ const WEB_RUNTIME_TASK_TYPES: Record<WebRuntimeTaskType, true> = {
   'ai.message.append': true,
   'ai.message.update': true,
   'ai.message.delete': true,
-  'ai.summary.replace': true,
   'ai.tool.list': true,
   'ai.tool.execute': true,
   'analysis.hourly': true,

@@ -8,6 +8,7 @@ import type { BrowserParseSource } from '../import/chatlab-parser'
 import { WebRuntimeError } from '../runtime-error'
 import { BrowserDatabaseRuntime, type DatabaseOpenStage } from '../sqlite/database-runtime'
 import type { WebRuntimeLockManager } from '../sqlite/workspace-lease'
+import { BrowserAIConversationRepository } from '../ai/conversation-repository'
 import {
   WebRuntimeWorkerController,
   type WorkerDatabaseRuntime,
@@ -570,6 +571,40 @@ describe('WebRuntimeWorkerController', () => {
       sink.messages.some((message) => message.id === 'rename-cancelled-after-write' && message.type === 'error'),
       false
     )
+  })
+
+  it('retries AI conversation cleanup after the session was already deleted', async () => {
+    const sink = new CapturingSink()
+    const database = new FakeDatabaseRuntime()
+    const sessions = new FakeSessionRuntime()
+    let sessionDeleteAttempts = 0
+    sessions.deleteSession = async () => {
+      sessionDeleteAttempts += 1
+      return sessionDeleteAttempts === 1
+    }
+    const aiRepository = new BrowserAIConversationRepository(database)
+    let cleanupAttempts = 0
+    aiRepository.deleteBySession = async () => {
+      cleanupAttempts += 1
+      if (cleanupAttempts === 1) throw new Error('AI cleanup failed')
+      return 1
+    }
+    const controller = new WebRuntimeWorkerController(
+      sink,
+      database,
+      () => supportedCapabilities,
+      sessions,
+      aiRepository
+    )
+
+    controller.handleMessage({ id: 'delete-first', type: 'session.delete', payload: { sessionId: 'session-one' } })
+    await waitForMessage(sink, 'delete-first', 'error')
+    controller.handleMessage({ id: 'delete-retry', type: 'session.delete', payload: { sessionId: 'session-one' } })
+    const retry = await waitForMessage(sink, 'delete-retry', 'result')
+
+    assert.deepEqual(retry.type === 'result' ? retry.payload.result : null, { deleted: true })
+    assert.equal(sessionDeleteAttempts, 2)
+    assert.equal(cleanupAttempts, 2)
   })
 
   it('routes import progress and session catalog tasks through the session runtime', async () => {

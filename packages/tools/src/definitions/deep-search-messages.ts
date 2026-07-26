@@ -9,7 +9,7 @@ import { parseExtendedTimeParams } from '../utils/time-params'
 import { formatTimeRange } from '../utils/format'
 import { timeParamProperties } from '../utils/schemas'
 import { resolveMessageLimit } from '../utils/limits'
-import { trimMessagesPreservingHits } from './search-context'
+import { requireSearchKeywords, trimMessagesPreservingHits } from './search-context'
 
 const inputSchema: JsonSchema = {
   type: 'object',
@@ -24,7 +24,7 @@ const inputSchema: JsonSchema = {
 
 async function handler(params: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {
   const { locale, timeFilter: contextTimeFilter, maxMessagesLimit } = context
-  const keywords = params.keywords as string[]
+  const keywords = requireSearchKeywords(params.keywords)
   const limit = Math.min(resolveMessageLimit(params.limit, 1000, maxMessagesLimit), 50000)
   const effectiveTimeFilter = parseExtendedTimeParams(params as any, contextTimeFilter)
 

@@ -1,7 +1,6 @@
 import type { ModelMessage, ToolSet } from 'ai'
 import { jsonSchema, stepCountIs, streamText, tool } from 'ai'
 
-import { compressConversation, resolveCompressionPolicy } from './context-compression'
 import { normalizeRuntimeError } from './errors'
 import { truncateToolResult } from './token-budget'
 import type {
@@ -15,14 +14,16 @@ import type {
   TokenUsage,
 } from './types'
 
+const MAX_TOOL_RESULT_CHARACTERS = 24_000
+
 function createId(prefix: string): string {
   return `${prefix}_${crypto.randomUUID()}`
 }
 
 function toModelMessages(messages: RuntimeMessage[], userMessage: string): ModelMessage[] {
   const result: ModelMessage[] = messages.map((message) => ({
-    role: message.role === 'summary' ? 'assistant' : message.role,
-    content: message.role === 'summary' ? `[Conversation summary]\n${message.content}` : message.content,
+    role: message.role,
+    content: message.content,
   }))
   result.push({ role: 'user', content: userMessage })
   return result
@@ -57,34 +58,34 @@ function appendResultBlocks(
   blocks: RuntimeContentBlock[],
   onEvent: (event: AgentStreamEvent) => void
 ): void {
-  if (result.chart !== undefined) {
-    blocks.push({ type: 'chart', payload: result.chart })
-    onEvent({ type: 'chart', payload: result.chart })
-  }
   if (result.evidence !== undefined) {
     blocks.push({ type: 'evidence', payload: result.evidence })
     onEvent({ type: 'evidence', payload: result.evidence })
   }
 }
 
+function appendTextDelta(blocks: RuntimeContentBlock[], type: 'text' | 'reasoning', delta: string): void {
+  if (!delta) return
+  const last = blocks.at(-1)
+  if (last?.type === type) last.text += delta
+  else blocks.push({ type, text: delta })
+}
+
+function toStoredToolResult(result: RuntimeToolResult): RuntimeToolResult {
+  // Structured display payloads are persisted as dedicated blocks below, so keep the tool block bounded.
+  return {
+    content: result.content,
+    ...(result.truncated ? { truncated: true } : {}),
+  }
+}
+
 export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
   const requestId = input.requestId ?? createId('request')
   const assistantMessageId = input.messageId ?? createId('message')
-  const policy = resolveCompressionPolicy(input.compression)
   input.onEvent({ type: 'start', requestId, messageId: assistantMessageId })
 
   try {
     const storedMessages = await input.repository.getMessages(input.conversationId)
-    const prepared = await compressConversation({
-      conversationId: input.conversationId,
-      messages: storedMessages,
-      model: input.model,
-      repository: input.repository,
-      systemPrompt: input.systemPrompt,
-      signal: input.signal,
-      policy,
-      onEvent: input.onEvent,
-    })
 
     const blocks: RuntimeContentBlock[] = []
     const toolsUsed = new Set<string>()
@@ -94,8 +95,17 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
         tool({
           description: definition.description,
           inputSchema: jsonSchema(definition.inputSchema as Parameters<typeof jsonSchema>[0]),
+          // UI needs the structured payload, while the model only needs the bounded textual result.
+          toModelOutput: ({ output }) => ({ type: 'text', value: output.content }),
           execute: async (toolInput, options) => {
             toolsUsed.add(definition.name)
+            const toolBlock: Extract<RuntimeContentBlock, { type: 'tool' }> = {
+              type: 'tool',
+              callId: options.toolCallId,
+              name: definition.name,
+              input: toolInput,
+            }
+            blocks.push(toolBlock)
             input.onEvent({ type: 'tool-start', callId: options.toolCallId, name: definition.name, input: toolInput })
             try {
               const rawResult = await input.tools.execute(
@@ -104,32 +114,28 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
                 { sessionId: input.sessionId, conversationId: input.conversationId },
                 input.signal
               )
-              const limited = truncateToolResult(rawResult.content, policy.maxToolResultCharacters)
+              const limited = truncateToolResult(rawResult.content, MAX_TOOL_RESULT_CHARACTERS)
               const result = {
                 ...rawResult,
                 content: limited.content,
                 truncated: rawResult.truncated || limited.truncated,
               }
-              blocks.push({ type: 'tool', callId: options.toolCallId, name: definition.name, input: toolInput, result })
+              const storedResult = toStoredToolResult(result)
+              toolBlock.result = storedResult
+              toolBlock.isError = result.isError
               input.onEvent({
                 type: 'tool-result',
                 callId: options.toolCallId,
                 name: definition.name,
-                result,
-                isError: false,
+                result: storedResult,
+                isError: result.isError === true,
               })
               appendResultBlocks(result, blocks, input.onEvent)
               return result
             } catch (error) {
               const result = { content: error instanceof Error ? error.message : String(error) }
-              blocks.push({
-                type: 'tool',
-                callId: options.toolCallId,
-                name: definition.name,
-                input: toolInput,
-                result,
-                isError: true,
-              })
+              toolBlock.result = result
+              toolBlock.isError = true
               input.onEvent({
                 type: 'tool-result',
                 callId: options.toolCallId,
@@ -145,13 +151,12 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
     )
 
     let text = ''
-    let reasoning = ''
     let aborted = false
     let finalReason: string | undefined
     const result = streamText({
       model: input.model.model,
       instructions: input.systemPrompt,
-      messages: toModelMessages(prepared.messages, input.userMessage),
+      messages: toModelMessages(storedMessages, input.userMessage),
       tools: toolSet,
       stopWhen: stepCountIs(input.maxToolSteps ?? 8),
       maxOutputTokens: input.maxOutputTokens ?? 4_096,
@@ -162,9 +167,10 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
     for await (const part of result.stream) {
       if (part.type === 'text-delta') {
         text += part.text
+        appendTextDelta(blocks, 'text', part.text)
         input.onEvent({ type: 'text-delta', delta: part.text })
       } else if (part.type === 'reasoning-delta') {
-        reasoning += part.text
+        appendTextDelta(blocks, 'reasoning', part.text)
         input.onEvent({ type: 'reasoning-delta', delta: part.text })
       } else if (part.type === 'finish') {
         finalReason = part.finishReason
@@ -175,8 +181,6 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
       }
     }
 
-    if (reasoning) blocks.unshift({ type: 'reasoning', text: reasoning })
-    if (text) blocks.push({ type: 'text', text })
     let usage: TokenUsage = {}
     try {
       usage = mapUsage(await result.usage)
@@ -195,7 +199,7 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
       usage,
     })
     input.onEvent({ type: 'finish', reason: finishReason })
-    return { message, usage, finishReason, toolsUsed: [...toolsUsed], compressed: prepared.compressed }
+    return { message, usage, finishReason, toolsUsed: [...toolsUsed] }
   } catch (error) {
     const normalized = normalizeRuntimeError(error, input.signal)
     input.onEvent({ type: 'error', error: normalized.toJSON() })

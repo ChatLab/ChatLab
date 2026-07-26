@@ -9,6 +9,7 @@ interface AgentToolParameters {
 interface AgentToolExecutionResult {
   content: Array<{ type: 'text'; text: string }>
   details: unknown
+  isError?: boolean
 }
 
 /** 将平台无关的工具输入 schema 转成 Agent SDK 接受的参数结构，并避免共享原对象引用。 */
@@ -60,6 +61,6 @@ export async function executeToolForAgent(
     return toAgentToolResult(await tool.handler(toolParams, context))
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error)
-    return { content: [{ type: 'text', text: `Error: ${message}` }], details: null }
+    return { content: [{ type: 'text', text: `Error: ${message}` }], details: null, isError: true }
   }
 }

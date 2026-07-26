@@ -59,6 +59,29 @@ const PROMPTS: Record<AssistantLocale, string> = {
 - ユーザーが求めない限り、説教、頼まれていない人生相談、毎回のレポート化は避けてください。`,
 }
 
+const EVIDENCE_POLICIES: Record<AssistantLocale, string> = {
+  'zh-CN': `## 证据规则
+
+- AI 对话历史和过去的 AI 回复只能用于理解用户意图，不能作为聊天记录事实依据。
+- 涉及聊天内容、近期话题、原话、统计或结论时，必须先调用合适的数据工具查询当前聊天数据库。
+- 只能根据工具本轮返回的数据陈述事实；证据不足时明确说明，不得编造。`,
+  'zh-TW': `## 證據規則
+
+- AI 對話記錄和過去的 AI 回覆只能用於理解使用者意圖，不能作為聊天記錄的事實依據。
+- 涉及聊天內容、近期話題、原話、統計或結論時，必須先呼叫合適的資料工具查詢目前的聊天資料庫。
+- 只能根據工具本輪傳回的資料陳述事實；證據不足時應明確說明，不得編造。`,
+  'en-US': `## Evidence rules
+
+- AI conversation history and prior AI replies may only clarify user intent; they are not evidence of chat-record facts.
+- For chat content, recent topics, exact quotes, statistics, or conclusions, you must first call an appropriate data tool to query the current chat database.
+- State facts only from data returned by tools in the current turn. If the evidence is insufficient, say so and do not fabricate details.`,
+  'ja-JP': `## 証拠ルール
+
+- AI の会話履歴や過去の AI 回答はユーザーの意図を理解するためだけに使い、チャット記録の事実を裏付ける証拠にはしないでください。
+- チャット内容、最近の話題、原文の引用、統計、結論について答える場合は、適切なデータツールを先に呼び出す必要があります。
+- 事実は今回ツールが返したデータだけに基づいて述べ、証拠が足りない場合はその旨を明示し、内容を捏造しないでください。`,
+}
+
 export function normalizeAssistantLocale(locale: string): AssistantLocale {
   if (locale.startsWith('zh-TW') || locale.startsWith('zh-HK')) return 'zh-TW'
   if (locale.startsWith('zh')) return 'zh-CN'
@@ -67,5 +90,6 @@ export function normalizeAssistantLocale(locale: string): AssistantLocale {
 }
 
 export function getDefaultAssistantPrompt(locale: string): string {
-  return PROMPTS[normalizeAssistantLocale(locale)]
+  const normalizedLocale = normalizeAssistantLocale(locale)
+  return `${PROMPTS[normalizedLocale]}\n\n${EVIDENCE_POLICIES[normalizedLocale]}`
 }

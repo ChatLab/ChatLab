@@ -193,14 +193,14 @@ describe('WebRuntimeRpcClient', () => {
     })
     await renamed
 
-    const missingDelete = client.request('session.delete', { sessionId: 'missing' })
+    const deleted = client.request('session.delete', { sessionId: 'session-one' })
     const deleteRequest = worker.messages[1] as { id: string }
     worker.emitMessage({
       id: deleteRequest.id,
       type: 'result',
-      payload: { taskType: 'session.delete', result: { deleted: false } },
+      payload: { taskType: 'session.delete', result: { deleted: true } },
     })
-    await missingDelete
+    await deleted
 
     const imported = client.request('import.start', {
       source: {
@@ -230,6 +230,7 @@ describe('WebRuntimeRpcClient', () => {
 
     assert.deepEqual(changes, [
       { type: 'rename', sessionId: 'session-one' },
+      { type: 'delete', sessionId: 'session-one' },
       { type: 'import', sessionId: 'session-two' },
     ])
     client.dispose()

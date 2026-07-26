@@ -8,7 +8,6 @@
   "regenerate": "重新生成",
   "footer": "AI 可能会犯错，请核对重要结论",
   "usingTool": "正在调用 {name}",
-  "compressing": "正在整理对话上下文",
   "presets": {
     "overview": "概括这段聊天的主要内容",
     "topics": "最近大家在聊什么？",
@@ -39,13 +38,20 @@
     "corsWarning": "仅支持允许浏览器跨域访问（CORS）的 OpenAI 兼容服务。连接失败也可能是服务商禁止浏览器直连。",
     "test": "测试连接",
     "testSuccess": "连接成功（{ms}ms）",
-    "saved": "模型配置已保存"
+    "saved": "模型配置已保存",
+    "remove": "移除配置",
+    "removeConfirm": "确定移除模型配置和已保存的 API Key 吗？",
+    "removed": "模型配置和 API Key 已移除"
   },
   "errors": {
     "AUTH": "API Key 无效或没有访问权限。",
     "RATE_LIMIT": "请求过于频繁或额度不足，请稍后重试。",
     "MODEL_NOT_FOUND": "找不到这个模型，请检查模型名称。",
     "TIMEOUT": "模型请求超时，请重试。",
-    "NETWORK_OR_CORS": "请求被网络或浏览器跨域策略阻止，请确认服务商支持浏览器直连。"
+    "NETWORK_OR_CORS": "请求被网络或浏览器跨域策略阻止，请确认服务商支持浏览器直连。",
+    "FINISH_LENGTH": "回答达到长度上限，内容可能不完整，你可以继续追问或重新生成。",
+    "FINISH_CONTENT_FILTER": "回答被模型服务商的内容策略中止，内容可能不完整。",
+    "FINISH_TOOL_CALLS": "工具调用达到本轮上限，回答可能未完成，你可以重试。",
+    "FINISH_UNKNOWN": "模型未正常结束，回答可能不完整，你可以重试。"
   }
 }

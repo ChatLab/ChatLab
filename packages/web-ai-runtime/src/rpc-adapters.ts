@@ -36,15 +36,8 @@ export class RpcConversationRepository implements ConversationRepository {
     await this.rpc.request('ai.message.update', { messageId: id, patch })
   }
 
-  replaceSummary(
-    conversationId: string,
-    input: { content: string; boundaryMessageId: string }
-  ): Promise<RuntimeMessage> {
-    return this.rpc.request('ai.summary.replace', { conversationId, ...input })
-  }
-
-  createConversation(sessionId: string, title?: string | null): Promise<RuntimeConversation> {
-    return this.rpc.request('ai.conversation.create', { sessionId, title })
+  createConversation(sessionId: string, title?: string | null, signal?: AbortSignal): Promise<RuntimeConversation> {
+    return this.rpc.request('ai.conversation.create', { sessionId, title }, { signal })
   }
 
   listConversations(sessionId: string): Promise<RuntimeConversation[]> {
@@ -80,7 +73,7 @@ export class RpcToolExecutor implements ToolExecutor {
   }
 
   loadTools(signal?: AbortSignal) {
-    return this.rpc.request('ai.tool.list', undefined, { signal })
+    return this.rpc.request('ai.tool.list', { locale: this.locale }, { signal })
   }
 
   withDefinitions(definitions: Awaited<ReturnType<RpcToolExecutor['loadTools']>>): ToolExecutor {

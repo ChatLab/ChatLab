@@ -14,13 +14,12 @@ describe('toWebAIContentBlocks', () => {
         input: {},
         result: { content: '{"count":12}' },
       },
-      { type: 'chart', payload: { spec: { type: 'bar', title: 'Messages' }, rowCount: 1, data: {} } },
       { type: 'text', text: 'done' },
     ])
 
     assert.deepEqual(
       blocks.map((block) => block.type),
-      ['think', 'tool', 'chart', 'text']
+      ['think', 'tool', 'text']
     )
     assert.equal(blocks[1]?.type === 'tool' ? blocks[1].tool.status : null, 'done')
   })

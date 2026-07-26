@@ -1,7 +1,7 @@
 /**
  * 时间统计工具
  *
- * 获取聊天活跃时段分布（小时、星期、每日趋势）。
+ * 获取聊天活跃时段分布（小时、星期、每日、每月趋势）。
  */
 
 import type { ToolDefinition, ToolExecutionContext, ToolResult, JsonSchema } from '../types'
@@ -13,8 +13,8 @@ const inputSchema: JsonSchema = {
   properties: {
     type: {
       type: 'string',
-      description: '统计类型：hourly（按小时）、weekday（按星期）、daily（按天）',
-      enum: ['hourly', 'weekday', 'daily'],
+      description: '统计类型：hourly（按小时）、weekday（按星期）、daily（按天）、monthly（按月）',
+      enum: ['hourly', 'weekday', 'daily', 'monthly'],
       default: 'hourly',
     },
     ...timeParamProperties,
@@ -22,7 +22,7 @@ const inputSchema: JsonSchema = {
 }
 
 async function handler(params: Record<string, unknown>, context: ToolExecutionContext): Promise<ToolResult> {
-  const type = (params.type as 'hourly' | 'weekday' | 'daily') || 'hourly'
+  const type = (params.type as 'hourly' | 'weekday' | 'daily' | 'monthly') || 'hourly'
   const effectiveTimeFilter = parseExtendedTimeParams(params as any, context.timeFilter)
   const data = await context.dataProvider!.getTimeStats(type, { timeFilter: effectiveTimeFilter })
 
@@ -34,7 +34,7 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
 
 export const timeStatsTool: ToolDefinition = {
   name: 'get_time_stats',
-  description: '获取聊天活跃时段分布（按小时/星期/每日趋势）',
+  description: '获取聊天活跃时段分布（按小时/星期/每日/每月趋势）',
   inputSchema,
   handler,
   category: 'analysis',

@@ -57,22 +57,15 @@ class MemoryRepository implements ConversationRepository {
     const message = this.messages.find((item) => item.id === id)
     if (message) Object.assign(message, patch)
   }
-
-  async replaceSummary(
-    conversationId: string,
-    input: { content: string; boundaryMessageId: string }
-  ): Promise<RuntimeMessage> {
-    const current = this.messages.find((message) => message.role === 'summary')
-    if (current) {
-      current.content = input.content
-      return current
-    }
-    return this.appendMessage({ conversationId, role: 'summary', content: input.content })
-  }
 }
 
 class FakeToolExecutor implements ToolExecutor {
   readonly calls: Array<{ name: string; input: unknown; context: ToolExecutionContext }> = []
+  result: RuntimeToolResult = {
+    content: '{"totalMessages":128}',
+    data: { totalMessages: 128, modelPrivateMarker: 'data-must-not-reach-model' },
+    evidence: { modelPrivateMarker: 'evidence-must-not-reach-model' },
+  }
 
   listTools(): RuntimeToolDefinition[] {
     return [
@@ -91,11 +84,7 @@ class FakeToolExecutor implements ToolExecutor {
     _signal: AbortSignal
   ): Promise<RuntimeToolResult> {
     this.calls.push({ name, input, context })
-    return {
-      content: '{"totalMessages":128}',
-      data: { totalMessages: 128 },
-      chart: { spec: { type: 'bar', title: 'Messages' }, data: [] },
-    }
+    return this.result
   }
 }
 
@@ -123,7 +112,7 @@ describe('runAgent', () => {
       sessionId: 'session-1',
       systemPrompt: 'You are a test assistant.',
       userMessage: 'hello',
-      model: { model, contextWindow: 128_000 },
+      model: { model },
       repository,
       tools: new FakeToolExecutor(),
       signal: new AbortController().signal,
@@ -179,7 +168,7 @@ describe('runAgent', () => {
       sessionId: 'session-1',
       systemPrompt: 'Always use the local tool.',
       userMessage: 'How many messages?',
-      model: { model, contextWindow: 128_000 },
+      model: { model },
       repository: new MemoryRepository(),
       tools,
       signal: new AbortController().signal,
@@ -190,10 +179,6 @@ describe('runAgent', () => {
     assert.deepEqual(result.toolsUsed, ['get_chat_overview'])
     assert.equal(tools.calls[0]?.context.sessionId, 'session-1')
     assert.equal(
-      result.message.blocks?.some((block) => block.type === 'chart'),
-      true
-    )
-    assert.equal(
       events.some((event) => event.type === 'tool-start'),
       true
     )
@@ -201,9 +186,114 @@ describe('runAgent', () => {
       events.some((event) => event.type === 'tool-result'),
       true
     )
-    assert.equal(
-      events.some((event) => event.type === 'chart'),
-      true
+    const secondModelPrompt = JSON.stringify(model.doStreamCalls[1]?.prompt)
+    assert.match(secondModelPrompt, /totalMessages/)
+    assert.doesNotMatch(secondModelPrompt, /data-must-not-reach-model/)
+    assert.doesNotMatch(secondModelPrompt, /evidence-must-not-reach-model/)
+    const toolBlock = result.message.blocks?.find((block) => block.type === 'tool')
+    assert.ok(toolBlock)
+    assert.doesNotMatch(JSON.stringify(toolBlock.result), /data-must-not-reach-model/)
+    assert.doesNotMatch(JSON.stringify(toolBlock.result), /evidence-must-not-reach-model/)
+    assert.match(JSON.stringify(result.message.blocks), /evidence-must-not-reach-model/)
+  })
+
+  it('marks handled tool failures as errors without interrupting the model', async () => {
+    const model = new MockLanguageModelV3({
+      doStream: [
+        {
+          stream: simulateReadableStream({
+            chunks: [
+              { type: 'stream-start', warnings: [] },
+              { type: 'tool-call', toolCallId: 'call-1', toolName: 'get_chat_overview', input: '{}' },
+              { type: 'finish', finishReason: { unified: 'tool-calls', raw: 'tool_calls' }, usage: EMPTY_USAGE },
+            ],
+          }),
+        },
+        {
+          stream: simulateReadableStream({
+            chunks: [
+              { type: 'stream-start', warnings: [] },
+              { type: 'text-start', id: 'text-1' },
+              { type: 'text-delta', id: 'text-1', delta: '请调整查询后重试。' },
+              { type: 'text-end', id: 'text-1' },
+              { type: 'finish', finishReason: { unified: 'stop', raw: 'stop' }, usage: EMPTY_USAGE },
+            ],
+          }),
+        },
+      ],
+    })
+    const tools = new FakeToolExecutor()
+    tools.result = { content: 'Error: At least one keyword is required', isError: true }
+    const events: AgentStreamEvent[] = []
+
+    const result = await runAgent({
+      conversationId: 'conversation-1',
+      sessionId: 'session-1',
+      systemPrompt: 'Use the local tool.',
+      userMessage: 'Search the chat.',
+      model: { model },
+      repository: new MemoryRepository(),
+      tools,
+      signal: new AbortController().signal,
+      onEvent: (event) => events.push(event),
+    })
+
+    assert.equal(result.message.content, '请调整查询后重试。')
+    assert.equal(events.find((event) => event.type === 'tool-result')?.isError, true)
+    assert.equal(result.message.blocks?.find((block) => block.type === 'tool')?.isError, true)
+  })
+
+  it('persists text, tools, and later text in streamed order', async () => {
+    const model = new MockLanguageModelV3({
+      doStream: [
+        {
+          stream: simulateReadableStream({
+            chunks: [
+              { type: 'stream-start', warnings: [] },
+              { type: 'text-start', id: 'text-1' },
+              { type: 'text-delta', id: 'text-1', delta: '先确认数据。' },
+              { type: 'text-end', id: 'text-1' },
+              {
+                type: 'tool-call',
+                toolCallId: 'call-1',
+                toolName: 'get_chat_overview',
+                input: '{}',
+              },
+              { type: 'finish', finishReason: { unified: 'tool-calls', raw: 'tool_calls' }, usage: EMPTY_USAGE },
+            ],
+          }),
+        },
+        {
+          stream: simulateReadableStream({
+            chunks: [
+              { type: 'stream-start', warnings: [] },
+              { type: 'text-start', id: 'text-2' },
+              { type: 'text-delta', id: 'text-2', delta: '最终结论。' },
+              { type: 'text-end', id: 'text-2' },
+              { type: 'finish', finishReason: { unified: 'stop', raw: 'stop' }, usage: EMPTY_USAGE },
+            ],
+          }),
+        },
+      ],
+    })
+
+    const result = await runAgent({
+      conversationId: 'conversation-1',
+      sessionId: 'session-1',
+      systemPrompt: 'Use the local tool.',
+      userMessage: 'Analyze this chat.',
+      model: { model },
+      repository: new MemoryRepository(),
+      tools: new FakeToolExecutor(),
+      signal: new AbortController().signal,
+      onEvent: () => undefined,
+    })
+
+    assert.deepEqual(
+      result.message.blocks?.map((block) => block.type),
+      ['text', 'tool', 'evidence', 'text']
     )
+    assert.equal(result.message.blocks?.[0]?.type === 'text' ? result.message.blocks[0].text : null, '先确认数据。')
+    assert.equal(result.message.blocks?.[3]?.type === 'text' ? result.message.blocks[3].text : null, '最终结论。')
   })
 })

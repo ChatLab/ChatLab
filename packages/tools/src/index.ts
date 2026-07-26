@@ -19,6 +19,7 @@ export { CoreDataProvider } from './providers/core-data-provider'
 
 // === Agent Adapter ===
 export { executeToolForAgent, toAgentToolParameters } from './agent-adapter'
+export { getLocalizedToolMetadata } from './tool-metadata'
 
 // === Tool Definitions ===
 export { memberStatsTool } from './definitions/member-stats'
@@ -35,7 +36,6 @@ export { getMembersTool } from './definitions/get-members'
 export { getMemberNameHistoryTool } from './definitions/get-member-name-history'
 export { getConversationBetweenTool } from './definitions/get-conversation-between'
 export { getSegmentSummariesTool } from './definitions/get-segment-summaries'
-export { searchSegmentsTool } from './definitions/search-segments'
 export { responseTimeAnalysisTool } from './definitions/response-time-analysis'
 export { keywordFrequencyTool } from './definitions/keyword-frequency'
 export { renderChartTool } from './definitions/render-chart'

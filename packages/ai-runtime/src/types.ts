@@ -9,7 +9,7 @@ export interface TokenUsage {
   reasoningTokens?: number
 }
 
-export type RuntimeMessageRole = 'user' | 'assistant' | 'summary'
+export type RuntimeMessageRole = 'user' | 'assistant'
 
 export interface RuntimeMessage {
   id: string
@@ -25,7 +25,6 @@ export type RuntimeContentBlock =
   | { type: 'text'; text: string }
   | { type: 'reasoning'; text: string }
   | { type: 'tool'; callId: string; name: string; input: unknown; result?: RuntimeToolResult; isError?: boolean }
-  | { type: 'chart'; payload: unknown }
   | { type: 'evidence'; payload: unknown }
 
 export interface RuntimeConversation {
@@ -51,15 +50,14 @@ export interface ConversationRepository {
   getMessages(conversationId: string): Promise<RuntimeMessage[]>
   appendMessage(input: AppendRuntimeMessageInput): Promise<RuntimeMessage>
   updateMessage(id: string, patch: Pick<RuntimeMessage, 'content' | 'blocks' | 'usage'>): Promise<void>
-  replaceSummary(conversationId: string, input: { content: string; boundaryMessageId: string }): Promise<RuntimeMessage>
 }
 
 export interface RuntimeToolResult {
   content: string
   data?: unknown
-  chart?: unknown
   evidence?: unknown
   truncated?: boolean
+  isError?: boolean
 }
 
 export interface RuntimeToolDefinition {
@@ -85,7 +83,6 @@ export interface ToolExecutor {
 
 export interface RuntimeModel {
   model: LanguageModel
-  contextWindow: number
 }
 
 export type FinishReason = 'stop' | 'length' | 'content-filter' | 'tool-calls' | 'error' | 'aborted' | 'unknown'
@@ -96,10 +93,7 @@ export type AgentStreamEvent =
   | { type: 'reasoning-delta'; delta: string }
   | { type: 'tool-start'; callId: string; name: string; input: unknown }
   | { type: 'tool-result'; callId: string; name: string; result: RuntimeToolResult; isError: boolean }
-  | { type: 'chart'; payload: unknown }
   | { type: 'evidence'; payload: unknown }
-  | { type: 'compression-start' }
-  | { type: 'compression-done'; summaryMessageId: string }
   | { type: 'usage'; usage: TokenUsage }
   | { type: 'finish'; reason: FinishReason }
   | { type: 'error'; error: RuntimeErrorData }
@@ -123,7 +117,6 @@ export interface RunAgentInput {
   signal: AbortSignal
   maxToolSteps?: number
   maxOutputTokens?: number
-  compression?: Partial<CompressionPolicy>
   onEvent: (event: AgentStreamEvent) => void
 }
 
@@ -132,13 +125,4 @@ export interface RunAgentResult {
   usage: TokenUsage
   finishReason: FinishReason
   toolsUsed: string[]
-  compressed: boolean
-}
-
-export interface CompressionPolicy {
-  thresholdRatio: number
-  recentBufferRatio: number
-  maxSummaryTokens: number
-  minMessages: number
-  maxToolResultCharacters: number
 }

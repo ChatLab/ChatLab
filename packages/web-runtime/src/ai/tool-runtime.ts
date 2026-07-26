@@ -1,8 +1,9 @@
 import type { RuntimeToolDefinition, RuntimeToolResult } from '@openchatlab/ai-runtime'
-import { CHAT_DB_TABLES, generateSessionIndex, hasSessionIndex } from '@openchatlab/core'
+import { CHAT_DB_TABLES } from '@openchatlab/core'
 import {
   CoreDataProvider,
   executeToolForAgent,
+  getLocalizedToolMetadata,
   getToolByName,
   type RawMessage,
   type ToolExecutionContext,
@@ -15,19 +16,13 @@ import { redactMessages, redactSensitiveText, sanitizeToolValue } from './privac
 export const WEB_AI_TOOL_NAMES = [
   'get_chat_overview',
   'search_messages',
-  'deep_search_messages',
   'get_recent_messages',
   'get_message_context',
-  'search_segments',
-  'get_segment_messages',
   'get_members',
   'get_member_stats',
   'get_time_stats',
   'get_conversation_between',
   'get_member_name_history',
-  'get_schema',
-  'execute_sql',
-  'render_chart',
 ] as const
 
 const MAX_TOOL_RESULT_CHARACTERS = 24_000
@@ -40,12 +35,8 @@ function getDefinitions() {
 export class BrowserAIToolRuntime {
   constructor(private readonly database: WorkspaceDatabasePort) {}
 
-  listTools(): RuntimeToolDefinition[] {
-    return getDefinitions().map((tool) => ({
-      name: tool.name,
-      description: tool.description,
-      inputSchema: tool.inputSchema,
-    }))
+  listTools(locale?: string): RuntimeToolDefinition[] {
+    return getDefinitions().map((tool) => ({ name: tool.name, ...getLocalizedToolMetadata(tool, locale) }))
   }
 
   async execute(
@@ -61,7 +52,9 @@ export class BrowserAIToolRuntime {
     options.signal?.throwIfAborted()
 
     return this.database.withDatabase(sessionDatabaseFilename(sessionId), CHAT_DB_TABLES, async (db) => {
-      if (name === 'search_segments' && !hasSessionIndex(db)) generateSessionIndex(db)
+      // TODO(web-ai): When Web WASM exposes preprocessing settings in the next release, pass them through
+      // this RPC boundary and apply blacklist filtering and nickname anonymization here. The initial release
+      // intentionally uses only fixed Worker-side sensitive-data redaction.
       const context: ToolExecutionContext = {
         db,
         dataProvider: new CoreDataProvider(db),
@@ -87,9 +80,9 @@ export class BrowserAIToolRuntime {
       return {
         content,
         data: safeDetails,
-        chart: objectDetails.chart ?? objectDetails.charts,
         evidence: objectDetails.evidence,
         truncated,
+        isError: result.isError,
       }
     })
   }

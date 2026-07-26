@@ -72,7 +72,6 @@ export type WorkerAIRepository = Pick<
   | 'appendMessage'
   | 'updateMessage'
   | 'deleteMessage'
-  | 'replaceSummary'
 >
 
 export type WorkerAIToolRuntime = Pick<BrowserAIToolRuntime, 'listTools' | 'execute'>
@@ -254,8 +253,9 @@ export class WebRuntimeWorkerController {
       case 'session.delete': {
         this.assertSupportedBrowser()
         const deleted = await this.sessionRuntime.deleteSession(request.payload.sessionId)
-        if (deleted) await this.aiRepository.deleteBySession(request.payload.sessionId)
-        return { deleted }
+        // 主会话可能已在上一次请求中删除；AI 清理必须保持可重试，避免残留不可见的对话数据。
+        const deletedAIConversations = await this.aiRepository.deleteBySession(request.payload.sessionId)
+        return { deleted: deleted || deletedAIConversations > 0 }
       }
       case 'session.rename':
         this.assertSupportedBrowser()
@@ -281,13 +281,8 @@ export class WebRuntimeWorkerController {
         return { updated: true }
       case 'ai.message.delete':
         return { deleted: await this.aiRepository.deleteMessage(request.payload.messageId) }
-      case 'ai.summary.replace':
-        return this.aiRepository.replaceSummary(request.payload.conversationId, {
-          content: request.payload.content,
-          boundaryMessageId: request.payload.boundaryMessageId,
-        })
       case 'ai.tool.list':
-        return this.aiToolRuntime.listTools()
+        return this.aiToolRuntime.listTools(request.payload.locale)
       case 'ai.tool.execute': {
         const startedAt = performance.now()
         const result = await this.aiToolRuntime.execute(

@@ -53,12 +53,32 @@ class SqliteWasmPreparedStatement implements CorePreparedStatement {
 
   private withBindings<T>(params: unknown[], operation: () => T): T {
     try {
-      if (params.length > 0) this.statement.bind(params as BindingSpec)
+      if (params.length > 0) {
+        const bindings =
+          params.length === 1 && isNamedBindings(params[0]) ? this.normalizeNamedBindings(params[0]) : params
+        this.statement.bind(bindings as BindingSpec)
+      }
       return operation()
     } finally {
       this.statement.reset(true)
     }
   }
+
+  private normalizeNamedBindings(bindings: Record<string, unknown>): Record<string, unknown> {
+    return Object.fromEntries(
+      Object.entries(bindings).map(([name, value]) => {
+        if (/^[:@$]/.test(name)) return [name, value]
+        const parameterName = [`:${name}`, `@${name}`, `$${name}`].find(
+          (candidate) => (this.statement.getParamIndex(candidate) ?? 0) > 0
+        )
+        return [parameterName ?? name, value]
+      })
+    )
+  }
+}
+
+function isNamedBindings(value: unknown): value is Record<string, unknown> {
+  return typeof value === 'object' && value !== null && !Array.isArray(value) && !(value instanceof Uint8Array)
 }
 
 export class SqliteWasmDatabaseAdapter implements DatabaseAdapter {

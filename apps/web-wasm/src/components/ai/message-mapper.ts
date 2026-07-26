@@ -1,5 +1,5 @@
 import type { RuntimeContentBlock, RuntimeMessage } from '@openchatlab/ai-runtime'
-import type { ChartPayload, ChatEvidencePayload } from '@openchatlab/core'
+import type { ChatEvidencePayload } from '@openchatlab/core'
 import type { ChatMessage, ContentBlock } from '@/stores/aiChat'
 
 export function toWebAIContentBlocks(blocks: RuntimeContentBlock[] | undefined): ContentBlock[] {
@@ -22,10 +22,6 @@ export function toWebAIContentBlocks(blocks: RuntimeContentBlock[] | undefined):
           },
         },
       ]
-    }
-    if (block.type === 'chart') {
-      const payloads = Array.isArray(block.payload) ? block.payload : [block.payload]
-      return payloads.filter(isRecord).map((chart) => ({ type: 'chart', chart: chart as unknown as ChartPayload }))
     }
     if (block.type === 'evidence' && isRecord(block.payload)) {
       return [{ type: 'evidence', evidence: block.payload as unknown as ChatEvidencePayload }]

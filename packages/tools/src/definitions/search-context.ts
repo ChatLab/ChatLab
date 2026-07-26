@@ -1,5 +1,14 @@
 import type { RawMessage } from '../types'
 
+export function requireSearchKeywords(value: unknown): string[] {
+  const keywords = Array.isArray(value)
+    ? value.filter((keyword): keyword is string => typeof keyword === 'string').map((keyword) => keyword.trim())
+    : []
+  const nonEmptyKeywords = keywords.filter(Boolean)
+  if (nonEmptyKeywords.length === 0) throw new Error('At least one non-empty keyword is required')
+  return nonEmptyKeywords
+}
+
 export function trimMessagesPreservingHits(messages: RawMessage[], hitIds: number[], limit: number): RawMessage[] {
   if (limit <= 0) return []
   if (messages.length <= limit) return messages

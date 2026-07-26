@@ -17,6 +17,15 @@ export interface BrowserKeyValueStore {
   delete(key: string): Promise<void>
 }
 
+export function waitForIndexedDbTransaction(transaction: IDBTransaction): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const rejectTransaction = () => reject(transaction.error ?? new Error('IndexedDB transaction failed'))
+    transaction.oncomplete = () => resolve()
+    transaction.onabort = rejectTransaction
+    transaction.onerror = rejectTransaction
+  })
+}
+
 function bytesToBase64(bytes: Uint8Array): string {
   let binary = ''
   for (const byte of bytes) binary += String.fromCharCode(byte)
@@ -32,35 +41,31 @@ export class IndexedDbKeyValueStore implements BrowserKeyValueStore {
   private databasePromise: Promise<IDBDatabase> | undefined
 
   async get<T>(key: string): Promise<T | undefined> {
-    const store = await this.transaction('readonly')
+    const transaction = await this.transaction('readonly')
     return new Promise<T | undefined>((resolve, reject) => {
-      const request = store.get(key)
+      const request = transaction.objectStore(OBJECT_STORE_NAME).get(key)
       request.onsuccess = () => resolve(request.result as T | undefined)
       request.onerror = () => reject(request.error)
     })
   }
 
   async set<T>(key: string, value: T): Promise<void> {
-    const store = await this.transaction('readwrite')
-    await new Promise<void>((resolve, reject) => {
-      const request = store.put(value, key)
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
-    })
+    const transaction = await this.transaction('readwrite')
+    const completion = waitForIndexedDbTransaction(transaction)
+    transaction.objectStore(OBJECT_STORE_NAME).put(value, key)
+    await completion
   }
 
   async delete(key: string): Promise<void> {
-    const store = await this.transaction('readwrite')
-    await new Promise<void>((resolve, reject) => {
-      const request = store.delete(key)
-      request.onsuccess = () => resolve()
-      request.onerror = () => reject(request.error)
-    })
+    const transaction = await this.transaction('readwrite')
+    const completion = waitForIndexedDbTransaction(transaction)
+    transaction.objectStore(OBJECT_STORE_NAME).delete(key)
+    await completion
   }
 
-  private async transaction(mode: IDBTransactionMode): Promise<IDBObjectStore> {
+  private async transaction(mode: IDBTransactionMode): Promise<IDBTransaction> {
     const database = await (this.databasePromise ??= this.open())
-    return database.transaction(OBJECT_STORE_NAME, mode).objectStore(OBJECT_STORE_NAME)
+    return database.transaction(OBJECT_STORE_NAME, mode)
   }
 
   private open(): Promise<IDBDatabase> {
@@ -99,7 +104,6 @@ export class WebModelConfigStore {
       provider: input.provider,
       baseURL: input.baseURL?.trim() || undefined,
       model: input.model.trim(),
-      contextWindow: input.contextWindow,
       updatedAt: Date.now(),
     }
     await this.storage.set<StoredModelBundle>(STORAGE_KEY, {

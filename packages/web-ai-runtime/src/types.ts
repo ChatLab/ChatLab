@@ -1,4 +1,4 @@
-import type { AgentStreamEvent, RuntimeConversation, RuntimeMessage } from '@openchatlab/ai-runtime'
+import type { AgentStreamEvent, FinishReason, RuntimeConversation, RuntimeMessage } from '@openchatlab/ai-runtime'
 
 export type WebAIProvider = 'deepseek' | 'openai-compatible'
 
@@ -6,7 +6,6 @@ export interface WebModelConfig {
   provider: WebAIProvider
   baseURL?: string
   model: string
-  contextWindow?: number
   updatedAt: number
 }
 
@@ -38,6 +37,7 @@ export interface WebAIRunInput {
 export interface WebAIRunResult {
   userMessage: RuntimeMessage
   assistantMessage: RuntimeMessage
+  finishReason: FinishReason
 }
 
 export interface WebAIRuntimeCapabilities {
@@ -49,6 +49,7 @@ export interface WebAIRuntimeCapabilities {
   multipleModelSlots: false
   historyEditing: false
   regenerateLast: true
+  retryLast: true
   persistentApiKey: true
 }
 
@@ -61,6 +62,7 @@ export const WEB_AI_RUNTIME_CAPABILITIES: WebAIRuntimeCapabilities = {
   multipleModelSlots: false,
   historyEditing: false,
   regenerateLast: true,
+  retryLast: true,
   persistentApiKey: true,
 }
 

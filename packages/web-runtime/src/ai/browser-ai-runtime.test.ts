@@ -56,38 +56,27 @@ class MemoryWorkspaceDatabase implements WorkspaceDatabasePort {
 }
 
 describe('BrowserAIConversationRepository', () => {
-  it('persists conversations, messages and progressive summaries and cascades deletion', async () => {
+  it('persists conversations and messages and cascades deletion', async () => {
     const sqlite3 = await sqlite3InitModule()
     const database = new MemoryWorkspaceDatabase(sqlite3)
     const repository = new BrowserAIConversationRepository(database)
     try {
       const conversation = await repository.createConversation('session-1', 'First')
-      const user = await repository.appendMessage({
+      await repository.appendMessage({
         conversationId: conversation.id,
         role: 'user',
         content: 'hello',
       })
-      const assistant = await repository.appendMessage({
+      await repository.appendMessage({
         conversationId: conversation.id,
         role: 'assistant',
         content: 'world',
         usage: { totalTokens: 3 },
       })
-      const firstSummary = await repository.replaceSummary(conversation.id, {
-        content: 'summary one',
-        boundaryMessageId: user.id,
-      })
-      const secondSummary = await repository.replaceSummary(conversation.id, {
-        content: 'summary two',
-        boundaryMessageId: assistant.id,
-      })
-
-      assert.equal(firstSummary.id, secondSummary.id)
       assert.equal((await repository.listConversations('session-1')).length, 1)
       assert.deepEqual(
         (await repository.getMessages(conversation.id)).map((message) => [message.role, message.content]),
         [
-          ['summary', 'summary two'],
           ['user', 'hello'],
           ['assistant', 'world'],
         ]
@@ -102,7 +91,7 @@ describe('BrowserAIConversationRepository', () => {
 })
 
 describe('BrowserAIToolRuntime', () => {
-  it('binds tools to one session, redacts sensitive fields and rejects write SQL', async () => {
+  it('binds tools to one session, redacts sensitive fields and rejects raw SQL', async () => {
     const sqlite3 = await sqlite3InitModule()
     const database = new MemoryWorkspaceDatabase(sqlite3)
     const tools = new BrowserAIToolRuntime(database)
@@ -130,15 +119,34 @@ describe('BrowserAIToolRuntime', () => {
       assert.doesNotMatch(serialized, /13800138000|alice@example\.com|sk-secret/)
       assert.match(serialized, /<PHONE>|<EMAIL>|<API_KEY>/)
 
-      const writeAttempt = await tools.execute('session-1', 'execute_sql', {
-        sql: "UPDATE meta SET name = 'Changed'",
-      })
-      assert.match(writeAttempt.content, /Only read-only statements are allowed/)
+      const invalidSearch = await tools.execute('session-1', 'search_messages', { keywords: [] })
+      assert.equal(invalidSearch.isError, true)
+      assert.match(invalidSearch.content, /^Error:/)
+
+      await assert.rejects(tools.execute('session-1', 'execute_sql', { sql: 'SELECT * FROM message' }), /not available/)
       const overview = await tools.execute('session-1', 'get_chat_overview', {})
       assert.match(overview.content, /Safe Test/)
-      assert.equal(
-        tools.listTools().some((tool) => tool.name === 'search_segments'),
-        true
+      assert.deepEqual(
+        tools.listTools().map((tool) => tool.name),
+        [
+          'get_chat_overview',
+          'search_messages',
+          'get_recent_messages',
+          'get_message_context',
+          'get_members',
+          'get_member_stats',
+          'get_time_stats',
+          'get_conversation_between',
+          'get_member_name_history',
+        ]
+      )
+      const englishMetadata = JSON.stringify(tools.listTools('en-US'))
+      const japaneseMetadata = JSON.stringify(tools.listTools('ja-JP'))
+      assert.doesNotMatch(englishMetadata, /[\u3400-\u9fff]/)
+      assert.doesNotMatch(japaneseMetadata, /[\u3400-\u9fff]/)
+      assert.match(
+        tools.listTools('zh-CN').find((tool) => tool.name === 'get_chat_overview')?.description ?? '',
+        /聊天概览/
       )
       await assert.rejects(tools.execute('session-2', 'unknown_tool', {}), /not available/)
     } finally {

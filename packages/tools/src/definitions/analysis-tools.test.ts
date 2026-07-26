@@ -97,6 +97,32 @@ describe('high-risk analysis tool definitions', () => {
     assert.equal(searchCalls[0]?.options?.limit, 12)
   })
 
+  it('search tools reject empty keywords before querying the provider', async () => {
+    let searchCalls = 0
+    const context = createContext({
+      async searchMessages() {
+        searchCalls += 1
+        return { total: 0, messages: [] }
+      },
+      async deepSearchMessages() {
+        searchCalls += 1
+        return { total: 0, messages: [] }
+      },
+    })
+
+    for (const [tool, keywords] of [
+      [searchMessagesTool, []],
+      [deepSearchMessagesTool, ['', '  ']],
+    ] as const) {
+      await assert.rejects(
+        async () => tool.handler({ keywords }, context),
+        /At least one non-empty keyword is required/
+      )
+    }
+
+    assert.equal(searchCalls, 0)
+  })
+
   it('search tools keep expanded context within the effective limit without dropping hits', async () => {
     const expandedMessages: RawMessage[] = [
       { id: 10, senderName: 'Alice', content: 'before', timestamp: 1710000001 },
@@ -326,16 +352,18 @@ describe('high-risk analysis tool definitions', () => {
       },
     })
 
+    assert.deepEqual(timeStatsTool.inputSchema.properties.type?.enum, ['hourly', 'weekday', 'daily', 'monthly'])
+
     await timeStatsTool.handler(
       {
-        type: 'daily',
+        type: 'monthly',
         start_time: '2024-03-10 00:00',
         end_time: '2024-03-11 00:00',
       },
       context
     )
 
-    assert.equal(calls[0]?.type, 'daily')
+    assert.equal(calls[0]?.type, 'monthly')
     assert.equal(calls[0]?.timeFilter?.startTs, Math.floor(new Date('2024-03-10T00:00').getTime() / 1000))
     assert.equal(calls[0]?.timeFilter?.endTs, Math.floor(new Date('2024-03-11T00:00').getTime() / 1000))
   })

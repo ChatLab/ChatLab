@@ -8,7 +8,6 @@
   "regenerate": "重新產生",
   "footer": "AI 可能會出錯，請核對重要結論",
   "usingTool": "正在呼叫 {name}",
-  "compressing": "正在整理對話上下文",
   "presets": {
     "overview": "概括這段聊天的主要內容",
     "topics": "最近大家在聊什麼？",
@@ -39,13 +38,20 @@
     "corsWarning": "僅支援允許瀏覽器跨來源存取（CORS）的 OpenAI 相容服務。連線失敗也可能是服務商禁止瀏覽器直連。",
     "test": "測試連線",
     "testSuccess": "連線成功（{ms}ms）",
-    "saved": "模型設定已儲存"
+    "saved": "模型設定已儲存",
+    "remove": "移除設定",
+    "removeConfirm": "確定移除模型設定和已儲存的 API Key 嗎？",
+    "removed": "模型設定和 API Key 已移除"
   },
   "errors": {
     "AUTH": "API Key 無效或沒有存取權限。",
     "RATE_LIMIT": "請求過於頻繁或額度不足，請稍後重試。",
     "MODEL_NOT_FOUND": "找不到這個模型，請檢查模型名稱。",
     "TIMEOUT": "模型請求逾時，請重試。",
-    "NETWORK_OR_CORS": "請求被網路或瀏覽器跨來源策略阻擋，請確認服務商支援瀏覽器直連。"
+    "NETWORK_OR_CORS": "請求被網路或瀏覽器跨來源策略阻擋，請確認服務商支援瀏覽器直連。",
+    "FINISH_LENGTH": "回答已達長度上限，內容可能不完整，你可以繼續追問或重新產生。",
+    "FINISH_CONTENT_FILTER": "回答被模型服務商的內容政策中止，內容可能不完整。",
+    "FINISH_TOOL_CALLS": "工具呼叫已達本輪上限，回答可能尚未完成，你可以重試。",
+    "FINISH_UNKNOWN": "模型未正常結束，回答可能不完整，你可以重試。"
   }
 }
