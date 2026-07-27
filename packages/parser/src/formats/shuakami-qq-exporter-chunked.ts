@@ -50,6 +50,7 @@ export const feature: FormatFeature = {
   signatures: {
     // V5 使用 metadata.format，0.1.x 将格式标识移至 chunked.format。
     head: [/"format"\s*:\s*"chunked-jsonl"/, /"chunked"\s*:\s*\{[^{}]*"format"\s*:\s*"jsonl"/],
+    filename: [/^manifest\.json$/i],
     requiredFields: ['metadata', 'chatInfo'],
   },
 }

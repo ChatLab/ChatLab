@@ -15,22 +15,29 @@ describe('shuakami-qq-exporter chunked parser', () => {
 
     try {
       mkdirSync(chunksDir)
-      writeFileSync(
-        manifestPath,
-        JSON.stringify({
-          metadata: { name: 'QQChatExporter', version: '0.1.0' },
-          chatInfo: { name: 'Test Group', type: 'group', selfUin: '100' },
-          statistics: { totalMessages: 2 },
-          chunked: {
-            format: 'jsonl',
-            chunksDir: 'chunks',
-            chunkFileExt: '.jsonl',
-            maxMessagesPerChunk: 50000,
-            maxBytesPerChunk: 52428800,
-            chunks: [{ relativePath: 'chunks/c000001.jsonl', count: 2 }],
-          },
-        })
-      )
+      const manifest = JSON.stringify({
+        metadata: { name: 'QQChatExporter', version: '0.1.0' },
+        chatInfo: { name: 'Test Group', type: 'group', selfUin: '100' },
+        statistics: {
+          totalMessages: 2,
+          senders: Array.from({ length: 1000 }, (_, index) => ({
+            uid: `u_${index}`,
+            name: `Member ${index} ${'x'.repeat(80)}`,
+            messageCount: 1,
+            percentage: 0.1,
+          })),
+        },
+        chunked: {
+          format: 'jsonl',
+          chunksDir: 'chunks',
+          chunkFileExt: '.jsonl',
+          maxMessagesPerChunk: 50000,
+          maxBytesPerChunk: 52428800,
+          chunks: [{ relativePath: 'chunks/c000001.jsonl', count: 2 }],
+        },
+      })
+      assert.ok(manifest.indexOf('"chunked"') > 64 * 1024)
+      writeFileSync(manifestPath, manifest)
       writeFileSync(
         join(chunksDir, 'c000001.jsonl'),
         [
