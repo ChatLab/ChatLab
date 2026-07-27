@@ -48,8 +48,8 @@ export const feature: FormatFeature = {
   priority: 5, // 比单文件版本优先级更高
   extensions: ['.json'],
   signatures: {
-    // 使用 head 签名 "format": "chunked-jsonl" 来区分。
-    head: [/"format"\s*:\s*"chunked-jsonl"/],
+    // V5 使用 metadata.format，0.1.x 将格式标识移至 chunked.format。
+    head: [/"format"\s*:\s*"chunked-jsonl"/, /"chunked"\s*:\s*\{[^{}]*"format"\s*:\s*"jsonl"/],
     requiredFields: ['metadata', 'chatInfo'],
   },
 }
@@ -74,9 +74,9 @@ interface Manifest {
   metadata: {
     name?: string
     copyright?: string
-    exportTime: string
+    exportTime?: string
     version: string
-    format: string
+    format?: string
   }
   chatInfo: {
     name: string
@@ -339,9 +339,10 @@ async function* parseChunkedJsonl(options: ParseOptions): AsyncGenerator<ParseEv
   }
 
   // 验证格式
-  if (manifest.metadata.format !== 'chunked-jsonl') {
-    onLog?.('error', `不支持的格式: ${manifest.metadata.format}`)
-    yield { type: 'error', data: new Error(`不支持的格式: ${manifest.metadata.format}`) }
+  if (manifest.metadata.format !== 'chunked-jsonl' && manifest.chunked.format !== 'jsonl') {
+    const format = manifest.metadata.format ?? manifest.chunked.format ?? 'unknown'
+    onLog?.('error', `不支持的格式: ${format}`)
+    yield { type: 'error', data: new Error(`不支持的格式: ${format}`) }
     return
   }
 
