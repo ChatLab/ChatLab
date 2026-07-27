@@ -44,6 +44,18 @@ function matchFilenameSignatures(filePath: string, patterns: RegExp[]): boolean 
 }
 
 /**
+ * 文件名只能作为补充特征；需要全文确认时再读取完整文件。
+ */
+function matchFilenameFallbackPatterns(filePath: string, patterns: RegExp[]): boolean {
+  try {
+    const content = fs.readFileSync(filePath, 'utf-8')
+    return patterns.every((pattern) => pattern.test(content))
+  } catch {
+    return false
+  }
+}
+
+/**
  * 检查必需字段是否存在
  */
 function matchRequiredFields(headContent: string, fields: string[]): boolean {
@@ -198,6 +210,12 @@ export class FormatSniffer {
     if (!headMatch && !filenameMatch) {
       // 如果两个都没定义，则认为匹配（只检查扩展名）
       if ((signatures.head && signatures.head.length > 0) || (signatures.filename && signatures.filename.length > 0)) {
+        return false
+      }
+    }
+
+    if (!headMatch && filenameMatch && signatures.filenameFallbackPatterns) {
+      if (!filePath || !matchFilenameFallbackPatterns(filePath, signatures.filenameFallbackPatterns)) {
         return false
       }
     }

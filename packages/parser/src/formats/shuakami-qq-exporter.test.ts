@@ -57,10 +57,10 @@ function systemMessage(text: string): unknown {
   }
 }
 
-async function parseContent(content: string): Promise<ParseResult> {
+async function parseContent(content: string, filename = 'qce-export.json'): Promise<ParseResult> {
   const dir = mkdtempSync(join(tmpdir(), 'chatlab-qce-parser-'))
   try {
-    const filePath = join(dir, 'qce-export.json')
+    const filePath = join(dir, filename)
     writeFileSync(filePath, content, 'utf-8')
     assert.equal(detectFormat(filePath)?.id, 'shuakami-qq-exporter')
     return await parseFileSync(filePath)
@@ -70,6 +70,19 @@ async function parseContent(content: string): Promise<ParseResult> {
 }
 
 describe('shuakami-qq-exporter parser', () => {
+  it('does not misclassify a single-file export renamed to manifest.json', async () => {
+    const result = await parseContent(
+      makeExport({
+        chatInfoType: 'group',
+        senders: [{ uid: 'u_100', name: 'Alice' }],
+        messages: [textMessage('100', 'Alice', 'hello')],
+      }),
+      'manifest.json'
+    )
+
+    assert.equal(result.messages.length, 1)
+  })
+
   it('prefers chatInfo.type and skips placeholder system senders', async () => {
     const content = makeExport({
       chatInfoType: 'private',

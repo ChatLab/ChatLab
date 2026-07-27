@@ -70,6 +70,8 @@ export interface FormatSignatures {
   head?: RegExp[]
   /** 文件名正则匹配（任意一个匹配即可，作为文件头匹配的补充） */
   filename?: RegExp[]
+  /** 文件名补充匹配时，必须在完整文件中命中的模式 */
+  filenameFallbackPatterns?: RegExp[]
   /** 必须存在的 JSON 字段路径 */
   requiredFields?: string[]
   /** 字段值模式匹配 */
