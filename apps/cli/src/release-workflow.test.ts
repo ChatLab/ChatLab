@@ -14,7 +14,7 @@ function extractSection(source: string, startMarker: string, endMarker: string):
   return source.slice(start, end)
 }
 
-test('release CLI build injects the Aptabase app key before tsup inlines env values', () => {
+test('release CLI build injects Umami configuration before tsup inlines env values', () => {
   const buildCliJob = extractSection(releaseWorkflow, '  build-cli:', '  release:')
   const buildCliStep = extractSection(
     buildCliJob,
@@ -23,5 +23,6 @@ test('release CLI build injects the Aptabase app key before tsup inlines env val
   )
 
   assert.match(buildCliStep, /run: pnpm --filter chatlab-cli run build:full/)
-  assert.match(buildCliStep, /APTABASE_APP_KEY: \$\{\{ secrets\.APTABASE_APP_KEY \}\}/)
+  assert.match(buildCliStep, /UMAMI_ENDPOINT: \$\{\{ secrets\.UMAMI_ENDPOINT \}\}/)
+  assert.match(buildCliStep, /UMAMI_WEBSITE_ID: \$\{\{ secrets\.UMAMI_WEBSITE_ID \}\}/)
 })

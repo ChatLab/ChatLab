@@ -330,4 +330,9 @@ export class LLMConfigStore {
   hasActiveConfig(): boolean {
     return this.getDefaultAssistantConfig() !== null
   }
+
+  hasConfiguredModel(): boolean {
+    const config = this.getDefaultAssistantConfig()
+    return typeof config?.model === 'string' && config.model.trim().length > 0
+  }
 }

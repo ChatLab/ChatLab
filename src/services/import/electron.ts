@@ -57,6 +57,7 @@ export class ElectronImportAdapter implements ImportAdapter {
             normalizeImportResult({
               success: result.success,
               sessionId: result.sessionId,
+              platform: result.platform,
               error: result.error,
               importMode: result.importMode,
               matchedBy: result.matchedBy,
@@ -196,6 +197,7 @@ export class ElectronImportAdapter implements ImportAdapter {
             normalizeImportResult({
               success: result.success,
               sessionId: result.sessionId,
+              platform: result.platform,
               error: result.error,
               importMode: result.importMode,
               matchedBy: result.matchedBy,

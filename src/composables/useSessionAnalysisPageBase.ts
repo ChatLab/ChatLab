@@ -8,6 +8,7 @@ import { formatLocalizedDate } from '@/utils'
 import { useTimeSelect } from './useTimeSelect'
 import { useDataService } from '@/services'
 import { abortAnalyticsRequests } from '@/services/utils/http'
+import { trackProductEvent } from '@/services/product-analytics'
 
 interface UseSessionAnalysisPageBaseOptions {
   route: RouteLocationNormalizedLoaded
@@ -44,6 +45,20 @@ export function useSessionAnalysisPageBase(options: UseSessionAnalysisPageBaseOp
   }
 
   const activeTab = ref(resolveActiveTabFromRoute())
+
+  watch(
+    activeTab,
+    (tab) => {
+      const featureId = {
+        insights: 'insights',
+        ranking: 'ranking',
+        'ai-chat': 'ai_chat',
+        lab: 'sql_lab',
+      }[tab]
+      if (featureId) trackProductEvent('feature_used', { feature_id: featureId })
+    },
+    { immediate: true }
+  )
 
   const { timeRangeValue, fullTimeRange, availableYears, timeFilter, initialTimeState } = useTimeSelect(route, router, {
     activeTab,

@@ -28,6 +28,7 @@ export interface IncrementalAnalyzeResult {
   newMessageCount: number
   duplicateCount: number
   totalInFile: number
+  platform?: string
   error?: string
 }
 
@@ -169,12 +170,15 @@ export async function analyzeIncrementalImport(
   let totalInFile = 0
   let newMessageCount = 0
   let duplicateCount = 0
+  let platform = formatFeature.platform
 
   await streamParseFile(
     filePath,
     {
       formatOptions: options?.chatIndex === undefined ? undefined : { chatIndex: options.chatIndex },
-      onMeta: () => {},
+      onMeta: (meta) => {
+        platform = meta.platform
+      },
       onMembers: () => {},
       onProgress: (progress: ParseProgress) => {
         deps.onProgress(progress)
@@ -196,7 +200,7 @@ export async function analyzeIncrementalImport(
     options?.formatId
   )
 
-  return { newMessageCount, duplicateCount, totalInFile }
+  return { newMessageCount, duplicateCount, totalInFile, platform }
 }
 
 // ==================== Execute incremental import ====================

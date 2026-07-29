@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import type { AnalyticsService } from '@openchatlab/node-runtime'
+import type { AnalyticsEventName } from '@openchatlab/shared-types'
 
 interface TelemetryRouteContext {
   analyticsService?: Pick<AnalyticsService, 'getEnabled' | 'setEnabled' | 'trackDailyActive' | 'track'>
@@ -16,7 +17,7 @@ export function registerTelemetryRoutes(server: FastifyInstance, ctx: TelemetryR
     return { success: true }
   })
 
-  server.post<{ Body: { eventName: string; properties?: Record<string, string | number> } }>(
+  server.post<{ Body: { eventName: AnalyticsEventName; properties?: Record<string, unknown> } }>(
     '/_web/telemetry/track',
     async (req, reply) => {
       if (!ctx.analyticsService) return { ok: true }

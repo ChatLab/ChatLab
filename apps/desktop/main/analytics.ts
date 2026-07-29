@@ -1,23 +1,24 @@
 import { app, ipcMain } from 'electron'
-import { AnalyticsService } from '@openchatlab/node-runtime'
+import { AnalyticsService, appLogger } from '@openchatlab/node-runtime'
+import type { AnalyticsEventName } from '@openchatlab/shared-types'
+import { getDesktopLlmRuntimeStores } from './ai/llm'
 import { getSystemDataDir } from './paths/locations'
-
-const APTABASE_APP_KEY = process.env.APTABASE_APP_KEY
 
 let _service: AnalyticsService | null = null
 
 function getService(): AnalyticsService | null {
-  if (!APTABASE_APP_KEY) return null
   if (!_service) {
     const systemDir = getSystemDataDir()
-    _service = new AnalyticsService(systemDir, APTABASE_APP_KEY, app.getVersion())
+    _service = new AnalyticsService(systemDir, {
+      appVersion: app.getVersion(),
+      appType: 'desktop',
+      getAiModelConfigured: () => getDesktopLlmRuntimeStores().llmConfigStore.hasConfiguredModel(),
+    })
   }
   return _service
 }
 
 export function initAnalytics(): void {
-  // Service is initialized lazily; no-op here unless we want eager validation.
-  if (!APTABASE_APP_KEY) return
   getService()
 }
 
@@ -33,13 +34,19 @@ export function registerAnalyticsHandlers(): void {
 
   ipcMain.handle('analytics:trackDailyActive', (_, locale: string) => {
     getService()
-      ?.trackDailyActive({ platform: 'desktop', locale })
-      .catch((e) => console.error('[Analytics] Failed to report daily active:', e))
+      ?.trackDailyActive({ app_locale: locale })
+      .catch((error) => appLogger.error('analytics', 'Failed to report daily active event', error))
+  })
+
+  ipcMain.handle('analytics:track', (_, eventName: AnalyticsEventName, properties?: Record<string, unknown>) => {
+    getService()
+      ?.track(eventName, properties)
+      .catch((error) => appLogger.error('analytics', `Failed to report ${eventName} event`, error))
   })
 }
 
-export function trackAppEvent(eventName: string, properties?: Record<string, string | number>): void {
+export function trackAppEvent(eventName: AnalyticsEventName, properties?: Record<string, unknown>): void {
   getService()
     ?.track(eventName, properties)
-    .catch((e) => console.error(`[Analytics] Failed to report event ${eventName}:`, e))
+    .catch((error) => appLogger.error('analytics', `Failed to report ${eventName} event`, error))
 }

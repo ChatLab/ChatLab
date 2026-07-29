@@ -1,3 +1,5 @@
+import type { AnalyticsEventName } from '@openchatlab/shared-types'
+
 /**
  * PlatformAdapter — 平台能力领域适配器接口
  *
@@ -48,6 +50,7 @@ export interface PlatformAdapter {
   getAnalyticsEnabled(): Promise<boolean>
   setAnalyticsEnabled(enabled: boolean): Promise<{ success: boolean }>
   trackDailyActive(locale: string): Promise<void>
+  trackAnalyticsEvent(eventName: AnalyticsEventName, properties?: Record<string, unknown>): Promise<void>
 
   showOpenDialog(options: OpenDialogOptions): Promise<OpenDialogResult>
   copyImageToClipboard(dataUrl: string): Promise<{ success: boolean; error?: string }>

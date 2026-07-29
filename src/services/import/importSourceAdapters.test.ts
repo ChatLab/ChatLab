@@ -123,4 +123,28 @@ describe('archive import source adapters', () => {
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     })
   })
+
+  it('preserves failed directory-import platform metadata from SSE', async () => {
+    globalThis.fetch = (async () =>
+      new Response('event: error\ndata: {"success":false,"platform":"line","error":"database unavailable"}\n\n', {
+        headers: { 'Content-Type': 'text/event-stream' },
+      })) as typeof fetch
+
+    const result = await new FetchImportAdapter().importDirectory([new File(['{}'], 'chat.json')])
+
+    assert.deepEqual(result, {
+      success: false,
+      sessionId: undefined,
+      platform: 'line',
+      error: 'database unavailable',
+      importMode: undefined,
+      matchedBy: undefined,
+      createReason: undefined,
+      newMessageCount: undefined,
+      duplicateCount: undefined,
+      messageCount: undefined,
+      memberCount: undefined,
+      diagnostics: undefined,
+    })
+  })
 })

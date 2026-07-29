@@ -126,6 +126,7 @@ test('imports ChatLab JSONL messages with numeric string timestamps consistently
     newMessageCount: 1,
     duplicateCount: 0,
     totalInFile: 1,
+    platform: 'wechat',
   })
 
   const result = await incrementalImport('session', filePath, deps)
@@ -287,6 +288,7 @@ test('deduplicates an ID-bearing copy of an existing fallback-only message', asy
     newMessageCount: 0,
     duplicateCount: 1,
     totalInFile: 1,
+    platform: 'wechat',
   })
 
   const result = await incrementalImport('session', filePath, deps)

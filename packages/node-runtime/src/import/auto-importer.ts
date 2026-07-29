@@ -45,6 +45,7 @@ export interface AutoImportAnalysisDeps extends AutoImportMatcherDeps {
 export interface AutoImportResult {
   success: boolean
   sessionId?: string
+  platform?: string
   importMode?: 'created' | 'incremental'
   matchedBy?: AutoImportMatchMethod
   createReason?: AutoImportCreateReason
@@ -103,11 +104,17 @@ async function planAutoImport(
 
 function mapCreateResult(result: StreamImportResult, createReason?: AutoImportCreateReason): AutoImportResult {
   if (!result.success || !result.sessionId) {
-    return { success: false, error: result.error, diagnostics: result.diagnostics }
+    return {
+      success: false,
+      ...(result.platform !== undefined ? { platform: result.platform } : {}),
+      error: result.error,
+      diagnostics: result.diagnostics,
+    }
   }
   return {
     success: true,
     sessionId: result.sessionId,
+    platform: result.platform,
     importMode: 'created',
     ...(createReason ? { createReason } : {}),
     newMessageCount: result.diagnostics?.messagesWritten ?? 0,
@@ -128,12 +135,15 @@ function mapIncrementalResult(
   result: IncrementalImportResult,
   matchedBy?: AutoImportMatchMethod
 ): AutoImportResult {
-  if (!result.success) return { success: false, sessionId, error: result.error }
+  const incrementalResult = {
+    sessionId,
+    importMode: 'incremental' as const,
+    ...(matchedBy ? { matchedBy } : {}),
+  }
+  if (!result.success) return { success: false, ...incrementalResult, error: result.error }
   return {
     success: true,
-    sessionId,
-    importMode: 'incremental',
-    ...(matchedBy ? { matchedBy } : {}),
+    ...incrementalResult,
     newMessageCount: result.newMessageCount,
     duplicateCount: result.batch?.duplicateCount ?? 0,
     batch: result.batch,
@@ -147,13 +157,14 @@ export async function autoImportFile(
   deps: AutoImportDeps,
   options: AutoImportOptions = {}
 ): Promise<AutoImportResult> {
+  let plan: AutoImportPlan | undefined
   try {
     if (!options.explicitSessionId) {
       appLogger.info('import', 'Automatic session matching started', {
         candidateCount: deps.listSessionIds().length,
       })
     }
-    const plan = await planAutoImport(filePath, deps, options)
+    plan = await planAutoImport(filePath, deps, options)
 
     if (plan.action === 'incremental') {
       const result = mapIncrementalResult(
@@ -183,7 +194,17 @@ export async function autoImportFile(
     return result
   } catch (error) {
     appLogger.error('import', 'Automatic import failed', error)
-    return { success: false, error: error instanceof Error ? error.message : String(error) }
+    return {
+      success: false,
+      ...(plan?.action === 'incremental'
+        ? {
+            sessionId: plan.sessionId,
+            importMode: 'incremental' as const,
+            ...(plan.matchedBy ? { matchedBy: plan.matchedBy } : {}),
+          }
+        : {}),
+      error: error instanceof Error ? error.message : String(error),
+    }
   }
 }
 

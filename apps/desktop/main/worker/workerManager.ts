@@ -997,6 +997,7 @@ export interface IncrementalAnalyzeResult {
   newMessageCount: number
   duplicateCount: number
   totalInFile: number
+  platform?: string
   error?: string
 }
 

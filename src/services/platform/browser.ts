@@ -6,6 +6,7 @@ import type {
   PlatformAdapter,
   RemoteConfigResult,
 } from './types'
+import type { AnalyticsEventName } from '@openchatlab/shared-types'
 
 declare const __APP_VERSION__: string
 
@@ -50,6 +51,11 @@ export class BrowserPlatformAdapter implements PlatformAdapter {
 
   async trackDailyActive(locale: string): Promise<void> {
     void locale
+  }
+
+  async trackAnalyticsEvent(eventName: AnalyticsEventName, properties?: Record<string, unknown>): Promise<void> {
+    void eventName
+    void properties
   }
 
   async showOpenDialog(_options: OpenDialogOptions): Promise<OpenDialogResult> {

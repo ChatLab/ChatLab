@@ -3,6 +3,7 @@ import { ref, computed } from 'vue'
 import type { ProviderDefinition, ModelDefinition } from '@electron/preload/index'
 import { useLLMService } from '@/services'
 import type { AIServiceConfigDisplay, LLMProvider } from '@/services'
+import { trackProductEvent } from '@/services/product-analytics'
 
 export type { AIServiceConfigDisplay, LLMProvider }
 
@@ -27,6 +28,7 @@ export const useLLMStore = defineStore('llm', () => {
   )
   const fastModelConfig = computed(() => configs.value.find((c) => c.id === fastModel.value?.configId) || null)
   const hasConfig = computed(() => !!defaultAssistant.value)
+  const hasConfiguredModel = computed(() => !!defaultAssistantConfig.value && !!defaultAssistant.value?.modelId.trim())
   const isMaxConfigs = computed(() => configs.value.length >= 99)
 
   function getProviderById(id: string): ProviderDefinition | undefined {
@@ -54,6 +56,8 @@ export const useLLMStore = defineStore('llm', () => {
   }
 
   async function loadConfigs() {
+    const wasInitialized = isInitialized.value
+    const wasConfigured = hasConfiguredModel.value
     isLoading.value = true
     try {
       const svc = useLLMService()
@@ -71,6 +75,9 @@ export const useLLMStore = defineStore('llm', () => {
       configs.value = configStore.configs
       defaultAssistant.value = assistantSlot
       fastModel.value = fastSlot
+      if (wasInitialized && !wasConfigured && hasConfiguredModel.value) {
+        trackProductEvent('ai_setup_completed')
+      }
     } catch (error) {
       console.error('[LLM Store] 加载配置失败：', error)
     } finally {
@@ -79,10 +86,14 @@ export const useLLMStore = defineStore('llm', () => {
   }
 
   async function setDefaultAssistantModel(configId: string, modelId: string): Promise<boolean> {
+    const wasConfigured = hasConfiguredModel.value
     try {
       const result = await useLLMService().setDefaultAssistantModel(configId, modelId)
       if (result.success) {
         defaultAssistant.value = { configId, modelId }
+        if (!wasConfigured && hasConfiguredModel.value) {
+          trackProductEvent('ai_setup_completed')
+        }
         return true
       }
       console.error('[LLM Store] 设置默认助手模型失败：', result.error)
@@ -132,6 +143,7 @@ export const useLLMStore = defineStore('llm', () => {
     defaultAssistantConfig,
     fastModelConfig,
     hasConfig,
+    hasConfiguredModel,
     isMaxConfigs,
     // 方法
     init,

@@ -174,7 +174,8 @@ jobs:
           APPLE_API_KEY_ID: ${{ secrets.APPLE_API_KEY_ID }}
           APPLE_API_ISSUER: ${{ secrets.APPLE_API_ISSUER }}
           # 分析服务
-          APTABASE_APP_KEY: ${{ secrets.APTABASE_APP_KEY }}
+          UMAMI_ENDPOINT: ${{ secrets.UMAMI_ENDPOINT }}
+          UMAMI_WEBSITE_ID: ${{ secrets.UMAMI_WEBSITE_ID }}
         working-directory: apps/desktop
         run: pnpm run build && pnpm exec electron-builder --mac --${{ matrix.arch }} --config electron-builder.yml -p never
 
@@ -286,7 +287,8 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GH_TOKEN }}
           # 分析服务
-          APTABASE_APP_KEY: ${{ secrets.APTABASE_APP_KEY }}
+          UMAMI_ENDPOINT: ${{ secrets.UMAMI_ENDPOINT }}
+          UMAMI_WEBSITE_ID: ${{ secrets.UMAMI_WEBSITE_ID }}
         working-directory: apps/desktop
         run: pnpm run build:win
 
@@ -354,7 +356,8 @@ jobs:
 
       - name: Build CLI (with Web UI)
         env:
-          APTABASE_APP_KEY: ${{ secrets.APTABASE_APP_KEY }}
+          UMAMI_ENDPOINT: ${{ secrets.UMAMI_ENDPOINT }}
+          UMAMI_WEBSITE_ID: ${{ secrets.UMAMI_WEBSITE_ID }}
         run: pnpm --filter chatlab-cli run build:full
 
       - name: Upload CLI build output

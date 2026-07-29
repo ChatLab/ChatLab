@@ -2,6 +2,7 @@
  * 核心 API - 基础 IPC 通信和系统功能
  */
 import { ipcRenderer } from 'electron'
+import type { AnalyticsEventName } from '@openchatlab/shared-types'
 
 // Custom APIs for renderer
 export const api = {
@@ -94,6 +95,9 @@ export const extendedApi = {
     },
     trackDailyActive: (locale: string): Promise<void> => {
       return ipcRenderer.invoke('analytics:trackDailyActive', locale)
+    },
+    trackAnalyticsEvent: (eventName: AnalyticsEventName, properties?: Record<string, unknown>): Promise<void> => {
+      return ipcRenderer.invoke('analytics:track', eventName, properties)
     },
     /**
      * 重启应用

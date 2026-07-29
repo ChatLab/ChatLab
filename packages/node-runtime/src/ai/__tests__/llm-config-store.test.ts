@@ -32,6 +32,17 @@ describe('LLMConfigStore', () => {
     const all = store.getAllConfigs()
     assert.equal(all.length, 0)
     assert.equal(store.hasActiveConfig(), false)
+    assert.equal(store.hasConfiguredModel(), false)
+  })
+
+  it('only reports a configured model after the active slot has a model id', () => {
+    const result = store.addConfig({ name: 'A', provider: 'openai', apiKey: 'k' })
+    assert.equal(result.success, true)
+    assert.equal(store.hasActiveConfig(), true)
+    assert.equal(store.hasConfiguredModel(), false)
+
+    store.setDefaultAssistantModel(result.config!.id, 'gpt-4')
+    assert.equal(store.hasConfiguredModel(), true)
   })
 
   it('does not expose an unmigrated encrypted API key as a usable key', () => {

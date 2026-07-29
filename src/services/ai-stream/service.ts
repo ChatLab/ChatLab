@@ -1,5 +1,6 @@
 import type { LlmStreamChunk, AgentStreamChunk, AgentStreamResult, AgentStreamParams } from './types'
 import { fetchSSE } from '../utils/sse'
+import { trackProductEvent } from '../product-analytics'
 
 /**
  * LLM stream service — uses fetchSSE to consume the shared
@@ -52,6 +53,8 @@ export function useAgentStreamService() {
       params: AgentStreamParams,
       onChunk?: (chunk: AgentStreamChunk) => void
     ): { requestId: string; promise: Promise<AgentStreamResult> } {
+      const startedAt = Date.now()
+      trackProductEvent('ai_request_started')
       const abortController = new AbortController()
       const localRequestId = `local_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`
       requestIdMap.set(localRequestId, { serverId: '', abortController })
@@ -133,7 +136,24 @@ export function useAgentStreamService() {
           })
       })
 
-      return { requestId: localRequestId, promise }
+      const trackedPromise = promise.then((result) => {
+        trackProductEvent('ai_request_completed', {
+          success: result.success,
+          duration_ms: Date.now() - startedAt,
+          ...(result.success
+            ? {}
+            : {
+                failure_reason: result.result?.aborted
+                  ? 'aborted'
+                  : result.error?.name === 'FetchError'
+                    ? 'network'
+                    : 'unknown',
+              }),
+        })
+        return result
+      })
+
+      return { requestId: localRequestId, promise: trackedPromise }
     },
 
     async abort(requestId: string): Promise<{ success: boolean; error?: string }> {

@@ -324,6 +324,7 @@ test('streamingImport preserves an ordinary WhatsApp participant named SYSTEM', 
   const result = await streamingImport(filePath, createImportDeps(dbPath), undefined, 'whatsapp-system-participant')
 
   assert.equal(result.success, true)
+  assert.equal(result.platform, 'whatsapp')
 
   const rawDb = new Database(dbPath, { readonly: true, nativeBinding })
   const member = rawDb

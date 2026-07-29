@@ -8,7 +8,7 @@ import 'dayjs/locale/ja'
 import { type LocaleType, setLocale as setI18nLocale, getLocale, getDayjsLocale } from '@/i18n'
 import type { PreprocessConfig } from '@electron/preload/index'
 import type { AIPreprocessConfig } from '@openchatlab/shared-types'
-import { useAIService } from '@/services'
+import { useAIService, usePlatformService } from '@/services'
 import { PLATFORM_CAPABILITIES } from '@/utils/platform-capabilities'
 
 const DESENSITIZE_RULES_SCHEMA_VERSION = 2
@@ -80,6 +80,14 @@ export const useSettingsStore = defineStore(
       window.electron?.ipcRenderer.send('locale:change', newLocale)
 
       if (PLATFORM_CAPABILITIES.initializesLlm) await ensureDesensitizeRules()
+
+      try {
+        void usePlatformService()
+          .trackDailyActive(newLocale)
+          .catch(() => {})
+      } catch {
+        // Analytics is best-effort and can be unavailable during early startup or in tests.
+      }
     }
 
     /**

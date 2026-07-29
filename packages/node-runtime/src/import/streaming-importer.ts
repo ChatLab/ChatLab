@@ -49,6 +49,7 @@ export interface ImportDiagnostics {
 export interface StreamImportResult {
   success: boolean
   sessionId?: string
+  platform?: string
   error?: string
   diagnostics?: ImportDiagnostics
 }
@@ -292,6 +293,7 @@ async function streamImportSingle(
   >()
 
   let metaInserted = false
+  let importedPlatform = formatFeature.platform
   let messageCountInBatch = 0
   let totalMessageCount = 0
   let duplicateCount = 0
@@ -382,6 +384,7 @@ async function streamImportSingle(
 
         onMeta: (meta: ParsedMeta) => {
           callbackStats.onMetaCalls++
+          importedPlatform = meta.platform || importedPlatform
           if (!metaInserted) {
             logger?.info(`Writing meta: name=${meta.name}, type=${meta.type}, platform=${meta.platform}`)
             insertMeta.run(
@@ -689,9 +692,9 @@ async function streamImportSingle(
   }
 
   if (importError) {
-    return { success: false, error: importError, diagnostics }
+    return { success: false, platform: importedPlatform, error: importError, diagnostics }
   }
-  return { success: true, sessionId, diagnostics }
+  return { success: true, sessionId, platform: importedPlatform, diagnostics }
 }
 
 // ==================== Dry-run analysis ====================

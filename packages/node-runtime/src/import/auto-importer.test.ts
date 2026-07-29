@@ -13,8 +13,11 @@ function createDeps(options?: {
   decision?: AutoImportDecision
   matchError?: Error
   createdSessionId?: string
+  createError?: string
   incrementalNewCount?: number
   incrementalDuplicateCount?: number
+  incrementalError?: string
+  incrementalThrow?: Error
 }) {
   const calls = {
     match: 0,
@@ -36,9 +39,17 @@ function createDeps(options?: {
     },
     createSession: async (filePath, _formatOptions, sessionId) => {
       calls.create.push({ filePath, sessionId })
+      if (options?.createError) {
+        return {
+          success: false,
+          platform: 'line',
+          error: options.createError,
+        }
+      }
       return {
         success: true,
         sessionId: sessionId ?? options?.createdSessionId ?? 'created-session',
+        platform: 'qq',
         diagnostics: {
           logFile: null,
           detectedFormat: 'fixture',
@@ -52,6 +63,10 @@ function createDeps(options?: {
     },
     appendSession: async (sessionId, filePath) => {
       calls.append.push({ sessionId, filePath })
+      if (options?.incrementalThrow) throw options.incrementalThrow
+      if (options?.incrementalError) {
+        return { success: false, newMessageCount: 0, error: options.incrementalError }
+      }
       const newMessageCount = options?.incrementalNewCount ?? 3
       return {
         success: true,
@@ -187,6 +202,47 @@ test('automatic unique match preserves incremental mode when every message is du
   })
   assert.equal(calls.match, 1)
   assert.deepEqual(calls.create, [])
+})
+
+test('automatic incremental result preserves its mode when append returns a failure', async () => {
+  const { deps } = createDeps({
+    decision: { action: 'incremental', sessionId: 'existing', matchedBy: 'stable-id' },
+    incrementalError: 'write failed',
+  })
+
+  assert.deepEqual(await autoImportFile('source.json', deps), {
+    success: false,
+    sessionId: 'existing',
+    importMode: 'incremental',
+    matchedBy: 'stable-id',
+    error: 'write failed',
+  })
+})
+
+test('automatic incremental result preserves its mode when append throws', async () => {
+  const { deps } = createDeps({
+    decision: { action: 'incremental', sessionId: 'existing', matchedBy: 'trailing-messages' },
+    incrementalThrow: new Error('database unavailable'),
+  })
+
+  assert.deepEqual(await autoImportFile('source.json', deps), {
+    success: false,
+    sessionId: 'existing',
+    importMode: 'incremental',
+    matchedBy: 'trailing-messages',
+    error: 'database unavailable',
+  })
+})
+
+test('automatic created result preserves the parsed platform when import fails', async () => {
+  const { deps } = createDeps({ createError: 'database unavailable' })
+
+  assert.deepEqual(await autoImportFile('source.json', deps), {
+    success: false,
+    platform: 'line',
+    error: 'database unavailable',
+    diagnostics: undefined,
+  })
 })
 
 for (const reason of ['no-match', 'ambiguous'] as const) {

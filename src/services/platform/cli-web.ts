@@ -12,6 +12,7 @@ import type {
   CheckUpdateResult,
   PerformUpdateResult,
 } from './types'
+import type { AnalyticsEventName } from '@openchatlab/shared-types'
 import { fetchWithAuth } from '../utils/http'
 import { reportError } from '../log-report'
 
@@ -74,7 +75,15 @@ export class CliWebPlatformAdapter implements PlatformAdapter {
     await fetchWithAuth('/_web/telemetry/track', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ eventName: 'app_active', properties: { platform: 'cli-web', locale } }),
+      body: JSON.stringify({ eventName: 'app_active', properties: { app_locale: locale } }),
+    }).catch(() => {})
+  }
+
+  async trackAnalyticsEvent(eventName: AnalyticsEventName, properties?: Record<string, unknown>): Promise<void> {
+    await fetchWithAuth('/_web/telemetry/track', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ eventName, properties }),
     }).catch(() => {})
   }
 

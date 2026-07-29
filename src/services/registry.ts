@@ -84,17 +84,21 @@ async function initElectronAdapters(): Promise<void> {
   const { FetchDataAdapter } = await import('./data/fetch')
   registerAdapter('data', new FetchDataAdapter())
 
-  const { ElectronImportAdapter } = await import('./import/electron')
-  registerAdapter('import', new ElectronImportAdapter())
+  const { ElectronPlatformAdapter } = await import('./platform/electron')
+  const platformAdapter = new ElectronPlatformAdapter()
+  registerAdapter('platform', platformAdapter)
+
+  const [{ ElectronImportAdapter }, { TelemetryImportAdapter }] = await Promise.all([
+    import('./import/electron'),
+    import('./import/telemetry'),
+  ])
+  registerAdapter('import', new TelemetryImportAdapter(new ElectronImportAdapter(), platformAdapter))
 
   const { FetchSessionIndexAdapter } = await import('./session-index/fetch')
   registerAdapter('session-index', new FetchSessionIndexAdapter())
 
   const { FetchMessageAdapter } = await import('./message/fetch')
   registerAdapter('message', new FetchMessageAdapter())
-
-  const { ElectronPlatformAdapter } = await import('./platform/electron')
-  registerAdapter('platform', new ElectronPlatformAdapter())
 
   const { ElectronAIAdapter } = await import('./ai/electron')
   registerAdapter('ai', new ElectronAIAdapter())
@@ -121,17 +125,21 @@ async function initCliWebAdapters(): Promise<void> {
   const { FetchDataAdapter } = await import('./data/fetch')
   registerAdapter('data', new FetchDataAdapter())
 
-  const { FetchImportAdapter } = await import('./import/fetch')
-  registerAdapter('import', new FetchImportAdapter())
+  const { CliWebPlatformAdapter } = await import('./platform/cli-web')
+  const platformAdapter = new CliWebPlatformAdapter()
+  registerAdapter('platform', platformAdapter)
+
+  const [{ FetchImportAdapter }, { TelemetryImportAdapter }] = await Promise.all([
+    import('./import/fetch'),
+    import('./import/telemetry'),
+  ])
+  registerAdapter('import', new TelemetryImportAdapter(new FetchImportAdapter(), platformAdapter))
 
   const { FetchSessionIndexAdapter } = await import('./session-index/fetch')
   registerAdapter('session-index', new FetchSessionIndexAdapter())
 
   const { FetchMessageAdapter } = await import('./message/fetch')
   registerAdapter('message', new FetchMessageAdapter())
-
-  const { CliWebPlatformAdapter } = await import('./platform/cli-web')
-  registerAdapter('platform', new CliWebPlatformAdapter())
 
   const { FetchAIAdapter } = await import('./ai/fetch')
   registerAdapter('ai', new FetchAIAdapter())

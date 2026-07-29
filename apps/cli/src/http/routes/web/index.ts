@@ -116,9 +116,11 @@ export function registerWebRoutes(
 
   const semanticIndexService = options?.semanticIndexService
 
-  const analyticsService = process.env.APTABASE_APP_KEY
-    ? new AnalyticsService(resolvedPathProvider.getSystemDir(), process.env.APTABASE_APP_KEY, getVersion())
-    : undefined
+  const analyticsService = new AnalyticsService(resolvedPathProvider.getSystemDir(), {
+    appVersion: getVersion(),
+    appType: 'cli_web',
+    getAiModelConfigured: () => ai?.llmConfigStore.hasConfiguredModel() === true,
+  })
 
   registerSharedRoutes(
     server,

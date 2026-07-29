@@ -230,7 +230,7 @@ export function registerImportRoutes(
       if (result.success) {
         sendEvent('done', result)
       } else {
-        sendEvent('error', { success: false, error: result.error })
+        sendEvent('error', result)
       }
     } catch (err) {
       sendEvent('error', { success: false, error: err instanceof Error ? err.message : String(err) })
@@ -299,7 +299,7 @@ export function registerImportRoutes(
       if (result.success) {
         sendEvent('done', result)
       } else {
-        sendEvent('error', { success: false, error: result.error })
+        sendEvent('error', result)
       }
     } catch (err) {
       if (!reply.raw.headersSent) {

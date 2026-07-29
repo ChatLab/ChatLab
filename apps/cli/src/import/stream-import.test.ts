@@ -135,7 +135,7 @@ test('incremental analysis and import honor an explicitly selected parser format
   })
   const result = await incrementalImport(manager, 'existing', filePath, { formatId: 'chatlab-jsonl' })
 
-  assert.deepEqual(analysis, { newMessageCount: 1, duplicateCount: 0, totalInFile: 1 })
+  assert.deepEqual(analysis, { newMessageCount: 1, duplicateCount: 0, totalInFile: 1, platform: 'qq' })
   assert.equal(result.success, true)
   assert.equal(result.newMessageCount, 1)
 })

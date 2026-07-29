@@ -18,7 +18,8 @@ export default defineConfig({
   target: 'node20',
   platform: 'node',
   define: {
-    'process.env.APTABASE_APP_KEY': JSON.stringify(process.env.APTABASE_APP_KEY || ''),
+    'process.env.UMAMI_ENDPOINT': JSON.stringify(process.env.UMAMI_ENDPOINT || ''),
+    'process.env.UMAMI_WEBSITE_ID': JSON.stringify(process.env.UMAMI_WEBSITE_ID || ''),
   },
   noExternal: [/^@openchatlab\/(?!parser-native)/, 'chatlab-mcp', 'stream-json'],
   // parser-native 是本地构建的可选 Rust 内核：不打包也不声明依赖，

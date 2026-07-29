@@ -23,6 +23,7 @@ export type AutoImportCreateReason = 'no-match' | 'ambiguous'
 export interface ImportResult {
   success: boolean
   sessionId?: string
+  platform?: string
   error?: string
   importMode?: AutoImportMode
   matchedBy?: AutoImportMatchMethod
@@ -38,6 +39,7 @@ export function normalizeImportResult(result: ImportResult): ImportResult {
   return {
     success: result.success,
     sessionId: result.sessionId,
+    platform: result.platform,
     error: result.error,
     importMode: result.importMode,
     matchedBy: result.matchedBy,
@@ -124,6 +126,7 @@ export interface IncrementalAnalysis {
   newMessageCount: number
   duplicateCount: number
   totalInFile: number
+  platform?: string
   error?: string
 }
 

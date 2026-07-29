@@ -673,3 +673,22 @@ export interface UiConfig {
   session_gap_threshold: number
   summary_strategy?: 'brief' | 'standard'
 }
+
+// ==================== 匿名使用统计 ====================
+
+export type AnalyticsAppType = 'desktop' | 'cli' | 'cli_web' | 'web_wasm'
+
+export type AnalyticsEventName =
+  | 'app_started'
+  | 'app_active_new'
+  | 'app_active'
+  | 'chat_import_started'
+  | 'chat_import_completed'
+  | 'chat_import_failed'
+  | 'incremental_import_used'
+  | 'feature_used'
+  | 'ai_setup_completed'
+  | 'ai_request_started'
+  | 'ai_request_completed'
+
+export type AnalyticsPropertyValue = string | number | boolean

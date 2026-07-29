@@ -31,7 +31,8 @@ export default defineConfig({
     },
     define: {
       __APP_VERSION__: JSON.stringify(appVersion),
-      'process.env.APTABASE_APP_KEY': JSON.stringify(process.env.APTABASE_APP_KEY || ''),
+      'process.env.UMAMI_ENDPOINT': JSON.stringify(process.env.UMAMI_ENDPOINT || ''),
+      'process.env.UMAMI_WEBSITE_ID': JSON.stringify(process.env.UMAMI_WEBSITE_ID || ''),
       // ws 的原生加速依赖是可选项；主进程打包时禁用它们，避免 Vite 将缺失的可选依赖改写为启动即抛错。
       'process.env.WS_NO_BUFFER_UTIL': JSON.stringify('true'),
       'process.env.WS_NO_UTF_8_VALIDATE': JSON.stringify('true'),

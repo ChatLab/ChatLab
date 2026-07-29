@@ -81,6 +81,28 @@ describe('CliWebPlatformAdapter', () => {
     }
   })
 
+  it('forwards typed analytics events to the CLI web backend', async () => {
+    const originalFetch = globalThis.fetch
+    const requests: Array<{ url: string; init?: RequestInit }> = []
+    globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+      requests.push({ url: String(input), init })
+      return Promise.resolve(new Response(JSON.stringify({ ok: true })))
+    }) as typeof fetch
+
+    try {
+      await new CliWebPlatformAdapter().trackAnalyticsEvent('feature_used', { feature_id: 'insights' })
+
+      assert.equal(requests[0].url, '/_web/telemetry/track')
+      assert.equal(requests[0].init?.method, 'POST')
+      assert.equal(
+        requests[0].init?.body,
+        JSON.stringify({ eventName: 'feature_used', properties: { feature_id: 'insights' } })
+      )
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
   it('writes a PNG data URL to the browser image clipboard', async () => {
     const originalFetch = globalThis.fetch
     let clipboardItems: unknown[] = []

@@ -400,7 +400,7 @@
     "privacy": {
       "title": "Privacy Settings",
       "analytics": "Anonymous Usage Statistics",
-      "analyticsDesc": "When enabled, the app collects non-sensitive data like version number and OS version to help improve the product"
+      "analyticsDesc": "When enabled, the app sends an anonymous installation ID, version, system, app type, language, approximate region, imported chat platform, and major feature usage. It never sends chat content, contacts, filenames, paths, model names, or keys"
     },
     "developer": {
       "title": "Developer Options",

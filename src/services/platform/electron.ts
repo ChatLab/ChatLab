@@ -2,6 +2,7 @@
  * ElectronPlatformAdapter — wrap window.api
  */
 
+import type { AnalyticsEventName } from '@openchatlab/shared-types'
 import type { PlatformAdapter, OpenDialogOptions, OpenDialogResult, RemoteConfigResult } from './types'
 
 export class ElectronPlatformAdapter implements PlatformAdapter {
@@ -35,6 +36,10 @@ export class ElectronPlatformAdapter implements PlatformAdapter {
 
   trackDailyActive(locale: string): Promise<void> {
     return window.api.app.trackDailyActive(locale)
+  }
+
+  trackAnalyticsEvent(eventName: AnalyticsEventName, properties?: Record<string, unknown>): Promise<void> {
+    return window.api.app.trackAnalyticsEvent(eventName, properties)
   }
 
   showOpenDialog(options: OpenDialogOptions): Promise<OpenDialogResult> {
