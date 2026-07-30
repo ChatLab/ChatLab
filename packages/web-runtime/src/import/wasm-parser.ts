@@ -99,7 +99,7 @@ export async function parseWithWasm(
       const batchJson = parser.take_batch_json(batchSize)
       if (batchJson === undefined) break
       const batch = JSON.parse(batchJson) as WasmNativeMessage[]
-      messages.push(...batch.map((message) => mapMessage(message, formatId)))
+      for (const message of batch) messages.push(mapMessage(message, formatId))
       options.onProgress?.({
         stage: 'parsing',
         progress: summary.messageCount === 0 ? 1 : messages.length / summary.messageCount,
@@ -218,21 +218,32 @@ function mapMembers(
 }
 
 function mapMessage(message: WasmNativeMessage, formatId: BrowserWasmFormatId): BrowserParsedMessage {
-  const mapped = {
-    platformMessageId: optionalString(message.platformMessageId),
+  const platformMessageId = optionalString(message.platformMessageId)
+  const senderGroupNickname = optionalString(message.senderGroupNickname)
+  const replyToMessageId = optionalString(message.replyToMessageId)
+  if (formatId === 'weflow') {
+    return {
+      platformMessageId,
+      senderPlatformId: message.senderPlatformId,
+      senderAccountName: message.senderAccountName,
+      senderGroupNickname,
+      timestamp: message.timestamp as number,
+      type: message.messageType,
+      content: message.content ?? null,
+    }
+  }
+
+  const mapped: BrowserParsedMessage = {
     senderPlatformId: message.senderPlatformId,
     senderAccountName: message.senderAccountName,
-    senderGroupNickname: optionalString(message.senderGroupNickname),
     timestamp: message.timestamp as number,
     type: message.messageType,
     content: message.content ?? null,
-    replyToMessageId: optionalString(message.replyToMessageId),
   }
-  if (formatId === 'weflow') {
-    const { replyToMessageId: _replyToMessageId, ...weflowMessage } = mapped
-    return weflowMessage
-  }
-  return compact(mapped)
+  if (platformMessageId !== undefined) mapped.platformMessageId = platformMessageId
+  if (senderGroupNickname !== undefined) mapped.senderGroupNickname = senderGroupNickname
+  if (replyToMessageId !== undefined) mapped.replyToMessageId = replyToMessageId
+  return mapped
 }
 
 function optionalString(value: unknown): string | undefined {

@@ -45,7 +45,7 @@ export async function parseQqText(
 ): Promise<QqTextParseResult> {
   const accumulator = new QqTextAccumulator(fileName)
   const lines = content.split('\n')
-  const yieldEvery = Math.max(1, options.yieldEvery ?? 1000)
+  const yieldEvery = Math.max(1, options.yieldEvery ?? 5000)
 
   for (let index = 0; index < lines.length; index += 1) {
     options.checkCancelled?.()

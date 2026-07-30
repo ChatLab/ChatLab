@@ -23,7 +23,16 @@ describe('ChatLab browser parser', () => {
         meta: { name: 'Fixture', platform: 'wechat', type: 'group', ownerId: 'alice' },
         members: [{ platformId: 'alice', accountName: 'Alice' }],
         messages: [
-          { sender: 'alice', accountName: 'Alice', timestamp: 1, type: 0, content: 'hello' },
+          {
+            sender: 'alice',
+            accountName: 'Alice',
+            groupNickname: 'A',
+            timestamp: 1,
+            type: 0,
+            content: 'hello',
+            platformMessageId: 'message-1',
+            replyToMessageId: 'message-0',
+          },
           { sender: 'bob', accountName: 'Bob', timestamp: 2, type: 0, content: null },
         ],
       })
@@ -44,6 +53,16 @@ describe('ChatLab browser parser', () => {
       ['alice', 'bob']
     )
     assert.equal(parsed.messages.length, 2)
+    assert.deepEqual(parsed.messages[0], {
+      senderPlatformId: 'alice',
+      senderAccountName: 'Alice',
+      senderGroupNickname: 'A',
+      timestamp: 1,
+      type: 0,
+      content: 'hello',
+      platformMessageId: 'message-1',
+      replyToMessageId: 'message-0',
+    })
     assert.equal(parsed.messages[1].senderPlatformId, 'bob')
   })
 
@@ -113,5 +132,46 @@ describe('ChatLab browser parser', () => {
       }),
       /cancelled/
     )
+  })
+
+  it('throttles JSON and JSONL progress updates to cooperative yield points', async () => {
+    const messages = Array.from({ length: 5 }, (_, index) => ({
+      sender: `member-${index}`,
+      accountName: `Member ${index}`,
+      timestamp: index + 1,
+      type: 0,
+      content: 'message',
+    }))
+    const jsonProgress: number[] = []
+    await parseChatLabSource(
+      source(
+        'progress.json',
+        JSON.stringify({
+          chatlab: { version: '1', exportedAt: 1 },
+          meta: { name: 'Progress', platform: 'unknown', type: 'group' },
+          messages,
+        })
+      ),
+      { yieldEvery: 2, onProgress: (value) => jsonProgress.push(value.messagesProcessed) }
+    )
+
+    const jsonlProgress: number[] = []
+    await parseChatLabSource(
+      source(
+        'progress.jsonl',
+        [
+          JSON.stringify({
+            _type: 'header',
+            chatlab: { version: '1', exportedAt: 1 },
+            meta: { name: 'Progress', platform: 'unknown', type: 'group' },
+          }),
+          ...messages.map((message) => JSON.stringify({ _type: 'message', ...message })),
+        ].join('\n')
+      ),
+      { yieldEvery: 2, onProgress: (value) => jsonlProgress.push(value.messagesProcessed) }
+    )
+
+    assert.deepEqual(jsonProgress, [2, 4, 5])
+    assert.deepEqual(jsonlProgress, [0, 2, 4, 5])
   })
 })

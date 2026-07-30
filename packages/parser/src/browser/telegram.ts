@@ -65,7 +65,7 @@ export async function scanTelegramChatsJson(
   options.checkCancelled?.()
   const value = parseTelegramFullExport(content)
   const chats: TelegramChatInfo[] = []
-  const yieldEvery = Math.max(1, options.yieldEvery ?? 100)
+  const yieldEvery = Math.max(1, options.yieldEvery ?? 5000)
 
   for (let index = 0; index < value.chats.list.length; index += 1) {
     options.checkCancelled?.()
@@ -124,7 +124,7 @@ async function parseTelegramChat(
   const memberMap = new Map<string, ParsedMember>()
   const messages: ParsedMessage[] = []
   const chatType = mapChatType(value.type)
-  const yieldEvery = Math.max(1, options.yieldEvery ?? 1000)
+  const yieldEvery = Math.max(1, options.yieldEvery ?? 5000)
 
   for (let index = 0; index < value.messages.length; index += 1) {
     options.checkCancelled?.()

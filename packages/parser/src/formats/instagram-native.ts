@@ -106,6 +106,8 @@ interface InstagramData {
 
 // ==================== 辅助函数 ====================
 
+const UTF8_DECODER = new TextDecoder('utf-8')
+
 /**
  * 解码 Instagram 特殊编码的文本
  * Instagram 将 UTF-8 字节按 Latin-1 编码后存储
@@ -118,7 +120,7 @@ function decodeInstagramText(text: string): string {
       bytes[i] = text.charCodeAt(i)
     }
     // 用 UTF-8 解码
-    return new TextDecoder('utf-8').decode(bytes)
+    return UTF8_DECODER.decode(bytes)
   } catch {
     return text // 解码失败则返回原文
   }
@@ -135,23 +137,24 @@ function extractNameFromFilePath(filePath: string): string {
 /**
  * 判断是否为系统消息
  */
+const SYSTEM_MESSAGE_PATTERNS = [
+  'You created the group',
+  'created the group',
+  'added',
+  'to the group',
+  'left the group',
+  'removed',
+  'named the group',
+  'changed the group photo',
+  'Reacted',
+  'sent an attachment',
+  'liked a message',
+  'changed the theme',
+  'set the nickname',
+]
+
 function isSystemMessage(content: string): boolean {
-  const systemPatterns = [
-    'You created the group',
-    'created the group',
-    'added',
-    'to the group',
-    'left the group',
-    'removed',
-    'named the group',
-    'changed the group photo',
-    'Reacted',
-    'sent an attachment',
-    'liked a message',
-    'changed the theme',
-    'set the nickname',
-  ]
-  return systemPatterns.some((p) => content.includes(p))
+  return SYSTEM_MESSAGE_PATTERNS.some((pattern) => content.includes(pattern))
 }
 
 /**
@@ -286,11 +289,11 @@ async function* parseInstagram(options: ParseOptions): AsyncGenerator<ParseEvent
   const members = Array.from(memberMap.values())
   yield { type: 'members', data: members }
 
-  // 处理消息（Instagram 消息是逆序的，需要反转）
-  const reversedMessages = [...data.messages].reverse()
+  // Instagram 消息是逆序的；从尾部遍历即可按时间正序输出，避免复制整份消息数组。
   const messageBatch: ParsedMessage[] = []
 
-  for (const msg of reversedMessages) {
+  for (let index = data.messages.length - 1; index >= 0; index -= 1) {
+    const msg = data.messages[index]
     const senderName = decodeInstagramText(msg.sender_name)
     const timestamp = Math.floor(msg.timestamp_ms / 1000) // 毫秒转秒
     const type = detectMessageType(msg)
@@ -321,7 +324,7 @@ async function* parseInstagram(options: ParseOptions): AsyncGenerator<ParseEvent
 
       const progress = createProgress(
         'parsing',
-        Math.floor((messagesProcessed / reversedMessages.length) * totalBytes),
+        Math.floor((messagesProcessed / data.messages.length) * totalBytes),
         totalBytes,
         messagesProcessed,
         `已处理 ${messagesProcessed} 条消息...`

@@ -116,17 +116,23 @@ async function parseJson(content: string, options: ParseChatLabSourceOptions): P
   }
 
   const messages: BrowserParsedMessage[] = []
+  const yieldEvery = Math.max(1, options.yieldEvery ?? 5000)
   for (let index = 0; index < root.messages.length; index += 1) {
-    await cooperate(index, options)
+    options.checkCancelled?.()
+    if (index > 0 && index % yieldEvery === 0) {
+      options.onProgress?.({
+        stage: 'parsing',
+        progress: index / root.messages.length,
+        messagesProcessed: messages.length,
+      })
+      await new Promise<void>((resolve) => setTimeout(resolve, 0))
+      options.checkCancelled?.()
+    }
     messages.push(parseMessage(root.messages[index], `messages[${index}]`))
-    options.onProgress?.({
-      stage: 'parsing',
-      progress: root.messages.length === 0 ? 1 : (index + 1) / root.messages.length,
-      messagesProcessed: index + 1,
-    })
   }
 
   options.checkCancelled?.()
+  options.onProgress?.({ stage: 'parsing', progress: 1, messagesProcessed: messages.length })
   return {
     formatId: 'chatlab',
     meta,
@@ -142,6 +148,7 @@ async function parseJsonl(content: string, options: ParseChatLabSourceOptions): 
   let firstRecordSeen = false
   let cursor = 0
   let lineNumber = 0
+  const yieldEvery = Math.max(1, options.yieldEvery ?? 5000)
 
   while (cursor <= content.length) {
     const nextBreak = content.indexOf('\n', cursor)
@@ -149,9 +156,18 @@ async function parseJsonl(content: string, options: ParseChatLabSourceOptions): 
     const line = content.slice(cursor, end).replace(/\r$/, '').trim()
     lineNumber += 1
     cursor = nextBreak === -1 ? content.length + 1 : nextBreak + 1
+    options.checkCancelled?.()
+    if (lineNumber > 0 && lineNumber % yieldEvery === 0) {
+      options.onProgress?.({
+        stage: 'parsing',
+        progress: content.length === 0 ? 1 : Math.min(1, cursor / content.length),
+        messagesProcessed: messages.length,
+      })
+      await new Promise<void>((resolve) => setTimeout(resolve, 0))
+      options.checkCancelled?.()
+    }
     if (!line || line.startsWith('#')) continue
 
-    await cooperate(lineNumber, options)
     let value: unknown
     try {
       value = JSON.parse(line)
@@ -182,11 +198,6 @@ async function parseJsonl(content: string, options: ParseChatLabSourceOptions): 
         break
       case 'message':
         messages.push(parseMessage(value, `line ${lineNumber}`))
-        options.onProgress?.({
-          stage: 'parsing',
-          progress: content.length === 0 ? 1 : Math.min(1, cursor / content.length),
-          messagesProcessed: messages.length,
-        })
         break
       default:
         throw new WebRuntimeError('INVALID_IMPORT_FILE', `Unknown ChatLab JSONL record type at line ${lineNumber}`)
@@ -244,16 +255,20 @@ function parseMessage(value: unknown, path: string): BrowserParsedMessage {
   const content = value.content
   if (content !== null && typeof content !== 'string') throw invalidField(`${path}.content`, 'must be a string or null')
 
-  return omitUndefined({
+  const message: BrowserParsedMessage = {
     senderPlatformId: sender,
     senderAccountName: optionalString(value.accountName, `${path}.accountName`) ?? sender,
-    senderGroupNickname: optionalString(value.groupNickname, `${path}.groupNickname`),
     timestamp,
     type,
     content,
-    platformMessageId: optionalString(value.platformMessageId, `${path}.platformMessageId`),
-    replyToMessageId: optionalString(value.replyToMessageId, `${path}.replyToMessageId`),
-  })
+  }
+  const senderGroupNickname = optionalString(value.groupNickname, `${path}.groupNickname`)
+  const platformMessageId = optionalString(value.platformMessageId, `${path}.platformMessageId`)
+  const replyToMessageId = optionalString(value.replyToMessageId, `${path}.replyToMessageId`)
+  if (senderGroupNickname !== undefined) message.senderGroupNickname = senderGroupNickname
+  if (platformMessageId !== undefined) message.platformMessageId = platformMessageId
+  if (replyToMessageId !== undefined) message.replyToMessageId = replyToMessageId
+  return message
 }
 
 function mergeInferredMembers(
@@ -270,15 +285,6 @@ function mergeInferredMembers(
     })
   }
   return [...byId.values()]
-}
-
-async function cooperate(index: number, options: ParseChatLabSourceOptions): Promise<void> {
-  options.checkCancelled?.()
-  const yieldEvery = Math.max(1, options.yieldEvery ?? 1000)
-  if (index > 0 && index % yieldEvery === 0) {
-    await new Promise<void>((resolve) => setTimeout(resolve, 0))
-    options.checkCancelled?.()
-  }
 }
 
 function firstMeaningfulLine(content: string): string | undefined {

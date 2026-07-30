@@ -108,7 +108,7 @@ export async function parseWhatsAppText(
 ): Promise<WhatsAppTextParseResult> {
   const accumulator = new WhatsAppTextAccumulator(fileName)
   const lines = content.split('\n')
-  const yieldEvery = Math.max(1, options.yieldEvery ?? 1000)
+  const yieldEvery = Math.max(1, options.yieldEvery ?? 5000)
 
   for (let index = 0; index < lines.length; index += 1) {
     options.checkCancelled?.()

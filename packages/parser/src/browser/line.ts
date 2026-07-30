@@ -75,6 +75,7 @@ const SPECIAL_MESSAGE_TYPES: Record<string, MessageType> = {
   '[記事本]': MessageType.TEXT,
   '[ノート]': MessageType.TEXT,
 }
+const SPECIAL_MESSAGE_TYPE_ENTRIES = Object.entries(SPECIAL_MESSAGE_TYPES)
 
 export function detectLineText(head: string, fileName: string): boolean {
   const basename = getBasename(fileName)
@@ -90,20 +91,21 @@ export async function parseLineText(
   fileName: string,
   options: LineTextParseOptions = {}
 ): Promise<LineTextParseResult> {
-  const lines = content.split('\n').map((line) => line.replace(/\r$/, ''))
+  const lines = content.split('\n')
   const memberMap = new Map<string, ParsedMember>()
   const messages: ParsedMessage[] = []
-  const header = lines.length > 0 ? extractNameFromHeader(lines[0].trim()) : null
+  const header = lines.length > 0 ? extractNameFromHeader(lines[0].replace(/\r$/, '').trim()) : null
   const chatName = header?.name ?? extractNameFromFileName(fileName)
   let currentDate: Date | null = null
   let lastMessage: ParsedMessage | null = null
   let quotedMultiline = false
   let lineIndex = header ? 3 : 0
   let useTabSeparator = Boolean(header)
-  const yieldEvery = Math.max(1, options.yieldEvery ?? 1000)
+  const yieldEvery = Math.max(1, options.yieldEvery ?? 5000)
 
   if (!header) {
-    for (const line of lines) {
+    for (const rawLine of lines) {
+      const line = rawLine.replace(/\r$/, '')
       if (TAB_MESSAGE_PATTERN.test(line)) {
         useTabSeparator = true
         break
@@ -117,7 +119,7 @@ export async function parseLineText(
 
   for (; lineIndex < lines.length; lineIndex += 1) {
     options.checkCancelled?.()
-    const line = lines[lineIndex]
+    const line = lines[lineIndex].replace(/\r$/, '')
     const date = parseDateLine(line)
     if (date) {
       currentDate = date
@@ -262,7 +264,7 @@ function parseTime(timeText: string): { hours: number; minutes: number } {
 }
 
 function detectMessageType(content: string): MessageType {
-  for (const [pattern, type] of Object.entries(SPECIAL_MESSAGE_TYPES)) {
+  for (const [pattern, type] of SPECIAL_MESSAGE_TYPE_ENTRIES) {
     if (content === pattern || content.startsWith(pattern)) return type
   }
   if (content.startsWith('[null]') && content.includes('maps.google.com')) return MessageType.LOCATION

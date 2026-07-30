@@ -34,9 +34,12 @@ describe('browser Rust WASM parser', () => {
         {
           sender: 'alice',
           accountName: 'Alice',
+          groupNickname: 'A',
           timestamp: 1,
           type: 0,
           content: 'hello chatlab',
+          platformMessageId: 'message-1',
+          replyToMessageId: 'message-0',
         },
       ],
     })
@@ -54,6 +57,16 @@ describe('browser Rust WASM parser', () => {
       chatlab.messages.map((message) => message.content),
       ['hello chatlab']
     )
+    assert.deepEqual(chatlab.messages[0], {
+      senderPlatformId: 'alice',
+      senderAccountName: 'Alice',
+      senderGroupNickname: 'A',
+      timestamp: 1,
+      type: 0,
+      content: 'hello chatlab',
+      platformMessageId: 'message-1',
+      replyToMessageId: 'message-0',
+    })
     assert.deepEqual(chatlab, chatlabTs)
 
     const weflowSource = source('weflow.json', {

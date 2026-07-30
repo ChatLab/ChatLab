@@ -20,7 +20,7 @@ describe('LINE browser-safe text parser', () => {
       '03:05pm\tBob\t[Photo]',
       '03:06pm\t\tAlice joined the group',
       '',
-    ].join('\n')
+    ].join('\r\n')
 
     assert.equal(detectLineText(content, '[LINE] Project Team.txt'), true)
     assert.equal(detectLineText('2024/01/02 03:04 - Alice: hello', '与Alice的 WhatsApp 聊天.txt'), false)
@@ -84,5 +84,26 @@ describe('LINE browser-safe text parser', () => {
     assert.equal(result.messages[0]?.timestamp, localTs('2024-01-02T15:04:00'))
     assert.equal(result.messages.length, 1002)
     assert.ok(checks > 10)
+  })
+
+  it('classifies prefixed media, links, locations, and system messages', async () => {
+    const content = [
+      '[LINE] Chat history in Project Team',
+      'Saved on: 2024/01/03 09:00',
+      '',
+      '2024.01.02 Tuesday',
+      '03:04\tAlice\t[File] report.pdf',
+      '03:05\tAlice\thttps://example.com',
+      '03:06\tAlice\t[null] https://maps.google.com/example',
+      '03:07\tAlice\tBob left the group',
+      '',
+    ].join('\n')
+
+    const result = await parseLineText(content, '[LINE] Project Team.txt')
+
+    assert.deepEqual(
+      result.messages.map((message) => message.type),
+      [MessageType.FILE, MessageType.LINK, MessageType.LOCATION, MessageType.SYSTEM]
+    )
   })
 })

@@ -61,10 +61,16 @@ export async function parseWeFlowJson(
   const messageValues = Array.isArray(value.messages) ? value.messages : []
   const members = new Map<string, MemberState>()
   const messages: ParsedMessage[] = []
+  const yieldEvery = Math.max(1, options.yieldEvery ?? 5000)
   let ownerId: string | undefined
 
   for (let index = 0; index < messageValues.length; index += 1) {
-    await cooperate(index, options)
+    options.checkCancelled?.()
+    if (index > 0 && index % yieldEvery === 0) {
+      options.onProgress?.({ progress: index / messageValues.length, messagesProcessed: messages.length })
+      await new Promise<void>((resolve) => setTimeout(resolve, 0))
+      options.checkCancelled?.()
+    }
     const message = messageValues[index]
     if (!isRecord(message)) continue
 
@@ -91,10 +97,6 @@ export async function parseWeFlowJson(
       timestamp: message.createTime as number,
       type: convertMessageType(stringValue(message.type)),
       content: normalizeContent(message.content),
-    })
-    options.onProgress?.({
-      progress: messageValues.length === 0 ? 1 : (index + 1) / messageValues.length,
-      messagesProcessed: messages.length,
     })
   }
 
@@ -182,13 +184,4 @@ function stringValue(value: unknown): string | undefined {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
-}
-
-async function cooperate(index: number, options: WeFlowJsonParseOptions): Promise<void> {
-  options.checkCancelled?.()
-  const yieldEvery = Math.max(1, options.yieldEvery ?? 1000)
-  if (index > 0 && index % yieldEvery === 0) {
-    await new Promise<void>((resolve) => setTimeout(resolve, 0))
-    options.checkCancelled?.()
-  }
 }
