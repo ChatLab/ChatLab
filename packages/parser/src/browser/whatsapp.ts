@@ -40,6 +40,7 @@ interface PendingMessage {
   timestamp: number
   sender: string | null
   contentLines: string[]
+  isSystem: boolean
 }
 
 const MESSAGE_LINE_REGEX_V1 =
@@ -78,6 +79,13 @@ const SYSTEM_MESSAGE_PATTERNS = [
   /This message was deleted/i,
   /disappearing messages/i,
 ]
+const SYSTEM_MESSAGE_REGEX = new RegExp(SYSTEM_MESSAGE_PATTERNS.map((pattern) => pattern.source).join('|'), 'i')
+
+const TIMESTAMP_SPACING = String.raw`(?:\s|\u2009|\u202F|\uFEFF|\u200E|\u200F|\u200B|\u200C|\u200D|\u2060)`
+const COMMON_TIMESTAMP_REGEX = new RegExp(
+  String.raw`^${TIMESTAMP_SPACING}*(\d{1,4})\/(\d{1,2})\/(\d{1,4})(?:,|${TIMESTAMP_SPACING})+(\d{1,2}):(\d{2})(?::(\d{2}))?(?:${TIMESTAMP_SPACING}+(AM|PM|A\.M\.|P\.M\.|上午|下午|午前|午後|오전|오후))?${TIMESTAMP_SPACING}*$`,
+  'i'
+)
 
 const AMPM_MARKERS: [RegExp, boolean][] = [
   [/\bPM\b/i, true],
@@ -112,7 +120,7 @@ export async function parseWhatsAppText(
 
   for (let index = 0; index < lines.length; index += 1) {
     options.checkCancelled?.()
-    accumulator.pushLine(lines[index].replace(/\r$/, ''))
+    accumulator.pushLine(lines[index])
     if (index > 0 && index % yieldEvery === 0) {
       options.onProgress?.({ progress: index / lines.length, messagesProcessed: accumulator.messageCount })
       await new Promise<void>((resolve) => setTimeout(resolve, 0))
@@ -196,7 +204,7 @@ export class WhatsAppTextAccumulator {
       senderPlatformId,
       senderAccountName: senderName,
       timestamp: this.currentMessage.timestamp,
-      type: detectMessageType(content),
+      type: detectMessageType(content, this.currentMessage.isSystem),
       content: content || null,
     })
     if (this.currentMessage.sender) {
@@ -208,10 +216,11 @@ export class WhatsAppTextAccumulator {
 
 function createPendingMessage(timestamp: number, restContent: string): PendingMessage {
   const senderMatch = restContent.match(SENDER_CONTENT_REGEX)
-  if (senderMatch && !isSystemMessage(restContent)) {
-    return { timestamp, sender: senderMatch[1].trim(), contentLines: [senderMatch[2]] }
+  const isSystem = isSystemMessage(restContent)
+  if (senderMatch && !isSystem) {
+    return { timestamp, sender: senderMatch[1].trim(), contentLines: [senderMatch[2]], isSystem }
   }
-  return { timestamp, sender: null, contentLines: [restContent] }
+  return { timestamp, sender: null, contentLines: [restContent], isSystem }
 }
 
 function extractNameFromFileName(fileName: string): string {
@@ -241,10 +250,10 @@ function cleanLine(line: string): string {
 }
 
 function isSystemMessage(content: string): boolean {
-  return SYSTEM_MESSAGE_PATTERNS.some((pattern) => pattern.test(content))
+  return SYSTEM_MESSAGE_REGEX.test(content)
 }
 
-function detectMessageType(content: string): MessageType {
+function detectMessageType(content: string, knownSystem = false): MessageType {
   const trimmed = content.trim()
   if (
     trimmed === '<省略影音内容>' ||
@@ -265,11 +274,24 @@ function detectMessageType(content: string): MessageType {
   if (trimmed === '这条消息已删除' || trimmed.startsWith('此訊息已刪除') || trimmed.startsWith('你已刪除此訊息')) {
     return MessageType.RECALL
   }
-  if (isSystemMessage(trimmed)) return MessageType.SYSTEM
+  if (knownSystem || isSystemMessage(trimmed)) return MessageType.SYSTEM
   return MessageType.TEXT
 }
 
 function parseFlexibleTimestamp(raw: string): number | null {
+  const commonMatch = raw.match(COMMON_TIMESTAMP_REGEX)
+  if (commonMatch) {
+    return buildTimestamp(
+      Number.parseInt(commonMatch[1], 10),
+      Number.parseInt(commonMatch[2], 10),
+      Number.parseInt(commonMatch[3], 10),
+      Number.parseInt(commonMatch[4], 10),
+      Number.parseInt(commonMatch[5], 10),
+      Number.parseInt(commonMatch[6] ?? '0', 10),
+      parseAmPm(commonMatch[7])
+    )
+  }
+
   let value = raw.replace(/(?:\u2009|\u202F|\uFEFF|\u200E|\u200F|\u200B|\u200C|\u200D|\u2060)/g, ' ').trim()
   let isPm: boolean | null = null
   for (const [pattern, pm] of AMPM_MARKERS) {
@@ -285,21 +307,41 @@ function parseFlexibleTimestamp(raw: string): number | null {
   const dateParts = match[1].split('/').map((part) => Number.parseInt(part, 10))
   const timeParts = match[2].split(':').map((part) => Number.parseInt(part, 10))
 
+  return buildTimestamp(dateParts[0], dateParts[1], dateParts[2], timeParts[0], timeParts[1], timeParts[2] ?? 0, isPm)
+}
+
+function parseAmPm(marker: string | undefined): boolean | null {
+  if (!marker) return null
+  return /^(?:PM|P\.M\.|下午|午後|오후)$/i.test(marker)
+}
+
+function buildTimestamp(
+  firstDatePart: number,
+  secondDatePart: number,
+  thirdDatePart: number,
+  rawHour: number,
+  minute: number,
+  second: number,
+  isPm: boolean | null
+): number | null {
   let year: number
   let month: number
   let day: number
-  if (dateParts[0] > 31) {
-    ;[year, month, day] = dateParts
-  } else if (dateParts[2] > 31) {
-    ;[day, month, year] = dateParts
+  if (firstDatePart > 31) {
+    year = firstDatePart
+    month = secondDatePart
+    day = thirdDatePart
+  } else if (thirdDatePart > 31) {
+    day = firstDatePart
+    month = secondDatePart
+    year = thirdDatePart
   } else {
-    ;[month, day] = dateParts
-    year = 2000 + dateParts[2]
+    month = firstDatePart
+    day = secondDatePart
+    year = 2000 + thirdDatePart
   }
 
-  let hour = timeParts[0]
-  const minute = timeParts[1]
-  const second = timeParts[2] ?? 0
+  let hour = rawHour
   if (isPm === true && hour !== 12) hour += 12
   if (isPm === false && hour === 12) hour = 0
 

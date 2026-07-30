@@ -12,7 +12,7 @@ describe('WhatsApp browser-safe text parser', () => {
   it('detects and parses official TXT exports without Node APIs', async () => {
     const content = [
       'Messages and calls are end-to-end encrypted.',
-      '2024/01/02 03:04 - Alice: first line',
+      '2024/01/02 03:04 - Alice: first line\r',
       'second line',
       '2024/01/02 03:05:06 PM - Bob: image omitted',
       '',
@@ -72,5 +72,30 @@ describe('WhatsApp browser-safe text parser', () => {
     assert.equal(result.messages[0]?.type, MessageType.SYSTEM)
     assert.equal(result.messages.length, 1004)
     assert.ok(checks > 10)
+  })
+
+  it('preserves supported date orders, localized periods, and system messages containing colons', async () => {
+    const content = [
+      '02/01/2024 03:04 下午 - Alice: traditional period',
+      '01/02/24 12:05 AM - Bob: english period',
+      '[2024/01/02 오후 03:06] Alice: fallback marker order',
+      '2024/01/02 03:07 - Alice changed this group: description',
+    ].join('\n')
+
+    const result = await parseWhatsAppText(content, 'WhatsApp locale fixture.txt')
+
+    assert.deepEqual(
+      result.messages.map((message) => ({
+        sender: message.senderPlatformId,
+        timestamp: message.timestamp,
+        type: message.type,
+      })),
+      [
+        { sender: 'Alice', timestamp: localTs('2024-01-02T15:04:00'), type: MessageType.TEXT },
+        { sender: 'Bob', timestamp: localTs('2024-01-02T00:05:00'), type: MessageType.TEXT },
+        { sender: 'Alice', timestamp: localTs('2024-01-02T15:06:00'), type: MessageType.TEXT },
+        { sender: 'system', timestamp: localTs('2024-01-02T03:07:00'), type: MessageType.SYSTEM },
+      ]
+    )
   })
 })
