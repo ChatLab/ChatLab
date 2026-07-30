@@ -13,7 +13,7 @@ const { t } = useI18n()
 const settingsStore = useSettingsStore()
 const { locale } = storeToRefs(settingsStore)
 
-const AGREEMENT_VERSION = '2.0'
+const AGREEMENT_VERSION = '3.0'
 const AGREEMENT_KEY = 'chatlab_agreement_version'
 
 const isOpen = ref(false)
