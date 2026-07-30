@@ -269,7 +269,7 @@ function convertMessageType(
 
 // ==================== 解析器实现 ====================
 
-async function* parseV4(options: ParseOptions): AsyncGenerator<ParseEvent, void, unknown> {
+async function* parseShuakamiQqV4(options: ParseOptions): AsyncGenerator<ParseEvent, void, unknown> {
   const { filePath, batchSize = 5000, onProgress, onLog } = options
 
   const totalBytes = getFileSize(filePath)
@@ -283,7 +283,7 @@ async function* parseV4(options: ParseOptions): AsyncGenerator<ParseEvent, void,
   onProgress?.(initialProgress)
 
   // 记录解析开始
-  onLog?.('info', `开始解析 QQ Chat Exporter 文件，大小: ${(totalBytes / 1024 / 1024).toFixed(2)} MB`)
+  onLog?.('info', `开始解析 shuakami/qq-chat-exporter 文件，大小: ${(totalBytes / 1024 / 1024).toFixed(2)} MB`)
 
   // 读取文件头获取 meta 信息（增加到 500KB 以包含 chatInfo.avatar）
   const headContent = readFileHeadBytes(filePath, 500000)
@@ -457,18 +457,23 @@ async function* parseV4(options: ParseOptions): AsyncGenerator<ParseEvent, void,
 
 // ==================== 导出 ====================
 
+import { withShuakamiQqNative } from '../native/shuakami-qq-native'
+
+export { parseShuakamiQqV4 }
+export const parseShuakamiQqV4Accelerated = withShuakamiQqNative(parseShuakamiQqV4)
+
 export const parser_: Parser = {
   feature,
-  parse: parseV4,
+  parse: parseShuakamiQqV4Accelerated,
 }
 
-import { qqPreprocessor } from './shuakami-qq-preprocessor'
-export const preprocessor = qqPreprocessor
+import { shuakamiQqPreprocessor } from './shuakami-qq-preprocessor'
+export const preprocessor = shuakamiQqPreprocessor
 
 const module_: FormatModule = {
   feature,
   parser: parser_,
-  preprocessor: qqPreprocessor,
+  preprocessor: shuakamiQqPreprocessor,
 }
 
 export default module_

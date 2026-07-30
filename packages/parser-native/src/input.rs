@@ -1,7 +1,8 @@
 //! Kernel input abstraction (first iteration).
 //!
 //! Today a kernel gets one primary file plus the opaque options JSON blob
-//! passed to the JS constructor. Multi-file formats (QQ chunked, Google Chat
+//! passed to the JS constructor. Multi-file formats (shuakami/qq-chat-exporter
+//! chunked, Google Chat
 //! Takeout) will extend this struct with base-dir scoped file access.
 
 #[cfg(feature = "napi")]

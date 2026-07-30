@@ -34,6 +34,8 @@ export interface NativeFormatAdapter {
   mapMembers: (members: NativeMember[], metaJson: unknown) => ParsedMember[]
   /** Map one native message to the ParsedMessage event payload. */
   mapMessage: (message: NativeMessage, metaJson: unknown) => ParsedMessage
+  /** Optional format-specific summary lines emitted after a successful parse. */
+  completionLogs?: (metaJson: unknown) => string[]
 }
 
 async function* pumpNativeParser(
@@ -102,6 +104,9 @@ async function* pumpNativeParser(
   yield { type: 'progress', data: doneProgress }
   onProgress?.(doneProgress)
   onLog?.('info', `解析完成: ${messagesProcessed} 条消息, ${members.length} 个成员`)
+  for (const message of adapter.completionLogs?.(metaJson) ?? []) {
+    onLog?.('info', message)
+  }
 
   yield { type: 'done', data: { messageCount: messagesProcessed, memberCount: members.length } }
 }

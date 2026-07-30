@@ -14,7 +14,7 @@ import pickModule from 'stream-json/filters/Pick.js'
 import streamValuesModule from 'stream-json/streamers/StreamValues.js'
 import streamChain from 'stream-chain'
 import type { ParseProgress, Preprocessor } from '../types'
-import { getFileSize, createProgress } from '../utils'
+import { getFileSize, createProgress, readFileHeadBytes } from '../utils'
 
 const { parser } = streamJson
 const { pick } = pickModule
@@ -114,9 +114,9 @@ function readAvatarsFromFile(filePath: string): string | null {
 }
 
 /**
- * QQ JSON 消息的精简结构
+ * shuakami/qq-chat-exporter JSON 消息的精简结构
  */
-interface SlimQQMessage {
+interface ShuakamiQqSlimMessage {
   id?: string
   messageId?: string
   timestamp: number | string
@@ -132,11 +132,14 @@ interface SlimQQMessage {
     elements?: Array<{ type: string }>
     resources?: Array<{ type: string }>
     emojis?: Array<{ type: string }>
+    reply?: {
+      referencedMessageId?: unknown
+    }
   }
-  recalled?: boolean
-  isRecalled?: boolean
-  system?: boolean
-  isSystemMessage?: boolean
+  recalled?: boolean | null
+  isRecalled?: boolean | null
+  system?: boolean | null
+  isSystemMessage?: boolean | null
   rawMessage?: {
     sendNickName?: string
     sendMemberName?: string
@@ -146,14 +149,14 @@ interface SlimQQMessage {
 }
 
 /**
- * 精简 QQ JSON 消息对象
+ * 精简 shuakami/qq-chat-exporter JSON 消息对象
  */
-function slimMessage(msg: Record<string, unknown>): SlimQQMessage {
+function slimMessage(msg: Record<string, unknown>): ShuakamiQqSlimMessage {
   const sender = msg.sender as { uin?: string; uid?: string; name?: string } | undefined
   const content = msg.content as Record<string, unknown> | undefined
   const rawMessage = msg.rawMessage as Record<string, unknown> | undefined
 
-  const slimContent: SlimQQMessage['content'] = {
+  const slimContent: ShuakamiQqSlimMessage['content'] = {
     text: (content?.text as string) || '',
   }
 
@@ -175,7 +178,14 @@ function slimMessage(msg: Record<string, unknown>): SlimQQMessage {
     }))
   }
 
-  const slimMsg: SlimQQMessage = {
+  if (content?.reply && typeof content.reply === 'object') {
+    const reply = content.reply as Record<string, unknown>
+    if (reply.referencedMessageId !== undefined) {
+      slimContent.reply = { referencedMessageId: reply.referencedMessageId }
+    }
+  }
+
+  const slimMsg: ShuakamiQqSlimMessage = {
     timestamp: msg.timestamp as number | string,
     sender: { name: sender?.name || '' },
     content: slimContent,
@@ -184,14 +194,14 @@ function slimMessage(msg: Record<string, unknown>): SlimQQMessage {
   // 旧格式字段
   if (msg.id) slimMsg.id = msg.id as string
   if (msg.type) slimMsg.type = msg.type as string
-  if (msg.recalled) slimMsg.recalled = msg.recalled as boolean
-  if (msg.system) slimMsg.system = msg.system as boolean
+  if (msg.recalled !== undefined) slimMsg.recalled = msg.recalled as boolean | null
+  if (msg.system !== undefined) slimMsg.system = msg.system as boolean | null
 
   // V4 新格式字段
-  if (msg.messageId) slimMsg.messageId = msg.messageId as string
+  if (msg.messageId !== undefined) slimMsg.messageId = msg.messageId as string
   if (msg.messageType !== undefined) slimMsg.messageType = msg.messageType as number
-  if (msg.isRecalled) slimMsg.isRecalled = msg.isRecalled as boolean
-  if (msg.isSystemMessage) slimMsg.isSystemMessage = msg.isSystemMessage as boolean
+  if (msg.isRecalled !== undefined) slimMsg.isRecalled = msg.isRecalled as boolean | null
+  if (msg.isSystemMessage !== undefined) slimMsg.isSystemMessage = msg.isSystemMessage as boolean | null
 
   // sender 字段
   if (sender?.uin) slimMsg.sender.uin = sender.uin
@@ -210,9 +220,12 @@ function slimMessage(msg: Record<string, unknown>): SlimQQMessage {
 }
 
 /**
- * 预处理 QQ JSON 文件
+ * 预处理 shuakami/qq-chat-exporter JSON 文件
  */
-async function preprocessQQJson(inputPath: string, onProgress?: (progress: ParseProgress) => void): Promise<string> {
+async function preprocessShuakamiQqJson(
+  inputPath: string,
+  onProgress?: (progress: ParseProgress) => void
+): Promise<string> {
   const totalBytes = getFileSize(inputPath)
   let bytesRead = 0
   let messagesProcessed = 0
@@ -227,130 +240,110 @@ async function preprocessQQJson(inputPath: string, onProgress?: (progress: Parse
   // 先从原文件读取 avatars（因为它在文件末尾，消息处理时可能无法访问）
   const avatarsStr = readAvatarsFromFile(inputPath)
 
+  // Keep the same byte window as parseShuakamiQqV4. Reading decoded stream chunks and
+  // counting string.length can include substantially more than 500,000 bytes
+  // when the head contains multi-byte UTF-8 text.
+  const headContent = readFileHeadBytes(inputPath, 500000)
+  let chatInfo: Record<string, unknown> = { name: '未知群聊', type: 'group' }
+  let metadata: Record<string, unknown> | undefined
+  let statistics: Record<string, unknown> | undefined
+
+  try {
+    const chatInfoJson = extractJsonObject(headContent, 'chatInfo')
+    if (chatInfoJson) chatInfo = JSON.parse(chatInfoJson)
+  } catch {
+    // 使用默认值
+  }
+  if (!chatInfo.name) {
+    chatInfo.name = path.basename(inputPath).replace(/\.json$/i, '') || '未知群聊'
+  }
+
+  try {
+    const metadataMatch = headContent.match(/"metadata"\s*:\s*(\{[^}]+\})/)
+    if (metadataMatch) metadata = JSON.parse(metadataMatch[1])
+  } catch {
+    // 忽略
+  }
+
+  try {
+    const statisticsMatch = headContent.match(/"statistics"\s*:\s*(\{[\s\S]*?\})\s*,\s*"messages"/)
+    if (statisticsMatch) statistics = JSON.parse(statisticsMatch[1])
+  } catch {
+    // 解析失败时忽略
+  }
+
   return new Promise((resolve, reject) => {
-    const headChunks: string[] = []
-    let headSize = 0
-    const maxHeadSize = 100000
+    onProgress?.(createProgress('parsing', 0, totalBytes, 0, ''))
 
-    const headStream = fs.createReadStream(inputPath, { encoding: 'utf-8' })
-    let chatInfo: Record<string, unknown> = { name: '未知群聊', type: 'group' }
-    let metadata: Record<string, unknown> | undefined
-    let statistics: Record<string, unknown> | undefined
+    const readStream = fs.createReadStream(inputPath, { encoding: 'utf-8' })
+    const writeStream = fs.createWriteStream(outputPath, { encoding: 'utf-8' })
 
-    headStream.on('data', (chunk: string | Buffer) => {
-      const str = typeof chunk === 'string' ? chunk : chunk.toString('utf-8')
-      if (headSize < maxHeadSize) {
-        headChunks.push(str)
-        headSize += str.length
+    readStream.on('data', (chunk: string | Buffer) => {
+      bytesRead += typeof chunk === 'string' ? Buffer.byteLength(chunk) : chunk.length
+    })
+
+    const header = { metadata, chatInfo, statistics, messages: [] }
+    const headerJson = JSON.stringify(header)
+    // 移除最后的 ]} 保留 [
+    writeStream.write(headerJson.slice(0, -2) + '\n')
+
+    let isFirstMessage = true
+
+    const pipeline = chain([readStream, parser(), pick({ filter: /^messages\.\d+$/ }), streamValues()])
+
+    pipeline.on('data', ({ value }: { value: Record<string, unknown> }) => {
+      const slimMsg = slimMessage(value)
+      const msgJson = JSON.stringify(slimMsg)
+
+      if (isFirstMessage) {
+        writeStream.write(msgJson)
+        isFirstMessage = false
       } else {
-        headStream.destroy()
-      }
-    })
-
-    headStream.on('close', () => {
-      const headContent = headChunks.join('')
-
-      try {
-        const chatInfoMatch = headContent.match(/"chatInfo"\s*:\s*(\{[^}]+\})/)
-        if (chatInfoMatch) {
-          chatInfo = JSON.parse(chatInfoMatch[1])
-        }
-      } catch {
-        // 使用默认值
+        writeStream.write(',\n' + msgJson)
       }
 
-      try {
-        const metadataMatch = headContent.match(/"metadata"\s*:\s*(\{[^}]+\})/)
-        if (metadataMatch) {
-          metadata = JSON.parse(metadataMatch[1])
-        }
-      } catch {
-        // 忽略
-      }
+      messagesProcessed++
 
-      try {
-        const statisticsMatch = headContent.match(/"statistics"\s*:\s*(\{[\s\S]*?\})\s*,\s*"messages"/)
-        if (statisticsMatch) {
-          statistics = JSON.parse(statisticsMatch[1])
-        }
-      } catch {
-        // 解析失败时忽略
-      }
-
-      onProgress?.(createProgress('parsing', 0, totalBytes, 0, ''))
-
-      const readStream = fs.createReadStream(inputPath, { encoding: 'utf-8' })
-      const writeStream = fs.createWriteStream(outputPath, { encoding: 'utf-8' })
-
-      readStream.on('data', (chunk: string | Buffer) => {
-        bytesRead += typeof chunk === 'string' ? Buffer.byteLength(chunk) : chunk.length
-      })
-
-      const header = { metadata, chatInfo, statistics, messages: [] }
-      const headerJson = JSON.stringify(header)
-      // 移除最后的 ]} 保留 [
-      writeStream.write(headerJson.slice(0, -2) + '\n')
-
-      let isFirstMessage = true
-
-      const pipeline = chain([readStream, parser(), pick({ filter: /^messages\.\d+$/ }), streamValues()])
-
-      pipeline.on('data', ({ value }: { value: Record<string, unknown> }) => {
-        const slimMsg = slimMessage(value)
-        const msgJson = JSON.stringify(slimMsg)
-
-        if (isFirstMessage) {
-          writeStream.write(msgJson)
-          isFirstMessage = false
-        } else {
-          writeStream.write(',\n' + msgJson)
-        }
-
-        messagesProcessed++
-
-        if (messagesProcessed % 10000 === 0) {
-          onProgress?.(
-            createProgress(
-              'parsing',
-              bytesRead,
-              totalBytes,
-              messagesProcessed,
-              `预处理：已精简 ${messagesProcessed} 条消息...`
-            )
+      if (messagesProcessed % 10000 === 0) {
+        onProgress?.(
+          createProgress(
+            'parsing',
+            bytesRead,
+            totalBytes,
+            messagesProcessed,
+            `预处理：已精简 ${messagesProcessed} 条消息...`
           )
-        }
-      })
+        )
+      }
+    })
 
-      pipeline.on('end', () => {
-        // 关闭 messages 数组
-        writeStream.write('\n]')
+    pipeline.on('end', () => {
+      // 关闭 messages 数组
+      writeStream.write('\n]')
 
-        // 添加 avatars 对象（如果存在）
-        if (avatarsStr) {
-          writeStream.write(',"avatars":' + avatarsStr)
-        }
+      // 添加 avatars 对象（如果存在）
+      if (avatarsStr) {
+        writeStream.write(',"avatars":' + avatarsStr)
+      }
 
-        // 关闭 JSON 对象
-        writeStream.write('}')
-        writeStream.end()
+      // 关闭 JSON 对象
+      writeStream.write('}')
+      writeStream.end()
 
-        writeStream.on('finish', () => {
-          onProgress?.(createProgress('done', totalBytes, totalBytes, messagesProcessed, ''))
-          resolve(outputPath)
-        })
-      })
-
-      pipeline.on('error', (err) => {
-        writeStream.destroy()
-        if (fs.existsSync(outputPath)) {
-          fs.unlinkSync(outputPath)
-        }
-        onProgress?.(createProgress('error', bytesRead, totalBytes, messagesProcessed, err.message))
-        reject(err)
+      writeStream.on('finish', () => {
+        onProgress?.(createProgress('done', totalBytes, totalBytes, messagesProcessed, ''))
+        resolve(outputPath)
       })
     })
 
-    headStream.on('error', reject)
+    pipeline.on('error', (err) => {
+      writeStream.destroy()
+      if (fs.existsSync(outputPath)) {
+        fs.unlinkSync(outputPath)
+      }
+      onProgress?.(createProgress('error', bytesRead, totalBytes, messagesProcessed, err.message))
+      reject(err)
+    })
   })
 }
 
@@ -368,14 +361,14 @@ function cleanupTempFile(filePath: string): void {
 }
 
 /**
- * QQ Chat Exporter 预处理器
+ * shuakami/qq-chat-exporter 预处理器
  */
-export const qqPreprocessor: Preprocessor = {
+export const shuakamiQqPreprocessor: Preprocessor = {
   needsPreprocess(_filePath: string, fileSize: number): boolean {
     return fileSize > PREPROCESS_THRESHOLD
   },
 
-  preprocess: preprocessQQJson,
+  preprocess: preprocessShuakamiQqJson,
 
   cleanup: cleanupTempFile,
 }

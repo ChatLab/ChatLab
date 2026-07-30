@@ -5,10 +5,17 @@ import path from 'node:path'
 import test from 'node:test'
 import Database from 'better-sqlite3'
 import { CHAT_DB_TABLES } from '@openchatlab/core'
+import { isNativeFormatAvailable } from '@openchatlab/parser'
 import { BetterSqliteAdapter } from '../better-sqlite3-adapter'
 import { computeAndSetOverviewCache } from '../cache/session-cache'
 import { TEMP_DB_SCHEMA } from '../merger/temp-db'
-import { analyzeNewImport, streamingImport, streamParseFileInfo, type StreamImportDeps } from './streaming-importer'
+import {
+  analyzeNewImport,
+  streamingImport,
+  streamParseFileInfo,
+  type ImportLogger,
+  type StreamImportDeps,
+} from './streaming-importer'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -39,7 +46,36 @@ function createImportDeps(dbPath: string): StreamImportDeps {
   }
 }
 
-function writeChunkedQqExport(root: string): string {
+function createCollectingLogger(messages: string[]): ImportLogger {
+  return {
+    info(message) {
+      messages.push(message)
+    },
+    error(message) {
+      messages.push(message)
+    },
+    perf() {
+      /* noop for focused importer tests */
+    },
+    perfDetail() {
+      /* noop for focused importer tests */
+    },
+    summary() {
+      /* noop for focused importer tests */
+    },
+    reset() {
+      /* noop for focused importer tests */
+    },
+    init() {
+      /* noop for focused importer tests */
+    },
+    getCurrentLogFile() {
+      return null
+    },
+  }
+}
+
+function writeChunkedShuakamiQqExport(root: string): string {
   const chunksDir = path.join(root, 'chunks')
   fs.mkdirSync(chunksDir, { recursive: true })
 
@@ -111,6 +147,71 @@ function writeChunkedQqExport(root: string): string {
   const manifestPath = path.join(root, 'manifest.json')
   fs.writeFileSync(manifestPath, JSON.stringify(manifest, null, 2), 'utf-8')
   return manifestPath
+}
+
+function writeSingleFileShuakamiQqExport(root: string): string {
+  const filePath = path.join(root, 'shuakami-qq-v4.json')
+  const firstMessage = {
+    messageId: 'qq-message-1',
+    timestamp: '2026-07-10T12:00:00.000Z',
+    sender: { uin: '10001', uid: 'u_10001', name: 'Alice' },
+    messageType: 2,
+    content: { text: 'native searchable message' },
+    rawMessage: { sendNickName: 'Alice QQ', sendMemberName: 'Alice Card' },
+  }
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify({
+      metadata: { name: 'QQChatExporter V6', version: '6.0.3' },
+      chatInfo: { name: 'Native Import Group', type: 'group', avatar: 'data:image/png;base64,GROUP' },
+      statistics: {
+        senders: [
+          { uid: 'u_10001', name: 'Alice' },
+          { uid: 'u_10002', name: 'Bob' },
+          { uid: 'u_10003', name: 'Carol' },
+        ],
+      },
+      messages: [
+        firstMessage,
+        { ...firstMessage },
+        {
+          messageId: 'qq-message-2',
+          timestamp: '2026-07-10T12:01:00.000Z',
+          sender: { uin: '10002', uid: 'u_10002', name: 'Bob' },
+          messageType: 9,
+          content: { text: 'reply content', reply: { referencedMessageId: 'qq-message-1' } },
+          rawMessage: { sendNickName: 'Bob QQ' },
+        },
+      ],
+      avatars: { '10001': 'data:image/jpeg;base64,ALICE' },
+    }),
+    'utf-8'
+  )
+  return filePath
+}
+
+function writeLargeSingleFileShuakamiQqExport(root: string): string {
+  const filePath = path.join(root, 'shuakami-qq-v4-large.json')
+  const descriptor = fs.openSync(filePath, 'w')
+  try {
+    fs.writeSync(
+      descriptor,
+      JSON.stringify({
+        metadata: { name: 'QQChatExporter V6', version: '6.0.3' },
+        chatInfo: { name: 'Native Preprocess Gate', type: 'group' },
+        statistics: { senders: [{ uid: 'u_10001' }] },
+        messages: [],
+      }).slice(0, -2) +
+        '{"messageId":"large-message","timestamp":"2026-07-10T12:00:00.000Z",' +
+        '"sender":{"uin":"10001","name":"Alice"},"content":{"text":"large native message","html":"'
+    )
+    const oneMegabyte = 'H'.repeat(1024 * 1024)
+    for (let index = 0; index < 50; index++) fs.writeSync(descriptor, oneMegabyte)
+    fs.writeSync(descriptor, '"}}],"avatars":{}}')
+  } finally {
+    fs.closeSync(descriptor)
+  }
+  return filePath
 }
 
 function writeDuplicateChatLabExport(root: string): string {
@@ -242,7 +343,7 @@ test('streamParseFileInfo preserves member metadata from a batched ChatLab JSONL
 
 test('streamingImport updates avatars for members first created from message batches', async () => {
   const root = makeTempDir()
-  const manifestPath = writeChunkedQqExport(root)
+  const manifestPath = writeChunkedShuakamiQqExport(root)
   const dbPath = path.join(root, 'avatar-test.db')
 
   const result = await streamingImport(manifestPath, createImportDeps(dbPath), undefined, 'avatar-test')
@@ -257,6 +358,150 @@ test('streamingImport updates avatars for members first created from message bat
 
   assert.equal(row?.platform_id, '10001')
   assert.equal(row?.avatar, 'data:image/png;base64,AAAA')
+})
+
+test(
+  'streamingImport persists shuakami/qq-chat-exporter V4 native-first output with deduplication, reply and FTS',
+  {
+    skip: !isNativeFormatAvailable('shuakami-qq-exporter') && 'native shuakami/qq-chat-exporter kernel not built',
+  },
+  async (t) => {
+    const root = makeTempDir()
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+    const filePath = writeSingleFileShuakamiQqExport(root)
+    const dbPath = path.join(root, 'shuakami-qq-native-import.db')
+    const logMessages: string[] = []
+    const deps = createImportDeps(dbPath)
+    deps.logger = createCollectingLogger(logMessages)
+
+    const result = await streamingImport(filePath, deps, undefined, 'shuakami-qq-native-import')
+
+    assert.equal(result.success, true)
+    assert.equal(result.platform, 'qq')
+    assert.equal(result.diagnostics?.messagesReceived, 3)
+    assert.equal(result.diagnostics?.messagesWritten, 2)
+    assert.equal(result.diagnostics?.duplicateCount, 1)
+    assert.ok(
+      logMessages.some((message) =>
+        message.includes('[NativeParser] Parsing shuakami/qq-chat-exporter with Rust kernel')
+      )
+    )
+    assert.equal(
+      logMessages.some((message) => message.includes('falling back to TS parser')),
+      false
+    )
+
+    const db = new Database(dbPath, { readonly: true, nativeBinding })
+    const meta = db.prepare('SELECT name, platform, type, group_avatar FROM meta LIMIT 1').get() as {
+      name: string
+      platform: string
+      type: string
+      group_avatar: string | null
+    }
+    const counts = db
+      .prepare('SELECT (SELECT COUNT(*) FROM member) AS members, (SELECT COUNT(*) FROM message) AS messages')
+      .get() as { members: number; messages: number }
+    const reply = db
+      .prepare('SELECT reply_to_message_id FROM message WHERE platform_message_id = ?')
+      .get('qq-message-2') as {
+      reply_to_message_id: string | null
+    }
+    const fts = db.prepare("SELECT COUNT(*) AS count FROM message_fts WHERE content MATCH 'searchable'").get() as {
+      count: number
+    }
+    db.close()
+
+    assert.deepEqual(meta, {
+      name: 'Native Import Group',
+      platform: 'qq',
+      type: 'group',
+      group_avatar: 'data:image/png;base64,GROUP',
+    })
+    assert.deepEqual(counts, { members: 2, messages: 2 })
+    assert.equal(reply.reply_to_message_id, 'qq-message-1')
+    assert.equal(fts.count, 1)
+  }
+)
+
+test(
+  'streamingImport skips the >50MB shuakami/qq-chat-exporter slim preprocessor when the current binary supports the native kernel',
+  {
+    skip: !isNativeFormatAvailable('shuakami-qq-exporter') && 'native shuakami/qq-chat-exporter kernel not built',
+  },
+  async (t) => {
+    const root = makeTempDir()
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+    const filePath = writeLargeSingleFileShuakamiQqExport(root)
+    const dbPath = path.join(root, 'shuakami-qq-native-large.db')
+    const logMessages: string[] = []
+    const deps = createImportDeps(dbPath)
+    deps.logger = createCollectingLogger(logMessages)
+
+    const result = await streamingImport(filePath, deps, undefined, 'shuakami-qq-native-large')
+
+    assert.equal(result.success, true)
+    assert.equal(result.diagnostics?.messagesWritten, 1)
+    assert.ok(
+      logMessages.some(
+        (message) =>
+          message.includes('Kernel shuakami-qq-exporter is available') &&
+          message.includes('skipping large-file preprocessing')
+      )
+    )
+    assert.equal(
+      logMessages.some((message) => message.includes('Preprocessing done')),
+      false
+    )
+    assert.ok(
+      logMessages.some((message) =>
+        message.includes('[NativeParser] Parsing shuakami/qq-chat-exporter with Rust kernel')
+      )
+    )
+    assert.equal(
+      logMessages.some((message) => message.includes('falling back to TS parser')),
+      false
+    )
+  }
+)
+
+test('streamingImport cleans a generated shuakami/qq-chat-exporter slim file when database setup fails', async (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const filePath = writeLargeSingleFileShuakamiQqExport(root)
+  const logMessages: string[] = []
+  const saved = process.env.CHATLAB_DISABLE_NATIVE_PERF
+  process.env.CHATLAB_DISABLE_NATIVE_PERF = '1'
+
+  try {
+    await assert.rejects(
+      streamingImport(
+        filePath,
+        {
+          openDatabase() {
+            throw new Error('database setup failed for test')
+          },
+          deleteDatabase() {
+            /* no database was created */
+          },
+          onProgress() {
+            /* noop for focused cleanup assertion */
+          },
+          logger: createCollectingLogger(logMessages),
+        },
+        undefined,
+        'shuakami-qq-preprocess-setup-failure'
+      ),
+      /database setup failed for test/
+    )
+
+    const tempLog = logMessages.find((message) => message.startsWith('Preprocessing done, temp file: '))
+    assert.ok(tempLog)
+    const tempFilePath = tempLog.slice('Preprocessing done, temp file: '.length)
+    assert.equal(fs.existsSync(tempFilePath), false)
+  } finally {
+    if (saved === undefined) delete process.env.CHATLAB_DISABLE_NATIVE_PERF
+    else process.env.CHATLAB_DISABLE_NATIVE_PERF = saved
+  }
 })
 
 test('streamingImport applies incremental-equivalent deduplication on first import', async (t) => {

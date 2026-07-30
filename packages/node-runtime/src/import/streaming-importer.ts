@@ -19,6 +19,7 @@ import {
   getFormatFeatureById,
   getPreprocessor,
   needsPreprocess,
+  isNativeFormatAvailable,
   type ParsedMeta,
   type FormatFeature,
   type ParseProgress,
@@ -232,7 +233,14 @@ async function streamImportSingle(
   let tempFilePath: string | null = null
   const preprocessor = getPreprocessor(filePath)
 
-  if (preprocessor && needsPreprocess(filePath)) {
+  const needsLargeFilePreprocess = preprocessor && needsPreprocess(filePath)
+  const nativeCanParseOriginal = needsLargeFilePreprocess && isNativeFormatAvailable(formatFeature.id)
+
+  if (nativeCanParseOriginal) {
+    logger?.info(
+      `[NativeParser] Kernel ${formatFeature.id} is available; skipping large-file preprocessing and parsing the original export`
+    )
+  } else if (needsLargeFilePreprocess) {
     logger?.info('File needs preprocessing, simplifying large file...')
     onProgress({
       stage: 'parsing',
@@ -256,31 +264,65 @@ async function streamImportSingle(
     }
   }
 
-  const db = deps.openDatabase(sessionId)
+  const databaseSetup = (() => {
+    let db: DatabaseAdapter | undefined
+    try {
+      db = deps.openDatabase(sessionId)
+      return {
+        ok: true as const,
+        db,
+        insertMeta: db.prepare(
+          `INSERT INTO meta (name, platform, type, imported_at, group_id, group_avatar, owner_id) VALUES (?, ?, ?, ?, ?, ?, ?)`
+        ),
+        insertMember: db.prepare(
+          `INSERT INTO member (platform_id, account_name, group_nickname, aliases, avatar, roles)
+           VALUES (?, ?, ?, ?, ?, ?)
+           ON CONFLICT(platform_id) DO UPDATE SET
+             account_name = COALESCE(NULLIF(excluded.account_name, ''), account_name),
+             group_nickname = COALESCE(NULLIF(excluded.group_nickname, ''), group_nickname),
+             aliases = CASE WHEN excluded.aliases != '[]' THEN excluded.aliases ELSE aliases END,
+             avatar = COALESCE(NULLIF(excluded.avatar, ''), avatar),
+             roles = CASE WHEN excluded.roles != '[]' THEN excluded.roles ELSE roles END`
+        ),
+        getMemberId: db.prepare(`SELECT id FROM member WHERE platform_id = ?`),
+        insertMessage: db.prepare(
+          `INSERT INTO message (sender_id, sender_account_name, sender_group_nickname, ts, type, content, reply_to_message_id, platform_message_id)
+           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+        ),
+        insertNameHistory: db.prepare(
+          `INSERT INTO member_name_history (member_id, name_type, name, start_ts, end_ts) VALUES (?, ?, ?, ?, ?)`
+        ),
+        updateMemberAccountName: db.prepare(`UPDATE member SET account_name = ? WHERE platform_id = ?`),
+        updateMemberGroupNickname: db.prepare(`UPDATE member SET group_nickname = ? WHERE platform_id = ?`),
+      }
+    } catch (error) {
+      try {
+        db?.close()
+      } catch {
+        /* ignore cleanup failure while preserving the setup error */
+      }
+      return { ok: false as const, error, databaseOpened: db !== undefined }
+    }
+  })()
 
-  const insertMeta = db.prepare(
-    `INSERT INTO meta (name, platform, type, imported_at, group_id, group_avatar, owner_id) VALUES (?, ?, ?, ?, ?, ?, ?)`
-  )
-  const insertMember = db.prepare(
-    `INSERT INTO member (platform_id, account_name, group_nickname, aliases, avatar, roles)
-     VALUES (?, ?, ?, ?, ?, ?)
-     ON CONFLICT(platform_id) DO UPDATE SET
-       account_name = COALESCE(NULLIF(excluded.account_name, ''), account_name),
-       group_nickname = COALESCE(NULLIF(excluded.group_nickname, ''), group_nickname),
-       aliases = CASE WHEN excluded.aliases != '[]' THEN excluded.aliases ELSE aliases END,
-       avatar = COALESCE(NULLIF(excluded.avatar, ''), avatar),
-       roles = CASE WHEN excluded.roles != '[]' THEN excluded.roles ELSE roles END`
-  )
-  const getMemberId = db.prepare(`SELECT id FROM member WHERE platform_id = ?`)
-  const insertMessage = db.prepare(
-    `INSERT INTO message (sender_id, sender_account_name, sender_group_nickname, ts, type, content, reply_to_message_id, platform_message_id)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-  )
-  const insertNameHistory = db.prepare(
-    `INSERT INTO member_name_history (member_id, name_type, name, start_ts, end_ts) VALUES (?, ?, ?, ?, ?)`
-  )
-  const updateMemberAccountName = db.prepare(`UPDATE member SET account_name = ? WHERE platform_id = ?`)
-  const updateMemberGroupNickname = db.prepare(`UPDATE member SET group_nickname = ? WHERE platform_id = ?`)
+  if (!databaseSetup.ok) {
+    if (tempFilePath && preprocessor) preprocessor.cleanup(tempFilePath)
+    if (databaseSetup.databaseOpened) deps.deleteDatabase(sessionId)
+    const error = databaseSetup.error
+    logger?.error('Import failed during database setup', error instanceof Error ? error : undefined)
+    throw error
+  }
+
+  const {
+    db,
+    insertMeta,
+    insertMember,
+    getMemberId,
+    insertMessage,
+    insertNameHistory,
+    updateMemberAccountName,
+    updateMemberGroupNickname,
+  } = databaseSetup
 
   const memberIdMap = new Map<string, number>()
   const accountNameTracker = new Map<
@@ -339,8 +381,6 @@ async function streamImportSingle(
     beginTransaction()
   }
 
-  beginTransaction()
-
   let shouldDeleteDb = false
   let importError: string | null = null
 
@@ -362,6 +402,7 @@ async function streamImportSingle(
   logger?.info('Starting streamParseFile...')
 
   try {
+    beginTransaction()
     await streamParseFile(
       actualFilePath,
       {

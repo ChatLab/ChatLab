@@ -10,7 +10,7 @@ use serde::Serialize;
 use serde_json::Value;
 
 use crate::input::KernelInput;
-use crate::jsutil::{extract_name_from_file_path, non_empty_str};
+use crate::jsutil::{extract_name_from_file_path, js_trim, non_empty_str};
 use crate::protocol::{KernelOutput, NativeMember, NativeMessage};
 use crate::scanner::{for_each_array_element, walk_top_level, ScanError, ScanResult};
 
@@ -47,12 +47,6 @@ fn convert_message_type(type_str: Option<&str>) -> u32 {
         Some("系统消息") => 80,                            // SYSTEM
         _ => 99,                                           // OTHER
     }
-}
-
-/// JavaScript `String.prototype.trim` semantics: Unicode White_Space minus
-/// U+0085 (NEL, not trimmed by JS), plus U+FEFF (trimmed by JS).
-fn js_trim(input: &str) -> &str {
-    input.trim_matches(|c: char| (c.is_whitespace() && c != '\u{85}') || c == '\u{FEFF}')
 }
 
 /// JS `String(x)` semantics for the localId field.

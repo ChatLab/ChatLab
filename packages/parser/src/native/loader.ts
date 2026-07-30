@@ -67,3 +67,23 @@ export function getNativeParserStatus(): NativeParserStatus {
   const module = loadNativeParser()
   return { available: module !== null, disabled: false, error: module ? undefined : cachedLoadError }
 }
+
+/**
+ * Report whether the currently loaded binary understands one kernel id.
+ *
+ * This is intentionally stricter than module availability: an older `.node`
+ * can load successfully while not containing a newly added format. The
+ * constructor only validates the id and stores the path; it does not read the
+ * file, so an empty probe path has no side effects.
+ */
+export function isNativeFormatAvailable(formatId: string): boolean {
+  const module = loadNativeParser()
+  if (!module) return false
+
+  try {
+    new module.NativeParser(formatId, '')
+    return true
+  } catch {
+    return false
+  }
+}

@@ -5,6 +5,10 @@ mod input;
 mod jsutil;
 mod protocol;
 mod scanner;
+#[cfg(feature = "napi")]
+mod shuakami_qq;
+#[cfg(feature = "napi")]
+mod shuakami_qq_v4;
 #[cfg(feature = "wasm")]
 mod wasm;
 mod weflow;
@@ -32,6 +36,8 @@ use protocol::{NativeMember, NativeParseProgress};
 enum FormatKind {
     Weflow,
     Chatlab,
+    #[cfg(feature = "napi")]
+    ShuakamiQqExporter,
 }
 
 impl FormatKind {
@@ -39,6 +45,8 @@ impl FormatKind {
         match id {
             "weflow" => Some(FormatKind::Weflow),
             "chatlab" => Some(FormatKind::Chatlab),
+            #[cfg(feature = "napi")]
+            "shuakami-qq-exporter" => Some(FormatKind::ShuakamiQqExporter),
             _ => None,
         }
     }
@@ -52,6 +60,10 @@ impl FormatKind {
         match self {
             FormatKind::Weflow => weflow::parse_weflow(buf, input, on_progress),
             FormatKind::Chatlab => chatlab::parse_chatlab(buf, input, on_progress),
+            #[cfg(feature = "napi")]
+            FormatKind::ShuakamiQqExporter => {
+                shuakami_qq_v4::parse_shuakami_qq_v4(buf, input, on_progress)
+            }
         }
     }
 }

@@ -30,6 +30,12 @@ pub fn non_empty_str(value: Option<&Value>) -> Option<&str> {
     }
 }
 
+/// JavaScript `String.prototype.trim` semantics: Unicode White_Space minus
+/// U+0085 (NEL, not trimmed by JS), plus U+FEFF (trimmed by JS).
+pub fn js_trim(input: &str) -> &str {
+    input.trim_matches(|c: char| (c.is_whitespace() && c != '\u{85}') || c == '\u{FEFF}')
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -50,5 +56,11 @@ mod tests {
     #[test]
     fn extract_name_uses_fallback_for_empty_basename() {
         assert_eq!(extract_name_from_file_path("", "fallback"), "fallback");
+    }
+
+    #[test]
+    fn trim_matches_javascript_special_whitespace_rules() {
+        assert_eq!(js_trim("\u{FEFF}\u{3000} hello \u{00A0}"), "hello");
+        assert_eq!(js_trim("\u{85}hello\u{85}"), "\u{85}hello\u{85}");
     }
 }
