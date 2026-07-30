@@ -72,6 +72,9 @@ importers:
       '@openchatlab/parser':
         specifier: workspace:*
         version: link:packages/parser
+      '@openchatlab/parser-native':
+        specifier: workspace:*
+        version: link:packages/parser-native
       '@openchatlab/shared-types':
         specifier: workspace:*
         version: link:packages/shared-types

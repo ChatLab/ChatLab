@@ -83,6 +83,7 @@
     "@openchatlab/ai-runtime": "workspace:*",
     "@openchatlab/core": "workspace:*",
     "@openchatlab/parser": "workspace:*",
+    "@openchatlab/parser-native": "workspace:*",
     "@openchatlab/shared-types": "workspace:*",
     "@openchatlab/tools": "workspace:*",
     "@openchatlab/web-ai-runtime": "workspace:*",
