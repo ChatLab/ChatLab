@@ -13,6 +13,10 @@ const { t } = useI18n()
 const settingsStore = useSettingsStore()
 const { locale } = storeToRefs(settingsStore)
 
+const emit = defineEmits<{
+  accepted: []
+}>()
+
 const AGREEMENT_VERSION = '3.0'
 const AGREEMENT_KEY = 'chatlab_agreement_version'
 
@@ -51,6 +55,7 @@ const renderedContent = computed(() => md.render(agreementText.value))
 function handleAgree() {
   localStorage.setItem(AGREEMENT_KEY, AGREEMENT_VERSION)
   isOpen.value = false
+  emit('accepted')
 }
 
 function handleDisagree() {

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, onMounted } from 'vue'
+import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useSettingsStore } from '@/stores/settings'
@@ -36,7 +36,6 @@ const hoveredVersion = ref<string | null>(null)
 const currentAppVersion = ref<string | null>(null)
 
 const CHANGELOG_READ_KEY = 'chatlab_changelog_read_version'
-const AGREEMENT_KEY = 'chatlab_agreement_version'
 
 // summary 的白名单配置（可按需扩展）
 const SUMMARY_SANITIZE_OPTIONS = {
@@ -133,10 +132,6 @@ function markVersionAsRead(version: string) {
 // 检查是否需要显示新版本日志（冷启动时自动检查）
 async function checkNewVersion() {
   try {
-    if (!localStorage.getItem(AGREEMENT_KEY)) {
-      return
-    }
-
     // 1. 获取当前软件版本号
     const rawVersion = await usePlatformService().getVersion()
     const currentVersion = normalizeChangelogVersion(rawVersion)
@@ -224,12 +219,7 @@ function getLatestVersion() {
   return changelogs.value[0]?.version || null
 }
 
-// 组件挂载时检查新版本
-onMounted(() => {
-  checkNewVersion()
-})
-
-defineExpose({ open, openWithData, close, fetchChangelogs, getLatestVersion })
+defineExpose({ open, openWithData, close, fetchChangelogs, getLatestVersion, checkNewVersion })
 </script>
 
 <template>

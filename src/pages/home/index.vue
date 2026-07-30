@@ -6,6 +6,7 @@ import { getChatlabSiteLocalePath } from '@/utils/chatlabSiteLocale'
 import logoSvg from '@/assets/images/logo.svg'
 import LanguageSelectModal from '@/components/home/LanguageSelectModal.vue'
 import AgreementModal from '@/components/home/AgreementModal.vue'
+import { resolvePostLanguageBootstrap } from '@/components/home/onboardingFlow'
 import MigrationModal from './components/MigrationModal.vue'
 import ImportArea from '@/components/import/ImportArea.vue'
 import ImportTabSelector from './components/import/ImportTabSelector.vue'
@@ -35,9 +36,19 @@ const agreementModalRef = ref<InstanceType<typeof AgreementModal> | null>(null)
 
 // 语言选择完成后，检查是否需要显示协议弹窗
 function onLanguageSelectDone() {
-  if (agreementModalRef.value?.needsAgreement()) {
-    agreementModalRef.value.open()
+  const agreementModal = agreementModalRef.value
+  if (!agreementModal) return
+
+  const bootstrap = resolvePostLanguageBootstrap(agreementModal.needsAgreement())
+  if (bootstrap.shouldOpenAgreement) {
+    agreementModal.open()
+  } else if (bootstrap.shouldCheckChangelog) {
+    changelogModalRef.value?.checkNewVersion()
   }
+}
+
+function onAgreementAccepted() {
+  changelogModalRef.value?.checkNewVersion()
 }
 
 // 打开版本日志弹窗（手动点击时调用）
@@ -120,7 +131,7 @@ const tutorialExportUrl = computed(() => {
     <LanguageSelectModal @done="onLanguageSelectDone" />
 
     <!-- 用户协议弹窗 -->
-    <AgreementModal ref="agreementModalRef" />
+    <AgreementModal ref="agreementModalRef" @accepted="onAgreementAccepted" />
 
     <!-- 数据库迁移弹窗 -->
     <MigrationModal />
