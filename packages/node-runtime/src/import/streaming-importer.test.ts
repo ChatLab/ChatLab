@@ -190,7 +190,7 @@ function writeSingleFileShuakamiQqExport(root: string): string {
   return filePath
 }
 
-function writeLargeSingleFileShuakamiQqExport(root: string): string {
+function writeLargeSingleFileShuakamiQqExport(root: string, timestamp = '2026-07-10T12:00:00.000Z'): string {
   const filePath = path.join(root, 'shuakami-qq-v4-large.json')
   const descriptor = fs.openSync(filePath, 'w')
   try {
@@ -202,7 +202,7 @@ function writeLargeSingleFileShuakamiQqExport(root: string): string {
         statistics: { senders: [{ uid: 'u_10001' }] },
         messages: [],
       }).slice(0, -2) +
-        '{"messageId":"large-message","timestamp":"2026-07-10T12:00:00.000Z",' +
+        `{"messageId":"large-message","timestamp":${JSON.stringify(timestamp)},` +
         '"sender":{"uin":"10001","name":"Alice"},"content":{"text":"large native message","html":"'
     )
     const oneMegabyte = 'H'.repeat(1024 * 1024)
@@ -461,6 +461,29 @@ test(
       logMessages.some((message) => message.includes('falling back to TS parser')),
       false
     )
+  }
+)
+
+test(
+  'streamingImport preprocesses a >50MB shuakami/qq-chat-exporter export after strict native fallback',
+  {
+    skip: !isNativeFormatAvailable('shuakami-qq-exporter') && 'native shuakami/qq-chat-exporter kernel not built',
+  },
+  async (t) => {
+    const root = makeTempDir()
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+    const filePath = writeLargeSingleFileShuakamiQqExport(root, 'July 10, 2026 12:00:00 GMT')
+    const dbPath = path.join(root, 'shuakami-qq-native-large-fallback.db')
+    const logMessages: string[] = []
+    const deps = createImportDeps(dbPath)
+    deps.logger = createCollectingLogger(logMessages)
+
+    const result = await streamingImport(filePath, deps, undefined, 'shuakami-qq-native-large-fallback')
+
+    assert.equal(result.success, true)
+    assert.equal(result.diagnostics?.messagesWritten, 1)
+    assert.ok(logMessages.some((message) => message.includes('falling back to TS parser')))
+    assert.ok(logMessages.some((message) => message.includes('Preprocessing large export before TypeScript fallback')))
   }
 )
 

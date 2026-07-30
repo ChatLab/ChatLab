@@ -2,7 +2,9 @@
 
 import { KNOWN_PLATFORMS, ChatType, type MessageType } from '@openchatlab/shared-types'
 import type { NativeMember, NativeMessage } from '@openchatlab/parser-native'
-import type { ParsedMember, ParsedMessage, ParsedMeta } from '../types'
+import type { ParseEvent, ParseOptions, ParsedMember, ParsedMessage, ParsedMeta } from '../types'
+import { getFileSize } from '../utils'
+import { shuakamiQqPreprocessor } from '../formats/shuakami-qq-preprocessor'
 import { createNativeFirstParser, type NativeFormatAdapter, type ParseGenerator } from './create-native-parser'
 
 interface ShuakamiQqMetaJson {
@@ -58,7 +60,40 @@ export const shuakamiQqAdapter: NativeFormatAdapter = {
   },
 }
 
+async function* fallbackAfterNativeFailure(
+  fallback: ParseGenerator,
+  options: ParseOptions
+): AsyncGenerator<ParseEvent, void, unknown> {
+  if (!shuakamiQqPreprocessor.needsPreprocess(options.filePath, getFileSize(options.filePath))) {
+    yield* fallback(options)
+    return
+  }
+
+  let slimFilePath: string | null = null
+  try {
+    options.onLog?.('info', '[NativeParser] Preprocessing large export before TypeScript fallback')
+    slimFilePath = await shuakamiQqPreprocessor.preprocess(options.filePath, options.onProgress)
+  } catch (error) {
+    options.onLog?.(
+      'warn',
+      `[NativeParser] Fallback preprocessing failed; retrying the original export: ${
+        error instanceof Error ? error.message : String(error)
+      }`
+    )
+    yield* fallback(options)
+    return
+  }
+
+  try {
+    yield* fallback({ ...options, filePath: slimFilePath })
+  } finally {
+    if (slimFilePath) shuakamiQqPreprocessor.cleanup(slimFilePath)
+  }
+}
+
 /** Wrap the pure TypeScript shuakami/qq-chat-exporter V4 parser with N-API acceleration. */
 export function withShuakamiQqNative(fallback: ParseGenerator): ParseGenerator {
-  return createNativeFirstParser(shuakamiQqAdapter, fallback)
+  return createNativeFirstParser(shuakamiQqAdapter, fallback, (options) =>
+    fallbackAfterNativeFailure(fallback, options)
+  )
 }

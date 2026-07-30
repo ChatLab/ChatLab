@@ -42,7 +42,7 @@ async function* pumpNativeParser(
   adapter: NativeFormatAdapter,
   options: ParseOptions,
   parser: NativeParser,
-  fallback: ParseGenerator
+  fallbackAfterNativeFailure: ParseGenerator
 ): AsyncGenerator<ParseEvent, void, unknown> {
   const { filePath, batchSize = 5000, onProgress, onLog } = options
 
@@ -76,7 +76,7 @@ async function* pumpNativeParser(
       `[NativeParser] Rust parse failed, falling back to TS parser: ${error instanceof Error ? error.message : String(error)}`
     )
     // Only progress events have been emitted so far — safe to restart with TS.
-    yield* fallback(options)
+    yield* fallbackAfterNativeFailure(options)
     return
   } finally {
     clearInterval(progressTimer)
@@ -112,7 +112,11 @@ async function* pumpNativeParser(
 }
 
 /** Wrap a TS parse generator with native acceleration for the given format. */
-export function createNativeFirstParser(adapter: NativeFormatAdapter, fallback: ParseGenerator): ParseGenerator {
+export function createNativeFirstParser(
+  adapter: NativeFormatAdapter,
+  fallback: ParseGenerator,
+  fallbackAfterNativeFailure: ParseGenerator = fallback
+): ParseGenerator {
   return async function* (options: ParseOptions): AsyncGenerator<ParseEvent, void, unknown> {
     const native = loadNativeParser()
     if (!native) {
@@ -136,6 +140,6 @@ export function createNativeFirstParser(adapter: NativeFormatAdapter, fallback: 
       return
     }
 
-    yield* pumpNativeParser(adapter, options, parser, fallback)
+    yield* pumpNativeParser(adapter, options, parser, fallbackAfterNativeFailure)
   }
 }
