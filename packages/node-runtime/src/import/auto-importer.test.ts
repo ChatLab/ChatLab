@@ -78,8 +78,8 @@ function createDeps(options?: {
             messageBatchCount: 0,
             messageTransactionCount: 0,
             rssStartMb: 0,
-            rssPeakMb: 0,
-            rssDeltaMb: 0,
+            rssSampledPeakMb: 0,
+            rssSampledDeltaMb: 0,
           },
         },
       }

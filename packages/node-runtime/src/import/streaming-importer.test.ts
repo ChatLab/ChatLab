@@ -89,8 +89,8 @@ function assertPerformanceDiagnostics(result: StreamImportResult): void {
   assert.ok(diagnostics.timings.totalMs >= diagnostics.timings.messageWriteMs)
   assert.ok(diagnostics.messageBatchCount > 0)
   assert.ok(diagnostics.messageTransactionCount > 0)
-  assert.ok(diagnostics.rssPeakMb >= diagnostics.rssStartMb)
-  assert.ok(diagnostics.rssDeltaMb >= 0)
+  assert.ok(diagnostics.rssSampledPeakMb >= diagnostics.rssStartMb)
+  assert.ok(diagnostics.rssSampledDeltaMb >= 0)
 }
 
 function writeChunkedShuakamiQqExport(root: string): string {

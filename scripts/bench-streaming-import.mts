@@ -17,10 +17,12 @@ import { fileURLToPath } from 'node:url'
 import { spawnSync } from 'node:child_process'
 import Database from 'better-sqlite3'
 import { CHAT_DB_TABLES } from '@openchatlab/core'
+import { getNativeParserStatus, isNativeFormatAvailable, type NativeParserStatus } from '@openchatlab/parser'
 import { BetterSqliteAdapter } from '../packages/node-runtime/src/better-sqlite3-adapter'
 import { computeAndSetOverviewCache } from '../packages/node-runtime/src/cache/session-cache'
 import {
   streamingImport,
+  type ImportLogger,
   type ImportStageTimings,
   type StreamImportDeps,
 } from '../packages/node-runtime/src/import/streaming-importer'
@@ -38,19 +40,92 @@ const sampleTexts = [
   '周末有人一起打球吗？地点老地方，时间下午三点，人齐就开打。',
 ]
 
+interface BenchmarkParser {
+  formatId: 'weflow'
+  implementation: 'rust-native'
+  nativeModuleAvailable: true
+}
+
 interface BenchmarkResult {
   scenario: 'single' | 'batch'
+  parser: BenchmarkParser
   fileCount: number
   inputMessages: number
   inputBytes: number
   durationMs: number
-  peakRssMb: number
-  rssDeltaMb: number
+  sampledPeakRssMb: number
+  sampledRssDeltaMb: number
   databaseBytes: number
   messagesWritten: number
   membersWritten: number
   outputSignature: string
   timings: ImportStageTimings
+}
+
+export interface BenchmarkParserMonitor {
+  logger: ImportLogger
+  assertRustNativeCompleted(importIndex: number): void
+}
+
+export function resolveBenchmarkParser(status: NativeParserStatus, nativeFormatAvailable: boolean): BenchmarkParser {
+  if (!status.available || !nativeFormatAvailable) {
+    const reason = status.disabled
+      ? 'CHATLAB_DISABLE_NATIVE_PERF=1 disables the native parser'
+      : status.error
+        ? `native parser failed to load: ${status.error}`
+        : 'the native parser does not provide the WeFlow kernel'
+    throw new Error(
+      `Streaming import benchmark requires the Rust Native WeFlow parser; ${reason}. ` +
+        'Run pnpm build:native before collecting a baseline.'
+    )
+  }
+
+  return {
+    formatId: 'weflow',
+    implementation: 'rust-native',
+    nativeModuleAvailable: true,
+  }
+}
+
+export function createBenchmarkParserMonitor(): BenchmarkParserMonitor {
+  let nativeStarted = false
+  let fallbackDetected = false
+  const ignoreNonParserLog = () => undefined
+
+  const inspectMessage = (message: string) => {
+    if (message.includes('[NativeParser] Parsing WeFlow export with Rust kernel')) {
+      nativeStarted = true
+    }
+    if (message.includes('[NativeParser]') && message.includes('falling back to TS parser')) {
+      fallbackDetected = true
+    }
+  }
+
+  return {
+    logger: {
+      info: inspectMessage,
+      error: inspectMessage,
+      perf: ignoreNonParserLog,
+      perfDetail: ignoreNonParserLog,
+      summary: ignoreNonParserLog,
+      reset() {
+        nativeStarted = false
+        fallbackDetected = false
+      },
+      init: ignoreNonParserLog,
+      getCurrentLogFile() {
+        return null
+      },
+    },
+    assertRustNativeCompleted(importIndex: number) {
+      if (fallbackDetected) {
+        throw new Error(`Import ${importIndex} fell back to the TypeScript WeFlow parser; benchmark result rejected`)
+      }
+      if (!nativeStarted) {
+        throw new Error(`Import ${importIndex} did not start the Rust Native WeFlow parser; benchmark result rejected`)
+      }
+    },
+  }
 }
 
 const zeroTimings = (): ImportStageTimings => ({
@@ -115,7 +190,7 @@ async function generateWeflowFixture(filePath: string, count: number): Promise<v
   await once(stream, 'finish')
 }
 
-function createImportDeps(dbPath: string, cacheDir: string): StreamImportDeps {
+function createImportDeps(dbPath: string, cacheDir: string, logger: ImportLogger): StreamImportDeps {
   return {
     openDatabase() {
       const raw = new Database(dbPath, { nativeBinding })
@@ -136,35 +211,81 @@ function createImportDeps(dbPath: string, cacheDir: string): StreamImportDeps {
     onProgress() {
       /* benchmark excludes UI transport */
     },
+    logger,
     postImportHook(db, sessionId) {
       computeAndSetOverviewCache(db, sessionId, cacheDir)
     },
   }
 }
 
-function inspectDatabase(dbPath: string): {
+export function inspectDatabase(dbPath: string): {
   messages: number
   members: number
   signature: string
 } {
   const db = new Database(dbPath, { readonly: true, nativeBinding })
-  const row = db
-    .prepare(
-      `SELECT
-         (SELECT COUNT(*) FROM message) AS messages,
-         (SELECT COUNT(*) FROM member) AS members,
-         (SELECT COALESCE(SUM(ts), 0) FROM message) AS timestampSum,
-         (SELECT COALESCE(SUM(sender_id), 0) FROM message) AS senderSum,
-         (SELECT COALESCE(SUM(type), 0) FROM message) AS typeSum,
-         (SELECT COALESCE(SUM(LENGTH(content)), 0) FROM message) AS contentLengthSum`
+  const hash = createHash('sha256')
+  const hashRows = (label: string, query: string): number => {
+    hash.update(`table:${label}\n`)
+    let count = 0
+    let chunk = ''
+    for (const row of db.prepare(query).raw().iterate() as Iterable<unknown[]>) {
+      chunk += `${JSON.stringify(row)}\n`
+      count++
+      if (chunk.length >= 1024 * 1024) {
+        hash.update(chunk)
+        chunk = ''
+      }
+    }
+    if (chunk) hash.update(chunk)
+    return count
+  }
+
+  try {
+    hashRows(
+      'meta',
+      `SELECT name, platform, type, group_id, group_avatar, owner_id, schema_version, session_gap_threshold
+       FROM meta ORDER BY rowid`
     )
-    .get() as Record<string, number>
-  db.close()
-  const signature = createHash('sha256').update(JSON.stringify(row)).digest('hex').slice(0, 16)
-  return { messages: row.messages, members: row.members, signature }
+    const members = hashRows(
+      'member',
+      `SELECT id, platform_id, account_name, group_nickname, aliases, avatar, roles
+       FROM member ORDER BY id`
+    )
+    hashRows(
+      'member_name_history',
+      `SELECT id, member_id, name_type, name, start_ts, end_ts
+       FROM member_name_history ORDER BY id`
+    )
+    const messages = hashRows(
+      'message',
+      `SELECT id, sender_id, sender_account_name, sender_group_nickname, ts, type, content,
+              reply_to_message_id, platform_message_id
+       FROM message ORDER BY id`
+    )
+    hashRows(
+      'segment',
+      `SELECT id, start_ts, end_ts, message_count, is_manual, summary
+       FROM segment ORDER BY id`
+    )
+    hashRows(
+      'message_context',
+      `SELECT message_id, segment_id, topic_id
+       FROM message_context ORDER BY message_id`
+    )
+    hashRows('message_fts', 'SELECT rowid FROM message_fts ORDER BY rowid')
+    return { messages, members, signature: hash.digest('hex') }
+  } finally {
+    db.close()
+  }
 }
 
 async function runWorker(fileCount: number, messagesPerFile: number): Promise<BenchmarkResult> {
+  if (typeof global.gc !== 'function') {
+    throw new Error('Benchmark worker requires Node.js --expose-gc')
+  }
+
+  const parser = resolveBenchmarkParser(getNativeParserStatus(), isNativeFormatAvailable('weflow'))
   const root = createChatLabTempDir('bench', 'streaming-import-')
   const fixturePath = path.join(root, 'fixture.json')
   const cacheDir = path.join(root, 'cache')
@@ -183,27 +304,29 @@ async function runWorker(fileCount: number, messagesPerFile: number): Promise<Be
       inputPaths.push(linkedPath)
     }
 
-    global.gc?.()
+    global.gc()
     const rssStartMb = process.memoryUsage().rss / 1024 / 1024
     const timings = zeroTimings()
-    let peakRssMb = rssStartMb
+    let sampledPeakRssMb = rssStartMb
     const dbPaths: string[] = []
     const startedAt = performance.now()
 
     for (let index = 0; index < inputPaths.length; index++) {
       const dbPath = path.join(root, `session-${index}.db`)
       dbPaths.push(dbPath)
+      const parserMonitor = createBenchmarkParserMonitor()
       const result = await streamingImport(
         inputPaths[index],
-        createImportDeps(dbPath, cacheDir),
+        createImportDeps(dbPath, cacheDir, parserMonitor.logger),
         { formatId: 'weflow' },
         `bench-${index}`
       )
       if (!result.success || !result.diagnostics?.performance) {
         throw new Error(`Import ${index} failed: ${result.error ?? 'missing performance diagnostics'}`)
       }
+      parserMonitor.assertRustNativeCompleted(index)
       addTimings(timings, result.diagnostics.performance.timings)
-      peakRssMb = Math.max(peakRssMb, result.diagnostics.performance.rssPeakMb)
+      sampledPeakRssMb = Math.max(sampledPeakRssMb, result.diagnostics.performance.rssSampledPeakMb)
     }
     const durationMs = performance.now() - startedAt
 
@@ -221,16 +344,17 @@ async function runWorker(fileCount: number, messagesPerFile: number): Promise<Be
 
     return {
       scenario: fileCount === 1 ? 'single' : 'batch',
+      parser,
       fileCount,
       inputMessages: fileCount * messagesPerFile,
       inputBytes: statSync(fixturePath).size * fileCount,
       durationMs,
-      peakRssMb,
-      rssDeltaMb: Math.max(0, peakRssMb - rssStartMb),
+      sampledPeakRssMb,
+      sampledRssDeltaMb: Math.max(0, sampledPeakRssMb - rssStartMb),
       databaseBytes,
       messagesWritten,
       membersWritten,
-      outputSignature: createHash('sha256').update(signatures.sort().join(':')).digest('hex').slice(0, 16),
+      outputSignature: createHash('sha256').update(signatures.sort().join(':')).digest('hex'),
       timings,
     }
   } finally {
@@ -241,7 +365,7 @@ async function runWorker(fileCount: number, messagesPerFile: number): Promise<Be
 function runIsolated(fileCount: number, messagesPerFile: number): BenchmarkResult {
   const child = spawnSync(
     process.execPath,
-    [...process.execArgv, scriptPath, '--worker', String(fileCount), String(messagesPerFile)],
+    ['--expose-gc', ...process.execArgv, scriptPath, '--worker', String(fileCount), String(messagesPerFile)],
     {
       cwd: process.cwd(),
       encoding: 'utf-8',
@@ -263,8 +387,9 @@ function formatBytes(bytes: number): string {
 
 function printResult(result: BenchmarkResult, label: string): void {
   console.log(
-    `${label}: ${result.durationMs.toFixed(0)} ms | peak RSS ${result.peakRssMb.toFixed(0)} MB ` +
-      `(+${result.rssDeltaMb.toFixed(0)} MB) | DB ${formatBytes(result.databaseBytes)} | ` +
+    `${label}: parser ${result.parser.implementation} | ${result.durationMs.toFixed(0)} ms | ` +
+      `sampled peak RSS ${result.sampledPeakRssMb.toFixed(0)} MB ` +
+      `(+${result.sampledRssDeltaMb.toFixed(0)} MB) | DB ${formatBytes(result.databaseBytes)} | ` +
       `signature ${result.outputSignature}`
   )
 }
@@ -307,6 +432,10 @@ async function main(): Promise<void> {
 
   const sorted = [...results].sort((left, right) => left.durationMs - right.durationMs)
   const median = sorted[Math.floor(sorted.length / 2)]
+  const parserSignatures = new Set(results.map((result) => JSON.stringify(result.parser)))
+  if (parserSignatures.size !== 1) {
+    throw new Error('Parser implementations differ between isolated runs')
+  }
   if (results.some((result) => result.outputSignature !== median.outputSignature)) {
     throw new Error('Output signatures differ between isolated runs')
   }
@@ -324,4 +453,9 @@ async function main(): Promise<void> {
   }
 }
 
-await main()
+if (path.resolve(process.argv[1] ?? '') === scriptPath) {
+  void main().catch((error: unknown) => {
+    console.error(error)
+    process.exitCode = 1
+  })
+}
