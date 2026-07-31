@@ -24,7 +24,9 @@ export default defineConfig({
   noExternal: [/^@openchatlab\/(?!parser-native)/, 'chatlab-mcp', 'stream-json'],
   // parser-native 是本地构建的可选 Rust 内核：不打包也不声明依赖，
   // 运行时 require 失败会自动回退 TS 解析器。
-  external: ['better-sqlite3', '@node-rs/jieba', '@openchatlab/parser-native'],
+  // sqlite-vec / @huggingface/transformers 依赖按平台分发的原生包（sqlite-vec-*、onnxruntime-node、sharp），
+  // 必须作为真实依赖随 npm 安装，不能内联进 bundle
+  external: ['better-sqlite3', '@node-rs/jieba', 'sqlite-vec', '@huggingface/transformers', '@openchatlab/parser-native'],
   banner: {
     js: [
       "import { createRequire as __createRequire } from 'module';",
