@@ -17,6 +17,8 @@ export { streamingImport, analyzeNewImport, streamParseFileInfo } from './stream
 export type {
   SkipReasons,
   ImportDiagnostics,
+  ImportStageTimings,
+  ImportPerformanceDiagnostics,
   StreamImportResult,
   ImportProgressCallback,
   ImportLogger,

@@ -14,6 +14,7 @@ import {
   streamingImport,
   streamParseFileInfo,
   type ImportLogger,
+  type StreamImportResult,
   type StreamImportDeps,
 } from './streaming-importer'
 
@@ -73,6 +74,23 @@ function createCollectingLogger(messages: string[]): ImportLogger {
       return null
     },
   }
+}
+
+function assertPerformanceDiagnostics(result: StreamImportResult): void {
+  const diagnostics = result.diagnostics?.performance
+  assert.ok(diagnostics)
+
+  for (const [stage, durationMs] of Object.entries(diagnostics.timings)) {
+    assert.equal(Number.isFinite(durationMs), true, `${stage} should be finite`)
+    assert.ok(durationMs >= 0, `${stage} should not be negative`)
+  }
+
+  assert.ok(diagnostics.timings.totalMs >= diagnostics.timings.detectionMs)
+  assert.ok(diagnostics.timings.totalMs >= diagnostics.timings.messageWriteMs)
+  assert.ok(diagnostics.messageBatchCount > 0)
+  assert.ok(diagnostics.messageTransactionCount > 0)
+  assert.ok(diagnostics.rssPeakMb >= diagnostics.rssStartMb)
+  assert.ok(diagnostics.rssDeltaMb >= 0)
 }
 
 function writeChunkedShuakamiQqExport(root: string): string {
@@ -544,6 +562,7 @@ test('streamingImport applies incremental-equivalent deduplication on first impo
   assert.equal(result.diagnostics?.messagesReceived, 5)
   assert.equal(result.diagnostics?.messagesWritten, 3)
   assert.equal(result.diagnostics?.duplicateCount, 2)
+  assertPerformanceDiagnostics(result)
 
   const db = new Database(dbPath, { readonly: true, nativeBinding })
   const row = db.prepare('SELECT COUNT(*) AS count FROM message').get() as { count: number }

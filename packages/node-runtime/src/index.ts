@@ -44,6 +44,8 @@ export type {
   WriteParseResultStats,
   SkipReasons,
   ImportDiagnostics,
+  ImportStageTimings,
+  ImportPerformanceDiagnostics,
   StreamImportResult,
   ImportProgressCallback,
   ImportLogger,

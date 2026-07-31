@@ -65,6 +65,31 @@ export interface ImportDiagnosticsInfo {
     invalidTimestamp: number
     noType: number
   }
+  performance: ImportPerformanceDiagnosticsInfo
+}
+
+export interface ImportPerformanceDiagnosticsInfo {
+  timings: {
+    detectionMs: number
+    preprocessingMs: number
+    databaseSetupMs: number
+    parserMs: number
+    metaWriteMs: number
+    memberWriteMs: number
+    messageWriteMs: number
+    nicknameHistoryMs: number
+    indexCreationMs: number
+    ftsMs: number
+    checkpointMs: number
+    sessionIndexMs: number
+    postImportHookMs: number
+    totalMs: number
+  }
+  messageBatchCount: number
+  messageTransactionCount: number
+  rssStartMb: number
+  rssPeakMb: number
+  rssDeltaMb: number
 }
 
 // ==================== 格式信息 ====================

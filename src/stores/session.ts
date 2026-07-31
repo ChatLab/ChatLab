@@ -2,7 +2,7 @@ import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AnalysisSession, ImportProgress, ChatType } from '@/types/base'
 import { useDataService, useImportService, useSessionIndexService, usePlatformService } from '@/services'
-import type { AutoImportCreateReason, AutoImportMatchMethod, AutoImportMode } from '@/services'
+import type { AutoImportCreateReason, AutoImportMatchMethod, AutoImportMode, ImportDiagnosticsInfo } from '@/services'
 import { IS_ELECTRON } from '@/utils/platform'
 
 /** 侧边栏筛选类型 */
@@ -214,22 +214,6 @@ export const useSessionStore = defineStore(
         return await importFileFromPath(dialogResult.filePaths[0])
       } catch (error) {
         return { success: false, error: String(error) }
-      }
-    }
-
-    /** 导入诊断信息类型 */
-    interface ImportDiagnosticsInfo {
-      logFile: string | null
-      detectedFormat: string | null
-      messagesReceived: number
-      messagesWritten: number
-      duplicateCount: number
-      messagesSkipped: number
-      skipReasons: {
-        noSenderId: number
-        noAccountName: number
-        invalidTimestamp: number
-        noType: number
       }
     }
 

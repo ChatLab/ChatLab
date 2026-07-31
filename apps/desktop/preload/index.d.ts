@@ -38,6 +38,30 @@ interface ImportDiagnostics {
     invalidTimestamp: number
     noType: number
   }
+  /** End-to-end import phase timings and memory samples */
+  performance: {
+    timings: {
+      detectionMs: number
+      preprocessingMs: number
+      databaseSetupMs: number
+      parserMs: number
+      metaWriteMs: number
+      memberWriteMs: number
+      messageWriteMs: number
+      nicknameHistoryMs: number
+      indexCreationMs: number
+      ftsMs: number
+      checkpointMs: number
+      sessionIndexMs: number
+      postImportHookMs: number
+      totalMs: number
+    }
+    messageBatchCount: number
+    messageTransactionCount: number
+    rssStartMb: number
+    rssPeakMb: number
+    rssDeltaMb: number
+  }
 }
 
 interface ChatImportResult {

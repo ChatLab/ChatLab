@@ -25,6 +25,7 @@ import {
   type ParseProgress,
 } from '@openchatlab/parser'
 import * as fs from 'fs'
+import { performance } from 'node:perf_hooks'
 import { buildFtsIndex } from '../fts'
 import { createMessageDedupState, registerMessageAndCheckDuplicate, type DedupMessage } from './message-deduplicator'
 
@@ -45,6 +46,33 @@ export interface ImportDiagnostics {
   duplicateCount: number
   messagesSkipped: number
   skipReasons: SkipReasons
+  performance: ImportPerformanceDiagnostics
+}
+
+export interface ImportStageTimings {
+  detectionMs: number
+  preprocessingMs: number
+  databaseSetupMs: number
+  parserMs: number
+  metaWriteMs: number
+  memberWriteMs: number
+  messageWriteMs: number
+  nicknameHistoryMs: number
+  indexCreationMs: number
+  ftsMs: number
+  checkpointMs: number
+  sessionIndexMs: number
+  postImportHookMs: number
+  totalMs: number
+}
+
+export interface ImportPerformanceDiagnostics {
+  timings: ImportStageTimings
+  messageBatchCount: number
+  messageTransactionCount: number
+  rssStartMb: number
+  rssPeakMb: number
+  rssDeltaMb: number
 }
 
 export interface StreamImportResult {
@@ -90,6 +118,15 @@ const CHECKPOINT_INTERVAL = 200000
 const SYSTEM_SENDER_ID = 'SYSTEM'
 export const SYSTEM_MEMBER_NAME = '系统消息'
 const RESERVED_SYSTEM_SENDER_FORMATS = new Set(['chatlab', 'chatlab-jsonl'])
+
+interface ImportTimingContext {
+  totalStartedAt: number
+  detectionMs: number
+}
+
+function elapsedMs(startedAt: number): number {
+  return performance.now() - startedAt
+}
 
 /**
  * Let the event loop process pending I/O before a long synchronous step.
@@ -158,13 +195,19 @@ export async function streamingImport(
   formatOptions?: Record<string, unknown>,
   externalSessionId?: string
 ): Promise<StreamImportResult> {
+  const totalStartedAt = performance.now()
+  const detectionStartedAt = performance.now()
+
   if (formatOptions?.formatId) {
     const formatId = formatOptions.formatId as string
     const feature = getFormatFeatureById(formatId)
     if (!feature) {
       return { success: false, error: 'error.unknown_format_id' }
     }
-    return streamImportSingle(filePath, deps, feature, formatOptions, externalSessionId)
+    return streamImportSingle(filePath, deps, feature, formatOptions, externalSessionId, {
+      totalStartedAt,
+      detectionMs: elapsedMs(detectionStartedAt),
+    })
   }
 
   const candidates = detectAllFormats(filePath)
@@ -172,11 +215,16 @@ export async function streamingImport(
     return { success: false, error: 'error.unrecognized_format' }
   }
 
-  if (candidates.length > 1) {
-    return streamImportWithFallback(filePath, deps, candidates, formatOptions, externalSessionId)
+  const timingContext = {
+    totalStartedAt,
+    detectionMs: elapsedMs(detectionStartedAt),
   }
 
-  return streamImportSingle(filePath, deps, candidates[0], formatOptions, externalSessionId)
+  if (candidates.length > 1) {
+    return streamImportWithFallback(filePath, deps, candidates, formatOptions, externalSessionId, timingContext)
+  }
+
+  return streamImportSingle(filePath, deps, candidates[0], formatOptions, externalSessionId, timingContext)
 }
 
 async function streamImportWithFallback(
@@ -184,13 +232,14 @@ async function streamImportWithFallback(
   deps: StreamImportDeps,
   candidates: FormatFeature[],
   formatOptions?: Record<string, unknown>,
-  externalSessionId?: string
+  externalSessionId?: string,
+  timingContext?: ImportTimingContext
 ): Promise<StreamImportResult> {
   for (let i = 0; i < candidates.length; i++) {
     const candidate = candidates[i]
     deps.logger?.info(`[StreamImport] Trying format ${i + 1}/${candidates.length}: ${candidate.name} (${candidate.id})`)
 
-    const result = await streamImportSingle(filePath, deps, candidate, formatOptions, externalSessionId)
+    const result = await streamImportSingle(filePath, deps, candidate, formatOptions, externalSessionId, timingContext)
 
     if (result.success) {
       if (i > 0) {
@@ -214,10 +263,33 @@ async function streamImportSingle(
   deps: StreamImportDeps,
   formatFeature: FormatFeature,
   formatOptions?: Record<string, unknown>,
-  externalSessionId?: string
+  externalSessionId?: string,
+  timingContext?: ImportTimingContext
 ): Promise<StreamImportResult> {
   const { onProgress, logger } = deps
   const genId = deps.generateSessionId ?? defaultGenerateSessionId
+  const totalStartedAt = timingContext?.totalStartedAt ?? performance.now()
+  const timings: ImportStageTimings = {
+    detectionMs: timingContext?.detectionMs ?? 0,
+    preprocessingMs: 0,
+    databaseSetupMs: 0,
+    parserMs: 0,
+    metaWriteMs: 0,
+    memberWriteMs: 0,
+    messageWriteMs: 0,
+    nicknameHistoryMs: 0,
+    indexCreationMs: 0,
+    ftsMs: 0,
+    checkpointMs: 0,
+    sessionIndexMs: 0,
+    postImportHookMs: 0,
+    totalMs: 0,
+  }
+  const rssStartBytes = process.memoryUsage().rss
+  let rssPeakBytes = rssStartBytes
+  const sampleRss = () => {
+    rssPeakBytes = Math.max(rssPeakBytes, process.memoryUsage().rss)
+  }
 
   logger?.reset()
   const sessionId = externalSessionId || genId()
@@ -235,7 +307,6 @@ async function streamImportSingle(
 
   const needsLargeFilePreprocess = preprocessor && needsPreprocess(filePath)
   const nativeCanParseOriginal = needsLargeFilePreprocess && isNativeFormatAvailable(formatFeature.id)
-
   if (nativeCanParseOriginal) {
     logger?.info(
       `[NativeParser] Kernel ${formatFeature.id} is available; skipping large-file preprocessing and parsing the original export`
@@ -251,6 +322,7 @@ async function streamImportSingle(
       message: '',
     })
 
+    const preprocessingStartedAt = performance.now()
     try {
       tempFilePath = await preprocessor.preprocess(filePath, (progress: ParseProgress) => {
         onProgress({ ...progress, message: '' })
@@ -261,9 +333,13 @@ async function streamImportSingle(
       const errorMsg = `Preprocessing failed: ${err instanceof Error ? err.message : String(err)}`
       logger?.error(errorMsg, err instanceof Error ? err : undefined)
       return { success: false, error: errorMsg }
+    } finally {
+      timings.preprocessingMs = elapsedMs(preprocessingStartedAt)
+      sampleRss()
     }
   }
 
+  const databaseSetupStartedAt = performance.now()
   const databaseSetup = (() => {
     let db: DatabaseAdapter | undefined
     try {
@@ -304,6 +380,8 @@ async function streamImportSingle(
       return { ok: false as const, error, databaseOpened: db !== undefined }
     }
   })()
+  timings.databaseSetupMs = elapsedMs(databaseSetupStartedAt)
+  sampleRss()
 
   if (!databaseSetup.ok) {
     if (tempFilePath && preprocessor) preprocessor.cleanup(tempFilePath)
@@ -341,11 +419,13 @@ async function streamImportSingle(
   let duplicateCount = 0
   let lastCheckpointCount = 0
   let inTransaction = false
+  let messageTransactionCount = 0
 
   const beginTransaction = () => {
     if (!inTransaction) {
       db.exec('BEGIN TRANSACTION')
       inTransaction = true
+      messageTransactionCount++
     }
   }
 
@@ -400,6 +480,16 @@ async function streamImportSingle(
   const dedupState = createMessageDedupState()
 
   logger?.info('Starting streamParseFile...')
+  const parsePipelineStartedAt = performance.now()
+  let parserTimingFinished = false
+  const finishParserTiming = () => {
+    if (parserTimingFinished) return
+    const parsePipelineMs = elapsedMs(parsePipelineStartedAt)
+    const writeCallbackMs = timings.metaWriteMs + timings.memberWriteMs + timings.messageWriteMs
+    timings.parserMs = Math.max(0, parsePipelineMs - writeCallbackMs)
+    parserTimingFinished = true
+    sampleRss()
+  }
 
   try {
     beginTransaction()
@@ -424,148 +514,134 @@ async function streamImportSingle(
         },
 
         onMeta: (meta: ParsedMeta) => {
-          callbackStats.onMetaCalls++
-          importedPlatform = meta.platform || importedPlatform
-          if (!metaInserted) {
-            logger?.info(`Writing meta: name=${meta.name}, type=${meta.type}, platform=${meta.platform}`)
-            insertMeta.run(
-              meta.name,
-              meta.platform,
-              meta.type,
-              Math.floor(Date.now() / 1000),
-              meta.groupId || null,
-              meta.groupAvatar || null,
-              meta.ownerId || null
-            )
-            metaInserted = true
+          const startedAt = performance.now()
+          try {
+            callbackStats.onMetaCalls++
+            importedPlatform = meta.platform || importedPlatform
+            if (!metaInserted) {
+              logger?.info(`Writing meta: name=${meta.name}, type=${meta.type}, platform=${meta.platform}`)
+              insertMeta.run(
+                meta.name,
+                meta.platform,
+                meta.type,
+                Math.floor(Date.now() / 1000),
+                meta.groupId || null,
+                meta.groupAvatar || null,
+                meta.ownerId || null
+              )
+              metaInserted = true
+            }
+          } finally {
+            timings.metaWriteMs += elapsedMs(startedAt)
+            sampleRss()
           }
         },
 
         onMembers: (members: ParsedMember[]) => {
-          callbackStats.onMembersCalls++
-          callbackStats.totalMembersReceived += members.length
-          logger?.info(`Received member batch: ${members.length} members`)
-          for (const member of members) {
-            const accountName = normalizeSystemMemberName(formatFeature.id, member.platformId, member.accountName)
-            const groupNickname = normalizeSystemMemberName(formatFeature.id, member.platformId, member.groupNickname)
-            insertMember.run(
-              member.platformId,
-              accountName || null,
-              groupNickname || null,
-              member.aliases ? JSON.stringify(member.aliases) : '[]',
-              member.avatar || null,
-              member.roles ? JSON.stringify(member.roles) : '[]'
-            )
-            const row = getMemberId.get(member.platformId) as { id: number } | undefined
-            if (row) memberIdMap.set(member.platformId, row.id)
+          const startedAt = performance.now()
+          try {
+            callbackStats.onMembersCalls++
+            callbackStats.totalMembersReceived += members.length
+            logger?.info(`Received member batch: ${members.length} members`)
+            for (const member of members) {
+              const accountName = normalizeSystemMemberName(formatFeature.id, member.platformId, member.accountName)
+              const groupNickname = normalizeSystemMemberName(formatFeature.id, member.platformId, member.groupNickname)
+              insertMember.run(
+                member.platformId,
+                accountName || null,
+                groupNickname || null,
+                member.aliases ? JSON.stringify(member.aliases) : '[]',
+                member.avatar || null,
+                member.roles ? JSON.stringify(member.roles) : '[]'
+              )
+              const row = getMemberId.get(member.platformId) as { id: number } | undefined
+              if (row) memberIdMap.set(member.platformId, row.id)
+            }
+          } finally {
+            timings.memberWriteMs += elapsedMs(startedAt)
+            sampleRss()
           }
         },
 
         onMessageBatch: (messages: ParsedMessage[]) => {
-          callbackStats.onMessageBatchCalls++
-          callbackStats.totalMessagesReceived += messages.length
-          if (callbackStats.onMessageBatchCalls <= 3 || callbackStats.onMessageBatchCalls % 10 === 0) {
-            logger?.info(`Received message batch #${callbackStats.onMessageBatchCalls}: ${messages.length} messages`)
-          }
-
-          let memberLookupTime = 0
-          let memberInsertTime = 0
-          let messageInsertTime = 0
-          let nicknameTrackTime = 0
-          let memberLookupCount = 0
-          let memberInsertCount = 0
-          let nicknameChangeCount = 0
-
-          for (const msg of messages) {
-            const senderAccountName = normalizeSystemMemberName(
-              formatFeature.id,
-              msg.senderPlatformId,
-              msg.senderAccountName
-            )
-            const senderGroupNickname = normalizeSystemMemberName(
-              formatFeature.id,
-              msg.senderPlatformId,
-              msg.senderGroupNickname
-            )
-            const prepared = prepareMessageForCreate(msg, senderAccountName)
-            if ('skipCounter' in prepared) {
-              callbackStats[prepared.skipCounter]++
-              continue
+          const startedAt = performance.now()
+          try {
+            callbackStats.onMessageBatchCalls++
+            callbackStats.totalMessagesReceived += messages.length
+            if (callbackStats.onMessageBatchCalls <= 3 || callbackStats.onMessageBatchCalls % 10 === 0) {
+              logger?.info(`Received message batch #${callbackStats.onMessageBatchCalls}: ${messages.length} messages`)
             }
 
-            const dedupMessage = prepared.message
-
-            if (registerMessageAndCheckDuplicate(dedupMessage, dedupState)) {
-              duplicateCount++
-              continue
-            }
-
-            let t0 = Date.now()
-            if (!memberIdMap.has(msg.senderPlatformId)) {
-              insertMember.run(
+            for (const msg of messages) {
+              const senderAccountName = normalizeSystemMemberName(
+                formatFeature.id,
                 msg.senderPlatformId,
+                msg.senderAccountName
+              )
+              const senderGroupNickname = normalizeSystemMemberName(
+                formatFeature.id,
+                msg.senderPlatformId,
+                msg.senderGroupNickname
+              )
+              const prepared = prepareMessageForCreate(msg, senderAccountName)
+              if ('skipCounter' in prepared) {
+                callbackStats[prepared.skipCounter]++
+                continue
+              }
+
+              const dedupMessage = prepared.message
+
+              if (registerMessageAndCheckDuplicate(dedupMessage, dedupState)) {
+                duplicateCount++
+                continue
+              }
+
+              if (!memberIdMap.has(msg.senderPlatformId)) {
+                insertMember.run(
+                  msg.senderPlatformId,
+                  senderAccountName || null,
+                  senderGroupNickname || null,
+                  '[]',
+                  null,
+                  '[]'
+                )
+                const row = getMemberId.get(msg.senderPlatformId) as { id: number } | undefined
+                if (row) memberIdMap.set(msg.senderPlatformId, row.id)
+              }
+
+              const senderId = memberIdMap.get(msg.senderPlatformId)
+              if (senderId === undefined) continue
+
+              insertMessage.run(
+                senderId,
                 senderAccountName || null,
                 senderGroupNickname || null,
-                '[]',
-                null,
-                '[]'
+                dedupMessage.timestamp,
+                dedupMessage.type,
+                dedupMessage.content,
+                msg.replyToMessageId || null,
+                msg.platformMessageId || null
               )
-              const row = getMemberId.get(msg.senderPlatformId) as { id: number } | undefined
-              if (row) memberIdMap.set(msg.senderPlatformId, row.id)
-              memberInsertCount++
-              memberInsertTime += Date.now() - t0
-            } else {
-              memberLookupCount++
-              memberLookupTime += Date.now() - t0
+              messageCountInBatch++
+              totalMessageCount++
+
+              trackNickname(accountNameTracker, msg.senderPlatformId, senderAccountName, msg.timestamp)
+              trackNickname(groupNicknameTracker, msg.senderPlatformId, senderGroupNickname, msg.timestamp)
+
+              if (messageCountInBatch >= BATCH_COMMIT_SIZE) {
+                commitAndBeginNew()
+                messageCountInBatch = 0
+              }
             }
-
-            const senderId = memberIdMap.get(msg.senderPlatformId)
-            if (senderId === undefined) continue
-
-            t0 = Date.now()
-            insertMessage.run(
-              senderId,
-              senderAccountName || null,
-              senderGroupNickname || null,
-              dedupMessage.timestamp,
-              dedupMessage.type,
-              dedupMessage.content,
-              msg.replyToMessageId || null,
-              msg.platformMessageId || null
-            )
-            messageInsertTime += Date.now() - t0
-            messageCountInBatch++
-            totalMessageCount++
-
-            t0 = Date.now()
-            trackNickname(accountNameTracker, msg.senderPlatformId, senderAccountName, msg.timestamp)
-            trackNickname(groupNicknameTracker, msg.senderPlatformId, senderGroupNickname, msg.timestamp)
-            nicknameTrackTime += Date.now() - t0
-            // nicknameChangeCount is approximate but sufficient for logging
-            nicknameChangeCount += accountNameTracker.get(msg.senderPlatformId)?.history.length === 1 ? 0 : 0
-
-            if (messageCountInBatch >= BATCH_COMMIT_SIZE) {
-              const detail =
-                `[Detail] Member lookup: ${memberLookupTime}ms (${memberLookupCount} times) | ` +
-                `Member insert: ${memberInsertTime}ms (${memberInsertCount} times) | ` +
-                `Message insert: ${messageInsertTime}ms | ` +
-                `Nickname tracking: ${nicknameTrackTime}ms (${nicknameChangeCount} changes)`
-              logger?.perfDetail(detail)
-              commitAndBeginNew()
-              messageCountInBatch = 0
-              memberLookupTime = 0
-              memberInsertTime = 0
-              messageInsertTime = 0
-              nicknameTrackTime = 0
-              memberLookupCount = 0
-              memberInsertCount = 0
-              nicknameChangeCount = 0
-            }
+          } finally {
+            timings.messageWriteMs += elapsedMs(startedAt)
+            sampleRss()
           }
         },
       },
       formatFeature.id
     )
+    finishParserTiming()
 
     if (inTransaction) {
       db.exec('COMMIT')
@@ -584,6 +660,7 @@ async function streamImportSingle(
     await yieldToEventLoop()
     logger?.perf('Writing nickname history', totalMessageCount)
 
+    const nicknameHistoryStartedAt = performance.now()
     db.exec('BEGIN TRANSACTION')
     let historyCount = 0
 
@@ -598,6 +675,8 @@ async function streamImportSingle(
     historyCount = countHistory(accountNameTracker) + countHistory(groupNicknameTracker)
 
     db.exec('COMMIT')
+    timings.nicknameHistoryMs = elapsedMs(nicknameHistoryStartedAt)
+    sampleRss()
     logger?.perf(`Nickname history written (${historyCount} entries)`, totalMessageCount)
 
     // Create indexes (deferred for performance)
@@ -611,15 +690,22 @@ async function streamImportSingle(
     })
     await yieldToEventLoop()
     logger?.perf('Creating indexes', totalMessageCount)
+    const indexCreationStartedAt = performance.now()
     db.exec(CHAT_DB_INDEXES)
+    timings.indexCreationMs = elapsedMs(indexCreationStartedAt)
+    sampleRss()
     logger?.perf('Indexes created', totalMessageCount)
 
     // Build FTS index
+    const ftsStartedAt = performance.now()
     try {
       buildFtsIndex(db)
       logger?.perf('FTS index built', totalMessageCount)
     } catch (ftsError) {
       logger?.error('FTS index build failed (non-fatal)', ftsError instanceof Error ? ftsError : undefined)
+    } finally {
+      timings.ftsMs = elapsedMs(ftsStartedAt)
+      sampleRss()
     }
 
     // Final WAL checkpoint + session index + post-import hook
@@ -632,25 +718,43 @@ async function streamImportSingle(
       message: '',
     })
     await yieldToEventLoop()
+    const checkpointStartedAt = performance.now()
     doCheckpoint()
+    timings.checkpointMs = elapsedMs(checkpointStartedAt)
+    sampleRss()
     logger?.perf('WAL checkpoint done', totalMessageCount)
 
     // Build session index (segment / message_context tables)
+    const sessionIndexStartedAt = performance.now()
     try {
       generateSessionIndex(db)
       logger?.perf('Session index built', totalMessageCount)
     } catch {
       /* non-fatal */
+    } finally {
+      timings.sessionIndexMs = elapsedMs(sessionIndexStartedAt)
+      sampleRss()
     }
 
     // Post-import hook (e.g. overview cache)
-    try {
-      await deps.postImportHook?.(db, sessionId)
-      if (deps.postImportHook) logger?.perf('Post-import hook done', totalMessageCount)
-    } catch {
-      /* non-fatal */
+    if (deps.postImportHook) {
+      const postImportHookStartedAt = performance.now()
+      try {
+        await deps.postImportHook(db, sessionId)
+        logger?.perf('Post-import hook done', totalMessageCount)
+      } catch {
+        /* non-fatal */
+      } finally {
+        timings.postImportHookMs = elapsedMs(postImportHookStartedAt)
+        sampleRss()
+      }
     }
 
+    logger?.perfDetail(
+      `[Stages] parser=${timings.parserMs.toFixed(1)}ms | message-write=${timings.messageWriteMs.toFixed(1)}ms | ` +
+        `indexes=${timings.indexCreationMs.toFixed(1)}ms | fts=${timings.ftsMs.toFixed(1)}ms | ` +
+        `session-index=${timings.sessionIndexMs.toFixed(1)}ms | hook=${timings.postImportHookMs.toFixed(1)}ms`
+    )
     logger?.perf('Import completed', totalMessageCount)
 
     // Diagnostic logging
@@ -691,6 +795,7 @@ async function streamImportSingle(
       importError = 'error.no_messages'
     }
   } catch (error) {
+    finishParserTiming()
     logger?.error('Import failed', error instanceof Error ? error : undefined)
     if (inTransaction) {
       try {
@@ -711,8 +816,11 @@ async function streamImportSingle(
     if (shouldDeleteDb) {
       deps.deleteDatabase(sessionId)
     }
+    sampleRss()
   }
 
+  timings.totalMs = elapsedMs(totalStartedAt)
+  const bytesPerMegabyte = 1024 * 1024
   const diagnostics: ImportDiagnostics = {
     logFile: logger?.getCurrentLogFile() ?? null,
     detectedFormat: formatFeature ? `${formatFeature.name} (${formatFeature.id})` : null,
@@ -729,6 +837,14 @@ async function streamImportSingle(
       noAccountName: callbackStats.skippedNoAccountName,
       invalidTimestamp: callbackStats.skippedInvalidTimestamp,
       noType: callbackStats.skippedNoType,
+    },
+    performance: {
+      timings,
+      messageBatchCount: callbackStats.onMessageBatchCalls,
+      messageTransactionCount,
+      rssStartMb: rssStartBytes / bytesPerMegabyte,
+      rssPeakMb: rssPeakBytes / bytesPerMegabyte,
+      rssDeltaMb: (rssPeakBytes - rssStartBytes) / bytesPerMegabyte,
     },
   }
 
