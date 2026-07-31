@@ -19,6 +19,7 @@ import type {
   IncrementalImportResult,
   IncrementalAnalyzeResult,
   ImportOptions,
+  ImportProgressCallback,
 } from '@openchatlab/node-runtime'
 import { sendProgress, getDbPath } from './utils'
 import { getCacheDir, openRawDatabase } from '../core'
@@ -26,7 +27,7 @@ import * as fs from 'fs'
 
 export type { ImportOptions, IncrementalAnalyzeResult, IncrementalImportResult }
 
-function buildDeps(requestId: string): IncrementalImportDeps {
+function buildDeps(requestId: string, onProgress?: ImportProgressCallback): IncrementalImportDeps {
   return {
     openDatabase(sessionId: string, readonly?: boolean) {
       const dbPath = getDbPath(sessionId)
@@ -37,9 +38,7 @@ function buildDeps(requestId: string): IncrementalImportDeps {
       if (!readonly) db.pragma('synchronous = NORMAL')
       return new BetterSqliteAdapter(db)
     },
-    onProgress(progress) {
-      sendProgress(requestId, progress)
-    },
+    onProgress: onProgress ?? ((progress) => sendProgress(requestId, progress)),
     postImportHook(_db, sessionId) {
       const cacheDir = getCacheDir()
       try {
@@ -69,7 +68,8 @@ export async function incrementalImport(
   sessionId: string,
   filePath: string,
   requestId: string,
-  options?: ImportOptions
+  options?: ImportOptions,
+  onProgress?: ImportProgressCallback
 ): Promise<IncrementalImportResult> {
-  return sharedImport(sessionId, filePath, buildDeps(requestId), options)
+  return sharedImport(sessionId, filePath, buildDeps(requestId, onProgress), options)
 }

@@ -8,7 +8,12 @@ import {
 } from './auto-import-matcher'
 import type { IncrementalImportResult } from './incremental-importer'
 import type { IncrementalAnalyzeResult } from './incremental-importer'
-import type { AnalyzeNewImportResult, ImportDiagnostics, StreamImportResult } from './streaming-importer'
+import type {
+  AnalyzeNewImportResult,
+  ImportDiagnostics,
+  ImportProgressCallback,
+  StreamImportResult,
+} from './streaming-importer'
 import { isValidImportSessionId } from './session-id'
 
 export interface AutoImportOptions {
@@ -23,12 +28,14 @@ export interface AutoImportDeps extends AutoImportMatcherDeps {
   createSession(
     filePath: string,
     formatOptions?: Record<string, unknown>,
-    sessionId?: string
+    sessionId?: string,
+    onProgress?: ImportProgressCallback
   ): Promise<StreamImportResult>
   appendSession(
     sessionId: string,
     filePath: string,
-    formatOptions?: Record<string, unknown>
+    formatOptions?: Record<string, unknown>,
+    onProgress?: ImportProgressCallback
   ): Promise<IncrementalImportResult>
   resolveTarget?: typeof resolveAutoImportTarget
 }
@@ -178,7 +185,7 @@ export async function autoImportFile(
     if (plan.action === 'incremental') {
       const result = mapIncrementalResult(
         plan.sessionId,
-        await deps.appendSession(plan.sessionId, filePath, options.formatOptions),
+        await deps.appendSession(plan.sessionId, filePath, options.formatOptions, deps.onProgress),
         plan.matchedBy
       )
       appLogger.info('import', 'Incremental import completed', {
@@ -192,7 +199,7 @@ export async function autoImportFile(
     }
 
     const result = mapCreateResult(
-      await deps.createSession(filePath, options.formatOptions, plan.sessionId),
+      await deps.createSession(filePath, options.formatOptions, plan.sessionId, deps.onProgress),
       plan.reason
     )
     appLogger.info('import', 'Import created a new session', {

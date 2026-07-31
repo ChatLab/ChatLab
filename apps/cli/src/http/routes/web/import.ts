@@ -6,6 +6,7 @@ import type { FastifyInstance } from 'fastify'
 import {
   ArchiveImportError,
   ArchiveImportSourceManager,
+  appLogger,
   createChatLabTempDir,
   getChatLabTempScopeDir,
   importDemoSessions,
@@ -321,6 +322,7 @@ export function registerImportRoutes(
       completed = true
       sendEvent('done', results)
     } catch (error) {
+      appLogger.error('import-batch', 'CLI Web batch import failed', error)
       const payload = { error: error instanceof Error ? error.message : String(error) }
       if (!reply.raw.headersSent) return reply.code(500).send(payload)
       if (!reply.raw.destroyed) {

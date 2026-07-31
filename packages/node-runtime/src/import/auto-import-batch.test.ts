@@ -4,6 +4,7 @@ import { setTimeout as delay } from 'node:timers/promises'
 import type { AutoImportDeps } from './auto-importer'
 import { autoImportBatch } from './auto-import-batch'
 import type { AutoImportTargetPlan } from './auto-import-matcher'
+import type { ImportProgressCallback } from './streaming-importer'
 
 test('parallelizes distinct explicit targets and serializes identical targets', async () => {
   const activeTargets = new Set<string>()
@@ -304,4 +305,75 @@ test('invalidates a later auto-resolved incremental plan after exclusive work wr
   )
 
   assert.deepEqual(appends, [{ sessionId: 'created', filePath: 'second' }])
+})
+
+test('starts each item before forwarding its create and append write progress', async () => {
+  const runCase = async (mode: 'create' | 'append') => {
+    const events: string[] = []
+    const deps: AutoImportDeps = {
+      listSessionIds: () => (mode === 'append' ? ['existing'] : []),
+      openReadonly: () => {
+        throw new Error('preflight is stubbed')
+      },
+      sessionExists: (sessionId) => mode === 'append' && sessionId === 'existing',
+      async createSession(_filePath, _formatOptions, _sessionId, onProgress?: ImportProgressCallback) {
+        onProgress?.({
+          stage: 'saving',
+          percentage: 50,
+          message: 'writing',
+          bytesRead: 0,
+          totalBytes: 0,
+          messagesProcessed: 1,
+        })
+        return { success: true, sessionId: 'created' }
+      },
+      async appendSession(_sessionId, _filePath, _formatOptions, onProgress?: ImportProgressCallback) {
+        onProgress?.({
+          stage: 'indexing',
+          percentage: 75,
+          message: 'indexing',
+          bytesRead: 0,
+          totalBytes: 0,
+          messagesProcessed: 1,
+        })
+        return { success: true, newMessageCount: 1 }
+      },
+    }
+    const plan: AutoImportTargetPlan =
+      mode === 'create'
+        ? {
+            decision: { action: 'create', reason: 'no-match' },
+            concurrencyKey: 'source:new',
+            exclusive: false,
+            coalesceCreate: true,
+          }
+        : {
+            decision: { action: 'incremental', sessionId: 'existing', matchedBy: 'stable-id' },
+            concurrencyKey: 'session:existing',
+            exclusive: false,
+            coalesceCreate: false,
+          }
+
+    await autoImportBatch([{ id: mode, filePath: `${mode}.json` }], deps, {
+      resolveTargetPlan: async (_filePath, matcherDeps) => {
+        matcherDeps.onProgress?.({
+          stage: 'detecting',
+          percentage: 10,
+          message: 'matching',
+          bytesRead: 0,
+          totalBytes: 0,
+          messagesProcessed: 0,
+        })
+        return plan
+      },
+      onItemStart: () => events.push('start'),
+      onItemProgress: (_item, _index, progress) => events.push(`progress:${progress.stage}`),
+      onItemComplete: () => events.push('complete'),
+    })
+
+    return events
+  }
+
+  assert.deepEqual(await runCase('create'), ['start', 'progress:detecting', 'progress:saving', 'complete'])
+  assert.deepEqual(await runCase('append'), ['start', 'progress:detecting', 'progress:indexing', 'complete'])
 })

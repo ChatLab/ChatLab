@@ -142,6 +142,7 @@ export class FetchImportAdapter implements ImportAdapter {
       const decoder = new TextDecoder()
       let buffer = ''
       let results: BatchImportItemResult[] | null = null
+      let terminalError: string | null = null
       let eventType = ''
 
       while (true) {
@@ -167,6 +168,8 @@ export class FetchImportAdapter implements ImportAdapter {
             onProgress?.({ index: data.index, event: 'complete', result })
           } else if (eventType === 'done') {
             results = (data as unknown[]).map((result, index) => normalizeBatchResult(items, index, result))
+          } else if (eventType === 'error') {
+            terminalError = typeof data?.error === 'string' ? data.error : 'Batch import failed'
           }
           eventType = ''
         }
@@ -178,7 +181,7 @@ export class FetchImportAdapter implements ImportAdapter {
             completedResults[index] ?? {
               id: item.id,
               status: 'failed',
-              error: 'Batch response ended without results',
+              error: terminalError ?? 'Batch response ended without results',
             }
         )
       )

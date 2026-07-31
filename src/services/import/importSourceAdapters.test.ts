@@ -270,6 +270,49 @@ describe('archive import source adapters', () => {
     assert.equal(progress.length, 2)
   })
 
+  it('preserves a server batch error for items without completed results', async () => {
+    globalThis.fetch = (async () =>
+      new Response(
+        [
+          'event: batch-complete',
+          'data: {"index":0,"result":{"id":"0","status":"success","result":{"success":true,"sessionId":"session-a"}}}',
+          '',
+          'event: error',
+          'data: {"error":"compatibility gate unavailable"}',
+          '',
+          '',
+        ].join('\n'),
+        { headers: { 'Content-Type': 'text/event-stream' } }
+      )) as typeof fetch
+
+    const results = await new FetchImportAdapter().importBatch?.([
+      { id: 'first', file: new File(['{}'], 'first.json') },
+      { id: 'second', file: new File(['{}'], 'second.json') },
+    ])
+
+    assert.deepEqual(results, [
+      {
+        id: 'first',
+        status: 'success',
+        result: {
+          success: true,
+          sessionId: 'session-a',
+          platform: undefined,
+          error: undefined,
+          importMode: undefined,
+          matchedBy: undefined,
+          createReason: undefined,
+          newMessageCount: undefined,
+          duplicateCount: undefined,
+          messageCount: undefined,
+          memberCount: undefined,
+          diagnostics: undefined,
+        },
+      },
+      { id: 'second', status: 'failed', error: 'compatibility gate unavailable' },
+    ])
+  })
+
   it('keeps the Web batch stream open until cancellation returns authoritative results', async () => {
     const requests: Array<{ url: string; batchId?: string }> = []
     let streamController: ReadableStreamDefaultController<Uint8Array> | undefined

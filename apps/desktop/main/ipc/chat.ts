@@ -7,6 +7,7 @@
  */
 
 import { ipcMain, app, dialog } from 'electron'
+import { appLogger } from '@openchatlab/node-runtime'
 import * as databaseCore from '../database/core'
 import * as worker from '../worker/workerManager'
 import {
@@ -255,6 +256,7 @@ export function registerChatHandlers(ctx: IpcContext): void {
         }
         return results
       } catch (error) {
+        appLogger.error('import-batch', 'Desktop batch import failed', error)
         return items.map((item) => ({
           id: item.id,
           status: 'failed' as const,

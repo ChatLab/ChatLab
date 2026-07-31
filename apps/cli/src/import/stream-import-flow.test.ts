@@ -176,6 +176,7 @@ test('autoImportBatch holds one lock, coalesces the same target, and preserves i
   const first = writeBatchChatFile(root, 'group-a-1.json', 'group-a', 'first')
   const second = writeBatchChatFile(root, 'group-a-2.json', 'group-a', 'second')
   const independent = writeBatchChatFile(root, 'group-b.json', 'group-b', 'independent')
+  const progressEvents: Array<{ id: string; event: 'start' | 'progress' | 'complete'; stage?: string }> = []
 
   const results = await autoImportBatch(
     manager,
@@ -184,7 +185,14 @@ test('autoImportBatch holds one lock, coalesces the same target, and preserves i
       { id: 'b', filePath: independent },
       { id: 'a-2', filePath: second },
     ],
-    { concurrency: 2, sessionGapThreshold: 7200 }
+    {
+      concurrency: 2,
+      sessionGapThreshold: 7200,
+      onItemStart: (item) => progressEvents.push({ id: item.id, event: 'start' }),
+      onItemProgress: (item, _index, progress) =>
+        progressEvents.push({ id: item.id, event: 'progress', stage: progress.stage }),
+      onItemComplete: (item) => progressEvents.push({ id: item.id, event: 'complete' }),
+    }
   )
 
   assert.deepEqual(
@@ -200,6 +208,17 @@ test('autoImportBatch holds one lock, coalesces the same target, and preserves i
     true
   )
   assert.equal(manager.listSessionIds().length, 2)
+  for (const itemId of ['a-1', 'b', 'a-2']) {
+    const itemEvents = progressEvents.filter((event) => event.id === itemId)
+    assert.equal(itemEvents[0]?.event, 'start')
+    assert.equal(itemEvents.at(-1)?.event, 'complete')
+    assert.equal(
+      itemEvents.some(
+        (event) => event.event === 'progress' && ['saving', 'indexing', 'done'].includes(event.stage ?? '')
+      ),
+      true
+    )
+  }
 
   const sameTargetId = results[0].status === 'success' ? results[0].result.sessionId! : ''
   const db = manager.openRawSessionDatabase(sameTargetId, { readonly: true })

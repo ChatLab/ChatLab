@@ -84,6 +84,7 @@ export async function autoImportBatch(
     {
       concurrency,
       signal: options.signal,
+      onTaskStart: ({ item, itemIndex }) => options.onItemStart?.(item, itemIndex),
       run: async ({ item, itemIndex }) => {
         const itemOptions = item.options ?? {}
         if (itemOptions.explicitSessionId) {
@@ -145,7 +146,6 @@ export async function autoImportBatch(
     {
       concurrency,
       signal: options.signal,
-      onTaskStart: ({ item, itemIndex }) => options.onItemStart?.(item, itemIndex),
       onTaskComplete: ({ item, itemIndex }, _plannedIndex, taskResult) => {
         const mapped = mapTaskResult(item, taskResult)
         finalResults[itemIndex] = mapped

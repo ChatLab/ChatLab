@@ -27,6 +27,7 @@ import type {
   StreamImportDeps,
   StreamImportResult,
   ImportLogger,
+  ImportProgressCallback,
 } from '@openchatlab/node-runtime'
 import { sendProgress, generateSessionId, getDbPath, createDatabaseWithoutIndexes } from './utils'
 import { incrementalImport } from './incrementalImport'
@@ -60,7 +61,11 @@ function buildElectronLogger(): ImportLogger {
   return createImportPerfLogger(getImportLogDir(getLogsDir()))
 }
 
-function buildStreamImportDeps(requestId: string, sessionGapThreshold?: number): StreamImportDeps {
+function buildStreamImportDeps(
+  requestId: string,
+  sessionGapThreshold?: number,
+  onProgress?: ImportProgressCallback
+): StreamImportDeps {
   return {
     openDatabase(sessionId: string) {
       const db = createDatabaseWithoutIndexes(sessionId)
@@ -77,9 +82,7 @@ function buildStreamImportDeps(requestId: string, sessionGapThreshold?: number):
         }
       }
     },
-    onProgress(progress) {
-      sendProgress(requestId, progress)
-    },
+    onProgress: onProgress ?? ((progress) => sendProgress(requestId, progress)),
     logger: buildElectronLogger(),
     postImportHook(_db, sessionId) {
       const cacheDir = getCacheDir()
@@ -107,11 +110,12 @@ export async function streamImport(
   requestId: string,
   formatOptions?: Record<string, unknown>,
   externalSessionId?: string,
-  sessionGapThreshold?: number
+  sessionGapThreshold?: number,
+  onProgress?: ImportProgressCallback
 ): Promise<StreamImportResult> {
   return streamingImport(
     filePath,
-    buildStreamImportDeps(requestId, sessionGapThreshold),
+    buildStreamImportDeps(requestId, sessionGapThreshold, onProgress),
     formatOptions,
     externalSessionId
   )
@@ -137,13 +141,19 @@ export async function autoImport(
       openReadonly: (sessionId) => new BetterSqliteAdapter(openRawDatabase(getDbPath(sessionId), { readonly: true })),
       onProgress: (progress) => sendProgress(requestId, progress),
       sessionExists: (sessionId) => fs.existsSync(getDbPath(sessionId)),
-      createSession: (sourcePath, sourceFormatOptions, sessionId) =>
-        streamImport(sourcePath, requestId, sourceFormatOptions, sessionId, sessionGapThreshold),
-      appendSession: (sessionId, sourcePath, sourceFormatOptions) =>
-        incrementalImport(sessionId, sourcePath, requestId, {
-          formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,
-          chatIndex: typeof sourceFormatOptions?.chatIndex === 'number' ? sourceFormatOptions.chatIndex : undefined,
-        }),
+      createSession: (sourcePath, sourceFormatOptions, sessionId, itemProgress) =>
+        streamImport(sourcePath, requestId, sourceFormatOptions, sessionId, sessionGapThreshold, itemProgress),
+      appendSession: (sessionId, sourcePath, sourceFormatOptions, itemProgress) =>
+        incrementalImport(
+          sessionId,
+          sourcePath,
+          requestId,
+          {
+            formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,
+            chatIndex: typeof sourceFormatOptions?.chatIndex === 'number' ? sourceFormatOptions.chatIndex : undefined,
+          },
+          itemProgress
+        ),
     },
     { explicitSessionId, formatOptions }
   )
@@ -182,13 +192,19 @@ export async function autoImportBatch(
           : [],
       openReadonly: (sessionId) => new BetterSqliteAdapter(openRawDatabase(getDbPath(sessionId), { readonly: true })),
       sessionExists: (sessionId) => fs.existsSync(getDbPath(sessionId)),
-      createSession: (sourcePath, sourceFormatOptions, sessionId) =>
-        streamImport(sourcePath, requestId, sourceFormatOptions, sessionId, sessionGapThreshold),
-      appendSession: (sessionId, sourcePath, sourceFormatOptions) =>
-        incrementalImport(sessionId, sourcePath, requestId, {
-          formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,
-          chatIndex: typeof sourceFormatOptions?.chatIndex === 'number' ? sourceFormatOptions.chatIndex : undefined,
-        }),
+      createSession: (sourcePath, sourceFormatOptions, sessionId, itemProgress) =>
+        streamImport(sourcePath, requestId, sourceFormatOptions, sessionId, sessionGapThreshold, itemProgress),
+      appendSession: (sessionId, sourcePath, sourceFormatOptions, itemProgress) =>
+        incrementalImport(
+          sessionId,
+          sourcePath,
+          requestId,
+          {
+            formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,
+            chatIndex: typeof sourceFormatOptions?.chatIndex === 'number' ? sourceFormatOptions.chatIndex : undefined,
+          },
+          itemProgress
+        ),
     },
     {
       concurrency,

@@ -1,6 +1,9 @@
 import type { AnalyticsEventName } from '@openchatlab/shared-types'
 import type { PlatformAdapter } from '../platform/types'
 import type {
+  BatchImportItem,
+  BatchImportItemResult,
+  BatchImportProgress,
   DemoImportResult,
   DemoProgress,
   FormatInfo,
@@ -57,11 +60,18 @@ export class TelemetryImportAdapter implements ImportAdapter {
   private readonly filePlatforms = new WeakMap<File, string>()
   private readonly pathPlatforms = new Map<string, string>()
   private readonly sourcePlatforms = new Map<string, string>()
+  readonly importBatch?: NonNullable<ImportAdapter['importBatch']>
 
   constructor(
     private readonly delegate: ImportAdapter,
     private readonly platform: Pick<PlatformAdapter, 'trackAnalyticsEvent'>
-  ) {}
+  ) {
+    const importBatch = delegate.importBatch?.bind(delegate)
+    if (importBatch) {
+      this.importBatch = (items, options, onProgress) =>
+        this.runTrackedBatchImport(importBatch, items, options, onProgress)
+    }
+  }
 
   private track(eventName: AnalyticsEventName, properties?: Record<string, unknown>): void {
     void this.platform.trackAnalyticsEvent(eventName, properties).catch(() => {})
@@ -80,37 +90,80 @@ export class TelemetryImportAdapter implements ImportAdapter {
     else this.filePlatforms.set(source, platform)
   }
 
+  private trackImportResult(
+    initialPlatform: string,
+    startedAt: number,
+    result: { success: boolean; error?: string; platform?: string; importMode?: 'created' | 'incremental' }
+  ): void {
+    if (result.importMode === 'incremental') {
+      this.track('incremental_import_used')
+      return
+    }
+
+    this.track('chat_import_started', { chat_platform: initialPlatform })
+    const chatPlatform = result.platform ?? initialPlatform
+    if (result.success) {
+      this.track('chat_import_completed', {
+        chat_platform: chatPlatform,
+        duration_ms: Date.now() - startedAt,
+      })
+    } else {
+      this.track('chat_import_failed', {
+        chat_platform: chatPlatform,
+        failure_reason: classifyImportFailure(result.error),
+      })
+    }
+  }
+
+  private trackImportError(initialPlatform: string, error: unknown): void {
+    this.track('chat_import_started', { chat_platform: initialPlatform })
+    this.track('chat_import_failed', {
+      chat_platform: initialPlatform,
+      failure_reason: classifyImportFailure(error instanceof Error ? error.message : undefined),
+    })
+  }
+
   private async runTrackedImport<
     T extends { success: boolean; error?: string; platform?: string; importMode?: 'created' | 'incremental' },
   >(initialPlatform: string, operation: () => Promise<T>): Promise<T> {
     const startedAt = Date.now()
-    const trackStarted = () => this.track('chat_import_started', { chat_platform: initialPlatform })
     try {
       const result = await operation()
-      if (result.importMode === 'incremental') {
-        this.track('incremental_import_used')
-        return result
-      }
-      trackStarted()
-      const chatPlatform = result.platform ?? initialPlatform
-      if (result.success) {
-        this.track('chat_import_completed', {
-          chat_platform: chatPlatform,
-          duration_ms: Date.now() - startedAt,
-        })
-      } else {
-        this.track('chat_import_failed', {
-          chat_platform: chatPlatform,
-          failure_reason: classifyImportFailure(result.error),
-        })
-      }
+      this.trackImportResult(initialPlatform, startedAt, result)
       return result
     } catch (error) {
-      trackStarted()
-      this.track('chat_import_failed', {
-        chat_platform: initialPlatform,
-        failure_reason: classifyImportFailure(error instanceof Error ? error.message : undefined),
-      })
+      this.trackImportError(initialPlatform, error)
+      throw error
+    }
+  }
+
+  private async runTrackedBatchImport(
+    importBatch: NonNullable<ImportAdapter['importBatch']>,
+    items: BatchImportItem[],
+    options?: ImportOptions,
+    onProgress?: (progress: BatchImportProgress) => void
+  ): Promise<BatchImportItemResult[]> {
+    const startedAt = Date.now()
+    const itemsById = new Map(items.map((item) => [item.id, item]))
+    try {
+      const results = await importBatch(items, options, onProgress)
+      for (const result of results) {
+        if (result.status === 'cancelled') continue
+        const item = itemsById.get(result.id)
+        const initialPlatform = item
+          ? this.rememberedPlatform(item.file, options)
+          : platformFromFormatId(options?.formatId)
+        if (result.status === 'success') {
+          this.trackImportResult(initialPlatform, startedAt, result.result)
+        } else if (result.result) {
+          this.trackImportResult(initialPlatform, startedAt, result.result)
+        } else {
+          this.trackImportResult(initialPlatform, startedAt, { success: false, error: result.error })
+        }
+      }
+      return results
+    } catch (error) {
+      for (const item of items) this.trackImportError(this.rememberedPlatform(item.file, options), error)
       throw error
     }
   }

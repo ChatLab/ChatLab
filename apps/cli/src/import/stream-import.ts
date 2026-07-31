@@ -148,7 +148,8 @@ async function streamImportUnlocked(
   dbManager: DatabaseManager,
   filePath: string,
   options?: StreamImportOptions,
-  updateCompatibilityGate = true
+  updateCompatibilityGate = true,
+  progressOverride?: ImportProgressCallback
 ): Promise<StreamImportResult> {
   const { formatId, chatIndex, sessionGapThreshold, onProgress, sessionId } = options || {}
 
@@ -156,7 +157,7 @@ async function streamImportUnlocked(
   if (formatId) formatOptions.formatId = formatId
   if (chatIndex !== undefined) formatOptions.chatIndex = chatIndex
 
-  const progressAdapter = createProgressAdapter(onProgress)
+  const progressAdapter = progressOverride ?? createProgressAdapter(onProgress)
 
   const deps = buildStreamImportDeps(dbManager, progressAdapter, sessionGapThreshold)
   const result = await streamingImport(filePath, deps, formatOptions, sessionId)
@@ -231,7 +232,7 @@ async function autoImportUnlocked(
       openReadonly: (candidateSessionId) => dbManager.openRawSessionDatabase(candidateSessionId, { readonly: true }),
       onProgress: progressAdapter,
       sessionExists: (candidateSessionId) => dbManager.listSessionIds().includes(candidateSessionId),
-      createSession: (sourcePath, sourceFormatOptions, explicitSessionId) =>
+      createSession: (sourcePath, sourceFormatOptions, explicitSessionId, itemProgress) =>
         streamImportUnlocked(
           dbManager,
           sourcePath,
@@ -240,16 +241,17 @@ async function autoImportUnlocked(
             ...sourceFormatOptions,
             sessionId: explicitSessionId,
           },
-          updateCompatibilityGate
+          updateCompatibilityGate,
+          itemProgress
         ),
-      appendSession: (targetSessionId, sourcePath, sourceFormatOptions) =>
+      appendSession: (targetSessionId, sourcePath, sourceFormatOptions, itemProgress) =>
         incrementalImportUnlocked(
           dbManager,
           targetSessionId,
           sourcePath,
           {
             ...sourceFormatOptions,
-            onProgress: progressAdapter,
+            onProgress: itemProgress ?? progressAdapter,
           },
           updateCompatibilityGate
         ),
@@ -302,7 +304,7 @@ export async function autoImportBatch(
           openReadonly: (candidateSessionId) =>
             dbManager.openRawSessionDatabase(candidateSessionId, { readonly: true }),
           sessionExists: (candidateSessionId) => dbManager.listSessionIds().includes(candidateSessionId),
-          createSession: (sourcePath, sourceFormatOptions, explicitSessionId) =>
+          createSession: (sourcePath, sourceFormatOptions, explicitSessionId, itemProgress) =>
             streamImportUnlocked(
               dbManager,
               sourcePath,
@@ -311,15 +313,17 @@ export async function autoImportBatch(
                 sessionId: explicitSessionId,
                 sessionGapThreshold: options.sessionGapThreshold,
               },
-              false
+              false,
+              itemProgress
             ),
-          appendSession: (targetSessionId, sourcePath, sourceFormatOptions) =>
+          appendSession: (targetSessionId, sourcePath, sourceFormatOptions, itemProgress) =>
             incrementalImportUnlocked(
               dbManager,
               targetSessionId,
               sourcePath,
               {
                 ...sourceFormatOptions,
+                onProgress: itemProgress,
               },
               false
             ),

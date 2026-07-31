@@ -28,6 +28,77 @@ function createDelegate(
 }
 
 describe('TelemetryImportAdapter', () => {
+  it('preserves and tracks the delegate batch capability', async () => {
+    const events: Array<{ name: AnalyticsEventName; properties?: Record<string, unknown> }> = []
+    const progressEvents: unknown[] = []
+    const delegate = createDelegate()
+    let cancelCalls = 0
+    let receivedOptions: unknown
+
+    delegate.importBatch = async (items, options, onProgress) => {
+      receivedOptions = options
+      onProgress?.({ index: 0, event: 'start' })
+      return [
+        {
+          id: items[0].id,
+          status: 'success',
+          result: { success: true, sessionId: 'session-1', platform: 'qq', importMode: 'created' },
+        },
+        { id: items[1].id, status: 'failed', error: 'Parser failed at /Users/alice/private.json' },
+      ]
+    }
+    delegate.cancelActiveImport = () => {
+      cancelCalls++
+    }
+
+    const platform = {
+      trackAnalyticsEvent: async (name: AnalyticsEventName, properties?: Record<string, unknown>) => {
+        events.push({ name, properties })
+      },
+    }
+    const adapter = new TelemetryImportAdapter(delegate, platform) as ImportAdapter
+    const adapterWithoutBatch = new TelemetryImportAdapter(createDelegate(), platform) as ImportAdapter
+    const items = [
+      { id: 'first', file: new File(['{}'], 'first-private.json') },
+      { id: 'second', file: new File(['{}'], 'second-private.json') },
+    ]
+
+    assert.equal(adapterWithoutBatch.importBatch, undefined)
+    assert.equal(typeof adapter.importBatch, 'function')
+    const results = await adapter.importBatch!(items, { formatId: 'whatsapp-native-txt' }, (event) =>
+      progressEvents.push(event)
+    )
+    adapter.cancelActiveImport?.()
+    await new Promise((resolve) => setTimeout(resolve, 0))
+
+    assert.deepEqual(receivedOptions, { formatId: 'whatsapp-native-txt' })
+    assert.deepEqual(progressEvents, [{ index: 0, event: 'start' }])
+    assert.deepEqual(
+      results.map((result) => ({ id: result.id, status: result.status })),
+      [
+        { id: 'first', status: 'success' },
+        { id: 'second', status: 'failed' },
+      ]
+    )
+    assert.equal(cancelCalls, 1)
+    assert.deepEqual(
+      events.map((event) => ({
+        name: event.name,
+        platform: event.properties?.chat_platform,
+        failureReason: event.properties?.failure_reason,
+      })),
+      [
+        { name: 'chat_import_started', platform: 'whatsapp', failureReason: undefined },
+        { name: 'chat_import_completed', platform: 'qq', failureReason: undefined },
+        { name: 'chat_import_started', platform: 'whatsapp', failureReason: undefined },
+        { name: 'chat_import_failed', platform: 'whatsapp', failureReason: 'parse' },
+      ]
+    )
+    assert.equal(typeof events[1].properties?.duration_ms, 'number')
+    assert.equal(JSON.stringify(events).includes('private.json'), false)
+    assert.equal(JSON.stringify(events).includes('/Users/alice'), false)
+  })
+
   it('tracks the remembered format and the actual imported platform without file details', async () => {
     const events: Array<{ name: AnalyticsEventName; properties?: Record<string, unknown> }> = []
     const file = new File(['{}'], 'private-chat.json')
