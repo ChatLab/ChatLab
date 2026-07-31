@@ -174,6 +174,7 @@ export function registerImportCommand(program: Command): void {
           const importOptions = {
             formatId: options.format,
             sessionId: options.sessionId,
+            sessionGapThreshold: runtime.config.ui.session_gap_threshold,
             nativeBinding,
             onProgress: options.json
               ? undefined

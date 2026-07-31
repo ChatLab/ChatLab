@@ -81,7 +81,12 @@ export interface WebRuntimeTaskMap {
     result: BrowserMultiChatEntry[]
   }
   'import.start': {
-    payload: { source: BrowserParseSource; formatId?: BrowserImportFormatId; chatIndex?: number }
+    payload: {
+      source: BrowserParseSource
+      formatId?: BrowserImportFormatId
+      chatIndex?: number
+      sessionGapThreshold?: number
+    }
     result: BrowserSessionImportResult
   }
   'session.list': {

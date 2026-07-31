@@ -46,7 +46,14 @@ export class BrowserImportAdapter implements ImportAdapter {
     const controller = new AbortController()
     this.activeImport = controller
     try {
-      return await this.importBrowserFile(file, formatId, options?.chatIndex, controller.signal, onProgress)
+      return await this.importBrowserFile(
+        file,
+        formatId,
+        options?.chatIndex,
+        options?.sessionGapThreshold,
+        controller.signal,
+        onProgress
+      )
     } catch (error) {
       return { success: false, error: error instanceof Error ? error.message : String(error) }
     } finally {
@@ -81,7 +88,8 @@ export class BrowserImportAdapter implements ImportAdapter {
   importPreparedChat(
     _sourceId: string,
     _chatId: string,
-    _onProgress?: (progress: ImportProgress) => void
+    _onProgress?: (progress: ImportProgress) => void,
+    _options?: ImportOptions
   ): Promise<ImportResult> {
     return unsupported('Prepared import sources')
   }
@@ -90,7 +98,11 @@ export class BrowserImportAdapter implements ImportAdapter {
     return unsupported('Prepared import sources')
   }
 
-  async importDemo(locale: string, onProgress?: (progress: DemoProgress) => void): Promise<DemoImportResult> {
+  async importDemo(
+    locale: string,
+    onProgress?: (progress: DemoProgress) => void,
+    options?: ImportOptions
+  ): Promise<DemoImportResult> {
     if (this.activeImport) return { success: false, error: 'Another Web WASM import is already running' }
 
     const controller = new AbortController()
@@ -113,7 +125,13 @@ export class BrowserImportAdapter implements ImportAdapter {
 
       for (const file of files) {
         onProgress?.({ stage: 'importing' })
-        const result = await this.importBrowserFile(file, 'chatlab', undefined, controller.signal)
+        const result = await this.importBrowserFile(
+          file,
+          'chatlab',
+          undefined,
+          options?.sessionGapThreshold,
+          controller.signal
+        )
         if (!result.success || !result.sessionId) {
           throw new Error(result.error || `Failed to import demo: ${file.name}`)
         }
@@ -201,12 +219,13 @@ export class BrowserImportAdapter implements ImportAdapter {
     file: File,
     formatId: BrowserImportFormatId | undefined,
     chatIndex: number | undefined,
+    sessionGapThreshold: number | undefined,
     signal: AbortSignal,
     onProgress?: (progress: ImportProgress) => void
   ): Promise<ImportResult> {
     const result = await this.rpc.request(
       'import.start',
-      { source: file as BrowserParseSource, formatId, chatIndex },
+      { source: file as BrowserParseSource, formatId, chatIndex, sessionGapThreshold },
       {
         signal,
         onProgress: (progress) => onProgress?.(mapImportProgress(progress)),

@@ -3,7 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
-import { CHAT_DB_SCHEMA } from '@openchatlab/core'
+import { CHAT_DB_SCHEMA, generateSessionIndex } from '@openchatlab/core'
 import { openBetterSqliteDatabase } from '../better-sqlite3-adapter'
 import { analyzeIncrementalImport, incrementalImport, type IncrementalImportDeps } from './incremental-importer'
 
@@ -143,6 +143,58 @@ test('imports ChatLab JSONL messages with numeric string timestamps consistently
     ts: 1780330832,
     content: 'hello from CipherTalk',
   })
+})
+
+test('continues incremental session indexing with the stored gap threshold', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const dbPath = path.join(tempDir, 'session.db')
+  const filePath = path.join(tempDir, 'incremental-threshold.json')
+  seedSessionDb(dbPath)
+
+  const seededDb = openBetterSqliteDatabase(dbPath, { nativeBinding })
+  seededDb.prepare('INSERT INTO member (platform_id, account_name) VALUES (?, ?)').run('wxid_alice', 'Alice')
+  const member = seededDb.prepare('SELECT id FROM member WHERE platform_id = ?').get('wxid_alice') as { id: number }
+  seededDb
+    .prepare('INSERT INTO message (sender_id, ts, type, content) VALUES (?, ?, ?, ?)')
+    .run(member.id, 100, 0, 'before')
+  generateSessionIndex(seededDb, 60)
+  seededDb.close()
+
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify({
+      chatlab: { version: '0.0.2', exportedAt: 200 },
+      meta: { name: 'Threshold', platform: 'wechat', type: 'private' },
+      members: [{ platformId: 'wxid_alice', accountName: 'Alice' }],
+      messages: [
+        {
+          sender: 'wxid_alice',
+          accountName: 'Alice',
+          timestamp: 200,
+          type: 0,
+          content: 'after',
+        },
+      ],
+    }),
+    'utf8'
+  )
+
+  const result = await incrementalImport('session', filePath, createDeps(dbPath))
+  assert.equal(result.success, true)
+
+  const db = openBetterSqliteDatabase(dbPath, { readonly: true, nativeBinding })
+  const counts = db
+    .prepare(
+      `SELECT
+         (SELECT COUNT(*) FROM segment) AS segments,
+         (SELECT session_gap_threshold FROM meta LIMIT 1) AS gapThreshold`
+    )
+    .get() as { segments: number; gapThreshold: number | null }
+  db.close()
+
+  assert.deepEqual(counts, { segments: 2, gapThreshold: 60 })
 })
 
 test('preserves ChatLab JSON member aliases during incremental import', async (t) => {

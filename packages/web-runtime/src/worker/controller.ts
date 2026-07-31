@@ -215,11 +215,13 @@ export class WebRuntimeWorkerController {
             size: request.payload.source.size,
             requestedFormat: request.payload.formatId ?? 'auto',
             chatIndex: request.payload.chatIndex,
+            sessionGapThreshold: request.payload.sessionGapThreshold,
           },
         })
         const result = await this.sessionRuntime.importSource(request.payload.source, {
           formatId: request.payload.formatId,
           chatIndex: request.payload.chatIndex,
+          sessionGapThreshold: request.payload.sessionGapThreshold,
           signal,
           checkCancelled: () => this.throwIfCancelled(request.id),
           onDatabaseStage: (stage) => this.handleDatabaseStage(request, stage),

@@ -132,6 +132,7 @@ export interface MergeParams {
   outputFormat?: OutputFormat // 输出格式，默认 'json'
   conflictResolutions: ConflictResolution[]
   andAnalyze: boolean
+  sessionGapThreshold?: number
 }
 
 /**

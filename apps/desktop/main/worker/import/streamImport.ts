@@ -66,7 +66,7 @@ function buildElectronLogger(): ImportLogger {
   }
 }
 
-function buildStreamImportDeps(requestId: string): StreamImportDeps {
+function buildStreamImportDeps(requestId: string, sessionGapThreshold?: number): StreamImportDeps {
   return {
     openDatabase(sessionId: string) {
       const db = createDatabaseWithoutIndexes(sessionId)
@@ -101,6 +101,7 @@ function buildStreamImportDeps(requestId: string): StreamImportDeps {
       }
     },
     generateSessionId,
+    sessionGapThreshold,
   }
 }
 
@@ -111,16 +112,23 @@ export async function streamImport(
   filePath: string,
   requestId: string,
   formatOptions?: Record<string, unknown>,
-  externalSessionId?: string
+  externalSessionId?: string,
+  sessionGapThreshold?: number
 ): Promise<StreamImportResult> {
-  return streamingImport(filePath, buildStreamImportDeps(requestId), formatOptions, externalSessionId)
+  return streamingImport(
+    filePath,
+    buildStreamImportDeps(requestId, sessionGapThreshold),
+    formatOptions,
+    externalSessionId
+  )
 }
 
 export async function autoImport(
   filePath: string,
   requestId: string,
   formatOptions?: Record<string, unknown>,
-  explicitSessionId?: string
+  explicitSessionId?: string,
+  sessionGapThreshold?: number
 ): Promise<AutoImportResult> {
   return sharedAutoImportFile(
     filePath,
@@ -136,7 +144,7 @@ export async function autoImport(
       onProgress: (progress) => sendProgress(requestId, progress),
       sessionExists: (sessionId) => fs.existsSync(getDbPath(sessionId)),
       createSession: (sourcePath, sourceFormatOptions, sessionId) =>
-        streamImport(sourcePath, requestId, sourceFormatOptions, sessionId),
+        streamImport(sourcePath, requestId, sourceFormatOptions, sessionId, sessionGapThreshold),
       appendSession: (sessionId, sourcePath, sourceFormatOptions) =>
         incrementalImport(sessionId, sourcePath, requestId, {
           formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,

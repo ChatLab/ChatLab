@@ -385,9 +385,19 @@ describe('BrowserImportAdapter', () => {
     const file = createFile('result.json')
 
     assert.equal((await adapter.scanMultiChatFile(file)).length, 2)
-    assert.equal((await adapter.importFile(file, { formatId: 'telegram-native', chatIndex: 1 })).success, true)
+    assert.equal(
+      (
+        await adapter.importFile(file, {
+          formatId: 'telegram-native',
+          chatIndex: 1,
+          sessionGapThreshold: 7200,
+        })
+      ).success,
+      true
+    )
     assert.equal(requests[0].type, 'import.scanChats')
     assert.equal(requests[1].type, 'import.start')
     assert.equal((requests[1].payload as WebRuntimeTaskPayload<'import.start'>).chatIndex, 1)
+    assert.equal((requests[1].payload as WebRuntimeTaskPayload<'import.start'>).sessionGapThreshold, 7200)
   })
 })

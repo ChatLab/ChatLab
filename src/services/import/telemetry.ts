@@ -152,10 +152,11 @@ export class TelemetryImportAdapter implements ImportAdapter {
   importPreparedChat(
     sourceId: string,
     chatId: string,
-    onProgress?: (progress: ImportProgress) => void
+    onProgress?: (progress: ImportProgress) => void,
+    options?: ImportOptions
   ): Promise<ImportResult> {
     return this.runTrackedImport(this.sourcePlatforms.get(sourceId) ?? 'unknown', () =>
-      this.delegate.importPreparedChat(sourceId, chatId, onProgress)
+      this.delegate.importPreparedChat(sourceId, chatId, onProgress, options)
     )
   }
 
@@ -171,8 +172,12 @@ export class TelemetryImportAdapter implements ImportAdapter {
     return this.delegate.getSupportedFormats()
   }
 
-  importDemo(locale: string, onProgress?: (progress: DemoProgress) => void): Promise<DemoImportResult> {
-    return this.delegate.importDemo(locale, onProgress)
+  importDemo(
+    locale: string,
+    onProgress?: (progress: DemoProgress) => void,
+    options?: ImportOptions
+  ): Promise<DemoImportResult> {
+    return this.delegate.importDemo(locale, onProgress, options)
   }
 
   async analyzeIncrementalImport(sessionId: string, file: File | string): Promise<IncrementalAnalysis> {

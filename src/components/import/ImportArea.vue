@@ -12,9 +12,9 @@ import { useSessionStore, type BatchFileInfo, type MergeFileInfo } from '@/store
 import {
   useDataService,
   useImportService,
-  useSessionIndexService,
   usePlatformService,
   type PreparedImportSource,
+  type ImportOptions,
   type ImportResult,
 } from '@/services'
 import { IS_ELECTRON } from '@/utils/platform'
@@ -59,14 +59,8 @@ const preparedImportSource = ref<PreparedImportSource | null>(null)
 const showFormatSelector = ref(false)
 const formatSelectorFilePath = ref('')
 
-async function autoGenerateSessionIndex(sessionId: string, importMode?: ImportResult['importMode']) {
-  if (!props.backendFeatures || importMode !== 'created') return
-  try {
-    const gapThreshold = getSessionGapThreshold()
-    await useSessionIndexService().generate(sessionId, gapThreshold)
-  } catch (error) {
-    console.error('自动生成会话索引失败:', error)
-  }
+function withSessionGapThreshold(options: ImportOptions = {}): ImportOptions {
+  return { ...options, sessionGapThreshold: getSessionGapThreshold() }
 }
 
 function showImportOutcome(result: ImportResult) {
@@ -313,12 +307,12 @@ async function processWebFiles(files: File[]) {
 
 const pendingWebFile = ref<File | null>(null)
 
-async function importSingleWebFile(file: File, options?: { formatId?: string; chatIndex?: number }) {
+async function importSingleWebFile(file: File, options?: ImportOptions) {
   isImporting.value = true
   importProgress.value = { stage: 'detecting', progress: 0, message: '' }
 
   try {
-    const result = await useImportService().importFile(file, options, (p) => {
+    const result = await useImportService().importFile(file, withSessionGapThreshold(options), (p) => {
       if (p.stage === 'done') return
       importProgress.value = p
     })
@@ -387,7 +381,7 @@ async function importDirectory(source: File[] | string) {
   importProgress.value = { stage: 'detecting', progress: 0, message: '' }
 
   try {
-    const result = await useImportService().importDirectory(source, undefined, (p) => {
+    const result = await useImportService().importDirectory(source, withSessionGapThreshold(), (p) => {
       if (p.stage === 'done') return
       importProgress.value = p
     })
@@ -500,7 +494,7 @@ async function handleFormatSelect(formatId: string) {
   importProgress.value = { stage: 'detecting', progress: 0, message: '' }
 
   try {
-    const result = await useImportService().importFile(filePath, { formatId }, (progress) => {
+    const result = await useImportService().importFile(filePath, withSessionGapThreshold({ formatId }), (progress) => {
       if (progress.stage === 'done') return
       importProgress.value = progress
     })
@@ -513,7 +507,6 @@ async function handleFormatSelect(formatId: string) {
     if (result.success && result.sessionId) {
       await sessionStore.loadSessions()
       sessionStore.selectSession(result.sessionId)
-      await autoGenerateSessionIndex(result.sessionId, result.importMode)
       showImportOutcome(result)
       await navigateToSession(result.sessionId)
     } else {
@@ -547,12 +540,12 @@ async function handleChatSelect(selectedChats: ChatInfo[]) {
           selectedChats[0].chatId,
           (progress) => {
             if (progress.stage !== 'done') importProgress.value = progress
-          }
+          },
+          withSessionGapThreshold()
         )
         if (result.success && result.sessionId) {
           await sessionStore.loadSessions()
           sessionStore.selectSession(result.sessionId)
-          await autoGenerateSessionIndex(result.sessionId, result.importMode)
           showImportOutcome(result)
           await navigateToSession(result.sessionId)
         } else {
@@ -591,12 +584,14 @@ async function handleChatSelect(selectedChats: ChatInfo[]) {
       },
       importChat: async (sourceId, chatId) => {
         const index = selectedChats.findIndex((chat) => chat.chatId === chatId)
-        const result = await useImportService().importPreparedChat(sourceId, chatId, (progress) => {
-          if (progress.stage !== 'done' && index >= 0) batchFiles.value[index].progress = progress
-        })
-        if (result.success && result.sessionId) {
-          await autoGenerateSessionIndex(result.sessionId, result.importMode)
-        }
+        const result = await useImportService().importPreparedChat(
+          sourceId,
+          chatId,
+          (progress) => {
+            if (progress.stage !== 'done' && index >= 0) batchFiles.value[index].progress = progress
+          },
+          withSessionGapThreshold()
+        )
         return result
       },
       onItemComplete: (_chat, index, result) => {
@@ -655,7 +650,7 @@ async function handleChatSelect(selectedChats: ChatInfo[]) {
     try {
       const result = await useImportService().importFile(
         filePath,
-        { chatIndex: selectedChats[0].index! },
+        withSessionGapThreshold({ chatIndex: selectedChats[0].index! }),
         (progress) => {
           if (progress.stage === 'done') return
           importProgress.value = progress
@@ -670,7 +665,6 @@ async function handleChatSelect(selectedChats: ChatInfo[]) {
       if (result.success && result.sessionId) {
         await sessionStore.loadSessions()
         sessionStore.selectSession(result.sessionId)
-        await autoGenerateSessionIndex(result.sessionId, result.importMode)
         showImportOutcome(result)
         await navigateToSession(result.sessionId)
       } else {
@@ -700,10 +694,14 @@ async function handleChatSelect(selectedChats: ChatInfo[]) {
       batchFiles.value[i].status = 'importing'
 
       try {
-        const result = await useImportService().importFile(filePath, { chatIndex: chat.index! }, (progress) => {
-          if (progress.stage === 'done') return
-          batchFiles.value[i].progress = progress
-        })
+        const result = await useImportService().importFile(
+          filePath,
+          withSessionGapThreshold({ chatIndex: chat.index! }),
+          (progress) => {
+            if (progress.stage === 'done') return
+            batchFiles.value[i].progress = progress
+          }
+        )
 
         if (result.success && result.sessionId) {
           batchFiles.value[i].status = 'success'
@@ -714,7 +712,6 @@ async function handleChatSelect(selectedChats: ChatInfo[]) {
           batchFiles.value[i].newMessageCount = result.newMessageCount
           batchFiles.value[i].duplicateCount = result.duplicateCount
           successCount++
-          await autoGenerateSessionIndex(result.sessionId, result.importMode)
         } else {
           batchFiles.value[i].status = 'failed'
           batchFiles.value[i].error = result.error

@@ -48,7 +48,8 @@ export const chatApi = {
 
   import: (filePath: string): Promise<ChatImportResult> => ipcRenderer.invoke('chat:import', filePath),
 
-  importDirectory: (dirPath: string): Promise<ChatImportResult> => ipcRenderer.invoke('chat:importDirectory', dirPath),
+  importDirectory: (dirPath: string, options?: Record<string, unknown>): Promise<ChatImportResult> =>
+    ipcRenderer.invoke('chat:importDirectory', dirPath, options),
 
   detectFormat: (
     filePath: string
@@ -68,8 +69,11 @@ export const chatApi = {
 
   prepareImportSource: (filePath: string) => ipcRenderer.invoke('chat:prepareImportSource', filePath),
 
-  importPreparedChat: (sourceId: string, chatId: string): Promise<ChatImportResult> =>
-    ipcRenderer.invoke('chat:importPreparedChat', sourceId, chatId),
+  importPreparedChat: (
+    sourceId: string,
+    chatId: string,
+    options?: Record<string, unknown>
+  ): Promise<ChatImportResult> => ipcRenderer.invoke('chat:importPreparedChat', sourceId, chatId, options),
 
   releaseImportSource: (sourceId: string) => ipcRenderer.invoke('chat:releaseImportSource', sourceId),
 
@@ -105,9 +109,10 @@ export const chatApi = {
   // ==================== Demo ====================
 
   importDemo: (
-    locale: string
+    locale: string,
+    options?: Record<string, unknown>
   ): Promise<{ success: boolean; groupSessionId?: string; privateSessionIds?: string[]; error?: string }> =>
-    ipcRenderer.invoke('demo:downloadAndImport', locale),
+    ipcRenderer.invoke('demo:downloadAndImport', locale, options),
 
   onDemoProgress: (
     callback: (progress: { stage: string; current: number; total: number; message?: string }) => void

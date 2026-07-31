@@ -26,6 +26,7 @@ export {
   getSummaryCount,
   getLastPlatformMessageId,
   DEFAULT_SESSION_GAP_THRESHOLD,
+  normalizeSessionGapThreshold,
   hasSessionIndex,
   getSessionIndexStats,
   getChatSessionList,

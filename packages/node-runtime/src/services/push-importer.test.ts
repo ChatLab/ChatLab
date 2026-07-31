@@ -3,6 +3,7 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
+import { generateSessionIndex } from '@openchatlab/core'
 import { DatabaseManager } from '../database-manager'
 import { raiseDataDirMinRuntimeVersion, readDataDirCompatibilityMeta, type RuntimeIdentity } from '../data-dir-compat'
 import { withDataDirImportLock } from '../import/import-lock'
@@ -140,6 +141,47 @@ test('analyzes incremental push deduplication without writing', async (t) => {
   if (!outcome.ok || !analysis.ok) return
   assert.equal(outcome.result.batch.writtenCount, analysis.result.newMessageCount)
   assert.equal(outcome.result.batch.duplicateCount, analysis.result.duplicateCount)
+})
+
+test('continues incremental push indexing with the stored gap threshold', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const manager = createDatabaseManager(tempDir)
+  const sessionId = 'incremental-index-threshold'
+  const initialOutcome = await pushImport(manager, sessionId, {
+    chatlab: { version: '0.0.2', exportedAt: 100 },
+    meta: { name: 'Incremental Threshold', platform: 'wechat', type: 'private' },
+    members: [{ platformId: 'wxid_alice', accountName: 'Alice' }],
+    messages: [{ sender: 'wxid_alice', timestamp: 100, type: 0, content: 'before' }],
+  })
+  assert.equal(initialOutcome.ok, true)
+
+  const writeDb = manager.openRawSessionDatabase(sessionId)
+  try {
+    generateSessionIndex(writeDb, 60)
+  } finally {
+    writeDb.close()
+  }
+
+  const incrementalOutcome = await pushImport(manager, sessionId, {
+    messages: [{ sender: 'wxid_alice', timestamp: 200, type: 0, content: 'after' }],
+  })
+  assert.equal(incrementalOutcome.ok, true)
+
+  const readDb = manager.openRawSessionDatabase(sessionId, { readonly: true })
+  try {
+    const counts = readDb
+      .prepare(
+        `SELECT
+           (SELECT COUNT(*) FROM segment) AS segments,
+           (SELECT session_gap_threshold FROM meta LIMIT 1) AS gapThreshold`
+      )
+      .get() as { segments: number; gapThreshold: number | null }
+    assert.deepEqual(counts, { segments: 2, gapThreshold: 60 })
+  } finally {
+    readDb.close()
+  }
 })
 
 test('rejects push imports while any writer holds the data-directory import lock', async (t) => {

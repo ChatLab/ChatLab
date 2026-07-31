@@ -58,6 +58,7 @@ export interface StreamImportProgress {
 export interface StreamImportOptions {
   formatId?: string
   chatIndex?: number
+  sessionGapThreshold?: number
   nativeBinding?: string
   onProgress?: (progress: StreamImportProgress) => void
   /** Fix the target session ID instead of auto-generating one. Used by sync/pull adapters. */
@@ -70,7 +71,11 @@ function generateSessionId(): string {
   return `chat_${ts}_${rand}`
 }
 
-function buildStreamImportDeps(dbManager: DatabaseManager, onProgress?: ImportProgressCallback): StreamImportDeps {
+function buildStreamImportDeps(
+  dbManager: DatabaseManager,
+  onProgress?: ImportProgressCallback,
+  sessionGapThreshold?: number
+): StreamImportDeps {
   return {
     openDatabase(sessionId: string) {
       return dbManager.openRawSessionDatabase(sessionId, { create: true, initializeChatTables: true })
@@ -80,6 +85,7 @@ function buildStreamImportDeps(dbManager: DatabaseManager, onProgress?: ImportPr
     },
     onProgress: onProgress ?? (() => {}),
     generateSessionId,
+    sessionGapThreshold,
   }
 }
 
@@ -138,7 +144,7 @@ async function streamImportUnlocked(
   filePath: string,
   options?: StreamImportOptions
 ): Promise<StreamImportResult> {
-  const { formatId, chatIndex, onProgress, sessionId } = options || {}
+  const { formatId, chatIndex, sessionGapThreshold, onProgress, sessionId } = options || {}
 
   const formatOptions: Record<string, unknown> = {}
   if (formatId) formatOptions.formatId = formatId
@@ -146,7 +152,7 @@ async function streamImportUnlocked(
 
   const progressAdapter = createProgressAdapter(onProgress)
 
-  const deps = buildStreamImportDeps(dbManager, progressAdapter)
+  const deps = buildStreamImportDeps(dbManager, progressAdapter, sessionGapThreshold)
   const result = await streamingImport(filePath, deps, formatOptions, sessionId)
   if (!result.success || !result.sessionId) return result
 

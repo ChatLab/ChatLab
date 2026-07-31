@@ -46,7 +46,7 @@ export class ElectronImportAdapter implements ImportAdapter {
       })
 
       const importPromise =
-        options && (options.formatId || options.chatIndex !== undefined)
+        options && (options.formatId || options.chatIndex !== undefined || options.sessionGapThreshold !== undefined)
           ? window.chatApi.importWithOptions(filePath, options as Record<string, unknown>)
           : window.chatApi.import(filePath)
 
@@ -100,7 +100,8 @@ export class ElectronImportAdapter implements ImportAdapter {
   async importPreparedChat(
     sourceId: string,
     chatId: string,
-    onProgress?: (p: ImportProgress) => void
+    onProgress?: (p: ImportProgress) => void,
+    options?: ImportOptions
   ): Promise<ImportResult> {
     const unlisten = window.chatApi.onImportProgress((progress: any) => {
       onProgress?.({
@@ -113,7 +114,11 @@ export class ElectronImportAdapter implements ImportAdapter {
       })
     })
     try {
-      return normalizeImportResult(await window.chatApi.importPreparedChat(sourceId, chatId))
+      return normalizeImportResult(
+        await (options
+          ? window.chatApi.importPreparedChat(sourceId, chatId, options as Record<string, unknown>)
+          : window.chatApi.importPreparedChat(sourceId, chatId))
+      )
     } finally {
       unlisten()
     }
@@ -127,7 +132,11 @@ export class ElectronImportAdapter implements ImportAdapter {
     return window.chatApi.getSupportedFormats()
   }
 
-  async importDemo(locale: string, onProgress?: (p: DemoProgress) => void): Promise<DemoImportResult> {
+  async importDemo(
+    locale: string,
+    onProgress?: (p: DemoProgress) => void,
+    options?: ImportOptions
+  ): Promise<DemoImportResult> {
     const unlisten = window.chatApi.onDemoProgress((progress: any) => {
       if (progress.stage === 'downloading' || progress.stage === 'importing') {
         onProgress?.({ stage: progress.stage })
@@ -135,7 +144,9 @@ export class ElectronImportAdapter implements ImportAdapter {
     })
 
     try {
-      const result = await window.chatApi.importDemo(locale)
+      const result = await (options
+        ? window.chatApi.importDemo(locale, options as Record<string, unknown>)
+        : window.chatApi.importDemo(locale))
       return result
     } finally {
       unlisten()
@@ -170,7 +181,7 @@ export class ElectronImportAdapter implements ImportAdapter {
 
   async importDirectory(
     source: File[] | string,
-    _options?: ImportOptions,
+    options?: ImportOptions,
     onProgress?: (p: ImportProgress) => void
   ): Promise<ImportResult> {
     if (typeof source !== 'string') {
@@ -189,8 +200,11 @@ export class ElectronImportAdapter implements ImportAdapter {
         })
       })
 
-      window.chatApi
-        .importDirectory(source)
+      const importPromise = options
+        ? window.chatApi.importDirectory(source, options as Record<string, unknown>)
+        : window.chatApi.importDirectory(source)
+
+      importPromise
         .then((result) => {
           unlisten()
           resolve(

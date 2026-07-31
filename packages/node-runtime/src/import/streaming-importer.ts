@@ -10,7 +10,11 @@
  */
 
 import type { DatabaseAdapter } from '@openchatlab/core'
-import { CHAT_DB_INDEXES, generateSessionIndex } from '@openchatlab/core'
+import {
+  CHAT_DB_INDEXES,
+  generateSessionIndex as generateCoreSessionIndex,
+  normalizeSessionGapThreshold,
+} from '@openchatlab/core'
 import type { ParsedMember, ParsedMessage } from '@openchatlab/shared-types'
 import {
   streamParseFile,
@@ -112,6 +116,10 @@ export interface StreamImportDeps {
   postImportHook?: (db: DatabaseAdapter, sessionId: string) => void | Promise<void>
   /** Generate a session ID. Defaults to timestamp + random. */
   generateSessionId?: () => string
+  /** Session gap threshold used by the single post-import session-index build. */
+  sessionGapThreshold?: number
+  /** Optional test/platform override for the session-index builder. */
+  generateSessionIndex?: typeof generateCoreSessionIndex
 }
 
 // ==================== Core streaming import ====================
@@ -764,11 +772,14 @@ async function streamImportSingle(
 
     // Build session index (segment / message_context tables)
     const sessionIndexStartedAt = performance.now()
+    const sessionGapThreshold = normalizeSessionGapThreshold(deps.sessionGapThreshold)
     try {
-      generateSessionIndex(db)
+      const generateSessionIndex = deps.generateSessionIndex ?? generateCoreSessionIndex
+      generateSessionIndex(db, sessionGapThreshold)
+      logger?.perfDetail(`[SessionIndex] Built with gap threshold ${sessionGapThreshold}s`)
       logger?.perf('Session index built', totalMessageCount)
-    } catch {
-      /* non-fatal */
+    } catch (error) {
+      logger?.error('Session index build failed (non-fatal)', error instanceof Error ? error : undefined)
     } finally {
       timings.sessionIndexMs = elapsedMs(sessionIndexStartedAt)
       sampleRss()

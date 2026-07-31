@@ -369,6 +369,17 @@ export function getSegmentSummaries(
 
 /** Default gap threshold for session segmentation: 30 minutes (seconds) */
 export const DEFAULT_SESSION_GAP_THRESHOLD = 1800
+const MIN_SESSION_GAP_THRESHOLD = 60
+const MAX_SESSION_GAP_THRESHOLD = 86400
+
+export function normalizeSessionGapThreshold(value: unknown): number {
+  return typeof value === 'number' &&
+    Number.isInteger(value) &&
+    value >= MIN_SESSION_GAP_THRESHOLD &&
+    value <= MAX_SESSION_GAP_THRESHOLD
+    ? value
+    : DEFAULT_SESSION_GAP_THRESHOLD
+}
 
 export interface ChatSessionItem {
   id: number
@@ -650,6 +661,7 @@ export function generateSessionIndex(
       processed++
       if (onProgress && processed % 100 === 0) onProgress(processed, total)
     }
+    updateSessionGapThreshold(db, gapThreshold)
     if (onProgress) onProgress(total, total)
     return total
   })

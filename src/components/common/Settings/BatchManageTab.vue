@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import { useToast } from '@/composables/useToast'
+import { getSessionGapThreshold } from '@/composables/useUiConfig'
 import { useTableRowSelection, useTableSort, type TableSortDirection } from '@/composables/useTable'
 import { useSessionStore } from '@/stores/session'
 import type { AnalysisSession } from '@/types/base'
@@ -455,6 +456,7 @@ async function executeMerge() {
         resolution: 'keep1' as const,
       })),
       andAnalyze: true, // 直接导入分析
+      sessionGapThreshold: getSessionGapThreshold(),
     })
 
     if (!mergeResult.success) {

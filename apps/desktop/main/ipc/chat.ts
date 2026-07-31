@@ -146,24 +146,33 @@ export function registerChatHandlers(ctx: IpcContext): void {
     }
   })
 
-  ipcMain.handle('chat:importPreparedChat', async (_, sourceId: string, chatId: string) => {
-    try {
-      const result = await getArchiveImportSourceManager().withMaterializedChat(sourceId, chatId, (manifestPath) =>
-        worker.autoImport(manifestPath, forwardImportProgress, { formatId: 'google-chat-takeout' })
-      )
-      return finishAutoImport(result)
-    } catch (error) {
-      return {
-        success: false,
-        error:
-          error && typeof error === 'object' && 'code' in error
-            ? String(error.code)
-            : error instanceof Error
-              ? error.message
-              : String(error),
+  ipcMain.handle(
+    'chat:importPreparedChat',
+    async (_, sourceId: string, chatId: string, options?: { sessionGapThreshold?: number }) => {
+      try {
+        const result = await getArchiveImportSourceManager().withMaterializedChat(sourceId, chatId, (manifestPath) =>
+          worker.autoImport(
+            manifestPath,
+            forwardImportProgress,
+            { formatId: 'google-chat-takeout' },
+            undefined,
+            options?.sessionGapThreshold
+          )
+        )
+        return finishAutoImport(result)
+      } catch (error) {
+        return {
+          success: false,
+          error:
+            error && typeof error === 'object' && 'code' in error
+              ? String(error.code)
+              : error instanceof Error
+                ? error.message
+                : String(error),
+        }
       }
     }
-  })
+  )
 
   ipcMain.handle('chat:releaseImportSource', async (_, sourceId: string) => {
     await getArchiveImportSourceManager().release(sourceId)
@@ -184,14 +193,20 @@ export function registerChatHandlers(ctx: IpcContext): void {
     }
   })
 
-  ipcMain.handle('chat:importDirectory', async (_, dirPath: string) => {
+  ipcMain.handle('chat:importDirectory', async (_, dirPath: string, options?: { sessionGapThreshold?: number }) => {
     try {
       const entryPath = findEntryFileInDirectory(dirPath)
       if (!entryPath) return { success: false, error: 'No recognizable import format found in directory' }
 
       win.webContents.send('chat:importProgress', { stage: 'detecting', progress: 5, message: '' })
 
-      const result = await worker.autoImport(entryPath, forwardImportProgress)
+      const result = await worker.autoImport(
+        entryPath,
+        forwardImportProgress,
+        undefined,
+        undefined,
+        options?.sessionGapThreshold
+      )
       return finishAutoImport(result)
     } catch (error) {
       win.webContents.send('chat:importProgress', { stage: 'error', progress: 0, message: String(error) })
@@ -199,11 +214,18 @@ export function registerChatHandlers(ctx: IpcContext): void {
     }
   })
 
-  ipcMain.handle('chat:importWithOptions', async (_, filePath: string, formatOptions: Record<string, unknown>) => {
+  ipcMain.handle('chat:importWithOptions', async (_, filePath: string, options: Record<string, unknown>) => {
     try {
       win.webContents.send('chat:importProgress', { stage: 'detecting', progress: 5, message: '' })
 
-      const result = await worker.autoImport(filePath, forwardImportProgress, formatOptions)
+      const { sessionGapThreshold, ...formatOptions } = options
+      const result = await worker.autoImport(
+        filePath,
+        forwardImportProgress,
+        formatOptions,
+        undefined,
+        typeof sessionGapThreshold === 'number' ? sessionGapThreshold : undefined
+      )
       return finishAutoImport(result)
     } catch (error) {
       win.webContents.send('chat:importProgress', { stage: 'error', progress: 0, message: String(error) })

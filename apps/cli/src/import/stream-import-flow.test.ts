@@ -76,13 +76,27 @@ test('streamImport raises the data directory gate after creating a current-schem
   })
 
   const chatFile = writeTempChatFile(root)
-  const result = await streamImport(manager, chatFile, { sessionId: 'test-session', nativeBinding })
+  const result = await streamImport(manager, chatFile, {
+    sessionId: 'test-session',
+    sessionGapThreshold: 7200,
+    nativeBinding,
+  })
 
   assert.equal(result.success, true)
   const meta = readDataDirCompatibilityMeta(path.join(root, 'data'))
   assert.equal(meta?.minRuntimeVersion, '0.25.1')
   assert.equal(meta?.dataCompatibilityVersion, 1)
   assert.deepEqual(meta?.reasons, ['segment-schema'])
+
+  const db = new Database(path.join(root, 'data', 'databases', 'test-session.db'), {
+    readonly: true,
+    nativeBinding,
+  })
+  const sessionMeta = db.prepare('SELECT session_gap_threshold FROM meta LIMIT 1').get() as {
+    session_gap_threshold: number | null
+  }
+  db.close()
+  assert.equal(sessionMeta.session_gap_threshold, 7200)
 })
 
 test('streamImport re-checks data directory compatibility before raw database writes', async () => {

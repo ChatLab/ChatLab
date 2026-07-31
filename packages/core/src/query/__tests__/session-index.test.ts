@@ -12,6 +12,7 @@ import assert from 'node:assert/strict'
 import Database from 'better-sqlite3'
 import {
   DEFAULT_SESSION_GAP_THRESHOLD,
+  normalizeSessionGapThreshold,
   hasSessionIndex,
   getSessionIndexStats,
   getChatSessionList,
@@ -124,6 +125,15 @@ describe('DEFAULT_SESSION_GAP_THRESHOLD', () => {
   it('equals 1800 (30 minutes)', () => {
     assert.equal(DEFAULT_SESSION_GAP_THRESHOLD, 1800)
   })
+
+  it('normalizes transport values to the supported range', () => {
+    assert.equal(normalizeSessionGapThreshold(60), 60)
+    assert.equal(normalizeSessionGapThreshold(86400), 86400)
+    assert.equal(normalizeSessionGapThreshold(59), DEFAULT_SESSION_GAP_THRESHOLD)
+    assert.equal(normalizeSessionGapThreshold(86401), DEFAULT_SESSION_GAP_THRESHOLD)
+    assert.equal(normalizeSessionGapThreshold(60.5), DEFAULT_SESSION_GAP_THRESHOLD)
+    assert.equal(normalizeSessionGapThreshold('7200'), DEFAULT_SESSION_GAP_THRESHOLD)
+  })
 })
 
 describe('hasSessionIndex', () => {
@@ -179,6 +189,7 @@ describe('generateSessionIndex', () => {
     assert.equal(count, 2)
     assert.equal(countRows(db, 'segment'), 2)
     assert.equal(countRows(db, 'message_context'), 4)
+    assert.equal(getSessionIndexStats(db).gapThreshold, 2000)
   })
 
   it('puts all messages in one session when gap is large enough', () => {
@@ -373,8 +384,9 @@ describe('generateSessionIndex atomicity', () => {
       END;
     `)
 
-    assert.throws(() => generateSessionIndex(db, 2000), /blocked/)
+    assert.throws(() => generateSessionIndex(db, 900), /blocked/)
     assert.equal(countRows(db, 'segment'), 2)
     assert.equal(countRows(db, 'message_context'), 2)
+    assert.equal(getSessionIndexStats(db).gapThreshold, 2000)
   })
 })

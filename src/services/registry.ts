@@ -265,6 +265,7 @@ function installMergeShims(platform: 'electron' | 'cli-web'): void {
       outputName: string
       outputFormat?: string
       andAnalyze?: boolean
+      sessionGapThreshold?: number
     }) => {
       try {
         const handles = params.filePaths.map(resolveHandle)
@@ -276,6 +277,7 @@ function installMergeShims(platform: 'electron' | 'cli-web'): void {
             outputName: params.outputName,
             format: params.outputFormat || 'json',
             andImport: params.andAnalyze ?? false,
+            sessionGapThreshold: params.sessionGapThreshold,
           }),
         })
         await ensureOk(resp, 'mergeFiles')

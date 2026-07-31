@@ -4,5 +4,9 @@ import type { DatabaseManager, MergeSessionCache } from '@openchatlab/node-runti
 export interface MergeRouteContext {
   mergeSessionCache?: MergeSessionCache
   /** Platform-specific import function for the merge "andImport" flow. */
-  streamImport?: (dbManager: DatabaseManager, filePath: string) => Promise<{ sessionId: string }>
+  streamImport?: (
+    dbManager: DatabaseManager,
+    filePath: string,
+    options?: { sessionGapThreshold?: number }
+  ) => Promise<{ sessionId: string }>
 }

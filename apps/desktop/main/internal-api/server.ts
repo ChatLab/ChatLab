@@ -111,7 +111,11 @@ export async function startInternalServer(
       newSemanticIndexService = null
     }
 
-    const electronStreamImport = async (dm: DatabaseManager, filePath: string) => {
+    const electronStreamImport = async (
+      dm: DatabaseManager,
+      filePath: string,
+      options?: { sessionGapThreshold?: number }
+    ) => {
       return withDataDirImportLock(dm.getUserDataDir(), async () => {
         const deps: StreamImportDeps = {
           openDatabase(sessionId: string) {
@@ -123,6 +127,7 @@ export async function startInternalServer(
           onProgress() {
             /* no progress for merge-triggered import */
           },
+          sessionGapThreshold: options?.sessionGapThreshold,
         }
         const result = await streamingImport(filePath, deps)
         if (!result.success) throw new Error(result.error || 'Import failed')

@@ -5,17 +5,13 @@ import { useI18n } from 'vue-i18n'
 import { useSessionStore } from '@/stores/session'
 import { useSettingsStore } from '@/stores/settings'
 import { getChatlabSiteLocalePath } from '@/utils/chatlabSiteLocale'
-import { useDataService, useImportService, useSessionIndexService } from '@/services'
+import { useDataService, useImportService } from '@/services'
 import { getSessionGapThreshold } from '@/composables/useUiConfig'
 
 const { t } = useI18n()
 const router = useRouter()
 const sessionStore = useSessionStore()
 const settingsStore = useSettingsStore()
-const props = withDefaults(defineProps<{ generateSessionIndexes?: boolean }>(), {
-  generateSessionIndexes: true,
-})
-
 const isImporting = ref(false)
 const stage = ref<'downloading' | 'importing'>('downloading')
 const error = ref<string | null>(null)
@@ -31,9 +27,13 @@ async function navigateToSession(sessionId: string) {
 async function handleImportViaService() {
   // Demo assets are available in Chinese and English; other interface locales use the English version.
   const demoLocale = getChatlabSiteLocalePath(settingsStore.locale) === 'cn' ? 'cn' : 'en'
-  return useImportService().importDemo(demoLocale, (progress) => {
-    stage.value = progress.stage
-  })
+  return useImportService().importDemo(
+    demoLocale,
+    (progress) => {
+      stage.value = progress.stage
+    },
+    { sessionGapThreshold: getSessionGapThreshold() }
+  )
 }
 
 async function handleImport() {
@@ -47,19 +47,6 @@ async function handleImport() {
     if (result.success && result.groupSessionId) {
       await sessionStore.loadSessions()
       sessionStore.selectSession(result.groupSessionId)
-
-      if (props.generateSessionIndexes) {
-        try {
-          const gapThreshold = getSessionGapThreshold()
-          const sessionIndexService = useSessionIndexService()
-          await sessionIndexService.generate(result.groupSessionId, gapThreshold)
-          if (result.privateSessionIds?.length) {
-            await Promise.all(result.privateSessionIds.map((id) => sessionIndexService.generate(id, gapThreshold)))
-          }
-        } catch (e) {
-          console.error('自动生成会话索引失败:', e)
-        }
-      }
 
       await navigateToSession(result.groupSessionId)
     } else {

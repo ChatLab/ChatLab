@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import Database from 'better-sqlite3'
-import { CHAT_DB_TABLES, type DatabaseAdapter } from '@openchatlab/core'
+import { CHAT_DB_TABLES, generateSessionIndex, type DatabaseAdapter } from '@openchatlab/core'
 import { isNativeFormatAvailable } from '@openchatlab/parser'
 import { BetterSqliteAdapter } from '../better-sqlite3-adapter'
 import { computeAndSetOverviewCache } from '../cache/session-cache'
@@ -414,6 +414,36 @@ test('streamingImport updates avatars for members first created from message bat
 
   assert.equal(row?.platform_id, '10001')
   assert.equal(row?.avatar, 'data:image/png;base64,AAAA')
+})
+
+test('streamingImport builds the session index exactly once with the requested gap threshold', async (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const manifestPath = writeChunkedShuakamiQqExport(root)
+  const dbPath = path.join(root, 'session-index-threshold.db')
+  const deps = createImportDeps(dbPath)
+  let generateCalls = 0
+  let receivedThreshold: number | undefined
+
+  deps.sessionGapThreshold = 60
+  deps.generateSessionIndex = (db, gapThreshold) => {
+    generateCalls++
+    receivedThreshold = gapThreshold
+    return generateSessionIndex(db, gapThreshold)
+  }
+
+  const result = await streamingImport(manifestPath, deps, undefined, 'session-index-threshold')
+
+  assert.equal(result.success, true)
+  assert.equal(generateCalls, 1)
+  assert.equal(receivedThreshold, 60)
+
+  const db = new Database(dbPath, { readonly: true, nativeBinding })
+  const meta = db.prepare('SELECT session_gap_threshold FROM meta LIMIT 1').get() as {
+    session_gap_threshold: number | null
+  }
+  db.close()
+  assert.equal(meta.session_gap_threshold, 60)
 })
 
 test(

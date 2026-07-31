@@ -1,7 +1,7 @@
 import { defineStore } from 'pinia'
 import { ref, computed } from 'vue'
 import type { AnalysisSession, ImportProgress, ChatType } from '@/types/base'
-import { useDataService, useImportService, useSessionIndexService, usePlatformService } from '@/services'
+import { useDataService, useImportService, usePlatformService } from '@/services'
 import type { AutoImportCreateReason, AutoImportMatchMethod, AutoImportMode, ImportDiagnosticsInfo } from '@/services'
 import { IS_ELECTRON } from '@/utils/platform'
 
@@ -265,11 +265,15 @@ export const useSessionStore = defineStore(
           isProcessing = false
         }
 
-        const importResult = await useImportService().importFile(filePath, undefined, (progress) => {
-          if (progress.stage === 'done') return
-          queue.push(progress)
-          processQueue()
-        })
+        const importResult = await useImportService().importFile(
+          filePath,
+          { sessionGapThreshold: getSessionGapThreshold() },
+          (progress) => {
+            if (progress.stage === 'done') return
+            queue.push(progress)
+            processQueue()
+          }
+        )
 
         while (queue.length > 0 || isProcessing) {
           await new Promise((resolve) => setTimeout(resolve, 100))
@@ -288,14 +292,6 @@ export const useSessionStore = defineStore(
         if (importResult.success && importResult.sessionId) {
           await loadSessions()
           currentSessionId.value = importResult.sessionId
-
-          if (importResult.importMode === 'created') {
-            try {
-              await useSessionIndexService().generate(importResult.sessionId, getSessionGapThreshold())
-            } catch (error) {
-              console.error('自动生成会话索引失败:', error)
-            }
-          }
 
           await applyOwnerProfileAfterImport(importResult.sessionId)
 
@@ -426,11 +422,15 @@ export const useSessionStore = defineStore(
             isProcessing = false
           }
 
-          const importResult = await useImportService().importFile(importSources[i].source, undefined, (progress) => {
-            if (progress.stage === 'done') return
-            queue.push(progress)
-            processQueue()
-          })
+          const importResult = await useImportService().importFile(
+            importSources[i].source,
+            { sessionGapThreshold: getSessionGapThreshold() },
+            (progress) => {
+              if (progress.stage === 'done') return
+              queue.push(progress)
+              processQueue()
+            }
+          )
 
           // 等待进度队列处理完成（但如果已取消则快速跳过）
           let waitCount = 0
@@ -452,14 +452,6 @@ export const useSessionStore = defineStore(
               file.duplicateCount = importResult.duplicateCount
               successCount++
 
-              // 即使取消了也要为已导入成功的文件生成会话索引
-              if (importResult.importMode === 'created') {
-                try {
-                  await useSessionIndexService().generate(importResult.sessionId, getSessionGapThreshold())
-                } catch (error) {
-                  console.error('自动生成会话索引失败:', error)
-                }
-              }
               await applyOwnerProfileAfterImport(importResult.sessionId)
             } else {
               file.status = 'failed'
@@ -481,14 +473,6 @@ export const useSessionStore = defineStore(
             file.duplicateCount = importResult.duplicateCount
             successCount++
 
-            // 自动生成会话索引（跳过如果已取消）
-            if (!batchImportCancelled.value && importResult.importMode === 'created') {
-              try {
-                await useSessionIndexService().generate(importResult.sessionId, getSessionGapThreshold())
-              } catch (error) {
-                console.error('自动生成会话索引失败:', error)
-              }
-            }
             await applyOwnerProfileAfterImport(importResult.sessionId)
           } else {
             file.status = 'failed'
@@ -604,6 +588,7 @@ export const useSessionStore = defineStore(
           outputName,
           conflictResolutions: [], // 默认 keepBoth（保留所有消息）
           andAnalyze: true, // 合并后创建会话
+          sessionGapThreshold: getSessionGapThreshold(),
         })
 
         if (!result.success) {
@@ -624,15 +609,6 @@ export const useSessionStore = defineStore(
 
         // 刷新会话列表
         await loadSessions()
-
-        // 自动生成会话索引
-        if (result.sessionId) {
-          try {
-            await useSessionIndexService().generate(result.sessionId, getSessionGapThreshold())
-          } catch (error) {
-            console.error('自动生成会话索引失败:', error)
-          }
-        }
 
         return { success: true, sessionId: result.sessionId }
       } catch (err) {

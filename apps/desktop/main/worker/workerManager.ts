@@ -529,13 +529,14 @@ async function streamImportUnlocked(
   filePath: string,
   onProgress?: (progress: ParseProgress) => void,
   formatOptions?: Record<string, unknown>,
-  externalSessionId?: string
+  externalSessionId?: string,
+  sessionGapThreshold?: number
 ): Promise<StreamImportResult> {
   assertDataDirCompatibleNow()
 
   const result = await sendToWorkerWithProgress<StreamImportResult>(
     'streamImport',
-    { filePath, formatOptions, externalSessionId },
+    { filePath, formatOptions, externalSessionId, sessionGapThreshold },
     onProgress
   )
   if (!result.success || !result.sessionId) return result
@@ -561,11 +562,12 @@ export async function streamImport(
   filePath: string,
   onProgress?: (progress: ParseProgress) => void,
   formatOptions?: Record<string, unknown>,
-  externalSessionId?: string
+  externalSessionId?: string,
+  sessionGapThreshold?: number
 ): Promise<StreamImportResult> {
   try {
     return await withDataDirImportLock(getPathProvider().getUserDataDir(), () =>
-      streamImportUnlocked(filePath, onProgress, formatOptions, externalSessionId)
+      streamImportUnlocked(filePath, onProgress, formatOptions, externalSessionId, sessionGapThreshold)
     )
   } catch (error) {
     if (error instanceof ImportInProgressError) {
@@ -579,7 +581,8 @@ export async function autoImport(
   filePath: string,
   onProgress?: (progress: ParseProgress) => void,
   formatOptions?: Record<string, unknown>,
-  explicitSessionId?: string
+  explicitSessionId?: string,
+  sessionGapThreshold?: number
 ): Promise<AutoImportResult> {
   try {
     return await withDataDirImportLock(getPathProvider().getUserDataDir(), async () => {
@@ -587,7 +590,7 @@ export async function autoImport(
 
       const result = await sendToWorkerWithProgress<AutoImportResult>(
         'autoImport',
-        { filePath, formatOptions, explicitSessionId },
+        { filePath, formatOptions, explicitSessionId, sessionGapThreshold },
         onProgress
       )
       if (!result.success || !result.sessionId || result.importMode !== 'created') return result

@@ -63,10 +63,12 @@ describe('CLI Web archive import source routes', () => {
 
       const manager = new ArchiveImportSourceManager({ tempRoot: join(dir, 'sources') })
       const importedManifests: string[] = []
+      const receivedThresholds: Array<number | undefined> = []
       registerImportRoutes(app, {} as any, {
         sourceManager: manager,
-        runPreparedImport: async (manifestPath) => {
+        runPreparedImport: async (manifestPath, _onProgress, sessionGapThreshold) => {
           importedManifests.push(readFileSync(manifestPath, 'utf8'))
+          receivedThresholds.push(sessionGapThreshold)
           return { success: true, sessionId: `session-${importedManifests.length}` }
         },
       })
@@ -88,13 +90,14 @@ describe('CLI Web archive import source routes', () => {
         const response = await app.inject({
           method: 'POST',
           url: `/_web/import-sources/${prepared.source.sourceId}/import`,
-          payload: { chatId: 'Groups/DM sample' },
+          payload: { chatId: 'Groups/DM sample', sessionGapThreshold: 7200 },
         })
         assert.equal(response.statusCode, 200)
         assert.match(response.body, /event: done/)
         assert.match(response.body, new RegExp(`session-${index + 1}`))
       }
       assert.equal(importedManifests.length, 2)
+      assert.deepEqual(receivedThresholds, [7200, 7200])
 
       for (let index = 0; index < 2; index++) {
         const response = await app.inject({

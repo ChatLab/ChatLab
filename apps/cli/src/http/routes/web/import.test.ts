@@ -19,7 +19,14 @@ function multipartPayload(): { payload: Buffer; contentType: string } {
 
   return {
     payload: Buffer.from(
-      [field('formatId', 'telegram-json'), field('chatIndex', '2'), file, `--${boundary}--`, ''].join('\r\n')
+      [
+        field('formatId', 'telegram-json'),
+        field('chatIndex', '2'),
+        field('sessionGapThreshold', '7200'),
+        file,
+        `--${boundary}--`,
+        '',
+      ].join('\r\n')
     ),
     contentType: `multipart/form-data; boundary=${boundary}`,
   }
@@ -56,7 +63,7 @@ function directoryMultipartPayload(): { payload: Buffer; contentType: string } {
 describe('CLI Web automatic import route', () => {
   it('forwards parser options and preserves a zero-new incremental result in the done event', async () => {
     const app = Fastify()
-    const calls: Array<{ formatId?: string; chatIndex?: number }> = []
+    const calls: Array<{ formatId?: string; chatIndex?: number; sessionGapThreshold?: number }> = []
     try {
       await app.register(multipart)
       registerImportRoutes(
@@ -67,6 +74,7 @@ describe('CLI Web automatic import route', () => {
             calls.push({
               formatId: options.formatId as string | undefined,
               chatIndex: options.chatIndex as number | undefined,
+              sessionGapThreshold: options.sessionGapThreshold as number | undefined,
             })
             return {
               success: true,
@@ -89,7 +97,7 @@ describe('CLI Web automatic import route', () => {
       })
 
       assert.equal(response.statusCode, 200)
-      assert.deepEqual(calls, [{ formatId: 'telegram-json', chatIndex: 2 }])
+      assert.deepEqual(calls, [{ formatId: 'telegram-json', chatIndex: 2, sessionGapThreshold: 7200 }])
       assert.match(response.body, /event: done/)
       assert.doesNotMatch(response.body, /event: error/)
       assert.match(response.body, /"importMode":"incremental"/)

@@ -251,8 +251,8 @@ const syncHandlers: Record<string, (payload: any) => any> = {
 // 异步消息处理器（流式操作）
 const asyncHandlers: Record<string, (payload: any, requestId: string) => Promise<any>> = {
   // 流式导入
-  streamImport: (p, id) => streamImport(p.filePath, id, p.formatOptions, p.externalSessionId),
-  autoImport: (p, id) => autoImport(p.filePath, id, p.formatOptions, p.explicitSessionId),
+  streamImport: (p, id) => streamImport(p.filePath, id, p.formatOptions, p.externalSessionId, p.sessionGapThreshold),
+  autoImport: (p, id) => autoImport(p.filePath, id, p.formatOptions, p.explicitSessionId, p.sessionGapThreshold),
   analyzePushImport: (p) => analyzePushImport(p.sessionId, p.payload),
   pushImport: (p) => pushImport(p.sessionId, p.payload),
   // 流式解析文件信息（用于合并预览）

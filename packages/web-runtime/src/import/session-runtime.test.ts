@@ -228,6 +228,32 @@ describe('BrowserSessionRuntime', () => {
     database.dispose()
   })
 
+  it('builds the imported session index with the requested gap threshold', async () => {
+    const sqlite3 = await sqlite3InitModule()
+    const database = new MemoryWorkspaceDatabase(sqlite3)
+    const runtime = new BrowserSessionRuntime(database, {
+      createSessionId: () => 'threshold-session',
+      now: () => 100,
+    })
+
+    try {
+      await runtime.importSource(source('threshold.json', chat('Threshold', 'alice', 1)), {
+        formatId: 'chatlab',
+        sessionGapThreshold: 60,
+      })
+
+      const db = database.getDatabase(sessionDatabaseFilename('threshold-session'))
+      assert.ok(db)
+      const meta = db.prepare('SELECT session_gap_threshold FROM meta LIMIT 1').get() as {
+        session_gap_threshold: number | null
+      }
+      assert.equal(meta.session_gap_threshold, 60)
+      assert.equal((db.prepare('SELECT COUNT(*) AS count FROM segment').get() as { count: number }).count, 1)
+    } finally {
+      database.dispose()
+    }
+  })
+
   it('canonicalizes reserved SYSTEM senders and excludes them from catalog member counts', async () => {
     const sqlite3 = await sqlite3InitModule()
     const database = new MemoryWorkspaceDatabase(sqlite3)

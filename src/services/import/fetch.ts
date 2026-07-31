@@ -69,6 +69,9 @@ export class FetchImportAdapter implements ImportAdapter {
     form.append('file', file)
     if (options?.formatId) form.append('formatId', options.formatId)
     if (options?.chatIndex !== undefined) form.append('chatIndex', String(options.chatIndex))
+    if (options?.sessionGapThreshold !== undefined) {
+      form.append('sessionGapThreshold', String(options.sessionGapThreshold))
+    }
 
     const res = await fetchWithAuth(`${getBaseUrl()}/import`, { method: 'POST', body: form })
 
@@ -120,12 +123,13 @@ export class FetchImportAdapter implements ImportAdapter {
   async importPreparedChat(
     sourceId: string,
     chatId: string,
-    onProgress?: (p: ImportProgress) => void
+    onProgress?: (p: ImportProgress) => void,
+    options?: ImportOptions
   ): Promise<ImportResult> {
     const res = await fetchWithAuth(`${getBaseUrl()}/import-sources/${encodeURIComponent(sourceId)}/import`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ chatId }),
+      body: JSON.stringify({ chatId, sessionGapThreshold: options?.sessionGapThreshold }),
     })
     if (!res.ok) {
       const text = await res.text()
@@ -146,7 +150,11 @@ export class FetchImportAdapter implements ImportAdapter {
     return get('/supported-formats')
   }
 
-  async importDemo(locale: string, onProgress?: (p: DemoProgress) => void): Promise<DemoImportResult> {
+  async importDemo(
+    locale: string,
+    onProgress?: (p: DemoProgress) => void,
+    options?: ImportOptions
+  ): Promise<DemoImportResult> {
     return new Promise((resolve) => {
       fetchWithAuth(`${getBaseUrl()}/demo/import`, {
         method: 'POST',
@@ -154,6 +162,7 @@ export class FetchImportAdapter implements ImportAdapter {
         body: JSON.stringify({
           locale,
           timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+          sessionGapThreshold: options?.sessionGapThreshold,
         }),
       })
         .then(async (resp) => {
@@ -250,7 +259,7 @@ export class FetchImportAdapter implements ImportAdapter {
 
   async importDirectory(
     source: File[] | string,
-    _options?: ImportOptions,
+    options?: ImportOptions,
     onProgress?: (p: ImportProgress) => void
   ): Promise<ImportResult> {
     if (typeof source === 'string') {
@@ -265,6 +274,9 @@ export class FetchImportAdapter implements ImportAdapter {
     for (const file of source) {
       form.append('files', file)
       form.append('relativePaths', file.webkitRelativePath || file.name)
+    }
+    if (options?.sessionGapThreshold !== undefined) {
+      form.append('sessionGapThreshold', String(options.sessionGapThreshold))
     }
 
     const res = await fetchWithAuth(`${getBaseUrl()}/import-directory`, { method: 'POST', body: form })

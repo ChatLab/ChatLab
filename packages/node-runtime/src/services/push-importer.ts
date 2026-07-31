@@ -7,7 +7,12 @@
 
 import * as fs from 'fs'
 import { DataDirCompatibilityError } from '../data-dir-compat'
-import { CHAT_DB_SCHEMA, generateSessionIndex, generateIncrementalSessionIndex } from '@openchatlab/core'
+import {
+  CHAT_DB_SCHEMA,
+  generateSessionIndex,
+  generateIncrementalSessionIndex,
+  getSessionIndexStats,
+} from '@openchatlab/core'
 import type { DatabaseAdapter } from '@openchatlab/core'
 import type { DatabaseManager } from '../database-manager'
 import { buildFtsIndex, insertFtsEntries } from '../fts'
@@ -510,12 +515,13 @@ function writeIncrementalImport(db: DatabaseAdapter, payload: PushImportPayload)
 
   if (writtenCount > 0) {
     try {
+      const sessionGapThreshold = getSessionIndexStats(db).gapThreshold
       // Use minWrittenTs (not payload min) to avoid false-positive backfill detection
       // when overlap duplicates in the batch have older timestamps than written rows.
       if (minWrittenTs < preWriteMaxTs) {
-        generateSessionIndex(db)
+        generateSessionIndex(db, sessionGapThreshold)
       } else {
-        generateIncrementalSessionIndex(db)
+        generateIncrementalSessionIndex(db, sessionGapThreshold)
       }
     } catch {
       /* non-fatal */

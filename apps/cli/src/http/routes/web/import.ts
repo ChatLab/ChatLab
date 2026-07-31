@@ -33,8 +33,16 @@ interface ImportRouteOptions {
   runAutoImport?: (filePath: string, options: StreamImportOptions) => Promise<AutoImportResult>
   runPreparedImport?: (
     manifestPath: string,
-    onProgress: (progress: unknown) => void
+    onProgress: (progress: unknown) => void,
+    sessionGapThreshold?: number
   ) => Promise<{ success: boolean; sessionId?: string; error?: string; messageCount?: number; memberCount?: number }>
+}
+
+function parseOptionalInteger(value: unknown): number | undefined {
+  if (typeof value === 'number') return Number.isInteger(value) ? value : undefined
+  if (typeof value !== 'string' || value.trim() === '') return undefined
+  const parsed = Number(value)
+  return Number.isInteger(parsed) ? parsed : undefined
 }
 
 function cleanupTemp(...paths: string[]) {
@@ -61,9 +69,10 @@ export function registerImportRoutes(
   const runAutoImport = options.runAutoImport ?? autoImport.bind(null, dbManager)
   const runPreparedImport =
     options.runPreparedImport ??
-    (async (manifestPath: string, onProgress: (progress: unknown) => void) => {
+    (async (manifestPath: string, onProgress: (progress: unknown) => void, sessionGapThreshold?: number) => {
       const result = await runAutoImport(manifestPath, {
         formatId: 'google-chat-takeout',
+        sessionGapThreshold,
         nativeBinding: resolveNativeBinding(),
         onProgress: onProgress as any,
       })
@@ -102,7 +111,7 @@ export function registerImportRoutes(
     }
   })
 
-  server.post<{ Params: { sourceId: string }; Body: { chatId?: string } }>(
+  server.post<{ Params: { sourceId: string }; Body: { chatId?: string; sessionGapThreshold?: number } }>(
     '/_web/import-sources/:sourceId/import',
     async (request, reply) => {
       const chatId = request.body?.chatId
@@ -119,8 +128,9 @@ export function registerImportRoutes(
       }
 
       try {
+        const sessionGapThreshold = parseOptionalInteger(request.body?.sessionGapThreshold)
         const result = await sourceManager.withMaterializedChat(request.params.sourceId, chatId, (manifestPath) =>
-          runPreparedImport(manifestPath, (progress) => sendEvent('progress', progress))
+          runPreparedImport(manifestPath, (progress) => sendEvent('progress', progress), sessionGapThreshold)
         )
         if (result.success) {
           sendEvent('done', result)
@@ -207,6 +217,7 @@ export function registerImportRoutes(
     const formatId = (data.fields?.formatId as any)?.value as string | undefined
     const chatIndexStr = (data.fields?.chatIndex as any)?.value as string | undefined
     const chatIndex = chatIndexStr !== undefined ? parseInt(chatIndexStr, 10) : undefined
+    const sessionGapThreshold = parseOptionalInteger((data.fields?.sessionGapThreshold as any)?.value)
 
     reply.raw.writeHead(200, {
       'Content-Type': 'text/event-stream',
@@ -223,6 +234,7 @@ export function registerImportRoutes(
       const result = await runAutoImport(tmpPath, {
         formatId,
         chatIndex,
+        sessionGapThreshold,
         nativeBinding,
         onProgress: (p) => sendEvent('progress', p),
       })
@@ -249,11 +261,14 @@ export function registerImportRoutes(
     const tmpDir = createChatLabTempDir('imports', 'directory-')
     const relativePaths: string[] = []
     const fileBuffers: { data: Buffer; filename: string }[] = []
+    let sessionGapThreshold: number | undefined
 
     try {
       for await (const part of parts) {
         if (part.type === 'field' && part.fieldname === 'relativePaths') {
           relativePaths.push(String(part.value))
+        } else if (part.type === 'field' && part.fieldname === 'sessionGapThreshold') {
+          sessionGapThreshold = parseOptionalInteger(part.value)
         } else if (part.type === 'file') {
           const chunks: Buffer[] = []
           for await (const chunk of part.file) {
@@ -292,6 +307,7 @@ export function registerImportRoutes(
 
       const nativeBinding = resolveNativeBinding()
       const result = await runAutoImport(entryPath, {
+        sessionGapThreshold,
         nativeBinding,
         onProgress: (p) => sendEvent('progress', p),
       })
@@ -407,32 +423,36 @@ export function registerImportRoutes(
 
   // ==================== Demo Import ====================
 
-  server.post<{ Body: { locale?: string; timeZone?: string } }>('/_web/demo/import', async (request, reply) => {
-    const locale = request.body?.locale === 'cn' ? 'cn' : 'en'
-    const targetTimeZone = typeof request.body?.timeZone === 'string' ? request.body.timeZone : undefined
-    const nativeBinding = resolveNativeBinding()
+  server.post<{ Body: { locale?: string; timeZone?: string; sessionGapThreshold?: number } }>(
+    '/_web/demo/import',
+    async (request, reply) => {
+      const locale = request.body?.locale === 'cn' ? 'cn' : 'en'
+      const targetTimeZone = typeof request.body?.timeZone === 'string' ? request.body.timeZone : undefined
+      const sessionGapThreshold = parseOptionalInteger(request.body?.sessionGapThreshold)
+      const nativeBinding = resolveNativeBinding()
 
-    reply.raw.writeHead(200, {
-      'Content-Type': 'text/event-stream',
-      'Cache-Control': 'no-cache',
-      Connection: 'keep-alive',
-    })
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      })
 
-    function sendEvent(event: string, eventData: unknown) {
-      reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(eventData)}\n\n`)
+      function sendEvent(event: string, eventData: unknown) {
+        reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(eventData)}\n\n`)
+      }
+
+      const result = await importDemoSessions({
+        locale,
+        tempPrefix: 'cli-demo-',
+        targetTimeZone,
+        importFile: (filePath) => streamImport(dbManager, filePath, { nativeBinding, sessionGapThreshold }),
+        deleteSession: (sessionId) => {
+          dbManager.deleteSessionDatabaseFiles(sessionId)
+        },
+        onProgress: (progress) => sendEvent('progress', progress),
+      })
+      sendEvent('result', result)
+      reply.raw.end()
     }
-
-    const result = await importDemoSessions({
-      locale,
-      tempPrefix: 'cli-demo-',
-      targetTimeZone,
-      importFile: (filePath) => streamImport(dbManager, filePath, { nativeBinding }),
-      deleteSession: (sessionId) => {
-        dbManager.deleteSessionDatabaseFiles(sessionId)
-      },
-      onProgress: (progress) => sendEvent('progress', progress),
-    })
-    sendEvent('result', result)
-    reply.raw.end()
-  })
+  )
 }

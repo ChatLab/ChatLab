@@ -14,6 +14,7 @@ export {
   getLastPlatformMessageId,
   // Session index (segment) helpers
   DEFAULT_SESSION_GAP_THRESHOLD,
+  normalizeSessionGapThreshold,
   hasSessionIndex,
   getSessionIndexStats,
   getChatSessionList,

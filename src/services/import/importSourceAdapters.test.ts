@@ -17,6 +17,29 @@ afterEach(() => {
 })
 
 describe('archive import source adapters', () => {
+  it('forwards the session gap threshold through Electron file import', async () => {
+    const calls: unknown[][] = []
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        chatApi: {
+          importWithOptions: async (...args: unknown[]) => {
+            calls.push(args)
+            return { success: true, sessionId: 'session-1' }
+          },
+          onImportProgress: () => () => {},
+        },
+      },
+    })
+
+    const result = await new ElectronImportAdapter().importFile('/tmp/chat.json', {
+      sessionGapThreshold: 7200,
+    })
+
+    assert.equal(result.sessionId, 'session-1')
+    assert.deepEqual(calls, [['/tmp/chat.json', { sessionGapThreshold: 7200 }]])
+  })
+
   it('forwards Electron source lifecycle calls through preload', async () => {
     const calls: unknown[][] = []
     Object.defineProperty(globalThis, 'window', {
@@ -51,12 +74,19 @@ describe('archive import source adapters', () => {
 
     const adapter = new ElectronImportAdapter()
     assert.equal((await adapter.prepareImportSource('/tmp/takeout.zip')).source?.sourceId, 'source-1')
-    assert.equal((await adapter.importPreparedChat('source-1', 'Groups/DM sample')).sessionId, 'session-1')
+    assert.equal(
+      (
+        await adapter.importPreparedChat('source-1', 'Groups/DM sample', undefined, {
+          sessionGapThreshold: 7200,
+        })
+      ).sessionId,
+      'session-1'
+    )
     await adapter.releaseImportSource('source-1')
 
     assert.deepEqual(calls, [
       ['prepare', '/tmp/takeout.zip'],
-      ['import', 'source-1', 'Groups/DM sample'],
+      ['import', 'source-1', 'Groups/DM sample', { sessionGapThreshold: 7200 }],
       ['release', 'source-1'],
     ])
   })
@@ -91,7 +121,14 @@ describe('archive import source adapters', () => {
     const adapter = new FetchImportAdapter()
     const file = new File(['zip'], 'takeout.zip', { type: 'application/zip' })
     assert.equal((await adapter.prepareImportSource(file)).source?.sourceId, 'source-2')
-    assert.equal((await adapter.importPreparedChat('source-2', 'Groups/DM sample')).sessionId, 'session-2')
+    assert.equal(
+      (
+        await adapter.importPreparedChat('source-2', 'Groups/DM sample', undefined, {
+          sessionGapThreshold: 7200,
+        })
+      ).sessionId,
+      'session-2'
+    )
     await adapter.releaseImportSource('source-2')
 
     assert.equal(requests.length, 3)
@@ -101,7 +138,7 @@ describe('archive import source adapters', () => {
       requests[1].init?.headers && new Headers(requests[1].init?.headers).get('Content-Type'),
       'application/json'
     )
-    assert.equal(requests[1].init?.body, JSON.stringify({ chatId: 'Groups/DM sample' }))
+    assert.equal(requests[1].init?.body, JSON.stringify({ chatId: 'Groups/DM sample', sessionGapThreshold: 7200 }))
     assert.equal(requests[2].init?.method, 'DELETE')
   })
 
@@ -115,12 +152,13 @@ describe('archive import source adapters', () => {
     }) as typeof fetch
 
     const adapter = new FetchImportAdapter()
-    const result = await adapter.importDemo('cn')
+    const result = await adapter.importDemo('cn', undefined, { sessionGapThreshold: 7200 })
 
     assert.equal(result.success, true)
     assert.deepEqual(JSON.parse(requestBody ?? ''), {
       locale: 'cn',
       timeZone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      sessionGapThreshold: 7200,
     })
   })
 

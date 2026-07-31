@@ -2,6 +2,7 @@ import {
   CHAT_DB_INDEXES,
   CHAT_DB_TABLES,
   generateSessionIndex,
+  normalizeSessionGapThreshold,
   getBrowserWordFrequency as queryBrowserWordFrequency,
   getClusterGraph as queryClusterGraph,
   getLanguagePreferenceAnalysis as queryLanguagePreferenceAnalysis,
@@ -72,6 +73,7 @@ export interface BrowserImportProgress {
 export interface BrowserSessionImportOptions {
   formatId?: BrowserImportFormatId
   chatIndex?: number
+  sessionGapThreshold?: number
   signal?: AbortSignal
   checkCancelled?: () => void
   onDatabaseStage?: (stage: WorkspaceDatabaseStage) => void
@@ -247,6 +249,7 @@ export class BrowserSessionRuntime {
           const stats = await this.database.withDatabase(filename, CHAT_DB_TABLES, (db) => {
             const result = writeParseResultToDb(db, parsed.meta, members, messages)
             db.exec(CHAT_DB_INDEXES)
+            generateSessionIndex(db, normalizeSessionGapThreshold(options.sessionGapThreshold))
             return {
               ...result,
               memberCount,

@@ -9,7 +9,7 @@
  */
 
 import type { DatabaseAdapter } from '@openchatlab/core'
-import { generateSessionIndex, generateIncrementalSessionIndex } from '@openchatlab/core'
+import { generateSessionIndex, generateIncrementalSessionIndex, getSessionIndexStats } from '@openchatlab/core'
 import { streamParseFile, detectFormat, getFormatFeatureById, type ParseProgress } from '@openchatlab/parser'
 import { insertFtsEntries, hasFtsTable } from '../fts'
 import { generateFallbackMessageKey, registerMessageAndCheckDuplicate } from './message-deduplicator'
@@ -444,10 +444,11 @@ export async function incrementalImport(
     // older backfilled message would be incorrectly attached to the newest segment.
     if (newMessageCount > 0) {
       try {
+        const sessionGapThreshold = getSessionIndexStats(db).gapThreshold
         if (minWrittenTs < preWriteMaxTs) {
-          generateSessionIndex(db)
+          generateSessionIndex(db, sessionGapThreshold)
         } else {
-          generateIncrementalSessionIndex(db)
+          generateIncrementalSessionIndex(db, sessionGapThreshold)
         }
       } catch {
         /* non-fatal */

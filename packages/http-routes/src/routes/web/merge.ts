@@ -131,9 +131,15 @@ export function registerMergeRoutes(server: FastifyInstance, ctx: MergeRoutesCon
   // ── execute ────────────────────────────────────────────────────────
 
   server.post<{
-    Body: { handles: string[]; outputName: string; format?: 'json' | 'jsonl'; andImport?: boolean }
+    Body: {
+      handles: string[]
+      outputName: string
+      format?: 'json' | 'jsonl'
+      andImport?: boolean
+      sessionGapThreshold?: number
+    }
   }>('/_web/merge/execute', async (request, reply) => {
-    const { handles, outputName, format = 'json', andImport } = request.body as any
+    const { handles, outputName, format = 'json', andImport, sessionGapThreshold } = request.body
     if (!handles || !Array.isArray(handles) || handles.length === 0) {
       return reply.code(400).send({ error: 'Missing handles' })
     }
@@ -165,7 +171,7 @@ export function registerMergeRoutes(server: FastifyInstance, ctx: MergeRoutesCon
         fs.writeFileSync(tmpPath, jsonData, 'utf-8')
 
         try {
-          const importResult = await streamImport(dbManager, tmpPath)
+          const importResult = await streamImport(dbManager, tmpPath, { sessionGapThreshold })
           sessionId = importResult.sessionId
         } finally {
           try {

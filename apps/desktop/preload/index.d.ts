@@ -86,7 +86,7 @@ interface ChatApi {
   selectFile: () => Promise<{ filePath?: string; format?: string; error?: string } | null>
   detectFormat: (filePath: string) => Promise<{ id: string; name: string; platform: string; multiChat: boolean } | null>
   import: (filePath: string) => Promise<ChatImportResult>
-  importDirectory: (dirPath: string) => Promise<ChatImportResult>
+  importDirectory: (dirPath: string, options?: Record<string, unknown>) => Promise<ChatImportResult>
   importWithOptions: (filePath: string, formatOptions: Record<string, unknown>) => Promise<ChatImportResult>
   scanMultiChatFile: (filePath: string) => Promise<{
     success: boolean
@@ -110,7 +110,7 @@ interface ChatApi {
     }
     error?: string
   }>
-  importPreparedChat: (sourceId: string, chatId: string) => Promise<ChatImportResult>
+  importPreparedChat: (sourceId: string, chatId: string, options?: Record<string, unknown>) => Promise<ChatImportResult>
   releaseImportSource: (sourceId: string) => Promise<{ success: boolean }>
   checkMigration: () => Promise<MigrationCheckResult>
   runMigration: () => Promise<{ success: boolean; error?: string }>
@@ -131,7 +131,10 @@ interface ChatApi {
     sessionId: string,
     filePath: string
   ) => Promise<{ success: boolean; newMessageCount: number; error?: string }>
-  importDemo: (locale: string) => Promise<{
+  importDemo: (
+    locale: string,
+    options?: Record<string, unknown>
+  ) => Promise<{
     success: boolean
     groupSessionId?: string
     privateSessionIds?: string[]

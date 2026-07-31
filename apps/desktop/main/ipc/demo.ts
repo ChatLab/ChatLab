@@ -18,7 +18,8 @@ export function registerDemoHandlers(ctx: IpcContext): void {
     'demo:downloadAndImport',
     async (
       _,
-      locale: string
+      locale: string,
+      options?: { sessionGapThreshold?: number }
     ): Promise<{
       success: boolean
       groupSessionId?: string
@@ -32,7 +33,8 @@ export function registerDemoHandlers(ctx: IpcContext): void {
       return importDemoSessions({
         locale: locale === 'cn' ? 'cn' : 'en',
         tempPrefix: 'desktop-demo-',
-        importFile: (filePath) => worker.streamImport(filePath),
+        importFile: (filePath) =>
+          worker.streamImport(filePath, undefined, undefined, undefined, options?.sessionGapThreshold),
         deleteSession: (sessionId) => worker.deleteImportedSession(sessionId),
         onProgress: sendProgress,
       })

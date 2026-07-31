@@ -12,6 +12,8 @@ import type { ImportProgress } from '@/types/base'
 export interface ImportOptions {
   formatId?: string
   chatIndex?: number
+  /** Session split threshold used when the created session index is built. */
+  sessionGapThreshold?: number
 }
 
 // ==================== 导入结果 ====================
@@ -188,7 +190,12 @@ export interface ImportAdapter {
   prepareImportSource(file: File | string): Promise<PreparedImportSourceResult>
 
   /** 从已注册导入源中导入一个聊天。 */
-  importPreparedChat(sourceId: string, chatId: string, onProgress?: (p: ImportProgress) => void): Promise<ImportResult>
+  importPreparedChat(
+    sourceId: string,
+    chatId: string,
+    onProgress?: (p: ImportProgress) => void,
+    options?: ImportOptions
+  ): Promise<ImportResult>
 
   /** 释放导入源及其临时文件；重复调用应保持幂等。 */
   releaseImportSource(sourceId: string): Promise<void>
@@ -197,7 +204,7 @@ export interface ImportAdapter {
   getSupportedFormats(): Promise<FormatInfo[]>
 
   /** 导入 Demo 数据 */
-  importDemo(locale: string, onProgress?: (p: DemoProgress) => void): Promise<DemoImportResult>
+  importDemo(locale: string, onProgress?: (p: DemoProgress) => void, options?: ImportOptions): Promise<DemoImportResult>
 
   /** 分析增量导入（预览去重后可新增多少消息） */
   analyzeIncrementalImport(sessionId: string, file: File | string): Promise<IncrementalAnalysis>
