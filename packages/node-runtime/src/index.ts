@@ -38,6 +38,8 @@ export {
   ArchiveImportError,
   GoogleChatTakeoutResolver,
   ArchiveImportSourceManager,
+  MessageBatchInserter,
+  MESSAGE_INSERT_MAX_ROWS,
 } from './import'
 export type {
   ImportMeta,
@@ -74,6 +76,7 @@ export type {
   PreparedImportSource,
   MaterializedImport,
   ArchiveResolver,
+  MessageInsertRow,
 } from './import'
 export {
   LogLevel,

@@ -14,6 +14,7 @@ export {
   logSummary,
 } from './perf-logger'
 export { streamingImport, analyzeNewImport, streamParseFileInfo } from './streaming-importer'
+export { MessageBatchInserter, MESSAGE_INSERT_MAX_ROWS } from './message-batch-inserter'
 export type {
   SkipReasons,
   ImportDiagnostics,
@@ -28,6 +29,7 @@ export type {
   StreamParseFileInfoResult,
   StreamParseFileInfoDeps,
 } from './streaming-importer'
+export type { MessageInsertRow } from './message-batch-inserter'
 export { analyzeIncrementalImport, incrementalImport } from './incremental-importer'
 export type {
   ImportOptions,

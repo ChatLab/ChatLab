@@ -58,6 +58,7 @@ interface ImportDiagnostics {
     }
     messageBatchCount: number
     messageTransactionCount: number
+    messageInsertStatementCount: number
     rssStartMb: number
     /** Highest RSS observed at import stage and parser batch boundaries; not a continuous process peak. */
     rssSampledPeakMb: number

@@ -77,6 +77,7 @@ function createDeps(options?: {
             },
             messageBatchCount: 0,
             messageTransactionCount: 0,
+            messageInsertStatementCount: 0,
             rssStartMb: 0,
             rssSampledPeakMb: 0,
             rssSampledDeltaMb: 0,

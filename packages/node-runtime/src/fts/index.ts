@@ -39,23 +39,30 @@ export function buildFtsIndex(db: DatabaseAdapter): { indexed: number } {
 
   const insertFts = db.prepare('INSERT INTO message_fts(rowid, content) VALUES (?, ?)')
 
-  const countRow = db
-    .prepare("SELECT COUNT(*) as total FROM message WHERE type = 0 AND content IS NOT NULL AND content != ''")
-    .get() as { total: number } | undefined
-  const total = countRow?.total ?? 0
-
   let indexed = 0
-  let offset = 0
+  let lastId: number | null = null
+  const selectFirstBatch = db.prepare(
+    `SELECT id, content FROM message
+     WHERE type = 0
+       AND content IS NOT NULL
+       AND content != ''
+     ORDER BY id ASC
+     LIMIT ?`
+  )
+  const selectNextBatch = db.prepare(
+    `SELECT id, content FROM message
+     WHERE type = 0
+       AND content IS NOT NULL
+       AND content != ''
+       AND id > ?
+     ORDER BY id ASC
+     LIMIT ?`
+  )
 
-  while (offset < total) {
-    const rows = db
-      .prepare(
-        `SELECT id, content FROM message
-         WHERE type = 0 AND content IS NOT NULL AND content != ''
-         ORDER BY id ASC LIMIT ? OFFSET ?`
-      )
-      .all(BATCH_SIZE, offset) as Array<{ id: number; content: string }>
-
+  while (true) {
+    const rows = (
+      lastId === null ? selectFirstBatch.all(BATCH_SIZE) : selectNextBatch.all(lastId, BATCH_SIZE)
+    ) as Array<{ id: number; content: string }>
     if (rows.length === 0) break
 
     db.transaction(() => {
@@ -68,7 +75,7 @@ export function buildFtsIndex(db: DatabaseAdapter): { indexed: number } {
     })
 
     indexed += rows.length
-    offset += BATCH_SIZE
+    lastId = rows[rows.length - 1].id
   }
 
   return { indexed }

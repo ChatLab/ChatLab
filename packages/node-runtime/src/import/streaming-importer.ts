@@ -27,6 +27,7 @@ import {
 import * as fs from 'fs'
 import { performance } from 'node:perf_hooks'
 import { buildFtsIndex } from '../fts'
+import { MessageBatchInserter, type MessageInsertRow } from './message-batch-inserter'
 import { createMessageDedupState, registerMessageAndCheckDuplicate, type DedupMessage } from './message-deduplicator'
 
 // ==================== Public interfaces ====================
@@ -70,6 +71,7 @@ export interface ImportPerformanceDiagnostics {
   timings: ImportStageTimings
   messageBatchCount: number
   messageTransactionCount: number
+  messageInsertStatementCount: number
   rssStartMb: number
   /** Highest RSS observed at import stage and parser batch boundaries; not a continuous process peak. */
   rssSampledPeakMb: number
@@ -362,10 +364,6 @@ async function streamImportSingle(
              roles = CASE WHEN excluded.roles != '[]' THEN excluded.roles ELSE roles END`
         ),
         getMemberId: db.prepare(`SELECT id FROM member WHERE platform_id = ?`),
-        insertMessage: db.prepare(
-          `INSERT INTO message (sender_id, sender_account_name, sender_group_nickname, ts, type, content, reply_to_message_id, platform_message_id)
-           VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-        ),
         insertNameHistory: db.prepare(
           `INSERT INTO member_name_history (member_id, name_type, name, start_ts, end_ts) VALUES (?, ?, ?, ?, ?)`
         ),
@@ -397,7 +395,6 @@ async function streamImportSingle(
     insertMeta,
     insertMember,
     getMemberId,
-    insertMessage,
     insertNameHistory,
     updateMemberAccountName,
     updateMemberGroupNickname,
@@ -422,6 +419,8 @@ async function streamImportSingle(
   let inTransaction = false
   let messageTransactionCount = 0
   let messageTransactionMs = 0
+  let messageInsertStatementCount = 0
+  const messageBatchInserter = new MessageBatchInserter(db)
 
   const beginTransaction = () => {
     if (!inTransaction) {
@@ -596,6 +595,13 @@ async function streamImportSingle(
           const transactionMsBefore = messageTransactionMs
           const checkpointMsBefore = timings.checkpointMs
           try {
+            const pendingRows: MessageInsertRow[] = []
+            const flushPendingRows = () => {
+              if (pendingRows.length === 0) return
+              messageInsertStatementCount += messageBatchInserter.insert(pendingRows)
+              pendingRows.length = 0
+            }
+
             callbackStats.onMessageBatchCalls++
             callbackStats.totalMessagesReceived += messages.length
             if (callbackStats.onMessageBatchCalls <= 3 || callbackStats.onMessageBatchCalls % 10 === 0) {
@@ -642,16 +648,16 @@ async function streamImportSingle(
               const senderId = memberIdMap.get(msg.senderPlatformId)
               if (senderId === undefined) continue
 
-              insertMessage.run(
+              pendingRows.push({
                 senderId,
-                senderAccountName || null,
-                senderGroupNickname || null,
-                dedupMessage.timestamp,
-                dedupMessage.type,
-                dedupMessage.content,
-                msg.replyToMessageId || null,
-                msg.platformMessageId || null
-              )
+                senderAccountName: senderAccountName || null,
+                senderGroupNickname: senderGroupNickname || null,
+                timestamp: dedupMessage.timestamp,
+                type: dedupMessage.type,
+                content: dedupMessage.content,
+                replyToMessageId: msg.replyToMessageId || null,
+                platformMessageId: msg.platformMessageId || null,
+              })
               messageCountInBatch++
               totalMessageCount++
 
@@ -659,10 +665,12 @@ async function streamImportSingle(
               trackNickname(groupNicknameTracker, msg.senderPlatformId, senderGroupNickname, msg.timestamp)
 
               if (messageCountInBatch >= BATCH_COMMIT_SIZE) {
+                flushPendingRows()
                 commitAndBeginNew()
                 messageCountInBatch = 0
               }
             }
+            flushPendingRows()
           } finally {
             const nestedStageMs =
               messageTransactionMs - transactionMsBefore + (timings.checkpointMs - checkpointMsBefore)
@@ -872,6 +880,7 @@ async function streamImportSingle(
       timings,
       messageBatchCount: callbackStats.onMessageBatchCalls,
       messageTransactionCount,
+      messageInsertStatementCount,
       rssStartMb: rssStartBytes / bytesPerMegabyte,
       rssSampledPeakMb: rssPeakBytes / bytesPerMegabyte,
       rssSampledDeltaMb: (rssPeakBytes - rssStartBytes) / bytesPerMegabyte,

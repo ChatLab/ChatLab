@@ -112,8 +112,9 @@ function createCollectingLogger(messages: string[]): ImportLogger {
 }
 
 function assertPerformanceDiagnostics(result: StreamImportResult): void {
-  const diagnostics = result.diagnostics?.performance
-  assert.ok(diagnostics)
+  const importDiagnostics = result.diagnostics
+  assert.ok(importDiagnostics)
+  const diagnostics = importDiagnostics.performance
 
   for (const [stage, durationMs] of Object.entries(diagnostics.timings)) {
     assert.equal(Number.isFinite(durationMs), true, `${stage} should be finite`)
@@ -124,6 +125,8 @@ function assertPerformanceDiagnostics(result: StreamImportResult): void {
   assert.ok(diagnostics.timings.totalMs >= diagnostics.timings.messageWriteMs)
   assert.ok(diagnostics.messageBatchCount > 0)
   assert.ok(diagnostics.messageTransactionCount > 0)
+  assert.ok(diagnostics.messageInsertStatementCount > 0)
+  assert.ok(diagnostics.messageInsertStatementCount < importDiagnostics.messagesWritten)
   assert.ok(diagnostics.rssSampledPeakMb >= diagnostics.rssStartMb)
   assert.ok(diagnostics.rssSampledDeltaMb >= 0)
 }
