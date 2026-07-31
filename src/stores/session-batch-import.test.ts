@@ -45,7 +45,7 @@ test('batch import accepts browser File objects and processes them serially', as
         duplicateCount: 0,
       }
     },
-  } as ImportAdapter)
+  } as unknown as ImportAdapter)
   registerAdapter('data', {
     getSessions: async () => [],
     tryApplyOwnerProfile: async () => ({ applied: false }),
@@ -75,4 +75,56 @@ test('batch import accepts browser File objects and processes them serially', as
       { name: 'second.jsonl', status: 'success' },
     ]
   )
+})
+
+test('batch import delegates scheduling and cancellation to a capable backend adapter', async () => {
+  Object.defineProperties(globalThis, {
+    localStorage: { configurable: true, value: createMemoryStorage() },
+    sessionStorage: { configurable: true, value: createMemoryStorage() },
+  })
+
+  let cancelCalls = 0
+  let receivedFiles: Array<File | string> = []
+  registerAdapter('import', {
+    async importFile() {
+      throw new Error('single-file fallback should not run')
+    },
+    async importBatch(items, _options, onProgress) {
+      receivedFiles = items.map((item) => item.file)
+      onProgress?.({ index: 0, event: 'start' })
+      const first = {
+        id: items[0].id,
+        status: 'success' as const,
+        result: { success: true, sessionId: 'session-1', importMode: 'created' as const },
+      }
+      onProgress?.({ index: 0, event: 'complete', result: first })
+      return [first, { id: items[1].id, status: 'cancelled' as const }]
+    },
+    cancelActiveImport() {
+      cancelCalls++
+    },
+  } as unknown as ImportAdapter)
+  registerAdapter('data', {
+    getSessions: async () => [],
+    tryApplyOwnerProfile: async () => ({ applied: false }),
+  } as unknown as DataAdapter)
+
+  setActivePinia(createPinia())
+  const { useSessionStore } = await import('./session')
+  const store = useSessionStore()
+  const files = [new File(['a'], 'first.json'), new File(['b'], 'second.json')]
+  const result = await store.importFiles(files)
+  store.cancelBatchImport()
+
+  assert.deepEqual(
+    receivedFiles.map((file) => (file as File).name),
+    ['first.json', 'second.json']
+  )
+  assert.equal(result.success, 1)
+  assert.equal(result.cancelled, 1)
+  assert.deepEqual(
+    result.files.map((file) => file.status),
+    ['success', 'cancelled']
+  )
+  assert.equal(cancelCalls, 1)
 })

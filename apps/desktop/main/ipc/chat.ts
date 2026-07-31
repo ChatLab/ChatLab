@@ -233,6 +233,42 @@ export function registerChatHandlers(ctx: IpcContext): void {
     }
   })
 
+  ipcMain.handle(
+    'chat:importBatch',
+    async (
+      _,
+      batchId: string,
+      items: Array<{ id: string; filePath: string }>,
+      options?: { concurrency?: number; sessionGapThreshold?: number }
+    ) => {
+      try {
+        const results = await worker.autoImportBatch(
+          batchId,
+          items,
+          (progress) => {
+            win.webContents.send('chat:importBatchProgress', { batchId, ...progress })
+          },
+          options
+        )
+        if (results.some((result) => result.status === 'success')) {
+          win.webContents.send('api:importCompleted')
+        }
+        return results
+      } catch (error) {
+        return items.map((item) => ({
+          id: item.id,
+          status: 'failed' as const,
+          error: error instanceof Error ? error.message : String(error),
+        }))
+      }
+    }
+  )
+
+  ipcMain.handle('chat:cancelImportBatch', async (_, batchId: string) => {
+    await worker.cancelAutoImportBatch(batchId)
+    return { success: true }
+  })
+
   // ==================== 增量导入 ====================
 
   ipcMain.handle('chat:analyzeIncrementalImport', async (_, sessionId: string, filePath: string) => {

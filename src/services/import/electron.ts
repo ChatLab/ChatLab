@@ -14,6 +14,9 @@ import type {
   DemoImportResult,
   IncrementalAnalysis,
   IncrementalImportResult,
+  BatchImportItem,
+  BatchImportItemResult,
+  BatchImportProgress,
 } from './types'
 import { normalizeImportResult } from './types'
 
@@ -23,6 +26,8 @@ function resolveFilePath(file: File | string): string | null {
 }
 
 export class ElectronImportAdapter implements ImportAdapter {
+  private activeBatchId: string | null = null
+
   async importFile(
     file: File | string,
     options?: ImportOptions,
@@ -73,6 +78,77 @@ export class ElectronImportAdapter implements ImportAdapter {
           resolve({ success: false, error: err.message })
         })
     })
+  }
+
+  async importBatch(
+    items: BatchImportItem[],
+    options?: ImportOptions,
+    onProgress?: (progress: BatchImportProgress) => void
+  ): Promise<BatchImportItemResult[]> {
+    const resolvedItems: Array<{ id: string; filePath: string }> = []
+    for (const item of items) {
+      const filePath = resolveFilePath(item.file)
+      if (!filePath) {
+        return items.map((candidate) =>
+          candidate.id === item.id
+            ? { id: candidate.id, status: 'failed' as const, error: 'Cannot get file path in Electron' }
+            : { id: candidate.id, status: 'cancelled' as const }
+        )
+      }
+      resolvedItems.push({ id: item.id, filePath })
+    }
+
+    const batchId = crypto.randomUUID()
+    this.activeBatchId = batchId
+    const unlisten = window.chatApi.onImportBatchProgress((event) => {
+      if (event.batchId !== batchId) return
+      const index = event.batchIndex
+      onProgress?.({
+        index,
+        event: event.batchEvent,
+        progress:
+          event.batchEvent === 'progress'
+            ? {
+                stage: event.stage as ImportProgress['stage'],
+                progress: event.percentage,
+                message: event.message ?? '',
+              }
+            : undefined,
+        result: event.batchResult as BatchImportItemResult | undefined,
+      })
+    })
+
+    try {
+      const results = await window.chatApi.importBatch(batchId, resolvedItems, {
+        sessionGapThreshold: options?.sessionGapThreshold,
+      })
+      return results.map((item) => {
+        if (item.status === 'cancelled') return { id: item.id, status: 'cancelled' }
+        if (item.status === 'failed') {
+          return {
+            id: item.id,
+            status: 'failed',
+            error: item.error ?? item.result?.error ?? 'error.import_failed',
+            result: item.result ? normalizeImportResult(item.result) : undefined,
+          }
+        }
+        return {
+          id: item.id,
+          status: 'success',
+          result: normalizeImportResult(item.result ?? { success: false, error: 'error.import_failed' }),
+        }
+      })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error)
+      return items.map((item) => ({ id: item.id, status: 'failed', error: message }))
+    } finally {
+      unlisten()
+      if (this.activeBatchId === batchId) this.activeBatchId = null
+    }
+  }
+
+  cancelActiveImport(): void {
+    if (this.activeBatchId) void window.chatApi.cancelImportBatch(this.activeBatchId)
   }
 
   async detectFormat(file: File | string): Promise<FormatInfo | null> {

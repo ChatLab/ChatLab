@@ -165,6 +165,23 @@ export interface IncrementalImportResult {
   error?: string
 }
 
+export interface BatchImportItem {
+  id: string
+  file: File | string
+}
+
+export type BatchImportItemResult =
+  | { id: string; status: 'success'; result: ImportResult }
+  | { id: string; status: 'failed'; error: string; result?: ImportResult }
+  | { id: string; status: 'cancelled' }
+
+export interface BatchImportProgress {
+  index: number
+  event: 'start' | 'progress' | 'complete'
+  progress?: ImportProgress
+  result?: BatchImportItemResult
+}
+
 // ==================== 核心接口 ====================
 
 export interface ImportAdapter {
@@ -176,6 +193,16 @@ export interface ImportAdapter {
     options?: ImportOptions,
     onProgress?: (p: ImportProgress) => void
   ): Promise<ImportResult>
+
+  /**
+   * Import multiple sources under one backend-owned coordinator/lock lease.
+   * Adapters without a safe batch runtime may omit this capability.
+   */
+  importBatch?(
+    items: BatchImportItem[],
+    options?: ImportOptions,
+    onProgress?: (progress: BatchImportProgress) => void
+  ): Promise<BatchImportItemResult[]>
 
   /** Cancel the active import when the runtime supports cooperative cancellation. */
   cancelActiveImport?(): void

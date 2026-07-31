@@ -357,6 +357,66 @@ export const useSessionStore = defineStore(
         status: 'pending' as BatchFileStatus,
       }))
 
+      const importService = useImportService()
+      if (importService.importBatch) {
+        const results = await importService.importBatch(
+          importSources.map(({ source }, index) => ({ id: String(index), file: source })),
+          { sessionGapThreshold: getSessionGapThreshold() },
+          ({ index, event, progress, result }) => {
+            const file = batchFiles.value[index]
+            if (!file) return
+            if (event === 'start') file.status = 'importing'
+            if (progress) file.progress = progress
+            if (event === 'complete' && result) {
+              file.status = result.status
+              if (result.status === 'success') {
+                file.sessionId = result.result.sessionId
+                file.importMode = result.result.importMode
+                file.matchedBy = result.result.matchedBy
+                file.createReason = result.result.createReason
+                file.newMessageCount = result.result.newMessageCount
+                file.duplicateCount = result.result.duplicateCount
+              } else if (result.status === 'failed') {
+                file.error = result.error
+              }
+            }
+          }
+        )
+
+        for (let index = 0; index < results.length; index++) {
+          const result = results[index]
+          const file = batchFiles.value[index]
+          file.status = result.status
+          if (result.status === 'success') {
+            file.sessionId = result.result.sessionId
+            file.importMode = result.result.importMode
+            file.matchedBy = result.result.matchedBy
+            file.createReason = result.result.createReason
+            file.newMessageCount = result.result.newMessageCount
+            file.duplicateCount = result.result.duplicateCount
+          } else if (result.status === 'failed') {
+            file.error = result.error
+          }
+        }
+
+        const successfulSessionIds = results.flatMap((result) =>
+          result.status === 'success' && result.result.sessionId ? [result.result.sessionId] : []
+        )
+        for (const sessionId of successfulSessionIds) await applyOwnerProfileAfterImport(sessionId)
+        await loadSessions()
+
+        const result: BatchImportResult = {
+          total: sources.length,
+          success: results.filter((item) => item.status === 'success').length,
+          failed: results.filter((item) => item.status === 'failed').length,
+          cancelled: results.filter((item) => item.status === 'cancelled').length,
+          files: [...batchFiles.value],
+        }
+        batchImportResult.value = result
+        isBatchImporting.value = false
+        return result
+      }
+
       let successCount = 0
       let failedCount = 0
       let cancelledCount = 0
@@ -509,6 +569,7 @@ export const useSessionStore = defineStore(
      */
     function cancelBatchImport() {
       batchImportCancelled.value = true
+      useImportService().cancelActiveImport?.()
     }
 
     /**

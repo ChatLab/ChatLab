@@ -16,6 +16,9 @@ import type {
   DemoImportResult,
   IncrementalAnalysis,
   IncrementalImportResult,
+  BatchImportItem,
+  BatchImportItemResult,
+  BatchImportProgress,
 } from './types'
 import { normalizeImportResult } from './types'
 import { get, fetchWithAuth, getBaseUrl } from '../utils/http'
@@ -56,6 +59,18 @@ async function consumeSseStream<T>(res: Response, fallback: T, onProgress?: (p: 
 }
 
 export class FetchImportAdapter implements ImportAdapter {
+  private activeBatch: { id: string; cancelRequested: boolean } | null = null
+
+  private async requestBatchCancellation(batchId: string): Promise<void> {
+    try {
+      await fetchWithAuth(`${getBaseUrl()}/import/batch/${encodeURIComponent(batchId)}/cancel`, {
+        method: 'POST',
+      })
+    } catch {
+      // The import stream remains authoritative and will report the final item states.
+    }
+  }
+
   async importFile(
     file: File | string,
     options?: ImportOptions,
@@ -83,6 +98,108 @@ export class FetchImportAdapter implements ImportAdapter {
     return normalizeImportResult(
       await consumeSseStream<ImportResult>(res, { success: false, error: 'Unknown error' }, onProgress)
     )
+  }
+
+  async importBatch(
+    items: BatchImportItem[],
+    options?: ImportOptions,
+    onProgress?: (progress: BatchImportProgress) => void
+  ): Promise<BatchImportItemResult[]> {
+    if (items.some((item) => typeof item.file === 'string')) {
+      return items.map((item) => ({
+        id: item.id,
+        status: 'failed',
+        error: 'File path import is not supported in Web mode',
+      }))
+    }
+
+    const form = new FormData()
+    for (const item of items) form.append('files', item.file as File)
+    if (options?.sessionGapThreshold !== undefined) {
+      form.append('sessionGapThreshold', String(options.sessionGapThreshold))
+    }
+
+    const activeBatch = { id: crypto.randomUUID(), cancelRequested: false }
+    this.activeBatch = activeBatch
+    const completedResults: Array<BatchImportItemResult | undefined> = Array(items.length)
+    try {
+      const response = await fetchWithAuth(`${getBaseUrl()}/import/batch`, {
+        method: 'POST',
+        body: form,
+        headers: { 'X-ChatLab-Import-Batch-Id': activeBatch.id },
+      })
+      if (activeBatch.cancelRequested) await this.requestBatchCancellation(activeBatch.id)
+      if (!response.ok || !response.body) {
+        const text = await response.text()
+        return items.map((item) => ({
+          id: item.id,
+          status: 'failed',
+          error: `HTTP ${response.status}: ${text}`,
+        }))
+      }
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      let results: BatchImportItemResult[] | null = null
+      let eventType = ''
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split('\n')
+        buffer = lines.pop() || ''
+        for (const line of lines) {
+          if (line.startsWith('event: ')) {
+            eventType = line.slice(7).trim()
+            continue
+          }
+          if (!line.startsWith('data: ')) continue
+          const data = JSON.parse(line.slice(6))
+          if (eventType === 'batch-start') {
+            onProgress?.({ index: data.index, event: 'start' })
+          } else if (eventType === 'batch-progress') {
+            onProgress?.({ index: data.index, event: 'progress', progress: data.progress })
+          } else if (eventType === 'batch-complete') {
+            const result = normalizeBatchResult(items, data.index, data.result)
+            completedResults[data.index] = result
+            onProgress?.({ index: data.index, event: 'complete', result })
+          } else if (eventType === 'done') {
+            results = (data as unknown[]).map((result, index) => normalizeBatchResult(items, index, result))
+          }
+          eventType = ''
+        }
+      }
+      return (
+        results ??
+        items.map(
+          (item, index): BatchImportItemResult =>
+            completedResults[index] ?? {
+              id: item.id,
+              status: 'failed',
+              error: 'Batch response ended without results',
+            }
+        )
+      )
+    } catch (error) {
+      return items.map(
+        (item, index): BatchImportItemResult =>
+          completedResults[index] ?? {
+            id: item.id,
+            status: 'failed',
+            error: error instanceof Error ? error.message : String(error),
+          }
+      )
+    } finally {
+      if (this.activeBatch === activeBatch) this.activeBatch = null
+    }
+  }
+
+  cancelActiveImport(): void {
+    if (!this.activeBatch) return
+    this.activeBatch.cancelRequested = true
+    void this.requestBatchCancellation(this.activeBatch.id)
   }
 
   async detectFormat(file: File | string): Promise<FormatInfo | null> {
@@ -289,5 +406,19 @@ export class FetchImportAdapter implements ImportAdapter {
     return normalizeImportResult(
       await consumeSseStream<ImportResult>(res, { success: false, error: 'Unknown error' }, onProgress)
     )
+  }
+}
+
+function normalizeBatchResult(items: BatchImportItem[], index: number, raw: any): BatchImportItemResult {
+  const id = items[index]?.id ?? String(index)
+  if (raw?.status === 'cancelled') return { id, status: 'cancelled' }
+  if (raw?.status === 'success') {
+    return { id, status: 'success', result: normalizeImportResult(raw.result) }
+  }
+  return {
+    id,
+    status: 'failed',
+    error: raw?.error ?? raw?.result?.error ?? 'error.import_failed',
+    result: raw?.result ? normalizeImportResult(raw.result) : undefined,
   }
 }

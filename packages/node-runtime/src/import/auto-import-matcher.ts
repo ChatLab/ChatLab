@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import { generateMessageKey, getSessionMeta, isChatSessionDb, type DatabaseAdapter } from '@openchatlab/core'
 import { streamParseFile, type ParsedMeta } from '@openchatlab/parser'
 import { MessageType } from '@openchatlab/shared-types'
@@ -12,6 +13,13 @@ export type AutoImportCreateReason = 'no-match' | 'ambiguous'
 export type AutoImportDecision =
   | { action: 'incremental'; sessionId: string; matchedBy: AutoImportMatchMethod }
   | { action: 'create'; reason: AutoImportCreateReason }
+
+export interface AutoImportTargetPlan {
+  decision: AutoImportDecision
+  concurrencyKey: string
+  exclusive: boolean
+  coalesceCreate: boolean
+}
 
 export interface AutoImportMatcherDeps {
   listSessionIds(): string[]
@@ -48,6 +56,14 @@ export async function resolveAutoImportTarget(
   deps: AutoImportMatcherDeps,
   formatOptions?: Record<string, unknown>
 ): Promise<AutoImportDecision> {
+  return (await resolveAutoImportTargetPlan(filePath, deps, formatOptions)).decision
+}
+
+export async function resolveAutoImportTargetPlan(
+  filePath: string,
+  deps: AutoImportMatcherDeps,
+  formatOptions?: Record<string, unknown>
+): Promise<AutoImportTargetPlan> {
   let sourceMeta: ParsedMeta | null = null
   const sourceMemberIds = new Set<string>()
   const sourceWindows = new Set<string>()
@@ -80,6 +96,14 @@ export async function resolveAutoImportTarget(
   const meta = sourceMeta as ParsedMeta
   const privateIdentity = meta.type === 'private' ? buildPrivateIdentity(meta.ownerId, sourceMemberIds) : null
   const hasStableIdentity = Boolean(meta.groupId || privateIdentity)
+  const stableIdentity = meta.groupId
+    ? `group\0${meta.groupId}`
+    : privateIdentity
+      ? `private\0${privateIdentity}`
+      : null
+  const stableConcurrencyKey = stableIdentity
+    ? `source:${createHash('sha256').update(`${meta.platform}\0${meta.type}\0${stableIdentity}`).digest('hex')}`
+    : null
 
   const stableMatches: string[] = []
   const trailingMatches: string[] = []
@@ -148,20 +172,54 @@ export async function resolveAutoImportTarget(
 
   if (hasStableIdentity) {
     if (meta.sourceSessionId && stableMatches.includes(meta.sourceSessionId)) {
-      return { action: 'incremental', sessionId: meta.sourceSessionId, matchedBy: 'source-session-id' }
+      return {
+        decision: { action: 'incremental', sessionId: meta.sourceSessionId, matchedBy: 'source-session-id' },
+        concurrencyKey: `session:${meta.sourceSessionId}`,
+        exclusive: false,
+        coalesceCreate: false,
+      }
     }
     if (stableMatches.length === 1) {
-      return { action: 'incremental', sessionId: stableMatches[0], matchedBy: 'stable-id' }
+      return {
+        decision: { action: 'incremental', sessionId: stableMatches[0], matchedBy: 'stable-id' },
+        concurrencyKey: `session:${stableMatches[0]}`,
+        exclusive: false,
+        coalesceCreate: false,
+      }
     }
   }
 
   // 稳定身份缺失、漂移或产生多个候选时，仍只接受唯一的 5 条连续消息重叠。
   if (meta.sourceSessionId && trailingMatches.includes(meta.sourceSessionId)) {
-    return { action: 'incremental', sessionId: meta.sourceSessionId, matchedBy: 'source-session-id' }
+    return {
+      decision: { action: 'incremental', sessionId: meta.sourceSessionId, matchedBy: 'source-session-id' },
+      concurrencyKey: `session:${meta.sourceSessionId}`,
+      exclusive: false,
+      coalesceCreate: false,
+    }
   }
   if (trailingMatches.length === 1) {
-    return { action: 'incremental', sessionId: trailingMatches[0], matchedBy: 'trailing-messages' }
+    return {
+      decision: { action: 'incremental', sessionId: trailingMatches[0], matchedBy: 'trailing-messages' },
+      concurrencyKey: `session:${trailingMatches[0]}`,
+      exclusive: false,
+      coalesceCreate: false,
+    }
   }
   const ambiguous = stableMatches.length > 1 || trailingMatches.length > 1
-  return { action: 'create', reason: ambiguous ? 'ambiguous' : 'no-match' }
+  const decision: AutoImportDecision = { action: 'create', reason: ambiguous ? 'ambiguous' : 'no-match' }
+  if (!ambiguous && stableConcurrencyKey) {
+    return {
+      decision,
+      concurrencyKey: stableConcurrencyKey,
+      exclusive: false,
+      coalesceCreate: true,
+    }
+  }
+  return {
+    decision,
+    concurrencyKey: 'unresolved',
+    exclusive: true,
+    coalesceCreate: false,
+  }
 }

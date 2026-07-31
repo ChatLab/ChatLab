@@ -18,9 +18,15 @@ import {
   IMPORT_IN_PROGRESS_ERROR_KEY,
   ImportInProgressError,
   raiseChatDbCompatibilityGate,
+  resolveDefaultBatchConcurrency,
   withDataDirImportLock,
 } from '@openchatlab/node-runtime'
-import type { PushImportAnalysisOutcome, PushImportOutcome, PushImportPayload } from '@openchatlab/node-runtime'
+import type {
+  AutoImportBatchItemResult,
+  PushImportAnalysisOutcome,
+  PushImportOutcome,
+  PushImportPayload,
+} from '@openchatlab/node-runtime'
 import { getWorkerRequestTimeoutMs, isRestartableReadOnlyRequestType } from './workerTimeoutPolicy'
 
 interface WorkerRequestOptions {
@@ -37,7 +43,7 @@ const pendingRequests = new Map<
   {
     resolve: (value: any) => void
     reject: (error: Error) => void
-    timeout: ReturnType<typeof setTimeout>
+    timeout?: ReturnType<typeof setTimeout>
     restartOnTimeout: boolean
     onProgress?: (progress: ParseProgress) => void // 进度回调
   }
@@ -55,7 +61,7 @@ function hasProgressRequest(): boolean {
 
 function rejectAllPending(error: Error): void {
   for (const [id, pending] of pendingRequests.entries()) {
-    clearTimeout(pending.timeout)
+    if (pending.timeout) clearTimeout(pending.timeout)
     pending.reject(error)
     pendingRequests.delete(id)
   }
@@ -163,7 +169,7 @@ export function initWorker(): void {
 
       // 处理完成或错误消息
       pendingRequests.delete(id)
-      clearTimeout(pending.timeout)
+      if (pending.timeout) clearTimeout(pending.timeout)
 
       if (success) {
         pending.resolve(result)
@@ -243,7 +249,7 @@ function sendToWorkerWithProgress<T>(
   type: string,
   payload: any,
   onProgress?: (progress: ParseProgress) => void,
-  timeoutMs: number = 600000 // 默认 10 分钟超时
+  timeoutMs: number | null = 600000 // 默认 10 分钟超时；null 表示由调用方持有直至 Worker 完成
 ): Promise<T> {
   return new Promise((resolve, reject) => {
     if (!worker) {
@@ -258,12 +264,15 @@ function sendToWorkerWithProgress<T>(
     const requestWorker = worker!
     const id = `req_${++requestIdCounter}`
 
-    const timeout = setTimeout(() => {
-      if (pendingRequests.has(id)) {
-        pendingRequests.delete(id)
-        reject(new Error(`Worker request timeout: ${type}`))
-      }
-    }, timeoutMs)
+    const timeout =
+      timeoutMs === null
+        ? undefined
+        : setTimeout(() => {
+            if (pendingRequests.has(id)) {
+              pendingRequests.delete(id)
+              reject(new Error(`Worker request timeout: ${type}`))
+            }
+          }, timeoutMs)
 
     pendingRequests.set(id, { resolve, reject, timeout, restartOnTimeout: false, onProgress })
 
@@ -617,6 +626,82 @@ export async function autoImport(
     }
     throw error
   }
+}
+
+export interface DesktopAutoImportBatchItem {
+  id: string
+  filePath: string
+  formatOptions?: Record<string, unknown>
+  explicitSessionId?: string
+}
+
+export interface DesktopAutoImportBatchProgress extends ParseProgress {
+  batchIndex: number
+  batchEvent: 'start' | 'progress' | 'complete'
+  batchResult?: AutoImportBatchItemResult
+}
+
+export async function autoImportBatch(
+  batchId: string,
+  items: DesktopAutoImportBatchItem[],
+  onProgress?: (progress: DesktopAutoImportBatchProgress) => void,
+  options?: { concurrency?: number; sessionGapThreshold?: number }
+): Promise<AutoImportBatchItemResult[]> {
+  try {
+    return await withDataDirImportLock(getPathProvider().getUserDataDir(), async () => {
+      assertDataDirCompatibleNow()
+      const results = await sendToWorkerWithProgress<AutoImportBatchItemResult[]>(
+        'autoImportBatch',
+        {
+          batchId,
+          items,
+          concurrency: options?.concurrency ?? resolveDefaultBatchConcurrency(items.length),
+          sessionGapThreshold: options?.sessionGapThreshold,
+        },
+        onProgress as (progress: ParseProgress) => void,
+        null
+      )
+      if (!results.some((result) => result.status === 'success')) return results
+
+      try {
+        raiseChatDbCompatibilityGate(getPathProvider(), {
+          version: getDesktopAppVersion(app.getVersion()),
+          kind: 'desktop',
+        })
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error)
+        for (const result of results) {
+          if (result.status === 'success' && result.result.importMode === 'created' && result.result.sessionId) {
+            deleteImportedSession(result.result.sessionId)
+          }
+        }
+        return results.map((result) =>
+          result.status === 'success'
+            ? {
+                id: result.id,
+                status: 'failed' as const,
+                error: message,
+                result: { ...result.result, success: false, error: message },
+              }
+            : result
+        )
+      }
+      return results
+    })
+  } catch (error) {
+    if (error instanceof ImportInProgressError) {
+      return items.map((item) => ({
+        id: item.id,
+        status: 'failed',
+        error: IMPORT_IN_PROGRESS_ERROR_KEY,
+      }))
+    }
+    throw error
+  }
+}
+
+export async function cancelAutoImportBatch(batchId: string): Promise<void> {
+  await sendToWorker('cancelAutoImportBatch', { batchId })
 }
 
 /**

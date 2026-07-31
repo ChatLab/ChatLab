@@ -59,6 +59,20 @@ export const chatApi = {
   importWithOptions: (filePath: string, formatOptions: Record<string, unknown>): Promise<ChatImportResult> =>
     ipcRenderer.invoke('chat:importWithOptions', filePath, formatOptions),
 
+  importBatch: (
+    batchId: string,
+    items: Array<{ id: string; filePath: string }>,
+    options?: { concurrency?: number; sessionGapThreshold?: number }
+  ) => ipcRenderer.invoke('chat:importBatch', batchId, items, options),
+
+  cancelImportBatch: (batchId: string) => ipcRenderer.invoke('chat:cancelImportBatch', batchId),
+
+  onImportBatchProgress: (callback: (progress: Record<string, unknown>) => void) => {
+    const handler = (_event: Electron.IpcRendererEvent, progress: Record<string, unknown>) => callback(progress)
+    ipcRenderer.on('chat:importBatchProgress', handler)
+    return () => ipcRenderer.removeListener('chat:importBatchProgress', handler)
+  },
+
   scanMultiChatFile: (
     filePath: string
   ): Promise<{

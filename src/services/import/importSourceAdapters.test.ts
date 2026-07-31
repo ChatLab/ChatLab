@@ -17,6 +17,88 @@ afterEach(() => {
 })
 
 describe('archive import source adapters', () => {
+  it('uses the Electron backend batch API and forwards cancellation', async () => {
+    const calls: unknown[][] = []
+    let progressCallback: ((progress: any) => void) | undefined
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        chatApi: {
+          importBatch: async (...args: unknown[]) => {
+            calls.push(['batch', ...args])
+            progressCallback?.({
+              batchId: args[0],
+              batchIndex: 0,
+              batchEvent: 'complete',
+              stage: 'done',
+              percentage: 100,
+              batchResult: { id: '0', status: 'success', result: { success: true, sessionId: 'session-1' } },
+            })
+            return [{ id: '0', status: 'success', result: { success: true, sessionId: 'session-1' } }]
+          },
+          cancelImportBatch: async (...args: unknown[]) => {
+            calls.push(['cancel', ...args])
+            return { success: true }
+          },
+          onImportBatchProgress: (callback: (progress: any) => void) => {
+            progressCallback = callback
+            return () => {}
+          },
+        },
+      },
+    })
+
+    const adapter = new ElectronImportAdapter()
+    const progress: unknown[] = []
+    const promise = adapter.importBatch?.(
+      [{ id: '0', file: '/tmp/first.json' }],
+      { sessionGapThreshold: 7200 },
+      (event) => progress.push(event)
+    )
+    adapter.cancelActiveImport?.()
+    const result = await promise
+
+    assert.equal(result?.[0].status, 'success')
+    assert.equal((result?.[0] as any).result.sessionId, 'session-1')
+    assert.equal(calls[0][0], 'batch')
+    assert.deepEqual(
+      (calls[0][2] as Array<{ filePath: string }>).map((item) => item.filePath),
+      ['/tmp/first.json']
+    )
+    assert.deepEqual(calls[0][3], { sessionGapThreshold: 7200 })
+    assert.equal(calls[1][0], 'cancel')
+    assert.equal(progress.length, 1)
+  })
+
+  it('maps an Electron batch IPC failure to per-item failures', async () => {
+    let unlistenCount = 0
+    Object.defineProperty(globalThis, 'window', {
+      configurable: true,
+      value: {
+        chatApi: {
+          importBatch: async () => {
+            throw new Error('worker unavailable')
+          },
+          onImportBatchProgress: () => () => {
+            unlistenCount++
+          },
+        },
+      },
+    })
+
+    const adapter = new ElectronImportAdapter()
+    const results = await adapter.importBatch?.([
+      { id: 'first', file: '/tmp/first.json' },
+      { id: 'second', file: '/tmp/second.json' },
+    ])
+
+    assert.deepEqual(results, [
+      { id: 'first', status: 'failed', error: 'worker unavailable' },
+      { id: 'second', status: 'failed', error: 'worker unavailable' },
+    ])
+    assert.equal(unlistenCount, 1)
+  })
+
   it('forwards the session gap threshold through Electron file import', async () => {
     const calls: unknown[][] = []
     Object.defineProperty(globalThis, 'window', {
@@ -140,6 +222,110 @@ describe('archive import source adapters', () => {
     )
     assert.equal(requests[1].init?.body, JSON.stringify({ chatId: 'Groups/DM sample', sessionGapThreshold: 7200 }))
     assert.equal(requests[2].init?.method, 'DELETE')
+  })
+
+  it('uploads Web batch files once and maps SSE item results', async () => {
+    let request: { url: string; init?: RequestInit } | undefined
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      request = { url: String(input), init }
+      return new Response(
+        [
+          'event: batch-start',
+          'data: {"index":0}',
+          '',
+          'event: batch-complete',
+          'data: {"index":0,"result":{"id":"0","status":"success","result":{"success":true,"sessionId":"session-a"}}}',
+          '',
+          'event: done',
+          'data: [{"id":"0","status":"success","result":{"success":true,"sessionId":"session-a"}},{"id":"1","status":"failed","error":"bad file"}]',
+          '',
+          '',
+        ].join('\n'),
+        { headers: { 'Content-Type': 'text/event-stream' } }
+      )
+    }) as typeof fetch
+
+    const progress: unknown[] = []
+    const result = await new FetchImportAdapter().importBatch?.(
+      [
+        { id: 'first', file: new File(['{}'], 'first.json') },
+        { id: 'second', file: new File(['{}'], 'second.json') },
+      ],
+      { sessionGapThreshold: 7200 },
+      (event) => progress.push(event)
+    )
+
+    assert.equal(request?.url, '/_web/import/batch')
+    assert.equal(request?.init?.body instanceof FormData, true)
+    const form = request?.init?.body as FormData
+    assert.equal(form.getAll('files').length, 2)
+    assert.equal(form.get('sessionGapThreshold'), '7200')
+    assert.deepEqual(
+      result?.map((item) => ({ id: item.id, status: item.status })),
+      [
+        { id: 'first', status: 'success' },
+        { id: 'second', status: 'failed' },
+      ]
+    )
+    assert.equal(progress.length, 2)
+  })
+
+  it('keeps the Web batch stream open until cancellation returns authoritative results', async () => {
+    const requests: Array<{ url: string; batchId?: string }> = []
+    let streamController: ReadableStreamDefaultController<Uint8Array> | undefined
+    globalThis.fetch = (async (input: RequestInfo | URL, init?: RequestInit) => {
+      const url = String(input)
+      if (url.includes('/cancel')) {
+        requests.push({ url })
+        streamController?.enqueue(
+          new TextEncoder().encode(
+            [
+              'event: batch-complete',
+              'data: {"index":0,"result":{"id":"0","status":"success","result":{"success":true,"sessionId":"session-a"}}}',
+              '',
+              'event: batch-complete',
+              'data: {"index":1,"result":{"id":"1","status":"cancelled"}}',
+              '',
+              'event: done',
+              'data: [{"id":"0","status":"success","result":{"success":true,"sessionId":"session-a"}},{"id":"1","status":"cancelled"}]',
+              '',
+              '',
+            ].join('\n')
+          )
+        )
+        streamController?.close()
+        return new Response(JSON.stringify({ success: true, active: true }))
+      }
+
+      const batchId = new Headers(init?.headers).get('X-ChatLab-Import-Batch-Id') ?? undefined
+      requests.push({ url, batchId })
+      const stream = new ReadableStream<Uint8Array>({
+        start(controller) {
+          streamController = controller
+        },
+      })
+      return new Response(stream, { headers: { 'Content-Type': 'text/event-stream' } })
+    }) as typeof fetch
+
+    const adapter = new FetchImportAdapter()
+    const resultPromise = adapter.importBatch?.([
+      { id: 'first', file: new File(['{}'], 'first.json') },
+      { id: 'second', file: new File(['{}'], 'second.json') },
+    ])
+    await new Promise((resolve) => setTimeout(resolve, 0))
+    adapter.cancelActiveImport?.()
+    const results = await resultPromise
+
+    assert.deepEqual(
+      results?.map((result) => ({ id: result.id, status: result.status })),
+      [
+        { id: 'first', status: 'success' },
+        { id: 'second', status: 'cancelled' },
+      ]
+    )
+    assert.equal(requests.length, 2)
+    assert.ok(requests[0].batchId)
+    assert.equal(requests[1].url, `/_web/import/batch/${requests[0].batchId}/cancel`)
   })
 
   it('sends the browser timezone when importing Demo sessions through CLI Web', async () => {

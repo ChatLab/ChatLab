@@ -81,6 +81,7 @@ import {
 import {
   streamImport,
   autoImport,
+  autoImportBatch,
   streamParseFileInfo,
   analyzeIncrementalImport,
   incrementalImport,
@@ -88,6 +89,8 @@ import {
   analyzePushImport,
   pushImport,
 } from './import'
+
+const importBatchControllers = new Map<string, AbortController>()
 
 initDbDir(workerData.dbDir, workerData.cacheDir, workerData.tempDir, workerData.nativeBinding, workerData.logsDir)
 
@@ -191,6 +194,10 @@ const syncHandlers: Record<string, (payload: any) => any> = {
     closeAllDatabases()
     return true
   },
+  cancelAutoImportBatch: (p) => {
+    importBatchControllers.get(p.batchId)?.abort()
+    return true
+  },
 
   // 成员管理
   getMembers: (p) => getMembers(p.sessionId),
@@ -253,6 +260,15 @@ const asyncHandlers: Record<string, (payload: any, requestId: string) => Promise
   // 流式导入
   streamImport: (p, id) => streamImport(p.filePath, id, p.formatOptions, p.externalSessionId, p.sessionGapThreshold),
   autoImport: (p, id) => autoImport(p.filePath, id, p.formatOptions, p.explicitSessionId, p.sessionGapThreshold),
+  autoImportBatch: async (p, id) => {
+    const controller = new AbortController()
+    importBatchControllers.set(p.batchId, controller)
+    try {
+      return await autoImportBatch(p.items, id, p.concurrency, p.sessionGapThreshold, controller.signal)
+    } finally {
+      importBatchControllers.delete(p.batchId)
+    }
+  },
   analyzePushImport: (p) => analyzePushImport(p.sessionId, p.payload),
   pushImport: (p) => pushImport(p.sessionId, p.payload),
   // 流式解析文件信息（用于合并预览）

@@ -88,6 +88,30 @@ interface ChatApi {
   import: (filePath: string) => Promise<ChatImportResult>
   importDirectory: (dirPath: string, options?: Record<string, unknown>) => Promise<ChatImportResult>
   importWithOptions: (filePath: string, formatOptions: Record<string, unknown>) => Promise<ChatImportResult>
+  importBatch: (
+    batchId: string,
+    items: Array<{ id: string; filePath: string }>,
+    options?: { concurrency?: number; sessionGapThreshold?: number }
+  ) => Promise<
+    Array<{
+      id: string
+      status: 'success' | 'failed' | 'cancelled'
+      result?: ChatImportResult
+      error?: string
+    }>
+  >
+  cancelImportBatch: (batchId: string) => Promise<{ success: boolean }>
+  onImportBatchProgress: (
+    callback: (progress: {
+      batchId: string
+      batchIndex: number
+      batchEvent: 'start' | 'progress' | 'complete'
+      stage: string
+      percentage: number
+      message?: string
+      batchResult?: unknown
+    }) => void
+  ) => () => void
   scanMultiChatFile: (filePath: string) => Promise<{
     success: boolean
     chats: Array<{ index: number; name: string; type: string; id: number; messageCount: number }>

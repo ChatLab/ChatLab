@@ -3,6 +3,7 @@ export type { ImportMeta, WriteParseResultStats } from './write-parse-result'
 export { logNativeParserStatus } from './native-parser-status'
 export {
   LogLevel,
+  createImportPerfLogger,
   initPerfLog,
   logPerf,
   logPerfDetail,
@@ -13,6 +14,7 @@ export {
   getErrorCount,
   logSummary,
 } from './perf-logger'
+export type { ImportPerfLogger } from './perf-logger'
 export { streamingImport, analyzeNewImport, streamParseFileInfo } from './streaming-importer'
 export { MessageBatchInserter, MESSAGE_INSERT_MAX_ROWS } from './message-batch-inserter'
 export type {
@@ -39,12 +41,13 @@ export type {
 } from './incremental-importer'
 
 export { isValidImportSessionId } from './session-id'
-export { resolveAutoImportTarget } from './auto-import-matcher'
+export { resolveAutoImportTarget, resolveAutoImportTargetPlan } from './auto-import-matcher'
 export type {
   AutoImportCreateReason,
   AutoImportDecision,
   AutoImportMatcherDeps,
   AutoImportMatchMethod,
+  AutoImportTargetPlan,
 } from './auto-import-matcher'
 export { analyzeAutoImportFile, autoImportFile } from './auto-importer'
 export type {
@@ -54,6 +57,10 @@ export type {
   AutoImportOptions,
   AutoImportResult,
 } from './auto-importer'
+export { autoImportBatch } from './auto-import-batch'
+export type { AutoImportBatchItem, AutoImportBatchItemResult, AutoImportBatchOptions } from './auto-import-batch'
+export { normalizeBatchConcurrency, resolveDefaultBatchConcurrency, runKeyedBatch } from './batch-coordinator'
+export type { KeyedBatchOptions, KeyedBatchTask, KeyedBatchTaskResult } from './batch-coordinator'
 export {
   IMPORT_IN_PROGRESS_ERROR_KEY,
   IMPORT_LOCK_FILENAME,

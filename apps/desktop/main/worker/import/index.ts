@@ -7,10 +7,13 @@
 export {
   streamImport,
   autoImport,
+  autoImportBatch,
   streamParseFileInfo,
   analyzeNewImport,
   type StreamImportResult,
   type AutoImportResult,
+  type AutoImportBatchItemResult,
+  type WorkerAutoImportBatchItem,
   type StreamParseFileInfoResult,
   type AnalyzeNewImportResult,
 } from './streamImport'

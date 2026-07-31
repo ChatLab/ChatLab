@@ -6,7 +6,7 @@ import test from 'node:test'
 import { CHAT_DB_SCHEMA } from '@openchatlab/core'
 import { MessageType, type ParsedMessage } from '@openchatlab/shared-types'
 import { openBetterSqliteDatabase } from '../better-sqlite3-adapter'
-import { resolveAutoImportTarget, type AutoImportMatcherDeps } from './auto-import-matcher'
+import { resolveAutoImportTarget, resolveAutoImportTargetPlan, type AutoImportMatcherDeps } from './auto-import-matcher'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -97,6 +97,47 @@ function textMessage(sender: string, timestamp: number, content: string, type = 
     content,
   }
 }
+
+test('derives a hashed parallel key only from a stable source identity', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+  const sourcePath = path.join(tempDir, 'source.jsonl')
+  writeChatLabJsonl(
+    sourcePath,
+    { name: 'New group', platform: 'qq', type: 'group', groupId: 'private-group-id' },
+    [{ platformId: 'user-1', accountName: 'Alice' }],
+    [textMessage('user-1', 1783840001, 'hello')]
+  )
+
+  const plan = await resolveAutoImportTargetPlan(sourcePath, createDeps(tempDir, []))
+
+  assert.deepEqual(plan.decision, { action: 'create', reason: 'no-match' })
+  assert.match(plan.concurrencyKey, /^source:[a-f0-9]{64}$/)
+  assert.doesNotMatch(plan.concurrencyKey, /private-group-id/)
+  assert.equal(plan.exclusive, false)
+  assert.equal(plan.coalesceCreate, true)
+})
+
+test('makes sources without a stable identity exclusive', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+  const sourcePath = path.join(tempDir, 'source.jsonl')
+  writeChatLabJsonl(
+    sourcePath,
+    { name: 'Unknown private chat', platform: 'line', type: 'private' },
+    [{ platformId: 'Alice', accountName: 'Alice' }],
+    [textMessage('Alice', 1783840001, 'hello')]
+  )
+
+  const plan = await resolveAutoImportTargetPlan(sourcePath, createDeps(tempDir, []))
+
+  assert.deepEqual(plan, {
+    decision: { action: 'create', reason: 'no-match' },
+    concurrencyKey: 'unresolved',
+    exclusive: true,
+    coalesceCreate: false,
+  })
+})
 
 test('matches a unique group session by stable group id', async (t) => {
   const tempDir = makeTempDir()

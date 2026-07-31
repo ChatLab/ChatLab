@@ -14,6 +14,8 @@ import { isValidImportSessionId } from './session-id'
 export interface AutoImportOptions {
   explicitSessionId?: string
   formatOptions?: Record<string, unknown>
+  /** Pre-resolved by the batch coordinator while the data directory is read-only. */
+  resolvedDecision?: AutoImportDecision
 }
 
 export interface AutoImportDeps extends AutoImportMatcherDeps {
@@ -83,6 +85,13 @@ async function planAutoImport(
   deps: Pick<AutoImportDeps, 'listSessionIds' | 'openReadonly' | 'onProgress' | 'sessionExists' | 'resolveTarget'>,
   options: AutoImportOptions
 ): Promise<AutoImportPlan> {
+  if (options.resolvedDecision) {
+    const decision = options.resolvedDecision
+    return decision.action === 'incremental'
+      ? { action: 'incremental', sessionId: decision.sessionId, matchedBy: decision.matchedBy }
+      : { action: 'create', reason: decision.reason }
+  }
+
   if (options.explicitSessionId) {
     if (!isValidImportSessionId(options.explicitSessionId)) {
       throw new Error('sessionId contains invalid characters')

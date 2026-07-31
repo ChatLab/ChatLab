@@ -6,7 +6,7 @@
  *
  * Usage:
  *   pnpm exec tsx scripts/bench-streaming-import.mts single 100000 [runs=3]
- *   pnpm exec tsx scripts/bench-streaming-import.mts batch 100 10000 [runs=3]
+ *   pnpm exec tsx scripts/bench-streaming-import.mts batch 100 10000 [runs=3] [concurrency=1]
  */
 
 import { createHash } from 'node:crypto'
@@ -20,6 +20,7 @@ import { CHAT_DB_TABLES } from '@openchatlab/core'
 import { getNativeParserStatus, isNativeFormatAvailable, type NativeParserStatus } from '@openchatlab/parser'
 import { BetterSqliteAdapter } from '../packages/node-runtime/src/better-sqlite3-adapter'
 import { computeAndSetOverviewCache } from '../packages/node-runtime/src/cache/session-cache'
+import { runKeyedBatch } from '../packages/node-runtime/src/import/batch-coordinator'
 import {
   streamingImport,
   type ImportLogger,
@@ -50,6 +51,7 @@ interface BenchmarkResult {
   scenario: 'single' | 'batch'
   parser: BenchmarkParser
   fileCount: number
+  concurrency: number
   inputMessages: number
   inputBytes: number
   durationMs: number
@@ -280,7 +282,7 @@ export function inspectDatabase(dbPath: string): {
   }
 }
 
-async function runWorker(fileCount: number, messagesPerFile: number): Promise<BenchmarkResult> {
+async function runWorker(fileCount: number, messagesPerFile: number, concurrency: number): Promise<BenchmarkResult> {
   if (typeof global.gc !== 'function') {
     throw new Error('Benchmark worker requires Node.js --expose-gc')
   }
@@ -311,23 +313,32 @@ async function runWorker(fileCount: number, messagesPerFile: number): Promise<Be
     const dbPaths: string[] = []
     const startedAt = performance.now()
 
-    for (let index = 0; index < inputPaths.length; index++) {
-      const dbPath = path.join(root, `session-${index}.db`)
-      dbPaths.push(dbPath)
-      const parserMonitor = createBenchmarkParserMonitor()
-      const result = await streamingImport(
-        inputPaths[index],
-        createImportDeps(dbPath, cacheDir, parserMonitor.logger),
-        { formatId: 'weflow' },
-        `bench-${index}`
-      )
-      if (!result.success || !result.diagnostics?.performance) {
-        throw new Error(`Import ${index} failed: ${result.error ?? 'missing performance diagnostics'}`)
+    await runKeyedBatch(
+      inputPaths.map((inputPath, index) => ({
+        value: { inputPath, index },
+        key: `session:${index}`,
+      })),
+      {
+        concurrency,
+        async run({ inputPath, index }) {
+          const dbPath = path.join(root, `session-${index}.db`)
+          dbPaths[index] = dbPath
+          const parserMonitor = createBenchmarkParserMonitor()
+          const result = await streamingImport(
+            inputPath,
+            createImportDeps(dbPath, cacheDir, parserMonitor.logger),
+            { formatId: 'weflow' },
+            `bench-${index}`
+          )
+          if (!result.success || !result.diagnostics?.performance) {
+            throw new Error(`Import ${index} failed: ${result.error ?? 'missing performance diagnostics'}`)
+          }
+          parserMonitor.assertRustNativeCompleted(index)
+          addTimings(timings, result.diagnostics.performance.timings)
+          sampledPeakRssMb = Math.max(sampledPeakRssMb, result.diagnostics.performance.rssSampledPeakMb)
+        },
       }
-      parserMonitor.assertRustNativeCompleted(index)
-      addTimings(timings, result.diagnostics.performance.timings)
-      sampledPeakRssMb = Math.max(sampledPeakRssMb, result.diagnostics.performance.rssSampledPeakMb)
-    }
+    )
     const durationMs = performance.now() - startedAt
 
     let messagesWritten = 0
@@ -346,6 +357,7 @@ async function runWorker(fileCount: number, messagesPerFile: number): Promise<Be
       scenario: fileCount === 1 ? 'single' : 'batch',
       parser,
       fileCount,
+      concurrency,
       inputMessages: fileCount * messagesPerFile,
       inputBytes: statSync(fixturePath).size * fileCount,
       durationMs,
@@ -362,10 +374,18 @@ async function runWorker(fileCount: number, messagesPerFile: number): Promise<Be
   }
 }
 
-function runIsolated(fileCount: number, messagesPerFile: number): BenchmarkResult {
+function runIsolated(fileCount: number, messagesPerFile: number, concurrency: number): BenchmarkResult {
   const child = spawnSync(
     process.execPath,
-    ['--expose-gc', ...process.execArgv, scriptPath, '--worker', String(fileCount), String(messagesPerFile)],
+    [
+      '--expose-gc',
+      ...process.execArgv,
+      scriptPath,
+      '--worker',
+      String(fileCount),
+      String(messagesPerFile),
+      String(concurrency),
+    ],
     {
       cwd: process.cwd(),
       encoding: 'utf-8',
@@ -395,9 +415,9 @@ function printResult(result: BenchmarkResult, label: string): void {
 }
 
 async function main(): Promise<void> {
-  const [mode, first, second, third] = process.argv.slice(2)
+  const [mode, first, second, third, fourth] = process.argv.slice(2)
   if (mode === '--worker') {
-    const result = await runWorker(Number(first), Number(second))
+    const result = await runWorker(Number(first), Number(second), Number(third))
     console.log(`BENCH_RESULT ${JSON.stringify(result)}`)
     return
   }
@@ -405,27 +425,30 @@ async function main(): Promise<void> {
   let fileCount: number
   let messagesPerFile: number
   let runs: number
+  let concurrency: number
   if (mode === 'single') {
     fileCount = 1
     messagesPerFile = Number(first ?? 100_000)
     runs = Number(second ?? 3)
+    concurrency = 1
   } else if (mode === 'batch') {
     fileCount = Number(first ?? 100)
     messagesPerFile = Number(second ?? 10_000)
     runs = Number(third ?? 3)
+    concurrency = Number(fourth ?? 1)
   } else {
-    throw new Error('Usage: single <messages> [runs=3] | batch <files> <messages-per-file> [runs=3]')
+    throw new Error('Usage: single <messages> [runs=3] | batch <files> <messages-per-file> [runs=3] [concurrency=1]')
   }
-  if (![fileCount, messagesPerFile, runs].every((value) => Number.isInteger(value) && value > 0)) {
+  if (![fileCount, messagesPerFile, runs, concurrency].every((value) => Number.isInteger(value) && value > 0)) {
     throw new Error('All benchmark counts must be positive integers')
   }
 
   console.log(
-    `Benchmarking ${fileCount} file(s), ${messagesPerFile.toLocaleString()} messages/file, ${runs} isolated run(s)`
+    `Benchmarking ${fileCount} file(s), ${messagesPerFile.toLocaleString()} messages/file, concurrency ${concurrency}, ${runs} isolated run(s)`
   )
   const results: BenchmarkResult[] = []
   for (let index = 0; index < runs; index++) {
-    const result = runIsolated(fileCount, messagesPerFile)
+    const result = runIsolated(fileCount, messagesPerFile, concurrency)
     results.push(result)
     printResult(result, `run ${index + 1}`)
   }

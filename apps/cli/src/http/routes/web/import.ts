@@ -13,6 +13,7 @@ import {
 } from '@openchatlab/node-runtime'
 import {
   autoImport,
+  autoImportBatch,
   streamImport,
   incrementalImport,
   analyzeIncrementalImport,
@@ -23,7 +24,12 @@ import {
   scanMultiChatFile,
   findEntryFileInDirectory,
 } from '../../../import'
-import type { AutoImportResult, StreamImportOptions } from '../../../import'
+import type {
+  AutoImportBatchOptions,
+  AutoImportBatchRequest,
+  AutoImportResult,
+  StreamImportOptions,
+} from '../../../import'
 import { resolveNativeBinding } from './helpers'
 
 const ARCHIVE_UPLOAD_LIMIT = 50 * 1024 * 1024 * 1024
@@ -31,6 +37,10 @@ const ARCHIVE_UPLOAD_LIMIT = 50 * 1024 * 1024 * 1024
 interface ImportRouteOptions {
   sourceManager?: ArchiveImportSourceManager
   runAutoImport?: (filePath: string, options: StreamImportOptions) => Promise<AutoImportResult>
+  runAutoImportBatch?: (
+    items: AutoImportBatchRequest[],
+    options: AutoImportBatchOptions
+  ) => ReturnType<typeof autoImportBatch>
   runPreparedImport?: (
     manifestPath: string,
     onProgress: (progress: unknown) => void,
@@ -65,8 +75,10 @@ export function registerImportRoutes(
   dbManager: DatabaseManager,
   options: ImportRouteOptions = {}
 ): void {
+  const activeBatchControllers = new Map<string, AbortController>()
   const sourceManager = options.sourceManager ?? new ArchiveImportSourceManager()
   const runAutoImport = options.runAutoImport ?? autoImport.bind(null, dbManager)
+  const runAutoImportBatch = options.runAutoImportBatch ?? autoImportBatch.bind(null, dbManager)
   const runPreparedImport =
     options.runPreparedImport ??
     (async (manifestPath: string, onProgress: (progress: unknown) => void, sessionGapThreshold?: number) => {
@@ -250,6 +262,83 @@ export function registerImportRoutes(
       reply.raw.end()
       cleanupTemp(tmpPath, tmpDir)
     }
+  })
+
+  server.post('/_web/import/batch', async (request, reply) => {
+    const parts = (request as any).parts()
+    if (!parts) return reply.code(400).send({ error: 'No files uploaded' })
+
+    const requestedBatchId = request.headers['x-chatlab-import-batch-id']
+    const batchId = typeof requestedBatchId === 'string' && requestedBatchId ? requestedBatchId : randomUUID()
+    if (activeBatchControllers.has(batchId)) {
+      return reply.code(409).send({ error: 'Batch import id is already active' })
+    }
+
+    const tmpDir = createChatLabTempDir('imports', 'batch-')
+    const items: AutoImportBatchRequest[] = []
+    let sessionGapThreshold: number | undefined
+    let completed = false
+    const controller = new AbortController()
+    activeBatchControllers.set(batchId, controller)
+
+    try {
+      for await (const part of parts) {
+        if (part.type === 'field' && part.fieldname === 'sessionGapThreshold') {
+          sessionGapThreshold = parseOptionalInteger(part.value)
+          continue
+        }
+        if (part.type !== 'file') continue
+        const index = items.length
+        const safeName = path.basename(part.filename || `upload-${index}`)
+        const filePath = path.join(tmpDir, `${index}-${safeName}`)
+        await pipeline(part.file, fs.createWriteStream(filePath, { flags: 'wx' }))
+        items.push({ id: String(index), filePath })
+      }
+
+      if (items.length === 0) return reply.code(400).send({ error: 'No files uploaded' })
+
+      reply.raw.writeHead(200, {
+        'Content-Type': 'text/event-stream',
+        'Cache-Control': 'no-cache',
+        Connection: 'keep-alive',
+      })
+      reply.raw.once('close', () => {
+        if (!completed) controller.abort()
+      })
+
+      const sendEvent = (event: string, eventData: unknown) => {
+        if (!reply.raw.destroyed) {
+          reply.raw.write(`event: ${event}\ndata: ${JSON.stringify(eventData)}\n\n`)
+        }
+      }
+      const results = await runAutoImportBatch(items, {
+        sessionGapThreshold,
+        signal: controller.signal,
+        onItemStart: (_item, index) => sendEvent('batch-start', { index }),
+        onItemProgress: (_item, index, progress) => sendEvent('batch-progress', { index, progress }),
+        onItemComplete: (_item, index, result) => sendEvent('batch-complete', { index, result }),
+      })
+      completed = true
+      sendEvent('done', results)
+    } catch (error) {
+      const payload = { error: error instanceof Error ? error.message : String(error) }
+      if (!reply.raw.headersSent) return reply.code(500).send(payload)
+      if (!reply.raw.destroyed) {
+        reply.raw.write(`event: error\ndata: ${JSON.stringify(payload)}\n\n`)
+      }
+    } finally {
+      completed = true
+      if (activeBatchControllers.get(batchId) === controller) activeBatchControllers.delete(batchId)
+      reply.raw.end()
+      cleanupTemp(tmpDir)
+    }
+  })
+
+  server.post<{ Params: { batchId: string } }>('/_web/import/batch/:batchId/cancel', async (request) => {
+    const controller = activeBatchControllers.get(request.params.batchId)
+    if (!controller) return { success: false, active: false }
+    controller.abort()
+    return { success: true, active: true }
   })
 
   // ==================== Directory Import ====================

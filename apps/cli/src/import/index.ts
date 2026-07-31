@@ -2,6 +2,7 @@
 export {
   streamImport,
   autoImport,
+  autoImportBatch,
   analyzeAutoImport,
   incrementalImport,
   analyzeIncrementalImport,
@@ -24,4 +25,6 @@ export type {
   AnalyzeNewImportResult,
   AutoImportAnalysisResult,
   AutoImportResult,
+  AutoImportBatchRequest,
+  AutoImportBatchOptions,
 } from './stream-import'

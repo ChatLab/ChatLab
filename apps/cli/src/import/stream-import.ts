@@ -11,7 +11,9 @@ import {
   DataDirCompatibilityError,
   IMPORT_IN_PROGRESS_ERROR_KEY,
   ImportInProgressError,
+  resolveDefaultBatchConcurrency,
   analyzeAutoImportFile as sharedAnalyzeAutoImportFile,
+  autoImportBatch as sharedAutoImportBatch,
   autoImportFile as sharedAutoImportFile,
   streamingImport,
   analyzeNewImport as sharedAnalyzeNewImport,
@@ -29,6 +31,7 @@ import type {
   ImportOptions,
   AnalyzeNewImportResult,
   AutoImportAnalysisResult,
+  AutoImportBatchItemResult,
   AutoImportResult,
 } from '@openchatlab/node-runtime'
 import {
@@ -91,43 +94,45 @@ function buildStreamImportDeps(
 
 function createProgressAdapter(onProgress?: (progress: StreamImportProgress) => void): ImportProgressCallback {
   if (!onProgress) return () => {}
-  return (progress) => {
-    let stage: StreamImportProgress['stage'] = 'parsing'
-    let pct = 0
-    switch (progress.stage) {
-      case 'detecting':
-        stage = 'detecting'
-        pct = 5
-        break
-      case 'parsing':
-        stage = 'parsing'
-        pct = Math.min(Math.round(progress.percentage * 0.7), 70)
-        break
-      case 'saving':
-        stage = 'saving'
-        pct = 80
-        break
-      case 'indexing':
-        stage = 'indexing'
-        pct = 90
-        break
-      case 'done':
-        stage = 'done'
-        pct = 100
-        break
-      case 'error':
-        stage = 'error'
-        pct = 0
-        break
-    }
-    onProgress({
-      stage,
-      progress: pct,
-      message: progress.message || '',
-      bytesRead: progress.bytesRead,
-      totalBytes: progress.totalBytes,
-      messagesProcessed: progress.messagesProcessed,
-    })
+  return (progress) => onProgress(createProgressAdapterValue(progress))
+}
+
+function createProgressAdapterValue(progress: Parameters<ImportProgressCallback>[0]): StreamImportProgress {
+  let stage: StreamImportProgress['stage'] = 'parsing'
+  let pct = 0
+  switch (progress.stage) {
+    case 'detecting':
+      stage = 'detecting'
+      pct = 5
+      break
+    case 'parsing':
+      stage = 'parsing'
+      pct = Math.min(Math.round(progress.percentage * 0.7), 70)
+      break
+    case 'saving':
+      stage = 'saving'
+      pct = 80
+      break
+    case 'indexing':
+      stage = 'indexing'
+      pct = 90
+      break
+    case 'done':
+      stage = 'done'
+      pct = 100
+      break
+    case 'error':
+      stage = 'error'
+      pct = 0
+      break
+  }
+  return {
+    stage,
+    progress: pct,
+    message: progress.message || '',
+    bytesRead: progress.bytesRead,
+    totalBytes: progress.totalBytes,
+    messagesProcessed: progress.messagesProcessed,
   }
 }
 
@@ -142,7 +147,8 @@ function deleteSessionDatabase(dbManager: DatabaseManager, sessionId: string): v
 async function streamImportUnlocked(
   dbManager: DatabaseManager,
   filePath: string,
-  options?: StreamImportOptions
+  options?: StreamImportOptions,
+  updateCompatibilityGate = true
 ): Promise<StreamImportResult> {
   const { formatId, chatIndex, sessionGapThreshold, onProgress, sessionId } = options || {}
 
@@ -155,6 +161,8 @@ async function streamImportUnlocked(
   const deps = buildStreamImportDeps(dbManager, progressAdapter, sessionGapThreshold)
   const result = await streamingImport(filePath, deps, formatOptions, sessionId)
   if (!result.success || !result.sessionId) return result
+
+  if (!updateCompatibilityGate) return result
 
   try {
     dbManager.raiseCurrentChatDbCompatibilityGate()
@@ -192,43 +200,171 @@ export async function autoImport(
   filePath: string,
   options?: StreamImportOptions
 ): Promise<AutoImportResult> {
+  try {
+    return await withDataDirImportLock(dbManager.getUserDataDir(), () =>
+      autoImportUnlocked(dbManager, filePath, options)
+    )
+  } catch (error) {
+    if (error instanceof ImportInProgressError) {
+      return { success: false, error: IMPORT_IN_PROGRESS_ERROR_KEY }
+    }
+    throw error
+  }
+}
+
+async function autoImportUnlocked(
+  dbManager: DatabaseManager,
+  filePath: string,
+  options?: StreamImportOptions,
+  updateCompatibilityGate = true
+): Promise<AutoImportResult> {
   const { formatId, chatIndex, onProgress, sessionId } = options ?? {}
   const formatOptions: Record<string, unknown> = {}
   if (formatId) formatOptions.formatId = formatId
   if (chatIndex !== undefined) formatOptions.chatIndex = chatIndex
   const progressAdapter = createProgressAdapter(onProgress)
 
+  return sharedAutoImportFile(
+    filePath,
+    {
+      listSessionIds: () => dbManager.listSessionIds(),
+      openReadonly: (candidateSessionId) => dbManager.openRawSessionDatabase(candidateSessionId, { readonly: true }),
+      onProgress: progressAdapter,
+      sessionExists: (candidateSessionId) => dbManager.listSessionIds().includes(candidateSessionId),
+      createSession: (sourcePath, sourceFormatOptions, explicitSessionId) =>
+        streamImportUnlocked(
+          dbManager,
+          sourcePath,
+          {
+            ...options,
+            ...sourceFormatOptions,
+            sessionId: explicitSessionId,
+          },
+          updateCompatibilityGate
+        ),
+      appendSession: (targetSessionId, sourcePath, sourceFormatOptions) =>
+        incrementalImportUnlocked(
+          dbManager,
+          targetSessionId,
+          sourcePath,
+          {
+            ...sourceFormatOptions,
+            onProgress: progressAdapter,
+          },
+          updateCompatibilityGate
+        ),
+    },
+    {
+      explicitSessionId: sessionId,
+      formatOptions,
+    }
+  )
+}
+
+export interface AutoImportBatchRequest {
+  id: string
+  filePath: string
+  formatId?: string
+  chatIndex?: number
+  sessionId?: string
+}
+
+export interface AutoImportBatchOptions {
+  concurrency?: number
+  sessionGapThreshold?: number
+  signal?: AbortSignal
+  onItemStart?: (item: AutoImportBatchRequest, index: number) => void
+  onItemProgress?: (item: AutoImportBatchRequest, index: number, progress: StreamImportProgress) => void
+  onItemComplete?: (item: AutoImportBatchRequest, index: number, result: AutoImportBatchItemResult) => void
+}
+
+export async function autoImportBatch(
+  dbManager: DatabaseManager,
+  items: AutoImportBatchRequest[],
+  options: AutoImportBatchOptions = {}
+): Promise<AutoImportBatchItemResult[]> {
   try {
-    return await withDataDirImportLock(dbManager.getUserDataDir(), () =>
-      sharedAutoImportFile(
-        filePath,
+    return await withDataDirImportLock(dbManager.getUserDataDir(), async () => {
+      const results = await sharedAutoImportBatch(
+        items.map((item) => ({
+          id: item.id,
+          filePath: item.filePath,
+          options: {
+            explicitSessionId: item.sessionId,
+            formatOptions: {
+              ...(item.formatId ? { formatId: item.formatId } : {}),
+              ...(item.chatIndex !== undefined ? { chatIndex: item.chatIndex } : {}),
+            },
+          },
+        })),
         {
           listSessionIds: () => dbManager.listSessionIds(),
           openReadonly: (candidateSessionId) =>
             dbManager.openRawSessionDatabase(candidateSessionId, { readonly: true }),
-          onProgress: progressAdapter,
           sessionExists: (candidateSessionId) => dbManager.listSessionIds().includes(candidateSessionId),
           createSession: (sourcePath, sourceFormatOptions, explicitSessionId) =>
-            streamImportUnlocked(dbManager, sourcePath, {
-              ...options,
-              ...sourceFormatOptions,
-              sessionId: explicitSessionId,
-            }),
+            streamImportUnlocked(
+              dbManager,
+              sourcePath,
+              {
+                ...sourceFormatOptions,
+                sessionId: explicitSessionId,
+                sessionGapThreshold: options.sessionGapThreshold,
+              },
+              false
+            ),
           appendSession: (targetSessionId, sourcePath, sourceFormatOptions) =>
-            incrementalImportUnlocked(dbManager, targetSessionId, sourcePath, {
-              ...sourceFormatOptions,
-              onProgress: progressAdapter,
-            }),
+            incrementalImportUnlocked(
+              dbManager,
+              targetSessionId,
+              sourcePath,
+              {
+                ...sourceFormatOptions,
+              },
+              false
+            ),
         },
         {
-          explicitSessionId: sessionId,
-          formatOptions,
+          concurrency: options.concurrency ?? resolveDefaultBatchConcurrency(items.length),
+          signal: options.signal,
+          onItemStart: (_item, index) => options.onItemStart?.(items[index], index),
+          onItemProgress: (_item, index, progress) =>
+            options.onItemProgress?.(items[index], index, createProgressAdapterValue(progress)),
+          onItemComplete: (_item, index, result) => options.onItemComplete?.(items[index], index, result),
         }
       )
-    )
+
+      if (results.some((result) => result.status === 'success')) {
+        try {
+          dbManager.raiseCurrentChatDbCompatibilityGate()
+        } catch (error) {
+          const message = error instanceof Error ? error.message : String(error)
+          for (const result of results) {
+            if (result.status === 'success' && result.result.importMode === 'created' && result.result.sessionId) {
+              deleteSessionDatabase(dbManager, result.result.sessionId)
+            }
+          }
+          return results.map((result) =>
+            result.status === 'success'
+              ? {
+                  id: result.id,
+                  status: 'failed' as const,
+                  error: message,
+                  result: { ...result.result, success: false, error: message },
+                }
+              : result
+          )
+        }
+      }
+      return results
+    })
   } catch (error) {
     if (error instanceof ImportInProgressError) {
-      return { success: false, error: IMPORT_IN_PROGRESS_ERROR_KEY }
+      return items.map((item) => ({
+        id: item.id,
+        status: 'failed' as const,
+        error: IMPORT_IN_PROGRESS_ERROR_KEY,
+      }))
     }
     throw error
   }
@@ -296,7 +432,8 @@ async function incrementalImportUnlocked(
   dbManager: DatabaseManager,
   sessionId: string,
   filePath: string,
-  options?: ImportOptions & { onProgress?: ImportProgressCallback }
+  options?: ImportOptions & { onProgress?: ImportProgressCallback },
+  updateCompatibilityGate = true
 ): Promise<IncrementalImportResult> {
   const { onProgress, ...importOpts } = options || {}
   let compatibilityError: DataDirCompatibilityError | null = null
@@ -310,6 +447,7 @@ async function incrementalImportUnlocked(
   )
   if (compatibilityError) throw compatibilityError
   if (!result.success) return result
+  if (!updateCompatibilityGate) return result
 
   try {
     dbManager.raiseCurrentChatDbCompatibilityGate()

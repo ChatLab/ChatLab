@@ -12,7 +12,7 @@ import {
   readDataDirCompatibilityMeta,
   withDataDirImportLock,
 } from '@openchatlab/node-runtime'
-import { analyzeAutoImport, autoImport, streamImport } from './stream-import'
+import { analyzeAutoImport, autoImport, autoImportBatch, streamImport } from './stream-import'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -62,6 +62,20 @@ function writeTempDuplicateChatFile(dir: string): string {
       meta: { name: 'Duplicate Chat', platform: 'qq', type: 'group', groupId: 'duplicate-group' },
       members: [{ platformId: 'u1', accountName: 'Alice' }],
       messages: [message, { ...message }],
+    })
+  )
+  return filePath
+}
+
+function writeBatchChatFile(dir: string, filename: string, groupId: string, content: string): string {
+  const filePath = path.join(dir, filename)
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify({
+      chatlab: { version: '0.0.2', exportedAt: 1711468800 },
+      meta: { name: groupId, platform: 'qq', type: 'group', groupId },
+      members: [{ platformId: 'u1', accountName: 'Alice' }],
+      messages: [{ sender: 'u1', accountName: 'Alice', timestamp: 1711468800, type: 0, content }],
     })
   )
   return filePath
@@ -149,6 +163,113 @@ test('autoImport creates once and then incrementally imports the same stable cha
   assert.equal(incremental.newMessageCount, 0)
   assert.equal(incremental.duplicateCount, 1)
   assert.equal(manager.listSessionIds().length, 1)
+})
+
+test('autoImportBatch holds one lock, coalesces the same target, and preserves independent results', async (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  fs.mkdirSync(path.join(root, 'data', 'databases'), { recursive: true })
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+  const first = writeBatchChatFile(root, 'group-a-1.json', 'group-a', 'first')
+  const second = writeBatchChatFile(root, 'group-a-2.json', 'group-a', 'second')
+  const independent = writeBatchChatFile(root, 'group-b.json', 'group-b', 'independent')
+
+  const results = await autoImportBatch(
+    manager,
+    [
+      { id: 'a-1', filePath: first },
+      { id: 'b', filePath: independent },
+      { id: 'a-2', filePath: second },
+    ],
+    { concurrency: 2, sessionGapThreshold: 7200 }
+  )
+
+  assert.deepEqual(
+    results.map((result) => result.status),
+    ['success', 'success', 'success']
+  )
+  assert.equal(results[0].status === 'success' && results[0].result.importMode, 'created')
+  assert.equal(results[2].status === 'success' && results[2].result.importMode, 'incremental')
+  assert.equal(
+    results[0].status === 'success' &&
+      results[2].status === 'success' &&
+      results[0].result.sessionId === results[2].result.sessionId,
+    true
+  )
+  assert.equal(manager.listSessionIds().length, 2)
+
+  const sameTargetId = results[0].status === 'success' ? results[0].result.sessionId! : ''
+  const db = manager.openRawSessionDatabase(sameTargetId, { readonly: true })
+  const row = db
+    .prepare(
+      `SELECT
+         (SELECT COUNT(*) FROM message) AS messages,
+         (SELECT session_gap_threshold FROM meta LIMIT 1) AS gapThreshold`
+    )
+    .get() as { messages: number; gapThreshold: number }
+  db.close()
+  assert.deepEqual(row, { messages: 2, gapThreshold: 7200 })
+})
+
+test('autoImportBatch rejects an external writer and cancels work that has not started', async (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  fs.mkdirSync(path.join(root, 'data', 'databases'), { recursive: true })
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+  const file = writeBatchChatFile(root, 'locked.json', 'locked', 'locked')
+  const lockedResults = await withDataDirImportLock(manager.getUserDataDir(), () =>
+    autoImportBatch(manager, [{ id: 'locked', filePath: file }])
+  )
+  assert.deepEqual(lockedResults, [{ id: 'locked', status: 'failed', error: IMPORT_IN_PROGRESS_ERROR_KEY }])
+
+  const controller = new AbortController()
+  const items = Array.from({ length: 5 }, (_, index) => ({
+    id: String(index),
+    filePath: writeBatchChatFile(root, `cancel-${index}.json`, `cancel-${index}`, `message-${index}`),
+    sessionId: `cancel-${index}`,
+  }))
+  let completed = 0
+  const cancelledResults = await autoImportBatch(manager, items, {
+    concurrency: 1,
+    signal: controller.signal,
+    onItemComplete() {
+      completed++
+      if (completed === 1) controller.abort()
+    },
+  })
+
+  assert.equal(cancelledResults[0].status, 'success')
+  assert.deepEqual(
+    cancelledResults.slice(1).map((result) => result.status),
+    ['cancelled', 'cancelled', 'cancelled', 'cancelled']
+  )
+  assert.equal(manager.listSessionIds().length, 1)
+})
+
+test('autoImportBatch removes newly created sessions when the shared compatibility gate fails', async (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  fs.mkdirSync(path.join(root, 'data', 'databases'), { recursive: true })
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+  manager.raiseCurrentChatDbCompatibilityGate = () => {
+    throw new Error('compatibility gate unavailable')
+  }
+  const file = writeBatchChatFile(root, 'gate.json', 'gate', 'message')
+
+  const results = await autoImportBatch(manager, [{ id: 'gate', filePath: file, sessionId: 'gate-session' }])
+
+  assert.equal(results[0].status, 'failed')
+  assert.equal(results[0].status === 'failed' && results[0].error, 'compatibility gate unavailable')
+  assert.equal(fs.existsSync(path.join(root, 'data', 'databases', 'gate-session.db')), false)
 })
 
 test('analyzeAutoImport previews a new session without writing a database', async (t) => {

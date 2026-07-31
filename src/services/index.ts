@@ -39,6 +39,9 @@ export type {
   DemoImportResult,
   IncrementalAnalysis,
   IncrementalImportResult,
+  BatchImportItem,
+  BatchImportItemResult,
+  BatchImportProgress,
 } from './import/types'
 export { useSessionIndexService } from './session-index/service'
 export { useSemanticIndexService } from './semantic-index/service'
