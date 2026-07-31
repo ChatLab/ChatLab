@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import Database from 'better-sqlite3'
-import { CHAT_DB_TABLES } from '@openchatlab/core'
+import { CHAT_DB_TABLES, type DatabaseAdapter } from '@openchatlab/core'
 import { isNativeFormatAvailable } from '@openchatlab/parser'
 import { BetterSqliteAdapter } from '../better-sqlite3-adapter'
 import { computeAndSetOverviewCache } from '../cache/session-cache'
@@ -25,12 +25,15 @@ function makeTempDir(): string {
   return fs.mkdtempSync(path.join(baseDir, 'chatlab-streaming-import-'))
 }
 
-function createImportDeps(dbPath: string): StreamImportDeps {
+function createImportDeps(
+  dbPath: string,
+  wrapDatabase: (db: DatabaseAdapter) => DatabaseAdapter = (db) => db
+): StreamImportDeps {
   return {
     openDatabase() {
       const db = new Database(dbPath, { nativeBinding })
       db.exec(CHAT_DB_TABLES)
-      return new BetterSqliteAdapter(db)
+      return wrapDatabase(new BetterSqliteAdapter(db))
     },
     deleteDatabase() {
       for (const suffix of ['', '-wal', '-shm']) {
@@ -43,6 +46,38 @@ function createImportDeps(dbPath: string): StreamImportDeps {
     },
     onProgress() {
       /* noop for focused importer tests */
+    },
+  }
+}
+
+function createDelayedTransactionAdapter(db: DatabaseAdapter, delayMs: number): DatabaseAdapter {
+  let delayedMessageCommit = false
+
+  return {
+    get readonly() {
+      return db.readonly
+    },
+    exec(sql) {
+      if (!delayedMessageCommit && sql.trim().toUpperCase() === 'COMMIT') {
+        delayedMessageCommit = true
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs)
+      }
+      db.exec(sql)
+    },
+    prepare(sql) {
+      return db.prepare(sql)
+    },
+    transaction(fn) {
+      return db.transaction(fn)
+    },
+    pragma(pragma) {
+      if (pragma === 'wal_checkpoint(TRUNCATE)') {
+        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs)
+      }
+      return db.pragma(pragma)
+    },
+    close() {
+      db.close()
     },
   }
 }
@@ -568,6 +603,23 @@ test('streamingImport applies incremental-equivalent deduplication on first impo
   const row = db.prepare('SELECT COUNT(*) AS count FROM message').get() as { count: number }
   db.close()
   assert.equal(row.count, 3)
+})
+
+test('streamingImport attributes transaction and checkpoint work to their import phases', async (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const filePath = writeDuplicateChatLabExport(root)
+  const dbPath = path.join(root, 'transaction-timing-test.db')
+  const delayMs = 50
+  const deps = createImportDeps(dbPath, (db) => createDelayedTransactionAdapter(db, delayMs))
+
+  const result = await streamingImport(filePath, deps, { formatId: 'chatlab' }, 'transaction-timing-test')
+
+  assert.equal(result.success, true)
+  const timings = result.diagnostics?.performance.timings
+  assert.ok(timings)
+  assert.ok(timings.messageWriteMs >= delayMs * 0.8, 'message writes should include the final transaction commit')
+  assert.ok(timings.checkpointMs >= delayMs * 0.8, 'checkpoint timing should include the final WAL checkpoint')
 })
 
 test('streamingImport canonicalizes reserved SYSTEM senders and excludes them from overview counts', async (t) => {

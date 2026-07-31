@@ -421,12 +421,30 @@ async function streamImportSingle(
   let lastCheckpointCount = 0
   let inTransaction = false
   let messageTransactionCount = 0
+  let messageTransactionMs = 0
 
   const beginTransaction = () => {
     if (!inTransaction) {
-      db.exec('BEGIN TRANSACTION')
-      inTransaction = true
-      messageTransactionCount++
+      const startedAt = performance.now()
+      try {
+        db.exec('BEGIN TRANSACTION')
+        inTransaction = true
+        messageTransactionCount++
+      } finally {
+        messageTransactionMs += elapsedMs(startedAt)
+      }
+    }
+  }
+
+  const commitTransaction = () => {
+    if (inTransaction) {
+      const startedAt = performance.now()
+      try {
+        db.exec('COMMIT')
+        inTransaction = false
+      } finally {
+        messageTransactionMs += elapsedMs(startedAt)
+      }
     }
   }
 
@@ -438,14 +456,22 @@ async function streamImportSingle(
     }
   }
 
+  const measureCheckpoint = () => {
+    const startedAt = performance.now()
+    try {
+      doCheckpoint()
+    } finally {
+      timings.checkpointMs += elapsedMs(startedAt)
+    }
+  }
+
   const commitAndBeginNew = () => {
     if (inTransaction) {
-      db.exec('COMMIT')
-      inTransaction = false
+      commitTransaction()
       logger?.perf('Commit transaction', totalMessageCount, BATCH_COMMIT_SIZE)
 
       if (totalMessageCount - lastCheckpointCount >= CHECKPOINT_INTERVAL) {
-        doCheckpoint()
+        measureCheckpoint()
         logger?.perf('WAL checkpoint', totalMessageCount)
         lastCheckpointCount = totalMessageCount
       }
@@ -486,7 +512,8 @@ async function streamImportSingle(
   const finishParserTiming = () => {
     if (parserTimingFinished) return
     const parsePipelineMs = elapsedMs(parsePipelineStartedAt)
-    const writeCallbackMs = timings.metaWriteMs + timings.memberWriteMs + timings.messageWriteMs
+    const writeCallbackMs =
+      timings.metaWriteMs + timings.memberWriteMs + timings.messageWriteMs + messageTransactionMs + timings.checkpointMs
     timings.parserMs = Math.max(0, parsePipelineMs - writeCallbackMs)
     parserTimingFinished = true
     sampleRss()
@@ -566,6 +593,8 @@ async function streamImportSingle(
 
         onMessageBatch: (messages: ParsedMessage[]) => {
           const startedAt = performance.now()
+          const transactionMsBefore = messageTransactionMs
+          const checkpointMsBefore = timings.checkpointMs
           try {
             callbackStats.onMessageBatchCalls++
             callbackStats.totalMessagesReceived += messages.length
@@ -635,7 +664,9 @@ async function streamImportSingle(
               }
             }
           } finally {
-            timings.messageWriteMs += elapsedMs(startedAt)
+            const nestedStageMs =
+              messageTransactionMs - transactionMsBefore + (timings.checkpointMs - checkpointMsBefore)
+            timings.messageWriteMs += Math.max(0, elapsedMs(startedAt) - nestedStageMs)
             sampleRss()
           }
         },
@@ -645,9 +676,9 @@ async function streamImportSingle(
     finishParserTiming()
 
     if (inTransaction) {
-      db.exec('COMMIT')
-      inTransaction = false
+      commitTransaction()
     }
+    timings.messageWriteMs += messageTransactionMs
 
     // Flush nickname history in batch
     onProgress({
@@ -719,9 +750,7 @@ async function streamImportSingle(
       message: '',
     })
     await yieldToEventLoop()
-    const checkpointStartedAt = performance.now()
-    doCheckpoint()
-    timings.checkpointMs = elapsedMs(checkpointStartedAt)
+    measureCheckpoint()
     sampleRss()
     logger?.perf('WAL checkpoint done', totalMessageCount)
 
