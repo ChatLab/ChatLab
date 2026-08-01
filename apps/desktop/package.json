@@ -10,7 +10,7 @@
     "restore-node-abi": "node scripts/restore-node-abi.mjs",
     "dev": "node scripts/ensure-native.mjs && electron-vite dev",
     "preview": "node scripts/ensure-native.mjs && electron-vite preview",
-    "build": "electron-vite build",
+    "build": "electron-vite build && node ../../scripts/check-build-artifacts.mjs desktop",
     "build:mac": "node scripts/ensure-native.mjs && pnpm run build && node scripts/build-app.mjs --mac",
     "build:win": "node scripts/ensure-native.mjs && pnpm run build && node scripts/build-app.mjs --win"
   },

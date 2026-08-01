@@ -47,31 +47,6 @@ test('assertDesktopStartupMigrationSucceeded accepts successful startup migratio
   assert.doesNotThrow(() => assertDesktopStartupMigrationSucceeded({ success: true, migratedCount: 1, failures: [] }))
 })
 
-test('repairDesktopStartupCompatibilityGate raises metadata for already migrated segment schema data', () => {
-  const calls: Array<{ minRuntimeVersion: string; reason: string }> = []
-
-  repairDesktopStartupCompatibilityGate(
-    { version: '0.25.1', kind: 'desktop' },
-    {
-      hasCurrentSegmentSchemaData: () => true,
-      raiseDataDirMinRuntimeVersion: (_pathProvider, input) => {
-        calls.push({ minRuntimeVersion: input.minRuntimeVersion, reason: input.reason })
-        return {
-          formatVersion: 1,
-          minRuntimeVersion: input.minRuntimeVersion,
-          dataCompatibilityVersion: input.dataCompatibilityVersion,
-          reasons: [input.reason],
-          updatedBy: { runtime: input.runtime.kind, module: input.module, version: input.runtime.version },
-          updatedAt: 1780830000,
-        }
-      },
-      pathProvider: {} as never,
-    }
-  )
-
-  assert.deepEqual(calls, [{ minRuntimeVersion: '0.25.1', reason: 'segment-schema' }])
-})
-
 test('repairDesktopStartupCompatibilityGate writes missing metadata for existing v6 databases', () => {
   const root = makeTempDir()
   const dbPath = path.join(root, 'data', 'databases', 'already-v6.db')

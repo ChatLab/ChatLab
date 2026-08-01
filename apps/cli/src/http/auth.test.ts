@@ -45,26 +45,6 @@ describe('authHook — authentication matrix', () => {
     assert.equal(reply.statusCode, 0, '/api/* should pass without token configured')
   })
 
-  // ── /api/* always requires auth ──
-
-  it('rejects /api/* without Bearer header', async () => {
-    const reply = fakeReply()
-    await authHook(fakeRequest('/api/v1/status'), reply as never)
-    assert.equal(reply.statusCode, 401)
-  })
-
-  it('rejects /api/* with wrong token', async () => {
-    const reply = fakeReply()
-    await authHook(fakeRequest('/api/v1/status', 'Bearer wrong_token'), reply as never)
-    assert.equal(reply.statusCode, 401)
-  })
-
-  it('allows /api/* with correct token', async () => {
-    const reply = fakeReply()
-    await authHook(fakeRequest('/api/v1/status', `Bearer ${VALID_TOKEN}`), reply as never)
-    assert.equal(reply.statusCode, 0, 'should not send any error')
-  })
-
   // ── /_web/* default (requireAuth=false): bypass ──
 
   it('allows /_web/* without auth when requireAuth=false', async () => {
@@ -73,59 +53,25 @@ describe('authHook — authentication matrix', () => {
     assert.equal(reply.statusCode, 0)
   })
 
-  // ── /_web/* with requireAuth=true: requires token ──
+  const cases = [
+    ['rejects /api/* without Bearer header', '/api/v1/status', undefined, false, 401],
+    ['rejects /api/* with wrong token', '/api/v1/status', 'Bearer wrong_token', false, 401],
+    ['allows /api/* with correct token', '/api/v1/status', `Bearer ${VALID_TOKEN}`, false, 0],
+    ['rejects /_web/* without Bearer when requireAuth=true', '/_web/sessions', undefined, true, 401],
+    ['rejects /_web/* with wrong token when requireAuth=true', '/_web/sessions', 'Bearer bad', true, 401],
+    ['allows /_web/* with correct token when requireAuth=true', '/_web/sessions', `Bearer ${VALID_TOKEN}`, true, 0],
+    ['allows static file paths without auth', '/index.html', undefined, false, 0],
+    ['allows static file paths without auth even with requireAuth=true', '/assets/main.js', undefined, true, 0],
+  ] as const
 
-  it('rejects /_web/* without Bearer when requireAuth=true', async () => {
-    setRequireAuth(true)
-    const reply = fakeReply()
-    await authHook(fakeRequest('/_web/sessions'), reply as never)
-    assert.equal(reply.statusCode, 401)
-  })
-
-  it('rejects /_web/* with wrong token when requireAuth=true', async () => {
-    setRequireAuth(true)
-    const reply = fakeReply()
-    await authHook(fakeRequest('/_web/sessions', 'Bearer bad'), reply as never)
-    assert.equal(reply.statusCode, 401)
-  })
-
-  it('allows /_web/* with correct token when requireAuth=true', async () => {
-    setRequireAuth(true)
-    const reply = fakeReply()
-    await authHook(fakeRequest('/_web/sessions', `Bearer ${VALID_TOKEN}`), reply as never)
-    assert.equal(reply.statusCode, 0)
-  })
-
-  // ── Static files / SPA: always public ──
-
-  it('allows static file paths without auth', async () => {
-    const reply = fakeReply()
-    await authHook(fakeRequest('/index.html'), reply as never)
-    assert.equal(reply.statusCode, 0)
-  })
-
-  it('allows static file paths without auth even with requireAuth=true', async () => {
-    setRequireAuth(true)
-    const reply = fakeReply()
-    await authHook(fakeRequest('/assets/main.js'), reply as never)
-    assert.equal(reply.statusCode, 0)
-  })
-
-  // ── Combined: webRoot + requireAuth (the P0 scenario) ──
-
-  it('P0 regression: /_web/* is protected when both webRoot and requireAuth are active', async () => {
-    setRequireAuth(true)
-    const reply = fakeReply()
-    await authHook(fakeRequest('/_web/ai/llm/providers'), reply as never)
-    assert.equal(reply.statusCode, 401, '/_web/* must NOT bypass auth when requireAuth=true')
-  })
-
-  it('P0 regression: /api/* remains protected regardless of requireAuth flag', async () => {
-    setRequireAuth(false)
-    const reply = fakeReply()
-    await authHook(fakeRequest('/api/v1/status'), reply as never)
-    assert.equal(reply.statusCode, 401, '/api/* must always require auth')
-  })
+  for (const [name, url, authorization, requireAuth, expectedStatus] of cases) {
+    it(name, async () => {
+      setRequireAuth(requireAuth)
+      const reply = fakeReply()
+      await authHook(fakeRequest(url, authorization), reply as never)
+      assert.equal(reply.statusCode, expectedStatus)
+    })
+  }
 
   // ── setRequireAuth reset ──
 

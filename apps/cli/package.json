@@ -35,7 +35,7 @@
   ],
   "scripts": {
     "cli": "node scripts/ensure-native.mjs && tsx src/cli.ts",
-    "build": "tsup",
+    "build": "tsup && node ../../scripts/check-build-artifacts.mjs cli",
     "build:full": "pnpm -w run build:cli-web && pnpm run build && pnpm run prepare:cli-web",
     "prepare:cli-web": "rm -rf dist-cli-web && cp -r ../../dist-cli-web dist-cli-web",
     "ensure-native": "node scripts/ensure-native.mjs",

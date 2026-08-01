@@ -3,21 +3,21 @@ import assert from 'node:assert/strict'
 import { API_VERSION, QueryError, successEnvelope, errorEnvelope, exitCodeForError } from './envelope'
 
 describe('successEnvelope', () => {
-  it('builds ok envelope with data, meta and apiVersion', () => {
-    const envelope = successEnvelope('messages.search', { text: 'hello' }, { totalHits: 3 })
+  const cases = [
+    ['builds ok envelope with data, meta and apiVersion', 'messages.search', { text: 'hello' }, { totalHits: 3 }],
+    ['does not emit an error key on success', 'sessions.list', { items: [] }, undefined],
+  ] as const
 
-    assert.equal(envelope.ok, true)
-    assert.equal(envelope.command, 'messages.search')
-    assert.deepEqual(envelope.data, { text: 'hello' })
-    assert.equal(envelope.meta.totalHits, 3)
-    assert.equal(envelope.meta.apiVersion, API_VERSION)
-  })
-
-  it('does not emit an error key on success', () => {
-    const envelope = successEnvelope('sessions.list', { items: [] })
-    assert.equal('error' in envelope, false)
-    assert.deepEqual(envelope.meta, { apiVersion: API_VERSION })
-  })
+  for (const [name, command, data, meta] of cases) {
+    it(name, () => {
+      const envelope = successEnvelope(command, data, meta)
+      assert.equal(envelope.ok, true)
+      assert.equal(envelope.command, command)
+      assert.deepEqual(envelope.data, data)
+      assert.equal('error' in envelope, false)
+      assert.deepEqual(envelope.meta, { ...meta, apiVersion: API_VERSION })
+    })
+  }
 })
 
 describe('errorEnvelope', () => {
@@ -54,28 +54,19 @@ describe('errorEnvelope', () => {
 })
 
 describe('exitCodeForError', () => {
-  it('maps argument-class errors to 2', () => {
-    assert.equal(exitCodeForError('INVALID_ARGUMENT'), 2)
-    assert.equal(exitCodeForError('CURSOR_INVALID'), 2)
-    assert.equal(exitCodeForError('RAW_DISABLED'), 2)
-    assert.equal(exitCodeForError('SQL_DISABLED'), 2)
-  })
+  const cases = [
+    ['maps argument-class errors to 2', ['INVALID_ARGUMENT', 'CURSOR_INVALID', 'RAW_DISABLED', 'SQL_DISABLED'], 2],
+    ['maps not-found errors to 3', ['SESSION_NOT_FOUND', 'MEMBER_NOT_FOUND', 'SEGMENT_NOT_FOUND'], 3],
+    ['maps ambiguity errors to 4', ['SESSION_AMBIGUOUS', 'MEMBER_AMBIGUOUS'], 4],
+    ['maps SQL errors to 5', ['SQL_ERROR'], 5],
+    ['maps unknown errors to 1', ['SOMETHING_ELSE'], 1],
+  ] as const
 
-  it('maps not-found errors to 3', () => {
-    assert.equal(exitCodeForError('SESSION_NOT_FOUND'), 3)
-    assert.equal(exitCodeForError('MEMBER_NOT_FOUND'), 3)
-    assert.equal(exitCodeForError('SEGMENT_NOT_FOUND'), 3)
-  })
-
-  it('maps ambiguity errors to 4', () => {
-    assert.equal(exitCodeForError('SESSION_AMBIGUOUS'), 4)
-    assert.equal(exitCodeForError('MEMBER_AMBIGUOUS'), 4)
-  })
-
-  it('maps SQL errors to 5 and unknown codes to 1', () => {
-    assert.equal(exitCodeForError('SQL_ERROR'), 5)
-    assert.equal(exitCodeForError('SOMETHING_ELSE'), 1)
-  })
+  for (const [name, codes, expected] of cases) {
+    it(name, () => {
+      for (const code of codes) assert.equal(exitCodeForError(code), expected, code)
+    })
+  }
 })
 
 describe('QueryError', () => {

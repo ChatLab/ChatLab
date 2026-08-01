@@ -2,6 +2,8 @@
 appId: com.chatlab.fun
 # 应用程序的产品名称
 productName: ChatLab
+# 打包完成后使用目标 Electron 真实加载本地 embedding 运行时，避免只检查 package.json。
+afterPack: scripts/verify-packaged-local-runtime.mjs
 # 发布配置
 publish:
   provider: github
