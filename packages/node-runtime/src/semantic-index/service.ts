@@ -36,7 +36,8 @@ import {
   type SemanticIndexConfigInput,
 } from './config'
 import { createEmbedder, type EmbedderFactoryDeps } from './embedder-factory'
-import type { EmbeddingProvider } from './embedding/types'
+import type { EmbeddingProvider, SemanticIndexModelStatus } from './embedding/types'
+import type { LocalEmbeddingRuntimeStatus } from './embedding/local-runtime'
 import { EmbeddingIndexStore, type LoadSqliteVec } from './store'
 import {
   SemanticIndexStateStore,
@@ -74,6 +75,8 @@ export interface SemanticIndexServiceOptions {
   nativeBinding?: string
   /** auth profile 写入注入（测试用，避免写真实 ~/.chatlab） */
   writeAuthProfile?: (name: string, profile: AuthProfile) => void
+  /** Optional managed local runtime status for CLI; Desktop uses its bundled runtime. */
+  getLocalEmbeddingRuntimeStatus?: () => LocalEmbeddingRuntimeStatus
 }
 
 /** 语义索引 API Key 固定存储在此 auth profile；config 只保存引用，不保存明文 */
@@ -210,6 +213,7 @@ export function createSemanticIndexService(params: {
   nativeBinding?: string
   loadSqliteVec?: LoadSqliteVec
   embedderFactoryDeps?: EmbedderFactoryDeps
+  getLocalEmbeddingRuntimeStatus?: () => LocalEmbeddingRuntimeStatus
   modelDownloadProxyUrl?: string
 }): SemanticIndexService {
   const { pathProvider } = params
@@ -222,6 +226,7 @@ export function createSemanticIndexService(params: {
     nativeBinding: params.nativeBinding,
     loadSqliteVec: params.loadSqliteVec,
     embedderFactoryDeps: params.embedderFactoryDeps,
+    getLocalEmbeddingRuntimeStatus: params.getLocalEmbeddingRuntimeStatus,
   })
 }
 
@@ -286,8 +291,9 @@ export class SemanticIndexService {
    * 保存配置；模型身份变化会使已启用对话的索引在重建完成前不被检索使用。
    * 传入 apiKey 时写入固定 auth profile，config 内只保存引用，绝不持久化明文。
    */
-  getModelStatus(): 'idle' | 'downloading' | 'ready' | 'error' {
-    return this.modelPreloadStatus
+  getModelStatus(): SemanticIndexModelStatus {
+    if (this.modelPreloadStatus !== 'downloading') return this.modelPreloadStatus
+    return this.options.getLocalEmbeddingRuntimeStatus?.() === 'installing' ? 'installing-runtime' : 'downloading-model'
   }
 
   setConfig(config: SemanticIndexConfigInput, options?: { apiKey?: string }): SemanticIndexConfig {
@@ -304,12 +310,23 @@ export class SemanticIndexService {
     if (!saved.enabled) {
       for (const state of this.stateStore.listEnabled()) this.queue.pause(state.dbPathHash)
     }
-    // 本地模式已配置且功能已开启时，立即在后台触发模型下载，让用户在建索引前完成等待
-    if (saved.enabled && isSemanticIndexConfigured(saved) && saved.mode === 'local') {
-      const modelId = saved.local.modelId
-      const downloadSource = saved.local.downloadSource ?? DEFAULT_SEMANTIC_INDEX_MODEL_DOWNLOAD_SOURCE
-      const cacheDir = this.options.modelsCacheDir
-      this.modelPreloadStatus = 'downloading'
+    this.startLocalModelPreload(saved, preloadGeneration)
+    return saved
+  }
+
+  private startLocalModelPreload(
+    config: SemanticIndexConfig,
+    preloadGeneration: number,
+    options: { defer?: boolean } = {}
+  ): void {
+    if (!config.enabled || !isSemanticIndexConfigured(config) || config.mode !== 'local') return
+
+    const modelId = config.local.modelId
+    const downloadSource = config.local.downloadSource ?? DEFAULT_SEMANTIC_INDEX_MODEL_DOWNLOAD_SOURCE
+    const cacheDir = this.options.modelsCacheDir
+    this.modelPreloadStatus = 'downloading'
+    const run = () => {
+      if (preloadGeneration !== this.modelPreloadGeneration) return
       appLogger.info('semantic-index', 'local embedding model preload started', { modelId, downloadSource, cacheDir })
       void this.getEmbedder()
         .preload?.()
@@ -332,7 +349,8 @@ export class SemanticIndexService {
           )
         })
     }
-    return saved
+    if (options.defer) queueMicrotask(run)
+    else run()
   }
 
   private currentModelId(): string {
@@ -793,6 +811,8 @@ export class SemanticIndexService {
         this.stateStore.setIndexStatus(state.dbPathHash, 'paused')
       }
     }
+    const config = this.configStore.get()
+    this.startLocalModelPreload(config, ++this.modelPreloadGeneration, { defer: true })
   }
 
   // ---------- 队列执行 ----------

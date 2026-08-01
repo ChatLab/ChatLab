@@ -8,6 +8,8 @@
 
 export type EmbeddingPooling = 'cls' | 'last_token' | 'mean'
 
+export type SemanticIndexModelStatus = 'idle' | 'installing-runtime' | 'downloading-model' | 'ready' | 'error'
+
 export interface EmbeddingProvider {
   /** 用于 chunk 分区与重建判定的稳定模型标识 */
   readonly modelId: string

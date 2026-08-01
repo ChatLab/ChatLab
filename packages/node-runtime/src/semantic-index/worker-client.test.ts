@@ -105,6 +105,71 @@ test('worker client returns unavailable for unconfigured canSearch without start
   assert.equal(instances.length, 0)
 })
 
+test('worker client starts configured local model recovery when status is requested', async () => {
+  const instances: FakeTransport[] = []
+  const configStore = makeConfigStore()
+  configStore.set({
+    version: 1,
+    enabled: true,
+    mode: 'local',
+    local: { modelId: 'model-a' },
+    api: null,
+  })
+  const client = createSemanticIndexWorkerClient({
+    configStore,
+    transportFactory: makeFactory(instances, (method) => {
+      if (method === 'getModelStatus') return 'installing-runtime'
+      throw new Error(`unexpected method: ${method}`)
+    }),
+    idleTimeoutMs: 1000,
+  })
+
+  const status = await client.getModelStatus()
+
+  assert.equal(status, 'installing-runtime')
+  assert.equal(instances.length, 1)
+  assert.deepEqual(instances[0].requests, [{ method: 'getModelStatus', args: [] }])
+})
+
+test('worker client keeps a model preload worker alive until the model is ready', async () => {
+  const instances: FakeTransport[] = []
+  const timers: Array<() => void> = []
+  const statuses: Array<'downloading-model' | 'ready'> = ['downloading-model', 'ready']
+  const configStore = makeConfigStore()
+  configStore.set({
+    version: 1,
+    enabled: true,
+    mode: 'local',
+    local: { modelId: 'model-a' },
+    api: null,
+  })
+  const client = createSemanticIndexWorkerClient({
+    configStore,
+    transportFactory: makeFactory(instances, (method) => {
+      if (method === 'getModelStatus') return statuses.shift() ?? 'ready'
+      throw new Error(`unexpected method: ${method}`)
+    }),
+    idleTimeoutMs: 1000,
+    timers: {
+      setTimeout(callback) {
+        timers.push(callback)
+        return callback
+      },
+      clearTimeout() {
+        /* test timer is manually triggered */
+      },
+    },
+  })
+
+  assert.equal(await client.getModelStatus(), 'downloading-model')
+  assert.equal(timers.length, 0)
+
+  assert.equal(await client.getModelStatus(), 'ready')
+  assert.equal(timers.length, 1)
+  timers.shift()?.()
+  assert.equal(instances[0].closed, true)
+})
+
 test('worker client treats canSearch worker failures as unavailable', async () => {
   const instances: FakeTransport[] = []
   const configStore = makeConfigStore()

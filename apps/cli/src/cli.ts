@@ -17,13 +17,14 @@ import { registerQueryCommands } from './query/register'
 import { registerManifestCommand } from './query/manifest'
 import { registerImportCommand } from './import/command'
 import { registerValidateCommand } from './validate/command'
+import { registerRuntimeCommand } from './semantic-index/runtime-command'
 
 const program = new Command()
 
 program.name('chatlab').description('ChatLab - Chat history analysis tool').version(getVersion(), '-v, --version')
 
 program.hook('preAction', async (_thisCommand, actionCommand) => {
-  if (actionCommand.name() === 'update') return
+  if (actionCommand.name() === 'update' || actionCommand.parent?.name() === 'runtime') return
   const { checkForUpdatesInteractive } = await import('./update-checker')
   await checkForUpdatesInteractive()
 })
@@ -53,6 +54,7 @@ registerManifestCommand(program, getVersion())
 
 registerImportCommand(program)
 registerValidateCommand(program)
+registerRuntimeCommand(program)
 
 program
   .command('formats')

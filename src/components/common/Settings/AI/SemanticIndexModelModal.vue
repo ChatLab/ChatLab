@@ -13,6 +13,7 @@ import ApiKeyInput from './ApiKeyInput.vue'
 import { LOCAL_MODELS, API_TEMPLATES, type ModelConfigDraft } from './semantic-index-models'
 import { canReuseSemanticIndexApiAuthProfile, isSemanticIndexApiKeyRequired } from './semantic-index-config-builder'
 import type { SemanticIndexConfig, SemanticIndexModelDownloadSource } from '@/services'
+import { IS_ELECTRON, IS_WEB_WASM } from '@/utils/platform'
 
 const props = defineProps<{
   open: boolean
@@ -37,6 +38,7 @@ const apiModel = ref('')
 const apiKey = ref('')
 
 const isZh = computed(() => locale.value.startsWith('zh'))
+const usesManagedLocalRuntime = !IS_ELECTRON && !IS_WEB_WASM
 const localModels = computed(() => LOCAL_MODELS.filter((m) => !m.zhOnly || isZh.value))
 // 非中文 locale 隐藏中国区模板，但保留当前已选项避免标签错位
 const apiTemplates = computed(() =>
@@ -170,7 +172,15 @@ function confirm() {
               {{ t('settings.ai.semanticIndex.mirrorSourceHint') }}
             </p>
           </div>
-          <p class="text-xs text-gray-400">{{ t('settings.ai.semanticIndex.localDownloadHint') }}</p>
+          <p class="text-xs text-gray-400">
+            {{
+              t(
+                usesManagedLocalRuntime
+                  ? 'settings.ai.semanticIndex.localRuntimeDownloadHint'
+                  : 'settings.ai.semanticIndex.localDownloadHint'
+              )
+            }}
+          </p>
         </div>
 
         <!-- API 模式 -->

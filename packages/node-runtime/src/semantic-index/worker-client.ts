@@ -14,6 +14,8 @@ import {
   type SemanticSearchToolResult,
 } from './service'
 import type { SemanticIndexRuntime } from './runtime'
+import type { SemanticIndexModelStatus } from './embedding/types'
+import type { LocalEmbeddingRuntimeConfig } from './embedding/local-runtime'
 import type { RuntimeIdentity } from '../data-dir-compat'
 import { snapshotPathProvider } from './static-path-provider'
 import { createSemanticIndexWorkerThreadTransport } from './worker-thread-transport'
@@ -50,6 +52,7 @@ export interface SemanticIndexWorkerRuntimeClientOptions {
   workerEntryUrl?: string | URL
   idleTimeoutMs?: number
   getModelDownloadProxyUrl?: () => MaybePromise<string | undefined>
+  localEmbeddingRuntime?: LocalEmbeddingRuntimeConfig
   resolveApiKey?: (provider: string, authProfile?: string) => string
   writeAuthProfile?: (name: string, profile: AuthProfile) => void
 }
@@ -67,6 +70,7 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
   private idleTimer: unknown = null
   private activeBuildSessionIds = new Set<string>()
   private hasUnknownActiveBuild = false
+  private hasActiveModelPreload = false
   private activeModelDownloadProxyUrl: string | undefined
   private readonly configStore: SemanticIndexConfigStore
   private readonly transportFactory: SemanticIndexWorkerTransportFactory
@@ -95,7 +99,10 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
       apiKey: options?.apiKey,
       writeAuthProfile: this.writeAuthProfile,
     })
-    if (!saved.enabled) this.clearActiveBuildTracking()
+    if (!saved.enabled) {
+      this.clearActiveBuildTracking()
+      this.hasActiveModelPreload = false
+    }
     // 本地模式且功能开启时，即使 worker 未运行也需启动它以触发 preload；
     // 其余情况（disabled / api 模式）无需唤醒 worker，直接返回本地保存结果。
     const needsWorker = saved.enabled && saved.mode === 'local' && this.configStore.isConfigured()
@@ -112,9 +119,12 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
     return resolveSemanticIndexApiKeySet(this.configStore.get(), this.resolveApiKey)
   }
 
-  async getModelStatus(): Promise<'idle' | 'downloading' | 'ready' | 'error'> {
-    if (!this.transport) return 'idle'
-    return this.call<'idle' | 'downloading' | 'ready' | 'error'>('getModelStatus', [])
+  async getModelStatus(): Promise<SemanticIndexModelStatus> {
+    if (!this.transport && !this.shouldStartLocalModelWorker()) return 'idle'
+    const status = await this.call<SemanticIndexModelStatus>('getModelStatus', [], { scheduleIdle: false })
+    this.hasActiveModelPreload = status === 'installing-runtime' || status === 'downloading-model'
+    this.scheduleIdleCloseIfNeeded()
+    return status
   }
 
   enable(sessionId: string): Promise<void> {
@@ -288,6 +298,11 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
     return resolveSemanticIndexApiKeySet(config, this.resolveApiKey)
   }
 
+  private shouldStartLocalModelWorker(): boolean {
+    const config = this.configStore.get()
+    return config.enabled && config.mode === 'local' && this.configStore.isConfigured()
+  }
+
   private updateActiveBuildFromCompleteSnapshot(statuses: SemanticIndexSessionStatus[]): void {
     this.hasUnknownActiveBuild = false
     this.activeBuildSessionIds = new Set(
@@ -321,6 +336,7 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
       !this.transport ||
       this.pendingRequests > 0 ||
       this.hasUnknownActiveBuild ||
+      this.hasActiveModelPreload ||
       this.activeBuildSessionIds.size > 0
     )
       return
@@ -343,6 +359,7 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
     const transport = this.transport
     this.transport = null
     this.activeModelDownloadProxyUrl = undefined
+    this.hasActiveModelPreload = false
     this.clearActiveBuildTracking()
     if (transport) await transport.close()
   }
@@ -382,6 +399,7 @@ export function createSemanticIndexWorkerRuntimeClient(
           nativeBinding: options.nativeBinding,
           sqliteVecLoadablePath: options.sqliteVecLoadablePath,
           modelDownloadProxyUrl,
+          localEmbeddingRuntime: options.localEmbeddingRuntime,
         },
       }),
   })

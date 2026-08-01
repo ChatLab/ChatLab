@@ -10,7 +10,7 @@ import type { SemanticIndexConfig, SemanticIndexSessionStatus } from './types'
 
 const BASE = '/ai/semantic-index'
 
-export type ModelDownloadStatus = 'idle' | 'downloading' | 'ready' | 'error'
+export type ModelDownloadStatus = 'idle' | 'installing-runtime' | 'downloading-model' | 'ready' | 'error'
 
 export interface SemanticIndexConfigResult {
   config: SemanticIndexConfig

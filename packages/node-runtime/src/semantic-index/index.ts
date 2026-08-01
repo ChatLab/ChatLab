@@ -76,6 +76,17 @@ export {
 } from './service'
 export type { SemanticIndexRuntime, MaybePromise } from './runtime'
 export {
+  createLocalEmbeddingRuntimeManager,
+  LOCAL_EMBEDDING_RUNTIME_PACKAGE,
+  LOCAL_EMBEDDING_RUNTIME_VERSION,
+} from './embedding/local-runtime'
+export type {
+  LocalEmbeddingRuntimeConfig,
+  LocalEmbeddingRuntimeInstallMode,
+  LocalEmbeddingRuntimeManagerOptions,
+  LocalEmbeddingRuntimeStatus,
+} from './embedding/local-runtime'
+export {
   SemanticIndexWorkerClient,
   createSemanticIndexWorkerClient,
   createSemanticIndexWorkerRuntimeClient,

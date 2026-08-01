@@ -40,6 +40,9 @@ export type LocalPipelineFactory = (params: {
   sessionOptions?: typeof LOCAL_ONNX_SESSION_OPTIONS
 }) => Promise<FeatureExtractFn>
 
+export type TransformersModule = typeof import('@huggingface/transformers')
+export type LoadTransformers = () => Promise<TransformersModule>
+
 export async function createProxyFetch(proxyUrl: string): Promise<typeof fetch> {
   const parsed = new URL(proxyUrl)
   if (SOCKS_PROXY_PROTOCOLS.has(parsed.protocol)) {
@@ -55,33 +58,31 @@ export async function createProxyFetch(proxyUrl: string): Promise<typeof fetch> 
   }) as typeof fetch
 }
 
-const defaultPipelineFactory: LocalPipelineFactory = async ({
-  modelId,
-  dtype,
-  cacheDir,
-  modelDownloadProxyUrl,
-  modelDownloadSource,
-}) => {
-  const transformers = await import('@huggingface/transformers')
-  // Transformers.js 的 env 是 worker 进程级全局对象，因此每次创建 pipeline 都显式覆盖 host，
-  // 避免用户从镜像切回官方源后继续复用旧的 remoteHost。
-  transformers.env.remoteHost = resolveModelDownloadRemoteHost(modelDownloadSource)
-  if (cacheDir) {
-    transformers.env.cacheDir = cacheDir
-    transformers.env.allowRemoteModels = true
-  }
-  if (modelDownloadProxyUrl) {
-    transformers.env.fetch = await createProxyFetch(modelDownloadProxyUrl)
-  }
-  const extractor = await transformers.pipeline('feature-extraction', modelId, {
-    ...(dtype ? { dtype } : {}),
-    session_options: LOCAL_ONNX_SESSION_OPTIONS,
-  })
-  return async (texts, options) => {
-    const out = await extractor(texts, { pooling: options.pooling, normalize: options.normalize })
-    return out.tolist() as number[][]
+export function createTransformersPipelineFactory(loadTransformers: LoadTransformers): LocalPipelineFactory {
+  return async ({ modelId, dtype, cacheDir, modelDownloadProxyUrl, modelDownloadSource }) => {
+    const transformers = await loadTransformers()
+    // Transformers.js 的 env 是 worker 进程级全局对象，因此每次创建 pipeline 都显式覆盖 host，
+    // 避免用户从镜像切回官方源后继续复用旧的 remoteHost。
+    transformers.env.remoteHost = resolveModelDownloadRemoteHost(modelDownloadSource)
+    if (cacheDir) {
+      transformers.env.cacheDir = cacheDir
+      transformers.env.allowRemoteModels = true
+    }
+    if (modelDownloadProxyUrl) {
+      transformers.env.fetch = await createProxyFetch(modelDownloadProxyUrl)
+    }
+    const extractor = await transformers.pipeline('feature-extraction', modelId, {
+      ...(dtype ? { dtype } : {}),
+      session_options: LOCAL_ONNX_SESSION_OPTIONS,
+    })
+    return async (texts, options) => {
+      const out = await extractor(texts, { pooling: options.pooling, normalize: options.normalize })
+      return out.tolist() as number[][]
+    }
   }
 }
+
+const defaultPipelineFactory = createTransformersPipelineFactory(() => import('@huggingface/transformers'))
 
 export interface LocalEmbeddingProviderOptions {
   cacheDir?: string

@@ -11,6 +11,8 @@ ChatLab CLI is available as a multi-architecture container image for
 ghcr.io/chatlab/chatlab-cli
 ```
 
+The official image already includes the runtime required by local embedding models. Enabling a local semantic index only downloads the selected model files; it does not install another ~370 MB of Node dependencies after the container starts.
+
 ## Quick start
 
 ### Share data with Desktop and a local CLI (recommended)

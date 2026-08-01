@@ -463,6 +463,7 @@ export {
   persistSemanticIndexConfig,
   resolveSemanticIndexApiKeySet,
   createSemanticIndexWorkerRuntimeClient,
+  createLocalEmbeddingRuntimeManager,
 } from './semantic-index'
 export type {
   SemanticIndexServiceOptions,
@@ -477,6 +478,7 @@ export type {
   SemanticIndexConfig,
   SemanticIndexMode,
   SemanticIndexModelDownloadSource,
+  LocalEmbeddingRuntimeConfig,
 } from './semantic-index'
 
 export {

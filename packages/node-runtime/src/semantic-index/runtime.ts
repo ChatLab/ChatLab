@@ -5,6 +5,7 @@ import type {
   SemanticSearchToolOptions,
   SemanticSearchToolResult,
 } from './service'
+import type { SemanticIndexModelStatus } from './embedding/types'
 
 export type MaybePromise<T> = T | Promise<T>
 
@@ -17,7 +18,7 @@ export type MaybePromise<T> = T | Promise<T>
 export interface SemanticIndexRuntime {
   getConfig(): MaybePromise<SemanticIndexConfig>
   setConfig(config: SemanticIndexConfigInput, options?: { apiKey?: string }): MaybePromise<SemanticIndexConfig>
-  getModelStatus(): MaybePromise<'idle' | 'downloading' | 'ready' | 'error'>
+  getModelStatus(): MaybePromise<SemanticIndexModelStatus>
   isConfigured(): MaybePromise<boolean>
   hasApiKey(): MaybePromise<boolean>
 

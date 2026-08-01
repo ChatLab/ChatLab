@@ -34,6 +34,7 @@ import { createCliRunAgentStream } from '../ai/agent-stream-runner'
 import { initSync, cleanupSync } from '../sync'
 import { resolveCliPath } from '../paths'
 import { assertCliDataDirCompatible } from '../runtime-compat'
+import { resolveCliLocalEmbeddingRuntimeConfig } from '../semantic-index/local-runtime'
 
 let server: FastifyInstance | null = null
 let dbManager: DatabaseManager | null = null
@@ -169,6 +170,7 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
       pathProvider,
       runtime,
       nativeBinding,
+      localEmbeddingRuntime: resolveCliLocalEmbeddingRuntimeConfig(pathProvider.getAiDataDir()),
       workerEntryUrl: import.meta.url.endsWith('.ts')
         ? undefined
         : new URL('./semantic-index-worker.mjs', import.meta.url),

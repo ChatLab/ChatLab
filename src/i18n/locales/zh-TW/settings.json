@@ -271,14 +271,16 @@
       "downloadSourceMirror": "HF-Mirror 中國大陸鏡像",
       "mirrorSourceHint": "HF-Mirror 是第三方公益鏡像，適合中國大陸網路環境；模型檔案將從 hf-mirror.com 下載。",
       "localDownloadHint": "儲存後會自動下載模型，首次下載可能需要一些時間。",
+      "localRuntimeDownloadHint": "CLI Web 的本地模型執行元件約 370 MB；未預先安裝時會在首次使用時自動安裝。儲存後還會下載所選模型。",
       "apiTemplate": "服務範本",
       "modelName": "模型名稱",
       "apiKeySaved": "已儲存，留空則不修改",
       "apiKeyHint": "API Key 單獨安全儲存，設定檔只保存引用。",
       "apiCostWarning": "API 模式可能產生服務商費用，請確認模型價格。",
       "changeRebuildHint": "更換模型或 API 後，已啟用對話需要重建索引。",
-      "modelError": "模型下載失敗，建立索引時將重試。",
       "modelDownloading": "正在下載模型，首次使用需要幾分鐘，請稍候…",
+      "runtimeInstalling": "正在安裝本地模型執行元件，首次使用需要一些時間，請稍候…",
+      "modelError": "本地模型準備失敗，建立索引時將重試。",
       "searchMaxResults": {
         "label": "單次檢索片段數",
         "hint": "AI 呼叫語意檢索時預設回傳的相關片段數（5-15）。AI 可依問題需要臨時調高。"

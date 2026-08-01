@@ -2,6 +2,8 @@ import type { RuntimeIdentity } from '../data-dir-compat'
 import { DatabaseManager } from '../database-manager'
 import { initAppLogger } from '../logging/app-logger'
 import { createDatabaseManagerAdapter } from '../services'
+import { createLocalEmbeddingRuntimeManager, type LocalEmbeddingRuntimeConfig } from './embedding/local-runtime'
+import { createTransformersPipelineFactory } from './embedding/local'
 import { createSemanticIndexService } from './service'
 import type { LoadSqliteVec } from './store'
 import { StaticPathProvider, type StaticPathProviderSnapshot } from './static-path-provider'
@@ -13,6 +15,7 @@ export interface SemanticIndexWorkerStartupOptions {
   nativeBinding?: string
   sqliteVecLoadablePath?: string
   modelDownloadProxyUrl?: string
+  localEmbeddingRuntime?: LocalEmbeddingRuntimeConfig
 }
 
 export type SemanticIndexWorkerServiceFactory = () => SemanticIndexRuntime
@@ -72,6 +75,12 @@ export function createSemanticIndexWorkerServiceFactory(
 ): SemanticIndexWorkerServiceFactory {
   const initializeLogger = deps.initLogger ?? initAppLogger
   initializeLogger(options.paths.logsDir)
+  const localRuntimeManager = options.localEmbeddingRuntime
+    ? createLocalEmbeddingRuntimeManager(options.localEmbeddingRuntime)
+    : undefined
+  const localPipelineFactory = localRuntimeManager
+    ? createTransformersPipelineFactory(() => localRuntimeManager.loadTransformers())
+    : undefined
 
   return () => {
     const pathProvider = new StaticPathProvider(options.paths)
@@ -90,6 +99,8 @@ export function createSemanticIndexWorkerServiceFactory(
       nativeBinding: options.nativeBinding,
       loadSqliteVec,
       modelDownloadProxyUrl: options.modelDownloadProxyUrl,
+      embedderFactoryDeps: localPipelineFactory ? { localPipelineFactory } : undefined,
+      getLocalEmbeddingRuntimeStatus: localRuntimeManager ? () => localRuntimeManager.getStatus() : undefined,
     })
   }
 }

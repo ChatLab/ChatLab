@@ -10,6 +10,8 @@ ChatLab CLI 提供 `linux/amd64` 與 `linux/arm64` 兩種架構的容器映像�
 ghcr.io/chatlab/chatlab-cli
 ```
 
+官方映像已內建本地向量模型所需的執行元件。啟用本地語意索引時，只需依照介面提示下載所選模型檔案，不會在容器啟動後再安裝約 370 MB 的 Node 相依套件。
+
 ## 快速開始
 
 ### 與 Desktop / 本機 CLI 共用資料（建議）

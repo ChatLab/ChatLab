@@ -18,6 +18,7 @@ import { computeDbPathHash } from './chunker-config'
 import { BGE_BASE_PROFILE, QWEN3_PROFILE } from './embedding/profiles'
 import type { SessionRuntimeAdapter } from '../services/adapters'
 import type { FeatureExtractFn, LocalPipelineFactory } from './embedding/local'
+import type { LocalEmbeddingRuntimeStatus } from './embedding/local-runtime'
 
 const SESSION_ID = 'sess1'
 const SERVICE_TEMP_DIR_PREFIX = 'chatlab-si-svc-'
@@ -31,6 +32,7 @@ interface SetupOptions {
   failPipelineCreationForModelIds?: ReadonlySet<string>
   onEmbedBatchStarted?: () => void
   localPipelineFactory?: LocalPipelineFactory
+  getLocalEmbeddingRuntimeStatus?: () => LocalEmbeddingRuntimeStatus
 }
 
 interface ServiceFixture {
@@ -163,6 +165,7 @@ function setup(t: TestContext, opts?: SetupOptions): ServiceFixture {
       localPipelineFactory,
       resolveApiKey: (_provider, authProfile) => (authProfile ? (authProfiles.get(authProfile)?.key ?? '') : ''),
     },
+    getLocalEmbeddingRuntimeStatus: opts?.getLocalEmbeddingRuntimeStatus,
   })
   cleanup.service = service
   // 默认配置不再预选模型；测试显式选择 Qwen3 本地模型，使建索引可执行
@@ -296,6 +299,15 @@ test('successful warmup retry clears a previous local model preload error', asyn
 
   assert.equal(service.status(SESSION_ID)!.indexStatus, 'completed')
   assert.equal(service.getModelStatus(), 'ready')
+})
+
+test('reports runtime installation separately from model file download', (t) => {
+  const { service } = setup(t, {
+    localPipelineFactory: async () => await new Promise<FeatureExtractFn>(() => {}),
+    getLocalEmbeddingRuntimeStatus: () => 'installing',
+  })
+
+  assert.equal(service.getModelStatus(), 'installing-runtime')
 })
 
 test('stale local warmup completion does not mark current local model ready', async (t) => {

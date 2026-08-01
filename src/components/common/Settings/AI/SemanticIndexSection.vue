@@ -30,13 +30,17 @@ const showModelModal = ref(false)
 
 let modelPollTimer: ReturnType<typeof setInterval> | null = null
 
+function isModelPreparing(status: ModelDownloadStatus): boolean {
+  return status === 'installing-runtime' || status === 'downloading-model'
+}
+
 function startModelStatusPoll() {
   if (modelPollTimer) return
   modelPollTimer = setInterval(async () => {
     try {
       const res = await service.getConfig()
       modelStatus.value = res.modelStatus
-      if (res.modelStatus !== 'downloading') stopModelStatusPoll()
+      if (!isModelPreparing(res.modelStatus)) stopModelStatusPoll()
     } catch {
       stopModelStatusPoll()
     }
@@ -140,7 +144,7 @@ async function persistConfig(next: SemanticIndexConfig, apiKey?: string): Promis
     configured.value = res.configured
     enabled.value = res.config.enabled
     modelStatus.value = res.modelStatus
-    if (res.modelStatus === 'downloading') startModelStatusPoll()
+    if (isModelPreparing(res.modelStatus)) startModelStatusPoll()
     await loadStatuses()
     return true
   } catch (error) {
@@ -264,7 +268,7 @@ onMounted(async () => {
     configured.value = res.configured
     enabled.value = res.config.enabled
     modelStatus.value = res.modelStatus
-    if (res.modelStatus === 'downloading') startModelStatusPoll()
+    if (isModelPreparing(res.modelStatus)) startModelStatusPoll()
   } catch (error) {
     console.error('[semantic-index] load config failed:', error)
   }
@@ -336,11 +340,15 @@ onUnmounted(() => {
         </div>
         <p v-if="!hasModelConfig" class="text-xs text-amber-500">{{ t('settings.ai.semanticIndex.configFirst') }}</p>
         <p
-          v-if="modelStatus === 'downloading'"
+          v-if="isModelPreparing(modelStatus)"
           class="flex items-center gap-1.5 text-xs text-blue-500 dark:text-blue-400"
         >
           <UIcon name="i-heroicons-arrow-path" class="h-3.5 w-3.5 animate-spin shrink-0" />
-          {{ t('settings.ai.semanticIndex.modelDownloading') }}
+          {{
+            modelStatus === 'installing-runtime'
+              ? t('settings.ai.semanticIndex.runtimeInstalling')
+              : t('settings.ai.semanticIndex.modelDownloading')
+          }}
         </p>
         <p v-else-if="modelStatus === 'error'" class="text-xs text-red-500">
           {{ t('settings.ai.semanticIndex.modelError') }}

@@ -25,9 +25,15 @@ export default defineConfig({
   // parser-native 是本地构建的可选 Rust 内核：不打包也不声明依赖，
   // 运行时 require 失败会自动回退 TS 解析器。
   // sqlite-vec resolves its platform extension through sqlite-vec-* and must remain an external production dependency.
-  // Keep Transformers bundled until CLI local embeddings have an on-demand runtime;
-  // externalizing it makes every CLI installation pull the full ONNX runtime.
-  external: ['better-sqlite3', '@node-rs/jieba', 'sqlite-vec', '@openchatlab/parser-native'],
+  // Transformers is supplied by the CLI-managed local embedding runtime or preinstalled by the Docker image.
+  // Keeping it external avoids adding the full ONNX runtime to every normal CLI installation.
+  external: [
+    'better-sqlite3',
+    '@node-rs/jieba',
+    'sqlite-vec',
+    '@openchatlab/parser-native',
+    '@huggingface/transformers',
+  ],
   banner: {
     js: [
       "import { createRequire as __createRequire } from 'module';",
