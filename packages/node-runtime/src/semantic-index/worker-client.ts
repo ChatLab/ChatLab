@@ -356,9 +356,7 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
     try {
       await this.getModelStatus()
     } catch (error) {
-      appLogger.warn('semantic-index', 'Background model preload status poll failed; closing worker', {
-        error: error instanceof Error ? error.message : String(error),
-      })
+      appLogger.error('semantic-index', 'Background model preload status poll failed; closing worker', error)
       await this.closeFailedProbeTransport()
     }
   }

@@ -57,8 +57,8 @@
 ## 日志
 
 - 统一入口：Node 侧（Electron 主进程 / CLI / CLI Web）通过 `@openchatlab/node-runtime` 的 `appLogger`（`appLogger.info/warn/error/debug(scope, message, data?)`）落盘到 `logs/app.log`；前端（Vue）通过 `src/services/log-report.ts` 经 `POST /_web/logs/report` 上报。不要为通用日志新写 `fs.appendFileSync` 或新的 logger 文件；AI 用 `AiLogger`、导入性能用 `perf-logger` 保持现状。
-- **新增或修改功能时必须补必要日志**：关键路径要留下足够的可排查痕迹——成功节点用 `info`（如启动、迁移、数据库/配置变更、导入开始/完成、外部调用、auth 结果），失败分支用 `error` 并把 `Error` 直接作为 `data` 传入（自动提取 message/stack）。判断标准：用户带着这个功能报问题时，仅凭 `logs/app.log` 能否还原到出错的那一步；不能，就说明日志不够。
-- 适度原则：不要在高频热路径或循环里打 `info`，详细诊断用 `debug`（默认 `INFO` 级不落盘，`CHATLAB_LOG_LEVEL=debug` 开启）；日志、注释等非 UI 文本用英文，且**不得写入聊天明文、API Key、token 等隐私数据**。
+- 关键路径补充必要日志，不要机械记录每个函数或分支。操作最终失败或功能不可用时用 `error`，有重试/降级且仍可继续时用 `warn`，高频诊断用 `debug`；记录异常时直接传原始 `Error`，避免丢失 stack。
+- 日志、注释等非 UI 文本用英文，且**不得写入聊天明文、API Key、token 等隐私数据**。日志问题不自动构成严重 Bug，也不要为具体文案、级别或 logger 调用单独增加业务测试；安全审计、数据恢复等明确契约除外。
 - 级别与轮转：`app.log` 达 10MB 自动原子 rename 为 `app.old.log`，无需手动清理。
 
 ## 架构边界
