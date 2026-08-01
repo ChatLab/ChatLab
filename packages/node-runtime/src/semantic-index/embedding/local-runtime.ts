@@ -35,11 +35,35 @@ export interface LocalEmbeddingRuntimeManagerOptions extends LocalEmbeddingRunti
   arch?: string
   npmCommand?: string
   runInstall?: (input: InstallCommand) => Promise<void>
+  verifyStagedRuntime?: (runtimeDir: string) => Promise<void>
   verifyRuntime?: (runtimeDir: string) => Promise<void>
   importTransformers?: (runtimeDir: string) => Promise<typeof import('@huggingface/transformers')>
 }
 
 const RUNTIME_MANIFEST_FILE = 'runtime.json'
+
+const VERIFY_RUNTIME_SCRIPT = `
+import { createRequire } from 'node:module'
+import path from 'node:path'
+import { pathToFileURL } from 'node:url'
+
+const [, runtimeDir, transformersPackage] = process.argv
+const runtimeRequire = createRequire(path.join(runtimeDir, 'package.json'))
+const importFromRuntime = async (packageName) => {
+  const resolved = runtimeRequire.resolve(packageName)
+  return await import(pathToFileURL(resolved).href)
+}
+
+const transformers = await importFromRuntime(transformersPackage)
+if (typeof transformers.pipeline !== 'function' || typeof transformers.env !== 'object') {
+  throw new Error('Installed Transformers runtime does not expose the expected Node API.')
+}
+
+const onnxRuntime = await importFromRuntime('onnxruntime-node')
+if (typeof onnxRuntime.listSupportedBackends !== 'function') {
+  throw new Error('Installed ONNX runtime does not expose listSupportedBackends().')
+}
+`
 
 function executeInstall(input: InstallCommand): Promise<void> {
   return new Promise((resolve, reject) => {
@@ -51,6 +75,26 @@ function executeInstall(input: InstallCommand): Promise<void> {
         env: { ...process.env, npm_config_update_notifier: 'false' },
         maxBuffer: 10 * 1024 * 1024,
         shell: process.platform === 'win32',
+      },
+      (error, _stdout, stderr) => {
+        if (!error) {
+          resolve()
+          return
+        }
+        reject(new Error(stderr.trim() || error.message, { cause: error }))
+      }
+    )
+  })
+}
+
+function verifyRuntimeInSubprocess(runtimeDir: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    execFile(
+      process.execPath,
+      ['--input-type=module', '--eval', VERIFY_RUNTIME_SCRIPT, runtimeDir, LOCAL_EMBEDDING_RUNTIME_PACKAGE],
+      {
+        env: { ...process.env, ELECTRON_RUN_AS_NODE: '1' },
+        maxBuffer: 10 * 1024 * 1024,
       },
       (error, _stdout, stderr) => {
         if (!error) {
@@ -98,6 +142,7 @@ export class LocalEmbeddingRuntimeManager {
   private readonly arch: string
   private readonly npmCommand: string
   private readonly runInstall: (input: InstallCommand) => Promise<void>
+  private readonly verifyStagedRuntime: (runtimeDir: string) => Promise<void>
   private readonly verifyRuntime: (runtimeDir: string) => Promise<void>
   private readonly importTransformers: (runtimeDir: string) => Promise<typeof import('@huggingface/transformers')>
 
@@ -113,6 +158,7 @@ export class LocalEmbeddingRuntimeManager {
     this.arch = options.arch ?? process.arch
     this.npmCommand = options.npmCommand ?? (this.platform === 'win32' ? 'npm.cmd' : 'npm')
     this.runInstall = options.runInstall ?? executeInstall
+    this.verifyStagedRuntime = options.verifyStagedRuntime ?? verifyRuntimeInSubprocess
     this.verifyRuntime = options.verifyRuntime ?? verifyInstalledRuntime
     this.importTransformers = options.importTransformers ?? loadInstalledTransformers
     this.status = 'idle'
@@ -221,7 +267,8 @@ export class LocalEmbeddingRuntimeManager {
         ],
         cwd: stagingDir,
       })
-      await this.verifyRuntime(stagingDir)
+      // Keep native modules in a disposable process so Windows releases DLL handles before the directory rename.
+      await this.verifyStagedRuntime(stagingDir)
       fs.writeFileSync(path.join(stagingDir, RUNTIME_MANIFEST_FILE), `${JSON.stringify(this.manifest(), null, 2)}\n`)
 
       if (fs.existsSync(runtimeDir)) {

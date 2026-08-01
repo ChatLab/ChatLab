@@ -15,6 +15,9 @@ function setupRuntimeTest(t: TestContext, overrides: Partial<LocalEmbeddingRunti
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   const installs: Array<{ command: string; args: string[]; cwd: string }> = []
   let verifies = 0
+  const verifyRuntime = async () => {
+    verifies++
+  }
   const manager = createLocalEmbeddingRuntimeManager({
     baseDir: root,
     installMode: 'auto',
@@ -26,9 +29,8 @@ function setupRuntimeTest(t: TestContext, overrides: Partial<LocalEmbeddingRunti
       fs.mkdirSync(packageDir, { recursive: true })
       fs.writeFileSync(path.join(packageDir, 'package.json'), '{}\n')
     },
-    verifyRuntime: async () => {
-      verifies++
-    },
+    verifyStagedRuntime: verifyRuntime,
+    verifyRuntime,
     ...overrides,
   })
   return { root, manager, installs, getVerifyCount: () => verifies }
@@ -95,6 +97,43 @@ test('cleans a failed staging install and retries on the next request', async (t
   assert.equal(fixture.manager.getStatus(), 'ready')
 })
 
+test('verifies the staged native runtime in a disposable subprocess before renaming', async (t) => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-local-runtime-subprocess-'))
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const verifierPidPath = path.join(root, 'verifier.pid')
+  const manager = createLocalEmbeddingRuntimeManager({
+    baseDir: root,
+    installMode: 'auto',
+    platform: 'test-platform',
+    arch: 'test-arch',
+    runInstall: async (input) => {
+      const transformersDir = path.join(input.cwd, 'node_modules', '@huggingface', 'transformers')
+      const onnxDir = path.join(input.cwd, 'node_modules', 'onnxruntime-node')
+      fs.mkdirSync(transformersDir, { recursive: true })
+      fs.mkdirSync(onnxDir, { recursive: true })
+      fs.writeFileSync(
+        path.join(transformersDir, 'package.json'),
+        `${JSON.stringify({ type: 'module', exports: './index.js' })}\n`
+      )
+      fs.writeFileSync(
+        path.join(transformersDir, 'index.js'),
+        `import fs from 'node:fs'\nfs.writeFileSync(${JSON.stringify(verifierPidPath)}, String(process.pid))\nexport const pipeline = () => {}\nexport const env = {}\n`
+      )
+      fs.writeFileSync(
+        path.join(onnxDir, 'package.json'),
+        `${JSON.stringify({ type: 'module', exports: './index.js' })}\n`
+      )
+      fs.writeFileSync(path.join(onnxDir, 'index.js'), 'export const listSupportedBackends = () => []\n')
+    },
+    verifyRuntime: async () => {},
+  })
+
+  const runtimeDir = await manager.ensureInstalled()
+
+  assert.notEqual(Number(fs.readFileSync(verifierPidPath, 'utf8')), process.pid)
+  assert.equal(fs.existsSync(runtimeDir), true)
+})
+
 test('preinstalled mode fails clearly instead of invoking npm', async (t) => {
   let installCalled = false
   const fixture = setupRuntimeTest(t, {
@@ -120,6 +159,10 @@ test('repairs an invalid managed runtime instead of keeping a broken install', a
     installMode: 'auto',
     platform: 'test-platform',
     arch: 'test-arch',
+    verifyStagedRuntime: async () => {
+      verifyAttempts++
+      if (verifyAttempts === 1) throw new Error('corrupt native runtime')
+    },
     verifyRuntime: async () => {
       verifyAttempts++
       if (verifyAttempts === 1) throw new Error('corrupt native runtime')
