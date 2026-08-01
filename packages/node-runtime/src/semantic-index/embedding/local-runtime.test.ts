@@ -72,6 +72,66 @@ test('installs a versioned platform runtime atomically and reuses it', async (t)
   )
 })
 
+test(
+  'two independent managers complete a controlled concurrent install into the same runtime directory',
+  { timeout: 2000 },
+  async (t) => {
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-local-runtime-race-'))
+    t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+
+    let installsStarted = 0
+    let resolveBothStarted: (() => void) | undefined
+    let releaseInstalls: (() => void) | undefined
+    const bothStarted = new Promise<void>((resolve) => {
+      resolveBothStarted = resolve
+    })
+    const installBarrier = new Promise<void>((resolve) => {
+      releaseInstalls = resolve
+    })
+    const runInstall: NonNullable<LocalEmbeddingRuntimeManagerOptions['runInstall']> = async (input) => {
+      const packageDir = path.join(input.cwd, 'node_modules', '@huggingface', 'transformers')
+      fs.mkdirSync(packageDir, { recursive: true })
+      fs.writeFileSync(path.join(packageDir, 'package.json'), '{}\n')
+      installsStarted++
+      if (installsStarted === 2) resolveBothStarted?.()
+      await installBarrier
+    }
+    const createManager = () =>
+      createLocalEmbeddingRuntimeManager({
+        baseDir: root,
+        installMode: 'auto',
+        platform: 'test-platform',
+        arch: 'test-arch',
+        runInstall,
+        verifyStagedRuntime: async () => {},
+        verifyRuntime: async () => {},
+      })
+    const firstManager = createManager()
+    const secondManager = createManager()
+
+    const firstInstall = firstManager.ensureInstalled()
+    const secondInstall = secondManager.ensureInstalled()
+    await bothStarted
+    releaseInstalls?.()
+
+    const [firstDir, secondDir] = await Promise.all([firstInstall, secondInstall])
+
+    assert.equal(installsStarted, 2)
+    assert.equal(secondDir, firstDir)
+    assert.equal(firstManager.getStatus(), 'ready')
+    assert.equal(secondManager.getStatus(), 'ready')
+    assert.equal(fs.existsSync(path.join(firstDir, 'runtime.json')), true)
+    assert.equal(
+      fs.existsSync(path.join(firstDir, 'node_modules', '@huggingface', 'transformers', 'package.json')),
+      true
+    )
+    assert.equal(
+      fs.readdirSync(path.dirname(firstDir)).some((name) => name.startsWith('.installing-')),
+      false
+    )
+  }
+)
+
 test('cleans a failed staging install and retries on the next request', async (t) => {
   let attempts = 0
   const fixture = setupRuntimeTest(t, {

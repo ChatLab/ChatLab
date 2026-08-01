@@ -19,8 +19,18 @@ const ENABLE = {
   chunkerConfigHash: 'cfg',
 }
 
-test('enable creates an enabled idle state', () => {
-  const store = new SemanticIndexStateStore(makeTempDbPath())
+function storeTest(name: string, run: (store: SemanticIndexStateStore) => void): void {
+  test(name, () => {
+    const store = new SemanticIndexStateStore(makeTempDbPath())
+    try {
+      run(store)
+    } finally {
+      store.close()
+    }
+  })
+}
+
+storeTest('enable creates an enabled idle state', (store) => {
   store.enable(ENABLE)
   const state = store.getState('dbA')!
   assert.equal(state.enabled, true)
@@ -28,46 +38,36 @@ test('enable creates an enabled idle state', () => {
   assert.equal(state.indexStatus, 'idle')
   assert.equal(state.cleanupStatus, 'none')
   assert.ok(state.enabledAt && state.enabledAt > 0)
-  store.close()
 })
 
-test('getState returns null for unknown conversation', () => {
-  const store = new SemanticIndexStateStore(makeTempDbPath())
+storeTest('getState returns null for unknown conversation', (store) => {
   assert.equal(store.getState('missing'), null)
-  store.close()
 })
 
-test('disable marks not enabled and cleanup pending without deleting state', () => {
-  const store = new SemanticIndexStateStore(makeTempDbPath())
+storeTest('disable marks not enabled and cleanup pending without deleting state', (store) => {
   store.enable(ENABLE)
   store.disable('dbA')
   const state = store.getState('dbA')!
   assert.equal(state.enabled, false)
   assert.equal(state.cleanupStatus, 'pending')
-  store.close()
 })
 
-test('re-enable clears pending cleanup', () => {
-  const store = new SemanticIndexStateStore(makeTempDbPath())
+storeTest('re-enable clears pending cleanup', (store) => {
   store.enable(ENABLE)
   store.disable('dbA')
   store.enable(ENABLE)
   const state = store.getState('dbA')!
   assert.equal(state.enabled, true)
   assert.equal(state.cleanupStatus, 'none')
-  store.close()
 })
 
-test('enable with a different model updates model id (rebuild scenario)', () => {
-  const store = new SemanticIndexStateStore(makeTempDbPath())
+storeTest('enable with a different model updates model id (rebuild scenario)', (store) => {
   store.enable(ENABLE)
   store.enable({ ...ENABLE, modelId: 'modelB' })
   assert.equal(store.getState('dbA')!.modelId, 'modelB')
-  store.close()
 })
 
-test('updateProgress patches counters and index status', () => {
-  const store = new SemanticIndexStateStore(makeTempDbPath())
+storeTest('updateProgress patches counters and index status', (store) => {
   store.enable(ENABLE)
   store.updateProgress('dbA', {
     indexStatus: 'running',
@@ -82,21 +82,17 @@ test('updateProgress patches counters and index status', () => {
   assert.equal(state.indexedMessages, 250)
   assert.equal(state.lastIndexedMessageId, 250)
   assert.equal(state.chunkCount, 40)
-  store.close()
 })
 
-test('setIndexStatus records failure with error message', () => {
-  const store = new SemanticIndexStateStore(makeTempDbPath())
+storeTest('setIndexStatus records failure with error message', (store) => {
   store.enable(ENABLE)
   store.setIndexStatus('dbA', 'failed', 'disk full')
   const state = store.getState('dbA')!
   assert.equal(state.indexStatus, 'failed')
   assert.equal(state.error, 'disk full')
-  store.close()
 })
 
-test('listEnabled and listPendingCleanup filter correctly', () => {
-  const store = new SemanticIndexStateStore(makeTempDbPath())
+storeTest('listEnabled and listPendingCleanup filter correctly', (store) => {
   store.enable({ dbPathHash: 'a', dbPath: '/a.db', modelId: 'qwen3', chunkerVersion: 'v1.1', chunkerConfigHash: 'cfg' })
   store.enable({ dbPathHash: 'b', dbPath: '/b.db', modelId: 'qwen3', chunkerVersion: 'v1.1', chunkerConfigHash: 'cfg' })
   store.disable('b')
@@ -109,18 +105,15 @@ test('listEnabled and listPendingCleanup filter correctly', () => {
     store.listPendingCleanup().map((s) => s.dbPathHash),
     ['b']
   )
-  store.close()
 })
 
-test('setCleanupStatus and remove manage cleanup lifecycle', () => {
-  const store = new SemanticIndexStateStore(makeTempDbPath())
+storeTest('setCleanupStatus and remove manage cleanup lifecycle', (store) => {
   store.enable(ENABLE)
   store.disable('dbA')
   store.setCleanupStatus('dbA', 'running')
   assert.equal(store.getState('dbA')!.cleanupStatus, 'running')
   store.remove('dbA')
   assert.equal(store.getState('dbA'), null)
-  store.close()
 })
 
 test('state persists across reopen', () => {

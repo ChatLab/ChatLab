@@ -16,37 +16,24 @@ import {
 import type { SummaryDeps, SummaryMessage } from '../index'
 
 describe('isValidMessage', () => {
-  it('rejects empty content', () => {
-    assert.equal(isValidMessage(''), false)
-    assert.equal(isValidMessage('  '), false)
-  })
+  const cases: Array<{ name: string; expected: boolean; messages: string[] }> = [
+    { name: 'rejects empty content', expected: false, messages: ['', '  '] },
+    { name: 'rejects meaningless short replies', expected: false, messages: ['嗯', 'ok', 'lol'] },
+    { name: 'accepts meaningful short replies', expected: true, messages: ['好的', '可以'] },
+    { name: 'rejects placeholders', expected: false, messages: ['[图片]', '[image]', '[sticker]'] },
+    { name: 'accepts normal text', expected: true, messages: ['今天天气真好', 'Hello, how are you?'] },
+    {
+      name: 'rejects system messages',
+      expected: false,
+      messages: ['张三邀请李四加入了群聊', 'Alice invited Bob to the group'],
+    },
+  ]
 
-  it('rejects meaningless short replies', () => {
-    assert.equal(isValidMessage('嗯'), false)
-    assert.equal(isValidMessage('ok'), false)
-    assert.equal(isValidMessage('lol'), false)
-  })
-
-  it('accepts meaningful short replies', () => {
-    assert.equal(isValidMessage('好的'), true)
-    assert.equal(isValidMessage('可以'), true)
-  })
-
-  it('rejects placeholders', () => {
-    assert.equal(isValidMessage('[图片]'), false)
-    assert.equal(isValidMessage('[image]'), false)
-    assert.equal(isValidMessage('[sticker]'), false)
-  })
-
-  it('accepts normal text', () => {
-    assert.equal(isValidMessage('今天天气真好'), true)
-    assert.equal(isValidMessage('Hello, how are you?'), true)
-  })
-
-  it('rejects system messages', () => {
-    assert.equal(isValidMessage('张三邀请李四加入了群聊'), false)
-    assert.equal(isValidMessage('Alice invited Bob to the group'), false)
-  })
+  for (const { name, expected, messages } of cases) {
+    it(name, () => {
+      for (const message of messages) assert.equal(isValidMessage(message), expected)
+    })
+  }
 })
 
 describe('filterValidMessages', () => {
@@ -120,17 +107,17 @@ describe('generateSessionSummary', () => {
     assert.equal(result.summary, 'Mock summary result')
   })
 
-  it('returns error when too few messages', async () => {
-    const deps = mockDeps([{ senderName: 'A', content: 'hi' }])
-    const result = await generateSessionSummary(deps, 1)
-    assert.equal(result.success, false)
-  })
+  const errorCases: Array<{ name: string; messages: SummaryMessage[] | null }> = [
+    { name: 'returns error when too few messages', messages: [{ senderName: 'A', content: 'hi' }] },
+    { name: 'returns error when session not found', messages: null },
+  ]
 
-  it('returns error when session not found', async () => {
-    const deps = mockDeps(null)
-    const result = await generateSessionSummary(deps, 1)
-    assert.equal(result.success, false)
-  })
+  for (const { name, messages } of errorCases) {
+    it(name, async () => {
+      const result = await generateSessionSummary(mockDeps(messages), 1)
+      assert.equal(result.success, false)
+    })
+  }
 })
 
 describe('checkSessionsCanGenerateSummary', () => {

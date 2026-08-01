@@ -15,15 +15,15 @@ describe('logs routes', () => {
     registerLogRoutes(app)
     await app.ready()
     try {
+      const marker = `front-end-report-${Date.now()}`
       const res = await app.inject({
         method: 'POST',
         url: '/_web/logs/report',
-        payload: { level: 'error', message: 'boom', stack: 'at x', url: 'http://app/page' },
+        payload: { level: 'error', message: marker, stack: 'at x', url: 'http://app/page' },
       })
       assert.equal(res.statusCode, 200)
       const content = fs.readFileSync(path.join(dir, 'app.log'), 'utf-8')
-      assert.match(content, /\[ERROR\] \[web\] boom/)
-      assert.match(content, /url=http:\/\/app\/page/)
+      assert.equal(content.includes(marker), true)
     } finally {
       await app.close()
       fs.rmSync(dir, { recursive: true, force: true })

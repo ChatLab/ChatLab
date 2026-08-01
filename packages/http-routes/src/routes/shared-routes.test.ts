@@ -179,6 +179,10 @@ describe('registerSharedRoutes smoke tests', () => {
   let app: FastifyInstance
 
   before(async () => {
+    const nlpDir = path.join(testSystemDir, 'nlp')
+    fs.mkdirSync(nlpDir, { recursive: true })
+    // 共享路由注册会在后台补齐默认词典；该测试不验证下载，预置 fixture 以避免遗留异步网络任务。
+    fs.writeFileSync(path.join(nlpDir, 'zh-CN.dict'), 'test fixture')
     app = Fastify()
     registerSharedRoutes(app, createTestContext())
     await app.ready()

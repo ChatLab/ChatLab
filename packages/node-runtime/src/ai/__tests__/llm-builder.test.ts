@@ -3,39 +3,29 @@ import { describe, it } from 'node:test'
 import { buildPiModel, normalizeAnthropicBaseUrl, normalizeOpenAICompatibleBaseUrl } from '../llm-builder'
 
 describe('normalizeAnthropicBaseUrl', () => {
-  it('strips trailing /v1', () => {
-    assert.equal(normalizeAnthropicBaseUrl('https://api.anthropic.com/v1'), 'https://api.anthropic.com')
-  })
+  const cases = [
+    ['strips trailing /v1', 'https://api.anthropic.com/v1', 'https://api.anthropic.com'],
+    ['strips trailing /v1/', 'https://api.anthropic.com/v1/', 'https://api.anthropic.com'],
+    ['leaves URL without /v1 unchanged', 'https://api.anthropic.com', 'https://api.anthropic.com'],
+  ] as const
 
-  it('strips trailing /v1/', () => {
-    assert.equal(normalizeAnthropicBaseUrl('https://api.anthropic.com/v1/'), 'https://api.anthropic.com')
-  })
-
-  it('leaves URL without /v1 unchanged', () => {
-    assert.equal(normalizeAnthropicBaseUrl('https://api.anthropic.com'), 'https://api.anthropic.com')
-  })
+  for (const [name, input, expected] of cases) {
+    it(name, () => assert.equal(normalizeAnthropicBaseUrl(input), expected))
+  }
 })
 
 describe('normalizeOpenAICompatibleBaseUrl', () => {
-  it('appends /v1 when path is empty', () => {
-    assert.equal(normalizeOpenAICompatibleBaseUrl('https://api.example.com'), 'https://api.example.com/v1')
-  })
+  const cases = [
+    ['appends /v1 when path is empty', 'https://api.example.com', 'https://api.example.com/v1'],
+    ['appends /v1 when path is /', 'https://api.example.com/', 'https://api.example.com/v1'],
+    ['does not append when already ends with /v1', 'https://api.example.com/v1', 'https://api.example.com/v1'],
+    ['does not modify URLs with custom paths', 'https://api.example.com/proxy', 'https://api.example.com/proxy'],
+    ['returns empty string for empty input', '', ''],
+  ] as const
 
-  it('appends /v1 when path is /', () => {
-    assert.equal(normalizeOpenAICompatibleBaseUrl('https://api.example.com/'), 'https://api.example.com/v1')
-  })
-
-  it('does not append when already ends with /v1', () => {
-    assert.equal(normalizeOpenAICompatibleBaseUrl('https://api.example.com/v1'), 'https://api.example.com/v1')
-  })
-
-  it('does not modify URLs with custom paths', () => {
-    assert.equal(normalizeOpenAICompatibleBaseUrl('https://api.example.com/proxy'), 'https://api.example.com/proxy')
-  })
-
-  it('returns empty string for empty input', () => {
-    assert.equal(normalizeOpenAICompatibleBaseUrl(''), '')
-  })
+  for (const [name, input, expected] of cases) {
+    it(name, () => assert.equal(normalizeOpenAICompatibleBaseUrl(input), expected))
+  }
 })
 
 describe('buildPiModel', () => {

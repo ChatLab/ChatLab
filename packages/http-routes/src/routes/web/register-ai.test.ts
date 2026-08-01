@@ -23,17 +23,40 @@ function baseContext(): AiRoutesContext {
   }
 }
 
-test('registerAiRoutes reports the same required dependency list', () => {
-  const app = Fastify()
+function completeContext(): AiRoutesContext {
+  return {
+    ...baseContext(),
+    aiDataDir: '/tmp/chatlab-ai-route-test',
+    aiChatManager: {} as AIChatManager,
+    assistantManager: {} as AssistantManager,
+    skillManagerCore: {} as SkillManagerCore,
+    llmConfigStore: {} as LLMConfigStore,
+    customProviderStore: {} as CustomProviderStore,
+    customModelStore: {} as CustomModelStore,
+    semanticIndexService: {} as SemanticIndexRuntime,
+    runAgentStream: async () => {},
+  }
+}
 
-  assert.throws(
-    () => registerAiRoutes(app, baseContext(), { requireAi: true }),
-    new Error(
-      '[http-routes] requireAi is set but missing AI dependencies: ' +
-        'aiDataDir, aiChatManager, assistantManager, skillManagerCore, llmConfigStore, ' +
-        'customProviderStore, customModelStore, runAgentStream'
-    )
-  )
+test('registerAiRoutes identifies each missing required dependency', () => {
+  const requiredDependencies = [
+    'aiDataDir',
+    'aiChatManager',
+    'assistantManager',
+    'skillManagerCore',
+    'llmConfigStore',
+    'customProviderStore',
+    'customModelStore',
+    'runAgentStream',
+  ] as const satisfies ReadonlyArray<keyof AiRoutesContext>
+
+  for (const dependency of requiredDependencies) {
+    const app = Fastify()
+    const context = completeContext()
+    delete context[dependency]
+
+    assert.throws(() => registerAiRoutes(app, context, { requireAi: true }), new RegExp(dependency))
+  }
 })
 
 test('registerAiRoutes keeps static and graceful fallback routes without AI managers', async (t) => {
@@ -56,18 +79,6 @@ test('registerAiRoutes keeps static and graceful fallback routes without AI mana
 
 test('registerAiRoutes accepts a complete required AI context', () => {
   const app = Fastify()
-  const ctx: AiRoutesContext = {
-    ...baseContext(),
-    aiDataDir: '/tmp/chatlab-ai-route-test',
-    aiChatManager: {} as AIChatManager,
-    assistantManager: {} as AssistantManager,
-    skillManagerCore: {} as SkillManagerCore,
-    llmConfigStore: {} as LLMConfigStore,
-    customProviderStore: {} as CustomProviderStore,
-    customModelStore: {} as CustomModelStore,
-    semanticIndexService: {} as SemanticIndexRuntime,
-    runAgentStream: async () => {},
-  }
 
-  assert.doesNotThrow(() => registerAiRoutes(app, ctx, { requireAi: true }))
+  assert.doesNotThrow(() => registerAiRoutes(app, completeContext(), { requireAi: true }))
 })

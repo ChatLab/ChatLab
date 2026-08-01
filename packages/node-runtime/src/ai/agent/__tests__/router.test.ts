@@ -24,55 +24,47 @@ const extendedDataSnapshot = {
 }
 
 describe('decideRequestRoute', () => {
-  it('routes concept and help questions to direct response by rule', async () => {
-    const concept = await decideRequestRoute({
-      ...baseInput,
-      userMessage: '解释一下什么是 Function Calling Agent，和 ReACT 有什么区别？',
+  const ruleCases = [
+    {
+      name: 'routes concept questions to direct response by rule',
+      message: '解释一下什么是 Function Calling Agent，和 ReACT 有什么区别？',
+      route: 'direct_response',
+      minConfidence: 0.8,
+    },
+    {
+      name: 'routes help questions to direct response by rule',
+      message: 'ChatLab 的 AI 日志在哪里看？',
+      route: 'direct_response',
+      minConfidence: 0,
+    },
+    {
+      name: 'routes simple data lookups to tool assisted by rule',
+      message: '谁发言最多？给我前 5 名就行。',
+      route: 'tool_assisted',
+      minConfidence: 0.75,
+    },
+    {
+      name: 'routes complex evidence-heavy analysis to planned execution by rule',
+      message: '分析过去一年群里话题的变化趋势，按季度总结主要变化，并举出证据。',
+      route: 'planned_execution',
+      minConfidence: 0.8,
+    },
+    {
+      name: 'routes open-ended recent-year topic and core-member retrospectives to planned execution by rule',
+      message: '请分析这个群最近一年的话题演变和核心成员变化。先建立话题地图和发言规律，再按阶段总结主要变化。',
+      route: 'planned_execution',
+      minConfidence: 0.8,
+    },
+  ] as const
+
+  for (const { name, message, route, minConfidence } of ruleCases) {
+    it(name, async () => {
+      const decision = await decideRequestRoute({ ...baseInput, userMessage: message })
+      assert.equal(decision.route, route)
+      assert.equal(decision.source, 'rule')
+      assert.ok(decision.confidence >= minConfidence)
     })
-    assert.equal(concept.route, 'direct_response')
-    assert.equal(concept.source, 'rule')
-    assert.ok(concept.confidence >= 0.8)
-
-    const help = await decideRequestRoute({
-      ...baseInput,
-      userMessage: 'ChatLab 的 AI 日志在哪里看？',
-    })
-    assert.equal(help.route, 'direct_response')
-    assert.equal(help.source, 'rule')
-  })
-
-  it('routes simple data lookups to tool assisted by rule', async () => {
-    const decision = await decideRequestRoute({
-      ...baseInput,
-      userMessage: '谁发言最多？给我前 5 名就行。',
-    })
-
-    assert.equal(decision.route, 'tool_assisted')
-    assert.equal(decision.source, 'rule')
-    assert.ok(decision.confidence >= 0.75)
-  })
-
-  it('routes complex evidence-heavy analysis to planned execution by rule', async () => {
-    const decision = await decideRequestRoute({
-      ...baseInput,
-      userMessage: '分析过去一年群里话题的变化趋势，按季度总结主要变化，并举出证据。',
-    })
-
-    assert.equal(decision.route, 'planned_execution')
-    assert.equal(decision.source, 'rule')
-    assert.ok(decision.confidence >= 0.8)
-  })
-
-  it('routes open-ended recent-year topic and core-member retrospectives to planned execution by rule', async () => {
-    const decision = await decideRequestRoute({
-      ...baseInput,
-      userMessage: '请分析这个群最近一年的话题演变和核心成员变化。先建立话题地图和发言规律，再按阶段总结主要变化。',
-    })
-
-    assert.equal(decision.route, 'planned_execution')
-    assert.equal(decision.source, 'rule')
-    assert.ok(decision.confidence >= 0.8)
-  })
+  }
 
   it('uses injected LLM fallback for ambiguous requests', async () => {
     const llmDecision: RouteDecision = {

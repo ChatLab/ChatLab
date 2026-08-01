@@ -171,18 +171,26 @@ test('mapMessageToChunk breaks ties when multiple chunks share the same start_ts
   store.close()
 })
 
-test('schema includes timestamp-leading index for message-to-chunk lookup', () => {
+test('message-to-chunk lookup uses a timestamp-leading index query plan', () => {
   const dbPath = makeTempDbPath()
   const store = new EmbeddingIndexStore(dbPath)
   store.close()
 
   const db = new Database(dbPath, { readonly: true })
-  const indexes = db.pragma('index_list(chunk_vector_index)') as { name: string }[]
-  const timestampIndex = indexes.find((index) => index.name === 'idx_chunk_ts_range')
-  assert.ok(timestampIndex, 'expected idx_chunk_ts_range to exist')
+  const plan = db
+    .prepare(
+      `EXPLAIN QUERY PLAN
+       SELECT chunk_id FROM chunk_vector_index
+       WHERE db_path_hash = ? AND model_id = ? AND strategy_id = ?
+         AND (start_ts < CAST(? AS INTEGER)
+              OR (start_ts = CAST(? AS INTEGER) AND start_message_id <= CAST(? AS INTEGER)))
+       ORDER BY start_ts DESC, start_message_id DESC LIMIT 1`
+    )
+    .all('dbA', 'qwen3', 'balanced', 1000, 1000, 1) as Array<{ detail: string }>
+  const searchStep = plan.find((step) => step.detail.includes('SEARCH chunk_vector_index'))
 
-  const columns = (db.pragma(`index_info(${timestampIndex.name})`) as { name: string }[]).map((column) => column.name)
-  assert.deepEqual(columns, ['db_path_hash', 'model_id', 'strategy_id', 'start_ts', 'start_message_id'])
+  assert.ok(searchStep)
+  assert.match(searchStep.detail, /USING INDEX idx_chunk_ts_range/)
   db.close()
 })
 

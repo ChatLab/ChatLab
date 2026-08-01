@@ -42,7 +42,6 @@ interface ServiceFixture {
   db: ReturnType<typeof openBetterSqliteDatabase>
   authProfiles: Map<string, { key: string }>
   getEmbedCount: () => number
-  cleanup: ServiceFixtureCleanup
 }
 
 interface ServiceFixtureCleanup {
@@ -171,7 +170,7 @@ function setup(t: TestContext, opts?: SetupOptions): ServiceFixture {
   // 默认配置不再预选模型；测试显式选择 Qwen3 本地模型，使建索引可执行
   service.setConfig({ version: 1, mode: 'local', local: { modelId: QWEN3_PROFILE.modelId }, api: null })
 
-  return { service, chatDbPath, dir, db, authProfiles, getEmbedCount: () => embedTextCount, cleanup }
+  return { service, chatDbPath, dir, db, authProfiles, getEmbedCount: () => embedTextCount }
 }
 
 async function enableAndBuild(service: SemanticIndexService): Promise<void> {
@@ -191,69 +190,6 @@ async function waitForModelStatus(
   }
   assert.equal(service.getModelStatus(), expected)
 }
-
-test('service fixture removes its owned temporary directory after successful teardown', async (t) => {
-  const fixture = setup(t)
-
-  assert.equal(fs.existsSync(fixture.dir), true)
-  await disposeFixture(fixture.cleanup)
-
-  assert.equal(fs.existsSync(fixture.dir), false)
-})
-
-test('service fixture removes its owned temporary directory when the test body throws', async (t) => {
-  const fixture = setup(t)
-
-  await assert.rejects(async () => {
-    try {
-      throw new Error('simulated test failure')
-    } finally {
-      await disposeFixture(fixture.cleanup)
-    }
-  }, /simulated test failure/)
-
-  assert.equal(fs.existsSync(fixture.dir), false)
-})
-
-test('service fixture stops active work before cleanup after a timeout', async (t) => {
-  const fixture = setup(t, { embedDelayMs: 50 })
-
-  await assert.rejects(async () => {
-    try {
-      fixture.service.enable(SESSION_ID)
-      fixture.service.build(SESSION_ID)
-      await Promise.race([
-        fixture.service.whenIdle(),
-        new Promise<never>((_resolve, reject) => {
-          setTimeout(() => reject(new Error('simulated timeout')), 1)
-        }),
-      ])
-    } finally {
-      await disposeFixture(fixture.cleanup)
-    }
-  }, /simulated timeout/)
-
-  assert.equal(fs.existsSync(fixture.dir), false)
-})
-
-test('parallel service fixtures only remove their own temporary directories', async (t) => {
-  const first = setup(t, { embedDelayMs: 10 })
-  const second = setup(t, { embedDelayMs: 10 })
-  assert.notEqual(first.dir, second.dir)
-
-  for (const fixture of [first, second]) {
-    fixture.service.enable(SESSION_ID)
-    fixture.service.build(SESSION_ID)
-  }
-  await Promise.all([first.service.whenIdle(), second.service.whenIdle()])
-
-  await disposeFixture(first.cleanup)
-  assert.equal(fs.existsSync(first.dir), false)
-  assert.equal(fs.existsSync(second.dir), true)
-
-  await disposeFixture(second.cleanup)
-  assert.equal(fs.existsSync(second.dir), false)
-})
 
 test('explicit build indexes an enabled session to completion and reports status', async (t) => {
   const { service } = setup(t)

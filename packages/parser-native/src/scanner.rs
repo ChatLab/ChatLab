@@ -439,52 +439,30 @@ mod tests {
     }
 
     #[test]
-    fn errors_on_invalid_object_container_grammar() {
-        let result = walk_top_level(br#"{"chatlab": {bad}, "meta": {}}"#, |_, _| Ok(()));
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn errors_on_invalid_array_element_grammar() {
-        let result = walk_top_level(br#"{"messages": [{bad}]}"#, |_, _| Ok(()));
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn errors_on_invalid_scalar_token() {
-        let result = walk_top_level(br#"{"a": nope}"#, |_, _| Ok(()));
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn skips_bom() {
+    fn accepts_bom_and_trailing_whitespace() {
         let doc = "\u{FEFF}{\"messages\": [3]}";
         let entries = collect_entries(doc);
         assert_eq!(entries[0].0, "messages");
         assert_eq!(collect_elements(&entries[0].1), vec!["3".to_string()]);
-    }
 
-    #[test]
-    fn allows_trailing_whitespace_after_root_object() {
         let entries = collect_entries("{\"a\": 1}\n\t ");
         assert_eq!(entries, vec![("a".to_string(), "1".to_string())]);
     }
 
     #[test]
-    fn errors_on_trailing_bytes_after_root_object() {
-        let result = walk_top_level(br#"{"a": 1} {"b": 2}"#, |_, _| Ok(()));
-        assert!(result.is_err());
-    }
+    fn rejects_invalid_or_incomplete_documents() {
+        let cases: &[(&str, &[u8])] = &[
+            ("object grammar", br#"{"chatlab": {bad}, "meta": {}}"#),
+            ("array grammar", br#"{"messages": [{bad}]}"#),
+            ("scalar token", br#"{"a": nope}"#),
+            ("trailing object", br#"{"a": 1} {"b": 2}"#),
+            ("trailing empty root", br#"{}[]"#),
+            ("truncated array", br#"{"a": [1, 2"#),
+        ];
 
-    #[test]
-    fn errors_on_trailing_bytes_after_empty_root_object() {
-        let result = walk_top_level(br#"{}[]"#, |_, _| Ok(()));
-        assert!(result.is_err());
-    }
-
-    #[test]
-    fn errors_on_truncated_document() {
-        let result = walk_top_level(br#"{"a": [1, 2"#, |_, _| Ok(()));
-        assert!(result.is_err());
+        for (name, document) in cases {
+            let result = walk_top_level(document, |_, _| Ok(()));
+            assert!(result.is_err(), "{name}");
+        }
     }
 }

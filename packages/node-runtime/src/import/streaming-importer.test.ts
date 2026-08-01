@@ -50,17 +50,20 @@ function createImportDeps(
   }
 }
 
-function createDelayedTransactionAdapter(db: DatabaseAdapter, delayMs: number): DatabaseAdapter {
-  let delayedMessageCommit = false
+function createTimedTransactionAdapter(
+  db: DatabaseAdapter,
+  advanceTime: (milliseconds: number) => void
+): DatabaseAdapter {
+  let measuredMessageCommit = false
 
   return {
     get readonly() {
       return db.readonly
     },
     exec(sql) {
-      if (!delayedMessageCommit && sql.trim().toUpperCase() === 'COMMIT') {
-        delayedMessageCommit = true
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs)
+      if (!measuredMessageCommit && sql.trim().toUpperCase() === 'COMMIT') {
+        measuredMessageCommit = true
+        advanceTime(11)
       }
       db.exec(sql)
     },
@@ -72,13 +75,41 @@ function createDelayedTransactionAdapter(db: DatabaseAdapter, delayMs: number): 
     },
     pragma(pragma) {
       if (pragma === 'wal_checkpoint(TRUNCATE)') {
-        Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, delayMs)
+        advanceTime(17)
       }
       return db.pragma(pragma)
     },
     close() {
       db.close()
     },
+  }
+}
+
+function createForcedPreprocessor(root: string) {
+  let preprocessCalls = 0
+  let cleanupCalls = 0
+  let tempFilePath: string | null = null
+  const preprocessor = {
+    needsPreprocess() {
+      return true
+    },
+    async preprocess(filePath: string) {
+      preprocessCalls++
+      tempFilePath = path.join(root, `preprocessed-${preprocessCalls}.json`)
+      fs.copyFileSync(filePath, tempFilePath)
+      return tempFilePath
+    },
+    cleanup(filePath: string) {
+      cleanupCalls++
+      fs.rmSync(filePath, { force: true })
+    },
+  }
+
+  return {
+    preprocessor,
+    getPreprocessCalls: () => preprocessCalls,
+    getCleanupCalls: () => cleanupCalls,
+    getTempFilePath: () => tempFilePath,
   }
 }
 
@@ -243,30 +274,6 @@ function writeSingleFileShuakamiQqExport(root: string): string {
     }),
     'utf-8'
   )
-  return filePath
-}
-
-function writeLargeSingleFileShuakamiQqExport(root: string, timestamp = '2026-07-10T12:00:00.000Z'): string {
-  const filePath = path.join(root, 'shuakami-qq-v4-large.json')
-  const descriptor = fs.openSync(filePath, 'w')
-  try {
-    fs.writeSync(
-      descriptor,
-      JSON.stringify({
-        metadata: { name: 'QQChatExporter V6', version: '6.0.3' },
-        chatInfo: { name: 'Native Preprocess Gate', type: 'group' },
-        statistics: { senders: [{ uid: 'u_10001' }] },
-        messages: [],
-      }).slice(0, -2) +
-        `{"messageId":"large-message","timestamp":${JSON.stringify(timestamp)},` +
-        '"sender":{"uin":"10001","name":"Alice"},"content":{"text":"large native message","html":"'
-    )
-    const oneMegabyte = 'H'.repeat(1024 * 1024)
-    for (let index = 0; index < 50; index++) fs.writeSync(descriptor, oneMegabyte)
-    fs.writeSync(descriptor, '"}}],"avatars":{}}')
-  } finally {
-    fs.closeSync(descriptor)
-  }
   return filePath
 }
 
@@ -509,108 +516,86 @@ test(
   }
 )
 
-test(
-  'streamingImport skips the >50MB shuakami/qq-chat-exporter slim preprocessor when the current binary supports the native kernel',
-  {
-    skip: !isNativeFormatAvailable('shuakami-qq-exporter') && 'native shuakami/qq-chat-exporter kernel not built',
-  },
-  async (t) => {
-    const root = makeTempDir()
-    t.after(() => fs.rmSync(root, { recursive: true, force: true }))
-    const filePath = writeLargeSingleFileShuakamiQqExport(root)
-    const dbPath = path.join(root, 'shuakami-qq-native-large.db')
-    const logMessages: string[] = []
-    const deps = createImportDeps(dbPath)
-    deps.logger = createCollectingLogger(logMessages)
-
-    const result = await streamingImport(filePath, deps, undefined, 'shuakami-qq-native-large')
-
-    assert.equal(result.success, true)
-    assert.equal(result.diagnostics?.messagesWritten, 1)
-    assert.ok(
-      logMessages.some(
-        (message) =>
-          message.includes('Kernel shuakami-qq-exporter is available') &&
-          message.includes('skipping large-file preprocessing')
-      )
-    )
-    assert.equal(
-      logMessages.some((message) => message.includes('Preprocessing done')),
-      false
-    )
-    assert.ok(
-      logMessages.some((message) =>
-        message.includes('[NativeParser] Parsing shuakami/qq-chat-exporter with Rust kernel')
-      )
-    )
-    assert.equal(
-      logMessages.some((message) => message.includes('falling back to TS parser')),
-      false
-    )
+test('streamingImport skips preprocessing when the selected format has native support', async (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const filePath = writeSingleFileShuakamiQqExport(root)
+  const fixture = createForcedPreprocessor(root)
+  const deps = createImportDeps(path.join(root, 'native-preprocess-gate.db'))
+  deps.preprocessing = {
+    getPreprocessor: () => fixture.preprocessor,
+    needsPreprocess: () => true,
+    isNativeFormatAvailable: () => true,
   }
-)
 
-test(
-  'streamingImport preprocesses a >50MB shuakami/qq-chat-exporter export after strict native fallback',
-  {
-    skip: !isNativeFormatAvailable('shuakami-qq-exporter') && 'native shuakami/qq-chat-exporter kernel not built',
-  },
-  async (t) => {
-    const root = makeTempDir()
-    t.after(() => fs.rmSync(root, { recursive: true, force: true }))
-    const filePath = writeLargeSingleFileShuakamiQqExport(root, 'July 10, 2026 12:00:00 GMT')
-    const dbPath = path.join(root, 'shuakami-qq-native-large-fallback.db')
-    const logMessages: string[] = []
-    const deps = createImportDeps(dbPath)
-    deps.logger = createCollectingLogger(logMessages)
+  const result = await streamingImport(filePath, deps, { formatId: 'shuakami-qq-exporter' }, 'native-preprocess-gate')
 
-    const result = await streamingImport(filePath, deps, undefined, 'shuakami-qq-native-large-fallback')
+  assert.equal(result.success, true)
+  assert.equal(result.diagnostics?.messagesWritten, 2)
+  assert.equal(fixture.getPreprocessCalls(), 0)
+  assert.equal(fixture.getCleanupCalls(), 0)
+  assert.equal(fixture.getTempFilePath(), null)
+})
 
-    assert.equal(result.success, true)
-    assert.equal(result.diagnostics?.messagesWritten, 1)
-    assert.ok(logMessages.some((message) => message.includes('falling back to TS parser')))
-    assert.ok(logMessages.some((message) => message.includes('Preprocessing large export before TypeScript fallback')))
+test('streamingImport preprocesses directly when native support is unavailable', async (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const filePath = writeSingleFileShuakamiQqExport(root)
+  const fixture = createForcedPreprocessor(root)
+  const deps = createImportDeps(path.join(root, 'forced-preprocess.db'))
+  deps.preprocessing = {
+    getPreprocessor: () => fixture.preprocessor,
+    needsPreprocess: () => true,
+    isNativeFormatAvailable: () => false,
   }
-)
+
+  const result = await streamingImport(filePath, deps, { formatId: 'shuakami-qq-exporter' }, 'forced-preprocess')
+
+  assert.equal(result.success, true)
+  assert.equal(result.diagnostics?.messagesWritten, 2)
+  assert.equal(fixture.getPreprocessCalls(), 1)
+  assert.equal(fixture.getCleanupCalls(), 1)
+  const tempFilePath = fixture.getTempFilePath()
+  assert.ok(tempFilePath)
+  assert.equal(fs.existsSync(tempFilePath), false)
+})
 
 test('streamingImport cleans a generated shuakami/qq-chat-exporter slim file when database setup fails', async (t) => {
   const root = makeTempDir()
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
-  const filePath = writeLargeSingleFileShuakamiQqExport(root)
-  const logMessages: string[] = []
-  const saved = process.env.CHATLAB_DISABLE_NATIVE_PERF
-  process.env.CHATLAB_DISABLE_NATIVE_PERF = '1'
+  const filePath = writeSingleFileShuakamiQqExport(root)
+  const fixture = createForcedPreprocessor(root)
 
-  try {
-    await assert.rejects(
-      streamingImport(
-        filePath,
-        {
-          openDatabase() {
-            throw new Error('database setup failed for test')
-          },
-          deleteDatabase() {
-            /* no database was created */
-          },
-          onProgress() {
-            /* noop for focused cleanup assertion */
-          },
-          logger: createCollectingLogger(logMessages),
+  await assert.rejects(
+    streamingImport(
+      filePath,
+      {
+        openDatabase() {
+          throw new Error('database setup failed for test')
         },
-        undefined,
-        'shuakami-qq-preprocess-setup-failure'
-      ),
-      /database setup failed for test/
-    )
+        deleteDatabase() {
+          /* no database was created */
+        },
+        onProgress() {
+          /* noop for focused cleanup assertion */
+        },
+        preprocessing: {
+          getPreprocessor: () => fixture.preprocessor,
+          needsPreprocess: () => true,
+          isNativeFormatAvailable: () => false,
+        },
+      },
+      { formatId: 'shuakami-qq-exporter' },
+      'shuakami-qq-preprocess-setup-failure'
+    ),
+    /database setup failed for test/
+  )
 
-    const tempLog = logMessages.find((message) => message.startsWith('Preprocessing done, temp file: '))
-    assert.ok(tempLog)
-    const tempFilePath = tempLog.slice('Preprocessing done, temp file: '.length)
-    assert.equal(fs.existsSync(tempFilePath), false)
-  } finally {
-    if (saved === undefined) delete process.env.CHATLAB_DISABLE_NATIVE_PERF
-    else process.env.CHATLAB_DISABLE_NATIVE_PERF = saved
-  }
+  assert.equal(fixture.getPreprocessCalls(), 1)
+  assert.equal(fixture.getCleanupCalls(), 1)
+  const tempFilePath = fixture.getTempFilePath()
+  assert.ok(tempFilePath)
+  assert.equal(fs.existsSync(tempFilePath), false)
 })
 
 test('streamingImport applies incremental-equivalent deduplication on first import', async (t) => {
@@ -643,16 +628,21 @@ test('streamingImport attributes transaction and checkpoint work to their import
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   const filePath = writeDuplicateChatLabExport(root)
   const dbPath = path.join(root, 'transaction-timing-test.db')
-  const delayMs = 50
-  const deps = createImportDeps(dbPath, (db) => createDelayedTransactionAdapter(db, delayMs))
+  let nowMs = 0
+  const deps = createImportDeps(dbPath, (db) =>
+    createTimedTransactionAdapter(db, (milliseconds) => {
+      nowMs += milliseconds
+    })
+  )
+  deps.now = () => nowMs
 
   const result = await streamingImport(filePath, deps, { formatId: 'chatlab' }, 'transaction-timing-test')
 
   assert.equal(result.success, true)
   const timings = result.diagnostics?.performance.timings
   assert.ok(timings)
-  assert.ok(timings.messageWriteMs >= delayMs * 0.8, 'message writes should include the final transaction commit')
-  assert.ok(timings.checkpointMs >= delayMs * 0.8, 'checkpoint timing should include the final WAL checkpoint')
+  assert.equal(timings.messageWriteMs, 11)
+  assert.equal(timings.checkpointMs, 17)
 })
 
 test('streamingImport canonicalizes reserved SYSTEM senders and excludes them from overview counts', async (t) => {

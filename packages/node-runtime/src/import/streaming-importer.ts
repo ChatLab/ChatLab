@@ -120,6 +120,14 @@ export interface StreamImportDeps {
   sessionGapThreshold?: number
   /** Optional test/platform override for the session-index builder. */
   generateSessionIndex?: typeof generateCoreSessionIndex
+  /** Optional preprocessing adapters for runtimes that need to override parser capabilities. */
+  preprocessing?: {
+    getPreprocessor: typeof getPreprocessor
+    needsPreprocess: typeof needsPreprocess
+    isNativeFormatAvailable: typeof isNativeFormatAvailable
+  }
+  /** Monotonic clock used by import performance diagnostics. */
+  now?: () => number
 }
 
 // ==================== Core streaming import ====================
@@ -135,8 +143,10 @@ interface ImportTimingContext {
   detectionMs: number
 }
 
-function elapsedMs(startedAt: number): number {
-  return performance.now() - startedAt
+const defaultNow = () => performance.now()
+
+function elapsedMs(startedAt: number, now: () => number): number {
+  return now() - startedAt
 }
 
 /**
@@ -206,8 +216,9 @@ export async function streamingImport(
   formatOptions?: Record<string, unknown>,
   externalSessionId?: string
 ): Promise<StreamImportResult> {
-  const totalStartedAt = performance.now()
-  const detectionStartedAt = performance.now()
+  const now = deps.now ?? defaultNow
+  const totalStartedAt = now()
+  const detectionStartedAt = now()
 
   if (formatOptions?.formatId) {
     const formatId = formatOptions.formatId as string
@@ -217,7 +228,7 @@ export async function streamingImport(
     }
     return streamImportSingle(filePath, deps, feature, formatOptions, externalSessionId, {
       totalStartedAt,
-      detectionMs: elapsedMs(detectionStartedAt),
+      detectionMs: elapsedMs(detectionStartedAt, now),
     })
   }
 
@@ -228,7 +239,7 @@ export async function streamingImport(
 
   const timingContext = {
     totalStartedAt,
-    detectionMs: elapsedMs(detectionStartedAt),
+    detectionMs: elapsedMs(detectionStartedAt, now),
   }
 
   if (candidates.length > 1) {
@@ -279,7 +290,8 @@ async function streamImportSingle(
 ): Promise<StreamImportResult> {
   const { onProgress, logger } = deps
   const genId = deps.generateSessionId ?? defaultGenerateSessionId
-  const totalStartedAt = timingContext?.totalStartedAt ?? performance.now()
+  const now = deps.now ?? defaultNow
+  const totalStartedAt = timingContext?.totalStartedAt ?? now()
   const timings: ImportStageTimings = {
     detectionMs: timingContext?.detectionMs ?? 0,
     preprocessingMs: 0,
@@ -314,10 +326,14 @@ async function streamImportSingle(
   // Preprocess large files if needed
   let actualFilePath = filePath
   let tempFilePath: string | null = null
-  const preprocessor = getPreprocessor(filePath)
+  const preprocessing = deps.preprocessing ?? { getPreprocessor, needsPreprocess, isNativeFormatAvailable }
+  const getImportPreprocessor = preprocessing.getPreprocessor
+  const shouldPreprocess = preprocessing.needsPreprocess
+  const nativeFormatAvailable = preprocessing.isNativeFormatAvailable
+  const preprocessor = getImportPreprocessor(filePath)
 
-  const needsLargeFilePreprocess = preprocessor && needsPreprocess(filePath)
-  const nativeCanParseOriginal = needsLargeFilePreprocess && isNativeFormatAvailable(formatFeature.id)
+  const needsLargeFilePreprocess = preprocessor && shouldPreprocess(filePath)
+  const nativeCanParseOriginal = needsLargeFilePreprocess && nativeFormatAvailable(formatFeature.id)
   if (nativeCanParseOriginal) {
     logger?.info(
       `[NativeParser] Kernel ${formatFeature.id} is available; skipping large-file preprocessing and parsing the original export`
@@ -333,7 +349,7 @@ async function streamImportSingle(
       message: '',
     })
 
-    const preprocessingStartedAt = performance.now()
+    const preprocessingStartedAt = now()
     try {
       tempFilePath = await preprocessor.preprocess(filePath, (progress: ParseProgress) => {
         onProgress({ ...progress, message: '' })
@@ -345,12 +361,12 @@ async function streamImportSingle(
       logger?.error(errorMsg, err instanceof Error ? err : undefined)
       return { success: false, error: errorMsg }
     } finally {
-      timings.preprocessingMs = elapsedMs(preprocessingStartedAt)
+      timings.preprocessingMs = elapsedMs(preprocessingStartedAt, now)
       sampleRss()
     }
   }
 
-  const databaseSetupStartedAt = performance.now()
+  const databaseSetupStartedAt = now()
   const databaseSetup = (() => {
     let db: DatabaseAdapter | undefined
     try {
@@ -387,7 +403,7 @@ async function streamImportSingle(
       return { ok: false as const, error, databaseOpened: db !== undefined }
     }
   })()
-  timings.databaseSetupMs = elapsedMs(databaseSetupStartedAt)
+  timings.databaseSetupMs = elapsedMs(databaseSetupStartedAt, now)
   sampleRss()
 
   if (!databaseSetup.ok) {
@@ -432,25 +448,25 @@ async function streamImportSingle(
 
   const beginTransaction = () => {
     if (!inTransaction) {
-      const startedAt = performance.now()
+      const startedAt = now()
       try {
         db.exec('BEGIN TRANSACTION')
         inTransaction = true
         messageTransactionCount++
       } finally {
-        messageTransactionMs += elapsedMs(startedAt)
+        messageTransactionMs += elapsedMs(startedAt, now)
       }
     }
   }
 
   const commitTransaction = () => {
     if (inTransaction) {
-      const startedAt = performance.now()
+      const startedAt = now()
       try {
         db.exec('COMMIT')
         inTransaction = false
       } finally {
-        messageTransactionMs += elapsedMs(startedAt)
+        messageTransactionMs += elapsedMs(startedAt, now)
       }
     }
   }
@@ -464,11 +480,11 @@ async function streamImportSingle(
   }
 
   const measureCheckpoint = () => {
-    const startedAt = performance.now()
+    const startedAt = now()
     try {
       doCheckpoint()
     } finally {
-      timings.checkpointMs += elapsedMs(startedAt)
+      timings.checkpointMs += elapsedMs(startedAt, now)
     }
   }
 
@@ -514,11 +530,11 @@ async function streamImportSingle(
   const dedupState = createMessageDedupState()
 
   logger?.info('Starting streamParseFile...')
-  const parsePipelineStartedAt = performance.now()
+  const parsePipelineStartedAt = now()
   let parserTimingFinished = false
   const finishParserTiming = () => {
     if (parserTimingFinished) return
-    const parsePipelineMs = elapsedMs(parsePipelineStartedAt)
+    const parsePipelineMs = elapsedMs(parsePipelineStartedAt, now)
     const writeCallbackMs =
       timings.metaWriteMs + timings.memberWriteMs + timings.messageWriteMs + messageTransactionMs + timings.checkpointMs
     timings.parserMs = Math.max(0, parsePipelineMs - writeCallbackMs)
@@ -549,7 +565,7 @@ async function streamImportSingle(
         },
 
         onMeta: (meta: ParsedMeta) => {
-          const startedAt = performance.now()
+          const startedAt = now()
           try {
             callbackStats.onMetaCalls++
             importedPlatform = meta.platform || importedPlatform
@@ -567,13 +583,13 @@ async function streamImportSingle(
               metaInserted = true
             }
           } finally {
-            timings.metaWriteMs += elapsedMs(startedAt)
+            timings.metaWriteMs += elapsedMs(startedAt, now)
             sampleRss()
           }
         },
 
         onMembers: (members: ParsedMember[]) => {
-          const startedAt = performance.now()
+          const startedAt = now()
           try {
             callbackStats.onMembersCalls++
             callbackStats.totalMembersReceived += members.length
@@ -593,13 +609,13 @@ async function streamImportSingle(
               if (row) memberIdMap.set(member.platformId, row.id)
             }
           } finally {
-            timings.memberWriteMs += elapsedMs(startedAt)
+            timings.memberWriteMs += elapsedMs(startedAt, now)
             sampleRss()
           }
         },
 
         onMessageBatch: (messages: ParsedMessage[]) => {
-          const startedAt = performance.now()
+          const startedAt = now()
           const transactionMsBefore = messageTransactionMs
           const checkpointMsBefore = timings.checkpointMs
           try {
@@ -682,7 +698,7 @@ async function streamImportSingle(
           } finally {
             const nestedStageMs =
               messageTransactionMs - transactionMsBefore + (timings.checkpointMs - checkpointMsBefore)
-            timings.messageWriteMs += Math.max(0, elapsedMs(startedAt) - nestedStageMs)
+            timings.messageWriteMs += Math.max(0, elapsedMs(startedAt, now) - nestedStageMs)
             sampleRss()
           }
         },
@@ -708,7 +724,7 @@ async function streamImportSingle(
     await yieldToEventLoop()
     logger?.perf('Writing nickname history', totalMessageCount)
 
-    const nicknameHistoryStartedAt = performance.now()
+    const nicknameHistoryStartedAt = now()
     db.exec('BEGIN TRANSACTION')
     let historyCount = 0
 
@@ -723,7 +739,7 @@ async function streamImportSingle(
     historyCount = countHistory(accountNameTracker) + countHistory(groupNicknameTracker)
 
     db.exec('COMMIT')
-    timings.nicknameHistoryMs = elapsedMs(nicknameHistoryStartedAt)
+    timings.nicknameHistoryMs = elapsedMs(nicknameHistoryStartedAt, now)
     sampleRss()
     logger?.perf(`Nickname history written (${historyCount} entries)`, totalMessageCount)
 
@@ -738,21 +754,21 @@ async function streamImportSingle(
     })
     await yieldToEventLoop()
     logger?.perf('Creating indexes', totalMessageCount)
-    const indexCreationStartedAt = performance.now()
+    const indexCreationStartedAt = now()
     db.exec(CHAT_DB_INDEXES)
-    timings.indexCreationMs = elapsedMs(indexCreationStartedAt)
+    timings.indexCreationMs = elapsedMs(indexCreationStartedAt, now)
     sampleRss()
     logger?.perf('Indexes created', totalMessageCount)
 
     // Build FTS index
-    const ftsStartedAt = performance.now()
+    const ftsStartedAt = now()
     try {
       buildFtsIndex(db)
       logger?.perf('FTS index built', totalMessageCount)
     } catch (ftsError) {
       logger?.error('FTS index build failed (non-fatal)', ftsError instanceof Error ? ftsError : undefined)
     } finally {
-      timings.ftsMs = elapsedMs(ftsStartedAt)
+      timings.ftsMs = elapsedMs(ftsStartedAt, now)
       sampleRss()
     }
 
@@ -771,7 +787,7 @@ async function streamImportSingle(
     logger?.perf('WAL checkpoint done', totalMessageCount)
 
     // Build session index (segment / message_context tables)
-    const sessionIndexStartedAt = performance.now()
+    const sessionIndexStartedAt = now()
     const sessionGapThreshold = normalizeSessionGapThreshold(deps.sessionGapThreshold)
     try {
       const generateSessionIndex = deps.generateSessionIndex ?? generateCoreSessionIndex
@@ -781,20 +797,20 @@ async function streamImportSingle(
     } catch (error) {
       logger?.error('Session index build failed (non-fatal)', error instanceof Error ? error : undefined)
     } finally {
-      timings.sessionIndexMs = elapsedMs(sessionIndexStartedAt)
+      timings.sessionIndexMs = elapsedMs(sessionIndexStartedAt, now)
       sampleRss()
     }
 
     // Post-import hook (e.g. overview cache)
     if (deps.postImportHook) {
-      const postImportHookStartedAt = performance.now()
+      const postImportHookStartedAt = now()
       try {
         await deps.postImportHook(db, sessionId)
         logger?.perf('Post-import hook done', totalMessageCount)
       } catch {
         /* non-fatal */
       } finally {
-        timings.postImportHookMs = elapsedMs(postImportHookStartedAt)
+        timings.postImportHookMs = elapsedMs(postImportHookStartedAt, now)
         sampleRss()
       }
     }
@@ -868,7 +884,7 @@ async function streamImportSingle(
     sampleRss()
   }
 
-  timings.totalMs = elapsedMs(totalStartedAt)
+  timings.totalMs = elapsedMs(totalStartedAt, now)
   const bytesPerMegabyte = 1024 * 1024
   const diagnostics: ImportDiagnostics = {
     logFile: logger?.getCurrentLogFile() ?? null,
