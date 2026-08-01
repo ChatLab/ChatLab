@@ -25,7 +25,19 @@ import {
   resolveRelationshipGalaxyPollingAction,
   shouldShowFocusConnectionsAction,
 } from './relationship-galaxy-state'
-import { maskRelationshipGalaxyPrivateText, relationshipGalaxyPrivateAvatarText } from './relationship-galaxy-privacy'
+import {
+  getRelationshipGalaxyNodeAvatarSrc,
+  getRelationshipGalaxyNodeAvatarText,
+  getRelationshipGalaxyNodeDisplayName,
+  getRelationshipGalaxyNodePlatformIdentity,
+} from './relationship-galaxy-node-display'
+import {
+  captureRelationshipGalaxyPanoramaView,
+  DEFAULT_RELATIONSHIP_GALAXY_VIEW_MODE,
+  resolveRelationshipGalaxyFallbackViewMode,
+  restoreRelationshipGalaxyPanoramaView,
+  type RelationshipGalaxyViewMode,
+} from './relationship-galaxy-navigation'
 
 type GalaxyCanvasInstance = {
   focusNode: (key: string) => boolean
@@ -33,7 +45,6 @@ type GalaxyCanvasInstance = {
   captureView: () => unknown | null
   restoreView: (view: unknown) => boolean
 }
-type GalaxyViewMode = '3d' | '2d'
 type RelationshipGraphResponseWithGraph = Pick<
   PeopleRelationshipsGraphResponse,
   'algorithmVersion' | 'cache' | 'timeRange' | 'graph'
@@ -73,7 +84,7 @@ const isDetailSidePanelLayout = ref(false)
 const loadingNeighborhoodKey = ref<string | null>(null)
 const canvasSelectedKey = ref<string | null>(null)
 const privacyMode = ref(false)
-const viewMode = ref<GalaxyViewMode>('3d')
+const viewMode = ref<RelationshipGalaxyViewMode>(DEFAULT_RELATIONSHIP_GALAXY_VIEW_MODE)
 const loadError = ref('')
 const graphRequestId = ref(0)
 const neighborhoodRequestId = ref(0)
@@ -203,25 +214,25 @@ function formatTime(ts: number | null | undefined): string {
 }
 
 function avatarText(node: PeopleRelationshipGraphNode | PeopleRelationshipsSearchResult): string {
-  if (node.kind === 'owner') return t('relationships.owner.avatarText')
-  if (privacyMode.value) return relationshipGalaxyPrivateAvatarText()
-  return (node.displayName || node.platformId || '?').slice(0, 1)
+  return getRelationshipGalaxyNodeAvatarText(node, {
+    privacyMode: privacyMode.value,
+    ownerLabel: t('relationships.owner.avatarText'),
+  })
 }
 
 function avatarSrc(node: PeopleRelationshipGraphNode | PeopleRelationshipsSearchResult): string | null {
-  if (node.kind === 'owner') return node.avatar
-  return privacyMode.value ? null : node.avatar
+  return getRelationshipGalaxyNodeAvatarSrc(node, privacyMode.value)
 }
 
 function displayName(node: PeopleRelationshipGraphNode | PeopleRelationshipsSearchResult): string {
-  if (node.kind === 'owner') return t('relationships.owner.me')
-  const name = node.displayName || node.platformId || node.key
-  return privacyMode.value ? maskRelationshipGalaxyPrivateText(name) : name
+  return getRelationshipGalaxyNodeDisplayName(node, {
+    privacyMode: privacyMode.value,
+    ownerLabel: t('relationships.owner.me'),
+  })
 }
 
 function platformIdentity(node: PeopleRelationshipGraphNode): string {
-  const identity = node.platformId || node.key
-  return privacyMode.value ? maskRelationshipGalaxyPrivateText(identity) : identity
+  return getRelationshipGalaxyNodePlatformIdentity(node, privacyMode.value)
 }
 
 function poolLabel(node: Pick<PeopleRelationshipGraphNode, 'pool' | 'friendSource' | 'kind'>): string {
@@ -332,8 +343,11 @@ function cancelNeighborhoodLoad() {
 }
 
 function rememberPanoramaViewBeforeSelection() {
-  if (selectedKey.value || savedPanoramaView.value) return
-  savedPanoramaView.value = canvasRef.value?.captureView() ?? null
+  savedPanoramaView.value = captureRelationshipGalaxyPanoramaView(
+    canvasRef.value,
+    selectedKey.value,
+    savedPanoramaView.value
+  )
 }
 
 function clearSavedPanoramaView() {
@@ -345,8 +359,7 @@ function restorePanoramaView() {
   clearSavedPanoramaView()
 
   void nextTick(() => {
-    const restored = view ? canvasRef.value?.restoreView(view) === true : false
-    if (!restored) canvasRef.value?.fitView()
+    restoreRelationshipGalaxyPanoramaView(canvasRef.value, view)
     void nextTick(() => {
       isRestoringPanoramaView = false
     })
@@ -555,8 +568,9 @@ async function selectNode(node: PeopleRelationshipGraphNode) {
 }
 
 function handleThreeCanvasFallback() {
-  if (viewMode.value !== '3d') return
-  viewMode.value = '2d'
+  const nextMode = resolveRelationshipGalaxyFallbackViewMode(viewMode.value)
+  if (nextMode === viewMode.value) return
+  viewMode.value = nextMode
   toast.warn(t('relationships.toast.threeUnavailable'))
 }
 

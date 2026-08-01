@@ -4,6 +4,7 @@ import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { usePromptStore } from '@/stores/prompt'
 import type { ChartAutoMode } from '@openchatlab/shared-types'
+import { MAX_TOOL_RESULT_PERCENT, MIN_TOOL_RESULT_PERCENT, normalizeMaxToolResultPercent } from './promptConfigLimits'
 
 const { t } = useI18n()
 
@@ -113,7 +114,7 @@ const compressionBuffer = computed({
 const maxToolResultPercent = computed({
   get: () => aiGlobalSettings.value.contextCompression?.maxToolResultPercent ?? 50,
   set: (val: number) => {
-    const clampedVal = Math.max(10, Math.min(80, val || 50))
+    const clampedVal = normalizeMaxToolResultPercent(val)
     promptStore.updateAIGlobalSettings({
       contextCompression: { ...aiGlobalSettings.value.contextCompression, maxToolResultPercent: clampedVal },
     })
@@ -241,7 +242,12 @@ const maxToolResultPercent = computed({
             </p>
           </div>
           <div class="flex items-center gap-1">
-            <UInputNumber v-model="maxToolResultPercent" :min="10" :max="80" class="w-24" />
+            <UInputNumber
+              v-model="maxToolResultPercent"
+              :min="MIN_TOOL_RESULT_PERCENT"
+              :max="MAX_TOOL_RESULT_PERCENT"
+              class="w-24"
+            />
             <span class="text-xs text-gray-400">%</span>
           </div>
         </div>

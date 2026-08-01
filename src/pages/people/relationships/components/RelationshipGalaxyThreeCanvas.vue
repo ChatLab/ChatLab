@@ -17,11 +17,16 @@ import {
 import { buildRelationshipVisibleLabelKeys } from '../relationship-galaxy-connections'
 import {
   applyRelationshipGalaxy3DSafeArea,
-  buildRelationshipGalaxy3DViewOffset,
   buildRelationshipGalaxy3DImmersiveCameraPose,
   type RelationshipGalaxy3DCameraPose,
 } from '../relationship-galaxy-3d-camera'
-import { maskRelationshipGalaxyPrivateText } from '../relationship-galaxy-privacy'
+import { getRelationshipGalaxyNodeDisplayName } from '../relationship-galaxy-node-display'
+import {
+  applyRelationshipGalaxy3DCameraViewOffset,
+  captureRelationshipGalaxy3DCameraView,
+  getRelationshipGalaxy3DDynamicLabelTier,
+  parseRelationshipGalaxy3DCameraView,
+} from '../relationship-galaxy-3d-canvas'
 
 interface NodeObject {
   group: THREE.Group
@@ -48,13 +53,6 @@ interface CameraFlight {
   toPosition: THREE.Vector3
   fromTarget: THREE.Vector3
   toTarget: THREE.Vector3
-}
-
-interface RelationshipGalaxy3DCameraViewState {
-  kind: '3d'
-  position: RelationshipGalaxy3DCameraPose['position']
-  target: RelationshipGalaxy3DCameraPose['position']
-  hasUserMovedCamera: boolean
 }
 
 const props = withDefaults(
@@ -111,9 +109,10 @@ const pointer = new THREE.Vector2()
 const tmpWorldPosition = new THREE.Vector3()
 
 function shortName(node: PeopleRelationshipGraphNode): string {
-  if (node.kind === 'owner') return props.ownerLabel
-  const name = node.displayName || node.platformId || node.key
-  return props.privacyMode ? maskRelationshipGalaxyPrivateText(name) : name
+  return getRelationshipGalaxyNodeDisplayName(node, {
+    privacyMode: props.privacyMode,
+    ownerLabel: props.ownerLabel,
+  })
 }
 
 function getViewportSize(): { width: number; height: number } {
@@ -381,7 +380,12 @@ function updateLabels() {
   for (const object of nodeObjects.values()) {
     const selected = object.sceneNode.key === selectedKey
     const selectedNeighbor = Boolean(selectedKey && selectedNeighborKeys?.has(object.sceneNode.key))
-    const labelTier = getDynamicLabelTier(object.sceneNode, selectedKey ?? null, hoveredKey.value)
+    const labelTier = getRelationshipGalaxy3DDynamicLabelTier(
+      object.sceneNode,
+      selectedKey ?? null,
+      hoveredKey.value,
+      selectedVisibleLabelKeys.value
+    )
     if (labelTier === 0) continue
 
     object.group.getWorldPosition(tmpWorldPosition)
@@ -404,17 +408,6 @@ function updateLabels() {
   }
 
   labels.value = nextLabels
-}
-
-function getDynamicLabelTier(
-  sceneNode: RelationshipGalaxy3DNode,
-  selectedKey: string | null,
-  hoveredKey: string | null
-): 0 | 1 | 2 {
-  if (sceneNode.key === hoveredKey) return sceneNode.labelTier === 2 ? 2 : 1
-  if (!selectedKey) return sceneNode.labelTier
-  if (!selectedVisibleLabelKeys.value?.has(sceneNode.key)) return 0
-  return sceneNode.key === selectedKey || sceneNode.node.kind === 'owner' ? 2 : 1
 }
 
 function getLabelEmphasis(
@@ -589,25 +582,20 @@ function focusNode(key: string): boolean {
   return true
 }
 
-function captureView(): RelationshipGalaxy3DCameraViewState | null {
-  if (!camera || !controls) return null
-  return {
-    kind: '3d',
-    position: vectorToPose(camera.position),
-    target: vectorToPose(controls.target),
-    hasUserMovedCamera,
-  }
+function captureView() {
+  return captureRelationshipGalaxy3DCameraView(camera?.position, controls?.target, hasUserMovedCamera)
 }
 
 function restoreView(view: unknown): boolean {
-  if (!isCameraViewState(view) || !camera || !controls) return false
+  const restoredView = parseRelationshipGalaxy3DCameraView(view)
+  if (!restoredView || !camera || !controls) return false
 
   pendingFocusKey = null
-  hasUserMovedCamera = view.hasUserMovedCamera
+  hasUserMovedCamera = restoredView.hasUserMovedCamera
   applyCameraSafeAreaProjection()
   startCameraFlight(
-    new THREE.Vector3(view.position.x, view.position.y, view.position.z),
-    new THREE.Vector3(view.target.x, view.target.y, view.target.z),
+    new THREE.Vector3(restoredView.position.x, restoredView.position.y, restoredView.position.z),
+    new THREE.Vector3(restoredView.target.x, restoredView.target.y, restoredView.target.z),
     620
   )
   return true
@@ -638,54 +626,15 @@ function applySafeAreaToCameraPose(pose: RelationshipGalaxy3DCameraPose): Relati
 
 function applyCameraSafeAreaProjection(size = getViewportSize()) {
   if (!camera) return
-  const viewOffset = buildRelationshipGalaxy3DViewOffset({
+  applyRelationshipGalaxy3DCameraViewOffset(camera, {
     viewportWidth: size.width,
     viewportHeight: size.height,
     safeInsetRight: props.safeInsetRight,
   })
-  if (!viewOffset) {
-    camera.clearViewOffset()
-    return
-  }
-
-  camera.setViewOffset(
-    viewOffset.fullWidth,
-    viewOffset.fullHeight,
-    viewOffset.offsetX,
-    viewOffset.offsetY,
-    viewOffset.width,
-    viewOffset.height
-  )
 }
 
 function vectorToPose(vector: THREE.Vector3): RelationshipGalaxy3DCameraPose['position'] {
   return { x: vector.x, y: vector.y, z: vector.z }
-}
-
-function isCameraViewState(value: unknown): value is RelationshipGalaxy3DCameraViewState {
-  if (!isRecord(value)) return false
-  return (
-    value.kind === '3d' &&
-    isCameraVector(value.position) &&
-    isCameraVector(value.target) &&
-    typeof value.hasUserMovedCamera === 'boolean'
-  )
-}
-
-function isCameraVector(value: unknown): value is RelationshipGalaxy3DCameraPose['position'] {
-  if (!isRecord(value)) return false
-  return (
-    typeof value.x === 'number' &&
-    Number.isFinite(value.x) &&
-    typeof value.y === 'number' &&
-    Number.isFinite(value.y) &&
-    typeof value.z === 'number' &&
-    Number.isFinite(value.z)
-  )
-}
-
-function isRecord(value: unknown): value is Record<string, unknown> {
-  return typeof value === 'object' && value !== null
 }
 
 function startCameraFlight(toPosition: THREE.Vector3, toTarget: THREE.Vector3, duration: number) {
