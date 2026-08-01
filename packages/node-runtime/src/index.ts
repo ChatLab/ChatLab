@@ -120,7 +120,7 @@ export {
   getSystemLogsDir,
   hasPendingElectronDataWarning,
 } from './node-path-provider'
-export { DatabaseManager } from './database-manager'
+export { DatabaseManager, listDatabaseCandidateIds } from './database-manager'
 export { createJiebaNlpProvider } from './jieba-nlp-provider'
 export {
   applyPendingNodeDataDirMigration,

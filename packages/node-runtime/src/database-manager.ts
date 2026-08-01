@@ -52,6 +52,19 @@ interface OpenRawSessionDatabaseOptions {
   initializeChatTables?: boolean
 }
 
+/**
+ * List database candidates that require further inspection.
+ * macOS AppleDouble `._*` files contain metadata rather than SQLite data.
+ */
+export function listDatabaseCandidateIds(databaseDir: string): string[] {
+  if (!fs.existsSync(databaseDir)) return []
+
+  return fs
+    .readdirSync(databaseDir)
+    .filter((fileName) => fileName.endsWith('.db') && !fileName.startsWith('._'))
+    .map((fileName) => fileName.slice(0, -3))
+}
+
 export class DatabaseManager {
   private cache = new Map<string, DatabaseAdapter>()
   private nativeBinding?: string
@@ -185,17 +198,11 @@ export class DatabaseManager {
     this.assertCompatible()
 
     const dbDir = this.pathProvider.getDatabaseDir()
-    if (!fs.existsSync(dbDir)) return []
-
-    return fs
-      .readdirSync(dbDir)
-      .filter((f) => f.endsWith('.db'))
-      .map((f) => f.replace('.db', ''))
-      .filter((id) => {
-        const db = this.open(id)
-        if (!db) return false
-        return isChatSessionDb(db)
-      })
+    return listDatabaseCandidateIds(dbDir).filter((id) => {
+      const db = this.open(id)
+      if (!db) return false
+      return isChatSessionDb(db)
+    })
   }
 
   /**
@@ -205,20 +212,14 @@ export class DatabaseManager {
     this.assertCompatible()
 
     const dbDir = this.pathProvider.getDatabaseDir()
-    if (!fs.existsSync(dbDir)) return []
-
-    return fs
-      .readdirSync(dbDir)
-      .filter((fileName) => fileName.endsWith('.db'))
-      .map((fileName) => fileName.replace('.db', ''))
-      .filter((sessionId) => {
-        const db = this.openRawSessionDatabase(sessionId, { readonly: true })
-        try {
-          return isChatSessionDb(db)
-        } finally {
-          db.close()
-        }
-      })
+    return listDatabaseCandidateIds(dbDir).filter((sessionId) => {
+      const db = this.openRawSessionDatabase(sessionId, { readonly: true })
+      try {
+        return isChatSessionDb(db)
+      } finally {
+        db.close()
+      }
+    })
   }
 
   getUserDataDir(): string {

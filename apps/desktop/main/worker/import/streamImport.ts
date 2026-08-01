@@ -20,6 +20,7 @@ import {
   computeAndSetOverviewCache,
   createImportPerfLogger,
   deleteSessionCache,
+  listDatabaseCandidateIds,
 } from '@openchatlab/node-runtime'
 import type {
   AutoImportBatchItemResult,
@@ -131,13 +132,7 @@ export async function autoImport(
   return sharedAutoImportFile(
     filePath,
     {
-      listSessionIds: () =>
-        fs.existsSync(getDbDir())
-          ? fs
-              .readdirSync(getDbDir())
-              .filter((name) => name.endsWith('.db'))
-              .map((name) => name.slice(0, -3))
-          : [],
+      listSessionIds: () => listDatabaseCandidateIds(getDbDir()),
       openReadonly: (sessionId) => new BetterSqliteAdapter(openRawDatabase(getDbPath(sessionId), { readonly: true })),
       onProgress: (progress) => sendProgress(requestId, progress),
       sessionExists: (sessionId) => fs.existsSync(getDbPath(sessionId)),
@@ -183,13 +178,7 @@ export async function autoImportBatch(
       },
     })),
     {
-      listSessionIds: () =>
-        fs.existsSync(getDbDir())
-          ? fs
-              .readdirSync(getDbDir())
-              .filter((name) => name.endsWith('.db'))
-              .map((name) => name.slice(0, -3))
-          : [],
+      listSessionIds: () => listDatabaseCandidateIds(getDbDir()),
       openReadonly: (sessionId) => new BetterSqliteAdapter(openRawDatabase(getDbPath(sessionId), { readonly: true })),
       sessionExists: (sessionId) => fs.existsSync(getDbPath(sessionId)),
       createSession: (sourcePath, sourceFormatOptions, sessionId, itemProgress) =>

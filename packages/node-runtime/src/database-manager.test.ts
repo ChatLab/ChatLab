@@ -7,7 +7,7 @@ import Database from 'better-sqlite3'
 import type { PathProvider } from '@openchatlab/core'
 import { CHAT_DB_SCHEMA, CURRENT_SCHEMA_VERSION, getSessionInfo } from '@openchatlab/core'
 import { DataDirCompatibilityError, readDataDirCompatibilityMeta } from './data-dir-compat'
-import { DatabaseManager } from './database-manager'
+import { DatabaseManager, listDatabaseCandidateIds } from './database-manager'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -1030,4 +1030,21 @@ test('listSessionIds ignores non-ChatLab sqlite databases without migrating them
 
   assert.deepEqual(manager.listSessionIds(), [])
   manager.closeAll()
+})
+
+test('database candidate enumeration ignores AppleDouble sidecars but keeps damaged databases visible', () => {
+  const root = makeTempDir()
+  const dbDir = path.join(root, 'data', 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+  fs.writeFileSync(path.join(dbDir, '._chat_existing.db'), Buffer.from([0x00, 0x05, 0x16, 0x07]))
+
+  const manager = new DatabaseManager(createPathProvider(root), { nativeBinding, allowMissingRuntimeForTests: true })
+  assert.deepEqual(listDatabaseCandidateIds(dbDir), [])
+  assert.deepEqual(manager.listSessionIds(), [])
+  assert.deepEqual(manager.listSessionIdsReadonly(), [])
+
+  fs.writeFileSync(path.join(dbDir, 'damaged.db'), 'not a sqlite database')
+  assert.deepEqual(listDatabaseCandidateIds(dbDir), ['damaged'])
+  assert.throws(() => manager.listSessionIds(), /file is not a database/)
+  assert.throws(() => manager.listSessionIdsReadonly(), /file is not a database/)
 })
