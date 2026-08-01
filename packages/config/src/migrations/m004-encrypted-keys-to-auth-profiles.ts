@@ -10,7 +10,7 @@
 import * as path from 'path'
 import type { Migration, MigrationContext } from './types'
 import { isEncrypted, decryptApiKey } from './crypto-legacy'
-import { deriveAuthProfileName, writeAuthProfile } from '../auth-profiles'
+import { deriveAuthProfileName, writeAuthProfileWithUniqueName } from '../auth-profiles'
 import { readJsonFile, withFileLock, writeJsonFileAtomically } from '../atomic-json-file'
 
 export const m004EncryptedKeysToAuthProfiles: Migration = {
@@ -26,7 +26,6 @@ export const m004EncryptedKeysToAuthProfiles: Migration = {
 
       const configs = (data.configs as Array<Record<string, unknown>>) || []
       let migrated = false
-      const usedProfileNames = new Set<string>()
 
       for (const config of configs) {
         const apiKey = config.apiKey as string
@@ -47,16 +46,11 @@ export const m004EncryptedKeysToAuthProfiles: Migration = {
 
         if (plainKey) {
           const baseName = deriveAuthProfileName(provider, config)
-
-          let profileName = baseName
-          if (usedProfileNames.has(profileName)) {
-            let i = 2
-            while (usedProfileNames.has(`${profileName}-${i}`)) i++
-            profileName = `${profileName}-${i}`
-          }
-          usedProfileNames.add(profileName)
-
-          writeAuthProfile(profileName, { type: 'api_key', provider, key: plainKey })
+          const profileName = writeAuthProfileWithUniqueName(baseName, {
+            type: 'api_key',
+            provider,
+            key: plainKey,
+          })
           config.authProfile = profileName
           config.apiKey = ''
           migrated = true

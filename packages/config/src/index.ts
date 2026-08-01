@@ -15,6 +15,7 @@ export {
   getApiKeyByProvider,
   resolveApiKey,
   writeAuthProfile,
+  writeAuthProfileWithUniqueName,
   deleteAuthProfile,
   deriveAuthProfileName,
 } from './auth-profiles'

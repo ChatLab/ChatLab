@@ -10,8 +10,15 @@ const tempHome = mkdtempSync(join(tmpdir(), 'chatlab-config-migration-'))
 const originalHome = process.env.HOME
 process.env.HOME = tempHome
 
-const [{ m004EncryptedKeysToAuthProfiles }, { MigrationRunner }, { getApiKeyByProfile, loadAuthProfiles }] =
-  await Promise.all([import('./m004-encrypted-keys-to-auth-profiles'), import('./runner'), import('../auth-profiles')])
+const [
+  { m004EncryptedKeysToAuthProfiles },
+  { MigrationRunner },
+  { getApiKeyByProfile, loadAuthProfiles, writeAuthProfile },
+] = await Promise.all([
+  import('./m004-encrypted-keys-to-auth-profiles'),
+  import('./runner'),
+  import('../auth-profiles'),
+])
 
 const chatlabDir = join(tempHome, '.chatlab')
 const aiDataDir = join(chatlabDir, 'ai')
@@ -125,6 +132,22 @@ describe('m004 encrypted keys to auth profiles migration', () => {
     await m004EncryptedKeysToAuthProfiles.up({ dataDir: chatlabDir, aiDataDir, logger })
 
     assert.equal(getApiKeyByProfile('anthropic'), 'secret-key')
+    assert.equal(readLlmConfig().configs[0].apiKey, '')
+  })
+
+  it('preserves existing auth profiles and stores migrated keys under unique names', async () => {
+    writeAuthProfile('deepseek', { type: 'api_key', provider: 'deepseek', key: 'existing-primary' })
+    writeAuthProfile('deepseek-2', { type: 'api_key', provider: 'deepseek', key: 'existing-backup' })
+    await writeLlmConfig([{ name: 'Legacy DeepSeek', provider: 'deepseek', apiKey: 'legacy-key' }])
+
+    const { logger } = createLogger()
+    await m004EncryptedKeysToAuthProfiles.up({ dataDir: chatlabDir, aiDataDir, logger })
+
+    const profiles = loadAuthProfiles().profiles
+    assert.equal(profiles.deepseek.key, 'existing-primary')
+    assert.equal(profiles['deepseek-2'].key, 'existing-backup')
+    assert.equal(profiles['deepseek-3'].key, 'legacy-key')
+    assert.equal(readLlmConfig().configs[0].authProfile, 'deepseek-3')
     assert.equal(readLlmConfig().configs[0].apiKey, '')
   })
 

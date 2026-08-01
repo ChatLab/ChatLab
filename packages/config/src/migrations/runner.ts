@@ -36,14 +36,10 @@ export class MigrationRunner {
 
   private writeVersion(version: number): void {
     const versionPath = path.join(this.context.dataDir, VERSION_FILE)
-    try {
-      if (!fs.existsSync(this.context.dataDir)) {
-        fs.mkdirSync(this.context.dataDir, { recursive: true })
-      }
-      fs.writeFileSync(versionPath, String(version), 'utf-8')
-    } catch (err) {
-      this.context.logger.error('Migration', `Failed to write version file: ${err}`)
+    if (!fs.existsSync(this.context.dataDir)) {
+      fs.mkdirSync(this.context.dataDir, { recursive: true })
     }
+    fs.writeFileSync(versionPath, String(version), 'utf-8')
   }
 
   async run(): Promise<{ executed: number; currentVersion: number }> {
@@ -63,14 +59,21 @@ export class MigrationRunner {
       this.context.logger.info('Migration', `Running: v${lastVersion}→v${migration.version} ${migration.name}`)
       try {
         await migration.up(this.context)
-        lastVersion = migration.version
-        this.writeVersion(lastVersion)
-        executed++
-        this.context.logger.info('Migration', `Completed: ${migration.name}`)
       } catch (err) {
         this.context.logger.error('Migration', `Failed: ${migration.name}`, err)
         break
       }
+
+      try {
+        this.writeVersion(migration.version)
+      } catch (err) {
+        this.context.logger.error('Migration', `Failed to persist version ${migration.version}`, err)
+        throw err
+      }
+
+      lastVersion = migration.version
+      executed++
+      this.context.logger.info('Migration', `Completed: ${migration.name}`)
     }
 
     return { executed, currentVersion: lastVersion }

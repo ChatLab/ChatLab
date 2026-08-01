@@ -158,6 +158,48 @@ test('createNodeDataDirSwitch accepts existing CLI data directories without mark
   assert.equal(result.requiresRelaunch, true)
 })
 
+test('createNodeDataDirSwitch rejects unsafe migration targets without creating a pending task', (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const currentDir = path.join(root, 'current')
+  writeFile(path.join(currentDir, 'databases', 'current.db'), 'sqlite')
+
+  const unrelatedDir = path.join(root, 'unrelated')
+  writeFile(path.join(unrelatedDir, 'personal.txt'), 'keep me')
+
+  const cases = [
+    {
+      name: 'system directory',
+      targetDir: process.platform === 'win32' ? 'C:\\Windows\\ChatLab' : '/usr/chatlab',
+      expectedError: /System directories/,
+    },
+    {
+      name: 'target nested inside current data directory',
+      targetDir: path.join(currentDir, 'nested'),
+      expectedError: /cannot be inside current data directory/,
+    },
+    {
+      name: 'non-empty unrelated directory',
+      targetDir: unrelatedDir,
+      expectedError: /not empty and is not a ChatLab data directory/,
+    },
+  ]
+
+  for (const entry of cases) {
+    const systemDir = path.join(root, `system-${entry.name.replaceAll(' ', '-')}`)
+    const result = createNodeDataDirSwitch({
+      systemDir,
+      currentDir,
+      targetDir: entry.targetDir,
+      migrate: true,
+    })
+
+    assert.equal(result.success, false, entry.name)
+    assert.match(result.error ?? '', entry.expectedError, entry.name)
+    assert.equal(getPendingNodeDataDirMigration(systemDir), null, entry.name)
+  }
+})
+
 test('NodePathProvider marks CLI-created data directories', () => {
   const root = makeTempDir()
   const dataDir = path.join(root, 'data')
@@ -313,6 +355,42 @@ test('manual cleanup refuses directories that are still in use or no longer cont
   const unrecognizedResult = deletePendingDataDirCleanup(systemDir, targetDir, inUse.id)
   assert.equal(unrecognizedResult.success, false)
   assert.equal(fs.readFileSync(path.join(sourceDir, 'personal.txt'), 'utf-8'), 'keep me')
+})
+
+test('manual cleanup refuses source directories that contain or are contained by the system directory', (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  const cases = [
+    {
+      name: 'source contains system directory',
+      sourceDir: path.join(root, 'parent-source'),
+      systemDir: path.join(root, 'parent-source', 'system'),
+    },
+    {
+      name: 'source is inside system directory',
+      sourceDir: path.join(root, 'system-parent', 'nested-source'),
+      systemDir: path.join(root, 'system-parent'),
+    },
+  ]
+
+  for (const entry of cases) {
+    const currentDir = path.join(root, `current-${entry.name.replaceAll(' ', '-')}`)
+    writeFile(path.join(entry.sourceDir, '.chatlab'), 'ChatLab Data Directory')
+    writeFile(path.join(entry.sourceDir, 'databases', 'session.db'), 'sqlite')
+
+    const cleanup = registerPendingDataDirCleanup(entry.systemDir, {
+      sourceDir: entry.sourceDir,
+      targetDir: currentDir,
+    })
+    assert.ok(cleanup, entry.name)
+
+    const result = deletePendingDataDirCleanup(entry.systemDir, currentDir, cleanup.id)
+
+    assert.equal(result.success, false, entry.name)
+    assert.match(result.error ?? '', /overlaps a directory still in use/, entry.name)
+    assert.equal(fs.existsSync(path.join(entry.sourceDir, 'databases', 'session.db')), true, entry.name)
+    assert.equal(getPendingDataDirCleanups(entry.systemDir).length, 1, entry.name)
+  }
 })
 
 test('switching back to a preserved directory removes it from cleanup candidates', () => {

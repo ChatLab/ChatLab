@@ -103,6 +103,27 @@ export function writeAuthProfile(name: string, profile: AuthProfile): void {
 }
 
 /**
+ * 以 baseName 写入新的 profile；名称分配和写入共用同一把文件锁，避免并发覆盖。
+ * 如果名称已存在，依次尝试 baseName-2、baseName-3……并返回实际名称。
+ */
+export function writeAuthProfileWithUniqueName(baseName: string, profile: AuthProfile): string {
+  const filePath = getAuthProfilesPath()
+  return withFileLock(filePath, () => {
+    const data = loadAuthProfiles()
+    let name = baseName
+    let suffix = 2
+    while (Object.hasOwn(data.profiles, name)) {
+      name = `${baseName}-${suffix}`
+      suffix += 1
+    }
+
+    data.profiles = { ...data.profiles, [name]: profile }
+    writeJsonFileAtomically(filePath, data, 0o600)
+    return name
+  })
+}
+
+/**
  * 删除一个 auth profile
  */
 export function deleteAuthProfile(name: string): boolean {

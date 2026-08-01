@@ -385,7 +385,9 @@ export function deletePendingDataDirCleanup(
     isSubPath(sourceDir, currentDir) ||
     isSubPath(currentDir, sourceDir)
   const overlapsSystemDir =
-    normalizePathForCompare(sourceDir) === normalizePathForCompare(systemDir) || isSubPath(sourceDir, systemDir)
+    normalizePathForCompare(sourceDir) === normalizePathForCompare(systemDir) ||
+    isSubPath(sourceDir, systemDir) ||
+    isSubPath(systemDir, sourceDir)
 
   if (overlapsCurrentDir || overlapsSystemDir) {
     appLogger.warn('data-dir', 'Old data directory cleanup rejected because the path is still in use', { cleanupId })
