@@ -129,9 +129,10 @@ test('worker client starts configured local model recovery when status is reques
   assert.equal(status, 'installing-runtime')
   assert.equal(instances.length, 1)
   assert.deepEqual(instances[0].requests, [{ method: 'getModelStatus', args: [] }])
+  await client.close()
 })
 
-test('worker client keeps a model preload worker alive until the model is ready', async () => {
+test('worker client keeps tracking model preload after external polling stops and then closes when idle', async () => {
   const instances: FakeTransport[] = []
   const timers: Array<() => void> = []
   const statuses: Array<'downloading-model' | 'ready'> = ['downloading-model', 'ready']
@@ -155,16 +156,23 @@ test('worker client keeps a model preload worker alive until the model is ready'
         timers.push(callback)
         return callback
       },
-      clearTimeout() {
-        /* test timer is manually triggered */
+      clearTimeout(timer) {
+        const index = timers.indexOf(timer as () => void)
+        if (index >= 0) timers.splice(index, 1)
       },
     },
   })
 
   assert.equal(await client.getModelStatus(), 'downloading-model')
-  assert.equal(timers.length, 0)
+  assert.equal(timers.length, 1)
 
-  assert.equal(await client.getModelStatus(), 'ready')
+  timers.shift()?.()
+  await new Promise<void>((resolve) => setImmediate(resolve))
+
+  assert.deepEqual(instances[0].requests, [
+    { method: 'getModelStatus', args: [] },
+    { method: 'getModelStatus', args: [] },
+  ])
   assert.equal(timers.length, 1)
   timers.shift()?.()
   assert.equal(instances[0].closed, true)

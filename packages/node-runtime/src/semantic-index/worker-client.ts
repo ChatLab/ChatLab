@@ -17,6 +17,7 @@ import type { SemanticIndexRuntime } from './runtime'
 import type { SemanticIndexModelStatus } from './embedding/types'
 import type { LocalEmbeddingRuntimeConfig } from './embedding/local-runtime'
 import type { RuntimeIdentity } from '../data-dir-compat'
+import { appLogger } from '../logging/app-logger'
 import { snapshotPathProvider } from './static-path-provider'
 import { createSemanticIndexWorkerThreadTransport } from './worker-thread-transport'
 
@@ -58,6 +59,7 @@ export interface SemanticIndexWorkerRuntimeClientOptions {
 }
 
 const DEFAULT_IDLE_TIMEOUT_MS = 10 * 60 * 1000
+const MODEL_PRELOAD_STATUS_POLL_MS = 2_000
 
 const defaultTimers: WorkerClientTimers = {
   setTimeout: (callback, ms) => setTimeout(callback, ms),
@@ -68,6 +70,7 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
   private transport: SemanticIndexWorkerTransport | null = null
   private pendingRequests = 0
   private idleTimer: unknown = null
+  private modelPreloadPollTimer: unknown = null
   private activeBuildSessionIds = new Set<string>()
   private hasUnknownActiveBuild = false
   private hasActiveModelPreload = false
@@ -101,8 +104,8 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
     })
     if (!saved.enabled) {
       this.clearActiveBuildTracking()
-      this.hasActiveModelPreload = false
     }
+    if (!saved.enabled || saved.mode !== 'local') this.clearModelPreloadTracking()
     // 本地模式且功能开启时，即使 worker 未运行也需启动它以触发 preload；
     // 其余情况（disabled / api 模式）无需唤醒 worker，直接返回本地保存结果。
     const needsWorker = saved.enabled && saved.mode === 'local' && this.configStore.isConfigured()
@@ -122,8 +125,7 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
   async getModelStatus(): Promise<SemanticIndexModelStatus> {
     if (!this.transport && !this.shouldStartLocalModelWorker()) return 'idle'
     const status = await this.call<SemanticIndexModelStatus>('getModelStatus', [], { scheduleIdle: false })
-    this.hasActiveModelPreload = status === 'installing-runtime' || status === 'downloading-model'
-    this.scheduleIdleCloseIfNeeded()
+    this.updateModelPreloadStatus(status)
     return status
   }
 
@@ -331,6 +333,48 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
     this.activeBuildSessionIds.clear()
   }
 
+  private updateModelPreloadStatus(status: SemanticIndexModelStatus): void {
+    this.hasActiveModelPreload = status === 'installing-runtime' || status === 'downloading-model'
+    if (this.hasActiveModelPreload) this.scheduleModelPreloadPoll()
+    else {
+      this.clearModelPreloadPoll()
+      this.scheduleIdleCloseIfNeeded()
+    }
+  }
+
+  private scheduleModelPreloadPoll(): void {
+    this.clearModelPreloadPoll()
+    if (!this.transport || !this.hasActiveModelPreload) return
+    this.modelPreloadPollTimer = this.timers.setTimeout(() => {
+      this.modelPreloadPollTimer = null
+      void this.pollModelPreloadStatus()
+    }, MODEL_PRELOAD_STATUS_POLL_MS)
+  }
+
+  private async pollModelPreloadStatus(): Promise<void> {
+    if (!this.transport || !this.hasActiveModelPreload) return
+    try {
+      await this.getModelStatus()
+    } catch (error) {
+      appLogger.warn('semantic-index', 'Background model preload status poll failed; closing worker', {
+        error: error instanceof Error ? error.message : String(error),
+      })
+      await this.closeFailedProbeTransport()
+    }
+  }
+
+  private clearModelPreloadPoll(): void {
+    if (this.modelPreloadPollTimer) {
+      this.timers.clearTimeout(this.modelPreloadPollTimer)
+      this.modelPreloadPollTimer = null
+    }
+  }
+
+  private clearModelPreloadTracking(): void {
+    this.hasActiveModelPreload = false
+    this.clearModelPreloadPoll()
+  }
+
   private scheduleIdleCloseIfNeeded(): void {
     if (
       !this.transport ||
@@ -359,7 +403,7 @@ export class SemanticIndexWorkerClient implements SemanticIndexRuntime {
     const transport = this.transport
     this.transport = null
     this.activeModelDownloadProxyUrl = undefined
-    this.hasActiveModelPreload = false
+    this.clearModelPreloadTracking()
     this.clearActiveBuildTracking()
     if (transport) await transport.close()
   }
