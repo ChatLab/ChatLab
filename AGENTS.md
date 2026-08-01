@@ -56,10 +56,10 @@
 
 ## 日志
 
-- 统一入口：Node 侧（Electron 主进程 / CLI / CLI Web）通过 `@openchatlab/node-runtime` 的 `appLogger`（`appLogger.info/warn/error/debug(scope, message, data?)`）落盘到 `logs/app.log`；前端（Vue）通过 `src/services/log-report.ts` 经 `POST /_web/logs/report` 上报。不要为通用日志新写 `fs.appendFileSync` 或新的 logger 文件；AI 用 `AiLogger`、导入性能用 `perf-logger` 保持现状。
-- 关键路径补充必要日志，不要机械记录每个函数或分支。操作最终失败或功能不可用时用 `error`，有重试/降级且仍可继续时用 `warn`，高频诊断用 `debug`；记录异常时直接传原始 `Error`，避免丢失 stack。
-- 日志、注释等非 UI 文本用英文，且**不得写入聊天明文、API Key、token 等隐私数据**。日志问题不自动构成严重 Bug，也不要为具体文案、级别或 logger 调用单独增加业务测试；安全审计、数据恢复等明确契约除外。
-- 级别与轮转：`app.log` 达 10MB 自动原子 rename 为 `app.old.log`，无需手动清理。
+- 统一入口：Node 侧（Electron 主进程 / CLI / CLI Web）使用 `@openchatlab/node-runtime` 的 `appLogger`；前端使用 `src/services/log-report.ts` 上报。不要新建通用 logger 或直接写日志文件；AI 使用 `AiLogger`、导入性能使用 `perf-logger`。
+- 关键路径：启动、迁移、数据库或配置变更、导入、认证、外部调用和后台任务等用户可感知流程，应记录必要的开始、完成和失败节点。日志应能帮助判断流程停在哪一步及其原始错误，但不要机械记录每个函数或分支。
+- 日志级别：低频且有诊断价值的成功节点使用 `info`；操作最终失败或功能不可用使用 `error`；已有重试、降级或回退且流程仍可继续使用 `warn`；轮询、缓存和状态快照等高频诊断使用 `debug`。记录异常时应直接传入原始 `Error`，避免丢失 stack。
+- 适度原则：不要在循环或高频热路径写 `info`，不得记录聊天明文、API Key、token 等敏感信息。不要为具体日志文案、级别或调用方式机械增加业务测试；日志问题也不自动构成严重 Bug，仍应根据实际用户影响判断。
 
 ## 架构边界
 
