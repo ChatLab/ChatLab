@@ -65,7 +65,15 @@ function getKeywordColor(keyword: string) {
     return SINGLE_COLOR
   }
   const index = currentKeywords.value.indexOf(keyword)
-  return KEYWORD_COLORS[index % KEYWORD_COLORS.length]
+  if (index >= 0) {
+    return KEYWORD_COLORS[index % KEYWORD_COLORS.length]
+  }
+  // 未出现在当前关键词列表中的类型（如“其他”），用稳定哈希取色
+  let hash = 0
+  for (let i = 0; i < keyword.length; i++) {
+    hash = (hash * 31 + keyword.charCodeAt(i)) >>> 0
+  }
+  return KEYWORD_COLORS[hash % KEYWORD_COLORS.length]
 }
 
 // 预设模板（使用计算属性以支持国际化）
