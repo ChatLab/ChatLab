@@ -246,7 +246,9 @@ export function getLaughAnalysis(db: DatabaseAdapter, filter?: TimeFilter, keywo
     totalMessages: 0,
     groupLaughRate: 0,
   }
-  const laughKeywords = keywords && keywords.length > 0 ? keywords : []
+  const laughKeywords = keywords?.map((keyword) => keyword.trim()).filter(Boolean) ?? []
+  if (laughKeywords.length === 0) return emptyResult
+
   const patterns = laughKeywords.map(keywordToPattern)
   const laughRegex = new RegExp(`(${patterns.join('|')})`, 'gi')
 

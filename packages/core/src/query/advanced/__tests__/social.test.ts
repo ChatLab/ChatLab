@@ -7,7 +7,7 @@
 import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import Database from 'better-sqlite3'
-import { accumulateCoOccurrencePairs, getMentionAnalysis } from '../social'
+import { accumulateCoOccurrencePairs, getLaughAnalysis, getMentionAnalysis } from '../social'
 import type { DatabaseAdapter, PreparedStatement, RunResult } from '../../../interfaces'
 
 class Statement implements PreparedStatement {
@@ -88,6 +88,25 @@ function createMentionDatabase(): Adapter {
 }
 
 describe('social analysis', () => {
+  it('returns an empty keyword analysis when no usable keywords are provided', () => {
+    const database = createMentionDatabase()
+
+    try {
+      const expected = {
+        rankByRate: [],
+        rankByCount: [],
+        typeDistribution: [],
+        totalLaughs: 0,
+        totalMessages: 0,
+        groupLaughRate: 0,
+      }
+      assert.deepEqual(getLaughAnalysis(database), expected)
+      assert.deepEqual(getLaughAnalysis(database, undefined, ['', '   ']), expected)
+    } finally {
+      database.close()
+    }
+  })
+
   it('tracks the latest timestamp for each co-occurrence pair', () => {
     const pairs = accumulateCoOccurrencePairs([
       { senderId: 1, ts: 1704103200 },

@@ -161,6 +161,7 @@ const currentTemplateName = computed(() => {
 // 分析结果
 const analysis = ref<LaughAnalysis | null>(null)
 const isLoading = ref(false)
+let analysisRequestId = 0
 
 // 模板弹窗（创建/编辑）
 const showTemplateModal = ref(false)
@@ -217,8 +218,10 @@ function selectTemplate(template: KeywordTemplate) {
 
 // 清空所有关键词
 function clearAllKeywords() {
+  analysisRequestId++
   currentKeywords.value = []
   analysis.value = null
+  isLoading.value = false
   selectedTemplateId.value = ''
 }
 
@@ -306,21 +309,26 @@ function deleteTemplate(templateId: string) {
 
 // 加载分析数据
 async function loadAnalysis() {
+  const requestId = ++analysisRequestId
   if (!props.sessionId || currentKeywords.value.length === 0) {
     analysis.value = null
+    isLoading.value = false
     return
   }
 
   isLoading.value = true
   try {
-    analysis.value = await useDataService().getLaughAnalysis(props.sessionId, props.timeFilter, [
+    const result = await useDataService().getLaughAnalysis(props.sessionId, props.timeFilter, [
       ...currentKeywords.value,
     ])
+    if (requestId !== analysisRequestId) return
+    analysis.value = result
   } catch (error) {
+    if (requestId !== analysisRequestId) return
     console.error('Failed to load keyword ranking:', error)
     analysis.value = null
   } finally {
-    isLoading.value = false
+    if (requestId === analysisRequestId) isLoading.value = false
   }
 }
 

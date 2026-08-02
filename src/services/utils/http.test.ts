@@ -8,6 +8,7 @@ import {
   analyticsGet,
   abortAnalyticsRequests,
 } from './http'
+import { FetchDataAdapter } from '../data/fetch'
 
 describe('http client', () => {
   beforeEach(() => {
@@ -180,6 +181,50 @@ describe('http client', () => {
         assert.equal(captured.signal?.aborted, false)
       } finally {
         abortAnalyticsRequests()
+        globalThis.fetch = originalFetch
+      }
+    })
+  })
+
+  describe('FetchDataAdapter keyword analysis', () => {
+    it('sends time filters in the URL and keywords in the request body', async () => {
+      const originalFetch = globalThis.fetch
+      let requestedUrl = ''
+      let requestedInit: RequestInit | undefined
+      globalThis.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+        requestedUrl = String(input)
+        requestedInit = init
+        return Promise.resolve(
+          new Response(
+            JSON.stringify({
+              rankByRate: [],
+              rankByCount: [],
+              typeDistribution: [],
+              totalLaughs: 0,
+              totalMessages: 0,
+              groupLaughRate: 0,
+            }),
+            { status: 200, headers: { 'Content-Type': 'application/json' } }
+          )
+        )
+      }) as typeof fetch
+
+      try {
+        const longKeyword = '长'.repeat(20_000)
+        await new FetchDataAdapter().getLaughAnalysis('chat-1', { startTs: 100, endTs: 200, memberId: 3 }, [
+          longKeyword,
+          '笑死',
+        ])
+
+        const url = new URL(requestedUrl, 'http://localhost')
+        assert.equal(url.pathname, '/_web/sessions/chat-1/analytics/laugh')
+        assert.equal(url.searchParams.get('startTs'), '100')
+        assert.equal(url.searchParams.get('endTs'), '200')
+        assert.equal(url.searchParams.get('memberId'), '3')
+        assert.equal(url.searchParams.has('keywords'), false)
+        assert.equal(requestedInit?.method, 'POST')
+        assert.deepEqual(JSON.parse(String(requestedInit?.body)), { keywords: [longKeyword, '笑死'] })
+      } finally {
         globalThis.fetch = originalFetch
       }
     })

@@ -61,12 +61,16 @@ import type {
 } from './types'
 import { get, post, del, put, patch, analyticsGet, analyticsPost } from '../utils/http'
 
-function buildFilterParams(filter?: TimeFilter): string {
-  if (!filter) return ''
-  const params = new URLSearchParams()
+function appendTimeFilterParams(params: URLSearchParams, filter?: TimeFilter): void {
+  if (!filter) return
   if (filter.startTs) params.set('startTs', String(filter.startTs))
   if (filter.endTs) params.set('endTs', String(filter.endTs))
   if (filter.memberId) params.set('memberId', String(filter.memberId))
+}
+
+function buildFilterParams(filter?: TimeFilter): string {
+  const params = new URLSearchParams()
+  appendTimeFilterParams(params, filter)
   const qs = params.toString()
   return qs ? `?${qs}` : ''
 }
@@ -404,8 +408,10 @@ export class FetchDataAdapter implements DataAdapter {
     return analyticsGet(`/sessions/${sessionId}/analytics/cluster${qs ? `?${qs}` : ''}`)
   }
 
-  getLaughAnalysis(sessionId: string, filter?: TimeFilter, _keywords?: string[]): Promise<LaughAnalysis> {
-    return analyticsGet(`/sessions/${sessionId}/analytics/laugh${buildFilterParams(filter)}`)
+  getLaughAnalysis(sessionId: string, filter?: TimeFilter, keywords?: string[]): Promise<LaughAnalysis> {
+    return analyticsPost(`/sessions/${sessionId}/analytics/laugh${buildFilterParams(filter)}`, {
+      keywords: keywords ?? [],
+    })
   }
 
   getRelationshipStats(

@@ -1,11 +1,12 @@
 /**
- * analytics 路由缓存接入集成测试。
+ * analytics 路由集成测试。
  *
  * 运行：node --import tsx --test packages/http-routes/src/routes/web/analytics.test.ts
  *
  * 验证目标（接入契约，不重复 core 的算法矩阵）：
  *  1. 同一查询二次请求命中磁盘缓存、不再访问数据库（命中后关闭 db 仍能成功返回）。
  *  2. DB 文件状态变化（mtime/size）使缓存失效，触发重新计算。
+ *  3. 动态关键词按请求实时计算，不复用其他关键词的分析结果。
  */
 
 import { describe, it, beforeEach, afterEach } from 'node:test'
@@ -60,9 +61,10 @@ class Adapter implements DatabaseAdapter {
 const SESSION_ID = 'chat-1'
 const MEMBER_ACTIVITY_URL = `/_web/sessions/${SESSION_ID}/stats/member-activity`
 const JOURNEY_URL = `/_web/sessions/${SESSION_ID}/analytics/journey`
+const KEYWORD_URL = `/_web/sessions/${SESSION_ID}/analytics/laugh`
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
-describe('analytics routes caching', () => {
+describe('analytics routes', () => {
   let root: string
   let dbFile: string
   let raw: Database.Database
@@ -172,6 +174,23 @@ describe('analytics routes caching', () => {
     // 不同参数 => 缓存未命中、重算因 db 关闭而失败，证明 lookAhead 已进入缓存键
     const diff = await app.inject({ method: 'GET', url: `${base}?lookAhead=10&decaySeconds=120&topEdges=150` })
     assert.equal(diff.statusCode, 500)
+  })
+
+  it('computes keyword analysis from each request without reusing another keyword result', async () => {
+    const first = await app.inject({ method: 'POST', url: KEYWORD_URL, payload: { keywords: ['a'] } })
+    assert.equal(first.statusCode, 200)
+    assert.deepEqual(first.json().typeDistribution, [{ type: 'a', count: 1, percentage: 100 }])
+
+    const second = await app.inject({ method: 'POST', url: KEYWORD_URL, payload: { keywords: ['b'] } })
+    assert.equal(second.statusCode, 200)
+    assert.deepEqual(second.json().typeDistribution, [{ type: 'b', count: 1, percentage: 100 }])
+
+    const combined = await app.inject({ method: 'POST', url: KEYWORD_URL, payload: { keywords: ['a', 'b'] } })
+    assert.equal(combined.statusCode, 200)
+    assert.deepEqual(combined.json().typeDistribution, [
+      { type: 'a', count: 1, percentage: 50 },
+      { type: 'b', count: 1, percentage: 50 },
+    ])
   })
 
   it('serves journey analytics and keys its cache by time range', async () => {

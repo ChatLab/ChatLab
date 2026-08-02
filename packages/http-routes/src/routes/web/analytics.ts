@@ -39,6 +39,7 @@ import { parseTimeFilter } from './time-filter'
 import { withAnalyticsCache, type AnalyticsCacheContext } from './analytics-cache'
 
 type FilteredQuery = { startTs?: string; endTs?: string; memberId?: string }
+type KeywordAnalysisBody = { keywords?: string[] }
 
 type AnalyticsRouteContext = AnalyticsCacheContext & {
   pathProvider: Pick<PathProvider, 'getCacheDir' | 'getSystemDir'>
@@ -157,12 +158,14 @@ export function registerAnalyticsRoutes(server: FastifyInstance, ctx: AnalyticsR
     }
   )
 
-  server.get<{ Params: { id: string }; Querystring: FilteredQuery }>(
+  server.post<{ Params: { id: string }; Querystring: FilteredQuery; Body: KeywordAnalysisBody }>(
     '/_web/sessions/:id/analytics/laugh',
     async (request) => {
       const id = request.params.id
       const filter = parseTimeFilter(request.query)
-      return cached('laugh', id, { ...filter }, () => getLaughAnalysis(adapter.ensureReadonly(id), filter))
+      const keywords = Array.isArray(request.body?.keywords) ? request.body.keywords : []
+      // Keywords are edited interactively, so this endpoint intentionally bypasses the persistent analytics cache.
+      return getLaughAnalysis(adapter.ensureReadonly(id), filter, keywords)
     }
   )
 
