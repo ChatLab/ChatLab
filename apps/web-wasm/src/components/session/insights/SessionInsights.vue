@@ -11,6 +11,7 @@ import { LanguagePreferenceTab, WordcloudTab } from '@/components/analysis/quote
 import type { TimeFilter } from '@openchatlab/shared-types'
 import type { AnalysisSession, MessageType } from '@/types/base'
 import type { DailyActivity, HourlyActivity, MemberActivity } from '@/types/analysis'
+import { InsightViewTransition } from '@/components/UI'
 import GroupRelationshipInsights from './GroupRelationshipInsights.vue'
 import GroupOverview from './GroupOverview.vue'
 import PrivateOverview from './PrivateOverview.vue'
@@ -80,89 +81,79 @@ const viewTimeFilter = computed(() => ({ ...props.timeFilter, memberId: selected
     </SectionTabs>
 
     <div class="min-h-0 flex-1 overflow-auto">
-      <Transition name="fade" mode="out-in">
-        <PrivateOverview
-          v-if="activeSubTab === 'overview' && isPrivateChat"
-          :session="props.session"
-          :member-activity="props.memberActivity"
-          :message-types="props.messageTypes"
-          :hourly-activity="props.hourlyActivity"
-          :daily-activity="props.dailyActivity"
-          :time-range="props.timeRange"
-          :filtered-message-count="props.filteredMessageCount"
-          :filtered-member-count="props.filteredMemberCount"
-          :time-filter="props.timeFilter"
-        />
-        <GroupOverview
-          v-else-if="activeSubTab === 'overview'"
-          :session="props.session"
-          :member-activity="props.memberActivity"
-          :message-types="props.messageTypes"
-          :hourly-activity="props.hourlyActivity"
-          :daily-activity="props.dailyActivity"
-          :time-range="props.timeRange"
-          :filtered-message-count="props.filteredMessageCount"
-          :filtered-member-count="props.filteredMemberCount"
-          :time-filter="props.timeFilter"
-        />
-        <PrivateRelationshipView
-          v-else-if="activeSubTab === 'relationship'"
-          :session-id="props.sessionId"
-          :time-filter="props.timeFilter"
-        />
-        <JourneyView
-          v-else-if="activeSubTab === 'journey'"
-          :session-id="props.sessionId"
-          :time-filter="props.timeFilter"
-          :time-range="props.timeRange"
-        />
-        <TypeAnalysisView
-          v-else-if="activeSubTab === 'type-analysis'"
-          :key="selectedMemberId ?? 'all'"
-          :session-id="props.sessionId"
-          :session-name="props.session.name"
-          :time-filter="viewTimeFilter"
-        />
-        <TimeAnalysisView
-          v-else-if="activeSubTab === 'time-analysis'"
-          :key="selectedMemberId ?? 'all'"
-          :session-id="props.sessionId"
-          :session-name="props.session.name"
-          :time-filter="viewTimeFilter"
-        />
-        <WordcloudTab
-          v-else-if="activeSubTab === 'topic'"
-          :session-id="props.sessionId"
-          :time-filter="props.timeFilter"
-          :show-shared-topics="isPrivateChat"
-          :enable-node-nlp-features="false"
-          :enable-record-navigation="false"
-        />
-        <LanguagePreferenceTab
-          v-else-if="activeSubTab === 'language-preference'"
-          :session-id="props.sessionId"
-          :time-filter="props.timeFilter"
-          :enable-record-navigation="false"
-        />
-        <GroupRelationshipInsights
-          v-else-if="activeSubTab === 'group-relationships'"
-          :key="selectedMemberId ?? 'all'"
-          :session-id="props.sessionId"
-          :time-filter="viewTimeFilter"
-        />
-      </Transition>
+      <InsightViewTransition :active-key="activeSubTab">
+        <template #default="{ viewKey }">
+          <PrivateOverview
+            v-if="viewKey === 'overview' && isPrivateChat"
+            :session="props.session"
+            :member-activity="props.memberActivity"
+            :message-types="props.messageTypes"
+            :hourly-activity="props.hourlyActivity"
+            :daily-activity="props.dailyActivity"
+            :time-range="props.timeRange"
+            :filtered-message-count="props.filteredMessageCount"
+            :filtered-member-count="props.filteredMemberCount"
+            :time-filter="props.timeFilter"
+          />
+          <GroupOverview
+            v-else-if="viewKey === 'overview'"
+            :session="props.session"
+            :member-activity="props.memberActivity"
+            :message-types="props.messageTypes"
+            :hourly-activity="props.hourlyActivity"
+            :daily-activity="props.dailyActivity"
+            :time-range="props.timeRange"
+            :filtered-message-count="props.filteredMessageCount"
+            :filtered-member-count="props.filteredMemberCount"
+            :time-filter="props.timeFilter"
+          />
+          <PrivateRelationshipView
+            v-else-if="viewKey === 'relationship'"
+            :session-id="props.sessionId"
+            :time-filter="props.timeFilter"
+          />
+          <JourneyView
+            v-else-if="viewKey === 'journey'"
+            :session-id="props.sessionId"
+            :time-filter="props.timeFilter"
+            :time-range="props.timeRange"
+          />
+          <TypeAnalysisView
+            v-else-if="viewKey === 'type-analysis'"
+            :key="selectedMemberId ?? 'all'"
+            :session-id="props.sessionId"
+            :session-name="props.session.name"
+            :time-filter="viewTimeFilter"
+          />
+          <TimeAnalysisView
+            v-else-if="viewKey === 'time-analysis'"
+            :key="selectedMemberId ?? 'all'"
+            :session-id="props.sessionId"
+            :session-name="props.session.name"
+            :time-filter="viewTimeFilter"
+          />
+          <WordcloudTab
+            v-else-if="viewKey === 'topic'"
+            :session-id="props.sessionId"
+            :time-filter="props.timeFilter"
+            :show-shared-topics="isPrivateChat"
+            :enable-node-nlp-features="false"
+            :enable-record-navigation="false"
+          />
+          <LanguagePreferenceTab
+            v-else-if="viewKey === 'language-preference'"
+            :session-id="props.sessionId"
+            :time-filter="props.timeFilter"
+            :enable-record-navigation="false"
+          />
+          <GroupRelationshipInsights
+            v-else-if="viewKey === 'group-relationships'"
+            :key="selectedMemberId ?? 'all'"
+            :session-id="props.sessionId"
+            :time-filter="viewTimeFilter"
+          />
+        </template>
+      </InsightViewTransition>
     </div>
   </div>
 </template>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.15s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>

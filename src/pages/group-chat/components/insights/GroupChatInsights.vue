@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SectionTabs } from '@/components/navigation'
 import UserSelect from '@/components/common/UserSelect.vue'
@@ -11,6 +11,7 @@ import type { TimeFilter } from '@openchatlab/shared-types'
 import type { AnalysisSession, MessageType } from '@/types/base'
 import type { DailyActivity, HourlyActivity, MemberActivity } from '@/types/analysis'
 import GroupChatOverview from './GroupChatOverview.vue'
+import { InsightViewTransition } from '@/components/UI'
 
 const { t } = useI18n()
 
@@ -67,55 +68,41 @@ const viewTimeFilter = computed(() => ({
       </template>
     </SectionTabs>
 
-    <div class="flex-1 min-h-0 overflow-y-auto">
-      <Transition name="fade" mode="out-in">
-        <GroupChatOverview
-          v-if="activeSubTab === 'overview'"
-          :session="props.session"
-          :member-activity="props.memberActivity"
-          :message-types="props.messageTypes"
-          :hourly-activity="props.hourlyActivity"
-          :daily-activity="props.dailyActivity"
-          :time-range="props.timeRange"
-          :filtered-message-count="props.filteredMessageCount"
-          :filtered-member-count="props.filteredMemberCount"
-          :time-filter="props.timeFilter"
-        />
-        <TypeAnalysisView
-          v-else-if="activeSubTab === 'type-analysis'"
-          :session-id="props.sessionId"
-          :session-name="props.session.name"
-          :time-filter="viewTimeFilter"
-        />
-        <TimeAnalysisView
-          v-else-if="activeSubTab === 'time-analysis'"
-          :session-id="props.sessionId"
-          :session-name="props.session.name"
-          :time-filter="viewTimeFilter"
-        />
-        <WordcloudTab
-          v-else-if="activeSubTab === 'topic'"
-          :session-id="props.sessionId"
-          :time-filter="props.timeFilter"
-        />
-        <GroupRelationships
-          v-else-if="activeSubTab === 'group-relationships'"
-          :session-id="props.sessionId"
-          :time-filter="viewTimeFilter"
-        />
-      </Transition>
+    <div class="min-h-0 flex-1 overflow-y-auto">
+      <InsightViewTransition :active-key="activeSubTab">
+        <template #default="{ viewKey }">
+          <GroupChatOverview
+            v-if="viewKey === 'overview'"
+            :session="props.session"
+            :member-activity="props.memberActivity"
+            :message-types="props.messageTypes"
+            :hourly-activity="props.hourlyActivity"
+            :daily-activity="props.dailyActivity"
+            :time-range="props.timeRange"
+            :filtered-message-count="props.filteredMessageCount"
+            :filtered-member-count="props.filteredMemberCount"
+            :time-filter="props.timeFilter"
+          />
+          <TypeAnalysisView
+            v-else-if="viewKey === 'type-analysis'"
+            :session-id="props.sessionId"
+            :session-name="props.session.name"
+            :time-filter="viewTimeFilter"
+          />
+          <TimeAnalysisView
+            v-else-if="viewKey === 'time-analysis'"
+            :session-id="props.sessionId"
+            :session-name="props.session.name"
+            :time-filter="viewTimeFilter"
+          />
+          <WordcloudTab v-else-if="viewKey === 'topic'" :session-id="props.sessionId" :time-filter="props.timeFilter" />
+          <GroupRelationships
+            v-else-if="viewKey === 'group-relationships'"
+            :session-id="props.sessionId"
+            :time-filter="viewTimeFilter"
+          />
+        </template>
+      </InsightViewTransition>
     </div>
   </div>
 </template>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.15s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>

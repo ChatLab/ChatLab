@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SectionTabs } from '@/components/navigation'
 import UserSelect from '@/components/common/UserSelect.vue'
@@ -11,6 +11,7 @@ import { WordcloudTab, LanguagePreferenceTab } from '@/components/analysis/quote
 import type { TimeFilter } from '@openchatlab/shared-types'
 import type { AnalysisSession, MessageType } from '@/types/base'
 import type { DailyActivity, HourlyActivity, MemberActivity } from '@/types/analysis'
+import { InsightViewTransition } from '@/components/UI'
 import PrivateChatOverview from './PrivateChatOverview.vue'
 
 const { t } = useI18n()
@@ -65,67 +66,57 @@ const viewTimeFilter = computed(() => ({
       </template>
     </SectionTabs>
 
-    <div class="flex-1 min-h-0 overflow-auto">
-      <Transition name="fade" mode="out-in">
-        <PrivateChatOverview
-          v-if="activeSubTab === 'overview'"
-          :session="props.session"
-          :member-activity="props.memberActivity"
-          :message-types="props.messageTypes"
-          :hourly-activity="props.hourlyActivity"
-          :daily-activity="props.dailyActivity"
-          :time-range="props.timeRange"
-          :filtered-message-count="props.filteredMessageCount"
-          :filtered-member-count="props.filteredMemberCount"
-          :time-filter="props.timeFilter"
-        />
-        <TypeAnalysisView
-          v-else-if="activeSubTab === 'type-analysis'"
-          :session-id="props.sessionId"
-          :session-name="props.session.name"
-          :time-filter="viewTimeFilter"
-        />
-        <TimeAnalysisView
-          v-else-if="activeSubTab === 'time-analysis'"
-          :session-id="props.sessionId"
-          :session-name="props.session.name"
-          :time-filter="viewTimeFilter"
-        />
-        <PrivateRelationshipView
-          v-else-if="activeSubTab === 'relationship'"
-          :session-id="props.sessionId"
-          :time-filter="props.timeFilter"
-        />
-        <JourneyView
-          v-else-if="activeSubTab === 'journey'"
-          :session-id="props.sessionId"
-          :time-filter="props.timeFilter"
-          :time-range="props.timeRange"
-        />
-        <WordcloudTab
-          v-else-if="activeSubTab === 'topic'"
-          :session-id="props.sessionId"
-          :time-filter="props.timeFilter"
-          :show-shared-topics="true"
-        />
-        <LanguagePreferenceTab
-          v-else-if="activeSubTab === 'language-preference'"
-          :session-id="props.sessionId"
-          :time-filter="props.timeFilter"
-        />
-      </Transition>
+    <div class="min-h-0 flex-1 overflow-auto">
+      <InsightViewTransition :active-key="activeSubTab">
+        <template #default="{ viewKey }">
+          <PrivateChatOverview
+            v-if="viewKey === 'overview'"
+            :session="props.session"
+            :member-activity="props.memberActivity"
+            :message-types="props.messageTypes"
+            :hourly-activity="props.hourlyActivity"
+            :daily-activity="props.dailyActivity"
+            :time-range="props.timeRange"
+            :filtered-message-count="props.filteredMessageCount"
+            :filtered-member-count="props.filteredMemberCount"
+            :time-filter="props.timeFilter"
+          />
+          <TypeAnalysisView
+            v-else-if="viewKey === 'type-analysis'"
+            :session-id="props.sessionId"
+            :session-name="props.session.name"
+            :time-filter="viewTimeFilter"
+          />
+          <TimeAnalysisView
+            v-else-if="viewKey === 'time-analysis'"
+            :session-id="props.sessionId"
+            :session-name="props.session.name"
+            :time-filter="viewTimeFilter"
+          />
+          <PrivateRelationshipView
+            v-else-if="viewKey === 'relationship'"
+            :session-id="props.sessionId"
+            :time-filter="props.timeFilter"
+          />
+          <JourneyView
+            v-else-if="viewKey === 'journey'"
+            :session-id="props.sessionId"
+            :time-filter="props.timeFilter"
+            :time-range="props.timeRange"
+          />
+          <WordcloudTab
+            v-else-if="viewKey === 'topic'"
+            :session-id="props.sessionId"
+            :time-filter="props.timeFilter"
+            :show-shared-topics="true"
+          />
+          <LanguagePreferenceTab
+            v-else-if="viewKey === 'language-preference'"
+            :session-id="props.sessionId"
+            :time-filter="props.timeFilter"
+          />
+        </template>
+      </InsightViewTransition>
     </div>
   </div>
 </template>
-
-<style scoped>
-.fade-enter-active,
-.fade-leave-active {
-  transition: opacity 0.15s ease;
-}
-
-.fade-enter-from,
-.fade-leave-to {
-  opacity: 0;
-}
-</style>

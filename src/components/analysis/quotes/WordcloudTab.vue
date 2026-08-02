@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 const EChartWordcloud = defineAsyncComponent(() => import('@/components/charts/EChartWordcloud.vue'))
 import type { EChartWordcloudData } from '@/components/charts'
 import { LoadingState, UITabs, SectionCard } from '@/components/UI'
+import { useInsightViewLoading } from '@/components/UI/insight-view-loading'
 import TopicProfileCard from './TopicProfileCard.vue'
 import SharedTopicsCard from './SharedTopicsCard.vue'
 import type { WordFrequencyItem, PosTagStat } from './topicProfileTypes'
@@ -48,7 +49,8 @@ const props = withDefaults(
   }
 )
 
-const isLoading = ref(false)
+const isLoading = ref(true)
+useInsightViewLoading(isLoading)
 // 完整词表：按最大档一次性获取并缓存，切换词数时本地切片，避免重复请求与重复分词
 const allWords = ref<WordFrequencyItem[]>([])
 const stats = ref({

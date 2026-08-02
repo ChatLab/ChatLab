@@ -12,6 +12,7 @@ import { TooltipComponent, GridComponent, VisualMapComponent } from 'echarts/com
 import { CanvasRenderer } from 'echarts/renderers'
 import type { EChartsOption } from 'echarts'
 import { ThemeCard } from '@/components/UI'
+import { useInsightViewLoading } from '@/components/UI/insight-view-loading'
 import { useDataService } from '@/services/data/service'
 import type { ClusterGraphData, ClusterGraphOptions } from '@/types/analysis'
 import type { TimeFilter } from '@openchatlab/shared-types'
@@ -29,6 +30,7 @@ const isDark = computed(() => colorMode.value === 'dark')
 
 // 数据状态
 const isLoading = ref(true)
+useInsightViewLoading(isLoading)
 const graphData = ref<ClusterGraphData | null>(null)
 
 // 视图模式

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, watch, onMounted } from 'vue'
+import { ref, computed, watch, onMounted, onBeforeUnmount } from 'vue'
 import { useI18n } from 'vue-i18n'
 import dayjs from 'dayjs'
 import { formatDateRange } from '@/utils'
@@ -63,9 +63,10 @@ const props = withDefaults(defineProps<Props>(), {
 })
 
 const emit = defineEmits<{
-  (e: 'update:modelValue', value: TimeRangeValue): void
+  (e: 'update:modelValue', value: TimeRangeValue | null): void
   (e: 'update:fullRange', value: { start: number; end: number } | null): void
   (e: 'update:availableYears', value: number[]): void
+  (e: 'initializationComplete', hasRange: boolean): void
 }>()
 
 const { t } = useI18n()
@@ -95,6 +96,8 @@ const customEndDate = ref<string>('')
 
 // 是否正在内部初始化（防止 watcher 重复 emit）
 const isInitializing = ref(false)
+// 会话切换时忽略上一数据源的迟到结果，避免旧请求通知当前页面已完成初始化。
+let loadVersion = 0
 
 // ==================== 工具函数 ====================
 
@@ -392,15 +395,19 @@ const customEndModel = computed({
 // ==================== 数据加载 ====================
 
 async function loadData() {
+  const currentLoadVersion = ++loadVersion
   if (!props.rangeSource && !props.sessionId) {
     availableYears.value = []
     fullTimeRange.value = null
+    emit('update:modelValue', null)
     emit('update:fullRange', null)
     emit('update:availableYears', [])
     isLoaded.value = true
+    emit('initializationComplete', false)
     return
   }
 
+  let hasRange = false
   try {
     let years: number[]
     let range: { start: number; end: number } | null
@@ -414,8 +421,11 @@ async function loadData() {
         adapter.getTimeRange(props.sessionId!),
       ])
     }
+    if (currentLoadVersion !== loadVersion) return
+
     availableYears.value = years
     fullTimeRange.value = range
+    hasRange = range !== null
     emit('update:fullRange', range)
     emit('update:availableYears', years)
 
@@ -464,24 +474,33 @@ async function loadData() {
     }
     isInitializing.value = false
 
-    emitCurrentValue()
+    if (hasRange) emitCurrentValue()
+    else emit('update:modelValue', null)
   } catch (error) {
+    if (currentLoadVersion !== loadVersion) return
     console.error('TimeSelect 加载数据失败:', error)
     availableYears.value = []
     fullTimeRange.value = null
+    emit('update:modelValue', null)
     emit('update:fullRange', null)
     emit('update:availableYears', [])
   } finally {
-    isLoaded.value = true
+    if (currentLoadVersion === loadVersion) {
+      isLoaded.value = true
+      emit('initializationComplete', hasRange)
+    }
   }
 }
 
-onMounted(() => loadData())
+onMounted(() => void loadData())
+onBeforeUnmount(() => {
+  loadVersion++
+})
 watch(
   () => buildTimeSelectSourceKey(props.sessionId, props.rangeSource),
   () => {
     isLoaded.value = false
-    loadData()
+    void loadData()
   }
 )
 </script>

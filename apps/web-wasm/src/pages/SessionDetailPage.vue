@@ -1,9 +1,10 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, watch } from 'vue'
+import { computed, defineAsyncComponent, provide, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import LoadingState from '@/components/UI/LoadingState.vue'
+import { LoadingState } from '@/components/UI'
+import InsightLoadingDots from '@/components/UI/InsightLoadingDots.vue'
 import SessionAnalysisHeader from '@/components/layout/session/SessionAnalysisHeader.vue'
 import { useSessionAnalysisPageBase } from '@/composables'
 import { useSessionStore } from '@/stores/session'
@@ -26,6 +27,7 @@ const {
   activeTab,
   isLoading,
   isInitialLoad,
+  isSessionSwitching,
   session,
   memberActivity,
   hourlyActivity,
@@ -35,6 +37,7 @@ const {
   fullTimeRange,
   timeFilter,
   initialTimeState,
+  handleTimeRangeInitialized,
 } = useSessionAnalysisPageBase({
   route,
   router,
@@ -44,13 +47,17 @@ const {
   validTabIds: tabs.map((tab) => tab.id),
 })
 
+provide('session-switch-loading', isSessionSwitching)
+
 const isPrivateChat = computed(() => session.value?.type === 'private')
 const filteredMessageCount = computed(() =>
   memberActivity.value.reduce((total, member) => total + member.messageCount, 0)
 )
 const filteredMemberCount = computed(() => memberActivity.value.filter((member) => member.messageCount > 0).length)
 const otherMemberAvatar = computed(() => {
-  if (!session.value || memberActivity.value.length === 0) return null
+  if (!session.value) return null
+  if (session.value.memberAvatar) return session.value.memberAvatar
+  if (memberActivity.value.length === 0) return null
 
   if (session.value.ownerId) {
     const otherMember = memberActivity.value.find((member) => member.platformId !== session.value?.ownerId)
@@ -79,14 +86,20 @@ watch(
 </script>
 
 <template>
-  <div class="flex h-full flex-col dark:bg-page-dark" style="padding-top: var(--titlebar-area-height)">
-    <LoadingState
-      v-if="isInitialLoad"
-      variant="page"
-      :text="t(route.name === 'private-chat' ? 'analysis.privateChat.loading' : 'analysis.groupChat.loading')"
-    />
+  <div class="relative flex h-full flex-col dark:bg-page-dark" style="padding-top: var(--titlebar-area-height)">
+    <div
+      v-if="isSessionSwitching"
+      data-testid="session-switch-loading"
+      class="absolute inset-0 z-20 flex cursor-wait items-center justify-center bg-page-bg/15 backdrop-blur-[1.5px] dark:bg-page-dark/15"
+      :style="{ paddingTop: 'var(--titlebar-area-height)' }"
+      role="status"
+      aria-live="polite"
+      :aria-label="t('common.loading')"
+    >
+      <InsightLoadingDots />
+    </div>
 
-    <template v-else-if="session">
+    <template v-if="session">
       <SessionAnalysisHeader
         v-model:active-tab="activeTab"
         v-model:time-range-value="timeRangeValue"
@@ -103,10 +116,15 @@ watch(
         :initial-time-state="initialTimeState"
         :show-session-actions="false"
         @update:full-range="fullTimeRange = $event"
+        @time-range-initialized="handleTimeRangeInitialized"
       />
 
       <div class="relative min-h-0 flex-1" :class="activeTab === 'ai-chat' ? 'overflow-hidden' : 'overflow-y-auto'">
-        <LoadingState v-if="isLoading && activeTab !== 'ai-chat'" variant="overlay" :text="t('common.loading')" />
+        <LoadingState
+          v-if="isLoading && activeTab !== 'ai-chat' && !isSessionSwitching"
+          variant="overlay"
+          :text="t('common.loading')"
+        />
 
         <SessionInsights
           v-if="activeTab === 'insights'"
@@ -132,7 +150,7 @@ watch(
       </div>
     </template>
 
-    <div v-else class="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+    <div v-else-if="!isInitialLoad" class="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
       <p class="text-sm text-gray-500 dark:text-gray-400">{{ loadErrorText }}</p>
       <UButton size="sm" variant="soft" to="/">{{ t('common.back') }}</UButton>
     </div>

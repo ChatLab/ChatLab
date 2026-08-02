@@ -39,6 +39,7 @@ const emit = defineEmits<{
   (e: 'openChatRecord'): void
   (e: 'update:fullRange', value: { start: number; end: number } | null): void
   (e: 'update:availableYears', value: number[]): void
+  (e: 'timeRangeInitialized', hasRange: boolean): void
 }>()
 
 const { t } = useI18n()
@@ -106,16 +107,17 @@ const navigationItems = computed(() =>
 
     <div class="mt-3 flex flex-col items-stretch gap-2 sm:flex-row sm:items-center sm:justify-between sm:gap-3">
       <PageTabs v-model="activeTab" class="min-w-0 shrink" :items="navigationItems" />
-      <!-- AI 对话和实验室都不使用这里的时间范围筛选，因此在这些一级 Tab 下隐藏。 -->
+      <!-- 不使用时间范围的一级 Tab 不挂载筛选器，避免发起无关查询。 -->
       <div class="max-w-full overflow-x-auto scrollbar-hide">
         <TimeSelect
+          v-if="timeSelectVisible"
           v-model="timeRangeValue"
           :session-id="currentSessionId ?? undefined"
-          :visible="timeSelectVisible"
           :initial-state="initialTimeState"
           size="sm"
           @update:full-range="emit('update:fullRange', $event)"
           @update:available-years="emit('update:availableYears', $event)"
+          @initialization-complete="emit('timeRangeInitialized', $event)"
         />
       </div>
     </div>

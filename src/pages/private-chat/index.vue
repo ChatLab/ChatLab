@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, defineAsyncComponent } from 'vue'
+import { ref, computed, defineAsyncComponent, provide } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
@@ -15,7 +15,8 @@ import OwnerPromptModal from '@/components/analysis/member/OwnerPromptModal.vue'
 import IncrementalImportModal from '@/components/analysis/IncrementalImportModal.vue'
 const MessageExportModal = defineAsyncComponent(() => import('@/components/MessageExport/MessageExportModal.vue'))
 import ActionToolsPanel from '@/components/layout/ActionToolsPanel.vue'
-import LoadingState from '@/components/UI/LoadingState.vue'
+import { LoadingState } from '@/components/UI'
+import InsightLoadingDots from '@/components/UI/InsightLoadingDots.vue'
 import { useSessionStore } from '@/stores/session'
 import { useLayoutStore } from '@/stores/layout'
 import { useSettingsStore } from '@/stores/settings'
@@ -69,6 +70,7 @@ const {
   activeTab,
   isLoading,
   isInitialLoad,
+  isSessionSwitching,
   session,
   memberActivity,
   hourlyActivity,
@@ -79,6 +81,7 @@ const {
   timeFilter,
   initialTimeState,
   loadAnalysisData,
+  handleTimeRangeInitialized,
 } = useSessionAnalysisPageBase({
   route,
   router,
@@ -87,6 +90,8 @@ const {
   defaultTab: settingsStore.defaultSessionTab,
   validTabIds: tabs.value.map((tab) => tab.id),
 })
+
+provide('session-switch-loading', isSessionSwitching)
 
 // 当前筛选后的消息总数
 const filteredMessageCount = computed(() => {
@@ -100,7 +105,9 @@ const filteredMemberCount = computed(() => {
 
 // 获取对方头像
 const otherMemberAvatar = computed(() => {
-  if (!session.value || memberActivity.value.length === 0) return null
+  if (!session.value) return null
+  if (session.value.memberAvatar) return session.value.memberAvatar
+  if (memberActivity.value.length === 0) return null
 
   // 1. 优先尝试排除 ownerId
   if (session.value.ownerId) {
@@ -124,12 +131,21 @@ const otherMemberAvatar = computed(() => {
 </script>
 
 <template>
-  <div class="flex h-full flex-col dark:bg-page-dark" style="padding-top: var(--titlebar-area-height)">
-    <!-- Loading State -->
-    <LoadingState v-if="isInitialLoad" variant="page" :text="t('analysis.privateChat.loading')" />
+  <div class="relative flex h-full flex-col dark:bg-page-dark" style="padding-top: var(--titlebar-area-height)">
+    <div
+      v-if="isSessionSwitching"
+      data-testid="private-chat-switch-loading"
+      class="absolute inset-0 z-20 flex cursor-wait items-center justify-center bg-page-bg/15 backdrop-blur-[1.5px] dark:bg-page-dark/15"
+      :style="{ paddingTop: 'var(--titlebar-area-height)' }"
+      role="status"
+      aria-live="polite"
+      :aria-label="t('common.loading')"
+    >
+      <InsightLoadingDots />
+    </div>
 
     <!-- Content -->
-    <template v-else-if="session">
+    <template v-if="session">
       <SessionAnalysisHeader
         v-model:active-tab="activeTab"
         v-model:time-range-value="timeRangeValue"
@@ -144,12 +160,13 @@ const otherMemberAvatar = computed(() => {
         @open-member-management="showMemberManagementModal = true"
         @open-chat-record="openChatRecordViewer"
         @update:full-range="fullTimeRange = $event"
+        @time-range-initialized="handleTimeRangeInitialized"
       />
 
       <!-- Tab Content -->
       <div class="relative flex-1 overflow-y-auto">
         <!-- Loading Overlay -->
-        <LoadingState v-if="isLoading" variant="overlay" :text="t('common.loading')" />
+        <LoadingState v-if="isLoading && !isSessionSwitching" variant="overlay" :text="t('common.loading')" />
 
         <div class="h-full">
           <Transition name="tab-slide" mode="out-in">
@@ -206,7 +223,7 @@ const otherMemberAvatar = computed(() => {
     </template>
 
     <!-- Empty State -->
-    <div v-else class="flex h-full items-center justify-center">
+    <div v-else-if="!isInitialLoad" class="flex h-full items-center justify-center">
       <p class="text-gray-500">{{ t('analysis.privateChat.loadError') }}</p>
     </div>
 

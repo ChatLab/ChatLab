@@ -7,6 +7,7 @@ import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { EChartGraph } from '@/components/charts'
 import type { EChartGraphData } from '@/components/charts'
+import { useInsightViewLoading } from '@/components/UI/insight-view-loading'
 import { useDataService } from '@/services/data/service'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
@@ -19,6 +20,7 @@ const { t } = useI18n()
 
 // 数据状态
 const isLoading = ref(true)
+useInsightViewLoading(isLoading)
 const graphData = ref<EChartGraphData>({ nodes: [], links: [], maxLinkValue: 0 })
 
 // 布局切换
