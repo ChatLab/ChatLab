@@ -74,8 +74,9 @@ watch(
         <!-- 布局切换 -->
         <div class="flex items-center gap-2">
           <span class="text-xs text-gray-400">{{ t('views.interaction.layout') }}:</span>
-          <UButtonGroup size="xs">
+          <div class="inline-flex items-center" role="group">
             <UButton
+              size="xs"
               :color="layoutType === 'circular' ? 'primary' : 'neutral'"
               :variant="layoutType === 'circular' ? 'solid' : 'ghost'"
               @click="layoutType = 'circular'"
@@ -83,13 +84,14 @@ watch(
               {{ t('views.interaction.circular') }}
             </UButton>
             <UButton
+              size="xs"
               :color="layoutType === 'force' ? 'primary' : 'neutral'"
               :variant="layoutType === 'force' ? 'solid' : 'ghost'"
               @click="layoutType = 'force'"
             >
               {{ t('views.interaction.force') }}
             </UButton>
-          </UButtonGroup>
+          </div>
         </div>
         <!-- 方向切换 -->
         <div class="flex items-center gap-2">

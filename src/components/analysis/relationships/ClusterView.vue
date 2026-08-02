@@ -289,8 +289,9 @@ onUnmounted(() => {
         class="flex flex-wrap items-center justify-between gap-2 border-b border-gray-200 bg-gray-50 px-3 py-3 dark:border-gray-700 dark:bg-page-dark/50 sm:px-4"
       >
         <div class="flex items-center gap-3">
-          <UButtonGroup size="xs">
+          <div class="inline-flex items-center" role="group">
             <UButton
+              size="xs"
               :color="viewMode === 'matrix' ? 'primary' : 'neutral'"
               :variant="viewMode === 'matrix' ? 'solid' : 'ghost'"
               @click="viewMode = 'matrix'"
@@ -298,6 +299,7 @@ onUnmounted(() => {
               {{ t('views.cluster.matrixView') }}
             </UButton>
             <UButton
+              size="xs"
               :color="viewMode === 'member' ? 'primary' : 'neutral'"
               :variant="viewMode === 'member' ? 'solid' : 'ghost'"
               @click="viewMode = 'member'"
@@ -305,13 +307,14 @@ onUnmounted(() => {
               {{ t('views.cluster.memberView') }}
             </UButton>
             <UButton
+              size="xs"
               :color="viewMode === 'circle' ? 'primary' : 'neutral'"
               :variant="viewMode === 'circle' ? 'solid' : 'ghost'"
               @click="viewMode = 'circle'"
             >
               {{ t('views.cluster.rankingView') }}
             </UButton>
-          </UButtonGroup>
+          </div>
         </div>
 
         <div class="flex items-center gap-3">
