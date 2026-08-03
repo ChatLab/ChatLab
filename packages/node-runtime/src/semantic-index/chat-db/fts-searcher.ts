@@ -9,7 +9,10 @@
 import type { DatabaseAdapter } from '@openchatlab/core'
 import { searchByFts } from '../../fts'
 import { getJieba } from '../../nlp/segmenter'
-import type { FtsSearcher } from '../retrieval/hybrid-search'
+
+interface FtsSearcher {
+  search(query: string, topN: number): Array<{ id: number; ts: number }>
+}
 
 /** 自然语言 query -> 去重关键词列表 */
 export function extractFtsKeywords(query: string): string[] {

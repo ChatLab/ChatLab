@@ -28,7 +28,7 @@ export interface MessageRangeReader {
   readRange(startId: number, endId: number): EvidenceMessage[]
 }
 
-/** 命中 chunk（来自 hybridSearch，已按 score 降序） */
+/** 命中 chunk（来自 semanticSearch，已按 score 降序） */
 export interface EvidenceHit {
   chunkId: string
   score: number

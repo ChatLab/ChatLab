@@ -19,13 +19,7 @@ import {
   type AuthProfile,
 } from '@openchatlab/config'
 import type { DatabaseAdapter, PathProvider } from '@openchatlab/core'
-import {
-  CHUNKER_VERSION,
-  DEFAULT_CHUNKER_CONFIG,
-  computeChunkerConfigHash,
-  computeDbPathHash,
-  STRATEGY_ID,
-} from './chunker-config'
+import { CHUNKER_VERSION, DEFAULT_CHUNKER_CONFIG, computeChunkerConfigHash, computeDbPathHash } from './chunker-config'
 import type { ChunkSource } from './chunker'
 import {
   isKeylessSemanticIndexApiBaseUrl,
@@ -46,11 +40,10 @@ import {
 } from './session-state-store'
 import { SemanticIndexJobQueue, type JobContext } from './warmup/job-queue'
 import { runWarmup } from './warmup/runner'
-import { hybridSearch } from './retrieval/hybrid-search'
+import { semanticSearch } from './retrieval/semantic-search'
 import { assembleEvidence, type EvidenceBlock, type EvidenceBudget, type EvidenceHit } from './retrieval/evidence'
 import { createChatDbMessageSource } from './chat-db/message-source'
 import { createChatDbMessageRangeReader } from './chat-db/message-range-reader'
-import { createChatDbFtsSearcher } from './chat-db/fts-searcher'
 import type { SessionRuntimeAdapter } from '../services/adapters'
 import { clampSearchMaxResults, SEARCH_MAX_RESULTS_HARD_CAP } from './config'
 import { applyPreprocessingPipeline } from '../ai/preprocessor/preprocessing-pipeline'
@@ -189,7 +182,7 @@ export interface SemanticSearchResult {
   coverage: number
   /** 索引未完成时为 true，证据可能不完整 */
   partial: boolean
-  /** RRF 融合后的候选命中数（证据组装前） */
+  /** Dense retrieval candidates before evidence assembly. */
   hitCount: number
 }
 
@@ -581,21 +574,18 @@ export class SemanticIndexService {
     if (!db) return { available: false, reason: 'not-found', blocks: [], coverage: 0, partial: false, hitCount: 0 }
 
     const embedder = this.getEmbedder()
-    const fts = createChatDbFtsSearcher(db)
     const finalTopK = options?.finalTopK ?? 5
     // 候选池随 finalTopK 放大：短 chunk 下保证高 max_results 时召回覆盖足够（下限保持默认 40）
     const candidateTopN = Math.max(40, finalTopK * 4)
-    const hits = await hybridSearch(
-      { embedder, store: this.store, fts },
+    const hits = await semanticSearch(
+      { embedder, store: this.store },
       {
         query,
         dbPathHash: hash,
         modelId,
-        strategyId: STRATEGY_ID,
         dim,
         finalTopK,
         denseTopN: candidateTopN,
-        ftsTopN: candidateTopN,
         timeRangeMs: options?.timeRangeMs,
       }
     )

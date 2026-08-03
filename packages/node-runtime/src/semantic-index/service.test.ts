@@ -3,9 +3,8 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 import test, { type TestContext } from 'node:test'
-import { CHAT_DB_SCHEMA, FTS_TABLE_SCHEMA } from '@openchatlab/core'
+import { CHAT_DB_SCHEMA } from '@openchatlab/core'
 import { openBetterSqliteDatabase } from '../better-sqlite3-adapter'
-import { buildFtsIndex } from '../fts'
 import {
   SemanticIndexService,
   persistSemanticIndexConfig,
@@ -98,7 +97,6 @@ function setup(t: TestContext, opts?: SetupOptions): ServiceFixture {
   const db = openBetterSqliteDatabase(chatDbPath)
   cleanup.db = db
   db.exec(CHAT_DB_SCHEMA)
-  db.exec(FTS_TABLE_SCHEMA)
   db.exec(`
     INSERT INTO meta (name, platform, type, imported_at) VALUES ('测试群', 'wechat', 'group', 0);
     INSERT INTO member (id, platform_id, account_name) VALUES (1, 'p1', '张三'), (2, 'p2', '李四');
@@ -107,8 +105,6 @@ function setup(t: TestContext, opts?: SetupOptions): ServiceFixture {
   for (let i = 1; i <= 40; i++) {
     insert.run(i, (i % 2) + 1, BASE_TS_SECONDS + i * 60, `第${i}条关于项目排期和需求讨论的消息内容`)
   }
-  buildFtsIndex(db)
-
   const adapter: SessionRuntimeAdapter = {
     listSessionIds: () => [SESSION_ID],
     openReadonly: (id) => (id === SESSION_ID ? db : null),

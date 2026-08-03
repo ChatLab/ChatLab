@@ -122,8 +122,13 @@ export { SemanticIndexJobQueue } from './warmup/job-queue'
 export type { SemanticIndexJob, SemanticIndexJobType, JobContext, JobExecutor } from './warmup/job-queue'
 export { reciprocalRankFusion } from './retrieval/rrf'
 export type { RrfResult } from './retrieval/rrf'
-export { hybridSearch } from './retrieval/hybrid-search'
-export type { FtsSearcher, HybridSearchDeps, HybridSearchParams, HybridSearchResult } from './retrieval/hybrid-search'
+export { semanticSearch } from './retrieval/semantic-search'
+export type {
+  SemanticSearchDeps,
+  SemanticSearchParams,
+  SemanticSearchHit,
+  SemanticTimeRangeMs,
+} from './retrieval/semantic-search'
 export { createChatDbMessageSource } from './chat-db/message-source'
 export { createChatDbMessageRangeReader } from './chat-db/message-range-reader'
 export { createChatDbFtsSearcher, extractFtsKeywords } from './chat-db/fts-searcher'

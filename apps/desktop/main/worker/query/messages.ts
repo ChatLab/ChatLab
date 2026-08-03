@@ -3,21 +3,17 @@
  *
  * Thin wrapper that delegates to shared async query functions from @openchatlab/core.
  * The better-sqlite3 sync calls are wrapped as an AsyncSqlExecutor.
- * FTS tokenization depends on @node-rs/jieba (platform-specific);
- * the SQL query itself is shared via core's searchMessagesWithFtsAsync.
+ * Message search uses the same shared LIKE implementation as the other runtimes.
  */
 
 import { openDatabase, type TimeFilter } from '../core'
 import { ensureAvatarColumn } from './basic'
-import { hasFtsIndex } from './fts'
-import { tokenizeQueryForFts } from '@openchatlab/node-runtime'
 import {
   type MappedMessage,
   type AsyncSqlExecutor,
   fetchMessagesBefore,
   fetchMessagesAfter,
   searchMessagesLikeAsync,
-  searchMessagesWithFtsAsync,
   fetchMessageContext,
   fetchSearchMessageContext,
   fetchAllRecentMessages,
@@ -85,8 +81,7 @@ export async function getAllRecentMessages(
 }
 
 /**
- * Keyword search with optional FTS5 acceleration.
- * FTS path remains Electron-specific; LIKE fallback delegates to core.
+ * Keyword search delegated to the shared LIKE implementation.
  */
 export async function searchMessages(
   sessionId: string,
@@ -99,20 +94,6 @@ export async function searchMessages(
   ensureAvatarColumn(sessionId)
   const executor = createSyncExecutor(sessionId)
   if (!executor) return { messages: [], total: 0 }
-
-  const useFts = keywords.length > 0 && hasFtsIndex(sessionId)
-  let matchQuery = ''
-  if (useFts) {
-    matchQuery = tokenizeQueryForFts(keywords)
-  }
-
-  if (useFts && matchQuery) {
-    try {
-      return await searchMessagesWithFtsAsync(executor, matchQuery, filter, limit, offset, senderId)
-    } catch (error) {
-      console.error('[FTS] searchMessages FTS path failed, falling back to LIKE:', error)
-    }
-  }
 
   return searchMessagesLikeAsync(executor, keywords, filter, limit, offset, senderId)
 }
