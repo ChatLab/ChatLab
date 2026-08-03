@@ -93,6 +93,53 @@ function writeChatLabJson(filePath: string): void {
   )
 }
 
+interface DedupFixtureMessage {
+  timestamp?: number
+  type?: number
+  content?: string | null
+  replyToMessageId?: string
+  platformMessageId?: string
+}
+
+function writeDedupFixture(filePath: string, messages: DedupFixtureMessage[]): void {
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify({
+      chatlab: { version: '0.0.2', exportedAt: 1780330900 },
+      meta: { name: 'Dedup Fixture', platform: 'wechat', type: 'private' },
+      members: [{ platformId: 'wxid_alice', accountName: 'Alice' }],
+      messages: messages.map((message) => ({
+        sender: 'wxid_alice',
+        accountName: 'Alice',
+        timestamp: message.timestamp ?? 1780330832,
+        type: message.type ?? 0,
+        content: Object.hasOwn(message, 'content') ? message.content : 'same message',
+        replyToMessageId: message.replyToMessageId,
+        platformMessageId: message.platformMessageId,
+      })),
+    }),
+    'utf8'
+  )
+}
+
+function seedExistingMessage(dbPath: string, message: DedupFixtureMessage): void {
+  const db = openBetterSqliteDatabase(dbPath, { nativeBinding })
+  db.prepare('INSERT INTO member (platform_id, account_name) VALUES (?, ?)').run('wxid_alice', 'Alice')
+  const member = db.prepare('SELECT id FROM member WHERE platform_id = ?').get('wxid_alice') as { id: number }
+  db.prepare(
+    `INSERT INTO message (sender_id, ts, type, content, reply_to_message_id, platform_message_id)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  ).run(
+    member.id,
+    message.timestamp ?? 1780330832,
+    message.type ?? 0,
+    Object.hasOwn(message, 'content') ? (message.content ?? null) : 'same message',
+    message.replyToMessageId ?? null,
+    message.platformMessageId ?? null
+  )
+  db.close()
+}
+
 function seedSessionDb(dbPath: string): void {
   const db = openBetterSqliteDatabase(dbPath, { nativeBinding })
   db.exec(CHAT_DB_SCHEMA)
@@ -354,4 +401,160 @@ test('deduplicates an ID-bearing copy of an existing fallback-only message', asy
   const row = readonlyDb.prepare('SELECT COUNT(*) AS count FROM message').get() as { count: number }
   readonlyDb.close()
   assert.equal(row.count, 1)
+})
+
+test('preserves canonical dedup semantics while checking existing database candidates', async (t) => {
+  const scenarios: Array<{
+    name: string
+    existing: DedupFixtureMessage
+    incoming: DedupFixtureMessage[]
+    expectedNew: number
+    expectedDuplicates: number
+    expectedPlatformIds: Array<string | null>
+  }> = [
+    {
+      name: 'same platform ID wins even when content changed',
+      existing: { platformMessageId: 'msg-1', content: 'original' },
+      incoming: [{ platformMessageId: 'msg-1', content: 'edited' }],
+      expectedNew: 0,
+      expectedDuplicates: 1,
+      expectedPlatformIds: ['msg-1'],
+    },
+    {
+      name: 'fallback-only input matches an existing ID-bearing message',
+      existing: { platformMessageId: 'msg-1' },
+      incoming: [{}],
+      expectedNew: 0,
+      expectedDuplicates: 1,
+      expectedPlatformIds: ['msg-1'],
+    },
+    {
+      name: 'different stable IDs survive an identical fallback fingerprint',
+      existing: { platformMessageId: 'msg-1' },
+      incoming: [{ platformMessageId: 'msg-2' }],
+      expectedNew: 1,
+      expectedDuplicates: 0,
+      expectedPlatformIds: ['msg-1', 'msg-2'],
+    },
+    {
+      name: 'one fallback-only row bridges only one stable ID',
+      existing: {},
+      incoming: [{ platformMessageId: 'msg-1' }, { platformMessageId: 'msg-2' }],
+      expectedNew: 1,
+      expectedDuplicates: 1,
+      expectedPlatformIds: [null, 'msg-2'],
+    },
+    {
+      name: 'a bridged stable ID remains duplicate when repeated',
+      existing: {},
+      incoming: [{ platformMessageId: 'msg-1' }, { platformMessageId: 'msg-1' }, { platformMessageId: 'msg-2' }],
+      expectedNew: 1,
+      expectedDuplicates: 2,
+      expectedPlatformIds: [null, 'msg-2'],
+    },
+    {
+      name: 'an empty stored platform ID behaves as fallback-only',
+      existing: { platformMessageId: '' },
+      incoming: [{ platformMessageId: 'msg-1' }],
+      expectedNew: 0,
+      expectedDuplicates: 1,
+      expectedPlatformIds: [''],
+    },
+    {
+      name: 'empty and null content share the canonical fallback fingerprint',
+      existing: { content: null },
+      incoming: [{ content: '' }],
+      expectedNew: 0,
+      expectedDuplicates: 1,
+      expectedPlatformIds: [null],
+    },
+    {
+      name: 'reply target remains part of the fallback fingerprint',
+      existing: { replyToMessageId: 'reply-1' },
+      incoming: [{ replyToMessageId: 'reply-2' }],
+      expectedNew: 1,
+      expectedDuplicates: 0,
+      expectedPlatformIds: [null, null],
+    },
+  ]
+
+  for (const scenario of scenarios) {
+    await t.test(scenario.name, async (st) => {
+      const tempDir = makeTempDir()
+      st.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+      const dbPath = path.join(tempDir, 'session.db')
+      const filePath = path.join(tempDir, 'incoming.json')
+      seedSessionDb(dbPath)
+      seedExistingMessage(dbPath, scenario.existing)
+      writeDedupFixture(filePath, scenario.incoming)
+
+      const deps = createDeps(dbPath)
+      const analysis = await analyzeIncrementalImport('session', filePath, deps)
+      assert.equal(analysis.newMessageCount, scenario.expectedNew)
+      assert.equal(analysis.duplicateCount, scenario.expectedDuplicates)
+
+      const result = await incrementalImport('session', filePath, deps)
+      assert.equal(result.success, true)
+      assert.equal(result.newMessageCount, scenario.expectedNew)
+      assert.equal(result.batch?.duplicateCount, scenario.expectedDuplicates)
+
+      const db = openBetterSqliteDatabase(dbPath, { readonly: true, nativeBinding })
+      const rows = db.prepare('SELECT platform_message_id FROM message ORDER BY id').all() as Array<{
+        platform_message_id: string | null
+      }>
+      db.close()
+      assert.deepEqual(
+        rows.map((row) => row.platform_message_id),
+        scenario.expectedPlatformIds
+      )
+    })
+  }
+})
+
+test('deduplicates repeated input across parser message batches', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const dbPath = path.join(tempDir, 'session.db')
+  const filePath = path.join(tempDir, 'cross-batch.jsonl')
+  seedSessionDb(dbPath)
+
+  const lines: unknown[] = [
+    {
+      _type: 'header',
+      chatlab: { version: '0.0.2', exportedAt: 1780330900 },
+      meta: { name: 'Cross Batch', platform: 'wechat', type: 'private' },
+    },
+    { _type: 'member', platformId: 'wxid_alice', accountName: 'Alice' },
+  ]
+  for (let index = 0; index < 5000; index++) {
+    lines.push({
+      _type: 'message',
+      sender: 'wxid_alice',
+      timestamp: 1780330832 + index,
+      type: 0,
+      content: `message-${index}`,
+      platformMessageId: `msg-${index}`,
+    })
+  }
+  lines.push({
+    _type: 'message',
+    sender: 'wxid_alice',
+    timestamp: 1780330832,
+    type: 0,
+    content: 'message-0',
+    platformMessageId: 'msg-0',
+  })
+  fs.writeFileSync(filePath, `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`, 'utf8')
+
+  const deps = createDeps(dbPath)
+  const analysis = await analyzeIncrementalImport('session', filePath, deps)
+  assert.equal(analysis.newMessageCount, 5000)
+  assert.equal(analysis.duplicateCount, 1)
+
+  const result = await incrementalImport('session', filePath, deps)
+  assert.equal(result.success, true)
+  assert.equal(result.newMessageCount, 5000)
+  assert.equal(result.batch?.duplicateCount, 1)
 })

@@ -5,7 +5,7 @@
  * Fixture generation and result verification are excluded from the timed range.
  *
  * Usage:
- *   pnpm exec tsx scripts/bench-streaming-import.mts single 100000 [runs=3]
+ *   pnpm exec tsx scripts/bench-streaming-import.mts single 100000 [runs=3] [delta|full]
  *   pnpm exec tsx scripts/bench-streaming-import.mts batch 100 10000 [runs=3] [concurrency=1]
  *
  * Single-file runs also append 1,000 messages incrementally and measure a
@@ -24,7 +24,11 @@ import { getNativeParserStatus, isNativeFormatAvailable, type NativeParserStatus
 import { BetterSqliteAdapter } from '../packages/node-runtime/src/better-sqlite3-adapter'
 import { computeAndSetOverviewCache } from '../packages/node-runtime/src/cache/session-cache'
 import { runKeyedBatch } from '../packages/node-runtime/src/import/batch-coordinator'
-import { incrementalImport, type IncrementalImportDeps } from '../packages/node-runtime/src/import/incremental-importer'
+import {
+  analyzeIncrementalImport,
+  incrementalImport,
+  type IncrementalImportDeps,
+} from '../packages/node-runtime/src/import/incremental-importer'
 import {
   streamingImport,
   type ImportLogger,
@@ -59,8 +63,14 @@ interface BenchmarkResult {
   inputMessages: number
   inputBytes: number
   durationMs: number
+  incrementalMode: 'delta' | 'full' | null
+  incrementalInputMessages: number
   incrementalMessages: number
+  incrementalDuplicateMessages: number
+  incrementalAnalyzeDurationMs: number
+  incrementalAnalyzeRssDeltaMb: number
   incrementalDurationMs: number
+  incrementalImportRssDeltaMb: number
   sampledPeakRssMb: number
   sampledRssDeltaMb: number
   databaseBytes: number
@@ -204,7 +214,11 @@ async function generateWeflowFixture(filePath: string, count: number, startIndex
   await once(stream, 'finish')
 }
 
-function createIncrementalDeps(dbPath: string): IncrementalImportDeps {
+function createIncrementalDeps(
+  dbPath: string,
+  onSampleRss: () => void,
+  onParserLog: NonNullable<IncrementalImportDeps['onParserLog']>
+): IncrementalImportDeps {
   return {
     openDatabase() {
       const raw = new Database(dbPath, { nativeBinding })
@@ -213,8 +227,9 @@ function createIncrementalDeps(dbPath: string): IncrementalImportDeps {
       return new BetterSqliteAdapter(raw)
     },
     onProgress() {
-      /* benchmark excludes UI transport */
+      onSampleRss()
     },
+    onParserLog,
   }
 }
 
@@ -342,7 +357,12 @@ function measureLikeSearch(dbPath: string): BenchmarkResult['likeSearch'] {
   }
 }
 
-async function runWorker(fileCount: number, messagesPerFile: number, concurrency: number): Promise<BenchmarkResult> {
+async function runWorker(
+  fileCount: number,
+  messagesPerFile: number,
+  concurrency: number,
+  incrementalMode: 'delta' | 'full' | null
+): Promise<BenchmarkResult> {
   if (typeof global.gc !== 'function') {
     throw new Error('Benchmark worker requires Node.js --expose-gc')
   }
@@ -357,8 +377,19 @@ async function runWorker(fileCount: number, messagesPerFile: number, concurrency
   try {
     await generateWeflowFixture(fixturePath, messagesPerFile)
     const incrementalMessages = fileCount === 1 ? 1000 : 0
+    const incrementalInputMessages =
+      incrementalMessages === 0
+        ? 0
+        : incrementalMode === 'full'
+          ? messagesPerFile + incrementalMessages
+          : incrementalMessages
+    const incrementalDuplicateMessages = incrementalMode === 'full' ? messagesPerFile : 0
     if (incrementalMessages > 0) {
-      await generateWeflowFixture(incrementalFixturePath, incrementalMessages, messagesPerFile)
+      if (incrementalMode === 'full') {
+        await generateWeflowFixture(incrementalFixturePath, incrementalInputMessages)
+      } else {
+        await generateWeflowFixture(incrementalFixturePath, incrementalMessages, messagesPerFile)
+      }
     }
     const inputPaths = [fixturePath]
     for (let index = 1; index < fileCount; index++) {
@@ -406,16 +437,62 @@ async function runWorker(fileCount: number, messagesPerFile: number, concurrency
     )
     const durationMs = performance.now() - startedAt
 
+    let incrementalAnalyzeDurationMs = 0
+    let incrementalAnalyzeRssDeltaMb = 0
     let incrementalDurationMs = 0
+    let incrementalImportRssDeltaMb = 0
     if (incrementalMessages > 0) {
+      global.gc()
+      let rssStartMb = process.memoryUsage().rss / 1024 / 1024
+      let rssPeakMb = rssStartMb
+      const sampleIncrementalRss = () => {
+        rssPeakMb = Math.max(rssPeakMb, process.memoryUsage().rss / 1024 / 1024)
+      }
+      const incrementalParserMonitor = createBenchmarkParserMonitor()
+      const incrementalDeps = createIncrementalDeps(dbPaths[0], sampleIncrementalRss, (_level, message) => {
+        incrementalParserMonitor.logger.info(message)
+      })
+
+      incrementalParserMonitor.logger.reset()
+      const analyzeStartedAt = performance.now()
+      const analysis = await analyzeIncrementalImport('bench-0', incrementalFixturePath, incrementalDeps, {
+        formatId: 'weflow',
+      })
+      incrementalAnalyzeDurationMs = performance.now() - analyzeStartedAt
+      incrementalParserMonitor.assertRustNativeCompleted(0)
+      sampleIncrementalRss()
+      incrementalAnalyzeRssDeltaMb = Math.max(0, rssPeakMb - rssStartMb)
+      if (
+        analysis.newMessageCount !== incrementalMessages ||
+        analysis.duplicateCount !== incrementalDuplicateMessages ||
+        analysis.totalInFile !== incrementalInputMessages
+      ) {
+        throw new Error(
+          `Incremental analysis mismatch: expected ${incrementalMessages} new/${incrementalDuplicateMessages} duplicate/${incrementalInputMessages} total, ` +
+            `got ${analysis.newMessageCount}/${analysis.duplicateCount}/${analysis.totalInFile}`
+        )
+      }
+
+      global.gc()
+      rssStartMb = process.memoryUsage().rss / 1024 / 1024
+      rssPeakMb = rssStartMb
+      incrementalParserMonitor.logger.reset()
       const incrementalStartedAt = performance.now()
-      const result = await incrementalImport('bench-0', incrementalFixturePath, createIncrementalDeps(dbPaths[0]), {
+      const result = await incrementalImport('bench-0', incrementalFixturePath, incrementalDeps, {
         formatId: 'weflow',
       })
       incrementalDurationMs = performance.now() - incrementalStartedAt
-      if (!result.success || result.newMessageCount !== incrementalMessages) {
+      incrementalParserMonitor.assertRustNativeCompleted(0)
+      sampleIncrementalRss()
+      incrementalImportRssDeltaMb = Math.max(0, rssPeakMb - rssStartMb)
+      if (
+        !result.success ||
+        result.newMessageCount !== incrementalMessages ||
+        result.batch?.duplicateCount !== incrementalDuplicateMessages
+      ) {
         throw new Error(
-          `Incremental import failed: expected ${incrementalMessages}, got ${result.newMessageCount} (${result.error ?? 'unknown error'})`
+          `Incremental import failed: expected ${incrementalMessages} new/${incrementalDuplicateMessages} duplicate, ` +
+            `got ${result.newMessageCount}/${result.batch?.duplicateCount ?? 'missing'} (${result.error ?? 'unknown error'})`
         )
       }
     }
@@ -442,8 +519,14 @@ async function runWorker(fileCount: number, messagesPerFile: number, concurrency
       inputMessages: fileCount * messagesPerFile,
       inputBytes: statSync(fixturePath).size * fileCount,
       durationMs,
+      incrementalMode,
+      incrementalInputMessages,
       incrementalMessages,
+      incrementalDuplicateMessages,
+      incrementalAnalyzeDurationMs,
+      incrementalAnalyzeRssDeltaMb,
       incrementalDurationMs,
+      incrementalImportRssDeltaMb,
       sampledPeakRssMb,
       sampledRssDeltaMb: Math.max(0, sampledPeakRssMb - rssStartMb),
       databaseBytes,
@@ -458,7 +541,12 @@ async function runWorker(fileCount: number, messagesPerFile: number, concurrency
   }
 }
 
-function runIsolated(fileCount: number, messagesPerFile: number, concurrency: number): BenchmarkResult {
+function runIsolated(
+  fileCount: number,
+  messagesPerFile: number,
+  concurrency: number,
+  incrementalMode: 'delta' | 'full' | null
+): BenchmarkResult {
   const child = spawnSync(
     process.execPath,
     [
@@ -469,6 +557,7 @@ function runIsolated(fileCount: number, messagesPerFile: number, concurrency: nu
       String(fileCount),
       String(messagesPerFile),
       String(concurrency),
+      incrementalMode ?? 'none',
     ],
     {
       cwd: process.cwd(),
@@ -489,10 +578,58 @@ function formatBytes(bytes: number): string {
   return `${(bytes / 1024 / 1024).toFixed(1)} MB`
 }
 
+function medianNumber(values: number[]): number {
+  const sorted = [...values].sort((left, right) => left - right)
+  const midpoint = Math.floor(sorted.length / 2)
+  return sorted.length % 2 === 0 ? (sorted[midpoint - 1] + sorted[midpoint]) / 2 : sorted[midpoint]
+}
+
+function buildMedianResult(results: BenchmarkResult[]): BenchmarkResult {
+  const representative = results[0]
+  const medianTiming = (key: keyof ImportStageTimings) => medianNumber(results.map((result) => result.timings[key]))
+
+  return {
+    ...representative,
+    inputBytes: medianNumber(results.map((result) => result.inputBytes)),
+    durationMs: medianNumber(results.map((result) => result.durationMs)),
+    incrementalAnalyzeDurationMs: medianNumber(results.map((result) => result.incrementalAnalyzeDurationMs)),
+    incrementalAnalyzeRssDeltaMb: medianNumber(results.map((result) => result.incrementalAnalyzeRssDeltaMb)),
+    incrementalDurationMs: medianNumber(results.map((result) => result.incrementalDurationMs)),
+    incrementalImportRssDeltaMb: medianNumber(results.map((result) => result.incrementalImportRssDeltaMb)),
+    sampledPeakRssMb: medianNumber(results.map((result) => result.sampledPeakRssMb)),
+    sampledRssDeltaMb: medianNumber(results.map((result) => result.sampledRssDeltaMb)),
+    databaseBytes: medianNumber(results.map((result) => result.databaseBytes)),
+    likeSearch: {
+      ...representative.likeSearch,
+      coldMs: medianNumber(results.map((result) => result.likeSearch.coldMs)),
+      warmMedianMs: medianNumber(results.map((result) => result.likeSearch.warmMedianMs)),
+    },
+    timings: {
+      detectionMs: medianTiming('detectionMs'),
+      preprocessingMs: medianTiming('preprocessingMs'),
+      databaseSetupMs: medianTiming('databaseSetupMs'),
+      parserMs: medianTiming('parserMs'),
+      metaWriteMs: medianTiming('metaWriteMs'),
+      memberWriteMs: medianTiming('memberWriteMs'),
+      messageWriteMs: medianTiming('messageWriteMs'),
+      nicknameHistoryMs: medianTiming('nicknameHistoryMs'),
+      indexCreationMs: medianTiming('indexCreationMs'),
+      checkpointMs: medianTiming('checkpointMs'),
+      sessionIndexMs: medianTiming('sessionIndexMs'),
+      postImportHookMs: medianTiming('postImportHookMs'),
+      totalMs: medianTiming('totalMs'),
+    },
+  }
+}
+
 function printResult(result: BenchmarkResult, label: string): void {
   console.log(
     `${label}: parser ${result.parser.implementation} | ${result.durationMs.toFixed(0)} ms | ` +
-      `incremental ${result.incrementalDurationMs.toFixed(0)} ms/${result.incrementalMessages} rows | ` +
+      `incremental ${result.incrementalMode ?? 'none'} ` +
+      `${result.incrementalAnalyzeDurationMs.toFixed(0)} ms analyze/${result.incrementalDurationMs.toFixed(0)} ms import ` +
+      `(${result.incrementalMessages} new/${result.incrementalDuplicateMessages} duplicate) | ` +
+      `incremental RSS +${result.incrementalAnalyzeRssDeltaMb.toFixed(0)} MB analyze/` +
+      `+${result.incrementalImportRssDeltaMb.toFixed(0)} MB import | ` +
       `sampled peak RSS ${result.sampledPeakRssMb.toFixed(0)} MB ` +
       `(+${result.sampledRssDeltaMb.toFixed(0)} MB) | DB ${formatBytes(result.databaseBytes)} | ` +
       `LIKE ${result.likeSearch.coldMs.toFixed(1)} ms cold/${result.likeSearch.warmMedianMs.toFixed(1)} ms warm | ` +
@@ -503,7 +640,8 @@ function printResult(result: BenchmarkResult, label: string): void {
 async function main(): Promise<void> {
   const [mode, first, second, third, fourth] = process.argv.slice(2)
   if (mode === '--worker') {
-    const result = await runWorker(Number(first), Number(second), Number(third))
+    const workerIncrementalMode = fourth === 'delta' || fourth === 'full' ? fourth : null
+    const result = await runWorker(Number(first), Number(second), Number(third), workerIncrementalMode)
     console.log(`BENCH_RESULT ${JSON.stringify(result)}`)
     return
   }
@@ -512,18 +650,27 @@ async function main(): Promise<void> {
   let messagesPerFile: number
   let runs: number
   let concurrency: number
+  let incrementalMode: 'delta' | 'full' | null
   if (mode === 'single') {
     fileCount = 1
     messagesPerFile = Number(first ?? 100_000)
     runs = Number(second ?? 3)
     concurrency = 1
+    incrementalMode = third === 'full' ? 'full' : 'delta'
+    if (third !== undefined && third !== 'delta' && third !== 'full') {
+      throw new Error('Incremental mode must be delta or full')
+    }
   } else if (mode === 'batch') {
     fileCount = Number(first ?? 100)
     messagesPerFile = Number(second ?? 10_000)
     runs = Number(third ?? 3)
     concurrency = Number(fourth ?? 1)
+    incrementalMode = null
   } else {
-    throw new Error('Usage: single <messages> [runs=3] | batch <files> <messages-per-file> [runs=3] [concurrency=1]')
+    throw new Error(
+      'Usage: single <messages> [runs=3] [incremental-mode=delta|full] | ' +
+        'batch <files> <messages-per-file> [runs=3] [concurrency=1]'
+    )
   }
   if (![fileCount, messagesPerFile, runs, concurrency].every((value) => Number.isInteger(value) && value > 0)) {
     throw new Error('All benchmark counts must be positive integers')
@@ -534,13 +681,12 @@ async function main(): Promise<void> {
   )
   const results: BenchmarkResult[] = []
   for (let index = 0; index < runs; index++) {
-    const result = runIsolated(fileCount, messagesPerFile, concurrency)
+    const result = runIsolated(fileCount, messagesPerFile, concurrency, incrementalMode)
     results.push(result)
     printResult(result, `run ${index + 1}`)
   }
 
-  const sorted = [...results].sort((left, right) => left.durationMs - right.durationMs)
-  const median = sorted[Math.floor(sorted.length / 2)]
+  const median = buildMedianResult(results)
   const parserSignatures = new Set(results.map((result) => JSON.stringify(result.parser)))
   if (parserSignatures.size !== 1) {
     throw new Error('Parser implementations differ between isolated runs')

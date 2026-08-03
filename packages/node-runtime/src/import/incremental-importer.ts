@@ -8,10 +8,22 @@
  * Callers provide DatabaseAdapter + progress callback via dependency injection.
  */
 
-import type { DatabaseAdapter } from '@openchatlab/core'
+import type { DatabaseAdapter, PreparedStatement } from '@openchatlab/core'
 import { generateSessionIndex, generateIncrementalSessionIndex, getSessionIndexStats } from '@openchatlab/core'
-import { streamParseFile, detectFormat, getFormatFeatureById, type ParseProgress } from '@openchatlab/parser'
-import { generateFallbackMessageKey, registerMessageAndCheckDuplicate } from './message-deduplicator'
+import {
+  streamParseFile,
+  detectFormat,
+  getFormatFeatureById,
+  type ParseProgress,
+  type StreamParseCallbacks,
+} from '@openchatlab/parser'
+import {
+  createMessageDedupState,
+  generateFallbackMessageKey,
+  registerMessageAndCheckDuplicate,
+  type DedupMessage,
+  type MessageDedupState,
+} from './message-deduplicator'
 import { normalizeSystemMemberName, SYSTEM_MEMBER_NAME, type ImportProgressCallback } from './streaming-importer'
 
 // ==================== Public interfaces ====================
@@ -66,76 +78,159 @@ export interface IncrementalImportDeps {
   /** Open existing session DB for read-only access (analyze) or read-write (import). */
   openDatabase(sessionId: string, readonly?: boolean): DatabaseAdapter
   onProgress: ImportProgressCallback
+  /** Optional parser diagnostics hook (e.g. native parser fallback monitoring). */
+  onParserLog?: NonNullable<StreamParseCallbacks['onLog']>
   /** Optional hook after incremental import (e.g. update overview cache). */
   postImportHook?: (db: DatabaseAdapter, sessionId: string) => void | Promise<void>
 }
 
 // ==================== Internal helpers ====================
 
-function loadExistingDedup(db: DatabaseAdapter): {
-  existingPlatformMsgIds: Set<string>
-  existingKeys: Set<string>
-  existingFallbackOnlyKeys: Set<string>
-} {
-  const existingPlatformMsgIds = new Set<string>()
-  const existingKeys = new Set<string>()
-  const existingFallbackOnlyKeys = new Set<string>()
+const PLATFORM_ID_QUERY_CHUNK_SIZE = 500
 
-  const pmidRows = db
-    .prepare('SELECT platform_message_id FROM message WHERE platform_message_id IS NOT NULL')
-    .all() as Array<{ platform_message_id: string }>
-  for (const row of pmidRows) {
-    existingPlatformMsgIds.add(row.platform_message_id)
+interface ExistingMessageCandidate {
+  type: number
+  content: string | null
+  reply_to_message_id: string | null
+  platform_message_id: string | null
+}
+
+interface ExistingMessageLookup {
+  db: DatabaseAdapter
+  maxMessageId: number
+  hasFallbackOnlyMessages: boolean
+  consumedFallbackOnlyKeys: Set<string>
+  bridgedPlatformMessageIds: Set<string>
+  candidateStatement: PreparedStatement
+  platformIdStatements: Map<number, PreparedStatement>
+}
+
+type CandidateCache = Map<string, ExistingMessageCandidate[]>
+
+function createExistingMessageLookup(db: DatabaseAdapter): ExistingMessageLookup {
+  const maxMessageId =
+    (db.prepare('SELECT MAX(id) AS max_id FROM message').get() as { max_id: number | null } | undefined)?.max_id ?? 0
+  const hasFallbackOnlyMessages = Boolean(
+    db
+      .prepare(
+        `SELECT 1 FROM message
+         WHERE id <= ? AND (platform_message_id IS NULL OR platform_message_id = '')
+         LIMIT 1`
+      )
+      .get(maxMessageId)
+  )
+
+  return {
+    db,
+    maxMessageId,
+    hasFallbackOnlyMessages,
+    consumedFallbackOnlyKeys: new Set<string>(),
+    bridgedPlatformMessageIds: new Set<string>(),
+    candidateStatement: db.prepare(
+      `SELECT msg.type, msg.content, msg.reply_to_message_id, msg.platform_message_id
+       FROM member m
+       JOIN message msg ON msg.sender_id = m.id
+       WHERE m.platform_id = ? AND msg.ts = ? AND msg.id <= ?`
+    ),
+    platformIdStatements: new Map<number, PreparedStatement>(),
+  }
+}
+
+function findExistingPlatformMessageIds(
+  lookup: ExistingMessageLookup,
+  platformMessageIds: Iterable<string | undefined>
+): Set<string> {
+  const uniqueIds = [...new Set([...platformMessageIds].filter((id): id is string => Boolean(id)))]
+  const existingIds = new Set<string>()
+
+  for (let start = 0; start < uniqueIds.length; start += PLATFORM_ID_QUERY_CHUNK_SIZE) {
+    const chunk = uniqueIds.slice(start, start + PLATFORM_ID_QUERY_CHUNK_SIZE)
+    let statement = lookup.platformIdStatements.get(chunk.length)
+    if (!statement) {
+      const placeholders = chunk.map(() => '?').join(', ')
+      statement = lookup.db.prepare(
+        `SELECT platform_message_id
+         FROM message
+         WHERE id <= ? AND platform_message_id IN (${placeholders})`
+      )
+      lookup.platformIdStatements.set(chunk.length, statement)
+    }
+    const rows = statement.all(lookup.maxMessageId, ...chunk) as Array<{ platform_message_id: string }>
+    for (const row of rows) existingIds.add(row.platform_message_id)
   }
 
-  const hashRows = db
-    .prepare(
-      `SELECT ts, m.platform_id as sender_platform_id, msg.type, content, reply_to_message_id,
-              platform_message_id
-       FROM message msg
-       JOIN member m ON msg.sender_id = m.id`
+  return existingIds
+}
+
+function getExistingCandidates(
+  lookup: ExistingMessageLookup,
+  message: DedupMessage,
+  cache: CandidateCache
+): ExistingMessageCandidate[] {
+  const cacheKey = JSON.stringify([message.senderPlatformId, message.timestamp])
+  const cached = cache.get(cacheKey)
+  if (cached) return cached
+
+  const rows = lookup.candidateStatement.all(
+    message.senderPlatformId,
+    message.timestamp,
+    lookup.maxMessageId
+  ) as unknown as ExistingMessageCandidate[]
+  cache.set(cacheKey, rows)
+  return rows
+}
+
+function candidateFallbackKey(message: DedupMessage, candidate: ExistingMessageCandidate): string {
+  return generateFallbackMessageKey({
+    timestamp: message.timestamp,
+    senderPlatformId: message.senderPlatformId,
+    type: candidate.type,
+    content: candidate.content,
+    replyToMessageId: candidate.reply_to_message_id ?? undefined,
+  })
+}
+
+function isExistingMessageDuplicate(
+  lookup: ExistingMessageLookup,
+  message: DedupMessage,
+  existingBatchPlatformIds: Set<string>,
+  candidateCache: CandidateCache
+): boolean {
+  if (
+    message.platformMessageId &&
+    (existingBatchPlatformIds.has(message.platformMessageId) ||
+      lookup.bridgedPlatformMessageIds.has(message.platformMessageId))
+  ) {
+    return true
+  }
+
+  const fallbackKey = generateFallbackMessageKey(message)
+  if (message.platformMessageId) {
+    if (!lookup.hasFallbackOnlyMessages || lookup.consumedFallbackOnlyKeys.has(fallbackKey)) return false
+    const matchesFallbackOnly = getExistingCandidates(lookup, message, candidateCache).some(
+      (candidate) => !candidate.platform_message_id && candidateFallbackKey(message, candidate) === fallbackKey
     )
-    .all() as Array<{
-    ts: number
-    sender_platform_id: string
-    type: number
-    content: string | null
-    reply_to_message_id: string | null
-    platform_message_id: string | null
-  }>
-  for (const row of hashRows) {
-    const key = generateFallbackMessageKey({
-      timestamp: row.ts,
-      senderPlatformId: row.sender_platform_id,
-      type: row.type,
-      content: row.content,
-      replyToMessageId: row.reply_to_message_id ?? undefined,
-    })
-    existingKeys.add(key)
-    if (!row.platform_message_id) existingFallbackOnlyKeys.add(key)
+    if (matchesFallbackOnly) {
+      lookup.consumedFallbackOnlyKeys.add(fallbackKey)
+      lookup.bridgedPlatformMessageIds.add(message.platformMessageId)
+    }
+    return matchesFallbackOnly
   }
 
-  return { existingPlatformMsgIds, existingKeys, existingFallbackOnlyKeys }
+  return getExistingCandidates(lookup, message, candidateCache).some(
+    (candidate) => candidateFallbackKey(message, candidate) === fallbackKey
+  )
 }
 
 function isDuplicate(
-  msg: {
-    platformMessageId?: string
-    timestamp: number
-    senderPlatformId: string
-    type: number
-    content: string | null
-    replyToMessageId?: string
-  },
-  existingPlatformMsgIds: Set<string>,
-  existingKeys: Set<string>,
-  existingFallbackOnlyKeys: Set<string>
+  lookup: ExistingMessageLookup,
+  incomingState: MessageDedupState,
+  message: DedupMessage,
+  existingBatchPlatformIds: Set<string>,
+  candidateCache: CandidateCache
 ): boolean {
-  return registerMessageAndCheckDuplicate(msg, {
-    platformMessageIds: existingPlatformMsgIds,
-    fallbackKeys: existingKeys,
-    fallbackOnlyKeys: existingFallbackOnlyKeys,
-  })
+  if (isExistingMessageDuplicate(lookup, message, existingBatchPlatformIds, candidateCache)) return true
+  return registerMessageAndCheckDuplicate(message, incomingState)
 }
 
 export function normalizeImportTimestamp(timestamp: unknown): number | null {
@@ -163,41 +258,60 @@ export async function analyzeIncrementalImport(
     return { error: 'error.session_not_found', newMessageCount: 0, duplicateCount: 0, totalInFile: 0 }
   }
 
-  const { existingPlatformMsgIds, existingKeys, existingFallbackOnlyKeys } = loadExistingDedup(db)
-  db.close()
-
   let totalInFile = 0
   let newMessageCount = 0
   let duplicateCount = 0
   let platform = formatFeature.platform
 
-  await streamParseFile(
-    filePath,
-    {
-      formatOptions: options?.chatIndex === undefined ? undefined : { chatIndex: options.chatIndex },
-      onMeta: (meta) => {
-        platform = meta.platform
-      },
-      onMembers: () => {},
-      onProgress: (progress: ParseProgress) => {
-        deps.onProgress(progress)
-      },
-      onMessageBatch: (batch) => {
-        for (const msg of batch) {
-          totalInFile++
-          const timestamp = normalizeImportTimestamp(msg.timestamp)
-          if (timestamp === null) continue
+  try {
+    const existingLookup = createExistingMessageLookup(db)
+    const incomingState = createMessageDedupState()
 
-          if (isDuplicate({ ...msg, timestamp }, existingPlatformMsgIds, existingKeys, existingFallbackOnlyKeys)) {
-            duplicateCount++
-          } else {
-            newMessageCount++
+    await streamParseFile(
+      filePath,
+      {
+        formatOptions: options?.chatIndex === undefined ? undefined : { chatIndex: options.chatIndex },
+        onMeta: (meta) => {
+          platform = meta.platform
+        },
+        onMembers: () => {},
+        onProgress: (progress: ParseProgress) => {
+          deps.onProgress(progress)
+        },
+        onLog: deps.onParserLog,
+        onMessageBatch: (batch) => {
+          const existingBatchPlatformIds = findExistingPlatformMessageIds(
+            existingLookup,
+            batch.map((message) => message.platformMessageId)
+          )
+          const candidateCache: CandidateCache = new Map()
+
+          for (const msg of batch) {
+            totalInFile++
+            const timestamp = normalizeImportTimestamp(msg.timestamp)
+            if (timestamp === null) continue
+
+            if (
+              isDuplicate(
+                existingLookup,
+                incomingState,
+                { ...msg, timestamp },
+                existingBatchPlatformIds,
+                candidateCache
+              )
+            ) {
+              duplicateCount++
+            } else {
+              newMessageCount++
+            }
           }
-        }
+        },
       },
-    },
-    options?.formatId
-  )
+      options?.formatId
+    )
+  } finally {
+    db.close()
+  }
 
   return { newMessageCount, duplicateCount, totalInFile, platform }
 }
@@ -226,7 +340,8 @@ export async function incrementalImport(
   const memberUpdateMode = options?.memberUpdateMode ?? 'upsert'
 
   try {
-    const { existingPlatformMsgIds, existingKeys, existingFallbackOnlyKeys } = loadExistingDedup(db)
+    const existingLookup = createExistingMessageLookup(db)
+    const incomingState = createMessageDedupState()
 
     const memberIdMap = new Map<string, number>()
     const existingMembers = db.prepare('SELECT id, platform_id FROM member').all() as Array<{
@@ -336,7 +451,14 @@ export async function incrementalImport(
         onProgress: (progress: ParseProgress) => {
           deps.onProgress(progress)
         },
+        onLog: deps.onParserLog,
         onMessageBatch: (batch) => {
+          const existingBatchPlatformIds = findExistingPlatformMessageIds(
+            existingLookup,
+            batch.map((message) => message.platformMessageId)
+          )
+          const candidateCache: CandidateCache = new Map()
+
           for (const msg of batch) {
             processedCount++
 
@@ -354,7 +476,15 @@ export async function incrementalImport(
               continue
             }
 
-            if (isDuplicate({ ...msg, timestamp }, existingPlatformMsgIds, existingKeys, existingFallbackOnlyKeys)) {
+            if (
+              isDuplicate(
+                existingLookup,
+                incomingState,
+                { ...msg, timestamp },
+                existingBatchPlatformIds,
+                candidateCache
+              )
+            ) {
               duplicateCount++
               continue
             }
