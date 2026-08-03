@@ -96,17 +96,3 @@ export const CHAT_DB_INDEXES = `
  * For new database creation where deferred indexing is not needed.
  */
 export const CHAT_DB_SCHEMA = CHAT_DB_TABLES + CHAT_DB_INDEXES
-
-/**
- * FTS5 全文搜索虚拟表 DDL
- *
- * content='' 表示使用外部内容表模式（不存储原始内容，只存储索引）。
- * 填充需要在导入或迁移时手动执行。
- */
-export const FTS_TABLE_SCHEMA = `
-  CREATE VIRTUAL TABLE IF NOT EXISTS message_fts USING fts5(
-    content,
-    content='',
-    content_rowid=id
-  );
-`

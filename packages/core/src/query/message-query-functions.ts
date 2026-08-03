@@ -109,33 +109,7 @@ export async function fetchMessagesAfter(
   return { messages: sliced.map(mapMessageRow), hasMore }
 }
 
-/**
- * LIKE-based keyword search with count + pagination.
- * FTS search is NOT included here — platforms should handle FTS themselves
- * and fall back to this function when FTS is unavailable.
- */
-/**
- * FTS5-based message search. The matchQuery must be pre-tokenized for the platform's FTS tokenizer.
- */
-export async function searchMessagesWithFtsAsync(
-  executor: AsyncSqlExecutor,
-  matchQuery: string,
-  filter?: TimeFilter,
-  limit: number = 20,
-  offset: number = 0,
-  senderId?: number
-): Promise<AsyncMessagesWithTotal> {
-  const { clause, params } = filterConditions(filter, senderId)
-
-  const countSql = `SELECT COUNT(*) as total ${MSG_COUNT_FROM} WHERE msg.id IN (SELECT rowid FROM message_fts WHERE content MATCH ?) ${clause}`
-  const countRow = await executor.get<{ total: number }>(countSql, [matchQuery, ...params])
-  const total = countRow?.total ?? 0
-
-  const sql = `${FULL_MSG_SELECT} WHERE msg.id IN (SELECT rowid FROM message_fts WHERE content MATCH ?) ${clause} ORDER BY msg.ts DESC LIMIT ? OFFSET ?`
-  const rows = await executor.all<FullMessageRow>(sql, [matchQuery, ...params, limit, offset])
-  return { messages: rows.map(mapMessageRow), total }
-}
-
+/** LIKE-based keyword search with count and pagination. */
 export async function searchMessagesLikeAsync(
   executor: AsyncSqlExecutor,
   keywords: string[],

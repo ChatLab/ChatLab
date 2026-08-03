@@ -79,6 +79,14 @@ test('analyzes a new push payload with the same optional-account and member sema
   assert.equal(outcome.result.batch.writtenCount, analysis.result.newMessageCount)
   assert.equal(outcome.result.batch.duplicateCount, analysis.result.duplicateCount)
   assert.equal(outcome.result.updates.membersAdded, analysis.result.newMemberCount)
+
+  const db = manager.openRawSessionDatabase('push-analysis', { readonly: true })
+  try {
+    const ftsTable = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'message_fts'").get()
+    assert.equal(ftsTable, undefined)
+  } finally {
+    db.close()
+  }
 })
 
 test('analyzes incremental push deduplication without writing', async (t) => {

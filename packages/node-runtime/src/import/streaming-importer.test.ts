@@ -404,8 +404,9 @@ test('streamParseFileInfo preserves member metadata from a batched ChatLab JSONL
   assert.equal(row?.avatar, 'data:image/png;base64,AAAA')
 })
 
-test('streamingImport updates avatars for members first created from message batches', async () => {
+test('streamingImport updates avatars without creating a per-session FTS table', async (t) => {
   const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   const manifestPath = writeChunkedShuakamiQqExport(root)
   const dbPath = path.join(root, 'avatar-test.db')
 
@@ -417,10 +418,12 @@ test('streamingImport updates avatars for members first created from message bat
   const row = db.prepare('SELECT platform_id, avatar FROM member WHERE platform_id = ?').get('10001') as
     | { platform_id: string; avatar: string | null }
     | undefined
+  const ftsTable = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'message_fts'").get()
   db.close()
 
   assert.equal(row?.platform_id, '10001')
   assert.equal(row?.avatar, 'data:image/png;base64,AAAA')
+  assert.equal(ftsTable, undefined)
 })
 
 test('streamingImport builds the session index exactly once with the requested gap threshold', async (t) => {
@@ -454,7 +457,7 @@ test('streamingImport builds the session index exactly once with the requested g
 })
 
 test(
-  'streamingImport persists shuakami/qq-chat-exporter V4 native-first output with deduplication, reply and FTS',
+  'streamingImport persists shuakami/qq-chat-exporter V4 native-first output without a derived FTS table',
   {
     skip: !isNativeFormatAvailable('shuakami-qq-exporter') && 'native shuakami/qq-chat-exporter kernel not built',
   },
@@ -499,9 +502,7 @@ test(
       .get('qq-message-2') as {
       reply_to_message_id: string | null
     }
-    const fts = db.prepare("SELECT COUNT(*) AS count FROM message_fts WHERE content MATCH 'searchable'").get() as {
-      count: number
-    }
+    const ftsTable = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'message_fts'").get()
     db.close()
 
     assert.deepEqual(meta, {
@@ -512,7 +513,7 @@ test(
     })
     assert.deepEqual(counts, { members: 2, messages: 2 })
     assert.equal(reply.reply_to_message_id, 'qq-message-1')
-    assert.equal(fts.count, 1)
+    assert.equal(ftsTable, undefined)
   }
 )
 

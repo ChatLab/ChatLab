@@ -56,13 +56,3 @@ export interface DenseQueryResult {
   distance: number
   record: ChunkRecord
 }
-
-/** message_id -> chunk 范围映射参数 */
-export interface MessageToChunkParams {
-  dbPathHash: string
-  modelId: string
-  strategyId: string
-  messageId: number
-  /** 消息时间戳（毫秒），用于 ts-based 区间映射，与 chunk_vector_index 的 start_ts/end_ts 单位一致 */
-  messageTs: number
-}

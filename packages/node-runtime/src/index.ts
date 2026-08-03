@@ -104,9 +104,6 @@ export {
   logSummary,
 } from './import'
 
-// FTS5 full-text search operations
-export { hasFtsTable, createFtsTable, buildFtsIndex, rebuildFtsIndex, insertFtsEntries, searchByFts } from './fts'
-
 // AI Logger & Error formatting
 export { AiLogger, extractErrorInfo, extractErrorStack, formatAIError } from './ai'
 export type { FormatAIErrorOptions } from './ai'

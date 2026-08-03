@@ -69,7 +69,6 @@ function createDeps(options?: {
               messageWriteMs: 0,
               nicknameHistoryMs: 0,
               indexCreationMs: 0,
-              ftsMs: 0,
               checkpointMs: 0,
               sessionIndexMs: 0,
               postImportHookMs: 0,

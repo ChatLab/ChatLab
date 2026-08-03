@@ -11,7 +11,6 @@
 import type { DatabaseAdapter } from '@openchatlab/core'
 import { generateSessionIndex, generateIncrementalSessionIndex, getSessionIndexStats } from '@openchatlab/core'
 import { streamParseFile, detectFormat, getFormatFeatureById, type ParseProgress } from '@openchatlab/parser'
-import { insertFtsEntries, hasFtsTable } from '../fts'
 import { generateFallbackMessageKey, registerMessageAndCheckDuplicate } from './message-deduplicator'
 import { normalizeSystemMemberName, SYSTEM_MEMBER_NAME, type ImportProgressCallback } from './streaming-importer'
 
@@ -296,8 +295,6 @@ export async function incrementalImport(
       }
     }
 
-    const newFtsEntries: Array<{ id: number; content: string | null }> = []
-
     await streamParseFile(
       filePath,
       {
@@ -389,7 +386,7 @@ export async function incrementalImport(
             }
             if (!memberId) continue
 
-            const msgResult = insertMessage.run(
+            insertMessage.run(
               memberId,
               senderAccountName || null,
               senderGroupNickname || null,
@@ -400,10 +397,6 @@ export async function incrementalImport(
               msg.platformMessageId || null
             )
 
-            newFtsEntries.push({
-              id: Number((msgResult as any).lastInsertRowid ?? 0),
-              content: msg.content || null,
-            })
             if (timestamp < minWrittenTs) minWrittenTs = timestamp
             newMessageCount++
           }
@@ -427,15 +420,6 @@ export async function incrementalImport(
 
     if (!metaUpdated) {
       db.prepare('UPDATE meta SET imported_at = ?').run(Math.floor(Date.now() / 1000))
-    }
-
-    // Incremental FTS update
-    if (newFtsEntries.length > 0 && hasFtsTable(db)) {
-      try {
-        insertFtsEntries(db, newFtsEntries)
-      } catch {
-        /* FTS failure is non-fatal */
-      }
     }
 
     // Incremental session index (segment / message_context tables).

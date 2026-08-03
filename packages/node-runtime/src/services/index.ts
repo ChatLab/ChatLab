@@ -37,15 +37,7 @@ export type {
 } from './owner-profile-service'
 
 // Session index service
-export {
-  generateIndex,
-  generateIncrementalIndex,
-  clearIndex,
-  getFtsStatus,
-  searchFts,
-  rebuildFts,
-  getAllIndexStats,
-} from './session-index-service'
+export { generateIndex, generateIncrementalIndex, clearIndex, getAllIndexStats } from './session-index-service'
 export type { SessionIndexStatusItem } from './session-index-service'
 
 // Summary service

@@ -15,7 +15,6 @@ import {
 } from '@openchatlab/core'
 import type { DatabaseAdapter } from '@openchatlab/core'
 import type { DatabaseManager } from '../database-manager'
-import { buildFtsIndex, insertFtsEntries } from '../fts'
 import { writeParseResultToDb } from '../import'
 import { ImportInProgressError, withDataDirImportLock } from '../import/import-lock'
 import {
@@ -299,7 +298,6 @@ function writeMessages(
   duplicateCount: number
   membersAdded: number
   minWrittenTs: number
-  ftsEntries: Array<{ id: number; content: string | null }>
 } {
   const insertMsg = db.prepare(
     `INSERT INTO message (sender_id, sender_account_name, sender_group_nickname, ts, type, content, reply_to_message_id, platform_message_id)
@@ -315,7 +313,6 @@ function writeMessages(
   let duplicateCount = 0
   let membersAdded = 0
   let minWrittenTs = Infinity
-  const ftsEntries: Array<{ id: number; content: string | null }> = []
 
   const sorted = [...messages].sort((a, b) => a.timestamp - b.timestamp)
 
@@ -342,7 +339,7 @@ function writeMessages(
       }
       if (!memberId) continue
 
-      const result = insertMsg.run(
+      insertMsg.run(
         memberId,
         normalizeSenderAccountName(msg.sender, msg.accountName) || null,
         normalizeSenderGroupNickname(msg.sender, msg.groupNickname) || null,
@@ -352,13 +349,12 @@ function writeMessages(
         msg.replyToMessageId || null,
         msg.platformMessageId || null
       )
-      ftsEntries.push({ id: Number(result.lastInsertRowid), content: msg.content ?? null })
       if (msg.timestamp < minWrittenTs) minWrittenTs = msg.timestamp
       writtenCount++
     }
   })
 
-  return { writtenCount, duplicateCount, membersAdded, minWrittenTs, ftsEntries }
+  return { writtenCount, duplicateCount, membersAdded, minWrittenTs }
 }
 
 function fullImport(
@@ -418,8 +414,6 @@ function fullImport(
       replyToMessageId: m.replyToMessageId,
     }))
   )
-
-  buildFtsIndex(db)
 
   try {
     generateSessionIndex(db)
@@ -502,16 +496,7 @@ function writeIncrementalImport(db: DatabaseAdapter, payload: PushImportPayload)
     duplicateCount,
     membersAdded: autoCreatedMembersAdded,
     minWrittenTs,
-    ftsEntries,
   } = writeMessages(db, payload.messages!, dedupState)
-
-  if (ftsEntries.length > 0) {
-    try {
-      insertFtsEntries(db, ftsEntries)
-    } catch {
-      /* non-fatal */
-    }
-  }
 
   if (writtenCount > 0) {
     try {

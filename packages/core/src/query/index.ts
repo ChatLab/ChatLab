@@ -189,7 +189,6 @@ export {
   fetchMessagesBefore,
   fetchMessagesAfter,
   searchMessagesLikeAsync,
-  searchMessagesWithFtsAsync,
   fetchMessageContext,
   fetchSearchMessageContext,
   fetchAllRecentMessages,

@@ -3,7 +3,7 @@
  *
  * Extracted from electron/main/worker/import/streamImport.ts.
  * Streams parsed data directly into SQLite with batched transactions,
- * deferred index creation, nickname history tracking, and FTS indexing.
+ * deferred index creation and nickname history tracking.
  *
  * Both Electron and Server/CLI use this module via dependency injection:
  * the caller provides a DatabaseAdapter, progress callback, and optional hooks.
@@ -30,7 +30,6 @@ import {
 } from '@openchatlab/parser'
 import * as fs from 'fs'
 import { performance } from 'node:perf_hooks'
-import { buildFtsIndex } from '../fts'
 import { MessageBatchInserter, type MessageInsertRow } from './message-batch-inserter'
 import { createMessageDedupState, registerMessageAndCheckDuplicate, type DedupMessage } from './message-deduplicator'
 
@@ -64,7 +63,6 @@ export interface ImportStageTimings {
   messageWriteMs: number
   nicknameHistoryMs: number
   indexCreationMs: number
-  ftsMs: number
   checkpointMs: number
   sessionIndexMs: number
   postImportHookMs: number
@@ -302,7 +300,6 @@ async function streamImportSingle(
     messageWriteMs: 0,
     nicknameHistoryMs: 0,
     indexCreationMs: 0,
-    ftsMs: 0,
     checkpointMs: 0,
     sessionIndexMs: 0,
     postImportHookMs: 0,
@@ -760,18 +757,6 @@ async function streamImportSingle(
     sampleRss()
     logger?.perf('Indexes created', totalMessageCount)
 
-    // Build FTS index
-    const ftsStartedAt = now()
-    try {
-      buildFtsIndex(db)
-      logger?.perf('FTS index built', totalMessageCount)
-    } catch (ftsError) {
-      logger?.error('FTS index build failed (non-fatal)', ftsError instanceof Error ? ftsError : undefined)
-    } finally {
-      timings.ftsMs = elapsedMs(ftsStartedAt, now)
-      sampleRss()
-    }
-
     // Final WAL checkpoint + session index + post-import hook
     onProgress({
       stage: 'indexing',
@@ -817,7 +802,7 @@ async function streamImportSingle(
 
     logger?.perfDetail(
       `[Stages] parser=${timings.parserMs.toFixed(1)}ms | message-write=${timings.messageWriteMs.toFixed(1)}ms | ` +
-        `indexes=${timings.indexCreationMs.toFixed(1)}ms | fts=${timings.ftsMs.toFixed(1)}ms | ` +
+        `indexes=${timings.indexCreationMs.toFixed(1)}ms | ` +
         `session-index=${timings.sessionIndexMs.toFixed(1)}ms | hook=${timings.postImportHookMs.toFixed(1)}ms`
     )
     logger?.perf('Import completed', totalMessageCount)

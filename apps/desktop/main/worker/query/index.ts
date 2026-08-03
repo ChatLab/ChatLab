@@ -96,6 +96,3 @@ export type { ChatSessionItem, SessionMessagesResult } from './session'
 
 // NLP 查询
 export { getWordFrequency } from './nlp'
-
-// FTS 索引管理
-export { hasFtsIndex, buildFtsIndex, rebuildFtsIndex } from './fts'

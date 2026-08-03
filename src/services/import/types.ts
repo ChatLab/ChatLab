@@ -81,7 +81,6 @@ export interface ImportPerformanceDiagnosticsInfo {
     messageWriteMs: number
     nicknameHistoryMs: number
     indexCreationMs: number
-    ftsMs: number
     checkpointMs: number
     sessionIndexMs: number
     postImportHookMs: number

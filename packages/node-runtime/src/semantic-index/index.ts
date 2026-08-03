@@ -2,7 +2,7 @@
  * 语义索引模块（Phase 1）
  *
  * 独立于 dormant 的旧 `ai/rag` 模块，按 chunking-decision-final.md 重新实现：
- * 向量存储、parent/child chunker、embedding provider、混合召回与后台预热。
+ * 向量存储、parent/child chunker、embedding provider、dense 召回与后台预热。
  */
 
 export { EmbeddingIndexStore } from './store'
@@ -23,14 +23,7 @@ export type {
   EnableParams,
   ProgressPatch,
 } from './session-state-store'
-export type {
-  ChunkRecord,
-  ChunkInsert,
-  ChunkStatus,
-  DenseQueryParams,
-  DenseQueryResult,
-  MessageToChunkParams,
-} from './types'
+export type { ChunkRecord, ChunkInsert, ChunkStatus, DenseQueryParams, DenseQueryResult } from './types'
 export {
   CHUNKER_VERSION,
   STRATEGY_ID,
@@ -120,8 +113,6 @@ export type {
 } from './warmup/runner'
 export { SemanticIndexJobQueue } from './warmup/job-queue'
 export type { SemanticIndexJob, SemanticIndexJobType, JobContext, JobExecutor } from './warmup/job-queue'
-export { reciprocalRankFusion } from './retrieval/rrf'
-export type { RrfResult } from './retrieval/rrf'
 export { semanticSearch } from './retrieval/semantic-search'
 export type {
   SemanticSearchDeps,
@@ -131,7 +122,6 @@ export type {
 } from './retrieval/semantic-search'
 export { createChatDbMessageSource } from './chat-db/message-source'
 export { createChatDbMessageRangeReader } from './chat-db/message-range-reader'
-export { createChatDbFtsSearcher, extractFtsKeywords } from './chat-db/fts-searcher'
 export { assembleEvidence, formatEvidenceMessages } from './retrieval/evidence'
 export type {
   EvidenceMessage,

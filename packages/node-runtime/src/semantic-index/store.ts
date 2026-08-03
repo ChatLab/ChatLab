@@ -5,21 +5,13 @@
  * - 初始化元数据表与按维度的 vec0 表。
  * - 写入 chunk 元数据与向量（同一事务，rowid 关联）。
  * - dense ANN 查询（限定 db_path_hash + model_id 分区）。
- * - FTS message_id -> chunk 的 O(log n) 范围映射。
  *
  * P0-1 硬约定：vec0 的 INTEGER 列与 k 参数绑定必须使用 CAST(? AS INTEGER)。
  */
 
 import Database from 'better-sqlite3'
 import * as sqliteVec from 'sqlite-vec'
-import type {
-  ChunkInsert,
-  ChunkRecord,
-  ChunkStatus,
-  DenseQueryParams,
-  DenseQueryResult,
-  MessageToChunkParams,
-} from './types'
+import type { ChunkInsert, ChunkRecord, ChunkStatus, DenseQueryParams, DenseQueryResult } from './types'
 import { EMBEDDING_INDEX_SCHEMA, vecTableName, vecTableSchema } from './schema'
 
 /** 加载 sqlite-vec 扩展。Electron 打包后可注入自定义实现处理 asar 解包路径。 */
@@ -191,36 +183,6 @@ export class EmbeddingIndexStore {
     >
 
     return rows.map((row) => ({ chunkId: row.chunk_id, distance: row.distance, record: rowToRecord(row) }))
-  }
-
-  /**
-   * FTS message -> chunk 映射。按 (ts, id) 复合查找：取 (start_ts, start_message_id) <= (messageTs, messageId)
-   * 的最大值，再校验 end 覆盖。
-   * - 用 ts 而非 ID 做主键：回填旧消息后 ID 不再单调
-   * - 用 (ts, id) 复合而非仅 ts：同秒多 chunk 时 ts 相同，需 id 打破 tie
-   */
-  mapMessageToChunk(params: MessageToChunkParams): ChunkRecord | null {
-    const row = this.db
-      .prepare(
-        `SELECT ${CHUNK_COLUMNS} FROM chunk_vector_index
-         WHERE db_path_hash = ? AND model_id = ? AND strategy_id = ?
-           AND (start_ts < CAST(? AS INTEGER)
-                OR (start_ts = CAST(? AS INTEGER) AND start_message_id <= CAST(? AS INTEGER)))
-         ORDER BY start_ts DESC, start_message_id DESC LIMIT 1`
-      )
-      .get(
-        params.dbPathHash,
-        params.modelId,
-        params.strategyId,
-        params.messageTs,
-        params.messageTs,
-        params.messageId
-      ) as ChunkRow | undefined
-
-    if (!row) return null
-    if (row.end_ts < params.messageTs) return null
-    if (row.end_ts === params.messageTs && row.end_message_id < params.messageId) return null
-    return rowToRecord(row)
   }
 
   /** 删除某聊天库（全模型）的所有 chunk 元数据与向量，返回删除的元数据行数 */
