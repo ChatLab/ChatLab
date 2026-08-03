@@ -13,7 +13,7 @@ This document defines the standard import protocol for external data sources to 
 - **Push mode** (this document): The external system actively pushes data to ChatLab's import endpoint. Suitable for script integrations and one-time file imports.
 - **[Pull mode](./chatlab-pull.md)**: A third-party exposes standard HTTP endpoints and ChatLab pulls data on demand. **The recommended integration approach for third-party tools.**
 
-Both modes share the same underlying import pipeline (deduplication, meta/members update, FTS indexing). Data format is unified as [ChatLab Format](./chatlab-format.md).
+Both modes share the same underlying import pipeline (deduplication, meta/members updates, and session-index maintenance). Data format is unified as [ChatLab Format](./chatlab-format.md).
 
 :::
 

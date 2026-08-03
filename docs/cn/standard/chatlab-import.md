@@ -13,7 +13,7 @@ outline: deep
 - **Push 模式**（本文档）：外部系统主动将数据推送到 ChatLab 的导入接口。适用于脚本集成、一次性文件导入等场景。
 - **[Pull 模式](./chatlab-pull.md)**：第三方暴露标准 HTTP 端点，ChatLab 主动拉取数据。**推荐的第三方集成方式。**
 
-两种模式底层共用同一套导入逻辑（去重、meta/members 更新、FTS 索引），数据格式统一为 [ChatLab Format](./chatlab-format.md)。
+两种模式底层共用同一套导入逻辑（去重、meta/members 更新、会话索引维护），数据格式统一为 [ChatLab Format](./chatlab-format.md)。
 
 :::
 

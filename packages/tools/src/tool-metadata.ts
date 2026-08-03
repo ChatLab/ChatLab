@@ -25,7 +25,7 @@ const ENGLISH_TOOL_METADATA: Record<string, EnglishToolMetadata> = {
   },
   deep_search_messages: {
     description:
-      'Search messages using slower substring matching. Use this for exact full-text matches or when regular search misses results.',
+      'Search messages using slower substring matching. Use this for exact phrase matches or when regular search misses results.',
     properties: {
       keywords: 'Keywords to search for.',
       sender_id: 'Filter by sender ID obtained from get_members.',

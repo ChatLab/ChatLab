@@ -239,7 +239,7 @@ ChatLab periodically performs incremental pulls on subscribed conversations at t
 GET {baseUrl}/sessions/{sessionId}/messages?format=chatlab&since={lastPullAt}
 ```
 
-The remote data source returns incremental messages since `lastPullAt`. ChatLab processes them through the internal import pipeline (deduplication, meta/members update, FTS indexing — all the same as Push mode).
+The remote data source returns incremental messages since `lastPullAt`. ChatLab processes them through the internal import pipeline (deduplication, meta/members updates, and session-index maintenance — all the same as Push mode).
 
 ---
 

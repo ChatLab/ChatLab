@@ -239,7 +239,7 @@ ChatLab 按用户配置的间隔，定期对已订阅的对话执行增量拉取
 GET {baseUrl}/sessions/{sessionId}/messages?format=chatlab&since={lastPullAt}
 ```
 
-远程数据源返回 `since` 之后的增量消息。ChatLab 通过内部导入管道处理（去重、meta/members 更新、FTS 索引等全部复用 Push 模式逻辑）。
+远程数据源返回 `since` 之后的增量消息。ChatLab 通过内部导入管道处理（去重、meta/members 更新、会话索引维护等全部复用 Push 模式逻辑）。
 
 ---
 

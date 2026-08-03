@@ -2,7 +2,7 @@
  * 证据块组装
  *
  * chunking-decision-final.md 第 14 节：
- * - RRF 后取 topK 命中 chunk，每个命中在 parent 内前后各扩展若干条消息，不跨 parent。
+ * - 语义检索后取 topK 命中 chunk，每个命中在 parent 内前后各扩展若干条消息，不跨 parent。
  * - 相邻命中可合并，但合并后超过单块 soft cap 则拆开注入。
  * - 总证据预算固定 1500 token：不够时优先减少前后扩展，再减少 chunk 数。
  *
