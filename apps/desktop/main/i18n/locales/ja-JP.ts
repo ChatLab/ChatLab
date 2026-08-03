@@ -47,8 +47,8 @@ export default {
     migrationV3Desc:
       'セッションインデックス関連テーブル（segment、message_context）と session_gap_threshold フィールドを追加',
     migrationV3Message: 'セッションのタイムライン表示と AI 拡張分析に対応',
-    migrationV4Desc: 'FTS5 全文検索インデックス（message_fts）を作成しインデックスデータを構築',
-    migrationV4Message: '全文検索に対応し、キーワード検索速度が大幅に向上',
+    migrationV4Desc: '旧バージョンのデータベース移行順序を維持',
+    migrationV4Message: '廃止された検索データを再構築せず、軽量な互換処理のみ実行します',
     migrationV5Desc: '旧バージョンのメンバーおよびメッセージフィールドを修復',
     migrationV5Message: '現在のバージョンと互換性を保つため、旧データベースのフィールドを更新します',
     migrationV6Desc: 'セッションインデックスを segment スキーマに更新',
@@ -58,6 +58,8 @@ export default {
     migrationV8Desc: '分析ツールのパフォーマンスインデックスを追加',
     migrationV8Message:
       '分析ツールのクエリを高速化するパフォーマンスインデックスを追加します（既存データには影響しません）',
+    migrationV9Desc: '廃止された会話単位の全文検索インデックスを削除',
+    migrationV9Message: '使用されていない派生検索インデックスのみ削除し、チャットデータは保持します',
     integrityError:
       'データベース構造が不完全です：meta テーブルがありません。このデータベースファイルを削除して再インポートすることをお勧めします。',
     checkFailed: 'データベースチェックに失敗しました: {{error}}',

@@ -20,9 +20,6 @@ export {
 // 词频统计
 export { computeWordFrequency, segmentText } from './word-frequency'
 
-// FTS tokenizer
-export { tokenizeForFts, tokenizeQueryForFts } from './fts-tokenizer'
-
 // 词库管理
 export {
   isDictDownloaded,

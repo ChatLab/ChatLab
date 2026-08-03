@@ -3,7 +3,7 @@
  *
  * Bug history: when no custom dict existed on disk, every getJieba() call
  * invalidated the cache and rebuilt a Jieba instance, making hot paths
- * (FTS indexing tokenizes every message) rebuild jieba per call and slowing
+ * (bulk NLP analysis tokenizes many messages) rebuild jieba per call and slowing
  * imports by seconds. The cache must only invalidate when the on-disk dict
  * state actually changes (dict added or removed).
  */

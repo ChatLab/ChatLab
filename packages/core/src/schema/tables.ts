@@ -4,11 +4,11 @@
  * 所有 CREATE TABLE / INDEX 语句的单一事实来源。
  * 新建数据库时使用完整 Schema，现有数据库通过迁移脚本演进。
  *
- * 当前 Schema 版本：7
+ * 当前 Schema 版本：9
  */
 
 /** 当前 Schema 版本（最新迁移的版本号） */
-export const CURRENT_SCHEMA_VERSION = 8
+export const CURRENT_SCHEMA_VERSION = 9
 
 /**
  * Table DDL only (no indexes). Used by bulk-import workflows that defer
@@ -92,7 +92,7 @@ export const CHAT_DB_INDEXES = `
 `
 
 /**
- * Combined tables + indexes DDL (Schema Version 4).
+ * Combined tables + indexes DDL for the current schema.
  * For new database creation where deferred indexing is not needed.
  */
 export const CHAT_DB_SCHEMA = CHAT_DB_TABLES + CHAT_DB_INDEXES

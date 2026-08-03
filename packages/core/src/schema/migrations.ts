@@ -2,7 +2,7 @@
  * 数据库迁移框架（平台无关）
  *
  * 提供 Schema 版本检测和通用迁移执行逻辑。
- * 具体的迁移脚本由各平台运行时注册（因为某些迁移依赖 NLP 分词器等平台特性）。
+ * 具体的迁移脚本由运行时注册，迁移本身只依赖 DatabaseAdapter。
  */
 
 import type { DatabaseAdapter } from '../interfaces'

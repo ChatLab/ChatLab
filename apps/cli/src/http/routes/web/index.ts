@@ -9,7 +9,7 @@
  *   members   – Member management
  *   analytics – Stats and advanced analytics
  *   sql       – SQL Lab and plugin query
- *   sessionIndex – Session index generation + FTS
+ *   sessionIndex – Session index generation
  *   summaries – LLM summary generation
  *   import    – File / directory / incremental import + demo
  *   merge     – Merge parse / conflicts / execute

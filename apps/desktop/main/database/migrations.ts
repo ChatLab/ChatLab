@@ -20,7 +20,6 @@ import {
 } from '@openchatlab/node-runtime/src/migrations/chat-db-migrations'
 import { raiseDataDirMinRuntimeVersion, type RuntimeIdentity } from '@openchatlab/node-runtime/src/data-dir-compat'
 import { t } from '../i18n'
-import { tokenizeForFts } from '@openchatlab/node-runtime/src/nlp/fts-tokenizer'
 
 export { CURRENT_SCHEMA_VERSION }
 
@@ -83,7 +82,7 @@ export function migrateDatabase(
   }
 
   const beforeVersion = getSchemaVersion(adapter)
-  const migrations = getChatDbMigrations({ tokenizeForFts })
+  const migrations = getChatDbMigrations()
   const migrated = runMigrations(adapter, migrations, forceRepair)
   if (!migrated || !options.pathProvider || !options.runtime) return migrated
 
@@ -114,7 +113,7 @@ export function needsMigration(db: Database.Database): boolean {
  * Get pending migration info for UI display (with i18n).
  */
 export function getPendingMigrationInfos(fromVersion = 0): MigrationInfo[] {
-  const migrations = getChatDbMigrations({ tokenizeForFts })
+  const migrations = getChatDbMigrations()
   return migrations
     .filter((m) => m.version > fromVersion)
     .map((m) => {

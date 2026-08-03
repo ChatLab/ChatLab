@@ -178,8 +178,6 @@ export {
   downloadDict,
   deleteDict,
   ensureDefaultDict,
-  tokenizeForFts,
-  tokenizeQueryForFts,
 } from './nlp'
 
 // AI 助手/技能解析器 + 对话管理
@@ -386,7 +384,6 @@ export type { OverviewCache, MembersCache, MemberStat } from './cache'
 
 // Chat DB migrations
 export { getChatDbMigrations } from './migrations'
-export type { MigrationDeps } from './migrations'
 
 // Electron data migration (CLI first-run) + data path verification
 export { migrateFromElectronIfNeeded, verifyCliDataPath, wasElectronUsed } from './migrations'

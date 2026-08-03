@@ -86,11 +86,15 @@ test('migrateDatabase writes data directory compatibility meta after segment sch
 })
 
 test('getPendingMigrationInfos maps each version to its own localized message', () => {
+  const v4 = getPendingMigrationInfos(3)[0]
+  assert.equal(v4.version, 4)
+  assert.doesNotMatch(v4.userMessage, /FTS|full-text|全文/i)
+
   const migrations = getPendingMigrationInfos(6)
 
   assert.deepEqual(
     migrations.map((m) => m.version),
-    [7, 8]
+    [7, 8, 9]
   )
 
   const v7 = migrations[0]
@@ -101,4 +105,8 @@ test('getPendingMigrationInfos maps each version to its own localized message', 
   const v8 = migrations[1]
   assert.match(v8.userMessage, /index|索引|インデックス/i)
   assert.doesNotMatch(v8.userMessage, /Owner/)
+
+  const v9 = migrations[2]
+  assert.match(v9.userMessage, /search|index|搜索|搜尋|検索|索引|インデックス/i)
+  assert.doesNotMatch(v9.userMessage, /Owner/)
 })

@@ -150,7 +150,7 @@ function elapsedMs(startedAt: number, now: () => number): number {
 /**
  * Let the event loop process pending I/O before a long synchronous step.
  * Without this, progress events written to an SSE socket stay buffered
- * until the blocking work (index/FTS build) finishes.
+ * until the blocking index work finishes.
  */
 const yieldToEventLoop = () => new Promise<void>((resolve) => setImmediate(resolve))
 

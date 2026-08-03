@@ -99,7 +99,7 @@ export async function searchMessages(
 }
 
 /**
- * Deep search (always LIKE, no FTS).
+ * Deep search compatibility alias using the same LIKE implementation.
  */
 export async function deepSearchMessages(
   sessionId: string,

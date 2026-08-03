@@ -5,7 +5,7 @@
  * consume via their respective AsyncSqlExecutor implementations.
  *
  * SQL templates, row mapping, and condition builders come from ./message-sql.ts.
- * FTS/tokenisation search remains platform-specific — only LIKE-based search is shared here.
+ * All runtimes share the LIKE-based message search implemented here.
  */
 
 import type { TimeFilter } from '@openchatlab/shared-types'

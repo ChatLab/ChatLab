@@ -114,7 +114,7 @@ test('open migrates legacy member name columns before readonly queries', () => {
   manager.closeAll()
 })
 
-test('open backfills FTS index when migrating legacy sessions', () => {
+test('open upgrades v3 sessions without building the removed FTS index', () => {
   const root = makeTempDir()
   const dbDir = path.join(root, 'data', 'databases')
   fs.mkdirSync(dbDir, { recursive: true })
@@ -130,7 +130,7 @@ test('open backfills FTS index when migrating legacy sessions', () => {
       schema_version INTEGER DEFAULT 3
     );
     INSERT INTO meta (name, platform, type, imported_at, schema_version)
-    VALUES ('FTS Legacy Chat', 'qq', 'group', 1000, 3);
+    VALUES ('Legacy Chat', 'qq', 'group', 1000, 3);
 
     CREATE TABLE member (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -158,13 +158,88 @@ test('open backfills FTS index when migrating legacy sessions', () => {
   const version = db.prepare('SELECT schema_version FROM meta LIMIT 1').get() as { schema_version: number }
   assert.equal(version.schema_version, CURRENT_SCHEMA_VERSION)
 
-  const ftsCount = db.prepare('SELECT COUNT(*) as total FROM message_fts').get() as { total: number }
-  assert.equal(ftsCount.total, 1)
+  const messages = db.prepare('SELECT type, content FROM message ORDER BY id').all()
+  assert.deepEqual(messages, [
+    { type: 0, content: 'hello searchable history' },
+    { type: 1, content: 'image message ignored' },
+  ])
+  const ftsTable = db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'message_fts'").get()
+  assert.equal(ftsTable, undefined)
 
-  const searchCount = db
-    .prepare("SELECT COUNT(*) as total FROM message_fts WHERE content MATCH 'searchable'")
-    .get() as { total: number }
-  assert.equal(searchCount.total, 1)
+  manager.closeAll()
+})
+
+test('open removes a populated v8 FTS table without changing canonical chat data or raising a new gate', () => {
+  const root = makeTempDir()
+  const dbDir = path.join(root, 'data', 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+  const dbPath = path.join(dbDir, 'v8-with-fts.db')
+
+  const rawDb = new Database(dbPath, { nativeBinding })
+  rawDb.exec(CHAT_DB_SCHEMA)
+  rawDb.exec(`
+    INSERT INTO meta (name, platform, type, imported_at, schema_version)
+    VALUES ('V8 Chat', 'qq', 'group', 1000, 8);
+    INSERT INTO member (id, platform_id, account_name) VALUES (1, 'u1', 'Alice');
+    INSERT INTO message (id, sender_id, ts, type, content)
+    VALUES (1, 1, 1000, 0, 'canonical message');
+    CREATE VIRTUAL TABLE message_fts USING fts5(content, content='', content_rowid=id);
+    INSERT INTO message_fts(rowid, content) VALUES (1, 'canonical message');
+  `)
+  rawDb.close()
+
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.34.2', kind: 'cli' },
+  })
+  const db = manager.open('v8-with-fts')
+  assert.ok(db)
+
+  const version = db.prepare('SELECT schema_version FROM meta LIMIT 1').get() as { schema_version: number }
+  assert.equal(version.schema_version, CURRENT_SCHEMA_VERSION)
+  assert.deepEqual(db.prepare('SELECT id, content FROM message').get(), { id: 1, content: 'canonical message' })
+  assert.equal(
+    db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'message_fts'").get(),
+    undefined
+  )
+
+  const compatibility = readDataDirCompatibilityMeta(path.join(root, 'data'))
+  assert.equal(compatibility?.minRuntimeVersion, '0.25.1')
+  assert.deepEqual(compatibility?.reasons, ['segment-schema'])
+
+  manager.closeAll()
+})
+
+test('open safely upgrades a v8 session that has no FTS table', () => {
+  const root = makeTempDir()
+  const dbDir = path.join(root, 'data', 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+  const dbPath = path.join(dbDir, 'v8-without-fts.db')
+
+  const rawDb = new Database(dbPath, { nativeBinding })
+  rawDb.exec(CHAT_DB_SCHEMA)
+  rawDb.exec(`
+    INSERT INTO meta (name, platform, type, imported_at, schema_version)
+    VALUES ('V8 Chat', 'qq', 'group', 1000, 8);
+    INSERT INTO member (id, platform_id, account_name) VALUES (1, 'u1', 'Alice');
+    INSERT INTO message (id, sender_id, ts, type, content)
+    VALUES (1, 1, 1000, 0, 'message without FTS');
+  `)
+  rawDb.close()
+
+  const manager = new DatabaseManager(createPathProvider(root), { nativeBinding, allowMissingRuntimeForTests: true })
+  const db = manager.open('v8-without-fts')
+  assert.ok(db)
+
+  assert.deepEqual(db.prepare('SELECT schema_version, name FROM meta LIMIT 1').get(), {
+    schema_version: CURRENT_SCHEMA_VERSION,
+    name: 'V8 Chat',
+  })
+  assert.equal((db.prepare('SELECT COUNT(*) AS count FROM message').get() as { count: number }).count, 1)
+  assert.equal(
+    db.prepare("SELECT name FROM sqlite_master WHERE type = 'table' AND name = 'message_fts'").get(),
+    undefined
+  )
 
   manager.closeAll()
 })
@@ -744,8 +819,10 @@ test('openRawSessionDatabase can initialize current chat tables for controlled i
 
   const metaTable = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'meta'").get()
   const messageTable = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'message'").get()
+  const ftsTable = db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = 'message_fts'").get()
   assert.ok(metaTable)
   assert.ok(messageTable)
+  assert.equal(ftsTable, undefined)
   db.close()
 })
 

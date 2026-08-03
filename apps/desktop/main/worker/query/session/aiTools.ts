@@ -1,7 +1,7 @@
 /**
  * AI tool session queries — Electron worker wrappers.
  * Core search/messages logic lives in @openchatlab/core;
- * Electron adds FTS tokenization and DB lifecycle.
+ * Electron adds database lifecycle management.
  */
 
 import { getSegmentMessages as coreGetSessionMessages } from '@openchatlab/core'

@@ -20,28 +20,14 @@ import {
 import { openBetterSqliteDatabase } from './better-sqlite3-adapter'
 import { deleteSessionCache } from './cache/session-cache'
 import { assertDataDirCompatible, type RuntimeIdentity } from './data-dir-compat'
-import {
-  CHAT_DB_COMPATIBILITY_RAISES,
-  getChatDbMigrations,
-  raiseChatDbCompatibilityGate,
-  type MigrationDeps,
-} from './migrations'
-import { tokenizeForFts } from './nlp/fts-tokenizer'
+import { CHAT_DB_COMPATIBILITY_RAISES, getChatDbMigrations, raiseChatDbCompatibilityGate } from './migrations'
 import { getContactsFactsCacheDir } from './services/contacts/paths'
 import { getGlobalInsightDir, getGlobalInsightFactsCacheDir } from './services/global-insight/paths'
 import { deleteAnnualSummarySnapshots } from './services/global-insight/snapshot'
 import { getPeopleRelationshipsFactsCacheDir } from './services/people/relationships/paths'
 
-function createMigrationDeps(overrides?: MigrationDeps): MigrationDeps {
-  return {
-    tokenizeForFts,
-    ...overrides,
-  }
-}
-
 interface DatabaseManagerOptions {
   nativeBinding?: string
-  migrationDeps?: MigrationDeps
   runtime?: RuntimeIdentity
   allowMissingRuntimeForTests?: boolean
 }
@@ -68,7 +54,6 @@ export function listDatabaseCandidateIds(databaseDir: string): string[] {
 export class DatabaseManager {
   private cache = new Map<string, DatabaseAdapter>()
   private nativeBinding?: string
-  private migrationDeps?: MigrationDeps
   private runtime: RuntimeIdentity | null
 
   constructor(
@@ -80,7 +65,6 @@ export class DatabaseManager {
     }
 
     this.nativeBinding = options?.nativeBinding
-    this.migrationDeps = createMigrationDeps(options?.migrationDeps)
     this.runtime = options?.runtime ?? null
   }
 
@@ -128,7 +112,7 @@ export class DatabaseManager {
     })
 
     try {
-      const migrations = getChatDbMigrations(this.migrationDeps)
+      const migrations = getChatDbMigrations()
       this.runMigrations(adapter, migrations)
     } finally {
       adapter.close()
@@ -159,7 +143,7 @@ export class DatabaseManager {
     })
 
     if (coreNeedsMigration(adapter, CURRENT_SCHEMA_VERSION)) {
-      const migrations = getChatDbMigrations(this.migrationDeps)
+      const migrations = getChatDbMigrations()
       this.runMigrations(adapter, migrations)
       this.assertCompatible()
     } else {

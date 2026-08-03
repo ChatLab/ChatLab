@@ -3,7 +3,7 @@
  *
  * Replaces the old buffered-in-memory approach with the same high-performance
  * streaming pipeline used by Electron (batched transactions, deferred indexes,
- * nickname history, FTS, format fallback).
+ * nickname history, indexes, and format fallback).
  */
 
 import type { DatabaseManager } from '@openchatlab/node-runtime'
@@ -142,7 +142,7 @@ function deleteSessionDatabase(dbManager: DatabaseManager, sessionId: string): v
 
 /**
  * High-performance streaming import: parse a file and write to DB
- * with batched transactions, deferred indexes, and FTS.
+ * with batched transactions and deferred indexes.
  */
 async function streamImportUnlocked(
   dbManager: DatabaseManager,

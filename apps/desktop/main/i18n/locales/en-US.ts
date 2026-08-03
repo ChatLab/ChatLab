@@ -46,8 +46,8 @@ export default {
     migrationV2Message: 'Support member roles, message reply relationships and reply preview',
     migrationV3Desc: 'Add session index tables (segment, message_context) and session_gap_threshold field',
     migrationV3Message: 'Support session timeline browsing and AI-enhanced analysis',
-    migrationV4Desc: 'Create FTS5 full-text search index (message_fts) and build index data',
-    migrationV4Message: 'Enable full-text search for significantly faster keyword search',
+    migrationV4Desc: 'Keep the legacy database migration sequence compatible',
+    migrationV4Message: 'Apply a lightweight compatibility step without rebuilding removed search data',
     migrationV5Desc: 'Repair legacy member and message fields',
     migrationV5Message: 'Update legacy database fields for compatibility with the current version',
     migrationV6Desc: 'Upgrade the session index to the segment schema',
@@ -57,6 +57,8 @@ export default {
     migrationV8Desc: 'Add analysis tool performance indexes',
     migrationV8Message:
       'Add performance indexes for analysis tools to speed up queries without affecting existing data',
+    migrationV9Desc: 'Remove the obsolete per-session full-text search index',
+    migrationV9Message: 'Remove an unused derived search index while preserving all chat data',
     integrityError:
       'Database structure is incomplete: missing meta table. Please delete this database file and re-import.',
     checkFailed: 'Database check failed: {{error}}',

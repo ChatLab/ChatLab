@@ -3,18 +3,12 @@
  *
  * Extracted from electron/main/database/migrations.ts.
  * Migration scripts use only DatabaseAdapter — no Electron or Node-specific APIs.
- * Version 4 (FTS backfill) requires a tokenizer injected via MigrationDeps.
  */
 
 import type { DatabaseAdapter } from '@openchatlab/core'
 import type { PathProvider } from '@openchatlab/core'
 import type { Migration as CoreMigration } from '@openchatlab/core'
 import { raiseDataDirMinRuntimeVersion, type RuntimeIdentity } from '../data-dir-compat'
-
-export interface MigrationDeps {
-  /** FTS tokenizer — needed by v4 migration for backfilling the FTS index */
-  tokenizeForFts?: (content: string) => string | null
-}
 
 export interface ChatDbCompatibilityRaise {
   migrationVersion: number
@@ -34,6 +28,9 @@ export const CHAT_DB_COMPATIBILITY_RAISES: ChatDbCompatibilityRaise[] = [
   },
 ]
 
+// Migration 9 intentionally does not raise the data-directory gate. ChatLab 0.34.2 already treats the
+// derived FTS table as optional: searches fall back to LIKE and incremental writers skip missing tables.
+
 export function raiseChatDbCompatibilityGate(pathProvider: PathProvider, runtime: RuntimeIdentity): void {
   for (const compatibilityRaise of CHAT_DB_COMPATIBILITY_RAISES) {
     raiseDataDirMinRuntimeVersion(pathProvider, {
@@ -49,10 +46,9 @@ export function raiseChatDbCompatibilityGate(pathProvider: PathProvider, runtime
 /**
  * Build the chat DB migration list.
  *
- * @param deps Optional dependencies (tokenizer for FTS backfill)
  * @returns Array of migrations compatible with core `runMigrations`
  */
-export function getChatDbMigrations(deps?: MigrationDeps): CoreMigration[] {
+export function getChatDbMigrations(): CoreMigration[] {
   const hasColumn = (db: DatabaseAdapter, tableName: string, columnName: string): boolean => {
     const tableInfo = db.pragma(`table_info(${tableName})`) as Array<{ name: string }>
     return tableInfo.some((col) => col.name === columnName)
@@ -144,51 +140,9 @@ export function getChatDbMigrations(deps?: MigrationDeps): CoreMigration[] {
     },
     {
       version: 4,
-      description: 'Add FTS5 full-text search index',
-      up: (db: DatabaseAdapter) => {
-        const hasTable = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='message_fts'").get()
-        if (hasTable) return
-
-        db.exec(`
-          CREATE VIRTUAL TABLE IF NOT EXISTS message_fts USING fts5(
-            content,
-            content='',
-            content_rowid=id
-          )
-        `)
-
-        const tokenize = deps?.tokenizeForFts
-        if (!tokenize) return
-
-        const BATCH_SIZE = 5000
-        const insertFts = db.prepare('INSERT INTO message_fts(rowid, content) VALUES (?, ?)')
-
-        const countRow = db
-          .prepare("SELECT COUNT(*) as total FROM message WHERE type = 0 AND content IS NOT NULL AND content != ''")
-          .get() as { total: number } | undefined
-
-        const total = countRow?.total ?? 0
-        let offset = 0
-        while (offset < total) {
-          const rows = db
-            .prepare(
-              `SELECT id, content FROM message
-               WHERE type = 0 AND content IS NOT NULL AND content != ''
-               ORDER BY id ASC LIMIT ? OFFSET ?`
-            )
-            .all(BATCH_SIZE, offset) as Array<{ id: number; content: string }>
-
-          if (rows.length === 0) break
-
-          for (const row of rows) {
-            const tokens = tokenize(row.content)
-            if (tokens) {
-              insertFts.run(row.id, tokens)
-            }
-          }
-
-          offset += BATCH_SIZE
-        }
+      description: 'Preserve the legacy schema migration sequence',
+      up: () => {
+        // Version 4 remains as a compatibility marker. New runtimes no longer build the removed derived FTS table.
       },
     },
     {
@@ -409,6 +363,13 @@ export function getChatDbMigrations(deps?: MigrationDeps): CoreMigration[] {
           CREATE INDEX IF NOT EXISTS idx_message_type_ts ON message(type, ts);
           CREATE INDEX IF NOT EXISTS idx_message_reply_to ON message(reply_to_message_id);
         `)
+      },
+    },
+    {
+      version: 9,
+      description: 'Remove the obsolete per-session full-text index',
+      up: (db: DatabaseAdapter) => {
+        db.exec('DROP TABLE IF EXISTS message_fts')
       },
     },
   ]

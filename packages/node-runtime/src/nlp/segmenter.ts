@@ -69,7 +69,7 @@ export function getJieba(dictType: DictType = 'default'): JiebaInstance {
   if (cached) {
     // Only invalidate when the on-disk dict state changed since the instance
     // was built (dict added or removed). Instances built without a disk dict
-    // must stay cached, otherwise hot paths (e.g. FTS indexing) would rebuild
+    // must stay cached, otherwise bulk NLP hot paths would rebuild
     // a Jieba instance per call.
     if (cached.fromDiskDict === existsDictOnDisk(effectiveType)) return cached.instance
     jiebaInstances.delete(effectiveType)

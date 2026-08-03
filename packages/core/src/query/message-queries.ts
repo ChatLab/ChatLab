@@ -2,7 +2,7 @@
  * 消息查询模块（平台无关）
  *
  * 提供消息搜索、分页等基础查询能力。
- * 复杂的 FTS 搜索留在 Electron/Server 层处理（依赖分词器）。
+ * 所有运行时统一使用平台无关的 LIKE 查询。
  */
 
 import type { TimeFilter } from '@openchatlab/shared-types'
@@ -140,7 +140,7 @@ export function queryMessages(db: DatabaseAdapter, options?: QueryMessagesOption
 
 /**
  * 基于 LIKE 的简单关键词搜索
- * 不依赖 FTS 索引，适用于 CLI/MCP 场景
+ * 使用 LIKE 子串匹配，适用于 CLI/MCP 场景。
  */
 export function searchMessagesLike(
   db: DatabaseAdapter,
@@ -202,7 +202,7 @@ export function searchMessagesLike(
 /**
  * 多关键词 LIKE 子串搜索（关键词之间 OR，命中任一即返回）
  *
- * 适用于 CLI/MCP/Web 等无 FTS 的场景，行为与 Electron worker 的
+ * 适用于 CLI/MCP/Web 等场景，行为与 Electron worker 的
  * searchMessagesLikeAsync 一致：支持时间范围、发送者过滤，并排除系统消息。
  */
 export function searchMessagesByKeywords(
