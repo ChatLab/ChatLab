@@ -80,4 +80,5 @@
 
 ## 提交规范
 
+- 分支规则：除执行发版工作流外，禁止直接在 `main` 分支创建 commit；开始任何非发版开发前，必须新建或切换到功能分支。
 - Commit 规范：使用 Conventional Commits。scope 规则——通用改动 scope 随意（如 `ai`、`import`、`sidebar` 等模块名）；仅当改动是**平台特有**时才使用平台 scope（`electron`、`cli`、`web`）。
