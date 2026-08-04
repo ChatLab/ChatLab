@@ -51,7 +51,7 @@ function toParsedMember(member: NativeMember, fromHead: boolean): ParsedMember {
 }
 
 const chatlabAdapter: NativeFormatAdapter = {
-  formatId: 'chatlab',
+  kernelId: 'chatlab',
   label: 'ChatLab JSON',
 
   mapMeta(metaJson: unknown): ParsedMeta {

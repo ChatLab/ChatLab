@@ -3,11 +3,12 @@ import * as readline from 'readline'
 import { KNOWN_PLATFORMS } from '@openchatlab/shared-types'
 
 import { QQ_HEAD_SIGNATURES, QqTextAccumulator } from '../browser/qq'
+import { PARSER_FORMAT_IDS } from '../format-ids'
 import type { FormatFeature, FormatModule, ParseEvent, ParseOptions, Parser } from '../types'
 import { createProgress, getFileSize } from '../utils'
 
 export const feature: FormatFeature = {
-  id: 'qq-native-txt',
+  id: PARSER_FORMAT_IDS.QQ_NATIVE,
   name: 'QQ 官方导出 (TXT)',
   platform: KNOWN_PLATFORMS.QQ,
   priority: 30,

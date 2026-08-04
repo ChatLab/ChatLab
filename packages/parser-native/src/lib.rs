@@ -31,7 +31,7 @@ use protocol::{NativeMember, NativeParseProgress};
 // ==================== Format registry ====================
 
 /// Kernel ids understood by the `NativeParser` constructor. The TS side maps
-/// sniffer format ids onto these (e.g. ycccccccy-echotrace reuses "weflow").
+/// public parser ids onto these (e.g. echotrace reuses "weflow").
 #[derive(Clone, Copy)]
 enum FormatKind {
     Weflow,

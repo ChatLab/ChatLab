@@ -12,6 +12,7 @@ import {
   importDemoSessions,
   type DatabaseManager,
 } from '@openchatlab/node-runtime'
+import { PARSER_FORMAT_IDS } from '@openchatlab/parser'
 import {
   autoImport,
   autoImportBatch,
@@ -84,7 +85,7 @@ export function registerImportRoutes(
     options.runPreparedImport ??
     (async (manifestPath: string, onProgress: (progress: unknown) => void, sessionGapThreshold?: number) => {
       const result = await runAutoImport(manifestPath, {
-        formatId: 'google-chat-takeout',
+        formatId: PARSER_FORMAT_IDS.GOOGLE_CHAT_NATIVE,
         sessionGapThreshold,
         nativeBinding: resolveNativeBinding(),
         onProgress: onProgress as any,

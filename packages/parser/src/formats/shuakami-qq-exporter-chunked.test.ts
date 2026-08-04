@@ -61,7 +61,7 @@ describe('shuakami-qq-exporter chunked parser', () => {
           .join('\n')
       )
 
-      assert.equal(detectFormat(manifestPath)?.id, 'shuakami-qq-exporter-chunked')
+      assert.equal(detectFormat(manifestPath)?.id, 'qq-shuakami-chunked')
       assert.equal(findEntryFileInDirectory(root), manifestPath)
 
       const result = await parseFileSync(manifestPath)

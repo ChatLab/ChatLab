@@ -3,11 +3,12 @@ import * as readline from 'readline'
 import { KNOWN_PLATFORMS, MessageType } from '@openchatlab/shared-types'
 
 import { WHATSAPP_FILENAME_SIGNATURES, WHATSAPP_HEAD_SIGNATURES, WhatsAppTextAccumulator } from '../browser/whatsapp'
+import { PARSER_FORMAT_IDS } from '../format-ids'
 import type { FormatFeature, FormatModule, ParseEvent, ParseOptions, Parser } from '../types'
 import { createProgress, getFileSize } from '../utils'
 
 export const feature: FormatFeature = {
-  id: 'whatsapp-native-txt',
+  id: PARSER_FORMAT_IDS.WHATSAPP_NATIVE,
   name: 'WhatsApp 官方导出 (TXT)',
   platform: KNOWN_PLATFORMS.WHATSAPP,
   priority: 25,

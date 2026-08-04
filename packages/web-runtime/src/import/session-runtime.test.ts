@@ -307,7 +307,7 @@ describe('BrowserSessionRuntime', () => {
 
     assert.deepEqual(result, {
       sessionId: 'whatsapp-system-participant',
-      formatId: 'whatsapp-native-txt',
+      formatId: 'whatsapp-native',
       messageCount: 1,
       memberCount: 1,
       skippedCount: 0,
@@ -351,11 +351,11 @@ describe('BrowserSessionRuntime', () => {
       ].join('\n')
     )
 
-    assert.equal(await runtime.detectFormat(fixture), 'whatsapp-native-txt')
+    assert.equal(await runtime.detectFormat(fixture), 'whatsapp-native')
     assert.deepEqual(
-      runtime.getSupportedFormats().find((format) => format.id === 'whatsapp-native-txt'),
+      runtime.getSupportedFormats().find((format) => format.id === 'whatsapp-native'),
       {
-        id: 'whatsapp-native-txt',
+        id: 'whatsapp-native',
         name: 'WhatsApp TXT',
         platform: 'whatsapp',
         extensions: ['.txt'],
@@ -366,7 +366,7 @@ describe('BrowserSessionRuntime', () => {
 
     assert.deepEqual(result, {
       sessionId: 'whatsapp-session',
-      formatId: 'whatsapp-native-txt',
+      formatId: 'whatsapp-native',
       messageCount: 3,
       memberCount: 3,
       skippedCount: 0,
@@ -384,7 +384,7 @@ describe('BrowserSessionRuntime', () => {
         groupAvatar: null,
         ownerId: null,
         lastMessageTs: Math.floor(new Date('2024-01-02T03:06:00').getTime() / 1000),
-        formatId: 'whatsapp-native-txt',
+        formatId: 'whatsapp-native',
       },
     ])
     const sessionDb = database.getDatabase(sessionDatabaseFilename('whatsapp-session'))
@@ -514,11 +514,11 @@ describe('BrowserSessionRuntime', () => {
       ].join('\n')
     )
 
-    assert.equal(await runtime.detectFormat(fixture), 'line-native-txt')
+    assert.equal(await runtime.detectFormat(fixture), 'line-native')
     assert.deepEqual(
-      runtime.getSupportedFormats().find((format) => format.id === 'line-native-txt'),
+      runtime.getSupportedFormats().find((format) => format.id === 'line-native'),
       {
-        id: 'line-native-txt',
+        id: 'line-native',
         name: 'LINE TXT',
         platform: 'line',
         extensions: ['.txt'],
@@ -529,7 +529,7 @@ describe('BrowserSessionRuntime', () => {
 
     assert.deepEqual(result, {
       sessionId: 'line-session',
-      formatId: 'line-native-txt',
+      formatId: 'line-native',
       messageCount: 3,
       memberCount: 3,
       skippedCount: 0,
@@ -541,7 +541,7 @@ describe('BrowserSessionRuntime', () => {
         type: session.type,
         formatId: session.formatId,
       })),
-      [{ name: 'Project Team', platform: 'line', type: 'group', formatId: 'line-native-txt' }]
+      [{ name: 'Project Team', platform: 'line', type: 'group', formatId: 'line-native' }]
     )
     const sessionDb = database.getDatabase(sessionDatabaseFilename('line-session'))
     assert.deepEqual(sessionDb?.prepare('SELECT sender_account_name, type, content FROM message ORDER BY id').all(), [
@@ -572,11 +572,11 @@ describe('BrowserSessionRuntime', () => {
       ].join('\n')
     )
 
-    assert.equal(await runtime.detectFormat(fixture), 'qq-native-txt')
+    assert.equal(await runtime.detectFormat(fixture), 'qq-native')
     assert.deepEqual(
-      runtime.getSupportedFormats().find((format) => format.id === 'qq-native-txt'),
+      runtime.getSupportedFormats().find((format) => format.id === 'qq-native'),
       {
-        id: 'qq-native-txt',
+        id: 'qq-native',
         name: 'QQ TXT',
         platform: 'qq',
         extensions: ['.txt'],
@@ -587,7 +587,7 @@ describe('BrowserSessionRuntime', () => {
 
     assert.deepEqual(result, {
       sessionId: 'qq-session',
-      formatId: 'qq-native-txt',
+      formatId: 'qq-native',
       messageCount: 2,
       memberCount: 2,
       skippedCount: 0,
@@ -599,7 +599,7 @@ describe('BrowserSessionRuntime', () => {
         type: session.type,
         formatId: session.formatId,
       })),
-      [{ name: 'Project Team', platform: 'qq', type: 'group', formatId: 'qq-native-txt' }]
+      [{ name: 'Project Team', platform: 'qq', type: 'group', formatId: 'qq-native' }]
     )
     const sessionDb = database.getDatabase(sessionDatabaseFilename('qq-session'))
     assert.deepEqual(sessionDb?.prepare('SELECT sender_account_name, type, content FROM message ORDER BY id').all(), [

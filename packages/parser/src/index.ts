@@ -31,6 +31,13 @@ export {
   type ChatLabValidationStats,
 } from './chatlab-validator'
 export { rebaseChatLabDemoDocuments, type RebasedChatLabDemoDocuments } from './chatlab-demo-timeline'
+export {
+  PARSER_FORMAT_IDS,
+  LEGACY_PARSER_FORMAT_ID_ALIASES,
+  isParserFormatId,
+  normalizeParserFormatId,
+  type ParserFormatId,
+} from './format-ids'
 
 // ==================== 全局嗅探器实例 ====================
 
@@ -79,8 +86,7 @@ export function getSupportedFormats(): FormatFeature[] {
  * 用于手动指定格式时跳过嗅探
  */
 export function getFormatFeatureById(formatId: string): FormatFeature | null {
-  const all = sniffer.getSupportedFormats()
-  return all.find((f) => f.id === formatId) ?? null
+  return sniffer.getFeatureById(formatId)
 }
 
 /**

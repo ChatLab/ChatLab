@@ -2,7 +2,7 @@
  * WeFlow adapter for the unified native-first wrapper.
  *
  * Payload shapes are identical to the pure-TS parser in formats/weflow.ts
- * (verified by parity tests). Shared by the ycccccccy-echotrace format module
+ * (verified by parity tests). Shared by the echotrace format module
  * (same data structure, same Rust kernel).
  */
 
@@ -21,7 +21,7 @@ interface WeflowMetaJson {
 }
 
 const weflowAdapter: NativeFormatAdapter = {
-  formatId: 'weflow',
+  kernelId: 'weflow',
   label: 'WeFlow export',
 
   mapMeta(metaJson: unknown): ParsedMeta {
@@ -62,7 +62,7 @@ const weflowAdapter: NativeFormatAdapter = {
 
 /**
  * Wrap a TS parse generator with native acceleration. Used by the WeFlow and
- * ycccccccy-echotrace format modules (they share the same data structure).
+ * echotrace format modules (they share the same data structure).
  */
 export function withNativeWeflow(fallback: ParseGenerator): ParseGenerator {
   return createNativeFirstParser(weflowAdapter, fallback)

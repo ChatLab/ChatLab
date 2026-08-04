@@ -240,11 +240,7 @@ describe('weflow native parser parity', { skip: !nativeAvailable() && 'native mo
         },
       ],
     }
-    const { nativeResult, tsResult } = await parseBothWays(
-      'echo.json',
-      JSON.stringify(echotrace),
-      'ycccccccy-echotrace'
-    )
+    const { nativeResult, tsResult } = await parseBothWays('echo.json', JSON.stringify(echotrace), 'echotrace')
     assertParity(nativeResult, tsResult)
     assert.equal(nativeResult.messages.length, 1)
   })

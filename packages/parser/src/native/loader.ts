@@ -10,6 +10,7 @@
 import { createRequire } from 'node:module'
 
 import type { NativeParser } from '@openchatlab/parser-native'
+import { PARSER_FORMAT_IDS, normalizeParserFormatId } from '../format-ids'
 
 export interface NativeParserModule {
   NativeParser: typeof NativeParser
@@ -81,9 +82,16 @@ export function isNativeFormatAvailable(formatId: string): boolean {
   if (!module) return false
 
   try {
-    new module.NativeParser(formatId, '')
+    new module.NativeParser(resolveNativeKernelId(formatId), '')
     return true
   } catch {
     return false
   }
+}
+
+function resolveNativeKernelId(formatId: string): string {
+  const canonicalId = normalizeParserFormatId(formatId)
+  if (canonicalId === PARSER_FORMAT_IDS.QQ_SHUAKAMI) return 'shuakami-qq-exporter'
+  if (canonicalId === PARSER_FORMAT_IDS.ECHOTRACE) return 'weflow'
+  return canonicalId
 }

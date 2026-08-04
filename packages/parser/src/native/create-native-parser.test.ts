@@ -19,7 +19,7 @@ test('falls back before data events when the native parser constructor rejects t
   const { createNativeFirstParser } = await import('./create-native-parser')
   const parser = createNativeFirstParser(
     {
-      formatId: 'shuakami-qq-exporter',
+      kernelId: 'shuakami-qq-exporter',
       label: 'shuakami/qq-chat-exporter',
       mapMeta() {
         throw new Error('native mapper must not run')

@@ -4,6 +4,7 @@ import streamJson from 'stream-json'
 import { ChatType, KNOWN_PLATFORMS } from '@openchatlab/shared-types'
 
 import { TELEGRAM_SINGLE_CHAT_TYPE_PATTERN, TELEGRAM_SINGLE_HEAD_SIGNATURES } from '../browser/telegram'
+import { PARSER_FORMAT_IDS } from '../format-ids'
 import type {
   FormatFeature,
   FormatModule,
@@ -26,7 +27,7 @@ interface JsonToken {
 }
 
 export const feature: FormatFeature = {
-  id: 'telegram-native-single',
+  id: PARSER_FORMAT_IDS.TELEGRAM_NATIVE_SINGLE,
   name: 'Telegram 单聊天导出 (JSON)',
   platform: KNOWN_PLATFORMS.TELEGRAM,
   priority: 23,

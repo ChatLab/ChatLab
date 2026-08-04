@@ -22,6 +22,7 @@ import pickModule from 'stream-json/filters/Pick.js'
 import streamValuesModule from 'stream-json/streamers/StreamValues.js'
 import streamChain from 'stream-chain'
 import { KNOWN_PLATFORMS, ChatType, MessageType } from '@openchatlab/shared-types'
+import { PARSER_FORMAT_IDS } from '../format-ids'
 import type {
   FormatFeature,
   FormatModule,
@@ -53,7 +54,7 @@ function extractNameFromFilePath(filePath: string): string {
 // ==================== 特征定义 ====================
 
 export const feature: FormatFeature = {
-  id: 'weflow',
+  id: PARSER_FORMAT_IDS.WEFLOW,
   name: 'WeFlow 导出',
   platform: KNOWN_PLATFORMS.WECHAT,
   priority: 15,
@@ -608,7 +609,7 @@ async function* parseWeFlow(options: ParseOptions): AsyncGenerator<ParseEvent, v
 
 import { withNativeWeflow } from '../native/weflow-native'
 
-// 导出解析函数供其他格式复用（如 ycccccccy-echotrace）
+// 导出解析函数供其他格式复用（如 echotrace）
 // parseWeFlowAccelerated：优先走 Rust 内核，native 不可用/失败时自动回退本文件的 TS 实现
 export { parseWeFlow }
 export const parseWeFlowAccelerated = withNativeWeflow(parseWeFlow)

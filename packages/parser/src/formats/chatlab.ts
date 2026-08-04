@@ -14,6 +14,7 @@ import pickModule from 'stream-json/filters/Pick.js'
 import streamValuesModule from 'stream-json/streamers/StreamValues.js'
 import streamChain from 'stream-chain'
 import { KNOWN_PLATFORMS, ChatType } from '@openchatlab/shared-types'
+import { PARSER_FORMAT_IDS } from '../format-ids'
 import type {
   FormatFeature,
   FormatModule,
@@ -48,7 +49,7 @@ function extractNameFromFilePath(filePath: string): string {
 // ==================== 特征定义 ====================
 
 export const feature: FormatFeature = {
-  id: 'chatlab',
+  id: PARSER_FORMAT_IDS.CHATLAB,
   name: 'ChatLab JSON',
   platform: KNOWN_PLATFORMS.UNKNOWN, // ChatLab 格式可能包含多平台数据
   priority: 50, // 低优先级，让其他格式先匹配

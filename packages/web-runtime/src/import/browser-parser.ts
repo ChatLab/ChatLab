@@ -1,4 +1,5 @@
 import {
+  PARSER_FORMAT_IDS,
   detectLineText,
   detectQqText,
   detectTelegramMultiChatJson,
@@ -12,6 +13,7 @@ import {
   parseWhatsAppText,
   parseWeFlowJson,
   scanTelegramChatsJson,
+  normalizeParserFormatId,
   type TelegramChatInfo,
 } from '@openchatlab/parser/browser'
 
@@ -28,12 +30,12 @@ import { parseWithWasm, type BrowserImportLogEvent, type BrowserWasmParserLoader
 
 export type BrowserImportFormatId =
   | ChatLabBrowserFormatId
-  | 'whatsapp-native-txt'
-  | 'line-native-txt'
-  | 'qq-native-txt'
-  | 'telegram-native'
-  | 'telegram-native-single'
-  | 'weflow'
+  | typeof PARSER_FORMAT_IDS.WHATSAPP_NATIVE
+  | typeof PARSER_FORMAT_IDS.LINE_NATIVE
+  | typeof PARSER_FORMAT_IDS.QQ_NATIVE
+  | typeof PARSER_FORMAT_IDS.TELEGRAM_NATIVE
+  | typeof PARSER_FORMAT_IDS.TELEGRAM_NATIVE_SINGLE
+  | typeof PARSER_FORMAT_IDS.WEFLOW
 
 export interface ParseBrowserSourceOptions {
   formatId?: BrowserImportFormatId
@@ -51,18 +53,35 @@ export interface BrowserImportParseResult extends Omit<BrowserChatParseResult, '
 
 const HEAD_BYTES = 64 * 1024
 
+const BROWSER_IMPORT_FORMAT_IDS = new Set<string>([
+  PARSER_FORMAT_IDS.CHATLAB,
+  PARSER_FORMAT_IDS.CHATLAB_JSONL,
+  PARSER_FORMAT_IDS.WEFLOW,
+  PARSER_FORMAT_IDS.WHATSAPP_NATIVE,
+  PARSER_FORMAT_IDS.LINE_NATIVE,
+  PARSER_FORMAT_IDS.QQ_NATIVE,
+  PARSER_FORMAT_IDS.TELEGRAM_NATIVE,
+  PARSER_FORMAT_IDS.TELEGRAM_NATIVE_SINGLE,
+])
+
+export function normalizeBrowserImportFormatId(formatId: string | undefined): BrowserImportFormatId | undefined {
+  if (!formatId) return undefined
+  const canonicalId = normalizeParserFormatId(formatId)
+  return BROWSER_IMPORT_FORMAT_IDS.has(canonicalId) ? (canonicalId as BrowserImportFormatId) : undefined
+}
+
 export async function detectBrowserImportFormat(source: BrowserParseSource): Promise<BrowserImportFormatId | null> {
   if (source.name.toLowerCase().endsWith('.txt')) {
     const head = await source.slice(0, HEAD_BYTES).text()
-    if (detectWhatsAppText(head, source.name)) return 'whatsapp-native-txt'
-    if (detectQqText(head, source.name)) return 'qq-native-txt'
-    return detectLineText(head, source.name) ? 'line-native-txt' : null
+    if (detectWhatsAppText(head, source.name)) return PARSER_FORMAT_IDS.WHATSAPP_NATIVE
+    if (detectQqText(head, source.name)) return PARSER_FORMAT_IDS.QQ_NATIVE
+    return detectLineText(head, source.name) ? PARSER_FORMAT_IDS.LINE_NATIVE : null
   }
   if (source.name.toLowerCase().endsWith('.json')) {
     const head = await source.slice(0, HEAD_BYTES).text()
-    if (detectWeFlowJson(head, source.name)) return 'weflow'
-    if (detectTelegramMultiChatJson(head, source.name)) return 'telegram-native'
-    if (detectTelegramSingleJson(head, source.name)) return 'telegram-native-single'
+    if (detectWeFlowJson(head, source.name)) return PARSER_FORMAT_IDS.WEFLOW
+    if (detectTelegramMultiChatJson(head, source.name)) return PARSER_FORMAT_IDS.TELEGRAM_NATIVE
+    if (detectTelegramSingleJson(head, source.name)) return PARSER_FORMAT_IDS.TELEGRAM_NATIVE_SINGLE
   }
   return detectChatLabFormat(source)
 }
@@ -72,7 +91,7 @@ export async function scanBrowserMultiChatSource(
   options: Pick<ParseBrowserSourceOptions, 'checkCancelled' | 'yieldEvery'> = {}
 ): Promise<TelegramChatInfo[]> {
   const formatId = await detectBrowserImportFormat(source)
-  if (formatId !== 'telegram-native') {
+  if (formatId !== PARSER_FORMAT_IDS.TELEGRAM_NATIVE) {
     throw new WebRuntimeError('NOT_MULTI_CHAT_FORMAT', 'The selected file is not a supported multi-chat export')
   }
   options.checkCancelled?.()
@@ -85,7 +104,9 @@ export async function parseBrowserImportSource(
   source: BrowserParseSource,
   options: ParseBrowserSourceOptions = {}
 ): Promise<BrowserImportParseResult> {
-  const formatId = options.formatId ?? (await detectBrowserImportFormat(source))
+  const formatId = options.formatId
+    ? normalizeBrowserImportFormatId(options.formatId)
+    : await detectBrowserImportFormat(source)
   if (!formatId) {
     throw new WebRuntimeError(
       'UNSUPPORTED_IMPORT_FORMAT',
@@ -93,7 +114,7 @@ export async function parseBrowserImportSource(
     )
   }
 
-  if (formatId === 'chatlab' || formatId === 'weflow') {
+  if (formatId === PARSER_FORMAT_IDS.CHATLAB || formatId === PARSER_FORMAT_IDS.WEFLOW) {
     const wasmResult = await parseWithWasm(source, formatId, {
       checkCancelled: options.checkCancelled,
       onProgress: options.onProgress,
@@ -103,7 +124,7 @@ export async function parseBrowserImportSource(
     if (wasmResult) return wasmResult
   }
 
-  if (formatId === 'whatsapp-native-txt') {
+  if (formatId === PARSER_FORMAT_IDS.WHATSAPP_NATIVE) {
     options.checkCancelled?.()
     const content = await source.text()
     options.checkCancelled?.()
@@ -120,7 +141,7 @@ export async function parseBrowserImportSource(
     }
   }
 
-  if (formatId === 'weflow') {
+  if (formatId === PARSER_FORMAT_IDS.WEFLOW) {
     options.checkCancelled?.()
     const content = await source.text()
     options.checkCancelled?.()
@@ -137,7 +158,7 @@ export async function parseBrowserImportSource(
     }
   }
 
-  if (formatId === 'line-native-txt') {
+  if (formatId === PARSER_FORMAT_IDS.LINE_NATIVE) {
     options.checkCancelled?.()
     const content = await source.text()
     options.checkCancelled?.()
@@ -154,7 +175,7 @@ export async function parseBrowserImportSource(
     }
   }
 
-  if (formatId === 'qq-native-txt') {
+  if (formatId === PARSER_FORMAT_IDS.QQ_NATIVE) {
     options.checkCancelled?.()
     const content = await source.text()
     options.checkCancelled?.()
@@ -171,7 +192,7 @@ export async function parseBrowserImportSource(
     }
   }
 
-  if (formatId === 'telegram-native-single') {
+  if (formatId === PARSER_FORMAT_IDS.TELEGRAM_NATIVE_SINGLE) {
     options.checkCancelled?.()
     const content = await source.text()
     options.checkCancelled?.()
@@ -188,7 +209,7 @@ export async function parseBrowserImportSource(
     }
   }
 
-  if (formatId === 'telegram-native') {
+  if (formatId === PARSER_FORMAT_IDS.TELEGRAM_NATIVE) {
     if (options.chatIndex === undefined) {
       throw new WebRuntimeError('MULTI_CHAT_SELECTION_REQUIRED', 'A Telegram chat index is required for import')
     }

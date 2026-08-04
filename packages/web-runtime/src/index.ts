@@ -14,7 +14,11 @@ export type {
   WebRuntimeTaskResult,
   WebRuntimeTaskType,
 } from './rpc/protocol'
-export type { BrowserImportFormatId, BrowserParseSource } from './import/browser-parser'
+export {
+  normalizeBrowserImportFormatId,
+  type BrowserImportFormatId,
+  type BrowserParseSource,
+} from './import/browser-parser'
 export type { BrowserSessionCatalogItem } from './import/session-catalog'
 export type {
   BrowserImportFormatInfo,

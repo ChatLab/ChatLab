@@ -25,7 +25,7 @@ export type ParseGenerator = (options: ParseOptions) => AsyncGenerator<ParseEven
 
 export interface NativeFormatAdapter {
   /** Kernel id understood by the Rust NativeParser constructor. */
-  formatId: string
+  kernelId: string
   /** Human-readable format label used in import logs. */
   label: string
   /** Map the kernel's meta JSON (parsed) to the ParsedMeta event payload. */
@@ -127,7 +127,7 @@ export function createNativeFirstParser(
     let parser: NativeParser
     try {
       parser = new native.NativeParser(
-        adapter.formatId,
+        adapter.kernelId,
         options.filePath,
         options.formatOptions ? JSON.stringify(options.formatOptions) : undefined
       )

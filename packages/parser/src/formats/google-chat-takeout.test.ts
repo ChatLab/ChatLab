@@ -105,7 +105,7 @@ async function parseGoogleChatFixture(options: {
       'utf8'
     )
 
-    assert.equal(detectFormat(manifestPath)?.id, 'google-chat-takeout')
+    assert.equal(detectFormat(manifestPath)?.id, 'google-chat-native')
     return await parseFileSync(manifestPath)
   } finally {
     rmSync(dir, { recursive: true, force: true })

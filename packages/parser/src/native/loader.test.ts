@@ -16,5 +16,5 @@ test('treats a loadable native module without NativeParser as unavailable', asyn
     disabled: false,
     error: 'Native parser module missing NativeParser export',
   })
-  assert.equal(isNativeFormatAvailable('shuakami-qq-exporter'), false)
+  assert.equal(isNativeFormatAvailable('qq-shuakami'), false)
 })

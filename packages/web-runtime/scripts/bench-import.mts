@@ -211,7 +211,7 @@ function createWhatsAppFixture(): BenchmarkFixture {
   const blob = new Blob([lines.join('\n')], { type: 'text/plain' })
   return {
     label: 'WhatsApp TXT',
-    formatId: 'whatsapp-native-txt',
+    formatId: 'whatsapp-native',
     source: blobSource('WhatsApp benchmark.txt', blob),
     firstContent: 'fixture-message-0',
     lastContent: `fixture-message-${MESSAGE_COUNT - 1}`,
@@ -233,7 +233,7 @@ function createLineFixture(): BenchmarkFixture {
   const blob = new Blob([lines.join('\n')], { type: 'text/plain' })
   return {
     label: 'LINE TXT',
-    formatId: 'line-native-txt',
+    formatId: 'line-native',
     source: blobSource('[LINE] Benchmark Team.txt', blob),
     firstContent: 'fixture-message-0',
     lastContent: `fixture-message-${MESSAGE_COUNT - 1}`,
@@ -255,7 +255,7 @@ function createQqFixture(): BenchmarkFixture {
   const blob = new Blob([lines.join('\n')], { type: 'text/plain' })
   return {
     label: 'QQ TXT',
-    formatId: 'qq-native-txt',
+    formatId: 'qq-native',
     source: blobSource('qq-benchmark.txt', blob),
     firstContent: 'fixture-message-0',
     lastContent: `fixture-message-${MESSAGE_COUNT - 1}`,

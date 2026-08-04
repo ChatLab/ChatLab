@@ -47,6 +47,7 @@ import {
   type WordFrequencyResult,
   type YearlyActivity,
 } from '@openchatlab/core'
+import { PARSER_FORMAT_IDS } from '@openchatlab/parser/browser'
 import { WebRuntimeError } from '../runtime-error'
 import type { WorkspaceDatabasePort, WorkspaceDatabaseStage } from '../storage/workspace-database'
 import {
@@ -120,18 +121,18 @@ const SUPPORTED_FORMATS: BrowserImportFormatInfo[] = [
   { id: 'chatlab', name: 'ChatLab JSON', platform: 'unknown', extensions: ['.json'] },
   { id: 'chatlab-jsonl', name: 'ChatLab JSONL', platform: 'unknown', extensions: ['.jsonl'] },
   { id: 'weflow', name: 'WeFlow JSON', platform: 'weixin', extensions: ['.json'] },
-  { id: 'whatsapp-native-txt', name: 'WhatsApp TXT', platform: 'whatsapp', extensions: ['.txt'] },
-  { id: 'line-native-txt', name: 'LINE TXT', platform: 'line', extensions: ['.txt'] },
-  { id: 'qq-native-txt', name: 'QQ TXT', platform: 'qq', extensions: ['.txt'] },
+  { id: PARSER_FORMAT_IDS.WHATSAPP_NATIVE, name: 'WhatsApp TXT', platform: 'whatsapp', extensions: ['.txt'] },
+  { id: PARSER_FORMAT_IDS.LINE_NATIVE, name: 'LINE TXT', platform: 'line', extensions: ['.txt'] },
+  { id: PARSER_FORMAT_IDS.QQ_NATIVE, name: 'QQ TXT', platform: 'qq', extensions: ['.txt'] },
   {
-    id: 'telegram-native',
+    id: PARSER_FORMAT_IDS.TELEGRAM_NATIVE,
     name: 'Telegram JSON',
     platform: 'telegram',
     extensions: ['.json'],
     multiChat: true,
   },
   {
-    id: 'telegram-native-single',
+    id: PARSER_FORMAT_IDS.TELEGRAM_NATIVE_SINGLE,
     name: 'Telegram JSON',
     platform: 'telegram',
     extensions: ['.json'],

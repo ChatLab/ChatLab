@@ -19,6 +19,7 @@ import * as fs from 'fs'
 import * as readline from 'readline'
 import * as path from 'path'
 import { KNOWN_PLATFORMS, ChatType, MessageType } from '@openchatlab/shared-types'
+import { PARSER_FORMAT_IDS } from '../format-ids'
 import type {
   FormatFeature,
   FormatModule,
@@ -111,7 +112,7 @@ function parseLine(line: string): JsonlLine | null {
 // ==================== 特征定义 ====================
 
 export const feature: FormatFeature = {
-  id: 'chatlab-jsonl',
+  id: PARSER_FORMAT_IDS.CHATLAB_JSONL,
   name: 'ChatLab JSONL',
   platform: KNOWN_PLATFORMS.UNKNOWN,
   priority: 51, // 低优先级，让其他格式先匹配

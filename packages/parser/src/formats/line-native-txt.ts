@@ -2,11 +2,12 @@ import * as fs from 'fs'
 import { KNOWN_PLATFORMS } from '@openchatlab/shared-types'
 
 import { LINE_FILENAME_SIGNATURES, LINE_HEAD_SIGNATURES, parseLineText } from '../browser/line'
+import { PARSER_FORMAT_IDS } from '../format-ids'
 import type { FormatFeature, FormatModule, ParseEvent, ParseOptions, Parser } from '../types'
 import { createProgress, getFileSize } from '../utils'
 
 export const feature: FormatFeature = {
-  id: 'line-native-txt',
+  id: PARSER_FORMAT_IDS.LINE_NATIVE,
   name: 'LINE 官方导出 TXT',
   platform: KNOWN_PLATFORMS.LINE,
   priority: 35,

@@ -12,6 +12,7 @@ import streamJson from 'stream-json'
 import pickModule from 'stream-json/filters/Pick.js'
 import streamValuesModule from 'stream-json/streamers/StreamValues.js'
 import { ChatType, KNOWN_PLATFORMS, MessageType } from '@openchatlab/shared-types'
+import { PARSER_FORMAT_IDS } from '../format-ids'
 import type {
   FormatFeature,
   FormatModule,
@@ -90,7 +91,7 @@ const ENGLISH_MONTHS = new Map([
 ])
 
 export const feature: FormatFeature = {
-  id: 'google-chat-takeout',
+  id: PARSER_FORMAT_IDS.GOOGLE_CHAT_NATIVE,
   name: 'Google Chat Takeout',
   platform: KNOWN_PLATFORMS.GOOGLE_CHAT,
   priority: 24,

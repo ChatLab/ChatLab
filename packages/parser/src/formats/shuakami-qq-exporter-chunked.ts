@@ -27,6 +27,7 @@ import * as fs from 'fs'
 import * as path from 'path'
 import * as readline from 'readline'
 import { KNOWN_PLATFORMS, ChatType, MessageType } from '@openchatlab/shared-types'
+import { PARSER_FORMAT_IDS } from '../format-ids'
 import type {
   FormatFeature,
   FormatModule,
@@ -42,7 +43,7 @@ import { createProgress, parseTimestamp, isValidYear } from '../utils'
 // ==================== 特征定义 ====================
 
 export const feature: FormatFeature = {
-  id: 'shuakami-qq-exporter-chunked',
+  id: PARSER_FORMAT_IDS.QQ_SHUAKAMI_CHUNKED,
   name: 'shuakami/qq-chat-exporter (chunked)',
   platform: KNOWN_PLATFORMS.QQ,
   priority: 5, // 比单文件版本优先级更高

@@ -24,6 +24,7 @@ import pickModule from 'stream-json/filters/Pick.js'
 import streamValuesModule from 'stream-json/streamers/StreamValues.js'
 import streamChain from 'stream-chain'
 import { KNOWN_PLATFORMS, ChatType, MessageType } from '@openchatlab/shared-types'
+import { PARSER_FORMAT_IDS } from '../format-ids'
 import type {
   FormatFeature,
   FormatModule,
@@ -44,7 +45,7 @@ const { chain } = streamChain
 // ==================== 特征定义 ====================
 
 export const feature: FormatFeature = {
-  id: 'shuakami-qq-exporter',
+  id: PARSER_FORMAT_IDS.QQ_SHUAKAMI,
   name: 'shuakami/qq-chat-exporter',
   platform: KNOWN_PLATFORMS.QQ,
   priority: 10,

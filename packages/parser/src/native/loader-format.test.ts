@@ -4,7 +4,9 @@ import test from 'node:test'
 test('probes kernel ids so an older loadable native binary is not treated as format-capable', async (t) => {
   class OlderNativeParser {
     constructor(formatId: string) {
-      if (formatId !== 'chatlab') throw new Error(`unsupported format: ${formatId}`)
+      if (formatId !== 'chatlab' && formatId !== 'shuakami-qq-exporter') {
+        throw new Error(`unsupported format: ${formatId}`)
+      }
     }
   }
 
@@ -14,7 +16,9 @@ test('probes kernel ids so an older loadable native binary is not treated as for
 
   const { isNativeFormatAvailable } = await import('./loader')
   assert.equal(isNativeFormatAvailable('chatlab'), true)
-  assert.equal(isNativeFormatAvailable('shuakami-qq-exporter'), false)
+  assert.equal(isNativeFormatAvailable('qq-shuakami'), true)
+  assert.equal(isNativeFormatAvailable('shuakami-qq-exporter'), true)
+  assert.equal(isNativeFormatAvailable('discord-tyrrrz'), false)
 
   const saved = process.env.CHATLAB_DISABLE_NATIVE_PERF
   try {

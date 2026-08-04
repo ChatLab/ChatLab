@@ -15,7 +15,7 @@ interface ShuakamiQqMetaJson {
 }
 
 export const shuakamiQqAdapter: NativeFormatAdapter = {
-  formatId: 'shuakami-qq-exporter',
+  kernelId: 'shuakami-qq-exporter',
   label: 'shuakami/qq-chat-exporter',
 
   mapMeta(metaJson: unknown): ParsedMeta {

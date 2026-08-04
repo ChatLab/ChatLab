@@ -11,6 +11,7 @@ import { appLogger } from '@openchatlab/node-runtime'
 import * as databaseCore from '../database/core'
 import * as worker from '../worker/workerManager'
 import {
+  PARSER_FORMAT_IDS,
   detectFormat,
   findEntryFileInDirectory,
   getSupportedFormats,
@@ -155,7 +156,7 @@ export function registerChatHandlers(ctx: IpcContext): void {
           worker.autoImport(
             manifestPath,
             forwardImportProgress,
-            { formatId: 'google-chat-takeout' },
+            { formatId: PARSER_FORMAT_IDS.GOOGLE_CHAT_NATIVE },
             undefined,
             options?.sessionGapThreshold
           )

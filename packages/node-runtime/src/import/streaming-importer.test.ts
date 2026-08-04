@@ -459,7 +459,7 @@ test('streamingImport builds the session index exactly once with the requested g
 test(
   'streamingImport persists shuakami/qq-chat-exporter V4 native-first output without a derived FTS table',
   {
-    skip: !isNativeFormatAvailable('shuakami-qq-exporter') && 'native shuakami/qq-chat-exporter kernel not built',
+    skip: !isNativeFormatAvailable('qq-shuakami') && 'native shuakami/qq-chat-exporter kernel not built',
   },
   async (t) => {
     const root = makeTempDir()
@@ -529,7 +529,7 @@ test('streamingImport skips preprocessing when the selected format has native su
     isNativeFormatAvailable: () => true,
   }
 
-  const result = await streamingImport(filePath, deps, { formatId: 'shuakami-qq-exporter' }, 'native-preprocess-gate')
+  const result = await streamingImport(filePath, deps, { formatId: 'qq-shuakami' }, 'native-preprocess-gate')
 
   assert.equal(result.success, true)
   assert.equal(result.diagnostics?.messagesWritten, 2)
@@ -538,7 +538,7 @@ test('streamingImport skips preprocessing when the selected format has native su
   assert.equal(fixture.getTempFilePath(), null)
 })
 
-test('streamingImport preprocesses directly when native support is unavailable', async (t) => {
+test('streamingImport accepts a released format alias when native support is unavailable', async (t) => {
   const root = makeTempDir()
   t.after(() => fs.rmSync(root, { recursive: true, force: true }))
   const filePath = writeSingleFileShuakamiQqExport(root)
@@ -586,7 +586,7 @@ test('streamingImport cleans a generated shuakami/qq-chat-exporter slim file whe
           isNativeFormatAvailable: () => false,
         },
       },
-      { formatId: 'shuakami-qq-exporter' },
+      { formatId: 'qq-shuakami' },
       'shuakami-qq-preprocess-setup-failure'
     ),
     /database setup failed for test/

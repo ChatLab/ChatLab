@@ -4,6 +4,7 @@
  */
 
 import type { ChatPlatform, ChatType, ParsedMember, ParsedMessage } from '@openchatlab/shared-types'
+import type { ParserFormatId } from './format-ids'
 
 // ==================== 标准层：统一输出结构 ====================
 
@@ -83,7 +84,7 @@ export interface FormatSignatures {
  */
 export interface FormatFeature {
   /** 唯一标识符 */
-  id: string
+  id: ParserFormatId
   /** 显示名称 */
   name: string
   /** 平台 */

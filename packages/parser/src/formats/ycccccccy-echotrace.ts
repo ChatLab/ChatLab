@@ -13,6 +13,7 @@
  */
 
 import { KNOWN_PLATFORMS } from '@openchatlab/shared-types'
+import { PARSER_FORMAT_IDS } from '../format-ids'
 import type { FormatFeature, FormatModule, Parser } from '../types'
 import { parseWeFlowAccelerated } from './weflow'
 import { weflowPreprocessor } from './weflow-preprocessor'
@@ -20,7 +21,7 @@ import { weflowPreprocessor } from './weflow-preprocessor'
 // ==================== 特征定义 ====================
 
 export const feature: FormatFeature = {
-  id: 'ycccccccy-echotrace',
+  id: PARSER_FORMAT_IDS.ECHOTRACE,
   name: 'ycccccccy/echotrace 导出',
   platform: KNOWN_PLATFORMS.WECHAT,
   priority: 16, // 比 WeFlow (15) 略低，优先检测 WeFlow

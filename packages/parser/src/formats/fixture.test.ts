@@ -65,7 +65,7 @@ const fixtures: ParserFixture[] = [
       '[图片]',
       '',
     ].join('\n'),
-    formatId: 'qq-native-txt',
+    formatId: 'qq-native',
     expected: {
       meta: { name: '测试 QQ 群', platform: KNOWN_PLATFORMS.QQ, type: ChatType.GROUP },
       memberIds: ['10001', '10002'],
@@ -190,7 +190,7 @@ const fixtures: ParserFixture[] = [
       '2024/01/02 03:06:07 P.M. - Bob: image omitted',
       '',
     ].join('\n'),
-    formatId: 'whatsapp-native-txt',
+    formatId: 'whatsapp-native',
     expected: {
       meta: { name: 'Alice', platform: KNOWN_PLATFORMS.WHATSAPP, type: ChatType.PRIVATE },
       memberIds: ['Alice', 'Bob'],
@@ -224,7 +224,7 @@ const fixtures: ParserFixture[] = [
       '[2026/7/9 02:28:37] Bob:Hi without sender-space',
       '',
     ].join('\n'),
-    formatId: 'whatsapp-native-txt',
+    formatId: 'whatsapp-native',
     expected: {
       meta: { name: 'Alice', platform: KNOWN_PLATFORMS.WHATSAPP, type: ChatType.PRIVATE },
       memberIds: ['Alice', 'Bob'],
@@ -261,7 +261,7 @@ const fixtures: ParserFixture[] = [
       '03:05\tBob\t[Sticker]',
       '',
     ].join('\n'),
-    formatId: 'line-native-txt',
+    formatId: 'line-native',
     expected: {
       meta: { name: 'Project Team', platform: KNOWN_PLATFORMS.LINE, type: ChatType.GROUP },
       memberIds: ['Alice', 'Bob'],

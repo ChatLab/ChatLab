@@ -1,4 +1,9 @@
-import type { BrowserImportFormatId, BrowserParseSource, RpcProgressPayload } from '@openchatlab/web-runtime'
+import {
+  normalizeBrowserImportFormatId,
+  type BrowserImportFormatId,
+  type BrowserParseSource,
+  type RpcProgressPayload,
+} from '@openchatlab/web-runtime'
 import { rebaseChatLabDemoDocuments } from '@openchatlab/parser/browser'
 import { reportRuntimeLog } from '@/services/log-report'
 import type { BrowserRuntimeRpcPort } from '../browser-runtime/types'
@@ -38,7 +43,7 @@ export class BrowserImportAdapter implements ImportAdapter {
     if (typeof file === 'string') return { success: false, error: 'File path import is not available in Web WASM' }
     if (this.activeImport) return { success: false, error: 'Another Web WASM import is already running' }
 
-    const formatId = normalizeFormatId(options?.formatId)
+    const formatId = normalizeBrowserImportFormatId(options?.formatId)
     if (options?.formatId && !formatId) {
       return { success: false, error: `Unsupported Web WASM import format: ${options.formatId}` }
     }
@@ -279,19 +284,6 @@ function mapImportProgress(progress: RpcProgressPayload): ImportProgress {
   if (progress.message !== undefined) mapped.message = progress.message
   if (progress.messagesProcessed !== undefined) mapped.messagesProcessed = progress.messagesProcessed
   return mapped
-}
-
-function normalizeFormatId(formatId: string | undefined): BrowserImportFormatId | undefined {
-  return formatId === 'chatlab' ||
-    formatId === 'chatlab-jsonl' ||
-    formatId === 'weflow' ||
-    formatId === 'whatsapp-native-txt' ||
-    formatId === 'line-native-txt' ||
-    formatId === 'qq-native-txt' ||
-    formatId === 'telegram-native' ||
-    formatId === 'telegram-native-single'
-    ? formatId
-    : undefined
 }
 
 function unsupported<T>(capability: string): Promise<T> {

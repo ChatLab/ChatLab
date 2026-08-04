@@ -134,7 +134,7 @@ describe('archive import source adapters', () => {
               success: true,
               source: {
                 sourceId: 'source-1',
-                formatId: 'google-chat-takeout',
+                formatId: 'google-chat-native',
                 platform: 'google-chat',
                 chats: [],
                 expiresAt: 123,
@@ -184,7 +184,7 @@ describe('archive import source adapters', () => {
             success: true,
             source: {
               sourceId: 'source-2',
-              formatId: 'google-chat-takeout',
+              formatId: 'google-chat-native',
               platform: 'google-chat',
               chats: [],
               expiresAt: 456,

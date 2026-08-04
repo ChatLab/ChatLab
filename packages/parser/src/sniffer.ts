@@ -5,6 +5,7 @@
 
 import * as fs from 'fs'
 import * as path from 'path'
+import { normalizeParserFormatId } from './format-ids'
 import type { FormatFeature, FormatModule, Parser } from './types'
 
 /** 文件头检测大小 (64KB) - 考虑到现代聊天记录文件可能包含 base64 头像等大数据 */
@@ -172,8 +173,17 @@ export class FormatSniffer {
    * 根据格式 ID 获取解析器
    */
   getParserById(formatId: string): Parser | null {
-    const module = this.formats.find((m) => m.feature.id === formatId)
+    const canonicalId = normalizeParserFormatId(formatId)
+    const module = this.formats.find((m) => m.feature.id === canonicalId)
     return module?.parser || null
+  }
+
+  /**
+   * Resolve canonical and released legacy format IDs to one canonical feature.
+   */
+  getFeatureById(formatId: string): FormatFeature | null {
+    const canonicalId = normalizeParserFormatId(formatId)
+    return this.formats.find((module) => module.feature.id === canonicalId)?.feature ?? null
   }
 
   /**

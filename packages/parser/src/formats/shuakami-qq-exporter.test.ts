@@ -62,7 +62,7 @@ async function parseContent(content: string, filename = 'qce-export.json'): Prom
   try {
     const filePath = join(dir, filename)
     writeFileSync(filePath, content, 'utf-8')
-    assert.equal(detectFormat(filePath)?.id, 'shuakami-qq-exporter')
+    assert.equal(detectFormat(filePath)?.id, 'qq-shuakami')
     return await parseFileSync(filePath)
   } finally {
     rmSync(dir, { recursive: true, force: true })

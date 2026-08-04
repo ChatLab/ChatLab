@@ -18,6 +18,7 @@
 import * as fs from 'fs'
 import * as path from 'path'
 import { KNOWN_PLATFORMS, ChatType, MessageType } from '@openchatlab/shared-types'
+import { PARSER_FORMAT_IDS } from '../format-ids'
 import type {
   FormatFeature,
   FormatModule,
@@ -33,7 +34,7 @@ import { getFileSize, createProgress } from '../utils'
 // ==================== 特征定义 ====================
 
 export const feature: FormatFeature = {
-  id: 'instagram-native',
+  id: PARSER_FORMAT_IDS.INSTAGRAM_NATIVE,
   name: 'Instagram 官方导出',
   platform: KNOWN_PLATFORMS.INSTAGRAM,
   priority: 25,

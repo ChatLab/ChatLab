@@ -295,7 +295,7 @@ describe('BrowserImportAdapter', () => {
     assert.deepEqual(deletedSessionIds, ['session-1'])
   })
 
-  it('forwards browser-safe format identifiers to the worker runtime', async () => {
+  it('normalizes released browser format aliases before forwarding them to the worker runtime', async () => {
     const requestedFormats: string[] = []
     const rpc = {
       async request<T extends WebRuntimeTaskType>(
@@ -347,9 +347,9 @@ describe('BrowserImportAdapter', () => {
     assert.equal(telegram.success, true)
     assert.deepEqual(requestedFormats, [
       'weflow',
-      'whatsapp-native-txt',
-      'line-native-txt',
-      'qq-native-txt',
+      'whatsapp-native',
+      'line-native',
+      'qq-native',
       'telegram-native-single',
     ])
   })

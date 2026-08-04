@@ -5,6 +5,7 @@ import streamChain from 'stream-chain'
 import streamJson from 'stream-json'
 import pickModule from 'stream-json/filters/Pick.js'
 import streamValuesModule from 'stream-json/streamers/StreamValues.js'
+import { PARSER_FORMAT_IDS } from '@openchatlab/parser'
 import { ArchiveImportError } from './errors'
 import type { ZipArchiveReader } from './archive-reader'
 import type { ArchiveEntrySummary, ArchiveResolver, MaterializedImport, PreparedImportChat } from './types'
@@ -88,7 +89,7 @@ function deriveConversationName(draft: ConversationDraft, ownerEmail: string | n
 }
 
 export class GoogleChatTakeoutResolver implements ArchiveResolver {
-  readonly id = 'google-chat-takeout'
+  readonly id = PARSER_FORMAT_IDS.GOOGLE_CHAT_NATIVE
   readonly platform = 'google-chat'
 
   detect(entries: ArchiveEntrySummary[]): boolean {

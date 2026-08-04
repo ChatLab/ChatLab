@@ -22,6 +22,7 @@ import pickModule from 'stream-json/filters/Pick.js'
 import streamValuesModule from 'stream-json/streamers/StreamValues.js'
 
 import { KNOWN_PLATFORMS, ChatType } from '@openchatlab/shared-types'
+import { PARSER_FORMAT_IDS } from '../format-ids'
 import type {
   FormatFeature,
   FormatModule,
@@ -60,7 +61,7 @@ export interface TelegramChatInfo {
 // ==================== 特征定义 ====================
 
 export const feature: FormatFeature = {
-  id: 'telegram-native',
+  id: PARSER_FORMAT_IDS.TELEGRAM_NATIVE,
   name: 'Telegram 官方导出 (JSON)',
   platform: KNOWN_PLATFORMS.TELEGRAM,
   priority: 22,

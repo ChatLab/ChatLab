@@ -14,6 +14,7 @@ import pickModule from 'stream-json/filters/Pick.js'
 import streamValuesModule from 'stream-json/streamers/StreamValues.js'
 import streamChain from 'stream-chain'
 import { KNOWN_PLATFORMS, ChatType, MessageType, type MemberRole } from '@openchatlab/shared-types'
+import { PARSER_FORMAT_IDS } from '../format-ids'
 import type {
   FormatFeature,
   FormatModule,
@@ -230,7 +231,7 @@ function formatSticker(sticker: DiscordSticker): string {
 // ==================== 特征定义 ====================
 
 export const feature: FormatFeature = {
-  id: 'tyrrrz-discord-exporter',
+  id: PARSER_FORMAT_IDS.DISCORD_TYRRRZ,
   name: 'Tyrrrz/DiscordChatExporter',
   platform: KNOWN_PLATFORMS.DISCORD,
   priority: 20, // Discord 格式优先级

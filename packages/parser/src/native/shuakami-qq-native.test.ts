@@ -178,7 +178,7 @@ const nativeAvailable = (() => {
   const saved = process.env[ENV_KEY]
   delete process.env[ENV_KEY]
   try {
-    return isNativeFormatAvailable('shuakami-qq-exporter')
+    return isNativeFormatAvailable('qq-shuakami')
   } finally {
     if (saved !== undefined) process.env[ENV_KEY] = saved
   }
@@ -254,7 +254,7 @@ describe('shuakami/qq-chat-exporter native parser', { skip: !nativeAvailable && 
     try {
       writeFileSync(filePath, makeFullFixture(), 'utf-8')
       process.env[ENV_KEY] = '1'
-      assert.equal(isNativeFormatAvailable('shuakami-qq-exporter'), false)
+      assert.equal(isNativeFormatAvailable('qq-shuakami'), false)
       const result = await collect(parseShuakamiQqV4Accelerated, filePath)
       assert.equal(result.messages.length, 24)
       assert.equal(
