@@ -244,7 +244,7 @@ async function autoImportUnlocked(
           updateCompatibilityGate,
           itemProgress
         ),
-      appendSession: (targetSessionId, sourcePath, sourceFormatOptions, itemProgress) =>
+      appendSession: (targetSessionId, sourcePath, sourceFormatOptions, itemProgress, context) =>
         incrementalImportUnlocked(
           dbManager,
           targetSessionId,
@@ -252,6 +252,8 @@ async function autoImportUnlocked(
           {
             ...sourceFormatOptions,
             onProgress: itemProgress ?? progressAdapter,
+            platformMessageIdScope: context?.platformMessageIdScope,
+            senderPlatformIdMappings: context?.senderPlatformIdMappings,
           },
           updateCompatibilityGate
         ),
@@ -316,7 +318,7 @@ export async function autoImportBatch(
               false,
               itemProgress
             ),
-          appendSession: (targetSessionId, sourcePath, sourceFormatOptions, itemProgress) =>
+          appendSession: (targetSessionId, sourcePath, sourceFormatOptions, itemProgress, context) =>
             incrementalImportUnlocked(
               dbManager,
               targetSessionId,
@@ -324,6 +326,8 @@ export async function autoImportBatch(
               {
                 ...sourceFormatOptions,
                 onProgress: itemProgress,
+                platformMessageIdScope: context?.platformMessageIdScope,
+                senderPlatformIdMappings: context?.senderPlatformIdMappings,
               },
               false
             ),
@@ -399,10 +403,12 @@ export async function analyzeAutoImport(
           formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,
           chatIndex: typeof sourceFormatOptions?.chatIndex === 'number' ? sourceFormatOptions.chatIndex : undefined,
         }),
-      analyzeAppendSession: (targetSessionId, sourcePath, sourceFormatOptions) =>
+      analyzeAppendSession: (targetSessionId, sourcePath, sourceFormatOptions, context) =>
         sharedAnalyzeIncremental(targetSessionId, sourcePath, buildIncrementalDeps(dbManager, progressAdapter), {
           formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,
           chatIndex: typeof sourceFormatOptions?.chatIndex === 'number' ? sourceFormatOptions.chatIndex : undefined,
+          platformMessageIdScope: context?.platformMessageIdScope,
+          senderPlatformIdMappings: context?.senderPlatformIdMappings,
         }),
     },
     {

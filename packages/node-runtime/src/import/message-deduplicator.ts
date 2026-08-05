@@ -1,5 +1,7 @@
 import { generateMessageKey } from '@openchatlab/core'
 
+const SCOPED_PLATFORM_MESSAGE_ID_PATTERN = /^(__chatlab_message_scope__\d+__)(.*)$/
+
 export interface MessageDedupState {
   platformMessageIds: Set<string>
   /** Fallback keys for every accepted message, regardless of platform ID. */
@@ -15,6 +17,27 @@ export interface DedupMessage {
   type: number
   content: string | null
   replyToMessageId?: string
+}
+
+export interface ParsedPlatformMessageId {
+  rawId: string
+  scope?: string
+}
+
+export function parsePlatformMessageId(id: string): ParsedPlatformMessageId {
+  const scoped = SCOPED_PLATFORM_MESSAGE_ID_PATTERN.exec(id)
+  if (!scoped) return { rawId: id }
+
+  try {
+    return { rawId: decodeURIComponent(scoped[2]), scope: scoped[1] }
+  } catch {
+    return { rawId: id }
+  }
+}
+
+export function applyPlatformMessageIdScope(id: string | undefined, scope: string | undefined): string | undefined {
+  if (!id || !scope) return id
+  return `${scope}${encodeURIComponent(parsePlatformMessageId(id).rawId)}`
 }
 
 export function generateFallbackMessageKey(message: Omit<DedupMessage, 'platformMessageId'>): string {

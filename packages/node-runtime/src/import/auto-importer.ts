@@ -6,8 +6,7 @@ import {
   type AutoImportMatcherDeps,
   type AutoImportMatchMethod,
 } from './auto-import-matcher'
-import type { IncrementalImportResult } from './incremental-importer'
-import type { IncrementalAnalyzeResult } from './incremental-importer'
+import type { IncrementalAnalyzeResult, IncrementalImportResult, SenderPlatformIdMapping } from './incremental-importer'
 import type {
   AnalyzeNewImportResult,
   ImportDiagnostics,
@@ -23,6 +22,11 @@ export interface AutoImportOptions {
   resolvedDecision?: AutoImportDecision
 }
 
+export interface AutoImportAppendContext {
+  platformMessageIdScope?: string
+  senderPlatformIdMappings?: SenderPlatformIdMapping[]
+}
+
 export interface AutoImportDeps extends AutoImportMatcherDeps {
   sessionExists(sessionId: string): boolean
   createSession(
@@ -35,7 +39,8 @@ export interface AutoImportDeps extends AutoImportMatcherDeps {
     sessionId: string,
     filePath: string,
     formatOptions?: Record<string, unknown>,
-    onProgress?: ImportProgressCallback
+    onProgress?: ImportProgressCallback,
+    context?: AutoImportAppendContext
   ): Promise<IncrementalImportResult>
   resolveTarget?: typeof resolveAutoImportTarget
 }
@@ -46,7 +51,8 @@ export interface AutoImportAnalysisDeps extends AutoImportMatcherDeps {
   analyzeAppendSession(
     sessionId: string,
     filePath: string,
-    formatOptions?: Record<string, unknown>
+    formatOptions?: Record<string, unknown>,
+    context?: AutoImportAppendContext
   ): Promise<IncrementalAnalyzeResult>
   resolveTarget?: typeof resolveAutoImportTarget
 }
@@ -84,7 +90,13 @@ export interface AutoImportAnalysisResult {
 }
 
 type AutoImportPlan =
-  | { action: 'incremental'; sessionId: string; matchedBy?: AutoImportMatchMethod }
+  | {
+      action: 'incremental'
+      sessionId: string
+      matchedBy?: AutoImportMatchMethod
+      platformMessageIdScope?: string
+      senderPlatformIdMappings?: SenderPlatformIdMapping[]
+    }
   | { action: 'create'; sessionId?: string; reason?: AutoImportCreateReason }
 
 async function planAutoImport(
@@ -95,7 +107,13 @@ async function planAutoImport(
   if (options.resolvedDecision) {
     const decision = options.resolvedDecision
     return decision.action === 'incremental'
-      ? { action: 'incremental', sessionId: decision.sessionId, matchedBy: decision.matchedBy }
+      ? {
+          action: 'incremental',
+          sessionId: decision.sessionId,
+          matchedBy: decision.matchedBy,
+          ...(decision.platformMessageIdScope ? { platformMessageIdScope: decision.platformMessageIdScope } : {}),
+          ...(decision.senderPlatformIdMappings ? { senderPlatformIdMappings: decision.senderPlatformIdMappings } : {}),
+        }
       : { action: 'create', reason: decision.reason }
   }
 
@@ -114,7 +132,13 @@ async function planAutoImport(
     options.formatOptions
   )
   return decision.action === 'incremental'
-    ? { action: 'incremental', sessionId: decision.sessionId, matchedBy: decision.matchedBy }
+    ? {
+        action: 'incremental',
+        sessionId: decision.sessionId,
+        matchedBy: decision.matchedBy,
+        ...(decision.platformMessageIdScope ? { platformMessageIdScope: decision.platformMessageIdScope } : {}),
+        ...(decision.senderPlatformIdMappings ? { senderPlatformIdMappings: decision.senderPlatformIdMappings } : {}),
+      }
     : { action: 'create', reason: decision.reason }
 }
 
@@ -185,7 +209,10 @@ export async function autoImportFile(
     if (plan.action === 'incremental') {
       const result = mapIncrementalResult(
         plan.sessionId,
-        await deps.appendSession(plan.sessionId, filePath, options.formatOptions, deps.onProgress),
+        await deps.appendSession(plan.sessionId, filePath, options.formatOptions, deps.onProgress, {
+          platformMessageIdScope: plan.platformMessageIdScope,
+          senderPlatformIdMappings: plan.senderPlatformIdMappings,
+        }),
         plan.matchedBy
       )
       appLogger.info('import', 'Incremental import completed', {
@@ -233,7 +260,10 @@ export async function analyzeAutoImportFile(
     const plan = await planAutoImport(filePath, deps, options)
 
     if (plan.action === 'incremental') {
-      const analysis = await deps.analyzeAppendSession(plan.sessionId, filePath, options.formatOptions)
+      const analysis = await deps.analyzeAppendSession(plan.sessionId, filePath, options.formatOptions, {
+        platformMessageIdScope: plan.platformMessageIdScope,
+        senderPlatformIdMappings: plan.senderPlatformIdMappings,
+      })
       if (analysis.error) return { success: false, error: analysis.error }
       const result: AutoImportAnalysisResult = {
         success: true,

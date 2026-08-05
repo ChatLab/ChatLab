@@ -38,6 +38,7 @@ export type {
   IncrementalAnalyzeResult,
   IncrementalImportResult,
   IncrementalImportDeps,
+  SenderPlatformIdMapping,
 } from './incremental-importer'
 
 export { isValidImportSessionId } from './session-id'

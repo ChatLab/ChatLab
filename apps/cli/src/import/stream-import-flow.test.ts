@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import Database from 'better-sqlite3'
-import type { PathProvider } from '@openchatlab/core'
+import { CHAT_DB_SCHEMA, type PathProvider } from '@openchatlab/core'
 import {
   DatabaseManager,
   IMPORT_IN_PROGRESS_ERROR_KEY,
@@ -79,6 +79,58 @@ function writeBatchChatFile(dir: string, filename: string, groupId: string, cont
     })
   )
   return filePath
+}
+
+function writeScopedBatchUpdate(dir: string): string {
+  const filePath = path.join(dir, 'scoped-update.json')
+  fs.writeFileSync(
+    filePath,
+    JSON.stringify({
+      chatlab: { version: '0.0.2', exportedAt: 1783840200 },
+      meta: { name: 'Private chat', platform: 'qq', type: 'private' },
+      members: [
+        { platformId: '10001', accountName: 'Owner' },
+        { platformId: '20002', accountName: 'Peer' },
+      ],
+      messages: Array.from({ length: 6 }, (_, index) => ({
+        sender: index % 2 === 0 ? '20002' : '10001',
+        accountName: index % 2 === 0 ? 'Peer' : 'Owner',
+        timestamp: 1783840200 + index,
+        type: 0,
+        content: `message ${index}`,
+        platformMessageId: `message-${index}`,
+      })),
+    })
+  )
+  return filePath
+}
+
+function seedScopedBatchSession(root: string): void {
+  const db = new Database(path.join(root, 'data', 'databases', 'scoped-target.db'), { nativeBinding })
+  db.exec(CHAT_DB_SCHEMA)
+  db.prepare(
+    `INSERT INTO meta (name, platform, type, imported_at, schema_version)
+     VALUES (?, ?, ?, ?, ?)`
+  ).run('Private chat', 'qq', 'private', 1783840200, 6)
+  const insertMember = db.prepare('INSERT INTO member (platform_id, account_name) VALUES (?, ?)')
+  const peerId = Number(insertMember.run('uid-peer', 'Peer').lastInsertRowid)
+  const ownerId = Number(insertMember.run('uid-owner', 'Owner').lastInsertRowid)
+  const insertMessage = db.prepare(
+    `INSERT INTO message (sender_id, sender_account_name, ts, type, content, platform_message_id)
+     VALUES (?, ?, ?, ?, ?, ?)`
+  )
+  for (let index = 0; index < 5; index++) {
+    const isPeer = index % 2 === 0
+    insertMessage.run(
+      isPeer ? peerId : ownerId,
+      isPeer ? 'Peer' : 'Owner',
+      1783840200 + index,
+      0,
+      `message ${index}`,
+      `__chatlab_message_scope__0__message-${index}`
+    )
+  }
+  db.close()
 }
 
 test('streamImport raises the data directory gate after creating a current-schema database', async () => {
@@ -231,6 +283,32 @@ test('autoImportBatch holds one lock, coalesces the same target, and preserves i
     .get() as { messages: number; gapThreshold: number }
   db.close()
   assert.deepEqual(row, { messages: 2, gapThreshold: 7200 })
+})
+
+test('autoImportBatch forwards the matched merger scope into incremental deduplication', async (t) => {
+  const root = makeTempDir()
+  t.after(() => fs.rmSync(root, { recursive: true, force: true }))
+  fs.mkdirSync(path.join(root, 'data', 'databases'), { recursive: true })
+  seedScopedBatchSession(root)
+  const manager = new DatabaseManager(createPathProvider(root), {
+    nativeBinding,
+    runtime: { version: '0.25.1', kind: 'cli' },
+  })
+
+  const results = await autoImportBatch(manager, [{ id: 'scoped-update', filePath: writeScopedBatchUpdate(root) }])
+
+  assert.equal(results[0].status, 'success')
+  assert.equal(results[0].status === 'success' && results[0].result.importMode, 'incremental')
+  assert.equal(results[0].status === 'success' && results[0].result.newMessageCount, 1)
+  assert.equal(results[0].status === 'success' && results[0].result.duplicateCount, 5)
+
+  const db = manager.openRawSessionDatabase('scoped-target', { readonly: true })
+  const rows = db.prepare('SELECT platform_message_id FROM message ORDER BY ts, id').all() as Array<{
+    platform_message_id: string
+  }>
+  db.close()
+  assert.equal(rows.length, 6)
+  assert.equal(rows.at(-1)?.platform_message_id, '__chatlab_message_scope__0__message-5')
 })
 
 test('autoImportBatch rejects an external writer and cancels work that has not started', async (t) => {

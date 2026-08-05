@@ -138,7 +138,7 @@ export async function autoImport(
       sessionExists: (sessionId) => fs.existsSync(getDbPath(sessionId)),
       createSession: (sourcePath, sourceFormatOptions, sessionId, itemProgress) =>
         streamImport(sourcePath, requestId, sourceFormatOptions, sessionId, sessionGapThreshold, itemProgress),
-      appendSession: (sessionId, sourcePath, sourceFormatOptions, itemProgress) =>
+      appendSession: (sessionId, sourcePath, sourceFormatOptions, itemProgress, context) =>
         incrementalImport(
           sessionId,
           sourcePath,
@@ -146,6 +146,8 @@ export async function autoImport(
           {
             formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,
             chatIndex: typeof sourceFormatOptions?.chatIndex === 'number' ? sourceFormatOptions.chatIndex : undefined,
+            platformMessageIdScope: context?.platformMessageIdScope,
+            senderPlatformIdMappings: context?.senderPlatformIdMappings,
           },
           itemProgress
         ),
@@ -183,7 +185,7 @@ export async function autoImportBatch(
       sessionExists: (sessionId) => fs.existsSync(getDbPath(sessionId)),
       createSession: (sourcePath, sourceFormatOptions, sessionId, itemProgress) =>
         streamImport(sourcePath, requestId, sourceFormatOptions, sessionId, sessionGapThreshold, itemProgress),
-      appendSession: (sessionId, sourcePath, sourceFormatOptions, itemProgress) =>
+      appendSession: (sessionId, sourcePath, sourceFormatOptions, itemProgress, context) =>
         incrementalImport(
           sessionId,
           sourcePath,
@@ -191,6 +193,8 @@ export async function autoImportBatch(
           {
             formatId: typeof sourceFormatOptions?.formatId === 'string' ? sourceFormatOptions.formatId : undefined,
             chatIndex: typeof sourceFormatOptions?.chatIndex === 'number' ? sourceFormatOptions.chatIndex : undefined,
+            platformMessageIdScope: context?.platformMessageIdScope,
+            senderPlatformIdMappings: context?.senderPlatformIdMappings,
           },
           itemProgress
         ),

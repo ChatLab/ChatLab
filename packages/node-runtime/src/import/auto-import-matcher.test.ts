@@ -7,6 +7,8 @@ import { CHAT_DB_SCHEMA } from '@openchatlab/core'
 import { MessageType, type ParsedMessage } from '@openchatlab/shared-types'
 import { openBetterSqliteDatabase } from '../better-sqlite3-adapter'
 import { resolveAutoImportTarget, resolveAutoImportTargetPlan, type AutoImportMatcherDeps } from './auto-import-matcher'
+import { autoImportFile } from './auto-importer'
+import { incrementalImport } from './incremental-importer'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -49,6 +51,8 @@ function writeChatLabJsonl(
       timestamp: message.timestamp,
       type: message.type,
       content: message.content,
+      platformMessageId: message.platformMessageId,
+      replyToMessageId: message.replyToMessageId,
     })),
   ]
   fs.writeFileSync(filePath, `${lines.map((line) => JSON.stringify(line)).join('\n')}\n`, 'utf8')
@@ -64,8 +68,9 @@ function seedSession(dbPath: string, meta: SourceMeta, members: SourceMember[], 
 
   const insertMember = db.prepare('INSERT INTO member (platform_id, account_name) VALUES (?, ?)')
   const insertMessage = db.prepare(
-    `INSERT INTO message (sender_id, sender_account_name, ts, type, content)
-     VALUES (?, ?, ?, ?, ?)`
+    `INSERT INTO message (
+       sender_id, sender_account_name, ts, type, content, platform_message_id, reply_to_message_id
+     ) VALUES (?, ?, ?, ?, ?, ?, ?)`
   )
   const memberIds = new Map<string, number>()
   for (const member of members) {
@@ -75,7 +80,15 @@ function seedSession(dbPath: string, meta: SourceMeta, members: SourceMember[], 
   for (const message of messages) {
     const senderId = memberIds.get(message.senderPlatformId)
     assert.ok(senderId, `missing member ${message.senderPlatformId}`)
-    insertMessage.run(senderId, message.senderAccountName, message.timestamp, message.type, message.content)
+    insertMessage.run(
+      senderId,
+      message.senderAccountName,
+      message.timestamp,
+      message.type,
+      message.content,
+      message.platformMessageId ?? null,
+      message.replyToMessageId ?? null
+    )
   }
   db.close()
 }
@@ -213,6 +226,86 @@ test('matches a unique private session by stable owner and participant ids', asy
   )
 })
 
+test('keeps the owner role when matching private sessions with the same participants', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const members = [
+    { platformId: 'account-a', accountName: 'Account A' },
+    { platformId: 'account-b', accountName: 'Account B' },
+  ]
+  const messages = [textMessage('account-b', 1783840110, 'hello')]
+  const sourceMeta: SourceMeta = {
+    name: 'Private chat',
+    platform: 'qq',
+    type: 'private',
+    ownerId: 'account-b',
+  }
+
+  seedSession(path.join(tempDir, 'account-a.db'), { ...sourceMeta, ownerId: 'account-a' }, members, messages)
+  seedSession(path.join(tempDir, 'account-b.db'), sourceMeta, members, messages)
+  const sourcePath = path.join(tempDir, 'source.jsonl')
+  writeChatLabJsonl(sourcePath, sourceMeta, members, messages)
+
+  assert.deepEqual(await resolveAutoImportTarget(sourcePath, createDeps(tempDir, ['account-a', 'account-b'])), {
+    action: 'incremental',
+    sessionId: 'account-b',
+    matchedBy: 'stable-id',
+  })
+})
+
+test('matches a private session by its complete participant set when owner metadata is missing', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const meta: SourceMeta = {
+    name: 'Private chat',
+    platform: 'qq',
+    type: 'private',
+  }
+  const members = [
+    { platformId: '10001', accountName: 'Owner' },
+    { platformId: '20002', accountName: 'Peer' },
+  ]
+  const messages = [textMessage('20002', 1783840120, 'hello')]
+
+  seedSession(path.join(tempDir, 'existing.db'), meta, members, messages)
+  const sourcePath = path.join(tempDir, 'source.jsonl')
+  writeChatLabJsonl(sourcePath, meta, members, messages)
+
+  assert.deepEqual(await resolveAutoImportTarget(sourcePath, createDeps(tempDir, ['existing'])), {
+    action: 'incremental',
+    sessionId: 'existing',
+    matchedBy: 'stable-id',
+  })
+})
+
+test('matches an owned QQ private session when the import source omits owner metadata', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const sourceMeta: SourceMeta = {
+    name: 'Private chat',
+    platform: 'qq',
+    type: 'private',
+  }
+  const members = [
+    { platformId: '10001', accountName: 'Owner' },
+    { platformId: '20002', accountName: 'Peer' },
+  ]
+  const messages = [textMessage('20002', 1783840130, 'hello')]
+
+  seedSession(path.join(tempDir, 'existing.db'), { ...sourceMeta, ownerId: '10001' }, members, messages)
+  const sourcePath = path.join(tempDir, 'source.jsonl')
+  writeChatLabJsonl(sourcePath, sourceMeta, members, messages)
+
+  assert.deepEqual(await resolveAutoImportTarget(sourcePath, createDeps(tempDir, ['existing'])), {
+    action: 'incremental',
+    sessionId: 'existing',
+    matchedBy: 'stable-id',
+  })
+})
+
 test('falls back to trailing messages when private stable identity has drifted', async (t) => {
   const tempDir = makeTempDir()
   t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
@@ -244,6 +337,403 @@ test('falls back to trailing messages when private stable identity has drifted',
     action: 'incremental',
     sessionId: 'existing',
     matchedBy: 'trailing-messages',
+  })
+})
+
+test('matches QQ private exports across UID and UIN drift using platform message ids', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const candidateMeta: SourceMeta = {
+    name: 'Private chat',
+    platform: 'qq',
+    type: 'private',
+    ownerId: 'uid-owner',
+  }
+  const sourceMeta: SourceMeta = {
+    ...candidateMeta,
+    ownerId: '10001',
+  }
+  const candidateMembers = [
+    { platformId: 'uid-owner', accountName: 'Owner' },
+    { platformId: 'uid-peer', accountName: 'Peer' },
+  ]
+  const sourceMembers = [
+    { platformId: '10001', accountName: 'Owner' },
+    { platformId: '20002', accountName: 'Peer' },
+  ]
+  const candidateMessages = Array.from({ length: 5 }, (_, index) => ({
+    ...textMessage(index % 2 === 0 ? 'uid-peer' : 'uid-owner', 1783840140 + index, `message ${index}`),
+    platformMessageId: `message-${index}`,
+  }))
+  const sourceMessages = candidateMessages.map((message, index) => ({
+    ...message,
+    senderPlatformId: index % 2 === 0 ? '20002' : '10001',
+  }))
+
+  seedSession(path.join(tempDir, 'existing.db'), candidateMeta, candidateMembers, candidateMessages)
+  const sourcePath = path.join(tempDir, 'source.jsonl')
+  writeChatLabJsonl(sourcePath, sourceMeta, sourceMembers, sourceMessages)
+
+  assert.deepEqual(await resolveAutoImportTarget(sourcePath, createDeps(tempDir, ['existing'])), {
+    action: 'incremental',
+    sessionId: 'existing',
+    matchedBy: 'trailing-messages',
+    senderPlatformIdMappings: [
+      { sourceId: '10001', targetId: 'uid-owner' },
+      { sourceId: '20002', targetId: 'uid-peer' },
+    ],
+  })
+})
+
+test('auto import reuses existing QQ members across UID and UIN drift', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const candidateMeta: SourceMeta = {
+    name: 'Private chat',
+    platform: 'qq',
+    type: 'private',
+    ownerId: 'uid-owner',
+  }
+  const sourceMeta: SourceMeta = {
+    name: 'Private chat',
+    platform: 'qq',
+    type: 'private',
+  }
+  const candidateMembers = [
+    { platformId: 'uid-owner', accountName: 'Owner' },
+    { platformId: 'uid-peer', accountName: 'Peer' },
+  ]
+  const sourceMembers = [
+    { platformId: '10001', accountName: 'Owner' },
+    { platformId: '20002', accountName: 'Peer' },
+  ]
+  const candidateMessages = Array.from({ length: 5 }, (_, index) => ({
+    ...textMessage(index % 2 === 0 ? 'uid-peer' : 'uid-owner', 1783840140 + index, `message ${index}`),
+    platformMessageId: `message-${index}`,
+  }))
+  const sourceMessages = [
+    ...candidateMessages.map((message, index) => ({
+      ...message,
+      senderPlatformId: index % 2 === 0 ? '20002' : '10001',
+    })),
+    {
+      ...textMessage('20002', 1783840145, 'new message'),
+      platformMessageId: 'message-5',
+    },
+  ]
+
+  seedSession(path.join(tempDir, 'existing.db'), candidateMeta, candidateMembers, candidateMessages)
+  const sourcePath = path.join(tempDir, 'source.jsonl')
+  writeChatLabJsonl(sourcePath, sourceMeta, sourceMembers, sourceMessages)
+
+  const result = await autoImportFile(sourcePath, {
+    ...createDeps(tempDir, ['existing']),
+    sessionExists: (sessionId) => sessionId === 'existing',
+    createSession: async () => {
+      throw new Error('must not create a second session')
+    },
+    appendSession: (sessionId, filePath, _formatOptions, onProgress, context) =>
+      incrementalImport(
+        sessionId,
+        filePath,
+        {
+          openDatabase: (_targetSessionId, readonly = false) =>
+            openBetterSqliteDatabase(path.join(tempDir, 'existing.db'), { readonly, nativeBinding }),
+          onProgress: onProgress ?? (() => {}),
+        },
+        {
+          platformMessageIdScope: context?.platformMessageIdScope,
+          senderPlatformIdMappings: context?.senderPlatformIdMappings,
+        }
+      ),
+  })
+
+  assert.equal(result.success, true)
+  assert.equal(result.importMode, 'incremental')
+  assert.equal(result.matchedBy, 'trailing-messages')
+  assert.equal(result.newMessageCount, 1)
+  assert.equal(result.duplicateCount, 5)
+
+  const db = openBetterSqliteDatabase(path.join(tempDir, 'existing.db'), { readonly: true, nativeBinding })
+  const meta = db.prepare('SELECT owner_id FROM meta').get() as { owner_id: string | null }
+  const members = db.prepare('SELECT platform_id FROM member ORDER BY platform_id').all() as Array<{
+    platform_id: string
+  }>
+  const lastSender = db
+    .prepare(
+      `SELECT member.platform_id
+       FROM message
+       JOIN member ON member.id = message.sender_id
+       ORDER BY message.ts DESC, message.id DESC
+       LIMIT 1`
+    )
+    .get() as { platform_id: string }
+  db.close()
+
+  assert.equal(meta.owner_id, 'uid-owner')
+  assert.deepEqual(
+    members.map((member) => member.platform_id),
+    ['uid-owner', 'uid-peer']
+  )
+  assert.equal(lastSender.platform_id, 'uid-peer')
+})
+
+test('does not match sender-agnostic message ids when the member mapping is incomplete', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const meta: SourceMeta = { name: 'Private chat', platform: 'qq', type: 'private' }
+  const candidateMembers = [
+    { platformId: 'uid-a', accountName: 'A' },
+    { platformId: 'uid-b', accountName: 'B' },
+    { platformId: 'uid-c', accountName: 'C' },
+  ]
+  const sourceMembers = [
+    { platformId: '10001', accountName: 'A' },
+    { platformId: '10002', accountName: 'B' },
+    { platformId: '10003', accountName: 'C' },
+  ]
+  const candidateMessages = Array.from({ length: 5 }, (_, index) => ({
+    ...textMessage('uid-a', 1783840150 + index, `message ${index}`),
+    platformMessageId: `message-${index}`,
+  }))
+  const sourceMessages = candidateMessages.map((message) => ({
+    ...message,
+    senderPlatformId: '10001',
+  }))
+
+  seedSession(path.join(tempDir, 'existing.db'), meta, candidateMembers, candidateMessages)
+  const sourcePath = path.join(tempDir, 'source.jsonl')
+  writeChatLabJsonl(sourcePath, meta, sourceMembers, sourceMessages)
+
+  assert.deepEqual(await resolveAutoImportTarget(sourcePath, createDeps(tempDir, ['existing'])), {
+    action: 'create',
+    reason: 'no-match',
+  })
+})
+
+test('does not guess unmatched QQ group members when participants have changed', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const meta: SourceMeta = { name: 'Group chat', platform: 'qq', type: 'group' }
+  const candidateMembers = [
+    { platformId: 'uid-a', accountName: 'A' },
+    { platformId: 'uid-b', accountName: 'B' },
+    { platformId: 'uid-c', accountName: 'C' },
+  ]
+  const sourceMembers = [
+    { platformId: '10001', accountName: 'A' },
+    { platformId: '10002', accountName: 'B' },
+    { platformId: '10004', accountName: 'D' },
+  ]
+  const candidateMessages = Array.from({ length: 5 }, (_, index) => ({
+    ...textMessage(index % 2 === 0 ? 'uid-a' : 'uid-b', 1783840160 + index, `message ${index}`),
+    platformMessageId: `message-${index}`,
+  }))
+  const sourceMessages = [
+    ...candidateMessages.map((message, index) => ({
+      ...message,
+      senderPlatformId: index % 2 === 0 ? '10001' : '10002',
+    })),
+    {
+      ...textMessage('10004', 1783840165, 'new member message'),
+      platformMessageId: 'message-5',
+    },
+  ]
+
+  seedSession(path.join(tempDir, 'existing.db'), meta, candidateMembers, candidateMessages)
+  const sourcePath = path.join(tempDir, 'source.jsonl')
+  writeChatLabJsonl(sourcePath, meta, sourceMembers, sourceMessages)
+
+  assert.deepEqual(await resolveAutoImportTarget(sourcePath, createDeps(tempDir, ['existing'])), {
+    action: 'create',
+    reason: 'no-match',
+  })
+})
+
+test('auto import deduplicates raw IDs against the matched merger scope and keeps new references scoped', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const meta: SourceMeta = { name: 'Private chat', platform: 'qq', type: 'private' }
+  const members = [
+    { platformId: '10001', accountName: 'Owner' },
+    { platformId: '20002', accountName: 'Peer' },
+  ]
+  const existingRawMessages = Array.from({ length: 5 }, (_, index) => ({
+    ...textMessage(index % 2 === 0 ? '20002' : '10001', 1783840150 + index, `message ${index}`),
+    platformMessageId: `message-${index}`,
+  }))
+  const rawMessages = [
+    ...existingRawMessages,
+    {
+      ...textMessage('20002', 1783840155, 'new message'),
+      platformMessageId: 'message-5',
+      replyToMessageId: 'message-4',
+    },
+  ]
+  const scopedMessages = existingRawMessages.map((message) => ({
+    ...message,
+    senderPlatformId: message.senderPlatformId === '20002' ? 'uid-peer' : 'uid-owner',
+    platformMessageId: `__chatlab_message_scope__0__${encodeURIComponent(message.platformMessageId!)}`,
+  }))
+  const candidateMembers = [
+    { platformId: 'uid-owner', accountName: 'Owner' },
+    { platformId: 'uid-peer', accountName: 'Peer' },
+  ]
+
+  seedSession(path.join(tempDir, 'merged.db'), meta, candidateMembers, scopedMessages)
+  const sourcePath = path.join(tempDir, 'source.jsonl')
+  writeChatLabJsonl(sourcePath, meta, members, rawMessages)
+
+  const result = await autoImportFile(sourcePath, {
+    ...createDeps(tempDir, ['merged']),
+    sessionExists: (sessionId) => sessionId === 'merged',
+    createSession: async () => {
+      throw new Error('must not create a second session')
+    },
+    appendSession: (sessionId, filePath, _formatOptions, onProgress, context) =>
+      incrementalImport(
+        sessionId,
+        filePath,
+        {
+          openDatabase: (_targetSessionId, readonly = false) =>
+            openBetterSqliteDatabase(path.join(tempDir, 'merged.db'), { readonly, nativeBinding }),
+          onProgress: onProgress ?? (() => {}),
+        },
+        {
+          platformMessageIdScope: context?.platformMessageIdScope,
+          senderPlatformIdMappings: context?.senderPlatformIdMappings,
+        }
+      ),
+  })
+
+  assert.equal(result.success, true)
+  assert.equal(result.importMode, 'incremental')
+  assert.equal(result.matchedBy, 'trailing-messages')
+  assert.equal(result.newMessageCount, 1)
+  assert.equal(result.duplicateCount, 5)
+
+  const db = openBetterSqliteDatabase(path.join(tempDir, 'merged.db'), { readonly: true, nativeBinding })
+  const rows = db
+    .prepare('SELECT platform_message_id, reply_to_message_id FROM message ORDER BY ts, id')
+    .all() as Array<{ platform_message_id: string | null; reply_to_message_id: string | null }>
+  db.close()
+
+  assert.equal(rows.length, 6)
+  assert.deepEqual(rows.at(-1), {
+    platform_message_id: '__chatlab_message_scope__0__message-5',
+    reply_to_message_id: '__chatlab_message_scope__0__message-4',
+  })
+})
+
+test('auto import preserves every existing namespace in an already scoped source', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const meta: SourceMeta = { name: 'Merged private chats', platform: 'qq', type: 'private' }
+  const sourceMembers = [
+    { platformId: '10001', accountName: 'Owner' },
+    { platformId: '20002', accountName: 'Peer' },
+  ]
+  const candidateMembers = [
+    { platformId: 'uid-owner', accountName: 'Owner' },
+    { platformId: 'uid-peer', accountName: 'Peer' },
+  ]
+  const existingMessages = Array.from({ length: 5 }, (_, index) => ({
+    ...textMessage(index % 2 === 0 ? 'uid-peer' : 'uid-owner', 1783840170 + index, `message ${index}`),
+    platformMessageId: `__chatlab_message_scope__0__message-${index}`,
+  }))
+  const sourceMessages = [
+    ...existingMessages.map((message, index) => ({
+      ...message,
+      senderPlatformId: index % 2 === 0 ? '20002' : '10001',
+    })),
+    {
+      ...textMessage('20002', 1783840175, 'second namespace'),
+      platformMessageId: '__chatlab_message_scope__1__message-5',
+      replyToMessageId: '__chatlab_message_scope__1__message-4',
+    },
+  ]
+
+  seedSession(path.join(tempDir, 'merged.db'), meta, candidateMembers, existingMessages)
+  const sourcePath = path.join(tempDir, 'source.jsonl')
+  writeChatLabJsonl(sourcePath, meta, sourceMembers, sourceMessages)
+
+  const result = await autoImportFile(sourcePath, {
+    ...createDeps(tempDir, ['merged']),
+    sessionExists: (sessionId) => sessionId === 'merged',
+    createSession: async () => {
+      throw new Error('must not create a second session')
+    },
+    appendSession: (sessionId, filePath, _formatOptions, onProgress, context) =>
+      incrementalImport(
+        sessionId,
+        filePath,
+        {
+          openDatabase: (_targetSessionId, readonly = false) =>
+            openBetterSqliteDatabase(path.join(tempDir, 'merged.db'), { readonly, nativeBinding }),
+          onProgress: onProgress ?? (() => {}),
+        },
+        {
+          platformMessageIdScope: context?.platformMessageIdScope,
+          senderPlatformIdMappings: context?.senderPlatformIdMappings,
+        }
+      ),
+  })
+
+  assert.equal(result.success, true)
+  assert.equal(result.importMode, 'incremental')
+  assert.equal(result.newMessageCount, 1)
+  assert.equal(result.duplicateCount, 5)
+
+  const db = openBetterSqliteDatabase(path.join(tempDir, 'merged.db'), { readonly: true, nativeBinding })
+  const rows = db
+    .prepare('SELECT platform_message_id, reply_to_message_id FROM message ORDER BY ts, id')
+    .all() as Array<{ platform_message_id: string | null; reply_to_message_id: string | null }>
+  db.close()
+  assert.deepEqual(rows.at(-1), {
+    platform_message_id: '__chatlab_message_scope__1__message-5',
+    reply_to_message_id: '__chatlab_message_scope__1__message-4',
+  })
+})
+
+test('does not normalize an already scoped source into a different candidate scope', async (t) => {
+  const tempDir = makeTempDir()
+  t.after(() => fs.rmSync(tempDir, { recursive: true, force: true }))
+
+  const meta: SourceMeta = { name: 'Merged private chats', platform: 'qq', type: 'private' }
+  const candidateMembers = [
+    { platformId: 'uid-owner', accountName: 'Owner' },
+    { platformId: 'uid-peer', accountName: 'Peer' },
+  ]
+  const sourceMembers = [
+    { platformId: '10001', accountName: 'Owner' },
+    { platformId: '20002', accountName: 'Peer' },
+  ]
+  const candidateMessages = Array.from({ length: 5 }, (_, index) => ({
+    ...textMessage(index % 2 === 0 ? 'uid-peer' : 'uid-owner', 1783840180 + index, `message ${index}`),
+    platformMessageId: `__chatlab_message_scope__0__message-${index}`,
+  }))
+  const sourceMessages = candidateMessages.map((message, index) => ({
+    ...message,
+    senderPlatformId: index % 2 === 0 ? '20002' : '10001',
+    platformMessageId: message.platformMessageId?.replace(
+      '__chatlab_message_scope__0__',
+      '__chatlab_message_scope__1__'
+    ),
+  }))
+
+  seedSession(path.join(tempDir, 'merged.db'), meta, candidateMembers, candidateMessages)
+  const sourcePath = path.join(tempDir, 'source.jsonl')
+  writeChatLabJsonl(sourcePath, meta, sourceMembers, sourceMessages)
+
+  assert.deepEqual(await resolveAutoImportTarget(sourcePath, createDeps(tempDir, ['merged'])), {
+    action: 'create',
+    reason: 'no-match',
   })
 })
 

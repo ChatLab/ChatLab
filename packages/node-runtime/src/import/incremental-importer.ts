@@ -18,6 +18,7 @@ import {
   type StreamParseCallbacks,
 } from '@openchatlab/parser'
 import {
+  applyPlatformMessageIdScope,
   createMessageDedupState,
   generateFallbackMessageKey,
   registerMessageAndCheckDuplicate,
@@ -28,11 +29,20 @@ import { normalizeSystemMemberName, SYSTEM_MEMBER_NAME, type ImportProgressCallb
 
 // ==================== Public interfaces ====================
 
+export interface SenderPlatformIdMapping {
+  sourceId: string
+  targetId: string
+}
+
 export interface ImportOptions {
   metaUpdateMode?: 'patch' | 'none'
   memberUpdateMode?: 'upsert' | 'none'
   formatId?: string
   chatIndex?: number
+  /** Internal scope selected by automatic matching for merger-namespaced message IDs. */
+  platformMessageIdScope?: string
+  /** Source-to-target sender IDs proven by automatic platform-message matching. */
+  senderPlatformIdMappings?: SenderPlatformIdMapping[]
 }
 
 export interface IncrementalAnalyzeResult {
@@ -106,6 +116,31 @@ interface ExistingMessageLookup {
 }
 
 type CandidateCache = Map<string, ExistingMessageCandidate[]>
+
+function applyMessageIdScope<T extends { platformMessageId?: string; replyToMessageId?: string }>(
+  message: T,
+  scope: string | undefined
+): T {
+  if (!scope) return message
+  return {
+    ...message,
+    platformMessageId: applyPlatformMessageIdScope(message.platformMessageId, scope),
+    replyToMessageId: applyPlatformMessageIdScope(message.replyToMessageId, scope),
+  }
+}
+
+function createPlatformIdMapper(mappings: SenderPlatformIdMapping[] | undefined): (platformId: string) => string {
+  const mapping = new Map(mappings?.map(({ sourceId, targetId }) => [sourceId, targetId]))
+  return (platformId) => mapping.get(platformId) ?? platformId
+}
+
+function applySenderPlatformIdMapping<T extends { senderPlatformId: string }>(
+  message: T,
+  mapPlatformId: (platformId: string) => string
+): T {
+  const senderPlatformId = mapPlatformId(message.senderPlatformId)
+  return senderPlatformId === message.senderPlatformId ? message : { ...message, senderPlatformId }
+}
 
 function createExistingMessageLookup(db: DatabaseAdapter): ExistingMessageLookup {
   const maxMessageId =
@@ -262,6 +297,7 @@ export async function analyzeIncrementalImport(
   let newMessageCount = 0
   let duplicateCount = 0
   let platform = formatFeature.platform
+  const mapPlatformId = createPlatformIdMapper(options?.senderPlatformIdMappings)
 
   try {
     const existingLookup = createExistingMessageLookup(db)
@@ -280,13 +316,16 @@ export async function analyzeIncrementalImport(
         },
         onLog: deps.onParserLog,
         onMessageBatch: (batch) => {
+          const scopedBatch = batch.map((message) =>
+            applyMessageIdScope(applySenderPlatformIdMapping(message, mapPlatformId), options?.platformMessageIdScope)
+          )
           const existingBatchPlatformIds = findExistingPlatformMessageIds(
             existingLookup,
-            batch.map((message) => message.platformMessageId)
+            scopedBatch.map((message) => message.platformMessageId)
           )
           const candidateCache: CandidateCache = new Map()
 
-          for (const msg of batch) {
+          for (const msg of scopedBatch) {
             totalInFile++
             const timestamp = normalizeImportTimestamp(msg.timestamp)
             if (timestamp === null) continue
@@ -338,6 +377,7 @@ export async function incrementalImport(
 
   const metaUpdateMode = options?.metaUpdateMode ?? 'patch'
   const memberUpdateMode = options?.memberUpdateMode ?? 'upsert'
+  const mapPlatformId = createPlatformIdMapper(options?.senderPlatformIdMappings)
 
   try {
     const existingLookup = createExistingMessageLookup(db)
@@ -420,7 +460,7 @@ export async function incrementalImport(
             meta.name || '',
             meta.groupId || '',
             meta.groupAvatar || '',
-            meta.ownerId || '',
+            meta.ownerId ? mapPlatformId(meta.ownerId) : '',
             Math.floor(Date.now() / 1000)
           )
           metaUpdated = true
@@ -428,11 +468,12 @@ export async function incrementalImport(
         onMembers: (members) => {
           if (memberUpdateMode === 'none') return
           for (const m of members) {
-            const existed = memberIdMap.has(m.platformId)
-            const accountName = normalizeSystemMemberName(formatFeature.id, m.platformId, m.accountName)
-            const groupNickname = normalizeSystemMemberName(formatFeature.id, m.platformId, m.groupNickname)
+            const platformId = mapPlatformId(m.platformId)
+            const existed = memberIdMap.has(platformId)
+            const accountName = normalizeSystemMemberName(formatFeature.id, platformId, m.accountName)
+            const groupNickname = normalizeSystemMemberName(formatFeature.id, platformId, m.groupNickname)
             upsertMember.run(
-              m.platformId,
+              platformId,
               accountName || null,
               groupNickname || null,
               m.aliases ? JSON.stringify(m.aliases) : '[]',
@@ -440,8 +481,8 @@ export async function incrementalImport(
               m.roles ? JSON.stringify(m.roles) : '[]'
             )
             if (!existed) {
-              const row = getMemberId.get(m.platformId) as { id: number } | undefined
-              if (row) memberIdMap.set(m.platformId, row.id)
+              const row = getMemberId.get(platformId) as { id: number } | undefined
+              if (row) memberIdMap.set(platformId, row.id)
               membersAdded++
             } else {
               membersUpdated++
@@ -453,13 +494,16 @@ export async function incrementalImport(
         },
         onLog: deps.onParserLog,
         onMessageBatch: (batch) => {
+          const scopedBatch = batch.map((message) =>
+            applyMessageIdScope(applySenderPlatformIdMapping(message, mapPlatformId), options?.platformMessageIdScope)
+          )
           const existingBatchPlatformIds = findExistingPlatformMessageIds(
             existingLookup,
-            batch.map((message) => message.platformMessageId)
+            scopedBatch.map((message) => message.platformMessageId)
           )
           const candidateCache: CandidateCache = new Map()
 
-          for (const msg of batch) {
+          for (const msg of scopedBatch) {
             processedCount++
 
             if (!msg.senderPlatformId) {
