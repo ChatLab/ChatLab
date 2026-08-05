@@ -11,6 +11,7 @@ interface ShuakamiQqMetaJson {
   name: string
   chatType: string
   groupAvatar: string | null
+  ownerId: string | null
   skippedMessages: number
 }
 
@@ -25,6 +26,7 @@ export const shuakamiQqAdapter: NativeFormatAdapter = {
       platform: KNOWN_PLATFORMS.QQ,
       type: meta.chatType === 'private' ? ChatType.PRIVATE : ChatType.GROUP,
       groupAvatar: meta.groupAvatar ?? undefined,
+      ...(meta.ownerId ? { ownerId: meta.ownerId } : {}),
     }
   },
 

@@ -17,7 +17,7 @@ describe('shuakami-qq-exporter chunked parser', () => {
       mkdirSync(chunksDir)
       const manifest = JSON.stringify({
         metadata: { name: 'QQChatExporter', version: '0.1.0' },
-        chatInfo: { name: 'Test Group', type: 'group', selfUin: '100' },
+        chatInfo: { name: 'Test Group', type: 'group', selfUin: '100', selfUid: 'u_100' },
         statistics: {
           totalMessages: 2,
           senders: Array.from({ length: 1000 }, (_, index) => ({
@@ -66,6 +66,7 @@ describe('shuakami-qq-exporter chunked parser', () => {
 
       const result = await parseFileSync(manifestPath)
       assert.equal(result.meta.type, ChatType.GROUP)
+      assert.equal(result.meta.ownerId, undefined)
       assert.equal(result.messages.length, 2)
       assert.equal(result.messages[1].type, MessageType.RECALL)
       assert.equal(result.messages[1].content, '[已撤回] recalled')

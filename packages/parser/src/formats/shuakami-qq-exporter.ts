@@ -107,6 +107,8 @@ interface ChatInfo {
   name: string
   type: string
   avatar?: string
+  selfUid?: string
+  selfUin?: string
 }
 
 // ==================== 辅助函数 ====================
@@ -303,6 +305,8 @@ async function* parseShuakamiQqV4(options: ParseOptions): AsyncGenerator<ParseEv
   // 判断聊天类型（优先 chatInfo.type，senders 计数兜底）
   const chatType = resolveChatType(chatInfo.type, headContent)
 
+  // QCE only exposes observed senders and can mix UIN/UID namespaces, so it
+  // cannot guarantee that a chatInfo self ID resolves to an emitted member.
   // 发送 meta（包含群头像）
   const meta: ParsedMeta = {
     name: chatInfo.name || extractNameFromFilePath(filePath),

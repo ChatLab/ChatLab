@@ -25,6 +25,7 @@ struct ShuakamiQqV4Meta {
     name: String,
     chat_type: &'static str,
     group_avatar: Option<String>,
+    owner_id: Option<String>,
     skipped_messages: usize,
 }
 
@@ -380,7 +381,7 @@ pub(crate) fn parse_shuakami_qq_v4(
         None => None,
     };
     let sender_count = count_head_senders(buf);
-    let (name, chat_type, group_avatar) = match chat_info {
+    let (name, chat_type, group_avatar, owner_id) = match chat_info {
         Some(info) => {
             let name = if info.name.is_empty() {
                 extract_name_from_file_path(&input.primary_path, "未知群聊")
@@ -388,11 +389,13 @@ pub(crate) fn parse_shuakami_qq_v4(
                 info.name
             };
             let chat_type = resolve_chat_type(info.chat_type.as_deref(), sender_count);
-            (name, chat_type, info.avatar)
+            // QCE only exposes observed senders and can mix UIN/UID namespaces,
+            // so a chatInfo self ID cannot be trusted as an emitted member ID.
+            (name, chat_type, info.avatar, None)
         }
         // The TS parser initializes chatInfo with a truthy default name and
         // explicit group type when the head object cannot be extracted.
-        None => ("未知群聊".to_string(), "group", None),
+        None => ("未知群聊".to_string(), "group", None, None),
     };
 
     let avatars = parse_tail_avatars(buf, avatars_key, avatars_raw);
@@ -425,6 +428,7 @@ pub(crate) fn parse_shuakami_qq_v4(
         name,
         chat_type,
         group_avatar,
+        owner_id,
         skipped_messages,
     })
     .map_err(|error| ScanError {
@@ -457,7 +461,7 @@ mod tests {
         let output = parse(
             r#"{
               "metadata":{"name":"QQChatExporter V6","version":"6.0.3"},
-              "chatInfo":{"name":"测试群","type":"group","avatar":"data:image/png;base64,GROUP"},
+              "chatInfo":{"name":"测试群","type":"group","avatar":"data:image/png;base64,GROUP","selfUin":"100","selfUid":"u_100"},
               "statistics":{"senders":[{"uid":"u_100"},{"uid":"u_200"},{"uid":"u_300"}]},
               "messages":[
                 {"messageId":"m1","timestamp":"2026-07-10T12:00:00.123+08:00",
@@ -473,6 +477,7 @@ mod tests {
         assert_eq!(meta["name"], "测试群");
         assert_eq!(meta["chatType"], "group");
         assert_eq!(meta["groupAvatar"], "data:image/png;base64,GROUP");
+        assert_eq!(meta["ownerId"], Value::Null);
         assert_eq!(output.members.len(), 1);
         assert_eq!(output.members[0].account_name, "Alice QQ");
         assert_eq!(output.members[0].group_nickname.as_deref(), Some("群名片"));

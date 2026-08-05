@@ -10,6 +10,8 @@ import type { ParseResult } from '../types'
 
 function makeExport(options: {
   chatInfoType?: string
+  selfUid?: string
+  selfUin?: string
   senders: Array<{ uid: string; name: string }>
   messages: unknown[]
 }): string {
@@ -23,6 +25,8 @@ function makeExport(options: {
       chatInfo: {
         name: 'Test Chat',
         ...(options.chatInfoType ? { type: options.chatInfoType } : {}),
+        ...(options.selfUid ? { selfUid: options.selfUid } : {}),
+        ...(options.selfUin ? { selfUin: options.selfUin } : {}),
       },
       statistics: {
         totalMessages: options.messages.length,
@@ -83,9 +87,11 @@ describe('shuakami-qq-exporter parser', () => {
     assert.equal(result.messages.length, 1)
   })
 
-  it('prefers chatInfo.type and skips placeholder system senders', async () => {
+  it('prefers chatInfo.type, skips placeholder senders, and does not infer the owner', async () => {
     const content = makeExport({
       chatInfoType: 'private',
+      selfUid: 'u_100',
+      selfUin: '100',
       senders: [
         { uid: 'u_100', name: 'Alice' },
         { uid: 'u_200', name: 'Bob' },
@@ -100,6 +106,7 @@ describe('shuakami-qq-exporter parser', () => {
 
     const result = await parseContent(content)
     assert.equal(result.meta.type, ChatType.PRIVATE)
+    assert.equal(result.meta.ownerId, undefined)
     assert.deepEqual(result.members.map((m) => m.platformId).sort(), ['100', '200'])
     assert.equal(result.messages.length, 2)
     assert.ok(result.messages.every((m) => m.senderPlatformId !== '0' && m.senderPlatformId !== '未知'))

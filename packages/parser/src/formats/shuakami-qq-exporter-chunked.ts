@@ -377,16 +377,17 @@ async function* parseChunkedJsonl(options: ParseOptions): AsyncGenerator<ParseEv
     avatarsMap = new Map()
   }
 
+  // QCE only exposes observed senders and can mix UIN/UID namespaces, so it
+  // cannot guarantee that a chatInfo self ID resolves to an emitted member.
   // 发送 meta
   const chatType = manifest.chatInfo.type === 'group' ? ChatType.GROUP : ChatType.PRIVATE
   const meta: ParsedMeta = {
     name: manifest.chatInfo.name || '未知群聊',
     platform: KNOWN_PLATFORMS.QQ,
     type: chatType,
-    ownerId: manifest.chatInfo.selfUin || manifest.chatInfo.selfUid,
   }
   yield { type: 'meta', data: meta }
-  onLog?.('info', `Meta 信息: name=${meta.name}, type=${meta.type}, ownerId=${meta.ownerId}`)
+  onLog?.('info', `Meta 信息: name=${meta.name}, type=${meta.type}`)
 
   // 收集成员信息（不再收集所有消息到内存）
   const memberMap = new Map<string, MemberInfo>()
