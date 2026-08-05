@@ -1,17 +1,22 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
 import Database from 'better-sqlite3'
-import { checkConflictsFromSources, buildMergedOutput, serializeChatLabToJsonl } from '../index'
+import {
+  checkConflictsFromSources,
+  buildMergedOutput,
+  serializeChatLabToJsonl,
+  type MergerInputMessage,
+} from '../index'
 import { exportSessionToJson } from '../temp-db'
 import type { MergerDataSource, MergerSourceMeta } from '../index'
-import type { MergerMember, MergerMessage } from '@openchatlab/core'
+import type { MergerMember } from '@openchatlab/core'
 import { CHATLAB_FORMAT_VERSION } from '@openchatlab/shared-types'
 import { BetterSqliteAdapter } from '../../better-sqlite3-adapter'
 
 function createMockSource(
   meta: MergerSourceMeta,
   members: MergerMember[],
-  messages: MergerMessage[]
+  messages: MergerInputMessage[]
 ): MergerDataSource {
   return {
     getMeta: () => meta,
@@ -127,6 +132,214 @@ describe('buildMergedOutput', () => {
     )
     assert.equal(result.chatLabData.meta.platform, 'mixed')
   })
+
+  it('keeps same-platform message IDs separate across unrelated private chats', () => {
+    const first = createMockSource(
+      { name: 'Alice', platform: 'telegram', type: 'private' },
+      [{ platformId: 'owner' }, { platformId: 'alice' }],
+      [
+        {
+          platformMessageId: '1',
+          senderPlatformId: 'alice',
+          timestamp: 100,
+          type: 0,
+          content: 'first chat',
+        },
+      ]
+    )
+    const second = createMockSource(
+      { name: 'Bob', platform: 'telegram', type: 'private' },
+      [{ platformId: 'owner' }, { platformId: 'bob' }],
+      [
+        {
+          platformMessageId: '1',
+          senderPlatformId: 'bob',
+          timestamp: 200,
+          type: 0,
+          content: 'second chat',
+        },
+      ]
+    )
+
+    const result = buildMergedOutput(
+      [
+        { source: first, filename: 'alice.json' },
+        { source: second, filename: 'bob.json' },
+      ],
+      'Merged'
+    )
+
+    const conflicts = checkConflictsFromSources([
+      { source: first, filename: 'alice.json' },
+      { source: second, filename: 'bob.json' },
+    ])
+    assert.equal(conflicts.totalMessages, 2)
+    assert.equal(result.chatLabData.messages.length, 2)
+    assert.equal(new Set(result.chatLabData.messages.map((message) => message.platformMessageId)).size, 2)
+  })
+
+  it('deduplicates overlapping private exports when their observed members differ', () => {
+    const meta: MergerSourceMeta = { name: 'Alice', platform: 'qq', type: 'private' }
+    const sharedMessage: MergerInputMessage = {
+      platformMessageId: 'message-1',
+      senderPlatformId: 'alice',
+      timestamp: 100,
+      type: 0,
+      content: 'shared',
+    }
+    const incomingOnly = createMockSource(meta, [{ platformId: 'alice' }], [sharedMessage])
+    const bothSides = createMockSource(
+      meta,
+      [{ platformId: 'owner' }, { platformId: 'alice' }],
+      [
+        sharedMessage,
+        {
+          platformMessageId: 'message-2',
+          senderPlatformId: 'owner',
+          timestamp: 200,
+          type: 0,
+          content: 'reply',
+        },
+      ]
+    )
+    const sources = [
+      { source: incomingOnly, filename: 'old.json' },
+      { source: bothSides, filename: 'new.json' },
+    ]
+
+    const conflicts = checkConflictsFromSources(sources)
+    const result = buildMergedOutput(sources, 'Merged')
+
+    assert.equal(conflicts.totalMessages, 2)
+    assert.equal(result.chatLabData.messages.length, 2)
+    assert.deepEqual(
+      result.chatLabData.messages.map((message) => message.platformMessageId),
+      ['message-1', 'message-2']
+    )
+  })
+
+  it('deduplicates the same group when a newer export has a different name and more members', () => {
+    const oldMeta: MergerSourceMeta = { name: 'Old project', platform: 'qq', type: 'group' }
+    const newMeta: MergerSourceMeta = { name: 'Renamed project', platform: 'qq', type: 'group' }
+    const sharedMessage: MergerInputMessage = {
+      platformMessageId: 'message-1',
+      senderPlatformId: 'alice',
+      timestamp: 100,
+      type: 0,
+      content: 'shared',
+    }
+    const oldExport = createMockSource(oldMeta, [{ platformId: 'alice' }, { platformId: 'bob' }], [sharedMessage])
+    const newExport = createMockSource(
+      newMeta,
+      [{ platformId: 'alice' }, { platformId: 'bob' }, { platformId: 'carol' }],
+      [
+        sharedMessage,
+        {
+          platformMessageId: 'message-2',
+          replyToMessageId: 'message-1',
+          senderPlatformId: 'carol',
+          timestamp: 200,
+          type: 0,
+          content: 'new',
+        },
+      ]
+    )
+    const sources = [
+      { source: oldExport, filename: 'old.json' },
+      { source: newExport, filename: 'new.json' },
+    ]
+
+    const conflicts = checkConflictsFromSources(sources)
+    const result = buildMergedOutput(sources, 'Merged')
+
+    assert.equal(conflicts.totalMessages, 2)
+    assert.equal(result.chatLabData.messages.length, 2)
+    assert.deepEqual(
+      result.chatLabData.messages.map((message) => message.platformMessageId),
+      ['message-1', 'message-2']
+    )
+    assert.equal(result.chatLabData.messages[1].replyToMessageId, result.chatLabData.messages[0].platformMessageId)
+  })
+
+  it('keeps the same message ID separate across unrelated groups with the same name', () => {
+    const meta: MergerSourceMeta = { name: 'Project', platform: 'qq', type: 'group' }
+    const first = createMockSource(
+      meta,
+      [{ platformId: 'alice' }],
+      [
+        {
+          platformMessageId: 'message-1',
+          senderPlatformId: 'alice',
+          timestamp: 100,
+          type: 0,
+          content: 'first group',
+        },
+      ]
+    )
+    const second = createMockSource(
+      meta,
+      [{ platformId: 'bob' }],
+      [
+        {
+          platformMessageId: 'message-1',
+          senderPlatformId: 'bob',
+          timestamp: 200,
+          type: 0,
+          content: 'second group',
+        },
+      ]
+    )
+    const sources = [
+      { source: first, filename: 'first.json' },
+      { source: second, filename: 'second.json' },
+    ]
+
+    const conflicts = checkConflictsFromSources(sources)
+    const result = buildMergedOutput(sources, 'Merged')
+
+    assert.equal(conflicts.totalMessages, 2)
+    assert.equal(result.chatLabData.messages.length, 2)
+    assert.equal(new Set(result.chatLabData.messages.map((message) => message.platformMessageId)).size, 2)
+  })
+
+  it('backfills a stable ID when an ID-bearing copy bridges a fallback-only message', () => {
+    const meta: MergerSourceMeta = { name: 'Chat', platform: 'qq', type: 'private' }
+    const members = [{ platformId: 'owner' }, { platformId: 'alice' }, { platformId: 'bob' }]
+    const fallbackSource = createMockSource(meta, members, [
+      { senderPlatformId: 'alice', timestamp: 100, type: 0, content: 'root' },
+    ])
+    const idSource = createMockSource(meta, members, [
+      {
+        platformMessageId: 'message-1',
+        senderPlatformId: 'alice',
+        timestamp: 100,
+        type: 0,
+        content: 'root',
+      },
+      {
+        platformMessageId: 'message-2',
+        replyToMessageId: 'message-1',
+        senderPlatformId: 'bob',
+        timestamp: 101,
+        type: 0,
+        content: 'reply',
+      },
+    ])
+
+    const result = buildMergedOutput(
+      [
+        { source: fallbackSource, filename: 'old.json' },
+        { source: idSource, filename: 'new.json' },
+      ],
+      'Merged'
+    )
+
+    assert.equal(result.chatLabData.messages.length, 2)
+    const root = result.chatLabData.messages.find((message) => message.content === 'root')
+    const reply = result.chatLabData.messages.find((message) => message.content === 'reply')
+    assert.equal(root?.platformMessageId, 'message-1')
+    assert.equal(reply?.replyToMessageId, root?.platformMessageId)
+  })
 })
 
 describe('serializeChatLabToJsonl', () => {
@@ -182,22 +395,28 @@ describe('exportSessionToJson', () => {
         avatar TEXT
       );
       CREATE TABLE message (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
         sender_id INTEGER NOT NULL,
         sender_account_name TEXT,
         sender_group_nickname TEXT,
         ts INTEGER NOT NULL,
         type INTEGER NOT NULL,
-        content TEXT
+        content TEXT,
+        platform_message_id TEXT,
+        reply_to_message_id TEXT
       );
       INSERT INTO meta (name, platform, type) VALUES ('Test', 'qq', 'group');
       INSERT INTO member (id, platform_id, account_name) VALUES (1, 'alice', 'Alice');
-      INSERT INTO message (sender_id, sender_account_name, ts, type, content)
-      VALUES (1, 'Alice', 100, 0, 'Hello');
+      INSERT INTO message (
+        sender_id, sender_account_name, ts, type, content, platform_message_id, reply_to_message_id
+      ) VALUES (1, 'Alice', 100, 0, 'Hello', 'message-1', 'message-0');
     `)
 
     try {
       const exported = exportSessionToJson(new BetterSqliteAdapter(rawDb))
       assert.equal(exported.chatlab.version, CHATLAB_FORMAT_VERSION)
+      assert.equal(exported.messages[0].platformMessageId, 'message-1')
+      assert.equal(exported.messages[0].replyToMessageId, 'message-0')
     } finally {
       rawDb.close()
     }

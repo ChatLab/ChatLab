@@ -1025,8 +1025,10 @@ export async function streamParseFileInfo(
     'INSERT OR IGNORE INTO member (platform_id, account_name, group_nickname, avatar) VALUES (?, ?, ?, ?)'
   )
   const insertMessage = db.prepare(
-    `INSERT INTO message (sender_platform_id, sender_account_name, sender_group_nickname, timestamp, type, content)
-     VALUES (?, ?, ?, ?, ?, ?)`
+    `INSERT INTO message (
+       platform_message_id, sender_platform_id, sender_account_name, sender_group_nickname,
+       timestamp, type, content, reply_to_message_id
+     ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   )
 
   let meta: ParsedMeta = { name: 'Unknown', platform: formatFeature.platform, type: 0 as any }
@@ -1076,12 +1078,14 @@ export async function streamParseFileInfo(
           }
 
           insertMessage.run(
+            msg.platformMessageId || null,
             msg.senderPlatformId,
             msg.senderAccountName || null,
             msg.senderGroupNickname || null,
             msg.timestamp,
             msg.type,
-            msg.content || null
+            msg.content || null,
+            msg.replyToMessageId || null
           )
           messageCount++
         }

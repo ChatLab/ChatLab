@@ -251,12 +251,14 @@ export function registerMergeRoutes(server: FastifyInstance, ctx: MergeRoutesCon
       )
       writer.writeMessages(
         exported.messages.map((msg) => ({
+          platformMessageId: msg.platformMessageId,
           senderPlatformId: msg.sender,
           senderAccountName: msg.accountName,
           senderGroupNickname: msg.groupNickname,
           timestamp: msg.timestamp,
           type: msg.type,
           content: msg.content,
+          replyToMessageId: msg.replyToMessageId,
         }))
       )
       writer.finish()

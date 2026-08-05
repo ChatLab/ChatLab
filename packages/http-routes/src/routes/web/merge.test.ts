@@ -81,3 +81,98 @@ test('forwards the session gap threshold when importing merged output', async (t
   assert.equal(response.json().sessionId, 'merged-session')
   assert.deepEqual(receivedOptions, { sessionGapThreshold: 7200 })
 })
+
+test('keeps every distinct platform message when merging a source with its superset', async (t) => {
+  const rootDir = makeTempDir()
+  t.after(() => fs.rmSync(rootDir, { recursive: true, force: true }))
+
+  const pathProvider = createPathProvider(rootDir)
+  const dbManager = new DatabaseManager(pathProvider, { nativeBinding, allowMissingRuntimeForTests: true })
+  const mergeSessionCache = new MergeSessionCache(pathProvider, { nativeBinding })
+
+  const makeMessages = (count: number) =>
+    Array.from({ length: count }, (_, index) => {
+      const fallbackCollisionIndex = index < 10 ? Math.floor(index / 2) : index
+      return {
+        platformMessageId: `message-${index}`,
+        senderPlatformId: 'qq-user-1',
+        senderAccountName: 'Alice',
+        timestamp: 1_700_000_000 + fallbackCollisionIndex,
+        type: 0 as const,
+        content: index < 10 ? `same-second-content-${fallbackCollisionIndex}` : `message-content-${index}`,
+        replyToMessageId: index === 11 ? 'message-10' : undefined,
+      }
+    })
+
+  const createSession = (sessionId: string, messageCount: number): void => {
+    const db = dbManager.openRawSessionDatabase(sessionId, { create: true, initializeChatTables: true })
+    db.prepare('INSERT INTO meta (name, platform, type, imported_at) VALUES (?, ?, ?, ?)').run(
+      'Source',
+      'qq',
+      'private',
+      1_700_000_000
+    )
+    const memberResult = db
+      .prepare('INSERT INTO member (platform_id, account_name) VALUES (?, ?)')
+      .run('qq-user-1', 'Alice')
+    const insertMessage = db.prepare(
+      `INSERT INTO message (
+         sender_id, sender_account_name, ts, type, content, platform_message_id, reply_to_message_id
+       ) VALUES (?, ?, ?, ?, ?, ?, ?)`
+    )
+    for (const message of makeMessages(messageCount)) {
+      insertMessage.run(
+        memberResult.lastInsertRowid,
+        message.senderAccountName,
+        message.timestamp,
+        message.type,
+        message.content,
+        message.platformMessageId,
+        message.replyToMessageId || null
+      )
+    }
+    db.close()
+  }
+
+  createSession('older', 100)
+  createSession('newer', 120)
+
+  const app = Fastify()
+  registerMergeRoutes(app, { dbManager, mergeSessionCache })
+  await app.ready()
+  t.after(() => app.close())
+
+  const exportResponse = await app.inject({
+    method: 'POST',
+    url: '/_web/sessions/export-for-merge',
+    payload: { sessionIds: ['older', 'newer'] },
+  })
+  assert.equal(exportResponse.statusCode, 200)
+  const handles = exportResponse.json().handles as Array<{ handle: string }>
+
+  const conflictResponse = await app.inject({
+    method: 'POST',
+    url: '/_web/merge/conflicts',
+    payload: { handles: handles.map(({ handle }) => handle) },
+  })
+  assert.equal(conflictResponse.statusCode, 200)
+  assert.equal(conflictResponse.json().totalMessages, 120)
+
+  const response = await app.inject({
+    method: 'POST',
+    url: '/_web/merge/execute',
+    payload: {
+      handles: handles.map(({ handle }) => handle),
+      outputName: 'Merged',
+    },
+  })
+
+  assert.equal(response.statusCode, 200)
+  const messages = response.json().data.messages as Array<{
+    platformMessageId?: string
+    replyToMessageId?: string
+  }>
+  assert.equal(messages.length, 120)
+  assert.equal(new Set(messages.map((message) => message.platformMessageId)).size, 120)
+  assert.equal(messages.find((message) => message.platformMessageId === 'message-11')?.replyToMessageId, 'message-10')
+})

@@ -12,8 +12,8 @@ import * as fs from 'fs'
 import * as path from 'path'
 import type { DatabaseAdapter } from '@openchatlab/core'
 import { CHATLAB_FORMAT_VERSION, type ParsedMember, type ParsedMessage } from '@openchatlab/shared-types'
-import type { MergerDataSource, MergerSourceMeta } from './index'
-import type { MergerMember, MergerMessage } from '@openchatlab/core'
+import type { MergerDataSource, MergerInputMessage, MergerSourceMeta } from './index'
+import type { MergerMember } from '@openchatlab/core'
 
 // ==================== Temp DB schema (simplified for merge preview) ====================
 
@@ -36,12 +36,14 @@ export const TEMP_DB_SCHEMA = `
 
   CREATE TABLE IF NOT EXISTS message (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    platform_message_id TEXT,
     sender_platform_id TEXT NOT NULL,
     sender_account_name TEXT,
     sender_group_nickname TEXT,
     timestamp INTEGER NOT NULL,
     type INTEGER NOT NULL,
-    content TEXT
+    content TEXT,
+    reply_to_message_id TEXT
   );
 
   CREATE INDEX IF NOT EXISTS idx_message_ts ON message(timestamp);
@@ -88,8 +90,10 @@ export class TempDbWriter {
 
   writeMessages(messages: ParsedMessage[]): void {
     const insert = this.db.prepare(
-      `INSERT INTO message (sender_platform_id, sender_account_name, sender_group_nickname, timestamp, type, content)
-       VALUES (?, ?, ?, ?, ?, ?)`
+      `INSERT INTO message (
+         platform_message_id, sender_platform_id, sender_account_name, sender_group_nickname,
+         timestamp, type, content, reply_to_message_id
+       ) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     )
     const memberInsert = this.db.prepare(
       'INSERT OR IGNORE INTO member (platform_id, account_name, group_nickname, avatar) VALUES (?, ?, ?, ?)'
@@ -100,12 +104,14 @@ export class TempDbWriter {
         memberInsert.run(msg.senderPlatformId, msg.senderAccountName || null, msg.senderGroupNickname || null, null)
       }
       insert.run(
+        msg.platformMessageId || null,
         msg.senderPlatformId,
         msg.senderAccountName || null,
         msg.senderGroupNickname || null,
         msg.timestamp,
         msg.type,
-        msg.content || null
+        msg.content || null,
+        msg.replyToMessageId || null
       )
       this.messageCount++
     }
@@ -181,30 +187,35 @@ export class TempDbReader {
 
   streamMessages(batchSize: number, callback: (messages: ParsedMessage[]) => void): void {
     const stmt = this.db.prepare(`
-      SELECT sender_platform_id, sender_account_name, sender_group_nickname, timestamp, type, content
-      FROM message ORDER BY timestamp ASC LIMIT ? OFFSET ?
+      SELECT platform_message_id, sender_platform_id, sender_account_name, sender_group_nickname,
+             timestamp, type, content, reply_to_message_id
+      FROM message ORDER BY timestamp ASC, id ASC LIMIT ? OFFSET ?
     `)
 
     let offset = 0
     while (true) {
       const rows = stmt.all(batchSize, offset) as Array<{
+        platform_message_id: string | null
         sender_platform_id: string
         sender_account_name: string | null
         sender_group_nickname: string | null
         timestamp: number
         type: number
         content: string | null
+        reply_to_message_id: string | null
       }>
 
       if (rows.length === 0) break
 
       const messages: ParsedMessage[] = rows.map((r) => ({
+        platformMessageId: r.platform_message_id || undefined,
         senderPlatformId: r.sender_platform_id,
         senderAccountName: r.sender_account_name || r.sender_platform_id,
         senderGroupNickname: r.sender_group_nickname || undefined,
         timestamp: r.timestamp,
         type: r.type as ParsedMessage['type'],
         content: r.content,
+        replyToMessageId: r.reply_to_message_id || undefined,
       }))
 
       callback(messages)
@@ -215,25 +226,30 @@ export class TempDbReader {
   getAllMessages(): ParsedMessage[] {
     const rows = this.db
       .prepare(
-        `SELECT sender_platform_id, sender_account_name, sender_group_nickname, timestamp, type, content
-         FROM message ORDER BY timestamp ASC`
+        `SELECT platform_message_id, sender_platform_id, sender_account_name, sender_group_nickname,
+                timestamp, type, content, reply_to_message_id
+         FROM message ORDER BY timestamp ASC, id ASC`
       )
       .all() as Array<{
+      platform_message_id: string | null
       sender_platform_id: string
       sender_account_name: string | null
       sender_group_nickname: string | null
       timestamp: number
       type: number
       content: string | null
+      reply_to_message_id: string | null
     }>
 
     return rows.map((r) => ({
+      platformMessageId: r.platform_message_id || undefined,
       senderPlatformId: r.sender_platform_id,
       senderAccountName: r.sender_account_name || r.sender_platform_id,
       senderGroupNickname: r.sender_group_nickname || undefined,
       timestamp: r.timestamp,
       type: r.type as ParsedMessage['type'],
       content: r.content,
+      replyToMessageId: r.reply_to_message_id || undefined,
     }))
   }
 
@@ -271,16 +287,18 @@ function createDataSourceFromReader(reader: TempDbReader): MergerDataSource {
     getMessageCount(): number {
       return reader.getMessageCount()
     },
-    streamMessages(batchSize: number, callback: (messages: MergerMessage[]) => void): void {
+    streamMessages(batchSize: number, callback: (messages: MergerInputMessage[]) => void): void {
       reader.streamMessages(batchSize, (messages) => {
         callback(
           messages.map((msg) => ({
             senderPlatformId: msg.senderPlatformId,
+            platformMessageId: msg.platformMessageId,
             senderAccountName: msg.senderAccountName,
             senderGroupNickname: msg.senderGroupNickname,
             timestamp: msg.timestamp,
             type: msg.type,
             content: msg.content,
+            replyToMessageId: msg.replyToMessageId,
           }))
         )
       })
@@ -295,12 +313,14 @@ export interface ExportedSession {
   meta: { name: string; platform: string; type: string; groupId?: string; groupAvatar?: string }
   members: Array<{ platformId: string; accountName: string; groupNickname?: string; avatar?: string }>
   messages: Array<{
+    platformMessageId?: string
     sender: string
     accountName: string
     groupNickname?: string
     timestamp: number
     type: number
     content: string | null
+    replyToMessageId?: string
   }>
 }
 
@@ -325,16 +345,19 @@ export function exportSessionToJson(db: DatabaseAdapter): ExportedSession {
   const messages = db
     .prepare(
       `SELECT m.platform_id as sender, msg.sender_account_name as accountName,
-              msg.sender_group_nickname as groupNickname, msg.ts as timestamp, msg.type, msg.content
-       FROM message msg JOIN member m ON msg.sender_id = m.id ORDER BY msg.ts`
+              msg.sender_group_nickname as groupNickname, msg.ts as timestamp, msg.type, msg.content,
+              msg.platform_message_id as platformMessageId, msg.reply_to_message_id as replyToMessageId
+       FROM message msg JOIN member m ON msg.sender_id = m.id ORDER BY msg.ts, msg.id`
     )
     .all() as Array<{
+    platformMessageId?: string
     sender: string
     accountName?: string
     groupNickname?: string
     timestamp: number
     type: number
     content?: string
+    replyToMessageId?: string
   }>
 
   return {
@@ -358,12 +381,14 @@ export function exportSessionToJson(db: DatabaseAdapter): ExportedSession {
       avatar: m.avatar,
     })),
     messages: messages.map((msg) => ({
+      platformMessageId: msg.platformMessageId || undefined,
       sender: msg.sender,
       accountName: msg.accountName || msg.sender,
       groupNickname: msg.groupNickname || undefined,
       timestamp: msg.timestamp,
       type: msg.type,
       content: msg.content ?? null,
+      replyToMessageId: msg.replyToMessageId || undefined,
     })),
   }
 }
