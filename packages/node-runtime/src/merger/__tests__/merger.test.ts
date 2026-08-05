@@ -133,6 +133,61 @@ describe('buildMergedOutput', () => {
     assert.equal(result.chatLabData.meta.platform, 'mixed')
   })
 
+  it('preserves the only non-empty owner id and drops conflicting owner ids', () => {
+    const messages = [{ senderPlatformId: 'peer', timestamp: 100, type: 0, content: 'hello' }]
+    const members = [{ platformId: 'owner' }, { platformId: 'peer' }]
+    const sourceWithoutOwner = createMockSource({ name: 'Private', platform: 'qq', type: 'private' }, members, messages)
+    const sourceWithOwner = createMockSource(
+      { name: 'Private', platform: 'qq', type: 'private', ownerId: 'owner' } as MergerSourceMeta & {
+        ownerId: string
+      },
+      members,
+      messages
+    )
+
+    const retained = buildMergedOutput(
+      [
+        { source: sourceWithoutOwner, filename: 'without-owner.json' },
+        { source: sourceWithOwner, filename: 'with-owner.json' },
+      ],
+      'Merged'
+    )
+    assert.equal((retained.chatLabData.meta as { ownerId?: string }).ownerId, 'owner')
+
+    const invalid = buildMergedOutput(
+      [
+        {
+          source: createMockSource(
+            { name: 'Private', platform: 'qq', type: 'private', ownerId: 'missing-owner' },
+            members,
+            messages
+          ),
+          filename: 'invalid-owner.json',
+        },
+      ],
+      'Merged'
+    )
+    assert.equal((invalid.chatLabData.meta as { ownerId?: string }).ownerId, undefined)
+
+    const conflicting = buildMergedOutput(
+      [
+        { source: sourceWithOwner, filename: 'first.json' },
+        {
+          source: createMockSource(
+            { name: 'Private', platform: 'qq', type: 'private', ownerId: 'different-owner' } as MergerSourceMeta & {
+              ownerId: string
+            },
+            members,
+            messages
+          ),
+          filename: 'second.json',
+        },
+      ],
+      'Merged'
+    )
+    assert.equal((conflicting.chatLabData.meta as { ownerId?: string }).ownerId, undefined)
+  })
+
   it('keeps same-platform message IDs separate across unrelated private chats', () => {
     const first = createMockSource(
       { name: 'Alice', platform: 'telegram', type: 'private' },
@@ -425,7 +480,8 @@ describe('exportSessionToJson', () => {
         platform TEXT NOT NULL,
         type TEXT NOT NULL,
         group_id TEXT,
-        group_avatar TEXT
+        group_avatar TEXT,
+        owner_id TEXT
       );
       CREATE TABLE member (
         id INTEGER PRIMARY KEY,
@@ -445,7 +501,7 @@ describe('exportSessionToJson', () => {
         platform_message_id TEXT,
         reply_to_message_id TEXT
       );
-      INSERT INTO meta (name, platform, type) VALUES ('Test', 'qq', 'group');
+      INSERT INTO meta (name, platform, type, owner_id) VALUES ('Test', 'qq', 'private', 'owner');
       INSERT INTO member (id, platform_id, account_name) VALUES (1, 'alice', 'Alice');
       INSERT INTO message (
         sender_id, sender_account_name, ts, type, content, platform_message_id, reply_to_message_id
@@ -455,6 +511,7 @@ describe('exportSessionToJson', () => {
     try {
       const exported = exportSessionToJson(new BetterSqliteAdapter(rawDb))
       assert.equal(exported.chatlab.version, CHATLAB_FORMAT_VERSION)
+      assert.equal((exported.meta as { ownerId?: string }).ownerId, 'owner')
       assert.equal(exported.messages[0].platformMessageId, 'message-1')
       assert.equal(exported.messages[0].replyToMessageId, 'message-0')
     } finally {

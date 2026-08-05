@@ -240,6 +240,7 @@ export function registerMergeRoutes(server: FastifyInstance, ctx: MergeRoutesCon
         type: exported.meta.type,
         groupId: exported.meta.groupId,
         groupAvatar: exported.meta.groupAvatar,
+        ownerId: exported.meta.ownerId,
       })
       writer.writeMembers(
         exported.members.map((m) => ({

@@ -42,6 +42,7 @@ export interface MergerSourceMeta {
   type: string
   groupId?: string
   groupAvatar?: string
+  ownerId?: string
 }
 
 function createMessageScope(meta: MergerSourceMeta | null, members: MergerMember[], sourceIndex: number): string {
@@ -188,6 +189,7 @@ export interface ChatLabMeta {
   sources: MergeSourceInfo[]
   groupId?: string
   groupAvatar?: string
+  ownerId?: string
 }
 
 export interface ChatLabOutput {
@@ -391,6 +393,9 @@ export function buildMergedOutput(
   const groupAvatar = groupId
     ? metas.filter(({ meta }) => meta?.groupId === groupId).pop()?.meta?.groupAvatar
     : undefined
+  const ownerIds = new Set(metas.map(({ meta }) => meta?.ownerId).filter((id): id is string => Boolean(id)))
+  const ownerCandidate = uniquePlatforms.length === 1 && ownerIds.size === 1 ? [...ownerIds][0] : undefined
+  const ownerId = ownerCandidate && memberMap.has(ownerCandidate) ? ownerCandidate : undefined
 
   const chatLabData: ChatLabOutput = {
     chatlab: {
@@ -406,6 +411,7 @@ export function buildMergedOutput(
       sources,
       groupId,
       groupAvatar,
+      ownerId,
     },
     members: Array.from(memberMap.values()),
     messages: mergedMessages,

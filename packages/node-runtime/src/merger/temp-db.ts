@@ -142,6 +142,7 @@ export interface TempDbMeta {
   type: string
   groupId?: string
   groupAvatar?: string
+  ownerId?: string
 }
 
 export class TempDbReader {
@@ -153,7 +154,14 @@ export class TempDbReader {
 
   getMeta(): TempDbMeta | null {
     const row = this.db.prepare('SELECT * FROM meta LIMIT 1').get() as
-      | { name: string; platform: string; type: string; group_id: string | null; group_avatar: string | null }
+      | {
+          name: string
+          platform: string
+          type: string
+          group_id: string | null
+          group_avatar: string | null
+          owner_id: string | null
+        }
       | undefined
     if (!row) return null
     return {
@@ -162,6 +170,7 @@ export class TempDbReader {
       type: row.type,
       groupId: row.group_id || undefined,
       groupAvatar: row.group_avatar || undefined,
+      ownerId: row.owner_id || undefined,
     }
   }
 
@@ -274,6 +283,7 @@ function createDataSourceFromReader(reader: TempDbReader): MergerDataSource {
         type: meta.type,
         groupId: meta.groupId,
         groupAvatar: meta.groupAvatar,
+        ownerId: meta.ownerId,
       }
     },
     getMembers(): MergerMember[] {
@@ -310,7 +320,14 @@ function createDataSourceFromReader(reader: TempDbReader): MergerDataSource {
 
 export interface ExportedSession {
   chatlab: { version: typeof CHATLAB_FORMAT_VERSION; exportedAt: number; generator: string; description: string }
-  meta: { name: string; platform: string; type: string; groupId?: string; groupAvatar?: string }
+  meta: {
+    name: string
+    platform: string
+    type: string
+    groupId?: string
+    groupAvatar?: string
+    ownerId?: string
+  }
   members: Array<{ platformId: string; accountName: string; groupNickname?: string; avatar?: string }>
   messages: Array<{
     platformMessageId?: string
@@ -330,7 +347,14 @@ export interface ExportedSession {
  */
 export function exportSessionToJson(db: DatabaseAdapter): ExportedSession {
   const meta = db.prepare('SELECT * FROM meta').get() as
-    | { name: string; platform: string; type: string; group_id?: string; group_avatar?: string }
+    | {
+        name: string
+        platform: string
+        type: string
+        group_id?: string
+        group_avatar?: string
+        owner_id?: string
+      }
     | undefined
 
   if (!meta) throw new Error('Cannot read session meta')
@@ -373,6 +397,7 @@ export function exportSessionToJson(db: DatabaseAdapter): ExportedSession {
       type: meta.type,
       groupId: meta.group_id,
       groupAvatar: meta.group_avatar,
+      ownerId: meta.owner_id,
     },
     members: members.map((m) => ({
       platformId: m.platform_id,

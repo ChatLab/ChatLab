@@ -82,6 +82,58 @@ test('forwards the session gap threshold when importing merged output', async (t
   assert.deepEqual(receivedOptions, { sessionGapThreshold: 7200 })
 })
 
+test('preserves the owner id when exporting existing private sessions for merge', async (t) => {
+  const rootDir = makeTempDir()
+  t.after(() => fs.rmSync(rootDir, { recursive: true, force: true }))
+
+  const pathProvider = createPathProvider(rootDir)
+  const dbManager = new DatabaseManager(pathProvider, { nativeBinding, allowMissingRuntimeForTests: true })
+  const mergeSessionCache = new MergeSessionCache(pathProvider, { nativeBinding })
+  const db = dbManager.openRawSessionDatabase('private-session', {
+    create: true,
+    initializeChatTables: true,
+  })
+  db.prepare('INSERT INTO meta (name, platform, type, imported_at, owner_id) VALUES (?, ?, ?, ?, ?)').run(
+    'Private chat',
+    'qq',
+    'private',
+    1_700_000_000,
+    'owner'
+  )
+  const owner = db.prepare('INSERT INTO member (platform_id, account_name) VALUES (?, ?)').run('owner', 'Owner')
+  db.prepare('INSERT INTO member (platform_id, account_name) VALUES (?, ?)').run('peer', 'Peer')
+  db.prepare('INSERT INTO message (sender_id, sender_account_name, ts, type, content) VALUES (?, ?, ?, ?, ?)').run(
+    owner.lastInsertRowid,
+    'Owner',
+    1_700_000_001,
+    0,
+    'hello'
+  )
+  db.close()
+
+  const app = Fastify()
+  registerMergeRoutes(app, { dbManager, mergeSessionCache })
+  await app.ready()
+  t.after(() => app.close())
+
+  const exportResponse = await app.inject({
+    method: 'POST',
+    url: '/_web/sessions/export-for-merge',
+    payload: { sessionIds: ['private-session'] },
+  })
+  assert.equal(exportResponse.statusCode, 200)
+  const handles = exportResponse.json().handles as Array<{ handle: string }>
+
+  const mergeResponse = await app.inject({
+    method: 'POST',
+    url: '/_web/merge/execute',
+    payload: { handles: handles.map(({ handle }) => handle), outputName: 'Merged private chat' },
+  })
+
+  assert.equal(mergeResponse.statusCode, 200)
+  assert.equal(mergeResponse.json().data.meta.ownerId, 'owner')
+})
+
 test('keeps every distinct platform message when merging a source with its superset', async (t) => {
   const rootDir = makeTempDir()
   t.after(() => fs.rmSync(rootDir, { recursive: true, force: true }))
