@@ -56,12 +56,15 @@ function createMessageScope(meta: MergerSourceMeta | null, members: MergerMember
 
   const memberIds = [...new Set(members.map((member) => member.platformId))].sort()
   if (memberIds.length > 0) {
-    if (type === 'private') return JSON.stringify([platform, type, 'members', memberIds])
-    return JSON.stringify([platform, type, 'name-members', meta?.name || '', memberIds])
+    if (type === 'private') {
+      if (memberIds.length >= 2) return JSON.stringify([platform, type, 'members', memberIds])
+    } else {
+      return JSON.stringify([platform, type, 'name-members', meta?.name || '', memberIds])
+    }
   }
 
-  // Without a stable group ID or participant set, sharing message IDs across
-  // sources could silently merge unrelated chats. Keep those source-local.
+  // A one-sided private export does not identify the other participant. Without
+  // a stable group ID or complete participant set, keep message IDs source-local.
   return JSON.stringify([platform, type, 'source', sourceIndex])
 }
 

@@ -178,6 +178,46 @@ describe('buildMergedOutput', () => {
     assert.equal(new Set(result.chatLabData.messages.map((message) => message.platformMessageId)).size, 2)
   })
 
+  it('keeps ambiguous one-member private chats source-local without verified overlap', () => {
+    const first = createMockSource(
+      { name: 'Alice', platform: 'telegram', type: 'private' },
+      [{ platformId: 'owner' }],
+      [
+        {
+          platformMessageId: '1',
+          senderPlatformId: 'owner',
+          timestamp: 100,
+          type: 0,
+          content: 'first chat',
+        },
+      ]
+    )
+    const second = createMockSource(
+      { name: 'Bob', platform: 'telegram', type: 'private' },
+      [{ platformId: 'owner' }],
+      [
+        {
+          platformMessageId: '1',
+          senderPlatformId: 'owner',
+          timestamp: 200,
+          type: 0,
+          content: 'second chat',
+        },
+      ]
+    )
+    const sources = [
+      { source: first, filename: 'alice.json' },
+      { source: second, filename: 'bob.json' },
+    ]
+
+    const conflicts = checkConflictsFromSources(sources)
+    const result = buildMergedOutput(sources, 'Merged')
+
+    assert.equal(conflicts.totalMessages, 2)
+    assert.equal(result.chatLabData.messages.length, 2)
+    assert.equal(new Set(result.chatLabData.messages.map((message) => message.platformMessageId)).size, 2)
+  })
+
   it('deduplicates overlapping private exports when their observed members differ', () => {
     const meta: MergerSourceMeta = { name: 'Alice', platform: 'qq', type: 'private' }
     const sharedMessage: MergerInputMessage = {
