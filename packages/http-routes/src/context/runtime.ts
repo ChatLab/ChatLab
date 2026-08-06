@@ -8,6 +8,9 @@ export interface RuntimeRouteContext {
   pathProvider: PathProvider
   getVersion: () => string
 
+  /** Close platform-owned database handles before deleting a session. */
+  beforeDeleteSession?: (sessionId: string) => void | Promise<void>
+
   runtimeIdentity?: RuntimeIdentity
   /** Native binding path for better-sqlite3 (CLI native copy / Electron-ABI desktop copy). */
   nativeBinding?: string

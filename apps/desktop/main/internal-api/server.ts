@@ -44,6 +44,7 @@ import { assertDesktopDataDirCompatible, getDesktopAppVersion } from '../runtime
 import { resolveDesktopNativeBinding } from '../runtime/native-sqlite'
 import { resolveModelDownloadProxyUrl } from '../network/proxy'
 import { getDefaultUserDataDir, getDownloadsDir, getUserDataDir } from '../paths/locations'
+import { closeDatabase as closeWorkerDatabase } from '../worker/workerManager'
 import { configureInternalHttpServer } from './http'
 
 export interface InternalEndpoint {
@@ -148,6 +149,10 @@ export async function startInternalServer(
       dbManager: newDbManager,
       sessionAdapter,
       pathProvider,
+      beforeDeleteSession: async (sessionId) => {
+        // The Desktop worker caches readonly SQLite handles; Windows cannot unlink an open database file.
+        await closeWorkerDatabase(sessionId)
+      },
       runtimeIdentity: runtime,
       nativeBinding,
       getVersion: () => getDesktopAppVersion(app.getVersion()),

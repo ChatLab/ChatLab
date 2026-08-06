@@ -569,11 +569,20 @@ describe('registerSharedRoutes smoke tests', () => {
     assert.equal(meta.name, 'Renamed Chat')
   })
 
-  it('DELETE /_web/sessions/:id delegates to the session adapter', async () => {
+  it('DELETE /_web/sessions/:id closes platform handles before deleting the session', async () => {
     const db = createSessionDb()
     const dbs = new Map<string, DatabaseAdapter>([['chat-1', db]])
+    const lifecycle: string[] = []
     const routeApp = Fastify()
-    registerSessionRoutes(routeApp, createTestContext(dbs))
+    const ctx = createTestContext(dbs)
+    ctx.beforeDeleteSession = async (sessionId) => {
+      lifecycle.push(`close:${sessionId}`)
+    }
+    ctx.sessionAdapter.deleteSessionFile = (sessionId) => {
+      lifecycle.push(`delete:${sessionId}`)
+      return lifecycle[0] === `close:${sessionId}` && dbs.delete(sessionId)
+    }
+    registerSessionRoutes(routeApp, ctx)
     await routeApp.ready()
 
     const resp = await routeApp.inject({ method: 'DELETE', url: '/_web/sessions/chat-1' })
@@ -584,6 +593,7 @@ describe('registerSharedRoutes smoke tests', () => {
     assert.equal(resp.statusCode, 200)
     assert.deepEqual(resp.json(), { success: true })
     assert.equal(dbs.has('chat-1'), false)
+    assert.deepEqual(lifecycle, ['close:chat-1', 'delete:chat-1'])
   })
 
   it('owner profile routes select, apply and dismiss across sessions', async () => {
