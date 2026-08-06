@@ -4,7 +4,7 @@
  */
 
 import type Database from 'better-sqlite3'
-import { getDbPath, openRawDatabase, closeDatabase } from '../../core'
+import { getDbPath, openRawDatabase, closeDatabase } from '../../core/dbCore'
 
 // 重新导出 closeDatabase 供其他模块使用
 export { closeDatabase }
