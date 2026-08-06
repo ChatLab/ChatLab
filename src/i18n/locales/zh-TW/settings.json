@@ -34,6 +34,8 @@
     "appearance": {
       "title": "外觀設定",
       "themeMode": "主題模式",
+      "insightCardTheme": "洞察卡片配色",
+      "insightCardThemeOption": "配色 {index}",
       "auto": "依系統設定",
       "light": "淺色模式",
       "dark": "深色模式"

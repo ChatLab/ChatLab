@@ -10,6 +10,7 @@ import NetworkSettingsSection from './NetworkSettingsSection.vue'
 import UITabs from '@/components/UI/Tabs.vue'
 import { usePlatformService } from '@/services'
 import { IS_ELECTRON } from '@/utils/platform'
+import { INSIGHT_CARD_THEMES, type InsightCardThemeId } from '@/utils/insight-card-theme'
 
 const { t } = useI18n()
 
@@ -17,7 +18,7 @@ const { t } = useI18n()
 const layoutStore = useLayoutStore()
 const settingsStore = useSettingsStore()
 const { toolsPanelPosition } = storeToRefs(layoutStore)
-const { locale, defaultSessionTab } = storeToRefs(settingsStore)
+const { locale, defaultSessionTab, insightCardTheme } = storeToRefs(settingsStore)
 
 // Auto Launch
 const openAtLogin = ref(false)
@@ -57,6 +58,16 @@ const colorModeOptions = computed(() => [
   { label: t('settings.basic.appearance.light'), value: 'light' },
   { label: t('settings.basic.appearance.dark'), value: 'dark' },
 ])
+
+function getInsightCardThemePreview(startColor: string, endColor: string) {
+  return {
+    background: `linear-gradient(135deg, color-mix(in srgb, ${startColor} 35%, white), color-mix(in srgb, ${endColor} 42%, white))`,
+  }
+}
+
+function selectInsightCardTheme(theme: InsightCardThemeId) {
+  insightCardTheme.value = theme
+}
 
 // Language options
 const languageOptions = computed(() =>
@@ -131,8 +142,8 @@ const toolsPanelPositionOptions = computed(() => [
         <UIcon name="i-heroicons-paint-brush" class="h-4 w-4 text-pink-500" />
         {{ t('settings.basic.appearance.title') }}
       </h3>
-      <div class="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-        <div class="flex items-center justify-between">
+      <div class="rounded-lg border border-gray-200 bg-gray-50 dark:border-gray-700 dark:bg-gray-800/50">
+        <div class="flex items-center justify-between p-4">
           <div class="flex-1 pr-4">
             <p class="text-sm font-medium text-gray-900 dark:text-white">
               {{ t('settings.basic.appearance.themeMode') }}
@@ -140,6 +151,42 @@ const toolsPanelPositionOptions = computed(() => [
           </div>
           <div class="w-64">
             <UTabs v-model="colorMode" size="sm" class="gap-0" :items="colorModeOptions"></UTabs>
+          </div>
+        </div>
+        <div class="border-t border-gray-200 dark:border-gray-700"></div>
+        <div class="flex items-center justify-between p-4">
+          <div class="flex-1 pr-4">
+            <p class="text-sm font-medium text-gray-900 dark:text-white">
+              {{ t('settings.basic.appearance.insightCardTheme') }}
+            </p>
+          </div>
+          <div class="flex shrink-0 items-center gap-1.5">
+            <button
+              v-for="(theme, index) in INSIGHT_CARD_THEMES"
+              :key="theme.id"
+              type="button"
+              class="group flex h-9 w-9 items-center justify-center rounded-full outline-none transition-colors hover:bg-gray-200/60 focus-visible:ring-2 focus-visible:ring-primary-500/40 dark:hover:bg-gray-700/70"
+              :aria-label="t('settings.basic.appearance.insightCardThemeOption', { index: index + 1 })"
+              :aria-pressed="insightCardTheme === theme.id"
+              @click="selectInsightCardTheme(theme.id)"
+            >
+              <span
+                class="relative block h-6 w-6 overflow-hidden rounded-full shadow-sm ring-1 transition-all"
+                :class="
+                  insightCardTheme === theme.id
+                    ? 'ring-2 ring-primary-500 ring-offset-2 ring-offset-gray-50 dark:ring-primary-400 dark:ring-offset-gray-800'
+                    : 'ring-black/5 group-hover:ring-black/10 dark:ring-white/10 dark:group-hover:ring-white/20'
+                "
+                :style="getInsightCardThemePreview(theme.startColor, theme.endColor)"
+              >
+                <span
+                  v-if="insightCardTheme === theme.id"
+                  class="absolute inset-0 flex items-center justify-center text-gray-800/70"
+                >
+                  <UIcon name="i-heroicons-check-20-solid" class="h-3.5 w-3.5" />
+                </span>
+              </span>
+            </button>
           </div>
         </div>
       </div>

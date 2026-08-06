@@ -10,6 +10,7 @@ import type { PreprocessConfig } from '@electron/preload/index'
 import type { AIPreprocessConfig } from '@openchatlab/shared-types'
 import { useAIService, usePlatformService } from '@/services'
 import { PLATFORM_CAPABILITIES } from '@/utils/platform-capabilities'
+import { DEFAULT_INSIGHT_CARD_THEME, type InsightCardThemeId } from '@/utils/insight-card-theme'
 
 const DESENSITIZE_RULES_SCHEMA_VERSION = 2
 
@@ -34,6 +35,8 @@ export const useSettingsStore = defineStore(
     const locale = ref<LocaleType>(getLocale())
 
     const defaultSessionTab = ref<'insights' | 'ai-chat'>('insights')
+
+    const insightCardTheme = ref<InsightCardThemeId>(DEFAULT_INSIGHT_CARD_THEME)
 
     const debugMode = ref(false)
 
@@ -112,6 +115,7 @@ export const useSettingsStore = defineStore(
       setLocale,
       initLocale,
       defaultSessionTab,
+      insightCardTheme,
       debugMode,
       setDebugMode,
       aiPreprocessConfig,
@@ -120,7 +124,7 @@ export const useSettingsStore = defineStore(
   },
   {
     persist: {
-      pick: ['debugMode'],
+      pick: ['debugMode', 'insightCardTheme'],
       storage: localStorage,
     },
     backendPersist: {

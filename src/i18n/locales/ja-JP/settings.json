@@ -34,6 +34,8 @@
     "appearance": {
       "title": "外観設定",
       "themeMode": "テーマモード",
+      "insightCardTheme": "インサイトカードの配色",
+      "insightCardThemeOption": "配色 {index}",
       "auto": "システムに従う",
       "light": "ライトモード",
       "dark": "ダークモード"

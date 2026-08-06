@@ -34,6 +34,8 @@
     "appearance": {
       "title": "外观设置",
       "themeMode": "主题模式",
+      "insightCardTheme": "洞察卡片配色",
+      "insightCardThemeOption": "配色 {index}",
       "auto": "跟随系统",
       "light": "浅色模式",
       "dark": "深色模式"

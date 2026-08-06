@@ -34,6 +34,8 @@
     "appearance": {
       "title": "Appearance",
       "themeMode": "Theme Mode",
+      "insightCardTheme": "Insight card colors",
+      "insightCardThemeOption": "Color scheme {index}",
       "auto": "System",
       "light": "Light",
       "dark": "Dark"
