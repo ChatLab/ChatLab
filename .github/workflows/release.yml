@@ -307,6 +307,8 @@ jobs:
 
   build-cli:
     needs: [prepare_release]
+    # Prereleases are desktop-only; stable releases also build and publish CLI artifacts.
+    if: needs.prepare_release.outputs.is_prerelease == 'false'
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
@@ -367,7 +369,22 @@ jobs:
   release:
     needs: [prepare_release, build-mac, build-win, build-cli]
     runs-on: ubuntu-latest
-    if: startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch'
+    if: >-
+      ${{
+        !cancelled() &&
+        needs.prepare_release.result == 'success' &&
+        needs.build-mac.result == 'success' &&
+        needs.build-win.result == 'success' &&
+        (
+          needs.build-cli.result == 'success' ||
+          (
+            needs.prepare_release.outputs.is_prerelease == 'true' &&
+            needs.build-cli.result == 'skipped'
+          )
+        ) &&
+        (startsWith(github.ref, 'refs/tags/') || github.event_name == 'workflow_dispatch')
+      }}
+
 
     steps:
       - name: Checkout code
@@ -435,6 +452,7 @@ jobs:
         with:
           tag_name: ${{ needs.prepare_release.outputs.version_tag }}
           name: ChatLab ${{ needs.prepare_release.outputs.version_tag }}
+          prerelease: ${{ needs.prepare_release.outputs.is_prerelease }}
           body_path: release_notes.md
           files: |
             release-dist/*.exe
@@ -504,6 +522,7 @@ jobs:
 
   publish-cli:
     needs: [prepare_release, build-cli]
+    if: needs.prepare_release.outputs.is_prerelease == 'false'
     runs-on: ubuntu-latest
 
     # 必须显式声明 id-token 写入权限，用于 OIDC 与 npm 握手交换临时 Token
@@ -545,7 +564,9 @@ jobs:
         run: npm publish --ignore-scripts --provenance --tag ${{ needs.prepare_release.outputs.npm_tag }}
 
   publish-docker:
-    needs: [prepare_release, release, publish-cli]
+    # The image installs the published npm package and does not consume desktop release artifacts.
+    needs: [prepare_release, publish-cli]
+    if: needs.prepare_release.outputs.is_prerelease == 'false'
     runs-on: ubuntu-latest
 
     permissions:
