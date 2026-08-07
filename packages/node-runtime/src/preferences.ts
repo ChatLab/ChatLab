@@ -14,7 +14,6 @@ import type {
   AIPreprocessConfig,
   WordFilterScheme,
   KeywordTemplate,
-  ContextCompressionSettings,
   DesensitizeRule,
   FilterHistoryItem,
 } from '@openchatlab/shared-types'
@@ -25,7 +24,6 @@ export type {
   AIPreprocessConfig,
   WordFilterScheme,
   KeywordTemplate,
-  ContextCompressionSettings,
   DesensitizeRule,
   FilterHistoryItem,
 }
@@ -53,12 +51,6 @@ const DEFAULTS: Preferences = {
     chartAutoMode: 'suggest',
     searchContextBefore: 2,
     searchContextAfter: 2,
-    contextCompression: {
-      enabled: true,
-      tokenThresholdPercent: 75,
-      bufferSizePercent: 20,
-      maxToolResultPercent: 50,
-    },
   },
   customKeywordTemplates: [],
   deletedPresetTemplateIds: [],
@@ -141,16 +133,7 @@ export class PreferencesManager {
       aiPreprocessConfig: partial.aiPreprocessConfig
         ? this.normalizeAiPreprocessConfig(partial.aiPreprocessConfig)
         : { ...DEFAULTS.aiPreprocessConfig },
-      aiGlobalSettings: partial.aiGlobalSettings
-        ? {
-            ...DEFAULTS.aiGlobalSettings,
-            ...partial.aiGlobalSettings,
-            contextCompression: {
-              ...DEFAULTS.aiGlobalSettings.contextCompression,
-              ...(partial.aiGlobalSettings.contextCompression ?? {}),
-            },
-          }
-        : { ...DEFAULTS.aiGlobalSettings },
+      aiGlobalSettings: this.normalizeAiGlobalSettings(partial.aiGlobalSettings),
       customKeywordTemplates: partial.customKeywordTemplates ?? DEFAULTS.customKeywordTemplates,
       deletedPresetTemplateIds: partial.deletedPresetTemplateIds ?? DEFAULTS.deletedPresetTemplateIds,
       wordFilter: partial.wordFilter ? { ...DEFAULTS.wordFilter, ...partial.wordFilter } : { ...DEFAULTS.wordFilter },
@@ -159,6 +142,15 @@ export class PreferencesManager {
       ownerProfilesByPlatform: partial.ownerProfilesByPlatform ?? DEFAULTS.ownerProfilesByPlatform,
       ownerPromptDismissedSessionIds: partial.ownerPromptDismissedSessionIds ?? DEFAULTS.ownerPromptDismissedSessionIds,
     }
+  }
+
+  private normalizeAiGlobalSettings(partial: Partial<AIGlobalSettings> | undefined): AIGlobalSettings {
+    const normalized = { ...(partial ?? {}) } as Record<string, unknown>
+    // Context compression became an automatic runtime capability. Ignore the
+    // legacy user preference so a previously disabled value cannot survive
+    // after the setting is removed.
+    delete normalized.contextCompression
+    return { ...DEFAULTS.aiGlobalSettings, ...(normalized as Partial<AIGlobalSettings>) }
   }
 
   private normalizeAiPreprocessConfig(partial: Partial<AIPreprocessConfig> | undefined): AIPreprocessConfig {

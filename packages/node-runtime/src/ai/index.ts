@@ -76,7 +76,12 @@ export type { ChartSchemaGateState } from './chart-schema-gate'
 
 // Compression
 export type { CompressionConfig, CompressionResult, CompressionLogger, CompressionLlmAdapter } from './compression'
-export { checkAndCompress, manualCompress, createCompressionLlmAdapter } from './compression'
+export {
+  DEFAULT_CONTEXT_COMPRESSION_CONFIG,
+  checkAndCompress,
+  manualCompress,
+  createCompressionLlmAdapter,
+} from './compression'
 export type { CreateCompressionLlmAdapterOptions } from './compression'
 
 // Preprocessor

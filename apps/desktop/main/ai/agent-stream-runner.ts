@@ -18,6 +18,7 @@ import {
   buildSkillMenuWithBuiltinChart,
   CHART_CAPABILITY_ANALYSIS_TOOLS,
   checkAndCompress,
+  DEFAULT_CONTEXT_COMPRESSION_CONFIG,
   createCompressionLlmAdapter,
   createDataSnapshotFromOverview,
   formatAIError,
@@ -27,7 +28,7 @@ import {
   resolveChartRuntimeForRequest,
   buildSemanticSearchGuidance,
 } from '@openchatlab/node-runtime'
-import type { CompressionConfig, CompressionLlmAdapter, AgentRuntimeStatus } from '@openchatlab/node-runtime'
+import type { CompressionLlmAdapter, AgentRuntimeStatus } from '@openchatlab/node-runtime'
 import { Agent, type AgentStreamChunk, type SkillContext } from './agent'
 import type { ToolContext } from './tools/types'
 import { buildPiModel, findModelDefinition } from './llm'
@@ -85,7 +86,6 @@ export function createElectronRunAgentStream(
       skillId,
       enableAutoSkill,
       chartAutoMode,
-      compressionConfig,
       ownerInfo,
       mentionedMembers,
       thinkingLevel,
@@ -113,7 +113,7 @@ export function createElectronRunAgentStream(
     }
     const piModel = buildPiModel(activeAIConfig)
 
-    if (compressionConfig?.enabled && aiChatId && historyLeafMessageId === undefined) {
+    if (aiChatId && historyLeafMessageId === undefined) {
       try {
         const tempAssistantConfig = assistantId
           ? (assistantManager.getAssistantConfig(assistantId) ?? undefined)
@@ -122,7 +122,7 @@ export function createElectronRunAgentStream(
 
         const compressionResult = await checkAndCompress(
           aiChatId,
-          compressionConfig as CompressionConfig,
+          DEFAULT_CONTEXT_COMPRESSION_CONFIG,
           systemPromptForCompression,
           buildCompressionAdapter(activeAIConfig, () => {
             onEvent({
@@ -242,7 +242,7 @@ export function createElectronRunAgentStream(
       }
     }
 
-    const maxToolResultPercent = compressionConfig?.maxToolResultPercent ?? 50
+    const maxToolResultPercent = DEFAULT_CONTEXT_COMPRESSION_CONFIG.maxToolResultPercent ?? 50
     const modelDef = findModelDefinition(activeAIConfig.provider, activeAIConfig.model || '')
     const resolvedContextWindow = modelDef?.contextWindow || DEFAULT_CONTEXT_WINDOW
     const maxToolResultTokens = Math.floor(resolvedContextWindow * (maxToolResultPercent / 100))

@@ -72,6 +72,8 @@ export type WorkerAIRepository = Pick<
   | 'appendMessage'
   | 'updateMessage'
   | 'deleteMessage'
+  | 'getContextSummary'
+  | 'saveContextSummary'
 >
 
 export type WorkerAIToolRuntime = Pick<BrowserAIToolRuntime, 'listTools' | 'execute'>
@@ -283,6 +285,10 @@ export class WebRuntimeWorkerController {
         return { updated: true }
       case 'ai.message.delete':
         return { deleted: await this.aiRepository.deleteMessage(request.payload.messageId) }
+      case 'ai.context-summary.get':
+        return this.aiRepository.getContextSummary(request.payload.conversationId)
+      case 'ai.context-summary.save':
+        return this.aiRepository.saveContextSummary(request.payload)
       case 'ai.tool.list':
         return this.aiToolRuntime.listTools(request.payload.locale)
       case 'ai.tool.execute': {

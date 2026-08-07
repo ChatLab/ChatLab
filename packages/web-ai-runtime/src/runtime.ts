@@ -221,6 +221,8 @@ function filterMessagesFromHistory(
     getConversation: (id) => repository.getConversation(id),
     getMessages: async (conversationId) =>
       (await repository.getMessages(conversationId)).filter((message) => !messageIds.has(message.id)),
+    getContextSummary: (conversationId) => repository.getContextSummary(conversationId),
+    saveContextSummary: (input) => repository.saveContextSummary(input),
     appendMessage: (input) => repository.appendMessage(input),
     updateMessage: (id, patch) => repository.updateMessage(id, patch),
   }

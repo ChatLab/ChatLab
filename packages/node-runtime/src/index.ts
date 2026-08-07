@@ -216,7 +216,7 @@ export type {
 
 // Compression
 export type { CompressionConfig, CompressionResult, CompressionLogger, CompressionLlmAdapter } from './ai'
-export { checkAndCompress, manualCompress, createCompressionLlmAdapter } from './ai'
+export { DEFAULT_CONTEXT_COMPRESSION_CONFIG, checkAndCompress, manualCompress, createCompressionLlmAdapter } from './ai'
 export type { CreateCompressionLlmAdapterOptions } from './ai'
 
 // SkillManager
@@ -398,7 +398,6 @@ export type {
   AIPreprocessConfig,
   WordFilterScheme,
   KeywordTemplate,
-  ContextCompressionSettings,
 } from './preferences'
 
 // Merger orchestration

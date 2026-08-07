@@ -6,6 +6,7 @@
   "regenerate": "Regenerate",
   "footer": "AI can make mistakes. Verify important conclusions.",
   "usingTool": "Using {name}",
+  "compressingContext": "Compressing context",
   "conversations": {
     "title": "Conversations",
     "deleteConfirm": "Delete this AI conversation?"

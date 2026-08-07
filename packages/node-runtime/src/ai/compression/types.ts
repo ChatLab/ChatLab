@@ -1,23 +1,21 @@
 export interface CompressionConfig {
-  enabled: boolean
   /** 触发压缩的 token 阈值百分比（相对于 context window），默认 75 */
   tokenThresholdPercent: number
   /** 保留最近消息的缓冲区大小（相对于 context window 的百分比），默认 20 */
   bufferSizePercent: number
-  /** 单次工具返回的最大上下文占比（相对于 context window 的百分比），默认 35 */
+  /** 单次工具返回的最大上下文占比（相对于 context window 的百分比），默认 50 */
   maxToolResultPercent?: number
 }
 
+export const DEFAULT_CONTEXT_COMPRESSION_CONFIG: Readonly<CompressionConfig> = Object.freeze({
+  tokenThresholdPercent: 75,
+  bufferSizePercent: 20,
+  maxToolResultPercent: 50,
+})
+
 export interface CompressionResult {
   compressed: boolean
-  reason:
-    | 'skipped_disabled'
-    | 'skipped_below_threshold'
-    | 'skipped_idempotent'
-    | 'success'
-    | 'fallback_truncated'
-    | 'thrashing'
-    | 'error'
+  reason: 'skipped_below_threshold' | 'skipped_idempotent' | 'success' | 'fallback_truncated' | 'thrashing' | 'error'
   tokensBefore?: number
   tokensAfter?: number
   summaryContent?: string

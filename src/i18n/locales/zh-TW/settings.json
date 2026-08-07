@@ -7,7 +7,6 @@
     "aiDefaultModel": "預設模型",
     "semanticIndex": "語意索引",
     "chatPreferences": "對話偏好",
-    "compression": "上下文壓縮",
     "aiPreprocess": "前處理",
     "dataManage": "資料管理",
     "storage": "儲存管理",
@@ -377,17 +376,6 @@
     "sqlExportFormat": {
       "title": "SQL Lab 匯出格式",
       "description": "匯出 SQL 查詢結果時使用的檔案格式"
-    },
-    "compression": {
-      "title": "上下文壓縮",
-      "enable": "自動壓縮上下文",
-      "enableDesc": "對話過長時自動壓縮歷史為摘要，保留關鍵資訊的同時降低 Token 消耗",
-      "threshold": "壓縮閾值",
-      "thresholdDesc": "上下文 Token 達到模型視窗的百分比時觸發壓縮",
-      "buffer": "緩衝區大小",
-      "bufferDesc": "保留最近訊息原文的比例，不參與壓縮",
-      "maxToolResultPercent": "工具結果上限",
-      "maxToolResultPercentDesc": "單次工具回傳給 AI 的最大資料量占比（基於模型上下文視窗計算），超出部分會被智慧截斷"
     }
   },
   "about": {

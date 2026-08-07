@@ -100,13 +100,6 @@ export interface AgentStreamResult {
   error?: SerializedErrorInfo | Record<string, unknown>
 }
 
-export interface CompressionConfig {
-  enabled: boolean
-  tokenThresholdPercent: number
-  bufferSizePercent: number
-  maxToolResultPercent?: number
-}
-
 export interface AgentStreamParams {
   userMessage: string
   sessionId: string
@@ -118,7 +111,6 @@ export interface AgentStreamParams {
   skillId?: string | null
   enableAutoSkill?: boolean
   chartAutoMode?: ChartAutoMode
-  compressionConfig?: CompressionConfig
   ownerInfo?: { platformId: string; displayName: string }
   mentionedMembers?: Array<{
     memberId: number

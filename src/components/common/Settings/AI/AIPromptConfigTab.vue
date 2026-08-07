@@ -4,7 +4,6 @@ import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { usePromptStore } from '@/stores/prompt'
 import type { ChartAutoMode } from '@openchatlab/shared-types'
-import { MAX_TOOL_RESULT_PERCENT, MIN_TOOL_RESULT_PERCENT, normalizeMaxToolResultPercent } from './promptConfigLimits'
 
 const { t } = useI18n()
 
@@ -74,50 +73,6 @@ const searchContextAfter = computed({
   set: (val: number) => {
     const clampedVal = Math.max(0, Math.min(20, val ?? 3))
     promptStore.updateAIGlobalSettings({ searchContextAfter: clampedVal })
-    emit('config-changed')
-  },
-})
-
-// 上下文压缩配置
-const compressionEnabled = computed({
-  get: () => aiGlobalSettings.value.contextCompression?.enabled ?? false,
-  set: (val: boolean) => {
-    promptStore.updateAIGlobalSettings({
-      contextCompression: { ...aiGlobalSettings.value.contextCompression, enabled: val },
-    })
-    emit('config-changed')
-  },
-})
-
-const compressionThreshold = computed({
-  get: () => aiGlobalSettings.value.contextCompression?.tokenThresholdPercent ?? 75,
-  set: (val: number) => {
-    const clampedVal = Math.max(30, Math.min(95, val || 75))
-    promptStore.updateAIGlobalSettings({
-      contextCompression: { ...aiGlobalSettings.value.contextCompression, tokenThresholdPercent: clampedVal },
-    })
-    emit('config-changed')
-  },
-})
-
-const compressionBuffer = computed({
-  get: () => aiGlobalSettings.value.contextCompression?.bufferSizePercent ?? 20,
-  set: (val: number) => {
-    const clampedVal = Math.max(5, Math.min(50, val || 20))
-    promptStore.updateAIGlobalSettings({
-      contextCompression: { ...aiGlobalSettings.value.contextCompression, bufferSizePercent: clampedVal },
-    })
-    emit('config-changed')
-  },
-})
-
-const maxToolResultPercent = computed({
-  get: () => aiGlobalSettings.value.contextCompression?.maxToolResultPercent ?? 50,
-  set: (val: number) => {
-    const clampedVal = normalizeMaxToolResultPercent(val)
-    promptStore.updateAIGlobalSettings({
-      contextCompression: { ...aiGlobalSettings.value.contextCompression, maxToolResultPercent: clampedVal },
-    })
     emit('config-changed')
   },
 })
@@ -208,83 +163,6 @@ const maxToolResultPercent = computed({
             </div>
           </div>
         </div>
-      </div>
-    </div>
-
-    <!-- 上下文压缩设置 -->
-    <div :ref="(el) => setPromptSectionRef('compression', el as HTMLElement | null)">
-      <h4 class="mb-3 flex items-center gap-2 text-sm font-semibold text-gray-900 dark:text-white">
-        <UIcon name="i-heroicons-archive-box-arrow-down" class="h-4 w-4 text-purple-500" />
-        {{ t('settings.aiPrompt.compression.title') }}
-      </h4>
-      <div class="space-y-4 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-800/50">
-        <!-- 压缩开关 -->
-        <div class="flex items-center justify-between">
-          <div class="flex-1 pr-4">
-            <p class="text-sm font-medium text-gray-900 dark:text-white">
-              {{ t('settings.aiPrompt.compression.enable') }}
-            </p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-              {{ t('settings.aiPrompt.compression.enableDesc') }}
-            </p>
-          </div>
-          <USwitch v-model="compressionEnabled" />
-        </div>
-
-        <!-- 工具结果上限（始终显示，不依赖压缩开关） -->
-        <div class="flex items-center justify-between">
-          <div class="flex-1 pr-4">
-            <p class="text-sm font-medium text-gray-900 dark:text-white">
-              {{ t('settings.aiPrompt.compression.maxToolResultPercent') }}
-            </p>
-            <p class="text-xs text-gray-500 dark:text-gray-400">
-              {{ t('settings.aiPrompt.compression.maxToolResultPercentDesc') }}
-            </p>
-          </div>
-          <div class="flex items-center gap-1">
-            <UInputNumber
-              v-model="maxToolResultPercent"
-              :min="MIN_TOOL_RESULT_PERCENT"
-              :max="MAX_TOOL_RESULT_PERCENT"
-              class="w-24"
-            />
-            <span class="text-xs text-gray-400">%</span>
-          </div>
-        </div>
-
-        <template v-if="compressionEnabled">
-          <!-- 压缩阈值 -->
-          <div class="flex items-center justify-between">
-            <div class="flex-1 pr-4">
-              <p class="text-sm font-medium text-gray-900 dark:text-white">
-                {{ t('settings.aiPrompt.compression.threshold') }}
-              </p>
-              <p class="text-xs text-gray-500 dark:text-gray-400">
-                {{ t('settings.aiPrompt.compression.thresholdDesc') }}
-              </p>
-            </div>
-            <div class="flex items-center gap-1">
-              <UInputNumber v-model="compressionThreshold" :min="30" :max="95" class="w-24" />
-              <span class="text-xs text-gray-400">%</span>
-            </div>
-          </div>
-
-          <!-- 缓冲区大小 -->
-          <div class="flex items-center justify-between">
-            <div class="flex-1 pr-4">
-              <p class="text-sm font-medium text-gray-900 dark:text-white">
-                {{ t('settings.aiPrompt.compression.buffer') }}
-              </p>
-              <p class="text-xs text-gray-500 dark:text-gray-400">
-                {{ t('settings.aiPrompt.compression.bufferDesc') }}
-              </p>
-            </div>
-            <div class="flex items-center gap-1">
-              <UInputNumber v-model="compressionBuffer" :min="5" :max="50" class="w-24" />
-              <span class="text-xs text-gray-400">%</span>
-            </div>
-          </div>
-        </template>
       </div>
     </div>
   </div>

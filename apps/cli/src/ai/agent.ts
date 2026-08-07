@@ -7,6 +7,7 @@
 
 import {
   DEFAULT_MAX_TOOL_ROUNDS,
+  DEFAULT_CONTEXT_COMPRESSION_CONFIG,
   buildPiModel,
   buildPlanGuidance,
   createAnalysisPlanner,
@@ -27,7 +28,6 @@ import {
   type PiMessage,
   type SimpleHistoryMessage,
   type AIChatManager,
-  type CompressionConfig,
   type AgentTool,
   type DataSnapshot,
   type AIServiceConfig,
@@ -49,7 +49,6 @@ export interface RunAgentOptions {
   assistantSystemPrompt?: string
   skillMenu?: string | null
   skillDef?: { name: string; prompt: string }
-  compressionConfig?: CompressionConfig
   tools?: AgentTool[]
   llmConfig: AIServiceConfig | null
   aiChatManager: AIChatManager
@@ -72,7 +71,6 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
     assistantSystemPrompt,
     skillMenu,
     skillDef,
-    compressionConfig,
     tools = [],
     llmConfig,
     aiChatManager,
@@ -123,7 +121,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
     systemPrompt,
   })
 
-  if (compressionConfig?.enabled && historyLeafMessageId === undefined) {
+  if (historyLeafMessageId === undefined) {
     const llmAdapter = createCompressionLlmAdapter({
       piModel,
       apiKey: llmConfig.apiKey,
@@ -131,7 +129,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
     })
     const compressionResult = await checkAndCompress(
       aiChatId,
-      compressionConfig,
+      DEFAULT_CONTEXT_COMPRESSION_CONFIG,
       systemPrompt,
       llmAdapter,
       aiChatManager,
@@ -148,7 +146,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
         },
       })
     }
-  } else if (compressionConfig?.enabled && historyLeafMessageId !== undefined) {
+  } else {
     aiLogger?.info?.('Compression', 'Skipping compression for edited branch request', {
       aiChatId,
       historyLeafMessageId,

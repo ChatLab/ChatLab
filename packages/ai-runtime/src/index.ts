@@ -1,4 +1,5 @@
 export * from './default-assistant'
+export * from './context-compression'
 export * from './errors'
 export * from './runtime'
 export * from './token-budget'

@@ -190,6 +190,33 @@ test('loads thinkingLevels as empty object when field is absent in legacy prefer
   }
 })
 
+test('ignores legacy context compression preferences now that compression is automatic', () => {
+  const systemDir = createTempSystemDir()
+  try {
+    writeFileSync(
+      join(systemDir, 'preferences.json'),
+      JSON.stringify({
+        aiGlobalSettings: {
+          maxMessagesPerRequest: 500,
+          contextCompression: {
+            enabled: false,
+            tokenThresholdPercent: 95,
+            bufferSizePercent: 50,
+            maxToolResultPercent: 80,
+          },
+        },
+      })
+    )
+
+    const loaded = new PreferencesManager(systemDir).load()
+
+    assert.equal(loaded.aiGlobalSettings.maxMessagesPerRequest, 500)
+    assert.equal('contextCompression' in loaded.aiGlobalSettings, false)
+  } finally {
+    rmSync(systemDir, { recursive: true, force: true })
+  }
+})
+
 test('persists and normalizes skipped assistant upgrade versions', () => {
   const systemDir = createTempSystemDir()
   try {

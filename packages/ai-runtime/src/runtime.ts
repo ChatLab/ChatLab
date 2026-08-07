@@ -2,6 +2,7 @@ import type { ModelMessage, ToolSet } from 'ai'
 import { jsonSchema, stepCountIs, streamText, tool } from 'ai'
 
 import { normalizeRuntimeError } from './errors'
+import { prepareContextMessages } from './context-compression'
 import { truncateToolResult } from './token-budget'
 import type {
   AgentStreamEvent,
@@ -86,6 +87,7 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
 
   try {
     const storedMessages = await input.repository.getMessages(input.conversationId)
+    const contextMessages = await prepareContextMessages(input, storedMessages)
 
     const blocks: RuntimeContentBlock[] = []
     const toolsUsed = new Set<string>()
@@ -156,7 +158,7 @@ export async function runAgent(input: RunAgentInput): Promise<RunAgentResult> {
     const result = streamText({
       model: input.model.model,
       instructions: input.systemPrompt,
-      messages: toModelMessages(storedMessages, input.userMessage),
+      messages: toModelMessages(contextMessages, input.userMessage),
       tools: toolSet,
       stopWhen: stepCountIs(input.maxToolSteps ?? 8),
       maxOutputTokens: input.maxOutputTokens ?? 4_096,

@@ -2,7 +2,9 @@ import type {
   AppendRuntimeMessageInput,
   ConversationRepository,
   RuntimeConversation,
+  RuntimeContextSummary,
   RuntimeMessage,
+  SaveRuntimeContextSummaryInput,
   RuntimeToolDefinition,
   ToolExecutionContext,
   ToolExecutor,
@@ -26,6 +28,14 @@ export class RpcConversationRepository implements ConversationRepository {
 
   getMessages(conversationId: string): Promise<RuntimeMessage[]> {
     return this.rpc.request('ai.message.list', { conversationId })
+  }
+
+  getContextSummary(conversationId: string): Promise<RuntimeContextSummary | null> {
+    return this.rpc.request('ai.context-summary.get', { conversationId })
+  }
+
+  saveContextSummary(input: SaveRuntimeContextSummaryInput): Promise<RuntimeContextSummary> {
+    return this.rpc.request('ai.context-summary.save', input)
   }
 
   appendMessage(input: AppendRuntimeMessageInput): Promise<RuntimeMessage> {

@@ -4,13 +4,6 @@ import type { KeywordTemplate } from '@/types/analysis'
 import type { ThinkingLevel } from '@openchatlab/core'
 import type { ChartAutoMode } from '@openchatlab/shared-types'
 
-interface ContextCompressionSettings {
-  enabled: boolean
-  tokenThresholdPercent: number
-  bufferSizePercent: number
-  maxToolResultPercent: number
-}
-
 interface AIGlobalSettings {
   maxMessagesPerRequest: number
   exportFormat: 'markdown' | 'txt'
@@ -19,12 +12,9 @@ interface AIGlobalSettings {
   chartAutoMode: ChartAutoMode
   searchContextBefore: number
   searchContextAfter: number
-  contextCompression: ContextCompressionSettings
 }
 
-type AIGlobalSettingsUpdate = Partial<Omit<AIGlobalSettings, 'contextCompression'>> & {
-  contextCompression?: Partial<ContextCompressionSettings>
-}
+type AIGlobalSettingsUpdate = Partial<AIGlobalSettings>
 
 /**
  * AI 配置与关键词模板相关的全局状态
@@ -41,12 +31,6 @@ export const usePromptStore = defineStore(
       chartAutoMode: 'suggest',
       searchContextBefore: 2,
       searchContextAfter: 2,
-      contextCompression: {
-        enabled: true,
-        tokenThresholdPercent: 75,
-        bufferSizePercent: 20,
-        maxToolResultPercent: 50,
-      },
     })
     const customKeywordTemplates = ref<KeywordTemplate[]>([])
     const deletedPresetTemplateIds = ref<string[]>([])
@@ -69,13 +53,9 @@ export const usePromptStore = defineStore(
      * 更新 AI 全局设置
      */
     function updateAIGlobalSettings(settings: AIGlobalSettingsUpdate) {
-      const { contextCompression, ...baseSettings } = settings
       aiGlobalSettings.value = {
         ...aiGlobalSettings.value,
-        ...baseSettings,
-        contextCompression: contextCompression
-          ? { ...aiGlobalSettings.value.contextCompression, ...contextCompression }
-          : aiGlobalSettings.value.contextCompression,
+        ...settings,
       }
       notifyAIConfigChanged()
     }

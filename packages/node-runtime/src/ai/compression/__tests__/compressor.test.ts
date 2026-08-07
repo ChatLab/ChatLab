@@ -27,7 +27,6 @@ function cleanup(dir: string): void {
 }
 
 const CONFIG: CompressionConfig = {
-  enabled: true,
   tokenThresholdPercent: 75,
   bufferSizePercent: 20,
 }

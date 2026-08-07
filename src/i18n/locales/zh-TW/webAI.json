@@ -6,6 +6,7 @@
   "regenerate": "重新產生",
   "footer": "AI 可能會出錯，請核對重要結論",
   "usingTool": "正在呼叫 {name}",
+  "compressingContext": "正在壓縮上下文",
   "conversations": {
     "title": "對話",
     "deleteConfirm": "確定刪除這條 AI 對話嗎？"

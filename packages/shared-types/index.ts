@@ -195,13 +195,6 @@ export interface WordFilterScheme {
   createdAt: number
 }
 
-export interface ContextCompressionSettings {
-  enabled: boolean
-  tokenThresholdPercent: number
-  bufferSizePercent: number
-  maxToolResultPercent: number
-}
-
 export type ChartAutoMode = 'explicit' | 'suggest' | 'aggressive'
 
 export interface AIGlobalSettings {
@@ -212,7 +205,6 @@ export interface AIGlobalSettings {
   chartAutoMode: ChartAutoMode
   searchContextBefore: number
   searchContextAfter: number
-  contextCompression: ContextCompressionSettings
 }
 
 export interface KeywordTemplate {

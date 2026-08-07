@@ -3,7 +3,9 @@ import type { BrowserSessionCatalogItem } from '../import/session-catalog'
 import type {
   AppendRuntimeMessageInput,
   RuntimeConversation,
+  RuntimeContextSummary,
   RuntimeMessage,
+  SaveRuntimeContextSummaryInput,
   RuntimeToolDefinition,
   RuntimeToolResult,
 } from '@openchatlab/ai-runtime'
@@ -140,6 +142,14 @@ export interface WebRuntimeTaskMap {
   'ai.message.delete': {
     payload: { messageId: string }
     result: { deleted: boolean }
+  }
+  'ai.context-summary.get': {
+    payload: { conversationId: string }
+    result: RuntimeContextSummary | null
+  }
+  'ai.context-summary.save': {
+    payload: SaveRuntimeContextSummaryInput
+    result: RuntimeContextSummary
   }
   'ai.tool.list': {
     payload: { locale?: string }
@@ -350,6 +360,8 @@ const WEB_RUNTIME_TASK_TYPES: Record<WebRuntimeTaskType, true> = {
   'ai.message.append': true,
   'ai.message.update': true,
   'ai.message.delete': true,
+  'ai.context-summary.get': true,
+  'ai.context-summary.save': true,
   'ai.tool.list': true,
   'ai.tool.execute': true,
   'analysis.hourly': true,

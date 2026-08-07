@@ -9,7 +9,10 @@ import type {
   AppendRuntimeMessageInput,
   ConversationRepository,
   RuntimeConversation,
+  RuntimeContextSummary,
   RuntimeMessage,
+  RuntimeModel,
+  SaveRuntimeContextSummaryInput,
   RuntimeToolDefinition,
   RuntimeToolResult,
   ToolExecutionContext,
@@ -23,6 +26,7 @@ const EMPTY_USAGE = {
 
 class MemoryRepository implements ConversationRepository {
   readonly messages: RuntimeMessage[] = []
+  contextSummary: RuntimeContextSummary | null = null
   readonly conversation: RuntimeConversation = {
     id: 'conversation-1',
     sessionId: 'session-1',
@@ -56,6 +60,15 @@ class MemoryRepository implements ConversationRepository {
   async updateMessage(id: string, patch: Pick<RuntimeMessage, 'content' | 'blocks' | 'usage'>): Promise<void> {
     const message = this.messages.find((item) => item.id === id)
     if (message) Object.assign(message, patch)
+  }
+
+  async getContextSummary(conversationId: string): Promise<RuntimeContextSummary | null> {
+    return this.contextSummary?.conversationId === conversationId ? this.contextSummary : null
+  }
+
+  async saveContextSummary(input: SaveRuntimeContextSummaryInput): Promise<RuntimeContextSummary> {
+    this.contextSummary = { ...input, updatedAt: Date.now() }
+    return this.contextSummary
   }
 }
 
@@ -295,5 +308,182 @@ describe('runAgent', () => {
     )
     assert.equal(result.message.blocks?.[0]?.type === 'text' ? result.message.blocks[0].text : null, '先确认数据。')
     assert.equal(result.message.blocks?.[3]?.type === 'text' ? result.message.blocks[3].text : null, '最终结论。')
+  })
+
+  it('automatically compresses oversized browser history without deleting original messages', async () => {
+    const model = new MockLanguageModelV3({
+      doGenerate: {
+        content: [{ type: 'text', text: 'COMPRESSED CONTEXT' }],
+        finishReason: { unified: 'stop', raw: 'stop' },
+        usage: EMPTY_USAGE,
+        warnings: [],
+      },
+      doStream: {
+        stream: simulateReadableStream({
+          chunks: [
+            { type: 'stream-start', warnings: [] },
+            { type: 'text-start', id: 'text-1' },
+            { type: 'text-delta', id: 'text-1', delta: '继续回答' },
+            { type: 'text-end', id: 'text-1' },
+            { type: 'finish', finishReason: { unified: 'stop', raw: 'stop' }, usage: EMPTY_USAGE },
+          ],
+        }),
+      },
+    })
+    const repository = new MemoryRepository()
+    for (let index = 0; index < 8; index++) {
+      await repository.appendMessage({
+        conversationId: 'conversation-1',
+        role: index % 2 === 0 ? 'user' : 'assistant',
+        content: `old-marker-${index} ${'history '.repeat(20)}`,
+        createdAt: index + 1,
+      })
+    }
+    const originalMessageIds = repository.messages.map((message) => message.id)
+    const events: AgentStreamEvent[] = []
+
+    await runAgent({
+      conversationId: 'conversation-1',
+      sessionId: 'session-1',
+      systemPrompt: 'You are a test assistant.',
+      userMessage: 'continue',
+      model: { model, contextWindow: 240 } as RuntimeModel,
+      repository,
+      tools: new FakeToolExecutor(),
+      signal: new AbortController().signal,
+      onEvent: (event) => events.push(event),
+    })
+
+    assert.equal(repository.contextSummary?.content, 'COMPRESSED CONTEXT')
+    assert.ok(repository.contextSummary?.compressedMessageCount)
+    assert.deepEqual(
+      repository.messages.slice(0, originalMessageIds.length).map((message) => message.id),
+      originalMessageIds
+    )
+    const modelPrompt = JSON.stringify(model.doStreamCalls[0]?.prompt)
+    assert.match(modelPrompt, /COMPRESSED CONTEXT/)
+    assert.doesNotMatch(modelPrompt, /old-marker-0/)
+    assert.equal(
+      events.some((event) => event.type === 'context-compression-start'),
+      true
+    )
+    assert.equal(
+      events.some((event) => event.type === 'context-compression-finish'),
+      true
+    )
+  })
+
+  it('merges an existing browser summary into the next automatic compression', async () => {
+    const model = new MockLanguageModelV3({
+      doGenerate: {
+        content: [{ type: 'text', text: 'UPDATED SUMMARY' }],
+        finishReason: { unified: 'stop', raw: 'stop' },
+        usage: EMPTY_USAGE,
+        warnings: [],
+      },
+      doStream: {
+        stream: simulateReadableStream({
+          chunks: [
+            { type: 'stream-start', warnings: [] },
+            { type: 'text-start', id: 'text-1' },
+            { type: 'text-delta', id: 'text-1', delta: '继续回答' },
+            { type: 'text-end', id: 'text-1' },
+            { type: 'finish', finishReason: { unified: 'stop', raw: 'stop' }, usage: EMPTY_USAGE },
+          ],
+        }),
+      },
+    })
+    const repository = new MemoryRepository()
+    const boundary = await repository.appendMessage({
+      conversationId: 'conversation-1',
+      role: 'assistant',
+      content: 'already summarized',
+      createdAt: 1,
+    })
+    repository.contextSummary = {
+      conversationId: 'conversation-1',
+      content: 'PREVIOUS SUMMARY',
+      boundaryMessageId: boundary.id,
+      compressedMessageCount: 4,
+      updatedAt: 2,
+    }
+    for (let index = 0; index < 8; index++) {
+      await repository.appendMessage({
+        conversationId: 'conversation-1',
+        role: index % 2 === 0 ? 'user' : 'assistant',
+        content: `new-marker-${index} ${'history '.repeat(20)}`,
+        createdAt: index + 3,
+      })
+    }
+
+    await runAgent({
+      conversationId: 'conversation-1',
+      sessionId: 'session-1',
+      systemPrompt: 'You are a test assistant.',
+      userMessage: 'continue',
+      model: { model, contextWindow: 240 },
+      repository,
+      tools: new FakeToolExecutor(),
+      signal: new AbortController().signal,
+      onEvent: () => undefined,
+    })
+
+    const compressionPrompt = JSON.stringify(model.doGenerateCalls[0]?.prompt)
+    assert.match(compressionPrompt, /PREVIOUS SUMMARY/)
+    assert.match(compressionPrompt, /new-marker-0/)
+    assert.equal(repository.contextSummary?.content, 'UPDATED SUMMARY')
+    assert.ok((repository.contextSummary?.compressedMessageCount ?? 0) > 4)
+    const modelPrompt = JSON.stringify(model.doStreamCalls[0]?.prompt)
+    assert.match(modelPrompt, /UPDATED SUMMARY/)
+    assert.doesNotMatch(modelPrompt, /PREVIOUS SUMMARY/)
+  })
+
+  it('continues with the original browser history when automatic compression fails', async () => {
+    const model = new MockLanguageModelV3({
+      doGenerate: async () => {
+        throw new Error('compression failed')
+      },
+      doStream: {
+        stream: simulateReadableStream({
+          chunks: [
+            { type: 'stream-start', warnings: [] },
+            { type: 'text-start', id: 'text-1' },
+            { type: 'text-delta', id: 'text-1', delta: 'fallback answer' },
+            { type: 'text-end', id: 'text-1' },
+            { type: 'finish', finishReason: { unified: 'stop', raw: 'stop' }, usage: EMPTY_USAGE },
+          ],
+        }),
+      },
+    })
+    const repository = new MemoryRepository()
+    for (let index = 0; index < 8; index++) {
+      await repository.appendMessage({
+        conversationId: 'conversation-1',
+        role: index % 2 === 0 ? 'user' : 'assistant',
+        content: `fallback-marker-${index} ${'history '.repeat(20)}`,
+        createdAt: index + 1,
+      })
+    }
+    const events: AgentStreamEvent[] = []
+
+    const result = await runAgent({
+      conversationId: 'conversation-1',
+      sessionId: 'session-1',
+      systemPrompt: 'You are a test assistant.',
+      userMessage: 'continue',
+      model: { model, contextWindow: 240 },
+      repository,
+      tools: new FakeToolExecutor(),
+      signal: new AbortController().signal,
+      onEvent: (event) => events.push(event),
+    })
+
+    assert.equal(result.message.content, 'fallback answer')
+    assert.equal(repository.contextSummary, null)
+    assert.match(JSON.stringify(model.doStreamCalls[0]?.prompt), /fallback-marker-0/)
+    assert.deepEqual(
+      events.find((event) => event.type === 'context-compression-finish'),
+      { type: 'context-compression-finish', compressed: false }
+    )
   })
 })

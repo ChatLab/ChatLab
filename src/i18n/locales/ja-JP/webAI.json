@@ -6,6 +6,7 @@
   "regenerate": "再生成",
   "footer": "AI は誤ることがあります。重要な結論は確認してください。",
   "usingTool": "{name} を使用中",
+  "compressingContext": "コンテキストを圧縮中",
   "conversations": {
     "title": "会話",
     "deleteConfirm": "この AI 会話を削除しますか？"

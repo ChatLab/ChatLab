@@ -288,6 +288,14 @@ function handleEvent(event: AgentStreamEvent) {
     }
     return
   }
+  if (event.type === 'context-compression-start') {
+    processText.value = t('webAI.compressingContext')
+    return
+  }
+  if (event.type === 'context-compression-finish') {
+    processText.value = ''
+    return
+  }
   const message = streamingMessage.value
   if (!message) return
   if (event.type === 'text-delta') {

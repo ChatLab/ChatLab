@@ -2,7 +2,9 @@ import type {
   AppendRuntimeMessageInput,
   ConversationRepository,
   RuntimeConversation,
+  RuntimeContextSummary,
   RuntimeMessage,
+  SaveRuntimeContextSummaryInput,
 } from '@openchatlab/ai-runtime'
 import type { DatabaseAdapter } from '@openchatlab/core'
 
@@ -33,6 +35,15 @@ export const WEB_AI_SCHEMA = `
   );
   CREATE INDEX IF NOT EXISTS idx_ai_message_conversation_created
     ON ai_message(conversation_id, created_at ASC, id ASC);
+
+  CREATE TABLE IF NOT EXISTS ai_context_summary (
+    conversation_id TEXT PRIMARY KEY,
+    content TEXT NOT NULL,
+    boundary_message_id TEXT NOT NULL,
+    compressed_message_count INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL,
+    FOREIGN KEY(conversation_id) REFERENCES ai_conversation(id) ON DELETE CASCADE
+  );
 `
 
 interface ConversationRow {
@@ -51,6 +62,14 @@ interface MessageRow {
   created_at: number
   blocks_json: string | null
   usage_json: string | null
+}
+
+interface ContextSummaryRow {
+  conversation_id: string
+  content: string
+  boundary_message_id: string
+  compressed_message_count: number
+  updated_at: number
 }
 
 function createId(prefix: string): string {
@@ -85,6 +104,16 @@ function mapMessage(row: MessageRow): RuntimeMessage {
     createdAt: row.created_at,
     blocks: parseJson(row.blocks_json),
     usage: parseJson(row.usage_json),
+  }
+}
+
+function mapContextSummary(row: ContextSummaryRow): RuntimeContextSummary {
+  return {
+    conversationId: row.conversation_id,
+    content: row.content,
+    boundaryMessageId: row.boundary_message_id,
+    compressedMessageCount: row.compressed_message_count,
+    updatedAt: row.updated_at,
   }
 }
 
@@ -155,6 +184,38 @@ export class BrowserAIConversationRepository implements ConversationRepository {
           .all(conversationId) as unknown as MessageRow[]
       ).map(mapMessage)
     )
+  }
+
+  getContextSummary(conversationId: string): Promise<RuntimeContextSummary | null> {
+    return this.withDatabase((db) => {
+      const row = db.prepare('SELECT * FROM ai_context_summary WHERE conversation_id = ?').get(conversationId) as
+        | ContextSummaryRow
+        | undefined
+      return row ? mapContextSummary(row) : null
+    })
+  }
+
+  saveContextSummary(input: SaveRuntimeContextSummaryInput): Promise<RuntimeContextSummary> {
+    const summary: RuntimeContextSummary = { ...input, updatedAt: Date.now() }
+    return this.withDatabase((db) => {
+      db.prepare(
+        `INSERT INTO ai_context_summary (
+           conversation_id, content, boundary_message_id, compressed_message_count, updated_at
+         ) VALUES (?, ?, ?, ?, ?)
+         ON CONFLICT(conversation_id) DO UPDATE SET
+           content = excluded.content,
+           boundary_message_id = excluded.boundary_message_id,
+           compressed_message_count = excluded.compressed_message_count,
+           updated_at = excluded.updated_at`
+      ).run(
+        summary.conversationId,
+        summary.content,
+        summary.boundaryMessageId,
+        summary.compressedMessageCount,
+        summary.updatedAt
+      )
+      return summary
+    })
   }
 
   appendMessage(input: AppendRuntimeMessageInput): Promise<RuntimeMessage> {

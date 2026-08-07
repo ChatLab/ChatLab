@@ -1,9 +1,11 @@
 import type { LanguageModel } from 'ai'
+import { resolveRuntimeContextWindow } from '@openchatlab/ai-runtime'
 
 import type { WebModelConfig } from './types'
 
 export interface CreatedWebModel {
   model: LanguageModel
+  contextWindow?: number
 }
 
 export async function createWebAIModel(config: WebModelConfig, apiKey: string): Promise<CreatedWebModel> {
@@ -20,5 +22,6 @@ export async function createWebAIModel(config: WebModelConfig, apiKey: string): 
       apiKey,
       baseURL,
     }).chatModel(config.model),
+    contextWindow: resolveRuntimeContextWindow(config.provider, config.model),
   }
 }

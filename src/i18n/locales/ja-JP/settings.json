@@ -7,7 +7,6 @@
     "aiDefaultModel": "デフォルトモデル",
     "semanticIndex": "セマンティックインデックス",
     "chatPreferences": "会話設定",
-    "compression": "圧縮",
     "aiPreprocess": "前処理",
     "dataManage": "データ管理",
     "storage": "ストレージ管理",
@@ -377,17 +376,6 @@
     "sqlExportFormat": {
       "title": "SQL Lab エクスポート形式",
       "description": "SQL クエリ結果をエクスポートする際のファイル形式"
-    },
-    "compression": {
-      "title": "コンテキスト圧縮",
-      "enable": "コンテキストの自動圧縮",
-      "enableDesc": "会話が長くなった際に履歴を自動的に要約に圧縮し、トークン消費を削減します",
-      "threshold": "圧縮閾値",
-      "thresholdDesc": "コンテキストトークンがモデルウィンドウのこの割合に達したら圧縮を開始",
-      "buffer": "バッファサイズ",
-      "bufferDesc": "圧縮せずに保持する最新メッセージの割合",
-      "maxToolResultPercent": "ツール結果の上限",
-      "maxToolResultPercentDesc": "1回のツール呼び出しでAIに送信される最大データ割合（モデルのコンテキストウィンドウに基づいて計算）。超過分はスマートに切り捨てられます"
     }
   },
   "about": {

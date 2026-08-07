@@ -62,7 +62,7 @@ describe('BrowserAIConversationRepository', () => {
     const repository = new BrowserAIConversationRepository(database)
     try {
       const conversation = await repository.createConversation('session-1', 'First')
-      await repository.appendMessage({
+      const firstMessage = await repository.appendMessage({
         conversationId: conversation.id,
         role: 'user',
         content: 'hello',
@@ -73,6 +73,12 @@ describe('BrowserAIConversationRepository', () => {
         content: 'world',
         usage: { totalTokens: 3 },
       })
+      await repository.saveContextSummary({
+        conversationId: conversation.id,
+        content: 'Earlier context summary',
+        boundaryMessageId: firstMessage.id,
+        compressedMessageCount: 1,
+      })
       assert.equal((await repository.listConversations('session-1')).length, 1)
       assert.deepEqual(
         (await repository.getMessages(conversation.id)).map((message) => [message.role, message.content]),
@@ -81,9 +87,11 @@ describe('BrowserAIConversationRepository', () => {
           ['assistant', 'world'],
         ]
       )
+      assert.equal((await repository.getContextSummary(conversation.id))?.content, 'Earlier context summary')
       assert.equal(await repository.deleteBySession('session-1'), 1)
       assert.equal(await repository.getConversation(conversation.id), null)
       assert.deepEqual(await repository.getMessages(conversation.id), [])
+      assert.equal(await repository.getContextSummary(conversation.id), null)
     } finally {
       database.dispose()
     }

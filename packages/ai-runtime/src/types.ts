@@ -21,6 +21,16 @@ export interface RuntimeMessage {
   usage?: TokenUsage
 }
 
+export interface RuntimeContextSummary {
+  conversationId: string
+  content: string
+  boundaryMessageId: string
+  compressedMessageCount: number
+  updatedAt: number
+}
+
+export type SaveRuntimeContextSummaryInput = Omit<RuntimeContextSummary, 'updatedAt'>
+
 export type RuntimeContentBlock =
   | { type: 'text'; text: string }
   | { type: 'reasoning'; text: string }
@@ -48,6 +58,8 @@ export interface AppendRuntimeMessageInput {
 export interface ConversationRepository {
   getConversation(id: string): Promise<RuntimeConversation | null>
   getMessages(conversationId: string): Promise<RuntimeMessage[]>
+  getContextSummary(conversationId: string): Promise<RuntimeContextSummary | null>
+  saveContextSummary(input: SaveRuntimeContextSummaryInput): Promise<RuntimeContextSummary>
   appendMessage(input: AppendRuntimeMessageInput): Promise<RuntimeMessage>
   updateMessage(id: string, patch: Pick<RuntimeMessage, 'content' | 'blocks' | 'usage'>): Promise<void>
 }
@@ -83,12 +95,15 @@ export interface ToolExecutor {
 
 export interface RuntimeModel {
   model: LanguageModel
+  contextWindow?: number
 }
 
 export type FinishReason = 'stop' | 'length' | 'content-filter' | 'tool-calls' | 'error' | 'aborted' | 'unknown'
 
 export type AgentStreamEvent =
   | { type: 'start'; requestId: string; messageId: string }
+  | { type: 'context-compression-start' }
+  | { type: 'context-compression-finish'; compressed: boolean }
   | { type: 'text-delta'; delta: string }
   | { type: 'reasoning-delta'; delta: string }
   | { type: 'tool-start'; callId: string; name: string; input: unknown }

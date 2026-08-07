@@ -25,7 +25,6 @@ const navItems = computed(() => [
   { id: 'semanticIndex', label: t('settings.tabs.semanticIndex') },
   { id: 'skill', label: t('settings.tabs.chatPreferences') },
   { id: 'chat', label: t('settings.aiPrompt.chatSettings.title') },
-  { id: 'compression', label: t('settings.tabs.compression') },
   { id: 'preprocess', label: t('settings.tabs.aiPreprocess') },
   { id: 'sessionIndex', label: t('settings.tabs.sessionManage') },
   { id: 'export', label: t('settings.aiPrompt.exportSettings.title') },

@@ -12,6 +12,7 @@ import type {
 } from '@openchatlab/node-runtime'
 import {
   CHART_CAPABILITY_CORE_TOOLS,
+  DEFAULT_CONTEXT_COMPRESSION_CONFIG,
   SkillManager,
   buildPiModel,
   buildSkillMenuWithBuiltinChart,
@@ -93,7 +94,6 @@ export function createCliRunAgentStream(
       skillId,
       enableAutoSkill,
       chartAutoMode,
-      compressionConfig,
       ownerInfo,
       mentionedMembers,
       thinkingLevel,
@@ -110,7 +110,7 @@ export function createCliRunAgentStream(
     }
 
     const llmConfig = llmConfigStore.getDefaultAssistantConfig()
-    const maxToolResultPercent = compressionConfig?.maxToolResultPercent ?? 50
+    const maxToolResultPercent = DEFAULT_CONTEXT_COMPRESSION_CONFIG.maxToolResultPercent ?? 50
     const contextWindow = llmConfig ? (buildPiModel(llmConfig).contextWindow ?? 128000) : 128000
     const maxToolResultTokens = Math.floor(contextWindow * (maxToolResultPercent / 100))
 
@@ -196,15 +196,6 @@ export function createCliRunAgentStream(
       agentTools.push(activateSkillTool as any)
     }
 
-    const resolvedCompression = compressionConfig?.enabled
-      ? {
-          enabled: true as const,
-          tokenThresholdPercent: compressionConfig.tokenThresholdPercent ?? 75,
-          bufferSizePercent: compressionConfig.bufferSizePercent ?? 20,
-          maxToolResultPercent: compressionConfig.maxToolResultPercent,
-        }
-      : undefined
-
     let dataSnapshot: DataSnapshot | undefined
     if (db) {
       try {
@@ -223,7 +214,6 @@ export function createCliRunAgentStream(
       assistantSystemPrompt,
       skillMenu: resolvedSkillMenu,
       skillDef: resolvedSkillDef,
-      compressionConfig: resolvedCompression,
       tools: agentTools,
       llmConfig,
       aiChatManager,

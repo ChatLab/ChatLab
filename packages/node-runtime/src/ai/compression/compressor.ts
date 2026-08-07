@@ -70,10 +70,6 @@ export async function checkAndCompress(
   convManager: AIChatManager,
   logger: CompressionLogger = defaultLogger
 ): Promise<CompressionResult> {
-  if (!config.enabled) {
-    return { compressed: false, reason: 'skipped_disabled' }
-  }
-
   try {
     const contextWindow = llmAdapter.contextWindow || DEFAULT_CONTEXT_WINDOW
     const thresholdTokens = Math.floor(contextWindow * (config.tokenThresholdPercent / 100) * 0.95)
@@ -198,7 +194,7 @@ export async function manualCompress(
     return { compressed: false, reason: 'skipped_idempotent' }
   }
 
-  const overrideConfig = { ...config, enabled: true, tokenThresholdPercent: 0 }
+  const overrideConfig = { ...config, tokenThresholdPercent: 0 }
   return checkAndCompress(aiChatId, overrideConfig, systemPrompt, llmAdapter, convManager, logger)
 }
 

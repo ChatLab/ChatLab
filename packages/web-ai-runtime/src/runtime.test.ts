@@ -2,7 +2,12 @@ import assert from 'node:assert/strict'
 import { webcrypto } from 'node:crypto'
 import { describe, it } from 'node:test'
 
-import type { RuntimeConversation, RuntimeMessage } from '@openchatlab/ai-runtime'
+import type {
+  RuntimeContextSummary,
+  RuntimeConversation,
+  RuntimeMessage,
+  SaveRuntimeContextSummaryInput,
+} from '@openchatlab/ai-runtime'
 import { MockLanguageModelV3, simulateReadableStream } from 'ai/test'
 
 import { WebModelConfigStore, type BrowserKeyValueStore } from './model-config-store'
@@ -31,6 +36,7 @@ class MemoryKeyValueStore implements BrowserKeyValueStore {
 
 function createRpc(toolListPayloads: unknown[] = [], messageListGate?: Promise<void>): WebRuntimeRpcPort {
   const conversations = new Map<string, RuntimeConversation>()
+  const contextSummaries = new Map<string, RuntimeContextSummary>()
   const messages: RuntimeMessage[] = []
   let sequence = 0
   return {
@@ -75,6 +81,14 @@ function createRpc(toolListPayloads: unknown[] = [], messageListGate?: Promise<v
           const index = messages.findIndex((message) => message.id === (payload as { messageId: string }).messageId)
           if (index >= 0) messages.splice(index, 1)
           return { deleted: index >= 0 } as never
+        }
+        case 'ai.context-summary.get':
+          return (contextSummaries.get((payload as { conversationId: string }).conversationId) ?? null) as never
+        case 'ai.context-summary.save': {
+          const input = payload as SaveRuntimeContextSummaryInput
+          const summary: RuntimeContextSummary = { ...input, updatedAt: Date.now() }
+          contextSummaries.set(summary.conversationId, summary)
+          return summary as never
         }
         case 'ai.tool.list':
           toolListPayloads.push(payload)

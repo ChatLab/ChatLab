@@ -11,7 +11,6 @@ export type {
   AIPreprocessConfig,
   WordFilterScheme,
   KeywordTemplate,
-  ContextCompressionSettings,
   DesensitizeRule,
   UiConfig,
 } from '@openchatlab/shared-types'

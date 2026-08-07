@@ -39,12 +39,6 @@ export interface AgentStreamRequest {
   skillId?: string | null
   enableAutoSkill?: boolean
   chartAutoMode?: ChartAutoMode
-  compressionConfig?: {
-    enabled: boolean
-    tokenThresholdPercent?: number
-    bufferSizePercent?: number
-    maxToolResultPercent?: number
-  }
   ownerInfo?: { platformId: string; displayName: string }
   mentionedMembers?: Array<{
     memberId: number

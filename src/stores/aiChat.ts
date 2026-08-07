@@ -1020,12 +1020,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           skillId: currentSkillId,
           enableAutoSkill: !currentSkillId ? autoSkillEnabled : undefined,
           chartAutoMode: !currentSkillId ? chartAutoMode : undefined,
-          compressionConfig: {
-            enabled: aiGlobalSettings.value.contextCompression?.enabled ?? false,
-            tokenThresholdPercent: aiGlobalSettings.value.contextCompression?.tokenThresholdPercent ?? 75,
-            bufferSizePercent: aiGlobalSettings.value.contextCompression?.bufferSizePercent ?? 20,
-            maxToolResultPercent: aiGlobalSettings.value.contextCompression?.maxToolResultPercent ?? 50,
-          },
           thinkingLevel: (() => {
             const cfg = llmStore.defaultAssistant
             if (!cfg?.configId || !cfg?.modelId) return undefined
@@ -1619,12 +1613,6 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           skillId: currentSkillId,
           enableAutoSkill: !currentSkillId ? autoSkillEnabled : undefined,
           chartAutoMode: !currentSkillId ? chartAutoMode : undefined,
-          compressionConfig: {
-            enabled: aiGlobalSettings.value.contextCompression?.enabled ?? false,
-            tokenThresholdPercent: aiGlobalSettings.value.contextCompression?.tokenThresholdPercent ?? 75,
-            bufferSizePercent: aiGlobalSettings.value.contextCompression?.bufferSizePercent ?? 20,
-            maxToolResultPercent: aiGlobalSettings.value.contextCompression?.maxToolResultPercent ?? 50,
-          },
           thinkingLevel: (() => {
             const cfg = llmStore.defaultAssistant
             if (!cfg?.configId || !cfg?.modelId) return undefined
