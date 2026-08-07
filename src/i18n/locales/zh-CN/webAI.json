@@ -1,27 +1,14 @@
 {
-  "defaultAssistant": "默认助手",
+  "title": "ChatLab AI",
   "emptyTitle": "从聊天记录中寻找答案",
   "emptyDescription": "AI 会按需调用本地分析工具，只将当前问题所需且已脱敏的数据发送给模型服务商。",
   "inputPlaceholder": "询问这段聊天记录…",
-  "send": "发送",
-  "stop": "停止",
   "regenerate": "重新生成",
   "footer": "AI 可能会犯错，请核对重要结论",
   "usingTool": "正在调用 {name}",
-  "presets": {
-    "overview": "概括这段聊天的主要内容",
-    "topics": "最近大家在聊什么？",
-    "activity": "分析聊天活跃度的变化"
-  },
   "conversations": {
     "title": "对话",
-    "empty": "还没有 AI 对话",
-    "new": "新建对话",
-    "rename": "重命名",
-    "delete": "删除",
-    "untitled": "新对话",
-    "deleteConfirm": "确定删除这条 AI 对话吗？",
-    "renamePrompt": "修改对话名称"
+    "deleteConfirm": "确定删除这条 AI 对话吗？"
   },
   "config": {
     "title": "配置 Web AI",

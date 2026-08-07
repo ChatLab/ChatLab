@@ -1,27 +1,14 @@
 {
-  "defaultAssistant": "預設助手",
+  "title": "ChatLab AI",
   "emptyTitle": "從聊天記錄中尋找答案",
   "emptyDescription": "AI 會按需呼叫本機分析工具，只將目前問題所需且已脫敏的資料傳送給模型服務商。",
   "inputPlaceholder": "詢問這段聊天記錄…",
-  "send": "傳送",
-  "stop": "停止",
   "regenerate": "重新產生",
   "footer": "AI 可能會出錯，請核對重要結論",
   "usingTool": "正在呼叫 {name}",
-  "presets": {
-    "overview": "概括這段聊天的主要內容",
-    "topics": "最近大家在聊什麼？",
-    "activity": "分析聊天活躍度的變化"
-  },
   "conversations": {
     "title": "對話",
-    "empty": "還沒有 AI 對話",
-    "new": "新增對話",
-    "rename": "重新命名",
-    "delete": "刪除",
-    "untitled": "新對話",
-    "deleteConfirm": "確定刪除這條 AI 對話嗎？",
-    "renamePrompt": "修改對話名稱"
+    "deleteConfirm": "確定刪除這條 AI 對話嗎？"
   },
   "config": {
     "title": "設定 Web AI",

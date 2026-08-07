@@ -14,6 +14,8 @@ interface Conversation {
   updatedAt: number
 }
 
+export type AIConversationListItem = Conversation
+
 interface ConversationGroup {
   label: string
   conversations: Conversation[]
@@ -25,6 +27,11 @@ const props = defineProps<{
   activeId: string | null
   /** 仅禁用新建、重命名、删除等会改写状态的操作，仍允许只读切换查看其他对话。 */
   disabled?: boolean
+  /** 传入后切换为受控模式，不再访问平台 AI service。 */
+  conversations?: Conversation[]
+  loading?: boolean
+  embedded?: boolean
+  collapsible?: boolean
 }>()
 
 // Emits
@@ -32,21 +39,28 @@ const emit = defineEmits<{
   select: [id: string]
   create: []
   delete: [id: string]
+  rename: [payload: { id: string; title: string }]
 }>()
 
 // State
-const conversations = ref<Conversation[]>([])
+const serviceConversations = ref<Conversation[]>([])
 const isLoading = ref(false)
 const editingId = ref<string | null>(null)
 const editingTitle = ref('')
 const isCollapsed = ref(false)
 const menuOpenId = ref<string | null>(null)
+const isControlled = computed(() => props.conversations !== undefined)
+const visibleConversations = computed(() => props.conversations ?? serviceConversations.value)
+const visibleLoading = computed(() => (isControlled.value ? (props.loading ?? false) : isLoading.value))
+const canCollapse = computed(() => props.collapsible !== false)
+const collapsed = computed(() => canCollapse.value && isCollapsed.value)
 
 // 加载对话列表
 async function loadConversations() {
+  if (isControlled.value) return
   isLoading.value = true
   try {
-    conversations.value = await useAIService().getAIChats(props.sessionId)
+    serviceConversations.value = await useAIService().getAIChats(props.sessionId)
   } catch (error) {
     console.error('加载对话列表失败：', error)
   } finally {
@@ -56,7 +70,7 @@ async function loadConversations() {
 
 // 按时间分组
 const groupedConversations = computed<ConversationGroup[]>(() => {
-  if (conversations.value.length === 0) return []
+  if (visibleConversations.value.length === 0) return []
 
   const now = dayjs()
   const day7 = now.subtract(7, 'day').startOf('day')
@@ -66,7 +80,7 @@ const groupedConversations = computed<ConversationGroup[]>(() => {
   const last30: Conversation[] = []
   const monthBuckets = new Map<string, Conversation[]>()
 
-  for (const conv of conversations.value) {
+  for (const conv of visibleConversations.value) {
     const date = dayjs(conv.updatedAt * 1000)
     if (date.isAfter(day7)) {
       last7.push(conv)
@@ -115,9 +129,14 @@ function startEditing(conv: Conversation) {
 async function saveTitle(convId: string) {
   if (props.disabled) return
   if (editingTitle.value.trim()) {
+    if (isControlled.value) {
+      emit('rename', { id: convId, title: editingTitle.value.trim() })
+      editingId.value = null
+      return
+    }
     try {
       await useAIService().updateAIChatTitle(convId, editingTitle.value.trim())
-      const conv = conversations.value.find((c) => c.id === convId)
+      const conv = serviceConversations.value.find((c) => c.id === convId)
       if (conv) {
         conv.title = editingTitle.value.trim()
       }
@@ -146,9 +165,13 @@ function handleMenuDelete(convId: string) {
 // 删除对话
 async function handleDelete(convId: string) {
   if (props.disabled) return
+  if (isControlled.value) {
+    emit('delete', convId)
+    return
+  }
   try {
     await useAIService().deleteAIChat(convId)
-    conversations.value = conversations.value.filter((c) => c.id !== convId)
+    serviceConversations.value = serviceConversations.value.filter((c) => c.id !== convId)
     emit('delete', convId)
   } catch (error) {
     console.error('删除对话失败：', error)
@@ -157,14 +180,14 @@ async function handleDelete(convId: string) {
 
 // 初始化
 onMounted(() => {
-  loadConversations()
+  void loadConversations()
 })
 
 // 监听 sessionId 变化
 watch(
   () => props.sessionId,
   () => {
-    loadConversations()
+    void loadConversations()
   }
 )
 
@@ -176,19 +199,19 @@ defineExpose({
 
 <template>
   <div
-    class="m-3 flex h-[calc(100%-1.5rem)] shrink-0 flex-col overflow-hidden rounded-lg bg-white transition-all duration-300 ease-in-out dark:bg-sidebar-dark"
-    :class="isCollapsed ? 'w-14' : 'w-64'"
+    class="flex shrink-0 flex-col overflow-hidden bg-white transition-all duration-300 ease-in-out dark:bg-sidebar-dark"
+    :class="[props.embedded ? 'h-full' : 'm-3 h-[calc(100%-1.5rem)] rounded-lg', collapsed ? 'w-14' : 'w-64']"
   >
     <!-- 头部 -->
     <div
       class="flex items-center"
       :class="
-        isCollapsed
+        collapsed
           ? 'justify-center px-2 pb-2 pt-5'
           : 'justify-between border-b border-gray-200 py-2 pl-3 pr-2 dark:border-gray-800'
       "
     >
-      <template v-if="!isCollapsed">
+      <template v-if="!collapsed">
         <button
           class="flex items-center gap-1.5 rounded-md px-2 py-1.5 text-xs font-medium text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
           :disabled="disabled"
@@ -199,6 +222,7 @@ defineExpose({
           <span>{{ t('ai.chat.conversation.newConversation') }}</span>
         </button>
         <UButton
+          v-if="canCollapse"
           color="neutral"
           variant="ghost"
           size="sm"
@@ -221,14 +245,17 @@ defineExpose({
     </div>
 
     <!-- 展开状态列表 -->
-    <div v-if="!isCollapsed" class="flex-1 overflow-y-auto p-2">
+    <div v-if="!collapsed" class="flex-1 overflow-y-auto p-2">
       <!-- 加载中 -->
-      <div v-if="isLoading" class="flex items-center justify-center py-8">
+      <div v-if="visibleLoading" class="flex items-center justify-center py-8">
         <UIcon name="i-heroicons-arrow-path" class="h-5 w-5 animate-spin text-gray-400" />
       </div>
 
       <!-- 空状态 -->
-      <div v-else-if="conversations.length === 0" class="flex flex-col items-center justify-center py-12 text-center">
+      <div
+        v-else-if="visibleConversations.length === 0"
+        class="flex flex-col items-center justify-center py-12 text-center"
+      >
         <div class="flex h-12 w-12 items-center justify-center rounded-full bg-gray-50 dark:bg-gray-800">
           <UIcon name="i-heroicons-chat-bubble-left" class="h-6 w-6 text-gray-300 dark:text-gray-600" />
         </div>
@@ -353,7 +380,7 @@ defineExpose({
       </button>
 
       <button
-        v-for="conv in conversations"
+        v-for="conv in visibleConversations"
         :key="conv.id"
         class="relative mx-auto flex h-10 w-10 items-center justify-center rounded-lg transition-all duration-200"
         :class="[

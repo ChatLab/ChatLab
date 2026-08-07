@@ -16,6 +16,7 @@ import { useSessionStore } from '@/stores/session'
 import { useSettingsStore } from '@/stores/settings'
 import { StartupLoading } from '@/components/UI'
 import { PLATFORM_CAPABILITIES } from '@/utils/platform-capabilities'
+import WebSettingsModal from './components/settings/WebSettingsModal.vue'
 
 const { t } = useI18n()
 const route = useRoute()
@@ -101,7 +102,7 @@ onMounted(() => {
         </div>
       </template>
       <template v-else>
-        <Sidebar v-if="shouldShowSidebar" :backend-features="false" />
+        <Sidebar v-if="shouldShowSidebar" :backend-features="false" settings-enabled />
         <main class="relative flex-1 overflow-hidden">
           <router-view v-slot="{ Component }">
             <Transition name="page-fade" mode="out-in">
@@ -109,6 +110,7 @@ onMounted(() => {
             </Transition>
           </router-view>
         </main>
+        <WebSettingsModal />
       </template>
     </div>
   </UApp>

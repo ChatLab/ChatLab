@@ -67,6 +67,23 @@ describe('WebModelConfigStore', () => {
     assert.equal(await store.getApiKey(), null)
   })
 
+  it('keeps the stored API key when editing a model config with an empty key field', async () => {
+    const storage = new MemoryKeyValueStore()
+    const store = new WebModelConfigStore(storage, webcrypto as unknown as Crypto)
+    await store.save({ provider: 'deepseek', model: 'deepseek-v4-flash', apiKey: 'saved-secret' })
+
+    await store.save({
+      provider: 'openai-compatible',
+      baseURL: 'https://example.invalid/v1',
+      model: 'updated-model',
+      apiKey: '',
+    })
+
+    assert.equal((await store.getConfig())?.model, 'updated-model')
+    assert.equal(await store.getApiKey(), 'saved-secret')
+    assert.doesNotMatch(JSON.stringify([...storage.values.values()]), /saved-secret/)
+  })
+
   it('surfaces browser storage failures without persisting a partial configuration', async () => {
     const store = new WebModelConfigStore(new RejectingKeyValueStore(), webcrypto as unknown as Crypto)
 

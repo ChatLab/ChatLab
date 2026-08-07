@@ -1,27 +1,14 @@
 {
-  "defaultAssistant": "デフォルトアシスタント",
+  "title": "ChatLab AI",
   "emptyTitle": "チャット履歴から答えを探す",
   "emptyDescription": "AI は必要に応じてローカル分析ツールを呼び出し、現在の質問に必要な匿名化済みデータだけをモデル提供元へ送信します。",
   "inputPlaceholder": "このチャットについて質問…",
-  "send": "送信",
-  "stop": "停止",
   "regenerate": "再生成",
   "footer": "AI は誤ることがあります。重要な結論は確認してください。",
   "usingTool": "{name} を使用中",
-  "presets": {
-    "overview": "このチャットの主な内容を要約して",
-    "topics": "最近は何について話している？",
-    "activity": "チャット活動の変化を分析して"
-  },
   "conversations": {
     "title": "会話",
-    "empty": "AI 会話はまだありません",
-    "new": "新しい会話",
-    "rename": "名前を変更",
-    "delete": "削除",
-    "untitled": "新しい会話",
-    "deleteConfirm": "この AI 会話を削除しますか？",
-    "renamePrompt": "会話名を変更"
+    "deleteConfirm": "この AI 会話を削除しますか？"
   },
   "config": {
     "title": "Web AI を設定",

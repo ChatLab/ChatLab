@@ -10,11 +10,13 @@ import HomeFooter from '@/components/home/HomeFooter.vue'
 import ImportArea from '@/components/import/ImportArea.vue'
 import { availableLocales, type LocaleType } from '@/i18n'
 import { useSettingsStore } from '@/stores/settings'
+import { useLayoutStore } from '@/stores/layout'
 import { useSessionStore } from '@/stores/session'
 import { getChatlabSiteLocalePath } from '@/utils/chatlabSiteLocale'
 
 const { t, locale } = useI18n()
 const settingsStore = useSettingsStore()
+const layoutStore = useLayoutStore()
 const sessionStore = useSessionStore()
 const { sessions } = storeToRefs(sessionStore)
 const isMounted = ref(false)
@@ -97,6 +99,16 @@ onMounted(() => {
             @click="toggleDark()"
           >
             <UIcon :name="isDark ? 'i-heroicons-sun' : 'i-heroicons-moon'" class="h-4 w-4" />
+          </button>
+
+          <button
+            type="button"
+            class="flex h-8 w-8 items-center justify-center rounded-lg text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-900 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary-500/50 dark:text-gray-400 dark:hover:bg-white/5 dark:hover:text-white"
+            :aria-label="t('layout.footer.settings')"
+            :title="t('layout.footer.settings')"
+            @click="layoutStore.openSettings()"
+          >
+            <UIcon name="i-heroicons-cog-6-tooth" class="h-4 w-4" />
           </button>
         </div>
       </header>

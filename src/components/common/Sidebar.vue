@@ -25,9 +25,15 @@ import { IS_ELECTRON } from '@/utils/platform'
 import logoSvg from '@/assets/images/logo.svg'
 import { focusExposedInput, type ExposedInputRef } from './sidebar/input-focus'
 
-const props = defineProps<{
-  backendFeatures: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    backendFeatures: boolean
+    settingsEnabled?: boolean
+  }>(),
+  {
+    settingsEnabled: false,
+  }
+)
 
 const { t } = useI18n()
 const LATEST_VERSION_URL = 'https://chatlab.fun/latest-version'
@@ -718,7 +724,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
     </UModal>
 
     <!-- Footer -->
-    <SidebarFooter v-if="props.backendFeatures" />
+    <SidebarFooter v-if="props.backendFeatures || props.settingsEnabled" />
   </div>
 </template>
 

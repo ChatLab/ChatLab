@@ -14,6 +14,15 @@ import { INSIGHT_CARD_THEMES, type InsightCardThemeId } from '@/utils/insight-ca
 
 const { t } = useI18n()
 
+withDefaults(
+  defineProps<{
+    showToolsPanel?: boolean
+  }>(),
+  {
+    showToolsPanel: true,
+  }
+)
+
 // Store
 const layoutStore = useLayoutStore()
 const settingsStore = useSettingsStore()
@@ -209,8 +218,8 @@ const toolsPanelPositionOptions = computed(() => [
             <UTabs v-model="defaultSessionTab" size="sm" class="gap-0" :items="defaultTabOptions"></UTabs>
           </div>
         </div>
-        <div class="border-t border-gray-200 dark:border-gray-700"></div>
-        <div class="flex items-center justify-between p-4">
+        <div v-if="showToolsPanel" class="border-t border-gray-200 dark:border-gray-700"></div>
+        <div v-if="showToolsPanel" class="flex items-center justify-between p-4">
           <div class="flex-1 pr-4">
             <p class="text-sm font-medium text-gray-900 dark:text-white">
               {{ t('settings.basic.toolsPanel.positionLabel') }}

@@ -125,6 +125,26 @@ describe('WebAIChatRuntime', () => {
     assert.equal(result.error?.code, 'TIMEOUT')
   })
 
+  it('reuses the stored API key when testing an edited configuration', async () => {
+    const configStore = new WebModelConfigStore(new MemoryKeyValueStore(), webcrypto as unknown as Crypto)
+    await configStore.save({ provider: 'deepseek', model: 'deepseek-v4-flash', apiKey: 'saved-secret' })
+    let receivedApiKey = ''
+    const runtime = new WebAIChatRuntime(createRpc(), configStore, async (_config, apiKey) => {
+      receivedApiKey = apiKey
+      throw new Error('model factory reached')
+    })
+
+    const result = await runtime.testConnection({
+      provider: 'openai-compatible',
+      baseURL: 'https://example.invalid/v1',
+      model: 'updated-model',
+      apiKey: '',
+    })
+
+    assert.equal(receivedApiKey, 'saved-secret')
+    assert.equal(result.ok, false)
+  })
+
   it('preserves provider status from streamed model failures', async () => {
     const configStore = new WebModelConfigStore(new MemoryKeyValueStore(), webcrypto as unknown as Crypto)
     await configStore.save({ provider: 'deepseek', model: 'deepseek-v4-flash', apiKey: 'test-secret' })

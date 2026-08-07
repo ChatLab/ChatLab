@@ -66,7 +66,7 @@ function updateProvider(provider: string) {
 }
 
 function getInput(): SaveWebModelConfigInput | null {
-  if (!form.apiKey.trim() || !form.model.trim() || !form.baseURL?.trim()) {
+  if ((!props.config && !form.apiKey.trim()) || !form.model.trim() || !form.baseURL?.trim()) {
     result.value = {
       ok: false,
       error: { code: 'NOT_CONFIGURED', message: t('webAI.config.required'), retryable: false },
@@ -99,7 +99,12 @@ defineExpose({
 </script>
 
 <template>
-  <UModal :open="open" :title="t('webAI.config.title')" @update:open="emit('update:open', $event)">
+  <UModal
+    :open="open"
+    :title="t('webAI.config.title')"
+    :ui="{ content: 'z-[102] sm:max-w-lg', overlay: 'z-[101]' }"
+    @update:open="emit('update:open', $event)"
+  >
     <template #content>
       <div class="w-full max-w-lg bg-white p-5 dark:bg-page-dark">
         <div class="flex items-start justify-between gap-4">

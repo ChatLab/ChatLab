@@ -1,50 +1,38 @@
 <script setup lang="ts">
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import type { FinishReason, RuntimeContentBlock, RuntimeMessage } from '@openchatlab/ai-runtime'
-import {
-  normalizeWebAIError,
-  WebAIChatRuntime,
-  type AgentStreamEvent,
-  type RuntimeConversation,
-  type SaveWebModelConfigInput,
-  type WebAIConnectionTestResult,
-  type WebModelConfig,
-} from '@openchatlab/web-ai-runtime'
+import { type AgentStreamEvent, type RuntimeConversation } from '@openchatlab/web-ai-runtime'
 import ChatMessage from '@/components/AIChat/chat/ChatMessage.vue'
-import { useBrowserRuntimeRpc } from '@/services/browser-runtime/service'
+import ConversationList from '@/components/AIChat/chat/ConversationList.vue'
+import SimpleAIChatInput from '@/components/AIChat/input/SimpleAIChatInput.vue'
 import { reportRuntimeLog } from '@/services/log-report'
-import { useToast } from '@/composables/useToast'
-import WebAIModelSetupModal from './WebAIModelSetupModal.vue'
+import { useLayoutStore } from '@/stores/layout'
 import { toWebAIChatMessage } from './message-mapper'
-import { runWithSavingState } from './save-state'
 import { isAbortError, resolveSendTarget } from './send-lifecycle'
+import { useWebAISettingsStore } from '../../stores/web-ai-settings'
 
 const props = defineProps<{
   sessionId: string
-  sessionName: string
 }>()
 
 const { t, locale } = useI18n()
-const toast = useToast()
-const runtime = new WebAIChatRuntime(useBrowserRuntimeRpc())
-const setupModal = ref<InstanceType<typeof WebAIModelSetupModal> | null>(null)
-const setupOpen = ref(false)
-const testing = ref(false)
-const saving = ref(false)
-const removing = ref(false)
-const config = ref<WebModelConfig | null>(null)
+const layoutStore = useLayoutStore()
+const webAISettings = useWebAISettingsStore()
+const { config } = storeToRefs(webAISettings)
+const runtime = webAISettings.getRuntime()
 const conversations = ref<RuntimeConversation[]>([])
 const conversationId = ref<string | null>(null)
 const messages = ref<RuntimeMessage[]>([])
 const streamingMessage = ref<RuntimeMessage | null>(null)
-const prompt = ref('')
 const generating = ref(false)
 const loading = ref(true)
 const errorText = ref('')
 const processText = ref('')
 const listOpen = ref(false)
 const messagesContainer = ref<HTMLElement | null>(null)
+const chatInputRef = ref<InstanceType<typeof SimpleAIChatInput> | null>(null)
 let activeSendController: AbortController | null = null
 
 const displayMessages = computed(() => {
@@ -55,17 +43,10 @@ const displayMessages = computed(() => {
 const canRetry = computed(() => messages.value.at(-1)?.role === 'user')
 const canRegenerate = computed(() => messages.value.at(-1)?.role === 'assistant')
 
-const presetQuestions = computed(() => [
-  t('webAI.presets.overview'),
-  t('webAI.presets.topics'),
-  t('webAI.presets.activity'),
-])
-
 onMounted(async () => {
   try {
-    config.value = await runtime.getConfig()
+    await webAISettings.loadConfig()
     await loadConversations()
-    if (!config.value) setupOpen.value = true
   } catch (error) {
     errorText.value = error instanceof Error ? error.message : String(error)
   } finally {
@@ -124,12 +105,10 @@ async function deleteConversation(id: string) {
   await loadConversations()
 }
 
-async function renameConversation(conversation: RuntimeConversation) {
+async function renameConversation(payload: { id: string; title: string }) {
   if (generating.value) return
-  const title = window.prompt(t('webAI.conversations.renamePrompt'), conversation.title ?? props.sessionName)?.trim()
-  if (!title) return
-  await runtime.conversations.renameConversation(conversation.id, title)
-  await loadConversations(conversation.id)
+  await runtime.conversations.renameConversation(payload.id, payload.title)
+  await loadConversations(payload.id)
 }
 
 async function ensureConversation(question: string, signal: AbortSignal): Promise<string> {
@@ -143,14 +122,14 @@ async function ensureConversation(question: string, signal: AbortSignal): Promis
   return conversation.id
 }
 
-async function send(content = prompt.value) {
+async function send(content: string) {
   const question = content.trim()
   if (!question || generating.value) return
   if (!config.value) {
-    setupOpen.value = true
+    void nextTick(() => chatInputRef.value?.fillInput(question))
+    layoutStore.openSettings('ai')
     return
   }
-  prompt.value = ''
   errorText.value = ''
   processText.value = ''
   generating.value = true
@@ -345,77 +324,6 @@ async function loadConversationListOnly() {
   conversations.value = await runtime.conversations.listConversations(props.sessionId)
 }
 
-async function testConnection(input: SaveWebModelConfigInput) {
-  testing.value = true
-  const result = await runtime.testConnection(input)
-  setupModal.value?.setTestResult(result)
-  testing.value = false
-}
-
-async function saveConfig(input: SaveWebModelConfigInput) {
-  try {
-    await runWithSavingState(
-      (value) => {
-        saving.value = value
-      },
-      async () => {
-        const result: WebAIConnectionTestResult = await runtime.testConnection(input)
-        setupModal.value?.setTestResult(result)
-        if (!result.ok) return
-
-        config.value = await runtime.saveConfig(input)
-        reportRuntimeLog({
-          level: 'info',
-          scope: 'web-ai',
-          message: 'Browser model configuration saved',
-          data: { provider: input.provider, model: input.model },
-        })
-        setupOpen.value = false
-        toast.success(t('webAI.config.saved'))
-      }
-    )
-  } catch (error) {
-    const normalized = normalizeWebAIError(error)
-    setupModal.value?.setTestResult({ ok: false, error: normalized.data })
-    reportRuntimeLog({
-      level: 'error',
-      scope: 'web-ai',
-      message: 'Browser model configuration save failed',
-      data: { code: normalized.data.code },
-    })
-  }
-}
-
-async function removeConfig() {
-  if (!window.confirm(t('webAI.config.removeConfirm'))) return
-  try {
-    await runWithSavingState(
-      (value) => {
-        removing.value = value
-      },
-      async () => {
-        await runtime.clearConfig()
-        config.value = null
-        reportRuntimeLog({
-          level: 'info',
-          scope: 'web-ai',
-          message: 'Browser model configuration removed',
-        })
-        toast.success(t('webAI.config.removed'))
-      }
-    )
-  } catch (error) {
-    const normalized = normalizeWebAIError(error)
-    setupModal.value?.setTestResult({ ok: false, error: normalized.data })
-    reportRuntimeLog({
-      level: 'error',
-      scope: 'web-ai',
-      message: 'Browser model configuration removal failed',
-      data: { code: normalized.data.code },
-    })
-  }
-}
-
 function getFriendlyError(error: unknown): string {
   if (error && typeof error === 'object' && 'data' in error) {
     const code = (error as { data?: { code?: string } }).data?.code
@@ -446,10 +354,8 @@ async function scrollToBottom() {
   messagesContainer.value?.scrollTo({ top: messagesContainer.value.scrollHeight, behavior: 'smooth' })
 }
 
-function handleInputKeydown(event: KeyboardEvent) {
-  if (event.key !== 'Enter' || event.shiftKey || event.isComposing) return
-  event.preventDefault()
-  void send()
+function handleSend(payload: { content: string }) {
+  void send(payload.content)
 }
 </script>
 
@@ -463,62 +369,37 @@ function handleInputKeydown(event: KeyboardEvent) {
       @click="listOpen = false"
     />
     <aside
-      class="absolute inset-y-0 left-0 z-30 flex w-64 shrink-0 flex-col border-r border-gray-200 bg-white transition-transform md:static md:translate-x-0 dark:border-gray-800 dark:bg-page-dark"
+      class="absolute inset-y-0 left-0 z-30 transition-transform md:hidden"
       :class="listOpen ? 'translate-x-0' : '-translate-x-full'"
     >
-      <div class="flex items-center justify-between px-3 py-3">
-        <span class="text-xs font-semibold text-gray-500 dark:text-gray-400">{{ t('webAI.conversations.title') }}</span>
-        <UButton
-          icon="i-heroicons-plus"
-          size="xs"
-          color="neutral"
-          variant="ghost"
-          :aria-label="t('webAI.conversations.new')"
-          @click="newConversation"
-        />
-      </div>
-      <div class="min-h-0 flex-1 space-y-1 overflow-y-auto px-2 pb-3">
-        <p v-if="conversations.length === 0" class="px-2 py-6 text-center text-xs text-gray-400">
-          {{ t('webAI.conversations.empty') }}
-        </p>
-        <div
-          v-for="conversation in conversations"
-          :key="conversation.id"
-          class="group flex items-center rounded-lg transition-colors"
-          :class="
-            conversation.id === conversationId
-              ? 'bg-primary-50 text-primary-700 dark:bg-primary-900/20 dark:text-primary-300'
-              : 'text-gray-600 hover:bg-gray-100 dark:text-gray-400 dark:hover:bg-gray-800/60'
-          "
-        >
-          <button
-            type="button"
-            class="min-w-0 flex-1 truncate px-2.5 py-2 text-left text-xs"
-            @click="selectConversation(conversation.id)"
-          >
-            {{ conversation.title || t('webAI.conversations.untitled') }}
-          </button>
-          <div class="mr-1 flex opacity-0 transition-opacity group-hover:opacity-100 group-focus-within:opacity-100">
-            <UButton
-              icon="i-heroicons-pencil"
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              :aria-label="t('webAI.conversations.rename')"
-              @click="renameConversation(conversation)"
-            />
-            <UButton
-              icon="i-heroicons-trash"
-              size="xs"
-              color="neutral"
-              variant="ghost"
-              :aria-label="t('webAI.conversations.delete')"
-              @click="deleteConversation(conversation.id)"
-            />
-          </div>
-        </div>
-      </div>
+      <ConversationList
+        :session-id="sessionId"
+        :active-id="conversationId"
+        :disabled="generating"
+        :conversations="conversations"
+        :loading="loading"
+        :collapsible="false"
+        embedded
+        @select="selectConversation"
+        @create="newConversation"
+        @delete="deleteConversation"
+        @rename="renameConversation"
+      />
     </aside>
+
+    <div class="hidden h-full md:block">
+      <ConversationList
+        :session-id="sessionId"
+        :active-id="conversationId"
+        :disabled="generating"
+        :conversations="conversations"
+        :loading="loading"
+        @select="selectConversation"
+        @create="newConversation"
+        @delete="deleteConversation"
+        @rename="renameConversation"
+      />
+    </div>
 
     <section class="flex min-w-0 flex-1 flex-col">
       <div class="flex h-11 shrink-0 items-center gap-2 border-b border-gray-100 px-3 dark:border-gray-800/70">
@@ -534,7 +415,7 @@ function handleInputKeydown(event: KeyboardEvent) {
         <div class="flex min-w-0 items-center gap-2">
           <UIcon name="i-heroicons-sparkles" class="h-4 w-4 shrink-0 text-primary-500" />
           <span class="truncate text-sm font-medium text-gray-700 dark:text-gray-200">
-            {{ t('webAI.defaultAssistant') }}
+            {{ t('webAI.title') }}
           </span>
         </div>
         <span v-if="processText" class="ml-auto truncate text-xs text-gray-400">{{ processText }}</span>
@@ -545,7 +426,7 @@ function handleInputKeydown(event: KeyboardEvent) {
           variant="ghost"
           class="ml-auto"
           :aria-label="t('webAI.config.title')"
-          @click="setupOpen = true"
+          @click="layoutStore.openSettings('ai')"
         />
       </div>
 
@@ -557,24 +438,12 @@ function handleInputKeydown(event: KeyboardEvent) {
           v-else-if="displayMessages.length === 0"
           class="mx-auto flex min-h-full max-w-2xl flex-col items-center justify-center px-3 pb-24 text-center"
         >
-          <div class="flex h-11 w-11 items-center justify-center rounded-2xl bg-primary-50 dark:bg-primary-900/20">
-            <UIcon name="i-heroicons-sparkles" class="h-5 w-5 text-primary-500" />
-          </div>
-          <h2 class="mt-4 text-lg font-semibold text-gray-900 dark:text-white">{{ t('webAI.emptyTitle') }}</h2>
-          <p class="mt-1 max-w-md text-sm leading-6 text-gray-500 dark:text-gray-400">
+          <h2 class="text-2xl font-semibold tracking-tight text-gray-800 dark:text-gray-100">
+            {{ t('webAI.emptyTitle') }}
+          </h2>
+          <p class="mt-3 max-w-lg text-sm leading-relaxed text-gray-500 dark:text-gray-400">
             {{ t('webAI.emptyDescription') }}
           </p>
-          <div class="mt-5 flex max-w-xl flex-wrap justify-center gap-2">
-            <button
-              v-for="question in presetQuestions"
-              :key="question"
-              type="button"
-              class="rounded-full border border-gray-200 bg-white px-3 py-1.5 text-xs text-gray-600 transition-colors hover:border-primary-200 hover:bg-primary-50 hover:text-primary-700 dark:border-gray-700 dark:bg-gray-900 dark:text-gray-300 dark:hover:border-primary-800 dark:hover:bg-primary-900/20"
-              @click="send(question)"
-            >
-              {{ question }}
-            </button>
-          </div>
         </div>
         <div v-else class="mx-auto max-w-3xl space-y-6 px-1 sm:px-4">
           <ChatMessage
@@ -600,72 +469,35 @@ function handleInputKeydown(event: KeyboardEvent) {
             <span class="min-w-0 flex-1">{{ errorText }}</span>
             <button type="button" @click="errorText = ''"><UIcon name="i-heroicons-x-mark" class="h-4 w-4" /></button>
           </div>
-          <div
-            class="rounded-2xl border border-gray-200 bg-white p-2 shadow-sm focus-within:border-primary-300 dark:border-gray-700 dark:bg-gray-900 dark:focus-within:border-primary-700"
-          >
-            <textarea
-              v-model="prompt"
-              rows="2"
-              class="max-h-40 min-h-12 w-full resize-none bg-transparent px-2 py-1.5 text-sm text-gray-900 outline-none placeholder:text-gray-400 dark:text-white"
-              :placeholder="t('webAI.inputPlaceholder')"
-              :disabled="generating"
-              @keydown="handleInputKeydown"
-            />
-            <div class="flex items-center justify-between gap-2 px-1">
-              <button
-                v-if="canRetry && !generating"
-                type="button"
-                class="rounded-md px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-                @click="retry"
-              >
-                {{ t('common.retry') }}
-              </button>
-              <button
-                v-else-if="canRegenerate && !generating"
-                type="button"
-                class="rounded-md px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
-                @click="regenerate"
-              >
-                {{ t('webAI.regenerate') }}
-              </button>
-              <span v-else />
-              <UButton
-                v-if="generating"
-                icon="i-heroicons-stop-solid"
-                size="sm"
-                color="neutral"
-                variant="soft"
-                @click="stop"
-              >
-                {{ t('webAI.stop') }}
-              </UButton>
-              <UButton
-                v-else
-                icon="i-heroicons-arrow-up"
-                size="sm"
-                color="primary"
-                :disabled="!prompt.trim()"
-                @click="send()"
-              >
-                {{ t('webAI.send') }}
-              </UButton>
-            </div>
+          <div v-if="!generating && (canRetry || canRegenerate)" class="flex min-h-7 items-center px-1">
+            <button
+              v-if="canRetry"
+              type="button"
+              class="rounded-md px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+              @click="retry"
+            >
+              {{ t('common.retry') }}
+            </button>
+            <button
+              v-else-if="canRegenerate"
+              type="button"
+              class="rounded-md px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100 dark:hover:bg-gray-800"
+              @click="regenerate"
+            >
+              {{ t('webAI.regenerate') }}
+            </button>
           </div>
+          <SimpleAIChatInput
+            ref="chatInputRef"
+            :disabled="generating"
+            :status="generating ? 'streaming' : 'ready'"
+            :placeholder="t('webAI.inputPlaceholder')"
+            @send="handleSend"
+            @stop="stop"
+          />
           <p class="mt-1.5 text-center text-[11px] text-gray-400">{{ t('webAI.footer') }}</p>
         </div>
       </div>
     </section>
-
-    <WebAIModelSetupModal
-      ref="setupModal"
-      v-model:open="setupOpen"
-      :config="config"
-      :testing="testing"
-      :saving="saving"
-      :removing="removing"
-      @test="testConnection"
-      @save="saveConfig"
-      @remove="removeConfig"
-    />
   </div>
 </template>

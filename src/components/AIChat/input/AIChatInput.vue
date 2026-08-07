@@ -2,6 +2,7 @@
 import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
+import AIChatComposer from './AIChatComposer.vue'
 import MemberMentionMenu from './MemberMentionMenu.vue'
 import SlashCommandMenu from './SlashCommandMenu.vue'
 import { useSkillStore, type SkillSummary } from '@/stores/skill'
@@ -41,7 +42,7 @@ const skillStore = useSkillStore()
 const { compatibleSkills, activeSkill, activeSkillId, isLoaded } = storeToRefs(skillStore)
 
 const rootRef = ref<HTMLElement | null>(null)
-const textareaRef = ref<HTMLTextAreaElement | null>(null)
+const composerRef = ref<InstanceType<typeof AIChatComposer> | null>(null)
 const inputValue = ref('')
 const mentionMembers = ref<MemberWithStats[]>([])
 const selectedMentions = ref<MentionedMemberContext[]>([])
@@ -134,20 +135,11 @@ const filteredMentionCandidates = computed(() => {
 })
 
 function syncTextareaHeight() {
-  if (!textareaRef.value) return
-
-  const textarea = textareaRef.value
-  textarea.style.height = 'auto'
-
-  // 默认展示两行，最多扩展到约 8 行，避免输入框过高挤压消息区。
-  const maxHeight = 192
-  const nextHeight = Math.min(textarea.scrollHeight, maxHeight)
-  textarea.style.height = `${nextHeight}px`
-  textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden'
+  composerRef.value?.syncHeight()
 }
 
 function focusTextarea() {
-  textareaRef.value?.focus()
+  composerRef.value?.focus()
 }
 
 async function loadMentionMembers() {
@@ -227,13 +219,7 @@ function updateSlashState(value: string) {
 }
 
 function getTextareaSelection() {
-  const textarea = textareaRef.value
-  const fallback = inputValue.value.length
-
-  return {
-    start: textarea?.selectionStart ?? fallback,
-    end: textarea?.selectionEnd ?? fallback,
-  }
+  return composerRef.value?.getSelection() ?? { start: inputValue.value.length, end: inputValue.value.length }
 }
 
 function extractMentionRange(value: string): (MentionRange & { query: string }) | null {
@@ -336,7 +322,7 @@ function deleteMentionAtCursor(): boolean {
         nextTick(() => {
           syncTextareaHeight()
           focusTextarea()
-          textareaRef.value?.setSelectionRange(mentionStart, mentionStart)
+          composerRef.value?.setSelectionRange(mentionStart, mentionStart)
           suspendInputParsing.value = false
           updateInputMenus(inputValue.value)
         })
@@ -371,7 +357,7 @@ function openSkillSelector() {
   nextTick(() => {
     syncTextareaHeight()
     focusTextarea()
-    textareaRef.value?.setSelectionRange(1, 1)
+    composerRef.value?.setSelectionRange(1, 1)
     suspendInputParsing.value = false
     updateInputMenus(inputValue.value)
   })
@@ -389,7 +375,7 @@ function fillInput(content: string) {
     syncTextareaHeight()
     focusTextarea()
     const cursor = inputValue.value.length
-    textareaRef.value?.setSelectionRange(cursor, cursor)
+    composerRef.value?.setSelectionRange(cursor, cursor)
     suspendInputParsing.value = false
     updateInputMenus(inputValue.value)
   })
@@ -425,7 +411,7 @@ function handleSelectMention(
     const cursor = prefix.length + mentionText.length + 1
     syncTextareaHeight()
     focusTextarea()
-    textareaRef.value?.setSelectionRange(cursor, cursor)
+    composerRef.value?.setSelectionRange(cursor, cursor)
     suspendInputParsing.value = false
     updateInputMenus(inputValue.value)
   })
@@ -687,66 +673,21 @@ defineExpose({
         @highlight="mentionHighlightIndex = $event"
       />
 
-      <div
-        class="flex flex-col overflow-hidden rounded-2xl bg-white shadow-[0_2px_14px_rgba(0,0,0,0.04)] ring-1 ring-gray-200/60 transition-all dark:bg-page-dark dark:ring-white/5"
-        :class="
-          props.disabled
-            ? 'bg-gray-50/50 dark:bg-page-dark/50'
-            : 'focus-within:ring-primary-500/40 focus-within:shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:focus-within:ring-primary-500/40'
-        "
-      >
-        <div class="relative px-4 pt-2.5 pb-2.5">
-          <!-- 技能标签与输入框同排显示，形成“视觉内联”的 slash command 效果。 -->
-          <div class="flex items-start gap-2 pr-10">
-            <div
-              v-if="activeSkill"
-              class="inline-flex max-w-[180px] shrink-0 items-center rounded-md bg-primary-50 px-2 text-sm leading-6 font-medium text-primary-700 dark:bg-primary-500/10 dark:text-primary-400"
-            >
-              <span class="truncate">/{{ activeSkill.name }}</span>
-            </div>
-
-            <textarea
-              ref="textareaRef"
-              v-model="inputValue"
-              rows="2"
-              class="min-h-[48px] min-w-0 flex-1 resize-none border-0 bg-transparent px-0 py-0 text-sm leading-6 text-gray-900 outline-none placeholder:text-gray-400 disabled:cursor-not-allowed disabled:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500 dark:disabled:text-gray-500"
-              :disabled="props.disabled"
-              :placeholder="inputPlaceholder"
-              @keydown="handleKeydown"
-              @click="handleCursorChange"
-              @keyup="handleCursorChange"
-              @select="handleCursorChange"
-              @compositionstart="isComposing = true"
-              @compositionend="isComposing = false"
-            />
-          </div>
-
-          <button
-            v-if="props.status === 'streaming'"
-            type="button"
-            class="absolute right-3 bottom-2 flex h-7 w-7 items-center justify-center rounded-full bg-primary-500 text-white shadow-sm transition-colors hover:bg-primary-600"
-            @click="emit('stop')"
-          >
-            <UIcon name="i-heroicons-stop-16-solid" class="h-3.5 w-3.5" />
-          </button>
-
-          <button
-            v-else
-            type="button"
-            class="absolute right-3 bottom-2 flex h-7 w-7 items-center justify-center rounded-full transition-all duration-200"
-            :class="
-              canSubmit
-                ? 'bg-primary-500 text-white hover:bg-primary-600 shadow-sm'
-                : 'bg-gray-100 text-gray-400 dark:bg-gray-800 dark:text-gray-500'
-            "
-            :disabled="!canSubmit"
-            :title="sendButtonTitle"
-            @click="handleSubmit"
-          >
-            <UIcon name="i-heroicons-arrow-up-20-solid" class="h-4 w-4" />
-          </button>
-        </div>
-      </div>
+      <AIChatComposer
+        ref="composerRef"
+        v-model="inputValue"
+        :disabled="props.disabled"
+        :status="props.status"
+        :placeholder="inputPlaceholder"
+        :send-button-title="sendButtonTitle"
+        :active-skill-name="activeSkill?.name"
+        @submit="handleSubmit"
+        @stop="emit('stop')"
+        @keydown="handleKeydown"
+        @cursor-change="handleCursorChange"
+        @composition-start="isComposing = true"
+        @composition-end="isComposing = false"
+      />
     </div>
   </div>
 </template>

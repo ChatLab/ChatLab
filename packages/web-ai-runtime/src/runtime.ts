@@ -60,9 +60,16 @@ export class WebAIChatRuntime {
               model: input.model,
               updatedAt: Date.now(),
             } satisfies WebModelConfig,
-            apiKey: input.apiKey,
+            apiKey: input.apiKey.trim() || (await this.configStore.getApiKey()),
           }
         : await this.getRequiredConfig()
+      if (!apiKey) {
+        throw new WebAIRuntimeError({
+          code: 'NOT_CONFIGURED',
+          message: 'Configure an API key before testing the model connection.',
+          retryable: false,
+        })
+      }
       const model = await this.modelFactory(config, apiKey)
       await generateText({
         model: model.model,

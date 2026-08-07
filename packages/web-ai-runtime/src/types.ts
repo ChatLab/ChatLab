@@ -41,8 +41,8 @@ export interface WebAIRunResult {
 }
 
 export interface WebAIRuntimeCapabilities {
-  defaultAssistant: true
-  customAssistants: false
+  fixedSystemPrompt: true
+  assistants: false
   skills: false
   rag: false
   localModels: false
@@ -54,8 +54,10 @@ export interface WebAIRuntimeCapabilities {
 }
 
 export const WEB_AI_RUNTIME_CAPABILITIES: WebAIRuntimeCapabilities = {
-  defaultAssistant: true,
-  customAssistants: false,
+  fixedSystemPrompt: true,
+  // Product boundary: Web WASM intentionally stays a focused local-analysis client.
+  // Assistants, skills, and RAG are permanently owned by Desktop / CLI Web.
+  assistants: false,
   skills: false,
   rag: false,
   localModels: false,

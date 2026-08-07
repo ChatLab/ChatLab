@@ -91,7 +91,19 @@ export class WebModelConfigStore {
 
   async save(input: SaveWebModelConfigInput): Promise<WebModelConfig> {
     const apiKey = input.apiKey.trim()
-    if (!apiKey) throw new Error('API key is required')
+    const existing = apiKey ? undefined : await this.storage.get<StoredModelBundle>(STORAGE_KEY)
+    if (!apiKey && !existing) throw new Error('API key is required')
+    const config: WebModelConfig = {
+      provider: input.provider,
+      baseURL: input.baseURL?.trim() || undefined,
+      model: input.model.trim(),
+      updatedAt: Date.now(),
+    }
+    if (existing) {
+      await this.storage.set<StoredModelBundle>(STORAGE_KEY, { ...existing, config })
+      return config
+    }
+
     const key = await this.cryptoProvider.subtle.generateKey({ name: 'AES-GCM', length: 256 }, true, [
       'encrypt',
       'decrypt',
@@ -100,12 +112,6 @@ export class WebModelConfigStore {
     const plaintext = new TextEncoder().encode(apiKey)
     const ciphertext = await this.cryptoProvider.subtle.encrypt({ name: 'AES-GCM', iv }, key, plaintext)
     const keyMaterial = await this.cryptoProvider.subtle.exportKey('raw', key)
-    const config: WebModelConfig = {
-      provider: input.provider,
-      baseURL: input.baseURL?.trim() || undefined,
-      model: input.model.trim(),
-      updatedAt: Date.now(),
-    }
     await this.storage.set<StoredModelBundle>(STORAGE_KEY, {
       config,
       keyMaterial: bytesToBase64(new Uint8Array(keyMaterial)),

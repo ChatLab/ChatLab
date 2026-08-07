@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, provide, watch } from 'vue'
+import { computed, defineAsyncComponent, provide, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
@@ -8,6 +8,7 @@ import InsightLoadingDots from '@/components/UI/InsightLoadingDots.vue'
 import SessionAnalysisHeader from '@/components/layout/session/SessionAnalysisHeader.vue'
 import { useSessionAnalysisPageBase } from '@/composables'
 import { useSessionStore } from '@/stores/session'
+import { useSettingsStore } from '@/stores/settings'
 import SessionInsights from '../components/session/insights/SessionInsights.vue'
 
 const WebAIChat = defineAsyncComponent(() => import('../components/ai/WebAIChat.vue'))
@@ -16,6 +17,7 @@ const { t } = useI18n()
 const route = useRoute()
 const router = useRouter()
 const sessionStore = useSessionStore()
+const settingsStore = useSettingsStore()
 const { currentSessionId, isInitialized, sessions } = storeToRefs(sessionStore)
 
 const tabs = [
@@ -43,11 +45,20 @@ const {
   router,
   currentSessionId,
   selectSession: sessionStore.selectSession,
-  defaultTab: 'insights',
+  defaultTab: settingsStore.defaultSessionTab,
   validTabIds: tabs.map((tab) => tab.id),
 })
 
 provide('session-switch-loading', isSessionSwitching)
+
+const aiChatVisited = ref(false)
+watch(
+  activeTab,
+  (tab) => {
+    if (tab === 'ai-chat') aiChatVisited.value = true
+  },
+  { immediate: true }
+)
 
 const isPrivateChat = computed(() => session.value?.type === 'private')
 const filteredMessageCount = computed(() =>
@@ -142,10 +153,10 @@ watch(
         />
 
         <WebAIChat
-          v-else-if="activeTab === 'ai-chat' && currentSessionId"
+          v-if="aiChatVisited && currentSessionId"
+          v-show="activeTab === 'ai-chat'"
           :key="'ai-chat-' + currentSessionId"
           :session-id="currentSessionId"
-          :session-name="session.name"
         />
       </div>
     </template>

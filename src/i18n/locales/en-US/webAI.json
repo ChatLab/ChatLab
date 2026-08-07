@@ -1,27 +1,14 @@
 {
-  "defaultAssistant": "Default Assistant",
+  "title": "ChatLab AI",
   "emptyTitle": "Find answers in this chat",
   "emptyDescription": "AI calls local analysis tools as needed and only sends the redacted data required for your current question to the model provider.",
   "inputPlaceholder": "Ask about this chat…",
-  "send": "Send",
-  "stop": "Stop",
   "regenerate": "Regenerate",
   "footer": "AI can make mistakes. Verify important conclusions.",
   "usingTool": "Using {name}",
-  "presets": {
-    "overview": "Summarize the main topics in this chat",
-    "topics": "What has everyone discussed recently?",
-    "activity": "Analyze changes in chat activity"
-  },
   "conversations": {
     "title": "Conversations",
-    "empty": "No AI conversations yet",
-    "new": "New conversation",
-    "rename": "Rename",
-    "delete": "Delete",
-    "untitled": "New conversation",
-    "deleteConfirm": "Delete this AI conversation?",
-    "renamePrompt": "Rename conversation"
+    "deleteConfirm": "Delete this AI conversation?"
   },
   "config": {
     "title": "Configure Web AI",
