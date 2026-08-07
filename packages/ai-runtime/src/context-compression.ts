@@ -1,9 +1,12 @@
-import { BUILTIN_MODELS, getBuiltinModelById } from '@openchatlab/core'
+import { getBuiltinModelById } from '@openchatlab/core'
 import { generateText } from 'ai'
 
 import type { RunAgentInput, RuntimeContextSummary, RuntimeMessage } from './types'
 
-const DEFAULT_CONTEXT_WINDOW = 32_768
+// OpenAI-compatible endpoints do not expose standard context-window metadata.
+// Underestimating an unknown model compresses earlier; overestimating it makes
+// the provider reject an otherwise recoverable conversation.
+const DEFAULT_CONTEXT_WINDOW = 8_192
 const COMPRESSION_THRESHOLD_PERCENT = 75
 const BUFFER_SIZE_PERCENT = 20
 const MAX_SUMMARY_TOKENS = 4_096
@@ -18,9 +21,7 @@ Merge the previous summary when present. Do not copy long passages verbatim.
 {history}`
 
 export function resolveRuntimeContextWindow(providerId: string, modelId: string): number {
-  const exact = getBuiltinModelById(providerId, modelId)
-  const knownById = exact ?? BUILTIN_MODELS.find((model) => model.id === modelId)
-  return knownById?.contextWindow ?? DEFAULT_CONTEXT_WINDOW
+  return getBuiltinModelById(providerId, modelId)?.contextWindow ?? DEFAULT_CONTEXT_WINDOW
 }
 
 export async function prepareContextMessages(
