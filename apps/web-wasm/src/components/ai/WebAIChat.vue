@@ -9,7 +9,7 @@ import ConversationList from '@/components/AIChat/chat/ConversationList.vue'
 import SimpleAIChatInput from '@/components/AIChat/input/SimpleAIChatInput.vue'
 import { reportRuntimeLog } from '@/services/log-report'
 import { useLayoutStore } from '@/stores/layout'
-import { toWebAIChatMessage } from './message-mapper'
+import { toAIConversationListItem, toWebAIChatMessage } from './message-mapper'
 import { isAbortError, resolveSendTarget } from './send-lifecycle'
 import { useWebAISettingsStore } from '../../stores/web-ai-settings'
 
@@ -40,6 +40,7 @@ const displayMessages = computed(() => {
   if (streamingMessage.value) result.push(toWebAIChatMessage(streamingMessage.value, true))
   return result
 })
+const conversationListItems = computed(() => conversations.value.map(toAIConversationListItem))
 const canRetry = computed(() => messages.value.at(-1)?.role === 'user')
 const canRegenerate = computed(() => messages.value.at(-1)?.role === 'assistant')
 
@@ -376,7 +377,7 @@ function handleSend(payload: { content: string }) {
         :session-id="sessionId"
         :active-id="conversationId"
         :disabled="generating"
-        :conversations="conversations"
+        :conversations="conversationListItems"
         :loading="loading"
         :collapsible="false"
         embedded
@@ -392,7 +393,7 @@ function handleSend(payload: { content: string }) {
         :session-id="sessionId"
         :active-id="conversationId"
         :disabled="generating"
-        :conversations="conversations"
+        :conversations="conversationListItems"
         :loading="loading"
         @select="selectConversation"
         @create="newConversation"

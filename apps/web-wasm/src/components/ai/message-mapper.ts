@@ -1,6 +1,15 @@
-import type { RuntimeContentBlock, RuntimeMessage } from '@openchatlab/ai-runtime'
+import type { RuntimeContentBlock, RuntimeConversation, RuntimeMessage } from '@openchatlab/ai-runtime'
 import type { ChatEvidencePayload } from '@openchatlab/core'
+import type { AIConversationListItem } from '@/components/AIChat/chat/ConversationList.vue'
 import type { ChatMessage, ContentBlock } from '@/stores/aiChat'
+
+export function toAIConversationListItem(conversation: RuntimeConversation): AIConversationListItem {
+  return {
+    ...conversation,
+    createdAt: Math.floor(conversation.createdAt / 1000),
+    updatedAt: Math.floor(conversation.updatedAt / 1000),
+  }
+}
 
 export function toWebAIContentBlocks(blocks: RuntimeContentBlock[] | undefined): ContentBlock[] {
   return (blocks ?? []).flatMap((block): ContentBlock[] => {
