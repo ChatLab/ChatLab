@@ -52,3 +52,20 @@ test('snapshot contains timings only and tolerates unavailable navigation data',
     phases: { 'renderer-module-ready': 42 },
   })
 })
+
+test('snapshot keeps technical readiness separate from the intentional startup presentation', () => {
+  const performance = new FakePerformance()
+  performance.setNow(280)
+  markStartupPhase('runtime-ready', performance)
+  performance.setNow(1_800)
+  markStartupPhase('startup-animation-complete', performance)
+  performance.setNow(1_980)
+  markStartupPhase('splash-hidden', performance)
+
+  const snapshot = getStartupPerformanceSnapshot(performance)
+  assert.deepEqual(snapshot.phases, {
+    'runtime-ready': 280,
+    'startup-animation-complete': 1_800,
+    'splash-hidden': 1_980,
+  })
+})

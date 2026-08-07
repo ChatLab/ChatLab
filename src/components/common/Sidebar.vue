@@ -10,6 +10,7 @@ import LazyAvatar from '@/components/common/avatar/LazyAvatar.vue'
 import SidebarButton from './sidebar/SidebarButton.vue'
 import SidebarFooter from './sidebar/SidebarFooter.vue'
 import SidebarSortPopover from './sidebar/SidebarSortPopover.vue'
+import { resolveSidebarSessionContentState } from './sidebar/session-content-state'
 import {
   buildUpdateNoticeCacheEntry,
   buildUpdateNoticeState,
@@ -103,6 +104,15 @@ const filteredSortedSessions = computed(() => {
   const query = searchQuery.value.toLowerCase().trim()
   return sortedSessions.value.filter((s) => s.name.toLowerCase().includes(query))
 })
+
+const sessionContentState = computed(() =>
+  resolveSidebarSessionContentState({
+    loadState: loadState.value,
+    sessionCount: sessions.value.length,
+    filteredSessionCount: filteredSortedSessions.value.length,
+    hasSearchQuery: searchQuery.value.trim().length > 0,
+  })
+)
 
 const sessionVirtualizer = useVirtualizer(
   computed(() => ({
@@ -556,31 +566,55 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
 
       <!-- 聊天记录列表 - 可滚动区域，滚动条贴边 -->
       <div ref="sessionListRef" class="session-list flex-1 overflow-y-auto">
-        <div v-if="loadState === 'loading' || loadState === 'idle'" class="space-y-2 px-3 py-2" aria-busy="true">
-          <USkeleton v-for="index in 6" :key="index" class="h-10 rounded-xl" :class="isCollapsed ? 'w-10' : 'w-full'" />
+        <div
+          v-if="sessionContentState === 'loading'"
+          class="flex justify-center py-4"
+          role="status"
+          :aria-label="t('common.loading')"
+        >
+          <UIcon name="i-lucide-loader-2" class="h-4 w-4 animate-spin text-gray-400 dark:text-gray-500" />
         </div>
 
-        <div v-else-if="loadState === 'error' && !isCollapsed" class="px-4 py-8 text-center">
-          <p class="text-sm text-gray-600 dark:text-gray-300">{{ t('layout.sessionLoadFailed') }}</p>
-          <p v-if="loadError" class="mt-1 line-clamp-2 text-xs text-gray-400">{{ loadError }}</p>
-          <UButton size="xs" variant="soft" class="mt-3" @click="sessionStore.loadSessions()">
-            {{ t('common.retry') }}
-          </UButton>
+        <div
+          v-else-if="sessionContentState === 'error'"
+          :class="isCollapsed ? 'flex justify-center py-4' : 'px-4 py-8 text-center'"
+        >
+          <template v-if="!isCollapsed">
+            <p class="text-sm text-gray-600 dark:text-gray-300">{{ t('layout.sessionLoadFailed') }}</p>
+            <p v-if="loadError" class="mt-1 line-clamp-2 text-xs text-gray-400">{{ loadError }}</p>
+            <UButton size="xs" variant="soft" class="mt-3" @click="sessionStore.loadSessions()">
+              {{ t('common.retry') }}
+            </UButton>
+          </template>
+          <UTooltip v-else :text="t('common.retry')" :content="{ side: 'right' }">
+            <UButton
+              icon="i-lucide-refresh-cw"
+              color="neutral"
+              variant="ghost"
+              size="xs"
+              :aria-label="t('common.retry')"
+              @click="sessionStore.loadSessions()"
+            />
+          </UTooltip>
         </div>
 
-        <div v-else-if="sessions.length === 0 && !isCollapsed" class="py-8 text-center text-sm text-gray-500">
+        <div v-else-if="sessionContentState === 'empty' && !isCollapsed" class="py-8 text-center text-sm text-gray-500">
           {{ t('layout.noRecords') }}
         </div>
 
         <!-- 搜索无结果 -->
         <div
-          v-else-if="filteredSortedSessions.length === 0 && searchQuery.trim() && !isCollapsed"
+          v-else-if="sessionContentState === 'search-empty' && !isCollapsed"
           class="py-8 text-center text-sm text-gray-500"
         >
           {{ t('layout.noSearchResult') }}
         </div>
 
-        <div v-else class="relative" :style="{ height: `${virtualSessionListHeight}px` }">
+        <div
+          v-else-if="sessionContentState === 'list'"
+          class="relative"
+          :style="{ height: `${virtualSessionListHeight}px` }"
+        >
           <div
             v-for="virtualItem in virtualSessionItems"
             :key="String(virtualItem.key)"

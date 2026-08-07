@@ -3,7 +3,7 @@
  * 聊天记录查看器 Drawer
  * 主组件，组合筛选面板、消息列表、会话时间线等子组件
  */
-import { computed, ref, watch, toRaw, nextTick, onMounted } from 'vue'
+import { computed, ref, toRaw, nextTick, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import FilterPanel from './FilterPanel.vue'
 import MessageList from './MessageList.vue'
@@ -14,6 +14,7 @@ import { useSessionStore } from '@/stores/session'
 import { useSessionIndexService } from '@/services'
 import { storeToRefs } from 'pinia'
 import { preserveChatRecordSessionId, resolveChatRecordSessionId } from './query-session'
+import { watchLazyOverlayVisibility } from '../lazy-overlay-visibility'
 
 const { t } = useI18n()
 const layoutStore = useLayoutStore()
@@ -154,7 +155,7 @@ async function loadSessionsCache() {
 }
 
 // 监听 Drawer 打开
-watch(
+watchLazyOverlayVisibility(
   () => layoutStore.showChatRecordDrawer,
   async (isOpen) => {
     if (isOpen) {

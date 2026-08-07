@@ -193,12 +193,19 @@ async function readStartupSnapshot(client, timeoutMs) {
       returnByValue: true,
     })
     const snapshot = evaluation.result?.value
-    if (snapshot?.phases?.['shell-interactive'] !== undefined && snapshot.phases['sessions-settled'] !== undefined) {
+    if (
+      snapshot?.phases?.['runtime-ready'] !== undefined &&
+      snapshot.phases['splash-hidden'] !== undefined &&
+      snapshot.phases['shell-interactive'] !== undefined &&
+      snapshot.phases['sessions-settled'] !== undefined
+    ) {
       return snapshot
     }
     await new Promise((resolve) => setTimeout(resolve, 25))
   }
-  throw new Error('Startup timing API did not report shell-interactive and sessions-settled before the timeout')
+  throw new Error(
+    'Startup timing API did not report runtime-ready, splash-hidden, shell-interactive and sessions-settled before the timeout'
+  )
 }
 
 async function navigateAndMeasure(client, url, timeoutMs) {
@@ -261,12 +268,16 @@ async function main() {
         if (index >= options.warmups) snapshots.push(snapshot)
       }
 
+      const runtimeValues = snapshots.map((snapshot) => snapshot.phases['runtime-ready'])
+      const splashValues = snapshots.map((snapshot) => snapshot.phases['splash-hidden'])
       const shellValues = snapshots.map((snapshot) => snapshot.phases['shell-interactive'])
       const sessionValues = snapshots.map((snapshot) => snapshot.phases['sessions-settled'])
       const result = {
         url: options.url,
         runs: options.runs,
         warmups: options.warmups,
+        runtimeReadyMs: summarize(runtimeValues),
+        splashHiddenMs: summarize(splashValues),
         shellInteractiveMs: summarize(shellValues),
         sessionsSettledMs: summarize(sessionValues),
         samples: snapshots,
@@ -275,6 +286,8 @@ async function main() {
       if (options.json) console.log(JSON.stringify(result, null, 2))
       else {
         console.table({
+          'runtime ready': result.runtimeReadyMs,
+          'splash hidden': result.splashHiddenMs,
           'shell interactive': result.shellInteractiveMs,
           'sessions settled': result.sessionsSettledMs,
         })

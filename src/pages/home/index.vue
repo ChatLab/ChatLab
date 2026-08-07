@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted } from 'vue'
+import { ref, computed, inject, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useSessionStore } from '@/stores/session'
 import { getChatlabSiteLocalePath } from '@/utils/chatlabSiteLocale'
@@ -15,6 +15,7 @@ import CliImportCard from './components/import/CliImportCard.vue'
 import ChangelogModal from '@/components/home/ChangelogModal.vue'
 import HomeFooter from '@/components/home/HomeFooter.vue'
 import DemoImportButton from '@/components/home/DemoImportButton.vue'
+import { STARTUP_PAGE_REVEAL_READY_KEY } from '@/bootstrap/startup-page-reveal'
 
 const { t, locale } = useI18n()
 const sessionStore = useSessionStore()
@@ -22,12 +23,37 @@ const sessionStore = useSessionStore()
 // 导入方式选中的 Tab 状态
 const activeTab = ref<'file' | 'api' | 'cli'>('file')
 
-// 首页入场动效：挂载后通过 requestAnimationFrame 触发，确保初始透明态已完成渲染
+// 首页可能在启动遮罩下提前挂载；等待全局揭示信号，避免分层动画在用户看不到时播放完。
 const isMounted = ref(false)
-onMounted(() => {
-  requestAnimationFrame(() => {
+const startupPageRevealReady = inject(STARTUP_PAGE_REVEAL_READY_KEY, null)
+let entranceFrameId: number | null = null
+let stopWaitingForStartupReveal: (() => void) | null = null
+
+function scheduleEntrance(): void {
+  if (isMounted.value || entranceFrameId !== null) return
+  entranceFrameId = requestAnimationFrame(() => {
+    entranceFrameId = null
     isMounted.value = true
   })
+}
+
+onMounted(() => {
+  if (!startupPageRevealReady || startupPageRevealReady.value) {
+    scheduleEntrance()
+    return
+  }
+
+  stopWaitingForStartupReveal = watch(startupPageRevealReady, (ready) => {
+    if (!ready) return
+    stopWaitingForStartupReveal?.()
+    stopWaitingForStartupReveal = null
+    scheduleEntrance()
+  })
+})
+
+onUnmounted(() => {
+  stopWaitingForStartupReveal?.()
+  if (entranceFrameId !== null) cancelAnimationFrame(entranceFrameId)
 })
 
 // 弹窗引用

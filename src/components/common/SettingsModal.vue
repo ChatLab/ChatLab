@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch, computed, defineAsyncComponent, nextTick } from 'vue'
+import { ref, computed, defineAsyncComponent, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
 import BasicSettingsTab from './Settings/BasicSettingsTab.vue'
@@ -7,6 +7,7 @@ import { usePromptStore } from '@/stores/prompt'
 import { useLayoutStore } from '@/stores/layout'
 import { IS_ELECTRON } from '@/utils/platform'
 import SettingsDialogShell from './Settings/SettingsDialogShell.vue'
+import { watchLazyOverlayVisibility } from './lazy-overlay-visibility'
 
 const AISettingsTab = defineAsyncComponent(() => import('./Settings/AISettingsTab.vue'))
 const BatchManageTab = defineAsyncComponent(() => import('./Settings/BatchManageTab.vue'))
@@ -63,7 +64,7 @@ function scrollToSubTab(subTab: string) {
   }
 }
 
-watch(showSettings, async (visible) => {
+watchLazyOverlayVisibility(showSettings, async (visible) => {
   if (visible) {
     const requestedTab = settingsTab.value || 'settings'
     activeTab.value = tabs.value.some((tab) => tab.id === requestedTab) ? requestedTab : 'settings'

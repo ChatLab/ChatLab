@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, provide, readonly, ref, watch } from 'vue'
 import { useColorMode } from '@vueuse/core'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
@@ -23,10 +23,13 @@ import { configureHttpClient } from '@/services/utils/http'
 import { IS_ELECTRON } from '@/utils/platform'
 import { PLATFORM_CAPABILITIES } from '@/utils/platform-capabilities'
 import { usePlatformService } from '@/services'
+import type { PresentationPreferences } from '@/services/preferences/types'
 import { resolvePageTransitionKey } from '@/routes/page-transition-key'
 import { useLockScreenBootstrap } from '@/components/lock-screen/bootstrap'
 import { initializeAppRuntime, initializeProgressiveAppRuntime } from '@/bootstrap/app-initialization'
 import { markStartupPhase, markStartupPhaseAfterPaint } from '@/bootstrap/startup-performance'
+import { resolveStartupPresentation } from '@/bootstrap/startup-presentation'
+import { STARTUP_PAGE_REVEAL_READY_KEY } from '@/bootstrap/startup-page-reveal'
 
 const LockScreen = IS_ELECTRON ? defineAsyncComponent(() => import('@/components/lock-screen/LockScreen.vue')) : null
 const DataDirCleanupNotice = defineAsyncComponent(() => import('@/components/common/DataDirCleanupNotice.vue'))
@@ -56,7 +59,10 @@ const { isBootstrapMaskVisible, isApplicationInteractive, markLockScreenReady, s
 
 const isLoginPage = computed(() => PLATFORM_CAPABILITIES.requiresAuth && route.name === 'login')
 const pageTransitionKey = computed(() => resolvePageTransitionKey(route))
-const isShellReady = ref(false)
+const isRuntimeReady = ref(false)
+const isStartupAnimationComplete = ref(false)
+const isStartupPageEntering = ref(false)
+const isStartupCoverHidden = ref(false)
 const initError = ref<string | null>(null)
 const presentationWarning = ref(false)
 const settingsModalMounted = ref(layoutStore.showSettings)
@@ -75,6 +81,16 @@ const toaster = {
   progress: false,
   duration: 2000,
 }
+
+const startupPresentation = computed(() =>
+  resolveStartupPresentation({
+    runtimeReady: isRuntimeReady.value,
+    animationComplete: isStartupAnimationComplete.value,
+    initializationFailed: initError.value !== null,
+  })
+)
+
+provide(STARTUP_PAGE_REVEAL_READY_KEY, readonly(isStartupPageEntering))
 
 let initInProgress = false
 let unlistenPullResult: (() => void) | null = null
@@ -103,20 +119,26 @@ function scheduleNonCriticalUiPrefetch() {
 }
 
 async function initializeApp() {
-  if (initInProgress || isShellReady.value) return
+  if (initInProgress || isRuntimeReady.value) return
   initInProgress = true
   initError.value = null
   presentationWarning.value = false
   try {
     if (!PLATFORM_CAPABILITIES.usesBrowserRuntime) {
+      let presentationPromise: Promise<PresentationPreferences> | undefined
+      let presentationInitialized = false
       const result = await initializeProgressiveAppRuntime({
         initializeServices: async () => {
           await initServices()
           markStartupPhase('services-ready')
         },
-        loadPresentation: loadPresentationPreferences,
+        loadPresentation: () => {
+          presentationPromise ??= loadPresentationPreferences()
+          return presentationPromise
+        },
         applyPresentation: async (presentation) => {
           applyPresentationPreferences(presentation)
+          presentationInitialized = true
           await settingsStore.initLocale()
           markStartupPhase('locale-settled')
         },
@@ -129,7 +151,11 @@ async function initializeApp() {
             name: 'preferences',
             run: async () => {
               try {
-                await initPreferencesSync({ presentationInitialized: true })
+                await initPreferencesSync({
+                  presentationInitialized,
+                  presentationPromise,
+                  hydratePresentationLocale: false,
+                })
               } finally {
                 markStartupPhase('preferences-settled')
               }
@@ -160,7 +186,8 @@ async function initializeApp() {
       })
       unlistenPullResult ??= result.stopListeningForPullResults
       presentationWarning.value = result.presentationError !== null
-      isShellReady.value = true
+      markStartupPhase('runtime-ready')
+      isRuntimeReady.value = true
       void result.background.then((failures) => {
         failures.forEach(({ name, error }) => console.error(`[Startup] Background task failed: ${name}`, error))
         markStartupPhase('startup-settled')
@@ -196,7 +223,8 @@ async function initializeApp() {
       listenForPullResults: () => apiServerStore.listenPullResult(),
     })
     unlistenPullResult ??= result.stopListeningForPullResults
-    isShellReady.value = true
+    markStartupPhase('runtime-ready')
+    isRuntimeReady.value = true
     markStartupPhase('startup-settled')
     usePlatformService()
       .trackDailyActive(settingsStore.locale)
@@ -209,8 +237,25 @@ async function initializeApp() {
   }
 }
 
+function handleStartupAnimationComplete(): void {
+  isStartupAnimationComplete.value = true
+  markStartupPhase('startup-animation-complete')
+}
+
+function handleStartupCoverBeforeLeave(): void {
+  // 页面已在遮罩下完成预热；遮罩淡出时重放原有入场动效，避免动画提前在背后结束。
+  isStartupPageEntering.value = true
+}
+
+async function handleStartupCoverHidden(): Promise<void> {
+  isStartupCoverHidden.value = true
+  markStartupPhase('splash-hidden')
+  await nextTick()
+  await markStartupPhaseAfterPaint('shell-interactive')
+}
+
 function handleGlobalKeydown(e: KeyboardEvent) {
-  if (!isApplicationInteractive.value) return
+  if (!isStartupCoverHidden.value || !isApplicationInteractive.value) return
   const isMeta = navigator.platform.toLowerCase().includes('mac') ? e.metaKey : e.ctrlKey
   // Ctrl+, → 打开设置
   if (isMeta && e.key === ',') {
@@ -235,10 +280,10 @@ watch(
   }
 )
 
-watch(isShellReady, async (ready) => {
+watch(isRuntimeReady, async (ready) => {
   if (!ready) return
   await nextTick()
-  await markStartupPhaseAfterPaint('shell-interactive')
+  await markStartupPhaseAfterPaint('shell-mounted')
   scheduleNonCriticalUiPrefetch()
 })
 
@@ -319,23 +364,15 @@ onUnmounted(() => {
       <!-- 自定义标题栏 - 拖拽区域 + 窗口控制按钮 -->
       <TitleBar />
       <div class="relative flex h-screen w-full overflow-hidden bg-page-bg dark:bg-page-dark">
-        <!-- 主内容区域 -->
-        <template v-if="!isShellReady">
-          <div class="flex h-full w-full items-center justify-center">
-            <div v-if="initError" class="flex flex-col items-center justify-center gap-3 text-center">
-              <UIcon name="i-heroicons-exclamation-triangle" class="h-8 w-8 text-red-500" />
-              <p class="text-sm text-gray-700 dark:text-gray-300">{{ t('common.initFailed') }}</p>
-              <p class="max-w-sm text-xs text-gray-500">{{ initError }}</p>
-              <UButton size="sm" color="primary" variant="soft" @click="initializeApp">
-                {{ t('common.retry') }}
-              </UButton>
-            </div>
-            <StartupLoading v-else />
-          </div>
-        </template>
-        <template v-else>
+        <!-- 运行时就绪后先在启动屏下挂载真实界面，利用动画时间完成布局和页面预热。 -->
+        <div
+          v-if="startupPresentation.mountShell"
+          class="flex min-w-0 flex-1 overflow-hidden"
+          :inert="!isStartupCoverHidden"
+          :aria-hidden="!isStartupCoverHidden ? 'true' : undefined"
+        >
           <Sidebar :backend-features="true" />
-          <main class="relative flex-1 overflow-hidden">
+          <main class="relative flex-1 overflow-hidden" :class="{ 'startup-page-entering': isStartupPageEntering }">
             <div
               v-if="presentationWarning"
               class="absolute inset-x-3 top-3 z-30 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 shadow-sm dark:border-amber-800 dark:bg-amber-950/80 dark:text-amber-200"
@@ -350,7 +387,35 @@ onUnmounted(() => {
             </router-view>
           </main>
           <DebugToolsPanel v-if="settingsStore.debugMode" />
-        </template>
+        </div>
+
+        <Transition
+          name="startup-cover"
+          @before-leave="handleStartupCoverBeforeLeave"
+          @after-leave="handleStartupCoverHidden"
+        >
+          <div
+            v-if="startupPresentation.showCover"
+            class="absolute inset-0 z-40 flex items-center justify-center bg-page-bg dark:bg-page-dark"
+          >
+            <div
+              v-if="startupPresentation.showError"
+              class="flex flex-col items-center justify-center gap-3 text-center"
+            >
+              <UIcon name="i-heroicons-exclamation-triangle" class="h-8 w-8 text-red-500" />
+              <p class="text-sm text-gray-700 dark:text-gray-300">{{ t('common.initFailed') }}</p>
+              <p class="max-w-sm text-xs text-gray-500">{{ initError }}</p>
+              <UButton size="sm" color="primary" variant="soft" @click="initializeApp">
+                {{ t('common.retry') }}
+              </UButton>
+            </div>
+            <StartupLoading
+              v-else
+              :waiting="startupPresentation.showWaitingIndicator"
+              @complete="handleStartupAnimationComplete"
+            />
+          </div>
+        </Transition>
       </div>
     </template>
     <ScreenCaptureModal
@@ -366,7 +431,7 @@ onUnmounted(() => {
     <!-- 全局 AI 后台任务条：允许用户离开当前页面后仍然快速返回进行中的对话。 -->
     <GlobalTaskBar />
     <!-- Desktop 与 CLI Web 迁移后都提醒人工清理。 -->
-    <DataDirCleanupNotice v-if="!isLoginPage && isShellReady" />
+    <DataDirCleanupNotice v-if="!isLoginPage && isStartupCoverHidden" />
     <!-- 原生模态锁屏：锁定后由浏览器 top layer 隔离全部底层操作 -->
     <LockScreen v-if="IS_ELECTRON" @ready="markLockScreenReady" @lock-state-change="updateLockState" />
     <Teleport v-if="IS_ELECTRON" to="body">
@@ -385,6 +450,18 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+.startup-page-entering {
+  animation: startup-page-enter 0.2s ease both;
+}
+
+.startup-cover-leave-active {
+  transition: opacity 180ms ease-out;
+}
+
+.startup-cover-leave-to {
+  opacity: 0;
+}
+
 .page-fade-enter-active,
 .page-fade-leave-active {
   transition:
@@ -400,5 +477,27 @@ onUnmounted(() => {
 .page-fade-leave-to {
   opacity: 0;
   transform: translateY(-10px);
+}
+
+@keyframes startup-page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .startup-page-entering {
+    animation: none;
+  }
+
+  .startup-cover-leave-active {
+    transition: none;
+  }
 }
 </style>
