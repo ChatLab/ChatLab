@@ -373,6 +373,76 @@ describe('runAgent', () => {
     )
   })
 
+  it('recovers when existing browser history is larger than the model context window', async () => {
+    const maxPromptBytes = 2_048 * 3
+    const promptBytes = (prompt: unknown): number => new TextEncoder().encode(JSON.stringify(prompt)).byteLength
+    let summaryIndex = 0
+    const model = new MockLanguageModelV3({
+      doGenerate: async (options) => {
+        if (promptBytes(options.prompt) > maxPromptBytes) {
+          throw new Error('context length exceeded')
+        }
+        summaryIndex += 1
+        return {
+          content: [{ type: 'text', text: `BOUNDED SUMMARY ${summaryIndex}` }],
+          finishReason: { unified: 'stop', raw: 'stop' },
+          usage: EMPTY_USAGE,
+          warnings: [],
+        }
+      },
+      doStream: async (options) => {
+        if (promptBytes(options.prompt) > maxPromptBytes) {
+          throw new Error('context length exceeded')
+        }
+        return {
+          stream: simulateReadableStream({
+            chunks: [
+              { type: 'stream-start', warnings: [] },
+              { type: 'text-start', id: 'text-1' },
+              { type: 'text-delta', id: 'text-1', delta: '恢复成功' },
+              { type: 'text-end', id: 'text-1' },
+              { type: 'finish', finishReason: { unified: 'stop', raw: 'stop' }, usage: EMPTY_USAGE },
+            ],
+          }),
+        }
+      },
+    })
+    const repository = new MemoryRepository()
+    for (let index = 0; index < 48; index++) {
+      await repository.appendMessage({
+        conversationId: 'conversation-1',
+        role: index % 2 === 0 ? 'user' : 'assistant',
+        content: `oversized-marker-${index} ${'history '.repeat(40)}`,
+        createdAt: index + 1,
+      })
+    }
+    const originalMessageIds = repository.messages.map((message) => message.id)
+
+    const result = await runAgent({
+      conversationId: 'conversation-1',
+      sessionId: 'session-1',
+      systemPrompt: 'You are a test assistant.',
+      userMessage: 'continue',
+      model: { model, contextWindow: 2_048 },
+      repository,
+      tools: new FakeToolExecutor(),
+      signal: new AbortController().signal,
+      onEvent: () => undefined,
+    })
+
+    assert.equal(result.message.content, '恢复成功')
+    assert.ok(model.doGenerateCalls.length > 1)
+    assert.equal(
+      model.doGenerateCalls.every((call) => promptBytes(call.prompt) <= maxPromptBytes),
+      true
+    )
+    assert.equal(promptBytes(model.doStreamCalls[0]?.prompt) <= maxPromptBytes, true)
+    assert.deepEqual(
+      repository.messages.slice(0, originalMessageIds.length).map((message) => message.id),
+      originalMessageIds
+    )
+  })
+
   it('merges an existing browser summary into the next automatic compression', async () => {
     const model = new MockLanguageModelV3({
       doGenerate: {
@@ -438,7 +508,7 @@ describe('runAgent', () => {
     assert.doesNotMatch(modelPrompt, /PREVIOUS SUMMARY/)
   })
 
-  it('continues with the original browser history when automatic compression fails', async () => {
+  it('continues with bounded recent browser history when automatic compression fails', async () => {
     const model = new MockLanguageModelV3({
       doGenerate: async () => {
         throw new Error('compression failed')
@@ -480,7 +550,9 @@ describe('runAgent', () => {
 
     assert.equal(result.message.content, 'fallback answer')
     assert.equal(repository.contextSummary, null)
-    assert.match(JSON.stringify(model.doStreamCalls[0]?.prompt), /fallback-marker-0/)
+    assert.doesNotMatch(JSON.stringify(model.doStreamCalls[0]?.prompt), /fallback-marker-0/)
+    assert.match(JSON.stringify(model.doStreamCalls[0]?.prompt), /fallback-marker-7/)
+    assert.equal(repository.messages.length, 9)
     assert.deepEqual(
       events.find((event) => event.type === 'context-compression-finish'),
       { type: 'context-compression-finish', compressed: false }
