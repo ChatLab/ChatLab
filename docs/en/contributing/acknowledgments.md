@@ -22,6 +22,14 @@ The following developers have also been a part of ChatLab's journey in one way o
 
 ## Special Thanks
 
+### OpenAI
+
+Developing and maintaining ChatLab consumes a large number of tokens, and I initially covered those costs myself. That changed when OpenAI unexpectedly granted me six months of ChatGPT Pro 20x through its open-source program.
+
+This remains the only external award ChatLab has received, and it has made a very real difference to the project! The increased usage allowance greatly reduced token anxiety during development and noticeably accelerated ChatLab's iteration.
+
+Thank you, OpenAI, for investing in the open-source community and for recognizing and supporting ChatLab. 🙏
+
 ### Leo Oliveira ([@13dev](https://github.com/13dev))
 
 In early 2026, we decided to move ChatLab from a personal GitHub account to an organization — a natural step as the community grew. There was just one problem: the "ChatLab" organization name had been registered years earlier by a developer in Madeira, Portugal named Leo Oliveira. His project had been inactive for over five years.
