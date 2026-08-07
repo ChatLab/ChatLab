@@ -8,8 +8,11 @@ interface RgbaColor {
   a: number
 }
 
-const TITLE_BAR_SAMPLE_Y = 16
-const TITLE_BAR_SAMPLE_RIGHT_OFFSET = 80
+interface WindowControlsOverlayLike extends EventTarget {
+  visible: boolean
+  getTitlebarAreaRect(): DOMRect
+}
+
 const TRANSITION_SAMPLE_MS = 420
 
 export function useWindowsTitleBarOverlay(triggers: WatchSource<unknown>[]): void {
@@ -17,6 +20,7 @@ export function useWindowsTitleBarOverlay(triggers: WatchSource<unknown>[]): voi
 
   let frameId = 0
   let lastColor = ''
+  const windowControlsOverlay = getWindowControlsOverlay()
 
   const syncTitleBarColor = () => {
     const color = sampleTitleBarBackground()
@@ -50,11 +54,13 @@ export function useWindowsTitleBarOverlay(triggers: WatchSource<unknown>[]): voi
 
   onMounted(() => {
     window.addEventListener('resize', handleResize)
+    windowControlsOverlay?.addEventListener('geometrychange', handleResize)
     scheduleSync(TRANSITION_SAMPLE_MS)
   })
 
   onUnmounted(() => {
     window.removeEventListener('resize', handleResize)
+    windowControlsOverlay?.removeEventListener('geometrychange', handleResize)
     if (frameId) {
       cancelAnimationFrame(frameId)
     }
@@ -65,11 +71,13 @@ export function useWindowsTitleBarOverlay(triggers: WatchSource<unknown>[]): voi
   }
 }
 
-// 采样 Windows 标题栏按钮区域下方的真实背景色，并用它推导原生按钮符号颜色。
+// 采样 Windows 标题栏按钮区域下方的真实背景色，并用它推导原生按钮符号和 hover 颜色。
 // 这里需要沿 elementsFromPoint 返回的层级合成透明背景，才能覆盖设置弹窗淡入淡出时的 blur/backdrop 场景。
 function sampleTitleBarBackground(): string | null {
-  const x = Math.max(0, window.innerWidth - TITLE_BAR_SAMPLE_RIGHT_OFFSET)
-  const y = TITLE_BAR_SAMPLE_Y
+  const samplePoint = getTitleBarSamplePoint()
+  if (!samplePoint) return null
+
+  const { x, y } = samplePoint
   const elements = document.elementsFromPoint(x, y)
   if (elements.length === 0) return null
 
@@ -85,6 +93,36 @@ function sampleTitleBarBackground(): string | null {
   }
 
   return rgbaToHex(color)
+}
+
+function getWindowControlsOverlay(): WindowControlsOverlayLike | undefined {
+  return (navigator as Navigator & { windowControlsOverlay?: WindowControlsOverlayLike }).windowControlsOverlay
+}
+
+function getTitleBarSamplePoint(): { x: number; y: number } | null {
+  const overlay = getWindowControlsOverlay()
+  if (!overlay?.visible) return null
+
+  const titleBarArea = overlay.getTitlebarAreaRect()
+  if (titleBarArea.width <= 0 || titleBarArea.height <= 0 || window.innerWidth <= 0) return null
+
+  const leftControlsWidth = Math.max(0, titleBarArea.x)
+  const rightControlsStart = titleBarArea.x + titleBarArea.width
+  const rightControlsWidth = Math.max(0, window.innerWidth - rightControlsStart)
+
+  let x: number
+  if (rightControlsWidth > 0) {
+    x = rightControlsStart + rightControlsWidth / 2
+  } else if (leftControlsWidth > 0) {
+    x = leftControlsWidth / 2
+  } else {
+    return null
+  }
+
+  return {
+    x: Math.min(window.innerWidth - 1, Math.max(0, x)),
+    y: Math.max(0, titleBarArea.y + titleBarArea.height / 2),
+  }
 }
 
 function getPageFallbackColor(): RgbaColor {

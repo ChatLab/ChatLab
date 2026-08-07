@@ -1,28 +1,26 @@
 import type { BrowserWindow, TitleBarOverlayOptions } from 'electron'
 
-const TITLE_BAR_OVERLAY_HEIGHT = 32
-const TITLE_BAR_OVERLAY_COLOR = 'rgba(0, 0, 0, 0)'
 let currentTitleBarOverlayColor: string | null = null
 
 const TITLE_BAR_OVERLAY_PALETTE = {
-  light: { symbolColor: '#52525b' },
-  dark: { symbolColor: '#d4d4d8' },
+  light: { backgroundColor: '#f9fafb', symbolColor: '#52525b' },
+  dark: { backgroundColor: '#111827', symbolColor: '#d4d4d8' },
 } as const
 
 export function getTitleBarOverlayOptions(isDark: boolean): TitleBarOverlayOptions {
   const mode = isDark ? 'dark' : 'light'
   return {
-    color: TITLE_BAR_OVERLAY_COLOR,
+    color: getTransparentOverlayColor(TITLE_BAR_OVERLAY_PALETTE[mode].backgroundColor),
     symbolColor: TITLE_BAR_OVERLAY_PALETTE[mode].symbolColor,
-    height: TITLE_BAR_OVERLAY_HEIGHT,
   }
 }
 
 export function getTitleBarOverlayOptionsForColor(color: string): TitleBarOverlayOptions {
   return {
-    color: TITLE_BAR_OVERLAY_COLOR,
+    // Electron derives the minimize/maximize hover color from the overlay RGB.
+    // Preserve the sampled background channels while keeping the overlay transparent.
+    color: getTransparentOverlayColor(color),
     symbolColor: getReadableSymbolColor(color),
-    height: TITLE_BAR_OVERLAY_HEIGHT,
   }
 }
 
@@ -42,6 +40,10 @@ export function applyTitleBarOverlayColor(win: BrowserWindow | null | undefined,
 
 export function resetCurrentTitleBarOverlayColor(): void {
   currentTitleBarOverlayColor = null
+}
+
+function getTransparentOverlayColor(color: string): string {
+  return /^#[0-9a-f]{6}$/i.test(color) ? `${color}00` : 'rgba(0, 0, 0, 0)'
 }
 
 function getReadableSymbolColor(hexColor: string): string {

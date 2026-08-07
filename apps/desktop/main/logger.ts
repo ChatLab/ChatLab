@@ -25,9 +25,9 @@ export const logger = {
     ensureInit()
     appLogger.warn('app', message)
   },
-  error: (message: string) => {
+  error: (message: string, data?: unknown) => {
     ensureInit()
-    appLogger.error('app', message)
+    appLogger.error('app', message, data)
   },
   debug: (message: string) => {
     ensureInit()

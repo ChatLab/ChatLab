@@ -69,14 +69,18 @@
 
 /* 标题栏安全区域高度 - 页面顶部 padding 需要避开此区域
  * macOS: 红绿灯在左侧由 Sidebar 处理，右侧内容区无遮挡，使用较小值
- * Windows/Linux: 窗口控制按钮在右上角占据 32px 高度，需要完整避开 */
+ * Windows: 跟随 Window Controls Overlay 提供的系统高度
+ * Linux: 自定义窗口控制按钮固定占据 32px 高度 */
 :root {
   --titlebar-area-height: 1rem; /* 16px - macOS */
 }
 
-.platform-windows,
+.platform-windows {
+  --titlebar-area-height: env(titlebar-area-height, 2rem);
+}
+
 .platform-linux {
-  --titlebar-area-height: 2rem; /* 32px - 匹配 titleBarOverlay height */
+  --titlebar-area-height: 2rem;
 }
 
 /* 禁用窗口拖拽区域 - 用于弹窗等需要正常交互的元素 */

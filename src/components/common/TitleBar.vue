@@ -33,7 +33,7 @@ function close() {
 </script>
 
 <template>
-  <div class="title-bar">
+  <div class="title-bar" :class="{ 'title-bar-windows': isWindows }">
     <!-- 左侧区域 - macOS 给红绿灯预留空间 -->
     <div v-if="isMac" class="traffic-light-spacer" />
 
@@ -98,6 +98,19 @@ function close() {
 .drag-region {
   flex: 1;
   height: 100%;
+}
+
+/* Window Controls Overlay exposes the system caption geometry through CSS env values. */
+.title-bar-windows {
+  height: env(titlebar-area-height, 32px);
+  -webkit-app-region: no-drag;
+}
+
+.title-bar-windows .drag-region {
+  width: env(titlebar-area-width, 100%);
+  margin-left: env(titlebar-area-x, 0px);
+  flex: none;
+  -webkit-app-region: drag;
 }
 
 /* Windows 窗口控制按钮容器 */

@@ -93,7 +93,7 @@ function handleWindowsClose(win: BrowserWindow): void {
     },
     quit: requestAppQuit,
     onError: (error) => {
-      logger.error(`Failed to handle Windows close request: ${error instanceof Error ? error.message : String(error)}`)
+      logger.error('Failed to handle Windows close request', error)
     },
   })
 }
