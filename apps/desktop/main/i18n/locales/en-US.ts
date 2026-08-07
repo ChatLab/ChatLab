@@ -12,6 +12,17 @@ export default {
     error: 'Error',
   },
 
+  windowClose: {
+    title: 'Close ChatLab',
+    message: 'What should happen after the main window closes?',
+    detail: 'Run in background keeps ChatLab available from the system tray.',
+    background: 'Run in Background',
+    quitApp: 'Quit ChatLab',
+    cancel: 'Cancel',
+    remember: 'Remember my choice',
+    showApp: 'Show ChatLab',
+  },
+
   // ===== P0: Update dialogs =====
   update: {
     newVersionTitle: 'New version v{{version}} available',

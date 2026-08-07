@@ -12,7 +12,7 @@ import type {
   CheckUpdateResult,
   PerformUpdateResult,
 } from './types'
-import type { AnalyticsEventName } from '@openchatlab/shared-types'
+import type { AnalyticsEventName, DesktopCloseBehavior } from '@openchatlab/shared-types'
 import { fetchWithAuth } from '../utils/http'
 import { reportError } from '../log-report'
 
@@ -45,6 +45,14 @@ export class CliWebPlatformAdapter implements PlatformAdapter {
   }
 
   async setOpenAtLogin(_enabled: boolean): Promise<{ success: boolean; error?: string }> {
+    return { success: false, error: 'Not available in CLI Web' }
+  }
+
+  async getDesktopCloseBehavior(): Promise<DesktopCloseBehavior> {
+    return 'ask'
+  }
+
+  async setDesktopCloseBehavior(_behavior: DesktopCloseBehavior): Promise<{ success: boolean; error?: string }> {
     return { success: false, error: 'Not available in CLI Web' }
   }
 

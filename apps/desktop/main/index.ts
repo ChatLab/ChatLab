@@ -10,6 +10,7 @@ import { initAnalytics } from './analytics'
 import { logger } from './logger'
 import { prepareDesktopRuntime } from './app/bootstrap'
 import { createMainWindow, markAppQuitting } from './window/main-window'
+import { destroyWindowsTray } from './window/windows-tray'
 import { initLockManager, cleanupLockManager } from './security/lock-manager'
 
 class MainProcess {
@@ -148,6 +149,7 @@ class MainProcess {
       })
 
       app.on('will-quit', () => {
+        destroyWindowsTray()
         stopInternalServer().catch(() => {})
         cleanup()
         cleanupLockManager()

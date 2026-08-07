@@ -17,3 +17,20 @@ test('normalizes the released overview preference to insights', () => {
 test('rejects unknown session landing tabs', () => {
   assert.throws(() => configSchema.parse({ ui: { default_session_tab: 'unknown' } }))
 })
+
+test('defaults Windows close behavior to asking the user', () => {
+  const config = configSchema.parse({})
+
+  assert.equal(config.desktop.close_behavior, 'ask')
+})
+
+test('accepts supported Windows close behaviors and rejects invalid values', () => {
+  for (const closeBehavior of ['ask', 'background', 'quit']) {
+    assert.equal(
+      configSchema.parse({ desktop: { close_behavior: closeBehavior } }).desktop.close_behavior,
+      closeBehavior
+    )
+  }
+
+  assert.throws(() => configSchema.parse({ desktop: { close_behavior: 'hide-forever' } }))
+})

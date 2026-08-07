@@ -46,6 +46,10 @@ export const cliConfigSchema = z.object({
   allow_sql: z.boolean().default(true),
 })
 
+export const desktopConfigSchema = z.object({
+  close_behavior: z.enum(['ask', 'background', 'quit']).default('ask'),
+})
+
 export const configSchema = z.object({
   llm: llmConfigSchema.default({}),
   data: dataConfigSchema.default({}),
@@ -53,6 +57,7 @@ export const configSchema = z.object({
   locale: localeConfigSchema.default({}),
   ui: uiConfigSchema.default({}),
   cli: cliConfigSchema.default({}),
+  desktop: desktopConfigSchema.default({}),
 })
 
 export type ChatLabConfig = z.infer<typeof configSchema>
@@ -62,3 +67,4 @@ export type ApiConfig = z.infer<typeof apiConfigSchema>
 export type LocaleConfig = z.infer<typeof localeConfigSchema>
 export type UiConfig = z.infer<typeof uiConfigSchema>
 export type CliConfig = z.infer<typeof cliConfigSchema>
+export type DesktopConfig = z.infer<typeof desktopConfigSchema>

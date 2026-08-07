@@ -7,8 +7,17 @@
 export { loadConfig, getConfigPath, getConfigDir, writeConfigField } from './loader'
 export { setConfigField, ConfigSetError } from './set-config-field'
 export type { ConfigSetResult, ConfigSetErrorReason } from './set-config-field'
-export { configSchema, DEFAULT_API_PORT } from './schema'
-export type { ChatLabConfig, LlmConfig, DataConfig, ApiConfig, LocaleConfig, UiConfig, CliConfig } from './schema'
+export { configSchema, desktopConfigSchema, DEFAULT_API_PORT } from './schema'
+export type {
+  ChatLabConfig,
+  LlmConfig,
+  DataConfig,
+  ApiConfig,
+  LocaleConfig,
+  UiConfig,
+  CliConfig,
+  DesktopConfig,
+} from './schema'
 export {
   loadAuthProfiles,
   getApiKeyByProfile,

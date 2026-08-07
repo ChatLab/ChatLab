@@ -2,7 +2,7 @@
  * 核心 API - 基础 IPC 通信和系统功能
  */
 import { ipcRenderer } from 'electron'
-import type { AnalyticsEventName } from '@openchatlab/shared-types'
+import type { AnalyticsEventName, DesktopCloseBehavior } from '@openchatlab/shared-types'
 
 // Custom APIs for renderer
 export const api = {
@@ -116,6 +116,12 @@ export const extendedApi = {
      */
     setOpenAtLogin: (enabled: boolean): Promise<{ success: boolean; error?: string }> => {
       return ipcRenderer.invoke('app:setOpenAtLogin', enabled)
+    },
+    getDesktopCloseBehavior: (): Promise<DesktopCloseBehavior> => {
+      return ipcRenderer.invoke('app:getDesktopCloseBehavior')
+    },
+    setDesktopCloseBehavior: (behavior: DesktopCloseBehavior): Promise<{ success: boolean; error?: string }> => {
+      return ipcRenderer.invoke('app:setDesktopCloseBehavior', behavior)
     },
   },
 }

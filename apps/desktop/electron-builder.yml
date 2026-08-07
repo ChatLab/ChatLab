@@ -57,6 +57,8 @@ win:
   extraResources:
     - from: native/better_sqlite3.node
       to: native/better_sqlite3.node
+    - from: build/icon.ico
+      to: tray-icon.ico
 
 # NSIS 安装器配置
 nsis:

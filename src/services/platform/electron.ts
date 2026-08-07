@@ -2,7 +2,7 @@
  * ElectronPlatformAdapter — wrap window.api
  */
 
-import type { AnalyticsEventName } from '@openchatlab/shared-types'
+import type { AnalyticsEventName, DesktopCloseBehavior } from '@openchatlab/shared-types'
 import type { PlatformAdapter, OpenDialogOptions, OpenDialogResult, RemoteConfigResult } from './types'
 
 export class ElectronPlatformAdapter implements PlatformAdapter {
@@ -24,6 +24,14 @@ export class ElectronPlatformAdapter implements PlatformAdapter {
 
   setOpenAtLogin(enabled: boolean): Promise<{ success: boolean; error?: string }> {
     return window.api.app.setOpenAtLogin(enabled)
+  }
+
+  getDesktopCloseBehavior(): Promise<DesktopCloseBehavior> {
+    return window.api.app.getDesktopCloseBehavior()
+  }
+
+  setDesktopCloseBehavior(behavior: DesktopCloseBehavior): Promise<{ success: boolean; error?: string }> {
+    return window.api.app.setDesktopCloseBehavior(behavior)
   }
 
   getAnalyticsEnabled(): Promise<boolean> {

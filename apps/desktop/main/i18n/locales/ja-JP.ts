@@ -12,6 +12,17 @@ export default {
     error: 'エラー',
   },
 
+  windowClose: {
+    title: 'ChatLab を閉じる',
+    message: 'メインウィンドウを閉じた後の動作を選択してください。',
+    detail: 'バックグラウンドで実行すると、ChatLab はシステムトレイから開けます。',
+    background: 'バックグラウンドで実行',
+    quitApp: 'ChatLab を終了',
+    cancel: 'キャンセル',
+    remember: '選択を記憶する',
+    showApp: 'ChatLab を表示',
+  },
+
   // ===== P0: アップデートダイアログ =====
   update: {
     newVersionTitle: '新バージョン v{{version}} が見つかりました',

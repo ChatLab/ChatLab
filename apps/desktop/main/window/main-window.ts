@@ -1,6 +1,11 @@
-import { app, shell, BrowserWindow, nativeTheme } from 'electron'
+import { app, shell, BrowserWindow, nativeTheme, dialog } from 'electron'
 import { is, platform } from '@electron-toolkit/utils'
+import { loadConfig, setConfigField } from '@openchatlab/config'
 import { applyCurrentTitleBarOverlay, getTitleBarOverlayOptions, resetCurrentTitleBarOverlayColor } from './titlebar'
+import { WindowsCloseController } from './close-behavior'
+import { ensureWindowsTray } from './windows-tray'
+import { t } from '../i18n'
+import { logger } from '../logger'
 
 type AppWithQuitFlag = typeof app & { isQuiting?: boolean }
 
@@ -75,7 +80,50 @@ export function markAppQuitting(): void {
   appWithQuitFlag.isQuiting = true
 }
 
+export function requestAppQuit(): void {
+  markAppQuitting()
+  app.quit()
+}
+
+function createWindowsCloseController(win: BrowserWindow): WindowsCloseController {
+  return new WindowsCloseController({
+    readPreference: () => loadConfig().desktop.close_behavior,
+    savePreference: (preference) => {
+      setConfigField('desktop.close_behavior', preference)
+    },
+    prompt: async () => {
+      const result = await dialog.showMessageBox(win, {
+        type: 'question',
+        title: t('windowClose.title'),
+        message: t('windowClose.message'),
+        detail: t('windowClose.detail'),
+        buttons: [t('windowClose.background'), t('windowClose.quitApp'), t('windowClose.cancel')],
+        defaultId: 0,
+        cancelId: 2,
+        noLink: true,
+        checkboxLabel: t('windowClose.remember'),
+        checkboxChecked: false,
+      })
+
+      return {
+        action: result.response === 0 ? 'background' : result.response === 1 ? 'quit' : 'cancel',
+        remember: result.checkboxChecked,
+      }
+    },
+    enterBackground: () => {
+      ensureWindowsTray(win, requestAppQuit)
+      win.hide()
+    },
+    quit: requestAppQuit,
+    onError: (error) => {
+      logger.error(`Failed to handle Windows close request: ${error instanceof Error ? error.message : String(error)}`)
+    },
+  })
+}
+
 function registerMainWindowEvents(win: BrowserWindow): void {
+  const windowsCloseController = platform.isWindows ? createWindowsCloseController(win) : null
+
   win.webContents.on('did-finish-load', () => {
     setTimeout(() => {
       currentMainWindow?.webContents.send('app-started')
@@ -90,10 +138,22 @@ function registerMainWindowEvents(win: BrowserWindow): void {
     currentMainWindow?.webContents.send('windowState', false)
   })
 
+  // Windows does not emit app.before-quit during system shutdown or restart.
+  // session-end only fires once the session can no longer be cancelled.
+  win.on('session-end', () => {
+    markAppQuitting()
+  })
+
   win.on('close', (event) => {
     if (platform.isMacOS && !appWithQuitFlag.isQuiting) {
       event.preventDefault()
       currentMainWindow?.hide()
+      return
+    }
+
+    if (platform.isWindows && !appWithQuitFlag.isQuiting) {
+      event.preventDefault()
+      void windowsCloseController?.requestClose()
     }
   })
 }

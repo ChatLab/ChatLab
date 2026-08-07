@@ -45,6 +45,13 @@ describe('cli config section', () => {
 })
 
 describe('setConfigField', () => {
+  it('persists the Windows close behavior', () => {
+    const result = setConfigField('desktop.close_behavior', 'background')
+
+    assert.deepEqual(result, { section: 'desktop', key: 'close_behavior', value: 'background' })
+    assert.equal(loadConfig().desktop.close_behavior, 'background')
+  })
+
   it('writes boolean value and round-trips via loadConfig', () => {
     const result = setConfigField('cli.allow_raw', 'true')
     assert.deepEqual(result, { section: 'cli', key: 'allow_raw', value: true })

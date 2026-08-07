@@ -1,7 +1,7 @@
 import { ElectronAPI } from '@electron-toolkit/preload'
 import type { ImportProgress, ExportProgress } from '../../../src/types/base'
 import type { TokenUsage, AgentRuntimeStatus, SerializedErrorInfo, SecurityApi } from '../shared/types'
-import type { AnalyticsEventName, TimeFilter } from '@openchatlab/shared-types'
+import type { AnalyticsEventName, DesktopCloseBehavior, TimeFilter } from '@openchatlab/shared-types'
 
 // 迁移相关类型
 interface MigrationInfo {
@@ -192,6 +192,8 @@ interface Api {
     relaunch: () => Promise<void>
     getOpenAtLogin: () => Promise<boolean>
     setOpenAtLogin: (enabled: boolean) => Promise<{ success: boolean; error?: string }>
+    getDesktopCloseBehavior: () => Promise<DesktopCloseBehavior>
+    setDesktopCloseBehavior: (behavior: DesktopCloseBehavior) => Promise<{ success: boolean; error?: string }>
   }
 }
 

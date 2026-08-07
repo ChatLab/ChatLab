@@ -6,7 +6,7 @@ import type {
   PlatformAdapter,
   RemoteConfigResult,
 } from './types'
-import type { AnalyticsEventName } from '@openchatlab/shared-types'
+import type { AnalyticsEventName, DesktopCloseBehavior } from '@openchatlab/shared-types'
 
 declare const __APP_VERSION__: string
 
@@ -39,6 +39,14 @@ export class BrowserPlatformAdapter implements PlatformAdapter {
 
   async setOpenAtLogin(_enabled: boolean): Promise<{ success: boolean; error?: string }> {
     return { success: false, error: 'Open at login is not available in Web WASM' }
+  }
+
+  async getDesktopCloseBehavior(): Promise<DesktopCloseBehavior> {
+    return 'ask'
+  }
+
+  async setDesktopCloseBehavior(_behavior: DesktopCloseBehavior): Promise<{ success: boolean; error?: string }> {
+    return { success: false, error: 'Desktop close behavior is not available in Web WASM' }
   }
 
   async getAnalyticsEnabled(): Promise<boolean> {

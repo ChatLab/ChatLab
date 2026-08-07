@@ -1,4 +1,4 @@
-import type { AnalyticsEventName } from '@openchatlab/shared-types'
+import type { AnalyticsEventName, DesktopCloseBehavior } from '@openchatlab/shared-types'
 
 /**
  * PlatformAdapter — 平台能力领域适配器接口
@@ -46,6 +46,8 @@ export interface PlatformAdapter {
 
   getOpenAtLogin(): Promise<boolean>
   setOpenAtLogin(enabled: boolean): Promise<{ success: boolean; error?: string }>
+  getDesktopCloseBehavior(): Promise<DesktopCloseBehavior>
+  setDesktopCloseBehavior(behavior: DesktopCloseBehavior): Promise<{ success: boolean; error?: string }>
 
   getAnalyticsEnabled(): Promise<boolean>
   setAnalyticsEnabled(enabled: boolean): Promise<{ success: boolean }>

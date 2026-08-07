@@ -11,6 +11,7 @@ import UITabs from '@/components/UI/Tabs.vue'
 import { usePlatformService } from '@/services'
 import { IS_ELECTRON } from '@/utils/platform'
 import { INSIGHT_CARD_THEMES, type InsightCardThemeId } from '@/utils/insight-card-theme'
+import type { DesktopCloseBehavior } from '@openchatlab/shared-types'
 
 const { t } = useI18n()
 
@@ -32,6 +33,10 @@ const { locale, defaultSessionTab, insightCardTheme } = storeToRefs(settingsStor
 // Auto Launch
 const openAtLogin = ref(false)
 const isPackaged = ref(true)
+const isWindowsDesktop =
+  IS_ELECTRON && typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('win')
+const desktopCloseBehavior = ref<DesktopCloseBehavior>('ask')
+let savedDesktopCloseBehavior: DesktopCloseBehavior = 'ask'
 
 onMounted(async () => {
   if (!IS_ELECTRON) {
@@ -44,6 +49,15 @@ onMounted(async () => {
   } catch {
     isPackaged.value = false
   }
+
+  if (isWindowsDesktop) {
+    try {
+      savedDesktopCloseBehavior = await usePlatformService().getDesktopCloseBehavior()
+      desktopCloseBehavior.value = savedDesktopCloseBehavior
+    } catch {
+      desktopCloseBehavior.value = 'ask'
+    }
+  }
 })
 
 async function handleAutoLaunchChange(enabled: boolean) {
@@ -52,6 +66,19 @@ async function handleAutoLaunchChange(enabled: boolean) {
   if (!success) {
     openAtLogin.value = !enabled
     isPackaged.value = false
+  }
+}
+
+async function handleDesktopCloseBehaviorChange(value: string | number) {
+  if (value !== 'ask' && value !== 'background' && value !== 'quit') return
+
+  const nextBehavior: DesktopCloseBehavior = value
+  desktopCloseBehavior.value = nextBehavior
+  const result = await usePlatformService().setDesktopCloseBehavior(nextBehavior)
+  if (result.success) {
+    savedDesktopCloseBehavior = nextBehavior
+  } else {
+    desktopCloseBehavior.value = savedDesktopCloseBehavior
   }
 }
 
@@ -103,6 +130,11 @@ const toolsPanelPositionOptions = computed(() => [
   { label: t('settings.basic.toolsPanel.positionHeader'), value: 'header' },
   { label: t('settings.basic.toolsPanel.positionSide'), value: 'side' },
 ])
+
+const desktopCloseBehaviorOptions = computed(() => [
+  { label: t('settings.basic.closeBehavior.background'), value: 'background' },
+  { label: t('settings.basic.closeBehavior.quit'), value: 'quit' },
+])
 </script>
 
 <template>
@@ -141,6 +173,25 @@ const toolsPanelPositionOptions = computed(() => [
             </div>
             <USwitch v-model="openAtLogin" :disabled="!isPackaged" @update:model-value="handleAutoLaunchChange" />
           </div>
+          <template v-if="isWindowsDesktop">
+            <div class="border-t border-gray-200 dark:border-gray-700"></div>
+            <div class="flex items-center justify-between p-4">
+              <div class="flex-1 pr-4">
+                <p class="text-sm font-medium text-gray-900 dark:text-white">
+                  {{ t('settings.basic.closeBehavior.label') }}
+                </p>
+              </div>
+              <div class="w-64">
+                <UTabs
+                  :model-value="desktopCloseBehavior === 'ask' ? undefined : desktopCloseBehavior"
+                  size="sm"
+                  class="gap-0"
+                  :items="desktopCloseBehaviorOptions"
+                  @update:model-value="handleDesktopCloseBehaviorChange"
+                ></UTabs>
+              </div>
+            </div>
+          </template>
         </template>
       </div>
     </div>

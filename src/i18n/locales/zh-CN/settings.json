@@ -49,6 +49,11 @@
       "openAtLoginDesc": "系统启动时自动运行 ChatLab",
       "devModeHint": "开发模式下不可用"
     },
+    "closeBehavior": {
+      "label": "关闭主窗口时",
+      "background": "后台运行",
+      "quit": "退出应用"
+    },
     "toolsPanel": {
       "positionLabel": "快捷工具入口位置",
       "positionDesc": "选择快捷工具面板的显示位置",

@@ -11,6 +11,17 @@ export default {
     error: '错误',
   },
 
+  windowClose: {
+    title: '关闭 ChatLab',
+    message: '关闭主窗口后要执行什么操作？',
+    detail: '选择后台运行后，ChatLab 会保留在系统托盘中。',
+    background: '后台运行',
+    quitApp: '退出应用',
+    cancel: '取消',
+    remember: '记住我的选择',
+    showApp: '显示 ChatLab',
+  },
+
   // ===== P0: 更新弹窗 =====
   update: {
     newVersionTitle: '发现新版本 v{{version}}',

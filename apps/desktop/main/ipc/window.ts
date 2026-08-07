@@ -4,6 +4,8 @@
 
 import { ipcMain, app, dialog, clipboard, shell, nativeTheme } from 'electron'
 import * as fs from 'fs/promises'
+import { loadConfig, setConfigField } from '@openchatlab/config'
+import type { DesktopCloseBehavior } from '@openchatlab/shared-types'
 import type { IpcContext } from './types'
 import { simulateUpdateDialog, manualCheckForUpdates } from '../update/manager'
 import { t } from '../i18n'
@@ -13,10 +15,8 @@ import {
   resetCurrentTitleBarOverlayColor,
 } from '../window/titlebar'
 import { getDesktopAppVersion } from '../runtime/compat'
-
-type AppWithQuitFlag = typeof app & { isQuiting?: boolean }
-// 通过类型扩展记录应用退出意图，避免使用 @ts-ignore。
-const appWithQuitFlag = app as AppWithQuitFlag
+import { requestAppQuit } from '../window/main-window'
+import { destroyWindowsTray } from '../window/windows-tray'
 
 const REMOTE_CONFIG_ALLOWED_DOMAINS = ['chatlab.fun', '1app.top']
 const REMOTE_CONFIG_TIMEOUT_MS = 8000
@@ -69,9 +69,7 @@ export function registerWindowHandlers(ctx: IpcContext): void {
   })
 
   ipcMain.on('window-close', () => {
-    win.close()
-    appWithQuitFlag.isQuiting = true
-    app.quit()
+    requestAppQuit()
   })
 
   ipcMain.on('window-resize', (_, data) => {
@@ -223,6 +221,25 @@ export function registerWindowHandlers(ctx: IpcContext): void {
       return { success: true }
     } catch (error) {
       return { success: false, error: String(error) }
+    }
+  })
+
+  // ==================== Windows 关闭行为 ====================
+  ipcMain.handle('app:getDesktopCloseBehavior', () => {
+    return loadConfig().desktop.close_behavior
+  })
+
+  ipcMain.handle('app:setDesktopCloseBehavior', (_, behavior: DesktopCloseBehavior) => {
+    if (behavior !== 'ask' && behavior !== 'background' && behavior !== 'quit') {
+      return { success: false, error: 'Unsupported desktop close behavior' }
+    }
+
+    try {
+      setConfigField('desktop.close_behavior', behavior)
+      if (behavior !== 'background') destroyWindowsTray()
+      return { success: true }
+    } catch (error) {
+      return { success: false, error: error instanceof Error ? error.message : String(error) }
     }
   })
 

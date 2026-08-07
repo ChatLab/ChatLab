@@ -12,6 +12,17 @@ export default {
     error: '錯誤',
   },
 
+  windowClose: {
+    title: '關閉 ChatLab',
+    message: '關閉主視窗後要執行什麼操作？',
+    detail: '選擇背景執行後，ChatLab 會保留在系統匣中。',
+    background: '背景執行',
+    quitApp: '結束應用程式',
+    cancel: '取消',
+    remember: '記住我的選擇',
+    showApp: '顯示 ChatLab',
+  },
+
   // ===== P0: 更新彈窗 =====
   update: {
     newVersionTitle: '發現新版本 v{{version}}',
