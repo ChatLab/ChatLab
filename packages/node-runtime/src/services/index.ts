@@ -9,6 +9,7 @@ export {
   renameSession,
   updateSessionOwnerId,
   deleteSession,
+  resolveValidatedSessionOverview,
 } from './session-service'
 export type { AnalysisSessionDTO, ListSessionsOptions } from './session-service'
 

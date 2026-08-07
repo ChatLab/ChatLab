@@ -18,6 +18,12 @@ function parsePositiveInteger(value, flag) {
   return parsed
 }
 
+function parseNonNegativeInteger(value, flag) {
+  const parsed = Number.parseInt(value, 10)
+  if (!Number.isInteger(parsed) || parsed < 0) throw new Error(`${flag} must be a non-negative integer`)
+  return parsed
+}
+
 function parseArgs(argv) {
   const options = {
     url: DEFAULT_URL,
@@ -40,7 +46,7 @@ function parseArgs(argv) {
 
     if (arg === '--url') options.url = next()
     else if (arg === '--runs') options.runs = parsePositiveInteger(next(), arg)
-    else if (arg === '--warmups') options.warmups = parsePositiveInteger(next(), arg)
+    else if (arg === '--warmups') options.warmups = parseNonNegativeInteger(next(), arg)
     else if (arg === '--timeout') options.timeoutMs = parsePositiveInteger(next(), arg)
     else if (arg === '--chrome') options.chromePath = next()
     else if (arg === '--json') options.json = true

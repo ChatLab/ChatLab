@@ -13,7 +13,13 @@ import path from 'node:path'
 import Database from 'better-sqlite3'
 import Fastify, { type FastifyInstance } from 'fastify'
 import type { DatabaseAdapter, PathProvider, PreparedStatement, RunResult } from '@openchatlab/core'
-import { PreferencesManager, type DatabaseManager, type SessionRuntimeAdapter } from '@openchatlab/node-runtime'
+import {
+  CACHE_KEY_OVERVIEW,
+  PreferencesManager,
+  setCache,
+  type DatabaseManager,
+  type SessionRuntimeAdapter,
+} from '@openchatlab/node-runtime'
 import type { HttpRouteContext } from '../context'
 import { registerSharedRoutes } from '../register'
 import { registerRestSessionRoutes } from './rest/sessions'
@@ -87,7 +93,8 @@ function createSessionDb(): TestSqliteDb {
       platform_id TEXT,
       account_name TEXT,
       group_nickname TEXT,
-      avatar TEXT
+      avatar TEXT,
+      aliases TEXT DEFAULT '[]'
     );
     CREATE TABLE message (
       id INTEGER PRIMARY KEY,
@@ -221,6 +228,34 @@ describe('registerSharedRoutes smoke tests', () => {
     const resp = await app.inject({ method: 'GET', url: '/_web/sessions' })
     assert.equal(resp.statusCode, 200)
     assert.ok(Array.isArray(resp.json()))
+  })
+
+  it('GET /_web/sessions reuses a fingerprint-validated overview cache', async () => {
+    const db = createSessionDb()
+    const routeApp = Fastify()
+    const ctx = createTestContext(new Map([['chat-1', db]]))
+    setCache(
+      'chat-1',
+      CACHE_KEY_OVERVIEW,
+      {
+        totalMessages: 321,
+        totalMembers: 12,
+        firstMessageTs: 100,
+        lastMessageTs: 300,
+        maxMessageId: 3,
+      },
+      ctx.pathProvider.getCacheDir()
+    )
+    registerSessionRoutes(routeApp, ctx)
+    await routeApp.ready()
+
+    const resp = await routeApp.inject({ method: 'GET', url: '/_web/sessions' })
+
+    await routeApp.close()
+    db.close()
+    assert.equal(resp.statusCode, 200)
+    assert.equal(resp.json()[0].messageCount, 321)
+    assert.equal(resp.json()[0].memberCount, 12)
   })
 
   it('GET /_web/sessions/:id returns 404 for missing session', async () => {
@@ -360,6 +395,10 @@ describe('registerSharedRoutes smoke tests', () => {
     registerSharedRoutes(routeApp, createTestContext(new Map([['chat-1', db]])))
     await routeApp.ready()
 
+    const initialSessionsResp = await routeApp.inject({ method: 'GET', url: '/_web/sessions' })
+    assert.equal(initialSessionsResp.json()[0].messageCount, 4)
+    assert.equal(initialSessionsResp.json()[0].memberCount, 3)
+
     const resp = await routeApp.inject({
       method: 'POST',
       url: '/_web/sessions/chat-1/members/batch-delete',
@@ -368,6 +407,7 @@ describe('registerSharedRoutes smoke tests', () => {
     const remainingMembers = db.prepare('SELECT id FROM member ORDER BY id').all()
     const remainingMessages = db.prepare('SELECT sender_id AS senderId FROM message ORDER BY id').all()
     const remainingHistory = db.prepare('SELECT member_id AS memberId FROM member_name_history ORDER BY id').all()
+    const refreshedSessionsResp = await routeApp.inject({ method: 'GET', url: '/_web/sessions' })
 
     await routeApp.close()
     db.close()
@@ -377,6 +417,35 @@ describe('registerSharedRoutes smoke tests', () => {
     assert.deepEqual(remainingMembers, [{ id: 3 }])
     assert.deepEqual(remainingMessages, [{ senderId: 3 }])
     assert.deepEqual(remainingHistory, [{ memberId: 3 }])
+    assert.equal(refreshedSessionsResp.json()[0].messageCount, 1)
+    assert.equal(refreshedSessionsResp.json()[0].memberCount, 1)
+  })
+
+  it('POST /_web/sessions/:id/members/merge invalidates cached member totals without changing message ids', async () => {
+    const db = createSessionDb()
+    const routeApp = Fastify()
+    const sessionId = 'merge-cache-chat'
+    registerSharedRoutes(routeApp, createTestContext(new Map([[sessionId, db]])))
+    await routeApp.ready()
+
+    const initialSessionsResp = await routeApp.inject({ method: 'GET', url: '/_web/sessions' })
+    assert.equal(initialSessionsResp.json()[0].messageCount, 3)
+    assert.equal(initialSessionsResp.json()[0].memberCount, 2)
+
+    const mergeResp = await routeApp.inject({
+      method: 'POST',
+      url: `/_web/sessions/${sessionId}/members/merge`,
+      payload: { memberId1: 1, memberId2: 2 },
+    })
+    const refreshedSessionsResp = await routeApp.inject({ method: 'GET', url: '/_web/sessions' })
+
+    await routeApp.close()
+    db.close()
+
+    assert.equal(mergeResp.statusCode, 200)
+    assert.deepEqual(mergeResp.json(), { success: true })
+    assert.equal(refreshedSessionsResp.json()[0].messageCount, 3)
+    assert.equal(refreshedSessionsResp.json()[0].memberCount, 1)
   })
 
   it('POST /_web/sessions/:id/members/batch-delete rejects an empty selection', async () => {

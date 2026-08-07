@@ -8,6 +8,7 @@
 
 import {
   getSessionInfo,
+  getSessionOverview,
   getSessionMeta,
   getSummaryCount,
   getPrivateChatMemberAvatar,
@@ -18,6 +19,7 @@ import {
 } from '@openchatlab/core'
 import type { CoreSessionInfo, DatabaseAdapter, SessionOverview } from '@openchatlab/core'
 import type { SessionRuntimeAdapter } from './adapters'
+import { getValidatedOverviewCache } from '../cache/session-cache'
 
 export interface AnalysisSessionDTO extends CoreSessionInfo {
   id: string
@@ -46,6 +48,22 @@ export interface ListSessionsOptions {
    * Electron uses this to fill aiConversationCount, etc.
    */
   enrichSession?(dto: AnalysisSessionDTO): AnalysisSessionDTO
+}
+
+/**
+ * Resolve a fresh session overview through the shared JSON cache. Cache I/O or
+ * validation failures fall back to live SQL so the session catalog stays usable.
+ */
+export function resolveValidatedSessionOverview(
+  db: DatabaseAdapter,
+  sessionId: string,
+  cacheDir: string
+): SessionOverview {
+  try {
+    return getValidatedOverviewCache(db, sessionId, cacheDir)
+  } catch {
+    return getSessionOverview(db)
+  }
 }
 
 function buildSession(

@@ -16,6 +16,7 @@ import {
   deleteMembers as coreDeleteMembers,
 } from '@openchatlab/core'
 import type { MemberWithAliases, MembersPaginationParams, MembersPaginatedResult } from '@openchatlab/core'
+import { CACHE_KEY_MEMBERS, CACHE_KEY_OVERVIEW, invalidateCache } from '../cache/session-cache'
 import type { SessionRuntimeAdapter } from './adapters'
 
 export type { MemberWithAliases, MembersPaginationParams, MembersPaginatedResult }
@@ -26,6 +27,11 @@ export interface MembersPaginatedDTO {
   page: number
   pageSize: number
   totalPages: number
+}
+
+function invalidateMemberMutationCaches(sessionId: string, cacheDir: string): void {
+  invalidateCache(sessionId, cacheDir, CACHE_KEY_OVERVIEW)
+  invalidateCache(sessionId, cacheDir, CACHE_KEY_MEMBERS)
 }
 
 /**
@@ -81,19 +87,29 @@ export function mergeMembers(
   adapter: SessionRuntimeAdapter,
   sessionId: string,
   memberId1: number,
-  memberId2: number
+  memberId2: number,
+  cacheDir: string
 ): boolean {
   const db = adapter.ensureWritable(sessionId)
-  return coreMergeMembers(db, memberId1, memberId2)
+  const success = coreMergeMembers(db, memberId1, memberId2)
+  if (success) invalidateMemberMutationCaches(sessionId, cacheDir)
+  return success
 }
 
 /**
  * Delete a member and all associated data:
  * - messages, member_name_history, member row (in transaction)
  */
-export function deleteMember(adapter: SessionRuntimeAdapter, sessionId: string, memberId: number): boolean {
+export function deleteMember(
+  adapter: SessionRuntimeAdapter,
+  sessionId: string,
+  memberId: number,
+  cacheDir: string
+): boolean {
   const db = adapter.ensureWritable(sessionId)
-  return coreDeleteMember(db, memberId)
+  const success = coreDeleteMember(db, memberId)
+  if (success) invalidateMemberMutationCaches(sessionId, cacheDir)
+  return success
 }
 
 /**
@@ -102,10 +118,13 @@ export function deleteMember(adapter: SessionRuntimeAdapter, sessionId: string, 
 export function deleteMembers(
   adapter: SessionRuntimeAdapter,
   sessionId: string,
-  memberIds: readonly number[]
+  memberIds: readonly number[],
+  cacheDir: string
 ): boolean {
   const db = adapter.ensureWritable(sessionId)
-  return coreDeleteMembers(db, memberIds)
+  const success = coreDeleteMembers(db, memberIds)
+  if (success) invalidateMemberMutationCaches(sessionId, cacheDir)
+  return success
 }
 
 /**

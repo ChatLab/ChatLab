@@ -3,10 +3,11 @@ import type { RuntimeRouteContext } from '../../context/runtime'
 import { appLogger, memberService } from '@openchatlab/node-runtime'
 import { apiErrorFromUnknown } from '../../errors'
 
-type MemberRouteContext = Pick<RuntimeRouteContext, 'sessionAdapter'>
+type MemberRouteContext = Pick<RuntimeRouteContext, 'sessionAdapter' | 'pathProvider'>
 
 export function registerMemberRoutes(server: FastifyInstance, ctx: MemberRouteContext): void {
   const { sessionAdapter: adapter } = ctx
+  const cacheDir = ctx.pathProvider.getCacheDir()
 
   server.get<{ Params: { id: string } }>('/_web/sessions/:id/members', async (request) => {
     return memberService.getMembers(adapter, request.params.id)
@@ -37,7 +38,7 @@ export function registerMemberRoutes(server: FastifyInstance, ctx: MemberRouteCo
     '/_web/sessions/:id/members/:memberId',
     async (request) => {
       const memberId = parseInt(request.params.memberId, 10)
-      memberService.deleteMember(adapter, request.params.id, memberId)
+      memberService.deleteMember(adapter, request.params.id, memberId, cacheDir)
       return { success: true }
     }
   )
@@ -59,7 +60,7 @@ export function registerMemberRoutes(server: FastifyInstance, ctx: MemberRouteCo
 
       const uniqueMemberIds = Array.from(new Set(memberIds as number[]))
       try {
-        const success = memberService.deleteMembers(adapter, request.params.id, uniqueMemberIds)
+        const success = memberService.deleteMembers(adapter, request.params.id, uniqueMemberIds, cacheDir)
         if (!success) {
           throw new Error('Member deletion transaction returned no result')
         }
@@ -81,7 +82,7 @@ export function registerMemberRoutes(server: FastifyInstance, ctx: MemberRouteCo
     '/_web/sessions/:id/members/merge',
     async (request) => {
       const { memberId1, memberId2 } = request.body
-      memberService.mergeMembers(adapter, request.params.id, memberId1, memberId2)
+      memberService.mergeMembers(adapter, request.params.id, memberId1, memberId2, cacheDir)
       return { success: true }
     }
   )
