@@ -18,19 +18,20 @@ test('rejects unknown session landing tabs', () => {
   assert.throws(() => configSchema.parse({ ui: { default_session_tab: 'unknown' } }))
 })
 
-test('defaults Windows close behavior to asking the user', () => {
+test('defaults Windows close behavior to running in the background', () => {
   const config = configSchema.parse({})
 
-  assert.equal(config.desktop.close_behavior, 'ask')
+  assert.equal(config.desktop.close_behavior, 'background')
 })
 
 test('accepts supported Windows close behaviors and rejects invalid values', () => {
-  for (const closeBehavior of ['ask', 'background', 'quit']) {
+  for (const closeBehavior of ['background', 'quit']) {
     assert.equal(
       configSchema.parse({ desktop: { close_behavior: closeBehavior } }).desktop.close_behavior,
       closeBehavior
     )
   }
 
+  assert.throws(() => configSchema.parse({ desktop: { close_behavior: 'ask' } }))
   assert.throws(() => configSchema.parse({ desktop: { close_behavior: 'hide-forever' } }))
 })

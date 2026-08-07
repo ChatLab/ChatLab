@@ -42,7 +42,7 @@ export class BrowserPlatformAdapter implements PlatformAdapter {
   }
 
   async getDesktopCloseBehavior(): Promise<DesktopCloseBehavior> {
-    return 'ask'
+    return 'background'
   }
 
   async setDesktopCloseBehavior(_behavior: DesktopCloseBehavior): Promise<{ success: boolean; error?: string }> {

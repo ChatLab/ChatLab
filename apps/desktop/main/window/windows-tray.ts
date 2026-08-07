@@ -18,9 +18,9 @@ export function ensureWindowsTray(win: BrowserWindow, onQuit: () => void): void 
 
   tray.setContextMenu(
     Menu.buildFromTemplate([
-      { label: t('windowClose.showApp'), click: restoreMainWindow },
+      { label: t('windowsTray.showApp'), click: restoreMainWindow },
       { type: 'separator' },
-      { label: t('windowClose.quitApp'), click: () => quitHandler?.() },
+      { label: t('windowsTray.quitApp'), click: () => quitHandler?.() },
     ])
   )
 }

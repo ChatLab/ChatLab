@@ -35,8 +35,8 @@ const openAtLogin = ref(false)
 const isPackaged = ref(true)
 const isWindowsDesktop =
   IS_ELECTRON && typeof navigator !== 'undefined' && navigator.platform.toLowerCase().includes('win')
-const desktopCloseBehavior = ref<DesktopCloseBehavior>('ask')
-let savedDesktopCloseBehavior: DesktopCloseBehavior = 'ask'
+const desktopCloseBehavior = ref<DesktopCloseBehavior>('background')
+let savedDesktopCloseBehavior: DesktopCloseBehavior = 'background'
 
 onMounted(async () => {
   if (!IS_ELECTRON) {
@@ -55,7 +55,7 @@ onMounted(async () => {
       savedDesktopCloseBehavior = await usePlatformService().getDesktopCloseBehavior()
       desktopCloseBehavior.value = savedDesktopCloseBehavior
     } catch {
-      desktopCloseBehavior.value = 'ask'
+      desktopCloseBehavior.value = 'background'
     }
   }
 })
@@ -70,7 +70,7 @@ async function handleAutoLaunchChange(enabled: boolean) {
 }
 
 async function handleDesktopCloseBehaviorChange(value: string | number) {
-  if (value !== 'ask' && value !== 'background' && value !== 'quit') return
+  if (value !== 'background' && value !== 'quit') return
 
   const nextBehavior: DesktopCloseBehavior = value
   desktopCloseBehavior.value = nextBehavior
@@ -183,7 +183,7 @@ const desktopCloseBehaviorOptions = computed(() => [
               </div>
               <div class="w-64">
                 <UTabs
-                  :model-value="desktopCloseBehavior === 'ask' ? undefined : desktopCloseBehavior"
+                  :model-value="desktopCloseBehavior"
                   size="sm"
                   class="gap-0"
                   :items="desktopCloseBehaviorOptions"

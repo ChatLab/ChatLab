@@ -12,14 +12,8 @@ export default {
     error: 'Error',
   },
 
-  windowClose: {
-    title: 'Close ChatLab',
-    message: 'What should happen after the main window closes?',
-    detail: 'Run in background keeps ChatLab available from the system tray.',
-    background: 'Run in Background',
+  windowsTray: {
     quitApp: 'Quit ChatLab',
-    cancel: 'Cancel',
-    remember: 'Remember my choice',
     showApp: 'Show ChatLab',
   },
 

@@ -230,7 +230,7 @@ export function registerWindowHandlers(ctx: IpcContext): void {
   })
 
   ipcMain.handle('app:setDesktopCloseBehavior', (_, behavior: DesktopCloseBehavior) => {
-    if (behavior !== 'ask' && behavior !== 'background' && behavior !== 'quit') {
+    if (behavior !== 'background' && behavior !== 'quit') {
       return { success: false, error: 'Unsupported desktop close behavior' }
     }
 

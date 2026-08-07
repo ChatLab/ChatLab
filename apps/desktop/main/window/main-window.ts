@@ -1,10 +1,9 @@
-import { app, shell, BrowserWindow, nativeTheme, dialog } from 'electron'
+import { app, shell, BrowserWindow, nativeTheme } from 'electron'
 import { is, platform } from '@electron-toolkit/utils'
-import { loadConfig, setConfigField } from '@openchatlab/config'
+import { loadConfig } from '@openchatlab/config'
 import { applyCurrentTitleBarOverlay, getTitleBarOverlayOptions, resetCurrentTitleBarOverlayColor } from './titlebar'
-import { WindowsCloseController } from './close-behavior'
+import { applyWindowsCloseBehavior } from './close-behavior'
 import { ensureWindowsTray } from './windows-tray'
-import { t } from '../i18n'
 import { logger } from '../logger'
 
 type AppWithQuitFlag = typeof app & { isQuiting?: boolean }
@@ -85,31 +84,9 @@ export function requestAppQuit(): void {
   app.quit()
 }
 
-function createWindowsCloseController(win: BrowserWindow): WindowsCloseController {
-  return new WindowsCloseController({
+function handleWindowsClose(win: BrowserWindow): void {
+  applyWindowsCloseBehavior({
     readPreference: () => loadConfig().desktop.close_behavior,
-    savePreference: (preference) => {
-      setConfigField('desktop.close_behavior', preference)
-    },
-    prompt: async () => {
-      const result = await dialog.showMessageBox(win, {
-        type: 'question',
-        title: t('windowClose.title'),
-        message: t('windowClose.message'),
-        detail: t('windowClose.detail'),
-        buttons: [t('windowClose.background'), t('windowClose.quitApp'), t('windowClose.cancel')],
-        defaultId: 0,
-        cancelId: 2,
-        noLink: true,
-        checkboxLabel: t('windowClose.remember'),
-        checkboxChecked: false,
-      })
-
-      return {
-        action: result.response === 0 ? 'background' : result.response === 1 ? 'quit' : 'cancel',
-        remember: result.checkboxChecked,
-      }
-    },
     enterBackground: () => {
       ensureWindowsTray(win, requestAppQuit)
       win.hide()
@@ -122,8 +99,6 @@ function createWindowsCloseController(win: BrowserWindow): WindowsCloseControlle
 }
 
 function registerMainWindowEvents(win: BrowserWindow): void {
-  const windowsCloseController = platform.isWindows ? createWindowsCloseController(win) : null
-
   win.webContents.on('did-finish-load', () => {
     setTimeout(() => {
       currentMainWindow?.webContents.send('app-started')
@@ -153,7 +128,7 @@ function registerMainWindowEvents(win: BrowserWindow): void {
 
     if (platform.isWindows && !appWithQuitFlag.isQuiting) {
       event.preventDefault()
-      void windowsCloseController?.requestClose()
+      handleWindowsClose(win)
     }
   })
 }

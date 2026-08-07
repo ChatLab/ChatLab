@@ -666,7 +666,7 @@ export interface UiConfig {
   summary_strategy?: 'brief' | 'standard'
 }
 
-export type DesktopCloseBehavior = 'ask' | 'background' | 'quit'
+export type DesktopCloseBehavior = 'background' | 'quit'
 
 // ==================== 匿名使用统计 ====================
 
