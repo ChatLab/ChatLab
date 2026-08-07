@@ -17,7 +17,13 @@ export type {
 
 import type { Preferences, UiConfig } from '@openchatlab/shared-types'
 
+export interface PresentationPreferences {
+  locale: string
+  uiConfig: UiConfig
+}
+
 export interface PreferencesAdapter {
+  getPresentationPreferences(): Promise<PresentationPreferences>
   getPreferences(): Promise<Preferences>
   savePreferences(partial: Partial<Preferences>): Promise<{ success: boolean; error?: string }>
   getUiConfig(): Promise<UiConfig>

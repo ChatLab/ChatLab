@@ -1,7 +1,11 @@
 import { get, patch } from '../utils/http'
-import type { PreferencesAdapter, Preferences, UiConfig } from './types'
+import type { PreferencesAdapter, Preferences, PresentationPreferences, UiConfig } from './types'
 
 export class FetchPreferencesAdapter implements PreferencesAdapter {
+  getPresentationPreferences(): Promise<PresentationPreferences> {
+    return get<PresentationPreferences>('/preferences/bootstrap')
+  }
+
   getPreferences(): Promise<Preferences> {
     return get<Preferences>('/preferences')
   }

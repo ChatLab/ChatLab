@@ -87,6 +87,7 @@ export { useSkillService } from './skill/service'
 export type { SkillServiceAdapter } from './skill/types'
 export type {
   PreferencesAdapter,
+  PresentationPreferences,
   Preferences,
   UiConfig,
   AIGlobalSettings,

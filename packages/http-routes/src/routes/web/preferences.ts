@@ -20,6 +20,14 @@ export function registerPreferencesRoutes(server: FastifyInstance, ctx: Preferen
     return prefManager.load()
   })
 
+  server.get('/_web/preferences/bootstrap', async () => {
+    const config = loadConfig()
+    return {
+      locale: config.locale.lang,
+      uiConfig: config.ui,
+    }
+  })
+
   server.patch<{ Body: Partial<Preferences> }>('/_web/preferences', async (request) => {
     return prefManager.save(request.body)
   })

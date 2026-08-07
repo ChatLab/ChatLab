@@ -8,6 +8,7 @@
   "chatHistory": "聊天对话",
   "manage": "管理",
   "noRecords": "暂无记录",
+  "sessionLoadFailed": "会话列表加载失败",
   "searchPlaceholder": "搜索对话名称",
   "noSearchResult": "未找到匹配的聊天记录",
   "contextMenu": {

@@ -1,4 +1,4 @@
-import type { Preferences, PreferencesAdapter, UiConfig } from './types'
+import type { Preferences, PreferencesAdapter, PresentationPreferences, UiConfig } from './types'
 
 const PREFERENCES_KEY = 'chatlab:web-wasm:preferences'
 const UI_CONFIG_KEY = 'chatlab:web-wasm:ui-config'
@@ -19,6 +19,11 @@ export class BrowserPreferencesAdapter implements PreferencesAdapter {
 
   constructor(storage?: Pick<Storage, 'getItem' | 'setItem'>) {
     this.storage = storage ?? globalThis.localStorage ?? createMemoryStorage()
+  }
+
+  async getPresentationPreferences(): Promise<PresentationPreferences> {
+    const [uiConfig, locale] = await Promise.all([this.getUiConfig(), this.getLocale()])
+    return { uiConfig, locale }
   }
 
   async getPreferences(): Promise<Preferences> {

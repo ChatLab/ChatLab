@@ -1,16 +1,10 @@
 <script setup lang="ts">
-import { computed, defineAsyncComponent, onMounted, onUnmounted, ref, watch } from 'vue'
+import { computed, defineAsyncComponent, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { useColorMode } from '@vueuse/core'
-import { storeToRefs } from 'pinia'
 import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import TitleBar from '@/components/common/TitleBar.vue'
 import Sidebar from '@/components/common/Sidebar.vue'
-import ScreenCaptureModal from '@/components/common/ScreenCaptureModal.vue'
-import SettingsModal from '@/components/common/SettingsModal.vue'
-import { ChatRecordDrawer } from '@/components/common/ChatRecord'
-import GlobalTaskBar from '@/components/AIChat/GlobalTaskBar.vue'
-import DebugToolsPanel from '@/components/layout/DebugToolsPanel.vue'
 import { StartupLoading } from '@/components/UI'
 import { useSessionStore } from '@/stores/session'
 import { useLayoutStore } from '@/stores/layout'
@@ -19,7 +13,11 @@ import { useLLMStore } from '@/stores/llm'
 import { useAuthStore } from '@/stores/auth'
 import { useApiServerStore } from '@/stores/apiServer'
 import { initServices } from '@/services'
-import { initPreferencesSync } from '@/composables/usePreferencesSync'
+import {
+  applyPresentationPreferences,
+  initPreferencesSync,
+  loadPresentationPreferences,
+} from '@/composables/usePreferencesSync'
 import { useWindowsTitleBarOverlay } from '@/composables/useWindowsTitleBarOverlay'
 import { configureHttpClient } from '@/services/utils/http'
 import { IS_ELECTRON } from '@/utils/platform'
@@ -27,10 +25,21 @@ import { PLATFORM_CAPABILITIES } from '@/utils/platform-capabilities'
 import { usePlatformService } from '@/services'
 import { resolvePageTransitionKey } from '@/routes/page-transition-key'
 import { useLockScreenBootstrap } from '@/components/lock-screen/bootstrap'
-import { initializeAppRuntime } from '@/bootstrap/app-initialization'
+import { initializeAppRuntime, initializeProgressiveAppRuntime } from '@/bootstrap/app-initialization'
+import { markStartupPhase, markStartupPhaseAfterPaint } from '@/bootstrap/startup-performance'
 
 const LockScreen = IS_ELECTRON ? defineAsyncComponent(() => import('@/components/lock-screen/LockScreen.vue')) : null
 const DataDirCleanupNotice = defineAsyncComponent(() => import('@/components/common/DataDirCleanupNotice.vue'))
+const loadScreenCaptureModal = () => import('@/components/common/ScreenCaptureModal.vue')
+const loadSettingsModal = () => import('@/components/common/SettingsModal.vue')
+const loadChatRecordDrawer = () => import('@/components/common/ChatRecord/ChatRecordDrawer.vue')
+const loadGlobalTaskBar = () => import('@/components/AIChat/GlobalTaskBar.vue')
+const loadDebugToolsPanel = () => import('@/components/layout/DebugToolsPanel.vue')
+const ScreenCaptureModal = defineAsyncComponent(loadScreenCaptureModal)
+const SettingsModal = defineAsyncComponent(loadSettingsModal)
+const ChatRecordDrawer = defineAsyncComponent(loadChatRecordDrawer)
+const GlobalTaskBar = defineAsyncComponent(loadGlobalTaskBar)
+const DebugToolsPanel = defineAsyncComponent(loadDebugToolsPanel)
 
 const { t } = useI18n()
 
@@ -40,7 +49,6 @@ const settingsStore = useSettingsStore()
 const llmStore = useLLMStore()
 const authStore = useAuthStore()
 const apiServerStore = useApiServerStore()
-const { isInitialized } = storeToRefs(sessionStore)
 const route = useRoute()
 const router = useRouter()
 const { isBootstrapMaskVisible, isApplicationInteractive, markLockScreenReady, syncBootstrapMask, updateLockState } =
@@ -48,7 +56,10 @@ const { isBootstrapMaskVisible, isApplicationInteractive, markLockScreenReady, s
 
 const isLoginPage = computed(() => PLATFORM_CAPABILITIES.requiresAuth && route.name === 'login')
 const pageTransitionKey = computed(() => resolvePageTransitionKey(route))
+const isShellReady = ref(false)
 const initError = ref<string | null>(null)
+const presentationWarning = ref(false)
+const settingsModalMounted = ref(layoutStore.showSettings)
 const bootstrapDialogRef = ref<HTMLDialogElement | null>(null)
 const colorMode = useColorMode({
   emitAuto: true,
@@ -67,22 +78,126 @@ const toaster = {
 
 let initInProgress = false
 let unlistenPullResult: (() => void) | null = null
+let cancelNonCriticalUiPrefetch: (() => void) | null = null
+
+function scheduleNonCriticalUiPrefetch() {
+  if (cancelNonCriticalUiPrefetch) return
+  const prefetch = () => {
+    cancelNonCriticalUiPrefetch = null
+    void Promise.allSettled([
+      loadSettingsModal(),
+      loadChatRecordDrawer(),
+      loadScreenCaptureModal(),
+      loadDebugToolsPanel(),
+    ])
+  }
+
+  if (typeof window.requestIdleCallback === 'function') {
+    const idleId = window.requestIdleCallback(prefetch, { timeout: 3_000 })
+    cancelNonCriticalUiPrefetch = () => window.cancelIdleCallback(idleId)
+    return
+  }
+
+  const timer = window.setTimeout(prefetch, 1_000)
+  cancelNonCriticalUiPrefetch = () => window.clearTimeout(timer)
+}
 
 async function initializeApp() {
-  if (initInProgress || isInitialized.value) return
+  if (initInProgress || isShellReady.value) return
   initInProgress = true
   initError.value = null
+  presentationWarning.value = false
   try {
+    if (!PLATFORM_CAPABILITIES.usesBrowserRuntime) {
+      const result = await initializeProgressiveAppRuntime({
+        initializeServices: async () => {
+          await initServices()
+          markStartupPhase('services-ready')
+        },
+        loadPresentation: loadPresentationPreferences,
+        applyPresentation: async (presentation) => {
+          applyPresentationPreferences(presentation)
+          await settingsStore.initLocale()
+          markStartupPhase('locale-settled')
+        },
+        applyPresentationFallback: async () => {
+          await settingsStore.initLocale()
+          markStartupPhase('locale-settled')
+        },
+        initializeBackground: [
+          {
+            name: 'preferences',
+            run: async () => {
+              try {
+                await initPreferencesSync({ presentationInitialized: true })
+              } finally {
+                markStartupPhase('preferences-settled')
+              }
+            },
+          },
+          {
+            name: 'llm',
+            run: async () => {
+              try {
+                await llmStore.init()
+              } finally {
+                markStartupPhase('llm-settled')
+              }
+            },
+          },
+          {
+            name: 'sessions',
+            run: async () => {
+              try {
+                await sessionStore.loadSessions({ throwOnError: true })
+              } finally {
+                markStartupPhase('sessions-settled')
+              }
+            },
+          },
+        ],
+        listenForPullResults: () => apiServerStore.listenPullResult(),
+      })
+      unlistenPullResult ??= result.stopListeningForPullResults
+      presentationWarning.value = result.presentationError !== null
+      isShellReady.value = true
+      void result.background.then((failures) => {
+        failures.forEach(({ name, error }) => console.error(`[Startup] Background task failed: ${name}`, error))
+        markStartupPhase('startup-settled')
+      })
+      usePlatformService()
+        .trackDailyActive(settingsStore.locale)
+        .catch(() => {})
+      return
+    }
+
     const result = await initializeAppRuntime({
       capabilities: PLATFORM_CAPABILITIES,
-      initializeServices: () => initServices(),
-      initializePreferences: () => initPreferencesSync(),
-      initializeLocale: () => settingsStore.initLocale(),
-      initializeLlm: () => llmStore.init(),
-      loadSessions: () => sessionStore.loadSessions(),
+      initializeServices: async () => {
+        await initServices()
+        markStartupPhase('services-ready')
+      },
+      initializePreferences: async () => {
+        await initPreferencesSync()
+        markStartupPhase('preferences-settled')
+      },
+      initializeLocale: async () => {
+        await settingsStore.initLocale()
+        markStartupPhase('locale-settled')
+      },
+      initializeLlm: async () => {
+        await llmStore.init()
+        markStartupPhase('llm-settled')
+      },
+      loadSessions: async () => {
+        await sessionStore.loadSessions()
+        markStartupPhase('sessions-settled')
+      },
       listenForPullResults: () => apiServerStore.listenPullResult(),
     })
     unlistenPullResult ??= result.stopListeningForPullResults
+    isShellReady.value = true
+    markStartupPhase('startup-settled')
     usePlatformService()
       .trackDailyActive(settingsStore.locale)
       .catch(() => {})
@@ -111,6 +226,20 @@ function handleGlobalKeydown(e: KeyboardEvent) {
 // After login success, route changes from login → app; trigger init
 watch(isLoginPage, (isLogin) => {
   if (!isLogin) initializeApp()
+})
+
+watch(
+  () => layoutStore.showSettings,
+  (visible) => {
+    if (visible) settingsModalMounted.value = true
+  }
+)
+
+watch(isShellReady, async (ready) => {
+  if (!ready) return
+  await nextTick()
+  await markStartupPhaseAfterPaint('shell-interactive')
+  scheduleNonCriticalUiPrefetch()
 })
 
 watch(
@@ -176,6 +305,8 @@ onUnmounted(() => {
   window.removeEventListener('keydown', handleGlobalKeydown)
   unlistenPullResult?.()
   unlistenPullResult = null
+  cancelNonCriticalUiPrefetch?.()
+  cancelNonCriticalUiPrefetch = null
 })
 </script>
 
@@ -189,7 +320,7 @@ onUnmounted(() => {
       <TitleBar />
       <div class="relative flex h-screen w-full overflow-hidden bg-page-bg dark:bg-page-dark">
         <!-- 主内容区域 -->
-        <template v-if="!isInitialized">
+        <template v-if="!isShellReady">
           <div class="flex h-full w-full items-center justify-center">
             <div v-if="initError" class="flex flex-col items-center justify-center gap-3 text-center">
               <UIcon name="i-heroicons-exclamation-triangle" class="h-8 w-8 text-red-500" />
@@ -205,6 +336,13 @@ onUnmounted(() => {
         <template v-else>
           <Sidebar :backend-features="true" />
           <main class="relative flex-1 overflow-hidden">
+            <div
+              v-if="presentationWarning"
+              class="absolute inset-x-3 top-3 z-30 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-xs text-amber-800 shadow-sm dark:border-amber-800 dark:bg-amber-950/80 dark:text-amber-200"
+              role="status"
+            >
+              {{ t('common.presentationFallback') }}
+            </div>
             <router-view v-slot="{ Component }">
               <Transition name="page-fade" mode="out-in">
                 <component :is="Component" :key="pageTransitionKey" />
@@ -216,18 +354,19 @@ onUnmounted(() => {
       </div>
     </template>
     <ScreenCaptureModal
+      v-if="layoutStore.showScreenCaptureModal || layoutStore.screenCaptureImage"
       :open="layoutStore.showScreenCaptureModal"
       :image-data="layoutStore.screenCaptureImage"
       @update:open="(v) => (v ? null : layoutStore.closeScreenCaptureModal())"
     />
     <!-- 全局设置弹窗 -->
-    <SettingsModal />
+    <SettingsModal v-if="settingsModalMounted" />
     <!-- 全局聊天记录查看器 -->
-    <ChatRecordDrawer />
+    <ChatRecordDrawer v-if="layoutStore.showChatRecordDrawer || layoutStore.chatRecordQuery" />
     <!-- 全局 AI 后台任务条：允许用户离开当前页面后仍然快速返回进行中的对话。 -->
     <GlobalTaskBar />
     <!-- Desktop 与 CLI Web 迁移后都提醒人工清理。 -->
-    <DataDirCleanupNotice v-if="!isLoginPage && isInitialized" />
+    <DataDirCleanupNotice v-if="!isLoginPage && isShellReady" />
     <!-- 原生模态锁屏：锁定后由浏览器 top layer 隔离全部底层操作 -->
     <LockScreen v-if="IS_ELECTRON" @ready="markLockScreenReady" @lock-state-change="updateLockState" />
     <Teleport v-if="IS_ELECTRON" to="body">

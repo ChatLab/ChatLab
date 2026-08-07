@@ -43,7 +43,7 @@ const hasMacTitlebarInset =
 
 const sessionStore = useSessionStore()
 const layoutStore = useLayoutStore()
-const { sessions, sortedSessions, filterType } = storeToRefs(sessionStore)
+const { sessions, sortedSessions, filterType, loadState, loadError } = storeToRefs(sessionStore)
 const { isSidebarCollapsed: isCollapsed } = storeToRefs(layoutStore)
 const { toggleSidebar } = layoutStore
 const router = useRouter()
@@ -132,7 +132,6 @@ function toggleSearch() {
 let unlistenImportCompleted: (() => void) | null = null
 
 onMounted(async () => {
-  sessionStore.loadSessions()
   try {
     version.value = await usePlatformService().getVersion()
     if (props.backendFeatures) void checkUpdateNotice()
@@ -557,7 +556,19 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
 
       <!-- 聊天记录列表 - 可滚动区域，滚动条贴边 -->
       <div ref="sessionListRef" class="session-list flex-1 overflow-y-auto">
-        <div v-if="sessions.length === 0 && !isCollapsed" class="py-8 text-center text-sm text-gray-500">
+        <div v-if="loadState === 'loading' || loadState === 'idle'" class="space-y-2 px-3 py-2" aria-busy="true">
+          <USkeleton v-for="index in 6" :key="index" class="h-10 rounded-xl" :class="isCollapsed ? 'w-10' : 'w-full'" />
+        </div>
+
+        <div v-else-if="loadState === 'error' && !isCollapsed" class="px-4 py-8 text-center">
+          <p class="text-sm text-gray-600 dark:text-gray-300">{{ t('layout.sessionLoadFailed') }}</p>
+          <p v-if="loadError" class="mt-1 line-clamp-2 text-xs text-gray-400">{{ loadError }}</p>
+          <UButton size="xs" variant="soft" class="mt-3" @click="sessionStore.loadSessions()">
+            {{ t('common.retry') }}
+          </UButton>
+        </div>
+
+        <div v-else-if="sessions.length === 0 && !isCollapsed" class="py-8 text-center text-sm text-gray-500">
           {{ t('layout.noRecords') }}
         </div>
 

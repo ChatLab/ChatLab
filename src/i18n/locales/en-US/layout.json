@@ -8,6 +8,7 @@
   "chatHistory": "Chat History",
   "manage": "Manage",
   "noRecords": "No records",
+  "sessionLoadFailed": "Couldn't load conversations",
   "searchPlaceholder": "Search conversation name",
   "noSearchResult": "No matching chat records found",
   "contextMenu": {

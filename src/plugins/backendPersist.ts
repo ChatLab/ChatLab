@@ -33,12 +33,17 @@ declare module 'pinia' {
 type SaveFn = (partial: Partial<Preferences>) => Promise<unknown>
 
 const stores: Map<string, { store: ReturnType<any>; config: BackendPersistConfig }> = new Map()
+const dirtyFieldsByStore = new Map<string, Set<string>>()
 let saveFn: SaveFn | null = null
 let saveTimer: ReturnType<typeof setTimeout> | null = null
 let pendingSave: Record<string, unknown> = {}
+let hydrationSettled = false
+let applyingHydration = false
+let hydratedPreferences: Preferences | null = null
 
 function flushSave() {
-  if (!saveFn || Object.keys(pendingSave).length === 0) return
+  saveTimer = null
+  if (!saveFn || !hydrationSettled || Object.keys(pendingSave).length === 0) return
   const toSave = { ...pendingSave }
   pendingSave = {}
   saveFn(toSave as Partial<Preferences>).catch((err) => {
@@ -75,27 +80,67 @@ function collectAndQueue(store: Record<string, unknown>, config: BackendPersistC
  */
 export function initBackendPersist(fn: SaveFn): void {
   saveFn = fn
+  if (hydrationSettled && Object.keys(pendingSave).length > 0) scheduleSave()
+}
+
+function applyStoreHydration(
+  storeId: string,
+  store: ReturnType<any>,
+  config: BackendPersistConfig,
+  prefs: Preferences
+): void {
+  const source = config.key
+    ? (prefs as unknown as Record<string, unknown>)[config.key]
+    : (prefs as unknown as Record<string, unknown>)
+  if (!source || typeof source !== 'object') return
+
+  const dirtyFields = dirtyFieldsByStore.get(storeId)
+  const patch: Record<string, unknown> = {}
+  for (const field of config.pick) {
+    if (dirtyFields?.has(field)) continue
+    const val = (source as Record<string, unknown>)[field]
+    if (val !== undefined) patch[field] = val
+  }
+  if (Object.keys(patch).length > 0) {
+    store.$patch(patch)
+  }
+}
+
+function settleHydration(): void {
+  if (saveTimer) clearTimeout(saveTimer)
+  saveTimer = null
+  pendingSave = {}
+  hydrationSettled = true
+
+  // Rebuild queued writes from the merged store state so a pre-hydration edit
+  // cannot save default values over unrelated fields loaded from the backend.
+  for (const storeId of dirtyFieldsByStore.keys()) {
+    const registered = stores.get(storeId)
+    if (registered) collectAndQueue(registered.store.$state, registered.config)
+  }
+  dirtyFieldsByStore.clear()
 }
 
 /**
  * Hydrate all registered stores from backend preferences data.
+ * Fields changed locally while the request was pending keep their local value.
  */
 export function hydrateAllStores(prefs: Preferences): void {
-  for (const [, { store, config }] of stores) {
-    const source = config.key
-      ? (prefs as unknown as Record<string, unknown>)[config.key]
-      : (prefs as unknown as Record<string, unknown>)
-    if (!source || typeof source !== 'object') continue
-
-    const patch: Record<string, unknown> = {}
-    for (const field of config.pick) {
-      const val = (source as Record<string, unknown>)[field]
-      if (val !== undefined) patch[field] = val
+  hydratedPreferences = prefs
+  applyingHydration = true
+  try {
+    for (const [storeId, { store, config }] of stores) {
+      applyStoreHydration(storeId, store, config, prefs)
     }
-    if (Object.keys(patch).length > 0) {
-      store.$patch(patch)
-    }
+  } finally {
+    applyingHydration = false
   }
+  settleHydration()
+}
+
+/** Mark hydration as complete when backend preferences could not be loaded. */
+export function completeBackendPersistHydration(): void {
+  settleHydration()
 }
 
 export const backendPersistPlugin: PiniaPlugin = ({ store, options }) => {
@@ -104,11 +149,24 @@ export const backendPersistPlugin: PiniaPlugin = ({ store, options }) => {
 
   stores.set(store.$id, { store, config })
 
+  // Stores created lazily after startup still need the already-loaded backend state.
+  if (hydrationSettled && hydratedPreferences) {
+    applyStoreHydration(store.$id, store, config, hydratedPreferences)
+  }
+
   for (const field of config.pick) {
     watch(
       () => store.$state[field],
-      () => collectAndQueue(store.$state, config),
-      { deep: true }
+      () => {
+        if (applyingHydration) return
+        if (!hydrationSettled) {
+          const dirtyFields = dirtyFieldsByStore.get(store.$id) ?? new Set<string>()
+          dirtyFields.add(field)
+          dirtyFieldsByStore.set(store.$id, dirtyFields)
+        }
+        collectAndQueue(store.$state, config)
+      },
+      { deep: true, flush: 'sync' }
     )
   }
 }

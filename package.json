@@ -41,6 +41,7 @@
     "build:cli-web": "vite build --config vite.cli-web.config.mts",
     "build:web-wasm": "vite build --config vite.web-wasm.config.mts",
     "build:web-ai-spike": "vite build --config tests/web-ai-sdk-spike/vite.config.mts",
+    "bench:startup": "node scripts/bench-cli-web-startup.mjs",
     "docs:dev": "pnpm --filter @openchatlab/docs dev",
     "docs:build": "pnpm --filter @openchatlab/docs build",
     "docs:preview": "pnpm --filter @openchatlab/docs preview",

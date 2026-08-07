@@ -14,6 +14,8 @@ export type SessionSortField = 'importedAt' | 'lastMessageTs' | 'messageCount'
 /** 排序方向 */
 export type SessionSortOrder = 'asc' | 'desc'
 
+export type SessionLoadState = 'idle' | 'loading' | 'ready' | 'error'
+
 /** 迁移信息 */
 export interface MigrationInfo {
   version: number
@@ -103,6 +105,10 @@ export const useSessionStore = defineStore(
     const importProgress = ref<ImportProgress | null>(null)
     // 是否初始化完成
     const isInitialized = ref(false)
+    const loadState = ref<SessionLoadState>('idle')
+    const loadError = ref<string | null>(null)
+    let sessionLoadPromise: Promise<void> | null = null
+    let sessionRefreshQueued = false
 
     // 批量导入状态
     const isBatchImporting = ref(false)
@@ -169,7 +175,9 @@ export const useSessionStore = defineStore(
     /**
      * 从数据库加载会话列表
      */
-    async function loadSessions(options: { throwOnError?: boolean } = {}) {
+    async function requestSessionCatalog(): Promise<void> {
+      loadState.value = 'loading'
+      loadError.value = null
       try {
         const list = await useDataService().getSessions()
         sessions.value = list
@@ -178,6 +186,44 @@ export const useSessionStore = defineStore(
           currentSessionId.value = null
         }
         isInitialized.value = true
+        loadState.value = 'ready'
+      } catch (error) {
+        loadState.value = 'error'
+        loadError.value = error instanceof Error ? error.message : String(error)
+        throw error
+      }
+    }
+
+    async function drainSessionRefreshQueue(): Promise<void> {
+      let finalError: unknown = null
+      let finalRequestFailed = false
+
+      do {
+        // 活动请求期间的多次刷新只合并为一次后续请求，避免旧快照吞掉数据变更后的刷新。
+        sessionRefreshQueued = false
+        try {
+          await requestSessionCatalog()
+          finalError = null
+          finalRequestFailed = false
+        } catch (error) {
+          finalError = error
+          finalRequestFailed = true
+        }
+      } while (sessionRefreshQueued)
+
+      sessionLoadPromise = null
+      if (finalRequestFailed) throw finalError
+    }
+
+    async function loadSessions(options: { throwOnError?: boolean } = {}) {
+      if (sessionLoadPromise) {
+        sessionRefreshQueued = true
+      } else {
+        sessionLoadPromise = drainSessionRefreshQueue()
+      }
+
+      try {
+        await sessionLoadPromise
       } catch (error) {
         console.error('加载会话列表失败:', error)
         if (options.throwOnError) {
@@ -894,6 +940,8 @@ export const useSessionStore = defineStore(
       isImporting,
       importProgress,
       isInitialized,
+      loadState,
+      loadError,
       currentSession,
       // 迁移相关
       migrationNeeded,

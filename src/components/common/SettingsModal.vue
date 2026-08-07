@@ -2,17 +2,17 @@
 import { ref, watch, computed, defineAsyncComponent, nextTick } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { storeToRefs } from 'pinia'
-import AISettingsTab from './Settings/AISettingsTab.vue'
 import BasicSettingsTab from './Settings/BasicSettingsTab.vue'
-import BatchManageTab from './Settings/BatchManageTab.vue'
-import StorageTab from './Settings/StorageTab.vue'
-import AboutTab from './Settings/AboutTab.vue'
-import ApiSettingsTab from './Settings/ApiSettingsTab.vue'
 import { usePromptStore } from '@/stores/prompt'
 import { useLayoutStore } from '@/stores/layout'
 import { IS_ELECTRON } from '@/utils/platform'
 import SettingsDialogShell from './Settings/SettingsDialogShell.vue'
 
+const AISettingsTab = defineAsyncComponent(() => import('./Settings/AISettingsTab.vue'))
+const BatchManageTab = defineAsyncComponent(() => import('./Settings/BatchManageTab.vue'))
+const StorageTab = defineAsyncComponent(() => import('./Settings/StorageTab.vue'))
+const AboutTab = defineAsyncComponent(() => import('./Settings/AboutTab.vue'))
+const ApiSettingsTab = defineAsyncComponent(() => import('./Settings/ApiSettingsTab.vue'))
 const SecuritySettingsTab = IS_ELECTRON
   ? defineAsyncComponent(() => import('./Settings/SecuritySettingsTab.vue'))
   : null

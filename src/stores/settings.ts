@@ -105,8 +105,6 @@ export const useSettingsStore = defineStore(
 
       dayjs.locale(getDayjsLocale(locale.value))
 
-      if (PLATFORM_CAPABILITIES.initializesLlm) await ensureDesensitizeRules()
-
       window.electron?.ipcRenderer.send('app:setDebugMode', debugMode.value)
     }
 

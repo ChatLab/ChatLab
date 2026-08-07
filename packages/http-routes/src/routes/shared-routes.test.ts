@@ -238,6 +238,14 @@ describe('registerSharedRoutes smoke tests', () => {
     assert.ok([200, 500].includes(resp.statusCode), `Expected 200 or 500, got ${resp.statusCode}`)
   })
 
+  it('GET /_web/preferences/bootstrap returns locale and UI config together', async () => {
+    const resp = await app.inject({ method: 'GET', url: '/_web/preferences/bootstrap' })
+    assert.equal(resp.statusCode, 200)
+    const body = resp.json()
+    assert.equal(typeof body.locale, 'string')
+    assert.equal(typeof body.uiConfig, 'object')
+  })
+
   it('leaves lifecycle-owned automation routes to the host initializer', () => {
     assert.equal(app.hasRoute({ method: 'GET', url: '/_web/automation/config' }), false)
   })

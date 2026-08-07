@@ -11,6 +11,7 @@
   "done": "完成",
   "retry": "重試",
   "initFailed": "應用程式初始化失敗",
+  "presentationFallback": "外觀偏好未能及時載入，本次啟動已使用系統主題和內建語言。",
   "webWasmWorkspaceBusy": "本機工作區暫時正由另一個分頁使用。請稍候後重試。",
   "loading": "載入中...",
   "initializing": "初始化中...",

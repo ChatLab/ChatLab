@@ -12,33 +12,45 @@ import { watch } from 'vue'
 import { usePreferencesService } from '@/services'
 import { useSettingsStore } from '@/stores/settings'
 import { getUiConfig, setUiConfig } from '@/composables/useUiConfig'
-import { hydrateAllStores, initBackendPersist } from '@/plugins/backendPersist'
+import { completeBackendPersistHydration, hydrateAllStores, initBackendPersist } from '@/plugins/backendPersist'
+import type { PresentationPreferences } from '@/services/preferences/types'
 
 let _synced = false
 
-export async function initPreferencesSync(): Promise<void> {
+export function loadPresentationPreferences(): Promise<PresentationPreferences> {
+  return usePreferencesService().getPresentationPreferences()
+}
+
+export function applyPresentationPreferences(presentation: PresentationPreferences): void {
+  setUiConfig(presentation.uiConfig)
+  const settingsStore = useSettingsStore()
+  if (presentation.uiConfig.default_session_tab) {
+    settingsStore.defaultSessionTab = presentation.uiConfig.default_session_tab
+  }
+  if (presentation.locale) {
+    settingsStore.$patch({ locale: presentation.locale as 'zh-CN' | 'en-US' | 'zh-TW' | 'ja-JP' })
+  }
+}
+
+export async function initPreferencesSync(options: { presentationInitialized?: boolean } = {}): Promise<void> {
   if (_synced) return
   _synced = true
 
   const svc = usePreferencesService()
 
   try {
-    const [prefs, uiConfig, locale] = await Promise.all([svc.getPreferences(), svc.getUiConfig(), svc.getLocale()])
+    const [prefs, presentation] = await Promise.all([
+      svc.getPreferences(),
+      options.presentationInitialized ? null : svc.getPresentationPreferences(),
+    ])
 
-    // config.toml fields — not covered by the plugin
-    setUiConfig(uiConfig)
-    const settingsStore = useSettingsStore()
-    if (uiConfig.default_session_tab) {
-      settingsStore.defaultSessionTab = uiConfig.default_session_tab
-    }
-    if (locale) {
-      settingsStore.$patch({ locale: locale as 'zh-CN' | 'en-US' | 'zh-TW' | 'ja-JP' })
-    }
+    if (presentation) applyPresentationPreferences(presentation)
 
     // preferences.json fields — plugin handles field-level hydration
     hydrateAllStores(prefs)
   } catch (err) {
     console.warn('[PreferencesSync] Failed to load from backend, keeping default state:', err)
+    completeBackendPersistHydration()
   }
 
   // Activate write-back for preferences.json

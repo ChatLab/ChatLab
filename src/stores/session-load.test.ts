@@ -41,6 +41,8 @@ test('strict startup session loading preserves the retry state and rethrows data
     (error: unknown) => error === failure
   )
   assert.equal(store.isInitialized, false)
+  assert.equal(store.loadState, 'error')
+  assert.equal(store.loadError, 'catalog unavailable')
 })
 
 test('ordinary session refresh remains initialized when data loading fails', async (t) => {
@@ -56,4 +58,40 @@ test('ordinary session refresh remains initialized when data loading fails', asy
   await store.loadSessions()
 
   assert.equal(store.isInitialized, true)
+  assert.equal(store.loadState, 'error')
+})
+
+test('session refreshes requested during an active load coalesce into one follow-up request', async () => {
+  installMemoryStorage()
+  let requestCount = 0
+  let releaseRequest: (() => void) | undefined
+  registerAdapter('data', {
+    getSessions: async () => {
+      const requestNumber = ++requestCount
+      if (requestNumber === 1) {
+        await new Promise<void>((resolve) => {
+          releaseRequest = resolve
+        })
+      }
+      return [{ id: requestNumber === 1 ? 'stale-session' : 'fresh-session' }]
+    },
+  } as unknown as DataAdapter)
+  setActivePinia(createPinia())
+  const { useSessionStore } = await import('./session')
+  const store = useSessionStore()
+
+  const first = store.loadSessions()
+  const second = store.loadSessions()
+  const third = store.loadSessions()
+  assert.equal(requestCount, 1)
+  assert.equal(store.loadState, 'loading')
+
+  releaseRequest?.()
+  await Promise.all([first, second, third])
+  assert.equal(requestCount, 2)
+  assert.equal(store.loadState, 'ready')
+  assert.deepEqual(
+    store.sessions.map((session) => session.id),
+    ['fresh-session']
+  )
 })

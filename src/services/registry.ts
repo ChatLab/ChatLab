@@ -81,82 +81,94 @@ export async function initializeWebWasmServices(initialize: InitServicesOptions[
  * data/message/preferences/ai-streaming use Fetch/SSE; import stays on IPC.
  */
 async function initElectronAdapters(): Promise<void> {
-  const { FetchDataAdapter } = await import('./data/fetch')
+  const [
+    { FetchDataAdapter },
+    { ElectronPlatformAdapter },
+    { ElectronImportAdapter },
+    { TelemetryImportAdapter },
+    { FetchSessionIndexAdapter },
+    { FetchMessageAdapter },
+    { ElectronAIAdapter },
+    { FetchPreferencesAdapter },
+    { FetchLLMAdapter },
+    { FetchAssistantAdapter },
+    { FetchSkillAdapter },
+    { FetchCacheAdapter },
+  ] = await Promise.all([
+    import('./data/fetch'),
+    import('./platform/electron'),
+    import('./import/electron'),
+    import('./import/telemetry'),
+    import('./session-index/fetch'),
+    import('./message/fetch'),
+    import('./ai/electron'),
+    import('./preferences/fetch'),
+    import('./llm/fetch'),
+    import('./assistant/fetch'),
+    import('./skill/fetch'),
+    import('./cache/fetch'),
+  ])
+
   registerAdapter('data', new FetchDataAdapter())
 
-  const { ElectronPlatformAdapter } = await import('./platform/electron')
   const platformAdapter = new ElectronPlatformAdapter()
   registerAdapter('platform', platformAdapter)
 
-  const [{ ElectronImportAdapter }, { TelemetryImportAdapter }] = await Promise.all([
-    import('./import/electron'),
-    import('./import/telemetry'),
-  ])
   registerAdapter('import', new TelemetryImportAdapter(new ElectronImportAdapter(), platformAdapter))
-
-  const { FetchSessionIndexAdapter } = await import('./session-index/fetch')
   registerAdapter('session-index', new FetchSessionIndexAdapter())
-
-  const { FetchMessageAdapter } = await import('./message/fetch')
   registerAdapter('message', new FetchMessageAdapter())
-
-  const { ElectronAIAdapter } = await import('./ai/electron')
   registerAdapter('ai', new ElectronAIAdapter())
-
-  const { FetchPreferencesAdapter } = await import('./preferences/fetch')
   registerAdapter('preferences', new FetchPreferencesAdapter())
-
-  const { FetchLLMAdapter } = await import('./llm/fetch')
   registerAdapter('llm', new FetchLLMAdapter())
-
-  const { FetchAssistantAdapter } = await import('./assistant/fetch')
   registerAdapter('assistant-crud', new FetchAssistantAdapter())
-
-  const { FetchSkillAdapter } = await import('./skill/fetch')
   registerAdapter('skill-crud', new FetchSkillAdapter())
-
-  const { FetchCacheAdapter } = await import('./cache/fetch')
   registerAdapter('cache', new FetchCacheAdapter())
 
   installMergeShims('electron')
 }
 
 async function initCliWebAdapters(): Promise<void> {
-  const { FetchDataAdapter } = await import('./data/fetch')
+  const [
+    { FetchDataAdapter },
+    { CliWebPlatformAdapter },
+    { FetchImportAdapter },
+    { TelemetryImportAdapter },
+    { FetchSessionIndexAdapter },
+    { FetchMessageAdapter },
+    { FetchAIAdapter },
+    { FetchPreferencesAdapter },
+    { FetchLLMAdapter },
+    { FetchAssistantAdapter },
+    { FetchSkillAdapter },
+    { FetchCacheAdapter },
+  ] = await Promise.all([
+    import('./data/fetch'),
+    import('./platform/cli-web'),
+    import('./import/fetch'),
+    import('./import/telemetry'),
+    import('./session-index/fetch'),
+    import('./message/fetch'),
+    import('./ai/fetch'),
+    import('./preferences/fetch'),
+    import('./llm/fetch'),
+    import('./assistant/fetch'),
+    import('./skill/fetch'),
+    import('./cache/fetch'),
+  ])
+
   registerAdapter('data', new FetchDataAdapter())
 
-  const { CliWebPlatformAdapter } = await import('./platform/cli-web')
   const platformAdapter = new CliWebPlatformAdapter()
   registerAdapter('platform', platformAdapter)
 
-  const [{ FetchImportAdapter }, { TelemetryImportAdapter }] = await Promise.all([
-    import('./import/fetch'),
-    import('./import/telemetry'),
-  ])
   registerAdapter('import', new TelemetryImportAdapter(new FetchImportAdapter(), platformAdapter))
-
-  const { FetchSessionIndexAdapter } = await import('./session-index/fetch')
   registerAdapter('session-index', new FetchSessionIndexAdapter())
-
-  const { FetchMessageAdapter } = await import('./message/fetch')
   registerAdapter('message', new FetchMessageAdapter())
-
-  const { FetchAIAdapter } = await import('./ai/fetch')
   registerAdapter('ai', new FetchAIAdapter())
-
-  const { FetchPreferencesAdapter } = await import('./preferences/fetch')
   registerAdapter('preferences', new FetchPreferencesAdapter())
-
-  const { FetchLLMAdapter } = await import('./llm/fetch')
   registerAdapter('llm', new FetchLLMAdapter())
-
-  const { FetchAssistantAdapter } = await import('./assistant/fetch')
   registerAdapter('assistant-crud', new FetchAssistantAdapter())
-
-  const { FetchSkillAdapter } = await import('./skill/fetch')
   registerAdapter('skill-crud', new FetchSkillAdapter())
-
-  const { FetchCacheAdapter } = await import('./cache/fetch')
   registerAdapter('cache', new FetchCacheAdapter())
 
   await installCliWebShims()

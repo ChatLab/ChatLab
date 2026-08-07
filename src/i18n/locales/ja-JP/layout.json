@@ -8,6 +8,7 @@
   "chatHistory": "チャット履歴",
   "manage": "管理",
   "noRecords": "記録がありません",
+  "sessionLoadFailed": "チャット履歴を読み込めませんでした",
   "searchPlaceholder": "チャット名を検索",
   "noSearchResult": "一致するチャット記録が見つかりません",
   "contextMenu": {
