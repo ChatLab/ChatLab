@@ -3,6 +3,7 @@
  * ECharts 柱状图组件
  */
 import { computed } from 'vue'
+import { useColorMode } from '@vueuse/core'
 import type { EChartsOption } from 'echarts'
 import EChart from './EChart.vue'
 
@@ -30,6 +31,8 @@ const props = withDefaults(defineProps<Props>(), {
   gradient: true,
   borderRadius: 4,
 })
+const colorMode = useColorMode()
+const isDark = computed(() => colorMode.value === 'dark')
 
 // 渐变色（使用项目主题粉色）
 const gradientColor = {
@@ -48,6 +51,8 @@ const option = computed<EChartsOption>(() => {
   const isHorizontal = props.horizontal
   const isCompact = props.mode === 'compact'
   const labelCount = props.data.labels.length
+  const axisLabelColor = isDark.value ? '#a1a1aa' : '#6b7280'
+  const splitLineColor = isDark.value ? 'rgba(255, 255, 255, 0.08)' : '#e5e7eb'
 
   return {
     tooltip: {
@@ -78,8 +83,12 @@ const option = computed<EChartsOption>(() => {
           splitLine: {
             lineStyle: {
               type: 'dashed',
-              color: '#e5e7eb',
+              color: splitLineColor,
             },
+          },
+          axisLabel: {
+            fontSize: 11,
+            color: axisLabelColor,
           },
         }
       : {
@@ -89,7 +98,7 @@ const option = computed<EChartsOption>(() => {
           axisTick: { show: false },
           axisLabel: {
             fontSize: 11,
-            color: '#6b7280',
+            color: axisLabelColor,
             interval: 'auto',
             rotate: !isHorizontal && labelCount > 8 ? 28 : 0,
             hideOverlap: true,
@@ -103,7 +112,7 @@ const option = computed<EChartsOption>(() => {
           axisTick: { show: false },
           axisLabel: {
             fontSize: 11,
-            color: '#6b7280',
+            color: axisLabelColor,
             overflow: 'truncate',
             width: isCompact ? 70 : 110,
           },
@@ -115,8 +124,12 @@ const option = computed<EChartsOption>(() => {
           splitLine: {
             lineStyle: {
               type: 'dashed',
-              color: '#e5e7eb',
+              color: splitLineColor,
             },
+          },
+          axisLabel: {
+            fontSize: 11,
+            color: axisLabelColor,
           },
         },
     series: [

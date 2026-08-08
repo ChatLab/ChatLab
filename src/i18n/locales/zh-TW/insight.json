@@ -11,6 +11,10 @@
   "monthLabel": "{month}月",
   "noData": "目前時間範圍內沒有可分析資料",
   "noTextData": "目前時間範圍內沒有文字訊息",
+  "calendar": {
+    "less": "少",
+    "more": "多"
+  },
   "kpis": {
     "messages": "發出訊息",
     "activeDays": "活躍天數",

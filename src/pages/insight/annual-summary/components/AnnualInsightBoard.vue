@@ -27,6 +27,12 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const monthlyTrendMode = ref<'messages' | 'contacts'>('messages')
+const kpiIcons: Record<string, string> = {
+  messages: 'i-heroicons-chat-bubble-left-right',
+  activeDays: 'i-heroicons-calendar-days',
+  contacts: 'i-heroicons-user-group',
+  dailyMessages: 'i-heroicons-chart-bar',
+}
 
 const title = computed(() =>
   props.range.mode === 'year'
@@ -136,16 +142,22 @@ function formatMonth(month: string | undefined): string {
 function percentage(value: number, total: number): number {
   return total > 0 ? Math.round((value / total) * 100) : 0
 }
+
+function kpiIcon(key: string): string {
+  return kpiIcons[key] ?? 'i-heroicons-chart-bar'
+}
 </script>
 
 <template>
-  <div class="grid gap-4 lg:grid-cols-12">
-    <ThemeCard class="relative isolate lg:col-span-8">
-      <CardDecoration />
+  <div class="grid gap-4 xl:grid-cols-12">
+    <ThemeCard class="relative isolate overflow-hidden xl:col-span-8">
+      <div class="annual-insight-hero-background pointer-events-none absolute inset-0" />
+      <CardDecoration theme="sunset" />
       <section class="relative z-10 min-w-0 p-5 sm:p-6">
-        <div class="flex flex-col gap-5 xl:flex-row xl:items-start xl:justify-between">
+        <div class="flex flex-col gap-5 2xl:flex-row 2xl:items-start 2xl:justify-between">
           <div class="min-w-0">
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{{ title }}</h2>
+            <div class="mt-2 h-px w-12 bg-gradient-to-r from-orange-400 to-pink-400" />
             <div class="mt-3 space-y-1.5 text-xs font-medium text-gray-500 dark:text-zinc-400">
               <div class="flex items-center gap-2">
                 <UIcon name="i-heroicons-calendar" class="h-4 w-4 opacity-70" />
@@ -165,38 +177,48 @@ function percentage(value: number, total: number): number {
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4 xl:shrink-0">
-            <div v-for="stat in primaryStats" :key="stat.key" class="min-w-0">
+          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 2xl:shrink-0">
+            <div
+              v-for="stat in primaryStats"
+              :key="stat.key"
+              class="flex min-w-0 flex-col items-start gap-1.5 rounded-xl bg-white/60 p-3 backdrop-blur-sm dark:bg-white/5"
+            >
+              <UIcon :name="kpiIcon(stat.key)" class="h-4 w-4 text-orange-500 dark:text-orange-400" />
               <div class="font-mono text-xl font-black tabular-nums text-gray-900 dark:text-white">
                 {{ formatValue(stat.value) }}
               </div>
-              <div class="mt-1 truncate text-[10px] font-medium text-gray-500 dark:text-zinc-400">
+              <div class="text-[11px] leading-tight font-medium text-gray-500 dark:text-zinc-400">
                 {{ t(`insight.kpis.${stat.key}`) }}
               </div>
             </div>
           </div>
         </div>
 
-        <div class="mt-7 flex flex-wrap items-center justify-between gap-3">
-          <h3 class="text-[11px] font-bold uppercase text-pink-600 dark:text-pink-400">
-            {{ t('insight.sections.overview') }}
-          </h3>
-          <div class="flex rounded-lg bg-gray-100 p-0.5 dark:bg-zinc-800">
-            <button
-              v-for="mode in ['messages', 'contacts'] as const"
-              :key="mode"
-              type="button"
-              class="rounded-md px-2.5 py-1 text-[10px] font-medium transition-colors"
-              :class="
-                monthlyTrendMode === mode
-                  ? 'bg-white text-gray-900 shadow-sm dark:bg-zinc-700 dark:text-white'
-                  : 'text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200'
-              "
-              :aria-pressed="monthlyTrendMode === mode"
-              @click="monthlyTrendMode = mode"
+        <div class="mt-5 border-t border-gray-200/60 pt-5 dark:border-white/5">
+          <div class="flex flex-wrap items-center justify-between gap-3">
+            <h3
+              class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300"
             >
-              {{ t(`insight.overviewCard.monthlyTrend.${mode}`) }}
-            </button>
+              <span class="inline-block h-2 w-2 rounded-full bg-orange-400" />
+              {{ t('insight.sections.overview') }}
+            </h3>
+            <div class="flex rounded-lg bg-gray-100 p-0.5 dark:bg-zinc-800">
+              <button
+                v-for="mode in ['messages', 'contacts'] as const"
+                :key="mode"
+                type="button"
+                class="rounded-md px-2.5 py-1 text-[10px] font-medium transition-colors"
+                :class="
+                  monthlyTrendMode === mode
+                    ? 'bg-white text-gray-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                    : 'text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+                "
+                :aria-pressed="monthlyTrendMode === mode"
+                @click="monthlyTrendMode = mode"
+              >
+                {{ t(`insight.overviewCard.monthlyTrend.${mode}`) }}
+              </button>
+            </div>
           </div>
         </div>
         <p class="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">{{ monthlyTrendDescription }}</p>
@@ -206,11 +228,15 @@ function percentage(value: number, total: number): number {
       </section>
     </ThemeCard>
 
-    <ThemeCard class="lg:col-span-4">
-      <section class="min-w-0 p-5 sm:p-6">
+    <ThemeCard class="relative isolate xl:col-span-4">
+      <CardDecoration theme="sunshine" />
+      <section class="relative z-10 min-w-0 p-5 sm:p-6">
         <div class="flex items-start justify-between gap-4">
           <div>
-            <h3 class="text-[11px] font-bold uppercase text-pink-600 dark:text-pink-400">
+            <h3
+              class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300"
+            >
+              <span class="inline-block h-2 w-2 rounded-full bg-amber-400" />
               {{ t('insight.overviewCard.activity') }}
             </h3>
             <p class="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">
@@ -221,7 +247,7 @@ function percentage(value: number, total: number): number {
             <div class="font-mono text-lg font-black tabular-nums text-gray-900 dark:text-white">
               {{ metrics.activeDayCount }}
             </div>
-            <div class="text-[9px] text-gray-400 dark:text-zinc-500">
+            <div class="text-[10px] text-gray-400 dark:text-zinc-500">
               {{ t('insight.overviewCard.activeRate', { rate: activeRate }) }}
             </div>
           </div>
@@ -232,9 +258,11 @@ function percentage(value: number, total: number): number {
       </section>
     </ThemeCard>
 
-    <ThemeCard class="lg:col-span-5">
-      <section class="min-w-0 p-5 sm:p-6">
-        <h3 class="text-[11px] font-bold uppercase text-pink-600 dark:text-pink-400">
+    <ThemeCard class="relative isolate xl:col-span-5">
+      <CardDecoration theme="galaxy" />
+      <section class="relative z-10 min-w-0 p-5 sm:p-6">
+        <h3 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300">
+          <span class="inline-block h-2 w-2 rounded-full bg-indigo-400" />
           {{ t('insight.sections.messageTypes') }}
         </h3>
         <p class="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">
@@ -252,11 +280,11 @@ function percentage(value: number, total: number): number {
             </div>
             <div class="mt-2 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-zinc-800">
               <div
-                class="h-full rounded-full bg-pink-500"
+                class="h-full rounded-full bg-gradient-to-r from-pink-400 to-violet-400"
                 :style="{ width: `${percentage(item.count, messageTypeTotal)}%` }"
               />
             </div>
-            <div class="mt-1.5 font-mono text-[9px] text-gray-400 dark:text-zinc-500">
+            <div class="mt-1.5 font-mono text-[10px] text-gray-400 dark:text-zinc-500">
               {{ formatValue(item.count) }}
             </div>
           </div>
@@ -267,11 +295,15 @@ function percentage(value: number, total: number): number {
       </section>
     </ThemeCard>
 
-    <ThemeCard class="lg:col-span-3">
-      <section class="min-w-0 p-5 sm:p-6">
+    <ThemeCard class="relative isolate xl:col-span-3">
+      <CardDecoration theme="mist" />
+      <section class="relative z-10 min-w-0 p-5 sm:p-6">
         <div class="flex items-start justify-between gap-3">
           <div>
-            <h3 class="text-[11px] font-bold uppercase text-pink-600 dark:text-pink-400">
+            <h3
+              class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300"
+            >
+              <span class="inline-block h-2 w-2 rounded-full bg-cyan-400" />
               {{ t('insight.sections.textLength') }}
             </h3>
             <p class="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">
@@ -283,11 +315,11 @@ function percentage(value: number, total: number): number {
               <div class="font-mono text-sm font-black text-gray-900 dark:text-white">
                 {{ textLength.median ?? '-' }}
               </div>
-              <div class="text-[9px] text-gray-400 dark:text-zinc-500">{{ t('insight.length.median') }}</div>
+              <div class="text-[10px] text-gray-400 dark:text-zinc-500">{{ t('insight.length.median') }}</div>
             </div>
             <div>
               <div class="font-mono text-sm font-black text-gray-900 dark:text-white">{{ textLength.p90 ?? '-' }}</div>
-              <div class="text-[9px] text-gray-400 dark:text-zinc-500">P90</div>
+              <div class="text-[10px] text-gray-400 dark:text-zinc-500">P90</div>
             </div>
           </div>
         </div>
@@ -299,12 +331,12 @@ function percentage(value: number, total: number): number {
           >
             <div class="flex h-16 w-full items-end rounded-sm bg-gray-100 dark:bg-zinc-800">
               <div
-                class="w-full rounded-sm bg-blue-500/80 dark:bg-blue-400/80"
+                class="w-full rounded-sm bg-gradient-to-t from-cyan-400/80 to-blue-400/80 dark:from-cyan-400/80 dark:to-blue-400/80"
                 :style="{ height: `${Math.max(4, (bucket.count / maxLengthBucket) * 100)}%` }"
                 :title="`${bucket.key}: ${bucket.count}`"
               />
             </div>
-            <span class="w-full truncate text-center font-mono text-[8px] text-gray-400 dark:text-zinc-500">
+            <span class="w-full truncate text-center font-mono text-[9px] text-gray-400 dark:text-zinc-500">
               {{ bucket.key }}
             </span>
           </div>
@@ -315,26 +347,32 @@ function percentage(value: number, total: number): number {
       </section>
     </ThemeCard>
 
-    <ThemeCard class="lg:col-span-4">
-      <section class="min-w-0 p-5 sm:p-6">
-        <h3 class="text-[11px] font-bold uppercase text-pink-600 dark:text-pink-400">
+    <ThemeCard class="relative isolate xl:col-span-4">
+      <CardDecoration theme="berry" />
+      <section class="relative z-10 min-w-0 p-5 sm:p-6">
+        <h3 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300">
+          <span class="inline-block h-2 w-2 rounded-full bg-rose-400" />
           {{ t('insight.overviewCard.keyMetrics') }}
         </h3>
-        <div class="mt-4 space-y-4">
+        <div class="mt-5 space-y-4">
           <div
             v-for="(row, rowIndex) in highlightRows"
             :key="rowIndex"
-            class="grid grid-cols-3 divide-x divide-gray-200 dark:divide-white/10"
+            class="grid grid-cols-3 gap-2"
             :class="{ 'border-t border-gray-200 pt-4 dark:border-white/10': rowIndex > 0 }"
           >
-            <div v-for="item in row" :key="item.key" class="min-w-0 px-3 first:pl-0 last:pr-0">
+            <div
+              v-for="item in row"
+              :key="item.key"
+              class="min-w-0 border-l-2 border-pink-300 py-0.5 pr-2 pl-3 last:pr-0 dark:border-pink-700"
+            >
               <div class="truncate font-mono text-sm font-black tabular-nums text-gray-900 dark:text-white">
                 {{ item.value }}
               </div>
-              <div class="mt-1 text-[9px] leading-tight font-medium text-gray-500 dark:text-zinc-400">
+              <div class="mt-1 text-[10px] leading-tight font-medium text-gray-500 dark:text-zinc-400">
                 {{ t(`insight.overviewCard.${item.key}`) }}
               </div>
-              <div class="mt-0.5 truncate text-[8px] text-gray-400 dark:text-zinc-500">{{ item.detail }}</div>
+              <div class="mt-0.5 truncate text-[9px] text-gray-400 dark:text-zinc-500">{{ item.detail }}</div>
             </div>
           </div>
         </div>
@@ -342,3 +380,21 @@ function percentage(value: number, total: number): number {
     </ThemeCard>
   </div>
 </template>
+
+<style scoped>
+.annual-insight-hero-background {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, #fb923c 8%, transparent),
+    color-mix(in srgb, #fb7185 8%, transparent)
+  );
+}
+
+:global(.dark .annual-insight-hero-background) {
+  background: linear-gradient(
+    135deg,
+    color-mix(in srgb, #fb923c 15%, transparent),
+    color-mix(in srgb, #fb7185 15%, transparent)
+  );
+}
+</style>

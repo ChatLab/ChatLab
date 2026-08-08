@@ -77,28 +77,42 @@ function startOfDay(date: Date): Date {
 </script>
 
 <template>
-  <div class="grid grid-cols-2 gap-x-3 gap-y-4 sm:grid-cols-3 lg:grid-cols-4">
-    <div v-for="month in months" :key="month.key" class="min-w-0">
-      <div class="mb-1.5 text-[10px] font-semibold text-gray-500 dark:text-zinc-400">
-        {{ month.label }}
+  <div>
+    <div class="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3 lg:grid-cols-4">
+      <div v-for="month in months" :key="month.key" class="min-w-0">
+        <div class="mb-1.5 text-[11px] font-bold text-gray-500 dark:text-zinc-400">
+          {{ month.label }}
+        </div>
+        <div class="grid grid-cols-7 gap-[3px]" aria-hidden="true">
+          <span
+            v-for="index in month.leadingDays"
+            :key="`blank-${index}`"
+            class="aspect-square min-h-[7px] rounded-[3px] bg-gray-50 dark:bg-zinc-800/30"
+          />
+          <span
+            v-for="day in month.days"
+            :key="day.key"
+            class="aspect-square min-h-[7px] rounded-[3px]"
+            :class="{
+              'opacity-30': !day.inRange,
+              'bg-gray-50 dark:bg-zinc-800/30': day.level === 0,
+              'bg-pink-100 dark:bg-pink-500/10': day.level === 1,
+              'bg-pink-200 dark:bg-pink-500/25': day.level === 2,
+              'bg-pink-400 dark:bg-pink-500/50': day.level === 3,
+              'bg-pink-600 dark:bg-pink-500/80': day.level === 4,
+            }"
+            :title="`${day.key}: ${day.count} ${t('insight.messages')}`"
+          />
+        </div>
       </div>
-      <div class="grid grid-cols-7 gap-0.5" aria-hidden="true">
-        <span v-for="index in month.leadingDays" :key="`blank-${index}`" class="aspect-square" />
-        <span
-          v-for="day in month.days"
-          :key="day.key"
-          class="aspect-square min-h-[5px] rounded-[2px]"
-          :class="{
-            'opacity-30': !day.inRange,
-            'bg-gray-100 dark:bg-zinc-800': day.level === 0,
-            'bg-pink-100 dark:bg-pink-500/15': day.level === 1,
-            'bg-pink-200 dark:bg-pink-500/30': day.level === 2,
-            'bg-pink-400 dark:bg-pink-500/50': day.level === 3,
-            'bg-pink-600 dark:bg-pink-500/75': day.level === 4,
-          }"
-          :title="`${day.key}: ${day.count} ${t('insight.messages')}`"
-        />
-      </div>
+    </div>
+    <div class="mt-4 flex items-center justify-end gap-1.5 text-[10px] text-gray-400 dark:text-zinc-500">
+      <span>{{ t('insight.calendar.less') }}</span>
+      <span aria-hidden="true" class="inline-block h-2.5 w-2.5 rounded-[2px] bg-pink-100 dark:bg-pink-500/10" />
+      <span aria-hidden="true" class="inline-block h-2.5 w-2.5 rounded-[2px] bg-pink-200 dark:bg-pink-500/25" />
+      <span aria-hidden="true" class="inline-block h-2.5 w-2.5 rounded-[2px] bg-pink-400 dark:bg-pink-500/50" />
+      <span aria-hidden="true" class="inline-block h-2.5 w-2.5 rounded-[2px] bg-pink-600 dark:bg-pink-500/80" />
+      <span>{{ t('insight.calendar.more') }}</span>
     </div>
   </div>
 </template>

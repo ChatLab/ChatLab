@@ -11,6 +11,10 @@
   "monthLabel": "{month}月",
   "noData": "この期間には分析可能なデータがありません",
   "noTextData": "この期間にはテキストメッセージがありません",
+  "calendar": {
+    "less": "少ない",
+    "more": "多い"
+  },
   "kpis": {
     "messages": "送信メッセージ",
     "activeDays": "アクティブ日数",
