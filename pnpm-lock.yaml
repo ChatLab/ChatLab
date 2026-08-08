@@ -546,6 +546,9 @@ importers:
       '@openchatlab/parser':
         specifier: workspace:*
         version: link:../parser
+      '@openchatlab/shared-types':
+        specifier: workspace:*
+        version: link:../shared-types
       '@openchatlab/tools':
         specifier: workspace:*
         version: link:../tools

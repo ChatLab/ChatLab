@@ -13,6 +13,7 @@
     "@openchatlab/ai-runtime": "workspace:*",
     "@openchatlab/core": "workspace:*",
     "@openchatlab/parser": "workspace:*",
+    "@openchatlab/shared-types": "workspace:*",
     "@openchatlab/tools": "workspace:*",
     "@sqlite.org/sqlite-wasm": "3.53.0-build1"
   }
