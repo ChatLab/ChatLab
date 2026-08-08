@@ -81,7 +81,7 @@
       "catchphrase": "口癖"
     },
     "groupRelationships": {
-      "mentionGraph": "{'@'} 関係図",
+      "relationshipGalaxy": "関係ギャラクシー",
       "mentionRanking": "{'@'} ランキング",
       "proximity": "発言の近接度"
     },

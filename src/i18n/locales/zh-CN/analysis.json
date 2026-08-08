@@ -82,7 +82,7 @@
       "catchphrase": "口头禅"
     },
     "groupRelationships": {
-      "mentionGraph": "{'@'} 关系图",
+      "relationshipGalaxy": "关系星空图",
       "mentionRanking": "{'@'} 排行",
       "proximity": "发言临近度"
     },

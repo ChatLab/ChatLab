@@ -3,7 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SectionTabs } from '@/components/navigation'
 import ClusterView from '@/components/analysis/relationships/ClusterView.vue'
-import InteractionView from '@/components/analysis/relationships/InteractionView.vue'
+import GroupRelationshipGalaxyView from '@/components/analysis/relationships/GroupRelationshipGalaxyView.vue'
 import MentionRankingView from '@/components/analysis/relationships/MentionRankingView.vue'
 import type { TimeFilter } from '@openchatlab/shared-types'
 import { getProximityTimeFilter } from './group-relationship-filter'
@@ -14,13 +14,13 @@ const props = defineProps<{
 }>()
 
 const { t } = useI18n()
-const activeSubTab = ref('mention-graph')
+const activeSubTab = ref('relationship-galaxy')
 const proximityTimeFilter = computed(() => getProximityTimeFilter(props.timeFilter))
 const subTabs = computed(() => [
   {
-    id: 'mention-graph',
-    label: t('analysis.subTabs.groupRelationships.mentionGraph'),
-    icon: 'i-heroicons-arrows-right-left',
+    id: 'relationship-galaxy',
+    label: t('analysis.subTabs.groupRelationships.relationshipGalaxy'),
+    icon: 'i-lucide-orbit',
   },
   {
     id: 'mention-ranking',
@@ -41,8 +41,8 @@ const subTabs = computed(() => [
 
     <div class="min-h-0 flex-1 overflow-y-auto">
       <Transition name="fade" mode="out-in">
-        <InteractionView
-          v-if="activeSubTab === 'mention-graph'"
+        <GroupRelationshipGalaxyView
+          v-if="activeSubTab === 'relationship-galaxy'"
           :session-id="props.sessionId"
           :time-filter="props.timeFilter"
         />

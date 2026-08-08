@@ -1,12 +1,8 @@
 <script setup lang="ts">
-/**
- * 群关系 - 合并视图
- * 将 @ 关系图、@ 排行、发言临近度 三个分析整合到一个 Tab 中
- */
 import { ref, computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SectionTabs } from '@/components/navigation'
-import InteractionView from '@/components/analysis/relationships/InteractionView.vue'
+import GroupRelationshipGalaxyView from '@/components/analysis/relationships/GroupRelationshipGalaxyView.vue'
 import MentionRankingView from '@/components/analysis/relationships/MentionRankingView.vue'
 import ClusterView from '@/components/analysis/relationships/ClusterView.vue'
 import type { TimeFilter } from '@openchatlab/shared-types'
@@ -18,13 +14,13 @@ const props = defineProps<{
   timeFilter?: TimeFilter
 }>()
 
-const activeSubTab = ref('mention-graph')
+const activeSubTab = ref('relationship-galaxy')
 
 const subTabs = computed(() => [
   {
-    id: 'mention-graph',
-    label: t('analysis.subTabs.groupRelationships.mentionGraph'),
-    icon: 'i-heroicons-arrows-right-left',
+    id: 'relationship-galaxy',
+    label: t('analysis.subTabs.groupRelationships.relationshipGalaxy'),
+    icon: 'i-lucide-orbit',
   },
   { id: 'mention-ranking', label: t('analysis.subTabs.groupRelationships.mentionRanking'), icon: 'i-heroicons-heart' },
   { id: 'proximity', label: t('analysis.subTabs.groupRelationships.proximity'), icon: 'i-heroicons-user-group' },
@@ -37,8 +33,8 @@ const subTabs = computed(() => [
 
     <div class="min-h-0 flex-1 overflow-y-auto">
       <Transition name="fade" mode="out-in">
-        <InteractionView
-          v-if="activeSubTab === 'mention-graph'"
+        <GroupRelationshipGalaxyView
+          v-if="activeSubTab === 'relationship-galaxy'"
           :session-id="props.sessionId"
           :time-filter="props.timeFilter"
         />

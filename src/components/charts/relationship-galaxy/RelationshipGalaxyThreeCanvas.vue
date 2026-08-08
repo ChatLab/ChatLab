@@ -71,6 +71,7 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (event: 'select-node', node: RelationshipGalaxyRenderNode): void
+  (event: 'clear-selection'): void
   (event: 'fallback'): void
 }>()
 
@@ -491,7 +492,10 @@ function handlePointerLeave() {
 
 function handleClick() {
   const key = hoveredKey.value
-  if (!key) return
+  if (!key) {
+    emit('clear-selection')
+    return
+  }
   const object = nodeObjects.get(key)
   if (!object) return
   emit('select-node', object.sceneNode.node)

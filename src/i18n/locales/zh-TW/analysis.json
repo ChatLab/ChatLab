@@ -81,7 +81,7 @@
       "catchphrase": "口頭禪"
     },
     "groupRelationships": {
-      "mentionGraph": "{'@'} 關係圖",
+      "relationshipGalaxy": "關係星空圖",
       "mentionRanking": "{'@'} 排行",
       "proximity": "發言臨近度"
     },

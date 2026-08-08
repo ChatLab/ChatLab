@@ -118,6 +118,27 @@
     "graphHint": "{nodes} members, {links} interactions",
     "noInteraction": "No mention interaction data"
   },
+  "groupRelationshipGalaxy": {
+    "canvasLabel": "Group interaction relationship galaxy",
+    "loading": "Mapping group relationships...",
+    "loadFailed": "Failed to load the relationship galaxy",
+    "webglUnavailable": "The relationship galaxy is unavailable",
+    "webglUnavailableDescription": "Enable hardware acceleration or try an environment that supports WebGL.",
+    "emptyTitle": "Not enough interaction data",
+    "emptyDescription": "At least two members need replies, mentions, or nearby messages in this time range.",
+    "resetView": "Reset view",
+    "closeDetail": "Close member details",
+    "messageCount": "Group messages",
+    "relationshipScore": "Relationship strength",
+    "lastInteraction": "Last interaction",
+    "signalComposition": "Interaction signals",
+    "replies": "Replies",
+    "mentions": "Mentions",
+    "proximity": "Proximity",
+    "strongConnections": "Closest connections",
+    "connectionSignals": "{replies} replies · {mentions} mentions · {proximity} nearby",
+    "noConnections": "No direct connections to display"
+  },
   "relationship": {
     "empty": {
       "title": "No Relationship Data",
