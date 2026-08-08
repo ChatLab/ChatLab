@@ -5,7 +5,7 @@ import { SectionTabs } from '@/components/navigation'
 import UserSelect from '@/components/common/UserSelect.vue'
 import TypeAnalysisView from '@/components/analysis/message/TypeAnalysisView.vue'
 import TimeAnalysisView from '@/components/analysis/message/TimeAnalysisView.vue'
-import GroupRelationships from './GroupRelationships.vue'
+import GroupRelationshipGalaxyView from '@/components/analysis/relationship/GroupRelationshipGalaxyView.vue'
 import { WordcloudTab } from '@/components/analysis/quotes'
 import type { TimeFilter } from '@openchatlab/shared-types'
 import type { AnalysisSession, MessageType } from '@/types/base'
@@ -34,11 +34,7 @@ const subTabs = computed(() => {
     { id: 'type-analysis', label: t('analysis.subTabs.insights.typeAnalysis'), icon: 'i-heroicons-chart-pie' },
     { id: 'time-analysis', label: t('analysis.subTabs.insights.timeAnalysis'), icon: 'i-heroicons-clock' },
     { id: 'topic', label: t('analysis.subTabs.insights.topic'), icon: 'i-heroicons-cloud' },
-    {
-      id: 'group-relationships',
-      label: t('analysis.subTabs.insights.groupRelationships'),
-      icon: 'i-heroicons-heart',
-    },
+    { id: 'relationship', label: t('analysis.subTabs.insights.relationship'), icon: 'i-heroicons-heart' },
   ]
 })
 
@@ -57,11 +53,7 @@ const viewTimeFilter = computed(() => ({
     <SectionTabs v-model="activeSubTab" :items="subTabs" persist-key="groupInsightsTab">
       <template #right>
         <UserSelect
-          v-if="
-            activeSubTab === 'type-analysis' ||
-            activeSubTab === 'time-analysis' ||
-            activeSubTab === 'group-relationships'
-          "
+          v-if="activeSubTab === 'type-analysis' || activeSubTab === 'time-analysis'"
           v-model="selectedMemberId"
           :session-id="props.sessionId"
         />
@@ -96,10 +88,10 @@ const viewTimeFilter = computed(() => ({
             :time-filter="viewTimeFilter"
           />
           <WordcloudTab v-else-if="viewKey === 'topic'" :session-id="props.sessionId" :time-filter="props.timeFilter" />
-          <GroupRelationships
-            v-else-if="viewKey === 'group-relationships'"
+          <GroupRelationshipGalaxyView
+            v-else-if="viewKey === 'relationship'"
             :session-id="props.sessionId"
-            :time-filter="viewTimeFilter"
+            :time-filter="props.timeFilter"
           />
         </template>
       </InsightViewTransition>

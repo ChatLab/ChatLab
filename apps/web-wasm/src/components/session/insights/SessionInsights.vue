@@ -3,7 +3,8 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SectionTabs } from '@/components/navigation'
 import UserSelect from '@/components/common/UserSelect.vue'
-import PrivateRelationshipView from '@/components/analysis/relationships/PrivateRelationshipView.vue'
+import GroupRelationshipGalaxyView from '@/components/analysis/relationship/GroupRelationshipGalaxyView.vue'
+import PrivateRelationshipView from '@/components/analysis/relationship/PrivateRelationshipView.vue'
 import JourneyView from '@/components/analysis/journey/JourneyView.vue'
 import TypeAnalysisView from '@/components/analysis/message/TypeAnalysisView.vue'
 import TimeAnalysisView from '@/components/analysis/message/TimeAnalysisView.vue'
@@ -12,7 +13,6 @@ import type { TimeFilter } from '@openchatlab/shared-types'
 import type { AnalysisSession, MessageType } from '@/types/base'
 import type { DailyActivity, HourlyActivity, MemberActivity } from '@/types/analysis'
 import { InsightViewTransition } from '@/components/UI'
-import GroupRelationshipInsights from './GroupRelationshipInsights.vue'
 import GroupOverview from './GroupOverview.vue'
 import PrivateOverview from './PrivateOverview.vue'
 
@@ -54,11 +54,7 @@ const subTabs = computed(() =>
         { id: 'type-analysis', label: t('analysis.subTabs.insights.typeAnalysis'), icon: 'i-heroicons-chart-pie' },
         { id: 'time-analysis', label: t('analysis.subTabs.insights.timeAnalysis'), icon: 'i-heroicons-clock' },
         { id: 'topic', label: t('analysis.subTabs.insights.topic'), icon: 'i-heroicons-cloud' },
-        {
-          id: 'group-relationships',
-          label: t('analysis.subTabs.insights.groupRelationships'),
-          icon: 'i-heroicons-heart',
-        },
+        { id: 'relationship', label: t('analysis.subTabs.insights.relationship'), icon: 'i-heroicons-heart' },
       ]
 )
 const viewTimeFilter = computed(() => ({ ...props.timeFilter, memberId: selectedMemberId.value }))
@@ -69,11 +65,7 @@ const viewTimeFilter = computed(() => ({ ...props.timeFilter, memberId: selected
     <SectionTabs v-model="activeSubTab" :items="subTabs" :persist-key="persistKey">
       <template #right>
         <UserSelect
-          v-if="
-            activeSubTab === 'type-analysis' ||
-            activeSubTab === 'time-analysis' ||
-            activeSubTab === 'group-relationships'
-          "
+          v-if="activeSubTab === 'type-analysis' || activeSubTab === 'time-analysis'"
           v-model="selectedMemberId"
           :session-id="props.sessionId"
         />
@@ -108,6 +100,11 @@ const viewTimeFilter = computed(() => ({ ...props.timeFilter, memberId: selected
             :time-filter="props.timeFilter"
           />
           <PrivateRelationshipView
+            v-else-if="viewKey === 'relationship' && isPrivateChat"
+            :session-id="props.sessionId"
+            :time-filter="props.timeFilter"
+          />
+          <GroupRelationshipGalaxyView
             v-else-if="viewKey === 'relationship'"
             :session-id="props.sessionId"
             :time-filter="props.timeFilter"
@@ -145,12 +142,6 @@ const viewTimeFilter = computed(() => ({ ...props.timeFilter, memberId: selected
             :session-id="props.sessionId"
             :time-filter="props.timeFilter"
             :enable-record-navigation="false"
-          />
-          <GroupRelationshipInsights
-            v-else-if="viewKey === 'group-relationships'"
-            :key="selectedMemberId ?? 'all'"
-            :session-id="props.sessionId"
-            :time-filter="viewTimeFilter"
           />
         </template>
       </InsightViewTransition>

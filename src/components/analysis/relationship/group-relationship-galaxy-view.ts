@@ -4,6 +4,8 @@ import type {
   GroupRelationshipGalaxyMemberDetail,
 } from '@openchatlab/shared-types'
 
+/** 构造关系详情面板展示的邻接成员列表。 */
+
 export interface GroupRelationshipGalaxyConnection {
   member: GroupRelationshipGalaxyMemberDetail
   edge: GroupRelationshipGalaxyEdgeDetail

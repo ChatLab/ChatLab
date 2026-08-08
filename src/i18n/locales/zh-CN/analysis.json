@@ -68,23 +68,19 @@
       "typeAnalysis": "类型",
       "timeAnalysis": "时间",
       "topic": "话题",
-      "groupRelationships": "群关系",
       "relationship": "关系",
       "journey": "历程",
       "languagePreference": "语言偏好"
     },
     "ranking": {
       "overall": "总榜单",
+      "interaction": "互动排行",
+      "proximity": "邻近度排行",
       "keyword": "关键词"
     },
     "quotes": {
       "hotRepeat": "最火复读",
       "catchphrase": "口头禅"
-    },
-    "groupRelationships": {
-      "relationshipGalaxy": "关系星空图",
-      "mentionRanking": "{'@'} 排行",
-      "proximity": "发言临近度"
     },
     "member": {
       "nicknameHistory": "昵称变更"

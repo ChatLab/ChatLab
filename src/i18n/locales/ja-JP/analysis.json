@@ -67,23 +67,19 @@
       "typeAnalysis": "タイプ",
       "timeAnalysis": "時間",
       "topic": "トピック",
-      "groupRelationships": "グループ関係",
       "relationship": "関係",
       "journey": "歩み",
       "languagePreference": "言語傾向"
     },
     "ranking": {
       "overall": "総合ランキング",
+      "interaction": "交流ランキング",
+      "proximity": "近接度ランキング",
       "keyword": "キーワード"
     },
     "quotes": {
       "hotRepeat": "盛り上がった復唱",
       "catchphrase": "口癖"
-    },
-    "groupRelationships": {
-      "relationshipGalaxy": "関係ギャラクシー",
-      "mentionRanking": "{'@'} ランキング",
-      "proximity": "発言の近接度"
     },
     "member": {
       "nicknameHistory": "ニックネーム変更履歴"

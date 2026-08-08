@@ -67,23 +67,19 @@
       "typeAnalysis": "Types",
       "timeAnalysis": "Time",
       "topic": "Topics",
-      "groupRelationships": "Relationships",
       "relationship": "Relationship",
       "journey": "Journey",
       "languagePreference": "Language Preference"
     },
     "ranking": {
       "overall": "Overall",
+      "interaction": "Interaction Ranking",
+      "proximity": "Proximity Ranking",
       "keyword": "Keywords"
     },
     "quotes": {
       "hotRepeat": "Hot Repeats",
       "catchphrase": "Catchphrases"
-    },
-    "groupRelationships": {
-      "relationshipGalaxy": "Relationship Galaxy",
-      "mentionRanking": "Mention Ranking",
-      "proximity": "Proximity"
     },
     "member": {
       "nicknameHistory": "Nickname History"

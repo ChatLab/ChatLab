@@ -16,7 +16,7 @@ const data = {
   ],
 } as GroupRelationshipGalaxyData
 
-test('builds the selected member connection list from either edge direction', () => {
+test('builds the selected relationship member connection list from either edge direction', () => {
   const connections = buildGroupRelationshipGalaxyConnections(data, 'a')
 
   assert.deepEqual(
