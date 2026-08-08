@@ -9,12 +9,13 @@ import type {
   PeopleRelationshipGraphEdge,
   PeopleRelationshipGraphNode,
   PeopleRelationshipsGraphData,
+  RelationshipGalaxyRenderNode,
 } from '@openchatlab/shared-types'
 import { buildRelationshipGalaxy3DScene, shouldRenderRelationshipGalaxy3DLabel } from './relationship-galaxy-3d-scene'
 
 function node(
   overrides: Partial<PeopleRelationshipGraphNode> & { key: string; rank: number }
-): PeopleRelationshipGraphNode {
+): PeopleRelationshipGraphNode & RelationshipGalaxyRenderNode {
   return {
     key: overrides.key,
     kind: overrides.kind ?? 'contact',
@@ -38,6 +39,8 @@ function node(
     groupMessageCount: 0,
     commonGroupCount: 0,
     searchText: overrides.searchText ?? overrides.key,
+    visualRole: overrides.kind === 'owner' ? 'anchor' : overrides.pool === 'friend' ? 'close' : 'standard',
+    importance: overrides.kind === 'owner' ? 1 : (overrides.score ?? 0.5),
   }
 }
 
@@ -204,7 +207,7 @@ test('keeps owner at the 3D panorama center when compacting asymmetric layouts',
   }
 
   const scene = buildRelationshipGalaxy3DScene(graph)
-  const owner = scene.nodes.find((item) => item.node.kind === 'owner')
+  const owner = scene.nodes.find((item) => item.key === 'weixin:owner')
 
   assert.equal(owner?.x, 0)
   assert.equal(owner?.y, 0)
@@ -426,7 +429,7 @@ test('uses a broad deterministic multi-color palette for contact stars', () => {
   const scene = buildRelationshipGalaxy3DScene(graph)
   const contactColorFamilies = new Set(
     scene.nodes
-      .filter((item) => item.node.kind !== 'owner')
+      .filter((item) => item.key !== 'weixin:owner')
       .map((item) => colorFamily(item.color))
       .filter(Boolean)
   )

@@ -12,14 +12,7 @@ export type { BrowserRuntimeServiceAdapter } from './browser-runtime/types'
 
 export { useDataService } from './data/service'
 export type { DataAdapter } from './data/types'
-export type {
-  PaginationParams,
-  PaginatedResult,
-  SQLResult,
-  TableSchema,
-  MentionGraphData,
-  MessageLengthDistribution,
-} from './data/types'
+export type { PaginationParams, PaginatedResult, SQLResult, TableSchema, MessageLengthDistribution } from './data/types'
 
 export { useImportService } from './import/service'
 export type {

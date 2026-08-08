@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 私聊关系指标的通用双列卡片。
 import { computed, useSlots } from 'vue'
 
 withDefaults(

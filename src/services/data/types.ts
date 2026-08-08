@@ -19,6 +19,7 @@ import type {
   PeopleRelationshipsNeighborhoodResponse,
   AnnualSummaryMode,
   AnnualSummaryResponse,
+  GroupRelationshipGalaxyData,
 } from '@openchatlab/shared-types'
 import type { JourneyStats, WordFrequencyParams, WordFrequencyResult } from '@openchatlab/core'
 import type {
@@ -133,14 +134,6 @@ export interface AnnualSummaryFetchOptions {
   acceptStale?: boolean
 }
 
-// ==================== Mention Graph ====================
-
-export interface MentionGraphData {
-  nodes: Array<{ id: number; name: string; value: number; symbolSize: number }>
-  links: Array<{ source: string; target: string; value: number }>
-  maxLinkValue: number
-}
-
 // ==================== 消息长度分布 ====================
 
 export interface MessageLengthDistribution {
@@ -234,7 +227,7 @@ export interface DataAdapter {
     dictType?: string
   ): Promise<LanguagePreferenceResult>
   getMentionAnalysis(sessionId: string, filter?: TimeFilter): Promise<MentionAnalysis>
-  getMentionGraph(sessionId: string, filter?: TimeFilter): Promise<MentionGraphData>
+  getGroupRelationshipGalaxy(sessionId: string, filter?: TimeFilter): Promise<GroupRelationshipGalaxyData>
   getClusterGraph(sessionId: string, filter?: TimeFilter, options?: ClusterGraphOptions): Promise<ClusterGraphData>
   getLaughAnalysis(sessionId: string, filter?: TimeFilter, keywords?: string[]): Promise<LaughAnalysis>
   getRelationshipStats(

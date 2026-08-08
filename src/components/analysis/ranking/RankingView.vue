@@ -8,10 +8,15 @@ import { isFeatureSupported, type LocaleType } from '@/i18n'
 import type { TimeFilter } from '@openchatlab/shared-types'
 import KeywordRankingTab from './KeywordRankingTab.vue'
 import OverallRankingTab from './OverallRankingTab.vue'
+import InteractionRankingTab from './InteractionRankingTab.vue'
+import ProximityRankingTab from './ProximityRankingTab.vue'
+
+type RankingTabId = 'overall' | 'interaction' | 'proximity' | 'hot-repeat' | 'catchphrase' | 'keyword'
 
 const props = defineProps<{
   sessionId: string
   timeFilter?: TimeFilter
+  visibleTabIds?: RankingTabId[]
 }>()
 
 const { t, locale } = useI18n()
@@ -20,26 +25,26 @@ const activeSubTab = ref('overall')
 const selectedMemberId = ref<number | null>(null)
 
 const supportsGroupRanking = computed(() => isFeatureSupported('groupRanking', locale.value as LocaleType))
+const isTabVisible = (id: RankingTabId) => !props.visibleTabIds || props.visibleTabIds.includes(id)
 
 const subTabs = computed(() => {
-  const tabs = supportsGroupRanking.value
-    ? [{ id: 'overall', label: t('analysis.subTabs.ranking.overall'), icon: 'i-heroicons-trophy' }]
-    : []
+  const tabs =
+    supportsGroupRanking.value && isTabVisible('overall')
+      ? [{ id: 'overall', label: t('analysis.subTabs.ranking.overall'), icon: 'i-heroicons-trophy' }]
+      : []
 
   return [
     ...tabs,
+    { id: 'interaction', label: t('analysis.subTabs.ranking.interaction'), icon: 'i-heroicons-heart' },
+    { id: 'proximity', label: t('analysis.subTabs.ranking.proximity'), icon: 'i-heroicons-user-group' },
     { id: 'hot-repeat', label: t('analysis.subTabs.quotes.hotRepeat'), icon: 'i-heroicons-sparkles' },
     {
       id: 'catchphrase',
       label: t('analysis.subTabs.quotes.catchphrase'),
       icon: 'i-heroicons-chat-bubble-bottom-center-text',
     },
-    {
-      id: 'keyword',
-      label: t('analysis.subTabs.ranking.keyword'),
-      icon: 'i-heroicons-magnifying-glass',
-    },
-  ]
+    { id: 'keyword', label: t('analysis.subTabs.ranking.keyword'), icon: 'i-heroicons-magnifying-glass' },
+  ].filter((tab) => isTabVisible(tab.id as RankingTabId))
 })
 
 // 榜单统计只接受时间范围；成员筛选仅用于口头禅。
@@ -76,6 +81,16 @@ watch(
       <Transition name="fade" mode="out-in">
         <OverallRankingTab
           v-if="activeSubTab === 'overall'"
+          :session-id="props.sessionId"
+          :time-filter="rankingTimeFilter"
+        />
+        <InteractionRankingTab
+          v-else-if="activeSubTab === 'interaction'"
+          :session-id="props.sessionId"
+          :time-filter="rankingTimeFilter"
+        />
+        <ProximityRankingTab
+          v-else-if="activeSubTab === 'proximity'"
           :session-id="props.sessionId"
           :time-filter="rankingTimeFilter"
         />

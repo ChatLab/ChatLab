@@ -16,7 +16,7 @@ const RESTARTABLE_READ_ONLY_REQUEST_TYPES = new Set([
   'getCatchphraseAnalysis',
   'getLanguagePreferenceAnalysis',
   'getMentionAnalysis',
-  'getMentionGraph',
+  'getGroupRelationshipGalaxy',
   'getLaughAnalysis',
   'getClusterGraph',
   'getRelationshipStats',

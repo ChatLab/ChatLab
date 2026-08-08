@@ -1,7 +1,7 @@
 import type {
-  PeopleRelationshipGraphEdge,
-  PeopleRelationshipGraphNode,
-  PeopleRelationshipsGraphData,
+  RelationshipGalaxyRenderEdge,
+  RelationshipGalaxyRenderGraph,
+  RelationshipGalaxyRenderNode,
 } from '@openchatlab/shared-types'
 import {
   buildRelationshipVisibleGraphForSelection,
@@ -12,7 +12,7 @@ export type RelationshipGalaxy3DNodeState = 'normal' | 'selected' | 'neighbor' |
 
 export interface RelationshipGalaxy3DNode {
   key: string
-  node: PeopleRelationshipGraphNode
+  node: RelationshipGalaxyRenderNode
   x: number
   y: number
   z: number
@@ -25,7 +25,7 @@ export interface RelationshipGalaxy3DNode {
 }
 
 export interface RelationshipGalaxy3DEdge {
-  edge: PeopleRelationshipGraphEdge
+  edge: RelationshipGalaxyRenderEdge
   source: RelationshipGalaxy3DNode
   target: RelationshipGalaxy3DNode
   color: number
@@ -81,7 +81,7 @@ interface RelationshipGalaxy3DVector {
 }
 
 export function buildRelationshipGalaxy3DScene(
-  graph: PeopleRelationshipsGraphData,
+  graph: RelationshipGalaxyRenderGraph,
   options: RelationshipGalaxy3DSceneOptions = {}
 ): RelationshipGalaxy3DScene {
   const selectedKey = options.selectedKey ?? null
@@ -157,7 +157,7 @@ export function shouldRenderRelationshipGalaxy3DLabel(
   return sceneNode.labelTier > 0
 }
 
-function buildSelectedNeighborKeys(edges: PeopleRelationshipGraphEdge[], selectedKey: string | null): Set<string> {
+function buildSelectedNeighborKeys(edges: RelationshipGalaxyRenderEdge[], selectedKey: string | null): Set<string> {
   const keys = new Set<string>()
   if (!selectedKey) return keys
 
@@ -169,7 +169,7 @@ function buildSelectedNeighborKeys(edges: PeopleRelationshipGraphEdge[], selecte
   return keys
 }
 
-function deriveEdgeWidth(edge: PeopleRelationshipGraphEdge, highlighted: boolean, dimmedBySelection: boolean): number {
+function deriveEdgeWidth(edge: RelationshipGalaxyRenderEdge, highlighted: boolean, dimmedBySelection: boolean): number {
   const base = 0.75 + Math.log10(edge.weight + 1) * 0.7 + (edge.visibility === 2 ? 0.18 : 0)
   if (highlighted) return Math.min(2.2, Math.max(1.65, base + 0.65))
   if (dimmedBySelection) return Math.min(0.8, Math.max(0.55, base * 0.58))
@@ -188,13 +188,13 @@ function resolveNodeState(
 }
 
 function deriveSphericalNodePosition(
-  node: PeopleRelationshipGraphNode,
+  node: RelationshipGalaxyRenderNode,
   state: RelationshipGalaxy3DNodeState,
   selectedKey: string | null,
   seed: number
 ): RelationshipGalaxy3DVector {
   if (state === 'selected') return { x: 0, y: 0, z: 0 }
-  if (!selectedKey && node.kind === 'owner') return { x: 0, y: 0, z: 0 }
+  if (!selectedKey && node.visualRole === 'anchor') return { x: 0, y: 0, z: 0 }
 
   const direction = deriveNodeDirection(node, selectedKey)
   const orbitRadius = deriveNodeOrbitRadius(node, state, Boolean(selectedKey), seed)
@@ -208,7 +208,7 @@ function deriveSphericalNodePosition(
 }
 
 function deriveNodeDirection(
-  node: PeopleRelationshipGraphNode,
+  node: RelationshipGalaxyRenderNode,
   selectedKey: string | null
 ): RelationshipGalaxy3DVector {
   const focusSeed = selectedKey ?? 'panorama'
@@ -225,7 +225,7 @@ function deriveNodeDirection(
 }
 
 function deriveNodeOrbitRadius(
-  node: PeopleRelationshipGraphNode,
+  node: RelationshipGalaxyRenderNode,
   state: RelationshipGalaxy3DNodeState,
   hasSelectedNode: boolean,
   seed: number
@@ -241,29 +241,23 @@ function deriveNodeOrbitRadius(
     return clamp(1670 - importance * 260 + jitter, 1280, MAX_3D_SCENE_RADIUS)
   }
 
-  const minRadius = node.pool === 'friend' ? 280 : 620
-  const maxRadius = node.pool === 'friend' ? 1180 : MAX_3D_SCENE_RADIUS
-  const rankNoisePush = node.pool === 'non_friend' ? Math.max(0, (node.rank - 80) / 220) * 160 : 0
+  const visualRole = node.visualRole ?? 'standard'
+  const minRadius = visualRole === 'close' ? 280 : 620
+  const maxRadius = visualRole === 'close' ? 1180 : MAX_3D_SCENE_RADIUS
+  const rankNoisePush = visualRole === 'standard' ? Math.max(0, (node.rank - 80) / 220) * 160 : 0
   return clamp(maxRadius - importance * (maxRadius - minRadius) + rankNoisePush + jitter, 180, MAX_3D_SCENE_RADIUS)
 }
 
-function deriveNodeImportance(node: PeopleRelationshipGraphNode): number {
-  if (node.kind === 'owner') return 1
-
+function deriveNodeImportance(node: RelationshipGalaxyRenderNode): number {
+  if (node.visualRole === 'anchor') return 1
+  if (typeof node.importance === 'number') return clamp(node.importance, 0, 1)
   const scoreImportance = clamp(node.score, 0, 1)
   const rankImportance = clamp(1 - (node.rank - 1) / 120, 0, 1)
-  const privateSignal = clamp(Math.log10(node.privateMessageCount + 1) / 4, 0, 1)
-  const groupSignal = clamp(Math.log10(node.groupMessageCount + 1) / 4.5, 0, 1)
-  const friendBonus = node.pool === 'friend' ? 0.12 : 0
-  return clamp(
-    scoreImportance * 0.36 + rankImportance * 0.36 + privateSignal * 0.18 + groupSignal * 0.08 + friendBonus,
-    0,
-    1
-  )
+  return clamp(scoreImportance * 0.58 + rankImportance * 0.42, 0, 1)
 }
 
-function deriveNodeRadius(node: PeopleRelationshipGraphNode, state: RelationshipGalaxy3DNodeState): number {
-  let base = Math.max(node.size * 0.5, node.kind === 'owner' ? 14 : 1.6)
+function deriveNodeRadius(node: RelationshipGalaxyRenderNode, state: RelationshipGalaxy3DNodeState): number {
+  let base = Math.max(node.size * 0.5, node.visualRole === 'anchor' ? 14 : 1.6)
   const importance = Math.max(0, 1 - (node.rank - 1) / 50)
   base += Math.pow(importance, 1.35) * 6
   if (node.rank <= 3) base += 2.5
@@ -275,19 +269,19 @@ function deriveNodeRadius(node: PeopleRelationshipGraphNode, state: Relationship
 }
 
 function deriveLabelTier(
-  node: PeopleRelationshipGraphNode,
+  node: RelationshipGalaxyRenderNode,
   state: RelationshipGalaxy3DNodeState,
   totalNodes: number,
   visibleLabelKeys: Set<string> | null
 ): 0 | 1 | 2 {
   if (visibleLabelKeys) {
     if (!visibleLabelKeys.has(node.key)) return 0
-    return state === 'selected' || node.kind === 'owner' ? 2 : 1
+    return state === 'selected' || node.visualRole === 'anchor' ? 2 : 1
   }
 
   if (state === 'selected') return 2
   if (node.labelVisibility === 2) return 2
-  if (node.kind === 'owner') return 2
+  if (node.visualRole === 'anchor') return 2
   if (state === 'neighbor' && node.rank <= 30) return 1
   if (node.labelVisibility === 1 && totalNodes <= 300) return 1
   if (node.rank <= 6) return 1
@@ -358,14 +352,16 @@ function deriveBounds(nodes: RelationshipGalaxy3DNode[], spherical: boolean): Re
   }
 }
 
-function parseNodeColor(node: PeopleRelationshipGraphNode): number {
-  if (node.kind === 'owner') return OWNER_COLOR
+function parseNodeColor(node: RelationshipGalaxyRenderNode): number {
+  if (node.visualRole === 'anchor') return OWNER_COLOR
   return pickPaletteColor(node)
 }
 
-function pickPaletteColor(node: PeopleRelationshipGraphNode): number {
-  const palette = node.pool === 'friend' ? FRIEND_NODE_COLORS : GROUPMATE_NODE_COLORS
-  const index = hashToUint(`${node.communityId}:${node.key}:${node.rank}:${node.pool}`) % palette.length
+function pickPaletteColor(node: RelationshipGalaxyRenderNode): number {
+  const visualRole = node.visualRole ?? 'standard'
+  const palette = visualRole === 'close' ? FRIEND_NODE_COLORS : GROUPMATE_NODE_COLORS
+  const paletteKey = visualRole === 'close' ? 'friend' : 'non_friend'
+  const index = hashToUint(`${node.communityId}:${node.key}:${node.rank}:${paletteKey}`) % palette.length
   return palette[index] ?? palette[0]
 }
 

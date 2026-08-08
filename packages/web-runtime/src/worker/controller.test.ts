@@ -270,8 +270,20 @@ class FakeSessionRuntime implements WorkerSessionRuntime {
     return { topMentioners: [], topMentioned: [], totalMentions: 0 }
   }
 
-  async getMentionGraph(_id: string, _filter?: BrowserTimeFilter) {
-    return { nodes: [], links: [], maxLinkValue: 0 }
+  async getGroupRelationshipGalaxy(_id: string, _filter?: BrowserTimeFilter) {
+    return {
+      graph: { nodes: [], edges: [], communities: [] },
+      members: [],
+      edges: [],
+      stats: {
+        totalMembers: 0,
+        activeMembers: 0,
+        displayedMembers: 0,
+        displayedEdges: 0,
+        communityCount: 0,
+      },
+      algorithmVersion: 'group-relationship-galaxy-v1',
+    }
   }
 
   async getClusterGraph(_id: string, _filter?: BrowserTimeFilter) {
@@ -803,7 +815,11 @@ describe('WebRuntimeWorkerController', () => {
       { id: 'trend', type: 'analysis.memberMonthlyTrend', payload: { sessionId: 'session-one' } },
       { id: 'members', type: 'analysis.memberList', payload: { sessionId: 'session-one' } },
       { id: 'mentions', type: 'analysis.mentions', payload: { sessionId: 'session-one' } },
-      { id: 'mention-graph', type: 'analysis.mentionGraph', payload: { sessionId: 'session-one' } },
+      {
+        id: 'relationship-galaxy',
+        type: 'analysis.groupRelationshipGalaxy',
+        payload: { sessionId: 'session-one' },
+      },
       { id: 'cluster', type: 'analysis.clusterGraph', payload: { sessionId: 'session-one' } },
       { id: 'relationship', type: 'analysis.relationship', payload: { sessionId: 'session-one' } },
       { id: 'journey', type: 'analysis.journey', payload: { sessionId: 'session-one' } },

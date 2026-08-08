@@ -1,4 +1,5 @@
 <script setup lang="ts">
+// 群聊互动排行目前以 @ 发起和被 @ 次数为统计口径。
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { MentionAnalysis } from '@/types/analysis'

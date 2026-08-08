@@ -11,6 +11,7 @@ import type {
   PeopleRelationshipsNeighborhoodResponse,
   PeopleRelationshipsSearchResult,
   PeopleRelationshipsTaskState,
+  RelationshipGalaxyRenderNode,
 } from '@openchatlab/shared-types'
 import { useDataService } from '@/services'
 import { useToast } from '@/composables/useToast'
@@ -38,6 +39,7 @@ import {
   restoreRelationshipGalaxyPanoramaView,
   type RelationshipGalaxyViewMode,
 } from './relationship-galaxy-navigation'
+import { buildPeopleRelationshipGalaxyRenderGraph } from './people-relationship-galaxy-render'
 
 type GalaxyCanvasInstance = {
   focusNode: (key: string) => boolean
@@ -59,7 +61,7 @@ const EMPTY_GRAPH: PeopleRelationshipsGraphData = {
 const POLL_INTERVAL_MS = 1400
 const RELATIONSHIP_DETAIL_PANEL_SAFE_INSET_RIGHT = 392
 const RelationshipGalaxyThreeCanvas = defineAsyncComponent(
-  () => import('./components/RelationshipGalaxyThreeCanvas.vue')
+  () => import('@/components/charts/relationship-galaxy/RelationshipGalaxyThreeCanvas.vue')
 )
 const RelationshipGalaxyCanvas = defineAsyncComponent(() => import('./components/RelationshipGalaxyCanvas.vue'))
 
@@ -122,6 +124,12 @@ const graphScopeTabs = computed(() => [
 ])
 
 const activeGraph = computed(() => neighborhoodResponse.value?.graph ?? graphResponse.value?.graph ?? EMPTY_GRAPH)
+const activeRenderGraph = computed(() =>
+  buildPeopleRelationshipGalaxyRenderGraph(activeGraph.value, {
+    privacyMode: privacyMode.value,
+    ownerLabel: t('relationships.owner.me'),
+  })
+)
 const isNeighborhoodMode = computed(() => Boolean(neighborhoodResponse.value))
 const hasGraph = computed(() => activeGraph.value.nodes.length > 0)
 const task = computed(() =>
@@ -567,6 +575,11 @@ async function selectNode(node: PeopleRelationshipGraphNode) {
   canvasSelectedKey.value = selectedKey.value
 }
 
+async function selectRenderNode(node: RelationshipGalaxyRenderNode) {
+  const peopleNode = activeGraph.value.nodes.find((item) => item.key === node.key)
+  if (peopleNode) await selectNode(peopleNode)
+}
+
 function handleThreeCanvasFallback() {
   const nextMode = resolveRelationshipGalaxyFallbackViewMode(viewMode.value)
   if (nextMode === viewMode.value) return
@@ -672,15 +685,13 @@ onBeforeUnmount(() => {
       <RelationshipGalaxyThreeCanvas
         v-if="viewMode === '3d'"
         ref="canvasRef"
-        :graph="activeGraph"
+        :graph="activeRenderGraph"
         :selected-key="canvasSelectedKey"
-        :privacy-mode="privacyMode"
         :safe-inset-right="detailPanelSafeInsetRight"
         :emphasize-edges="graphScope === 'friends'"
         :label="t('relationships.canvas.label3d')"
-        :owner-label="t('relationships.owner.me')"
         @fallback="handleThreeCanvasFallback"
-        @select-node="selectNode"
+        @select-node="selectRenderNode"
       />
       <RelationshipGalaxyCanvas
         v-else

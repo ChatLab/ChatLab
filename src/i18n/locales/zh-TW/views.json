@@ -118,6 +118,27 @@
     "graphHint": "共 {nodes} 位成員，{links} 條互動關係",
     "noInteraction": "暫無艾特互動資料"
   },
+  "groupRelationshipGalaxy": {
+    "canvasLabel": "群聊互動關係星空圖",
+    "loading": "正在整理群內關係...",
+    "loadFailed": "關係星空圖載入失敗",
+    "webglUnavailable": "目前環境無法顯示星空圖",
+    "webglUnavailableDescription": "請啟用瀏覽器硬體加速，或改用支援 WebGL 的環境後重試。",
+    "emptyTitle": "暫無足夠的互動關係",
+    "emptyDescription": "目前時間範圍內至少需要兩位成員產生回覆、@ 或相鄰發言。",
+    "resetView": "重設視角",
+    "closeDetail": "關閉成員詳情",
+    "messageCount": "本群訊息",
+    "relationshipScore": "關係強度",
+    "lastInteraction": "最近互動",
+    "signalComposition": "互動構成",
+    "replies": "回覆",
+    "mentions": "@ 提及",
+    "proximity": "發言臨近",
+    "strongConnections": "關係最密切",
+    "connectionSignals": "回覆 {replies} · @ {mentions} · 臨近 {proximity}",
+    "noConnections": "暫無可顯示的直接關係"
+  },
   "relationship": {
     "empty": {
       "title": "暫無關係資料",

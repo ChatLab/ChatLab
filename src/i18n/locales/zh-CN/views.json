@@ -118,6 +118,27 @@
     "graphHint": "共 {nodes} 位成员，{links} 条互动关系",
     "noInteraction": "暂无艾特互动数据"
   },
+  "groupRelationshipGalaxy": {
+    "canvasLabel": "群聊互动关系星空图",
+    "loading": "正在整理群内关系...",
+    "loadFailed": "关系星空图加载失败",
+    "webglUnavailable": "当前环境无法显示星空图",
+    "webglUnavailableDescription": "请启用浏览器硬件加速，或更换支持 WebGL 的环境后重试。",
+    "emptyTitle": "暂无足够的互动关系",
+    "emptyDescription": "当前时间范围内至少需要两位成员产生回复、@ 或相邻发言。",
+    "resetView": "重置视角",
+    "closeDetail": "关闭成员详情",
+    "messageCount": "本群消息",
+    "relationshipScore": "关系强度",
+    "lastInteraction": "最近互动",
+    "signalComposition": "互动构成",
+    "replies": "回复",
+    "mentions": "@ 提及",
+    "proximity": "发言临近",
+    "strongConnections": "关系最密切",
+    "connectionSignals": "回复 {replies} · @ {mentions} · 临近 {proximity}",
+    "noConnections": "暂无可展示的直接关系"
+  },
   "relationship": {
     "empty": {
       "title": "暂无关系数据",

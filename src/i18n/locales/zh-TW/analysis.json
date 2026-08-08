@@ -67,23 +67,19 @@
       "typeAnalysis": "類型",
       "timeAnalysis": "時間",
       "topic": "話題",
-      "groupRelationships": "群關係",
       "relationship": "關係",
       "journey": "歷程",
       "languagePreference": "語言偏好"
     },
     "ranking": {
       "overall": "總榜單",
+      "interaction": "互動排行",
+      "proximity": "鄰近度排行",
       "keyword": "關鍵字"
     },
     "quotes": {
       "hotRepeat": "熱門複讀",
       "catchphrase": "口頭禪"
-    },
-    "groupRelationships": {
-      "mentionGraph": "{'@'} 關係圖",
-      "mentionRanking": "{'@'} 排行",
-      "proximity": "發言臨近度"
     },
     "member": {
       "nicknameHistory": "暱稱變更"

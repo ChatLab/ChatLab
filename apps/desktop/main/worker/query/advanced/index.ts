@@ -5,16 +5,8 @@
 
 export { getCatchphraseAnalysis } from './repeat'
 
-export { getMentionAnalysis, getMentionGraph, getLaughAnalysis, getClusterGraph } from './social'
-export type {
-  MentionGraphData,
-  MentionGraphNode,
-  MentionGraphLink,
-  ClusterGraphData,
-  ClusterGraphNode,
-  ClusterGraphLink,
-  ClusterGraphOptions,
-} from './social'
+export { getMentionAnalysis, getGroupRelationshipGalaxy, getLaughAnalysis, getClusterGraph } from './social'
+export type { ClusterGraphData, ClusterGraphNode, ClusterGraphLink, ClusterGraphOptions } from './social'
 
 export { getLanguagePreferenceAnalysis } from './languagePreference'
 

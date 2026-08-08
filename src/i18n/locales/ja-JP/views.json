@@ -118,6 +118,27 @@
     "graphHint": "全 {nodes} 名のメンバー、{links} 件のインタラクション",
     "noInteraction": "メンションデータがありません"
   },
+  "groupRelationshipGalaxy": {
+    "canvasLabel": "グループの交流関係ギャラクシー",
+    "loading": "グループ内の関係を整理しています...",
+    "loadFailed": "関係ギャラクシーを読み込めませんでした",
+    "webglUnavailable": "この環境ではギャラクシーを表示できません",
+    "webglUnavailableDescription": "ハードウェアアクセラレーションを有効にするか、WebGL 対応環境で再試行してください。",
+    "emptyTitle": "交流データが不足しています",
+    "emptyDescription": "この期間には、2人以上の返信、メンション、または連続した発言が必要です。",
+    "resetView": "表示をリセット",
+    "closeDetail": "メンバー詳細を閉じる",
+    "messageCount": "グループ発言数",
+    "relationshipScore": "関係の強さ",
+    "lastInteraction": "最近の交流",
+    "signalComposition": "交流の内訳",
+    "replies": "返信",
+    "mentions": "メンション",
+    "proximity": "発言の近さ",
+    "strongConnections": "親しいつながり",
+    "connectionSignals": "返信 {replies} · メンション {mentions} · 近接 {proximity}",
+    "noConnections": "表示できる直接のつながりはありません"
+  },
   "relationship": {
     "empty": {
       "title": "関係データがありません",

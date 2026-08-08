@@ -2,31 +2,30 @@
 import { nextTick, onBeforeUnmount, onMounted, ref, shallowRef, watch } from 'vue'
 import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
-import type { PeopleRelationshipGraphNode, PeopleRelationshipsGraphData } from '@openchatlab/shared-types'
+import type { RelationshipGalaxyRenderGraph, RelationshipGalaxyRenderNode } from '@openchatlab/shared-types'
 import {
   buildRelationshipGalaxy3DScene,
   type RelationshipGalaxy3DEdge,
   type RelationshipGalaxy3DNode,
   type RelationshipGalaxy3DScene,
-} from '../relationship-galaxy-3d-scene'
-import { buildRelationshipGalaxy3DEdgeCurvePoints } from '../relationship-galaxy-3d-edge-path'
+} from './relationship-galaxy-3d-scene'
+import { buildRelationshipGalaxy3DEdgeCurvePoints } from './relationship-galaxy-3d-edge-path'
 import {
   setRelationshipGalaxy3DEdgeGradientColor,
   type RelationshipGalaxy3DEdgeRenderBucket,
-} from '../relationship-galaxy-3d-edge-colors'
-import { buildRelationshipVisibleLabelKeys } from '../relationship-galaxy-connections'
+} from './relationship-galaxy-3d-edge-colors'
+import { buildRelationshipVisibleLabelKeys } from './relationship-galaxy-connections'
 import {
   applyRelationshipGalaxy3DSafeArea,
   buildRelationshipGalaxy3DImmersiveCameraPose,
   type RelationshipGalaxy3DCameraPose,
-} from '../relationship-galaxy-3d-camera'
-import { getRelationshipGalaxyNodeDisplayName } from '../relationship-galaxy-node-display'
+} from './relationship-galaxy-3d-camera'
 import {
   applyRelationshipGalaxy3DCameraViewOffset,
   captureRelationshipGalaxy3DCameraView,
   getRelationshipGalaxy3DDynamicLabelTier,
   parseRelationshipGalaxy3DCameraView,
-} from '../relationship-galaxy-3d-canvas'
+} from './relationship-galaxy-3d-canvas'
 
 interface NodeObject {
   group: THREE.Group
@@ -57,24 +56,22 @@ interface CameraFlight {
 
 const props = withDefaults(
   defineProps<{
-    graph: PeopleRelationshipsGraphData
+    graph: RelationshipGalaxyRenderGraph
     selectedKey?: string | null
-    privacyMode?: boolean
     safeInsetRight?: number
     emphasizeEdges?: boolean
     label: string
-    ownerLabel: string
   }>(),
   {
     selectedKey: null,
-    privacyMode: false,
     safeInsetRight: 0,
     emphasizeEdges: false,
   }
 )
 
 const emit = defineEmits<{
-  (event: 'select-node', node: PeopleRelationshipGraphNode): void
+  (event: 'select-node', node: RelationshipGalaxyRenderNode): void
+  (event: 'clear-selection'): void
   (event: 'fallback'): void
 }>()
 
@@ -108,11 +105,8 @@ const raycaster = new THREE.Raycaster()
 const pointer = new THREE.Vector2()
 const tmpWorldPosition = new THREE.Vector3()
 
-function shortName(node: PeopleRelationshipGraphNode): string {
-  return getRelationshipGalaxyNodeDisplayName(node, {
-    privacyMode: props.privacyMode,
-    ownerLabel: props.ownerLabel,
-  })
+function shortName(node: RelationshipGalaxyRenderNode): string {
+  return node.displayName
 }
 
 function getViewportSize(): { width: number; height: number } {
@@ -272,7 +266,7 @@ function getRenderedEdgeLineWidth(edge: RelationshipGalaxy3DEdge, bucket: 'dim' 
 
 function getStarSpriteScale(sceneNode: RelationshipGalaxy3DNode): number {
   if (sceneNode.state === 'selected') return 2.18
-  if (sceneNode.node.kind === 'owner') return 2.04
+  if (sceneNode.node.visualRole === 'anchor') return 2.04
   if (sceneNode.node.rank <= 10) return 1.76
   return 1.52
 }
@@ -415,7 +409,7 @@ function getLabelEmphasis(
   selectedNeighbor = false,
   labelTier = sceneNode.labelTier
 ): VisibleLabel['emphasis'] {
-  if (labelTier === 2 || sceneNode.node.kind === 'owner' || sceneNode.node.rank <= 5) return 'major'
+  if (labelTier === 2 || sceneNode.node.visualRole === 'anchor' || sceneNode.node.rank <= 5) return 'major'
   if (selectedNeighbor) return 'medium'
   if (sceneNode.node.rank <= 30) return 'medium'
   return 'minor'
@@ -498,7 +492,10 @@ function handlePointerLeave() {
 
 function handleClick() {
   const key = hoveredKey.value
-  if (!key) return
+  if (!key) {
+    emit('clear-selection')
+    return
+  }
   const object = nodeObjects.get(key)
   if (!object) return
   emit('select-node', object.sceneNode.node)
@@ -802,15 +799,6 @@ watch(
   () => props.emphasizeEdges,
   () => {
     renderGraph(false)
-  },
-  { flush: 'post' }
-)
-
-watch(
-  () => props.privacyMode,
-  () => {
-    labelFrame = 1
-    updateLabels()
   },
   { flush: 'post' }
 )

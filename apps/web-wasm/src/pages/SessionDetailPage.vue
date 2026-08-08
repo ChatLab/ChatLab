@@ -5,6 +5,7 @@ import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { LoadingDots, LoadingState } from '@/components/UI'
 import SessionAnalysisHeader from '@/components/layout/session/SessionAnalysisHeader.vue'
+import RankingView from '@/components/analysis/ranking/RankingView.vue'
 import { useSessionAnalysisPageBase } from '@/composables'
 import { useSessionStore } from '@/stores/session'
 import { useSettingsStore } from '@/stores/settings'
@@ -19,10 +20,13 @@ const sessionStore = useSessionStore()
 const settingsStore = useSettingsStore()
 const { currentSessionId, isInitialized, sessions } = storeToRefs(sessionStore)
 
-const tabs = [
+const tabs = computed(() => [
   { id: 'insights', labelKey: 'analysis.tabs.insights', icon: 'i-heroicons-presentation-chart-bar' },
+  ...(route.name === 'group-chat'
+    ? [{ id: 'ranking', labelKey: 'analysis.tabs.ranking', icon: 'i-heroicons-trophy' }]
+    : []),
   { id: 'ai-chat', labelKey: 'analysis.tabs.aiChat', icon: 'i-heroicons-sparkles' },
-]
+])
 
 const {
   activeTab,
@@ -45,10 +49,18 @@ const {
   currentSessionId,
   selectSession: sessionStore.selectSession,
   defaultTab: settingsStore.defaultSessionTab,
-  validTabIds: tabs.map((tab) => tab.id),
+  validTabIds: ['insights', 'ranking', 'ai-chat'],
 })
 
 provide('session-switch-loading', isSessionSwitching)
+
+watch(
+  [() => route.name, activeTab],
+  ([routeName, tab]) => {
+    if (routeName !== 'group-chat' && tab === 'ranking') activeTab.value = 'insights'
+  },
+  { immediate: true }
+)
 
 const aiChatVisited = ref(false)
 watch(
@@ -129,7 +141,10 @@ watch(
         @time-range-initialized="handleTimeRangeInitialized"
       />
 
-      <div class="relative min-h-0 flex-1" :class="activeTab === 'ai-chat' ? 'overflow-hidden' : 'overflow-y-auto'">
+      <div
+        class="relative min-h-0 flex-1"
+        :class="activeTab === 'ai-chat' || activeTab === 'ranking' ? 'overflow-hidden' : 'overflow-y-auto'"
+      >
         <LoadingState
           v-if="isLoading && activeTab !== 'ai-chat' && !isSessionSwitching"
           variant="overlay"
@@ -149,6 +164,14 @@ watch(
           :filtered-message-count="filteredMessageCount"
           :filtered-member-count="filteredMemberCount"
           :time-filter="timeFilter"
+        />
+
+        <RankingView
+          v-else-if="activeTab === 'ranking'"
+          :key="'ranking-' + currentSessionId"
+          :session-id="currentSessionId!"
+          :time-filter="timeFilter"
+          :visible-tab-ids="['interaction', 'proximity']"
         />
 
         <WebAIChat

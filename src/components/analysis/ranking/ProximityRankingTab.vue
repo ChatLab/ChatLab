@@ -1,6 +1,6 @@
 <script setup lang="ts">
 /**
- * 小团体关系视图（群聊专属）
+ * 邻近度排行视图（群聊专属）
  * 支持三种展示模式：矩阵热力图、成员视图、排行视图
  */
 import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
