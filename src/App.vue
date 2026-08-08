@@ -158,6 +158,8 @@ async function initializeApp() {
           await settingsStore.initLocale()
           markStartupPhase('locale-settled')
         },
+        deferAfterPresentationError: () =>
+          PLATFORM_CAPABILITIES.requiresAuth && authStore.requiresAuth && !authStore.isAuthenticated,
         initializeBackground: [
           {
             name: 'preferences',
@@ -196,6 +198,8 @@ async function initializeApp() {
         ],
         listenForPullResults: () => apiServerStore.listenPullResult(),
       })
+      // 401 会先切换到登录页；不要把这次未认证尝试标记为就绪，登录后由 route watcher 完整重试。
+      if (result.deferred) return
       unlistenPullResult ??= result.stopListeningForPullResults
       presentationWarning.value = result.presentationError !== null
       markStartupPhase('runtime-ready')
@@ -345,8 +349,7 @@ onMounted(async () => {
     const on401 = () => {
       if (redirectingTo401 || router.currentRoute.value.name === 'login') return
       redirectingTo401 = true
-      authStore.markRequiresAuth()
-      authStore.logout()
+      authStore.requireLogin()
       const currentPath = router.currentRoute.value.fullPath
       const redirect = currentPath.startsWith('/login') ? '/' : currentPath
       router.push({ name: 'login', query: { redirect } }).finally(() => {

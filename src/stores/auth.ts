@@ -43,14 +43,24 @@ export const useAuthStore = defineStore('auth', () => {
     }
   }
 
-  function logout() {
+  function clearCredentials() {
     token.value = ''
     rememberDevice.value = false
-    requiresAuth.value = false
     sessionStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(TOKEN_KEY)
     localStorage.removeItem(REMEMBER_KEY)
   }
 
-  return { token, requiresAuth, rememberDevice, isAuthenticated, login, logout, markRequiresAuth }
+  function logout() {
+    clearCredentials()
+    requiresAuth.value = false
+  }
+
+  /** Clear rejected credentials while preserving the server's authentication requirement. */
+  function requireLogin() {
+    clearCredentials()
+    requiresAuth.value = true
+  }
+
+  return { token, requiresAuth, rememberDevice, isAuthenticated, login, logout, requireLogin, markRequiresAuth }
 })
