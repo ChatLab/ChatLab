@@ -11,6 +11,8 @@ const DEFAULT_URL = 'http://127.0.0.1:3100/'
 const DEFAULT_RUNS = 10
 const DEFAULT_WARMUPS = 1
 const DEFAULT_TIMEOUT_MS = 15_000
+// Keep aligned with src/bootstrap/startup-playback.ts so retained samples exercise the full first-start presentation.
+const STARTUP_PRESENTATION_SESSION_KEY = 'chatlab:startup-presentation-shown:v1'
 
 function parsePositiveInteger(value, flag) {
   const parsed = Number.parseInt(value, 10)
@@ -58,8 +60,8 @@ headless Chrome profile and reads timing-only data from the page.
 
 Options:
   --url <url>         CLI Web URL (default: ${DEFAULT_URL})
-  --runs <count>      Recorded reloads (default: ${DEFAULT_RUNS})
-  --warmups <count>   Unrecorded warm-up reloads (default: ${DEFAULT_WARMUPS})
+  --runs <count>      Recorded startup navigations (default: ${DEFAULT_RUNS})
+  --warmups <count>   Unrecorded warm-up navigations (default: ${DEFAULT_WARMUPS})
   --timeout <ms>      Per-reload startup timeout (default: ${DEFAULT_TIMEOUT_MS})
   --chrome <path>     Chrome/Chromium executable (or CHATLAB_CHROME_PATH)
   --json              Print the full result as JSON
@@ -215,6 +217,16 @@ async function navigateAndMeasure(client, url, timeoutMs) {
   return readStartupSnapshot(client, timeoutMs)
 }
 
+async function resetStartupPresentation(client) {
+  const evaluation = await client.send('Runtime.evaluate', {
+    expression: `sessionStorage.removeItem(${JSON.stringify(STARTUP_PRESENTATION_SESSION_KEY)})`,
+    returnByValue: true,
+  })
+  if (evaluation.exceptionDetails) {
+    throw new Error(`Unable to reset startup presentation state: ${evaluation.exceptionDetails.text}`)
+  }
+}
+
 function percentile(values, fraction) {
   const sorted = [...values].sort((left, right) => left - right)
   const index = Math.max(0, Math.ceil(sorted.length * fraction) - 1)
@@ -252,7 +264,8 @@ async function main() {
 
   try {
     await waitForJson(`http://127.0.0.1:${port}/json/version`, options.timeoutMs)
-    const targetResponse = await fetch(`http://127.0.0.1:${port}/json/new?${encodeURIComponent(options.url)}`, {
+    // Create a blank target so an unmeasured navigation cannot consume the one-time startup presentation.
+    const targetResponse = await fetch(`http://127.0.0.1:${port}/json/new?${encodeURIComponent('about:blank')}`, {
       method: 'PUT',
     })
     if (!targetResponse.ok) throw new Error(`Unable to create Chrome target: HTTP ${targetResponse.status}`)
@@ -263,8 +276,11 @@ async function main() {
       await client.send('Page.enable')
       await client.send('Runtime.enable')
       const snapshots = []
+      let hasNavigatedToTarget = false
       for (let index = 0; index < options.warmups + options.runs; index += 1) {
+        if (index >= options.warmups && hasNavigatedToTarget) await resetStartupPresentation(client)
         const snapshot = await navigateAndMeasure(client, options.url, options.timeoutMs)
+        hasNavigatedToTarget = true
         if (index >= options.warmups) snapshots.push(snapshot)
       }
 
