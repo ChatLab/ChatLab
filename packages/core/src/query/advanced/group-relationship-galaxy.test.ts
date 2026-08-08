@@ -176,6 +176,42 @@ describe('group relationship galaxy', () => {
     assert.deepEqual(first, second)
   })
 
+  it('keeps a large group within the default interactive graph limits', () => {
+    raw.exec(`
+      WITH RECURSIVE members(id) AS (
+        SELECT 100
+        UNION ALL
+        SELECT id + 1 FROM members WHERE id < 549
+      )
+      INSERT INTO member (id, platform_id, account_name, aliases)
+      SELECT id, 'large-' || id, 'LargeMember' || id, '[]' FROM members;
+
+      WITH RECURSIVE messages(id) AS (
+        SELECT 1
+        UNION ALL
+        SELECT id + 1 FROM messages WHERE id < 9000
+      )
+      INSERT INTO message (id, sender_id, ts, type, content, platform_message_id, reply_to_message_id)
+      SELECT
+        id,
+        100 + ((id - 1) % 450),
+        100000 + id,
+        0,
+        'large group message',
+        'large-' || id,
+        CASE WHEN id > 1 AND id % 37 = 0 THEN 'large-' || (id - 1) ELSE NULL END
+      FROM messages;
+    `)
+
+    const first = getGroupRelationshipGalaxy(db)
+    const second = getGroupRelationshipGalaxy(db)
+
+    assert.equal(first.stats.activeMembers, 450)
+    assert.ok(first.stats.displayedMembers <= 400)
+    assert.ok(first.stats.displayedEdges <= 1200)
+    assert.deepEqual(first, second)
+  })
+
   it('returns an explicit empty graph when the range has fewer than two active members', () => {
     insertMessage(1, 1, 100, 'only owner', 'm1')
 

@@ -17,7 +17,6 @@ import type {
   MemberWithAliases,
   MessageLengthDistribution,
   MessageTypeStats,
-  MentionGraphData,
   MonthlyActivity,
   ClusterGraphData,
   ClusterGraphOptions,
@@ -228,10 +227,6 @@ export interface WebRuntimeTaskMap {
       totalMentions: number
     }
   }
-  'analysis.mentionGraph': {
-    payload: { sessionId: string; filter?: BrowserTimeFilter }
-    result: MentionGraphData
-  }
   'analysis.groupRelationshipGalaxy': {
     payload: { sessionId: string; filter?: BrowserTimeFilter }
     result: GroupRelationshipGalaxyData
@@ -385,7 +380,6 @@ const WEB_RUNTIME_TASK_TYPES: Record<WebRuntimeTaskType, true> = {
   'analysis.memberMonthlyTrend': true,
   'analysis.memberList': true,
   'analysis.mentions': true,
-  'analysis.mentionGraph': true,
   'analysis.groupRelationshipGalaxy': true,
   'analysis.clusterGraph': true,
   'analysis.relationship': true,

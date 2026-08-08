@@ -35,7 +35,6 @@ export {
   getCatchphraseAnalysis,
   getLanguagePreferenceAnalysis,
   getMentionAnalysis,
-  getMentionGraph,
   getGroupRelationshipGalaxy,
   getLaughAnalysis,
   getClusterGraph,

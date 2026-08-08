@@ -216,7 +216,6 @@ export {
 export {
   getCatchphraseAnalysis,
   getMentionAnalysis,
-  getMentionGraph,
   getGroupRelationshipGalaxy,
   GROUP_RELATIONSHIP_GALAXY_ALGORITHM_VERSION,
   getLaughAnalysis,
@@ -235,9 +234,6 @@ export type {
   CatchphraseAnalysis,
   MemberCatchphrase,
   CatchphraseItem,
-  MentionGraphData,
-  MentionGraphNode,
-  MentionGraphLink,
   GroupRelationshipGalaxyOptions,
   ClusterGraphData,
   ClusterGraphNode,

@@ -8,7 +8,6 @@ import {
   getLanguagePreferenceAnalysis as queryLanguagePreferenceAnalysis,
   getMembersWithAliases as queryMembersWithAliases,
   getMentionAnalysis as queryMentionAnalysis,
-  getMentionGraph as queryMentionGraph,
   getGroupRelationshipGalaxy as queryGroupRelationshipGalaxy,
   getAvailableYears as queryAvailableYears,
   getDailyActivity as queryDailyActivity,
@@ -37,7 +36,6 @@ import {
   type MemberWithAliases,
   type MessageLengthDistribution,
   type MessageTypeStats,
-  type MentionGraphData,
   type MonthlyActivity,
   type RelationshipStats,
   type JourneyStats,
@@ -421,10 +419,6 @@ export class BrowserSessionRuntime {
 
   async getMentionAnalysis(id: string, filter?: BrowserTimeFilter) {
     return this.withSessionDatabase(id, (db) => queryMentionAnalysis(db, filter))
-  }
-
-  async getMentionGraph(id: string, filter?: BrowserTimeFilter): Promise<MentionGraphData> {
-    return this.withSessionDatabase(id, (db) => queryMentionGraph(db, filter))
   }
 
   async getGroupRelationshipGalaxy(id: string, filter?: BrowserTimeFilter): Promise<GroupRelationshipGalaxyData> {

@@ -52,7 +52,6 @@ export type WorkerSessionRuntime = Pick<
   | 'getMemberMonthlyTrend'
   | 'getMembers'
   | 'getMentionAnalysis'
-  | 'getMentionGraph'
   | 'getGroupRelationshipGalaxy'
   | 'getClusterGraph'
   | 'getRelationshipStats'
@@ -492,12 +491,6 @@ export class WebRuntimeWorkerController {
       case 'analysis.mentions': {
         const startedAt = this.startAnalysisQuery()
         const result = await this.sessionRuntime.getMentionAnalysis(request.payload.sessionId, request.payload.filter)
-        this.emitAnalysisQueryCompleted(request, startedAt)
-        return result
-      }
-      case 'analysis.mentionGraph': {
-        const startedAt = this.startAnalysisQuery()
-        const result = await this.sessionRuntime.getMentionGraph(request.payload.sessionId, request.payload.filter)
         this.emitAnalysisQueryCompleted(request, startedAt)
         return result
       }

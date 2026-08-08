@@ -270,10 +270,6 @@ class FakeSessionRuntime implements WorkerSessionRuntime {
     return { topMentioners: [], topMentioned: [], totalMentions: 0 }
   }
 
-  async getMentionGraph(_id: string, _filter?: BrowserTimeFilter) {
-    return { nodes: [], links: [], maxLinkValue: 0 }
-  }
-
   async getGroupRelationshipGalaxy(_id: string, _filter?: BrowserTimeFilter) {
     return {
       graph: { nodes: [], edges: [], communities: [] },
@@ -819,7 +815,6 @@ describe('WebRuntimeWorkerController', () => {
       { id: 'trend', type: 'analysis.memberMonthlyTrend', payload: { sessionId: 'session-one' } },
       { id: 'members', type: 'analysis.memberList', payload: { sessionId: 'session-one' } },
       { id: 'mentions', type: 'analysis.mentions', payload: { sessionId: 'session-one' } },
-      { id: 'mention-graph', type: 'analysis.mentionGraph', payload: { sessionId: 'session-one' } },
       {
         id: 'relationship-galaxy',
         type: 'analysis.groupRelationshipGalaxy',

@@ -200,7 +200,6 @@ describe('BrowserDataAdapter', () => {
             },
           ],
           'analysis.mentions': { topMentioners: [], topMentioned: [], totalMentions: 0 },
-          'analysis.mentionGraph': { nodes: [], links: [], maxLinkValue: 0 },
           'analysis.groupRelationshipGalaxy': {
             graph: { nodes: [], edges: [], communities: [] },
             members: [],
@@ -237,7 +236,6 @@ describe('BrowserDataAdapter', () => {
     assert.equal((await adapter.getMemberMonthlyTrend('session-one'))[0].memberName, 'Alice')
     assert.equal((await adapter.getMembers('session-one'))[0].accountName, 'Alice')
     assert.equal((await adapter.getMentionAnalysis('session-one')).totalMentions, 0)
-    assert.equal((await adapter.getMentionGraph('session-one')).links.length, 0)
     assert.equal((await adapter.getGroupRelationshipGalaxy('session-one')).stats.displayedEdges, 0)
     assert.equal((await adapter.getClusterGraph('session-one')).stats.edgeCount, 0)
     assert.equal((await adapter.getRelationshipStats('session-one')).hasSessionIndex, true)
@@ -253,7 +251,6 @@ describe('BrowserDataAdapter', () => {
         'analysis.memberMonthlyTrend',
         'analysis.memberList',
         'analysis.mentions',
-        'analysis.mentionGraph',
         'analysis.groupRelationshipGalaxy',
         'analysis.clusterGraph',
         'analysis.relationship',

@@ -7,16 +7,8 @@
 export { getCatchphraseAnalysis } from './repeat'
 export type { CatchphraseAnalysis, MemberCatchphrase, CatchphraseItem } from './repeat'
 
-export { getMentionAnalysis, getMentionGraph, getLaughAnalysis, getClusterGraph } from './social'
-export type {
-  MentionGraphData,
-  MentionGraphNode,
-  MentionGraphLink,
-  ClusterGraphData,
-  ClusterGraphNode,
-  ClusterGraphLink,
-  ClusterGraphOptions,
-} from './social'
+export { getMentionAnalysis, getLaughAnalysis, getClusterGraph } from './social'
+export type { ClusterGraphData, ClusterGraphNode, ClusterGraphLink, ClusterGraphOptions } from './social'
 
 export { getGroupRelationshipGalaxy, GROUP_RELATIONSHIP_GALAXY_ALGORITHM_VERSION } from './group-relationship-galaxy'
 export type { GroupRelationshipGalaxyOptions } from './group-relationship-galaxy'
