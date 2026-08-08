@@ -11,6 +11,24 @@ export interface GroupRelationshipGalaxyConnection {
   edge: GroupRelationshipGalaxyEdgeDetail
 }
 
+export interface GroupRelationshipGalaxyDisplayState {
+  content: 'loading' | 'error' | 'webgl-unavailable' | 'empty' | 'canvas'
+  showLoadingOverlay: boolean
+}
+
+export function resolveGroupRelationshipGalaxyDisplayState(options: {
+  isLoading: boolean
+  hasGraph: boolean
+  hasError: boolean
+  webglUnavailable: boolean
+}): GroupRelationshipGalaxyDisplayState {
+  if (options.hasError) return { content: 'error', showLoadingOverlay: false }
+  if (options.webglUnavailable) return { content: 'webgl-unavailable', showLoadingOverlay: false }
+  if (options.hasGraph) return { content: 'canvas', showLoadingOverlay: options.isLoading }
+  if (options.isLoading) return { content: 'loading', showLoadingOverlay: false }
+  return { content: 'empty', showLoadingOverlay: false }
+}
+
 export function buildGroupRelationshipGalaxyConnections(
   data: GroupRelationshipGalaxyData | null,
   selectedKey: string | null,

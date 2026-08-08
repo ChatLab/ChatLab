@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import type { GroupRelationshipGalaxyData } from '@openchatlab/shared-types'
-import { buildGroupRelationshipGalaxyConnections } from './group-relationship-galaxy-view'
+import {
+  buildGroupRelationshipGalaxyConnections,
+  resolveGroupRelationshipGalaxyDisplayState,
+} from './group-relationship-galaxy-view'
 
 const data = {
   members: [
@@ -34,4 +37,28 @@ test('limits the detail list without including unrelated strong edges', () => {
     ['b']
   )
   assert.deepEqual(buildGroupRelationshipGalaxyConnections(data, null), [])
+})
+
+test('keeps the existing galaxy canvas mounted while a new time range is loading', () => {
+  assert.deepEqual(
+    resolveGroupRelationshipGalaxyDisplayState({
+      isLoading: true,
+      hasGraph: true,
+      hasError: false,
+      webglUnavailable: false,
+    }),
+    { content: 'canvas', showLoadingOverlay: true }
+  )
+})
+
+test('uses the page loading state when no galaxy has been rendered yet', () => {
+  assert.deepEqual(
+    resolveGroupRelationshipGalaxyDisplayState({
+      isLoading: true,
+      hasGraph: false,
+      hasError: false,
+      webglUnavailable: false,
+    }),
+    { content: 'loading', showLoadingOverlay: false }
+  )
 })

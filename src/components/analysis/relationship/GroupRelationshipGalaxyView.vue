@@ -13,7 +13,10 @@ import LazyAvatar from '@/components/common/avatar/LazyAvatar.vue'
 import RelationshipGalaxyThreeCanvas from '@/components/charts/relationship-galaxy/RelationshipGalaxyThreeCanvas.vue'
 import { useDataService } from '@/services'
 import { reportError } from '@/services/log-report'
-import { buildGroupRelationshipGalaxyConnections } from './group-relationship-galaxy-view'
+import {
+  buildGroupRelationshipGalaxyConnections,
+  resolveGroupRelationshipGalaxyDisplayState,
+} from './group-relationship-galaxy-view'
 
 type GalaxyCanvasInstance = {
   focusNode: (key: string) => boolean
@@ -43,6 +46,14 @@ const selectedMember = computed(() => {
 })
 const connections = computed(() => buildGroupRelationshipGalaxyConnections(galaxyData.value, selectedKey.value))
 const hasGraph = computed(() => (galaxyData.value?.graph.nodes.length ?? 0) > 0)
+const displayState = computed(() =>
+  resolveGroupRelationshipGalaxyDisplayState({
+    isLoading: isLoading.value,
+    hasGraph: hasGraph.value,
+    hasError: Boolean(loadError.value),
+    webglUnavailable: webglUnavailable.value,
+  })
+)
 const safeInsetRight = computed(() => (selectedMember.value && isWideLayout.value ? 392 : 0))
 const numberFormatter = computed(
   () => new Intl.NumberFormat(locale.value, { maximumFractionDigits: 1, notation: 'compact' })
@@ -143,9 +154,13 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="relative h-full min-h-[420px] w-full overflow-hidden bg-[#050302] text-white">
-    <LoadingState v-if="isLoading" variant="page" :text="t('views.groupRelationshipGalaxy.loading')" />
+    <LoadingState
+      v-if="displayState.content === 'loading'"
+      variant="page"
+      :text="t('views.groupRelationshipGalaxy.loading')"
+    />
 
-    <div v-else-if="loadError" class="flex h-full items-center justify-center px-6 text-center">
+    <div v-else-if="displayState.content === 'error'" class="flex h-full items-center justify-center px-6 text-center">
       <div class="max-w-sm">
         <UIcon name="i-lucide-circle-alert" class="mx-auto h-10 w-10 text-rose-300" />
         <h3 class="mt-3 text-base font-semibold">{{ t('views.groupRelationshipGalaxy.loadFailed') }}</h3>
@@ -156,7 +171,10 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div v-else-if="webglUnavailable" class="flex h-full items-center justify-center px-6 text-center">
+    <div
+      v-else-if="displayState.content === 'webgl-unavailable'"
+      class="flex h-full items-center justify-center px-6 text-center"
+    >
       <div class="max-w-sm">
         <UIcon name="i-lucide-orbit" class="mx-auto h-11 w-11 text-amber-200/80" />
         <h3 class="mt-3 text-base font-semibold">{{ t('views.groupRelationshipGalaxy.webglUnavailable') }}</h3>
@@ -166,7 +184,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <div v-else-if="!hasGraph" class="flex h-full items-center justify-center px-6 text-center">
+    <div v-else-if="displayState.content === 'empty'" class="flex h-full items-center justify-center px-6 text-center">
       <div class="max-w-sm">
         <UIcon name="i-lucide-sparkles" class="mx-auto h-11 w-11 text-sky-200/70" />
         <h3 class="mt-3 text-base font-semibold">{{ t('views.groupRelationshipGalaxy.emptyTitle') }}</h3>
@@ -176,7 +194,7 @@ onBeforeUnmount(() => {
       </div>
     </div>
 
-    <template v-else-if="galaxyData">
+    <template v-else-if="displayState.content === 'canvas' && galaxyData">
       <RelationshipGalaxyThreeCanvas
         ref="canvasRef"
         :graph="galaxyData.graph"
@@ -188,7 +206,14 @@ onBeforeUnmount(() => {
         @select-node="selectNode"
       />
 
+      <LoadingState
+        v-if="displayState.showLoadingOverlay"
+        variant="overlay"
+        :text="t('views.groupRelationshipGalaxy.loading')"
+      />
+
       <UButton
+        v-if="!displayState.showLoadingOverlay"
         icon="i-lucide-scan"
         color="neutral"
         variant="soft"
