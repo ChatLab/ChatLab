@@ -77,8 +77,8 @@ function startOfDay(date: Date): Date {
 </script>
 
 <template>
-  <div>
-    <div class="grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-3 lg:grid-cols-4">
+  <div class="annual-calendar">
+    <div class="annual-calendar-months grid grid-cols-2 gap-x-4 gap-y-5">
       <div v-for="month in months" :key="month.key" class="min-w-0">
         <div class="mb-1.5 text-[11px] font-bold text-gray-500 dark:text-zinc-400">
           {{ month.label }}
@@ -116,3 +116,21 @@ function startOfDay(date: Date): Date {
     </div>
   </div>
 </template>
+
+<style scoped>
+.annual-calendar {
+  container-type: inline-size;
+}
+
+@container (min-width: 234px) {
+  .annual-calendar-months {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 314px) {
+  .annual-calendar-months {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+</style>
