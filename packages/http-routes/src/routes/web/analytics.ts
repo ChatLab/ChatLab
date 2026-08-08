@@ -24,6 +24,8 @@ import {
   getCatchphraseAnalysis,
   getMentionAnalysis,
   getMentionGraph,
+  getGroupRelationshipGalaxy,
+  GROUP_RELATIONSHIP_GALAXY_ALGORITHM_VERSION,
   getLaughAnalysis,
   getClusterGraph,
   getLanguagePreferenceAnalysis,
@@ -155,6 +157,21 @@ export function registerAnalyticsRoutes(server: FastifyInstance, ctx: AnalyticsR
       const id = request.params.id
       const filter = parseTimeFilter(request.query)
       return cached('mention-graph', id, { ...filter }, () => getMentionGraph(adapter.ensureReadonly(id), filter))
+    }
+  )
+
+  server.get<{ Params: { id: string }; Querystring: FilteredQuery }>(
+    '/_web/sessions/:id/analytics/relationship-galaxy',
+    async (request) => {
+      const id = request.params.id
+      const filter = parseTimeFilter(request.query)
+      return cached(
+        'relationship-galaxy',
+        id,
+        { ...filter },
+        () => getGroupRelationshipGalaxy(adapter.ensureReadonly(id), filter),
+        { extraVersion: GROUP_RELATIONSHIP_GALAXY_ALGORITHM_VERSION }
+      )
     }
   )
 

@@ -9,6 +9,7 @@ import {
   getMembersWithAliases as queryMembersWithAliases,
   getMentionAnalysis as queryMentionAnalysis,
   getMentionGraph as queryMentionGraph,
+  getGroupRelationshipGalaxy as queryGroupRelationshipGalaxy,
   getAvailableYears as queryAvailableYears,
   getDailyActivity as queryDailyActivity,
   getHourlyActivity as queryHourlyActivity,
@@ -47,6 +48,7 @@ import {
   type WordFrequencyResult,
   type YearlyActivity,
 } from '@openchatlab/core'
+import type { GroupRelationshipGalaxyData } from '@openchatlab/shared-types'
 import { PARSER_FORMAT_IDS } from '@openchatlab/parser/browser'
 import { WebRuntimeError } from '../runtime-error'
 import type { WorkspaceDatabasePort, WorkspaceDatabaseStage } from '../storage/workspace-database'
@@ -423,6 +425,10 @@ export class BrowserSessionRuntime {
 
   async getMentionGraph(id: string, filter?: BrowserTimeFilter): Promise<MentionGraphData> {
     return this.withSessionDatabase(id, (db) => queryMentionGraph(db, filter))
+  }
+
+  async getGroupRelationshipGalaxy(id: string, filter?: BrowserTimeFilter): Promise<GroupRelationshipGalaxyData> {
+    return this.withSessionDatabase(id, (db) => queryGroupRelationshipGalaxy(db, filter))
   }
 
   async getClusterGraph(

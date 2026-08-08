@@ -5,7 +5,13 @@
 
 export { getCatchphraseAnalysis } from './repeat'
 
-export { getMentionAnalysis, getMentionGraph, getLaughAnalysis, getClusterGraph } from './social'
+export {
+  getMentionAnalysis,
+  getMentionGraph,
+  getGroupRelationshipGalaxy,
+  getLaughAnalysis,
+  getClusterGraph,
+} from './social'
 export type {
   MentionGraphData,
   MentionGraphNode,

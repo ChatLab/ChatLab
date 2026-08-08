@@ -14,6 +14,7 @@ import type {
   PeopleRelationshipsGraphResponse,
   PeopleRelationshipsNeighborhoodResponse,
   AnnualSummaryResponse,
+  GroupRelationshipGalaxyData,
 } from '@openchatlab/shared-types'
 import type {
   MemberActivity,
@@ -394,6 +395,10 @@ export class FetchDataAdapter implements DataAdapter {
 
   getMentionGraph(sessionId: string, filter?: TimeFilter): Promise<MentionGraphData> {
     return analyticsGet(`/sessions/${sessionId}/analytics/mention-graph${buildFilterParams(filter)}`)
+  }
+
+  getGroupRelationshipGalaxy(sessionId: string, filter?: TimeFilter): Promise<GroupRelationshipGalaxyData> {
+    return analyticsGet(`/sessions/${sessionId}/analytics/relationship-galaxy${buildFilterParams(filter)}`)
   }
 
   getClusterGraph(sessionId: string, filter?: TimeFilter, options?: ClusterGraphOptions): Promise<ClusterGraphData> {

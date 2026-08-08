@@ -1044,30 +1044,43 @@ describe('BrowserSessionRuntime', () => {
 
     await runtime.importSource(source('insight-query.json', fixture), { formatId: 'chatlab' })
 
-    const [monthly, yearly, memberTrend, members, mentions, mentionGraph, clusterGraph, language, wordFrequency] =
-      await Promise.all([
-        runtime.getMonthlyActivity('insight-query-session'),
-        runtime.getYearlyActivity('insight-query-session'),
-        runtime.getMemberMonthlyTrend('insight-query-session'),
-        runtime.getMembers('insight-query-session'),
-        runtime.getMentionAnalysis('insight-query-session'),
-        runtime.getMentionGraph('insight-query-session'),
-        runtime.getClusterGraph('insight-query-session'),
-        runtime.getLanguagePreferenceAnalysis('insight-query-session', 'en-US'),
-        runtime.getWordFrequency('insight-query-session', {
-          locale: 'en-US',
-          topN: 10,
-          minCount: 2,
-          posFilterMode: 'all',
-          enableStopwords: false,
-        }),
-      ])
+    const [
+      monthly,
+      yearly,
+      memberTrend,
+      members,
+      mentions,
+      mentionGraph,
+      relationshipGalaxy,
+      clusterGraph,
+      language,
+      wordFrequency,
+    ] = await Promise.all([
+      runtime.getMonthlyActivity('insight-query-session'),
+      runtime.getYearlyActivity('insight-query-session'),
+      runtime.getMemberMonthlyTrend('insight-query-session'),
+      runtime.getMembers('insight-query-session'),
+      runtime.getMentionAnalysis('insight-query-session'),
+      runtime.getMentionGraph('insight-query-session'),
+      runtime.getGroupRelationshipGalaxy('insight-query-session'),
+      runtime.getClusterGraph('insight-query-session'),
+      runtime.getLanguagePreferenceAnalysis('insight-query-session', 'en-US'),
+      runtime.getWordFrequency('insight-query-session', {
+        locale: 'en-US',
+        topN: 10,
+        minCount: 2,
+        posFilterMode: 'all',
+        enableStopwords: false,
+      }),
+    ])
     assert.ok(monthly.length > 0)
     assert.ok(yearly.length > 0)
     assert.ok(memberTrend.length > 0)
     assert.ok(members.length > 0)
     assert.ok(mentions.totalMentions > 0)
     assert.ok(mentionGraph.links.length > 0)
+    assert.ok(relationshipGalaxy.graph.edges.length > 0)
+    assert.equal(relationshipGalaxy.algorithmVersion, 'group-relationship-galaxy-v1')
     assert.ok(clusterGraph.links.length > 0)
     assert.ok(language.members.length > 0)
     assert.ok(wordFrequency.words.length > 0)

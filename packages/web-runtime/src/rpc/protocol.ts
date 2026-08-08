@@ -30,6 +30,7 @@ import type {
   WordFrequencyResult,
   YearlyActivity,
 } from '@openchatlab/core'
+import type { GroupRelationshipGalaxyData } from '@openchatlab/shared-types'
 import type {
   BrowserImportFormatInfo,
   BrowserMultiChatEntry,
@@ -231,6 +232,10 @@ export interface WebRuntimeTaskMap {
     payload: { sessionId: string; filter?: BrowserTimeFilter }
     result: MentionGraphData
   }
+  'analysis.groupRelationshipGalaxy': {
+    payload: { sessionId: string; filter?: BrowserTimeFilter }
+    result: GroupRelationshipGalaxyData
+  }
   'analysis.clusterGraph': {
     payload: { sessionId: string; filter?: BrowserTimeFilter; options?: ClusterGraphOptions }
     result: ClusterGraphData
@@ -381,6 +386,7 @@ const WEB_RUNTIME_TASK_TYPES: Record<WebRuntimeTaskType, true> = {
   'analysis.memberList': true,
   'analysis.mentions': true,
   'analysis.mentionGraph': true,
+  'analysis.groupRelationshipGalaxy': true,
   'analysis.clusterGraph': true,
   'analysis.relationship': true,
   'analysis.journey': true,

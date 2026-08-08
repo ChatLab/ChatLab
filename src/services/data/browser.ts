@@ -48,6 +48,7 @@ type BrowserSessionDataAdapter = Pick<
   | 'getMembers'
   | 'getMentionAnalysis'
   | 'getMentionGraph'
+  | 'getGroupRelationshipGalaxy'
   | 'getClusterGraph'
   | 'getRelationshipStats'
   | 'getJourneyStats'
@@ -154,6 +155,10 @@ export class BrowserDataAdapter implements BrowserSessionDataAdapter {
 
   getMentionGraph(sessionId: string, filter?: TimeFilter) {
     return this.requestAnalysis('analysis.mentionGraph', { sessionId, filter })
+  }
+
+  getGroupRelationshipGalaxy(sessionId: string, filter?: TimeFilter) {
+    return this.requestAnalysis('analysis.groupRelationshipGalaxy', { sessionId, filter })
   }
 
   getClusterGraph(sessionId: string, filter?: TimeFilter, options?: ClusterGraphOptions): Promise<ClusterGraphData> {

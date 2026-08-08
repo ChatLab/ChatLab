@@ -62,6 +62,7 @@ const SESSION_ID = 'chat-1'
 const MEMBER_ACTIVITY_URL = `/_web/sessions/${SESSION_ID}/stats/member-activity`
 const JOURNEY_URL = `/_web/sessions/${SESSION_ID}/analytics/journey`
 const KEYWORD_URL = `/_web/sessions/${SESSION_ID}/analytics/laugh`
+const RELATIONSHIP_GALAXY_URL = `/_web/sessions/${SESSION_ID}/analytics/relationship-galaxy`
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
 describe('analytics routes', () => {
@@ -76,8 +77,27 @@ describe('analytics routes', () => {
     dbFile = path.join(root, `${SESSION_ID}.db`)
     raw = new Database(dbFile, { nativeBinding })
     raw.exec(`
-      CREATE TABLE member (id INTEGER PRIMARY KEY, platform_id TEXT, account_name TEXT, group_nickname TEXT, avatar TEXT);
-      CREATE TABLE message (id INTEGER PRIMARY KEY, sender_id INTEGER, ts INTEGER, type INTEGER, content TEXT, platform_message_id TEXT);
+      CREATE TABLE meta (name TEXT, platform TEXT, type TEXT, imported_at INTEGER, owner_id TEXT);
+      CREATE TABLE member (
+        id INTEGER PRIMARY KEY,
+        platform_id TEXT,
+        account_name TEXT,
+        group_nickname TEXT,
+        aliases TEXT DEFAULT '[]',
+        avatar TEXT
+      );
+      CREATE TABLE member_name_history (member_id INTEGER, name TEXT);
+      CREATE TABLE message (
+        id INTEGER PRIMARY KEY,
+        sender_id INTEGER,
+        ts INTEGER,
+        type INTEGER,
+        content TEXT,
+        platform_message_id TEXT,
+        reply_to_message_id TEXT
+      );
+      INSERT INTO meta (name, platform, type, imported_at, owner_id)
+      VALUES ('Group', 'wechat', 'group', 100, 'alice');
       INSERT INTO member (id, platform_id, account_name) VALUES (1, 'alice', 'Alice'), (2, 'bob', 'Bob');
       INSERT INTO message (id, sender_id, ts, type, content, platform_message_id) VALUES
         (1, 1, 100, 0, 'a', 'm-1'), (2, 2, 200, 0, 'b', 'm-2'), (3, 1, 300, 0, 'c', 'm-3');
@@ -205,6 +225,26 @@ describe('analytics routes', () => {
     assert.deepEqual(same.json(), first.json())
 
     const differentRange = await app.inject({ method: 'GET', url: `${JOURNEY_URL}?startTs=200&endTs=300` })
+    assert.equal(differentRange.statusCode, 500)
+  })
+
+  it('serves the shared group relationship galaxy and keys its cache by time range', async () => {
+    const first = await app.inject({ method: 'GET', url: `${RELATIONSHIP_GALAXY_URL}?startTs=100&endTs=300` })
+    assert.equal(first.statusCode, 200)
+    assert.equal(first.json().algorithmVersion, 'group-relationship-galaxy-v1')
+    assert.equal(first.json().graph.nodes.length, 2)
+    assert.ok(first.json().graph.edges.length > 0)
+
+    raw.close()
+
+    const same = await app.inject({ method: 'GET', url: `${RELATIONSHIP_GALAXY_URL}?startTs=100&endTs=300` })
+    assert.equal(same.statusCode, 200)
+    assert.deepEqual(same.json(), first.json())
+
+    const differentRange = await app.inject({
+      method: 'GET',
+      url: `${RELATIONSHIP_GALAXY_URL}?startTs=200&endTs=300`,
+    })
     assert.equal(differentRange.statusCode, 500)
   })
 })

@@ -8,6 +8,7 @@ describe('worker timeout policy', () => {
     assert.equal(isRestartableReadOnlyRequestType('executeRawSQL'), true)
     assert.equal(isRestartableReadOnlyRequestType('getSchema'), true)
     assert.equal(isRestartableReadOnlyRequestType('getChatOverview'), true)
+    assert.equal(isRestartableReadOnlyRequestType('getGroupRelationshipGalaxy'), true)
     assert.equal(isRestartableReadOnlyRequestType('searchMessages'), true)
     assert.equal(isRestartableReadOnlyRequestType('getSegmentSummaries'), true)
     assert.equal(isRestartableReadOnlyRequestType('analyzePushImport'), true)

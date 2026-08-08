@@ -6,9 +6,12 @@ import { openDatabaseAdapter, type TimeFilter } from '../../core'
 import {
   getMentionAnalysis as coreGetMentionAnalysis,
   getMentionGraph as coreGetMentionGraph,
+  getGroupRelationshipGalaxy as coreGetGroupRelationshipGalaxy,
+  GROUP_RELATIONSHIP_GALAXY_ALGORITHM_VERSION,
   getLaughAnalysis as coreGetLaughAnalysis,
   getClusterGraph as coreGetClusterGraph,
 } from '@openchatlab/core'
+import type { GroupRelationshipGalaxyData } from '@openchatlab/shared-types'
 import type {
   MentionGraphData,
   MentionGraphNode,
@@ -39,6 +42,20 @@ export function getMentionGraph(sessionId: string, filter?: TimeFilter): Mention
   const db = openDatabaseAdapter(sessionId)
   if (!db) return { nodes: [], links: [], maxLinkValue: 0 }
   return coreGetMentionGraph(db, filter)
+}
+
+export function getGroupRelationshipGalaxy(sessionId: string, filter?: TimeFilter): GroupRelationshipGalaxyData {
+  const db = openDatabaseAdapter(sessionId)
+  if (!db) {
+    return {
+      graph: { nodes: [], edges: [], communities: [] },
+      members: [],
+      edges: [],
+      stats: { totalMembers: 0, activeMembers: 0, displayedMembers: 0, displayedEdges: 0, communityCount: 0 },
+      algorithmVersion: GROUP_RELATIONSHIP_GALAXY_ALGORITHM_VERSION,
+    }
+  }
+  return coreGetGroupRelationshipGalaxy(db, filter)
 }
 
 export function getLaughAnalysis(sessionId: string, filter?: TimeFilter, keywords?: string[]): any {
