@@ -30,6 +30,7 @@ import { initializeAppRuntime, initializeProgressiveAppRuntime } from '@/bootstr
 import { markStartupPhase, markStartupPhaseAfterPaint } from '@/bootstrap/startup-performance'
 import { resolveStartupPresentation } from '@/bootstrap/startup-presentation'
 import { STARTUP_PAGE_REVEAL_READY_KEY } from '@/bootstrap/startup-page-reveal'
+import { claimFullStartupPresentation } from '@/bootstrap/startup-playback'
 
 const LockScreen = IS_ELECTRON ? defineAsyncComponent(() => import('@/components/lock-screen/LockScreen.vue')) : null
 const DataDirCleanupNotice = defineAsyncComponent(() => import('@/components/common/DataDirCleanupNotice.vue'))
@@ -60,6 +61,7 @@ const { isBootstrapMaskVisible, isApplicationInteractive, markLockScreenReady, s
 const isLoginPage = computed(() => PLATFORM_CAPABILITIES.requiresAuth && route.name === 'login')
 const pageTransitionKey = computed(() => resolvePageTransitionKey(route))
 const isRuntimeReady = ref(false)
+const shouldPlayFullStartup = ref(true)
 const isStartupAnimationComplete = ref(false)
 const isStartupPageEntering = ref(false)
 const isStartupCoverHidden = ref(false)
@@ -95,6 +97,16 @@ provide(STARTUP_PAGE_REVEAL_READY_KEY, readonly(isStartupPageEntering))
 let initInProgress = false
 let unlistenPullResult: (() => void) | null = null
 let cancelNonCriticalUiPrefetch: (() => void) | null = null
+let startupPlaybackPrepared = false
+
+function prepareStartupPlayback(): void {
+  if (startupPlaybackPrepared) return
+  startupPlaybackPrepared = true
+  shouldPlayFullStartup.value = claimFullStartupPresentation()
+  isStartupAnimationComplete.value = !shouldPlayFullStartup.value
+}
+
+if (!isLoginPage.value) prepareStartupPlayback()
 
 function scheduleNonCriticalUiPrefetch() {
   if (cancelNonCriticalUiPrefetch) return
@@ -270,7 +282,10 @@ function handleGlobalKeydown(e: KeyboardEvent) {
 
 // After login success, route changes from login → app; trigger init
 watch(isLoginPage, (isLogin) => {
-  if (!isLogin) initializeApp()
+  if (!isLogin) {
+    prepareStartupPlayback()
+    initializeApp()
+  }
 })
 
 watch(
@@ -343,6 +358,7 @@ onMounted(async () => {
 
   if (isLoginPage.value) return
 
+  prepareStartupPlayback()
   await initializeApp()
 })
 
@@ -411,6 +427,7 @@ onUnmounted(() => {
             </div>
             <StartupLoading
               v-else
+              :animated="shouldPlayFullStartup"
               :waiting="startupPresentation.showWaitingIndicator"
               @complete="handleStartupAnimationComplete"
             />

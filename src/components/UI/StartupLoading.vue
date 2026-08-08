@@ -3,9 +3,16 @@ import { onBeforeUnmount, onMounted } from 'vue'
 import logoSvg from '@/assets/images/logo.svg'
 import { STARTUP_ANIMATION_DURATION_MS } from '@/bootstrap/startup-presentation'
 
-defineProps<{
-  waiting?: boolean
-}>()
+const props = withDefaults(
+  defineProps<{
+    waiting?: boolean
+    animated?: boolean
+  }>(),
+  {
+    waiting: false,
+    animated: true,
+  }
+)
 
 const emit = defineEmits<{
   complete: []
@@ -29,7 +36,7 @@ function completeAnimation(): void {
 }
 
 onMounted(() => {
-  if (window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
+  if (!props.animated || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) {
     queueMicrotask(completeAnimation)
     return
   }
@@ -46,6 +53,7 @@ onBeforeUnmount(() => {
 <template>
   <div
     class="startup-loader flex h-full w-full items-center justify-center overflow-hidden"
+    :class="{ 'startup-loader--static': !animated }"
     :style="animationStyle"
     role="status"
     aria-live="polite"
@@ -149,6 +157,29 @@ onBeforeUnmount(() => {
   border-top-color: transparent;
   border-radius: 9999px;
   animation: startup-loader-waiting 0.8s linear infinite;
+}
+
+.startup-loader--static .startup-loader__glow,
+.startup-loader--static .startup-loader__brand,
+.startup-loader--static .startup-loader__logo-wrap::before,
+.startup-loader--static .startup-loader__name {
+  animation: none;
+}
+
+.startup-loader--static .startup-loader__glow {
+  opacity: 0.2;
+  transform: translateX(35%);
+}
+
+.startup-loader--static .startup-loader__brand,
+.startup-loader--static .startup-loader__name {
+  opacity: 1;
+  transform: none;
+}
+
+.startup-loader--static .startup-loader__logo-wrap::before {
+  opacity: 0.62;
+  transform: scale(1);
 }
 
 @keyframes startup-loader-logo {
