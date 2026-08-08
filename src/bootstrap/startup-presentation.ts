@@ -3,6 +3,7 @@ export const STARTUP_ANIMATION_DURATION_MS = 1_800
 export interface StartupPresentationInput {
   runtimeReady: boolean
   animationComplete: boolean
+  waitForAnimation: boolean
   initializationFailed: boolean
 }
 
@@ -29,7 +30,7 @@ export function resolveStartupPresentation(input: StartupPresentationInput): Sta
 
   return {
     mountShell: input.runtimeReady,
-    showCover: !input.runtimeReady || !input.animationComplete,
+    showCover: !input.runtimeReady || (input.waitForAnimation && !input.animationComplete),
     showError: false,
     showWaitingIndicator: input.animationComplete && !input.runtimeReady,
   }

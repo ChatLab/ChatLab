@@ -3,7 +3,8 @@ export const STARTUP_PRESENTATION_SESSION_KEY = 'chatlab:startup-presentation-sh
 type StartupPlaybackStorage = Pick<Storage, 'getItem' | 'setItem'>
 
 /**
- * 为当前窗口或标签页认领一次完整启动展示。
+ * 为当前窗口或标签页认领一次必须等待完整动画的启动展示。
+ * 启动动画每次都会播放；后续刷新只是不再保留最低展示时长。
  * sessionStorage 在刷新后保留、关闭浏览上下文后清除，正好对应一次应用浏览会话。
  */
 export function claimFullStartupPresentation(storage: StartupPlaybackStorage = sessionStorage): boolean {

@@ -61,7 +61,7 @@ const { isBootstrapMaskVisible, isApplicationInteractive, markLockScreenReady, s
 const isLoginPage = computed(() => PLATFORM_CAPABILITIES.requiresAuth && route.name === 'login')
 const pageTransitionKey = computed(() => resolvePageTransitionKey(route))
 const isRuntimeReady = ref(false)
-const shouldPlayFullStartup = ref(true)
+const shouldWaitForFullStartup = ref(true)
 const isStartupAnimationComplete = ref(false)
 const isStartupPageEntering = ref(false)
 const isStartupCoverHidden = ref(false)
@@ -88,6 +88,7 @@ const startupPresentation = computed(() =>
   resolveStartupPresentation({
     runtimeReady: isRuntimeReady.value,
     animationComplete: isStartupAnimationComplete.value,
+    waitForAnimation: shouldWaitForFullStartup.value,
     initializationFailed: initError.value !== null,
   })
 )
@@ -102,8 +103,7 @@ let startupPlaybackPrepared = false
 function prepareStartupPlayback(): void {
   if (startupPlaybackPrepared) return
   startupPlaybackPrepared = true
-  shouldPlayFullStartup.value = claimFullStartupPresentation()
-  isStartupAnimationComplete.value = !shouldPlayFullStartup.value
+  shouldWaitForFullStartup.value = claimFullStartupPresentation()
 }
 
 if (!isLoginPage.value) prepareStartupPlayback()
@@ -430,7 +430,6 @@ onUnmounted(() => {
             </div>
             <StartupLoading
               v-else
-              :animated="shouldPlayFullStartup"
               :waiting="startupPresentation.showWaitingIndicator"
               @complete="handleStartupAnimationComplete"
             />
