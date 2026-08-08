@@ -18,6 +18,9 @@ export type {
   ClusterGraphOptions,
 } from './social'
 
+export { getGroupRelationshipGalaxy, GROUP_RELATIONSHIP_GALAXY_ALGORITHM_VERSION } from './group-relationship-galaxy'
+export type { GroupRelationshipGalaxyOptions } from './group-relationship-galaxy'
+
 export { getRelationshipStats } from './relationship'
 export type {
   RelationshipStats,

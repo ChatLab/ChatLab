@@ -502,6 +502,93 @@ export interface AnnualSummaryResponse {
 
 // ==================== People Relationships (galaxy graph) ====================
 
+/**
+ * 关系星系渲染器的最小契约。
+ *
+ * People 跨会话关系和群聊单会话关系都可以映射到该结构，渲染层不应依赖
+ * 好友池、共同群等任一业务场景的专属字段。
+ */
+export interface RelationshipGalaxyRenderNode {
+  key: string
+  displayName: string
+  avatar: string | null
+  score: number
+  rank: number
+  communityId: string
+  x: number
+  y: number
+  size: number
+  color: string
+  labelVisibility: 0 | 1 | 2
+}
+
+export interface RelationshipGalaxyRenderEdge {
+  id: string
+  sourceKey: string
+  targetKey: string
+  weight: number
+  visibility: 0 | 1 | 2
+}
+
+export interface RelationshipGalaxyRenderCommunity {
+  id: string
+  label: string
+  size: number
+  x: number
+  y: number
+  color: string
+}
+
+export interface RelationshipGalaxyRenderGraph {
+  nodes: RelationshipGalaxyRenderNode[]
+  edges: RelationshipGalaxyRenderEdge[]
+  communities: RelationshipGalaxyRenderCommunity[]
+}
+
+export interface GroupRelationshipGalaxyMemberDetail {
+  key: string
+  memberId: number
+  platformId: string
+  displayName: string
+  avatar: string | null
+  messageCount: number
+  lastMessageTs: number | null
+  relationshipScore: number
+  rank: number
+  communityId: string
+  replyInteractionCount: number
+  mentionInteractionCount: number
+  coOccurrenceCount: number
+  coOccurrenceRawScore: number
+  lastInteractionTs: number | null
+}
+
+export interface GroupRelationshipGalaxyEdgeDetail {
+  id: string
+  sourceKey: string
+  targetKey: string
+  weight: number
+  coOccurrenceCount: number
+  coOccurrenceRawScore: number
+  replyInteractionCount: number
+  mentionInteractionCount: number
+  lastInteractionTs: number | null
+}
+
+export interface GroupRelationshipGalaxyData {
+  graph: RelationshipGalaxyRenderGraph
+  members: GroupRelationshipGalaxyMemberDetail[]
+  edges: GroupRelationshipGalaxyEdgeDetail[]
+  stats: {
+    totalMembers: number
+    activeMembers: number
+    displayedMembers: number
+    displayedEdges: number
+    communityCount: number
+  }
+  algorithmVersion: string
+}
+
 export type PeopleRelationshipsCacheStatus = ContactsCacheStatus
 export type PeopleRelationshipsTaskStatus = ContactsTaskStatus
 export type PeopleRelationshipsGraphScope = 'panorama' | 'close' | 'friends'

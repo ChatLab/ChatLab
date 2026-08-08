@@ -95,6 +95,8 @@ export {
   getCatchphraseAnalysis,
   getMentionAnalysis,
   getMentionGraph,
+  getGroupRelationshipGalaxy,
+  GROUP_RELATIONSHIP_GALAXY_ALGORITHM_VERSION,
   getLaughAnalysis,
   getClusterGraph,
   getRelationshipStats,
