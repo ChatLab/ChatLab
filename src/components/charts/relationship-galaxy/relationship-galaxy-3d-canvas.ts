@@ -10,7 +10,7 @@ export function getRelationshipGalaxy3DDynamicLabelTier(
   if (sceneNode.key === hoveredKey) return sceneNode.labelTier === 2 ? 2 : 1
   if (!selectedKey) return sceneNode.labelTier
   if (!selectedVisibleLabelKeys?.has(sceneNode.key)) return 0
-  return sceneNode.key === selectedKey || sceneNode.node.kind === 'owner' ? 2 : 1
+  return sceneNode.key === selectedKey || sceneNode.node.visualRole === 'anchor' ? 2 : 1
 }
 
 export interface RelationshipGalaxy3DProjectionCamera {

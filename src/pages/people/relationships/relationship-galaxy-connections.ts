@@ -3,6 +3,10 @@ import type {
   PeopleRelationshipGraphNode,
   PeopleRelationshipsGraphData,
 } from '@openchatlab/shared-types'
+import {
+  buildRelationshipVisibleGraphForSelection as buildSharedVisibleGraphForSelection,
+  buildRelationshipVisibleLabelKeys as buildSharedVisibleLabelKeys,
+} from '@/components/charts/relationship-galaxy/relationship-galaxy-connections'
 
 export interface RelationshipConnectionRankingItem {
   node: PeopleRelationshipGraphNode
@@ -72,15 +76,9 @@ export function buildRelationshipVisibleLabelKeys(
   selectedKey: string | null,
   options: RelationshipVisibleLabelOptions = {}
 ): Set<string> {
-  const keys = new Set<string>()
-  if (!selectedKey || !graph.nodes.some((node) => node.key === selectedKey)) return keys
-
-  keys.add(selectedKey)
-  const ranking = buildRelationshipConnectionRanking(graph, selectedKey, {
-    collapsedLimit: options.limit ?? RELATED_CONTACTS_VISIBLE_LIMIT,
+  return buildSharedVisibleLabelKeys(graph, selectedKey, {
+    limit: options.limit ?? RELATED_CONTACTS_VISIBLE_LIMIT,
   })
-  for (const item of ranking.items) keys.add(item.node.key)
-  return keys
 }
 
 export function buildRelationshipVisibleGraphForSelection(
@@ -88,14 +86,7 @@ export function buildRelationshipVisibleGraphForSelection(
   selectedKey: string | null,
   options: RelationshipVisibleGraphOptions = {}
 ): PeopleRelationshipsGraphData {
-  if (!selectedKey || !graph.nodes.some((node) => node.key === selectedKey)) return graph
-
-  const visibleKeys = buildRelationshipVisibleLabelKeys(graph, selectedKey, options)
-  return {
-    nodes: graph.nodes.filter((node) => visibleKeys.has(node.key)),
-    edges: graph.edges.filter((edge) => visibleKeys.has(edge.sourceKey) && visibleKeys.has(edge.targetKey)),
-    communities: graph.communities,
-  }
+  return buildSharedVisibleGraphForSelection(graph, selectedKey, options) as PeopleRelationshipsGraphData
 }
 
 function toConnectionScore(weight: number): number {

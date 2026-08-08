@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import type { PeopleRelationshipGraphNode } from '@openchatlab/shared-types'
+import type { RelationshipGalaxyRenderNode } from '@openchatlab/shared-types'
 import {
   applyRelationshipGalaxy3DCameraViewOffset,
   captureRelationshipGalaxy3DCameraView,
@@ -9,17 +9,11 @@ import {
 } from './relationship-galaxy-3d-canvas'
 import { buildRelationshipGalaxy3DScene } from './relationship-galaxy-3d-scene'
 
-function node(key: string, rank: number, labelVisibility: 0 | 1 | 2 = 0): PeopleRelationshipGraphNode {
+function node(key: string, rank: number, labelVisibility: 0 | 1 | 2 = 0): RelationshipGalaxyRenderNode {
   return {
     key,
-    kind: key === 'owner' ? 'owner' : 'contact',
-    platform: 'wechat',
-    platformId: key,
-    sessionScoped: false,
     displayName: key,
-    aliases: [],
     avatar: null,
-    pool: 'friend',
     score: 1,
     rank,
     communityId: 'friends',
@@ -28,11 +22,8 @@ function node(key: string, rank: number, labelVisibility: 0 | 1 | 2 = 0): People
     size: 6,
     color: '#38bdf8',
     labelVisibility,
-    lastInteractionTs: null,
-    privateMessageCount: 0,
-    groupMessageCount: 0,
-    commonGroupCount: 1,
-    searchText: key,
+    visualRole: key === 'owner' ? 'anchor' : 'close',
+    importance: 1,
   }
 }
 

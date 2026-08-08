@@ -12,7 +12,7 @@ import { destroyRemovedPixiChildren } from '../relationship-galaxy-pixi-layers'
 import {
   buildRelationshipGalaxy2DSafeCenter,
   buildRelationshipGalaxy2DSafeFitScale,
-} from '../relationship-galaxy-viewport'
+} from '@/components/charts/relationship-galaxy/relationship-galaxy-viewport'
 import { getRelationshipGalaxyNodeDisplayName } from '../relationship-galaxy-node-display'
 
 interface Ripple {

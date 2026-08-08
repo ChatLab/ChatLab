@@ -184,6 +184,7 @@ export function getGroupRelationshipGalaxy(
     targetKey: edge.targetKey,
     weight: edge.weight,
     visibility: edge.weight / maxEdgeWeight >= 0.35 ? 2 : 1,
+    lastInteractionTs: edge.lastInteractionTs,
   }))
   const edgeDetails: GroupRelationshipGalaxyEdgeDetail[] = keptEdges.map((edge) => ({
     id: edge.id,

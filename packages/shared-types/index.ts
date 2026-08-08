@@ -520,6 +520,8 @@ export interface RelationshipGalaxyRenderNode {
   size: number
   color: string
   labelVisibility: 0 | 1 | 2
+  visualRole?: 'anchor' | 'close' | 'standard'
+  importance?: number
 }
 
 export interface RelationshipGalaxyRenderEdge {
@@ -528,6 +530,7 @@ export interface RelationshipGalaxyRenderEdge {
   targetKey: string
   weight: number
   visibility: 0 | 1 | 2
+  lastInteractionTs?: number | null
 }
 
 export interface RelationshipGalaxyRenderCommunity {
