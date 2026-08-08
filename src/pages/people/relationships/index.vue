@@ -807,6 +807,7 @@ onBeforeUnmount(() => {
       <LoadingState
         v-if="showInitialLoading"
         variant="overlay"
+        class="!bg-[#0b0f19] [&_p]:!text-gray-300"
         :text="statusText || t('relationships.task.updating')"
       />
 

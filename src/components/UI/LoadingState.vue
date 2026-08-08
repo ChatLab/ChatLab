@@ -6,6 +6,7 @@
 
 import { computed, ref } from 'vue'
 import { useInsightViewLoading } from './insight-view-loading'
+import LoadingDots from './LoadingDots.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -29,7 +30,7 @@ const containerClass = computed(() => {
     case 'page':
       return `${base} h-full w-full`
     case 'overlay':
-      return `${base} absolute inset-0 z-10 bg-white/50 backdrop-blur-sm dark:bg-page-dark/50`
+      return `${base} absolute inset-0 z-10 cursor-wait bg-page-bg dark:bg-page-dark`
     default:
       return `${base} ${props.height || 'py-8'}`
   }
@@ -39,12 +40,14 @@ const pageLoadingCoordinator = useInsightViewLoading(ref(true))
 const isCoordinatedPageLoading = computed(
   () => pageLoadingCoordinator !== null && (pageLoadingCoordinator.suppress?.value ?? true)
 )
+const usePageIndicator = computed(() => props.variant === 'page' || props.variant === 'overlay')
 </script>
 
 <template>
   <div v-if="!isCoordinatedPageLoading" :class="containerClass" role="status" aria-live="polite">
     <div class="flex flex-col items-center justify-center text-center">
-      <UIcon name="i-heroicons-arrow-path" class="h-6 w-6 animate-spin text-pink-500" />
+      <LoadingDots v-if="usePageIndicator" />
+      <UIcon v-else name="i-heroicons-arrow-path" class="h-6 w-6 animate-spin text-pink-500" />
       <p v-if="text" class="mt-2 text-sm text-gray-500">{{ text }}</p>
     </div>
   </div>

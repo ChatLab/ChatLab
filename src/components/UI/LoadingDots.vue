@@ -1,33 +1,33 @@
 <template>
-  <svg class="insight-loading-dots" viewBox="0 0 35 14" width="35" height="14" aria-hidden="true" focusable="false">
-    <circle class="insight-loading-dots__dot fill-primary-500" cx="6" cy="8" r="2.5" />
-    <circle class="insight-loading-dots__dot fill-primary-500" cx="17.5" cy="8" r="2.5" />
-    <circle class="insight-loading-dots__dot fill-primary-500" cx="29" cy="8" r="2.5" />
+  <svg class="loading-dots" viewBox="0 0 35 14" width="35" height="14" aria-hidden="true" focusable="false">
+    <circle class="loading-dots__dot fill-primary-500" cx="6" cy="8" r="2.5" />
+    <circle class="loading-dots__dot fill-primary-500" cx="17.5" cy="8" r="2.5" />
+    <circle class="loading-dots__dot fill-primary-500" cx="29" cy="8" r="2.5" />
   </svg>
 </template>
 
 <style scoped>
-.insight-loading-dots {
+.loading-dots {
   display: block;
   overflow: visible;
 }
 
-.insight-loading-dots__dot {
+.loading-dots__dot {
   opacity: 0.6;
   transform-box: fill-box;
   transform-origin: center;
-  animation: insight-loading-dot 760ms linear infinite;
+  animation: loading-dot 760ms linear infinite;
 }
 
-.insight-loading-dots__dot:nth-child(2) {
+.loading-dots__dot:nth-child(2) {
   animation-delay: 110ms;
 }
 
-.insight-loading-dots__dot:nth-child(3) {
+.loading-dots__dot:nth-child(3) {
   animation-delay: 220ms;
 }
 
-@keyframes insight-loading-dot {
+@keyframes loading-dot {
   0%,
   100% {
     opacity: 0.6;
@@ -53,7 +53,7 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .insight-loading-dots__dot {
+  .loading-dots__dot {
     opacity: 0.8;
     animation: none;
   }

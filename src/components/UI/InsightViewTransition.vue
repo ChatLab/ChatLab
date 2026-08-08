@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, inject, nextTick, onBeforeUnmount, provide, ref, watch } from 'vue'
 import type { Ref } from 'vue'
-import InsightLoadingDots from './InsightLoadingDots.vue'
+import LoadingDots from './LoadingDots.vue'
 import { insightViewLoadingCoordinatorKey } from './insight-view-loading'
 
 type PaneId = 'primary' | 'secondary'
@@ -121,7 +121,7 @@ onBeforeUnmount(() => {
 <template>
   <div class="insight-view-transition" :aria-busy="isTransitioning">
     <div v-if="showIndicator" class="insight-view-transition__indicator" aria-hidden="true">
-      <InsightLoadingDots />
+      <LoadingDots />
     </div>
 
     <div
@@ -153,11 +153,10 @@ onBeforeUnmount(() => {
 }
 
 .insight-view-transition__indicator {
-  position: sticky;
+  position: absolute;
   z-index: 3;
-  top: calc(50% - 0.4375rem);
+  inset: 0;
   display: flex;
-  height: 0;
   align-items: center;
   justify-content: center;
   pointer-events: none;
@@ -165,23 +164,16 @@ onBeforeUnmount(() => {
 
 .insight-view-transition__pane {
   width: 100%;
-  transition:
-    opacity 180ms ease,
-    filter 180ms ease;
+  transition: opacity 180ms ease;
 }
 
 .insight-view-transition__pane--active {
   position: relative;
   opacity: 1;
-  filter: none;
 }
 
 .insight-view-transition__pane--waiting {
-  position: relative;
-  opacity: 0.52;
-  filter: blur(1.5px);
-  pointer-events: none;
-  user-select: none;
+  display: none;
 }
 
 .insight-view-transition__pane--pending,
@@ -197,25 +189,16 @@ onBeforeUnmount(() => {
 }
 
 .insight-view-transition__pane--outgoing {
-  position: relative;
-  opacity: 0;
-  filter: blur(2px);
-  pointer-events: none;
+  display: none;
 }
 
 .insight-view-transition__pane--incoming {
   opacity: 1;
-  filter: none;
 }
 
 @media (prefers-reduced-motion: reduce) {
   .insight-view-transition__pane {
     transition: none;
-  }
-
-  .insight-view-transition__pane--waiting,
-  .insight-view-transition__pane--outgoing {
-    filter: none;
   }
 }
 </style>

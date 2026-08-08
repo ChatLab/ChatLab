@@ -3,8 +3,7 @@ import { computed, defineAsyncComponent, provide, ref, watch } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
-import { LoadingState } from '@/components/UI'
-import InsightLoadingDots from '@/components/UI/InsightLoadingDots.vue'
+import { LoadingDots, LoadingState } from '@/components/UI'
 import SessionAnalysisHeader from '@/components/layout/session/SessionAnalysisHeader.vue'
 import { useSessionAnalysisPageBase } from '@/composables'
 import { useSessionStore } from '@/stores/session'
@@ -101,13 +100,13 @@ watch(
     <div
       v-if="isSessionSwitching"
       data-testid="session-switch-loading"
-      class="absolute inset-0 z-20 flex cursor-wait items-center justify-center bg-page-bg/15 backdrop-blur-[1.5px] dark:bg-page-dark/15"
+      class="absolute inset-0 z-20 flex cursor-wait items-center justify-center bg-page-bg dark:bg-page-dark"
       :style="{ paddingTop: 'var(--titlebar-area-height)' }"
       role="status"
       aria-live="polite"
       :aria-label="t('common.loading')"
     >
-      <InsightLoadingDots />
+      <LoadingDots />
     </div>
 
     <template v-if="session">

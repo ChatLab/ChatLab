@@ -17,8 +17,7 @@ import OwnerPromptModal from '@/components/analysis/member/OwnerPromptModal.vue'
 import IncrementalImportModal from '@/components/analysis/IncrementalImportModal.vue'
 const MessageExportModal = defineAsyncComponent(() => import('@/components/MessageExport/MessageExportModal.vue'))
 import ActionToolsPanel from '@/components/layout/ActionToolsPanel.vue'
-import { LoadingState } from '@/components/UI'
-import InsightLoadingDots from '@/components/UI/InsightLoadingDots.vue'
+import { LoadingDots, LoadingState } from '@/components/UI'
 import { useSessionStore } from '@/stores/session'
 import { useLayoutStore } from '@/stores/layout'
 import { useSettingsStore } from '@/stores/settings'
@@ -115,13 +114,13 @@ const filteredMemberCount = computed(() => {
     <div
       v-if="isSessionSwitching"
       data-testid="group-chat-switch-loading"
-      class="absolute inset-0 z-20 flex cursor-wait items-center justify-center bg-page-bg/15 backdrop-blur-[1.5px] dark:bg-page-dark/15"
+      class="absolute inset-0 z-20 flex cursor-wait items-center justify-center bg-page-bg dark:bg-page-dark"
       :style="{ paddingTop: 'var(--titlebar-area-height)' }"
       role="status"
       aria-live="polite"
       :aria-label="t('common.loading')"
     >
-      <InsightLoadingDots />
+      <LoadingDots />
     </div>
 
     <!-- Content -->
@@ -147,7 +146,7 @@ const filteredMemberCount = computed(() => {
       <!-- Tab Content -->
       <div class="relative flex-1 overflow-y-auto">
         <!-- Loading Overlay -->
-        <LoadingState v-if="isLoading && !isSessionSwitching" variant="overlay" />
+        <LoadingState v-if="isLoading && !isSessionSwitching" variant="overlay" :text="t('common.loading')" />
 
         <div class="h-full">
           <Transition name="tab-slide" mode="out-in">
