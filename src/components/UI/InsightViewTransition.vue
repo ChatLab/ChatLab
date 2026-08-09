@@ -149,6 +149,7 @@ onBeforeUnmount(() => {
 <style scoped>
 .insight-view-transition {
   position: relative;
+  height: 100%;
   min-height: 100%;
 }
 
@@ -163,6 +164,7 @@ onBeforeUnmount(() => {
 }
 
 .insight-view-transition__pane {
+  height: 100%;
   width: 100%;
   transition: opacity 180ms ease;
 }
