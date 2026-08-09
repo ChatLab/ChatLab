@@ -796,6 +796,14 @@ watch(
 )
 
 watch(
+  () => props.safeInsetRight,
+  () => {
+    applyCameraSafeAreaProjection()
+  },
+  { flush: 'post' }
+)
+
+watch(
   () => props.emphasizeEdges,
   () => {
     renderGraph(false)
