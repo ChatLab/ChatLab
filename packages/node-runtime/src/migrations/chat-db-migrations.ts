@@ -54,6 +54,14 @@ export function getChatDbMigrations(): CoreMigration[] {
     return tableInfo.some((col) => col.name === columnName)
   }
 
+  const hasTable = (db: DatabaseAdapter, tableName: string): boolean => {
+    return Boolean(
+      db.prepare("SELECT 1 FROM sqlite_master WHERE type = 'table' AND name = ?").get(tableName) as
+        | Record<string, unknown>
+        | undefined
+    )
+  }
+
   const addColumnIfMissing = (db: DatabaseAdapter, tableName: string, columnName: string, definition: string): void => {
     if (!hasColumn(db, tableName, columnName)) {
       db.exec(`ALTER TABLE ${tableName} ADD COLUMN ${columnName} ${definition}`)
@@ -370,6 +378,15 @@ export function getChatDbMigrations(): CoreMigration[] {
       description: 'Remove the obsolete per-session full-text index',
       up: (db: DatabaseAdapter) => {
         db.exec('DROP TABLE IF EXISTS message_fts')
+      },
+    },
+    {
+      version: 10,
+      description: 'Track message coverage for generated segment summaries',
+      up: (db: DatabaseAdapter) => {
+        // Existing summaries may have been truncated or preserved after incremental imports.
+        // Keep their text for users to review, but leave coverage unknown so the new runtime marks them stale.
+        if (hasTable(db, 'segment')) addColumnIfMissing(db, 'segment', 'summary_message_count', 'INTEGER')
       },
     },
   ]

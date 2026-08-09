@@ -18,6 +18,7 @@ export interface ChatSessionItem {
   messageCount: number
   firstMessageId: number
   summary?: string | null
+  summaryMessageCount?: number | null
 }
 
 export interface SummaryResult {

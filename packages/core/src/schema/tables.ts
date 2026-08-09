@@ -4,11 +4,11 @@
  * 所有 CREATE TABLE / INDEX 语句的单一事实来源。
  * 新建数据库时使用完整 Schema，现有数据库通过迁移脚本演进。
  *
- * 当前 Schema 版本：9
+ * 当前 Schema 版本：10
  */
 
 /** 当前 Schema 版本（最新迁移的版本号） */
-export const CURRENT_SCHEMA_VERSION = 9
+export const CURRENT_SCHEMA_VERSION = 10
 
 /**
  * Table DDL only (no indexes). Used by bulk-import workflows that defer
@@ -66,7 +66,8 @@ export const CHAT_DB_TABLES = `
     end_ts INTEGER NOT NULL,
     message_count INTEGER DEFAULT 0,
     is_manual INTEGER DEFAULT 0,
-    summary TEXT
+    summary TEXT,
+    summary_message_count INTEGER
   );
 
   CREATE TABLE IF NOT EXISTS message_context (

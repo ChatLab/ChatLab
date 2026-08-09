@@ -56,10 +56,10 @@ function createSessionDb(): SqliteTestAdapter {
       (1, 1, 100, 0, 'one', 'pm-1'),
       (2, 1, 300, 0, 'three', 'pm-3'),
       (3, 2, 200, 0, 'two', NULL);
-    INSERT INTO segment (start_ts, end_ts, message_count, summary) VALUES
-      (100, 150, 1, 'summary one'),
-      (200, 250, 1, NULL),
-      (300, 350, 1, 'summary two');
+    INSERT INTO segment (start_ts, end_ts, message_count, summary, summary_message_count) VALUES
+      (100, 150, 1, 'summary one', 1),
+      (200, 250, 1, NULL, NULL),
+      (300, 350, 1, 'summary two', 1);
   `)
   return db
 }

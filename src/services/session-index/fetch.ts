@@ -88,7 +88,8 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
   async getSessions(sessionId: string): Promise<ChatSessionItem[]> {
     return getDataAdapter().pluginQuery<ChatSessionItem>(
       sessionId,
-      `SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount, summary, ${FIRST_MESSAGE_ID_SUBQUERY}
+      `SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount, summary,
+              summary_message_count as summaryMessageCount, ${FIRST_MESSAGE_ID_SUBQUERY}
        FROM segment ORDER BY start_ts ASC`,
       []
     )
@@ -97,7 +98,8 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
   async getByTimeRange(sessionId: string, startTs: number, endTs: number): Promise<ChatSessionItem[]> {
     return getDataAdapter().pluginQuery<ChatSessionItem>(
       sessionId,
-      `SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount, summary, ${FIRST_MESSAGE_ID_SUBQUERY}
+      `SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount, summary,
+              summary_message_count as summaryMessageCount, ${FIRST_MESSAGE_ID_SUBQUERY}
        FROM segment WHERE start_ts >= ? AND end_ts <= ? ORDER BY start_ts ASC`,
       [startTs, endTs]
     )
@@ -106,7 +108,8 @@ export class FetchSessionIndexAdapter implements SessionIndexAdapter {
   async getRecent(sessionId: string, limit: number): Promise<ChatSessionItem[]> {
     return getDataAdapter().pluginQuery<ChatSessionItem>(
       sessionId,
-      `SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount, summary, ${FIRST_MESSAGE_ID_SUBQUERY}
+      `SELECT id, start_ts as startTs, end_ts as endTs, message_count as messageCount, summary,
+              summary_message_count as summaryMessageCount, ${FIRST_MESSAGE_ID_SUBQUERY}
        FROM segment ORDER BY start_ts DESC LIMIT ?`,
       [limit]
     )

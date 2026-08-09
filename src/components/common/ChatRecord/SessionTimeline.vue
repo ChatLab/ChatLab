@@ -190,6 +190,10 @@ function formatTime(ts: number): string {
   return date.toLocaleTimeString(locale.value, { hour: '2-digit', minute: '2-digit' })
 }
 
+function isSummaryStale(session: ChatSessionItem): boolean {
+  return Boolean(session.summary) && session.summaryMessageCount !== session.messageCount
+}
+
 // 获取日期键
 function getDateKey(ts: number): string {
   const date = new Date(ts * 1000)
@@ -264,7 +268,11 @@ async function generateSummary(session: ChatSessionItem, event: Event) {
     if (result.success && result.summary) {
       const index = allSessions.value.findIndex((s) => s.id === session.id)
       if (index !== -1) {
-        const updatedSession = { ...allSessions.value[index], summary: result.summary }
+        const updatedSession = {
+          ...allSessions.value[index],
+          summary: result.summary,
+          summaryMessageCount: allSessions.value[index].messageCount,
+        }
         allSessions.value[index] = updatedSession
         emit('summary-updated', updatedSession)
       }
@@ -432,6 +440,12 @@ watch(
                         <span class="ml-1">
                           {{ (flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary }}
                         </span>
+                        <span
+                          v-if="isSummaryStale((flatList[virtualItem.index] as { session: ChatSessionItem }).session)"
+                          class="ml-1 font-medium text-amber-500 dark:text-amber-400"
+                        >
+                          {{ t('records.timeline.summaryStale') }}
+                        </span>
                       </span>
                       <template #content>
                         <div class="max-w-sm whitespace-pre-wrap text-sm leading-relaxed font-normal">
@@ -445,7 +459,10 @@ watch(
                   </div>
 
                   <div
-                    v-if="!(flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary"
+                    v-if="
+                      !(flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary ||
+                      isSummaryStale((flatList[virtualItem.index] as { session: ChatSessionItem }).session)
+                    "
                     class="mt-0.5 flex min-w-0 items-center"
                   >
                     <!-- 无摘要且消息数>=3：显示生成按钮 -->
@@ -462,7 +479,13 @@ watch(
                         class="h-3 w-3 shrink-0 animate-spin"
                       />
                       <UIcon v-else name="i-heroicons-sparkles" class="h-3 w-3 shrink-0" />
-                      <span class="truncate">{{ t('records.timeline.generateSummary') }}</span>
+                      <span class="truncate">
+                        {{
+                          isSummaryStale((flatList[virtualItem.index] as { session: ChatSessionItem }).session)
+                            ? t('records.timeline.updateSummary')
+                            : t('records.timeline.generateSummary')
+                        }}
+                      </span>
                     </span>
 
                     <!-- 消息数<3：显示提示 -->

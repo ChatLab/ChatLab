@@ -244,6 +244,61 @@ test('open safely upgrades a v8 session that has no FTS table', () => {
   manager.closeAll()
 })
 
+test('open adds summary coverage metadata without trusting legacy summaries', () => {
+  const root = makeTempDir()
+  const dbDir = path.join(root, 'data', 'databases')
+  fs.mkdirSync(dbDir, { recursive: true })
+  const dbPath = path.join(dbDir, 'v9-summary-coverage.db')
+
+  const rawDb = new Database(dbPath, { nativeBinding })
+  rawDb.exec(`
+    CREATE TABLE meta (
+      name TEXT NOT NULL,
+      platform TEXT NOT NULL,
+      type TEXT NOT NULL,
+      imported_at INTEGER NOT NULL,
+      schema_version INTEGER DEFAULT 9
+    );
+    INSERT INTO meta (name, platform, type, imported_at, schema_version)
+    VALUES ('V9 Summary', 'qq', 'group', 1000, 9);
+
+    CREATE TABLE member (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      platform_id TEXT NOT NULL UNIQUE
+    );
+    CREATE TABLE message (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      sender_id INTEGER NOT NULL,
+      ts INTEGER NOT NULL,
+      type INTEGER NOT NULL
+    );
+
+    CREATE TABLE segment (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      start_ts INTEGER NOT NULL,
+      end_ts INTEGER NOT NULL,
+      message_count INTEGER DEFAULT 0,
+      is_manual INTEGER DEFAULT 0,
+      summary TEXT
+    );
+    INSERT INTO segment (start_ts, end_ts, message_count, summary)
+    VALUES (1000, 1100, 2, 'legacy summary');
+  `)
+  rawDb.close()
+
+  const manager = new DatabaseManager(createPathProvider(root), { nativeBinding, allowMissingRuntimeForTests: true })
+  const db = manager.open('v9-summary-coverage')
+  assert.ok(db)
+
+  assert.deepEqual(db.prepare('SELECT schema_version FROM meta').get(), { schema_version: CURRENT_SCHEMA_VERSION })
+  assert.deepEqual(db.prepare('SELECT summary, summary_message_count FROM segment').get(), {
+    summary: 'legacy summary',
+    summary_message_count: null,
+  })
+
+  manager.closeAll()
+})
+
 test('open migrates v7 databases to include analysis tool indexes', () => {
   const root = makeTempDir()
   const dbDir = path.join(root, 'data', 'databases')

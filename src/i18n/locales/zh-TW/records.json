@@ -32,6 +32,8 @@
     "timeline": "摘要",
     "noSessions": "暫無摘要",
     "generateSummary": "產生摘要",
+    "updateSummary": "更新摘要",
+    "summaryStale": "· 待更新",
     "tooFewMessages": "訊息太少"
   },
   "summaryFailed": "摘要產生失敗",
@@ -54,6 +56,7 @@
     "custom": "自訂",
     "found": "找到",
     "hasSummary": "個已有摘要",
+    "needsUpdate": "個待更新",
     "tooFewMessages": "個訊息太少",
     "pending": "待產生:",
     "unit": "個",

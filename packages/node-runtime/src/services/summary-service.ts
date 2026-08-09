@@ -5,7 +5,7 @@
  * and summary generation loop — shared across CLI Web and Electron.
  */
 
-import { getSegmentSummary, saveSegmentSummary, getChatSessionList, getSegmentMessages } from '@openchatlab/core'
+import { getSegmentSummary, saveSegmentSummary, getChatSessionList, loadSegmentMessages } from '@openchatlab/core'
 import type { DatabaseAdapter } from '@openchatlab/core'
 import {
   generateSessionSummary,
@@ -29,10 +29,8 @@ export interface SummaryServiceDeps {
 function buildSummaryDeps(db: DatabaseAdapter, llmConfig: LlmConfig, deps: SummaryServiceDeps): SummaryDeps {
   const piModel = deps.buildPiModel(llmConfig)
   return {
-    loadMessages(segmentId, limit = 500) {
-      const data = getSegmentMessages(db, segmentId, limit)
-      if (!data) return null
-      return data.messages.map((m) => ({ senderName: m.senderName, content: m.content }))
+    loadMessages(segmentId, limit) {
+      return loadSegmentMessages(db, segmentId, limit)
     },
     saveSummary(segmentId, summary) {
       saveSegmentSummary(db, segmentId, summary)
@@ -109,10 +107,8 @@ export function checkCanGenerate(
 ): Record<number, { canGenerate: boolean; reason?: string }> {
   const db = adapter.ensureReadonly(sessionId)
   const deps: Pick<SummaryDeps, 'loadMessages' | 't'> = {
-    loadMessages(segmentId, limit = 500) {
-      const data = getSegmentMessages(db, segmentId, limit)
-      if (!data) return null
-      return data.messages.map((m) => ({ senderName: m.senderName, content: m.content }))
+    loadMessages(segmentId, limit) {
+      return loadSegmentMessages(db, segmentId, limit)
     },
     t: (key: string) => key,
   }

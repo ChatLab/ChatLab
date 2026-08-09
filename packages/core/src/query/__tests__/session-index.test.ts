@@ -18,6 +18,7 @@ import {
   getChatSessionList,
   getSegmentSummary,
   saveSegmentSummary,
+  loadSegmentMessages,
   updateSessionGapThreshold,
   clearSessionIndex,
   generateSessionIndex,
@@ -85,7 +86,8 @@ function createSqliteDb(): TestSqliteDb {
       end_ts INTEGER NOT NULL,
       message_count INTEGER NOT NULL,
       is_manual INTEGER DEFAULT 0,
-      summary TEXT
+      summary TEXT,
+      summary_message_count INTEGER
     );
     CREATE TABLE message_context (
       message_id INTEGER NOT NULL,
@@ -275,6 +277,53 @@ describe('getSegmentSummary / saveSegmentSummary', () => {
 
     saveSegmentSummary(db, 1, 'Test summary')
     assert.equal(getSegmentSummary(db, 1), 'Test summary')
+  })
+
+  it('keeps an appended summary visible but treats it as stale', () => {
+    const db = createSqliteDb()
+    seedMessages(db, [{ id: 1, ts: 1000 }])
+    generateSessionIndex(db, 2000)
+    saveSegmentSummary(db, 1, 'Summary before append')
+
+    assert.equal(getSegmentSummary(db, 1), 'Summary before append')
+    seedMessages(db, [{ id: 2, ts: 1500 }])
+    generateIncrementalSessionIndex(db, 2000)
+
+    assert.equal(getSegmentSummary(db, 1), null)
+    assert.deepEqual(getChatSessionList(db)[0], {
+      id: 1,
+      startTs: 1000,
+      endTs: 1500,
+      messageCount: 2,
+      summary: 'Summary before append',
+      summaryMessageCount: 1,
+      firstMessageId: 1,
+    })
+  })
+})
+
+describe('loadSegmentMessages', () => {
+  it('loads every message for summary generation instead of truncating at 500', () => {
+    const db = createSqliteDb()
+    db.exec(`
+      ALTER TABLE message ADD COLUMN sender_id INTEGER;
+      ALTER TABLE message ADD COLUMN content TEXT;
+      CREATE TABLE member (
+        id INTEGER PRIMARY KEY,
+        platform_id TEXT NOT NULL,
+        account_name TEXT,
+        group_nickname TEXT
+      );
+      INSERT INTO member (id, platform_id, account_name) VALUES (1, 'alice', 'Alice');
+    `)
+
+    const insertMessage = db.prepare('INSERT INTO message (id, ts, sender_id, content) VALUES (?, ?, 1, ?)')
+    for (let id = 1; id <= 600; id++) insertMessage.run(id, 1000 + id, `message-${id}`)
+    generateSessionIndex(db, 2000)
+
+    const messages = loadSegmentMessages(db, 1)
+    assert.equal(messages?.length, 600)
+    assert.equal(messages?.[599]?.content, 'message-600')
   })
 })
 

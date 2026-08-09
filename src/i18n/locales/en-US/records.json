@@ -32,6 +32,8 @@
     "timeline": "Summaries",
     "noSessions": "No summaries",
     "generateSummary": "Summarize",
+    "updateSummary": "Update summary",
+    "summaryStale": "· Update needed",
     "tooFewMessages": "Too few"
   },
   "summaryFailed": "Summary generation failed",
@@ -54,6 +56,7 @@
     "custom": "Custom",
     "found": "Found",
     "hasSummary": "already summarized",
+    "needsUpdate": "need updates",
     "tooFewMessages": "too few messages",
     "pending": "Pending:",
     "unit": "",

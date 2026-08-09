@@ -996,6 +996,8 @@ export interface ChatSessionItem {
   endTs: number
   messageCount: number
   firstMessageId: number
+  summary?: string | null
+  summaryMessageCount?: number | null
 }
 
 /**

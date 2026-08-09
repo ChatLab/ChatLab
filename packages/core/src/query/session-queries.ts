@@ -95,9 +95,14 @@ export function getSessionInfo(db: DatabaseAdapter): CoreSessionInfo | null {
  */
 export function getSummaryCount(db: DatabaseAdapter): number {
   if (!hasTable(db, 'segment')) return 0
-  const row = db.prepare("SELECT COUNT(*) as count FROM segment WHERE summary IS NOT NULL AND summary != ''").get() as
-    | { count: number }
-    | undefined
+  const row = db
+    .prepare(
+      `SELECT COUNT(*) as count
+       FROM segment
+       WHERE summary IS NOT NULL AND summary != ''
+         AND summary_message_count = message_count`
+    )
+    .get() as { count: number } | undefined
   return row?.count ?? 0
 }
 
@@ -320,6 +325,7 @@ export function getSegmentSummaries(
            cs.message_count as messageCount, cs.summary
     FROM segment cs
     WHERE cs.summary IS NOT NULL AND cs.summary != ''
+      AND cs.summary_message_count = cs.message_count
   `
   const params: unknown[] = []
 
@@ -388,6 +394,8 @@ export interface ChatSessionItem {
   messageCount: number
   firstMessageId: number
   summary?: string | null
+  /** Number of messages covered when the summary was generated. Null means legacy/unknown coverage. */
+  summaryMessageCount?: number | null
 }
 
 export interface SessionIndexStats {
@@ -449,6 +457,7 @@ export function getSessionsByTimeRange(db: DatabaseAdapter, startTs: number, end
         `SELECT
           id, start_ts as startTs, end_ts as endTs,
           message_count as messageCount, summary,
+          summary_message_count as summaryMessageCount,
           (SELECT mc.message_id FROM message_context mc
            JOIN message first_msg ON first_msg.id = mc.message_id
            WHERE mc.segment_id = cs.id ORDER BY first_msg.ts ASC, first_msg.id ASC LIMIT 1) as firstMessageId
@@ -473,6 +482,7 @@ export function getRecentChatSessions(db: DatabaseAdapter, limit: number): ChatS
         `SELECT
           id, start_ts as startTs, end_ts as endTs,
           message_count as messageCount, summary,
+          summary_message_count as summaryMessageCount,
           (SELECT mc.message_id FROM message_context mc
            JOIN message first_msg ON first_msg.id = mc.message_id
            WHERE mc.segment_id = cs.id ORDER BY first_msg.ts ASC, first_msg.id ASC LIMIT 1) as firstMessageId
@@ -500,6 +510,7 @@ export function getChatSessionList(db: DatabaseAdapter): ChatSessionItem[] {
           cs.end_ts as endTs,
           cs.message_count as messageCount,
           cs.summary,
+          cs.summary_message_count as summaryMessageCount,
           (SELECT mc.message_id FROM message_context mc
            JOIN message first_msg ON first_msg.id = mc.message_id
            WHERE mc.segment_id = cs.id ORDER BY first_msg.ts ASC, first_msg.id ASC LIMIT 1) as firstMessageId
@@ -518,22 +529,24 @@ export function getChatSessionList(db: DatabaseAdapter): ChatSessionItem[] {
 export function loadSegmentMessages(
   db: DatabaseAdapter,
   segmentId: number,
-  limit: number = 500
+  limit?: number
 ): Array<{ senderName: string; content: string | null }> | null {
   try {
-    return db
-      .prepare(
-        `SELECT
+    const limitClause = limit === undefined ? '' : '\n        LIMIT ?'
+    const statement = db.prepare(
+      `SELECT
           COALESCE(mb.group_nickname, mb.account_name, mb.platform_id) as senderName,
           m.content
         FROM message_context mc
         JOIN message m ON m.id = mc.message_id
         JOIN member mb ON mb.id = m.sender_id
         WHERE mc.segment_id = ?
-        ORDER BY m.ts ASC
-        LIMIT ?`
-      )
-      .all(segmentId, limit) as unknown as Array<{ senderName: string; content: string | null }>
+        ORDER BY m.ts ASC, m.id ASC${limitClause}`
+    )
+    return statement.all(...(limit === undefined ? [segmentId] : [segmentId, limit])) as unknown as Array<{
+      senderName: string
+      content: string | null
+    }>
   } catch {
     return null
   }
@@ -544,10 +557,15 @@ export function loadSegmentMessages(
  */
 export function getSegmentSummary(db: DatabaseAdapter, segmentId: number): string | null {
   try {
-    const row = db.prepare('SELECT summary FROM segment WHERE id = ?').get(segmentId) as
-      | { summary: string | null }
+    const row = db
+      .prepare(
+        'SELECT summary, summary_message_count as summaryMessageCount, message_count as messageCount FROM segment WHERE id = ?'
+      )
+      .get(segmentId) as
+      | { summary: string | null; summaryMessageCount: number | null; messageCount: number }
       | undefined
-    return row?.summary ?? null
+    if (!row?.summary || row.summaryMessageCount !== row.messageCount) return null
+    return row.summary
   } catch {
     return null
   }
@@ -557,7 +575,10 @@ export function getSegmentSummary(db: DatabaseAdapter, segmentId: number): strin
  * Save summary text for a chat session.
  */
 export function saveSegmentSummary(db: DatabaseAdapter, segmentId: number, summary: string): void {
-  db.prepare('UPDATE segment SET summary = ? WHERE id = ?').run(summary, segmentId)
+  db.prepare('UPDATE segment SET summary = ?, summary_message_count = message_count WHERE id = ?').run(
+    summary,
+    segmentId
+  )
 }
 
 /**

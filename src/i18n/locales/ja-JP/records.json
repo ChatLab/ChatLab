@@ -32,6 +32,8 @@
     "timeline": "要約",
     "noSessions": "要約がありません",
     "generateSummary": "要約を作成",
+    "updateSummary": "要約を更新",
+    "summaryStale": "· 更新が必要",
     "tooFewMessages": "メッセージが少なすぎます"
   },
   "summaryFailed": "要約の生成に失敗しました",
@@ -54,6 +56,7 @@
     "custom": "カスタム",
     "found": "見つかった",
     "hasSummary": "件は要約済み",
+    "needsUpdate": "件は更新が必要",
     "tooFewMessages": "件はメッセージ不足",
     "pending": "未生成:",
     "unit": "件",

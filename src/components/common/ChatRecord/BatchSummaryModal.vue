@@ -47,6 +47,7 @@ interface SessionItem {
   messageCount: number
   // 与 sessionApi 返回值保持一致，历史数据里 summary 可能不存在。
   summary?: string | null
+  summaryMessageCount?: number | null
 }
 const sessions = ref<SessionItem[]>([])
 const isLoading = ref(false)
@@ -122,10 +123,18 @@ const timeRange = computed(() => {
 const canGenerateMap = ref<Record<number, { canGenerate: boolean; reason?: string }>>({})
 const isChecking = ref(false)
 
+function isSummaryStale(session: SessionItem): boolean {
+  return Boolean(session.summary) && session.summaryMessageCount !== session.messageCount
+}
+
+function hasFreshSummary(session: SessionItem): boolean {
+  return Boolean(session.summary) && !isSummaryStale(session)
+}
+
 // 待生成的会话（排除已有摘要的 + 消息太少的）
 const pendingSessions = computed(() => {
   return sessions.value.filter((s) => {
-    if (s.summary) return false
+    if (hasFreshSummary(s)) return false
     const checkResult = canGenerateMap.value[s.id]
     return checkResult?.canGenerate !== false
   })
@@ -133,13 +142,17 @@ const pendingSessions = computed(() => {
 
 // 已有摘要的会话数
 const existingSummaryCount = computed(() => {
-  return sessions.value.filter((s) => s.summary).length
+  return sessions.value.filter(hasFreshSummary).length
+})
+
+const staleSummaryCount = computed(() => {
+  return sessions.value.filter(isSummaryStale).length
 })
 
 // 消息数量太少的会话数（无摘要但无法生成）
 const tooFewMessagesCount = computed(() => {
   return sessions.value.filter((s) => {
-    if (s.summary) return false
+    if (hasFreshSummary(s)) return false
     const checkResult = canGenerateMap.value[s.id]
     return checkResult?.canGenerate === false
   }).length
@@ -199,7 +212,7 @@ async function fetchSessions() {
 
 // 批量检查会话是否可以生成摘要
 async function checkCanGenerate() {
-  const noSummaryIds = sessions.value.filter((s) => !s.summary).map((s) => s.id)
+  const noSummaryIds = sessions.value.filter((s) => !hasFreshSummary(s)).map((s) => s.id)
   if (noSummaryIds.length === 0) return
 
   isChecking.value = true
@@ -291,6 +304,7 @@ async function startGenerate() {
           const idx = sessions.value.findIndex((s) => s.id === session.id)
           if (idx !== -1) {
             sessions.value[idx].summary = result.summary || ''
+            sessions.value[idx].summaryMessageCount = sessions.value[idx].messageCount
           }
         } else if (result.error && isTooFewMessagesError(result.error)) {
           // 消息数量太少：标记为跳过
@@ -441,7 +455,7 @@ function close() {
               <p>
                 {{ t('records.batchSummary.found', '找到') }} {{ sessions.length }}
                 {{ t('records.batchSummary.sessionsUnit', '个会话') }}
-                <template v-if="existingSummaryCount > 0 || tooFewMessagesCount > 0">
+                <template v-if="existingSummaryCount > 0 || staleSummaryCount > 0 || tooFewMessagesCount > 0">
                   <span class="text-gray-500">
                     （
                     <template v-if="existingSummaryCount > 0">
@@ -449,7 +463,15 @@ function close() {
                         {{ existingSummaryCount }} {{ t('records.batchSummary.hasSummary', '个已有摘要') }}
                       </span>
                     </template>
-                    <template v-if="existingSummaryCount > 0 && tooFewMessagesCount > 0">，</template>
+                    <template v-if="existingSummaryCount > 0 && (staleSummaryCount > 0 || tooFewMessagesCount > 0)">
+                      ，
+                    </template>
+                    <template v-if="staleSummaryCount > 0">
+                      <span class="text-amber-600 dark:text-amber-400">
+                        {{ staleSummaryCount }} {{ t('records.batchSummary.needsUpdate', '个待更新') }}
+                      </span>
+                    </template>
+                    <template v-if="staleSummaryCount > 0 && tooFewMessagesCount > 0">，</template>
                     <template v-if="tooFewMessagesCount > 0">
                       <span class="text-gray-400">
                         {{ tooFewMessagesCount }} {{ t('records.batchSummary.tooFewMessages', '个消息太少') }}
