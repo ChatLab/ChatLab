@@ -62,3 +62,27 @@ test('locale-dependent desensitize rules do not wait for telemetry delivery', as
     releaseTelemetry?.()
   }
 })
+
+test('uses the header tools layout outside debug mode without discarding the persisted side preference', async () => {
+  Object.defineProperties(globalThis, {
+    localStorage: { configurable: true, value: createMemoryStorage() },
+    sessionStorage: { configurable: true, value: createMemoryStorage() },
+    window: { configurable: true, value: {} },
+  })
+
+  setActivePinia(createPinia())
+  const { useSettingsStore } = await import('./settings')
+  const { useLayoutStore } = await import('./layout')
+  const settingsStore = useSettingsStore()
+  const layoutStore = useLayoutStore()
+
+  layoutStore.toolsPanelPosition = 'side'
+  settingsStore.debugMode = false
+  assert.equal(layoutStore.effectiveToolsPanelPosition, 'header')
+
+  settingsStore.debugMode = true
+  assert.equal(layoutStore.effectiveToolsPanelPosition, 'side')
+
+  settingsStore.debugMode = false
+  assert.equal(layoutStore.toolsPanelPosition, 'side')
+})

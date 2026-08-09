@@ -58,7 +58,7 @@ const navigationItems = computed(() =>
 <template>
   <PageHeader :title="title" :avatar="avatar" size="compact" :icon="icon" :icon-class="iconClass">
     <template #actions>
-      <template v-if="showSessionActions && layoutStore.toolsPanelPosition === 'header'">
+      <template v-if="showSessionActions && layoutStore.effectiveToolsPanelPosition === 'header'">
         <UTooltip :text="t('analysis.tooltip.viewChatRecord')">
           <UButton
             icon="i-heroicons-chat-bubble-bottom-center-text"

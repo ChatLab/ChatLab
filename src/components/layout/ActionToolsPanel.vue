@@ -6,9 +6,9 @@ import { useLayoutStore } from '@/stores/layout'
 
 const { t } = useI18n()
 const layoutStore = useLayoutStore()
-const { isToolsPanelMini, toolsPanelPosition, isToolsPanelOpen } = storeToRefs(layoutStore)
+const { isToolsPanelMini, effectiveToolsPanelPosition, isToolsPanelOpen } = storeToRefs(layoutStore)
 
-const isHeaderMode = computed(() => toolsPanelPosition.value === 'header')
+const isHeaderMode = computed(() => effectiveToolsPanelPosition.value === 'header')
 const isPanelVisible = computed(() => !isHeaderMode.value || isToolsPanelOpen.value)
 const panelRef = ref<HTMLElement | null>(null)
 
@@ -99,7 +99,7 @@ const headerTools = [
 
 const visibleTools = computed(() => (isHeaderMode.value ? headerTools : tools))
 
-watch(toolsPanelPosition, () => {
+watch(effectiveToolsPanelPosition, () => {
   isToolsPanelOpen.value = false
 })
 

@@ -1,6 +1,7 @@
 import { defineStore } from 'pinia'
-import { ref } from 'vue'
+import { computed, ref } from 'vue'
 import type { ChatRecordQuery } from '@/types/format'
+import { useSettingsStore } from './settings'
 
 /**
  * 全局界面状态（侧边栏、弹窗、聊天记录抽屉等）
@@ -8,6 +9,7 @@ import type { ChatRecordQuery } from '@/types/format'
 export const useLayoutStore = defineStore(
   'layout',
   () => {
+    const settingsStore = useSettingsStore()
     const isSidebarCollapsed = ref(false)
     const showScreenCaptureModal = ref(false)
     const screenCaptureImage = ref<string | null>(null)
@@ -17,6 +19,9 @@ export const useLayoutStore = defineStore(
     const isToolsPanelLocked = ref(false)
     const isToolsPanelMini = ref(false)
     const toolsPanelPosition = ref<'side' | 'header'>('header')
+    const effectiveToolsPanelPosition = computed<'side' | 'header'>(() =>
+      settingsStore.debugMode ? toolsPanelPosition.value : 'header'
+    )
     const isToolsPanelOpen = ref(false)
 
     // 设置弹窗
@@ -100,6 +105,7 @@ export const useLayoutStore = defineStore(
       isToolsPanelLocked,
       isToolsPanelMini,
       toolsPanelPosition,
+      effectiveToolsPanelPosition,
       isToolsPanelOpen,
       showScreenCaptureModal,
       screenCaptureImage,
