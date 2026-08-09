@@ -94,7 +94,7 @@ test('getPendingMigrationInfos maps each version to its own localized message', 
 
   assert.deepEqual(
     migrations.map((m) => m.version),
-    [7, 8, 9]
+    [7, 8, 9, 10]
   )
 
   const v7 = migrations[0]
@@ -109,4 +109,8 @@ test('getPendingMigrationInfos maps each version to its own localized message', 
   const v9 = migrations[2]
   assert.match(v9.userMessage, /search|index|搜索|搜尋|検索|索引|インデックス/i)
   assert.doesNotMatch(v9.userMessage, /Owner/)
+
+  const v10 = migrations[3]
+  assert.match(v10.userMessage, /summar|摘要|要約/i)
+  assert.doesNotMatch(v10.userMessage, /Owner/)
 })

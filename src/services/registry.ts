@@ -88,6 +88,7 @@ async function initElectronAdapters(): Promise<void> {
     { TelemetryImportAdapter },
     { FetchSessionIndexAdapter },
     { FetchMessageAdapter },
+    { FetchChatTopicsAdapter },
     { ElectronAIAdapter },
     { FetchPreferencesAdapter },
     { FetchLLMAdapter },
@@ -101,6 +102,7 @@ async function initElectronAdapters(): Promise<void> {
     import('./import/telemetry'),
     import('./session-index/fetch'),
     import('./message/fetch'),
+    import('./chat-topics/fetch'),
     import('./ai/electron'),
     import('./preferences/fetch'),
     import('./llm/fetch'),
@@ -117,6 +119,7 @@ async function initElectronAdapters(): Promise<void> {
   registerAdapter('import', new TelemetryImportAdapter(new ElectronImportAdapter(), platformAdapter))
   registerAdapter('session-index', new FetchSessionIndexAdapter())
   registerAdapter('message', new FetchMessageAdapter())
+  registerAdapter('chat-topics', new FetchChatTopicsAdapter())
   registerAdapter('ai', new ElectronAIAdapter())
   registerAdapter('preferences', new FetchPreferencesAdapter())
   registerAdapter('llm', new FetchLLMAdapter())
@@ -135,6 +138,7 @@ async function initCliWebAdapters(): Promise<void> {
     { TelemetryImportAdapter },
     { FetchSessionIndexAdapter },
     { FetchMessageAdapter },
+    { FetchChatTopicsAdapter },
     { FetchAIAdapter },
     { FetchPreferencesAdapter },
     { FetchLLMAdapter },
@@ -148,6 +152,7 @@ async function initCliWebAdapters(): Promise<void> {
     import('./import/telemetry'),
     import('./session-index/fetch'),
     import('./message/fetch'),
+    import('./chat-topics/fetch'),
     import('./ai/fetch'),
     import('./preferences/fetch'),
     import('./llm/fetch'),
@@ -164,6 +169,7 @@ async function initCliWebAdapters(): Promise<void> {
   registerAdapter('import', new TelemetryImportAdapter(new FetchImportAdapter(), platformAdapter))
   registerAdapter('session-index', new FetchSessionIndexAdapter())
   registerAdapter('message', new FetchMessageAdapter())
+  registerAdapter('chat-topics', new FetchChatTopicsAdapter())
   registerAdapter('ai', new FetchAIAdapter())
   registerAdapter('preferences', new FetchPreferencesAdapter())
   registerAdapter('llm', new FetchLLMAdapter())

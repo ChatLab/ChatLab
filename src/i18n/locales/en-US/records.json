@@ -75,6 +75,62 @@
     "start": "Start",
     "stop": "Stop"
   },
+  "topics": {
+    "title": "Topics",
+    "loadFailed": "Failed to load topics",
+    "preflightFailed": "Could not estimate the generation range",
+    "startFailed": "Could not start topic generation",
+    "actionFailed": "Topic task action failed",
+    "deleteFailed": "Failed to delete topics",
+    "emptyTitle": "No topics for this day",
+    "emptyDescription": "AI reads the conversation by calendar day and reconnects the same discussion when it interleaves with others or resumes later. Usage is consumed only when you start it.",
+    "create": "Create topics",
+    "createTitle": "Create chat topics",
+    "createDescription": "Process through the last day in the chat from your selected starting point. You can pause and resume at any time.",
+    "start": "Start",
+    "noMessages": "No messages in range",
+    "updateDay": "Update day",
+    "backfill": "Backfill earlier dates",
+    "pause": "Pause",
+    "resume": "Resume",
+    "progress": "{completed}/{total} days completed",
+    "progressBlock": "Analyzing source block {current}/{total} · {seconds}s elapsed",
+    "progressFinalizing": "Finalizing the day's topics · {seconds}s elapsed",
+    "stale": "Messages for this day changed. This is the last successful result; verify against the original messages until it is updated.",
+    "evidence": "Messages",
+    "deleteTitle": "Delete topics for this day?",
+    "deleteDescription": "This removes only the AI-derived result for this day, not the chat records. You can recreate it later.",
+    "range": {
+      "current": "From viewed day",
+      "currentDescription": "Process from {date} through the last chat day. Recommended",
+      "custom": "Choose start date",
+      "customDescription": "Process from a selected date through the last chat day",
+      "today": "Start today",
+      "todayDescription": "Process messages from today only",
+      "year": "Start this year",
+      "yearDescription": "Process active days from this year to today",
+      "all": "Start from the beginning",
+      "allDescription": "Backfill from the earliest chat date"
+    },
+    "estimate": {
+      "range": "{start} to {end}",
+      "days": "Active days",
+      "messages": "Messages",
+      "calls": "Est. calls"
+    },
+    "status": {
+      "pending": "Waiting",
+      "running": "Organizing topics",
+      "paused": "Paused",
+      "completed": "Completed",
+      "failed": "Failed",
+      "cancelled": "Cancelled"
+    },
+    "topicState": {
+      "active": "Active",
+      "closed": "Concluded"
+    }
+  },
   "messageItem": {
     "viewContext": "View Context",
     "replyTo": "Reply to",

@@ -5,6 +5,7 @@ import type { StorageRouteContext } from '../../context/storage'
 import { registerAiAgentStreamRoutes } from './ai-agent-stream'
 import { registerAiAssistantRoutes } from './ai-assistants'
 import { registerAiChatRoutes } from './ai-chats'
+import { registerAiChatTopicRoutes } from './ai-chat-topics'
 import { registerAiLlmStreamRoutes } from './ai-llm-stream'
 import { registerAiLlmRoutes } from './ai-llm'
 import { registerAiLogRoutes } from './ai-logs'
@@ -14,7 +15,7 @@ import { registerAiSummaryRoutes } from './ai-summaries'
 import { registerAiToolRoutes } from './ai-tools'
 
 export type AiRoutesContext = AiRouteContext &
-  Pick<RuntimeRouteContext, 'dbManager' | 'sessionAdapter' | 'pathProvider'> &
+  Pick<RuntimeRouteContext, 'dbManager' | 'sessionAdapter' | 'pathProvider' | 'nativeBinding'> &
   Pick<StorageRouteContext, 'showInFolder'>
 
 export interface AiRouteOptions {
@@ -51,6 +52,7 @@ export function registerAiRoutes(server: FastifyInstance, ctx: AiRoutesContext, 
   registerAiAgentStreamRoutes(server, ctx)
   registerAiToolRoutes(server, ctx)
   registerAiChatRoutes(server, ctx)
+  registerAiChatTopicRoutes(server, ctx)
   registerAiSummaryRoutes(server, ctx)
   registerAiLogRoutes(server, ctx)
   registerSemanticIndexRoutes(server, ctx)

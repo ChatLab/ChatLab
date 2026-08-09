@@ -7,7 +7,7 @@
 
 import type { TimeFilter } from '@openchatlab/shared-types'
 import type { DatabaseAdapter } from '../interfaces'
-import { hasTable } from './filters'
+import { hasColumn, hasTable } from './filters'
 import { getMemberActivity } from './basic-queries'
 
 export interface SessionMeta {
@@ -94,7 +94,8 @@ export function getSessionInfo(db: DatabaseAdapter): CoreSessionInfo | null {
  * Count of chat sessions that have an AI-generated summary.
  */
 export function getSummaryCount(db: DatabaseAdapter): number {
-  if (!hasTable(db, 'segment')) return 0
+  // 未迁移的旧库没有覆盖计数字段；这些摘要无法证明完整性，因此按 0 处理而不是信任或让列表崩溃。
+  if (!hasTable(db, 'segment') || !hasColumn(db, 'segment', 'summary_message_count')) return 0
   const row = db
     .prepare(
       `SELECT COUNT(*) as count

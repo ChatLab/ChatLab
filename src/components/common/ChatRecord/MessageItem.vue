@@ -8,6 +8,7 @@ import { useI18n } from 'vue-i18n'
 
 import { analyzeMessyContent } from './messy-content'
 import type { ChatRecordMessage } from './types'
+import { chatTopicColorStyle } from './topic-highlight'
 import { useSessionStore } from '@/stores/session'
 
 const { t } = useI18n()
@@ -17,6 +18,8 @@ const props = defineProps<{
   message: ChatRecordMessage
   /** 是否为目标消息（需要高亮） */
   isTarget?: boolean
+  /** 话题高亮颜色；普通消息定位仍使用默认主色。 */
+  topicColorIndex?: number
   /** 高亮关键词 */
   highlightKeywords?: string[]
   /** 是否处于筛选模式（显示上下文按钮） */
@@ -73,6 +76,11 @@ const nameColor = computed(() => currentColor.value.name)
 
 // 气泡颜色
 const bubbleColor = 'bg-gray-100/80 dark:bg-gray-800/80'
+const targetColor = computed(() =>
+  props.topicColorIndex === undefined
+    ? 'bg-primary-500/5 dark:bg-primary-500/10'
+    : chatTopicColorStyle(props.topicColorIndex).message
+)
 const showFullMessyContent = ref(false)
 
 const contentAnalysis = computed(() => analyzeMessyContent(props.message.content || ''))
@@ -169,7 +177,7 @@ function highlightContent(content: string): string {
 <template>
   <div
     class="group px-4 py-2.5 transition-all duration-300"
-    :class="[isTarget ? 'bg-primary-500/5 dark:bg-primary-500/10' : 'hover:bg-gray-50/40 dark:hover:bg-gray-900/10']"
+    :class="[isTarget ? targetColor : 'hover:bg-gray-50/40 dark:hover:bg-gray-900/10']"
   >
     <!-- Owner 消息显示在右侧 -->
     <div class="flex gap-3" :class="isOwner ? 'flex-row-reverse' : ''">

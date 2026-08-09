@@ -197,6 +197,22 @@ export interface WordFilterScheme {
 
 export type ChartAutoMode = 'explicit' | 'suggest' | 'aggressive'
 
+export type {
+  ChatTopic,
+  ChatTopicAssignmentMode,
+  ChatTopicDay,
+  ChatTopicDayStatus,
+  ChatTopicEvidence,
+  ChatTopicPreflight,
+  ChatTopicPreflightDay,
+  ChatTopicRangeKind,
+  ChatTopicRun,
+  ChatTopicRunRangeKind,
+  ChatTopicRunStatus,
+  ChatTopicTimeRange,
+  CreateChatTopicsRequest,
+} from './chat-topics'
+
 export interface AIGlobalSettings {
   maxMessagesPerRequest: number
   exportFormat: 'markdown' | 'txt'

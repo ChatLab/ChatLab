@@ -14,6 +14,9 @@ import { useSessionStore } from '@/stores/session'
 import FilterPanel from './FilterPanel.vue'
 import MessageList from './MessageList.vue'
 import SessionTimeline from './SessionTimeline.vue'
+import ChatTopicsPanel from './ChatTopicsPanel.vue'
+import type { ChatTopicHighlight } from './topic-highlight'
+import dayjs from 'dayjs'
 import type { ChatRecordQuery } from './types'
 import { preserveChatRecordSessionId, resolveChatRecordSessionId, scopeChatRecordQueryToSession } from './query-session'
 import { resolveChatRecordIndexAction, type ChatRecordIndexAction, type ChatRecordIndexState } from './workspace-state'
@@ -24,11 +27,13 @@ const props = withDefaults(
     initialQuery?: ChatRecordQuery | null
     active?: boolean
     mode?: 'drawer' | 'page'
+    showTopics?: boolean
   }>(),
   {
     initialQuery: null,
     active: true,
     mode: 'drawer',
+    showTopics: false,
   }
 )
 
@@ -46,6 +51,8 @@ const matchedSessionIds = ref<Set<number> | undefined>()
 const indexState = ref<ChatRecordIndexState>('loading')
 const isGeneratingIndex = ref(false)
 const timelineVersion = ref(0)
+const visibleDayKey = ref<string | null>(null)
+const highlightedTopic = ref<ChatTopicHighlight | null>(null)
 let initializationVersion = 0
 
 const isPageMode = computed(() => props.mode === 'page')
@@ -61,6 +68,7 @@ function resetWorkspace() {
   sessionsCache.value = []
   matchedSessionIds.value = undefined
   indexState.value = 'loading'
+  highlightedTopic.value = null
 }
 
 async function initializeWorkspace() {
@@ -117,6 +125,9 @@ function handleResetFilter() {
 }
 
 function handleMessageTimestampsChange(timestamps: number[]) {
+  if (!visibleDayKey.value && timestamps.length > 0) {
+    visibleDayKey.value = dayjs.unix(timestamps[timestamps.length - 1]!).format('YYYY-MM-DD')
+  }
   if (!localQuery.value.keywords?.length || !sessionsCache.value.length) {
     matchedSessionIds.value = undefined
     return
@@ -131,6 +142,7 @@ function handleMessageTimestampsChange(timestamps: number[]) {
 }
 
 function handleVisibleMessageChange(payload: { id: number; timestamp: number }) {
+  visibleDayKey.value = dayjs.unix(payload.timestamp).format('YYYY-MM-DD')
   if (!sessionsCache.value.length) return
 
   let targetSession = sessionsCache.value.find(
@@ -156,6 +168,16 @@ function handleSessionSelect(segmentId: number, firstMessageId: number) {
 
 function handleJumpToMessage(messageId: number) {
   localQuery.value = preserveChatRecordSessionId({ scrollToMessageId: messageId }, localQuery.value)
+}
+
+function handleHighlightTopic(topic: ChatTopicHighlight | null) {
+  highlightedTopic.value = topic
+    ? {
+        ...topic,
+        messageIds: [...topic.messageIds],
+        timeRanges: topic.timeRanges.map((range) => ({ ...range })),
+      }
+    : null
 }
 
 function handleSummaryUpdated(updatedSession: ChatSessionItem) {
@@ -277,11 +299,20 @@ watch([() => props.active, fallbackSessionId, () => props.initialQuery], () => i
           <MessageList
             ref="messageListRef"
             :query="localQuery"
+            :highlight-topic="highlightedTopic"
             @visible-message-change="handleVisibleMessageChange"
             @jump-to-message="handleJumpToMessage"
             @message-timestamps-change="handleMessageTimestampsChange"
           />
         </div>
+
+        <ChatTopicsPanel
+          v-if="showTopics && effectiveSessionId"
+          :session-id="effectiveSessionId"
+          :day-key="visibleDayKey"
+          @jump-to-message="handleJumpToMessage"
+          @highlight-topic="handleHighlightTopic"
+        />
       </div>
     </div>
   </div>

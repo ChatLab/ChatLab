@@ -2,7 +2,12 @@ import type { FastifyInstance } from 'fastify'
 import type { AiRouteContext } from '../../context/ai'
 import type { RuntimeRouteContext } from '../../context/runtime'
 import type { ServiceRouteContext } from '../../context/services'
-import { sessionService, ownerProfileService, PreferencesManager } from '@openchatlab/node-runtime'
+import {
+  chatTopicWorkCoordinator,
+  sessionService,
+  ownerProfileService,
+  PreferencesManager,
+} from '@openchatlab/node-runtime'
 
 type SessionRouteContext = Pick<RuntimeRouteContext, 'sessionAdapter' | 'pathProvider' | 'beforeDeleteSession'> &
   Pick<ServiceRouteContext, 'preferencesManager'> &
@@ -45,6 +50,7 @@ export function registerSessionRoutes(server: FastifyInstance, ctx: SessionRoute
   server.delete<{ Params: { id: string } }>('/_web/sessions/:id', async (request, reply) => {
     const { id } = request.params
     try {
+      await chatTopicWorkCoordinator.prepareSessionDelete(id)
       await ctx.beforeDeleteSession?.(id)
       const deleted = sessionService.deleteSession(adapter, id)
       if (!deleted) {

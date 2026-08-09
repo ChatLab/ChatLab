@@ -70,6 +70,26 @@ export type {
   GlobalInsightServiceOptions,
 } from './global-insight'
 
+// User-triggered chat topics
+export {
+  assertValidTopicDayKey,
+  ChatTopicStore,
+  createChatTopicModelClient,
+  createChatTopicService,
+  chatTopicWorkCoordinator,
+  deleteSessionChatTopics,
+  getChatTopicsDbPath,
+  getChatTopicsDir,
+} from './topics'
+export type {
+  ChatTopicModelClient,
+  ChatTopicModelResult,
+  ChatTopicService,
+  ChatTopicServiceDeps,
+  FinalizeTopicDayInput,
+  TopicDayCheckpoint,
+} from './topics'
+
 // Merge cache
 export { MergeSessionCache } from './merge-cache'
 

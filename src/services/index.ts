@@ -58,6 +58,15 @@ export type {
 } from './session-index/types'
 export { useMessageService } from './message/service'
 export type { MessageAdapter, TimeFilter, MessageRecord, PaginatedMessages, SearchResult } from './message/types'
+export { useChatTopicsService } from './chat-topics/service'
+export type {
+  ChatTopicsAdapter,
+  ChatTopicDay,
+  ChatTopicPreflight,
+  ChatTopicRangeKind,
+  ChatTopicRun,
+  CreateChatTopicsRequest,
+} from './chat-topics/types'
 export { usePlatformService } from './platform/service'
 export type { PlatformAdapter, OpenDialogOptions, OpenDialogResult, RemoteConfigResult } from './platform/types'
 export { useAIService } from './ai/service'

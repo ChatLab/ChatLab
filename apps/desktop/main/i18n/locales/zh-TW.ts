@@ -63,6 +63,8 @@ export default {
     migrationV8Message: '為分析工具新增效能索引，提升查詢速度，不影響現有資料',
     migrationV9Desc: '移除已停用的會話全文搜尋索引',
     migrationV9Message: '清理不再使用的衍生搜尋索引，聊天資料不受影響',
+    migrationV10Desc: '記錄片段摘要的原訊息涵蓋量',
+    migrationV10Message: '記錄每個片段摘要涵蓋的訊息數量，以便重新產生已經過期的摘要',
     integrityError: '資料庫結構不完整：缺少 meta 資料表。建議刪除此資料庫檔案後重新匯入。',
     checkFailed: '資料庫檢查失敗: {{error}}',
   },

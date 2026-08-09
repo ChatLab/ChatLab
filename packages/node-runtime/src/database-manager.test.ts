@@ -8,6 +8,7 @@ import type { PathProvider } from '@openchatlab/core'
 import { CHAT_DB_SCHEMA, CURRENT_SCHEMA_VERSION, getSessionInfo } from '@openchatlab/core'
 import { DataDirCompatibilityError, readDataDirCompatibilityMeta } from './data-dir-compat'
 import { DatabaseManager, listDatabaseCandidateIds } from './database-manager'
+import { ChatTopicStore, getChatTopicsDbPath } from './services/topics'
 
 const nativeBinding = path.resolve('apps/cli/native/better_sqlite3.node')
 
@@ -1179,4 +1180,49 @@ test('database candidate enumeration ignores AppleDouble sidecars but keeps dama
   assert.deepEqual(listDatabaseCandidateIds(dbDir), ['damaged'])
   assert.throws(() => manager.listSessionIds(), /file is not a database/)
   assert.throws(() => manager.listSessionIdsReadonly(), /file is not a database/)
+})
+
+test('deleting a session also removes its derived topic data', () => {
+  const root = makeTempDir()
+  const paths = createPathProvider(root)
+  fs.mkdirSync(paths.getDatabaseDir(), { recursive: true })
+  fs.writeFileSync(path.join(paths.getDatabaseDir(), 'session-with-topics.db'), 'placeholder')
+
+  const topicStore = new ChatTopicStore(getChatTopicsDbPath(paths.getUserDataDir()), { nativeBinding })
+  topicStore.createRun({
+    id: 'topic-run',
+    sessionId: 'session-with-topics',
+    rangeKind: 'today',
+    timezone: 'Asia/Shanghai',
+    locale: 'zh-CN',
+    startDay: '2026-08-09',
+    endDay: '2026-08-09',
+    status: 'paused',
+    totalDays: 1,
+    completedDays: 0,
+    totalBlocks: 1,
+    completedBlocks: 0,
+    currentDay: '2026-08-09',
+    currentBlockIndex: 0,
+    modelId: 'test-model',
+    promptVersion: 'topics-v1',
+    algorithmVersion: 'topics-v1',
+    inputTokens: 0,
+    outputTokens: 0,
+    modelCalls: 0,
+    lastError: null,
+    createdAt: 1,
+    updatedAt: 1,
+  })
+  topicStore.close()
+
+  const manager = new DatabaseManager(paths, { nativeBinding, allowMissingRuntimeForTests: true })
+  assert.equal(manager.deleteSessionDatabaseFiles('session-with-topics'), true)
+
+  const reopened = new ChatTopicStore(getChatTopicsDbPath(paths.getUserDataDir()), { nativeBinding })
+  try {
+    assert.equal(reopened.getRun('topic-run'), null)
+  } finally {
+    reopened.close()
+  }
 })

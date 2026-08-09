@@ -22,7 +22,8 @@ function createDb(): Database.Database {
       start_ts INTEGER,
       end_ts INTEGER,
       message_count INTEGER,
-      summary TEXT
+      summary TEXT,
+      summary_message_count INTEGER
     );
     CREATE TABLE message_context (
       message_id INTEGER,

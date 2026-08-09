@@ -514,9 +514,10 @@ async function waitForTaskSettled(
   service: {
     getContacts: (options?: { acceptStale?: boolean; timeRangePreset?: ContactsTimeRangePreset }) => ContactsResponse
   },
-  options: { timeRangePreset?: ContactsTimeRangePreset } = {}
+  options: { timeRangePreset?: ContactsTimeRangePreset; timeoutMs?: number } = {}
 ) {
-  for (let i = 0; i < 100; i++) {
+  const deadline = Date.now() + (options.timeoutMs ?? 5_000)
+  while (Date.now() < deadline) {
     const response = service.getContacts({ acceptStale: true, timeRangePreset: options.timeRangePreset })
     if (response.task?.status !== 'running') return response
     await new Promise((resolve) => setTimeout(resolve, 20))
@@ -1063,7 +1064,8 @@ test('temporary contacts worker computes and persists a fresh snapshot', async (
   assert.equal(first.cache.status, 'missing')
   assert.equal(first.task?.status, 'running')
 
-  const finished = await waitForTaskSettled(service)
+  // The real worker competes with the full test suite's parallel workers; keep this integration test event-driven but tolerant of startup contention.
+  const finished = await waitForTaskSettled(service, { timeoutMs: 30_000 })
   assert.equal(finished.cache.status, 'fresh')
   assert.equal(finished.contacts[0].key, 'weixin:alice')
   assert.equal(finished.timeRange.preset, '1y')

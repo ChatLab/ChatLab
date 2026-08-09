@@ -8,6 +8,7 @@ import { useI18n } from 'vue-i18n'
 import { useVirtualizer } from '@tanstack/vue-virtual'
 import dayjs from 'dayjs'
 import MessageItem from './MessageItem.vue'
+import { chatTopicColorStyle, isMessageInChatTopicHighlight, type ChatTopicHighlight } from './topic-highlight'
 import type { ChatRecordMessage, ChatRecordQuery } from './types'
 import { useSessionStore } from '@/stores/session'
 import { useMessageService } from '@/services'
@@ -26,12 +27,15 @@ const props = withDefaults(
     externalMessages?: ChatRecordMessage[]
     /** 外部传入时需要高亮的消息 ID 列表（命中的消息） */
     hitMessageIds?: number[]
+    /** 由话题卡片选中的完整消息归属；旧快照按时间范围兼容 */
+    highlightTopic?: ChatTopicHighlight | null
     /** 外部消息变化时的滚动行为：top=滚动到顶部，preserve=保持当前位置 */
     externalScrollBehavior?: 'top' | 'preserve'
   }>(),
   {
     externalMessages: undefined,
     hitMessageIds: () => [],
+    highlightTopic: null,
     externalScrollBehavior: 'top',
   }
 )
@@ -69,6 +73,7 @@ const isFiltered = computed(() => {
 
 // 消息列表
 const messages = ref<ChatRecordMessage[]>([])
+const highlightedTopicMessageIds = computed(() => new Set(props.highlightTopic?.messageIds ?? []))
 const isLoading = ref(false)
 const isLoadingMore = ref(false)
 const hasMoreBefore = ref(false)
@@ -460,12 +465,28 @@ function updateVisibleMessage() {
 }
 
 // 判断是否是目标消息（高亮显示）
-function isTargetMessage(msgId: number): boolean {
+function isTargetMessage(message: ChatRecordMessage): boolean {
+  if (isTopicMessage(message)) return true
   // 外部模式：检查是否在命中列表中
   if (isExternalMode.value && props.hitMessageIds?.length) {
-    return props.hitMessageIds.includes(msgId)
+    return props.hitMessageIds.includes(message.id)
   }
-  return msgId === props.query.scrollToMessageId
+  return message.id === props.query.scrollToMessageId
+}
+
+function isTopicMessage(message: ChatRecordMessage): boolean {
+  const topic = props.highlightTopic
+  if (!topic) return false
+  return isMessageInChatTopicHighlight(topic, message, highlightedTopicMessageIds.value)
+}
+
+function topicSeparatorHighlightClass(index: number): string | undefined {
+  const topic = props.highlightTopic
+  const currentMessage = messages.value[index]
+  const previousMessage = index > 0 ? messages.value[index - 1] : undefined
+  if (!topic || !currentMessage || !previousMessage) return undefined
+  if (!isTopicMessage(currentMessage) || !isTopicMessage(previousMessage)) return undefined
+  return chatTopicColorStyle(topic.colorIndex).message
 }
 
 /**
@@ -580,7 +601,13 @@ defineExpose({
     </div>
 
     <!-- 虚拟滚动容器 -->
-    <div v-else ref="scrollContainerRef" class="h-full overflow-y-auto" @scroll="handleScroll">
+    <div
+      v-else
+      ref="scrollContainerRef"
+      class="h-full overflow-y-auto"
+      data-testid="chat-record-message-scroller"
+      @scroll="handleScroll"
+    >
       <!-- 顶部加载指示器 -->
       <div v-if="hasMoreBefore" class="flex justify-center py-2">
         <span v-if="isLoadingMore" class="text-xs text-gray-400">
@@ -603,7 +630,11 @@ defineExpose({
           :data-index="virtualItem.index"
         >
           <!-- 时间分隔线 -->
-          <div v-if="getTimeSeparator(virtualItem.index)" class="flex items-center justify-center py-2">
+          <div
+            v-if="getTimeSeparator(virtualItem.index)"
+            class="flex items-center justify-center py-2 transition-colors duration-300"
+            :class="topicSeparatorHighlightClass(virtualItem.index)"
+          >
             <div class="flex items-center gap-2 text-xs text-gray-400">
               <div class="h-px w-8 bg-gray-200 dark:bg-gray-700" />
               <span>{{ getTimeSeparator(virtualItem.index) }}</span>
@@ -615,7 +646,8 @@ defineExpose({
           <MessageItem
             :data-message-id="messages[virtualItem.index]?.id"
             :message="messages[virtualItem.index]!"
-            :is-target="isTargetMessage(messages[virtualItem.index]?.id ?? 0)"
+            :is-target="isTargetMessage(messages[virtualItem.index]!)"
+            :topic-color-index="isTopicMessage(messages[virtualItem.index]!) ? highlightTopic?.colorIndex : undefined"
             :highlight-keywords="query.highlightKeywords"
             :is-filtered="isFiltered"
             @view-context="(id) => emit('jump-to-message', id)"

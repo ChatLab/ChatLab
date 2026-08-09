@@ -1,5 +1,6 @@
 import type { FastifyInstance } from 'fastify'
 import type { AgentStreamRequest, AiRouteContext } from '../../context/ai'
+import { chatTopicWorkCoordinator } from '@openchatlab/node-runtime'
 
 const activeAgentAborts = new Map<string, AbortController>()
 
@@ -35,6 +36,7 @@ export function registerAiAgentStreamRoutes(server: FastifyInstance, ctx: AiAgen
     }
 
     safeSendSSE('meta', { requestId })
+    const releaseInteractiveWork = chatTopicWorkCoordinator.beginInteractiveWork()
 
     reply.raw.on('close', () => {
       if (!abortController.signal.aborted) {
@@ -56,6 +58,7 @@ export function registerAiAgentStreamRoutes(server: FastifyInstance, ctx: AiAgen
       const msg = error instanceof Error ? error.message : String(error)
       safeSendSSE('error', { type: 'error', error: { name: 'ServerError', message: msg } })
     } finally {
+      releaseInteractiveWork()
       if (!emittedDone) safeSendSSE('done', { type: 'done', isFinished: true })
       activeAgentAborts.delete(requestId)
       safeEnd()

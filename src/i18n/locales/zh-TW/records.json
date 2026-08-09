@@ -75,6 +75,62 @@
     "start": "開始產生",
     "stop": "停止"
   },
+  "topics": {
+    "title": "話題",
+    "loadFailed": "話題載入失敗",
+    "preflightFailed": "無法估算產生範圍",
+    "startFailed": "無法開始產生話題",
+    "actionFailed": "話題任務操作失敗",
+    "deleteFailed": "刪除話題失敗",
+    "emptyTitle": "這一天還沒有話題",
+    "emptyDescription": "由 AI 依自然日閱讀聊天紀錄，並將穿插或中斷後再次出現的相同討論歸入一個話題。僅在你主動建立時消耗額度。",
+    "create": "建立話題",
+    "createTitle": "建立聊天話題",
+    "createDescription": "選擇起點後會處理到聊天記錄最後一天，可隨時暫停並繼續。",
+    "start": "開始建立",
+    "noMessages": "範圍內沒有訊息",
+    "updateDay": "更新當天",
+    "backfill": "補充更早日期",
+    "pause": "暫停",
+    "resume": "繼續",
+    "progress": "已完成 {completed}/{total} 天",
+    "progressBlock": "正在分析第 {current}/{total} 個原文區塊，已等待 {seconds} 秒",
+    "progressFinalizing": "正在收束當天話題，已等待 {seconds} 秒",
+    "stale": "當天聊天紀錄已變更。以下仍是上一次成功結果，更新前請以原始訊息為準。",
+    "evidence": "原始訊息",
+    "deleteTitle": "刪除當天話題？",
+    "deleteDescription": "只會刪除這一天的 AI 衍生結果，不會刪除聊天紀錄；之後可以重新建立。",
+    "range": {
+      "current": "從目前瀏覽日開始",
+      "currentDescription": "從 {date} 處理到聊天記錄最後一天，建議使用",
+      "custom": "選擇開始日期",
+      "customDescription": "從指定日期處理到聊天記錄最後一天",
+      "today": "從今天開始",
+      "todayDescription": "只處理今天有訊息的記錄",
+      "year": "從今年開始",
+      "yearDescription": "處理今年至今有訊息的日期",
+      "all": "從最開始",
+      "allDescription": "從最早聊天日期開始完整回溯"
+    },
+    "estimate": {
+      "range": "{start} 至 {end}",
+      "days": "活躍天數",
+      "messages": "訊息",
+      "calls": "預計呼叫"
+    },
+    "status": {
+      "pending": "等待開始",
+      "running": "正在整理話題",
+      "paused": "已暫停",
+      "completed": "已完成",
+      "failed": "產生失敗",
+      "cancelled": "已取消"
+    },
+    "topicState": {
+      "active": "進行中",
+      "closed": "已告一段落"
+    }
+  },
   "messageItem": {
     "viewContext": "檢視上下文",
     "replyTo": "回覆",

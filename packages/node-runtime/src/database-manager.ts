@@ -25,6 +25,7 @@ import { getContactsFactsCacheDir } from './services/contacts/paths'
 import { getGlobalInsightDir, getGlobalInsightFactsCacheDir } from './services/global-insight/paths'
 import { deleteAnnualSummarySnapshots } from './services/global-insight/snapshot'
 import { getPeopleRelationshipsFactsCacheDir } from './services/people/relationships/paths'
+import { deleteSessionChatTopics } from './services/topics'
 
 interface DatabaseManagerOptions {
   nativeBinding?: string
@@ -248,6 +249,9 @@ export class DatabaseManager {
    */
   deleteSessionDatabaseFiles(sessionId: string): boolean {
     this.close(sessionId)
+
+    // 话题是独立派生库中的会话数据，先删除它；失败时保留主库，避免出现“界面已删但派生数据残留”。
+    deleteSessionChatTopics(this.pathProvider.getUserDataDir(), sessionId, { nativeBinding: this.nativeBinding })
 
     const dbPath = this.getDbPath(sessionId)
     const existed = ['', '-wal', '-shm'].some((suffix) => fs.existsSync(dbPath + suffix))

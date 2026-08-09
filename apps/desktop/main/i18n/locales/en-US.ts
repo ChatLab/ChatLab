@@ -64,6 +64,9 @@ export default {
       'Add performance indexes for analysis tools to speed up queries without affecting existing data',
     migrationV9Desc: 'Remove the obsolete per-session full-text search index',
     migrationV9Message: 'Remove an unused derived search index while preserving all chat data',
+    migrationV10Desc: 'Track source message coverage for segment summaries',
+    migrationV10Message:
+      'Record how many messages each segment summary covers so outdated summaries can be regenerated',
     integrityError:
       'Database structure is incomplete: missing meta table. Please delete this database file and re-import.',
     checkFailed: 'Database check failed: {{error}}',

@@ -62,6 +62,8 @@ export default {
     migrationV8Message: '为分析工具添加性能索引，提升查询速度，不影响现有数据',
     migrationV9Desc: '移除已停用的会话全文搜索索引',
     migrationV9Message: '清理不再使用的派生搜索索引，聊天数据不会受到影响',
+    migrationV10Desc: '记录片段摘要的原消息覆盖量',
+    migrationV10Message: '记录每个片段摘要覆盖的消息数量，以便重新生成已经过期的摘要',
     integrityError: '数据库结构不完整：缺少 meta 表。建议删除此数据库文件后重新导入。',
     checkFailed: '数据库检查失败: {{error}}',
   },

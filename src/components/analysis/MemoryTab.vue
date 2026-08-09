@@ -3,6 +3,7 @@ import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SectionTabs } from '@/components/navigation'
 import { ChatRecordWorkspace } from '@/components/common/ChatRecord'
+import { IS_WEB_WASM } from '@/utils/platform'
 
 const { t } = useI18n()
 
@@ -26,7 +27,13 @@ const subTabs = computed(() => [
     <SectionTabs v-model="activeSubTab" :items="subTabs" persist-key="memoryTab" />
 
     <div class="min-h-0 flex-1 overflow-hidden">
-      <ChatRecordWorkspace v-if="activeSubTab === 'records'" :key="sessionId" :session-id="sessionId" mode="page" />
+      <ChatRecordWorkspace
+        v-if="activeSubTab === 'records'"
+        :key="sessionId"
+        :session-id="sessionId"
+        mode="page"
+        :show-topics="!IS_WEB_WASM"
+      />
     </div>
   </div>
 </template>
