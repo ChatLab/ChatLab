@@ -1,9 +1,8 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, defineAsyncComponent, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SectionTabs } from '@/components/navigation'
 import UserSelect from '@/components/common/UserSelect.vue'
-import GroupRelationshipGalaxyView from '@/components/analysis/relationship/GroupRelationshipGalaxyView.vue'
 import PrivateRelationshipView from '@/components/analysis/relationship/PrivateRelationshipView.vue'
 import JourneyView from '@/components/analysis/journey/JourneyView.vue'
 import TypeAnalysisView from '@/components/analysis/message/TypeAnalysisView.vue'
@@ -15,6 +14,10 @@ import type { DailyActivity, HourlyActivity, MemberActivity } from '@/types/anal
 import { InsightViewTransition } from '@/components/UI'
 import GroupOverview from './GroupOverview.vue'
 import PrivateOverview from './PrivateOverview.vue'
+
+const GroupRelationshipGalaxyView = defineAsyncComponent(
+  () => import('@/components/analysis/relationship/GroupRelationshipGalaxyView.vue')
+)
 
 const props = defineProps<{
   sessionId: string

@@ -1,17 +1,20 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, defineAsyncComponent, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SectionTabs } from '@/components/navigation'
 import UserSelect from '@/components/common/UserSelect.vue'
 import TypeAnalysisView from '@/components/analysis/message/TypeAnalysisView.vue'
 import TimeAnalysisView from '@/components/analysis/message/TimeAnalysisView.vue'
-import GroupRelationshipGalaxyView from '@/components/analysis/relationship/GroupRelationshipGalaxyView.vue'
 import { WordcloudTab } from '@/components/analysis/quotes'
 import type { TimeFilter } from '@openchatlab/shared-types'
 import type { AnalysisSession, MessageType } from '@/types/base'
 import type { DailyActivity, HourlyActivity, MemberActivity } from '@/types/analysis'
 import GroupChatOverview from './GroupChatOverview.vue'
 import { InsightViewTransition } from '@/components/UI'
+
+const GroupRelationshipGalaxyView = defineAsyncComponent(
+  () => import('@/components/analysis/relationship/GroupRelationshipGalaxyView.vue')
+)
 
 const { t } = useI18n()
 
