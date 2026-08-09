@@ -151,6 +151,7 @@
     "current": "当前版本",
     "total": "共 {count} 个版本",
     "close": "关闭",
+    "disableAutoOpen": "更新后不再自动弹出",
     "loadError": "加载版本日志失败",
     "retry": "重试",
     "types": {

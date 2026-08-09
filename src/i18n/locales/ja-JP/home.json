@@ -151,6 +151,7 @@
     "current": "現在のバージョン",
     "total": "全 {count} バージョン",
     "close": "閉じる",
+    "disableAutoOpen": "アップデート後に自動表示しない",
     "loadError": "バージョン履歴の読み込みに失敗しました",
     "retry": "リトライ",
     "types": {

@@ -151,6 +151,7 @@
     "current": "目前版本",
     "total": "共 {count} 個版本",
     "close": "關閉",
+    "disableAutoOpen": "更新後不再自動顯示",
     "loadError": "載入更新紀錄失敗",
     "retry": "重試",
     "types": {

@@ -36,6 +36,8 @@ const hoveredVersion = ref<string | null>(null)
 const currentAppVersion = ref<string | null>(null)
 
 const CHANGELOG_READ_KEY = 'chatlab_changelog_read_version'
+const CHANGELOG_AUTO_OPEN_DISABLED_KEY = 'chatlab_changelog_auto_open_disabled'
+const autoOpenDisabled = ref(false)
 
 // summary 的白名单配置（可按需扩展）
 const SUMMARY_SANITIZE_OPTIONS = {
@@ -132,6 +134,8 @@ function markVersionAsRead(version: string) {
 // 检查是否需要显示新版本日志（冷启动时自动检查）
 async function checkNewVersion() {
   try {
+    if (localStorage.getItem(CHANGELOG_AUTO_OPEN_DISABLED_KEY) === '1') return
+
     // 1. 获取当前软件版本号
     const rawVersion = await usePlatformService().getVersion()
     const currentVersion = normalizeChangelogVersion(rawVersion)
@@ -188,6 +192,7 @@ async function checkNewVersion() {
 
 // 手动打开弹窗（用户点击时调用），会自动获取数据
 async function open() {
+  autoOpenDisabled.value = localStorage.getItem(CHANGELOG_AUTO_OPEN_DISABLED_KEY) === '1'
   // 手动打开也标记当前版本，避免标签缺失
   try {
     currentAppVersion.value = normalizeChangelogVersion(await usePlatformService().getVersion())
@@ -204,6 +209,7 @@ async function open() {
 
 // 使用预设数据打开弹窗（自动检查新版本时调用）
 function openWithData(data: ChangelogItem[], appVersion?: string) {
+  autoOpenDisabled.value = localStorage.getItem(CHANGELOG_AUTO_OPEN_DISABLED_KEY) === '1'
   changelogs.value = data
   currentAppVersion.value = appVersion || null
   expandedState.value.clear() // 重置展开状态
@@ -212,6 +218,12 @@ function openWithData(data: ChangelogItem[], appVersion?: string) {
 
 function close() {
   showModal.value = false
+}
+
+function disableAutomaticOpen() {
+  localStorage.setItem(CHANGELOG_AUTO_OPEN_DISABLED_KEY, '1')
+  autoOpenDisabled.value = true
+  close()
 }
 
 // 获取最新版本号（供外部使用）
@@ -379,14 +391,19 @@ defineExpose({ open, openWithData, close, fetchChangelogs, getLatestVersion, che
 
         <!-- Footer -->
         <div class="border-t border-gray-200 px-6 py-4 dark:border-gray-700">
-          <div class="flex items-center justify-between">
+          <div class="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p v-if="changelogs.length > 0" class="text-sm text-gray-500 dark:text-gray-400">
               {{ t('home.changelog.total', { count: changelogs.length }) }}
             </p>
             <span v-else />
-            <UButton color="primary" variant="soft" @click="close">
-              {{ t('home.changelog.close') }}
-            </UButton>
+            <div class="ml-auto flex flex-wrap items-center justify-end gap-2">
+              <UButton v-if="!autoOpenDisabled" color="neutral" variant="ghost" @click="disableAutomaticOpen">
+                {{ t('home.changelog.disableAutoOpen') }}
+              </UButton>
+              <UButton color="primary" variant="soft" @click="close">
+                {{ t('home.changelog.close') }}
+              </UButton>
+            </div>
           </div>
         </div>
       </div>
