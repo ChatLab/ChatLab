@@ -66,6 +66,7 @@ function createHarness(
   manager: DatabaseManager
 } {
   const root = makeTempDir()
+  let nextRunId = 1
   createSession(root, messageCount, chatType)
   const paths = createPathProvider(root)
   const manager = new DatabaseManager(paths, { nativeBinding, allowMissingRuntimeForTests: true })
@@ -75,9 +76,42 @@ function createHarness(
     nativeBinding,
     getModelClient: () => modelClient,
     now: () => Date.parse('2026-08-09T12:00:00.000Z'),
-    generateId: () => 'run-1',
+    generateId: () => `run-${nextRunId++}`,
   })
   return { root, service, manager }
+}
+
+function successfulTopicResult(prompts: { userPrompt: string }) {
+  if (prompts.userPrompt.includes('Block: 1/1')) {
+    return {
+      text: JSON.stringify({
+        operations: [
+          {
+            operation: 'create',
+            localId: 'timezone-topic',
+            title: '时区测试',
+            summary: '验证时区变化后的重新生成。',
+            state: 'active',
+            evidence: [{ messageId: 1, timestamp: dayStart + 61, role: 'primary' }],
+          },
+        ],
+        assignments: [{ topicRef: 'timezone-topic', messageIds: [1] }],
+      }),
+      inputTokens: 1,
+      outputTokens: 1,
+    }
+  }
+
+  const topicId = prompts.userPrompt.match(/topic:[0-9a-f]{24}/)?.[0]
+  assert.ok(topicId)
+  return {
+    text: JSON.stringify({
+      overview: '时区测试完成。',
+      topics: [{ id: topicId, title: '时区测试', summary: '重新生成完成。', state: 'active' }],
+    }),
+    inputTokens: 1,
+    outputTokens: 1,
+  }
 }
 
 test('custom topic ranges start on the selected day and stop at an older import cutoff', (t) => {
@@ -282,6 +316,77 @@ test('private conversations use the shared topic runtime with private-chat analy
   }
 })
 
+test('range generation does not reuse a ready snapshot from another timezone', async () => {
+  const prompts: string[] = []
+  const modelClient: ChatTopicModelClient = {
+    modelId: 'test/model',
+    async complete(prompt) {
+      prompts.push(prompt.userPrompt)
+      return successfulTopicResult(prompt)
+    },
+  }
+  const { service, manager } = createHarness(modelClient, 1)
+
+  try {
+    const first = service.start('group', {
+      rangeKind: 'today',
+      timezone: 'Asia/Shanghai',
+      locale: 'zh-CN',
+    })
+    await waitForRun(service, 'group', first.id, 'completed')
+    const callsAfterFirstRun = prompts.length
+
+    const second = service.start('group', {
+      rangeKind: 'today',
+      timezone: 'Asia/Tokyo',
+      locale: 'zh-CN',
+    })
+    await waitForRun(service, 'group', second.id, 'completed')
+
+    assert.equal(prompts.length - callsAfterFirstRun, 2)
+    const regenerated = service.getDay('group', '2026-08-09', 'Asia/Tokyo')
+    assert.equal(regenerated?.timezone, 'Asia/Tokyo')
+    assert.equal(regenerated?.status, 'ready')
+  } finally {
+    service.close()
+    manager.closeAll()
+  }
+})
+
+test('generation does not resume a checkpoint created in another timezone', async () => {
+  let failFinalization = true
+  let recordPrompts = false
+  const resumedPrompts: string[] = []
+  const modelClient: ChatTopicModelClient = {
+    modelId: 'test/model',
+    async complete(prompt) {
+      if (recordPrompts) resumedPrompts.push(prompt.userPrompt)
+      if (failFinalization && !prompt.userPrompt.includes('Block: 1/1')) {
+        return { text: '{}', inputTokens: 1, outputTokens: 1 }
+      }
+      return successfulTopicResult(prompt)
+    },
+  }
+  const { service, manager } = createHarness(modelClient, 1)
+
+  try {
+    const failed = service.generateDay('group', '2026-08-09', 'Asia/Shanghai', 'zh-CN')
+    await waitForRun(service, 'group', failed.id, 'failed')
+
+    failFinalization = false
+    recordPrompts = true
+    const resumed = service.generateDay('group', '2026-08-09', 'Asia/Tokyo', 'zh-CN')
+    await waitForRun(service, 'group', resumed.id, 'completed')
+
+    assert.ok(resumedPrompts.some((prompt) => prompt.includes('Block: 1/1')))
+    const regenerated = service.getDay('group', '2026-08-09', 'Asia/Tokyo')
+    assert.equal(regenerated?.status, 'ready')
+  } finally {
+    service.close()
+    manager.closeAll()
+  }
+})
+
 test('a paused model request resumes from the persisted day checkpoint', async () => {
   let calls = 0
   const modelClient: ChatTopicModelClient = {
@@ -342,7 +447,7 @@ test('a paused model request resumes from the persisted day checkpoint', async (
   }
 })
 
-test('interactive AI work preempts topic generation and then resumes it automatically', async () => {
+test('interactive AI work resumes topic generation after another session is deleted', async () => {
   let calls = 0
   const modelClient: ChatTopicModelClient = {
     modelId: 'test/model',
@@ -391,6 +496,7 @@ test('interactive AI work preempts topic generation and then resumes it automati
     await waitUntil(() => calls === 1)
     const release = chatTopicWorkCoordinator.beginInteractiveWork()
     await waitUntil(() => service.getRun('group', run.id)?.status === 'pending')
+    await chatTopicWorkCoordinator.prepareSessionDelete('unrelated-session')
     release()
     const completed = await waitForRun(service, 'group', run.id, 'completed')
     assert.equal(completed.modelCalls, 2)

@@ -3,6 +3,7 @@ import type { ChatTopic, ChatTopicEvidence } from '@openchatlab/shared-types'
 import type { TopicSourceMessage } from './source'
 
 const TOPIC_RANGE_GAP_SECONDS = 60 * 60
+export const MAX_TOPICS_PER_DAY = 100
 
 export interface TopicLedgerItem {
   id: string
@@ -84,6 +85,7 @@ export function applyTopicOperations(
     currentMessages: TopicSourceMessage[]
   }
 ): TopicLedger {
+  assertTopicLedgerSize(ledger)
   const next = cloneLedger(ledger)
   const currentMessageIds = new Set(context.currentMessages.map((message) => message.id))
   const currentMessagesById = new Map(context.currentMessages.map((message) => [message.id, message]))
@@ -154,6 +156,7 @@ export function applyTopicOperations(
     topic.messageIds = deduplicateMessageIds([...topic.messageIds, messageId])
   }
 
+  assertTopicLedgerSize(next)
   return next
 
   function resolveTopicRef(topicRef: string): string {
@@ -251,7 +254,15 @@ export function parseTopicLedger(value: string): TopicLedger {
   const parsed = JSON.parse(value) as unknown
   if (!isRecord(parsed) || !Array.isArray(parsed.topics)) throw new Error('Invalid topic ledger checkpoint')
   const topics = parsed.topics.map((topic) => parseLedgerItem(topic))
-  return { topics }
+  const ledger = { topics }
+  assertTopicLedgerSize(ledger)
+  return ledger
+}
+
+function assertTopicLedgerSize(ledger: TopicLedger): void {
+  if (ledger.topics.length > MAX_TOPICS_PER_DAY) {
+    throw new Error(`A daily topic ledger cannot contain more than ${MAX_TOPICS_PER_DAY} topics`)
+  }
 }
 
 function createCanonicalTopicId(sessionId: string, dayKey: string, localIdNamespace: string, localId: string): string {

@@ -489,7 +489,7 @@ export class ChatTopicStore {
     }
   }
 
-  markDayStale(
+  refreshDayStatus(
     sessionId: string,
     dayKey: string,
     sourceSignature: string,
@@ -498,11 +498,13 @@ export class ChatTopicStore {
   ): boolean {
     const result = this.db
       .prepare(
-        `UPDATE topic_day SET status = 'stale', updated_at = ?
-         WHERE session_id = ? AND day_key = ? AND status = 'ready'
-           AND (source_signature != ? OR timezone != ?)`
+        `UPDATE topic_day
+         SET status = CASE WHEN source_signature = ? AND timezone = ? THEN 'ready' ELSE 'stale' END,
+             updated_at = ?
+         WHERE session_id = ? AND day_key = ?
+           AND status != CASE WHEN source_signature = ? AND timezone = ? THEN 'ready' ELSE 'stale' END`
       )
-      .run(updatedAt, sessionId, dayKey, sourceSignature, timezone)
+      .run(sourceSignature, timezone, updatedAt, sessionId, dayKey, sourceSignature, timezone)
     return result.changes > 0
   }
 

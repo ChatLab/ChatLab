@@ -44,8 +44,14 @@ test('topic chunks keep ordinary source blocks within the character budget', () 
   assert.ok(blocks.every((block) => block.estimatedChars <= TOPIC_BLOCK_MAX_CHARS))
 })
 
-test('an oversized single message remains intact for evidence traceability', () => {
-  const blocks = chunkTopicMessages([message(1, 'x'.repeat(20_000)), message(2)])
+test('an oversized single message is bounded in source blocks without mutating the original message', () => {
+  const oversized = message(1, 'x'.repeat(20_000))
+  const blocks = chunkTopicMessages([oversized, message(2)])
+
   assert.equal(blocks.length, 2)
-  assert.equal(blocks[0]?.messages[0]?.content.length, 20_000)
+  assert.ok((blocks[0]?.messages[0]?.content.length ?? 0) < oversized.content.length)
+  assert.match(blocks[0]?.messages[0]?.content ?? '', /truncated for topic analysis/)
+  assert.ok(blocks.every((block) => block.estimatedChars <= TOPIC_BLOCK_MAX_CHARS))
+  assert.equal(oversized.content.length, 20_000)
+  assert.equal(blocks[0]?.messages[0]?.id, oversized.id)
 })

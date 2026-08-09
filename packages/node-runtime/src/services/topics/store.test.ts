@@ -134,7 +134,7 @@ test('successful snapshots stay readable while a newer checkpoint is running', (
   }
 })
 
-test('source or timezone changes mark a ready day stale without discarding its topics', () => {
+test('source and timezone comparisons keep the persisted day status reversible', () => {
   const root = makeTempDir()
   const store = new ChatTopicStore(getChatTopicsDbPath(root), { nativeBinding })
 
@@ -158,12 +158,22 @@ test('source or timezone changes mark a ready day stale without discarding its t
     }
     store.finalizeDay(snapshot)
 
-    assert.equal(store.markDayStale('session-1', '2026-08-09', 'signature-v1', 'Asia/Shanghai', 1_786_205_300), false)
-    assert.equal(store.markDayStale('session-1', '2026-08-09', 'signature-v1', 'UTC', 1_786_205_350), true)
+    assert.equal(
+      store.refreshDayStatus('session-1', '2026-08-09', 'signature-v1', 'Asia/Shanghai', 1_786_205_300),
+      false
+    )
+    assert.equal(store.refreshDayStatus('session-1', '2026-08-09', 'signature-v1', 'UTC', 1_786_205_350), true)
     assert.equal(store.getDay('session-1', '2026-08-09')?.status, 'stale')
+    assert.equal(
+      store.refreshDayStatus('session-1', '2026-08-09', 'signature-v1', 'Asia/Shanghai', 1_786_205_375),
+      true
+    )
+    assert.equal(store.getDay('session-1', '2026-08-09')?.status, 'ready')
 
-    store.finalizeDay({ ...snapshot, sourceSignature: 'signature-v1', generatedAt: 1_786_205_375 })
-    assert.equal(store.markDayStale('session-1', '2026-08-09', 'signature-v2', 'Asia/Shanghai', 1_786_205_400), true)
+    assert.equal(
+      store.refreshDayStatus('session-1', '2026-08-09', 'signature-v2', 'Asia/Shanghai', 1_786_205_400),
+      true
+    )
     assert.equal(store.getDay('session-1', '2026-08-09')?.status, 'stale')
     assert.equal(store.getDay('session-1', '2026-08-09')?.topics[0]?.title, '周末聚餐')
   } finally {

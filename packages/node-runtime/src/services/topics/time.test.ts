@@ -16,6 +16,15 @@ test('day ranges preserve daylight-saving boundaries', () => {
   assert.equal(autumn.endTs - autumn.startTs, 25 * 60 * 60)
 })
 
+test('day ranges start at the first valid instant when daylight saving skips midnight', () => {
+  const range = getTopicDayRange('2024-03-10', 'America/Havana')
+  assert.equal(range.startTs, Date.parse('2024-03-10T05:00:00.000Z') / 1000)
+  assert.equal(range.endTs, Date.parse('2024-03-11T04:00:00.000Z') / 1000)
+  assert.equal(range.endTs - range.startTs, 23 * 60 * 60)
+  assert.equal(formatTopicDayKey(range.startTs, 'America/Havana'), '2024-03-10')
+  assert.equal(formatTopicDayKey(range.startTs - 1, 'America/Havana'), '2024-03-09')
+})
+
 test('calendar day enumeration validates dates and spans month boundaries', () => {
   assert.deepEqual(enumerateTopicDays('2026-01-30', '2026-02-02'), [
     '2026-01-30',

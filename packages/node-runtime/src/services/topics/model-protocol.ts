@@ -1,6 +1,7 @@
 import type { ChatTopicEvidence } from '@openchatlab/shared-types'
 import {
   isRecord,
+  MAX_TOPICS_PER_DAY,
   parseEvidence,
   requireState,
   requireString,
@@ -12,8 +13,8 @@ import {
 } from './ledger'
 import type { TopicChatType, TopicSourceBlock } from './source'
 
-export const CHAT_TOPICS_PROMPT_VERSION = 'chat-topics-v3'
-export const CHAT_TOPICS_ALGORITHM_VERSION = 'chat-topics-ledger-v3'
+export const CHAT_TOPICS_PROMPT_VERSION = 'chat-topics-v4'
+export const CHAT_TOPICS_ALGORITHM_VERSION = 'chat-topics-ledger-v4'
 
 export function buildTopicBlockPrompt(input: {
   chatType: TopicChatType
@@ -34,6 +35,7 @@ A topic may resume after hours: append or reopen the existing topic instead of c
 Treat localId as local to this message block. Use create only for a genuinely new subject. If the current ledger already contains the subject, use its exact id with append or reopen.
 Create only meaningful discussion threads, not every isolated message. Write titles and summaries in ${language}.
 Keep titles concise and each topic summary under 300 characters so the ledger remains usable on long, dense days.
+After applying all operations, the daily ledger must contain at most ${MAX_TOPICS_PER_DAY} topics; it currently contains ${input.ledger.topics.length}. Prefer appending to or merging existing topics, and never create low-value fragments merely to fill capacity.
 Return at most 12 operation objects. Cite only 1 to 4 representative evidence messages per operation, never every related message. If the block adds no meaningful topic information, return an empty operations array.
 In the same response, assign every meaningful conversational message to one primary topic. Include questions, answers, clarifications, brief acknowledgements, jokes, and resumed messages when they belong to a discussion. Leave only true noise, system notices, or semantically empty media placeholders unassigned. A message may belong to at most one primary topic.
 Assignments are complete membership for highlighting; evidence is only a small representative proof set. Do not confuse them.
@@ -94,7 +96,7 @@ export function parseTopicOperationsResponse(text: string): TopicModelBlockRespo
 export function parseTopicFinalizationResponse(text: string): TopicFinalization {
   const payload = parseJsonObject(text)
   const overview = requireString(payload.overview, 'overview', 8_000)
-  if (!Array.isArray(payload.topics) || payload.topics.length > 100) {
+  if (!Array.isArray(payload.topics) || payload.topics.length > MAX_TOPICS_PER_DAY) {
     throw new Error('Invalid topic finalization payload')
   }
   return {

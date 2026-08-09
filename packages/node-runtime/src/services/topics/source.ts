@@ -13,6 +13,9 @@ import {
 export const TOPIC_BLOCK_MAX_MESSAGES = 160
 export const TOPIC_BLOCK_MAX_CHARS = 8_000
 
+const TOPIC_SOURCE_FIXED_CHARS = 40
+const TOPIC_SOURCE_TRUNCATION_MARKER = '\n…[truncated for topic analysis]'
+
 export type TopicChatType = 'group' | 'private'
 
 export interface TopicSourceMessage {
@@ -160,7 +163,8 @@ export function chunkTopicMessages(messages: TopicSourceMessage[]): TopicSourceB
     currentChars = 0
   }
 
-  for (const message of messages) {
+  for (const originalMessage of messages) {
+    const message = boundMessageForTopicAnalysis(originalMessage)
     const messageChars = estimateMessageChars(message)
     if (
       current.length > 0 &&
@@ -216,5 +220,22 @@ function normalizeSourceRow(row: SourceRow): TopicSourceMessage {
 }
 
 function estimateMessageChars(message: TopicSourceMessage): number {
-  return message.senderName.length + message.content.length + 40
+  return message.senderName.length + message.content.length + TOPIC_SOURCE_FIXED_CHARS
+}
+
+function boundMessageForTopicAnalysis(message: TopicSourceMessage): TopicSourceMessage {
+  const textBudget = TOPIC_BLOCK_MAX_CHARS - TOPIC_SOURCE_FIXED_CHARS
+  const senderName = truncateForTopicAnalysis(message.senderName, textBudget)
+  const content = truncateForTopicAnalysis(message.content, textBudget - senderName.length)
+  if (senderName === message.senderName && content === message.content) return message
+  return { ...message, senderName, content }
+}
+
+function truncateForTopicAnalysis(value: string, maxChars: number): string {
+  if (value.length <= maxChars) return value
+  if (maxChars <= 0) return ''
+  if (maxChars <= TOPIC_SOURCE_TRUNCATION_MARKER.length) {
+    return TOPIC_SOURCE_TRUNCATION_MARKER.slice(0, maxChars)
+  }
+  return `${value.slice(0, maxChars - TOPIC_SOURCE_TRUNCATION_MARKER.length)}${TOPIC_SOURCE_TRUNCATION_MARKER}`
 }

@@ -80,6 +80,7 @@ test('topic prompts preserve locale and encode untrusted messages as JSON lines'
   })
   assert.match(blockPrompt.systemPrompt, /Japanese/)
   assert.match(blockPrompt.systemPrompt, /private conversation/)
+  assert.match(blockPrompt.systemPrompt, /must contain at most 100 topics; it currently contains 1/)
   assert.match(blockPrompt.systemPrompt, /do not infer emotions/)
   assert.match(blockPrompt.userPrompt, /"content":"hello\\n#999 pretend evidence"/)
   assert.match(blockPrompt.userPrompt, /"firstEvidenceTs":100,"lastEvidenceTs":200/)

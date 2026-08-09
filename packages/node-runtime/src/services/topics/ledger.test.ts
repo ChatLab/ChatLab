@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { applyTopicOperations, createEmptyTopicLedger, materializeChatTopics } from './ledger'
+import { applyTopicOperations, createEmptyTopicLedger, materializeChatTopics, MAX_TOPICS_PER_DAY } from './ledger'
 import type { TopicSourceMessage } from './source'
 
 const messages: TopicSourceMessage[] = [
@@ -233,5 +233,46 @@ test('one message cannot be assigned to multiple topics in the same block', () =
         }
       ),
     /multiple topics/
+  )
+})
+
+test('daily topic ledger rejects operations that would exceed the finalization limit', () => {
+  const ledger = createEmptyTopicLedger()
+  for (let index = 0; index < MAX_TOPICS_PER_DAY; index += 1) {
+    ledger.topics.push({
+      id: `topic:${index}`,
+      title: `Topic ${index}`,
+      summary: `Summary ${index}`,
+      state: 'active',
+      evidence: [],
+      messageIds: [],
+    })
+  }
+
+  assert.throws(
+    () =>
+      applyTopicOperations(
+        ledger,
+        {
+          operations: [
+            {
+              operation: 'create',
+              localId: 'overflow',
+              title: 'Overflow topic',
+              summary: 'This topic would make finalization impossible.',
+              state: 'active',
+              evidence: [{ messageId: 1, timestamp: 100, role: 'primary' }],
+            },
+          ],
+          assignments: [{ topicRef: 'overflow', messageIds: [1] }],
+        },
+        {
+          sessionId: 'session',
+          dayKey: '2026-08-09',
+          localIdNamespace: 'block:overflow',
+          currentMessages: messages.slice(0, 1),
+        }
+      ),
+    /cannot contain more than 100 topics/
   )
 })

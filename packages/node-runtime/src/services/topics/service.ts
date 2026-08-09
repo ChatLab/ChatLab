@@ -223,7 +223,7 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
     const snapshot = store.getDay(sessionId, dayKey)
     if (!snapshot) return null
     const source = loadTopicSourceDay(deps.runtime.ensureReadonly(sessionId), dayKey, timezone)
-    store.markDayStale(sessionId, dayKey, source.sourceSignature, timezone, now())
+    store.refreshDayStatus(sessionId, dayKey, source.sourceSignature, timezone, now())
     return store.getDay(sessionId, dayKey)
   }
 
@@ -344,6 +344,7 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
         checkpoint === null &&
         snapshot?.status === 'ready' &&
         snapshot.sourceSignature === source.sourceSignature &&
+        snapshot.timezone === run.timezone &&
         snapshot.modelId === modelId &&
         snapshot.promptVersion === CHAT_TOPICS_PROMPT_VERSION &&
         snapshot.algorithmVersion === CHAT_TOPICS_ALGORITHM_VERSION
@@ -530,6 +531,7 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
     return Boolean(
       checkpoint &&
       checkpoint.sourceSignature === source.sourceSignature &&
+      checkpoint.timezone === source.timezone &&
       checkpoint.totalBlocks === source.blocks.length &&
       checkpoint.modelId === modelId &&
       checkpoint.promptVersion === CHAT_TOPICS_PROMPT_VERSION &&
@@ -592,7 +594,8 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
   }
 
   async function prepareSessionDelete(sessionId: string): Promise<void> {
-    preemptedRunId = null
+    const preemptedRun = preemptedRunId ? store.getRun(preemptedRunId) : null
+    if (preemptedRun?.sessionId === sessionId) preemptedRunId = null
     if (activeExecution) {
       const activeRun = store.getRun(activeExecution.runId)
       if (activeRun?.sessionId === sessionId) {

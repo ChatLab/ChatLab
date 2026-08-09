@@ -20,14 +20,7 @@ export function assertValidTopicDayKey(dayKey: string): void {
 
 export function formatTopicDayKey(timestampSeconds: number, timezone: string): string {
   assertValidTimezone(timezone)
-  const parts = new Intl.DateTimeFormat('en-US', {
-    timeZone: timezone,
-    year: 'numeric',
-    month: '2-digit',
-    day: '2-digit',
-  }).formatToParts(new Date(timestampSeconds * 1000))
-  const values = Object.fromEntries(parts.map((part) => [part.type, part.value]))
-  return `${values.year}-${values.month}-${values.day}`
+  return getZonedDayKey(timestampSeconds * 1000, timezone)
 }
 
 export function getTopicDayRange(dayKey: string, timezone: string): TopicDayRange {
@@ -100,10 +93,56 @@ function zonedMidnightToUtcMs(day: CalendarDay, timezone: string): number {
     if (next === guess) break
     guess = next
   }
-  return guess
+
+  const targetDayKey = formatCalendarDay(day)
+  const candidate = getZonedDateTimeParts(guess, timezone)
+  if (
+    formatCalendarDay(candidate) === targetDayKey &&
+    candidate.hour === 0 &&
+    candidate.minute === 0 &&
+    candidate.second === 0 &&
+    getZonedDayKey(guess - 1_000, timezone) < targetDayKey
+  ) {
+    return guess
+  }
+
+  return findFirstInstantOfDay(desiredWallTime, targetDayKey, timezone)
 }
 
 function getTimezoneOffsetMs(timestampMs: number, timezone: string): number {
+  const values = getZonedDateTimeParts(timestampMs, timezone)
+  const wallTimeAsUtc = Date.UTC(values.year, values.month - 1, values.day, values.hour, values.minute, values.second)
+  return wallTimeAsUtc - Math.floor(timestampMs / 1000) * 1000
+}
+
+function findFirstInstantOfDay(desiredWallTime: number, targetDayKey: string, timezone: string): number {
+  const searchWindowMs = 48 * 60 * 60 * 1000
+  let lower = Math.floor((desiredWallTime - searchWindowMs) / 1000)
+  let upper = Math.ceil((desiredWallTime + searchWindowMs) / 1000)
+
+  while (lower + 1 < upper) {
+    const middle = Math.floor((lower + upper) / 2)
+    if (getZonedDayKey(middle * 1000, timezone) < targetDayKey) {
+      lower = middle
+    } else {
+      upper = middle
+    }
+  }
+
+  return upper * 1000
+}
+
+function getZonedDayKey(timestampMs: number, timezone: string): string {
+  return formatCalendarDay(getZonedDateTimeParts(timestampMs, timezone))
+}
+
+interface ZonedDateTimeParts extends CalendarDay {
+  hour: number
+  minute: number
+  second: number
+}
+
+function getZonedDateTimeParts(timestampMs: number, timezone: string): ZonedDateTimeParts {
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: timezone,
     year: 'numeric',
@@ -115,13 +154,12 @@ function getTimezoneOffsetMs(timestampMs: number, timezone: string): number {
     hourCycle: 'h23',
   }).formatToParts(new Date(timestampMs))
   const values = Object.fromEntries(parts.map((part) => [part.type, part.value]))
-  const wallTimeAsUtc = Date.UTC(
-    Number(values.year),
-    Number(values.month) - 1,
-    Number(values.day),
-    Number(values.hour),
-    Number(values.minute),
-    Number(values.second)
-  )
-  return wallTimeAsUtc - Math.floor(timestampMs / 1000) * 1000
+  return {
+    year: Number(values.year),
+    month: Number(values.month),
+    day: Number(values.day),
+    hour: Number(values.hour),
+    minute: Number(values.minute),
+    second: Number(values.second),
+  }
 }
