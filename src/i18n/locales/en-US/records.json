@@ -7,7 +7,9 @@
     "indexMissingDescription": "You can still read the original messages. Generate an index to organize summaries into conversation segments; this does not call AI automatically.",
     "generateIndex": "Generate index",
     "indexGenerated": "Generated {count} conversation segments",
-    "indexGenerationFailed": "Failed to generate conversation index"
+    "indexGenerationFailed": "Failed to generate conversation index",
+    "indexLoadFailedTitle": "Failed to load conversation summary index",
+    "indexLoadFailedDescription": "You can still read the original messages. Retry loading; existing summaries will not be changed."
   },
   "messageList": {
     "loading": "Loading...",

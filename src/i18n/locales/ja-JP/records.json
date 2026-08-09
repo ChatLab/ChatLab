@@ -7,7 +7,9 @@
     "indexMissingDescription": "元のメッセージはそのまま閲覧できます。インデックスを生成すると要約が会話区間ごとに整理されます。この操作だけでは AI は自動実行されません。",
     "generateIndex": "インデックスを生成",
     "indexGenerated": "{count} 件の会話区間を生成しました",
-    "indexGenerationFailed": "会話インデックスの生成に失敗しました"
+    "indexGenerationFailed": "会話インデックスの生成に失敗しました",
+    "indexLoadFailedTitle": "会話要約インデックスを読み込めませんでした",
+    "indexLoadFailedDescription": "元のメッセージは引き続き閲覧できます。再読み込みしても、既存の要約は変更されません。"
   },
   "messageList": {
     "loading": "読み込み中...",

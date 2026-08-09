@@ -35,9 +35,9 @@ const emit = defineEmits<{
   (e: 'select', sessionId: number, firstMessageId: number): void
   /** 折叠状态变化 */
   (e: 'update:collapsed', value: boolean): void
-  /** 单条摘要更新，供共享工作区同步会话缓存 */
+  /** Notify the shared workspace when one summary changes. */
   (e: 'summary-updated', session: ChatSessionItem): void
-  /** 批量生成或重新加载后同步完整会话列表 */
+  /** Sync the full session list after batch generation or reload. */
   (e: 'sessions-updated', sessions: ChatSessionItem[]): void
 }>()
 

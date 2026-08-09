@@ -1,7 +1,7 @@
 <script setup lang="ts">
 /**
- * 聊天记录查看器 Drawer
- * 保留快速查看入口，完整的记录编排由 ChatRecordWorkspace 复用。
+ * Chat record viewer drawer.
+ * Keeps the quick-view shell while ChatRecordWorkspace owns shared orchestration.
  */
 import { ref, onMounted } from 'vue'
 import { useI18n } from 'vue-i18n'

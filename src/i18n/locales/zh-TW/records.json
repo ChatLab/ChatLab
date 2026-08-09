@@ -7,7 +7,9 @@
     "indexMissingDescription": "原始聊天紀錄仍可直接查看。產生索引後，左側會依聊天片段整理摘要；此操作不會自動呼叫 AI。",
     "generateIndex": "產生索引",
     "indexGenerated": "已產生 {count} 個聊天片段",
-    "indexGenerationFailed": "會話索引產生失敗"
+    "indexGenerationFailed": "會話索引產生失敗",
+    "indexLoadFailedTitle": "會話摘要索引載入失敗",
+    "indexLoadFailedDescription": "原始聊天紀錄仍可查看。請重試載入，現有摘要不會被修改。"
   },
   "messageList": {
     "loading": "載入中...",

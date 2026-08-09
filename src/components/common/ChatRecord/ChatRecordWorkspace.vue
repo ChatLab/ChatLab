@@ -1,8 +1,9 @@
 <script setup lang="ts">
 /**
- * 聊天记录工作区
+ * Shared chat record workspace.
  *
- * Drawer 和“记忆 → 记录”共用同一套连续消息流、摘要时间线与左右滚动联动。
+ * The drawer and Memory > Records reuse the continuous message stream,
+ * summary timeline, and bidirectional scroll synchronization.
  */
 import { computed, nextTick, ref, toRaw, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
@@ -15,6 +16,7 @@ import MessageList from './MessageList.vue'
 import SessionTimeline from './SessionTimeline.vue'
 import type { ChatRecordQuery } from './types'
 import { preserveChatRecordSessionId, resolveChatRecordSessionId, scopeChatRecordQueryToSession } from './query-session'
+import { resolveChatRecordIndexAction, type ChatRecordIndexAction, type ChatRecordIndexState } from './workspace-state'
 
 const props = withDefaults(
   defineProps<{
@@ -41,12 +43,15 @@ const timelineCollapsed = ref(false)
 const activeSessionId = ref<number | undefined>()
 const sessionsCache = ref<ChatSessionItem[]>([])
 const matchedSessionIds = ref<Set<number> | undefined>()
-const indexState = ref<'loading' | 'ready' | 'missing' | 'error'>('loading')
+const indexState = ref<ChatRecordIndexState>('loading')
 const isGeneratingIndex = ref(false)
 const timelineVersion = ref(0)
 let initializationVersion = 0
 
 const isPageMode = computed(() => props.mode === 'page')
+const indexAction = computed<ChatRecordIndexAction>(() =>
+  isPageMode.value ? resolveChatRecordIndexAction(indexState.value) : null
+)
 const fallbackSessionId = computed(() => props.sessionId || currentSessionId.value)
 const effectiveSessionId = computed(() => resolveChatRecordSessionId(localQuery.value, fallbackSessionId.value))
 
@@ -165,7 +170,7 @@ function handleSessionsUpdated(sessions: ChatSessionItem[]) {
 
 async function generateIndex() {
   const sessionId = effectiveSessionId.value
-  if (!sessionId || isGeneratingIndex.value) return
+  if (!sessionId || isGeneratingIndex.value || indexAction.value !== 'generate') return
 
   isGeneratingIndex.value = true
   try {
@@ -199,7 +204,7 @@ watch([() => props.active, fallbackSessionId, () => props.initialQuery], () => i
       />
 
       <div
-        v-if="isPageMode && (indexState === 'missing' || indexState === 'error')"
+        v-if="indexAction === 'generate'"
         class="flex shrink-0 items-start justify-between gap-4 border-b border-amber-200/70 bg-amber-50/80 px-4 py-3 dark:border-amber-800/50 dark:bg-amber-950/20"
       >
         <div class="flex min-w-0 gap-3">
@@ -223,6 +228,33 @@ watch([() => props.active, fallbackSessionId, () => props.initialQuery], () => i
           @click="generateIndex"
         >
           {{ t('records.workspace.generateIndex') }}
+        </UButton>
+      </div>
+
+      <div
+        v-else-if="indexAction === 'retry'"
+        class="flex shrink-0 items-start justify-between gap-4 border-b border-red-200/70 bg-red-50/80 px-4 py-3 dark:border-red-800/50 dark:bg-red-950/20"
+      >
+        <div class="flex min-w-0 gap-3">
+          <UIcon name="i-heroicons-exclamation-circle" class="mt-0.5 h-5 w-5 shrink-0 text-red-600 dark:text-red-400" />
+          <div class="min-w-0">
+            <p class="text-sm font-medium text-red-900 dark:text-red-100">
+              {{ t('records.workspace.indexLoadFailedTitle') }}
+            </p>
+            <p class="mt-0.5 text-xs leading-relaxed text-red-700 dark:text-red-300">
+              {{ t('records.workspace.indexLoadFailedDescription') }}
+            </p>
+          </div>
+        </div>
+        <UButton
+          class="shrink-0"
+          color="error"
+          variant="soft"
+          size="sm"
+          icon="i-heroicons-arrow-path"
+          @click="initializeWorkspace"
+        >
+          {{ t('common.retry') }}
         </UButton>
       </div>
 

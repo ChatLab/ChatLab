@@ -13,7 +13,7 @@ export function preserveChatRecordSessionId(
 }
 
 /**
- * 将查询固定到明确的聊天会话，避免页面切换后继续读取上一会话的数据。
+ * Scope a query to the explicit chat session so page changes cannot reuse stale data.
  */
 export function scopeChatRecordQueryToSession(query: ChatRecordQuery, sessionId: string): ChatRecordQuery {
   return { ...query, sessionId }

@@ -308,7 +308,7 @@ export async function generateSessionSummary(
     summary = postProcessSummary(summary, lengthLimit)
     deps.saveSummary(segmentId, summary)
 
-    // 摘要属于用户聊天内容，日志只记录定位故障所需的元数据，避免持久化明文。
+    // Summaries contain private chat data, so persist only diagnostic metadata in logs.
     log?.info('Summary', `Summary generated for segment ${segmentId} (${summary.length} characters)`)
     return { success: true, summary }
   } catch (error) {
