@@ -1,5 +1,5 @@
 import type { PeopleRelationshipGraphNode, PeopleRelationshipsSearchResult } from '@openchatlab/shared-types'
-import { maskRelationshipGalaxyPrivateText, relationshipGalaxyPrivateAvatarText } from './relationship-galaxy-privacy'
+import { maskRelationshipGalaxyPrivateText } from './relationship-galaxy-privacy'
 
 type DisplayNode = PeopleRelationshipGraphNode | PeopleRelationshipsSearchResult
 
@@ -22,7 +22,7 @@ export function getRelationshipGalaxyNodeAvatarText(
   options: RelationshipGalaxyNodeDisplayOptions
 ): string {
   if (node.kind === 'owner') return options.ownerLabel
-  if (options.privacyMode) return relationshipGalaxyPrivateAvatarText()
+  if (options.privacyMode) return '*'
   return (node.displayName || node.platformId || '?').slice(0, 1)
 }
 

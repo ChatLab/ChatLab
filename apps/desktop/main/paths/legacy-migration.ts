@@ -7,7 +7,6 @@ import * as fs from 'node:fs'
 import * as path from 'node:path'
 import { loadConfig, writeConfigField } from '@openchatlab/config'
 import { arePathsOverlapping, copyDirMerge, copyDirRecursive, writeMigrationLog } from '../utils/pathUtils'
-import { shouldMarkUnifiedDirMigrationDone } from '../utils/unifiedDirMigration'
 import {
   ensureDir,
   getDefaultUserDataDir,
@@ -363,7 +362,7 @@ export function migrateToUnifiedDirs(): { success: boolean; error?: string } {
     writeMigrationLog(getLogsDir(), summary, ensureDir)
     console.log(`[Migration] ${summary}`)
 
-    if (shouldMarkUnifiedDirMigrationDone(failedDirs)) {
+    if (failedDirs.length === 0) {
       writeConfigField('data', 'electron_migration_done', true)
     }
 

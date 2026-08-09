@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { maskRelationshipGalaxyPrivateText, relationshipGalaxyPrivateAvatarText } from './relationship-galaxy-privacy'
+import { maskRelationshipGalaxyPrivateText } from './relationship-galaxy-privacy'
 
 test('masks Chinese names with two stars and the last Chinese character', () => {
   assert.equal(maskRelationshipGalaxyPrivateText('张小红'), '**红')
@@ -23,8 +23,4 @@ test('masks very short and empty relationship labels without revealing full name
   assert.equal(maskRelationshipGalaxyPrivateText('A'), '*')
   assert.equal(maskRelationshipGalaxyPrivateText(''), '*')
   assert.equal(maskRelationshipGalaxyPrivateText('   '), '*')
-})
-
-test('uses a non-identifying avatar fallback in relationship privacy mode', () => {
-  assert.equal(relationshipGalaxyPrivateAvatarText(), '*')
 })

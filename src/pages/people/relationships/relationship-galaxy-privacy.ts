@@ -12,7 +12,3 @@ export function maskRelationshipGalaxyPrivateText(value: string | null | undefin
   if (characters.length === 2) return `${characters[0]}***`
   return `${characters[0]}***${characters.at(-1)}`
 }
-
-export function relationshipGalaxyPrivateAvatarText(): string {
-  return '*'
-}

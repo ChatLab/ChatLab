@@ -1,4 +1,4 @@
-export interface RelationshipGalaxyCanvasSelectionInput {
+interface RelationshipGalaxyCanvasSelectionInput {
   selectedKey: string | null
   loadingNeighborhoodKey: string | null
   currentCanvasSelectedKey: string | null

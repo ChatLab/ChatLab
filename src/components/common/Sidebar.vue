@@ -24,7 +24,10 @@ import { useLayoutStore } from '@/stores/layout'
 import { usePlatformService } from '@/services'
 import { IS_ELECTRON } from '@/utils/platform'
 import logoSvg from '@/assets/images/logo.svg'
-import { focusExposedInput, type ExposedInputRef } from './sidebar/input-focus'
+
+interface SidebarInputExpose {
+  inputRef: Pick<HTMLInputElement, 'focus' | 'select'> | null
+}
 
 const props = withDefaults(
   defineProps<{
@@ -71,7 +74,7 @@ const isInsightPage = computed(() => String(route.name ?? '').startsWith('insigh
 const showRenameModal = ref(false)
 const renameTarget = ref<AnalysisSession | null>(null)
 const newName = ref('')
-const renameInputRef = ref<ExposedInputRef | null>(null)
+const renameInputRef = ref<SidebarInputExpose | null>(null)
 
 // 删除确认相关状态
 const showDeleteModal = ref(false)
@@ -297,7 +300,8 @@ function openRenameModal(session: AnalysisSession) {
   showRenameModal.value = true
   // 等待 DOM 更新后聚焦输入框
   nextTick(() => {
-    focusExposedInput(renameInputRef.value, { select: true })
+    renameInputRef.value?.inputRef?.focus()
+    renameInputRef.value?.inputRef?.select()
   })
 }
 

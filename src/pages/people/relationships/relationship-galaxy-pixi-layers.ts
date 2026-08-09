@@ -1,8 +1,8 @@
-export interface PixiRemovableChildrenContainer {
+interface PixiRemovableChildrenContainer {
   removeChildren(): PixiDestroyableChild[]
 }
 
-export interface PixiDestroyableChild {
+interface PixiDestroyableChild {
   destroy(options?: { children?: boolean }): void
 }
 

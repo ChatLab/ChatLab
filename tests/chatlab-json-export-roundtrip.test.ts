@@ -6,11 +6,11 @@ import test from 'node:test'
 import Database from 'better-sqlite3'
 import { detectFormat, parseFileSync } from '@openchatlab/parser'
 import { CHATLAB_FORMAT_VERSION } from '@openchatlab/shared-types'
+import { writeParseResultToDb } from '@openchatlab/core'
 import { CHAT_DB_SCHEMA } from '../packages/core/src/schema/tables'
 import { BetterSqliteAdapter } from '../packages/node-runtime/src/better-sqlite3-adapter'
 import { exportWithFormat } from '../packages/node-runtime/src/export/format-exporter'
 import { streamingImport } from '../packages/node-runtime/src/import/streaming-importer'
-import { writeParseResultToDb } from '../packages/node-runtime/src/import/write-parse-result'
 
 test('exports JSON as ChatLab format that can be parsed for re-import', async () => {
   const tempDir = mkdtempSync(join(tmpdir(), 'chatlab-json-export-'))
