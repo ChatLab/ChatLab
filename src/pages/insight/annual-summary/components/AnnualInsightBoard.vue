@@ -151,13 +151,11 @@ function kpiIcon(key: string): string {
 <template>
   <div class="grid gap-4 xl:grid-cols-12">
     <ThemeCard class="relative isolate overflow-hidden xl:col-span-8">
-      <div class="annual-insight-hero-background pointer-events-none absolute inset-0" />
-      <CardDecoration theme="sunset" />
+      <CardDecoration />
       <section class="relative z-10 min-w-0 p-5 sm:p-6">
         <div class="flex flex-col gap-5 2xl:flex-row 2xl:items-start 2xl:justify-between">
           <div class="min-w-0">
             <h2 class="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{{ title }}</h2>
-            <div class="mt-2 h-px w-12 bg-gradient-to-r from-orange-400 to-pink-400" />
             <div class="mt-3 space-y-1.5 text-xs font-medium text-gray-500 dark:text-zinc-400">
               <div class="flex items-center gap-2">
                 <UIcon name="i-heroicons-calendar" class="h-4 w-4 opacity-70" />
@@ -177,13 +175,9 @@ function kpiIcon(key: string): string {
             </div>
           </div>
 
-          <div class="grid grid-cols-2 gap-3 sm:grid-cols-4 2xl:shrink-0">
-            <div
-              v-for="stat in primaryStats"
-              :key="stat.key"
-              class="flex min-w-0 flex-col items-start gap-1.5 rounded-xl bg-white/60 p-3 backdrop-blur-sm dark:bg-white/5"
-            >
-              <UIcon :name="kpiIcon(stat.key)" class="h-4 w-4 text-orange-500 dark:text-orange-400" />
+          <div class="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4 2xl:shrink-0">
+            <div v-for="stat in primaryStats" :key="stat.key" class="flex min-w-0 flex-col items-start gap-1.5">
+              <UIcon :name="kpiIcon(stat.key)" class="h-4 w-4 text-pink-500 dark:text-pink-400" />
               <div class="font-mono text-xl font-black tabular-nums text-gray-900 dark:text-white">
                 {{ formatValue(stat.value) }}
               </div>
@@ -199,7 +193,7 @@ function kpiIcon(key: string): string {
             <h3
               class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300"
             >
-              <span class="inline-block h-2 w-2 rounded-full bg-orange-400" />
+              <span class="inline-block h-2 w-2 rounded-full bg-pink-500 dark:bg-pink-400" />
               {{ t('insight.sections.overview') }}
             </h3>
             <div class="flex rounded-lg bg-gray-100 p-0.5 dark:bg-zinc-800">
@@ -228,15 +222,14 @@ function kpiIcon(key: string): string {
       </section>
     </ThemeCard>
 
-    <ThemeCard class="relative isolate xl:col-span-4">
-      <CardDecoration theme="sunshine" />
-      <section class="relative z-10 min-w-0 p-5 sm:p-6">
+    <ThemeCard class="xl:col-span-4">
+      <section class="min-w-0 p-5 sm:p-6">
         <div class="flex items-start justify-between gap-4">
           <div>
             <h3
               class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300"
             >
-              <span class="inline-block h-2 w-2 rounded-full bg-amber-400" />
+              <span class="inline-block h-2 w-2 rounded-full bg-pink-500 dark:bg-pink-400" />
               {{ t('insight.overviewCard.activity') }}
             </h3>
             <p class="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">
@@ -258,11 +251,10 @@ function kpiIcon(key: string): string {
       </section>
     </ThemeCard>
 
-    <ThemeCard class="relative isolate xl:col-span-5">
-      <CardDecoration theme="galaxy" />
-      <section class="relative z-10 min-w-0 p-5 sm:p-6">
+    <ThemeCard class="xl:col-span-5">
+      <section class="min-w-0 p-5 sm:p-6">
         <h3 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300">
-          <span class="inline-block h-2 w-2 rounded-full bg-indigo-400" />
+          <span class="inline-block h-2 w-2 rounded-full bg-pink-500 dark:bg-pink-400" />
           {{ t('insight.sections.messageTypes') }}
         </h3>
         <p class="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">
@@ -280,7 +272,7 @@ function kpiIcon(key: string): string {
             </div>
             <div class="mt-2 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-zinc-800">
               <div
-                class="h-full rounded-full bg-gradient-to-r from-pink-400 to-violet-400"
+                class="h-full rounded-full bg-pink-500 dark:bg-pink-400"
                 :style="{ width: `${percentage(item.count, messageTypeTotal)}%` }"
               />
             </div>
@@ -295,15 +287,14 @@ function kpiIcon(key: string): string {
       </section>
     </ThemeCard>
 
-    <ThemeCard class="relative isolate xl:col-span-3">
-      <CardDecoration theme="mist" />
-      <section class="relative z-10 min-w-0 p-5 sm:p-6">
+    <ThemeCard class="xl:col-span-3">
+      <section class="min-w-0 p-5 sm:p-6">
         <div class="flex items-start justify-between gap-3">
           <div>
             <h3
               class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300"
             >
-              <span class="inline-block h-2 w-2 rounded-full bg-cyan-400" />
+              <span class="inline-block h-2 w-2 rounded-full bg-pink-500 dark:bg-pink-400" />
               {{ t('insight.sections.textLength') }}
             </h3>
             <p class="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">
@@ -331,7 +322,7 @@ function kpiIcon(key: string): string {
           >
             <div class="flex h-16 w-full items-end rounded-sm bg-gray-100 dark:bg-zinc-800">
               <div
-                class="w-full rounded-sm bg-gradient-to-t from-cyan-400/80 to-blue-400/80 dark:from-cyan-400/80 dark:to-blue-400/80"
+                class="w-full rounded-sm bg-pink-500/80 dark:bg-pink-400/80"
                 :style="{ height: `${Math.max(4, (bucket.count / maxLengthBucket) * 100)}%` }"
                 :title="`${bucket.key}: ${bucket.count}`"
               />
@@ -347,11 +338,10 @@ function kpiIcon(key: string): string {
       </section>
     </ThemeCard>
 
-    <ThemeCard class="relative isolate xl:col-span-4">
-      <CardDecoration theme="berry" />
-      <section class="relative z-10 min-w-0 p-5 sm:p-6">
+    <ThemeCard class="xl:col-span-4">
+      <section class="min-w-0 p-5 sm:p-6">
         <h3 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300">
-          <span class="inline-block h-2 w-2 rounded-full bg-rose-400" />
+          <span class="inline-block h-2 w-2 rounded-full bg-pink-500 dark:bg-pink-400" />
           {{ t('insight.overviewCard.keyMetrics') }}
         </h3>
         <div class="mt-5 space-y-4">
@@ -380,21 +370,3 @@ function kpiIcon(key: string): string {
     </ThemeCard>
   </div>
 </template>
-
-<style scoped>
-.annual-insight-hero-background {
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, #fb923c 8%, transparent),
-    color-mix(in srgb, #fb7185 8%, transparent)
-  );
-}
-
-:global(.dark .annual-insight-hero-background) {
-  background: linear-gradient(
-    135deg,
-    color-mix(in srgb, #fb923c 15%, transparent),
-    color-mix(in srgb, #fb7185 15%, transparent)
-  );
-}
-</style>
