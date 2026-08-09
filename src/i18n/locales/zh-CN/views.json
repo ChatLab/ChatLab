@@ -133,10 +133,10 @@
     "lastInteraction": "最近互动",
     "signalComposition": "互动构成",
     "replies": "回复",
-    "mentions": "@ 提及",
+    "mentions": "{'@'} 提及",
     "proximity": "发言临近",
     "strongConnections": "关系最密切",
-    "connectionSignals": "回复 {replies} · @ {mentions} · 临近 {proximity}",
+    "connectionSignals": "回复 {replies} · {'@'} {mentions} · 临近 {proximity}",
     "noConnections": "暂无可展示的直接关系"
   },
   "relationship": {
