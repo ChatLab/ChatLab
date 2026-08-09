@@ -37,7 +37,9 @@
     }
   },
   "memory": {
-    "comingSoon": "メモリー機能は近日公開予定です。お楽しみに"
+    "tabs": {
+      "records": "記録"
+    }
   },
   "tooltip": {
     "viewChatRecord": "チャット履歴を見る",

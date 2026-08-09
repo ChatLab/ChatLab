@@ -107,6 +107,28 @@ describe('generateSessionSummary', () => {
     assert.equal(result.summary, 'Mock summary result')
   })
 
+  it('does not write generated summary plaintext to logs', async () => {
+    const messages: SummaryMessage[] = Array.from({ length: 5 }, (_, index) => ({
+      senderName: `User${index}`,
+      content: `Message content number ${index} with enough text`,
+    }))
+    const logMessages: string[] = []
+    const deps = mockDeps(messages)
+    deps.logger = {
+      info: (_category, message) => logMessages.push(message),
+      error: (_category, message) => logMessages.push(message),
+    }
+
+    const result = await generateSessionSummary(deps, 7)
+
+    assert.equal(result.success, true)
+    assert.ok(logMessages.some((message) => message.includes('segment 7')))
+    assert.equal(
+      logMessages.some((message) => message.includes('Mock summary result')),
+      false
+    )
+  })
+
   const errorCases: Array<{ name: string; messages: SummaryMessage[] | null }> = [
     { name: 'returns error when too few messages', messages: [{ senderName: 'A', content: 'hi' }] },
     { name: 'returns error when session not found', messages: null },

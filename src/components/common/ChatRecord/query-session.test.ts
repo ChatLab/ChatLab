@@ -4,7 +4,7 @@
 
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { preserveChatRecordSessionId, resolveChatRecordSessionId } from './query-session'
+import { preserveChatRecordSessionId, resolveChatRecordSessionId, scopeChatRecordQueryToSession } from './query-session'
 
 test('uses the chat record query session id before the current route session id', () => {
   assert.equal(resolveChatRecordSessionId({ sessionId: 'source-session' }, 'current-session'), 'source-session')
@@ -27,4 +27,11 @@ test('preserves the current chat record session id when applying drawer filters'
 
 test('does not add an empty session id when the current query is not session scoped', () => {
   assert.deepEqual(preserveChatRecordSessionId({ keywords: ['refund'] }, {}), { keywords: ['refund'] })
+})
+
+test('replaces a stale session id when a full-page workspace switches chats', () => {
+  assert.deepEqual(scopeChatRecordQueryToSession({ sessionId: 'old-session', keywords: ['refund'] }, 'new-session'), {
+    sessionId: 'new-session',
+    keywords: ['refund'],
+  })
 })

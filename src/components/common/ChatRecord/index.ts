@@ -4,4 +4,5 @@
  */
 
 export { default as ChatRecordDrawer } from './ChatRecordDrawer.vue'
+export { default as ChatRecordWorkspace } from './ChatRecordWorkspace.vue'
 export * from './types'

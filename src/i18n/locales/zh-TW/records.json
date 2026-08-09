@@ -1,7 +1,13 @@
 {
   "drawer": {
-    "title": "聊天紀錄檢視器",
-    "loadedCount": "已載入 {count} 條訊息"
+    "title": "聊天紀錄檢視器"
+  },
+  "workspace": {
+    "indexMissingTitle": "尚未建立可用的會話摘要索引",
+    "indexMissingDescription": "原始聊天紀錄仍可直接查看。產生索引後，左側會依聊天片段整理摘要；此操作不會自動呼叫 AI。",
+    "generateIndex": "產生索引",
+    "indexGenerated": "已產生 {count} 個聊天片段",
+    "indexGenerationFailed": "會話索引產生失敗"
   },
   "messageList": {
     "loading": "載入中...",

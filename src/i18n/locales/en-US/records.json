@@ -1,7 +1,13 @@
 {
   "drawer": {
-    "title": "Chat Record Viewer",
-    "loadedCount": "{count} messages loaded"
+    "title": "Chat Record Viewer"
+  },
+  "workspace": {
+    "indexMissingTitle": "No conversation summary index yet",
+    "indexMissingDescription": "You can still read the original messages. Generate an index to organize summaries into conversation segments; this does not call AI automatically.",
+    "generateIndex": "Generate index",
+    "indexGenerated": "Generated {count} conversation segments",
+    "indexGenerationFailed": "Failed to generate conversation index"
   },
   "messageList": {
     "loading": "Loading...",

@@ -1,33 +1,32 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { SectionTabs } from '@/components/navigation'
+import { ChatRecordWorkspace } from '@/components/common/ChatRecord'
 
-const { t, te } = useI18n()
+const { t } = useI18n()
 
 defineProps<{
   sessionId: string
   sessionName?: string
 }>()
 
-const joinLink = computed(() => (te('analysis.memory.joinLink') ? t('analysis.memory.joinLink') : ''))
+const activeSubTab = ref('records')
+const subTabs = computed(() => [
+  {
+    id: 'records',
+    label: t('analysis.memory.tabs.records'),
+    icon: 'i-heroicons-chat-bubble-left-right',
+  },
+])
 </script>
 
 <template>
-  <div class="flex h-full items-center justify-center">
-    <div class="max-w-sm text-center">
-      <UIcon name="i-heroicons-light-bulb" class="mx-auto h-12 w-12 text-gray-300 dark:text-gray-600" />
-      <p class="mt-3 text-sm text-gray-400 dark:text-gray-500">
-        {{ t('analysis.memory.comingSoon') }}
-      </p>
-      <a
-        v-if="joinLink"
-        :href="joinLink"
-        target="_blank"
-        rel="noopener noreferrer"
-        class="mt-2 inline-block text-sm text-primary-500 hover:text-primary-600 dark:text-primary-400 dark:hover:text-primary-300"
-      >
-        {{ joinLink }}
-      </a>
+  <div class="flex h-full min-h-0 flex-col">
+    <SectionTabs v-model="activeSubTab" :items="subTabs" persist-key="memoryTab" />
+
+    <div class="min-h-0 flex-1 overflow-hidden">
+      <ChatRecordWorkspace v-if="activeSubTab === 'records'" :key="sessionId" :session-id="sessionId" mode="page" />
     </div>
   </div>
 </template>

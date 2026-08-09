@@ -37,8 +37,9 @@
     }
   },
   "memory": {
-    "comingSoon": "正在计划中，如果你对记忆功能有什么建议，欢迎加群讨论。",
-    "joinLink": "https://chatlab.fun/cn/other/community"
+    "tabs": {
+      "records": "记录"
+    }
   },
   "tooltip": {
     "viewChatRecord": "查看聊天记录",

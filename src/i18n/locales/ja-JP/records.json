@@ -1,7 +1,13 @@
 {
   "drawer": {
-    "title": "チャット履歴ビューア",
-    "loadedCount": "{count} 件のメッセージを読み込みました"
+    "title": "チャット履歴ビューア"
+  },
+  "workspace": {
+    "indexMissingTitle": "会話要約インデックスがまだありません",
+    "indexMissingDescription": "元のメッセージはそのまま閲覧できます。インデックスを生成すると要約が会話区間ごとに整理されます。この操作だけでは AI は自動実行されません。",
+    "generateIndex": "インデックスを生成",
+    "indexGenerated": "{count} 件の会話区間を生成しました",
+    "indexGenerationFailed": "会話インデックスの生成に失敗しました"
   },
   "messageList": {
     "loading": "読み込み中...",

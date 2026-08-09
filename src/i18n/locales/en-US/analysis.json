@@ -37,7 +37,9 @@
     }
   },
   "memory": {
-    "comingSoon": "Memory feature coming soon, stay tuned"
+    "tabs": {
+      "records": "Records"
+    }
   },
   "tooltip": {
     "viewChatRecord": "View Chat History",

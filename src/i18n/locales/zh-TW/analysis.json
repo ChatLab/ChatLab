@@ -37,7 +37,9 @@
     }
   },
   "memory": {
-    "comingSoon": "記憶功能即將上線，敬請期待"
+    "tabs": {
+      "records": "紀錄"
+    }
   },
   "tooltip": {
     "viewChatRecord": "查看聊天紀錄",

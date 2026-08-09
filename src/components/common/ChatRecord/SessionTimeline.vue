@@ -35,6 +35,10 @@ const emit = defineEmits<{
   (e: 'select', sessionId: number, firstMessageId: number): void
   /** 折叠状态变化 */
   (e: 'update:collapsed', value: boolean): void
+  /** 单条摘要更新，供共享工作区同步会话缓存 */
+  (e: 'summary-updated', session: ChatSessionItem): void
+  /** 批量生成或重新加载后同步完整会话列表 */
+  (e: 'sessions-updated', sessions: ChatSessionItem[]): void
 }>()
 
 const { t, locale } = useI18n()
@@ -177,13 +181,13 @@ const totalSize = computed(() => virtualizer.value.getTotalSize())
 // 格式化日期
 function formatDate(ts: number): string {
   const date = new Date(ts * 1000)
-  return date.toLocaleDateString('zh-CN', { month: '2-digit', day: '2-digit' })
+  return date.toLocaleDateString(locale.value, { month: '2-digit', day: '2-digit' })
 }
 
 // 格式化时间
 function formatTime(ts: number): string {
   const date = new Date(ts * 1000)
-  return date.toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })
+  return date.toLocaleTimeString(locale.value, { hour: '2-digit', minute: '2-digit' })
 }
 
 // 获取日期键
@@ -200,6 +204,7 @@ async function loadSessions() {
   try {
     const data = await useSessionIndexService().getSessions(props.sessionId)
     allSessions.value = data
+    emit('sessions-updated', data)
   } catch (error) {
     console.error('加载会话列表失败:', error)
   } finally {
@@ -243,18 +248,11 @@ async function generateSummary(session: ChatSessionItem, event: Event) {
   event.stopPropagation() // 防止触发选择会话
   event.preventDefault()
 
-  console.log('[SessionTimeline] 开始生成摘要:', session.id, props.sessionId)
-
-  if (generatingSummaryIds.value.has(session.id)) {
-    console.log('[SessionTimeline] 已在生成中，跳过')
-    return
-  }
+  if (generatingSummaryIds.value.has(session.id)) return
 
   generatingSummaryIds.value.add(session.id)
-  console.log('[SessionTimeline] 正在生成中的会话:', Array.from(generatingSummaryIds.value))
 
   try {
-    console.log('[SessionTimeline] 调用 IPC...')
     const result = await useSessionIndexService().generateSummary(
       props.sessionId,
       session.id,
@@ -262,12 +260,13 @@ async function generateSummary(session: ChatSessionItem, event: Event) {
       false,
       getSummaryStrategy()
     )
-    console.log('[SessionTimeline] IPC 返回:', result)
 
     if (result.success && result.summary) {
       const index = allSessions.value.findIndex((s) => s.id === session.id)
       if (index !== -1) {
-        allSessions.value[index] = { ...allSessions.value[index], summary: result.summary }
+        const updatedSession = { ...allSessions.value[index], summary: result.summary }
+        allSessions.value[index] = updatedSession
+        emit('summary-updated', updatedSession)
       }
     } else {
       toast.fail(t('records.summaryFailed', '摘要生成失败'), {
@@ -278,8 +277,11 @@ async function generateSummary(session: ChatSessionItem, event: Event) {
     toast.fail(t('records.summaryFailed', '摘要生成失败'), { description: String(error) })
   } finally {
     generatingSummaryIds.value.delete(session.id)
-    console.log('[SessionTimeline] 生成完成')
   }
+}
+
+async function handleBatchCompleted() {
+  await loadSessions()
 }
 
 // 判断是否正在生成摘要
@@ -363,6 +365,7 @@ watch(
           :ref="(el) => measureElement(el as Element)"
           class="absolute left-0 top-0 w-full"
           :style="{ transform: `translateY(${virtualItem.start}px)` }"
+          :data-index="virtualItem.index"
         >
           <!-- 日期头 -->
           <template v-if="flatList[virtualItem.index]?.type === 'date'">
@@ -477,7 +480,7 @@ watch(
   </div>
 
   <!-- 批量生成摘要弹窗 -->
-  <BatchSummaryModal v-model:open="showBatchSummaryModal" :session-id="sessionId" @completed="loadSessions" />
+  <BatchSummaryModal v-model:open="showBatchSummaryModal" :session-id="sessionId" @completed="handleBatchCompleted" />
 </template>
 
 <style scoped>

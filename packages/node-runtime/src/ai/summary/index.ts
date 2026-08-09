@@ -308,7 +308,8 @@ export async function generateSessionSummary(
     summary = postProcessSummary(summary, lengthLimit)
     deps.saveSummary(segmentId, summary)
 
-    log?.info('Summary', `Summary generated: "${summary.slice(0, 50)}..."`)
+    // 摘要属于用户聊天内容，日志只记录定位故障所需的元数据，避免持久化明文。
+    log?.info('Summary', `Summary generated for segment ${segmentId} (${summary.length} characters)`)
     return { success: true, summary }
   } catch (error) {
     log?.error('Summary', 'Summary generation failed', error)
