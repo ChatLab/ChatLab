@@ -135,7 +135,8 @@ export function getGroupRelationshipGalaxy(
   const maxDegree = Math.max(...degreeByKey.values(), 1)
   const renderNodes: RelationshipGalaxyRenderNode[] = []
   const memberDetails: GroupRelationshipGalaxyMemberDetail[] = []
-  const incidentTotals = buildIncidentTotals(keptEdges)
+  // 成员详情描述完整互动事实，不能随画布的边裁剪上限变化。
+  const incidentTotals = buildIncidentTotals(weightedEdges)
 
   for (const [index, member] of rankedMembers.entries()) {
     const degree = degreeByKey.get(member.key) ?? 0

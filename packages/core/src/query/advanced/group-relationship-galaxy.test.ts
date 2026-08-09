@@ -122,6 +122,37 @@ describe('group relationship galaxy', () => {
     assert.equal(result.stats.displayedMembers, 3)
   })
 
+  it('keeps member interaction totals independent from render edge limits', () => {
+    insertMessage(1, 1, 100, 'owner starts @Bobby', 'm1')
+    insertMessage(2, 3, 101, 'bob replies', 'm2', 'm1')
+    insertMessage(3, 2, 102, 'alice joins', 'm3')
+
+    const fullResult = getGroupRelationshipGalaxy(db)
+    const croppedResult = getGroupRelationshipGalaxy(db, undefined, { edgeLimit: 1 })
+    const fullOwner = fullResult.members.find((member) => member.memberId === 1)
+    const croppedOwner = croppedResult.members.find((member) => member.memberId === 1)
+
+    assert.ok(fullOwner)
+    assert.ok(croppedOwner)
+    assert.equal(croppedResult.edges.length, 1)
+    assert.deepEqual(
+      {
+        replies: croppedOwner.replyInteractionCount,
+        mentions: croppedOwner.mentionInteractionCount,
+        proximity: croppedOwner.coOccurrenceCount,
+        proximityScore: croppedOwner.coOccurrenceRawScore,
+        lastInteractionTs: croppedOwner.lastInteractionTs,
+      },
+      {
+        replies: fullOwner.replyInteractionCount,
+        mentions: fullOwner.mentionInteractionCount,
+        proximity: fullOwner.coOccurrenceCount,
+        proximityScore: fullOwner.coOccurrenceRawScore,
+        lastInteractionTs: fullOwner.lastInteractionTs,
+      }
+    )
+  })
+
   it('applies the same time range to messages, mentions and both sides of replies', () => {
     insertMessage(1, 1, 50, '@Bob', 'old-owner')
     insertMessage(2, 3, 60, 'old reply', 'old-bob', 'old-owner')
