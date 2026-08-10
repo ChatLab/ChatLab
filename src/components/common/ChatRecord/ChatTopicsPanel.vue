@@ -3,7 +3,13 @@ import { computed, onUnmounted, ref, watch } from 'vue'
 import dayjs from 'dayjs'
 import { useI18n } from 'vue-i18n'
 import type { ChatTopic } from '@openchatlab/shared-types'
-import { CHAT_TOPIC_COLOR_STYLES, chatTopicColorStyle, type ChatTopicHighlight } from './topic-highlight'
+import {
+  CHAT_TOPIC_COLOR_STYLES,
+  chatTopicColorStyle,
+  shouldClearChatTopicHighlight,
+  type ChatTopicHighlight,
+} from './topic-highlight'
+import { resolveChatTopicProgressDetail } from './topic-progress'
 import { useToast } from '@/composables/useToast'
 import {
   useChatTopicsService,
@@ -51,25 +57,7 @@ const progressPercent = computed(() => {
   if (!run.value || run.value.totalBlocks === 0) return 0
   return Math.min(100, Math.round((run.value.completedBlocks / run.value.totalBlocks) * 100))
 })
-const activeProgressDetail = computed(() => {
-  const currentRun = run.value
-  if (
-    !currentRun ||
-    currentRun.status !== 'running' ||
-    currentRun.currentBlockIndex === null ||
-    currentRun.totalBlocks === 0
-  ) {
-    return null
-  }
-  const seconds = Math.max(0, Math.floor((Date.now() - currentRun.updatedAt) / 1000))
-  if (currentRun.currentBlockIndex >= currentRun.totalBlocks) {
-    return { key: 'records.topics.progressFinalizing', params: { seconds } }
-  }
-  return {
-    key: 'records.topics.progressBlock',
-    params: { current: currentRun.currentBlockIndex + 1, total: currentRun.totalBlocks, seconds },
-  }
-})
+const activeProgressDetail = computed(() => resolveChatTopicProgressDetail(run.value))
 const todayDayKey = dayjs().format('YYYY-MM-DD')
 
 const rangeOptions = computed(() => [
@@ -133,7 +121,9 @@ async function refreshRun() {
     const statusChanged = next.status !== run.value.status || next.completedDays !== run.value.completedDays
     run.value = next
     if (statusChanged && props.dayKey) {
-      day.value = await useChatTopicsService().getDay(props.sessionId, props.dayKey, timezone)
+      const nextDay = await useChatTopicsService().getDay(props.sessionId, props.dayKey, timezone)
+      if (shouldClearChatTopicHighlight(day.value, nextDay)) clearTopicSelection()
+      day.value = nextDay
     }
     schedulePoll()
   } catch {
@@ -211,6 +201,7 @@ async function regenerateDay() {
   actionLoading.value = true
   try {
     run.value = await useChatTopicsService().generateDay(props.sessionId, props.dayKey, timezone, locale.value)
+    clearTopicSelection()
     schedulePoll()
   } catch (error) {
     toast.fail(t('records.topics.startFailed'), { description: errorMessage(error) })

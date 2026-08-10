@@ -1,4 +1,4 @@
-import type { ChatTopicAssignmentMode, ChatTopicTimeRange } from '@openchatlab/shared-types'
+import type { ChatTopicAssignmentMode, ChatTopicDay, ChatTopicTimeRange } from '@openchatlab/shared-types'
 
 export interface ChatTopicHighlight {
   messageIds: number[]
@@ -61,6 +61,13 @@ export function isMessageInChatTopicHighlight(
     const endTs = Math.floor(range.endTs / 60) * 60 + 59
     return message.timestamp >= startTs && message.timestamp <= endTs
   })
+}
+
+export function shouldClearChatTopicHighlight(
+  currentDay: Pick<ChatTopicDay, 'generatedAt'> | null,
+  nextDay: Pick<ChatTopicDay, 'generatedAt'> | null
+): boolean {
+  return currentDay !== null && currentDay.generatedAt !== nextDay?.generatedAt
 }
 
 function normalizeColorIndex(colorIndex: number): number {

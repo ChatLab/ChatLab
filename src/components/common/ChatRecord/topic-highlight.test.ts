@@ -1,6 +1,10 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { isMessageInChatTopicHighlight, type ChatTopicHighlight } from './topic-highlight'
+import {
+  isMessageInChatTopicHighlight,
+  shouldClearChatTopicHighlight,
+  type ChatTopicHighlight,
+} from './topic-highlight'
 
 test('exact topic highlight excludes an interleaved message inside the same time range', () => {
   const highlight: ChatTopicHighlight = {
@@ -24,4 +28,10 @@ test('legacy topic highlight keeps the minute-expanded range fallback', () => {
 
   assert.equal(isMessageInChatTopicHighlight(highlight, { id: 1, timestamp: 120 }), true)
   assert.equal(isMessageInChatTopicHighlight(highlight, { id: 3, timestamp: 180 }), false)
+})
+
+test('clears a topic highlight only when the displayed snapshot is replaced', () => {
+  assert.equal(shouldClearChatTopicHighlight({ generatedAt: 100 }, { generatedAt: 100 }), false)
+  assert.equal(shouldClearChatTopicHighlight({ generatedAt: 100 }, { generatedAt: 200 }), true)
+  assert.equal(shouldClearChatTopicHighlight({ generatedAt: 100 }, null), true)
 })

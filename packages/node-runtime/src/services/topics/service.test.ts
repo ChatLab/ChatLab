@@ -586,14 +586,15 @@ test('a second runtime cannot recover or control a live topic execution', async 
       now: () => Date.parse('2026-08-09T12:00:00.000Z'),
       generateId: () => 'second-runtime-run',
     })
+    secondService = runtimeService
 
-    assert.equal(secondService.getRun('group', run.id)?.status, 'running')
+    assert.equal(runtimeService.getRun('group', run.id)?.status, 'running')
     assert.throws(
-      () => secondService.pause('group', run.id),
+      () => runtimeService.pause('group', run.id),
       (error: unknown) => (error as { statusCode?: number }).statusCode === 409
     )
     assert.throws(
-      () => secondService.cancel('group', run.id),
+      () => runtimeService.cancel('group', run.id),
       (error: unknown) => (error as { statusCode?: number }).statusCode === 409
     )
     assert.equal(firstService.getRun('group', run.id)?.status, 'running')

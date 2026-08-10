@@ -471,6 +471,7 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
     }
 
     signal.throwIfAborted()
+    run = updateRun(run, { currentBlockIndex: null })
     const finalPrompts = buildTopicFinalizationPrompt({
       chatType: source.chatType,
       dayKey: source.dayKey,
