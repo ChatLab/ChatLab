@@ -25,6 +25,14 @@
   "overviewCard": {
     "yearTitle": "{year} 年的我",
     "recentTitle": "最近一年的我",
+    "narrative": {
+      "messagesPrefix": "這一年，你發出了",
+      "messagesSuffix": "條訊息，平均每天",
+      "dailySuffix": "條。",
+      "activePrefix": "有",
+      "activeMiddle": "天留下了你的訊息，並與",
+      "contactsSuffix": "人有過直接互動。"
+    },
     "activity": "活躍日曆",
     "activeRate": "涵蓋 {rate}% 日期",
     "keyMetrics": "關鍵指標",
@@ -53,10 +61,20 @@
     "yearTitle": "{year} 年的時間投入",
     "recentTitle": "最近一年的時間投入",
     "estimateNote": "根據訊息時間間隔估算，並合併多個會話的重疊時段；它反映聊天投入趨勢，不是精確的螢幕使用時間。",
+    "narrative": {
+      "totalPrefix": "這一年，你預估在聊天中投入了",
+      "totalSuffix": "。",
+      "daysPrefix": "這些時間分佈在",
+      "daysMiddle": "個活躍日，活躍日平均投入",
+      "daysSuffix": "。"
+    },
     "loading": "正在讀取時間投入…",
     "failed": "時間投入計算失敗，可以重試",
     "privateChat": "私聊",
     "groupChat": "群聊",
+    "shareOfTotal": "佔全部投入 {share}%",
+    "peakDay": "最高投入日",
+    "peakWeekday": "日均投入最高星期",
     "chatTypeTitle": "對話類型",
     "monthlyTitle": "月度趨勢",
     "monthlyDescription": "每月預估聊天投入，縱軸單位為小時",

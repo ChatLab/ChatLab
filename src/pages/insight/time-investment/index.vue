@@ -63,15 +63,6 @@ const timeRangeText = computed(() => {
   const range = response.value?.range
   return range ? formatDateRange(range.startTs, range.endTs, 'YYYY/MM/DD') : ''
 })
-const primaryStats = computed(() => {
-  const metrics = response.value?.metrics
-  if (!metrics) return []
-  return [
-    { key: 'estimated', value: formatDuration(metrics.estimatedSeconds) },
-    { key: 'activeDays', value: metrics.activeDayCount.toLocaleString() },
-    { key: 'dailyAverage', value: formatDuration(metrics.averagePerActiveDaySeconds) },
-  ]
-})
 const monthlyChartData = computed(() => {
   const range = response.value?.range
   const data = response.value?.monthlyActivity ?? []
@@ -133,6 +124,47 @@ const chatTypeComparisonItems = computed(() =>
     .map((type) => response.value?.chatTypes.find((item) => item.type === type))
     .filter((item) => item !== undefined)
 )
+const investmentDetailStats = computed(() => {
+  const privateItem = chatTypeComparisonItems.value.find((item) => item.type === ChatType.PRIVATE)
+  const groupItem = chatTypeComparisonItems.value.find((item) => item.type === ChatType.GROUP)
+  const peakDay = topInvestmentDays.value[0]
+  const peakWeekday = [...weekdayInvestmentItems.value].sort((a, b) => b.seconds - a.seconds)[0]
+
+  return [
+    {
+      key: 'private',
+      icon: 'i-heroicons-user',
+      colorClass: 'text-pink-600 dark:text-pink-400',
+      label: t('insight.timeInvestment.privateChat'),
+      value: privateItem ? formatDuration(privateItem.seconds) : '—',
+      subtext: t('insight.timeInvestment.shareOfTotal', { share: privateItem?.share ?? 0 }),
+    },
+    {
+      key: 'group',
+      icon: 'i-heroicons-user-group',
+      colorClass: 'text-blue-600 dark:text-blue-400',
+      label: t('insight.timeInvestment.groupChat'),
+      value: groupItem ? formatDuration(groupItem.seconds) : '—',
+      subtext: t('insight.timeInvestment.shareOfTotal', { share: groupItem?.share ?? 0 }),
+    },
+    {
+      key: 'peakDay',
+      icon: 'i-heroicons-fire',
+      colorClass: 'text-red-600 dark:text-red-400',
+      label: t('insight.timeInvestment.peakDay'),
+      value: peakDay?.dateLabel ?? '—',
+      subtext: peakDay ? formatDuration(peakDay.estimatedSeconds) : '—',
+    },
+    {
+      key: 'peakWeekday',
+      icon: 'i-heroicons-calendar-days',
+      colorClass: 'text-amber-600 dark:text-amber-400',
+      label: t('insight.timeInvestment.peakWeekday'),
+      value: peakWeekday?.seconds ? peakWeekday.label : '—',
+      subtext: peakWeekday?.seconds ? formatDuration(peakWeekday.seconds) : '—',
+    },
+  ]
+})
 const sessionRankingsByType = computed(() =>
   [ChatType.PRIVATE, ChatType.GROUP].map((type) => {
     const items = (response.value?.sessionRanking ?? [])
@@ -237,7 +269,7 @@ function chatTypeLabel(type: ChatType): string {
 
 <template>
   <main class="min-h-0 flex-1 overflow-y-auto">
-    <div class="mx-auto w-full max-w-[1120px] space-y-6 px-4 py-5 sm:px-6 sm:py-6">
+    <div class="mx-auto w-full max-w-[920px] space-y-6 px-4 py-5 sm:px-6 sm:py-6">
       <button
         v-if="ownerIssueCount > 0 && canConfigureOwner"
         type="button"
@@ -300,122 +332,105 @@ function chatTypeLabel(type: ChatType): string {
           </UButton>
         </div>
 
-        <div class="grid gap-4 xl:grid-cols-12">
-          <ThemeCard class="relative isolate overflow-hidden xl:col-span-8">
+        <div class="space-y-4">
+          <ThemeCard class="relative isolate overflow-hidden">
             <CardDecoration />
-            <section class="relative z-10 min-w-0 p-5 sm:p-6">
-              <div class="flex flex-col gap-5 lg:flex-row lg:items-start lg:justify-between">
-                <div class="min-w-0">
-                  <h2 class="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{{ title }}</h2>
-                  <div class="mt-3 space-y-1.5 text-xs font-medium text-gray-500 dark:text-zinc-400">
-                    <div class="flex items-center gap-2">
-                      <UIcon name="i-heroicons-calendar" class="h-4 w-4 opacity-70" />
-                      <span class="font-mono">{{ timeRangeText }}</span>
-                    </div>
-                    <div class="flex items-center gap-2">
-                      <UIcon name="i-heroicons-circle-stack" class="h-4 w-4 opacity-70" />
-                      <span>
-                        {{
-                          t('insight.status.coverage', {
-                            analyzed: response.coverage.analyzedSessions,
-                            total: response.coverage.totalSessions,
-                          })
-                        }}
-                      </span>
-                    </div>
-                  </div>
-                </div>
+            <section class="relative z-10 min-w-0 px-5 pt-6 pb-5 sm:px-8 sm:pt-8 sm:pb-6">
+              <h2 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-3xl">{{ title }}</h2>
 
-                <div class="min-w-0 lg:w-[330px] lg:shrink-0">
-                  <h3 class="text-xs font-semibold text-gray-700 dark:text-zinc-300">
-                    {{ t('insight.timeInvestment.chatTypeTitle') }}
-                  </h3>
-                  <div
-                    v-if="chatTypeComparisonItems.length"
-                    class="mt-3 grid grid-cols-2 divide-x divide-gray-200/70 dark:divide-white/5"
+              <div class="mt-6 max-w-3xl space-y-3 text-gray-600 dark:text-zinc-300">
+                <p class="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-lg leading-relaxed sm:text-xl">
+                  <span>{{ t('insight.timeInvestment.narrative.totalPrefix') }}</span>
+                  <span
+                    class="font-black text-2xl tracking-tight tabular-nums text-pink-600 sm:text-3xl dark:text-pink-400"
                   >
-                    <div
-                      v-for="item in chatTypeComparisonItems"
-                      :key="item.type"
-                      class="min-w-0 px-4 first:pl-0 last:pr-0"
-                    >
-                      <div class="flex items-center gap-2">
-                        <span
-                          class="h-2 w-2 shrink-0 rounded-full"
-                          :class="
-                            item.type === ChatType.PRIVATE
-                              ? 'bg-pink-500 dark:bg-pink-400'
-                              : 'bg-blue-500 dark:bg-blue-400'
-                          "
-                        />
-                        <span class="truncate text-[10px] font-medium text-gray-500 dark:text-zinc-400">
-                          {{ chatTypeLabel(item.type) }}
-                        </span>
-                      </div>
+                    {{ formatDuration(response.metrics.estimatedSeconds) }}
+                  </span>
+                  <span>{{ t('insight.timeInvestment.narrative.totalSuffix') }}</span>
+                </p>
+
+                <p class="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-base leading-relaxed sm:text-lg">
+                  <span>{{ t('insight.timeInvestment.narrative.daysPrefix') }}</span>
+                  <span class="font-black text-2xl tabular-nums text-indigo-600 dark:text-indigo-400">
+                    {{ response.metrics.activeDayCount.toLocaleString() }}
+                  </span>
+                  <span>{{ t('insight.timeInvestment.narrative.daysMiddle') }}</span>
+                  <span class="font-black text-2xl tabular-nums text-blue-600 dark:text-blue-400">
+                    {{ formatDuration(response.metrics.averagePerActiveDaySeconds) }}
+                  </span>
+                  <span>{{ t('insight.timeInvestment.narrative.daysSuffix') }}</span>
+                </p>
+              </div>
+
+              <div class="mt-7">
+                <div class="mb-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-zinc-500">
+                  {{ t('insight.overviewCard.keyMetrics') }}
+                </div>
+                <div class="grid grid-cols-2 gap-2 lg:grid-cols-4">
+                  <div
+                    v-for="stat in investmentDetailStats"
+                    :key="stat.key"
+                    class="flex min-w-0 items-start gap-2 px-2.5 py-2"
+                  >
+                    <UIcon :name="stat.icon" class="mt-0.5 h-3.5 w-3.5 shrink-0" :class="stat.colorClass" />
+                    <div class="min-w-0">
                       <div
-                        class="mt-2 whitespace-nowrap font-mono text-xl leading-none font-black tabular-nums"
-                        :class="
-                          item.type === ChatType.PRIVATE
-                            ? 'text-pink-500 dark:text-pink-400'
-                            : 'text-blue-500 dark:text-blue-400'
-                        "
+                        class="truncate font-mono text-sm leading-tight font-black tabular-nums"
+                        :class="stat.colorClass"
                       >
-                        {{ item.share }}%
+                        {{ stat.value }}
                       </div>
-                      <div class="mt-1.5 whitespace-nowrap font-mono text-[10px] text-gray-400 dark:text-zinc-500">
-                        {{ formatDuration(item.seconds) }}
+                      <div class="mt-0.5 truncate text-[10px] font-medium text-gray-500 dark:text-zinc-400">
+                        {{ stat.label }}
+                      </div>
+                      <div class="mt-0.5 truncate text-[9px] text-gray-400 dark:text-zinc-500">
+                        {{ stat.subtext }}
                       </div>
                     </div>
                   </div>
-                  <p v-else class="mt-3 text-xs text-gray-400">{{ t('insight.noData') }}</p>
                 </div>
               </div>
 
-              <div
-                class="mt-6 grid divide-y divide-gray-200/70 border-y border-gray-200/60 py-4 sm:grid-cols-3 sm:divide-x sm:divide-y-0 dark:divide-white/5 dark:border-white/5"
-              >
-                <div
-                  v-for="stat in primaryStats"
-                  :key="stat.key"
-                  class="min-w-0 px-0 py-3 first:pt-0 last:pb-0 sm:px-5 sm:py-0 sm:first:pl-0 sm:last:pr-0"
-                >
-                  <div
-                    class="whitespace-nowrap font-mono text-lg font-black tabular-nums text-gray-900 dark:text-white sm:text-xl"
-                  >
-                    {{ stat.value }}
-                  </div>
-                  <div class="mt-1.5 text-xs leading-tight font-medium text-gray-500 dark:text-zinc-400">
-                    {{ t(`insight.timeInvestment.kpis.${stat.key}`) }}
-                  </div>
-                </div>
-              </div>
-
-              <div class="mt-5">
+              <div class="mt-6">
                 <div>
-                  <h3 class="text-sm font-semibold text-gray-800 dark:text-zinc-200">
+                  <h3 class="text-xs font-bold tracking-wide text-gray-700 dark:text-zinc-300">
                     {{ t('insight.timeInvestment.monthlyTitle') }}
                   </h3>
-                  <p class="mt-1 text-[11px] text-gray-400 dark:text-zinc-500">
+                  <p class="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">
                     {{ t('insight.timeInvestment.monthlyDescription') }}
                   </p>
                 </div>
                 <div class="mt-2">
                   <EChartLine
                     :data="monthlyChartData"
-                    :height="210"
+                    :height="240"
                     mode="compact"
                     :smooth="false"
                     :show-area="false"
                   />
                 </div>
-                <p class="mt-2 text-[11px] leading-5 text-gray-400 dark:text-zinc-500">
+                <p class="mt-2 text-[10px] leading-5 text-gray-400 dark:text-zinc-500">
                   {{ t('insight.timeInvestment.estimateNote') }}
                 </p>
+              </div>
+
+              <div
+                class="mt-4 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-t border-gray-200/60 pt-4 font-mono text-[10px] text-gray-400 dark:border-white/5 dark:text-zinc-500"
+              >
+                <span>{{ timeRangeText }}</span>
+                <span>
+                  {{
+                    t('insight.status.coverage', {
+                      analyzed: response.coverage.analyzedSessions,
+                      total: response.coverage.totalSessions,
+                    })
+                  }}
+                </span>
               </div>
             </section>
           </ThemeCard>
 
-          <ThemeCard class="h-full xl:col-span-4">
+          <ThemeCard>
             <section class="min-w-0 p-5 sm:p-6">
               <h3
                 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300"
@@ -427,63 +442,70 @@ function chatTypeLabel(type: ChatType): string {
                 {{ t('insight.timeInvestment.rhythmDescription') }}
               </p>
 
-              <div v-if="hasWeekdayInvestment" class="mt-5 space-y-3.5">
-                <div
-                  v-for="item in weekdayInvestmentItems"
-                  :key="item.key"
-                  class="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3"
-                >
-                  <span class="text-xs font-medium text-gray-500 dark:text-zinc-400">{{ item.label }}</span>
-                  <div class="h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-zinc-800">
+              <div class="mt-5 grid gap-6 lg:grid-cols-7 lg:gap-0">
+                <div class="min-w-0 lg:col-span-4 lg:pr-8">
+                  <div v-if="hasWeekdayInvestment" class="space-y-3.5">
                     <div
-                      class="h-full rounded-full bg-pink-500 transition-[width] duration-500 dark:bg-pink-400"
-                      :style="{ width: `${item.width}%` }"
-                    />
-                  </div>
-                  <span
-                    class="min-w-[4.75rem] whitespace-nowrap text-right font-mono text-[10px] font-semibold tabular-nums text-gray-600 dark:text-zinc-300"
-                  >
-                    {{ formatDuration(item.seconds) }}
-                  </span>
-                </div>
-              </div>
-              <p v-else class="mt-5 text-xs text-gray-400">{{ t('insight.noData') }}</p>
-
-              <div v-if="topInvestmentDays.length" class="mt-6 border-t border-gray-200/60 pt-4 dark:border-white/5">
-                <h4 class="text-xs font-semibold text-gray-700 dark:text-zinc-300">
-                  {{ t('insight.timeInvestment.topDaysTitle') }}
-                </h4>
-                <div class="mt-3 divide-y divide-gray-200/60 dark:divide-white/5">
-                  <div
-                    v-for="(item, index) in topInvestmentDays"
-                    :key="item.key"
-                    class="grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-3 py-2.5 first:pt-0 last:pb-0"
-                  >
-                    <span
-                      class="flex h-5 w-5 items-center justify-center rounded-full bg-pink-50 font-mono text-[9px] font-bold text-pink-600 dark:bg-pink-950/30 dark:text-pink-400"
+                      v-for="item in weekdayInvestmentItems"
+                      :key="item.key"
+                      class="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3"
                     >
-                      {{ index + 1 }}
-                    </span>
-                    <div class="flex min-w-0 items-baseline gap-2">
-                      <span class="font-mono text-xs font-semibold tabular-nums text-gray-700 dark:text-zinc-200">
-                        {{ item.dateLabel }}
-                      </span>
-                      <span class="truncate text-[10px] text-gray-400 dark:text-zinc-500">
-                        {{ item.weekdayLabel }}
+                      <span class="text-xs font-medium text-gray-500 dark:text-zinc-400">{{ item.label }}</span>
+                      <div class="h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-zinc-800">
+                        <div
+                          class="h-full rounded-full bg-pink-500 transition-[width] duration-500 dark:bg-pink-400"
+                          :style="{ width: `${item.width}%` }"
+                        />
+                      </div>
+                      <span
+                        class="min-w-[4.75rem] whitespace-nowrap text-right font-mono text-[10px] font-semibold tabular-nums text-gray-600 dark:text-zinc-300"
+                      >
+                        {{ formatDuration(item.seconds) }}
                       </span>
                     </div>
-                    <span
-                      class="whitespace-nowrap font-mono text-[10px] font-semibold tabular-nums text-gray-600 dark:text-zinc-300"
-                    >
-                      {{ formatDuration(item.estimatedSeconds) }}
-                    </span>
                   </div>
+                  <p v-else class="text-xs text-gray-400">{{ t('insight.noData') }}</p>
+                </div>
+
+                <div
+                  class="min-w-0 border-t border-gray-200/60 pt-5 lg:col-span-3 lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8 dark:border-white/5"
+                >
+                  <h4 class="text-xs font-semibold text-gray-700 dark:text-zinc-300">
+                    {{ t('insight.timeInvestment.topDaysTitle') }}
+                  </h4>
+                  <div v-if="topInvestmentDays.length" class="mt-3 divide-y divide-gray-200/60 dark:divide-white/5">
+                    <div
+                      v-for="(item, index) in topInvestmentDays"
+                      :key="item.key"
+                      class="grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-3 py-2.5 first:pt-0 last:pb-0"
+                    >
+                      <span
+                        class="flex h-5 w-5 items-center justify-center rounded-full bg-pink-50 font-mono text-[9px] font-bold text-pink-600 dark:bg-pink-950/30 dark:text-pink-400"
+                      >
+                        {{ index + 1 }}
+                      </span>
+                      <div class="flex min-w-0 items-baseline gap-2">
+                        <span class="font-mono text-xs font-semibold tabular-nums text-gray-700 dark:text-zinc-200">
+                          {{ item.dateLabel }}
+                        </span>
+                        <span class="truncate text-[10px] text-gray-400 dark:text-zinc-500">
+                          {{ item.weekdayLabel }}
+                        </span>
+                      </div>
+                      <span
+                        class="whitespace-nowrap font-mono text-[10px] font-semibold tabular-nums text-gray-600 dark:text-zinc-300"
+                      >
+                        {{ formatDuration(item.estimatedSeconds) }}
+                      </span>
+                    </div>
+                  </div>
+                  <p v-else class="mt-3 text-xs text-gray-400">{{ t('insight.noData') }}</p>
                 </div>
               </div>
             </section>
           </ThemeCard>
 
-          <ThemeCard class="xl:col-span-12">
+          <ThemeCard>
             <section class="min-w-0 p-5 sm:p-6">
               <div class="flex flex-wrap items-end justify-between gap-x-6 gap-y-2">
                 <div>

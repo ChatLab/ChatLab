@@ -27,12 +27,6 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const monthlyTrendMode = ref<'messages' | 'contacts'>('messages')
-const kpiIcons: Record<string, string> = {
-  messages: 'i-heroicons-chat-bubble-left-right',
-  activeDays: 'i-heroicons-calendar-days',
-  contacts: 'i-heroicons-user-group',
-  dailyMessages: 'i-heroicons-chart-bar',
-}
 
 const title = computed(() =>
   props.range.mode === 'year'
@@ -40,12 +34,6 @@ const title = computed(() =>
     : t('insight.overviewCard.recentTitle')
 )
 const timeRangeText = computed(() => formatDateRange(props.range.startTs, props.range.endTs, 'YYYY/MM/DD'))
-const primaryStats = computed(() => [
-  { key: 'messages', value: props.metrics.sentMessageCount },
-  { key: 'activeDays', value: props.metrics.activeDayCount },
-  { key: 'contacts', value: props.metrics.directContactCount },
-  { key: 'dailyMessages', value: props.metrics.averageMessagesPerDay },
-])
 const peakMonth = computed(() =>
   props.monthlyActivity.reduce<(typeof props.monthlyActivity)[number] | null>(
     (peak, item) => (!peak || item.messageCount > peak.messageCount ? item : peak),
@@ -68,6 +56,40 @@ const activeRate = computed(() => {
   return percentage(props.metrics.activeDayCount, days)
 })
 const activityRhythm = computed(() => deriveAnnualActivityRhythm(props.dailyActivity))
+const detailStats = computed(() => [
+  {
+    key: 'dailyContacts',
+    value: formatValue(props.metrics.averageDirectContactsPerDay),
+    label: t('insight.overviewCard.dailyContacts'),
+    subtext: t('insight.overviewCard.perDay'),
+    icon: 'i-heroicons-user-plus',
+    colorClass: 'text-blue-600 dark:text-blue-400',
+  },
+  {
+    key: 'peakMonth',
+    value: formatMonth(peakMonth.value?.month),
+    label: t('insight.overviewCard.peakMonth'),
+    subtext: t('insight.overviewCard.messagesCount', { count: formatValue(peakMonth.value?.messageCount ?? 0) }),
+    icon: 'i-heroicons-calendar-days',
+    colorClass: 'text-pink-600 dark:text-pink-400',
+  },
+  {
+    key: 'peakDay',
+    value: peakDay.value?.date.slice(5).replace('-', '/') ?? '-',
+    label: t('insight.overviewCard.peakDay'),
+    subtext: t('insight.overviewCard.messagesCount', { count: formatValue(peakDay.value?.messageCount ?? 0) }),
+    icon: 'i-heroicons-fire',
+    colorClass: 'text-red-600 dark:text-red-400',
+  },
+  {
+    key: 'longestActiveStreak',
+    value: formatValue(activityRhythm.value.longestActiveStreak),
+    label: t('insight.overviewCard.longestActiveStreak'),
+    subtext: t('insight.overviewCard.consecutiveActiveDays'),
+    icon: 'i-heroicons-bolt',
+    colorClass: 'text-amber-600 dark:text-amber-400',
+  },
+])
 const monthlyTrendData = computed(() =>
   monthlyTrendMode.value === 'messages'
     ? props.monthlyActivity.map((item) => ({ month: item.month, value: item.messageCount }))
@@ -81,52 +103,6 @@ const monthlyTrendDescription = computed(() =>
       : 'insight.sections.directContactsDescription'
   )
 )
-const weekdayKeys = ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] as const
-const highlightRows = computed(() => [
-  [
-    {
-      key: 'dailyContacts',
-      value: formatValue(props.metrics.averageDirectContactsPerDay),
-      detail: t('insight.overviewCard.perDay'),
-    },
-    {
-      key: 'peakMonth',
-      value: formatMonth(peakMonth.value?.month),
-      detail: t('insight.overviewCard.messagesCount', { count: formatValue(peakMonth.value?.messageCount ?? 0) }),
-    },
-    {
-      key: 'peakDay',
-      value: peakDay.value?.date.slice(5).replace('-', '/') ?? '-',
-      detail: t('insight.overviewCard.messagesCount', { count: formatValue(peakDay.value?.messageCount ?? 0) }),
-    },
-  ],
-  [
-    {
-      key: 'longestActiveStreak',
-      value: formatValue(activityRhythm.value.longestActiveStreak),
-      detail: t('insight.overviewCard.consecutiveActiveDays'),
-    },
-    {
-      key: 'topWeekday',
-      value: formatWeekday(activityRhythm.value.topWeekday),
-      detail: t('insight.overviewCard.mostMessagesSent'),
-    },
-    {
-      key: 'weekendMessageRate',
-      value: activityRhythm.value.weekendMessageRate === null ? '-' : `${activityRhythm.value.weekendMessageRate}%`,
-      detail:
-        activityRhythm.value.weekdayMessageRate === null
-          ? t('insight.noData')
-          : t('insight.overviewCard.weekdayMessageRate', { rate: activityRhythm.value.weekdayMessageRate }),
-    },
-  ],
-])
-
-function formatWeekday(weekday: number | null): string {
-  if (weekday === null) return '-'
-  return t(`common.weekday.${weekdayKeys[weekday - 1]}`)
-}
-
 function formatValue(value: number): string {
   return Number.isInteger(value)
     ? value.toLocaleString()
@@ -143,88 +119,210 @@ function formatMonth(month: string | undefined): string {
 function percentage(value: number, total: number): number {
   return total > 0 ? Math.round((value / total) * 100) : 0
 }
-
-function kpiIcon(key: string): string {
-  return kpiIcons[key] ?? 'i-heroicons-chart-bar'
-}
 </script>
 
 <template>
-  <div class="grid gap-4 xl:grid-cols-12">
-    <ThemeCard class="relative isolate overflow-hidden xl:col-span-8">
+  <div class="grid gap-4 xl:grid-cols-7">
+    <ThemeCard class="relative isolate overflow-hidden xl:col-span-7">
       <CardDecoration />
-      <section class="relative z-10 min-w-0 p-5 sm:p-6">
-        <div class="flex flex-col gap-5 2xl:flex-row 2xl:items-start 2xl:justify-between">
-          <div class="min-w-0">
-            <h2 class="text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{{ title }}</h2>
-            <div class="mt-3 space-y-1.5 text-xs font-medium text-gray-500 dark:text-zinc-400">
-              <div class="flex items-center gap-2">
-                <UIcon name="i-heroicons-calendar" class="h-4 w-4 opacity-70" />
-                <span class="font-mono">{{ timeRangeText }}</span>
-              </div>
-              <div class="flex flex-wrap items-center gap-x-2 gap-y-1">
-                <UIcon name="i-heroicons-circle-stack" class="h-4 w-4 opacity-70" />
-                <span>
-                  {{
-                    t('insight.status.coverage', {
-                      analyzed: coverage.analyzedSessions,
-                      total: coverage.totalSessions,
-                    })
-                  }}
-                </span>
-              </div>
-            </div>
-          </div>
+      <section class="relative z-10 min-w-0 px-5 pt-6 pb-5 sm:px-8 sm:pt-8 sm:pb-6">
+        <h2 class="text-2xl font-bold tracking-tight text-gray-900 dark:text-white sm:text-3xl">{{ title }}</h2>
 
-          <div class="grid grid-cols-2 gap-x-6 gap-y-4 sm:grid-cols-4 2xl:shrink-0">
-            <div v-for="stat in primaryStats" :key="stat.key" class="flex min-w-0 flex-col items-start gap-1.5">
-              <UIcon :name="kpiIcon(stat.key)" class="h-4 w-4 text-pink-500 dark:text-pink-400" />
-              <div class="font-mono text-xl font-black tabular-nums text-gray-900 dark:text-white">
-                {{ formatValue(stat.value) }}
-              </div>
-              <div class="text-[11px] leading-tight font-medium text-gray-500 dark:text-zinc-400">
-                {{ t(`insight.kpis.${stat.key}`) }}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div class="mt-5 border-t border-gray-200/60 pt-5 dark:border-white/5">
-          <div class="flex flex-wrap items-center justify-between gap-3">
-            <h3
-              class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300"
-            >
-              <span class="inline-block h-2 w-2 rounded-full bg-pink-500 dark:bg-pink-400" />
-              {{ t('insight.sections.overview') }}
-            </h3>
-            <div class="flex rounded-lg bg-gray-100 p-0.5 dark:bg-zinc-800">
-              <button
-                v-for="mode in ['messages', 'contacts'] as const"
-                :key="mode"
-                type="button"
-                class="rounded-md px-2.5 py-1 text-[10px] font-medium transition-colors"
-                :class="
-                  monthlyTrendMode === mode
-                    ? 'bg-white text-gray-900 shadow-sm dark:bg-zinc-700 dark:text-white'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200'
-                "
-                :aria-pressed="monthlyTrendMode === mode"
-                @click="monthlyTrendMode = mode"
+        <div class="mt-6">
+          <div class="max-w-3xl space-y-3 text-gray-600 dark:text-zinc-300">
+            <p class="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-lg leading-relaxed sm:text-xl">
+              <span>{{ t('insight.overviewCard.narrative.messagesPrefix') }}</span>
+              <span
+                class="font-black text-2xl tracking-tight tabular-nums text-pink-600 sm:text-3xl dark:text-pink-400"
               >
-                {{ t(`insight.overviewCard.monthlyTrend.${mode}`) }}
-              </button>
+                {{ formatValue(metrics.sentMessageCount) }}
+              </span>
+              <span>{{ t('insight.overviewCard.narrative.messagesSuffix') }}</span>
+              <span class="font-black text-2xl tabular-nums text-blue-600 sm:text-3xl dark:text-blue-400">
+                {{ formatValue(metrics.averageMessagesPerDay) }}
+              </span>
+              <span>{{ t('insight.overviewCard.narrative.dailySuffix') }}</span>
+            </p>
+
+            <p class="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-base leading-relaxed sm:text-lg">
+              <span>{{ t('insight.overviewCard.narrative.activePrefix') }}</span>
+              <span class="font-black text-2xl tabular-nums text-indigo-600 dark:text-indigo-400">
+                {{ formatValue(metrics.activeDayCount) }}
+              </span>
+              <span>{{ t('insight.overviewCard.narrative.activeMiddle') }}</span>
+              <span class="font-black text-2xl tabular-nums text-amber-600 dark:text-amber-400">
+                {{ formatValue(metrics.directContactCount) }}
+              </span>
+              <span>{{ t('insight.overviewCard.narrative.contactsSuffix') }}</span>
+            </p>
+          </div>
+
+          <div class="mt-7">
+            <div class="mb-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-zinc-500">
+              {{ t('insight.overviewCard.keyMetrics') }}
+            </div>
+            <div class="grid grid-cols-2 gap-2 lg:grid-cols-4">
+              <div v-for="stat in detailStats" :key="stat.key" class="flex min-w-0 items-start gap-2 px-2.5 py-2">
+                <UIcon :name="stat.icon" class="mt-0.5 h-3.5 w-3.5 shrink-0" :class="stat.colorClass" />
+                <div class="min-w-0">
+                  <div
+                    class="truncate font-mono text-sm leading-tight font-black tabular-nums"
+                    :class="stat.colorClass"
+                  >
+                    {{ stat.value }}
+                  </div>
+                  <div class="mt-0.5 truncate text-[10px] font-medium text-gray-500 dark:text-zinc-400">
+                    {{ stat.label }}
+                  </div>
+                  <div class="mt-0.5 truncate text-[9px] text-gray-400 dark:text-zinc-500">
+                    {{ stat.subtext }}
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
+
+          <div class="mt-6 w-full min-w-0">
+            <div class="mb-1 flex flex-wrap items-center justify-between gap-3">
+              <div>
+                <h3 class="text-xs font-bold tracking-wide text-gray-700 dark:text-zinc-300">
+                  {{ t('insight.sections.overview') }}
+                </h3>
+                <p class="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">{{ monthlyTrendDescription }}</p>
+              </div>
+              <div class="flex rounded-lg bg-gray-100 p-0.5 dark:bg-zinc-800">
+                <button
+                  v-for="mode in ['messages', 'contacts'] as const"
+                  :key="mode"
+                  type="button"
+                  class="rounded-md px-2.5 py-1 text-[10px] font-medium transition-colors"
+                  :class="
+                    monthlyTrendMode === mode
+                      ? 'bg-white text-gray-900 shadow-sm dark:bg-zinc-700 dark:text-white'
+                      : 'text-gray-500 hover:text-gray-700 dark:text-zinc-400 dark:hover:text-zinc-200'
+                  "
+                  :aria-pressed="monthlyTrendMode === mode"
+                  @click="monthlyTrendMode = mode"
+                >
+                  {{ t(`insight.overviewCard.monthlyTrend.${mode}`) }}
+                </button>
+              </div>
+            </div>
+            <AnnualMonthlyTrend :range="range" :data="monthlyTrendData" :height="240" />
+          </div>
         </div>
-        <p class="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">{{ monthlyTrendDescription }}</p>
-        <div class="mt-2">
-          <AnnualMonthlyTrend :range="range" :data="monthlyTrendData" :height="210" />
+
+        <div
+          class="mt-5 flex flex-wrap items-center justify-between gap-x-6 gap-y-1 border-t border-gray-200/60 pt-4 font-mono text-[10px] text-gray-400 dark:border-white/5 dark:text-zinc-500"
+        >
+          <span>{{ timeRangeText }}</span>
+          <span>
+            {{
+              t('insight.status.coverage', {
+                analyzed: coverage.analyzedSessions,
+                total: coverage.totalSessions,
+              })
+            }}
+          </span>
         </div>
       </section>
     </ThemeCard>
 
-    <ThemeCard class="xl:col-span-4">
-      <section class="min-w-0 p-5 sm:p-6">
+    <div class="grid min-w-0 gap-4 xl:col-span-4">
+      <ThemeCard>
+        <section class="min-w-0 p-5 sm:p-6">
+          <h3
+            class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300"
+          >
+            <span class="inline-block h-2 w-2 rounded-full bg-pink-500 dark:bg-pink-400" />
+            {{ t('insight.sections.messageTypes') }}
+          </h3>
+          <p class="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">
+            {{ t('insight.sections.messageTypesDescription') }}
+          </p>
+          <div v-if="sortedMessageTypes.length" class="mt-5 grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3">
+            <div v-for="item in sortedMessageTypes" :key="item.type" class="min-w-0">
+              <div class="flex items-end justify-between gap-2">
+                <span class="truncate text-xs font-medium text-gray-600 dark:text-zinc-300">
+                  {{ getMessageTypeName(item.type, t) }}
+                </span>
+                <span class="font-mono text-xs font-black tabular-nums text-gray-900 dark:text-white">
+                  {{ percentage(item.count, messageTypeTotal) }}%
+                </span>
+              </div>
+              <div class="mt-2 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-zinc-800">
+                <div
+                  class="h-full rounded-full bg-pink-500 dark:bg-pink-400"
+                  :style="{ width: `${percentage(item.count, messageTypeTotal)}%` }"
+                />
+              </div>
+              <div class="mt-1.5 font-mono text-[10px] text-gray-400 dark:text-zinc-500">
+                {{ formatValue(item.count) }}
+              </div>
+            </div>
+          </div>
+          <div v-else class="flex h-28 items-center justify-center text-xs text-gray-400 dark:text-zinc-600">
+            {{ t('insight.noData') }}
+          </div>
+        </section>
+      </ThemeCard>
+
+      <ThemeCard>
+        <section class="min-w-0 p-5 sm:p-6">
+          <div class="flex items-start justify-between gap-3">
+            <div>
+              <h3
+                class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300"
+              >
+                <span class="inline-block h-2 w-2 rounded-full bg-pink-500 dark:bg-pink-400" />
+                {{ t('insight.sections.textLength') }}
+              </h3>
+              <p class="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">
+                {{ t('insight.overviewCard.textRatio') }} {{ textMessageRatio }}%
+              </p>
+            </div>
+            <div class="flex shrink-0 gap-3 text-right">
+              <div>
+                <div class="font-mono text-sm font-black text-gray-900 dark:text-white">
+                  {{ textLength.median ?? '-' }}
+                </div>
+                <div class="text-[10px] text-gray-400 dark:text-zinc-500">{{ t('insight.length.median') }}</div>
+              </div>
+              <div>
+                <div class="font-mono text-sm font-black text-gray-900 dark:text-white">
+                  {{ textLength.p90 ?? '-' }}
+                </div>
+                <div class="text-[10px] text-gray-400 dark:text-zinc-500">P90</div>
+              </div>
+            </div>
+          </div>
+          <div v-if="textLength.textMessageCount" class="mt-5 flex h-24 items-end gap-2">
+            <div
+              v-for="bucket in textLength.buckets"
+              :key="bucket.key"
+              class="flex min-w-0 flex-1 flex-col items-center gap-2"
+            >
+              <div class="flex h-16 w-full items-end rounded-sm bg-gray-100 dark:bg-zinc-800">
+                <div
+                  class="w-full rounded-sm bg-pink-500/80 dark:bg-pink-400/80"
+                  :style="{ height: `${Math.max(4, (bucket.count / maxLengthBucket) * 100)}%` }"
+                  :title="`${bucket.key}: ${bucket.count}`"
+                />
+              </div>
+              <span class="w-full truncate text-center font-mono text-[9px] text-gray-400 dark:text-zinc-500">
+                {{ bucket.key }}
+              </span>
+            </div>
+          </div>
+          <div v-else class="flex h-24 items-center justify-center text-xs text-gray-400 dark:text-zinc-600">
+            {{ t('insight.noTextData') }}
+          </div>
+        </section>
+      </ThemeCard>
+    </div>
+
+    <ThemeCard class="xl:col-span-3">
+      <section class="h-full min-w-0 p-5 sm:p-6">
         <div class="flex items-start justify-between gap-4">
           <div>
             <h3
@@ -248,124 +346,6 @@ function kpiIcon(key: string): string {
         </div>
         <div class="mt-5">
           <InsightCalendarGrid :range="range" :data="calendarData" />
-        </div>
-      </section>
-    </ThemeCard>
-
-    <ThemeCard class="xl:col-span-5">
-      <section class="min-w-0 p-5 sm:p-6">
-        <h3 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300">
-          <span class="inline-block h-2 w-2 rounded-full bg-pink-500 dark:bg-pink-400" />
-          {{ t('insight.sections.messageTypes') }}
-        </h3>
-        <p class="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">
-          {{ t('insight.sections.messageTypesDescription') }}
-        </p>
-        <div v-if="sortedMessageTypes.length" class="mt-5 grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3">
-          <div v-for="item in sortedMessageTypes" :key="item.type" class="min-w-0">
-            <div class="flex items-end justify-between gap-2">
-              <span class="truncate text-xs font-medium text-gray-600 dark:text-zinc-300">
-                {{ getMessageTypeName(item.type, t) }}
-              </span>
-              <span class="font-mono text-xs font-black tabular-nums text-gray-900 dark:text-white">
-                {{ percentage(item.count, messageTypeTotal) }}%
-              </span>
-            </div>
-            <div class="mt-2 h-1 overflow-hidden rounded-full bg-gray-100 dark:bg-zinc-800">
-              <div
-                class="h-full rounded-full bg-pink-500 dark:bg-pink-400"
-                :style="{ width: `${percentage(item.count, messageTypeTotal)}%` }"
-              />
-            </div>
-            <div class="mt-1.5 font-mono text-[10px] text-gray-400 dark:text-zinc-500">
-              {{ formatValue(item.count) }}
-            </div>
-          </div>
-        </div>
-        <div v-else class="flex h-28 items-center justify-center text-xs text-gray-400 dark:text-zinc-600">
-          {{ t('insight.noData') }}
-        </div>
-      </section>
-    </ThemeCard>
-
-    <ThemeCard class="xl:col-span-3">
-      <section class="min-w-0 p-5 sm:p-6">
-        <div class="flex items-start justify-between gap-3">
-          <div>
-            <h3
-              class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300"
-            >
-              <span class="inline-block h-2 w-2 rounded-full bg-pink-500 dark:bg-pink-400" />
-              {{ t('insight.sections.textLength') }}
-            </h3>
-            <p class="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">
-              {{ t('insight.overviewCard.textRatio') }} {{ textMessageRatio }}%
-            </p>
-          </div>
-          <div class="flex shrink-0 gap-3 text-right">
-            <div>
-              <div class="font-mono text-sm font-black text-gray-900 dark:text-white">
-                {{ textLength.median ?? '-' }}
-              </div>
-              <div class="text-[10px] text-gray-400 dark:text-zinc-500">{{ t('insight.length.median') }}</div>
-            </div>
-            <div>
-              <div class="font-mono text-sm font-black text-gray-900 dark:text-white">{{ textLength.p90 ?? '-' }}</div>
-              <div class="text-[10px] text-gray-400 dark:text-zinc-500">P90</div>
-            </div>
-          </div>
-        </div>
-        <div v-if="textLength.textMessageCount" class="mt-5 flex h-24 items-end gap-2">
-          <div
-            v-for="bucket in textLength.buckets"
-            :key="bucket.key"
-            class="flex min-w-0 flex-1 flex-col items-center gap-2"
-          >
-            <div class="flex h-16 w-full items-end rounded-sm bg-gray-100 dark:bg-zinc-800">
-              <div
-                class="w-full rounded-sm bg-pink-500/80 dark:bg-pink-400/80"
-                :style="{ height: `${Math.max(4, (bucket.count / maxLengthBucket) * 100)}%` }"
-                :title="`${bucket.key}: ${bucket.count}`"
-              />
-            </div>
-            <span class="w-full truncate text-center font-mono text-[9px] text-gray-400 dark:text-zinc-500">
-              {{ bucket.key }}
-            </span>
-          </div>
-        </div>
-        <div v-else class="flex h-24 items-center justify-center text-xs text-gray-400 dark:text-zinc-600">
-          {{ t('insight.noTextData') }}
-        </div>
-      </section>
-    </ThemeCard>
-
-    <ThemeCard class="xl:col-span-4">
-      <section class="min-w-0 p-5 sm:p-6">
-        <h3 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300">
-          <span class="inline-block h-2 w-2 rounded-full bg-pink-500 dark:bg-pink-400" />
-          {{ t('insight.overviewCard.keyMetrics') }}
-        </h3>
-        <div class="mt-5 space-y-4">
-          <div
-            v-for="(row, rowIndex) in highlightRows"
-            :key="rowIndex"
-            class="grid grid-cols-3 gap-2"
-            :class="{ 'border-t border-gray-200 pt-4 dark:border-white/10': rowIndex > 0 }"
-          >
-            <div
-              v-for="item in row"
-              :key="item.key"
-              class="min-w-0 border-l-2 border-pink-300 py-0.5 pr-2 pl-3 last:pr-0 dark:border-pink-700"
-            >
-              <div class="truncate font-mono text-sm font-black tabular-nums text-gray-900 dark:text-white">
-                {{ item.value }}
-              </div>
-              <div class="mt-1 text-[10px] leading-tight font-medium text-gray-500 dark:text-zinc-400">
-                {{ t(`insight.overviewCard.${item.key}`) }}
-              </div>
-              <div class="mt-0.5 truncate text-[9px] text-gray-400 dark:text-zinc-500">{{ item.detail }}</div>
-            </div>
-          </div>
         </div>
       </section>
     </ThemeCard>

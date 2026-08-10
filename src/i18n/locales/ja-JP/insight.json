@@ -25,6 +25,14 @@
   "overviewCard": {
     "yearTitle": "{year} 年の私",
     "recentTitle": "直近1年間の私",
+    "narrative": {
+      "messagesPrefix": "この一年で",
+      "messagesSuffix": "件のメッセージを送り、1日平均",
+      "dailySuffix": "件でした。",
+      "activePrefix": "メッセージを送った日は",
+      "activeMiddle": "日で、直接交流した相手は",
+      "contactsSuffix": "人でした。"
+    },
     "activity": "アクティビティカレンダー",
     "activeRate": "日数の {rate}%",
     "keyMetrics": "主要指標",
@@ -53,10 +61,20 @@
     "yearTitle": "{year} 年の時間投入",
     "recentTitle": "直近1年間の時間投入",
     "estimateNote": "メッセージの時間間隔から推定し、複数の会話で重なる時間帯を統合しています。正確な画面使用時間ではなく、会話への投入傾向を示します。",
+    "narrative": {
+      "totalPrefix": "この一年の推定チャット投入時間は",
+      "totalSuffix": "でした。",
+      "daysPrefix": "投入は",
+      "daysMiddle": "日間にわたり、アクティブ日の平均は",
+      "daysSuffix": "でした。"
+    },
     "loading": "時間投入を読み込んでいます…",
     "failed": "時間投入の計算に失敗しました。再試行できます。",
     "privateChat": "個別チャット",
     "groupChat": "グループチャット",
+    "shareOfTotal": "全体の {share}%",
+    "peakDay": "投入時間が最も長い日",
+    "peakWeekday": "1日平均が最も長い曜日",
     "chatTypeTitle": "会話タイプ",
     "monthlyTitle": "月別推移",
     "monthlyDescription": "月ごとの推定チャット投入時間。縦軸は時間です",

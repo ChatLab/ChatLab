@@ -127,7 +127,7 @@ function formatDayValue(value: number): string {
   container-type: inline-size;
 }
 
-@container (min-width: 234px) {
+@container (min-width: 220px) {
   .annual-calendar-months {
     grid-template-columns: repeat(3, minmax(0, 1fr));
   }
@@ -136,6 +136,12 @@ function formatDayValue(value: number): string {
 @container (min-width: 314px) {
   .annual-calendar-months {
     grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+}
+
+@container (min-width: 560px) {
+  .annual-calendar-months {
+    grid-template-columns: repeat(6, minmax(0, 1fr));
   }
 }
 </style>

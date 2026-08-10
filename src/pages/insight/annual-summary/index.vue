@@ -112,7 +112,7 @@ function openSessions(): void {
 
 <template>
   <main class="min-h-0 flex-1 overflow-y-auto">
-    <div class="mx-auto w-full max-w-[1120px] space-y-6 px-4 py-5 sm:px-6 sm:py-6">
+    <div class="mx-auto w-full max-w-[920px] space-y-6 px-4 py-5 sm:px-6 sm:py-6">
       <button
         v-if="ownerIssueCount > 0"
         type="button"

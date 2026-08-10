@@ -25,6 +25,14 @@
   "overviewCard": {
     "yearTitle": "Me in {year}",
     "recentTitle": "My Last 12 Months",
+    "narrative": {
+      "messagesPrefix": "Over the year, you sent",
+      "messagesSuffix": "messages, averaging",
+      "dailySuffix": "per day.",
+      "activePrefix": "You left messages on",
+      "activeMiddle": "days and directly interacted with",
+      "contactsSuffix": "people."
+    },
     "activity": "Activity Calendar",
     "activeRate": "{rate}% of days",
     "keyMetrics": "Key Metrics",
@@ -53,10 +61,20 @@
     "yearTitle": "Time invested in {year}",
     "recentTitle": "Time invested in the last year",
     "estimateNote": "Estimated from message timing with overlapping conversations merged. It shows engagement trends, not exact screen time.",
+    "narrative": {
+      "totalPrefix": "Over the year, your estimated chat investment was",
+      "totalSuffix": ".",
+      "daysPrefix": "It was spread across",
+      "daysMiddle": "active days, averaging",
+      "daysSuffix": "per active day."
+    },
     "loading": "Loading time investment…",
     "failed": "Time investment calculation failed. You can retry it.",
     "privateChat": "Private chats",
     "groupChat": "Group chats",
+    "shareOfTotal": "{share}% of total investment",
+    "peakDay": "Highest-investment day",
+    "peakWeekday": "Highest daily-average weekday",
     "chatTypeTitle": "Conversation types",
     "monthlyTitle": "Monthly trend",
     "monthlyDescription": "Estimated chat investment by month, in hours",
