@@ -7,7 +7,12 @@ import type { PathProvider } from '@openchatlab/core'
 import { DatabaseManager } from '../../database-manager'
 import { createDatabaseManagerAdapter } from './database-manager-adapter'
 import { getContactsFactsCacheDir } from '../contacts/paths'
-import { getGlobalInsightDir, getGlobalInsightFactsCacheDir } from '../global-insight/paths'
+import {
+  getGlobalInsightDir,
+  getGlobalInsightFactsCacheDir,
+  getTimeInvestmentDir,
+  getTimeInvestmentFactsCacheDir,
+} from '../global-insight/paths'
 
 function makeTempDir(): string {
   const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
@@ -52,6 +57,10 @@ test('DatabaseManager adapter deletes session database sidecar files and caches'
     getGlobalInsightFactsCacheDir(pathProvider.getUserDataDir()),
     `${sessionId}.cache.json`
   )
+  const timeInvestmentFactsCachePath = path.join(
+    getTimeInvestmentFactsCacheDir(pathProvider.getUserDataDir()),
+    `${sessionId}.cache.json`
+  )
   const annualSummaryYearSnapshotPath = path.join(
     getGlobalInsightDir(pathProvider.getUserDataDir()),
     'annual-summary-year-2026.json'
@@ -60,17 +69,25 @@ test('DatabaseManager adapter deletes session database sidecar files and caches'
     getGlobalInsightDir(pathProvider.getUserDataDir()),
     'annual-summary-recent-365.json'
   )
+  const timeInvestmentSnapshotPath = path.join(
+    getTimeInvestmentDir(pathProvider.getUserDataDir()),
+    'time-investment-year-2026.json'
+  )
   fs.mkdirSync(path.dirname(cachePath), { recursive: true })
   fs.mkdirSync(path.dirname(queryCachePath), { recursive: true })
   fs.mkdirSync(path.dirname(contactsFactsCachePath), { recursive: true })
   fs.mkdirSync(path.dirname(globalInsightFactsCachePath), { recursive: true })
+  fs.mkdirSync(path.dirname(timeInvestmentFactsCachePath), { recursive: true })
   fs.mkdirSync(path.dirname(annualSummaryYearSnapshotPath), { recursive: true })
+  fs.mkdirSync(path.dirname(timeInvestmentSnapshotPath), { recursive: true })
   fs.writeFileSync(cachePath, '{}', 'utf-8')
   fs.writeFileSync(queryCachePath, '{}', 'utf-8')
   fs.writeFileSync(contactsFactsCachePath, '{}', 'utf-8')
   fs.writeFileSync(globalInsightFactsCachePath, '{}', 'utf-8')
+  fs.writeFileSync(timeInvestmentFactsCachePath, '{}', 'utf-8')
   fs.writeFileSync(annualSummaryYearSnapshotPath, '{}', 'utf-8')
   fs.writeFileSync(annualSummaryRecentSnapshotPath, '{}', 'utf-8')
+  fs.writeFileSync(timeInvestmentSnapshotPath, '{}', 'utf-8')
 
   assert.equal(adapter.deleteSessionFile(sessionId), true)
   assert.equal(fs.existsSync(dbPath), false)
@@ -80,6 +97,8 @@ test('DatabaseManager adapter deletes session database sidecar files and caches'
   assert.equal(fs.existsSync(queryCachePath), false)
   assert.equal(fs.existsSync(contactsFactsCachePath), false)
   assert.equal(fs.existsSync(globalInsightFactsCachePath), false)
+  assert.equal(fs.existsSync(timeInvestmentFactsCachePath), false)
   assert.equal(fs.existsSync(annualSummaryYearSnapshotPath), false)
   assert.equal(fs.existsSync(annualSummaryRecentSnapshotPath), false)
+  assert.equal(fs.existsSync(timeInvestmentSnapshotPath), false)
 })

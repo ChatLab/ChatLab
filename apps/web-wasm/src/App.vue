@@ -102,7 +102,7 @@ onMounted(() => {
         </div>
       </template>
       <template v-else>
-        <Sidebar v-if="shouldShowSidebar" :backend-features="false" settings-enabled />
+        <Sidebar v-if="shouldShowSidebar" :backend-features="false" insight-enabled settings-enabled />
         <main class="relative flex-1 overflow-hidden">
           <router-view v-slot="{ Component }">
             <Transition name="page-fade" mode="out-in">

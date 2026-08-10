@@ -15,6 +15,7 @@ import type {
   PeopleRelationshipsNeighborhoodResponse,
   AnnualSummaryResponse,
   GroupRelationshipGalaxyData,
+  TimeInvestmentResponse,
 } from '@openchatlab/shared-types'
 import type {
   MemberActivity,
@@ -224,6 +225,14 @@ export class FetchDataAdapter implements DataAdapter {
 
   recomputeAnnualSummary(options?: AnnualSummaryFetchOptions): Promise<AnnualSummaryResponse> {
     return post(`/global-insight/annual-summary/recompute${buildAnnualSummaryParams(options)}`, {})
+  }
+
+  getTimeInvestment(options?: AnnualSummaryFetchOptions): Promise<TimeInvestmentResponse> {
+    return get(`/global-insight/time-investment${buildAnnualSummaryParams(options)}`)
+  }
+
+  recomputeTimeInvestment(options?: AnnualSummaryFetchOptions): Promise<TimeInvestmentResponse> {
+    return post(`/global-insight/time-investment/recompute${buildAnnualSummaryParams(options)}`, {})
   }
 
   // ==================== 时间范围 ====================

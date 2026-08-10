@@ -329,6 +329,35 @@ class FakeSessionRuntime implements WorkerSessionRuntime {
   async getWordFrequency(_id: string) {
     return { words: [], totalWords: 0, totalMessages: 0, uniqueWords: 0 }
   }
+
+  async getTimeInvestment(range: import('@openchatlab/shared-types').AnnualSummaryRange) {
+    return {
+      range,
+      availableDataYears: [],
+      latestDataYear: null,
+      metrics: null,
+      monthlyActivity: [],
+      dailyActivity: [],
+      sessionRanking: [],
+      chatTypes: [],
+      coverage: {
+        totalSessions: 0,
+        analyzedSessions: 0,
+        missingOwnerSessions: 0,
+        unresolvedOwnerSessions: 0,
+        failedSessions: 0,
+      },
+      cache: { status: 'fresh' as const, computedAt: Date.now() },
+      task: {
+        id: null,
+        status: 'succeeded' as const,
+        startedAt: Date.now(),
+        finishedAt: Date.now(),
+        processedSessions: 0,
+        totalSessions: 0,
+      },
+    }
+  }
 }
 
 describe('WebRuntimeWorkerController', () => {

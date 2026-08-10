@@ -22,8 +22,14 @@ import { deleteSessionCache } from './cache/session-cache'
 import { assertDataDirCompatible, type RuntimeIdentity } from './data-dir-compat'
 import { CHAT_DB_COMPATIBILITY_RAISES, getChatDbMigrations, raiseChatDbCompatibilityGate } from './migrations'
 import { getContactsFactsCacheDir } from './services/contacts/paths'
-import { getGlobalInsightDir, getGlobalInsightFactsCacheDir } from './services/global-insight/paths'
+import {
+  getGlobalInsightDir,
+  getGlobalInsightFactsCacheDir,
+  getTimeInvestmentDir,
+  getTimeInvestmentFactsCacheDir,
+} from './services/global-insight/paths'
 import { deleteAnnualSummarySnapshots } from './services/global-insight/snapshot'
+import { deleteTimeInvestmentSnapshots } from './services/global-insight/time-investment-snapshot'
 import { getPeopleRelationshipsFactsCacheDir } from './services/people/relationships/paths'
 import { assertSessionChatTopicsIdle, deleteSessionChatTopics } from './services/topics'
 
@@ -273,6 +279,8 @@ export class DatabaseManager {
     deleteSessionCache(sessionId, getContactsFactsCacheDir(this.pathProvider.getUserDataDir()))
     deleteSessionCache(sessionId, getGlobalInsightFactsCacheDir(this.pathProvider.getUserDataDir()))
     deleteAnnualSummarySnapshots(getGlobalInsightDir(this.pathProvider.getUserDataDir()))
+    deleteSessionCache(sessionId, getTimeInvestmentFactsCacheDir(this.pathProvider.getUserDataDir()))
+    deleteTimeInvestmentSnapshots(getTimeInvestmentDir(this.pathProvider.getUserDataDir()))
     deleteSessionCache(sessionId, getPeopleRelationshipsFactsCacheDir(this.pathProvider.getUserDataDir()))
     return existed
   }

@@ -8,14 +8,14 @@ import type { AnnualSummaryResponse } from '@openchatlab/shared-types'
 import LoadingState from '@/components/UI/LoadingState.vue'
 import { useDataService } from '@/services'
 import { reportError } from '@/services/log-report'
-import { useAnnualSummaryTimeRange, watchAnnualSummarySettingsClose } from '../annual-summary-time-range'
+import { useInsightTimeRange, watchInsightSettingsClose } from '../insight-time-range'
 import AnnualInsightBoard from './components/AnnualInsightBoard.vue'
 
 const { t } = useI18n()
 const layoutStore = useLayoutStore()
 const { showSettings } = storeToRefs(layoutStore)
 const currentYear = new Date().getFullYear()
-const timeRange = useAnnualSummaryTimeRange()
+const timeRange = useInsightTimeRange()
 const response = ref<AnnualSummaryResponse | null>(null)
 const errorMessage = ref('')
 let pollTimer: ReturnType<typeof setTimeout> | null = null
@@ -61,7 +61,7 @@ watch(
   },
   { immediate: true }
 )
-watchAnnualSummarySettingsClose(showSettings, () => void loadSummary(false))
+watchInsightSettingsClose(showSettings, () => void loadSummary(false))
 
 onBeforeUnmount(clearPoll)
 

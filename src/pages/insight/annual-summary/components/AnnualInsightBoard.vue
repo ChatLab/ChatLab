@@ -11,7 +11,7 @@ import { MessageType, getMessageTypeName } from '@/types/base'
 import { formatDateRange } from '@/utils'
 import { CardDecoration, ThemeCard } from '@/components/UI'
 import { deriveAnnualActivityRhythm } from '../annual-activity-rhythm'
-import AnnualCalendarGrid from './AnnualCalendarGrid.vue'
+import InsightCalendarGrid from '../../components/InsightCalendarGrid.vue'
 import AnnualMonthlyTrend from './AnnualMonthlyTrend.vue'
 
 const props = defineProps<{
@@ -73,6 +73,7 @@ const monthlyTrendData = computed(() =>
     ? props.monthlyActivity.map((item) => ({ month: item.month, value: item.messageCount }))
     : props.monthlyDirectContacts.map((item) => ({ month: item.month, value: item.contactCount }))
 )
+const calendarData = computed(() => props.dailyActivity.map((item) => ({ date: item.date, value: item.messageCount })))
 const monthlyTrendDescription = computed(() =>
   t(
     monthlyTrendMode.value === 'messages'
@@ -246,7 +247,7 @@ function kpiIcon(key: string): string {
           </div>
         </div>
         <div class="mt-5">
-          <AnnualCalendarGrid :range="range" :data="dailyActivity" />
+          <InsightCalendarGrid :range="range" :data="calendarData" />
         </div>
       </section>
     </ThemeCard>

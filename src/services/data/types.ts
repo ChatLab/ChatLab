@@ -20,6 +20,7 @@ import type {
   AnnualSummaryMode,
   AnnualSummaryResponse,
   GroupRelationshipGalaxyData,
+  TimeInvestmentResponse,
 } from '@openchatlab/shared-types'
 import type { JourneyStats, WordFrequencyParams, WordFrequencyResult } from '@openchatlab/core'
 import type {
@@ -176,6 +177,8 @@ export interface DataAdapter {
 
   getAnnualSummary(options?: AnnualSummaryFetchOptions): Promise<AnnualSummaryResponse>
   recomputeAnnualSummary(options?: AnnualSummaryFetchOptions): Promise<AnnualSummaryResponse>
+  getTimeInvestment(options?: AnnualSummaryFetchOptions): Promise<TimeInvestmentResponse>
+  recomputeTimeInvestment(options?: AnnualSummaryFetchOptions): Promise<TimeInvestmentResponse>
 
   // ==================== 时间范围 ====================
 

@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { createGlobalInsightService } from '@openchatlab/node-runtime'
+import { createGlobalInsightService, createTimeInvestmentService } from '@openchatlab/node-runtime'
 import type { RuntimeRouteContext } from '../../context/runtime'
 import type { ServiceRouteContext } from '../../context/services'
 
@@ -14,7 +14,7 @@ type GlobalInsightRouteContext = Pick<
   RuntimeRouteContext,
   'sessionAdapter' | 'pathProvider' | 'runtimeIdentity' | 'nativeBinding'
 > &
-  Pick<ServiceRouteContext, 'globalInsightService'>
+  Pick<ServiceRouteContext, 'globalInsightService' | 'timeInvestmentService'>
 
 export function registerGlobalInsightRoutes(server: FastifyInstance, ctx: GlobalInsightRouteContext): void {
   const service =
@@ -25,7 +25,17 @@ export function registerGlobalInsightRoutes(server: FastifyInstance, ctx: Global
       runtimeIdentity: ctx.runtimeIdentity,
       nativeBinding: ctx.nativeBinding,
     })
-  server.addHook('onClose', async () => service.close())
+  const timeInvestmentService =
+    ctx.timeInvestmentService ??
+    createTimeInvestmentService({
+      adapter: ctx.sessionAdapter,
+      pathProvider: ctx.pathProvider,
+      runtimeIdentity: ctx.runtimeIdentity,
+      nativeBinding: ctx.nativeBinding,
+    })
+  server.addHook('onClose', async () => {
+    await Promise.all([service.close(), timeInvestmentService.close()])
+  })
 
   server.get<{ Querystring: GlobalInsightQuery }>('/_web/global-insight/annual-summary', async (request) => {
     return service.getAnnualSummary({
@@ -36,6 +46,17 @@ export function registerGlobalInsightRoutes(server: FastifyInstance, ctx: Global
 
   server.post<{ Querystring: GlobalInsightQuery }>('/_web/global-insight/annual-summary/recompute', async (request) =>
     service.startRecompute(parseRange(request.query))
+  )
+
+  server.get<{ Querystring: GlobalInsightQuery }>('/_web/global-insight/time-investment', async (request) =>
+    timeInvestmentService.getTimeInvestment({
+      ...parseRange(request.query),
+      acceptStale: isTruthy(request.query.acceptStale),
+    })
+  )
+
+  server.post<{ Querystring: GlobalInsightQuery }>('/_web/global-insight/time-investment/recompute', async (request) =>
+    timeInvestmentService.startRecompute(parseRange(request.query))
   )
 }
 

@@ -1001,6 +1001,43 @@ describe('BrowserSessionRuntime', () => {
     database.dispose()
   })
 
+  it('computes owner time investment across Browser Runtime session databases', async () => {
+    const sqlite3 = await sqlite3InitModule()
+    const database = new MemoryWorkspaceDatabase(sqlite3)
+    const runtime = new BrowserSessionRuntime(database, {
+      createSessionId: () => 'time-investment-session',
+      now: () => 100,
+    })
+    const timestamp = Math.floor(new Date(2024, 0, 2, 10, 0, 0).getTime() / 1000)
+    const fixture = {
+      chatlab: { version: '1', exportedAt: timestamp },
+      meta: { name: 'Time Investment', platform: 'wechat', type: 'private', ownerId: 'alice' },
+      members: [
+        { platformId: 'alice', accountName: 'Alice' },
+        { platformId: 'bob', accountName: 'Bob' },
+      ],
+      messages: [
+        { sender: 'bob', accountName: 'Bob', timestamp: timestamp - 60, type: 0, content: 'trigger' },
+        { sender: 'alice', accountName: 'Alice', timestamp, type: 1, content: '[image]' },
+        { sender: 'bob', accountName: 'Bob', timestamp: timestamp + 60, type: 0, content: 'reply' },
+      ],
+    }
+
+    await runtime.importSource(source('time-investment.json', fixture), { formatId: 'chatlab' })
+
+    const result = await runtime.getTimeInvestment({
+      mode: 'year',
+      year: 2024,
+      startTs: Math.floor(new Date(2024, 0, 1).getTime() / 1000),
+      endTs: Math.floor(new Date(2024, 11, 31, 23, 59, 59).getTime() / 1000),
+    })
+
+    assert.equal(result.metrics?.estimatedSeconds, 180)
+    assert.equal(result.sessionRanking[0]?.sessionId, 'time-investment-session')
+    assert.equal(result.task.status, 'succeeded')
+    database.dispose()
+  })
+
   it('connects the remaining insight queries and builds relationship indexes on demand', async () => {
     const sqlite3 = await sqlite3InitModule()
     const database = new MemoryWorkspaceDatabase(sqlite3)

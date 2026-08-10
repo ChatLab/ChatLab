@@ -25,6 +25,8 @@ import {
   getTimeRange as queryTimeRange,
   getWeekdayActivity as queryWeekdayActivity,
   getYearlyActivity as queryYearlyActivity,
+  aggregateTimeInvestmentFacts,
+  getTimeInvestmentSessionFacts,
   hasSessionIndex,
   writeParseResultToDb,
   type ClusterGraphData,
@@ -45,8 +47,14 @@ import {
   type WordFrequencyParams,
   type WordFrequencyResult,
   type YearlyActivity,
+  type TimeInvestmentSessionFacts,
 } from '@openchatlab/core'
-import type { GroupRelationshipGalaxyData } from '@openchatlab/shared-types'
+import type {
+  AnnualSummaryRange,
+  ChatType,
+  GroupRelationshipGalaxyData,
+  TimeInvestmentResponse,
+} from '@openchatlab/shared-types'
 import { PARSER_FORMAT_IDS } from '@openchatlab/parser/browser'
 import { WebRuntimeError } from '../runtime-error'
 import type { WorkspaceDatabasePort, WorkspaceDatabaseStage } from '../storage/workspace-database'
@@ -457,6 +465,47 @@ export class BrowserSessionRuntime {
 
   async getWordFrequency(id: string, params: Omit<WordFrequencyParams, 'sessionId'>): Promise<WordFrequencyResult> {
     return this.withSessionDatabase(id, (db) => queryBrowserWordFrequency(db, { ...params, sessionId: id }))
+  }
+
+  async getTimeInvestment(range: AnnualSummaryRange): Promise<TimeInvestmentResponse> {
+    const sessions = await this.catalog.list()
+    const facts: TimeInvestmentSessionFacts[] = []
+    for (const session of sessions) {
+      try {
+        const sessionFacts = await this.database.withDatabase(
+          sessionDatabaseFilename(session.id),
+          CHAT_DB_TABLES,
+          (db) => getTimeInvestmentSessionFacts(db, session.id, range)
+        )
+        facts.push(
+          sessionFacts.kind === 'analyzed'
+            ? {
+                ...sessionFacts,
+                sessionName: session.name,
+                platform: session.platform,
+                chatType: session.type as ChatType,
+              }
+            : sessionFacts
+        )
+      } catch {
+        facts.push({ kind: 'failed', availableDataYears: [] })
+      }
+    }
+    const data = aggregateTimeInvestmentFacts(facts, range)
+    const now = Date.now()
+    return {
+      range,
+      ...data,
+      cache: { status: 'fresh', computedAt: now },
+      task: {
+        id: null,
+        status: 'succeeded',
+        startedAt: now,
+        finishedAt: now,
+        processedSessions: sessions.length,
+        totalSessions: sessions.length,
+      },
+    }
   }
 
   private async withSessionDatabase<T>(id: string, operation: (db: import('@openchatlab/core').DatabaseAdapter) => T) {

@@ -20,13 +20,14 @@ interface CalendarMonth {
 
 const props = defineProps<{
   range: AnnualSummaryRange
-  data: Array<{ date: string; messageCount: number }>
+  data: Array<{ date: string; value: number }>
+  formatValue?: (value: number) => string
 }>()
 
 const { t } = useI18n()
 
-const maxCount = computed(() => Math.max(...props.data.map((item) => item.messageCount), 1))
-const counts = computed(() => new Map(props.data.map((item) => [item.date, item.messageCount])))
+const maxCount = computed(() => Math.max(...props.data.map((item) => item.value), 1))
+const counts = computed(() => new Map(props.data.map((item) => [item.date, item.value])))
 const startDate = computed(() => new Date(props.range.startTs * 1000))
 const endDate = computed(() => new Date(props.range.endTs * 1000))
 
@@ -74,6 +75,10 @@ const months = computed<CalendarMonth[]>(() => {
 function startOfDay(date: Date): Date {
   return new Date(date.getFullYear(), date.getMonth(), date.getDate())
 }
+
+function formatDayValue(value: number): string {
+  return props.formatValue?.(value) ?? `${value} ${t('insight.messages')}`
+}
 </script>
 
 <template>
@@ -101,7 +106,7 @@ function startOfDay(date: Date): Date {
               'bg-pink-400 dark:bg-pink-500/50': day.level === 3,
               'bg-pink-600 dark:bg-pink-500/80': day.level === 4,
             }"
-            :title="`${day.key}: ${day.count} ${t('insight.messages')}`"
+            :title="`${day.key}: ${formatDayValue(day.count)}`"
           />
         </div>
       </div>

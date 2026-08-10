@@ -2,6 +2,7 @@ import type {
   AnalyticsService,
   ContactsService,
   GlobalInsightService,
+  TimeInvestmentService,
   PeopleRelationshipsService,
   PreferencesManager,
 } from '@openchatlab/node-runtime'
@@ -11,6 +12,7 @@ export interface ServiceRouteContext {
   contactsService?: ContactsService
   peopleRelationshipsService?: PeopleRelationshipsService
   globalInsightService?: GlobalInsightService
+  timeInvestmentService?: TimeInvestmentService
   preferencesManager?: PreferencesManager
   analyticsService?: AnalyticsService
 }

@@ -16,4 +16,16 @@ export const webWasmRoutes: RouteRecordRaw[] = [
     name: 'private-chat',
     component: () => import('./pages/SessionDetailPage.vue'),
   },
+  {
+    path: '/insight',
+    component: () => import('@/pages/insight/index.vue'),
+    redirect: { name: 'insight-time-investment' },
+    children: [
+      {
+        path: 'time-investment',
+        name: 'insight-time-investment',
+        component: () => import('@/pages/insight/time-investment/index.vue'),
+      },
+    ],
+  },
 ]

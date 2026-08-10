@@ -5,39 +5,44 @@ import { useI18n } from 'vue-i18n'
 import PageHeader from '@/components/layout/PageHeader.vue'
 import TimeSelect from '@/components/common/TimeSelect.vue'
 import { PageTabs } from '@/components/navigation'
-import { provideAnnualSummaryTimeRange } from './annual-summary-time-range'
+import { PLATFORM_CAPABILITIES } from '@/utils/platform-capabilities'
+import { provideInsightTimeRange } from './insight-time-range'
 
 type InsightSubpage = 'annual-summary' | 'time-investment' | 'relationship-changes'
 
 const { t } = useI18n()
 const route = useRoute()
-const timeRange = provideAnnualSummaryTimeRange()
+const timeRange = provideInsightTimeRange()
 const { modelValue, componentKey, initialState, rangeSource } = timeRange
 const activeSubpage = computed<InsightSubpage>(() => {
   if (route.name === 'insight-time-investment') return 'time-investment'
   if (route.name === 'insight-relationship-changes') return 'relationship-changes'
   return 'annual-summary'
 })
-const navigationItems = computed(() => [
-  {
-    id: 'annual-summary',
-    label: t('insight.tabs.annualSummary'),
-    icon: 'i-lucide-calendar-range',
-    to: { name: 'insight-annual-summary' },
-  },
-  {
+const navigationItems = computed(() => {
+  const timeInvestment = {
     id: 'time-investment',
     label: t('insight.tabs.timeInvestment'),
     icon: 'i-lucide-clock-3',
     to: { name: 'insight-time-investment' },
-  },
-  {
-    id: 'relationship-changes',
-    label: t('insight.tabs.relationshipChanges'),
-    icon: 'i-lucide-git-compare-arrows',
-    to: { name: 'insight-relationship-changes' },
-  },
-])
+  }
+  if (PLATFORM_CAPABILITIES.usesBrowserRuntime) return [timeInvestment]
+  return [
+    {
+      id: 'annual-summary',
+      label: t('insight.tabs.annualSummary'),
+      icon: 'i-lucide-calendar-range',
+      to: { name: 'insight-annual-summary' },
+    },
+    timeInvestment,
+    {
+      id: 'relationship-changes',
+      label: t('insight.tabs.relationshipChanges'),
+      icon: 'i-lucide-git-compare-arrows',
+      to: { name: 'insight-relationship-changes' },
+    },
+  ]
+})
 </script>
 
 <template>
@@ -57,7 +62,7 @@ const navigationItems = computed(() => [
         :items="navigationItems"
         :aria-label="t('insight.tabs.nav')"
       >
-        <template v-if="activeSubpage === 'annual-summary'" #right>
+        <template v-if="activeSubpage !== 'relationship-changes'" #right>
           <TimeSelect
             :key="componentKey"
             v-model="modelValue"

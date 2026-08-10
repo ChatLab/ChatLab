@@ -106,10 +106,11 @@ const option = computed<EChartsOption>(() => {
       },
     },
     grid: {
-      left: 50,
-      right: 20,
+      left: isCompact ? 8 : 50,
+      right: isCompact ? 4 : 20,
       top: hasSeries ? (isCompact ? 44 : 56) : 20,
-      bottom: useDataZoom ? 66 : 34,
+      bottom: useDataZoom ? 66 : isCompact ? 20 : 34,
+      containLabel: isCompact,
       outerBoundsMode: 'same',
     },
     legend: hasSeries

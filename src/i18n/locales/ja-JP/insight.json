@@ -49,6 +49,34 @@
     "medianLength": "テキスト長の中央値",
     "p90Length": "テキスト長 P90"
   },
+  "timeInvestment": {
+    "yearTitle": "{year} 年の時間投入",
+    "recentTitle": "直近1年間の時間投入",
+    "estimateNote": "メッセージの時間間隔から推定し、複数の会話で重なる時間帯を統合しています。正確な画面使用時間ではなく、会話への投入傾向を示します。",
+    "loading": "時間投入を読み込んでいます…",
+    "failed": "時間投入の計算に失敗しました。再試行できます。",
+    "privateChat": "個別チャット",
+    "groupChat": "グループチャット",
+    "chatTypeTitle": "会話タイプ",
+    "monthlyTitle": "月別推移",
+    "monthlyDescription": "月ごとの推定チャット投入時間。縦軸は時間です",
+    "calendarTitle": "投入カレンダー",
+    "calendarDescription": "色が濃いほど、その日の推定投入時間が長いことを示します",
+    "rankingTitle": "時間を使った会話",
+    "rankingDescription": "個別チャットとグループチャットで投入時間の多い上位10件を表示します。重なる時間は会話間で均等に配分されます",
+    "rankingCount": "{count} 件",
+    "kpis": {
+      "estimated": "推定チャット投入時間",
+      "activeDays": "投入日数",
+      "dailyAverage": "活動日あたりの平均"
+    },
+    "duration": {
+      "lessThanMinute": "1分未満",
+      "minutes": "{count}分",
+      "hours": "{count}時間",
+      "hoursMinutes": "{hours}時間{minutes}分"
+    }
+  },
   "sections": {
     "overview": "年間概要",
     "overviewDescription": "自分が送信したシステム以外のメッセージを月別に集計します",

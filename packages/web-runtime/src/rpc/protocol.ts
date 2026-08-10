@@ -29,7 +29,7 @@ import type {
   WordFrequencyResult,
   YearlyActivity,
 } from '@openchatlab/core'
-import type { GroupRelationshipGalaxyData } from '@openchatlab/shared-types'
+import type { AnnualSummaryRange, GroupRelationshipGalaxyData, TimeInvestmentResponse } from '@openchatlab/shared-types'
 import type {
   BrowserImportFormatInfo,
   BrowserMultiChatEntry,
@@ -251,6 +251,10 @@ export interface WebRuntimeTaskMap {
     payload: { sessionId: string; params: Omit<WordFrequencyParams, 'sessionId'> }
     result: WordFrequencyResult
   }
+  'globalInsight.timeInvestment': {
+    payload: { range: AnnualSummaryRange }
+    result: TimeInvestmentResponse
+  }
 }
 
 export type WebRuntimeTaskType = keyof WebRuntimeTaskMap
@@ -386,4 +390,5 @@ const WEB_RUNTIME_TASK_TYPES: Record<WebRuntimeTaskType, true> = {
   'analysis.journey': true,
   'analysis.languagePreference': true,
   'analysis.wordFrequency': true,
+  'globalInsight.timeInvestment': true,
 }

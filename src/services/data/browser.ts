@@ -20,7 +20,7 @@ import type {
 } from '@/types/analysis'
 import type { LanguagePreferenceResult } from '@/types/quotes/languagePreference'
 import type { JourneyStats, MemberMonthlyTrend, WordFrequencyParams, WordFrequencyResult } from '@openchatlab/core'
-import type { TimeFilter } from '@openchatlab/shared-types'
+import type { AnnualSummaryRange, TimeFilter, TimeInvestmentResponse } from '@openchatlab/shared-types'
 import type { BrowserRuntimeRpcPort } from '../browser-runtime/types'
 import { withAnalyticsRequestEpoch } from '../utils/http'
 import type { DataAdapter } from './types'
@@ -53,6 +53,8 @@ type BrowserSessionDataAdapter = Pick<
   | 'getJourneyStats'
   | 'getLanguagePreferenceAnalysis'
   | 'getWordFrequency'
+  | 'getTimeInvestment'
+  | 'recomputeTimeInvestment'
 >
 
 export class BrowserDataAdapter implements BrowserSessionDataAdapter {
@@ -186,6 +188,45 @@ export class BrowserDataAdapter implements BrowserSessionDataAdapter {
 
   getWordFrequency(sessionId: string, params: Omit<WordFrequencyParams, 'sessionId'>): Promise<WordFrequencyResult> {
     return this.requestAnalysis('analysis.wordFrequency', { sessionId, params })
+  }
+
+  getTimeInvestment(options?: import('./types').AnnualSummaryFetchOptions): Promise<TimeInvestmentResponse> {
+    return this.rpc.request('globalInsight.timeInvestment', { range: normalizeBrowserRange(options) })
+  }
+
+  recomputeTimeInvestment(options?: import('./types').AnnualSummaryFetchOptions): Promise<TimeInvestmentResponse> {
+    return this.getTimeInvestment(options)
+  }
+}
+
+function normalizeBrowserRange(options?: import('./types').AnnualSummaryFetchOptions): AnnualSummaryRange {
+  const now = new Date()
+  if (options?.mode === 'recent') {
+    const start = new Date(now)
+    start.setHours(0, 0, 0, 0)
+    start.setDate(start.getDate() - 364)
+    return {
+      mode: 'recent',
+      days: 365,
+      startTs: Math.floor(start.getTime() / 1000),
+      endTs: Math.floor(now.getTime() / 1000),
+    }
+  }
+  const currentYear = now.getFullYear()
+  const requestedYear = options?.year
+  const year =
+    typeof requestedYear === 'number' &&
+    Number.isInteger(requestedYear) &&
+    requestedYear >= 1970 &&
+    requestedYear <= currentYear
+      ? requestedYear
+      : currentYear
+  const end = year === currentYear ? now : new Date(year, 11, 31, 23, 59, 59)
+  return {
+    mode: 'year',
+    year,
+    startTs: Math.floor(new Date(year, 0, 1).getTime() / 1000),
+    endTs: Math.floor(end.getTime() / 1000),
   }
 }
 

@@ -97,6 +97,8 @@ export type {
   AnnualSummaryRange,
   AnnualSummarySessionFacts,
 } from './global-insight'
+export { aggregateTimeInvestmentFacts, getTimeInvestmentSessionFacts } from './time-investment'
+export type { TimeInvestmentSessionFacts } from './time-investment'
 export type {
   ContactFactsOptions,
   ContactMemberRef,

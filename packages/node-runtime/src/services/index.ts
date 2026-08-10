@@ -62,12 +62,21 @@ export type {
 } from './people/relationships'
 
 // Global insight service
-export { ANNUAL_SUMMARY_ALGORITHM_VERSION, createGlobalInsightService } from './global-insight'
+export {
+  ANNUAL_SUMMARY_ALGORITHM_VERSION,
+  TIME_INVESTMENT_ALGORITHM_VERSION,
+  createGlobalInsightService,
+  createTimeInvestmentService,
+} from './global-insight'
 export type {
   AnnualSummaryComputeRunner,
   GlobalInsightService,
   GlobalInsightServiceDeps,
   GlobalInsightServiceOptions,
+  TimeInvestmentComputeRunner,
+  TimeInvestmentService,
+  TimeInvestmentServiceDeps,
+  TimeInvestmentServiceOptions,
 } from './global-insight'
 
 // User-triggered chat topics

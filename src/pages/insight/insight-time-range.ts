@@ -1,7 +1,7 @@
 import { computed, inject, provide, ref, watch, type ComputedRef, type InjectionKey, type Ref } from 'vue'
 import type { TimeRangeValue, TimeSelectRangeSource, TimeSelectState } from '@/components/common/TimeSelect.vue'
 
-interface AnnualSummaryTimeRangeContext {
+interface InsightTimeRangeContext {
   modelValue: Ref<TimeRangeValue | null>
   componentKey: Ref<number>
   initialState: ComputedRef<Partial<TimeSelectState>>
@@ -10,9 +10,9 @@ interface AnnualSummaryTimeRangeContext {
   switchToYear: (year: number) => void
 }
 
-const ANNUAL_SUMMARY_TIME_RANGE_KEY: InjectionKey<AnnualSummaryTimeRangeContext> = Symbol('AnnualSummaryTimeRange')
+const INSIGHT_TIME_RANGE_KEY: InjectionKey<InsightTimeRangeContext> = Symbol('InsightTimeRange')
 
-export function provideAnnualSummaryTimeRange(): AnnualSummaryTimeRangeContext {
+export function provideInsightTimeRange(): InsightTimeRangeContext {
   const currentYear = new Date().getFullYear()
   const rangeEndTs = Math.floor(Date.now() / 1000)
   const modelValue = ref<TimeRangeValue | null>(null)
@@ -43,20 +43,17 @@ export function provideAnnualSummaryTimeRange(): AnnualSummaryTimeRangeContext {
   }
 
   const context = { modelValue, componentKey, initialState, rangeSource, setAvailableYears, switchToYear }
-  provide(ANNUAL_SUMMARY_TIME_RANGE_KEY, context)
+  provide(INSIGHT_TIME_RANGE_KEY, context)
   return context
 }
 
-export function useAnnualSummaryTimeRange(): AnnualSummaryTimeRangeContext {
-  const context = inject(ANNUAL_SUMMARY_TIME_RANGE_KEY)
-  if (!context) throw new Error('Annual summary time range context is unavailable')
+export function useInsightTimeRange(): InsightTimeRangeContext {
+  const context = inject(INSIGHT_TIME_RANGE_KEY)
+  if (!context) throw new Error('Insight time range context is unavailable')
   return context
 }
 
-export function watchAnnualSummarySettingsClose(
-  showSettings: Ref<boolean>,
-  refresh: () => void
-): ReturnType<typeof watch> {
+export function watchInsightSettingsClose(showSettings: Ref<boolean>, refresh: () => void): ReturnType<typeof watch> {
   return watch(showSettings, (visible, wasVisible) => {
     if (wasVisible && !visible) refresh()
   })

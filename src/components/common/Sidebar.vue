@@ -32,9 +32,11 @@ interface SidebarInputExpose {
 const props = withDefaults(
   defineProps<{
     backendFeatures: boolean
+    insightEnabled?: boolean
     settingsEnabled?: boolean
   }>(),
   {
+    insightEnabled: false,
     settingsEnabled: false,
   }
 )
@@ -66,6 +68,7 @@ const showContactsEntry = computed(() =>
     groupSessionCount: groupSessionCount.value,
   })
 )
+const showInsightEntry = computed(() => props.backendFeatures || props.insightEnabled)
 
 // 是否在足迹页
 const isInsightPage = computed(() => String(route.name ?? '').startsWith('insight-'))
@@ -509,7 +512,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
 
         <!-- 足迹 -->
         <SidebarButton
-          v-if="props.backendFeatures"
+          v-if="showInsightEntry"
           icon="i-heroicons-presentation-chart-bar"
           :title="t('layout.insight')"
           :active="isInsightPage"

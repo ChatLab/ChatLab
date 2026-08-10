@@ -516,6 +516,46 @@ export interface AnnualSummaryResponse {
   task: AnnualSummaryTaskState
 }
 
+export interface TimeInvestmentMetrics {
+  estimatedSeconds: number
+  activeDayCount: number
+  averagePerActiveDaySeconds: number
+}
+
+export interface TimeInvestmentActivityPoint {
+  key: string
+  estimatedSeconds: number
+}
+
+export interface TimeInvestmentSessionRankItem {
+  sessionId: string
+  name: string
+  platform: ChatPlatform
+  type: ChatType
+  seconds: number
+  share: number
+}
+
+export interface TimeInvestmentChatTypeItem {
+  type: ChatType
+  seconds: number
+  share: number
+}
+
+export interface TimeInvestmentResponse {
+  range: AnnualSummaryRange
+  availableDataYears: number[]
+  latestDataYear: number | null
+  metrics: TimeInvestmentMetrics | null
+  monthlyActivity: TimeInvestmentActivityPoint[]
+  dailyActivity: TimeInvestmentActivityPoint[]
+  sessionRanking: TimeInvestmentSessionRankItem[]
+  chatTypes: TimeInvestmentChatTypeItem[]
+  coverage: AnnualSummaryCoverage
+  cache: AnnualSummaryCacheState
+  task: AnnualSummaryTaskState
+}
+
 // ==================== People Relationships (galaxy graph) ====================
 
 /**

@@ -5,6 +5,7 @@ import type { AnnualSummaryRange } from '@openchatlab/shared-types'
 import type { RuntimeIdentity } from '../../data-dir-compat'
 import { snapshotPathProvider } from '../../semantic-index/static-path-provider'
 import type { AnnualSummaryComputeProgress, AnnualSummarySnapshot } from './types'
+import type { TimeInvestmentSnapshot } from './time-investment-types'
 
 type ModuleWorkerOptions = WorkerOptions & { type: 'module' }
 type EntryExists = (url: URL) => boolean
@@ -17,6 +18,7 @@ export interface AnnualSummaryRunnerOptions {
 }
 
 export type AnnualSummaryComputeRunner = (options: AnnualSummaryRunnerOptions) => Promise<AnnualSummarySnapshot>
+export type TimeInvestmentComputeRunner = (options: AnnualSummaryRunnerOptions) => Promise<TimeInvestmentSnapshot>
 
 export interface AnnualSummaryWorkerRunnerOptions {
   pathProvider: PathProvider
@@ -28,7 +30,7 @@ export interface AnnualSummaryWorkerRunnerOptions {
 interface WorkerMessage {
   type: 'progress' | 'success' | 'error'
   progress?: AnnualSummaryComputeProgress
-  snapshot?: AnnualSummarySnapshot
+  snapshot?: AnnualSummarySnapshot | TimeInvestmentSnapshot
   error?: string
 }
 
@@ -76,7 +78,7 @@ export function createAnnualSummaryWorkerRunner(options: AnnualSummaryWorkerRunn
         if (message.type === 'success' && message.snapshot) {
           settled = true
           signal.removeEventListener('abort', abort)
-          resolve(message.snapshot)
+          resolve(message.snapshot as AnnualSummarySnapshot)
           void worker.terminate()
           return
         }
@@ -98,6 +100,68 @@ export function createAnnualSummaryWorkerRunner(options: AnnualSummaryWorkerRunn
         settled = true
         signal.removeEventListener('abort', abort)
         reject(new Error(`annual summary worker exited with code ${code}`))
+      })
+    })
+}
+
+export function createTimeInvestmentWorkerRunner(
+  options: AnnualSummaryWorkerRunnerOptions
+): TimeInvestmentComputeRunner {
+  return ({ signature, range, signal, onProgress }) =>
+    new Promise<TimeInvestmentSnapshot>((resolve, reject) => {
+      if (signal.aborted) {
+        reject(new Error('time investment worker aborted'))
+        return
+      }
+      const worker = createWorker(
+        {
+          reportType: 'time-investment',
+          paths: snapshotPathProvider(options.pathProvider),
+          runtimeIdentity: options.runtimeIdentity,
+          nativeBinding: options.nativeBinding,
+          signature,
+          range,
+        },
+        options.workerEntryUrl
+      )
+      let settled = false
+      const abort = () => {
+        if (settled) return
+        settled = true
+        void worker.terminate()
+        reject(new Error('time investment worker aborted'))
+      }
+      signal.addEventListener('abort', abort, { once: true })
+      worker.on('message', (message: WorkerMessage) => {
+        if (message.type === 'progress' && message.progress) {
+          onProgress(message.progress)
+          return
+        }
+        if (message.type === 'success' && message.snapshot) {
+          settled = true
+          signal.removeEventListener('abort', abort)
+          resolve(message.snapshot as TimeInvestmentSnapshot)
+          void worker.terminate()
+          return
+        }
+        if (message.type === 'error') {
+          settled = true
+          signal.removeEventListener('abort', abort)
+          reject(new Error(message.error ?? 'time investment worker failed'))
+          void worker.terminate()
+        }
+      })
+      worker.on('error', (error) => {
+        if (settled) return
+        settled = true
+        signal.removeEventListener('abort', abort)
+        reject(error)
+      })
+      worker.on('exit', (code) => {
+        if (settled || code === 0) return
+        settled = true
+        signal.removeEventListener('abort', abort)
+        reject(new Error(`time investment worker exited with code ${code}`))
       })
     })
 }

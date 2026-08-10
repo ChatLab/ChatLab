@@ -7,8 +7,11 @@ import { StaticPathProvider, type StaticPathProviderSnapshot } from '../../seman
 import { createDatabaseManagerAdapter } from '../adapters'
 import { computeAnnualSummarySnapshot, type ComputeAnnualSummarySnapshotOptions } from './compute'
 import { getGlobalInsightFactsCacheDir } from './paths'
+import { getTimeInvestmentFactsCacheDir } from './paths'
+import { computeTimeInvestmentSnapshot, type ComputeTimeInvestmentSnapshotOptions } from './time-investment-compute'
 
 interface StartupOptions {
+  reportType?: 'annual-summary' | 'time-investment'
   paths: StaticPathProviderSnapshot
   runtimeIdentity?: RuntimeIdentity
   nativeBinding?: string
@@ -27,6 +30,18 @@ async function main(): Promise<void> {
     allowMissingRuntimeForTests: !options.runtimeIdentity,
   })
   const adapter = createDatabaseManagerAdapter(dbManager)
+  if (options.reportType === 'time-investment') {
+    const computeOptions: ComputeTimeInvestmentSnapshotOptions = {
+      adapter,
+      signature: options.signature,
+      range: options.range,
+      factsCacheDir: getTimeInvestmentFactsCacheDir(pathProvider.getUserDataDir()),
+      onProgress: (progress) => parentPort?.postMessage({ type: 'progress', progress }),
+    }
+    const snapshot = computeTimeInvestmentSnapshot(computeOptions)
+    parentPort.postMessage({ type: 'success', snapshot })
+    return
+  }
   const computeOptions: ComputeAnnualSummarySnapshotOptions = {
     adapter,
     signature: options.signature,

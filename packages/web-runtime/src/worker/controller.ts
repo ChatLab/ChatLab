@@ -58,6 +58,7 @@ export type WorkerSessionRuntime = Pick<
   | 'getJourneyStats'
   | 'getLanguagePreferenceAnalysis'
   | 'getWordFrequency'
+  | 'getTimeInvestment'
 >
 
 export type WorkerAIRepository = Pick<
@@ -542,6 +543,12 @@ export class WebRuntimeWorkerController {
       case 'analysis.wordFrequency': {
         const startedAt = this.startAnalysisQuery()
         const result = await this.sessionRuntime.getWordFrequency(request.payload.sessionId, request.payload.params)
+        this.emitAnalysisQueryCompleted(request, startedAt)
+        return result
+      }
+      case 'globalInsight.timeInvestment': {
+        const startedAt = this.startAnalysisQuery()
+        const result = await this.sessionRuntime.getTimeInvestment(request.payload.range)
         this.emitAnalysisQueryCompleted(request, startedAt)
         return result
       }

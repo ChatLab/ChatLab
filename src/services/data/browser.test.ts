@@ -313,4 +313,49 @@ describe('BrowserDataAdapter', () => {
     await assert.rejects(adapter.getContacts(), /getContacts is not available in Web WASM/)
     await assert.rejects(adapter.executeSQL('session-one', 'SELECT 1'), /executeSQL is not available/)
   })
+
+  it('forwards time investment through the global browser runtime task', async () => {
+    const requests: Array<{ type: WebRuntimeTaskType; payload: unknown }> = []
+    const rpc = {
+      async request<T extends WebRuntimeTaskType>(
+        type: T,
+        payload: WebRuntimeTaskPayload<T>
+      ): Promise<WebRuntimeTaskResult<T>> {
+        requests.push({ type, payload })
+        return {
+          range: (payload as { range: unknown }).range,
+          availableDataYears: [],
+          latestDataYear: null,
+          metrics: null,
+          monthlyActivity: [],
+          dailyActivity: [],
+          sessionRanking: [],
+          chatTypes: [],
+          coverage: {
+            totalSessions: 0,
+            analyzedSessions: 0,
+            missingOwnerSessions: 0,
+            unresolvedOwnerSessions: 0,
+            failedSessions: 0,
+          },
+          cache: { status: 'fresh', computedAt: Date.now() },
+          task: {
+            id: null,
+            status: 'succeeded',
+            startedAt: Date.now(),
+            finishedAt: Date.now(),
+            processedSessions: 0,
+            totalSessions: 0,
+          },
+        } as WebRuntimeTaskResult<T>
+      },
+      dispose: () => undefined,
+    }
+    const adapter = createBrowserDataAdapter(rpc)
+
+    await adapter.getTimeInvestment({ mode: 'year', year: 2024 })
+
+    assert.equal(requests[0]?.type, 'globalInsight.timeInvestment')
+    assert.equal((requests[0]?.payload as { range: { year?: number } }).range.year, 2024)
+  })
 })

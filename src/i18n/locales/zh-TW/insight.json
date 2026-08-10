@@ -49,6 +49,34 @@
     "medianLength": "文字長度中位數",
     "p90Length": "文字長度 P90"
   },
+  "timeInvestment": {
+    "yearTitle": "{year} 年的時間投入",
+    "recentTitle": "最近一年的時間投入",
+    "estimateNote": "根據訊息時間間隔估算，並合併多個會話的重疊時段；它反映聊天投入趨勢，不是精確的螢幕使用時間。",
+    "loading": "正在讀取時間投入…",
+    "failed": "時間投入計算失敗，可以重試",
+    "privateChat": "私聊",
+    "groupChat": "群聊",
+    "chatTypeTitle": "對話類型",
+    "monthlyTitle": "月度趨勢",
+    "monthlyDescription": "每月預估聊天投入，縱軸單位為小時",
+    "calendarTitle": "投入日曆",
+    "calendarDescription": "顏色越深，代表當天預估投入越多",
+    "rankingTitle": "時間都去了哪裡",
+    "rankingDescription": "私聊與群聊分別展示投入時間最多的 10 個會話；重疊時間會在會話之間平均分配",
+    "rankingCount": "{count} 個會話",
+    "kpis": {
+      "estimated": "預估聊天投入",
+      "activeDays": "投入天數",
+      "dailyAverage": "活躍日均投入"
+    },
+    "duration": {
+      "lessThanMinute": "不足 1 分鐘",
+      "minutes": "{count} 分鐘",
+      "hours": "{count} 小時",
+      "hoursMinutes": "{hours} 小時 {minutes} 分"
+    }
+  },
   "sections": {
     "overview": "年度概覽",
     "overviewDescription": "按月統計我發出的非系統訊息，缺少月份以零計算",
