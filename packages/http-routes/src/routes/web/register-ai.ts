@@ -15,7 +15,7 @@ import { registerAiSummaryRoutes } from './ai-summaries'
 import { registerAiToolRoutes } from './ai-tools'
 
 export type AiRoutesContext = AiRouteContext &
-  Pick<RuntimeRouteContext, 'dbManager' | 'sessionAdapter' | 'pathProvider' | 'nativeBinding'> &
+  Pick<RuntimeRouteContext, 'dbManager' | 'sessionAdapter' | 'pathProvider' | 'runtimeIdentity' | 'nativeBinding'> &
   Pick<StorageRouteContext, 'showInFolder'>
 
 export interface AiRouteOptions {

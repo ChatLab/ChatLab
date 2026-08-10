@@ -46,6 +46,36 @@ function assertAnalysisToolIndexes(db: Database.Database): void {
   assert.ok(indexes.includes('idx_message_type_ts'))
 }
 
+function seedTopicRun(userDataDir: string, sessionId: string, runId = 'topic-run'): void {
+  const topicStore = new ChatTopicStore(getChatTopicsDbPath(userDataDir), { nativeBinding })
+  topicStore.createRun({
+    id: runId,
+    sessionId,
+    rangeKind: 'today',
+    timezone: 'Asia/Shanghai',
+    locale: 'zh-CN',
+    startDay: '2026-08-09',
+    endDay: '2026-08-09',
+    status: 'paused',
+    totalDays: 1,
+    completedDays: 0,
+    totalBlocks: 1,
+    completedBlocks: 0,
+    currentDay: '2026-08-09',
+    currentBlockIndex: 0,
+    modelId: 'test-model',
+    promptVersion: 'topics-v1',
+    algorithmVersion: 'topics-v1',
+    inputTokens: 0,
+    outputTokens: 0,
+    modelCalls: 0,
+    lastError: null,
+    createdAt: 1,
+    updatedAt: 1,
+  })
+  topicStore.close()
+}
+
 test('constructor rejects missing runtime unless the test-only bypass is explicit', () => {
   const root = makeTempDir()
 
@@ -1188,33 +1218,7 @@ test('deleting a session also removes its derived topic data', () => {
   fs.mkdirSync(paths.getDatabaseDir(), { recursive: true })
   fs.writeFileSync(path.join(paths.getDatabaseDir(), 'session-with-topics.db'), 'placeholder')
 
-  const topicStore = new ChatTopicStore(getChatTopicsDbPath(paths.getUserDataDir()), { nativeBinding })
-  topicStore.createRun({
-    id: 'topic-run',
-    sessionId: 'session-with-topics',
-    rangeKind: 'today',
-    timezone: 'Asia/Shanghai',
-    locale: 'zh-CN',
-    startDay: '2026-08-09',
-    endDay: '2026-08-09',
-    status: 'paused',
-    totalDays: 1,
-    completedDays: 0,
-    totalBlocks: 1,
-    completedBlocks: 0,
-    currentDay: '2026-08-09',
-    currentBlockIndex: 0,
-    modelId: 'test-model',
-    promptVersion: 'topics-v1',
-    algorithmVersion: 'topics-v1',
-    inputTokens: 0,
-    outputTokens: 0,
-    modelCalls: 0,
-    lastError: null,
-    createdAt: 1,
-    updatedAt: 1,
-  })
-  topicStore.close()
+  seedTopicRun(paths.getUserDataDir(), 'session-with-topics')
 
   const manager = new DatabaseManager(paths, { nativeBinding, allowMissingRuntimeForTests: true })
   assert.equal(manager.deleteSessionDatabaseFiles('session-with-topics'), true)
@@ -1222,6 +1226,54 @@ test('deleting a session also removes its derived topic data', () => {
   const reopened = new ChatTopicStore(getChatTopicsDbPath(paths.getUserDataDir()), { nativeBinding })
   try {
     assert.equal(reopened.getRun('topic-run'), null)
+  } finally {
+    reopened.close()
+  }
+})
+
+test('failed primary database deletion preserves derived topic data', () => {
+  const root = makeTempDir()
+  const paths = createPathProvider(root)
+  const dbPath = path.join(paths.getDatabaseDir(), 'blocked.db')
+  fs.mkdirSync(dbPath, { recursive: true })
+  seedTopicRun(paths.getUserDataDir(), 'blocked', 'blocked-topic-run')
+
+  const manager = new DatabaseManager(paths, { nativeBinding, allowMissingRuntimeForTests: true })
+  assert.throws(() => manager.deleteSessionDatabaseFiles('blocked'))
+  assert.equal(fs.existsSync(dbPath), true)
+
+  const reopened = new ChatTopicStore(getChatTopicsDbPath(paths.getUserDataDir()), { nativeBinding })
+  try {
+    assert.equal(reopened.getRun('blocked-topic-run')?.sessionId, 'blocked')
+  } finally {
+    reopened.close()
+  }
+})
+
+test('session deletion rejects a live topic execution owned by another runtime', () => {
+  const root = makeTempDir()
+  const paths = createPathProvider(root)
+  const dbPath = path.join(paths.getDatabaseDir(), 'active-topics.db')
+  fs.mkdirSync(paths.getDatabaseDir(), { recursive: true })
+  fs.writeFileSync(dbPath, 'placeholder')
+  seedTopicRun(paths.getUserDataDir(), 'active-topics', 'active-topic-run')
+
+  const topicStore = new ChatTopicStore(getChatTopicsDbPath(paths.getUserDataDir()), { nativeBinding })
+  const run = topicStore.getRun('active-topic-run')!
+  topicStore.updateRun({ ...run, status: 'running' })
+  assert.equal(topicStore.tryAcquireExecutionLease(run.id, 'other-runtime', Date.now(), Date.now() + 30_000), true)
+  topicStore.close()
+
+  const manager = new DatabaseManager(paths, { nativeBinding, allowMissingRuntimeForTests: true })
+  assert.throws(
+    () => manager.deleteSessionDatabaseFiles('active-topics'),
+    (error: unknown) => (error as { code?: string }).code === 'TOPIC_EXECUTION_IN_PROGRESS'
+  )
+  assert.equal(fs.existsSync(dbPath), true)
+
+  const reopened = new ChatTopicStore(getChatTopicsDbPath(paths.getUserDataDir()), { nativeBinding })
+  try {
+    assert.equal(reopened.getRun('active-topic-run')?.status, 'running')
   } finally {
     reopened.close()
   }

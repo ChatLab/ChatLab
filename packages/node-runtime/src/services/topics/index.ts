@@ -31,7 +31,7 @@ export {
   loadTopicSourceDay,
 } from './source'
 export type { TopicChatType, TopicSourceBlock, TopicSourceDay, TopicSourceMessage } from './source'
-export { ChatTopicStore, deleteSessionChatTopics } from './store'
+export { ChatTopicStore, assertSessionChatTopicsIdle, deleteSessionChatTopics } from './store'
 export type { FinalizeTopicDayInput, TopicDayCheckpoint } from './store'
 export {
   assertValidTimezone,

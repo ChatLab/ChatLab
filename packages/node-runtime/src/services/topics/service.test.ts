@@ -7,6 +7,7 @@ import Database from 'better-sqlite3'
 import type { PathProvider } from '@openchatlab/core'
 import { CHAT_DB_SCHEMA } from '@openchatlab/core'
 import { DatabaseManager } from '../../database-manager'
+import { assertDataDirCompatible, DataDirCompatibilityError, readDataDirCompatibilityMeta } from '../../data-dir-compat'
 import { createDatabaseManagerAdapter } from '../adapters'
 import type { ChatTopicModelClient } from './model-client'
 import { createChatTopicService, type ChatTopicService } from './service'
@@ -69,10 +70,12 @@ function createHarness(
   let nextRunId = 1
   createSession(root, messageCount, chatType)
   const paths = createPathProvider(root)
-  const manager = new DatabaseManager(paths, { nativeBinding, allowMissingRuntimeForTests: true })
+  const runtimeIdentity = { version: '0.35.1', kind: 'cli' } as const
+  const manager = new DatabaseManager(paths, { nativeBinding, runtime: runtimeIdentity })
   const service = createChatTopicService({
     runtime: createDatabaseManagerAdapter(manager),
-    userDataDir: paths.getUserDataDir(),
+    pathProvider: paths,
+    runtimeIdentity,
     nativeBinding,
     getModelClient: () => modelClient,
     now: () => Date.parse('2026-08-09T12:00:00.000Z'),
@@ -447,6 +450,47 @@ test('a paused model request resumes from the persisted day checkpoint', async (
   }
 })
 
+test('a persisted paused run can be cancelled without blocking the next generation', async () => {
+  let calls = 0
+  const modelClient: ChatTopicModelClient = {
+    modelId: 'test/model',
+    complete(prompts, options) {
+      calls += 1
+      if (calls === 1) {
+        return new Promise((_, reject) => {
+          options.signal.addEventListener('abort', () => reject(new Error('aborted')), { once: true })
+        })
+      }
+      return Promise.resolve(successfulTopicResult(prompts))
+    },
+  }
+  const { service, manager } = createHarness(modelClient, 1)
+
+  try {
+    const pausedRun = service.start('group', {
+      rangeKind: 'today',
+      timezone: 'Asia/Shanghai',
+      locale: 'zh-CN',
+    })
+    await waitUntil(() => calls === 1)
+    service.pause('group', pausedRun.id)
+    await waitUntil(() => service.getRun('group', pausedRun.id)?.status === 'paused')
+    await new Promise<void>((resolve) => setImmediate(resolve))
+
+    assert.equal(service.cancel('group', pausedRun.id).status, 'cancelled')
+
+    const nextRun = service.start('group', {
+      rangeKind: 'today',
+      timezone: 'Asia/Shanghai',
+      locale: 'zh-CN',
+    })
+    assert.equal((await waitForRun(service, 'group', nextRun.id, 'completed')).status, 'completed')
+  } finally {
+    service.close()
+    manager.closeAll()
+  }
+})
+
 test('interactive AI work resumes topic generation after another session is deleted', async () => {
   let calls = 0
   const modelClient: ChatTopicModelClient = {
@@ -507,7 +551,148 @@ test('interactive AI work resumes topic generation after another session is dele
   }
 })
 
-test('session deletion waits for active topic work and removes its derived state', async () => {
+test('a second runtime cannot recover or control a live topic execution', async () => {
+  let firstRuntimeCalled = false
+  const firstModelClient: ChatTopicModelClient = {
+    modelId: 'test/model',
+    complete(_prompts, options) {
+      firstRuntimeCalled = true
+      return new Promise((_, reject) => {
+        options.signal.addEventListener('abort', () => reject(new Error('first runtime stopped')), { once: true })
+      })
+    },
+  }
+  const { root, service: firstService, manager: firstManager } = createHarness(firstModelClient, 1)
+  const paths = createPathProvider(root)
+  let secondManager: DatabaseManager | null = null
+  let secondService: ChatTopicService | null = null
+
+  try {
+    const run = firstService.start('group', {
+      rangeKind: 'today',
+      timezone: 'Asia/Shanghai',
+      locale: 'zh-CN',
+    })
+    await waitUntil(() => firstRuntimeCalled)
+
+    const runtimeIdentity = { version: '0.35.1', kind: 'desktop' } as const
+    secondManager = new DatabaseManager(paths, { nativeBinding, runtime: runtimeIdentity })
+    const runtimeService = createChatTopicService({
+      runtime: createDatabaseManagerAdapter(secondManager),
+      pathProvider: paths,
+      runtimeIdentity,
+      nativeBinding,
+      getModelClient: () => firstModelClient,
+      now: () => Date.parse('2026-08-09T12:00:00.000Z'),
+      generateId: () => 'second-runtime-run',
+    })
+
+    assert.equal(secondService.getRun('group', run.id)?.status, 'running')
+    assert.throws(
+      () => secondService.pause('group', run.id),
+      (error: unknown) => (error as { statusCode?: number }).statusCode === 409
+    )
+    assert.throws(
+      () => secondService.cancel('group', run.id),
+      (error: unknown) => (error as { statusCode?: number }).statusCode === 409
+    )
+    assert.equal(firstService.getRun('group', run.id)?.status, 'running')
+  } finally {
+    firstService.close()
+    secondService?.close()
+    firstManager.closeAll()
+    secondManager?.closeAll()
+  }
+})
+
+test('session deletion preparation preserves completed topic data when primary deletion aborts', async () => {
+  const modelClient: ChatTopicModelClient = {
+    modelId: 'test/model',
+    async complete(prompt) {
+      return successfulTopicResult(prompt)
+    },
+  }
+  const { service, manager } = createHarness(modelClient, 1)
+
+  try {
+    const run = service.start('group', { rangeKind: 'today', timezone: 'Asia/Shanghai', locale: 'zh-CN' })
+    await waitForRun(service, 'group', run.id, 'completed')
+
+    await chatTopicWorkCoordinator.prepareSessionDelete('group')
+
+    assert.equal(service.getRun('group', run.id)?.status, 'completed')
+    assert.equal(service.getDay('group', '2026-08-09', 'Asia/Shanghai')?.status, 'ready')
+  } finally {
+    service.close()
+    manager.closeAll()
+  }
+})
+
+test('topic storage rejects older runtimes while supported runtimes can delete all session data', async () => {
+  const modelClient: ChatTopicModelClient = {
+    modelId: 'test/model',
+    async complete(prompt) {
+      return successfulTopicResult(prompt)
+    },
+  }
+  const { root, service, manager } = createHarness(modelClient, 1)
+  const pathProvider = createPathProvider(root)
+
+  try {
+    const meta = readDataDirCompatibilityMeta(pathProvider.getUserDataDir())
+    assert.equal(meta?.minRuntimeVersion, '0.35.1')
+    assert.equal(meta?.dataCompatibilityVersion, 2)
+    assert.ok(meta?.reasons.includes('chat-topics-store'))
+    assert.throws(
+      () => assertDataDirCompatible(pathProvider, { version: '0.35.0', kind: 'cli' }),
+      (error: unknown) => error instanceof DataDirCompatibilityError && error.code === 'DATA_DIR_REQUIRES_NEWER_RUNTIME'
+    )
+    assert.doesNotThrow(() => assertDataDirCompatible(pathProvider, { version: '0.35.1', kind: 'desktop' }))
+
+    const run = service.start('group', { rangeKind: 'today', timezone: 'Asia/Shanghai', locale: 'zh-CN' })
+    await waitForRun(service, 'group', run.id, 'completed')
+    await chatTopicWorkCoordinator.prepareSessionDelete('group')
+
+    assert.equal(manager.deleteSessionDatabaseFiles('group'), true)
+    assert.equal(service.getDay('group', '2026-08-09', 'Asia/Shanghai'), null)
+  } finally {
+    service.close()
+    manager.closeAll()
+  }
+})
+
+test('session deletion preparation cancels a persisted paused run', async () => {
+  let called = false
+  const modelClient: ChatTopicModelClient = {
+    modelId: 'test/model',
+    complete(_prompts, options) {
+      called = true
+      return new Promise((_, reject) => {
+        options.signal.addEventListener('abort', () => reject(new Error('paused before deletion')), { once: true })
+      })
+    },
+  }
+  const { service, manager } = createHarness(modelClient, 1)
+
+  try {
+    const run = service.start('group', { rangeKind: 'today', timezone: 'Asia/Shanghai', locale: 'zh-CN' })
+    await waitUntil(() => called)
+    service.pause('group', run.id)
+    await waitUntil(() => service.getRun('group', run.id)?.status === 'paused')
+    await new Promise<void>((resolve) => setImmediate(resolve))
+
+    await chatTopicWorkCoordinator.prepareSessionDelete('group')
+
+    assert.equal(service.getRun('group', run.id)?.status, 'cancelled')
+    assert.equal(manager.deleteSessionDatabaseFiles('group'), true)
+    assert.equal(service.getRun('group', run.id), null)
+  } finally {
+    service.close()
+    manager.closeAll()
+  }
+})
+
+test('session deletion preparation waits for active topic work before primary deletion', async () => {
   let called = false
   const modelClient: ChatTopicModelClient = {
     modelId: 'test/model',
@@ -524,6 +709,9 @@ test('session deletion waits for active topic work and removes its derived state
     const run = service.start('group', { rangeKind: 'today', timezone: 'Asia/Shanghai', locale: 'zh-CN' })
     await waitUntil(() => called)
     await chatTopicWorkCoordinator.prepareSessionDelete('group')
+
+    assert.equal(service.getRun('group', run.id)?.status, 'cancelled')
+    assert.equal(manager.deleteSessionDatabaseFiles('group'), true)
     assert.equal(service.getRun('group', run.id), null)
     assert.equal(service.getLatestRun('group'), null)
   } finally {

@@ -1,6 +1,8 @@
 import { randomUUID } from 'node:crypto'
+import type { PathProvider } from '@openchatlab/core'
 import type { ChatTopicDay, ChatTopicPreflight, ChatTopicRun, CreateChatTopicsRequest } from '@openchatlab/shared-types'
 import { appLogger } from '../../logging/app-logger'
+import { isRuntimeVersionAtLeast, raiseDataDirMinRuntimeVersion, type RuntimeIdentity } from '../../data-dir-compat'
 import type { SessionRuntimeAdapter } from '../adapters'
 import {
   applyTopicFinalization,
@@ -28,11 +30,13 @@ import { chatTopicWorkCoordinator } from './work-coordinator'
 
 export interface ChatTopicServiceDeps {
   runtime: SessionRuntimeAdapter
-  userDataDir: string
+  pathProvider: PathProvider
+  runtimeIdentity: RuntimeIdentity
   getModelClient(): ChatTopicModelClient | null
   nativeBinding?: string
   now?: () => number
   generateId?: () => string
+  runtimeId?: string
 }
 
 export interface ChatTopicService {
@@ -53,6 +57,7 @@ interface ActiveExecution {
   runId: string
   controller: AbortController
   requestedStatus: 'paused' | 'cancelled' | 'preempted' | null
+  leaseLost: boolean
 }
 
 interface PlannedDay {
@@ -62,15 +67,30 @@ interface PlannedDay {
   skip: boolean
 }
 
+const TOPIC_EXECUTION_LEASE_DURATION_MS = 30_000
+const TOPIC_EXECUTION_HEARTBEAT_MS = 10_000
+const CHAT_TOPICS_MIN_RUNTIME_VERSION = '0.35.1'
+const CHAT_TOPICS_DATA_COMPATIBILITY_VERSION = 2
+
 export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicService {
   const now = deps.now ?? Date.now
   const generateId = deps.generateId ?? randomUUID
-  const store = new ChatTopicStore(getChatTopicsDbPath(deps.userDataDir), { nativeBinding: deps.nativeBinding })
+  const runtimeId = deps.runtimeId ?? randomUUID()
+  const store = new ChatTopicStore(getChatTopicsDbPath(deps.pathProvider.getUserDataDir()), {
+    nativeBinding: deps.nativeBinding,
+  })
+  try {
+    raiseChatTopicsCompatibilityGate(deps.pathProvider, deps.runtimeIdentity)
+  } catch (error) {
+    store.close()
+    throw error
+  }
   store.recoverInterruptedRuns(now())
   let activeExecution: ActiveExecution | null = null
   let closed = false
   let storeClosed = false
   let preemptedRunId: string | null = null
+  let leaseHeartbeat: { runId: string; timer: ReturnType<typeof setInterval> } | null = null
   const unsubscribeCoordinator = chatTopicWorkCoordinator.subscribe(handleInteractiveStateChange)
   const unsubscribeSessionDelete = chatTopicWorkCoordinator.subscribeSessionDelete(prepareSessionDelete)
   const executionWaiters: Array<{ runId: string; resolve: () => void }> = []
@@ -132,6 +152,7 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
     totalBlocks: number
     modelId: string
   }): ChatTopicRun {
+    store.recoverInterruptedRuns(now())
     const active = store.getActiveRun()
     if (active) {
       throw Object.assign(new Error(`A chat topic run is already ${active.status}`), {
@@ -166,22 +187,36 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
       updatedAt: timestamp,
     }
     store.createRun(run)
-    if (run.status === 'pending') launch(run.id)
+    if (run.status === 'pending') {
+      if (!acquireExecutionLease(run.id)) {
+        store.updateRun({ ...run, status: 'cancelled', lastError: 'Another runtime owns topic generation' })
+        const competing = store.getActiveRun()
+        throw Object.assign(new Error('Another ChatLab runtime is already generating chat topics'), {
+          statusCode: 409,
+          activeRun: competing,
+        })
+      }
+      launch(run.id)
+    }
     return run
   }
 
   function getRun(sessionId: string, runId: string): ChatTopicRun | null {
+    store.recoverInterruptedRuns(now())
     const run = store.getRun(runId)
     return run?.sessionId === sessionId ? run : null
   }
 
   function getLatestRun(sessionId: string): ChatTopicRun | null {
+    store.recoverInterruptedRuns(now())
     return store.getLatestRun(sessionId)
   }
 
   function pause(sessionId: string, runId: string): ChatTopicRun {
     const run = requireRun(sessionId, runId)
     if (run.status === 'pending' && activeExecution?.runId !== runId) {
+      requireExecutionLease(runId)
+      if (preemptedRunId === runId) preemptedRunId = null
       return updateRun(run, { status: 'paused' })
     }
     if (run.status !== 'running' && run.status !== 'pending') return run
@@ -191,6 +226,7 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
       activeExecution.controller.abort()
       return run
     }
+    requireExecutionLease(runId)
     return updateRun(run, { status: 'paused' })
   }
 
@@ -202,9 +238,17 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
     if (active && active.id !== runId) {
       throw Object.assign(new Error(`A chat topic run is already ${active.status}`), { statusCode: 409 })
     }
-    const resumed = updateRun(run, { status: 'pending', lastError: null })
-    launch(runId)
-    return resumed
+    if (!acquireExecutionLease(runId)) {
+      throw Object.assign(new Error('Another ChatLab runtime is already generating chat topics'), { statusCode: 409 })
+    }
+    try {
+      const resumed = updateRun(run, { status: 'pending', lastError: null })
+      launch(runId)
+      return resumed
+    } catch (error) {
+      releaseExecutionLease(runId)
+      throw error
+    }
   }
 
   function cancel(sessionId: string, runId: string): ChatTopicRun {
@@ -214,6 +258,10 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
       preemptedRunId = null
       activeExecution.requestedStatus = 'cancelled'
       activeExecution.controller.abort()
+      return run
+    }
+    if (!acquireExecutionLease(runId)) {
+      throw Object.assign(new Error('Another ChatLab runtime is already generating chat topics'), { statusCode: 409 })
     }
     return updateRun(run, { status: 'cancelled' })
   }
@@ -240,12 +288,19 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
     closed = true
     unsubscribeCoordinator()
     unsubscribeSessionDelete()
-    preemptedRunId = null
     if (activeExecution) {
       activeExecution.requestedStatus = 'paused'
       activeExecution.controller.abort()
       return
     }
+    if (preemptedRunId) {
+      const pending = store.getRun(preemptedRunId)
+      if (pending && store.ownsExecutionLease(pending.id, runtimeId, now())) {
+        updateRun(pending, { status: 'paused' })
+      }
+      preemptedRunId = null
+    }
+    stopLeaseHeartbeat()
     closeStore()
   }
 
@@ -255,7 +310,12 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
       preemptedRunId = runId
       return
     }
-    const execution: ActiveExecution = { runId, controller: new AbortController(), requestedStatus: null }
+    const execution: ActiveExecution = {
+      runId,
+      controller: new AbortController(),
+      requestedStatus: null,
+      leaseLost: false,
+    }
     activeExecution = execution
     queueMicrotask(() => {
       void executeRun(execution).finally(() => {
@@ -270,6 +330,7 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
   async function executeRun(execution: ActiveExecution): Promise<void> {
     let run = store.getRun(execution.runId)
     if (!run) return
+    if (execution.leaseLost) return
     if (execution.controller.signal.aborted) {
       updateRun(run, {
         status: execution.requestedStatus === 'preempted' ? 'pending' : (execution.requestedStatus ?? 'paused'),
@@ -321,6 +382,12 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
         modelCalls: run.modelCalls,
       })
     } catch (error) {
+      if (execution.leaseLost || isExecutionLeaseLostError(error)) {
+        appLogger.warn('chat-topics', 'chat topic generation stopped after execution lease was lost', {
+          runId: execution.runId,
+        })
+        return
+      }
       const latest = store.getRun(run.id) ?? run
       const requestedStatus = execution.requestedStatus
       const status = requestedStatus === 'preempted' ? 'pending' : (requestedStatus ?? 'failed')
@@ -427,22 +494,25 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
     if (currentSource.sourceSignature !== source.sourceSignature) {
       throw new Error('Chat messages changed during topic generation; retry is required')
     }
-    store.finalizeDay({
-      sessionId: run.sessionId,
-      dayKey: source.dayKey,
-      timezone: source.timezone,
-      sourceSignature: source.sourceSignature,
-      sourceMessageCount: source.messages.length,
-      sourceFirstTs: source.messages[0]!.timestamp,
-      sourceLastTs: source.messages.at(-1)!.timestamp,
-      runId: run.id,
-      modelId: modelClient.modelId,
-      promptVersion: CHAT_TOPICS_PROMPT_VERSION,
-      algorithmVersion: CHAT_TOPICS_ALGORITHM_VERSION,
-      overview: finalResult.value.finalization.overview,
-      topics: materializeChatTopics(finalResult.value.ledger, source.messages),
-      generatedAt: now(),
-    })
+    store.finalizeDay(
+      {
+        sessionId: run.sessionId,
+        dayKey: source.dayKey,
+        timezone: source.timezone,
+        sourceSignature: source.sourceSignature,
+        sourceMessageCount: source.messages.length,
+        sourceFirstTs: source.messages[0]!.timestamp,
+        sourceLastTs: source.messages.at(-1)!.timestamp,
+        runId: run.id,
+        modelId: modelClient.modelId,
+        promptVersion: CHAT_TOPICS_PROMPT_VERSION,
+        algorithmVersion: CHAT_TOPICS_ALGORITHM_VERSION,
+        overview: finalResult.value.finalization.overview,
+        topics: materializeChatTopics(finalResult.value.ledger, source.messages),
+        generatedAt: now(),
+      },
+      executionLeaseGuard()
+    )
     run = updateRun(run, {
       completedDays: run.completedDays + 1,
       currentDay: null,
@@ -496,31 +566,34 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
     status: TopicDayCheckpoint['status'],
     lastError: string | null = null
   ): void {
-    store.saveCheckpoint({
-      sessionId: run.sessionId,
-      dayKey: source.dayKey,
-      timezone: source.timezone,
-      status,
-      sourceSignature: source.sourceSignature,
-      sourceMessageCount: source.messages.length,
-      sourceFirstTs: source.messages[0]!.timestamp,
-      sourceLastTs: source.messages.at(-1)!.timestamp,
-      runId: run.id,
-      totalBlocks: source.blocks.length,
-      completedBlockIndex,
-      ledgerJson: serializeTopicLedger(ledger),
-      modelId: run.modelId,
-      promptVersion: CHAT_TOPICS_PROMPT_VERSION,
-      algorithmVersion: CHAT_TOPICS_ALGORITHM_VERSION,
-      lastError,
-      updatedAt: now(),
-    })
+    store.saveCheckpoint(
+      {
+        sessionId: run.sessionId,
+        dayKey: source.dayKey,
+        timezone: source.timezone,
+        status,
+        sourceSignature: source.sourceSignature,
+        sourceMessageCount: source.messages.length,
+        sourceFirstTs: source.messages[0]!.timestamp,
+        sourceLastTs: source.messages.at(-1)!.timestamp,
+        runId: run.id,
+        totalBlocks: source.blocks.length,
+        completedBlockIndex,
+        ledgerJson: serializeTopicLedger(ledger),
+        modelId: run.modelId,
+        promptVersion: CHAT_TOPICS_PROMPT_VERSION,
+        algorithmVersion: CHAT_TOPICS_ALGORITHM_VERSION,
+        lastError,
+        updatedAt: now(),
+      },
+      executionLeaseGuard()
+    )
   }
 
   function markCurrentCheckpointFailed(run: ChatTopicRun, lastError: string | null): void {
     const checkpoint = run.currentDay ? store.getCheckpoint(run.sessionId, run.currentDay) : null
     if (!checkpoint) return
-    store.saveCheckpoint({ ...checkpoint, status: 'failed', lastError, updatedAt: now() })
+    store.saveCheckpoint({ ...checkpoint, status: 'failed', lastError, updatedAt: now() }, executionLeaseGuard())
   }
 
   function isReusableCheckpoint(
@@ -539,9 +612,57 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
     )
   }
 
+  function acquireExecutionLease(runId: string): boolean {
+    const acquired = store.tryAcquireExecutionLease(runId, runtimeId, now(), now() + TOPIC_EXECUTION_LEASE_DURATION_MS)
+    if (acquired) startLeaseHeartbeat(runId)
+    return acquired
+  }
+
+  function startLeaseHeartbeat(runId: string): void {
+    stopLeaseHeartbeat()
+    const timer = setInterval(() => {
+      if (closed || storeClosed) return
+      const renewed = store.renewExecutionLease(runId, runtimeId, now() + TOPIC_EXECUTION_LEASE_DURATION_MS)
+      if (renewed) return
+      stopLeaseHeartbeat(runId)
+      if (preemptedRunId === runId) preemptedRunId = null
+      if (activeExecution?.runId === runId) {
+        activeExecution.leaseLost = true
+        activeExecution.controller.abort()
+      }
+    }, TOPIC_EXECUTION_HEARTBEAT_MS)
+    timer.unref?.()
+    leaseHeartbeat = { runId, timer }
+  }
+
+  function stopLeaseHeartbeat(runId?: string): void {
+    if (!leaseHeartbeat || (runId && leaseHeartbeat.runId !== runId)) return
+    clearInterval(leaseHeartbeat.timer)
+    leaseHeartbeat = null
+  }
+
+  function releaseExecutionLease(runId: string): void {
+    stopLeaseHeartbeat(runId)
+    store.releaseExecutionLease(runId, runtimeId)
+  }
+
+  function requireExecutionLease(runId: string): void {
+    if (store.ownsExecutionLease(runId, runtimeId, now())) return
+    throw Object.assign(new Error('This chat topic run is active in another ChatLab runtime'), { statusCode: 409 })
+  }
+
+  function executionLeaseGuard() {
+    return { ownerId: runtimeId, now: now() }
+  }
+
   function updateRun(run: ChatTopicRun, updates: Partial<ChatTopicRun>): ChatTopicRun {
     const updated = { ...run, ...updates, updatedAt: now() }
-    store.updateRun(updated)
+    if (!store.updateRunIfOwned(updated, executionLeaseGuard())) {
+      throw Object.assign(new Error('Chat topic execution lease was lost'), { code: 'TOPIC_EXECUTION_LEASE_LOST' })
+    }
+    if (['completed', 'failed', 'paused', 'cancelled'].includes(updated.status)) {
+      releaseExecutionLease(updated.id)
+    }
     return updated
   }
 
@@ -564,6 +685,7 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
 
   function closeStore(): void {
     if (storeClosed) return
+    stopLeaseHeartbeat()
     storeClosed = true
     store.close()
   }
@@ -585,7 +707,7 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
     if (closed || chatTopicWorkCoordinator.isInteractiveActive || activeExecution || !preemptedRunId) return
     const runId = preemptedRunId
     const pending = store.getRun(runId)
-    if (pending?.status !== 'pending') {
+    if (pending?.status !== 'pending' || !store.ownsExecutionLease(runId, runtimeId, now())) {
       preemptedRunId = null
       return
     }
@@ -605,8 +727,9 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
       }
     }
     const activeRun = store.getActiveRun()
-    if (activeRun?.sessionId === sessionId) updateRun(activeRun, { status: 'cancelled' })
-    store.deleteSession(sessionId)
+    if (activeRun?.sessionId === sessionId) {
+      cancel(sessionId, activeRun.id)
+    }
   }
 
   function waitForExecution(runId: string): Promise<void> {
@@ -636,6 +759,23 @@ export function createChatTopicService(deps: ChatTopicServiceDeps): ChatTopicSer
     deleteDay,
     close,
   }
+}
+
+function raiseChatTopicsCompatibilityGate(pathProvider: PathProvider, runtime: RuntimeIdentity): void {
+  // The source branch still reports the last released version until the release workflow bumps package metadata.
+  // Do not make local development builds block themselves; the first publishable runtime is 0.35.1.
+  if (!isRuntimeVersionAtLeast(runtime.version, CHAT_TOPICS_MIN_RUNTIME_VERSION)) return
+  raiseDataDirMinRuntimeVersion(pathProvider, {
+    minRuntimeVersion: CHAT_TOPICS_MIN_RUNTIME_VERSION,
+    dataCompatibilityVersion: CHAT_TOPICS_DATA_COMPATIBILITY_VERSION,
+    reason: 'chat-topics-store',
+    runtime,
+    module: 'chat-topics',
+  })
+}
+
+function isExecutionLeaseLostError(error: unknown): boolean {
+  return (error as { code?: string } | null)?.code === 'TOPIC_EXECUTION_LEASE_LOST'
 }
 
 function validationErrorMessage(error: unknown): string {

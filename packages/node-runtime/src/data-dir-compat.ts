@@ -131,6 +131,12 @@ export function assertDataDirCompatible(
   }
 }
 
+export function isRuntimeVersionAtLeast(runtimeVersion: string, minimumVersion: string): boolean {
+  const normalizedRuntimeVersion = normalizeRuntimeStableVersion(runtimeVersion)
+  if (!normalizedRuntimeVersion || !isStableSemver(minimumVersion)) return false
+  return compareStableSemver(normalizedRuntimeVersion, minimumVersion) >= 0
+}
+
 export function raiseDataDirMinRuntimeVersion(
   pathProvider: PathProvider,
   input: RaiseDataDirCompatibilityInput

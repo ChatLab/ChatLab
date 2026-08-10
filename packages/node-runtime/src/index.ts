@@ -149,6 +149,7 @@ export type {
 export {
   assertDataDirCompatible,
   DataDirCompatibilityError,
+  isRuntimeVersionAtLeast,
   raiseDataDirMinRuntimeVersion,
   readDataDirCompatibilityMeta,
 } from './data-dir-compat'

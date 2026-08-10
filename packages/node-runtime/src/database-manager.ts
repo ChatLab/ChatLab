@@ -25,7 +25,7 @@ import { getContactsFactsCacheDir } from './services/contacts/paths'
 import { getGlobalInsightDir, getGlobalInsightFactsCacheDir } from './services/global-insight/paths'
 import { deleteAnnualSummarySnapshots } from './services/global-insight/snapshot'
 import { getPeopleRelationshipsFactsCacheDir } from './services/people/relationships/paths'
-import { deleteSessionChatTopics } from './services/topics'
+import { assertSessionChatTopicsIdle, deleteSessionChatTopics } from './services/topics'
 
 interface DatabaseManagerOptions {
   nativeBinding?: string
@@ -248,14 +248,14 @@ export class DatabaseManager {
    * SQLite WAL 模式会产生 sidecar 文件，前端查询还会写 JSON 缓存；只删主库会让列表和后续同步读到脏状态。
    */
   deleteSessionDatabaseFiles(sessionId: string): boolean {
+    assertSessionChatTopicsIdle(this.pathProvider.getUserDataDir(), sessionId, { nativeBinding: this.nativeBinding })
     this.close(sessionId)
-
-    // 话题是独立派生库中的会话数据，先删除它；失败时保留主库，避免出现“界面已删但派生数据残留”。
-    deleteSessionChatTopics(this.pathProvider.getUserDataDir(), sessionId, { nativeBinding: this.nativeBinding })
 
     const dbPath = this.getDbPath(sessionId)
     const existed = ['', '-wal', '-shm'].some((suffix) => fs.existsSync(dbPath + suffix))
-    for (const suffix of ['', '-wal', '-shm']) {
+    if (fs.existsSync(dbPath)) fs.unlinkSync(dbPath)
+
+    for (const suffix of ['-wal', '-shm']) {
       try {
         const filePath = dbPath + suffix
         if (fs.existsSync(filePath)) fs.unlinkSync(filePath)
@@ -263,6 +263,10 @@ export class DatabaseManager {
         /* ignore cleanup failures */
       }
     }
+
+    // Derived data is removed only after the primary database is gone. If deleting the main file fails, callers get
+    // the original filesystem error and can retry without losing paid topic snapshots or other cached results.
+    deleteSessionChatTopics(this.pathProvider.getUserDataDir(), sessionId, { nativeBinding: this.nativeBinding })
     const cacheDir = this.pathProvider.getCacheDir()
     deleteSessionCache(sessionId, cacheDir)
     deleteSessionCache(sessionId, path.join(cacheDir, 'query'))

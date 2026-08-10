@@ -11,7 +11,7 @@ import type {
 import { openBetterSqliteDatabase } from '../../better-sqlite3-adapter'
 import { getChatTopicsDbPath } from './paths'
 
-const CHAT_TOPICS_SCHEMA_VERSION = 2
+const CHAT_TOPICS_SCHEMA_VERSION = 3
 
 interface TopicStoreOptions {
   nativeBinding?: string
@@ -38,6 +38,11 @@ export interface TopicDayCheckpoint {
 }
 
 export type StoredTopicDayCheckpoint = TopicDayCheckpoint
+
+export interface TopicExecutionLeaseGuard {
+  ownerId: string
+  now: number
+}
 
 export interface FinalizeTopicDayInput {
   sessionId: string
@@ -199,6 +204,105 @@ export class ChatTopicStore {
       )
   }
 
+  updateRunIfOwned(run: ChatTopicRun, guard: TopicExecutionLeaseGuard): boolean {
+    return (
+      this.db
+        .prepare(
+          `UPDATE topic_run SET
+            status = ?, total_days = ?, completed_days = ?, total_blocks = ?, completed_blocks = ?,
+            current_day = ?, current_block_index = ?,
+            model_id = ?, input_tokens = ?, output_tokens = ?, model_calls = ?, last_error = ?, updated_at = ?
+          WHERE id = ?
+            AND EXISTS (
+              SELECT 1 FROM topic_execution_lease
+              WHERE singleton = 1 AND run_id = ? AND owner_id = ? AND expires_at > ?
+            )`
+        )
+        .run(
+          run.status,
+          run.totalDays,
+          run.completedDays,
+          run.totalBlocks,
+          run.completedBlocks,
+          run.currentDay,
+          run.currentBlockIndex,
+          run.modelId,
+          run.inputTokens,
+          run.outputTokens,
+          run.modelCalls,
+          run.lastError,
+          run.updatedAt,
+          run.id,
+          run.id,
+          guard.ownerId,
+          guard.now
+        ).changes > 0
+    )
+  }
+
+  tryAcquireExecutionLease(runId: string, ownerId: string, now: number, expiresAt: number): boolean {
+    return (
+      this.db
+        .prepare(
+          `INSERT INTO topic_execution_lease (singleton, run_id, owner_id, expires_at)
+           VALUES (1, ?, ?, ?)
+           ON CONFLICT(singleton) DO UPDATE SET
+             run_id = excluded.run_id,
+             owner_id = excluded.owner_id,
+             expires_at = excluded.expires_at
+           WHERE topic_execution_lease.owner_id = excluded.owner_id
+              OR topic_execution_lease.expires_at <= ?`
+        )
+        .run(runId, ownerId, expiresAt, now).changes > 0
+    )
+  }
+
+  renewExecutionLease(runId: string, ownerId: string, expiresAt: number): boolean {
+    return (
+      this.db
+        .prepare(
+          `UPDATE topic_execution_lease SET expires_at = ?
+           WHERE singleton = 1 AND run_id = ? AND owner_id = ?`
+        )
+        .run(expiresAt, runId, ownerId).changes > 0
+    )
+  }
+
+  ownsExecutionLease(runId: string, ownerId: string, now: number): boolean {
+    return Boolean(
+      this.db
+        .prepare(
+          `SELECT 1 FROM topic_execution_lease
+           WHERE singleton = 1 AND run_id = ? AND owner_id = ? AND expires_at > ?`
+        )
+        .get(runId, ownerId, now)
+    )
+  }
+
+  hasLiveExecutionForSession(sessionId: string, now: number): boolean {
+    return Boolean(
+      this.db
+        .prepare(
+          `SELECT 1
+           FROM topic_execution_lease lease
+           JOIN topic_run run ON run.id = lease.run_id
+           WHERE lease.singleton = 1
+             AND lease.expires_at > ?
+             AND run.session_id = ?
+             AND run.status IN ('pending', 'running')`
+        )
+        .get(now, sessionId)
+    )
+  }
+
+  releaseExecutionLease(runId: string, ownerId: string): boolean {
+    return (
+      this.db
+        .prepare('DELETE FROM topic_execution_lease WHERE singleton = 1 AND run_id = ? AND owner_id = ?')
+        .run(runId, ownerId).changes > 0
+    )
+  }
+
   getRun(runId: string): ChatTopicRun | null {
     const row = this.db
       .prepare(
@@ -257,62 +361,88 @@ export class ChatTopicStore {
       this.db
         .prepare(
           `UPDATE topic_day_work SET status = 'failed', last_error = 'Generation interrupted by application restart', updated_at = ?
-           WHERE status IN ('pending', 'running')`
+           WHERE status IN ('pending', 'running')
+             AND NOT EXISTS (
+               SELECT 1 FROM topic_execution_lease
+               WHERE singleton = 1
+                 AND run_id = topic_day_work.run_id
+                 AND expires_at > ?
+             )`
         )
-        .run(updatedAt)
-      return this.db
+        .run(updatedAt, updatedAt)
+      const recovered = this.db
         .prepare(
           `UPDATE topic_run SET status = 'paused', last_error = 'Generation interrupted by application restart', updated_at = ?
-           WHERE status IN ('pending', 'running')`
+           WHERE status IN ('pending', 'running')
+             AND NOT EXISTS (
+               SELECT 1 FROM topic_execution_lease
+               WHERE singleton = 1
+                 AND run_id = topic_run.id
+                 AND expires_at > ?
+             )`
         )
-        .run(updatedAt).changes
+        .run(updatedAt, updatedAt).changes
+      this.db
+        .prepare(
+          `DELETE FROM topic_execution_lease
+           WHERE expires_at <= ?
+              OR NOT EXISTS (
+                SELECT 1 FROM topic_run
+                WHERE id = topic_execution_lease.run_id AND status IN ('pending', 'running')
+              )`
+        )
+        .run(updatedAt)
+      return recovered
     })
   }
 
-  saveCheckpoint(checkpoint: TopicDayCheckpoint): void {
-    this.db
-      .prepare(
-        `INSERT INTO topic_day_work (
-          session_id, day_key, timezone, status, source_signature, source_message_count,
-          source_first_ts, source_last_ts, run_id, total_blocks, completed_block_index,
-          ledger_json, model_id, prompt_version, algorithm_version, last_error, updated_at
-        ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-        ON CONFLICT(session_id, day_key) DO UPDATE SET
-          timezone = excluded.timezone,
-          status = excluded.status,
-          source_signature = excluded.source_signature,
-          source_message_count = excluded.source_message_count,
-          source_first_ts = excluded.source_first_ts,
-          source_last_ts = excluded.source_last_ts,
-          run_id = excluded.run_id,
-          total_blocks = excluded.total_blocks,
-          completed_block_index = excluded.completed_block_index,
-          ledger_json = excluded.ledger_json,
-          model_id = excluded.model_id,
-          prompt_version = excluded.prompt_version,
-          algorithm_version = excluded.algorithm_version,
-          last_error = excluded.last_error,
-          updated_at = excluded.updated_at`
-      )
-      .run(
-        checkpoint.sessionId,
-        checkpoint.dayKey,
-        checkpoint.timezone,
-        checkpoint.status,
-        checkpoint.sourceSignature,
-        checkpoint.sourceMessageCount,
-        checkpoint.sourceFirstTs,
-        checkpoint.sourceLastTs,
-        checkpoint.runId,
-        checkpoint.totalBlocks,
-        checkpoint.completedBlockIndex,
-        checkpoint.ledgerJson,
-        checkpoint.modelId,
-        checkpoint.promptVersion,
-        checkpoint.algorithmVersion,
-        checkpoint.lastError ?? null,
-        checkpoint.updatedAt
-      )
+  saveCheckpoint(checkpoint: TopicDayCheckpoint, guard?: TopicExecutionLeaseGuard): void {
+    this.db.transaction(() => {
+      if (guard) this.assertExecutionLease(checkpoint.runId, guard)
+      this.db
+        .prepare(
+          `INSERT INTO topic_day_work (
+            session_id, day_key, timezone, status, source_signature, source_message_count,
+            source_first_ts, source_last_ts, run_id, total_blocks, completed_block_index,
+            ledger_json, model_id, prompt_version, algorithm_version, last_error, updated_at
+          ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+          ON CONFLICT(session_id, day_key) DO UPDATE SET
+            timezone = excluded.timezone,
+            status = excluded.status,
+            source_signature = excluded.source_signature,
+            source_message_count = excluded.source_message_count,
+            source_first_ts = excluded.source_first_ts,
+            source_last_ts = excluded.source_last_ts,
+            run_id = excluded.run_id,
+            total_blocks = excluded.total_blocks,
+            completed_block_index = excluded.completed_block_index,
+            ledger_json = excluded.ledger_json,
+            model_id = excluded.model_id,
+            prompt_version = excluded.prompt_version,
+            algorithm_version = excluded.algorithm_version,
+            last_error = excluded.last_error,
+            updated_at = excluded.updated_at`
+        )
+        .run(
+          checkpoint.sessionId,
+          checkpoint.dayKey,
+          checkpoint.timezone,
+          checkpoint.status,
+          checkpoint.sourceSignature,
+          checkpoint.sourceMessageCount,
+          checkpoint.sourceFirstTs,
+          checkpoint.sourceLastTs,
+          checkpoint.runId,
+          checkpoint.totalBlocks,
+          checkpoint.completedBlockIndex,
+          checkpoint.ledgerJson,
+          checkpoint.modelId,
+          checkpoint.promptVersion,
+          checkpoint.algorithmVersion,
+          checkpoint.lastError ?? null,
+          checkpoint.updatedAt
+        )
+    })
   }
 
   getCheckpoint(sessionId: string, dayKey: string): StoredTopicDayCheckpoint | null {
@@ -330,8 +460,9 @@ export class ChatTopicStore {
     return row ?? null
   }
 
-  finalizeDay(input: FinalizeTopicDayInput): void {
+  finalizeDay(input: FinalizeTopicDayInput, guard?: TopicExecutionLeaseGuard): void {
     this.db.transaction(() => {
+      if (guard) this.assertExecutionLease(input.runId, guard)
       this.db.prepare('DELETE FROM topic WHERE session_id = ? AND day_key = ?').run(input.sessionId, input.dayKey)
 
       // 成功快照与进行中的 checkpoint 分离。刷新失败时仍可继续展示上一次成功结果。
@@ -531,6 +662,17 @@ export class ChatTopicStore {
     })
   }
 
+  private assertExecutionLease(runId: string, guard: TopicExecutionLeaseGuard): void {
+    const owned = this.db
+      .prepare(
+        `UPDATE topic_execution_lease SET expires_at = expires_at
+         WHERE singleton = 1 AND run_id = ? AND owner_id = ? AND expires_at > ?`
+      )
+      .run(runId, guard.ownerId, guard.now).changes
+    if (owned > 0) return
+    throw Object.assign(new Error('Chat topic execution lease was lost'), { code: 'TOPIC_EXECUTION_LEASE_LOST' })
+  }
+
   private initialize(): void {
     this.db.exec(`
       CREATE TABLE IF NOT EXISTS topic_meta (
@@ -573,6 +715,14 @@ export class ChatTopicStore {
         last_error TEXT,
         created_at INTEGER NOT NULL,
         updated_at INTEGER NOT NULL
+      );
+
+      CREATE TABLE IF NOT EXISTS topic_execution_lease (
+        singleton INTEGER PRIMARY KEY CHECK (singleton = 1),
+        run_id TEXT NOT NULL,
+        owner_id TEXT NOT NULL,
+        expires_at INTEGER NOT NULL,
+        FOREIGN KEY (run_id) REFERENCES topic_run(id) ON DELETE CASCADE
       );
 
       CREATE TABLE IF NOT EXISTS topic_day (
@@ -672,6 +822,11 @@ export class ChatTopicStore {
         );
         CREATE INDEX IF NOT EXISTS idx_topic_message_message ON topic_message(message_id);
       `)
+      if (version < CHAT_TOPICS_SCHEMA_VERSION) {
+        this.db
+          .prepare("UPDATE topic_meta SET value = ? WHERE key = 'schema_version'")
+          .run(String(CHAT_TOPICS_SCHEMA_VERSION))
+      }
     }
   }
 }
@@ -686,6 +841,27 @@ export function deleteSessionChatTopics(
   const store = new ChatTopicStore(dbPath, options)
   try {
     return store.deleteSession(sessionId)
+  } finally {
+    store.close()
+  }
+}
+
+export function assertSessionChatTopicsIdle(
+  userDataDir: string,
+  sessionId: string,
+  options: TopicStoreOptions = {}
+): void {
+  const dbPath = getChatTopicsDbPath(userDataDir)
+  if (!fs.existsSync(dbPath)) return
+  const store = new ChatTopicStore(dbPath, options)
+  try {
+    const timestamp = Date.now()
+    store.recoverInterruptedRuns(timestamp)
+    if (!store.hasLiveExecutionForSession(sessionId, timestamp)) return
+    throw Object.assign(new Error('Chat topics are being generated for this session in another runtime'), {
+      code: 'TOPIC_EXECUTION_IN_PROGRESS',
+      statusCode: 409,
+    })
   } finally {
     store.close()
   }

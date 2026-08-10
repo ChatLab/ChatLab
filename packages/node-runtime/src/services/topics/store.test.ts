@@ -223,6 +223,67 @@ test('deleting a session removes its snapshots, checkpoints and runs only', () =
   }
 })
 
+test('execution leases preserve live runs and recover them after expiry', () => {
+  const root = makeTempDir()
+  const store = new ChatTopicStore(getChatTopicsDbPath(root), { nativeBinding })
+  const now = 1_786_205_000_000
+
+  try {
+    const run = createRun({ updatedAt: now })
+    store.createRun(run)
+    assert.equal(store.tryAcquireExecutionLease(run.id, 'runtime-a', now, now + 30_000), true)
+    assert.equal(store.tryAcquireExecutionLease(run.id, 'runtime-b', now + 1, now + 30_001), false)
+    assert.equal(store.recoverInterruptedRuns(now + 10_000), 0)
+    assert.equal(store.getRun(run.id)?.status, 'running')
+    assert.equal(
+      store.updateRunIfOwned({ ...run, completedBlocks: 1 }, { ownerId: 'runtime-b', now: now + 10_000 }),
+      false
+    )
+
+    assert.equal(store.recoverInterruptedRuns(now + 30_001), 1)
+    assert.equal(store.getRun(run.id)?.status, 'paused')
+    assert.equal(store.tryAcquireExecutionLease(run.id, 'runtime-b', now + 30_001, now + 60_001), true)
+    assert.equal(
+      store.updateRunIfOwned({ ...run, status: 'running' }, { ownerId: 'runtime-a', now: now + 30_002 }),
+      false
+    )
+  } finally {
+    store.close()
+  }
+})
+
+test('schema v2 stores add execution leases without losing existing runs', () => {
+  const root = makeTempDir()
+  const dbPath = getChatTopicsDbPath(root)
+  const initial = new ChatTopicStore(dbPath, { nativeBinding })
+  initial.createRun(createRun({ status: 'completed' }))
+  initial.close()
+
+  const legacy = new Database(dbPath, { nativeBinding })
+  legacy.exec("UPDATE topic_meta SET value = '2' WHERE key = 'schema_version'; DROP TABLE topic_execution_lease;")
+  legacy.close()
+
+  const migrated = new ChatTopicStore(dbPath, { nativeBinding })
+  try {
+    assert.equal(migrated.getRun('run-1')?.status, 'completed')
+    const raw = new Database(dbPath, { nativeBinding })
+    try {
+      assert.equal(raw.prepare("SELECT value FROM topic_meta WHERE key = 'schema_version'").pluck().get(), '3')
+      assert.equal(
+        raw
+          .prepare("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'topic_execution_lease'")
+          .pluck()
+          .get(),
+        1
+      )
+    } finally {
+      raw.close()
+    }
+  } finally {
+    migrated.close()
+  }
+})
+
 test('schema v1 snapshots migrate without losing their legacy range fallback', () => {
   const root = makeTempDir()
   const dbPath = getChatTopicsDbPath(root)
@@ -291,7 +352,14 @@ test('schema v1 snapshots migrate without losing their legacy range fallback', (
     assert.deepEqual(topic?.messageIds, [10, 12])
     const migrated = new Database(dbPath, { nativeBinding })
     try {
-      assert.equal(migrated.prepare("SELECT value FROM topic_meta WHERE key = 'schema_version'").pluck().get(), '2')
+      assert.equal(migrated.prepare("SELECT value FROM topic_meta WHERE key = 'schema_version'").pluck().get(), '3')
+      assert.equal(
+        migrated
+          .prepare("SELECT COUNT(*) FROM sqlite_master WHERE type = 'table' AND name = 'topic_execution_lease'")
+          .pluck()
+          .get(),
+        1
+      )
     } finally {
       migrated.close()
     }

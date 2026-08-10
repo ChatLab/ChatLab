@@ -29,6 +29,7 @@ test('chat topic routes expose persisted run state and reject generation without
   registerAiChatTopicRoutes(app, {
     sessionAdapter: {} as SessionRuntimeAdapter,
     pathProvider,
+    runtimeIdentity: { version: '0.35.1', kind: 'cli' },
     nativeBinding,
   })
   await app.ready()

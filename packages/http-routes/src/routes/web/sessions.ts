@@ -49,17 +49,13 @@ export function registerSessionRoutes(server: FastifyInstance, ctx: SessionRoute
 
   server.delete<{ Params: { id: string } }>('/_web/sessions/:id', async (request, reply) => {
     const { id } = request.params
-    try {
-      await chatTopicWorkCoordinator.prepareSessionDelete(id)
-      await ctx.beforeDeleteSession?.(id)
-      const deleted = sessionService.deleteSession(adapter, id)
-      if (!deleted) {
-        return reply.code(404).send({ success: false, error: 'File not found' })
-      }
-      return { success: true }
-    } catch (err) {
-      return reply.code(500).send({ success: false, error: String(err) })
+    await chatTopicWorkCoordinator.prepareSessionDelete(id)
+    await ctx.beforeDeleteSession?.(id)
+    const deleted = sessionService.deleteSession(adapter, id)
+    if (!deleted) {
+      return reply.code(404).send({ success: false, error: 'File not found' })
     }
+    return { success: true }
   })
 
   server.patch<{ Params: { id: string }; Body: { name: string } }>('/_web/sessions/:id/name', async (request) => {

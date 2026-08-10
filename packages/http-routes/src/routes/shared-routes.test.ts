@@ -673,6 +673,28 @@ describe('registerSharedRoutes smoke tests', () => {
     assert.deepEqual(lifecycle, ['close:chat-1', 'delete:chat-1'])
   })
 
+  it('DELETE /_web/sessions/:id preserves a topic generation conflict without deleting the session', async () => {
+    const db = createSessionDb()
+    const dbs = new Map<string, DatabaseAdapter>([['chat-1', db]])
+    const routeApp = Fastify()
+    const ctx = createTestContext(dbs)
+    ctx.sessionAdapter.deleteSessionFile = () => {
+      throw Object.assign(new Error('Chat topics are being generated for this session in another runtime'), {
+        statusCode: 409,
+      })
+    }
+    registerSessionRoutes(routeApp, ctx)
+    await routeApp.ready()
+
+    const resp = await routeApp.inject({ method: 'DELETE', url: '/_web/sessions/chat-1' })
+
+    await routeApp.close()
+    db.close()
+
+    assert.equal(resp.statusCode, 409)
+    assert.equal(dbs.has('chat-1'), true)
+  })
+
   it('owner profile routes select, apply and dismiss across sessions', async () => {
     const prefDir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-owner-routes-'))
     const current = createSessionDb()

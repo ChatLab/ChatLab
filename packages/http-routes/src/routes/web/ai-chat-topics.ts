@@ -9,15 +9,20 @@ import type { CreateChatTopicsRequest } from '@openchatlab/shared-types'
 import type { AiRouteContext } from '../../context/ai'
 import type { RuntimeRouteContext } from '../../context/runtime'
 
-type ChatTopicRouteContext = Pick<RuntimeRouteContext, 'sessionAdapter' | 'pathProvider' | 'nativeBinding'> &
+type ChatTopicRouteContext = Pick<
+  RuntimeRouteContext,
+  'sessionAdapter' | 'pathProvider' | 'runtimeIdentity' | 'nativeBinding'
+> &
   Pick<AiRouteContext, 'llmConfigStore'>
 
 export function registerAiChatTopicRoutes(server: FastifyInstance, ctx: ChatTopicRouteContext): void {
   let service: ChatTopicService | null = null
   const getService = () => {
+    if (!ctx.runtimeIdentity) throw new Error('Chat topic routes require a runtime identity')
     service ??= createChatTopicService({
       runtime: ctx.sessionAdapter,
-      userDataDir: ctx.pathProvider.getUserDataDir(),
+      pathProvider: ctx.pathProvider,
+      runtimeIdentity: ctx.runtimeIdentity,
       nativeBinding: ctx.nativeBinding,
       getModelClient() {
         const config = ctx.llmConfigStore?.getFastModelConfig()
