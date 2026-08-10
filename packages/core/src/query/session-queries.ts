@@ -575,11 +575,20 @@ export function getSegmentSummary(db: DatabaseAdapter, segmentId: number): strin
 /**
  * Save summary text for a chat session.
  */
-export function saveSegmentSummary(db: DatabaseAdapter, segmentId: number, summary: string): void {
-  db.prepare('UPDATE segment SET summary = ?, summary_message_count = message_count WHERE id = ?').run(
-    summary,
-    segmentId
-  )
+export function saveSegmentSummary(
+  db: DatabaseAdapter,
+  segmentId: number,
+  summary: string,
+  expectedMessageCount: number
+): boolean {
+  const result = db
+    .prepare(
+      `UPDATE segment
+       SET summary = ?, summary_message_count = ?
+       WHERE id = ? AND message_count = ?`
+    )
+    .run(summary, expectedMessageCount, segmentId, expectedMessageCount)
+  return result.changes > 0
 }
 
 /**

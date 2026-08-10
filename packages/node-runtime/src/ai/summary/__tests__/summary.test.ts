@@ -81,6 +81,7 @@ describe('generateSessionSummary', () => {
       loadMessages: () => messages,
       saveSummary: (_id, s) => {
         state.saved = s
+        return true
       },
       getSummary: () => existingSummary ?? null,
       llmComplete: async (_sys, _usr) => 'Mock summary result',
@@ -127,6 +128,57 @@ describe('generateSessionSummary', () => {
       logMessages.some((message) => message.includes('Mock summary result')),
       false
     )
+  })
+
+  it('keeps every prompt bounded while summarizing a very large segment', async () => {
+    const messages: SummaryMessage[] = Array.from({ length: 960 }, (_, index) => ({
+      senderName: `User${index % 10}`,
+      content: `Message ${index} ${'x'.repeat(1_000)}`,
+    }))
+    const prompts: string[] = []
+    const deps = mockDeps(messages)
+    deps.llmComplete = async (_systemPrompt, userPrompt) => {
+      prompts.push(userPrompt)
+      return 'S'.repeat(120)
+    }
+
+    const result = await generateSessionSummary(deps, 9)
+
+    assert.equal(result.success, true)
+    assert.ok(prompts.length > 0)
+    assert.ok(Math.max(...prompts.map((prompt) => prompt.length)) < 8_500)
+  })
+
+  it('rejects a generated summary when messages are appended while the LLM is running', async () => {
+    let messages: SummaryMessage[] = Array.from({ length: 3 }, (_, index) => ({
+      senderName: `User${index}`,
+      content: `Message content number ${index}`,
+    }))
+    let finishLlm!: (summary: string) => void
+    let markLlmStarted!: () => void
+    const llmStarted = new Promise<void>((resolve) => {
+      markLlmStarted = resolve
+    })
+    const deps = mockDeps(messages)
+    deps.loadMessages = () => messages
+    deps.llmComplete = () => {
+      markLlmStarted()
+      return new Promise<string>((resolve) => {
+        finishLlm = resolve
+      })
+    }
+    deps.saveSummary = (_segmentId, _summary, expectedMessageCount) => expectedMessageCount === messages.length
+
+    const pending = generateSessionSummary(deps, 1)
+    await llmStarted
+    messages = [...messages, { senderName: 'New user', content: 'A newly imported message' }]
+    finishLlm('Outdated summary')
+
+    const result = await pending
+
+    assert.equal(result.success, false)
+    assert.match(result.error ?? '', /聊天内容已更新/)
+    assert.equal(deps.getSavedSummary(), '')
   })
 
   const errorCases: Array<{ name: string; messages: SummaryMessage[] | null }> = [

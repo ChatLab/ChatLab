@@ -32,8 +32,8 @@ function buildSummaryDeps(db: DatabaseAdapter, llmConfig: LlmConfig, deps: Summa
     loadMessages(segmentId, limit) {
       return loadSegmentMessages(db, segmentId, limit)
     },
-    saveSummary(segmentId, summary) {
-      saveSegmentSummary(db, segmentId, summary)
+    saveSummary(segmentId, summary, expectedMessageCount) {
+      return saveSegmentSummary(db, segmentId, summary, expectedMessageCount)
     },
     getSummary(segmentId) {
       return getSegmentSummary(db, segmentId)

@@ -275,7 +275,7 @@ describe('getSegmentSummary / saveSegmentSummary', () => {
     seedMessages(db, [{ id: 1, ts: 1000 }])
     generateSessionIndex(db)
 
-    saveSegmentSummary(db, 1, 'Test summary')
+    assert.equal(saveSegmentSummary(db, 1, 'Test summary', 1), true)
     assert.equal(getSegmentSummary(db, 1), 'Test summary')
   })
 
@@ -283,7 +283,7 @@ describe('getSegmentSummary / saveSegmentSummary', () => {
     const db = createSqliteDb()
     seedMessages(db, [{ id: 1, ts: 1000 }])
     generateSessionIndex(db, 2000)
-    saveSegmentSummary(db, 1, 'Summary before append')
+    assert.equal(saveSegmentSummary(db, 1, 'Summary before append', 1), true)
 
     assert.equal(getSegmentSummary(db, 1), 'Summary before append')
     seedMessages(db, [{ id: 2, ts: 1500 }])
@@ -299,6 +299,21 @@ describe('getSegmentSummary / saveSegmentSummary', () => {
       summaryMessageCount: 1,
       firstMessageId: 1,
     })
+  })
+
+  it('does not save a summary when messages were appended during generation', () => {
+    const db = createSqliteDb()
+    seedMessages(db, [{ id: 1, ts: 1000 }])
+    generateSessionIndex(db, 2000)
+
+    const loadedMessageCount = 1
+    seedMessages(db, [{ id: 2, ts: 1500 }])
+    generateIncrementalSessionIndex(db, 2000)
+
+    const saved = saveSegmentSummary(db, 1, 'Outdated summary', loadedMessageCount)
+
+    assert.equal(saved, false)
+    assert.equal(getSegmentSummary(db, 1), null)
   })
 })
 

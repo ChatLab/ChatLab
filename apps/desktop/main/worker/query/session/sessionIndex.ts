@@ -118,8 +118,15 @@ export function getSegmentSummariesInWorker(
   return withReadonlyAdapter(sessionId, (adapter) => coreGetSessionSummaries(adapter, options), [])
 }
 
-export function saveSessionSummary(sessionId: string, segmentId: number, summary: string): void {
-  withWritableAdapter(sessionId, (adapter) => coreSaveChatSessionSummary(adapter, segmentId, summary))
+export function saveSessionSummary(
+  sessionId: string,
+  segmentId: number,
+  summary: string,
+  expectedMessageCount: number
+): boolean {
+  return withWritableAdapter(sessionId, (adapter) =>
+    coreSaveChatSessionSummary(adapter, segmentId, summary, expectedMessageCount)
+  )
 }
 
 export function getSessionSummary(sessionId: string, segmentId: number): string | null {

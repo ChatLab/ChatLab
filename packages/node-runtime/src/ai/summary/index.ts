@@ -15,7 +15,7 @@ export interface SummaryMessage {
 
 export interface SummaryDeps {
   loadMessages: (segmentId: number, limit?: number) => SummaryMessage[] | null
-  saveSummary: (segmentId: number, summary: string) => void
+  saveSummary: (segmentId: number, summary: string, expectedMessageCount: number) => boolean
   getSummary: (segmentId: number) => string | null
   llmComplete: (
     systemPrompt: string,
@@ -48,6 +48,7 @@ export interface SummaryResult {
 const MIN_MESSAGE_COUNT = 3
 const MAX_CONTENT_PER_CALL = 8000
 const SEGMENT_THRESHOLD = 8000
+const MAX_MERGE_PROMPT_CHARS = 8000
 
 // ==================== Pure algorithms ====================
 
@@ -190,11 +191,15 @@ function buildSummaryPrompt(content: string, lengthLimit: number, locale: string
 }
 
 function buildSubSummaryPrompt(content: string, locale: string, strategy: SummaryStrategy): string {
-  const limit = strategy === 'brief' ? 50 : 100
+  const limit = getSubSummaryLengthLimit(strategy)
   if (locale.startsWith('zh')) {
     return `请用一到两句话（不超过${limit}字）概括以下对话片段的主要内容，包括谁说了什么。只输出摘要内容，不要添加任何前缀、解释或引号。\n\n${content}`
   }
   return `Summarize this conversation segment in 1-2 sentences (max ${limit} characters), including who said what. Output only the summary, no prefix or quotes.\n\n${content}`
+}
+
+function getSubSummaryLengthLimit(strategy: SummaryStrategy): number {
+  return strategy === 'brief' ? 50 : 100
 }
 
 function buildMergePrompt(
@@ -228,6 +233,71 @@ function postProcessSummary(summary: string, lengthLimit: number): string {
     result = result.slice(0, hardLimit - 3) + '...'
   }
   return result
+}
+
+function getSourceChangedError(locale: string): string {
+  return locale.startsWith('zh')
+    ? '生成摘要期间聊天内容已更新，请重试'
+    : 'The conversation changed while the summary was being generated. Please try again.'
+}
+
+function splitSummariesForMerge(
+  summaries: string[],
+  lengthLimit: number,
+  locale: string,
+  strategy: SummaryStrategy
+): string[][] {
+  const groups: string[][] = []
+  let current: string[] = []
+
+  for (const summary of summaries) {
+    const candidate = [...current, summary]
+    if (
+      current.length > 0 &&
+      buildMergePrompt(candidate, lengthLimit, locale, strategy).length > MAX_MERGE_PROMPT_CHARS
+    ) {
+      groups.push(current)
+      current = [summary]
+    } else {
+      current = candidate
+    }
+  }
+
+  if (current.length > 0) groups.push(current)
+  return groups
+}
+
+async function mergeSummariesHierarchically(
+  deps: SummaryDeps,
+  subSummaries: string[],
+  lengthLimit: number,
+  locale: string,
+  strategy: SummaryStrategy,
+  maxTokens: number,
+  subMaxTokens: number
+): Promise<string> {
+  const intermediateLengthLimit = getSubSummaryLengthLimit(strategy)
+  let currentLevel = subSummaries
+
+  while (currentLevel.length > 1) {
+    const groups = splitSummariesForMerge(currentLevel, lengthLimit, locale, strategy)
+    const isFinalLevel = groups.length === 1
+    const nextLevel: string[] = []
+
+    for (const group of groups) {
+      const outputLengthLimit = isFinalLevel ? lengthLimit : intermediateLengthLimit
+      const merged = await deps.llmComplete(
+        deps.t('summary.systemPromptMerge'),
+        buildMergePrompt(group, outputLengthLimit, locale, strategy),
+        { temperature: 0.3, maxTokens: isFinalLevel ? maxTokens : subMaxTokens }
+      )
+      nextLevel.push(postProcessSummary(merged.trim(), outputLengthLimit))
+    }
+
+    currentLevel = nextLevel
+  }
+
+  return currentLevel[0]
 }
 
 // ==================== Public API ====================
@@ -290,23 +360,28 @@ export async function generateSessionSummary(
           buildSubSummaryPrompt(segContent, locale, strategy),
           { temperature: 0.3, maxTokens: subMaxTokens }
         )
-        subSummaries.push(sub.trim())
+        subSummaries.push(postProcessSummary(sub.trim(), getSubSummaryLengthLimit(strategy)))
       }
 
       if (subSummaries.length === 1) {
         summary = subSummaries[0]
       } else {
-        summary = await deps.llmComplete(
-          deps.t('summary.systemPromptMerge'),
-          buildMergePrompt(subSummaries, lengthLimit, locale, strategy),
-          { temperature: 0.3, maxTokens }
+        summary = await mergeSummariesHierarchically(
+          deps,
+          subSummaries,
+          lengthLimit,
+          locale,
+          strategy,
+          maxTokens,
+          subMaxTokens
         )
-        summary = summary.trim()
       }
     }
 
     summary = postProcessSummary(summary, lengthLimit)
-    deps.saveSummary(segmentId, summary)
+    if (!deps.saveSummary(segmentId, summary, rawMessages.length)) {
+      return { success: false, error: getSourceChangedError(locale) }
+    }
 
     // Summaries contain private chat data, so persist only diagnostic metadata in logs.
     log?.info('Summary', `Summary generated for segment ${segmentId} (${summary.length} characters)`)
