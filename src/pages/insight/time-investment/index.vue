@@ -12,10 +12,9 @@ import LoadingState from '@/components/UI/LoadingState.vue'
 import { CardDecoration, ThemeCard } from '@/components/UI'
 import { EChartLine } from '@/components/charts'
 import { PLATFORM_CAPABILITIES } from '@/utils/platform-capabilities'
-import InsightCalendarGrid from '../components/InsightCalendarGrid.vue'
 import { useInsightTimeRange, watchInsightSettingsClose } from '../insight-time-range'
 
-const { t } = useI18n()
+const { t, locale } = useI18n()
 const layoutStore = useLayoutStore()
 const { showSettings } = storeToRefs(layoutStore)
 const currentYear = new Date().getFullYear()
@@ -85,9 +84,50 @@ const monthlyChartData = computed(() => {
     values: data.map((item) => secondsToHours(item.estimatedSeconds)),
   }
 })
-const calendarData = computed(() =>
-  (response.value?.dailyActivity ?? []).map((item) => ({ date: item.key, value: item.estimatedSeconds }))
-)
+const weekdayInvestmentItems = computed(() => {
+  const range = response.value?.range
+  if (!range) return []
+  const totals = Array<number>(7).fill(0)
+  const dayCounts = Array<number>(7).fill(0)
+  const dailyInvestment = new Map(
+    (response.value?.dailyActivity ?? []).map((item) => [item.key, item.estimatedSeconds])
+  )
+  const cursor = startOfLocalDay(new Date(range.startTs * 1000))
+  const end = startOfLocalDay(new Date(range.endTs * 1000))
+  while (cursor <= end) {
+    const weekdayIndex = (cursor.getDay() + 6) % 7
+    totals[weekdayIndex] += dailyInvestment.get(formatLocalDate(cursor)) ?? 0
+    dayCounts[weekdayIndex]++
+    cursor.setDate(cursor.getDate() + 1)
+  }
+  const averages = totals.map((total, index) => (dayCounts[index] ? Math.round(total / dayCounts[index]) : 0))
+  const maxAverage = Math.max(...averages, 1)
+  const weekdayFormatter = new Intl.DateTimeFormat(locale.value, { weekday: 'short' })
+
+  return averages.map((seconds, index) => ({
+    key: index,
+    label: weekdayFormatter.format(new Date(2024, 0, 1 + index)),
+    seconds,
+    width: seconds > 0 ? Math.max((seconds / maxAverage) * 100, 3) : 0,
+  }))
+})
+const hasWeekdayInvestment = computed(() => weekdayInvestmentItems.value.some((item) => item.seconds > 0))
+const topInvestmentDays = computed(() => {
+  const weekdayFormatter = new Intl.DateTimeFormat(locale.value, { weekday: 'short' })
+  const dateFormatter = new Intl.DateTimeFormat(locale.value, { month: '2-digit', day: '2-digit' })
+  return [...(response.value?.dailyActivity ?? [])]
+    .filter((item) => item.estimatedSeconds > 0)
+    .sort((a, b) => b.estimatedSeconds - a.estimatedSeconds || a.key.localeCompare(b.key))
+    .slice(0, 3)
+    .map((item) => {
+      const date = parseLocalDate(item.key)
+      return {
+        ...item,
+        dateLabel: dateFormatter.format(date),
+        weekdayLabel: weekdayFormatter.format(date),
+      }
+    })
+})
 const chatTypeComparisonItems = computed(() =>
   [ChatType.GROUP, ChatType.PRIVATE]
     .map((type) => response.value?.chatTypes.find((item) => item.type === type))
@@ -175,6 +215,19 @@ function formatDuration(seconds: number): string {
 
 function secondsToHours(seconds: number): number {
   return Math.round((seconds / 3600) * 10) / 10
+}
+
+function startOfLocalDay(date: Date): Date {
+  return new Date(date.getFullYear(), date.getMonth(), date.getDate())
+}
+
+function formatLocalDate(date: Date): string {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}-${String(date.getDate()).padStart(2, '0')}`
+}
+
+function parseLocalDate(value: string): Date {
+  const [year, month, day] = value.split('-').map(Number)
+  return new Date(year, month - 1, day)
 }
 
 function chatTypeLabel(type: ChatType): string {
@@ -362,24 +415,73 @@ function chatTypeLabel(type: ChatType): string {
             </section>
           </ThemeCard>
 
-          <div class="grid content-start gap-4 xl:col-span-4">
-            <ThemeCard>
-              <section class="min-w-0 p-5 sm:p-6">
-                <h3
-                  class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300"
+          <ThemeCard class="h-full xl:col-span-4">
+            <section class="min-w-0 p-5 sm:p-6">
+              <h3
+                class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300"
+              >
+                <span class="inline-block h-2 w-2 rounded-full bg-pink-500 dark:bg-pink-400" />
+                {{ t('insight.timeInvestment.rhythmTitle') }}
+              </h3>
+              <p class="mt-1 text-[11px] text-gray-400 dark:text-zinc-500">
+                {{ t('insight.timeInvestment.rhythmDescription') }}
+              </p>
+
+              <div v-if="hasWeekdayInvestment" class="mt-5 space-y-3.5">
+                <div
+                  v-for="item in weekdayInvestmentItems"
+                  :key="item.key"
+                  class="grid grid-cols-[2.25rem_minmax(0,1fr)_auto] items-center gap-3"
                 >
-                  <span class="inline-block h-2 w-2 rounded-full bg-pink-500 dark:bg-pink-400" />
-                  {{ t('insight.timeInvestment.calendarTitle') }}
-                </h3>
-                <p class="mt-1 text-[11px] text-gray-400 dark:text-zinc-500">
-                  {{ t('insight.timeInvestment.calendarDescription') }}
-                </p>
-                <div class="mt-5">
-                  <InsightCalendarGrid :range="response.range" :data="calendarData" :format-value="formatDuration" />
+                  <span class="text-xs font-medium text-gray-500 dark:text-zinc-400">{{ item.label }}</span>
+                  <div class="h-1.5 overflow-hidden rounded-full bg-gray-100 dark:bg-zinc-800">
+                    <div
+                      class="h-full rounded-full bg-pink-500 transition-[width] duration-500 dark:bg-pink-400"
+                      :style="{ width: `${item.width}%` }"
+                    />
+                  </div>
+                  <span
+                    class="min-w-[4.75rem] whitespace-nowrap text-right font-mono text-[10px] font-semibold tabular-nums text-gray-600 dark:text-zinc-300"
+                  >
+                    {{ formatDuration(item.seconds) }}
+                  </span>
                 </div>
-              </section>
-            </ThemeCard>
-          </div>
+              </div>
+              <p v-else class="mt-5 text-xs text-gray-400">{{ t('insight.noData') }}</p>
+
+              <div v-if="topInvestmentDays.length" class="mt-6 border-t border-gray-200/60 pt-4 dark:border-white/5">
+                <h4 class="text-xs font-semibold text-gray-700 dark:text-zinc-300">
+                  {{ t('insight.timeInvestment.topDaysTitle') }}
+                </h4>
+                <div class="mt-3 divide-y divide-gray-200/60 dark:divide-white/5">
+                  <div
+                    v-for="(item, index) in topInvestmentDays"
+                    :key="item.key"
+                    class="grid grid-cols-[1.5rem_minmax(0,1fr)_auto] items-center gap-3 py-2.5 first:pt-0 last:pb-0"
+                  >
+                    <span
+                      class="flex h-5 w-5 items-center justify-center rounded-full bg-pink-50 font-mono text-[9px] font-bold text-pink-600 dark:bg-pink-950/30 dark:text-pink-400"
+                    >
+                      {{ index + 1 }}
+                    </span>
+                    <div class="flex min-w-0 items-baseline gap-2">
+                      <span class="font-mono text-xs font-semibold tabular-nums text-gray-700 dark:text-zinc-200">
+                        {{ item.dateLabel }}
+                      </span>
+                      <span class="truncate text-[10px] text-gray-400 dark:text-zinc-500">
+                        {{ item.weekdayLabel }}
+                      </span>
+                    </div>
+                    <span
+                      class="whitespace-nowrap font-mono text-[10px] font-semibold tabular-nums text-gray-600 dark:text-zinc-300"
+                    >
+                      {{ formatDuration(item.estimatedSeconds) }}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </section>
+          </ThemeCard>
 
           <ThemeCard class="xl:col-span-12">
             <section class="min-w-0 p-5 sm:p-6">
