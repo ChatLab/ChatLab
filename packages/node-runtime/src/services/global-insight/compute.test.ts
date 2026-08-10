@@ -56,6 +56,14 @@ test('computes a snapshot across sessions and reuses versioned facts', (t) => {
     factsCacheDir,
     now: () => 2000,
   })
+  const excluded = computeAnnualSummarySnapshot({
+    adapter,
+    signature: 'excluded-sig',
+    range,
+    factsCacheDir,
+    excludedSessionIds: ['broken'],
+    now: () => 3000,
+  })
 
   assert.equal(first.metrics.sentMessageCount, 1)
   assert.deepEqual(first.monthlyDirectContacts.slice(0, 2), [
@@ -74,4 +82,12 @@ test('computes a snapshot across sessions and reuses versioned facts', (t) => {
   assert.equal(second.workerStats.cacheHits, 1)
   assert.equal(second.workerStats.cacheMisses, 1)
   assert.equal(second.computedAt, 2000)
+  assert.deepEqual(excluded.coverage, {
+    totalSessions: 1,
+    analyzedSessions: 1,
+    missingOwnerSessions: 0,
+    unresolvedOwnerSessions: 0,
+    failedSessions: 0,
+  })
+  assert.equal(excluded.workerStats.totalSessions, 1)
 })

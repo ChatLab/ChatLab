@@ -807,6 +807,7 @@ export const useSessionStore = defineStore(
             session.ownerId = ownerId
             session.ownerName = null
             session.ownerStatus = ownerId ? 'unresolved' : 'missing'
+            if (ownerId) session.ownerExcluded = false
           }
         }
         return success
@@ -828,6 +829,7 @@ export const useSessionStore = defineStore(
           session.ownerId = result.updatedSessionOwnerIds[sessionId] ?? result.ownerId
           session.ownerName = session.ownerId
           session.ownerStatus = 'resolved'
+          session.ownerExcluded = false
         }
       }
       return result
@@ -844,16 +846,22 @@ export const useSessionStore = defineStore(
           session.ownerId = result.ownerId
           session.ownerName = result.ownerId
           session.ownerStatus = 'resolved'
+          session.ownerExcluded = false
         }
       }
       return result
     }
 
     /**
-     * 本会话不再提醒"选择我是谁"（仅抑制弹窗，不影响自动补全）
+     * 用户确认当前对话中没有自己：排除个人统计与自动 owner 补全
      */
-    function dismissOwnerPrompt(id: string): Promise<boolean> {
-      return useDataService().dismissOwnerPrompt(id)
+    async function excludeOwnerSession(id: string): Promise<boolean> {
+      const success = await useDataService().excludeOwnerSession(id)
+      if (success) {
+        const session = sessions.value.find((item) => item.id === id)
+        if (session) session.ownerExcluded = true
+      }
+      return success
     }
 
     /**
@@ -961,7 +969,7 @@ export const useSessionStore = defineStore(
       updateSessionOwnerId,
       setOwnerAndApplyProfile,
       tryApplyOwnerProfile,
-      dismissOwnerPrompt,
+      excludeOwnerSession,
       togglePinSession,
       isPinned,
       // 批量导入

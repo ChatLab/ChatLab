@@ -43,10 +43,21 @@ test('computes time investment across sessions and reuses versioned facts', (t) 
 
   const first = computeTimeInvestmentSnapshot({ adapter, signature: 'sig', range, factsCacheDir, now: () => 1000 })
   const second = computeTimeInvestmentSnapshot({ adapter, signature: 'sig', range, factsCacheDir, now: () => 2000 })
+  const excluded = computeTimeInvestmentSnapshot({
+    adapter,
+    signature: 'excluded-sig',
+    range,
+    factsCacheDir,
+    excludedSessionIds: ['chat-1'],
+    now: () => 3000,
+  })
 
   assert.equal(first.metrics.estimatedSeconds, 180)
   assert.equal(first.sessionRanking[0].sessionId, 'chat-1')
   assert.equal(first.workerStats.cacheMisses, 1)
   assert.equal(second.workerStats.cacheHits, 1)
   assert.equal(second.computedAt, 2000)
+  assert.equal(excluded.metrics.estimatedSeconds, 0)
+  assert.equal(excluded.coverage.totalSessions, 0)
+  assert.equal(excluded.workerStats.totalSessions, 0)
 })

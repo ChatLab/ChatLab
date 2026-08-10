@@ -261,6 +261,7 @@ function mapSession(item: BrowserSessionCatalogItem): AnalysisSession {
     ownerId: item.ownerId,
     ownerName: null,
     ownerStatus: item.ownerId ? 'unresolved' : 'missing',
+    ownerExcluded: false,
     memberAvatar: null,
     lastMessageTs: item.lastMessageTs,
     summaryCount: 0,

@@ -112,6 +112,7 @@ describe('BrowserDataAdapter', () => {
       ownerId: null,
       ownerName: null,
       ownerStatus: 'missing',
+      ownerExcluded: false,
       memberAvatar: null,
       lastMessageTs: 2,
       summaryCount: 0,

@@ -154,7 +154,7 @@ export interface DataAdapter {
   updateSessionOwnerId(sessionId: string, ownerId: string | null): Promise<boolean>
   tryApplyOwnerProfile(sessionId: string): Promise<ApplyOwnerProfileResult>
   setOwnerAndApplyProfile(sessionId: string, ownerPlatformId: string): Promise<SetOwnerAndApplyProfileResult>
-  dismissOwnerPrompt(sessionId: string): Promise<boolean>
+  excludeOwnerSession(sessionId: string): Promise<boolean>
 
   // ==================== 联系人 ====================
 

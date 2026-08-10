@@ -124,8 +124,8 @@ export class FetchDataAdapter implements DataAdapter {
     return post(`/sessions/${sessionId}/owner/select`, { ownerPlatformId })
   }
 
-  async dismissOwnerPrompt(sessionId: string): Promise<boolean> {
-    const result = await post<{ success: boolean }>(`/sessions/${sessionId}/owner/dismiss-prompt`, {})
+  async excludeOwnerSession(sessionId: string): Promise<boolean> {
+    const result = await post<{ success: boolean }>(`/sessions/${sessionId}/owner/exclude`, {})
     return result.success
   }
 

@@ -33,7 +33,11 @@ const { sessions } = storeToRefs(sessionStore)
 
 // 搜索关键词
 const searchQuery = ref('')
-const ownerIssueCount = computed(() => sessions.value.filter((session) => session.ownerStatus !== 'resolved').length)
+function isOwnerIssue(session: AnalysisSession): boolean {
+  return session.ownerStatus !== 'resolved' && !session.ownerExcluded
+}
+
+const ownerIssueCount = computed(() => sessions.value.filter(isOwnerIssue).length)
 
 // 过滤后的会话列表
 const filteredSessions = computed(() => {
@@ -169,7 +173,8 @@ const sortedSessions = computed(() => {
     if (field === 'owner') {
       const ownerValue = (session: AnalysisSession) => {
         if (session.ownerStatus === 'resolved') return `0:${session.ownerName || session.ownerId || ''}`
-        return session.ownerStatus === 'unresolved' ? '1:' : '2:'
+        if (session.ownerExcluded) return '1:'
+        return session.ownerStatus === 'unresolved' ? '2:' : '3:'
       }
       return ownerValue(a).localeCompare(ownerValue(b), locale.value) * multiplier
     }
@@ -246,7 +251,7 @@ const ownerSession = computed(() => sessions.value.find((session) => session.id 
 function openOwnerModal(session: AnalysisSession, event: Event) {
   event.stopPropagation()
   ownerSessionId.value = session.id
-  continueOwnerSetup.value = session.ownerStatus !== 'resolved'
+  continueOwnerSetup.value = isOwnerIssue(session)
   showOwnerModal.value = true
 }
 
@@ -255,7 +260,7 @@ async function refreshAfterOwnerChange() {
   if (!continueOwnerSetup.value) return
 
   await nextTick()
-  const nextSession = sortedSessions.value.find((session) => session.ownerStatus !== 'resolved')
+  const nextSession = sortedSessions.value.find(isOwnerIssue)
   if (nextSession) {
     ownerSessionId.value = nextSession.id
     showOwnerModal.value = true
@@ -724,7 +729,7 @@ onMounted(() => {
               type="button"
               class="flex w-28 min-w-0 items-center gap-1.5 text-left text-xs transition-colors hover:text-primary-600 dark:hover:text-primary-400"
               :class="
-                session.ownerStatus === 'resolved'
+                session.ownerStatus === 'resolved' || session.ownerExcluded
                   ? 'text-gray-600 dark:text-gray-300'
                   : 'text-amber-600 dark:text-amber-400'
               "
@@ -733,7 +738,11 @@ onMounted(() => {
             >
               <UIcon
                 :name="
-                  session.ownerStatus === 'resolved' ? 'i-heroicons-user-circle' : 'i-heroicons-exclamation-circle'
+                  session.ownerStatus === 'resolved'
+                    ? 'i-heroicons-user-circle'
+                    : session.ownerExcluded
+                      ? 'i-heroicons-user-minus'
+                      : 'i-heroicons-exclamation-circle'
                 "
                 class="h-3.5 w-3.5 shrink-0"
               />

@@ -13,6 +13,7 @@ type EntryExists = (url: URL) => boolean
 export interface AnnualSummaryRunnerOptions {
   signature: string
   range: AnnualSummaryRange
+  excludedSessionIds: readonly string[]
   onProgress: (progress: AnnualSummaryComputeProgress) => void
   signal: AbortSignal
 }
@@ -46,7 +47,7 @@ export function resolveDefaultAnnualSummaryWorkerEntryUrl(
 }
 
 export function createAnnualSummaryWorkerRunner(options: AnnualSummaryWorkerRunnerOptions): AnnualSummaryComputeRunner {
-  return ({ signature, range, signal, onProgress }) =>
+  return ({ signature, range, excludedSessionIds, signal, onProgress }) =>
     new Promise<AnnualSummarySnapshot>((resolve, reject) => {
       if (signal.aborted) {
         reject(new Error('annual summary worker aborted'))
@@ -59,6 +60,7 @@ export function createAnnualSummaryWorkerRunner(options: AnnualSummaryWorkerRunn
           nativeBinding: options.nativeBinding,
           signature,
           range,
+          excludedSessionIds,
         },
         options.workerEntryUrl
       )
@@ -107,7 +109,7 @@ export function createAnnualSummaryWorkerRunner(options: AnnualSummaryWorkerRunn
 export function createTimeInvestmentWorkerRunner(
   options: AnnualSummaryWorkerRunnerOptions
 ): TimeInvestmentComputeRunner {
-  return ({ signature, range, signal, onProgress }) =>
+  return ({ signature, range, excludedSessionIds, signal, onProgress }) =>
     new Promise<TimeInvestmentSnapshot>((resolve, reject) => {
       if (signal.aborted) {
         reject(new Error('time investment worker aborted'))
@@ -121,6 +123,7 @@ export function createTimeInvestmentWorkerRunner(
           nativeBinding: options.nativeBinding,
           signature,
           range,
+          excludedSessionIds,
         },
         options.workerEntryUrl
       )

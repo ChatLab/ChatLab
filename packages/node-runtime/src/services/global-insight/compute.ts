@@ -18,19 +18,21 @@ import {
   type AnnualSummaryComputeProgress,
   type AnnualSummarySnapshot,
 } from './types'
+import { listOwnerInsightSessionIds } from './session-scope'
 
 export interface ComputeAnnualSummarySnapshotOptions {
   adapter: SessionRuntimeAdapter
   signature: string
   range: AnnualSummaryRange
   factsCacheDir: string
+  excludedSessionIds?: readonly string[]
   onProgress?: (progress: AnnualSummaryComputeProgress) => void
   now?: () => number
 }
 
 export function computeAnnualSummarySnapshot(options: ComputeAnnualSummarySnapshotOptions): AnnualSummarySnapshot {
   const startedAt = options.now?.() ?? Date.now()
-  const sessionIds = options.adapter.listSessionIds()
+  const sessionIds = listOwnerInsightSessionIds(options.adapter, options.excludedSessionIds)
   const facts: AnnualSummarySessionFacts[] = []
   let cacheHits = 0
   let cacheMisses = 0

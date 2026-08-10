@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify'
-import { createGlobalInsightService, createTimeInvestmentService } from '@openchatlab/node-runtime'
+import { createGlobalInsightService, createTimeInvestmentService, PreferencesManager } from '@openchatlab/node-runtime'
 import type { RuntimeRouteContext } from '../../context/runtime'
 import type { ServiceRouteContext } from '../../context/services'
 
@@ -14,9 +14,11 @@ type GlobalInsightRouteContext = Pick<
   RuntimeRouteContext,
   'sessionAdapter' | 'pathProvider' | 'runtimeIdentity' | 'nativeBinding'
 > &
-  Pick<ServiceRouteContext, 'globalInsightService' | 'timeInvestmentService'>
+  Pick<ServiceRouteContext, 'globalInsightService' | 'timeInvestmentService' | 'preferencesManager'>
 
 export function registerGlobalInsightRoutes(server: FastifyInstance, ctx: GlobalInsightRouteContext): void {
+  const preferences = ctx.preferencesManager ?? new PreferencesManager(ctx.pathProvider.getSystemDir())
+  const getExcludedSessionIds = () => preferences.load().ownerExcludedSessionIds
   const service =
     ctx.globalInsightService ??
     createGlobalInsightService({
@@ -24,6 +26,7 @@ export function registerGlobalInsightRoutes(server: FastifyInstance, ctx: Global
       pathProvider: ctx.pathProvider,
       runtimeIdentity: ctx.runtimeIdentity,
       nativeBinding: ctx.nativeBinding,
+      getExcludedSessionIds,
     })
   const timeInvestmentService =
     ctx.timeInvestmentService ??
@@ -32,6 +35,7 @@ export function registerGlobalInsightRoutes(server: FastifyInstance, ctx: Global
       pathProvider: ctx.pathProvider,
       runtimeIdentity: ctx.runtimeIdentity,
       nativeBinding: ctx.nativeBinding,
+      getExcludedSessionIds,
     })
   server.addHook('onClose', async () => {
     await Promise.all([service.close(), timeInvestmentService.close()])

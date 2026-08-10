@@ -15,6 +15,7 @@ import {
 import { normalizeAnnualSummaryRange, toAnnualSummaryRangeKey, type AnnualSummaryRangeInput } from './time-range'
 import { createAnnualSummaryWorkerRunner, type AnnualSummaryComputeRunner } from './worker-runner'
 import type { AnnualSummarySnapshot } from './types'
+import { listOwnerInsightSessionIds } from './session-scope'
 
 export interface GlobalInsightServiceOptions extends AnnualSummaryRangeInput {
   acceptStale?: boolean
@@ -29,6 +30,7 @@ export interface GlobalInsightServiceDeps {
   nativeBinding?: string
   workerEntryUrl?: string | URL
   runner?: AnnualSummaryComputeRunner
+  getExcludedSessionIds?: () => readonly string[]
   now?: () => number
 }
 
@@ -76,16 +78,18 @@ class DefaultGlobalInsightService implements GlobalInsightService {
 
   getAnnualSummary(options: GlobalInsightServiceOptions = {}): AnnualSummaryResponse {
     const range = this.normalizeRange(options)
-    const signature = buildAnnualSummarySignature(this.deps.adapter, range)
+    const excludedSessionIds = this.getExcludedSessionIds()
+    const signature = buildAnnualSummarySignature(this.deps.adapter, range, excludedSessionIds)
     const status = this.getCacheStatus(signature, range)
-    if (this.shouldStartTask(options, status)) this.ensureTaskStarted(signature, range)
+    if (this.shouldStartTask(options, status)) this.ensureTaskStarted(signature, range, excludedSessionIds)
     return this.toResponse(signature, range, options.acceptStale === true)
   }
 
   startRecompute(options: GlobalInsightServiceOptions = {}): AnnualSummaryResponse {
     const range = this.normalizeRange(options)
-    const signature = buildAnnualSummarySignature(this.deps.adapter, range)
-    this.ensureTaskStarted(signature, range)
+    const excludedSessionIds = this.getExcludedSessionIds()
+    const signature = buildAnnualSummarySignature(this.deps.adapter, range, excludedSessionIds)
+    this.ensureTaskStarted(signature, range, excludedSessionIds)
     return this.toResponse(signature, range, true)
   }
 
@@ -124,7 +128,7 @@ class DefaultGlobalInsightService implements GlobalInsightService {
     return this.task.status !== 'failed'
   }
 
-  private ensureTaskStarted(signature: string, range: AnnualSummaryRange): void {
+  private ensureTaskStarted(signature: string, range: AnnualSummaryRange, excludedSessionIds: readonly string[]): void {
     if (this.inFlight) return
     const id = `annual_summary_${this.now()}_${Math.random().toString(36).slice(2)}`
     this.task = {
@@ -133,12 +137,13 @@ class DefaultGlobalInsightService implements GlobalInsightService {
       startedAt: this.now(),
       finishedAt: null,
       processedSessions: 0,
-      totalSessions: this.deps.adapter.listSessionIds().length,
+      totalSessions: listOwnerInsightSessionIds(this.deps.adapter, excludedSessionIds).length,
     }
     const abortController = new AbortController()
     const promise = this.runner({
       signature,
       range,
+      excludedSessionIds,
       signal: abortController.signal,
       onProgress: (progress) => {
         if (this.task.id !== id || this.task.status !== 'running') return
@@ -153,7 +158,7 @@ class DefaultGlobalInsightService implements GlobalInsightService {
 
   private handleTaskSuccess(id: string, inputSignature: string, snapshot: AnnualSummarySnapshot): void {
     if (this.inFlight?.id !== id) return
-    const latestSignature = buildAnnualSummarySignature(this.deps.adapter, snapshot.range)
+    const latestSignature = buildAnnualSummarySignature(this.deps.adapter, snapshot.range, this.getExcludedSessionIds())
     const finishedAt = this.now()
     if (inputSignature !== latestSignature || snapshot.signature !== latestSignature) {
       this.inFlight = null
@@ -239,6 +244,10 @@ class DefaultGlobalInsightService implements GlobalInsightService {
 
   private now(): number {
     return this.deps.now?.() ?? Date.now()
+  }
+
+  private getExcludedSessionIds(): readonly string[] {
+    return this.deps.getExcludedSessionIds?.() ?? []
   }
 }
 

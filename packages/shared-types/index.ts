@@ -284,14 +284,20 @@ export interface OwnerProfile {
   updatedAt: number
 }
 
-export type ApplyOwnerProfileReason = 'no_profile' | 'no_match' | 'ambiguous' | 'already_set' | 'missing_session'
+export type ApplyOwnerProfileReason =
+  | 'no_profile'
+  | 'no_match'
+  | 'ambiguous'
+  | 'already_set'
+  | 'missing_session'
+  | 'excluded'
 
 export interface ApplyOwnerProfileResult {
   applied: boolean
   ownerId?: string
   reason?: ApplyOwnerProfileReason
-  /** Whether the user chose "do not remind me" for this session (UI hint only). */
-  dismissed: boolean
+  /** Whether the user confirmed that their own messages are absent from this session. */
+  excluded: boolean
 }
 
 export interface SetOwnerAndApplyProfileResult {
@@ -802,8 +808,8 @@ export interface Preferences {
   thinkingLevels: Record<string, string>
   /** Platform-level owner identity, keyed by platform (e.g. 'whatsapp'). */
   ownerProfilesByPlatform: Record<string, OwnerProfile>
-  /** Sessions where the user chose "do not remind me"; suppresses the owner prompt UI only. */
-  ownerPromptDismissedSessionIds: string[]
+  /** Sessions confirmed not to contain the user; excluded from owner-dependent insights. */
+  ownerExcludedSessionIds: string[]
 }
 
 export interface UiConfig {

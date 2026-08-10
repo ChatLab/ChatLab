@@ -28,6 +28,7 @@ export interface AnalysisSessionDTO extends CoreSessionInfo {
   aiConversationCount: number
   ownerName: string | null
   ownerStatus: 'resolved' | 'missing' | 'unresolved'
+  ownerExcluded: boolean
 }
 
 /**
@@ -103,6 +104,7 @@ function buildSession(
     aiConversationCount: 0,
     ownerName: ownerMember?.displayName ?? null,
     ownerStatus: !meta.ownerId ? 'missing' : ownerMember ? 'resolved' : 'unresolved',
+    ownerExcluded: false,
   }
   if (options?.enrichSession) {
     dto = options.enrichSession(dto)

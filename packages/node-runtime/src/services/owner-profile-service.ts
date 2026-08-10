@@ -32,8 +32,8 @@ function memberDisplayName(member: MemberWithAliases): string {
   return member.groupNickname || member.accountName || member.platformId
 }
 
-function isDismissed(preferences: PreferencesManager, sessionId: string): boolean {
-  return preferences.load().ownerPromptDismissedSessionIds.includes(sessionId)
+function isExcluded(preferences: PreferencesManager, sessionId: string): boolean {
+  return preferences.load().ownerExcludedSessionIds.includes(sessionId)
 }
 
 /**
@@ -46,32 +46,34 @@ export function tryApplyOwnerProfile(
   preferences: PreferencesManager,
   sessionId: string
 ): ApplyOwnerProfileResult {
-  const dismissed = isDismissed(preferences, sessionId)
-
   const db = adapter.openReadonly(sessionId)
   if (!db || !isChatSessionDb(db)) {
-    return { applied: false, reason: 'missing_session', dismissed }
+    return { applied: false, reason: 'missing_session', excluded: false }
   }
   const meta = getSessionMeta(db)
   if (!meta) {
-    return { applied: false, reason: 'missing_session', dismissed }
+    return { applied: false, reason: 'missing_session', excluded: false }
   }
   if (meta.ownerId) {
-    return { applied: false, ownerId: meta.ownerId, reason: 'already_set', dismissed }
+    clearOwnerExclusions(preferences, [sessionId])
+    return { applied: false, ownerId: meta.ownerId, reason: 'already_set', excluded: false }
+  }
+  if (isExcluded(preferences, sessionId)) {
+    return { applied: false, reason: 'excluded', excluded: true }
   }
 
   const profile = preferences.load().ownerProfilesByPlatform[meta.platform]
   if (!profile) {
-    return { applied: false, reason: 'no_profile', dismissed }
+    return { applied: false, reason: 'no_profile', excluded: false }
   }
 
   const result = matchOwnerProfile(meta.platform, profile, getMembersWithAliases(db))
   if (result.type === 'exact' || result.type === 'name') {
     const writable = adapter.ensureWritable(sessionId)
     coreUpdateSessionOwnerId(writable, result.platformId)
-    return { applied: true, ownerId: result.platformId, dismissed }
+    return { applied: true, ownerId: result.platformId, excluded: false }
   }
-  return { applied: false, reason: result.type === 'ambiguous' ? 'ambiguous' : 'no_match', dismissed }
+  return { applied: false, reason: result.type === 'ambiguous' ? 'ambiguous' : 'no_match', excluded: false }
 }
 
 /**
@@ -113,17 +115,23 @@ export function setOwnerAndApplyProfile(
     updatedAt: Date.now(),
   }
 
-  const updatedSessions = applyProfileToOtherSessions(adapter, meta.platform, profile, sessionId)
+  const updatedSessions = applyProfileToOtherSessions(
+    adapter,
+    meta.platform,
+    profile,
+    sessionId,
+    new Set(prefs.ownerExcludedSessionIds)
+  )
   const updatedSessionIds = updatedSessions.map((s) => s.id)
   const updatedSessionOwnerIds: Record<string, string> = {}
   for (const s of updatedSessions) {
     updatedSessionOwnerIds[s.id] = s.ownerId
   }
 
-  const noLongerDismissed = new Set([sessionId, ...updatedSessionIds])
+  const noLongerExcluded = new Set([sessionId, ...updatedSessionIds])
   preferences.save({
     ownerProfilesByPlatform: { ...prefs.ownerProfilesByPlatform, [meta.platform]: profile },
-    ownerPromptDismissedSessionIds: prefs.ownerPromptDismissedSessionIds.filter((id) => !noLongerDismissed.has(id)),
+    ownerExcludedSessionIds: prefs.ownerExcludedSessionIds.filter((id) => !noLongerExcluded.has(id)),
   })
 
   return { sessionId, platform: meta.platform, ownerId: ownerPlatformId, updatedSessionIds, updatedSessionOwnerIds }
@@ -139,11 +147,12 @@ function applyProfileToOtherSessions(
   adapter: SessionRuntimeAdapter,
   platform: string,
   profile: OwnerProfile,
-  excludeSessionId: string
+  excludeSessionId: string,
+  ownerExcludedSessionIds: ReadonlySet<string>
 ): Array<{ id: string; ownerId: string }> {
   const updated: Array<{ id: string; ownerId: string }> = []
   for (const id of adapter.listSessionIds()) {
-    if (id === excludeSessionId) continue
+    if (id === excludeSessionId || ownerExcludedSessionIds.has(id)) continue
     try {
       const db = adapter.openReadonly(id)
       if (!db || !isChatSessionDb(db)) continue
@@ -163,15 +172,24 @@ function applyProfileToOtherSessions(
 }
 
 /**
- * Suppress the owner prompt for one session. UI-only: does not imply owner
- * knowledge and does not block later automatic profile application.
+ * Mark one session as not containing the user. The session is excluded from
+ * owner-dependent insights and automatic owner profile application.
  */
-export function dismissOwnerPrompt(preferences: PreferencesManager, sessionId: string): void {
+export function excludeOwnerSession(preferences: PreferencesManager, sessionId: string): void {
   const prefs = preferences.load()
-  if (prefs.ownerPromptDismissedSessionIds.includes(sessionId)) return
+  if (prefs.ownerExcludedSessionIds.includes(sessionId)) return
   preferences.save({
-    ownerPromptDismissedSessionIds: [...prefs.ownerPromptDismissedSessionIds, sessionId],
+    ownerExcludedSessionIds: [...prefs.ownerExcludedSessionIds, sessionId],
   })
+}
+
+export function clearOwnerExclusions(preferences: PreferencesManager, sessionIds: Iterable<string>): void {
+  const excluded = new Set(sessionIds)
+  if (excluded.size === 0) return
+  const prefs = preferences.load()
+  const next = prefs.ownerExcludedSessionIds.filter((id) => !excluded.has(id))
+  if (next.length === prefs.ownerExcludedSessionIds.length) return
+  preferences.save({ ownerExcludedSessionIds: next })
 }
 
 /**

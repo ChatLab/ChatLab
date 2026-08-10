@@ -13,6 +13,25 @@ function readPreferencesFile(systemDir: string): any {
   return JSON.parse(readFileSync(join(systemDir, 'preferences.json'), 'utf-8'))
 }
 
+test('migrates dismissed owner prompts to owner insight exclusions', () => {
+  const systemDir = createTempSystemDir()
+  try {
+    writeFileSync(
+      join(systemDir, 'preferences.json'),
+      JSON.stringify({ ownerPromptDismissedSessionIds: ['chat-1', 'chat-1', 42] })
+    )
+
+    const loaded = new PreferencesManager(systemDir).load()
+    const saved = readPreferencesFile(systemDir)
+
+    assert.deepEqual(loaded.ownerExcludedSessionIds, ['chat-1'])
+    assert.deepEqual(saved.ownerExcludedSessionIds, ['chat-1'])
+    assert.equal('ownerPromptDismissedSessionIds' in saved, false)
+  } finally {
+    rmSync(systemDir, { recursive: true, force: true })
+  }
+})
+
 test('migrates old built-in desensitize rules out of preferences with a backup', () => {
   const systemDir = createTempSystemDir()
   try {

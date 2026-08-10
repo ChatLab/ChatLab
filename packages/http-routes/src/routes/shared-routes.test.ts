@@ -701,13 +701,13 @@ describe('registerSharedRoutes smoke tests', () => {
     current.exec(`UPDATE meta SET owner_id = NULL, platform = 'whatsapp'`)
     const other = createSessionDb()
     other.exec(`UPDATE meta SET owner_id = NULL, platform = 'whatsapp'`)
-    const dismissedOnly = createSessionDb()
-    dismissedOnly.exec(`UPDATE meta SET owner_id = NULL, platform = 'whatsapp'; DELETE FROM member`)
+    const excludedOnly = createSessionDb()
+    excludedOnly.exec(`UPDATE meta SET owner_id = NULL, platform = 'whatsapp'; DELETE FROM member`)
 
     const dbs = new Map<string, DatabaseAdapter>([
       ['chat-1', current],
       ['chat-2', other],
-      ['chat-3', dismissedOnly],
+      ['chat-3', excludedOnly],
     ])
     const ctx = createTestContext(dbs)
     ctx.preferencesManager = new PreferencesManager(prefDir)
@@ -716,15 +716,19 @@ describe('registerSharedRoutes smoke tests', () => {
     await routeApp.ready()
 
     try {
-      // Dismiss the prompt for chat-3 (no matching member there)
-      const dismissResp = await routeApp.inject({ method: 'POST', url: '/_web/sessions/chat-3/owner/dismiss-prompt' })
-      assert.equal(dismissResp.statusCode, 200)
-      assert.deepEqual(dismissResp.json(), { success: true })
+      // Exclude chat-3 because the user's messages are absent.
+      const excludeResp = await routeApp.inject({ method: 'POST', url: '/_web/sessions/chat-3/owner/exclude' })
+      assert.equal(excludeResp.statusCode, 200)
+      assert.deepEqual(excludeResp.json(), { success: true })
 
-      // apply-profile before any profile exists reports no_profile and the dismissed flag
+      const sessionsResp = await routeApp.inject({ method: 'GET', url: '/_web/sessions' })
+      const excludedSession = sessionsResp.json().find((session: { id: string }) => session.id === 'chat-3')
+      assert.equal(excludedSession.ownerExcluded, true)
+
+      // Excluded sessions are not eligible for automatic profile application.
       const earlyApply = await routeApp.inject({ method: 'POST', url: '/_web/sessions/chat-3/owner/apply-profile' })
       assert.equal(earlyApply.statusCode, 200)
-      assert.deepEqual(earlyApply.json(), { applied: false, reason: 'no_profile', dismissed: true })
+      assert.deepEqual(earlyApply.json(), { applied: false, reason: 'excluded', excluded: true })
 
       // Manual selection writes owner, saves profile and batch-applies to chat-2
       const selectResp = await routeApp.inject({
@@ -745,12 +749,12 @@ describe('registerSharedRoutes smoke tests', () => {
       // apply-profile on an already-owned session reports already_set
       const applyResp = await routeApp.inject({ method: 'POST', url: '/_web/sessions/chat-2/owner/apply-profile' })
       assert.equal(applyResp.statusCode, 200)
-      assert.deepEqual(applyResp.json(), { applied: false, ownerId: 'alice', reason: 'already_set', dismissed: false })
+      assert.deepEqual(applyResp.json(), { applied: false, ownerId: 'alice', reason: 'already_set', excluded: false })
     } finally {
       await routeApp.close()
       current.close()
       other.close()
-      dismissedOnly.close()
+      excludedOnly.close()
       fs.rmSync(prefDir, { recursive: true, force: true })
     }
   })

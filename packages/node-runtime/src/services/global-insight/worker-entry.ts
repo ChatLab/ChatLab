@@ -17,6 +17,7 @@ interface StartupOptions {
   nativeBinding?: string
   signature: string
   range: AnnualSummaryRange
+  excludedSessionIds: string[]
 }
 
 async function main(): Promise<void> {
@@ -35,6 +36,7 @@ async function main(): Promise<void> {
       adapter,
       signature: options.signature,
       range: options.range,
+      excludedSessionIds: options.excludedSessionIds,
       factsCacheDir: getTimeInvestmentFactsCacheDir(pathProvider.getUserDataDir()),
       onProgress: (progress) => parentPort?.postMessage({ type: 'progress', progress }),
     }
@@ -46,6 +48,7 @@ async function main(): Promise<void> {
     adapter,
     signature: options.signature,
     range: options.range,
+    excludedSessionIds: options.excludedSessionIds,
     factsCacheDir: getGlobalInsightFactsCacheDir(pathProvider.getUserDataDir()),
     onProgress: (progress) => parentPort?.postMessage({ type: 'progress', progress }),
   }

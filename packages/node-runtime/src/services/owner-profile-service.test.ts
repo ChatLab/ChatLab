@@ -18,7 +18,7 @@ import type { SessionRuntimeAdapter } from './adapters'
 import {
   tryApplyOwnerProfile,
   setOwnerAndApplyProfile,
-  dismissOwnerPrompt,
+  excludeOwnerSession,
   clearSessionOwner,
 } from './owner-profile-service'
 
@@ -215,7 +215,7 @@ test('tryApplyOwnerProfile applies stored profile and reports reasons', (t) => {
   assert.deepEqual(tryApplyOwnerProfile(env.adapter, env.preferences, 'unowned'), {
     applied: false,
     reason: 'no_profile',
-    dismissed: false,
+    excluded: false,
   })
 
   setOwnerAndApplyProfile(env.adapter, env.preferences, 'source', 'Alice')
@@ -225,53 +225,59 @@ test('tryApplyOwnerProfile applies stored profile and reports reasons', (t) => {
     applied: false,
     ownerId: 'Alice',
     reason: 'already_set',
-    dismissed: false,
+    excluded: false,
   })
 
   // New session imported later: profile applies on demand
   env.seed({ id: 'later', platform: 'whatsapp', members: [{ platformId: 'Alice' }, { platformId: 'Carol' }] })
   const applied = tryApplyOwnerProfile(env.adapter, env.preferences, 'later')
-  assert.deepEqual(applied, { applied: true, ownerId: 'Alice', dismissed: false })
+  assert.deepEqual(applied, { applied: true, ownerId: 'Alice', excluded: false })
   assert.equal(env.ownerOf('later'), 'Alice')
 
   assert.deepEqual(tryApplyOwnerProfile(env.adapter, env.preferences, 'no-profile'), {
     applied: false,
     reason: 'no_profile',
-    dismissed: false,
+    excluded: false,
   })
   assert.equal(tryApplyOwnerProfile(env.adapter, env.preferences, 'missing').reason, 'missing_session')
 })
 
-test('dismissOwnerPrompt persists and is cleared by manual owner selection', (t) => {
+test('excludeOwnerSession blocks automatic matching and is cleared by manual owner selection', (t) => {
   const env = new TestEnv()
   t.after(() => env.cleanup())
 
   env.seed({ id: 's1', platform: 'whatsapp', members: [{ platformId: 'Alice' }] })
 
-  dismissOwnerPrompt(env.preferences, 's1')
-  dismissOwnerPrompt(env.preferences, 's1')
+  excludeOwnerSession(env.preferences, 's1')
+  excludeOwnerSession(env.preferences, 's1')
   env.preferences.invalidateCache()
-  assert.deepEqual(env.preferences.load().ownerPromptDismissedSessionIds, ['s1'])
-  assert.equal(tryApplyOwnerProfile(env.adapter, env.preferences, 's1').dismissed, true)
+  assert.deepEqual(env.preferences.load().ownerExcludedSessionIds, ['s1'])
+  assert.deepEqual(tryApplyOwnerProfile(env.adapter, env.preferences, 's1'), {
+    applied: false,
+    reason: 'excluded',
+    excluded: true,
+  })
+  assert.equal(env.ownerOf('s1'), null)
 
   setOwnerAndApplyProfile(env.adapter, env.preferences, 's1', 'Alice')
   env.preferences.invalidateCache()
-  assert.deepEqual(env.preferences.load().ownerPromptDismissedSessionIds, [])
+  assert.deepEqual(env.preferences.load().ownerExcludedSessionIds, [])
 })
 
-test('batch apply removes auto-filled sessions from the dismissed list', (t) => {
+test('batch apply skips sessions confirmed not to contain the owner', (t) => {
   const env = new TestEnv()
   t.after(() => env.cleanup())
 
   env.seed({ id: 'current', platform: 'whatsapp', members: [{ platformId: 'Alice' }] })
   env.seed({ id: 'other', platform: 'whatsapp', members: [{ platformId: 'Alice' }, { platformId: 'Bob' }] })
 
-  dismissOwnerPrompt(env.preferences, 'other')
+  excludeOwnerSession(env.preferences, 'other')
   const result = setOwnerAndApplyProfile(env.adapter, env.preferences, 'current', 'Alice')
-  assert.deepEqual(result.updatedSessionIds, ['other'])
+  assert.deepEqual(result.updatedSessionIds, [])
+  assert.equal(env.ownerOf('other'), null)
 
   env.preferences.invalidateCache()
-  assert.deepEqual(env.preferences.load().ownerPromptDismissedSessionIds, [])
+  assert.deepEqual(env.preferences.load().ownerExcludedSessionIds, ['other'])
 })
 
 test('clearSessionOwner clears the session owner but keeps the platform profile', (t) => {

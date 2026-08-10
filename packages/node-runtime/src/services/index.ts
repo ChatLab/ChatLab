@@ -28,7 +28,8 @@ export type { MembersPaginatedDTO } from './member-service'
 export {
   tryApplyOwnerProfile,
   setOwnerAndApplyProfile,
-  dismissOwnerPrompt,
+  excludeOwnerSession,
+  clearOwnerExclusions,
   clearSessionOwner,
 } from './owner-profile-service'
 export type {

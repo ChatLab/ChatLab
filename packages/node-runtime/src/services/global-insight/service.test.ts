@@ -41,7 +41,7 @@ function makeSnapshot(range: AnnualSummaryRange, signature: string, count = 3): 
   }
 }
 
-function createEnv(runner: AnnualSummaryComputeRunner) {
+function createEnv(runner: AnnualSummaryComputeRunner, getExcludedSessionIds?: () => readonly string[]) {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'chatlab-global-insight-service-'))
   const dbPath = path.join(dir, 'chat.db')
   fs.writeFileSync(dbPath, 'db')
@@ -49,7 +49,13 @@ function createEnv(runner: AnnualSummaryComputeRunner) {
     listSessionIds: () => ['chat-1'],
     getDbPath: () => dbPath,
   } as unknown as SessionRuntimeAdapter
-  const service = createGlobalInsightService({ adapter, userDataDir: dir, runner, now: () => Date.UTC(2026, 0, 2) })
+  const service = createGlobalInsightService({
+    adapter,
+    userDataDir: dir,
+    runner,
+    getExcludedSessionIds,
+    now: () => Date.UTC(2026, 0, 2),
+  })
   return { dir, dbPath, adapter, service }
 }
 
@@ -79,6 +85,34 @@ test('starts one background task on a missing snapshot and then serves it fresh'
   const fresh = env.service.getAnnualSummary({ mode: 'year', year: 2026 })
   assert.equal(fresh.cache.status, 'fresh')
   assert.equal(fresh.metrics?.sentMessageCount, 3)
+})
+
+test('invalidates the snapshot when owner insight exclusions change', async (t) => {
+  let excludedSessionIds: string[] = []
+  const runnerExclusions: string[][] = []
+  const env = createEnv(
+    async ({ signature, range, excludedSessionIds: exclusions }) => {
+      runnerExclusions.push([...exclusions])
+      return makeSnapshot(range, signature)
+    },
+    () => excludedSessionIds
+  )
+  t.after(async () => {
+    await env.service.close()
+    fs.rmSync(env.dir, { recursive: true, force: true })
+  })
+
+  env.service.getAnnualSummary({ mode: 'year', year: 2026 })
+  await flushTasks()
+  assert.equal(env.service.getAnnualSummary({ mode: 'year', year: 2026 }).cache.status, 'fresh')
+
+  excludedSessionIds = ['chat-1']
+  const stale = env.service.getAnnualSummary({ mode: 'year', year: 2026, acceptStale: true })
+  assert.equal(stale.cache.status, 'stale')
+  await flushTasks()
+
+  assert.deepEqual(runnerExclusions, [[], ['chat-1']])
+  assert.equal(env.service.getAnnualSummary({ mode: 'year', year: 2026 }).cache.status, 'fresh')
 })
 
 test('serves stale data while recomputing after the DB signature changes', async (t) => {

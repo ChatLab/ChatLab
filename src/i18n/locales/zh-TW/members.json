@@ -8,7 +8,7 @@
     "empty": "暫無成員資料",
     "loadError": "成員資料載入失敗，請重試",
     "later": "稍後",
-    "dontRemind": "此對話不再提醒",
+    "notInConversation": "目前對話中沒有我",
     "save": "儲存",
     "clear": "清除目前選擇",
     "saved": "已設定你的身分",

@@ -130,6 +130,7 @@ export interface AnalysisSession {
   ownerId: string | null // 所有者/导出者的 platformId
   ownerName: string | null // 所有者在当前会话中的显示名称
   ownerStatus: 'resolved' | 'missing' | 'unresolved' // 所有者是否能匹配当前会话成员
+  ownerExcluded: boolean // 用户已确认当前对话中没有自己，不参与依赖本人身份的统计
   memberAvatar: string | null // 私聊对方头像（base64 Data URL）
   lastMessageTs: number | null // 最后一条消息时间戳（秒）
   summaryCount: number // 已生成摘要的会话片段数

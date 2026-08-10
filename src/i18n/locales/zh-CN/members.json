@@ -8,7 +8,7 @@
     "empty": "暂无成员数据",
     "loadError": "成员数据加载失败，请重试",
     "later": "稍后",
-    "dontRemind": "本会话不再提醒",
+    "notInConversation": "当前对话中没有我",
     "save": "保存",
     "clear": "清除当前选择",
     "saved": "已设置你的身份",

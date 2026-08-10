@@ -4,7 +4,7 @@
  *
  * 两种使用方式：
  * 1. 会话页挂载（autoCheck）：会话无 owner 时先尝试用平台 owner profile 自动补全，
- *    补全失败且未被"本会话不再提醒"时自动弹出
+ *    补全失败且未确认“当前对话中没有我”时自动弹出
  * 2. 成员管理入口手动打开（v-model）
  *
  * 保存时会更新平台级 owner profile，并自动应用到同平台其他未设置 owner 的会话。
@@ -92,7 +92,7 @@ async function checkAndAutoOpen() {
   try {
     const result = await sessionStore.tryApplyOwnerProfile(props.sessionId)
     if (result.applied || result.reason === 'already_set' || result.reason === 'missing_session') return
-    if (result.dismissed) return
+    if (result.excluded) return
     isOpen.value = true
   } catch (error) {
     console.error('检查会话 owner 失败:', error)
@@ -139,11 +139,11 @@ async function clearOwner() {
   }
 }
 
-async function dismissForever() {
+async function excludeCurrentSession() {
   if (!props.sessionId) return
   isDismissing.value = true
   try {
-    await sessionStore.dismissOwnerPrompt(props.sessionId)
+    await sessionStore.excludeOwnerSession(props.sessionId)
     isOpen.value = false
   } catch (error) {
     console.error('忽略 owner 提醒失败:', error)
@@ -284,9 +284,9 @@ onMounted(() => {
             color="primary"
             size="sm"
             :loading="isDismissing"
-            @click="dismissForever"
+            @click="excludeCurrentSession"
           >
-            {{ t('members.ownerPrompt.dontRemind') }}
+            {{ t('members.ownerPrompt.notInConversation') }}
           </UButton>
           <span v-else />
           <div class="flex gap-2">

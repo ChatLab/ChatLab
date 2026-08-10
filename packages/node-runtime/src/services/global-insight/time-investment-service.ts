@@ -15,6 +15,7 @@ import {
 } from './time-investment-snapshot'
 import type { TimeInvestmentSnapshot } from './time-investment-types'
 import { createTimeInvestmentWorkerRunner, type TimeInvestmentComputeRunner } from './worker-runner'
+import { listOwnerInsightSessionIds } from './session-scope'
 
 export interface TimeInvestmentServiceOptions extends AnnualSummaryRangeInput {
   acceptStale?: boolean
@@ -28,6 +29,7 @@ export interface TimeInvestmentServiceDeps {
   nativeBinding?: string
   workerEntryUrl?: string | URL
   runner?: TimeInvestmentComputeRunner
+  getExcludedSessionIds?: () => readonly string[]
   now?: () => number
 }
 
@@ -71,16 +73,18 @@ class DefaultTimeInvestmentService implements TimeInvestmentService {
 
   getTimeInvestment(options: TimeInvestmentServiceOptions = {}): TimeInvestmentResponse {
     const range = this.normalizeRange(options)
-    const signature = buildTimeInvestmentSignature(this.deps.adapter, range)
+    const excludedSessionIds = this.getExcludedSessionIds()
+    const signature = buildTimeInvestmentSignature(this.deps.adapter, range, excludedSessionIds)
     const status = this.getCacheStatus(signature, range)
-    if (this.shouldStartTask(status)) this.ensureTaskStarted(signature, range)
+    if (this.shouldStartTask(status)) this.ensureTaskStarted(signature, range, excludedSessionIds)
     return this.toResponse(signature, range, options.acceptStale === true)
   }
 
   startRecompute(options: TimeInvestmentServiceOptions = {}): TimeInvestmentResponse {
     const range = this.normalizeRange(options)
-    const signature = buildTimeInvestmentSignature(this.deps.adapter, range)
-    this.ensureTaskStarted(signature, range)
+    const excludedSessionIds = this.getExcludedSessionIds()
+    const signature = buildTimeInvestmentSignature(this.deps.adapter, range, excludedSessionIds)
+    this.ensureTaskStarted(signature, range, excludedSessionIds)
     return this.toResponse(signature, range, true)
   }
 
@@ -106,7 +110,7 @@ class DefaultTimeInvestmentService implements TimeInvestmentService {
     return normalizeAnnualSummaryRange(input, new Date(this.now()))
   }
 
-  private ensureTaskStarted(signature: string, range: AnnualSummaryRange): void {
+  private ensureTaskStarted(signature: string, range: AnnualSummaryRange, excludedSessionIds: readonly string[]): void {
     if (this.inFlight) return
     const id = `time_investment_${this.now()}_${Math.random().toString(36).slice(2)}`
     this.task = {
@@ -115,12 +119,13 @@ class DefaultTimeInvestmentService implements TimeInvestmentService {
       startedAt: this.now(),
       finishedAt: null,
       processedSessions: 0,
-      totalSessions: this.deps.adapter.listSessionIds().length,
+      totalSessions: listOwnerInsightSessionIds(this.deps.adapter, excludedSessionIds).length,
     }
     const abortController = new AbortController()
     const promise = this.runner({
       signature,
       range,
+      excludedSessionIds,
       signal: abortController.signal,
       onProgress: (progress) => {
         if (this.task.id !== id || this.task.status !== 'running') return
@@ -135,7 +140,11 @@ class DefaultTimeInvestmentService implements TimeInvestmentService {
 
   private handleTaskSuccess(id: string, inputSignature: string, snapshot: TimeInvestmentSnapshot): void {
     if (this.inFlight?.id !== id) return
-    const latestSignature = buildTimeInvestmentSignature(this.deps.adapter, snapshot.range)
+    const latestSignature = buildTimeInvestmentSignature(
+      this.deps.adapter,
+      snapshot.range,
+      this.getExcludedSessionIds()
+    )
     const finishedAt = this.now()
     if (inputSignature !== latestSignature || snapshot.signature !== latestSignature) {
       this.inFlight = null
@@ -220,6 +229,10 @@ class DefaultTimeInvestmentService implements TimeInvestmentService {
 
   private now(): number {
     return this.deps.now?.() ?? Date.now()
+  }
+
+  private getExcludedSessionIds(): readonly string[] {
+    return this.deps.getExcludedSessionIds?.() ?? []
   }
 }
 

@@ -26,17 +26,22 @@ export function registerSessionRoutes(server: FastifyInstance, ctx: SessionRoute
 
   server.get('/_web/sessions', async () => {
     const aiChatCounts = ctx.aiChatManager?.getAIChatCountsBySession()
+    const excludedSessionIds = new Set(preferences().load().ownerExcludedSessionIds)
     return sessionService.listAnalysisSessions(adapter, {
       resolveOverview: (db, sessionId) => sessionService.resolveValidatedSessionOverview(db, sessionId, cacheDir),
-      enrichSession: aiChatCounts?.size
-        ? (dto) => ({ ...dto, aiConversationCount: aiChatCounts.get(dto.id) ?? 0 })
-        : undefined,
+      enrichSession: (dto) => ({
+        ...dto,
+        aiConversationCount: aiChatCounts?.get(dto.id) ?? 0,
+        ownerExcluded: excludedSessionIds.has(dto.id),
+      }),
     })
   })
 
   server.get<{ Params: { id: string } }>('/_web/sessions/:id', async (request) => {
+    const excludedSessionIds = new Set(preferences().load().ownerExcludedSessionIds)
     const session = sessionService.getAnalysisSession(adapter, request.params.id, {
       resolveOverview: (db, sessionId) => sessionService.resolveValidatedSessionOverview(db, sessionId, cacheDir),
+      enrichSession: (dto) => ({ ...dto, ownerExcluded: excludedSessionIds.has(dto.id) }),
     })
     if (!session) {
       throw Object.assign(new Error(`Session not found: ${request.params.id}`), { statusCode: 404 })
@@ -55,6 +60,7 @@ export function registerSessionRoutes(server: FastifyInstance, ctx: SessionRoute
     if (!deleted) {
       return reply.code(404).send({ success: false, error: 'File not found' })
     }
+    ownerProfileService.clearOwnerExclusions(preferences(), [id])
     return { success: true }
   })
 
@@ -67,6 +73,7 @@ export function registerSessionRoutes(server: FastifyInstance, ctx: SessionRoute
     '/_web/sessions/:id/owner',
     async (request) => {
       sessionService.updateSessionOwnerId(adapter, request.params.id, request.body.ownerId ?? null)
+      if (request.body.ownerId) ownerProfileService.clearOwnerExclusions(preferences(), [request.params.id])
       return { success: true }
     }
   )
@@ -90,9 +97,9 @@ export function registerSessionRoutes(server: FastifyInstance, ctx: SessionRoute
     }
   )
 
-  // Suppress the owner prompt for this session (UI-only).
-  server.post<{ Params: { id: string } }>('/_web/sessions/:id/owner/dismiss-prompt', async (request) => {
-    ownerProfileService.dismissOwnerPrompt(preferences(), request.params.id)
+  // Mark the session as not containing the current user.
+  server.post<{ Params: { id: string } }>('/_web/sessions/:id/owner/exclude', async (request) => {
+    ownerProfileService.excludeOwnerSession(preferences(), request.params.id)
     return { success: true }
   })
 }

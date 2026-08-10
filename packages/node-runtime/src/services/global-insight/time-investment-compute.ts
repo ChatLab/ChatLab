@@ -14,19 +14,21 @@ import {
 } from './time-investment-facts-cache'
 import { TIME_INVESTMENT_ALGORITHM_VERSION, type TimeInvestmentSnapshot } from './time-investment-types'
 import type { AnnualSummaryComputeProgress } from './types'
+import { listOwnerInsightSessionIds } from './session-scope'
 
 export interface ComputeTimeInvestmentSnapshotOptions {
   adapter: SessionRuntimeAdapter
   signature: string
   range: AnnualSummaryRange
   factsCacheDir: string
+  excludedSessionIds?: readonly string[]
   onProgress?: (progress: AnnualSummaryComputeProgress) => void
   now?: () => number
 }
 
 export function computeTimeInvestmentSnapshot(options: ComputeTimeInvestmentSnapshotOptions): TimeInvestmentSnapshot {
   const startedAt = options.now?.() ?? Date.now()
-  const sessionIds = options.adapter.listSessionIds()
+  const sessionIds = listOwnerInsightSessionIds(options.adapter, options.excludedSessionIds)
   const facts: TimeInvestmentSessionFacts[] = []
   let cacheHits = 0
   let cacheMisses = 0

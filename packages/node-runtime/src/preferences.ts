@@ -62,7 +62,11 @@ const DEFAULTS: Preferences = {
   filterHistory: [],
   thinkingLevels: {},
   ownerProfilesByPlatform: {},
-  ownerPromptDismissedSessionIds: [],
+  ownerExcludedSessionIds: [],
+}
+
+type LegacyPreferences = Partial<Preferences> & {
+  ownerPromptDismissedSessionIds?: unknown
 }
 
 export class PreferencesManager {
@@ -79,10 +83,11 @@ export class PreferencesManager {
     try {
       if (fs.existsSync(this.filePath)) {
         const raw = fs.readFileSync(this.filePath, 'utf-8')
-        const parsed = JSON.parse(raw) as Partial<Preferences>
-        const migrated = this.migrateLegacyDesensitizeRules(parsed, raw)
-        this.cache = this.mergeDefaults(migrated.preferences)
-        if (migrated.changed) {
+        const parsed = JSON.parse(raw) as LegacyPreferences
+        const desensitizeMigration = this.migrateLegacyDesensitizeRules(parsed, raw)
+        const ownerMigration = this.migrateLegacyOwnerExclusions(desensitizeMigration.preferences)
+        this.cache = this.mergeDefaults(ownerMigration.preferences)
+        if (desensitizeMigration.changed || ownerMigration.changed) {
           this.writePreferences(this.cache)
         }
         return this.cache
@@ -140,7 +145,7 @@ export class PreferencesManager {
       filterHistory: partial.filterHistory ?? DEFAULTS.filterHistory,
       thinkingLevels: partial.thinkingLevels ?? DEFAULTS.thinkingLevels,
       ownerProfilesByPlatform: partial.ownerProfilesByPlatform ?? DEFAULTS.ownerProfilesByPlatform,
-      ownerPromptDismissedSessionIds: partial.ownerPromptDismissedSessionIds ?? DEFAULTS.ownerPromptDismissedSessionIds,
+      ownerExcludedSessionIds: this.normalizeStringArray(partial.ownerExcludedSessionIds),
     }
   }
 
@@ -189,6 +194,29 @@ export class PreferencesManager {
       }
     }
     return result
+  }
+
+  private normalizeStringArray(value: unknown): string[] {
+    if (!Array.isArray(value)) return []
+    return [...new Set(value.filter((item): item is string => typeof item === 'string' && item.length > 0))]
+  }
+
+  private migrateLegacyOwnerExclusions(partial: LegacyPreferences): {
+    preferences: Partial<Preferences>
+    changed: boolean
+  } {
+    if (partial.ownerPromptDismissedSessionIds === undefined) {
+      return { preferences: partial, changed: false }
+    }
+    const { ownerPromptDismissedSessionIds, ...preferences } = partial
+    return {
+      preferences: {
+        ...preferences,
+        ownerExcludedSessionIds:
+          partial.ownerExcludedSessionIds ?? this.normalizeStringArray(ownerPromptDismissedSessionIds),
+      },
+      changed: true,
+    }
   }
 
   private migrateLegacyDesensitizeRules(

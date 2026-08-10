@@ -20,11 +20,20 @@ test('starts one time investment task and exposes its persisted snapshot', async
     getDbPath: () => dbPath,
   } as unknown as SessionRuntimeAdapter
   let runnerCalls = 0
-  const runner: TimeInvestmentComputeRunner = async ({ signature, range: normalizedRange }) => {
+  let excludedSessionIds: string[] = []
+  const runnerExclusions: string[][] = []
+  const runner: TimeInvestmentComputeRunner = async ({ signature, range: normalizedRange, excludedSessionIds }) => {
     runnerCalls++
+    runnerExclusions.push([...excludedSessionIds])
     return snapshot(normalizedRange, signature)
   }
-  const service = createTimeInvestmentService({ adapter, userDataDir: dir, runner, now: () => now })
+  const service = createTimeInvestmentService({
+    adapter,
+    userDataDir: dir,
+    runner,
+    getExcludedSessionIds: () => excludedSessionIds,
+    now: () => now,
+  })
 
   const first = service.getTimeInvestment({ mode: 'year', year: 2026 })
   const duplicate = service.getTimeInvestment({ mode: 'year', year: 2026 })
@@ -38,6 +47,14 @@ test('starts one time investment task and exposes its persisted snapshot', async
   assert.equal(completed.cache.status, 'fresh')
   assert.equal(completed.metrics?.estimatedSeconds, 300)
   assert.equal(completed.task.status, 'succeeded')
+
+  excludedSessionIds = ['chat-1']
+  const stale = service.getTimeInvestment({ mode: 'year', year: 2026, acceptStale: true })
+  assert.equal(stale.cache.status, 'stale')
+  await new Promise((resolve) => setImmediate(resolve))
+  assert.equal(runnerCalls, 2)
+  assert.deepEqual(runnerExclusions, [[], ['chat-1']])
+  assert.equal(service.getTimeInvestment({ mode: 'year', year: 2026 }).cache.status, 'fresh')
   await service.close()
 })
 
