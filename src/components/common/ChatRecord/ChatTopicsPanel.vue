@@ -196,7 +196,7 @@ async function startGeneration() {
   }
 }
 
-async function regenerateDay() {
+async function generateCurrentDay() {
   if (!props.dayKey) return
   actionLoading.value = true
   try {
@@ -330,6 +330,16 @@ onUnmounted(() => {
         <span v-if="dayKey" class="ml-2 text-[11px] text-gray-400">{{ dayKey }}</span>
       </div>
       <div class="flex items-center gap-0.5">
+        <UButton
+          size="xs"
+          color="neutral"
+          variant="ghost"
+          icon="i-heroicons-queue-list"
+          :disabled="Boolean(activeRun)"
+          @click="openCreate"
+        >
+          {{ t('records.topics.batchSummarize') }}
+        </UButton>
         <UButton
           v-if="day"
           icon="i-heroicons-trash"
@@ -503,12 +513,9 @@ onUnmounted(() => {
             icon="i-heroicons-arrow-path"
             :loading="actionLoading"
             :disabled="Boolean(activeRun)"
-            @click="regenerateDay"
+            @click="generateCurrentDay"
           >
             {{ t('records.topics.updateDay') }}
-          </UButton>
-          <UButton size="xs" color="neutral" variant="ghost" :disabled="Boolean(activeRun)" @click="openCreate">
-            {{ t('records.topics.backfill') }}
           </UButton>
         </div>
       </template>
@@ -524,10 +531,11 @@ onUnmounted(() => {
           size="sm"
           color="primary"
           icon="i-heroicons-sparkles"
+          :loading="actionLoading"
           :disabled="Boolean(activeRun) || !dayKey"
-          @click="openCreate"
+          @click="generateCurrentDay"
         >
-          {{ t('records.topics.create') }}
+          {{ t('records.topics.summarizeDay') }}
         </UButton>
       </div>
     </div>
@@ -539,7 +547,7 @@ onUnmounted(() => {
         <template #header>
           <div class="flex items-center justify-between">
             <div>
-              <h3 class="text-base font-semibold">{{ t('records.topics.createTitle') }}</h3>
+              <h3 class="text-base font-semibold">{{ t('records.topics.batchSummarizeTitle') }}</h3>
               <p class="mt-0.5 text-xs text-gray-400">{{ t('records.topics.createDescription') }}</p>
             </div>
             <UButton
