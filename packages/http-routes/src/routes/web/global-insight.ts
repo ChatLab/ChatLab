@@ -17,8 +17,11 @@ type GlobalInsightRouteContext = Pick<
   Pick<ServiceRouteContext, 'globalInsightService' | 'timeInvestmentService' | 'preferencesManager'>
 
 export function registerGlobalInsightRoutes(server: FastifyInstance, ctx: GlobalInsightRouteContext): void {
-  const preferences = ctx.preferencesManager ?? new PreferencesManager(ctx.pathProvider.getSystemDir())
-  const getExcludedSessionIds = () => preferences.load().ownerExcludedSessionIds
+  let preferences = ctx.preferencesManager
+  const getExcludedSessionIds = () => {
+    preferences ??= new PreferencesManager(ctx.pathProvider.getSystemDir())
+    return preferences.load().ownerExcludedSessionIds
+  }
   const service =
     ctx.globalInsightService ??
     createGlobalInsightService({
