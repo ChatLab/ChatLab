@@ -1,4 +1,4 @@
-import { dialog, app } from 'electron'
+import { dialog, app, type BrowserWindow } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { platform } from '@electron-toolkit/utils'
 import { logger } from '../logger'
@@ -8,24 +8,37 @@ import { configureUpdateProxy, handleUpdateError, resetToDefaultSource } from '.
 
 type AppWithQuitFlag = typeof app & { isQuiting?: boolean }
 
-interface UpdateWindow {
-  webContents: {
-    send(channel: string, ...args: unknown[]): void
-  }
-}
-
 const appWithQuitFlag = app as AppWithQuitFlag
 
 let isFirstShow = true
 let isManualCheck = false
 
-export function checkUpdate(win: UpdateWindow): void {
+function runWhenWindowActive(win: BrowserWindow, callback: () => void): void {
+  const tryRun = (): boolean => {
+    if (win.isDestroyed()) {
+      win.removeListener('focus', tryRun)
+      return true
+    }
+    if (!win.isVisible() || !win.isFocused()) return false
+
+    win.removeListener('focus', tryRun)
+    callback()
+    return true
+  }
+
+  if (!tryRun()) {
+    win.on('focus', tryRun)
+  }
+}
+
+export function checkUpdate(win: BrowserWindow): void {
   configureUpdateProxy()
 
   autoUpdater.autoDownload = false
   autoUpdater.autoInstallOnAppQuit = false
 
   let showUpdateMessageBox = false
+  let showInstallMessageBox = false
   let isDownloadingUpdate = false
 
   const startDownloadUpdate = (): void => {
@@ -63,23 +76,27 @@ export function checkUpdate(win: UpdateWindow): void {
     }
 
     showUpdateMessageBox = true
-    dialog
-      .showMessageBox({
-        title: t('update.newVersionTitle', { version: info.version }),
-        message: t('update.newVersionMessage', { version: info.version }),
-        detail: t('update.newVersionDetail'),
-        buttons: [t('update.downloadNow'), t('update.cancel')],
-        defaultId: 0,
-        cancelId: 1,
-        type: 'question',
-        noLink: true,
-      })
-      .then((result) => {
-        showUpdateMessageBox = false
-        if (result.response === 0) {
-          startDownloadUpdate()
-        }
-      })
+    runWhenWindowActive(win, () => {
+      void dialog
+        .showMessageBox(win, {
+          title: t('update.newVersionTitle', { version: info.version }),
+          message: t('update.newVersionMessage', { version: info.version }),
+          detail: t('update.newVersionDetail'),
+          buttons: [t('update.downloadNow'), t('update.cancel')],
+          defaultId: 0,
+          cancelId: 1,
+          type: 'question',
+          noLink: true,
+        })
+        .then((result) => {
+          if (result.response === 0) {
+            startDownloadUpdate()
+          }
+        })
+        .finally(() => {
+          showUpdateMessageBox = false
+        })
+    })
   })
 
   autoUpdater.on('download-progress', (progress) => {
@@ -88,36 +105,44 @@ export function checkUpdate(win: UpdateWindow): void {
   })
 
   autoUpdater.on('update-downloaded', () => {
-    dialog
-      .showMessageBox({
-        title: t('update.downloadComplete'),
-        message: t('update.readyToInstall'),
-        buttons: [t('update.install'), t('update.remindLater')],
-        defaultId: 1,
-        cancelId: 1,
-        type: 'question',
-      })
-      .then(async (result) => {
-        if (result.response !== 0) return
+    if (showInstallMessageBox) return
 
-        win.webContents.send('begin-install')
-        appWithQuitFlag.isQuiting = true
+    showInstallMessageBox = true
+    runWhenWindowActive(win, () => {
+      void dialog
+        .showMessageBox(win, {
+          title: t('update.downloadComplete'),
+          message: t('update.readyToInstall'),
+          buttons: [t('update.install'), t('update.remindLater')],
+          defaultId: 1,
+          cancelId: 1,
+          type: 'question',
+        })
+        .then(async (result) => {
+          if (result.response !== 0) return
 
-        if (platform.isWindows) {
-          logger.info('[Update] Windows: Closing worker before installing...')
-          try {
-            await closeWorkerAsync()
-          } catch (error) {
-            logger.error(`[Update] Failed to close worker: ${error}`)
+          win.webContents.send('begin-install')
+          appWithQuitFlag.isQuiting = true
+
+          if (platform.isWindows) {
+            logger.info('[Update] Windows: Closing worker before installing...')
+            try {
+              await closeWorkerAsync()
+            } catch (error) {
+              logger.error(`[Update] Failed to close worker: ${error}`)
+            }
           }
-        }
 
-        setTimeout(() => {
-          setImmediate(() => {
-            autoUpdater.quitAndInstall(true, true)
-          })
-        }, 100)
-      })
+          setTimeout(() => {
+            setImmediate(() => {
+              autoUpdater.quitAndInstall(true, true)
+            })
+          }, 100)
+        })
+        .finally(() => {
+          showInstallMessageBox = false
+        })
+    })
   })
 
   autoUpdater.on('update-not-available', () => {
@@ -155,8 +180,8 @@ export function manualCheckForUpdates(): void {
   })
 }
 
-export function simulateUpdateDialog(_win: UpdateWindow): void {
-  void dialog.showMessageBox({
+export function simulateUpdateDialog(win: BrowserWindow): void {
+  void dialog.showMessageBox(win, {
     title: t('update.newVersionTitle', { version: '9.9.9' }),
     message: t('update.newVersionMessage', { version: '9.9.9' }),
     detail: t('update.newVersionDetail'),

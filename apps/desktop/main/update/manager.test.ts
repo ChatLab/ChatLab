@@ -32,6 +32,29 @@ type DialogCall = {
   message?: string
   detail?: string
   buttons?: string[]
+  parent?: unknown
+}
+
+class FakeUpdateWindow extends EventEmitter {
+  visible = true
+  focused = true
+  destroyed = false
+
+  constructor(readonly webContents: { send: (...args: unknown[]) => void }) {
+    super()
+  }
+
+  isVisible(): boolean {
+    return this.visible
+  }
+
+  isFocused(): boolean {
+    return this.focused
+  }
+
+  isDestroyed(): boolean {
+    return this.destroyed
+  }
 }
 
 async function loadUpdaterModule() {
@@ -45,8 +68,12 @@ async function loadUpdaterModule() {
         isPackaged: true,
       },
       dialog: {
-        async showMessageBox(options: DialogCall) {
-          dialogCalls.push(options)
+        async showMessageBox(parentOrOptions: unknown, maybeOptions?: DialogCall) {
+          const options = maybeOptions ?? (parentOrOptions as DialogCall)
+          dialogCalls.push({
+            ...options,
+            parent: maybeOptions ? parentOrOptions : undefined,
+          })
           return { response: 1 }
         },
       },
@@ -90,20 +117,20 @@ async function loadUpdaterModule() {
   return {
     autoUpdater,
     dialogCalls,
-    checkUpdate: mod.checkUpdate as (win: { webContents: { send: (...args: unknown[]) => void } }) => void,
+    checkUpdate: mod.checkUpdate as unknown as (win: FakeUpdateWindow) => void,
     manualCheckForUpdates: mod.manualCheckForUpdates as () => void,
   }
 }
 
-test('automatic stable updates download silently before showing install prompt', async () => {
+test('automatic stable updates defer the install prompt until the app window is active', async () => {
   const { autoUpdater, dialogCalls, checkUpdate, manualCheckForUpdates } = await loadUpdaterModule()
   const sent: unknown[][] = []
-
-  checkUpdate({
-    webContents: {
-      send: (...args: unknown[]) => sent.push(args),
-    },
+  const win = new FakeUpdateWindow({
+    send: (...args: unknown[]) => sent.push(args),
   })
+  win.focused = false
+
+  checkUpdate(win)
 
   autoUpdater.emit('update-available', { version: '0.28.2' })
   await Promise.resolve()
@@ -116,16 +143,24 @@ test('automatic stable updates download silently before showing install prompt',
   autoUpdater.emit('update-downloaded', { version: '0.28.2' })
   await Promise.resolve()
 
+  assert.equal(dialogCalls.length, 0)
+
+  win.focused = true
+  win.emit('focus')
+  await new Promise<void>((resolve) => setImmediate(resolve))
+
   assert.equal(dialogCalls.length, 1)
   assert.equal(dialogCalls[0]?.title, 'update.downloadComplete')
   assert.equal(dialogCalls[0]?.message, 'update.readyToInstall')
+  assert.equal(dialogCalls[0]?.parent, win)
 
   manualCheckForUpdates()
   autoUpdater.emit('update-available', { version: '0.28.3' })
-  await Promise.resolve()
+  await new Promise<void>((resolve) => setImmediate(resolve))
 
   assert.equal(dialogCalls.length, 2)
   assert.equal(dialogCalls[1]?.title, 'update.newVersionTitle:0.28.3')
   assert.equal(dialogCalls[1]?.message, 'update.newVersionMessage:0.28.3')
+  assert.equal(dialogCalls[1]?.parent, win)
   assert.equal(autoUpdater.downloadCalls, 1)
 })
