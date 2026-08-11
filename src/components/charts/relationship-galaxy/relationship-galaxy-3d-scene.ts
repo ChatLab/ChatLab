@@ -3,10 +3,7 @@ import type {
   RelationshipGalaxyRenderGraph,
   RelationshipGalaxyRenderNode,
 } from '@openchatlab/shared-types'
-import {
-  buildRelationshipVisibleGraphForSelection,
-  buildRelationshipVisibleLabelKeys,
-} from './relationship-galaxy-connections'
+import { buildRelationshipVisibleLabelKeys } from './relationship-galaxy-connections'
 
 export type RelationshipGalaxy3DNodeState = 'normal' | 'selected' | 'neighbor' | 'dimmed'
 
@@ -34,9 +31,21 @@ export interface RelationshipGalaxy3DEdge {
   highlighted: boolean
 }
 
+export interface RelationshipGalaxy3DCommunity {
+  id: string
+  x: number
+  y: number
+  z: number
+  radius: number
+  color: number
+  opacity: number
+  nodeCount: number
+}
+
 export interface RelationshipGalaxy3DScene {
   nodes: RelationshipGalaxy3DNode[]
   edges: RelationshipGalaxy3DEdge[]
+  communities: RelationshipGalaxy3DCommunity[]
   selectedNeighborKeys: Set<string>
   bounds: {
     minX: number
@@ -56,24 +65,15 @@ export interface RelationshipGalaxy3DSceneOptions {
 }
 
 const OWNER_COLOR = 0xf8fbff
-const FRIEND_NODE_COLORS = [
-  0xff8fb3, 0xffc857, 0x7dd3fc, 0xa78bfa, 0x86efac, 0xfb7185, 0x38bdf8, 0xf0abfc, 0xfde68a, 0x5eead4,
-]
-const GROUPMATE_NODE_COLORS = [
-  0xffb86b, 0x60a5fa, 0x34d399, 0xe879f9, 0xfacc15, 0x5eead4, 0xc084fc, 0xf472b6, 0xa3e635, 0x93c5fd,
-]
+const FALLBACK_COMMUNITY_COLORS = [0xff86ad, 0x72b8ff, 0x9f8cff, 0x67d9d0, 0xf2c879, 0x8fdaa8]
 const MAX_3D_SCENE_RADIUS = 1700
+const PANORAMA_LABEL_LIMIT = 8
+const SELECTED_LABEL_LIMIT = 12
 const PANORAMA_AXIS_SCALE = {
   x: 1.42,
   y: 0.84,
   z: 1,
 }
-const SPHERICAL_AXIS_SCALE = {
-  x: 1,
-  y: 1,
-  z: 1,
-}
-
 interface RelationshipGalaxy3DVector {
   x: number
   y: number
@@ -85,14 +85,17 @@ export function buildRelationshipGalaxy3DScene(
   options: RelationshipGalaxy3DSceneOptions = {}
 ): RelationshipGalaxy3DScene {
   const selectedKey = options.selectedKey ?? null
-  const renderGraph = buildRelationshipVisibleGraphForSelection(graph, selectedKey)
+  const renderGraph = graph
   const selectedNeighborKeys = buildSelectedNeighborKeys(renderGraph.edges, selectedKey)
-  const visibleLabelKeys = selectedKey ? buildRelationshipVisibleLabelKeys(renderGraph, selectedKey) : null
+  const visibleLabelKeys = selectedKey
+    ? buildRelationshipVisibleLabelKeys(renderGraph, selectedKey, { limit: SELECTED_LABEL_LIMIT })
+    : buildPanoramaVisibleLabelKeys(renderGraph.nodes)
+  const communityColorById = buildCommunityColorMap(renderGraph)
 
   const nodes = renderGraph.nodes.map((node) => {
     const state = resolveNodeState(node.key, selectedKey, selectedNeighborKeys)
     const seed = hashToUnit(node.key)
-    const position = deriveSphericalNodePosition(node, state, selectedKey, seed)
+    const position = deriveSphericalNodePosition(node, seed)
     const radius = deriveNodeRadius(node, state)
     const labelTier = deriveLabelTier(node, state, renderGraph.nodes.length, visibleLabelKeys)
 
@@ -103,7 +106,7 @@ export function buildRelationshipGalaxy3DScene(
       y: position.y,
       z: position.z,
       radius,
-      color: parseNodeColor(node),
+      color: parseNodeColor(node, communityColorById),
       state,
       labelTier,
       opacity: deriveNodeOpacity(state),
@@ -143,8 +146,9 @@ export function buildRelationshipGalaxy3DScene(
   return {
     nodes,
     edges,
+    communities: buildSceneCommunities(nodes, renderGraph),
     selectedNeighborKeys,
-    bounds: deriveBounds(nodes, Boolean(selectedKey)),
+    bounds: deriveBounds(nodes),
   }
 }
 
@@ -187,59 +191,33 @@ function resolveNodeState(
   return 'dimmed'
 }
 
-function deriveSphericalNodePosition(
-  node: RelationshipGalaxyRenderNode,
-  state: RelationshipGalaxy3DNodeState,
-  selectedKey: string | null,
-  seed: number
-): RelationshipGalaxy3DVector {
-  if (state === 'selected') return { x: 0, y: 0, z: 0 }
-  if (!selectedKey && node.visualRole === 'anchor') return { x: 0, y: 0, z: 0 }
+function deriveSphericalNodePosition(node: RelationshipGalaxyRenderNode, seed: number): RelationshipGalaxy3DVector {
+  if (node.visualRole === 'anchor') return { x: 0, y: 0, z: 0 }
 
-  const direction = deriveNodeDirection(node, selectedKey)
-  const orbitRadius = deriveNodeOrbitRadius(node, state, Boolean(selectedKey), seed)
-  const axisScale = selectedKey ? SPHERICAL_AXIS_SCALE : PANORAMA_AXIS_SCALE
+  const direction = deriveNodeDirection(node)
+  const orbitRadius = deriveNodeOrbitRadius(node, seed)
 
   return {
-    x: roundNum(direction.x * orbitRadius * axisScale.x, 2),
-    y: roundNum(direction.y * orbitRadius * axisScale.y, 2),
-    z: roundNum(direction.z * orbitRadius * axisScale.z, 2),
+    x: roundNum(direction.x * orbitRadius * PANORAMA_AXIS_SCALE.x, 2),
+    y: roundNum(direction.y * orbitRadius * PANORAMA_AXIS_SCALE.y, 2),
+    z: roundNum(direction.z * orbitRadius * PANORAMA_AXIS_SCALE.z, 2),
   }
 }
 
-function deriveNodeDirection(
-  node: RelationshipGalaxyRenderNode,
-  selectedKey: string | null
-): RelationshipGalaxy3DVector {
-  const focusSeed = selectedKey ?? 'panorama'
-  const communityDirection = deriveUnitVector(`community:${focusSeed}:${node.communityId || 'default'}`)
-  const nodeDirection = deriveUnitVector(`node:${focusSeed}:${node.key}`)
-  const communityWeight = selectedKey ? 0.7 : 1.15
-  const nodeWeight = selectedKey ? 1.15 : 0.95
+function deriveNodeDirection(node: RelationshipGalaxyRenderNode): RelationshipGalaxy3DVector {
+  const communityDirection = deriveUnitVector(`community:panorama:${node.communityId || 'default'}`)
+  const nodeDirection = deriveUnitVector(`node:panorama:${node.key}`)
 
   return normalizeVector({
-    x: communityDirection.x * communityWeight + nodeDirection.x * nodeWeight,
-    y: communityDirection.y * communityWeight + nodeDirection.y * nodeWeight,
-    z: communityDirection.z * communityWeight + nodeDirection.z * nodeWeight,
+    x: communityDirection.x * 1.15 + nodeDirection.x * 0.95,
+    y: communityDirection.y * 1.15 + nodeDirection.y * 0.95,
+    z: communityDirection.z * 1.15 + nodeDirection.z * 0.95,
   })
 }
 
-function deriveNodeOrbitRadius(
-  node: RelationshipGalaxyRenderNode,
-  state: RelationshipGalaxy3DNodeState,
-  hasSelectedNode: boolean,
-  seed: number
-): number {
+function deriveNodeOrbitRadius(node: RelationshipGalaxyRenderNode, seed: number): number {
   const importance = deriveNodeImportance(node)
   const jitter = (seed - 0.5) * 120
-
-  if (hasSelectedNode && state === 'neighbor') {
-    return clamp(980 - importance * 650 + jitter, 220, 1050)
-  }
-
-  if (hasSelectedNode && state === 'dimmed') {
-    return clamp(1670 - importance * 260 + jitter, 1280, MAX_3D_SCENE_RADIUS)
-  }
 
   const visualRole = node.visualRole ?? 'standard'
   const minRadius = visualRole === 'close' ? 280 : 620
@@ -257,15 +235,16 @@ function deriveNodeImportance(node: RelationshipGalaxyRenderNode): number {
 }
 
 function deriveNodeRadius(node: RelationshipGalaxyRenderNode, state: RelationshipGalaxy3DNodeState): number {
-  let base = Math.max(node.size * 0.5, node.visualRole === 'anchor' ? 14 : 1.6)
+  let base = Math.max(node.size * 0.42, node.visualRole === 'anchor' ? 11 : 1.6)
   const importance = Math.max(0, 1 - (node.rank - 1) / 50)
   base += Math.pow(importance, 1.35) * 6
   if (node.rank <= 3) base += 2.5
   else if (node.rank <= 10) base += 1.2
 
-  if (state === 'selected') return base + 5.5
-  if (state === 'neighbor') return base + 1.5
-  return base
+  const normalized = clamp(base, 2.2, 18)
+  if (state === 'selected') return Math.min(22, normalized + 4)
+  if (state === 'neighbor') return Math.min(20, normalized + 1.5)
+  return normalized
 }
 
 function deriveLabelTier(
@@ -276,7 +255,9 @@ function deriveLabelTier(
 ): 0 | 1 | 2 {
   if (visibleLabelKeys) {
     if (!visibleLabelKeys.has(node.key)) return 0
-    return state === 'selected' || node.visualRole === 'anchor' ? 2 : 1
+    return state === 'selected' || node.visualRole === 'anchor' || (state === 'normal' && node.labelVisibility === 2)
+      ? 2
+      : 1
   }
 
   if (state === 'selected') return 2
@@ -288,6 +269,20 @@ function deriveLabelTier(
   return 0
 }
 
+function buildPanoramaVisibleLabelKeys(nodes: RelationshipGalaxyRenderNode[]): Set<string> {
+  return new Set(
+    [...nodes]
+      .sort((a, b) => {
+        const anchorDiff = Number(b.visualRole === 'anchor') - Number(a.visualRole === 'anchor')
+        const labelDiff = b.labelVisibility - a.labelVisibility
+        const importanceDiff = deriveNodeImportance(b) - deriveNodeImportance(a)
+        return anchorDiff || labelDiff || importanceDiff || a.rank - b.rank || a.key.localeCompare(b.key)
+      })
+      .slice(0, PANORAMA_LABEL_LIMIT)
+      .map((node) => node.key)
+  )
+}
+
 function deriveNodeOpacity(state: RelationshipGalaxy3DNodeState): number {
   if (state === 'selected') return 1
   if (state === 'neighbor') return 0.95
@@ -295,7 +290,7 @@ function deriveNodeOpacity(state: RelationshipGalaxy3DNodeState): number {
   return 0.82
 }
 
-function deriveBounds(nodes: RelationshipGalaxy3DNode[], spherical: boolean): RelationshipGalaxy3DScene['bounds'] {
+function deriveBounds(nodes: RelationshipGalaxy3DNode[]): RelationshipGalaxy3DScene['bounds'] {
   if (nodes.length === 0) {
     return {
       minX: -500,
@@ -320,21 +315,6 @@ function deriveBounds(nodes: RelationshipGalaxy3DNode[], spherical: boolean): Re
     maxAbsZ = Math.max(maxAbsZ, Math.abs(node.z))
   }
 
-  const radius = Math.max(400, maxAbsX, maxAbsY, maxAbsZ)
-  if (spherical) {
-    return {
-      minX: -radius,
-      maxX: radius,
-      minY: -radius,
-      maxY: radius,
-      minZ: -radius,
-      maxZ: radius,
-      width: radius * 2,
-      height: radius * 2,
-      depth: radius * 2,
-    }
-  }
-
   const xRadius = Math.max(400, maxAbsX)
   const yRadius = Math.max(400, maxAbsY)
   const zRadius = Math.max(400, maxAbsZ)
@@ -352,17 +332,80 @@ function deriveBounds(nodes: RelationshipGalaxy3DNode[], spherical: boolean): Re
   }
 }
 
-function parseNodeColor(node: RelationshipGalaxyRenderNode): number {
+function parseNodeColor(node: RelationshipGalaxyRenderNode, communityColorById: ReadonlyMap<string, number>): number {
   if (node.visualRole === 'anchor') return OWNER_COLOR
-  return pickPaletteColor(node)
+  return (
+    communityColorById.get(node.communityId) ??
+    parseHexColor(node.color) ??
+    pickFallbackCommunityColor(node.communityId)
+  )
 }
 
-function pickPaletteColor(node: RelationshipGalaxyRenderNode): number {
-  const visualRole = node.visualRole ?? 'standard'
-  const palette = visualRole === 'close' ? FRIEND_NODE_COLORS : GROUPMATE_NODE_COLORS
-  const paletteKey = visualRole === 'close' ? 'friend' : 'non_friend'
-  const index = hashToUint(`${node.communityId}:${node.key}:${node.rank}:${paletteKey}`) % palette.length
-  return palette[index] ?? palette[0]
+function buildCommunityColorMap(graph: RelationshipGalaxyRenderGraph): Map<string, number> {
+  const colors = new Map<string, number>()
+  for (const community of graph.communities) {
+    colors.set(community.id, parseHexColor(community.color) ?? pickFallbackCommunityColor(community.id))
+  }
+  for (const node of graph.nodes) {
+    if (colors.has(node.communityId)) continue
+    colors.set(node.communityId, parseHexColor(node.color) ?? pickFallbackCommunityColor(node.communityId))
+  }
+  return colors
+}
+
+function buildSceneCommunities(
+  nodes: RelationshipGalaxy3DNode[],
+  graph: RelationshipGalaxyRenderGraph
+): RelationshipGalaxy3DCommunity[] {
+  const sourceCommunityById = new Map(graph.communities.map((community) => [community.id, community]))
+  const nodesByCommunity = new Map<string, RelationshipGalaxy3DNode[]>()
+
+  for (const node of nodes) {
+    const group = nodesByCommunity.get(node.node.communityId) ?? []
+    group.push(node)
+    nodesByCommunity.set(node.node.communityId, group)
+  }
+
+  return [...nodesByCommunity.entries()]
+    .sort((a, b) => b[1].length - a[1].length || a[0].localeCompare(b[0]))
+    .slice(0, 8)
+    .map(([id, communityNodes]) => {
+      const x = average(communityNodes.map((node) => node.x))
+      const y = average(communityNodes.map((node) => node.y))
+      const z = average(communityNodes.map((node) => node.z))
+      const spread = Math.max(
+        120,
+        ...communityNodes.map((node) => Math.hypot(node.x - x, node.y - y, (node.z - z) * 0.45))
+      )
+      const sourceCommunity = sourceCommunityById.get(id)
+      const color = parseHexColor(sourceCommunity?.color) ?? communityNodes[0]?.color ?? pickFallbackCommunityColor(id)
+
+      return {
+        id,
+        x: roundNum(x),
+        y: roundNum(y),
+        z: roundNum(z),
+        radius: roundNum(clamp(spread * 1.08 + Math.sqrt(communityNodes.length) * 24, 260, 720)),
+        color,
+        opacity: roundNum(clamp(0.085 + Math.log10(communityNodes.length + 1) * 0.026, 0.095, 0.17), 3),
+        nodeCount: communityNodes.length,
+      }
+    })
+}
+
+function parseHexColor(value: string | null | undefined): number | null {
+  if (!value || !/^#[0-9a-f]{6}$/i.test(value)) return null
+  return Number.parseInt(value.slice(1), 16)
+}
+
+function pickFallbackCommunityColor(communityId: string): number {
+  const index = hashToUint(communityId || 'default') % FALLBACK_COMMUNITY_COLORS.length
+  return FALLBACK_COMMUNITY_COLORS[index] ?? FALLBACK_COMMUNITY_COLORS[0]
+}
+
+function average(values: number[]): number {
+  if (values.length === 0) return 0
+  return values.reduce((sum, value) => sum + value, 0) / values.length
 }
 
 function deriveUnitVector(value: string): RelationshipGalaxy3DVector {

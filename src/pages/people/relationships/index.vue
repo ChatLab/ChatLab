@@ -39,7 +39,10 @@ import {
   restoreRelationshipGalaxyPanoramaView,
   type RelationshipGalaxyViewMode,
 } from './relationship-galaxy-navigation'
-import { buildPeopleRelationshipGalaxyRenderGraph } from './people-relationship-galaxy-render'
+import {
+  buildPeopleRelationshipGalaxyRenderGraph,
+  resolvePeopleRelationshipGalaxyThreeCanvasGraph,
+} from './people-relationship-galaxy-render'
 
 type GalaxyCanvasInstance = {
   focusNode: (key: string) => boolean
@@ -98,7 +101,6 @@ let neighborhoodGraphContentKey: string | null = null
 let pollTimer: ReturnType<typeof setInterval> | null = null
 let searchTimer: ReturnType<typeof setTimeout> | null = null
 let detailPanelMediaQuery: MediaQueryList | null = null
-let isRestoringPanoramaView = false
 
 const numberFormatter = computed(() => new Intl.NumberFormat(locale.value))
 
@@ -123,15 +125,28 @@ const graphScopeTabs = computed(() => [
   },
 ])
 
-const activeGraph = computed(() => neighborhoodResponse.value?.graph ?? graphResponse.value?.graph ?? EMPTY_GRAPH)
-const activeRenderGraph = computed(() =>
-  buildPeopleRelationshipGalaxyRenderGraph(activeGraph.value, {
+const panoramaGraph = computed(() => graphResponse.value?.graph ?? EMPTY_GRAPH)
+const activeGraph = computed(() => neighborhoodResponse.value?.graph ?? panoramaGraph.value)
+const threeCanvasSourceGraph = computed(() =>
+  resolvePeopleRelationshipGalaxyThreeCanvasGraph({
+    panorama: panoramaGraph.value,
+    neighborhood: neighborhoodResponse.value?.graph ?? null,
+    selectedKey: selectedKey.value,
+  })
+)
+const threeCanvasRenderGraph = computed(() =>
+  buildPeopleRelationshipGalaxyRenderGraph(threeCanvasSourceGraph.value, {
     privacyMode: privacyMode.value,
     ownerLabel: t('relationships.owner.me'),
   })
 )
+const threeCanvasSelectedKey = computed(() => {
+  const selected = selectedKey.value
+  if (!selected) return null
+  return threeCanvasSourceGraph.value.nodes.some((node) => node.key === selected) ? selected : null
+})
 const isNeighborhoodMode = computed(() => Boolean(neighborhoodResponse.value))
-const hasGraph = computed(() => activeGraph.value.nodes.length > 0)
+const hasGraph = computed(() => panoramaGraph.value.nodes.length > 0 || activeGraph.value.nodes.length > 0)
 const task = computed(() =>
   resolveRelationshipGalaxyActiveTask({
     graphTask: graphResponse.value?.task ?? null,
@@ -157,6 +172,7 @@ const selectedNode = computed(() => {
   if (!selectedKey.value) return null
   return (
     activeGraph.value.nodes.find((node) => node.key === selectedKey.value) ??
+    panoramaGraph.value.nodes.find((node) => node.key === selectedKey.value) ??
     neighborhoodResponse.value?.contact ??
     null
   )
@@ -179,9 +195,9 @@ const connectionRanking = computed(() =>
 )
 
 const stats = computed(() => ({
-  nodes: activeGraph.value.nodes.length,
-  edges: activeGraph.value.edges.length,
-  communities: activeGraph.value.communities.length,
+  nodes: panoramaGraph.value.nodes.length,
+  edges: panoramaGraph.value.edges.length,
+  communities: panoramaGraph.value.communities.length,
 }))
 
 const topCommunities = computed(() => [...activeGraph.value.communities].sort((a, b) => b.size - a.size).slice(0, 8))
@@ -368,9 +384,6 @@ function restorePanoramaView() {
 
   void nextTick(() => {
     restoreRelationshipGalaxyPanoramaView(canvasRef.value, view)
-    void nextTick(() => {
-      isRestoringPanoramaView = false
-    })
   })
 }
 
@@ -501,6 +514,7 @@ async function loadNeighborhood(key: string) {
   isLoadingNeighborhood.value = true
   loadingNeighborhoodKey.value = key
   loadError.value = ''
+  const isOffCoreSelection = !panoramaGraph.value.nodes.some((node) => node.key === key)
 
   try {
     const next = await dataService.getPeopleRelationshipNeighborhood(key, {
@@ -515,7 +529,11 @@ async function loadNeighborhood(key: string) {
     canvasSelectedKey.value = selectedKey.value
     syncPolling(next.task)
     await nextTick()
-    canvasRef.value?.fitView()
+    if (viewMode.value === '2d') {
+      canvasRef.value?.fitView()
+    } else if (isOffCoreSelection && selectedKey.value) {
+      canvasRef.value?.focusNode(selectedKey.value)
+    }
   } catch (error) {
     if (requestId !== neighborhoodRequestId.value) return
     toast.fail(t('relationships.toast.neighborhoodFailed'), { description: String(error) })
@@ -576,7 +594,9 @@ async function selectNode(node: PeopleRelationshipGraphNode) {
 }
 
 async function selectRenderNode(node: RelationshipGalaxyRenderNode) {
-  const peopleNode = activeGraph.value.nodes.find((item) => item.key === node.key)
+  const peopleNode =
+    panoramaGraph.value.nodes.find((item) => item.key === node.key) ??
+    activeGraph.value.nodes.find((item) => item.key === node.key)
   if (peopleNode) await selectNode(peopleNode)
 }
 
@@ -588,7 +608,6 @@ function handleThreeCanvasFallback() {
 }
 
 function backToPanorama() {
-  isRestoringPanoramaView = true
   cancelNeighborhoodLoad()
   clearNeighborhoodResponse()
   selectedKey.value = null
@@ -653,16 +672,6 @@ watch(viewMode, async () => {
   canvasRef.value?.fitView()
 })
 
-watch(detailPanelSafeInsetRight, async () => {
-  await nextTick()
-  if (isRestoringPanoramaView) return
-  if (selectedKey.value) {
-    canvasRef.value?.focusNode(selectedKey.value)
-    return
-  }
-  canvasRef.value?.fitView()
-})
-
 onMounted(() => {
   if (typeof window !== 'undefined') {
     detailPanelMediaQuery = window.matchMedia('(min-width: 768px)')
@@ -681,12 +690,12 @@ onBeforeUnmount(() => {
 
 <template>
   <div class="flex min-h-0 flex-1 overflow-hidden text-gray-900 dark:bg-page-dark dark:text-gray-100">
-    <main class="relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[#0b0f19] dark:bg-page-dark">
+    <main class="dark relative min-h-0 min-w-0 flex-1 overflow-hidden bg-[#03050c] text-gray-100">
       <RelationshipGalaxyThreeCanvas
         v-if="viewMode === '3d'"
         ref="canvasRef"
-        :graph="activeRenderGraph"
-        :selected-key="canvasSelectedKey"
+        :graph="threeCanvasRenderGraph"
+        :selected-key="threeCanvasSelectedKey"
         :safe-inset-right="detailPanelSafeInsetRight"
         :emphasize-edges="graphScope === 'friends'"
         :label="t('relationships.canvas.label3d')"
@@ -706,7 +715,9 @@ onBeforeUnmount(() => {
         @select-node="selectNode"
       />
 
-      <div class="absolute left-6 top-4 z-20 flex max-w-[calc(100%-3rem)] flex-wrap items-center gap-2">
+      <div
+        class="absolute left-4 top-4 z-20 flex max-w-[calc(100%-2rem)] flex-wrap items-center gap-1.5 rounded-2xl border border-white/8 bg-[#070a12]/78 p-1.5 shadow-overlay backdrop-blur-xl sm:left-6 sm:max-w-[calc(100%-3rem)]"
+      >
         <UTabs v-model="timeRangePreset" :items="timeRangeTabs" :content="false" size="xs" class="min-w-max gap-0" />
         <UTabs v-model="graphScope" :items="graphScopeTabs" :content="false" size="xs" class="min-w-max gap-0" />
         <div class="relative w-28 max-w-full sm:w-32 lg:w-36">
@@ -818,7 +829,7 @@ onBeforeUnmount(() => {
       <LoadingState
         v-if="showInitialLoading"
         variant="overlay"
-        class="!bg-[#0b0f19] [&_p]:!text-gray-300"
+        class="!bg-[#03050c] [&_p]:!text-gray-300"
         :text="statusText || t('relationships.task.updating')"
       />
 
@@ -831,14 +842,14 @@ onBeforeUnmount(() => {
 
       <aside
         v-if="showDetailPanel"
-        class="dark absolute inset-x-3 bottom-3 z-20 flex max-h-[70vh] flex-col overflow-hidden rounded-2xl border border-white/5 bg-page-dark/10 text-white shadow-overlay backdrop-blur-md md:inset-x-auto md:bottom-4 md:right-4 md:top-4 md:max-h-none md:w-[360px]"
+        class="dark absolute inset-x-3 bottom-3 z-20 flex max-h-[70vh] flex-col overflow-hidden rounded-2xl border border-white/8 bg-[#070a12]/84 text-white shadow-overlay backdrop-blur-2xl md:inset-x-auto md:bottom-4 md:right-4 md:top-4 md:max-h-none md:w-[360px]"
       >
         <UButton
           icon="i-lucide-x"
           color="neutral"
           variant="ghost"
           size="xs"
-          class="absolute right-2.5 top-2.5 z-10 bg-white/35 backdrop-blur-sm hover:bg-white/55 dark:bg-white/5 dark:hover:bg-white/10"
+          class="absolute right-2.5 top-2.5 z-10 text-white/60 hover:bg-white/8 hover:text-white"
           :aria-label="t('relationships.actions.closeDetail')"
           @click="closeDetailPanel"
         />
@@ -886,10 +897,8 @@ onBeforeUnmount(() => {
               {{ t('relationships.actions.focusConnections') }}
             </UButton>
 
-            <div class="grid grid-cols-3 gap-1 text-xs">
-              <div
-                class="min-w-0 rounded-md border border-gray-100/60 bg-gray-50/35 p-1.5 dark:border-white/5 dark:bg-white/3"
-              >
+            <div class="grid grid-cols-3 gap-y-1 rounded-xl border border-white/8 bg-white/3 p-1 text-xs">
+              <div class="min-w-0 px-2 py-1.5">
                 <p
                   class="mb-0.5 truncate text-[9px] font-semibold uppercase leading-3 tracking-wide text-gray-400 dark:text-gray-500"
                 >
@@ -903,9 +912,7 @@ onBeforeUnmount(() => {
                 </div>
               </div>
 
-              <div
-                class="min-w-0 rounded-md border border-gray-100/60 bg-gray-50/35 p-1.5 dark:border-white/5 dark:bg-white/3"
-              >
+              <div class="min-w-0 border-l border-white/6 px-2 py-1.5">
                 <p
                   class="mb-0.5 truncate text-[9px] font-semibold uppercase leading-3 tracking-wide text-gray-400 dark:text-gray-500"
                 >
@@ -923,9 +930,7 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="min-w-0 rounded-md border border-gray-100/60 bg-gray-50/35 p-1.5 dark:border-white/5 dark:bg-white/3"
-              >
+              <div class="min-w-0 border-l border-white/6 px-2 py-1.5">
                 <p
                   class="mb-0.5 truncate text-[9px] font-semibold uppercase leading-3 tracking-wide text-gray-400 dark:text-gray-500"
                 >
@@ -936,9 +941,7 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="min-w-0 rounded-md border border-gray-100/60 bg-gray-50/35 p-1.5 dark:border-white/5 dark:bg-white/3"
-              >
+              <div class="min-w-0 border-t border-white/6 px-2 py-1.5">
                 <p
                   class="mb-0.5 truncate text-[9px] font-semibold uppercase leading-3 tracking-wide text-gray-400 dark:text-gray-500"
                 >
@@ -949,9 +952,7 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="min-w-0 rounded-md border border-gray-100/60 bg-gray-50/35 p-1.5 dark:border-white/5 dark:bg-white/3"
-              >
+              <div class="min-w-0 border-l border-t border-white/6 px-2 py-1.5">
                 <p
                   class="mb-0.5 truncate text-[9px] font-semibold uppercase leading-3 tracking-wide text-gray-400 dark:text-gray-500"
                 >
@@ -962,9 +963,7 @@ onBeforeUnmount(() => {
                 </span>
               </div>
 
-              <div
-                class="min-w-0 rounded-md border border-gray-100/60 bg-gray-50/35 p-1.5 dark:border-white/5 dark:bg-white/3"
-              >
+              <div class="min-w-0 border-l border-t border-white/6 px-2 py-1.5">
                 <p
                   class="mb-0.5 truncate text-[9px] font-semibold uppercase leading-3 tracking-wide text-gray-400 dark:text-gray-500"
                 >
@@ -978,9 +977,7 @@ onBeforeUnmount(() => {
           </div>
 
           <div class="flex min-h-0 flex-1 flex-col gap-2">
-            <section
-              class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-100/80 bg-gray-50/25 p-2.5 dark:border-white/5 dark:bg-white/2"
-            >
+            <section class="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-white/7 pt-3">
               <div class="mb-2 flex shrink-0 items-center justify-between gap-3 pl-1 pr-3">
                 <div class="flex min-w-0 items-center gap-2">
                   <h3 class="truncate text-xs font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400">
@@ -1040,7 +1037,7 @@ onBeforeUnmount(() => {
 
             <section
               v-if="topCommunities.length > 0"
-              class="flex min-h-0 flex-1 flex-col overflow-hidden rounded-xl border border-gray-100/80 bg-gray-50/25 p-2.5 dark:border-white/5 dark:bg-white/2"
+              class="flex min-h-0 flex-1 flex-col overflow-hidden border-t border-white/7 pt-3"
             >
               <div class="mb-2 flex shrink-0 items-center justify-between gap-3 pl-1 pr-3">
                 <div class="flex min-w-0 items-center gap-2">

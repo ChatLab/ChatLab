@@ -1,16 +1,76 @@
 import { buildRelationshipGalaxy3DViewOffset } from './relationship-galaxy-3d-camera'
-import type { RelationshipGalaxy3DNode } from './relationship-galaxy-3d-scene'
+import type { RelationshipGalaxy3DNode, RelationshipGalaxy3DScene } from './relationship-galaxy-3d-scene'
+
+/**
+ * 只描述需要重建 Three.js 几何层的空间状态。
+ *
+ * 选中节点、关系边和名称变化都不应改变该签名，这些状态可以在原场景内增量更新；
+ * 节点坐标、颜色或星团光雾变化时才需要完整重建。
+ */
+export function buildRelationshipGalaxy3DSceneLayoutSignature(model: RelationshipGalaxy3DScene): string {
+  const nodes = [...model.nodes]
+    .sort((a, b) => a.key.localeCompare(b.key))
+    .map((node) => [node.key, node.x, node.y, node.z, node.color, node.seed])
+  const communities = [...model.communities]
+    .sort((a, b) => a.id.localeCompare(b.id))
+    .map((community) => [
+      community.id,
+      community.x,
+      community.y,
+      community.z,
+      community.radius,
+      community.color,
+      community.opacity,
+      community.nodeCount,
+    ])
+
+  return JSON.stringify({ nodes, communities, bounds: model.bounds })
+}
+
+export interface RelationshipGalaxyPointerPosition {
+  x: number
+  y: number
+}
+
+export function hasExceededRelationshipGalaxyPointerDragThreshold(
+  start: RelationshipGalaxyPointerPosition,
+  current: RelationshipGalaxyPointerPosition,
+  threshold = 6
+): boolean {
+  return Math.hypot(current.x - start.x, current.y - start.y) >= threshold
+}
+
+export type RelationshipGalaxyPointerClickAction = { type: 'ignore' } | { type: 'select'; key: string }
+
+export function resolveRelationshipGalaxyPointerClickAction(
+  hoveredKey: string | null,
+  pointerMoved: boolean
+): RelationshipGalaxyPointerClickAction {
+  if (pointerMoved || !hoveredKey) return { type: 'ignore' }
+  return { type: 'select', key: hoveredKey }
+}
 
 export function getRelationshipGalaxy3DDynamicLabelTier(
   sceneNode: RelationshipGalaxy3DNode,
   selectedKey: string | null,
   hoveredKey: string | null,
-  selectedVisibleLabelKeys: ReadonlySet<string> | null
+  selectedVisibleLabelKeys: ReadonlySet<string> | null,
+  zoomLabelRankLimit = 0
 ): 0 | 1 | 2 {
   if (sceneNode.key === hoveredKey) return sceneNode.labelTier === 2 ? 2 : 1
-  if (!selectedKey) return sceneNode.labelTier
+  if (!selectedKey) {
+    if (sceneNode.labelTier > 0) return sceneNode.labelTier
+    return zoomLabelRankLimit > 0 && sceneNode.node.rank <= zoomLabelRankLimit ? 1 : 0
+  }
   if (!selectedVisibleLabelKeys?.has(sceneNode.key)) return 0
   return sceneNode.key === selectedKey || sceneNode.node.visualRole === 'anchor' ? 2 : 1
+}
+
+export function getRelationshipGalaxy3DZoomLabelRankLimit(cameraDistance: number, sceneSpan: number): number {
+  const normalizedDistance = cameraDistance / Math.max(1, sceneSpan)
+  if (normalizedDistance < 0.34) return 32
+  if (normalizedDistance < 0.48) return 16
+  return 0
 }
 
 export interface RelationshipGalaxy3DProjectionCamera {

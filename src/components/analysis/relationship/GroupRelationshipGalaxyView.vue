@@ -21,6 +21,8 @@ import {
 type GalaxyCanvasInstance = {
   focusNode: (key: string) => boolean
   fitView: () => void
+  captureView: () => unknown | null
+  restoreView: (view: unknown) => boolean
 }
 
 const props = defineProps<{
@@ -37,6 +39,7 @@ const isLoading = ref(false)
 const loadError = ref('')
 const webglUnavailable = ref(false)
 const isWideLayout = ref(false)
+const savedPanoramaView = ref<unknown | null>(null)
 let requestId = 0
 let detailMediaQuery: MediaQueryList | null = null
 
@@ -69,6 +72,7 @@ async function loadData() {
   loadError.value = ''
   webglUnavailable.value = false
   selectedKey.value = null
+  savedPanoramaView.value = null
 
   try {
     const result = await dataService.getGroupRelationshipGalaxy(props.sessionId, props.timeFilter)
@@ -86,22 +90,32 @@ async function loadData() {
 }
 
 async function selectNode(node: RelationshipGalaxyRenderNode) {
+  rememberPanoramaView()
   selectedKey.value = node.key
   await nextTick()
   canvasRef.value?.focusNode(node.key)
 }
 
 async function selectMember(member: GroupRelationshipGalaxyMemberDetail) {
+  rememberPanoramaView()
   selectedKey.value = member.key
   await nextTick()
   canvasRef.value?.focusNode(member.key)
 }
 
-function clearSelection() {
+async function clearSelection() {
+  if (!selectedKey.value) return
+  const panoramaView = savedPanoramaView.value
+  savedPanoramaView.value = null
   selectedKey.value = null
+  await nextTick()
+  if (!panoramaView || canvasRef.value?.restoreView(panoramaView) !== true) {
+    canvasRef.value?.fitView()
+  }
 }
 
 async function resetView() {
+  savedPanoramaView.value = null
   selectedKey.value = null
   await nextTick()
   canvasRef.value?.fitView()
@@ -110,6 +124,12 @@ async function resetView() {
 function handleCanvasFallback() {
   webglUnavailable.value = true
   selectedKey.value = null
+  savedPanoramaView.value = null
+}
+
+function rememberPanoramaView() {
+  if (selectedKey.value || savedPanoramaView.value) return
+  savedPanoramaView.value = canvasRef.value?.captureView() ?? null
 }
 
 function syncDetailLayout() {
@@ -153,7 +173,7 @@ onBeforeUnmount(() => {
 </script>
 
 <template>
-  <div class="relative h-full min-h-[420px] w-full overflow-hidden bg-[#050302] text-white">
+  <div class="dark relative h-full min-h-[420px] w-full overflow-hidden bg-[#03050c] text-white">
     <LoadingState
       v-if="displayState.content === 'loading'"
       variant="page"
@@ -201,7 +221,6 @@ onBeforeUnmount(() => {
         :selected-key="selectedKey"
         :safe-inset-right="safeInsetRight"
         :label="t('views.groupRelationshipGalaxy.canvasLabel')"
-        @clear-selection="clearSelection"
         @fallback="handleCanvasFallback"
         @select-node="selectNode"
       />
@@ -218,7 +237,7 @@ onBeforeUnmount(() => {
         color="neutral"
         variant="soft"
         size="xs"
-        class="absolute left-4 top-4 z-20 border border-white/8 bg-black/25 text-white/75 backdrop-blur-md hover:bg-white/10 hover:text-white"
+        class="absolute left-4 top-4 z-20 rounded-xl border border-white/8 bg-[#070a12]/78 text-white/75 shadow-overlay backdrop-blur-xl hover:bg-white/10 hover:text-white"
         :aria-label="t('views.groupRelationshipGalaxy.resetView')"
         @click="resetView"
       >
@@ -227,7 +246,7 @@ onBeforeUnmount(() => {
 
       <aside
         v-if="selectedMember"
-        class="dark absolute inset-x-3 bottom-3 z-20 flex max-h-[72vh] flex-col overflow-hidden rounded-2xl border border-white/8 bg-[#0b0c12]/88 text-white shadow-overlay backdrop-blur-xl md:inset-x-auto md:bottom-4 md:right-4 md:top-4 md:max-h-none md:w-[360px]"
+        class="absolute inset-x-3 bottom-3 z-20 flex max-h-[72vh] flex-col overflow-hidden rounded-2xl border border-white/8 bg-[#070a12]/84 text-white shadow-overlay backdrop-blur-2xl md:inset-x-auto md:bottom-4 md:right-4 md:top-4 md:max-h-none md:w-[360px]"
       >
         <UButton
           icon="i-lucide-x"
@@ -260,14 +279,14 @@ onBeforeUnmount(() => {
             </div>
           </header>
 
-          <section class="grid shrink-0 grid-cols-3 gap-1.5">
-            <div class="rounded-xl border border-white/6 bg-white/3 px-2.5 py-2">
+          <section class="grid shrink-0 grid-cols-3 rounded-xl border border-white/8 bg-white/3 p-1">
+            <div class="min-w-0 px-2 py-1.5">
               <p class="text-[9px] uppercase tracking-wider text-white/35">
                 {{ t('views.groupRelationshipGalaxy.messageCount') }}
               </p>
               <p class="mt-1 font-mono text-sm font-semibold">{{ formatNumber(selectedMember.messageCount) }}</p>
             </div>
-            <div class="rounded-xl border border-white/6 bg-white/3 px-2.5 py-2">
+            <div class="min-w-0 border-l border-white/6 px-2 py-1.5">
               <p class="text-[9px] uppercase tracking-wider text-white/35">
                 {{ t('views.groupRelationshipGalaxy.relationshipScore') }}
               </p>
@@ -275,7 +294,7 @@ onBeforeUnmount(() => {
                 {{ formatScore(selectedMember.relationshipScore) }}
               </p>
             </div>
-            <div class="rounded-xl border border-white/6 bg-white/3 px-2.5 py-2">
+            <div class="min-w-0 border-l border-white/6 px-2 py-1.5">
               <p class="text-[9px] uppercase tracking-wider text-white/35">
                 {{ t('views.groupRelationshipGalaxy.lastInteraction') }}
               </p>
@@ -283,24 +302,24 @@ onBeforeUnmount(() => {
             </div>
           </section>
 
-          <section class="shrink-0">
+          <section class="shrink-0 border-t border-white/7 pt-3">
             <h4 class="mb-2 text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
               {{ t('views.groupRelationshipGalaxy.signalComposition') }}
             </h4>
-            <div class="grid grid-cols-3 gap-1.5">
-              <div class="rounded-xl bg-violet-400/8 px-2.5 py-2 text-violet-100">
+            <div class="grid grid-cols-3">
+              <div class="px-2.5 py-1 text-violet-100">
                 <p class="text-[10px] text-violet-100/50">{{ t('views.groupRelationshipGalaxy.replies') }}</p>
                 <p class="mt-0.5 font-mono text-sm font-semibold">
                   {{ formatNumber(selectedMember.replyInteractionCount) }}
                 </p>
               </div>
-              <div class="rounded-xl bg-sky-400/8 px-2.5 py-2 text-sky-100">
+              <div class="border-l border-white/6 px-2.5 py-1 text-sky-100">
                 <p class="text-[10px] text-sky-100/50">{{ t('views.groupRelationshipGalaxy.mentions') }}</p>
                 <p class="mt-0.5 font-mono text-sm font-semibold">
                   {{ formatNumber(selectedMember.mentionInteractionCount) }}
                 </p>
               </div>
-              <div class="rounded-xl bg-amber-300/8 px-2.5 py-2 text-amber-100">
+              <div class="border-l border-white/6 px-2.5 py-1 text-amber-100">
                 <p class="text-[10px] text-amber-100/50">{{ t('views.groupRelationshipGalaxy.proximity') }}</p>
                 <p class="mt-0.5 font-mono text-sm font-semibold">
                   {{ formatNumber(selectedMember.coOccurrenceCount) }}
@@ -309,7 +328,7 @@ onBeforeUnmount(() => {
             </div>
           </section>
 
-          <section class="flex min-h-0 flex-1 flex-col">
+          <section class="flex min-h-0 flex-1 flex-col border-t border-white/7 pt-3">
             <div class="mb-2 flex items-center justify-between">
               <h4 class="text-[10px] font-semibold uppercase tracking-[0.16em] text-white/40">
                 {{ t('views.groupRelationshipGalaxy.strongConnections') }}

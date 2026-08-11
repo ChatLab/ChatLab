@@ -116,7 +116,7 @@ test('fills a volumetric panorama instead of flattening the backend 2D layout', 
   assert.ok(scene.bounds.depth > scene.bounds.height * 0.8)
 })
 
-test('uses a horizontal panorama ellipsoid while keeping selected neighborhoods spherical', () => {
+test('keeps every node at its panorama coordinate after selection', () => {
   const nodes = Array.from({ length: 60 }, (_, index) =>
     node({
       key: `weixin:wide-${index}`,
@@ -134,11 +134,14 @@ test('uses a horizontal panorama ellipsoid while keeping selected neighborhoods 
 
   assert.ok(panorama.bounds.width > panorama.bounds.height * 1.25)
   assert.ok(panorama.bounds.depth > panorama.bounds.height * 0.9)
-  assert.equal(selected.bounds.width, selected.bounds.height)
-  assert.equal(selected.bounds.height, selected.bounds.depth)
+  assert.deepEqual(selected.bounds, panorama.bounds)
+  assert.deepEqual(
+    selected.nodes.map((item) => [item.key, item.x, item.y, item.z]),
+    panorama.nodes.map((item) => [item.key, item.x, item.y, item.z])
+  )
 })
 
-test('highlights selected node neighbors and omits unrelated nodes', () => {
+test('highlights selected node neighbors while preserving unrelated background nodes', () => {
   const graph: PeopleRelationshipsGraphData = {
     nodes: [
       node({ key: 'weixin:alice', rank: 1, score: 0.92 }),
@@ -156,7 +159,7 @@ test('highlights selected node neighbors and omits unrelated nodes', () => {
 
   assert.equal(alice?.state, 'selected')
   assert.equal(bob?.state, 'neighbor')
-  assert.equal(chen, undefined)
+  assert.equal(chen?.state, 'dimmed')
   assert.ok(scene.edges[0].highlighted)
   assert.ok(scene.edges[0].alpha > 0.3)
 })
@@ -215,7 +218,7 @@ test('keeps owner at the 3D panorama center when compacting asymmetric layouts',
   assert.ok(scene.bounds.width <= 3600)
 })
 
-test('keeps selected contact at the 3D panorama center before owner when focusing a neighborhood', () => {
+test('keeps selected contact at its original panorama position', () => {
   const graph: PeopleRelationshipsGraphData = {
     nodes: [
       node({ key: 'weixin:owner', kind: 'owner', rank: 1, score: 1, x: -1200, y: 0 }),
@@ -226,12 +229,16 @@ test('keeps selected contact at the 3D panorama center before owner when focusin
     communities: [],
   }
 
-  const scene = buildRelationshipGalaxy3DScene(graph, { selectedKey: 'weixin:alice' })
-  const selected = scene.nodes.find((item) => item.key === 'weixin:alice')
+  const panorama = buildRelationshipGalaxy3DScene(graph)
+  const selectedScene = buildRelationshipGalaxy3DScene(graph, { selectedKey: 'weixin:alice' })
+  const panoramaNode = panorama.nodes.find((item) => item.key === 'weixin:alice')
+  const selectedNode = selectedScene.nodes.find((item) => item.key === 'weixin:alice')
 
-  assert.equal(selected?.x, 0)
-  assert.equal(selected?.y, 0)
-  assert.equal(selected?.z, 0)
+  assert.notDeepEqual([panoramaNode?.x, panoramaNode?.y, panoramaNode?.z], [0, 0, 0])
+  assert.deepEqual(
+    [selectedNode?.x, selectedNode?.y, selectedNode?.z],
+    [panoramaNode?.x, panoramaNode?.y, panoramaNode?.z]
+  )
 })
 
 test('keeps selected labels scoped to direct relationship contacts', () => {
@@ -249,13 +256,28 @@ test('keeps selected labels scoped to direct relationship contacts', () => {
 
   assert.equal(scene.nodes.find((item) => item.key === 'weixin:selected')?.labelTier, 2)
   assert.equal(scene.nodes.find((item) => item.key === 'weixin:important')?.labelTier, 1)
-  assert.equal(
-    scene.nodes.find((item) => item.key === 'weixin:quiet'),
-    undefined
-  )
+  assert.equal(scene.nodes.find((item) => item.key === 'weixin:quiet')?.labelTier, 0)
 })
 
-test('limits selected relationship labels to the top eighty direct contacts', () => {
+test('keeps the default panorama readable with at most eight persistent labels', () => {
+  const nodes = Array.from({ length: 60 }, (_, index) =>
+    node({
+      key: `weixin:label-${index}`,
+      rank: index + 1,
+      score: Math.max(0.1, 1 - index / 70),
+      labelVisibility: index < 30 ? 2 : 1,
+      communityId: `community-${index % 5}`,
+    })
+  )
+
+  const scene = buildRelationshipGalaxy3DScene({ nodes, edges: [], communities: [] })
+
+  assert.equal(scene.nodes.filter((item) => item.labelTier > 0).length, 8)
+  assert.equal(scene.nodes.find((item) => item.key === 'weixin:label-0')?.labelTier, 2)
+  assert.equal(scene.nodes.find((item) => item.key === 'weixin:label-8')?.labelTier, 0)
+})
+
+test('limits selected relationship labels to the top twelve direct contacts', () => {
   const nodes = [
     node({ key: 'weixin:selected', rank: 1, labelVisibility: 0 }),
     ...Array.from({ length: 100 }, (_, index) =>
@@ -279,12 +301,12 @@ test('limits selected relationship labels to the top eighty direct contacts', ()
     .filter((item) => item.key !== 'weixin:selected' && item.labelTier > 0)
     .map((item) => item.key)
 
-  assert.equal(labeledPeerKeys.length, 80)
+  assert.equal(labeledPeerKeys.length, 12)
   assert.equal(labeledPeerKeys.includes('weixin:peer-100'), true)
-  assert.equal(labeledPeerKeys.includes('weixin:peer-20'), false)
+  assert.equal(labeledPeerKeys.includes('weixin:peer-88'), false)
 })
 
-test('renders only selected and visible related contacts in selected 3D scene', () => {
+test('preserves the complete graph while selecting a relationship node', () => {
   const nodes = [
     node({ key: 'weixin:selected', rank: 1, labelVisibility: 0 }),
     ...Array.from({ length: 100 }, (_, index) =>
@@ -308,16 +330,11 @@ test('renders only selected and visible related contacts in selected 3D scene', 
   ]
 
   const scene = buildRelationshipGalaxy3DScene({ nodes, edges, communities: [] }, { selectedKey: 'weixin:selected' })
-  const visibleKeys = new Set(scene.nodes.map((item) => item.key))
-
-  assert.equal(scene.nodes.length, 81)
-  assert.equal(visibleKeys.has('weixin:selected'), true)
-  assert.equal(visibleKeys.has('weixin:peer-100'), true)
-  assert.equal(visibleKeys.has('weixin:peer-20'), false)
-  assert.equal(
-    scene.edges.every((item) => visibleKeys.has(item.edge.sourceKey) && visibleKeys.has(item.edge.targetKey)),
-    true
-  )
+  assert.equal(scene.nodes.length, nodes.length)
+  assert.equal(scene.edges.length, edges.length)
+  assert.equal(scene.nodes.find((item) => item.key === 'weixin:selected')?.state, 'selected')
+  assert.equal(scene.nodes.find((item) => item.key === 'weixin:peer-100')?.state, 'neighbor')
+  assert.equal(scene.nodes.find((item) => item.key === 'weixin:peer-20')?.state, 'neighbor')
   assert.equal(
     scene.edges.some((item) => item.edge.sourceKey === 'weixin:peer-100' && item.edge.targetKey === 'weixin:peer-99'),
     true
@@ -362,8 +379,12 @@ test('keeps rendered selected relationship labels aligned with the scene label t
     true
   )
   assert.equal(
-    scene.nodes.find((item) => item.key === 'weixin:peer-20'),
-    undefined
+    shouldRenderRelationshipGalaxy3DLabel(
+      scene.nodes.find((item) => item.key === 'weixin:peer-20')!,
+      'weixin:selected',
+      true
+    ),
+    false
   )
 })
 
@@ -384,15 +405,25 @@ test('renders selected-scene related labels from label tier even without recompu
   assert.equal(shouldRenderRelationshipGalaxy3DLabel(peer, 'weixin:selected', false), true)
 })
 
-test('uses varied node colors, larger important nodes, and no glow field', () => {
+test('uses restrained community colors, larger important nodes, and semantic glow fields', () => {
   const graph: PeopleRelationshipsGraphData = {
     nodes: [
-      node({ key: 'weixin:owner', kind: 'owner', rank: 1, score: 1, color: '#38bdf8' }),
-      node({ key: 'weixin:friend', rank: 2, pool: 'friend', score: 0.9, color: '#2563eb' }),
-      node({ key: 'weixin:groupmate', rank: 80, pool: 'non_friend', score: 0.2, color: '#22d3ee' }),
+      node({ key: 'weixin:owner', kind: 'owner', rank: 1, score: 1, color: '#38bdf8', communityId: 'core' }),
+      node({ key: 'weixin:friend', rank: 2, pool: 'friend', score: 0.9, color: '#2563eb', communityId: 'core' }),
+      node({
+        key: 'weixin:groupmate',
+        rank: 80,
+        pool: 'non_friend',
+        score: 0.2,
+        color: '#22d3ee',
+        communityId: 'outer',
+      }),
     ],
     edges: [],
-    communities: [],
+    communities: [
+      { id: 'core', label: 'Core', size: 2, x: 0, y: 0, color: '#7dd3fc' },
+      { id: 'outer', label: 'Outer', size: 1, x: 0, y: 0, color: '#f0abfc' },
+    ],
   }
 
   const scene = buildRelationshipGalaxy3DScene(graph)
@@ -401,15 +432,34 @@ test('uses varied node colors, larger important nodes, and no glow field', () =>
   const groupmate = scene.nodes.find((item) => item.key === 'weixin:groupmate')
 
   assert.equal(owner?.color, 0xf8fbff)
-  assert.ok((friend?.color ?? 0) !== 0x2563eb)
-  assert.ok((groupmate?.color ?? 0) !== 0x22d3ee)
+  assert.equal(friend?.color, 0x7dd3fc)
+  assert.equal(groupmate?.color, 0xf0abfc)
   assert.ok(new Set(scene.nodes.map((item) => item.color)).size >= 3)
   assert.ok((owner?.radius ?? 0) > (groupmate?.radius ?? 0) * 2)
-  assert.equal(Object.hasOwn(owner ?? {}, 'glow'), false)
-  assert.equal(Object.hasOwn(groupmate ?? {}, 'glow'), false)
+  assert.equal(scene.communities.length, 2)
+  assert.ok(scene.communities.every((community) => community.radius >= 260 && community.opacity > 0))
 })
 
-test('uses a broad deterministic multi-color palette for contact stars', () => {
+test('caps high-signal node sizes so selected stars do not obscure their relationship neighborhood', () => {
+  const graph: PeopleRelationshipsGraphData = {
+    nodes: [
+      node({ key: 'weixin:selected', rank: 1, score: 1, size: 96 }),
+      node({ key: 'weixin:peer', rank: 2, score: 0.9, size: 72 }),
+    ],
+    edges: [edge({ sourceKey: 'weixin:selected', targetKey: 'weixin:peer', weight: 2 })],
+    communities: [],
+  }
+
+  const panorama = buildRelationshipGalaxy3DScene(graph)
+  const selected = buildRelationshipGalaxy3DScene(graph, { selectedKey: 'weixin:selected' })
+
+  assert.ok(panorama.nodes.every((item) => item.radius <= 18))
+  assert.ok(selected.nodes.find((item) => item.key === 'weixin:selected')!.radius <= 22)
+  assert.ok(selected.nodes.find((item) => item.key === 'weixin:peer')!.radius <= 20)
+})
+
+test('keeps one stable color family inside each relationship community', () => {
+  const colors = ['#ff86ad', '#72b8ff', '#9f8cff', '#67d9d0', '#f2c879', '#8fdaa8']
   const graph: PeopleRelationshipsGraphData = {
     nodes: [
       node({ key: 'weixin:owner', kind: 'owner', rank: 1, pool: 'friend', score: 1 }),
@@ -417,6 +467,8 @@ test('uses a broad deterministic multi-color palette for contact stars', () => {
         node({
           key: `weixin:colorful-${index}`,
           rank: index + 2,
+          communityId: `community-${index % colors.length}`,
+          color: colors[index % colors.length],
           pool: index % 3 === 0 ? 'friend' : 'non_friend',
           score: Math.max(0.2, 1 - index / 80),
         })
@@ -427,34 +479,17 @@ test('uses a broad deterministic multi-color palette for contact stars', () => {
   }
 
   const scene = buildRelationshipGalaxy3DScene(graph)
-  const contactColorFamilies = new Set(
-    scene.nodes
-      .filter((item) => item.key !== 'weixin:owner')
-      .map((item) => colorFamily(item.color))
-      .filter(Boolean)
+  const colorsByCommunity = new Map<string, Set<number>>()
+  for (const item of scene.nodes.filter((item) => item.key !== 'weixin:owner')) {
+    const communityColors = colorsByCommunity.get(item.node.communityId) ?? new Set<number>()
+    communityColors.add(item.color)
+    colorsByCommunity.set(item.node.communityId, communityColors)
+  }
+
+  assert.equal(colorsByCommunity.size, colors.length)
+  assert.equal(
+    [...colorsByCommunity.values()].every((communityColors) => communityColors.size === 1),
+    true
   )
-
-  assert.ok(contactColorFamilies.size >= 6)
+  assert.ok(new Set(scene.nodes.map((item) => item.color)).size <= colors.length + 1)
 })
-
-function colorFamily(color: number): string | null {
-  const red = ((color >> 16) & 255) / 255
-  const green = ((color >> 8) & 255) / 255
-  const blue = (color & 255) / 255
-  const max = Math.max(red, green, blue)
-  const min = Math.min(red, green, blue)
-  const delta = max - min
-  if (delta < 0.18) return null
-
-  let hue = 0
-  if (max === red) hue = ((green - blue) / delta + (green < blue ? 6 : 0)) * 60
-  else if (max === green) hue = ((blue - red) / delta + 2) * 60
-  else hue = ((red - green) / delta + 4) * 60
-
-  if (hue < 30 || hue >= 330) return 'rose'
-  if (hue < 90) return 'gold'
-  if (hue < 150) return 'green'
-  if (hue < 210) return 'cyan'
-  if (hue < 270) return 'blue'
-  return 'violet'
-}

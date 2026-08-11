@@ -10,6 +10,12 @@ export interface PeopleRelationshipGalaxyRenderOptions {
   ownerLabel: string
 }
 
+export interface PeopleRelationshipGalaxyThreeCanvasGraphInput {
+  panorama: PeopleRelationshipsGraphData
+  neighborhood: PeopleRelationshipsGraphData | null
+  selectedKey: string | null
+}
+
 export function buildPeopleRelationshipGalaxyRenderGraph(
   graph: PeopleRelationshipsGraphData,
   options: PeopleRelationshipGalaxyRenderOptions
@@ -24,6 +30,38 @@ export function buildPeopleRelationshipGalaxyRenderGraph(
     edges: graph.edges.map((edge) => ({ ...edge })),
     communities: graph.communities.map((community) => ({ ...community })),
   }
+}
+
+export function mergePeopleRelationshipGalaxyGraphs(
+  panorama: PeopleRelationshipsGraphData,
+  neighborhood: PeopleRelationshipsGraphData
+): PeopleRelationshipsGraphData {
+  const nodes = new Map(panorama.nodes.map((node) => [node.key, node]))
+  const edges = new Map(panorama.edges.map((edge) => [edge.id, edge]))
+  const communities = new Map(panorama.communities.map((community) => [community.id, community]))
+
+  for (const node of neighborhood.nodes) {
+    if (!nodes.has(node.key)) nodes.set(node.key, node)
+  }
+  for (const edge of neighborhood.edges) edges.set(edge.id, edge)
+  for (const community of neighborhood.communities) {
+    if (!communities.has(community.id)) communities.set(community.id, community)
+  }
+
+  return {
+    nodes: [...nodes.values()],
+    edges: [...edges.values()],
+    communities: [...communities.values()],
+  }
+}
+
+export function resolvePeopleRelationshipGalaxyThreeCanvasGraph(
+  input: PeopleRelationshipGalaxyThreeCanvasGraphInput
+): PeopleRelationshipsGraphData {
+  const selected = input.selectedKey
+  if (!selected || !input.neighborhood) return input.panorama
+  if (!input.neighborhood.nodes.some((node) => node.key === selected)) return input.panorama
+  return mergePeopleRelationshipGalaxyGraphs(input.panorama, input.neighborhood)
 }
 
 function computePeopleNodeImportance(node: PeopleRelationshipGraphNode): number {

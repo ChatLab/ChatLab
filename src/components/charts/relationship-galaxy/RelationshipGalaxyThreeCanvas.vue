@@ -5,10 +5,18 @@ import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import type { RelationshipGalaxyRenderGraph, RelationshipGalaxyRenderNode } from '@openchatlab/shared-types'
 import {
   buildRelationshipGalaxy3DScene,
+  type RelationshipGalaxy3DCommunity,
   type RelationshipGalaxy3DEdge,
   type RelationshipGalaxy3DNode,
   type RelationshipGalaxy3DScene,
 } from './relationship-galaxy-3d-scene'
+import {
+  buildRelationshipGalaxy3DAmbientParticles,
+  buildRelationshipGalaxy3DFogVeils,
+  selectRelationshipGalaxy3DAmbientEdgeIds,
+  selectRelationshipGalaxy3DPrimarySelectedEdgeIds,
+  selectRelationshipGalaxy3DSelectedEdgeIds,
+} from './relationship-galaxy-3d-environment'
 import { buildRelationshipGalaxy3DEdgeCurvePoints } from './relationship-galaxy-3d-edge-path'
 import {
   setRelationshipGalaxy3DEdgeGradientColor,
@@ -17,32 +25,45 @@ import {
 import { buildRelationshipVisibleLabelKeys } from './relationship-galaxy-connections'
 import {
   applyRelationshipGalaxy3DSafeArea,
+  buildRelationshipGalaxy3DFocusCameraPose,
+  buildRelationshipGalaxy3DFocusFrame,
   buildRelationshipGalaxy3DImmersiveCameraPose,
   type RelationshipGalaxy3DCameraPose,
 } from './relationship-galaxy-3d-camera'
 import {
   applyRelationshipGalaxy3DCameraViewOffset,
+  buildRelationshipGalaxy3DSceneLayoutSignature,
   captureRelationshipGalaxy3DCameraView,
   getRelationshipGalaxy3DDynamicLabelTier,
+  getRelationshipGalaxy3DZoomLabelRankLimit,
+  hasExceededRelationshipGalaxyPointerDragThreshold,
   parseRelationshipGalaxy3DCameraView,
+  resolveRelationshipGalaxyPointerClickAction,
 } from './relationship-galaxy-3d-canvas'
 
 interface NodeObject {
-  group: THREE.Group
-  core: THREE.Sprite
   sceneNode: RelationshipGalaxy3DNode
   basePosition: THREE.Vector3
+  currentPosition: THREE.Vector3
   phase: number
+  index: number
 }
 
 interface VisibleLabel {
   key: string
   text: string
+  rank: number
   x: number
   y: number
   opacity: number
   selected: boolean
   emphasis: 'major' | 'medium' | 'minor'
+}
+
+interface EdgeLayerObject {
+  line: THREE.LineSegments<THREE.BufferGeometry, THREE.LineBasicMaterial>
+  targetOpacity: number
+  disposeWhenHidden: boolean
 }
 
 interface CameraFlight {
@@ -52,6 +73,7 @@ interface CameraFlight {
   toPosition: THREE.Vector3
   fromTarget: THREE.Vector3
   toTarget: THREE.Vector3
+  arcOffset: THREE.Vector3
 }
 
 const props = withDefaults(
@@ -71,9 +93,10 @@ const props = withDefaults(
 
 const emit = defineEmits<{
   (event: 'select-node', node: RelationshipGalaxyRenderNode): void
-  (event: 'clear-selection'): void
   (event: 'fallback'): void
 }>()
+
+const SELECTED_LABEL_LIMIT = 12
 
 const canvasRoot = ref<HTMLElement | null>(null)
 const labels = shallowRef<VisibleLabel[]>([])
@@ -94,16 +117,33 @@ let labelFrame = 0
 let hasUserMovedCamera = false
 let pendingFocusKey: string | null = null
 let cameraFlight: CameraFlight | null = null
+let activeFocusKey: string | null = null
+let activeFocusFrameSignature: string | null = null
+let pointerGestureStart: { x: number; y: number } | null = null
+let pointerGestureMoved = false
+let motionMediaQuery: MediaQueryList | null = null
+let prefersReducedMotion = false
+let ambientMaterial: THREE.ShaderMaterial | null = null
+let nodeMaterial: THREE.ShaderMaterial | null = null
+let nodePoints: THREE.Points<THREE.BufferGeometry, THREE.ShaderMaterial> | null = null
+let renderedLayoutSignature: string | null = null
 
 const graphGroup = new THREE.Group()
+const environmentGroup = new THREE.Group()
+const communityGlowGroup = new THREE.Group()
+const fogVeilGroup = new THREE.Group()
 const edgeGroup = new THREE.Group()
 const nodeGroup = new THREE.Group()
 const nodeObjects = new Map<string, NodeObject>()
-const nodePickObjects: THREE.Object3D[] = []
+const edgeLayerObjects: EdgeLayerObject[] = []
+const nodeKeyByIndex: string[] = []
 const neighborKeysOf = new Map<string, Set<string>>()
 const raycaster = new THREE.Raycaster()
 const pointer = new THREE.Vector2()
 const tmpWorldPosition = new THREE.Vector3()
+let ambientVisibleEdgeIds = new Set<string>()
+let selectedVisibleEdgeIds = new Set<string>()
+let primarySelectedEdgeIds = new Set<string>()
 
 function shortName(node: RelationshipGalaxyRenderNode): string {
   return node.displayName
@@ -123,52 +163,245 @@ function scenePosition(node: RelationshipGalaxy3DNode, model: RelationshipGalaxy
   return new THREE.Vector3(node.x - centerX, -(node.y - centerY), node.z)
 }
 
+function communityScenePosition(
+  community: RelationshipGalaxy3DCommunity,
+  model: RelationshipGalaxy3DScene
+): THREE.Vector3 {
+  const centerX = (model.bounds.minX + model.bounds.maxX) / 2
+  const centerY = (model.bounds.minY + model.bounds.maxY) / 2
+  return new THREE.Vector3(community.x - centerX, -(community.y - centerY), community.z)
+}
+
 function renderGraph(shouldFit = false) {
   if (!scene || !camera || !renderer) return
 
   const model = buildRelationshipGalaxy3DScene(props.graph, { selectedKey: props.selectedKey })
   sceneModel.value = model
+  renderedLayoutSignature = buildRelationshipGalaxy3DSceneLayoutSignature(model)
   updateSelectedVisibleLabelKeys()
+  clearGroup(environmentGroup)
+  ambientMaterial = null
+  clearGroup(communityGlowGroup)
+  clearGroup(fogVeilGroup)
   clearGroup(edgeGroup)
+  edgeLayerObjects.length = 0
   clearGroup(nodeGroup)
+  nodeMaterial = null
+  nodePoints = null
   nodeObjects.clear()
-  nodePickObjects.length = 0
+  nodeKeyByIndex.length = 0
   neighborKeysOf.clear()
   hoveredKey.value = null
   labelFrame = 0
   labels.value = []
+  ambientVisibleEdgeIds = selectRelationshipGalaxy3DAmbientEdgeIds(model, props.emphasizeEdges)
+  selectedVisibleEdgeIds = selectRelationshipGalaxy3DSelectedEdgeIds(model)
+  primarySelectedEdgeIds = selectRelationshipGalaxy3DPrimarySelectedEdgeIds(model)
 
+  addAmbientEnvironment(model)
+  addCommunityGlows(model)
+  addFogVeils(model)
+  rebuildNeighborKeys(model)
+  renderEdgeLayers(model, false)
+
+  addNodeLayer(model)
+
+  if (shouldFit || !hasUserMovedCamera) fitView()
+  refreshActiveFocus()
+  resolvePendingFocus()
+}
+
+function applyGraphState() {
+  if (!scene || !camera || !renderer) return
+  if (!props.selectedKey) {
+    activeFocusKey = null
+    activeFocusFrameSignature = null
+  }
+
+  const model = buildRelationshipGalaxy3DScene(props.graph, { selectedKey: props.selectedKey })
+  const nextLayoutSignature = buildRelationshipGalaxy3DSceneLayoutSignature(model)
+  if (!nodePoints || renderedLayoutSignature !== nextLayoutSignature) {
+    renderGraph(false)
+    return
+  }
+
+  sceneModel.value = model
+  updateSelectedVisibleLabelKeys()
+  rebuildNeighborKeys(model)
+  ambientVisibleEdgeIds = selectRelationshipGalaxy3DAmbientEdgeIds(model, props.emphasizeEdges)
+  selectedVisibleEdgeIds = selectRelationshipGalaxy3DSelectedEdgeIds(model)
+  primarySelectedEdgeIds = selectRelationshipGalaxy3DPrimarySelectedEdgeIds(model)
+
+  const nextNodeByKey = new Map(model.nodes.map((node) => [node.key, node]))
+  for (const [key, object] of nodeObjects) {
+    const nextNode = nextNodeByKey.get(key)
+    if (nextNode) object.sceneNode = nextNode
+  }
+
+  labelFrame = 0
+  if (prefersReducedMotion) {
+    clearGroup(edgeGroup)
+    edgeLayerObjects.length = 0
+    renderEdgeLayers(model, false)
+  } else {
+    renderEdgeLayers(model, true)
+  }
+  refreshActiveFocus()
+  resolvePendingFocus()
+}
+
+function rebuildNeighborKeys(model: RelationshipGalaxy3DScene) {
+  neighborKeysOf.clear()
   for (const edge of model.edges) {
     if (!neighborKeysOf.has(edge.edge.sourceKey)) neighborKeysOf.set(edge.edge.sourceKey, new Set())
     if (!neighborKeysOf.has(edge.edge.targetKey)) neighborKeysOf.set(edge.edge.targetKey, new Set())
     neighborKeysOf.get(edge.edge.sourceKey)!.add(edge.edge.targetKey)
     neighborKeysOf.get(edge.edge.targetKey)!.add(edge.edge.sourceKey)
   }
-
-  addEdgeLayer(model, 'dim')
-  addEdgeLayer(model, 'normal')
-  addEdgeLayer(model, 'highlight')
-
-  for (const sceneNode of model.nodes) {
-    const basePosition = scenePosition(sceneNode, model)
-    const object = createNodeObject(sceneNode, basePosition)
-    nodeObjects.set(sceneNode.key, object)
-    nodePickObjects.push(object.core)
-    nodeGroup.add(object.group)
-  }
-
-  if (shouldFit || !hasUserMovedCamera) fitView()
-  resolvePendingFocus()
 }
 
 function updateSelectedVisibleLabelKeys() {
   selectedVisibleLabelKeys.value = props.selectedKey
-    ? buildRelationshipVisibleLabelKeys(props.graph, props.selectedKey)
+    ? buildRelationshipVisibleLabelKeys(props.graph, props.selectedKey, { limit: SELECTED_LABEL_LIMIT })
     : null
 }
 
-function addEdgeLayer(model: RelationshipGalaxy3DScene, bucket: 'dim' | 'normal' | 'highlight') {
+function addAmbientEnvironment(model: RelationshipGalaxy3DScene) {
+  const particles = buildRelationshipGalaxy3DAmbientParticles(model)
+  if (particles.length === 0) return
+
+  const positions = new Float32Array(particles.length * 3)
+  const colors = new Float32Array(particles.length * 3)
+  const sizes = new Float32Array(particles.length)
+  const opacities = new Float32Array(particles.length)
+  const phases = new Float32Array(particles.length)
+  const color = new THREE.Color()
+
+  particles.forEach((particle, index) => {
+    positions[index * 3] = particle.x
+    positions[index * 3 + 1] = -particle.y
+    positions[index * 3 + 2] = particle.z
+    color.setHex(particle.color)
+    colors[index * 3] = color.r
+    colors[index * 3 + 1] = color.g
+    colors[index * 3 + 2] = color.b
+    sizes[index] = particle.size
+    opacities[index] = particle.opacity
+    phases[index] = particle.phase
+  })
+
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3))
+  geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3))
+  geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1))
+  geometry.setAttribute('aOpacity', new THREE.BufferAttribute(opacities, 1))
+  geometry.setAttribute('aPhase', new THREE.BufferAttribute(phases, 1))
+
+  ambientMaterial = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: false,
+    blending: THREE.AdditiveBlending,
+    uniforms: { uTime: { value: 0 } },
+    vertexShader: `
+      attribute vec3 aColor;
+      attribute float aSize;
+      attribute float aOpacity;
+      attribute float aPhase;
+      varying vec3 vColor;
+      varying float vOpacity;
+      varying float vPhase;
+      void main() {
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * mvPosition;
+        gl_PointSize = clamp(aSize * (980.0 / max(120.0, -mvPosition.z)), 0.75, 6.5);
+        vColor = aColor;
+        vOpacity = aOpacity;
+        vPhase = aPhase;
+      }
+    `,
+    fragmentShader: `
+      uniform float uTime;
+      varying vec3 vColor;
+      varying float vOpacity;
+      varying float vPhase;
+      void main() {
+        float distanceToCenter = length(gl_PointCoord - vec2(0.5));
+        float falloff = smoothstep(0.5, 0.03, distanceToCenter);
+        if (falloff < 0.015) discard;
+        float twinkle = 0.88 + sin(uTime * 0.22 + vPhase) * 0.12;
+        gl_FragColor = vec4(vColor * falloff, falloff * vOpacity * twinkle);
+      }
+    `,
+  })
+
+  const starField = new THREE.Points(geometry, ambientMaterial)
+  starField.frustumCulled = false
+  starField.renderOrder = -3
+  environmentGroup.add(starField)
+}
+
+function addCommunityGlows(model: RelationshipGalaxy3DScene) {
+  for (const community of model.communities) {
+    const material = new THREE.SpriteMaterial({
+      map: getSoftGlowTexture(),
+      color: community.color,
+      transparent: true,
+      opacity: community.opacity,
+      blending: THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false,
+    })
+    const glow = new THREE.Sprite(material)
+    glow.position.copy(communityScenePosition(community, model))
+    glow.scale.set(community.radius * 2.7, community.radius * 1.85, 1)
+    glow.renderOrder = -2
+    communityGlowGroup.add(glow)
+  }
+}
+
+function addFogVeils(model: RelationshipGalaxy3DScene) {
+  for (const veil of buildRelationshipGalaxy3DFogVeils(model)) {
+    const material = new THREE.SpriteMaterial({
+      map: getSoftGlowTexture(),
+      color: veil.color,
+      transparent: true,
+      opacity: veil.opacity,
+      blending: veil.foreground ? THREE.NormalBlending : THREE.AdditiveBlending,
+      depthTest: false,
+      depthWrite: false,
+      rotation: veil.rotation,
+    })
+    const fog = new THREE.Sprite(material)
+    fog.position.set(veil.x, -veil.y, veil.z)
+    fog.scale.set(veil.width, veil.height, 1)
+    fog.renderOrder = veil.foreground ? 4 : -1
+    fogVeilGroup.add(fog)
+  }
+}
+
+function renderEdgeLayers(model: RelationshipGalaxy3DScene, animate: boolean) {
+  if (animate) {
+    for (const object of edgeLayerObjects) {
+      object.targetOpacity = 0
+      object.disposeWhenHidden = true
+    }
+  }
+
+  addEdgeLayer(model, 'dim', animate)
+  addEdgeLayer(model, 'normal', animate)
+  addEdgeLayer(model, 'highlight', animate)
+}
+
+function addEdgeLayer(model: RelationshipGalaxy3DScene, bucket: 'dim' | 'normal' | 'highlight', animate: boolean) {
   const edges = model.edges.filter((edge) => {
+    if (props.selectedKey) {
+      if (!selectedVisibleEdgeIds.has(edge.edge.id)) return false
+      if (bucket === 'highlight') return primarySelectedEdgeIds.has(edge.edge.id)
+      if (bucket === 'normal') return !primarySelectedEdgeIds.has(edge.edge.id)
+      return false
+    }
+    if (!ambientVisibleEdgeIds.has(edge.edge.id)) return false
     if (bucket === 'highlight') return edge.highlighted
     if (bucket === 'dim') return edge.alpha <= 0.05
     return !edge.highlighted && edge.alpha > 0.05
@@ -176,7 +409,7 @@ function addEdgeLayer(model: RelationshipGalaxy3DScene, bucket: 'dim' | 'normal'
   if (edges.length === 0) return
 
   for (const band of groupEdgesByWidth(edges, bucket)) {
-    addThinEdgePaths(model, band.edges, bucket, band.linewidth)
+    addThinEdgePaths(model, band.edges, bucket, band.linewidth, animate)
   }
 }
 
@@ -184,14 +417,16 @@ function addThinEdgePaths(
   model: RelationshipGalaxy3DScene,
   edges: RelationshipGalaxy3DEdge[],
   bucket: 'dim' | 'normal' | 'highlight',
-  linewidth: number
+  linewidth: number,
+  animate: boolean
 ) {
+  const targetOpacity = getEdgeLayerOpacity(bucket)
   const material = new THREE.LineBasicMaterial({
     vertexColors: true,
     transparent: true,
-    opacity: bucket === 'highlight' ? 0.62 : bucket === 'normal' ? (props.emphasizeEdges ? 0.27 : 0.21) : 0.05,
+    opacity: animate ? 0 : targetOpacity,
     linewidth,
-    blending: THREE.NormalBlending,
+    blending: THREE.AdditiveBlending,
     depthTest: true,
     depthWrite: false,
   })
@@ -231,6 +466,27 @@ function addThinEdgePaths(
   const line = new THREE.LineSegments(geometry, material)
   line.frustumCulled = false
   edgeGroup.add(line)
+  edgeLayerObjects.push({ line, targetOpacity, disposeWhenHidden: false })
+}
+
+function getEdgeLayerOpacity(bucket: 'dim' | 'normal' | 'highlight'): number {
+  if (bucket === 'highlight') return 0.76
+  if (bucket === 'normal' && props.selectedKey) return 0.09
+  if (bucket === 'normal') return props.emphasizeEdges ? 0.2 : 0.14
+  return 0.028
+}
+
+function updateEdgeLayerTransitions() {
+  for (let index = edgeLayerObjects.length - 1; index >= 0; index -= 1) {
+    const object = edgeLayerObjects[index]
+    const material = object.line.material
+    material.opacity += (object.targetOpacity - material.opacity) * 0.14
+    if (!object.disposeWhenHidden || material.opacity >= 0.006) continue
+
+    edgeGroup.remove(object.line)
+    disposeObject(object.line)
+    edgeLayerObjects.splice(index, 1)
+  }
 }
 
 function pushEdgeGradientColor(
@@ -242,6 +498,8 @@ function pushEdgeGradientColor(
   progress: number
 ) {
   setRelationshipGalaxy3DEdgeGradientColor(vertexColor, sourceColor, targetColor, bucket, progress)
+  const endpointFade = 0.08 + Math.pow(Math.sin(Math.PI * progress), 0.62) * 0.92
+  vertexColor.multiplyScalar(endpointFade)
   colors.push(vertexColor.r, vertexColor.g, vertexColor.b)
 }
 
@@ -264,40 +522,94 @@ function getRenderedEdgeLineWidth(edge: RelationshipGalaxy3DEdge, bucket: 'dim' 
   return 0.82
 }
 
-function getStarSpriteScale(sceneNode: RelationshipGalaxy3DNode): number {
-  if (sceneNode.state === 'selected') return 2.18
-  if (sceneNode.node.visualRole === 'anchor') return 2.04
-  if (sceneNode.node.rank <= 10) return 1.76
-  return 1.52
-}
+function addNodeLayer(model: RelationshipGalaxy3DScene) {
+  if (model.nodes.length === 0) return
 
-function createNodeObject(sceneNode: RelationshipGalaxy3DNode, basePosition: THREE.Vector3): NodeObject {
-  const group = new THREE.Group()
-  group.position.copy(basePosition)
+  const positions = new Float32Array(model.nodes.length * 3)
+  const colors = new Float32Array(model.nodes.length * 3)
+  const sizes = new Float32Array(model.nodes.length)
+  const opacities = new Float32Array(model.nodes.length)
+  const seeds = new Float32Array(model.nodes.length)
+  const color = new THREE.Color()
 
-  const core = new THREE.Sprite(
-    new THREE.SpriteMaterial({
-      map: getStarTexture(sceneNode.color, Math.floor(sceneNode.seed * 8)),
-      color: 0xffffff,
-      transparent: true,
-      opacity: sceneNode.opacity,
-      blending: THREE.NormalBlending,
-      depthWrite: false,
-      alphaTest: 0.02,
+  model.nodes.forEach((sceneNode, index) => {
+    const basePosition = scenePosition(sceneNode, model)
+    positions[index * 3] = basePosition.x
+    positions[index * 3 + 1] = basePosition.y
+    positions[index * 3 + 2] = basePosition.z
+    color.setHex(sceneNode.color)
+    colors[index * 3] = color.r
+    colors[index * 3 + 1] = color.g
+    colors[index * 3 + 2] = color.b
+    sizes[index] = sceneNode.radius
+    opacities[index] = sceneNode.opacity
+    seeds[index] = sceneNode.seed
+    nodeKeyByIndex[index] = sceneNode.key
+    nodeObjects.set(sceneNode.key, {
+      sceneNode,
+      basePosition,
+      currentPosition: basePosition.clone(),
+      phase: sceneNode.seed * Math.PI * 2,
+      index,
     })
-  )
-  core.scale.setScalar(sceneNode.radius * getStarSpriteScale(sceneNode))
-  core.userData.key = sceneNode.key
+  })
 
-  group.add(core)
+  const geometry = new THREE.BufferGeometry()
+  geometry.setAttribute('position', new THREE.BufferAttribute(positions, 3).setUsage(THREE.DynamicDrawUsage))
+  geometry.setAttribute('aColor', new THREE.BufferAttribute(colors, 3))
+  geometry.setAttribute('aSize', new THREE.BufferAttribute(sizes, 1).setUsage(THREE.DynamicDrawUsage))
+  geometry.setAttribute('aOpacity', new THREE.BufferAttribute(opacities, 1).setUsage(THREE.DynamicDrawUsage))
+  geometry.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1))
 
-  return {
-    group,
-    core,
-    sceneNode,
-    basePosition,
-    phase: sceneNode.seed * Math.PI * 2,
-  }
+  // 参考诗云：一个连续衰减的着色器点同时形成小白核和彩色外辉光，避免多层 Sprite 产生光圈和糊边。
+  nodeMaterial = new THREE.ShaderMaterial({
+    transparent: true,
+    depthWrite: false,
+    depthTest: true,
+    blending: THREE.AdditiveBlending,
+    uniforms: {
+      uTime: { value: 0 },
+      uSizeScale: { value: 1500 },
+    },
+    vertexShader: `
+      attribute vec3 aColor;
+      attribute float aSize;
+      attribute float aOpacity;
+      attribute float aSeed;
+      uniform float uTime;
+      uniform float uSizeScale;
+      varying vec3 vColor;
+      varying float vOpacity;
+      varying float vTwinkle;
+      void main() {
+        vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+        gl_Position = projectionMatrix * mvPosition;
+        gl_PointSize = clamp(aSize * (uSizeScale / max(120.0, -mvPosition.z)), 1.2, 72.0);
+        vColor = aColor;
+        vOpacity = aOpacity;
+        vTwinkle = 0.88 + 0.12 * sin(uTime * 0.7 + aSeed * 6.2831853);
+      }
+    `,
+    fragmentShader: `
+      varying vec3 vColor;
+      varying float vOpacity;
+      varying float vTwinkle;
+      void main() {
+        float radius = length(gl_PointCoord - vec2(0.5)) * 2.0;
+        float halo = exp(-radius * radius * 4.5);
+        if (halo < 0.006) discard;
+        float core = exp(-radius * radius * 58.0);
+        float coreMix = clamp(core * 1.45, 0.0, 1.0);
+        vec3 color = mix(vColor * 1.72, vec3(2.25), coreMix);
+        float alpha = min(1.0, halo * 0.55 + core * 0.72) * vOpacity * vTwinkle;
+        gl_FragColor = vec4(color, alpha);
+      }
+    `,
+  })
+  nodePoints = new THREE.Points(geometry, nodeMaterial)
+  nodePoints.frustumCulled = false
+  nodePoints.renderOrder = 2
+  nodeGroup.add(nodePoints)
 }
 
 function updateAnimation() {
@@ -306,10 +618,22 @@ function updateAnimation() {
   const elapsedMs = performance.now() - animationStartedAt
   updateCameraFlight()
 
-  const autoDrift = hasUserMovedCamera ? 0.003 : 0.008
+  const autoDrift = prefersReducedMotion ? 0 : hasUserMovedCamera ? 0.003 : 0.008
   graphGroup.rotation.y = Math.sin(elapsedMs / 25_000) * autoDrift
   graphGroup.rotation.x = Math.cos(elapsedMs / 30_000) * autoDrift * 0.4
+  environmentGroup.rotation.z = prefersReducedMotion ? 0 : Math.sin(elapsedMs / 90_000) * 0.004
+  fogVeilGroup.rotation.z = prefersReducedMotion ? 0 : Math.sin(elapsedMs / 52_000) * 0.008
+  fogVeilGroup.rotation.x = prefersReducedMotion ? 0 : Math.cos(elapsedMs / 68_000) * 0.003
+  if (ambientMaterial) ambientMaterial.uniforms.uTime.value = prefersReducedMotion ? 0 : elapsedMs / 1000
+  if (nodeMaterial) nodeMaterial.uniforms.uTime.value = prefersReducedMotion ? 0 : elapsedMs / 1000
+  updateEdgeLayerTransitions()
   const activeKey = hoveredKey.value || props.selectedKey
+  const positionAttribute = nodePoints?.geometry.getAttribute('position') as THREE.BufferAttribute | undefined
+  const sizeAttribute = nodePoints?.geometry.getAttribute('aSize') as THREE.BufferAttribute | undefined
+  const opacityAttribute = nodePoints?.geometry.getAttribute('aOpacity') as THREE.BufferAttribute | undefined
+  const positionArray = positionAttribute?.array as Float32Array | undefined
+  const sizeArray = sizeAttribute?.array as Float32Array | undefined
+  const opacityArray = opacityAttribute?.array as Float32Array | undefined
 
   for (const object of nodeObjects.values()) {
     const t = elapsedMs / 1000 + object.phase
@@ -317,18 +641,20 @@ function updateAnimation() {
     const isActive = object.sceneNode.key === activeKey
     const isActiveNeighbor = Boolean(activeKey && neighborKeysOf.get(activeKey)?.has(object.sceneNode.key))
     const motionScale = isSelected ? 0.3 : 0.8
-    const hoverScale = hoveredKey.value === object.sceneNode.key ? 1.28 : 1
-    const selectedScale = isSelected ? 1.22 : 1
-    const neighborScale = isActiveNeighbor ? 1.08 : 1
+    const hoverScale = hoveredKey.value === object.sceneNode.key ? 1.18 : 1
+    const selectedScale = isSelected ? 1.12 : 1
+    const neighborScale = isActiveNeighbor ? 1.05 : 1
 
-    object.group.position.set(
-      object.basePosition.x + Math.sin(t * 0.3) * 2.0 * motionScale,
-      object.basePosition.y + Math.cos(t * 0.25) * 1.5 * motionScale,
-      object.basePosition.z + Math.sin(t * 0.2) * 4.0 * motionScale
-    )
-    object.group.scale.setScalar((1 + Math.sin(t * 0.8) * 0.006) * hoverScale * selectedScale * neighborScale)
-
-    const material = object.core.material
+    if (prefersReducedMotion) {
+      object.currentPosition.copy(object.basePosition)
+    } else {
+      object.currentPosition.set(
+        object.basePosition.x + Math.sin(t * 0.3) * 2.0 * motionScale,
+        object.basePosition.y + Math.cos(t * 0.25) * 1.5 * motionScale,
+        object.basePosition.z + Math.sin(t * 0.2) * 4.0 * motionScale
+      )
+    }
+    const shimmer = prefersReducedMotion ? 1 : 1 + Math.sin(t * 0.8) * 0.008
     let opacity = object.sceneNode.opacity
 
     if (activeKey) {
@@ -337,12 +663,26 @@ function updateAnimation() {
       } else if (isActiveNeighbor) {
         opacity = 0.85
       } else {
-        opacity = 0.1
+        opacity = 0.18
       }
     }
 
-    material.opacity += (opacity - material.opacity) * 0.16
+    const index = object.index
+    if (positionArray) {
+      positionArray[index * 3] = object.currentPosition.x
+      positionArray[index * 3 + 1] = object.currentPosition.y
+      positionArray[index * 3 + 2] = object.currentPosition.z
+    }
+    if (sizeArray) {
+      const targetSize = object.sceneNode.radius * shimmer * hoverScale * selectedScale * neighborScale
+      sizeArray[index] += (targetSize - sizeArray[index]) * 0.16
+    }
+    if (opacityArray) opacityArray[index] += (opacity - opacityArray[index]) * 0.16
   }
+
+  if (positionAttribute) positionAttribute.needsUpdate = true
+  if (sizeAttribute) sizeAttribute.needsUpdate = true
+  if (opacityAttribute) opacityAttribute.needsUpdate = true
 
   controls.update()
   updateLabels()
@@ -356,6 +696,7 @@ function updateCameraFlight() {
   const progress = Math.min(1, (performance.now() - cameraFlight.startedAt) / cameraFlight.duration)
   const eased = easeInOutCubic(progress)
   camera.position.lerpVectors(cameraFlight.fromPosition, cameraFlight.toPosition, eased)
+  camera.position.addScaledVector(cameraFlight.arcOffset, Math.sin(Math.PI * eased))
   controls.target.lerpVectors(cameraFlight.fromTarget, cameraFlight.toTarget, eased)
 
   if (progress >= 1) cameraFlight = null
@@ -370,6 +711,15 @@ function updateLabels() {
   const nextLabels: VisibleLabel[] = []
   const selectedKey = props.selectedKey
   const selectedNeighborKeys = selectedKey ? neighborKeysOf.get(selectedKey) : null
+  const sceneSpan = Math.max(
+    sceneModel.value.bounds.width,
+    sceneModel.value.bounds.height,
+    sceneModel.value.bounds.depth,
+    1
+  )
+  const cameraDistance = controls ? camera.position.distanceTo(controls.target) : sceneSpan
+  const zoomLabelRankLimit = getRelationshipGalaxy3DZoomLabelRankLimit(cameraDistance, sceneSpan)
+  const nodeOpacityArray = (nodePoints?.geometry.getAttribute('aOpacity')?.array as Float32Array | undefined) ?? null
 
   for (const object of nodeObjects.values()) {
     const selected = object.sceneNode.key === selectedKey
@@ -378,11 +728,13 @@ function updateLabels() {
       object.sceneNode,
       selectedKey ?? null,
       hoveredKey.value,
-      selectedVisibleLabelKeys.value
+      selectedVisibleLabelKeys.value,
+      zoomLabelRankLimit
     )
     if (labelTier === 0) continue
 
-    object.group.getWorldPosition(tmpWorldPosition)
+    tmpWorldPosition.copy(object.currentPosition)
+    graphGroup.localToWorld(tmpWorldPosition)
     const projected = tmpWorldPosition.clone().project(camera)
     if (projected.z < -1 || projected.z > 1) continue
 
@@ -393,15 +745,50 @@ function updateLabels() {
     nextLabels.push({
       key: object.sceneNode.key,
       text: shortName(object.sceneNode.node),
+      rank: object.sceneNode.node.rank,
       x,
       y: y + object.sceneNode.radius + 8,
-      opacity: selected ? 1 : Math.max(0.42, object.core.material.opacity),
+      opacity: selected ? 1 : Math.max(0.42, nodeOpacityArray?.[object.index] ?? object.sceneNode.opacity),
       selected,
       emphasis: getLabelEmphasis(object.sceneNode, selectedNeighbor, labelTier),
     })
   }
 
-  labels.value = nextLabels
+  labels.value = resolveVisibleLabelCollisions(nextLabels)
+}
+
+function resolveVisibleLabelCollisions(candidates: VisibleLabel[]): VisibleLabel[] {
+  const emphasisWeight: Record<VisibleLabel['emphasis'], number> = { major: 2, medium: 1, minor: 0 }
+  const sorted = [...candidates].sort(
+    (a, b) =>
+      Number(b.selected) - Number(a.selected) ||
+      emphasisWeight[b.emphasis] - emphasisWeight[a.emphasis] ||
+      a.rank - b.rank ||
+      a.key.localeCompare(b.key)
+  )
+  const visible: VisibleLabel[] = []
+
+  // 核心星团即使只显示少量标签也可能重叠；按视觉优先级保留，不改变节点或标签候选数据。
+  for (const candidate of sorted) {
+    const candidateWidth = estimateLabelWidth(candidate)
+    const overlaps = visible.some((item) => {
+      const horizontalGap = (candidateWidth + estimateLabelWidth(item)) / 2 + 8
+      return Math.abs(candidate.x - item.x) < horizontalGap && Math.abs(candidate.y - item.y) < 18
+    })
+    if (!candidate.selected && overlaps) continue
+    visible.push(candidate)
+  }
+
+  return visible
+}
+
+function estimateLabelWidth(label: VisibleLabel): number {
+  const fontSize = label.emphasis === 'major' ? 12 : label.emphasis === 'medium' ? 10.5 : 9.5
+  const textUnits = [...label.text].reduce(
+    (sum, character) => sum + ((character.codePointAt(0) ?? 0) <= 0x7f ? 0.58 : 1),
+    0
+  )
+  return Math.min(190, Math.max(24, textUnits * fontSize + 4))
 }
 
 function getLabelEmphasis(
@@ -421,7 +808,7 @@ async function initCanvas() {
 
   const size = getViewportSize()
   scene = new THREE.Scene()
-  scene.fog = new THREE.FogExp2(0x0a0503, 0.00032)
+  scene.fog = new THREE.FogExp2(0x050711, 0.00022)
 
   camera = new THREE.PerspectiveCamera(45, size.width / size.height, 1, 30_000)
   camera.position.set(0, -150, 900)
@@ -436,6 +823,8 @@ async function initCanvas() {
   renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2))
   renderer.setSize(size.width, size.height)
   renderer.outputColorSpace = THREE.SRGBColorSpace
+  renderer.toneMapping = THREE.ACESFilmicToneMapping
+  renderer.toneMappingExposure = 1.05
   renderer.domElement.className = 'h-full w-full'
   host.appendChild(renderer.domElement)
 
@@ -446,17 +835,20 @@ async function initCanvas() {
   controls.zoomSpeed = 0.72
   controls.panSpeed = 0.58
   controls.minDistance = 160
-  controls.maxDistance = 9000
+  controls.maxDistance = 18_000
   controls.addEventListener('start', () => {
     hasUserMovedCamera = true
     cameraFlight = null
+    activeFocusKey = null
+    activeFocusFrameSignature = null
   })
 
-  graphGroup.add(edgeGroup)
-  graphGroup.add(nodeGroup)
-  scene.add(graphGroup)
+  graphGroup.add(communityGlowGroup, fogVeilGroup, edgeGroup, nodeGroup)
+  scene.add(environmentGroup, graphGroup)
 
   renderer.domElement.addEventListener('pointermove', handlePointerMove)
+  renderer.domElement.addEventListener('pointerdown', handlePointerDown)
+  renderer.domElement.addEventListener('pointercancel', handlePointerCancel)
   renderer.domElement.addEventListener('pointerleave', handlePointerLeave)
   renderer.domElement.addEventListener('click', handleClick)
 
@@ -477,13 +869,33 @@ function resizeCanvas() {
 }
 
 function handlePointerMove(event: PointerEvent) {
-  if (!renderer || !camera) return
+  if (
+    pointerGestureStart &&
+    hasExceededRelationshipGalaxyPointerDragThreshold(pointerGestureStart, {
+      x: event.clientX,
+      y: event.clientY,
+    })
+  ) {
+    pointerGestureMoved = true
+  }
+  if (!renderer || !camera || !nodePoints) return
   const rect = renderer.domElement.getBoundingClientRect()
   pointer.x = ((event.clientX - rect.left) / rect.width) * 2 - 1
   pointer.y = -((event.clientY - rect.top) / rect.height) * 2 + 1
   raycaster.setFromCamera(pointer, camera)
-  const [hit] = raycaster.intersectObjects(nodePickObjects, false)
-  hoveredKey.value = typeof hit?.object.userData.key === 'string' ? hit.object.userData.key : null
+  raycaster.params.Points.threshold = 18
+  const [hit] = raycaster.intersectObject(nodePoints, false)
+  hoveredKey.value = typeof hit?.index === 'number' ? (nodeKeyByIndex[hit.index] ?? null) : null
+}
+
+function handlePointerDown(event: PointerEvent) {
+  pointerGestureStart = { x: event.clientX, y: event.clientY }
+  pointerGestureMoved = false
+}
+
+function handlePointerCancel() {
+  pointerGestureStart = null
+  pointerGestureMoved = false
 }
 
 function handlePointerLeave() {
@@ -491,12 +903,12 @@ function handlePointerLeave() {
 }
 
 function handleClick() {
-  const key = hoveredKey.value
-  if (!key) {
-    emit('clear-selection')
-    return
-  }
-  const object = nodeObjects.get(key)
+  const action = resolveRelationshipGalaxyPointerClickAction(hoveredKey.value, pointerGestureMoved)
+  pointerGestureStart = null
+  pointerGestureMoved = false
+  if (action.type === 'ignore') return
+
+  const object = nodeObjects.get(action.key)
   if (!object) return
   emit('select-node', object.sceneNode.node)
 }
@@ -551,7 +963,7 @@ function resolvePendingFocus() {
   focusNode(key)
 }
 
-function focusNode(key: string): boolean {
+function focusNode(key: string, duration = 760): boolean {
   if (!camera || !controls) {
     pendingFocusKey = key
     return false
@@ -565,18 +977,84 @@ function focusNode(key: string): boolean {
 
   pendingFocusKey = null
   hasUserMovedCamera = true
-  const target = object.basePosition.clone()
-  const distance = Math.max(180, Math.min(600, sceneModel.value.bounds.width * 0.18))
-  const pose = applySafeAreaToCameraPose({
-    position: vectorToPose(target.clone().add(new THREE.Vector3(0, -distance * 0.25, distance))),
-    target: vectorToPose(target),
-  })
+  const focusFrame = buildNodeFocusFrame(key)
+  activeFocusKey = key
+  activeFocusFrameSignature = buildFocusFrameSignature(focusFrame)
+  const sceneSpan = Math.max(
+    sceneModel.value.bounds.width,
+    sceneModel.value.bounds.height,
+    sceneModel.value.bounds.depth
+  )
+  const pose = applySafeAreaToCameraPose(
+    buildRelationshipGalaxy3DFocusCameraPose(
+      {
+        position: vectorToPose(camera.position),
+        target: vectorToPose(controls.target),
+      },
+      focusFrame.target,
+      sceneSpan,
+      {
+        orbitSeed: object.sceneNode.seed,
+        focusPoints: focusFrame.points,
+        fovDegrees: camera.fov,
+        aspectRatio: camera.aspect,
+      }
+    )
+  )
   startCameraFlight(
     new THREE.Vector3(pose.position.x, pose.position.y, pose.position.z),
     new THREE.Vector3(pose.target.x, pose.target.y, pose.target.z),
-    540
+    duration,
+    object.sceneNode.seed < 0.5 ? -1 : 1
   )
   return true
+}
+
+function refreshActiveFocus() {
+  if (!props.selectedKey || activeFocusKey !== props.selectedKey) return
+  const focusFrame = buildNodeFocusFrame(props.selectedKey)
+  const nextSignature = buildFocusFrameSignature(focusFrame)
+  if (nextSignature === activeFocusFrameSignature) return
+
+  // People 邻域数据会在首次聚焦后异步补齐；从当前镜头连续飞向新终点，避免关系点扩展后留在屏幕外。
+  focusNode(props.selectedKey, cameraFlight ? 520 : 620)
+}
+
+function buildNodeFocusFrame(key: string) {
+  const selected = nodeObjects.get(key)
+  if (!selected) {
+    return {
+      ...buildRelationshipGalaxy3DFocusFrame([], { x: 0, y: 0, z: 0 }),
+      points: [],
+      signature: '',
+    }
+  }
+
+  const keys = new Set([key, ...(neighborKeysOf.get(key) ?? [])])
+  const sortedKeys = [...keys].sort()
+  const points = sortedKeys.flatMap((nodeKey) => {
+    const object = nodeObjects.get(nodeKey)
+    if (!object) return []
+    const position = object.basePosition.clone()
+    graphGroup.localToWorld(position)
+    return [vectorToPose(position)]
+  })
+  const fallbackPosition = selected.basePosition.clone()
+  graphGroup.localToWorld(fallbackPosition)
+  return {
+    ...buildRelationshipGalaxy3DFocusFrame(points, vectorToPose(fallbackPosition)),
+    points,
+    signature: sortedKeys
+      .map((nodeKey) => {
+        const position = nodeObjects.get(nodeKey)?.basePosition
+        return position ? `${nodeKey}:${position.x}:${position.y}:${position.z}` : nodeKey
+      })
+      .join('|'),
+  }
+}
+
+function buildFocusFrameSignature(frame: { signature: string }): string {
+  return frame.signature
 }
 
 function captureView() {
@@ -588,6 +1066,8 @@ function restoreView(view: unknown): boolean {
   if (!restoredView || !camera || !controls) return false
 
   pendingFocusKey = null
+  activeFocusKey = null
+  activeFocusFrameSignature = null
   hasUserMovedCamera = restoredView.hasUserMovedCamera
   applyCameraSafeAreaProjection()
   startCameraFlight(
@@ -601,6 +1081,8 @@ function restoreView(view: unknown): boolean {
 function fitView() {
   if (!camera || !controls) return
 
+  activeFocusKey = null
+  activeFocusFrameSignature = null
   hasUserMovedCamera = false
   const pose = applySafeAreaToCameraPose(buildRelationshipGalaxy3DImmersiveCameraPose(sceneModel.value.bounds))
   startCameraFlight(
@@ -634,8 +1116,15 @@ function vectorToPose(vector: THREE.Vector3): RelationshipGalaxy3DCameraPose['po
   return { x: vector.x, y: vector.y, z: vector.z }
 }
 
-function startCameraFlight(toPosition: THREE.Vector3, toTarget: THREE.Vector3, duration: number) {
+function startCameraFlight(toPosition: THREE.Vector3, toTarget: THREE.Vector3, duration: number, arcDirection = 0) {
   if (!camera || !controls) return
+  if (prefersReducedMotion) {
+    camera.position.copy(toPosition)
+    controls.target.copy(toTarget)
+    cameraFlight = null
+    controls.update()
+    return
+  }
   cameraFlight = {
     startedAt: performance.now(),
     duration,
@@ -643,7 +1132,25 @@ function startCameraFlight(toPosition: THREE.Vector3, toTarget: THREE.Vector3, d
     toPosition,
     fromTarget: controls.target.clone(),
     toTarget,
+    arcOffset: buildCameraFlightArcOffset(camera.position, toPosition, arcDirection),
   }
+}
+
+function buildCameraFlightArcOffset(from: THREE.Vector3, to: THREE.Vector3, direction: number): THREE.Vector3 {
+  if (direction === 0) return new THREE.Vector3()
+  const travel = to.clone().sub(from)
+  const distance = travel.length()
+  if (distance <= 1) return new THREE.Vector3()
+
+  const side = new THREE.Vector3(-travel.z, 0, travel.x)
+  if (side.lengthSq() <= 0.0001) side.set(1, 0, 0)
+  side.normalize().multiplyScalar(distance * 0.14 * Math.sign(direction))
+  side.y += Math.min(120, distance * 0.055)
+  return side
+}
+
+function syncMotionPreference() {
+  prefersReducedMotion = motionMediaQuery?.matches ?? false
 }
 
 function clearGroup(group: THREE.Group) {
@@ -673,16 +1180,10 @@ function easeInOutCubic(value: number): number {
   return value < 0.5 ? 4 * value * value * value : 1 - Math.pow(-2 * value + 2, 3) / 2
 }
 
-function pseudoRandom(seed: number): number {
-  const value = Math.sin(seed * 12.9898) * 43758.5453
-  return value - Math.floor(value)
-}
-
 const textureCache = new Map<string, THREE.CanvasTexture>()
 
-function getStarTexture(colorValue: number, variant: number): THREE.CanvasTexture {
-  const colorKey = colorValue.toString(16).padStart(6, '0')
-  const key = `star:${colorKey}:${variant}`
+function getSoftGlowTexture(): THREE.CanvasTexture {
+  const key = 'soft-glow'
   const cached = textureCache.get(key)
   if (cached) return cached
 
@@ -690,32 +1191,15 @@ function getStarTexture(colorValue: number, variant: number): THREE.CanvasTextur
   canvas.width = 128
   canvas.height = 128
   const context = canvas.getContext('2d')
-  if (!context) throw new Error('failed to create galaxy texture context')
+  if (!context) throw new Error('failed to create galaxy glow texture context')
 
-  const edgeColor = new THREE.Color(colorValue)
-  const xScale = 1.04 + pseudoRandom(variant + 4.2) * 0.06
-  const yScale = 0.94 + pseudoRandom(variant + 9.8) * 0.05
-  const rotation = (pseudoRandom(variant + 17.4) - 0.5) * 0.32
-  const rayAlpha = 0.18 + pseudoRandom(variant + 21.7) * 0.12
-
-  drawEllipticDisc(context, xScale, yScale, rotation, 38, [
-    [0, 'rgba(255,255,255,0.1)'],
-    [0.26, toRgb(edgeColor, 0.16)],
-    [0.58, toRgb(edgeColor, 0.04)],
-    [1, 'rgba(255,255,255,0)'],
-  ])
-
-  drawStarRay(context, rotation, 48, 2.2, rayAlpha, edgeColor)
-  drawStarRay(context, rotation + Math.PI / 2, 32, 1.35, rayAlpha * 0.62, edgeColor)
-  if (variant % 3 === 0) drawStarRay(context, rotation + Math.PI / 4, 22, 0.9, rayAlpha * 0.34, edgeColor)
-
-  drawEllipticDisc(context, xScale, yScale, rotation, 18, [
-    [0, 'rgba(255,255,255,1)'],
-    [0.28, 'rgba(255,255,255,0.94)'],
-    [0.54, toRgb(edgeColor, 0.95)],
-    [0.78, toRgb(edgeColor, 0.38)],
-    [1, 'rgba(255,255,255,0)'],
-  ])
+  const gradient = context.createRadialGradient(64, 64, 0, 64, 64, 64)
+  gradient.addColorStop(0, 'rgba(255,255,255,0.96)')
+  gradient.addColorStop(0.16, 'rgba(255,255,255,0.46)')
+  gradient.addColorStop(0.42, 'rgba(255,255,255,0.12)')
+  gradient.addColorStop(1, 'rgba(255,255,255,0)')
+  context.fillStyle = gradient
+  context.fillRect(0, 0, 128, 128)
 
   const texture = new THREE.CanvasTexture(canvas)
   texture.colorSpace = THREE.SRGBColorSpace
@@ -723,77 +1207,17 @@ function getStarTexture(colorValue: number, variant: number): THREE.CanvasTextur
   return texture
 }
 
-function drawEllipticDisc(
-  context: CanvasRenderingContext2D,
-  xScale: number,
-  yScale: number,
-  rotation: number,
-  radius: number,
-  stops: Array<[number, string]>
-) {
-  context.save()
-  context.translate(64, 64)
-  context.rotate(rotation)
-  context.scale(xScale, yScale)
-
-  const gradient = context.createRadialGradient(0, 0, 0, 0, 0, radius)
-  for (const [offset, color] of stops) gradient.addColorStop(offset, color)
-
-  context.fillStyle = gradient
-  context.beginPath()
-  context.arc(0, 0, radius, 0, Math.PI * 2)
-  context.fill()
-  context.restore()
-}
-
-function drawStarRay(
-  context: CanvasRenderingContext2D,
-  rotation: number,
-  length: number,
-  thickness: number,
-  alpha: number,
-  color: THREE.Color
-) {
-  context.save()
-  context.translate(64, 64)
-  context.rotate(rotation)
-
-  const gradient = context.createLinearGradient(-length, 0, length, 0)
-  gradient.addColorStop(0, 'rgba(255,255,255,0)')
-  gradient.addColorStop(0.43, toRgb(color, alpha * 0.32))
-  gradient.addColorStop(0.5, `rgba(255,255,255,${alpha})`)
-  gradient.addColorStop(0.57, toRgb(color, alpha * 0.32))
-  gradient.addColorStop(1, 'rgba(255,255,255,0)')
-
-  context.fillStyle = gradient
-  context.fillRect(-length, -thickness / 2, length * 2, thickness)
-  context.restore()
-}
-
-function toRgb(color: THREE.Color, alpha: number): string {
-  return `rgba(${Math.round(color.r * 255)},${Math.round(color.g * 255)},${Math.round(color.b * 255)},${alpha})`
-}
-
 onMounted(async () => {
+  motionMediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)')
+  syncMotionPreference()
+  motionMediaQuery.addEventListener('change', syncMotionPreference)
   await nextTick()
   await initCanvas()
 })
 
-watch(
-  () => props.graph,
-  () => {
-    renderGraph(false)
-  },
-  { flush: 'post' }
-)
-
-watch(
-  () => props.selectedKey,
-  () => {
-    renderGraph(false)
-  },
-  { flush: 'post' }
-)
+watch([() => props.graph, () => props.selectedKey, () => props.emphasizeEdges], applyGraphState, {
+  flush: 'post',
+})
 
 watch(
   () => props.safeInsetRight,
@@ -803,30 +1227,30 @@ watch(
   { flush: 'post' }
 )
 
-watch(
-  () => props.emphasizeEdges,
-  () => {
-    renderGraph(false)
-  },
-  { flush: 'post' }
-)
-
 onBeforeUnmount(() => {
   if (animationFrame) cancelAnimationFrame(animationFrame)
+  motionMediaQuery?.removeEventListener('change', syncMotionPreference)
+  motionMediaQuery = null
   resizeObserver?.disconnect()
   resizeObserver = null
 
   if (renderer) {
     renderer.domElement.removeEventListener('pointermove', handlePointerMove)
+    renderer.domElement.removeEventListener('pointerdown', handlePointerDown)
+    renderer.domElement.removeEventListener('pointercancel', handlePointerCancel)
     renderer.domElement.removeEventListener('pointerleave', handlePointerLeave)
     renderer.domElement.removeEventListener('click', handleClick)
   }
 
+  clearGroup(environmentGroup)
+  clearGroup(communityGlowGroup)
+  clearGroup(fogVeilGroup)
   clearGroup(edgeGroup)
   clearGroup(nodeGroup)
   for (const texture of textureCache.values()) texture.dispose()
   textureCache.clear()
   graphGroup.clear()
+  environmentGroup.clear()
   scene?.clear()
   controls?.dispose()
   renderer?.dispose()
@@ -836,6 +1260,7 @@ onBeforeUnmount(() => {
   scene = null
   camera = null
   controls = null
+  renderedLayoutSignature = null
   labels.value = []
 })
 
@@ -880,8 +1305,12 @@ defineExpose({
 
 <style scoped>
 .relationship-galaxy-3d {
-  background: #000;
-  background: radial-gradient(circle at 50% 50%, rgba(23, 12, 7, 1) 0%, rgba(6, 3, 2, 1) 100%);
+  background:
+    radial-gradient(ellipse at 46% 44%, rgba(92, 73, 144, 0.1) 0%, rgba(12, 14, 30, 0.02) 44%, transparent 68%),
+    radial-gradient(ellipse at 62% 58%, rgba(32, 112, 152, 0.08) 0%, transparent 52%),
+    radial-gradient(ellipse at 32% 62%, rgba(150, 46, 90, 0.055) 0%, transparent 48%),
+    linear-gradient(180deg, #070813 0%, #03050c 58%, #020309 100%);
+  box-shadow: inset 0 0 180px rgba(0, 0, 0, 0.74);
 }
 
 .relationship-galaxy-3d__label {
@@ -892,11 +1321,11 @@ defineExpose({
   padding: 0;
   transform: translate(-50%, 0);
   background: transparent;
-  color: rgba(255, 255, 255, 0.58);
+  color: rgba(230, 236, 255, 0.56);
   cursor: pointer;
   font-size: 9.5px;
   font-weight: 600;
-  letter-spacing: 0;
+  letter-spacing: 0.035em;
   line-height: 1.1;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -913,7 +1342,7 @@ defineExpose({
 }
 
 .relationship-galaxy-3d__label--medium {
-  color: rgba(255, 255, 255, 0.88);
+  color: rgba(240, 244, 255, 0.88);
   font-size: 10.5px;
   font-weight: 750;
   text-shadow:
@@ -922,7 +1351,7 @@ defineExpose({
 }
 
 .relationship-galaxy-3d__label--major {
-  color: #fff;
+  color: #fbfcff;
   font-size: 12px;
   font-weight: 850;
   text-shadow:
@@ -931,7 +1360,12 @@ defineExpose({
 }
 
 .relationship-galaxy-3d__label--selected {
+  color: #fff6fb;
   font-size: 13px;
   font-weight: 900;
+  letter-spacing: 0.06em;
+  text-shadow:
+    0 0 10px rgba(255, 134, 173, 0.42),
+    0 2px 12px rgba(0, 0, 0, 1);
 }
 </style>
