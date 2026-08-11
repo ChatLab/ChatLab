@@ -2,10 +2,11 @@ import { buildRelationshipGalaxy3DViewOffset } from './relationship-galaxy-3d-ca
 import type { RelationshipGalaxy3DNode, RelationshipGalaxy3DScene } from './relationship-galaxy-3d-scene'
 
 /**
- * 只描述需要重建 Three.js 几何层的空间状态。
+ * Describes only the spatial state that requires rebuilding the Three.js geometry layer.
  *
- * 选中节点、关系边和名称变化都不应改变该签名，这些状态可以在原场景内增量更新；
- * 节点坐标、颜色或星团光雾变化时才需要完整重建。
+ * Selection, relationship edges, and display name changes must not affect this signature because those states can be
+ * updated incrementally within the existing scene. Rebuild the scene only when node positions, colors, or community
+ * glow data changes.
  */
 export function buildRelationshipGalaxy3DSceneLayoutSignature(model: RelationshipGalaxy3DScene): string {
   const nodes = [...model.nodes]

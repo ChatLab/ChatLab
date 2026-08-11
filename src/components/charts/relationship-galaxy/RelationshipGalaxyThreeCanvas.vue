@@ -559,7 +559,8 @@ function addNodeLayer(model: RelationshipGalaxy3DScene) {
   geometry.setAttribute('aOpacity', new THREE.BufferAttribute(opacities, 1).setUsage(THREE.DynamicDrawUsage))
   geometry.setAttribute('aSeed', new THREE.BufferAttribute(seeds, 1))
 
-  // 参考诗云：一个连续衰减的着色器点同时形成小白核和彩色外辉光，避免多层 Sprite 产生光圈和糊边。
+  // Inspired by Shiyun: one continuously fading shader point forms both the white core and colored outer glow,
+  // avoiding the rings and blur produced by stacked sprites.
   nodeMaterial = new THREE.ShaderMaterial({
     transparent: true,
     depthWrite: false,
@@ -766,7 +767,7 @@ function resolveVisibleLabelCollisions(candidates: VisibleLabel[]): VisibleLabel
   )
   const visible: VisibleLabel[] = []
 
-  // 核心星团即使只显示少量标签也可能重叠；按视觉优先级保留，不改变节点或标签候选数据。
+  // Even a small label set can overlap in the core cluster; preserve labels by visual priority without changing data.
   for (const candidate of sorted) {
     const candidateWidth = estimateLabelWidth(candidate)
     const overlaps = visible.some((item) => {
@@ -1014,7 +1015,8 @@ function refreshActiveFocus() {
   const nextSignature = buildFocusFrameSignature(focusFrame)
   if (nextSignature === activeFocusFrameSignature) return
 
-  // People 邻域数据会在首次聚焦后异步补齐；从当前镜头连续飞向新终点，避免关系点扩展后留在屏幕外。
+  // People neighborhood data can arrive after the initial focus; continue from the current camera to keep new points
+  // in view while correcting the destination.
   focusNode(props.selectedKey, cameraFlight ? 520 : 620)
 }
 
