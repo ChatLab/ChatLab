@@ -4,6 +4,7 @@
  * 基于 ThemeCard 的组合封装，用于展示单个统计指标
  */
 import ThemeCard from './ThemeCard.vue'
+import UiIcon from './primitives/UiIcon.vue'
 
 defineProps<{
   /** 指标标签 */
@@ -56,7 +57,7 @@ const iconBgMap: Record<string, string> = {
         class="ml-4 flex h-10 w-10 shrink-0 items-center justify-center rounded-xl"
         :class="iconBgMap[iconBg || 'gray']"
       >
-        <UIcon v-if="icon.startsWith('i-')" :name="icon" class="h-5 w-5" />
+        <UiIcon v-if="icon.startsWith('i-')" :name="icon" size="lg" />
         <span v-else class="text-xl">{{ icon }}</span>
       </div>
     </div>

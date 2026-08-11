@@ -14,7 +14,7 @@ import { reportError } from '@/services/log-report'
 import { useLayoutStore } from '@/stores/layout'
 import { useSessionStore } from '@/stores/session'
 import { useSettingsStore } from '@/stores/settings'
-import { StartupLoading } from '@/components/UI'
+import { StartupLoading, UiButton, UiIcon } from '@/components/UI'
 import { PLATFORM_CAPABILITIES } from '@/utils/platform-capabilities'
 import WebSettingsModal from './components/settings/WebSettingsModal.vue'
 
@@ -91,12 +91,12 @@ onMounted(() => {
       <template v-if="!isInitialized">
         <div class="flex h-full w-full items-center justify-center">
           <div v-if="initError" class="flex flex-col items-center justify-center gap-3 px-6 text-center">
-            <UIcon name="i-heroicons-exclamation-triangle" class="h-8 w-8 text-red-500" />
+            <UiIcon name="i-heroicons-exclamation-triangle" class="h-8 w-8 text-red-500" />
             <p class="text-sm text-gray-700 dark:text-gray-300">{{ t('common.initFailed') }}</p>
             <p class="max-w-sm text-xs text-gray-500">{{ initError }}</p>
-            <UButton size="sm" color="primary" variant="soft" @click="initializeApp">
+            <UiButton size="sm" variant="soft" @click="initializeApp">
               {{ t('common.retry') }}
-            </UButton>
+            </UiButton>
           </div>
           <StartupLoading v-else />
         </div>

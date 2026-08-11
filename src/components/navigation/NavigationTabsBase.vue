@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, watch, onMounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
+import { UiIcon } from '@/components/UI/primitives'
 import type { NavigationTabItem } from './types'
 
 interface Props {
@@ -129,7 +130,7 @@ watch(
         ]"
         @click="activeTab = tab.id"
       >
-        <UIcon v-if="tab.icon" :name="tab.icon" :class="size === 'sm' ? 'h-3.5 w-3.5' : 'h-4 w-4'" />
+        <UiIcon v-if="tab.icon" :name="tab.icon" :size="size === 'sm' ? 'sm' : 'md'" />
         {{ tab.label }}
       </button>
       <div class="absolute bg-primary-500 transition-all duration-300 ease-out" :style="indicatorStyle" />

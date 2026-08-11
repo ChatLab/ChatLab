@@ -5,7 +5,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import TitleBar from '@/components/common/TitleBar.vue'
 import Sidebar from '@/components/common/Sidebar.vue'
-import { StartupLoading } from '@/components/UI'
+import { StartupLoading, UiButton, UiIcon } from '@/components/UI'
 import { useSessionStore } from '@/stores/session'
 import { useLayoutStore } from '@/stores/layout'
 import { useSettingsStore } from '@/stores/settings'
@@ -421,12 +421,12 @@ onUnmounted(() => {
               v-if="startupPresentation.showError"
               class="flex flex-col items-center justify-center gap-3 text-center"
             >
-              <UIcon name="i-heroicons-exclamation-triangle" class="h-8 w-8 text-red-500" />
+              <UiIcon name="i-heroicons-exclamation-triangle" class="h-8 w-8 text-red-500" />
               <p class="text-sm text-gray-700 dark:text-gray-300">{{ t('common.initFailed') }}</p>
               <p class="max-w-sm text-xs text-gray-500">{{ initError }}</p>
-              <UButton size="sm" color="primary" variant="soft" @click="initializeApp">
+              <UiButton size="sm" variant="soft" @click="initializeApp">
                 {{ t('common.retry') }}
-              </UButton>
+              </UiButton>
             </div>
             <StartupLoading
               v-else

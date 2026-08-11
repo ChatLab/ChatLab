@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { RouterLink, type RouteLocationRaw } from 'vue-router'
+import { UiIcon } from '@/components/UI/primitives'
 import type { NavigationTabItem } from './types'
 
 interface PageTabItem extends NavigationTabItem {
@@ -48,7 +49,7 @@ function selectItem(item: PageTabItem): void {
           :aria-pressed="item.to ? undefined : modelValue === item.id"
           @click="selectItem(item)"
         >
-          <UIcon v-if="item.icon" :name="item.icon" class="h-3.5 w-3.5" />
+          <UiIcon v-if="item.icon" :name="item.icon" size="sm" />
           <span>{{ item.label }}</span>
         </component>
       </div>

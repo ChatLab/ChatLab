@@ -7,6 +7,7 @@
 import { computed, ref } from 'vue'
 import { useInsightViewLoading } from './insight-view-loading'
 import LoadingDots from './LoadingDots.vue'
+import UiIcon from './primitives/UiIcon.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -47,7 +48,7 @@ const usePageIndicator = computed(() => props.variant === 'page' || props.varian
   <div v-if="!isCoordinatedPageLoading" :class="containerClass" role="status" aria-live="polite">
     <div class="flex flex-col items-center justify-center text-center">
       <LoadingDots v-if="usePageIndicator" />
-      <UIcon v-else name="i-heroicons-arrow-path" class="h-6 w-6 animate-spin text-pink-500" />
+      <UiIcon v-else name="i-heroicons-arrow-path" size="xl" class="animate-spin text-pink-500" />
       <p v-if="text" class="mt-2 text-sm text-gray-500">{{ text }}</p>
     </div>
   </div>

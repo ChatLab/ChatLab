@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { UiIcon, UiIconButton } from '@/components/UI/primitives'
 import { PageTabs } from '@/components/navigation'
 
 export interface SettingsDialogTab {
@@ -42,20 +43,13 @@ const currentTab = computed({
           <div class="flex items-center justify-between">
             <div class="flex items-center gap-3">
               <div class="flex h-8 w-8 items-center justify-center rounded-lg bg-primary-600 dark:bg-primary-500">
-                <UIcon name="i-heroicons-cog-6-tooth" class="h-4 w-4 text-white" />
+                <UiIcon name="i-heroicons-cog-6-tooth" size="md" class="text-white" />
               </div>
               <h2 class="text-lg font-semibold text-gray-900 dark:text-white">
                 {{ t('settings.title') }}
               </h2>
             </div>
-            <UButton
-              icon="i-heroicons-x-mark"
-              color="neutral"
-              variant="ghost"
-              size="sm"
-              :aria-label="t('common.close')"
-              @click="emit('update:open', false)"
-            />
+            <UiIconButton icon="i-heroicons-x-mark" :label="t('common.close')" @click="emit('update:open', false)" />
           </div>
           <PageTabs v-model="currentTab" class="mt-4 pb-3" :items="tabs" />
         </div>
