@@ -30,11 +30,11 @@ export function resetToDefaultSource(): void {
 export function handleUpdateError(error: Error): void {
   logger.error(`[Update] Update error (${currentSource}): ${error.message || error}`)
 
-  if (currentSource !== 'r2' || hasTriedFallback || !isNetworkError(error)) return
+  if (currentSource !== 'r2' || hasTriedFallback || !isUpdateNetworkError(error)) return
 
   hasTriedFallback = true
   logger.info('[Update] R2 mirror failed, trying GitHub fallback...')
-  switchToGitHub()
+  switchToGitHubUpdateSource()
 
   setTimeout(() => {
     autoUpdater.checkForUpdates().catch((retryError) => {
@@ -51,7 +51,7 @@ function switchToR2Mirror(): void {
   })
 }
 
-function switchToGitHub(): void {
+export function switchToGitHubUpdateSource(): void {
   currentSource = 'github'
   autoUpdater.setFeedURL({
     provider: 'github',
@@ -61,7 +61,7 @@ function switchToGitHub(): void {
   logger.info('[Update] Switched to GitHub fallback source')
 }
 
-function isNetworkError(error: Error): boolean {
+export function isUpdateNetworkError(error: Error): boolean {
   const networkErrorKeywords = [
     'ECONNREFUSED',
     'ENOTFOUND',

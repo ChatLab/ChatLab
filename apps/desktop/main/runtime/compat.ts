@@ -5,6 +5,12 @@ import {
   type RuntimeIdentity,
 } from '@openchatlab/node-runtime/data-dir-compat'
 
+export interface DesktopUpdateRequirement {
+  currentVersion: string
+  minRuntimeVersion: string
+  userDataDir: string
+}
+
 export function resolveDesktopAppVersion(electronVersion: string | null | undefined, bundledVersion?: string): string {
   const normalizedElectronVersion = normalizeVersion(electronVersion)
   if (normalizedElectronVersion && normalizedElectronVersion !== '0.0.0') return normalizedElectronVersion
@@ -41,6 +47,24 @@ export function assertDesktopDataDirCompatible(pathProvider: PathProvider, versi
   }
 
   return runtime
+}
+
+export function getDesktopUpdateRequirement(error: unknown): DesktopUpdateRequirement | null {
+  const cause = error instanceof Error ? error.cause : undefined
+  if (
+    !(cause instanceof DataDirCompatibilityError) ||
+    cause.code !== 'DATA_DIR_REQUIRES_NEWER_RUNTIME' ||
+    !cause.currentVersion ||
+    !cause.minRuntimeVersion
+  ) {
+    return null
+  }
+
+  return {
+    currentVersion: cause.currentVersion,
+    minRuntimeVersion: cause.minRuntimeVersion,
+    userDataDir: cause.userDataDir,
+  }
 }
 
 function normalizeVersion(version: string | null | undefined): string {

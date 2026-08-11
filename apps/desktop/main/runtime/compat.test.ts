@@ -4,7 +4,7 @@ import os from 'node:os'
 import path from 'node:path'
 import test from 'node:test'
 import type { PathProvider } from '@openchatlab/core'
-import { assertDesktopDataDirCompatible, resolveDesktopAppVersion } from './compat'
+import { assertDesktopDataDirCompatible, getDesktopUpdateRequirement, resolveDesktopAppVersion } from './compat'
 
 function makeTempDir(): string {
   const baseDir = process.env.CHATLAB_TEST_TMPDIR ?? (fs.existsSync('/private/tmp') ? '/private/tmp' : os.tmpdir())
@@ -94,6 +94,18 @@ test('assertDesktopDataDirCompatible formats a startup error for older desktop r
       return true
     }
   )
+
+  let startupError: unknown
+  try {
+    assertDesktopDataDirCompatible(makePathProvider(userDataDir), '0.25.0')
+  } catch (error) {
+    startupError = error
+  }
+  assert.deepEqual(getDesktopUpdateRequirement(startupError), {
+    currentVersion: '0.25.0',
+    minRuntimeVersion: '999.0.0',
+    userDataDir,
+  })
 })
 
 test('assertDesktopDataDirCompatible shows original prerelease version when blocked', () => {

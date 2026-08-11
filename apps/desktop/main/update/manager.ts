@@ -1,14 +1,23 @@
-import { dialog, app, type BrowserWindow } from 'electron'
+import { dialog, app, shell, type BrowserWindow } from 'electron'
 import { autoUpdater } from 'electron-updater'
 import { platform } from '@electron-toolkit/utils'
+import { isRuntimeVersionAtLeast } from '@openchatlab/node-runtime/data-dir-compat'
 import { logger } from '../logger'
 import { closeWorkerAsync } from '../worker/workerManager'
 import { t } from '../i18n'
-import { configureUpdateProxy, handleUpdateError, resetToDefaultSource } from './source'
+import type { DesktopUpdateRequirement } from '../runtime/compat'
+import {
+  configureUpdateProxy,
+  handleUpdateError,
+  isUpdateNetworkError,
+  resetToDefaultSource,
+  switchToGitHubUpdateSource,
+} from './source'
 
 type AppWithQuitFlag = typeof app & { isQuiting?: boolean }
 
 const appWithQuitFlag = app as AppWithQuitFlag
+const OFFICIAL_RELEASES_URL = 'https://github.com/ChatLab/ChatLab/releases'
 
 let isFirstShow = true
 let isManualCheck = false
@@ -31,11 +40,67 @@ function runWhenWindowActive(win: BrowserWindow, callback: () => void): void {
   }
 }
 
+export async function recoverRequiredDesktopUpdate(requirement: DesktopUpdateRequirement): Promise<void> {
+  configureUpdater()
+  configureUpdateProxy()
+  resetToDefaultSource()
+
+  const prompt = await dialog.showMessageBox({
+    title: t('update.requiredTitle'),
+    message: t('update.requiredMessage', {
+      currentVersion: requirement.currentVersion,
+      minRuntimeVersion: requirement.minRuntimeVersion,
+    }),
+    detail: t('update.requiredDetail', {
+      minRuntimeVersion: requirement.minRuntimeVersion,
+      userDataDir: requirement.userDataDir,
+    }),
+    buttons: [t('update.updateNow'), t('update.openDownloadPage'), t('update.quit')],
+    defaultId: 0,
+    cancelId: 2,
+    type: 'warning',
+    noLink: true,
+  })
+
+  if (prompt.response === 1) {
+    await openOfficialReleasesAndQuit()
+    return
+  }
+  if (prompt.response !== 0) {
+    app.quit()
+    return
+  }
+
+  const logUpdaterError = (error: Error): void => {
+    logger.error('[Update] Required desktop update error', error)
+  }
+  autoUpdater.on('error', logUpdaterError)
+
+  try {
+    const update = await checkRequiredUpdateWithFallback()
+    if (
+      !update?.isUpdateAvailable ||
+      !isRuntimeVersionAtLeast(update.updateInfo.version, requirement.minRuntimeVersion)
+    ) {
+      throw new Error(
+        `No compatible desktop update is available (required ${requirement.minRuntimeVersion}, received ${update?.updateInfo.version ?? 'none'}).`
+      )
+    }
+
+    await autoUpdater.downloadUpdate(update.cancellationToken)
+    appWithQuitFlag.isQuiting = true
+    autoUpdater.quitAndInstall(true, true)
+  } catch (error) {
+    logger.error('[Update] Failed to recover from an incompatible data directory', error)
+    await showRequiredUpdateFailure(requirement.minRuntimeVersion)
+  } finally {
+    autoUpdater.off('error', logUpdaterError)
+  }
+}
+
 export function checkUpdate(win: BrowserWindow): void {
   configureUpdateProxy()
-
-  autoUpdater.autoDownload = false
-  autoUpdater.autoInstallOnAppQuit = false
+  configureUpdater()
 
   let showUpdateMessageBox = false
   let showInstallMessageBox = false
@@ -195,4 +260,53 @@ export function simulateUpdateDialog(win: BrowserWindow): void {
 
 function isPreReleaseVersion(version: string): boolean {
   return /-/.test(version)
+}
+
+function configureUpdater(): void {
+  autoUpdater.autoDownload = false
+  autoUpdater.autoInstallOnAppQuit = false
+}
+
+async function checkRequiredUpdateWithFallback() {
+  try {
+    return await autoUpdater.checkForUpdates()
+  } catch (error) {
+    if (!(error instanceof Error) || !isUpdateNetworkError(error)) throw error
+    logger.warn('[Update] Required update check failed on R2 mirror; retrying with GitHub')
+    switchToGitHubUpdateSource()
+    return await autoUpdater.checkForUpdates()
+  }
+}
+
+async function showRequiredUpdateFailure(minRuntimeVersion: string): Promise<void> {
+  const result = await dialog.showMessageBox({
+    title: t('update.requiredUpdateFailedTitle'),
+    message: t('update.requiredUpdateFailedMessage'),
+    detail: t('update.requiredUpdateFailedDetail', { minRuntimeVersion }),
+    buttons: [t('update.openDownloadPage'), t('update.quit')],
+    defaultId: 0,
+    cancelId: 1,
+    type: 'error',
+    noLink: true,
+  })
+
+  if (result.response === 0) {
+    await openOfficialReleasesAndQuit()
+    return
+  }
+  app.quit()
+}
+
+async function openOfficialReleasesAndQuit(): Promise<void> {
+  try {
+    await shell.openExternal(OFFICIAL_RELEASES_URL)
+  } catch (error) {
+    logger.error('[Update] Failed to open the official releases page', error)
+    dialog.showErrorBox(
+      t('update.requiredUpdateFailedTitle'),
+      `${t('update.openDownloadFailed')}\n\n${OFFICIAL_RELEASES_URL}`
+    )
+  } finally {
+    app.quit()
+  }
 }

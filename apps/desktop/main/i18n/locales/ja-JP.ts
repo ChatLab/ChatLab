@@ -30,6 +30,18 @@ export default {
     remindLater: '後で通知',
     installOnQuit: '後で（アプリ終了時に自動インストール）',
     upToDate: '最新バージョンです',
+    requiredTitle: 'ChatLab の更新が必要です',
+    requiredMessage: '現在のバージョン {{currentVersion}} では、このデータディレクトリを開けません',
+    requiredDetail:
+      'このデータディレクトリには ChatLab {{minRuntimeVersion}} 以降が必要です。データを保護するため、現在のバージョンではデータベースを開きません。\n\n「今すぐ更新」を選ぶとバックグラウンドでダウンロードし、完了後にインストーラーを起動します。ダウンロード中はメイン画面を開きません。公式ダウンロードページを開くこともできます。\nデータディレクトリ：{{userDataDir}}',
+    updateNow: '今すぐ更新',
+    openDownloadPage: 'ダウンロードページを開く',
+    quit: '終了',
+    requiredUpdateFailedTitle: '自動更新に失敗しました',
+    requiredUpdateFailedMessage: '必要なバージョンに更新できませんでした',
+    requiredUpdateFailedDetail:
+      '公式ダウンロードページから ChatLab {{minRuntimeVersion}} 以降をインストールして、アプリを再度開いてください。',
+    openDownloadFailed: 'ダウンロードページを開けませんでした。次の URL を手動で開いてください：',
   },
 
   // ===== P0: ファイル/ディレクトリダイアログ =====

@@ -30,6 +30,17 @@ export default {
     remindLater: '稍後提醒',
     installOnQuit: '稍後（應用退出後自動安裝）',
     upToDate: '已是最新版本',
+    requiredTitle: '需要更新 ChatLab',
+    requiredMessage: '目前版本 {{currentVersion}} 無法開啟此資料目錄',
+    requiredDetail:
+      '此資料目錄需要 ChatLab {{minRuntimeVersion}} 或更新版本。為了保護資料，ChatLab 不會使用目前版本開啟資料庫。\n\n選擇立即更新後，應用程式會在背景下載，完成後自動啟動安裝程式；下載期間不會開啟主畫面。你也可以前往官方下載頁面。\n資料目錄：{{userDataDir}}',
+    updateNow: '立即更新',
+    openDownloadPage: '開啟下載頁面',
+    quit: '結束',
+    requiredUpdateFailedTitle: '自動更新失敗',
+    requiredUpdateFailedMessage: '無法自動升級到所需版本',
+    requiredUpdateFailedDetail: '請從官方下載頁面安裝 ChatLab {{minRuntimeVersion}} 或更新版本，然後重新開啟應用程式。',
+    openDownloadFailed: '無法開啟下載頁面，請手動前往：',
   },
 
   // ===== P0: 檔案/目錄對話框 =====

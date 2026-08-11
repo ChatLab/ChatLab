@@ -20,7 +20,8 @@ import {
 } from '../paths/legacy-migration'
 import { ensureAppDirs, getSystemDataDir, getAiDataDir, getTempDir } from '../paths/locations'
 import { getPathProvider } from '../paths/provider'
-import { assertDesktopDataDirCompatible, getDesktopAppVersion } from '../runtime/compat'
+import { assertDesktopDataDirCompatible, getDesktopAppVersion, getDesktopUpdateRequirement } from '../runtime/compat'
+import { recoverRequiredDesktopUpdate } from '../update/manager'
 
 export async function prepareDesktopRuntime(isTestMode: boolean): Promise<boolean> {
   logNativeParserStatus()
@@ -42,6 +43,14 @@ export async function prepareDesktopRuntime(isTestMode: boolean): Promise<boolea
     runtime = assertDesktopDataDirCompatible(getPathProvider(), getDesktopAppVersion(app.getVersion()))
   } catch (error) {
     console.error('[Main] Data directory compatibility check failed:', error)
+    const updateRequirement = getDesktopUpdateRequirement(error)
+    if (updateRequirement && !isTestMode) {
+      await app.whenReady()
+      await initLocale()
+      await recoverRequiredDesktopUpdate(updateRequirement)
+      return false
+    }
+
     dialog.showErrorBox(
       'ChatLab Data Directory Incompatible',
       `ChatLab cannot open this data directory with the current desktop version.\n\n${

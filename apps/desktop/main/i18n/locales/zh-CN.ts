@@ -29,6 +29,17 @@ export default {
     remindLater: '之后提醒',
     installOnQuit: '稍后（应用退出后自动安装）',
     upToDate: '已是最新版本',
+    requiredTitle: '需要更新 ChatLab',
+    requiredMessage: '当前版本 {{currentVersion}} 无法打开此数据目录',
+    requiredDetail:
+      '此数据目录需要 ChatLab {{minRuntimeVersion}} 或更高版本。为保护数据，ChatLab 不会使用当前版本打开数据库。\n\n选择立即更新后，应用将在后台下载，完成后自动启动安装程序；下载期间主页面不会打开。你也可以前往官方下载页面。\n数据目录：{{userDataDir}}',
+    updateNow: '立即更新',
+    openDownloadPage: '打开下载页面',
+    quit: '退出',
+    requiredUpdateFailedTitle: '自动更新失败',
+    requiredUpdateFailedMessage: '无法自动升级到所需版本',
+    requiredUpdateFailedDetail: '请从官方下载页面安装 ChatLab {{minRuntimeVersion}} 或更高版本，然后重新打开应用。',
+    openDownloadFailed: '无法打开下载页面，请手动访问：',
   },
 
   // ===== P0: 文件/目录对话框 =====

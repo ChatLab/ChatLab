@@ -30,6 +30,18 @@ export default {
     remindLater: 'Remind Later',
     installOnQuit: 'Later (auto-install on quit)',
     upToDate: 'You are up to date',
+    requiredTitle: 'ChatLab Update Required',
+    requiredMessage: 'Version {{currentVersion}} cannot open this data directory',
+    requiredDetail:
+      'This data directory requires ChatLab {{minRuntimeVersion}} or newer. To protect your data, ChatLab will not open the database with the current version.\n\nAfter you choose Update Now, ChatLab downloads in the background and starts the installer when ready; the main window stays closed during the download. You can also open the official download page.\nData directory: {{userDataDir}}',
+    updateNow: 'Update Now',
+    openDownloadPage: 'Open Download Page',
+    quit: 'Quit',
+    requiredUpdateFailedTitle: 'Automatic Update Failed',
+    requiredUpdateFailedMessage: 'ChatLab could not update to the required version',
+    requiredUpdateFailedDetail:
+      'Install ChatLab {{minRuntimeVersion}} or newer from the official download page, then reopen the app.',
+    openDownloadFailed: 'Could not open the download page. Open this address manually:',
   },
 
   // ===== P0: File/directory dialogs =====
