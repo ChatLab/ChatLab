@@ -78,6 +78,16 @@ describe('isReasoningModel', () => {
     assert.equal(isReasoningModel('xai', 'grok-4-fast'), true)
     assert.equal(isReasoningModel('xai', 'grok-build'), true)
   })
+
+  it('returns true for orcarouter reasoning models', () => {
+    assert.equal(isReasoningModel('orcarouter', 'openai/gpt-5.5'), true)
+    assert.equal(isReasoningModel('orcarouter', 'deepseek/deepseek-v4-pro'), true)
+    assert.equal(isReasoningModel('orcarouter', 'grok/grok-4.3'), true)
+  })
+
+  it('returns false for orcarouter/auto (auto-routed)', () => {
+    assert.equal(isReasoningModel('orcarouter', 'orcarouter/auto'), false)
+  })
 })
 
 describe('getSupportedThinkingLevels', () => {
@@ -190,6 +200,27 @@ describe('getSupportedThinkingLevels', () => {
       'high',
     ])
   })
+
+  it('returns full range with default for orcarouter/openai/gpt-5.5', () => {
+    assert.deepEqual(getSupportedThinkingLevels('orcarouter', 'openai/gpt-5.5'), [
+      'default',
+      'off',
+      'minimal',
+      'low',
+      'medium',
+      'high',
+      'xhigh',
+    ])
+  })
+
+  it('returns default+off+high+xhigh for orcarouter/deepseek/deepseek-v4-pro', () => {
+    assert.deepEqual(getSupportedThinkingLevels('orcarouter', 'deepseek/deepseek-v4-pro'), [
+      'default',
+      'off',
+      'high',
+      'xhigh',
+    ])
+  })
 })
 
 describe('getThinkingCompat', () => {
@@ -271,5 +302,21 @@ describe('getThinkingCompat', () => {
 
     const compat2 = getThinkingCompat('minimax', 'minimax-m2')
     assert.equal(compat2.thinkingFormat, 'deepseek')
+  })
+
+  it('returns supportsReasoningEffort + xhigh for orcarouter/openai/gpt-5.5', () => {
+    const compat = getThinkingCompat('orcarouter', 'openai/gpt-5.5')
+    assert.equal(compat.supportsReasoningEffort, true)
+    assert.equal(compat.thinkingLevelMap?.xhigh, 'xhigh')
+  })
+
+  it('returns thinkingFormat:deepseek for orcarouter/deepseek/deepseek-v4-pro', () => {
+    const compat = getThinkingCompat('orcarouter', 'deepseek/deepseek-v4-pro')
+    assert.equal(compat.thinkingFormat, 'deepseek')
+    assert.equal(compat.thinkingLevelMap?.xhigh, 'max')
+  })
+
+  it('returns {} for orcarouter/auto', () => {
+    assert.deepEqual(getThinkingCompat('orcarouter', 'orcarouter/auto'), {})
   })
 })

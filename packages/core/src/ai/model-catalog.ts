@@ -768,6 +768,91 @@ const OPENROUTER_MODELS: ModelDefinition[] = [
   }),
 ]
 
+// ==================== OrcaRouter ====================
+
+const ORCAROUTER_MODELS: ModelDefinition[] = [
+  builtin({
+    id: 'orcarouter/auto',
+    providerId: 'orcarouter',
+    name: 'Auto',
+    description: 'OrcaRouter adaptive auto router (routes per request)',
+    contextWindow: 128000,
+    capabilities: ['chat', 'reasoning', 'function_calling'],
+    recommendedFor: ['chat'],
+    status: 'stable',
+  }),
+  builtin({
+    id: 'openai/gpt-5.5',
+    providerId: 'orcarouter',
+    name: 'GPT-5.5',
+    description: 'OpenAI GPT-5.5 via OrcaRouter',
+    contextWindow: 1000000,
+    capabilities: ['chat', 'reasoning', 'vision', 'function_calling'],
+    recommendedFor: ['chat'],
+    status: 'stable',
+  }),
+  builtin({
+    id: 'google/gemini-3.5-flash',
+    providerId: 'orcarouter',
+    name: 'Gemini 3.5 Flash',
+    description: 'Google Gemini 3.5 Flash via OrcaRouter',
+    contextWindow: 1048576,
+    capabilities: ['chat', 'reasoning', 'vision', 'function_calling'],
+    recommendedFor: ['chat'],
+    status: 'stable',
+  }),
+  builtin({
+    id: 'anthropic/claude-opus-4.8',
+    providerId: 'orcarouter',
+    name: 'Claude Opus 4.8',
+    description: 'Anthropic Claude Opus 4.8 via OrcaRouter',
+    contextWindow: 1000000,
+    capabilities: ['chat', 'reasoning', 'function_calling'],
+    recommendedFor: ['chat'],
+    status: 'stable',
+  }),
+  builtin({
+    id: 'grok/grok-4.3',
+    providerId: 'orcarouter',
+    name: 'Grok 4.3',
+    description: 'xAI Grok 4.3 via OrcaRouter',
+    contextWindow: 1000000,
+    capabilities: ['chat', 'reasoning', 'function_calling'],
+    recommendedFor: ['chat'],
+    status: 'stable',
+  }),
+  builtin({
+    id: 'deepseek/deepseek-v4-pro',
+    providerId: 'orcarouter',
+    name: 'DeepSeek V4 Pro',
+    description: 'DeepSeek V4 Pro via OrcaRouter',
+    contextWindow: 1048576,
+    capabilities: ['chat', 'reasoning', 'function_calling'],
+    recommendedFor: ['chat'],
+    status: 'stable',
+  }),
+  builtin({
+    id: 'minimax/minimax-m2.7',
+    providerId: 'orcarouter',
+    name: 'MiniMax M2.7',
+    description: 'MiniMax M2.7 via OrcaRouter',
+    contextWindow: 204800,
+    capabilities: ['chat', 'reasoning', 'function_calling'],
+    recommendedFor: ['chat'],
+    status: 'stable',
+  }),
+  builtin({
+    id: 'qwen/qwen3.7-max',
+    providerId: 'orcarouter',
+    name: 'Qwen 3.7 Max',
+    description: 'Alibaba Qwen 3.7 Max via OrcaRouter',
+    contextWindow: 1000000,
+    capabilities: ['chat', 'reasoning', 'function_calling'],
+    recommendedFor: ['chat'],
+    status: 'stable',
+  }),
+]
+
 // ==================== xAI ====================
 
 const XAI_MODELS: ModelDefinition[] = [
@@ -882,6 +967,7 @@ export const BUILTIN_MODELS: ModelDefinition[] = [
   ...SILICONFLOW_MODELS,
   ...GROQ_MODELS,
   ...OPENROUTER_MODELS,
+  ...ORCAROUTER_MODELS,
   ...XAI_MODELS,
   ...MINIMAX_MODELS,
 ]

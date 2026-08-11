@@ -220,6 +220,29 @@ const OPENROUTER: ProviderDefinition = {
   modelIds: ['deepseek/deepseek-v4-pro', 'google/gemini-2.5-flash-preview', 'mistralai/mistral-7b-instruct:free'],
 }
 
+const ORCAROUTER: ProviderDefinition = {
+  id: 'orcarouter',
+  name: 'OrcaRouter',
+  kind: 'aggregator',
+  website: 'https://www.orcarouter.ai',
+  consoleUrl: 'https://www.orcarouter.ai',
+  defaultBaseUrl: 'https://api.orcarouter.ai/v1',
+  authMode: 'api-key',
+  supportsCustomModels: true,
+  builtin: true,
+  enabledByDefault: true,
+  modelIds: [
+    'orcarouter/auto',
+    'openai/gpt-5.5',
+    'google/gemini-3.5-flash',
+    'anthropic/claude-opus-4.8',
+    'grok/grok-4.3',
+    'deepseek/deepseek-v4-pro',
+    'minimax/minimax-m2.7',
+    'qwen/qwen3.7-max',
+  ],
+}
+
 const XAI: ProviderDefinition = {
   id: 'xai',
   name: 'xAI',
@@ -274,6 +297,7 @@ export const BUILTIN_PROVIDERS: ProviderDefinition[] = [
   SILICONFLOW,
   GROQ,
   OPENROUTER,
+  ORCAROUTER,
   XAI,
   MINIMAX,
   OPENAI_COMPATIBLE,

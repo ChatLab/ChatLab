@@ -29,6 +29,9 @@
   "openrouter": {
     "name": "OpenRouter"
   },
+  "orcarouter": {
+    "name": "OrcaRouter"
+  },
   "xai": {
     "name": "xAI"
   },

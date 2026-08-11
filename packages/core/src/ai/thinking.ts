@@ -191,6 +191,22 @@ function classifyThinkingType(provider: string, modelId: string): ThinkingType {
     return 'none'
   }
 
+  // ── OrcaRouter: classify by inner model id (ids carry a channel/namespace prefix,
+  //    e.g. openai/gpt-5.5, deepseek/deepseek-v4-pro; orcarouter/auto is the auto router) ──
+  if (prov === 'orcarouter') {
+    const inner = id.replace(/^orcarouter\//, '')
+    if (inner === 'auto') return 'none'
+    if (/gpt-5\.[2-9]|gpt-5\.[1-9]\d/.test(inner)) return 'gpt5_2plus'
+    if (/gpt-5\.1/.test(inner)) return 'gpt5_1'
+    if (/gpt-5/.test(inner)) return 'gpt5'
+    if (/deepseek.*(v[4-9]|r\d)/i.test(inner)) return 'deepseek_v4'
+    if (/deepseek[_-]?(chat|v3)/i.test(inner)) return 'deepseek_hybrid'
+    if (/\bgrok-(?:3-mini|4|4-fast|build)\b/i.test(inner)) return 'grok'
+    if (/\bkimi-k(?:2-thinking|2\.[5-9]|[3-9])/i.test(inner)) return 'kimi'
+    if (REASONING_FALLBACK_REGEX.test(inner)) return 'default'
+    return 'none'
+  }
+
   // ── Models using thinking:{type:'disabled'/'enabled'} format (same as DeepSeek) ──
   if (/\bmimo-v2/i.test(id)) return 'deepseek_hybrid'
   if (/\bminimax-m[123]/i.test(id)) return 'deepseek_hybrid'
