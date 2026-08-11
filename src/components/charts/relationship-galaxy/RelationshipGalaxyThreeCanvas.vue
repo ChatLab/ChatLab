@@ -81,13 +81,11 @@ const props = withDefaults(
     graph: RelationshipGalaxyRenderGraph
     selectedKey?: string | null
     safeInsetRight?: number
-    emphasizeEdges?: boolean
     label: string
   }>(),
   {
     selectedKey: null,
     safeInsetRight: 0,
-    emphasizeEdges: false,
   }
 )
 
@@ -194,7 +192,7 @@ function renderGraph(shouldFit = false) {
   hoveredKey.value = null
   labelFrame = 0
   labels.value = []
-  ambientVisibleEdgeIds = selectRelationshipGalaxy3DAmbientEdgeIds(model, props.emphasizeEdges)
+  ambientVisibleEdgeIds = selectRelationshipGalaxy3DAmbientEdgeIds(model)
   selectedVisibleEdgeIds = selectRelationshipGalaxy3DSelectedEdgeIds(model)
   primarySelectedEdgeIds = selectRelationshipGalaxy3DPrimarySelectedEdgeIds(model)
 
@@ -228,7 +226,7 @@ function applyGraphState() {
   sceneModel.value = model
   updateSelectedVisibleLabelKeys()
   rebuildNeighborKeys(model)
-  ambientVisibleEdgeIds = selectRelationshipGalaxy3DAmbientEdgeIds(model, props.emphasizeEdges)
+  ambientVisibleEdgeIds = selectRelationshipGalaxy3DAmbientEdgeIds(model)
   selectedVisibleEdgeIds = selectRelationshipGalaxy3DSelectedEdgeIds(model)
   primarySelectedEdgeIds = selectRelationshipGalaxy3DPrimarySelectedEdgeIds(model)
 
@@ -472,7 +470,7 @@ function addThinEdgePaths(
 function getEdgeLayerOpacity(bucket: 'dim' | 'normal' | 'highlight'): number {
   if (bucket === 'highlight') return 0.76
   if (bucket === 'normal' && props.selectedKey) return 0.09
-  if (bucket === 'normal') return props.emphasizeEdges ? 0.2 : 0.14
+  if (bucket === 'normal') return 0.14
   return 0.028
 }
 
@@ -1215,7 +1213,7 @@ onMounted(async () => {
   await initCanvas()
 })
 
-watch([() => props.graph, () => props.selectedKey, () => props.emphasizeEdges], applyGraphState, {
+watch([() => props.graph, () => props.selectedKey], applyGraphState, {
   flush: 'post',
 })
 

@@ -61,7 +61,6 @@ const props = withDefaults(
     selectedKey?: string | null
     privacyMode?: boolean
     safeInsetRight?: number
-    emphasizeEdges?: boolean
     label: string
     ownerLabel: string
   }>(),
@@ -69,7 +68,6 @@ const props = withDefaults(
     selectedKey: null,
     privacyMode: false,
     safeInsetRight: 0,
-    emphasizeEdges: false,
   }
 )
 
@@ -347,7 +345,7 @@ function renderGraph(shouldFit = false) {
     const targetX = target.x + offsetX
     const targetY = target.y + offsetY
 
-    const alpha = edge.visibility === 2 ? (props.emphasizeEdges ? 0.26 : 0.22) : props.emphasizeEdges ? 0.1 : 0.07
+    const alpha = edge.visibility === 2 ? 0.22 : 0.07
     const width = Math.min(1.4, Math.max(0.4, Math.log10(edge.weight + 1) * 0.75))
     const edgeColor = getNodeColor(source)
     edgeLayer.moveTo(sourceX, sourceY).lineTo(targetX, targetY).stroke({ color: edgeColor, width, alpha })
@@ -776,14 +774,7 @@ onMounted(async () => {
 })
 
 watch(
-  () => [
-    props.graph.nodes,
-    props.graph.edges,
-    props.selectedKey,
-    props.privacyMode,
-    props.safeInsetRight,
-    props.emphasizeEdges,
-  ],
+  () => [props.graph.nodes, props.graph.edges, props.selectedKey, props.privacyMode, props.safeInsetRight],
   () => {
     renderGraph(false)
   },

@@ -87,11 +87,8 @@ export function buildRelationshipGalaxy3DFogVeils(model: RelationshipGalaxy3DSce
   )
 }
 
-export function selectRelationshipGalaxy3DAmbientEdgeIds(
-  model: RelationshipGalaxy3DScene,
-  emphasizeEdges: boolean
-): Set<string> {
-  const limit = clamp(Math.round(model.nodes.length * (emphasizeEdges ? 2.4 : 1.7)), 32, emphasizeEdges ? 260 : 200)
+export function selectRelationshipGalaxy3DAmbientEdgeIds(model: RelationshipGalaxy3DScene): Set<string> {
+  const limit = clamp(Math.round(model.nodes.length * 1.7), 32, 200)
   return new Set(
     [...model.edges]
       .sort(compareAmbientEdges)

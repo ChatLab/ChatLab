@@ -120,11 +120,18 @@ test('builds restrained foreground and background fog veils around communities',
 
 test('keeps the panorama edge hierarchy bounded while preserving the strongest relationships', () => {
   const scene = createScene(100, 500)
-  const visible = selectRelationshipGalaxy3DAmbientEdgeIds(scene, false)
+  const visible = selectRelationshipGalaxy3DAmbientEdgeIds(scene)
 
   assert.equal(visible.size, 170)
   assert.equal(visible.has('edge-0'), true)
   assert.equal(visible.has('edge-499'), false)
+})
+
+test('keeps compact filtered graphs within the same restrained ambient edge cap', () => {
+  const scene = createScene(150, 500)
+  const visible = selectRelationshipGalaxy3DAmbientEdgeIds(scene)
+
+  assert.equal(visible.size, 200)
 })
 
 test('keeps only direct relationship lines in the selected overlay', () => {
