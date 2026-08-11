@@ -151,7 +151,7 @@ function getSessionAvatarClass(sessionId: number): string {
 
 // 估算项目高度
 const ESTIMATED_DATE_HEIGHT = 28 // 日期头高度
-const ESTIMATED_SESSION_HEIGHT = 52 // 会话项高度（摘要/生成按钮单独一行）
+const ESTIMATED_SESSION_HEIGHT = 40 // 会话项高度（时间、摘要操作和摘要保持单行）
 
 // 虚拟化器
 const virtualizer = useVirtualizer(
@@ -192,6 +192,10 @@ function formatTime(ts: number): string {
 
 function isSummaryStale(session: ChatSessionItem): boolean {
   return Boolean(session.summary) && session.summaryMessageCount !== session.messageCount
+}
+
+function canGenerateSummary(session: ChatSessionItem): boolean {
+  return (!session.summary || isSummaryStale(session)) && session.messageCount >= 3
 }
 
 // 获取日期键
@@ -391,7 +395,7 @@ watch(
           <template v-else-if="flatList[virtualItem.index]?.type === 'session'">
             <div class="px-1.5 py-0.5">
               <button
-                class="group relative flex h-12 w-full items-center gap-2.5 rounded-xl p-1.5 pl-2.5 text-left transition-all duration-200"
+                class="group relative flex h-9 w-full items-center gap-2.5 rounded-xl p-1 pl-2.5 text-left transition-all duration-200"
                 :class="[
                   activeSessionId === (flatList[virtualItem.index] as { session: ChatSessionItem }).session.id
                     ? 'bg-pink-500/5 dark:bg-pink-500/10'
@@ -411,88 +415,85 @@ watch(
 
                 <!-- 莫兰迪配色哈希头像 -->
                 <div
-                  class="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg px-1 font-mono text-[10px] font-semibold transition-colors"
+                  class="relative flex h-7 w-7 shrink-0 items-center justify-center rounded-lg px-1 font-mono text-[10px] font-semibold transition-colors"
                   :class="
                     getSessionAvatarClass((flatList[virtualItem.index] as { session: ChatSessionItem }).session.id)
                   "
                 >
-                  <span class="truncate">
+                  <span
+                    class="truncate transition-opacity"
+                    :class="[
+                      canGenerateSummary((flatList[virtualItem.index] as { session: ChatSessionItem }).session)
+                        ? 'group-hover:opacity-0 group-focus-within:opacity-0'
+                        : '',
+                      isGenerating((flatList[virtualItem.index] as { session: ChatSessionItem }).session.id)
+                        ? 'opacity-0'
+                        : '',
+                    ]"
+                  >
                     {{ (flatList[virtualItem.index] as { session: ChatSessionItem }).session.messageCount }}
+                  </span>
+                  <span
+                    v-if="canGenerateSummary((flatList[virtualItem.index] as { session: ChatSessionItem }).session)"
+                    class="absolute inset-0 cursor-pointer items-center justify-center"
+                    :class="
+                      isGenerating((flatList[virtualItem.index] as { session: ChatSessionItem }).session.id)
+                        ? 'flex'
+                        : 'hidden group-hover:flex group-focus-within:flex'
+                    "
+                    :title="
+                      isSummaryStale((flatList[virtualItem.index] as { session: ChatSessionItem }).session)
+                        ? t('records.timeline.updateSummary')
+                        : t('records.timeline.generateSummary')
+                    "
+                    @click="
+                      generateSummary((flatList[virtualItem.index] as { session: ChatSessionItem }).session, $event)
+                    "
+                  >
+                    <UIcon
+                      v-if="isGenerating((flatList[virtualItem.index] as { session: ChatSessionItem }).session.id)"
+                      name="i-heroicons-arrow-path"
+                      class="h-3.5 w-3.5 animate-spin"
+                    />
+                    <UIcon v-else name="i-heroicons-sparkles" class="h-3.5 w-3.5" />
                   </span>
                 </div>
 
-                <div class="min-w-0 flex-1">
-                  <div class="min-w-0">
-                    <!-- 有摘要：时间和摘要作为连续文本排版，换行后从整行起点继续显示 -->
-                    <UTooltip
-                      v-if="(flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary"
-                      :content="{ side: 'right', align: 'start' }"
-                      :ui="{ content: 'z-[10001] h-auto max-h-80 overflow-y-auto' }"
-                    >
-                      <span
-                        class="line-clamp-2 min-w-0 text-xs font-normal leading-snug text-gray-500 dark:text-gray-400"
-                      >
-                        <span class="font-medium">
-                          {{
-                            formatTime((flatList[virtualItem.index] as { session: ChatSessionItem }).session.startTs)
-                          }}
-                        </span>
-                        <span class="ml-1">
-                          {{ (flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary }}
-                        </span>
-                        <span
-                          v-if="isSummaryStale((flatList[virtualItem.index] as { session: ChatSessionItem }).session)"
-                          class="ml-1 font-medium text-amber-500 dark:text-amber-400"
-                        >
-                          {{ t('records.timeline.summaryStale') }}
-                        </span>
-                      </span>
-                      <template #content>
-                        <div class="max-w-sm whitespace-pre-wrap text-sm leading-relaxed font-normal">
-                          {{ (flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary }}
-                        </div>
-                      </template>
-                    </UTooltip>
-                    <span v-else class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                      {{ formatTime((flatList[virtualItem.index] as { session: ChatSessionItem }).session.startTs) }}
-                    </span>
-                  </div>
+                <div class="flex min-w-0 flex-1 items-center gap-1">
+                  <span class="shrink-0 text-xs font-medium text-gray-500 dark:text-gray-400">
+                    {{ formatTime((flatList[virtualItem.index] as { session: ChatSessionItem }).session.startTs) }}
+                  </span>
 
-                  <div
+                  <span
                     v-if="
-                      !(flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary ||
-                      isSummaryStale((flatList[virtualItem.index] as { session: ChatSessionItem }).session)
+                      !(flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary &&
+                      !canGenerateSummary((flatList[virtualItem.index] as { session: ChatSessionItem }).session)
                     "
-                    class="mt-0.5 flex min-w-0 items-center"
+                    class="min-w-0 truncate text-xs italic text-gray-300 dark:text-gray-600"
                   >
-                    <!-- 无摘要且消息数>=3：显示生成按钮 -->
-                    <span
-                      v-if="(flatList[virtualItem.index] as { session: ChatSessionItem }).session.messageCount >= 3"
-                      class="flex min-w-0 cursor-pointer items-center gap-1 text-xs text-gray-400 hover:text-pink-500 dark:text-gray-500 dark:hover:text-pink-400"
-                      @click="
-                        generateSummary((flatList[virtualItem.index] as { session: ChatSessionItem }).session, $event)
-                      "
-                    >
-                      <UIcon
-                        v-if="isGenerating((flatList[virtualItem.index] as { session: ChatSessionItem }).session.id)"
-                        name="i-heroicons-arrow-path"
-                        class="h-3 w-3 shrink-0 animate-spin"
-                      />
-                      <UIcon v-else name="i-heroicons-sparkles" class="h-3 w-3 shrink-0" />
-                      <span class="truncate">
-                        {{
-                          isSummaryStale((flatList[virtualItem.index] as { session: ChatSessionItem }).session)
-                            ? t('records.timeline.updateSummary')
-                            : t('records.timeline.generateSummary')
-                        }}
+                    {{ t('records.timeline.tooFewMessages') }}
+                  </span>
+
+                  <UTooltip
+                    v-if="(flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary"
+                    :content="{ side: 'right', align: 'start' }"
+                    :ui="{ content: 'z-[10001] h-auto max-h-80 overflow-y-auto' }"
+                  >
+                    <span class="block min-w-0 flex-1 truncate text-xs font-normal text-gray-500 dark:text-gray-400">
+                      {{ (flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary }}
+                      <span
+                        v-if="isSummaryStale((flatList[virtualItem.index] as { session: ChatSessionItem }).session)"
+                        class="ml-1 font-medium text-amber-500 dark:text-amber-400"
+                      >
+                        {{ t('records.timeline.summaryStale') }}
                       </span>
                     </span>
-
-                    <!-- 消息数<3：显示提示 -->
-                    <span v-else class="min-w-0 flex-1 truncate text-xs italic text-gray-300 dark:text-gray-600">
-                      {{ t('records.timeline.tooFewMessages') }}
-                    </span>
-                  </div>
+                    <template #content>
+                      <div class="max-w-sm whitespace-pre-wrap text-sm leading-relaxed font-normal">
+                        {{ (flatList[virtualItem.index] as { session: ChatSessionItem }).session.summary }}
+                      </div>
+                    </template>
+                  </UTooltip>
                 </div>
               </button>
             </div>
