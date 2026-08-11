@@ -97,7 +97,7 @@ ChatLab 是一个基于 pnpm monorepo 的工程，桌面端使用 Electron + Vue
 ### 环境要求
 
 - Node.js >= 24 < 25
-- pnpm >= 9 < 10
+- pnpm >= 11 < 12
 
 ### 启动步骤
 

@@ -8,21 +8,10 @@
     "url": "git+https://github.com/ChatLab/ChatLab.git"
   },
   "author": "digua <hello@digua.me>",
-  "packageManager": "pnpm@9.15.9",
+  "packageManager": "pnpm@11.21.0",
   "engines": {
     "node": ">=24 <25",
-    "pnpm": ">=9 <10"
-  },
-  "pnpm": {
-    "onlyBuiltDependencies": [
-      "better-sqlite3",
-      "electron"
-    ],
-    "peerDependencyRules": {
-      "allowedVersions": {
-        "echarts-wordcloud@2.1.0>echarts": "6"
-      }
-    }
+    "pnpm": ">=11 <12"
   },
   "scripts": {
     "dev": "node scripts/dev-select.mjs",

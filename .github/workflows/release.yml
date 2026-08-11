@@ -71,11 +71,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
+      - name: Setup pnpm and Node.js
+        uses: pnpm/setup@v2
         with:
-          node-version: '24'
-          package-manager-cache: false
+          runtime: node@24
+          install: false
 
       - name: Verify runner architecture
         shell: bash
@@ -85,9 +85,6 @@ jobs:
             echo "::error::Expected an arm64 runner, but Node.js is running as $ACTUAL_ARCH"
             exit 1
           fi
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
 
       - name: Get pnpm store directory
         shell: bash
@@ -103,9 +100,9 @@ jobs:
             ${{ runner.os }}-arm64-pnpm-store-
 
       - name: Install dependencies
-        run: |
-          echo "node-linker=hoisted" >> .npmrc
-          pnpm install --frozen-lockfile
+        env:
+          PNPM_CONFIG_NODE_LINKER: hoisted
+        run: pnpm install --frozen-lockfile
 
       # Rust native parser：目标架构与 electron-builder --arm64 保持一致
       - name: Setup Rust toolchain
@@ -197,14 +194,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
+      - name: Setup pnpm and Node.js
+        uses: pnpm/setup@v2
         with:
-          node-version: '24'
-          package-manager-cache: false
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+          runtime: node@24
+          install: false
 
       - name: Get pnpm store directory
         shell: bash
@@ -231,9 +225,9 @@ jobs:
             ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
-        run: |
-          echo "node-linker=hoisted" >> .npmrc
-          pnpm install --frozen-lockfile
+        env:
+          PNPM_CONFIG_NODE_LINKER: hoisted
+        run: pnpm install --frozen-lockfile
 
       # Rust native parser：Windows release 仅构建 x64（与 electron-builder --win 默认一致）
       - name: Setup Rust toolchain
@@ -314,14 +308,11 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v5
 
-      - name: Setup Node.js
-        uses: actions/setup-node@v5
+      - name: Setup pnpm and Node.js
+        uses: pnpm/setup@v2
         with:
-          node-version: '24'
-          package-manager-cache: false
-
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v4
+          runtime: node@24
+          install: false
 
       - name: Get pnpm store directory
         shell: bash
@@ -337,9 +328,9 @@ jobs:
             ${{ runner.os }}-pnpm-store-
 
       - name: Install dependencies
-        run: |
-          echo "node-linker=hoisted" >> .npmrc
-          pnpm install --frozen-lockfile
+        env:
+          PNPM_CONFIG_NODE_LINKER: hoisted
+        run: pnpm install --frozen-lockfile
 
       - name: Inject CLI version
         run: |

@@ -97,7 +97,7 @@ For complete contributor instructions, see the [Development Guide](https://docs.
 ### Requirements
 
 - Node.js >= 24 < 25
-- pnpm >= 9 < 10
+- pnpm >= 11 < 12
 
 ### Setup
 

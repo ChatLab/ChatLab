@@ -192,10 +192,6 @@ importers:
       zod:
         specifier: ^3.24.4
         version: 3.25.76
-    optionalDependencies:
-      '@node-rs/jieba':
-        specifier: ^2.0.1
-        version: 2.0.1
     devDependencies:
       '@openchatlab/config':
         specifier: workspace:*
@@ -233,6 +229,10 @@ importers:
       tsx:
         specifier: ^4.21.0
         version: 4.21.0
+    optionalDependencies:
+      '@node-rs/jieba':
+        specifier: ^2.0.1
+        version: 2.0.1
 
   apps/desktop:
     dependencies:
@@ -396,10 +396,6 @@ importers:
       zod:
         specifier: ^3.24.4
         version: 3.25.76
-    optionalDependencies:
-      '@node-rs/jieba':
-        specifier: ^2.0.1
-        version: 2.0.1
     devDependencies:
       '@openchatlab/config':
         specifier: workspace:*
@@ -416,6 +412,10 @@ importers:
       tsup:
         specifier: ^8.5.0
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.19)(tsx@4.21.0)(typescript@6.0.3)(yaml@2.8.2)
+    optionalDependencies:
+      '@node-rs/jieba':
+        specifier: ^2.0.1
+        version: 2.0.1
 
   packages/node-runtime:
     dependencies:
@@ -473,10 +473,6 @@ importers:
       yauzl:
         specifier: ^3.4.0
         version: 3.4.0
-    optionalDependencies:
-      '@node-rs/jieba':
-        specifier: ^2.0.1
-        version: 2.0.1
     devDependencies:
       '@types/better-sqlite3':
         specifier: ^7.6.13
@@ -484,6 +480,10 @@ importers:
       '@types/yauzl':
         specifier: ^3.4.0
         version: 3.4.0
+    optionalDependencies:
+      '@node-rs/jieba':
+        specifier: ^2.0.1
+        version: 2.0.1
 
   packages/parser:
     dependencies:

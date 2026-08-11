@@ -16,7 +16,7 @@ This guide is for contributors who want to work on ChatLab code. It covers local
 ## Requirements
 
 - Node.js `>=24 <25`
-- pnpm `>=9 <10`
+- pnpm `>=11 <12`
 
 Install dependencies:
 

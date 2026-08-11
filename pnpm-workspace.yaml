@@ -2,3 +2,21 @@ packages:
   - 'packages/**'
   - 'apps/*'
   - 'docs'
+
+# Keep dependency resolution and hoisting consistent across local and CI installs.
+resolutionMode: highest
+shamefullyHoist: true
+
+allowBuilds:
+  better-sqlite3: true
+  electron: true
+  electron-winstaller: false
+  esbuild: false
+  onnxruntime-node: false
+  protobufjs: false
+  sharp: false
+  vue-demi: false
+
+peerDependencyRules:
+  allowedVersions:
+    'echarts-wordcloud@2.1.0>echarts': '6'
