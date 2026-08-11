@@ -92,6 +92,7 @@ export function applyTopicOperations(
   const localTopicIds = new Map<string, string>()
   const mergedTopicIds = new Map<string, string>()
   const assignedTopicsByMessageId = new Map<number, string>()
+  const evidenceMembershipFallbacks: Array<{ evidence: ChatTopicEvidence[]; topicId: string }> = []
 
   for (const operation of response.operations) {
     validateNewEvidence(operation.evidence, currentMessageIds)
@@ -151,6 +152,12 @@ export function applyTopicOperations(
     for (const messageId of assignment.messageIds) assignMessage(messageId, topicId)
   }
 
+  // assignments define primary membership. Evidence only fills omissions and never overrides
+  // the model's explicit assignment, because one message may support a secondary topic.
+  for (const fallback of evidenceMembershipFallbacks) {
+    for (const item of fallback.evidence) assignMessage(item.messageId, fallback.topicId)
+  }
+
   for (const [messageId, topicId] of assignedTopicsByMessageId) {
     const topic = requireLedgerTopic(next, followMergedTopicId(topicId))
     topic.messageIds = deduplicateMessageIds([...topic.messageIds, messageId])
@@ -177,7 +184,7 @@ export function applyTopicOperations(
   }
 
   function assignEvidence(evidence: ChatTopicEvidence[], topicId: string): void {
-    for (const item of evidence) assignMessage(item.messageId, topicId)
+    evidenceMembershipFallbacks.push({ evidence, topicId })
   }
 
   function assignMessage(messageId: number, topicId: string): void {
@@ -185,11 +192,9 @@ export function applyTopicOperations(
       throw new Error(`Assigned message is not in the current block: ${messageId}`)
     }
     const resolvedTopicId = followMergedTopicId(topicId)
-    const existingTopicId = assignedTopicsByMessageId.get(messageId)
-    if (existingTopicId && followMergedTopicId(existingTopicId) !== resolvedTopicId) {
-      throw new Error(`Message ${messageId} is assigned to multiple topics`)
-    }
-    assignedTopicsByMessageId.set(messageId, resolvedTopicId)
+    // Keep the first explicit assignment (or evidence fallback) deterministically when the
+    // model repeats an ID. A recoverable classification conflict must not fail the whole day.
+    if (!assignedTopicsByMessageId.has(messageId)) assignedTopicsByMessageId.set(messageId, resolvedTopicId)
   }
 }
 

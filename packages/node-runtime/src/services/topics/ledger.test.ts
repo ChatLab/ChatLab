@@ -196,43 +196,88 @@ test('exact message assignments preserve interleaved topic membership beyond rep
   )
 })
 
-test('one message cannot be assigned to multiple topics in the same block', () => {
-  assert.throws(
-    () =>
-      applyTopicOperations(
-        createEmptyTopicLedger(),
+test('the first primary assignment wins when the model repeats a message across topics', () => {
+  const ledger = applyTopicOperations(
+    createEmptyTopicLedger(),
+    {
+      operations: [
         {
-          operations: [
-            {
-              operation: 'create',
-              localId: 'first',
-              title: '第一个话题',
-              summary: '第一个话题。',
-              state: 'active',
-              evidence: [{ messageId: 1, timestamp: 100, role: 'primary' }],
-            },
-            {
-              operation: 'create',
-              localId: 'second',
-              title: '第二个话题',
-              summary: '第二个话题。',
-              state: 'active',
-              evidence: [{ messageId: 2, timestamp: 200, role: 'primary' }],
-            },
-          ],
-          assignments: [
-            { topicRef: 'first', messageIds: [1, 2] },
-            { topicRef: 'second', messageIds: [2] },
-          ],
+          operation: 'create',
+          localId: 'first',
+          title: '第一个话题',
+          summary: '第一个话题。',
+          state: 'active',
+          evidence: [{ messageId: 1, timestamp: 100, role: 'primary' }],
         },
         {
-          sessionId: 'session',
-          dayKey: '2026-08-09',
-          localIdNamespace: 'block:0',
-          currentMessages: messages,
-        }
-      ),
-    /multiple topics/
+          operation: 'create',
+          localId: 'second',
+          title: '第二个话题',
+          summary: '第二个话题。',
+          state: 'active',
+          evidence: [{ messageId: 3, timestamp: 8_000, role: 'primary' }],
+        },
+      ],
+      assignments: [
+        { topicRef: 'first', messageIds: [1, 2] },
+        { topicRef: 'second', messageIds: [2, 3] },
+      ],
+    },
+    {
+      sessionId: 'session',
+      dayKey: '2026-08-09',
+      localIdNamespace: 'block:0',
+      currentMessages: messages,
+    }
+  )
+
+  assert.deepEqual(
+    materializeChatTopics(ledger, messages).map((topic) => topic.messageIds),
+    [[1, 2], [3]]
+  )
+})
+
+test('primary assignments override conflicting representative evidence without failing the day', () => {
+  const ledger = applyTopicOperations(
+    createEmptyTopicLedger(),
+    {
+      operations: [
+        {
+          operation: 'create',
+          localId: 'travel',
+          title: '出行安排',
+          summary: '讨论假期出行安排。',
+          state: 'active',
+          evidence: [{ messageId: 1, timestamp: 100, role: 'primary' }],
+        },
+        {
+          operation: 'create',
+          localId: 'hiking',
+          title: '徒步备选',
+          summary: '讨论徒步备选方案。',
+          state: 'active',
+          evidence: [
+            { messageId: 2, timestamp: 200, role: 'primary' },
+            { messageId: 3, timestamp: 8_000, role: 'supporting' },
+          ],
+        },
+      ],
+      assignments: [
+        { topicRef: 'travel', messageIds: [1, 2] },
+        { topicRef: 'hiking', messageIds: [3] },
+      ],
+    },
+    {
+      sessionId: 'session',
+      dayKey: '2026-08-09',
+      localIdNamespace: 'block:0',
+      currentMessages: messages,
+    }
+  )
+
+  assert.deepEqual(
+    materializeChatTopics(ledger, messages).map((topic) => topic.messageIds),
+    [[1, 2], [3]]
   )
 })
 
