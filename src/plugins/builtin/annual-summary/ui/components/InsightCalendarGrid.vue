@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import { useI18n } from 'vue-i18n'
 import type { AnnualSummaryRange } from '@openchatlab/shared-types'
+import type { AnnualSummaryTranslate } from '../../locales'
 
 interface CalendarDay {
   key: string
@@ -19,12 +19,12 @@ interface CalendarMonth {
 }
 
 const props = defineProps<{
+  t: AnnualSummaryTranslate
   range: AnnualSummaryRange
   data: Array<{ date: string; value: number }>
   formatValue?: (value: number) => string
 }>()
-
-const { t } = useI18n()
+const t = props.t
 
 const maxCount = computed(() => Math.max(...props.data.map((item) => item.value), 1))
 const counts = computed(() => new Map(props.data.map((item) => [item.date, item.value])))
@@ -62,7 +62,7 @@ const months = computed<CalendarMonth[]>(() => {
 
     result.push({
       key: monthKey,
-      label: props.range.mode === 'year' ? t('insight.monthLabel', { month: month + 1 }) : monthKey.replace('-', '/'),
+      label: props.range.mode === 'year' ? props.t('monthLabel', { month: month + 1 }) : monthKey.replace('-', '/'),
       leadingDays: (new Date(year, month, 1).getDay() + 6) % 7,
       days,
     })
@@ -77,7 +77,7 @@ function startOfDay(date: Date): Date {
 }
 
 function formatDayValue(value: number): string {
-  return props.formatValue?.(value) ?? `${value} ${t('insight.messages')}`
+  return props.formatValue?.(value) ?? `${value} ${props.t('messages')}`
 }
 </script>
 
@@ -112,12 +112,12 @@ function formatDayValue(value: number): string {
       </div>
     </div>
     <div class="mt-4 flex items-center justify-end gap-1.5 text-[10px] text-gray-400 dark:text-zinc-500">
-      <span>{{ t('insight.calendar.less') }}</span>
+      <span>{{ t('calendar.less') }}</span>
       <span aria-hidden="true" class="inline-block h-2.5 w-2.5 rounded-[2px] bg-pink-100 dark:bg-pink-500/10" />
       <span aria-hidden="true" class="inline-block h-2.5 w-2.5 rounded-[2px] bg-pink-200 dark:bg-pink-500/25" />
       <span aria-hidden="true" class="inline-block h-2.5 w-2.5 rounded-[2px] bg-pink-400 dark:bg-pink-500/50" />
       <span aria-hidden="true" class="inline-block h-2.5 w-2.5 rounded-[2px] bg-pink-600 dark:bg-pink-500/80" />
-      <span>{{ t('insight.calendar.more') }}</span>
+      <span>{{ t('calendar.more') }}</span>
     </div>
   </div>
 </template>

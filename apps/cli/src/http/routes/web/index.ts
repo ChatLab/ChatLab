@@ -45,7 +45,7 @@ import {
   MergeSessionCache,
   type SemanticIndexRuntime,
 } from '@openchatlab/node-runtime'
-import { registerSharedRoutes } from '@openchatlab/http-routes'
+import { annualSummaryNodePlugin, registerSharedRoutes } from '@openchatlab/http-routes'
 import type { HttpRouteContext } from '@openchatlab/http-routes'
 import { registerImportRoutes } from './import'
 import { openDirectoryPath, showPathInFolder } from './cache'
@@ -176,7 +176,10 @@ export function registerWebRoutes(
         runAgentStream: ai.runAgentStream,
       }),
     },
-    ai ? { requireAi: true } : undefined
+    {
+      nodePlugins: [annualSummaryNodePlugin],
+      ...(ai && { requireAi: true }),
+    }
   )
 
   // CLI-specific routes not yet migrated to @openchatlab/http-routes

@@ -4,7 +4,12 @@
 
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { appRoutes } from './routes'
+import { createInsightPluginRuntime } from '@/plugins/insight'
+import { getLegacyInsightPages, listInsightShellPages } from '@/plugins/insight-catalog'
+import { InsightScopeController } from '@/plugins/insight-scope'
+import { PluginLocaleHost } from '@/plugins/locale'
+import { UiServiceRegistry, type UiHostContext } from '@/plugins/ui-host'
+import { appRoutes, createAppRoutes } from './routes'
 
 function findRoute(path: string) {
   return appRoutes.find((route) => route.path === path)
@@ -42,6 +47,39 @@ test('registers annual summary as the default insight child route', () => {
   assert.equal(
     insightRoute.children?.some((route) => route.path === 'annual-summary' && route.name === 'insight-annual-summary'),
     true
+  )
+})
+
+test('removes the annual summary route and changes the default when its plugin is absent', () => {
+  const localeHost = new PluginLocaleHost({
+    getLocale: () => 'en-US',
+    subscribe: () => () => {},
+    translate: (key) => key,
+  })
+  const uiHost: UiHostContext = {
+    locale: localeHost,
+    insightScope: new InsightScopeController(),
+    services: new UiServiceRegistry(),
+  }
+  const runtimeWithoutPlugins = createInsightPluginRuntime(
+    'cli-web',
+    uiHost,
+    localeHost,
+    [],
+    getLegacyInsightPages('cli-web')
+  )
+  const routesWithoutPlugins = createAppRoutes(runtimeWithoutPlugins)
+  const insightRoute = routesWithoutPlugins.find((route) => route.path === '/insight')
+
+  assert.ok(insightRoute)
+  assert.deepEqual(
+    listInsightShellPages(runtimeWithoutPlugins).map((page) => page.id),
+    ['time-investment', 'relationship-changes']
+  )
+  assert.deepEqual(insightRoute.redirect, { name: 'insight-time-investment' })
+  assert.equal(
+    insightRoute.children?.some((route) => route.name === 'insight-annual-summary'),
+    false
   )
 })
 

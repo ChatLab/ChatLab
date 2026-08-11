@@ -230,6 +230,11 @@ describe('registerSharedRoutes smoke tests', () => {
     assert.ok(Array.isArray(resp.json()))
   })
 
+  it('registers host insights without implicitly enabling optional Node plugins', () => {
+    assert.equal(app.hasRoute({ method: 'GET', url: '/_web/global-insight/time-investment' }), true)
+    assert.equal(app.hasRoute({ method: 'GET', url: '/_web/global-insight/annual-summary' }), false)
+  })
+
   it('GET /_web/sessions reuses a fingerprint-validated overview cache', async () => {
     const db = createSessionDb()
     const routeApp = Fastify()

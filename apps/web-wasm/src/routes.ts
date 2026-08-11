@@ -25,6 +25,7 @@ export const webWasmRoutes: RouteRecordRaw[] = [
         path: 'time-investment',
         name: 'insight-time-investment',
         component: () => import('@/pages/insight/time-investment/index.vue'),
+        meta: { insightPageId: 'time-investment' },
       },
     ],
   },

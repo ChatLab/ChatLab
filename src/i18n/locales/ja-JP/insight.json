@@ -3,59 +3,13 @@
   "reserved": "このビューは今後のバージョンで公開予定です",
   "tabs": {
     "nav": "足跡ビュー",
-    "annualSummary": "私について",
     "timeInvestment": "時間の投入",
     "relationshipChanges": "関係の変化"
   },
-  "messages": "メッセージ数",
   "monthLabel": "{month}月",
   "noData": "この期間には分析可能なデータがありません",
-  "noTextData": "この期間にはテキストメッセージがありません",
-  "calendar": {
-    "less": "少ない",
-    "more": "多い"
-  },
-  "kpis": {
-    "messages": "送信メッセージ",
-    "activeDays": "アクティブ日数",
-    "contacts": "直接交流した人数",
-    "dailyMessages": "1日平均メッセージ",
-    "dailyContacts": "1日平均交流人数"
-  },
   "overviewCard": {
-    "yearTitle": "{year} 年の私",
-    "recentTitle": "直近1年間の私",
-    "narrative": {
-      "messagesPrefix": "この一年で",
-      "messagesSuffix": "件のメッセージを送り、1日平均",
-      "dailySuffix": "件でした。",
-      "activePrefix": "メッセージを送った日は",
-      "activeMiddle": "日で、直接交流した相手は",
-      "contactsSuffix": "人でした。"
-    },
-    "activity": "アクティビティカレンダー",
-    "activeRate": "日数の {rate}%",
-    "keyMetrics": "主要指標",
-    "perDay": "1日平均",
-    "messagesCount": "{count} 件のメッセージ",
-    "characters": "{count} 文字",
-    "textLengthDetail": "テキストメッセージの文字数",
-    "dailyContacts": "1日平均交流人数",
-    "peakMonth": "最も活発な月",
-    "peakDay": "最も活発な日",
-    "longestActiveStreak": "最長連続アクティブ",
-    "consecutiveActiveDays": "連続してメッセージを送信した日数",
-    "topWeekday": "最も活発な曜日",
-    "mostMessagesSent": "送信数が最多",
-    "weekendMessageRate": "週末メッセージ比率",
-    "weekdayMessageRate": "平日 {rate}%",
-    "monthlyTrend": {
-      "messages": "メッセージ数",
-      "contacts": "交流人数"
-    },
-    "textRatio": "テキストメッセージ比率",
-    "medianLength": "テキスト長の中央値",
-    "p90Length": "テキスト長 P90"
+    "keyMetrics": "主要指標"
   },
   "timeInvestment": {
     "yearTitle": "{year} 年の時間投入",
@@ -96,27 +50,9 @@
       "hoursMinutes": "{hours}時間{minutes}分"
     }
   },
-  "sections": {
-    "overview": "年間概要",
-    "overviewDescription": "自分が送信したシステム以外のメッセージを月別に集計します",
-    "directContactsDescription": "自分と直接交流した人数を月ごとに重複を除いて集計します",
-    "activity": "活動リズム",
-    "activityDescription": "日別の送信数。色が濃いほど活発な日です",
-    "messageTypes": "メッセージタイプ",
-    "messageTypesDescription": "自分が送信したメッセージのみを集計します",
-    "textLength": "テキスト長の分布",
-    "textLengthDescription": "空でないテキストメッセージの文字数のみを集计します",
-    "habitsTitle": "表現習慣",
-    "habitsDescription": "自分が送信したメッセージタイプの構成とテキスト文字数分布"
-  },
-  "length": {
-    "median": "中央値"
-  },
   "status": {
-    "loading": "年間まとめを読み込んでいます…",
     "computingProgress": "会話を分析しています {processed}/{total}…",
     "updating": "データが変更されたため、バックグラウンドで更新しています",
-    "failed": "年間まとめの計算に失敗しました。再試行できます。",
     "coverage": "{total} 件中 {analyzed} 件の会話を分析済み",
     "ownerIssues": "{count} 件の会話で「自分」の設定が必要です",
     "noAnalyzableOwner": "足跡の分析に使用できる本人情報がありません。先に会話で「自分」を設定してください。",
@@ -124,7 +60,6 @@
   },
   "actions": {
     "retry": "再試行",
-    "openSessions": "会話一覧を開く",
     "switchYear": "{year} 年を見る"
   }
 }

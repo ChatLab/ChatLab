@@ -8,6 +8,14 @@ import i18n from '@/i18n'
 import { backendPersistPlugin } from '@/plugins/backendPersist'
 import { installGlobalErrorReporting, reportError } from '@/services/log-report'
 import { markStartupPhase } from '@/bootstrap/startup-performance'
+import {
+  desktopCliWebInsightBuiltins,
+  desktopCliWebInsightRuntime,
+  desktopCliWebUiHost,
+  desktopCliWebUiServices,
+} from '@/plugins/desktop-cli-web'
+import { installInsightPluginRuntime } from '@/plugins/insight-vue'
+import { installStaticInsightPluginUiServices } from '@/plugins/static-insight'
 import '@/assets/styles/main.css'
 
 export interface MountChatLabAppOptions {
@@ -33,6 +41,16 @@ export async function mountChatLabApp(options: MountChatLabAppOptions = {}): Pro
   app.use(router)
   app.use(ui)
   app.use(i18n)
+  await installStaticInsightPluginUiServices(
+    desktopCliWebInsightBuiltins,
+    desktopCliWebInsightRuntime,
+    desktopCliWebUiServices
+  )
+  app.onUnmount(() => {
+    desktopCliWebInsightRuntime.disposeAll()
+    desktopCliWebUiHost.locale.dispose()
+  })
+  installInsightPluginRuntime(app, desktopCliWebInsightRuntime)
   markStartupPhase('vue-mount-start')
   app.mount('#app')
   markStartupPhase('vue-mounted')

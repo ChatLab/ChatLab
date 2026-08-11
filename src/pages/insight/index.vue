@@ -1,47 +1,79 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onBeforeUnmount, watch } from 'vue'
 import { RouterView, useRoute } from 'vue-router'
 import { useI18n } from 'vue-i18n'
 import PageHeader from '@/components/layout/PageHeader.vue'
-import TimeSelect from '@/components/common/TimeSelect.vue'
+import TimeSelect, { type TimeSelectMode } from '@/components/common/TimeSelect.vue'
 import { PageTabs } from '@/components/navigation'
-import { PLATFORM_CAPABILITIES } from '@/utils/platform-capabilities'
-import { provideInsightTimeRange } from './insight-time-range'
-
-type InsightSubpage = 'annual-summary' | 'time-investment' | 'relationship-changes'
+import { listInsightShellPages } from '@/plugins/insight-catalog'
+import { InsightScopeController } from '@/plugins/insight-scope'
+import { useHostLocale, useInsightPluginRuntime } from '@/plugins/insight-vue'
+import { createInsightTimeRange, getInsightTimeFilterSignature } from './insight-time-range'
 
 const { t } = useI18n()
+const { translate } = useHostLocale()
 const route = useRoute()
-const timeRange = provideInsightTimeRange()
+const pluginRuntime = useInsightPluginRuntime()
+const pages = listInsightShellPages(pluginRuntime)
+const activeSubpage = computed(() => String(route.meta.insightPageId ?? pages[0]?.id ?? ''))
+const activePage = computed(() => pages.find((page) => page.id === activeSubpage.value))
+const timeFilter = computed(() => activePage.value?.filters?.time)
+const defaultTimeMode = computed<TimeSelectMode>(() => timeFilter.value?.defaultMode ?? 'year')
+const allowedTimeModes = computed(() =>
+  timeFilter.value ? ([...timeFilter.value.allowedModes] as TimeSelectMode[]) : undefined
+)
+const timeRange = createInsightTimeRange(defaultTimeMode, allowedTimeModes)
 const { modelValue, componentKey, initialState, rangeSource } = timeRange
-const activeSubpage = computed<InsightSubpage>(() => {
-  if (route.name === 'insight-time-investment') return 'time-investment'
-  if (route.name === 'insight-relationship-changes') return 'relationship-changes'
-  return 'annual-summary'
+const insightScope = pluginRuntime.ui.insightScope
+if (!(insightScope instanceof InsightScopeController)) throw new Error('Insight scope host controller is unavailable')
+const detachTimeCommands = insightScope.attachTimeCommands({
+  setAvailableYears: timeRange.setAvailableYears,
+  switchToYear: timeRange.switchToYear,
 })
-const navigationItems = computed(() => {
-  const timeInvestment = {
-    id: 'time-investment',
-    label: t('insight.tabs.timeInvestment'),
-    icon: 'i-lucide-clock-3',
-    to: { name: 'insight-time-investment' },
-  }
-  if (PLATFORM_CAPABILITIES.usesBrowserRuntime) return [timeInvestment]
-  return [
-    {
-      id: 'annual-summary',
-      label: t('insight.tabs.annualSummary'),
-      icon: 'i-lucide-calendar-range',
-      to: { name: 'insight-annual-summary' },
-    },
-    timeInvestment,
-    {
-      id: 'relationship-changes',
-      label: t('insight.tabs.relationshipChanges'),
-      icon: 'i-lucide-git-compare-arrows',
-      to: { name: 'insight-relationship-changes' },
-    },
-  ]
+const stopSyncingScope = watch(
+  [modelValue, timeFilter],
+  ([value, filter]) => {
+    const state = value?.state
+    insightScope.updateSnapshot({
+      time:
+        value && state && filter?.allowedModes.includes(state.mode)
+          ? {
+              mode: state.mode,
+              startTs: value.startTs,
+              endTs: value.endTs,
+              isFullRange: value.isFullRange,
+              recentDays: state.recentDays,
+              year: state.year,
+              quarterYear: state.quarterYear,
+              quarter: state.quarter,
+              customStart: state.customStart,
+              customEnd: state.customEnd,
+            }
+          : undefined,
+    })
+  },
+  { immediate: true }
+)
+const navigationItems = computed(() =>
+  pages.map((page) => ({
+    id: page.id,
+    label: translate(page.title),
+    icon: page.icon,
+    to: { name: page.routeName },
+  }))
+)
+const allowedRecentDays = computed(() =>
+  timeFilter.value?.allowedRecentDays ? [...timeFilter.value.allowedRecentDays] : undefined
+)
+const timeFilterSignature = computed(() => {
+  const filter = timeFilter.value
+  return filter ? getInsightTimeFilterSignature(filter) : 'none'
+})
+
+onBeforeUnmount(() => {
+  stopSyncingScope()
+  detachTimeCommands()
+  insightScope.updateSnapshot({})
 })
 </script>
 
@@ -62,13 +94,13 @@ const navigationItems = computed(() => {
         :items="navigationItems"
         :aria-label="t('insight.tabs.nav')"
       >
-        <template v-if="activeSubpage !== 'relationship-changes'" #right>
+        <template v-if="timeFilter" #right>
           <TimeSelect
-            :key="componentKey"
+            :key="`${componentKey}:${timeFilterSignature}`"
             v-model="modelValue"
             :range-source="rangeSource"
-            :allowed-modes="['recent', 'year']"
-            :allowed-recent-days="[365]"
+            :allowed-modes="allowedTimeModes"
+            :allowed-recent-days="allowedRecentDays"
             :initial-state="initialState"
           />
         </template>

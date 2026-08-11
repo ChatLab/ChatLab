@@ -1,0 +1,1 @@
+export { annualSummaryBuiltin } from './plugin'

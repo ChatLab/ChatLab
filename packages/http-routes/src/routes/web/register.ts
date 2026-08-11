@@ -5,12 +5,13 @@ import type { MergeRouteContext } from '../../context/merge'
 import type { RuntimeRouteContext } from '../../context/runtime'
 import type { ServiceRouteContext } from '../../context/services'
 import type { StorageRouteContext } from '../../context/storage'
+import { registerNodePlugins, type NodePluginDescriptor } from '../../plugins/node'
 import { registerAiRoutes, type AiRouteOptions } from './register-ai'
 import { registerAnalyticsRoutes } from './analytics'
 import { registerCacheRoutes } from './cache'
 import { registerContactsRoutes } from './contacts'
 import { registerExportRoutes } from './export'
-import { registerGlobalInsightRoutes } from './global-insight'
+import { registerTimeInvestmentRoutes } from './time-investment'
 import { registerLogRoutes } from './logs'
 import { registerMemberRoutes } from './members'
 import { registerMergeRoutes } from './merge'
@@ -28,7 +29,10 @@ export type WebRoutesContext = RuntimeRouteContext &
   AiRouteContext &
   StorageRouteContext
 
-export type WebRouteOptions = AiRouteOptions
+export interface WebRouteOptions extends AiRouteOptions {
+  /** Trusted Node plugin facets selected by the platform's static catalog. */
+  nodePlugins?: readonly NodePluginDescriptor[]
+}
 
 /** Register the internal Web API under /_web, excluding lifecycle-owned automation routes. */
 export function registerWebRoutes(server: FastifyInstance, ctx: WebRoutesContext, options?: WebRouteOptions): void {
@@ -41,7 +45,8 @@ export function registerWebRoutes(server: FastifyInstance, ctx: WebRoutesContext
   registerMemberRoutes(server, resolvedCtx)
   registerContactsRoutes(server, resolvedCtx)
   registerPeopleRelationshipsRoutes(server, resolvedCtx)
-  registerGlobalInsightRoutes(server, resolvedCtx)
+  registerTimeInvestmentRoutes(server, resolvedCtx)
+  registerNodePlugins(server, resolvedCtx, options?.nodePlugins ?? [])
   registerPreferencesRoutes(server, resolvedCtx)
   registerAnalyticsRoutes(server, resolvedCtx)
   registerSqlRoutes(server, resolvedCtx)

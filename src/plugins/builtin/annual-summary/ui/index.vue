@@ -1,32 +1,38 @@
 <script setup lang="ts">
 import { computed, onBeforeUnmount, ref, watch } from 'vue'
-import { storeToRefs } from 'pinia'
-import { useI18n } from 'vue-i18n'
-import { useLayoutStore } from '@/stores/layout'
 import type { AnnualSummaryFetchOptions } from '@/services/data/types'
 import type { AnnualSummaryResponse } from '@openchatlab/shared-types'
 import LoadingState from '@/components/UI/LoadingState.vue'
-import { useDataService } from '@/services'
 import { reportError } from '@/services/log-report'
-import { useInsightTimeRange, watchInsightSettingsClose } from '../insight-time-range'
+import { useHostLocale, usePluginLocale, useUiHostContext } from '@/plugins/insight-vue'
+import { ANNUAL_SUMMARY_LOCALE_NAMESPACE } from '../constants'
+import type { AnnualSummaryLocaleKey } from '../locales'
+import { ANNUAL_SUMMARY_UI_SERVICE } from '../service'
 import AnnualInsightBoard from './components/AnnualInsightBoard.vue'
 
-const { t } = useI18n()
-const layoutStore = useLayoutStore()
-const { showSettings } = storeToRefs(layoutStore)
+const uiHost = useUiHostContext()
+const t = usePluginLocale<AnnualSummaryLocaleKey | `common.${string}`>(ANNUAL_SUMMARY_LOCALE_NAMESPACE)
+const { formatDate, formatNumber } = useHostLocale()
+const insightScope = uiHost.insightScope
+const annualSummaryService = uiHost.services.get(ANNUAL_SUMMARY_UI_SERVICE)
 const currentYear = new Date().getFullYear()
-const timeRange = useInsightTimeRange()
+const scopeSnapshot = ref(insightScope.getSnapshot())
 const response = ref<AnnualSummaryResponse | null>(null)
 const errorMessage = ref('')
 let pollTimer: ReturnType<typeof setTimeout> | null = null
 let requestToken = 0
 
+const unsubscribeScope = insightScope.subscribe(() => {
+  scopeSnapshot.value = insightScope.getSnapshot()
+})
+const unsubscribeSettings = annualSummaryService.subscribeOwnerSettingsClosed(() => void loadSummary(false))
+
 const requestOptions = computed<AnnualSummaryFetchOptions | null>(() => {
-  const state = timeRange.modelValue.value?.state
-  if (!state) return null
-  return state.mode === 'recent'
-    ? { mode: 'recent', days: 365, acceptStale: true }
-    : { mode: 'year', year: state.year ?? currentYear, acceptStale: true }
+  const time = scopeSnapshot.value.time
+  if (!time) return null
+  if (time.mode === 'recent') return { mode: 'recent', days: 365, acceptStale: true }
+  if (time.mode === 'year') return { mode: 'year', year: time.year ?? currentYear, acceptStale: true }
+  return null
 })
 const requestKey = computed(() => JSON.stringify(requestOptions.value))
 const ownerIssueCount = computed(
@@ -42,7 +48,7 @@ const hasNoAnalyzableOwner = computed(
     ownerIssueCount.value > 0
 )
 const selectedYear = computed(() =>
-  timeRange.modelValue.value?.state.mode === 'year' ? timeRange.modelValue.value.state.year : undefined
+  scopeSnapshot.value.time?.mode === 'year' ? scopeSnapshot.value.time.year : undefined
 )
 const latestYearSuggestion = computed(() => {
   const year = selectedYear.value
@@ -61,9 +67,12 @@ watch(
   },
   { immediate: true }
 )
-watchInsightSettingsClose(showSettings, () => void loadSummary(false))
-
-onBeforeUnmount(clearPoll)
+onBeforeUnmount(() => {
+  requestToken++
+  clearPoll()
+  unsubscribeScope()
+  unsubscribeSettings()
+})
 
 async function loadSummary(recompute: boolean): Promise<void> {
   const options = requestOptions.value
@@ -71,13 +80,11 @@ async function loadSummary(recompute: boolean): Promise<void> {
   const token = ++requestToken
   errorMessage.value = ''
   try {
-    const result = recompute
-      ? await useDataService().recomputeAnnualSummary(options)
-      : await useDataService().getAnnualSummary(options)
+    const result = recompute ? await annualSummaryService.recompute(options) : await annualSummaryService.get(options)
     if (token !== requestToken) return
     response.value = result
     if (result.metrics) {
-      timeRange.setAvailableYears(result.availableDataYears)
+      insightScope.setAvailableTimeYears(result.availableDataYears)
     }
     if (result.task.status === 'running') schedulePoll()
   } catch (error) {
@@ -102,11 +109,11 @@ function clearPoll(): void {
 function switchToLatestYear(): void {
   const year = response.value?.latestDataYear
   if (!year) return
-  timeRange.switchToYear(year)
+  insightScope.switchTimeToYear(year)
 }
 
 function openSessions(): void {
-  layoutStore.openSettings('data', 'missing-owner')
+  annualSummaryService.openOwnerSettings()
 }
 </script>
 
@@ -120,7 +127,7 @@ function openSessions(): void {
         @click="openSessions"
       >
         <UIcon name="i-heroicons-user-circle" class="h-4 w-4 shrink-0" />
-        <span class="min-w-0">{{ t('insight.status.ownerIssues', { count: ownerIssueCount }) }}</span>
+        <span class="min-w-0">{{ t('status.ownerIssues', { count: ownerIssueCount }) }}</span>
         <UIcon name="i-heroicons-arrow-right" class="h-3.5 w-3.5 shrink-0 opacity-70" />
       </button>
 
@@ -129,16 +136,16 @@ function openSessions(): void {
         class="flex items-center gap-2 rounded-xl border border-amber-100 bg-amber-50/50 px-4 py-2.5 text-xs text-amber-800 backdrop-blur-sm dark:border-amber-950/40 dark:bg-amber-950/20 dark:text-amber-300"
       >
         <UIcon name="i-heroicons-arrow-path" class="h-4 w-4 shrink-0 animate-spin text-amber-600 dark:text-amber-400" />
-        {{ t('insight.status.updating') }}
+        {{ t('status.updating') }}
       </div>
 
       <div
         v-if="errorMessage || response?.task.status === 'failed'"
         class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-red-200 bg-red-50/50 px-4 py-2.5 text-xs text-red-800 backdrop-blur-sm dark:border-red-950/40 dark:bg-red-950/20 dark:text-red-300"
       >
-        <span>{{ t('insight.status.failed') }}</span>
+        <span>{{ t('status.failed') }}</span>
         <UButton size="xs" color="error" variant="soft" icon="i-heroicons-arrow-path" @click="loadSummary(true)">
-          {{ t('insight.actions.retry') }}
+          {{ t('actions.retry') }}
         </UButton>
       </div>
 
@@ -147,11 +154,11 @@ function openSessions(): void {
         height="min(52vh, 420px)"
         :text="
           response?.task.status === 'running'
-            ? t('insight.status.computingProgress', {
+            ? t('status.computingProgress', {
                 processed: response.task.processedSessions,
                 total: response.task.totalSessions,
               })
-            : t('insight.status.loading')
+            : t('status.loading')
         "
       />
 
@@ -161,9 +168,9 @@ function openSessions(): void {
           class="flex flex-wrap items-center justify-between gap-3 rounded-xl border border-gray-200 bg-white p-4 text-xs text-gray-600 dark:border-zinc-800 dark:bg-zinc-900/50 dark:text-zinc-300"
         >
           <span v-if="latestYearSuggestion">
-            {{ t('insight.status.noDataWithLatest', latestYearSuggestion) }}
+            {{ t('status.noDataWithLatest', latestYearSuggestion) }}
           </span>
-          <span v-else>{{ t('insight.noData') }}</span>
+          <span v-else>{{ t('noData') }}</span>
           <UButton
             v-if="latestYearSuggestion"
             size="xs"
@@ -172,11 +179,14 @@ function openSessions(): void {
             icon="i-heroicons-arrow-right"
             @click="switchToLatestYear"
           >
-            {{ t('insight.actions.switchYear', { year: latestYearSuggestion.latestYear }) }}
+            {{ t('actions.switchYear', { year: latestYearSuggestion.latestYear }) }}
           </UButton>
         </div>
 
         <AnnualInsightBoard
+          :t="t"
+          :format-date="formatDate"
+          :format-number="formatNumber"
           :range="response.range"
           :metrics="response.metrics"
           :coverage="response.coverage"

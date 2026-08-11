@@ -3,6 +3,11 @@
  * 平台无关的共享类型定义，三端（Electron / Node 服务 / Web）统一使用
  */
 
+// ==================== Plugin identity ====================
+
+/** Stable identity shared by the UI and Node facets of the built-in plugin. */
+export const ANNUAL_SUMMARY_PLUGIN_ID = 'chatlab.insight.annual-summary'
+
 // ==================== 时间筛选 ====================
 
 export interface TimeFilter {

@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
-import { useI18n } from 'vue-i18n'
 import type {
   AnnualSummaryCoverage,
   AnnualSummaryMetrics,
@@ -8,13 +7,16 @@ import type {
   AnnualSummaryTextLength,
 } from '@openchatlab/shared-types'
 import { MessageType, getMessageTypeName } from '@/types/base'
-import { formatDateRange } from '@/utils'
 import { CardDecoration, ThemeCard } from '@/components/UI'
-import { deriveAnnualActivityRhythm } from '../annual-activity-rhythm'
-import InsightCalendarGrid from '../../components/InsightCalendarGrid.vue'
+import type { AnnualSummaryTranslate } from '../../locales'
+import { deriveAnnualActivityRhythm } from '../../domain/activity-rhythm'
+import InsightCalendarGrid from './InsightCalendarGrid.vue'
 import AnnualMonthlyTrend from './AnnualMonthlyTrend.vue'
 
 const props = defineProps<{
+  t: AnnualSummaryTranslate
+  formatDate: (value: Date | number, options?: Intl.DateTimeFormatOptions) => string
+  formatNumber: (value: number, options?: Intl.NumberFormatOptions) => string
   range: AnnualSummaryRange
   metrics: AnnualSummaryMetrics
   coverage: AnnualSummaryCoverage
@@ -25,15 +27,18 @@ const props = defineProps<{
   textLength: AnnualSummaryTextLength
 }>()
 
-const { t } = useI18n()
+const t = props.t
 const monthlyTrendMode = ref<'messages' | 'contacts'>('messages')
 
 const title = computed(() =>
   props.range.mode === 'year'
-    ? t('insight.overviewCard.yearTitle', { year: props.range.year })
-    : t('insight.overviewCard.recentTitle')
+    ? props.t('overview.yearTitle', { year: props.range.year })
+    : props.t('overview.recentTitle')
 )
-const timeRangeText = computed(() => formatDateRange(props.range.startTs, props.range.endTs, 'YYYY/MM/DD'))
+const timeRangeText = computed(() => {
+  const options = { day: '2-digit', month: '2-digit', year: 'numeric' } as const
+  return `${props.formatDate(props.range.startTs * 1000, options)} – ${props.formatDate(props.range.endTs * 1000, options)}`
+})
 const peakMonth = computed(() =>
   props.monthlyActivity.reduce<(typeof props.monthlyActivity)[number] | null>(
     (peak, item) => (!peak || item.messageCount > peak.messageCount ? item : peak),
@@ -60,32 +65,32 @@ const detailStats = computed(() => [
   {
     key: 'dailyContacts',
     value: formatValue(props.metrics.averageDirectContactsPerDay),
-    label: t('insight.overviewCard.dailyContacts'),
-    subtext: t('insight.overviewCard.perDay'),
+    label: props.t('overview.dailyContacts'),
+    subtext: props.t('overview.perDay'),
     icon: 'i-heroicons-user-plus',
     colorClass: 'text-blue-600 dark:text-blue-400',
   },
   {
     key: 'peakMonth',
     value: formatMonth(peakMonth.value?.month),
-    label: t('insight.overviewCard.peakMonth'),
-    subtext: t('insight.overviewCard.messagesCount', { count: formatValue(peakMonth.value?.messageCount ?? 0) }),
+    label: props.t('overview.peakMonth'),
+    subtext: props.t('overview.messagesCount', { count: formatValue(peakMonth.value?.messageCount ?? 0) }),
     icon: 'i-heroicons-calendar-days',
     colorClass: 'text-pink-600 dark:text-pink-400',
   },
   {
     key: 'peakDay',
-    value: peakDay.value?.date.slice(5).replace('-', '/') ?? '-',
-    label: t('insight.overviewCard.peakDay'),
-    subtext: t('insight.overviewCard.messagesCount', { count: formatValue(peakDay.value?.messageCount ?? 0) }),
+    value: formatDay(peakDay.value?.date),
+    label: props.t('overview.peakDay'),
+    subtext: props.t('overview.messagesCount', { count: formatValue(peakDay.value?.messageCount ?? 0) }),
     icon: 'i-heroicons-fire',
     colorClass: 'text-red-600 dark:text-red-400',
   },
   {
     key: 'longestActiveStreak',
     value: formatValue(activityRhythm.value.longestActiveStreak),
-    label: t('insight.overviewCard.longestActiveStreak'),
-    subtext: t('insight.overviewCard.consecutiveActiveDays'),
+    label: props.t('overview.longestActiveStreak'),
+    subtext: props.t('overview.consecutiveActiveDays'),
     icon: 'i-heroicons-bolt',
     colorClass: 'text-amber-600 dark:text-amber-400',
   },
@@ -97,27 +102,34 @@ const monthlyTrendData = computed(() =>
 )
 const calendarData = computed(() => props.dailyActivity.map((item) => ({ date: item.date, value: item.messageCount })))
 const monthlyTrendDescription = computed(() =>
-  t(
-    monthlyTrendMode.value === 'messages'
-      ? 'insight.sections.overviewDescription'
-      : 'insight.sections.directContactsDescription'
-  )
+  props.t(monthlyTrendMode.value === 'messages' ? 'sections.overviewDescription' : 'sections.directContactsDescription')
 )
 function formatValue(value: number): string {
-  return Number.isInteger(value)
-    ? value.toLocaleString()
-    : value.toLocaleString(undefined, { maximumFractionDigits: 1 })
+  return props.formatNumber(value, Number.isInteger(value) ? undefined : { maximumFractionDigits: 1 })
 }
 
 function formatMonth(month: string | undefined): string {
   if (!month) return '-'
   return props.range.mode === 'year'
-    ? t('insight.monthLabel', { month: Number(month.slice(5)) })
+    ? props.t('monthLabel', { month: Number(month.slice(5)) })
     : month.replace('-', '/')
+}
+
+function formatDay(date: string | undefined): string {
+  if (!date) return '-'
+  const [year, month, day] = date.split('-')
+  return props.formatDate(new Date(Number(year), Number(month) - 1, Number(day)), {
+    day: '2-digit',
+    month: '2-digit',
+  })
 }
 
 function percentage(value: number, total: number): number {
   return total > 0 ? Math.round((value / total) * 100) : 0
+}
+
+function translateCommon(key: string): string {
+  return t(key as `common.${string}`)
 }
 </script>
 
@@ -131,35 +143,35 @@ function percentage(value: number, total: number): number {
         <div class="mt-6">
           <div class="max-w-3xl space-y-3 text-gray-600 dark:text-zinc-300">
             <p class="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-lg leading-relaxed sm:text-xl">
-              <span>{{ t('insight.overviewCard.narrative.messagesPrefix') }}</span>
+              <span>{{ t('overview.narrative.messagesPrefix') }}</span>
               <span
                 class="font-black text-2xl tracking-tight tabular-nums text-pink-600 sm:text-3xl dark:text-pink-400"
               >
                 {{ formatValue(metrics.sentMessageCount) }}
               </span>
-              <span>{{ t('insight.overviewCard.narrative.messagesSuffix') }}</span>
+              <span>{{ t('overview.narrative.messagesSuffix') }}</span>
               <span class="font-black text-2xl tabular-nums text-blue-600 sm:text-3xl dark:text-blue-400">
                 {{ formatValue(metrics.averageMessagesPerDay) }}
               </span>
-              <span>{{ t('insight.overviewCard.narrative.dailySuffix') }}</span>
+              <span>{{ t('overview.narrative.dailySuffix') }}</span>
             </p>
 
             <p class="flex flex-wrap items-baseline gap-x-2 gap-y-1 text-base leading-relaxed sm:text-lg">
-              <span>{{ t('insight.overviewCard.narrative.activePrefix') }}</span>
+              <span>{{ t('overview.narrative.activePrefix') }}</span>
               <span class="font-black text-2xl tabular-nums text-indigo-600 dark:text-indigo-400">
                 {{ formatValue(metrics.activeDayCount) }}
               </span>
-              <span>{{ t('insight.overviewCard.narrative.activeMiddle') }}</span>
+              <span>{{ t('overview.narrative.activeMiddle') }}</span>
               <span class="font-black text-2xl tabular-nums text-amber-600 dark:text-amber-400">
                 {{ formatValue(metrics.directContactCount) }}
               </span>
-              <span>{{ t('insight.overviewCard.narrative.contactsSuffix') }}</span>
+              <span>{{ t('overview.narrative.contactsSuffix') }}</span>
             </p>
           </div>
 
           <div class="mt-7">
             <div class="mb-2 text-[10px] font-bold uppercase tracking-widest text-gray-400 dark:text-zinc-500">
-              {{ t('insight.overviewCard.keyMetrics') }}
+              {{ t('overview.keyMetrics') }}
             </div>
             <div class="grid grid-cols-2 gap-2 lg:grid-cols-4">
               <div v-for="stat in detailStats" :key="stat.key" class="flex min-w-0 items-start gap-2 px-2.5 py-2">
@@ -186,7 +198,7 @@ function percentage(value: number, total: number): number {
             <div class="mb-1 flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 class="text-xs font-bold tracking-wide text-gray-700 dark:text-zinc-300">
-                  {{ t('insight.sections.overview') }}
+                  {{ t('sections.overview') }}
                 </h3>
                 <p class="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">{{ monthlyTrendDescription }}</p>
               </div>
@@ -204,11 +216,11 @@ function percentage(value: number, total: number): number {
                   :aria-pressed="monthlyTrendMode === mode"
                   @click="monthlyTrendMode = mode"
                 >
-                  {{ t(`insight.overviewCard.monthlyTrend.${mode}`) }}
+                  {{ t(`overview.monthlyTrend.${mode}`) }}
                 </button>
               </div>
             </div>
-            <AnnualMonthlyTrend :range="range" :data="monthlyTrendData" :height="240" />
+            <AnnualMonthlyTrend :t="t" :range="range" :data="monthlyTrendData" :height="240" />
           </div>
         </div>
 
@@ -218,7 +230,7 @@ function percentage(value: number, total: number): number {
           <span>{{ timeRangeText }}</span>
           <span>
             {{
-              t('insight.status.coverage', {
+              t('status.coverage', {
                 analyzed: coverage.analyzedSessions,
                 total: coverage.totalSessions,
               })
@@ -235,16 +247,16 @@ function percentage(value: number, total: number): number {
             class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300"
           >
             <span class="inline-block h-2 w-2 rounded-full bg-pink-500 dark:bg-pink-400" />
-            {{ t('insight.sections.messageTypes') }}
+            {{ t('sections.messageTypes') }}
           </h3>
           <p class="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">
-            {{ t('insight.sections.messageTypesDescription') }}
+            {{ t('sections.messageTypesDescription') }}
           </p>
           <div v-if="sortedMessageTypes.length" class="mt-5 grid grid-cols-2 gap-x-5 gap-y-4 sm:grid-cols-3">
             <div v-for="item in sortedMessageTypes" :key="item.type" class="min-w-0">
               <div class="flex items-end justify-between gap-2">
                 <span class="truncate text-xs font-medium text-gray-600 dark:text-zinc-300">
-                  {{ getMessageTypeName(item.type, t) }}
+                  {{ getMessageTypeName(item.type, translateCommon) }}
                 </span>
                 <span class="font-mono text-xs font-black tabular-nums text-gray-900 dark:text-white">
                   {{ percentage(item.count, messageTypeTotal) }}%
@@ -262,7 +274,7 @@ function percentage(value: number, total: number): number {
             </div>
           </div>
           <div v-else class="flex h-28 items-center justify-center text-xs text-gray-400 dark:text-zinc-600">
-            {{ t('insight.noData') }}
+            {{ t('noData') }}
           </div>
         </section>
       </ThemeCard>
@@ -275,10 +287,10 @@ function percentage(value: number, total: number): number {
                 class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300"
               >
                 <span class="inline-block h-2 w-2 rounded-full bg-pink-500 dark:bg-pink-400" />
-                {{ t('insight.sections.textLength') }}
+                {{ t('sections.textLength') }}
               </h3>
               <p class="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">
-                {{ t('insight.overviewCard.textRatio') }} {{ textMessageRatio }}%
+                {{ t('overview.textRatio') }} {{ textMessageRatio }}%
               </p>
             </div>
             <div class="flex shrink-0 gap-3 text-right">
@@ -286,7 +298,7 @@ function percentage(value: number, total: number): number {
                 <div class="font-mono text-sm font-black text-gray-900 dark:text-white">
                   {{ textLength.median ?? '-' }}
                 </div>
-                <div class="text-[10px] text-gray-400 dark:text-zinc-500">{{ t('insight.length.median') }}</div>
+                <div class="text-[10px] text-gray-400 dark:text-zinc-500">{{ t('length.median') }}</div>
               </div>
               <div>
                 <div class="font-mono text-sm font-black text-gray-900 dark:text-white">
@@ -315,7 +327,7 @@ function percentage(value: number, total: number): number {
             </div>
           </div>
           <div v-else class="flex h-24 items-center justify-center text-xs text-gray-400 dark:text-zinc-600">
-            {{ t('insight.noTextData') }}
+            {{ t('noTextData') }}
           </div>
         </section>
       </ThemeCard>
@@ -329,10 +341,10 @@ function percentage(value: number, total: number): number {
               class="flex items-center gap-2 text-xs font-bold uppercase tracking-wider text-gray-700 dark:text-zinc-300"
             >
               <span class="inline-block h-2 w-2 rounded-full bg-pink-500 dark:bg-pink-400" />
-              {{ t('insight.overviewCard.activity') }}
+              {{ t('overview.activity') }}
             </h3>
             <p class="mt-1 text-[10px] text-gray-400 dark:text-zinc-500">
-              {{ t('insight.sections.activityDescription') }}
+              {{ t('sections.activityDescription') }}
             </p>
           </div>
           <div class="shrink-0 text-right">
@@ -340,12 +352,12 @@ function percentage(value: number, total: number): number {
               {{ metrics.activeDayCount }}
             </div>
             <div class="text-[10px] text-gray-400 dark:text-zinc-500">
-              {{ t('insight.overviewCard.activeRate', { rate: activeRate }) }}
+              {{ t('overview.activeRate', { rate: activeRate }) }}
             </div>
           </div>
         </div>
         <div class="mt-5">
-          <InsightCalendarGrid :range="range" :data="calendarData" />
+          <InsightCalendarGrid :t="t" :range="range" :data="calendarData" />
         </div>
       </section>
     </ThemeCard>

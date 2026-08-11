@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { deriveAnnualActivityRhythm } from './annual-activity-rhythm'
+import { deriveAnnualActivityRhythm } from './activity-rhythm'
 
 test('returns empty activity rhythm when there are no sent messages', () => {
   assert.deepEqual(deriveAnnualActivityRhythm([]), {
