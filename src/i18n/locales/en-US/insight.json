@@ -3,63 +3,6 @@
   "reserved": "This view will be available in a future release",
   "tabs": {
     "nav": "Footprint views",
-    "timeInvestment": "Time Investment",
     "relationshipChanges": "Relationship Changes"
-  },
-  "monthLabel": "Month {month}",
-  "noData": "No analyzable data in this time range",
-  "overviewCard": {
-    "keyMetrics": "Key Metrics"
-  },
-  "timeInvestment": {
-    "yearTitle": "Time invested in {year}",
-    "recentTitle": "Time invested in the last year",
-    "estimateNote": "Estimated from message timing with overlapping conversations merged. It shows engagement trends, not exact screen time.",
-    "narrative": {
-      "totalPrefix": "Over the year, your estimated chat investment was",
-      "totalSuffix": ".",
-      "daysPrefix": "It was spread across",
-      "daysMiddle": "active days, averaging",
-      "daysSuffix": "per active day."
-    },
-    "loading": "Loading time investment…",
-    "failed": "Time investment calculation failed. You can retry it.",
-    "privateChat": "Private chats",
-    "groupChat": "Group chats",
-    "shareOfTotal": "{share}% of total investment",
-    "peakDay": "Highest-investment day",
-    "peakWeekday": "Highest daily-average weekday",
-    "chatTypeTitle": "Conversation types",
-    "monthlyTitle": "Monthly trend",
-    "monthlyDescription": "Estimated chat investment by month, in hours",
-    "rhythmTitle": "Investment rhythm",
-    "rhythmDescription": "Average daily investment by weekday",
-    "topDaysTitle": "Highest-investment days",
-    "rankingTitle": "Where the time went",
-    "rankingDescription": "Shows the 10 private and group chats with the most invested time; overlapping time is divided evenly between conversations",
-    "rankingCount": "{count} chats",
-    "kpis": {
-      "estimated": "Estimated chat investment",
-      "activeDays": "Investment days",
-      "dailyAverage": "Average per active day"
-    },
-    "duration": {
-      "lessThanMinute": "Less than 1 min",
-      "minutes": "{count} min",
-      "hours": "{count} hr",
-      "hoursMinutes": "{hours} hr {minutes} min"
-    }
-  },
-  "status": {
-    "computingProgress": "Analyzing conversations {processed}/{total}…",
-    "updating": "Data changed; this result is being refreshed in the background",
-    "coverage": "Analyzed {analyzed} of {total} conversations",
-    "ownerIssues": "{count} conversations still need a valid “me” identity",
-    "noAnalyzableOwner": "No conversation has a usable identity yet. Set who “me” is in a conversation first.",
-    "noDataWithLatest": "No analyzable data for {year}; the latest available year is {latestYear}"
-  },
-  "actions": {
-    "retry": "Retry",
-    "switchYear": "View {year}"
   }
 }

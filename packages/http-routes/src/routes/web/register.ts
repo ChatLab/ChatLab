@@ -11,7 +11,6 @@ import { registerAnalyticsRoutes } from './analytics'
 import { registerCacheRoutes } from './cache'
 import { registerContactsRoutes } from './contacts'
 import { registerExportRoutes } from './export'
-import { registerTimeInvestmentRoutes } from './time-investment'
 import { registerLogRoutes } from './logs'
 import { registerMemberRoutes } from './members'
 import { registerMergeRoutes } from './merge'
@@ -45,7 +44,6 @@ export function registerWebRoutes(server: FastifyInstance, ctx: WebRoutesContext
   registerMemberRoutes(server, resolvedCtx)
   registerContactsRoutes(server, resolvedCtx)
   registerPeopleRelationshipsRoutes(server, resolvedCtx)
-  registerTimeInvestmentRoutes(server, resolvedCtx)
   registerNodePlugins(server, resolvedCtx, options?.nodePlugins ?? [])
   registerPreferencesRoutes(server, resolvedCtx)
   registerAnalyticsRoutes(server, resolvedCtx)

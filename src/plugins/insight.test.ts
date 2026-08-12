@@ -1,6 +1,7 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
 import { annualSummaryBuiltin } from './builtin/annual-summary'
+import { timeInvestmentBuiltin } from './builtin/time-investment'
 import { getLegacyInsightPages, listInsightShellPages } from './insight-catalog'
 import { createInsightPluginRuntime, type InsightPlugin } from './insight'
 import { InsightScopeController } from './insight-scope'
@@ -8,6 +9,7 @@ import { PluginLocaleHost } from './locale'
 import { UiServiceRegistry, type UiHostContext } from './ui-host'
 
 const annualSummaryPlugin = annualSummaryBuiltin.plugin
+const timeInvestmentPlugin = timeInvestmentBuiltin.plugin
 
 function createTestHost(): { localeHost: PluginLocaleHost; uiHost: UiHostContext } {
   const localeHost = new PluginLocaleHost({
@@ -51,19 +53,44 @@ test('registers annual summary as a removable Desktop and CLI Web contribution',
 
 test('keeps the annual summary plugin out of Web WASM', () => {
   const { uiHost, localeHost } = createTestHost()
-  const runtime = createInsightPluginRuntime('web-wasm', uiHost, localeHost, [annualSummaryPlugin])
+  const runtime = createInsightPluginRuntime('web-wasm', uiHost, localeHost, [
+    annualSummaryPlugin,
+    timeInvestmentPlugin,
+  ])
 
   assert.equal(runtime.isActive(annualSummaryPlugin.id), false)
-  assert.deepEqual(runtime.listPages(), [])
+  assert.equal(runtime.isActive(timeInvestmentPlugin.id), true)
   assert.deepEqual(
     listInsightShellPages(runtime).map((page) => page.id),
     ['time-investment']
   )
 })
 
+test('registers time investment on every platform and removes all of its contributions', () => {
+  for (const platform of ['electron', 'cli-web', 'web-wasm'] as const) {
+    const { uiHost, localeHost } = createTestHost()
+    const runtime = createInsightPluginRuntime(platform, uiHost, localeHost, [timeInvestmentPlugin])
+    const title = runtime.getPage('time-investment')!.title
+
+    assert.equal(runtime.isActive(timeInvestmentPlugin.id), true)
+    assert.equal(uiHost.locale.translate(title), 'Time Investment')
+    assert.deepEqual(
+      runtime.listNavigation().map(({ page }) => page.id),
+      ['time-investment']
+    )
+
+    runtime.dispose(timeInvestmentPlugin.id)
+    assert.equal(runtime.getPage('time-investment'), undefined)
+    assert.equal(uiHost.locale.translate(title), 'title')
+  }
+})
+
 test('combines plugin and legacy Insight pages by navigation order', () => {
   const { uiHost, localeHost } = createTestHost()
-  const runtime = createInsightPluginRuntime('electron', uiHost, localeHost, [annualSummaryPlugin])
+  const runtime = createInsightPluginRuntime('electron', uiHost, localeHost, [
+    annualSummaryPlugin,
+    timeInvestmentPlugin,
+  ])
 
   assert.deepEqual(
     listInsightShellPages(runtime).map((page) => page.id),
@@ -158,7 +185,7 @@ test('rejects plugin pages that conflict with host-owned legacy pages', () => {
         platforms: ['cli-web'],
         activate(context) {
           context.pages.register({
-            id: 'time-investment',
+            id: 'relationship-changes',
             path: 'another-path',
             routeName: 'another-route',
             title: { namespace: 'plugins.conflicting-page', key: 'another.title' },

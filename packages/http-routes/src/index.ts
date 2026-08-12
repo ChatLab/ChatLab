@@ -9,6 +9,7 @@ export type {
 export { registerSharedRoutes } from './register'
 export type { SharedRouteOptions } from './register'
 export { annualSummaryNodePlugin } from './plugins/builtin/annual-summary'
+export { timeInvestmentNodePlugin } from './plugins/builtin/time-investment'
 export { registerNodePlugins } from './plugins/node'
 export type { NodePluginContext, NodePluginDescriptor } from './plugins/node'
 export { executeRegistryTool } from './ai/tool-executor'

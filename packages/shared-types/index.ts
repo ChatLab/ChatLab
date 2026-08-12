@@ -7,6 +7,7 @@
 
 /** Stable identity shared by the UI and Node facets of the built-in plugin. */
 export const ANNUAL_SUMMARY_PLUGIN_ID = 'chatlab.insight.annual-summary'
+export const TIME_INVESTMENT_PLUGIN_ID = 'chatlab.insight.time-investment'
 
 // ==================== 时间筛选 ====================
 

@@ -231,7 +231,7 @@ describe('registerSharedRoutes smoke tests', () => {
   })
 
   it('registers host insights without implicitly enabling optional Node plugins', () => {
-    assert.equal(app.hasRoute({ method: 'GET', url: '/_web/global-insight/time-investment' }), true)
+    assert.equal(app.hasRoute({ method: 'GET', url: '/_web/global-insight/time-investment' }), false)
     assert.equal(app.hasRoute({ method: 'GET', url: '/_web/global-insight/annual-summary' }), false)
   })
 

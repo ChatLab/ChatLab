@@ -1,6 +1,7 @@
 import type { RouteRecordRaw } from 'vue-router'
 import { desktopCliWebInsightRuntime } from '@/plugins/desktop-cli-web'
 import type { InsightPluginRuntime } from '@/plugins/insight'
+import { listInsightShellPages } from '@/plugins/insight-catalog'
 import { createVueInsightRouteRecords } from '@/plugins/insight-vue'
 
 /** 开发模式按需加载页面，避免失败的预加载请求污染后续动态路由导航。 */
@@ -9,7 +10,8 @@ export function shouldPreloadCriticalRoutes(isProduction: boolean): boolean {
 }
 
 export function createAppRoutes(insightRuntime: InsightPluginRuntime = desktopCliWebInsightRuntime): RouteRecordRaw[] {
-  const defaultInsightRoute = insightRuntime.getDefaultPage()?.routeName ?? 'insight-time-investment'
+  const defaultInsightRoute =
+    insightRuntime.getDefaultPage()?.routeName ?? listInsightShellPages(insightRuntime)[0]?.routeName
 
   return [
     {
@@ -36,15 +38,9 @@ export function createAppRoutes(insightRuntime: InsightPluginRuntime = desktopCl
     {
       path: '/insight',
       component: () => import('@/pages/insight/index.vue'),
-      redirect: { name: defaultInsightRoute },
+      redirect: defaultInsightRoute ? { name: defaultInsightRoute } : undefined,
       children: [
         ...createVueInsightRouteRecords(insightRuntime),
-        {
-          path: 'time-investment',
-          name: 'insight-time-investment',
-          component: () => import('@/pages/insight/time-investment/index.vue'),
-          meta: { insightPageId: 'time-investment' },
-        },
         {
           path: 'relationship-changes',
           name: 'insight-relationship-changes',

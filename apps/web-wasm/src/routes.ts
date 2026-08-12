@@ -1,4 +1,9 @@
 import type { RouteRecordRaw } from 'vue-router'
+import { createVueInsightRouteRecords } from '@/plugins/insight-vue'
+import { webWasmInsightRuntime } from '@/plugins/web-wasm'
+
+const defaultInsightRoute =
+  webWasmInsightRuntime.getDefaultPage()?.routeName ?? webWasmInsightRuntime.listPages()[0]?.routeName
 
 export const webWasmRoutes: RouteRecordRaw[] = [
   {
@@ -19,14 +24,7 @@ export const webWasmRoutes: RouteRecordRaw[] = [
   {
     path: '/insight',
     component: () => import('@/pages/insight/index.vue'),
-    redirect: { name: 'insight-time-investment' },
-    children: [
-      {
-        path: 'time-investment',
-        name: 'insight-time-investment',
-        component: () => import('@/pages/insight/time-investment/index.vue'),
-        meta: { insightPageId: 'time-investment' },
-      },
-    ],
+    redirect: defaultInsightRoute ? { name: defaultInsightRoute } : undefined,
+    children: createVueInsightRouteRecords(webWasmInsightRuntime),
   },
 ]

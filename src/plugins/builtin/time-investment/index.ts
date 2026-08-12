@@ -1,0 +1,1 @@
+export { timeInvestmentBuiltin } from './plugin'

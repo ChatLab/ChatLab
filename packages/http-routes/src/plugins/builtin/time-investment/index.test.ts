@@ -8,9 +8,8 @@ import type {
 } from '@openchatlab/node-runtime'
 import type { TimeInvestmentResponse } from '@openchatlab/shared-types'
 import type { PathProvider } from '@openchatlab/core'
-import { registerTimeInvestmentRoutes } from './time-investment'
-
-type TimeInvestmentRouteContext = Parameters<typeof registerTimeInvestmentRoutes>[1]
+import { registerNodePlugins, type NodePluginContext } from '../../node'
+import { timeInvestmentNodePlugin } from '.'
 
 function emptyTimeInvestmentResponse(): TimeInvestmentResponse {
   return {
@@ -58,7 +57,7 @@ class FakeTimeInvestmentService implements TimeInvestmentService {
   }
 }
 
-function timeInvestmentContext(service: TimeInvestmentService): TimeInvestmentRouteContext {
+function context(service: TimeInvestmentService): NodePluginContext {
   return {
     timeInvestmentService: service,
     sessionAdapter: {} as SessionRuntimeAdapter,
@@ -66,10 +65,10 @@ function timeInvestmentContext(service: TimeInvestmentService): TimeInvestmentRo
   }
 }
 
-test('time investment routes forward range, stale, recompute, and close the service', async () => {
+test('time investment plugin forwards range, stale, recompute, and owns its service lifecycle', async () => {
   const timeInvestmentService = new FakeTimeInvestmentService()
   const app = Fastify()
-  registerTimeInvestmentRoutes(app, timeInvestmentContext(timeInvestmentService))
+  registerNodePlugins(app, context(timeInvestmentService), [timeInvestmentNodePlugin])
   await app.ready()
 
   const getResponse = await app.inject({
@@ -87,4 +86,18 @@ test('time investment routes forward range, stale, recompute, and close the serv
   assert.deepEqual(timeInvestmentService.recomputeCalls, [{ mode: 'recent', year: undefined, days: 365 }])
   await app.close()
   assert.equal(timeInvestmentService.closeCalls, 1)
+})
+
+test('omitting the time investment plugin leaves its API unavailable', async (t) => {
+  const service = new FakeTimeInvestmentService()
+  const app = Fastify()
+  t.after(() => app.close())
+  registerNodePlugins(app, context(service), [])
+  await app.ready()
+
+  const response = await app.inject({ method: 'GET', url: '/_web/global-insight/time-investment' })
+
+  assert.equal(response.statusCode, 404)
+  assert.equal(service.getCalls.length, 0)
+  assert.equal(service.closeCalls, 0)
 })

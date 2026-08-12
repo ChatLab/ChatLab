@@ -50,7 +50,7 @@ test('registers annual summary as the default insight child route', () => {
   )
 })
 
-test('removes the annual summary route and changes the default when its plugin is absent', () => {
+test('removes optional plugin routes and falls back to the remaining Insight page', () => {
   const localeHost = new PluginLocaleHost({
     getLocale: () => 'en-US',
     subscribe: () => () => {},
@@ -74,16 +74,20 @@ test('removes the annual summary route and changes the default when its plugin i
   assert.ok(insightRoute)
   assert.deepEqual(
     listInsightShellPages(runtimeWithoutPlugins).map((page) => page.id),
-    ['time-investment', 'relationship-changes']
+    ['relationship-changes']
   )
-  assert.deepEqual(insightRoute.redirect, { name: 'insight-time-investment' })
+  assert.deepEqual(insightRoute.redirect, { name: 'insight-relationship-changes' })
   assert.equal(
     insightRoute.children?.some((route) => route.name === 'insight-annual-summary'),
     false
   )
+  assert.equal(
+    insightRoute.children?.some((route) => route.name === 'insight-time-investment'),
+    false
+  )
 })
 
-test('reserves time investment and relationship change insight routes', () => {
+test('registers plugin and reserved Insight routes', () => {
   const insightRoute = findRoute('/insight')
 
   assert.ok(insightRoute)

@@ -29,7 +29,12 @@ import {
 import type { StreamImportDeps, SemanticIndexRuntime } from '@openchatlab/node-runtime'
 import { getLoadablePath as getSqliteVecLoadablePath } from 'sqlite-vec'
 import multipart from '@fastify/multipart'
-import { annualSummaryNodePlugin, registerSharedRoutes, registerAutomationRoutes } from '@openchatlab/http-routes'
+import {
+  annualSummaryNodePlugin,
+  registerSharedRoutes,
+  registerAutomationRoutes,
+  timeInvestmentNodePlugin,
+} from '@openchatlab/http-routes'
 import { createApiServer } from '@openchatlab/http-routes/server'
 import type { HttpRouteContext } from '@openchatlab/http-routes'
 import { reloadTimer, stopTimer, type DataSourceManager, type PullEngine } from '@openchatlab/sync'
@@ -208,7 +213,7 @@ export async function startInternalServer(
 
     registerSharedRoutes(newServer, ctx, {
       requireAi: true,
-      nodePlugins: [annualSummaryNodePlugin],
+      nodePlugins: [annualSummaryNodePlugin, timeInvestmentNodePlugin],
     })
     registerAutomationRoutes(newServer, ctx)
 

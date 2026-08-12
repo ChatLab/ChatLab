@@ -18,7 +18,8 @@ import { WebWasmSessionSync } from './session-sync'
 import { useSessionStore } from '@/stores/session'
 import { initializeWebWasmLocale } from './locale-bootstrap'
 import { installInsightPluginRuntime } from '@/plugins/insight-vue'
-import { webWasmInsightRuntime, webWasmUiHost } from '@/plugins/web-wasm'
+import { webWasmInsightBuiltins, webWasmInsightRuntime, webWasmUiHost, webWasmUiServices } from '@/plugins/web-wasm'
+import { installStaticInsightPluginUiServices } from '@/plugins/static-insight'
 import '@/assets/styles/main.css'
 
 initializeWebWasmLocale()
@@ -52,6 +53,7 @@ async function start(): Promise<void> {
   app.use(router)
   app.use(ui)
   app.use(i18n)
+  await installStaticInsightPluginUiServices(webWasmInsightBuiltins, webWasmInsightRuntime, webWasmUiServices)
   installInsightPluginRuntime(app, webWasmInsightRuntime)
 
   const sessionStore = useSessionStore(pinia)

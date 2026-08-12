@@ -3,63 +3,6 @@
   "reserved": "このビューは今後のバージョンで公開予定です",
   "tabs": {
     "nav": "足跡ビュー",
-    "timeInvestment": "時間の投入",
     "relationshipChanges": "関係の変化"
-  },
-  "monthLabel": "{month}月",
-  "noData": "この期間には分析可能なデータがありません",
-  "overviewCard": {
-    "keyMetrics": "主要指標"
-  },
-  "timeInvestment": {
-    "yearTitle": "{year} 年の時間投入",
-    "recentTitle": "直近1年間の時間投入",
-    "estimateNote": "メッセージの時間間隔から推定し、複数の会話で重なる時間帯を統合しています。正確な画面使用時間ではなく、会話への投入傾向を示します。",
-    "narrative": {
-      "totalPrefix": "この一年の推定チャット投入時間は",
-      "totalSuffix": "でした。",
-      "daysPrefix": "投入は",
-      "daysMiddle": "日間にわたり、アクティブ日の平均は",
-      "daysSuffix": "でした。"
-    },
-    "loading": "時間投入を読み込んでいます…",
-    "failed": "時間投入の計算に失敗しました。再試行できます。",
-    "privateChat": "個別チャット",
-    "groupChat": "グループチャット",
-    "shareOfTotal": "全体の {share}%",
-    "peakDay": "投入時間が最も長い日",
-    "peakWeekday": "1日平均が最も長い曜日",
-    "chatTypeTitle": "会話タイプ",
-    "monthlyTitle": "月別推移",
-    "monthlyDescription": "月ごとの推定チャット投入時間。縦軸は時間です",
-    "rhythmTitle": "投入のリズム",
-    "rhythmDescription": "曜日別の1日平均投入時間",
-    "topDaysTitle": "投入時間が長い日",
-    "rankingTitle": "時間を使った会話",
-    "rankingDescription": "個別チャットとグループチャットで投入時間の多い上位10件を表示します。重なる時間は会話間で均等に配分されます",
-    "rankingCount": "{count} 件",
-    "kpis": {
-      "estimated": "推定チャット投入時間",
-      "activeDays": "投入日数",
-      "dailyAverage": "活動日あたりの平均"
-    },
-    "duration": {
-      "lessThanMinute": "1分未満",
-      "minutes": "{count}分",
-      "hours": "{count}時間",
-      "hoursMinutes": "{hours}時間{minutes}分"
-    }
-  },
-  "status": {
-    "computingProgress": "会話を分析しています {processed}/{total}…",
-    "updating": "データが変更されたため、バックグラウンドで更新しています",
-    "coverage": "{total} 件中 {analyzed} 件の会話を分析済み",
-    "ownerIssues": "{count} 件の会話で「自分」の設定が必要です",
-    "noAnalyzableOwner": "足跡の分析に使用できる本人情報がありません。先に会話で「自分」を設定してください。",
-    "noDataWithLatest": "{year} 年の分析データはありません。最新の有効年は {latestYear} 年です"
-  },
-  "actions": {
-    "retry": "再試行",
-    "switchYear": "{year} 年を見る"
   }
 }

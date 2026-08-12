@@ -45,7 +45,7 @@ import {
   MergeSessionCache,
   type SemanticIndexRuntime,
 } from '@openchatlab/node-runtime'
-import { annualSummaryNodePlugin, registerSharedRoutes } from '@openchatlab/http-routes'
+import { annualSummaryNodePlugin, registerSharedRoutes, timeInvestmentNodePlugin } from '@openchatlab/http-routes'
 import type { HttpRouteContext } from '@openchatlab/http-routes'
 import { registerImportRoutes } from './import'
 import { openDirectoryPath, showPathInFolder } from './cache'
@@ -177,7 +177,7 @@ export function registerWebRoutes(
       }),
     },
     {
-      nodePlugins: [annualSummaryNodePlugin],
+      nodePlugins: [annualSummaryNodePlugin, timeInvestmentNodePlugin],
       ...(ai && { requireAi: true }),
     }
   )

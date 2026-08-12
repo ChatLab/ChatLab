@@ -8,22 +8,6 @@ export interface LegacyInsightPage extends InsightPageDefinition {
 
 export const LEGACY_INSIGHT_PAGES: readonly LegacyInsightPage[] = [
   {
-    id: 'time-investment',
-    path: 'time-investment',
-    routeName: 'insight-time-investment',
-    title: { key: 'insight.tabs.timeInvestment' },
-    icon: 'i-lucide-clock-3',
-    platforms: ['electron', 'cli-web', 'web-wasm'],
-    order: 20,
-    filters: {
-      time: {
-        allowedModes: ['recent', 'year'],
-        allowedRecentDays: [365],
-        defaultMode: 'year',
-      },
-    },
-  },
-  {
     id: 'relationship-changes',
     path: 'relationship-changes',
     routeName: 'insight-relationship-changes',

@@ -3,63 +3,6 @@
   "reserved": "此檢視將於後續版本開放",
   "tabs": {
     "nav": "足跡檢視",
-    "timeInvestment": "時間投入",
     "relationshipChanges": "關係變化"
-  },
-  "monthLabel": "{month}月",
-  "noData": "目前時間範圍內沒有可分析資料",
-  "overviewCard": {
-    "keyMetrics": "關鍵指標"
-  },
-  "timeInvestment": {
-    "yearTitle": "{year} 年的時間投入",
-    "recentTitle": "最近一年的時間投入",
-    "estimateNote": "根據訊息時間間隔估算，並合併多個會話的重疊時段；它反映聊天投入趨勢，不是精確的螢幕使用時間。",
-    "narrative": {
-      "totalPrefix": "這一年，你預估在聊天中投入了",
-      "totalSuffix": "。",
-      "daysPrefix": "這些時間分佈在",
-      "daysMiddle": "個活躍日，活躍日平均投入",
-      "daysSuffix": "。"
-    },
-    "loading": "正在讀取時間投入…",
-    "failed": "時間投入計算失敗，可以重試",
-    "privateChat": "私聊",
-    "groupChat": "群聊",
-    "shareOfTotal": "佔全部投入 {share}%",
-    "peakDay": "最高投入日",
-    "peakWeekday": "日均投入最高星期",
-    "chatTypeTitle": "對話類型",
-    "monthlyTitle": "月度趨勢",
-    "monthlyDescription": "每月預估聊天投入，縱軸單位為小時",
-    "rhythmTitle": "投入節奏",
-    "rhythmDescription": "比較一週中每天的平均投入",
-    "topDaysTitle": "高投入日",
-    "rankingTitle": "時間都去了哪裡",
-    "rankingDescription": "私聊與群聊分別展示投入時間最多的 10 個會話；重疊時間會在會話之間平均分配",
-    "rankingCount": "{count} 個會話",
-    "kpis": {
-      "estimated": "預估聊天投入",
-      "activeDays": "投入天數",
-      "dailyAverage": "活躍日均投入"
-    },
-    "duration": {
-      "lessThanMinute": "不足 1 分鐘",
-      "minutes": "{count} 分鐘",
-      "hours": "{count} 小時",
-      "hoursMinutes": "{hours} 小時 {minutes} 分"
-    }
-  },
-  "status": {
-    "computingProgress": "正在分析會話 {processed}/{total}…",
-    "updating": "資料已變更，正在背景更新目前結果",
-    "coverage": "已分析 {analyzed}/{total} 個會話",
-    "ownerIssues": "{count} 個會話尚未正確設定「我是誰」",
-    "noAnalyzableOwner": "尚無可用於足跡分析的身分，請先在會話中設定「我是誰」",
-    "noDataWithLatest": "{year} 年沒有可分析資料，最近有效資料為 {latestYear} 年"
-  },
-  "actions": {
-    "retry": "重試",
-    "switchYear": "查看 {year} 年"
   }
 }
