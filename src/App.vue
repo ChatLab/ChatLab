@@ -23,6 +23,9 @@ import { configureHttpClient } from '@/services/utils/http'
 import { IS_ELECTRON } from '@/utils/platform'
 import { PLATFORM_CAPABILITIES } from '@/utils/platform-capabilities'
 import { usePlatformService } from '@/services'
+import { useNavigationLayoutService } from '@/services'
+import { listResolvedNavigationEntries } from '@/navigation/layout'
+import { useNavigationLayout } from '@/navigation/vue'
 import type { PresentationPreferences } from '@/services/preferences/types'
 import { resolvePageTransitionKey } from '@/routes/page-transition-key'
 import { useLockScreenBootstrap } from '@/components/lock-screen/bootstrap'
@@ -55,6 +58,7 @@ const authStore = useAuthStore()
 const apiServerStore = useApiServerStore()
 const route = useRoute()
 const router = useRouter()
+const { controller: navigationLayoutController } = useNavigationLayout()
 const { isBootstrapMaskVisible, isApplicationInteractive, markLockScreenReady, syncBootstrapMask, updateLockState } =
   useLockScreenBootstrap(IS_ELECTRON)
 
@@ -130,6 +134,18 @@ function scheduleNonCriticalUiPrefetch() {
   cancelNonCriticalUiPrefetch = () => window.clearTimeout(timer)
 }
 
+async function hydrateNavigationLayout(): Promise<void> {
+  const result = await useNavigationLayoutService().load()
+  navigationLayoutController.applyLoadResult(result)
+
+  const currentPageId = String(router.currentRoute.value.meta.insightPageId ?? '')
+  if (!currentPageId) return
+  const visibleEntries = listResolvedNavigationEntries(navigationLayoutController.getResolvedLayout())
+  if (visibleEntries.some(({ page }) => page.id === currentPageId)) return
+  const fallback = visibleEntries[0]
+  if (fallback) await router.replace({ name: fallback.page.routeName })
+}
+
 async function initializeApp() {
   if (initInProgress || isRuntimeReady.value) return
   initInProgress = true
@@ -161,6 +177,10 @@ async function initializeApp() {
         deferAfterPresentationError: () =>
           PLATFORM_CAPABILITIES.requiresAuth && authStore.requiresAuth && !authStore.isAuthenticated,
         initializeBackground: [
+          {
+            name: 'navigation-layout',
+            run: hydrateNavigationLayout,
+          },
           {
             name: 'preferences',
             run: async () => {

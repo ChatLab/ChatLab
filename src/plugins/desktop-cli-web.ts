@@ -5,6 +5,7 @@ import { getLegacyInsightPages } from './insight-catalog'
 import { createStaticInsightPluginRuntime } from './static-insight'
 import { UiServiceRegistry } from './ui-host'
 import { createVueUiHostContext } from './vue-ui-host'
+import { NavigationLayoutController } from '@/navigation/layout'
 
 const platform = PLATFORM_CAPABILITIES.platform
 export const desktopCliWebInsightBuiltins = [annualSummaryBuiltin, timeInvestmentBuiltin] as const
@@ -17,3 +18,4 @@ export const desktopCliWebInsightRuntime = createStaticInsightPluginRuntime(
   desktopCliWebInsightBuiltins,
   getLegacyInsightPages(platform)
 )
+export const desktopCliWebNavigationLayout = new NavigationLayoutController(desktopCliWebInsightRuntime)

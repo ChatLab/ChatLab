@@ -101,15 +101,20 @@ function normalizePrimaryItem(
   if (item.kind === 'group') {
     const id = requireId(item.id, `primary[${index}].id`)
     addUnique(groupIds, id, 'navigation group')
-    if (typeof item.title !== 'string' || item.title.trim().length === 0) {
-      throw new NavigationLayoutValidationError(`primary[${index}].title must be a non-empty string`)
+    if (item.title !== undefined && (typeof item.title !== 'string' || item.title.trim().length === 0)) {
+      throw new NavigationLayoutValidationError(`primary[${index}].title must be a non-empty string when provided`)
     }
     if (!Array.isArray(item.children)) {
       throw new NavigationLayoutValidationError(`primary[${index}].children must be an array`)
     }
     const children = normalizeUniqueIds(item.children, `primary[${index}].children`)
     for (const entryId of children) addUnique(visibleEntryIds, entryId, 'navigation entry')
-    return { kind: 'group', id, title: item.title, children }
+    return {
+      kind: 'group',
+      id,
+      ...(typeof item.title === 'string' && { title: item.title }),
+      children,
+    }
   }
   throw new NavigationLayoutValidationError(`primary[${index}].kind must be "entry" or "group"`)
 }

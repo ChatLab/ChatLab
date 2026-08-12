@@ -11,11 +11,13 @@ import { markStartupPhase } from '@/bootstrap/startup-performance'
 import {
   desktopCliWebInsightBuiltins,
   desktopCliWebInsightRuntime,
+  desktopCliWebNavigationLayout,
   desktopCliWebUiHost,
   desktopCliWebUiServices,
 } from '@/plugins/desktop-cli-web'
 import { installInsightPluginRuntime } from '@/plugins/insight-vue'
 import { installStaticInsightPluginUiServices } from '@/plugins/static-insight'
+import { installNavigationLayout } from '@/navigation/vue'
 import '@/assets/styles/main.css'
 
 export interface MountChatLabAppOptions {
@@ -41,6 +43,7 @@ export async function mountChatLabApp(options: MountChatLabAppOptions = {}): Pro
   app.use(router)
   app.use(ui)
   app.use(i18n)
+  installNavigationLayout(app, desktopCliWebNavigationLayout)
   await installStaticInsightPluginUiServices(
     desktopCliWebInsightBuiltins,
     desktopCliWebInsightRuntime,

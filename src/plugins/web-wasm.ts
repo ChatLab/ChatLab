@@ -3,6 +3,7 @@ import { getLegacyInsightPages } from './insight-catalog'
 import { createStaticInsightPluginRuntime } from './static-insight'
 import { UiServiceRegistry } from './ui-host'
 import { createVueUiHostContext } from './vue-ui-host'
+import { NavigationLayoutController } from '@/navigation/layout'
 
 export const webWasmInsightBuiltins = [timeInvestmentBuiltin] as const
 export const webWasmUiServices = new UiServiceRegistry()
@@ -14,3 +15,4 @@ export const webWasmInsightRuntime = createStaticInsightPluginRuntime(
   webWasmInsightBuiltins,
   getLegacyInsightPages('web-wasm')
 )
+export const webWasmNavigationLayout = new NavigationLayoutController(webWasmInsightRuntime)

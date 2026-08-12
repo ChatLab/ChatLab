@@ -21,8 +21,8 @@ export interface NavigationLayoutEntryItem {
 export interface NavigationLayoutGroupItem {
   kind: 'group'
   id: string
-  /** User-authored content. Keep it as-is instead of translating it. */
-  title: string
+  /** User-authored override. Missing values use the host-localized group title. */
+  title?: string
   /** Stable navigation entry IDs. Unknown IDs are intentionally preserved. */
   children: string[]
 }

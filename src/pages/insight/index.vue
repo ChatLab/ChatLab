@@ -8,12 +8,14 @@ import { PageTabs } from '@/components/navigation'
 import { listInsightShellPages } from '@/plugins/insight-catalog'
 import { InsightScopeController } from '@/plugins/insight-scope'
 import { useHostLocale, useInsightPluginRuntime } from '@/plugins/insight-vue'
+import { useNavigationLayout } from '@/navigation/vue'
 import { createInsightTimeRange, getInsightTimeFilterSignature } from './insight-time-range'
 
 const { t } = useI18n()
 const { translate } = useHostLocale()
 const route = useRoute()
 const pluginRuntime = useInsightPluginRuntime()
+const { controller: navigationLayoutController, snapshot: navigationLayoutSnapshot } = useNavigationLayout()
 const pages = listInsightShellPages(pluginRuntime)
 const activeSubpage = computed(() => String(route.meta.insightPageId ?? pages[0]?.id ?? ''))
 const activePage = computed(() => pages.find((page) => page.id === activeSubpage.value))
@@ -54,8 +56,17 @@ const stopSyncingScope = watch(
   },
   { immediate: true }
 )
+const resolvedNavigation = computed(() => {
+  void navigationLayoutSnapshot.value.revision
+  return navigationLayoutController.getResolvedLayout()
+})
+const activeNavigationGroup = computed(() =>
+  resolvedNavigation.value.primary.find(
+    (item) => item.kind === 'group' && item.entries.some(({ page }) => page.id === activeSubpage.value)
+  )
+)
 const navigationItems = computed(() =>
-  pages.map((page) => ({
+  (activeNavigationGroup.value?.kind === 'group' ? activeNavigationGroup.value.entries : []).map(({ page }) => ({
     id: page.id,
     label: translate(page.title),
     icon: page.icon,
@@ -89,6 +100,7 @@ onBeforeUnmount(() => {
       size="compact"
     >
       <PageTabs
+        v-if="navigationItems.length > 0"
         class="mt-3 pb-1.5"
         :model-value="activeSubpage"
         :items="navigationItems"
@@ -105,6 +117,16 @@ onBeforeUnmount(() => {
           />
         </template>
       </PageTabs>
+      <div v-else-if="timeFilter" class="mt-3 flex justify-end pb-1.5">
+        <TimeSelect
+          :key="`${componentKey}:${timeFilterSignature}`"
+          v-model="modelValue"
+          :range-source="rangeSource"
+          :allowed-modes="allowedTimeModes"
+          :allowed-recent-days="allowedRecentDays"
+          :initial-state="initialState"
+        />
+      </div>
     </PageHeader>
 
     <RouterView v-slot="{ Component }">

@@ -87,8 +87,20 @@ test('navigation layout validation enforces two levels, stable unique entries, a
     () =>
       normalizeNavigationLayout({
         ...layout,
-        primary: [{ kind: 'group', id: 'group', title: 'Group', children: [{ kind: 'entry', entryId: 'nested' }] }],
+        primary: [{ kind: 'group', id: 'group', children: [{ kind: 'entry', entryId: 'nested' }] }],
       }),
     /must be a non-empty string/
+  )
+  assert.deepEqual(
+    normalizeNavigationLayout({
+      schemaVersion: 1,
+      primary: [{ kind: 'group', id: 'host.insight', children: [] }],
+      hiddenEntryIds: [],
+    }),
+    {
+      schemaVersion: 1,
+      primary: [{ kind: 'group', id: 'host.insight', children: [] }],
+      hiddenEntryIds: [],
+    }
   )
 })

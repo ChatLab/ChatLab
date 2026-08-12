@@ -22,6 +22,9 @@ import { CompactTabs } from '@/components/navigation'
 import { useSessionStore } from '@/stores/session'
 import { useLayoutStore } from '@/stores/layout'
 import { usePlatformService } from '@/services'
+import { useHostLocale } from '@/plugins/insight-vue'
+import { DEFAULT_INSIGHT_NAVIGATION_GROUP_ID } from '@/navigation/layout'
+import { useNavigationLayout } from '@/navigation/vue'
 import { IS_ELECTRON } from '@/utils/platform'
 import logoSvg from '@/assets/images/logo.svg'
 
@@ -42,6 +45,7 @@ const props = withDefaults(
 )
 
 const { t } = useI18n()
+const { translate } = useHostLocale()
 const LATEST_VERSION_URL = 'https://chatlab.fun/latest-version'
 const UPDATE_CHECK_CACHE_KEY = 'chatlab:latest-version-check:v2'
 const hasMacTitlebarInset =
@@ -54,6 +58,7 @@ const { isSidebarCollapsed: isCollapsed } = storeToRefs(layoutStore)
 const { toggleSidebar } = layoutStore
 const router = useRouter()
 const route = useRoute()
+const { controller: navigationLayoutController, snapshot: navigationLayoutSnapshot } = useNavigationLayout()
 const SESSION_ROW_SIZE = 44
 const SESSION_LIST_BOTTOM_PADDING = 32
 
@@ -68,10 +73,21 @@ const showContactsEntry = computed(() =>
     groupSessionCount: groupSessionCount.value,
   })
 )
-const showInsightEntry = computed(() => props.backendFeatures || props.insightEnabled)
+const showInsightNavigation = computed(() => props.backendFeatures || props.insightEnabled)
+const resolvedPrimaryNavigation = computed(() => {
+  void navigationLayoutSnapshot.value.revision
+  return navigationLayoutController.getResolvedLayout().primary
+})
+const activeInsightPageId = computed(() => String(route.meta.insightPageId ?? ''))
 
-// 是否在足迹页
-const isInsightPage = computed(() => String(route.name ?? '').startsWith('insight-'))
+function navigationGroupTitle(groupId: string, customTitle?: string): string {
+  if (customTitle) return customTitle
+  return groupId === DEFAULT_INSIGHT_NAVIGATION_GROUP_ID ? t('layout.insight') : groupId
+}
+
+function openInsightRoute(routeName: string): void {
+  void router.push({ name: routeName })
+}
 
 // 重命名相关状态
 const showRenameModal = ref(false)
@@ -510,14 +526,20 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
           @click="handleImport"
         />
 
-        <!-- 足迹 -->
-        <SidebarButton
-          v-if="showInsightEntry"
-          icon="i-heroicons-presentation-chart-bar"
-          :title="t('layout.insight')"
-          :active="isInsightPage"
-          @click="router.push('/insight')"
-        />
+        <template v-if="showInsightNavigation">
+          <SidebarButton
+            v-for="item in resolvedPrimaryNavigation"
+            :key="item.kind === 'entry' ? item.entryId : item.id"
+            :icon="item.kind === 'entry' ? item.page.icon : 'i-heroicons-presentation-chart-bar'"
+            :title="item.kind === 'entry' ? translate(item.page.title) : navigationGroupTitle(item.id, item.title)"
+            :active="
+              item.kind === 'entry'
+                ? activeInsightPageId === item.page.id
+                : item.entries.some(({ page }) => page.id === activeInsightPageId)
+            "
+            @click="openInsightRoute(item.kind === 'entry' ? item.page.routeName : item.entries[0]!.page.routeName)"
+          />
+        </template>
 
         <SidebarButton
           v-if="props.backendFeatures && showContactsEntry"
