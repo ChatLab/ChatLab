@@ -71,6 +71,8 @@ export { usePlatformService } from './platform/service'
 export type { PlatformAdapter, OpenDialogOptions, OpenDialogResult, RemoteConfigResult } from './platform/types'
 export { useAIService } from './ai/service'
 export { usePreferencesService } from './preferences/service'
+export { useNavigationLayoutService } from './navigation-layout/service'
+export type { NavigationLayoutAdapter } from './navigation-layout/types'
 export { useLLMService } from './llm/service'
 export type {
   LLMServiceAdapter,

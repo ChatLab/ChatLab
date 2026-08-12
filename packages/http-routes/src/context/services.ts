@@ -5,6 +5,7 @@ import type {
   TimeInvestmentService,
   PeopleRelationshipsService,
   PreferencesManager,
+  NavigationLayoutService,
 } from '@openchatlab/node-runtime'
 
 /** Optional shared services used by individual Web route domains. */
@@ -15,4 +16,5 @@ export interface ServiceRouteContext {
   timeInvestmentService?: TimeInvestmentService
   preferencesManager?: PreferencesManager
   analyticsService?: AnalyticsService
+  navigationLayoutService?: NavigationLayoutService
 }

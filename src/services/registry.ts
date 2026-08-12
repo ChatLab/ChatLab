@@ -95,6 +95,7 @@ async function initElectronAdapters(): Promise<void> {
     { FetchAssistantAdapter },
     { FetchSkillAdapter },
     { FetchCacheAdapter },
+    { FetchNavigationLayoutAdapter },
   ] = await Promise.all([
     import('./data/fetch'),
     import('./platform/electron'),
@@ -109,6 +110,7 @@ async function initElectronAdapters(): Promise<void> {
     import('./assistant/fetch'),
     import('./skill/fetch'),
     import('./cache/fetch'),
+    import('./navigation-layout/fetch'),
   ])
 
   registerAdapter('data', new FetchDataAdapter())
@@ -126,6 +128,7 @@ async function initElectronAdapters(): Promise<void> {
   registerAdapter('assistant-crud', new FetchAssistantAdapter())
   registerAdapter('skill-crud', new FetchSkillAdapter())
   registerAdapter('cache', new FetchCacheAdapter())
+  registerAdapter('navigation-layout', new FetchNavigationLayoutAdapter())
 
   installMergeShims('electron')
 }
@@ -145,6 +148,7 @@ async function initCliWebAdapters(): Promise<void> {
     { FetchAssistantAdapter },
     { FetchSkillAdapter },
     { FetchCacheAdapter },
+    { FetchNavigationLayoutAdapter },
   ] = await Promise.all([
     import('./data/fetch'),
     import('./platform/cli-web'),
@@ -159,6 +163,7 @@ async function initCliWebAdapters(): Promise<void> {
     import('./assistant/fetch'),
     import('./skill/fetch'),
     import('./cache/fetch'),
+    import('./navigation-layout/fetch'),
   ])
 
   registerAdapter('data', new FetchDataAdapter())
@@ -176,6 +181,7 @@ async function initCliWebAdapters(): Promise<void> {
   registerAdapter('assistant-crud', new FetchAssistantAdapter())
   registerAdapter('skill-crud', new FetchSkillAdapter())
   registerAdapter('cache', new FetchCacheAdapter())
+  registerAdapter('navigation-layout', new FetchNavigationLayoutAdapter())
 
   await installCliWebShims()
 }

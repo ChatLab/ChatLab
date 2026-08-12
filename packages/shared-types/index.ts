@@ -9,6 +9,36 @@
 export const ANNUAL_SUMMARY_PLUGIN_ID = 'chatlab.insight.annual-summary'
 export const TIME_INVESTMENT_PLUGIN_ID = 'chatlab.insight.time-investment'
 
+// ==================== Navigation layout ====================
+
+export const NAVIGATION_LAYOUT_SCHEMA_VERSION = 1 as const
+
+export interface NavigationLayoutEntryItem {
+  kind: 'entry'
+  entryId: string
+}
+
+export interface NavigationLayoutGroupItem {
+  kind: 'group'
+  id: string
+  /** User-authored content. Keep it as-is instead of translating it. */
+  title: string
+  /** Stable navigation entry IDs. Unknown IDs are intentionally preserved. */
+  children: string[]
+}
+
+export type NavigationLayoutPrimaryItem = NavigationLayoutEntryItem | NavigationLayoutGroupItem
+
+export interface NavigationLayout {
+  schemaVersion: typeof NAVIGATION_LAYOUT_SCHEMA_VERSION
+  primary: NavigationLayoutPrimaryItem[]
+  hiddenEntryIds: string[]
+}
+
+export type NavigationLayoutLoadResult =
+  | { status: 'saved'; layout: NavigationLayout }
+  | { status: 'missing' | 'invalid'; layout: null }
+
 // ==================== 时间筛选 ====================
 
 export interface TimeFilter {

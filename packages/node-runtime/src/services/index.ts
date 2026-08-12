@@ -69,6 +69,10 @@ export {
   createGlobalInsightService,
   createTimeInvestmentService,
 } from './global-insight'
+
+// Navigation layout service
+export { createNavigationLayoutService, NavigationLayoutValidationError } from './navigation-layout-service'
+export type { NavigationLayoutService } from './navigation-layout-service'
 export type {
   AnnualSummaryComputeRunner,
   GlobalInsightService,
