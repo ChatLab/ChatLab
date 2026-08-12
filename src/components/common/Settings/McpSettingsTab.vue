@@ -18,7 +18,7 @@ const clientOptions = computed(() => [
 ])
 
 const configText = computed(() => {
-  const command = 'chatlab'
+  const command = 'clb'
   const args = ['mcp']
   switch (selectedClient.value) {
     case 'codex':

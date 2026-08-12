@@ -43,9 +43,9 @@ npm i chatlab-cli -g
 Start ChatLab:
 
 ```bash
-chatlab start            # Start API + Web UI, auto-open in browser
-chatlab start --no-open  # Start API + Web UI, skip auto-open
-chatlab start --headless # API only, no Web UI (for scripts / AI Agents)
+clb web            # Start API + Web UI, auto-open in browser
+clb web --no-open  # Start API + Web UI, skip auto-open
+clb web --headless # API only, no Web UI (for scripts / AI Agents)
 ```
 
 Common options: `--port <port>` (default 3110), `--host <address>`, `--token <token>`.
@@ -53,9 +53,9 @@ Common options: `--port <port>` (default 3110), `--host <address>`, `--token <to
 To run as a persistent background service (auto-start on login + auto-restart on crash):
 
 ```bash
-chatlab start --daemon   # Install as system service (macOS / Linux)
-chatlab status           # Check service status
-chatlab stop             # Stop and uninstall service
+clb web --daemon   # Install as system service (macOS / Linux)
+clb status           # Check service status
+clb stop             # Stop and uninstall service
 ```
 
 For a full walkthrough, see the [Quick Start guide](https://docs.chatlab.fun/usage/quick-start).

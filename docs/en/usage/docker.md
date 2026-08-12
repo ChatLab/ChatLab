@@ -101,10 +101,10 @@ Desktop, CLI, and Docker on the same version can share the database. Before chan
 The default container command is:
 
 ```bash
-chatlab start --no-open --host 0.0.0.0
+clb web --no-open --host 0.0.0.0
 ```
 
-The `chatlab start` options, in CLI declaration order, are:
+The `clb web` options, in CLI declaration order, are:
 
 | Option | Description |
 | --- | --- |

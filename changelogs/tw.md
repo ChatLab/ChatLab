@@ -654,8 +654,8 @@
 - 訊息分析檢視拆分為「類型分析」與「時間分析」兩個分頁，提供豐富統計洞察卡片
 - 批次重建對話索引前新增確認彈窗，防止誤操作清空現有摘要
 - 示範資料擴充為 4 個檔案，涵蓋群組及多個私訊場景
-- 【CLI】新增統一啟動指令 chatlab start，支援 --headless 和 --no-open 參數
-- 【CLI】新增背景服務模式，支援 chatlab start --daemon 安裝為系統服務，以及 stop/status 指令
+- 【CLI】新增統一啟動指令 clb web，支援 --headless 和 --no-open 參數
+- 【CLI】新增背景服務模式，支援 clb web --daemon 安裝為系統服務，以及 stop/status 指令
 
 ### 🐛 修復
 

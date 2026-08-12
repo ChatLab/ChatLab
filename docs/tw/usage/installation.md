@@ -23,9 +23,9 @@ npm install --global chatlab-cli
 安裝完成後執行：
 
 ```bash
-chatlab start             # 啟動 API + Web UI，並在瀏覽器中開啟
-chatlab start --no-open   # 啟動 API + Web UI，但不自動開啟瀏覽器
-chatlab start --headless  # 僅啟動 API，不提供 Web UI（供腳本 / AI Agent 呼叫）
+clb web             # 啟動 API + Web UI，並在瀏覽器中開啟
+clb web --no-open   # 啟動 API + Web UI，但不自動開啟瀏覽器
+clb web --headless  # 僅啟動 API，不提供 Web UI（供腳本 / AI Agent 呼叫）
 ```
 
 常用選項：`--port <連接埠>`（預設 `3110`）、`--host <位址>`、`--token <令牌>`。
@@ -33,13 +33,13 @@ chatlab start --headless  # 僅啟動 API，不提供 Web UI（供腳本 / AI Ag
 若要讓服務常駐後台，可以使用：
 
 ```bash
-chatlab start --daemon  # 註冊為系統服務，登入時自動啟動（macOS / Linux）
-chatlab status          # 查看常駐狀態
-chatlab stop            # 停止並移除系統服務
+clb web --daemon  # 註冊為系統服務，登入時自動啟動（macOS / Linux）
+clb status          # 查看常駐狀態
+clb stop            # 停止並移除系統服務
 ```
 
 ::: tip
-`clb` 是 `chatlab` 的簡寫，兩者完全相同。
+建議使用 `clb`。舊的 `chatlab` 指令仍會保留，以相容既有腳本與使用習慣。
 :::
 
 ## Docker

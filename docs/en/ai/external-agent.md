@@ -21,31 +21,31 @@ After installation, ask Codex, Claude Code, Cursor, or another external agent:
 chatlab-analyze help me analyze my chat history with Alice
 ```
 
-The skill tells the agent to run `chatlab manifest` first, then query chat records safely with explicit `--format agent/json` commands.
+The skill tells the agent to run `clb manifest` first, then query chat records safely with explicit `--format agent/json` commands.
 
 `chatlab-analyze` always remains read-only. To let an agent import a new chat export, use the separate `chatlab-import` skill; it previews the import, then automatically creates or incrementally updates a session. See the [Import Chat Records Guide](/usage/how-to-import).
 
 ## Command overview
 
 ```bash
-chatlab sessions list                # List imported sessions
-chatlab sessions show                # Session details
-chatlab members list                 # Session members
-chatlab members history              # Member name history
-chatlab messages list                # List messages in a time window
-chatlab messages search <keywords...> # Keyword search (multi-word, context, paging)
-chatlab messages context --id <id>   # Messages around a specific id
-chatlab messages between             # Conversation between two members
-chatlab stats overview               # Session overview
-chatlab stats activity               # Member activity ranking
-chatlab stats time --by day          # Time distribution (hour/weekday/day/month)
-chatlab stats keywords               # High-frequency words (privacy-filtered)
-chatlab stats response               # Reply speed ranking
-chatlab topics list                  # AI segment summaries
-chatlab topics show --id <id>        # Original messages of one segment
-chatlab sql "<SELECT ...>"           # Read-only SQL fallback (strings desensitized)
-chatlab schema                       # Database schema
-chatlab manifest                     # Machine-readable command manifest for agents
+clb sessions list                # List imported sessions
+clb sessions show                # Session details
+clb members list                 # Session members
+clb members history              # Member name history
+clb messages list                # List messages in a time window
+clb messages search <keywords...> # Keyword search (multi-word, context, paging)
+clb messages context --id <id>   # Messages around a specific id
+clb messages between             # Conversation between two members
+clb stats overview               # Session overview
+clb stats activity               # Member activity ranking
+clb stats time --by day          # Time distribution (hour/weekday/day/month)
+clb stats keywords               # High-frequency words (privacy-filtered)
+clb stats response               # Reply speed ranking
+clb topics list                  # AI segment summaries
+clb topics show --id <id>        # Original messages of one segment
+clb sql "<SELECT ...>"           # Read-only SQL fallback (strings desensitized)
+clb schema                       # Database schema
+clb manifest                     # Machine-readable command manifest for agents
 ```
 
 With a single session `--session` can be omitted; with multiple sessions, commands return candidates for disambiguation.
@@ -81,15 +81,15 @@ Failures return `{ "ok": false, "error": { "code", "message", "hint", "candidate
 ## Privacy boundaries
 
 - All query commands apply your ChatLab desensitize rules and blacklist by default — including the `stats keywords` vocabulary, `topics list` summaries, and string cells in `sql` results; reading the message `content` column with `sql` requires explicit `--raw`.
-- `--raw` (bypassing preprocessing) is disabled by default; it only works after you explicitly run `chatlab config set cli.allow_raw true` or set `CHATLAB_CLI_ALLOW_RAW=1`.
-- If you don't need the SQL fallback, disable it with `chatlab config set cli.allow_sql false`.
+- `--raw` (bypassing preprocessing) is disabled by default; it only works after you explicitly run `clb config set cli.allow_raw true` or set `CHATLAB_CLI_ALLOW_RAW=1`.
+- If you don't need the SQL fallback, disable it with `clb config set cli.allow_sql false`.
 
 ## Query example
 
 A typical recipe — "who mentioned this first? inspect the surrounding context":
 
 ```bash
-chatlab messages search "server migration" --sort asc --limit 5 --context 3 --format agent
+clb messages search "server migration" --sort asc --limit 5 --context 3 --format agent
 # Take the message id from a single-message [#1021*] marker in the returned text, then dig in:
-chatlab messages context --id 1021 --window 10 --format agent
+clb messages context --id 1021 --window 10 --format agent
 ```

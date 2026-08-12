@@ -53,7 +53,7 @@ function normalizeImportError(message: string): NonNullable<ImportCommandEnvelop
     return {
       code: 'UNRECOGNIZED_FORMAT',
       message: 'The chat export format could not be recognized.',
-      hint: 'Run "chatlab formats" and retry with --format <id>.',
+      hint: 'Run "clb formats" and retry with --format <id>.',
     }
   }
   if (message.includes('sessionId contains invalid characters')) {

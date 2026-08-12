@@ -1,11 +1,11 @@
 ---
 name: chatlab-analyze
-description: Analyze local ChatLab chat records through the chatlab CLI. Use when the user asks an external agent to inspect conversations, find evidence, summarize topics, compare members, or analyze a named relationship from imported ChatLab data.
+description: Analyze local ChatLab chat records through the clb CLI. Use when the user asks an external agent to inspect conversations, find evidence, summarize topics, compare members, or analyze a named relationship from imported ChatLab data.
 ---
 
 # ChatLab Analyze
 
-Query and analyze records already imported into ChatLab through the read-only `chatlab` CLI.
+Query and analyze records already imported into ChatLab through the read-only `clb` CLI.
 
 ## Good Fit
 
@@ -28,9 +28,9 @@ npx skills add ChatLab/ChatLab --skill chatlab-analyze -g
 Check the CLI, load its current command contract, and list sessions:
 
 ```bash
-chatlab --help
-chatlab manifest
-chatlab sessions list --format json
+clb --help
+clb manifest
+clb sessions list --format json
 ```
 
 Use the only relevant session. If multiple sessions or members match the request, ask the user to choose from the returned candidates.
@@ -40,9 +40,9 @@ Use the only relevant session. If multiple sessions or members match the request
 Use the simplest command that directly answers the question:
 
 ```bash
-chatlab messages search "<keyword>" --session <session-id> --format agent
-chatlab messages between --member me --member <member> --session <session-id> --last 90d --format agent
-chatlab topics list --session <session-id> --last 30d --format agent
+clb messages search "<keyword>" --session <session-id> --format agent
+clb messages between --member me --member <member> --session <session-id> --last 90d --format agent
+clb topics list --session <session-id> --last 30d --format agent
 ```
 
 Use `--format agent` for message text and `--format json` for structural scouting such as sessions, members, counts, and `--no-content` searches.
@@ -52,8 +52,8 @@ Use `--format agent` for message text and `--format json` for structural scoutin
 Only deepen the query when the first result is insufficient:
 
 ```bash
-chatlab messages context --id 1021 --session <session-id> --window 10 --format agent
-chatlab stats keywords --session <session-id> --member <member> --last 90d --top 20 --format json
+clb messages context --id 1021 --session <session-id> --window 10 --format agent
+clb stats keywords --session <session-id> --member <member> --last 90d --top 20 --format json
 ```
 
 When `meta.hasMore` is true, continue with `--cursor <meta.nextCursor>` and the same query conditions. Use limits and token controls to retrieve only the context needed.
@@ -63,8 +63,8 @@ When `meta.hasMore` is true, continue with `--cursor <meta.nextCursor>` and the 
 Use read-only SQL only when no dedicated command can answer the question:
 
 ```bash
-chatlab schema --session <session-id> --format json
-chatlab sql "SELECT COUNT(*) AS n FROM message" --session <session-id> --format json
+clb schema --session <session-id> --format json
+clb sql "SELECT COUNT(*) AS n FROM message" --session <session-id> --format json
 ```
 
 ## Privacy and Answers

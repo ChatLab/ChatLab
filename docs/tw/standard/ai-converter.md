@@ -53,8 +53,8 @@ Skill 會自動選擇電腦上已有的 Node.js、Python 或 Shell 工具，完�
 轉換完成前，Agent 必須依序執行：
 
 ```bash
-chatlab validate "/轉換後的檔案.jsonl" --json
-chatlab import "/轉換後的檔案.jsonl" --dry-run --json
+clb validate "/轉換後的檔案.jsonl" --json
+clb import "/轉換後的檔案.jsonl" --dry-run --json
 ```
 
 只有嚴格驗證和匯入預覽都成功，而且來源訊息數與輸出訊息數核對一致，才會回報轉換成功。轉換腳本和輸出檔案都會保留，方便之後重新轉換更新後的聊天記錄。

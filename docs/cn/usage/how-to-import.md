@@ -45,7 +45,7 @@ npm install -g chatlab-cli
 最简单的用法是直接导入一个文件：
 
 ```bash
-chatlab import "/absolute/path/to/chat-export.json"
+clb import "/absolute/path/to/chat-export.json"
 ```
 
 ### 指定已有会话
@@ -53,7 +53,7 @@ chatlab import "/absolute/path/to/chat-export.json"
 需要明确追加到某个会话时，使用 `--session-id`：
 
 ```bash
-chatlab import "/absolute/path/to/chat-export.json" --session-id <session-id>
+clb import "/absolute/path/to/chat-export.json" --session-id <session-id>
 ```
 
 ## 自动化：使用 API 或自动同步

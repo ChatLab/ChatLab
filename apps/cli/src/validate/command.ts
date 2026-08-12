@@ -31,7 +31,7 @@ function buildEnvelope(report: ChatLabValidationReport): ValidateCommandEnvelope
         error: {
           code: 'INVALID_CHATLAB_FORMAT',
           message: `Validation found ${report.errorCount} error(s).`,
-          hint: 'Fix every error, rerun validation, then preview the import with "chatlab import <file> --dry-run --json".',
+          hint: 'Fix every error, rerun validation, then preview the import with "clb import <file> --dry-run --json".',
         },
         meta: { apiVersion: 1 },
       }

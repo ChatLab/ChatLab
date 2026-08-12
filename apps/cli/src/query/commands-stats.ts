@@ -72,7 +72,7 @@ export function registerStatsCommands(program: Command): void {
         return
       }
       console.error(
-        '[Deprecated] `chatlab stats <session-id>` — use `chatlab stats overview --session <id>`; alias kept for one major version'
+        '[Deprecated] `clb stats <session-id>` — use `clb stats overview --session <id>`; alias kept for one major version'
       )
       legacyStats(sessionId, options)
     })

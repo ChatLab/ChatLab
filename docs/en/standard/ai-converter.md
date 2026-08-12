@@ -53,8 +53,8 @@ If one source contains multiple conversations, the skill creates one output per 
 Before reporting success, the agent must run both commands:
 
 ```bash
-chatlab validate "/absolute/path/to/converted.jsonl" --json
-chatlab import "/absolute/path/to/converted.jsonl" --dry-run --json
+clb validate "/absolute/path/to/converted.jsonl" --json
+clb import "/absolute/path/to/converted.jsonl" --dry-run --json
 ```
 
 Success requires strict validation, a successful import preview, and matching source/output message counts. The converter and outputs remain available so a newer export can be converted again.

@@ -844,8 +844,8 @@
           "消息分析视图拆分为「类型分析」和「时间分析」两个标签页，增加丰富统计洞察卡片",
           "批量重建会话索引前新增确认弹窗，防止误操作清空现有摘要",
           "演示数据扩展为 4 个文件，覆盖群组及多个私聊场景",
-          "【CLI】新增统一启动命令 chatlab start，支持 --headless 和 --no-open 参数",
-          "【CLI】新增后台服务模式，支持 chatlab start --daemon 安装为系统服务，以及 stop/status 命令"
+          "【CLI】新增统一启动命令 clb web，支持 --headless 和 --no-open 参数",
+          "【CLI】新增后台服务模式，支持 clb web --daemon 安装为系统服务，以及 stop/status 命令"
         ]
       },
       {

@@ -11,7 +11,7 @@ import { buildManifest } from './manifest'
 
 function buildProgram(): Command {
   const program = new Command()
-  program.name('chatlab').description('test program')
+  program.name('clb').description('test program')
 
   const messages = program.command('messages').description('Query messages')
   messages
@@ -27,6 +27,7 @@ function buildProgram(): Command {
     .option('--limit <n>', 'Max results', '20')
 
   program.command('import <file>').description('Import a chat history file')
+  program.command('web').alias('start').description('Start ChatLab')
 
   return program
 }
@@ -51,10 +52,13 @@ describe('buildManifest', () => {
 
   it('lists non-query commands by name only', () => {
     assert.ok(manifest.appCommands.some((c) => c.name === 'import'))
+    assert.ok(manifest.appCommands.some((c) => c.name === 'web'))
+    assert.ok(!manifest.appCommands.some((c) => c.name === 'start'))
     assert.ok(!manifest.commands.some((c) => c.name === 'import'))
   })
 
   it('carries the envelope contract: exit codes, formats and version', () => {
+    assert.equal(manifest.name, 'clb')
     assert.equal(manifest.version, '1.2.3')
     assert.equal(manifest.apiVersion, 1)
     assert.deepEqual(manifest.formats, ['agent', 'json', 'text'])
@@ -66,5 +70,6 @@ describe('buildManifest', () => {
     assert.ok(manifest.examples.length >= 5)
     assert.ok(manifest.examples.every((e) => !e.command.includes('--raw')))
     assert.ok(manifest.examples.some((e) => e.command.includes('--format agent')))
+    assert.ok(manifest.examples.every((e) => e.command.startsWith('clb ')))
   })
 })

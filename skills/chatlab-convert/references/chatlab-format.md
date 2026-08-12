@@ -3,11 +3,11 @@
 Use this contract when generating ChatLab Format `0.0.2`. It is intentionally limited to what a converter needs. The ChatLab CLI or this Skill's bundled strict validator is authoritative for generated files:
 
 ```bash
-chatlab validate "/absolute/path/to/output.jsonl" --json
+clb validate "/absolute/path/to/output.jsonl" --json
 node "/absolute/path/to/chatlab-convert/scripts/validate-chatlab.mjs" "/absolute/path/to/output.jsonl"
 ```
 
-Choose one command based on the environment; running both is unnecessary. The bundled validator checks the format only and does not replace import validation with `chatlab import --dry-run --json`.
+Choose one command based on the environment; running both is unnecessary. The bundled validator checks the format only and does not replace import validation with `clb import --dry-run --json`.
 
 ## Core invariants
 
@@ -141,4 +141,4 @@ The converter must report these numbers without message bodies:
 - records mapped to type `99`;
 - skipped and failed records.
 
-Default skipped and failed records to zero. The conversion is not complete until source messages equal output messages plus user-accepted skipped records, strict validation passes, and `chatlab import <output> --dry-run --json` succeeds.
+Default skipped and failed records to zero. The conversion is not complete until source messages equal output messages plus user-accepted skipped records, strict validation passes, and `clb import <output> --dry-run --json` succeeds.

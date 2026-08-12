@@ -45,7 +45,7 @@ For small changes, prefer targeted checks for the files or package you changed. 
 
 ## Platform Terminology
 
-- **CLI Web** runs through `chatlab start` and includes a Node.js backend plus the Web UI.
+- **CLI Web** runs through `clb web` and includes a Node.js backend plus the Web UI.
 - **Web WASM** has no Node.js backend; parsing, storage, and queries run in the browser.
 - "Web" is the umbrella term. When context cannot distinguish the platform, it defaults to **Web WASM**.
 - "Backend" and "API Server" refer only to the Node.js process, not the complete CLI Web platform.

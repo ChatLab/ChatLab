@@ -2,7 +2,7 @@
  * CLI Web Vite 构建配置
  *
  * 用于构建 CLI Web 的 SPA 前端（不含 Electron 依赖）。
- * 输出到 dist-cli-web/，由 chatlab start 托管。
+ * 输出到 dist-cli-web/，由 clb web 托管。
  *
  * 与 Electron renderer 构建的关键区别：
  * - __IS_ELECTRON__ = false（使用 FetchAdapter 而非 window.chatApi）
@@ -53,7 +53,7 @@ async function isChatlabBackendResponsive(port: number, timeoutMs = 800): Promis
 }
 
 /**
- * 自动启动 chatlab start 后端的插件
+ * 自动启动 clb web 后端的插件
  * 仅在 CHATLAB_AUTO_SERVE=1 时生效（由 dev:cli-web 脚本设置）
  */
 function chatlabServePlugin(): Plugin {
@@ -102,11 +102,11 @@ function chatlabServePlugin(): Plugin {
       if (inUse) {
         const responsive = await isChatlabBackendResponsive(BACKEND_PORT)
         if (responsive) {
-          console.log(`[chatlab start] Port ${BACKEND_PORT} already has a responsive ChatLab API, skipping`)
+          console.log(`[clb web] Port ${BACKEND_PORT} already has a responsive ChatLab API, skipping`)
           return
         }
         throw new Error(
-          `[chatlab start] Port ${BACKEND_PORT} is in use, but ChatLab API did not respond. Stop the stale process and restart dev:cli-web.`
+          `[clb web] Port ${BACKEND_PORT} is in use, but ChatLab API did not respond. Stop the stale process and restart dev:cli-web.`
         )
       }
 
@@ -119,15 +119,15 @@ function chatlabServePlugin(): Plugin {
 
       serverProcess.stdout?.on('data', (data: Buffer) => {
         const line = data.toString().trim()
-        if (line) console.log(`[chatlab start] ${line}`)
+        if (line) console.log(`[clb web] ${line}`)
       })
       serverProcess.stderr?.on('data', (data: Buffer) => {
         const line = data.toString().trim()
-        if (line) console.error(`[chatlab start] ${line}`)
+        if (line) console.error(`[clb web] ${line}`)
       })
       serverProcess.on('exit', (code) => {
         if (code !== null && code !== 0) {
-          console.error(`[chatlab start] exited with code ${code}`)
+          console.error(`[clb web] exited with code ${code}`)
         }
         serverProcess = null
         unregisterProcessCleanup()

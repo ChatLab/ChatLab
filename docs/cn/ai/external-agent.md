@@ -21,31 +21,31 @@ npx skills add ChatLab/ChatLab --skill chatlab-analyze-cn -g
 chatlab-analyze-cn 帮我分析我和小红的聊天记录
 ```
 
-这个技能会引导 Agent 先执行 `chatlab manifest` 获取机读命令清单，再用安全的 `--format agent/json` 查询聊天记录。
+这个技能会引导 Agent 先执行 `clb manifest` 获取机读命令清单，再用安全的 `--format agent/json` 查询聊天记录。
 
 `chatlab-analyze-cn` 始终只读。如果你希望 Agent 导入新的聊天导出文件，请改用独立的 `chatlab-import-cn` Skill；它会先预览导入计划，再自动新建或增量导入，详见[导入聊天记录指南](/cn/usage/how-to-import)。
 
 ## 命令总览
 
 ```bash
-chatlab sessions list                # 列出已导入的会话
-chatlab sessions show                # 查看单个会话详情
-chatlab members list                 # 会话成员列表
-chatlab members history              # 成员改名历史
-chatlab messages list                # 按时间窗口列消息
-chatlab messages search <关键词...>   # 关键词搜索（支持多词、上下文、翻页）
-chatlab messages context --id <id>   # 查看某条消息前后现场
-chatlab messages between             # 两个成员之间的对话
-chatlab stats overview               # 会话概览统计
-chatlab stats activity               # 成员活跃度排行
-chatlab stats time --by day          # 时间分布（hour/weekday/day/month）
-chatlab stats keywords               # 高频词（已过隐私过滤）
-chatlab stats response               # 回复速度排行
-chatlab topics list                  # AI 分段摘要列表
-chatlab topics show --id <id>        # 某个分段的原始消息
-chatlab sql "<SELECT ...>"           # 只读 SQL 兜底（字符串默认脱敏）
-chatlab schema                       # 查看数据库表结构
-chatlab manifest                     # 机读命令清单（给 Agent 一次读全）
+clb sessions list                # 列出已导入的会话
+clb sessions show                # 查看单个会话详情
+clb members list                 # 会话成员列表
+clb members history              # 成员改名历史
+clb messages list                # 按时间窗口列消息
+clb messages search <关键词...>   # 关键词搜索（支持多词、上下文、翻页）
+clb messages context --id <id>   # 查看某条消息前后现场
+clb messages between             # 两个成员之间的对话
+clb stats overview               # 会话概览统计
+clb stats activity               # 成员活跃度排行
+clb stats time --by day          # 时间分布（hour/weekday/day/month）
+clb stats keywords               # 高频词（已过隐私过滤）
+clb stats response               # 回复速度排行
+clb topics list                  # AI 分段摘要列表
+clb topics show --id <id>        # 某个分段的原始消息
+clb sql "<SELECT ...>"           # 只读 SQL 兜底（字符串默认脱敏）
+clb schema                       # 查看数据库表结构
+clb manifest                     # 机读命令清单（给 Agent 一次读全）
 ```
 
 只有一个会话时可省略 `--session`；多个会话时命令会返回候选列表提示消歧。
@@ -81,15 +81,15 @@ agent/json 模式下 stdout 只包含一个 JSON 响应信封，日志一律走 
 ## 隐私边界
 
 - 所有查询命令默认应用你在 ChatLab 设置中的脱敏规则与黑名单，包括 `stats keywords` 的词表、`topics list` 的摘要和 `sql` 结果中的字符串字段；`sql` 读取消息 `content` 列需要显式 `--raw`。
-- `--raw`（绕过预处理）默认禁用，仅当你显式执行 `chatlab config set cli.allow_raw true` 或设置 `CHATLAB_CLI_ALLOW_RAW=1` 后可用。
-- 不需要 SQL 兜底能力时，可用 `chatlab config set cli.allow_sql false` 关闭 `sql` 命令。
+- `--raw`（绕过预处理）默认禁用，仅当你显式执行 `clb config set cli.allow_raw true` 或设置 `CHATLAB_CLI_ALLOW_RAW=1` 后可用。
+- 不需要 SQL 兜底能力时，可用 `clb config set cli.allow_sql false` 关闭 `sql` 命令。
 
 ## 查询示例
 
 典型配方——"谁最早提到某个问题？查看现场"：
 
 ```bash
-chatlab messages search "服务器迁移" --sort asc --limit 5 --context 3 --format agent
+clb messages search "服务器迁移" --sort asc --limit 5 --context 3 --format agent
 # 从返回文本的单条消息标记 [#1021*] 拿到消息 id，再深挖现场：
-chatlab messages context --id 1021 --window 10 --format agent
+clb messages context --id 1021 --window 10 --format agent
 ```

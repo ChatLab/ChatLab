@@ -19,7 +19,7 @@ test('web dev backend runs through the current Node executable with the tsx load
     '--import',
     'tsx',
     'src/cli.ts',
-    'start',
+    'web',
     '--headless',
     '--no-open',
     '--port',

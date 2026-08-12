@@ -92,10 +92,10 @@ docker run --name chatlab \
 容器的預設命令是：
 
 ```bash
-chatlab start --no-open --host 0.0.0.0
+clb web --no-open --host 0.0.0.0
 ```
 
-`chatlab start` 按照 CLI 中的宣告順序支援以下選項：
+`clb web` 按照 CLI 中的宣告順序支援以下選項：
 
 | 選項 | 說明 |
 | --- | --- |

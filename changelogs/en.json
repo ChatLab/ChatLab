@@ -868,8 +868,8 @@
           "Split the message analysis view into Type Analysis and Time Analysis tabs, each with enriched statistical insight cards",
           "Add a confirmation dialog before regenerating all session indexes to prevent accidental data loss",
           "Expand demo data to 4 files covering group and multiple private chat scenarios",
-          "【CLI】Add unified chatlab start command with --headless and --no-open flags",
-          "【CLI】Add daemon mode via chatlab start --daemon to install as a system service, with stop and status commands"
+          "【CLI】Add unified clb web command with --headless and --no-open flags",
+          "【CLI】Add daemon mode via clb web --daemon to install as a system service, with stop and status commands"
         ]
       },
       {

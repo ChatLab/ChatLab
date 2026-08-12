@@ -1,11 +1,11 @@
 ---
 name: chatlab-analyze-cn
-description: 通过 chatlab CLI 分析本地 ChatLab 聊天记录。当用户要求外部 Agent 检查对话、查找证据、总结话题、比较成员，或基于已导入的 ChatLab 数据分析指定人物或群组关系时使用。
+description: 通过 clb CLI 分析本地 ChatLab 聊天记录。当用户要求外部 Agent 检查对话、查找证据、总结话题、比较成员，或基于已导入的 ChatLab 数据分析指定人物或群组关系时使用。
 ---
 
 # ChatLab 聊天分析
 
-通过只读 `chatlab` CLI 查询和分析已经导入 ChatLab 的聊天记录。
+通过只读 `clb` CLI 查询和分析已经导入 ChatLab 的聊天记录。
 
 ## 适用场景
 
@@ -28,9 +28,9 @@ npx skills add ChatLab/ChatLab --skill chatlab-analyze-cn -g
 检查 CLI、读取当前命令契约并列出会话：
 
 ```bash
-chatlab --help
-chatlab manifest
-chatlab sessions list --format json
+clb --help
+clb manifest
+clb sessions list --format json
 ```
 
 只有一个相关会话时直接使用；多个会话或成员都可能匹配时，让用户从返回的候选项中选择。
@@ -40,9 +40,9 @@ chatlab sessions list --format json
 先使用能直接回答问题的最简单命令：
 
 ```bash
-chatlab messages search "<keyword>" --session <session-id> --format agent
-chatlab messages between --member me --member <member> --session <session-id> --last 90d --format agent
-chatlab topics list --session <session-id> --last 30d --format agent
+clb messages search "<keyword>" --session <session-id> --format agent
+clb messages between --member me --member <member> --session <session-id> --last 90d --format agent
+clb topics list --session <session-id> --last 30d --format agent
 ```
 
 读取消息文本时使用 `--format agent`；侦察会话、成员、数量和 `--no-content` 搜索等结构时使用 `--format json`。
@@ -52,8 +52,8 @@ chatlab topics list --session <session-id> --last 30d --format agent
 只有第一步结果不足时再深入：
 
 ```bash
-chatlab messages context --id 1021 --session <session-id> --window 10 --format agent
-chatlab stats keywords --session <session-id> --member <member> --last 90d --top 20 --format json
+clb messages context --id 1021 --session <session-id> --window 10 --format agent
+clb stats keywords --session <session-id> --member <member> --last 90d --top 20 --format json
 ```
 
 当 `meta.hasMore` 为 true 时，保持相同查询条件并使用 `--cursor <meta.nextCursor>` 继续。通过数量和 Token 参数只获取回答问题所需的上下文。
@@ -63,8 +63,8 @@ chatlab stats keywords --session <session-id> --member <member> --last 90d --top
 只有专用命令无法回答时，才使用只读 SQL：
 
 ```bash
-chatlab schema --session <session-id> --format json
-chatlab sql "SELECT COUNT(*) AS n FROM message" --session <session-id> --format json
+clb schema --session <session-id> --format json
+clb sql "SELECT COUNT(*) AS n FROM message" --session <session-id> --format json
 ```
 
 ## 隐私与回答

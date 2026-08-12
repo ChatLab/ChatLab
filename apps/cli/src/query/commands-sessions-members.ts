@@ -1,8 +1,8 @@
 /**
  * sessions / members query command groups.
  *
- * Parent actions keep the legacy top-level behavior (`chatlab sessions`,
- * `chatlab members <session-id>`) as deprecated aliases for one major version.
+ * Parent actions keep the legacy top-level behavior (`clb sessions`,
+ * `clb members <session-id>`) as deprecated aliases for one major version.
  */
 
 import type { Command } from 'commander'
@@ -29,8 +29,8 @@ export function registerSessionCommands(program: Command): void {
     .description('Chat sessions (list, show)')
     .option('--format <format>', 'Output format (table|json for legacy list; agent|json|text for subcommands)')
     .action((options: { format?: string }) => {
-      // legacy alias: `chatlab sessions [--format table|json]`
-      console.error('[Deprecated] `chatlab sessions` — use `chatlab sessions list`; alias kept for one major version')
+      // legacy alias: `clb sessions [--format table|json]`
+      console.error('[Deprecated] `clb sessions` — use `clb sessions list`; alias kept for one major version')
       legacySessionsList(options)
     })
 
@@ -133,7 +133,7 @@ export function registerMemberCommands(program: Command): void {
         return
       }
       console.error(
-        '[Deprecated] `chatlab members <session-id>` — use `chatlab members list --session <id>`; alias kept for one major version'
+        '[Deprecated] `clb members <session-id>` — use `clb members list --session <id>`; alias kept for one major version'
       )
       legacyMembersList(sessionId, options)
     })

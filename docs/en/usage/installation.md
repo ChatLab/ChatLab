@@ -23,9 +23,9 @@ npm install --global chatlab-cli
 After installation, run:
 
 ```bash
-chatlab start             # Start API + Web UI and open it in a browser
-chatlab start --no-open   # Start API + Web UI without opening a browser
-chatlab start --headless  # Start the API without serving the Web UI (for scripts / AI Agents)
+clb web             # Start API + Web UI and open it in a browser
+clb web --no-open   # Start API + Web UI without opening a browser
+clb web --headless  # Start the API without serving the Web UI (for scripts / AI Agents)
 ```
 
 Common options: `--port <port>` (default `3110`), `--host <address>`, and `--token <token>`.
@@ -33,13 +33,13 @@ Common options: `--port <port>` (default `3110`), `--host <address>`, and `--tok
 To keep ChatLab running as a background service:
 
 ```bash
-chatlab start --daemon  # Install as a system service (macOS / Linux)
-chatlab status          # Check service status
-chatlab stop            # Stop and remove the service
+clb web --daemon  # Install as a system service (macOS / Linux)
+clb status          # Check service status
+clb stop            # Stop and remove the service
 ```
 
 ::: tip
-`clb` is a shorthand alias for `chatlab`; both are equivalent.
+`clb` is the recommended command. The legacy `chatlab` command remains available for compatibility.
 :::
 
 ## Docker

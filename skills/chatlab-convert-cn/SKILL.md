@@ -29,20 +29,20 @@ npx skills add ChatLab/ChatLab --skill chatlab-convert-cn -g
 确认唯一、准确的源路径。存在多个候选文件时询问用户，不要猜测。每条命令都要给路径加引号。
 
 ```bash
-chatlab --help
-chatlab validate --help
-chatlab formats
-chatlab import "/absolute/path/to/source" --dry-run --json
+clb --help
+clb validate --help
+clb formats
+clb import "/absolute/path/to/source" --dry-run --json
 ```
 
 如果 dry-run 已经识别源文件，不要重复转换，改用 `chatlab-import-cn` 完成导入。
 
-如果 `chatlab` 不存在，或已有版本没有 `validate` 命令：
+如果 `clb` 不存在，或已有版本没有 `validate` 命令：
 
 1. 告诉用户未检测到可用的 ChatLab CLI，但仍可使用本 Skill 内置的严格验证器继续转换；
 2. 建议安装或更新 CLI，并在执行前征得用户同意：`npm install -g chatlab-cli@latest`；
 3. 用户跳过安装、安装失败或当前无法联网时，不要阻断转换，改用 `scripts/validate-chatlab.mjs`；
-4. 跳过 `chatlab formats` 和源文件 dry-run，并明确说明无法确认 ChatLab 是否已原生支持该源格式。
+4. 跳过 `clb formats` 和源文件 dry-run，并明确说明无法确认 ChatLab 是否已原生支持该源格式。
 
 内置验证器需要 Node.js 20 或更高版本。如果 `node --version` 也不可用，可以继续编写转换器，但必须把结果标记为“尚未验证”，并引导用户安装 Node.js 和 `chatlab-cli`；未经同意不要自行安装。
 
@@ -104,7 +104,7 @@ chatlab import "/absolute/path/to/source" --dry-run --json
 先对受限的本地样本或脚本的 sample 模式运行转换器，然后验证。有 CLI 时运行：
 
 ```bash
-chatlab validate "/absolute/path/to/sample.jsonl" --json
+clb validate "/absolute/path/to/sample.jsonl" --json
 ```
 
 没有 CLI 时，定位本 `SKILL.md` 所在目录，并使用随 Skill 分发的验证器：
@@ -120,8 +120,8 @@ node "/absolute/path/to/chatlab-convert-cn/scripts/validate-chatlab.mjs" "/absol
 运行完整转换，然后使用 CLI 或内置验证器验证每一个输出文件。有 CLI 时继续执行导入 dry-run：
 
 ```bash
-chatlab validate "/absolute/path/to/converted.jsonl" --json
-chatlab import "/absolute/path/to/converted.jsonl" --dry-run --json
+clb validate "/absolute/path/to/converted.jsonl" --json
+clb import "/absolute/path/to/converted.jsonl" --dry-run --json
 ```
 
 没有 CLI 时运行：
@@ -133,7 +133,7 @@ node "/absolute/path/to/chatlab-convert-cn/scripts/validate-chatlab.mjs" "/absol
 按验证能力区分结果，不能混用结论：
 
 - **格式验证通过**：CLI 或内置严格验证器返回 `ok: true`，转换器输出消息数等于验证器消息数，源消息数等于输出消息数加上用户明确接受的跳过数，且没有隐藏源解析错误；
-- **导入验证通过**：在格式验证通过的基础上，`chatlab import --dry-run --json` 也返回 `ok: true`。
+- **导入验证通过**：在格式验证通过的基础上，`clb import --dry-run --json` 也返回 `ok: true`。
 
 没有 CLI 时只能报告“格式验证通过”，并提醒用户之后可以安装 CLI 完成 dry-run，或将结果文件拖入 ChatLab；不能声称已经通过导入验证。
 
@@ -152,7 +152,7 @@ node "/absolute/path/to/chatlab-convert-cn/scripts/validate-chatlab.mjs" "/absol
 如果用户明确要求导入，使用同一个已验证文件移除 `--dry-run`：
 
 ```bash
-chatlab import "/absolute/path/to/converted.jsonl" --json
+clb import "/absolute/path/to/converted.jsonl" --json
 ```
 
 如果此时仍没有 CLI，说明自动导入需要 `chatlab-cli`，建议安装并征得用户同意；不能把“格式验证通过”当成已经导入。

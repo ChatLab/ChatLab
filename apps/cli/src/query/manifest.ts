@@ -1,5 +1,5 @@
 /**
- * `chatlab manifest`: machine-readable command tree generated from commander
+ * `clb manifest`: machine-readable command tree generated from commander
  * registration (design §7 discovery). One call replaces N --help probes.
  * Query commands carry full arg/option detail; app-level commands (import,
  * start, ...) are listed by name only and stay out of the query section.
@@ -60,31 +60,31 @@ const EXIT_CODES: Record<string, string> = {
 // Curated task recipes (design §13): agent format for message bodies,
 // json for structural scouting; --raw never appears here.
 const EXAMPLES: ManifestExample[] = [
-  { task: 'What did this group talk about today?', command: 'chatlab messages list --since today --format agent' },
+  { task: 'What did this group talk about today?', command: 'clb messages list --since today --format agent' },
   {
     task: 'Search a topic within a time range',
-    command: 'chatlab messages search 旅游 --since 2026-01-01 --limit 20 --format agent',
+    command: 'clb messages search 旅游 --since 2026-01-01 --limit 20 --format agent',
   },
   {
     task: 'Who mentioned it first (message ids)?',
-    command: 'chatlab messages search 报销 --sort asc --limit 5 --format agent',
+    command: 'clb messages search 报销 --sort asc --limit 5 --format agent',
   },
   {
     task: 'Follow up a single [#id] marker with context',
-    command: 'chatlab messages context --id 1021 --window 10 --format agent',
+    command: 'clb messages context --id 1021 --window 10 --format agent',
   },
   {
     task: 'Conversation between me and a member last month',
-    command: 'chatlab messages between --member me --member 小红 --last 30d --format agent',
+    command: 'clb messages between --member me --member 小红 --last 30d --format agent',
   },
-  { task: 'Most active members', command: 'chatlab stats activity --top 10 --format json' },
-  { task: 'Monthly hot topics', command: 'chatlab topics list --since 2026-06-01 --until 2026-06-30 --format agent' },
-  { task: 'High-frequency words', command: 'chatlab stats keywords --last 30d --top 20 --format json' },
+  { task: 'Most active members', command: 'clb stats activity --top 10 --format json' },
+  { task: 'Monthly hot topics', command: 'clb topics list --since 2026-06-01 --until 2026-06-30 --format agent' },
+  { task: 'High-frequency words', command: 'clb stats keywords --last 30d --top 20 --format json' },
   {
     task: 'Structural scouting without content',
-    command: 'chatlab messages list --last 7d --no-content --fields id,senderName,time --format json',
+    command: 'clb messages list --last 7d --no-content --fields id,senderName,time --format json',
   },
-  { task: 'Discover sessions first', command: 'chatlab sessions list --format json' },
+  { task: 'Discover sessions first', command: 'clb sessions list --format json' },
 ]
 
 const NOTES: string[] = [
@@ -162,7 +162,7 @@ export function buildManifest(program: Command, version: string): Manifest {
   }
 
   return {
-    name: 'chatlab',
+    name: 'clb',
     version,
     apiVersion: API_VERSION,
     formats: ['agent', 'json', 'text'],

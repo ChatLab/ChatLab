@@ -60,7 +60,7 @@ export function assertRawAllowed(ctx: Pick<QueryContext, 'allowRaw'>, options: R
     throw new QueryError({
       code: 'RAW_DISABLED',
       message: '--raw output is disabled by default',
-      hint: 'The user must opt in: set CHATLAB_CLI_ALLOW_RAW=1 or `chatlab config set cli.allow_raw true`',
+      hint: 'The user must opt in: set CHATLAB_CLI_ALLOW_RAW=1 or `clb config set cli.allow_raw true`',
     })
   }
 }

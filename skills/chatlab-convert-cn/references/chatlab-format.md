@@ -3,11 +3,11 @@
 生成 ChatLab Format `0.0.2` 时遵循本协议。这里只保留转换器需要的内容；生成文件以 ChatLab CLI 或本 Skill 内置严格验证器的结果为准：
 
 ```bash
-chatlab validate "/absolute/path/to/output.jsonl" --json
+clb validate "/absolute/path/to/output.jsonl" --json
 node "/absolute/path/to/chatlab-convert-cn/scripts/validate-chatlab.mjs" "/absolute/path/to/output.jsonl"
 ```
 
-两条命令按环境选择其一，不需要重复运行；内置验证器只验证格式，不代替 `chatlab import --dry-run --json` 的导入验证。
+两条命令按环境选择其一，不需要重复运行；内置验证器只验证格式，不代替 `clb import --dry-run --json` 的导入验证。
 
 ## 核心约束
 
@@ -141,4 +141,4 @@ node "/absolute/path/to/chatlab-convert-cn/scripts/validate-chatlab.mjs" "/absol
 - 映射为类型 `99` 的记录数；
 - 跳过数和失败数。
 
-跳过数和失败数默认为零。只有源消息数等于输出消息数加用户明确接受的跳过数、严格验证通过，并且 `chatlab import <output> --dry-run --json` 成功，转换才算完成。
+跳过数和失败数默认为零。只有源消息数等于输出消息数加用户明确接受的跳过数、严格验证通过，并且 `clb import <output> --dry-run --json` 成功，转换才算完成。

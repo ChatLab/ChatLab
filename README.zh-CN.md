@@ -43,9 +43,9 @@ npm i chatlab-cli -g
 启动 ChatLab：
 
 ```bash
-chatlab start            # 启动 API + Web UI，并在浏览器中打开
-chatlab start --no-open  # 启动 API + Web UI，但不自动打开浏览器
-chatlab start --headless # 仅启动 API，不挂载 Web UI（供脚本 / AI Agent 调用）
+clb web            # 启动 API + Web UI，并在浏览器中打开
+clb web --no-open  # 启动 API + Web UI，但不自动打开浏览器
+clb web --headless # 仅启动 API，不挂载 Web UI（供脚本 / AI Agent 调用）
 ```
 
 常用选项：`--port <端口>`（默认 3110）、`--host <地址>`、`--token <令牌>`。
@@ -53,9 +53,9 @@ chatlab start --headless # 仅启动 API，不挂载 Web UI（供脚本 / AI Age
 如果希望服务常驻后台（开机自启 + 崩溃自动重启）：
 
 ```bash
-chatlab start --daemon   # 注册为系统服务（macOS / Linux）
-chatlab status           # 查看常驻状态
-chatlab stop             # 停止并取消常驻
+clb web --daemon   # 注册为系统服务（macOS / Linux）
+clb status           # 查看常驻状态
+clb stop             # 停止并取消常驻
 ```
 
 完整使用说明请见[快速开始指南](https://docs.chatlab.fun/cn/usage/quick-start)。

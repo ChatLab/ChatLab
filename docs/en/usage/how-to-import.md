@@ -45,7 +45,7 @@ npm install -g chatlab-cli
 The simplest command imports one file directly:
 
 ```bash
-chatlab import "/absolute/path/to/chat-export.json"
+clb import "/absolute/path/to/chat-export.json"
 ```
 
 ### Target an existing session
@@ -53,7 +53,7 @@ chatlab import "/absolute/path/to/chat-export.json"
 To append to a specific session, use `--session-id`:
 
 ```bash
-chatlab import "/absolute/path/to/chat-export.json" --session-id <session-id>
+clb import "/absolute/path/to/chat-export.json" --session-id <session-id>
 ```
 
 ## Automation: Use an API or automatic sync

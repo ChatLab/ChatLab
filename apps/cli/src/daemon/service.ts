@@ -72,7 +72,7 @@ function buildPlist(options: ServiceInstallOptions): string {
   const port = options.port ?? 3110
   const host = options.host ?? '127.0.0.1'
   const cliEntry = resolveCliPath('bin/chatlab.mjs')
-  const args = ['start', '--no-open', '--port', String(port), '--host', host]
+  const args = ['web', '--no-open', '--port', String(port), '--host', host]
   if (options.token) args.push('--token', options.token)
   if (options.headless) args.push('--headless')
   if (options.requireAuth) args.push('--require-auth')
@@ -150,7 +150,7 @@ function installMacos(options: ServiceInstallOptions): void {
   console.log(`  API:     http://${host}:${port}`)
   console.log(`  Logs:    ${LOG_FILE}`)
   console.log(`  Service: ${SERVICE_LABEL} (launchd)`)
-  console.log(`\nAuto-starts on login. Use \`chatlab stop\` to remove.\n`)
+  console.log(`\nAuto-starts on login. Use \`clb stop\` to remove.\n`)
 }
 
 function uninstallMacos(): void {
@@ -192,7 +192,7 @@ function buildUnit(options: ServiceInstallOptions): string {
   const port = options.port ?? 3110
   const host = options.host ?? '127.0.0.1'
   const cliEntry = resolveCliPath('bin/chatlab.mjs')
-  const args = ['start', '--no-open', '--port', String(port), '--host', host]
+  const args = ['web', '--no-open', '--port', String(port), '--host', host]
   if (options.token) args.push('--token', options.token)
   if (options.headless) args.push('--headless')
   if (options.requireAuth) args.push('--require-auth')
@@ -235,7 +235,7 @@ function installLinux(options: ServiceInstallOptions): void {
   console.log(`  API:  http://${host}:${port}`)
   console.log(`  Logs: ${LOG_FILE}`)
   console.log(`  Unit: ${SYSTEMD_SERVICE} (systemd)`)
-  console.log(`\nAuto-starts on login. Use \`chatlab stop\` to remove.\n`)
+  console.log(`\nAuto-starts on login. Use \`clb stop\` to remove.\n`)
 }
 
 function uninstallLinux(): void {
@@ -282,7 +282,7 @@ export function serviceInstall(options: ServiceInstallOptions): void {
       return installLinux(options)
     default:
       console.error('Windows is not yet supported for daemon mode.')
-      console.error('Please use `chatlab start` to run in the foreground instead.')
+      console.error('Please use `clb web` to run in the foreground instead.')
       process.exit(1)
   }
 }

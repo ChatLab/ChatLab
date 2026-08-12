@@ -33,7 +33,7 @@ export function assertLegacySqlAllowed(config: Pick<ChatLabConfig, 'cli'>, sql?:
     throw new QueryError({
       code: 'SQL_DISABLED',
       message: 'The sql command is disabled by configuration',
-      hint: 'The user can re-enable it with `chatlab config set cli.allow_sql true`',
+      hint: 'The user can re-enable it with `clb config set cli.allow_sql true`',
     })
   }
   if (sql) assertSqlPrivacyAllowed(sql, false)
@@ -44,12 +44,12 @@ export function assertLegacySqlAllowed(config: Pick<ChatLabConfig, 'cli'>, sql?:
 function registerLegacyAliases(program: Command): void {
   program
     .command('search <session-id> <keyword>', { hidden: true })
-    .description('Deprecated: use `chatlab messages search`')
+    .description('Deprecated: use `clb messages search`')
     .option('--limit <n>', 'Max results to return', '20')
     .option('--format <format>', 'Output format (table|json)', 'table')
     .action((sessionId: string, keyword: string, options: { limit: string; format: string }) => {
       console.error(
-        '[Deprecated] `chatlab search` — use `chatlab messages search <keyword> --session <id>`; alias kept for one major version'
+        '[Deprecated] `clb search` — use `clb messages search <keyword> --session <id>`; alias kept for one major version'
       )
       const { dbManager } = initRuntime()
       const db = dbManager.open(sessionId)
@@ -78,12 +78,12 @@ function registerLegacyAliases(program: Command): void {
 
   program
     .command('query <session-id>', { hidden: true })
-    .description('Deprecated: use `chatlab sql`')
+    .description('Deprecated: use `clb sql`')
     .requiredOption('--sql <sql>', 'SQL query statement')
     .option('--format <format>', 'Output format (table|json)', 'table')
     .action((sessionId: string, options: { sql: string; format: string }) => {
       console.error(
-        '[Deprecated] `chatlab query` — use `chatlab sql "<SELECT ...>" --session <id>`; alias kept for one major version'
+        '[Deprecated] `clb query` — use `clb sql "<SELECT ...>" --session <id>`; alias kept for one major version'
       )
       const { config, dbManager } = initRuntime()
       const db = dbManager.open(sessionId)

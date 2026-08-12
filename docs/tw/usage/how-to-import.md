@@ -45,7 +45,7 @@ npm install -g chatlab-cli
 最簡單的用法是直接匯入一個檔案：
 
 ```bash
-chatlab import "/absolute/path/to/chat-export.json"
+clb import "/absolute/path/to/chat-export.json"
 ```
 
 ### 指定現有工作階段
@@ -53,7 +53,7 @@ chatlab import "/absolute/path/to/chat-export.json"
 需要明確追加到某個工作階段時，使用 `--session-id`：
 
 ```bash
-chatlab import "/absolute/path/to/chat-export.json" --session-id <session-id>
+clb import "/absolute/path/to/chat-export.json" --session-id <session-id>
 ```
 
 ## 自動化：使用 API 或自動同步

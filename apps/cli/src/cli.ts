@@ -21,7 +21,7 @@ import { registerRuntimeCommand } from './semantic-index/runtime-command'
 
 const program = new Command()
 
-program.name('chatlab').description('ChatLab - Chat history analysis tool').version(getVersion(), '-v, --version')
+program.name('clb').description('ChatLab - Chat history analysis tool').version(getVersion(), '-v, --version')
 
 program.hook('preAction', async (_thisCommand, actionCommand) => {
   if (actionCommand.name() === 'update' || actionCommand.parent?.name() === 'runtime') return
@@ -39,7 +39,7 @@ program
     })
 
     if (result.success) {
-      console.error('  Updated successfully. Please restart chatlab to use the new version.\n')
+      console.error('  Updated successfully. Please restart clb to use the new version.\n')
       return
     }
 
@@ -114,7 +114,8 @@ program
   })
 
 program
-  .command('start')
+  .command('web')
+  .alias('start')
   .description('Start ChatLab (HTTP API + Web UI)')
   .option('--port <port>', 'Server port', String(DEFAULT_API_PORT))
   .option('--host <host>', 'Listen address', '127.0.0.1')
@@ -227,7 +228,7 @@ configCmd
 
 configCmd
   .command('set <key> <value>')
-  .description('Set a config field, e.g. `chatlab config set cli.allow_raw true`')
+  .description('Set a config field, e.g. `clb config set cli.allow_raw true`')
   .action((key: string, value: string) => {
     try {
       const result = setConfigField(key, value)
@@ -244,7 +245,7 @@ configCmd
 
 program
   .command('stop')
-  .description('Stop the resident service and remove auto-start (reverse of start --daemon)')
+  .description('Stop the resident service and remove auto-start (reverse of web --daemon)')
   .action(async () => {
     const { serviceUninstall } = await import('./daemon/service')
     serviceUninstall()
@@ -266,11 +267,11 @@ program
       console.log(`  Service:    ${svc.running ? 'running' : 'installed (not running)'}`)
       if (portStr) console.log(`  Address:    ${portStr}`)
       console.log(`  Auto-start: enabled`)
-      console.log(`\n  Use \`chatlab stop\` to remove the service.\n`)
+      console.log(`\n  Use \`clb stop\` to remove the service.\n`)
     } else {
       console.log(`  Service:    not installed`)
       console.log(`  Auto-start: disabled`)
-      console.log(`\n  Use \`chatlab start --daemon\` to install as a system service.\n`)
+      console.log(`\n  Use \`clb web --daemon\` to install as a system service.\n`)
     }
   })
 

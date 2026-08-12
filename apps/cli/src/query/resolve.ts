@@ -61,7 +61,7 @@ export function resolveSession(source: SessionSource, ref?: string): ResolvedSes
       throw new QueryError({
         code: 'SESSION_NOT_FOUND',
         message: 'No chat sessions found',
-        hint: 'Import a chat export first (chatlab import <file>)',
+        hint: 'Import a chat export first (clb import <file>)',
       })
     }
     throw new QueryError({
@@ -98,7 +98,7 @@ export function resolveSession(source: SessionSource, ref?: string): ResolvedSes
   throw new QueryError({
     code: 'SESSION_NOT_FOUND',
     message: `Session '${ref}' not found`,
-    hint: 'Run `chatlab sessions list` to see available sessions',
+    hint: 'Run `clb sessions list` to see available sessions',
   })
 }
 
@@ -133,7 +133,7 @@ export function resolveMember(db: DatabaseAdapter, ref: string): ResolvedMember 
     throw new QueryError({
       code: 'MEMBER_NOT_FOUND',
       message: `Member id ${ref} not found`,
-      hint: 'Run `chatlab members list` to see available members',
+      hint: 'Run `clb members list` to see available members',
     })
   }
 
@@ -157,6 +157,6 @@ export function resolveMember(db: DatabaseAdapter, ref: string): ResolvedMember 
   throw new QueryError({
     code: 'MEMBER_NOT_FOUND',
     message: `Member '${ref}' not found`,
-    hint: 'Run `chatlab members list` to see available members',
+    hint: 'Run `clb members list` to see available members',
   })
 }

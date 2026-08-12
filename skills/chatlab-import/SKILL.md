@@ -1,11 +1,11 @@
 ---
 name: chatlab-import
-description: Safely preview and import local chat export files into ChatLab through the chatlab CLI. Use when a user asks an external agent to import, re-import, or incrementally update ChatLab from a local QQ, WeChat, Telegram, WhatsApp, LINE, Discord, Instagram, Google Chat, ChatLab JSON/JSONL, or other supported chat export.
+description: Safely preview and import local chat export files into ChatLab through the clb CLI. Use when a user asks an external agent to import, re-import, or incrementally update ChatLab from a local QQ, WeChat, Telegram, WhatsApp, LINE, Discord, Instagram, Google Chat, ChatLab JSON/JSONL, or other supported chat export.
 ---
 
 # ChatLab Import
 
-Import local chat exports through the `chatlab` CLI. Always preview the exact write. Treat an explicit request to import as authorization to continue after a successful preview; do not ask for a second confirmation.
+Import local chat exports through the `clb` CLI. Always preview the exact write. Treat an explicit request to import as authorization to continue after a successful preview; do not ask for a second confirmation.
 
 ## Good Fit
 
@@ -26,7 +26,7 @@ npx skills add ChatLab/ChatLab --skill chatlab-import -g
 1. Check the CLI and resolve one exact file path:
 
 ```bash
-chatlab --help
+clb --help
 ```
 
 If the CLI is missing, tell the user to install it with `npm install -g chatlab-cli`. Do not install software without approval. Do not guess between multiple files, and quote the path in every command.
@@ -34,7 +34,7 @@ If the CLI is missing, tell the user to install it with `npm install -g chatlab-
 2. Preview the import without writing:
 
 ```bash
-chatlab import "/absolute/path/to/chat-export.json" --dry-run --json
+clb import "/absolute/path/to/chat-export.json" --dry-run --json
 ```
 
 If the user selected an existing session, include `--session-id <session-id>` in both preview and import.
@@ -52,7 +52,7 @@ If the user selected an existing session, include `--session-id <session-id>` in
 5. When the decision permits writing, run the same command without `--dry-run`, keeping the file, target, and format unchanged:
 
 ```bash
-chatlab import "/absolute/path/to/chat-export.json" --json
+clb import "/absolute/path/to/chat-export.json" --json
 ```
 
 Report the resulting session ID, import mode, new-message count, and duplicate count from the final JSON envelope.
@@ -63,4 +63,4 @@ Report the resulting session ID, import mode, new-message count, and duplicate c
 - Never reveal a full chat export or message bodies.
 - Never invent a file path, parser format, or session ID.
 - Follow `error.hint` only when the correction is unambiguous.
-- For `FILE_NOT_FOUND`, request the correct path. For `UNRECOGNIZED_FORMAT`, inspect `chatlab formats`. For `IMPORT_IN_PROGRESS`, retry later. For `INVALID_SESSION_ID`, request a valid ID.
+- For `FILE_NOT_FOUND`, request the correct path. For `UNRECOGNIZED_FORMAT`, inspect `clb formats`. For `IMPORT_IN_PROGRESS`, retry later. For `INVALID_SESSION_ID`, request a valid ID.

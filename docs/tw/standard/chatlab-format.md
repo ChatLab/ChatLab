@@ -385,10 +385,10 @@ JSONL（JSON Lines）格式適用於**超大規模聊天記錄**（>100 萬條�
 ChatLab CLI 可以在不匯入、不寫入資料庫的情況下嚴格驗證 JSON/JSONL。它會檢查損壞行、協議版本、必填欄位、秒級時間戳、成員引用、訊息類型、訊息 ID 和回覆關係，並且不會輸出訊息正文：
 
 ```bash
-chatlab validate "/轉換後的檔案.jsonl" --json
+clb validate "/轉換後的檔案.jsonl" --json
 ```
 
-驗證通過後，再使用 `chatlab import <file> --dry-run --json` 確認 ChatLab 能夠完整識別該檔案。
+驗證通過後，再使用 `clb import <file> --dry-run --json` 確認 ChatLab 能夠完整識別該檔案。
 
 ## 版本歷史
 

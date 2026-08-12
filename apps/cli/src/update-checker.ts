@@ -260,9 +260,7 @@ export async function checkForUpdatesInteractive(): Promise<void> {
   if (choice === 1) {
     const result = await performCliSelfUpdate()
     if (result.success) {
-      process.stderr.write(
-        `  \x1b[32m🎉 Updated successfully! Please restart chatlab to use the new version.\x1b[0m\n\n`
-      )
+      process.stderr.write(`  \x1b[32m🎉 Updated successfully! Please restart clb to use the new version.\x1b[0m\n\n`)
       process.exit(0)
     } else {
       process.stderr.write(`  ❌ Update failed: ${result.error}\n\n`)

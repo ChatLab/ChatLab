@@ -113,9 +113,9 @@ function resolveSingleSessionId(dbManager: DatabaseManager): string {
   const sessionIds = dbManager.listSessionIds()
   if (sessionIds.length === 1) return sessionIds[0]!
   if (sessionIds.length === 0) {
-    throw new Error('No chat sessions found. Import data first or run `chatlab sessions` to verify available sessions.')
+    throw new Error('No chat sessions found. Import data first or run `clb sessions` to verify available sessions.')
   }
-  throw new Error('Missing --session-id. Run `chatlab sessions` to choose a session ID.')
+  throw new Error('Missing --session-id. Run `clb sessions` to choose a session ID.')
 }
 
 function assertSessionExists(dbManager: DatabaseManager, sessionId: string): void {

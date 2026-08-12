@@ -1,7 +1,7 @@
 /**
  * 反向代理路由 — /_proxy/chatlab.fun/*
  *
- * 在 Web 生产模式（chatlab start）下，将 /_proxy/chatlab.fun/* 代理到
+ * 在 Web 生产模式（clb web）下，将 /_proxy/chatlab.fun/* 代理到
  * https://chatlab.fun，行为与 vite.cli-web.config.mts 中的 dev proxy 保持一致，
  * 以解决浏览器 CORS 限制。
  *

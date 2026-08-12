@@ -32,7 +32,7 @@ export function formatPortInUseError(port: number): string {
     `  ✖ Error: port ${port} is already in use.`,
     ``,
     `    Another process (possibly a ChatLab instance) is using this port. You can:`,
-    `    • Use another port:   chatlab start --port <port>`,
+    `    • Use another port:   clb web --port <port>`,
     `    • Find the process:   lsof -iTCP:${port} -sTCP:LISTEN`,
     ``,
   ].join('\n')

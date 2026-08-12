@@ -45,7 +45,7 @@ pnpm install
 
 ## 平台术语
 
-- **CLI Web**：由 `chatlab start` 运行，包含 Node.js 后端和 Web UI。
+- **CLI Web**：由 `clb web` 运行，包含 Node.js 后端和 Web UI。
 - **Web WASM**：无 Node.js 后端，解析、存储和查询均在浏览器内运行。
 - “Web”是两者的上位概念。上下文无法区分时，默认指 **Web WASM**。
 - “后端”或“API Server”只指 Node.js 进程，不等于完整的 CLI Web。

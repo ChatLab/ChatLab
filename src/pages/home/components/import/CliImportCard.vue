@@ -8,7 +8,7 @@ const skillInstallCommand = computed(() => {
   const skillName = locale.value === 'zh-CN' || locale.value === 'zh-TW' ? 'chatlab-import-cn' : 'chatlab-import'
   return `npx skills add ChatLab/ChatLab --skill ${skillName} -g`
 })
-const cliImportCommand = 'chatlab import ~/Downloads/chat-export.json'
+const cliImportCommand = 'clb import ~/Downloads/chat-export.json'
 const { copy: copySkillCommand, copied: skillCommandCopied } = useClipboard({ copiedDuring: 2000 })
 const { copy: copyCliCommand, copied: cliCommandCopied } = useClipboard({ copiedDuring: 2000 })
 

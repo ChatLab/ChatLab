@@ -208,7 +208,7 @@ export function registerTopicCommands(program: Command): void {
             if (items.length === 0) {
               const any = getSegmentSummaries(ctx.db, { limit: 1 })
               if (any.length === 0) {
-                const hint = 'Run summary generation in the ChatLab app, or use `chatlab stats keywords` as a fallback.'
+                const hint = 'Run summary generation in the ChatLab app, or use `clb stats keywords` as a fallback.'
                 return {
                   data:
                     format === 'agent'
@@ -273,7 +273,7 @@ export function registerTopicCommands(program: Command): void {
             throw new QueryError({
               code: 'INVALID_ARGUMENT',
               message: `Invalid --id value: ${options.id}`,
-              hint: 'Segment ids come from `chatlab topics list`',
+              hint: 'Segment ids come from `clb topics list`',
             })
           }
           const ctx = createQueryContext(options)
@@ -285,7 +285,7 @@ export function registerTopicCommands(program: Command): void {
               throw new QueryError({
                 code: 'SEGMENT_NOT_FOUND',
                 message: `Segment ${segmentId} not found`,
-                hint: 'Run `chatlab topics list` to see available segments',
+                hint: 'Run `clb topics list` to see available segments',
               })
             }
             const meta: Record<string, unknown> = {
@@ -327,7 +327,7 @@ export function registerSqlCommands(program: Command): void {
             throw new QueryError({
               code: 'SQL_DISABLED',
               message: 'The sql command is disabled by configuration',
-              hint: 'The user can re-enable it with `chatlab config set cli.allow_sql true`',
+              hint: 'The user can re-enable it with `clb config set cli.allow_sql true`',
             })
           }
           assertRawAllowed(ctx, options)
@@ -341,7 +341,7 @@ export function registerSqlCommands(program: Command): void {
             throw new QueryError({
               code: 'SQL_ERROR',
               message: err instanceof Error ? err.message : String(err),
-              hint: 'Run `chatlab schema` to inspect available tables and columns',
+              hint: 'Run `clb schema` to inspect available tables and columns',
             })
           }
           assertSqlResultPrivacyAllowed(result.columns, !!options.raw)

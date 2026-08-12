@@ -9,7 +9,7 @@ RUN test -n "$CHATLAB_VERSION" \
     && apt-get update \
     && apt-get install --yes --no-install-recommends g++ make python3 \
     && npm install --global --omit=dev "chatlab-cli@${CHATLAB_VERSION}" \
-    && CHATLAB_SKIP_UPDATE_CHECK=1 chatlab runtime install local-embedding \
+    && CHATLAB_SKIP_UPDATE_CHECK=1 clb runtime install local-embedding \
     && npm cache clean --force \
     && apt-get purge --yes --auto-remove g++ make python3 \
     && rm -rf /var/lib/apt/lists/*
@@ -23,5 +23,5 @@ USER node
 
 EXPOSE 3110
 
-ENTRYPOINT ["chatlab"]
-CMD ["start", "--no-open", "--host", "0.0.0.0"]
+ENTRYPOINT ["clb"]
+CMD ["web", "--no-open", "--host", "0.0.0.0"]
