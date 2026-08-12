@@ -20,12 +20,13 @@ import {
 } from '@/composables/usePreferencesSync'
 import { useWindowsTitleBarOverlay } from '@/composables/useWindowsTitleBarOverlay'
 import { configureHttpClient } from '@/services/utils/http'
+import { reportError } from '@/services/log-report'
 import { IS_ELECTRON } from '@/utils/platform'
 import { PLATFORM_CAPABILITIES } from '@/utils/platform-capabilities'
 import { usePlatformService } from '@/services'
 import { useNavigationLayoutService } from '@/services'
-import { listResolvedNavigationEntries } from '@/navigation/layout'
 import { useNavigationLayout } from '@/navigation/vue'
+import { redirectFromHiddenInsightPage } from '@/navigation/router'
 import type { PresentationPreferences } from '@/services/preferences/types'
 import { resolvePageTransitionKey } from '@/routes/page-transition-key'
 import { useLockScreenBootstrap } from '@/components/lock-screen/bootstrap'
@@ -135,15 +136,25 @@ function scheduleNonCriticalUiPrefetch() {
 }
 
 async function hydrateNavigationLayout(): Promise<void> {
-  const result = await useNavigationLayoutService().load()
-  navigationLayoutController.applyLoadResult(result)
+  try {
+    const result = await useNavigationLayoutService().load()
+    navigationLayoutController.applyLoadResult(result)
+  } catch (error) {
+    navigationLayoutController.applyLoadFailure()
+    const normalized = error instanceof Error ? error : new Error(String(error))
+    reportError(`Navigation layout load failed: ${normalized.message}`, normalized.stack)
+  }
 
-  const currentPageId = String(router.currentRoute.value.meta.insightPageId ?? '')
-  if (!currentPageId) return
-  const visibleEntries = listResolvedNavigationEntries(navigationLayoutController.getResolvedLayout())
-  if (visibleEntries.some(({ page }) => page.id === currentPageId)) return
-  const fallback = visibleEntries[0]
-  if (fallback) await router.replace({ name: fallback.page.routeName })
+  await redirectFromHiddenInsightPageSafely()
+}
+
+async function redirectFromHiddenInsightPageSafely(): Promise<void> {
+  try {
+    await redirectFromHiddenInsightPage(router, navigationLayoutController)
+  } catch (error) {
+    const normalized = error instanceof Error ? error : new Error(String(error))
+    reportError(`Navigation layout route fallback failed: ${normalized.message}`, normalized.stack)
+  }
 }
 
 async function initializeApp() {
@@ -176,11 +187,8 @@ async function initializeApp() {
         },
         deferAfterPresentationError: () =>
           PLATFORM_CAPABILITIES.requiresAuth && authStore.requiresAuth && !authStore.isAuthenticated,
+        initializeShell: hydrateNavigationLayout,
         initializeBackground: [
-          {
-            name: 'navigation-layout',
-            run: hydrateNavigationLayout,
-          },
           {
             name: 'preferences',
             run: async () => {
@@ -337,6 +345,11 @@ watch(
 )
 
 watch(isBootstrapMaskVisible, () => syncBootstrapMask(bootstrapDialogRef.value), { flush: 'post' })
+
+watch(
+  () => route.meta.insightPageId,
+  () => void redirectFromHiddenInsightPageSafely()
+)
 
 useWindowsTitleBarOverlay([
   colorMode,

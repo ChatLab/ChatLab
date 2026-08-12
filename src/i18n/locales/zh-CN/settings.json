@@ -2,6 +2,7 @@
   "title": "设置",
   "tabs": {
     "basic": "基础设置",
+    "navigation": "导航布局",
     "ai": "AI 设置",
     "aiConfig": "模型服务",
     "aiDefaultModel": "默认模型",
@@ -79,6 +80,27 @@
       "onlyHttpSupported": "仅支持 http:// 或 https:// 协议",
       "saveFailed": "保存失败"
     }
+  },
+  "navigation": {
+    "title": "导航布局",
+    "description": "调整分析功能在侧边栏一级入口和足迹二级导航中的位置。更改仅在保存后生效。",
+    "invalidLayout": "已保存的导航布局无法读取，当前正在使用插件默认布局。保存或恢复默认后会替换无效配置。",
+    "loadFailed": "未能读取已保存的导航布局，当前仅临时显示插件默认布局。请刷新应用后重试；读取成功前不能保存或恢复默认。",
+    "primary": "一级入口",
+    "inGroup": "二级 · {group}",
+    "group": "二级导航组",
+    "hidden": "已隐藏",
+    "moveUp": "上移",
+    "moveDown": "下移",
+    "locationFor": "设置 {title} 的导航位置",
+    "unavailable": "插件不可用",
+    "emptyGroup": "该分组暂时没有导航项。",
+    "saved": "导航布局已保存",
+    "saveFailed": "导航布局保存失败",
+    "reset": "恢复默认",
+    "resetDone": "已恢复默认导航布局",
+    "resetFailed": "恢复默认导航布局失败",
+    "storageHint": "Desktop 与 CLI Web 共用 .chatlab 中的这份布局。"
   },
   "defaultModel": {
     "title": "默认模型",

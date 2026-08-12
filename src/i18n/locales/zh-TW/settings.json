@@ -2,6 +2,7 @@
   "title": "設定",
   "tabs": {
     "basic": "基本設定",
+    "navigation": "導覽版面",
     "ai": "AI 設定",
     "aiConfig": "模型服務",
     "aiDefaultModel": "預設模型",
@@ -79,6 +80,27 @@
       "onlyHttpSupported": "僅支援 http:// 或 https:// 協定",
       "saveFailed": "儲存失敗"
     }
+  },
+  "navigation": {
+    "title": "導覽版面",
+    "description": "調整分析功能在側邊欄一級入口和足跡二級導覽中的位置。變更只會在儲存後生效。",
+    "invalidLayout": "已儲存的導覽版面無法讀取，目前正使用外掛預設版面。儲存或恢復預設後會取代無效設定。",
+    "loadFailed": "無法讀取已儲存的導覽版面，目前只會暫時顯示外掛預設版面。請重新載入應用程式後再試；讀取成功前無法儲存或恢復預設。",
+    "primary": "一級入口",
+    "inGroup": "二級 · {group}",
+    "group": "二級導覽群組",
+    "hidden": "已隱藏",
+    "moveUp": "上移",
+    "moveDown": "下移",
+    "locationFor": "設定 {title} 的導覽位置",
+    "unavailable": "外掛不可用",
+    "emptyGroup": "此群組目前沒有導覽項目。",
+    "saved": "導覽版面已儲存",
+    "saveFailed": "導覽版面儲存失敗",
+    "reset": "恢復預設",
+    "resetDone": "已恢復預設導覽版面",
+    "resetFailed": "恢復預設導覽版面失敗",
+    "storageHint": "Desktop 與 CLI Web 共用 .chatlab 中的這份版面。"
   },
   "defaultModel": {
     "title": "預設模型",

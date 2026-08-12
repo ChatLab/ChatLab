@@ -529,7 +529,7 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
         <template v-if="showInsightNavigation">
           <SidebarButton
             v-for="item in resolvedPrimaryNavigation"
-            :key="item.kind === 'entry' ? item.entryId : item.id"
+            :key="`${item.kind}:${item.kind === 'entry' ? item.entryId : item.id}`"
             :icon="item.kind === 'entry' ? item.page.icon : 'i-heroicons-presentation-chart-bar'"
             :title="item.kind === 'entry' ? translate(item.page.title) : navigationGroupTitle(item.id, item.title)"
             :active="

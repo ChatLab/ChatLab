@@ -126,6 +126,7 @@ test('reveals the shell after presentation state and runs independent startup wo
     },
     applyPresentation: (presentation) => void calls.push(`apply-${presentation.locale}`),
     applyPresentationFallback: () => void calls.push('fallback'),
+    initializeShell: async () => void calls.push('shell'),
     initializeBackground: ['preferences', 'llm', 'sessions'].map((name) => ({
       name,
       run: async () => {
@@ -144,6 +145,7 @@ test('reveals the shell after presentation state and runs independent startup wo
     'services',
     'load-presentation',
     'apply-zh-CN',
+    'shell',
     'pull-listener',
     'start-preferences',
     'start-llm',

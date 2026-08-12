@@ -30,6 +30,7 @@ export interface ProgressiveInitializationPorts<TPresentation> {
   applyPresentation(presentation: TPresentation): Promise<void> | void
   applyPresentationFallback(): Promise<void> | void
   deferAfterPresentationError?: (error: unknown) => boolean
+  initializeShell?: () => Promise<void>
   initializeBackground: Array<{
     name: string
     run(): Promise<void>
@@ -99,6 +100,7 @@ export async function initializeProgressiveAppRuntime<TPresentation>(
     await ports.applyPresentationFallback()
   }
 
+  await ports.initializeShell?.()
   const stopListeningForPullResults = ports.listenForPullResults?.() ?? null
   const background = Promise.allSettled(ports.initializeBackground.map((task) => task.run())).then((results) =>
     results.flatMap((result, index) =>

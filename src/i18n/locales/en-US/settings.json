@@ -2,6 +2,7 @@
   "title": "Settings",
   "tabs": {
     "basic": "General",
+    "navigation": "Navigation",
     "ai": "AI Settings",
     "aiConfig": "Model Service",
     "aiDefaultModel": "Default Model",
@@ -79,6 +80,27 @@
       "onlyHttpSupported": "Only http:// or https:// protocols are supported",
       "saveFailed": "Save failed"
     }
+  },
+  "navigation": {
+    "title": "Navigation Layout",
+    "description": "Choose whether analysis features appear as sidebar entries or as secondary pages under Insight. Changes apply after saving.",
+    "invalidLayout": "The saved navigation layout could not be read, so plugin defaults are in use. Saving or resetting will replace the invalid configuration.",
+    "loadFailed": "The saved navigation layout could not be loaded, so plugin defaults are shown temporarily. Reload the app to try again; saving and resetting are disabled until loading succeeds.",
+    "primary": "Primary entry",
+    "inGroup": "Secondary · {group}",
+    "group": "Secondary navigation group",
+    "hidden": "Hidden",
+    "moveUp": "Move up",
+    "moveDown": "Move down",
+    "locationFor": "Set navigation location for {title}",
+    "unavailable": "Plugin unavailable",
+    "emptyGroup": "This group currently has no navigation entries.",
+    "saved": "Navigation layout saved",
+    "saveFailed": "Failed to save navigation layout",
+    "reset": "Reset to defaults",
+    "resetDone": "Default navigation layout restored",
+    "resetFailed": "Failed to restore the default navigation layout",
+    "storageHint": "Desktop and CLI Web share this layout from .chatlab."
   },
   "defaultModel": {
     "title": "Default Model",
