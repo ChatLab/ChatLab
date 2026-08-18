@@ -222,19 +222,11 @@ async function handleChatSelectorCancel() {
   }
 }
 
-// 文件夹导入模式
-const folderImportEnabled = ref(false)
-
 // 处理文件选择（点击选择）
 async function handleClickImport() {
   importError.value = null
   hasImportLog.value = false
   importDiagnostics.value = null
-
-  if (folderImportEnabled.value) {
-    handleClickImportDirectory()
-    return
-  }
 
   if (IS_ELECTRON) {
     const result = await usePlatformService().showOpenDialog({
@@ -345,6 +337,8 @@ const dirDropZoneRef = ref<InstanceType<typeof FileDropZone> | null>(null)
 
 async function handleClickImportDirectory() {
   importError.value = null
+  hasImportLog.value = false
+  importDiagnostics.value = null
   if (IS_ELECTRON) {
     const result = await usePlatformService().showOpenDialog({
       title: t('home.import.selectFolder'),
@@ -1160,16 +1154,18 @@ const getMergeFileProgressText = (file: MergeFileInfo) =>
     <!-- 导入选项 -->
     <div
       v-if="props.backendFeatures && !isAnyImporting && !batchImportResult"
-      class="h-6 flex flex-wrap items-center justify-center gap-4"
+      class="flex min-h-6 flex-wrap items-center justify-center gap-4"
     >
-      <!-- 导入文件夹模式 -->
-      <UCheckbox
-        v-model="folderImportEnabled"
-        :label="t('home.import.importFolder')"
-        input-class="h-4 w-4"
+      <!-- 选择文件夹 -->
+      <UButton
+        color="neutral"
+        variant="soft"
         size="sm"
-        label-class="text-sm font-medium text-gray-600 dark:text-gray-300"
-      />
+        icon="i-heroicons-folder-open"
+        @click="handleClickImportDirectory"
+      >
+        {{ t('home.import.selectFolder') }}
+      </UButton>
 
       <!-- 合并导入 -->
       <div class="flex items-center gap-2">
