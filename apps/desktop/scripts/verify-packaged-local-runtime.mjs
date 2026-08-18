@@ -32,7 +32,10 @@ export default function verifyPackagedLocalRuntime(context) {
     const { createRequire } = require('node:module');
     const path = require('node:path');
     const requireFromApp = createRequire(path.join(process.env.CHATLAB_PACKAGED_RESOURCES, 'app.asar', 'package.json'));
-    requireFromApp.resolve('@huggingface/transformers');
+    const transformers = requireFromApp('@huggingface/transformers');
+    if (typeof transformers.pipeline !== 'function') {
+      throw new Error('Packaged @huggingface/transformers does not expose pipeline()');
+    }
     requireFromApp('onnxruntime-common');
     requireFromApp('onnxruntime-node');
     requireFromApp('sharp');
