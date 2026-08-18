@@ -45,7 +45,9 @@
       "process": {
         "label": "実行過程",
         "processing": "処理中",
-        "processed": "処理済み"
+        "processed": "処理済み",
+        "step": "{count} ステップ",
+        "steps": "{count} ステップ"
       },
       "toolResult": {
         "view": "結果を表示",

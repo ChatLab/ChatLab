@@ -17,6 +17,7 @@ const props = defineProps<{
   disabled?: boolean
   status?: 'ready' | 'submitted' | 'streaming' | 'error'
   chatType: 'group' | 'private'
+  embedded?: boolean
 }>()
 
 const emit = defineEmits<{
@@ -650,7 +651,7 @@ defineExpose({
 </script>
 
 <template>
-  <div class="shrink-0 pt-2 pb-2">
+  <div class="shrink-0" :class="[props.embedded ? '' : 'pt-2 pb-2']">
     <div ref="rootRef" class="relative w-full max-w-4xl mx-auto">
       <SlashCommandMenu
         :visible="showSlashMenu"
@@ -681,6 +682,7 @@ defineExpose({
         :placeholder="inputPlaceholder"
         :send-button-title="sendButtonTitle"
         :active-skill-name="activeSkill?.name"
+        :embedded="props.embedded"
         @submit="handleSubmit"
         @stop="emit('stop')"
         @keydown="handleKeydown"

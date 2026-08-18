@@ -564,27 +564,33 @@ watch(
           <!-- 输入框区域 -->
           <div class="px-4 pb-2">
             <div class="mx-auto max-w-[740px]">
-              <AIChatInput
-                ref="chatInputRef"
-                :session-id="sessionId"
-                :disabled="isAIThinking"
-                :status="isAIThinking ? 'streaming' : 'ready'"
-                :chat-type="currentChatType"
-                @send="handleSend"
-                @stop="handleStop"
-                @manage-skills="handleOpenSkillMarket"
-                @skill-activated="handleSkillActivated"
-              />
+              <div
+                class="overflow-visible rounded-2xl bg-white shadow-[0_2px_14px_rgba(0,0,0,0.04)] ring-1 ring-gray-200/60 transition-all focus-within:ring-primary-500/40 focus-within:shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:bg-page-dark dark:ring-white/5 dark:focus-within:ring-primary-500/40"
+                :class="[isAIThinking ? 'bg-gray-50/50 dark:bg-page-dark/50' : '']"
+              >
+                <AIChatInput
+                  ref="chatInputRef"
+                  :session-id="sessionId"
+                  :disabled="isAIThinking"
+                  :status="isAIThinking ? 'streaming' : 'ready'"
+                  :chat-type="currentChatType"
+                  embedded
+                  @send="handleSend"
+                  @stop="handleStop"
+                  @manage-skills="handleOpenSkillMarket"
+                  @skill-activated="handleSkillActivated"
+                />
 
-              <!-- 底部状态栏 -->
-              <ChatStatusBar
-                :session-token-usage="sessionTokenUsage"
-                :agent-status="agentStatus"
-                :current-ai-chat-id="currentAIChatId"
-                :current-messages="messages"
-                :fallback-title="sessionName"
-                :estimated-context-tokens="estimatedContextTokens"
-              />
+                <ChatStatusBar
+                  class="border-t border-gray-100 px-2 py-1.5 dark:border-gray-800"
+                  :session-token-usage="sessionTokenUsage"
+                  :agent-status="agentStatus"
+                  :current-ai-chat-id="currentAIChatId"
+                  :current-messages="messages"
+                  :fallback-title="sessionName"
+                  :estimated-context-tokens="estimatedContextTokens"
+                />
+              </div>
             </div>
           </div>
         </div>

@@ -45,7 +45,9 @@
       "process": {
         "label": "Process",
         "processing": "Processing",
-        "processed": "Processed"
+        "processed": "Processed",
+        "step": "{count} step",
+        "steps": "{count} steps"
       },
       "toolResult": {
         "view": "View result",

@@ -172,7 +172,7 @@ describe('aiChat chart block helpers', () => {
     )
   })
 
-  it('converts render-only chart tool failures to visible error blocks', () => {
+  it('extracts render-only chart tool failure details', () => {
     const errorBlock = toRenderOnlyToolErrorBlock('render_chart', {
       content: [{ type: 'text', text: 'Error: Field "missing_count" does not exist in SQL result' }],
       details: null,
@@ -232,6 +232,35 @@ describe('aiChat chart block helpers', () => {
       nextBlocks.map((block) => block.type),
       ['think']
     )
+  })
+
+  it('keeps render-only chart failures on the matching tool step', () => {
+    const blocks = [
+      { type: 'think', tag: 'thinking', text: '准备生成图表' },
+      createRenderOnlyToolPendingBlock('render_chart', { spec: { title: '趋势图' } }, 'call_chart_error'),
+    ].filter((block): block is NonNullable<typeof block> => block !== null)
+    const errorBlock = toRenderOnlyToolErrorBlock('render_chart', {
+      content: [{ type: 'text', text: 'Error: encoding.x must be a non-empty field name' }],
+    })
+
+    const nextBlocks = finishRenderOnlyToolResultBlocks(blocks, 'render_chart', 'call_chart_error', [], errorBlock)
+
+    assert.deepEqual(nextBlocks, [
+      blocks[0],
+      {
+        type: 'tool',
+        tool: {
+          name: 'render_chart',
+          displayName: 'render_chart',
+          status: 'error',
+          params: { spec: { title: '趋势图' } },
+          toolCallId: 'call_chart_error',
+          result: 'encoding.x must be a non-empty field name',
+          displayResult: 'encoding.x must be a non-empty field name',
+          isError: true,
+        },
+      },
+    ])
   })
 
   it('hides recovered chart render errors when a later native chart exists', () => {

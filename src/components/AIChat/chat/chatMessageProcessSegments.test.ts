@@ -10,10 +10,13 @@ type TestBlock =
   | { type: 'text'; text: string }
   | { type: 'think'; text: string; durationMs?: number }
   | { type: 'tool'; name: string; durationMs?: number }
+  | { type: 'skill'; name: string }
+  | { type: 'error'; message: string }
   | { type: 'chart'; title: string }
   | { type: 'evidence'; title: string }
 
-const isFoldableProcessBlock = (block: TestBlock): boolean => block.type === 'think' || block.type === 'tool'
+const isFoldableProcessBlock = (block: TestBlock): boolean =>
+  block.type === 'think' || block.type === 'tool' || block.type === 'skill' || block.type === 'error'
 
 const isTextBlock = (block: TestBlock): boolean => block.type === 'text'
 
@@ -41,12 +44,14 @@ describe('chat message process segments', () => {
     assert.deepEqual(getVisibleSegmentBlocks(segments), [blocks[4]])
   })
 
-  it('keeps result blocks visible and starts a new process segment after them', () => {
+  it('keeps one process segment while result blocks remain visible', () => {
     const blocks: TestBlock[] = [
       { type: 'tool', name: 'get_time_stats' },
       { type: 'chart', title: '发言趋势' },
       { type: 'text', text: '图表之后继续核对。' },
+      { type: 'skill', name: 'relationship-analysis' },
       { type: 'tool', name: 'retrieve_chat_evidence' },
+      { type: 'error', message: '部分证据读取失败' },
       { type: 'evidence', title: '证据' },
       { type: 'text', text: '最终解释' },
     ]
@@ -54,13 +59,12 @@ describe('chat message process segments', () => {
     const segments = buildProcessSegments(blocks, { isFoldableProcessBlock, isTextBlock })
 
     assert.deepEqual(segments, [
-      { type: 'process', blocks: [blocks[0]] },
+      { type: 'process', blocks: [blocks[0], blocks[2], blocks[3], blocks[4], blocks[5]] },
       { type: 'visible', block: blocks[1] },
-      { type: 'process', blocks: blocks.slice(2, 4) },
-      { type: 'visible', block: blocks[4] },
-      { type: 'visible', block: blocks[5] },
+      { type: 'visible', block: blocks[6] },
+      { type: 'visible', block: blocks[7] },
     ])
-    assert.deepEqual(getVisibleSegmentBlocks(segments), [blocks[1], blocks[4], blocks[5]])
+    assert.deepEqual(getVisibleSegmentBlocks(segments), [blocks[1], blocks[6], blocks[7]])
   })
 
   it('keeps text visible when no later process block exists', () => {

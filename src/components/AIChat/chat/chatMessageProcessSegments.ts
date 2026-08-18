@@ -27,24 +27,23 @@ function hasLaterFoldableProcessBlock<T>(
 }
 
 export function buildProcessSegments<T>(blocks: T[], options: ProcessSegmentOptions<T>): ProcessSegment<T>[] {
+  const isProcessBlock = blocks.map(
+    (block, index) =>
+      options.isFoldableProcessBlock(block) ||
+      (options.isTextBlock(block) && hasLaterFoldableProcessBlock(blocks, index, options.isFoldableProcessBlock))
+  )
+  const processBlocks = blocks.filter((_block, index) => isProcessBlock[index])
+  const firstProcessIndex = isProcessBlock.findIndex(Boolean)
   const segments: ProcessSegment<T>[] = []
 
   blocks.forEach((block, index) => {
-    const isProcess =
-      options.isFoldableProcessBlock(block) ||
-      (options.isTextBlock(block) && hasLaterFoldableProcessBlock(blocks, index, options.isFoldableProcessBlock))
-
-    if (!isProcess) {
-      segments.push({ type: 'visible', block })
+    if (index === firstProcessIndex) {
+      segments.push({ type: 'process', blocks: processBlocks })
       return
     }
 
-    const lastSegment = segments[segments.length - 1]
-    if (lastSegment?.type === 'process') {
-      lastSegment.blocks.push(block)
-    } else {
-      segments.push({ type: 'process', blocks: [block] })
-    }
+    if (isProcessBlock[index]) return
+    segments.push({ type: 'visible', block })
   })
 
   return segments

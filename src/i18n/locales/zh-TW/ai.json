@@ -45,7 +45,9 @@
       "process": {
         "label": "執行過程",
         "processing": "處理中",
-        "processed": "已處理"
+        "processed": "已處理",
+        "step": "{count} 步",
+        "steps": "{count} 步"
       },
       "toolResult": {
         "view": "查看結果",

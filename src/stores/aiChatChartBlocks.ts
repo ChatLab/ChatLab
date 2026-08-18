@@ -9,7 +9,10 @@ export type RenderOnlyToolPendingBlock = {
     status: 'running' | 'done' | 'error'
     params?: Record<string, unknown>
     toolCallId?: string
-    transient: true
+    transient?: true
+    result?: string
+    displayResult?: string
+    isError?: boolean
   }
 }
 export type RenderOnlyToolErrorBlock = {
@@ -210,13 +213,33 @@ export function finishRenderOnlyToolResultBlocks<T>(
   charts: ChartPayload[],
   errorBlock: RenderOnlyToolErrorBlock | null
 ): Array<T | ChartContentBlock | RenderOnlyToolErrorBlock> {
-  // render-only 工具的 pending 行只用于流式占位；如果没有生成图表，也没有需要展示的错误，就应直接移除。
+  // A pending render-only row is only a streaming placeholder. Remove it when the tool produces no visible result.
   if (charts.length > 0) {
     return replaceRenderOnlyToolPendingBlockWithCharts(blocks, toolName, toolCallId, charts)
   }
 
+  if (errorBlock) {
+    let replaced = false
+    const withToolError = blocks.map((block) => {
+      if (!isMatchingPendingRenderOnlyToolBlock(block, toolName, toolCallId)) return block
+      replaced = true
+      const settledTool = { ...block.tool }
+      delete settledTool.transient
+      return {
+        ...block,
+        tool: {
+          ...settledTool,
+          status: 'error' as const,
+          result: errorBlock.error.message,
+          displayResult: errorBlock.error.message,
+          isError: true,
+        },
+      }
+    })
+    return replaced ? withToolError : [...blocks, errorBlock]
+  }
+
   const withoutPending = removeRenderOnlyToolPendingBlock(blocks, toolName, toolCallId)
-  if (errorBlock) return [...withoutPending, errorBlock]
   return withoutPending
 }
 
