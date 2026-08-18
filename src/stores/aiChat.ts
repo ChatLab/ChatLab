@@ -20,7 +20,7 @@ import { useAgentStreamService } from '@/services/ai-stream/service'
 import { buildSerializablePreprocessConfig, shouldEnsureDesensitizeRulesBeforeSerialize } from './aiPreprocessConfig'
 import type { ChartPayload, ChatEvidencePayload } from '@openchatlab/core'
 import { extractToolResultText, truncateToolResultText } from '@openchatlab/core'
-import { getDefaultGeneralAssistantId } from '@openchatlab/shared-types'
+import { getDefaultGeneralAssistantId, type ToolProgress } from '@openchatlab/shared-types'
 import {
   createRenderOnlyToolPendingBlock,
   extractChartPayloads,
@@ -129,6 +129,7 @@ export interface ToolStatus {
   name: string
   displayName: string
   status: 'running' | 'done' | 'error'
+  progress?: ToolProgress
   result?: unknown
 }
 
@@ -1064,6 +1065,17 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               }
               break
 
+            case 'tool_update':
+              if (
+                chunk.toolName &&
+                chunk.toolProgress &&
+                state.currentToolStatus?.name === chunk.toolName &&
+                state.currentToolStatus.status === 'running'
+              ) {
+                state.currentToolStatus = { ...state.currentToolStatus, progress: chunk.toolProgress }
+              }
+              break
+
             case 'tool_result':
               if (chunk.toolName) {
                 const charts = extractChartPayloads(chunk.toolResult)
@@ -1641,6 +1653,16 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                 } else {
                   addToolBlock(chunk.toolName, toolParams, chunk.toolCallId)
                 }
+              }
+              break
+            case 'tool_update':
+              if (
+                chunk.toolName &&
+                chunk.toolProgress &&
+                state.currentToolStatus?.name === chunk.toolName &&
+                state.currentToolStatus.status === 'running'
+              ) {
+                state.currentToolStatus = { ...state.currentToolStatus, progress: chunk.toolProgress }
               }
               break
             case 'tool_result':

@@ -5,6 +5,9 @@
  */
 
 import type { ChartPayload, DatabaseAdapter, EvidenceTimeRangeMs } from '@openchatlab/core'
+import type { ToolProgress } from '@openchatlab/shared-types'
+
+export type { ToolProgress } from '@openchatlab/shared-types'
 
 export type {
   EvidenceRetrievalMode,
@@ -301,6 +304,8 @@ export interface ToolExecutionContext {
   locale?: string
   timeFilter?: ToolTimeRange
   abortSignal?: AbortSignal
+  /** Report meaningful phases for long-running tool execution. */
+  reportProgress?: (progress: ToolProgress) => void
   /** 抽象查询接口 */
   dataProvider?: ToolDataProvider
   /** 语义检索窄接口（仅当前会话可检索时由 adapter 注入） */

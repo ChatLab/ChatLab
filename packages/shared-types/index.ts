@@ -39,6 +39,15 @@ export type NavigationLayoutLoadResult =
   | { status: 'saved'; layout: NavigationLayout }
   | { status: 'missing' | 'invalid'; layout: null }
 
+// ==================== AI tool progress ====================
+
+/** Stable, transport-safe progress payload emitted by long-running AI tools. */
+export interface ToolProgress {
+  phase: string
+  current?: number
+  total?: number
+}
+
 // ==================== 时间筛选 ====================
 
 export interface TimeFilter {

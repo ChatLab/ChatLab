@@ -347,6 +347,7 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
       ? params.mode
       : 'auto'
 
+  context.reportProgress?.({ phase: 'checking_capabilities' })
   const service = context.semanticIndexService
   const semanticAvailable = !!service && (await service.canSearch(context.sessionId))
   const rangeMs = parseEvidenceTimeRange(params, context)
@@ -367,6 +368,7 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
     if (!service || !semanticAvailable) {
       warnings.add('semantic_unavailable')
     } else {
+      context.reportProgress?.({ phase: 'semantic_search' })
       const result = await service.searchForTool(context.sessionId, query, {
         maxResults: clampMaxResults(params.max_results),
         preprocessConfig: context.preprocessConfig,
@@ -408,6 +410,7 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
     } else if (!context.dataProvider) {
       warnings.add('keyword_unavailable')
     } else {
+      context.reportProgress?.({ phase: 'keyword_search' })
       const secFilter = toKeywordTimeFilter(rangeMs)
       const searchResult = await context.dataProvider.searchMessages(keywords, {
         timeFilter: secFilter,
@@ -418,6 +421,7 @@ async function handler(params: Record<string, unknown>, context: ToolExecutionCo
     }
   }
 
+  context.reportProgress?.({ phase: 'assembling_evidence' })
   const merged = mergeCandidates(semanticCandidates, keywordCandidates)
   const groups = buildGroups(merged, !!criteria, locale)
 

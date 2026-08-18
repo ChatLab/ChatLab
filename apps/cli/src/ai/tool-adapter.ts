@@ -74,13 +74,15 @@ export function adaptToolsForAgent(
         description: tool.description,
         parameters: toAgentToolParameters(tool.inputSchema) as any,
         executionMode: tool.executionMode,
-        async execute(_toolCallId: string, params: unknown) {
+        async execute(_toolCallId: string, params: unknown, signal, onUpdate) {
           const ctx = getContext()
           const execCtx: ToolExecutionContext = {
             db: ctx.db,
             dataProvider: new CoreDataProvider(ctx.db),
             sessionId: ctx.sessionId,
             locale: ctx.locale,
+            abortSignal: signal,
+            reportProgress: (progress) => onUpdate?.({ content: [], details: { progress } }),
             semanticIndexService: ctx.semanticIndexService,
             preprocessConfig: ctx.preprocessConfig,
             ownerPlatformId: ctx.ownerPlatformId,

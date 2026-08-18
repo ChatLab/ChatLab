@@ -2,6 +2,7 @@
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { AgentRuntimeStatus } from '@electron/shared/types'
+import type { ToolProgress } from '@openchatlab/shared-types'
 
 const { t, te } = useI18n()
 
@@ -11,6 +12,12 @@ function localizedToolName(name: string, fallback?: string): string {
   return te(key) ? t(key) : fallback || name
 }
 
+function localizedToolProgress(progress?: ToolProgress): string {
+  if (!progress) return ''
+  const key = `ai.chat.thinking.toolProgress.${progress.phase}`
+  return te(key) ? t(key) : ''
+}
+
 // Props
 const props = defineProps<{
   // 当前工具执行状态
@@ -18,6 +25,7 @@ const props = defineProps<{
     name: string
     displayName: string
     status: 'running' | 'done' | 'error'
+    progress?: ToolProgress
   } | null
   // 当前轮次已使用的工具列表
   toolsUsed: string[]
@@ -81,6 +89,13 @@ const isCompressing = computed(() => props.agentStatus?.phase === 'compressing')
             <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-pink-500 [animation-delay:0ms]" />
             <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-pink-500 [animation-delay:150ms]" />
             <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-pink-500 [animation-delay:300ms]" />
+          </span>
+
+          <span
+            v-if="currentToolStatus.status === 'running' && localizedToolProgress(currentToolStatus.progress)"
+            class="text-xs text-gray-500 dark:text-gray-400"
+          >
+            {{ localizedToolProgress(currentToolStatus.progress) }}
           </span>
 
           <!-- 完成后处理中状态 -->

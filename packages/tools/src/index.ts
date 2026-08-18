@@ -53,6 +53,7 @@ export { parseExtendedTimeParams } from './utils/time-params'
 export type {
   ToolDefinition,
   ToolExecutionContext,
+  ToolProgress,
   ToolResult,
   JsonSchema,
   RawMessage,

@@ -86,6 +86,7 @@ describe('retrieveChatEvidenceTool schema', () => {
 describe('retrieveChatEvidenceTool mode resolution', () => {
   it('auto resolves to hybrid and calls both semantic + keyword when available with keywords', async () => {
     let semanticCalled = false
+    const progressPhases: string[] = []
     const capture: { args?: unknown[] } = {}
     const service = makeService({
       searchForTool: async () => {
@@ -96,12 +97,22 @@ describe('retrieveChatEvidenceTool mode resolution', () => {
     const dp = makeDataProvider([rawMsg(200, 1714521600, '我们去乐山玩了')], capture)
     const res = await retrieveChatEvidenceTool.handler(
       { query: '去过乐山几次', criteria: '实际出行', keywords: ['乐山'] },
-      makeContext({ semanticIndexService: service, dataProvider: dp })
+      makeContext({
+        semanticIndexService: service,
+        dataProvider: dp,
+        reportProgress: (progress) => progressPhases.push(progress.phase),
+      })
     )
     assert.equal(semanticCalled, true)
     assert.ok(capture.args, 'keyword search should be called')
     const payload = getPayload(res.data)
     assert.equal(payload.mode, 'hybrid')
+    assert.deepEqual(progressPhases, [
+      'checking_capabilities',
+      'semantic_search',
+      'keyword_search',
+      'assembling_evidence',
+    ])
   })
 
   it('semantic mode does not call keyword search', async () => {

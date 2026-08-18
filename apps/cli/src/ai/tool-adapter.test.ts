@@ -123,4 +123,25 @@ describe('adaptToolsForAgent', () => {
     assert.ok(text.includes('hello world'))
     assert.ok(text.includes('hi there'))
   })
+
+  it('bridges shared tool progress to Pi tool updates', async () => {
+    const tool: ToolDefinition = {
+      name: 'slow_tool',
+      description: 'Slow tool',
+      inputSchema: { type: 'object', properties: {} },
+      async handler(_params, context) {
+        context.reportProgress?.({ phase: 'searching' })
+        return { content: 'Done' }
+      },
+    }
+    const [agentTool] = adaptToolsForAgent([tool], () => ({
+      db: {} as DatabaseAdapter,
+      sessionId: 'session-1',
+    }))
+    const updates: unknown[] = []
+
+    await agentTool.execute('call-progress', {}, undefined, (update) => updates.push(update))
+
+    assert.deepEqual(updates, [{ content: [], details: { progress: { phase: 'searching' } } }])
+  })
 })

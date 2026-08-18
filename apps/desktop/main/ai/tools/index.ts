@@ -90,8 +90,8 @@ function wrapWithPreprocessing(tool: AgentTool<any>, context: ToolContext): Agen
   const originalExecute = tool.execute
   return {
     ...tool,
-    execute: async (toolCallId: string, params: any, _signal?: AbortSignal, _onUpdate?: unknown) => {
-      const result = await originalExecute(toolCallId, params)
+    execute: async (toolCallId: string, params: any, signal, onUpdate) => {
+      const result = await originalExecute(toolCallId, params, signal, onUpdate)
 
       const details = result.details as Record<string, unknown> | undefined
       if (!details?.rawMessages || !Array.isArray(details.rawMessages)) {

@@ -115,7 +115,13 @@
       "processingResult": "正在整理結果",
       "called": "已執行：",
       "analyzing": "正在分析問題...",
-      "compressing": "正在壓縮上下文..."
+      "compressing": "正在壓縮上下文...",
+      "toolProgress": {
+        "checking_capabilities": "正在檢查檢索能力",
+        "semantic_search": "正在進行語意檢索",
+        "keyword_search": "正在進行關鍵字檢索",
+        "assembling_evidence": "正在整理證據"
+      }
     },
     "statusBar": {
       "model": {

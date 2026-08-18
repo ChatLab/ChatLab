@@ -6,6 +6,7 @@
  */
 
 import type { Message as PiMessage } from '@earendil-works/pi-ai'
+import type { ToolProgress } from '@openchatlab/shared-types'
 import type { AgentCoreEvent } from './types'
 import type { PlanContentBlock } from './planning-types'
 import type { RouteDecision } from './routing-types'
@@ -35,6 +36,7 @@ export interface AgentStreamChunk {
     | 'content'
     | 'think'
     | 'tool_start'
+    | 'tool_update'
     | 'tool_result'
     | 'status'
     | 'compression_done'
@@ -50,6 +52,7 @@ export interface AgentStreamChunk {
   toolCallId?: string
   toolName?: string
   toolParams?: Record<string, unknown>
+  toolProgress?: ToolProgress
   toolResult?: unknown
   toolIsError?: boolean
   error?: unknown
@@ -187,6 +190,14 @@ export class AgentEventHandler {
         this.emitStatus('tool_running', messages, { currentTool: event.toolName, force: true })
         break
       }
+      case 'tool_update':
+        this.onChunk({
+          type: 'tool_update',
+          toolCallId: event.toolCallId,
+          toolName: event.toolName,
+          toolProgress: event.progress,
+        })
+        break
       case 'tool_end':
         this.onChunk({
           type: 'tool_result',

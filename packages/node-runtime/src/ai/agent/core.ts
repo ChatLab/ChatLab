@@ -9,6 +9,7 @@ import { Agent as PiAgentCore } from '@earendil-works/pi-agent-core'
 import type { AgentEvent as PiAgentEvent, AgentMessage as PiAgentMessage } from '@earendil-works/pi-agent-core'
 import { type Message as PiMessage, type Usage as PiUsage, clampThinkingLevel } from '@earendil-works/pi-ai'
 import { StreamingThinkTagParser, needsStreamingThinkParsing } from '@openchatlab/core'
+import type { ToolProgress } from '@openchatlab/shared-types'
 
 import type { AgentCoreOptions, AgentCoreResult, AgentTokenUsage } from './types'
 import { initTokenizer } from '../tokenizer'
@@ -197,6 +198,16 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
         toolName: event.toolName,
         toolParams: (event.args || {}) as Record<string, unknown>,
       })
+    } else if (event.type === 'tool_execution_update') {
+      const details = event.partialResult?.details as { progress?: ToolProgress } | null
+      if (details?.progress) {
+        onEvent({
+          type: 'tool_update',
+          toolCallId: event.toolCallId,
+          toolName: event.toolName,
+          progress: details.progress,
+        })
+      }
     } else if (event.type === 'tool_execution_end') {
       onEvent({
         type: 'tool_end',

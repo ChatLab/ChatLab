@@ -115,7 +115,13 @@
       "processingResult": "Processing result",
       "called": "Called:",
       "analyzing": "Analyzing question...",
-      "compressing": "Compressing context..."
+      "compressing": "Compressing context...",
+      "toolProgress": {
+        "checking_capabilities": "Checking search capabilities",
+        "semantic_search": "Running semantic search",
+        "keyword_search": "Running keyword search",
+        "assembling_evidence": "Assembling evidence"
+      }
     },
     "statusBar": {
       "model": {

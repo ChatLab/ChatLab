@@ -10,6 +10,7 @@ import {
   toAgentToolParameters,
   type ToolDefinition,
   type ToolExecutionContext,
+  type ToolProgress,
   type RawMessage,
 } from '@openchatlab/tools'
 import type { AgentTool, PreprocessableMessage, PreprocessConfig } from '@openchatlab/node-runtime'
@@ -18,13 +19,19 @@ import type { ToolContext, ToolRegistryEntry } from './types'
 import { WorkerDataProvider } from './worker-data-provider'
 import { t as i18nT } from '../../i18n'
 
-function buildExecutionContext(ctx: ToolContext): ToolExecutionContext {
+function buildExecutionContext(
+  ctx: ToolContext,
+  signal?: AbortSignal,
+  reportProgress?: (progress: ToolProgress) => void
+): ToolExecutionContext {
+  const abortSignal = signal ?? ctx.abortSignal
   return {
-    dataProvider: new WorkerDataProvider(ctx.sessionId, ctx.abortSignal),
+    dataProvider: new WorkerDataProvider(ctx.sessionId, abortSignal),
     sessionId: ctx.sessionId,
     locale: ctx.locale,
     timeFilter: ctx.timeFilter,
-    abortSignal: ctx.abortSignal,
+    abortSignal,
+    reportProgress,
     searchContextBefore: ctx.searchContextBefore,
     searchContextAfter: ctx.searchContextAfter,
     maxMessagesLimit: ctx.maxMessagesLimit,
@@ -59,8 +66,12 @@ export function adaptSharedTool(tool: ToolDefinition): ToolRegistryEntry {
         description: tool.description,
         parameters: toAgentToolParameters(tool.inputSchema) as any,
         executionMode: tool.executionMode,
-        async execute(_toolCallId: string, params: unknown) {
-          return executeToolForAgent(tool, params, buildExecutionContext(context))
+        async execute(_toolCallId: string, params: unknown, signal, onUpdate) {
+          return executeToolForAgent(
+            tool,
+            params,
+            buildExecutionContext(context, signal, (progress) => onUpdate?.({ content: [], details: { progress } }))
+          )
         },
       }
     },

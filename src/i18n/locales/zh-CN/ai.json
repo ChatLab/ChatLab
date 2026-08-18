@@ -115,7 +115,13 @@
       "processingResult": "处理结果中",
       "called": "已调用:",
       "analyzing": "正在分析问题...",
-      "compressing": "正在压缩上下文..."
+      "compressing": "正在压缩上下文...",
+      "toolProgress": {
+        "checking_capabilities": "正在检查检索能力",
+        "semantic_search": "正在进行语义检索",
+        "keyword_search": "正在进行关键词检索",
+        "assembling_evidence": "正在整理证据"
+      }
     },
     "statusBar": {
       "model": {

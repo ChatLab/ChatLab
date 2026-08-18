@@ -45,6 +45,34 @@ describe('AgentEventHandler', () => {
     assert.equal(startChunk?.toolCallId, 'call_1')
   })
 
+  it('forwards tool progress without changing the result payload', () => {
+    const chunks: AgentStreamChunk[] = []
+    const handler = new AgentEventHandler({
+      onChunk: (chunk) => chunks.push(chunk),
+      context: {},
+      systemPrompt: 'test',
+    })
+
+    handler.handleCoreEvent(
+      {
+        type: 'tool_update',
+        toolCallId: 'call_1',
+        toolName: 'retrieve_chat_evidence',
+        progress: { phase: 'semantic_search' },
+      },
+      []
+    )
+
+    assert.deepEqual(chunks, [
+      {
+        type: 'tool_update',
+        toolCallId: 'call_1',
+        toolName: 'retrieve_chat_evidence',
+        toolProgress: { phase: 'semantic_search' },
+      },
+    ])
+  })
+
   it('updates tool rounds on turn_end', () => {
     const handler = new AgentEventHandler({
       onChunk: () => {},

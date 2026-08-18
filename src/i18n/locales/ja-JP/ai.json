@@ -115,7 +115,13 @@
       "processingResult": "結果を整理中",
       "called": "実行したツール:",
       "analyzing": "問題を分析中...",
-      "compressing": "コンテキストを圧縮中..."
+      "compressing": "コンテキストを圧縮中...",
+      "toolProgress": {
+        "checking_capabilities": "検索機能を確認中",
+        "semantic_search": "セマンティック検索を実行中",
+        "keyword_search": "キーワード検索を実行中",
+        "assembling_evidence": "証拠を整理中"
+      }
     },
     "statusBar": {
       "model": {

@@ -1,5 +1,5 @@
 import type { PlanContentBlock } from '@/services/ai/planBlocks'
-import type { ChartAutoMode } from '@openchatlab/shared-types'
+import type { ChartAutoMode, ToolProgress } from '@openchatlab/shared-types'
 
 export interface LlmStreamChunk {
   content: string
@@ -15,6 +15,7 @@ export interface AgentStreamChunk {
     | 'content'
     | 'think'
     | 'tool_start'
+    | 'tool_update'
     | 'tool_result'
     | 'status'
     | 'compression_done'
@@ -30,6 +31,7 @@ export interface AgentStreamChunk {
   toolCallId?: string
   toolName?: string
   toolParams?: Record<string, unknown>
+  toolProgress?: ToolProgress
   toolResult?: unknown
   toolIsError?: boolean
   error?: unknown

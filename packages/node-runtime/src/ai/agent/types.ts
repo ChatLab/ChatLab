@@ -8,6 +8,7 @@
 import type { AgentTool } from '@earendil-works/pi-agent-core'
 import type { Model, Api, Message } from '@earendil-works/pi-ai'
 import type { ThinkingLevel } from '@openchatlab/core'
+import type { ToolProgress } from '@openchatlab/shared-types'
 import type { ContentBlock } from '../chats'
 
 export interface AgentTokenUsage {
@@ -31,6 +32,7 @@ export type AgentCoreEvent =
   | { type: 'thinking_delta'; content: string }
   | { type: 'thinking_end'; durationMs?: number }
   | { type: 'tool_start'; toolCallId: string; toolName: string; toolParams: Record<string, unknown> }
+  | { type: 'tool_update'; toolCallId: string; toolName: string; progress: ToolProgress }
   | { type: 'tool_end'; toolCallId: string; toolName: string; toolResult: unknown; isError: boolean }
   | { type: 'turn_end'; round: number; hadToolCalls: boolean }
   | { type: 'usage_update'; usage: AgentTokenUsage }

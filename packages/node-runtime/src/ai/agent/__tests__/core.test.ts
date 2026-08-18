@@ -88,6 +88,8 @@ function emitMessage(stream: AssistantMessageEventStream, message: AssistantMess
 
   if (message.stopReason === 'error' || message.stopReason === 'aborted') {
     stream.push({ type: 'error', reason: message.stopReason, error: message })
+  } else if (message.stopReason === 'pending') {
+    throw new Error('A scripted assistant message must be complete before it is emitted')
   } else {
     stream.push({ type: 'done', reason: message.stopReason, message })
   }
@@ -216,6 +218,37 @@ describe('runAgentCore runtime contract', () => {
     assert.equal(
       events.some((event) => event.type === 'content' && event.content === 'Final answer'),
       true
+    )
+  })
+
+  it('forwards tool execution progress as a stable core event', async () => {
+    const events: AgentCoreEvent[] = []
+    const tool = createTool('lookup', async (_toolCallId, _params, _signal, onUpdate) => {
+      onUpdate?.({ content: [], details: { progress: { phase: 'searching' } } })
+      return { content: [{ type: 'text', text: 'tool result' }], details: null }
+    })
+
+    await runAgentCore(
+      createOptions({
+        tools: [tool],
+        streamFn: createScriptedStream([
+          assistantMessage([{ type: 'toolCall', id: 'tool-progress', name: 'lookup', arguments: {} }], {
+            stopReason: 'toolUse',
+          }),
+          assistantMessage([{ type: 'text', text: 'Done' }]),
+        ]),
+        onEvent: (event) => events.push(event),
+      })
+    )
+
+    assert.deepEqual(
+      events.find((event) => event.type === 'tool_update'),
+      {
+        type: 'tool_update',
+        toolCallId: 'tool-progress',
+        toolName: 'lookup',
+        progress: { phase: 'searching' },
+      }
     )
   })
 
