@@ -99,6 +99,7 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
   })()
 
   const finalThinkingLevel = resolvedThinkingLevel ?? (piModel.reasoning ? undefined : 'off')
+  let hasReachedToolRoundLimit = false
 
   // DeepSeek-format APIs require reasoning_content on assistant messages that
   // precede tool results; build replay options so toPiHistoryMessages includes
@@ -129,9 +130,18 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
       onConvertToLlm?.(filtered)
       return filtered
     },
+    prepareNextTurn: () =>
+      hasReachedToolRoundLimit
+        ? {
+            context: {
+              systemPrompt,
+              messages: coreAgent.state.messages,
+              tools: [],
+            },
+          }
+        : undefined,
   })
 
-  let hasReachedToolRoundLimit = false
   const thinkingStartTime = new Map<number, number>()
 
   // For providers that embed <think> tags in content (e.g. MiniMax),
