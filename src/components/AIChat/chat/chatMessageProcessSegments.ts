@@ -15,6 +15,12 @@ export interface ProcessSegmentStatusLabelOptions<T> {
   locale: string
 }
 
+interface ProcessThoughtCandidate {
+  type: string
+  tag?: string
+  text?: string
+}
+
 function hasLaterFoldableProcessBlock<T>(
   blocks: T[],
   startIndex: number,
@@ -51,6 +57,18 @@ export function buildProcessSegments<T>(blocks: T[], options: ProcessSegmentOpti
 
 export function getVisibleSegmentBlocks<T>(segments: ProcessSegment<T>[]): T[] {
   return segments.flatMap((segment) => (segment.type === 'visible' ? [segment.block] : []))
+}
+
+export function findRepresentativeProcessThought<T extends ProcessThoughtCandidate>(
+  blocks: readonly T[]
+): Extract<T, { type: 'think' }> | undefined {
+  for (let index = blocks.length - 1; index >= 0; index -= 1) {
+    const block = blocks[index]
+    if (block.type === 'think' && block.tag?.toLowerCase() !== 'plan_validation' && Boolean(block.text?.trim())) {
+      return block as Extract<T, { type: 'think' }>
+    }
+  }
+  return undefined
 }
 
 export function formatProcessDuration(durationMs: number, locale: string): string {
@@ -97,4 +115,44 @@ export function getProcessSegmentStatusLabel<T>(
   const durationMs = getProcessSegmentDurationMs(segment, options.getBlockDurationMs)
   const duration = durationMs > 0 ? ` ${formatProcessDuration(durationMs, options.locale)}` : ''
   return `${options.labels.processed}${duration}`
+}
+
+export type ProcessHeaderActivity =
+  | { type: 'tool'; name: string; progressPhase?: string }
+  | { type: 'think' }
+  | { type: 'skill'; name: string }
+  | { type: 'plan' }
+  | { type: 'generic' }
+
+export function resolveProcessHeaderActivity(input: {
+  isActive: boolean
+  activeToolName?: string
+  activeToolProgressPhase?: string
+  lastFoldable?: {
+    kind: 'tool' | 'think' | 'skill' | 'plan' | 'plan_draft' | 'error'
+    name?: string
+  }
+}): ProcessHeaderActivity {
+  if (input.isActive && input.activeToolName) {
+    return {
+      type: 'tool',
+      name: input.activeToolName,
+      progressPhase: input.activeToolProgressPhase,
+    }
+  }
+
+  if (input.isActive && input.lastFoldable) {
+    if (input.lastFoldable.kind === 'think') return { type: 'think' }
+    if (input.lastFoldable.kind === 'skill' && input.lastFoldable.name) {
+      return { type: 'skill', name: input.lastFoldable.name }
+    }
+    if (input.lastFoldable.kind === 'plan' || input.lastFoldable.kind === 'plan_draft') {
+      return { type: 'plan' }
+    }
+    if (input.lastFoldable.kind === 'tool' && input.lastFoldable.name) {
+      return { type: 'tool', name: input.lastFoldable.name }
+    }
+  }
+
+  return { type: 'generic' }
 }

@@ -46,6 +46,9 @@
         "label": "執行過程",
         "processing": "處理中",
         "processed": "已處理",
+        "working": "正在處理",
+        "planning": "正在規劃",
+        "failed": "未完成",
         "step": "{count} 步",
         "steps": "{count} 步"
       },

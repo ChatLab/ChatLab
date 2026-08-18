@@ -50,7 +50,6 @@ const {
   isAIThinking,
   currentAIChatId,
   currentToolStatus,
-  toolsUsedInCurrentRound,
   sessionTokenUsage,
   agentStatus,
   selectedAssistantId,
@@ -517,6 +516,7 @@ watch(
                     :is-streaming="pair.assistant.isStreaming"
                     :content-blocks="pair.assistant.contentBlocks"
                     :show-capture-button="!pair.assistant.isStreaming"
+                    :active-tool="pair.assistant.isStreaming ? currentToolStatus : null"
                     @fork="handleForkAIChat"
                   />
                 </div>
@@ -530,7 +530,6 @@ watch(
                   !(messages[messages.length - 1]?.contentBlocks?.length ?? 0)
                 "
                 :current-tool-status="currentToolStatus"
-                :tools-used="toolsUsedInCurrentRound"
                 :agent-status="agentStatus"
               />
             </div>
@@ -550,7 +549,7 @@ watch(
 
           <!-- 预设问题气泡（仅在对话为空时显示） -->
           <div v-if="messages.length === 0 && !isAIThinking" class="px-4 pb-2">
-            <div class="mx-auto max-w-[740px]">
+            <div class="mx-auto max-w-3xl">
               <PresetQuestions
                 :questions="currentPresetQuestions"
                 :leading-action-label="t('ai.chat.input.useSkill')"
@@ -563,10 +562,9 @@ watch(
 
           <!-- 输入框区域 -->
           <div class="px-4 pb-2">
-            <div class="mx-auto max-w-[740px]">
+            <div class="mx-auto max-w-3xl">
               <div
                 class="overflow-visible rounded-2xl bg-white shadow-[0_2px_14px_rgba(0,0,0,0.04)] ring-1 ring-gray-200/60 transition-all focus-within:ring-primary-500/40 focus-within:shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:bg-page-dark dark:ring-white/5 dark:focus-within:ring-primary-500/40"
-                :class="[isAIThinking ? 'bg-gray-50/50 dark:bg-page-dark/50' : '']"
               >
                 <AIChatInput
                   ref="chatInputRef"
@@ -582,7 +580,7 @@ watch(
                 />
 
                 <ChatStatusBar
-                  class="border-t border-gray-100 px-2 py-1.5 dark:border-gray-800"
+                  class="px-2 pb-1.5 pt-0.5"
                   :session-token-usage="sessionTokenUsage"
                   :agent-status="agentStatus"
                   :current-ai-chat-id="currentAIChatId"

@@ -51,27 +51,20 @@ const agentPhaseShortText = computed(() => {
   return t(`ai.chat.statusBar.agent.phaseShort.${props.agentStatus.phase}`)
 })
 
-const agentPhaseClass = computed(() => {
-  if (!props.agentStatus) return 'text-gray-500 bg-gray-100 dark:bg-gray-800 dark:text-gray-300'
+const isLiveAgentPhase = computed(() => {
+  const phase = props.agentStatus?.phase
+  return (
+    phase === 'compressing' ||
+    phase === 'preparing' ||
+    phase === 'thinking' ||
+    phase === 'tool_running' ||
+    phase === 'responding'
+  )
+})
 
-  switch (props.agentStatus.phase) {
-    case 'compressing':
-      return 'text-purple-600 bg-purple-50 dark:bg-purple-900/30 dark:text-purple-300'
-    case 'tool_running':
-      return 'text-indigo-600 bg-indigo-50 dark:bg-indigo-900/30 dark:text-indigo-300'
-    case 'thinking':
-      return 'text-blue-600 bg-blue-50 dark:bg-blue-900/30 dark:text-blue-300'
-    case 'responding':
-      return 'text-emerald-600 bg-emerald-50 dark:bg-emerald-900/30 dark:text-emerald-300'
-    case 'completed':
-      return 'text-green-600 bg-green-50 dark:bg-green-900/30 dark:text-green-300'
-    case 'aborted':
-      return 'text-amber-600 bg-amber-50 dark:bg-amber-900/30 dark:text-amber-300'
-    case 'error':
-      return 'text-red-600 bg-red-50 dark:bg-red-900/30 dark:text-red-300'
-    default:
-      return 'text-gray-500 bg-gray-100 dark:bg-gray-800 dark:text-gray-300'
-  }
+const showAgentPhase = computed(() => {
+  const phase = props.agentStatus?.phase
+  return isLiveAgentPhase.value || phase === 'error'
 })
 
 function formatNumber(value: number): string {
@@ -336,14 +329,15 @@ const thinkingLevelLabel = computed(() => {
     <!-- 右侧：配置状态指示 -->
     <div class="flex items-center gap-1">
       <div
-        v-if="agentStatus"
-        class="hidden shrink-0 items-center gap-1 rounded-lg bg-gray-50/90 px-1.5 py-1 text-xs shadow-[inset_0_0_0_1px_rgba(255,255,255,0.35)] dark:bg-gray-800/70 dark:shadow-[inset_0_0_0_1px_rgba(255,255,255,0.04)] lg:flex"
+        v-if="showAgentPhase"
+        class="hidden shrink-0 items-center gap-1.5 px-1.5 py-1 text-[11px] text-gray-400 lg:flex dark:text-gray-500"
         :title="agentCompactTitle"
       >
-        <!-- 主栏只展示阶段，context token 放进 tooltip，避免和累计 token 混淆。 -->
-        <span class="rounded px-1 py-0.5 text-[10px] font-medium" :class="agentPhaseClass">
-          {{ agentPhaseShortText }}
-        </span>
+        <span
+          class="h-1.5 w-1.5 rounded-full"
+          :class="[agentStatus?.phase === 'error' ? 'bg-amber-500' : 'bg-primary-500 animate-pulse']"
+        />
+        <span>{{ agentPhaseShortText }}</span>
       </div>
 
       <!-- Context 进度条 -->

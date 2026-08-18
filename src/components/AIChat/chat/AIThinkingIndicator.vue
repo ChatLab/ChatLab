@@ -6,7 +6,6 @@ import type { ToolProgress } from '@openchatlab/shared-types'
 
 const { t, te } = useI18n()
 
-// 获取工具的本地化显示名称
 function localizedToolName(name: string, fallback?: string): string {
   const key = `ai.assistant.builtinToolDesc.${name}`
   return te(key) ? t(key) : fallback || name
@@ -18,123 +17,59 @@ function localizedToolProgress(progress?: ToolProgress): string {
   return te(key) ? t(key) : ''
 }
 
-// Props
 const props = defineProps<{
-  // 当前工具执行状态
   currentToolStatus: {
     name: string
     displayName: string
     status: 'running' | 'done' | 'error'
     progress?: ToolProgress
   } | null
-  // 当前轮次已使用的工具列表
-  toolsUsed: string[]
-  // Agent 运行状态
   agentStatus?: AgentRuntimeStatus | null
 }>()
 
 const isCompressing = computed(() => props.agentStatus?.phase === 'compressing')
+const showInitialShimmer = computed(() => !isCompressing.value && !props.currentToolStatus)
+
+const title = computed(() => {
+  if (isCompressing.value) return t('ai.chat.thinking.compressing')
+  if (props.currentToolStatus) {
+    return localizedToolName(props.currentToolStatus.name, props.currentToolStatus.displayName)
+  }
+  return t('ai.chat.thinking.analyzing')
+})
+
+const detail = computed(() => {
+  if (isCompressing.value || !props.currentToolStatus) return ''
+  if (props.currentToolStatus.status === 'running') {
+    return localizedToolProgress(props.currentToolStatus.progress)
+  }
+  if (props.currentToolStatus.status === 'done') return t('ai.chat.thinking.processingResult')
+  return ''
+})
+
+const icon = computed(() => {
+  if (isCompressing.value || props.currentToolStatus?.status === 'running') return 'i-heroicons-arrow-path'
+  if (props.currentToolStatus?.status === 'error') return 'i-heroicons-exclamation-circle'
+  if (props.currentToolStatus) return 'i-heroicons-wrench-screwdriver'
+  return 'i-heroicons-sparkles'
+})
+
+const isIconSpinning = computed(() => isCompressing.value || props.currentToolStatus?.status === 'running')
 </script>
 
 <template>
-  <!-- 压缩上下文状态（工具块样式，无气泡包裹） -->
   <div
-    v-if="isCompressing"
-    class="flex w-fit items-center gap-1.5 rounded-lg bg-gray-100 px-2.5 py-1 text-xs transition-colors dark:bg-gray-800/50"
+    class="ai-live-row flex h-6 min-w-0 items-center gap-1.5 text-sm leading-6 text-gray-500 dark:text-gray-400"
+    :data-running="showInitialShimmer || undefined"
   >
-    <UIcon name="i-heroicons-arrow-path" class="h-3.5 w-3.5 shrink-0 animate-spin text-gray-600 dark:text-gray-400" />
-    <span class="font-medium text-gray-600 dark:text-gray-400">{{ t('ai.chat.thinking.compressing') }}</span>
-  </div>
-
-  <!-- 常规思考/工具状态（头像+气泡） -->
-  <div v-else class="flex items-start gap-3">
-    <!-- AI 头像 -->
-    <div
-      class="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-pink-500 to-pink-600"
-    >
-      <UIcon name="i-heroicons-sparkles" class="h-4 w-4 text-white" />
-    </div>
-
-    <!-- 状态气泡 -->
-    <div class="rounded-2xl rounded-tl-sm bg-gray-100 px-4 py-3 dark:bg-gray-800">
-      <!-- 工具执行状态 -->
-      <div v-if="currentToolStatus" class="space-y-2">
-        <div class="flex items-center gap-2">
-          <span
-            class="inline-flex items-center gap-1.5 rounded-full px-2.5 py-0.5 text-xs font-medium"
-            :class="[
-              currentToolStatus.status === 'running'
-                ? 'bg-pink-100 text-pink-700 dark:bg-pink-900/30 dark:text-pink-300'
-                : currentToolStatus.status === 'done'
-                  ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
-                  : 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
-            ]"
-          >
-            <UIcon
-              :name="
-                currentToolStatus.status === 'running'
-                  ? 'i-heroicons-cog-6-tooth'
-                  : currentToolStatus.status === 'done'
-                    ? 'i-heroicons-check-circle'
-                    : 'i-heroicons-x-circle'
-              "
-              class="h-3 w-3"
-              :class="{ 'animate-spin': currentToolStatus.status === 'running' }"
-            />
-            {{ localizedToolName(currentToolStatus.name, currentToolStatus.displayName) }}
-          </span>
-
-          <!-- 运行中的动画 -->
-          <span v-if="currentToolStatus.status === 'running'" class="flex gap-1">
-            <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-pink-500 [animation-delay:0ms]" />
-            <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-pink-500 [animation-delay:150ms]" />
-            <span class="h-1.5 w-1.5 animate-bounce rounded-full bg-pink-500 [animation-delay:300ms]" />
-          </span>
-
-          <span
-            v-if="currentToolStatus.status === 'running' && localizedToolProgress(currentToolStatus.progress)"
-            class="text-xs text-gray-500 dark:text-gray-400"
-          >
-            {{ localizedToolProgress(currentToolStatus.progress) }}
-          </span>
-
-          <!-- 完成后处理中状态 -->
-          <span
-            v-else-if="currentToolStatus.status === 'done'"
-            class="flex items-center gap-1.5 text-xs text-gray-500 dark:text-gray-400"
-          >
-            <span>{{ t('ai.chat.thinking.processingResult') }}</span>
-            <span class="flex gap-1">
-              <span class="h-1 w-1 animate-bounce rounded-full bg-gray-400 [animation-delay:0ms]" />
-              <span class="h-1 w-1 animate-bounce rounded-full bg-gray-400 [animation-delay:150ms]" />
-              <span class="h-1 w-1 animate-bounce rounded-full bg-gray-400 [animation-delay:300ms]" />
-            </span>
-          </span>
-        </div>
-
-        <!-- 已使用的工具列表 -->
-        <div v-if="toolsUsed.length > 1" class="flex flex-wrap gap-1">
-          <span class="text-xs text-gray-400">{{ t('ai.chat.thinking.called') }}</span>
-          <span
-            v-for="tool in toolsUsed.slice(0, -1)"
-            :key="tool"
-            class="inline-flex items-center gap-1 rounded-full bg-gray-200 px-2 py-0.5 text-xs text-gray-600 dark:bg-gray-700 dark:text-gray-400"
-          >
-            <UIcon name="i-heroicons-check" class="h-3 w-3 text-green-500" />
-            {{ localizedToolName(tool) }}
-          </span>
-        </div>
-      </div>
-
-      <!-- 默认状态（无工具调用） -->
-      <div v-else class="flex items-center gap-2">
-        <span class="text-sm text-gray-600 dark:text-gray-400">{{ t('ai.chat.thinking.analyzing') }}</span>
-        <span class="flex gap-1">
-          <span class="h-2 w-2 animate-bounce rounded-full bg-pink-500 [animation-delay:0ms]" />
-          <span class="h-2 w-2 animate-bounce rounded-full bg-pink-500 [animation-delay:150ms]" />
-          <span class="h-2 w-2 animate-bounce rounded-full bg-pink-500 [animation-delay:300ms]" />
-        </span>
-      </div>
-    </div>
+    <UIcon
+      :name="icon"
+      class="h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500"
+      :class="[isIconSpinning ? 'animate-spin text-primary-500 dark:text-primary-400' : '']"
+    />
+    <span class="min-w-0 truncate">
+      <span class="text-gray-600 dark:text-gray-300">{{ title }}</span>
+      <span v-if="detail" class="text-gray-400 dark:text-gray-500">· {{ detail }}</span>
+    </span>
   </div>
 </template>

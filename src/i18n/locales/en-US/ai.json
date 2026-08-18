@@ -46,6 +46,9 @@
         "label": "Process",
         "processing": "Processing",
         "processed": "Processed",
+        "working": "Working",
+        "planning": "Planning",
+        "failed": "Incomplete",
         "step": "{count} step",
         "steps": "{count} steps"
       },

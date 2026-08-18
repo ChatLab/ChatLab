@@ -2,8 +2,10 @@ import assert from 'node:assert/strict'
 import { describe, it } from 'node:test'
 import {
   buildProcessSegments,
+  findRepresentativeProcessThought,
   getProcessSegmentStatusLabel,
   getVisibleSegmentBlocks,
+  resolveProcessHeaderActivity,
 } from './chatMessageProcessSegments'
 
 type TestBlock =
@@ -67,6 +69,30 @@ describe('chat message process segments', () => {
     assert.deepEqual(getVisibleSegmentBlocks(segments), [blocks[1], blocks[6], blocks[7]])
   })
 
+  it('keeps live thinking in the process row while the answer streams visibly', () => {
+    const blocks: TestBlock[] = [
+      { type: 'think', text: '先看这周在聊什么' },
+      { type: 'tool', name: 'search_messages' },
+      { type: 'text', text: '证据拿到了，我再核对统计。' },
+    ]
+
+    const segments = buildProcessSegments(blocks, { isFoldableProcessBlock, isTextBlock })
+
+    assert.deepEqual(segments, [
+      { type: 'process', blocks: blocks.slice(0, 2) },
+      { type: 'visible', block: blocks[2] },
+    ])
+    assert.deepEqual(getVisibleSegmentBlocks(segments), [blocks[2]])
+  })
+
+  it('uses natural-language thinking for the collapsed preview instead of plan JSON', () => {
+    const reasoning = { type: 'think' as const, tag: 'reasoning', text: '先梳理长期变化' }
+    const planValidation = { type: 'think' as const, tag: 'plan_validation', text: '{\n  "title": "分析计划"' }
+
+    assert.equal(findRepresentativeProcessThought([reasoning, planValidation]), reasoning)
+    assert.equal(findRepresentativeProcessThought([planValidation]), undefined)
+  })
+
   it('keeps text visible when no later process block exists', () => {
     const blocks: TestBlock[] = [
       { type: 'tool', name: 'get_members' },
@@ -117,5 +143,24 @@ describe('chat message process segments', () => {
     })
 
     assert.equal(label, '已处理 1分05秒')
+  })
+
+  it('prefers the live tool over the last foldable block while processing', () => {
+    assert.deepEqual(
+      resolveProcessHeaderActivity({
+        isActive: true,
+        activeToolName: 'retrieve_chat_evidence',
+        activeToolProgressPhase: 'semantic_search',
+        lastFoldable: { kind: 'think' },
+      }),
+      { type: 'tool', name: 'retrieve_chat_evidence', progressPhase: 'semantic_search' }
+    )
+    assert.deepEqual(
+      resolveProcessHeaderActivity({
+        isActive: false,
+        lastFoldable: { kind: 'tool', name: 'search_messages' },
+      }),
+      { type: 'generic' }
+    )
   })
 })

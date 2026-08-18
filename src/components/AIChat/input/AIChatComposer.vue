@@ -82,11 +82,10 @@ defineExpose({ focus, getSelection, setSelectionRange, syncHeight })
       embedded
         ? 'bg-transparent'
         : 'rounded-2xl bg-white shadow-[0_2px_14px_rgba(0,0,0,0.04)] ring-1 ring-gray-200/60 dark:bg-page-dark dark:ring-white/5',
-      disabled
-        ? 'bg-gray-50/50 dark:bg-page-dark/50'
-        : embedded
-          ? ''
-          : 'focus-within:ring-primary-500/40 focus-within:shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:focus-within:ring-primary-500/40',
+      !embedded && disabled ? 'bg-gray-50/50 dark:bg-page-dark/50' : '',
+      !embedded && !disabled
+        ? 'focus-within:ring-primary-500/40 focus-within:shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:focus-within:ring-primary-500/40'
+        : '',
     ]"
   >
     <div class="relative px-4 pt-2.5 pb-2.5">
