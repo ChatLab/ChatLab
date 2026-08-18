@@ -44,7 +44,7 @@ clb import "/absolute/path/to/source" --dry-run --json
 3. 用户跳过安装、安装失败或当前无法联网时，不要阻断转换，改用 `scripts/validate-chatlab.mjs`；
 4. 跳过 `clb formats` 和源文件 dry-run，并明确说明无法确认 ChatLab 是否已原生支持该源格式。
 
-内置验证器需要 Node.js 20 或更高版本。如果 `node --version` 也不可用，可以继续编写转换器，但必须把结果标记为“尚未验证”，并引导用户安装 Node.js 和 `chatlab-cli`；未经同意不要自行安装。
+内置验证器需要 Node.js 22.19 或更高版本。如果 `node --version` 也不可用，可以继续编写转换器，但必须把结果标记为“尚未验证”，并引导用户安装 Node.js 和 `chatlab-cli`；未经同意不要自行安装。
 
 不能用肉眼检查替代 CLI 或内置严格验证器。
 

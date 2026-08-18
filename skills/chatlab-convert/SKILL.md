@@ -44,7 +44,7 @@ If `clb` is missing, or the installed version has no `validate` command:
 3. If the user skips installation, installation fails, or the network is unavailable, continue with `scripts/validate-chatlab.mjs`.
 4. Skip `clb formats` and the source dry run, and state that native ChatLab support for the source format could not be checked.
 
-The bundled validator requires Node.js 20 or later. If `node --version` is also unavailable, the converter may still be written, but mark the result as “not yet validated” and guide the user to install Node.js and `chatlab-cli`. Do not install either without permission.
+The bundled validator requires Node.js 22.19 or later. If `node --version` is also unavailable, the converter may still be written, but mark the result as “not yet validated” and guide the user to install Node.js and `chatlab-cli`. Do not install either without permission.
 
 Do not replace either the CLI validator or bundled strict validator with visual inspection.
 
