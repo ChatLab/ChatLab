@@ -45,6 +45,34 @@ describe('AgentEventHandler', () => {
     assert.equal(startChunk?.toolCallId, 'call_1')
   })
 
+  it('keeps tool_running status until every parallel tool call finishes', () => {
+    const chunks: AgentStreamChunk[] = []
+    const handler = new AgentEventHandler({
+      onChunk: (chunk) => chunks.push(chunk),
+      context: {},
+      systemPrompt: 'test',
+    })
+
+    handler.handleCoreEvent({ type: 'tool_start', toolCallId: 'slow-call', toolName: 'slow_tool', toolParams: {} }, [])
+    handler.handleCoreEvent({ type: 'tool_start', toolCallId: 'fast-call', toolName: 'fast_tool', toolParams: {} }, [])
+    handler.handleCoreEvent(
+      { type: 'tool_end', toolCallId: 'fast-call', toolName: 'fast_tool', toolResult: null, isError: false },
+      []
+    )
+
+    const statusesAfterFirstResult = chunks.filter((chunk) => chunk.type === 'status')
+    assert.equal(statusesAfterFirstResult.at(-1)?.status?.phase, 'tool_running')
+    assert.equal(statusesAfterFirstResult.at(-1)?.status?.currentTool, 'slow_tool')
+
+    handler.handleCoreEvent(
+      { type: 'tool_end', toolCallId: 'slow-call', toolName: 'slow_tool', toolResult: null, isError: false },
+      []
+    )
+
+    const finalStatuses = chunks.filter((chunk) => chunk.type === 'status')
+    assert.equal(finalStatuses.at(-1)?.status?.phase, 'thinking')
+  })
+
   it('forwards tool progress without changing the result payload', () => {
     const chunks: AgentStreamChunk[] = []
     const handler = new AgentEventHandler({

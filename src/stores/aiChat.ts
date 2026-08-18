@@ -20,7 +20,7 @@ import { useAgentStreamService } from '@/services/ai-stream/service'
 import { buildSerializablePreprocessConfig, shouldEnsureDesensitizeRulesBeforeSerialize } from './aiPreprocessConfig'
 import type { ChartPayload, ChatEvidencePayload } from '@openchatlab/core'
 import { extractToolResultText, truncateToolResultText } from '@openchatlab/core'
-import { getDefaultGeneralAssistantId, type ToolProgress } from '@openchatlab/shared-types'
+import { getDefaultGeneralAssistantId } from '@openchatlab/shared-types'
 import {
   createRenderOnlyToolPendingBlock,
   extractChartPayloads,
@@ -39,6 +39,9 @@ import {
   type PlanDraftContentBlock,
 } from '@/services/ai/planBlocks'
 import { toSerializableContentBlocks } from './aiChatContentBlocks'
+import { createToolLifecycleTracker, type ToolStatus } from './aiToolLifecycle'
+
+export type { ToolStatus } from './aiToolLifecycle'
 
 // 工具调用记录
 export interface ToolCallRecord {
@@ -122,15 +125,6 @@ export interface SourceMessage {
   content: string
   timestamp: number
   type: number
-}
-
-// 工具状态类型
-export interface ToolStatus {
-  name: string
-  displayName: string
-  status: 'running' | 'done' | 'error'
-  progress?: ToolProgress
-  result?: unknown
 }
 
 interface OwnerInfo {
@@ -951,6 +945,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       targetBuffer.messages.push(aiMessage)
       let aiMessageIndex = targetBuffer.messages.length - 1
       let hasStreamError = false
+      const toolLifecycle = createToolLifecycleTracker()
 
       const {
         updateAIMessage,
@@ -1035,7 +1030,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           switch (chunk.type) {
             case 'content':
               if (chunk.content) {
-                state.currentToolStatus = null
+                state.currentToolStatus = toolLifecycle.current()
                 appendTextToBlocks(chunk.content)
               }
               break
@@ -1051,11 +1046,10 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
             case 'tool_start':
               if (chunk.toolName) {
                 const toolParams = chunk.toolParams as Record<string, unknown> | undefined
-                state.currentToolStatus = {
+                state.currentToolStatus = toolLifecycle.start({
                   name: chunk.toolName,
-                  displayName: chunk.toolName,
-                  status: 'running',
-                }
+                  toolCallId: chunk.toolCallId,
+                })
                 state.toolsUsedInCurrentRound.push(chunk.toolName)
                 if (isRenderOnlyTool(chunk.toolName)) {
                   addRenderOnlyToolPendingBlock(chunk.toolName, toolParams, chunk.toolCallId)
@@ -1066,13 +1060,12 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               break
 
             case 'tool_update':
-              if (
-                chunk.toolName &&
-                chunk.toolProgress &&
-                state.currentToolStatus?.name === chunk.toolName &&
-                state.currentToolStatus.status === 'running'
-              ) {
-                state.currentToolStatus = { ...state.currentToolStatus, progress: chunk.toolProgress }
+              if (chunk.toolName && chunk.toolProgress) {
+                state.currentToolStatus = toolLifecycle.update({
+                  name: chunk.toolName,
+                  toolCallId: chunk.toolCallId,
+                  progress: chunk.toolProgress,
+                })
               }
               break
 
@@ -1110,6 +1103,11 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                     isError: chunk.toolIsError,
                   })
                 }
+                state.currentToolStatus = toolLifecycle.finish({
+                  name: chunk.toolName,
+                  toolCallId: chunk.toolCallId,
+                  status: toolFailed ? 'error' : 'done',
+                })
               }
               state.isLoadingSource = false
               break
@@ -1152,6 +1150,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               break
 
             case 'done':
+              toolLifecycle.clear()
               state.currentToolStatus = null
               if (!hasStreamError) updatePlanBlockStatus('done')
               if (chunk.usage) {
@@ -1175,8 +1174,11 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                   ...state.currentToolStatus,
                   status: 'error',
                 }
-                updateToolBlockStatus(state.currentToolStatus.name, 'error')
+                updateToolBlockStatus(state.currentToolStatus.name, 'error', {
+                  toolCallId: state.currentToolStatus.toolCallId,
+                })
               }
+              toolLifecycle.clear()
               if (!hasStreamError) {
                 hasStreamError = true
                 const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
@@ -1502,6 +1504,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     const thisRequestId = generateId('req')
     let lastDoneUsage: TokenUsage | undefined
     let hasStreamError = false
+    const toolLifecycle = createToolLifecycleTracker()
 
     setActiveTaskMeta(chatKey, content, thisRequestId, state.currentAIChatId)
     applySessionAssistantSelection(chatKey)
@@ -1635,7 +1638,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
           if (state.isAborted || thisRequestId !== state.currentRequestId) return
           switch (chunk.type) {
             case 'content':
-              state.currentToolStatus = null
+              state.currentToolStatus = toolLifecycle.current()
               appendTextToBlocks(chunk.content || '')
               break
             case 'think':
@@ -1646,7 +1649,10 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
             case 'tool_start':
               if (chunk.toolName) {
                 const toolParams = chunk.toolParams as Record<string, unknown> | undefined
-                state.currentToolStatus = { name: chunk.toolName, displayName: chunk.toolName, status: 'running' }
+                state.currentToolStatus = toolLifecycle.start({
+                  name: chunk.toolName,
+                  toolCallId: chunk.toolCallId,
+                })
                 state.toolsUsedInCurrentRound.push(chunk.toolName)
                 if (isRenderOnlyTool(chunk.toolName)) {
                   addRenderOnlyToolPendingBlock(chunk.toolName, toolParams, chunk.toolCallId)
@@ -1656,19 +1662,19 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               }
               break
             case 'tool_update':
-              if (
-                chunk.toolName &&
-                chunk.toolProgress &&
-                state.currentToolStatus?.name === chunk.toolName &&
-                state.currentToolStatus.status === 'running'
-              ) {
-                state.currentToolStatus = { ...state.currentToolStatus, progress: chunk.toolProgress }
+              if (chunk.toolName && chunk.toolProgress) {
+                state.currentToolStatus = toolLifecycle.update({
+                  name: chunk.toolName,
+                  toolCallId: chunk.toolCallId,
+                  progress: chunk.toolProgress,
+                })
               }
               break
             case 'tool_result':
               if (chunk.toolName) {
                 const charts = extractChartPayloads(chunk.toolResult)
                 const renderOnlyError = toRenderOnlyToolErrorBlock(chunk.toolName, chunk.toolResult)
+                const toolFailed = renderOnlyError !== null || chunk.toolIsError === true
                 if (isRenderOnlyTool(chunk.toolName)) {
                   updateRenderOnlyToolResult(chunk.toolName, chunk.toolCallId, charts, renderOnlyError)
                 } else {
@@ -1685,19 +1691,19 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                 }
                 if (!isRenderOnlyTool(chunk.toolName)) {
                   const resultText = extractToolResultText(chunk.toolResult)
-                  updateToolBlockStatus(
-                    chunk.toolName,
-                    renderOnlyError !== null || chunk.toolIsError === true ? 'error' : 'done',
-                    {
-                      toolCallId: chunk.toolCallId,
-                      result: truncateToolResultText(resultText),
-                      displayResult: resultText,
-                      isError: chunk.toolIsError,
-                    }
-                  )
+                  updateToolBlockStatus(chunk.toolName, toolFailed ? 'error' : 'done', {
+                    toolCallId: chunk.toolCallId,
+                    result: truncateToolResultText(resultText),
+                    displayResult: resultText,
+                    isError: chunk.toolIsError,
+                  })
                 }
+                state.currentToolStatus = toolLifecycle.finish({
+                  name: chunk.toolName,
+                  toolCallId: chunk.toolCallId,
+                  status: toolFailed ? 'error' : 'done',
+                })
               }
-              state.currentToolStatus = null
               state.isLoadingSource = false
               break
             case 'plan_delta':
@@ -1718,6 +1724,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               }
               break
             case 'done':
+              toolLifecycle.clear()
               state.currentToolStatus = null
               if (!hasStreamError) updatePlanBlockStatus('done')
               if (chunk.usage) lastDoneUsage = { ...chunk.usage }
@@ -1727,7 +1734,12 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               removePlanDraftsFromBlocks()
               updatePlanBlockStatus('skipped')
               hasStreamError = true
-              if (state.currentToolStatus) updateToolBlockStatus(state.currentToolStatus.name, 'error')
+              if (state.currentToolStatus) {
+                updateToolBlockStatus(state.currentToolStatus.name, 'error', {
+                  toolCallId: state.currentToolStatus.toolCallId,
+                })
+              }
+              toolLifecycle.clear()
               const blocks = targetBuffer.messages[aiMessageIndex].contentBlocks || []
               blocks.push({ type: 'error', error: normalizeSerializedError(chunk.error) })
               updateAIMessage({ contentBlocks: [...blocks], isStreaming: false })

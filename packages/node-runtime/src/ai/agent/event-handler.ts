@@ -159,6 +159,7 @@ export class AgentEventHandler {
   private readonly onChunk: (chunk: AgentStreamChunk) => void
   private readonly context: EventHandlerContext
   private readonly systemPrompt: string
+  private readonly activeTools = new Map<string, string>()
 
   constructor(config: EventHandlerConfig) {
     this.onChunk = config.onChunk
@@ -186,6 +187,7 @@ export class AgentEventHandler {
       case 'tool_start': {
         const params = this.normalizeToolParams(event.toolName, event.toolParams)
         this.toolsUsed.push(event.toolName)
+        this.activeTools.set(event.toolCallId, event.toolName)
         this.onChunk({ type: 'tool_start', toolCallId: event.toolCallId, toolName: event.toolName, toolParams: params })
         this.emitStatus('tool_running', messages, { currentTool: event.toolName, force: true })
         break
@@ -199,6 +201,7 @@ export class AgentEventHandler {
         })
         break
       case 'tool_end':
+        this.activeTools.delete(event.toolCallId)
         this.onChunk({
           type: 'tool_result',
           toolCallId: event.toolCallId,
@@ -206,9 +209,15 @@ export class AgentEventHandler {
           toolResult: event.toolResult,
           toolIsError: event.isError,
         })
-        this.emitStatus('thinking', messages, { force: true })
+        if (this.activeTools.size > 0) {
+          const currentTool = Array.from(this.activeTools.values()).at(-1)
+          this.emitStatus('tool_running', messages, { currentTool, force: true })
+        } else {
+          this.emitStatus('thinking', messages, { force: true })
+        }
         break
       case 'turn_end':
+        this.activeTools.clear()
         this.toolRounds = event.round
         this.emitStatus('thinking', messages, { force: true })
         break
