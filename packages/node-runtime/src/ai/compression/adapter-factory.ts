@@ -1,9 +1,5 @@
-import {
-  completeSimple,
-  type Model as PiModel,
-  type Api as PiApi,
-  type TextContent as PiTextContent,
-} from '@earendil-works/pi-ai'
+import { type Model as PiModel, type Api as PiApi, type TextContent as PiTextContent } from '@earendil-works/pi-ai'
+import { completeSimple } from '../pi-runtime'
 import type { CompressionLlmAdapter } from './types'
 
 export interface CreateCompressionLlmAdapterOptions {

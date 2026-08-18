@@ -19,7 +19,7 @@ ChatLab 支持多种方式导入聊天记录。
 
 适合已经使用 Codex、Claude Code 等各类 AI Agent，希望让 Agent 代为执行导入的用户。
 
-需要 Node.js 20 或更高版本。安装 ChatLab CLI 和中文 Skill：
+需要 Node.js 22.19 或更高版本。安装 ChatLab CLI 和中文 Skill：
 
 ```bash
 npm install -g chatlab-cli

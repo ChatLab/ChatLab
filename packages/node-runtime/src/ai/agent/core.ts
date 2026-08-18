@@ -7,16 +7,12 @@
 
 import { Agent as PiAgentCore } from '@earendil-works/pi-agent-core'
 import type { AgentEvent as PiAgentEvent, AgentMessage as PiAgentMessage } from '@earendil-works/pi-agent-core'
-import {
-  type Message as PiMessage,
-  type Usage as PiUsage,
-  streamSimple as defaultStreamSimple,
-  clampThinkingLevel,
-} from '@earendil-works/pi-ai'
+import { type Message as PiMessage, type Usage as PiUsage, clampThinkingLevel } from '@earendil-works/pi-ai'
 import { StreamingThinkTagParser, needsStreamingThinkParsing } from '@openchatlab/core'
 
 import type { AgentCoreOptions, AgentCoreResult, AgentTokenUsage } from './types'
 import { initTokenizer } from '../tokenizer'
+import { streamSimple as defaultStreamSimple } from '../pi-runtime'
 import { DEFAULT_MAX_TOOL_ROUNDS } from './constants'
 import { toPiHistoryMessages, type ReplayOptions } from './history'
 
@@ -140,6 +136,8 @@ export async function runAgentCore(options: AgentCoreOptions): Promise<AgentCore
             },
           }
         : undefined,
+    sessionId: options.providerSessionId,
+    toolExecution: 'parallel',
   })
 
   const thinkingStartTime = new Map<number, number>()

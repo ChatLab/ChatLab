@@ -58,6 +58,7 @@ export function adaptSharedTool(tool: ToolDefinition): ToolRegistryEntry {
         // 缺 key 时回退到此英文描述，避免把裸 i18n key 当作工具描述传给 LLM。
         description: tool.description,
         parameters: toAgentToolParameters(tool.inputSchema) as any,
+        executionMode: tool.executionMode,
         async execute(_toolCallId: string, params: unknown) {
           return executeToolForAgent(tool, params, buildExecutionContext(context))
         },

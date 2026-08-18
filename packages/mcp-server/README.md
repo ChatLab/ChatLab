@@ -68,7 +68,7 @@ The server registers ChatLab tools for:
 
 ## Requirements
 
-- Node.js 20 or later
+- Node.js 22.19 or later
 - Existing ChatLab data under `~/.chatlab/`
 
 `better-sqlite3` is installed as a runtime dependency. On platforms without a matching prebuilt binary, npm may need local build tools for native modules.

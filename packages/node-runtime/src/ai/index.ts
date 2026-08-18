@@ -203,8 +203,9 @@ export type { AgentTool, AgentToolResult } from '@earendil-works/pi-agent-core'
 export { runSimpleLlmStream } from './llm-stream'
 export type { LlmStreamChunk, RunSimpleLlmStreamOptions } from './llm-stream'
 
-// Re-exports from @earendil-works/pi-ai
-export { Type, completeSimple, streamSimple } from '@earendil-works/pi-ai'
+// Pi primitives and ChatLab's stable API dispatch
+export { Type } from '@earendil-works/pi-ai'
+export { completeSimple, streamSimple } from './pi-runtime'
 export type {
   Model as PiModel,
   Api as PiApi,

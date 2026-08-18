@@ -8,7 +8,7 @@ ChatLab 可以让 Codex、Claude Code、HermesAgent 等 AI Agent 在本地查询
 
 ## 开始使用
 
-需要 Node.js 20 或更高版本，并已在 ChatLab 中导入聊天记录。安装 ChatLab CLI 和中文 Skill：
+需要 Node.js 22.19 或更高版本，并已在 ChatLab 中导入聊天记录。安装 ChatLab CLI 和中文 Skill：
 
 ```bash
 npm install -g chatlab-cli

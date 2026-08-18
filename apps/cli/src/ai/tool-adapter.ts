@@ -73,6 +73,7 @@ export function adaptToolsForAgent(
         label: tool.name,
         description: tool.description,
         parameters: toAgentToolParameters(tool.inputSchema) as any,
+        executionMode: tool.executionMode,
         async execute(_toolCallId: string, params: unknown) {
           const ctx = getContext()
           const execCtx: ToolExecutionContext = {

@@ -25,6 +25,7 @@ export interface ActivateSkillTool {
   label: string
   description: string
   parameters: Record<string, unknown>
+  executionMode: 'sequential'
   execute: (
     toolCallId: string,
     params: unknown,
@@ -53,6 +54,7 @@ export function createActivateSkillTool(options: ActivateSkillToolOptions): Acti
       },
       required: ['skill_id'],
     },
+    executionMode: 'sequential',
     execute: async (_toolCallId: string, params: unknown) => {
       const toolParams = (params && typeof params === 'object' ? params : {}) as { skill_id?: string }
       const skillId = toolParams.skill_id || ''

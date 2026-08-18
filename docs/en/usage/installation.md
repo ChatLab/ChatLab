@@ -14,7 +14,7 @@ The macOS Desktop app currently supports Apple Silicon Macs only. Intel Mac user
 
 ## CLI
 
-The CLI requires Node.js 20 or newer:
+The CLI requires Node.js 22.19 or newer:
 
 ```bash
 npm install --global chatlab-cli

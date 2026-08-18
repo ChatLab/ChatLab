@@ -15,7 +15,7 @@ export default defineConfig({
   splitting: true,
   sourcemap: true,
   clean: true,
-  target: 'node20',
+  target: 'node22',
   platform: 'node',
   define: {
     __MCP_PACKAGE_VERSION__: JSON.stringify(pkg.version),

@@ -15,7 +15,7 @@ export default defineConfig({
   splitting: true,
   sourcemap: true,
   clean: true,
-  target: 'node20',
+  target: 'node22',
   platform: 'node',
   define: {
     'process.env.UMAMI_ENDPOINT': JSON.stringify(process.env.UMAMI_ENDPOINT || ''),

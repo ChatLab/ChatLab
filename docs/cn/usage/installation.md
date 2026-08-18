@@ -14,7 +14,7 @@ macOS Desktop 目前仅支持搭载 Apple 芯片（M 系列）的 Mac。Intel Ma
 
 ## CLI
 
-CLI 需要 Node.js 20 或更高版本：
+CLI 需要 Node.js 22.19 或更高版本：
 
 ```bash
 npm install --global chatlab-cli

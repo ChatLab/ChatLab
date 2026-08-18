@@ -251,6 +251,7 @@ export async function runServerAgent(options: RunAgentOptions): Promise<void> {
       userMessage,
       maxToolRounds: DEFAULT_MAX_TOOL_ROUNDS,
       abortSignal,
+      providerSessionId: aiChatId,
       steerMessage,
       thinkingLevel: thinkingLevel as import('@openchatlab/core').ThinkingLevel | undefined,
       onConvertToLlm: (filteredMessages) => {

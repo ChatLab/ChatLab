@@ -365,6 +365,7 @@ export interface ToolResult {
 
 export type ToolCategory = 'core' | 'analysis'
 export type TruncationStrategy = 'keep_first' | 'keep_last'
+export type ToolExecutionMode = 'parallel' | 'sequential'
 
 /**
  * 平台无关的工具定义
@@ -378,4 +379,6 @@ export interface ToolDefinition {
   handler: (params: Record<string, unknown>, context: ToolExecutionContext) => ToolResult | Promise<ToolResult>
   category?: ToolCategory
   truncationStrategy?: TruncationStrategy
+  /** Override the Agent's parallel default when this tool has an ordering dependency. */
+  executionMode?: ToolExecutionMode
 }

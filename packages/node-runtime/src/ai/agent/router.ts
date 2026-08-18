@@ -1,11 +1,7 @@
 import type { LlmRouteDecider, RouteDecision, RouterInput } from './routing-types'
 import { formatDataSnapshotForRouter } from './data-snapshot'
-import {
-  completeSimple,
-  type Api as PiApi,
-  type Model as PiModel,
-  type TextContent as PiTextContent,
-} from '@earendil-works/pi-ai'
+import { type Api as PiApi, type Model as PiModel, type TextContent as PiTextContent } from '@earendil-works/pi-ai'
+import { completeSimple } from '../pi-runtime'
 
 export interface DecideRequestRouteOptions {
   llmRouter?: LlmRouteDecider

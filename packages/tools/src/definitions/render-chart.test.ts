@@ -29,6 +29,10 @@ function createContext(
 }
 
 describe('renderChartTool', () => {
+  it('requires sequential execution because it depends on the schema gate', () => {
+    assert.equal(renderChartTool.executionMode, 'sequential')
+  })
+
   it('runs parameterized read-only SQL and returns a normalized chart payload', async () => {
     const calls: Array<{ query: string; params: Record<string, unknown> }> = []
     const context = createContext(

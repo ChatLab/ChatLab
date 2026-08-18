@@ -23,6 +23,7 @@ describe('createActivateSkillTool', () => {
 
     const result = await tool.execute('call_1', { skill_id: 'tool_skill' })
 
+    assert.equal(tool.executionMode, 'sequential')
     assert.equal(result.details.applicable, false)
     assert.deepEqual(result.details.missingTools, ['keyword_frequency'])
   })

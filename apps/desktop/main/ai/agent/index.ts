@@ -231,6 +231,7 @@ export class Agent {
         userMessage,
         maxToolRounds,
         abortSignal: this.abortSignal,
+        providerSessionId: this.context.aiChatId,
         steerMessage: answerWithoutToolsPrompt,
         thinkingLevel: this.config.thinkingLevel,
         streamFn: errorCapturingStreamFn,

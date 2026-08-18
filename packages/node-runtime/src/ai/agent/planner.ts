@@ -1,10 +1,5 @@
-import {
-  completeSimple,
-  streamSimple,
-  type Api as PiApi,
-  type Model as PiModel,
-  type TextContent as PiTextContent,
-} from '@earendil-works/pi-ai'
+import { type Api as PiApi, type Model as PiModel, type TextContent as PiTextContent } from '@earendil-works/pi-ai'
+import { completeSimple, streamSimple } from '../pi-runtime'
 import type {
   AnalysisPlanIntent,
   AnalysisPlanSummary,

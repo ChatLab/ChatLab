@@ -8,6 +8,7 @@ resolutionMode: highest
 shamefullyHoist: true
 
 allowBuilds:
+  '@google/genai': false
   better-sqlite3: true
   electron: true
   electron-winstaller: false

@@ -37,6 +37,7 @@ describe('adaptToolsForAgent', () => {
       name: 'render_chart',
       description: 'Render a chart',
       inputSchema: { type: 'object', properties: {} },
+      executionMode: 'sequential',
       async handler() {
         chartCalls += 1
         return { content: 'Generated chart.' }
@@ -51,6 +52,7 @@ describe('adaptToolsForAgent', () => {
 
     const result = await agentTool.execute('call-1', {})
 
+    assert.equal(agentTool.executionMode, 'sequential')
     assert.equal(chartCalls, 0)
     assert.deepEqual(result.content, [{ type: 'text', text: CHART_SCHEMA_REQUIRED_MESSAGE }])
     assert.equal(result.details, null)

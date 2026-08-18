@@ -163,4 +163,5 @@ export const renderChartTool: ToolDefinition = {
   inputSchema,
   handler,
   category: 'analysis',
+  executionMode: 'sequential',
 }

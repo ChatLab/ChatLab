@@ -44,6 +44,8 @@ export interface AgentCoreOptions {
   userMessage: string
   maxToolRounds?: number
   abortSignal?: AbortSignal
+  /** Stable AI conversation identifier forwarded to providers that support session affinity. */
+  providerSessionId?: string
   steerMessage?: string
   /** Override the thinking level for this request. Clamped to what the model supports. */
   thinkingLevel?: ThinkingLevel

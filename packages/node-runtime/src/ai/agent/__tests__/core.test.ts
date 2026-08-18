@@ -285,4 +285,64 @@ describe('runAgentCore runtime contract', () => {
       true
     )
   })
+
+  it('forwards the stable AI conversation id as the provider session id', async () => {
+    let capturedOptions: SimpleStreamOptions | undefined
+
+    await runAgentCore(
+      createOptions({
+        providerSessionId: 'ai-chat-1',
+        streamFn: createScriptedStream([
+          (_context, options) => {
+            capturedOptions = options
+            return assistantMessage([{ type: 'text', text: 'Done' }])
+          },
+        ]),
+      })
+    )
+
+    assert.equal(capturedOptions?.sessionId, 'ai-chat-1')
+  })
+
+  for (const testCase of [
+    { name: 'runs independent tools in parallel', executionMode: undefined, expectedMaxActive: 2 },
+    {
+      name: 'runs a batch sequentially when one tool requires ordering',
+      executionMode: 'sequential',
+      expectedMaxActive: 1,
+    },
+  ] as const) {
+    it(testCase.name, async () => {
+      let active = 0
+      let maxActive = 0
+      const execute = async () => {
+        active += 1
+        maxActive = Math.max(maxActive, active)
+        await new Promise((resolve) => setTimeout(resolve, 10))
+        active -= 1
+        return { content: [{ type: 'text' as const, text: 'ok' }], details: null }
+      }
+      const firstTool = createTool('first_tool', execute)
+      firstTool.executionMode = testCase.executionMode
+      const secondTool = createTool('second_tool', execute)
+
+      await runAgentCore(
+        createOptions({
+          tools: [firstTool, secondTool],
+          streamFn: createScriptedStream([
+            assistantMessage(
+              [
+                { type: 'toolCall', id: 'first-call', name: 'first_tool', arguments: {} },
+                { type: 'toolCall', id: 'second-call', name: 'second_tool', arguments: {} },
+              ],
+              { stopReason: 'toolUse' }
+            ),
+            assistantMessage([{ type: 'text', text: 'Done' }]),
+          ]),
+        })
+      )
+
+      assert.equal(maxActive, testCase.expectedMaxActive)
+    })
+  }
 })

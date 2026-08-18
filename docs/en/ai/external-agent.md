@@ -8,7 +8,7 @@ ChatLab lets AI agents such as Codex, Claude Code, and HermesAgent query and ana
 
 ## Get started
 
-Node.js 20 or newer is required, and chat records must already be imported into ChatLab. Install ChatLab CLI and the English Skill:
+Node.js 22.19 or newer is required, and chat records must already be imported into ChatLab. Install ChatLab CLI and the English Skill:
 
 ```bash
 npm install -g chatlab-cli

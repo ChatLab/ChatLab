@@ -5,8 +5,8 @@
  * event mapping, and error handling.
  */
 
-import { streamSimple } from '@earendil-works/pi-ai'
 import type { Model as PiModel, Api as PiApi, Message as PiMessage } from '@earendil-works/pi-ai'
+import { streamSimple } from './pi-runtime'
 
 export interface LlmStreamChunk {
   content: string

@@ -15,7 +15,7 @@
     "LICENSE"
   ],
   "engines": {
-    "node": ">=20"
+    "node": ">=22.19.0"
   },
   "publishConfig": {
     "access": "public"
@@ -48,8 +48,8 @@
   "dependencies": {
     "@fastify/multipart": "^10.0.0",
     "@fastify/static": "^9.1.3",
-    "@earendil-works/pi-agent-core": "0.74.2",
-    "@earendil-works/pi-ai": "0.74.2",
+    "@earendil-works/pi-agent-core": "0.83.0",
+    "@earendil-works/pi-ai": "0.83.0",
     "@modelcontextprotocol/sdk": "^1.12.1",
     "better-sqlite3": "^12.4.6",
     "commander": "^13.1.0",
