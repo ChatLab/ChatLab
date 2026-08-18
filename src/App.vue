@@ -25,6 +25,7 @@ import { IS_ELECTRON } from '@/utils/platform'
 import { PLATFORM_CAPABILITIES } from '@/utils/platform-capabilities'
 import { usePlatformService } from '@/services'
 import { useNavigationLayoutService } from '@/services'
+import { NAVIGATION_LAYOUT_CUSTOMIZATION_ENABLED } from '@/navigation/layout'
 import { useNavigationLayout } from '@/navigation/vue'
 import { redirectFromHiddenInsightPage } from '@/navigation/router'
 import type { PresentationPreferences } from '@/services/preferences/types'
@@ -136,6 +137,8 @@ function scheduleNonCriticalUiPrefetch() {
 }
 
 async function hydrateNavigationLayout(): Promise<void> {
+  if (!NAVIGATION_LAYOUT_CUSTOMIZATION_ENABLED) return
+
   try {
     const result = await useNavigationLayoutService().load()
     navigationLayoutController.applyLoadResult(result)

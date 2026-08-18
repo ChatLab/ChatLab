@@ -6,11 +6,14 @@ import BasicSettingsTab from './Settings/BasicSettingsTab.vue'
 import { usePromptStore } from '@/stores/prompt'
 import { useLayoutStore } from '@/stores/layout'
 import { IS_ELECTRON } from '@/utils/platform'
+import { NAVIGATION_LAYOUT_CUSTOMIZATION_ENABLED } from '@/navigation/layout'
 import SettingsDialogShell from './Settings/SettingsDialogShell.vue'
 import { watchLazyOverlayVisibility } from './lazy-overlay-visibility'
 
 const AISettingsTab = defineAsyncComponent(() => import('./Settings/AISettingsTab.vue'))
-const NavigationSettingsTab = defineAsyncComponent(() => import('./Settings/NavigationSettingsTab.vue'))
+const NavigationSettingsTab = NAVIGATION_LAYOUT_CUSTOMIZATION_ENABLED
+  ? defineAsyncComponent(() => import('./Settings/NavigationSettingsTab.vue'))
+  : null
 const BatchManageTab = defineAsyncComponent(() => import('./Settings/BatchManageTab.vue'))
 const StorageTab = defineAsyncComponent(() => import('./Settings/StorageTab.vue'))
 const AboutTab = defineAsyncComponent(() => import('./Settings/AboutTab.vue'))
@@ -31,7 +34,9 @@ interface ScrollableTab {
 
 const tabs = computed(() => [
   { id: 'settings', label: t('settings.tabs.basic'), icon: 'i-heroicons-cog-6-tooth' },
-  { id: 'navigation', label: t('settings.tabs.navigation'), icon: 'i-heroicons-bars-3-bottom-left' },
+  ...(NAVIGATION_LAYOUT_CUSTOMIZATION_ENABLED
+    ? [{ id: 'navigation', label: t('settings.tabs.navigation'), icon: 'i-heroicons-bars-3-bottom-left' }]
+    : []),
   { id: 'ai', label: t('settings.tabs.ai'), icon: 'i-heroicons-sparkles' },
   { id: 'api', label: t('settings.tabs.api'), icon: 'i-heroicons-server-stack' },
   { id: 'data', label: t('settings.tabs.dataManage'), icon: 'i-heroicons-rectangle-stack' },
@@ -93,7 +98,10 @@ watchLazyOverlayVisibility(showSettings, async (visible) => {
         :ref="(el: unknown) => setTabRef('ai', el)"
         @config-changed="handleAIConfigChanged"
       />
-      <NavigationSettingsTab v-else-if="activeTab === 'navigation'" key="navigation" />
+      <NavigationSettingsTab
+        v-else-if="NAVIGATION_LAYOUT_CUSTOMIZATION_ENABLED && activeTab === 'navigation'"
+        key="navigation"
+      />
       <BatchManageTab
         v-else-if="activeTab === 'data'"
         key="data"

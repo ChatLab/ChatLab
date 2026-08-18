@@ -8,6 +8,9 @@ import type { InsightPageDefinition, InsightPluginRuntime } from '@/plugins/insi
 import { listInsightShellNavigation } from '@/plugins/insight-catalog'
 import type { Disposer } from '@/plugins/core'
 
+// Keep customization dormant while the plugin navigation foundation is validated internally.
+export const NAVIGATION_LAYOUT_CUSTOMIZATION_ENABLED = false
+
 export const DEFAULT_INSIGHT_NAVIGATION_GROUP_ID = 'host.insight'
 
 export interface ResolvedNavigationEntry {
