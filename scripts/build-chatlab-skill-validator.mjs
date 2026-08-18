@@ -97,7 +97,7 @@ try {
       '--bundle',
       '--platform=node',
       '--format=esm',
-      '--target=node20',
+      '--target=node22',
       '--minify',
       `--outfile=${outputPath}`,
       '--banner:js=#!/usr/bin/env node\n// Generated from the canonical ChatLab validator. Do not edit directly.\n/* eslint-disable */',
