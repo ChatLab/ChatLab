@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import test from 'node:test'
-import { createAIStreamTextBatcher, type AIStreamTextDelta } from './aiChatStreamBatcher'
+import { applyQueuedStreamTextDeltas, createAIStreamTextBatcher, type AIStreamTextDelta } from './aiChatStreamBatcher'
 
 function createManualScheduler() {
   let nextHandle = 1
@@ -69,6 +69,36 @@ test('cancels the pending frame without applying stale deltas', () => {
   batcher.push({ type: 'content', content: 'stale' })
   batcher.cancel()
   frame.runFrame()
+  batcher.flush()
 
   assert.deepEqual(applied, [])
+})
+
+test('does not append queued text after the assistant message has stopped', () => {
+  const message = {
+    isStreaming: false,
+    content: 'hello\n\n_（已停止生成）_',
+    contentBlocks: [{ type: 'text', text: 'hello' }],
+  }
+
+  const applied = applyQueuedStreamTextDeltas(message, [{ type: 'content', content: ' world' }])
+
+  assert.equal(applied, null)
+  assert.equal(message.content, 'hello\n\n_（已停止生成）_')
+  assert.deepEqual(message.contentBlocks, [{ type: 'text', text: 'hello' }])
+})
+
+test('appends queued text while the assistant message is still streaming', () => {
+  const message = {
+    isStreaming: true,
+    content: 'hel',
+    contentBlocks: [{ type: 'text', text: 'hel' }],
+  }
+
+  const applied = applyQueuedStreamTextDeltas(message, [{ type: 'content', content: 'lo' }])
+
+  assert.deepEqual(applied, {
+    content: 'hello',
+    contentBlocks: [{ type: 'text', text: 'hello' }],
+  })
 })

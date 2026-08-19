@@ -44,7 +44,7 @@ import {
   toSerializableContentBlocks,
 } from './aiChatContentBlocks'
 import { createToolLifecycleTracker, type ToolStatus } from './aiToolLifecycle'
-import { createAIStreamTextBatcher } from './aiChatStreamBatcher'
+import { applyQueuedStreamTextDeltas, createAIStreamTextBatcher } from './aiChatStreamBatcher'
 
 export type { ToolStatus } from './aiToolLifecycle'
 
@@ -666,6 +666,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     completeTurn: (hadToolCalls: boolean) => void
     settleProcessDuration: () => void
     flushPendingText: () => void
+    discardPendingText: () => void
   }
 
   function createStreamBlockHelpers(targetBuffer: AIChatBuffer, getAiMessageIndex: () => number): StreamBlockHelpers {
@@ -705,35 +706,16 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     const streamTextBatcher = createAIStreamTextBatcher((deltas) => {
       const idx = getAiMessageIndex()
       const message = targetBuffer.messages[idx]
-      const blocks = message.contentBlocks || []
-      let content = message.content
-      let changed = false
-
-      for (const delta of deltas) {
-        const lastBlock = blocks[blocks.length - 1]
-        if (delta.type === 'content') {
-          if (delta.content.trim().length === 0 && (!lastBlock || lastBlock.type !== 'text')) continue
-          if (lastBlock?.type === 'text') lastBlock.text += delta.content
-          else blocks.push({ type: 'text', text: delta.content })
-          content += delta.content
-          changed = true
-          continue
-        }
-
-        const thinkTag = delta.thinkTag || 'think'
-        if (lastBlock?.type === 'think' && lastBlock.tag === thinkTag) {
-          lastBlock.text += delta.content
-          changed = true
-        } else if (delta.content.trim().length > 0) {
-          blocks.push({ type: 'think', tag: thinkTag, text: delta.content })
-          changed = true
-        }
-      }
-
-      if (changed) applyAIMessageUpdates({ contentBlocks: [...blocks], content })
+      const applied = applyQueuedStreamTextDeltas(message, deltas)
+      if (!applied) return
+      applyAIMessageUpdates({
+        content: applied.content,
+        contentBlocks: applied.contentBlocks as ContentBlock[],
+      })
     })
 
     const flushPendingText = () => streamTextBatcher.flush()
+    const discardPendingText = () => streamTextBatcher.cancel()
 
     const updateAIMessage = (updates: Partial<ChatMessage>) => {
       flushPendingText()
@@ -939,6 +921,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       completeTurn,
       settleProcessDuration,
       flushPendingText,
+      discardPendingText,
     }
   }
 
@@ -1067,6 +1050,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         completeTurn,
         settleProcessDuration,
         flushPendingText,
+        discardPendingText,
       } = createStreamBlockHelpers(targetBuffer, () => aiMessageIndex)
 
       const currentAssistantId = targetBuffer.assistantId ?? getDefaultGeneralAssistantId(state.locale)
@@ -1314,11 +1298,12 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       setActiveTaskMeta(chatKey, content, agentReqId, resolvedAIChatId)
 
       const result = await agentPromise
-      flushPendingText()
       if (state.isAborted) {
+        discardPendingText()
         clearActiveTask(chatKey, agentReqId)
         return { success: false, reason: 'aborted' }
       }
+      flushPendingText()
 
       if (thisRequestId !== state.currentRequestId) {
         clearActiveTask(chatKey, agentReqId)
@@ -1694,6 +1679,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       completeTurn,
       settleProcessDuration,
       flushPendingText,
+      discardPendingText,
     } = createStreamBlockHelpers(targetBuffer, () => aiMessageIndex)
 
     try {
@@ -1884,12 +1870,13 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       setActiveTaskMeta(chatKey, content, agentReqId, state.currentAIChatId)
 
       const result = await agentPromise
-      flushPendingText()
       if (state.isAborted) {
+        discardPendingText()
         restoreOriginal()
         clearActiveTask(chatKey, agentReqId)
         return { success: false, reason: 'aborted' }
       }
+      flushPendingText()
       if (thisRequestId !== state.currentRequestId) {
         restoreOriginal()
         clearActiveTask(chatKey, agentReqId)
