@@ -265,10 +265,7 @@ function isProcessSegmentOpen(segmentIndex: number): boolean {
   const key = getProcessSegmentKey(segmentIndex)
   const override = processSegmentOpenOverrides.value[key]
   if (override !== undefined) return override
-  return (
-    !isCompletedProcessSummary(renderSegments.value[segmentIndex]) &&
-    hasProcessSegmentError(renderSegments.value[segmentIndex])
-  )
+  return hasProcessSegmentError(renderSegments.value[segmentIndex])
 }
 
 function toggleProcessSegment(segmentIndex: number): void {
@@ -354,6 +351,7 @@ function getProcessHeaderActivity(segment: ProcessSegment<ContentBlock>, segment
 
 function getProcessHeaderTitle(segment: ProcessSegment<ContentBlock>, segmentIndex: number): string {
   if (isCompletedProcessSummary(segment)) {
+    if (hasProcessSegmentError(segment)) return t('ai.chat.message.process.failed')
     return t('ai.chat.message.process.duration', {
       duration: formatProcessDuration(processElapsedMs.value, locale.value),
     })
@@ -867,7 +865,7 @@ async function handleCopyMarkdown() {
                 @click="toggleProcessSegment(segmentIdx)"
               >
                 <span
-                  v-if="!isCompletedProcessSummary(segment)"
+                  v-if="!isCompletedProcessSummary(segment) || hasProcessSegmentError(segment)"
                   class="relative mr-1.5 flex h-4 w-4 shrink-0 items-center justify-center"
                 >
                   <UIcon
@@ -887,11 +885,18 @@ async function handleCopyMarkdown() {
                     />
                   </template>
                 </span>
-                <span class="shrink-0 text-gray-600 dark:text-gray-300">
+                <span
+                  class="shrink-0"
+                  :class="
+                    hasProcessSegmentError(segment)
+                      ? 'text-amber-700 dark:text-amber-300'
+                      : 'text-gray-600 dark:text-gray-300'
+                  "
+                >
                   {{ getProcessHeaderTitle(segment, segmentIdx) }}
                 </span>
                 <UIcon
-                  v-if="isCompletedProcessSummary(segment)"
+                  v-if="isCompletedProcessSummary(segment) && !hasProcessSegmentError(segment)"
                   :name="isProcessSegmentOpen(segmentIdx) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'"
                   class="ml-1 h-3.5 w-3.5 shrink-0 text-gray-500 dark:text-gray-400"
                 />
@@ -958,7 +963,7 @@ async function handleCopyMarkdown() {
                           :class="[
                             segment.type === 'process' && !isCompletedProcessSummary(segment)
                               ? 'prose-sm leading-relaxed'
-                              : '',
+                              : 'ai-chat-prose',
                           ]"
                           v-html="renderMarkdown(getDisplayText(block.text))"
                         />
@@ -1313,7 +1318,7 @@ async function handleCopyMarkdown() {
       <!-- AI 消息：传统纯文本渲染（向后兼容） -->
       <template v-else>
         <div class="py-1 text-gray-900 dark:text-gray-100">
-          <div class="prose dark:prose-invert max-w-none" v-html="renderedContent" />
+          <div class="prose ai-chat-prose dark:prose-invert max-w-none" v-html="renderedContent" />
           <span
             v-if="isStreaming"
             class="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-gray-800 dark:bg-gray-200"
