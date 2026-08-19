@@ -16,6 +16,8 @@ const CHART_AVATAR_SIZE = 36
 const circularBySrc = new Map<string, string>()
 const inflightSrcs = new Set<string>()
 const failedSrcs = new Set<string>()
+/** Shared so every mounted ranking chart rerenders when any avatar clip finishes. */
+const circularClipRevision = ref(0)
 
 export type RankAvatarMember = {
   memberId?: number
@@ -187,7 +189,6 @@ export function clipAvatarToCircle(src: string, size = CHART_AVATAR_SIZE): Promi
 
 export function useCircularRankAvatarMap(members: () => RankAvatarMember[]): ComputedRef<RankAvatarMap> {
   const rawMap = useRankAvatarMap()
-  const revision = ref(0)
 
   watchEffect(() => {
     const raw = rawMap.value
@@ -199,13 +200,13 @@ export function useCircularRankAvatarMap(members: () => RankAvatarMember[]): Com
         inflightSrcs.delete(src)
         if (circular) circularBySrc.set(src, circular)
         else failedSrcs.add(src)
-        revision.value += 1
+        circularClipRevision.value += 1
       })
     }
   })
 
   return computed(() => {
-    void revision.value
+    void circularClipRevision.value
     const raw = rawMap.value
     const prepared = new Map<number, string | null>()
     for (const member of members()) {
