@@ -38,7 +38,11 @@ import {
   type PlanContentBlock,
   type PlanDraftContentBlock,
 } from '@/services/ai/planBlocks'
-import { toSerializableContentBlocks } from './aiChatContentBlocks'
+import {
+  getPersistedProcessDurationMs,
+  persistProcessDurationMs,
+  toSerializableContentBlocks,
+} from './aiChatContentBlocks'
 import { createToolLifecycleTracker, type ToolStatus } from './aiToolLifecycle'
 
 export type { ToolStatus } from './aiToolLifecycle'
@@ -81,7 +85,7 @@ export interface MentionedMemberContext {
 
 // 内容块类型（用于 AI 消息的流式混合渲染）
 export type ContentBlock =
-  | { type: 'text'; text: string }
+  | { type: 'text'; text: string; processDurationMs?: number }
   | { type: 'think'; tag: string; text: string; durationMs?: number }
   | { type: 'chart'; chart: ChartPayload }
   | { type: 'evidence'; evidence: ChatEvidencePayload }
@@ -115,6 +119,8 @@ export interface ChatMessage {
   /** AI 消息的内容块数组（按时序排列的文本和工具调用） */
   contentBlocks?: ContentBlock[]
   isStreaming?: boolean
+  /** Runtime wall-clock duration from request start until the final response begins. */
+  processDurationMs?: number
 }
 
 // 搜索结果消息类型（保留用于数据源面板）
@@ -244,13 +250,15 @@ function normalizeSerializedError(error: unknown): SerializedErrorInfo {
 }
 
 function toRuntimeMessage(msg: PersistedAIMessage): ChatMessage {
+  const contentBlocks = msg.contentBlocks as ContentBlock[] | undefined
   return {
     id: msg.id,
     role: msg.role,
     content: msg.content,
     timestamp: msg.timestamp * 1000,
     parentId: msg.parentId,
-    contentBlocks: msg.contentBlocks as ContentBlock[] | undefined,
+    contentBlocks,
+    processDurationMs: getPersistedProcessDurationMs(contentBlocks),
   }
 }
 
@@ -519,7 +527,9 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
     try {
       const conversation = await useAIService().getAIChat(aiChatId)
-      const buffer = getOrCreateBuffer(state, aiChatId, conversation?.assistantId ?? null)
+      if (!conversation || conversation.sessionId !== state.sessionId) return false
+
+      const buffer = getOrCreateBuffer(state, aiChatId, conversation.assistantId)
 
       if (!buffer.loaded) {
         const [history, tokenUsage] = await Promise.all([
@@ -533,7 +543,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         buffer.loaded = true
       }
 
-      buffer.assistantId = conversation?.assistantId ?? buffer.assistantId ?? null
+      buffer.assistantId = conversation.assistantId
       bindDisplayedBuffer(state, aiChatId)
       applySessionAssistantSelection(chatKey)
       return true
@@ -568,7 +578,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
    * 如果存在有效的记忆助手则直接进入对应助手，否则回到助手选择页。
    * 从浮动任务条返回（pendingFocusReturn）时跳过重置以保留对话状态。
    */
-  async function resetToSelectorOnEnter(chatKey: string): Promise<void> {
+  async function resetToSelectorOnEnter(chatKey: string, preferredAIChatId?: string | null): Promise<void> {
     if (pendingFocusReturn) {
       pendingFocusReturn = false
       return
@@ -578,6 +588,10 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
     if (!assistantStore.isLoaded) {
       await assistantStore.loadAssistants()
+    }
+
+    if (preferredAIChatId && (await loadAIChat(chatKey, preferredAIChatId))) {
+      return
     }
 
     if (!state.selectedAssistantId) {
@@ -648,12 +662,27 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       status: 'done' | 'error',
       completion?: { toolCallId?: string; result?: string; displayResult?: string; isError?: boolean }
     ) => void
+    completeTurn: (hadToolCalls: boolean) => void
+    settleProcessDuration: () => void
   }
 
   function createStreamBlockHelpers(targetBuffer: AIChatBuffer, getAiMessageIndex: () => number): StreamBlockHelpers {
+    let currentTurnFirstContentAt: number | undefined
+
     const updateAIMessage = (updates: Partial<ChatMessage>) => {
       const idx = getAiMessageIndex()
       targetBuffer.messages[idx] = { ...targetBuffer.messages[idx], ...updates }
+    }
+
+    const settleProcessDuration = () => {
+      const idx = getAiMessageIndex()
+      const message = targetBuffer.messages[idx]
+      if (!message || message.processDurationMs !== undefined) return
+      const durationMs = Math.max(0, Date.now() - message.timestamp)
+      updateAIMessage({
+        processDurationMs: durationMs,
+        contentBlocks: persistProcessDurationMs(message.contentBlocks, durationMs),
+      })
     }
 
     const appendTextToBlocks = (text: string) => {
@@ -662,12 +691,30 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       const blocks = targetBuffer.messages[idx].contentBlocks || []
       const lastBlock = blocks[blocks.length - 1]
       if (text.trim().length === 0 && (!lastBlock || lastBlock.type !== 'text')) return
+      if (text.trim().length > 0 && currentTurnFirstContentAt === undefined) {
+        currentTurnFirstContentAt = Date.now()
+      }
       if (lastBlock && lastBlock.type === 'text') {
         lastBlock.text += text
       } else {
         blocks.push({ type: 'text', text })
       }
       updateAIMessage({ contentBlocks: [...blocks], content: targetBuffer.messages[idx].content + text })
+    }
+
+    const completeTurn = (hadToolCalls: boolean) => {
+      const firstContentAt = currentTurnFirstContentAt
+      currentTurnFirstContentAt = undefined
+      if (hadToolCalls || firstContentAt === undefined) return
+
+      const idx = getAiMessageIndex()
+      const message = targetBuffer.messages[idx]
+      if (!message || message.processDurationMs !== undefined) return
+      const durationMs = Math.max(0, firstContentAt - message.timestamp)
+      updateAIMessage({
+        processDurationMs: durationMs,
+        contentBlocks: persistProcessDurationMs(message.contentBlocks, durationMs),
+      })
     }
 
     const appendThinkToBlocks = (text: string, tag?: string, durationMs?: number) => {
@@ -837,6 +884,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       addRenderOnlyToolPendingBlock,
       updateRenderOnlyToolResult,
       updateToolBlockStatus,
+      completeTurn,
+      settleProcessDuration,
     }
   }
 
@@ -962,6 +1011,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         addRenderOnlyToolPendingBlock,
         updateRenderOnlyToolResult,
         updateToolBlockStatus,
+        completeTurn,
+        settleProcessDuration,
       } = createStreamBlockHelpers(targetBuffer, () => aiMessageIndex)
 
       const currentAssistantId = targetBuffer.assistantId ?? getDefaultGeneralAssistantId(state.locale)
@@ -969,12 +1020,14 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         const title = content.slice(0, 50) + (content.length > 50 ? '...' : '')
         const conversation = await useAIService().createAIChat(state.sessionId, title, currentAssistantId)
         if (state.isAborted) {
+          settleProcessDuration()
           updateAIMessage({ isStreaming: false })
           clearActiveTask(chatKey, thisRequestId)
           return { success: false, reason: 'aborted' }
         }
 
         if (state.currentRequestId !== thisRequestId) {
+          settleProcessDuration()
           updateAIMessage({ isStreaming: false })
           clearActiveTask(chatKey, thisRequestId)
           return { success: false, reason: 'busy', activeTask: activeTask.value }
@@ -1129,6 +1182,10 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               removePlanDraftsFromBlocks()
               break
 
+            case 'turn_end':
+              completeTurn(Boolean(chunk.hadToolCalls))
+              break
+
             case 'status':
               if (chunk.status && (!state.agentStatus || chunk.status.updatedAt >= state.agentStatus.updatedAt)) {
                 state.agentStatus = chunk.status
@@ -1150,6 +1207,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               break
 
             case 'done':
+              settleProcessDuration()
               toolLifecycle.clear()
               state.currentToolStatus = null
               if (!hasStreamError) updatePlanBlockStatus('done')
@@ -1167,6 +1225,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               break
 
             case 'error':
+              settleProcessDuration()
               removePlanDraftsFromBlocks()
               updatePlanBlockStatus('skipped')
               if (state.currentToolStatus) {
@@ -1289,6 +1348,9 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         const blocks = lastMessage.contentBlocks || []
         blocks.push({ type: 'error', error: errInfo })
         lastMessage.contentBlocks = [...blocks]
+        const durationMs = lastMessage.processDurationMs ?? Math.max(0, Date.now() - lastMessage.timestamp)
+        lastMessage.processDurationMs = durationMs
+        lastMessage.contentBlocks = persistProcessDurationMs(lastMessage.contentBlocks, durationMs)
         lastMessage.isStreaming = false
 
         // 优先使用当前轮次的用户消息，避免多轮对话取到第一条历史消息
@@ -1571,6 +1633,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       addRenderOnlyToolPendingBlock,
       updateRenderOnlyToolResult,
       updateToolBlockStatus,
+      completeTurn,
+      settleProcessDuration,
     } = createStreamBlockHelpers(targetBuffer, () => aiMessageIndex)
 
     try {
@@ -1718,12 +1782,16 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
             case 'plan_skipped':
               removePlanDraftsFromBlocks()
               break
+            case 'turn_end':
+              completeTurn(Boolean(chunk.hadToolCalls))
+              break
             case 'status':
               if (chunk.status && (!state.agentStatus || chunk.status.updatedAt >= state.agentStatus.updatedAt)) {
                 state.agentStatus = chunk.status
               }
               break
             case 'done':
+              settleProcessDuration()
               toolLifecycle.clear()
               state.currentToolStatus = null
               if (!hasStreamError) updatePlanBlockStatus('done')
@@ -1731,6 +1799,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               setAgentPhase(state, 'completed', chunk.usage ? { totalUsage: chunk.usage } : undefined)
               break
             case 'error': {
+              settleProcessDuration()
               removePlanDraftsFromBlocks()
               updatePlanBlockStatus('skipped')
               hasStreamError = true
@@ -1795,9 +1864,11 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         serializableContentBlocks,
         lastDoneUsage
       )
+      const processDurationMs = targetBuffer.messages[aiMessageIndex].processDurationMs
       targetBuffer.messages[aiMessageIndex] = {
         ...toRuntimeMessage(savedAiMsg),
         dataSource: targetBuffer.messages[aiMessageIndex].dataSource,
+        processDurationMs,
         isStreaming: false,
       }
       targetBuffer.messages[editIndex] = {
@@ -1864,6 +1935,9 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     const runningBuffer = state.aiChatBuffers[runningBufferKey]
     const lastMessage = runningBuffer ? runningBuffer.messages[runningBuffer.messages.length - 1] : undefined
     if (lastMessage && lastMessage.role === 'assistant' && lastMessage.isStreaming) {
+      const durationMs = lastMessage.processDurationMs ?? Math.max(0, Date.now() - lastMessage.timestamp)
+      lastMessage.processDurationMs = durationMs
+      lastMessage.contentBlocks = persistProcessDurationMs(lastMessage.contentBlocks, durationMs)
       lastMessage.isStreaming = false
       lastMessage.content += '\n\n_（已停止生成）_'
     }

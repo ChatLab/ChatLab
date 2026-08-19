@@ -101,15 +101,20 @@ describe('AgentEventHandler', () => {
     ])
   })
 
-  it('updates tool rounds on turn_end', () => {
+  it('forwards turn completion so the UI can identify the final response', () => {
+    const chunks: AgentStreamChunk[] = []
     const handler = new AgentEventHandler({
-      onChunk: () => {},
+      onChunk: (chunk) => chunks.push(chunk),
       context: {},
       systemPrompt: 'test',
     })
 
     handler.handleCoreEvent({ type: 'turn_end', round: 3, hadToolCalls: true }, [])
     assert.equal(handler.toolRounds, 3)
+    assert.deepEqual(
+      chunks.find((chunk) => chunk.type === 'turn_end'),
+      { type: 'turn_end', hadToolCalls: true }
+    )
   })
 
   it('cloneUsage returns independent copy', () => {

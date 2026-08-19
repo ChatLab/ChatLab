@@ -23,6 +23,7 @@ export interface AgentStreamChunk {
     | 'plan_delta'
     | 'plan'
     | 'plan_skipped'
+    | 'turn_end'
     | 'done'
     | 'error'
   content?: string
@@ -41,6 +42,7 @@ export interface AgentStreamChunk {
   routeDecision?: RouteDecision
   planDelta?: string
   plan?: PlanContentBlock
+  hadToolCalls?: boolean
   compressionResult?: {
     summaryContent: string
     tokensBefore: number

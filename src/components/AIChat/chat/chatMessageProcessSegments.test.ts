@@ -5,7 +5,9 @@ import {
   findRepresentativeProcessThought,
   getProcessSegmentStatusLabel,
   getVisibleSegmentBlocks,
+  isActiveProcessSegment,
   resolveProcessHeaderActivity,
+  resolveProcessElapsedMs,
 } from './chatMessageProcessSegments'
 
 type TestBlock =
@@ -28,7 +30,7 @@ const getBlockDurationMs = (block: TestBlock): number => {
 }
 
 describe('chat message process segments', () => {
-  it('folds tool work and interstitial text before the final answer', () => {
+  it('folds tool work and interstitial text after the answer completes', () => {
     const blocks: TestBlock[] = [
       { type: 'think', text: '分析问题' },
       { type: 'tool', name: 'search_messages' },
@@ -37,7 +39,11 @@ describe('chat message process segments', () => {
       { type: 'text', text: '最终结论' },
     ]
 
-    const segments = buildProcessSegments(blocks, { isFoldableProcessBlock, isTextBlock })
+    const segments = buildProcessSegments(blocks, {
+      isFoldableProcessBlock,
+      isTextBlock,
+      mode: 'completed',
+    })
 
     assert.deepEqual(segments, [
       { type: 'process', blocks: blocks.slice(0, 4) },
@@ -58,7 +64,11 @@ describe('chat message process segments', () => {
       { type: 'text', text: '最终解释' },
     ]
 
-    const segments = buildProcessSegments(blocks, { isFoldableProcessBlock, isTextBlock })
+    const segments = buildProcessSegments(blocks, {
+      isFoldableProcessBlock,
+      isTextBlock,
+      mode: 'completed',
+    })
 
     assert.deepEqual(segments, [
       { type: 'process', blocks: [blocks[0], blocks[2], blocks[3], blocks[4], blocks[5]] },
@@ -69,20 +79,81 @@ describe('chat message process segments', () => {
     assert.deepEqual(getVisibleSegmentBlocks(segments), [blocks[1], blocks[6], blocks[7]])
   })
 
-  it('keeps live thinking in the process row while the answer streams visibly', () => {
+  it('keeps live blocks in chronological process groups', () => {
     const blocks: TestBlock[] = [
       { type: 'think', text: '先看这周在聊什么' },
       { type: 'tool', name: 'search_messages' },
       { type: 'text', text: '证据拿到了，我再核对统计。' },
+      { type: 'tool', name: 'get_time_stats' },
+      { type: 'think', text: '核对统计结果' },
+      { type: 'text', text: '最终结论' },
     ]
 
-    const segments = buildProcessSegments(blocks, { isFoldableProcessBlock, isTextBlock })
+    const segments = buildProcessSegments(blocks, {
+      isFoldableProcessBlock,
+      isTextBlock,
+      mode: 'timeline',
+    })
 
     assert.deepEqual(segments, [
       { type: 'process', blocks: blocks.slice(0, 2) },
       { type: 'visible', block: blocks[2] },
+      { type: 'process', blocks: blocks.slice(3, 5) },
+      { type: 'visible', block: blocks[5] },
     ])
-    assert.deepEqual(getVisibleSegmentBlocks(segments), [blocks[2]])
+    assert.deepEqual(getVisibleSegmentBlocks(segments), [blocks[2], blocks[5]])
+  })
+
+  it('does not move visible text when later process work arrives', () => {
+    const blocks: TestBlock[] = [
+      { type: 'think', text: '分析问题' },
+      { type: 'text', text: '先说明一部分结果。' },
+    ]
+    const beforeTool = buildProcessSegments(blocks, {
+      isFoldableProcessBlock,
+      isTextBlock,
+      mode: 'timeline',
+    })
+
+    blocks.push({ type: 'tool', name: 'search_messages' })
+    const afterTool = buildProcessSegments(blocks, {
+      isFoldableProcessBlock,
+      isTextBlock,
+      mode: 'timeline',
+    })
+
+    assert.deepEqual(beforeTool, [
+      { type: 'process', blocks: [blocks[0]] },
+      { type: 'visible', block: blocks[1] },
+    ])
+    assert.deepEqual(afterTool, [
+      { type: 'process', blocks: [blocks[0]] },
+      { type: 'visible', block: blocks[1] },
+      { type: 'process', blocks: [blocks[2]] },
+    ])
+    assert.equal(isActiveProcessSegment(afterTool, 0, true), false)
+    assert.equal(isActiveProcessSegment(afterTool, 2, true), true)
+  })
+
+  it('allows the completed duration to exclude final response generation', () => {
+    assert.equal(
+      resolveProcessElapsedMs({
+        isStreaming: true,
+        liveElapsedMs: 20_000,
+        settledElapsedMs: 15_000,
+        recordedElapsedMs: 5_500,
+      }),
+      20_000
+    )
+    assert.equal(
+      resolveProcessElapsedMs({
+        isStreaming: false,
+        liveElapsedMs: 20_000,
+        settledElapsedMs: 15_000,
+        recordedElapsedMs: 5_500,
+      }),
+      15_000
+    )
   })
 
   it('uses natural-language thinking for the collapsed preview instead of plan JSON', () => {
@@ -100,7 +171,11 @@ describe('chat message process segments', () => {
       { type: 'evidence', title: '引用' },
     ]
 
-    const segments = buildProcessSegments(blocks, { isFoldableProcessBlock, isTextBlock })
+    const segments = buildProcessSegments(blocks, {
+      isFoldableProcessBlock,
+      isTextBlock,
+      mode: 'completed',
+    })
 
     assert.deepEqual(segments, [
       { type: 'process', blocks: [blocks[0]] },

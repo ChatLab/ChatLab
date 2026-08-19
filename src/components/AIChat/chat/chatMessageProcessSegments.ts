@@ -3,6 +3,7 @@ export type ProcessSegment<T> = { type: 'process'; blocks: T[] } | { type: 'visi
 export interface ProcessSegmentOptions<T> {
   isFoldableProcessBlock: (block: T) => boolean
   isTextBlock: (block: T) => boolean
+  mode: 'timeline' | 'completed'
 }
 
 export interface ProcessSegmentStatusLabelOptions<T> {
@@ -32,11 +33,39 @@ function hasLaterFoldableProcessBlock<T>(
   return false
 }
 
-export function buildProcessSegments<T>(blocks: T[], options: ProcessSegmentOptions<T>): ProcessSegment<T>[] {
+function buildTimelineSegments<T>(blocks: T[], isFoldableProcessBlock: (block: T) => boolean): ProcessSegment<T>[] {
+  const segments: ProcessSegment<T>[] = []
+  let processBlocks: T[] = []
+
+  const flushProcess = () => {
+    if (processBlocks.length === 0) return
+    segments.push({ type: 'process', blocks: processBlocks })
+    processBlocks = []
+  }
+
+  for (const block of blocks) {
+    if (isFoldableProcessBlock(block)) {
+      processBlocks.push(block)
+      continue
+    }
+
+    flushProcess()
+    segments.push({ type: 'visible', block })
+  }
+
+  flushProcess()
+  return segments
+}
+
+function buildCompletedSegments<T>(
+  blocks: T[],
+  isFoldableProcessBlock: (block: T) => boolean,
+  isTextBlock: (block: T) => boolean
+): ProcessSegment<T>[] {
   const isProcessBlock = blocks.map(
     (block, index) =>
-      options.isFoldableProcessBlock(block) ||
-      (options.isTextBlock(block) && hasLaterFoldableProcessBlock(blocks, index, options.isFoldableProcessBlock))
+      isFoldableProcessBlock(block) ||
+      (isTextBlock(block) && hasLaterFoldableProcessBlock(blocks, index, isFoldableProcessBlock))
   )
   const processBlocks = blocks.filter((_block, index) => isProcessBlock[index])
   const firstProcessIndex = isProcessBlock.findIndex(Boolean)
@@ -53,6 +82,21 @@ export function buildProcessSegments<T>(blocks: T[], options: ProcessSegmentOpti
   })
 
   return segments
+}
+
+export function buildProcessSegments<T>(blocks: T[], options: ProcessSegmentOptions<T>): ProcessSegment<T>[] {
+  if (options.mode === 'timeline') {
+    return buildTimelineSegments(blocks, options.isFoldableProcessBlock)
+  }
+  return buildCompletedSegments(blocks, options.isFoldableProcessBlock, options.isTextBlock)
+}
+
+export function isActiveProcessSegment<T>(
+  segments: ProcessSegment<T>[],
+  segmentIndex: number,
+  isStreaming: boolean
+): boolean {
+  return isStreaming && segmentIndex === segments.length - 1 && segments[segmentIndex]?.type === 'process'
 }
 
 export function getVisibleSegmentBlocks<T>(segments: ProcessSegment<T>[]): T[] {
@@ -104,6 +148,16 @@ export function getProcessSegmentDurationMs<T>(
 ): number {
   if (segment.type !== 'process') return 0
   return segment.blocks.reduce((total, block) => total + (getBlockDurationMs(block) ?? 0), 0)
+}
+
+export function resolveProcessElapsedMs(input: {
+  isStreaming: boolean
+  liveElapsedMs: number
+  settledElapsedMs: number
+  recordedElapsedMs: number
+}): number {
+  if (input.isStreaming) return input.liveElapsedMs
+  return input.settledElapsedMs || input.recordedElapsedMs
 }
 
 export function getProcessSegmentStatusLabel<T>(

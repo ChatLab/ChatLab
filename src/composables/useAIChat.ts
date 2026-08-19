@@ -35,7 +35,8 @@ export function useAIChat(
   sessionName: string,
   timeFilter?: { startTs: number; endTs: number },
   chatType: 'group' | 'private' = 'group',
-  locale: string = 'zh-CN'
+  locale: string = 'zh-CN',
+  initialAIChatId?: string | null
 ) {
   const aiChatStore = useAIChatStore()
   const { chatKey, state } = aiChatStore.ensureSessionState({
@@ -47,12 +48,13 @@ export function useAIChat(
   })
 
   // 每次进入 AI Tab 时确保默认选中助手（从浮动任务条返回时除外）
-  void aiChatStore.resetToSelectorOnEnter(chatKey)
+  const initialization = aiChatStore.resetToSelectorOnEnter(chatKey, initialAIChatId)
 
   // 当前可见的 AI 页应恢复自己的助手上下文，避免不同会话之间串助手选择。
   aiChatStore.applySessionAssistantSelection(chatKey)
 
   return {
+    initialization,
     messages: toRef(state, 'messages'),
     sourceMessages: toRef(state, 'sourceMessages'),
     currentKeywords: toRef(state, 'currentKeywords'),

@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute, useRouter } from 'vue-router'
 import { useToast } from '@/composables/useToast'
 import ConversationList from './chat/ConversationList.vue'
 import DataSourcePanel from './chat/DataSourcePanel.vue'
@@ -28,6 +29,8 @@ import type { MentionedMemberContext } from '@/composables/useAIChat'
 import type { AssistantUpgradeInfo } from '@openchatlab/shared-types'
 
 const { t } = useI18n()
+const route = useRoute()
+const router = useRouter()
 const toast = useToast()
 const settingsStore = useSettingsStore()
 const assistantStore = useAssistantStore()
@@ -41,8 +44,11 @@ const props = defineProps<{
   chatType?: 'group' | 'private'
 }>()
 
+const initialAIChatId = typeof route.query.aiChatId === 'string' ? route.query.aiChatId : null
+
 // 使用 AI 对话 Composable
 const {
+  initialization,
   messages,
   sourceMessages,
   currentKeywords,
@@ -61,7 +67,37 @@ const {
   updateMaxMessages,
   stopGeneration,
   selectAssistantForSession,
-} = useAIChat(props.sessionId, props.sessionName, props.timeFilter, props.chatType ?? 'group', settingsStore.locale)
+} = useAIChat(
+  props.sessionId,
+  props.sessionName,
+  props.timeFilter,
+  props.chatType ?? 'group',
+  settingsStore.locale,
+  initialAIChatId
+)
+
+let isAIChatInitialized = false
+
+async function syncAIChatIdToRoute(aiChatId: string | null): Promise<void> {
+  const routeAIChatId = typeof route.query.aiChatId === 'string' ? route.query.aiChatId : null
+  if (routeAIChatId === aiChatId) return
+
+  await router.replace({
+    query: {
+      ...route.query,
+      aiChatId: aiChatId || undefined,
+    },
+  })
+}
+
+void initialization.finally(() => {
+  isAIChatInitialized = true
+  void syncAIChatIdToRoute(currentAIChatId.value)
+})
+
+watch(currentAIChatId, (aiChatId) => {
+  if (isAIChatInitialized) void syncAIChatIdToRoute(aiChatId)
+})
 
 // 智能滚动
 const chatScroll = useChatScroll(messages, isAIThinking)
@@ -514,24 +550,19 @@ watch(
                     :content="pair.assistant.content"
                     :timestamp="pair.assistant.timestamp"
                     :is-streaming="pair.assistant.isStreaming"
+                    :process-duration-ms="pair.assistant.processDurationMs"
                     :content-blocks="pair.assistant.contentBlocks"
                     :show-capture-button="!pair.assistant.isStreaming"
                     :active-tool="pair.assistant.isStreaming ? currentToolStatus : null"
                     @fork="handleForkAIChat"
                   />
+                  <AIThinkingIndicator
+                    v-else-if="pair.assistant?.isStreaming"
+                    :current-tool-status="currentToolStatus"
+                    :agent-status="agentStatus"
+                  />
                 </div>
               </template>
-
-              <!-- AI 思考中指示器（仅在没有任何内容块时显示） -->
-              <AIThinkingIndicator
-                v-if="
-                  isAIThinking &&
-                  !messages[messages.length - 1]?.content &&
-                  !(messages[messages.length - 1]?.contentBlocks?.length ?? 0)
-                "
-                :current-tool-status="currentToolStatus"
-                :agent-status="agentStatus"
-              />
             </div>
           </div>
 

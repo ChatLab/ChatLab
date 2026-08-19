@@ -46,6 +46,7 @@
         "label": "執行過程",
         "processing": "處理中",
         "processed": "已處理",
+        "duration": "耗時 {duration}",
         "working": "正在處理",
         "planning": "正在規劃",
         "failed": "未完成",

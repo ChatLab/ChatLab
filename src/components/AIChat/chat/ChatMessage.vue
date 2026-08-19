@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, ref, watch, nextTick } from 'vue'
+import { computed, nextTick, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import dayjs from 'dayjs'
 import MarkdownIt from 'markdown-it'
@@ -20,7 +20,9 @@ import {
   formatProcessDuration,
   getProcessSegmentDurationMs,
   getVisibleSegmentBlocks,
+  isActiveProcessSegment,
   resolveProcessHeaderActivity,
+  resolveProcessElapsedMs,
   type ProcessSegment,
 } from './chatMessageProcessSegments'
 
@@ -34,6 +36,7 @@ const props = defineProps<{
   content: string
   timestamp: number
   isStreaming?: boolean
+  processDurationMs?: number
   /** AI 消息的混合内容块（按时序排列的文本和工具调用） */
   contentBlocks?: ContentBlock[]
   /** 是否显示截屏按钮（仅 AI 回复） */
@@ -194,10 +197,27 @@ function isTextBlock(block: ContentBlock): boolean {
   return block.type === 'text'
 }
 
+// Text may be emitted between tool rounds, so only a completed tool-free turn can end this state.
+const isAgentRunActive = computed(() => Boolean(props.isStreaming) && props.processDurationMs === undefined)
+
 const renderSegments = computed(() =>
   buildProcessSegments(visibleBlocks.value, {
     isFoldableProcessBlock,
     isTextBlock,
+    mode: isAgentRunActive.value ? 'timeline' : 'completed',
+  })
+)
+
+const recordedProcessDurationMs = computed(() =>
+  renderSegments.value.reduce((total, segment) => total + getProcessSegmentDurationMs(segment, getBlockDurationMs), 0)
+)
+
+const processElapsedMs = computed(() =>
+  resolveProcessElapsedMs({
+    isStreaming: isAgentRunActive.value,
+    liveElapsedMs: 0,
+    settledElapsedMs: props.processDurationMs ?? 0,
+    recordedElapsedMs: recordedProcessDurationMs.value,
   })
 )
 
@@ -217,7 +237,10 @@ function isProcessSegmentOpen(segmentIndex: number): boolean {
   const key = getProcessSegmentKey(segmentIndex)
   const override = processSegmentOpenOverrides.value[key]
   if (override !== undefined) return override
-  return hasProcessSegmentError(renderSegments.value[segmentIndex])
+  return (
+    !isCompletedProcessSummary(renderSegments.value[segmentIndex]) &&
+    hasProcessSegmentError(renderSegments.value[segmentIndex])
+  )
 }
 
 function toggleProcessSegment(segmentIndex: number): void {
@@ -233,8 +256,11 @@ function isLastVisibleBlock(block: ContentBlock): boolean {
 }
 
 function isProcessingProcessSegment(segmentIndex: number): boolean {
-  const segment = renderSegments.value[segmentIndex]
-  return segment?.type === 'process' && !!props.isStreaming
+  return isActiveProcessSegment(renderSegments.value, segmentIndex, isAgentRunActive.value)
+}
+
+function isCompletedProcessSummary(segment: ProcessSegment<ContentBlock>): boolean {
+  return segment.type === 'process' && !isAgentRunActive.value
 }
 
 function getProcessSegmentStepCount(segment: ProcessSegment<ContentBlock>): number {
@@ -299,6 +325,12 @@ function getProcessHeaderActivity(segment: ProcessSegment<ContentBlock>, segment
 }
 
 function getProcessHeaderTitle(segment: ProcessSegment<ContentBlock>, segmentIndex: number): string {
+  if (isCompletedProcessSummary(segment)) {
+    return t('ai.chat.message.process.duration', {
+      duration: formatProcessDuration(processElapsedMs.value, locale.value),
+    })
+  }
+
   if (!isProcessingProcessSegment(segmentIndex)) {
     const thinkBlock = getRepresentativeThinkBlock(segment)
     if (thinkBlock) return getThinkLabel(thinkBlock.tag)
@@ -323,6 +355,8 @@ function getProcessHeaderTitle(segment: ProcessSegment<ContentBlock>, segmentInd
 }
 
 function getProcessHeaderMeta(segment: ProcessSegment<ContentBlock>, segmentIndex: number): string {
+  if (isCompletedProcessSummary(segment)) return ''
+
   if (isProcessingProcessSegment(segmentIndex)) {
     const activity = getProcessHeaderActivity(segment, segmentIndex)
     if (activity.type === 'tool' && activity.progressPhase) {
@@ -332,16 +366,12 @@ function getProcessHeaderMeta(segment: ProcessSegment<ContentBlock>, segmentInde
     return ''
   }
 
-  if (hasProcessSegmentError(segment)) return t('ai.chat.message.process.failed')
-
-  const parts = [getProcessSegmentStepLabel(segment)]
-  const durationMs = getProcessSegmentDurationMs(segment, getBlockDurationMs)
-  if (durationMs > 0) parts.push(formatProcessDuration(durationMs, locale.value))
-  return parts.join(' · ')
+  return getProcessSegmentStepLabel(segment)
 }
 
 function getProcessHeaderPreview(segment: ProcessSegment<ContentBlock>, segmentIndex: number): string {
   if (segment.type !== 'process') return ''
+  if (isCompletedProcessSummary(segment)) return ''
 
   if (!isProcessingProcessSegment(segmentIndex)) {
     const thinkBlock = getRepresentativeThinkBlock(segment)
@@ -802,7 +832,10 @@ async function handleCopyMarkdown() {
                 :aria-expanded="isProcessSegmentOpen(segmentIdx)"
                 @click="toggleProcessSegment(segmentIdx)"
               >
-                <span class="relative mr-1.5 flex h-4 w-4 shrink-0 items-center justify-center">
+                <span
+                  v-if="!isCompletedProcessSummary(segment)"
+                  class="relative mr-1.5 flex h-4 w-4 shrink-0 items-center justify-center"
+                >
                   <UIcon
                     v-if="isProcessSegmentOpen(segmentIdx)"
                     name="i-heroicons-chevron-down"
@@ -823,6 +856,11 @@ async function handleCopyMarkdown() {
                 <span class="shrink-0 text-gray-600 dark:text-gray-300">
                   {{ getProcessHeaderTitle(segment, segmentIdx) }}
                 </span>
+                <UIcon
+                  v-if="isCompletedProcessSummary(segment)"
+                  :name="isProcessSegmentOpen(segmentIdx) ? 'i-heroicons-chevron-down' : 'i-heroicons-chevron-right'"
+                  class="ml-1 h-3.5 w-3.5 shrink-0 text-gray-500 dark:text-gray-400"
+                />
                 <template v-if="!isProcessSegmentOpen(segmentIdx) && getProcessHeaderPreview(segment, segmentIdx)">
                   <span
                     class="mx-2 h-0.5 w-0.5 shrink-0 rounded-full bg-gray-300 dark:bg-gray-600"
@@ -1248,7 +1286,7 @@ async function handleCopyMarkdown() {
     color-mix(in srgb, var(--color-page-bg) 60%, transparent) 55%,
     transparent 100%
   );
-  animation: ai-live-row-sweep 4s ease-out infinite;
+  animation: ai-live-row-sweep 2.5s ease-in-out infinite;
   pointer-events: none;
 }
 
@@ -1265,7 +1303,7 @@ async function handleCopyMarkdown() {
   0% {
     left: -300px;
   }
-  75%,
+  80%,
   100% {
     left: 100%;
   }

@@ -46,6 +46,7 @@
         "label": "Process",
         "processing": "Processing",
         "processed": "Processed",
+        "duration": "Took {duration}",
         "working": "Working",
         "planning": "Planning",
         "failed": "Incomplete",

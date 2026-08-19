@@ -13,7 +13,7 @@ export interface AIChat {
 }
 
 export type ContentBlock =
-  | { type: 'text'; text: string }
+  | { type: 'text'; text: string; processDurationMs?: number }
   | { type: 'think'; tag: string; text: string; durationMs?: number }
   | { type: 'chart'; chart: ChartPayload }
   | { type: 'evidence'; evidence: ChatEvidencePayload }
