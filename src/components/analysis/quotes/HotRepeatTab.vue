@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import { ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
-import type { RepeatAnalysis } from '@openchatlab/core'
+import type { HotRepeatContent, RepeatAnalysis } from '@openchatlab/core'
+import LazyAvatar from '@/components/common/avatar/LazyAvatar.vue'
 import { useDataService } from '@/services/data/service'
 import { ListPro } from '@/components/charts'
 import { LoadingState, EmptyState, SectionCard } from '@/components/UI'
 import { formatDate, formatRankNumber, getRankNumberClass } from '@/utils'
+import { getRankAvatarText, resolveRankAvatar, useRankAvatarIndex } from '@/utils/rankAvatars'
 import { useLayoutStore } from '@/stores/layout'
 import type { TimeFilter } from '@openchatlab/shared-types'
 
@@ -17,6 +19,14 @@ const props = defineProps<{
 }>()
 
 const layoutStore = useLayoutStore()
+const avatarIndex = useRankAvatarIndex()
+
+function originatorAvatar(item: HotRepeatContent): string | null {
+  return resolveRankAvatar(item.originatorId, undefined, avatarIndex.value.byId, {
+    name: item.originatorName,
+    byName: avatarIndex.value.byName,
+  })
+}
 
 // ==================== 最火复读内容 ====================
 const repeatAnalysis = ref<RepeatAnalysis | null>(null)
@@ -71,16 +81,24 @@ watch(
       <template #item="{ item, index }">
         <button
           type="button"
-          class="group/item grid w-full grid-cols-[2rem_minmax(0,1fr)_auto] items-center gap-3 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
+          class="group/item grid w-full grid-cols-[2rem_2rem_minmax(0,1fr)_auto] items-start gap-3 rounded-lg text-left outline-none focus-visible:ring-2 focus-visible:ring-primary-500/40"
           :aria-label="`${t('quotes.hotRepeat.viewChat')}: ${item.content}`"
           @click="viewRepeatContext(item)"
         >
           <span
-            class="w-8 shrink-0 text-center font-mono text-sm font-black tabular-nums"
+            class="w-8 shrink-0 pt-0.5 text-center font-mono text-sm font-black tabular-nums"
             :class="getRankNumberClass(index)"
           >
             {{ formatRankNumber(index) }}
           </span>
+          <LazyAvatar
+            :src="originatorAvatar(item)"
+            :alt="item.originatorName"
+            :text="getRankAvatarText(item.originatorName)"
+            root-class="h-8 w-8 shrink-0"
+            image-class="h-8 w-8 rounded-full object-cover"
+            fallback-class="flex h-8 w-8 items-center justify-center rounded-full bg-linear-to-br from-pink-100 to-rose-100 text-[10px] font-medium text-pink-600 dark:from-pink-900/30 dark:to-rose-900/30 dark:text-pink-400"
+          />
           <div class="min-w-0">
             <p class="line-clamp-2 text-sm font-medium leading-5 text-gray-900 dark:text-white" :title="item.content">
               {{ item.content }}

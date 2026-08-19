@@ -48,9 +48,9 @@ const showViewAll = computed(() => {
     </template>
 
     <template #full>
-      <RankList :members="members" :unit="unit" />
+      <RankList :members="members" :unit="unit" show-avatar />
     </template>
 
-    <RankList :members="topNData" :unit="unit" />
+    <RankList :members="topNData" :unit="unit" show-avatar />
   </ExpandableListCard>
 </template>

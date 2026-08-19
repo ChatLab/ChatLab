@@ -240,6 +240,8 @@ describe('ranking analytics (ported algorithms)', () => {
     assert.equal(res.breakers[0].memberId, 4)
     assert.equal(res.hotContents[0].content, 'haha')
     assert.equal(res.hotContents[0].maxChainLength, 3)
+    assert.equal(res.hotContents[0].originatorId, 1)
+    assert.equal(res.hotContents[0].originatorName, 'A')
   })
 
   it('excludes system messages for system-filtered analyses', () => {

@@ -348,7 +348,9 @@ export function registerAnalyticsRoutes(server: FastifyInstance, ctx: AnalyticsR
     async (request) => {
       const id = request.params.id
       const filter = parseTimeFilter(request.query)
-      return cached('repeat', id, { ...filter }, () => getRepeatAnalysis(adapter.ensureReadonly(id), filter))
+      return cached('repeat', id, { ...filter }, () => getRepeatAnalysis(adapter.ensureReadonly(id), filter), {
+        extraVersion: 'originator-id-v1',
+      })
     }
   )
 }

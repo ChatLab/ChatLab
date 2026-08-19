@@ -117,6 +117,7 @@ export interface HotRepeatContent {
   content: string
   count: number
   maxChainLength: number
+  originatorId: number
   originatorName: string
   lastTs: number
   firstMessageId: number
@@ -1022,6 +1023,7 @@ function computeRepeat(
       content,
       count: stats.count,
       maxChainLength: stats.maxChainLength,
+      originatorId: stats.originatorId,
       originatorName: originatorInfo?.name || '未知',
       lastTs: stats.lastTs,
       firstMessageId: stats.firstMessageId,

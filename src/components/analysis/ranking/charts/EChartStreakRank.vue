@@ -7,7 +7,8 @@ import { computed } from 'vue'
 import type { EChartsOption, BarSeriesOption } from 'echarts'
 import { EChart } from '@/components/charts'
 import { SectionCard, ScrollableChart } from '@/components/UI'
-import { truncateRankName, useRankingLayout } from '@/utils/rankingChartLayout'
+import { useCircularRankAvatarMap } from '@/utils/rankAvatars'
+import { buildRankYAxis, useRankingLayout } from '@/utils/rankingChartLayout'
 
 interface StreakItem {
   memberId: number
@@ -55,6 +56,7 @@ const displayData = computed(() => {
   // 最长连续模式：显示全部，按 maxStreak 排序
   return props.items.slice(0, props.topN)
 })
+const avatarMap = useCircularRankAvatarMap(() => displayData.value)
 
 // 计算图表高度
 const chartHeight = computed(() => {
@@ -101,7 +103,11 @@ function getValue(item: StreakItem): number {
 // 生成 ECharts 配置
 const option = computed<EChartsOption>(() => {
   const reversedData = [...displayData.value].reverse()
-  const names = reversedData.map((item) => truncateRankName(item.name, rankingLayout.value.labelMaxLength))
+  const rankAxis = buildRankYAxis(reversedData, {
+    totalCount: displayData.value.length,
+    labelMaxLength: rankingLayout.value.labelMaxLength,
+    avatars: avatarMap.value,
+  })
   const values = reversedData.map((item) => getValue(item))
   const maxValue = Math.max(...values, 1)
 
@@ -172,20 +178,10 @@ const option = computed<EChartsOption>(() => {
     },
     yAxis: {
       type: 'category',
-      data: names,
+      data: rankAxis.data,
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: {
-        fontSize: 12,
-        color: '#4b5563',
-        margin: 12,
-        formatter: (value: string, index: number) => {
-          const originalIndex = displayData.value.length - 1 - index
-          const rank = originalIndex + 1
-          const prefix = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`
-          return `${prefix} ${value}`
-        },
-      },
+      axisLabel: rankAxis.axisLabel,
     },
     series: [
       {

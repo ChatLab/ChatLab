@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import { computed, ref, watch } from 'vue'
+import { computed, provide, ref, shallowRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { SectionTabs } from '@/components/navigation'
 import UserSelect from '@/components/common/UserSelect.vue'
 import { CatchphraseTab, HotRepeatTab } from '@/components/analysis/quotes'
 import { isFeatureSupported, type LocaleType } from '@/i18n'
+import { useDataService } from '@/services'
 import type { TimeFilter } from '@openchatlab/shared-types'
+import { RANKING_AVATAR_MAP_KEY, buildRankAvatarIndex, type RankAvatarIndex } from '@/utils/rankAvatars'
 import KeywordRankingTab from './KeywordRankingTab.vue'
 import OverallRankingTab from './OverallRankingTab.vue'
 import InteractionRankingTab from './InteractionRankingTab.vue'
@@ -23,6 +25,25 @@ const { t, locale } = useI18n()
 
 const activeSubTab = ref('overall')
 const selectedMemberId = ref<number | null>(null)
+const avatarIndex = shallowRef<RankAvatarIndex>({ byId: new Map(), byName: new Map() })
+
+provide(RANKING_AVATAR_MAP_KEY, avatarIndex)
+
+watch(
+  () => props.sessionId,
+  async (sessionId) => {
+    avatarIndex.value = { byId: new Map(), byName: new Map() }
+    if (!sessionId) return
+    try {
+      const members = await useDataService().getMembers(sessionId)
+      if (props.sessionId !== sessionId) return
+      avatarIndex.value = buildRankAvatarIndex(members)
+    } catch (error) {
+      console.error('Failed to load ranking avatars:', error)
+    }
+  },
+  { immediate: true }
+)
 
 const supportsGroupRanking = computed(() => isFeatureSupported('groupRanking', locale.value as LocaleType))
 const isTabVisible = (id: RankingTabId) => !props.visibleTabIds || props.visibleTabIds.includes(id)

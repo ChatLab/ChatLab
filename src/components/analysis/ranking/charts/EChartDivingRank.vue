@@ -8,7 +8,8 @@ import type { EChartsOption, BarSeriesOption } from 'echarts'
 import { EChart } from '@/components/charts'
 import { SectionCard, Tabs, TopNSelect } from '@/components/UI'
 import { formatFullDateTime } from '@/utils/dateFormat'
-import { truncateRankName, useRankingLayout } from '@/utils/rankingChartLayout'
+import { useCircularRankAvatarMap } from '@/utils/rankAvatars'
+import { buildRankYAxis, useRankingLayout } from '@/utils/rankingChartLayout'
 
 interface DivingItem {
   memberId: number
@@ -56,6 +57,7 @@ const displayData = computed(() => {
   })
   return sorted.slice(0, topN.value)
 })
+const avatarMap = useCircularRankAvatarMap(() => displayData.value)
 
 // 动态标题
 const dynamicTitle = computed(() => {
@@ -98,7 +100,11 @@ const option = computed<EChartsOption>(() => {
   if (displayData.value.length === 0) return {}
 
   const reversedData = [...displayData.value].reverse()
-  const names = reversedData.map((item) => truncateRankName(item.name, rankingLayout.value.labelMaxLength))
+  const rankAxis = buildRankYAxis(reversedData, {
+    totalCount: displayData.value.length,
+    labelMaxLength: rankingLayout.value.labelMaxLength,
+    avatars: avatarMap.value,
+  })
   const maxDays = Math.max(...displayData.value.map((item) => item.daysSinceLastMessage), 1)
 
   const dataWithStyle = reversedData.map((item) => ({
@@ -151,20 +157,10 @@ const option = computed<EChartsOption>(() => {
     },
     yAxis: {
       type: 'category',
-      data: names,
+      data: rankAxis.data,
       axisLine: { show: false },
       axisTick: { show: false },
-      axisLabel: {
-        fontSize: 12,
-        color: '#4b5563',
-        margin: 12,
-        formatter: (value: string, index: number) => {
-          const originalIndex = displayData.value.length - 1 - index
-          const rank = originalIndex + 1
-          const prefix = rank === 1 ? '🥇' : rank === 2 ? '🥈' : rank === 3 ? '🥉' : `${rank}.`
-          return `${prefix} ${value}`
-        },
-      },
+      axisLabel: rankAxis.axisLabel,
     },
     series: [
       {

@@ -2,16 +2,23 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { CatchphraseAnalysis, MemberCatchphrase } from '@/types/analysis'
+import LazyAvatar from '@/components/common/avatar/LazyAvatar.vue'
 import { useDataService } from '@/services'
 import { ListPro } from '@/components/charts'
 import { EmptyState, LoadingState, SectionCard } from '@/components/UI'
 import { useLayoutStore } from '@/stores/layout'
 import { formatRankNumber, getRankNumberClass } from '@/utils'
+import { getRankAvatarText, resolveRankAvatar, useRankAvatarMap } from '@/utils/rankAvatars'
 import type { TimeFilter } from '@openchatlab/shared-types'
 import { buildCatchphraseRecordQuery } from './catchphrase-record-query'
 
 const { t } = useI18n()
 const layoutStore = useLayoutStore()
+const avatarMap = useRankAvatarMap()
+
+function memberAvatar(member: MemberCatchphrase): string | null {
+  return resolveRankAvatar(member.memberId, undefined, avatarMap.value)
+}
 
 const props = defineProps<{
   sessionId: string
@@ -74,6 +81,17 @@ watch(
       :top-n="10"
       :count-label="t('quotes.catchphrase.phraseCount', { count: selectedMember.catchphrases.length })"
     >
+      <template #headerRight>
+        <LazyAvatar
+          v-if="selectedMember"
+          :src="memberAvatar(selectedMember)"
+          :alt="selectedMember.name"
+          :text="getRankAvatarText(selectedMember.name)"
+          root-class="h-8 w-8 shrink-0"
+          image-class="h-8 w-8 rounded-full object-cover"
+          fallback-class="flex h-8 w-8 items-center justify-center rounded-full bg-linear-to-br from-pink-100 to-rose-100 text-[10px] font-medium text-pink-600 dark:from-pink-900/30 dark:to-rose-900/30 dark:text-pink-400"
+        />
+      </template>
       <template #item="{ item, index }">
         <button
           type="button"
@@ -116,7 +134,7 @@ watch(
     >
       <template #item="{ item: member, index }">
         <div
-          class="grid w-full grid-cols-[2rem_minmax(0,1fr)] items-start gap-x-3 sm:grid-cols-[2rem_minmax(7.5rem,0.65fr)_minmax(0,1.35fr)]"
+          class="grid w-full grid-cols-[2rem_2rem_minmax(0,1fr)] items-start gap-x-3 sm:grid-cols-[2rem_2rem_minmax(7.5rem,0.65fr)_minmax(0,1.35fr)]"
         >
           <span
             class="row-span-2 w-8 shrink-0 pt-0.5 text-center font-mono text-sm font-black tabular-nums sm:row-span-1"
@@ -125,15 +143,24 @@ watch(
             {{ formatRankNumber(index) }}
           </span>
 
+          <LazyAvatar
+            :src="memberAvatar(member)"
+            :alt="member.name"
+            :text="getRankAvatarText(member.name)"
+            root-class="col-start-2 row-span-2 h-8 w-8 shrink-0 sm:row-span-1"
+            image-class="h-8 w-8 rounded-full object-cover"
+            fallback-class="flex h-8 w-8 items-center justify-center rounded-full bg-linear-to-br from-pink-100 to-rose-100 text-[10px] font-medium text-pink-600 dark:from-pink-900/30 dark:to-rose-900/30 dark:text-pink-400"
+          />
+
           <p
-            class="col-start-2 row-start-1 min-w-0 truncate pt-0.5 text-sm font-semibold text-gray-900 dark:text-white"
+            class="col-start-3 row-start-1 min-w-0 truncate pt-0.5 text-sm font-semibold text-gray-900 dark:text-white"
             :title="member.name"
           >
             {{ member.name }}
           </p>
 
           <div
-            class="col-start-2 row-start-2 mt-1.5 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 sm:col-start-3 sm:row-start-1 sm:mt-0"
+            class="col-start-3 row-start-2 mt-1.5 flex min-w-0 flex-wrap items-center gap-x-4 gap-y-1.5 sm:col-start-4 sm:row-start-1 sm:mt-0"
           >
             <button
               v-for="phrase in getOverviewPhrases(member)"

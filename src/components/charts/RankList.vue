@@ -1,7 +1,9 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
+import LazyAvatar from '@/components/common/avatar/LazyAvatar.vue'
 import { formatRankNumber, getRankBarColor, getRankNumberClass } from '@/utils'
+import { getRankAvatarText, resolveRankAvatar, useRankAvatarMap } from '@/utils/rankAvatars'
 
 const { t } = useI18n()
 
@@ -10,6 +12,7 @@ export interface RankItem {
   name: string
   value: number
   percentage: number
+  avatar?: string | null
 }
 
 interface Props {
@@ -27,9 +30,15 @@ const props = withDefaults(defineProps<Props>(), {
 // 获取单位，优先使用 props，否则使用默认翻译
 const displayUnit = computed(() => props.unit || t('views.charts.rankList.unit'))
 
+const avatarMap = useRankAvatarMap()
+
 const displayMembers = computed(() => {
   return props.rankLimit > 0 ? props.members.slice(0, props.rankLimit) : props.members
 })
+
+function memberAvatar(member: RankItem): string | null {
+  return resolveRankAvatar(member.id, member.avatar, avatarMap.value)
+}
 
 // 获取相对于第一名的百分比
 function getRelativePercentage(index: number): number {
@@ -55,13 +64,15 @@ function getRelativePercentage(index: number): number {
         {{ formatRankNumber(index) }}
       </span>
 
-      <!-- 头像占位 -->
-      <div
+      <LazyAvatar
         v-if="showAvatar"
-        class="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-linear-to-br from-pink-100 to-rose-100 text-sm font-medium text-pink-600 dark:from-pink-900/30 dark:to-rose-900/30 dark:text-pink-400"
-      >
-        {{ member.name.slice(0, 1) }}
-      </div>
+        :src="memberAvatar(member)"
+        :alt="member.name"
+        :text="getRankAvatarText(member.name)"
+        root-class="h-10 w-10 shrink-0"
+        image-class="h-10 w-10 rounded-full object-cover"
+        fallback-class="flex h-10 w-10 items-center justify-center rounded-full bg-linear-to-br from-pink-100 to-rose-100 text-sm font-medium text-pink-600 dark:from-pink-900/30 dark:to-rose-900/30 dark:text-pink-400"
+      />
 
       <div class="min-w-0 flex-1">
         <div class="flex items-baseline justify-between gap-3">
