@@ -3,10 +3,11 @@ import { computed, ref, watch } from 'vue'
 import type { RepeatAnalysis } from '@openchatlab/core'
 import { EChartRank, EChartBar } from '@/components/charts'
 import type { RankItem, EChartBarData } from '@/components/charts'
-import { SectionCard, EmptyState, LoadingState, Tabs, TopNSelect } from '@/components/UI'
+import { SectionCard, EmptyState, Tabs, TopNSelect } from '@/components/UI'
 import { EChartTimeRank } from '../charts'
 import { useDataService } from '@/services/data/service'
 import type { TimeFilter } from '@openchatlab/shared-types'
+import RankingLoadingBody from './RankingLoadingBody.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -157,10 +158,7 @@ watch(
 
 <template>
   <div class="space-y-6">
-    <LoadingState v-if="isLoading" text="正在分析复读数据..." />
-
-    <template v-else-if="analysis && analysis.totalRepeatChains > 0">
-      <!-- 复读榜主卡片 -->
+    <template v-if="isLoading || (analysis && analysis.totalRepeatChains > 0)">
       <SectionCard :title="cardTitle" :description="cardDescription">
         <template #headerRight>
           <div class="flex items-center gap-3">
@@ -177,8 +175,9 @@ watch(
           </div>
         </template>
 
+        <RankingLoadingBody v-if="isLoading" />
         <EChartRank
-          v-if="currentRankData.length > 0"
+          v-else-if="currentRankData.length > 0"
           :members="currentRankData"
           :title="cardTitle"
           unit="次"
@@ -188,7 +187,6 @@ watch(
         <EmptyState v-else text="暂无数据" />
       </SectionCard>
 
-      <!-- 复读统计（最快反应 + 链长分布） -->
       <SectionCard :title="statsTitle" :description="statsDescription">
         <template #headerRight>
           <div class="flex items-center gap-3">
@@ -204,10 +202,10 @@ watch(
           </div>
         </template>
 
-        <!-- 最快反应 -->
-        <template v-if="statsTab === 'fastest'">
+        <RankingLoadingBody v-if="isLoading" />
+        <template v-else-if="statsTab === 'fastest'">
           <EChartTimeRank
-            v-if="analysis.fastestRepeaters && analysis.fastestRepeaters.length > 0"
+            v-if="analysis?.fastestRepeaters && analysis.fastestRepeaters.length > 0"
             :items="analysis.fastestRepeaters"
             :top-n="statsTopN"
             title=""
@@ -215,8 +213,6 @@ watch(
           />
           <EmptyState v-else text="暂无最快复读数据" />
         </template>
-
-        <!-- 链长分布 -->
         <template v-else>
           <div class="px-3 py-2">
             <EChartBar v-if="chainLengthChartData.labels.length > 0" :data="chainLengthChartData" :height="200" />

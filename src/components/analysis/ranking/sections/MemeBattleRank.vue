@@ -3,10 +3,11 @@ import { computed, ref, watch } from 'vue'
 import type { MemeBattleAnalysis } from '@openchatlab/core'
 import { EChartRank } from '@/components/charts'
 import type { RankItem } from '@/components/charts'
-import { LoadingState, Tabs, SectionCard, TopNSelect } from '@/components/UI'
+import { Tabs, SectionCard, TopNSelect } from '@/components/UI'
 import { EChartBattleRank } from '../charts'
 import { useDataService } from '@/services/data/service'
 import type { TimeFilter } from '@openchatlab/shared-types'
+import RankingLoadingBody from './RankingLoadingBody.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -111,9 +112,7 @@ watch(
 </script>
 
 <template>
-  <LoadingState v-if="isLoading" text="正在统计斗图数据..." />
-
-  <SectionCard v-else-if="analysis" :title="cardTitle" :description="cardDescription">
+  <SectionCard v-if="isLoading || analysis" :title="cardTitle" :description="cardDescription">
     <template #headerRight>
       <div class="flex items-center gap-3">
         <TopNSelect v-if="showTopNSelect" v-model="topN" />
@@ -129,8 +128,10 @@ watch(
       </div>
     </template>
 
+    <RankingLoadingBody v-if="isLoading" />
+
     <!-- 史诗级战役视图 -->
-    <template v-if="activeTab === 'battle'">
+    <template v-else-if="analysis && activeTab === 'battle'">
       <EChartBattleRank
         v-if="analysis.topBattles.length > 0"
         :battles="analysis.topBattles"
@@ -142,7 +143,7 @@ watch(
     </template>
 
     <!-- 按场次/按图量视图 -->
-    <template v-else>
+    <template v-else-if="analysis">
       <EChartRank
         v-if="currentRankData.length > 0"
         :members="currentRankData"

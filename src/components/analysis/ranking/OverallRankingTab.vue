@@ -15,17 +15,23 @@ const props = defineProps<{
 
 const memberActivity = ref<MemberActivity[]>([])
 const availableYears = ref<number[]>([])
+const isBaseLoading = ref(false)
 
 async function loadBaseData() {
   if (!props.sessionId) return
 
-  const dataService = useDataService()
-  const [members, years] = await Promise.all([
-    dataService.getMemberActivity(props.sessionId, props.timeFilter),
-    dataService.getAvailableYears(props.sessionId),
-  ])
-  memberActivity.value = members
-  availableYears.value = years
+  isBaseLoading.value = true
+  try {
+    const dataService = useDataService()
+    const [members, years] = await Promise.all([
+      dataService.getMemberActivity(props.sessionId, props.timeFilter),
+      dataService.getAvailableYears(props.sessionId),
+    ])
+    memberActivity.value = members
+    availableYears.value = years
+  } finally {
+    isBaseLoading.value = false
+  }
 }
 
 watch(
@@ -48,7 +54,7 @@ const seasonTitle = computed(() => {
     return minYear === maxYear ? `${minYear} 赛季` : `${minYear}-${maxYear} 赛季`
   }
 
-  return '全部赛季'
+  return isBaseLoading.value ? '赛季' : '全部赛季'
 })
 
 const rankingTimeFilter = computed(() => ({
@@ -103,6 +109,7 @@ const mainContentClass = computed(() => RANKING_LAYOUTS[widthMode.value].content
         <ActivityRank
           :session-id="props.sessionId"
           :member-activity="memberActivity"
+          :base-loading="isBaseLoading"
           :time-filter="rankingTimeFilter"
           :global-top-n="globalTopN"
         />

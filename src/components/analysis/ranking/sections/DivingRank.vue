@@ -2,9 +2,10 @@
 import { ref, watch } from 'vue'
 import type { DivingAnalysis } from '@openchatlab/core'
 import { EChartDivingRank } from '../charts'
-import { LoadingState } from '@/components/UI'
+import { EmptyState, SectionCard } from '@/components/UI'
 import { useDataService } from '@/services/data/service'
 import type { TimeFilter } from '@openchatlab/shared-types'
+import RankingLoadingBody from './RankingLoadingBody.vue'
 
 const props = defineProps<{
   sessionId: string
@@ -36,10 +37,15 @@ watch(
 </script>
 
 <template>
-  <LoadingState v-if="isLoading" text="正在统计潜水数据..." />
+  <SectionCard v-if="isLoading" title="🤿 潜水榜 - 潜水最久" description="距离上次发言时间最久的成员">
+    <RankingLoadingBody />
+  </SectionCard>
   <EChartDivingRank
     v-else-if="analysis && analysis.rank.length > 0"
     :items="analysis.rank"
     :global-top-n="globalTopN"
   />
+  <SectionCard v-else title="🤿 潜水榜">
+    <EmptyState text="暂无潜水数据" />
+  </SectionCard>
 </template>

@@ -4,14 +4,16 @@ import type { DragonKingAnalysis, CheckInAnalysis } from '@openchatlab/core'
 import type { MemberActivity } from '@/types/analysis'
 import { EChartRank } from '@/components/charts'
 import type { RankItem } from '@/components/charts'
-import { SectionCard, LoadingState, Tabs, TopNSelect } from '@/components/UI'
+import { SectionCard, Tabs, TopNSelect } from '@/components/UI'
 import { useDataService } from '@/services/data/service'
 import type { TimeFilter } from '@openchatlab/shared-types'
+import RankingLoadingBody from './RankingLoadingBody.vue'
 
 const props = withDefaults(
   defineProps<{
     sessionId: string
     memberActivity: MemberActivity[]
+    baseLoading?: boolean
     timeFilter?: TimeFilter
     /** 是否显示 TopN 选择器 */
     showTopNSelect?: boolean
@@ -89,6 +91,11 @@ const loyaltyRankData = computed<RankItem[]>(() => {
   }))
 })
 
+const showLoading = computed(() => {
+  if (activeTab.value === 'activity') return Boolean(props.baseLoading) && props.memberActivity.length === 0
+  return isLoading.value
+})
+
 const currentRankData = computed(() => {
   switch (activeTab.value) {
     case 'activity':
@@ -132,12 +139,12 @@ const cardDescription = computed(() => {
     case 'activity':
       return '按消息发送数量排名'
     case 'dragon': {
-      const totalDays = dragonKingAnalysis.value?.totalDays ?? 0
-      return `每天发言最多的人+1（共 ${totalDays} 天）`
+      const totalDays = dragonKingAnalysis.value?.totalDays
+      return totalDays == null ? '每天发言最多的人+1' : `每天发言最多的人+1（共 ${totalDays} 天）`
     }
     case 'loyalty': {
-      const totalDays = checkInAnalysis.value?.totalDays ?? 0
-      return `累计发言天数排名（共 ${totalDays} 天）`
+      const totalDays = checkInAnalysis.value?.totalDays
+      return totalDays == null ? '累计发言天数排名' : `累计发言天数排名（共 ${totalDays} 天）`
     }
     default:
       return ''
@@ -168,7 +175,7 @@ watch(
       </div>
     </template>
 
-    <LoadingState v-if="isLoading && (activeTab === 'dragon' || activeTab === 'loyalty')" text="正在加载数据..." />
+    <RankingLoadingBody v-if="showLoading" />
 
     <template v-else>
       <EChartRank

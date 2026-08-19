@@ -2,9 +2,10 @@
 import { computed, ref, watch } from 'vue'
 import type { CheckInAnalysis } from '@openchatlab/core'
 import { EChartStreakRank } from '../charts'
-import { SectionCard, LoadingState, EmptyState, Tabs, TopNSelect } from '@/components/UI'
+import { SectionCard, EmptyState, Tabs, TopNSelect } from '@/components/UI'
 import { useDataService } from '@/services/data/service'
 import type { TimeFilter } from '@openchatlab/shared-types'
+import RankingLoadingBody from './RankingLoadingBody.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -70,13 +71,7 @@ watch(
 
 <template>
   <div id="streak-rank" class="scroll-mt-24">
-    <LoadingState v-if="isLoading" text="正在分析数据..." />
-
-    <SectionCard
-      v-else-if="analysis && analysis.streakRank.length > 0"
-      :title="streakTitle"
-      :description="streakDescription"
-    >
+    <SectionCard :title="streakTitle" :description="streakDescription">
       <template #headerRight>
         <div class="flex items-center gap-3">
           <TopNSelect v-if="showTopNSelect" v-model="topN" />
@@ -91,11 +86,16 @@ watch(
           />
         </div>
       </template>
-      <EChartStreakRank :items="analysis.streakRank" :title="streakTitle" :mode="streakMode" :top-n="topN" bare />
-    </SectionCard>
-
-    <SectionCard v-else title="🔥 火花榜">
-      <EmptyState text="暂无连续发言数据" />
+      <RankingLoadingBody v-if="isLoading" />
+      <EChartStreakRank
+        v-else-if="analysis && analysis.streakRank.length > 0"
+        :items="analysis.streakRank"
+        :title="streakTitle"
+        :mode="streakMode"
+        :top-n="topN"
+        bare
+      />
+      <EmptyState v-else text="暂无连续发言数据" />
     </SectionCard>
   </div>
 </template>

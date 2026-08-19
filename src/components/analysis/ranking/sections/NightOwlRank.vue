@@ -2,10 +2,11 @@
 import { computed, ref, watch } from 'vue'
 import type { NightOwlAnalysis } from '@openchatlab/core'
 import { EChartRank } from '@/components/charts'
-import { SectionCard, Tabs, TopNSelect, LoadingState } from '@/components/UI'
+import { SectionCard, Tabs, TopNSelect } from '@/components/UI'
 import { EChartConsecutiveRank, EChartNightOwlRank } from '../charts'
 import { useDataService } from '@/services/data/service'
 import type { TimeFilter } from '@openchatlab/shared-types'
+import RankingLoadingBody from './RankingLoadingBody.vue'
 
 const props = withDefaults(
   defineProps<{
@@ -85,10 +86,9 @@ const timeRankTitle = computed(() => {
 
 // 时间排行描述
 const timeRankDescription = computed(() => {
-  const totalDays = analysis.value?.totalDays ?? 0
-  return timeRankTab.value === 'last'
-    ? `每天最后一个发言的人（共 ${totalDays} 天）`
-    : `每天第一个发言的人（共 ${totalDays} 天）`
+  const base = timeRankTab.value === 'last' ? '每天最后一个发言的人' : '每天第一个发言的人'
+  const totalDays = analysis.value?.totalDays
+  return totalDays == null ? base : `${base}（共 ${totalDays} 天）`
 })
 
 // 修仙统计标题
@@ -110,10 +110,7 @@ watch(
 
 <template>
   <div class="space-y-6">
-    <LoadingState v-if="isLoading" text="正在加载出勤分析..." />
-
-    <template v-else-if="analysis">
-      <!-- 修仙统计（发言分布 + 连续记录） -->
+    <template v-if="isLoading || analysis">
       <SectionCard :title="nightStatsTitle" :description="nightStatsDescription">
         <template #headerRight>
           <div class="flex items-center gap-3">
@@ -129,10 +126,10 @@ watch(
           </div>
         </template>
 
-        <!-- 发言分布 -->
-        <template v-if="nightStatsTab === 'distribution'">
+        <RankingLoadingBody v-if="isLoading" />
+        <template v-else-if="nightStatsTab === 'distribution'">
           <EChartNightOwlRank
-            v-if="analysis.nightOwlRank.length > 0"
+            v-if="analysis && analysis.nightOwlRank.length > 0"
             :items="analysis.nightOwlRank"
             :top-n="nightStatsTopN"
             title=""
@@ -140,11 +137,9 @@ watch(
           />
           <div v-else class="py-8 text-center text-sm text-gray-400">暂无深夜发言数据</div>
         </template>
-
-        <!-- 连续记录 -->
         <template v-else>
           <EChartConsecutiveRank
-            v-if="analysis.consecutiveRecords.length > 0"
+            v-if="analysis && analysis.consecutiveRecords.length > 0"
             :items="analysis.consecutiveRecords"
             :top-n="nightStatsTopN"
             title=""
@@ -154,7 +149,6 @@ watch(
         </template>
       </SectionCard>
 
-      <!-- 出勤排行（最早上班 + 最晚下班） -->
       <SectionCard :title="timeRankTitle" :description="timeRankDescription">
         <template #headerRight>
           <div class="flex items-center gap-3">
@@ -170,8 +164,9 @@ watch(
           </div>
         </template>
 
+        <RankingLoadingBody v-if="isLoading" />
         <EChartRank
-          v-if="currentTimeRankData.length > 0"
+          v-else-if="currentTimeRankData.length > 0"
           :members="currentTimeRankData"
           :title="timeRankTitle"
           :top-n="timeRankTopN"
