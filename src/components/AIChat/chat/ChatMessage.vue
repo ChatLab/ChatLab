@@ -8,6 +8,7 @@ import CaptureButton from '@/components/common/CaptureButton.vue'
 import ErrorBlock from './ErrorBlock.vue'
 import ChartBlockRenderer from './ChartBlockRenderer.vue'
 import EvidenceBlock from './EvidenceBlock.vue'
+import ProcessDisclosure from './ProcessDisclosure.vue'
 import { useToast } from '@/composables/useToast'
 import { stripChartImagePlaceholders } from '@/services/ai/chartMarkdownPlaceholders'
 import { shouldHideRecoverableChartError } from '@/stores/aiChatChartBlocks'
@@ -821,7 +822,7 @@ async function handleCopyMarkdown() {
 
       <!-- AI 消息：混合内容块布局 -->
       <template v-else-if="useBlocksRendering">
-        <div class="space-y-2">
+        <div :class="isAgentRunActive ? 'space-y-2' : 'space-y-3'">
           <template v-for="(segment, segmentIdx) in renderSegments" :key="segmentIdx">
             <div>
               <button
@@ -888,325 +889,400 @@ async function handleCopyMarkdown() {
               </button>
 
               <div
-                v-show="segment.type !== 'process' || isProcessSegmentOpen(segmentIdx)"
-                :class="[
-                  segment.type === 'process'
-                    ? 'ml-1.5 mt-1 space-y-0.5 border-l border-gray-200/80 pl-3 dark:border-white/10'
-                    : '',
-                ]"
+                :class="segment.type === 'process' ? 'ai-process-fold' : ''"
+                :data-open="segment.type !== 'process' || isProcessSegmentOpen(segmentIdx) ? true : undefined"
               >
-                <template v-for="(block, blockIdx) in getSegmentBlocks(segment)" :key="`${segmentIdx}-${blockIdx}`">
-                  <!-- 文本块 -->
+                <div :class="segment.type === 'process' ? 'ai-process-fold-inner' : ''">
                   <div
-                    v-if="block.type === 'text'"
-                    class="py-1 text-gray-900 dark:text-gray-100"
-                    :class="[segment.type === 'process' ? 'text-xs text-gray-500 dark:text-gray-400' : '']"
-                  >
-                    <div
-                      class="prose prose-sm dark:prose-invert max-w-none leading-relaxed"
-                      :class="[segment.type === 'process' ? 'prose-p:my-1' : '']"
-                      v-html="renderMarkdown(getDisplayText(block.text))"
-                    />
-                    <!-- 流式输出光标（只在最后一个文本块显示） -->
-                    <span
-                      v-if="isStreaming && isLastVisibleBlock(block)"
-                      class="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-gray-800 dark:bg-gray-200"
-                    />
-                  </div>
-
-                  <!-- 思考块（默认折叠） -->
-                  <details
-                    v-else-if="block.type === 'think'"
-                    class="group group/think w-full text-sm text-gray-500 dark:text-gray-400"
-                  >
-                    <summary
-                      class="ai-live-row flex h-6 min-w-0 cursor-pointer list-none select-none items-center text-sm leading-6 transition-colors hover:text-gray-700 dark:hover:text-gray-300 [&::-webkit-details-marker]:hidden"
-                      :data-running="isLiveThinkBlock(block) || undefined"
-                    >
-                      <span class="relative mr-1.5 flex h-4 w-4 shrink-0 items-center justify-center">
-                        <UIcon
-                          name="i-heroicons-light-bulb"
-                          class="absolute h-3.5 w-3.5 text-gray-400 transition-opacity duration-100 group-hover/think:opacity-0 group-open:hidden dark:text-gray-500"
-                        />
-                        <UIcon
-                          name="i-heroicons-chevron-down"
-                          class="absolute h-3.5 w-3.5 text-gray-500 opacity-0 transition-opacity duration-100 group-hover/think:opacity-100 group-open:opacity-100 dark:text-gray-400"
-                        />
-                      </span>
-                      <span class="shrink-0 text-gray-600 dark:text-gray-300">
-                        {{ getThinkLabel(block.tag) }}
-                      </span>
-                      <span
-                        v-if="getFirstLine(block.text) || isLiveThinkBlock(block)"
-                        class="mx-2 h-0.5 w-0.5 shrink-0 rounded-full bg-gray-300 group-open:hidden dark:bg-gray-600"
-                        aria-hidden="true"
-                      />
-                      <LiveFollowText
-                        class="group-open:hidden"
-                        :text="isLiveThinkBlock(block) ? getLatestLine(block.text) : getFirstLine(block.text)"
-                        :follow-end="isLiveThinkBlock(block)"
-                      />
-                      <span v-if="block.durationMs" class="ml-3 shrink-0 text-xs text-gray-400 dark:text-gray-500">
-                        {{ formatThinkDuration(block.durationMs) }}
-                      </span>
-                    </summary>
-                    <div class="prose prose-sm dark:prose-invert mt-1 max-w-none pl-[22px] text-[13px] leading-6">
-                      <template v-if="block.tag === 'plan_validation' && getPlanValidation(block.text)">
-                        <div
-                          v-if="getPlanValidation(block.text)?.title"
-                          class="mb-2 font-medium text-gray-700 dark:text-gray-200"
-                        >
-                          {{ getPlanValidation(block.text)?.title }}
-                        </div>
-                        <ol class="not-prose space-y-2 text-xs leading-relaxed">
-                          <li
-                            v-for="(step, stepIndex) in getPlanValidation(block.text)?.steps"
-                            :key="stepIndex"
-                            class="text-gray-600 dark:text-gray-300"
-                          >
-                            <div class="font-medium text-gray-800 dark:text-gray-200">
-                              {{ step.goal }}
-                            </div>
-                            <div v-if="step.evidenceNeeded" class="mt-1 text-gray-500 dark:text-gray-400">
-                              {{ t('ai.chat.message.plan.evidenceNeeded') }}: {{ step.evidenceNeeded }}
-                            </div>
-                            <div class="mt-0.5 text-gray-500 dark:text-gray-400">
-                              {{ t('ai.chat.message.plan.suggestedTools') }}: {{ formatPlanTools(step.suggestedTools) }}
-                            </div>
-                          </li>
-                        </ol>
-                        <div
-                          v-if="getPlanValidation(block.text)?.successCriteria.length"
-                          class="not-prose mt-2 border-t border-gray-100 pt-2 dark:border-gray-800"
-                        >
-                          <div class="text-[11px] font-medium text-gray-500 dark:text-gray-400">
-                            {{ t('ai.chat.message.plan.successCriteria') }}
-                          </div>
-                          <ul
-                            class="mt-1 list-disc space-y-0.5 pl-4 text-xs leading-relaxed text-gray-600 dark:text-gray-300"
-                          >
-                            <li
-                              v-for="(criterion, criterionIndex) in getPlanValidation(block.text)?.successCriteria"
-                              :key="criterionIndex"
-                            >
-                              {{ criterion }}
-                            </li>
-                          </ul>
-                        </div>
-                      </template>
-                      <div v-else v-html="renderMarkdown(block.text)" />
-                    </div>
-                  </details>
-
-                  <!-- 技能块 -->
-                  <div
-                    v-else-if="block.type === 'skill'"
-                    class="flex items-center gap-2 py-1 text-xs font-medium text-gray-600 dark:text-gray-300"
-                  >
-                    <UIcon name="i-heroicons-bolt" class="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                    <span>{{ t('ai.skill.active.label', { name: block.skillName }) }}</span>
-                  </div>
-
-                  <!-- 计划块 -->
-                  <details
-                    v-else-if="block.type === 'plan'"
-                    class="group w-full text-sm text-gray-600 dark:text-gray-400"
-                  >
-                    <summary
-                      class="flex cursor-pointer select-none items-center gap-2 rounded-md py-1 text-xs font-medium text-gray-500 transition-colors hover:bg-gray-50/80 hover:text-gray-700 dark:hover:bg-gray-800/30 dark:hover:text-gray-300"
-                    >
-                      <UIcon name="i-heroicons-clipboard-document-list" class="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                      <span class="min-w-0 truncate text-gray-600 dark:text-gray-300">
-                        {{ t('ai.chat.message.plan.label') }} · {{ block.plan.title }}
-                      </span>
-                    </summary>
-                    <div class="mt-2">
-                      <div
-                        v-if="block.displayText"
-                        class="prose prose-sm dark:prose-invert max-w-none text-xs leading-relaxed text-gray-600 dark:text-gray-300"
-                        v-html="renderMarkdown(block.displayText)"
-                      />
-                      <ol v-else class="space-y-2">
-                        <li
-                          v-for="(step, stepIndex) in block.plan.steps"
-                          :key="stepIndex"
-                          class="text-xs leading-relaxed"
-                        >
-                          <div class="font-medium text-gray-800 dark:text-gray-200">
-                            {{ stepIndex + 1 }}. {{ step.goal }}
-                          </div>
-                          <div class="mt-1 text-gray-500 dark:text-gray-400">
-                            {{ t('ai.chat.message.plan.evidenceNeeded') }}: {{ step.evidenceNeeded }}
-                          </div>
-                          <div class="mt-0.5 text-gray-500 dark:text-gray-400">
-                            {{ t('ai.chat.message.plan.suggestedTools') }}: {{ formatPlanTools(step.suggestedTools) }}
-                          </div>
-                        </li>
-                      </ol>
-                      <div v-if="!block.displayText" class="mt-2 border-t border-gray-100 pt-2 dark:border-gray-800">
-                        <div class="text-[11px] font-medium text-gray-500 dark:text-gray-400">
-                          {{ t('ai.chat.message.plan.successCriteria') }}
-                        </div>
-                        <ul
-                          class="mt-1 list-disc space-y-0.5 pl-4 text-xs leading-relaxed text-gray-600 dark:text-gray-300"
-                        >
-                          <li v-for="(criterion, criterionIndex) in block.plan.successCriteria" :key="criterionIndex">
-                            {{ criterion }}
-                          </li>
-                        </ul>
-                      </div>
-                    </div>
-                  </details>
-
-                  <!-- 计划草稿块 -->
-                  <div v-else-if="block.type === 'plan_draft'" class="py-1 text-sm text-gray-600 dark:text-gray-400">
-                    <div class="flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-300">
-                      <UIcon name="i-heroicons-clipboard-document-list" class="h-3.5 w-3.5 shrink-0 text-gray-400" />
-                      <span>{{ t('ai.chat.message.plan.label') }}</span>
-                      <span v-if="isStreaming" class="text-[11px] font-normal text-gray-400 dark:text-gray-500">
-                        {{ t('ai.chat.message.process.planning') }}
-                      </span>
-                    </div>
-                    <div
-                      class="mt-2 prose prose-sm dark:prose-invert max-w-none text-xs leading-relaxed text-gray-600 dark:text-gray-300"
-                      v-html="renderMarkdown(block.text)"
-                    />
-                  </div>
-
-                  <!-- 图表块 -->
-                  <ChartBlockRenderer v-else-if="block.type === 'chart'" :chart="block.chart" />
-
-                  <!-- 证据块 -->
-                  <EvidenceBlock v-else-if="block.type === 'evidence'" :evidence="block.evidence" />
-
-                  <!-- 工具块：有结果时可展开查看发送给 AI 的安全文本 -->
-                  <details
-                    v-else-if="block.type === 'tool' && hasToolResult(block.tool)"
-                    class="group w-full max-w-full"
-                  >
-                    <summary
-                      class="flex cursor-pointer list-none select-none items-center gap-2 rounded-md py-1 text-xs text-gray-500 transition-colors hover:bg-gray-50/80 dark:text-gray-400 dark:hover:bg-gray-800/30 [&::-webkit-details-marker]:hidden"
-                      :class="[block.tool.status === 'error' ? 'text-amber-700 dark:text-amber-400' : '']"
-                    >
-                      <UIcon
-                        :name="
-                          block.tool.status === 'error'
-                            ? 'i-heroicons-exclamation-circle'
-                            : 'i-heroicons-wrench-screwdriver'
-                        "
-                        class="h-3.5 w-3.5 shrink-0"
-                        :class="[block.tool.status === 'error' ? 'text-amber-500' : 'text-gray-400']"
-                      />
-                      <span
-                        class="shrink-0 font-medium"
-                        :class="[
-                          block.tool.status === 'error'
-                            ? 'text-amber-700 dark:text-amber-300'
-                            : 'text-gray-600 dark:text-gray-300',
-                        ]"
-                      >
-                        {{ getToolDisplayName(block.tool) }}
-                      </span>
-                      <span
-                        v-if="formatToolParams(block.tool)"
-                        class="min-w-0 truncate text-[11px] text-gray-400 dark:text-gray-500"
-                      >
-                        {{ formatToolParams(block.tool) }}
-                      </span>
-                      <span class="ml-auto shrink-0 text-[11px] text-gray-400 dark:text-gray-500">
-                        {{ t('ai.chat.message.toolResult.view') }}
-                      </span>
-                    </summary>
-                    <div
-                      class="mt-1 max-w-full rounded-lg bg-gray-50/80 ring-1 ring-gray-200/60 dark:bg-white/[0.03] dark:ring-white/5"
-                    >
-                      <div
-                        class="flex items-center justify-between gap-2 border-b border-gray-200/60 px-3 py-2 dark:border-white/5"
-                      >
-                        <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
-                          {{ t('ai.chat.message.toolResult.title') }}
-                        </span>
-                        <UButton
-                          size="xs"
-                          variant="ghost"
-                          color="primary"
-                          icon="i-heroicons-document-duplicate"
-                          :title="t('ai.chat.message.toolResult.copy')"
-                          @click.stop="copyToolResult(block.tool)"
-                        />
-                      </div>
-                      <div
-                        v-if="isToolResultDisplayTruncated(block.tool)"
-                        class="border-b border-amber-200/70 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-300"
-                      >
-                        {{ t('ai.chat.message.toolResult.displayTruncated') }}
-                      </div>
-                      <pre
-                        class="max-h-[28rem] overflow-auto whitespace-pre-wrap break-words px-3 py-2.5 text-xs leading-relaxed text-gray-700 dark:text-gray-200"
-                        >{{ getToolResultText(block.tool) }}</pre
-                      >
-                    </div>
-                  </details>
-
-                  <!-- 工具块：运行中或无结果时保持紧凑展示 -->
-                  <div
-                    v-else-if="block.type === 'tool'"
-                    class="ai-live-row flex min-w-0 items-center gap-2 py-1 text-xs"
-                    :data-running="block.tool.status === 'running' || undefined"
                     :class="[
-                      block.tool.status === 'error'
-                        ? 'text-amber-700 dark:text-amber-400'
-                        : 'text-gray-500 dark:text-gray-400',
+                      segment.type === 'process'
+                        ? [
+                            'ai-process-fold-content',
+                            isCompletedProcessSummary(segment)
+                              ? 'pt-2.5 space-y-1.5'
+                              : 'ml-1.5 pt-1 space-y-0.5 border-l border-gray-200/80 pl-3 dark:border-white/10',
+                          ]
+                        : '',
                     ]"
                   >
-                    <UIcon
-                      :name="
-                        block.tool.status === 'running'
-                          ? 'i-heroicons-arrow-path'
-                          : block.tool.status === 'error'
-                            ? 'i-heroicons-exclamation-circle'
-                            : 'i-heroicons-wrench-screwdriver'
-                      "
-                      class="h-3.5 w-3.5 shrink-0"
-                      :class="[
-                        block.tool.status === 'running'
-                          ? 'animate-spin text-primary-500'
-                          : block.tool.status === 'error'
-                            ? 'text-amber-500'
-                            : 'text-gray-400',
-                      ]"
-                    />
-                    <span
-                      class="shrink-0 font-medium"
-                      :class="[
-                        block.tool.status === 'error'
-                          ? 'text-amber-700 dark:text-amber-300'
-                          : 'text-gray-600 dark:text-gray-300',
-                      ]"
-                    >
-                      {{ getToolDisplayName(block.tool) }}
-                    </span>
-                    <span
-                      v-if="formatToolParams(block.tool)"
-                      class="min-w-0 truncate text-[11px] text-gray-400 dark:text-gray-500"
-                    >
-                      {{ formatToolParams(block.tool) }}
-                    </span>
-                    <span
-                      v-if="block.tool.status === 'done' && block.tool.durationMs"
-                      class="ml-auto shrink-0 text-[11px] text-gray-400 dark:text-gray-500"
-                    >
-                      {{ formatThinkDuration(block.tool.durationMs) }}
-                    </span>
-                  </div>
+                    <template v-for="(block, blockIdx) in getSegmentBlocks(segment)" :key="`${segmentIdx}-${blockIdx}`">
+                      <!-- 文本块 -->
+                      <div
+                        v-if="block.type === 'text'"
+                        class="text-gray-900 dark:text-gray-100"
+                        :class="[
+                          segment.type === 'process'
+                            ? isCompletedProcessSummary(segment)
+                              ? 'py-2'
+                              : 'py-1 text-xs text-gray-500 dark:text-gray-400'
+                            : isAgentRunActive
+                              ? 'py-1'
+                              : '',
+                        ]"
+                      >
+                        <div
+                          class="prose dark:prose-invert max-w-none"
+                          :class="[
+                            segment.type === 'process' && !isCompletedProcessSummary(segment)
+                              ? 'prose-sm leading-relaxed'
+                              : '',
+                          ]"
+                          v-html="renderMarkdown(getDisplayText(block.text))"
+                        />
+                        <!-- 流式输出光标（只在最后一个文本块显示） -->
+                        <span
+                          v-if="isStreaming && isLastVisibleBlock(block)"
+                          class="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-gray-800 dark:bg-gray-200"
+                        />
+                      </div>
 
-                  <!-- 错误块 -->
-                  <ErrorBlock
-                    v-else-if="block.type === 'error'"
-                    :error="block.error"
-                    :compact="segment.type === 'process'"
-                  />
-                </template>
+                      <!-- 思考块（默认折叠） -->
+                      <ProcessDisclosure
+                        v-else-if="block.type === 'think'"
+                        class="group group/think w-full text-sm text-gray-500 dark:text-gray-400"
+                      >
+                        <template #summary="{ open, toggle }">
+                          <button
+                            type="button"
+                            class="ai-live-row flex w-full min-w-0 cursor-pointer select-none items-center text-left transition-colors hover:text-gray-700 dark:hover:text-gray-300"
+                            :class="[
+                              isCompletedProcessSummary(segment) ? 'h-7 text-sm leading-7' : 'h-6 text-sm leading-6',
+                            ]"
+                            :data-running="isLiveThinkBlock(block) || undefined"
+                            :aria-expanded="open"
+                            @click="toggle"
+                          >
+                            <span class="relative mr-1.5 flex h-4 w-4 shrink-0 items-center justify-center">
+                              <UIcon
+                                v-if="!open"
+                                name="i-heroicons-light-bulb"
+                                class="absolute h-3.5 w-3.5 text-gray-400 transition-opacity duration-100 group-hover/think:opacity-0 dark:text-gray-500"
+                              />
+                              <UIcon
+                                name="i-heroicons-chevron-down"
+                                class="absolute h-3.5 w-3.5 text-gray-500 transition-opacity duration-100 dark:text-gray-400"
+                                :class="open ? 'opacity-100' : 'opacity-0 group-hover/think:opacity-100'"
+                              />
+                            </span>
+                            <span class="shrink-0 text-gray-600 dark:text-gray-300">
+                              {{ getThinkLabel(block.tag) }}
+                            </span>
+                            <span
+                              v-if="
+                                !open &&
+                                block.tag?.toLowerCase() !== 'plan_validation' &&
+                                (getFirstLine(block.text) || isLiveThinkBlock(block))
+                              "
+                              class="mx-2 h-0.5 w-0.5 shrink-0 rounded-full bg-gray-300 dark:bg-gray-600"
+                              aria-hidden="true"
+                            />
+                            <LiveFollowText
+                              v-if="!open && block.tag?.toLowerCase() !== 'plan_validation'"
+                              :text="isLiveThinkBlock(block) ? getLatestLine(block.text) : getFirstLine(block.text)"
+                              :follow-end="isLiveThinkBlock(block)"
+                            />
+                            <span
+                              v-if="block.durationMs"
+                              class="ml-3 shrink-0 text-xs text-gray-400 dark:text-gray-500"
+                            >
+                              {{ formatThinkDuration(block.durationMs) }}
+                            </span>
+                          </button>
+                        </template>
+                        <div
+                          class="prose prose-sm ai-process-detail-content ai-thought-content dark:prose-invert mt-1 max-w-none pl-[22px]"
+                        >
+                          <template v-if="block.tag === 'plan_validation' && getPlanValidation(block.text)">
+                            <div
+                              v-if="getPlanValidation(block.text)?.title"
+                              class="mb-2 font-medium text-gray-700 dark:text-gray-200"
+                            >
+                              {{ getPlanValidation(block.text)?.title }}
+                            </div>
+                            <ol class="not-prose space-y-2 text-xs leading-relaxed">
+                              <li
+                                v-for="(step, stepIndex) in getPlanValidation(block.text)?.steps"
+                                :key="stepIndex"
+                                class="text-gray-600 dark:text-gray-300"
+                              >
+                                <div class="font-medium text-gray-800 dark:text-gray-200">
+                                  {{ step.goal }}
+                                </div>
+                                <div v-if="step.evidenceNeeded" class="mt-1 text-gray-500 dark:text-gray-400">
+                                  {{ t('ai.chat.message.plan.evidenceNeeded') }}: {{ step.evidenceNeeded }}
+                                </div>
+                                <div class="mt-0.5 text-gray-500 dark:text-gray-400">
+                                  {{ t('ai.chat.message.plan.suggestedTools') }}:
+                                  {{ formatPlanTools(step.suggestedTools) }}
+                                </div>
+                              </li>
+                            </ol>
+                            <div
+                              v-if="getPlanValidation(block.text)?.successCriteria.length"
+                              class="not-prose mt-2 border-t border-gray-100 pt-2 dark:border-gray-800"
+                            >
+                              <div class="text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                                {{ t('ai.chat.message.plan.successCriteria') }}
+                              </div>
+                              <ul
+                                class="mt-1 list-disc space-y-0.5 pl-4 text-xs leading-relaxed text-gray-600 dark:text-gray-300"
+                              >
+                                <li
+                                  v-for="(criterion, criterionIndex) in getPlanValidation(block.text)?.successCriteria"
+                                  :key="criterionIndex"
+                                >
+                                  {{ criterion }}
+                                </li>
+                              </ul>
+                            </div>
+                          </template>
+                          <div v-else v-html="renderMarkdown(block.text)" />
+                        </div>
+                      </ProcessDisclosure>
+
+                      <!-- 技能块 -->
+                      <div
+                        v-else-if="block.type === 'skill'"
+                        class="flex items-center gap-2 font-medium text-gray-600 dark:text-gray-300"
+                        :class="[isCompletedProcessSummary(segment) ? 'h-7 text-sm leading-7' : 'py-1 text-xs']"
+                      >
+                        <UIcon name="i-heroicons-bolt" class="h-3.5 w-3.5 shrink-0 text-gray-400" />
+                        <span>{{ t('ai.skill.active.label', { name: block.skillName }) }}</span>
+                      </div>
+
+                      <!-- 计划块 -->
+                      <ProcessDisclosure
+                        v-else-if="block.type === 'plan'"
+                        class="group w-full text-sm text-gray-600 dark:text-gray-400"
+                      >
+                        <template #summary="{ open, toggle }">
+                          <button
+                            type="button"
+                            class="flex w-full cursor-pointer select-none items-center gap-2 rounded-md text-left text-gray-500 transition-colors hover:bg-gray-50/80 hover:text-gray-700 dark:hover:bg-gray-800/30 dark:hover:text-gray-300"
+                            :class="[isCompletedProcessSummary(segment) ? 'h-7 text-sm leading-7' : 'py-1 text-xs']"
+                            :aria-expanded="open"
+                            @click="toggle"
+                          >
+                            <UIcon
+                              name="i-heroicons-clipboard-document-list"
+                              class="h-3.5 w-3.5 shrink-0 text-gray-400"
+                            />
+                            <span class="min-w-0 truncate text-gray-600 dark:text-gray-300">
+                              {{ t('ai.chat.message.plan.label') }} · {{ block.plan.title }}
+                            </span>
+                          </button>
+                        </template>
+                        <div class="mt-2 pl-[22px] text-sm leading-6">
+                          <div
+                            v-if="block.displayText"
+                            class="prose prose-sm ai-process-detail-content dark:prose-invert max-w-none text-gray-600 dark:text-gray-300"
+                            v-html="renderMarkdown(block.displayText)"
+                          />
+                          <ol v-else class="space-y-2">
+                            <li
+                              v-for="(step, stepIndex) in block.plan.steps"
+                              :key="stepIndex"
+                              class="text-sm leading-6"
+                            >
+                              <div class="font-medium text-gray-800 dark:text-gray-200">
+                                {{ stepIndex + 1 }}. {{ step.goal }}
+                              </div>
+                              <div class="mt-1 text-gray-500 dark:text-gray-400">
+                                {{ t('ai.chat.message.plan.evidenceNeeded') }}: {{ step.evidenceNeeded }}
+                              </div>
+                              <div class="mt-0.5 text-gray-500 dark:text-gray-400">
+                                {{ t('ai.chat.message.plan.suggestedTools') }}:
+                                {{ formatPlanTools(step.suggestedTools) }}
+                              </div>
+                            </li>
+                          </ol>
+                          <div
+                            v-if="!block.displayText"
+                            class="mt-2 border-t border-gray-100 pt-2 dark:border-gray-800"
+                          >
+                            <div class="text-[11px] font-medium text-gray-500 dark:text-gray-400">
+                              {{ t('ai.chat.message.plan.successCriteria') }}
+                            </div>
+                            <ul
+                              class="mt-1 list-disc space-y-0.5 pl-4 text-xs leading-relaxed text-gray-600 dark:text-gray-300"
+                            >
+                              <li
+                                v-for="(criterion, criterionIndex) in block.plan.successCriteria"
+                                :key="criterionIndex"
+                              >
+                                {{ criterion }}
+                              </li>
+                            </ul>
+                          </div>
+                        </div>
+                      </ProcessDisclosure>
+
+                      <!-- 计划草稿块 -->
+                      <div
+                        v-else-if="block.type === 'plan_draft'"
+                        class="py-1 text-sm text-gray-600 dark:text-gray-400"
+                      >
+                        <div class="flex items-center gap-2 text-xs font-medium text-gray-600 dark:text-gray-300">
+                          <UIcon
+                            name="i-heroicons-clipboard-document-list"
+                            class="h-3.5 w-3.5 shrink-0 text-gray-400"
+                          />
+                          <span>{{ t('ai.chat.message.plan.label') }}</span>
+                          <span v-if="isStreaming" class="text-[11px] font-normal text-gray-400 dark:text-gray-500">
+                            {{ t('ai.chat.message.process.planning') }}
+                          </span>
+                        </div>
+                        <div
+                          class="mt-2 prose prose-sm dark:prose-invert max-w-none text-xs leading-relaxed text-gray-600 dark:text-gray-300"
+                          v-html="renderMarkdown(block.text)"
+                        />
+                      </div>
+
+                      <!-- 图表块 -->
+                      <ChartBlockRenderer v-else-if="block.type === 'chart'" :chart="block.chart" />
+
+                      <!-- 证据块 -->
+                      <EvidenceBlock v-else-if="block.type === 'evidence'" :evidence="block.evidence" />
+
+                      <!-- 工具块：有结果时可展开查看发送给 AI 的安全文本 -->
+                      <ProcessDisclosure
+                        v-else-if="block.type === 'tool' && hasToolResult(block.tool)"
+                        class="group w-full max-w-full"
+                      >
+                        <template #summary="{ open, toggle }">
+                          <button
+                            type="button"
+                            class="flex w-full cursor-pointer select-none items-center gap-2 rounded-md text-left text-gray-500 transition-colors hover:bg-gray-50/80 dark:text-gray-400 dark:hover:bg-gray-800/30"
+                            :class="[
+                              isCompletedProcessSummary(segment) ? 'h-7 text-sm leading-7' : 'py-1 text-xs',
+                              block.tool.status === 'error' ? 'text-amber-700 dark:text-amber-400' : '',
+                            ]"
+                            :aria-expanded="open"
+                            @click="toggle"
+                          >
+                            <UIcon
+                              :name="
+                                block.tool.status === 'error'
+                                  ? 'i-heroicons-exclamation-circle'
+                                  : 'i-heroicons-wrench-screwdriver'
+                              "
+                              class="h-3.5 w-3.5 shrink-0"
+                              :class="[block.tool.status === 'error' ? 'text-amber-500' : 'text-gray-400']"
+                            />
+                            <span
+                              class="shrink-0"
+                              :class="[
+                                block.tool.status === 'error'
+                                  ? 'text-amber-700 dark:text-amber-300'
+                                  : 'text-gray-600 dark:text-gray-300',
+                              ]"
+                            >
+                              {{ getToolDisplayName(block.tool) }}
+                            </span>
+                            <span
+                              v-if="formatToolParams(block.tool)"
+                              class="min-w-0 truncate text-xs text-gray-400 dark:text-gray-500"
+                            >
+                              {{ formatToolParams(block.tool) }}
+                            </span>
+                            <span class="ml-auto shrink-0 text-xs text-gray-400 dark:text-gray-500">
+                              {{ t('ai.chat.message.toolResult.view') }}
+                            </span>
+                          </button>
+                        </template>
+                        <div
+                          class="mx-px mt-1 overflow-hidden rounded-lg border border-gray-200/60 bg-gray-50/80 dark:border-white/5 dark:bg-white/[0.03]"
+                        >
+                          <div
+                            class="flex items-center justify-between gap-2 border-b border-gray-200/60 px-3 py-2 dark:border-white/5"
+                          >
+                            <span class="text-xs font-medium text-gray-500 dark:text-gray-400">
+                              {{ t('ai.chat.message.toolResult.title') }}
+                            </span>
+                            <UButton
+                              size="xs"
+                              variant="ghost"
+                              color="primary"
+                              icon="i-heroicons-document-duplicate"
+                              :title="t('ai.chat.message.toolResult.copy')"
+                              @click.stop="copyToolResult(block.tool)"
+                            />
+                          </div>
+                          <div
+                            v-if="isToolResultDisplayTruncated(block.tool)"
+                            class="border-b border-amber-200/70 bg-amber-50 px-3 py-2 text-xs text-amber-700 dark:border-amber-800/60 dark:bg-amber-950/30 dark:text-amber-300"
+                          >
+                            {{ t('ai.chat.message.toolResult.displayTruncated') }}
+                          </div>
+                          <pre
+                            class="ai-tool-result-scroll whitespace-pre-wrap break-words px-3 py-2.5 text-xs leading-relaxed text-gray-700 dark:text-gray-200"
+                            >{{ getToolResultText(block.tool) }}</pre
+                          >
+                        </div>
+                      </ProcessDisclosure>
+
+                      <!-- 工具块：运行中或无结果时保持紧凑展示 -->
+                      <div
+                        v-else-if="block.type === 'tool'"
+                        class="ai-live-row flex min-w-0 items-center gap-2"
+                        :data-running="block.tool.status === 'running' || undefined"
+                        :class="[
+                          isCompletedProcessSummary(segment) ? 'h-7 text-sm leading-7' : 'py-1 text-xs',
+                          block.tool.status === 'error'
+                            ? 'text-amber-700 dark:text-amber-400'
+                            : 'text-gray-500 dark:text-gray-400',
+                        ]"
+                      >
+                        <UIcon
+                          :name="
+                            block.tool.status === 'running'
+                              ? 'i-heroicons-arrow-path'
+                              : block.tool.status === 'error'
+                                ? 'i-heroicons-exclamation-circle'
+                                : 'i-heroicons-wrench-screwdriver'
+                          "
+                          class="h-3.5 w-3.5 shrink-0"
+                          :class="[
+                            block.tool.status === 'running'
+                              ? 'animate-spin text-primary-500'
+                              : block.tool.status === 'error'
+                                ? 'text-amber-500'
+                                : 'text-gray-400',
+                          ]"
+                        />
+                        <span
+                          class="shrink-0"
+                          :class="[
+                            block.tool.status === 'error'
+                              ? 'text-amber-700 dark:text-amber-300'
+                              : 'text-gray-600 dark:text-gray-300',
+                          ]"
+                        >
+                          {{ getToolDisplayName(block.tool) }}
+                        </span>
+                        <span
+                          v-if="formatToolParams(block.tool)"
+                          class="min-w-0 truncate text-xs text-gray-400 dark:text-gray-500"
+                        >
+                          {{ formatToolParams(block.tool) }}
+                        </span>
+                        <span
+                          v-if="block.tool.status === 'done' && block.tool.durationMs"
+                          class="ml-auto shrink-0 text-xs text-gray-400 dark:text-gray-500"
+                        >
+                          {{ formatThinkDuration(block.tool.durationMs) }}
+                        </span>
+                      </div>
+
+                      <!-- 错误块 -->
+                      <ErrorBlock
+                        v-else-if="block.type === 'error'"
+                        :error="block.error"
+                        :compact="segment.type === 'process'"
+                      />
+                    </template>
+                  </div>
+                </div>
               </div>
             </div>
           </template>
@@ -1216,7 +1292,7 @@ async function handleCopyMarkdown() {
       <!-- AI 消息：传统纯文本渲染（向后兼容） -->
       <template v-else>
         <div class="py-1 text-gray-900 dark:text-gray-100">
-          <div class="prose prose-sm dark:prose-invert max-w-none leading-relaxed" v-html="renderedContent" />
+          <div class="prose dark:prose-invert max-w-none" v-html="renderedContent" />
           <span
             v-if="isStreaming"
             class="ml-1 inline-block h-4 w-1.5 animate-pulse rounded-sm bg-gray-800 dark:bg-gray-200"
@@ -1309,9 +1385,51 @@ async function handleCopyMarkdown() {
   }
 }
 
+.ai-process-fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 200ms ease-out;
+}
+
+.ai-process-fold[data-open] {
+  grid-template-rows: 1fr;
+}
+
+.ai-process-fold-inner {
+  min-height: 0;
+  overflow: hidden;
+  visibility: hidden;
+  transition: visibility 0s linear 200ms;
+}
+
+.ai-process-fold[data-open] > .ai-process-fold-inner {
+  visibility: visible;
+  transition-delay: 0s;
+}
+
+.ai-tool-result-scroll {
+  max-height: min(18rem, 40vh);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+
+.prose.ai-process-detail-content {
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+}
+
+.prose.ai-thought-content {
+  line-height: 1.2rem;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .ai-live-row[data-running]::after {
     animation: none;
+  }
+
+  .ai-process-fold {
+    transition: none;
   }
 }
 </style>

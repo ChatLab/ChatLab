@@ -1,8 +1,9 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed } from 'vue'
 import { useI18n } from 'vue-i18n'
 import type { ChatEvidencePayload, EvidenceStatus } from '@openchatlab/core'
 import { useLayoutStore } from '@/stores/layout'
+import ProcessDisclosure from './ProcessDisclosure.vue'
 
 const props = defineProps<{
   evidence: ChatEvidencePayload
@@ -10,8 +11,6 @@ const props = defineProps<{
 
 const { t } = useI18n()
 const layoutStore = useLayoutStore()
-
-const expanded = ref(false)
 
 const STATUS_ORDER: EvidenceStatus[] = ['included', 'uncertain', 'excluded']
 
@@ -48,46 +47,40 @@ function viewSource(messageId: number): void {
 </script>
 
 <template>
-  <div
-    class="my-1.5 w-full overflow-hidden rounded-lg border border-gray-200 bg-gray-50/60 text-[13px] dark:border-gray-700/60 dark:bg-gray-800/30"
-  >
-    <!-- Header (clickable toggle) -->
-    <button
-      type="button"
-      class="flex w-full items-center gap-2 px-3 py-2 text-left transition-colors hover:bg-gray-100/60 dark:hover:bg-gray-800/40"
-      @click="expanded = !expanded"
+  <ProcessDisclosure class="w-full text-[13px]">
+    <template #summary="{ open, toggle }">
+      <button
+        type="button"
+        class="flex h-7 w-full items-center gap-2 rounded-md text-left text-sm leading-7 text-gray-500 transition-colors hover:bg-gray-50/80 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800/30 dark:hover:text-gray-300"
+        :aria-expanded="open"
+        @click="toggle"
+      >
+        <UIcon name="i-heroicons-document-magnifying-glass" class="h-3.5 w-3.5 shrink-0 text-gray-400" />
+        <span class="shrink-0 text-gray-600 dark:text-gray-300">{{ t('ai.chat.evidence.title') }}</span>
+
+        <div class="ml-auto flex min-w-0 items-center gap-2">
+          <span
+            v-for="item in statusCounts"
+            :key="item.status"
+            class="flex shrink-0 items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400"
+          >
+            <span class="h-1.5 w-1.5 rounded-full" :class="statusDotClass[item.status]" />
+            {{ t(`ai.chat.evidence.group.${item.status}`) }} {{ item.count }}
+          </span>
+          <span v-if="statusCounts.length === 0" class="truncate text-[11px] text-gray-400 dark:text-gray-500">
+            {{ t('ai.chat.evidence.empty') }}
+          </span>
+          <UIcon
+            :name="open ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
+            class="h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500"
+          />
+        </div>
+      </button>
+    </template>
+
+    <div
+      class="evidence-details mx-px mt-1 rounded-lg border border-gray-200/60 bg-gray-50/80 px-3 py-2 dark:border-white/5 dark:bg-white/[0.03]"
     >
-      <UIcon name="i-heroicons-document-magnifying-glass" class="h-4 w-4 shrink-0 text-primary-500" />
-      <span class="text-xs font-semibold text-gray-700 dark:text-gray-200">{{ t('ai.chat.evidence.title') }}</span>
-
-      <!-- Compact summary (collapsed state) -->
-      <div v-if="!expanded" class="flex min-w-0 items-center gap-2">
-        <span
-          v-for="item in statusCounts"
-          :key="item.status"
-          class="flex shrink-0 items-center gap-1 text-[11px] text-gray-500 dark:text-gray-400"
-        >
-          <span class="h-1.5 w-1.5 rounded-full" :class="statusDotClass[item.status]" />
-          {{ t(`ai.chat.evidence.group.${item.status}`) }} {{ item.count }}
-        </span>
-        <span v-if="statusCounts.length === 0" class="truncate text-[11px] text-gray-400 dark:text-gray-500">
-          {{ t('ai.chat.evidence.empty') }}
-        </span>
-      </div>
-
-      <span class="ml-auto flex shrink-0 items-center gap-1.5">
-        <span class="text-[11px] text-gray-400 dark:text-gray-500">
-          {{ t(`ai.chat.evidence.mode.${evidence.mode}`) }}
-        </span>
-        <UIcon
-          :name="expanded ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-          class="h-3.5 w-3.5 text-gray-400 dark:text-gray-500"
-        />
-      </span>
-    </button>
-
-    <!-- Details (expanded state) -->
-    <div v-if="expanded" class="border-t border-gray-200/70 px-3 py-2 dark:border-gray-700/50">
       <!-- Query / criteria -->
       <div class="mb-2 space-y-0.5 text-xs text-gray-600 dark:text-gray-400">
         <div>
@@ -160,5 +153,14 @@ function viewSource(messageId: number): void {
         {{ t('ai.chat.evidence.totalSources', { count: totalSources }) }}
       </div>
     </div>
-  </div>
+  </ProcessDisclosure>
 </template>
+
+<style scoped>
+.evidence-details {
+  max-height: min(18rem, 40vh);
+  overflow: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
+}
+</style>
