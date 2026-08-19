@@ -652,7 +652,7 @@ defineExpose({
 
 <template>
   <div class="shrink-0" :class="[props.embedded ? '' : 'pt-2 pb-2']">
-    <div ref="rootRef" class="relative w-full max-w-4xl mx-auto">
+    <div ref="rootRef" class="w-full max-w-4xl mx-auto" :class="{ relative: !props.embedded }">
       <SlashCommandMenu
         :visible="showSlashMenu"
         :skills="filteredSkills"

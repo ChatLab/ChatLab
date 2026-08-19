@@ -2,44 +2,26 @@
 import { ref, computed } from 'vue'
 import { storeToRefs } from 'pinia'
 import { useI18n } from 'vue-i18n'
-import { useToast } from '@/composables/useToast'
 import { usePromptStore } from '@/stores/prompt'
 import { useLayoutStore } from '@/stores/layout'
 import { useLLMStore } from '@/stores/llm'
-import {
-  exportConversation,
-  getExportableConversationMessages,
-  hasExportableConversationMessages,
-  type ConversationExportSourceMessage,
-  type ExportFormat,
-} from '@/utils/conversationExport'
 import type { AgentRuntimeStatus } from '@electron/shared/types'
-import { useAIService } from '@/services'
 import { getSupportedThinkingLevels, type ThinkingLevel } from '@openchatlab/core'
-import { useCacheService } from '@/services/cache/service'
-import type { ChatMessage } from '@/composables/useAIChat'
 
 const { t } = useI18n()
-const toast = useToast()
 const layoutStore = useLayoutStore()
 
 // Props
 const props = defineProps<{
   sessionTokenUsage: { totalTokens: number; cacheReadTokens: number; cacheWriteTokens: number }
   agentStatus?: AgentRuntimeStatus | null
-  currentAIChatId?: string | null
-  currentMessages?: ChatMessage[]
-  fallbackTitle?: string
   estimatedContextTokens?: number
 }>()
 
 // Store
 const promptStore = usePromptStore()
 const llmStore = useLLMStore()
-const { aiGlobalSettings } = storeToRefs(promptStore)
 const { defaultAssistantConfig, isLoading: isLoadingLLM } = storeToRefs(llmStore)
-
-const isOpeningLog = ref(false)
 
 const agentPhaseText = computed(() => {
   if (!props.agentStatus) return ''
@@ -105,11 +87,10 @@ const contextUsagePercent = computed(() => {
   return Math.min(100, Math.round((contextTokens.value / modelContextWindow.value) * 100))
 })
 
-const contextBarColor = computed(() => {
-  const pct = contextUsagePercent.value
-  if (pct >= 80) return 'bg-red-500'
-  if (pct >= 60) return 'bg-amber-500'
-  return 'bg-emerald-500'
+const contextRingRadius = 5.5
+const contextRingCircumference = 2 * Math.PI * contextRingRadius
+const contextRingDasharray = computed(() => {
+  return `${(contextRingCircumference * contextUsagePercent.value) / 100} ${contextRingCircumference}`
 })
 
 const agentCompactTitle = computed(() => {
@@ -123,109 +104,6 @@ const agentCompactTitle = computed(() => {
 
 function openModelSettings() {
   layoutStore.openSettings('ai', 'defaultModel')
-}
-
-// 导出当前对话
-const isExporting = ref(false)
-const visibleExportMessages = computed(() => getExportableConversationMessages(props.currentMessages ?? []))
-const canExportConversation = computed(() => {
-  return Boolean(props.currentAIChatId) || hasExportableConversationMessages(props.currentMessages ?? [])
-})
-
-function getExportLabels() {
-  return {
-    createdAt: t('ai.chat.conversation.export.createdAt'),
-    user: t('ai.chat.conversation.export.user'),
-    assistant: t('ai.chat.conversation.export.assistant'),
-  }
-}
-
-function toExportSourceMessages(messages: ConversationExportSourceMessage[]): ConversationExportSourceMessage[] {
-  return messages.map((message) => ({
-    ...message,
-    timestamp: message.timestamp * 1000,
-  }))
-}
-
-async function handleExportConversation() {
-  if (isExporting.value || !canExportConversation.value) return
-
-  isExporting.value = true
-  try {
-    const format = (aiGlobalSettings.value.exportFormat || 'markdown') as ExportFormat
-    const labels = getExportLabels()
-    let title = props.fallbackTitle || t('ai.chat.conversation.newChat')
-    let createdAt = visibleExportMessages.value[0]?.timestamp ?? Date.now()
-    let messages = visibleExportMessages.value
-
-    if (props.currentAIChatId) {
-      const [conv, persistedMessages] = await Promise.all([
-        useAIService().getAIChat(props.currentAIChatId),
-        useAIService().getMessages(props.currentAIChatId),
-      ])
-
-      if (conv) {
-        title = conv.title || title
-        createdAt = conv.createdAt * 1000
-      }
-
-      const persistedExportMessages = getExportableConversationMessages(toExportSourceMessages(persistedMessages))
-      if (persistedExportMessages.length > 0) {
-        messages = persistedExportMessages
-      }
-    }
-
-    if (messages.length === 0) {
-      toast.warn(t('ai.chat.conversation.export.noMessages'))
-      return
-    }
-
-    const result = await exportConversation(title, messages, createdAt, format, labels)
-
-    if (result.success && result.filePath) {
-      const filename = result.filePath.split('/').pop() || result.filePath
-      const exportedFilePath = result.filePath
-      toast.add({
-        title: t('common.exportSuccess'),
-        description: filename,
-        color: 'primary',
-        actions: [
-          {
-            label: t('common.openFolder'),
-            onClick: () => {
-              useCacheService().showInFolder(exportedFilePath)
-            },
-          },
-        ],
-      })
-    } else {
-      toast.fail(t('common.exportFailed'), { description: result.error })
-    }
-  } catch (error) {
-    console.error('导出对话失败：', error)
-    toast.fail(t('common.exportFailed'), { description: String(error) })
-  } finally {
-    isExporting.value = false
-  }
-}
-
-// 打开当前 AI 日志文件并定位到文件
-async function openAiLogFile() {
-  if (isOpeningLog.value) return
-  isOpeningLog.value = true
-  try {
-    const result = await useAIService().showAiLogFile()
-    if (!result?.success) {
-      toast.fail(t('ai.chat.statusBar.log.openFailed'), {
-        description: result?.error || t('ai.chat.statusBar.log.openFailedDesc'),
-      })
-    }
-  } catch (error) {
-    console.error('打开 AI 日志失败：', error)
-    toast.fail(t('ai.chat.statusBar.log.openFailed'), { description: String(error) })
-  } finally {
-    isOpeningLog.value = false
-  }
 }
 
 // ── Thinking level selector ───────────────────────────────────────────────────
@@ -340,19 +218,33 @@ const thinkingLevelLabel = computed(() => {
         <span>{{ agentPhaseShortText }}</span>
       </div>
 
-      <!-- Context 进度条 -->
+      <!-- Context occupancy ring: geometry matches the DSH composer meter. -->
       <UTooltip v-if="contextTokens > 0" :ui="{ content: 'h-auto py-1.5' }">
         <div
-          class="hidden shrink-0 items-center gap-1.5 rounded-md px-1.5 py-1 text-xs text-gray-400 dark:text-gray-500 md:flex"
+          class="hidden h-7 w-7 shrink-0 place-items-center rounded-full text-gray-400 transition-colors hover:bg-gray-100 md:grid dark:text-gray-500 dark:hover:bg-gray-800"
+          :aria-label="`${t('ai.chat.statusBar.agent.contextTokens')} ${contextUsagePercent}%`"
         >
-          <div class="h-1.5 w-10 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-700">
-            <div
-              class="h-full rounded-full transition-all duration-300"
-              :class="contextBarColor"
-              :style="{ width: `${contextUsagePercent}%` }"
+          <svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true">
+            <circle
+              cx="7"
+              cy="7"
+              :r="contextRingRadius"
+              fill="none"
+              class="stroke-gray-300 dark:stroke-gray-700"
+              stroke-width="2"
             />
-          </div>
-          <span class="text-[10px]">{{ contextUsagePercent }}%</span>
+            <circle
+              cx="7"
+              cy="7"
+              :r="contextRingRadius"
+              fill="none"
+              class="stroke-gray-400 transition-[stroke-dasharray] duration-300 dark:stroke-gray-500"
+              stroke-width="2"
+              stroke-linecap="round"
+              :stroke-dasharray="contextRingDasharray"
+              transform="rotate(-90 7 7)"
+            />
+          </svg>
         </div>
         <template #content>
           <div class="space-y-0.5 whitespace-nowrap text-xs">
@@ -365,27 +257,6 @@ const thinkingLevelLabel = computed(() => {
           </div>
         </template>
       </UTooltip>
-
-      <!-- 导出按钮 -->
-      <button
-        class="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-xs text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-gray-800 dark:hover:text-gray-300"
-        :title="t('ai.chat.statusBar.export.title')"
-        :disabled="isExporting || !canExportConversation"
-        @click="handleExportConversation"
-      >
-        <UIcon name="i-heroicons-arrow-down-tray" class="h-3.5 w-3.5" />
-        <span class="hidden xl:inline">{{ t('ai.chat.statusBar.export.label') }}</span>
-      </button>
-      <!-- 日志按钮 -->
-      <button
-        class="flex shrink-0 items-center gap-1 rounded-md px-1.5 py-1 text-xs text-gray-400 transition-colors hover:bg-gray-100 hover:text-gray-600 disabled:cursor-not-allowed disabled:opacity-60 dark:hover:bg-gray-800 dark:hover:text-gray-300"
-        :title="t('ai.chat.statusBar.log.title')"
-        :disabled="isOpeningLog"
-        @click="openAiLogFile"
-      >
-        <UIcon name="i-heroicons-document-text" class="h-3.5 w-3.5" />
-        <span class="hidden xl:inline">{{ t('ai.chat.statusBar.log.label') }}</span>
-      </button>
     </div>
   </div>
 </template>

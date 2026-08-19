@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, computed, onMounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useRoute, useRouter } from 'vue-router'
 import { useToast } from '@/composables/useToast'
@@ -9,6 +9,7 @@ import ChatMessage from './chat/ChatMessage.vue'
 import AIChatInput from './input/AIChatInput.vue'
 import AIThinkingIndicator from './chat/AIThinkingIndicator.vue'
 import ChatStatusBar from './chat/ChatStatusBar.vue'
+import ChatHeaderActions from './chat/ChatHeaderActions.vue'
 import { useAIChat } from '@/composables/useAIChat'
 import { useAIService, useLLMService } from '@/services'
 import AssistantInlineBar from './assistant/AssistantInlineBar.vue'
@@ -45,7 +46,12 @@ const props = defineProps<{
   chatType?: 'group' | 'private'
 }>()
 
+const emit = defineEmits<{
+  'restore-loading-change': [loading: boolean]
+}>()
+
 const initialAIChatId = typeof route.query.aiChatId === 'string' ? route.query.aiChatId : null
+if (initialAIChatId) emit('restore-loading-change', true)
 
 // 使用 AI 对话 Composable
 const {
@@ -92,9 +98,12 @@ async function syncAIChatIdToRoute(aiChatId: string | null): Promise<void> {
 }
 
 void initialization.finally(() => {
+  emit('restore-loading-change', false)
   isAIChatInitialized = true
   void syncAIChatIdToRoute(currentAIChatId.value)
 })
+
+onUnmounted(() => emit('restore-loading-change', false))
 
 watch(currentAIChatId, (aiChatId) => {
   if (isAIChatInitialized) void syncAIChatIdToRoute(aiChatId)
@@ -445,7 +454,7 @@ watch(
         <div class="relative flex min-w-[480px] flex-1 flex-col overflow-hidden">
           <!-- 顶部：有消息时显示助手切换按钮 -->
           <template v-if="messages.length > 0 || isAIThinking">
-            <div class="flex items-center gap-1.5 px-3 py-1.5">
+            <div class="flex items-center justify-between gap-2 px-3 py-1.5">
               <button
                 class="flex items-center gap-1 rounded-md px-1.5 py-1 text-xs text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
                 :disabled="isAIThinking || !assistantStore.selectedAssistant?.id"
@@ -455,6 +464,12 @@ watch(
                 <UIcon name="i-heroicons-sparkles" class="h-3.5 w-3.5" />
                 <span>{{ assistantStore.selectedAssistant?.name || t('ai.assistant.fallbackName') }}</span>
               </button>
+
+              <ChatHeaderActions
+                :current-ai-chat-id="currentAIChatId"
+                :current-messages="messages"
+                :fallback-title="sessionName"
+              />
             </div>
           </template>
 
@@ -606,10 +621,10 @@ watch(
           </div>
 
           <!-- 输入框区域 -->
-          <div class="px-4 pb-2">
+          <div class="px-4 pb-3">
             <div class="mx-auto max-w-3xl">
               <div
-                class="overflow-visible rounded-2xl bg-white shadow-[0_2px_14px_rgba(0,0,0,0.04)] ring-1 ring-gray-200/60 transition-all focus-within:ring-primary-500/40 focus-within:shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:bg-page-dark dark:ring-white/5 dark:focus-within:ring-primary-500/40"
+                class="relative overflow-visible rounded-2xl bg-white shadow-[0_2px_14px_rgba(0,0,0,0.04)] ring-1 ring-gray-200/60 transition-all focus-within:ring-primary-500/40 focus-within:shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:bg-page-dark dark:ring-white/5 dark:focus-within:ring-primary-500/40"
               >
                 <AIChatInput
                   ref="chatInputRef"
@@ -625,12 +640,9 @@ watch(
                 />
 
                 <ChatStatusBar
-                  class="px-2 pb-1.5 pt-0.5"
+                  class="pb-1.5 pl-2 pr-[52px] pt-0.5"
                   :session-token-usage="sessionTokenUsage"
                   :agent-status="agentStatus"
-                  :current-ai-chat-id="currentAIChatId"
-                  :current-messages="messages"
-                  :fallback-title="sessionName"
                   :estimated-context-tokens="estimatedContextTokens"
                 />
               </div>

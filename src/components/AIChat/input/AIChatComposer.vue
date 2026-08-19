@@ -88,8 +88,8 @@ defineExpose({ focus, getSelection, setSelectionRange, syncHeight })
         : '',
     ]"
   >
-    <div class="relative px-4 pt-2.5 pb-2.5">
-      <div class="flex items-start gap-2 pr-10">
+    <div class="px-4 pt-2.5 pb-2.5" :class="{ relative: !embedded }">
+      <div class="flex items-start gap-2" :class="{ 'pr-10': !embedded }">
         <div
           v-if="activeSkillName"
           class="inline-flex max-w-[180px] shrink-0 items-center rounded-md bg-primary-50 px-2 text-sm leading-6 font-medium text-primary-700 dark:bg-primary-500/10 dark:text-primary-400"
