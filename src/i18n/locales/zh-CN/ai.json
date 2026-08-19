@@ -5,6 +5,9 @@
   },
   "chat": {
     "scrollToBottom": "返回底部",
+    "history": {
+      "loadEarlier": "加载更早对话"
+    },
     "input": {
       "placeholderWithSlash": "输入你的问题，或输入 / 选择技能、输入 {'@'} 选择成员...",
       "placeholderWithActiveSkill": "已选择 /{name}，请输入具体问题...",

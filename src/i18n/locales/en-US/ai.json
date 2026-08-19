@@ -5,6 +5,9 @@
   },
   "chat": {
     "scrollToBottom": "Back to Bottom",
+    "history": {
+      "loadEarlier": "Load earlier messages"
+    },
     "input": {
       "placeholderWithSlash": "Enter your question, or type / for skills and {'@'} for members...",
       "placeholderWithActiveSkill": "/{name} selected. Enter your specific question...",

@@ -5,6 +5,9 @@
   },
   "chat": {
     "scrollToBottom": "下へ移動",
+    "history": {
+      "loadEarlier": "以前の会話を読み込む"
+    },
     "input": {
       "placeholderWithSlash": "質問を入力、または / でスキル、{'@'} でメンバーを選択...",
       "placeholderWithActiveSkill": "/{name} を選択済みです。具体的な質問を入力してください...",

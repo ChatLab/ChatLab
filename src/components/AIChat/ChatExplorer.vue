@@ -23,6 +23,7 @@ import { useSettingsStore } from '@/stores/settings'
 import { useAssistantStore } from '@/stores/assistant'
 import { useSkillStore } from '@/stores/skill'
 import { useChatScroll } from './composables/useChatScroll'
+import { useProgressiveChatHistory } from './composables/useProgressiveChatHistory'
 import { useChatModals } from './composables/useChatModals'
 import { groupMessagesToQAPairs } from './utils/chatMessages'
 import type { MentionedMemberContext } from '@/composables/useAIChat'
@@ -181,6 +182,8 @@ const assistantBackupName = computed(() => {
 
 // QA 对
 const qaPairs = computed(() => groupMessagesToQAPairs(messages.value))
+const progressiveHistory = useProgressiveChatHistory(qaPairs, currentAIChatId, chatScroll.messagesContainer)
+const { visiblePairs, hasOlderPairs, loadOlderPairs } = progressiveHistory
 
 // 检查 LLM 配置
 async function checkLLMConfig() {
@@ -515,8 +518,19 @@ watch(
                 </div>
               </div>
 
+              <div v-if="hasOlderPairs" class="flex justify-center pb-2">
+                <button
+                  type="button"
+                  class="flex h-8 items-center gap-1.5 rounded-full px-3 text-xs text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+                  @click="loadOlderPairs"
+                >
+                  <UIcon name="i-heroicons-arrow-up" class="h-3.5 w-3.5" />
+                  <span>{{ t('ai.chat.history.loadEarlier') }}</span>
+                </button>
+              </div>
+
               <!-- QA 对渲染 -->
-              <template v-for="pair in qaPairs" :key="pair.id">
+              <template v-for="pair in visiblePairs" :key="pair.id">
                 <!-- 独立消息（summary 等非 user/assistant） -->
                 <ChatMessage
                   v-if="pair.standalone"

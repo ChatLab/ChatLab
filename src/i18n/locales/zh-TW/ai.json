@@ -5,6 +5,9 @@
   },
   "chat": {
     "scrollToBottom": "回到底部",
+    "history": {
+      "loadEarlier": "載入更早對話"
+    },
     "input": {
       "placeholderWithSlash": "輸入你的問題，或輸入 / 選擇技能、輸入 {'@'} 選擇成員...",
       "placeholderWithActiveSkill": "已選擇 /{name}，請輸入具體問題...",

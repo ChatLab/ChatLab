@@ -88,9 +88,26 @@ md.renderer.rules.link_open = (tokens, idx, options, _env, self) => {
 }
 
 // 渲染 Markdown 文本
+const MAX_MARKDOWN_CACHE_ENTRIES = 32
+const markdownCache = new Map<string, string>()
+
 function renderMarkdown(text: string): string {
   if (!text) return ''
-  return md.render(text)
+
+  const cached = markdownCache.get(text)
+  if (cached !== undefined) {
+    markdownCache.delete(text)
+    markdownCache.set(text, cached)
+    return cached
+  }
+
+  const rendered = md.render(text)
+  markdownCache.set(text, rendered)
+  if (markdownCache.size > MAX_MARKDOWN_CACHE_ENTRIES) {
+    const oldest = markdownCache.keys().next().value
+    if (oldest !== undefined) markdownCache.delete(oldest)
+  }
+  return rendered
 }
 
 // 思考标签名称映射

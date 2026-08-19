@@ -10,21 +10,57 @@ import type { Ref } from 'vue'
 import type { ChatMessage } from '@/stores/aiChat'
 
 const RESTICK_THRESHOLD = 30
+const SCROLL_DELAY_MS = 100
+
+export function createCoalescedScrollScheduler(
+  callback: (force: boolean) => void,
+  delayMs = SCROLL_DELAY_MS
+): {
+  schedule: (force?: boolean) => void
+  cancel: () => void
+} {
+  let pendingTimer: ReturnType<typeof setTimeout> | null = null
+  let pendingForce = false
+
+  function schedule(force = false) {
+    pendingForce ||= force
+    if (pendingTimer !== null) return
+
+    pendingTimer = setTimeout(() => {
+      pendingTimer = null
+      const forceCurrentRun = pendingForce
+      pendingForce = false
+      callback(forceCurrentRun)
+    }, delayMs)
+  }
+
+  function cancel() {
+    if (pendingTimer !== null) {
+      clearTimeout(pendingTimer)
+      pendingTimer = null
+    }
+    pendingForce = false
+  }
+
+  return { schedule, cancel }
+}
 
 export function useChatScroll(messages: Ref<ChatMessage[]>, isAIThinking: Ref<boolean>) {
   const messagesContainer = ref<HTMLElement | null>(null)
   const isStickToBottom = ref(true)
   const showScrollToBottom = ref(false)
 
+  const scrollScheduler = createCoalescedScrollScheduler((force) => {
+    if (!messagesContainer.value) return
+    if (force || isStickToBottom.value) {
+      messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
+      isStickToBottom.value = true
+      showScrollToBottom.value = false
+    }
+  })
+
   function scrollToBottom(force = false) {
-    setTimeout(() => {
-      if (!messagesContainer.value) return
-      if (force || isStickToBottom.value) {
-        messagesContainer.value.scrollTop = messagesContainer.value.scrollHeight
-        isStickToBottom.value = true
-        showScrollToBottom.value = false
-      }
-    }, 100)
+    scrollScheduler.schedule(force)
   }
 
   function handleWheel(event: WheelEvent) {
@@ -67,6 +103,7 @@ export function useChatScroll(messages: Ref<ChatMessage[]>, isAIThinking: Ref<bo
   })
 
   onBeforeUnmount(() => {
+    scrollScheduler.cancel()
     if (messagesContainer.value) {
       messagesContainer.value.removeEventListener('scroll', checkScrollPosition)
       messagesContainer.value.removeEventListener('wheel', handleWheel)

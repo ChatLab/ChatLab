@@ -44,6 +44,7 @@ import {
   toSerializableContentBlocks,
 } from './aiChatContentBlocks'
 import { createToolLifecycleTracker, type ToolStatus } from './aiToolLifecycle'
+import { createAIStreamTextBatcher } from './aiChatStreamBatcher'
 
 export type { ToolStatus } from './aiToolLifecycle'
 
@@ -664,61 +665,18 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     ) => void
     completeTurn: (hadToolCalls: boolean) => void
     settleProcessDuration: () => void
+    flushPendingText: () => void
   }
 
   function createStreamBlockHelpers(targetBuffer: AIChatBuffer, getAiMessageIndex: () => number): StreamBlockHelpers {
     let currentTurnFirstContentAt: number | undefined
 
-    const updateAIMessage = (updates: Partial<ChatMessage>) => {
+    const applyAIMessageUpdates = (updates: Partial<ChatMessage>) => {
       const idx = getAiMessageIndex()
       targetBuffer.messages[idx] = { ...targetBuffer.messages[idx], ...updates }
     }
 
-    const settleProcessDuration = () => {
-      const idx = getAiMessageIndex()
-      const message = targetBuffer.messages[idx]
-      if (!message || message.processDurationMs !== undefined) return
-      const durationMs = Math.max(0, Date.now() - message.timestamp)
-      updateAIMessage({
-        processDurationMs: durationMs,
-        contentBlocks: persistProcessDurationMs(message.contentBlocks, durationMs),
-      })
-    }
-
-    const appendTextToBlocks = (text: string) => {
-      if (!text) return
-      const idx = getAiMessageIndex()
-      const blocks = targetBuffer.messages[idx].contentBlocks || []
-      const lastBlock = blocks[blocks.length - 1]
-      if (text.trim().length === 0 && (!lastBlock || lastBlock.type !== 'text')) return
-      if (text.trim().length > 0 && currentTurnFirstContentAt === undefined) {
-        currentTurnFirstContentAt = Date.now()
-      }
-      if (lastBlock && lastBlock.type === 'text') {
-        lastBlock.text += text
-      } else {
-        blocks.push({ type: 'text', text })
-      }
-      updateAIMessage({ contentBlocks: [...blocks], content: targetBuffer.messages[idx].content + text })
-    }
-
-    const completeTurn = (hadToolCalls: boolean) => {
-      const firstContentAt = currentTurnFirstContentAt
-      currentTurnFirstContentAt = undefined
-      if (hadToolCalls || firstContentAt === undefined) return
-
-      const idx = getAiMessageIndex()
-      const message = targetBuffer.messages[idx]
-      if (!message || message.processDurationMs !== undefined) return
-      const durationMs = Math.max(0, firstContentAt - message.timestamp)
-      updateAIMessage({
-        processDurationMs: durationMs,
-        contentBlocks: persistProcessDurationMs(message.contentBlocks, durationMs),
-      })
-    }
-
-    const appendThinkToBlocks = (text: string, tag?: string, durationMs?: number) => {
-      if (!text && durationMs === undefined) return
+    const appendThinkImmediately = (text: string, tag?: string, durationMs?: number) => {
       const idx = getAiMessageIndex()
       const blocks = targetBuffer.messages[idx].contentBlocks || []
       const thinkTag = tag || 'think'
@@ -741,11 +699,95 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       if (durationMs !== undefined && targetBlock && targetBlock.type === 'think') {
         targetBlock.durationMs = durationMs
       }
-      updateAIMessage({ contentBlocks: [...blocks] })
+      applyAIMessageUpdates({ contentBlocks: [...blocks] })
+    }
+
+    const streamTextBatcher = createAIStreamTextBatcher((deltas) => {
+      const idx = getAiMessageIndex()
+      const message = targetBuffer.messages[idx]
+      const blocks = message.contentBlocks || []
+      let content = message.content
+      let changed = false
+
+      for (const delta of deltas) {
+        const lastBlock = blocks[blocks.length - 1]
+        if (delta.type === 'content') {
+          if (delta.content.trim().length === 0 && (!lastBlock || lastBlock.type !== 'text')) continue
+          if (lastBlock?.type === 'text') lastBlock.text += delta.content
+          else blocks.push({ type: 'text', text: delta.content })
+          content += delta.content
+          changed = true
+          continue
+        }
+
+        const thinkTag = delta.thinkTag || 'think'
+        if (lastBlock?.type === 'think' && lastBlock.tag === thinkTag) {
+          lastBlock.text += delta.content
+          changed = true
+        } else if (delta.content.trim().length > 0) {
+          blocks.push({ type: 'think', tag: thinkTag, text: delta.content })
+          changed = true
+        }
+      }
+
+      if (changed) applyAIMessageUpdates({ contentBlocks: [...blocks], content })
+    })
+
+    const flushPendingText = () => streamTextBatcher.flush()
+
+    const updateAIMessage = (updates: Partial<ChatMessage>) => {
+      flushPendingText()
+      applyAIMessageUpdates(updates)
+    }
+
+    const settleProcessDuration = () => {
+      flushPendingText()
+      const idx = getAiMessageIndex()
+      const message = targetBuffer.messages[idx]
+      if (!message || message.processDurationMs !== undefined) return
+      const durationMs = Math.max(0, Date.now() - message.timestamp)
+      applyAIMessageUpdates({
+        processDurationMs: durationMs,
+        contentBlocks: persistProcessDurationMs(message.contentBlocks, durationMs),
+      })
+    }
+
+    const appendTextToBlocks = (text: string) => {
+      if (!text) return
+      if (text.trim().length > 0 && currentTurnFirstContentAt === undefined) {
+        currentTurnFirstContentAt = Date.now()
+      }
+      streamTextBatcher.push({ type: 'content', content: text })
+    }
+
+    const completeTurn = (hadToolCalls: boolean) => {
+      flushPendingText()
+      const firstContentAt = currentTurnFirstContentAt
+      currentTurnFirstContentAt = undefined
+      if (hadToolCalls || firstContentAt === undefined) return
+
+      const idx = getAiMessageIndex()
+      const message = targetBuffer.messages[idx]
+      if (!message || message.processDurationMs !== undefined) return
+      const durationMs = Math.max(0, firstContentAt - message.timestamp)
+      applyAIMessageUpdates({
+        processDurationMs: durationMs,
+        contentBlocks: persistProcessDurationMs(message.contentBlocks, durationMs),
+      })
+    }
+
+    const appendThinkToBlocks = (text: string, tag?: string, durationMs?: number) => {
+      if (!text && durationMs === undefined) return
+      if (text) streamTextBatcher.push({ type: 'think', content: text, thinkTag: tag })
+      if (durationMs !== undefined) {
+        flushPendingText()
+        appendThinkImmediately('', tag, durationMs)
+      }
     }
 
     const appendChartsToBlocks = (charts: ChartPayload[]) => {
       if (charts.length === 0) return
+      flushPendingText()
       const idx = getAiMessageIndex()
       const blocks = targetBuffer.messages[idx].contentBlocks || []
       blocks.push(...toChartContentBlocks(charts))
@@ -753,6 +795,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     }
 
     const appendEvidenceToBlocks = (evidence: ChatEvidencePayload) => {
+      flushPendingText()
       const idx = getAiMessageIndex()
       const blocks = targetBuffer.messages[idx].contentBlocks || []
       blocks.push(toEvidenceContentBlock(evidence))
@@ -761,24 +804,28 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
     const appendPlanDraftToBlocks = (delta: string) => {
       if (!delta) return
+      flushPendingText()
       const idx = getAiMessageIndex()
       const blocks = targetBuffer.messages[idx].contentBlocks || []
       updateAIMessage({ contentBlocks: [...appendPlanDraftDelta(blocks, delta)] })
     }
 
     const appendPlanToBlocks = (plan: PlanContentBlock) => {
+      flushPendingText()
       const idx = getAiMessageIndex()
       const blocks = targetBuffer.messages[idx].contentBlocks || []
       updateAIMessage({ contentBlocks: [...replacePlanDraftWithPlan(blocks, plan)] })
     }
 
     const removePlanDraftsFromBlocks = () => {
+      flushPendingText()
       const idx = getAiMessageIndex()
       const blocks = targetBuffer.messages[idx].contentBlocks || []
       updateAIMessage({ contentBlocks: [...removePlanDraftBlocks(blocks)] })
     }
 
     const updatePlanBlockStatus = (status: PlanBlockStatus) => {
+      flushPendingText()
       const idx = getAiMessageIndex()
       const blocks = targetBuffer.messages[idx].contentBlocks || []
       for (let index = blocks.length - 1; index >= 0; index--) {
@@ -792,6 +839,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     }
 
     const appendErrorToBlocks = (error: SerializedErrorInfo) => {
+      flushPendingText()
       const idx = getAiMessageIndex()
       const blocks = targetBuffer.messages[idx].contentBlocks || []
       blocks.push({ type: 'error', error })
@@ -799,6 +847,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     }
 
     const addToolBlock = (toolName: string, params?: Record<string, unknown>, toolCallId?: string) => {
+      flushPendingText()
       const idx = getAiMessageIndex()
       const blocks = targetBuffer.messages[idx].contentBlocks || []
       blocks.push({
@@ -811,6 +860,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     const addRenderOnlyToolPendingBlock = (toolName: string, params?: Record<string, unknown>, toolCallId?: string) => {
       const pendingBlock = createRenderOnlyToolPendingBlock(toolName, params, toolCallId)
       if (!pendingBlock) return
+      flushPendingText()
       const idx = getAiMessageIndex()
       const blocks = targetBuffer.messages[idx].contentBlocks || []
       blocks.push(pendingBlock)
@@ -823,6 +873,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       charts: ChartPayload[],
       errorBlock: ReturnType<typeof toRenderOnlyToolErrorBlock>
     ) => {
+      flushPendingText()
       const idx = getAiMessageIndex()
       const blocks = targetBuffer.messages[idx].contentBlocks || []
 
@@ -836,6 +887,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       status: 'done' | 'error',
       completion?: { toolCallId?: string; result?: string; displayResult?: string; isError?: boolean }
     ) => {
+      flushPendingText()
       const idx = getAiMessageIndex()
       const blocks = targetBuffer.messages[idx].contentBlocks || []
       const isRunningTool = (block: ContentBlock): block is Extract<ContentBlock, { type: 'tool' }> =>
@@ -886,6 +938,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       updateToolBlockStatus,
       completeTurn,
       settleProcessDuration,
+      flushPendingText,
     }
   }
 
@@ -1013,6 +1066,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         updateToolBlockStatus,
         completeTurn,
         settleProcessDuration,
+        flushPendingText,
       } = createStreamBlockHelpers(targetBuffer, () => aiMessageIndex)
 
       const currentAssistantId = targetBuffer.assistantId ?? getDefaultGeneralAssistantId(state.locale)
@@ -1113,6 +1167,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               break
 
             case 'tool_update':
+              flushPendingText()
               if (chunk.toolName && chunk.toolProgress) {
                 state.currentToolStatus = toolLifecycle.update({
                   name: chunk.toolName,
@@ -1187,12 +1242,14 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               break
 
             case 'status':
+              flushPendingText()
               if (chunk.status && (!state.agentStatus || chunk.status.updatedAt >= state.agentStatus.updatedAt)) {
                 state.agentStatus = chunk.status
               }
               break
 
             case 'compression_done':
+              flushPendingText()
               if (chunk.compressionResult) {
                 const summaryMsg: ChatMessage = {
                   id: `summary-${Date.now()}`,
@@ -1257,6 +1314,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       setActiveTaskMeta(chatKey, content, agentReqId, resolvedAIChatId)
 
       const result = await agentPromise
+      flushPendingText()
       if (state.isAborted) {
         clearActiveTask(chatKey, agentReqId)
         return { success: false, reason: 'aborted' }
@@ -1635,6 +1693,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       updateToolBlockStatus,
       completeTurn,
       settleProcessDuration,
+      flushPendingText,
     } = createStreamBlockHelpers(targetBuffer, () => aiMessageIndex)
 
     try {
@@ -1726,6 +1785,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               }
               break
             case 'tool_update':
+              flushPendingText()
               if (chunk.toolName && chunk.toolProgress) {
                 state.currentToolStatus = toolLifecycle.update({
                   name: chunk.toolName,
@@ -1786,6 +1846,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
               completeTurn(Boolean(chunk.hadToolCalls))
               break
             case 'status':
+              flushPendingText()
               if (chunk.status && (!state.agentStatus || chunk.status.updatedAt >= state.agentStatus.updatedAt)) {
                 state.agentStatus = chunk.status
               }
@@ -1823,6 +1884,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       setActiveTaskMeta(chatKey, content, agentReqId, state.currentAIChatId)
 
       const result = await agentPromise
+      flushPendingText()
       if (state.isAborted) {
         restoreOriginal()
         clearActiveTask(chatKey, agentReqId)
