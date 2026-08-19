@@ -9,6 +9,7 @@ import ErrorBlock from './ErrorBlock.vue'
 import ChartBlockRenderer from './ChartBlockRenderer.vue'
 import EvidenceBlock from './EvidenceBlock.vue'
 import ProcessDisclosure from './ProcessDisclosure.vue'
+import ProcessDisclosureIcon from './ProcessDisclosureIcon.vue'
 import { useToast } from '@/composables/useToast'
 import { stripChartImagePlaceholders } from '@/services/ai/chartMarkdownPlaceholders'
 import { shouldHideRecoverableChartError } from '@/stores/aiChatChartBlocks'
@@ -939,12 +940,12 @@ async function handleCopyMarkdown() {
                       <!-- 思考块（默认折叠） -->
                       <ProcessDisclosure
                         v-else-if="block.type === 'think'"
-                        class="group group/think w-full text-sm text-gray-500 dark:text-gray-400"
+                        class="w-full text-sm text-gray-500 dark:text-gray-400"
                       >
                         <template #summary="{ open, toggle }">
                           <button
                             type="button"
-                            class="ai-live-row flex w-full min-w-0 cursor-pointer select-none items-center text-left transition-colors hover:text-gray-700 dark:hover:text-gray-300"
+                            class="ai-live-row group/process-toggle flex w-full min-w-0 cursor-pointer select-none items-center text-left transition-colors hover:text-gray-700 dark:hover:text-gray-300"
                             :class="[
                               isCompletedProcessSummary(segment) ? 'h-7 text-sm leading-7' : 'h-6 text-sm leading-6',
                             ]"
@@ -952,18 +953,7 @@ async function handleCopyMarkdown() {
                             :aria-expanded="open"
                             @click="toggle"
                           >
-                            <span class="relative mr-1.5 flex h-4 w-4 shrink-0 items-center justify-center">
-                              <UIcon
-                                v-if="!open"
-                                name="i-heroicons-light-bulb"
-                                class="absolute h-3.5 w-3.5 text-gray-400 transition-opacity duration-100 group-hover/think:opacity-0 dark:text-gray-500"
-                              />
-                              <UIcon
-                                name="i-heroicons-chevron-down"
-                                class="absolute h-3.5 w-3.5 text-gray-500 transition-opacity duration-100 dark:text-gray-400"
-                                :class="open ? 'opacity-100' : 'opacity-0 group-hover/think:opacity-100'"
-                              />
-                            </span>
+                            <ProcessDisclosureIcon icon="i-heroicons-light-bulb" :open="open" class="mr-1.5" />
                             <span class="shrink-0 text-gray-600 dark:text-gray-300">
                               {{ getThinkLabel(block.tag) }}
                             </span>
@@ -1058,15 +1048,12 @@ async function handleCopyMarkdown() {
                         <template #summary="{ open, toggle }">
                           <button
                             type="button"
-                            class="flex w-full cursor-pointer select-none items-center gap-2 rounded-md text-left text-gray-500 transition-colors hover:bg-gray-50/80 hover:text-gray-700 dark:hover:bg-gray-800/30 dark:hover:text-gray-300"
+                            class="group/process-toggle flex w-full cursor-pointer select-none items-center gap-2 rounded-md text-left text-gray-500 transition-colors hover:bg-gray-50/80 hover:text-gray-700 dark:hover:bg-gray-800/30 dark:hover:text-gray-300"
                             :class="[isCompletedProcessSummary(segment) ? 'h-7 text-sm leading-7' : 'py-1 text-xs']"
                             :aria-expanded="open"
                             @click="toggle"
                           >
-                            <UIcon
-                              name="i-heroicons-clipboard-document-list"
-                              class="h-3.5 w-3.5 shrink-0 text-gray-400"
-                            />
+                            <ProcessDisclosureIcon icon="i-heroicons-clipboard-document-list" :open="open" />
                             <span class="min-w-0 truncate text-gray-600 dark:text-gray-300">
                               {{ t('ai.chat.message.plan.label') }} · {{ block.plan.title }}
                             </span>
@@ -1152,7 +1139,7 @@ async function handleCopyMarkdown() {
                         <template #summary="{ open, toggle }">
                           <button
                             type="button"
-                            class="flex w-full cursor-pointer select-none items-center gap-2 rounded-md text-left text-gray-500 transition-colors hover:bg-gray-50/80 dark:text-gray-400 dark:hover:bg-gray-800/30"
+                            class="group/process-toggle flex w-full cursor-pointer select-none items-center gap-2 rounded-md text-left text-gray-500 transition-colors hover:bg-gray-50/80 dark:text-gray-400 dark:hover:bg-gray-800/30"
                             :class="[
                               isCompletedProcessSummary(segment) ? 'h-7 text-sm leading-7' : 'py-1 text-xs',
                               block.tool.status === 'error' ? 'text-amber-700 dark:text-amber-400' : '',
@@ -1160,14 +1147,16 @@ async function handleCopyMarkdown() {
                             :aria-expanded="open"
                             @click="toggle"
                           >
-                            <UIcon
-                              :name="
+                            <ProcessDisclosureIcon
+                              :icon="
                                 block.tool.status === 'error'
                                   ? 'i-heroicons-exclamation-circle'
                                   : 'i-heroicons-wrench-screwdriver'
                               "
-                              class="h-3.5 w-3.5 shrink-0"
-                              :class="[block.tool.status === 'error' ? 'text-amber-500' : 'text-gray-400']"
+                              :open="open"
+                              :icon-class="
+                                block.tool.status === 'error' ? 'text-amber-500' : 'text-gray-400 dark:text-gray-500'
+                              "
                             />
                             <span
                               class="shrink-0"

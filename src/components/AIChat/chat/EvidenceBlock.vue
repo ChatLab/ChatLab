@@ -4,6 +4,7 @@ import { useI18n } from 'vue-i18n'
 import type { ChatEvidencePayload, EvidenceStatus } from '@openchatlab/core'
 import { useLayoutStore } from '@/stores/layout'
 import ProcessDisclosure from './ProcessDisclosure.vue'
+import ProcessDisclosureIcon from './ProcessDisclosureIcon.vue'
 
 const props = defineProps<{
   evidence: ChatEvidencePayload
@@ -47,15 +48,15 @@ function viewSource(messageId: number): void {
 </script>
 
 <template>
-  <ProcessDisclosure class="w-full text-[13px]">
+  <ProcessDisclosure lazy class="w-full text-[13px]">
     <template #summary="{ open, toggle }">
       <button
         type="button"
-        class="flex h-7 w-full items-center gap-2 rounded-md text-left text-sm leading-7 text-gray-500 transition-colors hover:bg-gray-50/80 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800/30 dark:hover:text-gray-300"
+        class="group/process-toggle flex h-7 w-full items-center gap-2 rounded-md text-left text-sm leading-7 text-gray-500 transition-colors hover:bg-gray-50/80 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800/30 dark:hover:text-gray-300"
         :aria-expanded="open"
         @click="toggle"
       >
-        <UIcon name="i-heroicons-document-magnifying-glass" class="h-3.5 w-3.5 shrink-0 text-gray-400" />
+        <ProcessDisclosureIcon icon="i-heroicons-document-magnifying-glass" :open="open" />
         <span class="shrink-0 text-gray-600 dark:text-gray-300">{{ t('ai.chat.evidence.title') }}</span>
 
         <div class="ml-auto flex min-w-0 items-center gap-2">
@@ -70,10 +71,6 @@ function viewSource(messageId: number): void {
           <span v-if="statusCounts.length === 0" class="truncate text-[11px] text-gray-400 dark:text-gray-500">
             {{ t('ai.chat.evidence.empty') }}
           </span>
-          <UIcon
-            :name="open ? 'i-heroicons-chevron-up' : 'i-heroicons-chevron-down'"
-            class="h-3.5 w-3.5 shrink-0 text-gray-400 dark:text-gray-500"
-          />
         </div>
       </button>
     </template>
@@ -158,7 +155,7 @@ function viewSource(messageId: number): void {
 
 <style scoped>
 .evidence-details {
-  max-height: min(18rem, 40vh);
+  max-height: min(24rem, 50vh);
   overflow: auto;
   overscroll-behavior: contain;
   scrollbar-gutter: stable;
