@@ -58,9 +58,18 @@ const emit = defineEmits<{
   fork: [messageId: string]
 }>()
 
-// 格式化时间
+// 格式化时间：当天只显示时刻，非当天补上月日，跨年再带年份
 const formattedTime = computed(() => {
-  return dayjs(props.timestamp).format('HH:mm')
+  const time = dayjs(props.timestamp)
+  if (time.isSame(dayjs(), 'day')) {
+    return time.format('HH:mm')
+  }
+
+  const useChineseDate = locale.value.startsWith('zh') || locale.value.startsWith('ja')
+  if (time.isSame(dayjs(), 'year')) {
+    return time.format(useChineseDate ? 'M月D日 HH:mm' : 'M/D HH:mm')
+  }
+  return time.format(useChineseDate ? 'YYYY年M月D日 HH:mm' : 'YYYY/M/D HH:mm')
 })
 
 // 是否是用户消息
@@ -776,7 +785,10 @@ async function handleCopyMarkdown() {
     :class="[isUser && !isEditing ? 'flex-row-reverse' : '', isSummary ? 'justify-center' : '']"
   >
     <!-- 消息内容 -->
-    <div :class="[isUser && !isEditing ? 'max-w-[85%] min-w-0' : 'w-full min-w-0']">
+    <div
+      class="group/message"
+      :class="[isUser && !isEditing ? 'flex max-w-[85%] min-w-0 flex-col items-end' : 'w-full min-w-0']"
+    >
       <!-- System 消息：可折叠的上下文总结 -->
       <template v-if="isSummary">
         <details
@@ -833,8 +845,11 @@ async function handleCopyMarkdown() {
             </div>
           </div>
         </div>
-        <div v-else class="rounded-3xl bg-gray-100 px-5 py-3 text-gray-900 dark:bg-gray-800 dark:text-gray-100">
-          <div class="prose prose-sm dark:prose-invert max-w-none leading-relaxed" v-html="renderedContent" />
+        <div
+          v-else
+          class="ai-user-bubble w-fit max-w-full rounded-3xl bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100"
+        >
+          <div class="prose prose-sm dark:prose-invert max-w-none" v-html="renderedContent" />
         </div>
       </template>
 
@@ -1307,30 +1322,25 @@ async function handleCopyMarkdown() {
       </template>
 
       <!-- 时间戳 + 操作按钮（summary 消息和流式输出中不显示） -->
-      <div
-        v-if="!isSummary && !isStreaming"
-        class="mt-1 flex items-center gap-2 px-1"
-        :class="[isUser ? 'flex-row-reverse' : '']"
-      >
-        <span class="text-xs text-gray-400">{{ formattedTime }}</span>
+      <div v-if="!isSummary && !isStreaming" class="ai-message-actions mt-1 flex items-center gap-2 px-1">
         <UTooltip :text="t('ai.chat.message.copy.tooltip')" class="no-capture">
           <UButton
             icon="i-heroicons-document-duplicate"
             variant="ghost"
-            color="primary"
+            color="neutral"
             size="xs"
             :disabled="!canCopyMarkdown"
             @click="handleCopyMarkdown"
           />
         </UTooltip>
         <UTooltip v-if="canEdit" :text="t('ai.chat.message.edit.tooltip')" class="no-capture">
-          <UButton icon="i-heroicons-pencil-square" variant="ghost" color="primary" size="xs" @click="startEditing" />
+          <UButton icon="i-heroicons-pencil-square" variant="ghost" color="neutral" size="xs" @click="startEditing" />
         </UTooltip>
         <UTooltip v-if="canFork" :text="t('ai.chat.message.fork.tooltip')" class="no-capture">
           <UButton
             icon="i-heroicons-arrow-top-right-on-square"
             variant="ghost"
-            color="primary"
+            color="neutral"
             size="xs"
             @click="emit('fork', messageId!)"
           />
@@ -1339,18 +1349,51 @@ async function handleCopyMarkdown() {
         <CaptureButton
           v-if="showCaptureButton && !isUser && !isStreaming"
           size="xs"
+          color="neutral"
           type="element"
           target-selector=".qa-pair"
           markdown-fix
           capture-frame
           :progressive-narrowing="true"
         />
+        <span
+          class="max-w-0 overflow-hidden text-xs whitespace-nowrap text-gray-400 opacity-0 transition-[max-width,opacity] duration-150 group-hover/message:max-w-[12rem] group-hover/message:opacity-100 group-focus-within/message:max-w-[12rem] group-focus-within/message:opacity-100"
+        >
+          {{ formattedTime }}
+        </span>
       </div>
     </div>
   </div>
 </template>
 
 <style>
+.ai-user-bubble {
+  padding: 10px 16px;
+}
+
+.ai-user-bubble .prose {
+  font-size: 16px;
+  line-height: 24px;
+}
+
+.ai-message-actions button {
+  color: rgb(107 114 128) !important;
+}
+
+.ai-message-actions button:hover:not(:disabled) {
+  color: rgb(55 65 81) !important;
+  background-color: rgb(243 244 246);
+}
+
+.dark .ai-message-actions button {
+  color: rgb(156 163 175) !important;
+}
+
+.dark .ai-message-actions button:hover:not(:disabled) {
+  color: rgb(229 231 235) !important;
+  background-color: rgb(31 41 55);
+}
+
 .ai-live-row {
   position: relative;
   overflow: hidden;

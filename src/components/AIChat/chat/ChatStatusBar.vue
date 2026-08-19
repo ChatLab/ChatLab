@@ -143,9 +143,9 @@ const thinkingLevelLabel = computed(() => {
 
 <template>
   <!-- 抬高状态栏与模型下拉层级，避免被输入框上方的快捷提示遮住。 -->
-  <div class="relative z-20 flex items-center justify-between">
+  <div class="pointer-events-none relative z-20 flex items-center justify-between">
     <!-- 左侧：模型切换器 -->
-    <div class="flex items-center gap-1">
+    <div class="pointer-events-auto flex items-center gap-1">
       <button
         class="flex items-center gap-1.5 rounded-md px-2 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-300"
         :disabled="isLoadingLLM"
@@ -205,7 +205,7 @@ const thinkingLevelLabel = computed(() => {
     </div>
 
     <!-- 右侧：配置状态指示 -->
-    <div class="flex items-center gap-1">
+    <div class="pointer-events-auto flex items-center gap-1">
       <div
         v-if="showAgentPhase"
         class="hidden shrink-0 items-center gap-1.5 px-1.5 py-1 text-[11px] text-gray-400 lg:flex dark:text-gray-500"
