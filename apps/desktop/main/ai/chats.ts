@@ -121,8 +121,12 @@ export function forkAIChat(sourceAIChatId: string, upToMessageId: string, title?
   return getManager().forkAIChat(sourceAIChatId, upToMessageId, title)
 }
 
-export function updateMessageContent(messageId: string, newContent: string) {
-  return getManager().updateMessageContent(messageId, newContent)
+export function updateMessageContent(
+  messageId: string,
+  newContent: string,
+  entityRefs?: import('@openchatlab/node-runtime').AIEntityRef[]
+) {
+  return getManager().updateMessageContent(messageId, newContent, entityRefs)
 }
 
 export function deleteAndRelinkMessage(aiChatId: string, messageId: string) {

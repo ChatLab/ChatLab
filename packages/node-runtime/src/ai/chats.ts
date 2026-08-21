@@ -842,9 +842,17 @@ export class AIChatManager {
     }
   }
 
-  updateMessageContent(messageId: string, newContent: string): void {
+  /** Replace message text and user entity references atomically; omitted references clear the previous value. */
+  updateMessageContent(messageId: string, newContent: string, entityRefs?: AIEntityRef[]): void {
     const db = this.getDb()
-    const result = db.prepare('UPDATE ai_message SET content = ? WHERE id = ?').run(newContent, messageId)
+    const serializedEntityRefs = entityRefs?.length ? JSON.stringify(entityRefs) : null
+    const result = db
+      .prepare(
+        `UPDATE ai_message
+         SET content = ?, entity_refs = CASE WHEN role = 'user' THEN ? ELSE NULL END
+         WHERE id = ?`
+      )
+      .run(newContent, serializedEntityRefs, messageId)
     if (result.changes === 0) throw new Error('Message not found')
   }
 
