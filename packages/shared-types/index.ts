@@ -846,6 +846,7 @@ export interface CrossChatSharedInteractionsResult {
   sessions: CrossChatSharedInteractionSessionItem[]
   coverage: CrossChatInspectionCoverage & {
     unresolvedParticipantIndexes: number[]
+    identityCollisionSessions: number
     ownerResolution?: {
       resolvedSessions: number
       missingOwnerSessions: number

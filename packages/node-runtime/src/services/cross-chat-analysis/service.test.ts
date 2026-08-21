@@ -23,6 +23,7 @@ interface SeedSession {
   id: string
   name: string
   type: 'private' | 'group'
+  platform?: string
   ownerPlatformId?: string
   members: Array<{ id: number; platformId: string; name: string }>
   messages: Array<{ id: number; senderId: number; ts: number; content: string; replyToMessageId?: string }>
@@ -71,7 +72,7 @@ class TestEnvironment {
     db.exec(CHAT_DB_SCHEMA)
     db.prepare('INSERT INTO meta (name, platform, type, imported_at, owner_id) VALUES (?, ?, ?, ?, ?)').run(
       session.name,
-      'test',
+      session.platform ?? 'test',
       session.type,
       1780000000,
       session.ownerPlatformId ?? null
@@ -200,6 +201,12 @@ function createFixture(): {
       ],
     }),
     contact({
+      key: 'test:bob',
+      platformId: 'bob',
+      displayName: 'Bob',
+      sourceSessions: [{ id: 'group-work', name: 'Work group', platform: 'test', type: ChatType.GROUP }],
+    }),
+    contact({
       key: 'test:group-other:alice-other',
       platformId: 'alice-other',
       displayName: 'Alice',
@@ -207,10 +214,17 @@ function createFixture(): {
       sessionId: 'group-other',
       sourceSessions: [{ id: 'group-other', name: 'Other group', platform: 'test', type: ChatType.GROUP }],
     }),
+    contact({ key: 'test:carol', platformId: 'carol', displayName: 'Carol' }),
+    contact({ key: 'test:dave', platformId: 'dave', displayName: 'Dave' }),
+    contact({ key: 'test:eve', platformId: 'eve', displayName: 'Eve' }),
   ]
   const contacts = new Map<string, ContactDetailResponse>([
     ['test:alice', detail(contactItems[0])],
-    ['test:group-other:alice-other', detail(contactItems[1])],
+    ['test:bob', detail(contactItems[1])],
+    ['test:group-other:alice-other', detail(contactItems[2])],
+    ['test:carol', detail(contactItems[3])],
+    ['test:dave', detail(contactItems[4])],
+    ['test:eve', detail(contactItems[5])],
   ])
   return {
     env,
@@ -563,6 +577,43 @@ test('contact session inspection validates raw candidates inside failure, time, 
   }
 })
 
+test('contact session inspection does not merge the same platform id across platforms', async () => {
+  const { env, contactsService } = createFixture()
+  try {
+    env.seed({
+      id: 'foreign-alice',
+      name: 'Foreign Alice',
+      type: 'group',
+      platform: 'other',
+      members: [{ id: 50, platformId: 'alice', name: 'Alice' }],
+      messages: [{ id: 1, senderId: 50, ts: 450, content: 'Foreign platform message' }],
+    })
+    const foreignContact = contact({
+      key: 'other:alice',
+      platform: 'other',
+      platformId: 'alice',
+      displayName: 'Alice',
+    })
+    const service = createCrossChatAnalysisService({
+      adapter: env.adapter,
+      contactsService: {
+        ...contactsService,
+        getContactDetail: (key, options) =>
+          key === foreignContact.key ? detail(foreignContact) : contactsService.getContactDetail(key, options),
+      },
+    })
+
+    const result = await service.inspectContactSessions({ contactKey: foreignContact.key })
+
+    assert.deepEqual(
+      result.sessions.map((session) => session.sessionId),
+      ['foreign-alice']
+    )
+  } finally {
+    env.cleanup()
+  }
+})
+
 test('contact session inspection honors time ranges, session-scoped identity, and continuation cursors', async () => {
   const { env, contactsService } = createFixture()
   try {
@@ -596,6 +647,319 @@ test('contact session inspection honors time ranges, session-scoped identity, an
     )
     assert.equal(second.summary.scope, 'current_batch')
     assert.equal(second.coverage.complete, true)
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('contact session inspection isolates failures and stops at abort or wall-time boundaries', async () => {
+  const { env, contactsService } = createFixture()
+  try {
+    const failingAdapter: SessionRuntimeAdapter = {
+      ...env.adapter,
+      openReadonly: (sessionId) => {
+        if (sessionId === 'group-work') throw new Error('fixture failure')
+        return env.adapter.openReadonly(sessionId)
+      },
+    }
+    const failureResult = await createCrossChatAnalysisService({
+      adapter: failingAdapter,
+      contactsService,
+    }).inspectContactSessions({ contactKey: 'test:alice' })
+    assert.deepEqual(
+      failureResult.sessions.map((session) => session.sessionId),
+      ['private-alice']
+    )
+    assert.deepEqual(failureResult.coverage.failedSessionIds, ['group-work'])
+
+    const controller = new AbortController()
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+    await assert.rejects(
+      () =>
+        service.inspectContactSessions(
+          { contactKey: 'test:alice' },
+          {
+            signal: controller.signal,
+            onProgress: (progress) => {
+              if (progress.currentSessionId === 'group-work') controller.abort()
+            },
+          }
+        ),
+      { name: 'AbortError' }
+    )
+
+    const timestamps = [0, 0, 9_000]
+    const wallTimeResult = await createCrossChatAnalysisService({
+      adapter: env.adapter,
+      contactsService,
+      now: () => timestamps.shift() ?? 9_000,
+    }).inspectContactSessions({
+      contactKey: 'test:alice',
+      maxWallTimeMs: 8_000,
+    })
+    assert.equal(wallTimeResult.coverage.scannedSessions, 1)
+    assert.ok(wallTimeResult.coverage.truncatedReasons.includes('time_budget'))
+    assert.ok(wallTimeResult.coverage.nextCursor)
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('shared interaction inspection finds two non-owner contacts and preserves reply direction and anchors', async () => {
+  const { env, contactsService } = createFixture()
+  try {
+    env.seed({
+      id: 'group-social',
+      name: 'Social group',
+      type: 'group',
+      ownerPlatformId: 'owner',
+      members: [
+        { id: 1, platformId: 'owner', name: 'Me' },
+        { id: 10, platformId: 'alice', name: 'Alice' },
+        { id: 20, platformId: 'bob', name: 'Bob' },
+      ],
+      messages: [
+        { id: 1, senderId: 10, ts: 500, content: 'Alice starts' },
+        {
+          id: 2,
+          senderId: 20,
+          ts: 510,
+          content: 'Bob replies',
+          replyToMessageId: 'group-social-1',
+        },
+        { id: 3, senderId: 1, ts: 520, content: 'Owner joins' },
+      ],
+    })
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+    const result = await service.inspectSharedInteractions({
+      participants: [
+        { type: 'contact', contactKey: 'test:alice' },
+        { type: 'contact', contactKey: 'test:bob' },
+      ],
+    })
+
+    assert.deepEqual(
+      result.sessions.map((session) => session.sessionId),
+      ['group-social', 'group-work']
+    )
+    const social = result.sessions[0]
+    assert.deepEqual(
+      social.participants.map((participant) => [participant.participantIndex, participant.messageCount]),
+      [
+        [0, 1],
+        [1, 1],
+      ]
+    )
+    assert.equal(social.pairs[0].directReplyCount, 1)
+    assert.equal(social.pairs[0].repliesFromSourceToTarget, 0)
+    assert.equal(social.pairs[0].repliesFromTargetToSource, 1)
+    assert.deepEqual(social.pairs[0].anchors[0], {
+      sessionId: 'group-social',
+      messageId: 2,
+      relatedMessageId: 1,
+      timestamp: 510,
+      signal: 'direct_reply',
+      fromParticipantIndex: 1,
+      toParticipantIndex: 0,
+    })
+    assert.equal(result.summary.commonSessions, 2)
+    assert.equal(result.summary.sessionsWithDirectReplies, 1)
+    assert.deepEqual(result.coverage.unresolvedParticipantIndexes, [])
+    assert.equal(result.coverage.complete, true)
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('shared interaction inspection resumes common sessions without skipping a page', async () => {
+  const { env, contactsService } = createFixture()
+  try {
+    env.seed({
+      id: 'group-social',
+      name: 'Social group',
+      type: 'group',
+      members: [
+        { id: 10, platformId: 'alice', name: 'Alice' },
+        { id: 20, platformId: 'bob', name: 'Bob' },
+      ],
+      messages: [
+        { id: 1, senderId: 10, ts: 500, content: 'Alice' },
+        { id: 2, senderId: 20, ts: 510, content: 'Bob' },
+      ],
+    })
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+    const participants = [
+      { type: 'contact' as const, contactKey: 'test:alice' },
+      { type: 'contact' as const, contactKey: 'test:bob' },
+    ]
+    const first = await service.inspectSharedInteractions({ participants, pageSize: 1 })
+    assert.deepEqual(
+      first.sessions.map((session) => session.sessionId),
+      ['group-social']
+    )
+    assert.ok(first.coverage.nextCursor)
+    assert.ok(first.coverage.truncatedReasons.includes('page_size'))
+
+    const second = await service.inspectSharedInteractions({
+      participants,
+      pageSize: 1,
+      cursor: first.coverage.nextCursor ?? undefined,
+    })
+    assert.deepEqual(
+      second.sessions.map((session) => session.sessionId),
+      ['group-work']
+    )
+    assert.ok(second.coverage.nextCursor)
+
+    const final = await service.inspectSharedInteractions({
+      participants,
+      pageSize: 1,
+      cursor: second.coverage.nextCursor ?? undefined,
+    })
+    assert.deepEqual(final.sessions, [])
+    assert.equal(final.coverage.complete, true)
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('shared interaction inspection resolves owner per session without blocking non-owner pairs', async () => {
+  const { env, contactsService } = createFixture()
+  try {
+    env.seed({
+      id: 'owner-alice',
+      name: 'Owner and Alice',
+      type: 'private',
+      ownerPlatformId: 'owner',
+      members: [
+        { id: 1, platformId: 'owner', name: 'Me' },
+        { id: 2, platformId: 'alice', name: 'Alice' },
+      ],
+      messages: [
+        { id: 1, senderId: 1, ts: 600, content: 'Owner' },
+        { id: 2, senderId: 2, ts: 610, content: 'Alice' },
+      ],
+    })
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+    const result = await service.inspectSharedInteractions({
+      participants: [{ type: 'owner' }, { type: 'contact', contactKey: 'test:alice' }],
+    })
+
+    assert.deepEqual(
+      result.sessions.map((session) => session.sessionId),
+      ['owner-alice']
+    )
+    assert.ok(result.coverage.ownerResolution)
+    assert.equal(result.coverage.ownerResolution.resolvedSessions, 1)
+    assert.ok(result.coverage.ownerResolution.missingOwnerSessions > 0)
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('shared interaction inspection uses the exact all-participant intersection for three people', async () => {
+  const { env, contactsService } = createFixture()
+  try {
+    env.seed({
+      id: 'group-pair-only',
+      name: 'Pair only',
+      type: 'group',
+      members: [
+        { id: 1, platformId: 'alice', name: 'Alice' },
+        { id: 2, platformId: 'bob', name: 'Bob' },
+      ],
+      messages: [
+        { id: 1, senderId: 1, ts: 700, content: 'Alice' },
+        { id: 2, senderId: 2, ts: 710, content: 'Bob' },
+      ],
+    })
+    env.seed({
+      id: 'group-trio',
+      name: 'Trio',
+      type: 'group',
+      members: [
+        { id: 10, platformId: 'alice', name: 'Alice' },
+        { id: 20, platformId: 'bob', name: 'Bob' },
+        { id: 30, platformId: 'carol', name: 'Carol' },
+      ],
+      messages: [
+        { id: 1, senderId: 10, ts: 800, content: 'Alice' },
+        { id: 2, senderId: 20, ts: 810, content: 'Bob' },
+        { id: 3, senderId: 30, ts: 820, content: 'Carol' },
+      ],
+    })
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+    const result = await service.inspectSharedInteractions({
+      participants: [
+        { type: 'contact', contactKey: 'test:alice' },
+        { type: 'contact', contactKey: 'test:bob' },
+        { type: 'contact', contactKey: 'test:carol' },
+      ],
+    })
+
+    assert.deepEqual(
+      result.sessions.map((session) => session.sessionId),
+      ['group-trio']
+    )
+    assert.equal(result.sessions[0].participants.length, 3)
+    assert.equal(result.sessions[0].pairs.length, 3)
+    assert.equal(result.sessions[0].allParticipantsCoActiveDays, 1)
+    assert.deepEqual(
+      result.sessions[0].pairs.map((pair) => [pair.sourceParticipantIndex, pair.targetParticipantIndex]),
+      [
+        [0, 1],
+        [0, 2],
+        [1, 2],
+      ]
+    )
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('shared interaction inspection supports five people without materializing unrelated group edges', async () => {
+  const { env, contactsService } = createFixture()
+  try {
+    env.seed({
+      id: 'group-five',
+      name: 'Five people',
+      type: 'group',
+      members: [
+        { id: 10, platformId: 'alice', name: 'Alice' },
+        { id: 20, platformId: 'bob', name: 'Bob' },
+        { id: 30, platformId: 'carol', name: 'Carol' },
+        { id: 40, platformId: 'dave', name: 'Dave' },
+        { id: 50, platformId: 'eve', name: 'Eve' },
+        { id: 60, platformId: 'other', name: 'Other' },
+      ],
+      messages: [
+        { id: 1, senderId: 10, ts: 900, content: 'Alice' },
+        { id: 2, senderId: 20, ts: 901, content: 'Bob' },
+        { id: 3, senderId: 30, ts: 902, content: 'Carol' },
+        { id: 4, senderId: 40, ts: 903, content: 'Dave' },
+        { id: 5, senderId: 50, ts: 904, content: 'Eve' },
+        { id: 6, senderId: 60, ts: 905, content: 'Other' },
+      ],
+    })
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+    const participants = ['alice', 'bob', 'carol', 'dave', 'eve'].map((name) => ({
+      type: 'contact' as const,
+      contactKey: `test:${name}`,
+    }))
+    const result = await service.inspectSharedInteractions({ participants })
+
+    assert.deepEqual(
+      result.sessions.map((session) => session.sessionId),
+      ['group-five']
+    )
+    assert.equal(result.sessions[0].pairs.length, 10)
+    await assert.rejects(
+      () =>
+        service.inspectSharedInteractions({
+          participants: [...participants, { type: 'contact', contactKey: 'test:sixth' }],
+        }),
+      /2 to 5 distinct people/
+    )
   } finally {
     env.cleanup()
   }

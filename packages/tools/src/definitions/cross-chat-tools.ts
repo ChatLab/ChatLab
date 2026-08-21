@@ -5,9 +5,11 @@ import type {
   CrossChatEntityResolution,
   CrossChatEvidencePayload,
   CrossChatMessageSource,
+  CrossChatParticipantRef,
   CrossChatResolvedContactSession,
   CrossChatResolvedSession,
   CrossChatSearchScope,
+  CrossChatSharedInteractionsResult,
 } from '@openchatlab/shared-types'
 import type { CrossChatToolExecutionContext, JsonSchema, ToolDefinition, ToolResult } from '../types'
 import { parseExtendedTimeParams } from '../utils/time-params'
@@ -124,12 +126,46 @@ const inspectContactSessionsSchema: JsonSchema = {
   required: ['contact_key'],
 }
 
+const inspectSharedInteractionsSchema: JsonSchema = {
+  type: 'object',
+  properties: {
+    participants: {
+      type: 'array',
+      description:
+        'Two to five distinct people. Use type=owner for the local user in each session or type=contact with a stable contact_key.',
+      items: {
+        type: 'object',
+        properties: {
+          type: { type: 'string', enum: ['owner', 'contact'] },
+          contact_key: { type: 'string' },
+        },
+        required: ['type'],
+      },
+    },
+    cursor: { type: 'string', description: 'Opaque continuation cursor from the previous result' },
+    page_size: { type: 'number', description: 'Maximum common sessions returned in this batch' },
+    max_anchors_per_pair: {
+      type: 'number',
+      description: 'Maximum direct-reply and proximity message anchors returned for each participant pair',
+    },
+    max_wall_time_ms: { type: 'number', description: 'Maximum wall time for this inspection batch' },
+    ...timeParamProperties,
+  },
+  required: ['participants'],
+}
+
 const DEFAULT_CONTACT_INSPECTION_PAGE_SIZE = 50
 const MAX_CONTACT_INSPECTION_PAGE_SIZE = 100
 const CONTACT_MODEL_LABEL_MAX_LENGTH = 80
+const DEFAULT_SHARED_INSPECTION_PAGE_SIZE = 20
+const DEFAULT_SHARED_ANCHORS_PER_PAIR = 4
 const TOOL_RESULT_CHARS_PER_TOKEN = 4
 const TOOL_RESULT_BASE_CHARS = 1_500
 const CONTACT_SESSION_ESTIMATED_CHARS = 650
+const SHARED_SESSION_BASE_CHARS = 550
+const SHARED_PARTICIPANT_ESTIMATED_CHARS = 240
+const SHARED_PAIR_BASE_CHARS = 260
+const SHARED_ANCHOR_ESTIMATED_CHARS = 180
 
 async function resolveHandler(
   params: Record<string, unknown>,
@@ -314,9 +350,47 @@ async function inspectContactSessionsHandler(
     !!context.maxToolResultTokens &&
     context.maxToolResultTokens > 0 &&
     countTokens(JSON.stringify(result)) > context.maxToolResultTokens
-  const data = pageBudgetTruncated || payloadExceedsBudget ? withContactToolResultBudgetReason(result) : result
+  const data = pageBudgetTruncated || payloadExceedsBudget ? withToolResultBudgetReason(result) : result
   const modelData = limitContactResultToBudget(data, context.maxToolResultTokens, countTokens)
   return { content: JSON.stringify(modelData), data }
+}
+
+async function inspectSharedInteractionsHandler(
+  params: Record<string, unknown>,
+  context: CrossChatToolExecutionContext
+): Promise<ToolResult> {
+  const timeFilter = parseExtendedTimeParams(params)
+  const participants = parseParticipants(params.participants)
+  const requestedPageSize = parseOptionalNumber(params.page_size)
+  const requestedAnchorsPerPair = parseOptionalNumber(params.max_anchors_per_pair)
+  const budget = limitSharedResultToBudget(
+    participants.length,
+    requestedPageSize,
+    requestedAnchorsPerPair,
+    context.maxToolResultTokens
+  )
+  const result = await context.analysisService.inspectSharedInteractions(
+    {
+      participants,
+      startTs: timeFilter?.startTs,
+      endTs: timeFilter?.endTs,
+      cursor: typeof params.cursor === 'string' && params.cursor.trim() ? params.cursor.trim() : undefined,
+      pageSize: budget.pageSize,
+      maxAnchorsPerPair: budget.maxAnchorsPerPair,
+      maxWallTimeMs: parseOptionalNumber(params.max_wall_time_ms),
+    },
+    {
+      signal: context.abortSignal,
+      onProgress: (progress) =>
+        context.reportProgress?.({
+          phase: 'analyzing',
+          current: progress.processedSessions,
+          total: progress.totalSessions,
+        }),
+    }
+  )
+  const data: CrossChatSharedInteractionsResult = budget.limited ? withToolResultBudgetReason(result) : result
+  return { content: JSON.stringify(data), data }
 }
 
 export const resolveChatEntitiesTool: ToolDefinition<CrossChatToolExecutionContext> = {
@@ -363,6 +437,15 @@ export const inspectContactSessionsTool: ToolDefinition<CrossChatToolExecutionCo
     "Inspect one resolved contact across imported private and group sessions. Returns the contact's own message counts, first/last speech, active days, roster-only presence, dataset cutoff, and coverage. Use only for person source/activity questions after exact identity resolution; this tool does not infer relationship labels or return message text.",
   inputSchema: inspectContactSessionsSchema,
   handler: inspectContactSessionsHandler,
+  category: 'core',
+}
+
+export const inspectSharedInteractionsTool: ToolDefinition<CrossChatToolExecutionContext> = {
+  name: 'inspect_shared_interactions',
+  description:
+    'Inspect common imported sessions for two to five exactly resolved people, including owner when requested. Returns per-person activity, directional replies, proximity signals, co-active days, message anchors, dataset cutoff, and coverage. Common sessions contain every requested participant. These structural signals guide evidence reading and must never be treated as relationship labels or replace message context.',
+  inputSchema: inspectSharedInteractionsSchema,
+  handler: inspectSharedInteractionsHandler,
   category: 'core',
 }
 
@@ -415,6 +498,18 @@ function parseScopes(value: unknown): CrossChatSearchScope[] {
   })
 }
 
+function parseParticipants(value: unknown): CrossChatParticipantRef[] {
+  if (!Array.isArray(value)) throw new Error('participants must be an array')
+  return value.map((item) => {
+    if (!isRecord(item)) throw new Error('each participant must be an object')
+    if (item.type === 'owner') return { type: 'owner' }
+    if (item.type === 'contact') {
+      return { type: 'contact', contactKey: requireString(item.contact_key, 'participant.contact_key') }
+    }
+    throw new Error('participant.type must be owner or contact')
+  })
+}
+
 function limitContactPageSizeToBudget(
   requestedPageSize: number | undefined,
   maxToolResultTokens: number | undefined
@@ -422,7 +517,6 @@ function limitContactPageSizeToBudget(
   if (!maxToolResultTokens || maxToolResultTokens <= 0) {
     return { value: requestedPageSize, limited: false }
   }
-
   const requested = Math.min(
     MAX_CONTACT_INSPECTION_PAGE_SIZE,
     Math.max(1, Math.floor(requestedPageSize ?? DEFAULT_CONTACT_INSPECTION_PAGE_SIZE))
@@ -436,7 +530,48 @@ function limitContactPageSizeToBudget(
   }
 }
 
-function withContactToolResultBudgetReason(result: CrossChatContactSessionsResult): CrossChatContactSessionsResult {
+function limitSharedResultToBudget(
+  participantCount: number,
+  requestedPageSize: number | undefined,
+  requestedAnchorsPerPair: number | undefined,
+  maxToolResultTokens: number | undefined
+): { pageSize: number | undefined; maxAnchorsPerPair: number | undefined; limited: boolean } {
+  if (!maxToolResultTokens || maxToolResultTokens <= 0) {
+    return {
+      pageSize: requestedPageSize,
+      maxAnchorsPerPair: requestedAnchorsPerPair,
+      limited: false,
+    }
+  }
+
+  const pairCount = (participantCount * (participantCount - 1)) / 2
+  const requestedPage = requestedPageSize ?? DEFAULT_SHARED_INSPECTION_PAGE_SIZE
+  const requestedAnchors = requestedAnchorsPerPair ?? DEFAULT_SHARED_ANCHORS_PER_PAIR
+  const maxChars = maxToolResultTokens * TOOL_RESULT_CHARS_PER_TOKEN
+  let maxAnchorsPerPair = requestedAnchors
+
+  const estimateSessionChars = (anchorsPerPair: number): number =>
+    SHARED_SESSION_BASE_CHARS +
+    participantCount * SHARED_PARTICIPANT_ESTIMATED_CHARS +
+    pairCount * (SHARED_PAIR_BASE_CHARS + anchorsPerPair * SHARED_ANCHOR_ESTIMATED_CHARS)
+
+  while (maxAnchorsPerPair > 0 && TOOL_RESULT_BASE_CHARS + estimateSessionChars(maxAnchorsPerPair) > maxChars) {
+    maxAnchorsPerPair--
+  }
+  const pageSize = Math.min(
+    requestedPage,
+    Math.max(1, Math.floor((maxChars - TOOL_RESULT_BASE_CHARS) / estimateSessionChars(maxAnchorsPerPair)))
+  )
+  return {
+    pageSize,
+    maxAnchorsPerPair,
+    limited: pageSize < requestedPage || maxAnchorsPerPair < requestedAnchors,
+  }
+}
+
+function withToolResultBudgetReason<T extends CrossChatContactSessionsResult | CrossChatSharedInteractionsResult>(
+  result: T
+): T {
   return {
     ...result,
     coverage: {
