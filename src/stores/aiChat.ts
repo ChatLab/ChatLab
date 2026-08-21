@@ -624,9 +624,8 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
   }
 
   /**
-   * 每次 ChatExplorer 挂载时调用。
-   * 如果存在有效的记忆助手则直接进入对应助手，否则回到助手选择页。
-   * 从浮动任务条返回当前会话时跳过重置，以保留正在运行的对话状态。
+   * Restore the requested or most recently updated conversation when ChatExplorer mounts.
+   * Returning from the floating task bar skips restoration to preserve the running state.
    */
   async function resetToSelectorOnEnter(chatKey: string, preferredAIChatId?: string | null): Promise<void> {
     const shouldPreserveFocusedTask = pendingFocusReturnChatKey === chatKey
@@ -643,6 +642,15 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
     if (preferredAIChatId && (await loadAIChat(chatKey, preferredAIChatId))) {
       return
+    }
+
+    try {
+      const latestAIChat = (await useAIService().getAIChats(state.sessionId))[0]
+      if (latestAIChat && latestAIChat.id !== preferredAIChatId && (await loadAIChat(chatKey, latestAIChat.id))) {
+        return
+      }
+    } catch (error) {
+      console.error('[AI] Failed to load the latest conversation:', error)
     }
 
     if (!state.selectedAssistantId) {

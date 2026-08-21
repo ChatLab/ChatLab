@@ -11,6 +11,7 @@ export const useLayoutStore = defineStore(
   () => {
     const settingsStore = useSettingsStore()
     const isSidebarCollapsed = ref(false)
+    const isAIChatSidebarCollapsed = ref(false)
     const showScreenCaptureModal = ref(false)
     const screenCaptureImage = ref<string | null>(null)
     const showChatRecordDrawer = ref(false)
@@ -34,6 +35,10 @@ export const useLayoutStore = defineStore(
      */
     function toggleSidebar() {
       isSidebarCollapsed.value = !isSidebarCollapsed.value
+    }
+
+    function toggleAIChatSidebar() {
+      isAIChatSidebarCollapsed.value = !isAIChatSidebarCollapsed.value
     }
 
     /**
@@ -102,6 +107,7 @@ export const useLayoutStore = defineStore(
 
     return {
       isSidebarCollapsed,
+      isAIChatSidebarCollapsed,
       isToolsPanelLocked,
       isToolsPanelMini,
       toolsPanelPosition,
@@ -115,6 +121,7 @@ export const useLayoutStore = defineStore(
       settingsTab,
       settingsSubTab,
       toggleSidebar,
+      toggleAIChatSidebar,
       toggleToolsPanelLock,
       toggleToolsPanelOpen,
       toggleToolsPanelMini,
@@ -129,7 +136,13 @@ export const useLayoutStore = defineStore(
   {
     persist: [
       {
-        pick: ['isSidebarCollapsed', 'isToolsPanelLocked', 'isToolsPanelMini', 'toolsPanelPosition'],
+        pick: [
+          'isSidebarCollapsed',
+          'isAIChatSidebarCollapsed',
+          'isToolsPanelLocked',
+          'isToolsPanelMini',
+          'toolsPanelPosition',
+        ],
         storage: localStorage,
       },
     ],

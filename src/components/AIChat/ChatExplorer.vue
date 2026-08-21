@@ -51,7 +51,7 @@ const emit = defineEmits<{
 }>()
 
 const initialAIChatId = typeof route.query.aiChatId === 'string' ? route.query.aiChatId : null
-if (initialAIChatId) emit('restore-loading-change', true)
+emit('restore-loading-change', true)
 
 // 使用 AI 对话 Composable
 const {
@@ -449,14 +449,14 @@ watch(
     />
 
     <!-- 右侧：对话区域（始终显示） -->
-    <div class="flex h-full flex-1 overflow-hidden">
-      <div class="flex h-full flex-1">
+    <div class="flex h-full min-w-0 flex-1 overflow-hidden">
+      <div class="flex h-full min-w-0 flex-1">
         <div class="relative flex min-w-[480px] flex-1 flex-col overflow-hidden">
           <!-- 顶部：有消息时显示助手切换按钮 -->
           <template v-if="messages.length > 0 || isAIThinking">
-            <div class="flex items-center justify-between gap-2 px-3 py-1.5">
+            <div class="flex items-center justify-end gap-1 px-3 py-1.5">
               <button
-                class="flex items-center gap-1 rounded-md px-1.5 py-1 text-xs text-gray-600 transition-colors hover:bg-gray-100 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
+                class="flex items-center gap-1 rounded-md px-1.5 py-1 text-xs text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200"
                 :disabled="isAIThinking || !assistantStore.selectedAssistant?.id"
                 :class="{ 'cursor-not-allowed opacity-50': isAIThinking || !assistantStore.selectedAssistant?.id }"
                 @click="handleConfigureAssistant(assistantStore.selectedAssistant!.id)"

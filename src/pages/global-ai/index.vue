@@ -186,12 +186,16 @@ onMounted(async () => {
 
   const currentSelectionRequest = ++conversationSelectionRequestId
   const preferredAIChatId = typeof route.query.aiChatId === 'string' ? route.query.aiChatId : null
-  const restoredPreferredChat = preferredAIChatId ? await aiChatStore.loadAIChat(chatKey, preferredAIChatId) : false
+  let restored = preferredAIChatId ? await aiChatStore.loadAIChat(chatKey, preferredAIChatId) : false
   if (currentSelectionRequest !== conversationSelectionRequestId || !isGlobalPageActive()) return
 
-  if (!restoredPreferredChat) {
+  const latestAIChatId = conversations.value[0]?.id
+  if (!restored && latestAIChatId && latestAIChatId !== preferredAIChatId) {
+    restored = await aiChatStore.loadAIChat(chatKey, latestAIChatId)
+    if (currentSelectionRequest !== conversationSelectionRequestId || !isGlobalPageActive()) return
+  }
+  if (!restored) {
     aiChatStore.startNewAIChat(chatKey)
-    if (preferredAIChatId) await syncAIChatIdToRoute(null)
   }
   if (!isGlobalPageActive()) return
 
@@ -211,10 +215,7 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div
-    class="flex h-full min-w-0 flex-col bg-page-bg text-gray-900 dark:bg-page-dark dark:text-gray-100"
-    style="padding-top: var(--titlebar-area-height)"
-  >
+  <div class="flex h-full min-w-0 flex-col dark:bg-page-dark" style="padding-top: var(--titlebar-area-height)">
     <PageHeader
       :title="t('ai.global.title')"
       :description="t('ai.global.subtitle')"
@@ -223,21 +224,20 @@ onUnmounted(() => {
       size="compact"
     />
 
-    <div class="flex min-h-0 min-w-0 flex-1">
+    <div class="main-content flex min-h-0 flex-1 overflow-hidden">
       <ConversationList
         session-id=""
         :active-id="currentAIChatId"
         :conversations="conversations"
         :loading="conversationsLoading"
         :disabled="isAIThinking"
-        embedded
         @select="selectConversation"
         @create="startNewConversation"
         @rename="renameConversation"
         @delete="deleteConversation"
       />
 
-      <section class="flex min-w-0 flex-1 flex-col border-l border-gray-200 dark:border-gray-800">
+      <section class="flex h-full min-w-0 flex-1 flex-col overflow-hidden">
         <div class="relative min-h-0 flex-1">
           <div ref="messagesContainer" class="absolute inset-0 overflow-y-auto px-5 py-6">
             <div v-if="initializing" class="flex h-full items-center justify-center">
