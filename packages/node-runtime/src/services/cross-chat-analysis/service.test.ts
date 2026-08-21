@@ -239,6 +239,41 @@ test('entity resolution uses contact keys and resolves per-session member ids wi
   }
 })
 
+test('entity resolution uses the all-history contact snapshot so older source sessions remain searchable', () => {
+  const { env } = createFixture()
+  try {
+    const contactsService: Pick<ContactsService, 'getContactDetail'> = {
+      getContactDetail: (_key, options) =>
+        detail(
+          contact({
+            key: 'test:alice',
+            platformId: 'alice',
+            displayName: 'Alice',
+            sourceSessions:
+              options?.timeRangePreset === 'all'
+                ? [
+                    { id: 'private-alice', name: 'Alice private', platform: 'test', type: 'private' },
+                    { id: 'group-work', name: 'Work group', platform: 'test', type: 'group' },
+                  ]
+                : [{ id: 'group-work', name: 'Work group', platform: 'test', type: 'group' }],
+          })
+        ),
+    }
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+
+    const result = service.resolveEntities([{ type: 'contact', contactKey: 'test:alice', displayName: 'Alice' }])
+
+    assert.deepEqual(
+      result.contacts[0]?.sessions.map((session) => session.sessionId),
+      ['private-alice', 'group-work']
+    )
+    assert.equal(result.coverage.candidateSessions, 2)
+    assert.equal(result.coverage.resolvedSessions, 2)
+  } finally {
+    env.cleanup()
+  }
+})
+
 test('scoped search filters by resolved member ids and keeps compound evidence identity', async () => {
   const { env, contactsService } = createFixture()
   try {

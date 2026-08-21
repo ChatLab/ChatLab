@@ -83,7 +83,10 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
         continue
       }
 
-      const detail = this.deps.contactsService.getContactDetail(ref.contactKey, { acceptStale: true })
+      const detail = this.deps.contactsService.getContactDetail(ref.contactKey, {
+        acceptStale: true,
+        timeRangePreset: 'all',
+      })
       const contact = detail.contact
       if (!contact) {
         contacts.push({
