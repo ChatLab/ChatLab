@@ -435,19 +435,40 @@ describe('AIChatManager global chats and entity references', () => {
 })
 
 describe('AIChatManager message editing', () => {
-  it('updateMessageContent updates message text in place', () => {
+  it('updateMessageContent atomically replaces or clears user entity references', () => {
     const dir = createTempDir()
     try {
       const manager = createManager(dir)
       const conv = manager.createAIChat('s1', 'Test', 'general_cn')
-      const msg = manager.addMessage(conv.id, 'user', 'original text')
+      const originalRefs: AIEntityRef[] = [{ type: 'contact', contactKey: 'qq:10001', displayName: 'Alice' }]
+      const replacementRefs: AIEntityRef[] = [
+        { type: 'session', sessionId: 'group-2', displayName: 'New Group', sessionType: 'group' },
+      ]
+      const msg = manager.addMessage(
+        conv.id,
+        'user',
+        'original text',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        originalRefs
+      )
       manager.addMessage(conv.id, 'assistant', 'reply')
 
-      manager.updateMessageContent(msg.id, 'edited text')
+      manager.updateMessageContent(msg.id, 'edited text', replacementRefs)
 
-      const messages = manager.getMessages(conv.id)
-      assert.equal(messages[0]?.content, 'edited text')
-      assert.equal(messages[1]?.content, 'reply')
+      assert.equal(manager.getMessages(conv.id)[0]?.content, 'edited text')
+      assert.deepEqual(manager.getMessages(conv.id)[0]?.entityRefs, replacementRefs)
+      assert.deepEqual(manager.getHistoryForAgent(conv.id)[0]?.entityRefs, replacementRefs)
+
+      manager.updateMessageContent(msg.id, 'edited without entities')
+
+      const messagesAfterClear = manager.getMessages(conv.id)
+      assert.equal(messagesAfterClear[0]?.content, 'edited without entities')
+      assert.equal(messagesAfterClear[0]?.entityRefs, undefined)
+      assert.equal(manager.getHistoryForAgent(conv.id)[0]?.entityRefs, undefined)
+      assert.equal(messagesAfterClear[1]?.content, 'reply')
       manager.close()
     } finally {
       cleanup(dir)

@@ -143,7 +143,8 @@ export interface AIAdapter {
   ): Promise<AIMessage>
   deleteMessagesFrom(aiChatId: string, messageId: string): Promise<void>
   forkAIChat(sourceAIChatId: string, upToMessageId: string, title?: string): Promise<AIChat>
-  updateMessageContent(messageId: string, newContent: string): Promise<void>
+  /** Replace message text and entity references; omitted references clear the previous value. */
+  updateMessageContent(messageId: string, newContent: string, entityRefs?: AIEntityRef[]): Promise<void>
   deleteAndRelinkMessage(aiChatId: string, messageId: string): Promise<void>
   insertMessageAfter(
     aiChatId: string,

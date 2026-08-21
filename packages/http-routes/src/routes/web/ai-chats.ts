@@ -115,13 +115,13 @@ export function registerAiChatRoutes(server: FastifyInstance, ctx: AiChatRouteCo
 
   server.put<{
     Params: { messageId: string }
-    Body: { content: string }
+    Body: { content: string; entityRefs?: AIEntityRef[] }
   }>('/_web/ai/messages/:messageId/content', async (request, reply) => {
-    const { content } = request.body
+    const { content, entityRefs } = request.body
     if (!content || typeof content !== 'string') {
       return reply.code(400).send({ error: 'content is required' })
     }
-    cm.updateMessageContent(request.params.messageId, content)
+    cm.updateMessageContent(request.params.messageId, content, entityRefs)
     return { success: true }
   })
 

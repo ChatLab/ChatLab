@@ -93,8 +93,8 @@ export class FetchAIAdapter implements AIAdapter {
     return post<AIChat>(`/ai/chats/${sourceAIChatId}/fork`, { upToMessageId, title })
   }
 
-  async updateMessageContent(messageId: string, newContent: string): Promise<void> {
-    await put<unknown>(`/ai/messages/${messageId}/content`, { content: newContent })
+  async updateMessageContent(messageId: string, newContent: string, entityRefs?: AIEntityRef[]): Promise<void> {
+    await put<unknown>(`/ai/messages/${messageId}/content`, { content: newContent, entityRefs })
   }
 
   async deleteAndRelinkMessage(aiChatId: string, messageId: string): Promise<void> {

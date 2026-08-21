@@ -70,6 +70,41 @@ test('global AI chat routes keep global history separate and persist entity refe
   })
   assert.equal(messageList.json<Array<{ entityRefs?: unknown[] }>>()[1]?.entityRefs, undefined)
 
+  const replacementRefs = [
+    {
+      type: 'session' as const,
+      sessionId: 'group-2',
+      displayName: 'New Group',
+      sessionType: 'group' as const,
+    },
+  ]
+  const userMessageId = messageResponse.json<{ id: string }>().id
+  const replaceResponse = await app.inject({
+    method: 'PUT',
+    url: `/_web/ai/messages/${userMessageId}/content`,
+    payload: { content: 'Compare the new group', entityRefs: replacementRefs },
+  })
+  assert.equal(replaceResponse.statusCode, 200)
+
+  const replacedMessageList = await app.inject({
+    method: 'GET',
+    url: `/_web/ai/chats/${globalChat.id}/messages`,
+  })
+  assert.deepEqual(replacedMessageList.json<Array<{ entityRefs?: unknown[] }>>()[0]?.entityRefs, replacementRefs)
+
+  const clearResponse = await app.inject({
+    method: 'PUT',
+    url: `/_web/ai/messages/${userMessageId}/content`,
+    payload: { content: 'Compare without named entities' },
+  })
+  assert.equal(clearResponse.statusCode, 200)
+
+  const clearedMessageList = await app.inject({
+    method: 'GET',
+    url: `/_web/ai/chats/${globalChat.id}/messages`,
+  })
+  assert.equal(clearedMessageList.json<Array<{ entityRefs?: unknown[] }>>()[0]?.entityRefs, undefined)
+
   const globalList = await app.inject({ method: 'GET', url: '/_web/ai/global-chats' })
   assert.deepEqual(
     globalList.json<Array<{ id: string }>>().map((chat) => chat.id),
