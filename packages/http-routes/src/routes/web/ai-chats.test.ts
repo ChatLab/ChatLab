@@ -56,6 +56,20 @@ test('global AI chat routes keep global history separate and persist entity refe
   assert.equal(messageResponse.statusCode, 200)
   assert.deepEqual(messageResponse.json<{ entityRefs: unknown[] }>().entityRefs, refs)
 
+  const assistantResponse = await app.inject({
+    method: 'POST',
+    url: `/_web/ai/chats/${globalChat.id}/messages`,
+    payload: { role: 'assistant', content: 'I will compare them', entityRefs: refs },
+  })
+  assert.equal(assistantResponse.statusCode, 200)
+  assert.equal(assistantResponse.json<{ entityRefs?: unknown[] }>().entityRefs, undefined)
+
+  const messageList = await app.inject({
+    method: 'GET',
+    url: `/_web/ai/chats/${globalChat.id}/messages`,
+  })
+  assert.equal(messageList.json<Array<{ entityRefs?: unknown[] }>>()[1]?.entityRefs, undefined)
+
   const globalList = await app.inject({ method: 'GET', url: '/_web/ai/global-chats' })
   assert.deepEqual(
     globalList.json<Array<{ id: string }>>().map((chat) => chat.id),
