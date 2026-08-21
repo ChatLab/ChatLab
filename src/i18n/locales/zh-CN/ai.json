@@ -270,14 +270,14 @@
     }
   },
   "global": {
-    "title": "AI 分析",
+    "title": "AI 对话",
     "subtitle": "跨联系人和群聊查询本地聊天记录",
     "empty": {
       "title": "从一段关系开始分析",
       "description": "选择联系人或群聊后提问，也可以直接搜索你忘记和谁聊过的话题。只会按当前问题读取必要的本地数据。"
     },
     "input": {
-      "placeholder": "输入问题，可先选择联系人或群聊..."
+      "placeholder": "输入问题，输入 {'@'} 选择联系人或群聊..."
     },
     "entityPicker": {
       "title": "选择联系人或群聊",

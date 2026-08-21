@@ -5,10 +5,11 @@ import { useRoute, useRouter } from 'vue-router'
 import type { AIEntityRef } from '@openchatlab/shared-types'
 import { getDefaultGeneralAssistantId } from '@openchatlab/shared-types'
 import ConversationList from '@/components/AIChat/chat/ConversationList.vue'
+import ChatHeaderActions from '@/components/AIChat/chat/ChatHeaderActions.vue'
 import ChatMessage from '@/components/AIChat/chat/ChatMessage.vue'
 import AIThinkingIndicator from '@/components/AIChat/chat/AIThinkingIndicator.vue'
 import ChatStatusBar from '@/components/AIChat/chat/ChatStatusBar.vue'
-import AIChatComposer from '@/components/AIChat/input/AIChatComposer.vue'
+import AIChatInput from '@/components/AIChat/input/AIChatInput.vue'
 import { useChatScroll } from '@/components/AIChat/composables/useChatScroll'
 import { useProgressiveChatHistory } from '@/components/AIChat/composables/useProgressiveChatHistory'
 import { groupMessagesToQAPairs } from '@/components/AIChat/utils/chatMessages'
@@ -18,7 +19,6 @@ import type { AIChat } from '@/services/ai/types'
 import { useAIChatStore } from '@/stores/aiChat'
 import { useLayoutStore } from '@/stores/layout'
 import { useToast } from '@/composables/useToast'
-import GlobalEntityPicker from './components/GlobalEntityPicker.vue'
 
 const { t, locale } = useI18n()
 const route = useRoute()
@@ -34,15 +34,13 @@ const currentAIChatId = toRef(state, 'currentAIChatId')
 const conversations = ref<AIChat[]>([])
 const conversationsLoading = ref(false)
 const initializing = ref(true)
-const input = ref('')
-const selectedEntities = ref<AIEntityRef[]>([])
-const isComposing = ref(false)
 let isUnmounted = false
 let conversationSelectionRequestId = 0
 
 function isGlobalPageActive(): boolean {
   return !isUnmounted && route.name === 'global-ai'
 }
+const estimatedContextTokens = ref(0)
 
 const pairs = computed(() => groupMessagesToQAPairs(messages.value))
 const { messagesContainer, showScrollToBottom, handleScrollToBottom, scrollToBottom } = useChatScroll(
@@ -90,7 +88,6 @@ async function selectConversation(aiChatId: string): Promise<void> {
     return
   }
   initializing.value = false
-  selectedEntities.value = []
   await syncAIChatIdToRoute(aiChatId)
   if (currentRequest !== conversationSelectionRequestId || !isGlobalPageActive()) return
   await nextTick()
@@ -101,8 +98,6 @@ function startNewConversation(): void {
   conversationSelectionRequestId++
   if (!aiChatStore.startNewAIChat(chatKey)) return
   initializing.value = false
-  selectedEntities.value = []
-  input.value = ''
   void syncAIChatIdToRoute(null)
 }
 
@@ -126,34 +121,22 @@ async function deleteConversation(aiChatId: string): Promise<void> {
   }
 }
 
-async function submit(): Promise<void> {
-  const content = input.value.trim()
-  if (!content || isAIThinking.value) return
-
-  const refs = selectedEntities.value.map((entity) => ({ ...entity }))
-  input.value = ''
-  selectedEntities.value = []
-  const result = await aiChatStore.sendMessage(chatKey, content, { entityRefs: refs })
-  if (result.success || result.reason === 'aborted') return
+async function handleSend(payload: { content: string; entityRefs: AIEntityRef[] }): Promise<void> {
+  const result = await aiChatStore.sendMessage(chatKey, payload.content, { entityRefs: payload.entityRefs })
+  if (result.success) {
+    scrollToBottom(true)
+    await loadConversations()
+    return
+  }
+  if (result.reason === 'aborted') return
 
   if (result.reason === 'no_config') {
-    input.value = content
-    selectedEntities.value = refs
     layoutStore.openSettings('ai', 'defaultModel')
     return
   }
   if (result.reason === 'busy') {
     toast.warn(t('ai.global.toast.busy'))
-    return
   }
-  input.value = content
-  selectedEntities.value = refs
-}
-
-function handleKeydown(event: KeyboardEvent): void {
-  if (event.key !== 'Enter' || event.shiftKey || isComposing.value) return
-  event.preventDefault()
-  void submit()
 }
 
 watch(locale, (nextLocale) => {
@@ -165,6 +148,23 @@ watch(currentAIChatId, (aiChatId, previousId) => {
   if (!initializing.value) void syncAIChatIdToRoute(aiChatId)
   if (aiChatId) void loadConversations()
 })
+
+watch(
+  currentAIChatId,
+  async (aiChatId) => {
+    if (!aiChatId) {
+      estimatedContextTokens.value = 0
+      return
+    }
+    try {
+      const result = await aiService.estimateContextTokens(aiChatId)
+      estimatedContextTokens.value = result.success ? result.tokens : 0
+    } catch {
+      estimatedContextTokens.value = 0
+    }
+  },
+  { immediate: true }
+)
 
 watch(
   () => route.query.aiChatId,
@@ -222,7 +222,15 @@ onUnmounted(() => {
       icon="i-heroicons-sparkles"
       icon-class="bg-primary-600 text-white dark:bg-primary-500 dark:text-white"
       size="compact"
-    />
+    >
+      <template #actions>
+        <ChatHeaderActions
+          :current-ai-chat-id="currentAIChatId"
+          :current-messages="messages"
+          :fallback-title="t('ai.global.title')"
+        />
+      </template>
+    </PageHeader>
 
     <div class="main-content flex min-h-0 flex-1 overflow-hidden">
       <ConversationList
@@ -327,28 +335,24 @@ onUnmounted(() => {
 
         <div class="shrink-0 px-4 pb-4">
           <div
-            class="mx-auto max-w-3xl overflow-visible rounded-2xl bg-white shadow-[0_2px_14px_rgba(0,0,0,0.04)] ring-1 ring-gray-200/60 transition-all focus-within:ring-primary-500/40 focus-within:shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:bg-page-dark dark:ring-white/5"
+            class="relative mx-auto max-w-3xl overflow-visible rounded-2xl bg-white shadow-[0_2px_14px_rgba(0,0,0,0.04)] ring-1 ring-gray-200/60 transition-all focus-within:ring-primary-500/40 focus-within:shadow-[0_4px_20px_rgba(0,0,0,0.08)] dark:bg-page-dark dark:ring-white/5"
           >
-            <div class="border-b border-gray-100 px-3 py-2 dark:border-gray-800/80">
-              <GlobalEntityPicker v-model="selectedEntities" :disabled="isAIThinking" />
-            </div>
-            <AIChatComposer
-              v-model="input"
+            <AIChatInput
+              :key="currentAIChatId || 'global-draft'"
               embedded
               :disabled="isAIThinking"
               :status="isAIThinking ? 'streaming' : 'ready'"
+              mention-scope="global"
+              :skills-enabled="false"
               :placeholder="t('ai.global.input.placeholder')"
-              :send-button-title="t('ai.chat.input.send')"
-              @submit="submit"
+              @send="handleSend"
               @stop="aiChatStore.stopGeneration(chatKey)"
-              @keydown="handleKeydown"
-              @composition-start="isComposing = true"
-              @composition-end="isComposing = false"
             />
             <ChatStatusBar
-              class="px-2 pb-1.5 pt-0.5"
+              class="pb-1.5 pl-2 pr-[52px] pt-0.5"
               :session-token-usage="state.sessionTokenUsage"
               :agent-status="state.agentStatus"
+              :estimated-context-tokens="estimatedContextTokens"
             />
           </div>
         </div>

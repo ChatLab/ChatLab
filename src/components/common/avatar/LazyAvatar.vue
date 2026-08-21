@@ -8,7 +8,7 @@ const props = withDefaults(
   defineProps<{
     src?: string | null
     alt: string
-    text: string
+    text?: string
     rootClass?: AvatarClass
     imageClass?: AvatarClass
     fallbackClass?: AvatarClass
@@ -16,6 +16,7 @@ const props = withDefaults(
   }>(),
   {
     src: null,
+    text: '',
     rootClass: 'h-8 w-8 shrink-0',
     imageClass: 'h-8 w-8 rounded-full object-cover',
     fallbackClass: 'flex h-8 w-8 items-center justify-center rounded-full text-[10px] font-bold',
@@ -28,6 +29,7 @@ const shouldLoadImage = ref(false)
 let stopObserving: (() => void) | null = null
 
 const hasAvatar = computed(() => Boolean(props.src))
+const fallbackText = computed(() => props.text || props.alt.trim().slice(0, 1))
 
 function cleanupObserver() {
   stopObserving?.()
@@ -74,7 +76,7 @@ onBeforeUnmount(cleanupObserver)
       decoding="async"
     />
     <div v-else :class="fallbackClass">
-      {{ text }}
+      {{ fallbackText }}
     </div>
   </div>
 </template>

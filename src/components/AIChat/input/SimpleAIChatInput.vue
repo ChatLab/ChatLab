@@ -42,8 +42,7 @@ function fillInput(content: string) {
   if (props.disabled) return
   inputValue.value = content
   nextTick(() => {
-    composerRef.value?.focus()
-    composerRef.value?.setSelectionRange(content.length, content.length)
+    composerRef.value?.focus('end')
   })
 }
 

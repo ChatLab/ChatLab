@@ -519,6 +519,14 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
           @click="handleImport"
         />
 
+        <SidebarButton
+          v-if="props.backendFeatures"
+          icon="i-heroicons-chat-bubble-left-ellipsis"
+          :title="t('analysis.tabs.aiChat')"
+          :active="isGlobalAIPage"
+          @click="openGlobalAI"
+        />
+
         <template v-if="showInsightNavigation">
           <SidebarButton
             v-for="item in resolvedPrimaryNavigation"
@@ -541,14 +549,6 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
           :title="t('layout.relationships')"
           :active="isPeoplePage"
           @click="openContacts"
-        />
-
-        <SidebarButton
-          v-if="props.backendFeatures"
-          icon="i-heroicons-chat-bubble-left-ellipsis"
-          :title="t('analysis.tabs.aiChat')"
-          :active="isGlobalAIPage"
-          @click="openGlobalAI"
         />
       </div>
     </div>
