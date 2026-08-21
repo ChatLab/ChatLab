@@ -53,6 +53,31 @@ export { exportMarkdown } from './export-service'
 export { CONTACTS_ALGORITHM_VERSION, createContactsService } from './contacts'
 export type { ContactsComputeRunner, ContactsService, ContactsServiceDeps, ContactsServiceOptions } from './contacts'
 
+// Cross-chat AI analysis service
+export { createCrossChatAnalysisService } from './cross-chat-analysis'
+export type {
+  CrossChatAnalysisService,
+  CrossChatAnalysisServiceDeps,
+  CrossChatEntityResolution,
+  CrossChatMessageContextRequest,
+  CrossChatMessageContextResult,
+  CrossChatMessageSource,
+  CrossChatOperationOptions,
+  CrossChatOverviewItem,
+  CrossChatOverviewRequest,
+  CrossChatOverviewResult,
+  CrossChatResolvedContact,
+  CrossChatResolvedContactSession,
+  CrossChatResolvedSession,
+  CrossChatSearchProgress,
+  CrossChatSearchRequest,
+  CrossChatSearchResult,
+  CrossChatSearchScope,
+  CrossChatSessionDescriptor,
+  CrossChatTruncationReason,
+  CrossChatUnresolvedEntity,
+} from './cross-chat-analysis'
+
 // People relationships service
 export { PEOPLE_RELATIONSHIPS_ALGORITHM_VERSION, createPeopleRelationshipsService } from './people/relationships'
 export type {

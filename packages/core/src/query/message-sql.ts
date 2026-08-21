@@ -129,6 +129,7 @@ export function buildMsgConditions(options?: {
   startTs?: number
   endTs?: number
   senderId?: number
+  senderIds?: number[]
   memberId?: number | null
   keywords?: string[]
   /** Keyword join mode: 'any' (OR, default) or 'all' (AND). */
@@ -156,6 +157,14 @@ export function buildMsgConditions(options?: {
   if (options?.senderId != null) {
     conds.push('msg.sender_id = ?')
     params.push(options.senderId)
+  } else if (options?.senderIds) {
+    const senderIds = [...new Set(options.senderIds)]
+    if (senderIds.length === 0) {
+      conds.push('1 = 0')
+    } else {
+      conds.push(`msg.sender_id IN (${senderIds.map(() => '?').join(', ')})`)
+      params.push(...senderIds)
+    }
   }
   if (options?.memberId != null) {
     conds.push('msg.sender_id = ?')
