@@ -10,6 +10,7 @@ test('restores the requested AI chat only when it belongs to the current session
         ? {
             id,
             sessionId: 'session-one',
+            kind: 'session' as const,
             title: 'Saved chat',
             assistantId: 'assistant-one',
             createdAt: 1,

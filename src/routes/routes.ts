@@ -36,6 +36,11 @@ export function createAppRoutes(insightRuntime: InsightPluginRuntime = desktopCl
       component: () => import('@/pages/private-chat/index.vue'),
     },
     {
+      path: '/ai-chat',
+      name: 'global-ai',
+      component: () => import('@/pages/global-ai/index.vue'),
+    },
+    {
       path: '/insight',
       component: () => import('@/pages/insight/index.vue'),
       redirect: defaultInsightRoute ? { name: defaultInsightRoute } : undefined,

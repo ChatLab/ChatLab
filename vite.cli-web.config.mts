@@ -43,10 +43,14 @@ function isPortInUse(port: number): Promise<boolean> {
 
 async function isChatlabBackendResponsive(port: number, timeoutMs = 800): Promise<boolean> {
   try {
-    const response = await fetch(`http://127.0.0.1:${port}/_web/sessions`, {
-      signal: AbortSignal.timeout(timeoutMs),
-    })
-    return response.status === 200 || response.status === 401 || response.status === 403
+    const responses = await Promise.all(
+      ['/_web/sessions', '/_web/ai/global-chats'].map((path) =>
+        fetch(`http://127.0.0.1:${port}${path}`, {
+          signal: AbortSignal.timeout(timeoutMs),
+        })
+      )
+    )
+    return responses.every((response) => [200, 401, 403].includes(response.status))
   } catch {
     return false
   }
@@ -106,7 +110,7 @@ function chatlabServePlugin(): Plugin {
           return
         }
         throw new Error(
-          `[clb web] Port ${BACKEND_PORT} is in use, but ChatLab API did not respond. Stop the stale process and restart dev:cli-web.`
+          `[clb web] Port ${BACKEND_PORT} is in use, but the ChatLab API is stale or incomplete. Stop the stale process and restart dev:cli-web.`
         )
       }
 
@@ -133,11 +137,9 @@ function chatlabServePlugin(): Plugin {
         unregisterProcessCleanup()
       })
       registerProcessCleanup()
-      server.httpServer?.once('close', stopServerProcess)
     },
-    buildEnd() {
-      stopServerProcess()
-    },
+    // Vite closes and rebuilds its HTTP server during config hot reloads.
+    // Cleanup stays bound to the Vite process lifecycle so a reload cannot stop the CLI backend.
   }
 }
 

@@ -1,5 +1,6 @@
 import type { TimeFilter } from '@/types/base'
 import type { ChartPayload, ChatEvidencePayload } from '@openchatlab/core'
+import type { AIEntityRef, CrossChatEvidencePayload } from '@openchatlab/shared-types'
 import type { PlanContentBlock } from './planBlocks'
 
 export interface AIChat {
@@ -13,15 +14,14 @@ export interface AIChat {
   updatedAt: number
 }
 
-export type AIEntityRef =
-  | { type: 'contact'; contactKey: string; displayName: string }
-  | { type: 'session'; sessionId: string; displayName: string; sessionType: 'private' | 'group' }
+export type { AIEntityRef } from '@openchatlab/shared-types'
 
 export type ContentBlock =
   | { type: 'text'; text: string; processDurationMs?: number }
   | { type: 'think'; tag: string; text: string; durationMs?: number }
   | { type: 'chart'; chart: ChartPayload }
   | { type: 'evidence'; evidence: ChatEvidencePayload }
+  | { type: 'cross_chat_evidence'; evidence: CrossChatEvidencePayload }
   | PlanContentBlock
   | {
       type: 'tool'

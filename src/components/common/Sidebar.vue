@@ -65,6 +65,7 @@ const SESSION_LIST_BOTTOM_PADDING = 32
 // 是否在首页
 const isHomePage = computed(() => route.path === '/')
 const isPeoplePage = computed(() => String(route.name ?? '').startsWith('people-'))
+const isGlobalAIPage = computed(() => route.name === 'global-ai')
 const privateSessionCount = computed(() => sessions.value.filter((session) => session.type === 'private').length)
 const groupSessionCount = computed(() => sessions.value.filter((session) => session.type === 'group').length)
 const showContactsEntry = computed(() =>
@@ -189,6 +190,10 @@ function handleImport() {
 
 function openContacts() {
   router.push({ name: 'people-contacts' })
+}
+
+function openGlobalAI() {
+  router.push({ name: 'global-ai' })
 }
 
 function openSession(session: AnalysisSession) {
@@ -548,6 +553,14 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
           :title="t('layout.relationships')"
           :active="isPeoplePage"
           @click="openContacts"
+        />
+
+        <SidebarButton
+          v-if="props.backendFeatures"
+          icon="i-heroicons-chat-bubble-left-ellipsis"
+          :title="t('analysis.tabs.aiChat')"
+          :active="isGlobalAIPage"
+          @click="openGlobalAI"
         />
       </div>
     </div>

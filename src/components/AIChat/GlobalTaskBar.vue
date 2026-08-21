@@ -15,6 +15,10 @@ const activeTaskState = computed(() => aiChatStore.getActiveTaskState())
 const shouldShowFloatingBar = computed(() => {
   if (!activeTask.value) return false
 
+  if (activeTask.value.kind === 'global') {
+    return route.name !== 'global-ai' || route.query.aiChatId !== activeTask.value.aiChatId
+  }
+
   const expectedRouteName = activeTask.value.chatType === 'group' ? 'group-chat' : 'private-chat'
   const isOnSameSessionAIPage =
     route.name === expectedRouteName &&
@@ -36,6 +40,11 @@ async function handleOpenTask() {
   // 返回当前任务时，优先把正在流式写入的对话重新切回当前显示缓冲，
   // 避免用户此前查看了别的历史对话，回来后还停留在旧视图。
   aiChatStore.focusActiveTaskAIChat()
+
+  if (activeTask.value.kind === 'global') {
+    await router.push({ name: 'global-ai', query: { aiChatId: activeTask.value.aiChatId ?? undefined } })
+    return
+  }
 
   await router.push({
     name: activeTask.value.chatType === 'group' ? 'group-chat' : 'private-chat',

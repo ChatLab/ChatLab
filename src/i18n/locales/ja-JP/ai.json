@@ -258,6 +258,42 @@
         "keyword_unavailable": "キーワード検索が利用できません",
         "semantic_partial": "セマンティック検索の結果が不完全な可能性があります"
       }
+    },
+    "crossChatEvidence": {
+      "title": "チャット横断の根拠",
+      "query": "検索語",
+      "summary": "{sources} 件 · {sessions} チャット",
+      "sourceCount": "{count} 件",
+      "coverage": "候補チャット {scanned}/{candidates} 件を検索",
+      "partial": "結果は省略されています",
+      "empty": "表示できる参照メッセージがありません"
+    }
+  },
+  "global": {
+    "title": "AI 分析",
+    "subtitle": "連絡先やグループを横断してローカルのチャットを検索",
+    "empty": {
+      "title": "関係を選んで分析を始める",
+      "description": "連絡先やグループを選んで質問できます。誰と話したか忘れた話題は全体から検索できます。現在の質問に必要なローカルデータだけを読み取ります。"
+    },
+    "input": {
+      "placeholder": "質問を入力。先に連絡先やグループを選択できます..."
+    },
+    "entityPicker": {
+      "title": "連絡先またはグループを選択",
+      "add": "対象を選択",
+      "contacts": "連絡先",
+      "groups": "グループ",
+      "search": "名前を検索",
+      "loadFailed": "連絡先を読み込めませんでした",
+      "contactsPreparing": "連絡先インデックスを準備中です。後で再試行するか、先にグループを選択してください。",
+      "empty": "一致する結果がありません"
+    },
+    "toast": {
+      "loadFailed": "AI 会話を読み込めませんでした",
+      "renameFailed": "名前を変更できませんでした",
+      "deleteFailed": "削除できませんでした",
+      "busy": "別の AI 分析が実行中です"
     }
   },
   "sqlLab": {
@@ -426,7 +462,11 @@
       "response_time_analysis": "応答時間分析",
       "keyword_frequency": "高頻度キーワード統計",
       "render_chart": "動的チャート生成",
-      "semantic_search_current_chat": "チャット履歴を検索"
+      "semantic_search_current_chat": "チャット履歴を検索",
+      "resolve_chat_entities": "連絡先とグループを解決",
+      "search_messages_globally": "チャットを横断して検索",
+      "get_cross_chat_message_context": "チャット横断のメッセージ文脈を取得",
+      "get_cross_chat_overview": "チャット横断の概要を取得"
     }
   },
   "skill": {

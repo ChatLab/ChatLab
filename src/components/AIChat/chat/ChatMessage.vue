@@ -8,12 +8,13 @@ import CaptureButton from '@/components/common/CaptureButton.vue'
 import ErrorBlock from './ErrorBlock.vue'
 import ChartBlockRenderer from './ChartBlockRenderer.vue'
 import EvidenceBlock from './EvidenceBlock.vue'
+import CrossChatEvidenceBlock from './CrossChatEvidenceBlock.vue'
 import ProcessDisclosure from './ProcessDisclosure.vue'
 import ProcessDisclosureIcon from './ProcessDisclosureIcon.vue'
 import { useToast } from '@/composables/useToast'
 import { stripChartImagePlaceholders } from '@/services/ai/chartMarkdownPlaceholders'
 import { shouldHideRecoverableChartError } from '@/stores/aiChatChartBlocks'
-import type { ToolProgress } from '@openchatlab/shared-types'
+import type { AIEntityRef, ToolProgress } from '@openchatlab/shared-types'
 import LiveFollowText from './LiveFollowText.vue'
 import { getFirstLine, getLatestLine } from './liveFollowText'
 import {
@@ -51,6 +52,7 @@ const props = defineProps<{
     status: 'running' | 'done' | 'error'
     progress?: ToolProgress
   } | null
+  entityRefs?: AIEntityRef[]
 }>()
 
 const emit = defineEmits<{
@@ -722,6 +724,13 @@ const copyMarkdownText = computed(() => {
         return [header, ...groupLines].join('\n')
       }
 
+      if (block.type === 'cross_chat_evidence') {
+        const sourceLines = block.evidence.sources.map(
+          (source) => `> - ${source.sessionName} · ${source.senderName}: ${source.snippet}`
+        )
+        return [`> ${t('ai.chat.crossChatEvidence.title')}`, ...sourceLines].join('\n')
+      }
+
       if (block.type === 'plan') {
         const steps = block.plan.steps
           .map(
@@ -847,6 +856,19 @@ async function handleCopyMarkdown() {
           v-else
           class="ai-user-bubble w-fit max-w-full rounded-3xl bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100"
         >
+          <div v-if="entityRefs?.length" class="mb-1.5 flex flex-wrap gap-1.5">
+            <span
+              v-for="entity in entityRefs"
+              :key="entity.type === 'contact' ? `contact:${entity.contactKey}` : `session:${entity.sessionId}`"
+              class="inline-flex items-center gap-1 rounded-full bg-white/70 px-2 py-0.5 text-xs text-primary-600 dark:bg-white/10 dark:text-primary-300"
+            >
+              <UIcon
+                :name="entity.type === 'contact' ? 'i-heroicons-user' : 'i-heroicons-user-group'"
+                class="h-3 w-3"
+              />
+              {{ entity.displayName }}
+            </span>
+          </div>
           <div class="prose prose-sm dark:prose-invert max-w-none" v-html="renderedContent" />
         </div>
       </template>
@@ -1167,6 +1189,11 @@ async function handleCopyMarkdown() {
 
                       <!-- 证据块 -->
                       <EvidenceBlock v-else-if="block.type === 'evidence'" :evidence="block.evidence" />
+
+                      <CrossChatEvidenceBlock
+                        v-else-if="block.type === 'cross_chat_evidence'"
+                        :evidence="block.evidence"
+                      />
 
                       <!-- 工具块：有结果时可展开查看发送给 AI 的安全文本 -->
                       <ProcessDisclosure
