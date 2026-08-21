@@ -36,7 +36,7 @@ export interface CompressionLlmAdapter {
   /**
    * 调用 LLM 进行压缩，返回压缩后的文本，失败返回 null。
    */
-  compress(prompt: string, maxTokens: number): Promise<string | null>
+  compress(prompt: string, maxTokens: number, signal?: AbortSignal): Promise<string | null>
   /** 解析模型的 context window 大小 */
   contextWindow: number
 }

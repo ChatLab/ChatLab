@@ -10,6 +10,7 @@ import type {
   SkillManagerCore,
 } from '@openchatlab/node-runtime'
 import type { ChartAutoMode } from '@openchatlab/shared-types'
+import type { AIEntityRef } from '@openchatlab/shared-types'
 
 export interface AiToolExecuteRequest {
   testId: string
@@ -32,7 +33,9 @@ export interface AgentStreamRequest {
   userMessage: string
   aiChatId: string
   historyLeafMessageId?: string | null
-  sessionId: string
+  chatKind?: 'session' | 'global'
+  sessionId?: string
+  entityRefs?: AIEntityRef[]
   chatType?: 'group' | 'private'
   locale?: string
   assistantId?: string

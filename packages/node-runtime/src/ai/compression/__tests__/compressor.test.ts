@@ -190,4 +190,34 @@ describe('checkAndCompress tool result token accounting', () => {
       cleanup(dir)
     }
   })
+
+  it('does not persist a summary when cancellation happens during compression', async () => {
+    const dir = createTempDir()
+    const manager = createManager(dir)
+    const controller = new AbortController()
+    let receivedSignal: AbortSignal | undefined
+    try {
+      const chatId = seedToolHeavyChat(manager, true)
+      const adapter: CompressionLlmAdapter = {
+        contextWindow: 1000,
+        compress: async (_prompt, _maxTokens, signal) => {
+          receivedSignal = signal
+          controller.abort()
+          return 'SUMMARY THAT MUST NOT BE PERSISTED'
+        },
+      }
+
+      const result = await checkAndCompress(chatId, CONFIG, 'system', adapter, manager, undefined, {
+        signal: controller.signal,
+      })
+
+      assert.equal(receivedSignal, controller.signal)
+      assert.equal(result.compressed, false)
+      assert.equal(result.error, 'Compression aborted')
+      assert.equal(manager.getLatestSummary(chatId), null)
+    } finally {
+      manager.close()
+      cleanup(dir)
+    }
+  })
 })

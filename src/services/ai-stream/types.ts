@@ -1,5 +1,5 @@
 import type { PlanContentBlock } from '@/services/ai/planBlocks'
-import type { ChartAutoMode, ToolProgress } from '@openchatlab/shared-types'
+import type { AIEntityRef, ChartAutoMode, ToolProgress } from '@openchatlab/shared-types'
 
 export interface LlmStreamChunk {
   content: string
@@ -106,7 +106,9 @@ export interface AgentStreamResult {
 
 export interface AgentStreamParams {
   userMessage: string
-  sessionId: string
+  chatKind?: 'session' | 'global'
+  sessionId?: string
+  entityRefs?: AIEntityRef[]
   aiChatId?: string
   historyLeafMessageId?: string | null
   chatType?: 'group' | 'private'

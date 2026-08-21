@@ -29,6 +29,7 @@ import type {
   LLMConfigStore,
   CustomProviderStore,
   CustomModelStore,
+  ContactsService,
   PendingDataDirMigration,
   RuntimeIdentity,
 } from '@openchatlab/node-runtime'
@@ -71,6 +72,7 @@ export function registerWebRoutes(
     pathProvider?: PathProvider
     nativeBinding?: string
     runtimeIdentity?: RuntimeIdentity
+    contactsService?: ContactsService
     aiContext?: AiContextOptions
     /** 由 server 入口注入的共享语义索引运行时；传入时由调用方管理生命周期 */
     semanticIndexService?: SemanticIndexRuntime
@@ -132,6 +134,7 @@ export function registerWebRoutes(
       getVersion,
       nativeBinding: options?.nativeBinding,
       semanticIndexService,
+      contactsService: options?.contactsService,
       analyticsService,
       getCurrentAiLogPath: () => getServerAiLogger()?.getExistingLogPath() ?? null,
       openDirectory: openDirectoryPath,

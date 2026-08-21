@@ -1,4 +1,5 @@
 export { createCrossChatAnalysisService } from './service'
+export { preprocessCrossChatMessages } from './preprocess'
 export type { CrossChatAnalysisService, CrossChatAnalysisServiceDeps } from './service'
 export type {
   CrossChatEntityResolution,

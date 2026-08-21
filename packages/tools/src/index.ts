@@ -9,6 +9,7 @@
 export {
   MCP_TOOL_REGISTRY,
   AGENT_TOOL_REGISTRY,
+  CROSS_CHAT_AGENT_TOOL_REGISTRY,
   SEMANTIC_SEARCH_TOOL_NAME,
   RETRIEVE_CHAT_EVIDENCE_TOOL_NAME,
   getToolByName,
@@ -41,6 +42,12 @@ export { keywordFrequencyTool } from './definitions/keyword-frequency'
 export { renderChartTool } from './definitions/render-chart'
 export { semanticSearchCurrentChatTool } from './definitions/semantic-search-current-chat'
 export { retrieveChatEvidenceTool } from './definitions/retrieve-chat-evidence'
+export {
+  getCrossChatMessageContextTool,
+  getCrossChatOverviewTool,
+  resolveChatEntitiesTool,
+  searchMessagesGloballyTool,
+} from './definitions/cross-chat-tools'
 
 // === SQL Tools ===
 export { SQL_TOOL_DEFS, createSqlToolDefinition, createAllSqlToolDefinitions } from './sql'
@@ -53,6 +60,8 @@ export { parseExtendedTimeParams } from './utils/time-params'
 export type {
   ToolDefinition,
   ToolExecutionContext,
+  CrossChatAnalysisToolService,
+  CrossChatToolExecutionContext,
   ToolProgress,
   ToolResult,
   JsonSchema,

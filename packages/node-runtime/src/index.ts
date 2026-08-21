@@ -310,6 +310,8 @@ export { DEFAULT_MAX_TOOL_ROUNDS, createLlmRouteDecider, decideRequestRoute, run
 export type { LlmRouteDecider, RequestRoute, RouteDecision, RouteDecisionSource, RouterInput } from './ai'
 export { buildPlanGuidance, createAnalysisPlanner, createDataSnapshotFromOverview, createPlanContentBlock } from './ai'
 export { buildSemanticSearchGuidance } from './ai'
+export { buildCrossChatSystemPrompt, runCrossChatAgent } from './ai'
+export type { CrossChatAgentLogger, RunCrossChatAgentOptions } from './ai'
 export type {
   AnalysisPlanIntent,
   AnalysisPlanner,
@@ -495,6 +497,7 @@ export {
   MergeSessionCache,
   createContactsService,
   createCrossChatAnalysisService,
+  preprocessCrossChatMessages,
   createPeopleRelationshipsService,
   createGlobalInsightService,
   assertValidTopicDayKey,

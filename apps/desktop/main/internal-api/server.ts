@@ -25,6 +25,8 @@ import {
   streamingImport,
   createSemanticIndexWorkerRuntimeClient,
   appLogger,
+  createContactsService,
+  createCrossChatAnalysisService,
 } from '@openchatlab/node-runtime'
 import type { StreamImportDeps, SemanticIndexRuntime } from '@openchatlab/node-runtime'
 import { getLoadablePath as getSqliteVecLoadablePath } from 'sqlite-vec'
@@ -91,6 +93,16 @@ export async function startInternalServer(
 
     newDbManager = new DatabaseManager(pathProvider, { runtime, nativeBinding })
     const sessionAdapter = createDatabaseManagerAdapter(newDbManager)
+    const contactsService = createContactsService({
+      adapter: sessionAdapter,
+      pathProvider,
+      runtimeIdentity: runtime,
+      nativeBinding,
+    })
+    const crossChatAnalysisService = createCrossChatAnalysisService({
+      adapter: sessionAdapter,
+      contactsService,
+    })
 
     const aiDataDir = pathProvider.getAiDataDir()
     const llmRuntimeStores = getDesktopLlmRuntimeStores(aiDataDir)
@@ -179,6 +191,7 @@ export async function startInternalServer(
         stopTimer,
       },
       semanticIndexService: newSemanticIndexService ?? undefined,
+      contactsService,
       openDirectory: (dirPath) => shell.openPath(dirPath).then(() => {}),
       showInFolder: (filePath) => {
         shell.showItemInFolder(filePath)
@@ -193,7 +206,10 @@ export async function startInternalServer(
       deletePendingDataDirCleanup: (cleanupId) => {
         return deletePendingDataDirCleanup(pathProvider.getSystemDir(), pathProvider.getUserDataDir(), cleanupId)
       },
-      runAgentStream: createElectronRunAgentStream(llmConfigStore, newSemanticIndexService ?? undefined),
+      runAgentStream: createElectronRunAgentStream(llmConfigStore, newSemanticIndexService ?? undefined, {
+        analysisService: crossChatAnalysisService,
+        sessionAdapter,
+      }),
       executeAiTool: createExecuteElectronAiTool(newSemanticIndexService ?? undefined),
     }
 
