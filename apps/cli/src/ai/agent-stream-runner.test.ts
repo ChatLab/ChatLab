@@ -1,7 +1,8 @@
 import { describe, it } from 'node:test'
 import assert from 'node:assert/strict'
+import type { AIChatManager, AgentStreamChunk, DatabaseManager, LLMConfigStore } from '@openchatlab/node-runtime'
 import { getChartCapabilityAllowedBuiltinTools } from '@openchatlab/node-runtime'
-import { getAllowedToolSet, getAvailableToolDefs } from './agent-stream-runner'
+import { createCliRunAgentStream, getAllowedToolSet, getAvailableToolDefs } from './agent-stream-runner'
 
 describe('CLI chart capability tool filtering', () => {
   it('does not expose uncategorized raw SQL in chart-only turns', () => {
@@ -62,5 +63,51 @@ describe('CLI chart capability tool filtering', () => {
     assert.ok(toolNames.includes('get_schema'))
     assert.ok(!toolNames.includes('keyword_frequency'))
     assert.ok(!toolNames.includes('execute_sql'))
+  })
+})
+
+describe('CLI agent conversation target validation', () => {
+  it('rejects a global conversation before the default session tool path can run', async () => {
+    let databaseOpenCalls = 0
+    const dbManager = {
+      pathProvider: { getAiDataDir: () => '/tmp/chatlab-agent-runner-test' },
+      open() {
+        databaseOpenCalls++
+        throw new Error('session database must not be opened')
+      },
+    } as unknown as DatabaseManager
+    const aiChatManager = {
+      getAIChat: () => ({
+        id: 'global-chat-1',
+        sessionId: '',
+        kind: 'global',
+        title: null,
+        assistantId: 'default',
+        createdAt: 1,
+        updatedAt: 1,
+      }),
+    } as unknown as AIChatManager
+    const llmConfigStore = {
+      getDefaultAssistantConfig: () => null,
+    } as unknown as LLMConfigStore
+    const events: AgentStreamChunk[] = []
+    const runAgentStream = createCliRunAgentStream(dbManager, aiChatManager, { llmConfigStore })
+
+    await runAgentStream(
+      {
+        userMessage: '分析一下',
+        aiChatId: 'global-chat-1',
+        sessionId: 'private-session-1',
+      },
+      (event) => events.push(event),
+      new AbortController().signal
+    )
+
+    assert.equal(databaseOpenCalls, 0)
+    assert.deepEqual(
+      events.map((event) => event.type),
+      ['error', 'done']
+    )
+    assert.match(String(events[0]?.error && (events[0].error as { message?: string }).message), /does not match/)
   })
 })

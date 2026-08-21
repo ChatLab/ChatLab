@@ -1,4 +1,4 @@
-import type { JsonSchema, ToolDefinition, ToolExecutionContext, ToolResult } from './types'
+import type { JsonSchema, ToolDefinition, ToolResult } from './types'
 
 interface AgentToolParameters {
   type: 'object'
@@ -51,10 +51,10 @@ function toAgentToolResult(result: ToolResult): AgentToolExecutionResult {
 }
 
 /** 执行共享工具并把异常收敛成 Agent 可直接返回给模型的文本结果。 */
-export async function executeToolForAgent(
-  tool: ToolDefinition,
+export async function executeToolForAgent<TContext>(
+  tool: ToolDefinition<TContext>,
   params: unknown,
-  context: ToolExecutionContext
+  context: TContext
 ): Promise<AgentToolExecutionResult> {
   const toolParams = (params && typeof params === 'object' ? params : {}) as Record<string, unknown>
   try {

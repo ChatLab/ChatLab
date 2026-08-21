@@ -30,6 +30,12 @@ import { responseTimeAnalysisTool } from './definitions/response-time-analysis'
 import { keywordFrequencyTool } from './definitions/keyword-frequency'
 import { semanticSearchCurrentChatTool } from './definitions/semantic-search-current-chat'
 import { retrieveChatEvidenceTool } from './definitions/retrieve-chat-evidence'
+import {
+  getCrossChatMessageContextTool,
+  getCrossChatOverviewTool,
+  resolveChatEntitiesTool,
+  searchMessagesGloballyTool,
+} from './definitions/cross-chat-tools'
 import { SQL_TOOL_DEFS, createAllSqlToolDefinitions } from './sql'
 
 /**
@@ -73,6 +79,14 @@ export const AGENT_TOOL_REGISTRY: ToolDefinition[] = [
   semanticSearchCurrentChatTool,
   retrieveChatEvidenceTool,
   ...createAllSqlToolDefinitions(SQL_TOOL_DEFS),
+]
+
+/** Dedicated global-analysis tools. Never merge this registry into session Agent or MCP registries. */
+export const CROSS_CHAT_AGENT_TOOL_REGISTRY = [
+  resolveChatEntitiesTool,
+  searchMessagesGloballyTool,
+  getCrossChatMessageContextTool,
+  getCrossChatOverviewTool,
 ]
 
 /** 语义检索工具名（runner 动态过滤用） */

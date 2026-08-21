@@ -22,6 +22,9 @@ import {
   initAppLogger,
   appLogger,
   logNativeParserStatus,
+  createContactsService,
+  createCrossChatAnalysisService,
+  createDatabaseManagerAdapter,
 } from '@openchatlab/node-runtime'
 import type { SemanticIndexRuntime } from '@openchatlab/node-runtime'
 import { createServer } from './server'
@@ -136,6 +139,17 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
   await migrationRunner.run()
   const nativeBinding = resolveNativeBinding()
   dbManager = new DatabaseManager(pathProvider, { nativeBinding, runtime })
+  const sessionAdapter = createDatabaseManagerAdapter(dbManager)
+  const contactsService = createContactsService({
+    adapter: sessionAdapter,
+    pathProvider,
+    runtimeIdentity: runtime,
+    nativeBinding,
+  })
+  const crossChatAnalysisService = createCrossChatAnalysisService({
+    adapter: sessionAdapter,
+    contactsService,
+  })
 
   const aiDataDir = pathProvider.getAiDataDir()
   aiChatManager = new AIChatManager(aiDataDir, { nativeBinding })
@@ -185,6 +199,7 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
     pathProvider,
     nativeBinding,
     runtimeIdentity: runtime,
+    contactsService,
     semanticIndexService,
     aiContext: {
       aiDataDir,
@@ -197,6 +212,8 @@ export async function startHttpServer(options?: HttpServerOptions): Promise<{
       runAgentStream: createCliRunAgentStream(dbManager, aiChatManager, {
         llmConfigStore,
         semanticIndexService,
+        crossChatAnalysisService,
+        sessionAdapter,
       }),
     },
   })

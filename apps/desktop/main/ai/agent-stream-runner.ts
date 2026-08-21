@@ -11,6 +11,8 @@ import type {
   AIServiceConfig,
   LLMConfigStore,
   SemanticIndexRuntime,
+  CrossChatAnalysisService,
+  SessionRuntimeAdapter,
 } from '@openchatlab/node-runtime'
 import type { AgentStreamRequest } from '@openchatlab/http-routes'
 import { getDefaultGeneralAssistantId, type ChartAutoMode } from '@openchatlab/shared-types'
@@ -27,6 +29,7 @@ import {
   initTokenizer,
   resolveChartRuntimeForRequest,
   buildSemanticSearchGuidance,
+  runCrossChatAgent,
 } from '@openchatlab/node-runtime'
 import type { CompressionLlmAdapter, AgentRuntimeStatus } from '@openchatlab/node-runtime'
 import { Agent, type AgentStreamChunk, type SkillContext } from './agent'
@@ -41,6 +44,7 @@ import { getManager as getAIChatManager } from './chats'
 import { t } from '../i18n'
 import * as workerManager from '../worker/workerManager'
 import { getProviderInfo, type LLMProvider } from './llm'
+import { createElectronCrossChatTools } from './cross-chat-tool-adapter'
 
 const DEFAULT_CONTEXT_WINDOW = 128000
 
@@ -68,7 +72,11 @@ const compressionLogger = {
 
 export function createElectronRunAgentStream(
   llmConfigStore: LLMConfigStore,
-  semanticIndexService?: SemanticIndexRuntime
+  semanticIndexService?: SemanticIndexRuntime,
+  crossChatOptions?: {
+    analysisService: CrossChatAnalysisService
+    sessionAdapter: SessionRuntimeAdapter
+  }
 ): (
   params: AgentStreamRequest,
   onEvent: (chunk: SharedAgentStreamChunk) => void,
@@ -79,7 +87,9 @@ export function createElectronRunAgentStream(
       userMessage,
       aiChatId,
       historyLeafMessageId,
+      chatKind = 'session',
       sessionId,
+      entityRefs,
       chatType,
       locale,
       assistantId,
@@ -93,6 +103,19 @@ export function createElectronRunAgentStream(
 
     // 确保 tokenizer rank 表已加载（compression + agent 路径均依赖）
     await initTokenizer()
+
+    const conversation = getAIChatManager().getAIChat(aiChatId)
+    if (
+      !conversation ||
+      conversation.kind !== chatKind ||
+      (chatKind === 'session' && conversation.sessionId !== sessionId)
+    ) {
+      onEvent({
+        type: 'error',
+        error: { name: 'ValidationError', message: 'AI conversation does not match the requested target' },
+      })
+      return
+    }
 
     const requestId = `internal_${Date.now()}`
 
@@ -112,6 +135,44 @@ export function createElectronRunAgentStream(
       return
     }
     const piModel = buildPiModel(activeAIConfig)
+
+    if (chatKind === 'global') {
+      if (!crossChatOptions) {
+        onEvent({ type: 'error', error: { name: 'RuntimeError', message: 'Cross-chat analysis is unavailable' } })
+        return
+      }
+      const modelDef = findModelDefinition(activeAIConfig.provider, activeAIConfig.model || '')
+      const resolvedContextWindow = modelDef?.contextWindow || DEFAULT_CONTEXT_WINDOW
+      const maxToolResultPercent = DEFAULT_CONTEXT_COMPRESSION_CONFIG.maxToolResultPercent ?? 50
+      const tools = createElectronCrossChatTools({
+        analysisService: crossChatOptions.analysisService,
+        sessionAdapter: crossChatOptions.sessionAdapter,
+        locale,
+        preprocessConfig: params.preprocessConfig,
+        maxToolResultTokens: Math.floor(resolvedContextWindow * (maxToolResultPercent / 100)),
+      })
+      await runCrossChatAgent({
+        userMessage,
+        entityRefs,
+        aiChatId,
+        historyLeafMessageId,
+        locale,
+        piModel,
+        apiKey: activeAIConfig.apiKey,
+        tools,
+        aiChatManager: getAIChatManager(),
+        onEvent,
+        abortSignal,
+        thinkingLevel: thinkingLevel as import('@openchatlab/core').ThinkingLevel | undefined,
+        logger: aiLogger,
+      })
+      return
+    }
+
+    if (!sessionId) {
+      onEvent({ type: 'error', error: { name: 'ValidationError', message: 'Session ID is required' } })
+      return
+    }
 
     if (aiChatId && historyLeafMessageId === undefined) {
       try {

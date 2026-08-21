@@ -5,7 +5,20 @@
  */
 
 import type { ChartPayload, DatabaseAdapter, EvidenceTimeRangeMs } from '@openchatlab/core'
-import type { ToolProgress } from '@openchatlab/shared-types'
+import type {
+  AIEntityRef,
+  CrossChatContactLookupResult,
+  CrossChatEntityResolution,
+  CrossChatMessageContextRequest,
+  CrossChatMessageContextResult,
+  CrossChatMessageSource,
+  CrossChatOperationOptions,
+  CrossChatOverviewRequest,
+  CrossChatOverviewResult,
+  CrossChatSearchRequest,
+  CrossChatSearchResult,
+  ToolProgress,
+} from '@openchatlab/shared-types'
 
 export type { ToolProgress } from '@openchatlab/shared-types'
 
@@ -32,7 +45,11 @@ export interface JsonSchema {
     {
       type: string
       description?: string
-      items?: { type: string }
+      items?: {
+        type: string
+        properties?: Record<string, unknown>
+        required?: string[]
+      }
       properties?: Record<string, unknown>
       additionalProperties?: boolean | Record<string, unknown>
       default?: unknown
@@ -338,6 +355,26 @@ export interface ToolExecutionContext {
   desensitizeMessages?: (messages: RawMessage[], options?: { anonymizeNames?: boolean }) => RawMessage[]
 }
 
+export interface CrossChatAnalysisToolService {
+  lookupContact(query: string): CrossChatContactLookupResult
+  resolveEntities(refs: AIEntityRef[]): CrossChatEntityResolution
+  searchMessages(request: CrossChatSearchRequest, options?: CrossChatOperationOptions): Promise<CrossChatSearchResult>
+  getMessageContext(request: CrossChatMessageContextRequest): CrossChatMessageContextResult
+  getOverview(request: CrossChatOverviewRequest, options?: CrossChatOperationOptions): Promise<CrossChatOverviewResult>
+}
+
+export interface CrossChatToolExecutionContext {
+  locale?: string
+  abortSignal?: AbortSignal
+  reportProgress?: (progress: ToolProgress) => void
+  maxToolResultTokens?: number
+  analysisService: CrossChatAnalysisToolService
+  preprocessMessagesBySession: (
+    sessionId: string,
+    messages: CrossChatMessageSource[]
+  ) => CrossChatMessageSource[] | Promise<CrossChatMessageSource[]>
+}
+
 // ==================== Raw Message ====================
 
 /**
@@ -377,11 +414,11 @@ export type ToolExecutionMode = 'parallel' | 'sequential'
  *
  * handler 支持同步和异步返回，兼容 Server（同步 DB）和 Electron（异步 Worker）。
  */
-export interface ToolDefinition {
+export interface ToolDefinition<TContext = ToolExecutionContext> {
   name: string
   description: string
   inputSchema: JsonSchema
-  handler: (params: Record<string, unknown>, context: ToolExecutionContext) => ToolResult | Promise<ToolResult>
+  handler: (params: Record<string, unknown>, context: TContext) => ToolResult | Promise<ToolResult>
   category?: ToolCategory
   truncationStrategy?: TruncationStrategy
   /** Override the Agent's parallel default when this tool has an ordering dependency. */

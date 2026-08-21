@@ -1,35 +1,37 @@
 import {
   getMembers,
-  getMessageContext as getCoreMessageContext,
   getRecentMessages,
+  getSearchMessageContext as getCoreSearchMessageContext,
   getSessionMeta,
   getSessionOverview,
   searchMessagesByKeywords,
   type DatabaseAdapter,
 } from '@openchatlab/core'
-import { ChatType } from '@openchatlab/shared-types'
-import type { AIEntityRef } from '../../ai/chats'
+import {
+  ChatType,
+  type AIEntityRef,
+  type CrossChatContactCandidate,
+  type CrossChatContactLookupResult,
+  type CrossChatEntityResolution,
+  type CrossChatMessageContextRequest,
+  type CrossChatMessageContextResult,
+  type CrossChatMessageSource,
+  type CrossChatOperationOptions,
+  type CrossChatOverviewItem,
+  type CrossChatOverviewRequest,
+  type CrossChatOverviewResult,
+  type CrossChatResolvedContact,
+  type CrossChatResolvedSession,
+  type CrossChatSearchRequest,
+  type CrossChatSearchResult,
+  type CrossChatSearchScope,
+  type CrossChatSessionDescriptor,
+  type CrossChatTruncationReason,
+  type CrossChatUnresolvedEntity,
+} from '@openchatlab/shared-types'
 import { appLogger } from '../../logging/app-logger'
 import type { SessionRuntimeAdapter } from '../adapters'
 import type { ContactsService } from '../contacts'
-import type {
-  CrossChatEntityResolution,
-  CrossChatMessageContextRequest,
-  CrossChatMessageContextResult,
-  CrossChatMessageSource,
-  CrossChatOperationOptions,
-  CrossChatOverviewItem,
-  CrossChatOverviewRequest,
-  CrossChatOverviewResult,
-  CrossChatResolvedContact,
-  CrossChatResolvedSession,
-  CrossChatSearchRequest,
-  CrossChatSearchResult,
-  CrossChatSearchScope,
-  CrossChatSessionDescriptor,
-  CrossChatTruncationReason,
-  CrossChatUnresolvedEntity,
-} from './types'
 
 const DEFAULT_MAX_SESSIONS = 24
 const MAX_MAX_SESSIONS = 100
@@ -39,14 +41,17 @@ const DEFAULT_MAX_WALL_TIME_MS = 8_000
 const MAX_MAX_WALL_TIME_MS = 30_000
 const DEFAULT_CONTEXT_SIZE = 10
 const MAX_CONTEXT_SIZE = 50
+const SECONDS_PER_DAY = 86400
+const MAX_RECENT_DAYS = 3650
 
 export interface CrossChatAnalysisServiceDeps {
   adapter: SessionRuntimeAdapter
-  contactsService: Pick<ContactsService, 'getContactDetail'>
+  contactsService: Pick<ContactsService, 'getContactDetail' | 'getContactsPage'>
   now?: () => number
 }
 
 export interface CrossChatAnalysisService {
+  lookupContact(query: string): CrossChatContactLookupResult
   resolveEntities(refs: AIEntityRef[]): CrossChatEntityResolution
   searchMessages(request: CrossChatSearchRequest, options?: CrossChatOperationOptions): Promise<CrossChatSearchResult>
   getMessageContext(request: CrossChatMessageContextRequest): CrossChatMessageContextResult
@@ -59,6 +64,56 @@ export function createCrossChatAnalysisService(deps: CrossChatAnalysisServiceDep
 
 class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
   constructor(private readonly deps: CrossChatAnalysisServiceDeps) {}
+
+  lookupContact(rawQuery: string): CrossChatContactLookupResult {
+    const query = rawQuery.trim()
+    const response = this.deps.contactsService.getContactsPage({
+      acceptStale: true,
+      page: 1,
+      pageSize: 200,
+      query,
+      timeRangePreset: 'all',
+    })
+    const normalizedQuery = normalizeContactName(query)
+    const exactMatches = response.contacts.filter((contact) =>
+      [contact.displayName, ...contact.aliases].some((name) => normalizeContactName(name) === normalizedQuery)
+    )
+    const matchedContacts = exactMatches.length > 0 ? exactMatches : response.contacts
+    const totalCandidates = exactMatches.length > 0 ? exactMatches.length : response.pagination.total
+    const candidates = matchedContacts.slice(0, 8).map((contact): CrossChatContactCandidate => {
+      const detail = this.deps.contactsService.getContactDetail(contact.key, {
+        acceptStale: true,
+        timeRangePreset: 'all',
+      })
+      return {
+        contactKey: contact.key,
+        displayName: contact.displayName,
+        platform: contact.platform,
+        aliases: contact.aliases,
+        sourceSessions:
+          detail.contact?.sourceSessions.map((session) => ({
+            id: session.id,
+            name: session.name,
+            type: session.type,
+          })) ?? [],
+      }
+    })
+    const status: CrossChatContactLookupResult['status'] =
+      totalCandidates === 1
+        ? 'resolved'
+        : totalCandidates > 1
+          ? 'ambiguous'
+          : response.cache.status === 'missing' || response.task?.status === 'running'
+            ? 'unavailable'
+            : 'not_found'
+    return {
+      query,
+      status,
+      cacheStatus: response.cache.status,
+      totalCandidates,
+      candidates,
+    }
+  }
 
   resolveEntities(refs: AIEntityRef[]): CrossChatEntityResolution {
     const contacts: CrossChatResolvedContact[] = []
@@ -178,15 +233,34 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     options: CrossChatOperationOptions = {}
   ): Promise<CrossChatSearchResult> {
     const keywords = request.keywords.map((keyword) => keyword.trim()).filter(Boolean)
-    if (keywords.length === 0) throw new Error('At least one search keyword is required')
+    if (keywords.length === 0 && (!request.scopes || request.scopes.length === 0)) {
+      throw new Error('At least one search keyword is required for an unscoped search')
+    }
     throwIfAborted(options.signal)
+
+    const sender = request.sender === 'owner' ? 'owner' : 'all'
+    const recentDays = normalizeRecentDays(request.recentDays)
+    const effectiveRecentDays = request.startTs === undefined ? recentDays : undefined
+    let startTs = request.startTs
+    let endTs = request.endTs
+    if (effectiveRecentDays !== undefined) {
+      endTs ??= Math.floor(this.now() / 1000)
+      startTs = endTs - effectiveRecentDays * SECONDS_PER_DAY
+    }
+    const ownerResolution =
+      sender === 'owner' ? { resolvedSessions: 0, missingOwnerSessions: 0, unresolvedOwnerSessions: 0 } : undefined
 
     const maxSessions = clampInteger(request.maxSessions, DEFAULT_MAX_SESSIONS, 1, MAX_MAX_SESSIONS)
     const maxEvidence = clampInteger(request.maxEvidence, DEFAULT_MAX_EVIDENCE, 1, MAX_MAX_EVIDENCE)
     const maxWallTimeMs = clampInteger(request.maxWallTimeMs, DEFAULT_MAX_WALL_TIME_MS, 1, MAX_MAX_WALL_TIME_MS)
     const startedAt = this.now()
     const failedSessionIds = new Set<string>()
-    const { candidates, candidateSessionCount } = this.resolveSearchCandidates(request.scopes, failedSessionIds)
+    const { candidates, candidateSessionCount } = this.resolveSearchCandidates(
+      request.scopes,
+      failedSessionIds,
+      sender,
+      ownerResolution
+    )
     const selected = candidates.slice(0, maxSessions)
     const truncatedReasons = new Set<CrossChatTruncationReason>()
     if (candidates.length > selected.length) truncatedReasons.add('session_budget')
@@ -218,8 +292,8 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
           continue
         }
         const result = searchMessagesByKeywords(db, keywords, {
-          startTs: request.startTs,
-          endTs: request.endTs,
+          startTs,
+          endTs,
           senderIds: candidate.memberIds,
           matchMode: request.matchMode,
           sort: request.sort,
@@ -255,11 +329,18 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     return {
       messages,
       totalMatches,
+      appliedFilters: {
+        startTs: startTs ?? null,
+        endTs: endTs ?? null,
+        recentDays: effectiveRecentDays ?? null,
+        sender,
+      },
       coverage: {
         candidateSessions: candidateSessionCount,
         scannedSessions,
         matchedSessions,
         failedSessions: failedSessionIds.size,
+        ownerResolution,
         truncated: truncatedReasons.size > 0,
         truncatedReasons: [...truncatedReasons],
       },
@@ -271,7 +352,7 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     const descriptor = getSessionDescriptor(request.sessionId, db)
     if (!descriptor) throw createNotFoundError(`Session not found: ${request.sessionId}`)
     const contextSize = clampInteger(request.contextSize, DEFAULT_CONTEXT_SIZE, 0, MAX_CONTEXT_SIZE)
-    const messages = getCoreMessageContext(db, [request.messageId], contextSize)
+    const messages = getCoreSearchMessageContext(db, [request.messageId], contextSize, contextSize)
     if (!messages.some((message) => message.id === request.messageId)) {
       throw createNotFoundError(`Message not found: ${request.messageId}`)
     }
@@ -286,7 +367,7 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
     options: CrossChatOperationOptions = {}
   ): Promise<CrossChatOverviewResult> {
     throwIfAborted(options.signal)
-    const scopes = normalizeScopes(request.scopes)
+    const scopes = normalizeOverviewScopes(request.scopes)
     const maxSessions = clampInteger(request.maxSessions, DEFAULT_MAX_SESSIONS, 1, MAX_MAX_SESSIONS)
     const maxWallTimeMs = clampInteger(request.maxWallTimeMs, DEFAULT_MAX_WALL_TIME_MS, 1, MAX_MAX_WALL_TIME_MS)
     const selected = scopes.slice(0, maxSessions)
@@ -345,7 +426,13 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
 
   private resolveSearchCandidates(
     scopes: CrossChatSearchScope[] | undefined,
-    failedSessionIds: Set<string>
+    failedSessionIds: Set<string>,
+    sender: 'all' | 'owner',
+    ownerResolution?: {
+      resolvedSessions: number
+      missingOwnerSessions: number
+      unresolvedOwnerSessions: number
+    }
   ): { candidates: SearchCandidate[]; candidateSessionCount: number } {
     const normalizedScopes: CrossChatSearchScope[] = scopes
       ? normalizeScopes(scopes)
@@ -355,6 +442,26 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
       const descriptor = this.tryGetSessionDescriptor(scope.sessionId)
       if (!descriptor) {
         failedSessionIds.add(scope.sessionId)
+        continue
+      }
+      if (sender === 'owner') {
+        const db = this.deps.adapter.openReadonly(scope.sessionId)
+        if (!db) {
+          failedSessionIds.add(scope.sessionId)
+          continue
+        }
+        const meta = getSessionMeta(db)
+        if (!meta?.ownerId?.trim()) {
+          if (ownerResolution) ownerResolution.missingOwnerSessions++
+          continue
+        }
+        const owner = getMembers(db).find((member) => member.platformId === meta.ownerId)
+        if (!owner) {
+          if (ownerResolution) ownerResolution.unresolvedOwnerSessions++
+          continue
+        }
+        if (ownerResolution) ownerResolution.resolvedSessions++
+        candidates.push({ descriptor, memberIds: [owner.id] })
         continue
       }
       candidates.push({ descriptor, memberIds: scope.memberIds })
@@ -382,6 +489,16 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
   private now(): number {
     return this.deps.now?.() ?? Date.now()
   }
+}
+
+function normalizeContactName(value: string): string {
+  return value.trim().toLocaleLowerCase()
+}
+
+function normalizeRecentDays(value: number | undefined): number | undefined {
+  if (value === undefined) return undefined
+  if (!Number.isFinite(value) || value <= 0) throw new Error('recentDays must be a positive number')
+  return Math.min(MAX_RECENT_DAYS, Math.max(1, Math.floor(value)))
 }
 
 interface SearchCandidate {
@@ -448,6 +565,20 @@ function normalizeScopes(scopes: CrossChatSearchScope[]): CrossChatSearchScope[]
     existing.label ??= scope.label
   }
   return [...bySession.values()]
+}
+
+function normalizeOverviewScopes(scopes: CrossChatSearchScope[]): CrossChatSearchScope[] {
+  return scopes.flatMap((scope) => {
+    const sessionId = scope.sessionId.trim()
+    if (!sessionId) return []
+    return [
+      {
+        sessionId,
+        memberIds: scope.memberIds ? [...new Set(scope.memberIds)] : undefined,
+        label: scope.label,
+      },
+    ]
+  })
 }
 
 function buildOverviewItem(

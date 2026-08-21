@@ -22,7 +22,7 @@ export function createCompressionLlmAdapter(options: CreateCompressionLlmAdapter
 
   return {
     contextWindow,
-    compress: async (prompt: string, maxTokens: number) => {
+    compress: async (prompt: string, maxTokens: number, signal?: AbortSignal) => {
       onCompressing?.()
       try {
         const result = await completeSimple(
@@ -31,7 +31,7 @@ export function createCompressionLlmAdapter(options: CreateCompressionLlmAdapter
             systemPrompt: undefined,
             messages: [{ role: 'user', content: [{ type: 'text', text: prompt }], timestamp: Date.now() }] as any,
           },
-          { apiKey, maxTokens }
+          { apiKey, maxTokens, signal }
         )
         const text = result.content
           .filter((item): item is PiTextContent => item.type === 'text')
@@ -39,6 +39,7 @@ export function createCompressionLlmAdapter(options: CreateCompressionLlmAdapter
           .join('')
         return text || null
       } catch (error) {
+        if (signal?.aborted) return null
         onError?.(error)
         return null
       }

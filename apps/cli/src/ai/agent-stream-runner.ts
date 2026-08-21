@@ -9,6 +9,8 @@ import type {
   AgentStreamChunk,
   LLMConfigStore,
   SemanticIndexRuntime,
+  CrossChatAnalysisService,
+  SessionRuntimeAdapter,
 } from '@openchatlab/node-runtime'
 import {
   CHART_CAPABILITY_CORE_TOOLS,
@@ -23,6 +25,7 @@ import {
   getChartCapabilitySkill,
   getSkillConfigWithBuiltinChart,
   resolveChartRuntimeForRequest,
+  runCrossChatAgent,
 } from '@openchatlab/node-runtime'
 import { getChatOverview, normalizeBuiltinToolNames } from '@openchatlab/core'
 import type { ChartAutoMode } from '@openchatlab/shared-types'
@@ -33,6 +36,8 @@ import { buildSemanticSearchGuidance } from '@openchatlab/node-runtime'
 import { adaptToolsForAgent } from './tool-adapter'
 import { loadAssistantConfig } from './assistant-loader'
 import { runServerAgent } from './agent'
+import { createCliCrossChatTools } from './cross-chat-tool-adapter'
+import { getServerAiLogger } from './logger'
 
 function getAiDir(dbManager: DatabaseManager): string {
   const pathProvider = (dbManager as any)['pathProvider']
@@ -76,6 +81,8 @@ export function createCliRunAgentStream(
   options: {
     llmConfigStore?: LLMConfigStore
     semanticIndexService?: SemanticIndexRuntime
+    crossChatAnalysisService?: CrossChatAnalysisService
+    sessionAdapter?: SessionRuntimeAdapter
   } = {}
 ): (params: AgentStreamRequest, onEvent: (chunk: AgentStreamChunk) => void, abortSignal: AbortSignal) => Promise<void> {
   const aiDataDir = getAiDir(dbManager)
@@ -87,7 +94,9 @@ export function createCliRunAgentStream(
       userMessage,
       aiChatId,
       historyLeafMessageId,
+      chatKind = 'session',
       sessionId,
+      entityRefs,
       chatType,
       locale,
       assistantId,
@@ -98,6 +107,20 @@ export function createCliRunAgentStream(
       mentionedMembers,
       thinkingLevel,
     } = params
+
+    const conversation = aiChatManager.getAIChat(aiChatId)
+    if (
+      !conversation ||
+      conversation.kind !== chatKind ||
+      (chatKind === 'session' && conversation.sessionId !== sessionId)
+    ) {
+      onEvent({
+        type: 'error',
+        error: { name: 'ValidationError', message: 'AI conversation does not match the requested target' },
+      })
+      onEvent({ type: 'done', isFinished: true })
+      return
+    }
 
     let assistantSystemPrompt: string | undefined
     let assistantAllowedTools: string[] | undefined
@@ -113,6 +136,48 @@ export function createCliRunAgentStream(
     const maxToolResultPercent = DEFAULT_CONTEXT_COMPRESSION_CONFIG.maxToolResultPercent ?? 50
     const contextWindow = llmConfig ? (buildPiModel(llmConfig).contextWindow ?? 128000) : 128000
     const maxToolResultTokens = Math.floor(contextWindow * (maxToolResultPercent / 100))
+
+    if (chatKind === 'global') {
+      if (!llmConfig) {
+        onEvent({ type: 'error', error: { name: 'ConfigError', message: 'LLM service not configured' } })
+        onEvent({ type: 'done', isFinished: true })
+        return
+      }
+      if (!options.crossChatAnalysisService || !options.sessionAdapter) {
+        onEvent({ type: 'error', error: { name: 'RuntimeError', message: 'Cross-chat analysis is unavailable' } })
+        onEvent({ type: 'done', isFinished: true })
+        return
+      }
+      const tools = createCliCrossChatTools({
+        analysisService: options.crossChatAnalysisService,
+        sessionAdapter: options.sessionAdapter,
+        locale,
+        preprocessConfig: params.preprocessConfig,
+        maxToolResultTokens,
+      })
+      await runCrossChatAgent({
+        userMessage,
+        entityRefs,
+        aiChatId,
+        historyLeafMessageId,
+        locale,
+        piModel: buildPiModel(llmConfig),
+        apiKey: llmConfig.apiKey,
+        tools,
+        aiChatManager,
+        onEvent,
+        abortSignal,
+        thinkingLevel: thinkingLevel as import('@openchatlab/core').ThinkingLevel | undefined,
+        logger: getServerAiLogger() ?? undefined,
+      })
+      return
+    }
+
+    if (!sessionId) {
+      onEvent({ type: 'error', error: { name: 'ValidationError', message: 'Session ID is required' } })
+      onEvent({ type: 'done', isFinished: true })
+      return
+    }
 
     const db = (dbManager as any).open?.(sessionId)
     const resolvedChartAutoMode: ChartAutoMode = chartAutoMode ?? 'suggest'

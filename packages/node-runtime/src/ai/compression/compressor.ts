@@ -69,9 +69,11 @@ export async function checkAndCompress(
   systemPrompt: string,
   llmAdapter: CompressionLlmAdapter,
   convManager: AIChatManager,
-  logger: CompressionLogger = defaultLogger
+  logger: CompressionLogger = defaultLogger,
+  options: { signal?: AbortSignal } = {}
 ): Promise<CompressionResult> {
   try {
+    throwIfAborted(options.signal)
     const contextWindow = llmAdapter.contextWindow || DEFAULT_CONTEXT_WINDOW
     const thresholdTokens = Math.floor(contextWindow * (config.tokenThresholdPercent / 100) * 0.95)
 
@@ -140,7 +142,8 @@ export async function checkAndCompress(
     const template = isProgressive ? PROGRESSIVE_COMPRESSION_PROMPT : INITIAL_COMPRESSION_PROMPT
     const prompt = template.replace('{maxTokens}', String(targetTokens)).replace('{messages}', compressInput)
 
-    let summaryText = await llmAdapter.compress(prompt, targetTokens)
+    let summaryText = await llmAdapter.compress(prompt, targetTokens, options.signal)
+    throwIfAborted(options.signal)
 
     if (!summaryText) {
       logger.warn('Compression', 'LLM compression failed, falling back to truncation')
@@ -156,6 +159,7 @@ export async function checkAndCompress(
       summary?.entityRefs,
       ...messagesToCompress.map((message) => message.entityRefs)
     )
+    throwIfAborted(options.signal)
     convManager.addSummaryMessage(
       aiChatId,
       summaryText,
@@ -200,9 +204,19 @@ export async function checkAndCompress(
       summaryContent: summaryText,
     }
   } catch (error) {
+    if (options.signal?.aborted) {
+      return { compressed: false, reason: 'error', error: 'Compression aborted' }
+    }
     logger.error('Compression', 'Compression failed', { error: String(error) })
     return { compressed: false, reason: 'error', error: String(error) }
   }
+}
+
+function throwIfAborted(signal?: AbortSignal): void {
+  if (!signal?.aborted) return
+  const error = new Error('Compression aborted')
+  error.name = 'AbortError'
+  throw error
 }
 
 export async function manualCompress(
