@@ -270,14 +270,14 @@
     }
   },
   "global": {
-    "title": "AI 分析",
+    "title": "AI 對話",
     "subtitle": "跨聯絡人與群聊查詢本機聊天記錄",
     "empty": {
       "title": "從一段關係開始分析",
       "description": "選擇聯絡人或群聊後提問，也可以直接搜尋你忘記和誰聊過的話題。只會按目前問題讀取必要的本機資料。"
     },
     "input": {
-      "placeholder": "輸入問題，可先選擇聯絡人或群聊..."
+      "placeholder": "輸入問題，輸入 {'@'} 選擇聯絡人或群聊..."
     },
     "entityPicker": {
       "title": "選擇聯絡人或群聊",

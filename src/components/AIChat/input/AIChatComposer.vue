@@ -1,5 +1,33 @@
 <script setup lang="ts">
-import { computed, nextTick, onMounted, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, onMounted, ref, watch } from 'vue'
+import UEditor from '@nuxt/ui/components/Editor.vue'
+import AIChatMentionMenu from './AIChatMentionMenu.vue'
+
+interface EditorNode {
+  type?: string
+  text?: string
+  attrs?: Record<string, unknown>
+  content?: EditorNode[]
+}
+
+interface MentionMenuItem {
+  id: string
+  label: string
+  avatar?: string | null
+  searchText?: string
+}
+
+type MentionTab = 'contact' | 'group'
+
+interface EditorInstance {
+  editor?: {
+    commands: {
+      focus: (position?: 'start' | 'end') => boolean
+      insertContent: (content: string) => boolean
+    }
+    setEditable: (editable: boolean, emitUpdate?: boolean) => void
+  }
+}
 
 const props = withDefaults(
   defineProps<{
@@ -9,70 +37,226 @@ const props = withDefaults(
     placeholder: string
     sendButtonTitle: string
     activeSkillName?: string | null
+    mentionItems?: MentionMenuItem[]
+    mentionSearchTerm?: string
+    asyncMentionSearch?: boolean
+    showMentionTabs?: boolean
+    mentionTab?: MentionTab
+    contactTabLabel?: string
+    groupTabLabel?: string
     embedded?: boolean
   }>(),
   {
     disabled: false,
     status: 'ready',
     activeSkillName: null,
+    mentionItems: () => [],
+    mentionSearchTerm: '',
+    asyncMentionSearch: false,
+    showMentionTabs: false,
+    mentionTab: 'contact',
+    contactTabLabel: '',
+    groupTabLabel: '',
     embedded: false,
   }
 )
 
 const emit = defineEmits<{
   'update:modelValue': [value: string]
+  'update:mentionSearchTerm': [value: string]
+  'update:mentionTab': [value: MentionTab]
+  mentionsChange: [ids: string[]]
   submit: []
   stop: []
   keydown: [event: KeyboardEvent]
-  cursorChange: []
   compositionStart: []
   compositionEnd: []
 }>()
 
-const textareaRef = ref<HTMLTextAreaElement | null>(null)
+const editorRef = ref<EditorInstance | null>(null)
+const editorDocument = ref<EditorNode>(createTextDocument(props.modelValue))
+let mentionNodeCount = 0
+let mentionMenuHost: HTMLElement | null = null
+let hasMentionMenuKeyboardSelection = false
 const canSubmit = computed(() => props.modelValue.trim().length > 0 && !props.disabled)
 
-function syncHeight() {
-  const textarea = textareaRef.value
-  if (!textarea) return
-
-  textarea.style.height = 'auto'
-  const maxHeight = 192
-  textarea.style.height = `${Math.min(textarea.scrollHeight, maxHeight)}px`
-  textarea.style.overflowY = textarea.scrollHeight > maxHeight ? 'auto' : 'hidden'
+const editorProps = {
+  handleKeyDown: (_view: unknown, event: KeyboardEvent) => {
+    emit('keydown', event)
+    return event.defaultPrevented
+  },
+  handleDOMEvents: {
+    compositionstart: () => {
+      emit('compositionStart')
+      return false
+    },
+    compositionend: () => {
+      emit('compositionEnd')
+      return false
+    },
+  },
 }
 
-function focus() {
-  textareaRef.value?.focus()
+const starterKit = {
+  blockquote: false as const,
+  bold: false as const,
+  bulletList: false as const,
+  code: false as const,
+  codeBlock: false as const,
+  heading: false as const,
+  italic: false as const,
+  link: false as const,
+  listItem: false as const,
+  orderedList: false as const,
+  strike: false as const,
+  underline: false as const,
 }
 
-function getSelection() {
-  const fallback = props.modelValue.length
+const mentionOptions = {
+  HTMLAttributes: {
+    class: 'ai-chat-mention',
+  },
+  deleteTriggerWithBackspace: true,
+}
+
+function createTextDocument(value: string): EditorNode {
+  const lines = value.split('\n')
   return {
-    start: textareaRef.value?.selectionStart ?? fallback,
-    end: textareaRef.value?.selectionEnd ?? fallback,
+    type: 'doc',
+    content: lines.map((line) => ({
+      type: 'paragraph',
+      content: line ? [{ type: 'text', text: line }] : undefined,
+    })),
   }
 }
 
-function setSelectionRange(start: number, end: number) {
-  textareaRef.value?.setSelectionRange(start, end)
+function getMentionText(node: EditorNode): string {
+  const id = typeof node.attrs?.id === 'string' ? node.attrs.id : ''
+  const label = typeof node.attrs?.label === 'string' ? node.attrs.label : id
+  return `@${label}`
 }
 
-function updateValue(event: Event) {
-  emit('update:modelValue', (event.target as HTMLTextAreaElement).value)
+function nodeToText(node: EditorNode): string {
+  if (node.type === 'text') return node.text ?? ''
+  if (node.type === 'mention') return getMentionText(node)
+  if (node.type === 'hardBreak') return '\n'
+
+  const content = node.content ?? []
+  const separator = node.type === 'doc' ? '\n' : ''
+  return content.map(nodeToText).join(separator)
 }
+
+function collectMentionIds(node: EditorNode, result: string[] = []): string[] {
+  if (node.type === 'mention' && typeof node.attrs?.id === 'string') {
+    result.push(node.attrs.id)
+  }
+  node.content?.forEach((child) => collectMentionIds(child, result))
+  return result
+}
+
+function handleDocumentUpdate(document: EditorNode) {
+  editorDocument.value = document
+  const mentionIds = collectMentionIds(document)
+  const insertedMention = mentionIds.length > mentionNodeCount
+  mentionNodeCount = mentionIds.length
+  emit('update:modelValue', nodeToText(document))
+  emit('mentionsChange', [...new Set(mentionIds)])
+
+  if (insertedMention) {
+    nextTick(() => editorRef.value?.editor?.commands.insertContent(' '))
+  }
+}
+
+function focus(position: 'start' | 'end' = 'end') {
+  editorRef.value?.editor?.commands.focus(position)
+}
+
+function setText(value: string) {
+  mentionNodeCount = 0
+  editorDocument.value = createTextDocument(value)
+}
+
+function clear() {
+  setText('')
+}
+
+function syncHeight() {
+  // The contenteditable surface grows through CSS and scrolls after reaching its max height.
+}
+
+function preventHoverSelection(event: Event) {
+  if (event.target instanceof Element && event.target.closest('[role="option"]')) {
+    event.stopPropagation()
+  }
+}
+
+function activateMentionMenuKeyboardSelection() {
+  hasMentionMenuKeyboardSelection = true
+  mentionMenuHost?.classList.add('has-keyboard-selection')
+}
+
+function handleMentionMenuKeydown(event: KeyboardEvent) {
+  if (!mentionMenuHost?.firstElementChild) return
+
+  if (!hasMentionMenuKeyboardSelection && event.key === 'ArrowDown') {
+    activateMentionMenuKeyboardSelection()
+    event.preventDefault()
+    event.stopImmediatePropagation()
+    return
+  }
+
+  if (!hasMentionMenuKeyboardSelection && event.key === 'ArrowUp') {
+    activateMentionMenuKeyboardSelection()
+    return
+  }
+
+  if (!hasMentionMenuKeyboardSelection && (event.key === 'Enter' || event.key === 'Tab')) {
+    event.preventDefault()
+    event.stopImmediatePropagation()
+  }
+}
+
+function getMentionMenuContainer() {
+  hasMentionMenuKeyboardSelection = false
+  mentionMenuHost?.classList.remove('has-keyboard-selection')
+
+  if (!mentionMenuHost) {
+    mentionMenuHost = document.createElement('div')
+    mentionMenuHost.className = 'ai-chat-mention-menu-host'
+    mentionMenuHost.addEventListener('mouseenter', preventHoverSelection, true)
+    document.body.appendChild(mentionMenuHost)
+  }
+  return mentionMenuHost
+}
+
+onMounted(() => {
+  document.addEventListener('keydown', handleMentionMenuKeydown, true)
+})
+
+onBeforeUnmount(() => {
+  document.removeEventListener('keydown', handleMentionMenuKeydown, true)
+  mentionMenuHost?.remove()
+  mentionMenuHost = null
+})
 
 watch(
   () => props.modelValue,
-  async () => {
-    await nextTick()
-    syncHeight()
+  (value) => {
+    if (nodeToText(editorDocument.value) !== value) {
+      setText(value)
+    }
   }
 )
 
-onMounted(() => void nextTick(syncHeight))
+watch(
+  () => props.disabled,
+  (disabled) => {
+    // Nuxt UI Editor 4.9 does not forward later editable prop changes to the existing Tiptap instance.
+    editorRef.value?.editor?.setEditable(!disabled, false)
+  }
+)
 
-defineExpose({ focus, getSelection, setSelectionRange, syncHeight })
+defineExpose({ focus, setText, clear, syncHeight })
 </script>
 
 <template>
@@ -97,21 +281,37 @@ defineExpose({ focus, getSelection, setSelectionRange, syncHeight })
           <span class="truncate">/{{ activeSkillName }}</span>
         </div>
 
-        <textarea
-          ref="textareaRef"
-          :value="modelValue"
-          rows="2"
-          class="min-h-[48px] min-w-0 flex-1 resize-none border-0 bg-transparent px-0 py-0 text-sm leading-6 text-gray-900 outline-none placeholder:text-gray-400 disabled:cursor-not-allowed disabled:text-gray-400 dark:text-gray-100 dark:placeholder:text-gray-500 dark:disabled:text-gray-500"
-          :disabled="disabled"
+        <UEditor
+          ref="editorRef"
+          :model-value="editorDocument"
+          content-type="json"
+          class="ai-chat-editor min-w-0 flex-1"
+          :editable="!disabled"
           :placeholder="placeholder"
-          @input="updateValue"
-          @keydown="emit('keydown', $event)"
-          @click="emit('cursorChange')"
-          @keyup="emit('cursorChange')"
-          @select="emit('cursorChange')"
-          @compositionstart="emit('compositionStart')"
-          @compositionend="emit('compositionEnd')"
-        />
+          :starter-kit="starterKit"
+          :mention="mentionOptions"
+          :image="false"
+          :editor-props="editorProps"
+          @update:model-value="handleDocumentUpdate"
+        >
+          <template #default="{ editor }">
+            <AIChatMentionMenu
+              :search-term="props.mentionSearchTerm"
+              :editor="editor"
+              :items="mentionItems"
+              :filter-fields="['label', 'searchText']"
+              :ignore-filter="asyncMentionSearch"
+              :limit="100"
+              :append-to="getMentionMenuContainer"
+              :show-tabs="showMentionTabs"
+              :active-tab="mentionTab"
+              :contact-tab-label="contactTabLabel"
+              :group-tab-label="groupTabLabel"
+              @update:search-term="emit('update:mentionSearchTerm', $event)"
+              @update:active-tab="emit('update:mentionTab', $event)"
+            />
+          </template>
+        </UEditor>
       </div>
 
       <button
@@ -141,3 +341,147 @@ defineExpose({ focus, getSelection, setSelectionRange, syncHeight })
     </div>
   </div>
 </template>
+
+<style scoped>
+.ai-chat-editor :deep(.tiptap) {
+  min-height: 48px;
+  max-height: 192px;
+  overflow-y: auto;
+  border: 0;
+  padding: 0;
+  color: var(--color-gray-900);
+  font-size: 0.875rem;
+  line-height: 1.5rem;
+  outline: none;
+}
+
+.ai-chat-editor :deep(.tiptap p) {
+  margin: 0;
+}
+
+.ai-chat-editor :deep(.tiptap .ai-chat-mention) {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 0.375rem;
+  background: color-mix(in srgb, var(--color-primary-500) 12%, transparent);
+  padding: 0 0.25rem;
+  color: var(--color-primary-700);
+  line-height: 1.25rem;
+  white-space: nowrap;
+}
+
+.ai-chat-editor :deep(.tiptap p.is-editor-empty:first-child::before) {
+  color: var(--color-gray-400);
+}
+
+.dark .ai-chat-editor :deep(.tiptap) {
+  color: var(--color-gray-100);
+}
+
+.dark .ai-chat-editor :deep(.tiptap .ai-chat-mention) {
+  background: color-mix(in srgb, var(--color-primary-500) 16%, transparent);
+  color: var(--color-primary-400);
+}
+
+.dark .ai-chat-editor :deep(.tiptap p.is-editor-empty:first-child::before) {
+  color: var(--color-gray-500);
+}
+</style>
+
+<style>
+.ai-chat-mention-menu-host > div {
+  width: 16rem !important;
+  max-width: calc(100vw - 2rem);
+  opacity: 0;
+  visibility: hidden;
+}
+
+.ai-chat-mention-menu-host > div[style*='transform: translate'] {
+  visibility: visible;
+  animation: ai-chat-mention-menu-reveal 0s 40ms forwards;
+}
+
+@keyframes ai-chat-mention-menu-reveal {
+  to {
+    opacity: 1;
+  }
+}
+
+.ai-chat-mention-menu-host [role='listbox'] {
+  box-sizing: border-box;
+  width: 16rem;
+  min-width: 0;
+  max-width: calc(100vw - 2rem);
+  max-height: 16rem;
+  padding: 0.25rem;
+  overflow: hidden;
+  background: var(--ui-bg);
+  border: 1px solid var(--ui-border);
+  border-radius: 0.75rem;
+  box-shadow: 0 12px 32px rgb(0 0 0 / 16%);
+}
+
+.ai-chat-mention-menu-host [role='presentation'] {
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+
+.ai-chat-mention-menu-host [role='group'] {
+  padding: 0;
+}
+
+.ai-chat-mention-menu-host [role='option'] {
+  min-height: 2.25rem;
+  align-items: center;
+  gap: 0.375rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 0.5rem;
+}
+
+.ai-chat-mention-menu-host [role='option']::before {
+  inset: 0;
+  border-radius: 0.5rem;
+}
+
+.ai-chat-mention-menu-host.has-keyboard-selection [role='option'][data-highlighted]::before {
+  background: color-mix(in srgb, var(--ui-primary) 10%, transparent);
+}
+
+.ai-chat-mention-menu-host [role='option']:hover::before {
+  background: color-mix(in srgb, var(--ui-primary) 6%, transparent);
+}
+
+.ai-chat-mention-tabs {
+  padding: 0.25rem 0.25rem 0.375rem;
+  background: var(--ui-bg);
+}
+
+.ai-chat-mention-tabs__inner {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 0.125rem;
+  padding: 0.125rem;
+  background: var(--ui-bg-muted);
+  border-radius: 0.5rem;
+}
+
+.ai-chat-mention-tabs__button {
+  height: 1.625rem;
+  padding: 0 0.5rem;
+  color: var(--ui-text-muted);
+  font-size: 0.75rem;
+  line-height: 1rem;
+  cursor: pointer;
+  border-radius: 0.375rem;
+}
+
+.ai-chat-mention-tabs__button:hover {
+  color: var(--ui-text-highlighted);
+}
+
+.ai-chat-mention-tabs__button.is-active {
+  color: var(--ui-text-highlighted);
+  background: var(--ui-bg);
+  box-shadow: 0 1px 2px rgb(0 0 0 / 8%);
+}
+</style>

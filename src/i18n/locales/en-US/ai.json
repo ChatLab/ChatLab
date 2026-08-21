@@ -270,14 +270,14 @@
     }
   },
   "global": {
-    "title": "AI Analysis",
+    "title": "AI Chat",
     "subtitle": "Query local chats across contacts and groups",
     "empty": {
       "title": "Start with a relationship",
       "description": "Select contacts or groups before asking, or search globally for a topic when you no longer remember who you discussed it with. Only the local data needed for this question is read."
     },
     "input": {
-      "placeholder": "Ask a question, optionally selecting contacts or groups first..."
+      "placeholder": "Ask a question, or type {'@'} to select contacts or groups..."
     },
     "entityPicker": {
       "title": "Select contacts or groups",
