@@ -3,10 +3,10 @@ import test from 'node:test'
 import { createPinia, setActivePinia } from 'pinia'
 import { ref } from 'vue'
 
-test('restores only the latest requested AI chat without leaking navigation state', async (t) => {
-  const makeConversation = (id: string) => ({
+test('restores the latest valid AI chat without leaking stale navigation state', async (t) => {
+  const makeConversation = (id: string, sessionId = 'session-one') => ({
     id,
-    sessionId: 'session-one',
+    sessionId,
     kind: 'session' as const,
     title: 'Saved chat',
     assistantId: 'assistant-one',
@@ -20,8 +20,11 @@ test('restores only the latest requested AI chat without leaking navigation stat
   const aiService = {
     getAIChat: async (id: string) => {
       if (id === 'chat-slow') return slowConversation
-      return id === 'chat-one' || id === 'chat-latest' ? makeConversation(id) : null
+      if (id === 'chat-one' || id === 'chat-newest') return makeConversation(id)
+      return id === 'chat-latest' ? makeConversation(id, 'session-three') : null
     },
+    getAIChats: async (sessionId: string) =>
+      sessionId === 'session-three' ? [makeConversation('chat-latest', sessionId)] : [],
     getMessages: async (aiChatId: string) => [
       {
         id: `message-${aiChatId}`,
@@ -99,12 +102,23 @@ test('restores only the latest requested AI chat without leaking navigation stat
   assert.equal(second.state.messages.length, 0)
 
   const staleLoad = store.loadAIChat(first.chatKey, 'chat-slow')
-  assert.equal(await store.loadAIChat(first.chatKey, 'chat-latest'), true)
+  assert.equal(await store.loadAIChat(first.chatKey, 'chat-newest'), true)
   resolveSlowConversation(makeConversation('chat-slow'))
 
   assert.equal(await staleLoad, false)
-  assert.equal(first.state.currentAIChatId, 'chat-latest')
-  assert.equal(first.state.messages[0]?.content, 'Saved answer for chat-latest')
+  assert.equal(first.state.currentAIChatId, 'chat-newest')
+  assert.equal(first.state.messages[0]?.content, 'Saved answer for chat-newest')
+
+  const third = store.ensureSessionState({
+    sessionId: 'session-three',
+    sessionName: 'Third session',
+    chatType: 'private',
+    locale: 'zh-CN',
+  })
+  await store.resetToSelectorOnEnter(third.chatKey)
+
+  assert.equal(third.state.currentAIChatId, 'chat-latest')
+  assert.equal(third.state.messages[0]?.content, 'Saved answer for chat-latest')
 
   const global = store.ensureGlobalState('zh-CN')
   store.activeTask = {

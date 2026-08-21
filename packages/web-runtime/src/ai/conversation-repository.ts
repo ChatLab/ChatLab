@@ -123,7 +123,7 @@ export class BrowserAIConversationRepository implements ConversationRepository {
   createConversation(sessionId: string, title: string | null = null): Promise<RuntimeConversation> {
     const now = Date.now()
     const conversation: RuntimeConversation = {
-      id: createId('conversation'),
+      id: createId('conv'),
       sessionId,
       title,
       createdAt: now,

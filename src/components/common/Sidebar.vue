@@ -8,6 +8,7 @@ import { shouldEnableContactsEntry } from '@openchatlab/core'
 import type { AnalysisSession } from '@/types/base'
 import LazyAvatar from '@/components/common/avatar/LazyAvatar.vue'
 import SidebarButton from './sidebar/SidebarButton.vue'
+import SidebarCollapseButton from './sidebar/SidebarCollapseButton.vue'
 import SidebarFooter from './sidebar/SidebarFooter.vue'
 import SidebarSortPopover from './sidebar/SidebarSortPopover.vue'
 import { resolveSidebarSessionContentState } from './sidebar/session-content-state'
@@ -499,27 +500,10 @@ function getAvatarColorClass(session: AnalysisSession, isActive: boolean) {
             {{ t('layout.updateNotice.tag') }}
           </button>
         </div>
-        <div
-          v-else
-          class="group relative flex h-9 w-9 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-white/[0.06]"
-          style="-webkit-app-region: no-drag"
-          @click="toggleSidebar"
-        >
+        <SidebarCollapseButton :collapsed="isCollapsed" @click="toggleSidebar">
           <img :src="logoSvg" alt="ChatLab" class="size-5 select-none pointer-events-none group-hover:hidden" />
-          <UIcon name="i-lucide-panel-right-open" class="size-4 hidden group-hover:block scale-x-[-1]" />
-        </div>
-        <UButton
-          v-if="!isCollapsed"
-          color="neutral"
-          variant="ghost"
-          size="sm"
-          class="group flex h-9 w-9 cursor-pointer items-center justify-center rounded-full hover:bg-gray-200/60 dark:hover:bg-white/[0.06]"
-          style="-webkit-app-region: no-drag"
-          @click="toggleSidebar"
-        >
-          <UIcon name="i-lucide-panel-right" class="size-4 group-hover:hidden scale-x-[-1]" />
-          <UIcon name="i-lucide-panel-right-close" class="size-4 hidden group-hover:block scale-x-[-1]" />
-        </UButton>
+          <UIcon name="i-lucide-panel-right-open" class="size-4 hidden scale-x-[-1] group-hover:block" />
+        </SidebarCollapseButton>
       </div>
 
       <div class="space-y-1">
