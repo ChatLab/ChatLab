@@ -8,6 +8,8 @@ import type { ChartPayload, DatabaseAdapter, EvidenceTimeRangeMs } from '@opench
 import type {
   AIEntityRef,
   CrossChatContactLookupResult,
+  CrossChatContactSessionsRequest,
+  CrossChatContactSessionsResult,
   CrossChatEntityResolution,
   CrossChatMessageContextRequest,
   CrossChatMessageContextResult,
@@ -358,6 +360,10 @@ export interface ToolExecutionContext {
 export interface CrossChatAnalysisToolService {
   lookupContact(query: string): CrossChatContactLookupResult
   resolveEntities(refs: AIEntityRef[], options?: CrossChatOperationOptions): Promise<CrossChatEntityResolution>
+  inspectContactSessions(
+    request: CrossChatContactSessionsRequest,
+    options?: CrossChatOperationOptions
+  ): Promise<CrossChatContactSessionsResult>
   searchMessages(request: CrossChatSearchRequest, options?: CrossChatOperationOptions): Promise<CrossChatSearchResult>
   getMessageContext(request: CrossChatMessageContextRequest): CrossChatMessageContextResult
   getOverview(request: CrossChatOverviewRequest, options?: CrossChatOperationOptions): Promise<CrossChatOverviewResult>

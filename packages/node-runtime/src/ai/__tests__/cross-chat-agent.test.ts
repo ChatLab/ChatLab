@@ -10,6 +10,7 @@ describe('cross-chat agent prompt', () => {
     const prompt = buildCrossChatSystemPrompt('zh-CN')
     for (const tool of [
       'resolve_chat_entities',
+      'inspect_contact_sessions',
       'search_messages_globally',
       'get_cross_chat_message_context',
       'get_cross_chat_overview',
@@ -18,6 +19,8 @@ describe('cross-chat agent prompt', () => {
     }
     assert.match(prompt, /不构成永久锁定范围/)
     assert.match(prompt, /交集、并集/)
+    assert.match(prompt, /不要仅因为消息中出现了 @联系人就机械调用/)
+    assert.match(prompt, /roster_only/)
     assert.match(prompt, /唯一候选自动继续/)
     assert.match(prompt, /多个候选必须停下来请用户确认/)
     assert.match(prompt, /限定 scopes 时，可以不提供关键词/)

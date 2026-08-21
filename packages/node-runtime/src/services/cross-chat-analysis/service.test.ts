@@ -25,7 +25,7 @@ interface SeedSession {
   type: 'private' | 'group'
   ownerPlatformId?: string
   members: Array<{ id: number; platformId: string; name: string }>
-  messages: Array<{ id: number; senderId: number; ts: number; content: string }>
+  messages: Array<{ id: number; senderId: number; ts: number; content: string; replyToMessageId?: string }>
 }
 
 class TestEnvironment {
@@ -85,8 +85,17 @@ class TestEnvironment {
     }
     for (const message of session.messages) {
       db.prepare(
-        'INSERT INTO message (id, sender_id, ts, type, content, platform_message_id) VALUES (?, ?, ?, 0, ?, ?)'
-      ).run(message.id, message.senderId, message.ts, message.content, `${session.id}-${message.id}`)
+        `INSERT INTO message
+          (id, sender_id, ts, type, content, platform_message_id, reply_to_message_id)
+         VALUES (?, ?, ?, 0, ?, ?, ?)`
+      ).run(
+        message.id,
+        message.senderId,
+        message.ts,
+        message.content,
+        `${session.id}-${message.id}`,
+        message.replyToMessageId ?? null
+      )
     }
     db.close()
     this.dbPaths.set(session.id, dbPath)
@@ -402,6 +411,94 @@ test('entity resolution honors interruption between contact source sessions', as
     await assert.rejects(resolution, { name: 'AbortError' })
     assert.ok(openedSessions.length > 0)
     assert.ok(openedSessions.length < 2)
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('contact session inspection scans imported sessions and separates own messages from roster-only presence', async () => {
+  const { env, contactsService } = createFixture()
+  try {
+    env.seed({
+      id: 'group-roster',
+      name: 'Roster group',
+      type: 'group',
+      members: [
+        { id: 40, platformId: 'alice', name: 'Alice' },
+        { id: 41, platformId: 'bob', name: 'Bob' },
+      ],
+      messages: [{ id: 1, senderId: 41, ts: 400, content: 'Only Bob spoke' }],
+    })
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+    const result = await service.inspectContactSessions({ contactKey: 'test:alice' })
+
+    assert.equal(result.contact?.contactKey, 'test:alice')
+    assert.deepEqual(
+      result.sessions.map((session) => [
+        session.sessionId,
+        session.ownMessageCount,
+        session.sessionMessageCount,
+        session.presence,
+        session.lastOwnMessageTs,
+      ]),
+      [
+        ['group-roster', 0, 1, 'roster_only', null],
+        ['group-work', 2, 3, 'spoke', 320],
+        ['private-alice', 1, 2, 'spoke', 100],
+      ]
+    )
+    assert.deepEqual(result.summary, {
+      scope: 'complete_result',
+      matchedSessions: 3,
+      privateSessions: 1,
+      groupSessions: 2,
+      spokeSessions: 2,
+      rosterOnlySessions: 1,
+      ownMessageCount: 3,
+      firstOwnMessageTs: 100,
+      lastOwnMessageTs: 320,
+    })
+    assert.equal(result.coverage.candidateSessions, 4)
+    assert.equal(result.coverage.scannedSessions, 4)
+    assert.equal(result.coverage.complete, true)
+  } finally {
+    env.cleanup()
+  }
+})
+
+test('contact session inspection honors time ranges, session-scoped identity, and continuation cursors', async () => {
+  const { env, contactsService } = createFixture()
+  try {
+    const service = createCrossChatAnalysisService({ adapter: env.adapter, contactsService })
+    const scoped = await service.inspectContactSessions({
+      contactKey: 'test:group-other:alice-other',
+      startTs: 250,
+    })
+    assert.deepEqual(
+      scoped.sessions.map((session) => [session.sessionId, session.presence]),
+      [['group-other', 'roster_only']]
+    )
+
+    const first = await service.inspectContactSessions({ contactKey: 'test:alice', pageSize: 1 })
+    assert.deepEqual(
+      first.sessions.map((session) => session.sessionId),
+      ['group-work']
+    )
+    assert.equal(first.coverage.complete, false)
+    assert.ok(first.coverage.nextCursor)
+    assert.ok(first.coverage.truncatedReasons.includes('page_size'))
+
+    const second = await service.inspectContactSessions({
+      contactKey: 'test:alice',
+      pageSize: 1,
+      cursor: first.coverage.nextCursor ?? undefined,
+    })
+    assert.deepEqual(
+      second.sessions.map((session) => session.sessionId),
+      ['private-alice']
+    )
+    assert.equal(second.summary.scope, 'current_batch')
+    assert.equal(second.coverage.complete, true)
   } finally {
     env.cleanup()
   }

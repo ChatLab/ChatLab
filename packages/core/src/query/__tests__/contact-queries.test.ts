@@ -12,6 +12,7 @@ import {
   getGroupContactFacts,
   getGroupRelationshipGraphFacts,
   getNonSystemMembersForContacts,
+  getParticipantSessionFacts,
   getPrivateContactFacts,
   resolveContactMember,
   resolveOwnerMember,
@@ -244,6 +245,36 @@ describe('contact query helpers', () => {
       activeMonths: ['2024-01', '2024-02'],
       lastMessageTs: 1706781600,
     })
+  })
+
+  it('counts one participant messages separately from the whole conversation within a bounded range', () => {
+    const insert = raw.prepare(
+      'INSERT INTO message (id, sender_id, ts, type, content, platform_message_id) VALUES (?, ?, ?, ?, ?, ?)'
+    )
+    insert.run(1, 1, 1704067200, 0, 'owner day one', 'm1')
+    insert.run(2, 2, 1704067260, 0, 'alice day one', 'm2')
+    insert.run(3, 2, 1704153600, 0, 'alice day two', 'm3')
+    insert.run(4, 3, 1704153660, 0, 'bob day two', 'm4')
+    insert.run(5, 2, 1704240000, 0, 'alice outside range', 'm5')
+    insert.run(6, 99, 1704153720, SYSTEM_MESSAGE_TYPE, 'system', 'm6')
+
+    assert.deepEqual(
+      getParticipantSessionFacts(db, 2, {
+        startTs: 1704067200,
+        endTs: 1704159999,
+      }),
+      {
+        memberId: 2,
+        ownMessageCount: 2,
+        sessionMessageCount: 4,
+        firstOwnMessageTs: 1704067260,
+        lastOwnMessageTs: 1704153600,
+        activeDays: 2,
+        memberCount: 3,
+        sessionFirstMessageTs: 1704067200,
+        sessionLastMessageTs: 1704240000,
+      }
+    )
   })
 
   it('does not mark private LINE sessions ambiguous when they include localized system events', () => {

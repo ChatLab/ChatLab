@@ -18,6 +18,23 @@ export interface ContactFactsOptions {
   startTs?: number | null
 }
 
+export interface ParticipantSessionFactsOptions {
+  startTs?: number | null
+  endTs?: number | null
+}
+
+export interface ParticipantSessionFacts {
+  memberId: number
+  ownMessageCount: number
+  sessionMessageCount: number
+  firstOwnMessageTs: number | null
+  lastOwnMessageTs: number | null
+  activeDays: number
+  memberCount: number
+  sessionFirstMessageTs: number | null
+  sessionLastMessageTs: number | null
+}
+
 export type PrivateContactFacts =
   | {
       type: 'ok'
@@ -125,6 +142,61 @@ export function getLatestContactMessageTs(db: DatabaseAdapter): number | null {
     .get() as { ts: number | null } | undefined
 
   return row?.ts ?? null
+}
+
+/**
+ * Return exact activity facts for one member without assuming that the member is
+ * the owner or the private-chat counterpart.
+ */
+export function getParticipantSessionFacts(
+  db: DatabaseAdapter,
+  memberId: number,
+  options: ParticipantSessionFactsOptions = {}
+): ParticipantSessionFacts {
+  const timeFilter = createBoundedMessageTimeFilter('msg', options)
+  const row = db
+    .prepare(
+      `SELECT
+        COUNT(*) as sessionMessageCount,
+        COALESCE(SUM(CASE WHEN msg.sender_id = ? THEN 1 ELSE 0 END), 0) as ownMessageCount,
+        MIN(CASE WHEN msg.sender_id = ? THEN msg.ts END) as firstOwnMessageTs,
+        MAX(CASE WHEN msg.sender_id = ? THEN msg.ts END) as lastOwnMessageTs,
+        COUNT(DISTINCT CASE
+          WHEN msg.sender_id = ? THEN strftime('%Y-%m-%d', msg.ts, 'unixepoch', 'localtime')
+        END) as activeDays
+       FROM message msg
+       JOIN member m ON msg.sender_id = m.id
+       WHERE ${nonSystemMessageCondition(db, 'msg', 'm')}${timeFilter.sql}`
+    )
+    .get(memberId, memberId, memberId, memberId, ...timeFilter.params) as
+    | {
+        sessionMessageCount: number
+        ownMessageCount: number
+        firstOwnMessageTs: number | null
+        lastOwnMessageTs: number | null
+        activeDays: number
+      }
+    | undefined
+  const dataRange = db
+    .prepare(
+      `SELECT MIN(msg.ts) as firstMessageTs, MAX(msg.ts) as lastMessageTs
+       FROM message msg
+       JOIN member m ON msg.sender_id = m.id
+       WHERE ${nonSystemMessageCondition(db, 'msg', 'm')}`
+    )
+    .get() as { firstMessageTs: number | null; lastMessageTs: number | null } | undefined
+
+  return {
+    memberId,
+    ownMessageCount: row?.ownMessageCount ?? 0,
+    sessionMessageCount: row?.sessionMessageCount ?? 0,
+    firstOwnMessageTs: row?.firstOwnMessageTs ?? null,
+    lastOwnMessageTs: row?.lastOwnMessageTs ?? null,
+    activeDays: row?.activeDays ?? 0,
+    memberCount: getNonSystemMembersForContacts(db).length,
+    sessionFirstMessageTs: dataRange?.firstMessageTs ?? null,
+    sessionLastMessageTs: dataRange?.lastMessageTs ?? null,
+  }
 }
 
 export function getPrivateContactFacts(
@@ -449,6 +521,26 @@ function createMessageTimeFilter(
   startTs: number | null | undefined
 ): { sql: string; params: unknown[] } {
   return typeof startTs === 'number' ? { sql: ` AND ${alias}.ts >= ?`, params: [startTs] } : { sql: '', params: [] }
+}
+
+function createBoundedMessageTimeFilter(
+  alias: string,
+  options: ParticipantSessionFactsOptions
+): { sql: string; params: unknown[] } {
+  const clauses: string[] = []
+  const params: unknown[] = []
+  if (typeof options.startTs === 'number') {
+    clauses.push(`${alias}.ts >= ?`)
+    params.push(options.startTs)
+  }
+  if (typeof options.endTs === 'number') {
+    clauses.push(`${alias}.ts <= ?`)
+    params.push(options.endTs)
+  }
+  return {
+    sql: clauses.length > 0 ? ` AND ${clauses.join(' AND ')}` : '',
+    params,
+  }
 }
 
 function createReplyTimeFilter(startTs: number | null | undefined): { sql: string; params: unknown[] } {

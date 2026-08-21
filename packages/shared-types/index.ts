@@ -683,6 +683,177 @@ export interface CrossChatOverviewResult {
   }
 }
 
+export type CrossChatParticipantRef =
+  | { type: 'owner' }
+  | {
+      type: 'contact'
+      contactKey: string
+    }
+
+export interface CrossChatInspectionTimeRange {
+  startTs: number | null
+  endTs: number | null
+  dataEarliestMessageTs: number | null
+  dataLatestMessageTs: number | null
+}
+
+export type CrossChatInspectionTruncationReason = 'page_size' | 'time_budget' | 'message_budget' | 'tool_result_budget'
+
+export interface CrossChatInspectionCoverage {
+  candidateSessions: number
+  scannedSessions: number
+  matchedSessions: number
+  returnedSessions: number
+  failedSessions: number
+  failedSessionIds: string[]
+  complete: boolean
+  nextCursor: string | null
+  truncated: boolean
+  truncatedReasons: CrossChatInspectionTruncationReason[]
+}
+
+export interface CrossChatContactSessionsRequest {
+  contactKey: string
+  startTs?: number
+  endTs?: number
+  includeRosterOnly?: boolean
+  cursor?: string
+  pageSize?: number
+  maxWallTimeMs?: number
+}
+
+export interface CrossChatContactSessionItem extends CrossChatSessionDescriptor {
+  memberId: number
+  memberName: string
+  presence: 'spoke' | 'roster_only'
+  presenceObservedInRange: boolean
+  ownMessageCount: number
+  sessionMessageCount: number
+  messageShare: number | null
+  firstOwnMessageTs: number | null
+  lastOwnMessageTs: number | null
+  activeDays: number
+  memberCount: number | null
+  sessionFirstMessageTs: number | null
+}
+
+export interface CrossChatContactSessionsResult {
+  algorithmVersion: string
+  contact: {
+    contactKey: string
+    displayName: string
+    platform: ChatPlatform
+    sessionScoped: boolean
+  } | null
+  appliedRange: CrossChatInspectionTimeRange
+  summary: {
+    scope: 'current_batch' | 'complete_result'
+    matchedSessions: number
+    privateSessions: number
+    groupSessions: number
+    spokeSessions: number
+    rosterOnlySessions: number
+    ownMessageCount: number
+    firstOwnMessageTs: number | null
+    lastOwnMessageTs: number | null
+  }
+  sessions: CrossChatContactSessionItem[]
+  coverage: CrossChatInspectionCoverage & {
+    contactCacheStatus: ContactsCacheStatus
+  }
+}
+
+export interface CrossChatSharedInteractionsRequest {
+  participants: CrossChatParticipantRef[]
+  startTs?: number
+  endTs?: number
+  cursor?: string
+  pageSize?: number
+  maxAnchorsPerPair?: number
+  maxWallTimeMs?: number
+}
+
+export interface CrossChatInspectionParticipant {
+  index: number
+  ref: CrossChatParticipantRef
+  status: 'resolved' | 'unresolved'
+  displayName: string
+  platform?: ChatPlatform
+  cacheStatus?: ContactsCacheStatus
+}
+
+export interface CrossChatParticipantSessionStats {
+  participantIndex: number
+  memberId: number
+  memberName: string
+  messageCount: number
+  firstMessageTs: number | null
+  lastMessageTs: number | null
+  activeDays: number
+  presenceObservedInRange: boolean
+}
+
+export interface CrossChatMessageAnchor {
+  sessionId: string
+  messageId: number
+  relatedMessageId?: number
+  timestamp: number
+  signal: 'direct_reply' | 'proximity'
+  fromParticipantIndex: number
+  toParticipantIndex: number
+}
+
+export interface CrossChatParticipantPairFacts {
+  sourceParticipantIndex: number
+  targetParticipantIndex: number
+  directReplyCount: number
+  repliesFromSourceToTarget: number
+  repliesFromTargetToSource: number
+  lastDirectReplyTs: number | null
+  coOccurrenceCount: number | null
+  coOccurrenceRawScore: number | null
+  lastProximityTs: number | null
+  coActiveDays: number
+  anchors: CrossChatMessageAnchor[]
+}
+
+export interface CrossChatSharedInteractionSessionItem extends CrossChatSessionDescriptor {
+  memberCount: number | null
+  participants: CrossChatParticipantSessionStats[]
+  overlapRange: {
+    startTs: number
+    endTs: number
+  } | null
+  allParticipantsCoActiveDays: number
+  pairs: CrossChatParticipantPairFacts[]
+  priorityReasons: Array<'has_direct_reply' | 'has_proximity' | 'all_participants_spoke'>
+  proximityStatus: 'complete' | 'partial' | 'skipped_budget'
+}
+
+export interface CrossChatSharedInteractionsResult {
+  algorithmVersion: string
+  proximityAlgorithmVersion: string
+  participants: CrossChatInspectionParticipant[]
+  appliedRange: CrossChatInspectionTimeRange
+  summary: {
+    scope: 'current_batch' | 'complete_result'
+    commonSessions: number
+    commonPrivateSessions: number
+    commonGroupSessions: number
+    sessionsWithDirectReplies: number
+    sessionsWithProximitySignals: number
+  }
+  sessions: CrossChatSharedInteractionSessionItem[]
+  coverage: CrossChatInspectionCoverage & {
+    unresolvedParticipantIndexes: number[]
+    ownerResolution?: {
+      resolvedSessions: number
+      missingOwnerSessions: number
+      unresolvedOwnerSessions: number
+    }
+  }
+}
+
 export interface CrossChatEvidenceSource {
   sessionId: string
   sessionName: string

@@ -1,6 +1,7 @@
 import type {
   AIEntityRef,
   CrossChatContactLookupResult,
+  CrossChatContactSessionsResult,
   CrossChatEntityResolution,
   CrossChatEvidencePayload,
   CrossChatMessageSource,
@@ -101,6 +102,26 @@ const overviewSchema: JsonSchema = {
     max_wall_time_ms: { type: 'number', description: 'Maximum wall time for this analysis' },
   },
   required: ['scopes'],
+}
+
+const inspectContactSessionsSchema: JsonSchema = {
+  type: 'object',
+  properties: {
+    contact_key: {
+      type: 'string',
+      description: 'Stable contact key returned by resolve_chat_entities; display names are not accepted',
+    },
+    include_roster_only: {
+      type: 'boolean',
+      description: 'Include imported sessions where the member is recorded but did not speak in the selected range',
+      default: true,
+    },
+    cursor: { type: 'string', description: 'Opaque continuation cursor from the previous result' },
+    page_size: { type: 'number', description: 'Maximum matching sessions returned in this batch' },
+    max_wall_time_ms: { type: 'number', description: 'Maximum wall time for this inspection batch' },
+    ...timeParamProperties,
+  },
+  required: ['contact_key'],
 }
 
 async function resolveHandler(
@@ -253,6 +274,35 @@ async function overviewHandler(
   return { content: JSON.stringify(data), data }
 }
 
+async function inspectContactSessionsHandler(
+  params: Record<string, unknown>,
+  context: CrossChatToolExecutionContext
+): Promise<ToolResult> {
+  const timeFilter = parseExtendedTimeParams(params)
+  const result = await context.analysisService.inspectContactSessions(
+    {
+      contactKey: requireString(params.contact_key, 'contact_key'),
+      startTs: timeFilter?.startTs,
+      endTs: timeFilter?.endTs,
+      includeRosterOnly: params.include_roster_only === undefined ? true : requireBoolean(params.include_roster_only),
+      cursor: typeof params.cursor === 'string' && params.cursor.trim() ? params.cursor.trim() : undefined,
+      pageSize: parseOptionalNumber(params.page_size),
+      maxWallTimeMs: parseOptionalNumber(params.max_wall_time_ms),
+    },
+    {
+      signal: context.abortSignal,
+      onProgress: (progress) =>
+        context.reportProgress?.({
+          phase: 'analyzing',
+          current: progress.processedSessions,
+          total: progress.totalSessions,
+        }),
+    }
+  )
+  const data: CrossChatContactSessionsResult = result
+  return { content: JSON.stringify(data), data }
+}
+
 export const resolveChatEntitiesTool: ToolDefinition<CrossChatToolExecutionContext> = {
   name: 'resolve_chat_entities',
   description:
@@ -288,6 +338,15 @@ export const getCrossChatOverviewTool: ToolDefinition<CrossChatToolExecutionCont
     'Get separate message-count and time-range overviews for resolved contact/session scopes. This is a basic comparison tool, not arbitrary SQL or single-chat deep analytics.',
   inputSchema: overviewSchema,
   handler: overviewHandler,
+  category: 'core',
+}
+
+export const inspectContactSessionsTool: ToolDefinition<CrossChatToolExecutionContext> = {
+  name: 'inspect_contact_sessions',
+  description:
+    "Inspect one resolved contact across imported private and group sessions. Returns the contact's own message counts, first/last speech, active days, roster-only presence, dataset cutoff, and coverage. Use only for person source/activity questions after exact identity resolution; this tool does not infer relationship labels or return message text.",
+  inputSchema: inspectContactSessionsSchema,
+  handler: inspectContactSessionsHandler,
   category: 'core',
 }
 
@@ -664,6 +723,11 @@ function requireString(value: unknown, name: string): string {
 
 function requireNumber(value: unknown, name: string): number {
   if (typeof value !== 'number' || !Number.isFinite(value)) throw new Error(`${name} must be a number`)
+  return value
+}
+
+function requireBoolean(value: unknown): boolean {
+  if (typeof value !== 'boolean') throw new Error('include_roster_only must be a boolean')
   return value
 }
 
