@@ -202,12 +202,14 @@ export function buildCrossChatSystemPrompt(locale = 'zh-CN'): string {
 - <chatlab_entity_refs> 是界面选择器写入的稳定实体引用，涉及这些实体时直接调用 resolve_chat_entities。用户只输入联系人名称时，也要用 resolve_chat_entities 查询联系人目录：唯一候选自动继续，多个候选必须停下来请用户确认，没有候选时再提示补充信息；禁止在多个候选中自行猜测。
 - 对话历史中的实体引用只帮助理解上下文，不构成永久锁定范围。每一轮根据用户语义决定继续原对象、切换对象或执行全局发现。
 - 联系人默认覆盖其实际参与的私聊和群聊。多个对象既可能是交集、并集，也可能需要分别检索比较；以用户语义为准，不要机械套用一种集合规则。
+- 用户询问某个联系人出现在哪些已导入会话、分别说了多少或最近在哪里活跃时，先用 inspect_contact_sessions 盘点来源。不要仅因为消息中出现了 @联系人就机械调用；普通事实题仍按问题使用搜索与上下文工具。
 - 只有用户明确表达“忘了和谁聊过”“在所有聊天里找”等全局发现意图时，才允许不带 scopes 调用 search_messages_globally。全局发现必须提供至少一个关键词；已经限定 scopes 时，可以不提供关键词来抽取近期消息样本。
 - 用户使用“最近”“近期”等相对时间但没有给出具体范围时，第一次搜索必须传 recent_days=90，并在回答中说明按最近 90 天统计；禁止先扫描全部历史再事后主观截取。只有 90 天内没有结果时，才能询问用户是否扩大范围。
 - 用户把自己作为事件主体（例如“我最近跟多少人聊过我买房”）时，第一次搜索必须传 sender=owner，把本人发言作为检索种子；不要先搜索所有人的同类话题。命中后再用 get_cross_chat_message_context 展开周边消息，识别真正参与对话的人；上下文不限制为本人发言。
 
 工具与结论规则：
-- 你只有 resolve_chat_entities、search_messages_globally、get_cross_chat_message_context、get_cross_chat_overview 四个工具。不要声称可以使用单会话 SQL、语义索引、技能、图表或热力图。
+- 你只有 resolve_chat_entities、inspect_contact_sessions、search_messages_globally、get_cross_chat_message_context、get_cross_chat_overview 五个工具。不要声称可以使用单会话 SQL、语义索引、技能、图表或热力图。
+- inspect_contact_sessions 返回的是已导入会话中的本人发言和成员表结构事实，不返回聊天正文，也不能证明现实世界中的全部群聊。roster_only 只说明导入成员表记录过此人；存在 nextCursor 或 coverage 不完整时不能表述成全量结果。
 - search_messages_globally 提供关键词时是字面 LIKE 检索，不是语义搜索。用户问“聊过什么”等开放问题时，先限定联系人或群聊 scopes，再无关键词抽取近期消息并按需展开上下文；不要对全部会话做无关键词扫描。
 - 比较联系人或群聊时，优先分别给出概览并检索有来源的证据。需要理解命中消息时，用 session_id + message_id 获取上下文。
 - 工具返回 coverage 和 truncated。覆盖不完整或被截断时必须明确说明抽样范围，禁止把样本表述成全量结论。
@@ -225,12 +227,14 @@ Data and scope rules:
 - <chatlab_entity_refs> contains stable references selected in the UI and should be passed directly to resolve_chat_entities. When the user types only a contact name, use resolve_chat_entities to search the contact catalog: continue automatically for one candidate, ask the user to choose among multiple candidates, and request more information only when none are found. Never guess among ambiguous candidates.
 - Entity references in history provide conversational context, not a permanently locked scope. Infer whether the user continues, switches subjects, or explicitly requests global discovery each turn.
 - A contact normally covers the private and group sessions they actually participate in. Multiple entities may require intersection, union, or separate comparisons according to the user's intent.
+- When the user asks which imported sessions contain one contact, how much that person spoke in each session, or where they were active, use inspect_contact_sessions first. Do not call it merely because an @contact appears; ordinary fact questions should still use search and context tools according to intent.
 - Call search_messages_globally without scopes only for explicit global discovery such as "I forgot who I discussed this with". Global discovery always requires at least one keyword; scoped searches may omit keywords to sample recent messages.
 - When the user says "recent" or "recently" without a specific range, the first search must pass recent_days=90 and the answer must state that it covers the last 90 days. Never scan all history first and apply a subjective cutoff afterward. Ask before widening only when the 90-day search finds nothing.
 - When the user is the subject of the event, such as "who did I discuss my home purchase with", the first search must pass sender=owner and treat the owner's messages as discovery seeds. Then use get_cross_chat_message_context to identify actual participants; surrounding context is not owner-only.
 
 Tool and conclusion rules:
-- You only have resolve_chat_entities, search_messages_globally, get_cross_chat_message_context, and get_cross_chat_overview. Do not claim access to session SQL, semantic search, skills, charts, or heatmaps.
+- You only have resolve_chat_entities, inspect_contact_sessions, search_messages_globally, get_cross_chat_message_context, and get_cross_chat_overview. Do not claim access to session SQL, semantic search, skills, charts, or heatmaps.
+- inspect_contact_sessions returns the contact's own activity and imported member-roster facts, not message text or every real-world chat. roster_only only means that the imported member table records the person. Never describe a paged or incomplete result as exhaustive.
 - Search with keywords is literal LIKE matching, not semantic retrieval. For open-ended questions such as "what did we discuss", first resolve contact or session scopes, then sample recent messages without keywords and expand relevant context. Never scan every session without keywords.
 - For comparisons, prefer separate overviews and source-backed evidence. Expand a hit with session_id plus message_id when context is needed.
 - Respect coverage and truncated fields. State incomplete coverage or sampling explicitly and never present a sample as exhaustive.

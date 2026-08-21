@@ -1,4 +1,7 @@
+import { createHash } from 'node:crypto'
 import {
+  getNonSystemMembersForContacts,
+  getParticipantSessionFacts,
   getMembers,
   getRecentMessages,
   getSearchMessageContext as getCoreSearchMessageContext,
@@ -14,6 +17,8 @@ import {
   type AIEntityRef,
   type CrossChatContactCandidate,
   type CrossChatContactLookupResult,
+  type CrossChatContactSessionsRequest,
+  type CrossChatContactSessionsResult,
   type CrossChatEntityResolution,
   type CrossChatMessageContextRequest,
   type CrossChatMessageContextResult,
@@ -45,6 +50,9 @@ const DEFAULT_CONTEXT_SIZE = 10
 const MAX_CONTEXT_SIZE = 50
 const SECONDS_PER_DAY = 86400
 const MAX_RECENT_DAYS = 3650
+const CONTACT_SESSIONS_ALGORITHM_VERSION = 'contact-sessions-v1'
+const DEFAULT_INSPECTION_PAGE_SIZE = 50
+const MAX_INSPECTION_PAGE_SIZE = 100
 
 export interface CrossChatAnalysisServiceDeps {
   adapter: SessionRuntimeAdapter
@@ -55,6 +63,10 @@ export interface CrossChatAnalysisServiceDeps {
 export interface CrossChatAnalysisService {
   lookupContact(query: string): CrossChatContactLookupResult
   resolveEntities(refs: AIEntityRef[], options?: CrossChatOperationOptions): Promise<CrossChatEntityResolution>
+  inspectContactSessions(
+    request: CrossChatContactSessionsRequest,
+    options?: CrossChatOperationOptions
+  ): Promise<CrossChatContactSessionsResult>
   searchMessages(request: CrossChatSearchRequest, options?: CrossChatOperationOptions): Promise<CrossChatSearchResult>
   getMessageContext(request: CrossChatMessageContextRequest): CrossChatMessageContextResult
   getOverview(request: CrossChatOverviewRequest, options?: CrossChatOperationOptions): Promise<CrossChatOverviewResult>
@@ -240,6 +252,143 @@ class DefaultCrossChatAnalysisService implements CrossChatAnalysisService {
         candidateSessions: candidateSessionIds.size,
         resolvedSessions: resolvedSessionIds.size,
         failedSessions: failedSessionIds.size,
+      },
+    }
+  }
+
+  async inspectContactSessions(
+    request: CrossChatContactSessionsRequest,
+    options: CrossChatOperationOptions = {}
+  ): Promise<CrossChatContactSessionsResult> {
+    throwIfAborted(options.signal)
+    const contactKey = request.contactKey.trim()
+    if (!contactKey) throw new Error('contactKey is required')
+    const range = normalizeInspectionRange(request.startTs, request.endTs)
+    const includeRosterOnly = request.includeRosterOnly !== false
+    const pageSize = clampInteger(request.pageSize, DEFAULT_INSPECTION_PAGE_SIZE, 1, MAX_INSPECTION_PAGE_SIZE)
+    const maxWallTimeMs = clampInteger(request.maxWallTimeMs, DEFAULT_MAX_WALL_TIME_MS, 1, MAX_MAX_WALL_TIME_MS)
+    const detail = this.deps.contactsService.getContactDetail(contactKey, { acceptStale: true })
+    const contact = detail.contact
+    if (!contact) {
+      return emptyContactSessionsResult(detail.cache.status, range)
+    }
+
+    const candidateSessionIds = contact.sessionScoped
+      ? contact.sessionId
+        ? [contact.sessionId]
+        : []
+      : [...new Set(this.deps.adapter.listSessionIds())].sort((left, right) => left.localeCompare(right))
+    const cursorFingerprint = createInspectionFingerprint({
+      candidateSessionIds,
+      contactKey,
+      startTs: range.startTs,
+      endTs: range.endTs,
+      includeRosterOnly,
+    })
+    const cursor = parseInspectionCursor(request.cursor, cursorFingerprint, candidateSessionIds)
+    const startedAt = this.now()
+    const sessions: CrossChatContactSessionsResult['sessions'] = []
+    const failedSessionIds: string[] = []
+    const truncatedReasons = new Set<CrossChatContactSessionsResult['coverage']['truncatedReasons'][number]>()
+    let scannedSessions = 0
+    let nextCandidateIndex = cursor.nextCandidateIndex
+    let dataEarliestMessageTs: number | null = null
+    let dataLatestMessageTs: number | null = null
+
+    options.onProgress?.({ processedSessions: 0, totalSessions: candidateSessionIds.length })
+    while (nextCandidateIndex < candidateSessionIds.length && sessions.length < pageSize) {
+      throwIfAborted(options.signal)
+      if (this.now() - startedAt >= maxWallTimeMs) {
+        truncatedReasons.add('time_budget')
+        break
+      }
+      const sessionId = candidateSessionIds[nextCandidateIndex]
+      options.onProgress?.({
+        processedSessions: nextCandidateIndex,
+        totalSessions: candidateSessionIds.length,
+        currentSessionId: sessionId,
+      })
+      try {
+        const db = this.deps.adapter.openReadonly(sessionId)
+        if (!db) {
+          failedSessionIds.push(sessionId)
+        } else {
+          const descriptor = getSessionDescriptor(sessionId, db)
+          const meta = getSessionMeta(db)
+          if (descriptor && meta?.platform === contact.platform) {
+            const member = getNonSystemMembersForContacts(db).find((item) => item.platformId === contact.platformId)
+            if (member) {
+              const facts = getParticipantSessionFacts(db, member.id, range)
+              if (includeRosterOnly || facts.ownMessageCount > 0) {
+                sessions.push({
+                  ...descriptor,
+                  memberId: member.id,
+                  memberName: member.name,
+                  presence: facts.ownMessageCount > 0 ? 'spoke' : 'roster_only',
+                  presenceObservedInRange: facts.ownMessageCount > 0,
+                  ownMessageCount: facts.ownMessageCount,
+                  sessionMessageCount: facts.sessionMessageCount,
+                  messageShare:
+                    facts.sessionMessageCount > 0 ? facts.ownMessageCount / facts.sessionMessageCount : null,
+                  firstOwnMessageTs: facts.firstOwnMessageTs,
+                  lastOwnMessageTs: facts.lastOwnMessageTs,
+                  activeDays: facts.activeDays,
+                  memberCount: descriptor.sessionType === ChatType.GROUP ? facts.memberCount : null,
+                  sessionFirstMessageTs: facts.sessionFirstMessageTs,
+                  lastMessageTs: facts.sessionLastMessageTs,
+                })
+                dataEarliestMessageTs = minNullable(dataEarliestMessageTs, facts.sessionFirstMessageTs)
+                dataLatestMessageTs = maxNullable(dataLatestMessageTs, facts.sessionLastMessageTs)
+              }
+            }
+          }
+        }
+      } catch (error) {
+        failedSessionIds.push(sessionId)
+        appLogger.warn('cross-chat-analysis', `failed to inspect contact session: ${sessionId}`, error)
+      } finally {
+        scannedSessions++
+        nextCandidateIndex++
+      }
+      await yieldToEventLoop()
+    }
+
+    if (sessions.length >= pageSize && nextCandidateIndex < candidateSessionIds.length) {
+      truncatedReasons.add('page_size')
+    }
+    const complete = nextCandidateIndex >= candidateSessionIds.length
+    const nextCursor = complete
+      ? null
+      : createInspectionCursor(cursorFingerprint, candidateSessionIds[nextCandidateIndex - 1] ?? null)
+    options.onProgress?.({ processedSessions: nextCandidateIndex, totalSessions: candidateSessionIds.length })
+
+    return {
+      algorithmVersion: CONTACT_SESSIONS_ALGORITHM_VERSION,
+      contact: {
+        contactKey: contact.key,
+        displayName: contact.displayName,
+        platform: contact.platform,
+        sessionScoped: contact.sessionScoped,
+      },
+      appliedRange: {
+        ...range,
+        dataEarliestMessageTs,
+        dataLatestMessageTs,
+      },
+      summary: summarizeContactSessions(sessions, !request.cursor && complete),
+      sessions,
+      coverage: {
+        candidateSessions: candidateSessionIds.length,
+        scannedSessions,
+        matchedSessions: sessions.length,
+        returnedSessions: sessions.length,
+        failedSessions: failedSessionIds.length,
+        failedSessionIds,
+        complete,
+        nextCursor,
+        truncated: truncatedReasons.size > 0,
+        truncatedReasons: [...truncatedReasons],
+        contactCacheStatus: detail.cache.status,
       },
     }
   }
@@ -681,6 +830,143 @@ function buildOverviewItem(
 function clampInteger(value: number | undefined, fallback: number, min: number, max: number): number {
   if (!Number.isFinite(value)) return fallback
   return Math.min(max, Math.max(min, Math.floor(value as number)))
+}
+
+function normalizeInspectionRange(
+  startTs: number | undefined,
+  endTs: number | undefined
+): { startTs: number | null; endTs: number | null } {
+  const normalizedStart = normalizeOptionalTimestamp(startTs, 'startTs')
+  const normalizedEnd = normalizeOptionalTimestamp(endTs, 'endTs')
+  if (normalizedStart !== null && normalizedEnd !== null && normalizedStart > normalizedEnd) {
+    throw new Error('startTs must be less than or equal to endTs')
+  }
+  return { startTs: normalizedStart, endTs: normalizedEnd }
+}
+
+function normalizeOptionalTimestamp(value: number | undefined, name: string): number | null {
+  if (value === undefined) return null
+  if (!Number.isFinite(value)) throw new Error(`${name} must be a finite timestamp`)
+  return Math.floor(value)
+}
+
+function summarizeContactSessions(
+  sessions: CrossChatContactSessionsResult['sessions'],
+  completeResult: boolean
+): CrossChatContactSessionsResult['summary'] {
+  let ownMessageCount = 0
+  let firstOwnMessageTs: number | null = null
+  let lastOwnMessageTs: number | null = null
+  let privateSessions = 0
+  let groupSessions = 0
+  let spokeSessions = 0
+  let rosterOnlySessions = 0
+  for (const session of sessions) {
+    ownMessageCount += session.ownMessageCount
+    firstOwnMessageTs = minNullable(firstOwnMessageTs, session.firstOwnMessageTs)
+    lastOwnMessageTs = maxNullable(lastOwnMessageTs, session.lastOwnMessageTs)
+    if (session.sessionType === ChatType.PRIVATE) privateSessions++
+    else groupSessions++
+    if (session.presence === 'spoke') spokeSessions++
+    else rosterOnlySessions++
+  }
+  return {
+    scope: completeResult ? 'complete_result' : 'current_batch',
+    matchedSessions: sessions.length,
+    privateSessions,
+    groupSessions,
+    spokeSessions,
+    rosterOnlySessions,
+    ownMessageCount,
+    firstOwnMessageTs,
+    lastOwnMessageTs,
+  }
+}
+
+function emptyContactSessionsResult(
+  contactCacheStatus: CrossChatContactSessionsResult['coverage']['contactCacheStatus'],
+  range: { startTs: number | null; endTs: number | null }
+): CrossChatContactSessionsResult {
+  return {
+    algorithmVersion: CONTACT_SESSIONS_ALGORITHM_VERSION,
+    contact: null,
+    appliedRange: {
+      ...range,
+      dataEarliestMessageTs: null,
+      dataLatestMessageTs: null,
+    },
+    summary: {
+      scope: 'complete_result',
+      matchedSessions: 0,
+      privateSessions: 0,
+      groupSessions: 0,
+      spokeSessions: 0,
+      rosterOnlySessions: 0,
+      ownMessageCount: 0,
+      firstOwnMessageTs: null,
+      lastOwnMessageTs: null,
+    },
+    sessions: [],
+    coverage: {
+      candidateSessions: 0,
+      scannedSessions: 0,
+      matchedSessions: 0,
+      returnedSessions: 0,
+      failedSessions: 0,
+      failedSessionIds: [],
+      complete: true,
+      nextCursor: null,
+      truncated: false,
+      truncatedReasons: [],
+      contactCacheStatus,
+    },
+  }
+}
+
+function minNullable(left: number | null, right: number | null): number | null {
+  if (left === null) return right
+  if (right === null) return left
+  return Math.min(left, right)
+}
+
+function maxNullable(left: number | null, right: number | null): number | null {
+  if (left === null) return right
+  if (right === null) return left
+  return Math.max(left, right)
+}
+
+interface InspectionCursorPayload {
+  version: 1
+  fingerprint: string
+  afterSessionId: string | null
+}
+
+function createInspectionFingerprint(value: unknown): string {
+  return createHash('sha256').update(JSON.stringify(value)).digest('base64url')
+}
+
+function createInspectionCursor(fingerprint: string, afterSessionId: string | null): string {
+  const payload: InspectionCursorPayload = { version: 1, fingerprint, afterSessionId }
+  return Buffer.from(JSON.stringify(payload)).toString('base64url')
+}
+
+function parseInspectionCursor(
+  value: string | undefined,
+  fingerprint: string,
+  candidateSessionIds: string[]
+): { nextCandidateIndex: number } {
+  if (!value) return { nextCandidateIndex: 0 }
+  try {
+    const payload = JSON.parse(Buffer.from(value, 'base64url').toString('utf8')) as Partial<InspectionCursorPayload>
+    if (payload.version !== 1 || payload.fingerprint !== fingerprint) throw new Error('cursor mismatch')
+    if (payload.afterSessionId === null) return { nextCandidateIndex: 0 }
+    if (typeof payload.afterSessionId !== 'string') throw new Error('cursor session is missing')
+    const index = candidateSessionIds.indexOf(payload.afterSessionId)
+    if (index < 0) throw new Error('cursor session no longer exists')
+    return { nextCandidateIndex: index + 1 }
+  } catch {
+    throw new Error('cursor is invalid or does not match the current inspection request')
+  }
 }
 
 function throwIfAborted(signal?: AbortSignal): void {

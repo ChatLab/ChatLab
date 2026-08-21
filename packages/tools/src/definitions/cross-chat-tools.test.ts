@@ -3,6 +3,7 @@ import { describe, it } from 'node:test'
 import type {
   AIEntityRef,
   CrossChatContactLookupResult,
+  CrossChatContactSessionsResult,
   CrossChatEntityResolution,
   CrossChatMessageContextResult,
   CrossChatMessageSource,
@@ -54,6 +55,41 @@ function createContext(overrides: Partial<CrossChatAnalysisToolService> = {}): C
         candidateSessions: 0,
         resolvedSessions: 0,
         failedSessions: 0,
+      },
+    }),
+    inspectContactSessions: async (): Promise<CrossChatContactSessionsResult> => ({
+      algorithmVersion: 'test',
+      contact: null,
+      appliedRange: {
+        startTs: null,
+        endTs: null,
+        dataEarliestMessageTs: null,
+        dataLatestMessageTs: null,
+      },
+      summary: {
+        scope: 'complete_result',
+        matchedSessions: 0,
+        privateSessions: 0,
+        groupSessions: 0,
+        spokeSessions: 0,
+        rosterOnlySessions: 0,
+        ownMessageCount: 0,
+        firstOwnMessageTs: null,
+        lastOwnMessageTs: null,
+      },
+      sessions: [],
+      coverage: {
+        candidateSessions: 0,
+        scannedSessions: 0,
+        matchedSessions: 0,
+        returnedSessions: 0,
+        failedSessions: 0,
+        failedSessionIds: [],
+        complete: true,
+        nextCursor: null,
+        truncated: false,
+        truncatedReasons: [],
+        contactCacheStatus: 'fresh',
       },
     }),
     searchMessages: async (): Promise<CrossChatSearchResult> => ({
@@ -120,13 +156,14 @@ function createContext(overrides: Partial<CrossChatAnalysisToolService> = {}): C
 }
 
 describe('cross-chat agent registry', () => {
-  it('contains only the four dedicated tools and is isolated from session and MCP registries', () => {
+  it('contains only the five dedicated tools and is isolated from session and MCP registries', () => {
     const names = CROSS_CHAT_AGENT_TOOL_REGISTRY.map((tool) => tool.name)
     assert.deepEqual(names, [
       'resolve_chat_entities',
       'search_messages_globally',
       'get_cross_chat_message_context',
       'get_cross_chat_overview',
+      'inspect_contact_sessions',
     ])
     for (const name of names) {
       assert.equal(
@@ -138,6 +175,38 @@ describe('cross-chat agent registry', () => {
         false
       )
     }
+  })
+
+  it('requires a stable contact key and forwards contact-session inspection options', async () => {
+    let captured: Record<string, unknown> | undefined
+    const context = createContext({
+      inspectContactSessions: async (request) => {
+        captured = request as unknown as Record<string, unknown>
+        return createContext().analysisService.inspectContactSessions({ contactKey: 'unused' })
+      },
+    })
+    const tool = CROSS_CHAT_AGENT_TOOL_REGISTRY.find((item) => item.name === 'inspect_contact_sessions')
+    assert.ok(tool)
+
+    await tool.handler(
+      {
+        contact_key: 'test:alice',
+        include_roster_only: false,
+        page_size: 12,
+        max_wall_time_ms: 5000,
+      },
+      context
+    )
+    assert.deepEqual(captured, {
+      contactKey: 'test:alice',
+      startTs: undefined,
+      endTs: undefined,
+      includeRosterOnly: false,
+      cursor: undefined,
+      pageSize: 12,
+      maxWallTimeMs: 5000,
+    })
+    await assert.rejects(async () => tool.handler({ contact_key: '' }, context), /contact_key is required/)
   })
 
   it('resolves a unique contact name before continuing with stable scopes', async () => {

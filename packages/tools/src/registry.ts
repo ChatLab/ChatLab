@@ -33,6 +33,7 @@ import { retrieveChatEvidenceTool } from './definitions/retrieve-chat-evidence'
 import {
   getCrossChatMessageContextTool,
   getCrossChatOverviewTool,
+  inspectContactSessionsTool,
   resolveChatEntitiesTool,
   searchMessagesGloballyTool,
 } from './definitions/cross-chat-tools'
@@ -87,6 +88,7 @@ export const CROSS_CHAT_AGENT_TOOL_REGISTRY = [
   searchMessagesGloballyTool,
   getCrossChatMessageContextTool,
   getCrossChatOverviewTool,
+  inspectContactSessionsTool,
 ]
 
 /** 语义检索工具名（runner 动态过滤用） */
