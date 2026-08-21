@@ -258,6 +258,42 @@
         "keyword_unavailable": "Keyword search unavailable",
         "semantic_partial": "Semantic results may be incomplete"
       }
+    },
+    "crossChatEvidence": {
+      "title": "Cross-chat evidence",
+      "query": "Query",
+      "summary": "{sources} sources · {sessions} chats",
+      "sourceCount": "{count} sources",
+      "coverage": "Searched {scanned}/{candidates} candidate chats",
+      "partial": "Results truncated",
+      "empty": "No source messages to display"
+    }
+  },
+  "global": {
+    "title": "AI Analysis",
+    "subtitle": "Query local chats across contacts and groups",
+    "empty": {
+      "title": "Start with a relationship",
+      "description": "Select contacts or groups before asking, or search globally for a topic when you no longer remember who you discussed it with. Only the local data needed for this question is read."
+    },
+    "input": {
+      "placeholder": "Ask a question, optionally selecting contacts or groups first..."
+    },
+    "entityPicker": {
+      "title": "Select contacts or groups",
+      "add": "Select scope",
+      "contacts": "Contacts",
+      "groups": "Groups",
+      "search": "Search names",
+      "loadFailed": "Failed to load contacts",
+      "contactsPreparing": "The contact index is being prepared. Try again later or select a group first.",
+      "empty": "No matching results"
+    },
+    "toast": {
+      "loadFailed": "Failed to load AI conversations",
+      "renameFailed": "Failed to rename conversation",
+      "deleteFailed": "Failed to delete conversation",
+      "busy": "Another AI analysis is already running"
     }
   },
   "sqlLab": {
@@ -426,7 +462,11 @@
       "response_time_analysis": "Response time analysis",
       "keyword_frequency": "Keyword frequency",
       "render_chart": "Generate dynamic chart",
-      "semantic_search_current_chat": "Search chat history"
+      "semantic_search_current_chat": "Search chat history",
+      "resolve_chat_entities": "Resolve contacts and groups",
+      "search_messages_globally": "Search across chats",
+      "get_cross_chat_message_context": "Get cross-chat message context",
+      "get_cross_chat_overview": "Get cross-chat overview"
     }
   },
   "skill": {

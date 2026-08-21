@@ -20,7 +20,11 @@ import { useAgentStreamService } from '@/services/ai-stream/service'
 import { buildSerializablePreprocessConfig, shouldEnsureDesensitizeRulesBeforeSerialize } from './aiPreprocessConfig'
 import type { ChartPayload, ChatEvidencePayload } from '@openchatlab/core'
 import { extractToolResultText, truncateToolResultText } from '@openchatlab/core'
-import { getDefaultGeneralAssistantId } from '@openchatlab/shared-types'
+import {
+  getDefaultGeneralAssistantId,
+  type AIEntityRef,
+  type CrossChatEvidencePayload,
+} from '@openchatlab/shared-types'
 import {
   createRenderOnlyToolPendingBlock,
   extractChartPayloads,
@@ -30,6 +34,7 @@ import {
   toRenderOnlyToolErrorBlock,
 } from './aiChatChartBlocks'
 import { extractEvidencePayload, toEvidenceContentBlock } from './aiChatEvidenceBlocks'
+import { extractCrossChatEvidencePayload, toCrossChatEvidenceContentBlock } from './aiChatCrossChatEvidenceBlocks'
 import {
   appendPlanDraftDelta,
   removePlanDraftBlocks,
@@ -90,6 +95,7 @@ export type ContentBlock =
   | { type: 'think'; tag: string; text: string; durationMs?: number }
   | { type: 'chart'; chart: ChartPayload }
   | { type: 'evidence'; evidence: ChatEvidencePayload }
+  | { type: 'cross_chat_evidence'; evidence: CrossChatEvidencePayload }
   | PlanContentBlock
   | PlanDraftContentBlock
   | {
@@ -122,6 +128,7 @@ export interface ChatMessage {
   isStreaming?: boolean
   /** Runtime wall-clock duration from request start until the final response begins. */
   processDurationMs?: number
+  entityRefs?: AIEntityRef[]
 }
 
 // 搜索结果消息类型（保留用于数据源面板）
@@ -149,6 +156,7 @@ interface AIChatBuffer {
 }
 
 export interface AIChatSessionState {
+  kind: 'session' | 'global'
   sessionId: string
   sessionName: string
   chatType: 'group' | 'private'
@@ -175,6 +183,7 @@ export interface AIChatSessionState {
 
 export interface AIBackgroundTask {
   requestId: string
+  kind: 'session' | 'global'
   chatKey: string
   sessionId: string
   sessionName: string
@@ -185,6 +194,7 @@ export interface AIBackgroundTask {
 }
 
 export interface EnsureAIChatSessionParams {
+  kind?: 'session' | 'global'
   sessionId: string
   sessionName: string
   chatType: 'group' | 'private'
@@ -206,10 +216,12 @@ function buildTimeFilterKey(timeFilter?: { startTs: number; endTs: number }): st
 }
 
 export function buildAIChatKey(params: {
+  kind?: 'session' | 'global'
   sessionId: string
   chatType: 'group' | 'private'
   timeFilter?: { startTs: number; endTs: number }
 }): string {
+  if (params.kind === 'global') return 'global'
   return `${params.sessionId}:${params.chatType}:${buildTimeFilterKey(params.timeFilter)}`
 }
 
@@ -260,6 +272,7 @@ function toRuntimeMessage(msg: PersistedAIMessage): ChatMessage {
     parentId: msg.parentId,
     contentBlocks,
     processDurationMs: getPersistedProcessDurationMs(contentBlocks),
+    entityRefs: msg.entityRefs,
   }
 }
 
@@ -276,6 +289,7 @@ function createAIChatBuffer(assistantId: string | null = null): AIChatBuffer {
 function createSessionState(params: EnsureAIChatSessionParams): AIChatSessionState {
   const draftBuffer = createAIChatBuffer(null)
   return {
+    kind: params.kind ?? 'session',
     sessionId: params.sessionId,
     sessionName: params.sessionName,
     chatType: params.chatType,
@@ -346,6 +360,16 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     return { chatKey, state: reactiveState }
   }
 
+  function ensureGlobalState(locale: string): { chatKey: string; state: AIChatSessionState } {
+    return ensureSessionState({
+      kind: 'global',
+      sessionId: '',
+      sessionName: 'Global AI analysis',
+      chatType: 'group',
+      locale,
+    })
+  }
+
   function getSessionState(chatKey: string): AIChatSessionState | null {
     return sessionStates.value[chatKey] ?? null
   }
@@ -413,7 +437,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
   async function ensureOwnerInfo(chatKey: string): Promise<void> {
     const state = getSessionState(chatKey)
-    if (!state) return
+    if (!state || state.kind === 'global') return
 
     const session = sessionStore.sessions.find((item) => item.id === state.sessionId)
     const ownerId = session?.ownerId
@@ -459,6 +483,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
     activeTask.value = {
       requestId,
+      kind: state.kind,
       chatKey,
       sessionId: state.sessionId,
       sessionName: state.sessionName,
@@ -528,7 +553,9 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
     try {
       const conversation = await useAIService().getAIChat(aiChatId)
-      if (!conversation || conversation.sessionId !== state.sessionId) return false
+      const belongsToState =
+        conversation?.kind === state.kind && (state.kind === 'global' || conversation.sessionId === state.sessionId)
+      if (!conversation || !belongsToState) return false
 
       const buffer = getOrCreateBuffer(state, aiChatId, conversation.assistantId)
 
@@ -644,6 +671,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     appendThinkToBlocks: (text: string, tag?: string, durationMs?: number) => void
     appendChartsToBlocks: (charts: ChartPayload[]) => void
     appendEvidenceToBlocks: (evidence: ChatEvidencePayload) => void
+    appendCrossChatEvidenceToBlocks: (evidence: CrossChatEvidencePayload) => void
     appendPlanDraftToBlocks: (delta: string) => void
     appendPlanToBlocks: (plan: PlanContentBlock) => void
     removePlanDraftsFromBlocks: () => void
@@ -784,6 +812,14 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       updateAIMessage({ contentBlocks: [...blocks] })
     }
 
+    const appendCrossChatEvidenceToBlocks = (evidence: CrossChatEvidencePayload) => {
+      flushPendingText()
+      const idx = getAiMessageIndex()
+      const blocks = targetBuffer.messages[idx].contentBlocks || []
+      blocks.push(toCrossChatEvidenceContentBlock(evidence))
+      updateAIMessage({ contentBlocks: [...blocks] })
+    }
+
     const appendPlanDraftToBlocks = (delta: string) => {
       if (!delta) return
       flushPendingText()
@@ -909,6 +945,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       appendThinkToBlocks,
       appendChartsToBlocks,
       appendEvidenceToBlocks,
+      appendCrossChatEvidenceToBlocks,
       appendPlanDraftToBlocks,
       appendPlanToBlocks,
       removePlanDraftsFromBlocks,
@@ -928,7 +965,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
   async function sendMessage(
     chatKey: string,
     content: string,
-    options?: { mentionedMembers?: MentionedMemberContext[] }
+    options?: { mentionedMembers?: MentionedMemberContext[]; entityRefs?: AIEntityRef[] }
   ): Promise<SendMessageResult> {
     const state = getSessionState(chatKey)
     if (!state) {
@@ -956,10 +993,10 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
 
     setActiveTaskMeta(chatKey, content, thisRequestId, resolvedAIChatId)
     applySessionAssistantSelection(chatKey)
-    void ensureOwnerInfo(chatKey)
+    if (state.kind === 'session') void ensureOwnerInfo(chatKey)
 
-    const currentSkillId = skillStore.activeSkillId
-    const currentSkillName = skillStore.activeSkill?.name
+    const currentSkillId = state.kind === 'session' ? skillStore.activeSkillId : null
+    const currentSkillName = state.kind === 'session' ? skillStore.activeSkill?.name : null
     const autoSkillEnabled = aiGlobalSettings.value.enableAutoSkill ?? true
     const chartAutoMode = autoSkillEnabled ? (aiGlobalSettings.value.chartAutoMode ?? 'suggest') : 'explicit'
     const currentMentionedMembers = (options?.mentionedMembers ?? []).map((member) => ({
@@ -969,6 +1006,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       aliases: [...member.aliases],
       mentionText: member.mentionText,
     }))
+    const currentEntityRefs = (options?.entityRefs ?? []).map((ref) => ({ ...ref }))
 
     state.isAIThinking = true
     state.isLoadingSource = true
@@ -1008,6 +1046,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         content,
         timestamp: Date.now(),
         toolCalls: [],
+        entityRefs: currentEntityRefs,
       }
       currentUserMessage = userMessage
       targetBuffer.messages.push(userMessage)
@@ -1038,6 +1077,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         appendThinkToBlocks,
         appendChartsToBlocks,
         appendEvidenceToBlocks,
+        appendCrossChatEvidenceToBlocks,
         appendPlanDraftToBlocks,
         appendPlanToBlocks,
         removePlanDraftsFromBlocks,
@@ -1056,7 +1096,10 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       const currentAssistantId = targetBuffer.assistantId ?? getDefaultGeneralAssistantId(state.locale)
       if (!resolvedAIChatId) {
         const title = content.slice(0, 50) + (content.length > 50 ? '...' : '')
-        const conversation = await useAIService().createAIChat(state.sessionId, title, currentAssistantId)
+        const conversation =
+          state.kind === 'global'
+            ? await useAIService().createGlobalAIChat(title, currentAssistantId)
+            : await useAIService().createAIChat(state.sessionId, title, currentAssistantId)
         if (state.isAborted) {
           settleProcessDuration()
           updateAIMessage({ isStreaming: false })
@@ -1094,19 +1137,21 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
       const { requestId: agentReqId, promise: agentPromise } = useAgentStreamService().runStream(
         {
           userMessage: content,
-          sessionId: state.sessionId,
+          chatKind: state.kind,
+          sessionId: state.kind === 'session' ? state.sessionId : undefined,
+          entityRefs: state.kind === 'global' && currentEntityRefs.length > 0 ? currentEntityRefs : undefined,
           aiChatId: resolvedAIChatId,
           timeFilter: context.timeFilter,
           maxMessagesLimit: context.maxMessagesLimit,
-          ownerInfo: context.ownerInfo,
-          mentionedMembers: context.mentionedMembers,
+          ownerInfo: state.kind === 'session' ? context.ownerInfo : undefined,
+          mentionedMembers: state.kind === 'session' ? context.mentionedMembers : undefined,
           preprocessConfig: context.preprocessConfig,
           chatType: state.chatType,
           locale: state.locale,
           assistantId: currentAssistantId,
-          skillId: currentSkillId,
-          enableAutoSkill: !currentSkillId ? autoSkillEnabled : undefined,
-          chartAutoMode: !currentSkillId ? chartAutoMode : undefined,
+          skillId: state.kind === 'session' ? currentSkillId : undefined,
+          enableAutoSkill: state.kind === 'session' && !currentSkillId ? autoSkillEnabled : undefined,
+          chartAutoMode: state.kind === 'session' && !currentSkillId ? chartAutoMode : undefined,
           thinkingLevel: (() => {
             const cfg = llmStore.defaultAssistant
             if (!cfg?.configId || !cfg?.modelId) return undefined
@@ -1173,6 +1218,10 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
                 const evidence = extractEvidencePayload(chunk.toolResult)
                 if (evidence) {
                   appendEvidenceToBlocks(evidence)
+                }
+                const crossChatEvidence = extractCrossChatEvidencePayload(chunk.toolResult)
+                if (crossChatEvidence) {
+                  appendCrossChatEvidenceToBlocks(crossChatEvidence)
                 }
                 if (renderOnlyError) {
                   if (!isRenderOnlyTool(chunk.toolName)) {
@@ -1426,7 +1475,16 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
         return null
       }
 
-      const savedUserMessage = await useAIService().addMessage(aiChatId, 'user', userMsg.content)
+      const savedUserMessage = await useAIService().addMessage(
+        aiChatId,
+        'user',
+        userMsg.content,
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        userMsg.entityRefs
+      )
       const serializableContentBlocks = toSerializableContentBlocks(aiMsg.contentBlocks)
       const savedAssistantMessage = await useAIService().addMessage(
         aiChatId,
@@ -2014,6 +2072,7 @@ export const useAIChatStore = defineStore('aiChatRuntime', () => {
     sessionStates,
     activeTask,
     ensureSessionState,
+    ensureGlobalState,
     getSessionState,
     getActiveTaskState,
     applySessionAssistantSelection,

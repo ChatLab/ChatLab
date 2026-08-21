@@ -9,7 +9,11 @@ import Database from 'better-sqlite3'
 import * as fs from 'fs'
 import * as path from 'path'
 import type { ChartPayload, ChatEvidencePayload } from '@openchatlab/core'
-import { DEFAULT_GENERAL_ASSISTANT_ID, type AIEntityRef } from '@openchatlab/shared-types'
+import {
+  DEFAULT_GENERAL_ASSISTANT_ID,
+  type AIEntityRef,
+  type CrossChatEvidencePayload,
+} from '@openchatlab/shared-types'
 import type { PlanContentBlock, PlanDraftContentBlock } from './agent'
 
 const DEFAULT_GENERAL_ID = DEFAULT_GENERAL_ASSISTANT_ID
@@ -36,6 +40,7 @@ export type ContentBlock =
   | { type: 'think'; tag: string; text: string; durationMs?: number }
   | { type: 'chart'; chart: ChartPayload }
   | { type: 'evidence'; evidence: ChatEvidencePayload }
+  | { type: 'cross_chat_evidence'; evidence: CrossChatEvidencePayload }
   | PlanContentBlock
   | PlanDraftContentBlock
   | {

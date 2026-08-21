@@ -258,6 +258,42 @@
         "keyword_unavailable": "关键词检索不可用",
         "semantic_partial": "语义检索结果可能不完整"
       }
+    },
+    "crossChatEvidence": {
+      "title": "跨对话证据",
+      "query": "检索词",
+      "summary": "{sources} 条 · {sessions} 个对话",
+      "sourceCount": "{count} 条",
+      "coverage": "已检索 {scanned}/{candidates} 个候选对话",
+      "partial": "结果已截断",
+      "empty": "未找到可展示的来源消息"
+    }
+  },
+  "global": {
+    "title": "AI 分析",
+    "subtitle": "跨联系人和群聊查询本地聊天记录",
+    "empty": {
+      "title": "从一段关系开始分析",
+      "description": "选择联系人或群聊后提问，也可以直接搜索你忘记和谁聊过的话题。只会按当前问题读取必要的本地数据。"
+    },
+    "input": {
+      "placeholder": "输入问题，可先选择联系人或群聊..."
+    },
+    "entityPicker": {
+      "title": "选择联系人或群聊",
+      "add": "选择对象",
+      "contacts": "联系人",
+      "groups": "群聊",
+      "search": "搜索名称",
+      "loadFailed": "联系人加载失败",
+      "contactsPreparing": "联系人索引正在准备，可稍后重试或先选择群聊",
+      "empty": "没有匹配的结果"
+    },
+    "toast": {
+      "loadFailed": "加载 AI 对话失败",
+      "renameFailed": "重命名失败",
+      "deleteFailed": "删除失败",
+      "busy": "已有 AI 分析正在进行"
     }
   },
   "sqlLab": {
@@ -426,7 +462,11 @@
       "response_time_analysis": "响应时间分析",
       "keyword_frequency": "高频词统计",
       "render_chart": "生成动态图表",
-      "semantic_search_current_chat": "检索聊天历史"
+      "semantic_search_current_chat": "检索聊天历史",
+      "resolve_chat_entities": "解析联系人和群聊",
+      "search_messages_globally": "跨对话搜索消息",
+      "get_cross_chat_message_context": "获取跨对话消息上下文",
+      "get_cross_chat_overview": "获取跨对话概览"
     }
   },
   "skill": {

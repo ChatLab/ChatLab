@@ -258,6 +258,42 @@
         "keyword_unavailable": "關鍵字檢索不可用",
         "semantic_partial": "語意檢索結果可能不完整"
       }
+    },
+    "crossChatEvidence": {
+      "title": "跨對話證據",
+      "query": "搜尋詞",
+      "summary": "{sources} 條 · {sessions} 個對話",
+      "sourceCount": "{count} 條",
+      "coverage": "已搜尋 {scanned}/{candidates} 個候選對話",
+      "partial": "結果已截斷",
+      "empty": "找不到可顯示的來源訊息"
+    }
+  },
+  "global": {
+    "title": "AI 分析",
+    "subtitle": "跨聯絡人與群聊查詢本機聊天記錄",
+    "empty": {
+      "title": "從一段關係開始分析",
+      "description": "選擇聯絡人或群聊後提問，也可以直接搜尋你忘記和誰聊過的話題。只會按目前問題讀取必要的本機資料。"
+    },
+    "input": {
+      "placeholder": "輸入問題，可先選擇聯絡人或群聊..."
+    },
+    "entityPicker": {
+      "title": "選擇聯絡人或群聊",
+      "add": "選擇對象",
+      "contacts": "聯絡人",
+      "groups": "群聊",
+      "search": "搜尋名稱",
+      "loadFailed": "聯絡人載入失敗",
+      "contactsPreparing": "聯絡人索引正在準備，可稍後重試或先選擇群聊",
+      "empty": "沒有符合的結果"
+    },
+    "toast": {
+      "loadFailed": "載入 AI 對話失敗",
+      "renameFailed": "重新命名失敗",
+      "deleteFailed": "刪除失敗",
+      "busy": "已有 AI 分析正在進行"
     }
   },
   "sqlLab": {
@@ -426,7 +462,11 @@
       "response_time_analysis": "回應時間分析",
       "keyword_frequency": "高頻詞統計",
       "render_chart": "生成動態圖表",
-      "semantic_search_current_chat": "檢索聊天歷史"
+      "semantic_search_current_chat": "檢索聊天歷史",
+      "resolve_chat_entities": "解析聯絡人和群聊",
+      "search_messages_globally": "跨對話搜尋訊息",
+      "get_cross_chat_message_context": "取得跨對話訊息上下文",
+      "get_cross_chat_overview": "取得跨對話概覽"
     }
   },
   "skill": {
