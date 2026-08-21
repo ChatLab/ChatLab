@@ -212,6 +212,7 @@ export function searchMessagesByKeywords(
     startTs?: number
     endTs?: number
     senderId?: number
+    senderIds?: number[]
     limit?: number
     offset?: number
     /** Keyword join mode: 'any' (OR, default) or 'all' (AND). */
@@ -231,6 +232,7 @@ export function searchMessagesByKeywords(
     startTs: options?.startTs,
     endTs: options?.endTs,
     senderId: options?.senderId,
+    senderIds: options?.senderIds,
     keywords: cleaned.length > 0 ? cleaned : undefined,
     matchMode: options?.matchMode,
     excludeKeywords: options?.excludeKeywords,

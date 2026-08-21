@@ -454,6 +454,7 @@ export {
   type ImportDemoSessionsOptions,
 } from './services/demo-import'
 export * as contactsService from './services/contacts'
+export * as crossChatAnalysisService from './services/cross-chat-analysis'
 export * as peopleRelationshipsService from './services/people/relationships'
 export * as globalInsightService from './services/global-insight'
 // Semantic index (Phase 1 vector search) — independent of legacy ai/rag
@@ -493,6 +494,7 @@ export {
   TIME_INVESTMENT_ALGORITHM_VERSION,
   MergeSessionCache,
   createContactsService,
+  createCrossChatAnalysisService,
   createPeopleRelationshipsService,
   createGlobalInsightService,
   assertValidTopicDayKey,
@@ -526,6 +528,26 @@ export type {
   ContactsService,
   ContactsServiceDeps,
   ContactsServiceOptions,
+  CrossChatAnalysisService,
+  CrossChatAnalysisServiceDeps,
+  CrossChatEntityResolution,
+  CrossChatMessageContextRequest,
+  CrossChatMessageContextResult,
+  CrossChatMessageSource,
+  CrossChatOperationOptions,
+  CrossChatOverviewItem,
+  CrossChatOverviewRequest,
+  CrossChatOverviewResult,
+  CrossChatResolvedContact,
+  CrossChatResolvedContactSession,
+  CrossChatResolvedSession,
+  CrossChatSearchProgress,
+  CrossChatSearchRequest,
+  CrossChatSearchResult,
+  CrossChatSearchScope,
+  CrossChatSessionDescriptor,
+  CrossChatTruncationReason,
+  CrossChatUnresolvedEntity,
   PeopleRelationshipsService,
   PeopleRelationshipsServiceDeps,
   PeopleRelationshipsServiceOptions,

@@ -177,6 +177,18 @@ describe('search extensions (in-memory SQLite)', () => {
       [7, 6]
     )
   })
+
+  it('filters multiple senders in one query', () => {
+    raw.prepare("INSERT INTO member (id, platform_id, account_name) VALUES (3, 'u3', 'Carol')").run()
+    raw
+      .prepare('INSERT INTO message (id, sender_id, ts, type, content) VALUES (?, ?, ?, ?, ?)')
+      .run(6, 3, 6000, 0, 'unselected sender')
+    const result = searchMessagesByKeywords(db, [], { senderIds: [1, 2], sort: 'asc' })
+    assert.deepEqual(
+      result.messages.map((message) => message.id),
+      [1, 2, 3, 4, 5]
+    )
+  })
 })
 
 describe('getConversationBetween pagination and blacklist (in-memory SQLite)', () => {
