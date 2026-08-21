@@ -4,7 +4,7 @@ import { mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { AIChatManager } from '../../chats'
-import type { ContentBlock } from '../../chats'
+import type { AIEntityRef, ContentBlock } from '../../chats'
 import { checkAndCompress } from '../compressor'
 import type { CompressionConfig, CompressionLlmAdapter } from '../types'
 
@@ -150,6 +150,41 @@ describe('checkAndCompress tool result token accounting', () => {
       assert.ok(captured.prompt!.includes('[PREVIOUS SUMMARY'))
       assert.ok(captured.prompt!.includes('old summary of earlier topics'))
       assert.ok(captured.prompt!.includes('TOOL_DATA_GAMMA'))
+    } finally {
+      manager.close()
+      cleanup(dir)
+    }
+  })
+
+  it('retains stable entity references outside the generated summary text', async () => {
+    const dir = createTempDir()
+    const manager = createManager(dir)
+    const refs: AIEntityRef[] = [
+      { type: 'contact', contactKey: 'qq:10001', displayName: 'Alice' },
+      { type: 'session', sessionId: 'group-1', displayName: 'Project Group', sessionType: 'group' },
+    ]
+    try {
+      const chat = manager.createGlobalAIChat('Global', 'general_cn')
+      manager.addMessage(chat.id, 'user', 'compare Alice', undefined, undefined, undefined, undefined, [refs[0]!])
+      manager.addMessage(chat.id, 'assistant', 'first result', undefined, undefined, [
+        toolBlock('query_a', bigToolResult('ENTITY_DATA_ALPHA')),
+      ])
+      manager.addMessage(chat.id, 'user', 'include the project group', undefined, undefined, undefined, undefined, [
+        refs[1]!,
+      ])
+      manager.addMessage(chat.id, 'assistant', 'second result', undefined, undefined, [
+        toolBlock('query_b', bigToolResult('ENTITY_DATA_BETA')),
+      ])
+      manager.addMessage(chat.id, 'user', 'continue')
+      manager.addMessage(chat.id, 'assistant', 'done')
+
+      const captured: { prompt: string | null } = { prompt: null }
+      const result = await checkAndCompress(chat.id, CONFIG, 'system', createAdapter(captured), manager)
+
+      assert.equal(result.compressed, true)
+      assert.deepEqual(manager.getLatestSummary(chat.id)?.entityRefs, refs)
+      assert.deepEqual(manager.getHistoryForAgent(chat.id)[0]?.entityRefs, refs)
+      assert.ok(captured.prompt!.includes('<chatlab_entity_refs>'))
     } finally {
       manager.close()
       cleanup(dir)

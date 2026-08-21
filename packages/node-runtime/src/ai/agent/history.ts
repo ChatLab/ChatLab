@@ -17,7 +17,7 @@ import type { Message as PiMessage, AssistantMessage, Usage as PiUsage } from '@
 import { truncateToolResultText } from '@openchatlab/core'
 
 import type { SimpleHistoryMessage } from './types'
-import type { ContentBlock } from '../chats'
+import type { AIEntityRef, ContentBlock } from '../chats'
 
 type ToolBlock = Extract<ContentBlock, { type: 'tool' }>
 export type ReplayableToolBlock = ToolBlock & { tool: ToolBlock['tool'] & { toolCallId: string; result: string } }
@@ -42,6 +42,11 @@ export interface ReplayOptions {
    * pi-ai ThinkingContent blocks with this signature.
    */
   thinkingSignature?: string
+}
+
+export function appendEntityRefsForModel(text: string, entityRefs?: AIEntityRef[]): string {
+  if (!entityRefs?.length) return text
+  return `${text}\n\n<chatlab_entity_refs>${JSON.stringify(entityRefs)}</chatlab_entity_refs>`
 }
 
 function createEmptyPiUsage(): PiUsage {
@@ -137,7 +142,7 @@ export function toPiHistoryMessages(messages: SimpleHistoryMessage[], options?: 
     if (msg.role === 'user') {
       out.push({
         role: 'user',
-        content: [{ type: 'text', text: msg.content || '' }],
+        content: [{ type: 'text', text: appendEntityRefsForModel(msg.content || '', msg.entityRefs) }],
         timestamp: Date.now(),
       })
       continue
@@ -148,7 +153,13 @@ export function toPiHistoryMessages(messages: SimpleHistoryMessage[], options?: 
     if (replayable) {
       replayAssistantBlocks(msg.contentBlocks!, out, options)
     } else {
-      out.push(makeAssistantMessage([{ type: 'text', text: msg.content || '' }], 'stop', options?.modelInfo))
+      out.push(
+        makeAssistantMessage(
+          [{ type: 'text', text: appendEntityRefsForModel(msg.content || '', msg.entityRefs) }],
+          'stop',
+          options?.modelInfo
+        )
+      )
     }
   }
 

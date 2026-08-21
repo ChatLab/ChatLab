@@ -292,7 +292,17 @@ export type {
   FormatMessageOptions,
 } from './ai'
 
-export type { AIChat, AIMessage, AIMessageRole, ContentBlock, TokenUsageData, AIChatManagerLogger } from './ai'
+export type {
+  AIChat,
+  AIChatKind,
+  AIEntityRef,
+  AIHistoryMessage,
+  AIMessage,
+  AIMessageRole,
+  ContentBlock,
+  TokenUsageData,
+  AIChatManagerLogger,
+} from './ai'
 
 // Agent Core
 export type { AgentCoreOptions, AgentCoreEvent, AgentCoreResult, AgentTokenUsage, SimpleHistoryMessage } from './ai'

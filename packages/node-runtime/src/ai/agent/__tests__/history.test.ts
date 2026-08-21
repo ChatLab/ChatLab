@@ -49,6 +49,26 @@ describe('toPiHistoryMessages — legacy plain history', () => {
     assert.deepEqual(out[0].content, [{ type: 'text', text: 'compressed context' }])
   })
 
+  it('replays stable entity references next to their originating message', () => {
+    const out = toPiHistoryMessages([
+      {
+        role: 'user',
+        content: 'compare them',
+        entityRefs: [{ type: 'contact', contactKey: 'qq:10001', displayName: 'Alice' }],
+      },
+    ])
+    assert.equal(out[0]?.role, 'user')
+    if (out[0]?.role !== 'user') return
+    assert.ok(Array.isArray(out[0].content))
+    if (!Array.isArray(out[0].content)) return
+    const text = out[0].content[0]
+    assert.equal(typeof text, 'object')
+    if (!text || typeof text !== 'object') return
+    assert.equal(text?.type, 'text')
+    assert.ok(text?.type === 'text' && text.text.startsWith('compare them\n\n<chatlab_entity_refs>'))
+    assert.ok(text?.type === 'text' && text.text.includes('"contactKey":"qq:10001"'))
+  })
+
   it('falls back to plain text when tool blocks lack persisted toolCallId/result (legacy rows)', () => {
     const history: SimpleHistoryMessage[] = [
       {
