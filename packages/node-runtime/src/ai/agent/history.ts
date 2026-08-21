@@ -155,7 +155,12 @@ export function toPiHistoryMessages(messages: SimpleHistoryMessage[], options?: 
     } else {
       out.push(
         makeAssistantMessage(
-          [{ type: 'text', text: appendEntityRefsForModel(msg.content || '', msg.entityRefs) }],
+          [
+            {
+              type: 'text',
+              text: appendEntityRefsForModel(msg.content || '', msg.role === 'summary' ? msg.entityRefs : undefined),
+            },
+          ],
           'stop',
           options?.modelInfo
         )

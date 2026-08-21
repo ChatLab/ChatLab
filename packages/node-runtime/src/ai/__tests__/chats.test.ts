@@ -396,10 +396,33 @@ describe('AIChatManager global chats and entity references', () => {
         undefined,
         entityRefs
       )
-      manager.addMessage(globalChat.id, 'assistant', 'I will compare them.')
+      const assistantMessage = manager.addMessage(
+        globalChat.id,
+        'assistant',
+        'I will compare them.',
+        undefined,
+        undefined,
+        undefined,
+        undefined,
+        entityRefs
+      )
 
       assert.deepEqual(manager.getMessages(globalChat.id)[0]?.entityRefs, entityRefs)
       assert.deepEqual(manager.getHistoryForAgent(globalChat.id)[0]?.entityRefs, entityRefs)
+      assert.equal(assistantMessage.entityRefs, undefined)
+      assert.equal(manager.getMessages(globalChat.id)[1]?.entityRefs, undefined)
+      assert.equal(manager.getHistoryForAgent(globalChat.id)[1]?.entityRefs, undefined)
+
+      const insertedAssistant = manager.insertMessageAfter(
+        globalChat.id,
+        userMessage.id,
+        'assistant',
+        'Updated comparison',
+        undefined,
+        undefined,
+        entityRefs
+      )
+      assert.equal(insertedAssistant.entityRefs, undefined)
 
       const fork = manager.forkAIChat(globalChat.id, userMessage.id)
       assert.equal(fork.kind, 'global')

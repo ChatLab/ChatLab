@@ -665,12 +665,35 @@ export class AIChatManager {
     tokenUsage?: TokenUsageData,
     entityRefs?: AIEntityRef[]
   ): AIMessage {
+    return this.addMessageWithEntityRefs(
+      aiChatId,
+      role,
+      content,
+      dataKeywords,
+      dataMessageCount,
+      contentBlocks,
+      tokenUsage,
+      role === 'user' ? entityRefs : undefined
+    )
+  }
+
+  private addMessageWithEntityRefs(
+    aiChatId: string,
+    role: AIMessageRole,
+    content: string,
+    dataKeywords?: string[],
+    dataMessageCount?: number,
+    contentBlocks?: ContentBlock[],
+    tokenUsage?: TokenUsageData,
+    entityRefs?: AIEntityRef[]
+  ): AIMessage {
     const db = this.getDb()
     const now = Math.floor(Date.now() / 1000)
     const id = this.generateId('msg')
     const parentId = this.getActiveMessageId(aiChatId)
     const siblingGroupId = id
     const branchIndex = 0
+    const persistedEntityRefs = entityRefs?.length ? entityRefs : undefined
 
     const pendingDebug = role === 'assistant' ? this.pendingDebugContextMap.get(aiChatId) : undefined
     if (pendingDebug) {
@@ -697,7 +720,7 @@ export class AIChatManager {
       parentId,
       siblingGroupId,
       branchIndex,
-      entityRefs?.length ? JSON.stringify(entityRefs) : null
+      persistedEntityRefs?.length ? JSON.stringify(persistedEntityRefs) : null
     )
 
     db.prepare('UPDATE ai_chat SET active_message_id = ?, updated_at = ? WHERE id = ?').run(id, now, aiChatId)
@@ -713,7 +736,7 @@ export class AIChatManager {
       dataMessageCount,
       contentBlocks,
       tokenUsage,
-      entityRefs: entityRefs?.length ? entityRefs : undefined,
+      entityRefs: persistedEntityRefs?.length ? persistedEntityRefs : undefined,
     }
   }
 
@@ -798,7 +821,7 @@ export class AIChatManager {
         row.tokenUsage,
         newParentId,
         newMsgId,
-        row.entityRefs
+        row.role === 'user' || row.role === 'summary' ? row.entityRefs : null
       )
       lastNewId = newMsgId
     }
@@ -863,6 +886,7 @@ export class AIChatManager {
     const db = this.getDb()
     const now = Math.floor(Date.now() / 1000)
     const id = this.generateId('msg')
+    const persistedEntityRefs = role === 'user' ? entityRefs : undefined
 
     const pendingDebug = role === 'assistant' ? this.pendingDebugContextMap.get(aiChatId) : undefined
     if (pendingDebug) {
@@ -890,7 +914,7 @@ export class AIChatManager {
       pendingDebug ?? null,
       afterMessageId,
       id,
-      entityRefs?.length ? JSON.stringify(entityRefs) : null
+      persistedEntityRefs?.length ? JSON.stringify(persistedEntityRefs) : null
     )
 
     if (childRow) {
@@ -909,7 +933,7 @@ export class AIChatManager {
       parentId: afterMessageId,
       contentBlocks,
       tokenUsage,
-      entityRefs: entityRefs?.length ? entityRefs : undefined,
+      entityRefs: persistedEntityRefs?.length ? persistedEntityRefs : undefined,
     }
   }
 
@@ -1000,7 +1024,7 @@ export class AIChatManager {
           role: m.role,
           content: m.content,
           contentBlocks: m.contentBlocks,
-          entityRefs: m.entityRefs,
+          entityRefs: m.role === 'user' ? m.entityRefs : undefined,
         })),
       ]
     } else {
@@ -1008,7 +1032,7 @@ export class AIChatManager {
         role: m.role,
         content: m.content,
         contentBlocks: m.contentBlocks,
-        entityRefs: m.entityRefs,
+        entityRefs: m.role === 'user' ? m.entityRefs : undefined,
       }))
     }
 
@@ -1039,7 +1063,16 @@ export class AIChatManager {
       },
     ]
 
-    return this.addMessage(aiChatId, 'summary', content, undefined, undefined, contentBlocks, undefined, entityRefs)
+    return this.addMessageWithEntityRefs(
+      aiChatId,
+      'summary',
+      content,
+      undefined,
+      undefined,
+      contentBlocks,
+      undefined,
+      entityRefs
+    )
   }
 
   getLatestSummary(aiChatId: string): AIMessage | null {
@@ -1086,7 +1119,7 @@ export class AIChatManager {
       content: row.content,
       timestamp: row.timestamp,
       contentBlocks: row.contentBlocks ? JSON.parse(row.contentBlocks) : undefined,
-      entityRefs: row.entityRefs ? JSON.parse(row.entityRefs) : undefined,
+      entityRefs: row.role === 'user' && row.entityRefs ? JSON.parse(row.entityRefs) : undefined,
     }
   }
 
